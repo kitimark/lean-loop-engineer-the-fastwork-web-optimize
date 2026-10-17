@@ -1170,6 +1170,18 @@
     "css-decisions"
    ],
    "owner": "user"
+  },
+  {
+   "id": "sim-speed",
+   "title": "Why the webkit-sim CI lane boots and connects to the Simulator slowly; faster options measured on ci/sim-speed, reviewed (user request)",
+   "stream": "ci",
+   "milestone": "M1",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/sim-speed.yml",
+    "research/notes/2026/10-17-sim-speed.md"
+   ]
   }
  ]
 }
