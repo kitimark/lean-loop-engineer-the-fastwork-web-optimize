@@ -5,3 +5,6 @@ export function fwcorePath(dir: string | null): string | null;
 export function ask(bin: string | null, req: Record<string, unknown>): { decision: string; reason: string | null; [k: string]: unknown } | null;
 export function kinds(req: unknown, reply: Record<string, unknown> | null): { role: string | null; want_kind: string | null; got_kind: string | null; has_name: boolean; isolation: boolean; depth: number };
 export function record(p: Record<string, unknown>, reply: { decision: string; reason: string | null } | null, now?: number): Record<string, unknown>;
+export function modeOf(dir: string | null, env?: Record<string, string | undefined>): "enforce" | "shadow" | "off";
+export function message(req: { role: string }, reply: { decision: string; reason: string | null; [k: string]: unknown }): string;
+export function verdict(mode: string, req: { role: string }, reply: { decision: string; reason: string | null; [k: string]: unknown } | null): { hookSpecificOutput: { hookEventName: string; permissionDecision: string; permissionDecisionReason: string } } | null;

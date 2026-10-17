@@ -408,7 +408,8 @@
    "writes": [
     ".claude/settings.json",
     "apps/runner/hooks/spawn-guard.mjs"
-   ]
+   ],
+   "evidence": "94b8a97"
   },
   {
    "id": "verdict-to-lean",

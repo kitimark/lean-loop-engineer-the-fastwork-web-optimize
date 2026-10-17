@@ -124,6 +124,17 @@ $$\kappa(q) = \begin{cases} \mathrm{worktree} & q.\mathit{iso} \\ \mathrm{teamma
 def effKind (q : Req) : Kind :=
   if q.isolation then .worktree else if q.depth = 0 ∧ q.name ≠ "" then .teammate else .subagent
 
+/-- The kind a call produces satisfies the kind its role wants: the same kind, or a worktree
+(the most isolated kind: the agent works in its own checkout, so a worktree run is never less
+safe than a teammate or subagent run of the same role). The one risky direction is a worktree
+role that would not get a worktree (the trap, I-272).
+
+$$\mathrm{ok}(w, g) \iff g = w \lor g = \mathrm{worktree}$$
+-/
+def okKind (want got : Kind) : Prop := got = want ∨ got = .worktree
+
+instance (w g : Kind) : Decidable (okKind w g) := by unfold okKind; infer_instance
+
 /-- The agent a spawn would add.
 
 $$\nu(q) = (q.\mathit{name},\ q.\mathit{role},\ \kappa(q),\ q.\mathit{spawner})$$
@@ -199,12 +210,12 @@ def capFail (c : Caps) (after : List Agent) : Option Reason :=
   else if countSub after > c.subagents then some .capSubagents
   else (overRole c.perRole after).map .capRole
 
-/-- The checks once the role $\rho$ is known, in order: kind, nesting, rate, caps.
+/-- The checks once the role $\rho$ is known, in order: kind (`okKind`), nesting, rate, caps.
 
-$$\mathrm{roleCheck}(i, \rho) = \begin{cases} \mathrm{kindMismatch}(\rho.\mathit{runsAs}, \kappa(q)) & \kappa(q) \ne \rho.\mathit{runsAs} \\ \mathrm{nestedEditor} & \kappa(q) = \rho.\mathit{runsAs} \land q.d \ge 1 \land \rho.\mathit{edits} \\ \mathrm{rateLimited} & \kappa(q) = \rho.\mathit{runsAs} \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) \ge n \\ \mathrm{capFail}(C, \nu(q) :: A) & \kappa(q) = \rho.\mathit{runsAs} \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) < n \end{cases}$$
+$$\mathrm{roleCheck}(i, \rho) = \begin{cases} \mathrm{kindMismatch}(\rho.\mathit{runsAs}, \kappa(q)) & \lnot\mathrm{ok}(\rho.\mathit{runsAs}, \kappa(q)) \\ \mathrm{nestedEditor} & \mathrm{ok}(\rho.\mathit{runsAs}, \kappa(q)) \land q.d \ge 1 \land \rho.\mathit{edits} \\ \mathrm{rateLimited} & \mathrm{ok}(\rho.\mathit{runsAs}, \kappa(q)) \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) \ge n \\ \mathrm{capFail}(C, \nu(q) :: A) & \mathrm{ok}(\rho.\mathit{runsAs}, \kappa(q)) \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) < n \end{cases}$$
 -/
 def roleCheck (i : Input) (r : Role) : Option Reason :=
-  if effKind i.req ≠ r.runsAs then some (.kindMismatch r.runsAs (effKind i.req))
+  if ¬ okKind r.runsAs (effKind i.req) then some (.kindMismatch r.runsAs (effKind i.req))
   else if i.req.depth ≥ 1 ∧ r.edits = true then some .nestedEditor
   else if recentCount i ≥ i.caps.spawnsPerWindow then some .rateLimited
   else capFail i.caps (newAgent i.req :: i.alive)
@@ -290,11 +301,11 @@ theorem capFail_none (c : Caps) (as : List Agent) : capFail c as = none ↔ With
 $\rho$ of the right kind, no nested editor, room in the rate window, and the caps hold after the
 spawn.
 
-$$\forall i:\quad \mathrm{check}(i) = \bot \iff \big(q.\mathit{name} = \texttt{""} \Rightarrow \mathrm{excused}(i)\big) \land \lnot\mathrm{taken}(i) \land \exists \rho:\ \mathrm{role}(i) = \rho \land \kappa(q) = \rho.\mathit{runsAs} \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) < n \land \mathrm{Within}(C, \nu(q) :: A)$$
+$$\forall i:\quad \mathrm{check}(i) = \bot \iff \big(q.\mathit{name} = \texttt{""} \Rightarrow \mathrm{excused}(i)\big) \land \lnot\mathrm{taken}(i) \land \exists \rho:\ \mathrm{role}(i) = \rho \land \mathrm{ok}(\rho.\mathit{runsAs}, \kappa(q)) \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) < n \land \mathrm{Within}(C, \nu(q) :: A)$$
 -/
 theorem check_none (i : Input) : check i = none ↔
     (i.req.name = "" → excused i = true) ∧ taken i = false ∧
-    ∃ r, roleOf i = some r ∧ effKind i.req = r.runsAs ∧ ¬(i.req.depth ≥ 1 ∧ r.edits = true) ∧
+    ∃ r, roleOf i = some r ∧ okKind r.runsAs (effKind i.req) ∧ ¬(i.req.depth ≥ 1 ∧ r.edits = true) ∧
       recentCount i < i.caps.spawnsPerWindow ∧ Within i.caps (newAgent i.req :: i.alive) := by
   unfold check
   by_cases h1 : i.req.name = "" ∧ excused i = false
@@ -318,7 +329,7 @@ theorem check_none (i : Input) : check i = none ↔
       | some r =>
         simp only [roleCheck, Option.some.injEq, exists_eq_left', h2', true_and]
         rw [← capFail_none]
-        by_cases k : effKind i.req = r.runsAs
+        by_cases k : okKind r.runsAs (effKind i.req)
         · rw [ite_eq_right (fun h => h k)]
           by_cases n : i.req.depth ≥ 1 ∧ r.edits = true
           · rw [ite_eq_left n]; simp [n]
@@ -391,7 +402,9 @@ theorem trap_worktree_role_as_teammate (i : Input) (ρ : Role) (hr : roleOf i = 
   · rfl
   · obtain ⟨_, _, r', hr', hk', _⟩ := (check_none i).mp ((accepted_iff i).mp h)
     rw [hr] at hr'; cases hr'
-    exact absurd (hk'.trans hw) hk
+    rcases hk' with h | h
+    · exact (hk (h.trans hw)).elim
+    · exact (hk h).elim
 
 /-- The trap's exact verdict: a named call from the lead with a free name, for a worktree role,
 without `isolation`, is denied as a kind mismatch (wanted worktree, would get teammate).
@@ -402,21 +415,8 @@ theorem trap_exact (i : Input) (ρ : Role) (hr : roleOf i = some ρ) (hw : ρ.ru
     (hiso : i.req.isolation = false) (hn : i.req.name ≠ "") (hd : i.req.depth = 0)
     (hfree : taken i = false) : decide i = .deny (.kindMismatch .worktree .teammate) := by
   have hk : effKind i.req = .teammate := by simp [effKind, hiso, hd, hn]
-  simp [decide, check, hr, hw, hk, hn, hfree, roleCheck]
-
-/-- A teammate spawn that asks for worktree isolation is never accepted: the call would run as a
-worktree subagent, not as the teammate its role names.
-
-$$\forall i, \rho:\quad \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{teammate} \land q.\mathit{iso} \Rightarrow \lnot\,\mathrm{accepted}(\mathrm{decide}(i))$$
--/
-theorem teammate_with_isolation_denied (i : Input) (ρ : Role) (hr : roleOf i = some ρ)
-    (ht : ρ.runsAs = .teammate) (hiso : i.req.isolation = true) : (decide i).accepted = false := by
-  have hk : effKind i.req = .worktree := by simp [effKind, hiso]
-  cases h : (decide i).accepted
-  · rfl
-  · obtain ⟨_, _, r', hr', hk', _⟩ := (check_none i).mp ((accepted_iff i).mp h)
-    rw [hr] at hr'; cases hr'
-    rw [hk, ht] at hk'; cases hk'
+  have hno : ¬ okKind Kind.worktree Kind.teammate := by simp [okKind]
+  simp [decide, check, hr, hw, hk, hn, hfree, roleCheck, hno]
 
 /-- An `ask` model (fable) is never plainly allowed.
 
@@ -460,12 +460,12 @@ def wantKind (i : Input) : Option Kind := (roleOf i).map (·.runsAs)
 
 /-- A `kindMismatch` denial carries the wanted kind of the role and the kind the call produces.
 
-$$\forall i, w, g:\quad \operatorname{check}(i) = \mathrm{some}(\mathrm{kindMismatch}(w, g)) \implies \operatorname{wantKind}(i) = \mathrm{some}(w) \land g = \kappa(i.\mathit{req}) \land w \ne g$$
+$$\forall i, w, g:\quad \operatorname{check}(i) = \mathrm{some}(\mathrm{kindMismatch}(w, g)) \implies \operatorname{wantKind}(i) = \mathrm{some}(w) \land g = \kappa(i.\mathit{req}) \land w \ne g \land \lnot\mathrm{ok}(w, g)$$
 
 A mismatch reason always names the role's kind and the call's kind, and they differ.
 -/
 theorem kindMismatch_fields (i : Input) (w g : Kind) (h : check i = some (.kindMismatch w g)) :
-    wantKind i = some w ∧ g = effKind i.req ∧ w ≠ g := by
+    wantKind i = some w ∧ g = effKind i.req ∧ w ≠ g ∧ ¬ okKind w g := by
   unfold check at h
   split at h
   · cases h
@@ -479,7 +479,7 @@ theorem kindMismatch_fields (i : Input) (w g : Kind) (h : check i = some (.kindM
   · rename_i hne
     simp only [Option.some.injEq, Reason.kindMismatch.injEq] at h
     obtain ⟨rfl, rfl⟩ := h
-    exact ⟨by simp [wantKind, hr], rfl, fun he => hne he.symm⟩
+    exact ⟨by simp [wantKind, hr], rfl, fun he => hne (Or.inl he.symm), hne⟩
   split at h
   · cases h
   split at h
@@ -492,6 +492,137 @@ theorem kindMismatch_fields (i : Input) (w g : Kind) (h : check i = some (.kindM
   split at h
   · cases h
   cases ho : overRole i.caps.perRole (newAgent i.req :: i.alive) <;> simp [ho] at h
+
+/-- A call that asks for worktree isolation is never refused as a kind mismatch: it runs as a
+worktree subagent, the most isolated kind, so it is never less safe than the kind its role names.
+The old rule denied a teammate role such as `researcher` with `isolation`; that was a false
+positive (8 legitimate spawns in the shadow log, 9 with the general-purpose one).
+
+$$\forall i, w, g:\quad q.\mathit{iso} \Rightarrow \mathrm{check}(i) \ne \mathrm{some}\big(\mathrm{kindMismatch}(w, g)\big)$$
+-/
+theorem isolation_not_mismatch (i : Input) (hiso : i.req.isolation = true) (w g : Kind) :
+    check i ≠ some (.kindMismatch w g) := by
+  intro h
+  obtain ⟨_, hg, _, hno⟩ := kindMismatch_fields i w g h
+  have hk : effKind i.req = .worktree := by simp [effKind, hiso]
+  exact hno (Or.inr (hg.trans hk))
+
+/-! ## Enforce mode: the roster, the allowed classes, named reasons -/
+
+/-- The production roster the hook sends (`ROLES` in `apps/runner/hooks/spawn-guard.mjs`, INFERRED from
+`.claude/agents`), plus two helper roles the shadow log showed without a row: the built-in `fork`
+and `workflow-subagent`, both read-only subagents.
+
+$$P = [(\texttt{lean-prover}, \mathrm{worktree}, \top), \dots, (\texttt{fork}, \mathrm{subagent}, \bot), (\texttt{workflow-subagent}, \mathrm{subagent}, \bot)]$$
+-/
+def prodRoles : List Role :=
+  [⟨"lean-prover", .worktree, true⟩, ⟨"console-builder", .worktree, true⟩, ⟨"measure-engineer", .worktree, true⟩,
+   ⟨"part-builder", .worktree, true⟩, ⟨"env-ops", .worktree, true⟩, ⟨"page-writer", .worktree, true⟩,
+   ⟨"researcher", .teammate, true⟩, ⟨"plan-editor", .teammate, true⟩,
+   ⟨"reviewer", .subagent, false⟩, ⟨"math-reviewer", .subagent, false⟩, ⟨"checker", .subagent, false⟩,
+   ⟨"scout", .subagent, false⟩, ⟨"runner", .subagent, false⟩, ⟨"patcher", .subagent, true⟩,
+   ⟨"Explore", .subagent, false⟩, ⟨"Plan", .subagent, false⟩, ⟨"general-purpose", .subagent, true⟩,
+   ⟨"fork", .subagent, false⟩, ⟨"workflow-subagent", .subagent, false⟩]
+
+/-- Roles whose shadow-log refusals were false positives when the lead spawned them with worktree
+isolation (class A: 9 spawns, `kindMismatch` for a teammate or subagent role given a worktree).
+
+$$I = \{\texttt{plan-editor}, \texttt{researcher}, \texttt{general-purpose}\}$$
+-/
+def isoRoles : List String := ["plan-editor", "researcher", "general-purpose"]
+
+/-- Read-only helper roles that are spawned unnamed, or nested under another agent (class B: the
+shadow log's `unnamed` refusal of a `fork`; also workflow agents and lead helpers without a task).
+
+$$H = \{\texttt{fork}, \texttt{workflow-subagent}, \texttt{checker}, \texttt{scout}, \texttt{runner}, \texttt{reviewer}, \texttt{math-reviewer}, \texttt{Explore}, \texttt{Plan}\}$$
+-/
+def helperRoles : List String :=
+  ["fork", "workflow-subagent", "checker", "scout", "runner", "reviewer", "math-reviewer", "Explore", "Plan"]
+
+/-- Class A: a named lead call with worktree isolation for a role not meant for a worktree.
+
+$$A(q) \iff q.\mathit{iso} \land q.d = 0 \land q.\mathit{name} \ne \texttt{""} \land q.\mathit{role} \in \{\texttt{plan-editor}, \texttt{researcher}, \texttt{general-purpose}\}$$
+-/
+def ClassA (q : Req) : Prop :=
+  q.isolation = true ∧ q.depth = 0 ∧ q.name ≠ "" ∧ q.role ∈ isoRoles
+
+/-- Class B: an unnamed call, without isolation, for a read-only helper role (the task is not part of
+the request, so a helper whose task is defined later, or has none, is in this class).
+
+$$B(q) \iff \lnot q.\mathit{iso} \land q.\mathit{name} = \texttt{""} \land q.\mathit{role} \in H$$
+-/
+def ClassB (q : Req) : Prop :=
+  q.isolation = false ∧ q.name = "" ∧ q.role ∈ helperRoles
+
+/-- Every class-A role has a row in the production roster.
+
+$$\forall n \in I:\ \exists \rho \in P:\ \rho.\mathit{name} = n$$
+-/
+theorem isoRoles_found : ∀ n ∈ isoRoles, (prodRoles.find? (·.name == n)).isSome = true := by decide
+
+/-- Every class-B role has a row that is a read-only subagent.
+
+$$\forall n \in H:\ \exists \rho \in P:\ \rho.\mathit{name} = n \land \rho.\mathit{runsAs} = \mathrm{subagent} \land \lnot\rho.\mathit{edits}$$
+-/
+theorem helperRoles_ro : ∀ n ∈ helperRoles,
+    (prodRoles.find? (·.name == n)).map (fun r => r.runsAs == .subagent && !r.edits) = some true := by decide
+
+/-- Every false-positive class of the shadow log is allowed: a request in class A or B, against the
+production roster, with a free name, room in the rate window and the caps, and no `ask` model, is
+`allow` (so never refused). A task defined after the spawn needs no case: `Input` carries no task, so
+no check can read one.
+
+$$\forall i:\ P_i = P \land u \land \lnot\mathrm{taken}(i) \land \mathrm{recent}(i) < n \land \mathrm{Within}(C, \nu(q) :: A) \land \lnot\mathrm{ask}(C, q) \land \big(A(q) \lor B(q)\big) \Rightarrow \mathrm{decide}(i) = \mathrm{allow}$$
+-/
+theorem fp_classes_allowed (i : Input) (hr : i.roles = prodRoles) (hu : i.caps.unnamedReadOnly = true)
+    (hfree : taken i = false) (hrate : recentCount i < i.caps.spawnsPerWindow)
+    (hcap : Within i.caps (newAgent i.req :: i.alive)) (hask : isAsk i.caps i.req = false)
+    (hcls : ClassA i.req ∨ ClassB i.req) : decide i = .allow := by
+  have hnone : check i = none := by
+    rw [check_none]
+    rcases hcls with ⟨hiso, hd, hn, hm⟩ | ⟨hiso, hn, hm⟩
+    · have := isoRoles_found _ hm
+      obtain ⟨r, hrr⟩ := Option.isSome_iff_exists.mp this
+      have hro : roleOf i = some r := by simp only [roleOf, hr]; exact hrr
+      have hk : effKind i.req = .worktree := by simp [effKind, hiso]
+      refine ⟨fun h => absurd h hn, hfree, r, hro, Or.inr hk, ?_, hrate, hcap⟩
+      omega
+    · have := helperRoles_ro _ hm
+      obtain ⟨r, hrr, hrb⟩ := Option.map_eq_some_iff.mp this
+      have hro : roleOf i = some r := by simp only [roleOf, hr]; exact hrr
+      have hrb' : r.runsAs = .subagent ∧ r.edits = false := by simpa using hrb
+      have hk : effKind i.req = .subagent := by simp [effKind, hiso, hn]
+      refine ⟨fun _ => ?_, hfree, r, hro, Or.inl (hk.trans hrb'.1.symm), ?_, hrate, hcap⟩
+      · simp [excused, hu, hro, hrb']
+      · simp [hrb'.2]
+  exact (ask_needs_approval i hnone).2.mpr hask
+
+/-- The wire name of a reason (the `reason` field of the reply, as in `Fw.Ops.Wire.reasonFields`).
+
+$$\mathrm{code}(\mathrm{unnamed}) = \texttt{"unnamed"},\ \dots,\ \mathrm{code}(\mathrm{capRole}(r)) = \texttt{"capRole"}$$
+-/
+def Reason.code : Reason → String
+  | .unnamed => "unnamed" | .nameInUse => "nameInUse" | .unknownRole => "unknownRole"
+  | .kindMismatch .. => "kindMismatch" | .nestedEditor => "nestedEditor" | .rateLimited => "rateLimited"
+  | .capTeammates => "capTeammates" | .capWorktrees => "capWorktrees" | .capSubagents => "capSubagents"
+  | .capRole _ => "capRole"
+
+/-- A refused spawn always names its reason: a denial is the first failing check, and every reason has a
+non-empty wire name (so the hook always has a message to give).
+
+$$\forall i, r:\quad \mathrm{decide}(i) = \mathrm{deny}(r) \Rightarrow \mathrm{check}(i) = \mathrm{some}(r) \land \mathrm{code}(r) \ne \texttt{""}$$
+-/
+theorem deny_names_reason (i : Input) (r : Reason) (h : decide i = .deny r) :
+    check i = some r ∧ r.code ≠ "" := by
+  unfold decide at h
+  cases hc : check i with
+  | none => rw [hc] at h; simp at h; split at h <;> cases h
+  | some r' =>
+    rw [hc] at h
+    simp only [Decision.deny.injEq] at h
+    subst h
+    refine ⟨rfl, ?_⟩
+    cases r' <;> simp [Reason.code]
 
 /-! ## Examples -/
 
@@ -512,8 +643,7 @@ def exInput (alive : List Agent) (recent : List (String × Nat)) (q : Req) : Inp
 #guard decide (exInput [] [] ⟨"lean-ops", "lean-prover", true, "", "lead", 0⟩) == .allow
 #guard decide (exInput [] [] ⟨"lean-ops", "lean-prover", false, "", "lead", 0⟩) ==
   .deny (.kindMismatch .worktree .teammate)
-#guard decide (exInput [] [] ⟨"r1", "researcher", true, "", "lead", 0⟩) ==
-  .deny (.kindMismatch .teammate .worktree)
+#guard decide (exInput [] [] ⟨"r1", "researcher", true, "", "lead", 0⟩) == .allow
 #guard decide (exInput [] [] ⟨"r1", "researcher", false, "", "lead", 0⟩) == .allow
 #guard decide (exInput [] [] ⟨"lean-x", "lean-prover", true, "claude-fable-5-1", "lead", 0⟩) == .needsApproval
 #guard decide (exInput [] [] ⟨"lean-x", "lean-prover", true, "Claude-FABLE", "lead", 0⟩) == .needsApproval
@@ -540,5 +670,13 @@ def exInput (alive : List Agent) (recent : List (String × Nat)) (q : Req) : Inp
   .deny .rateLimited
 #guard decide (exInput [] ((List.range 10).map fun _ => ("lead", 400)) ⟨"x", "lean-prover", true, "", "lead", 0⟩) ==
   .allow
+
+-- shadow-log false positives, on the production roster
+#guard decide { exInput [] [] ⟨"plan-rev11", "plan-editor", true, "", "lead", 0⟩ with roles := prodRoles } == .allow
+#guard decide { exInput [] [] ⟨"math-final", "general-purpose", true, "", "lead", 0⟩ with roles := prodRoles } == .allow
+#guard decide { exInput [] [] ⟨"", "fork", false, "", "lean-prover", 1⟩ with roles := prodRoles, caps := { unnamedReadOnly := true } } == .allow
+-- the real mis-spawn stays refused
+#guard decide { exInput [] [] ⟨"port-x", "part-builder", false, "", "lead", 0⟩ with roles := prodRoles } ==
+  .deny (.kindMismatch .worktree .teammate)
 
 end Fw.Ops.SpawnGuard
