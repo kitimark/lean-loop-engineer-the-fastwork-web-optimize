@@ -24,3 +24,11 @@ port-nav, port-commission, port-overlays. One merge commit each. CI run ids are 
 - Not kept: nothing dropped. `scripts/mathview-cached.sh` does not exist in this tree; used `lake exe mathview` (0 errors, all `sorryFree`).
 - Read first: `page.mjs prepareInPage`, then the `prepare` keys in anchors.json.
 - CI: the first push of ci/integrate-ports raised a ref-lock error and started no run; a second push triggered it.
+
+## Later merges and gate fixes
+- Also merged: port-commission, port-overlays, port-hero, port-people. App.tsx keeps `<Hero/>` then the morph.countdown stand-in, `<People variants/>`.
+- Gate fix 1 (`src/declared.mjs`): phase 0 takes the UNION of property scans across one 3050 ms timer period; merge-gate "header differs"
+  (WebKit run 39057342983) was hero.accent's declared set depending on the scan instant. Test: `test/declared.test.mjs`.
+- Gate fix 2 (`page.mjs waitReady`): awaits every finite animation/transition, repeated until a quiet pass, on both arms; the settle result
+  has `animations: {waitedMs, awaited, passes, left}`. No tolerance. Test: `test/settle.test.mjs`.
+- `scope.test.mjs` now accepts height-axis knees (people.deck 823/900).
