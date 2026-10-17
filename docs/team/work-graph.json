@@ -1420,7 +1420,8 @@
    "writes": [
     "packages/measure-chromium/classes.frozen.json",
     "packages/measure-chromium/README.md"
-   ]
+   ],
+   "evidence": "82e8934 merge; touch R 50/1/0, A 23/32/15; ccb83a5"
   },
   {
    "id": "touch-race",
@@ -1564,6 +1565,16 @@
    "writes": [
     "docs/report/v2-report.md"
    ]
+  },
+  {
+   "id": "freeze-refuse",
+   "title": "measure.freeze (and classify input) refuse runs whose jobs differ in frame count or trajectory; a 403-frame job hid a harness fault (refreeze)",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "refreeze"
+   ],
+   "owner": "lean-prover"
   }
  ]
 }
