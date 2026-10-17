@@ -160,10 +160,10 @@ def inMs : Nat := 180
 /-- Close animation in ms (CSS 11207). $$140$$ (equal to the timer, so the unmount follows the last frame). -/
 def outMs : Nat := 140
 
-/-- The open animation's curve, `cubic-bezier(0.22, 1, 0.36, 1)` (CSS 11182). -/
+/-- The open animation's curve, `cubic-bezier(0.22, 1, 0.36, 1)` (CSS 11182). $$(x_1, y_1, x_2, y_2) = (0.22, 1, 0.36, 1)$$ -/
 def easeIn : Bezier := ⟨11 / 50, 1, 9 / 25, 1⟩
 
-/-- The close animation's curve, `cubic-bezier(0.4, 0, 0.2, 1)` (CSS 11207). -/
+/-- The close animation's curve, `cubic-bezier(0.4, 0, 0.2, 1)` (CSS 11207). $$(x_1, y_1, x_2, y_2) = (0.4, 0, 0.2, 1)$$ -/
 def easeOutCurve : Bezier := easeStd
 
 /-- A menu pose. $$(\text{opacity},\ \text{translateY px},\ \text{scale})$$ -/

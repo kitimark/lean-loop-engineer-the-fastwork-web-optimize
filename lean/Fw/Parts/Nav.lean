@@ -78,7 +78,8 @@ True when there is no hero track, under reduced motion, or after 72 % of the tra
 def pastHero (present reduced : Bool) (top height vh : Rat) : Bool :=
   !present || reduced || decide (pastCut ≤ progress top height vh)
 
-/-- Measurements of the profile sticky item (JS 12921-12935); `top` is the parsed CSS `top`, `none` when not a finite number. -/
+/-- Measurements of the profile sticky item (JS 12921-12935); `top` is the parsed CSS `top`, `none` when not a finite number.
+$$s = (\mathit{present}, \mathit{sticky}, \mathit{sec}, r_{\mathrm{top}}, it_t, it_b, sec_b)$$ What the test reads. -/
 structure Sticky where
   present : Bool
   isSticky : Bool
@@ -280,9 +281,9 @@ def expand (heroPill : Bool) : Rat := if heroPill then 0 else 1
 
 /-- Nav width (CSS 11331-11334).
 
-$$W(m) = W_h + (W_p - W_h)\,e + (W_P - W_p)\,m$$
+$$W(m) = W_h + (W_p - W_h)\,e + (W_P - W_p)\,m,\quad W_h = W_p = \operatorname{pillW}$$
 
-with $W_h = W_p = \operatorname{pillW}$ (the two variables carry the same expression), so the expand factor drops out. -/
+The two variables carry the same expression, so the expand factor drops out. -/
 def navWidth (v : Vp) (heroPill : Bool) (m : Rat) : Rat :=
   pillW v + (pillW v - pillW v) * expand heroPill + (panelW v - pillW v) * m
 
@@ -449,13 +450,16 @@ So an eased transition begins at its start value and ends at its end value. -/
 theorem Bezier.ends (b : Bezier) : b.x 0 = 0 ∧ b.y 0 = 0 ∧ b.x 1 = 1 ∧ b.y 1 = 1 := by
   unfold Bezier.x Bezier.y; refine ⟨by grind, by grind, by grind, by grind⟩
 
-/-- `cubic-bezier(0.33, 0, 0.2, 1)`: width, background, gap, earn collapse, unmask and sheen (CSS 11353, 11358, 11441, 11487). -/
+/-- `cubic-bezier(0.33, 0, 0.2, 1)`: width, background, gap, earn collapse, unmask and sheen (CSS 11353, 11358, 11441, 11487).
+$$(x_1, y_1, x_2, y_2) = (0.33, 0, 0.2, 1)$$ -/
 def easeSettle : Bezier := ⟨33 / 100, 0, 1 / 5, 1⟩
 
-/-- `cubic-bezier(0.16, 1, 0.3, 1)`: opacity and transform of the nav (CSS 11349-11351, 11401). -/
+/-- `cubic-bezier(0.16, 1, 0.3, 1)`: opacity and transform of the nav (CSS 11349-11351, 11401).
+$$(x_1, y_1, x_2, y_2) = (0.16, 1, 0.3, 1)$$ -/
 def easeOut : Bezier := ⟨4 / 25, 1, 3 / 10, 1⟩
 
-/-- `cubic-bezier(0.4, 0, 0.2, 1)`: logo colour and language switch (CSS 11425, 11129). -/
+/-- `cubic-bezier(0.4, 0, 0.2, 1)`: logo colour and language switch (CSS 11425, 11129).
+$$(x_1, y_1, x_2, y_2) = (0.4, 0, 0.2, 1)$$ -/
 def easeStd : Bezier := ⟨2 / 5, 0, 1 / 5, 1⟩
 
 /-- Width transition in ms (CSS 11358). $$680$$ How long the pill takes to change width. -/
