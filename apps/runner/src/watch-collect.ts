@@ -843,3 +843,25 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
   if (stale) system.stale.push("plan");
   return { now, params, agents, lead: collectLead(p), system, prevAt: prev?.at ?? null, critical };
 }
+
+// ---- timing samples (timing-alert): the spans of .fw-console/timings.jsonl as the samples of `obs.slow` ----
+/** A `Fw.Obs.Timing.Sample` on the wire. */
+export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number }
+/** Spans in time order -> samples (the last `cap` ones: a bound on the input size, not a threshold; the verdict is Lean's).
+ *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average. */
+export function parseSamples(text: string, cap = 3000): TimingSample[] {
+  const rows: { at: number; s: TimingSample }[] = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const o = JSON.parse(line);
+      if (typeof o.tool !== "string" || typeof o.step !== "string" || !Number.isFinite(o.durMs) || o.durMs < 0 || (o.host !== "local" && o.host !== "ci")) continue;
+      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0 } });
+    } catch { /* partial line */ }
+  }
+  return rows.sort((a, b) => a.at - b.at).slice(-cap).map((r) => r.s);
+}
+/** The samples of the console's timings file (empty when there is none). */
+export function readSamples(p: Paths): TimingSample[] {
+  try { return parseSamples(readFileSync(join(p.consoleDir, "timings.jsonl"), "utf8")); } catch { return []; }
+}
