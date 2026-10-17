@@ -1,0 +1,13 @@
+import { spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
+import { readFileSync } from 'node:fs';
+const lines = readFileSync(process.argv[3], 'utf8').trim().split('\n').slice(0, 20000);
+const p = spawn(process.argv[2], [], { stdio: ['pipe', 'pipe', 'inherit'] });
+const rl = createInterface({ input: p.stdout }); const q = [];
+rl.on('line', (l) => q.shift()(l));
+const call = (l) => new Promise((res) => { q.push(res); p.stdin.write(l + '\n'); });
+const t0 = process.hrtime.bigint();
+for (const l of lines) await call(l);
+const dt = Number(process.hrtime.bigint() - t0) / 1e3 / lines.length;
+console.log(`node ${process.version}: ${lines.length} sequential round trips, ${dt.toFixed(1)} us each`);
+p.stdin.end();

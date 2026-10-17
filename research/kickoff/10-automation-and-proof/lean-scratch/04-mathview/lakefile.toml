@@ -1,0 +1,17 @@
+name = "mathview_scratch"
+version = "0.1.0"
+defaultTargets = ["mathview"]
+
+[leanOptions]
+autoImplicit = false
+
+[[lean_lib]]
+name = "Fw"
+
+[[lean_lib]]
+name = "MathView"
+
+[[lean_exe]]
+name = "mathview"
+root = "MathViewMain"
+supportInterpreter = true

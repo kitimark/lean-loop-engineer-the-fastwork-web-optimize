@@ -1,0 +1,4 @@
+# Neutral shared scratch workspace (no targets). Each note keeps its own Lake project in a subfolder
+# (03-inventory/, 04-mathview/, ...) so `lake build` there never touches another note's files.
+name = "scratch"
+version = "0.1.0"

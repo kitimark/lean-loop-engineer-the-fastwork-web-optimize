@@ -1,0 +1,13 @@
+name = "inventory_scratch"
+version = "0.1.0"
+defaultTargets = ["Auto", "autobench"]
+
+[leanOptions]
+autoImplicit = false
+
+[[lean_lib]]
+name = "Auto"
+
+[[lean_exe]]
+name = "autobench"
+root = "Bench"

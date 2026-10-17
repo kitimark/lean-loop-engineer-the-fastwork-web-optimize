@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec Math View</title>
+<meta name="description" content="Sample of the generated math view: Lean theorems from Fw/Spec shown as math, with plain-English readings, proof status and review state.">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+<style>
+:root {
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --surface-2: #f0eee8;
+  --text: #1d1d1b;
+  --muted: #5f5d57;
+  --border: #dcd9d0;
+  --accent: #2f5d8a;
+  --ok-bg: #e3f1e6; --ok-fg: #1f6b35;
+  --warn-bg: #fbefd5; --warn-fg: #7a5200;
+  --bad-bg: #f9e0de; --bad-fg: #8f2a22;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --surface: #1f1f1d; --surface-2: #2a2a27; --text: #ecebe6; --muted: #a8a69e;
+    --border: #3a3935; --accent: #8db8e3;
+    --ok-bg: #1d3524; --ok-fg: #8fd6a2; --warn-bg: #3a2f14; --warn-fg: #f0c766; --bad-bg: #3d1f1c; --bad-fg: #f2a59c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --surface: #1f1f1d; --surface-2: #2a2a27; --text: #ecebe6; --muted: #a8a69e;
+  --border: #3a3935; --accent: #8db8e3;
+  --ok-bg: #1d3524; --ok-fg: #8fd6a2; --warn-bg: #3a2f14; --warn-fg: #f0c766; --bad-bg: #3d1f1c; --bad-fg: #f2a59c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 16px/1.55 var(--sans); }
+main { max-width: 880px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 40px 0 12px; font-weight: 600; }
+p.lede { color: var(--muted); margin: 0 0 16px; max-width: 68ch; }
+.note { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.9rem; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 14px 0 0; font-size: 0.85rem; color: var(--muted); align-items: center; }
+.chip { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.chip.ok { background: var(--ok-bg); color: var(--ok-fg); }
+.chip.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.chip.bad { background: var(--bad-bg); color: var(--bad-fg); }
+.chip.kind { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+article { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin: 0 0 14px; }
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-bottom: 8px; }
+.name { font-family: var(--mono); font-size: 0.9rem; font-weight: 600; margin-right: auto; overflow-wrap: anywhere; }
+.english { font-size: 1.05rem; margin: 4px 0 10px; }
+.math { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+.math.display { font-size: 1.08rem; }
+.uses { border-top: 1px dashed var(--border); margin-top: 10px; padding-top: 8px; }
+.uses-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.uses .math { font-size: 0.95rem; }
+details { margin-top: 8px; }
+summary { cursor: pointer; font-size: 0.85rem; color: var(--accent); }
+pre { font-family: var(--mono); font-size: 0.82rem; background: var(--surface-2); border-radius: 6px; padding: 10px 12px; overflow-x: auto; margin: 8px 0 0; white-space: pre; }
+.foot { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; font-size: 0.78rem; color: var(--muted); font-family: var(--mono); }
+.foot a { color: var(--accent); }
+.math { scrollbar-width: thin; }
+.math .katex-display { margin: 0.5em 0; }
+/* KaTeX emits MathML only (output: 'mathml'), so no KaTeX CSS or fonts are loaded; the browser renders MathML Core natively. */
+.math math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; }
+@media (max-width: 560px) {
+  article { padding: 14px 14px; }
+  .math.display { font-size: 0.86rem; }
+  .math { font-size: 0.8rem; }
+  .uses .math { font-size: 0.78rem; }
+}
+.gloss { font-size: 0.85rem; color: var(--muted); margin: 4px 0 0; }
+code.tex-fallback { font-family: var(--mono); font-size: 0.85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Spec math view</h1>
+  <p class="lede">Each Lean theorem in <code>Fw/Spec</code> shown as a math statement with one plain-English line. The generator rebuilds this page on every build. A theorem without math, with a <em>sorry</em>, or whose Lean statement changed since its math was reviewed turns the build red.</p>
+  <div class="note">Sample: 5 of the 70 declarations. The curated math and English lines are hand-written for this sample. The Lean statements, the generated (mechanical) form, the axioms and the statement hashes are real output of the prototype exporter (<code>lake exe mathview</code>, Lean 4.35.0).</div>
+  <div class="legend">
+    <span><span class="chip ok">proved</span> no sorry; standard axioms only</span>
+    <span><span class="chip warn">not reviewed</span> math written, no back-translation check yet</span>
+    <span><span class="chip bad">stale</span> the Lean statement or a definition it uses changed after review</span>
+  </div>
+
+  <h2>Frames: frame-time units</h2>
+  <article>
+    <div class="head"><span class="name">Fw.Frames.tick_ge5_iff</span><span class="chip kind">theorem</span><span class="chip ok" title="axioms: propext, Quot.sound">proved</span><span class="chip warn">not reviewed</span></div>
+    <p class="english">A frame is at least 5 ticks long exactly when it lasts at least 37.5 ms.</p>
+    <div class="math display" data-tex="\forall\, dt \in \mathbb{N}:\quad \operatorname{tick}(dt) \ge 5 \iff dt \ge 37\,500"></div>
+    <div class="uses"><span class="uses-label">Uses</span>
+      <div class="math" data-tex="\operatorname{tick}(dt) = \left\lfloor \dfrac{240\,dt + 10^{6}}{2\cdot 10^{6}} \right\rfloor"></div>
+      <p class="gloss">dt is a frame length in whole microseconds; tick rounds it to the nearest 120 Hz tick (8.333 ms), halves rounded up.</p>
+    </div>
+    <details><summary>Lean statement</summary><pre>theorem tick_ge5_iff (dt : Nat) : 5 ≤ tick dt ↔ 37500 ≤ dt</pre></details>
+    <details><summary>Mechanical form (generated from the Lean term)</summary>
+      <div class="math" data-tex="\forall \mathrm{dt} \in \mathbb{N},\ (5 \le \mathrm{tick}(\mathrm{dt})) \iff (37500 \le \mathrm{dt})"></div>
+      <div class="math" data-tex="\forall \mathrm{dt} \in \mathbb{N},\ \mathrm{tick}(\mathrm{dt}) = \left\lfloor \frac{(\mathrm{dt} \cdot 240) + 1000000}{2000000} \right\rfloor"></div>
+    </details>
+    <div class="foot"><a href="../05-lean-sketch/Fw/Spec/Frames.lean">Fw/Spec/Frames.lean:16</a><span>stmtHash 17808547414382358929</span></div>
+  </article>
+
+  <h2>Verdict: the A/B decision rule</h2>
+  <article>
+    <div class="head"><span class="name">Fw.Verdict.better_sound</span><span class="chip kind">theorem</span><span class="chip ok" title="axioms: propext, Quot.sound">proved</span><span class="chip warn">not reviewed</span></div>
+    <p class="english">When lower is better, a "better" verdict means every variant run was strictly lower than every control run.</p>
+    <div class="math display" data-tex="\begin{aligned} &\operatorname{verdict}(\mathrm{lower}, C, V) = \mathrm{better} \\ \Longrightarrow\; &\forall y \in V,\ \forall x \in C:\ y < x \end{aligned}"></div>
+    <div class="uses"><span class="uses-label">Uses</span>
+      <div class="math" data-tex="\operatorname{verdict}(\mathrm{lower}, C, V) =\\ \begin{cases} \mathrm{tooFew} & |C| < 3 \lor |V| < 3 \\ \mathrm{better} & \max V < \min C \\ \mathrm{worse} & \max C < \min V \\ \mathrm{noise} & \text{otherwise} \end{cases}"></div>
+      <p class="gloss">C = control runs, V = variant runs (integers). Cases are tried top to bottom; |C| counts repeated values; a single tie between the two sides gives noise.</p>
+    </div>
+    <details><summary>Lean statement</summary><pre>theorem better_sound {ctl var : List Int}
+    (h : verdict .lower ctl var = .better) :
+    ∀ y ∈ var, ∀ x ∈ ctl, y &lt; x</pre></details>
+    <details><summary>Mechanical form (generated from the Lean term)</summary>
+      <div class="math" data-tex="\forall \mathrm{ctl} \in \mathrm{List}(\mathbb{Z}),\ \forall \mathrm{var} \in \mathrm{List}(\mathbb{Z}),\ (\mathrm{verdict}(\mathrm{lower}, \mathrm{ctl}, \mathrm{var}) = \mathrm{better}) \Rightarrow \forall \mathrm{y} \in \mathbb{Z},\ (\mathrm{y} \in \mathrm{var}) \Rightarrow \forall \mathrm{x} \in \mathbb{Z},\ (\mathrm{x} \in \mathrm{ctl}) \Rightarrow \mathrm{y} < \mathrm{x}"></div>
+    </details>
+    <div class="foot"><a href="../05-lean-sketch/Fw/Spec/Verdict.lean">Fw/Spec/Verdict.lean:34</a><span>stmtHash 9064569543793763486</span></div>
+  </article>
+
+  <h2>Flags: part variants</h2>
+  <article>
+    <div class="head"><span class="name">Fw.Flags.override_diff</span><span class="chip kind">theorem</span><span class="chip ok" title="axioms: propext">proved</span><span class="chip warn">not reviewed</span></div>
+    <p class="english">Switching one part to a new variant gives two configurations that differ in exactly that part.</p>
+    <div class="math display" data-tex="c(p) \ne v \;\Longrightarrow\; \operatorname{diff}\big(c,\ c[p \mapsto v]\big) = [\,p\,]"></div>
+    <div class="uses"><span class="uses-label">Uses</span>
+      <div class="math" data-tex="c[p \mapsto v](q) = \begin{cases} v & q = p \\ c(q) & q \ne p \end{cases}"></div>
+      <div class="math" data-tex="\operatorname{diff}(a, b) = [\, q \in \mathrm{Part.all} \mid a(q) \ne b(q) \,]"></div>
+    </div>
+    <details><summary>Lean statement</summary><pre>theorem override_diff (c : Config) (p : Part) (v : Variant) (h : c p ≠ v) :
+    diff c (override c p v) = [p]</pre></details>
+    <details><summary>Mechanical form (generated from the Lean term)</summary>
+      <div class="math" data-tex="\forall \mathrm{c} \in \mathrm{Config},\ \forall \mathrm{p} \in \mathrm{Part},\ \forall \mathrm{v} \in \mathrm{Variant},\ (\mathrm{c}(\mathrm{p}) \neq \mathrm{v}) \Rightarrow \mathrm{diff}(\mathrm{c}, \mathrm{override}(\mathrm{c}, \mathrm{p}, \mathrm{v})) = \mathrm{p} :: [\,]"></div>
+    </details>
+    <div class="foot"><a href="../05-lean-sketch/Fw/Spec/Flags.lean">Fw/Spec/Flags.lean:60</a><span>stmtHash 15610252728745241236</span></div>
+  </article>
+
+  <h2>Cost: per-frame main-thread model</h2>
+  <article>
+    <div class="head"><span class="name">Fw.Cost.mainUs_mono</span><span class="chip kind">theorem</span><span class="chip ok" title="axioms: propext, Quot.sound">proved</span><span class="chip warn">not reviewed</span></div>
+    <p class="english">More main-thread work never costs less, whatever the non-negative unit costs are.</p>
+    <div class="math display" data-tex="\begin{aligned} &\forall u \in \mathbb{N}^3:\ a \preceq b \\ \Longrightarrow\; &\operatorname{mainUs}(u, a) \le \operatorname{mainUs}(u, b) \end{aligned}"></div>
+    <div class="uses"><span class="uses-label">Uses</span>
+      <div class="math" data-tex="\begin{aligned} \operatorname{mainUs}(u, w) &= s + u_{\mathrm{style}}\, e \\ &\quad + u_{\mathrm{layout}}\, \ell + u_{\mathrm{paint}}\, k \end{aligned}"></div>
+      <p class="gloss">w = (s, e, ℓ, k): script µs, style elements, layout objects, paint kpx. Unit costs u are whole µs, so never negative.</p>
+      <div class="math" data-tex="\begin{aligned} a \preceq b \iff\ & s_a \le s_b \land e_a \le e_b \\ \land\ & \ell_a \le \ell_b \land k_a \le k_b \end{aligned}"></div>
+    </div>
+    <details><summary>Lean statement</summary><pre>theorem mainUs_mono (u : UnitCost) {a b : Work} (h : a.le b) :
+    mainUs u a ≤ mainUs u b</pre></details>
+    <details><summary>Mechanical form (generated from the Lean term)</summary>
+      <div class="math" data-tex="\forall \mathrm{u} \in \mathrm{UnitCost},\ \forall \mathrm{a} \in \mathrm{Work},\ \forall \mathrm{b} \in \mathrm{Work},\ (\mathrm{le}(\mathrm{a}, \mathrm{b})) \Rightarrow (\mathrm{mainUs}(\mathrm{u}, \mathrm{a})) \le (\mathrm{mainUs}(\mathrm{u}, \mathrm{b}))"></div>
+      <div class="math" data-tex="\mathrm{mainUs}(\mathrm{u}, \mathrm{w}) = ((\mathrm{w}.\mathrm{scriptUs} + (\mathrm{u}.\mathrm{style} \cdot \mathrm{w}.\mathrm{styleElems})) + (\mathrm{u}.\mathrm{layout} \cdot \mathrm{w}.\mathrm{layoutObjs})) + (\mathrm{u}.\mathrm{paint} \cdot \mathrm{w}.\mathrm{paintKpx})"></div>
+    </details>
+    <div class="foot"><a href="../05-lean-sketch/Fw/Spec/Cost.lean">Fw/Spec/Cost.lean:37</a><span>stmtHash 7640927096249106378</span></div>
+  </article>
+
+  <h2>Lease: one device, FIFO queue</h2>
+  <article>
+    <div class="head"><span class="name">Fw.Lease.step_inv</span><span class="chip kind">theorem</span><span class="chip ok" title="axioms: propext, Classical.choice, Quot.sound">proved</span><span class="chip warn">not reviewed</span></div>
+    <p class="english">Every command keeps the lease invariant: nobody waits for a free device, nobody is queued twice, and the holder is not also waiting.</p>
+    <div class="math display" data-tex="\forall s, c:\quad \operatorname{Inv}(s) \;\Longrightarrow\; \operatorname{Inv}\big(\operatorname{step}(s, c)_1\big)"></div>
+    <div class="uses"><span class="uses-label">Uses</span>
+      <div class="math" data-tex="\begin{aligned} \operatorname{Inv}(h, Q) \iff\ & \big(h = \bot \Rightarrow Q = [\,]\big) \\ \land\ & Q \text{ has no repeats} \\ \land\ & \big(h = l \Rightarrow l.\mathit{owner} \notin Q\big) \end{aligned}"></div>
+      <p class="gloss">A state is s = (h, Q): h is the holder's lease or ⊥ (free), so there is at most one holder by construction; Q is the FIFO queue of waiting owners.</p>
+    </div>
+    <details><summary>Lean statement</summary><pre>theorem step_inv {s : State} (c : Cmd) (h : Inv s) : Inv (step s c).1</pre></details>
+    <details><summary>Mechanical form (generated from the Lean term)</summary>
+      <div class="math" data-tex="\forall \mathrm{s} \in \mathrm{State},\ \forall \mathrm{c} \in \mathrm{Cmd},\ \mathrm{Inv}(\mathrm{s}) \Rightarrow \mathrm{Inv}((\mathrm{step}(\mathrm{s}, \mathrm{c})).\mathrm{fst})"></div>
+    </details>
+    <div class="foot"><a href="../05-lean-sketch/Fw/Spec/Lease.lean">Fw/Spec/Lease.lean:85</a><span>stmtHash 12195134911330661036</span></div>
+  </article>
+</main>
+<script>
+(function () {
+  function fallback(el) {
+    if (el.firstChild) return;
+    var c = document.createElement('code');
+    c.className = 'tex-fallback';
+    c.textContent = el.getAttribute('data-tex');
+    el.appendChild(c);
+  }
+  function renderAll() {
+    var els = document.querySelectorAll('[data-tex]');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (window.katex) {
+        try {
+          window.katex.render(el.getAttribute('data-tex'), el, {
+            displayMode: true, throwOnError: true, strict: 'ignore', output: 'mathml'
+          });
+          continue;
+        } catch (e) { /* show the TeX source instead */ }
+      }
+      fallback(el);
+    }
+  }
+  if (document.readyState === 'complete') renderAll();
+  else window.addEventListener('load', renderAll);
+})();
+</script>
+</body>
+</html>
