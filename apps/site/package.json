@@ -4,11 +4,14 @@
   "type": "module",
   "version": "0.0.0",
   "scripts": {
-    "build": "node scripts/check-breakpoints.mjs && node scripts/build.mjs --engine aot",
+    "build": "node scripts/check-breakpoints.mjs && node scripts/gen-shells.mjs --check && node scripts/build.mjs --engine aot",
     "build:runtime": "node scripts/check-breakpoints.mjs && node scripts/build.mjs --engine runtime",
     "build:all": "node scripts/check-breakpoints.mjs && node scripts/build.mjs --engine aot && node scripts/build.mjs --engine runtime",
     "gen:breakpoints": "cd ../../lean && lake exe breakgen > ../apps/site/src/breakpoints.gen.json",
     "check:breakpoints": "node scripts/check-breakpoints.mjs",
+    "gen:shells": "node scripts/gen-shells.mjs",
+    "check:shells": "node scripts/gen-shells.mjs --check",
+    "check:shell-boxes": "node scripts/shell-measure.mjs check",
     "census": "node scripts/census.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

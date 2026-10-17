@@ -1,0 +1,23 @@
+{
+  "id": "pain",
+  "slot": "pain",
+  "anchors": [
+    "pain"
+  ],
+  "experiment": false,
+  "impls": [
+    "mui"
+  ],
+  "muiStates": [
+    "typography-h2",
+    "typography-body1"
+  ],
+  "variants": {
+    "shell": {
+      "kind": "faithful",
+      "tier": "shell"
+    }
+  },
+  "requires": {},
+  "conflicts": {}
+}
