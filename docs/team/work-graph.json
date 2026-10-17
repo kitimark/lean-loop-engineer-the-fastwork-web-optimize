@@ -1274,6 +1274,43 @@
     ".github/workflows/chromium-counts.yml",
     "packages/measure-chromium/src/host.mjs"
    ]
+  },
+  {
+   "id": "math-r8-fix",
+   "title": "Fix the 49 disagree rows of math review round 8 (Obs.Health, Console, Gate, BreakpointMatrix, Store, Plan); add preset and fw to chromium workflowInputs in Fw.Store.Layout",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "math-r7"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Console.lean",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Site/BreakpointMatrix.lean",
+    "lean/Fw/Store/**",
+    "lean/Fw/Plan/**",
+    "lean/Fw/Board.lean",
+    "lean/Fw/Ops/**"
+   ]
+  },
+  {
+   "id": "plan-rev7-1",
+   "title": "PLAN revision 7.1: apply the 15 findings of the rev 7 review, add freeze-lean and rewrite-ci-lane results (A vs R classes), mark landed tasks done",
+   "stream": "plan",
+   "milestone": "M0",
+   "deps": [
+    "plan-rev7",
+    "freeze-lean",
+    "rewrite-ci-lane"
+   ],
+   "owner": "plan-editor",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/plan/loop-plan.html"
+   ]
   }
  ]
 }
