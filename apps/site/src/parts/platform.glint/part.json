@@ -1,0 +1,17 @@
+{
+  "id": "platform.glint",
+  "slot": "platform",
+  "anchors": ["platform"],
+  "experiment": true,
+  "impls": ["mui", "plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": {
+      "kind": "faithful",
+      "tier": "T1",
+      "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12150-12212, 12269-12275", "lean": "lean/Fw/Parts/PlatformGlint.lean" }
+    }
+  },
+  "requires": {},
+  "conflicts": {}
+}

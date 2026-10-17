@@ -48,7 +48,9 @@ def shrinking (bottom vh : Rat) : Bool := decide (1 / 25 < raw bottom vh)
 /-- Card scale (CSS `1 - 0.083333 s`). $$\operatorname{scale}(s) = 1 - \tfrac{83333}{1000000}\,s$$ -/
 def scale (s : Rat) : Rat := 1 - 83333 / 1000000 * s
 
-/-- Card radius in px. $$\operatorname{radius}(r_0, s) = r_0\,s$$ with $r_0 = 32$ ($24$ at width $\le 720$, $0$ at the 860 combo). -/
+/-- Card radius in px; the base radius is 32 (24 at width at most 720, 0 at the 860 combo).
+
+$$\operatorname{radius}(r_0, s) = r_0\,s$$ -/
 def radius (r0 s : Rat) : Rat := r0 * s
 
 #guard raw 900 1000 == 0
@@ -158,34 +160,46 @@ theorem artboard_fills (w : Rat) : 512 * artboardScale w = stageHeight w := by
 theorem artboard_width (w : Rat) : 640 * artboardScale w = w := by
   unfold artboardScale; grind
 
-/-- Stage background opacity: $0.5$, or $0.15$ for the quote background. -/
+/-- Stage background opacity: $0.5$, or $0.15$ for the quote background.
+
+$$\alpha(q) = \begin{cases} 0.15 & q \\ 0.5 & \lnot q \end{cases}$$ -/
 def bgOpacity (quote : Bool) : Rat := if quote then 3 / 20 else 1 / 2
 
 /-- Blur radius of the stage background in px. $$16$$ -/
 def bgBlur : Rat := 16
 
-/-- Opacity of the grain overlay: $0.55$, or $0.42$ on the secure mesh. -/
+/-- Opacity of the grain overlay: $0.55$, or $0.42$ on the secure mesh.
+
+$$g(m) = \begin{cases} 0.42 & m \\ 0.55 & \lnot m \end{cases}$$ -/
 def grainOpacity (secureMesh : Bool) : Rat := if secureMesh then 21 / 50 else 11 / 20
 
 /-- Tile size of the grain in px. $$128$$ -/
 def grainTile : Rat := 128
 
-/-- Which stage a row has. -/
+/-- Which stage a row has.
+
+$$\mathrm{Row} = \{\text{document}, \text{discovered}, \text{payment}, \text{relationship}\}$$ -/
 inductive Row | document | discovered | payment | relationship
 deriving Repr, DecidableEq
 
-/-- The stage background of a row: a mesh gradient (+ grain) for document and payment, the photo for discovered, the quote image for relationship. -/
+/-- The stage background of a row: a mesh gradient (+ grain) for document and payment, the photo for discovered, the quote image for relationship.
+
+$$\mathrm{Bg} = \{\text{mesh}, \text{secureMesh}, \text{photo}, \text{quote}\}$$ -/
 inductive Bg | mesh | secureMesh | photo | quote
 deriving Repr, DecidableEq
 
-/-- Row to background. document: secure mesh; payment: mesh; discovered: photo; relationship: quote. -/
+/-- Row to background. document: secure mesh; payment: mesh; discovered: photo; relationship: quote.
+
+$$\mathrm{bgOf} = \{\text{document} \mapsto \text{secureMesh},\ \text{payment} \mapsto \text{mesh},\ \text{discovered} \mapsto \text{photo},\ \text{relationship} \mapsto \text{quote}\}$$ -/
 def bgOf : Row → Bg
   | .document => .secureMesh
   | .payment => .mesh
   | .discovered => .photo
   | .relationship => .quote
 
-/-- Rows flipped (copy left, stage right): discovered and relationship. -/
+/-- Rows flipped (copy left, stage right): discovered and relationship.
+
+$$\operatorname{flip}(r) = [\,r \in \{\text{discovered}, \text{relationship}\}\,]$$ -/
 def flip : Row → Bool
   | .discovered => true
   | .relationship => true

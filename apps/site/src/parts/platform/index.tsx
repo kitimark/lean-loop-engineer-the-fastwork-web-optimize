@@ -1,16 +1,190 @@
-import Typography from '@mui/material/Typography';
-import css from './box.module.css';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { getScrollEngine } from '../../engine/scroll';
+import { HEADING } from './content';
+import { createShrink } from './driver';
+import { matchList } from './media';
+import css from './platform.module.css';
+import sw from './sweep.module.css';
+import st from './stage.module.css';
+import { Ask, Invoice, Profile, Secure, type Subs } from './Visuals';
+
+/** Variants of the sub-parts; anything but `faithful` switches that effect off (the hook for optimized variants). */
+export interface PlatformSubVariants {
+  sweep?: string;
+  glint?: string;
+  entries?: string;
+  stageBg?: string;
+  marquee?: string;
+}
+
+export interface PlatformProps {
+  variant: string;
+  impl?: 'mui' | 'plain';
+  sub?: PlatformSubVariants;
+}
+
+/** Where the shrink sits on the scroll engine: before nav.hitTest (order 100), which reads the section's state. */
+export const SHRINK_ORDER = 95;
+
+const cx = (...c: Array<string | false | undefined>) => c.filter(Boolean).join(' ');
+
+function Row({ id, flip, stage, children }: { id: string; flip?: boolean; stage: ReactNode; children: ReactNode }) {
+  return (
+    <article className={cx(css.row, flip && css.rowFlip)} data-fw-row={id}>
+      {stage}
+      <div className={css.rowCopy}>
+        <div className={css.rowIntro}>{children}</div>
+      </div>
+    </article>
+  );
+}
+
+function Stage({ kind, flip, invoice, children }: { kind: 'secureMesh' | 'mesh' | 'photo' | 'quote'; flip?: boolean; invoice?: boolean; children: ReactNode }) {
+  const mesh = kind === 'secureMesh' || kind === 'mesh';
+  return (
+    <div className={cx(st.stage, css.stageSlot, mesh && st.meshBg, kind === 'secureMesh' && st.secureMesh, invoice && st.invoice)} data-fw-flip={flip ? '' : undefined}>
+      {mesh ? <div className={st.grain} aria-hidden="true" /> : null}
+      {kind === 'photo' ? (
+        <picture className={st.picture}>
+          <source srcSet="/selling/optimized/platform/service-bg.avif" type="image/avif" />
+          <img className={st.bg} loading="lazy" decoding="async" src="/selling/platform/service-bg.jpg" alt="" />
+        </picture>
+      ) : null}
+      {kind === 'quote' ? (
+        <picture className={st.picture}>
+          <img className={cx(st.bg, st.bgQuote)} loading="lazy" decoding="async" src="/selling/platform/service-quote/bg.png" alt="" />
+        </picture>
+      ) : null}
+      <div className={st.visual}>
+        <div className={st.artboard}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Check() {
+  return (
+    <span className={css.rowCheckIcon} aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="m8 12 2.5 2.5L16.5 9" />
+      </svg>
+    </span>
+  );
+}
 
 /**
- * Static shell (PLAN Q36) of the original's `platform` section. The outer box height per viewport comes from the generated
- * `box.module.css` (scripts/gen-shells.mjs); the content is placeholder text. No driver, no per-frame work.
- * A port replaces this folder as a whole.
+ * platform (P5, `faithful`): the dark card with the mission line and four rows (copy beside a scaled 640 x 512 stage).
+ * Sub-parts: platform.sweep (CSS class on the four title words), platform.stageBg (stage.module.css), platform.glint,
+ * platform.entries and platform.marquee (Visuals.tsx drivers). The card shrinks with scroll through one engine callback that
+ * writes `--platform-shrink` and a class on the section (driver.ts; decisions are Lean `PlatformSection`). `--morph-fade`
+ * is written on the section by morph.tween. Placeholder-free: copy, geometry and colours are the original's.
  */
-export function Platform({ variant }: { variant: string }) {
+export function Platform({ variant, sub = {} }: PlatformProps) {
+  const section = useRef<HTMLElement>(null);
+  const card = useRef<HTMLDivElement>(null);
+  const faithful = (v: string | undefined) => (v ?? 'faithful') === 'faithful';
+  const sweep = faithful(sub.sweep) ? sw.sweep : undefined;
+  const subs: Subs = { entries: faithful(sub.entries), glint: faithful(sub.glint), marquee: faithful(sub.marquee) };
+
+  useEffect(() => {
+    const sec = section.current;
+    const c = card.current;
+    if (!sec || !c) return;
+    const reduce = matchList('mq.rm-reduce');
+    const frame = createShrink(
+      {
+        cardBottom: () => c.getBoundingClientRect().bottom,
+        setShrink: (x) => sec.style.setProperty('--platform-shrink', String(x)),
+        setShrinking: (on) => sec.classList.toggle(css.isShrinking!, on),
+      },
+      { reduced: () => reduce?.matches ?? false, vh: () => window.innerHeight },
+    );
+    frame();
+    const off = getScrollEngine().register('platform.shrink', SHRINK_ORDER, () => frame());
+    return off;
+  }, []);
+
   return (
-    <section className={css.box} data-fw="platform" data-fw-variant={variant}>
-      <Typography variant="h2">Platform</Typography>
-      <Typography variant="body1">Placeholder section (static shell).</Typography>
+    <section ref={section} id="platform" className={css.section} data-fw="platform" data-fw-variant={variant} aria-labelledby="built-heading">
+      <div ref={card} className={css.card}>
+        <div className={css.layout}>
+          <div className={css.mission}>
+            <div className={css.missionHeader}>
+              <div className={css.missionCopy}>
+                <p id="built-heading" className={css.missionTitle}>
+                  {HEADING}
+                </p>
+              </div>
+            </div>
+            <div className={css.rows}>
+              <Row
+                id="document"
+                stage={
+                  <Stage kind="secureMesh">
+                    <Profile subs={subs} />
+                  </Stage>
+                }
+              >
+                <h3 className={css.rowTitle}>
+                  <span className={cx(css.word, sweep)} data-fw-sweep="">Document</span> <span className={css.rest}>your portfolio and reviews</span>
+                </h3>
+              </Row>
+              <Row
+                id="discovered"
+                flip
+                stage={
+                  <Stage kind="photo" flip>
+                    <Ask subs={subs} />
+                  </Stage>
+                }
+              >
+                <h3 className={css.rowTitle}>
+                  <span className={cx(css.rest, css.restBlock)}>Get discovered.</span> <span className={cx(css.word, sweep)} data-fw-sweep="">Earn</span> <span className={css.rest}>more</span>
+                </h3>
+              </Row>
+              <Row
+                id="payment"
+                stage={
+                  <Stage kind="mesh">
+                    <Secure subs={subs} />
+                  </Stage>
+                }
+              >
+                <h3 className={css.rowTitle}>
+                  <span className={cx(css.word, sweep)} data-fw-sweep="">Secure</span> <span className={css.rest}>payment worldwide</span>
+                </h3>
+                <ul className={css.rowChecks}>
+                  <li className={css.rowCheck}>
+                    <Check /> Payment Protection
+                  </li>
+                  <li className={css.rowCheck}>
+                    <Check /> Daily Withdrawal
+                  </li>
+                </ul>
+              </Row>
+              <Row
+                id="relationship"
+                flip
+                stage={
+                  <Stage kind="quote" flip invoice>
+                    <Invoice subs={subs} />
+                  </Stage>
+                }
+              >
+                <h3 className={css.rowTitle}>
+                  <span className={css.titleF}>
+                    <span className={cx(css.word, sweep)} data-fw-sweep="">Maintain</span> <span className={css.rest}>relationship with your clients</span>
+                  </span>{' '}
+                  <span className={css.titleI}>
+                    <span className={cx(css.rest, css.restBlock)}>Keep every order</span> <span className={cx(css.word, sweep)} data-fw-sweep="">Organized</span>
+                  </span>
+                </h3>
+              </Row>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

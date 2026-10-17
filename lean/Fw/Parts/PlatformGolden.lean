@@ -33,11 +33,15 @@ def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
 /-- Integers as JSON. $$n \mapsto n$$ -/
 def jn (n : Int) : Json := .num ⟨n, 0⟩
 
-/-- Times in ms used by the cyclic parts: around the start, the quarter points and a few cycles. -/
+/-- Times in ms used by the cyclic parts: around the start, the quarter points and a few cycles.
+
+$$T(p) = [0, 1, \tfrac p8, \tfrac p5, \tfrac p4, \tfrac p2, \tfrac{3p}{4}, p - 1, p, p + 1, \tfrac{5p}{2}, 7p + 123]$$ -/
 def times (period : Rat) : List Rat :=
   [0, 1, period / 8, period / 5, period / 4, period / 2, period * 3 / 4, period - 1, period, period + 1, period * 5 / 2, period * 7 + 123]
 
-/-- A colour as JSON. -/
+/-- A colour as JSON.
+
+$$(r, g, b) \mapsto [\mathrm{wire}(r), \mathrm{wire}(g), \mathrm{wire}(b)]$$ -/
 def rgbWire (c : Rat × Rat × Rat) : Json := Json.arr #[ratWire c.1, ratWire c.2.1, ratWire c.2.2]
 
 /-! ### platform -/
@@ -93,26 +97,34 @@ def marqueeLines : List String :=
 /-! ### platform.glint -/
 
 open Fw.Parts.PlatformGlint in
-/-- A side as a name. -/
+/-- A side as a name.
+
+$$\mathit{side} \mapsto \text{"left"} \mid \text{"right"}$$ -/
 def sideName : Side → String
   | .left => "left" | .right => "right"
 
 open Fw.Parts.PlatformGlint in
-/-- A glint state as JSON. -/
+/-- A glint state as JSON.
+
+$$s \mapsto \{h, g, v, \tau, t_0\}$$ -/
 def stJson (s : St) : Json :=
   Json.mkObj [("h", .bool s.h), ("g", .bool s.g), ("v", .bool s.v),
     ("timer", match s.timer with | some d => ratWire d | none => .null),
     ("t0", match s.t0 with | some d => ratWire d | none => .null)]
 
 open Fw.Parts.PlatformGlint in
-/-- A glint state as an input. -/
+/-- A glint state as an input.
+
+$$s \mapsto \{h, g, v, \tau, t_0\}$$ -/
 def stIn (s : St) : Json :=
   Json.mkObj [("h", .bool s.h), ("g", .bool s.g), ("v", .bool s.v),
     ("timer", match s.timer with | some d => rin d | none => .null),
     ("t0", match s.t0 with | some d => rin d | none => .null)]
 
 open Fw.Parts.PlatformGlint in
-/-- An event as JSON input. -/
+/-- An event as JSON input.
+
+$$e \mapsto \{\mathrm{kind}, \ldots\}$$ -/
 def evIn : Ev → Json
   | .ratio r => Json.mkObj [("kind", .str "ratio"), ("ratio", rin r)]
   | .reduced b => Json.mkObj [("kind", .str "reduced"), ("value", .bool b)]
@@ -139,13 +151,17 @@ def glintLines : List String :=
 /-! ### platform.entries -/
 
 open Fw.Parts.PlatformEntries in
-/-- A view as JSON. -/
+/-- A view as JSON.
+
+$$v \mapsto \{\ell, i, s, a, r, c\}$$ -/
 def viewJson (v : View) : Json :=
   Json.mkObj [("len", jn v.len), ("topic", jn v.topic), ("shown", jn v.shown), ("leaving", .bool v.leaving),
     ("results", .bool v.results), ("caret", .bool v.caret)]
 
 open Fw.Parts.PlatformEntries in
-/-- The entries of the live stages with their table name, in a fixed order. -/
+/-- The entries of the live stages with their table name, in a fixed order.
+
+$$\mathrm{table} = [(\mathrm{name}, e)]$$ -/
 def entryTable : List (String × Entry) :=
   [("credCard0", credCard 0), ("credCard3", credCard 3), ("profilePhone", profilePhone), ("rings", rings),
    ("faceLeft", faceLeft), ("faceRight", faceRight), ("dash", dash), ("shield", shield), ("logo", logo),

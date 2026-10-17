@@ -20,7 +20,13 @@ open Fw.Parts.PlatformSweep (frac frac_mem)
 
 /-! ## The easing curve -/
 
-/-- A CSS cubic-bezier with control points $(x_1, y_1), (x_2, y_2)$. -/
+/-- A CSS cubic-bezier with control points $(x_1, y_1), (x_2, y_2)$.
+
+$$b = ((x_1, y_1), (x_2, y_2)) \in \mathbb{Q}^4$$
+
+$$b = ((x_1, y_1), (x_2, y_2)) \in \mathbb{Q}^4$$
+
+$$b = ((x_1, y_1), (x_2, y_2)) \in \mathbb{Q}^4$$ -/
 structure Bez where
   x1 : Rat
   y1 : Rat
@@ -180,7 +186,13 @@ def shield : Entry := ⟨"secure-network-shield-in", 420, 180, [⟨"opacity", 0,
 /-- Logo mark. $$D = 280,\ d = 680$$, scale $0.7\to1$. -/
 def logo : Entry := ⟨"secure-network-logo-in", 280, 680, [⟨"opacity", 0, 1⟩, ⟨"scale", 7 / 10, 1⟩]⟩
 
-/-- Delay of flag number $k$ (1-based child index): 600, 560, 520, 520, 560, 600 ms. -/
+/-- Delay of flag number $k$ (1-based child index): 600, 560, 520, 520, 560, 600 ms.
+
+$$d(k) = \begin{cases} 600 & k \in \{1, 6, \ge 7\} \\ 560 & k \in \{2, 5\} \\ 520 & k \in \{3, 4\} \end{cases}$$
+
+$$d(k) = \begin{cases} 600 & k \in \{1, 6, \ge 7\} \\ 560 & k \in \{2, 5\} \\ 520 & k \in \{3, 4\} \end{cases}$$
+
+$$d(k) = \begin{cases} 600 & k \in \{1, 6, \ge 7\} \\ 560 & k \in \{2, 5\} \\ 520 & k \in \{3, 4\} \end{cases}$$ -/
 def flagDelay : Nat → Rat
   | 1 => 600 | 2 => 560 | 3 => 520 | 4 => 520 | 5 => 560 | _ => 600
 
@@ -304,7 +316,13 @@ def swapMs : Rat := 700
 /-- Duration of one topic with a query of $L$ characters. $$D(L, r) = 32L + r + 3000 + 18L$$ -/
 def topicDur (L : Nat) (reveal : Rat) : Rat := typeStep * L + reveal + holdMs + eraseStep * L
 
-/-- Result of the view: shown query length, query topic, topic of the visible list, list leaving, results visible, caret visible. -/
+/-- Result of the view: shown query length, query topic, topic of the visible list, list leaving, results visible, caret visible.
+
+$$v = (\ell, i, s, a, r, c) \in \mathbb{N}^3 \times \mathbb{B}^3$$
+
+$$v = (\ell, i, s, a, r, c) \in \mathbb{N}^3 \times \mathbb{B}^3$$
+
+$$v = (\ell, i, s, a, r, c) \in \mathbb{N}^3 \times \mathbb{B}^3$$ -/
 structure View where
   len : Nat
   topic : Nat
@@ -325,7 +343,13 @@ def lenAt (L : Nat) (reveal τ : Rat) : Nat :=
   else if τ < typeStep * L + reveal + holdMs then L
   else L - (fl ((τ - (typeStep * L + reveal + holdMs)) / eraseStep) + 1)
 
-/-- One topic's view. `prev` is the topic whose list was shown before. -/
+/-- One topic's view. `prev` is the topic whose list was shown before.
+
+$$\operatorname{topicView}(i, p, L, f, \tau) = (\ell(\tau),\ i,\ [\,32L \le \tau\,]\ ?\ i : p,\ \ldots)$$
+
+$$\operatorname{topicView}(i, p, L, f, \tau) = (\ell(\tau),\ i,\ [\,32L \le \tau\,]\ ?\ i : p,\ \ldots)$$
+
+$$\operatorname{topicView}(i, p, L, f, \tau) = (\ell(\tau),\ i,\ [\,32L \le \tau\,]\ ?\ i : p,\ \ldots)$$ -/
 def topicView (idx prev L : Nat) (first : Bool) (τ : Rat) : View :=
   let reveal := if first then firstReveal else swapMs
   let typed := typeStep * L
@@ -335,7 +359,13 @@ def topicView (idx prev L : Nat) (first : Bool) (τ : Rat) : View :=
     results := !first || typed + firstReveal ≤ τ,
     caret := true }
 
-/-- Walk the topic list: the first entry whose duration holds $r$. -/
+/-- Walk the topic list: the first entry whose duration holds $r$.
+
+$$\operatorname{locate}((i, L) :: R, r) = \begin{cases} (i, L, r) & r < 50L + 3700 \\ \operatorname{locate}(R, r - 50L - 3700) & \text{otherwise} \end{cases}$$
+
+$$\operatorname{locate}((i, L) :: R, r) = \begin{cases} (i, L, r) & r < 50L + 3700 \\ \operatorname{locate}(R, r - 50L - 3700) & \text{otherwise} \end{cases}$$
+
+$$\operatorname{locate}((i, L) :: R, r) = \begin{cases} (i, L, r) & r < 50L + 3700 \\ \operatorname{locate}(R, r - 50L - 3700) & \text{otherwise} \end{cases}$$ -/
 def locate : List (Nat × Nat) → Rat → Option (Nat × Nat × Rat)
   | [], _ => none
   | (i, L) :: rest, r => if r < topicDur L swapMs then some (i, L, r) else locate rest (r - topicDur L swapMs)
@@ -348,7 +378,13 @@ def cycleLen (xs : List (Nat × Nat)) : Rat := (xs.map fun p => topicDur p.2 swa
 /-- Wrap $r$ into $[0, P)$. $$\operatorname{wrap}(r) = r - P \lfloor r / P \rfloor$$ -/
 def wrap (P r : Rat) : Rat := r - P * (r / P).floor
 
-/-- The rotation after the first topic: topics $1, \dots, n-1$, then $0$ again, each with its query length. -/
+/-- The rotation after the first topic: topics $1, \dots, n-1$, then $0$ again, each with its query length.
+
+$$\operatorname{rot}(L_0 :: R) = [(1, L_1), \dots, (n-1, L_{n-1}), (0, L_0)]$$
+
+$$\operatorname{rot}(L_0 :: R) = [(1, L_1), \dots, (n-1, L_{n-1}), (0, L_0)]$$
+
+$$\operatorname{rot}(L_0 :: R) = [(1, L_1), \dots, (n-1, L_{n-1}), (0, L_0)]$$ -/
 def rotation (lens : List Nat) : List (Nat × Nat) :=
   match lens with
   | [] => []
@@ -356,7 +392,13 @@ def rotation (lens : List Nat) : List (Nat × Nat) :=
 
 /-- The repeating part, $r$ ms after the first topic ended: wrap into the rotation, then locate the topic.
 
-The list shown before topic $i$ is the one of the previous topic in the rotation. -/
+The list shown before topic $i$ is the one of the previous topic in the rotation.
+
+$$\operatorname{cyc}(r) = \operatorname{topicView}\big(\operatorname{locate}(\operatorname{rot}, \operatorname{wrap}_P(r))\big)$$
+
+$$\operatorname{cyc}(r) = \operatorname{topicView}\big(\operatorname{locate}(\operatorname{rot}, \operatorname{wrap}_P(r))\big)$$
+
+$$\operatorname{cyc}(r) = \operatorname{topicView}\big(\operatorname{locate}(\operatorname{rot}, \operatorname{wrap}_P(r))\big)$$ -/
 def cycView (lens : List Nat) (r : Rat) : View :=
   match locate (rotation lens) (wrap (cycleLen (rotation lens)) r) with
   | some (i, L, τ) => topicView i (if i = 0 then (lens.length - 1) else i - 1) L false τ
@@ -364,7 +406,13 @@ def cycView (lens : List Nat) (r : Rat) : View :=
 
 /-- The view at time $t$ after the stage became visible. `lens` are the query lengths in topic order.
 
-Before $700$ ms: empty. Then topic 0 once with the 280 ms reveal; then the rotation $1, 2, \dots, n-1, 0$ with the 700 ms swap, repeating. -/
+Before $700$ ms: empty. Then topic 0 once with the 280 ms reveal; then the rotation $1, 2, \dots, n-1, 0$ with the 700 ms swap, repeating.
+
+$$\operatorname{ask}(t) = \begin{cases} \text{empty} & t < 700 \\ \operatorname{topicView}(0, \ldots, t - 700) & t - 700 < D_0 \\ \operatorname{cyc}(t - 700 - D_0) & \text{otherwise} \end{cases}$$
+
+$$\operatorname{ask}(t) = \begin{cases} \text{empty} & t < 700 \\ \operatorname{topicView}(0, \ldots, t - 700) & t - 700 < D_0 \\ \operatorname{cyc}(t - 700 - D_0) & \text{otherwise} \end{cases}$$
+
+$$\operatorname{ask}(t) = \begin{cases} \text{empty} & t < 700 \\ \operatorname{topicView}(0, \ldots, t - 700) & t - 700 < D_0 \\ \operatorname{cyc}(t - 700 - D_0) & \text{otherwise} \end{cases}$$ -/
 def askView (lens : List Nat) (t : Rat) : View :=
   if t < askLead then ⟨0, 0, 0, false, false, false⟩
   else

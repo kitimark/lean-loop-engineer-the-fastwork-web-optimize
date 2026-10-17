@@ -45,12 +45,16 @@ def interp (a0 a1 a2 a3 a4 a5 : Rat) (u : Rat) : Rat :=
 inductive Side | left | right
 deriving Repr, DecidableEq
 
-/-- `x1` at cycle fraction $u$. Left: $-200, 200, 200, 200, -200, -200$; right: $-200, -200, 200, -200, -200, -200$. -/
+/-- `x1` at cycle fraction $u$. Left: $-200, 200, 200, 200, -200, -200$; right: $-200, -200, 200, -200, -200, -200$.
+
+$$x_1(\mathit{side}, u) = \operatorname{interp}(a_0, \dots, a_5; u)$$ -/
 def x1At : Side → Rat → Rat
   | .left, u => interp (-200) 200 200 200 (-200) (-200) u
   | .right, u => interp (-200) (-200) 200 (-200) (-200) (-200) u
 
-/-- `x2` at cycle fraction $u$. Left: $-80, 320, 320, 320, -80, -80$; right: $-80, -80, 320, -80, -80, -80$. -/
+/-- `x2` at cycle fraction $u$. Left: $-80, 320, 320, 320, -80, -80$; right: $-80, -80, 320, -80, -80, -80$.
+
+$$x_2(\mathit{side}, u) = \operatorname{interp}(b_0, \dots, b_5; u)$$ -/
 def x2At : Side → Rat → Rat
   | .left, u => interp (-80) 320 320 320 (-80) (-80) u
   | .right, u => interp (-80) (-80) 320 (-80) (-80) (-80) u
@@ -63,7 +67,9 @@ def cycle (e : Rat) : Rat := frac (e / dur)
 $$g(\mathit{side}, e) = (x_1(\mathit{side}, u(e)),\ x_2(\mathit{side}, u(e)))$$ -/
 def sample (s : Side) (e : Rat) : Rat × Rat := (x1At s (cycle e), x2At s (cycle e))
 
-/-- The attributes before the first `beginElement`. Left $(-200, -80)$, right $(200, 320)$. -/
+/-- The attributes before the first `beginElement`. Left $(-200, -80)$, right $(200, 320)$.
+
+$$\mathit{rest}(\text{left}) = (-200, -80),\quad \mathit{rest}(\text{right}) = (200, 320)$$ -/
 def rest : Side → Rat × Rat
   | .left => (-200, -80)
   | .right => (200, 320)
@@ -144,7 +150,9 @@ $$\operatorname{reset}(s, n) = s\{v := \bot,\ t_0 := \emptyset,\ \tau := (n + 10
 def reset (s : St) (now : Rat) : St :=
   { s with v := false, t0 := none, timer := if s.h && !s.g then some (now + startDelay) else none }
 
-/-- Events the stage receives. -/
+/-- Events the stage receives.
+
+$$e \in \{\mathit{ratio}(r),\ \mathit{reduced}(b),\ \mathit{fire}\}$$ -/
 inductive Ev
   /-- The observer's ratio crossed a threshold; carries the ratio. -/
   | ratio (r : Rat)
@@ -232,7 +240,9 @@ theorem fire_plays (s : St) (now d : Rat) (hT : s.timer = some d) (hd : d ≤ no
   unfold step
   simp [hT, hd]
 
-/-- The gradient end points to draw at time $n$: the sample once began, else the rest attributes. -/
+/-- The gradient end points to draw at time $n$: the sample once began, else the rest attributes.
+
+$$\operatorname{view}(s, \mathit{side}, n) = \begin{cases} \operatorname{sample}(\mathit{side}, n - t_0) & t_0 \ne \emptyset \\ \mathit{rest}(\mathit{side}) & \text{otherwise} \end{cases}$$ -/
 def view (s : St) (side : Side) (now : Rat) : Rat × Rat :=
   match s.t0 with
   | some a => sample side (now - a)
