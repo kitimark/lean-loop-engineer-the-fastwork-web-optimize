@@ -52,3 +52,11 @@ describe("spawn guard (shadow)", () => {
     expect(() => readdirSync(join(d, "spool"))).toThrow();
   });
 });
+
+describe("spawn guard: expected vs given kind is logged", () => {
+  it("a kindMismatch record says why", async () => {
+    const { kinds } = await import("../hooks/spawn-guard.mjs");
+    expect(kinds(request(call({ subagent_type: "lean-prover", name: "lp" }) as never, 1).req)).toMatchObject({ role: "lean-prover", want_kind: "worktree", got_kind: "teammate", has_name: true, isolation: false });
+    expect(kinds(request(call({ subagent_type: "scout", isolation: "worktree" }) as never, 1).req)).toMatchObject({ want_kind: "subagent", got_kind: "worktree" });
+  });
+});

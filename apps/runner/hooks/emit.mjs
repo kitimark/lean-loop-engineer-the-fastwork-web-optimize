@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Observer hook (PLAN 3.2 "observers", 3.4 hooks). Appends ONE privacy-filtered JSON line to
 // .fw-console/spool/<agent>.jsonl. No socket, no stdout, always exit 0. Never decides anything.
+import { readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appendLine, consoleDir, readPayload, safeName } from "./lib.mjs";
@@ -30,7 +31,32 @@ export function record(p, now = Date.now()) {
     is_error: ev === "PostToolUse" || failed ? failed : null,
     verb: p.tool_name === "Bash" ? verbOf(p.tool_input?.command) : null,
     ts: now,
+    // SPK-p part 3 (wake test): a count only, never the task text
+    ...(Array.isArray(p.background_tasks) || Number.isFinite(p.background_tasks)
+      ? { background_tasks: Array.isArray(p.background_tasks) ? p.background_tasks.length : Math.round(p.background_tasks) } : {}),
   };
+}
+
+/** SubagentStart of an agent the spawn guard did not see (workflow agents never fire PreToolUse(Agent)): claim a pending
+ *  guard marker of the same role (unlink is the atomic claim); none claimable -> a SpawnGuard-equivalent observation.
+ *  TS STAND-IN (matching by role + recency; not a Lean decision; no blocking, Q31). */
+export function unseenSpawn(p, dir, now = Date.now()) {
+  if (p.hook_event_name !== "SubagentStart" || !str(p.agent_id)) return null;
+  const role = str(p.agent_type) ?? "general-purpose";
+  const pd = join(dir, "spawn-pending");
+  try {
+    for (const f of readdirSync(pd).sort()) {
+      const t = Number(f.split("-")[0]);
+      try {
+        if (now - t > 600000) { unlinkSync(join(pd, f)); continue; }
+        if (JSON.parse(readFileSync(join(pd, f), "utf8")).role !== role) continue;
+        unlinkSync(join(pd, f));
+        return null; // seen by the guard
+      } catch { /* raced with another hook: try the next marker */ }
+    }
+  } catch { /* no pending dir: nothing seen */ }
+  return { agent_id: p.agent_id, agent_type: str(p.agent_type), hook_event_name: "SpawnGuard", tool_name: "Agent",
+    tool_use_id: null, duration_ms: null, is_error: null, verb: "observed", ts: now, role, seen_by: "subagent-start" };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -38,7 +64,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const p = readPayload();
     const r = p && record(p);
     const dir = r && consoleDir(p.cwd);
-    if (r && dir) appendLine(join(dir, "spool", `${safeName(p.agent_id)}.jsonl`), r);
+    if (r && dir) {
+      appendLine(join(dir, "spool", `${safeName(p.agent_id)}.jsonl`), r);
+      const u = unseenSpawn(p, dir);
+      if (u) appendLine(join(dir, "spool", `${safeName(p.agent_id)}.jsonl`), u);
+    }
   } catch { /* silent by design: an observer must never disturb the agent */ }
   process.exit(0);
 }
