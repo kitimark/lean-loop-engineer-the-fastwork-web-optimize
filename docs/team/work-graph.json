@@ -875,7 +875,7 @@
   },
   {
    "id": "spawn-guard-workflows",
-   "title": "Spawn-guard does not see Workflow spawns (18 of 26 skipped): find a hook point or record the gap for Q31",
+   "title": "Spawn-guard: Workflow spawns skip it (18 of 26); log expected vs given kind (one deny:kindMismatch unexplained); show decisions on the board",
    "stream": "parallel",
    "milestone": null,
    "deps": [
@@ -888,7 +888,7 @@
   },
   {
    "id": "spk-p-wake",
-   "title": "SPK-p part 3: the wake test",
+   "title": "SPK-p part 3: the wake test (emit.mjs must keep background_tasks)",
    "stream": "console",
    "milestone": "M0",
    "deps": [
@@ -896,6 +896,7 @@
    ],
    "owner": "researcher",
    "writes": [
+    "apps/runner/hooks/emit.mjs",
     "research/notes/2026/10-17-spk-drafts/spk-p.md"
    ]
   }
