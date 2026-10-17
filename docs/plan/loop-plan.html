@@ -1,0 +1,644 @@
+<title>Fastwork Loop v2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (~68ch) with full-width diagram bands; a frame-budget ruler is the recurring motif. */
+:root {
+  --bg: #f4f6f7;
+  --surface: #ffffff;
+  --ink: #15212b;
+  --muted: #56636e;
+  --line: #d5dce1;
+  --accent: #0b6e99;          /* inner loop: counts, no phone */
+  --accent-soft: #dcecf3;
+  --phone: #a8650a;           /* outer loop: the iPhone */
+  --phone-soft: #f5e8d2;
+  --good: #2c7a3f;
+  --bad: #b8352a;
+  --code-bg: #eaeef1;
+  --f-display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --s-1: 0.8125rem; --s0: 1rem; --s1: 1.1875rem; --s2: 1.5rem; --s3: 2.125rem; --s4: 3rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f161c; --surface: #16212a; --ink: #e3e9ee; --muted: #9aa8b3; --line: #2b3a46;
+    --accent: #4cb3df; --accent-soft: #15384a; --phone: #e0a24a; --phone-soft: #3b2c14;
+    --good: #5cbf74; --bad: #ec7468; --code-bg: #1c2a35; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f161c; --surface: #16212a; --ink: #e3e9ee; --muted: #9aa8b3; --line: #2b3a46;
+  --accent: #4cb3df; --accent-soft: #15384a; --phone: #e0a24a; --phone-soft: #3b2c14;
+  --good: #5cbf74; --bad: #ec7468; --code-bg: #1c2a35; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: var(--s0); line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 68rem; margin: 0 auto; }
+.col { max-width: 44rem; }
+h1, h2, h3 { font-family: var(--f-display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.25rem, 6vw, var(--s4)); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: var(--s3); font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: var(--s1); font-weight: 700; }
+p { margin: 0; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--f-mono); font-size: 0.9em; }
+code { background: var(--code-bg); padding: 0.05em 0.35em; border-radius: 4px; }
+.eyebrow { font-family: var(--f-mono); font-size: var(--s-1); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: var(--s1); color: var(--muted); max-width: 40rem; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* sticky nav */
+nav.toc {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+  margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  padding: 0 max(16px, env(safe-area-inset-left, 0px));
+}
+nav.toc .scroller { max-width: 68rem; margin: 0 auto; display: flex; gap: 0.25rem; overflow-x: auto; padding-block: 0.5rem; scrollbar-width: none; }
+nav.toc a { white-space: nowrap; text-decoration: none; color: var(--muted); font-size: var(--s-1); padding: 0.3rem 0.6rem; border-radius: 999px; }
+nav.toc a:hover { color: var(--ink); background: var(--code-bg); }
+
+section { padding-block: 3.5rem; border-top: 1px solid var(--line); display: grid; gap: 1.5rem; }
+section:first-of-type { border-top: 0; }
+.stack { display: grid; gap: 1rem; }
+
+/* hero */
+header.hero { padding-block: 3rem 2rem; display: grid; gap: 1.25rem; }
+.hero .thesis { font-family: var(--f-display); font-size: clamp(1.25rem, 3vw, var(--s2)); font-weight: 500; max-width: 42rem; line-height: 1.3; }
+.hero .thesis b { color: var(--accent); font-weight: 700; }
+.hero .thesis i { color: var(--phone); font-style: normal; font-weight: 700; }
+.meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; color: var(--muted); font-size: var(--s-1); font-family: var(--f-mono); }
+
+/* frame ruler */
+.ruler { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1rem 0.75rem; }
+.ruler svg { width: 100%; height: auto; display: block; }
+.ruler .cap { font-size: var(--s-1); color: var(--muted); margin-top: 0.5rem; }
+
+/* stats */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.stat { background: var(--surface); padding: 1rem; display: grid; gap: 0.25rem; align-content: start; }
+.stat .n { font-family: var(--f-display); font-size: var(--s2); font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .n .from { color: var(--bad); }
+.stat .n .to { color: var(--good); }
+.stat .l { font-size: var(--s-1); color: var(--muted); line-height: 1.4; }
+
+/* tables */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9375rem; }
+th, td { text-align: left; vertical-align: top; padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--f-mono); font-size: var(--s-1); font-weight: 500; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; background: var(--code-bg); }
+td.k { font-weight: 600; white-space: nowrap; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* chips */
+.chip { display: inline-block; font-family: var(--f-mono); font-size: 0.75rem; padding: 0.1rem 0.45rem; border-radius: 4px; border: 1px solid var(--line); white-space: nowrap; }
+.chip.opus { border-color: var(--accent); color: var(--accent); }
+.chip.sonnet { border-color: var(--good); color: var(--good); }
+.chip.haiku { border-color: var(--muted); color: var(--muted); }
+.chip.phone { border-color: var(--phone); color: var(--phone); }
+.chip.ok { background: var(--good); color: var(--surface); border-color: var(--good); }
+.chip.open { border-color: var(--phone); color: var(--phone); }
+
+/* diagrams */
+.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; overflow-x: auto; }
+.fig svg { display: block; width: 100%; min-width: 46rem; height: auto; }
+.fig .cap { font-size: var(--s-1); color: var(--muted); margin-top: 0.75rem; max-width: 44rem; }
+svg text { font-family: var(--f-body); fill: var(--ink); }
+svg .t-mono { font-family: var(--f-mono); }
+svg .t-muted { fill: var(--muted); }
+svg .t-accent { fill: var(--accent); }
+svg .t-phone { fill: var(--phone); }
+svg .t-bad { fill: var(--bad); }
+svg .t-good { fill: var(--good); }
+svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+svg .box-a { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+svg .box-p { fill: var(--phone-soft); stroke: var(--phone); stroke-width: 1.5; }
+svg .lane-a { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 4; }
+svg .lane-p { fill: none; stroke: var(--phone); stroke-width: 1; stroke-dasharray: 4 4; }
+svg .arr { stroke: var(--ink); stroke-width: 1.5; fill: none; }
+svg .arr-a { stroke: var(--accent); stroke-width: 1.5; fill: none; }
+svg .arr-p { stroke: var(--phone); stroke-width: 1.5; fill: none; }
+svg .spoke { stroke: var(--bad); stroke-width: 1; opacity: 0.55; }
+svg .dot { fill: var(--muted); }
+svg .hub { fill: var(--bad); }
+svg .bus { stroke: var(--accent); stroke-width: 6; stroke-linecap: round; }
+svg .axis { stroke: var(--muted); stroke-width: 1; }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .zone-ok { fill: var(--good); opacity: 0.16; }
+svg .zone-warn { fill: var(--phone); opacity: 0.16; }
+svg .zone-bad { fill: var(--bad); opacity: 0.16; }
+svg .mark { stroke-width: 2; }
+svg .mk-a { stroke: var(--accent); } svg .mk-p { stroke: var(--phone); } svg .mk-b { stroke: var(--bad); } svg .mk-g { stroke: var(--good); }
+svg .head-ink { fill: var(--ink); } svg .head-a { fill: var(--accent); } svg .head-p { fill: var(--phone); }
+
+/* two-column */
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; }
+.two > * { min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.2rem; display: grid; gap: 0.6rem; align-content: start; }
+.panel.a { border-top: 3px solid var(--accent); }
+.panel.p { border-top: 3px solid var(--phone); }
+ul.tight { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; }
+pre { margin: 0; background: var(--code-bg); border-radius: 8px; padding: 0.9rem 1rem; overflow-x: auto; font-family: var(--f-mono); font-size: 0.8125rem; line-height: 1.55; }
+pre .c { color: var(--muted); }
+pre .k { color: var(--accent); }
+
+/* formula */
+.formula { font-family: var(--f-mono); font-size: 0.9375rem; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 6px; padding: 0.8rem 1rem; overflow-x: auto; white-space: nowrap; }
+
+/* ladder */
+.ladder { display: grid; gap: 0.4rem; }
+.rung { display: grid; grid-template-columns: 3.2rem 1fr; gap: 0.75rem; align-items: baseline; padding: 0.55rem 0.8rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.rung .id { font-family: var(--f-mono); font-weight: 500; color: var(--accent); }
+.rung.exp .id { color: var(--phone); }
+.rung p { font-size: 0.9375rem; }
+.rung small { color: var(--muted); }
+
+/* timeline */
+.timeline { display: flex; gap: 3px; border-radius: 8px; overflow: hidden; }
+.timeline > div { padding: 0.6rem 0.5rem; background: var(--accent-soft); min-width: 0; display: grid; gap: 0.15rem; }
+.timeline > div:nth-child(4), .timeline > div:nth-child(6) { background: var(--phone-soft); }
+.timeline b { font-family: var(--f-mono); font-size: var(--s-1); }
+.timeline span { font-size: 0.75rem; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
+@media (max-width: 40rem) {
+  .timeline { flex-direction: column; }
+  .timeline > div { flex: none !important; }
+}
+
+/* classes */
+.classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.75rem; }
+.cls { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; display: grid; gap: 0.4rem; align-content: start; }
+.cls .tag { font-family: var(--f-display); font-weight: 800; font-size: var(--s2); }
+.cls .dev { font-size: var(--s-1); font-family: var(--f-mono); }
+.cls.w .tag { color: var(--good); } .cls.sm .tag { color: var(--accent); } .cls.x .tag, .cls.p .tag { color: var(--phone); }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.8rem 1rem; }
+details summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: 0.6rem; }
+footer { padding-block: 2.5rem 3rem; border-top: 1px solid var(--line); color: var(--muted); font-size: var(--s-1); display: grid; gap: 0.4rem; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+section[id] { scroll-margin-top: 3.5rem; }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Loop engineering · experiment 2 · plan for review</span>
+    <h1>Fastwork Loop v2</h1>
+    <p class="thesis">Rebuild the fastwork.com homepage as React parts behind flags, <b>count the work the engine does</b> on every change, prove the decisions in Lean, and save <i>the iPhone</i> for calibration and feel.</p>
+    <div class="meta"><span>Plan revision 3 + user decisions</span><span>2026-10-17</span><span>docs/plan/PLAN.md</span></div>
+    <figure class="ruler" aria-label="Frame budget ruler">
+      <svg viewBox="0 0 900 118" role="img" aria-labelledby="rulerTitle">
+        <title id="rulerTitle">Frame time thresholds used by the plan, from 0 to 60 milliseconds</title>
+        <rect class="zone-ok" x="20" y="34" width="250" height="34"/>
+        <rect class="zone-warn" x="270" y="34" width="260" height="34"/>
+        <rect class="zone-bad" x="530" y="34" width="350" height="34"/>
+        <line class="axis" x1="20" y1="68" x2="880" y2="68"/>
+        <!-- scale: x = 20 + ms * 14.333 (0..60 ms -> 20..880) -->
+        <g class="t-mono" font-size="11">
+          <line class="grid" x1="20" y1="68" x2="20" y2="74"/><text x="20" y="88" text-anchor="middle" class="t-muted">0</text>
+          <line class="grid" x1="163" y1="68" x2="163" y2="74"/><text x="163" y="88" text-anchor="middle" class="t-muted">10</text>
+          <line class="grid" x1="307" y1="68" x2="307" y2="74"/><text x="307" y="88" text-anchor="middle" class="t-muted">20</text>
+          <line class="grid" x1="450" y1="68" x2="450" y2="74"/><text x="450" y="88" text-anchor="middle" class="t-muted">30</text>
+          <line class="grid" x1="593" y1="68" x2="593" y2="74"/><text x="593" y="88" text-anchor="middle" class="t-muted">40</text>
+          <line class="grid" x1="737" y1="68" x2="737" y2="74"/><text x="737" y="88" text-anchor="middle" class="t-muted">50</text>
+          <line class="grid" x1="880" y1="68" x2="880" y2="74"/><text x="880" y="88" text-anchor="middle" class="t-muted">60 ms</text>
+        </g>
+        <line class="mark mk-a" x1="139" y1="26" x2="139" y2="68"/>
+        <text x="139" y="20" text-anchor="middle" font-size="12" class="t-accent">8.33 · 120 Hz tick</text>
+        <line class="mark mk-g" x1="259" y1="26" x2="259" y2="68"/>
+        <text x="270" y="20" text-anchor="start" font-size="12" class="t-good">16.67 · 60 Hz budget</text>
+        <line class="mark mk-p" x1="507" y1="26" x2="507" y2="68"/>
+        <text x="507" y="20" text-anchor="middle" font-size="12" class="t-phone">34 · slow frame</text>
+        <line class="mark mk-b" x1="737" y1="26" x2="737" y2="68"/>
+        <text x="737" y="20" text-anchor="middle" font-size="12" class="t-bad">50 · felt by the finger</text>
+        <text x="20" y="110" font-size="12" class="t-muted">The iPhone renders pages at 60 Hz. A frame over 34 ms counts as slow; over 50 ms is the metric that matched the user's swipe 7 of 7 times in v1.</text>
+      </svg>
+    </figure>
+  </header>
+</div>
+
+<nav class="toc" aria-label="Sections">
+  <div class="scroller">
+    <a href="#why">Why v2</a>
+    <a href="#chat">What the chats showed</a>
+    <a href="#loop">The two-speed loop</a>
+    <a href="#measure">Measuring</a>
+    <a href="#parts">Parts and flags</a>
+    <a href="#lean">Lean</a>
+    <a href="#team">Agent team</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#decisions">Decisions</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="why">
+    <div class="stack col">
+      <span class="eyebrow">Why v2</span>
+      <h2>v1 worked. The loop around it was expensive.</h2>
+      <p class="lede">The first experiment made the homepage scroll smoothly on the iPhone. It also took ten days, hundreds of agents and a phone for nearly every measurement.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="n num"><span class="from">20.1%</span> → <span class="to">1.7%</span></span><span class="l">slow frames in the user's own swipe</span></div>
+      <div class="stat"><span class="n num"><span class="from">584</span> → <span class="to">42 ms</span></span><span class="l">longest frame at the end of the page</span></div>
+      <div class="stat"><span class="n num">≈ $11.4k</span><span class="l">list-price token cost over 10 days</span></div>
+      <div class="stat"><span class="n num">442</span><span class="l">agents started (848 transcripts, 2,521 commits)</span></div>
+      <div class="stat"><span class="n num">231 / 276</span><span class="l">incidents filed against the project's own tools</span></div>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Pain point</th><th>What v1's data shows</th><th>v2 answer</th></tr></thead>
+        <tbody>
+          <tr><td class="k">The phone for every measurement</td><td>About 111 of 276 incidents involved the iPhone or Simulator driver; phone blocks took 12–35 min plus cooling.</td><td><b>Two-speed loop.</b> Deterministic engine work counts on every change; the phone calibrates the cost model and judges feel on a schedule.</td></tr>
+          <tr><td class="k">Patching minified Svelte</td><td>About 349 commits on the end-of-page line alone; a replace-all silently broke six SVG circles.</td><td><b>React rewrite as pluggable parts.</b> Each part has a faithful variant plus ablation, optimized and proposal variants chosen by flags.</td></tr>
+          <tr><td class="k">A coupled, bug-prone loop</td><td>The full test suite took 250–280 s on every tooling commit; the lock tool grew to 1,685 lines.</td><td><b>A small proved core, a thin shell.</b> The few decisions that matter live in Lean; tools are plugins; results are cached by content hash, so a tool change re-runs only that tool.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="chat">
+    <div class="stack col">
+      <span class="eyebrow">Chat forensics · 848 transcripts · 135k model requests</span>
+      <h2>The agents did their work. The loop around them did not.</h2>
+      <p>Reading every v1 transcript showed one overloaded lead at the centre of everything. Recurring check prompts woke it most of the time, and idle agents lost their cache and paid to rebuild it. The user ended up as device technician and status relay.</p>
+    </div>
+    <figure class="fig">
+      <svg viewBox="0 0 960 330" role="img" aria-labelledby="topoTitle">
+        <title id="topoTitle">v1 star topology around the lead compared with v2 event-driven coordination</title>
+        <text x="20" y="28" font-size="15" font-weight="700">v1: a star</text>
+        <text x="20" y="48" font-size="12" class="t-muted">64% of 12,582 messages started or ended at the lead</text>
+        <g id="spokes">
+          <line class="spoke" x1="230" y1="185" x2="230" y2="75"/><line class="spoke" x1="230" y1="185" x2="275" y2="83"/>
+          <line class="spoke" x1="230" y1="185" x2="313" y2="107"/><line class="spoke" x1="230" y1="185" x2="337" y2="145"/>
+          <line class="spoke" x1="230" y1="185" x2="340" y2="185"/><line class="spoke" x1="230" y1="185" x2="337" y2="225"/>
+          <line class="spoke" x1="230" y1="185" x2="313" y2="263"/><line class="spoke" x1="230" y1="185" x2="275" y2="287"/>
+          <line class="spoke" x1="230" y1="185" x2="230" y2="295"/><line class="spoke" x1="230" y1="185" x2="185" y2="287"/>
+          <line class="spoke" x1="230" y1="185" x2="147" y2="263"/><line class="spoke" x1="230" y1="185" x2="123" y2="225"/>
+          <line class="spoke" x1="230" y1="185" x2="120" y2="185"/><line class="spoke" x1="230" y1="185" x2="123" y2="145"/>
+          <line class="spoke" x1="230" y1="185" x2="147" y2="107"/><line class="spoke" x1="230" y1="185" x2="185" y2="83"/>
+          <circle class="dot" cx="230" cy="75" r="6"/><circle class="dot" cx="275" cy="83" r="6"/><circle class="dot" cx="313" cy="107" r="6"/>
+          <circle class="dot" cx="337" cy="145" r="6"/><circle class="dot" cx="340" cy="185" r="6"/><circle class="dot" cx="337" cy="225" r="6"/>
+          <circle class="dot" cx="313" cy="263" r="6"/><circle class="dot" cx="275" cy="287" r="6"/><circle class="dot" cx="230" cy="295" r="6"/>
+          <circle class="dot" cx="185" cy="287" r="6"/><circle class="dot" cx="147" cy="263" r="6"/><circle class="dot" cx="123" cy="225" r="6"/>
+          <circle class="dot" cx="120" cy="185" r="6"/><circle class="dot" cx="123" cy="145" r="6"/><circle class="dot" cx="147" cy="107" r="6"/>
+          <circle class="dot" cx="185" cy="83" r="6"/>
+          <circle class="hub" cx="230" cy="185" r="22"/>
+          <text x="230" y="190" text-anchor="middle" font-size="12" font-weight="700" style="fill: var(--surface)">lead</text>
+        </g>
+        <g font-size="12">
+          <text x="372" y="96">42% of the lead's turns came from</text>
+          <text x="372" y="112">3,761 cron fires (1,889 were</text>
+          <text x="372" y="128">"check iphone connection")</text>
+          <text x="372" y="160">≈ 310 agents talked to the lead,</text>
+          <text x="372" y="176">up to 38 in one hour</text>
+          <text x="372" y="208">125 compactions of its context</text>
+          <text x="372" y="240">≈ 230 hand moves of the phone queue</text>
+        </g>
+        <line x1="600" y1="20" x2="600" y2="310" class="grid"/>
+        <text x="630" y="28" font-size="15" font-weight="700">v2: events, not a hub</text>
+        <text x="630" y="48" font-size="12" class="t-muted">scripts route and poll; the lead decides and lands</text>
+        <line class="bus" x1="650" y1="180" x2="930" y2="180"/>
+        <text x="790" y="208" text-anchor="middle" font-size="12" class="t-accent t-mono">console-api · events.jsonl</text>
+        <g font-size="11">
+          <rect class="box" x="640" y="92" width="80" height="34" rx="6"/><text x="680" y="113" text-anchor="middle">part builder</text>
+          <rect class="box" x="735" y="92" width="80" height="34" rx="6"/><text x="775" y="113" text-anchor="middle">measure</text>
+          <rect class="box" x="830" y="92" width="90" height="34" rx="6"/><text x="875" y="113" text-anchor="middle">lean prover</text>
+          <line class="arr-a" x1="680" y1="126" x2="680" y2="174"/><line class="arr-a" x1="775" y1="126" x2="775" y2="174"/><line class="arr-a" x1="875" y1="126" x2="875" y2="174"/>
+          <rect class="box-p" x="650" y="240" width="110" height="34" rx="6"/><text x="705" y="261" text-anchor="middle">device watcher</text>
+          <rect class="box" x="790" y="240" width="130" height="34" rx="6"/><text x="855" y="261" text-anchor="middle">lead: judge + land</text>
+          <line class="arr-p" x1="705" y1="186" x2="705" y2="240"/><line class="arr" x1="855" y1="186" x2="855" y2="240"/>
+          <text x="630" y="300" font-size="12" class="t-muted">Workers send results to their consumer; the lead gets ≤ 300 characters.</text>
+        </g>
+      </svg>
+      <p class="cap">Left: v1's real shape, drawn from the transcript message graph (16 dots stand in for about 310 counterparts). Right: v2's design, in which status comes from an append-only event log and only judgement questions wake the lead.</p>
+    </figure>
+    <div class="two">
+      <div class="panel">
+        <h3>Biggest costs and problems</h3>
+        <ul class="tight">
+          <li>Idle agents losing their cache: 2,924 cold rewrites cost $2,763 (24%).</li>
+          <li>19 agents alive over 24 hours cost 36% of all spend.</li>
+          <li>57% of 5,393 errors were worktree refusals of inline shell scripts.</li>
+          <li>139 of 276 incidents came from the project's own tooling and guards; 4 from agent mistakes.</li>
+          <li>82–105 of 166 user console steps were device chores; one re-plug waited 11 h 41 min.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>What worked and stays</h3>
+        <ul class="tight">
+          <li>Console steps, Try-it proposal pages and comment buttons (median 10 min to a decision).</li>
+          <li>Short, fresh agents: 645 agents under an hour cost only 11%.</li>
+          <li>Message delivery (0.35% failed) and fast replies.</li>
+          <li>One lander with fast-forward-only merges: 0 merge commits in 2,483.</li>
+          <li>A/A noise floors, pinned baselines, prediction cards before data.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="loop">
+    <div class="stack col">
+      <span class="eyebrow">The core idea</span>
+      <h2>A two-speed loop</h2>
+      <p>The inner loop runs on every change and never touches the phone: it counts the engine's work in Chromium and WebKit and screens the result with a proved rule. The outer loop runs in phone sessions the user books. It calibrates the cost model and licenses kinds of change to land without the device.</p>
+    </div>
+    <figure class="fig">
+      <svg viewBox="0 0 1000 330" role="img" aria-labelledby="loopTitle">
+        <title id="loopTitle">Inner loop on engine counts and outer loop on the iPhone</title>
+        <defs>
+          <marker id="ha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head-a"/></marker>
+          <marker id="hp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head-p"/></marker>
+        </defs>
+        <rect class="lane-a" x="8" y="12" width="984" height="132" rx="10"/>
+        <text x="22" y="34" font-size="12" class="t-accent t-mono">INNER LOOP · every change · minutes · no phone</text>
+        <g font-size="12">
+          <rect class="box-a" x="22" y="52" width="140" height="70" rx="8"/>
+          <text x="92" y="80" text-anchor="middle" font-weight="600">Question card</text><text x="92" y="98" text-anchor="middle" class="t-muted" font-size="11">predicted Δ written first</text>
+          <rect class="box-a" x="186" y="52" width="140" height="70" rx="8"/>
+          <text x="256" y="80" text-anchor="middle" font-weight="600">Build variant</text><text x="256" y="98" text-anchor="middle" class="t-muted" font-size="11">behind a flag + parity</text>
+          <rect class="box-a" x="350" y="52" width="140" height="70" rx="8"/>
+          <text x="420" y="80" text-anchor="middle" font-weight="600">Count work</text><text x="420" y="98" text-anchor="middle" class="t-muted" font-size="11">Chromium + WebKit</text>
+          <rect class="box-a" x="514" y="52" width="140" height="70" rx="8"/>
+          <text x="584" y="80" text-anchor="middle" font-weight="600">Screen in Lean</text><text x="584" y="98" text-anchor="middle" class="t-muted" font-size="11">dominates / mixed / worse</text>
+          <rect class="box-a" x="678" y="52" width="140" height="70" rx="8"/>
+          <text x="748" y="80" text-anchor="middle" font-weight="600">Fresh review</text><text x="748" y="98" text-anchor="middle" class="t-muted" font-size="11">attribution, no cherry-pick</text>
+          <rect class="box-a" x="842" y="52" width="140" height="70" rx="8"/>
+          <text x="912" y="80" text-anchor="middle" font-weight="600">Land</text><text x="912" y="98" text-anchor="middle" class="t-muted" font-size="11">preset updated, ff-only</text>
+        </g>
+        <g>
+          <line class="arr-a" x1="162" y1="87" x2="184" y2="87" marker-end="url(#ha)"/>
+          <line class="arr-a" x1="326" y1="87" x2="348" y2="87" marker-end="url(#ha)"/>
+          <line class="arr-a" x1="490" y1="87" x2="512" y2="87" marker-end="url(#ha)"/>
+          <line class="arr-a" x1="654" y1="87" x2="676" y2="87" marker-end="url(#ha)"/>
+          <line class="arr-a" x1="818" y1="87" x2="840" y2="87" marker-end="url(#ha)"/>
+        </g>
+        <rect class="lane-p" x="8" y="186" width="984" height="132" rx="10"/>
+        <text x="22" y="306" font-size="12" class="t-phone t-mono">OUTER LOOP · booked iPhone sessions · calibration every 14 days or on a version change</text>
+        <g font-size="12">
+          <rect class="box-p" x="186" y="206" width="140" height="70" rx="8"/>
+          <text x="256" y="234" text-anchor="middle" font-weight="600">Calibrate</text><text x="256" y="252" text-anchor="middle" class="t-muted" font-size="11">fixture pages K1–K9</text>
+          <rect class="box-p" x="350" y="206" width="140" height="70" rx="8"/>
+          <text x="420" y="234" text-anchor="middle" font-weight="600">Fit cost model</text><text x="420" y="252" text-anchor="middle" class="t-muted" font-size="11">c ≥ 0, page factor ρ</text>
+          <rect class="box-p" x="514" y="206" width="140" height="70" rx="8"/>
+          <text x="584" y="234" text-anchor="middle" font-weight="600">License a class</text><text x="584" y="252" text-anchor="middle" class="t-muted" font-size="11">5 of 5 blind swipes agree</text>
+          <rect class="box-p" x="678" y="206" width="140" height="70" rx="8"/>
+          <text x="748" y="234" text-anchor="middle" font-weight="600">Device A/B</text><text x="748" y="252" text-anchor="middle" class="t-muted" font-size="11">class X, P, unlicensed SM</text>
+        </g>
+        <line class="arr-p" x1="326" y1="241" x2="348" y2="241" marker-end="url(#hp)"/>
+        <line class="arr-p" x1="490" y1="241" x2="512" y2="241" marker-end="url(#hp)"/>
+        <path class="arr-p" d="M420,206 L420,166 L584,166 L584,124" marker-end="url(#hp)"/>
+        <text x="502" y="160" text-anchor="middle" font-size="11" class="t-phone">coefficients</text>
+        <path class="arr-p" d="M748,124 L748,204" marker-end="url(#hp)"/>
+        <path class="arr-p" d="M818,241 L912,241 L912,124" marker-end="url(#hp)"/>
+        <text x="756" y="168" font-size="11" class="t-phone">needs device</text>
+        <text x="920" y="168" font-size="11" class="t-phone">verdict</text>
+      </svg>
+      <p class="cap">Blue runs on every change. Orange needs the phone. A change that does strictly less work in every frame (class W) lands from the inner loop alone; anything else goes through the outer loop until its change class is licensed.</p>
+    </figure>
+  </section>
+
+  <section id="measure">
+    <div class="stack col">
+      <span class="eyebrow">Measurement</span>
+      <h2>Count the work, then price it</h2>
+      <p>Timing changes with heat, load and the device. The <em>amount of work</em> an engine does in a frame does not: how many styles it recalculated, how many layouts it ran, how many pixels it repainted, how many layers it built. v2 steps the page one virtual frame at a time, reads those counts and feeds them to a cost model.</p>
+    </div>
+    <div class="two">
+      <div class="panel a">
+        <h3>Chromium · development aid</h3>
+        <p>Headless Chrome in a Linux container, because frame stepping (BeginFrameControl) is refused on macOS. The page's own clock advances; animations are never seeked, so compositor animations stay on the compositor.</p>
+        <p class="mono" style="font-size:var(--s-1);color:var(--muted)">style passes · elements · layouts · paint · raster rects · layers · compositeFailed</p>
+      </div>
+      <div class="panel p">
+        <h3>WebKit · the target</h3>
+        <p>The iOS Simulator's Mobile Safari through the Web Inspector protocol. The model is calibrated on the real iPhone, because only the phone shows render-server, GPU and finger-only costs.</p>
+        <p class="mono" style="font-size:var(--s-1);color:var(--muted)">recalc styles · layouts · paint area · layer census · backing bytes · accelerated animations</p>
+      </div>
+    </div>
+    <div class="stack">
+      <h3>The WebKit cost model, per frame</h3>
+      <div class="formula">dt ≈ max( T_req ,  W + F + U + δ )    W = J + Σ c·counts    F = max( s²·Ap / R_cg ,  Bn / R_alloc )    T_req = 16.67 ms</div>
+      <p class="col">W is main-thread work, F the GPU raster wait, U the UI-process apply. Every coefficient is fitted on the phone and constrained to be non-negative, so removing work can never raise a prediction.</p>
+    </div>
+    <div class="panel col">
+      <h3>The screening rule needs no calibration</h3>
+      <p>If a variant's count vector is no higher than the baseline's in <b>every component of every frame</b>, and lower somewhere, its predicted cost cannot be higher under <b>any</b> non-negative coefficients. That is a theorem in Lean. A change that passes it is "less work" and can land without the phone, provided the counted vector covers everything the change touches.</p>
+    </div>
+    <div class="classes">
+      <div class="cls w"><span class="tag">W</span><b>Less work</b><p>Strictly less work in every frame, in both engines, and the same sign on the original page.</p><span class="dev">device: no</span></div>
+      <div class="cls sm"><span class="tag">SM</span><b>Smoothness or mixed</b><p>Trades one cost for another or claims a feel gain.</p><span class="dev">device: only until the class is licensed</span></div>
+      <div class="cls x"><span class="tag">X</span><b>Device-only</b><p>Filters, backdrop blur, toolbar and first-touch effects, heat.</p><span class="dev">device: always</span></div>
+      <div class="cls p"><span class="tag">P</span><b>Proposal</b><p>Changes how the page looks.</p><span class="dev">device: the user decides on a Try-it page</span></div>
+    </div>
+    <p class="col"><b>What the phone still decides.</b> Before the model may stand in for the phone on a kind of change, it needs a calibration session and 5 of 5 blind swipe verdicts that agree with it. Expect about 5–10 phone sessions before the first class is licensed; after that, one session every 14 days plus one blind spot-check per 5 landings.</p>
+  </section>
+
+  <section id="parts">
+    <div class="stack col">
+      <span class="eyebrow">The rewrite</span>
+      <h2>About 32 parts, each behind a flag</h2>
+      <p>The homepage is rebuilt in React 19 as parts such as <code>hero.countdown</code>, <code>people.deck</code> and <code>morph.tween</code>. Every part has a <b>faithful</b> variant that matches the original, plus variants an experiment can switch on from the URL.</p>
+    </div>
+    <div class="two">
+      <div class="stack">
+        <pre><span class="c"># one part swapped, both engines, the v1 scripted swipe</span>
+pnpm fw run --preset original \
+  --fw <span class="k">hero.countdown:strip</span> \
+  --engines chromium,webkit --profile swipe-v1
+
+<span class="c"># ablate every People part, one arm each</span>
+pnpm fw run --preset original --ablate 'people.*'
+
+<span class="c"># in the browser</span>
+/?preset=original&amp;fw=hero.countdown:strip</pre>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>Variant</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td class="k">faithful</td><td>Same look; for experiment parts, also the same per-frame work, including the bad parts.</td></tr>
+              <tr><td class="k">ablation</td><td>frozen, static, nopaint, box: find which part costs what.</td></tr>
+              <tr><td class="k">optimized</td><td>v1 fixes re-implemented and new ideas; must pass the compositor gate.</td></tr>
+              <tr><td class="k">proposal</td><td>A look change for the user to judge.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="stack">
+        <h3>Parity ladder: is the rewrite the original?</h3>
+        <div class="ladder">
+          <div class="rung"><span class="id">PL0</span><p>Structure: the anchors exist and the counts match.</p></div>
+          <div class="rung"><span class="id">PL1</span><p>Element boxes within 0.5 CSS px.</p></div>
+          <div class="rung"><span class="id">PL2</span><p>Computed styles equal, plus the accessibility tree and tab order.</p></div>
+          <div class="rung"><span class="id">PL3</span><p>Still pixels with animations frozen, against an A/A baseline.</p></div>
+          <div class="rung exp"><span class="id">PL4</span><p>Frame-by-frame pixels at 16.667 ms steps. <small>Experiment parts.</small></p></div>
+          <div class="rung exp"><span class="id">PL5</span><p>The same work counts per frame family. <small>Experiment parts.</small></p></div>
+          <div class="rung exp"><span class="id">PL6</span><p>The same per-stage timing, within the original's A/A band. <small>Experiment parts.</small></p></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel col">
+      <h3>MUI everywhere, with styles compiled ahead of time</h3>
+      <p>The user decided the site uses MUI throughout. Runtime CSS-in-JS would insert styles while the page scrolls and add to the very costs being measured, so the plan compiles styles to static CSS ahead of time and adds a check that fails a run if any style is inserted during the measured scroll. Which compile-time stack to use is being researched now (plan revision 4).</p>
+    </div>
+  </section>
+
+  <section id="lean">
+    <div class="stack col">
+      <span class="eyebrow">Lean 4.35.0 · installed</span>
+      <h2>Prove the decisions that could mislead an experiment</h2>
+      <p>Lean is not used for everything. It holds the few rules whose wrong answer would send an experiment the wrong way. A small compiled program, <code>fwcore</code>, makes those decisions for the TypeScript tools over JSON lines.</p>
+    </div>
+    <div class="two">
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Module</th><th>Proves</th></tr></thead>
+          <tbody>
+            <tr><td class="k">Frames</td><td>Vsync tick math and slow-frame thresholds; no 60 vs 120 Hz mix-ups.</td></tr>
+            <tr><td class="k">Verdict</td><td>"Better" only when every variant run beats every control run; false-win rate exactly 1/70 for 4 vs 4.</td></tr>
+            <tr><td class="k">Flags</td><td>Every config resolves to one variant per part; an A/B pair differs in exactly one part.</td></tr>
+            <tr><td class="k">Cost / screen</td><td>Less work in every frame never predicts a higher cost.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><span class="c">-- the statement is the spec</span>
+<span class="k">theorem</span> land_sound
+  (h : land ctl var = .better) :
+  ∀ y ∈ var, ∀ x ∈ ctl, y &lt; x := …
+
+<span class="k">theorem</span> land_null_prob :
+  falseBetterProb 4 4 = (1 : Rat) / 70 := by decide
+
+<span class="c">-- examples checked at build time</span>
+#guard land [21,19,23,20] [4,3,5,2]  = .better
+#guard land [21,19,23,20] [4,3,5,22] = .noise</pre>
+    </div>
+    <p class="col">A browser copy of the flag resolver is checked against Lean with 2,000 generated cases on every change. A bug ledger records which bugs proofs caught versus tests, and at milestone M4 it decides whether Lean earns its place.</p>
+  </section>
+
+  <section id="team">
+    <div class="stack col">
+      <span class="eyebrow">Agent team · CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in committed settings</span>
+      <h2>A small roster, each role on the right model</h2>
+      <p>Roles are committed agent files in <code>.claude/agents/</code>, each with its model, effort and write paths. Scripts and hooks take over v1's routing, polling and device chores.</p>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Role</th><th>Model · effort</th><th>Runs as</th><th>Owns</th></tr></thead>
+        <tbody>
+          <tr><td class="k">lead</td><td><span class="chip opus">opus · medium</span></td><td>main session</td><td>decisions, landing to main</td></tr>
+          <tr><td class="k">engine researcher</td><td><span class="chip opus">opus · high</span></td><td>teammate</td><td>Chromium and WebKit source, rule cards</td></tr>
+          <tr><td class="k">lean prover</td><td><span class="chip opus">opus · high</span></td><td>worktree subagent</td><td>one Lean module each</td></tr>
+          <tr><td class="k">reviewer</td><td><span class="chip opus">opus · medium</span></td><td>fresh subagent</td><td>the review stage, theorem statements</td></tr>
+          <tr><td class="k">part builder</td><td><span class="chip sonnet">sonnet · medium</span></td><td>worktree subagent</td><td>one site part; Opus per call for engine and morph</td></tr>
+          <tr><td class="k">measure engineer</td><td><span class="chip sonnet">sonnet · high</span></td><td>worktree subagent</td><td>measurement plugins, cost-model fit</td></tr>
+          <tr><td class="k">console builder</td><td><span class="chip sonnet">sonnet · medium</span></td><td>worktree subagent</td><td>shadcn console and its API</td></tr>
+          <tr><td class="k">experiment owner</td><td><span class="chip sonnet">sonnet · medium</span></td><td>teammate</td><td>one hypothesis card at a time</td></tr>
+          <tr><td class="k">librarian, search</td><td><span class="chip haiku">haiku · low</span></td><td>subagent</td><td>reference store, searches</td></tr>
+          <tr><td class="k">no agent</td><td>—</td><td>scripts + hooks</td><td>gates, polling, device queue, usage meter</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="two">
+      <div class="panel">
+        <h3>Coordination rules from the chat history</h3>
+        <ul class="tight">
+          <li>No recurring AI check prompts: watchers wake an agent only when something changes.</li>
+          <li>Workers send results to their consumer; the lead gets one line and a file path.</li>
+          <li>A wait of an hour or more ends the agent with a handoff note; a script spawns a fresh one.</li>
+          <li>After every compaction a hook re-injects the roster, names and the lead's address.</li>
+          <li>One plain command per Bash call; multi-step work is a committed <code>pnpm fw</code> command.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Budget: looser, by the user's choice</h3>
+        <p>The user chose speed over token savings. Hard caps become cost reports with soft alerts. The rules above stay because they make the loop faster and less error-prone, not only cheaper.</p>
+        <p class="mono" style="font-size:var(--s-1);color:var(--muted)">reported per day: tokens by role · cache-read share · cold wakes · compactions · list-price $</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="stack col">
+      <span class="eyebrow">45 working days from Monday 2026-10-19</span>
+      <h2>Roadmap</h2>
+      <p>Week 1 is a thin working slice, not a framework: one counts script on the original page, one Lean verdict round trip, one WebKit Simulator spike.</p>
+    </div>
+    <div class="timeline" role="list" aria-label="Milestones to scale by working days">
+      <div role="listitem" style="flex:5"><b>M0</b><span>Bootstrap slice · Day 1–5</span></div>
+      <div role="listitem" style="flex:8"><b>M1</b><span>Measure the original · Day 6–13</span></div>
+      <div role="listitem" style="flex:5"><b>M2</b><span>Pilot parts · Day 14–18</span></div>
+      <div role="listitem" style="flex:5"><b>M3</b><span>Calibrate on iPhone · Day 19–23</span></div>
+      <div role="listitem" style="flex:10"><b>M4</b><span>Port experiment parts · Day 24–33</span></div>
+      <div role="listitem" style="flex:10"><b>M5</b><span>Experiments · Day 34–43</span></div>
+      <div role="listitem" style="flex:2"><b>M6</b><span>Write-up · 44–45</span></div>
+    </div>
+    <p style="font-size:var(--s-1);color:var(--muted)">Bar widths are proportional to working days. Orange milestones need booked phone sessions.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Day</th><th>Deliverable</th></tr></thead>
+        <tbody>
+          <tr><td class="k num">1</td><td>Minimal settings and a CLAUDE.md under 300 words. A standalone script steps the original page in containerised headless Chrome and writes one count vector.</td></tr>
+          <tr><td class="k num">2</td><td>Run it twice: byte-identical? Check the clock shim against a free-running run. First per-zone counts for the original.</td></tr>
+          <tr><td class="k num">3</td><td>Lean project seeded from the sketch; <code>fwcore verdict</code> round trip from TypeScript. Agent files and hooks committed; the team starts.</td></tr>
+          <tr><td class="k num">4–5</td><td>Console step queue first. WebKit Simulator spike: layer census, stepping trial, seek-overhead fixture.</td></tr>
+          <tr><td class="k num">6–10</td><td>Contracts and artifact store; <code>fw run</code>; WebKit stepped counts (time-boxed); Lean MVP modules; baseline count report for the original.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="decisions">
+    <div class="stack col">
+      <span class="eyebrow">Review</span>
+      <h2>Decisions</h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Question</th><th>Status</th><th>Answer</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Install Lean</td><td><span class="chip ok">decided</span></td><td>Yes. elan with Lean 4.35.0 is installed.</td></tr>
+          <tr><td class="k">MUI scope</td><td><span class="chip ok">decided</span></td><td>MUI everywhere, with styles compiled ahead of time; the compile-time stack is being researched.</td></tr>
+          <tr><td class="k">Repo visibility</td><td><span class="chip ok">decided</span></td><td>Private until a public React port is confirmed OK.</td></tr>
+          <tr><td class="k">Budget</td><td><span class="chip ok">decided</span></td><td>Looser: prefer speed; costs reported with soft alerts, no hard stops.</td></tr>
+          <tr><td class="k">Devices</td><td><span class="chip open">open</span></td><td>iPhone iOS version; Developer Mode and Instruments; Android phone or not.</td></tr>
+          <tr><td class="k">Phone sessions</td><td><span class="chip open">open</span></td><td>Which times and how long; whether the second iPhone stays out of measurement.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <details>
+      <summary>Defaults the plan uses unless the user objects</summary>
+      <ul class="tight">
+        <li>Full look and work parity only for experiment parts; look parity for the rest; a time box per part.</li>
+        <li>The parity reference is snapshot b1789284481295-a455e793; v1's best build becomes the <code>v1-best</code> preset.</li>
+        <li>Chromium is a development aid with no fitted coefficients, unless an Android phone is added.</li>
+        <li>No "less work" landing for style-affecting changes in WebKit until a test-runner element count exists.</li>
+        <li>Optimized variants pass a compositor gate; 60 Hz is the canonical rate.</li>
+        <li>Landing verdict: 4 vs 4 runs, proved 1/70 false-win rate, comparisons counted per experiment.</li>
+        <li>Raw traces and phone-screen recordings stay local; no recurring AI check prompts.</li>
+      </ul>
+    </details>
+  </section>
+
+</main>
+
+<div class="wrap">
+  <footer>
+    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 3) and <span class="mono">research/kickoff/01–08</span>, plus the user's decisions of 2026-10-17.</span>
+    <span>A personal, educational study of the public fastwork.com homepage. Not affiliated with Fastwork.</span>
+  </footer>
+</div>
