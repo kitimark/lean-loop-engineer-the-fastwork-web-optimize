@@ -1,0 +1,15 @@
+{
+  "name": "@fw/measure-chromium",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Counts lane, Chromium arm: deterministic per-frame work counts from chromium-headless-shell with BeginFrameControl, in a Linux arm64 container.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build:image": "docker build -t fw-measure-chromium:1 .",
+    "count": "node src/host.mjs",
+    "compare": "node src/compare.mjs",
+    "determinism": "node src/host.mjs --profile swipe-v1 --label det-a && node src/host.mjs --profile swipe-v1 --label det-b && node src/compare.mjs out/swipe-v1/det-a/counts.json out/swipe-v1/det-b/counts.json",
+    "test": "node --test test/pure.test.mjs"
+  }
+}

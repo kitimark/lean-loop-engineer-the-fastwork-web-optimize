@@ -1,0 +1,17 @@
+{
+  "id": "swipe-v1",
+  "about": "Scripted swipe, one scroll step per virtual frame at 60 Hz: 10 CSS px per frame from the top to the end of the page, then a short tail. Same step size as v1's scripted swipe (scrollTo 10 px per rAF).",
+  "hz": 60,
+  "viewport": { "width": 430, "height": 932, "dpr": 3, "mobile": true, "touch": true },
+  "pinnedDate": "2026-10-01T00:00:00+07:00",
+  "timezone": "Asia/Bangkok",
+  "locale": "en-US",
+  "seed": 1592661556,
+  "load": { "quietFrames": 30, "maxFrames": 900, "prerollFrames": 60 },
+  "zoneHeightPx": 500,
+  "segments": [
+    { "name": "rest", "dyPerFrame": 0, "frames": 10 },
+    { "name": "swipe", "dyPerFrame": 10, "until": "end" },
+    { "name": "tail", "dyPerFrame": 0, "frames": 30 }
+  ]
+}
