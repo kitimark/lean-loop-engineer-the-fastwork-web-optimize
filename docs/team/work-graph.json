@@ -1388,6 +1388,53 @@
     "packages/measure-webkit/**",
     ".github/workflows/webkit-sim.yml"
    ]
+  },
+  {
+   "id": "n1-lean",
+   "title": "Lean rules from hittest/spk-q: N1 net (SVG-image documents out), SPK-q gate verdict, classes for by-design quarantined and one-arm-only types; replace trace.mjs SPLITS and n0.mjs stand-ins",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "hittest",
+    "spk-q",
+    "freeze-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Measure/**",
+    "packages/contracts/golden/measure/**",
+    "packages/measure-chromium/src/trace.mjs",
+    "packages/measure-chromium/src/n0.mjs",
+    "packages/measure-chromium/test/**"
+   ]
+  },
+  {
+   "id": "refreeze",
+   "title": "Regenerate classes.frozen.json (measure.freeze over 3 CI runs per profile, A and R) after the HitTest and N1 splits",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "n1-lean"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-chromium/classes.frozen.json",
+    "packages/measure-chromium/README.md"
+   ]
+  },
+  {
+   "id": "touch-race",
+   "title": "Chromium touch profile: EventDispatch, HitTest, FunctionCall, PrePaint follow the touchmove race; make delivery deterministic or bound it",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "hittest"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-chromium/src/input*.mjs",
+    "packages/measure-chromium/src/run.mjs"
+   ]
   }
  ]
 }
