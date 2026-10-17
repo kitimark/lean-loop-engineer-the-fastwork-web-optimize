@@ -20,6 +20,7 @@ import Fw.Parts.EngineScroll
 import Fw.Parts.NavHitTest
 import Fw.Parts.NavHitTestOpt
 import Fw.Parts.HeroCountdown
+import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
 import Fw.Parts.MorphTweenOpt

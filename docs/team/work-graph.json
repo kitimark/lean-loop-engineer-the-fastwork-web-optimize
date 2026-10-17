@@ -2119,7 +2119,8 @@
    "writes": [
     "lean/Fw/Parts/HeroCountdownOpt.lean",
     "packages/contracts/golden/engine/countdown-strip.jsonl"
-   ]
+   ],
+   "evidence": "d5cca09"
   },
   {
    "id": "proof-hidden-pause",
