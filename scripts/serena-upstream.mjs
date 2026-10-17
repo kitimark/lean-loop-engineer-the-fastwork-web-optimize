@@ -13,11 +13,13 @@ const languageOf = {
   lean4: "lean4",
   "material-ui": "typescript",
   emotion: "typescript",
+  "emotion-server": "typescript",
+  "emotion-serialize": "typescript",
   react: "typescript",
   chromium: "cpp",
   webkit: "cpp",
 };
-const order = ["lean4", "material-ui", "emotion", "react", "chromium", "webkit"];
+const order = ["lean4", "material-ui", "emotion", "emotion-server", "emotion-serialize", "react", "chromium", "webkit"];
 const cppExt = /\.(cc|cpp|cxx|c)$/;
 const skipDir = new Set([".git", "node_modules", ".serena"]);
 const cppCap = 20000;

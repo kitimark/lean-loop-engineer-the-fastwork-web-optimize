@@ -1,0 +1,121 @@
+# Upstream source pins (PLAN section 7.1). Fetch: node scripts/refs-fetch.mjs [<id|owner/name>] [--paths a,b]
+# Checkouts land in .cache/upstream/<name>@<sha7>/ (gitignored). How each pin was verified: refs/upstream/PINS.md.
+# Format (parsed by scripts/refs-fetch.mjs, a YAML subset): list items under `sources:`; scalars; `paths:` as a
+# block list. sha = the commit (tags peeled), 40 lowercase hex.
+sources:
+  - id: chromium
+    repo: chromium/chromium
+    tag: 156.0.8078.4
+    version: Chrome Headless Shell 156.0.8078.4 (playwright-core 1.64.1, chromium-headless-shell v1248)
+    sha: f842f52ef39fd97b449eb27cff414bf05a98ddce
+    status: CONFIRMED
+    why: counts lane, Chromium arm (packages/measure-chromium/Dockerfile HS_VERSION)
+    paths:
+      - third_party/blink/renderer/core/frame
+      - third_party/blink/renderer/core/layout
+      - third_party/blink/renderer/core/paint
+      - third_party/blink/renderer/core/animation
+      - third_party/blink/renderer/core/css/resolver
+      - cc/trees
+      - cc/scheduler
+      - components/viz/service/display
+      - chrome/VERSION
+
+  - id: webkit
+    repo: WebKit/WebKit
+    tag: WebKit-7625.1.29.10.29
+    version: iOS 27.0 (24A434) WebKit.framework 8625.1.29.10.29, Safari UA Version/27.0
+    sha: 862f17dcae0aace47ea0ec16e209d960abfd553c
+    status: CONFIRMED
+    why: WebKit lane (Simulator iOS 27.0 runtime); the phone runs iOS 27.0.1, whose build is not pinned here
+    paths:
+      - Configurations/Version.xcconfig
+      - Source/WebCore/rendering
+      - Source/WebCore/page
+      - Source/WebCore/platform/graphics/ca
+      - Source/WebCore/animation
+      - Source/WebCore/css
+      - Source/WebKit/WebProcess/WebPage/RemoteLayerTree
+
+  - id: lean4
+    repo: leanprover/lean4
+    tag: v4.35.0
+    version: leanprover/lean4:v4.35.0 (lean/lean-toolchain)
+    sha: eb6cafb7290e8bd5f2937522d8d804f58f02bafc
+    status: CONFIRMED
+    why: fwcore runtime and the Nat, List, Rat lemmas the proofs use
+    paths:
+      - src/runtime
+      - src/Init/Data/Nat
+      - src/Init/Data/List
+      - src/Init/Data/Rat
+      - src/CMakeLists.txt
+
+  - id: mui
+    repo: mui/material-ui
+    tag: v9.5.0
+    version: "@mui/material, @mui/system, @mui/styled-engine, @mui/utils, @mui/private-theming 9.5.0 (pnpm-lock.yaml)"
+    sha: 1c3f8b4903f21cfad12c102edb3db4ceba2e8c8c
+    status: CONFIRMED
+    why: apps/site styling engine (MUI everywhere, zero-runtime research)
+    paths:
+      - packages/mui-material/src
+      - packages/mui-system/src
+      - packages/mui-styled-engine/src
+      - packages/mui-utils/src
+      - packages/mui-private-theming/src
+      - packages/mui-material/package.json
+      - packages/mui-system/package.json
+      - packages/mui-styled-engine/package.json
+      - packages/mui-utils/package.json
+      - packages/mui-private-theming/package.json
+
+  - id: emotion
+    repo: emotion-js/emotion
+    tag: "@emotion/styled@11.14.1"
+    version: "@emotion/react 11.14.0, cache 11.14.0, styled 11.14.1, sheet 1.4.0, use-insertion-effect-with-fallbacks 1.2.0 (pnpm-lock.yaml)"
+    sha: 49229553967b6050c92d9602eb577bdc48167e91
+    status: CONFIRMED
+    why: MUI's runtime styled engine in apps/site
+    paths:
+      - packages/react
+      - packages/cache
+      - packages/styled
+      - packages/sheet
+      - packages/use-insertion-effect-with-fallbacks
+
+  - id: emotion-server
+    repo: emotion-js/emotion
+    tag: "@emotion/server@11.11.0"
+    version: "@emotion/server 11.11.0 (pnpm-lock.yaml)"
+    sha: 1135f8e9d97ea711eb483368313afdfe7b176845
+    status: CONFIRMED
+    why: critical CSS extraction in the apps/site prerender; source differs from the emotion pin
+    paths:
+      - packages/server
+
+  - id: emotion-serialize
+    repo: emotion-js/emotion
+    tag: "@emotion/serialize@1.3.3"
+    version: "@emotion/serialize 1.3.3, utils 1.4.2 (pnpm-lock.yaml; both tags peel to this commit)"
+    sha: c161e6f2f85977c27cc4a258d4efb0504a3b77b1
+    status: CONFIRMED
+    why: style serialization under styled and css; source differs from the emotion pin
+    paths:
+      - packages/serialize
+      - packages/utils
+
+  - id: react
+    repo: facebook/react
+    tag: v19.3.1
+    version: react, react-dom 19.3.1 (pnpm-lock.yaml)
+    sha: 61aa00df822d0eb76d0362eb8b6fdd3527693efe
+    status: CONFIRMED
+    why: apps/site renderer (prerender + hydration)
+    paths:
+      - packages/react
+      - packages/react-dom
+      - packages/react-dom-bindings
+      - packages/react-reconciler
+      - packages/scheduler
+      - packages/shared
