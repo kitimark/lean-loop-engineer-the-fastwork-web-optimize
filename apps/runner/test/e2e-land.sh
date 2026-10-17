@@ -35,13 +35,13 @@ as main card approve A
 echo hi > "$T/wt-A/a.txt"; (cd "$T/wt-A" && $G add -- a.txt && $G commit -q -m a)
 SHA=$($G rev-parse card/A)
 echo "--- land before evidence must refuse"
-if as main land card/A; then echo "FAIL: landed without evidence"; exit 1; fi
+if as main land card/A --allow '**'; then echo "FAIL: landed without evidence"; exit 1; fi
 screen "$SHA"
 as reviewer card review A "$SHA" --by someone-else --accept true
 $FW status
 echo "--- land"
 export FW_LAND_CHECKS='[["true"]]'
-as main land card/A
+as main land card/A --allow '**'
 unset FW_LAND_CHECKS
 [ "$($G rev-parse main)" = "$SHA" ] || { echo "FAIL: main did not advance"; exit 1; }
 $FW status

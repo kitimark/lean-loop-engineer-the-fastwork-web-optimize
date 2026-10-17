@@ -31,7 +31,7 @@ async function setup() {
   };
   // these tests have no hook, hence no capability: the land request goes through the web/user door
   const submit = (c: object) => http.post("/api/commands", c);
-  const opts = { http, cwd: fx.root, checks: [["true"]], submit };
+  const opts = { http, cwd: fx.root, checks: [["true"]], submit, ci: false as const, allow: ["**"] };
   return { fx, store, http, cmd, evidence, opts };
 }
 
@@ -92,11 +92,11 @@ describe("fw land", () => {
     await evidence(sha);
     const r = await land("card/A", opts);
     expect(r.ok).toBe(false);
-    expect(r.lines.join("\n")).toMatch(/path check/);
+    expect(r.lines.join("\n")).toMatch(/outside the scope/);
     expect(fx.git(fx.root, "rev-parse", "main")).not.toBe(sha);
   });
 
-  it("rebases a branch that is behind main; the rebased commits are new builds, so landing waits for new evidence", async () => {
+  it("never rebases: a card branch behind main is refused for a fast-forward and left untouched", async () => {
     const { fx, http, evidence, opts } = await setup();
     const wt = fx.worktree("card/A");
     const sha = fx.commit(wt, "a.txt");
@@ -105,9 +105,19 @@ describe("fw land", () => {
     fx.commit(fx.root, "other.txt");
     const r = await land("card/A", opts);
     expect(r.ok).toBe(false);
-    expect(r.lines.join("\n")).toMatch(/rebased card\/A onto main/);
-    expect(r.lines.join("\n")).toMatch(/stage screen/);
+    expect(r.lines.join("\n")).toMatch(/behind main/);
+    expect(fx.git(fx.root, "rev-parse", "card/A")).toBe(sha);
     expect(worktreeOf(fx.root, "card/A")).toBe(wt);
+  });
+
+  it("a card landing without writes or --allow is refused with the changed files", async () => {
+    const { fx, http, evidence, opts } = await setup();
+    const sha = fx.commit(fx.worktree("card/A"), "a.txt");
+    await http.post("/api/reconcile", {});
+    await evidence(sha);
+    const r = await land("card/A", { ...opts, allow: undefined });
+    expect(r.ok).toBe(false);
+    expect(r.lines.join("\n")).toMatch(/no writes[\s\S]*a\.txt/);
   });
 
   it("refuses a branch that is not a card branch", async () => {

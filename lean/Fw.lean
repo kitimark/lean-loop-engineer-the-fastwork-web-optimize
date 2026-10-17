@@ -18,7 +18,9 @@ import Fw.Site.BreakpointMatrix
 import Fw.Site.BreakpointGen
 import Fw.Parts.EngineScroll
 import Fw.Parts.NavHitTest
+import Fw.Parts.NavHitTestOpt
 import Fw.Parts.HeroCountdown
+import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
 import Fw.Parts.MorphPanel
@@ -36,8 +38,14 @@ import Fw.Parts.HeroAccent
 import Fw.Parts.HeroDeck
 import Fw.Parts.HeroGolden
 import Fw.Parts.PeopleGolden
+import Fw.Parts.PlatformGolden
+import Fw.Parts.MorphTweenOpt
+import Fw.Parts.HiddenPause
+import Fw.Parts.MorphMountOpt
+import Fw.Parts.HeroExitOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes
+import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.Wire
@@ -58,3 +66,6 @@ import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
 import Fw.Wire.Gate
+import Fw.Engine
+import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
+import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint

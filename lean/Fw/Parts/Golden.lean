@@ -11,6 +11,7 @@ import Fw.Parts.OverlayGolden
 import Fw.Parts.HeroGolden
 import Fw.Parts.PeopleGolden
 import Fw.Parts.PainNotesGolden
+import Fw.Parts.PlatformGolden
 /-!
 # Golden vectors for the M2 pilot parts
 
@@ -376,7 +377,7 @@ def main (args : List String) : IO Unit := do
      ("commission.jsonl", Fw.Parts.CommissionGolden.commissionLines),
      ("commission.typing.jsonl", Fw.Parts.CommissionGolden.typingLines),
      ("overlays.drawer.jsonl", OverlayGolden.drawerLines), ("overlays.signup.jsonl", OverlayGolden.signupLines),
-     ("hero.orbit.jsonl", Fw.Parts.HeroGolden.orbitLines), ("hero.accent.jsonl", Fw.Parts.HeroGolden.accentLines)] ++ Fw.Parts.PeopleGolden.files ++ [("pain.notes.jsonl", Fw.Parts.PainNotesGolden.lines)]
+     ("hero.orbit.jsonl", Fw.Parts.HeroGolden.orbitLines), ("hero.accent.jsonl", Fw.Parts.HeroGolden.accentLines)] ++ Fw.Parts.PeopleGolden.files ++ [("pain.notes.jsonl", Fw.Parts.PainNotesGolden.lines)] ++ PlatformGolden.files
   for (name, ls) in files do
     IO.FS.writeFile (dir ++ "/" ++ name) (String.join (ls.map (· ++ "\n")))
     IO.println s!"{name}: {ls.length} lines"

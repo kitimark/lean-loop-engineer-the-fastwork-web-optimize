@@ -2,10 +2,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { dispatchArgs, fwcoreCall, keyDigest, newestRun, parseRunArgs, planRun, runMain, sha256, type FwCall, type Gh } from "../src/run.ts";
+import type { Target } from "@fw/gh-budget";
+import { dispatchArgs, fwcoreCall, keyDigest, parseRunArgs, planRun, runMain, sha256, type FwCall, type Gh } from "../src/run.ts";
 import { UsageError } from "../src/lib.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
+/** The waiting side of RunDeps: a stub that decides every wait at once as run 55 (the shared poller is tested in packages/gh-budget). */
+const waits: Target[] = [];
+const base = () => ({ now: () => 1_800_000_000, wait: async (t: Target) => { waits.push(t); return { code: 0 as const, lines: ["run 55 chromium-counts success"] }; } });
 
 describe("parseRunArgs", () => {
   it("reads flags, commas and repeats", () => {
@@ -22,18 +26,6 @@ describe("parseRunArgs", () => {
   });
 });
 
-describe("newestRun", () => {
-  it("waits until the newest run differs from the one before dispatch", () => {
-    const seq = ["7", "7", "8"];
-    const gh: Gh = () => JSON.stringify([{ databaseId: Number(seq.shift() ?? "8") }]);
-    expect(newestRun(gh, "w.yml", "main", "7", 0)).toBe("8");
-  });
-  it("gives up when nothing new appears", () => {
-    const gh: Gh = () => JSON.stringify([]);
-    expect(() => newestRun(gh, "w.yml", "main", null, 0)).toThrow(/no new run/);
-  });
-});
-
 describe("dispatchArgs", () => {
   it("passes inputs as -f k=v", () => {
     const job = { engine: "chromium", workflow: "chromium-counts.yml", inputs: { profile: "swipe-v1", runs: "3" }, key: [], image: "runner:x", blocked: null } as never;
@@ -47,33 +39,33 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
   const call: FwCall = hasCore ? fwcoreCall(process.cwd()) : () => ({});
   const mk = () => mkdtempSync(join(tmpdir(), "fw-run-"));
 
-  it("--dry plans two jobs and runs no gh", () => {
+  it("--dry plans two jobs and runs no gh", async () => {
     const logs: string[] = [];
-    const gh: Gh = () => { throw new Error("gh must not run in --dry"); };
-    const code = runMain(parseRunArgs(["--engines", "chromium,webkit", "--target", "original", "--dry"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    const gh: Gh = async () => { throw new Error("gh must not run in --dry"); };
+    const code = await runMain(parseRunArgs(["--engines", "chromium,webkit", "--target", "original", "--dry"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
     expect(code).toBe(0);
     expect(logs.join("\n")).toMatch(/chromium/);
     expect(logs.join("\n")).toMatch(/webkit/);
   });
 
-  it("a request the workflow cannot express is refused before any dispatch", () => {
+  it("a request the workflow cannot express is refused before any dispatch", async () => {
     const logs: string[] = [];
-    const gh: Gh = () => { throw new Error("no gh"); };
+    const gh: Gh = async () => { throw new Error("no gh"); };
     // webkit-sim has no target (or fw) input: it measures the original snapshot only
-    const code = runMain(parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--fw", "hero.countdown:strip"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    const code = await runMain(parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--fw", "hero.countdown:strip"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
     expect(code).toBe(2);
     expect(logs.join("\n")).toMatch(/refused: webkit \(target\)/);
   });
 
-  it("an original run with flags is a problem (fwcore), not a dispatch", () => {
+  it("an original run with flags is a problem (fwcore), not a dispatch", async () => {
     const logs: string[] = [];
-    const gh: Gh = () => { throw new Error("no gh"); };
-    const code = runMain(parseRunArgs(["--engines", "chromium", "--target", "original", "--fw", "hero.countdown:strip"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    const gh: Gh = async () => { throw new Error("no gh"); };
+    const code = await runMain(parseRunArgs(["--engines", "chromium", "--target", "original", "--fw", "hero.countdown:strip"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
     expect(code).toBe(2);
     expect(logs.join("\n")).toMatch(/problem: target: original takes no preset or flags/);
   });
 
-  it("the target is sent to chromium-counts and is part of the key: original and rewrite never share a run key", () => {
+  it("the target is sent to chromium-counts and is part of the key: original and rewrite never share a run key", async () => {
     const store = mk();
     const o = planRun(call, parseRunArgs(["--engines", "chromium", "--target", "original"]), SHA, store).reply.jobs[0]!;
     const r = planRun(call, parseRunArgs(["--engines", "chromium", "--target", "rewrite"]), SHA, store).reply.jobs[0]!;
@@ -84,21 +76,21 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     expect(dispatchArgs(r, "ci/x")).toContain("target=rewrite");
   });
 
-  it("chromium-counts expresses preset and fw: a dry run is not refused", () => {
+  it("chromium-counts expresses preset and fw: a dry run is not refused", async () => {
     const logs: string[] = [];
-    const gh: Gh = () => { throw new Error("no gh"); };
-    const code = runMain(parseRunArgs(["--engines", "chromium", "--target", "rewrite", "--preset", "original", "--fw", "nav.hitTest:hit-skip,hero.countdown:strip", "--dry"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    const gh: Gh = async () => { throw new Error("no gh"); };
+    const code = await runMain(parseRunArgs(["--engines", "chromium", "--target", "rewrite", "--preset", "original", "--fw", "nav.hitTest:hit-skip,hero.countdown:strip", "--dry"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
     expect(logs.join("\n")).not.toMatch(/refused|BLOCKED/);
     expect(code).toBe(0);
   });
 
-  it("dispatches, downloads and files artifacts; a second run is a cache hit", () => {
+  it("dispatches, downloads and files artifacts; a second run is a cache hit", async () => {
     const store = mk(), tmp = mk();
     const calls: string[][] = [];
     let listed = 0;
-    const gh: Gh = (a) => {
+    const gh: Gh = async (a) => {
       calls.push(a);
-      if (a[0] === "run" && a[1] === "list") return JSON.stringify(listed++ === 0 ? [] : [{ databaseId: 55 }]);
+      if (a[0] === "run" && a[1] === "list") return JSON.stringify([]);
       if (a[0] === "run" && a[1] === "view") return JSON.stringify({ headSha: SHA });
       if (a[0] === "run" && a[1] === "download") {
         const d = a[a.indexOf("-D") + 1]!;
@@ -110,8 +102,12 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     };
     const args = parseRunArgs(["--engines", "chromium", "--target", "original", "--ref", "ci/t"]);
     const logs: string[] = [];
-    expect(runMain(args, { call, gh, store, sha: SHA, branch: "main", tmp, log: (l) => logs.push(l), pollMs: 0 })).toBe(0);
+    expect(await runMain(args, { ...base(), call, gh, store, sha: SHA, branch: "main", tmp, log: (l) => logs.push(l) })).toBe(0);
     expect(calls.some((c) => c[0] === "workflow")).toBe(true);
+    // the run is found and awaited by the shared poller (one branch wait), not by gh polling or `gh run watch`
+    expect(waits.at(-1)).toMatchObject({ kind: "branch", branch: "ci/t", sha: SHA });
+    expect(calls.some((c) => c[1] === "watch")).toBe(false);
+    expect(calls.map((c) => c.slice(0, 2).join(" "))).toEqual(["run list", "workflow run", "run view", "run download"]);
     const planned = planRun(call, args, SHA, store);
     const key = planned.reply.jobs[0]!.key as [string, string][];
     expect(existsSync(join(store, "runs", keyDigest(key), "manifest.json"))).toBe(true);
@@ -126,13 +122,13 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
 
     const before = calls.length;
     const logs2: string[] = [];
-    expect(runMain(args, { call, gh, store, sha: SHA, branch: "main", tmp, log: (l) => logs2.push(l), pollMs: 0 })).toBe(0);
+    expect(await runMain(args, { ...base(), call, gh, store, sha: SHA, branch: "main", tmp, log: (l) => logs2.push(l) })).toBe(0);
     expect(calls.length).toBe(before);
     expect(logs2.join("\n")).toMatch(/cached/);
   });
 
-  it("a run that measured another commit is refused", () => {
-    const gh: Gh = (a) => (a[1] === "list" ? JSON.stringify([{ databaseId: 9 }]) : a[1] === "view" ? JSON.stringify({ headSha: "f".repeat(40) }) : "");
-    expect(() => runMain(parseRunArgs(["--engines", "chromium", "--target", "original", "--from-run", "chromium=9"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: () => {} })).toThrow(/measured/);
+  it("a run that measured another commit is refused", async () => {
+    const gh: Gh = async (a) => (a[1] === "list" ? JSON.stringify([{ databaseId: 9 }]) : a[1] === "view" ? JSON.stringify({ headSha: "f".repeat(40) }) : "");
+    await expect(runMain(parseRunArgs(["--engines", "chromium", "--target", "original", "--from-run", "chromium=9"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: () => {} })).rejects.toThrow(/measured/);
   });
 });

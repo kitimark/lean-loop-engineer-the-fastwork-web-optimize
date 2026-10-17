@@ -1,7 +1,7 @@
 # Handoff: integrate-ports
 
 Branch `worktree-agent-afe5e7954b26806f5` (CI ref `ci/integrate-ports`), from main 6626359. Merged, one merge commit each, in order:
-port-morph-panel, port-nav, port-commission, port-overlays, port-hero, port-people, port-pain. NOT merged: port-platform (lands separately).
+port-morph-panel, port-nav, port-commission, port-overlays, port-hero, port-people, port-pain, then main 6e968ba (port-platform). gen-shells.mjs PORTED is derived: a section whose part.json has a faithful variant.
 Head sha and run ids: in the lead report (the last pushed head is on `ci/integrate-ports`).
 
 ## Conventions

@@ -1,0 +1,2 @@
+{"scenario":{"expect":{"counts":[{"from":1792282546,"kind":"any","max":0,"min":0,"until":1792285200},{"from":1792285200,"kind":"tick","max":1,"min":1,"until":1792285201}]},"name":"remaining-floor","oneoffCost":1,"oneoffEvery":45,"seconds":5400,"start":1792281600,"waiters":3}}
+{"at":1792282500,"serverRemaining":400}

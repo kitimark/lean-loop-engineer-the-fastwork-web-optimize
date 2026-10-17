@@ -1,0 +1,8 @@
+{"base":"rewrite","countType":"trace.FireAnimationFrame","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"script","variant":"hidden-pause"}
+{"base":"rewrite","countType":"trace.UpdateLayoutTree","engine":"chromium","prediction":"≤o","scenario":"swipe-v1","stage":"style","variant":"hidden-pause"}
+{"base":"rewrite","countType":"trace.Layout","engine":"chromium","prediction":"=o","scenario":"swipe-v1","stage":"layout","variant":"hidden-pause"}
+{"base":"rewrite","countType":"trace.cc.Commit","engine":"chromium","prediction":"≤o","scenario":"swipe-v1","stage":"commit","variant":"hidden-pause"}
+{"base":"rewrite","countType":"FireAnimationFrame","engine":"webkit","prediction":"=o","scenario":"swipe-v1","stage":"script","variant":"hidden-pause"}
+{"base":"rewrite","countType":"RecalculateStyles","engine":"webkit","prediction":"≤o","scenario":"swipe-v1","stage":"style","variant":"hidden-pause"}
+{"base":"rewrite","countType":"Layout","engine":"webkit","prediction":"≤o","scenario":"swipe-v1","stage":"layout","variant":"hidden-pause"}
+{"base":"rewrite","countType":"Composite","engine":"webkit","prediction":"=o","scenario":"swipe-v1","stage":"commit","variant":"hidden-pause"}

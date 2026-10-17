@@ -461,7 +461,7 @@ def tab (ts : List Task) : Nat → List (String × List String)
 
 /-- The chain recorded for `x` at fuel `k`.
 
-$$\operatorname{cpf}_{ts}(k, x) = \operatorname{look}(T_k, x)$$
+$$\operatorname{cpf}_{ts}(k, x) = \operatorname{look}(\operatorname{tab}(ts, k), x)$$
 -/
 def cpf (ts : List Task) (k : Nat) (x : String) : List String := look (tab ts k) x
 

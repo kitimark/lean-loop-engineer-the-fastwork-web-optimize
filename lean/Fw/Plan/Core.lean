@@ -904,7 +904,9 @@ theorem view_criticalPath_not_cut {π : State} {x : String} (hx : x ∈ (view π
 
 /-- A definition with the given id and deps (test helper).
 
-$$\operatorname{mk}(x, D, W) = (x, x, \texttt{"s"}, \bot, D, \texttt{"o"}, W, [\,], [\,], \bot)$$
+$$\operatorname{mk}(x, D, W) = (x, x, \texttt{"s"}, \bot, D, \texttt{"o"}, W, [\,], [\,], \bot, \mathrm{false}, [\,]) \quad (W = [\,] \text{ by default})$$
+
+The twelve fields are task, title, stream, milestone, deps, owner, writes, devices, needs, evidence, cut, live; the last two keep their defaults.
 -/
 def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
   { task := x, title := x, stream := "s", milestone := none, deps, owner := "o", writes,

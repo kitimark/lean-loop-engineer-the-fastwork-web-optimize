@@ -1,6 +1,6 @@
 {
  "schema": "fw.work-graph/1",
- "about": "The team's task graph: what is left to do, what each task needs first, which files and devices it holds. No status here: done comes from 'evidence' (a commit on main) or from console events; ready, blocked and running are derived by fwcore (Lean). Task id = agent name = console card id. Edited by the lead; synced into the console with 'fw plan sync'. Revision 9 (2026-10-17): the experiment ends with a report by 2026-10-20 13:15 +0700 (see 'deadline'); milestone MX holds tasks cut in revision 9 and is never started; tasks marked '(only on GO at C1)' are cut if the WebKit Simulator lane is NO-GO at checkpoint C1.",
+ "about": "The team's task graph: what is left to do, what each task needs first, which files and devices it holds. No status here: done comes from 'evidence' (a commit on main) or from console events; ready, blocked and running are derived by fwcore (Lean). Task id = agent name = console card id. Edited by the lead; synced into the console with 'fw plan sync'. Revision 9 (2026-10-17): the experiment ends with a report by 2026-10-20 13:15 +0700 (see 'deadline'); milestone MX holds tasks cut in revision 9 and is never started; tasks marked '(only on GO at C1)' are cut if the WebKit Simulator lane is NO-GO at checkpoint C1. Revision 10 (2026-10-18): the evidence per part is a Lean theorem pair (same visual, no more work) under the engine models, for all t and all widths; CI counts falsify the models (F0-F5); the phone is an optional spot check with no dependents; milestone M5 holds the proof tasks.",
  "milestones": [
   {
    "id": "M0",
@@ -16,7 +16,7 @@
   },
   {
    "id": "M3",
-   "title": "Device truth: two phone sessions held, checks recorded (no calibration in v2)"
+   "title": "Optional phone spot checks: never evidence, no dependents (rev 10; session 1 held, 0c901f2)"
   },
   {
    "id": "M4",
@@ -24,7 +24,7 @@
   },
   {
    "id": "M5",
-   "title": "Experiments: end-of-page decision on Chromium counts and the phone"
+   "title": "Proofs and the end-of-page decision: engine models in Lean, one theorem pair (visual, work) per part x optimization, CI falsification checks F0-F5, decision from the proof ledger"
   },
   {
    "id": "M6",
@@ -32,7 +32,7 @@
   },
   {
    "id": "MX",
-   "title": "Cut in revision 9 (do not start)"
+   "title": "Cut in revisions 9 and 10 (do not start; a cut dep blocks until its edge is removed)"
   }
  ],
  "tasks": [
@@ -260,7 +260,8 @@
    ],
    "devices": [
     "simulator"
-   ]
+   ],
+   "evidence": "7818dbb"
   },
   {
    "id": "plan-rev6",
@@ -350,7 +351,8 @@
    "writes": [
     "packages/gate-breakpoints/src/anchors.json",
     "lean/Fw/Gate/**"
-   ]
+   ],
+   "evidence": "78b850a"
   },
   {
    "id": "m0-mutants",
@@ -363,7 +365,8 @@
     "lean/FwTest/Mutants/**",
     "lean/scripts/mutants.sh",
     "research/notes/2026/10-17-mutants.md"
-   ]
+   ],
+   "evidence": "8074907"
   },
   {
    "id": "spk-hooks",
@@ -434,7 +437,8 @@
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Wire/**"
-   ]
+   ],
+   "evidence": "bf4d660"
   },
   {
    "id": "lean-console-gaps",
@@ -449,7 +453,8 @@
     "lean/Fw/Console*.lean",
     "lean/Fw/Console/**",
     "lean/Fw/Ops/**"
-   ]
+   ],
+   "evidence": "acc5d83"
   },
   {
    "id": "measure-ts-to-lean",
@@ -476,7 +481,8 @@
    "owner": "console-builder",
    "writes": [
     "apps/runner/**"
-   ]
+   ],
+   "evidence": "ba20c0e"
   },
   {
    "id": "touch-wedge",
@@ -494,7 +500,8 @@
    ],
    "devices": [
     "docker"
-   ]
+   ],
+   "evidence": "25bd9f4"
   },
   {
    "id": "hittest",
@@ -510,7 +517,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "f90c08f"
   },
   {
    "id": "webkit-quiet",
@@ -524,7 +532,8 @@
    "owner": "measure-engineer",
    "writes": [
     "packages/measure-webkit/README.md"
-   ]
+   ],
+   "evidence": "80676e0"
   },
   {
    "id": "step-align",
@@ -558,7 +567,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "f90c08f"
   },
   {
    "id": "zone-baselines-chromium",
@@ -597,7 +607,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "6b5933d"
   },
   {
    "id": "store-and-run",
@@ -612,7 +623,8 @@
     "apps/runner/src/run*.ts",
     "packages/contracts/src/artifacts.ts",
     "lean/Fw/Store/**"
-   ]
+   ],
+   "evidence": "da3632e"
   },
   {
    "id": "vj-vt",
@@ -699,7 +711,8 @@
    ],
    "devices": [
     "simulator"
-   ]
+   ],
+   "evidence": "0d561fa"
   },
   {
    "id": "gap-device",
@@ -735,13 +748,12 @@
   },
   {
    "id": "bands-freeze",
-   "title": "PL5 and N3 bands set from the 9 end-of-page parts and frozen",
+   "title": "CUT (rev 10: the F4 margin is the frozen class margin 2t (margin_sound); PL5 bands are reported by faithful-checks, not frozen): PL5 and N3 bands set from the 9 end-of-page parts and frozen",
    "stream": "parts",
-   "milestone": "M2",
-   "deps": [
-    "faithful-checks"
-   ],
-   "owner": "lead"
+   "milestone": "MX",
+   "deps": [],
+   "owner": "lead",
+   "cut": true
   },
   {
    "id": "explainer-rev6",
@@ -825,7 +837,8 @@
    ],
    "devices": [
     "simulator"
-   ]
+   ],
+   "evidence": "2357452"
   },
   {
    "id": "wktr-ci-lane",
@@ -839,7 +852,8 @@
    "writes": [
     ".github/workflows/wktr.yml",
     "packages/measure-wktr/**"
-   ]
+   ],
+   "evidence": "c5d10bd"
   },
   {
    "id": "wktr-readme-fix",
@@ -903,24 +917,39 @@
   },
   {
    "id": "experiments",
-   "title": "End-of-page decision: original vs morph arms, Chromium counts (screen) then the phone (session 2)",
+   "title": "(S) Decision from the proof ledger: per part the theorem pair, premise status and F3/F4 on the rewrite arm per flag; v2-proved = flags with a proved pair and no falsified prediction; look changes = proposals; closes at C3",
    "stream": "experiments",
    "milestone": "M5",
    "deps": [
     "port-morph",
     "faithful-checks",
-    "bands-freeze"
+    "engine-ci-check",
+    "engine-gaps",
+    "morph-tween-waapi",
+    "variant-morph-tween-waapi",
+    "proof-nav-hittest",
+    "proof-countdown-strip",
+    "proof-hidden-pause",
+    "proof-morph-mount",
+    "proof-morph-panel",
+    "proof-hero-exit",
+    "proof-people-card",
+    "proof-pain-notes",
+    "proof-people-deck",
+    "proof-hero-accent",
+    "variant-hidden-pause",
+    "variant-morph-mount-shift",
+    "variant-morph-panel-rest"
    ],
    "owner": "lead"
   },
   {
    "id": "write-up",
-   "title": "Report (M6, by 2026-10-20 13:15 +0700): G4 material, the end-of-page decision, model status uncalibrated, not-done list, cost report",
+   "title": "Report (M6, by 2026-10-20 13:15 +0700): per part the theorem pair and its premises, F0-F5 results, the v2-proved arm, proposals (look changes), not-done list, cost report",
    "stream": "write-up",
    "milestone": "M6",
    "deps": [
     "experiments",
-    "phone-session-2",
     "math-final"
    ],
    "owner": "lead"
@@ -970,7 +999,8 @@
    "writes": [
     "apps/console-web/**",
     "apps/console-api/**"
-   ]
+   ],
+   "evidence": "fa032f4"
   },
   {
    "id": "cap-actor-fix",
@@ -1021,7 +1051,8 @@
     "apps/runner/hooks/emit.mjs",
     "apps/console-api/src/spool/**",
     "lean/Fw/Console/**"
-   ]
+   ],
+   "evidence": "c92c310"
   },
   {
    "id": "scrub-precommit",
@@ -1067,7 +1098,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "80676e0"
   },
   {
    "id": "class-freeze",
@@ -1082,7 +1114,8 @@
    "writes": [
     "packages/measure-chromium/classes.frozen.json",
     ".github/workflows/chromium-counts.yml"
-   ]
+   ],
+   "evidence": "da287ff"
   },
   {
    "id": "pixel-tolerance",
@@ -1096,7 +1129,8 @@
    "writes": [
     "lean/Fw/Measure/**",
     "packages/measure-chromium/src/classes.mjs"
-   ]
+   ],
+   "evidence": "5879861"
   },
   {
    "id": "plan-rev7",
@@ -1110,7 +1144,8 @@
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
-   ]
+   ],
+   "evidence": "9ffa4fe"
   },
   {
    "id": "watch-fix",
@@ -1128,7 +1163,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "1a4a062"
   },
   {
    "id": "spk-p-wake",
@@ -1141,7 +1177,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-spk-drafts/spk-p.md"
-   ]
+   ],
+   "evidence": "548f99c"
   },
   {
    "id": "plan-evidence-link",
@@ -1154,7 +1191,8 @@
    "owner": "console-builder",
    "writes": [
     "apps/console-web/src/Plan.tsx"
-   ]
+   ],
+   "evidence": "630110e"
   },
   {
    "id": "math-r7",
@@ -1171,7 +1209,8 @@
    "owner": "math-reviewer",
    "writes": [
     "research/notes/2026/10-17-math-review-r7.md"
-   ]
+   ],
+   "evidence": "7d564e2"
   },
   {
    "id": "gate-unreachable",
@@ -1189,7 +1228,8 @@
     "apps/site/src/breakpoints.gen.json",
     "packages/gate-breakpoints/src/verdict.mjs",
     "packages/contracts/golden/gate/**"
-   ]
+   ],
+   "evidence": "3a8c263"
   },
   {
    "id": "css-decide",
@@ -1212,7 +1252,8 @@
    "writes": [
     ".github/workflows/sim-speed.yml",
     "research/notes/2026/10-17-sim-speed.md"
-   ]
+   ],
+   "evidence": "7563f79"
   },
   {
    "id": "ci-trigger-scope",
@@ -1226,7 +1267,8 @@
     ".github/workflows/chromium-counts.yml",
     ".github/workflows/breakpoint-gate.yml",
     "research/notes/2026/10-17-ci-trigger-scope.md"
-   ]
+   ],
+   "evidence": "6723de2"
   },
   {
    "id": "watch-slow",
@@ -1244,7 +1286,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "8a430c3"
   },
   {
    "id": "touch-ci-verify",
@@ -1259,7 +1302,8 @@
    "writes": [
     "packages/measure-chromium/README.md",
     "packages/measure-chromium/profiles/**"
-   ]
+   ],
+   "evidence": "da287ff"
   },
   {
    "id": "mutants-ci",
@@ -1274,7 +1318,8 @@
    "writes": [
     ".github/workflows/mutants.yml",
     "lean/scripts/mutants.sh"
-   ]
+   ],
+   "evidence": "cd49282"
   },
   {
    "id": "freeze-lean",
@@ -1290,7 +1335,8 @@
     "packages/measure-chromium/src/freeze.mjs",
     "packages/measure-chromium/classes.frozen.json",
     "packages/contracts/golden/measure/**"
-   ]
+   ],
+   "evidence": "bc2e28a"
   },
   {
    "id": "rewrite-ci-lane",
@@ -1304,7 +1350,8 @@
    "writes": [
     ".github/workflows/chromium-counts.yml",
     "packages/measure-chromium/src/host.mjs"
-   ]
+   ],
+   "evidence": "fee88b2"
   },
   {
    "id": "math-r8-fix",
@@ -1325,7 +1372,8 @@
     "lean/Fw/Plan/**",
     "lean/Fw/Board.lean",
     "lean/Fw/Ops/**"
-   ]
+   ],
+   "evidence": "a82e4a4"
   },
   {
    "id": "plan-rev7-1",
@@ -1341,7 +1389,8 @@
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
-   ]
+   ],
+   "evidence": "5cdeab5"
   },
   {
    "id": "plan-cut",
@@ -1356,7 +1405,8 @@
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html",
     "research/notes/2026/10-17-plan-evidence.md"
-   ]
+   ],
+   "evidence": "7cf9d44"
   },
   {
    "id": "store-target",
@@ -1373,7 +1423,8 @@
     "packages/contracts/golden/store/**",
     "apps/runner/src/run*.ts",
     "apps/runner/test/run*.ts"
-   ]
+   ],
+   "evidence": "cb29d1c"
   },
   {
    "id": "math-r9-fix",
@@ -1389,7 +1440,8 @@
     "lean/Fw/Measure/**",
     "lean/MathViewMain.lean",
     "lean/scripts/mathview*"
-   ]
+   ],
+   "evidence": "19e980e"
   },
   {
    "id": "mutant-ids-stable",
@@ -1403,7 +1455,8 @@
    "writes": [
     "lean/FwTest/Mutants/**",
     "lean/scripts/mutants.sh"
-   ]
+   ],
+   "evidence": "df861a7"
   },
   {
    "id": "webkit-green",
@@ -1438,7 +1491,8 @@
     "packages/measure-chromium/src/trace.mjs",
     "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/test/**"
-   ]
+   ],
+   "evidence": "33fdcfe"
   },
   {
    "id": "refreeze",
@@ -1467,7 +1521,8 @@
    "writes": [
     "packages/measure-chromium/src/input*.mjs",
     "packages/measure-chromium/src/run.mjs"
-   ]
+   ],
+   "evidence": "c38088e"
   },
   {
    "id": "watch-proc-allow",
@@ -1485,7 +1540,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "15ea817"
   },
   {
    "id": "plan-rev9",
@@ -1514,7 +1570,8 @@
     "lean/Fw/Gate/**",
     "lean/Fw/Measure/Arms.lean",
     "lean/MathViewMain.lean"
-   ]
+   ],
+   "evidence": "25b68d2"
   },
   {
    "id": "ci-paths-guard",
@@ -1531,7 +1588,8 @@
     ".github/workflows/gate-gaps.yml",
     ".github/workflows/sim-speed.yml",
     ".github/scripts/changed-inputs.mjs"
-   ]
+   ],
+   "evidence": "df77488"
   },
   {
    "id": "store-cirun",
@@ -1548,7 +1606,8 @@
     "packages/contracts/golden/store/**",
     "apps/runner/src/ci.ts",
     "apps/runner/test/ci.test.ts"
-   ]
+   ],
+   "evidence": "73ae012"
   },
   {
    "id": "webkit-gonogo",
@@ -1606,7 +1665,8 @@
    "owner": "researcher",
    "writes": [
     "docs/report/v2-report.md"
-   ]
+   ],
+   "evidence": "aceb354"
   },
   {
    "id": "freeze-refuse",
@@ -1652,21 +1712,21 @@
    "stream": "parts",
    "milestone": "M2",
    "deps": [
-    "port-morph-mount",
-    "port-morph-tween",
-    "port-morph-panel",
+    "integrate-ports",
+    "port-morph-columns",
     "port-morph-countdown",
-    "port-morph-columns"
+    "port-morph-mount",
+    "port-morph-panel",
+    "port-morph-tween"
    ],
    "owner": "lead"
   },
   {
    "id": "phone-session-2",
-   "title": "Phone session 2 (2026-10-19 14:00-23:00, 45 min): blind A/B of the end-of-page arms, 4 vs 4, frames > 50 ms recorded Protocol per arm (user, blind): (1) normal reading swipes; (2) worst case: hard flicks top to bottom; (3) worst case: flick into the end-of-page tween and reverse mid-animation x3; each paired with a scripted run.",
+   "title": "OPTIONAL phone spot check (never evidence, no dependents; rev 10): swipe the v2-proved arm vs original; what neither proof nor CI covers (UIKit scrollTo feel, path premises H1-H3)",
    "stream": "experiments",
-   "milestone": "M5",
+   "milestone": "M3",
    "deps": [
-    "experiments",
     "phone-session-1"
    ],
    "owner": "lead",
@@ -1747,7 +1807,8 @@
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/morph.countdown/**"
-   ]
+   ],
+   "evidence": "6626359"
   },
   {
    "id": "port-morph-columns",
@@ -1868,7 +1929,8 @@
     "apps/site/src/parts/platform.entries/**",
     "apps/site/src/parts/platform.stageBg/**",
     "apps/site/src/parts/platform.marquee/**"
-   ]
+   ],
+   "evidence": "86fdafc"
   },
   {
    "id": "port-overlays",
@@ -1888,15 +1950,570 @@
   },
   {
    "id": "vj-vt-chromium",
-   "title": "V-j shown and V-t replay / stall-alarm precision (>= 90 %) on the Chromium lane only (the Chromium half of vj-vt, rev 9.1)",
+   "title": "CUT by the user 2026-10-18: V-j/V-t are reported not gated (PLAN:200,210), no dependents, the 90% bar is the enforcer rule (PLAN:251-254), inputs are private v1 data (not CI, not public)",
    "stream": "measure",
-   "milestone": "M1",
-   "deps": [
-    "zone-baselines-chromium"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "measure-engineer",
    "devices": [
     "ci"
+   ],
+   "cut": true
+  },
+  {
+   "id": "engine-core-lean",
+   "title": "(M) Fw.Engine.Core + Visual: Stage, Work, Resident, frame_le_of_cover, frame_le_union, run_dominates -> screen_sound, toCost -> mainUs_mono; Scene, visible, E/Q relations, PathPremises H1-H3; types first",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine.lean",
+    "lean/Fw/Engine/Core.lean",
+    "lean/Fw/Engine/Visual.lean"
+   ],
+   "evidence": "f079aa0"
+  },
+  {
+   "id": "engine-chromium-lean",
+   "title": "(M) Fw.Engine.Chromium: CrLevel chain with cites, crThread (bits 0,5,12,13,16), crStages_mono, scroll rule, lane mode; golden rows F0-F2 + signatures",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-core-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Chromium.lean",
+    "packages/contracts/golden/engine/chromium.jsonl"
+   ],
+   "evidence": "583b1c3"
+  },
+  {
+   "id": "engine-webkit-lean",
+   "title": "(M) Fw.Engine.WebKit: Diff + adjust by LayerState, stage sets with cites, wk_not_mono guard, wkThread, per-update baseline, scroll rule; golden rows P1-P5",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-core-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/WebKit.lean",
+    "packages/contracts/golden/engine/webkit.jsonl"
+   ],
+   "evidence": "0164351"
+  },
+  {
+   "id": "engine-ci-check",
+   "title": "(M) fw engine-check: Lean op measure.engineCheck reads engine golden rows and checks F0-F4 on chromium-counts runs (det exact, stable within 2t, quarantined never); runner glue; a mismatch = model-bug item",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-core-lean"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Measure/EngineCheck.lean",
+    "apps/runner/src/engine-check.ts"
+   ],
+   "devices": [
+    "ci"
+   ],
+   "evidence": "48511ae"
+  },
+  {
+   "id": "engine-gaps",
+   "title": "(M) Close research gaps RG1-RG11 at the pins (chromium@f842f52, WebKit@862f17d), each CONFIRMED or explicitly open; one note; feeds the premise table of the decision",
+   "stream": "research",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-engine-gaps.md"
+   ],
+   "evidence": "affa1bb"
+  },
+  {
+   "id": "webkit-sim-rewrite",
+   "title": "(M) webkit-sim.yml serves ?fw= so F5 (P1-P5) gets Simulator counts on the rewrite; if not green by C3, WebKit stays model-only and the report says so",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "step-align"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "packages/measure-webkit/src/**"
+   ],
+   "devices": [
+    "ci"
+   ]
+  },
+  {
+   "id": "morph-tween-curve",
+   "title": "(S) MT1 bezier_eq_ease: 1-(1-t)^3 = cubic-bezier(1/3,1,2/3,1) by ring; MT2 solver_exact: |Y(t)-ease(x)| <= 3 eps; RG8 fp-tie check as a Node golden test (10^4 points)",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/curve.golden.test.ts"
+   ],
+   "evidence": "b244c65"
+  },
+  {
+   "id": "morph-tween-waapi",
+   "title": "(M) morph.tween waapi: MT3 waapi_eq_tween, MT4 flags_same_frame (vis, E-s), MT-W waapi_work_le (script strict, style/layout/paint equal); both engines, all width bands; golden vectors + CI predictions",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-curve",
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl"
+   ],
+   "evidence": "ebcd1d4"
+  },
+  {
+   "id": "variant-morph-tween-waapi",
+   "title": "(M) TS variant morph.tween:waapi (@property --morph, one WAAPI animation, startTime = push time, discrete flag keyframes) checked against the Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-waapi",
+    "port-morph-tween"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.tween/**"
+   ]
+  },
+  {
+   "id": "proof-nav-hittest",
+   "title": "(S) nav.hitTest hit-skip, elements-skip, write-on-change: work theorems hitSkip_work_lt, elementsSkip_work_lt via EngineScroll.forced_rho (vis already proved); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/NavHitTestOpt.lean",
+    "packages/contracts/golden/engine/nav-hittest.jsonl"
+   ],
+   "evidence": "fe92907"
+  },
+  {
+   "id": "proof-countdown-strip",
+   "title": "(S) hero.countdown + morph.countdown strip: Resident layers 80 -> 16 per clock, per-frame work = o (vis strip_shows_same already proved); reported as a resident win; both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroCountdownOpt.lean",
+    "packages/contracts/golden/engine/countdown-strip.jsonl"
+   ],
+   "evidence": "d5cca09"
+  },
+  {
+   "id": "proof-hidden-pause",
+   "title": "(M) morph.columns, morph.countdown, engine.scene hidden pause: hidden_pause_eq (E: visible drops the box) + work (style 1 -> 0 per frame Chromium, 0 delta WebKit, falsifiable); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HiddenPause.lean",
+    "packages/contracts/golden/engine/hidden-pause.jsonl"
+   ],
+   "evidence": "63478da"
+  },
+  {
+   "id": "proof-morph-mount",
+   "title": "(M) morph.mount warm-up at a still moment: E after mount (mountNext_mono trigger) + shift theorem (max motion-frame work <, total =); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphMountOpt.lean",
+    "packages/contracts/golden/engine/morph-mount.jsonl"
+   ],
+   "evidence": "21c37a2"
+  },
+  {
+   "id": "proof-morph-panel",
+   "title": "(M) morph.panel blur(0) -> none at rest (E under the containing-block premise RG10; effect node removed) and own layer during the fade (Q; raster <, layers +1 = trade); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphPanelOpt.lean",
+    "packages/contracts/golden/engine/morph-panel.jsonl"
+   ]
+  },
+  {
+   "id": "proof-hero-exit",
+   "title": "(M-L; drop first if the path slips) hero.exit threaded: E-s from exitOpacity_linear + scroll-timeline progress (RG11); consumers off main except blur (Chromium bit 12); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "packages/contracts/golden/engine/hero-exit.jsonl"
+   ],
+   "evidence": "f6544e3"
+  },
+  {
+   "id": "proof-people-card",
+   "title": "(M) people.card MQ-gated shrink: E (CSS forces scale 1, radius 0 in those bands) + work (no JS lerp frames); includes the faithful restatement of the card lerp; both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/PeopleCard.lean",
+    "packages/contracts/golden/engine/people-card.jsonl"
+   ]
+  },
+  {
+   "id": "proof-pain-notes",
+   "title": "(S) pain.notes interval armed only when visible: E (notes display:none <= 860 px, covered otherwise) + work (33 Hz idle -> 0); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/PainNotes.lean",
+    "packages/contracts/golden/engine/pain-notes.jsonl"
+   ]
+  },
+  {
+   "id": "proof-people-deck",
+   "title": "(M; second wave) people.deck cqi sizing: E by algebra when the container inline size equals the shell width + work (no aspect-ratio relayout); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/PeopleDeck.lean",
+    "packages/contracts/golden/engine/people-deck.jsonl"
+   ]
+  },
+  {
+   "id": "proof-hero-accent",
+   "title": "(M; second wave) hero.accent boil: E per sample on the 60 Hz grid (every sample on a plateau) + work (style/paint per 4 s); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroAccent.lean",
+    "packages/contracts/golden/engine/hero-accent.jsonl"
+   ]
+  },
+  {
+   "id": "variant-hidden-pause",
+   "title": "(M) TS variants hidden-pause for morph.columns, morph.countdown and engine.scene (pause animations whose box visible drops) checked against Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "proof-hidden-pause",
+    "port-morph-countdown",
+    "port-morph-columns"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.columns/**",
+    "apps/site/src/parts/morph.countdown/**",
+    "apps/site/src/parts/engine.scene/**"
+   ]
+  },
+  {
+   "id": "variant-morph-mount-shift",
+   "title": "(S) TS variant morph.mount:shift (mount at the still moment mountNext_mono names) checked against Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "proof-morph-mount",
+    "port-morph-mount"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.mount/**"
+   ]
+  },
+  {
+   "id": "variant-morph-panel-rest",
+   "title": "(S) TS variant morph.panel:rest (filter none at rest; own layer only during the fade) checked against Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "proof-morph-panel",
+    "port-morph-panel"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.panel/**"
+   ]
+  },
+  {
+   "id": "pixel-spot",
+   "title": "(S; optional, no dependents) Chromium BeginFrame screenshots at sampled t, original vs each proved flag, byte-compare; covers H1-H3 in Chromium only",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-ci-check",
+    "variant-morph-tween-waapi"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-chromium/src/pixel-spot/**"
+   ],
+   "devices": [
+    "ci"
+   ]
+  },
+  {
+   "id": "try-constant-glass",
+   "title": "(M) Try-it page, look change (user D2): constant glass (CM) - morph without the per-frame backdrop-blur repaint; flag variant + side-by-side page; Lean predicts work, no 'same' claim",
+   "stream": "proposals",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean",
+    "port-morph-panel"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/try/constant-glass/**"
+   ]
+  },
+  {
+   "id": "try-flip-st6",
+   "title": "(M) Try-it page, look change (user D2): FLIP / st6 - transform-based nav morph instead of layout of top/width/height; flag variant + side-by-side page; Lean predicts work, no 'same' claim",
+   "stream": "proposals",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean",
+    "port-nav",
+    "port-morph-tween"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/try/flip-st6/**"
+   ]
+  },
+  {
+   "id": "try-typing-chunks",
+   "title": "(S) Try-it page, look change (user D2): typing chunks - reveal typed text in chunks; flag variant + side-by-side page; Lean predicts work, no 'same' claim",
+   "stream": "proposals",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean",
+    "port-hero"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/try/typing-chunks/**"
+   ]
+  },
+  {
+   "id": "ghb-lean",
+   "title": "(M) Fw.Ci.Budget: charged ledger; <= B requests per 3600 s for any number of waiters; no call while remaining <= F or before retry-after; each watched run polled every P s",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/FwTest/CiBudget.lean",
+    "packages/contracts/golden/ci-budget/**"
+   ],
+   "evidence": "84fb01c"
+  },
+  {
+   "id": "ghb-glue",
+   "title": "(M) packages/gh-budget: lock + ledger + ghCharged + elected poller + 'pnpm fw ci wait'; header parse via GH_DEBUG=api (option A); replay test against Lean golden vectors",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "ghb-lean"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gh-budget/**"
+   ],
+   "evidence": "901481f"
+  },
+  {
+   "id": "ghb-runner",
+   "title": "(M) route apps/runner gh calls (run, ci, watch-collect) through ghCharged; agent docs say 'pnpm fw ci wait' instead of gh loops",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "ghb-glue"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "apps/runner/src/run.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/fw.ts",
+    ".claude/agents/measure-engineer.md",
+    "docs/team/tools/**"
+   ],
+   "evidence": "1c64c85"
+  },
+  {
+   "id": "integrate-ports",
+   "title": "Integrate finished port branches (morph.panel, nav, commission, overlays, hero, people) into one branch from main; one gate prepare mechanism + animation settle; one full gate run, then the lead lands it",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "packages/gate-breakpoints/src/**",
+    "apps/site/src/App.tsx",
+    "apps/site/src/registry/index.ts",
+    "lean/Fw/Gate/Scope.lean"
+   ]
+  },
+  {
+   "id": "pa-land",
+   "title": "(S-M) fw land usable for every landing: Lean scope = task.writes + handoffs + generated files (path-match theorem), marker check, branch -d only, refuse live/dirty worktrees, merge not rebase, CI advisory, never push",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land*.ts",
+    "lean/Fw/Console/Land.lean"
+   ],
+   "evidence": "50434d4"
+  },
+  {
+   "id": "pa-evidence-lint",
+   "title": "(S) plan lint: evidence is a main commit, CI run or user decision; back-fill missing evidence from Task: trailers on main (one commit); no Core.lean change",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "pa-land"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/plan.ts",
+    "lean/Fw/Plan/Lint.lean",
+    "docs/team/work-graph.json"
+   ],
+   "evidence": "2d743c5"
+  },
+  {
+   "id": "pa-sync-main",
+   "title": "(S) fw plan sync refuses unless run from the main checkout at HEAD of main (drafts never reach the live board)",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "pa-evidence-lint"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/plan.ts"
+   ],
+   "evidence": "ca48604"
+  },
+  {
+   "id": "obs-next-lean",
+   "title": "(M) Fw.Obs.Next: per-agent next action from observed facts (handback seen, branch ahead/landed, worktree lock, child procs with kind/age/watched-file staleness, CI run state) -> {none, land, routeIntegrator, killOrphan pid, respawnFromHandoff, nudge, waitCi}; proofs: total + unique, never acts on an active agent, kill only own non-ancestor sleep-loop children of a handed-back or stale owner, land only when report seen and branch ahead with no live child; golden vectors",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Obs/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/obs/**"
+   ]
+  },
+  {
+   "id": "obs-next-glue",
+   "title": "(S) fw watch: collect the Fw.Obs.Next facts (transcript handback, ps tree under the session, git main..branch, worktree locks, fw ci state) and print NEXT lines; fw next lists them; alert agent.held / agent.unlanded; TS checked against the Lean golden",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "obs-next-lean"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/next.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "claim-order-lean",
+   "title": "(S) bug: agent-task binding depends on event order (claim only at spawn if the task exists; define-time claim only if the agent is in the last 300 s fw watch snapshot). Record spawns as events and derive the binding in Fw.Plan.Core so it is order-independent; prove spawn/define commute on the agent field; golden incl. the obs-next-lean 03:03/03:05 trace",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Core.lean",
+    "lean/Fw/Plan/Golden.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/golden/plan/**",
+    "packages/contracts/src/**",
+    "apps/console-api/src/spool/drain.ts",
+    "apps/console-api/src/store.ts",
+    "apps/console-api/src/health.ts",
+    "apps/console-api/test/**"
    ]
   }
  ],
@@ -1914,17 +2531,17 @@
    {
     "id": "C2",
     "at": "2026-10-18T23:15:00+07:00",
-    "what": "T+24h: shells + the 5 morph ports faithful on Chromium; section ports running in parallel; phone session 1 held"
+    "what": "T+24h: shells + the 5 morph ports faithful on Chromium; section ports running; engine-core-lean, engine-chromium-lean, engine-webkit-lean landed; engine-ci-check F0-F2 green on fixture-rest; morph-tween-curve landed"
    },
    {
     "id": "C3",
     "at": "2026-10-19T23:15:00+07:00",
-    "what": "T+48h: faithful-checks, bands-freeze, experiments decided; phone session 2 held; write-up starts; any section still a shell is listed in the report"
+    "what": "T+48h: faithful-checks done; proof ledger closed (every proof-* and variant-* task landed or cut with its edge removed); F3/F4 on the rewrite arm per proved flag; experiments decided; write-up starts"
    },
    {
     "id": "C4",
     "at": "2026-10-20T13:15:00+07:00",
-    "what": "T+62h: report delivered (M6); text frozen at T+60h"
+    "what": "T+62h: report delivered (M6); text frozen at T+60h; phone session 2 (optional) reported only as a spot check"
    }
   ]
  }
