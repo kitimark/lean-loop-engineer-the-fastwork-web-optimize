@@ -1,3 +1,4 @@
+import type { MotionClock } from '../../engine/clock';
 import {
   digitAt,
   digitPlaces,
@@ -68,14 +69,20 @@ export function createCountdownDriver(opts: DriverOptions) {
     }
   };
 
+  /** slots whose spring chain the original (re)starts in this refresh (faithful scheduling) */
+  let started_: number[] = [];
+
   const retarget = (units: number[], now: number) => {
-    for (const s of slots) {
+    started_ = [];
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i]!;
       const value = units[s.h.unit] ?? 0;
       const t = digitAt(value, s.h.place);
       if (!started) {
         s.spring = { value: t, velocity: 0 };
         s.target = t;
         write(s);
+        if (!opts.reduced()) started_.push(i); // the original's effect also runs one rAF chain at mount
         continue;
       }
       if (t === s.target) continue;
@@ -88,9 +95,32 @@ export function createCountdownDriver(opts: DriverOptions) {
         s.spring = { value: s.spring.value, velocity: 0 }; // the original restarts from rest at the current value
         s.lastT = now;
         s.animating = true;
+        started_.push(i);
       }
     }
     started = true;
+  };
+
+  const refresh = (now: number): { changed: boolean; started: number[] } => {
+    const sec = remainingSeconds(opts.dateNow());
+    const changed = sec !== lastSecond;
+    if (changed) {
+      lastSecond = sec;
+      retarget(unitsFromSeconds(sec), now);
+    } else started_ = [];
+    return { changed, started: started_ };
+  };
+
+  /** One spring frame of one digit; true when its chain is done. */
+  const step = (i: number, now: number): boolean => {
+    const s = slots[i];
+    if (!s) return true;
+    const r = springStep(s.spring, s.target, now - s.lastT);
+    s.lastT = now;
+    s.spring = r.state;
+    write(s);
+    if (r.done) s.animating = false;
+    return r.done;
   };
 
   return {
@@ -106,27 +136,62 @@ export function createCountdownDriver(opts: DriverOptions) {
       s.cell = px;
       write(s);
     },
-    /** returns true on the frame where the displayed second changed */
+    refresh,
+    step,
+    /** shared-loop form: refresh, then step every animating digit; true on the frame where the second changed */
     tick(now: number): boolean {
-      const sec = remainingSeconds(opts.dateNow());
-      const changed = sec !== lastSecond;
-      if (changed) {
-        lastSecond = sec;
-        retarget(unitsFromSeconds(sec), now);
-      }
-      for (const s of slots) {
-        if (!s.animating) continue;
-        const r = springStep(s.spring, s.target, now - s.lastT);
-        s.lastT = now;
-        s.spring = r.state;
-        write(s);
-        if (r.done) s.animating = false;
-      }
+      const { changed } = refresh(now);
+      for (let i = 0; i < slots.length; i++) if (slots[i]!.animating) step(i, now);
       return changed;
     },
     /** test hook */
     snapshot() {
       return slots.map((s) => ({ value: s.spring.value, target: s.target, animating: s.animating }));
     },
+  };
+}
+
+export interface FaithfulOptions {
+  clock: MotionClock;
+  driver: ReturnType<typeof createCountdownDriver>;
+  /** `performance.now()` (the original's spring start time) */
+  perfNow: () => number;
+  /** called after each refresh with whether the displayed second changed */
+  onRefresh?: (changed: boolean) => void;
+}
+
+/**
+ * Faithful scheduling, same structure as the original: one `setInterval(1000)` that refreshes the clock reading
+ * (N2:3930-3936, plus one immediate call at 3929), and per digit its own rAF chain that starts when the digit's
+ * target changes, cancels the previous chain, and stops when the spring settles (N2:3830-3838).
+ * Returns the cleanup (cancels the interval and every chain).
+ */
+export function startFaithful(o: FaithfulOptions): () => void {
+  const chains = new Map<number, () => void>();
+  const stop = (i: number) => {
+    chains.get(i)?.();
+    chains.delete(i);
+  };
+  const refresh = () => {
+    const r = o.driver.refresh(o.perfNow());
+    for (const i of r.started) {
+      stop(i);
+      chains.set(
+        i,
+        o.clock.subscribe(
+          (t) => {
+            if (o.driver.step(i, t)) stop(i);
+          },
+          { own: true },
+        ),
+      );
+    }
+    o.onRefresh?.(r.changed);
+  };
+  refresh();
+  const cancel = o.clock.interval(1000, refresh);
+  return () => {
+    cancel();
+    for (const i of [...chains.keys()]) stop(i);
   };
 }

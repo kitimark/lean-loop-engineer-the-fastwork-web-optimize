@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getClock } from '../../engine/clock';
-import { createCountdownDriver, type DigitHandle } from './driver';
+import { createCountdownDriver, startFaithful, type DigitHandle } from './driver';
 import { digitPlaces, remainingSeconds, unitsFromSeconds } from './logic';
 import { matchList } from './media';
 import css from './hero.module.css';
@@ -93,11 +93,17 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false }: HeroCo
       }
     });
     nodes.forEach((el) => ro.observe(el.querySelector('[data-spacer]')!));
-    const unsub = getClock().subscribe((now) => {
-      if (!driver.tick(now)) return;
+    const onRefresh = (changed: boolean) => {
+      if (!changed) return;
       const next = driver.shape();
       if (next.length !== shape.length || next.some((v, i) => v !== shape[i])) setShape(next);
-    });
+    };
+    // faithful: setInterval(1 s) plus one rAF spring per digit; strip: one shared-loop subscriber
+    const unsub = strip
+      ? getClock().subscribe((now) => {
+          if (driver.tick(now)) onRefresh(true);
+        })
+      : startFaithful({ clock: getClock(), driver, perfNow: () => performance.now(), onRefresh });
     return () => {
       unsub();
       ro.disconnect();
