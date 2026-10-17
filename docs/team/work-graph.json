@@ -1359,6 +1359,20 @@
     "lean/MathViewMain.lean",
     "lean/scripts/mathview*"
    ]
+  },
+  {
+   "id": "mutant-ids-stable",
+   "title": "Mutant ids anchored to the enclosing declaration and literal ordinal, not line:col, so equivalent.tsv survives edits elsewhere in a file (two ids went stale after Wire edits)",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "mutants-ci"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/FwTest/Mutants/**",
+    "lean/scripts/mutants.sh"
+   ]
   }
  ]
 }
