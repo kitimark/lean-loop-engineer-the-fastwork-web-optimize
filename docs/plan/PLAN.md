@@ -5,7 +5,7 @@ title: "v2 loop-engineering experiment: design and plan (for user review)"
 status: review
 created: 2026-10-17
 updated: 2026-10-17
-revision: 5 (your requirements of 2026-10-17: automated console, Lean-first, math view; on top of revision 4's MUI decisions; see Appendix D)
+revision: 6 (catch-up to e4d9853 after review: public repo and CI, agent operations, console M0 core, parallel work, measurement findings, Lean and math review r5; rev 5 was c04c8ef; see Appendix D)
 authors: [agent:plan-architect]
 topics: [plan, architecture, measurement, lean, parts, agent-teams, styling]
 links:
@@ -23,6 +23,13 @@ links:
     - research/kickoff/11-breakpoints/README.md
     - research/notes/2026/10-17-v2-plan-feasibility-review.md
     - research/notes/env-setup.md
+    - research/notes/2026/10-17-spk-drafts/
+  team:
+    - docs/team/improvements/2026-10-17.md
+    - docs/team/token-policy.md
+    - docs/team/parallel-plan.md
+    - docs/team/work-graph.json
+    - docs/team/public-ci-brief.md
   v1_repo: ../fastwork-com-web-optimize (read-only)
 ---
 
@@ -37,18 +44,20 @@ feasibility review, cited as `[FR]` (`research/notes/2026/10-17-v2-plan-feasibil
 note `[ENV]` (`research/notes/env-setup.md`). Where the notes disagree, Appendix A says which way this plan goes and
 why. Appendix D logs every change. **Revision 4 applies your four decisions of 2026-10-17; revision 5 applies your
 three requirements of the same day: nobody hand-writes console state, Lean wherever it can prove something, and math
-you can read (§12.0).** Only the two open parts of Q1 remain, needed before the first phone session. Work runs as a
-dependency graph, not a calendar (§10).
+you can read (§12.0). Revision 6 catches the plan up with about 105 commits (the catch-up log `[CU]`,
+`docs/team/improvements/2026-10-17.md`): the repo is public with CI, the console core and the breakpoint gate run,
+and the first measurements changed the M0 gate (§10.2).** Only the two open parts of Q1 remain, needed before the
+first phone session. Work runs as a dependency graph, not a calendar (§10).
 
 **Status words.** CONFIRMED = a note cites a source, doc or v1 record for it, or it was checked on this Mac today.
-INFERRED = a design choice or expectation that a spike or measurement must still check. Targets and thresholds are
-proposals until you accept them.
+INFERRED = a design choice or expectation that a spike or measurement must still check. MEASURED = a number from a
+run in this repo, with its commit. Targets and thresholds are proposals until you accept them.
 
 ## Glossary of labels (each prefix is used for one thing only)
 
 | Label | Means | Where |
 |---|---|---|
-| **Q1 … Q30** | questions and defaults for you (Q2-Q4, Q12, Q16, Q22-Q24 and most of Q1 are answered; see §12.0); Q22-Q30 added in rev 5 | §12 |
+| **Q1 … Q33** | questions and defaults for you (Q2-Q4, Q12, Q16, Q22-Q24 and most of Q1 are answered; see §12.0); Q22-Q30 added in rev 5, Q31-Q33 in rev 6 | §12 |
 | **M0 … M6** | milestone gates (exit states, not dates) | §10.2 |
 | **G1 … G4** | outcome goals | §1.1 |
 | **V-a … V-t** | method (validation) criteria | §1.2 |
@@ -61,7 +70,7 @@ proposals until you accept them.
 | **L1 / L1-cond / L2 / L3** | proof levels: proved in Lean; proved but with a named unprovable premise; Lean spec with Lean-generated code or golden vectors for TS; not provable | §5.1 |
 | **tier T0 … T3** | v1's pixel-difference tiers | §6.6 |
 | **K1 … K10** | calibration fixture pages: K1-K9 WebKit [04 §9]; K10 sheet mutation, both engines [09.03 §5.2] | §4.4 |
-| **R1 … R28** | risks | §11 |
+| **R1 … R32** | risks | §11 |
 | stages | question → build → screen → review → (device) → land, always written as words; derived from evidence events, never set by hand (§9.2) | §9 |
 
 ## 0. The plan in one page
@@ -78,17 +87,11 @@ of its 276 incidents were filed against its own tools, 45 of them feature reques
 | 2. Patching the minified Svelte build was slow | Retrospective cause C6; ~349 commits on the end-of-page line [01 §B.1] | **React rewrite as pluggable parts.** Each part has a `faithful` variant that copies the original's look and, for the parts we experiment on, its per-frame engine work, plus ablation, optimized and proposal variants picked by flags (§6) |
 | 3. A coupled, bug-prone loop; every tool change re-ran everything | Full suite 250-280 s on every tooling commit; `lock.mjs` grew to 1,685 lines [01 §B.1, 06 §1] | **A proved core with a thin IO shell.** Every decision, queue and status view that can be proved lives in one Lean 4 project (`fwcore`), run as a long-lived process: the console reducer, the phone queue, the gates, the verdict, flags, screening and frame ticks (Lean-first, §5.1). TypeScript moves data. Tools are plugins. Results are content-addressed, so changing a tool re-runs only that tool's tests and artifacts. An explicit MVP tier keeps the tooling small (§3, §5) |
 
-**What the chat history adds** (§2.3, [08]): v1's agents did their work well; the loop around them did not (a lead
-woken by polls, idle contexts, home-made coordination tools, you as device technician and status bus). v2 fixes that
-with scripts, events and hooks, not with more agents or rules (§8.5).
-
-**Nobody writes status (revision 5).** In v1, 10.9 % of all tool turns were console upkeep, and 56 % of 4,412 status
-writes recorded something a machine knows in v2 [10.01]. Now every console view is a formula over one event log that
-only console-api writes; facts are observed, and agents send typed requests the Lean reducer accepts or refuses (§8.5).
-
-**Lean first, and you read math, not Lean (revision 5).** Everything reproducible is proved in Lean before it is
-coded (§3.3). Every theorem and definition you read carries its math; a generated page shows it, and the build fails
-when the Lean changed after a math-reviewer signed it (§5.3).
+**What the chat history adds** (§2.3, [08]): v1's agents did their work well; the loop around them did not. v2 fixes
+that with scripts, events and hooks, not with more agents or rules (§8.5). **Nobody writes status** (rev 5): in v1,
+10.9 % of tool turns were console upkeep [10.01]; now every console view is a formula over one event log that only
+console-api writes. **Lean first, and you read math, not Lean** (rev 5): everything reproducible is proved before it
+is coded (§3.3), and every theorem carries its math on a generated page (§5.3).
 
 **What to expect, plainly** (so you can judge pain points 1 and 2 with the right expectations):
 - **The phone does not go away.** Before the model may stand in for the phone for one kind of change, it needs a
@@ -97,26 +100,29 @@ when the Lean changed after a math-reviewer signed it (§5.3).
   toolbar, first-touch layer builds: class X) and look changes (class P) always need the phone. After that, phone use
   drops to calibration every 14 days or on a version change, plus one blind spot-check per 5 landings. That is far
   below v1, but it is not zero.
-- **MUI everywhere, styles compiled ahead of time (decided 2026-10-17).** Every part with markup uses Material UI
-  9.5; its Emotion styles are rendered at build time into one static CSS file, so no style is inserted after first
-  paint ("Emotion AOT", §6.5). Pigment CSS, the compiler you remembered, is a paused alpha that no longer builds with
-  current MUI; it is a fallback and an optional measured arm (CONFIRMED [09.01, 09.04]). A styling-neutrality gate
-  (§6.7) checks that MUI adds no sheet mutations, DOM writes, React commits or work counts against a plain twin; JS
-  time and style-sheet shape are left to timing parity (PL6).
+- **MUI everywhere, styles compiled ahead of time (decided 2026-10-17).** Material UI 9.5's Emotion styles are
+  rendered at build time into one static CSS file, so no style is inserted after first paint ("Emotion AOT", §6.5).
+  Pigment CSS is a paused alpha and only a fallback (CONFIRMED [09.01, 09.04]). A neutrality gate (§6.7) checks that
+  MUI adds no sheet mutations, DOM writes, React commits or work counts against a plain twin.
 - **Chromium is a development aid; the iPhone is the target.** The Chromium counts lane is fast and deterministic,
   but Chromium cannot predict iPhone Safari, so the cost model is calibrated for WebKit first (§4.4, Q8). There is
   no Android phone (decided 2026-10-17): the Android emulator gives Chrome-for-Android counts only, never timing.
-- **Lean costs more up front:** about 20 modules instead of 4 and $700-1,100 of Lean work instead of $280 (INFERRED
-  [10.03 §7.1], made before the Lean-first rule reached the site and parts, so to re-estimate); a module that costs much and catches nothing moves back to TypeScript (§5.1).
+- **Lean costs more up front:** the estimate was about 20 modules and $700-1,100 of Lean work (INFERRED [10.03 §7.1]);
+  by 28b18ee `lean/Fw` holds 37 modules and 490 declarations went through math review round 5 (MEASURED). A module
+  that costs much and catches nothing moves back to TypeScript (§5.1).
+
+**Since revision 5 (rev 6, [CU]).** The repo is public under MIT with the Fastwork snapshot tracked unmodified, and
+four GitHub Actions workflows run on pushes to `ci/**` and `main` (§5.4, §7.3). The console core runs on the Lean reducer through
+`fwcore serve`, with hooks, `fw land` and a git reconciler (§3.2). All four pilot parts pass the PL0-PL2 cells of the
+breakpoint gate in both engines; PL2b, PL3, the Simulator check and live flips are still to build (§6.6). The first count runs showed that whole count files are never byte-identical, so the M0 gate
+now asks for per-type classes instead (§1.2 V-i, §10.2).
 
 **Headline goal.** Rebuild the page and reproduce v1's outcome on the phone as flag arms, with a fraction of v1's
 device time, tool bugs and elapsed time; cost reported, not capped; every claimed speed-up checked by your finger (§1).
 
 **Order of work: a dependency graph, no calendar (decided 2026-10-17).** Workstreams start as soon as their inputs
-exist and run in parallel, from 2026-10-17 on (the live status is in the console, not in this plan). Milestones
-M0-M6 are gates: M1 the **original** measured
-in both engines before any rewrite, M2 three pilot parts, M3 the WebKit model calibrated, M4 all parts promoted, M5
-experiments, M6 write-up (§10).
+exist (live status in the console). Milestones M0-M6 are gates: M1 the **original** measured in both engines, M2
+three pilot parts, M3 the WebKit model calibrated, M4 all parts promoted, M5 experiments, M6 write-up (§10).
 
 ## 1. Goals and success criteria
 
@@ -143,12 +149,12 @@ Each criterion has a measurement and an owner. "Proposal" thresholds become bind
 | V-f | **Feel agreement** | blind verdicts with predictions frozen first | 5 of 5, no sign disagreement, before the model can stand in for the device for a change class | v1 `stats-vs-finger.md` via [03 §9.3] |
 | V-g | **Visual parity** of each `faithful` part | v1 tiers against a same-run original-vs-original (A/A) baseline | tier **T1** at PL0-PL3 (all parts) and PL4 (experiment parts) in Chromium and Playwright WebKit **at every breakpoint edge of the original** (§6.6; the core viewport matrix per PR); element boxes ≤ 0.5 CSS px; one Simulator check at 430×775 DPR 3 | [02 §4]; your requirement of 2026-10-17 |
 | V-h | **Work parity** of each experiment part | PL5 bands per count family (§6.6) | within the band for every family; layers ±0; same compositor/main-thread split | [02 §4.6, FR §2] |
-| V-i | **Determinism, per count type** | two identical counts-lane runs | each count type classified *deterministic* (byte-identical), *stable* (within a stated tolerance) or *quarantined* (never used). Chromium: all used types deterministic. WebKit: the deterministic set covers what the K1-K9 fixtures need | [03 §7.1, 04 §8.5] |
+| V-i | **Determinism, per count type** (re-scoped in rev 6) | repeated counts-lane runs (`Fw/Measure/Classes`. Chromium: stable = at most kMax = 4 frames differ and run totals differ by at most tMax = 24 count units, p = (4, 24), 3 runs; WebKit: per-cell `absTol`/`relTol`, 2 passes in each of 2 boots) | each count type classified *deterministic* (equal in every run), *stable* (within a stated tolerance) or *quarantined* (never used). Whole files are never byte-identical (thread ids, GC, async work; MEASURED 70c3370), so the gate is per type. Chromium: every type used for screening is deterministic. WebKit: the deterministic set covers what the K1-K9 fixtures need; per-step Layout/Paint are quarantined, totals hold within 3-5 % (MEASURED 367fec2) | [03 §7.1, 04 §8.5], [CU] |
 | V-j | **Time to adopt a tool** | new measurement plugin → first cached artifact | ≤ 1 agent-day; tests run = that plugin + `contracts` only; 0 other artifacts invalidated (shown by `fw run --dry`) | [06 §3] |
 | V-k | **Test speed** | pre-commit gate; TL1 whole repo | pre-commit ≤ 30 s (affected packages); TL1 < 20 s cold | [06 §3.4] |
 | V-l | **Bug ledger, per module** (replaces "share of logic proved") | every entry has `kind: request \| incident`, `module`, `level: L1 \| L1-cond \| L2 \| L3` and `caughtBy: proof \| build-mutant \| property-test \| adapter-test \| replay-monitor \| user \| escaped` | complete ledger; it drives the per-module demotion rule (§5.1), counting incidents only (v1 filed 45 requests as incidents [08]) | [FR §3.1], [10.03 §7.2] |
 | V-m | **Bugs in proved areas** | logic incidents in any L1 module (the console reducer and views, queues, gates, verdict, flags, screening, ticks …) | 0 escaped logic incidents (adapter and L3-premise bugs are counted separately) | bug ledger |
-| V-n | **Harness neutrality** | on fixtures, frame-stepped counts vs free-running counts, per family | equal per family; a family that fails is not used for screening in that engine | [FR §1.2] |
+| V-n | **Harness neutrality** | on fixtures, frame-stepped counts vs free-running counts, per family | equal per family; a family that fails is not used for screening in that engine. Compositor-only animations still cost 1 `UpdateLayoutTree` per frame in Chromium (Paint, Layout and commit are 0; MEASURED 70c3370), so "0 style work" is never the expected value | [FR §1.2], [CU] |
 | V-o | **Timing parity** (PL6) | Mac Chrome per-stage time, rewrite vs original | rewrite within the original's A/A band (ABBA, n ≥ 4) per stage; plus one Simulator and one phone whole-page check at M4 | [FR §2] |
 | V-p | **Transfer to the original** | the same change as an overlay on the original, in the counts lane | same sign of Δ per stage as on the rewrite, for every landing whose change can be overlaid | [FR §2] |
 | V-q | **Styling neutrality** of MUI | N0-N5 (§6.7): N0/N1 in every counts run (all parts); N2/N3 on experiment parts (they need the `impl: plain` twin); N4 once per build; N5 per build at hydration | sheet mutations 0 after hydration; DOM-write and commit census and work counts equal to `impl: plain`; style shape within ±10 % of arm A (or a K-fixture parameter); 0 hydration diffs | [09.03 §2] |
@@ -204,16 +210,11 @@ incident; otherwise fix the tool (v1: 4 agent-mistake incidents against 139 tool
 
 ### 2.3 What the chat history showed
 
-[08] ([`research/kickoff/08-chat-forensics/README.md`](../../research/kickoff/08-chat-forensics/README.md)) read v1's
-848 raw transcripts (135k model requests), the console and the incident store; its numbers come with commands.
-- **A star, not a team:** 64 % of 12,582 messages touched the lead (16 % worker to worker); it compacted 125 times.
-- **Woken by polls, not decisions:** 42 % of the lead's 8,948 turns came from 3,761 cron fires (35 % of its dollars);
-  it also landed, spawned, moved the phone queue by hand (≈ 230 moves) and answered 78 % of your messages first.
-- **Home-made coordination broke more than agents did:** tooling made 139 of 276 incidents, agent mistakes 4; 57 % of
-  5,393 errors were worktree-isolation refusals of inline shell.
-- **You were device technician and status bus:** 82-105 of 166 steps were device chores; one re-plug waited 11 h 41 min.
-- **What worked:** steps, Try-it proposals, comment buttons, fast replies (median 40 s), short fresh agents (645 under
-  an hour cost 11 %), one lander, ff-only. The changes are in §8.5 and Appendix D.
+[08] read v1's 848 raw transcripts (135k model requests): **a star, not a team** (64 % of 12,582 messages touched
+the lead, which compacted 125 times); **woken by polls** (42 % of the lead's turns were cron fires); **home-made
+coordination broke more than agents did** (139 tooling incidents against 4 agent mistakes; 57 % of errors were
+worktree refusals of inline shell); **you were device technician and status bus** (82-105 of 166 steps were chores).
+What worked: steps, Try-it proposals, comment buttons, fast replies, short fresh agents, one lander, ff-only.
 
 ## 3. Architecture
 
@@ -227,7 +228,7 @@ flowchart TB
     AOT["mui-aot: census route → static mui.css + emotion-ids.json"]
     RES["registry + resolve() (the only TS mirror of fwcore)"]
   end
-  SNAP[("snapshot/ (gitignored): Fastwork original, arm A")]
+  SNAP[("snapshot/site (tracked unmodified): Fastwork original, arm A")]
   subgraph RUN["apps/runner: fw CLI"]
     LANES["lanes: counts (parallel) | timing (one queue) | device (console step)"]
   end
@@ -243,7 +244,7 @@ flowchart TB
     API["console-api: Node 24 + Hono, single writer (append + fsync), CLI socket, reconcilers, watchers, jobs"]
   end
   OBS(["observed facts: git refs (reconciler), Claude Code hooks (spool), watchers, transcripts"])
-  MV[("docs/math: generated math view")]
+  MV[("docs/plan/loop-plan.html: generated math view")]
   KB[("research/ refs/ results/ + pnpm kb")]
   PHONE(["iPhone Safari: calibration, licences, spot-checks, class X and P"])
 
@@ -256,7 +257,7 @@ flowchart TB
   LANES <-- "screen, verdict ops" --> FW
   API <-- "events in, accepted/refused + changed rows out; queries" --> FW
   OBS -- "facts with idempotency keys" --> API
-  FW -- "lake exe mathview" --> MV
+  FW -- "lake exe mathview, build-math-view.mjs" --> MV
   WEB <-- "HTTP + SSE (zod)" --> API
   API -- "device jobs + steps (booked sessions)" --> PHONE
   PHONE -- "timeline segments, verdicts" --> API
@@ -278,7 +279,7 @@ fixtures [06 §2.5, 05 §6].
 | runner → plugin | `MeasurePlugin {id, semantics, lane, input, output, run, reduce}` | count reduction runs in `fwcore` (§3.3); the plugin's TS keeps only I/O, or passes Lean golden vectors; an output that fails its schema is an incident, never a result [06 §2.4] |
 | plugin → artifact store | key = `sha256(canonical JSON of {subject, tool{plugin,semantics}, engine{build,flags}, profile, protocol})` (sorted keys; full JCS later if needed) | Counts artifacts are reused; timing artifacts append samples [06 §3.1] |
 | artifact store → model | count vector per (frame, part, zone) + coefficient set `(device, engine build, thermal class, ρ_page)` → `{stage p50/p90, missed vsyncs, status: uncalibrated | ranks-only | sizes}` | Pure; applied at report time, so a refit re-runs no measurement [06 §3.3] |
-| TS → fwcore | `fwcore serve` is long-lived and **stateful**: it holds the reducer state, the queues and the gates. Ops: `console.apply` (one event → accepted \| refused(reason) + changed rows), `console.replay`, `console.query` (rows, steps, queues, plan), plus stateless decisions (`verdict`, `ticks`, `twins`, `flags.resolve`, `flags.enumerate`, `screen`, `samples`) | Node → fwcore round trip 17.6 µs (MEASURED [10.03 §4.2]; [05 §1] measured ≈141 µs with the same method and a different binary, not yet explained; re-measured in lean-core). 100k events replay in under 1 s. The state loop uses `modifyGet` (a get-then-set copy was 66× slower, MEASURED). **Hardening below** |
+| TS → fwcore | `fwcore serve` is long-lived and **stateful**: it holds the reducer state, the queues and the gates. Ops: `console.apply` (one event → accepted \| refused(reason) + changed rows), `console.replay`, `console.query` (rows, steps, queues, plan), `console.reset`, `measure.*`, `ops.spawn/pathCheck/usage/meter/hook`, plus stateless decisions (`verdict`, `ticks`, `twins`, `flags.resolve`, `flags.enumerate`, `screen`, `samples`); `ops.admit` and `metrics.*` are next (§10.1) | Built in `Fw/Serve` (14152f1). Through console-api: apply round trip p50 40 µs, p90 100 µs; a query 40 ms; a 100,008-event replay 0.4 s against 36 s for the old list reducer (MEASURED [CU]). The state loop uses `modifyGet` (a get-then-set copy was 66× slower, MEASURED). **Hardening below** |
 | console-web → console-api | typed HTTP + SSE; zod schemas shared from `contracts` | The UI never decides. **Previews always call console-api (and so `fwcore`)**, so the site resolver stays the only mirror |
 | agent → device lane | job card `{kind, card, priority class}`; agents never hold the phone; long runs live in console-api, never in an agent's shell | v1: 40 scheduler incidents; runners died with their agent (I-221, I-240, I-256) [08] |
 | console-api → status and steps | each status row is **computed, never written**: stage (from evidence keyed by commit), owner (whose move, by stage), next action (the exact next command or button), ETA (queue position × median duration, sample count shown), age and staleness (λ frozen at stage entry; a row with a live wait is never stale), and `needs-you: yes/no + the exact action` (an open step, proposal, decision, permission prompt or landing violation). Every cell has a "why" popover listing the events behind it. A step is shown only after a script checks it is ready, and has a retry | v1: 25 "what does this mean" asks, rows saying "waiting on you" with nothing to do [08]; 4,412 hand-written status entries [10.01] |
@@ -291,7 +292,7 @@ fixtures [06 §2.5, 05 §6].
 1. **Request ids.** `fwcore` echoes each request's `id` and replies to **every** line, a blank one included (the
    sketch skips it: `05-lean-sketch/Main.lean` l.7-10); a reply whose id does not match the oldest outstanding
    request kills the child and fails the call.
-2. **Timeout and restart.** A per-call timeout (default 2 s); on timeout or exit the client restarts `fwcore`, fails
+2. **Timeout and restart.** A per-call timeout (built as 10 s per call and 120 s per replay chunk, eacb660); on timeout or exit the client restarts `fwcore`, fails
    the outstanding calls (never a silent retry), and `fwcore serve` rebuilds its state from the log.
 3. **Panics abort.** Always spawned with `LEAN_ABORT_ON_PANIC=1`, because a Lean panic otherwise returns a default
    value (lean4 v4.35.0 `src/runtime/object.cpp` l.76-82). Any stderr output is logged as an incident.
@@ -309,7 +310,7 @@ fixtures [06 §2.5, 05 §6].
   `breakpoints.gen.json`, test matrices); or (c) the TS/React code must pass Lean-generated golden vectors. Only I/O,
   rendering and glue stay unproved, and they hold no decision. A TS stand-in is temporary and listed in the report.
 - **Code that must run in the browser or stay in TS** (L2): media strings, motion curves, part logic, the flag
-  resolver and the console's temporary TS reducer are generated by Lean or checked against Lean golden vectors. The
+  resolver and the console's remaining TS stand-ins (§10.1, console M0 hardening) are generated by Lean or checked against Lean golden vectors. The
   flag resolver's TL2 test covers **every** single-part override of every preset (`fwcore flags.enumerate`; a finite
   domain, so as strong as a proof for that registry version), plus 2,000 fast-check multi-part cases [10.03 §2.10].
 - **Bookkeeping too:** the console reducer and views, the queues, `fw plan`, cache prune, the path check, spawn-guard
@@ -330,7 +331,7 @@ fixtures [06 §2.5, 05 §6].
 | packages | `contracts`, `measure-chromium`, `measure-webkit`, `model` (stats + cost model), `kb`, `fwcore-client` | split `measure-sdk`; separate `artifact-store`, `usage` packages; `core` |
 | console storage | `.fw-console/` in the main checkout (gitignored; console-api is its only writer): `events.jsonl` (append + fsync, then apply) + snapshots, spool, CLI socket, secrets; the projection lives in `fwcore serve`; one run queue and one device job queue (Lean); reconcilers (git refs, spool, artifacts, transcripts) and three watchers (device, stall, notice coalescer, §8.5); daily exports to `results/console/` | SQLite read model (if queries get slow). The device lease is no longer "later": it is an M1 Lean module (§5.1, Q26) |
 | Lean | Lean-first, by milestone (§5.1): `Fw/Site` and `Fw/Parts` (site breakpoints, pilot-part specs and goldens) from the start; M0 console core (reducer, authority, steps, needs-you, landing rule), phone queue, spawn-guard, path check, usage meter, budget, JSON decoders, Frames, Verdict; M1-M3 the rest of the L1 inventory | only what an incident or a new decision calls for (M5-M6); the optional Mathlib package `FwMath` (§5.2). No engine-rule data in Lean |
-| hooks | `SessionStart` brief (also after compaction); one observer emitter `emit.mjs` (synchronous, spool-only, silent) on SessionStart, SubagentStart, SubagentStop, TeammateIdle, PreCompact, PostCompact, StopFailure, Notification(permission_prompt\|agent_needs_input), PostToolUseFailure(Bash); the capability hook `PreToolUse(Bash)` on `pnpm fw *`; `PreToolUse(Agent)` spawn-guard (`onFailure: block`). Not used: `http` hooks (lose events silently), `WorktreeCreate` (replaces git behaviour), `SessionEnd` as a source of truth (1.5 s timeout) | `TaskCreated`/`TaskCompleted` observers, `SubagentStart` role brief |
+| hooks | Built in `apps/runner/hooks/` and installed in `.claude/settings.json` (3e67d48, 6756bb9): one observer emitter `emit.mjs` (spool-only, silent, ~47 ms median, MEASURED 3fe1876) on SessionStart, SubagentStart, SubagentStop, TeammateIdle, PreCompact, PostCompact, StopFailure, Notification, and async on PostToolUse/PostToolUseFailure; the capability hook `cap.mjs` on `PreToolUse(Bash)`; `PreToolUse(Agent)` spawn-guard, in shadow mode (logs, does not block) until its logged decisions are reviewed (§8.3). The `SessionStart` brief is not built yet. Not used: `http` hooks (lose events silently), `WorktreeCreate` (replaces git behaviour), `SessionEnd` as a source of truth (1.5 s timeout) | `TaskCreated`/`TaskCompleted` observers, `SubagentStart` role brief |
 | repo tooling | pnpm workspaces, Biome, lefthook (one pre-commit), Vitest | Turborepo, knip, dependency-cruiser, ast-grep rule sets, REUSE.toml, JCS keys |
 | knowledge store | 4 kinds (`note`, `decision`, `ref`, `rule`), 5 claim statuses | more kinds if the index needs them |
 
@@ -346,9 +347,9 @@ fixtures [06 §2.5, 05 §6].
 
 **Why a container.** Chromium refuses BeginFrameControl on macOS (`headless/lib/browser/protocol/target_handler.cc`
 l.62-65 @317846d579b2, CONFIRMED [FR §1.1]). The container serves **every font from `snapshot/`** with no system
-fallback, because fallback fonts change line breaks and so layout and paint counts (INFERRED); SPK-i checks this first
-(counts-chromium, §10.1). If SPK-i fails, V-i is re-scoped to the count types that stay deterministic without compositor stepping. Heavy
-trace categories are used in the counts lane only (v1 saw −17 fps from one such probe, CONFIRMED [03 §12]).
+fallback, because fallback fonts change line breaks and so layout and paint counts (INFERRED). SPK-i ran
+(70c3370): BeginFrameControl works in the container, but whole count files were never byte-identical, so V-i is
+re-scoped to per-type classes (§1.2). Heavy trace categories are used in the counts lane only (v1 saw −17 fps from one such probe, CONFIRMED [03 §12]).
 
 ### 4.2 Step 1: deterministic work counts
 
@@ -359,8 +360,10 @@ style per animation per step in WebKit (`WebAnimation.cpp` l.587-620 @fba976461f
 
 **One virtual frame in Chromium** (both arms):
 1. **Driver:** `puppeteer-core` (or raw CDP) creates the target with `Target.createTarget({enableBeginFrameControl:
-   true})` in headless-shell started with `--enable-begin-frame-control --deterministic-mode
-   --run-all-compositor-stages-before-draw` (Playwright does not set that flag, INFERRED [03 §7.1]).
+   true})` in headless-shell started with `--enable-begin-frame-control --run-all-compositor-stages-before-draw
+   --disable-new-content-rendering-timeout --disable-checker-imaging --disable-image-animation-resync
+   --num-raster-threads=2` (as built, 70c3370; `--deterministic-mode` and `--disable-threaded-animation` were dropped
+   there, and 2 raster threads keep CI and the Mac alike).
 2. **Clock shim** before any page script: `Date`, timers and `performance.now` from virtual time, the date pinned to
    `2026-10-01T00:00:00+07:00` (before the countdown target 2026-11-02). It **keeps native `requestAnimationFrame`**.
 3. Apply the scroll step from a committed profile (the v1 scripted swipe, a fling, slow drags, v1 finger replays).
@@ -374,6 +377,23 @@ Compositor status comes only from free-running `LayerTree` censuses. Time box 2 
 censuses plus timeline counts from a real gesture run, with a stated tolerance (*stable*, not *deterministic*).
 
 `Math.random` is seeded (mulberry32); `t0` and the seed are part of the artifact key.
+
+**What the first runs showed (rev 6).** Classes come from `Fw/Measure/Classes`. Chromium: policy p = (4, 24), so stable
+means at most kMax = 4 frames differ and run totals differ by at most tMax = 24 count units, over 3 runs. WebKit:
+per-cell `absTol`/`relTol`, 2 passes in each of 2 boots (`class-policy.md`).
+
+| Finding | Engine | Source |
+|---|---|---|
+| Whole count files are never byte-identical (thread ids, GC, async); the deterministic types held under host load1 360-450 | Chromium | 70c3370 |
+| Real runs: 28 deterministic, 14 stable, 8 quarantined types; the rewrite under `scrollTo`: all 43 types deterministic except MinorGC | Chromium | ddc91b2, 70c3370 |
+| `HitTest` quarantined (touch-event delivery race); the original under touch wedges BeginFrame at the same frame 5 of 5 at low load (load1 ~8), not at ~400; deferred | Chromium | 70c3370 |
+| A 10 ms barrier floor (`FW_BARRIER_MIN_MS`) cuts a rewrite run from 45 s to 7 s with identical classes (3 runs) | Chromium | 70c3370 |
+| GitHub Linux runners (4 vCPU, 3 runs on separate runners): 33 deterministic, 20 stable, 9 quarantined; the files differ byte-wise, as on the Mac | Chromium | ee18c6b [CU] |
+| Per-step Layout, Paint, InvalidateLayout, ObserverCallback quarantined; RecalculateStyles within 1; totals within 3-5 % | WebKit | 367fec2 |
+| The first load after a Simulator boot differs (FireAnimationFrame 703-709 vs 729-739), so `--warmup 1` is the default and the Simulator stays booted | WebKit | 367fec2 |
+| `RenderingFrame` reads 0 on iOS 27.0 (24A434) and ~60/s on 26.5; to compare with the CI xcode-27 image | WebKit | 367fec2 |
+| Host load correlated with counts (r 0.55-0.81, n = 6) but was confounded with pass order; a quiet rerun was clean (INFERRED: load is not the cause) | WebKit | 367fec2 |
+| The rewrite's hit-skip cuts RecalculateStyles 164 → 19, but its steps do not align with the original's (74 vs 107), so no Δ is claimed yet | WebKit | 367fec2 |
 
 **What gets counted** (full catalogues in [03 §7.2] and [04 §4.1]):
 
@@ -403,8 +423,8 @@ does not have it; v1's WebKit costs were dominated by restyle (custom-property r
 v1 `research/cpu-throttle-calibration/README.md` l.39). So, from M1:
 - until a WKTR count exists, the WebKit model is at most `ranks-only` for style-affecting changes, and **class W is
   barred for any diff that touches selectors, classes or custom properties**;
-- the 1-day WKTR spike runs on a rented cloud Mac at the start of M3 (this Mac has 16 GB RAM and about 49 GB free,
-  CONFIRMED [04 §5, ENV]); v1's cleanest less-work landings were CSS-only diffs [08], so if M1 ends early it moves up.
+- the 1-day WKTR spike runs on a rented cloud Mac at the start of M3: it needs about 120 GB free, and this Mac has
+  16 GB RAM and had 38 GB free at 367fec2 (MEASURED [CU]); v1's cleanest less-work landings were CSS-only diffs [08], so if M1 ends early it moves up.
 
 ### 4.3 Step 2: the cost models
 
@@ -483,19 +503,16 @@ All fixtures are our own pages in `fixtures/calibration/`. No Fastwork code goes
 
 **Primary device metric:** frames > 50 ms per 100 moving frames in the finger's zone, from the swiped run (7 of 7 in
 v1). Also reported: slow-frame % (> 34 ms) and the longest frame per zone, binned by **vsync ticks** (proved tick
-math; today's `Fw.Frames.tick` is fixed at 120 Hz while the iPhone page renders at 60 Hz, so lean-core is
-parameterising it by refresh rate, and until then it applies to Chrome only) and placed by **crossing coordinates**
+math, `Fw.Frames.tickAt hz dtNs`, parameterised by refresh rate since 9367dea, so 60 Hz on the iPhone) and placed by **crossing coordinates**
 (the nearest code threshold, not raw y).
 
 ## 5. Lean strategy
 
 ### 5.1 What is proved
 
-**Lean-first (your requirement of 2026-10-17).** [10.03] lists 87 decisions, state machines and pure functions (console
-and tooling scope; the site and part items added by the Lean-first rule are not counted yet, so the counts are to
-re-estimate, INFERRED) in
-this design and places each at a proof level. `lean/README.md` holds the inventory; the generated math view (§5.3)
-shows each item's math.
+**Lean-first (your requirement of 2026-10-17).** [10.03] places 87 console and tooling decisions, state machines and
+pure functions at a proof level (site and part items are not counted yet, INFERRED). `lean/README.md` holds the
+inventory; the math view (§5.3) shows each item's math.
 
 | Level | Count | Meaning |
 |---|---|---|
@@ -513,11 +530,18 @@ strings the parts import and the 124-load gate matrix), motion curves, and count
 
 | Milestone | Lean modules | v1 bug classes they remove |
 |---|---|---|
-| M0 | `Fw/Console` (reducer, authority table, steps, needs-you, replay, landing rule with violations, review independence, staleness; P in `ConsoleV2.lean` and `03-inventory/Auto/Console.lean`); `Fw/Spec/DeviceQueue` (priority with aging, no starvation, one job at a time, fits-the-window, no head-of-line blocking, hard stop at the window end; P); `Fw/Ops` (spawn-guard, path check, usage dedupe, budget alerts); `Fw/Wire` (hardened, + JSON decoders for hook payloads and usage records); `Fw/Spec/Frames`, `Fw/Spec/Verdict` (P; `better_sound_higher` and the tick-vs-34 ms count P in [10.04 §5]; planned: `land_null_prob` (L1-cond) and the multiplicity gate); the math-view lint | hand-kept board (I-044, I-108, I-145, I-162, I-183, I-248), double-answered steps (I-059), scheduler (I-011, I-041, I-049, I-185), spawn storms |
+| M0 | `Fw/Console` (reducer, authority table, steps, needs-you, replay, landing rule with violations, review independence, staleness; P in `ConsoleV2.lean` and `03-inventory/Auto/Console.lean`); `Fw/Spec/DeviceQueue` (priority with aging, no starvation, one job at a time, fits-the-window, no head-of-line blocking, hard stop at the window end; P); `Fw/Ops` (spawn-guard, path check, usage dedupe, budget alerts); `Fw/Wire` (hardened, + JSON decoders for hook payloads and usage records); `Fw/Spec/Frames`, `Fw/Spec/Verdict`, `Fw/Spec/Null` (`better_sound`, `better_sound_higher`, `land_null_prob` (L1-cond) and the multiplicity gate `multOk`, all proved, 9367dea); the math-view lint | hand-kept board (I-044, I-108, I-145, I-162, I-183, I-248), double-answered steps (I-059), scheduler (I-011, I-041, I-049, I-185), spawn storms |
 | M1 | `Fw/Site` (the breakpoint model and generator; workstream lean-site); `Fw/Spec/ArtifactKey`, `Plan`, `Store` (P for keys and minimal invalidation); rows, threads, proposals, notices, stall watcher, digests; run queue, sessions, preflight, lease (Q26) and user step; stage lifecycle, prediction-before-data, land queue; determinism class; budgets and vsyncs | stale reuse, cherry-picking, lease mid-step (I-122, I-123), a renew that shortens (I-091), a re-queue that loses its place (I-113) |
 | M2 | `Fw/Parts` (pilot-part specs and their golden vectors; workstream lean-parts); `Fw/Spec/Flags` + `Fw/Gen/Registry` (P), presets; parity bands and part lifecycle; `Cost`/`screen`, alignment, uncounted families, landing classifier, `land_requires` (full) | arms that changed more than the named thing; over-trusting proxies |
 | M3 | model ladder, fit-certificate checker, WebKit model monotonicity, licence, spot-check schedule, validation metrics, block validity | a model used beyond its evidence |
 | M4 | sequential ABBA, Hodges–Lehmann (in `FwMath` if it needs Mathlib, §5.2), union bound; **per-module evidence review** | — |
+
+**Built by e4d9853** (the dependency graph ran ahead of the milestone order): `Fw/{Board, Console, Serve, Wire}`;
+`Fw/Spec` (10 modules); `Fw/Site` (4) and `Fw/Parts` (5); `Fw/Measure` (6: classes, tolerances, zones, WebKit
+reduction; 111 theorems, ddc91b2); `Fw/Ops` (6: spawn-guard, path check, usage, meter; 30e3264); `Fw/Sched` (admission
+and parallel metrics, 100 theorems, 4bd850f; wired into `fwcore` as `ops.admit` and `metrics.*` with 53 Lean golden
+cases, 49b7ff4). Not built yet: the mutants (V-r), the
+lease, `ArtifactKey`-based store and the M3 model modules.
 
 **Evidence, not a go/no-go.** Each L1 module ships with mutants (V-r) and is counted in the per-module bug ledger
 (V-l). **Demotion rule:** a module moves from L1 to L2 by a decision record when its proofs cost more than 1
@@ -538,7 +562,8 @@ replay`); YAML and CSS parsing (golden files); human and LLM judgement (blind pr
 
 **Multiplicity.** Each experiment records how many comparisons it made (k). A landing needs `k · p_null ≤ 0.05`.
 Under the null, Pr[better] ≤ 1/C(8,4) = 1/70 for 4v4 and ≤ 1/C(10,5) = 1/252 for 5v5, with equality iff ties have
-probability 0 (premise: runs exchangeable; L1-cond, both to prove by enumeration in M0, planned). 4v4 allows k ≤ 3;
+probability 0 (premise: runs exchangeable; L1-cond). Proved: `land_null_prob` enumerates the 70 orderings (9367dea) and
+`falseBetterProb_eq_pNull` covers any m, n (74ffd03), so 5v5 gives 1/252. 4v4 allows k ≤ 3 (`multOk`, proved);
 above that use 5v5 or v1's sequential rule.
 
 ### 5.2 How TypeScript and Lean connect
@@ -572,35 +597,41 @@ run at build time.
 | Step | What happens |
 |---|---|
 | Export | `lake exe mathview` walks every `Fw` module and exports, per declaration: name, kind, file:line, the docstring's English and math, the Lean signature, a machine-made LaTeX form of the statement (no LLM), axioms (`sorryAx` = not proved), and a 64-bit **deep statement hash** (the statement plus the bodies of every `Fw` definition it reaches) |
-| Page | A Node script renders `docs/math/index.html` with KaTeX as **MathML** (`throwOnError: true`): no script, stylesheet or font files, so it opens in the console or as an Artifact. Per entry: math, English, chips (proved / sorry; signed / unsigned / stale), uses, the Lean collapsed. Sample: `research/kickoff/10-automation-and-proof/math-view-sample.html` |
-| Sign-off | **An event, not a file edit:** `pnpm fw math:sign <decl>` sends `math.signed {decl, stmtHash, mathHash}`; only the math-reviewer role and you (console-web) may cause it. console-api exports the signed set to `lean/math.lock.json` (generated, edits denied, checked at pre-commit), so an agent that edits a theorem cannot re-sign it |
+| Page | `docs/plan/tools/build-math-view.mjs` renders the math into the explainer page `docs/plan/loop-plan.html` with KaTeX as **MathML** (`throwOnError: true`): no script, stylesheet or font files, so it opens in the console or as an Artifact. Per entry: math, English, chips (proved / sorry; signed / unsigned / stale), uses, the Lean collapsed. Sample: `research/kickoff/10-automation-and-proof/math-view-sample.html` |
+| Sign-off | **Today (rev 6):** review records `research/notes/*/*-math-review-*.md` keyed by statement hash and math hash; the page marks each entry agree, disagree, stale or pending. **Planned:** an event, not a file edit: `pnpm fw math:sign <decl>` sends `math.signed {decl, stmtHash, mathHash}`; only the math-reviewer role and you (console-web) may cause it. console-api exports the signed set to `lean/math.lock.json` (generated, edits denied, checked at pre-commit), so an agent that edits a theorem cannot re-sign it |
 | Lint | `lake exe mathview --lint` (TL0) fails on: missing math; `sorry` outside a `planned` allowlist; a deep hash that differs from the signed one; math changed since signing; a KaTeX parse error; a lock entry for a deleted declaration; an axiom other than `propext`, `Classical.choice`, `Quot.sound` |
 | Review | The math-reviewer sees the signature, the machine-made math and the definitions, not the docstring; it writes its own math and compares clause by clause: ℕ vs ℤ, every hypothesis, ≤ vs <, rounding down and truncated subtraction, empty lists, ties, repeats, override and fold order, `= true` for Bool, the direction of ⇔/⇒. Agreement → it signs; disagreement → a second independent reviewer, then you (Q28) |
 | Toolchain bump | `mathview accept --toolchain-bump` re-signs only entries whose signature and machine-made LaTeX are unchanged, in one reviewed PR (R24) |
 
-**Worked example** (planned for `lean/Fw/Spec/Verdict.lean` in M0; `land` and `falseBetterProb` are not in committed Lean yet):
+**Review rounds so far (MEASURED).** A free-variable lint (00c09bf) cut flagged docstrings from 181 to 71.
+
+| Round | Commit | Declarations | Agree | Disagree |
+|---|---|---|---|---|
+| r4 | 226c35b | 258 | 187 | 71 (fixed at 00c09bf) |
+| r5 | 28b18ee | 490 | 428 | 62 (docstrings fixed at 69d7773) |
+
+The 62 were docstring fixes, not wrong proofs, and no statement changed. The regenerated view (da5d49e, after the
+Lean cache fix 67192ef) reads 1,175 agree, 0 disagree, 62 stale, 0 pending: the 62 wait for re-review (math-r6).
+
+**Worked example** (committed: `lean/Fw/Spec/Verdict.lean` and `lean/Fw/Spec/Null.lean`, 9367dea; proofs elided):
 
 ```lean
-/-- Landing verdict: 4 control and 4 variant runs; lower is better.
-$$\operatorname{land}(C, V) = \operatorname{verdict}^{\mathrm{lower}}_{4}(C, V)$$ -/
-def land (ctl var : List Int) : Verdict := verdictN 4 .lower ctl var
+/-- Soundness for lower-is-better: "better" means every variant run was strictly lower than every control run.
+$$\forall C, V \in \mathbb{Z}^{*}:\quad \operatorname{verdict}(\mathrm{lower}, C, V) = \mathrm{better} \;\Rightarrow\; \forall y \in V,\ \forall x \in C:\ y < x$$ -/
+theorem better_sound {ctl var : List Int} (h : verdict .lower ctl var = .better) :
+    ∀ y ∈ var, ∀ x ∈ ctl, y < x := …
 
-/-- "Better" means every variant run beat every control run.
-$$\operatorname{land}(C, V) = \mathrm{better} \Rightarrow \forall y \in V,\ \forall x \in C:\ y < x$$ -/
-theorem land_sound (h : land ctl var = .better) : ∀ y ∈ var, ∀ x ∈ ctl, y < x := …
+/-- 4 control vs 4 variant runs: if the 8 values are distinct and every labeling is equally likely (the L3
+premise), a false "better" has probability exactly 1/70 (all 70 rank assignments enumerated through `verdict`).
+$$\operatorname{falseBetterProb}(4, 4) = 1/70 = \operatorname{pNull}(4, 4)$$ -/
+theorem land_null_prob : falseBetterProb 4 4 = 1 / 70 ∧ pNull 4 4 = 1 / 70 := by decide +kernel
 
-/-- With no real difference (runs exchangeable), a false "better" happens with probability at most 1/70,
-exactly 1/70 when ties have probability 0.
-$$\Pr_{\text{null}}\big[\operatorname{land}(C, V) = \mathrm{better}\big] \le 1 \big/ \tbinom{8}{4} = 1/70$$ -/
-theorem land_null_prob : falseBetterProb 4 4 ≤ (1 : Rat) / 70 := …   -- planned: enumerate the 70 orderings
-
--- Examples run at build time (illustrative numbers; real rows are taken from v1's results index):
-#guard land [21, 19, 23, 20] [4, 3, 5, 2] = .better
-#guard land [21, 19, 23, 20] [4, 3, 5, 22] = .noise
+#guard verdict .lower [5, 5, 5] [4, 4, 4] == .better
+#guard verdict .lower [10, 11, 12] [9, 10, 8] == .noise
 ```
 
 The JSON-lines op it backs (one line each way, the id echoed):
-`{"id":"r-17","op":"verdict","n":4,"dir":"lower","ctl":[21,19,23,20],"var":[4,3,5,2]}` →
+`{"id":"r-17","op":"verdict","dir":"lower","ctl":[21,19,23,20],"var":[4,3,5,2]}` →
 `{"id":"r-17","verdict":"better","pNull":{"num":"1","den":"70"}}`
 
 ### 5.4 Test strategy per layer
@@ -618,9 +649,16 @@ The JSON-lines op it backs (one line each way, the id echoed):
 by a reconcile pass, reorders within a subject, a torn last line and skewed producer clocks must give the fault-free
 state; v1's status history replayed through the v2 reducer measures V-t [10.02 §6.5].
 
-**"Gate" means the local gate in M0-M1:** lefthook pre-commit + `pnpm fw gate` (which also re-runs the checks at
-land, so a commit made with hooks skipped still cannot land). GitHub Actions on the private repo is optional, only if
-the local gate becomes a bottleneck.
+**"Gate" means the local gate in M0-M1:** a lefthook pre-commit (planned for M0, not set up yet) + `pnpm fw gate`
+(which also re-runs the checks at land, so a commit made with hooks skipped still cannot land). **Public CI (rev 6,
+d70619d)** adds four GitHub Actions workflows on `ci/**` branches and `main`: `lean`, `chromium-counts`,
+`breakpoint-gate` (8 shards) and `webkit-sim` (xcode-27 image). They run with read-only contents, actions pinned by
+SHA and inputs passed through env. Timing and device lanes stay local, because shared runners give no stable time
+([CU], `docs/team/public-ci-brief.md`). CI supplements the local gate; it never replaces `fw land`. First runs:
+`breakpoint-gate` passed in 4 min 40 s (third run 5 min 06 s, no hang at ≥ 1000 px on real runners);
+`chromium-counts` passed after ee18c6b (classes in §4.2); `lean` passed once, then failed on a Lake cache gap (an
+`.olean` missing), fixed by `restoreAllArtifacts = true` (67192ef; green locally, the CI proof needs two runs);
+`webkit-sim` is being fixed for the GitHub macOS image.
 
 ## 6. Pluggable parts and flags
 
@@ -691,7 +729,6 @@ From the command line (the same options exist in the console):
 
 ```sh
 pnpm fw run --preset original --fw hero.countdown:strip --engines chromium,webkit --profile swipe-v1  # one part swapped
-pnpm fw run --preset original --ablate 'people.*' --engines webkit --profile swipe-v1   # one ablation arm per part
 pnpm fw run --preset original --impl hero.countdown:plain --engines chromium,webkit     # N3: MUI vs plain twin
 pnpm fw run --preset original --fw nav.hitTest:hit-skip --lane timing --abba 4          # timing lane, ABBA n=4
 pnpm fw run --preset original --fw hero.countdown:strip --engines chromium --dry        # config, hash, cache hits
@@ -701,8 +738,7 @@ Output: raw artifacts go to the local store `<git-common-dir>/fw/artifacts/<key>
 `results/runs/<date>-<configHash7>.json` (committed) with a line in `results/index/runs.jsonl`. `fw report <run>`
 prints per-zone counts, the screen result (dominates / mixed / worse) and the model prediction with its status.
 
-**Console "Run builder" view:** tick parts → pick variants → pick engines, profile and lane → see the resolved config,
-hash and cache hits (`fw run --dry`) → queue the run in console-api; results appear in the Results view.
+The console's Run builder does the same with ticks and pickers, and shows `fw run --dry` before queueing.
 
 ### 6.5 Runtime rules inside parts
 
@@ -719,11 +755,9 @@ hash and cache hits (`fw run --dry`) → queue the run in console-api; results a
    data-emotion>` tags. Before `hydrateRoot`, the client marks every census id in `cache.inserted`, so Emotion inserts
    nothing (mechanism CONFIRMED in Emotion's source; pipeline MEASURED in Chromium by SPK-r, WebKit pending). Measurement builds wrap
    `cache.insert`, and one miss fails the build. The static CSS declares `@layer reset, mui, parts, flags;` first.
-   **Cache wiring** (CONFIRMED in source, rev 4 review): no `StyledEngineProvider` (in MUI 9.5.0 it builds its own
-   client-only cache and `CacheProvider`, which would bypass the pre-marked cache and emit inline SSR tags); instead
-   one `createCache({ key: 'mui' })` per side through `CacheProvider`, the server one through `createEmotionServer`
-   (sets `cache.compat`, so no inline tags); the `@layer mui {…}` wrap is applied to the extracted file, and the
-   client cache copies MUI's insert wrapper so a miss still lands in the layer. **Portals:** MUI `Portal` renders
+   **Cache wiring** (CONFIRMED in source, rev 4 review): no `StyledEngineProvider` (in MUI 9.5.0 its own client-only
+   cache would bypass the pre-marked one); one `createCache({ key: 'mui' })` per side through `CacheProvider`, the
+   server one through `createEmotionServer`; the client cache copies MUI's insert wrapper so a miss lands in the layer. **Portals:** MUI `Portal` renders
    nothing on the server, so the census renders every overlay with `disablePortal`, closed (`keepMounted`) and open.
    **Build variants:** `style-engine: aot` (default); `runtime` (plain Emotion SSR, the negative control N0/N5 must
    catch); `pigment` (Pigment 0.0.30 with MUI 9.0.1 in its own workspace package; optional, SPK-s). **Fallbacks:** per
@@ -747,10 +781,8 @@ hash and cache hits (`fw run --dry`) → queue the run in console-api; results a
    | S12 | Overlays (`Dialog`, `Drawer`, `Menu`) are closed during scroll scenarios and mounted at load or `keepMounted`; `disableScrollLock` set to match the original at PL4. FocusTrap's 50 ms interval is an allowed exception to rule 2 while a modal is open, measured in the modal's own scenario. `Dialog` `maxWidth` and `Container` emit MUI's default `xs…xl` `@media` (1 rule in `mui.css`, MEASURED); they are replaced by conditions from `breakpoints.gen.json` before any part is promoted | insertion and body writes at the trigger; an unmeasured timer | N0 in W-trigger; PL5 in the modal scenario |
    | S13 | The theme uses the original's font families and metrics (no Roboto default) | layout and paint differences that look like styling cost | PL1/PL3; N4 lists `@font-face` |
 
-   **Census ids:** the client marks **every** id the server inserted, not only those found in the HTML, because
-   `styled(Wrapper)` inserts an intermediate rule whose class never reaches the HTML; marking only HTML ids left 8
-   `cache.insert` calls on the first open of Dialog, Menu and Drawer (MEASURED; the extractor fix is in progress).
-   **Build gates** (every build): census test with 0 misses; no `@media` in `mui.css` that is not in
+   **Census ids:** the client marks **every** id the server inserted (`styled(Wrapper)` rules never reach the HTML;
+   marking only HTML ids left 8 inserts on first overlay open, MEASURED). **Build gates** (every build): census test with 0 misses; no `@media` in `mui.css` that is not in
    `breakpoints.gen.json`; no `<style data-emotion>` in prerendered HTML; no
    `null`, `undefined` or `NaN` values in emitted CSS (the [09.04] spike saw Pigment emit `width:null%` with exit
    code 0); for `pigment` builds, no `data-emotion`, `insertRule` or `stylis` in the built JS.
@@ -809,6 +841,18 @@ v1's 1440 → 600 → 1440 pain sequence, live reduced-motion and touch flips). 
 430×775/815 at DPR 3 with touch; 375×667 and 1440×900 at DPR 2; reduced motion) is the fast subset; one Simulator
 check closes promotion, because Playwright WebKit has no toolbar and no Conservative compositing policy [02 §7].
 
+**Gate status at e4d9853 (MEASURED, e7fb102, d23cf7c and [CU]).** The gate runs on Mac Chrome 155 headless and Playwright
+WebKit 27.2: 124 loads × 2 engines × 2 arms plus 4 sweeps, byte-identical across two runs.
+
+| Item | Result |
+|---|---|
+| Pilot parts | all 4 pass all 14 cells in both engines; `hero.exit` failed first and passed after the anchor and hero fixes (95693f4, 2566949) |
+| Covered | PL0, PL1, PL2 and the `matchMedia` truth |
+| Not covered yet | PL2b, PL3 pixels, the Simulator check, live reduced-motion and touch flips |
+| Not reachable | fractional gaps in either engine; WebKit's hover × pointer cross |
+| Speed | a full run takes 554 s; `--parts` landed (d23cf7c) but saves no time yet (528 s vs 536 s: every probe applies to every part; gate-probe-scope will declare a probe scope per part); CI splits it into 8 shards (4 min 40 s) |
+| Lean-first debt | the verdict rule `packages/gate-breakpoints/src/verdict.mjs` is still JS; it moves to `Fw/Site` or golden vectors |
+
 ### 6.7 Styling-neutrality gate (N0-N5)
 
 This gate shows that MUI adds no style-sheet mutations, DOM writes, React commits or engine work counts compared with
@@ -840,46 +884,37 @@ timing lane and on the phone only the end-of-run hash runs.
 ```
 fastwork-com-web-optimize-lean/
 ├─ CLAUDE.md                  < 300 words at the start (≤ 1,500 ever): rules with "Enforced by", trust boundary, lanes
-├─ .claude/                   settings.json, agents/*.md, hooks/{session-brief,emit,cap,spawn-guard}.mjs, skills/
-├─ .mcp.json                  serena, lean-lsp (local tools only), chrome-devtools (exploration only)
-├─ .serena/project.yml  lefthook.yml  pnpm-workspace.yaml  package.json  biome.json
-├─ snapshot.lock.json         id + content hash of the Fastwork snapshot (no content)
+├─ LICENSE  NOTICE  README.md MIT for our code; NOTICE and README carry the Fastwork approval and snapshot source
+├─ .github/workflows/         lean, chromium-counts, breakpoint-gate, webkit-sim (public CI, §5.4)
+├─ .claude/                   settings.json (hooks, permissions, env), agents/*.md (14 roles, §8.2), skills/
+├─ .mcp.json                  serena (TypeScript), serena-lean (from lean/), lean-lsp (search tools off); §8.1
+├─ .serena/ lefthook.yml pnpm-workspace.yaml package.json biome.json snapshot.lock.json (id + hash, no content)
 ├─ breakpoints.json           GENERATED from the snapshot's CSS and JS: every breakpoint edge, per part (§6.6)
 ├─ apps/
 │  ├─ site/                   React 19 + Material UI 9.5 + Vite 8, prerendered; /__harness/:part; /__census (build only)
 │  │  └─ src/{engine/, registry/, theme/, mui-aot/, parts/<id>/{part.json, parity.json, faithful/, variants/<v>/}}
 │  ├─ console-web/            shadcn/ui + Tailwind 4: run builder, steps, results (later: validity, proposals, usage)
 │  ├─ console-api/            Node 24 + Hono; single writer; CLI socket; reconcilers, watchers; fwcore serve (§7.3)
-│  └─ runner/                 `fw`: run | gate | screen | report | usage | src:fetch | snapshot | sim
+│  └─ runner/                 `fw`: run | gate | land | screen | report | usage | snapshot | sim; hooks/ (emit, cap, spawn-guard)
 ├─ packages/
 │  ├─ contracts/              zod + generated JSON Schema + golden fixtures (leaf)
-│  ├─ measure-chromium/       container driver, counts, Chromium fixtures (built in parallel with measure-webkit)
-│  ├─ measure-webkit/         Simulator + iwdp, LayerTree census, timeline, WebKit fixtures
+│  ├─ measure-chromium/ measure-webkit/   container driver + counts; Simulator + iwdp, LayerTree census, timeline
 │  ├─ model/                  stats + cost model (PURE: no fs, clock, random, browser)
-│  ├─ fwcore-client/          id-checked JSON-lines client + resolver tests
-│  └─ kb/                     frontmatter schema, index, find, lint
-├─ docker/counts-chromium/    Dockerfile pinned by digest; fonts mounted from snapshot/ at run time (no font in git)
+│  └─ fwcore-client/ kb/      id-checked JSON-lines client; frontmatter schema, index, find, lint
+├─ docker/counts-chromium/    Dockerfile pinned by digest, apt and npm pinned; fonts only from snapshot/site
 ├─ lean/                      Lake project fwcore (seeded from the 05 and 10 sketches); math.lock.json GENERATED
 ├─ fixtures/calibration/      our own micro-pages (WebKit K1-K9 first, K10 both engines, Chromium set)
 ├─ presets/  profiles/        flag presets, priority.json (yours); scroll scripts, viewport and toolbar replays
-├─ research/
-│  ├─ kickoff/                the kickoff notes and folders (01-10), unchanged
-│  ├─ notes/YYYY/MM-DD-<slug>.md          (also per-agent handoff notes; no shared ledger files)
-│  ├─ decisions/YYYY-MM-DD-<slug>.md   (ADR: context, options, decision, enforcer)
-│  └─ INDEX.md                GENERATED
-├─ refs/
-│  ├─ external/<slug>.md      papers, docs, articles: link + notes
-│  ├─ upstream/               sources.lock.yaml, PINS.md (engine ↔ browser version map),
-│  │                          excerpts/<repo>/<path>@<sha7>#L<a>-L<b>.md (≤ 40 lines), protocol/<engine>/*.json
-│  ├─ rules/<engine>/<family>/*.yaml   engine decision rules (with table tests)
-│  └─ v1/<slug>.md            pointers into v1 (path + commit + summary), never copies
-├─ results/
-│  ├─ experiments/<date>-<slug>/{card.md, result.json}   (predictions live only in card.md)
-│  ├─ runs/  index/*.jsonl  validity/*.jsonl  calibration/<device>/<date>.json  bugs/ledger.jsonl
-│  └─ console/<date>.events.jsonl.gz   daily exports of the event log (no personal data)
-├─ docs/                      plan/PLAN.md (this file); math/ GENERATED math view (index.html, mathview.json)
+├─ research/                 kickoff/ (01-10, unchanged), notes/YYYY/MM-DD-<slug>.md, decisions/ (ADR), INDEX.md GENERATED
+├─ refs/                     external/ (papers, docs), upstream/ (sources.lock.yaml, PINS.md, excerpts ≤ 40 lines,
+│                            protocol/), rules/<engine>/<family>/*.yaml (with table tests), v1/ (pointers, never copies)
+├─ results/                  experiments/<date>-<slug>/{card.md, result.json} (predictions only in card.md), runs/,
+│                            index/, validity/, calibration/<device>/, bugs/ledger.jsonl, console/ daily event exports
+├─ docs/                      plan/PLAN.md (this file), plan/loop-plan.html (explainer + GENERATED math view);
+│                             team/ (token policy, parallel plan, CI brief, handoffs/, improvements/)
 ├─ .fw-console/               GITIGNORED: live console state, written only by console-api (§7.3, §8.3)
-├─ snapshot/                  GITIGNORED: the Fastwork original, local only, files read-only
+├─ snapshot/site/             the Fastwork original, tracked unmodified (269 files, 30.1 MB; tree id = lock), read-only;
+│                             snapshot/site-pretty/ GITIGNORED
 └─ .cache/                    GITIGNORED: sparse upstream clones, raw traces, kb.json
 ```
 
@@ -895,191 +930,135 @@ links: { refs: [], sources: [], experiments: [], v1: [] }
 claims: [{ text: "...", status: CONFIRMED | OBSERVED | INFERRED | WEAKENED | REFUTED, cite: "<id|url>" }]
 ```
 
-A **rule card** (`kind: rule`) adds `statement` (a predicate over a style diff, count or setting), `source {repo,
-commit, path, lines}`, `counts` (which count-vector entries it predicts), and `test` (the table test that checks it
-against `compositeFailed` or WKTR), and `mechanism: <engine>/<family>/<id>`: `kb lint` fails when two live cards
-share a mechanism with opposite statuses [08]. `fw refs:drift` re-reads each card's cited lines at a new engine tag
-and flags changed hunks (it would have caught the 7624 → 7625 drift [04 §11]).
+A **rule card** (`kind: rule`) adds `statement`, `source {repo, commit, path, lines}`, `counts`, `test` (its table
+test) and `mechanism`; `kb lint` fails when two live cards share a mechanism with opposite statuses [08], and
+`fw refs:drift` flags changed cited lines at a new engine tag (it would have caught 7624 → 7625 [04 §11]).
 
-### 7.3 What never enters git
+### 7.3 Public repo: what enters git and what never does
 
-- No Fastwork HTML/JS/CSS, images or fonts. Assets are served from `snapshot/`, pinned by hash, and the server
-  refuses to start on a mismatch. `fw snapshot` makes the snapshot files read-only.
+- No Fastwork code outside `snapshot/site/`. The repo is **public** (your decision of 2026-10-17, MIT for our code):
+  Fastwork approved publishing its compiled homepage, fonts included, so the snapshot is tracked unmodified with its
+  source in `NOTICE` (9492807, 53ca23e). Assets are served from it, pinned by tree id (`snapshot.lock.json`), and
+  the server refuses to start on a mismatch. An analytics token inside Fastwork's own `index.html` stays as shipped.
 - No screenshots, diff images or raw traces. They stay in the local artifact store; git gets index lines and
   summaries only (Q15). Simulator frames may be captured; phone-screen frames only for named recording sets made with
   Do Not Disturb on (Q19; v1 changed this rule three times mid-investigation [08]).
-- No personal data: no emails, LAN IPs or device ids.
+- No personal data: no emails, names, LAN IPs, device ids or home paths (the pre-publish grep was clean, 454cbe0).
+  `.local/` (v1 chat digests) is gitignored.
 - The live console state: `.fw-console/` in the main checkout (event log, snapshots, spool, socket, secrets),
   gitignored (a `.gitignore` entry) and written only by console-api (Q23; protection in §8.3). Git gets daily
   exports only (`results/console/`).
 
-The ported copy and design values in `apps/site/src/parts/**` count as Fastwork-derived. **The repo stays private**
-(Q3); these rules still apply so that a later partial publication stays possible. Enforced by `.gitignore`, a
-pre-commit path and scrub check, deny rules on `git add -f`, Serena `ignored_paths` and a `kb lint` rule.
+The ported copy and design values in `apps/site/src/parts/**` count as Fastwork-derived: CSS values are restated,
+never copied. Enforced today by the `git add -f`/`--force` and `--no-verify` deny rules (`.claude/settings.json`),
+the one-time pre-publish grep (454cbe0) and Serena `ignored_paths` for `snapshot/**`. Planned for M0: a lefthook
+pre-commit path and personal-data scrub check and a `kb lint` rule. Only you push `main`, add remotes or create repos; agents may push `ci/*`
+branches only (§8.2).
 
 ## 8. Agent teams
 
 ### 8.1 Verified mechanics this design relies on
 
 Checked against Claude Code 2.1.301 docs on 2026-10-17 [07 §2, FR §5]; re-verify on upgrade.
-- **In-process teammates honour the definition's `model`, `effort`, `tools`, `disallowedTools` and
-  `autoCompactWindow`** (CONFIRMED); split-pane teammates do not. In-process is the default; the setting makes it
-  explicit. A teammate brought back re-applies its definition only if `.claude/agents/` is trusted (CONFIRMED).
-- One team per session; no nested teams; teammates start with the lead's permission mode; `/resume` drops them.
-- Teammates never call `EnterWorktree` (v1 I-272). Code-editing roles run as **named worktree subagents**: `name`
-  plus `isolation: "worktree"` **on the call** keeps a named spawn a subagent; without `isolation` on the call it
-  becomes a teammate in the main checkout, even if the role file sets isolation (CONFIRMED); spawn-guard denies that.
-- `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` does not count teammates (CONFIRMED), so spawn-guard caps teammates.
-- Task tools are off by default on the 5.5 models; `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` in the settings `env` turns them
-  on, also for running sessions (CONFIRMED by docs; SPK-a confirms).
-- Agent permission rules match literal call parameters only (CONFIRMED): a role file with `model: claude-fable-5-1`
-  is not caught by an `Agent(model:…)` rule. So Fable is controlled by an `Agent(model:*fable*)` ask rule (the
-  wildcard matches pinned full ids) **and** a lint that forbids `fable` in `.claude/agents/*.md`.
-- **Observed in v1, re-checked by SPK-p** (INFERRED until then) [08]: a finished background task did not wake an idle
-  teammate (I-274); a long foreground command left an agent deaf to messages; the lead's SendMessage address was
-  `main`, and 20 sends failed on guessed names; after a compaction the naming rule was lost. `session-brief` prints
-  the verified address; the stall watcher (§8.5) covers the wake gap.
+- In-process teammates honour the definition's `model`, `effort`, `tools`, `disallowedTools` and
+  `autoCompactWindow` (CONFIRMED; split-pane ones do not). One team per session, no nested teams; `/resume` drops
+  teammates. Teammates never call `EnterWorktree` (v1 I-272).
+- Code-editing roles run as **named worktree subagents**: `name` plus `isolation: "worktree"` **on the call**; without
+  `isolation` on the call a named spawn becomes a teammate in the main checkout (CONFIRMED); spawn-guard flags that.
+  `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` does not count teammates (CONFIRMED), so spawn-guard will cap teammates.
+- Task tools need `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` in the settings `env` (SPK-a answered). Agent permission rules
+  match literal call parameters only, so Fable is behind an `Agent(model:*fable*)` ask rule **and** a lint that
+  forbids `fable` in role files (CONFIRMED).
+- **Observed in v1** [08]: a finished background task did not wake an idle teammate (I-274); a long foreground
+  command left an agent deaf; 20 sends failed on guessed lead names. SPK-p: the v2 lead address is `team-lead`
+  (33 of 33 sends); the wake test is open, and the stall watcher (§8.5) covers the gap.
+- **Measured in v2 (rev 6, [CU]).** Every subagent and teammate cache write is 5-minute (18.0M tokens); only the lead
+  writes 1-hour cache. 2.9-3.0M tokens were cold rewrites after longer idles. Agent "API stalls" were the Mac
+  sleeping; one `caffeinate -i -w <claude pid>` now keeps the Mac awake while the session runs.
+- **Code tools (rev 6).** Serena 2.0.0 (GPL-3.0, run only as a tool via `uvx`, 5c18b73, d797c60) serves TypeScript
+  from the root and Lean from `lean/` (`serena-lean`; it works only from the Lake root, SPK-k). `lean-lsp-mcp` 0.31.0
+  runs with its remote search tools off, `lean_hammer_premise` included (SPK-l). Upstream engine source is read from
+  pinned sparse clones in `.cache/upstream/` (b65e983), never through WebFetch.
 
-**Bootstrap.** The team already runs (agent teams on since the kickoff). The build-phase settings, hooks and role
-files arrive with the agent-ops workstream (§10.1); a settings change that needs a restart is batched with others.
-Writing `.claude/**` prompts you (an `ask` rule), so the lead batches those writes into planned sittings. No second
-Claude Code session for side tasks (v1's was nothing but approvals [08]).
+**Bootstrap.** Writing `.claude/**` prompts you (an `ask` rule), so the lead batches settings changes into planned
+sittings. No second Claude Code session for side tasks (v1's was nothing but approvals [08]).
 
 ### 8.2 Roster
 
-Models are pinned to full IDs: `opus` = `claude-opus-5-5`, `sonnet` = `claude-sonnet-5-5`,
-`haiku` = `claude-haiku-5-5`, `fable` = `claude-fable-5-1`. `cW` is the context cap (`autoCompactWindow`). The table
-is checked against `.claude/agents/*.md` by `pnpm fw roster:check`, so the files are the truth.
+Models are pinned to full IDs: `opus` = `claude-opus-5-5`, `sonnet` = `claude-sonnet-5-5`, `haiku` = `claude-haiku-5-5`,
+`fable` = `claude-fable-5-1`. The 14 files in `.claude/agents/` are the truth; this table restates them at 28b18ee.
+Helper roles and their rules come from the token policy (`docs/team/token-policy.md`, D1-D7, applied at a0b9053).
 
-| Role | Runs as | Model / effort | cW | Cache TTL | Spawned when | Writes |
-|---|---|---|---|---|---|---|
-| lead (main session) | session | opus / medium; `high` whenever it speeds a decision | **200k** | 1h (v1's lead ran on 1h and lost $3 to idle rewrites) | always; requests per day reported, not capped; no `CronCreate`; delegates all multi-file reading | lands on `main` with `fw land` (ff-only, after the reducer accepts); `research/decisions/`; commits (rule below) |
-| engine-researcher (`eng-chromium`, `eng-webkit`) | teammate | opus / high | **200k**, with a written handoff note in `research/notes/` before compaction | 1h | M0-M3 research questions; parked between | `research/notes/`, `refs/**`, fixtures |
-| source-locator | subagent (from eng-*) | sonnet / low | 150k | 5m | "where is X computed, file:line@sha" | nothing |
-| ref-librarian (`lib-<topic>`) | subagent | haiku / low | 100k, low `maxTurns` (Haiku's price step is at 100k) | 5m | pin sources, write ref and rule cards, `kb lint` | `refs/**` |
-| Explore (override) | subagent | haiku / low | 100k | 5m | any search | nothing |
-| part-builder (`part-<slug>`) | named worktree subagent | sonnet / medium; per call opus/high for `engine.*`, hero exit, morph, the MUI theme and AOT census, and any part that failed its gate once | 200k | 1h | one part or variant each; time box 1 agent-day (2 for engine/morph) | `apps/site/src/parts/<slug>/**` (theme/AOT: `apps/site/src/{theme,mui-aot}/**`) |
-| console-builder (`console-<feature>`) | named worktree subagent | sonnet / medium | 200k | 1h | M0+ console shell and UI features (the step queue first, §10.1); paired on one branch with the `lean-<module>` that owns the behaviour, which a TS-only change cannot alter | `apps/console-*/**` |
-| measure-engineer (`meas-<plugin>`) | named worktree subagent | **sonnet / high**; per call opus/high for the cost-model fit, harness neutrality and the N0-N5 gate | 200k | 1h | one plugin or fit each | `packages/measure-*`, `packages/model` |
-| lean-prover (`lean-<module>`) | named worktree subagent | opus / high; fable per call (ask) for a stuck theorem | 200k | 1h | one Lean module each; **up to 3 alive at once** in M0-M2 (console core, queues, ops in parallel), 1-2 afterwards; tools: lean-lsp-mcp, `grind` first | `lean/**` except `lean/math.lock.json`, golden fixtures, mutant patches |
-| experiment-owner (`exp-<hypothesis>`) | teammate | **sonnet / medium** | 200k | 1h | M5: ≤ 5 alive; 1 agent-day or 3 build iterations per question, then the card and a review | `results/experiments/**`, presets |
-| reviewer (`review-<topic>`) | subagent, fresh context, read-only | **opus / medium**; `high`/`xhigh` per call for theorem statements and neutrality-gate rulings | 200k | 5m | the review stage of every change; every new theorem statement; the reducer refuses a review signed by the card's owner or any agent that built on it | nothing (its verdict is its reply) |
-| math-reviewer (`mathrev-<module>`) | subagent, fresh context, read-only | opus / high | 150k | 5m | every stale or unsigned entry in the math view, after `lake build`; a second, independent instance on a disagreement | nothing; its only output is `pnpm fw math:sign` (an event, §5.3) or a disagreement report |
-| researcher | teammate | opus / high | default | default | one platform or tooling question per task, read from source and cited | `research/notes/**` |
-| env-ops | teammate | sonnet / medium | default | default | any install or environment check (Homebrew first; no sudo without the lead) | this Mac's toolchain; `research/notes/env-setup.md` |
-| plan-editor | teammate | opus / high | default | default | any change to the plan text; the only writer of this file | `docs/plan/PLAN.md` |
-| page-writer | teammate | opus / medium | default | default | explainer pages (`docs/plan/loop-plan.html`); never the generated math view | the page files its task names |
-| *(no agent)* | scripts + hooks | — | — | — | gates (tests, parity, `lake build`, `kb lint`), usage meter, device runs and preflight, watchers, queue order, land queue, status digests (§8.5) | `results/index`, console log |
+| Role | Runs as | Model / effort | Spawned when | Writes |
+|---|---|---|---|---|
+| lead (main session) | session | opus / medium; `high` when it speeds a decision | always; no `CronCreate`; delegates multi-file reading | lands on `main` (ff-only); commits (rule below) |
+| part-builder (`part-<slug>`) | named worktree subagent | sonnet / medium; opus/high per call for `engine.*`, hero exit, morph, the MUI theme and AOT census, and a part that failed its gate once | one part or variant; time box 1 agent-day (2 for engine/morph) | `apps/site/src/parts/<slug>/**` |
+| console-builder (`console-<feature>`) | named worktree subagent | sonnet / medium | console features, paired with the `lean-<module>` that owns the behaviour | `apps/console-*/**`, `apps/runner/**` |
+| measure-engineer (`meas-<plugin>`) | named worktree subagent | sonnet / high; opus/high per call for the fit, harness neutrality and N0-N5 | one plugin or fit | `packages/measure-*`, `packages/model` |
+| lean-prover (`lean-<module>`) | named worktree subagent | opus / high; fable per call (ask) for a stuck theorem | one Lean module; up to 3 alive in M0-M2 | `lean/**`, golden fixtures |
+| reviewer (`review-<topic>`) | subagent, fresh, read-only | opus / medium | every change's review stage and every new theorem statement; never the card's owner | nothing (its reply) |
+| math-reviewer (`mathrev-<module>`) | subagent, fresh, read-only | opus / high | stale or unreviewed math-view entries; a second instance on a disagreement | a review record (§5.3) |
+| researcher, plan-editor | teammate | opus / high | one question per task; plan changes (the only writer of this file) | `research/notes/**`; `docs/plan/PLAN.md` |
+| env-ops, page-writer | teammate | sonnet / medium | installs (Homebrew first); explainer pages, never the generated math | toolchain notes; named page files |
+| **scout** · **runner** | helper subagent, read-only | haiku / low | a search/read sweep whose answer fits in 1k tokens · build/test runs that need several runs or a diagnosis | nothing (≤ 1k tokens back to its spawner) |
+| **checker** · **patcher** | helper subagent | sonnet / medium · sonnet / low | checklist judgement over > 20 KB · a small named edit (lead-spawned only) | nothing · the named files |
+| *(no agent)* | scripts + hooks | — | gates, usage meter, device runs, watchers, queue order, land queue, digests (§8.5) | `results/index`, console log |
 
-Concurrency, raised in rev 4 for speed: at most **5 teammates** (spawn-guard) and **8 worktree subagents** alive at
-once (up to 3 of them lean-provers in M0-M2), with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=10` as a backstop. The
-real limit is this Mac (16 GB RAM, one counts container, one timing queue); the lead lowers parallelism when builds
-queue. The caps live in `settings.json`, where spawn-guard reads them. Kept for quality: at
-most 10 spawns per 10 minutes per spawner, and depth-2 spawns are read-only helpers (v1: one agent made 133 spawns in
-an hour [08]). **Cache TTL is chosen by expected wait:** 1h for waits under an hour on gates, builds or peers; 5m for
-fresh, short roles; a wait of an hour or more, or of unknown length (a device session, you), ends the agent with a
-handoff note (§8.5). Every role file has `maxTurns`; each spawn prompt names whom the agent **reports to**. "Teams" are
-lanes inside the one session team. Escalate per call (`model`/`effort`), never with a second role file.
+Not written, and not needed so far: engine-researcher, source-locator, ref-librarian and an Explore override (scout
+covers search) and experiment-owner (it arrives with M5).
 
-**Who commits (one rule).** Teammates never commit: they report their changed files and the lead commits them. Named
-worktree subagents commit only on their own branch inside their own worktree (`git add -- <paths>`, `git commit -m`).
-Until `fw land` works (console-mvp, §10.1) the lead lands on `main` by an ff-only merge; from then on every change,
-the lead's own included, reaches `main` only through the lead's `fw land` (ff-only, §9.2). `main` stays a normal branch (Q23), so any other
-move of it is not prevented but detected by the git reconciler and shown to you as a violation. Only you push.
+**Helpers and concurrency (token policy).** lean-prover, researcher, measure-engineer, console-builder and
+plan-editor may spawn scout, runner and checker; only the lead spawns patcher. Each parent runs one helper at a time
+(two if the lead has at most three direct agents). Spawn depth stays 2. The session cap is 10 subagents
+(`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`), shared across depths; teammates are not counted, so spawn-guard will cap them
+at 5 and at 10 spawns per 10 minutes per spawner (shadow mode logs only, §8.3; v1: one agent made 133 spawns in an hour [08]). The parallel
+study (5b8a2b1) measured a peak of 12 busy agents, a speedup of 4.9 and the lead busy 46 % of the time; the real limit
+is this Mac (16 GB RAM, one Simulator, one timing queue), so the admission rule `Fw/Sched` (§10.1) decides what starts.
 
-**One agent file** (`.claude/agents/part-builder.md`). Frontmatter: `model: claude-sonnet-5-5`, `effort: medium`,
-`tools: Read, Grep, Glob, Edit, Write, Bash`, `disallowedTools: WebFetch, WebSearch, Agent`, `autoCompactWindow:
-200000`, `maxTurns: 150`, `experimental: { cacheTtl: 1h }` (the per-agent TTL field, CONFIRMED in the sub-agents doc
-from v2.1.248; the meter check in agent-ops checks it). Body:
+**Cache TTL and resumes (resolved in rev 6).** Revision 5 gave most roles a 1h cache. MEASURED: only the lead gets
+1h; every subagent and teammate writes 5-minute cache, and no role file sets a TTL. The plan follows the measurement:
+the lead is 1h, every agent is 5m, and no new 1h setting is added (token policy D6). So an agent is resumed only while
+it has been idle less than 5 minutes or its context is under 30k tokens; otherwise the lead stops it (`TaskStop`, no
+model turn) and spawns a fresh agent of the same role from its handoff note `docs/team/handoffs/<name>.md`. A context
+over 250k is never resumed (124a614).
 
-```markdown
-You own exactly one part: apps/site/src/parts/<slug>/. Never edit outside it.
-Contract: part.json is the truth; restate the original's CSS values, never copy code or assets; build with MUI
-components styled only through className/slotProps from CSS Modules (no sx, styled, css; rules S1-S13 in PLAN §6.5);
-no per-frame value through React state; motion only through MotionClock. Time box: 1 agent-day (2 for engine/morph);
-if parity is not met by then, stop and report the measured delta (faithful-with-delta).
-Done = `pnpm fw gate --part <slug>` green. Commit in your worktree with `git add -- <paths>` and `git commit -m`.
-Bash: one plain command per call; multi-step work is a `pnpm fw` verb. Never `node -e`, `sed` on variables,
-`python -c`, `cd` or `git -C`. Send your result to the agent you report to; the lead gets at most 300 characters plus a
-file path. Never write status: the console derives it. Your only console inputs are `pnpm fw` requests. To wait an
-hour or more, write a handoff note and stop.
-```
+**Who commits.** Teammates never commit: they report their changed files and the lead commits them. Named worktree
+subagents commit only on their own branch in their own worktree (`git add -- <paths>`, `git commit -m`). Every change
+reaches `main` only through the lead's `fw land` (ff-only, built at 840f7d6, §9.2); any other move of `main` is
+detected by the git reconciler and shown to you as a violation. Only you push `main`, add remotes or create repos;
+agents may push `ci/*` branches to trigger CI (never force, never delete).
 
-### 8.3 `.claude/settings.json` (committed; sketch, strip comments)
+### 8.3 `.claude/settings.json` (committed; the file is the truth)
 
-```jsonc
-{
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1", "CLAUDE_CODE_ENABLE_TODO_TOOLS": "1",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5",     // default for spawns without a role file
-    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2",
-    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "10"           // subagents only; teammates are capped by spawn-guard
-    // never set CLAUDE_CODE_EFFORT_LEVEL (it overrides every role's effort); no global cache TTL (set per role)
-  },
-  "teammateMode": "in-process", "autoCompactWindow": 200000,                     // the lead's cap
-  "worktree": { "baseRef": "head", "symlinkDirectories": [".cache"] },
-  "permissions": {                                         // Edit(...) rules cover every file-writing tool
-    "allow": [
-      "Edit(/apps/**)", "Edit(/packages/**)", "Edit(/lean/**)", "Edit(/research/**)", "Edit(/refs/**)",
-      "Edit(/results/**)", "Edit(/presets/**)", "Edit(/profiles/**)", "Edit(/fixtures/**)", "Edit(/docs/**)",
-      "Bash(pnpm fw *)", "Bash(pnpm kb *)", "Bash(pnpm install)", "Bash(pnpm exec *)", "Bash(pnpm test*)",
-      "Bash(lake build*)", "Bash(lake test*)", "Bash(lake exe *)",
-      "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git add -- *)", "Bash(git commit -m *)",
-      "Bash(git checkout -b *)", "Bash(git worktree add .claude/worktrees/*)", "Bash(gh search code *)",
-      "Bash(git rebase main)", "Bash(xcrun simctl list*)",
-      /* lean-lsp local tools only (goal, term_goal, diagnostics, hover, completions; SPK-l) and Serena's read
-         tools (find_symbol, find_referencing_symbols, get_symbols_overview, find_declaration, diagnostics) */],
-    "ask":   ["Agent(model:*fable*)", "CronCreate", "Edit(/.claude/**)", "Edit(/CLAUDE.md)", "mcp__serena__rename_symbol"],
-    "deny":  ["Bash(gh api*)",                       // upstream reads go through `pnpm fw src:fetch` (GET only)
-              "Bash(git push*)", "Bash(git -C * push*)", "Bash(git commit*--no-verify*)",
-              "Bash(git commit -n*)", "Bash(git commit * -n *)", "Bash(git add -f *)", "Bash(git add --force*)",
-              "Bash(gh pr *)", "Bash(gh repo create *)",
-              "Edit(/snapshot/**)", "Bash(rm *snapshot/*)", "Bash(mv *snapshot/*)", "Bash(cp * snapshot/*)",
-              "Edit(/.cache/upstream/**)", "Edit(/.fw-console/**)", "Read(/.fw-console/secret/**)",    // §7.3
-              "Bash(git clean*)",                       // -x would delete the gitignored console state
-              "Edit(/lean/math.lock.json)", "Edit(/docs/math/**)", "Edit(/results/console/**)",   // generated
-              "mcp__chrome-devtools__performance_start_trace" /* + every Serena edit tool and write_memory */]
-  },
-  "sandbox": {
-    "enabled": true, "allowUnsandboxedCommands": false,       // no dangerouslyDisableSandbox retry
-    "filesystem": { "denyWrite": [".fw-console"], "denyRead": [".fw-console/secret"] },   // path forms: SPK-t
-    "network":    { "allowUnixSockets": [".fw-console/run/cli.sock"] }   // the only door: requests
-    // never list `pnpm fw` in excludedCommands: fw lives in each worktree and could be edited there
-  },
-  "hooks": {
-    // emit.mjs: synchronous, < 100 ms, prints nothing (a hook's stdout can reach Claude); writes one spool file, exits
-    "SessionStart":  [/* session-brief.mjs (also on "compact"; ≤ 15 lines: live roster with idle minutes and context,
-                         the lead address, the naming rule, spend today, open steps, device, disk) + emit.mjs */],
-    // emit.mjs also on SubagentStart, SubagentStop, TeammateIdle, PreCompact, PostCompact, StopFailure,
-    // Notification (matcher "permission_prompt|agent_needs_input") and PostToolUseFailure (matcher "Bash")
-    "PreToolUse":    [/* spawn-guard.mjs, matcher "Agent", onFailure: block: deny an unnamed call, a name in use, name +
-                         editing subagent_type without isolation, a 6th teammate, > 10 spawns per 10 min per spawner,
-                         model fable without the ask path;
-                         cap.mjs, matcher "Bash", only for `pnpm fw *`: appends the single-use capability (updatedInput) */]
-  }
-}
-```
+| Part | As built (3e67d48, 6756bb9, a0b9053) | Still planned |
+|---|---|---|
+| env | agent teams and task tools on; spawn depth 2; 10 concurrent subagents; Bash output ≤ 16,000 characters; Read ≤ 8,000 tokens; never `CLAUDE_CODE_EFFORT_LEVEL` | — |
+| session | `teammateMode: in-process`; worktrees from `head` | — |
+| allow | 47 verb patterns: `pnpm fw/kb/test/exec`, `lake build/test/exe`, read-only git, `git add -- *`, `git commit -m *`, `git push origin ci/*`, `gh run list/view/watch/download`, lean-lsp and Serena read tools | more read-only commands after a prompt count (SPK-o) |
+| ask | `git remote add`, `git config remote.*`, `Agent(model:*fable*)`, `Agent(general-purpose)`, `Agent(fork)`, `CronCreate`, edits to `.claude/**` and `CLAUDE.md` | — |
+| deny | pushes to `main`, force, delete, mirror, `--all`, `+refs`, `git -C * push`; `git add -f`; `--no-verify` and `-n`; `gh api`, `gh pr`, `gh repo create`, releases, gists; the v1 repo; `.local/` | edits to `snapshot/**`, `.fw-console/**`, `.cache/upstream/**`, generated files; `git clean` |
+| hooks | `emit.mjs`, `cap.mjs`, `spawn-guard.mjs` in `apps/runner/hooks/` (§3.4) | `session-brief.mjs` on SessionStart and after compaction |
+| sandbox | none yet | `denyWrite .fw-console`, `denyRead .fw-console/secret`, the CLI socket as the only door (SPK-t) |
+
+**Spawn rule (resolved in rev 6).** Revision 5 had spawn-guard deny every unnamed call, while §8.1 and the token
+policy need unnamed read-only helpers. The lead decided (30e3264, `Fw/Ops/SpawnGuard`): unnamed read-only subagents
+are allowed (`caps.unnamedReadOnly = true`); a name is still required for anything that edits, and a name in use, an
+editing role without worktree isolation, a 6th teammate or a spawn burst is refused. Spawn-guard runs in **shadow
+mode** (it logs its decision and blocks nothing) until you approve blocking (Q31). In shadow mode it sends empty
+`alive` and `recent` lists (no liveness feed yet), so its logs cannot yet show name-in-use, 6th-teammate or burst
+refusals. The Lean decision is proved; the switch is a setting change.
 
 Notes:
-- Bash patterns are a convenience, not the guard: the real guards are the snapshot hash refusal at serve time,
-  read-only snapshot files, `fw gate` re-running checks at land (so a commit made with `-n` cannot land), and the
-  land-time path check (an L1 function: the diff's paths ⊆ the role's write globs), which replaces v1's write hook.
-- **No `Write(path)` rules** (config review, 2026-10-17): Claude Code never consults them; `Edit(path)` rules apply to
-  every built-in tool that writes files.
-- **The console folder is inside the project (Q23)**, where the sandbox allows writes by default, so it carries its
-  own protection: the sandbox `denyWrite`/`denyRead` entries, the `Edit`/`Read` deny rules, a deny on `git clean`, and
-  console-api as its single writer. The sandbox is what makes this hold for scripts: deny rules do not cover a Node or
-  Python process that opens files itself (CONFIRMED, permissions doc). SPK-t checks that the paths resolve to the main
-  checkout's folder for worktree subagents too (if not, the absolute paths go in the gitignored `settings.local.json`,
-  like the v1-repo deny) and that agents can still gate, test and commit with zero refusals; the fallback is
-  console-api as a separate macOS user owning `.fw-console/` at mode 0700. Usage comes from console-api's transcript
-  tailer (an upsert per `message.id`, last record wins), not from a hook.
-- `lean-lsp-mcp` tool names and the flag that disables its remote search tools are checked at install (SPK-l).
-- Once agent-ops lands, the lead runs one dry run, counts permission prompts per hour, and uses the `fewer-permission-prompts`
-  skill to add any read-only command that still prompts. The allow list holds verb patterns, because worktree agents
-  run one plain command per call (v1: 3,046 isolation refusals, 57 % of all errors [08]); SPK-o checks it.
-- The uncommitted, gitignored `settings.local.json` denies edits to the v1 repo by **absolute path** (a `../` path in
-  a rule does not resolve, and the absolute path holds a home directory, so it stays out of git).
+- Bash patterns are a convenience, not the guard. The real guards: the snapshot hash refusal at serve time, `fw land`
+  re-running the checks (so a commit made with `-n` cannot land), and the land-time path check (`Fw/Ops/PathCheck`,
+  proved sound and complete: the diff's paths ⊆ the role's write globs). No `Write(path)` rules: Claude Code never
+  reads them; `Edit(path)` rules cover every writing tool (A22).
+- The console folder sits inside the project (Q23), so it needs the planned sandbox entries: deny rules do not cover
+  a Node or Python process that opens files itself (CONFIRMED, permissions doc). SPK-t checks the paths from worktree
+  subagents; the fallback is console-api as a separate macOS user owning `.fw-console/` at mode 0700.
+- Prompts: the lead counts permission prompts per hour and adds read-only commands that still prompt. SPK-o measured
+  8.4 % of worktree Bash calls refused (2d33185). `cap.mjs` maps a missing agent type to the main session; it should
+  refuse instead (console M0 hardening).
 
 ### 8.4 Cost reporting (speed first, no hard caps)
 
@@ -1088,18 +1067,15 @@ rules, and the Opus share limit. Kept: reporting, a forecast to report against, 
 
 - **v1's bill was context and idling, not thinking** (MEASURED [08 §3], list price, $11.4k): cache reads 44 % of
   dollars, cache writes 41 %, output 14 %; cold rewrites after 5-60 min idle cost 24 %; 19 agents alive over 24 h 36 %.
-- **Rules kept because they make the work faster or better, not only cheaper:** (1) do not idle: 1h TTL for waits
-  under an hour, handoff note and exit for longer ones; (2) no recurring LLM polling (v1: 42 % of the lead's turns);
+- **Rules kept because they make the work faster or better, not only cheaper:** (1) do not idle: agents run on the
+  5-minute cache, so a longer wait ends with a handoff note and a fresh agent (§8.2); (2) no recurring LLM polling (v1: 42 % of the lead's turns);
   (3) fresh, short agents with `maxTurns` and 200k caps; (4) scripts, not agents, for routing and the device, results
-  peer to peer; (5) search on Haiku.
-- **Loosened for speed:** Opus or `high` effort wherever it shortens the path (§8.2); 5 teammates, 8 worktree
-  subagents, 10 subagents; up to 5 experiment owners in M5.
-- **Forecast, not caps** (rev 3 bottom-up, list-price USD; role split in git history at 931aa35): M0 370 · M1 1,165 ·
-  M2 775 · M3 785 · M4 1,450 · M5 1,070 · M6 115 · **total ≈ 5,730**. Revision 4's Opus use and concurrency should
-  run about 20-40 % above it (INFERRED). Revision 5's Lean-first scope adds about $700-1,100 of lean-prover and
-  math-reviewer work in place of the forecast's $280, mostly in M0-M2, minus roughly $200-300 of console TS work that
-  Lean now does (INFERRED [10.03 §7.1]). The push console should remove most of v1's polling cost (9,042 poll-only
-  turns, 1.87 B context tokens [10.01 §3.2]).
+  peer to peer; (5) search and test runs on Haiku helpers (scout, runner); (6) Bash and Read output caps (§8.3).
+- **Loosened for speed:** Opus or `high` effort wherever it shortens the path (§8.2); 5 teammates and 10 subagents;
+  up to 5 experiment owners in M5.
+- **Forecast, not caps** (rev 3 bottom-up, list-price USD; role split at 931aa35): M0 370 · M1 1,165 · M2 775 ·
+  M3 785 · M4 1,450 · M5 1,070 · M6 115 · **total ≈ 5,730**, plus 20-40 % for rev 4's Opus use and $700-1,100 of
+  Lean work in place of $280, minus $200-300 of console TS (INFERRED [10.03 §7.1]).
 - **Soft alerts, no stops** (a gate above 1.5× its forecast, a day above 2× the average, cold wakes above 10 %).
   **The weekly usage limit is the one real stop** (the provider's; v1 hit it three times [08]): alerts at 60 % and 80 %.
 - **Reporting.** `pnpm fw usage` (transcript tailer, deduped by `message.id`, an L1 decision): tokens and dollars per
@@ -1117,9 +1093,9 @@ for speed and quality (a lead free of polls decides faster); their savings are a
 | **No routing agents** | Queue order, land queue, device dispatch, check-in digests and card pre-data reads are `fwcore` decisions over `events.jsonl`. A status or catch-up question in a thread gets a board-rendered reply with no LLM; recognising the question is only a suggestion, and your "not answered" click escalates to the lead (Q29). Only judgement questions wake the lead | §2.2 Drop; console-api | 10 mgmt-ops hub instances; the lead first on 78 % of your console messages |
 | **Nobody writes status** | Every status field is derived (§3.2). Stage changes come from evidence events (built, screened, reviewed, swiped, landed); an owner is "waiting" whenever its card's stage is someone else's move. Agents' only console inputs are the typed commands below, each refusable by the Lean reducer; an optional note (≤ 200 characters) is shown but never read by the reducer. The lead reads the projection instead of asking and sends one message per hand-back | sandbox + deny rules (§8.3); the CLI socket's authority table `may` and capability check; the reducer (Lean, proved: `unauthorized_rejected`, `only_user_answers`, `review_independent`, `land_requires`) | v1: 4,412 hand status writes, 10.9 % of all tool turns on upkeep [10.01]; 39 "crossed" messages, 55 status nags, 1,334 back-to-back lead sends [08] |
 | **No LLM polling** | No recurring prompt checks the device, agent liveness or queues. `CronCreate` is `ask`, and `CLAUDE.md` forbids `/loop` status checks. console-api runs three watchers: device (usbmux, WDA, proxy, lock state, Wi-Fi; one status and at most one open re-plug step), stall (a finished background task plus a silent agent gets one wake message), and a coalescer for repeated "finished" and Monitor notices. `pnpm fw status --watch` posts deltas only | §8.3 `ask`; console-api | 3,761 cron fires (42 % of lead turns, 35 % of its $), 864 of them lead-created; 214 wake-gap matches; one "finished" notice repeated 83 times |
-| **Waiting** | Wait under an hour: stay alive on the 1h cache, waiting in the foreground with a bounded timeout, never a silent background wait. An hour or more, or unknown: write a handoff note to `research/notes/` and exit; the script that ends the wait (gate, device job, build) spawns a fresh agent with the note | role files; `session-brief` lists live agents with idle minutes and context size | $2,763 of cold rewrites; a device owner idled 11 h 26 min, then rebuilt its cache |
-| **Lifetime and compaction** | `maxTurns` on every role; time boxes as request counts the meter checks; no agent lives across two gates without a handoff note; after every compaction `session-brief` re-injects the roster, the lead address and the naming rule (≤ 15 lines) | role files; `SessionStart` on `compact` | 19 agents over 24 h = 36 % of $; the naming rule lost at a compaction, 9 unnamed spawns |
-| **Names and addresses** | Spawn-guard denies unnamed spawns and names in use; restarts are `<role>-<topic>-<n>`; peer directories are generated from the live roster; one verified lead address | spawn-guard (unit tests); SPK-p | 45 failed sends (20 to guessed lead addresses); 6 same-name reuses |
+| **Waiting** | Waits are foreground with a bounded timeout, never a silent background wait or a sleep-poll. Every agent keeps `docs/team/handoffs/<name>.md` current (≤ 30 lines); idle past its 5-minute cache with over 30k context, it is stopped and a fresh agent starts from the note (§8.2) | `CLAUDE.md`; token policy; the planned `session-brief` | $2,763 of cold rewrites; a device owner idled 11 h 26 min, then rebuilt its cache |
+| **Lifetime and compaction** | `maxTurns` on every role; time boxes as request counts the meter checks; no agent lives across two gates without a handoff note; after every compaction `session-brief` re-injects the roster, the lead address and the naming rule (≤ 15 lines) | role files; `SessionStart` on `compact` (planned) | 19 agents over 24 h = 36 % of $; the naming rule lost at a compaction, 9 unnamed spawns |
+| **Names and addresses** | Spawn-guard will refuse names in use and unnamed editing spawns (shadow mode logs only; unnamed read-only helpers are allowed, §8.3); restarts are `<role>-<topic>-<n>`; peer directories are generated from the live roster; one verified lead address | spawn-guard (unit tests); SPK-p | 45 failed sends (20 to guessed lead addresses); 6 same-name reuses |
 | **Your attention** | The console is your channel from the first phone or Simulator step (§10.1). Every status row shows "needs you" plus the exact action and the age of its last event (§3.2). One digest per experiment-card stage change, on the card page, not in a thread. Alarms go to an ops log; you see one counter. One question per thread, closed by your "answered" click or a typed close with a reason; long topics become pages. A landing that bypassed the console shows as a violation on your needs-you list. Priority is your list (§3.3). Device chores are batched into sessions you book (§4.1) | console-api; console-web | 132 catch-up regex matches; 61 of 80 lead-made threads were alarms; 82-105 of 166 steps were chores; a 500-message thread |
 | **Coaching** | Your rules go into role files and `CLAUDE.md` from the start, with their enforcers (§2.1), not into memory notes | `kb lint` on role files | the same asks on 11 days; 4 rules broken after they were written |
 
@@ -1182,51 +1158,58 @@ history is the timeline, and the meter reports time and cost per gate (G3, §8.4
 
 ### 10.1 Workstreams
 
-Work started on 2026-10-17. This table holds no status: the live state of each workstream is in the console. Items
-already landed are marked with their commit. `packages/measure` is split into `measure-chromium` and
-`measure-webkit` so the two engine lanes build in parallel.
+Work started on 2026-10-17. This table holds no status: the live state is in the console. "Landed" lists commits on
+`main` (checked at e4d9853); "Left" is what the workstream still has to deliver. Task-level dependencies live in
+`docs/team/work-graph.json` (eeaf853; tasks with deps, milestones, files and devices, status derived); this table is
+the stream-level view.
 
-| Workstream (where) | Blocked by | Outputs, and what they unblock |
-|---|---|---|
-| **lean-core** (`lean/`) | — (seeded from the 05 and 10 sketches) | `fwcore serve`: `Fw/Console`, `Fw/Spec/DeviceQueue`, `Fw/Ops`, `Fw/Wire` (hardened), `Frames`, `Verdict`; the math-view lint and the first signed entries; mutants killed; round trip re-measured (17.6 vs 141 µs, §3.2) → console-mvp's Lean core, M1 Lean modules |
-| **counts-chromium** (`packages/measure-chromium`) | the local snapshot | SPK-i (container, BeginFrameControl, fonts from `snapshot/`, byte-identical vectors), SPK-j and SPK-q on the Chromium side, per-zone counts of the original, first V-a run → artifact store, baseline |
-| **webkit-spike** (`packages/measure-webkit`) | — | Simulator + iwdp, `Page.enable` before `Timeline.start`, free-running `LayerTree` census, two-rAF stepping, seek-overhead fixture, SPK-m, SPK-q (WebKit); then WebKit counts per type on the original (time box 2 agent-days, then the §4.2 fallback) → baseline, calibration |
-| **console-mvp** (`packages/contracts`, `apps/console-api`, `apps/console-web`, `apps/runner`); MVP landed 8bec088 | lean-core for the Lean reducer (until then a temporary TS reducer, checked by a replay oracle and replaced by `fwcore` once `fwcore serve` passes it) | the step queue first (post, Start, answer, Done) before any Simulator or phone step asks you anything; console-api as single writer (spool drain, `events.jsonl` + snapshots in `.fw-console/`, CLI socket with capability check, git reconciler that backfills from refs, SSE); console-web with derived columns and "why" popovers; `fw land` → agent-ops, every device step |
-| **site-aot** (`apps/site`); landed d380999 | — | site scaffold, MUI theme, census route, registry and flags; **SPK-r Chromium half passed** (§6.5, Appendix B); left: the extractor fix, the WebKit run, the styling decision record → pilot parts |
-| **breakpoints** (`research/kickoff/11-breakpoints/`); landed a3e1e9c | the local snapshot | the breakpoint inventory and the generated `breakpoints.json` → breakpoint lint and gate (§6.6), pilot parts |
-| **explainer page** (`docs/plan/loop-plan.html`) | this plan | the revision 5 page with the math view |
-| **lean-site** (`lean/Fw/Site/`) | breakpoints (the extracted file as golden) | the Lean breakpoint model and generator: `breakpoints.gen.json`, media strings, the gate matrix → breakpoint lint and gate, pilot parts; later flag rules and motion curves as goldens |
-| **agent-ops** (`.claude/`, hooks) | console-mvp (socket) | `settings.json` sandbox block; hooks `emit.mjs` (spool format with unit tests: no socket, full disk, bad payload, < 100 ms, silent), `cap.mjs`, spawn-guard; role files incl. math-reviewer; SPK-o, SPK-p, SPK-t; the transcript tailer and the meter check (TTL by expected wait) → worktree agents may commit; `fw land` is the only way to `main` |
-| **store-and-run** (`packages/contracts`, `apps/runner`) | counts-chromium (count-vector schema), lean-core | count reduction and verdicts moved into `fwcore` (TS keeps only I/O); the artifact store; `fw run` with `--fw`, `--preset`, `--engines`, `--dry`; V-j; harness neutrality fixtures (V-n) → M1 |
-| **lean-m1+** (`lean/`) | lean-core | the M1, M2, M3 Lean modules of §5.1, each as soon as its consumer needs it |
-| **rule cards** (`refs/rules/**`) | counts lanes | v1's 16 WebKit rules and Chromium's `compositeFailed` reasons with table tests; K1-K10 fixture drafts → calibration |
-| **math-to-lean study page** (`research/kickoff/12-math-to-lean/`) | the math view | a study of turning the plan's math into Lean (`StudyA.lean`, `StudyB.lean`) and a page for you |
-| **lean-parts** (`lean/Fw/Parts/`) | lean-site, lean-core | pilot-part specs and their golden vectors (`Fw/Parts`) → part-engine, part-hero |
-| **part-engine** (`apps/site/src/parts/{engine.scroll,nav.hitTest}`) | site-aot, lean-parts, lean-site; M1 baseline for PL5 | pilot parts `engine.scroll` and `nav.hitTest` with `impl: plain` twins, passing the Lean goldens; N0-N5; PL0-PL6 → M2 |
-| **part-hero** (`apps/site/src/parts/{hero.countdown,hero.exit}`) | as part-engine | pilot parts `hero.countdown` and `hero.exit`, the same way → M2. Four pilot parts are built; three must pass M2, and the bands are frozen from them |
-| **calibration** (fixtures, phone) | webkit counts, K fixtures, the WKTR spike (cloud Mac, Q10), booked phone sessions (Q1) | iPhone K1-K10, `ρ_page`, holdouts, validity table v0 → M3 |
-| **port parts** | M2 | every other part; whole-page PL6 with N5 → M4 |
-| **experiments** | M4 for the parts they touch; M3 for any class SM landing | the end-of-page behaviour decision first, then the [01 §A.1] backlog → M5 |
-| **write-up** | M5 | G4 material, transfer results, cost report → M6 |
+| Workstream (where) | Blocked by | Landed | Left, and what it unblocks |
+|---|---|---|---|
+| **lean-core** (`lean/`) | — | 9367dea (Lake project, `Spec`, `Verdict`, `Null`, `Frames`), 14152f1 (stateful `Fw/Serve`), 30e3264 (`Fw/Ops`) | mutants (V-r); `math:sign` and `math.lock.json` → M0 |
+| **console-mvp + M0 hardening** (`apps/console-*`, `apps/runner`, `packages/contracts`) | lean-core | 8bec088 (MVP), 3fe1876 (hooks, spool, capabilities), eacb660 (Lean board, capability door), 840f7d6 (`fw land`, git reconciler) | Lean ops for the last TS stand-ins (`summarize`, the observation key, an op for actor `script`, `console.landReadiness`); `cap.mjs` refuses a missing agent type; the step queue before any device step asks you; the console Plan view over the work graph (lean-plan, then con-plan) → M0 |
+| **agent-ops** (`.claude/`, `apps/runner/hooks/`) | console-mvp | 3e67d48 (hooks), 6756bb9 (spawn-guard, shadow), a0b9053 (token policy, helpers), 124a614 (cache-aware resumes) | sandbox block (SPK-t); the lefthook pre-commit path and personal-data scrub check (§7.3); a liveness feed for spawn-guard, then blocking (Q31); `session-brief`; SPK-o, SPK-p → M0 |
+| **counts-chromium** (`packages/measure-chromium`) | the snapshot | e01f9e5, 70c3370 | Lean specs for `snapshotCounts` and the class thresholds in `classes.mjs`; SPK-j; the original's touch stall; V-a → M1 |
+| **webkit-spike** (`packages/measure-webkit`) | — | 1d6c88c, 367fec2 | the WebKit harness onto `fwcore` reduction; specs for `compositeCuts` and `reduceWindows`; SPK-m; iOS 27.0 vs the CI image → M1, calibration |
+| **lean-measure** (`lean/Fw/Measure/`) | counts lanes | ddc91b2 | — (zone sums, classes and tolerances run in `fwcore`) → store-and-run |
+| **store-and-run** (`packages/contracts`, `apps/runner`) | counts lanes, lean-measure | — | the artifact store; `fw run` with `--fw`, `--preset`, `--engines`, `--dry`; V-j; harness-neutrality fixtures (V-n); per-zone baselines of the original → M1 |
+| **site-aot** (`apps/site`) | — | d380999 | the extractor fix, SPK-r in WebKit, the styling decision record → pilot parts |
+| **breakpoints** (`research/kickoff/11-breakpoints/`) | the snapshot | a3e1e9c | — → lean-site |
+| **lean-site** (`lean/Fw/Site/`) | breakpoints | ee04fc4, 8bd00aa | the gate's verdict rule (`verdict.mjs`) into Lean or golden vectors → breakpoint gate |
+| **breakpoint gate** (`packages/gate-breakpoints`) | lean-site, pilot parts | e7fb102, 95693f4, d23cf7c (`--parts`) | a Lean-checked probe scope per part so `--parts` saves time (gate-probe-scope); PL2b, PL3, the Simulator check, live flips → M2 |
+| **lean-parts** (`lean/Fw/Parts/`) | lean-site, lean-core | 4d179c3 | specs for the parts still to port → port parts |
+| **part-engine** (`engine.scroll`, `nav.hitTest`) | site-aot, lean-parts; M1 baseline for PL5 | a2e1ced, 30c814b, 95693f4 | PL3-PL6, N0-N5 against M1 baselines → M2 |
+| **part-hero** (`hero.countdown`, `hero.exit`) | as part-engine | 50e5cd1, 88a4302, 4421679, 2566949 | as part-engine. Four pilot parts are built; three must pass M2, and the bands are frozen from them |
+| **public CI** (`.github/workflows/`) | publishing (454cbe0, 53ca23e) | d70619d, eb807a4, ee18c6b, 67192ef (Lake cache gap) | two green `lean` runs on CI to prove 67192ef; `webkit-sim` on the GitHub macOS image → a remote check on every `ci/*` push |
+| **parallel work** (`lean/Fw/Sched/`, `scripts/`) | `Fw/Ops` | 5b8a2b1 (study), 4bd850f (`Fw/Sched`), 7d22517 (wt-prep), c0bf898 (Lake artifact cache), 49b7ff4 (`ops.admit`, `metrics.*` on `fwcore`) | the A/B bench (Q32) → admission in console-api |
+| **math review** (review records, `docs/plan/loop-plan.html`) | each Lean module | 226c35b and 00c09bf (r4), 28b18ee (r5), 69d7773 (the 62 r5 fixes), da5d49e (view regenerated) | re-review the 62 stale entries (math-r6) → M0 |
+| **explainer page** (`docs/plan/loop-plan.html`) | this plan | — | the revision 6 page |
+| **math-to-lean study page** (`research/kickoff/12-math-to-lean/`) | the math view | 2923d9f | — |
+| **lean-m1+** (`lean/`) | lean-core | — | the M1-M3 Lean modules of §5.1, each when its consumer needs it |
+| **rule cards** (`refs/rules/**`) | counts lanes | — | v1's 16 WebKit rules and Chromium's `compositeFailed` reasons with table tests; K1-K10 drafts → calibration |
+| **calibration** (fixtures, phone) | webkit counts, K fixtures, the WKTR spike (cloud Mac, Q10), booked phone sessions (Q1) | — | iPhone K1-K10, `ρ_page`, holdouts, validity table v0 → M3 |
+| **port parts** | M2 | — | every other part; whole-page PL6 with N5 → M4 |
+| **experiments** | M4 for the parts they touch; M3 for any class SM landing | — | the end-of-page decision first, then the [01 §A.1] backlog → M5 |
+| **write-up** | M5 | — | G4 material, transfer results, cost report → M6 |
 
 ```mermaid
 flowchart LR
-  LC[lean-core] --> CON[console-mvp] --> OPS[agent-ops] --> M0{{M0 bootstrap}} --> M1{{M1 original measured}}
-  LC --> LM[lean-m1+] & M0 & SR[store-and-run]
-  CC[counts-chromium] --> SR --> M1
-  AOT[site-aot: SPK-r] & CON --> M1
-  CC --> M0 & RC[rule cards]
-  WK[webkit-spike] --> M1 & RC & CAL[calibration]
-  BP[breakpoints] --> LS[lean-site] --> LP[lean-parts]
-  AOT & LS & LP & M1 & LM --> PP[part-engine, part-hero] --> M2{{M2 pilots faithful}}
+  LC[lean-core] --> CON[console-mvp + hardening] --> OPS[agent-ops] --> M0{{M0 bootstrap}} --> M1{{M1 original measured}}
+  LC --> LM[lean-m1+] & SCH[parallel work] & M0
+  CC[counts-chromium] & WK[webkit-spike] --> LMS[lean-measure] --> SR[store-and-run] --> M1
+  AOT[site-aot] --> M1
+  WK --> RC[rule cards] & CAL[calibration]
+  BP[breakpoints] --> LS[lean-site] --> LP[lean-parts] --> PP[part-engine, part-hero] --> GATE[breakpoint gate]
+  GATE & M1 & LM --> M2{{M2 pilots faithful}}
   M2 --> PORT[port parts] --> M4{{M4 all parts promoted}} --> EXP[experiments] --> M5{{M5}} --> WR[write-up] --> M6{{M6}}
   RC & CON --> CAL --> M3{{M3 calibrated}} -. "class SM only" .-> EXP
 ```
 
-**Critical path** (INFERRED; re-checked at every gate): breakpoints → lean-site → lean-parts → part-engine and
-part-hero (M2) → port parts (M4)
-→ experiments (M5) → write-up. Calibration (M3) is the second chain and is gated by your booked phone sessions and
-the cloud-Mac WKTR spike; class W experiments do not wait for it. Added only when their absence causes a failure:
+**Critical path** (INFERRED, re-checked for rev 6). The breakpoint gate's PL0-PL2 cells pass for all four pilot
+parts; its PL2b, PL3, Simulator check and live flips stay a parallel M2 input, likely shorter than the M1 chain
+(INFERRED). M2 also waits on PL5 and N0-N5, which need the original's per-zone baselines (M1). So the
+path is store-and-run and the M0 closures (SPK records, console hardening, mutants) → M1 → pilot PL3-PL6 (M2) → port
+parts (M4) → experiments (M5) → write-up. Calibration (M3) is the second chain, gated by your booked phone sessions
+and the cloud-Mac WKTR spike; class W experiments do not wait for it. Added only when their absence causes a failure:
 Turborepo, knip, dependency-cruiser, ast-grep rule sets, REUSE.toml, JCS keys, `kb lint` beyond the schema, and the
 later hooks (§3.4).
 
@@ -1234,13 +1217,16 @@ later hooks (§3.4).
 
 | Gate | Reached when |
 |---|---|
-| **M0 Bootstrap** | two byte-identical Chromium count vectors for the original (or SPK-i failure recorded and V-i re-scoped); `fwcore serve` behind console-api with the M0 Lean modules signed in the math view and every M0 mutant killed; the step queue live; SPK-a…e, i, j, k, l, o, p, q, t answered as decision records (SPK-t passed, or the separate-user fallback set up) |
+| **M0 Bootstrap** (re-worded in rev 6) | every Chromium count type of the original classified deterministic, stable or quarantined over repeated runs (V-i, §1.2), with SPK-i recorded as "byte-identical files not reachable" and the re-scope signed (`spk-i.md`, `class-policy.md`); a pre-commit scrub check; `fwcore serve` behind console-api with the M0 Lean modules agreed in the math view (0 disagree, 0 stale) and every M0 mutant killed; the step queue live; SPK-a…e, i, j, k, l, o, p, t answered as decision records (SPK-t passed, or the separate-user fallback set up) |
 | **M1 Original measured** | Chromium: all used count types deterministic; N0/N1 read 0 on arm A (SPK-q); WebKit: the deterministic + stable set covers what K1-K9 need; per-zone baselines for the original; V-j shown; SPK-r passed, or a fallback chosen; V-t replay and the stall alarm precision (≥ 90 %) reported |
 | **M2 Pilots faithful** | of the 4 pilot parts built, 3 `faithful` (V-g, V-h, V-o, V-q), each through the breakpoint gate; `breakpoints.json` generated and the breakpoint lint green; PL5 and N3 bands re-set from pilot data and frozen; `cssVariables` and inert-dead-CSS decisions made; optional SPK-s run |
 | **M3 Calibrated** | V-b and V-c on the phone; model status per output recorded; `@layer mui` kept or dropped from K10; first V-f attempt scheduled |
 | **M4 All parts promoted** | every part `faithful` or `faithful-with-delta` through the full breakpoint gate (§6.6); Simulator check passed; console validity, proposals and usage views; **per-module Lean evidence review** (§5.1) |
 | **M5 Experiments** | the end-of-page decision made (class P, Try-it: faithful tween vs finger-following proposal); the backlog run as flag arms by v1's measured impact, each known v1 outcome also a **postdiction test**; G1 reached; V-d/V-e/V-f on ≥ 10 changes |
 | **M6 Distill** | G4 met; report published (your call) |
+
+SPK-q moved from M0 to M1 in rev 6 (revision 5 listed it in both): it reads the original's sheet mutations, which is
+a measurement of the original and so M1's job.
 
 ## 11. Risks and mitigations
 
@@ -1255,11 +1241,11 @@ later hooks (§3.4).
 | R7 | Over-engineering before the first measurement (v1 day 1 was 38 % process) | high / medium | M0 is a vertical slice; MVP tier (§3.4); every new tool names the incident class it prevents; a new agent rule must cite an agent-mistake incident, otherwise fix the tool |
 | R8 | Port size: ~11.8k lines of CSS, half dead; Platform visual mapping only inferred; every breakpoint of every part must match (your requirement), which multiplies PL0-PL3 runs | high / medium | Full work parity only for experiment parts; time box per part; `faithful-with-delta` for work and pixel deltas but never for breakpoints; a generated breakpoint inventory and lint, so no edge is found late; the core matrix per PR, the full breakpoint gate only before promotion |
 | R9 | MUI everywhere pollutes measurements: Emotion inserts or moves style sheets (a WebKit full style rebuild per frame; invisible to the planned counts, CONFIRMED [09.04]), class churn, theme re-renders | high if unconstrained | Emotion AOT (§6.5); rules S1-S13 with lint; N0-N5 (§6.7) with `impl: plain` twins; K10 prices one insertion; SPK-r first; `runtime` build as a negative control |
-| R10 | Legal scope of a public port of copy and design values | low now / high | The repo stays private (decided 2026-10-17); assets never in git; the §7.3 rules keep a later partial publication possible |
+| R10 | Legal scope of a public port of copy and design values (public by your decision of 2026-10-17, 1594cd5; publish prep 454cbe0) | low / high | Fastwork's approval covers the compiled site, fonts included (README, NOTICE); the snapshot is tracked unmodified; our code restates CSS values and copies no Fastwork code (§7.3); the pre-publish personal-data grep was clean (454cbe0) |
 | R11 | Toolchain churn (Lean monthly, TS 7 native port vs tools, MUI minors) | medium / low | Pin `lean-toolchain` to `leanprover/lean4:v4.35.0`, `typescript@6.0.3` and exact MUI/Emotion versions; bump in one deliberate PR; an MUI bump re-runs N0-N5 on all parts (S11) |
 | R12 | `servedHash` under-invalidates (runtime-fetched assets) | low / medium | Assets only through Vite imports; the runner refuses a result whose requests leave the manifest closure |
-| R13 | Shared caches in the git common dir fill the disk (v1 I-095); `.lake` is ~214 MB per worktree | medium / medium | `fw cache prune` + size caps; disk in `session-brief` |
-| R14 | Spend surprises or hitting the weekly usage limit (more likely now that caps are gone) | medium / medium | Daily cost reporting against the forecast; soft alerts; 60 % / 80 % weekly-limit alerts; 200k context caps, TTL by expected wait, handoff-and-exit, `maxTurns` (§8.4) |
+| R13 | Shared caches in the git common dir fill the disk (v1 I-095); `.lake` is ~603 MB logical per worktree (APFS clone, ~0 extra until written, MEASURED, parallel-capacity note); 38 GB free at 367fec2 | medium / medium | `wt-prep` clones `main`'s `.lake` into a new worktree (0-1 s; first build 4.05 s, 7d22517); the Lake artifact cache (fresh-tree build 80 s → 0.18 s, c0bf898); `fw cache prune` + size caps |
+| R14 | Spend surprises or hitting the weekly usage limit (more likely now that caps are gone) | medium / medium | Daily cost reporting against the forecast; soft alerts; 60 % / 80 % weekly-limit alerts; 200k context caps; the lead on 1h cache, agents on 5m; idle agents over 30k context stopped and respawned from handoff notes, none over 250k resumed (§8.2); handoff-and-exit, `maxTurns` (§8.4) |
 | R15 | The harness changes the mechanism it measures | CONFIRMED / high | No seeking in Chromium; native rAF; seek overhead measured in WebKit; V-n per family |
 | R16 | Container counts differ from Mac Chrome (fonts, software raster) | medium / medium | Fonts from `snapshot/` only; V-a per family; Chromium as a development aid |
 | R17 | Device link instability: v1 had 36 USB, WDA and Wi-Fi incidents, never root-caused, and a toolchain update broke its compiled link shim [08] | high / high | Device watcher logs every attach and detach from the first device step; preflight before each session; SPK-n link soak with a cable and port swap; no compiled native shims, or a pinned toolchain |
@@ -1270,10 +1256,14 @@ later hooks (§3.4).
 | R22 | MUI behaviour, not styling, breaks parity: Tabs indicator layout animation, transitions with forced reflow, FocusTrap's 50 ms interval, Modal scroll lock, wrapper elements in PL0/PL1/PL5 [09.01 §6] | high / medium | S5-S7, S12; `parity.json` wrapper map; N3 wrapper allowance; per-part Base UI fallback; `faithful-with-delta` |
 | R23 | The uniqueness trap: a stateful Lean loop that reads then writes the state copies the whole map per event (66× slower, MEASURED [10.03 §4.2]) | medium / medium | `modifyGet` in the ~30-line IO loop; `seen` as a `HashSet`; a 100k-event speed budget in `lake test` |
 | R24 | A toolchain bump changes statement hashes and marks many math entries stale | high on a bump / low | `mathview accept --toolchain-bump` re-signs only entries whose signature text and machine-made LaTeX are unchanged; one reviewed PR per bump (R11) |
-| R25 | The strict Bash sandbox (Q22) breaks builds or tests for worktree agents, or its project-relative paths resolve to a worktree instead of the main checkout's `.fw-console/` | medium / medium | SPK-t (agent-ops) before the team relies on it; absolute paths in the gitignored `settings.local.json` if needed; fallback: console-api as a separate macOS user under launchd owning `.fw-console/` at mode 0700 (a one-time setup by you) |
+| R25 | The strict Bash sandbox (Q22; not applied yet, SPK-t unmet) breaks builds or tests for worktree agents, or its project-relative paths resolve to a worktree instead of the main checkout's `.fw-console/` | medium / medium | SPK-t (agent-ops) before the team relies on it; absolute paths in the gitignored `settings.local.json` if needed; fallback: console-api as a separate macOS user under launchd owning `.fw-console/` at mode 0700 (a one-time setup by you) |
 | R26 | A fact producer misses events (a hook does not fire, a commit is made with hooks off, `SessionEnd` is cut at 1.5 s) and the console is briefly wrong | high / low | reconcilers re-read git refs, transcripts and artifacts every 2-60 s and are the only git producer; agent end = latest of `SubagentStop` and transcript idle; seen-on-accept keys make re-sends converge (`reorder_converges`, to prove) |
 | R27 | Role claims on the CLI socket are forged, so a builder reviews its own work or an agent acts as lead | medium / high | the capability hook binds each request to Claude Code's agent identity before acceptance (SPK-t); the reducer refuses a review by the owner or a builder regardless of role (`review_independent`); facts and your decisions can never come from the socket |
 | R28 | The console folder lives inside the project (Q23): `main` can be moved outside `fw land` (a teammate or the lead commits on it by habit), or the folder is damaged by `git clean -x` or an unsandboxed tool | medium / medium | the git reconciler records every move of `main` without an accepted land request as a violation on your needs-you list (`land_requires` holds only for violation-free landings); sandbox write-deny, `Edit` deny rules and a `git clean` deny on `.fw-console/`; snapshots plus daily exports to `results/console/` to rebuild from |
+| R29 | Public CI leaks a secret or runs untrusted code, or a commit makes personal data public | low / high | `contents: read`; actions pinned by SHA; inputs through env, never inline; actionlint clean; agents push only `ci/*` (§5.4, §8.3); the pre-commit scrub check (planned for M0, §7.3) |
+| R30 | Host load and sleep disturb runs and agents (load1 is no gauge on macOS; Simulator re-boots collapse CPU idle; the Mac slept mid-run) | high / medium | `caffeinate -i -w <pid>`; `scripts/sim-lock.sh` for the one Simulator; per-type classes (V-i) instead of byte identity; the A/B bench with no agents alive (Q32) |
+| R31 | An agent kills the wrong process (one ran `pkill -f "Google Chrome"` and closed your browser) | happened / medium | `CLAUDE.md` (6fba06c): kill only PIDs your run started, separate browser profile dirs, clean up your own process groups |
+| R32 | Lean-first debt grows: TS stand-ins outlive their Lean spec (`verdict.mjs`, `snapshotCounts`, the class thresholds, `compositeCuts`, `reduceWindows`, four console ops) | medium / medium | each is a "Left" item of a §10.1 workstream; agents list stand-ins in every report; reviewed at each gate |
 
 ## 12. Decisions
 
@@ -1283,11 +1273,11 @@ later hooks (§3.4).
 |---|---|---|---|
 | Q1 (most) | Devices | **iPhone 15 Pro Max on iOS 27.0.1 with Safari 27; Developer Mode allowed; no Android phone.** The iOS 27.0 Simulator runtime and `fw-iphone-27` are installed to match. Chromium stays a development aid (Q8); the Android emulator (`fw-pixel`, Chrome 133) is used for Chrome-for-Android counts only, never timing [ENV]. Session windows and the free-play phone are still open (§12.1) | §0, §1.2 V-c, §4.1, §4.3, §4.4, §4.6, §10.2 |
 | Q2 | Install the Lean toolchain? | **Yes.** elan 4.2.4 (Homebrew `elan-init`) and Lean 4.35.0 are installed (CONFIRMED [ENV]). `lean-toolchain` pins `leanprover/lean4:v4.35.0` | §3.2, §10, R11 |
-| Q3 | Repo visibility | **Private.** The §7.3 rules still apply, so that a later partial publication stays possible | §5.4, §7.3, R10 |
+| Q3 | Repo visibility (changed later the same day, 1594cd5) | **Public, with history, MIT for our code.** Fastwork approved publishing its compiled site, fonts included; the snapshot is tracked unmodified. The chat forensics and session trailers stay. Only you push `main`; agents may push `ci/*` to run CI | §5.4, §7.1, §7.3, §8.2, R10, R29 |
 | Q4 | MUI scope | **MUI everywhere.** You remembered that CSS-in-JS can be compiled to static CSS. MUI's tool for that is Pigment CSS, which is paused and does not build with MUI 9.1 or later. So the site uses **Emotion AOT** on MUI 9.5, which reaches the same end state: static CSS and no style inserted at runtime. SPK-r and the N0-N5 gate check it. The fallbacks are Base UI per part and Pigment on MUI 9.0.1 for the whole site ([09] README) | §0, §3.1, §4.2, §4.4, §6.1-§6.7, §9.2, R9, R21, R22 |
 | Q12 | Lean scope | **Lean-first** (your requirement): every decision, queue and status view that can be proved is an L1 module, by milestone; mutants and a per-module demotion rule replace the M4 go/no-go | §0, §1.2, §3.3, §3.4, §5.1, §10.1, R6 |
 | Q16 | Budget | **Looser: speed over token savings.** Hard caps and stop rules are removed. Cost reporting, the forecast and soft alerts stay. Opus or `high` effort is used where it speeds the work, and concurrency is higher. The anti-waste rules that also save time stay | §1.1 G3, §8.2-§8.5, R14 |
-| Q22 | Sandbox for every agent | **Yes, strict** (no unsandboxed retry) | §8.3, R25, SPK-t |
+| Q22 | Sandbox for every agent | **Yes, strict** (no unsandboxed retry); not in `settings.json` yet, waiting on SPK-t | §8.3, R25, SPK-t |
 | Q23 | Where the console lives, and who moves `main` | **Inside the repo**, in the gitignored `.fw-console/`, protected by a sandbox write-deny, `Edit` deny rules and console-api as its single writer. **`main` stays a normal branch** (no bare repo); the lead lands with `fw land` (ff-only), and a commit on `main` that did not come through it is detected from events and flagged as a violation | §2.2, §3.2, §3.4, §7, §8.2, §8.3, §9.2, R28, A21 |
 | — | Breakpoints | **The rewrite supports every breakpoint of the original identically, for every part**: a generated `breakpoints.json`, a breakpoint lint, and a breakpoint gate (PL0-PL3 at both sides of every edge, input-mode combinations, JS-gated widths, live resizes) before any part is promoted | §1.2 V-g, §6.6, §9.2, §10.1 M2/M4, R8, Q5 |
 | — | Schedule | **No calendar:** a dependency graph run as soon as possible in parallel; milestones are gates, not dates; time is reported per gate | §0, §10, G3 |
@@ -1296,13 +1286,28 @@ later hooks (§3.4).
 | — | Reading proofs | **You read math, not Lean** (your requirement): docstring math, a generated math view, a build gate on unsigned or stale math, a math-reviewer role | §0, §5.3, §5.4, §8.2 |
 | — | Lean packaging | **Mathlib-free core, optional `FwMath`** for proofs that need Mathlib; `Fw` never imports it | §3.4, §5.1, §5.2 |
 | — | Installs | **Homebrew** (`brew install` / `--cask`) whenever a formula or cask exists; otherwise the lead is asked first | §8.2 env-ops, §10 |
+| — | Agent operations | **Token policy r2 approved** (a0b9053: helper roles, output caps, concurrency 10) and **hooks installed** (3e67d48); project-level Serena 2.0.0 (d797c60) | §8.1-§8.3 |
 
-### 12.1 Answer before the first phone session (1 question)
+### 12.1 Open questions for you (Q1 before the first phone session; Q31-Q33 added in rev 6)
 
 **Q1 (the open part). Phone sessions.** Phone work runs only in **session windows you book** in the console, each
 starting with one get-ready step. Which times of day suit you, and how long can a session be? May the second iPhone
 stay a free-play device for Try-it and best builds, kept out of measurement? **Recommend:** a few fixed windows a
 week; yes to the free-play phone.
+
+**Q31. Spawn-guard from shadow to blocking.** It now logs what it would refuse (§8.3), but without a liveness feed
+its logs cannot show name-in-use, 6th-teammate or burst refusals. Switching it to block changes
+`.claude/settings.json`, which asks you. **Recommend:** yes, after (a) a liveness feed fills `alive`/`recent`, (b) one
+day of logs with that feed shows no wrong refusal, and (c) the A/B bench (Q32), as work-graph task `spawn-enforce`.
+
+**Q32. A window for the A/B bench.** The parallel-work bench (8 blocks, a random labeling out of 70) must run with no
+agent alive: about 96 minutes plus baselines (`docs/team/parallel-plan.md`). It tests whether admission control
+beats the current free spawning. **Recommend:** one evening slot after M0, when no device session is booked.
+
+**Q33. Breakpoint cells the harness cannot reach.** Your rule is every breakpoint identically (§12.0), but the gate
+cannot reach the fractional gaps in either engine or WebKit's hover × pointer cross (§6.6). Accept "not reachable in
+the harness" for these cells, or require a Simulator or device check for them? **Recommend:** a Simulator check for
+the hover × pointer cross (the phone's real input mode) and accept the fractional gaps, recorded as a known gap.
 
 ### 12.2 Defaults we will use unless you object (one line each)
 
@@ -1311,34 +1316,31 @@ week; yes to the free-play phone.
 - **Q7 Device budget:** iPhone 15 Pro Max on iOS 27.0.1 (Safari 27) is the target; expect 5-10 phone sessions before the first licensed class; classes X and P always use the phone; calibration every Safari/iOS change, every 14 days, or after 2 out-of-band spot-checks.
 - **Q8 Chromium's role:** a development aid (counts, mechanism, screening, timing parity), with no fitted coefficients, since there is no Android phone; the Android emulator adds Chrome-for-Android counts, never timing.
 - **Q9 Acceptance bands:** V-a to V-t as in §1.2; a licence is per change class, never for all changes at once.
-- **Q10 WebKit element counts:** from now, no class W for style-affecting diffs and ranks-only for style changes; a 1-day WKTR spike on a rented cloud Mac at the start of M3 (one day's rental; cloud Macs often have a 24-hour minimum, INFERRED).
+- **Q10 WebKit element counts:** from now, no class W for style-affecting diffs and ranks-only for style changes; a 1-day WKTR spike on a rented cloud Mac at the start of M3 (it needs about 120 GB free and this Mac had 38 GB; one day's rental, cloud Macs often have a 24-hour minimum, INFERRED). Work-graph task wktr-ci is checking whether GitHub macOS runners can replace the rental.
 - **Q11 Optimized variants:** compositor gate (free-running), layer budget, no pixel-moving filter animation, no scroll-linked JS style writes unless waived; 60 Hz canonical, 120 Hz also reported for Chromium.
-- **Q13 Landing verdict:** 4 vs 4 runs with a null false-win rate ≤ 1/70 (to prove in M0, planned); comparisons counted per experiment; 5v5 or sequential when k > 3.
+- **Q13 Landing verdict:** 4 vs 4 runs with a null false-win rate ≤ 1/70 (proved, `land_null_prob`, 9367dea); comparisons counted per experiment; 5v5 or sequential when k > 3.
 - **Q14 Loop protocol:** question → build → screen → review → (device) → land, with classes W/SM/X/P (§9).
 - **Q15 Raw traces:** local artifact store only; git gets index lines and summaries.
 - **Q17 Agent-team operation and helper tools:** the lead writes one decision record after the M0 spikes, starting from the draft in Appendix C.
-- **Q18 Waiting:** 1h cache for roles that wait under an hour (the lead included); for longer waits the agent writes a handoff note and exits (§8.5).
+- **Q18 Waiting:** the lead on the 1h cache, every agent on 5m (MEASURED); an agent idle past 5 minutes with over 30k context is stopped and respawned from its handoff note, and an agent over 250k is never resumed (§8.2, §8.5).
 - **Q19 Screen capture:** Simulator frames allowed; phone-screen frames only for named recording sets made with Do Not Disturb on, kept in the local artifact store.
 - **Q20 Supervision:** no recurring LLM check prompts; `CronCreate` asks you first; console-api watchers wake agents only on a change (§8.5).
 - **Q21 MUI fallbacks and the style-engine A/B:** SPK-r decides. A part falls back to Base UI 1.9.0 + CSS Modules, one at a time, when its census cannot be completed, an N0/N1/N5 incident cannot be fixed in its time box, or its N2/N3 delta comes from MUI (§6.7). The whole site moves to Pigment on MUI 9.0.1 only if SPK-r fails at the mechanism level. The optional Pigment arm (SPK-s, 1 agent-day, M2) runs once unless you say skip.
 - **Q25 Math view placement and scope:** a tab in console-web that shows the generated page (also openable on its own); math required on every theorem and on every definition you read, not only on theorems. Default: both.
 - **Q26 Lease starvation:** the device lease can be renewed forever today (MEASURED [10.04 §5]). Default: no renewing while someone is waiting, plus a cap on total hold time, with a bounded-wait theorem; alternatives: the cap only, or a fairness assumption stated in the theorem.
-- **Q27 Aging step:** a waiting job rises one priority level every A = 300 s, so a spot-check overtakes newly arriving user steps only after about 25 h. Default: a tighter bound, every job starts within 2 h of a booked window that fits it.
+- **Q27 Aging step:** a waiting job rises one priority level every A = 300 s, so a spot-check overtakes newly arriving user steps only after about 25 h. Default: a tighter bound, every job starts within 2 h of a booked window that fits it. (The agent admission rule `Fw/Sched` has its own, proved aging bound: an aged job is admitted before $t + (1+\Psi)\cdot d_{max}$, where $\Psi$ counts older queued jobs that can fit; the first, simpler bound was false, 4bd850f.)
 - **Q28 Math disagreements:** when the math-reviewer's own math and the docstring disagree, a second independent reviewer decides first; you see only what stays unresolved. Alternative: ask you every time.
 - **Q29 Status questions in threads:** answered automatically from the board (no agent), with a "not answered" button that escalates to the lead. Default: yes.
 - **Q30 Small defaults:** class W cards still need the lead's `fw land` (no auto-land); knowledge-base read receipts (v1: 1,006 acks) are dropped, and "read by" is derived from read events; an ETA, if an agent has one, goes in its note and is shown with its age, never used by the scheduler; the best build is the set of versions no head-to-head comparison beats, and you pick when there is more than one.
 
 ### 12.3 Open items from the revision 4 review (styling), with recommendations
 
-- **Base UI vs Pigment as the fallback.** **Recommend:** Base UI per part first; Pigment for the whole site only if
-  SPK-r fails at the mechanism level (Q21), because Pigment is a paused alpha.
-- **Neutrality-gate blind spots** (Emotion's per-render JS, style-sheet shape cost). **Recommend:** N4 and PL6 for
-  now; if SPK-h finds Chromium's selector-stats trace, add its match-attempt count as a deterministic N4 family.
-- **MUI behaviours replaced** (S5-S7, S12: transitions, Tabs indicator, Avatar `src`, ripples). **Recommend:** accept,
-  and list each replaced behaviour in `part.json`, so the write-up can say how much of MUI ran.
-- **N4: gate or parameter.** N4 cannot fail today (a shape difference beyond ±10 % becomes a K-fixture parameter).
-  **Recommend:** keep it a parameter that flags the part for PL6; make it a gate only if K10 shows shape alone moves
-  frame cost.
+| Item | Recommendation |
+|---|---|
+| Base UI vs Pigment as the fallback | Base UI per part first; Pigment for the whole site only if SPK-r fails at the mechanism level (Q21): Pigment is a paused alpha |
+| Neutrality-gate blind spots (Emotion's per-render JS, style-sheet shape cost) | N4 and PL6 for now; if SPK-h finds Chromium's selector-stats trace, add its match-attempt count as a deterministic N4 family |
+| MUI behaviours replaced (S5-S7, S12: transitions, Tabs indicator, Avatar `src`, ripples) | Accept, and list each in `part.json`, so the write-up can say how much of MUI ran |
+| N4: gate or parameter (it cannot fail today; a shape difference beyond ±10 % becomes a K-fixture parameter) | Keep it a parameter that flags the part for PL6; a gate only if K10 shows shape alone moves frame cost |
 
 ## Appendix A. Conflicts between the kickoff notes, and how this plan resolves them
 
@@ -1356,90 +1358,106 @@ week; yes to the free-play phone.
 | A10 | **Reference store paths.** [01] `references/`; [04] `refs/webkit/…`; [06] `refs/upstream/…` | `refs/upstream/` for pins, excerpts and protocol; `refs/rules/<engine>/<family>/` for rule cards | One store for both engines |
 | A11 | **Spec-reviewer model.** [05]: mid-tier is enough. [07]: Opus high/xhigh | Opus medium; `high`/`xhigh` per call for theorem statements and neutrality-gate rulings (§8.2) | Wrong spec is the main Lean risk (R6); effort where it speeds a correct ruling (§8.4) |
 | A12 | **An `ask` rule on every measurement-code edit** ([07] draft) | Dropped; the golden-semantics gate and the review stage guard it | It would interrupt you without adding a check |
-| A13 | **Snapshot location.** [02]: `FW_SNAPSHOT_DIR`. [06]: gitignored `snapshot/` | `snapshot/` (gitignored, read-only), filled by `fw snapshot` from `FW_SNAPSHOT_DIR` and verified against `snapshot.lock.json` | One path for tools, one variable for the machine |
+| A13 | **Snapshot location.** [02]: `FW_SNAPSHOT_DIR`. [06]: gitignored `snapshot/` | `snapshot/site/`, tracked unmodified since the repo went public (rev 6), read-only and verified against `snapshot.lock.json` | One path for tools; Fastwork approved publishing it |
 | A14 | **Where the cost model lives.** [05]: `Cost.lean`. [06]/[03]: TS `cost-model` | Fitting and evaluation in TS (`packages/model`); the screening theorem in Lean (`fwcore screen`); an L1 checker accepts the coefficients (non-negative, exact fractions) before deployment | Fitting is numeric; the landing decision is not |
 | A15 | **Bootstrap order.** [06]: site skeleton first. [03], [04]: counts first | Counts on the **original snapshot** from the start (counts-chromium), in parallel with the other workstreams | Baseline first; de-risks the method (R7) |
-| A16 | **Cache TTL.** [08]'s lenses: "1h for waiting roles" vs "keep 5m for device-blocked owners" | By expected wait: 1h under an hour; handoff and exit for longer | A 1h cache cannot span an overnight device wait, and an agent should not be alive during one |
+| A16 | **Cache TTL.** [08]'s lenses: "1h for waiting roles" vs "keep 5m for device-blocked owners"; rev 5 set 1h on most roles | Rev 6: the lead 1h, every agent 5m; idle past 5 minutes with over 30k context → stop and respawn from the handoff note (§8.2) | MEASURED: agents only ever write 5-minute cache; resuming them later re-reads the whole context |
 | A17 | **Three stage models.** [10.01] stage cards closed by judgement; [10.02] stages derived from evidence; [10.03] a third list | [10.02]'s evidence-derived `Stage`, used by every module | No stage command to forget; a rebuild voids old evidence by itself |
 | A18 | **Three manual-input catalogues.** [10.01 §5], [10.02 §5] (13 inputs), [10.03] (`note` events) | One catalogue (§8.5, from [10.01 §5]) | One list to enforce in the `may` table |
 | A19 | **Numbers that differ across notes 10.01-10.03** (status writes, upkeep turns, round trip) | One canonical value each, with its command, in the "Canonical numbers" table of `docs/plan/rev5-delta.md`; this plan quotes only those | Each figure has one command |
 | A20 | **Math sync.** [10.02] `math:` lines + regenerated `MATH.md`; [10.03] `#math_doc` tags; [10.04] deep hash + lock + reviewer | [10.04] (§5.3), with the sign-off as an event | The other two passed a retag alone, missed definition bodies or skipped imported modules (MEASURED) |
 | A21 | **Who lands.** Rev 4: the lead runs `git merge --ff-only`. [10.02]: console-api merges in its own bare repo, with state outside the repo | the lead lands on the normal `main` branch with `fw land` (ff-only, only after the reducer accepts the request); state in the gitignored `.fw-console/` (your Q23); a move of `main` outside `fw land` is detected and flagged as a violation (§8.2 "Who commits") | Your choice: one normal repo is simpler to work with. The cost: `main` is not unwritable, so the guard is detection, not prevention (R28) |
 | A22 | **`Write(path)` rules.** Rev 4 §8.3 and the revision 5 delta list `Write(...)` allow and deny rules; the config review found Claude Code never consults them | `Edit(...)` rules only (§8.3) | A rule that is never read gives false comfort |
+| A23 | **Unnamed spawns.** Rev 5 §8.3: spawn-guard denies every unnamed call; §8.1 and the token policy: unnamed read-only helpers | Unnamed read-only allowed (`caps.unnamedReadOnly`), shadow mode first (§8.3) | Helpers need no name or worktree; a name still guards every editing spawn |
+| A24 | **M0 determinism.** Rev 5: two byte-identical Chromium vectors. SPK-i: whole files never match | Per-type classes (V-i, §10.2) | The deterministic types do match; byte identity fails on thread ids, GC and async work, which feed no model |
 
 ## Appendix B. Spikes (each answer becomes a decision record)
 
-| Spike | Question | Status before running |
+Rev 6 statuses come from the decision-record drafts (`research/notes/2026/10-17-spk-drafts/`, 2d33185) and later commits.
+
+| Spike | Question | Status |
 |---|---|---|
-| SPK-a | Does `CLAUDE_CODE_ENABLE_TODO_TOOLS` take effect from the project `env`? | CONFIRMED by docs; one confirmation run |
-| SPK-b | Does `name` + `isolation: "worktree"` on one Agent call give a named, messageable worktree subagent? | CONFIRMED by docs; one confirmation run |
-| SPK-c | Do hooks inside in-process teammates carry `agent_type`, or only `agent_id`? | open |
-| SPK-d | Does `Agent(model:*fable*)` match (wildcards in parameter values)? | open (INFERRED yes) |
-| SPK-e | Where do teammate transcripts live, for the usage meter? | open |
+| SPK-a | Does `CLAUDE_CODE_ENABLE_TODO_TOOLS` take effect from the project `env`? | ANSWERED (MEASURED, 2d33185) |
+| SPK-b | Does `name` + `isolation: "worktree"` on one Agent call give a named, messageable worktree subagent? | ANSWERED (MEASURED: 28 agents, 50 sends, 0 errors) |
+| SPK-c | Do hooks inside in-process teammates carry `agent_type`, or only `agent_id`? | partial: docs say `agent_id`; no real payload seen yet |
+| SPK-d | Does `Agent(model:*fable*)` match (wildcards in parameter values)? | partial: docs say yes; one observed firing missing |
+| SPK-e | Where do teammate transcripts live, for the usage meter? | ANSWERED (MEASURED: `<session>/subagents/agent-<id>.jsonl`) |
 | SPK-f | Do per-package `CLAUDE.md` files load when an agent works in that package? (Turborepo `cacheDir` moves to the later tier) | open |
 | SPK-g | Can `xctrace` System Trace attached to macOS Safari decode WebKit kdebug trace points by name [04 §4.6]? | open |
 | SPK-h | Do the Chromium trace argument paths (`elementCount`) and the invalidation-rect categories hold on the pinned build [03 §7.4]? Do the N1 slices (`StyleEngine::updateActiveStyleSheets`, `scheduleInvalidationsForRuleSets`, font-update) exist there, and what does the `blink_style` category cost [09.03 §6.4]? | open; before SPK-q relies on N1 |
-| SPK-i | Does linux-arm64 headless-shell in a container accept BeginFrameControl with the three flags, with fonts only from `snapshot/`, and give byte-identical count vectors? | open; running in counts-chromium |
-| SPK-j | Harness neutrality: clock shim with native rAF vs free-running (Chromium); seek overhead per accelerated animation (WebKit) | open; running in counts-chromium and webkit-spike |
-| SPK-k | Does Serena's `lean4` language server answer `find_symbol` on a Lean file? (`lean4` is in Serena's language list, CONFIRMED in `.serena/project.yml`.) If not: Serena for TypeScript only, lean-lsp-mcp for Lean | open; agent-ops |
-| SPK-l | lean-lsp-mcp: exact local tool names, and a launch flag that disables its remote search tools | open; agent-ops |
-| SPK-m | WebKit determinism per count type (stepped vs held-state) | open; running in webkit-spike |
+| SPK-i | Does linux-arm64 headless-shell in a container accept BeginFrameControl with the three flags, with fonts only from `snapshot/`, and give byte-identical count vectors? | partial: works with snapshot fonts only; whole files never byte-identical, so V-i is re-scoped (§10.2) |
+| SPK-j | Harness neutrality: clock shim with native rAF vs free-running (Chromium); seek overhead per accelerated animation (WebKit) | partial: WebKit seek adds 122 style records, independent of N; Chromium shim vs free-running open |
+| SPK-k | Does Serena's `lean4` language server answer `find_symbol` on a Lean file? (`lean4` is in Serena's language list, CONFIRMED in `.serena/project.yml`.) If not: Serena for TypeScript only, lean-lsp-mcp for Lean | ANSWERED (MEASURED): works only from the `lean/` project (`serena-lean`) |
+| SPK-l | lean-lsp-mcp: exact local tool names, and a launch flag that disables its remote search tools | ANSWERED: `--disable-tools`, 5 local tools in 0.31.0; `lean_hammer_premise` disabled too (2d33185) |
+| SPK-m | WebKit determinism per count type (stepped vs held-state) | answered in part (367fec2): per-step Layout/Paint quarantined, totals within 3-5 % (§4.2) |
 | SPK-n | Device link soak: one hour idle with an attach/detach logger, then a cable and port swap; do WDA, the proxy and UI Automation survive a re-plug? | open; first booked phone session (M3 at the latest) |
-| SPK-o | Can a named `isolation: "worktree"` subagent run `pnpm fw gate --part x`, `git add -- p` and `git commit -m` with zero isolation refusals? | open; agent-ops |
-| SPK-p | On the v2 Claude Code version: the lead's SendMessage address; does a finished background task wake an idle teammate; does `SessionStart` fire with source `compact` so `session-brief` can re-inject the roster? | open; agent-ops |
-| SPK-q | Styling-neutrality baseline: do N0/N1 read 0 on arm A in W-rest and W-measure, in both engines? | expected 0 from a grep of the original's JS (CONFIRMED [09.03 §4]); running in both counts lanes |
+| SPK-o | Can a named `isolation: "worktree"` subagent run `pnpm fw gate --part x`, `git add -- p` and `git commit -m` with zero isolation refusals? | partial: 8.4 % of worktree Bash calls refused; plain add and commit work |
+| SPK-p | On the v2 Claude Code version: the lead's SendMessage address; does a finished background task wake an idle teammate; does `SessionStart` fire with source `compact` so `session-brief` can re-inject the roster? | partial: lead address `team-lead` 33 of 33; wake test open |
+| SPK-q | Styling-neutrality baseline: do N0/N1 read 0 on arm A in W-rest and W-measure, in both engines? | open (moved to M1): the lanes do not record N0/N1 yet; needs SPK-h |
 | SPK-r | Emotion AOT: with Button, Dialog, Menu, Tabs and Drawer in the harness, are there 0 insertions and 0 tag moves after hydration in Chromium and WebKit, nothing inserted when an overlay opens, equal closed-overlay scroll counts and commit counts for `impl: plain` and `impl: mui`, and a green N5? Also checks the §6.5 cache wiring (own `mui` cache, no `StyledEngineProvider`, `createEmotionServer` compat), the census with `disablePortal` overlays, and the `runtime` variant as the negative control (N0/N5 must flag it). Also records trace `UpdateLayoutTree` ms for `aot` vs `runtime` (ABBA, n ≥ 4): in the [09.04] spike a build with 0 scroll insertions (`emotion-v7cv`) still showed 13-15 ms against Pigment's 8-10 ms per scroll phase, while CDP `RecalcStyleDuration` showed no gap (2 runs, unexplained) | **Chromium half MEASURED, pass** (d380999, `apps/site/README.md`; Mac Chrome 155 headless, 430×932, 3 runs, no variance): `aot` 0 CSSOM insertions in scroll and triggers, 0 `cache.insert` after the mark, no hydration errors; the `runtime` control caught (69 insertions, 23 `cache.insert`). Open: WebKit, N5, the `impl: plain` vs `mui` equality, `UpdateLayoutTree` timing, and the extractor fix for intermediate `styled(Wrapper)` rules (8 first-open misses) |
 | SPK-s | `style-engine` A/B: Pigment 0.0.30 with MUI 9.0.1 vs AOT on the pilot parts. What are the load and hydration script ms, the heap, the bytes, and N0-N3? | MUI 9.0.1 builds unpatched with Pigment 0.0.30 (Vite 6.4.4) and 0.0.31 (Vite 8.3.4, outside peer ranges); 0 insertions observed for 9.0.1 + 0.0.31 in Chrome only [09.01 §2.2]; WebKit 0 insertions observed for Pigment on 7.3.11 and patched 9.5.0, not on 9.0.1 [09.04] (so 9.0.1 + 0.0.30 at runtime is INFERRED); M2, 1 agent-day, optional (Q21) |
-| SPK-t | With the sandbox on (`allowUnsandboxedCommands: false`, `allowUnixSockets` = the CLI socket, `denyWrite` = `.fw-console`), from a teammate in the main checkout and from a named worktree subagent: (a) a named worktree subagent can run `pnpm fw gate`, the tests and `git commit` with zero refusals (with SPK-o); (b) `node -e "fs.appendFileSync(<state>/events.jsonl,'x')"` from that agent fails; (c) the Edit/Write tools there are denied; (d) `pnpm fw screen` reaches the socket; (e) the deny paths resolve to the main checkout's `.fw-console/` from a worktree, and a commit put on `main` outside `fw land` shows as a violation on your needs-you list within one reconcile pass; (f) the capability hook adds `--cap`, and console-api refuses a missing, wrong or reused capability; (g) `emit.mjs` finishes in < 100 ms and prints nothing | the doc facts are CONFIRMED (sandbox scope, child processes, hooks outside the sandbox, `updatedInput`); project-relative path resolution from worktrees is INFERRED; the combination is open; agent-ops |
+| SPK-t | With the sandbox on (`allowUnsandboxedCommands: false`, `allowUnixSockets` = the CLI socket, `denyWrite` = `.fw-console`), from a teammate in the main checkout and from a named worktree subagent: (a) a named worktree subagent can run `pnpm fw gate`, the tests and `git commit` with zero refusals (with SPK-o); (b) `node -e "fs.appendFileSync(<state>/events.jsonl,'x')"` from that agent fails; (c) the Edit/Write tools there are denied; (d) `pnpm fw screen` reaches the socket; (e) the deny paths resolve to the main checkout's `.fw-console/` from a worktree, and a commit put on `main` outside `fw land` shows as a violation on your needs-you list within one reconcile pass; (f) the capability hook adds `--cap`, and console-api refuses a missing, wrong or reused capability; (g) `emit.mjs` finishes in < 100 ms and prints nothing | partial: (f), (g) unit-tested; no sandbox block yet |
 | SPK-u | Hermetic dependency recording: can a measurement plugin's run record the files and env it actually read (e.g. `fs` tracing in Node, `sandbox-exec` read logs), so that "declared deps ⊇ actual reads" is checked for artifact keys? | open; M1, with the artifact store |
 
 ## Appendix C. Draft for the Q17 decision record (agent-team operation and helper tools)
 
-The lead finalises after the spikes: permission mode `default` with the lane allow list (§8.3), not `acceptEdits`
-or `auto` (v1's auto mode refused 211 calls [08]); `.claude/**` changes batched; `CronCreate` behind `ask`; the lead
-on Opus `medium`, 200k cap; in-process teammates, task tools on, Fable behind `ask`; the local transcript meter only;
-`includeGitInstructions: false` once the `land` skill exists; pnpm workspaces, `typescript@6.0.3`; Serena for
-navigation with `rename_symbol` behind `ask`; lean-lsp-mcp with its remote search tools off; chrome-devtools-mcp for
-exploration only (`--isolated --no-usage-statistics`).
+The lead finalises after the spikes: permission mode `default` with the lane allow list (§8.3), not `acceptEdits` or
+`auto` (v1's auto mode refused 211 calls [08]); `CronCreate` and Fable behind `ask`; the lead on Opus `medium`, 200k
+cap; in-process teammates; pnpm workspaces, `typescript@6.0.3`; Serena with `rename_symbol` behind `ask`; lean-lsp-mcp
+with remote search off; chrome-devtools-mcp for exploration only (`--isolated --no-usage-statistics`).
 
 ## Appendix D. Review log
 
-### Revision 5 (your requirements of 2026-10-17: automated console, Lean-first, math view)
+### Revision 6 delta (catch-up to 28b18ee, extended to e4d9853 by the review; rev 5 was c04c8ef)
 
-Source: [10] and its notes 01-04, applied from `docs/plan/rev5-delta.md`, after an independent verification pass
-that found and fixed 4 design faults (seen keys on refused events; refusable git landings; forgeable reviews;
-head-of-line blocking in the phone queue), 8 math-translation errors, a sync check that did not sync, and number
-clashes across the notes. Also: your device answers [ENV], the config review of the committed team settings, and
-your Lean packaging and install decisions.
+Source: the catch-up log `[CU]` (`docs/team/improvements/2026-10-17.md`), each claim checked against its commit,
+note or handoff. Status words: MEASURED (a run in this repo), CONFIRMED (a file or doc), INFERRED.
 
-| # | Change | Where |
-|---|---|---|
-| 1 | Nobody writes status: every console field is derived; agents have no write path (sandbox write-deny and deny rules on the gitignored `.fw-console/`, console-api the single writer); `main` moved only by `fw land`, other moves flagged as violations; one catalogue of typed judgement commands; the part-builder file no longer carries `waiting-for` | §0, §2.2, §3.2, §3.4, §7, §8.2, §8.3, §8.5, §9.2, §12.0 |
-| 2 | Facts are observed: one synchronous observer emitter, a capability hook, git facts from the reconciler only, usage from a transcript tailer; keys separate identity from version | §3.1, §3.2, §3.4, §8.3, §8.4, §10.2 |
-| 3 | Lean-first: 87-item inventory at L1 / L1-cond / L2 / L3; `fwcore serve` holds the console state; modules by milestone; mutants (V-r); per-module ledger and demotion rule replace the M4 go/no-go; priority and queues proved (aging, fits-the-window); the lease moves to M1; the flag resolver test enumerates its whole domain | §0, §1.2, §2.2, §3.3, §3.4, §5.1, §5.2, §5.4, §10.1, §12 |
-| 4 | Math view: docstring LaTeX, `lake exe mathview`, MathML page, deep statement hashes, lint in TL0 (replaces `scripts/Axioms.lean`), sign-off as an event by the math-reviewer role (V-s); the worked example carries math lines | §5.3, §5.4, §7.1, §8.2 |
-| 5 | Roster: math-reviewer added; the committed kickoff roles (researcher, env-ops, plan-editor, page-writer) listed; up to 3 lean-provers in M0-M2; console-builder paired with lean-provers; the lead requests landings; one rule for who commits | §8.2 |
-| 6 | Settings (config review): `Write(path)` rules removed (never consulted; `Edit` covers every writing tool); `git merge --ff-only` removed from allow; deny rules for console state and generated files; the sandbox block; the v1 repo denied by absolute path in the gitignored `settings.local.json`; `Agent(model:*fable*)` kept | §8.3, A22 |
-| 7 | Devices (your answers): iPhone iOS 27.0.1 / Safari 27, Developer Mode allowed, no Android phone; iOS 27.0 Simulator runtime and `fw-iphone-27`; the Android emulator for Chrome-for-Android counts only; Chromium coefficients not fitted; elan from Homebrew; disk now ~49 GB free | §0, §1.2 V-c, §4.1-§4.6, §10.2, §12 |
-| 8 | Mathlib-free core with an optional `FwMath` package (decided) | §3.4, §5.1, §5.2, §12.0 |
-| 9 | Spikes SPK-t (sandbox, socket, path resolution, violation detection, capability) and SPK-u (hermetic deps); risks R23-R28; R6 rewritten; conflicts A17-A22; A1, A9, A14 updated | Appendix A, Appendix B, §11 |
-| 10 | Questions: Q1 mostly answered; Q12 moved to §12.0; Q22 (strict sandbox) and Q23 (console state inside the repo, `main` a normal branch) answered and applied; defaults Q24-Q30; the rev 4 review's open styling items listed with recommendations (§12.3) | §12 |
-| 11 | Every breakpoint of the original, for every part (your requirement): generated `breakpoints.json`, breakpoint lint, breakpoint gate before promotion; V-g, R8, M2/M4 exits, Q5 | §1.2, §6.6, §7.1, §9.2, §10.1, §11, §12 |
-| 12 | No calendar (your decision): §10 is a dependency graph of workstreams (blocked-by, outputs, Mermaid graph, critical path); milestones are gates; what runs now is listed; every "Day N" and date reference replaced (§0, §8.1, §8.2, App B, R7, R17, R25, §12); `packages/measure` split into `measure-chromium` and `measure-webkit` | §0, §1.1 G3, §3, §7.1, §8, §10, §11, §12, App A-B |
-| 13 | Breakpoint inventory [11] applied: 30 conditions, 18 edges (table), the pure-860 vs C860 parity rule, overlaps, fractional gaps, the 124-load gate per engine, live-resize sweeps; PLAN ids `hero`, `platform`, `ui.shared`, `theme.tokens` added; still to be MEASURED: the container-1100 viewport edge and the overlap outcomes ; §12.3's AOT-timing item dropped (SPK-r already runs); §3.1, §5.3, §8.3, §8.4 compacted | §6.1, §6.6, §12.3 |
-| 14 | Lean first for everything reproducible (your direction): three ways to code (runs in `fwcore`, generated by Lean, golden vectors); `Fw/Site/Breakpoints` generates `breakpoints.gen.json`, media strings and the gate matrix; new running workstream lean-site; Q24 decided; console TS reducer and measurement reduction/verdicts move to `fwcore` | §3.1, §3.3, §5.1, §6.6, §10.1, §12.0 |
-| 15 | SPK-r Chromium result (d380999): AOT 0 insertions, control caught; census marks all inserted ids (8 first-open misses from `styled(Wrapper)` rules, fix in progress); S7 corrected (`Tab` outside `Tabs` throws in 9.5.0, so `ButtonBase role="tab"`); Dialog/Container default `@media` replaced from `breakpoints.gen.json` (S12, build gate); site-aot done, pilot parts started | §6.5, §10.1, Appendix B |
-| 16 | Review of rev 5 (changes requested): the 1/70 and 1/252 rates stated as bounds with their premise, L1-cond, to prove in M0 (not in committed Lean); count reduction in `fwcore`, "metric reducers" no longer dropped; L2 widened to Lean-generated code and golden vectors; module and cost estimates marked to re-estimate; `Fw/Site` and `Fw/Parts` added; the tick is 120 Hz today and is being parameterised by rate; graph edges fixed; §10.1 holds no hand-written status, landed items carry commits, new workstreams lean-parts, part-engine, part-hero, math-to-lean study; 4 pilots built, 3 must pass M2; `rev5-delta.md` marked applied and superseded where this log says so | §0, §2.1, §3.2-§3.4, §4.6, §5.1-§5.3, §10, §12.2, frontmatter |
+| # | Change | Where | Source |
+|---|---|---|---|
+| 1 | Repo public with history, MIT for our code; snapshot tracked unmodified; fonts in git; agents may push `ci/*`; Q3 changed from Private; R10 rewritten, R29 added (CONFIRMED) | §3.1, §7.1, §7.3, §8.2, §11, §12.0, A13 | 1594cd5, 454cbe0, 9492807, 53ca23e |
+| 2 | Public CI: four workflows on `ci/**` and `main`; CI supplements the local gate; first-run results (MEASURED) | §5.4, §10.1 | d70619d, eb807a4, ee18c6b, `public-ci-brief.md` |
+| 3 | Token policy: helper roles scout, runner, checker, patcher; output caps; concurrency 10; page-writer on Sonnet; roster restated from the 14 role files; never-written roles named (CONFIRMED) | §8.2, §8.3, §8.4 | a0b9053, `token-policy.md` |
+| 4 | Cache TTL contradiction resolved: the lead 1h, every agent 5m; stop and respawn from handoff notes (MEASURED); Q18 and A16 updated | §8.2, §8.4, §8.5, §12.2, A16 | 124a614, [CU] |
+| 5 | §8.3 vs §8.1 resolved: unnamed read-only subagents allowed; spawn-guard in shadow mode; Q31 asks you about blocking; A23 | §8.1, §8.3, §8.5, §12.1 | 30e3264, 6756bb9 |
+| 6 | Hooks as built in `apps/runner/hooks/`; `session-brief` and the sandbox block marked planned; §8.3 sketch replaced by an as-built table (CONFIRMED) | §3.4, §8.3, §11 R25, §12.0 Q22 | 3e67d48, 3fe1876 |
+| 7 | Serena 2.0.0 (TypeScript and Lean servers), lean-lsp 0.31.0 with remote tools off, pinned upstream clones; measured cache and sleep facts | §7.1, §8.1 | d797c60, 5c18b73, b65e983, [CU] |
+| 8 | Console M0 core: stateful `Fw/Serve` (40 µs p50 apply, 0.4 s for 100k events, MEASURED), capability door, `fw land`, git reconciler; four TS stand-ins left | §3.2, §3.3, §10.1 | 14152f1, eacb660, 840f7d6 |
+| 9 | Parallel work: study (peak 12, speedup 4.9), `Fw/Sched` with the restated aging bound, wt-prep, Lake artifact cache; A/B bench as Q32; R13, R30 | §8.2, §10.1, §11, §12 | 5b8a2b1, 4bd850f, 7d22517, c0bf898 |
+| 10 | Measurement: per-type classes, flags as built, findings table, `UpdateLayoutTree` in V-n, WKTR disk 38 GB (MEASURED) | §1.2, §4.1, §4.2, §12.2 Q10 | 70c3370, 367fec2, ddc91b2 |
+| 11 | M0 gate re-worded from byte-identical vectors to per-type classes, pending the lead's signature on `spk-i.md` and `class-policy.md`; SPK-q moved to M1; A24 | §1.2 V-i, §10.2, App A, App B | 2d33185 |
+| 12 | Lean: `Fw/Measure`, built-module list, `land_null_prob` and `multOk` proved (no longer "planned"), worked example from committed Lean, `tickAt`, math view in `loop-plan.html`, review rounds r4/r5 (MEASURED) | §5.1, §5.3, §4.6, §12.2 Q13 | 9367dea, 74ffd03, ddc91b2, 226c35b, 00c09bf, 28b18ee |
+| 13 | Breakpoint gate results: 4 pilot parts pass the 14 PL0-PL2 cells in both engines; coverage gaps; `verdict.mjs` as Lean-first debt (R32) | §6.6, §10.1, §11 | e7fb102, 95693f4, 2566949 |
+| 14 | Roadmap: a "Landed" column with commits; new workstreams (console M0 hardening, lean-measure, breakpoint gate, public CI, parallel work, math review); critical path re-checked (M1 baselines lead; the rest of the breakpoint gate runs alongside, review fix) | §10.1 | git log to 28b18ee |
+| 15 | Process safety: kill only own PIDs (R31) | §11 | 6fba06c |
+| 16 | Fixes: the §3.1 math-view node pointed at `docs/math` (now `docs/plan/loop-plan.html`); a blank line split the §11 risk table; §12.3 became a table | §3.1, §11, §12.3 | this revision |
 
-Differences from the delta (why): V-t avoids "G1-style" (G1 is an outcome goal); "judge" became "the reviewer's own
-math vs the docstring"; `Write(...)` rules became `Edit(...)` (A22); the canonical-numbers table stays in the delta
-(A19); your Q23 answer replaced `~/.fw-console/` and the bare repo (A21, R28). Prose was shortened to stay near 1,400
-lines without changing content; earlier text is in git history (032ed71).
+Not taken from `[CU]`: its "zoneSums still to spec" is outdated (`Fw.Measure.zoneSums` runs in `fwcore`, ddc91b2).
+To make room, the §8.3 settings sketch, the part-builder file and the rev 2-5 item tables moved to git history (the
+role files and `settings.json` are the truth), and §0, §7.1, §8.4 and Appendix C were shortened. The file is still
+about 1,460 lines, above the ~1,300 target: the rest is dense tables a later revision can split out.
 
-### Revisions 2 to 4
+### Revision 6 review (two reviewers, facts and consistency lenses; 15 findings, all checked against the repo)
 
-Revision 4 (your four decisions, [09]): MUI everywhere with Emotion AOT, S1-S13, N0-N5 and V-q, `impl: plain`
-twins, K10, SPK-q/r/s, R9/R21/R22, Q2/Q3/Q16; its review fixed the AOT cache wiring, portals, Tabs and Avatar, N2/N0
-scope and the neutrality claims (open items: §12.3). Revision 3 applied the 18 improvements of [08]; revision 2 the
-34 items of [FR] (container, harness neutrality, per-frame class W, 4v4 verdict, Lean glue, MVP tier). Item tables
-are in git history (032ed71, 931aa35).
+The working tree sits on `main` at e4d9853, so the catch-up moved there instead of being deferred (no rebase needed).
+Live status (wave ready-1, the console on port 8787) stays out of the plan: the console and the work graph hold it.
+
+| Finding | Severity | Applied as | Where |
+|---|---|---|---|
+| The 62 r5 disagreements were called open; they were fixed (69d7773) and the view regenerated (da5d49e: 62 stale, 0 disagree); the open step is the re-review math-r6 (2 findings) | high, medium | r5 row, view sentence, math-review row; M0 gate asks for 0 stale too | §5.3, §10.1, §10.2 |
+| §7.3 listed guards that do not exist (lefthook, scrub check, `kb lint`) | high | split into enforced today (`git add -f` and `--no-verify` denies, the 454cbe0 grep, Serena `ignored_paths`, which does list `snapshot/**`) and planned for M0; scrub check added to agent-ops, the M0 gate and R29 | §5.4, §7.3, §10.1, §10.2, §11 |
+| The class policy was read as "k ≤ 4 runs" | medium | Chromium kMax = 4 frames, tMax = 24 count units, 3 runs (`Classes.lean:160`); WebKit's per-cell tolerances named | §1.2 V-i, §4.2 |
+| Catch-up items after 28b18ee were missing; the plan was stale against `main` (2 findings) | medium | CI third run (33/20/9), `breakpoint-gate` 5 min 06 s, 67192ef, 49b7ff4, d23cf7c, the work graph (eeaf853) and its tasks lean-plan, con-plan, gate-probe-scope, wktr-ci | header, §4.2, §5.1, §5.4, §6.6, §10.1, Q10 |
+| "The breakpoint gate passes" overstated PL0-PL2 results and took the gate off the critical path | medium | PL0-PL2 named; the rest stays a parallel M2 input; Q33 asks about the unreachable cells | §0, §10.1, Q33 |
+| Spawn-guard caps were written as enforced; Q31's test could not see the refusals it was meant to check | medium | "will cap (shadow mode logs only)"; empty `alive`/`recent` stated; Q31 matches work-graph `spawn-enforce`; liveness feed added to agent-ops | §8.1, §8.2, §8.3, §8.5, Q31 |
+| Small facts: workflows also run on `main`; one `caffeinate` per session; `.lake` 603 MB; the 45 s → 7 s run was a rewrite run; R10 cited a LICENSE commit; R14 kept the dropped "TTL by expected wait" | low | each corrected; Q18 gains "never resume over 250k" | §0, §4.2, §8.1, §11, Q18 |
+
+Not changed: §3.4 keeps lefthook in the MVP tool list, since it lists planned tools, not built ones.
+
+### Revisions 2 to 5 (item tables in git history: 032ed71, 931aa35, c04c8ef)
+
+Revision 5 (your requirements: automated console, Lean-first, math view) applied [10] from `docs/plan/rev5-delta.md`
+after a verification pass that fixed 4 design faults and 8 math-translation errors; it added the event-log console,
+the L1-L3 inventory, the math view, the device answers [ENV], breakpoints for every part [11], the dependency-graph
+roadmap and Q22-Q30. Revision 4 (your four decisions, [09]): MUI everywhere with Emotion AOT, S1-S13, N0-N5, V-q,
+`impl: plain` twins, K10. Revision 3 applied the 18 improvements of [08]; revision 2 the 34 items of [FR].
