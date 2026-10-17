@@ -2,17 +2,27 @@ name: lean
 
 # Proofs, golden vectors and the fwcore binary (PLAN 3.2, 5.4 TL0). Same commands as `lean/scripts/check.sh` locally.
 on:
+  # Inputs: the Lean project, the checked-in breakpoint table breakgen compares against, setup-lean, the runner-facts script.
+  # A push runs this workflow only when it changes one of these paths; `workflow_dispatch` runs it on demand
+  # (gh workflow run <name> --ref <branch>). Why: docs/team/handoffs/ci-trigger-scope.md.
   push:
     branches: ['ci/**', main]
+    paths:
+      - 'lean/**'
+      - 'apps/site/src/breakpoints.gen.json'
+      - '.github/actions/setup-lean/**'
+      - '.github/scripts/runner-info.sh'
+      - '.github/workflows/lean.yml'
   workflow_dispatch:
 
 # Public repo: read-only token, no secrets anywhere, no pull_request(_target) trigger.
 permissions:
   contents: read
 
+# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 
 jobs:
   lean:
