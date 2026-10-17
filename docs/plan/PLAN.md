@@ -810,7 +810,7 @@ The console's Run builder does the same with ticks and pickers, and shows `fw ru
    | S5 | No MUI `Fade`/`Grow`/`Slide`/`Collapse`/`Zoom` on scroll-linked or always-mounted paths; overlays replace `slots.transition` with class-toggled keyframes restated from the original | forced reflow (`node.scrollTop`), rect reads, inline writes from JS | lint; PL4 in the overlay's own scenario |
    | S6 | Ripples off theme-wide (`disableRipple`, `disableTouchRipple` on `MuiButtonBase`); focus styles restated in CSS | a re-render, rect read and `@keyframes` insertion at the first touch of a swipe | theme unit test; N0 in the finger-replay profile |
    | S7 | On scroll paths: no MUI `Tabs` (use `ButtonBase` with `role="tab"` in a plain `tablist`), no `Popper`/`Tooltip`/`Autocomplete`; `Avatar` gets its `<img>` as a child, never `src` (details below) | rect reads; resize-driven forced layouts; hidden commits and image loads | lint; PL5 forced layouts (exact); N2 commit count |
-   | S8 | One theme at module scope, one colour scheme, nothing written on `<html>` at hydration; `cssVariables` is **open** (Q34: today `true` with `disableStyleSheetGeneration`; recommended `false`) | `<Global>` insertion, root invalidation, consumer re-renders | N0/N1 in W-load/W-rest; N4; N5 |
+   | S8 | One theme at module scope, one colour scheme, nothing written on `<html>` at hydration; `cssVariables: false` (Q34 = c, decided 2026-10-18) | `<Global>` insertion, root invalidation, consumer re-renders | N0/N1 in W-load/W-rest; N4; N5 |
    | S9 | No Emotion `<Global>` at runtime (`CssBaseline`, `GlobalStyles`, `enableColorScheme`); the reset is static CSS in `@layer reset` | `<Global>` bypasses `cache.inserted` and moves or flushes tags | lint; N0 |
    | S10 | No `useMediaQuery` or `useScrollTrigger` for looks; breakpoints live in CSS | commits on scroll and on toolbar resizes (775↔815) | lint with an allow-list |
    | S11 | Emotion configuration is fixed: production `speedy`, one cache with key `mui` (cache wiring above), MUI rules in `@layer mui` unless K10 says otherwise, no `injectFirst`/`prepend`; config and MUI version in the build ID; every MUI bump re-runs N0-N5 | an unpriced change to the styling engine | build-ID hash; K10 |
@@ -1357,14 +1357,14 @@ phone session is booked.
 nothing reads them. Options: (a) keep `true`, (b) `true` trimmed to the referenced tokens, (c) `false`.
 **Recommend:** c, because only c keeps N4's root custom-property count within ±10 % of the original, and the one
 measured benefit of `true` also holds with `false` in MUI 9.5 (INFERRED from code, `10-17-css-decisions.md`
-Decision 1). Task `css-decide` applies your answer.
+Decision 1). **Decided 2026-10-18: c** (`cssVariables: false`; applied in `apps/site/src/theme.ts`).
 
 **Q35. The original's dead CSS (§6.1).** Should `faithful` add the never-matching rules back as an inert stylesheet?
 Options: (a) no inert sheet (today; about +30 % N4 rules over the original), (b) an inert sheet with the original's
 rule count (about +40 % N4 rules), (c) a sheet sized to equal N4 (impossible: it would need negative rules); the
 percentages are INFERRED projections. **Recommend:** a, no inert sheet: MUI's static census already puts the rewrite above the original's rule count, and
 neither engine's per-element matching sees unmatched class-keyed rules. The N4 rule-count difference becomes a
-K-fixture parameter (§12.3; same note, Decision 2).
+K-fixture parameter (§12.3; same note, Decision 2). **Decided 2026-10-18: a** (no inert sheet; none exists in `apps/site`).
 
 ### 12.2 Defaults we will use unless you object (one line each)
 
