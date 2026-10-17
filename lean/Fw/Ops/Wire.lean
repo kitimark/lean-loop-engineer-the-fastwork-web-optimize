@@ -3,6 +3,7 @@ import Fw.Ops.SpawnGuard
 import Fw.Ops.PathCheck
 import Fw.Ops.Usage
 import Fw.Ops.Meter
+import Fw.Ops.Identity
 /-!
 # JSON codecs and ops of `Fw.Ops` (`ops.*`)
 
@@ -16,7 +17,8 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.pathCheck` | `scope` (globs, `!` excludes), `paths` | `ok`, `violations` |
 | `ops.usage` | `table`? [{id, input, cacheRead, cacheCreate, cache5m, cache1h, output}], `records`? (same shape), `lines`? (transcript JSON objects) | `table` (sorted by id), `totals`, `skipped` |
 | `ops.meter` | `params`?, `state`? {window, fired [{agent, rule}]}, `now`, `agents` [{agent, ctx, idleSec, ttlSec? or w5m?/w1h?, wakeGapSec?}] | `state`, `alerts` [{agent, rule, window}], `verdicts` [{agent, verdict, ttlSec}] |
-| `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
+| `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, who, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
+| `ops.actor` | `agent_id`?, `agent_type`? (string or null, as in a hook payload or a `caps.jsonl` record) | `who` (`lead`/`agent`/`unknown`), `role` (the agent type, or null), `actor` (`lead`/`reviewer`/`owner`, or null: mint no capability) |
 
 `kind` / `runsAs`: `teammate`, `subagent`, `worktree`. `isolation`: `"worktree"`, `true`, `false`
 or `null`. Rules: `ctxBig`, `idleExpiring`, `coldWake`. Verdicts: `resumeOk`, `resumeCheap`,
@@ -309,10 +311,16 @@ def hookOf (j : Json) : Except String Hook := do
            | some v => some <$> asBool "is_interrupt" v),
          promptId := ← optS j "prompt_id", teammateName := ← optS j "teammate_name" }
 
-/-- A decoded hook as JSON (absent fields are `null`). -/
+open Fw.Ops.Identity in
+/-- Wire name of an identity kind. -/
+def whoName : Who → String
+  | .lead => "lead" | .agent _ => "agent" | .unknown => "unknown"
+
+/-- A decoded hook as JSON (absent fields are `null`; `who` is `Fw.Ops.Identity.who`). -/
 def hookJson (h : Hook) : Json := Json.mkObj [
   ("sessionId", .str h.sessionId), ("event", .str h.event), ("agentId", ostr h.agentId),
-  ("agentType", ostr h.agentType), ("toolName", ostr h.toolName), ("toolUseId", ostr h.toolUseId),
+  ("agentType", ostr h.agentType), ("who", .str (whoName (Fw.Ops.Identity.who h.agentId h.agentType))),
+  ("toolName", ostr h.toolName), ("toolUseId", ostr h.toolUseId),
   ("durationMs", match h.durationMs with | some n => toJson n | none => .null), ("error", ostr h.error),
   ("isInterrupt", match h.isInterrupt with | some b => .bool b | none => .null),
   ("promptId", ostr h.promptId), ("teammateName", ostr h.teammateName)]
@@ -328,10 +336,23 @@ def opHook (req : Json) : Except String Reply := do
     | .error e => some (Json.mkObj [("index", toJson i), ("error", .str e)])
   pure [("hooks", .arr ok.toArray), ("errors", .arr bad.toArray)]
 
+/-! ## ops.actor -/
+
+open Fw.Ops.Identity in
+/-- `ops.actor`: the identity and capability actor of one record's `agent_id` / `agent_type`
+(`Fw.Ops.Identity.who`, `capActor`); a non-string field is refused. -/
+def opActor (req : Json) : Except String Reply := do
+  let i ← optS req "agent_id"
+  let t ← optS req "agent_type"
+  let w := who i t
+  pure [("who", .str (whoName w)),
+        ("role", match w with | .agent r => .str r | _ => .null),
+        ("actor", match actorOf w with | some a => .str a.name | none => .null)]
+
 /-! ## Dispatch -/
 
 /-- The `ops.*` ops. -/
-def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook"]
+def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor"]
 
 /-- Dispatch an `ops.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -341,6 +362,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.usage" => some (opUsage req)
   | "ops.meter" => some (opMeter req)
   | "ops.hook" => some (opHook req)
+  | "ops.actor" => some (opActor req)
   | _ => none
 
 end Fw.Wire.Ops
