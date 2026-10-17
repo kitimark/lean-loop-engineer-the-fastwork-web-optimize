@@ -436,6 +436,7 @@ def renderError (id : Json) (e : String) : String := render id [("error", .str e
 def ops : List String :=
   ["console.apply", "console.board", "verdict", "multiplicity", "ticks", "screen", "cost",
    "flags.resolve", "lease.step", "breakpoints.gen", "samples"] ++ Fw.Wire.Measure.ops ++ Fw.Wire.Ops.ops
+  ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
 def handleCore (req : Json) : Except String Reply := do

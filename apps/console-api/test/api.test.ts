@@ -41,12 +41,13 @@ describe("console-api", () => {
   it("restart replays the log into the same projection", async () => {
     const { dir, store, app } = await fresh();
     await post(app, open);
-    const before = store.state;
+    await post(app, { type: "card.approve", key: "k2", actor: "lead", card: "A" });
+    const before = await store.board();
     store.close(); stores = [];
-    const again = await Store.open(dir, selectCore());
+    const again = await Store.open(dir, selectCore(), () => 1_700_000_000_000);
     stores.push(again);
-    expect(again.state).toEqual(before);
-    expect(again.seq).toBe(1);
+    expect(await again.board()).toEqual(before);
+    expect(again.seq).toBe(2);
   });
   it("board endpoint reflects events", async () => {
     const { app } = await fresh();
