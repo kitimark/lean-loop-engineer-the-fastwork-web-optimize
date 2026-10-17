@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { ObsLine, ObsRecord, type Command, type ObsSummaryRow } from "@fw/contracts";
 import type { Core } from "../core/index.ts";
 import type { Store } from "../store.ts";
+import { agentNameOf } from "../health.ts";
 
 export type DrainResult = { accepted: number; duplicates: number; invalid: number; retry: number; alerts: number };
 
@@ -109,13 +110,6 @@ export class Drain {
     return res;
   }
 
-  /** Name matching only (glue): is there a task with this id? Everything else is the reducer's call. */
-  private async claimFor(name: string): Promise<Command | null> {
-    const t = (await this.store.board()).plan.tasks.find((x) => x.id === name);
-    if (!t || t.state === "done") return null;
-    return { type: "task.claim", key: `claim:${name}`, actor: "hook", task: name, agent: name };
-  }
-
   private async handle(raw: string, res: DrainResult): Promise<"done" | "retry"> {
     let rec: ObsRecord;
     try { rec = ObsRecord.parse(JSON.parse(raw)); } catch { res.invalid++; return "done"; } // retrying cannot fix it
@@ -123,9 +117,16 @@ export class Drain {
     const key = await obsKey(this.store.core, rec);
     if (key === null) { res.invalid++; return "done"; }
     if (this.seen.has(key)) { res.duplicates++; return "done"; }
-    // work graph: an agent whose name equals a task id was spawned -> task.claim (the reducer decides if it counts)
-    const claim = rec.hook_event_name === "SpawnGuard" && rec.agent_name ? await this.claimFor(rec.agent_name) : null;
-    if (claim) await this.store.submit(claim); // a refusal is logged in refused.jsonl; it never blocks the spool
+    // work graph: agent life as facts, sent unconditionally (whether or not a task of that name exists yet). Which task
+    // an agent works on is derived on the board (Lean `Fw.Plan.agentOf`, `run_comm`), so the order of a spawn and the
+    // task's define never matters. A refusal is logged in refused.jsonl; it never blocks the spool.
+    if (rec.hook_event_name === "SpawnGuard" && rec.agent_name && rec.agent_name.length <= 120) {
+      await this.store.submit({ type: "agent.spawn", key: `spawn:${key}`, actor: "hook", agent: rec.agent_name });
+    }
+    if (rec.hook_event_name === "SubagentStop" && rec.agent_id) {
+      const name = agentNameOf(this.store.dir, rec.agent_id); // the hook record has no name; fw watch's health line does
+      if (name) await this.store.submit({ type: "agent.stop", key: `stop:${rec.agent_id}`, actor: "hook", agent: name });
+    }
     // flight bookkeeping (glue): a PreToolUse starts a tool call, its PostToolUse(Failure) ends it, SubagentStop drops the agent's
     if (rec.tool_use_id && rec.hook_event_name === "PreToolUse") this.flights.set(rec.tool_use_id, { agent_id: rec.agent_id, agent_type: rec.agent_type, tool_name: rec.tool_name });
     if (rec.tool_use_id && (rec.hook_event_name === "PostToolUse" || rec.hook_event_name === "PostToolUseFailure")) this.flights.delete(rec.tool_use_id);

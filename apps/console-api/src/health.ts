@@ -63,6 +63,11 @@ function project(line: z.infer<typeof Line>) {
 
 /** Read the last complete line of health.jsonl (tail only; the file grows without bound). */
 export function readLatestHealth(dir: string): HealthView | null {
+  const l = readLatestLine(dir);
+  return l ? project(l) : null;
+}
+
+function readLatestLine(dir: string): z.infer<typeof Line> | null {
   let fd: number;
   try { fd = openSync(join(dir, "health.jsonl"), "r"); } catch { return null; }
   try {
@@ -77,7 +82,7 @@ export function readLatestHealth(dir: string): HealthView | null {
       for (let i = usable.length - 1; i >= 0; i--) {
         try {
           const p = Line.safeParse(JSON.parse(usable[i]!));
-          if (p.success) return project(p.data);
+          if (p.success) return p.data;
         } catch { /* skip a torn line */ }
       }
       if (len >= size) return null;
@@ -85,13 +90,10 @@ export function readLatestHealth(dir: string): HealthView | null {
   } finally { closeSync(fd); }
 }
 
-/** The names of the live agents (fwcore's health state not `gone`, not `done`) in the latest health line: the fact a
- *  `task.define` carries as `live`. Name matching and the claim are Lean's (`Fw.Plan.upsert`); this only reads.
- *  Names that are not contract ids are skipped; at most 64. No health line yet: none. */
-export function liveAgentNames(dir: string): string[] {
-  const h = readLatestHealth(dir);
-  if (!h) return [];
-  const names = h.agents.filter((a) => a.state !== "gone" && a.state !== "done").map((a) => a.label)
-    .filter((n) => n.length >= 1 && n.length <= 120); // the contract's Id
-  return [...new Set(names)].slice(0, 64);
+/** The name `fw watch` recorded for agent id `id` (input.agents[].name) in the latest health line: what an `agent.stop`
+ *  carries, since a SubagentStop hook record has the agent's id but not its name. Null when there is no health line,
+ *  the id is not in it (an agent that stopped before its first snapshot), or its name is not a contract id. Reads only. */
+export function agentNameOf(dir: string, id: string): string | null {
+  const n = readLatestLine(dir)?.input.agents.find((a) => a.id === id)?.name;
+  return n && n.length <= 120 ? n : null;
 }

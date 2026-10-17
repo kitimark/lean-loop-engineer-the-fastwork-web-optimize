@@ -1,11 +1,15 @@
 // Git reconciler: turns git refs into typed facts (actor `git`). It decides nothing:
 // the reducer (Lean) accepts, refuses or marks a violation; keys make every fact idempotent.
-import type { Command } from "@fw/contracts";
+import { createHash } from "node:crypto";
+import { syncCommands, syncFrom, type Command, type WorkGraph } from "@fw/contracts";
 import type { Store } from "../store.ts";
-import { branches, commitsAhead, isAncestor, trailerFacts } from "./git.ts";
+import { branches, commitsAhead, fileAt, isAncestor, trailerFacts } from "./git.ts";
 import { branchCard } from "./naming.ts";
 
-export type ReconcileStats = { submitted: number; duplicate: number; refused: number; skipped: number };
+/** The plan sync content digest, the same as `fw plan sync`'s (apps/runner/src/plan.ts), so both send the same keys. */
+const sha10 = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 10);
+
+export type ReconcileStats ={ submitted: number; duplicate: number; refused: number; skipped: number };
 
 export class Reconciler {
   /** keys already answered in this process; a fresh Reconciler replays and the reducer dedups by key */
@@ -16,9 +20,12 @@ export class Reconciler {
   private store: Store;
   private repo: string;
   private mainRef: string;
+  private graphPath: string;
+  /** main's head at the last plan sync (null: none yet in this process, so the first pass syncs; all duplicates) */
+  private synced: string | null = null;
 
-  constructor(store: Store, repo: string, mainRef = "main") {
-    this.store = store; this.repo = repo; this.mainRef = mainRef;
+  constructor(store: Store, repo: string, mainRef = "main", graphPath = "docs/team/work-graph.json") {
+    this.store = store; this.repo = repo; this.mainRef = mainRef; this.graphPath = graphPath;
   }
 
   get repoDir() { return this.repo; }
@@ -43,6 +50,21 @@ export class Reconciler {
     const s: ReconcileStats = { submitted: 0, duplicate: 0, refused: 0, skipped: 0 };
     const refs = branches(this.repo);
     if (!refs.some((r) => r.ref === this.mainRef)) return s;
+    // 0. main moved -> plan sync from the work graph committed at main's head (never a worktree's copy), before the
+    //    task.done facts below so a newly defined task can be finished in the same pass. Which commit (or skip):
+    //    Lean `Fw.Plan.syncFrom` (sync_only_main, sync_skip_same); TS stand-in checked against golden/plan/sync.jsonl.
+    //    Unchanged defines carry the same keys, so a re-sync is all duplicates (Lean `step_define_idem`).
+    const at = syncFrom(this.mainRef, refs.map((r) => [r.ref, r.sha] as const), this.synced);
+    if (at) {
+      this.synced = at; // a broken file is reported once per commit, not on every poll
+      const text = fileAt(this.repo, at, this.graphPath);
+      if (text !== null) {
+        let cmds: Command[] = [];
+        try { cmds = syncCommands(JSON.parse(text) as WorkGraph, "script", sha10); }
+        catch (e) { console.error(`plan sync at ${at.slice(0, 7)}: ${(e as Error).message}`); }
+        for (const c of cmds) await this.send(c, s);
+      }
+    }
     // card facts come from the Lean board projection (console.query); there is no TS copy of the state
     const open = new Map((await this.store.board()).cards.map((c) => [c.id, c.owner]));
     // 1. new commits on card branches -> card.build (oldest first, so the last one is the head)

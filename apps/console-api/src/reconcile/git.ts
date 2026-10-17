@@ -28,6 +28,12 @@ export function isAncestor(repo: string, sha: string, of: string): boolean {
   catch { return false; }
 }
 
+/** The text of `path` in commit `sha` (`git show <sha>:<path>`, the committed blob, never a checkout's copy); null
+ *  when the commit has no such file. */
+export function fileAt(repo: string, sha: string, path: string): string | null {
+  try { return git(repo, ["show", `${sha}:${path}`]); } catch { return null; }
+}
+
 /** The last `max` commits on the first-parent history of `ref` with their full messages, newest first ([] if the ref
  *  is unknown). */
 export function firstParentLog(repo: string, ref: string, max = 300): { sha: string; body: string }[] {
