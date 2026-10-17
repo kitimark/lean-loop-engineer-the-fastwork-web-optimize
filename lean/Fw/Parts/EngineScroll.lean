@@ -1,3 +1,5 @@
+import Fw.Parts.EndFlags
+
 /-!
 # engine.scroll: frame structure of the shared scroll engine (M2 pilot part)
 
@@ -516,8 +518,490 @@ def pilotFrame : List Access := heroExitAccesses ++ navAccesses
 #guard forced styleRole true pilotFrame == 4
 #guard forced styleRole false pilotFrame == 3
 #guard forced layoutRole true pilotFrame == 1
--- batched: one style pass and one layout pass at most
+-- batched: one *forced* style pass at most; the frame-end lifecycle pass comes on top (`total`, below): 2 and 1
 #guard forced styleRole true (pilotFrame.filter Access.isRead ++ pilotFrame.filter (fun a => !a.isRead)) == 1
 #guard forced styleRole false (pilotFrame.filter Access.isRead ++ pilotFrame.filter (fun a => !a.isRead)) == 0
 
+/-! ## Total passes: forced plus the frame-end pass (ledger n=1, 2, 22)
+
+`forced` counts only the passes a read forces. The browser also runs one lifecycle pass at frame end when the flag
+is still dirty (`Fw.Engine.frameWorkE`). The bridge maps a role assignment onto the Core flag machine, so
+`Fw.Engine.flagTotal_closed` and `Fw.Engine.flagTotal_remove_check` apply to access sequences. With the frame-end
+pass counted, batching is no longer "never worse": it merges write runs (a win), but when the frame starts dirty with
+a write and has a read, the batched read pays the start flag alone and the writes are paid again at frame end. -/
+
+section Total
+
+open Fw.Engine (FlagOp flagForced flagEnd flagTotal firstFlag dirtyRuns flagTotal_closed flagTotal_remove_check
+  flagTotal_append)
+
+/-- A role as a Core flag operation.
+
+$$\operatorname{flag}(\mathrm{check}) = \mathrm{check},\ \operatorname{flag}(\mathrm{dirty}) = \mathrm{dirty},\ \operatorname{flag}(\mathrm{neutral}) = \mathrm{neutral}$$
+
+The same three roles, in the Core vocabulary. -/
+def Role.toFlag : Role → FlagOp
+  | .check => .check
+  | .dirty => .dirty
+  | .neutral => .neutral
+
+/-- An access sequence as flag operations under a role assignment.
+
+$$\operatorname{flags}_\rho(as) = [\operatorname{flag}(\rho(a))]_{a \in as}$$
+
+What the sequence does to one stage's dirty flag. -/
+def flags (ρ : Access → Role) (as : List Access) : List FlagOp := as.map fun a => (ρ a).toFlag
+
+/-- `flags` distributes over concatenation.
+
+$$\forall \rho,\ \forall as, bs:\ \operatorname{flags}_\rho(as \mathbin{+\!\!+} bs) = \operatorname{flags}_\rho(as) \mathbin{+\!\!+} \operatorname{flags}_\rho(bs)$$
+
+Flags of consecutive runs are consecutive. -/
+theorem flags_append (ρ : Access → Role) (as bs : List Access) : flags ρ (as ++ bs) = flags ρ as ++ flags ρ bs := by
+  simp [flags]
+
+/-- **The bridge.** `forced` is the Core flag machine's forced count on the role flags.
+
+$$\forall \rho,\ \forall d \in \mathbb{B},\ \forall as:\ \operatorname{forced}_\rho(d, as) = \operatorname{fF}(d, \operatorname{flags}_\rho(as))$$
+
+The part's cost model and Core's flag machine count the same forced passes. -/
+theorem forced_eq_flagForced (ρ : Access → Role) : ∀ (d : Bool) (as : List Access),
+    forced ρ d as = flagForced d (flags ρ as)
+  | _, [] => rfl
+  | d, a :: as => by
+    have ih := fun e => forced_eq_flagForced ρ e as
+    show _ = flagForced d ((ρ a).toFlag :: flags ρ as)
+    cases h : ρ a <;> cases d <;> simp [forced, h, Role.toFlag, flagForced, ih]
+
+/-- **Total passes of one stage in one frame**: forced passes plus the frame-end lifecycle pass when the flag ends
+dirty (the trace count of the stage).
+
+$$\operatorname{total}_\rho(d, as) = \operatorname{fT}(d, \operatorname{flags}_\rho(as)) = \operatorname{forced}_\rho(d, as) + [\operatorname{fE}(d, \operatorname{flags}_\rho(as))]$$
+
+All passes the stage runs, not only the forced ones. -/
+def total (ρ : Access → Role) (d : Bool) (as : List Access) : Nat := flagTotal d (flags ρ as)
+
+/-- `total` is `forced` plus the end flag.
+
+$$\forall \rho,\ \forall d,\ \forall as:\ \operatorname{total}_\rho(d, as) = \operatorname{forced}_\rho(d, as) + [\operatorname{fE}(d, \operatorname{flags}_\rho(as))]$$
+
+The old count plus the frame-end pass. -/
+theorem total_eq (ρ : Access → Role) (d : Bool) (as : List Access) :
+    total ρ d as = forced ρ d as + (flagEnd d (flags ρ as)).toNat := by
+  simp [total, flagTotal, forced_eq_flagForced]
+
+/-- Maximal runs of writes in an access sequence (reads close a run); `p` says whether a run is open.
+
+$$\operatorname{wruns}(p, [\,]) = 0,\quad \operatorname{wruns}(p, a :: as) = \begin{cases} \operatorname{wruns}(\bot, as) & a \text{ is a read} \\ [\lnot p] + \operatorname{wruns}(\top, as) & a \text{ is a write} \end{cases}$$
+
+How many write batches the sequence makes. -/
+def writeRuns : Bool → List Access → Nat
+  | _, [] => 0
+  | p, a :: as => if a.isRead then writeRuns false as else (!p).toNat + writeRuns true as
+
+/-- Whether the sequence is empty or starts with a read.
+
+$$\operatorname{headRead}([\,]) = \top,\quad \operatorname{headRead}(a :: as) = \operatorname{isRead}(a)$$
+
+No leading write. -/
+def headRead : List Access → Bool
+  | [] => true
+  | a :: _ => a.isRead
+
+#guard writeRuns false pilotFrame == 3
+#guard writeRuns false [.writeStyle, .writeLayout, .readStyle, .writeStyle] == 2
+#guard headRead [] && headRead [.readLayout] && !headRead [.writeStyle]
+
+/-- Write runs are the Core write runs of the style flags.
+
+$$\forall p \in \mathbb{B},\ \forall as:\ \operatorname{wruns}(p, as) = \operatorname{runs}(p, \operatorname{flags}_{\rho_S}(as))$$
+
+Under the style role every write dirties and every read checks. -/
+theorem writeRuns_eq (p : Bool) (as : List Access) : writeRuns p as = dirtyRuns p (flags styleRole as) := by
+  induction as generalizing p with
+  | nil => rfl
+  | cons a as ih =>
+    cases a <;> simp [writeRuns, flags, Access.isRead, styleRole, Role.toFlag, dirtyRuns, ih] <;> rfl
+
+/-- Under the style role the first flag is a write exactly when the sequence starts with a write.
+
+$$\forall as:\ \operatorname{first}(\operatorname{flags}_{\rho_S}(as)) = \mathrm{dirty} \iff \lnot\operatorname{headRead}(as)$$
+
+No access is neutral for style. -/
+theorem firstFlag_style (as : List Access) :
+    firstFlag (flags styleRole as) = some .dirty ↔ headRead as = false := by
+  cases as with
+  | nil => simp [flags, firstFlag, headRead]
+  | cons a as => cases a <;> simp [flags, firstFlag, headRead, styleRole, Role.toFlag, Access.isRead]
+
+/-- **Closed form of all style passes (ledger n=1 row 1).** A frame's style passes, forced plus frame-end, are its
+write runs, plus one when it starts dirty and does not start with a write.
+
+$$\forall d \in \mathbb{B},\ \forall as \in \mathrm{Access}^{*}:\ \operatorname{total}_{\rho_S}(d, as) = [d \land \operatorname{headRead}(as)] + \operatorname{wruns}(\bot, as)$$
+
+Each write batch costs one style pass, whoever pays it; a dirty start costs one more unless a write absorbs it. -/
+theorem total_style_closed (d : Bool) (as : List Access) :
+    total styleRole d as = (if d = true ∧ headRead as = true then 1 else 0) + writeRuns false as := by
+  rw [total, flagTotal_closed, writeRuns_eq]
+  have h := firstFlag_style as
+  by_cases hh : headRead as = true
+  · have : firstFlag (flags styleRole as) ≠ some .dirty := by rw [Ne, h]; simp [hh]
+    simp [this, hh]
+  · have : firstFlag (flags styleRole as) = some .dirty := by rw [h]; simpa using hh
+    simp [this, hh]
+
+/-- **A dirty start costs at most one more pass, in total.** Starting dirty never lowers the total and raises it by at
+most one.
+
+$$\forall \rho,\ \forall as:\ \operatorname{total}_\rho(\bot, as) \le \operatorname{total}_\rho(\top, as) \le \operatorname{total}_\rho(\bot, as) + 1$$
+
+The start flag is paid at most once, by a read or at frame end. -/
+theorem total_start_bounds (ρ : Access → Role) (as : List Access) :
+    total ρ false as ≤ total ρ true as ∧ total ρ true as ≤ total ρ false as + 1 := by
+  simp only [total, flagTotal_closed]
+  by_cases h : firstFlag (flags ρ as) = some .dirty <;> simp [h] <;> omega
+
+/-! ### Batching under the frame-end pass -/
+
+/-- Flag total of a sequence with no write followed by a sequence with no read.
+
+$$\forall d,\ \forall w \in \mathrm{FlagOp}^{*}:\ \mathrm{check} \notin w \Rightarrow \operatorname{fT}(d, w) = [d \land \mathrm{dirty} \notin w] + [\mathrm{dirty} \in w]$$
+
+A write-only stretch ends dirty once it writes. -/
+theorem flagTotal_noCheck : ∀ (d : Bool) (w : List FlagOp), FlagOp.check ∉ w →
+    flagTotal d w = (if d = true ∧ FlagOp.dirty ∉ w then 1 else 0) + (if FlagOp.dirty ∈ w then 1 else 0)
+  | d, [], _ => by cases d <;> rfl
+  | _, .check :: _, h => absurd (List.mem_cons_self ..) h
+  | d, .dirty :: w, h => by
+    have ih := flagTotal_noCheck true w (fun hm => h (List.mem_cons_of_mem _ hm))
+    have hc : flagTotal d (.dirty :: w) = flagTotal true w := rfl
+    rw [hc, ih]; by_cases hw : FlagOp.dirty ∈ w <;> simp [hw]
+  | d, .neutral :: w, h => by
+    have ih := flagTotal_noCheck d w (fun hm => h (List.mem_cons_of_mem _ hm))
+    have hc : flagTotal d (.neutral :: w) = flagTotal d w := rfl
+    rw [hc, ih]; simp
+
+/-- **Reads first, then writes, in flags.** For a read stretch $r$ (no write) followed by a write stretch $w$ (no
+read), the total is one pass for the writes plus one for a dirty start that a read pays or that no write absorbs.
+
+$$\forall d,\ \forall r, w \in \mathrm{FlagOp}^{*}:\ \mathrm{dirty} \notin r \land \mathrm{check} \notin w \Rightarrow \operatorname{fT}(d, r \mathbin{+\!\!+} w) = [d \land (\mathrm{check} \in r \lor \mathrm{dirty} \notin w)] + [\mathrm{dirty} \in w]$$
+
+A batched frame pays at most one pass for the start flag and one for its writes. -/
+theorem flagTotal_reads_writes : ∀ (d : Bool) (r w : List FlagOp), FlagOp.dirty ∉ r → FlagOp.check ∉ w →
+    flagTotal d (r ++ w) =
+      (if d = true ∧ (FlagOp.check ∈ r ∨ FlagOp.dirty ∉ w) then 1 else 0) + (if FlagOp.dirty ∈ w then 1 else 0)
+  | d, [], w, _, hw => by rw [List.nil_append, flagTotal_noCheck d w hw]; simp
+  | d, .check :: r, w, hr, hw => by
+    have hc : flagTotal d ((.check :: r) ++ w) = d.toNat + flagTotal false (r ++ w) := by
+      simp only [List.cons_append, flagTotal, flagForced, flagEnd]; omega
+    have hz := flagTotal_reads_writes false r w (fun hm => hr (List.mem_cons_of_mem _ hm)) hw
+    rw [hc, hz]; cases d <;> simp
+  | _, .dirty :: _, _, hr, _ => absurd (List.mem_cons_self ..) hr
+  | d, .neutral :: r, w, hr, hw => by
+    have ih := flagTotal_reads_writes d r w (fun hm => hr (List.mem_cons_of_mem _ hm)) hw
+    have hc : flagTotal d ((.neutral :: r) ++ w) = flagTotal d (r ++ w) := rfl
+    rw [hc, ih]; simp
+
+/-- The first non-neutral flag is absent, a check, or a write, and it occurs in the list.
+
+$$\forall F \in \mathrm{FlagOp}^{*}:\ (\operatorname{first}(F) = \mathrm{none} \land \mathrm{check} \notin F \land \mathrm{dirty} \notin F) \lor (\operatorname{first}(F) = \mathrm{check} \land \mathrm{check} \in F) \lor (\operatorname{first}(F) = \mathrm{dirty} \land \mathrm{dirty} \in F)$$
+
+A list with no first non-neutral flag is all neutral. -/
+theorem firstFlag_cases : ∀ F : List FlagOp,
+    (firstFlag F = none ∧ FlagOp.check ∉ F ∧ FlagOp.dirty ∉ F) ∨
+      (firstFlag F = some .check ∧ FlagOp.check ∈ F) ∨ (firstFlag F = some .dirty ∧ FlagOp.dirty ∈ F)
+  | [] => by simp [firstFlag]
+  | .check :: _ => by simp [firstFlag]
+  | .dirty :: _ => by simp [firstFlag]
+  | .neutral :: F => by rcases firstFlag_cases F with h | h | h <;> simp [firstFlag, h]
+
+/-- Write runs vanish without a write.
+
+$$\forall p,\ \forall F:\ \mathrm{dirty} \notin F \Rightarrow \operatorname{runs}(p, F) = 0$$
+
+No write, no write batch. -/
+theorem dirtyRuns_noDirty : ∀ (p : Bool) (F : List FlagOp), FlagOp.dirty ∉ F → dirtyRuns p F = 0
+  | _, [], _ => rfl
+  | _, .check :: F, h => dirtyRuns_noDirty false F (fun hm => h (List.mem_cons_of_mem _ hm))
+  | _, .dirty :: _, h => absurd (List.mem_cons_self ..) h
+  | p, .neutral :: F, h => dirtyRuns_noDirty p F (fun hm => h (List.mem_cons_of_mem _ hm))
+
+/-- A write makes at least one write run.
+
+$$\forall F:\ \mathrm{dirty} \in F \Rightarrow 1 \le \operatorname{runs}(\bot, F)$$
+
+Some write starts a batch. -/
+theorem dirtyRuns_pos : ∀ F : List FlagOp, FlagOp.dirty ∈ F → 1 ≤ dirtyRuns false F
+  | [], h => absurd h (List.not_mem_nil)
+  | .check :: F, h => dirtyRuns_pos F (by simpa using h)
+  | .dirty :: F, _ => by simp [dirtyRuns]
+  | .neutral :: F, h => dirtyRuns_pos F (by simpa using h)
+
+/-- The batched order: all reads, then all writes, each in frame order.
+
+$$\operatorname{batch}(as) = \operatorname{filter}_{\mathrm{R}}(as) \mathbin{+\!\!+} \operatorname{filter}_{\mathrm{W}}(as)$$
+
+The "read everything, then write everything" frame. -/
+def batch (as : List Access) : List Access := as.filter Access.isRead ++ as.filter (fun a => !a.isRead)
+
+/-- **Batched total.** For a sound role assignment in which no read dirties, the batched frame pays one pass for its
+writes and one for a dirty start that a read pays or that no write absorbs.
+
+$$\forall \rho \text{ sound with } (\forall a:\ \operatorname{isReadA}(a) \Rightarrow \rho(a) \ne \mathrm{dirty}),\ \forall d,\ \forall as,\ F = \operatorname{flags}_\rho(as):\ \operatorname{total}_\rho(d, \operatorname{batch}(as)) = [d \land (\mathrm{check} \in F \lor \mathrm{dirty} \notin F)] + [\mathrm{dirty} \in F]$$
+
+Batching makes at most one write run and one start-flag payment. -/
+theorem total_batch (ρ : Access → Role) (hs : Sound ρ) (hr : ∀ a, a.isRead = true → ρ a ≠ .dirty) (d : Bool)
+    (as : List Access) :
+    total ρ d (batch as) =
+      (if d = true ∧ (FlagOp.check ∈ flags ρ as ∨ FlagOp.dirty ∉ flags ρ as) then 1 else 0) +
+        (if FlagOp.dirty ∈ flags ρ as then 1 else 0) := by
+  have hR : FlagOp.dirty ∉ flags ρ (as.filter Access.isRead) := by
+    simp only [flags, List.mem_map, List.mem_filter, not_exists, not_and, and_imp]
+    intro a _ har h
+    have := hr a har
+    cases hh : ρ a <;> simp_all [Role.toFlag]
+  have hW : FlagOp.check ∉ flags ρ (as.filter (fun a => !a.isRead)) := by
+    simp only [flags, List.mem_map, List.mem_filter, not_exists, not_and, and_imp]
+    intro a _ har h
+    have := hs a (by simpa using har)
+    cases hh : ρ a <;> simp_all [Role.toFlag]
+  have hc : FlagOp.check ∈ flags ρ (as.filter Access.isRead) ↔ FlagOp.check ∈ flags ρ as := by
+    simp only [flags, List.mem_map, List.mem_filter]
+    constructor
+    · rintro ⟨a, ⟨ha, _⟩, h⟩; exact ⟨a, ha, h⟩
+    · rintro ⟨a, ha, h⟩
+      refine ⟨a, ⟨ha, ?_⟩, h⟩
+      cases hra : a.isRead
+      · have := hs a hra; cases hh : ρ a <;> simp_all [Role.toFlag]
+      · rfl
+  have hd : FlagOp.dirty ∈ flags ρ (as.filter (fun a => !a.isRead)) ↔ FlagOp.dirty ∈ flags ρ as := by
+    simp only [flags, List.mem_map, List.mem_filter]
+    constructor
+    · rintro ⟨a, ⟨ha, _⟩, h⟩; exact ⟨a, ha, h⟩
+    · rintro ⟨a, ha, h⟩
+      refine ⟨a, ⟨ha, ?_⟩, h⟩
+      cases hra : a.isRead
+      · rfl
+      · have := hr a hra; cases hh : ρ a <;> simp_all [Role.toFlag]
+  rw [total, batch, flags_append, flagTotal_reads_writes d _ _ hR hW]
+  simp only [hc, hd]
+
+/-- **The batching delta (ledger n=1 row 2, n=22).** With $F$ the role flags of the frame, batching changes the
+total by the write runs it merges, minus one for the run it keeps, plus one when the frame starts dirty with a write
+and has a read (stated additively, so no truncated subtraction).
+
+$$\forall \rho \text{ sound with } (\forall a:\ \operatorname{isReadA}(a) \Rightarrow \rho(a) \ne \mathrm{dirty}),\ \forall d,\ \forall as,\ F = \operatorname{flags}_\rho(as):\ \operatorname{total}_\rho(d, \operatorname{batch}(as)) + \operatorname{runs}(\bot, F) = \operatorname{total}_\rho(d, as) + [\mathrm{dirty} \in F] + [d \land \operatorname{first}(F) = \mathrm{dirty} \land \mathrm{check} \in F]$$
+
+Batching saves one pass per extra write run, and costs one when a leading write was absorbing the dirty start. -/
+theorem total_batch_delta (ρ : Access → Role) (hs : Sound ρ) (hr : ∀ a, a.isRead = true → ρ a ≠ .dirty)
+    (d : Bool) (as : List Access) :
+    total ρ d (batch as) + dirtyRuns false (flags ρ as) =
+      total ρ d as + (if FlagOp.dirty ∈ flags ρ as then 1 else 0) +
+        (if d = true ∧ firstFlag (flags ρ as) = some .dirty ∧ FlagOp.check ∈ flags ρ as then 1 else 0) := by
+  rw [total_batch ρ hs hr, total, flagTotal_closed]
+  rcases firstFlag_cases (flags ρ as) with ⟨h1, h2, h3⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · rw [dirtyRuns_noDirty false _ h3]; cases d <;> simp [h1, h2, h3]
+  · cases d <;> simp [h1, h2] <;> omega
+  · cases d <;> simp [h1, h2] <;> omega
+
+/-- **When batching is worse.** Batching adds a pass exactly when the frame starts dirty, its first flag access is a
+write, it has a read, and all its writes form one run.
+
+$$\forall \rho \text{ sound with } (\forall a:\ \operatorname{isReadA}(a) \Rightarrow \rho(a) \ne \mathrm{dirty}),\ \forall d,\ \forall as,\ F = \operatorname{flags}_\rho(as):\ \operatorname{total}_\rho(d, as) < \operatorname{total}_\rho(d, \operatorname{batch}(as)) \iff d \land \operatorname{first}(F) = \mathrm{dirty} \land \mathrm{check} \in F \land \operatorname{runs}(\bot, F) = 1$$
+
+A single write run that already absorbed the dirty start loses that absorption when the reads move first. -/
+theorem total_batch_worse_iff (ρ : Access → Role) (hs : Sound ρ) (hr : ∀ a, a.isRead = true → ρ a ≠ .dirty)
+    (d : Bool) (as : List Access) :
+    total ρ d as < total ρ d (batch as) ↔
+      (d = true ∧ firstFlag (flags ρ as) = some .dirty ∧ FlagOp.check ∈ flags ρ as ∧
+        dirtyRuns false (flags ρ as) = 1) := by
+  have hδ := total_batch_delta ρ hs hr d as
+  rcases firstFlag_cases (flags ρ as) with ⟨h1, h2, h3⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · rw [dirtyRuns_noDirty false _ h3] at hδ ⊢; cases d <;> simp [h1, h2, h3] at hδ ⊢ <;> omega
+  · by_cases hD : FlagOp.dirty ∈ flags ρ as
+    · have := dirtyRuns_pos _ hD; cases d <;> simp [h1, h2, hD] at hδ ⊢ <;> omega
+    · rw [dirtyRuns_noDirty false _ hD] at hδ ⊢; cases d <;> simp [h1, h2, hD] at hδ ⊢ <;> omega
+  · have := dirtyRuns_pos _ h2
+    by_cases hC : FlagOp.check ∈ flags ρ as <;> cases d <;> simp [h1, h2, hC] at hδ ⊢ <;> omega
+
+/-- **When batching wins.** Batching saves a pass exactly when the write runs outnumber the one run it keeps plus the
+absorption it may lose.
+
+$$\forall \rho \text{ sound with } (\forall a:\ \operatorname{isReadA}(a) \Rightarrow \rho(a) \ne \mathrm{dirty}),\ \forall d,\ \forall as,\ F = \operatorname{flags}_\rho(as):\ \operatorname{total}_\rho(d, \operatorname{batch}(as)) < \operatorname{total}_\rho(d, as) \iff [\mathrm{dirty} \in F] + [d \land \operatorname{first}(F) = \mathrm{dirty} \land \mathrm{check} \in F] < \operatorname{runs}(\bot, F)$$
+
+Batching wins only by merging at least two write runs. -/
+theorem total_batch_win_iff (ρ : Access → Role) (hs : Sound ρ) (hr : ∀ a, a.isRead = true → ρ a ≠ .dirty)
+    (d : Bool) (as : List Access) :
+    total ρ d (batch as) < total ρ d as ↔
+      (if FlagOp.dirty ∈ flags ρ as then 1 else 0) +
+        (if d = true ∧ firstFlag (flags ρ as) = some .dirty ∧ FlagOp.check ∈ flags ρ as then 1 else 0) <
+        dirtyRuns false (flags ρ as) := by
+  have hδ := total_batch_delta ρ hs hr d as
+  omega
+
+/-- No read dirties style.
+
+$$\forall a:\ \operatorname{isReadA}(a) \Rightarrow \rho_S(a) \ne \mathrm{dirty}$$ -/
+theorem styleRole_reads (a : Access) (h : a.isRead = true) : styleRole a ≠ .dirty := by
+  cases a <;> simp_all [Access.isRead, styleRole]
+
+/-- No read dirties layout.
+
+$$\forall a:\ \operatorname{isReadA}(a) \Rightarrow \rho_L(a) \ne \mathrm{dirty}$$ -/
+theorem layoutRole_reads (a : Access) (h : a.isRead = true) : layoutRole a ≠ .dirty := by
+  cases a <;> simp_all [Access.isRead, layoutRole]
+
+/-- Under the style role, a check flag means a read and a dirty flag means a write.
+
+$$\forall as:\ (\mathrm{check} \in \operatorname{flags}_{\rho_S}(as) \iff \exists a \in as:\ \operatorname{isReadA}(a)) \land (\mathrm{dirty} \in \operatorname{flags}_{\rho_S}(as) \iff \exists a \in as:\ \lnot\operatorname{isReadA}(a))$$ -/
+theorem flags_style_mem (as : List Access) :
+    (FlagOp.check ∈ flags styleRole as ↔ as.any Access.isRead = true) ∧
+      (FlagOp.dirty ∈ flags styleRole as ↔ as.all Access.isRead = false) := by
+  induction as with
+  | nil => simp [flags]
+  | cons a as ih =>
+    obtain ⟨ih1, ih2⟩ := ih
+    simp only [flags, List.map_cons, List.mem_cons, List.any_cons, List.all_cons] at ih1 ih2 ⊢
+    rw [ih1, ih2]
+    cases a <;> simp [styleRole, Role.toFlag, Access.isRead]
+
+/-- **The batching delta for style (ledger n=1 row 2), in access terms.** For a frame with a write: batched total plus
+write runs equals the faithful total plus one, plus one more when the frame starts dirty with a write and has a read.
+
+$$\forall d \in \mathbb{B},\ \forall as:\ (\exists a \in as:\ \lnot\operatorname{isReadA}(a)) \Rightarrow \operatorname{total}_{\rho_S}(d, \operatorname{batch}(as)) + \operatorname{wruns}(\bot, as) = \operatorname{total}_{\rho_S}(d, as) + 1 + [d \land \lnot\operatorname{headRead}(as) \land \exists a \in as:\ \operatorname{isReadA}(a)]$$
+
+Batching wins only when it merges two or more write runs; with one run and a leading write on a dirty frame it is
+worse by one. -/
+theorem total_style_batch_delta (d : Bool) (as : List Access) (hw : as.all Access.isRead = false) :
+    total styleRole d (batch as) + writeRuns false as =
+      total styleRole d as + 1 +
+        (if d = true ∧ headRead as = false ∧ as.any Access.isRead = true then 1 else 0) := by
+  have h := total_batch_delta styleRole styleRole_sound styleRole_reads d as
+  obtain ⟨hc, hd⟩ := flags_style_mem as
+  have hD : FlagOp.dirty ∈ flags styleRole as := hd.mpr hw
+  rw [writeRuns_eq]
+  simp only [hD, ite_true, firstFlag_style, hc] at h
+  exact h
+
+/-- **Batching is worse on a dirty write-then-read frame (refutes the ledger n=22 claim "never more").** Starting
+style-dirty, `[WS, RL]` costs one style pass (the write joins the pending flush, the read pays once); batched as
+`[RL, WS]` it costs two (the read pays the start flag, the write is paid at frame end).
+
+$$\operatorname{total}_{\rho_S}(\top, [\mathrm{WS}, \mathrm{RL}]) = 1 \ \land\ \operatorname{total}_{\rho_S}(\top, \operatorname{batch}[\mathrm{WS}, \mathrm{RL}]) = 2$$
+
+Moving a read ahead of a write that a dirty frame would have absorbed adds a pass. -/
+theorem batch_worse_example :
+    total styleRole true [.writeStyle, .readLayout] = 1 ∧ total styleRole true (batch [.writeStyle, .readLayout]) = 2 := by
+  decide
+
+/-- **Forced-only counts hide it.** The same frame has one forced pass faithful and one batched, so
+`batched_le_faithful` holds while the total grows.
+
+$$\operatorname{forced}_{\rho_S}(\top, [\mathrm{WS}, \mathrm{RL}]) = 1 = \operatorname{forced}_{\rho_S}(\top, \operatorname{batch}[\mathrm{WS}, \mathrm{RL}])$$
+
+The forced-pass order is not the trace order. -/
+theorem batch_worse_forced_equal :
+    forced styleRole true [.writeStyle, .readLayout] = 1 ∧ forced styleRole true (batch [.writeStyle, .readLayout]) = 1 := by
+  decide
+
+/-- The ledger n=22 shape "writes then reads" is equal only from a clean start; from a dirty start it is worse.
+
+$$\operatorname{total}_{\rho_S}(\bot, [\mathrm{WS}, \mathrm{WS}, \mathrm{RL}, \mathrm{RL}]) = 1 = \operatorname{total}_{\rho_S}(\bot, \operatorname{batch}(\cdot)) \ \land\ \operatorname{total}_{\rho_S}(\top, [\mathrm{WS}, \mathrm{WS}, \mathrm{RL}, \mathrm{RL}]) = 1 < 2 = \operatorname{total}_{\rho_S}(\top, \operatorname{batch}(\cdot))$$
+
+The forced layout is only moved from a clean start. -/
+theorem batch_writes_then_reads :
+    total styleRole false [.writeStyle, .writeStyle, .readLayout, .readLayout] = 1 ∧
+      total styleRole false (batch [.writeStyle, .writeStyle, .readLayout, .readLayout]) = 1 ∧
+      total styleRole true [.writeStyle, .writeStyle, .readLayout, .readLayout] = 1 ∧
+      total styleRole true (batch [.writeStyle, .writeStyle, .readLayout, .readLayout]) = 2 := by
+  decide
+
+#guard total styleRole true pilotFrame == 4
+#guard total styleRole false pilotFrame == 3
+#guard total styleRole true (batch pilotFrame) == 2
+#guard total styleRole false (batch pilotFrame) == 1
+#guard total layoutRole true pilotFrame == 1 && total layoutRole true (batch pilotFrame) == 1
+
+/-! ### The pilot: the engine moves only returned writes (ledger n=1 row 3) -/
+
+/-- The TS engine's batch: a callback's *returned* accesses are split, its reads stay first and its writes run after
+the inline callbacks; inline accesses keep their order.
+
+$$\operatorname{retBatch}(r, i) = \operatorname{filter}_{\mathrm{R}}(r) \mathbin{+\!\!+} i \mathbin{+\!\!+} \operatorname{filter}_{\mathrm{W}}(r)$$
+
+What the scroll engine can reorder: only the writes a callback hands back. -/
+def retBatch (ret inline : List Access) : List Access :=
+  ret.filter Access.isRead ++ inline ++ ret.filter (fun a => !a.isRead)
+
+/-- The nav callback with the elements probe (`elementsFromPoint`, no `pointer-events` toggle).
+
+$$\mathit{nav}_e = [\mathrm{RS}, \mathrm{RS}, \mathrm{RL}, \mathrm{RL}, \mathrm{RL}, \mathrm{RL}, \mathrm{RL}]$$
+
+The nav's accesses under elements-skip. -/
+def navElementsAccesses : List Access :=
+  [.readStyle, .readStyle, .readLayout, .readLayout, .readLayout, .readLayout, .readLayout]
+
+/-- **Pilot no-win (ledger n=1 row 3).** Moving the hero exit's returned writes after the nav leaves the style total
+unchanged, with either nav probe: $3 + [d]$ with the faithful probe, $1 + [d]$ with the elements probe. The moved
+pass comes back as the frame-end pass.
+
+$$\forall d \in \mathbb{B}:\ \operatorname{total}_{\rho_S}(d, \mathit{hero} \mathbin{+\!\!+} \mathit{nav}) = \operatorname{total}_{\rho_S}(d, \operatorname{retBatch}(\mathit{hero}, \mathit{nav})) = 3 + [d] \ \land\ \operatorname{total}_{\rho_S}(d, \mathit{hero} \mathbin{+\!\!+} \mathit{nav}_e) = \operatorname{total}_{\rho_S}(d, \operatorname{retBatch}(\mathit{hero}, \mathit{nav}_e)) = 1 + [d]$$
+
+The batched engine gives the pilot nothing on style. -/
+theorem pilot_retBatch_noWin (d : Bool) :
+    total styleRole d (heroExitAccesses ++ navAccesses) = total styleRole d (retBatch heroExitAccesses navAccesses) ∧
+      total styleRole d (heroExitAccesses ++ navAccesses) = 3 + d.toNat ∧
+      total styleRole d (heroExitAccesses ++ navElementsAccesses) =
+        total styleRole d (retBatch heroExitAccesses navElementsAccesses) ∧
+      total styleRole d (heroExitAccesses ++ navElementsAccesses) = 1 + d.toNat := by
+  cases d <;> decide
+
+/-- The pilot's layout total is the same faithful and engine-batched: only a dirty start is paid.
+
+$$\forall d \in \mathbb{B}:\ \operatorname{total}_{\rho_L}(d, \mathit{hero} \mathbin{+\!\!+} \mathit{nav}) = \operatorname{total}_{\rho_L}(d, \operatorname{retBatch}(\mathit{hero}, \mathit{nav})) = [d]$$
+
+No pilot access writes layout. -/
+theorem pilot_retBatch_layout (d : Bool) :
+    total layoutRole d (heroExitAccesses ++ navAccesses) = total layoutRole d (retBatch heroExitAccesses navAccesses) ∧
+      total layoutRole d (heroExitAccesses ++ navAccesses) = d.toNat := by
+  cases d <;> decide
+
+/-! ### Reader removal (ledger n=2 row 1) -/
+
+/-- **Removing one read**, in access terms: for a read that checks the flag, dropping it never adds a pass and saves
+exactly one when the flag is dirty at the read and the next flag access after it is a write.
+
+$$\forall \rho,\ \forall d,\ \forall p, q,\ \forall a:\ \rho(a) = \mathrm{check} \Rightarrow \operatorname{total}_\rho(d, p \mathbin{+\!\!+} a :: q) = \operatorname{total}_\rho(d, p \mathbin{+\!\!+} q) + [\operatorname{fE}(d, \operatorname{flags}_\rho(p)) \land \operatorname{first}(\operatorname{flags}_\rho(q)) = \mathrm{dirty}]$$
+
+An observer that replaces a read saves a pass only when that read split a write batch in two. -/
+theorem total_remove_read (ρ : Access → Role) (d : Bool) (p q : List Access) (a : Access) (ha : ρ a = .check) :
+    total ρ d (p ++ a :: q) =
+      total ρ d (p ++ q) +
+        (if flagEnd d (flags ρ p) = true ∧ firstFlag (flags ρ q) = some .dirty then 1 else 0) := by
+  have h := flagTotal_remove_check d (flags ρ p) (flags ρ q)
+  have hf : flags ρ (p ++ a :: q) = flags ρ p ++ FlagOp.check :: flags ρ q := by
+    simp [flags, ha, Role.toFlag]
+  rw [total, total, hf, flags_append, h]
+
+/-- **Reader removal for style.** Dropping a read saves a style pass exactly when the flag is dirty at the read and
+the next access is a write.
+
+$$\forall d,\ \forall p, q,\ \forall a:\ \operatorname{isReadA}(a) \Rightarrow \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} a :: q) = \operatorname{total}_{\rho_S}(d, p \mathbin{+\!\!+} q) + [\operatorname{fE}(d, \operatorname{flags}_{\rho_S}(p)) \land \lnot\operatorname{headRead}(q)]$$
+
+In the nav callback every read is followed by a read or by the frame end except the two probe reads. -/
+theorem total_style_remove_read (d : Bool) (p q : List Access) (a : Access) (ha : a.isRead = true) :
+    total styleRole d (p ++ a :: q) =
+      total styleRole d (p ++ q) + (if flagEnd d (flags styleRole p) = true ∧ headRead q = false then 1 else 0) := by
+  have hc : styleRole a = .check := by cases a <;> simp_all [Access.isRead, styleRole]
+  rw [total_remove_read styleRole d p q a hc]
+  simp only [firstFlag_style]
+
+#guard total styleRole false [.writeStyle, .readLayout, .writeStyle] == 2
+#guard total styleRole false [.writeStyle, .writeStyle] == 1
+#guard total styleRole false [.readLayout, .readLayout, .writeStyle] == 1
+#guard total styleRole false [.readLayout, .writeStyle] == 1
+
+end Total
+
 end Fw.Parts.EngineScroll
+

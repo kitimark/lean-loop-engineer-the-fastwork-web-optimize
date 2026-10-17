@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Engine
+import Fw.Parts.EndFlags
 /-!
 # Hidden pause (design note 2026-10-18 §4.2 rank 4, HP): morph.columns, morph.countdown, engine.scene
 
@@ -622,5 +623,195 @@ def goldenJsonl : String := String.join (goldenRows.map fun r => r.compress ++ "
 #guard goldenRows.length == 8
 #guard relPred [] .style == "=o"
 #guard relPred [(Work.zero, paintW 1)] .paint == "≤o" && relPred [(paintW 1, Work.zero)] .paint == "any"
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+Pausing and skipping writes keep the frame's script and reads, so both frames force the same passes. Removing writes
+or animations under the same reads cannot leave a stage dirtier at frame end, so the variant's end flags imply the
+original's (hypothesis `hm`), and both verdicts carry over (`Fw.Parts.EndFlags.frameE_le_mono`). -/
+
+section EndPass
+
+open Fw.Parts.EndFlags
+
+/-- **Pausing never adds work, under `frameWorkE`.** For end flags where the paused frame's stage is dirty only if the
+running frame's is, the paused frame costs at most the running one.
+
+$$\forall E,\ \forall f,\ \forall e_v, e_o:\ \big(\forall s \in \operatorname{touched}_E(\operatorname{paused}(f)):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(\operatorname{paused}(f)) \preceq \operatorname{frameWork}^{e_o}_E(f)$$
+
+The frame-end pass does not undo the pause. -/
+theorem pause_leE {P M : Type} (E : Engine P M) (f : FrameIn P) (ev eo : Stage → Bool)
+    (hm : ∀ s, s ∈ touched E (paused f) → ev s = true → eo s = true) :
+    (frameWorkE E (paused f) ev).le (frameWorkE E f eo) :=
+  frameE_le_mono E ev eo (fun s => by cases s <;> rfl) (pause_le E f) hm
+
+/-- **Skipping writes never adds work, under `frameWorkE`.**
+
+$$\forall E,\ \forall f,\ \forall e_v, e_o:\ \big(\forall s \in \operatorname{touched}_E(\operatorname{skipWrites}(f)):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(\operatorname{skipWrites}(f)) \preceq \operatorname{frameWork}^{e_o}_E(f)$$
+
+A frame that writes nothing ends no dirtier than one that writes. -/
+theorem skipWrites_leE {P M : Type} (E : Engine P M) (f : FrameIn P) (ev eo : Stage → Bool)
+    (hm : ∀ s, s ∈ touched E (skipWrites f) → ev s = true → eo s = true) :
+    (frameWorkE E (skipWrites f) ev).le (frameWorkE E f eo) :=
+  frameE_le_mono E ev eo (fun s => by cases s <;> rfl) (skipWrites_le E f) hm
+
+/-! ## The unhide frame (ledger n=25, row 3)
+
+When the hidden clock becomes visible again, `hsync` writes the faces whose value differs from the original's: a
+sub-list of the $16d$ face writes the original makes in every springing frame. -/
+
+/-- The variant's unhide frame: the springing frame with only the face writes `keep` selects.
+
+$$\forall P,\ \forall p \in P,\ \forall d,\ \forall l,\ \forall q:\ \operatorname{unhide}(p, d, l, q) = \operatorname{cdFrame}(p, d, l)\big[\mathrm{changes} := [\,c \in \operatorname{cdFrame}(p, d, l).\mathrm{changes} \mid q(c)\,]\big]$$
+
+The re-sync writes some faces, never more than the original. -/
+def unhideFrame {P : Type} (p : P) (d : Nat) (l : LayerState) (keep : Change P → Bool) : FrameIn P :=
+  { cdFrame p d l with changes := (cdFrame p d l).changes.filter keep }
+
+private theorem coverB_refl {P M : Type} (E : Engine P M) : ∀ (l : List (Change P)), coverB E l l = true
+  | [] => rfl
+  | c :: cs => by simp [coverB, coverB_refl E cs]
+
+/-- **The unhide frame is `≤` (ledger n=25, row 3).** Writing any sub-list of the faces, with the same callbacks,
+costs at most the original's springing frame, in every engine.
+
+$$\forall E,\ \forall p, d, l,\ \forall q:\ \operatorname{frameWork}_E(\operatorname{unhide}(p, d, l, q)) \preceq \operatorname{frameWork}_E(\operatorname{cdFrame}(p, d, l))$$
+
+The re-sync frame repeats a subset of the writes the original makes every frame. -/
+theorem unhide_le {P M : Type} (E : Engine P M) (p : P) (d : Nat) (l : LayerState) (keep : Change P → Bool) :
+    (frameWork E (unhideFrame p d l keep)).le (frameWork E (cdFrame p d l)) :=
+  frame_le_of_cover E ((cdFrame p d l).changes.filter keep) ((cdFrame p d l).changes.filter (fun c => !keep c))
+    (List.filter_append_perm _ _) (coverB_refl E _)
+    (Nat.le_refl _) (Nat.le_refl _) (Nat.le_refl _) (Nat.le_refl _) (Nat.le_refl _)
+
+/-- **The unhide frame under `frameWorkE`.** Neither frame reads, so every touched stage ends dirty; the bound carries
+over.
+
+$$\forall E, p, d, l, q,\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}_E(\operatorname{unhide}(p, d, l, q)):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_E(\operatorname{cdFrame}(p, d, l)):\ e_o(s) = \top) \Rightarrow \operatorname{frameWork}^{e_v}_E(\operatorname{unhide}(p, d, l, q)) \preceq \operatorname{frameWork}^{e_o}_E(\operatorname{cdFrame}(p, d, l))$$
+
+Read-free frames count the same in both models. -/
+theorem unhide_leE {P M : Type} (E : Engine P M) (p : P) (d : Nat) (l : LayerState) (keep : Change P → Bool)
+    (ev eo : Stage → Bool) (hv : ∀ s, s ∈ touched E (unhideFrame p d l keep) → ev s = true)
+    (ho : ∀ s, s ∈ touched E (cdFrame p d l) → eo s = true) :
+    (frameWorkE E (unhideFrame p d l keep) ev).le (frameWorkE E (cdFrame p d l) eo) :=
+  frameE_le_of_dirty E ev eo hv ho (unhide_le E p d l keep)
+
+#guard (unhideFrame (0 : Nat) 1 .none (fun c => c.elem < 3)).changes.length == 3
+#guard (unhideFrame (0 : Nat) 2 .none (fun _ => true)).changes.length == 32
+
+end EndPass
+
+/-! ## Gate hysteresis (ledger n=25, row 2)
+
+The scene gate turns on when the visible ratio reaches $a$ and off when it drops below $b$. Deferral moves the ratio
+by its own state (a feedback loop). With a fixed scroll offset, the ratio stays within a band of width $\delta$. -/
+
+section Hysteresis
+
+/-- One gate step: on stays on while the ratio is at least $b$; off turns on when it reaches $a$.
+
+$$\operatorname{step}_{a,b}(g, r) = \begin{cases} [b \le r] & g \\ [a \le r] & \lnot g \end{cases}$$
+
+The gate with an enter and an exit threshold. -/
+def gateStep (a b : Rat) (g : Bool) (r : Rat) : Bool := if g then decide (b ≤ r) else decide (a ≤ r)
+
+/-- Gate flips over $n$ frames from frame $k$ in state $g$, where the ratio $r(k, g)$ may depend on the frame and on
+the gate's own state.
+
+$$\operatorname{flips}(0, k, g) = 0,\quad \operatorname{flips}(n + 1, k, g) = [g' \ne g] + \operatorname{flips}(n, k + 1, g')\ \text{ with } g' = \operatorname{step}_{a,b}(g, r(k, g))$$
+
+How often the gate toggles. -/
+def flips (a b : Rat) (r : Nat → Bool → Rat) : Nat → Nat → Bool → Nat
+  | 0, _, _ => 0
+  | n + 1, k, g =>
+    let g' := gateStep a b g (r k g)
+    (if g' = g then 0 else 1) + flips a b r n (k + 1) g'
+
+#guard flips (1/2) (1/2) (fun _ g => 1/2 - if g then 1/10 else 0) 4 0 false == 4
+#guard flips (1/2) (3/10) (fun _ g => 1/2 - if g then 1/10 else 0) 4 0 false == 1
+#guard gateStep (1/2) (3/10) true (3/10) && !gateStep (1/2) (3/10) false (49/100)
+
+/-- A first flip needs the ratio on the far side of the threshold the current state watches.
+
+$$\forall a, b, r,\ \forall n, k, g:\ 0 < \operatorname{flips}(n, k, g) \Rightarrow \big(g = \bot \Rightarrow \exists j, h:\ a \le r(j, h)\big) \land \big(g = \top \Rightarrow \exists j, h:\ r(j, h) < b\big)$$
+
+Turning on needs a ratio of at least $a$; turning off needs one below $b$. -/
+theorem flips_pos (a b : Rat) (r : Nat → Bool → Rat) : ∀ (n k : Nat) (g : Bool), 0 < flips a b r n k g →
+    (g = false → ∃ j h, a ≤ r j h) ∧ (g = true → ∃ j h, r j h < b)
+  | 0, _, _, h => absurd h (by simp [flips])
+  | n + 1, k, g, h => by
+    by_cases hg : gateStep a b g (r k g) = g
+    · have h' : 0 < flips a b r n (k + 1) g := by
+        have e : flips a b r (n + 1) k g = flips a b r n (k + 1) g := by simp only [flips, hg, ↓reduceIte]; omega
+        omega
+      exact flips_pos a b r n (k + 1) g h'
+    · cases g
+      · refine ⟨fun _ => ⟨k, false, ?_⟩, fun h => absurd h (by simp)⟩
+        simp only [gateStep, Bool.false_eq_true, ↓reduceIte, decide_eq_false_iff_not, Decidable.not_not] at hg
+        exact hg
+      · refine ⟨fun h => absurd h (by simp), fun _ => ⟨k, true, ?_⟩⟩
+        simp only [gateStep, ↓reduceIte, decide_eq_true_eq] at hg
+        exact Rat.not_le.mp hg
+
+/-- Two flips need both a ratio of at least $a$ and one below $b$.
+
+$$\forall a, b, r,\ \forall n, k, g:\ 1 < \operatorname{flips}(n, k, g) \Rightarrow \big(\exists j, h:\ a \le r(j, h)\big) \land \big(\exists j, h:\ r(j, h) < b\big)$$
+
+Flips alternate between on and off. -/
+theorem flips_two (a b : Rat) (r : Nat → Bool → Rat) : ∀ (n k : Nat) (g : Bool), 1 < flips a b r n k g →
+    (∃ j h, a ≤ r j h) ∧ (∃ j h, r j h < b)
+  | 0, _, _, h => absurd h (by simp [flips])
+  | n + 1, k, g, h => by
+    by_cases hg : gateStep a b g (r k g) = g
+    · have e : flips a b r (n + 1) k g = flips a b r n (k + 1) g := by simp only [flips, hg, ↓reduceIte]; omega
+      exact flips_two a b r n (k + 1) g (by omega)
+    · have e : flips a b r (n + 1) k g = 1 + flips a b r n (k + 1) (!g) := by
+        have hn : gateStep a b g (r k g) = !g := by cases g <;> simp_all
+        simp only [flips, hn]; cases g <;> simp
+      have hp := flips_pos a b r n (k + 1) (!g) (by omega)
+      cases g
+      · have h2 : a ≤ r k false := by
+          simp only [gateStep, Bool.false_eq_true, ↓reduceIte, decide_eq_false_iff_not, Decidable.not_not] at hg
+          exact hg
+        exact ⟨⟨k, false, h2⟩, hp.2 rfl⟩
+      · have h2 : r k true < b := by
+          simp only [gateStep, ↓reduceIte, decide_eq_true_eq] at hg
+          exact Rat.not_le.mp hg
+        exact ⟨hp.1 rfl, ⟨k, true, h2⟩⟩
+
+/-- **Hysteresis wider than the swing: at most one flip (ledger n=25, row 2).** If the ratio, over all frames and both
+gate states, varies by at most $\delta$ and the gap between the thresholds exceeds $\delta$, the gate flips at most
+once.
+
+$$\forall a, b, \delta \in \mathbb{Q},\ \forall r : \mathbb{N} \times \mathbb{B} \to \mathbb{Q}:\ \delta < a - b \land \big(\forall j, h, j', h':\ r(j, h) - r(j', h') \le \delta\big) \Rightarrow \forall n, k, g:\ \operatorname{flips}(n, k, g) \le 1$$
+
+One flip would need the ratio at least $a$ and a second one below $b$, further apart than the swing allows. -/
+theorem flips_le_one (a b δ : Rat) (r : Nat → Bool → Rat) (hab : δ < a - b)
+    (hδ : ∀ j h j' h', r j h - r j' h' ≤ δ) (n k : Nat) (g : Bool) : flips a b r n k g ≤ 1 := by
+  apply Nat.le_of_not_lt
+  intro h2
+  obtain ⟨⟨j, h, hj⟩, ⟨j', h', hj'⟩⟩ := flips_two a b r n k g h2
+  have := hδ j h j' h'
+  grind
+
+/-- **No hysteresis: the gate flips every frame (ledger n=25, row 2).** With equal thresholds $t$ and a deferral that
+lowers the ratio by $\delta > 0$ while the gate is on, a frame sitting exactly at $t$ toggles in every frame.
+
+$$\forall t, \delta \in \mathbb{Q}:\ 0 < \delta \Rightarrow \forall n, k, g:\ \operatorname{flips}_{t,t,\,r}(n, k, g) = n\quad\text{where } r(j, h) = t - [h]\,\delta$$
+
+The gate's own deferral pushes the ratio across the single threshold and back. -/
+theorem flips_oscillate (t δ : Rat) (hδ : 0 < δ) :
+    ∀ (n k : Nat) (g : Bool), flips t t (fun _ h => t - if h then δ else 0) n k g = n
+  | 0, _, _ => rfl
+  | n + 1, k, g => by
+    have ih := flips_oscillate t δ hδ n (k + 1) (!g)
+    have hs : gateStep t t g (t - if g then δ else 0) = !g := by
+      cases g
+      · simp only [gateStep, Bool.false_eq_true, ↓reduceIte]; grind
+      · simp only [gateStep, ite_true, Bool.not_true, decide_eq_false_iff_not]; grind
+    simp only [flips, hs, ih]
+    cases g <;> simp <;> omega
+
+end Hysteresis
 
 end Fw.Parts.HiddenPause

@@ -41,12 +41,12 @@ export function siteDist(env = process.env) {
 /** `FW_SEARCH` (e.g. `?fw=morph.tween:waapi`): the rewrite arm loads that prerendered config (configs.json bySearch); empty = the default page. */
 export function rewriteFor(root, env = process.env) {
   const search = env.FW_SEARCH ?? "";
-  if (!search) return { search: "", rewrite: null };
+  if (!search) return { search: "", hash: null, rewrite: null };
   const cfg = JSON.parse(readFileSync(join(root, "configs.json"), "utf8"));
   const hash = cfg.bySearch[search];
   if (!hash) throw new Error(`FW_SEARCH "${search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(" | ")}`);
   const file = "/" + cfg.byHash[hash];
-  return { search, rewrite: (p) => (p === "/" || p === "/index.html" ? file : null) };
+  return { search, hash, rewrite: (p) => (p === "/" || p === "/index.html" ? file : null) };
 }
 
 export async function startServer(root, rewrite = null) {

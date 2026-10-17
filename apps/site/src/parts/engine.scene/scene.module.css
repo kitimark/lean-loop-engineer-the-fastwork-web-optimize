@@ -1,0 +1,8 @@
+/* Hidden pause (engine.scene variant `hidden-pause`): a section whose rect does not meet the viewport stops its CSS
+   animations. The attribute is written by index.tsx on an IntersectionObserver crossing, never per frame. */
+@layer parts {
+  :global([data-fw-hidden]),
+  :global([data-fw-hidden]) :where(*) {
+    animation-play-state: paused !important;
+  }
+}

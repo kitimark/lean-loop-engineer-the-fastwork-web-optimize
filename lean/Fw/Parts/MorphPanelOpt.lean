@@ -2,6 +2,7 @@ import Lean.Data.Json
 import Fw.Engine.Chromium
 import Fw.Engine.WebKit
 import Fw.Engine.Visual
+import Fw.Parts.EndFlags
 /-!
 # morph.panel: `blur(0)` → `none` at rest, and an own layer during the fade (MP)
 
@@ -911,5 +912,65 @@ def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
 #guard (crTypes.map fun t => predict t.exact (series crV t) (series crO t)) ==
   ["=o", "=o", "any", "any", "any", "=o", "any", "=o"]
 #guard (wkTypes.map fun t => predict t.exact (series wkV t) (series wkO t)) == ["=o", "=o", "=o", "=o"]
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+At rest both arms run the same frame `x.f` and differ only in the effect stages the filter adds (`bump`). With one
+end-flag assignment `e` for that shared frame, the rest verdicts hold for any base work, so they carry over
+unchanged for every `e`. -/
+
+section EndPass
+
+open Fw.Engine.Chromium in
+/-- Chromium work of a rest frame under `frameWorkE`, with end flags `e`.
+
+$$\forall F, x, e:\ W^{e}_{\mathrm{cr}}(F, x) = \begin{cases} \operatorname{bump}(\operatorname{frameWork}^{e}_{\mathrm{chromium}}(x.f), S_{\mathrm{cr}}(x)) & F \ne [\,] \\ \operatorname{frameWork}^{e}_{\mathrm{chromium}}(x.f) & F = [\,] \end{cases}$$
+
+The rest frame's cost with the frame-end pass counted. -/
+def crRestWE (F : List FilterOp) (x : RestIn CrProp) (e : Stage → Bool) : Work :=
+  if groups F then bump (frameWorkE chromium x.f e) (crEffectStages x) else frameWorkE chromium x.f e
+
+open Fw.Engine.WebKit in
+/-- WebKit work of a rest frame under `frameWorkE`, with end flags `e`.
+
+$$\forall F, x, e:\ W^{e}_{\mathrm{wk}}(F, x) = \begin{cases} \operatorname{bump}(\operatorname{frameWork}^{e}_{\mathrm{webkit}}(x.f), S_{\mathrm{wk}}(x)) & F \ne [\,] \\ \operatorname{frameWork}^{e}_{\mathrm{webkit}}(x.f) & F = [\,] \end{cases}$$
+
+The rest frame's cost with the frame-end pass counted. -/
+def wkRestWE (F : List FilterOp) (x : RestIn WkProp) (e : Stage → Bool) : Work :=
+  if groups F then bump (frameWorkE webkit x.f e) (wkEffectStages x) else frameWorkE webkit x.f e
+
+/-- **Chromium rest frame under `frameWorkE`: `≤`.**
+
+$$\forall r \in \mathbb{Q},\ \forall x,\ \forall e:\ r \le 0 \Rightarrow W^{e}_{\mathrm{cr}}(F_v(\operatorname{fade}(r)), x) \preceq W^{e}_{\mathrm{cr}}(F_o(\operatorname{fade}(r)), x)$$
+
+Dropping `blur(0)` never adds work, end pass or not. -/
+theorem cr_rest_leE {r : Rat} (hr : r ≤ 0) (x : RestIn Chromium.CrProp) (e : Stage → Bool) :
+    (crRestWE (filterV (fade r)) x e).le (crRestWE (filterO (fade r)) x e) := by
+  unfold crRestWE; rw [filterV_rest hr, filterO_rest hr]; exact le_bump _ _
+
+/-- **Chromium rest frame under `frameWorkE`: strict** when the frame has a raster, property or surface step.
+
+$$\forall r, x, e:\ r \le 0 \land (x.\mathrm{rasterUnder} \lor x.\mathrm{propsPanel} \lor x.\mathrm{drawSurface}) \Rightarrow W^{e}_{\mathrm{cr}}(F_v(\operatorname{fade}(r)), x) \prec W^{e}_{\mathrm{cr}}(F_o(\operatorname{fade}(r)), x)$$
+
+The removed effect node saves its unit whatever the end flags. -/
+theorem cr_rest_ltE {r : Rat} (hr : r ≤ 0) (x : RestIn Chromium.CrProp) (e : Stage → Bool)
+    (hx : x.rasterUnder = true ∨ x.propsPanel = true ∨ x.drawSurface = true) :
+    (crRestWE (filterV (fade r)) x e).lt (crRestWE (filterO (fade r)) x e) := by
+  unfold crRestWE; rw [filterV_rest hr, filterO_rest hr]
+  rcases hx with h | h | h
+  · exact lt_bump _ (s := .raster) (by simp [crEffectStages, h])
+  · exact lt_bump _ (s := .props) (by simp [crEffectStages, h])
+  · exact lt_bump _ (s := .comp) (by simp [crEffectStages, h])
+
+/-- **WebKit rest frame under `frameWorkE`: `≤`.**
+
+$$\forall r \in \mathbb{Q},\ \forall x,\ \forall e:\ r \le 0 \Rightarrow W^{e}_{\mathrm{wk}}(F_v(\operatorname{fade}(r)), x) \preceq W^{e}_{\mathrm{wk}}(F_o(\operatorname{fade}(r)), x)$$
+
+The same in Safari. -/
+theorem wk_rest_leE {r : Rat} (hr : r ≤ 0) (x : RestIn WebKit.WkProp) (e : Stage → Bool) :
+    (wkRestWE (filterV (fade r)) x e).le (wkRestWE (filterO (fade r)) x e) := by
+  unfold wkRestWE; rw [filterV_rest hr, filterO_rest hr]; exact le_bump _ _
+
+end EndPass
 
 end Fw.Parts.MorphPanelOpt
