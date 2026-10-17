@@ -2172,7 +2172,8 @@
    "writes": [
     "lean/Fw/Parts/MorphPanelOpt.lean",
     "packages/contracts/golden/engine/morph-panel.jsonl"
-   ]
+   ],
+   "evidence": "e42b7be"
   },
   {
    "id": "proof-hero-exit",
