@@ -14,6 +14,12 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
   ~300 characters plus file paths. Never write status; the console derives it from events.
 - Each teammate writes only the files its task names. Two teammates never edit the same file at the same time.
 - Durable results live in files (`research/`, `docs/`), never only in a message.
+- **Handoff before you finish:** write or update `docs/team/handoffs/<your-name>.md` (≤ 30 lines: state with commit,
+  conventions you followed, open items, what to read first) so a fresh agent can continue without your context.
+- **Cache-aware resumes (lead):** subagent and teammate prompt caches live 5 minutes (MEASURED: all cache writes are
+  `ephemeral_5m`). Resume an agent only while it has been idle < 5 min, or when its context is small. Otherwise stop
+  it (`TaskStop`, no model turn) and spawn a fresh agent of the same role that starts from the handoff note.
+  Never send a shutdown message to an expired agent: answering it costs a full context re-read.
 
 ## Rules
 - The repo is **private**; only the user pushes. Never add remotes or publish anything.
