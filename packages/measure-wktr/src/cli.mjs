@@ -47,7 +47,7 @@ async function main() {
   let srv = null;
   try {
    for (const vr of variants) {
-    srv = await serveOriginal(site, harnessSource({ step, frames, settleMs, warm: vr.warm, vt: vr.vt, trace: vr.trace }));
+    srv = await serveOriginal(site, harnessSource({ step, frames, settleMs, warm: vr.warm, vt: vr.vt, trace: vr.trace, still: vr.still }));
     console.log(`variant ${vr.name}: serving ${site} at ${srv.url}`);
     const tag = `${vr.name}-`;
     for (let p = 1; p <= passes; p++) {
@@ -68,7 +68,7 @@ async function main() {
       const run = buildRun(parsed, {
         lane: 'wktr', label: v.label, pass: p, archive: { revision: ARCHIVE.revision, commit: ARCHIVE.commit, sha256: ARCHIVE.sha256 },
         device: { name: v['device-type'], runtime: dev.runtime.version, runtimeBuild: dev.runtime.buildversion },
-        header: v.header, variant: vr.name, vt: vr.vt, warm: vr.warm, trace: vr.trace, step, frames, settleMs, attempts, wallMs: r.ms,
+        header: v.header, variant: vr.name, vt: vr.vt, warm: vr.warm, trace: vr.trace, still: vr.still, step, frames, settleMs, attempts, wallMs: r.ms,
       });
       writeFileSync(join(out, `counts-${tag}${p}.json`), JSON.stringify(run));
       const tot = {};

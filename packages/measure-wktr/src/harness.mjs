@@ -44,7 +44,15 @@ const RUN_SRC = `(() => {
   const schedule = (maxY, step) => { const ys = []; for (let y = 0; y < maxY; y += step) ys.push(y); ys.push(maxY); return ys; };
   const TRACK = ['startTrackingStyleRecalcs', 'startTrackingRenderingUpdates', 'startTrackingLayerFlushes', 'startTrackingLayoutUpdates', 'startTrackingCompositingUpdates'];
   const num = (f) => { try { const v = f(); return typeof v === 'number' ? v : null; } catch { return null; } };
-  const snap = () => ({
+  // trace gauges that do not force style or layout (Internals.cpp numberOfActiveAnimations / numberOfAnimationTimelineInvalidations):
+  // active CSS/Web animations summed over the samples (animation-frames), and timeline invalidations
+  const traceGauges = () => {
+    const ev = window.__fwEv;
+    if (!ev) return;
+    ev.animActive = (ev.animActive || 0) + (num(() => I.numberOfActiveAnimations()) || 0);
+    ev.animTimelineInv = num(() => I.numberOfAnimationTimelineInvalidations()) || 0;
+  };
+  const snap = () => (P.trace && traceGauges(), {
     rc: num(() => I.renderingUpdateCount()),
     sr: num(() => I.styleRecalcCount()),
     ls: num(() => I.lastStyleUpdateSize),
@@ -65,6 +73,8 @@ const RUN_SRC = `(() => {
   const run = async () => {
     await sleep(P.settleMs);
     await vtSettle();
+    // Diagnostic (variant still): stop CSS animations/transitions (they run on the engine's real clock, not the page clock)
+    if (P.still && typeof I.suspendAnimations === 'function') I.suspendAnimations();
     // Warm-up (variant "warm"): scroll the whole page once, wait for the images it started loading, go back to the top.
     // The measured pass then meets no lazy-load arrival; trackers are not running yet, so none of this is counted.
     if (P.warm) {
@@ -94,7 +104,7 @@ const RUN_SRC = `(() => {
     const endY = Math.round(scrollY);
     out('meta', {
       ua: navigator.userAgent, innerWidth, innerHeight, dpr: devicePixelRatio, docH, maxY, endY,
-      vt: window.__fwVt ? { frames: window.__fwVt.frames(), now: window.__fwVt.now(), timersFired: window.__fwVt.fired() } : null, trace: !!P.trace,
+      vt: window.__fwVt ? { frames: window.__fwVt.frames(), now: window.__fwVt.now(), timersFired: window.__fwVt.fired() } : null, trace: !!P.trace, still: !!P.still,
       hover: matchMedia('(hover: hover)').matches, pointerCoarse: matchMedia('(pointer: coarse)').matches,
       hoverElements: document.querySelectorAll(':hover').length, missing, bootstrap: window.__wkBootstrap || null,
       internalsKeys: ['lastStyleUpdateSize', 'styleRecalcCount', 'renderingUpdateCount', 'styleInvalidationTraversalCount', 'layerFlushCount', 'layoutUpdateCount', 'compositingUpdateCount'].filter((n) => n in I),
@@ -112,11 +122,11 @@ const RUN_SRC = `(() => {
  * The harness: the same bootstrap as the Inspector lane (pinned Date, seeded Math.random; measure-webkit/src/page.mjs),
  * then the run. `params`: { step, frames, settleMs }.
  */
-export function harnessSource({ step = 50, frames = 2, settleMs = 6000, clock = 'pinned', warm = false, vt = false, trace = false } = {}) {
+export function harnessSource({ step = 50, frames = 2, settleMs = 6000, clock = 'pinned', warm = false, vt = false, trace = false, still = false } = {}) {
   if (!Number.isInteger(frames) || frames < 1) throw new Error('frames must be an integer >= 1');
   if (!Number.isInteger(step) || step < 1) throw new Error('step must be an integer >= 1');
   // `vt` (virtual time, vtime.mjs) replaces the pinned Date with its own clock; Math.random stays seeded either way
   const pre = 'window.__fwN = { st: window.setTimeout.bind(window) };\n';
   return pre + bootstrapSource({ clock: vt ? 'live' : clock }) + '\n' + (vt ? VT_SRC + '\n' : '') + (trace ? TRACE_SRC + '\n' : '') +
-    RUN_SRC.replace('__PARAMS__', JSON.stringify({ step, frames, settleMs, clock: vt ? 'vt' : clock, warm: !!warm, trace: !!trace }));
+    RUN_SRC.replace('__PARAMS__', JSON.stringify({ step, frames, settleMs, clock: vt ? 'vt' : clock, warm: !!warm, trace: !!trace, still: !!still }));
 }

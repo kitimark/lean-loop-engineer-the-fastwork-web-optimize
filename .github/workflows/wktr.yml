@@ -31,7 +31,7 @@ on:
         type: string
         default: '3'
       variants:
-        description: 'Harness variants, comma separated: live or vt, then -warm and/or -trace (e.g. live,vt,vt-trace)'
+        description: 'Harness variants, comma separated: live or vt, then -warm, -still (diagnostic: animations suspended) and/or -trace (e.g. live,vt,vt-trace)'
         type: string
         default: 'live,vt'
       step:
@@ -88,7 +88,7 @@ jobs:
           set -euo pipefail
           case "$JOBS" in 1|2|3|4) ;; *) echo "jobs must be 1..4" >&2; exit 1 ;; esac
           case "$PASSES" in 2|3|4) ;; *) echo "passes must be 2..4" >&2; exit 1 ;; esac
-          printf '%s' "$VARIANTS" | grep -Eq '^(live|vt)(-warm)?(-trace)?(,(live|vt)(-warm)?(-trace)?)*$' || { echo "bad variants: $VARIANTS" >&2; exit 1; }
+          printf '%s' "$VARIANTS" | grep -Eq '^(live|vt)(-warm)?(-still)?(-trace)?(,(live|vt)(-warm)?(-still)?(-trace)?)*$' || { echo "bad variants: $VARIANTS" >&2; exit 1; }
           matrix=$(seq 1 "$JOBS" | jq -R -s -c '{job: (split("\n") | map(select(length > 0)) | map("j" + .))}')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
@@ -145,7 +145,7 @@ jobs:
       # One device, one fresh WebKitTestRunnerApp process per pass, `passes` passes per harness variant:
       #   live  the page as it is (Date and Math.random pinned, real timers and rAF timestamps)
       #   vt    virtual time: performance.now, rAF timestamps, timers and Date move one frame at a time (src/vtime.mjs)
-      #   -warm the page is scrolled through once first (lazy loads done), -trace adds event counters (cause attribution)
+      #   -warm the page is scrolled through once first (lazy loads done), -still suspends CSS animations (diagnostic), -trace adds event counters (cause attribution)
       # counts-<variant>-<pass>.json per pass.
       - name: WKTR, fresh process per pass, per variant
         env:
@@ -229,6 +229,8 @@ jobs:
           out="$RUNNER_TEMP/classes"
           mkdir -p "$out"
           cd "$RUNNER_TEMP/runs"
+          # download-artifact puts a single matching artifact straight into the path (no subdirectory): jobs=1
+          if ! ls -d wktr-j* > /dev/null 2>&1; then mkdir wktr-j1; find . -maxdepth 1 -type f -exec mv {} wktr-j1/ \;; fi
           ls
           cls="$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs"
           cat wktr-j*/runner.json > "$out/runners.jsonl"

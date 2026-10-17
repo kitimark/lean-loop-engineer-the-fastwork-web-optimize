@@ -8,8 +8,9 @@ import { framesOf } from '../src/reduce.mjs';
 const S = (rc, sr, ls, extra = {}) => ({ rc, sr, ls, si: 0, lf: rc, lu: 0, cu: 0, ...extra });
 
 test('parseVariant: base, flags in any order, normalised name', () => {
-  assert.deepEqual(parseVariant('live'), { name: 'live', vt: false, warm: false, trace: false });
-  assert.deepEqual(parseVariant('vt-trace-warm'), { name: 'vt-warm-trace', vt: true, warm: true, trace: true });
+  assert.deepEqual(parseVariant('live'), { name: 'live', vt: false, warm: false, still: false, trace: false });
+  assert.deepEqual(parseVariant('vt-trace-warm'), { name: 'vt-warm-trace', vt: true, warm: true, still: false, trace: true });
+  assert.equal(parseVariant('vt-trace-still-warm').name, 'vt-warm-still-trace');
 });
 
 test('parseVariant: rejects unknown bases and flags', () => {
