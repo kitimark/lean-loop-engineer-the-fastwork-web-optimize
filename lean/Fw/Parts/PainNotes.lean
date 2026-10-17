@@ -9,8 +9,8 @@ Restated (not copied) from the original snapshot:
   * 4416-4417 palette `c` (7 colours) and rotations `u` (16 values); 4418-4421 text pool `d`;
   * 4422-4464 the five desktop base notes `v` and their sizes `p`, `m`, `h`; 4425 `g` (centre offset);
   * 4488-4504 clamp `L`, overlap `te`; 4505-4510 `re` (the box kept clear around the copy);
-  * 4535-4548 `ae` (jittered placement, the branch that runs: the stage is always narrower than 1100 px,
-    `Fw.Parts.Pain.stageW_lt_split`); 4549-4554 `oe` (text pick); 4555-4589 `ce` (base layout);
+  * 4511-4534 `ie` (scored placement, canvas width 1100 px and up, `Fw.Parts.Pain.scored_iff`); 4535-4548 `ae` (jittered
+    placement below it); 4549-4554 `oe` (text pick); 4555-4589 `ce` (base layout, desktop and narrow; the stage `x` is the canvas `.pain-canvas`, JS 4751);
   * 4590-4646 `le` (the 3 s tick: guards, clear rule, add); 4647-4688 `W`, `ue` (drag and keyboard);
   * 4698-4703 the intersection rule (`threshold 0.12`), 4696 `setInterval(le, 3e3)`;
 * `snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css` 2273-2277, 2293-2298 `pain-note-stick` (0.56 s,
@@ -215,6 +215,25 @@ theorem baseLeft_design (l : Rat) : baseLeft 1440 l = l / 1440 * 100 := by
 $$\operatorname{place}(b) = \big(\operatorname{left}(W_s, \ell_{px}(b)),\ \operatorname{top}(H_s, t_{px}(b))\big)$$ -/
 def Base.place (b : Base) (stageW stageH : Rat) : Rat × Rat :=
   (baseLeft stageW b.leftPx, baseTop stageH b.topPx)
+
+/-- The eleven notes of the narrow layout, in z order (JS 4465-4477).
+
+$$\mathrm{narrow} = [b'_1, \dots, b'_{11}],\quad z(b'_i) = i$$ -/
+def narrowNotes : List Base :=
+  [⟨218, 353, .p, 15, "#b3f4ef", -4, 1⟩, ⟨15, 437, .h, 21, "#e6e6e6", -6, 2⟩, ⟨392, 401, .p, 16, "#ffe299", 4, 3⟩,
+   ⟨218, 479, .p, 12, "#b3efbd", -4, 4⟩, ⟨604, 460, .p, 17, "#e6e6e6", 4, 5⟩, ⟨413, 496, .p, 13, "#d3bdff", 4, 6⟩,
+   ⟨36, 588, .p, 22, "#d3bdff", 4, 7⟩, ⟨303, 578, .m, 14, "#ffafa3", -2, 8⟩, ⟨215, 675, .p, 18, "#ffd3a8", -4, 9⟩,
+   ⟨566, 591, .m, 20, "#b3efbd", -2, 10⟩, ⟨390, 664, .p, 19, "#ffe299", 4, 11⟩]
+
+/-- JS 4566: left in percent in the narrow layout, the 860 px design canvas centred on the stage.
+
+$$\operatorname{leftN}(W_s, \ell_{px}) = \frac{(W_s - 860)/2 + \ell_{px}}{W_s}\cdot 100$$ -/
+def narrowLeft (stageW leftPx : Rat) : Rat := ((stageW - 860) / 2 + leftPx) / stageW * 100
+
+/-- JS 4567: top in percent in the narrow layout, 16 px up.
+
+$$\operatorname{topN}(H_s, t_{px}) = \frac{t_{px} - 16}{H_s}\cdot 100$$ -/
+def narrowTop (stageH topPx : Rat) : Rat := (topPx - 16) / stageH * 100
 
 /-! ## The tick -/
 
@@ -439,6 +458,71 @@ def place (cands : List Box) (w h : Rat) (avoid : List Box) : Rng (Option (Rat �
     | some p => pure (some p)
     | none => pure (order.head?.map fun c => fallback c w h)
 
+/-- A rational as a double (the scored placement is a floating-point rule in the original).
+$$\operatorname{f}(q) = \mathrm{num}(q) / \mathrm{den}(q)$$ -/
+def ratF (q : Rat) : Float := Float.ofInt q.num / Float.ofNat q.den
+
+/-- Distance between box centres (JS 4499 `B`, with `sqrt` of the sum of squares).
+
+$$\operatorname{dist}(a, b) = \sqrt{(a_c^x - b_c^x)^2 + (a_c^y - b_c^y)^2},\quad a_c = (a_\ell + a_w/2,\ a_t + a_h/2)$$ -/
+def dist (a b : Box) : Float :=
+  let dx := ratF (a.left + a.width / 2 - (b.left + b.width / 2))
+  let dy := ratF (a.top + a.height / 2 - (b.top + b.height / 2))
+  Float.sqrt (dx * dx + dy * dy)
+
+/-- A scored candidate. $$c = (\ell, t, \sigma)$$ Position in percent and its score. -/
+structure Cand where
+  left : Rat
+  top : Rat
+  score : Float
+
+/-- The smaller of two doubles. $$\min(x, y)$$ -/
+def fmin (x y : Float) : Float := if x < y then x else y
+
+/-- One scored candidate (JS 4517-4532), after its two position draws and the avoid test.
+
+$$\sigma = -600 f - 220 p - 180 g + 0.9 m + 2.4 h + 8 r,\quad f, p = \#\text{close base / extra boxes (gap } 1.2),\ g = [h < 0.85 \max(w, h_n)]$$
+
+with $m$ the nearest base centre, $h$ the nearest extra centre ($80$ when there is none). -/
+def scoreCand (d : Box) (base extras : List Box) (w hN : Rat) (r : Rat) : Float × Nat × Nat :=
+  let f := (base.filter fun e => overlaps d e (6 / 5)).length
+  let p := (extras.filter fun e => overlaps d e (6 / 5)).length
+  let inf := 1.0 / 0.0
+  let m := base.foldl (fun acc e => fmin acc (dist d e)) inf
+  let h0 := extras.foldl (fun acc e => fmin acc (dist d e)) inf
+  let h := if h0 == inf then 80.0 else h0
+  let g : Float := if h < ratF (max w hN) * 0.85 then 1.0 else 0.0
+  (-(Float.ofNat f) * 600.0 - Float.ofNat p * 220.0 - g * 180.0 + m * 0.9 + h * 2.4 + ratF r * 8.0, f, p)
+
+/-- The 120 tries of the scored placement (JS 4516-4532): two position draws, skip when the box meets an avoid box,
+else one more draw for the jitter term; keep the best clean candidate (no close box) and the best of all.
+
+$$(s, c) = \operatorname{loop}_n(s_0, c_0),\quad s' = \arg\max\{\sigma : f = p = 0\},\ c' = \arg\max\{\sigma\}$$ -/
+def scoredLoop (w h : Rat) (base avoid extras : List Box) (a o : Rat) :
+    Nat → Option Cand → Option Cand → Rng (Option Cand × Option Cand)
+  | 0, s, c => pure (s, c)
+  | n + 1, s, c => do
+    let l := (← draw) * a
+    let u := (← draw) * o
+    let d : Box := ⟨l, u, w, h⟩
+    if avoid.any (fun e => overlaps d e 0) then scoredLoop w h base avoid extras a o n s c
+    else
+      let r ← draw
+      let (sc, f, p) := scoreCand d base extras w h r
+      let cand : Cand := ⟨l, u, sc⟩
+      let s' := if f == 0 && p == 0 && (match s with | none => true | some b => b.score < sc) then some cand else s
+      let c' := if (match c with | none => true | some b => b.score < sc) then some cand else c
+      scoredLoop w h base avoid extras a o n s' c'
+
+/-- JS 4511 `ie`: the scored placement used on a canvas of 1100 px or more.
+
+$$\operatorname{scoredPlace} = s \mathbin{??} c,\quad (s, c) = \operatorname{loop}_{120}$$
+
+with $a = \max(0, 100 - w)$ and $o = \max(0, 100 - h)$ the room for the corner. -/
+def scoredPlace (w h : Rat) (base avoid extras : List Box) : Rng (Option (Rat × Rat)) := do
+  let (s, c) ← scoredLoop w h base avoid extras (max 0 (100 - w)) (max 0 (100 - h)) 120 none none
+  pure ((s <|> c).map fun b => (b.left, b.top))
+
 /-- The key a draw selects in a pool.
 
 $$\operatorname{pickIn}(P, r) = P[\lfloor r|P| \rfloor]$$
@@ -516,29 +600,40 @@ $$\left(\ell,\ t,\ \tfrac{240}{W_s}\cdot 100,\ \tfrac{240}{H_s}\cdot 100\right)$
 def Note.box (n : Note) (stageW stageH : Rat) : Box :=
   ⟨n.left, n.top, noteSize / stageW * 100, noteSize / stageH * 100⟩
 
-/-- The base notes as placed on a stage of $(W_s, H_s)$ px (JS 4575-4588).
+/-- The base notes as placed on a stage of $(W_s, H_s)$ px (JS 4555-4588).
 
-$$\operatorname{layout}(W_s, H_s) = [\operatorname{place}(b_i) \text{ with } \mathit{id} = \texttt{base-}i]_{i < 5}$$ -/
-def baseLayout (stageW stageH : Rat) : List Note :=
-  (baseNotes.zipIdx).map fun (b, i) =>
-    let (l, t) := b.place stageW stageH
-    ⟨s!"base-{i}", b.text, b.bg, b.rotate, l, t, b.z, false⟩
+$$\operatorname{layout}(\nu, W_s, H_s) = \begin{cases} [(\operatorname{leftN}, \operatorname{topN})(b'_i)]_{i < 11} & \nu \\ [(\operatorname{left}, \operatorname{top})(b_i)]_{i < 5} & \lnot\nu \end{cases}$$
 
-/-- JS 4590-4646 `le` after the guards: place, pick, colour. Draw order: the shuffle (one draw per candidate),
-two per tried candidate, one for the text, one for the colour. `j` is the running extra counter, `extras` the number of
-extras on the stage. Returns the new note, or `none` when nothing fits.
+`narrow` is `(width<=860px)`; ids are `base-i`. -/
+def baseLayout (narrow : Bool) (stageW stageH : Rat) : List Note :=
+  if narrow then
+    (narrowNotes.zipIdx).map fun (b, i) =>
+      ⟨s!"base-{i}", b.text, b.bg, b.rotate, narrowLeft stageW b.leftPx, narrowTop stageH b.topPx, b.z, false⟩
+  else
+    (baseNotes.zipIdx).map fun (b, i) =>
+      let (l, t) := b.place stageW stageH
+      ⟨s!"base-{i}", b.text, b.bg, b.rotate, l, t, b.z, false⟩
 
-$$z = 10 + n_x,\quad \mathrm{rotate} = R[j \bmod 16],\quad \mathrm{bg} = P[\lfloor r\,7 \rfloor],\quad \mathrm{id} = \texttt{extra-}j$$ -/
-def addExtra (stageW stageH : Rat) (notes : List Note) (avoid : List Box) (j extras : Nat) : Rng (Option Note) := do
+/-- JS 4590-4646 `le` after the guards: place, pick, colour. Draw order: below 1100 px the shuffle (one draw per
+candidate) then two per tried candidate; from 1100 px the scored loop; then one draw for the text and one for the colour.
+`j` is the running extra counter. Returns the new note, or `none` when nothing fits.
+
+$$z = 10 + |E|,\quad \mathrm{rotate} = R[j \bmod 16],\quad \mathrm{bg} = P[\lfloor r\,7 \rfloor],\quad \mathrm{id} = \texttt{extra-}j$$
+
+with $E$ the extras already on the stage. -/
+def addExtra (stageW stageH : Rat) (base extras : List Note) (avoid : List Box) (j : Nat) : Rng (Option Note) := do
   let w := noteSize / stageW * 100
   let h := noteSize / stageH * 100
-  match ← place (notes.map fun n => n.box stageW stageH) w h avoid with
+  let bb := base.map fun n => n.box stageW stageH
+  let eb := extras.map fun n => n.box stageW stageH
+  let pos ← if stageW < Fw.Parts.Pain.containerSplit then place (bb ++ eb) w h avoid else scoredPlace w h bb avoid eb
+  match pos with
   | none => pure none
   | some (l, t) =>
     let r1 ← draw
     let r2 ← draw
-    pure (some ⟨s!"extra-{j}", pickText (notes.map (·.text)) r1,
-      palette.getD (idx r2 palette.length) "#b3efbd", rotation j, l, t, 10 + extras, true⟩)
+    pure (some ⟨s!"extra-{j}", pickText ((base ++ extras).map (·.text)) r1,
+      palette.getD (idx r2 palette.length) "#b3efbd", rotation j, l, t, 10 + extras.length, true⟩)
 
 /-- Run the stream from a seed. $$\operatorname{run}(m, s) = m(s).1$$ The value only, for the golden vectors. -/
 def runFrom {α : Type} (m : Rng α) (seed : UInt32) : α := (m.run seed).1

@@ -53,6 +53,25 @@ describe('pain.notes driver', () => {
     f.runFrame();
     expect(f.view().base.length).toBe(5);
   });
+  it('lays out the eleven narrow notes at <= 860 px, and adds no extras there', () => {
+    const f = fakeEnv({ narrow: () => true, stageRect: () => ({ top: 0, width: 390, height: 800 }) });
+    const d = createNotesDriver(f.env, 1);
+    d.start();
+    f.runFrame();
+    expect(f.view().base.length).toBe(11);
+    d.intersect(true, 1);
+    d.tick();
+    expect(f.view().extras.length).toBe(0);
+  });
+  it('a wide canvas (>= 1100 px) uses the scored placement and still stops at 12', () => {
+    const f = fakeEnv({ stageRect: () => ({ top: 0, width: 1440, height: 900 }) });
+    const d = createNotesDriver(f.env, 3);
+    d.start();
+    f.runFrame();
+    d.intersect(true, 1);
+    for (let i = 0; i < 15; i++) f.runInterval();
+    expect(f.view().extras.length).toBe(12);
+  });
   it('does not lay out a hidden stage (width 0)', () => {
     const f = fakeEnv({ stageRect: () => ({ top: 0, width: 0, height: 0 }) });
     const d = createNotesDriver(f.env, 1);

@@ -5,7 +5,7 @@ Verdict: `pain` faithful (static markup + CSS, content-driven height replaces th
 randomness is a seeded stream (`mulberry32`, seed `NOTES_SEED`) and the shuffle draws without replacement (the original uses `Math.random` and a random-comparator sort). PLAN 4.3 requires this.
 
 ## Files
-- Lean: `lean/Fw/Parts/Pain.lean` (stage width 748 < w <= 780 above 860, 0 at <=860; section >= 300svh; theorem `stageW_lt_split`: the 1100 px branch `ie` of the original is dead, so the scored placement never runs).
+- Lean: `lean/Fw/Parts/Pain.lean` (board spacer width, section >= 300svh, `scored_iff`: the scored placement runs from a 1100 px viewport). NOTE: the original binds the notes' stage `x` to `.pain-canvas` (inset 0 over the sticky box), not `.pain-notes-stage`; found from CI run 39057192529 (notes missing). The narrow layout (11 notes) is live.
   `lean/Fw/Parts/PainNotes.lean` (tick rule, overlap, avoid box, jittered placement, text pick, base layout, drag/keys, mulberry, permute, stick curve `stick`/`stickScale`, ~25 theorems, all with `$$` math). `PainNotesGolden.lean` has `lines`; jsonl `packages/contracts/golden/parts/pain.notes.jsonl` (416 lines, made with a scratch driver `lake env lean --run`).
 - TS: `apps/site/src/parts/pain/` (index, pain.module.css, media.ts/test, part.json), `apps/site/src/parts/pain.notes/` (logic.ts + golden test, driver.ts + driver.test.ts with a fake env, index.tsx, notes.module.css, media.ts/test, data.ts English strings, part.json).
 - Pointer/key moves write element style directly (`writeNote`); React state changes only when the set of notes changes. 3 s tick = `clock.interval`; first layout = one own-rAF frame; card check = `registerScroll('pain.notes', 120)`.

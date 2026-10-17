@@ -12,7 +12,7 @@ goldenConformance('pain.notes', {
   avoidBox: (i) => L.avoidBox({ copyTop: i.copyTop as number, copyH: i.copyH as number, stageTop: i.stageTop as number, stageH: i.stageH as number }),
   baseLeft: (i) => L.baseLeft({ stageW: i.stageW as number, leftPx: i.leftPx as number }),
   baseTop: (i) => L.baseTop({ stageH: i.stageH as number, topPx: i.topPx as number }),
-  baseLayout: (i) => L.baseLayout({ stageW: i.stageW as number, stageH: i.stageH as number }),
+  baseLayout: (i) => L.baseLayout({ narrow: i.narrow as boolean, stageW: i.stageW as number, stageH: i.stageH as number }),
   tick: (i) =>
     L.tick({
       visible: i.visible as boolean,

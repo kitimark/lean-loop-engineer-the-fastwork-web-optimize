@@ -30,7 +30,7 @@ export interface DragPointer {
 }
 
 export interface NotesEnv {
-  /** `.pain-notes-stage`'s rect (JS `x.getBoundingClientRect()`). */
+  /** The canvas `.pain-canvas`' rect: the notes' stage (JS `x.getBoundingClientRect()`, `x` bound at 4751). */
   stageRect(): RectLike | null;
   /** `.pain-copy`'s rect (the avoid box source, JS `C`), when mounted. */
   copyRect(): RectLike | null;
@@ -77,8 +77,7 @@ export function createNotesDriver(env: NotesEnv, seed: number) {
     if (drag) return;
     const r = env.stageRect();
     if (!r || r.width < 8 || r.height < 8) return;
-    if (env.narrow()) return; // JS 4559: the narrow branch; unreachable (a hidden stage has width 0), kept for the guard order
-    base = baseLayout({ stageW: r.width, stageH: r.height });
+    base = baseLayout({ narrow: env.narrow(), stageW: r.width, stageH: r.height });
     view();
   };
 
@@ -112,7 +111,7 @@ export function createNotesDriver(env: NotesEnv, seed: number) {
     }
     const copy = env.copyRect();
     const avoid: Box[] = copy ? [avoidBox({ copyTop: copy.top, copyH: copy.height, stageTop: stage.top, stageH: stage.height })] : [];
-    const n = addExtra({ stageW: stage.width, stageH: stage.height, notes: [...base, ...extras], avoid, j, extras: extras.length }, rng);
+    const n = addExtra({ stageW: stage.width, stageH: stage.height, base, extras, avoid, j }, rng);
     if (!n) return;
     extras = [...extras, n];
     j += 1;

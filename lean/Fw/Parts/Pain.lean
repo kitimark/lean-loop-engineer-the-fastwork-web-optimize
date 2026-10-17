@@ -30,49 +30,72 @@ def containerSplit : Rat := 1100
 /-- Aspect of the notes stage (CSS 2240). $$\rho = 528/780$$ Height over width. -/
 def aspect : Rat := 528 / 780
 
-/-- Width of `.pain-notes` (and its stage) at a viewport width.
+/-- Width of `.pain-notes` (the spacer; the notes' canvas is `canvasW`) at a viewport width.
 
-$$\operatorname{stageW}(W) = \begin{cases} 0 & W \le 860 \quad (\texttt{display:none}) \\ \min(780,\ W - 2 \cdot 56) & W > 860 \end{cases}$$
+$$\operatorname{boardW}(W) = \begin{cases} 0 & W \le 860 \quad (\texttt{display:none}) \\ \min(780,\ W - 2 \cdot 56) & W > 860 \end{cases}$$
 
 The sticky box is `W` wide with 56 px padding; the inner column fills it up to 780 px. -/
-def stageW (W : Rat) : Rat := if W ≤ narrowMax then 0 else min maxInner (W - 2 * padX)
+def boardW (W : Rat) : Rat := if W ≤ narrowMax then 0 else min maxInner (W - 2 * padX)
 
-/-- Height of the stage. $$\operatorname{stageH}(W) = \tfrac{528}{780} \cdot \operatorname{stageW}(W)$$ From `aspect-ratio`. -/
-def stageH (W : Rat) : Rat := aspect * stageW W
+/-- Height of the stage. $$\operatorname{boardH}(W) = \tfrac{528}{780} \cdot \operatorname{boardW}(W)$$ From `aspect-ratio`. -/
+def boardH (W : Rat) : Rat := aspect * boardW W
 
-#guard stageW 860 == 0
-#guard stageW 861 == 749
-#guard stageW 892 == 780
-#guard stageW 1440 == 780
-#guard stageH 1440 == 528
+#guard boardW 860 == 0
+#guard boardW 861 == 749
+#guard boardW 892 == 780
+#guard boardW 1440 == 780
+#guard boardH 1440 == 528
 
-/-- The stage is hidden up to 860 px, where the original measures width 0 and `ce` returns before placing notes.
+/-- Width of the canvas the notes live in (`.pain-canvas`, inset 0 over the sticky box; the script's `x`, JS 4751).
 
-$$W \le 860 \Rightarrow \operatorname{stageW}(W) = 0 < 8$$
+$$\operatorname{canvasW}(W) = \max(W, 320)$$
 
-(JS 4558 `e.width < 8` returns.) So the narrow branch of the base layout (JS 4559-4574) is never reached. -/
-theorem stageW_narrow (W : Rat) (h : W ≤ narrowMax) : stageW W = 0 := by
-  simp [stageW, h]
+The page is never narrower than 320 px. -/
+def canvasW (W : Rat) : Rat := max W 320
 
-/-- **The `1100` branch is dead.** The stage is never as wide as 1100 px.
+/-- The placement the script picks (JS 4622): jittered below a canvas width of 1100 px, scored from 1100 px up.
 
-$$\forall W:\quad \operatorname{stageW}(W) \le 780 < 1100$$
+$$\operatorname{scored}(W) \iff \operatorname{canvasW}(W) \ge 1100$$ -/
+def scored (W : Rat) : Bool := decide (containerSplit ≤ canvasW W)
 
-So `t.width < 1100` (JS 4622) always holds when a note is added, and the scored placement `ie` (JS 4511-4534)
-never runs: only the jittered placement `ae` does. -/
-theorem stageW_lt_split (W : Rat) : stageW W < containerSplit := by
-  unfold stageW containerSplit maxInner narrowMax
-  split <;> grind
+#guard scored 1099 == false
+#guard scored 1100 == true
+#guard scored 100 == false
+
+/-- The scored placement runs exactly from a viewport width of 1100 px.
+
+$$\operatorname{scored}(W) \iff W \ge 1100$$
+
+So `js.pain-container-1100` is the width edge 1099 / 1100 of the viewport. -/
+theorem scored_iff (W : Rat) : scored W = true ↔ 1100 ≤ W := by
+  unfold scored canvasW containerSplit
+  simp only [decide_eq_true_eq]
+  grind
+
+/-- The canvas is wide enough for the layout at every width, narrow or not.
+
+$$\forall W:\ \operatorname{canvasW}(W) \ge 320 \ge 8$$
+
+So the narrow base layout (JS 4559-4574) does run; the hidden board spacer is not the script's stage. -/
+theorem canvasW_ge (W : Rat) : 8 ≤ canvasW W := by
+  unfold canvasW
+  grind
+
+/-- The board spacer is hidden up to 860 px.
+
+$$W \le 860 \Rightarrow \operatorname{boardW}(W) = 0$$ -/
+theorem boardW_narrow (W : Rat) (h : W ≤ narrowMax) : boardW W = 0 := by
+  simp [boardW, h]
 
 /-- Above 860 px the stage is wider than 748 px.
 
-$$W > 860 \Rightarrow 748 < \operatorname{stageW}(W) \le 780$$
+$$W > 860 \Rightarrow 748 < \operatorname{boardW}(W) \le 780$$
 
 So it is always wide enough for the placement to run (`>= 8`). -/
-theorem stageW_wide (W : Rat) (h : narrowMax < W) : 748 < stageW W ∧ stageW W ≤ maxInner := by
+theorem boardW_wide (W : Rat) (h : narrowMax < W) : 748 < boardW W ∧ boardW W ≤ maxInner := by
   unfold narrowMax at h
   have hn : ¬ W ≤ narrowMax := by unfold narrowMax; grind
-  unfold stageW
+  unfold boardW
   simp only [hn, ite_false]
   unfold maxInner padX
   grind
@@ -81,10 +104,10 @@ theorem stageW_wide (W : Rat) (h : narrowMax < W) : 748 < stageW W ∧ stageW W 
 
 /-- Height of the content of `.pain-sticky` on the desktop layout (copy + gap + stage + vertical padding).
 
-$$c(W) = 96 + 80 + (\underbrace{48 \cdot 1.15}_{h_2} + 16 + 24) + 48 + \operatorname{stageH}(W)$$
+$$c(W) = 96 + 80 + (\underbrace{48 \cdot 1.15}_{h_2} + 16 + 24) + 48 + \operatorname{boardH}(W)$$
 
 with `h2` one line (55.2 px). -/
-def desktopContent (W : Rat) : Rat := 96 + 80 + (48 * 23 / 20 + 16 + 24) + 48 + stageH W
+def desktopContent (W : Rat) : Rat := 96 + 80 + (48 * 23 / 20 + 16 + 24) + 48 + boardH W
 
 /-- Height of `.pain-sticky`: at least `100svh`, taller when the desktop content is.
 
@@ -121,5 +144,8 @@ theorem sectionHeight_tall (s W : Rat) (h : desktopContent W ≤ s) : sectionHei
 
 $$m_{top} = -s$$ (CSS 2173), so the pin starts when the previous section ends. -/
 def marginTop (s : Rat) : Rat := -s
+
+/-- Height of the canvas. $$\operatorname{canvasH}(s, W) = \operatorname{sticky}(s, W)$$ It fills the sticky box. -/
+def canvasH (s W : Rat) : Rat := stickyHeight s W
 
 end Fw.Parts.Pain

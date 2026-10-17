@@ -77,13 +77,31 @@ const BASE = [
   { x: 430.4625244140625, y: 499, k: 'p', text: 16, bg: '#ffe299', rotate: 4, z: 5 },
 ] as const;
 
-/** JS 4575-4588 `ce` (desktop branch, the only one reachable: the narrow stage has width 0). */
-export function baseLayout({ stageW, stageH }: { stageW: number; stageH: number }): Note[] {
-  return BASE.map((b, i) => {
+/** The eleven notes of the narrow layout (JS 4465-4477). */
+const NARROW = [
+  { x: 218, y: 353, k: 'p', text: 15, bg: '#b3f4ef', rotate: -4, z: 1 },
+  { x: 15, y: 437, k: 'h', text: 21, bg: '#e6e6e6', rotate: -6, z: 2 },
+  { x: 392, y: 401, k: 'p', text: 16, bg: '#ffe299', rotate: 4, z: 3 },
+  { x: 218, y: 479, k: 'p', text: 12, bg: '#b3efbd', rotate: -4, z: 4 },
+  { x: 604, y: 460, k: 'p', text: 17, bg: '#e6e6e6', rotate: 4, z: 5 },
+  { x: 413, y: 496, k: 'p', text: 13, bg: '#d3bdff', rotate: 4, z: 6 },
+  { x: 36, y: 588, k: 'p', text: 22, bg: '#d3bdff', rotate: 4, z: 7 },
+  { x: 303, y: 578, k: 'm', text: 14, bg: '#ffafa3', rotate: -2, z: 8 },
+  { x: 215, y: 675, k: 'p', text: 18, bg: '#ffd3a8', rotate: -4, z: 9 },
+  { x: 566, y: 591, k: 'm', text: 20, bg: '#b3efbd', rotate: -2, z: 10 },
+  { x: 390, y: 664, k: 'p', text: 19, bg: '#ffe299', rotate: 4, z: 11 },
+] as const;
+
+/** JS 4555-4588 `ce`: the base notes on the canvas (`stageW` x `stageH` px); `narrow` is `(width<=860px)`. */
+export function baseLayout({ narrow, stageW, stageH }: { narrow: boolean; stageW: number; stageH: number }): Note[] {
+  const list: ReadonlyArray<{ x: number; y: number; k: 'p' | 'm' | 'h'; text: number; bg: string; rotate: number; z: number }> = narrow ? NARROW : BASE;
+  return list.map((b, i) => {
     const [w, h] = SIZE[b.k];
     const leftPx = b.x + w / 2 - 120;
     const topPx = b.y + h / 2 - 120;
-    return { id: `base-${i}`, text: b.text, bg: b.bg, rotate: b.rotate, left: baseLeft({ stageW, leftPx }), top: baseTop({ stageH, topPx }), z: b.z, extra: false };
+    const left = narrow ? ((stageW - 860) / 2 + leftPx) / stageW * 100 : baseLeft({ stageW, leftPx });
+    const top = narrow ? ((topPx - 16) / stageH) * 100 : baseTop({ stageH, topPx });
+    return { id: `base-${i}`, text: b.text, bg: b.bg, rotate: b.rotate, left, top, z: b.z, extra: false };
   });
 }
 
@@ -190,22 +208,64 @@ function place(cands: Box[], w: number, h: number, avoid: Box[], rng: Rng): [num
   return [clampTo({ x: first.left, lo: 0, hi: Math.max(0, 100 - w) }), clampTo({ x: first.top, lo: 0, hi: Math.max(0, 100 - h) })];
 }
 
+const dist = (a: Box, b: Box): number => {
+  const dx = a.left + a.width / 2 - (b.left + b.width / 2);
+  const dy = a.top + a.height / 2 - (b.top + b.height / 2);
+  return Math.sqrt(dx * dx + dy * dy);
+};
+
+/** JS 4511 `ie`: the scored placement (canvas 1100 px and up): 120 tries, best clean candidate else best overall. */
+function scoredPlace(w: number, h: number, base: Box[], avoid: Box[], extras: Box[], rng: Rng): [number, number] | null {
+  const a = Math.max(0, 100 - w);
+  const o = Math.max(0, 100 - h);
+  let best: { l: number; t: number; score: number } | null = null;
+  let any: { l: number; t: number; score: number } | null = null;
+  for (let k = 0; k < 120; k++) {
+    const l = rng.draw() * a;
+    const t = rng.draw() * o;
+    const d: Box = { left: l, top: t, width: w, height: h };
+    if (avoid.some((e) => overlaps({ a: d, b: e, gap: 0 }))) continue;
+    let f = 0;
+    let p = 0;
+    let m = Infinity;
+    let hh = Infinity;
+    for (const e of base) {
+      if (overlaps({ a: d, b: e, gap: 1.2 })) f += 1;
+      m = Math.min(m, dist(d, e));
+    }
+    for (const e of extras) {
+      if (overlaps({ a: d, b: e, gap: 1.2 })) p += 1;
+      hh = Math.min(hh, dist(d, e));
+    }
+    if (!Number.isFinite(hh)) hh = 80;
+    const g = +(hh < Math.max(w, h) * 0.85);
+    const score = -f * 600 - p * 220 - g * 180 + m * 0.9 + hh * 2.4 + rng.draw() * 8;
+    const cand = { l, t, score };
+    if (f === 0 && p === 0 && (!best || score > best.score)) best = cand;
+    if (!any || score > any.score) any = cand;
+  }
+  const r = best ?? any;
+  return r ? [r.l, r.t] : null;
+}
+
 /** JS 4604-4645 after the guards (Lean `addExtra`): the new extra note, or null when nothing fits. */
-export function addExtra(i: { stageW: number; stageH: number; notes: readonly Note[]; avoid: Box[]; j: number; extras: number }, rng: Rng): Note | null {
+export function addExtra(i: { stageW: number; stageH: number; base: readonly Note[]; extras: readonly Note[]; avoid: Box[]; j: number }, rng: Rng): Note | null {
   const w = (NOTE_SIZE / i.stageW) * 100;
   const h = (NOTE_SIZE / i.stageH) * 100;
-  const p = place(i.notes.map((n) => noteBox(n, i.stageW, i.stageH)), w, h, i.avoid, rng);
+  const bb = i.base.map((n) => noteBox(n, i.stageW, i.stageH));
+  const eb = i.extras.map((n) => noteBox(n, i.stageW, i.stageH));
+  const p = i.stageW < 1100 ? place([...bb, ...eb], w, h, i.avoid, rng) : scoredPlace(w, h, bb, i.avoid, eb, rng);
   if (!p) return null;
   const r1 = rng.draw();
   const r2 = rng.draw();
   return {
     id: `extra-${i.j}`,
-    text: pickText({ used: i.notes.map((n) => n.text), r: r1 }),
+    text: pickText({ used: [...i.base, ...i.extras].map((n) => n.text), r: r1 }),
     bg: PALETTE[idx({ r: r2, n: PALETTE.length })] ?? '#b3efbd',
     rotate: rotation({ j: i.j }),
     left: p[0],
     top: p[1],
-    z: 10 + i.extras,
+    z: 10 + i.extras.length,
     extra: true,
   };
 }
@@ -214,19 +274,19 @@ export function addExtra(i: { stageW: number; stageH: number; notes: readonly No
 export function session(i: { stageW: number; stageH: number; seed: number; copyTop: number; copyH: number; stageTop: number; ticks: number }): Note[] {
   const rng = createRng(i.seed);
   const avoid = [avoidBox({ copyTop: i.copyTop, copyH: i.copyH, stageTop: i.stageTop, stageH: i.stageH })];
-  const notes = baseLayout({ stageW: i.stageW, stageH: i.stageH });
+  const base = baseLayout({ narrow: false, stageW: i.stageW, stageH: i.stageH });
+  const extras: Note[] = [];
   let j = 0;
   for (let k = 0; k < i.ticks; k++) {
-    const extras = notes.length - 5;
-    const t = tick({ visible: true, dragging: false, extras, narrow: false, reduced: false, cardTop: null, vh: 900, stageW: i.stageW, stageH: i.stageH });
+    const t = tick({ visible: true, dragging: false, extras: extras.length, narrow: false, reduced: false, cardTop: null, vh: 900, stageW: i.stageW, stageH: i.stageH });
     if (t !== 'add') continue;
-    const n = addExtra({ stageW: i.stageW, stageH: i.stageH, notes, avoid, j, extras }, rng);
+    const n = addExtra({ stageW: i.stageW, stageH: i.stageH, base, extras, avoid, j }, rng);
     if (n) {
-      notes.push(n);
+      extras.push(n);
       j += 1;
     }
   }
-  return notes;
+  return [...base, ...extras];
 }
 
 /** JS 4650-4654: whether a pointer-down starts a drag. */

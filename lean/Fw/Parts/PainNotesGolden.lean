@@ -64,17 +64,17 @@ extra (JS 4590-4646 with visible, not dragging, wide, no reduced motion, card be
 $$\mathrm{session}(W_s, H_s, \mathit{seed}, c_t, c_h, s_t, n)$$ -/
 def session (stageW stageH : Rat) (seed : UInt32) (copyTop copyH stageTop : Rat) (n : Nat) : List Note :=
   let avoid := [avoidBox copyTop copyH stageTop stageH]
+  let base := baseLayout false stageW stageH
   let step := fun (acc : List Note × Nat × UInt32) (_ : Nat) =>
-    let (notes, j, s) := acc
-    let extras := notes.length - 5
-    match tick true false extras false false none 900 stageW stageH with
+    let (extras, j, s) := acc
+    match tick true false extras.length false false none 900 stageW stageH with
     | .add =>
-      let (r, s') := (addExtra stageW stageH notes avoid j extras).run s
+      let (r, s') := (addExtra stageW stageH base extras avoid j).run s
       match r with
-      | some note => (notes ++ [note], j + 1, s')
-      | none => (notes, j, s')
+      | some note => (extras ++ [note], j + 1, s')
+      | none => (extras, j, s')
     | _ => acc
-  ((List.range n).foldl step (baseLayout stageW stageH, 0, seed)).1
+  base ++ ((List.range n).foldl step ([], 0, seed)).1
 
 /-- The golden lines. $$\text{lines}$$ Vectors the TS logic must reproduce. -/
 def lines : List String :=
@@ -90,8 +90,9 @@ def lines : List String :=
     line "baseLeft" [("stageW", rin w), ("leftPx", rin l)] (ratWire (baseLeft w l))) ++
   (([(868, 100), (528, 337.5), (507, 0), (528, 292.5), (700, -50)] : List (Rat × Rat)).map fun (h, t) =>
     line "baseTop" [("stageH", rin h), ("topPx", rin t)] (ratWire (baseTop h t))) ++
-  (([(780, 528), (749, 507), (1440, 868), (861.5, 583)] : List (Rat × Rat)).map fun (w, h) =>
-    line "baseLayout" [("stageW", rin w), ("stageH", rin h)] (Json.arr ((baseLayout w h).map noteOut).toArray)) ++
+  (([(1440, 900), (1000, 800), (861.5, 700), (860, 700), (390, 800), (320, 640), (1920, 1080)] : List (Rat × Rat)).map fun (w, h) =>
+    line "baseLayout" [("narrow", .bool (decide (w ≤ 860))), ("stageW", rin w), ("stageH", rin h)]
+      (Json.arr ((baseLayout (decide (w ≤ 860)) w h).map noteOut).toArray)) ++
   (bs.flatMap fun vis => bs.flatMap fun drag => ([0, 11, 12, 13] : List Nat).flatMap fun (n : Nat) => bs.flatMap fun nar => bs.flatMap fun red =>
     [(none : Option Rat), some 800, some 895, some 900].map fun c =>
     line "tick" [("visible", .bool vis), ("dragging", .bool drag), ("extras", .num ⟨n, 0⟩), ("narrow", .bool nar),
@@ -135,8 +136,8 @@ def lines : List String :=
   [line "stickTiming" []
     (Json.mkObj [("durationMs", ratWire stickMs), ("scaleFrom", ratWire stickScale0), ("x1", ratWire (33 / 100)),
       ("y1", ratWire 1), ("x2", ratWire (68 / 100)), ("y2", ratWire 1), ("opacityFrom", ratWire 0)])] ++
-  (([(780, 528, 1, 100, 100, 0, 3), (780, 528, 7, 100, 100, 0, 14), (749, 507, 42, 100, 100, 0, 14),
-    (780, 528, 4294967295, 20, 100, 0, 6), (780, 528, 99, 100, 100, 0, 0)] : List (Rat × Rat × UInt32 × Rat × Rat × Rat × Nat)).map fun (w, h, seed, ct, ch, st, n) =>
+  (([(1440, 900, 1, 100, 100, 0, 3), (1440, 900, 7, 100, 100, 0, 14), (1100, 800, 42, 100, 100, 0, 14),
+    (1099, 800, 5, 100, 100, 0, 14), (900, 800, 4294967295, 20, 100, 0, 6), (1440, 900, 99, 100, 100, 0, 0)] : List (Rat × Rat × UInt32 × Rat × Rat × Rat × Nat)).map fun (w, h, seed, ct, ch, st, n) =>
     line "session" [("stageW", rin w), ("stageH", rin h), ("seed", seedJ seed), ("copyTop", rin ct), ("copyH", rin ch),
         ("stageTop", rin st), ("ticks", .num ⟨n, 0⟩)]
       (Json.arr ((session w h seed ct ch st n).map noteOut).toArray))
