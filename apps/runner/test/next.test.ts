@@ -12,6 +12,7 @@ import {
   type AgentFacts, type NextReply, type Raw, type RawPs,
 } from "../src/next.ts";
 import { coreCaller } from "../src/watch.ts";
+import { hasWorktree } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const fwcore = join(root, "lean/.lake/build/bin/fwcore");
@@ -19,7 +20,7 @@ const golden = readFileSync(join(root, "packages/contracts/golden/obs/next.jsonl
   .map((l) => JSON.parse(l) as { name: string; request: { now: number; agents: any[] }; response: NextReply });
 // A fact "producer exited" with no watched file cannot be observed (the exit marker is read from the watched file),
 // so such Lean-side edge cases (6b) are not replayable through the collector.
-const cases17 = golden.filter((g) => /^case [1-7]/.test(g.name)
+const cases17 = golden.filter((g) => /^case \d/.test(g.name)
   && !g.request.agents.some((f) => f.children.some((c: any) => c.producerExited && c.watchedAt == null)));
 
 const dirs: string[] = [];
@@ -58,6 +59,7 @@ function rawOf(now: number, facts: any[]): Raw {
       id: f.id, name: f.id, task: f.id, state: f.state, ctxTokens: f.ctxTokens, handbackAt: f.handbackAt ?? null,
       worktree: f.worktree || f.branch ? { path: `/wt/agent-${f.id}`, branch: f.branch?.name ?? null, lockPid: f.worktree?.lockPid ?? null } : null,
       ahead: f.branch?.ahead ?? null, landed: f.branch?.landed ?? null,
+      mergesClean: f.branch ? f.branch.mergesClean ?? true : null, branchDeps: f.branch?.deps ?? [], handoff: f.handoff ?? false,
     };
   });
   const board = new Map<string, { id: string; done: boolean; agent: string | null }>();
@@ -69,7 +71,7 @@ function rawOf(now: number, facts: any[]): Raw {
   return { now, session: facts[0].session, agents, procs, ps: [...ps.values()], alive: (p) => alive.has(p), file: (p) => files.get(p) ?? null, queuedText: queued, ci, board };
 }
 
-describe("golden cases 1-7 through the fact builder", () => {
+describe("golden cases through the fact builder", () => {
   it("has the cases", () => { expect(cases17.length).toBeGreaterThanOrEqual(7); });
   for (const g of cases17) {
     it(g.name, async () => {
@@ -138,7 +140,7 @@ describe("end to end with a real child process", () => {
     const raw: Raw = {
       now, session: process.pid, ps, alive: () => true, file: statFile, queuedText: "", ci: [], board: new Map(),
       procs: [{ pid: child.pid!, name: "sh", startedAt: now, pids: [], agent: "e2e" }],
-      agents: [{ id: "e2e", name: "e2e", task: "e2e", state, ctxTokens: 0, handbackAt: null, worktree: null, ahead: null, landed: null }],
+      agents: [{ id: "e2e", name: "e2e", task: "e2e", state, ctxTokens: 0, handbackAt: null, worktree: null, ahead: null, landed: null, mergesClean: null, branchDeps: [], handoff: false }],
     };
     return { facts: buildFacts(raw), now, pid: child.pid! };
   }
@@ -168,6 +170,37 @@ describe("end to end with a real child process", () => {
       expect(formatNext(r)).toContain(`NEXT e2e killOrphan pid=${pid}`);
       expect(nextAlerts(r).map((a) => a.code)).toContain("agent.held");
     }
+  });
+});
+
+describe("false-positive facts (inc-next-false-positives) and retention", () => {
+  const base = (): Raw => ({
+    now: 1e9, session: 1, procs: [], ps: [], alive: () => false, file: () => null, queuedText: "", ci: [],
+    board: new Map([
+      ["v", { id: "v", done: false, agent: null, deps: ["port", "other"] }],
+      ["port", { id: "port", done: false, agent: null }],
+      ["other", { id: "other", done: true, agent: null }],
+    ]),
+    agents: [{
+      id: "a1", name: "v", task: "v", state: "done", ctxTokens: 0, handbackAt: 5, ahead: 3, landed: false,
+      worktree: { path: "/wt/agent-a1", branch: "wt-v", lockPid: null }, mergesClean: false, branchDeps: ["wt-port"], handoff: true,
+    }],
+  });
+  it("branch facts: merge result, contained unlanded branches, then board deps not done", () => {
+    const f = buildFacts(base())[0]!;
+    expect(f.branch).toMatchObject({ mergesClean: false, deps: ["wt-port", "port"] });
+    expect(f.handoff).toBe(true);
+  });
+  it("an unchecked merge counts as clean", () => {
+    const r = base(); r.agents[0]!.mergesClean = null; r.agents[0]!.branchDeps = [];
+    expect(buildFacts(r)[0]!.branch).toMatchObject({ mergesClean: true });
+  });
+  it("hasWorktree: an ended agent with a worktree directory is not pre-filtered", () => {
+    const d = mkdtempSync(join(tmpdir(), "fw-keep-")); dirs.push(d);
+    mkdirSync(join(d, ".claude/worktrees/agent-zz"), { recursive: true });
+    const p = { root: d, consoleDir: join(d, ".fw-console"), home: d, projectsDir: join(d, "p") };
+    expect(hasWorktree(p, "zz")).toBe(true);
+    expect(hasWorktree(p, "yy")).toBe(false);
   });
 });
 

@@ -16,7 +16,9 @@ export type ChildFact = {
 } & ({ kind: "sleepLoop" | "build" | "other" } | { kind: "ciWait"; run: number; timeoutMin: number });
 export interface AgentFacts {
   id: string; task: string; state: string; session: number; handbackAt: number | null;
-  branch: { name: string; ahead: number; landed: boolean; queued: boolean } | null;
+  branch: { name: string; ahead: number; landed: boolean; queued: boolean; mergesClean: boolean; deps: string[] } | null;
+  /** docs/team/handoffs/<name>.md exists */
+  handoff: boolean;
   worktree: { lockPid: number | null; lockAlive: boolean } | null;
   ctxTokens: number; children: ChildFact[];
   ci: { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null } | null;
@@ -78,6 +80,11 @@ export interface FileObs { mtimeMs: number; lastLine: string }
 export interface RawAgent {
   id: string; name: string | null; task: string | null; state: string; ctxTokens: number | null; handbackAt: number | null;
   worktree: Worktree | null; ahead: number | null; landed: boolean | null;
+  /** `git merge-tree --write-tree main <branch>` exited 0 (null: not checked: no unlanded branch) */
+  mergesClean: boolean | null;
+  /** unlanded branches of other agents that the branch contains (git ancestry), by branch name */
+  branchDeps: string[];
+  handoff: boolean;
 }
 export interface RawCi { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null }
 export interface RawPs { pid: number; ppid: number; ageMs: number; comm: string }
@@ -87,7 +94,7 @@ export interface Raw {
   procs: Proc[]; ps: RawPs[];
   alive: (pid: number) => boolean; file: (path: string) => FileObs | null;
   /** text of the integrator's list (a branch name in it means queued) */
-  queuedText: string; ci: RawCi[]; board: Map<string, { id: string; done: boolean; agent: string | null }>;
+  queuedText: string; ci: RawCi[]; board: Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>;
 }
 const hasWord = (text: string, w: string) => text.split(/[^A-Za-z0-9._/-]+/).includes(w);
 
@@ -118,6 +125,8 @@ export function childrenOf(raw: Raw, agentId: string): ChildFact[] {
   return out;
 }
 
+const rowOf = (r: { id: string; done: boolean; agent: string | null } | undefined) => r ? { id: r.id, done: r.done, agent: r.agent } : null;
+
 export function buildFacts(raw: Raw): AgentFacts[] {
   return raw.agents.map((a) => {
     const task = a.name ?? a.task ?? a.id;
@@ -126,11 +135,17 @@ export function buildFacts(raw: Raw): AgentFacts[] {
     return {
       id: task, task, state: a.state, session: raw.session, handbackAt: a.handbackAt,
       branch: w?.branch && a.ahead !== null && a.landed !== null
-        ? { name: w.branch, ahead: a.ahead, landed: a.landed, queued: hasWord(raw.queuedText, w.branch) } : null,
+        ? {
+          name: w.branch, ahead: a.ahead, landed: a.landed, queued: hasWord(raw.queuedText, w.branch),
+          mergesClean: a.mergesClean ?? true,
+          // observed dependencies: contained unlanded agent branches, then the task's board dependencies not done
+          deps: [...a.branchDeps, ...(raw.board.get(task)?.deps ?? []).filter((d) => raw.board.get(d)?.done === false)],
+        } : null,
       worktree: w ? { lockPid: w.lockPid, lockAlive: w.lockPid !== null && raw.alive(w.lockPid) } : null,
       ctxTokens: a.ctxTokens ?? 0, children: childrenOf(raw, a.id),
       ci: ci && { ...ci },
-      board: a.name ? raw.board.get(a.name) ?? null : null,
+      board: a.name ? rowOf(raw.board.get(a.name)) : null,
+      handoff: a.handoff,
     };
   });
 }
@@ -209,6 +224,17 @@ export function sessionPid(ps: RawPs[], self: number, lockPids: number[]): numbe
 
 const INTEGRATOR_LIST = "docs/team/handoffs/integrate-ports.md";
 
+/** (commits ahead of main, ancestor of main) of a branch; [null, null] when git cannot say. Cached per collection. */
+async function branchState(p: Paths, branch: string, cache: Map<string, [number | null, boolean | null]>): Promise<[number | null, boolean | null]> {
+  const hit = cache.get(branch);
+  if (hit) return hit;
+  const n = await exec("git", ["rev-list", "--count", `main..${branch}`], p.root);
+  const anc = (await exec("git", ["merge-base", "--is-ancestor", branch, "main"], p.root)) !== null;
+  const r: [number | null, boolean | null] = n !== null ? [Number(n.trim()), anc] : [null, null];
+  cache.set(branch, r);
+  return r;
+}
+
 /** Collect every observation for the snapshot's agents. `health` = the obs.health reply for the same snapshot. */
 export async function collectRaw(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, plan: unknown): Promise<Raw> {
   const [wtOut, ps] = await Promise.all([exec("git", ["worktree", "list", "--porcelain"], p.root), psCommands()]);
@@ -216,25 +242,40 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
   const states = new Map(health.agents.map((a) => [a.id, a.state]));
   const tfs = findTranscripts(p);
   const agents: RawAgent[] = [];
+  const cache = new Map<string, [number | null, boolean | null]>();
   for (const a of snap.agents) {
     const state = states.get(a.id);
     if (!state) continue;
     const wt = worktreeOf(wts, a.id, a.name);
     let ahead: number | null = null, landed: boolean | null = null;
+    let mergesClean: boolean | null = null;
+    const branchDeps: string[] = [];
     if (wt?.branch) {
-      const n = await exec("git", ["rev-list", "--count", `main..${wt.branch}`], p.root);
-      const anc = (await exec("git", ["merge-base", "--is-ancestor", wt.branch, "main"], p.root)) !== null;
-      if (n !== null) { ahead = Number(n.trim()); landed = anc; }
+      [ahead, landed] = await branchState(p, wt.branch, cache);
+      if (ahead !== null && ahead > 0 && landed === false) {
+        mergesClean = (await exec("git", ["merge-tree", "--write-tree", "main", wt.branch], p.root)) !== null;
+        for (const o of wts) {
+          if (!o.branch || o.branch === wt.branch || o.branch === "main") continue;
+          const [oa, ol] = await branchState(p, o.branch, cache);
+          if (oa === null || oa === 0 || ol !== false) continue;
+          if ((await exec("git", ["merge-base", "--is-ancestor", o.branch, wt.branch], p.root)) !== null) branchDeps.push(o.branch);
+        }
+      }
     }
+    const nm = a.name ?? a.task ?? a.id;
+    const handoff = [p.root, main, ...(wt ? [wt.path] : [])].some((r) => existsSync(join(r, "docs/team/handoffs", `${nm}.md`)));
     let handbackAt: number | null = null;
     const tf = tfs.get(a.id);
     if (tf) { try { handbackAt = handbackAtOf(readFileSync(tf, "utf8")); } catch { /* unreadable */ } }
-    agents.push({ id: a.id, name: a.name, task: a.task, state, ctxTokens: a.ctxTokens, handbackAt, worktree: wt, ahead, landed });
+    agents.push({ id: a.id, name: a.name, task: a.task, state, ctxTokens: a.ctxTokens, handbackAt, worktree: wt, ahead, landed, mergesClean, branchDeps, handoff });
   }
-  const board = new Map<string, { id: string; done: boolean; agent: string | null }>();
+  const board = new Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>();
   const tasks = (plan as { tasks?: unknown } | null)?.tasks;
   for (const t of Array.isArray(tasks) ? (tasks as any[]) : []) {
-    if (typeof t?.id === "string") board.set(t.id, { id: t.id, done: t.state === "done", agent: typeof t.agent === "string" ? t.agent : null });
+    if (typeof t?.id === "string") board.set(t.id, {
+      id: t.id, done: t.state === "done", agent: typeof t.agent === "string" ? t.agent : null,
+      deps: Array.isArray(t.deps) ? t.deps.filter((d: unknown): d is string => typeof d === "string") : [],
+    });
   }
   let queuedText = "";
   for (const root of [p.root, main]) {

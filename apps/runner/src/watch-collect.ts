@@ -66,9 +66,14 @@ export interface Snapshot {
 }
 
 // SCOPE (collection only, not health decisions): an agent with no SubagentStop and no activity for 24 h is
-// treated as ended (its hooks never fired Stop); ended agents are dropped from the snapshot 1 h after they ended.
+// treated as ended (its hooks never fired Stop); ended agents are dropped from the snapshot 1 h after they ended,
+// unless their worktree directory still exists (retention is Fw.Obs.Next.keepB; this pre-filter only skips agents
+// that rule would also drop: no worktree, hence no open branch/child/CI/respawn is observable for them).
 // A failed gh/docker collector carries the previous check's value forward only if that check is <= 1 h old.
 export const SCOPE = { ghostMs: 24 * 3600_000, keepDoneMs: 3600_000, carryMs: 3600_000 };
+
+/** The agent's worktree directory (`<main>/.claude/worktrees/agent-<id>`) still exists: a cheap observation, no decision. */
+export const hasWorktree = (p: Paths, id: string): boolean => existsSync(join(p.root, ".claude", "worktrees", `agent-${id}`));
 
 export const DEFAULT_PARAMS = {
   idleMin: 10, stallMin: 20, toolHangMin: 30, errStreak: 3, ctxResumeMax: 250000, ctxWarn: 200000,
@@ -291,7 +296,7 @@ export function collectAgents(p: Paths, now: number, owners?: Map<string, string
     const meta = tf ? readMeta(tf) : null;
     const lastGuess = Math.max(sp?.lastAt ?? 0, tmtime);
     const endedGuess = sp?.stoppedAt ?? (meta?.finished === true ? tmtime : null);
-    if (endedGuess !== null && now - endedGuess > SCOPE.keepDoneMs) continue;
+    if (endedGuess !== null && now - endedGuess > SCOPE.keepDoneMs && !hasWorktree(p, id)) continue;
     if (endedGuess === null && now - lastGuess > SCOPE.ghostMs) continue;
     let tr: TranscriptInfo | null = null;
     if (tf) { try { tr = summarizeTranscript(readFileSync(tf, "utf8"), meta); } catch { /* unreadable */ } }
@@ -306,7 +311,7 @@ export function collectAgents(p: Paths, now: number, owners?: Map<string, string
   for (const { id, sp, tf, tr } of kept) {
     const lastAt = Math.max(sp?.lastAt ?? 0, tr?.lastAt ?? 0);
     if (lastAt === 0) continue;
-    if (!sp && tr?.endedTurn && now - lastAt > SCOPE.keepDoneMs) continue;
+    if (!sp && tr?.endedTurn && now - lastAt > SCOPE.keepDoneMs && !hasWorktree(p, id)) continue;
     let stoppedAt = sp?.stoppedAt ?? null;
     // transcript-only agents (no spool) that ended their turn on text or StructuredOutput have exited
     if (stoppedAt === null && (tr?.finished || (!sp && tr?.endedTurn))) stoppedAt = tr.lastAt ?? lastAt;

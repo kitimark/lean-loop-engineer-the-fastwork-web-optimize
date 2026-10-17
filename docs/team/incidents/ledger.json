@@ -138,6 +138,34 @@
    "repro": "research/notes/2026/10-18-gh-rate-budget.md, the call-count model.",
    "fix": {"task": "ghb-runner", "also": ["ghb-lean", "ghb-glue"]},
    "regression": "packages/gh-budget tests; Fw.Ci.Budget theorems"
+  },
+  {
+   "id": "inc-next-false-positives",
+   "at": "2026-10-18T03:30+07:00",
+   "title": "fw next proposed land for a branch that conflicts with main and respawn for agents that finished long ago",
+   "symptom": "Live `fw next` printed `NEXT variant-morph-panel-rest land` for a branch that contains the unlanded port-morph-panel branch and conflicts with main, and 11 `respawnFromHandoff` lines for long-finished agents (env-elan, explainer-rev6, lean-math, macos-queue, ...).",
+   "cause": "CONFIRMED (Fw.Obs.Next at 8a52856): `lands` looked only at ahead/landed/queued, and `respawn` only at stuck and no child. Neither read whether the branch merges cleanly, whether it carries unlanded dependencies, or whether the agent's task is still open.",
+   "evidence": [
+    {"kind": "commit", "ref": "8a52856", "note": "obs-next-glue branch: the rules before the fix"},
+    {"kind": "file", "ref": "packages/contracts/golden/obs/next.jsonl", "note": "cases 9, 9b (waitDeps, conflict) and 10-10c (no respawn without an open task and a handoff)"}
+   ],
+   "repro": "Fw.Obs.Next: a handed-back agent whose branch has deps or does not merge cleanly got `land`; a gone agent with a done task got `respawnFromHandoff`.",
+   "fix": {"task": "obs-next-glue"},
+   "regression": "Fw.Obs.Next land_sound, waitDeps_sound, respawn_sound and the golden cases; apps/runner/test/next.test.ts"
+  },
+  {
+   "id": "inc-retention-hides-unlanded",
+   "at": "2026-10-18T03:30+07:00",
+   "title": "The health collector dropped an agent one hour after it ended, hiding its unlanded branch",
+   "symptom": "port-nav ended at 01:23 with its branch unlanded; at 03:23 it was gone from the health agents list and from the NEXT input, so no routeIntegrator or land could be proposed.",
+   "cause": "CONFIRMED (source): SCOPE.keepDoneMs = 1 h in apps/runner/src/watch-collect.ts:71 drops ended agents from the snapshot regardless of open work (branch ahead of main, worktree, child).",
+   "evidence": [
+    {"kind": "file", "ref": "apps/runner/src/watch-collect.ts:71", "note": "keepDoneMs at the main checkout when the incident was seen"},
+    {"kind": "event", "ref": "health snapshot at 03:23", "note": "port-nav absent from the agents list (local-only)"}
+   ],
+   "repro": "End an agent with an unlanded branch, wait more than an hour, run fw watch: the agent is not in the snapshot.",
+   "fix": {"task": "obs-next-glue"},
+   "regression": "Fw.Obs.Next keep_of_open_action and golden case 8; apps/runner/test/next.test.ts (hasWorktree)"
   }
  ]
 }

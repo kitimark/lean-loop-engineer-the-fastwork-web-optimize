@@ -95,6 +95,15 @@ Actions: `killOrphan pid`, `land branch task`, `routeIntegrator branch`, `waitCi
 (`fw next` prints `NEXT: none`). Without a built `fwcore` that knows `obs.next`, `fw watch` prints no NEXT lines and
 `fw next` says so.
 
+`land` is proposed only for a branch that merges into `main` cleanly (`git merge-tree --write-tree main <branch>` exits 0)
+and has no unlanded dependency (it contains no other unlanded agent branch, and the dependencies of its task on the
+board are done). Otherwise: `waitDeps dep=<first dependency>` or `investigate reason=conflict`. `respawnFromHandoff` is
+proposed only for a stalled or gone agent whose task is on the board and not done and whose
+`docs/team/handoffs/<name>.md` exists (an agent without an open task gets nothing). Retention: an ended agent stays in the
+snapshot after the 1 h window while its worktree directory exists (`hasWorktree`); Lean's `keepB`
+(`keep_of_open_action`) says which ended agents have an open action, and the TS pre-filter only skips agents without a
+worktree. Limitation (INFERRED): an unlanded branch whose worktree directory is gone is not seen.
+
 Two alerts are derived from the actions and use the normal alert plumbing (health.jsonl, `--until-alert` exits 3):
 - `agent.held`: `killOrphan` proposed (the agent's own `until ...; do sleep` loop can never finish);
 - `agent.unlanded`: `land` or `routeIntegrator` proposed (handed back, branch ahead of `main`, not landed).
