@@ -1,0 +1,2491 @@
+{
+ "schema": "fw.zonebaseline.webkit.baseline/1",
+ "note": "Cross-run baseline per 500px zone and count type (zones, detDrift: zone-level class) and whole-run totals (totals, detDriftTotals: whole-run class), from fwcore measure.zoneBaseline (Lean Fw.Measure.ZoneBaseline). class = the WebKit table class at that level; perRun in run order; base = the observed value at sorted index floor((n-1)/2). Only deterministic and stable zone cells are gateable; quarantined cells are model-check-only and carry a noise band (lo..hi). Counts are work, not milliseconds; nothing here is phone time.",
+ "source": {
+  "zonesSha256": "64d6ea39be028323c0843bda086cec57a4669e40afe999b6b1dbd78c16186c02",
+  "runId": "39061324429",
+  "sessions": [
+   "v1-session-1",
+   "v2-session-1",
+   "v3-session-1"
+  ]
+ },
+ "classTable": {
+  "file": "packages/measure-webkit/classes/webkit-sim-v1.json",
+  "sha256": "50179cc7629e1994d1d7ab006e05570b66bbec8a447a1c5641d0591dd639e90d",
+  "sessions": 3,
+  "passesPerSession": [
+   2,
+   2,
+   2
+  ]
+ },
+ "target": "original",
+ "engine": "webkit-sim",
+ "runs": [
+  "v1-session-1-p1",
+  "v1-session-1-p2",
+  "v2-session-1-p1",
+  "v2-session-1-p2",
+  "v3-session-1-p1",
+  "v3-session-1-p2"
+ ],
+ "zones": [
+  {
+   "firstFrame": 0,
+   "frames": 10,
+   "id": "z00",
+   "lastFrame": 9,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 19,
+     "class": "stable",
+     "hi": 19,
+     "lo": 19,
+     "perRun": [
+      19,
+      19,
+      19,
+      19,
+      19,
+      19
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 68,
+     "class": "quarantined",
+     "hi": 68,
+     "lo": 68,
+     "perRun": [
+      68,
+      68,
+      68,
+      68,
+      68,
+      68
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 102,
+     "class": "quarantined",
+     "hi": 107,
+     "lo": 101,
+     "perRun": [
+      101,
+      107,
+      104,
+      101,
+      102,
+      103
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 85,
+     "class": "quarantined",
+     "hi": 89,
+     "lo": 83,
+     "perRun": [
+      89,
+      83,
+      86,
+      85,
+      83,
+      86
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 83,
+     "class": "quarantined",
+     "hi": 85,
+     "lo": 81,
+     "perRun": [
+      85,
+      83,
+      83,
+      83,
+      81,
+      85
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 20,
+     "class": "quarantined",
+     "hi": 22,
+     "lo": 15,
+     "perRun": [
+      20,
+      15,
+      22,
+      20,
+      21,
+      21
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 163,
+     "class": "quarantined",
+     "hi": 184,
+     "lo": 155,
+     "perRun": [
+      165,
+      163,
+      158,
+      177,
+      184,
+      155
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 78,
+     "class": "quarantined",
+     "hi": 80,
+     "lo": 77,
+     "perRun": [
+      78,
+      77,
+      79,
+      79,
+      78,
+      80
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 78,
+     "class": "quarantined",
+     "hi": 79,
+     "lo": 76,
+     "perRun": [
+      78,
+      77,
+      79,
+      78,
+      76,
+      79
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 12,
+     "lo": 9,
+     "perRun": [
+      11,
+      9,
+      11,
+      9,
+      10,
+      12
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 8431875,
+     "class": "quarantined",
+     "hi": 9602234,
+     "lo": 7230998,
+     "perRun": [
+      8431875,
+      9602234,
+      7238085,
+      8868382,
+      9219623,
+      7230998
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 10,
+   "frames": 10,
+   "id": "z01",
+   "lastFrame": 19,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20,
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 66,
+     "class": "quarantined",
+     "hi": 66,
+     "lo": 66,
+     "perRun": [
+      66,
+      66,
+      66,
+      66,
+      66,
+      66
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 100,
+     "class": "quarantined",
+     "hi": 110,
+     "lo": 100,
+     "perRun": [
+      101,
+      100,
+      106,
+      100,
+      100,
+      110
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 70,
+     "class": "quarantined",
+     "hi": 72,
+     "lo": 67,
+     "perRun": [
+      72,
+      69,
+      71,
+      70,
+      67,
+      71
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 73,
+     "class": "quarantined",
+     "hi": 76,
+     "lo": 69,
+     "perRun": [
+      76,
+      70,
+      74,
+      73,
+      69,
+      76
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 18,
+     "class": "quarantined",
+     "hi": 22,
+     "lo": 16,
+     "perRun": [
+      16,
+      19,
+      19,
+      18,
+      18,
+      22
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 183,
+     "class": "quarantined",
+     "hi": 219,
+     "lo": 169,
+     "perRun": [
+      183,
+      214,
+      175,
+      203,
+      219,
+      169
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 73,
+     "class": "quarantined",
+     "hi": 77,
+     "lo": 72,
+     "perRun": [
+      73,
+      73,
+      75,
+      72,
+      73,
+      77
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 73,
+     "class": "quarantined",
+     "hi": 77,
+     "lo": 72,
+     "perRun": [
+      73,
+      73,
+      75,
+      72,
+      73,
+      77
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 12,
+     "class": "quarantined",
+     "hi": 22,
+     "lo": 12,
+     "perRun": [
+      14,
+      12,
+      19,
+      12,
+      12,
+      22
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 16246812,
+     "class": "quarantined",
+     "hi": 17337701,
+     "lo": 13928872,
+     "perRun": [
+      13928872,
+      17337701,
+      16246812,
+      17023536,
+      17089105,
+      16067372
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 20,
+   "frames": 10,
+   "id": "z02",
+   "lastFrame": 29,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20,
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 60,
+     "class": "quarantined",
+     "hi": 60,
+     "lo": 60,
+     "perRun": [
+      60,
+      60,
+      60,
+      60,
+      60,
+      60
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 82,
+     "class": "quarantined",
+     "hi": 89,
+     "lo": 80,
+     "perRun": [
+      85,
+      82,
+      87,
+      82,
+      80,
+      89
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 45,
+     "class": "quarantined",
+     "hi": 54,
+     "lo": 38,
+     "perRun": [
+      41,
+      52,
+      38,
+      49,
+      54,
+      45
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 46,
+     "class": "quarantined",
+     "hi": 50,
+     "lo": 44,
+     "perRun": [
+      46,
+      47,
+      44,
+      45,
+      50,
+      48
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 7,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 6,
+     "perRun": [
+      10,
+      7,
+      10,
+      6,
+      6,
+      10
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 129,
+     "class": "quarantined",
+     "hi": 142,
+     "lo": 124,
+     "perRun": [
+      129,
+      137,
+      126,
+      131,
+      142,
+      124
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 45,
+     "class": "quarantined",
+     "hi": 47,
+     "lo": 43,
+     "perRun": [
+      45,
+      45,
+      43,
+      45,
+      44,
+      47
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 45,
+     "class": "quarantined",
+     "hi": 47,
+     "lo": 43,
+     "perRun": [
+      45,
+      45,
+      43,
+      45,
+      44,
+      47
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 8,
+     "class": "quarantined",
+     "hi": 13,
+     "lo": 6,
+     "perRun": [
+      9,
+      7,
+      11,
+      8,
+      6,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 11036810,
+     "class": "quarantined",
+     "hi": 12056976,
+     "lo": 10715566,
+     "perRun": [
+      11677297,
+      11036810,
+      11827657,
+      10731621,
+      12056976,
+      10715566
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 30,
+   "frames": 10,
+   "id": "z03",
+   "lastFrame": 39,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20,
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 79,
+     "class": "quarantined",
+     "hi": 89,
+     "lo": 79,
+     "perRun": [
+      89,
+      79,
+      79,
+      89,
+      79,
+      79
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 108,
+     "class": "quarantined",
+     "hi": 119,
+     "lo": 107,
+     "perRun": [
+      119,
+      107,
+      108,
+      118,
+      108,
+      115
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 62,
+     "class": "quarantined",
+     "hi": 69,
+     "lo": 60,
+     "perRun": [
+      64,
+      60,
+      64,
+      62,
+      61,
+      69
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 80,
+     "class": "quarantined",
+     "hi": 97,
+     "lo": 77,
+     "perRun": [
+      94,
+      78,
+      77,
+      97,
+      80,
+      81
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 15,
+     "class": "quarantined",
+     "hi": 17,
+     "lo": 13,
+     "perRun": [
+      15,
+      13,
+      15,
+      15,
+      15,
+      17
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 190,
+     "class": "quarantined",
+     "hi": 196,
+     "lo": 188,
+     "perRun": [
+      188,
+      192,
+      190,
+      195,
+      196,
+      188
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 64,
+     "class": "quarantined",
+     "hi": 66,
+     "lo": 63,
+     "perRun": [
+      63,
+      64,
+      64,
+      66,
+      64,
+      65
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 64,
+     "class": "quarantined",
+     "hi": 66,
+     "lo": 63,
+     "perRun": [
+      63,
+      64,
+      64,
+      66,
+      63,
+      65
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 16,
+     "lo": 10,
+     "perRun": [
+      11,
+      10,
+      10,
+      10,
+      10,
+      16
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 18062188,
+     "class": "quarantined",
+     "hi": 18642402,
+     "lo": 17924816,
+     "perRun": [
+      18519557,
+      18062188,
+      17924816,
+      18195251,
+      18642402,
+      17950277
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 40,
+   "frames": 10,
+   "id": "z04",
+   "lastFrame": 49,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20,
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 81,
+     "class": "quarantined",
+     "hi": 85,
+     "lo": 81,
+     "perRun": [
+      85,
+      81,
+      81,
+      85,
+      81,
+      81
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 104,
+     "class": "quarantined",
+     "hi": 109,
+     "lo": 102,
+     "perRun": [
+      106,
+      103,
+      104,
+      105,
+      102,
+      109
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 55,
+     "class": "quarantined",
+     "hi": 60,
+     "lo": 51,
+     "perRun": [
+      55,
+      55,
+      56,
+      51,
+      51,
+      60
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 74,
+     "class": "quarantined",
+     "hi": 82,
+     "lo": 70,
+     "perRun": [
+      82,
+      74,
+      73,
+      78,
+      70,
+      78
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 9,
+     "class": "quarantined",
+     "hi": 13,
+     "lo": 9,
+     "perRun": [
+      9,
+      11,
+      11,
+      9,
+      9,
+      13
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 84,
+     "class": "quarantined",
+     "hi": 89,
+     "lo": 81,
+     "perRun": [
+      84,
+      86,
+      87,
+      82,
+      81,
+      89
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 62,
+     "class": "quarantined",
+     "hi": 65,
+     "lo": 60,
+     "perRun": [
+      62,
+      63,
+      60,
+      62,
+      63,
+      65
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 62,
+     "class": "quarantined",
+     "hi": 65,
+     "lo": 60,
+     "perRun": [
+      62,
+      63,
+      60,
+      62,
+      64,
+      65
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 5,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 4,
+     "perRun": [
+      5,
+      5,
+      6,
+      4,
+      5,
+      10
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 6444139,
+     "class": "quarantined",
+     "hi": 6551072,
+     "lo": 6299980,
+     "perRun": [
+      6299980,
+      6535229,
+      6330473,
+      6449471,
+      6444139,
+      6551072
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 50,
+   "frames": 10,
+   "id": "z05",
+   "lastFrame": 59,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20,
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 72,
+     "class": "quarantined",
+     "hi": 72,
+     "lo": 72,
+     "perRun": [
+      72,
+      72,
+      72,
+      72,
+      72,
+      72
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 96,
+     "class": "quarantined",
+     "hi": 99,
+     "lo": 93,
+     "perRun": [
+      98,
+      96,
+      93,
+      96,
+      95,
+      99
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 44,
+     "class": "quarantined",
+     "hi": 52,
+     "lo": 40,
+     "perRun": [
+      52,
+      48,
+      40,
+      48,
+      43,
+      44
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 56,
+     "class": "quarantined",
+     "hi": 62,
+     "lo": 52,
+     "perRun": [
+      59,
+      62,
+      52,
+      58,
+      52,
+      56
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 13,
+     "class": "quarantined",
+     "hi": 15,
+     "lo": 11,
+     "perRun": [
+      13,
+      13,
+      11,
+      13,
+      13,
+      15
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 75,
+     "class": "quarantined",
+     "hi": 89,
+     "lo": 60,
+     "perRun": [
+      78,
+      75,
+      75,
+      68,
+      60,
+      89
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 62,
+     "class": "quarantined",
+     "hi": 63,
+     "lo": 60,
+     "perRun": [
+      63,
+      62,
+      61,
+      62,
+      62,
+      60
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 62,
+     "class": "quarantined",
+     "hi": 63,
+     "lo": 60,
+     "perRun": [
+      63,
+      62,
+      61,
+      62,
+      62,
+      60
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 6,
+     "class": "quarantined",
+     "hi": 8,
+     "lo": 4,
+     "perRun": [
+      8,
+      6,
+      4,
+      6,
+      5,
+      8
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 6208753,
+     "class": "quarantined",
+     "hi": 6762767,
+     "lo": 5423829,
+     "perRun": [
+      6762767,
+      6345754,
+      6208753,
+      5833595,
+      5423829,
+      6499681
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 60,
+   "frames": 10,
+   "id": "z06",
+   "lastFrame": 69,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20,
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 63,
+     "class": "quarantined",
+     "hi": 63,
+     "lo": 63,
+     "perRun": [
+      63,
+      63,
+      63,
+      63,
+      63,
+      63
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 83,
+     "class": "quarantined",
+     "hi": 96,
+     "lo": 78,
+     "perRun": [
+      83,
+      81,
+      83,
+      78,
+      85,
+      96
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 24,
+     "class": "quarantined",
+     "hi": 34,
+     "lo": 19,
+     "perRun": [
+      27,
+      24,
+      26,
+      19,
+      24,
+      34
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 39,
+     "class": "quarantined",
+     "hi": 49,
+     "lo": 31,
+     "perRun": [
+      41,
+      39,
+      40,
+      31,
+      37,
+      49
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 4,
+     "class": "quarantined",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      4
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 73,
+     "class": "quarantined",
+     "hi": 81,
+     "lo": 69,
+     "perRun": [
+      81,
+      73,
+      80,
+      69,
+      78,
+      73
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 64,
+     "class": "quarantined",
+     "hi": 74,
+     "lo": 62,
+     "perRun": [
+      66,
+      64,
+      62,
+      63,
+      67,
+      74
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 63,
+     "class": "quarantined",
+     "hi": 64,
+     "lo": 61,
+     "perRun": [
+      62,
+      63,
+      61,
+      63,
+      64,
+      64
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 6,
+     "class": "quarantined",
+     "hi": 19,
+     "lo": 2,
+     "perRun": [
+      6,
+      4,
+      6,
+      2,
+      8,
+      19
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 5878871,
+     "class": "quarantined",
+     "hi": 7356601,
+     "lo": 5130541,
+     "perRun": [
+      6198570,
+      6289142,
+      7356601,
+      5878871,
+      5514254,
+      5130541
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 70,
+   "frames": 10,
+   "id": "z07",
+   "lastFrame": 79,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20,
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 71,
+     "class": "quarantined",
+     "hi": 72,
+     "lo": 71,
+     "perRun": [
+      72,
+      71,
+      71,
+      71,
+      71,
+      72
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 112,
+     "class": "quarantined",
+     "hi": 118,
+     "lo": 109,
+     "perRun": [
+      116,
+      110,
+      112,
+      115,
+      109,
+      118
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 53,
+     "class": "quarantined",
+     "hi": 54,
+     "lo": 51,
+     "perRun": [
+      54,
+      51,
+      53,
+      54,
+      52,
+      53
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 69,
+     "class": "quarantined",
+     "hi": 70,
+     "lo": 68,
+     "perRun": [
+      68,
+      69,
+      70,
+      69,
+      70,
+      68
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 7,
+     "class": "quarantined",
+     "hi": 7,
+     "lo": 7,
+     "perRun": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 138,
+     "class": "quarantined",
+     "hi": 147,
+     "lo": 130,
+     "perRun": [
+      138,
+      139,
+      142,
+      137,
+      147,
+      130
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 86,
+     "class": "quarantined",
+     "hi": 87,
+     "lo": 85,
+     "perRun": [
+      87,
+      85,
+      86,
+      86,
+      86,
+      85
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 62,
+     "class": "quarantined",
+     "hi": 64,
+     "lo": 62,
+     "perRun": [
+      62,
+      62,
+      62,
+      63,
+      62,
+      64
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 24,
+     "class": "quarantined",
+     "hi": 29,
+     "lo": 21,
+     "perRun": [
+      27,
+      22,
+      24,
+      26,
+      21,
+      29
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 6348880,
+     "class": "quarantined",
+     "hi": 7628495,
+     "lo": 6200825,
+     "perRun": [
+      6200825,
+      6524583,
+      6565853,
+      6348880,
+      7628495,
+      6335244
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 80,
+   "frames": 10,
+   "id": "z08",
+   "lastFrame": 89,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20,
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 74,
+     "class": "quarantined",
+     "hi": 80,
+     "lo": 64,
+     "perRun": [
+      70,
+      80,
+      78,
+      74,
+      80,
+      64
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 91,
+     "class": "quarantined",
+     "hi": 96,
+     "lo": 81,
+     "perRun": [
+      87,
+      96,
+      93,
+      91,
+      96,
+      81
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 28,
+     "class": "quarantined",
+     "hi": 33,
+     "lo": 21,
+     "perRun": [
+      25,
+      33,
+      33,
+      28,
+      33,
+      21
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 38,
+     "class": "quarantined",
+     "hi": 43,
+     "lo": 32,
+     "perRun": [
+      35,
+      43,
+      43,
+      38,
+      43,
+      32
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 5,
+     "class": "quarantined",
+     "hi": 5,
+     "lo": 5,
+     "perRun": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 109,
+     "class": "quarantined",
+     "hi": 125,
+     "lo": 85,
+     "perRun": [
+      109,
+      125,
+      113,
+      105,
+      123,
+      85
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 71,
+     "class": "quarantined",
+     "hi": 79,
+     "lo": 62,
+     "perRun": [
+      69,
+      78,
+      75,
+      71,
+      79,
+      62
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 62,
+     "class": "quarantined",
+     "hi": 62,
+     "lo": 62,
+     "perRun": [
+      62,
+      62,
+      62,
+      62,
+      62,
+      62
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 1,
+     "class": "quarantined",
+     "hi": 2,
+     "lo": 0,
+     "perRun": [
+      2,
+      1,
+      0,
+      2,
+      1,
+      2
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 2704637,
+     "class": "quarantined",
+     "hi": 2792569,
+     "lo": 2697021,
+     "perRun": [
+      2725444,
+      2704690,
+      2698867,
+      2697021,
+      2704637,
+      2792569
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 90,
+   "frames": 10,
+   "id": "z09",
+   "lastFrame": 99,
+   "scrolledPx": 450,
+   "types": {
+    "Composite": {
+     "base": 20,
+     "class": "stable",
+     "hi": 20,
+     "lo": 20,
+     "perRun": [
+      20,
+      20,
+      20,
+      20,
+      20,
+      20
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 10,
+     "class": "stable",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 53,
+     "class": "quarantined",
+     "hi": 56,
+     "lo": 53,
+     "perRun": [
+      53,
+      56,
+      53,
+      53,
+      55,
+      53
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 94,
+     "class": "quarantined",
+     "hi": 100,
+     "lo": 93,
+     "perRun": [
+      94,
+      93,
+      94,
+      96,
+      93,
+      100
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 44,
+     "class": "quarantined",
+     "hi": 57,
+     "lo": 40,
+     "perRun": [
+      49,
+      41,
+      44,
+      49,
+      40,
+      57
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 55,
+     "class": "quarantined",
+     "hi": 63,
+     "lo": 50,
+     "perRun": [
+      59,
+      52,
+      55,
+      60,
+      50,
+      63
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 10,
+     "class": "quarantined",
+     "hi": 10,
+     "lo": 10,
+     "perRun": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 138,
+     "class": "quarantined",
+     "hi": 141,
+     "lo": 126,
+     "perRun": [
+      140,
+      135,
+      141,
+      138,
+      126,
+      141
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 58,
+     "class": "quarantined",
+     "hi": 62,
+     "lo": 54,
+     "perRun": [
+      59,
+      54,
+      58,
+      61,
+      56,
+      62
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 46,
+     "class": "quarantined",
+     "hi": 48,
+     "lo": 45,
+     "perRun": [
+      45,
+      46,
+      46,
+      46,
+      45,
+      48
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 22,
+     "class": "quarantined",
+     "hi": 28,
+     "lo": 18,
+     "perRun": [
+      22,
+      18,
+      22,
+      24,
+      19,
+      28
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 3212955,
+     "class": "quarantined",
+     "hi": 3696477,
+     "lo": 2926626,
+     "perRun": [
+      3212955,
+      3690470,
+      3696477,
+      3192390,
+      2926626,
+      3336206
+     ],
+     "rule": "quarantined"
+    }
+   }
+  },
+  {
+   "firstFrame": 100,
+   "frames": 7,
+   "id": "z10",
+   "lastFrame": 106,
+   "scrolledPx": 267,
+   "types": {
+    "Composite": {
+     "base": 14,
+     "class": "stable",
+     "hi": 14,
+     "lo": 14,
+     "perRun": [
+      14,
+      14,
+      14,
+      14,
+      14,
+      14
+     ],
+     "rule": "stable"
+    },
+    "EventDispatch": {
+     "base": 7,
+     "class": "stable",
+     "hi": 7,
+     "lo": 7,
+     "perRun": [
+      7,
+      7,
+      7,
+      7,
+      7,
+      7
+     ],
+     "rule": "stable"
+    },
+    "FireAnimationFrame": {
+     "base": 29,
+     "class": "quarantined",
+     "hi": 29,
+     "lo": 29,
+     "perRun": [
+      29,
+      29,
+      29,
+      29,
+      29,
+      29
+     ],
+     "rule": "quarantined"
+    },
+    "FunctionCall": {
+     "base": 41,
+     "class": "quarantined",
+     "hi": 43,
+     "lo": 40,
+     "perRun": [
+      40,
+      42,
+      42,
+      40,
+      41,
+      43
+     ],
+     "rule": "quarantined"
+    },
+    "InvalidateLayout": {
+     "base": 43,
+     "class": "quarantined",
+     "hi": 53,
+     "lo": 33,
+     "perRun": [
+      53,
+      38,
+      43,
+      44,
+      33,
+      46
+     ],
+     "rule": "quarantined"
+    },
+    "Layout": {
+     "base": 36,
+     "class": "quarantined",
+     "hi": 39,
+     "lo": 31,
+     "perRun": [
+      39,
+      33,
+      36,
+      37,
+      31,
+      38
+     ],
+     "rule": "quarantined"
+    },
+    "ObserverCallback": {
+     "base": 4,
+     "class": "quarantined",
+     "hi": 4,
+     "lo": 4,
+     "perRun": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      4
+     ],
+     "rule": "quarantined"
+    },
+    "Paint": {
+     "base": 77,
+     "class": "quarantined",
+     "hi": 83,
+     "lo": 72,
+     "perRun": [
+      81,
+      72,
+      77,
+      79,
+      74,
+      83
+     ],
+     "rule": "quarantined"
+    },
+    "RecalculateStyles": {
+     "base": 42,
+     "class": "quarantined",
+     "hi": 44,
+     "lo": 38,
+     "perRun": [
+      43,
+      40,
+      42,
+      42,
+      38,
+      44
+     ],
+     "rule": "quarantined"
+    },
+    "RenderingFrame": {
+     "base": 0,
+     "class": "deterministic",
+     "hi": 0,
+     "lo": 0,
+     "perRun": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "rule": "deterministic"
+    },
+    "ScheduleStyleRecalculation": {
+     "base": 31,
+     "class": "quarantined",
+     "hi": 32,
+     "lo": 30,
+     "perRun": [
+      31,
+      31,
+      31,
+      31,
+      32,
+      30
+     ],
+     "rule": "quarantined"
+    },
+    "TimerFire": {
+     "base": 2,
+     "class": "quarantined",
+     "hi": 4,
+     "lo": 1,
+     "perRun": [
+      1,
+      3,
+      3,
+      1,
+      2,
+      4
+     ],
+     "rule": "quarantined"
+    },
+    "paintArea": {
+     "base": 714544,
+     "class": "quarantined",
+     "hi": 999092,
+     "lo": 648520,
+     "perRun": [
+      715635,
+      648520,
+      703852,
+      714544,
+      999092,
+      740857
+     ],
+     "rule": "quarantined"
+    }
+   }
+  }
+ ],
+ "zoneTally": {
+  "deterministic": 1,
+  "quarantined": 10,
+  "stable": 2,
+  "unlisted": 0
+ },
+ "detDrift": [],
+ "totals": {
+  "Composite": {
+   "base": 213,
+   "class": "stable",
+   "hi": 213,
+   "lo": 213,
+   "perRun": [
+    213,
+    213,
+    213,
+    213,
+    213,
+    213
+   ],
+   "rule": "stable"
+  },
+  "EventDispatch": {
+   "base": 107,
+   "class": "stable",
+   "hi": 107,
+   "lo": 107,
+   "perRun": [
+    107,
+    107,
+    107,
+    107,
+    107,
+    107
+   ],
+   "rule": "stable"
+  },
+  "FireAnimationFrame": {
+   "base": 724,
+   "class": "stable",
+   "hi": 730,
+   "lo": 707,
+   "perRun": [
+    727,
+    725,
+    720,
+    730,
+    724,
+    707
+   ],
+   "rule": "stable"
+  },
+  "FunctionCall": {
+   "base": 1022,
+   "class": "quarantined",
+   "hi": 1063,
+   "lo": 1011,
+   "perRun": [
+    1030,
+    1017,
+    1026,
+    1022,
+    1011,
+    1063
+   ],
+   "rule": "quarantined"
+  },
+  "InvalidateLayout": {
+   "base": 554,
+   "class": "quarantined",
+   "hi": 586,
+   "lo": 541,
+   "perRun": [
+    581,
+    554,
+    554,
+    559,
+    541,
+    586
+   ],
+   "rule": "quarantined"
+  },
+  "Layout": {
+   "base": 650,
+   "class": "quarantined",
+   "hi": 684,
+   "lo": 633,
+   "perRun": [
+    684,
+    650,
+    647,
+    669,
+    633,
+    674
+   ],
+   "rule": "quarantined"
+  },
+  "ObserverCallback": {
+   "base": 112,
+   "class": "quarantined",
+   "hi": 128,
+   "lo": 108,
+   "perRun": [
+    113,
+    108,
+    118,
+    111,
+    112,
+    128
+   ],
+   "rule": "quarantined"
+  },
+  "Paint": {
+   "base": 1376,
+   "class": "quarantined",
+   "hi": 1430,
+   "lo": 1326,
+   "perRun": [
+    1376,
+    1411,
+    1364,
+    1384,
+    1430,
+    1326
+   ],
+   "rule": "quarantined"
+  },
+  "RecalculateStyles": {
+   "base": 708,
+   "class": "stable",
+   "hi": 721,
+   "lo": 705,
+   "perRun": [
+    708,
+    705,
+    705,
+    709,
+    710,
+    721
+   ],
+   "rule": "stable"
+  },
+  "RenderingFrame": {
+   "base": 0,
+   "class": "deterministic",
+   "hi": 0,
+   "lo": 0,
+   "perRun": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "rule": "deterministic"
+  },
+  "ScheduleStyleRecalculation": {
+   "base": 647,
+   "class": "stable",
+   "hi": 661,
+   "lo": 644,
+   "perRun": [
+    646,
+    648,
+    644,
+    650,
+    647,
+    661
+   ],
+   "rule": "stable"
+  },
+  "TimerFire": {
+   "base": 104,
+   "class": "quarantined",
+   "hi": 163,
+   "lo": 97,
+   "perRun": [
+    116,
+    97,
+    116,
+    104,
+    99,
+    163
+   ],
+   "rule": "quarantined"
+  },
+  "paintArea": {
+   "base": 85933562,
+   "class": "quarantined",
+   "hi": 88777321,
+   "lo": 83350383,
+   "perRun": [
+    84673777,
+    88777321,
+    86798246,
+    85933562,
+    88649178,
+    83350383
+   ],
+   "rule": "quarantined"
+  }
+ },
+ "totalTally": {
+  "deterministic": 1,
+  "quarantined": 7,
+  "stable": 5,
+  "unlisted": 0
+ },
+ "detDriftTotals": [],
+ "zoneNoiseNote": "zones[].types[t] = {class, perRun, lo, hi, base} for the zone-level class table; totals[t] uses the whole-run class table."
+}
