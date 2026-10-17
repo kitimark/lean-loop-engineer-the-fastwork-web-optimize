@@ -9,7 +9,7 @@
       "args": [
         "--from", "lean-lsp-mcp==0.31.0", "lean-lsp-mcp",
         "--lean-project-path", "lean",
-        "--disable-tools", "lean_leansearch,lean_loogle,lean_leanfinder,lean_run_code"
+        "--disable-tools", "lean_leansearch,lean_loogle,lean_leanfinder,lean_hammer_premise,lean_run_code"
       ]
     }
   }
