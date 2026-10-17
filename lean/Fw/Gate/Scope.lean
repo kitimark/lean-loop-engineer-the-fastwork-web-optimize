@@ -73,7 +73,7 @@ structure Sweep where
 /-- The part's verdicts at the stops of one sweep under hypothesis H: stop $i$ gets the verdict of the collapsed
 key history of stops $0..i$.
 
-$$\forall \kappa, \mathrm{hv}, (s_0, \dots, s_{n-1}),\quad \operatorname{stops}_{\kappa,\mathrm{hv}}(s) = \big(\mathrm{hv}(\operatorname{collapse}(\kappa(s_0), \dots, \kappa(s_i)))\big)_{i = 0}^{n-1}$$
+$$\forall \kappa, \mathrm{hv},\ \forall n \ge 0,\ \forall (s_0, \dots, s_{n-1}),\quad \operatorname{stops}_{\kappa,\mathrm{hv}}(s_0, \dots, s_{n-1}) = \big(\mathrm{hv}(\operatorname{collapse}(\kappa(s_0), \dots, \kappa(s_i)))\big)_{0 \le i < n} \quad (= (\,) \text{ for } n = 0)$$
 
 What a sweep contributes to the part's row. -/
 def stopVerdicts {κ : Type} [DecidableEq κ] (key : Env → κ) (hv : List κ → Verdict) (stops : List Env) :
@@ -109,7 +109,7 @@ theorem stopVerdicts_const {κ : Type} [DecidableEq κ] (key : Env → κ) (hv :
 /-- The part's verdict at a fresh load under hypothesis H: the port's reason when it cannot reach the
 environment, else the verdict of the one-entry history.
 
-$$\forall \rho, \kappa, \mathrm{hv}, e,\quad \operatorname{load}_{\rho,\kappa,\mathrm{hv}}(e) = \begin{cases} \mathrm{unreachable}(r) & \rho(e) = r \\ \mathrm{hv}([\kappa(e)]) & \rho(e) = \bot \end{cases}$$
+$$\forall \rho, \kappa, \mathrm{hv}, e,\quad \operatorname{load}_{\rho,\kappa,\mathrm{hv}}(e) = \begin{cases} \mathrm{unreachable}(r) & \rho(e) = \mathrm{some}(r) \\ \mathrm{hv}([\kappa(e)]) & \rho(e) = \bot \end{cases}$$
 
 One matrix probe's cell in the part's row. -/
 def keyedVerdict {κ : Type} (reach : Env → Option Reason) (key : Env → κ) (hv : List κ → Verdict) (e : Env) :
@@ -278,7 +278,7 @@ def PartUse.edgeQueries (u : PartUse) : List MQ := u.conds.filterMap lookupCond 
 
 /-- The band query of a knee: `(width<=Npx)`.
 
-$$\forall k,\quad \operatorname{band}(k) = (w \le n(k))$$
+$$\forall k,\quad \forall e,\ e \models \operatorname{band}(k) \iff \mathrm{width}(e) \le n(k)$$
 
 Which side of the knee a load is on. -/
 def kneeQuery (k : Knee) : MQ := ⟨[[.widthLe k.px]]⟩
@@ -299,7 +299,7 @@ def PartUse.key (u : PartUse) (e : Env) : List Bool := u.queries.map (·.eval e)
 
 /-- `css.floor-320`: the root's `min-width: 320px` as the query `(width>=320px)`.
 
-$$e \models \mathtt{floor320} \iff w \ge 320$$
+$$\forall e,\quad e \models \mathtt{floor320} \iff \mathrm{width}(e) \ge 320$$
 
 Below 320 px the page stops shrinking. -/
 def floor320 : ExtraCond :=
@@ -437,7 +437,7 @@ def phoneStop (n m : Nat) : Env :=
 
 /-- The desktop sweep widths, high to low: both sides of every width edge pair, at least 320.
 
-$$D = \operatorname{reverse}\,[\,n' \mid n \in E_{15},\ n' \in (n, n{+}1),\ n' \ge 320\,] = (1512, 1511, 1280, \dots, 401, 400, 320)$$
+$$D = \operatorname{reverse}\big([\,m \mid n \in \mathrm{widthEdgePairs},\ m \in [n,\ n{+}1],\ m \ge 320\,]\big) = (1512, 1511, 1280, \dots, 401, 400, 320)$$
 
 The stops of the long desktop sweep on its way down. -/
 def deskSweepWidths : List Nat := ((widthEdgePairs.flatMap fun n => [n, n + 1]).filter (320 ≤ ·)).reverse
@@ -539,11 +539,11 @@ The list of ports is complete. -/
 theorem mem_ports (π : Port) : π ∈ ports := by cases π <;> simp [ports]
 
 /-- **Scoped runs keep each pilot part's verdict.** For a pilot part $u$, any port, any verdict function
-$\mathrm{hv}$ of key histories that never says unreachable (hypothesis H), and any run whose loads $S$ lie between
-the scope and the matrix and whose sweeps $K$ lie between the sweep scope and all sweeps, the part's verdict over
+$\mathrm{hv}$ of key histories that never says unreachable (hypothesis H), and any run whose loads $S_r$ lie between
+the scope and the matrix and whose sweeps $K_r$ lie between the sweep scope and all sweeps, the part's verdict over
 the run equals its verdict over the full matrix and all sweeps.
 
-$$\begin{aligned} &\forall u \in \mathrm{pilot},\ \forall \pi \in \mathcal P,\ \forall \mathrm{hv} : (\mathbb B^*)^* \to \mathcal V,\ \forall S \in \mathrm{Probe}^*,\ \forall K \in \mathrm{Sweep}^*, \\ &\quad (\forall h,\ \neg\operatorname{isU}(\mathrm{hv}(h))) \wedge S(u) \subseteq S \subseteq M \wedge K(u) \subseteq K \subseteq W \implies V_{\rho_\pi,\kappa_u,\mathrm{hv}}(S, K) = V_{\rho_\pi,\kappa_u,\mathrm{hv}}(M, W) \end{aligned}$$
+$$\begin{aligned} &\forall u \in \mathrm{pilot},\ \forall \pi \in \mathcal P,\ \forall \mathrm{hv} : (\mathbb B^*)^* \to \mathcal V,\ \forall S_r \in \mathrm{Probe}^*,\ \forall K_r \in \mathrm{Sweep}^*, \\ &\quad (\forall h,\ \neg\operatorname{isU}(\mathrm{hv}(h))) \wedge S(u) \subseteq S_r \subseteq M \wedge K(u) \subseteq K_r \subseteq W \implies V_{\rho_\pi,\kappa_u,\mathrm{hv}}(S_r, K_r) = V_{\rho_\pi,\kappa_u,\mathrm{hv}}(M, W) \end{aligned}$$
 
 Running only the part's scope, alone or together with other parts' scopes, gives the full matrix's verdict. -/
 theorem scope_sound (u : PartUse) (hu : u ∈ pilotParts) (π : Port) (hv : List (List Bool) → Verdict)
