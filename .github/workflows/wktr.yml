@@ -59,36 +59,14 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
 
-  # One job fetches the archive (315 MB) into actions/cache so the matrix jobs find it. The key carries the revision and
-  # the hash of archive.json (url, size, sha256): a new pin is a new key. The zip is checked against size and sha256 by
-  # fetch-archive.sh whether it came from the cache or from the WebKit CI bucket.
-  archive:
-    runs-on: macos-26
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          persist-credentials: false
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: cache
-        with:
-          path: ${{ runner.temp }}/wktr-zip
-          key: wktr-ios-min-324039-${{ hashFiles('packages/measure-wktr/src/archive.json') }}
-      - name: Download the archive on a cache miss, verify size and sha256
-        run: |
-          set -euo pipefail
-          zipdir="$RUNNER_TEMP/wktr-zip"
-          mkdir -p "$zipdir"
-          # fetch-archive.sh downloads when the zip is missing, then verifies it; extraction is done per job
-          sh packages/measure-wktr/scripts/fetch-archive.sh "$zipdir" "$RUNNER_TEMP/wktr-root-check"
-          echo "cache-hit=${{ steps.cache.outputs.cache-hit }}"
-          ls -l "$zipdir"
-
+  # One macOS job at a time (the five macOS slots are shared by all lanes; research/notes/2026/10-17-macos-queue.md).
+  # The first job finds no cached archive, downloads it and saves it when it ends; the next jobs restore it.
   wktr:
-    needs: [plan, archive]
+    needs: [plan]
     runs-on: macos-26
     timeout-minutes: 60
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
@@ -103,7 +81,9 @@ jobs:
         with:
           node-version: '24'
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # The key carries the revision and the hash of archive.json (url, size, sha256): a new pin is a new key. The zip is
+      # checked against size and sha256 by fetch-archive.sh whether it came from the cache or from the WebKit CI bucket.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache
         with:
           path: ${{ runner.temp }}/wktr-zip

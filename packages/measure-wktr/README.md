@@ -25,7 +25,7 @@ Classes come from fwcore (Lean `Fw.Measure.classify`, mode `frames`, kMax 4, tMa
 
 - **Archive.** `src/archive.json` pins WebKit CI revision r324039 (commit e1c510bc, Xcode 26.5, iOS 26.5; 315 MB; size
   and sha256 checked). `scripts/fetch-archive.sh` downloads it into an empty directory and extracts it there. The
-  archive is cached with `actions/cache` (key = revision + hash of `archive.json`) by the `archive` job. Nothing is
+  archive is cached with `actions/cache` (key = revision + hash of `archive.json`) (the first job downloads it, later jobs restore it; the jobs run one at a time). Nothing is
   committed.
 - **No webkitpy.** `src/wktr.mjs` speaks WKTR's iOS socket protocol directly: launch with `xcrun simctl launch
   org.webkit.WebKitTestRunnerApp --no-timeout ... -`, environment through `SIMCTL_CHILD_*` (DYLD paths point at the
