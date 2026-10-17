@@ -3,8 +3,8 @@
   "slot": "hero",
   "anchors": ["hero-exit"],
   "experiment": true,
-  "impls": ["mui", "plain"],
-  "muiStates": ["typography-h1", "typography-body1", "buttonbase"],
+  "impls": ["plain"],
+  "muiStates": [],
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "layerBudget": 24 }
   },

@@ -10,8 +10,8 @@ const norm = (s: string) => s.trim().replace(/\s+/g, ' ');
 describe('hero.exit media', () => {
   it('the CSS @media blocks are byte-equal to the generated conditions', () => {
     const found = [...css.matchAll(/@media\s+([^{]+)\{/g)].map((m) => norm(m[1]!));
-    expect(found.length).toBe(3);
-    expect(MEDIA_IDS.length).toBe(3);
+    expect(found.length).toBe(2);
+    expect(MEDIA_IDS.length).toBe(2);
     for (const id of MEDIA_IDS) expect(found).toContain(mediaCondition(id));
   });
 });
