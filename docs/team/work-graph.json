@@ -609,6 +609,49 @@
    ]
   },
   {
+   "id": "gap-research",
+   "title": "Q33: how to reach fractional-gap widths and WebKit hover x pointer cells without a device (engine source, Simulator, zoom)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-17-gate-gaps-*.md"
+   ]
+  },
+  {
+   "id": "gap-harness",
+   "title": "Q33: gate lane for the unreachable cells (Simulator iPhone/iPad, page zoom), checked against Lean's expected media values",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gap-research",
+    "gate-part-filter"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/src/gaps/**",
+    "packages/gate-breakpoints/README.md"
+   ],
+   "devices": [
+    "simulator"
+   ]
+  },
+  {
+   "id": "gap-device",
+   "title": "Q33: prove the gap harness on the real iPhone (same probes, compare with the Simulator)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gap-harness",
+    "q1-phone"
+   ],
+   "owner": "measure-engineer",
+   "devices": [
+    "phone"
+   ]
+  },
+  {
    "id": "faithful-checks",
    "title": "V-g, V-h, V-o, V-q for the 4 pilot parts",
    "stream": "parts",
@@ -616,7 +659,8 @@
    "deps": [
     "step-align",
     "zone-baselines",
-    "gate-part-filter"
+    "gate-part-filter",
+    "gap-harness"
    ],
    "owner": "measure-engineer"
   },
