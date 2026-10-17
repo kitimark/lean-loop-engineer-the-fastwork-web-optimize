@@ -939,7 +939,10 @@
     "proof-hero-accent",
     "variant-hidden-pause",
     "variant-morph-mount-shift",
-    "variant-morph-panel-rest"
+    "variant-morph-panel-rest",
+    "why-core-lessons",
+    "why-engines",
+    "why-parts"
    ],
    "owner": "lead"
   },
@@ -2594,6 +2597,54 @@
     "lean/Fw/Engine/WebKit.lean",
     "lean/Fw/Gate/Scope.lean",
     "lean/Fw/Plan/Lint.lean"
+   ]
+  },
+  {
+   "id": "why-core-lessons",
+   "title": "(L) research/findings/ledger.json missingWhy for Fw.Engine.Core/Visual (incl. the frameWork style-pass overcount: passes = forced + [endDirty]) and a new Fw.Engine.Lessons proving the general lessons (compositor move is a trade never dominance; a shift never removes work; resident-only wins are invisible to pass counters; removing a stage subset of the dominant change saves no pass; pausing a compositor animation saves no main work; reader removal and batching closed form); re-check every dependent part proof",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Core.lean",
+    "lean/Fw/Engine/Visual.lean",
+    "lean/Fw/Engine/Lessons.lean",
+    "lean/Fw/Engine.lean",
+    "lean/Fw/Parts/**",
+    "research/findings/**"
+   ]
+  },
+  {
+   "id": "why-engines",
+   "title": "(M) research/findings/ledger.json missingWhy for Fw.Engine.Chromium and Fw.Engine.WebKit (16 statements), each citing engine source",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "math-r13-fix",
+    "why-core-lessons"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Chromium.lean",
+    "lean/Fw/Engine/WebKit.lean",
+    "research/findings/**"
+   ]
+  },
+  {
+   "id": "why-parts",
+   "title": "(L) research/findings/ledger.json missingWhy for the per-part modules (about 39 statements across Fw.Parts.*): why each candidate wins, trades, gives nothing or is worse",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "math-r13-fix",
+    "why-core-lessons"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/engine/**",
+    "research/findings/**"
    ]
   }
  ],

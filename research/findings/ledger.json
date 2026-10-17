@@ -1,0 +1,1712 @@
+{
+ "about": "Every optimization candidate tried or considered (research/notes/2026/10-18-optimization-inventory.md section 2), wins and no-wins alike: verdict per engine, mechanism (why it helps or not), Lean decls for and against, missing why-theorems, premises, v1 evidence, general lesson, next action. Produced by workflow findings-r1 (4 read-only analysts) at main 6d5bf87; claims carry CONFIRMED/INFERRED/OPEN in their text.",
+ "findings": [
+  {
+   "n": 1,
+   "part": "engine.scroll",
+   "candidate": "batched (all reads, then all returned writes, one pass per frame)",
+   "status": "partly-proved",
+   "chromium": "no-win",
+   "webkit": "unknown",
+   "visual": "open. E holds if no moved write changes a value that a later read in the same frame sees (premise NI, INFERRED true for the pilot: the hero writes --exit-opacity and pointer-events on .hero; the nav reads its own rect, the sticky profile and the track rect). Not E if batching also folds the hero-exit rAF trampoline, because the writes then land one frame earlier (v1 scroll-engine/01 note).",
+   "mechanism": "Style stage only. Total style passes per frame = [d ∧ (head is a read ∨ no write)] + #write-runs (checked exhaustively up to length 9, INFERRED). The engine merges only the hero's returned write run. The nav probe's two internal write→read pairs remain, so the pilot keeps 3 passes (1 with elements-skip): the moved pass comes back as the frame-end lifecycle update. Restyled elements are unchanged (same dirty sets, R2). Counter: trace.UpdateLayoutTree (det). A local run gave W equal, S equal (packages/measure-chromium/README.md:185). Core.frameWork counts [touched]+forced, so it over-predicts a saving.",
+   "leanFor": [
+    "Fw.Parts.EngineScroll.batched_le_faithful",
+    "Fw.Parts.EngineScroll.batched_le_one",
+    "Fw.Parts.EngineScroll.framePlan_batched_le",
+    "Fw.Parts.EngineScroll.framePlan_faithful_cost"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "Closed form of all style passes, forced plus frame-end: $\\forall d,\\ as \\in \\{\\mathrm{R},\\mathrm{W}\\}^*:\\ \\mathrm{total}_S(d,as) := \\mathrm{forced}_{\\rho_S}(d,as) + [\\mathrm{fin}_{\\rho_S}(d,as)] = [d \\land (\\mathrm{head}(as)=\\mathrm{R} \\lor \\mathrm{W}\\notin as)] + \\#\\mathrm{runs}_{\\mathrm{W}}(as)$",
+     "module": "Fw.Parts.EngineScroll",
+     "needs": "move `fin` (end-dirty flag, now in NavHitTestOpt) into EngineScroll; add a maximal-write-run count"
+    },
+    {
+     "statement": "Batching delta: $\\forall d, as:\\ \\mathrm{W}\\in as \\Rightarrow \\mathrm{total}_S(d, \\mathrm{filter}_R(as) \\mathbin{+\\!\\!+} \\mathrm{filter}_W(as)) = \\mathrm{total}_S(d,as) - (\\#\\mathrm{runs}_W(as) - 1) + [d \\land \\mathrm{head}(as)=\\mathrm{W} \\land \\mathrm{R}\\in as]$. So batching wins only when it merges $\\ge 2$ write runs, and it is worse by 1 when the frame starts dirty with a write (e.g. $d$, WR).",
+     "module": "Fw.Parts.EngineScroll",
+     "needs": "the closed form above"
+    },
+    {
+     "statement": "Pilot no-win: $\\forall d \\in \\mathbb{B},\\ \\forall p \\in \\{\\mathit{probe}_o, \\mathit{probe}_e\\}:\\ \\mathrm{total}_S(d, \\mathit{hero} \\mathbin{+\\!\\!+} \\mathit{nav}_p) = \\mathrm{total}_S(d, \\mathrm{R}(\\mathit{hero}) \\mathbin{+\\!\\!+} \\mathit{nav}_p \\mathbin{+\\!\\!+} \\mathrm{W}(\\mathit{hero}))$, with values $3+[d]$ for the faithful probe and $1+[d]$ for elements-skip",
+     "module": "Fw.Parts.EngineScroll",
+     "needs": "an engine-level batch that moves only returned writers (the TS engine's rule), not filter over the whole frame"
+    },
+    {
+     "statement": "Core pass count without double counting: $\\mathrm{passes}_E(f,\\mathrm{style}) = f.\\mathrm{forcedStyle} + [f.\\mathrm{endDirtyStyle}]$ in place of $[\\mathrm{style}\\in\\mathrm{touched}] + f.\\mathrm{forcedStyle}$. Show the current definition over-counts by 1 when the last access is a read.",
+     "module": "Fw.Engine.Core",
+     "needs": "FrameIn.endDirty fields fed from EngineScroll.fin"
+    }
+   ],
+   "premises": [
+    "R4 forced-update sites (getBoundingClientRect, getComputedStyle, elementFromPoint): CONFIRMED (engine-gaps R4)",
+    "Chromium emits UpdateLayoutTree only when style is dirty at a lifecycle step: INFERRED (rewrite CI 784 vs local no-write probe 94 per 385 frames)",
+    "the nav probe's writes are not returned writers, so the batched engine cannot move them: CONFIRMED docs/team/handoffs/part-engine.md",
+    "NI, reads unaffected by moved writes: INFERRED, not proved",
+    "the WebKit local 164 → 145 RecalculateStyles: MEASURED locally (debug), not a result, mechanism OPEN"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/scroll-engine/README.md /01 measure/mutate engine: forced style+layout 92 → 69 ms within noise, LoAF +25 ms ('WORSE', below the A/A noise), 'iE's forced total stays about the same', frames >20 ms are 'per-frame style and paint cost, which batching doesn't remove'; parked. v2 local: Chromium batched W equal, S equal (packages/measure-chromium/README.md:185-186); WebKit 164 → 145 RecalculateStyles (packages/measure-webkit/README.md:272), local debug only.",
+   "lesson": "Reordering reads before writes saves a style pass only for each extra write run it merges. A pass whose write ends the frame comes back as the lifecycle update. Predict with total = [d∧head-read] + #write-runs, not with forced alone.",
+   "next": "Prove the closed form, the batching delta and the pilot equality in EngineScroll. Fix Core.frameWork's style-pass overcount. Record batched as no-win for the pilot. Measure on CI only once ≥ 2 callbacks return batchable writers interleaved with reads (v1's five trampolines)."
+  },
+  {
+   "n": 2,
+   "part": "engine.scroll",
+   "candidate": "observers (KD#1): replace per-frame rect reads with IntersectionObserver/ResizeObserver",
+   "status": "not-tried",
+   "chromium": "no-win",
+   "webkit": "no-win",
+   "visual": "not-equal per frame. Blink delivers IO by posted task (one frame late). IO thresholds are discrete, so continuous outputs (exit opacity, morph) cannot come from IO. An IO-based hit test ignores stacking and occlusion. E only at settled states, and for boolean thresholds through a sentinel (HeroExitOpt.sentinel_iff_pointerOff) up to that lag.",
+   "mechanism": "It would save forced style/layout on main. Removing one reader removes a pass only if no later reader in the frame pays the same flush. The nav's elementFromPoint and rect reads stay every frame, and WebKit's scrollY forces layout (LocalDOMWindow.cpp:1466-1479@862f17d). New cost: IO compute in every lifecycle (Blink local_frame_view.cc:1148-1189; WebKit Page.cpp:2367). Blink posts delivery (intersection_observer_controller.cc:90-105). WebKit calls back inside the update, then lays out again (Page.cpp:2337, 2399). Counters: trace.IntersectionObserverCompute (det), WebKit ObserverCallback.",
+   "leanFor": [
+    "Fw.Parts.HeroExit.pointerOff_iff_threshold",
+    "Fw.Parts.HeroExitOpt.sentinel_iff_pointerOff",
+    "Fw.Parts.EngineScroll.forced_mono"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "Reader removal (a corollary of the closed form in row 1): $\\mathrm{total}_S(d, as \\setminus i) < \\mathrm{total}_S(d, as)$ iff $as_i = \\mathrm{R}$ is the only read between two write runs, or $i = 0 \\land d \\land as_1 = \\mathrm{W}$. Otherwise the two totals are equal: the next reader or the frame-end pass pays the same flush (v1 scrollcb-g0).",
+     "module": "Fw.Parts.EngineScroll",
+     "needs": "the total_S closed form (row 1)"
+    },
+    {
+     "statement": "Observer timing: let $w$ be a write computed by an observer callback from the layout of frame $k$. Blink: $w$ is first visible in frame $k+1$. WebKit: $w$ is visible in frame $k$, and the update pays one extra style/layout pass when $w$ dirties them. Hence on crossing frames $\\mathrm{obs}_v(k) = \\mathrm{obs}_o(k-1)$ in Blink, and $\\mathrm{passes}_v(k) = \\mathrm{passes}_o(k) - \\mathrm{forced}_{\\mathrm{removed}} + [\\mathrm{crossing}(k)]$ in WebKit.",
+     "module": "Fw.Engine.Core (new Observers section)",
+     "needs": "a per-frame step order (rAF → layout → observation → final layout) and a delivery mode per engine"
+    },
+    {
+     "statement": "Observer dominance condition: $W_{\\mathrm{obs}} \\preceq W_o$ on frame $k$ iff no remaining reader in the frame checks the flag the removed read checked, and $\\mathrm{crossing}(k) = 0$. Over a run, a strict gain needs $\\#\\{k : \\mathrm{crossing}(k)\\} < \\#\\{k : \\text{read removed}\\}$.",
+     "module": "Fw.Parts.EngineScroll",
+     "needs": "the reader-removal lemma, the observer step above, and an IO compute unit in Stage (props or a new observe stage)"
+    }
+   ],
+   "premises": [
+    "WebKit scrollY forces layout when scrollY ≠ 0: CONFIRMED LocalDOMWindow.cpp:1466-1479@862f17d",
+    "Blink posts IO delivery to a task: CONFIRMED intersection_observer_controller.cc:90-105@f842f52 (fetched by raw URL at the pin)",
+    "WebKit IO step after the rAF layout and before the final layout, never forcing layout: CONFIRMED Page.cpp:2330-2399, Document.cpp:10464-10492@862f17d",
+    "Blink scrollY also forces layout: INFERRED (file not in the sparse clone)",
+    "the original already pays IO compute every frame (IntersectionObserverCompute 1013 over 503 frames, det): MEASURED CI run 39048702153"
+   ],
+   "v1Evidence": "No 'observers' engine was built in v1 (only the flag proposal, ../fastwork-com-web-optimize/research/knowledge-distillation/README.md:584). The nearest experiment, ../fastwork-com-web-optimize/fixes/scrollcb-g0/README.md (an IO gate that idles off-screen callbacks), was rejected: 'no style or layout pass goes away, because the pending flush is paid by the next reader'. Chrome forced style 232-243 → 230-231, forced layout 123-124 → 125-126; Simulator layouts overlap (843-886 vs 835-875).",
+   "lesson": "Replacing one per-frame read saves nothing while another reader in the same frame pays the same flush. Observers win only for threshold outputs whose crossings are rarer than frames. They add per-target compute and a delivery lag (Blink) or a lifecycle repeat (WebKit).",
+   "next": "Record as no-win on its own. Prove the reader-removal lemma from the closed form. Consider observers only for boolean threshold consumers (sentinels) after nav.hitTest stops reading every frame. Never use them for continuous values (use scroll timelines, row 6)."
+  },
+  {
+   "n": 3,
+   "part": "nav.hitTest",
+   "candidate": "hit-skip (skip the probe while morph > 0.2)",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E: hitSkip_visSame, hitSkipAnswer_onDark (is-on-dark is forced true when morph > 0.2; the probe runs fresh again in the first frame with morph ≤ 0.2)",
+   "mechanism": "Style and hit-test stages, only on frames with morph > 0.2. Skipping the probe removes the pointer-events write and restore (−2 forced UpdateLayoutTree, hitSkip_style_two), one HitTest, Blink's pre-paint walk inside elementFromPoint (layout_view.cc:139-141@f842f52) and its paint-for-hit-test invalidation (layout_object.cc:3477-3481). Forced layout moves to the track-rect read; it is not removed. Visible in UpdateLayoutTree/HitTest (det on the rewrite arm) only if the scenario opens the morph. swipe-v1 uses scrollTo, and the morph opens only on wheel/touch pushes (morph.tween/driver.ts:28).",
+   "leanFor": [
+    "Fw.Parts.NavHitTest.hitSkip_morph",
+    "Fw.Parts.NavHitTest.expanded_masks",
+    "Fw.Parts.NavHitTestOpt.hitSkip_work_lt",
+    "Fw.Parts.NavHitTestOpt.hitSkip_style_two",
+    "Fw.Parts.NavHitTestOpt.hitSkip_run_dominates",
+    "Fw.Parts.NavHitTestOpt.hitSkip_visSame",
+    "Fw.Parts.NavHitTestOpt.hitSkipAnswer_onDark"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.NavHitTestOpt.skip_layout_le"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Outside the morph, nothing changes: $\\forall \\varepsilon, c, m, \\mathit{pes}:\\ m \\le \\tfrac15 \\Rightarrow \\mathrm{frameWork}_\\varepsilon(\\mathrm{hitSkipFrame}(c,m,\\mathit{pes})) = \\mathrm{frameWork}_\\varepsilon(\\mathrm{origFrame}(c,\\mathit{pes}))$. So on any scenario whose run never has $m > \\tfrac15$ (swipe-v1), every golden row must be $=o$, not $<o$.",
+     "module": "Fw.Parts.NavHitTestOpt",
+     "needs": "nothing new; plus a scenario predicate 'reaches morph > 1/5' tied to the morph.tween driver (wheel/touch push)"
+    },
+    {
+     "statement": "Layout moved, not saved: $\\forall \\mathit{pre}, \\mathit{post}, d:\\ \\mathrm{forced}_L(d, \\mathit{pre} \\mathbin{+\\!\\!+} \\mathit{track} \\mathbin{+\\!\\!+} \\mathit{post}) = \\mathrm{forced}_L(d, \\mathit{pre} \\mathbin{+\\!\\!+} \\mathit{probe}_o \\mathbin{+\\!\\!+} \\mathit{track} \\mathbin{+\\!\\!+} \\mathit{post})$",
+     "module": "Fw.Parts.NavHitTestOpt",
+     "needs": "nothing (follows from probes_layout)"
+    },
+    {
+     "statement": "Blink pre-paint per hit test: $\\mathrm{passes}_{cr}(\\mathrm{props}) \\ge \\mathrm{hits}$ on frames where a style-only change precedes a hit test (UpdateAllLifecyclePhasesExceptPaint), so a skip also gives $\\mathrm{PrePaint}_v \\le \\mathrm{PrePaint}_o - 1$ on such frames",
+     "module": "Fw.Engine.Chromium",
+     "needs": "hit tests tied to forced props passes in frameWork (now hits are carried separately)"
+    }
+   ],
+   "premises": [
+    "the nav callback runs every scrolled frame, not IO-gated: CONFIRMED snapshot 2.DyWL8TcE.js:12950-13007",
+    "is-on-dark = g ∨ morph > 0.2: CONFIRMED snapshot :13228",
+    "swipe-v1 reaches morph > 0.2: OPEN, INFERRED false (scrollTo only; the morph opens on wheel/touch, apps/site/src/parts/morph.tween/driver.ts:28, index.tsx:40)",
+    "R4 sites and pre-paint in Blink hit tests: CONFIRMED engine-gaps R4",
+    "the local 'hit-skip' numbers (WebKit 164 → 19, Chromium UpdateLayoutTree 784 → 94) measured the OLD probeSkip (elementsFromPoint + firstOutside), not the morph-gated skip: CONFIRMED git show 367fec2 and 70c3370:apps/site/src/parts/nav.hitTest/index.tsx:18"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/hit-skip/README.md: on v1's build, where the morph writes geometry every frame, Simulator layouts 656 → 621 and 610 → 573 (two pairs), layouts inside script 399 → 302; Chrome and Simulator pixels T0; landed in v10. KD#1: 'Simulator layouts 656 → 621 from hit-skip alone'.",
+   "lesson": "A skip gated on a state (morph > 0.2) is invisible to CI unless the scenario enters that state. Pair every gated variant's golden rows with a scenario proved to reach its guard, and predict =o elsewhere.",
+   "next": "Prove hitSkip_eq_of_morph_le. Regenerate nav-hittest.jsonl so the hit-skip <o rows use a scenario that opens the morph (swipe-wheel-v1 or swipe-touch-v1, once the touch wedge fix holds), and =o on swipe-v1. Re-label the old local 'hit-skip' numbers as elements-skip mechanism evidence."
+  },
+  {
+   "n": 4,
+   "part": "nav.hitTest",
+   "candidate": "elements-skip (elementsFromPoint with an allow-list, no pointer-events write)",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E under premise AL (the allow-list equals the nav boxes that re-enable pointer-events): allowHit_eq_faithful, elementsSkip_visSame(_port). firstOutside_ne_faithful shows that AL is necessary.",
+   "mechanism": "Every scrolled frame: there is no inline pointer-events write, so −2 forced style passes (elements_style_two) and no inherited restyle of the nav subtree, which includes the mounted morph panel. Blink also drops the per-descendant paint-for-hit-test invalidation (layout_object.cc:3477-3481@f842f52); WebKit drops RecompositeLayer and the event-region update. Layout is unchanged (elements_layout_eq). New, unmodelled cost: a kListBased|kPenetratingList hit test (tree_scope.cc:430-433) visits every box under the point and is never cached (hit_test_cache.cc:55). Counters: UpdateLayoutTree and Paint (det on the rewrite arm); HitTest stays =o.",
+   "leanFor": [
+    "Fw.Parts.NavHitTest.allowHit_eq_faithful",
+    "Fw.Parts.NavHitTestOpt.elementsSkip_work_lt",
+    "Fw.Parts.NavHitTestOpt.elements_style_two",
+    "Fw.Parts.NavHitTestOpt.elements_layout_eq",
+    "Fw.Parts.NavHitTestOpt.elementsSkip_run_dominates",
+    "Fw.Parts.NavHitTestOpt.elementsSkip_visSame",
+    "Fw.Parts.NavHitTestOpt.elementsSkip_visSame_port"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.NavHitTest.firstOutside_ne_faithful"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Hit-test unit trade: $\\mathrm{hitUnits}(\\mathrm{listBased}, p) \\ge \\mathrm{hitUnits}(\\mathrm{single}, p)$, and list-based results are never served from the hit-test cache. So elements-skip strictly dominates on passes but is $\\preceq$ only if hit-test units are excluded from the vector.",
+     "module": "Fw.Engine.Chromium",
+     "needs": "a hit-test unit model (layers visited, cache hit) in Work, alongside hits"
+    },
+    {
+     "statement": "Paint fan-out of the toggle: with $\\mathrm{pe}$ a CrProp, a write of $\\mathrm{pe}$ on the nav root gives $\\mathrm{units}_{cr}(\\mathrm{paint}) \\ge |\\{b \\in \\mathrm{nav} : b \\text{ inherits } \\mathrm{pe}\\}|$ per write, hence $\\mathrm{units}_e(\\mathrm{paint}) + 2\\,|\\mathrm{inh}(\\mathrm{nav})| \\le \\mathrm{units}_o(\\mathrm{paint})$",
+     "module": "Fw.Engine.Chromium / Fw.Engine.WebKit",
+     "needs": "a pointer-events property in both engine tables (the handoff says neither has one; `pes` is a free parameter today) and R2-style inherited fan-out units"
+    },
+    {
+     "statement": "AL generated from CSS: $\\forall b \\in \\mathrm{nav}:\\ \\mathrm{allow}(b) \\iff \\mathrm{pe}_{\\mathrm{declared}}(b) \\notin \\{\\varnothing, \\mathrm{inherit}\\}$, checked against the shipped stylesheet in every breakpoint band",
+     "module": "Fw.Parts.NavHitTest",
+     "needs": "a stylesheet restatement of the nav's pointer-events declarations, plus a generator for ALLOW_SELECTOR"
+    }
+   ],
+   "premises": [
+    "pointer-events change → paint invalidation for hit test (Blink): CONFIRMED layout_object.cc:3477-3481@f842f52",
+    "pointer-events → RecompositeLayer and event region (WebKit): CONFIRMED StyleDifference.cpp:921-922, RenderElement.cpp:970-971@862f17d (proof-nav-hittest handoff)",
+    "list-based hit test is uncached and penetrating: CONFIRMED tree_scope.cc:430-433, hit_test_cache.cc:55@f842f52",
+    "AL holds for the current CSS: INFERRED (TS ALLOW_SELECTOR, not generated)",
+    "mechanism magnitude: MEASURED locally with the old firstOutside probe (same accesses, not E): Chromium UpdateLayoutTree 784 → 94, Paint 1152 → 556 over 385 frames; WebKit RecalculateStyles 164 → 19. The faithful 784/1152 is CI run 39048702153."
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/nav-hit-test/README.md: the original's write→read→write costs 'two extra forced style passes over' the nav subtree, including the mounted morph panel. Mobile-6x timing A/B within noise (forced style+layout 47 → 47 ms in LoAF); 'the mechanism holds by code'.",
+   "lesson": "Removing an inherited style write removes its whole fan-out (restyle, Blink hit-test paint invalidation, WebKit event region), often more than the forced-pass count shows. Check the replacement API's unit cost too: list-based, uncached hit tests.",
+   "next": "Push a ci/ run of rewrite+?fw=nav.hitTest:elements-skip on swipe-v1 and check UpdateLayoutTree <o and Paint ≤o (both det on the rewrite arm) with engine-check. Add pointer-events to the engine tables. Generate the allow-list from Lean or CSS. Add trace.Layout to the rewrite arm of classes.frozen.json."
+  },
+  {
+   "n": 5,
+   "part": "nav.hitTest",
+   "candidate": "write-on-change (toggle is-on-dark only when it changes)",
+   "status": "partly-proved",
+   "chromium": "no-win",
+   "webkit": "no-win",
+   "visual": "E: changed_write (the final class is the same)",
+   "mechanism": "No stage changes. A classList.toggle(c, b) that matches current presence never updates the class attribute in either engine (Blink dom_token_list.cc:148-157@f842f52; WebKit DOMTokenList.cpp:139-161@862f17d), so there is no style invalidation to save. The original also diffs classes in Svelte set_class (snapshot chunks/BSBv9QXB.js:2841-2853) and in signal equality, and every TS variant already writes on change (nav.hitTest/index.tsx:40-45). Only a JS DOM call is saved, which no CI counter sees (FunctionCall counts callbacks). writeOnChange_le is true, but it counts a no-op toggle as a Change.",
+   "leanFor": [
+    "Fw.Parts.NavHitTest.changed_write",
+    "Fw.Parts.NavHitTestOpt.writeOnChange_le"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "No-op toggles are free in the engine: with $\\mathrm{tog}(w,p,n) = [w]$ if $p \\ne n$ else $[\\,]$, $\\forall \\varepsilon, f, w, p, n:\\ \\mathrm{frameWork}_\\varepsilon(f \\text{ with changes} \\mathrel{+\\!\\!+}= \\mathrm{tog}(w,p,n)) = \\mathrm{frameWork}_\\varepsilon(\\mathrm{withWrite}(f, w, p \\ne n))$, i.e. always-toggle and write-on-change have equal work, so the strict part of writeOnChange_le never occurs",
+     "module": "Fw.Parts.NavHitTestOpt",
+     "needs": "a toggle semantics where an unchanged presence yields no Change (engine CONFIRMED source above)"
+    }
+   ],
+   "premises": [
+    "DOMTokenList.toggle(token, force) is a no-op when presence already equals force: CONFIRMED in both engines (raw files at the pins)",
+    "the original's class binding diffs per key: CONFIRMED snapshot chunks/BSBv9QXB.js:2841-2853 (the alias U → set_class is INFERRED)",
+    "every TS variant returns no writer when the class is unchanged: CONFIRMED apps/site/src/parts/nav.hitTest/index.tsx:40-45"
+   ],
+   "v1Evidence": "Listed in KD#1 as part of the winning bundle ('write on change only'; ../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 1). No isolated v1 measurement: it was always bundled with nav-hit-test and nav-hit-cache.",
+   "lesson": "Before claiming a saving from skipping no-op writes, check the engine and framework no-op paths (DOMTokenList toggle with force, Svelte class diff, equal inline values). When they already dedupe, the saving is zero.",
+   "next": "Record as no-win and take it off the candidate list (it is already in the faithful port). Prove the no-op toggle equality, and add a no-op rule to the engine model's Change constructor so future candidates are not credited for engine-deduped writes."
+  },
+  {
+   "n": 6,
+   "part": "hero.exit",
+   "candidate": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
+   "status": "partly-proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "E-s at the computed-value level under RG11 (consumer_eq_s; exact at integer scroll offsets, otherwise within the progress quantum: 1/(16R) in Chromium, 1 px on WebKit's main thread). Pixels: WebKit E in the v1 Simulator except a 30 px top band (78 levels). Chromium not-equal under the pixel rule (v1: ≤ 6 levels on 15-42k px, 1 device-px copy shift from GPU blending and snapping), so Q at best: PathPremises.raster_path fails there (INFERRED).",
+   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow.",
+   "leanFor": [
+    "Fw.Parts.HeroExit.exitOpacity_linear",
+    "Fw.Parts.HeroExitOpt.progress_eq_js",
+    "Fw.Parts.HeroExitOpt.consumer_eq_s",
+    "Fw.Parts.HeroExitOpt.sentinel_iff_pointerOff",
+    "Fw.Parts.HeroExitOpt.wk_all_comp",
+    "Fw.Parts.HeroExitOpt.wk_var_exact"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HeroExitOpt.cr_real_trade",
+    "Fw.Parts.HeroExitOpt.cr_lane_mixed",
+    "Fw.Parts.HeroExitOpt.wk_trade",
+    "Fw.Parts.HeroExitOpt.blur_main",
+    "Fw.Parts.HeroExitOpt.merged_main",
+    "Fw.Parts.HeroExitOpt.wk_legacy_main",
+    "Fw.Engine.claim_trade_iff"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Path changes rasterization in Chromium: $\\exists S, i:\\ \\pi_o(i) = \\mathrm{main} \\land \\pi_v(i) = \\mathrm{comp} \\land (\\mathrm{frac}(\\mathrm{tx}_i) \\ne 0 \\lor \\alpha_i \\notin \\{0,1\\}) \\land \\mathrm{raster}(\\pi_o,S) \\ne \\mathrm{raster}(\\pi_v,S)$. So `raster_path` needs two more exceptions (fractional translate, fractional opacity), and the visual class for the Chromium arm is Q with an 8-bit level tolerance, not E.",
+     "module": "Fw.Engine.Visual",
+     "needs": "a raster model with pixel snapping of translate and 8-bit alpha in paint vs GPU blend in composite"
+    },
+    {
+     "statement": "The lane cannot see the style saving: in lane mode $V.\\mathrm{passes}(\\mathrm{style}) = O.\\mathrm{passes}(\\mathrm{style})$ while $V.\\mathrm{units}(\\mathrm{style}) = N_{\\mathrm{anim}} < 1 + |\\mathrm{inh}(.\\mathrm{hero})| = O.\\mathrm{units}(\\mathrm{style})$. The only count that maps to units is elementCount, which is quarantined, so `noMoreWork` cannot confirm it (`quarantined_unsound`).",
+     "module": "Fw.Parts.HeroExitOpt",
+     "needs": "R2 inherited fan-out units in crOrig (it currently counts one change per consumer, which undercounts the original)"
+    },
+    {
+     "statement": "Resident trade: $R_V.\\mathrm{layers} = R_O.\\mathrm{layers} + k$ with $k \\ge 1$ (one composited layer per animated consumer), hence $\\mathrm{claim} = \\mathrm{trade}$ even on WebKit, where per-frame main work dominates",
+     "module": "Fw.Parts.HeroExitOpt",
+     "needs": "a Resident model for the variant's composited consumers (WebKit: an animation gives a compositing reason; Chromium: an active compositor animation)"
+    },
+    {
+     "statement": "Edge-frame cost on WebKit: the frames where the filter goes $\\mathrm{none} \\leftrightarrow \\mathrm{blur}(\\epsilon)$ or opacity crosses 1 pay layout: $\\mathrm{layout} \\in \\mathrm{stages}_{wk}$ on those frames, $\\#\\mathrm{edgeFrames}_v \\ge 1$ per rest→live switch",
+     "module": "Fw.Parts.HeroExitOpt",
+     "needs": "tabling WebKit.opacityCross1_layout and a filter-presence clause for the variant's start and park frames"
+    }
+   ],
+   "premises": [
+    "RG11 progress = offset/range with engine quanta: CONFIRMED engine-gaps R11",
+    "blur cannot be composited in Chromium (bit 12): CONFIRMED compositor_animations.cc:405-417@f842f52",
+    "custom properties are never accelerated in WebKit: CONFIRMED StyleInterpolation.cpp:256-265@862f17d",
+    "threadedScrollDriven on in the WebKit lane, shipping Safari OPEN (R7/O2)",
+    "the lane mode everyBeginFrameIsMainFrame: MEASURED, cause OPEN (R1)",
+    "pointer-events by an IO sentinel: its delivery lag is glue, not proved (Blink posted task CONFIRMED intersection_observer_controller.cc:90-105)",
+    "raster_path for Chromium: OPEN, contradicted by v1 OBSERVED pixel diffs"
+   ],
+   "v1Evidence": "KD#2 (../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 2): median slow frames 31 → 18 → 7 (original, v4, v6), and the user preferred v6 in both blind swipes. ../fastwork-com-web-optimize/fixes/hero-exit-threaded/README.md: shipped WebKit-only (GestureEvent gate) because Blink compositing changed pixels (≤ 6 levels on 15-42k px, 1 device-px copy shift). WebKit: a transform animation on .hero-copy made the accent repaint about 1.4× as often; none → blur(0.009px) costs one Layout; the 30 px top band was 78 levels off, so the writer was kept there; P-081: go-live-from-rest frames cost more than C's.",
+   "lesson": "Moving main-thread work to the compositor is a trade, never dominance. In the CI lane style passes stay one per frame, so only script and the quarantined elementCount drop. Compositing also changes rasterization, so value-level E-s is not pixel E.",
+   "next": "Record as a trade in both engines. Refine Visual.raster_path for fractional translate and opacity, and decide whether the Chromium arm is Q or gated to WebKit (as v1 did). On CI, run rewrite+hero-exit-threaded and check FireAnimationFrame <o (det) and compositeFailedBits bit 12 only on the blur animations. Add R2 units and Resident layers to HeroExitOpt."
+  },
+  {
+   "n": 7,
+   "part": "hero.countdown (+ morph.countdown)",
+   "candidate": "strip (cd-strip, KD#12): 10 will-change faces per digit -> one 12-entry strip",
+   "status": "proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "E inside the clip window, every env/width/instant (strip_visSame from strip_shows_same); no premise beyond the restated geometry",
+   "mechanism": "Saving is resident: one will-change layer per face (compositing_reason_finder.cc:76-137@f842f52) becomes one per digit, 80->8 (hero_layers). Per frame, stage passes are equal (strip_passes_eq); only units drop from 10r to r (strip_units), and units are visible only in the quarantined UpdateLayoutTree.elementCount (C-3). CI can see census.layers (<o) and nothing per frame. New cost: 12 instead of 10 cells backed per digit (strip_backing_gt, full-layer rule INFERRED), so the label is trade. On WebKit, layers exist only under the Normal policy (wk_owns). The v1 re-entry paint drop comes from coverage-rect backing detach (GraphicsLayerCA.cpp:3035-3060@862f17d), which is not modelled.",
+   "leanFor": [
+    "strip_visSame",
+    "strip_shows_same",
+    "strip_units",
+    "strip_frame_lt",
+    "strip_claim",
+    "strip_layers_lt",
+    "hero_layers",
+    "wk_normal_layers"
+   ],
+   "leanAgainst": [
+    "strip_passes_eq",
+    "strip_backing_gt",
+    "strip_label_fullLayer",
+    "wk_conservative_same",
+    "paused_same",
+    "strip_run_eq_of_still"
+   ],
+   "missingWhy": [
+    {
+     "statement": "WebKit re-entry repaint: if a layer has backing iff $\\mathrm{bbox}(L)\\cap C\\neq\\emptyset$ ($C$ = coverage rect) and a re-attach repaints the whole layer, then for every roll $\\rho$ that moves a face out of $C$ and back, $\\mathrm{paint}^{wk}_{\\mathrm{faces}}(\\rho)\\ge 1$, while $\\mathrm{paint}^{wk}_{\\mathrm{strip}}(\\rho)=0$, because the strip always meets $C$",
+     "module": "Fw.Engine.WebKit + Fw.Parts.HeroCountdownOpt",
+     "needs": "a coverage-rect backing attach/detach rule as a per-frame paint source (GraphicsLayerCA.cpp:3035-3060@862f17d CONFIRMED; full repaint on re-attach INFERRED)"
+    },
+    {
+     "statement": "Scheduling confound: with the TS strip's shared-loop subscriber, $\\forall f$ with no roll: $\\mathrm{script}_v(f)=1>0=\\mathrm{script}_o(f)$, hence $\\neg(W(v,f)\\preceq W(o,f))$ and $\\mathrm{screen}=\\mathrm{mixed}$",
+     "module": "Fw.Parts.HeroCountdownOpt",
+     "needs": "derive FrameIn.script from the clock source (setInterval + per-digit rAF vs per-frame subscriber); not modelled today"
+    }
+   ],
+   "premises": [
+    "will-change composites under WebKit Normal and is dropped under Conservative: CONFIRMED (Fw.Engine.WebKit willChange_dropped)",
+    "full-layer backing rule (each layer backs its whole box): INFERRED",
+    "face re-entry repaint caused by backing detach: INFERRED (pin detach rule CONFIRMED, repaint cause from v1 on another branch)",
+    "TS strip flag also moves the clock to a shared per-frame subscriber (index.tsx:103-108): CONFIRMED in code, OPEN in the model"
+   ],
+   "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16, re-entry paint 53.5->21, menu-centre redraws per open 196->11; Simulator hero-clock Paint records 13->0 per 4 s; WebKit memory up because the whole strip is backed (../fastwork-com-web-optimize/research/gpu-props/README.md:286-297,396-424). v2 local Simulator debug run, not a result (packages/measure-webkit/README.md:267-290): Paint 166->154, but FireAnimationFrame 222->296 and FunctionCall 296->370, caused by the bundled subscriber.",
+   "lesson": "Fewer layers is a resident win, not a per-frame win: passes stay equal and only a census can see it, and any growth in backing makes it a trade. A layer variant must not also change scheduling.",
+   "next": "Split the TS flag into strip (layers only, faithful timer) and a separate clock flag. Run chromium-counts census.layers on CI. Prove the WebKit re-entry paint theorem once the coverage-rect rule is in WebKit.lean."
+  },
+  {
+   "n": 8,
+   "part": "hero.countdown",
+   "candidate": "cd-roll-ca: spring roll replaced by a WAAPI transform animation with sampled keyframes",
+   "status": "partly-proved",
+   "chromium": "win",
+   "webkit": "trade",
+   "visual": "E-s only at one fixed cadence, given that frame times equal the keyframe sample times (R5 clock premise). Not E across cadences: the spring integrates in min(left,16) ms slices (springLoop), so its path depends on how time is split into frames.",
+   "mechanism": "The roll moves from a per-frame rAF transform write (Chromium `direct`: script, style, props, commit) to a compositor transform animation (transformAnim_comp). On WebKit the legacy CA path accepts keyword-linear keyframes; legacy_rejects covers only linear() with points and steps(). Chromium saves script (FireAnimationFrame, FunctionCall: det) and the commit (cc.Commit: det) on every roll frame; lane style stays 1 per BeginFrame (F1). Each roll adds one start (style, props, commit). WebKit's web process does 0 work per frame only while nothing else renders: every rendering update ticks and invalidates every relevant animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d). CA asks for 80-120 Hz (PlatformCAAnimationRemote.mm:611-612), a UI-process cost no counter sees.",
+   "leanFor": [
+    "transformAnim_comp",
+    "compTransform_no_layout_paint",
+    "compAnim_no_layout_paint",
+    "anim_comp_zero",
+    "compFrame_zero",
+    "comp_accelerated",
+    "path_default"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "The spring path depends on the frame split: $\\exists s, x^\\ast:\\ \\operatorname{springStep}(\\operatorname{springStep}(s,x^\\ast,8).s,\\,x^\\ast,8).s \\neq \\operatorname{springStep}(s,x^\\ast,16).s$. So no single keyframe list equals the original for every cadence (decidable over $\\mathbb{Q}$)",
+     "module": "Fw.Parts.HeroCountdown",
+     "needs": "nothing (springStep exists)"
+    },
+    {
+     "statement": "E-s at a fixed cadence: $\\forall \\delta>0, k:\\ \\operatorname{waapiLin}(P_\\delta, k\\delta) = \\operatorname{spring}^{(k)}_\\delta$, where $P_\\delta$ holds the spring states sampled at $k\\delta$ as keyframes with linear easing between them",
+     "module": "Fw.Parts.HeroCountdownOpt",
+     "needs": "multi-keyframe linear WAAPI semantics (extend MorphTweenOpt.WaapiPremises)"
+    },
+    {
+     "statement": "WebKit ride-along: $\\forall m, a, f:\\ \\operatorname{update}(f) \\land \\operatorname{relevant}(a) \\Rightarrow \\mathrm{style} \\in \\operatorname{touched}(W_{wk}(f \\oplus a))$. So anim_comp_zero holds only in frames where nothing else triggers a rendering update",
+     "module": "Fw.Engine.WebKit",
+     "needs": "a per-update tick/invalidate clause for accelerated animations. Today anim_comp_zero has no frame context"
+    }
+   ],
+   "premises": [
+    "the rAF time equals the document timeline time (R5): CONFIRMED in both engines; the lane clock shim breaks it unless an offset is added",
+    "the WebKit legacy CA path accepts keyword-linear multi-keyframe transforms: CONFIRMED (legacy_rejects)",
+    "every rendering update ticks relevant accelerated animations and invalidates their style: CONFIRMED at the pin (cites above); not in the Lean model",
+    "CA 80-120 Hz on the iPhone: CONFIRMED in source, OPEN on the device (v1 C9 UNRESOLVED)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/research/gpu-lessons/README.md §1.1-1.3: countdown script calls per roll 23-26 -> 1; main frames 295-306 -> 250-262 per 6 s full page, 205 -> 79 on a frozen page; Paint and Layout equal; Simulator RenderingFrame 223/206 vs 210/203 per 4 s; 52-66 keyframes per cell per roll; the 60 Hz and 120 Hz paths differ by up to 29.6 px. The user accepted it as a near-identical look (PR-017).",
+   "lesson": "A path-dependent integrator (Euler with frame-sized slices) is not a function of time, so keyframes restate it only for one cadence. Moving to the compositor cuts script and commit, never the lane's per-frame style pass.",
+   "next": "Prove the spring partition theorem by #guard and the fixed-cadence E-s theorem. Add the WebKit ride-along clause. Record cd-roll-ca as E-s on the lane and L on devices; the user picks the class before any build."
+  },
+  {
+   "n": 8,
+   "part": "hero.countdown",
+   "candidate": "clock-aligned timer (KD#19): setInterval(1000) replaced by a timeout chain aimed at T0 + k*1000",
+   "status": "not-proved",
+   "chromium": "no-win",
+   "webkit": "worse",
+   "visual": "E against the drift-free original (Chromium-style re-arm from the scheduled time); the v1 chain aims at the original's own phase. Not equal on WebKit under thermal or low-power timer alignment: there the original skips one shown second about every 50 s and the variant does not. That makes it a correction, not a parity.",
+   "mechanism": "There is no stage to save: both arms fire one timer and write the digits once per shown second. WebKit re-arms a repeating timer from its actual fire time and aligns fire times to a coarser grid in low-power or thermal mode (DOMTimer.cpp:436-448, Page.cpp:3072@862f17d). The original therefore drifts about 20 ms per fire (1000/20 = 50 s per skip). The chain keeps 60 fires per minute against 58.92, which is +1.8 % timer work at Serious. The CI lanes have no thermal mode, so no counter sees either effect. The v2 TS per-frame subscriber version adds 1 rAF callback every frame.",
+   "leanFor": [
+    "remainingSeconds_ceil",
+    "remainingSeconds_antitone",
+    "countdown_mono_in_time"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "Drift skips: if $t_{i+1}=t_i+1000+\\delta_i$ with $\\delta\\le\\delta_i<1000$, then $\\forall n\\ge\\lceil 1000/\\delta\\rceil\\ \\exists i<n:\\ R(t_i)-R(t_{i+1})=2$ with $R=\\operatorname{remainingSeconds}(\\cdot,\\mathrm{target})$. The aimed chain $t_k=T_0+1000k+\\ell_k$ with $0\\le\\ell_k<1000-\\varphi$ shows $R(T_0+1000k)$, which equals the drift-free interval",
+     "module": "Fw.Parts.HeroCountdown",
+     "needs": "a fire-time sequence model (Int ms), no engine piece"
+    },
+    {
+     "statement": "No work order: the timer passes per second are equal, $1=1$, so claim = noClaim. A per-frame subscriber gives $\\mathrm{script}_v = \\mathrm{frames}/\\mathrm{s} > 1 = \\mathrm{script}_o$, so it is worse",
+     "module": "Fw.Parts.HeroCountdownOpt",
+     "needs": "timer stage or script derived from the clock source"
+    }
+   ],
+   "premises": [
+    "WebKit thermal or low-power alignment interval (Page.cpp:3072, DOMTimer.cpp:436-448): CONFIRMED",
+    "WebKit repeating timer re-arms from the actual fire time: CONFIRMED on WK main in v1 (F-266), not re-read at 862f17d: INFERRED",
+    "iOS 26 thermal grid value: OPEN",
+    "Chromium setInterval is drift-free: INFERRED (v1 statement, not read at f842f52)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/countdown-tick/README.md:131-150. GRID 30: original 58.92 fires per 60 s and 11.67 skipped seconds per 10 min (model 11.68); chain 60.00 fires and 0 skipped. GRID 0: both 60 per minute, 0 skipped. KD#19: about one second skipped every 50 s at Serious on the phone.",
+   "lesson": "Timer-phase fixes are correctness changes, not performance: they never lower work, and they show only under conditions (thermal, background) that the CI lanes do not reproduce. Never drive a 1 Hz clock from a per-frame subscriber.",
+   "next": "Prove the drift and aimed-chain theorems in HeroCountdown. Record the fix as no-win (correctness) and keep it out of the perf flags. In TS, separate the timeout chain from the strip flag."
+  },
+  {
+   "n": 8,
+   "part": "hero.countdown / morph.countdown",
+   "candidate": "hidden-skip: skip face writes while the clock is not visible; the spring keeps integrating",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E for every env and every t (hidden_pause_eq, panel_visSame, offscreen_hidden). The spring keeps running and `hsync` writes the current state before paint on unhide; a naive pause is not E (naive_pause_shifts).",
+   "mechanism": "Dropping the per-frame transform writes of 16 faces per digit removes the countdown's style, props and commit change. The rAF spring script stays on purpose, because the state is path-dependent. cr_countdown_style and wk_countdown_style prove style passes 1 -> 0, but only for a frame whose only change is the countdown. On CI, UpdateLayoutTree (det) and RecalculateStyles (stable, tolerance 1) show it only in zones where nothing else restyles. In the lane every BeginFrame is a main frame (R1), so any other style change in that frame absorbs the saving into an equal pass count.",
+   "leanFor": [
+    "hidden_pause_eq",
+    "hiddenPause_visSame",
+    "panel_visSame",
+    "offscreen_hidden",
+    "scenePaused_imp_hiddenPause",
+    "skipWrites_le",
+    "cr_countdown_style",
+    "wk_countdown_style"
+   ],
+   "leanAgainst": [
+    "naive_pause_shifts"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Pass absorption: $\\forall E, f, c:\\ E.\\mathrm{stagesOf}(c) \\subseteq \\bigcup_{c'\\in f.\\mathrm{changes}} E.\\mathrm{stagesOf}(c') \\land f.\\mathrm{changes}\\neq[\\,] \\Rightarrow \\operatorname{frameWork}_E(f\\oplus c).\\mathrm{passes} = \\operatorname{frameWork}_E(f).\\mathrm{passes}$. So a dropped change lowers a pass count only in frames where it alone touched that stage",
+     "module": "Fw.Engine.Core",
+     "needs": "nothing new; generalises HeroCountdownOpt.touched_congr"
+    }
+   ],
+   "premises": [
+    "hidden <=> panel opacity 0 <=> m <= 0.08: CONFIRMED (panelOpacity_eq_zero_iff)",
+    "R6, which hidden forms skip paint while animations tick: OPEN residual",
+    "toggle frames are not dominated per frame: CONFIRMED in the module",
+    "occlusion is not modelled: OPEN"
+   ],
+   "v1Evidence": "KD#18 (v1 research/knowledge-distillation/README.md §3 L18): Simulator at the People title 65 -> 2 layouts and 74 -> 0 paints, pixels identical. ../fastwork-com-web-optimize/fixes/countdown-idle-raf/README.md: mechanism verified, timing gain inconclusive.",
+   "lesson": "Pause by dropping writes, not by stopping a path-dependent integrator. A per-frame pass saving can be observed only where the dropped change was the frame's only one touching that stage.",
+   "next": "Build variant-hidden-pause. On chromium-counts, check UpdateLayoutTree <o only in zones with m <= 0.08 and no other restyle. Prove passes_absorb in Core so the golden rows predict which zones can show it."
+  },
+  {
+   "n": 9,
+   "part": "morph.tween",
+   "candidate": "g0.0b: the rAF tween replaced by one WAAPI animation on a registered --morph with cubic-bezier(1/3,1,2/3,1)",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E-s: exact in Q (bezier_eq_ease, waapi_eq_tween, flags_same_frame), except at exact threshold ties. Engine solver error is at most 3 epsilon; the Node replica measured 3.33e-16 (curve.golden.test.ts).",
+   "mechanism": "Only the writer changes. --morph stays on the main thread in both engines (cr_custom_main bit 13, compositor_animations.cc:426-440@f842f52; WebKit.custom_main). Both engines diff the old and new ComputedStyle whatever wrote the value, and R2 shows the restyle set is the same. So style, layout, paint and commit stay =o, and only the script drops: the own-rAF FireAnimationFrame plus FunctionCall per tween frame (det). WebKit's AnimationOnly resolve is cheaper per element, but pass counts are equal. The dominant cost (layout from the nav's top/width/height, backdrop repaint) is untouched.",
+   "leanFor": [
+    "bezier_eq_ease",
+    "curveY_eq_ease",
+    "solver_exact",
+    "waapi_eq_tween",
+    "waapi_frame_eq",
+    "flags_same_frame",
+    "waapi_vis",
+    "waapi_work_le",
+    "waapi_work_le_chromium",
+    "waapi_work_le_webkit",
+    "drop_run_dominates"
+   ],
+   "leanAgainst": [
+    "cr_custom_main",
+    "custom_main",
+    "dropsScript"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Inheritance premise: if --morph is registered with $\\mathrm{inherits}=\\bot$ and animated on $e$, then every reader $d\\neq e$ has $\\mathrm{val}_v(d,T_k)=0\\neq\\operatorname{tween}(T_k)$ whenever $\\operatorname{tween}(T_k)\\neq 0$. So $\\neg\\mathrm{VisSame}$ unless every reader is a target; with $\\mathrm{inherits}=\\top$ the fan-out equals the original's (R2)",
+     "module": "Fw.Parts.MorphTweenOpt",
+     "needs": "a custom-property inheritance rule in Fw.Engine.Visual. The handoff says inherits:false, while design note MT3 says inherits"
+    }
+   ],
+   "premises": [
+    "R3 registered <number> interpolation is linear: CONFIRMED",
+    "R3b discrete flip at p >= offset: CONFIRMED",
+    "R5 timeline zero = performance.now origin: CONFIRMED in the engines, but the lane shim needs an offset c: OPEN",
+    "R8 fp: MEASURED (Node replica)",
+    "R2 same restyle set: CONFIRMED",
+    "P-from (Blink may sample from one frame late): OPEN",
+    "inherits:false in the handoff vs the inherited original: OPEN, possible vis break",
+    "the CSS parser keeps 1/3 and 2/3 as JS doubles: INFERRED"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/g0-gpu/README.md:73-106 (g0.1a, the card on WAAPI): Chrome restyled elements -17 to -30 %, Paint calls -7 %, Layouts 45/54 = 45/54; Simulator 96-101 paint rects per tween frame in every arm, 'because the nav box changes size every frame'. fixes/BEST_BUILDS.md:20: 'the card on Web Animations brought no gain'.",
+   "lesson": "Changing who writes a main-thread property (JS to WAAPI) removes only script; every downstream stage is set by the property class and the target. Predict such a gain as script time only before building.",
+   "next": "Settle the inherits premise (inherits true, or animate every reader). Build variant-morph-tween-waapi. Confirm FireAnimationFrame <o, UpdateLayoutTree and Layout =o, and compositeFailedBits bit 13 on chromium-counts. Record it as a small script-only win."
+  },
+  {
+   "n": 10,
+   "part": "morph.tween",
+   "candidate": "CM / compositor-morph (PR-030): transforms on a scroll timeline, rounded box from 4 corner clippers",
+   "status": "not-proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "Not equal (class L). Scaling a box is not resizing it (radius and text scale), and a scroll-linked timeline replaces the time-based 680 ms tween, which changes the interaction. v1 tiered it and did not prove it.",
+   "mechanism": "Per-frame top/width/height/radius writes (layoutFull: layout and paint) become transforms (jsTransform_lt_topLeft, compTransform_no_layout_paint). Chromium runs them on the compositor only if the scroll source is user-scrollable (bit 16; the scroll-jack undermines this), and style stays 1 per BeginFrame (F1). On WebKit every scroll update ticks and invalidates the threaded animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d), so style stays. The saving lands in layout and paint (Layout stable, raster.invalidationAreaPx). New costs: 8 clipper layers (resident up), more style, and Chrome glass corners.",
+   "leanFor": [
+    "jsTransform_le_topLeft",
+    "jsTransform_lt_topLeft",
+    "compTransform_no_layout_paint",
+    "compAnim_no_layout_paint",
+    "anim_comp_zero",
+    "path_default"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "Rounded-rect rigidity: for axis-aligned $R(w,h,r)$ with $0<r\\le\\min(w,h)/2$ and affine $A$, $A(R(w,h,r))=R(w',h',r') \\Rightarrow \\exists k:\\ w'=kw \\land h'=kh \\land r'=kr$. The original's box has a varying $h/w$ and $r(m)=\\min(32-12m,h/2,w/2)$, so no single transform of a fixed box equals it for every $m$: not E",
+     "module": "Fw.Engine.Visual",
+     "needs": "rounded-rect geometry over Q (corner arcs or curvature), not in Visual today"
+    },
+    {
+     "statement": "Style floor and trade: $\\forall\\epsilon,k\\in\\mathrm{range}:\\ W_\\epsilon(\\mathrm{CM},k).\\mathrm{passes}(\\mathrm{style})\\ge1$ and $R_{CM}.\\mathrm{layers}=R_o.\\mathrm{layers}+8$, hence $\\operatorname{claim}\\in\\{\\mathrm{trade},\\mathrm{noClaim}\\}$",
+     "module": "Fw.Engine.Core + Fw.Engine.WebKit",
+     "needs": "a WebKit scroll-driven tick/invalidate clause (anim_comp_zero currently predicts 0 style) and the clipper layers in Resident"
+    }
+   ],
+   "premises": [
+    "WebKit threaded scroll-driven animations are on by default: CONFIRMED",
+    "per-update tick and invalidate for relevant animations: CONFIRMED at the pin; the Lean WebKit model contradicts it (gap)",
+    "Chromium needs UserScrollable for comp scroll timelines: CONFIRMED (bit 16)",
+    "residual layout from forced hit tests and scrollY reads: MEASURED in v1"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/compositor-morph/README.md:194-240, P-157 iPhone per morph frame: Paint 11.45-12.01 -> 3.19-3.28 (0.28-0.29x); Layout 2.23-2.38 -> 1.00-1.04 (the ~0 prediction was refuted; the residue comes from elementsFromPoint hit tests and scrollY reads); style 1.82-1.90 -> 2.13-2.18; median frame 17 ms in all runs, no frame-time separation. Chrome glass shows square corners; on WebKit the glass blinks under the clippers.",
+   "lesson": "Compositor animation removes layout and paint, never the per-frame style pass, and geometry tricks that emulate a resize add layers. Expect a trade, and remove the forced-read residue separately (hit-skip).",
+   "next": "Record CM as a class-L proposal. Prove rounded-rect rigidity to close the same-look question for good. Fix the WebKit model's scroll-driven style clause, then emit work-only golden rows for the try-it page."
+  },
+  {
+   "n": 11,
+   "part": "morph.panel (platform panel)",
+   "candidate": "blur(0) -> filter:none at rest (MorphPanelOpt rest variant)",
+   "status": "proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "E at rest, under premise RG10: no fixed or absolute descendant uses the panel as its containing block, and the stacking order is unchanged (rest_visSame_E). During the fade the scenes are equal without premises (fade_scene_eq).",
+   "mechanism": "At rest Chromium still builds an effect node and a SaveLayer for blur(0) (filter_effect_builder.cc:465-470, paint_property_tree_builder.cc:2629-2651@f842f52). WebKit keeps a group and a RenderLayer, composited indirectly. Removing the filter saves props, raster and compositor work, and only in frames that touch the panel (cr_rest_lt needs rasterUnder, propsPanel or drawSurface); none of those stages has a det counter. The rest-to-fade toggle flips a stacking context: full layout on Chromium (cr_toggle_not_le) and +1 layout unit on WebKit (wk_toggle_layout_units). So CI can count the cost but not the win; the golden rows are =o or any.",
+   "leanFor": [
+    "rest_visSame_E",
+    "fade_scene_eq",
+    "cr_rest_le",
+    "cr_rest_lt",
+    "cr_rest_claim",
+    "wk_rest_le",
+    "wk_rest_lt",
+    "wk_rest_claim",
+    "wk_rest_layers"
+   ],
+   "leanAgainst": [
+    "cr_toggle_not_le",
+    "wk_toggle_not_le",
+    "wk_toggle_layout_units",
+    "wk_toggle_passes",
+    "rest_groups_differ",
+    "wk_rest_panel_not_mono"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Run level: for a swipe $X$ that crosses rest to fade and back once, $\\operatorname{screen}(\\operatorname{toRun}(W_o(X)),\\operatorname{toRun}(W_v(X)))=\\mathrm{mixed}$ in both engines, and every strict component of the rest frames lies in stages $\\{\\mathrm{props},\\mathrm{raster},\\mathrm{comp}\\}$ with no det/stable count type",
+     "module": "Fw.Parts.MorphPanelOpt",
+     "needs": "compose the per-frame theorems over a toggle-crossing run, plus a stage-to-class map from Fw.Measure.Classes"
+    }
+   ],
+   "premises": [
+    "RG10: OPEN (check on the rewrite DOM)",
+    "the lane panel may already be composited (own): OPEN, unverified",
+    "z-index auto in the lane band, so the filter is the only stacking reason: CONFIRMED"
+   ],
+   "v1Evidence": "none (v1 kept blur on #platform; the g0.0 port kept S() with R4a and a 0.9999 clamp, ../fastwork-com-web-optimize/fixes/g0-gpu/README.md:137-146)",
+   "lesson": "Removing an identity effect is visually free, but toggling it at a threshold creates stacking-context or layout changes. A saving in uncounted stages paired with a cost in counted ones reads as a regression on CI.",
+   "next": "Prove the run-level mixed theorem. Then either record the rest variant as a no-win, or toggle only in a frame that already pays layout and re-prove."
+  },
+  {
+   "n": 11,
+   "part": "morph.panel (end-of-page glass)",
+   "candidate": "constant glass (g0.0k): the animated backdrop blur replaced by a constant 20 px one",
+   "status": "not-proved",
+   "chromium": "no-win",
+   "webkit": "no-win",
+   "visual": "Not equal (class L; the user accepted it in v1)",
+   "mechanism": "It removes the per-frame backdrop-filter radius change. Chromium maps that change to ppFull (Chromium.lean:162) and WebKit to recomposite. Both stage sets lie inside the layout change the same nav box pays every frame (top/width/height), so pass counts are unchanged (touched_congr); only a unit and a GPU re-filter are saved, and no counter sees either. The WebKit backing clear comes from the size change (RemoteLayerBackingStore.mm:145-152@862f17d), not from the radius. So the inventory claim 'no backing-store resize' does not follow from constant glass alone; it needs CM (no resize).",
+   "leanFor": [],
+   "leanAgainst": [
+    "touched_congr",
+    "crStages_mono",
+    "frame_le_union"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Pass absorption (same theorem as for hidden-skip): $E.\\mathrm{stagesOf}(\\mathrm{backdrop}) \\subseteq E.\\mathrm{stagesOf}(\\mathrm{size}) \\Rightarrow \\operatorname{frameWork}_E(f\\oplus\\mathrm{backdrop}).\\mathrm{passes} = \\operatorname{frameWork}_E(f).\\mathrm{passes}$ for both engines while the box resizes",
+     "module": "Fw.Engine.Core",
+     "needs": "passes_absorb. The GPU backdrop cost is not in Work (no stage for viz/CA filter work)"
+    }
+   ],
+   "premises": [
+    "Chromium backdrop-filter is ppFull and stays composited (compositor_animations.cc:417-420@f842f52): CONFIRMED",
+    "a WebKit resize clears the backing: CONFIRMED",
+    "the GPU re-filter cost of a changing radius: OPEN (no counter)"
+   ],
+   "v1Evidence": "Only measured inside g0.0k (PR-040: finger-follow, CM and constant 20 px glass together; ../fastwork-com-web-optimize/fixes/BEST_BUILDS.md:12, fixes/g0-0k/README.md:20-23). There is no isolated measurement. The phone result 'longest frame 584 -> 42 ms' belongs to the whole bundle.",
+   "lesson": "Removing a change whose stages are a subset of another change on the same element in the same frame saves no pass; find the frame's dominant change first. A bundle's win cannot be credited to one member.",
+   "next": "Prove passes_absorb in Core. Record constant glass alone as a no-win on counted stages. The try-constant-glass page should predict work with CM (no resize) as its base."
+  },
+  {
+   "n": 11,
+   "part": "morph.panel (end-of-page bar)",
+   "candidate": "g0.0f: the bar's colour from two flat GPU layers plus a clip shape (Safari only)",
+   "status": "not-tried",
+   "chromium": "no-win",
+   "webkit": "trade",
+   "visual": "Q. v1 found only the bar's 1 px outline different mid-motion (accepted in PR-038); Chrome is unchanged (T0).",
+   "mechanism": "On WebKit, a composited layer that paints nothing (a simple container) shows its background as solid-colour contents with no backing store (RenderLayerBacking.cpp:3326-3338, 3657-3659@862f17d). A painted layer's backing is cleared and fully repainted on every size change (RemoteLayerBackingStore.mm:145-152). Moving the colour to flat layers and the radius to a clip removes a full-screen backing (about 11 MB) and its resize repaint. New cost: 2 or more extra layers. Visible in the WebKit LayerTree census and Paint (stable only as a total); Chromium is not affected.",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "$\\forall L:\\ \\operatorname{simple}(L)\\Rightarrow R(L).\\mathrm{backingKpx}=0 \\land \\forall f:\\ \\operatorname{resize}_f(L)\\Rightarrow \\mathrm{paint}_f(L)=0$; $\\lnot\\operatorname{simple}(L)\\land\\operatorname{resize}_f(L)\\Rightarrow \\mathrm{paint}_f(L)=\\operatorname{area}(L)$. Hence for g0.0f, $R_v.\\mathrm{backingKpx}<R_o.\\mathrm{backingKpx}$ and $R_v.\\mathrm{layers}>R_o.\\mathrm{layers}$, so claim = trade",
+     "module": "Fw.Engine.WebKit",
+     "needs": "a contents kind (solid vs painted) in LayerState and the resize-clears-backing rule, as a per-frame paint source"
+    }
+   ],
+   "premises": [
+    "a border radius makes the box paint decorations, so it is not a simple container: INFERRED (paintsBoxDecorations)",
+    "a clip shape carries no backing: INFERRED",
+    "the user accepted the 1 px outline (PR-038): CONFIRMED"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/BEST_BUILDS.md:16: about 11 MB less while the menu is open. iPhone P-164: first open 16.5 vs 16.5 ms, later opens 17 vs 17 ms, frames over 34 ms 0 vs 0 %. Finger-down frames over 50 ms: C 7/5/6/6, V 5/10/8/9 (descriptive).",
+   "lesson": "On WebKit a resized layer that paints content repaints its whole backing every frame; a layer showing only a solid colour has no backing. Memory wins of this kind rarely move frame time.",
+   "next": "Add the contents kind and the resize rule to Fw.Engine.WebKit with these cites. Prove the trade. The Q visual needs a PL tolerance for the outline. Then decide whether the memory is worth the extra layers."
+  },
+  {
+   "n": 11,
+   "part": "morph.panel (platform panel)",
+   "candidate": "own layer during the blur fade (MorphPanelOpt sub-claim 2; v1 g0.1b)",
+   "status": "proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "Q (fade_visSame_Q): the scenes are equal, but the blur moves from Skia raster to the compositor, which samples differently",
+   "mechanism": "Chromium: an own layer moves the blur's cost from raster to compositing: raster -1 unit per fade frame (cr_fade_raster_drop) for +1 resident layer (fade_layers_up), so claim = trade (cr_fade_trade). A blur filter animation still runs on main (bit 12), so style and props stay per frame. WebKit: paint -2 and props +2 (wk_fade_paint_drop, wk_fade_props_up), which have no per-frame order (wk_not_mono). Promoting for each fade and demoting afterwards also allocates the panel's backing for every tween; v1 saw 13.25 MB rebuilt per tween.",
+   "leanFor": [
+    "fade_visSame_Q",
+    "cr_fade_le",
+    "cr_fade_raster_drop",
+    "wk_fade_paint_drop"
+   ],
+   "leanAgainst": [
+    "cr_fade_trade",
+    "fade_layers_up",
+    "wk_fade_props_up",
+    "wk_fade_not_le",
+    "wk_not_mono"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Promote per tween: if an element is composited only while it animates, then every tween $\\tau$ has a frame $k_0(\\tau)$ with $\\Delta R.\\mathrm{backingKpx}=\\operatorname{area}$ and $\\mathrm{paint}_{k_0}\\ge\\operatorname{area}$. The build lands in the first motion frame, so $\\max_{k\\in\\mathrm{motion}} W_v \\not\\preceq \\max W_o$",
+     "module": "Fw.Engine.WebKit",
+     "needs": "Resident transitions (layer build and free events per frame); the WebKit start forces a compositing update (v1 C7, KeyframeEffect cites on another branch: INFERRED at the pin)"
+    }
+   ],
+   "premises": [
+    "Chromium bit 12 keeps blur filter animations on main: CONFIRMED",
+    "whether the original panel is already own on the lane: OPEN (if it is, the trade gives nothing)",
+    "WebKit promote/demote per animation: INFERRED (v1 C7)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/g0-gpu/README.md:121-135 (g0.1b, not taken): WebKit gives #platform (430x1880, 13.25 MB) a new layer id every tween; Chrome re-rasters it in the first close frame (prepaint 27, 640x512 tiles). will-change stops the rebuild but holds 13.25 MB at open rest (122 vs 109 MB).",
+   "lesson": "Promoting a large element for a short effect trades raster for resident memory plus a layer build per transition, and on WebKit the build lands in the first motion frame. Keep the promotion permanent, or do not promote.",
+   "next": "Add Resident transitions to Fw.Engine.WebKit and prove the promote-per-tween theorem. Check on the CI census whether the lane's original panel is already own. Record the fade as trade or no-go."
+  },
+  {
+   "n": 12,
+   "part": "morph.mount",
+   "candidate": "warm-up: mount the panel at a still moment near the end (v14, D1 always-built card)",
+   "status": "proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "E after the original mounts (E_after_mount), and E everywhere under HiddenBefore (visSame_mount); engine-free",
+   "mechanism": "The panel's DOM insertion (script plus layout and paint of the subtree) moves from a motion frame to a still frame. The motion-frame peak is strictly lower and totals are equal (cr_swipe_shift, wk_swipe_shift, shift_mainUs). The extra rendering update adds one commit pass (shift_passes_succ), and the framewise screen says mixed (shift_screen_mixed). The saving is a peak, not a sum: engine-check has no window, so totals read =o or any, and a per-zone check (y04500) needs a windowed lane. New resident cost, not modelled: the panel's layers, backing and running animations are held from the warm-up until the open (PhaseFree assumes no animations).",
+   "leanFor": [
+    "E_after_mount",
+    "visSame_mount",
+    "mount_shift",
+    "shift_peak_lt",
+    "cr_swipe_shift",
+    "wk_swipe_shift",
+    "shift_mainUs"
+   ],
+   "leanAgainst": [
+    "shift_passes_succ",
+    "shift_screen_mixed",
+    "chromium_mixed",
+    "webkit_mixed",
+    "chromium_not_shift",
+    "webkit_not_shift"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Warm-up cost: for a warm-up at $t_w$ before the open at $t_o$, $\\forall t\\in[t_w,t_o):\\ R_v(t)=R_o(t)+R(\\mathrm{panel}) \\Rightarrow \\operatorname{claim}=\\mathrm{trade}$. If the mounted subtree runs $a$ animations that are not hidden-paused, then $\\sum_{k\\in[t_w,t_o)} W_v.\\mathrm{units} > \\sum W_o.\\mathrm{units}$, which breaks shift_total",
+     "module": "Fw.Parts.MorphMountOpt (+ Fw.Parts.HiddenPause)",
+     "needs": "Resident per frame and the subtree's running animations (drop the PhaseFree premise)"
+    }
+   ],
+   "premises": [
+    "DOM insertion = one layout-level change per box plus one script callback: INFERRED",
+    "PhaseFree and HiddenBefore: premises",
+    "the counting window contains the warm-up frame: premise",
+    "WebKit keeps no layer pool, so the first-open layer build is invisible to counts: CONFIRMED for detach (KD#13)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/BEST_BUILDS.md:21 (v14): iPhone first open 26.5 vs 28.5 ms, later opens 16 vs 17 ms, frames over 34 ms 0 vs 10 %; costs +10.6 MB and more style work at rest near the end. KD#13: 'invisible to Chrome and Simulator counts'. fixes/morph-panel-lazy-mount: the 42-75 ms mount LoAF was gone in 5/5 runs; combined deltas only.",
+   "lesson": "A shift moves work and never removes it: totals stay equal and a framewise screen says mixed. It pays only where the motion frame is the bottleneck, and holding the result early costs resident memory and hidden work.",
+   "next": "Add Resident and hidden-animation terms to MorphMountOpt, combined with HiddenPause. Ask for a windowed lane metric (the max frame per zone) so ShiftLt can be checked. Build variant-morph-mount-shift."
+  },
+  {
+   "n": 13,
+   "part": "morph.countdown",
+   "candidate": "own clock layer: the clock wrapper in the menu centre composited while the menu is open (KD#12 menuClock.ownLayer; v1 panel-clock-layer and g0.0i)",
+   "status": "not-proved",
+   "chromium": "worse",
+   "webkit": "trade",
+   "visual": "not-equal in Chromium: v1 saw new-layer text drawn up to 1 device px off in every variant tried, so v1 limited the rule to iOS. WebKit is Q: glyph antialiasing differs mid-open (up to 76 levels) and is 0 at rest.",
+   "mechanism": "Painted pixels per roll frame are the same with or without the layer. The WebKit saving is in per-layer display: each display swaps buffers and copies the earlier painted area forward, the whole layer after a volatility mark. That cost grows with the host's backing (5.7 MB centre vs 1.2 MB wrapper), not with dirty area. INFERRED: cited at WebKit main 6d3243c9, not re-read at 862f17d. Blink re-records and re-rasters only invalidated rects, so Chromium gains nothing and pays +1 layer. Core.Work counts paint units, not backing area, so neither the model nor Timeline Paint records can see it.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Engine.claim_trade_iff"
+   ],
+   "missingWhy": [
+    {
+     "statement": "A display term that scales with backing. For an element with dirty area $a$ inside host layer $H$ (backing $B$), versus its own layer $L$ (backing $b \\ge a$): $D_{\\mathrm{wk}}(v) = b$ and $D_{\\mathrm{wk}}(o) = B$, so $D_{\\mathrm{wk}}(v) < D_{\\mathrm{wk}}(o) \\iff b < B$, with $R_v = R_o + (1, b)$, hence $\\mathrm{claim} = \\mathrm{trade}$. Chromium: $\\mathrm{raster}_{\\mathrm{cr}}(v) = a = \\mathrm{raster}_{\\mathrm{cr}}(o)$ and $R_v \\succ R_o$, hence worse.",
+     "module": "Fw.Engine.WebKit (+ Fw.Engine.Chromium)",
+     "needs": "a per-display cost unit (host backingKpx per display) in Work; the WebKit backing-store copy path re-read at 862f17d"
+    }
+   ],
+   "premises": [
+    "WebKit per-display buffer copy scales with backing size: INFERRED at 862f17d (v1 CONFIRMED at 6d3243c9: ImageBufferSet.cpp 42-148, RemoteLayerBackingStoreCollection.mm 45,124-143)",
+    "Whether Core Animation re-uploads the whole surface: OPEN (v1 UNRESOLVED)",
+    "Chromium raster invalidation limited to the dirty rect: INFERRED (raster_invalidator.cc)",
+    "Chromium 1 px text shift on the new layer: OBSERVED in v1, cause unknown (possibly R9 LCD text)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/panel-clock-layer/README.md: closed, no gain (Sim Paint 31.7 -> 37/s, area 262k -> 379k; WebKit already repainted only the 20x38 digit). fixes/g0-0i/README.md:40-50: centre (5.7 MB) paints per open 196 -> 11, backing re-displayed ~1117 -> ~287 MB, phone no-worse. fixes/menu-layers/README.md:17-37.",
+   "lesson": "Giving a small ticking element its own layer helps only where per-display cost grows with the host layer's backing (WebKit) and the host is large. Dirty-rect paint counters cannot show the gain or its absence.",
+   "next": "Re-read ImageBufferSet.cpp and RemoteLayerBackingStore.mm at 862f17d. Add a backing-scaled display term to Fw.Engine.WebKit. Record the Chromium arm as worse."
+  },
+  {
+   "n": 13,
+   "part": "morph.countdown",
+   "candidate": "strip (10 will-change faces per digit -> one 12-entry strip), reused from hero.countdown (KD#12, cd-strip)",
+   "status": "partly-proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "E at scene level for every env/instant (strip_visSame). Pixel E is open: v1 found delta-1 pixel classes in fractional fades (Chrome 0.9, Simulator 50 %). Changing which boxes share a layer under an ancestor with opacity in (0,1) changes where 8-bit rounding happens, and Visual.PathPremises does not model that.",
+   "mechanism": "Saving is resident only. Every stage runs equally often per frame (strip_passes_eq); only transform-write units fall 10r -> r. Layers drop 80 -> 8, but backing grows 10 -> 12 cells per digit, so the label is trade (strip_backing_gt, strip_label_fullLayer). For morph.countdown the closed panel forces will-change:auto, so both arms have 0 clock layers (paused_same). The gain exists only while the menu is open. CI: Chromium census.layers sees it; per-frame det counters cannot. On WebKit under the Conservative policy both arms are equal.",
+   "leanFor": [
+    "Fw.Parts.HeroCountdownOpt.strip_visSame",
+    "Fw.Parts.HeroCountdownOpt.strip_units",
+    "Fw.Parts.HeroCountdownOpt.strip_layers_lt",
+    "Fw.Parts.HeroCountdownOpt.hero_layers",
+    "Fw.Parts.HeroCountdownOpt.wk_normal_layers"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HeroCountdownOpt.strip_passes_eq",
+    "Fw.Parts.HeroCountdownOpt.strip_backing_gt",
+    "Fw.Parts.HeroCountdownOpt.strip_label_fullLayer",
+    "Fw.Parts.HeroCountdownOpt.paused_same",
+    "Fw.Parts.HeroCountdownOpt.wk_conservative_same"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Layer partition matters under fractional group opacity: with $\\mathrm{rnd}$ = round-half-up to 8 bits, $\\exists \\alpha,\\beta,c:\\ \\mathrm{rnd}(\\alpha\\,\\mathrm{rnd}(\\beta c)) \\ne \\mathrm{rnd}(\\alpha\\beta c)$ (e.g. $\\alpha=\\tfrac12, \\beta=\\tfrac{3}{10}, c=255$: $39 \\ne 38$). Hence a premise C4 is needed: $\\forall p,q,s:\\ (\\forall i,\\ \\mathrm{layer}_p(i) \\ne \\mathrm{layer}_q(i) \\Rightarrow \\alpha_{\\mathrm{anc}}(i) \\in \\{0,1\\}) \\Rightarrow \\mathrm{raster}(p,s)=\\mathrm{raster}(q,s)$",
+     "module": "Fw.Engine.Visual (PathPremises C4)",
+     "needs": "a layer-partition field in PathPremises.raster; a #guard rounding counterexample"
+    }
+   ],
+   "premises": [
+    "Backing rule for small composited layers (whole border box): INFERRED",
+    "Shared-loop scheduling delta of the TS strip moves roll frames: OPEN, not modelled",
+    "Safari Normal compositing policy honours will-change: CONFIRMED (Fw.Engine.WebKit.composites)",
+    "Pixel parity at fractional ancestor opacity: OPEN (v1 OBSERVED delta-1)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/cd-strip/README.md:6-16,499,716: re-entry digit Paint records 54 -> 21, but painted area unchanged (4.19 vs 4.09/4.21 Mpx); backing 48 -> 16 layers; the user accepted delta-1 pixel classes in fades; inline style writes off screen went up.",
+   "lesson": "Fewer layers with the same per-frame stages changes only resident state. If the new layers are larger, it is a trade. A drop in paint-record count does not mean less painted area.",
+   "next": "Push census.layers golden rows on a ci/ branch (rewrite base). Add the C4 layer-partition premise and its rounding counterexample to Fw.Engine.Visual."
+  },
+  {
+   "n": 14,
+   "part": "morph.columns",
+   "candidate": "columns as a still picture while the menu is closed (g0.0h keep-phase = hidden-pause of the marquee)",
+   "status": "partly-proved",
+   "chromium": "no-win",
+   "webkit": "trade",
+   "visual": "E while hidden (hidden_pause_eq, panel_visSame; panel opacity 0 iff m <= 0.08), provided resume restores the original clock (a plain play-state pause is not E: naive_pause_shifts). v1 measured a 0-0.19 px column jump at re-open (about one frame of motion), so in practice it is Q.",
+   "mechanism": "The marquee is a compositable transform animation. Pausing it saves the lane's per-frame ride-along style (cr_marquee_bands: 1 -> 0, an artifact of R1 in the lane) and nothing in real Chrome (cr_realChrome_pause_eq). WebKit web-process work is already 0 per frame (wk_pause_eq, wk_marquee_bands). The real payoff is resident. A transform effect that is still affecting the property keeps its layer composited (RenderLayerCompositor.cpp:3847-3863@862f17d), and a static 2D transform does not (static2D_not_own). New cost: the layer is rebuilt in the first open frame, which collides with row 12.",
+   "leanFor": [
+    "Fw.Parts.HiddenPause.hidden_pause_eq",
+    "Fw.Parts.HiddenPause.panel_visSame",
+    "Fw.Parts.HiddenPause.panelOpacity_eq_zero_iff",
+    "Fw.Parts.HiddenPause.cr_marquee_bands",
+    "Fw.Parts.HiddenPause.pause_le",
+    "Fw.Engine.WebKit.static2D_not_own"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HiddenPause.cr_realChrome_pause_eq",
+    "Fw.Parts.HiddenPause.wk_pause_eq",
+    "Fw.Parts.HiddenPause.wk_marquee_bands",
+    "Fw.Parts.HiddenPause.naive_pause_shifts"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Resident against re-open: with $k$ column layers of backing $B_k$, $R_o = R + (k, B_k)$ and $R_v = R$ over the closed window, and at the re-open frame $k_0$: $W_v(k_0) = W_o(k_0) + \\mathrm{composite}(k)$. So the per-frame screen over closed plus re-open is mixed, while $R_v \\prec R_o$: a trade, $\\mathrm{Shift}$-like.",
+     "module": "Fw.Parts.HiddenPause",
+     "needs": "WebKit CompReason.animation applies to paused but still-affecting effects; a layer-creation term in the first frame after unpause"
+    }
+   ],
+   "premises": [
+    "R6 residual (which hidden forms drop the Chromium property node): OPEN",
+    "Paused effect still 'currently affecting', hence composited: rule CONFIRMED (RenderLayerCompositor.cpp:3847-3863@862f17d), paused-implies-affecting INFERRED",
+    "The rewrite's morph.panel must drive --morph before any win frame exists: OPEN"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/g0-0h/README.md: layers/graphics memory at the top 158/27.6 MB -> 152/12.4 MB; re-open jump 0-0.19 px; phone P-169 '+is-play' frame 71 -> 69 ms (no frame-time claim).",
+   "lesson": "Pausing an animation that already runs on the compositor saves no main-thread work outside a lane artifact. Its real effect is resident (de-compositing), and it moves the re-composite cost into the next open.",
+   "next": "Build variant-hidden-pause and check its F3 rows on CI. Add a WebKit Resident theorem for a paused transform effect vs a static transform. Read census.layers."
+  },
+  {
+   "n": 14,
+   "part": "morph.columns",
+   "candidate": "dprSized images (KD#16: five 1282x1282 PNGs in ~138 px columns resized to drawn size x 1.2)",
+   "status": "not-proved",
+   "chromium": "no-win",
+   "webkit": "no-win",
+   "visual": "not-equal: a smaller source changes resampling, so pixels can differ. At best Q under a pixel tolerance, which the gate (PL1/PL2) does not cover.",
+   "mechanism": "No stage in the Work model changes: same boxes, same paint invalidations, same passes and units. Per-frame raster cost scales with drawn area times per-pixel ops (grain and blend layers over the columns), not with source pixels. WebKit decodes large images at drawn size anyway (INFERRED at pin), and decode is one-time. v1's ablation (backgrounds off: 16 -> 3 slow frames) removed the blend painting, not bytes. Chromium paint counts were equal across arms. Counters count paints, not per-paint cost, so they cannot see the effect either way.",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "Equal changes give equal work: $\\forall f:\\ \\mathrm{changes}_v(f) = \\mathrm{changes}_o(f) \\land \\mathrm{script}_v = \\mathrm{script}_o \\Rightarrow W_\\epsilon(v,f) = W_\\epsilon(o,f)$. Plus a cost lemma: if paint cost is $\\sum_{\\mathrm{box}} \\mathrm{drawnArea}\\cdot\\mathrm{ops}$ and decode happens at draw size, intrinsic resolution does not enter per-frame cost.",
+     "module": "Fw.Engine.Core (work_eq_of_same_changes) + Fw.Engine.Lessons",
+     "needs": "an area x ops weighted paint/raster cost term; the WebKit decode-at-draw-size path read at 862f17d"
+    }
+   ],
+   "premises": [
+    "WebKit decodes large images asynchronously at drawn size: INFERRED at 862f17d (v1 cited RenderBoxModelObject.cpp ~336-394 on main; not in the sparse clone)",
+    "Image decode is one-time, not per frame: INFERRED",
+    "Per-paint cost dominated by blend/grain over drawn area: INFERRED from v1 ablation"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/image-size/README.md: P-066 FALSIFIED, bytes 3.75 -> 2.43 MB, no detectable saving. fixes/end-bg/README.md:241,299: nobg CAUSE 16 -> 3 phone slow frames, while Chrome paint counts were equal across arms.",
+   "lesson": "Smaller inputs (bytes, source pixels) do not lower per-frame work unless drawn area, layer count or per-pixel ops change. Paint-event counters cannot rank per-paint cost.",
+   "next": "Record as no-win. Before trying flattened or baked backgrounds, add a drawn-area x blend cost term and use raster.invalidationAreaPx plus a blend flag."
+  },
+  {
+   "n": 15,
+   "part": "hero.accent",
+   "candidate": "accent-wipe (v1): stroke-dashoffset draw -> counter-translated clip wipe",
+   "status": "not-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "not-equal (class L): the stroke-order drawing becomes a left-to-right wipe. One sub-change is E: the original also animates dashoffset on frames 1-2, which are opacity 0 during the draw, and skipping that is exact.",
+   "mechanism": "Every draw frame writes stroke-dashoffset. In WebKit that is layout (strokeDashoffset_layout, StyleDifference.cpp:161) and in Chromium paint level. The wipe uses two cubic-bezier transform animations with a static clip-path inset, compositable in both engines (transformAnim_comp, comp_accelerated). Main-thread work per frame drops to 0 except the toggle frames, plus transient layers. v1 phone: 434-445 of about 795 small layouts per 20 s fell in these windows.",
+   "leanFor": [
+    "Fw.Engine.WebKit.strokeDashoffset_layout",
+    "Fw.Engine.Chromium.compTransform_no_layout_paint",
+    "Fw.Engine.WebKit.anim_comp_zero",
+    "Fw.Parts.HiddenPause.hidden_pause_eq"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "A work-only theorem wipe_work_lt: $\\forall \\epsilon, k \\in \\mathrm{draw}:\\ W_\\epsilon(v,k) \\prec W_\\epsilon(o,k)$. An E sub-variant: $\\forall t$ in the draw window, $\\mathrm{visible}(o) = \\mathrm{visible}(o \\text{ without dashoffset on frames } 1,2)$, because their opacity is 0.",
+     "module": "Fw.Parts.HeroAccent",
+     "needs": "the draw window restated (is-drawing-in/out, 900 ms each)"
+    }
+   ],
+   "premises": [
+    "Static clip-path does not block transform compositing: INFERRED",
+    "Frames 1-2 are opacity 0 during draw: CONFIRMED by v1 source read (B CSS ~1274-1290)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/illusion-accent-wipe/README.md: phone 434-445 of about 795 small layouts per 20 s in draw windows; Chrome 2688 paints per 9.3 s hero window. Draft, never accepted.",
+   "lesson": "When a look change is rejected, look for the exact subset inside it. Here, drawing two invisible SVGs is pure waste and can be removed with an E proof.",
+   "next": "Prove the E sub-variant (skip dashoffset on opacity-0 frames) via HiddenPause. Keep the wipe as an L proposal with a work-only theorem."
+  },
+  {
+   "n": 15,
+   "part": "hero.accent",
+   "candidate": "boil variant `steps`: chain of zero-duration fill-forwards opacity steps (v2 Lean variant)",
+   "status": "proved",
+   "chromium": "trade",
+   "webkit": "no-win",
+   "visual": "E: the exact 199.98/399.96 ms chain equals the original at every instant (exact_chain_vis). Round 200/400 ms boundaries are E per 60 Hz sample only under the phase premise (clean_chain_grid), and phi = 1/50 breaks it (clean_chain_phase_bad).",
+   "mechanism": "Removing per-frame servicing helps only if the original is serviced per frame on main. INFERRED: in Chromium the outer svg with an opacity animation gets kActiveOpacityAnimation, so the original runs on the compositor and costs only ride-along style. The chain moves each step onto main (style + commit): 240 -> 20 style, 0 -> 20 commits per 4 s, mixed (cr_comp_window, cr_comp_run_mixed), and worse in real Chrome. WebKit@862f17d already ticks only at steps (KeyframeEffect.cpp:2670-2722), so the work is equal. CI: UpdateLayoutTree and cc.Commit are det, and compositeFailedBits decides which Chromium case holds.",
+   "leanFor": [
+    "Fw.Parts.HeroAccent.exact_chain_vis",
+    "Fw.Parts.HeroAccent.clean_chain_grid",
+    "Fw.Parts.HeroAccent.cr_main_le",
+    "Fw.Parts.HeroAccent.cr_main_quiet_lt",
+    "Fw.Parts.HeroAccent.cr_main_run_dominates"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HeroAccent.cr_comp_step_not_le",
+    "Fw.Parts.HeroAccent.cr_comp_window",
+    "Fw.Parts.HeroAccent.cr_comp_run_mixed",
+    "Fw.Parts.HeroAccent.cr_realChrome_step_worse",
+    "Fw.Parts.HeroAccent.wk_frame_eq",
+    "Fw.Parts.HeroAccent.wk_run_equal",
+    "Fw.Parts.HeroAccent.clean_chain_phase_bad"
+   ],
+   "missingWhy": [
+    {
+     "statement": "General form of cr_comp_step_not_le: $\\mathrm{crThread}(m,a)=\\mathrm{comp} \\Rightarrow \\forall$ step frames $k$ of a main-thread replacement $v$: $W(v,k).\\mathrm{passes}(\\mathrm{commit}) > W(o,k).\\mathrm{passes}(\\mathrm{commit}) = 0$, hence $\\neg(W_v \\preceq W_o)$.",
+     "module": "Fw.Engine.Lessons",
+     "needs": "none (it generalizes existing decls)"
+    }
+   ],
+   "premises": [
+    "Chromium original is composited: INFERRED (compositing_reason_finder.cc:421-432,586-593@f842f52); CI compositeFailedBits decides: OPEN",
+    "R5 phase (lane breaks the timeline-origin premise): CONFIRMED gap",
+    "40 ms pre-wake dirties no style: INFERRED",
+    "Both arms start at the same S: INFERRED"
+   ],
+   "v1Evidence": "KD#6 aggregate (research/kickoff/01-prior-loop-lessons.md row 6): 240 style + 481 paints per 4 s -> 8 + 33 at the page bottom, all accent work. For boil-ca alone, Chrome counts were unchanged (../fastwork-com-web-optimize/fixes/illusion-boil-ca/README.md 'Before / after').",
+   "lesson": "Before replacing an animation with discrete steps, check its thread. If it already runs on the compositor, or the engine already ticks only at steps, the change can only add main-thread work and commits.",
+   "next": "Read compositeFailedBits for the accent svgs on a swipe-v1 rewrite run. If composited, record `steps` as trade (lane) and worse (real Chrome), and drop it."
+  },
+  {
+   "n": 15,
+   "part": "hero.accent",
+   "candidate": "boil-ca (v1): step-end -> keyword linear with 0.01 % jumps, so the timing is CA-acceptable",
+   "status": "not-proved",
+   "chromium": "no-win",
+   "webkit": "trade",
+   "visual": "E-s per sample only if no display sample lands in a 0.06 ms ramp window (a phase premise like clean_chain_grid). Otherwise Q: one blended frame in about 139 switches at 120 Hz (v1 estimate). v1 frozen frames were byte-identical, 9/9.",
+   "mechanism": "WebKit's legacy CA path rejects steps (GraphicsLayerCA.cpp:1177@862f17d; legacy_rejects). So the original ticks main-thread style at every step, and each 0<->1 flip crosses isOpaque, which costs layout (opacityCross1_layout). A keyword linear ramp is accepted, runs in the UI process and costs 0 web-process work per frame (anim_comp_zero). New cost: each animating svg is a composited layer (CompReason.animation, robust), so Resident grows and Core labels it trade. Chromium composites steps() already (no steps failure reason in compositor_animations.cc@f842f52, INFERRED from absence), so nothing changes.",
+   "leanFor": [
+    "Fw.Engine.WebKit.legacy_rejects",
+    "Fw.Engine.WebKit.opacityCross1_layout",
+    "Fw.Engine.WebKit.anim_comp_zero",
+    "Fw.Engine.WebKit.comp_accelerated"
+   ],
+   "leanAgainst": [
+    "Fw.Engine.claim_trade_iff",
+    "Fw.Engine.WebKit.composites"
+   ],
+   "missingWhy": [
+    {
+     "statement": "ramp_vis: for jumps of width $w$ at boundaries $b_j$, $\\forall t_k$ with $\\min_{z\\in\\mathbb{Z}} |t_k - S - b_j - 600z| \\ge w$: $\\mathrm{val}_{\\mathrm{ramp}}(t_k) = \\mathrm{origVal}(t_k)$. wk_ramp_trade: $\\forall k:\\ W_{\\mathrm{wk}}(v,k) = 0 \\preceq W_{\\mathrm{wk}}(o,k)$, strict on step frames, and $R_v = R_o + (3, 3a)$, hence $\\mathrm{claim} = \\mathrm{trade}$.",
+     "module": "Fw.Parts.HeroAccent",
+     "needs": "C3 for CA (UI-process sample time = display time) on WebKit; a chromium steps-eligibility row cited from cc"
+    }
+   ],
+   "premises": [
+    "Safari uses the legacy CA path for time-based animations (threadedTimeBased = false): OPEN (O2)",
+    "Chromium cc accepts steps timing: INFERRED (no failure bit found)",
+    "CA samples at display refresh (120 Hz): INFERRED"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/illusion-boil-ca/README.md: Chrome RecalcStyle/Layout/Paint unchanged (903 vs 891 ...); 9/9 frozen frames byte-identical; the phone run was never done (draft PoC).",
+   "lesson": "Retiming an animation so WebKit can accelerate it removes per-step main-thread work only on WebKit, since Chromium already composites steps(). Every accelerated box adds a layer, so the honest label is a trade.",
+   "next": "Prove ramp_vis with the HeroAccent grid lemmas. Add WebKit golden rows once webkit-sim serves ?fw=."
+  },
+  {
+   "n": 16,
+   "part": "people.card",
+   "candidate": "MQ-gated shrink (KD#3): skip the --future-shrink write and the rAF re-request in the c860 band",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E in every env: inside c860 the CSS pins scale 1 and radius 0, so the look does not depend on --future-shrink (look_gated), exactly there (look_const_iff), and the class sequences agree (cls_agree).",
+   "mechanism": "The saving is script (rAF and FunctionCall on tail frames) and style (custom-property restyle, a Chromium styleOnly unit), plus a forced style pass when a rect read follows the write (gate_lt_forced). There is no layout or paint, because the value never reached them. CI: FunctionCall and UpdateLayoutTree are det, but the golden is softened to <=o. swipe-v1 scrolls every frame, so no tail frame is guaranteed, and other parts restyle in the same frame. The style element count is quarantined (C-3), and WebKit has no custom-property row.",
+   "leanFor": [
+    "Fw.Parts.PeopleCard.peopleCard_visSame",
+    "Fw.Parts.PeopleCard.look_gated",
+    "Fw.Parts.PeopleCard.look_const_iff",
+    "Fw.Parts.PeopleCard.run_le",
+    "Fw.Parts.PeopleCard.gate_lt_tail",
+    "Fw.Parts.PeopleCard.gate_lt_forced",
+    "Fw.Parts.PeopleCard.cr_dominates",
+    "Fw.Parts.PeopleCard.wk_dominates"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PeopleCard.frames_ungated_eq"
+   ],
+   "missingWhy": [
+    {
+     "statement": "WebKit custom-property restyle row: $\\mathrm{style} \\in \\mathrm{stagesOf}_{\\mathrm{wk}}(e, \\mathrm{custom}, \\ell)$ with $\\mathrm{units}(\\mathrm{style}) = |\\mathrm{restyled\\ subtree}(e)|$ (R2), so that $W_{\\mathrm{wk}}(v,k) \\prec W_{\\mathrm{wk}}(o,k)$ on every in-band frame where the value moves.",
+     "module": "Fw.Engine.WebKit",
+     "needs": "R2 fan-out cite; a lane scenario with a guaranteed tail frame so <o is checkable"
+    }
+   ],
+   "premises": [
+    "P1 band fixed per load: model choice",
+    "P2 no-scroll frames keep progress: INFERRED",
+    "P5 same-value inline write is a no-op: CONFIRMED (css_property_value_set.cc:606-608@f842f52; MutableStyleProperties.cpp:221-223@862f17d)",
+    "Tail frames exist in swipe profiles: OPEN"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/phone-invisible-shrink/README.md:108,170,187: Chrome 6x 66.5 -> 71.6 fps; phone >20 ms 60-64 -> 40-43, >34 ms 14-22 -> 10-13, >50 ms unchanged. v1 also gated the platform shrink.",
+   "lesson": "JS whose only CSS consumer is overridden in a band is provably dead there. The saving is script and style, never layout or paint, so it can remove many small frames but not the worst ones.",
+   "next": "Add a still-tail scenario to the Chromium lane so FunctionCall <o is checkable. Port the same gate to the platform-card shrink, as v1 did."
+  },
+  {
+   "n": 17,
+   "part": "people.card",
+   "candidate": "PR-041 instant reveal: skip the blur/opacity fade after a fast flick",
+   "status": "not-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "not-equal (class L): the card appears sharp instead of fading in. The user accepted this look in v1 (g0.0l).",
+   "mechanism": "Skipping the reveal transitions removes every reveal-window frame of the filter (main in Chromium, bit 12), opacity and transform animations. Work only falls, but the visible scene differs by design, so no VisSame exists. CI could see it as fewer UpdateLayoutTree/Paint frames in the reveal zone, but only under a flick profile; swipe-v1's speed decides whether the gate fires.",
+   "leanFor": [
+    "Fw.Engine.Chromium.failBits"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "A work-only instant_work_le: for scroll velocity $> v^*$, $\\forall k \\in \\mathrm{reveal}:\\ W_\\epsilon(v,k) \\preceq W_\\epsilon(o,k)$, strict for $k > 0$. No vis theorem (class L).",
+     "module": "Fw.Parts.PeopleCard",
+     "needs": "the flick threshold restated from the variant"
+    }
+   ],
+   "premises": [
+    "The lane profile crosses the flick threshold: OPEN"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/BEST_BUILDS.md:11 and fixes/g0-0l/README.md: user-accepted look (2026-10-09), phone no-worse PASS; the profile deck stops blinking.",
+   "lesson": "Skipping motion always lowers work and never gives a parity claim. It goes to the user's proposal list with a work-only theorem.",
+   "next": "Write the work-only theorem and list it as a proposal on the try-it page."
+  },
+  {
+   "n": 17,
+   "part": "people.card",
+   "candidate": "blur tail cut 1.6 s -> 0.9 s via a 17-stop linear() resample, then snap to none (KD#15, large-area-blur)",
+   "status": "not-proved",
+   "chromium": "win",
+   "webkit": "trade",
+   "visual": "not-equal under the gate: blur 0.24 CSS px against none fails filterQ (tolerance 1e-3), and the 17-stop resample is off by up to 0.03 px. Snapping to `none` also removes the filter's containing block and stacking context (R10). Class L unless the user adopts a perceptual blur tolerance.",
+   "mechanism": "Chromium keeps any blur animation on main (failBits bit 12), so 0.7 s fewer filter frames means fewer paint and raster passes of a viewport-sized layer. WebKit differs. linear() with points is rejected by CA, and KeyframeEffectStack::allowsAcceleration returns false if any effect cannot be accelerated (KeyframeEffectStack.cpp:215-253@862f17d). The card's transform and opacity transitions therefore also leave CA. v1's WebKit result is explained mostly by this thread flip: paint area fell, and the cubic-bezier retime that re-enabled CA doubled Composite.",
+   "leanFor": [
+    "Fw.Engine.Chromium.failBits",
+    "Fw.Engine.Chromium.CrProp.movesPixels"
+   ],
+   "leanAgainst": [
+    "Fw.Engine.WebKit.legacy_rejects",
+    "Fw.Engine.WebKit.blur_comp"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Effect-stack rule: $\\exists e \\in \\mathrm{stack}(x):\\ \\neg\\,\\mathrm{canAccel}(e) \\Rightarrow \\forall e' \\in \\mathrm{stack}(x):\\ \\mathrm{wkThread}(e') = \\mathrm{main}$.",
+     "module": "Fw.Engine.WebKit",
+     "needs": "a per-element effect stack in WkAnim; cite KeyframeEffectStack.cpp:215-253"
+    },
+    {
+     "statement": "tail_not_Q: $\\neg\\,\\mathrm{filterQ}(\\mathrm{blur}(0.24\\,\\mathrm{px}),\\ \\mathrm{none})$, closed by decide with tolStyle = 1/1000.",
+     "module": "Fw.Engine.Visual",
+     "needs": "none"
+    },
+    {
+     "statement": "A UI-process composite cost for a CA blur, $C_{\\mathrm{comp}}(k) \\propto \\mathrm{area}\\cdot r_{\\mathrm{blur}}$, to show that accelerating a large-area blur can raise per-frame cost (v1: Composite 55 -> 111).",
+     "module": "Fw.Engine.WebKit",
+     "needs": "a comp-stage cost unit (today comp is passes only)"
+    }
+   ],
+   "premises": [
+    "Original cubic-bezier(0.16,1,0.3,1) is CA-accepted (y in [0,1]): INFERRED",
+    "Safari threadedTimeBased = false: OPEN (O2)",
+    "blur(0) vs none containing block and stacking context: CONFIRMED (R10)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/large-area-blur/README.md: iPhone paint area 53.6-54.7 -> 48.1-49.2 Mpx (n=3). fixes/blur-cubic-v8/README.md: cubic retime Composite about 55 -> 111 Sim ms; phone reveal frame 42 -> 74 ms.",
+   "lesson": "On WebKit one non-accelerable effect pulls every animation on its element onto main. A 'shorter animation' can win or lose mostly through that thread flip, so model the element's effect stack, not single properties.",
+   "next": "Add the effect-stack rule to Fw.Engine.WebKit and prove tail_not_Q. Record the tail cut as an L proposal unless the user sets a blur tolerance."
+  },
+  {
+   "n": 17,
+   "part": "people.card",
+   "candidate": "g0.0m pre-painted card: visibility visible and will-change opacity at opacity 0 on touch screens",
+   "status": "partly-proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "E for pixels: the card is opacity 0 in both arms until reveal, so it contributes no visible box. Non-visual differences remain (find-in-page, a11y mirror).",
+   "mechanism": "This is a Shift plus resident growth, not removal. Paint and backing allocation move from the reveal frame to load or idle time, so the peak reveal frame falls (v1: 50 -> 30.5 ms) while the total stays and Resident grows by about 22 MB. Core gives shift_peak and shift_total for the shift and claim_trade_iff for the label. Chromium likely does the same (INFERRED): R6 says the opacity-0 skip does not apply with will-change: opacity. CI: WebKit Paint is stable only as a total, so the move is invisible there. Chromium census drawing area shows the resident growth.",
+   "leanFor": [
+    "Fw.Engine.shift_peak",
+    "Fw.Engine.shift_total"
+   ],
+   "leanAgainst": [
+    "Fw.Engine.claim_trade_iff"
+   ],
+   "missingWhy": [
+    {
+     "statement": "prepaint_trade: $\\mathrm{Shift}(K_{\\mathrm{reveal}}, V, O)$ and $R_v = R_o + (k, 22\\,\\mathrm{MB})$, hence the peak is lower, the total is equal and $\\mathrm{claim} = \\mathrm{trade}$. Vis: $\\alpha = 0 \\Rightarrow \\mathrm{BoxVis.drop}$, so VisSame E.",
+     "module": "Fw.Parts.PeopleCard",
+     "needs": "WebKit backing allocation for a visibility:hidden versus opacity-0 composited layer"
+    }
+   ],
+   "premises": [
+    "WebKit allocates and paints the opacity-0 layer when will-change: opacity is set: OBSERVED in v1, INFERRED at pin",
+    "Chromium paints opacity-0 content under will-change: opacity: CONFIRMED rule exception (R6, paint_layer_painter.cc:168-191)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/g0-0m/README.md: P-175 reveal frame 50 -> 30.5 ms on a flick, 48 -> 28 on a slow approach; +22 MB; 'not a less-work fix: the paint moves'.",
+   "lesson": "Pre-painting lowers the peak frame, never total work, and costs resident memory. Label it trade and judge it by how much the peak matters against the memory.",
+   "next": "Write prepaint_trade with Core.Shift. On CI, check that the census drawing area rises and reveal-zone raster.invalidationAreaPx falls."
+  },
+  {
+   "n": 18,
+   "part": "people.o",
+   "candidate": "FLIP (people-gpu, PR-031): set the final grid size once, slide the parts with WAAPI translate",
+   "status": "not-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "not-equal (class L). Geometry is E-s in exact arithmetic (Δ comes from stylesheet em values, and v1 positions agree within 0.03 CSS px). Pixels differ mid-motion: layout snaps text and photos to device pixels while the compositor resamples a raster at fractional offsets (v1: up to 0.35 %, level 217). Visual.PathPremises.raster_path wrongly treats only LCD text and compositor scale as path-sensitive.",
+   "mechanism": "The original animates grid-template-columns and height, which is layoutFull every frame in both engines. FLIP changes layout once per open or close, and per-frame motion is a compositable translate (compTransform_no_layout_paint; WebKit anim_comp_zero). Layout and paint fall to the start and end frames. New costs: transient composited layers for the moved spans, and in WebKit opacity fades that end at 1 still cost layout (opacityCross1_layout), which is why X2 rests them at 0.9999. CI: Chromium Layout (stable) and Layout.dirtyObjects can see the drop.",
+   "leanFor": [
+    "Fw.Engine.Chromium.compTransform_no_layout_paint",
+    "Fw.Engine.Chromium.transformAnim_comp",
+    "Fw.Engine.WebKit.anim_comp_zero",
+    "Fw.Engine.WebKit.opacityCross1_layout"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "C5, fractional translate is path-sensitive: $\\exists R$ consistent with device-pixel snapping and $\\delta \\notin \\tfrac{1}{\\mathrm{dpr}}\\mathbb{Z}$ such that $R(\\mathrm{layout\\ at}\\ x+\\delta) \\ne R(\\mathrm{raster\\ at}\\ x,\\ \\mathrm{translated}\\ \\delta)$. So PathPremises needs: no path-differing box is translated by a non-device-pixel offset.",
+     "module": "Fw.Engine.Visual",
+     "needs": "a snapping and resampling raster model (a layout snap function and a bilinear sample)"
+    },
+    {
+     "statement": "flip_work_lt: $\\forall \\epsilon,\\ \\forall k \\in (0, 920\\,\\mathrm{ms}):\\ W_\\epsilon(v,k) \\prec W_\\epsilon(o,k)$ (layoutFull versus comp translate). Equal at start and end, and $R_v \\succ R_o$ while animating, hence trade by Core's label.",
+     "module": "Fw.Parts.PeopleO (new)",
+     "needs": "a restatement of the O transition and of the FLIP variant"
+    }
+   ],
+   "premises": [
+    "Flex-item spans are blockified, so translate can be accelerated: INFERRED at 862f17d (v1 CONFIRMED on safari-7624 RenderLayerBacking.cpp 4411-4421)",
+    "Δ exact from em values: CONFIRMED (v1 source read)",
+    "Layout pixel snapping versus compositor resampling: INFERRED"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/people-gpu/README.md: Chrome layouts 56 -> 4 (open), 59 -> 6 (close); Simulator layouts 30 -> 8, paints 153 -> 25, 4.6 -> 0.35 Mpx; mid-open pixels up to 0.35 %, level 217; positions within 0.03 px. Proposal PR-031.",
+   "lesson": "Layout-to-transform swaps (FLIP) are reliable large work wins in both engines but are never pixel-equal mid-motion, because layout snaps and the compositor resamples. Treat them as L with a work-only theorem.",
+   "next": "Prove flip_work_lt and add premise C5 to PathPremises. Offer FLIP through the try-flip-st6 page."
+  },
+  {
+   "n": 19,
+   "part": "people.carousel",
+   "candidate": "keep the 5 slots mounted and update src in place (st5)",
+   "status": "not-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E for the picture at rest and during the slide (same keyframes, easings and 220 ms), assuming an in-place src swap paints the same decoded image as a fresh mount: INFERRED.",
+   "mechanism": "The keyed {#if} swap inserts a subtree each tick, so it pays layout and paint of new boxes plus image setup. Keeping slots mounted removes the insertion. But the slide's presence flips remain (opacity reaching 1, transform none<->some), and in WebKit they still force layout: st5 alone went 71/71 -> 24/35 slides with a view layout, and the rest needed st6. CI: no lane covers the carousel at rest yet. Chromium Layout per zone would see the mount part.",
+   "leanFor": [
+    "Fw.Engine.WebKit.opacityCross1_layout"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "A mount change kind: $\\mathrm{stagesOf}(\\mathrm{mount}(n)) = \\{\\mathrm{style}, \\mathrm{layout}, \\mathrm{paint}\\}$ with $\\mathrm{units} = n$ boxes, so that $W(\\mathrm{st5},k) \\preceq W(o,k)$ and the residual is $W(\\mathrm{st5},k) - W(\\mathrm{st6},k) = $ the flip changes.",
+     "module": "Fw.Engine.Core (shared with MM-S, row 12)",
+     "needs": "a DOM-insertion change kind (the same gap as morph.mount)"
+    }
+   ],
+   "premises": [
+    "DOM insertion = layout + paint of the subtree: INFERRED (shared with row 12)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/rotator-st6/README.md:28-50: phone slide-start ticks with a view layout >= 10 ms: C 71/71, st5 24/35, st5-noanim 2/35, st6 1/36.",
+   "lesson": "Removing one cause of a layout can leave a bigger one. Attribute each layout to a change kind before claiming a fix.",
+   "next": "Add the mount change kind (shared with MorphMount). Land st5 only together with st6."
+  },
+  {
+   "n": 19,
+   "part": "people.carousel",
+   "candidate": "rest at opacity 0.999 and scale(1) so no presence flip happens (st6, KD#8)",
+   "status": "not-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "Q under the gate: near tolStyle 0.999 1 holds exactly at the boundary (|0.001| <= 1e-3). Pixel E holds if the engine rounds once to nearest: |0.001(d-s)| <= 0.255 < 1/2, and quantizing alpha first gives rnd(0.999*255) = 255, which is also exact. It fails only if alpha is truncated (Skia/CA quantization OPEN). v1 Chrome screenshots differed by 0.00 %.",
+   "mechanism": "WebKit: opacity crossing 1 and a transform appearing or disappearing force layout (opacityCross1_layout; StyleDifference.cpp:208-215). Resting just off the flip value removes them. New finding at the Chromium pin: opacity < 1 makes a stacking context (HasNonInitialOpacity, computed_style.h:2224), and a stacking flip calls SetNeedsFullLayout (computed_style.cc:779-784@f842f52). It is avoided only while a current animation holds the flag (computed_style.h:2070-2076). So KD#8's 'Blink does not relayout' and the Chromium model's opacity row are incomplete. Cost: slot layers stay composited at rest.",
+   "leanFor": [
+    "Fw.Engine.WebKit.opacityCross1_layout"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "Chromium table fix: a key opacityCross1 with $\\mathrm{crLevel} = \\mathrm{layoutFull}$ when $\\mathrm{isSC}(\\mathrm{old}) \\ne \\mathrm{isSC}(\\mathrm{new})$ and no current-animation flag is set, else the current opacity row. Then cr_rest999_lt: $\\forall k \\in \\mathrm{slide\\ end}:\\ W_{\\mathrm{cr}}(v,k) \\prec W_{\\mathrm{cr}}(o,k)$.",
+     "module": "Fw.Engine.Chromium",
+     "needs": "a stacking-context state in Change for Chromium; a CI fixture (opacity 1 -> 0.9 -> 1 with no animation) to falsify it"
+    },
+    {
+     "statement": "alpha999_round: $\\forall s,d \\in \\{0..255\\}:\\ \\mathrm{round}(0.999\\,s + 0.001\\,d) = s$ and $\\mathrm{round}(0.999 \\cdot 255) = 255$. Both quantization orders give E; only $\\lfloor\\cdot\\rfloor$ breaks it.",
+     "module": "Fw.Engine.Visual",
+     "needs": "an explicit alpha-quantization premise (Skia/CA rounding mode)"
+    }
+   ],
+   "premises": [
+    "Blink stacking-context flip -> SetNeedsFullLayout: CONFIRMED (computed_style.cc:779-784, computed_style.h:2224@f842f52); whether the carousel's flips hit it outside an animation's current window: INFERRED",
+    "Skia and CoreAnimation alpha rounding mode: OPEN",
+    "WebKit isOpaque flip -> layout: CONFIRMED (StyleDifference.cpp:208-215@862f17d)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/rotator-st6/README.md: phone view layouts after a slide 71/71 -> 1/36; dt>34 47-52 -> 5; Chrome check st6 0 flips per cycle vs st5 2+; screenshots 0.00 %; user blind finger pick st6.",
+   "lesson": "Presence flips (opacity reaching 1, transform none<->some) change stacking state and cost layout in WebKit, and at this Chromium pin in Blink too. Resting just off the flip value is visually free.",
+   "next": "Correct the Chromium table (opacity stacking flip -> layoutFull) and add an F-fixture on CI. Prove alpha999_round. Re-check other parts' 'opacity -> 1' ends (FLIP X2, the people card rest 0.999)."
+  },
+  {
+   "n": 19,
+   "part": "people.carousel",
+   "candidate": "st6 slide geometry: width/flex-basis/margin shrink of the leaver -> clip-path ellipse crop + translate; followers translate (layout-animations)",
+   "status": "not-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "not-equal (class L): the crop cuts the leaver's border ring, followers land at sub-pixel positions (+-1 device px against layout), the 2 px end snap is gone, and paint order differs in the first 50 ms. The user accepted it as a look change (PR-013 keep-st6).",
+   "mechanism": "Per frame, width, flex-basis and margin are layoutFull in both engines. The variant leaves clip-path (paint level in Chromium, because it is not compositable without a paint worklet, compositor_animations.cc:344-372; repaint in WebKit when not composited) plus compositable translate. The stages are a subset of layoutFull's, so per-frame work falls (crStages_mono for Chromium; frame_le_union for WebKit). Paint per frame remains on the leaver. CI: Chromium Layout falls, raster.invalidationAreaPx is about equal.",
+   "leanFor": [
+    "Fw.Engine.Chromium.crStages_mono",
+    "Fw.Engine.frame_le_union",
+    "Fw.Engine.Chromium.compTransform_no_layout_paint"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "st6_work_lt: $\\forall \\epsilon,\\ \\forall k \\in \\mathrm{slide}:\\ \\mathrm{stages}_\\epsilon(\\mathrm{clipPath}) \\cup \\mathrm{stages}_\\epsilon(\\mathrm{translate}) \\subsetneq \\mathrm{stages}_\\epsilon(\\mathrm{width})$, hence $W_\\epsilon(v,k) \\prec W_\\epsilon(o,k)$. Work only; no VisSame (class L).",
+     "module": "Fw.Parts.PeopleCarousel (new)",
+     "needs": "a restatement of avatars-exit/shift keyframes"
+    }
+   ],
+   "premises": [
+    "clip-path paint worklet not used: CONFIRMED (Chromium compositor_animations.cc:344-372)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/carousel-leaver/README.md:7-20,60-70: keep-st6 accepted with its motion differences; fixes/st6-rb2/README.md: memory equal to HC (127 layers, 115 MB).",
+   "lesson": "Replacing size animation with clip plus translate removes layout but keeps per-frame paint unless the clip is compositable. It is still a look change, so prove work only.",
+   "next": "Write st6_work_lt as a work-only theorem and list it with the FLIP and st6 proposals."
+  },
+  {
+   "n": 20,
+   "part": "people.deck",
+   "candidate": "cqiFormula sizing (g0.0j): aspect-ratio + height:auto -> container-type:inline-size + height:calc(100cqi*764/353)",
+   "status": "partly-proved",
+   "chromium": "no-win",
+   "webkit": "win",
+   "visual": "E in Q (deck_vis); engine E under premise Faithful (double); a float Length path can give +1/64 px at widths 770/1123/1187 (INFERRED), removed by the nudged formula (snap_nudged)",
+   "mechanism": "WebKit marks every fixed/sticky renderer for layout on each layout-viewport move (LocalFrameView.cpp:1930-1939,3735-3746@862f17d). The link into the aspect-ratio shells is UNRESOLVED, so the saving is in layout units inside a pass the frame pays anyway. Layout pass counts stay =o, and the Chromium lane has no viewport move (swipe_eq). New WebKit cost: the deck becomes a size container, and any style traversal through it adds an interleaved layout (StyleTreeResolver.cpp:1328,1377,1460-1480,1515-1522@862f17d). Blink interleaves only when the container needs layout (element.cc:5187-5208@f842f52).",
+   "leanFor": [
+    "Fw.Parts.PeopleDeck.deck_content",
+    "Fw.Parts.PeopleDeck.cqiShell_eq",
+    "Fw.Parts.PeopleDeck.usedShell_same",
+    "Fw.Parts.PeopleDeck.deck_vis",
+    "Fw.Parts.PeopleDeck.crAspectRaw_eq",
+    "Fw.Parts.PeopleDeck.snap_faithful",
+    "Fw.Parts.PeopleDeck.cr_snap_same",
+    "Fw.Parts.PeopleDeck.wk_snap_same",
+    "Fw.Parts.PeopleDeck.snap_nudged",
+    "Fw.Parts.PeopleDeck.deck_le",
+    "Fw.Parts.PeopleDeck.deck_lt",
+    "Fw.Parts.PeopleDeck.deck_run_dominates"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PeopleDeck.swipe_eq"
+   ],
+   "missingWhy": [
+    {
+     "statement": "WebKit size-container interleave: for a frame f with traversal set $\\mathrm{trav}(f)$ and size containers $C$: $\\mathrm{trav}(f)\\cap C\\ne\\emptyset \\Rightarrow W_{wk}(f).\\mathrm{passes}(\\mathrm{layout})\\ge 1 \\land W_{wk}(f).\\mathrm{units}(\\mathrm{layout})\\ge |\\mathrm{trav}(f)\\cap C|$; hence $W_{wk}(\\mathrm{cqiF}(d))\\preceq W_{wk}(\\mathrm{orig}(d)) \\iff d.\\mathrm{relayout}\\lor \\mathrm{deck}\\notin\\mathrm{trav}(d)$",
+     "module": "Fw.Engine.WebKit (+ Fw.Parts.PeopleDeck)",
+     "needs": "FrameIn needs a style-traversal set and a size-container set; cite StyleTreeResolver.cpp lines above; Chromium counterpart gated on layout-dirty containers"
+    },
+    {
+     "statement": "Relayout mechanism: $\\mathrm{vpMove}(k)\\land|\\mathrm{sticky}|>0 \\Rightarrow d_k.\\mathrm{relayout}$ and $W(\\mathrm{orig},k).\\mathrm{units}(\\mathrm{layout}) - W(\\mathrm{cqi},k).\\mathrm{units}(\\mathrm{layout}) = |\\mathrm{shells}|$ while $\\mathrm{passes}(\\mathrm{layout})$ are equal",
+     "module": "Fw.Engine.Core",
+     "needs": "a layout-dirtiness propagation model (containing-block chain, relayout boundaries, aspect-ratio re-derivation) instead of the free input `relayout`"
+    }
+   ],
+   "premises": [
+    "Faithful rounding: CONFIRMED for double (LayoutUnit truncation, layout_unit.h@f842f52, LayoutUnit.h@862f17d); float Length INFERRED",
+    "Relayout link sticky -> shells: UNRESOLVED (v1 knock-outs MEASURED: fixed-height cards 0.4 ms)",
+    "WebKit interleaved layout at size containers: CONFIRMED in source; whether anything restyles below the deck per frame: OPEN",
+    "Inline-size containment leaves the deck width unchanged: INFERRED",
+    "Rewrite people is a shell; webkit-sim serves only original: no CI lane can judge it today (CONFIRMED)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/research/team-article/post-2-techniques/index.html case 02 (g0.0j, F-366): knock-outs 22.7-25.7 ms -> 0.4 ms; phone layouts >=5 ms 152-159 -> 0-1, slow frames 12-18 -> 2-6, but frames >50 ms 3,1,2,2 -> 1,1,1,1 did not separate; fixes/g0-0j/README.md",
+   "lesson": "A saving in units inside a pass the frame pays anyway (objects per layout, not layout passes) cannot be seen by pass counters; predict =o for passes and name a unit or duration counter, or the claim cannot be falsified on CI.",
+   "next": "Add the size-container interleave rule to Fw.Engine.WebKit and re-prove deck_le with a traversal premise; check the rewrite people DOM for per-frame restyles under the deck; add a WebKit lane step that moves the layout viewport with sticky boxes and reports layout objects or duration."
+  },
+  {
+   "n": 21,
+   "part": "pain.notes",
+   "candidate": "arm the 3 s rotation interval only while visible (armed = inView and not narrow and not covered)",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E: pain_visSame for every env and instant (premise CovOk for the covered case); at width <= 860 E with no premise (narrow_run_eq)",
+   "mechanism": "The interval is 1/3 Hz, not the 33 Hz in the inventory. At <= 860 px, and so in both 430 px lanes, `le` returns before any write (JS 4595, narrow_tick_id). In the covered case it only re-sets an empty T. Every skipped tick therefore saves one script callback and no style, layout or paint: about 20 FunctionCalls per minute, at most 1-2 in one CI run. The tick runs on wall-clock timers under BeginFrame control (INFERRED), so trace.FunctionCall may not separate. The WebKit model also charges the tick a commit (base := [.commit]); that is a model convention, not a cite.",
+   "leanFor": [
+    "Fw.Parts.PainNotes.tickO_idle",
+    "Fw.Parts.PainNotes.tickV_eq",
+    "Fw.Parts.PainNotes.pain_run_eq",
+    "Fw.Parts.PainNotes.pain_prefix_eq",
+    "Fw.Parts.PainNotes.pain_visSame",
+    "Fw.Parts.PainNotes.narrow_tick_id",
+    "Fw.Parts.PainNotes.narrow_run_eq",
+    "Fw.Parts.PainNotes.wide_armed_iff",
+    "Fw.Parts.PainNotes.resumeAt_on_grid",
+    "Fw.Parts.PainNotes.resumeAt_least",
+    "Fw.Parts.PainNotes.hiddenTick_le",
+    "Fw.Parts.PainNotes.hiddenTick_lt",
+    "Fw.Parts.PainNotes.frames_le",
+    "Fw.Parts.PainNotes.cr_idle_tick",
+    "Fw.Parts.PainNotes.wk_idle_tick"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PainNotes.naive_rearm_shifts"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Magnitude: if every skipped tick is idle ($\\mathrm{narrow}\\lor\\mathrm{covered}$ with $T=[]$), then $\\sum_k \\big(W(o,k)-W(v,k)\\big) = (\\mathrm{ticksIn}(t_0,a,b)\\cdot e_{\\mathrm{script}})$, i.e. only the script component is non-zero and $\\mathrm{ticksIn}(t_0,a,b)\\le\\lceil (b-a)/3000\\rceil$",
+     "module": "Fw.Parts.PainNotes",
+     "needs": "nothing new beyond ticksIn; plus a WebKit cite on whether a write-free timer callback schedules a rendering update (to drop or keep the commit in wk_idle_tick)"
+    }
+   ],
+   "premises": [
+    "Interval period 3000 ms and the early return at <= 860 px: CONFIRMED (snapshot JS 4590-4646, 4695-4704)",
+    "CovOk: OPEN (the original's per-frame `d` clears T)",
+    "WebKit re-bases repeats on fire time (ThreadTimers.cpp:126-127@862f17d): the variant cannot reproduce drift while disarmed (OPEN P-wk-drift)",
+    "The rewrite has no pain notes yet: no CI arm (CONFIRMED)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/pain-offscreen-notes/README.md: the real lever was the per-frame scroll callback `d` (querySelector + rect + Svelte set of a fresh []), rect reads 333 -> 0 per mobile pass; the interval ticks 3-4 times per 10 s; gain inconclusive (contaminated A/B). fixes/n10-b-pain-visible/patch.diff only",
+   "lesson": "Rank by event frequency before proving: a write-free 1/3 Hz timer saves at most 1/360 of a 120 Hz per-frame callback. Proved E plus strict dominance can still be negligible, so state the magnitude.",
+   "next": "Record as proved but negligible and fix the inventory's '33 Hz'. Add the `d` guard (skip the per-frame callback while T = []) as its own candidate with an E proof and forced-layout/FunctionCall rows; sharpen the golden rows to =o for style and layout in the 430 px lanes."
+  },
+  {
+   "n": 21,
+   "part": "pain.notes",
+   "candidate": "solid-colour composited layer for the is-pain-dark background flip (n10-d)",
+   "status": "not-tried",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "Q at best: with opaque colours, source-over with alpha t equals the sRGB lerp of a background-color transition exactly in Q, but 8-bit rounding happens at different points (<= 1 LSB, INFERRED); E only for an instant flip with unchanged stacking order (OPEN)",
+   "mechanism": "The saving lands only in the toggle frame (about one per crossing). The original's class swap restyles the section and repaints its layer (text + 11 notes, 3.6-4.6 Mpx, v1 10-20 ms). The variant changes opacity on its own empty layer: Chromium keyLevel(opacity, own) = direct, WebKit recomposite, so there is no paint. New cost: one more resident composited layer. Swipe-v1 crosses the flip once, so at most one frame of Paint (quarantined) or raster.invalidationAreaPx (stable). The rewrite pain part is a shell.",
+   "leanFor": [
+    "Fw.Engine.Chromium.keyLevel",
+    "Fw.Engine.Core.claim_trade_iff"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "$\\forall a,b\\in[0,1]^3,\\ t\\in[0,1]:\\ \\mathrm{over}(a,t;b) = (1-t)b + ta = \\mathrm{lerp}(b,a,t)$ in $\\mathbb{Q}$, and with 8-bit quantisation $q$: $|q(\\mathrm{over}(a,q_\\alpha(t);b)) - q(\\mathrm{lerp}(b,a,t))| \\le 1$ LSB",
+     "module": "Fw.Engine.Visual",
+     "needs": "an alpha/colour quantisation premise cited from Skia and CoreAnimation (shared with row 19's 0.999 premise)"
+    },
+    {
+     "statement": "Toggle frame: $W(v,k_{flip}).\\mathrm{units}(\\mathrm{paint}) < W(o,k_{flip}).\\mathrm{units}(\\mathrm{paint})$ and $\\mathrm{Resident}(v).\\mathrm{layers} = \\mathrm{Resident}(o).\\mathrm{layers}+1 \\Rightarrow \\mathrm{claim} = \\mathrm{trade}$",
+     "module": "Fw.Parts.PainNotes",
+     "needs": "Resident accounting for a solid-colour layer (WebKit 0-backing direct colour path needs a source cite at the pin)"
+    }
+   ],
+   "premises": [
+    "Whether the dark flip is a transition or instant: OPEN",
+    "WebKit solid-colour layers have no backing store: INFERRED (v1 notes, no cite at the pin)",
+    "Rewrite pain is a shell: CONFIRMED"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/research/design-engineering/devtools-render-metrics.md:105, README.md:92, apple-math.md:433 (predicted 10-20 ms -> < 2 ms per crossing); fixes/n10-d-pain-dark-frozen/patch.diff, no README and no measured result found",
+   "lesson": "A saving confined to a toggle frame shows as one frame per crossing. It is a peak claim, not per-frame dominance. If it adds a layer it is a Resident trade and must be reported as one.",
+   "next": "Prove the over = lerp lemma in Q; cite the alpha quantisation in Skia and CA; build only after the pain port, as a trade arm with census.layers and raster.invalidationAreaPx rows."
+  },
+  {
+   "n": 22,
+   "part": "commission.typing",
+   "candidate": "commission-forced-layout: cached matchMedia, line count via ResizeObserver, compact-band snap, write-on-change",
+   "status": "partly-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E: compact band (CSS forces scale 1 and radius 0, as #16); desktop same values (write-on-change); RO line count E if RO delivery runs before paint in the same frame (INFERRED)",
+   "mechanism": "A forced layout after the frame's last write replaces the natural layout: the pass is moved into the script task, not added. The reorder saves a pass only when a write follows the read. The real savings: on phones the custom-property writes stop, and each one restyled the whole commission subtree (R2), so style units and layout go; matchMedia x3 per frame saves script. CI: trace.Layout (stable), UpdateLayoutTree (det). The rewrite commission part is a shell.",
+   "leanFor": [
+    "Fw.Parts.EngineScroll.batched_le_faithful",
+    "Fw.Parts.EngineScroll.batched_le_one",
+    "Fw.Parts.HiddenPause.skipWrites_le"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "Total passes $\\mathrm{total}_\\rho(d,as)=\\mathrm{forced}_\\rho(d,as)+[\\mathrm{dirty\\ at\\ end}]$: $\\mathrm{total}_\\rho(d,\\mathrm{batch}(as))\\le\\mathrm{total}_\\rho(d,as)$, with equality iff $as$ has at most one write$\\to$read alternation; in particular $as\\in W^{*}R^{+}\\Rightarrow$ equal (the forced layout is only moved)",
+     "module": "Fw.Parts.EngineScroll",
+     "needs": "the end-of-frame natural pass added to forced_ρ"
+    }
+   ],
+   "premises": [
+    "Writes are invisible in the compact band: CONFIRMED (CSS 916-938 per v1 README)",
+    "RO callback runs before paint in the same frame: INFERRED (HTML update-the-rendering)",
+    "Read parity of the reorder: OPEN (batched_le_faithful docstring)",
+    "Rewrite commission is a shell: CONFIRMED"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/commission-forced-layout/README.md: mechanism verified (LoAF top script 7/10 -> 0/10), ABBA frames > 20 ms favour the patch in 10/10 pairs, final A/B contaminated and inconclusive",
+   "lesson": "A forced layout is a moved layout unless a later write re-dirties. Removing forced reads saves passes only on write-read-write frames; most real savings come from removing the writes (gate them on the CSS condition).",
+   "next": "Prove the total-pass lemma; after the commission port, split the variant into mqGate / roLineCount / writeOnChange flags, each with its own E and work theorem and Chromium Layout/UpdateLayoutTree rows."
+  },
+  {
+   "n": 22,
+   "part": "commission.typing",
+   "candidate": "no container-type above per-frame text (platform.containers off)",
+   "status": "not-tried",
+   "chromium": "no-win",
+   "webkit": "win",
+   "visual": "E iff no @container query or cq unit resolves against the removed container and its inline size is definite from outside (OPEN; the rewrite platform/visuals.module.css declares container-type, so lengths would need restating)",
+   "mechanism": "In WebKit, every size container (inline-size included, StyleContainerType.h:62@862f17d) that style resolution visits, even only to pass through, defers its descendants and adds an interleaved layout round (StyleTreeResolver.cpp:1377,1460-1480,1515-1522@862f17d). Blink skips into layout only when the container will itself be laid out (element.cc:5187-5208@f842f52). The saving lands in WebKit style+layout rounds per restyle frame. A pure text write may not traverse the resolver (OPEN).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "WebKit: layout rounds in a style update $= 1 + \\mathrm{depth}_C(\\mathrm{trav}(f))$; Chromium: rounds $= 1 + \\mathrm{depth}_{C\\cap\\mathrm{layoutDirty}(f)}(\\mathrm{trav}(f))$. Hence removing $c\\in C$ never adds work and lowers WebKit layout passes iff $c\\in\\mathrm{trav}(f)$",
+     "module": "Fw.Engine.WebKit / Fw.Engine.Chromium",
+     "needs": "a traversal set and a container set in FrameIn"
+    }
+   ],
+   "premises": [
+    "WebKit interleave on traversal: CONFIRMED in source",
+    "Text-only writes traverse the tree resolver: OPEN",
+    "Visual premise (no cq dependency): OPEN"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/research/kickoff row KD#7 (via research/kickoff/01-prior-loop-lessons.md row 7); fixes/scene-scope/README.md (F-099/F-101 nested style/layout rounds, #platform switch 29-32 ms)",
+   "lesson": "Engine asymmetry: WebKit interleaves a layout at every size container a style traversal passes through, Blink only at containers that need layout. container-type is nearly free in Blink and a per-restyle tax in WebKit.",
+   "next": "Encode the interleave rule; build a WebKit fixture (nested containers + per-frame class toggle vs text write) for webkit-sim once it serves the rewrite."
+  },
+  {
+   "n": 22,
+   "part": "commission.typing",
+   "candidate": "typing-chunks: 2 characters per step (bubble, agents query), count-up written every 48 ms",
+   "status": "not-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "not-equal (class L): the variant shows every other intermediate string; endpoints and total time are equal",
+   "mechanism": "A text write dirties layout and paint of its line, not element style (INFERRED; no text property in either engine table). Half the writes halve the layout passes on frames where nothing else lays out. Style passes barely move (v1 627 -> 612), because other per-frame animations already touch the style stage. Under the per-frame union, removing one change lowers passes only for stages no other change touches. WebKit may gain more when restyles cross #platform's size containers (interleave, see the next finding).",
+   "leanFor": [
+    "Fw.Parts.HiddenPause.skipWrites_le",
+    "Fw.Engine.Core.frame_le_of_cover"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "Union lemma: $\\mathrm{stages}(c)\\subseteq\\bigcup_{c'\\in f\\setminus c}\\mathrm{stages}(c') \\Rightarrow W(f\\setminus c).\\mathrm{passes}=W(f).\\mathrm{passes}$ (only units drop)",
+     "module": "Fw.Engine.Core",
+     "needs": "nothing new"
+    },
+    {
+     "statement": "Not-E (subsampling): $\\exists t:\\ \\mathrm{text}_v(t)\\ne\\mathrm{text}_o(t)$, and $\\{\\mathrm{text}_v(t)\\}_t = \\{\\mathrm{text}_o(t_{2k})\\}_k$ with equal first and last states",
+     "module": "Fw.Parts.PlatformEntries",
+     "needs": "a text-data property in CrProp/WkProp and a 'subsequence' relation in Fw.Engine.Visual"
+    }
+   ],
+   "premises": [
+    "Text writes do not restyle elements: INFERRED",
+    "Other per-frame animations share the style pass: MEASURED (v1 RecalcStyle 627 -> 612)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/illusion-typing-chunks/README.md: commission window Layout 226 -> 97, dirty objects 5201 -> 2181, RecalcStyle 627 -> 612; agents Layout 101 -> 46; PoC, not accepted",
+   "lesson": "Dropping a write saves a pass only if no other change in that frame touches the same stage. On pages with any per-frame animation, write-thinning cuts layout passes but not style passes.",
+   "next": "Record as proposal (L). Add the union-passes lemma to Core and a text property to both engine tables."
+  },
+  {
+   "n": 23,
+   "part": "platform.sweep",
+   "candidate": "sweep-exact G3: background-position sweep -> ::after band moved by translateX under -webkit-mask-clip:text (illusion-sweep: darken-blend variant)",
+   "status": "partly-proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "Geometry E-s by algebra: imageU v p = (v+2p)/3 is a translation, so a 300% band at translateX(-2p widths) shows the same colour at each v (unproved). Pixels Q: v1 <= 9 LSB phones, <= 23 desktop, <= 10 WebKit. The darken-blend variant is not-equal (#fe7b02 -> #fe7b22)",
+   "mechanism": "background-position cannot run on the compositor (compositor_animations.cc:344-372@f842f52; not accelerated in WebKit). Each frame costs Chromium paint level (style, props, paint, raster, commit) and WebKit repaint, on an 860x3762 card layer. The variant is a compositor transform: no layout, paint or commit. In the lane, UpdateLayoutTree stays one per frame (ride-along). Paint is quarantined, so cc.Commit/raster.invalidationAreaPx must judge. New layers: +4 in Chrome, +17 in the WebKit section, a Resident trade.",
+   "leanFor": [
+    "Fw.Engine.Chromium.transformAnim_comp",
+    "Fw.Engine.Chromium.compAnim_no_layout_paint",
+    "Fw.Engine.Chromium.compTransform_no_layout_paint",
+    "Fw.Engine.WebKit.anim_comp_zero",
+    "Fw.Engine.WebKit.compFrame_zero",
+    "Fw.Parts.PlatformSweep.pos_periodic",
+    "Fw.Parts.PlatformSweep.phase_periodic"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HiddenPause.cr_marquee_bands",
+    "Fw.Engine.Core.claim_trade_iff"
+   ],
+   "missingWhy": [
+    {
+     "statement": "band_eq_bgpos: for a band of width $3w$ translated by $x(t)=-2w\\,p(t)$, the colour at element coordinate $v\\in[0,1]$ is $\\mathrm{color}\\big((v+2p(t))/3\\big)=\\mathrm{shown}(v,t)$ for all $t$",
+     "module": "Fw.Parts.PlatformSweep",
+     "needs": "nothing new (ring/field_simp over Rat)"
+    },
+    {
+     "statement": "Snapping bound: if the original's positioning area is snapped to $1/\\mathrm{dpr}$ and the band is not, then $|\\Delta\\mathrm{colour}|\\le L\\cdot\\frac{1}{2\\,\\mathrm{dpr}\\cdot 3w}$ per channel, with $L$ the maximum gradient slope; this predicts the Q tolerance",
+     "module": "Fw.Parts.PlatformSweep",
+     "needs": "a cite for background-geometry pixel snapping (Blink BackgroundImageGeometry, WebKit BackgroundPainter)"
+    },
+    {
+     "statement": "sweep_trade: $W_\\epsilon(v,k)\\prec W_\\epsilon(o,k)$ for WebKit and realChrome; in the lane $W(v).\\mathrm{passes}(\\mathrm{style})=W(o).\\mathrm{passes}(\\mathrm{style})$ and paint/commit drop; $\\mathrm{Resident}(v).\\mathrm{layers}>\\mathrm{Resident}(o).\\mathrm{layers}\\Rightarrow\\mathrm{claim}=\\mathrm{trade}$",
+     "module": "Fw.Parts.PlatformSweep",
+     "needs": "a mask-layer Resident rule"
+    }
+   ],
+   "premises": [
+    "Pixel residual cause (device-pixel snapping vs sub-pixel transform): INFERRED hypothesis, OBSERVED residual",
+    "WebKit keeps the masked band on the compositor: OBSERVED in v1 (no repaint), UNRESOLVED in source",
+    "Lane tail zone shows the cost: MEASURED (results/baselines/chromium/swipe-v1/original.zones.json tail: ULT 30, Paint 60, PrePaint 31 over 30 frames)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/platform-idle/README.md (P-077 PASS Chrome and Sim; Chrome style 240 -> 8, paints ~481 -> ~33 per 4 s; Sim RS ~478 -> 8, Layout ~237 -> 8, Paint ~952 -> 4, combined with glint; section layers 9 -> 26; PR-009 accepted as a look change); fixes/illusion-sweep/README.md (darken variant, +4 layers)",
+   "lesson": "Moving an animation to the compositor lowers paint, raster and commit, never UpdateLayoutTree in the CI lane. It adds layers, so it is a Resident trade; judge it with cc.Commit/raster counters, not Paint or style.",
+   "next": "Prove band_eq_bgpos and the snapping bound; build the variant on the rewrite platform.sweep with golden rows for cc.Commit, raster.invalidationAreaPx and census.layers (trade)."
+  },
+  {
+   "n": 24,
+   "part": "platform.glint",
+   "candidate": "glint-ca G1: SMIL x1/x2 on a linearGradient -> clip-path:path() span with a gradient strip moved by transform",
+   "status": "not-proved",
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "Geometry E-s: x2 - x1 = 120 at every key time, so the glint is a pure translation of the gradient (unproved). Pixels Q: anti-aliased edge rows <= 64 LSB (Chrome), <= 33 (WebKit), and the untouched grey dash differs <= 17 LSB in WebKit because it becomes a composited layer",
+   "mechanism": "The original's per-frame attribute change, CONFIRMED: Chromium x1/x2 -> InvalidateGradient -> MarkAllClientsForInvalidation(kPaintInvalidation) (svg_linear_gradient_element.cc:69-76, svg_gradient_element.cc:135-138, layout_svg_resource_gradient.cc:81-87@f842f52) = paint, no style or layout. WebKit legacy SVG adds a render-tree style update plus layout (SVGLinearGradientElement.cpp:94-100, SVGGradientElement.cpp:83-92, Document.cpp:2968-2990, RenderTreeUpdater.cpp:399-414@862f17d), which explains the v1 Sim Layout of about one per frame. The variant is a compositor transform; new layers.",
+   "leanFor": [
+    "Fw.Parts.PlatformGlint.sample_periodic",
+    "Fw.Parts.PlatformGlint.sample_range",
+    "Fw.Engine.Chromium.transformAnim_comp",
+    "Fw.Engine.WebKit.anim_comp_zero"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "glint_translate: $\\forall s,\\ u\\in[0,1):\\ x_2(s,u)-x_1(s,u)=120$, hence $\\mathrm{grad}(s,u)=\\mathrm{shift}_{x_1(s,u)+200}\\circ\\mathrm{grad}(\\mathrm{rest}(\\mathrm{left}))$",
+     "module": "Fw.Parts.PlatformGlint",
+     "needs": "nothing new (unfold interp/lerp)"
+    },
+    {
+     "statement": "Engine rows: $\\mathrm{keyLevel}(\\mathrm{svgPaintServerAttr},l)=\\mathrm{paint}$ (Chromium); $\\mathrm{rawDiff}(\\mathrm{svgResourceAttr})=(\\mathrm{layout},\\emptyset)$ (WebKit legacy SVG engine), so $W_{wk}(o).\\mathrm{passes}(\\mathrm{layout})=1$ per glint frame",
+     "module": "Fw.Engine.Chromium / Fw.Engine.WebKit",
+     "needs": "new CrKey/WkProp constructors with the cites above"
+    },
+    {
+     "statement": "Layerization changes pixels: $\\exists b:\\ R(\\mathrm{scene}, L_v)\\ne R(\\mathrm{scene}, L_o)$ when $b$'s layer assignment differs, so E on scenes does not give E on images unless $R$ is layer-invariant",
+     "module": "Fw.Engine.Visual",
+     "needs": "a render function that takes the layer assignment as input"
+    }
+   ],
+   "premises": [
+    "SMIL starts in the lane (1 s timer after >= 35% visible, wall-clock under BeginFrame control): OPEN",
+    "WebKit uses the legacy SVG engine (layerBasedSVGEngineEnabled off) in Safari 26/27: INFERRED",
+    "AA residual cause (stroke round caps vs clip-path): INFERRED hypothesis, OBSERVED residual"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/platform-idle/README.md (G1; pausing SMIL took PrePaint 120 -> 9 and Paint -> 0 in Chrome; per glint cycle style 300 -> 10, paints ~602 -> ~41; pixel table up to 64 LSB; PR-009 accepted); research/gpu-props/README.md:208,300,314",
+   "lesson": "Promoting a box to its own composited layer can change the pixels of untouched neighbours (separate raster, different anti-aliasing). Same scene is not same image once layer assignment changes. One SVG attribute is paint-only in Blink but layout in WebKit.",
+   "next": "Add the SVG paint-server rows to both engine tables with the cites above; prove glint_translate; file as a Q/L proposal (PR-009 precedent) with Commit and raster golden rows."
+  },
+  {
+   "n": 25,
+   "part": "engine.scene",
+   "candidate": "covered pause (hero under the 0.999-opacity People card, KD#18 hero-covered-pause)",
+   "status": "not-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "Open: occlusion is not modelled (BoxVis.drop keeps occluded boxes). With cover alpha 0.999 the hero contributes 0.001*h <= 0.255 LSB, which can flip rounding by 1 LSB, unless alpha is quantised to 8 bits first (0.999*255 = 254.745 -> 255, opaque, then E). v1 OBSERVED max level 0. Resume 'from held time' is not E against the original (naive_pause_shifts)",
+   "mechanism": "The covered hero runs main-thread animations (stroke-dashoffset: Chromium paint, WebKit layout, strokeDashoffset_layout; scroll-float; countdown). WebKit ticks every non-accelerated animation that has a renderer, hidden or not (KeyframeEffect.cpp:2724-2745@862f17d, R6), so pausing saves style, layout and paint there. This is the real version of the lesson-18 win. CI: the Simulator lane serves only the original.",
+   "leanFor": [
+    "Fw.Engine.WebKit.strokeDashoffset_layout",
+    "Fw.Parts.HiddenPause.pause_le",
+    "Fw.Parts.HiddenPause.skipWrites_le"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HiddenPause.naive_pause_shifts"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Occlusion: $\\mathrm{covers}(c,b)\\land q_\\alpha(\\alpha(c))=1\\land\\mathrm{order}(c)>\\mathrm{order}(b)\\Rightarrow R(s)=R(s\\setminus b)$; and $q_\\alpha(1-\\varepsilon)=1\\iff\\varepsilon<1/510$ under round-to-nearest 8-bit alpha, else $|\\Delta|\\le\\lceil255\\varepsilon\\rceil$ LSB",
+     "module": "Fw.Engine.Visual",
+     "needs": "paint order, an opaque-cover predicate and the Skia/CoreAnimation alpha quantisation premise (shared with row 19)"
+    }
+   ],
+   "premises": [
+    "Alpha quantised to 8 bits before blending in Skia and CA: OPEN",
+    "Hero animations are main-thread: CONFIRMED for stroke-dashoffset (StyleDifference.cpp:161@862f17d; Chromium paint level)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/hero-covered-pause/README.md: Sim covered 65 -> 2 layouts, 74 -> 0 paints, screenshots max level 0 while covered, resume continues from held time (stroke-out 600 -> 600 ms)",
+   "lesson": "'Covered' is E only if the cover is exactly opaque after the engine's alpha quantisation. 0.999 tricks (row 19) and covered pauses share one open premise; resolve it once.",
+   "next": "Add occlusion and alpha quantisation to Fw.Engine.Visual; port the hero cover pause as resync-to-origClock, not hold-and-continue."
+  },
+  {
+   "n": 25,
+   "part": "engine.scene",
+   "candidate": "hidden pause of compositor marquees (morph.columns at m <= 0.08, scene off-screen), HiddenPause.lean",
+   "status": "proved",
+   "chromium": "no-win",
+   "webkit": "no-win",
+   "visual": "E: hidden_pause_eq / panel_visSame (panel opacity 0 iff m <= 0.08); needs seek to origClock on resume",
+   "mechanism": "A compositor transform animation costs no main-thread or web-process stage: real Chrome (cr_realChrome_pause_eq) and WebKit (wk_pause_eq, wk_marquee_bands) are equal, so the only saving is the UI or compositor thread tick. The CI lane alone shows style 1 -> 0 per frame (cr_marquee_bands), because every BeginFrame is a main frame there (R1 OPEN), which measures the harness. Blink may already skip a target that does not paint (kAnimationHasNoVisibleChange, compositor_animations.cc:491-495,514-572; animation.cc:860-865,3389-3393@f842f52), which would erase even the lane win.",
+   "leanFor": [
+    "Fw.Parts.HiddenPause.cr_marquee_bands",
+    "Fw.Parts.HiddenPause.cr_pause_style_units",
+    "Fw.Parts.HiddenPause.panelOpacity_eq_zero_iff",
+    "Fw.Parts.HiddenPause.scenePaused_imp_hiddenPause"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HiddenPause.cr_realChrome_pause_eq",
+    "Fw.Parts.HiddenPause.wk_pause_eq",
+    "Fw.Parts.HiddenPause.wk_marquee_bands"
+   ],
+   "missingWhy": [
+    {
+     "statement": "R6 residual: $\\alpha_{eff}(\\mathrm{target}(a))=0 \\Rightarrow 17\\in\\mathrm{failBits}(\\mathrm{lane},a) \\Rightarrow W_{cr}(f).\\mathrm{units}(\\mathrm{style})=W_{cr}(\\mathrm{paused}(f)).\\mathrm{units}(\\mathrm{style})$, turning cr_marquee_bands into equality",
+     "module": "Fw.Engine.Chromium",
+     "needs": "a visibleChange flag on CrAnim with the cites above, settled by the R6 CI fixture"
+    }
+   ],
+   "premises": [
+    "R1 every BeginFrame is a main frame in the lane: INFERRED from fixture (MEASURED ULT 120)",
+    "R6 residual (opacity-0 ancestor removes the property node): OPEN",
+    "Pause only pays where morph.panel drives --morph in the rewrite: CONFIRMED (handoff)"
+   ],
+   "v1Evidence": "none specific to compositor marquees; v1 lesson 18 numbers came from main-thread loops (../fastwork-com-web-optimize/research/knowledge-distillation/README.md:370-392)",
+   "lesson": "Pausing a compositor-thread animation saves no main-thread or web-process work in real engines. A lane win from it is the harness's main-frame ride-along. Only pause animations that tick on main.",
+   "next": "Run the R6 fixture (composited marquee under opacity 0, visibility hidden, offscreen) on chromium-counts; if bit 17 appears, record 25b as no-win everywhere and drop the marquee half of variant-hidden-pause."
+  },
+  {
+   "n": 25,
+   "part": "engine.scene",
+   "candidate": "hysteresis and idle pre-warm for the scene/deferral gate (KD#10)",
+   "status": "not-tried",
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E for any pause gate g with g(s) => hidden(s) plus resync, independent of hysteresis (follows from hiddenPause_visSame); content-visibility deferral is not E unless contain-intrinsic-size equals the laid-out size",
+   "mechanism": "Deferral changes the section's size, which changes the IntersectionObserver ratio, which flips the gate again. That is a feedback loop (v1: 800 flips per 10 s). Each flip pays a subtree restyle (and WebKit container interleaves). Hysteresis wider than the size feedback removes repeated toggles. The saving lands in toggle frames at rest and in IntersectionObserverCompute/ObserverCallback counts (det in both lanes).",
+   "leanFor": [
+    "Fw.Parts.HiddenPause.hiddenPause_visSame"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "No oscillation: gate enters at ratio $\\ge a$, exits at $< b$, $b<a$; deferral moves the ratio by at most $\\delta$. If $a-b>\\delta$ then for a fixed scroll offset $\\#\\{k: g_{k+1}\\ne g_k\\}\\le1$; if $a=b$ and $\\delta>0$ there is an offset with $g_{k+1}\\ne g_k$ for all $k$",
+     "module": "Fw.Parts.HiddenPause (or a new Fw.Parts.EngineScene)",
+     "needs": "a feedback model: ratio as a function of offset and the gate's own deferral state"
+    }
+   ],
+   "premises": [
+    "Flap rate 800/10 s was measured in a v1 build with deferral, not necessarily the original: CONFIRMED (KD lesson 10 cites fixes/scroll-engine)",
+    "engine.scene not ported: CONFIRMED"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/research/knowledge-distillation/README.md:240-251 (lesson 10: 54-70 ms first render of a deferred section in 25/25 loads, 800 flips per 10 s, about 10 of 14-17 slow phone frames on about 8 flips); gain of hysteresis alone not measured",
+   "lesson": "A gate whose action changes its own input (deferral changes size, size changes ratio) needs hysteresis wider than that feedback, or it oscillates. Prove the fixed point and count the gate's own writes at idle.",
+   "next": "Prove the no-oscillation theorem; when engine.scene is ported, add ObserverCallback/IntersectionObserverCompute rows at rest stops."
+  },
+  {
+   "n": 25,
+   "part": "engine.scene",
+   "candidate": "morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)",
+   "status": "proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E with premise hsync (on unhide, write the current state in the same frame before paint)",
+   "mechanism": "Each spring frame writes transform on 16 will-change faces per digit: Chromium direct level (style, props, commit), WebKit recomposite. While the scene is paused will-change drops, which makes the write overflow/layout (adjTransform). Skipping the writes removes the style pass and everything downstream; the rAF script stays, so FireAnimationFrame is =o. CI: UpdateLayoutTree (det) <=o in the zones with m <= 0.08, once the rewrite drives --morph.",
+   "leanFor": [
+    "Fw.Parts.HiddenPause.skipWrites_le",
+    "Fw.Parts.HiddenPause.cr_countdown_style",
+    "Fw.Parts.HiddenPause.wk_countdown_style"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    {
+     "statement": "Unhide frame: $W(v,k_{unhide})\\preceq W(o,k_{unhide})$, since hsync writes $\\le 16d$ faces, the same changes the original writes every frame",
+     "module": "Fw.Parts.HiddenPause",
+     "needs": "nothing new (frame_le_of_cover)"
+    }
+   ],
+   "premises": [
+    "hsync ordering before paint: OPEN (variant code)",
+    "Rewrite morph.panel drives --morph: CONFIRMED as a dependency"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 18: countdown spring 64 rAF fires/s at rest, page restyled 1,816 elements/s mid-page",
+   "lesson": "For JS-driven loops, skipping the writes but keeping the integrator preserves E for free (no phase shift). Script stays; every stage after style goes, in both engines.",
+   "next": "Measure on chromium-counts once the morph.panel port drives --morph; add the unhide-frame lemma."
+  },
+  {
+   "n": 25,
+   "part": "engine.scene",
+   "candidate": "pause per element instead of the section-wide :where(*) animation-play-state rule (KD#10)",
+   "status": "partly-proved",
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E if the per-element clock reproduces the original's section-paused clock (origClock, resync on resume); a plain pause is not E (naive_pause_shifts)",
+   "mechanism": "The original flips an attribute that a descendant rule matches, so every element of the section restyles. In WebKit the restyle also crosses #platform's size containers, adding interleaved layouts (StyleTreeResolver.cpp:1460-1480@862f17d; v1 29-32 ms style record). Per-element WAAPI pause touches only the n animated elements. The saving lands in toggle frames and in style element counts: passes stay equal, and UpdateLayoutTree.elementCount is quarantined (C-3), so CI pass counters cannot see it.",
+   "leanFor": [
+    "Fw.Parts.HiddenPause.hidden_pause_eq",
+    "Fw.Parts.HiddenPause.hiddenPause_visSame",
+    "Fw.Parts.HiddenPause.offscreen_hidden",
+    "Fw.Parts.HiddenPause.sceneHidden",
+    "Fw.Parts.HiddenPause.pause_le"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HiddenPause.naive_pause_shifts"
+   ],
+   "missingWhy": [
+    {
+     "statement": "Toggle frame: $W(\\mathrm{elem},k_{flip}).\\mathrm{units}(\\mathrm{style})=n_{anim}\\le|\\mathrm{subtree}(S)|=W(\\mathrm{section},k_{flip}).\\mathrm{units}(\\mathrm{style})$, with $\\mathrm{passes}$ equal; in WebKit additionally $\\mathrm{passes}(\\mathrm{layout})$ drops by the container depth when no animated element lies under a size container",
+     "module": "Fw.Parts.HiddenPause",
+     "needs": "a selector-invalidation fan-out rule (attribute + descendant combinator -> subtree) in Fw.Engine.Core, and the WebKit interleave rule"
+    }
+   ],
+   "premises": [
+    "Descendant-selector attribute flip restyles the subtree: INFERRED (not yet cited at the pins)",
+    "engine.scene scheduler is not ported to the rewrite: CONFIRMED (no engine.scene part)"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 10 (largest phone style record 29.2-32.2 ms at the #platform switch; about 10 of 14-17 slow frames on about 8 flips); fixes/scene-scope/README.md (RB landed, PR-002 rev 2)",
+   "lesson": "A broad pause selector costs a subtree restyle at every flip; a per-element pause costs O(animations). The saving sits in toggle frames and element counts, which pass counters cannot see.",
+   "next": "Prove the toggle-frame theorem after adding a fan-out rule; ask for a deterministic element-count type or a per-flip WebKit RecalculateStyles duration."
+  }
+ ]
+}
