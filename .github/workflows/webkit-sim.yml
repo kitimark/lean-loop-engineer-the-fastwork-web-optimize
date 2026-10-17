@@ -213,12 +213,15 @@ jobs:
         with:
           pattern: webkit-sim-*
           path: ${{ runner.temp }}/vms
+          # one artifact per VM; with a single match the action extracts it without a subdirectory, so subdirectories cannot be
+          # relied on. Merging flat is safe: every file name starts with its VM (v1-session-1.json).
+          merge-multiple: true
       - name: Classes over all sessions of all VMs
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/classes"
           mkdir -p "$out"
-          files=("$RUNNER_TEMP"/vms/webkit-sim-*/*-session-*.json)
+          files=("$RUNNER_TEMP"/vms/*-session-*.json)
           printf "%s\n" "${files[@]}"
           node packages/measure-webkit/src/cli.mjs merge "${files[@]}" | tee "$out/classes.md"
           sha256sum "${files[@]}" | tee "$out/sha256.txt"
