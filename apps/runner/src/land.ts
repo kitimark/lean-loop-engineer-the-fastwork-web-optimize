@@ -5,6 +5,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { availableParallelism } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
@@ -36,6 +37,8 @@ export type LandOptions = {
   submit?: (cmd: Command) => Promise<{ status: number; body: any }>;
   /** checks run in the main checkout after the merge, before it is committed; default: derived from the changed files */
   checks?: string[][];
+  /** Max checks running at once (default: the number of cores). */
+  concurrency?: number;
   env?: Record<string, string | undefined>;
   /** work-graph task this landing completes: merged with --no-ff and a `Task: <id>` trailer; the reconciler then
    *  derives task.done from that trailer (the only evidence route) */
@@ -158,6 +161,17 @@ function workspaceDeps(root: string, pkg: any): string[] {
  *  (lead decision: cache_sound needs every real read declared), so a Lean change selects all of them. */
 export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
 export const LEAN_BINARY_READS = true;
+
+/** For each check of `list`, the indices it must wait for: `pnpm install` first; the fwcore users (FWCORE_USERS) after
+ *  `sh lean/scripts/check.sh`, whose `lake build` writes the binary they run. Everything else is independent. */
+export function checkDeps(list: string[][]): number[][] {
+  const isInstall = (a: string[]) => a[0] === "pnpm" && a[1] === "install";
+  const isCheckSh = (a: string[]) => a[0] === "sh" && a[1] === "lean/scripts/check.sh";
+  const usesCore = (a: string[]) => a[0] === "pnpm" && a[1] === "--filter" && FWCORE_USERS.some((p) => a[2] === `./${p}`);
+  const idx = (f: (a: string[]) => boolean) => list.flatMap((a, i) => (f(a) ? [i] : []));
+  const inst = idx(isInstall), sh = idx(isCheckSh);
+  return list.map((a, i) => [...(isInstall(a) ? [] : inst), ...(usesCore(a) ? sh : [])].filter((d) => d !== i));
+}
 
 export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): Check[] {
   const out: Check[] = [
@@ -348,20 +362,44 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     c.on("error", (e) => done(null, e));
     c.on("close", (code) => done(code));
   });
+  // Scheduling only; the selection is `checksFor`. Soundness: Lean `Fw.Console.LandSpeed.verdict_perm` (the verdict is the
+  // conjunction of the check verdicts, independent of order and of completion), so running independent checks concurrently
+  // and collecting every verdict gives the same accept/refuse as the sequential first-failure run; it only lists more failures.
+  // Dependencies (`checkDeps`): everything waits for `pnpm install`; fwcore users wait for check.sh (its `lake build` writes
+  // the binary they run). A bounded pool (cores) starts a check when its dependencies have finished.
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
-    for (const argv of list) {
-      const p = await span("fw land", argv.join(" "), () => runCheck(cwd, argv), (r) => r.status); // timing-spans
-      const out = `${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}`;
-      mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
-      if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
-      appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${out}\n[exit ${p.status}]\n\n`);
-      if (p.status !== 0) {
-        const tail = out.split("\n").filter((l) => l !== "").slice(-30).join("\n");
-        return `check FAILED: ${argv.join(" ")}\nlog: ${logFile}\n${tail}`;
-      }
-      lines.push(`check ok: ${argv.join(" ")}`);
-    }
-    return null;
+    mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
+    if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
+    const deps = checkDeps(list);
+    const results: ({ status: number | null; out: string } | undefined)[] = list.map(() => undefined);
+    const started = new Set<number>();
+    let running = 0;
+    const limit = Math.max(1, o.concurrency ?? availableParallelism());
+    await new Promise<void>((done) => {
+      const pump = () => {
+        for (let i = 0; i < list.length && running < limit; i++) {
+          if (started.has(i) || !deps[i]!.every((d) => results[d])) continue;
+          started.add(i); running++;
+          const argv = list[i]!;
+          void span("fw land", argv.join(" "), () => runCheck(cwd, argv), (r) => r.status).then((p) => { // timing-spans
+            results[i] = { status: p.status, out: `${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
+            running--; pump();
+          });
+        }
+        if (results.every(Boolean)) done();
+      };
+      pump();
+    });
+    const bad: string[] = [];
+    list.forEach((argv, i) => {
+      const r = results[i]!;
+      appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${r.out}\n[exit ${r.status}]\n\n`);
+      if (r.status !== 0) {
+        const tail = r.out.split("\n").filter((l) => l !== "").slice(-30).join("\n");
+        bad.push(`check FAILED: ${argv.join(" ")}\nlog: ${logFile}\n${tail}`);
+      } else lines.push(`check ok: ${argv.join(" ")}`);
+    });
+    return bad.length ? bad.join("\n\n") : null;
   };
   const checks = o.checks ?? checksFor(mainDir, changed);
 

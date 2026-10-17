@@ -77,6 +77,33 @@ describe("fw land after the commit", () => {
     expect(fx.git(fx.root, "rev-list", "--parents", "-n1", "main").split(" ")).toHaveLength(3); // the merge commit holds it
   });
 
+  it("parallel checks: one failing among several is reported alone and refuses; two failing are both reported", async () => {
+    const { fx, real, base } = await setup();
+    const bad = (n: string) => ["sh", "-c", `echo boom-${n}; exit 1`];
+    const r1 = await land(BR, { ...base, http: real, concurrency: 4, checks: [["true"], bad("a"), ["true"], ["true"]] });
+    expect(r1.ok).toBe(false);
+    const t1 = text(r1);
+    expect(t1.match(/check FAILED/g)).toHaveLength(1);
+    expect(t1).toContain("boom-a");
+    expect(t1.match(/check ok: true/g)).toHaveLength(3);
+    const r2 = await land(BR, { ...base, http: real, concurrency: 4, checks: [bad("a"), ["true"], bad("b")] });
+    expect(r2.ok).toBe(false);
+    const t2 = text(r2);
+    expect(t2.match(/check FAILED/g)).toHaveLength(2);
+    expect(t2).toContain("boom-a");
+    expect(t2).toContain("boom-b");
+    expect(fx.git(fx.root, "branch", "--list", BR)).toContain(BR); // main unchanged
+  });
+
+  it("parallel checks overlap in time (pool of 3, three 1 s sleeps finish in < 2.5 s)", async () => {
+    const { real, base } = await setup();
+    const sl = [["sleep", "1"], ["sleep", "1"], ["sleep", "1"]];
+    const t0 = Date.now();
+    const r = await land(BR, { ...base, http: real, concurrency: 3, checks: sl });
+    expect(r.ok).toBe(true);
+    expect(Date.now() - t0).toBeLessThan(2500);
+  });
+
   it("check output goes to a log file; a failure prints one FAILED line, the log path and at most 30 lines", async () => {
     const { fx, real, base } = await setup();
     const noisy = ["sh", "-c", "i=0; while [ $i -lt 200 ]; do echo noise $i; i=$((i+1)); done; exit 1"];
