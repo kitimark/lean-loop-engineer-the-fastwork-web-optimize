@@ -1,0 +1,490 @@
+import Lean.Data.Json
+import Fw.Sched.Admit
+import Fw.Sched.ParMetrics
+import Fw.Measure.Wire
+import Fw.Ops.Wire
+/-!
+# JSON codecs and ops of `Fw.Sched` (`ops.admit`, `metrics.*`)
+
+Glue between `fwcore`'s JSON lines and `Fw.Sched.Admit` / `Fw.Sched.ParMetrics` (namespace
+`Fw.Wire.Sched`, so the math view treats it as wire code). Total decoders only (`Except String`);
+no partial operations. Counts and times are non-negative integers; a non-integer number is refused.
+Exact fractions are `{"num":"<int>","den":"<positive int>"}` (as `Fw.Wire.ratToJson`).
+
+| op | request | reply |
+|---|---|---|
+| `ops.admit` | `budget` Vec, `state`? State, `event` Cmd, `probe`? [Item] | `state` (after `event`: the command, then admit until quiescent), `admitted` [id] (in admission order), `queued` [Decision] (every item still queued), `probes` [Decision] (each probe judged against the reply state as if enqueued now: `seq := next`, `enq := t`), `inv` (the input state satisfies `Inv`), `invAfter` |
+| `metrics.merge` | `ivs` [[s, e]] | `ivs` |
+| `metrics.busy` | `a`, `b`, `ivs` | `busy` |
+| `metrics.speedup` | `a`, `b`, `agents` [[[s, e]]] | `speedup` (fraction) |
+| `metrics.serialShare` | `a`, `b`, `agents` | `serial`, `serialShare` (fraction) |
+| `metrics.stretch` | `d`, `dsolo` | `stretch` (fraction) |
+| `metrics.cp` | `n`, `w` [nat], `edges` [[u, v]] | `cycle` (bool), `cp` (nat or `null` on a cycle) |
+| `metrics.benchVerdict` | `labels` [bool] or `seed`, `ms` [int] | `labels`, `verdict` |
+
+Shapes. Vec: `{cores?, ram?, cleanBuild?, docker?}` (missing = 0). Item: `{id, parent?, writes?,
+deps?, demand?, devices?, seq?, enq?, base?, start?}` (devices `simulator`/`phone`). State: `{run?,
+done?, queue?, t?, next?}`. Cmd: `{"type":"admit"}`, `{"type":"finish","id","landed"}`,
+`{"type":"enqueue","item"}`, `{"type":"tick","now"}`. Decision: `{id, decision:"admit", reason:null}`
+or `{id, decision:"queue", reason, …witness}` with reasons `neverFits {res}`, `depPending {dep}`,
+`writeConflict {path, holder}`, `deviceBusy {device, holder}`, `overBudget {res, need, free}`,
+`behindAged {behind}`. The encoders write every field, so a reply `state` can be sent back as is.
+
+Proved: the round trips `stateOf_stateJson`, `itemOf_itemJson`, `vecOf_vecJson`, `cmdOf_cmdJson`,
+`ivOf_ivJson`; `invB_iff` (the reply's `inv` flag is exactly `Inv`), `invB_event` (an event keeps
+it), `event_queued_wait` (every `queued` decision is a `queue`) and `opAdmit_state` (the reply
+state is `event`). Guards: `#guard`s at the end; golden vectors: `Fw.Wire.SchedGolden`.
+-/
+namespace Fw.Wire.Sched
+open Lean
+open Fw.Wire.Ops (Reply field opt asStr asNat asBool asArr str nat arr natD arrD ostr)
+open Fw.Sched.Admit
+open Fw.Sched.ParMetrics
+
+/-! ## Admit codecs -/
+
+/-- Resource wire names.
+
+$$\operatorname{name} : \mathcal R \to \mathrm{String}, \quad \mathrm{cores} \mapsto \texttt{"cores"},\ \mathrm{ram} \mapsto \texttt{"ram"},\ \mathrm{cleanBuild} \mapsto \texttt{"cleanBuild"},\ \mathrm{docker} \mapsto \texttt{"docker"}$$
+-/
+def resName : Res → String
+  | .cores => "cores" | .ram => "ram" | .cleanBuild => "cleanBuild" | .docker => "docker"
+
+/-- Device wire names.
+
+$$\operatorname{name} : \mathcal V \to \mathrm{String}, \quad \mathrm{simulator} \mapsto \texttt{"simulator"},\ \mathrm{phone} \mapsto \texttt{"phone"}$$
+-/
+def devName : Dev → String
+  | .simulator => "simulator" | .phone => "phone"
+
+/-- A device from its wire name (an unknown name is refused).
+
+$$\operatorname{dev}(\texttt{"simulator"}) = \mathrm{simulator}, \quad \operatorname{dev}(\texttt{"phone"}) = \mathrm{phone}, \quad \operatorname{dev}(s) = \mathrm{error} \text{ otherwise}$$
+-/
+def devOf (k : String) : String → Except String Dev
+  | "simulator" => .ok .simulator | "phone" => .ok .phone
+  | s => .error s!"field {k}: unknown device {s}"
+
+/-- A demand or budget vector as JSON (every field written).
+
+$$\operatorname{enc}(v) = \{\texttt{cores}: v(\mathrm{cores}),\ \texttt{ram}: v(\mathrm{ram}),\ \texttt{cleanBuild}: v(\mathrm{cleanBuild}),\ \texttt{docker}: v(\mathrm{docker})\}$$
+-/
+def vecJson (v : Vec) : Json :=
+  Json.mkObj [("cores", toJson v.cores), ("ram", toJson v.ram), ("cleanBuild", toJson v.cleanBuild),
+              ("docker", toJson v.docker)]
+
+/-- Decode a vector; a missing field is 0. -/
+def vecOf (j : Json) : Except String Vec := do
+  pure { cores := ← natD j "cores" 0, ram := ← natD j "ram" 0, cleanBuild := ← natD j "cleanBuild" 0,
+         docker := ← natD j "docker" 0 }
+
+/-- An optional string field (absent or `null` is `none`). -/
+def optS (j : Json) (k : String) : Except String (Option String) :=
+  match opt j k with
+  | none => .ok none
+  | some v => some <$> asStr k v
+
+/-- An optional array of strings (absent is empty). -/
+def strsD (j : Json) (k : String) : Except String (List String) := do (← arrD j k).mapM (asStr k)
+
+/-- A device as a JSON string. -/
+def devJ (v : Json) : Except String Dev := do devOf "devices" (← asStr "devices" v)
+
+/-- An item as JSON (every field written; `parent` is a string or `null`). -/
+def itemJson (x : Item) : Json :=
+  Json.mkObj [("id", .str x.id), ("parent", ostr x.parent), ("writes", .arr (x.writes.toArray.map .str)),
+              ("deps", .arr (x.deps.toArray.map .str)), ("demand", vecJson x.demand),
+              ("devices", .arr (x.devices.toArray.map fun v => .str (devName v))),
+              ("seq", toJson x.seq), ("enq", toJson x.enq), ("base", toJson x.base), ("start", toJson x.start)]
+
+/-- Decode an item; only `id` is required (lists default to empty, numbers to 0). -/
+def itemOf (j : Json) : Except String Item := do
+  let demand ← match opt j "demand" with
+    | none => pure {}
+    | some v => vecOf v
+  pure { id := ← str j "id", parent := ← optS j "parent", writes := ← strsD j "writes",
+         deps := ← strsD j "deps", demand, devices := ← (← arrD j "devices").mapM devJ,
+         seq := ← natD j "seq" 0, enq := ← natD j "enq" 0, base := ← natD j "base" 0, start := ← natD j "start" 0 }
+
+/-- A scheduler state as JSON (every field written). -/
+def stateJson (σ : State) : Json :=
+  Json.mkObj [("run", .arr (σ.run.toArray.map itemJson)), ("done", .arr (σ.done.toArray.map .str)),
+              ("queue", .arr (σ.queue.toArray.map itemJson)), ("t", toJson σ.t), ("next", toJson σ.next)]
+
+/-- Decode a scheduler state; every field is optional (absent is the empty state's value). -/
+def stateOf (j : Json) : Except String State := do
+  pure { run := ← (← arrD j "run").mapM itemOf, done := ← strsD j "done",
+         queue := ← (← arrD j "queue").mapM itemOf, t := ← natD j "t" 0, next := ← natD j "next" 0 }
+
+/-- Decode a command `{"type": …}`. -/
+def cmdOf (j : Json) : Except String Cmd := do
+  match ← str j "type" with
+  | "admit" => pure .admit
+  | "finish" => pure (.finish (← str j "id") (← asBool "landed" (← field j "landed")))
+  | "enqueue" => pure (.enqueue (← itemOf (← field j "item")))
+  | "tick" => pure (.tick (← nat j "now"))
+  | s => throw s!"field type: unknown event {s}"
+
+/-- A command as JSON (the form `cmdOf` reads). -/
+def cmdJson : Cmd → Json
+  | .admit => Json.mkObj [("type", .str "admit")]
+  | .finish i l => Json.mkObj [("type", .str "finish"), ("id", .str i), ("landed", .bool l)]
+  | .enqueue x => Json.mkObj [("type", .str "enqueue"), ("item", itemJson x)]
+  | .tick n => Json.mkObj [("type", .str "tick"), ("now", toJson n)]
+
+/-! ## Round trips: decoding an encoded value gives it back
+
+So a reply `state` fed back as the next request's `state` is exactly the state the proofs talk
+about. -/
+
+/-- `Except.ok` then bind is application.
+
+$$\forall a, f:\quad (\mathrm{ok}(a) \mathbin{>\!\!>\!=} f) = f(a)$$
+-/
+theorem ok_bind {ε α β : Type} (a : α) (f : α → Except ε β) : (Except.ok a >>= f) = f a := rfl
+
+/-- Decoding a mapped list element-wise inverts the encoding when each element round-trips.
+
+$$\forall f, g, l:\quad (\forall a:\ g(f(a)) = \mathrm{ok}(a)) \Rightarrow \operatorname{mapM}(g, \operatorname{map}(f, l)) = \mathrm{ok}(l)$$
+-/
+theorem mapM_rt {α : Type} (f : α → Json) (g : Json → Except String α) (h : ∀ a, g (f a) = .ok a) :
+    ∀ l : List α, (l.map f).mapM g = .ok l
+  | [] => rfl
+  | a :: l => by simp [List.mapM_cons, h, mapM_rt f g h l]; rfl
+
+/-- An array field reads back as its list.
+
+$$\forall j, k, a:\quad j[k] = \mathrm{arr}(a) \Rightarrow \operatorname{arrD}(j, k) = \mathrm{ok}(\operatorname{toList}(a))$$
+-/
+theorem arrD_arr (j : Json) (k : String) (a : Array Json) (h : j.getObjVal? k = .ok (.arr a)) :
+    arrD j k = .ok a.toList := by
+  simp [arrD, opt, h]; rfl
+
+/-- A string-array field reads back as its list of strings.
+
+$$\forall j, k, l:\quad j[k] = \mathrm{arr}(\operatorname{map}(\mathrm{str}, l)) \Rightarrow \operatorname{strsD}(j, k) = \mathrm{ok}(l)$$
+-/
+theorem strsD_rt (j : Json) (k : String) (l : List String)
+    (h : j.getObjVal? k = .ok (.arr (l.toArray.map .str))) : strsD j k = .ok l := by
+  simp only [strsD, arrD_arr j k _ h, Array.toList_map]
+  exact mapM_rt .str (asStr k) (fun _ => rfl) l
+
+/-- Devices round-trip.
+
+$$\forall v \in \mathcal V:\quad \operatorname{devJ}(\mathrm{str}(\operatorname{name}(v))) = \mathrm{ok}(v)$$
+-/
+theorem devJ_rt (v : Dev) : devJ (.str (devName v)) = .ok v := by cases v <;> rfl
+
+/-- Vectors round-trip.
+
+$$\forall v:\quad \operatorname{vecOf}(\operatorname{vecJson}(v)) = \mathrm{ok}(v)$$
+-/
+theorem vecOf_vecJson (v : Vec) : vecOf (vecJson v) = .ok v := by
+  cases v; rfl
+
+/-- Items round-trip.
+
+$$\forall x:\quad \operatorname{itemOf}(\operatorname{itemJson}(x)) = \mathrm{ok}(x)$$
+-/
+theorem itemOf_itemJson (x : Item) : itemOf (itemJson x) = .ok x := by
+  obtain ⟨id, parent, writes, deps, demand, devices, seq, enq, base, start⟩ := x
+  have hw := strsD_rt (itemJson ⟨id, parent, writes, deps, demand, devices, seq, enq, base, start⟩)
+    "writes" writes rfl
+  have hd := strsD_rt (itemJson ⟨id, parent, writes, deps, demand, devices, seq, enq, base, start⟩)
+    "deps" deps rfl
+  have hv := arrD_arr (itemJson ⟨id, parent, writes, deps, demand, devices, seq, enq, base, start⟩)
+    "devices" _ rfl
+  have hdm : opt (itemJson ⟨id, parent, writes, deps, demand, devices, seq, enq, base, start⟩) "demand" =
+      some (vecJson demand) := rfl
+  have hp : optS (itemJson ⟨id, parent, writes, deps, demand, devices, seq, enq, base, start⟩) "parent" =
+      .ok parent := by
+    cases parent <;> rfl
+  simp only [itemOf, hw, hd, hv, hdm, vecOf_vecJson, hp, Array.toList_map, ok_bind,
+    mapM_rt (fun v => Json.str (devName v)) devJ devJ_rt devices]
+  rfl
+
+/-- States round-trip.
+
+$$\forall \sigma:\quad \operatorname{stateOf}(\operatorname{stateJson}(\sigma)) = \mathrm{ok}(\sigma)$$
+-/
+theorem stateOf_stateJson (σ : State) : stateOf (stateJson σ) = .ok σ := by
+  obtain ⟨run, done, queue, t, next⟩ := σ
+  have hr := arrD_arr (stateJson ⟨run, done, queue, t, next⟩) "run" _ rfl
+  have hq := arrD_arr (stateJson ⟨run, done, queue, t, next⟩) "queue" _ rfl
+  have hd := strsD_rt (stateJson ⟨run, done, queue, t, next⟩) "done" done rfl
+  simp only [stateOf, hr, hq, hd, Array.toList_map, ok_bind, mapM_rt itemJson itemOf itemOf_itemJson]
+  rfl
+
+/-- Commands round-trip.
+
+$$\forall c:\quad \operatorname{cmdOf}(\operatorname{cmdJson}(c)) = \mathrm{ok}(c)$$
+-/
+theorem cmdOf_cmdJson (c : Cmd) : cmdOf (cmdJson c) = .ok c := by
+  cases c with
+  | admit => rfl
+  | finish i l => rfl
+  | tick n => rfl
+  | enqueue x =>
+    have ht : str (cmdJson (.enqueue x)) "type" = .ok "enqueue" := rfl
+    have h : field (cmdJson (.enqueue x)) "item" = .ok (itemJson x) := rfl
+    simp only [cmdOf, ht, h, ok_bind, itemOf_itemJson]
+    rfl
+
+/-- The reason fields of a queue decision (the reason name and its witness). -/
+def reasonFields : Reason → Reply
+  | .neverFits r => [("reason", .str "neverFits"), ("res", .str (resName r))]
+  | .depPending e => [("reason", .str "depPending"), ("dep", .str e)]
+  | .writeConflict p y => [("reason", .str "writeConflict"), ("path", .str p), ("holder", .str y)]
+  | .deviceBusy v y => [("reason", .str "deviceBusy"), ("device", .str (devName v)), ("holder", .str y)]
+  | .overBudget r need free =>
+    [("reason", .str "overBudget"), ("res", .str (resName r)), ("need", toJson need), ("free", toJson free)]
+  | .behindAged z => [("reason", .str "behindAged"), ("behind", .str z)]
+
+/-- A decision for one item as JSON. -/
+def decisionJson (id : String) : Decision → Json
+  | .admit => Json.mkObj [("id", .str id), ("decision", .str "admit"), ("reason", .null)]
+  | .queue why => Json.mkObj ([("id", .str id), ("decision", .str "queue")] ++ reasonFields why)
+
+/-! ## The invariant as a check -/
+
+/-- The invariant `Inv` as a Boolean check (so `ops.admit` can say whether the proved guarantees
+apply to the state it was given).
+
+$$\operatorname{invB}(B, \sigma) = \mathrm{true} \iff \mathrm{Inv}(B, \sigma)$$ (see `invB_iff`)
+-/
+def invB (B : Vec) (σ : State) : Bool :=
+  decide ((σ.run ++ σ.queue).map Item.id).Nodup && decide ((σ.run ++ σ.queue).map Item.seq).Nodup &&
+  (σ.run ++ σ.queue).all (fun x => decide (x.seq < σ.next)) &&
+  σ.run.all (fun x => decide (x.start ≤ σ.t)) &&
+  σ.run.all (fun x => σ.run.all fun y => x.id == y.id || related x y || !wconf x y) &&
+  σ.run.all (fun x => σ.run.all fun y => x.id == y.id || related x y || !devShare x y) &&
+  σ.run.all (fun x => ready σ x) &&
+  Res.all.all (fun r => decide (used σ.run r ≤ B.get r))
+
+/-- The Boolean check is exactly the invariant.
+
+$$\forall B, \sigma:\quad \operatorname{invB}(B, \sigma) = \mathrm{true} \iff \mathrm{Inv}(B, \sigma)$$
+-/
+theorem invB_iff (B : Vec) (σ : State) : invB B σ = true ↔ Inv B σ := by
+  simp only [invB, Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true, Bool.or_eq_true,
+    beq_iff_eq, Bool.not_eq_true']
+  constructor
+  · rintro ⟨⟨⟨⟨⟨⟨⟨hi, hs⟩, hf⟩, hst⟩, hw⟩, hd⟩, hr⟩, hb⟩
+    refine ⟨hi, hs, hf, hst, ?_, ?_, hr, fun r => hb r (Res.mem_all r)⟩
+    · intro x hx y hy hne hrel
+      rcases hw x hx y hy with (h | h) | h
+      · exact absurd h hne
+      · rw [h] at hrel; cases hrel
+      · exact h
+    · intro x hx y hy hne hrel
+      rcases hd x hx y hy with (h | h) | h
+      · exact absurd h hne
+      · rw [h] at hrel; cases hrel
+      · exact h
+  · intro h
+    refine ⟨⟨⟨⟨⟨⟨⟨h.ids, h.seqs⟩, h.fresh⟩, h.started⟩, ?_⟩, ?_⟩, h.deps⟩, fun r _ => h.budget r⟩
+    · intro x hx y hy
+      by_cases hne : x.id = y.id
+      · exact Or.inl (Or.inl hne)
+      · cases hrel : related x y
+        · exact Or.inr (h.writes x hx y hy hne hrel)
+        · exact Or.inl (Or.inr rfl)
+    · intro x hx y hy
+      by_cases hne : x.id = y.id
+      · exact Or.inl (Or.inl hne)
+      · cases hrel : related x y
+        · exact Or.inr (h.devs x hx y hy hne hrel)
+        · exact Or.inl (Or.inr rfl)
+
+/-- Micro-step sequences keep the invariant.
+
+$$\forall B, \sigma, \tau:\quad \mathrm{Steps}_B(\sigma, \tau) \land \mathrm{Inv}(B, \sigma) \Rightarrow \mathrm{Inv}(B, \tau)$$
+-/
+theorem inv_steps {B : Vec} {σ τ : State} (h : Steps B σ τ) (hi : Inv B σ) : Inv B τ := by
+  induction h with
+  | refl => exact hi
+  | head c _ ih => exact ih (inv_step B _ c hi)
+
+/-- An `ops.admit` event keeps the invariant: if the input state passes the check, so does the
+reply state.
+
+$$\forall B, \sigma, c:\quad \operatorname{invB}(B, \sigma) = \mathrm{true} \Rightarrow \operatorname{invB}(B, \operatorname{event}(B, \sigma, c)) = \mathrm{true}$$
+-/
+theorem invB_event (B : Vec) (σ : State) (c : Cmd) (h : invB B σ = true) :
+    invB B (event B σ c) = true :=
+  (invB_iff B _).mpr (inv_steps (steps_event B σ c) ((invB_iff B σ).mp h))
+
+/-- After an event no queued item is admissible, so every `queued` decision of `ops.admit` is a
+`queue` with a reason.
+
+$$\forall B, \sigma, c, x:\quad x \in Q(\operatorname{event}(B, \sigma, c)) \Rightarrow \operatorname{admit}(B, \operatorname{event}(B, \sigma, c), x) \ne \mathrm{admit}$$
+-/
+theorem event_queued_wait (B : Vec) (σ : State) (c : Cmd) (x : Item)
+    (hx : x ∈ (event B σ c).queue) : admit B (event B σ c) x ≠ .admit := by
+  intro ha
+  have hc := chosen_event B σ c
+  simp only [chosen] at hc
+  have hmem : x ∈ (event B σ c).queue.filter fun y => admit B (event B σ c) y == .admit := by
+    simp [hx, ha]
+  cases hq : (event B σ c).queue.filter fun y => admit B (event B σ c) y == .admit with
+  | nil => rw [hq] at hmem; cases hmem
+  | cons y ys => rw [hq] at hc; simp [pick] at hc
+
+/-! ## ops.admit -/
+
+/-- The items admitted by an event: the reply's running items that were not running after the
+command, in admission order (`admitStep` prepends).
+
+$$\operatorname{admitted}(\sigma_1, \sigma_2) = \operatorname{rev}\big[\, \mathit{id}(x) \mid x \in \mathit{Run}(\sigma_2),\ \lnot \exists y \in \mathit{Run}(\sigma_1):\ \mathit{id}(y) = \mathit{id}(x) \,\big]$$
+-/
+def admittedIds (before after : State) : List String :=
+  ((after.run.filter fun x => !before.run.any (·.id == x.id)).map (·.id)).reverse
+
+/-- `ops.admit`: one event (the command, then admit until quiescent) with the decisions; probes are
+judged as if enqueued now.
+
+$$\operatorname{opAdmit}(B, \sigma, c, P) = \big(\sigma',\ \operatorname{admitted}(\operatorname{step}(B, \sigma, c), \sigma'),\ [\operatorname{admit}(B, \sigma', x) \mid x \in Q(\sigma')],\ [\operatorname{admit}(B, \sigma', p[\mathit{seq} := \mathit{next}(\sigma'),\ \mathit{enq} := t(\sigma')]) \mid p \in P],\ \operatorname{invB}(B, \sigma),\ \operatorname{invB}(B, \sigma')\big), \quad \sigma' = \operatorname{event}(B, \sigma, c)$$
+-/
+def opAdmit (req : Json) : Except String Reply := do
+  let B ← vecOf (← field req "budget")
+  let σ ← match opt req "state" with
+    | none => pure {}
+    | some s => stateOf s
+  let c ← cmdOf (← field req "event")
+  let probe ← (← arrD req "probe").mapM itemOf
+  let σ1 := step B σ c
+  let σ' := admitAll B σ1
+  let probe := probe.map fun x => { x with seq := σ'.next, enq := σ'.t }
+  pure [("state", stateJson σ'), ("admitted", toJson (admittedIds σ1 σ')),
+        ("queued", .arr (σ'.queue.toArray.map fun x => decisionJson x.id (admit B σ' x))),
+        ("probes", .arr (probe.toArray.map fun x => decisionJson x.id (admit B σ' x))),
+        ("inv", .bool (invB B σ)), ("invAfter", .bool (invB B σ'))]
+
+/-- The reply state of `ops.admit` is the proved `event`.
+
+$$\forall B, \sigma, c:\quad \operatorname{admitAll}(B, \operatorname{step}(B, \sigma, c)) = \operatorname{event}(B, \sigma, c)$$
+-/
+theorem opAdmit_state (B : Vec) (σ : State) (c : Cmd) : admitAll B (step B σ c) = event B σ c := rfl
+
+/-! ## metrics.* codecs -/
+
+/-- An exact fraction `{"num":"<int>","den":"<positive int>"}`, reduced (the form of `Fw.Wire.ratToJson`). -/
+def ratJson (q : Rat) : Json :=
+  Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
+
+/-- A pair `[a, b]` of natural numbers. -/
+def pairOf (k : String) (j : Json) : Except String (Nat × Nat) := do
+  match (← asArr k j).toList with
+  | [a, b] => pure (← asNat k a, ← asNat k b)
+  | _ => throw s!"field {k}: expected a pair [a, b]"
+
+/-- An interval `[s, e]`. -/
+def ivOf (k : String) (j : Json) : Except String Iv := do
+  let (s, e) ← pairOf k j
+  pure ⟨s, e⟩
+
+/-- An interval as `[s, e]`. -/
+def ivJson (i : Iv) : Json := .arr #[toJson i.s, toJson i.e]
+
+/-- Intervals round-trip.
+
+$$\forall k, i:\quad \operatorname{ivOf}(k, \operatorname{ivJson}(i)) = \mathrm{ok}(i)$$
+-/
+theorem ivOf_ivJson (k : String) (i : Iv) : ivOf k (ivJson i) = .ok i := by
+  cases i; rfl
+
+/-- A required list of intervals. -/
+def ivsOf (j : Json) (k : String) : Except String (List Iv) := do (← arr j k).toList.mapM (ivOf k)
+
+/-- A required list of agents, each a list of intervals. -/
+def agentsOf (j : Json) (k : String) : Except String (List (List Iv)) := do
+  (← arr j k).toList.mapM fun a => do (← asArr k a).toList.mapM (ivOf k)
+
+/-- Verdict wire names (as `Fw.Wire.verdictName`). -/
+def verdictName : Fw.Verdict.Verdict → String
+  | .better => "better" | .worse => "worse" | .noise => "noise" | .tooFew => "tooFew"
+
+/-! ## metrics.* ops -/
+
+/-- `metrics.merge`: sort and fuse the intervals. -/
+def opMerge (req : Json) : Except String Reply := do
+  pure [("ivs", .arr ((merge (← ivsOf req "ivs")).toArray.map ivJson))]
+
+/-- `metrics.busy`: merged busy time inside $[a, b)$. -/
+def opBusy (req : Json) : Except String Reply := do
+  pure [("busy", toJson (busy (← nat req "a") (← nat req "b") (← ivsOf req "ivs")))]
+
+/-- `metrics.speedup`: summed busy time over the window length. -/
+def opSpeedup (req : Json) : Except String Reply := do
+  pure [("speedup", ratJson (speedup (← nat req "a") (← nat req "b") (← agentsOf req "agents")))]
+
+/-- `metrics.serialShare`: time with at most one agent busy, and its share of the window. -/
+def opSerialShare (req : Json) : Except String Reply := do
+  let a ← nat req "a"
+  let b ← nat req "b"
+  let ag ← agentsOf req "agents"
+  pure [("serial", toJson (serial a b ag)), ("serialShare", ratJson (serialShare a b ag))]
+
+/-- `metrics.stretch`: $d / d_{solo}$ (0 when $d_{solo} = 0$). -/
+def opStretch (req : Json) : Except String Reply := do
+  pure [("stretch", ratJson (stretch (← nat req "d") (← nat req "dsolo")))]
+
+/-- `metrics.cp`: the critical path of a node-weighted graph, or `cycle`. -/
+def opCp (req : Json) : Except String Reply := do
+  let n ← nat req "n"
+  let w ← (← arr req "w").toList.mapM (asNat "w")
+  let es ← (← arr req "edges").toList.mapM (pairOf "edges")
+  pure <| match cp n w es with
+    | .ok c => [("cycle", .bool false), ("cp", toJson c)]
+    | .cycle => [("cycle", .bool true), ("cp", .null)]
+
+/-- `metrics.benchVerdict`: the bench verdict for a labeling (`labels`, or the one drawn by `seed`). -/
+def opBenchVerdict (req : Json) : Except String Reply := do
+  let labels ← match opt req "labels" with
+    | some v => (← asArr "labels" v).toList.mapM (asBool "labels")
+    | none => pure (labeling (← nat req "seed"))
+  let ms ← (← arr req "ms").toList.mapM (Fw.Wire.Measure.asInt "ms")
+  pure [("labels", toJson labels), ("verdict", .str (verdictName (benchVerdict labels ms)))]
+
+/-! ## Dispatch -/
+
+/-- The `Fw.Sched` ops. -/
+def ops : List String :=
+  ["ops.admit", "metrics.merge", "metrics.busy", "metrics.speedup", "metrics.serialShare", "metrics.stretch",
+   "metrics.cp", "metrics.benchVerdict"]
+
+/-- Dispatch a `Fw.Sched` op (`none` when the op is not one of them). -/
+def handle (op : String) (req : Json) : Option (Except String Reply) :=
+  match op with
+  | "ops.admit" => some (opAdmit req)
+  | "metrics.merge" => some (opMerge req)
+  | "metrics.busy" => some (opBusy req)
+  | "metrics.speedup" => some (opSpeedup req)
+  | "metrics.serialShare" => some (opSerialShare req)
+  | "metrics.stretch" => some (opStretch req)
+  | "metrics.cp" => some (opCp req)
+  | "metrics.benchVerdict" => some (opBenchVerdict req)
+  | _ => none
+
+/-! ## Examples -/
+
+/-- Run an op on a literal request (for the guards). -/
+def run (op : String) (r : String) : String :=
+  match Json.parse r with
+  | .ok j => match handle op j with
+    | some (.ok f) => (Json.mkObj f).compress
+    | some (.error e) => s!"error: {e}"
+    | none => "unknown op"
+  | .error e => s!"parse: {e}"
+
+#guard invB {} {} && !invB { cores := 1 } { run := [{ id := "a", demand := { cores := 2 } }], next := 1 }
+#guard !invB {} { queue := [{ id := "a" }, { id := "a", seq := 1 }], next := 2 }
+#guard (admittedIds {} (admitAll { cores := 4 } { queue := [{ id := "a", demand := { cores := 2 } },
+  { id := "b", demand := { cores := 2 }, seq := 1 }], next := 2 })) == ["a", "b"]
+#guard run "ops.admit" "{\"budget\":{\"cores\":4},\"event\":{\"type\":\"enqueue\",\"item\":{\"id\":\"a\",\"demand\":{\"cores\":2}}}}"
+  |>.startsWith "{\"admitted\":[\"a\"]"
+#guard run "metrics.cp" "{\"n\":2,\"w\":[1,1],\"edges\":[[0,1],[1,0]]}" == "{\"cp\":null,\"cycle\":true}"
+#guard run "metrics.speedup" "{\"a\":0,\"b\":10,\"agents\":[[[0,6]],[[4,10]]]}" == "{\"speedup\":{\"den\":\"5\",\"num\":\"6\"}}"
+#guard run "metrics.busy" "{\"a\":0,\"b\":10,\"ivs\":[[1,3.5]]}" == "error: field ivs: expected a non-negative integer"
+
+end Fw.Wire.Sched

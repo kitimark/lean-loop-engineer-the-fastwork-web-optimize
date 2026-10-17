@@ -11,6 +11,7 @@ import Fw.Board
 import Fw.Site.BreakpointGen
 import Fw.Measure.Wire
 import Fw.Ops.Wire
+import Fw.Wire.Sched
 /-!
 # JSON-lines protocol (the only boundary the TypeScript shell sees)
 
@@ -436,6 +437,7 @@ def renderError (id : Json) (e : String) : String := render id [("error", .str e
 def ops : List String :=
   ["console.apply", "console.board", "verdict", "multiplicity", "ticks", "screen", "cost",
    "flags.resolve", "lease.step", "breakpoints.gen", "samples"] ++ Fw.Wire.Measure.ops ++ Fw.Wire.Ops.ops
+  ++ Fw.Wire.Sched.ops
   ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
@@ -456,6 +458,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.Ops.handle other req with  -- lean-ops
+    | some r => r
+    | none =>
+    match Fw.Wire.Sched.handle other req with  -- lean-wire-sched: ops.admit, metrics.*
     | some r => r
     | none => throw s!"unknown op {other}"
 

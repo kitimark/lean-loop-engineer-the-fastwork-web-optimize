@@ -1,0 +1,24 @@
+{"name":"merge: sorted, fused, empty and reversed intervals dropped","request":{"ivs":[[5,7],[1,3],[2,4],[4,4],[9,8]],"op":"metrics.merge"},"response":{"ivs":[[1,4],[5,7]]}}
+{"name":"merge: touching intervals fuse","request":{"ivs":[[1,3],[3,5]],"op":"metrics.merge"},"response":{"ivs":[[1,5]]}}
+{"name":"merge: empty","request":{"ivs":[],"op":"metrics.merge"},"response":{"ivs":[]}}
+{"name":"busy: clipped to the window","request":{"a":0,"b":10,"ivs":[[1,3],[2,4],[8,12]],"op":"metrics.busy"},"response":{"busy":5}}
+{"name":"busy: reversed window is 0","request":{"a":10,"b":0,"ivs":[[1,3]],"op":"metrics.busy"},"response":{"busy":0}}
+{"name":"speedup: two agents overlapping 2 of 10","request":{"a":0,"agents":[[[0,6]],[[4,10]]],"b":10,"op":"metrics.speedup"},"response":{"speedup":{"den":"5","num":"6"}}}
+{"name":"speedup: empty window is 0","request":{"a":5,"agents":[[[0,6]]],"b":5,"op":"metrics.speedup"},"response":{"speedup":{"den":"1","num":"0"}}}
+{"name":"serialShare: 8 of 10 with at most one busy","request":{"a":0,"agents":[[[0,6]],[[4,10]]],"b":10,"op":"metrics.serialShare"},"response":{"serial":8,"serialShare":{"den":"5","num":"4"}}}
+{"name":"serialShare: always two busy","request":{"a":0,"agents":[[[0,10]],[[0,10]],[[2,3]]],"b":10,"op":"metrics.serialShare"},"response":{"serial":0,"serialShare":{"den":"1","num":"0"}}}
+{"name":"serialShare: no agents","request":{"a":0,"agents":[],"b":10,"op":"metrics.serialShare"},"response":{"serial":10,"serialShare":{"den":"1","num":"1"}}}
+{"name":"stretch: 13/10","request":{"d":13,"dsolo":10,"op":"metrics.stretch"},"response":{"stretch":{"den":"10","num":"13"}}}
+{"name":"stretch: dsolo 0 gives 0","request":{"d":5,"dsolo":0,"op":"metrics.stretch"},"response":{"stretch":{"den":"1","num":"0"}}}
+{"name":"cp: the path 2+3+4 beats the shortcut 0→2","request":{"edges":[[0,1],[1,2],[0,2]],"n":3,"op":"metrics.cp","w":[2,3,4]},"response":{"cp":9,"cycle":false}}
+{"name":"cp: heaviest single node wins","request":{"edges":[[1,2],[2,3]],"n":4,"op":"metrics.cp","w":[5,1,1,1]},"response":{"cp":5,"cycle":false}}
+{"name":"cp: a cycle is reported","request":{"edges":[[0,1],[1,0]],"n":2,"op":"metrics.cp","w":[1,1]},"response":{"cp":null,"cycle":true}}
+{"name":"cp: a self-loop is a cycle","request":{"edges":[[0,0]],"n":1,"op":"metrics.cp","w":[5]},"response":{"cp":null,"cycle":true}}
+{"name":"cp: out-of-range edges are ignored","request":{"edges":[[0,5],[7,1]],"n":2,"op":"metrics.cp","w":[1,2]},"response":{"cp":2,"cycle":false}}
+{"name":"cp: empty graph","request":{"edges":[],"n":0,"op":"metrics.cp","w":[]},"response":{"cp":0,"cycle":false}}
+{"name":"cp: an edge must be a pair","request":{"edges":[[0,1,2]],"n":2,"op":"metrics.cp","w":[1,1]},"response":{"error":"field edges: expected a pair [a, b]"}}
+{"name":"benchVerdict: seed 0, variant blocks clearly lower","request":{"ms":[20,20,20,20,10,10,10,10],"op":"metrics.benchVerdict","seed":0},"response":{"labels":[false,false,false,false,true,true,true,true],"verdict":"better"}}
+{"name":"benchVerdict: explicit labels, variant lower","request":{"labels":[false,true,false,true,false,true,false,true],"ms":[20,10,21,11,22,12,23,13],"op":"metrics.benchVerdict"},"response":{"labels":[false,true,false,true,false,true,false,true],"verdict":"better"}}
+{"name":"benchVerdict: interleaved values are noise","request":{"labels":[false,true,false,true,false,true,false,true],"ms":[10,11,12,9,10,11,12,9],"op":"metrics.benchVerdict"},"response":{"labels":[false,true,false,true,false,true,false,true],"verdict":"noise"}}
+{"name":"benchVerdict: seed 69","request":{"ms":[3,1,4,1,5,9,2,6],"op":"metrics.benchVerdict","seed":69},"response":{"labels":[true,true,true,true,false,false,false,false],"verdict":"noise"}}
+{"name":"busy: a non-integer bound is refused","request":{"a":0.5,"b":10,"ivs":[],"op":"metrics.busy"},"response":{"error":"field a: expected a non-negative integer"}}

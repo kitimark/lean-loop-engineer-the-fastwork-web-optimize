@@ -32,3 +32,4 @@ import Fw.Ops.Meter
 import Fw.Ops.Wire
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
+import Fw.Wire.Sched

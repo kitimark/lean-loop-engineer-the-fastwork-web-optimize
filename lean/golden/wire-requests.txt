@@ -16,6 +16,10 @@
 {"id":16,"op":"lease.step","state":{"queue":[]},"cmd":{"acquire":{"o":"a","now":0,"ttl":900}}}
 {"id":17,"op":"console.board","now":1802003,"seq":3,"state":{"seen":["k3","k2","k1"],"cards":[{"id":"A","owner":"o","needsDevice":false,"approved":true,"head":"s1","builders":["b"],"screenAt":null,"reviewAt":null,"reviewedBy":null,"deviceAt":null,"landReq":null,"landed":false,"violation":false,"lastAt":1003}],"steps":[{"id":"S","card":"A","title":"Plug in","kind":"choice","options":["x","y"],"status":"waiting","answer":null,"postedAt":1004,"lastAt":1004}],"runs":[]}}
 {"id":18,"op":"console.board","now":1802003,"seq":3,"state":{"seen":[],"cards":[{"id":"A","owner":"o","needsDevice":false,"approved":true,"head":"s1","builders":["b"],"screenAt":null,"reviewAt":null,"reviewedBy":null,"deviceAt":null,"landReq":null,"landed":false,"violation":false,"lastAt":1003}],"steps":[],"runs":[]}}
+{"id":"s-1","op":"ops.admit","budget":{"cores":4},"state":{"run":[{"id":"a","writes":["lean/Fw/A.lean"],"demand":{"cores":2}}],"next":1},"event":{"type":"enqueue","item":{"id":"b","writes":["lean/Fw"],"base":1}}}
+{"id":"s-2","op":"ops.admit","budget":{"cores":4},"event":{"type":"finish","id":"a"}}
+{"id":"s-3","op":"metrics.cp","n":3,"w":[2,3,4],"edges":[[0,1],[1,2],[0,2]]}
+{"id":"s-4","op":"metrics.serialShare","a":0,"b":10,"agents":[[[0,6]],[[4,10]]]}
 {"id":19,"op":"nope"}
 {"op":"verdict"}
 

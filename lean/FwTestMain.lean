@@ -3,6 +3,7 @@ import FwTest.Golden
 import FwTest.Serve
 import Fw.Measure.Golden
 import Fw.Ops.Golden
+import Fw.Wire.SchedGolden
 
 /-- `lake test`: pseudo-random lease traces, golden JSON-lines round trips, the `Rat` wire form,
 and a replay timing for the console reducer. Exit code 0 only if everything passes. -/
@@ -17,6 +18,8 @@ def main : IO UInt32 := do
   let mg ← Fw.Wire.Measure.Golden.run (← FwTest.Golden.root) false
   -- ops.* goldens (lean-ops): packages/contracts/golden/ops/
   let og ← Fw.Wire.Ops.Golden.run (← FwTest.Golden.root) false
+  -- ops.admit / metrics.* goldens (lean-wire-sched): packages/contracts/golden/ops/{admit,metrics}.jsonl
+  let sg ← Fw.Wire.Sched.Golden.run (← FwTest.Golden.root) false
   -- replay timing (informational): 2,000 events through the reducer
   let evs : List Fw.Console.Event := (List.range 1000).flatMap fun i =>
     [⟨s!"o{i}", i, .owner, .cardOpen s!"c{i}" "o" false⟩, ⟨s!"a{i}", i, .lead, .cardApprove s!"c{i}"⟩]
@@ -25,6 +28,6 @@ def main : IO UInt32 := do
   let n := (s.cards.filter (·.approved)).length
   let t1 ← IO.monoNanosNow
   IO.println s!"console replay: 2000 events, {n} approved cards, {(t1 - t0) / 1000000} ms"
-  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && n == 1000
+  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && sg == 0 && n == 1000
   IO.println (if ok then "fwtest: all passed" else "fwtest: FAILED")
   return if ok then 0 else 1
