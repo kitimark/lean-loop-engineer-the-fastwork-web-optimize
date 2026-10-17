@@ -1214,6 +1214,36 @@
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
    ]
+  },
+  {
+   "id": "touch-ci-verify",
+   "title": "Verify the touch-wedge fix on CI: original and rewrite, swipe-touch-v1, >= 3 chromium-counts runs on separate jobs, no wedge, classes reported",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "touch-wedge",
+    "ci-trigger-scope"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-chromium/README.md",
+    "packages/measure-chromium/profiles/**"
+   ]
+  },
+  {
+   "id": "mutants-ci",
+   "title": "Mutation pass on CI (workflow_dispatch + paths on M0 modules), not on this Mac: the local final pass took 23 min at load ~500 (lead slow-work watch)",
+   "stream": "lean",
+   "milestone": null,
+   "deps": [
+    "m0-mutants",
+    "ci-trigger-scope"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    ".github/workflows/mutants.yml",
+    "lean/scripts/mutants.sh"
+   ]
   }
  ]
 }

@@ -7,6 +7,7 @@ import Fw.Wire.SchedGolden
 import Fw.Plan.Golden
 import Fw.Wire.GateGolden
 import Fw.Obs.Golden
+import FwTest.Mutants.Kill  -- m0-mutants killers: #guards and theorems that kill the M0 mutants
 
 /-- `lake test`: pseudo-random lease traces, golden JSON-lines round trips, the `Rat` wire form,
 and a replay timing for the console reducer. Exit code 0 only if everything passes.
