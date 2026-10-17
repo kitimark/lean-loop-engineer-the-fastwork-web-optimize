@@ -30,7 +30,7 @@ on:
         type: boolean
         default: false
       experiment:
-        description: determinism (the class table; default) or quiet (webkit-quiet: dose-response of per-step jitter against added host load, one Simulator session per VM)
+        description: determinism (the class table; default) or quiet (webkit-quiet, dose-response of per-step jitter against added host load, one Simulator session per VM)
         type: choice
         options: [determinism, quiet]
         default: determinism
