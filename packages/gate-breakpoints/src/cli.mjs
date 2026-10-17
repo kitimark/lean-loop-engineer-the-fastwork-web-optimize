@@ -1,5 +1,6 @@
 // node src/cli.mjs run     --engine chromium|playwright-webkit|both --out out/<label> [--concurrency 4] [--probes id,block,...] [--sweeps id,...|none]
 //                          [--parts engine.scroll,nav.hitTest,hero.countdown,hero.exit]   (pilot part ids of src/anchors.json; default all)
+// node src/cli.mjs gaps    run|summary|device-serve|device-judge --out out/<label>   (the Q33 gaps lane; src/gaps/README.md)
 // node src/cli.mjs summary --out out/<label> [--parts id,...]   (reads <engine>.json files there, writes summary.json and summary.md;
 //   --parts narrows the verdict to those parts, which the run must have covered; a narrowed run names covered and skipped parts)
 import { resolve } from 'node:path';
@@ -24,6 +25,11 @@ if (cmd === 'run') {
 } else if (cmd === 'summary') {
   const { summarize } = await import('./summary.mjs');
   summarize(out, { parts: partsOpt });
+} else if (cmd === 'gaps') {
+  // the gaps lane (src/gaps/): the Q33 cells, fractional widths and hover x pointer; see src/gaps/README.md
+  const { gapsMain } = await import('./gaps/cli.mjs');
+  await gapsMain(argv.slice(1), out);
+  process.exit(0);
 } else {
   console.error('usage: cli.mjs run|summary --out DIR [...]');
   process.exit(2);

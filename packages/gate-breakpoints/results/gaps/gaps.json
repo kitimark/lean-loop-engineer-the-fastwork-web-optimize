@@ -1,0 +1,1081 @@
+{
+ "cells": [
+  {
+   "engines": {
+    "chromium": {
+     "achieved": true,
+     "cell": "hover-pointer-cross-1024x768-none-fine",
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "none",
+        "pointer": "fine"
+       },
+       "vvWidth": 1024
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "none",
+        "pointer": "fine"
+       },
+       "vvWidth": 1024
+      }
+     },
+     "mechanism": "--blink-settings primaryHoverType/primaryPointerType (one browser per pair)",
+     "reach": "reachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "pass",
+     "stateFrom": [
+      "matchMedia orig=rewrite",
+      "matchMedia =Lean",
+      "matchMedia legacy text"
+     ]
+    },
+    "playwright-webkit": {
+     "achieved": false,
+     "cell": "hover-pointer-cross-1024x768-none-fine",
+     "deviations": {
+      "orig": [
+       "pointer"
+      ],
+      "rewrite": [
+       "pointer"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "evidence": {
+      "bad": [],
+      "ok": true,
+      "records": 27
+     },
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "none",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1024
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "none",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1024
+      }
+     },
+     "mechanism": "none: every Apple WebKit derives primary hover and pointer from one platform constant (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780@862f17d); Playwright hasTouch flips both",
+     "reach": "unreachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "not-comparable",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "unreachable"
+    }
+   },
+   "id": "hover-pointer-cross-1024x768-none-fine",
+   "kind": "cross"
+  },
+  {
+   "engines": {
+    "chromium": {
+     "achieved": true,
+     "cell": "hover-pointer-cross-1024x768-hover-coarse",
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "hover",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1024
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "hover",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1024
+      }
+     },
+     "mechanism": "--blink-settings primaryHoverType/primaryPointerType (one browser per pair)",
+     "reach": "reachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "pass",
+     "stateFrom": [
+      "matchMedia orig=rewrite",
+      "matchMedia =Lean",
+      "matchMedia legacy text"
+     ]
+    },
+    "playwright-webkit": {
+     "achieved": false,
+     "cell": "hover-pointer-cross-1024x768-hover-coarse",
+     "deviations": {
+      "orig": [
+       "pointer"
+      ],
+      "rewrite": [
+       "pointer"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "evidence": {
+      "bad": [],
+      "ok": true,
+      "records": 27
+     },
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1024
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1024
+      }
+     },
+     "mechanism": "none: every Apple WebKit derives primary hover and pointer from one platform constant (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780@862f17d); Playwright hasTouch flips both",
+     "reach": "unreachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "not-comparable",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "unreachable"
+    }
+   },
+   "id": "hover-pointer-cross-1024x768-hover-coarse",
+   "kind": "cross"
+  },
+  {
+   "engines": {
+    "chromium": {
+     "achieved": true,
+     "cell": "hover-pointer-cross-1200x900-none-fine",
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "none",
+        "pointer": "fine"
+       },
+       "vvWidth": 1200
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "none",
+        "pointer": "fine"
+       },
+       "vvWidth": 1200
+      }
+     },
+     "mechanism": "--blink-settings primaryHoverType/primaryPointerType (one browser per pair)",
+     "reach": "reachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "pass",
+     "stateFrom": [
+      "matchMedia orig=rewrite",
+      "matchMedia =Lean",
+      "matchMedia legacy text"
+     ]
+    },
+    "playwright-webkit": {
+     "achieved": false,
+     "cell": "hover-pointer-cross-1200x900-none-fine",
+     "deviations": {
+      "orig": [
+       "pointer"
+      ],
+      "rewrite": [
+       "pointer"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "evidence": {
+      "bad": [],
+      "ok": true,
+      "records": 27
+     },
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "none",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1200
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "none",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1200
+      }
+     },
+     "mechanism": "none: every Apple WebKit derives primary hover and pointer from one platform constant (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780@862f17d); Playwright hasTouch flips both",
+     "reach": "unreachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "not-comparable",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "unreachable"
+    }
+   },
+   "id": "hover-pointer-cross-1200x900-none-fine",
+   "kind": "cross"
+  },
+  {
+   "engines": {
+    "chromium": {
+     "achieved": true,
+     "cell": "hover-pointer-cross-1200x900-hover-coarse",
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "hover",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1200
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "hover",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1200
+      }
+     },
+     "mechanism": "--blink-settings primaryHoverType/primaryPointerType (one browser per pair)",
+     "reach": "reachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "pass",
+     "stateFrom": [
+      "matchMedia orig=rewrite",
+      "matchMedia =Lean",
+      "matchMedia legacy text"
+     ]
+    },
+    "playwright-webkit": {
+     "achieved": false,
+     "cell": "hover-pointer-cross-1200x900-hover-coarse",
+     "deviations": {
+      "orig": [
+       "pointer"
+      ],
+      "rewrite": [
+       "pointer"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "evidence": {
+      "bad": [],
+      "ok": true,
+      "records": 27
+     },
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1200
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1200
+      }
+     },
+     "mechanism": "none: every Apple WebKit derives primary hover and pointer from one platform constant (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780@862f17d); Playwright hasTouch flips both",
+     "reach": "unreachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "not-comparable",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "unreachable"
+    }
+   },
+   "id": "hover-pointer-cross-1200x900-hover-coarse",
+   "kind": "cross"
+  },
+  {
+   "engines": {
+    "chromium": {
+     "achieved": true,
+     "cell": "fractional-gaps-600.5",
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "gap": {
+      "orig": {
+       "mediaWidth": 600.5,
+       "n": 600,
+       "neither": true,
+       "ok": true,
+       "widthOk": true
+      },
+      "rewrite": {
+       "mediaWidth": 600.5,
+       "n": 600,
+       "neither": true,
+       "ok": true,
+       "widthOk": true
+      }
+     },
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 600,
+       "mediaWidth": 600.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 600.5
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 600,
+       "mediaWidth": 600.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 600.5
+      }
+     },
+     "mechanism": "Chromium browser zoom 200% (profile Preferences partition.default_zoom_level.x = log(2)/log(1.2)) + CDP setDeviceMetricsOverride width 2N+1, DSF 1",
+     "reach": "reachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "gap (Lean gap_iff)": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "pass",
+     "stateFrom": [
+      "matchMedia orig=rewrite",
+      "matchMedia =Lean",
+      "matchMedia legacy text",
+      "gap (Lean gap_iff)"
+     ]
+    },
+    "playwright-webkit": {
+     "achieved": false,
+     "cell": "fractional-gaps-600.5",
+     "deviations": {
+      "orig": [
+       "width"
+      ],
+      "rewrite": [
+       "width"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "evidence": {
+      "bad": [],
+      "ok": true,
+      "records": 39
+     },
+     "gap": {
+      "orig": {
+       "mediaWidth": 601,
+       "n": 600,
+       "neither": false,
+       "ok": false,
+       "widthOk": false
+      },
+      "rewrite": {
+       "mediaWidth": 601,
+       "n": 600,
+       "neither": false,
+       "ok": false,
+       "widthOk": false
+      }
+     },
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 601,
+       "mediaWidth": 601,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 601
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 601,
+       "mediaWidth": 601,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 601
+      }
+     },
+     "mechanism": "none: WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d); Playwright has no zoom, fractional DPR gives whole px",
+     "reach": "unreachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "gap (Lean gap_iff)": "fail",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "not-comparable",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "unreachable"
+    }
+   },
+   "id": "fractional-gaps-600.5",
+   "kind": "fractional"
+  },
+  {
+   "engines": {
+    "chromium": {
+     "achieved": true,
+     "cell": "fractional-gaps-640.5",
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "gap": {
+      "orig": {
+       "mediaWidth": 640.5,
+       "n": 640,
+       "neither": true,
+       "ok": true,
+       "widthOk": true
+      },
+      "rewrite": {
+       "mediaWidth": 640.5,
+       "n": 640,
+       "neither": true,
+       "ok": true,
+       "widthOk": true
+      }
+     },
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 640,
+       "mediaWidth": 640.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 640.5
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 640,
+       "mediaWidth": 640.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 640.5
+      }
+     },
+     "mechanism": "Chromium browser zoom 200% (profile Preferences partition.default_zoom_level.x = log(2)/log(1.2)) + CDP setDeviceMetricsOverride width 2N+1, DSF 1",
+     "reach": "reachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "gap (Lean gap_iff)": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "pass",
+     "stateFrom": [
+      "matchMedia orig=rewrite",
+      "matchMedia =Lean",
+      "matchMedia legacy text",
+      "gap (Lean gap_iff)"
+     ]
+    },
+    "playwright-webkit": {
+     "achieved": false,
+     "cell": "fractional-gaps-640.5",
+     "deviations": {
+      "orig": [
+       "width"
+      ],
+      "rewrite": [
+       "width"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "evidence": {
+      "bad": [],
+      "ok": true,
+      "records": 39
+     },
+     "gap": {
+      "orig": {
+       "mediaWidth": 641,
+       "n": 640,
+       "neither": false,
+       "ok": false,
+       "widthOk": false
+      },
+      "rewrite": {
+       "mediaWidth": 641,
+       "n": 640,
+       "neither": false,
+       "ok": false,
+       "widthOk": false
+      }
+     },
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 641,
+       "mediaWidth": 641,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 641
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 641,
+       "mediaWidth": 641,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 641
+      }
+     },
+     "mechanism": "none: WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d); Playwright has no zoom, fractional DPR gives whole px",
+     "reach": "unreachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "gap (Lean gap_iff)": "fail",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "not-comparable",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "unreachable"
+    }
+   },
+   "id": "fractional-gaps-640.5",
+   "kind": "fractional"
+  },
+  {
+   "engines": {
+    "chromium": {
+     "achieved": true,
+     "cell": "fractional-gaps-860.5",
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "gap": {
+      "orig": {
+       "mediaWidth": 860.5,
+       "n": 860,
+       "neither": true,
+       "ok": true,
+       "widthOk": true
+      },
+      "rewrite": {
+       "mediaWidth": 860.5,
+       "n": 860,
+       "neither": true,
+       "ok": true,
+       "widthOk": true
+      }
+     },
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 860,
+       "mediaWidth": 860.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 860.5
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 860,
+       "mediaWidth": 860.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 860.5
+      }
+     },
+     "mechanism": "Chromium browser zoom 200% (profile Preferences partition.default_zoom_level.x = log(2)/log(1.2)) + CDP setDeviceMetricsOverride width 2N+1, DSF 1",
+     "reach": "reachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "gap (Lean gap_iff)": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "pass",
+     "stateFrom": [
+      "matchMedia orig=rewrite",
+      "matchMedia =Lean",
+      "matchMedia legacy text",
+      "gap (Lean gap_iff)"
+     ]
+    },
+    "playwright-webkit": {
+     "achieved": false,
+     "cell": "fractional-gaps-860.5",
+     "deviations": {
+      "orig": [
+       "width"
+      ],
+      "rewrite": [
+       "width"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "evidence": {
+      "bad": [],
+      "ok": true,
+      "records": 39
+     },
+     "gap": {
+      "orig": {
+       "mediaWidth": 861,
+       "n": 860,
+       "neither": false,
+       "ok": false,
+       "widthOk": false
+      },
+      "rewrite": {
+       "mediaWidth": 861,
+       "n": 860,
+       "neither": false,
+       "ok": false,
+       "widthOk": false
+      }
+     },
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 861,
+       "mediaWidth": 861,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 861
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 861,
+       "mediaWidth": 861,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 861
+      }
+     },
+     "mechanism": "none: WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d); Playwright has no zoom, fractional DPR gives whole px",
+     "reach": "unreachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "gap (Lean gap_iff)": "fail",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "not-comparable",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "unreachable"
+    }
+   },
+   "id": "fractional-gaps-860.5",
+   "kind": "fractional"
+  },
+  {
+   "engines": {
+    "chromium": {
+     "achieved": true,
+     "cell": "fractional-gaps-1000.5",
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "gap": {
+      "orig": {
+       "mediaWidth": 1000.5,
+       "n": 1000,
+       "neither": true,
+       "ok": true,
+       "widthOk": true
+      },
+      "rewrite": {
+       "mediaWidth": 1000.5,
+       "n": 1000,
+       "neither": true,
+       "ok": true,
+       "widthOk": true
+      }
+     },
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1000,
+       "mediaWidth": 1000.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1000.5
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1000,
+       "mediaWidth": 1000.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1000.5
+      }
+     },
+     "mechanism": "Chromium browser zoom 200% (profile Preferences partition.default_zoom_level.x = log(2)/log(1.2)) + CDP setDeviceMetricsOverride width 2N+1, DSF 1",
+     "reach": "reachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "gap (Lean gap_iff)": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "pass",
+     "stateFrom": [
+      "matchMedia orig=rewrite",
+      "matchMedia =Lean",
+      "matchMedia legacy text",
+      "gap (Lean gap_iff)"
+     ]
+    },
+    "playwright-webkit": {
+     "achieved": false,
+     "cell": "fractional-gaps-1000.5",
+     "deviations": {
+      "orig": [
+       "width"
+      ],
+      "rewrite": [
+       "width"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "evidence": {
+      "bad": [],
+      "ok": true,
+      "records": 39
+     },
+     "gap": {
+      "orig": {
+       "mediaWidth": 1001,
+       "n": 1000,
+       "neither": false,
+       "ok": false,
+       "widthOk": false
+      },
+      "rewrite": {
+       "mediaWidth": 1001,
+       "n": 1000,
+       "neither": false,
+       "ok": false,
+       "widthOk": false
+      }
+     },
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1001,
+       "mediaWidth": 1001,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1001
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1001,
+       "mediaWidth": 1001,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1001
+      }
+     },
+     "mechanism": "none: WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d); Playwright has no zoom, fractional DPR gives whole px",
+     "reach": "unreachable",
+     "rows": {
+      "engine.scroll": "pass",
+      "gap (Lean gap_iff)": "fail",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "not-comparable",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "state": "unreachable"
+    }
+   },
+   "id": "fractional-gaps-1000.5",
+   "kind": "fractional"
+  }
+ ],
+ "counts": {
+  "chromium:pass": 8,
+  "playwright-webkit:unreachable": 8
+ },
+ "evidenceSizes": {
+  "cross": 27,
+  "fractional": 39
+ },
+ "genSha256": "753ceac1f3f627dce3c758a21fac184d8f75d89eda586caf75cf2aafbec68799",
+ "schema": "fw.gate-breakpoints.gaps/1",
+ "simulatorCheck": {
+  "ipad": {
+   "checks": [
+    {
+     "detail": "2 records",
+     "id": "W whole media width, no gap",
+     "ok": true
+    },
+    {
+     "detail": "2 records",
+     "id": "X pointer facts equal the Simulator",
+     "ok": true
+    },
+    {
+     "detail": "0 records compared",
+     "id": "S equal to the Simulator at the same width",
+     "ok": true
+    },
+    {
+     "detail": "0 compared, 2 without a vector",
+     "id": "L equal to Lean where a vector exists",
+     "ok": true
+    }
+   ],
+   "informative": {
+    "fractionalVv": [],
+    "withoutLeanVector": [
+     "#0",
+     "#0"
+    ]
+   },
+   "pass": true
+  },
+  "iphone": {
+   "checks": [
+    {
+     "detail": "2 records",
+     "id": "W whole media width, no gap",
+     "ok": true
+    },
+    {
+     "detail": "2 records",
+     "id": "X pointer facts equal the Simulator",
+     "ok": true
+    },
+    {
+     "detail": "2 records compared",
+     "id": "S equal to the Simulator at the same width",
+     "ok": true
+    },
+    {
+     "detail": "2 compared, 0 without a vector",
+     "id": "L equal to Lean where a vector exists",
+     "ok": true
+    }
+   ],
+   "informative": {
+    "fractionalVv": [],
+    "withoutLeanVector": []
+   },
+   "pass": true
+  }
+ }
+}
