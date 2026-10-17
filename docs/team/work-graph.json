@@ -2481,7 +2481,8 @@
     "lean/Fw/Obs/Wire.lean",
     "lean/Fw.lean",
     "packages/contracts/golden/obs/**"
-   ]
+   ],
+   "evidence": "9542ad1"
   },
   {
    "id": "obs-next-glue",
