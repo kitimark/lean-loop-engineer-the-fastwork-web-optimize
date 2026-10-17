@@ -39,8 +39,12 @@ if (new Set(ids).size !== ids.length) { console.error('duplicate probe ids in th
 if (probes.length !== gen.matrix.loadsPerEngine) { console.error(`gen says ${gen.matrix.loadsPerEngine} loads, file has ${probes.length}`); process.exit(1); }
 
 const runIds = scopeIds ?? ids;
-const shards = Array.from({ length: n }, () => []);
-runIds.forEach((id, i) => shards[i % n].push(id));
+// A scoped run keeps the full run's shard size (ceil(124 / n) probes) instead of spreading a few probes over n runners:
+// each runner pays its own setup, and the sweeps job bounds the wall clock anyway. The full matrix still uses n shards.
+const per = Math.ceil(ids.length / n);
+const m = Math.max(1, Math.min(n, Math.ceil(runIds.length / per)));
+const shards = Array.from({ length: m }, () => []);
+runIds.forEach((id, i) => shards[i % m].push(id));
 
 // Re-implement the CLI filter only to verify it (the real filter is in packages/gate-breakpoints/src/run.mjs).
 const picked = (list) => probes.filter((p) => list.some((o) => p.id.includes(o) || p.block === o)).map((p) => p.id);
