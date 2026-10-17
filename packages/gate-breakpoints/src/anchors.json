@@ -107,6 +107,25 @@
         { "role": "cue", "orig": ".hero-track .hero > button.scroll-cue", "rewrite": "[data-fw=\"hero-exit\"] > div > button", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["transform", "top", "bottom", "right"],
           "why": "content-sized (the original has an icon, the rewrite only a label): translate(-50%) is a fraction of its own width, and the auto side of top/bottom/right is a used value from its own size"}
       ]
+    },
+    "morph.columns": {
+      "anchors": ["morph-columns"],
+      "cites": ["snapshot 2.gBuqKVzi.css:10559-10607 (backdrop, col, track, img, keyframes)", "10812-10825 (reduced motion)", "10983-10988 (<=640)", "2.DyWL8TcE.js:12887-12935 (column data), 13125-13152 (markup)", "the original mounts the panel only after the platform section nears the viewport (IntersectionObserver, 200% margin, 13080-13089); run.mjs scrolls the original there and back before collecting these roles (ORIG_PREPARE)"],
+      "excluded": [
+        { "what": "the panel, pill, veil, centre content, countdown", "why": "owned by morph.panel, morph.countdown, morph.mount and morph.tween" },
+        { "what": "column and image widths, column heights, x and y", "why": "the host differs: the original backdrop fills the nav pill (a JS-driven box), the rewrite has a fixed 320px stage; heights of the tracks and images are the part's own and are compared" },
+        { "what": "image pictures (src)", "why": "placeholder 1x1 images; the box height comes from the inline height, which both arms set" }
+      ],
+      "roles": [
+        { "role": "backdrop", "orig": ".start-selling-morph-backdrop", "rewrite": "[data-fw=\"morph-columns\"] > div", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["left", "right"],
+          "why": "inset: 0 -3% resolves left and right against the host width (a pill in the original, the stage in the rewrite); opacity, gap and the flex row are the part's own" },
+        { "role": "col", "orig": ".start-selling-morph-col", "rewrite": "[data-fw=\"morph-columns\"] > div > div", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["transform"],
+          "why": "translateY(var(--col-offset)) is a percentage of the column's own height, which is the host height; display (none from the 4th column at <=640) and flex are compared" },
+        { "role": "track", "orig": ".start-selling-morph-col-track", "rewrite": "[data-fw=\"morph-columns\"] > div > div > div", "boxRel": null, "dims": ["h"], "skipSets": ["layoutDerived"], "skipProps": ["transform"],
+          "why": "transform is the marquee (paused at rest in both arms, but the original's start phase is not pinned); animation-* longhands are skipped for every part by the style skipPrefixes (the keyframes name is hashed in the rewrite); will-change is compared. Height is the sum of the image heights and gaps, times 0.96: the original panel is scale(0.96) at morph 0, which the rewrite stage restates as a stand-in" },
+        { "role": "img", "orig": ".start-selling-morph-col img", "rewrite": "[data-fw=\"morph-columns\"] img", "boxRel": null, "dims": ["h"], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "width is the column's share of the host; the height is inline in both arms" }
+      ]
     }
   }
 }
