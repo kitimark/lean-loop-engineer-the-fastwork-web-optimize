@@ -1,5 +1,6 @@
 import Fw.Engine.Core
 import Fw.Engine.Visual
+import Fw.Engine.Chromium
 /-!
 # The engine model (PLAN §4.7): shared core and the visual observable
 
