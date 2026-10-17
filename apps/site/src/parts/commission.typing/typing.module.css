@@ -1,0 +1,282 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css): 348-583 the fee visual (scale box, beat, avatar, message, caret,
+   referral card, progress bar, reset state, keyframes), 1066-1071 compact scale box, 1190-1203 and 1206-1209 reduced motion.
+   The media query texts are byte-equal to the generated conditions (media.test.ts). Placeholder pictures only. */
+@layer parts {
+  .scale {
+    --fw-font: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue",
+      "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
+    --visual-scale: 0.8;
+    box-sizing: border-box;
+    width: calc(432px * var(--visual-scale));
+    height: calc(224px * var(--visual-scale));
+    position: relative;
+    overflow: hidden;
+  }
+  .visual {
+    width: 432px;
+    height: 224px;
+    transform: scale(var(--visual-scale));
+    transform-origin: 0 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  .beat {
+    align-items: flex-start;
+    gap: 8px;
+    transition:
+      opacity 0.9s cubic-bezier(0.33, 1, 0.68, 1),
+      transform 0.9s cubic-bezier(0.33, 1, 0.68, 1);
+    display: flex;
+  }
+  .beat.scrollingOut {
+    opacity: 0;
+    transform: translateY(-112%);
+  }
+  .avatar {
+    box-sizing: border-box;
+    background: #fff;
+    border: 2px solid #ffffff4d;
+    border-radius: 999px;
+    flex: none;
+    display: block;
+    position: relative;
+    overflow: hidden;
+  }
+  .avatar.isLarge {
+    opacity: 0;
+    width: 40px;
+    height: 40px;
+    transform: scale(0.35);
+  }
+  .avatar.isLarge.shown {
+    animation: 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards avatar-pop;
+  }
+  .avatar.isSmall {
+    width: 24px;
+    height: 24px;
+  }
+  .avatar img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .stack {
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+    display: flex;
+  }
+  .message {
+    box-sizing: border-box;
+    opacity: 0;
+    background: #dbeafe;
+    border-radius: 4px 24px 24px;
+    flex-direction: column;
+    justify-content: center;
+    width: 305px;
+    height: 48px;
+    padding: 12px 24px;
+    display: flex;
+    transform: translateY(6px);
+  }
+  .message.shown {
+    opacity: 1;
+    transition:
+      opacity 0.28s ease-out,
+      transform 0.28s ease-out;
+    transform: translateY(0);
+  }
+  .message p {
+    color: #171717;
+    font-family: var(--fw-font);
+    text-overflow: clip;
+    white-space: nowrap;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+    overflow: hidden;
+  }
+  .caret {
+    vertical-align: -0.15em;
+    background: #171717;
+    width: 1.5px;
+    height: 1em;
+    margin-left: 1px;
+    animation: 0.9s step-end infinite typing-caret;
+    display: inline-block;
+  }
+  .referral {
+    opacity: 0;
+    filter: blur(8px);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    display: flex;
+  }
+  .referral.shown {
+    opacity: 1;
+    filter: none;
+    transition:
+      opacity 0.48s ease-out,
+      filter 0.48s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .label {
+    color: #2b313b;
+    font-family: var(--fw-font);
+    margin: 0;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+  }
+  .card {
+    box-sizing: border-box;
+    background: #f8fafd40;
+    border: 0.5px solid #e4e8eff7;
+    border-radius: 16px;
+    flex-direction: column;
+    gap: 16px;
+    width: 384px;
+    padding: 24px;
+    display: flex;
+    overflow: hidden;
+    box-shadow: 0 2px 4px #00000014;
+  }
+  .cardRow {
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    display: flex;
+  }
+  .earned {
+    color: #2b313b;
+    height: 48px;
+    font-family: var(--fw-font);
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    display: flex;
+  }
+  .earnedLine {
+    white-space: nowrap;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    display: flex;
+  }
+  .chip {
+    background: #f0f2f4;
+    border-radius: 33px;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding-right: 8px;
+    display: flex;
+  }
+  .amount {
+    align-items: flex-end;
+    gap: 4px;
+    height: 28px;
+    display: flex;
+  }
+  .amount strong {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+  }
+  .amount span {
+    color: #50555e;
+    padding-block: 2px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+  }
+  .percent {
+    color: #2b313b;
+    font-family: var(--fw-font);
+    white-space: nowrap;
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 48px;
+  }
+  .progress {
+    background: #edeef1;
+    border-radius: 999px;
+    width: 100%;
+    height: 12px;
+    overflow: hidden;
+  }
+  .progress > span {
+    box-sizing: border-box;
+    background: linear-gradient(90deg, #0569ff 0%, #ae8eff 50%, #ffcca5 100%);
+    border-radius: 999px;
+    flex-direction: column;
+    height: 100%;
+    padding: 1px 2px 0;
+    display: flex;
+  }
+  .progress i {
+    filter: blur(1.5px);
+    background: #fff;
+    border-radius: 999px;
+    width: 100%;
+    height: 1.2px;
+    display: block;
+  }
+  .visual.resetting :is(.beat, .message, .referral) {
+    opacity: 0;
+    filter: none;
+    transform: none;
+    transition: none !important;
+    animation: none !important;
+  }
+  @keyframes avatar-pop {
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes typing-caret {
+    0%,
+    49% {
+      opacity: 1;
+    }
+    50%,
+    to {
+      opacity: 0;
+    }
+  }
+  @media (width<=1000px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px) {
+    .scale {
+      aspect-ratio: 432/224;
+      width: min(100%, 345.6px);
+      height: auto;
+      padding: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .avatar.isLarge,
+    .avatar.isLarge.shown,
+    .message,
+    .message.shown,
+    .referral,
+    .referral.shown,
+    .beat,
+    .beat.scrollingOut {
+      opacity: 1;
+      filter: none;
+      transition: none;
+      animation: none;
+      transform: none;
+    }
+    .caret {
+      animation: none;
+      display: none;
+    }
+  }
+}

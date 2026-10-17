@@ -46,7 +46,7 @@ def commissionLines : List String :=
      line "exitRaw" [("bottom", rin t), ("h", rin h)] (ratWire (exitRaw t h))]) ++
   (bs.flatMap fun rm => ([0, 0.2, 0.49, 0.5, 0.75, 1] : List Rat).map fun x =>
     line "target" [("reduced", .bool rm), ("x", rin x)] (ratWire (target rm x))) ++
-  (let pairs : List (Rat × Rat) := [(1, 0), (0, 0), (0.5, 0.5), (0.9, 0.2), (1, 1), (0.0005, 0.9995)]
+  (let pairs : List (Rat × Rat) := [(1, 0), (0, 0), (0.5, 0.5), (0.9, 0.2), (1, 1), (0.001, 0.999)]
    let geoms : List (Rat × Rat × Rat) :=
      [(5000, 6000, 1000), (250, 1400, 1000), (0, 1000, 1000), (-200, 700, 1000), (-900, 100, 1000), (60, 400, 800), (800, 1900, 800)]
    pairs.flatMap fun (n, r) => geoms.flatMap fun (t, b, h) => bs.flatMap fun rm => bs.map fun c =>
