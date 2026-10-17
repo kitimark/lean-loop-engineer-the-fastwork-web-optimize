@@ -12,7 +12,7 @@
   },
   {
    "id": "M2",
-   "title": "End-of-page region faithful: 9 parts through the probe-scoped gate, shells elsewhere, bands frozen"
+   "title": "End-of-page region faithful: 9 parts through the probe-scoped gate; shells first, then every section ported in parallel (swap check); bands frozen"
   },
   {
    "id": "M3",
@@ -513,7 +513,7 @@
   },
   {
    "id": "webkit-quiet",
-   "title": "WebKit determinism on an idle runner: is per-step jitter load or engine? (only on GO at C1)",
+   "title": "WebKit determinism on an idle runner: is per-step jitter load or engine? (C1 GO recorded; running as a parallel lane)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
@@ -527,7 +527,7 @@
   },
   {
    "id": "step-align",
-   "title": "Align rewrite and original scroll steps (74 vs 107) so values compare (only on GO at C1)",
+   "title": "Align rewrite and original scroll steps (74 vs 107) so values compare (C1 GO recorded; running as a parallel lane)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
@@ -581,7 +581,7 @@
   },
   {
    "id": "zone-baselines-webkit",
-   "title": "Per-zone baselines for the original, WebKit Simulator, on CI (idle runner) (only on GO at C1)",
+   "title": "Per-zone baselines for the original, WebKit Simulator, on CI (idle runner) (C1 GO recorded; running as a parallel lane)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
@@ -614,7 +614,7 @@
   },
   {
    "id": "vj-vt",
-   "title": "CUT (rev 9): V-j shown; V-t replay and stall-alarm precision (>= 90 %)",
+   "title": "CUT (rev 9): the WebKit half of V-j/V-t; the Chromium half is vj-vt-chromium (rev 9.1)",
    "stream": "measure",
    "milestone": "MX",
    "deps": [],
@@ -813,10 +813,12 @@
   },
   {
    "id": "wktr-ci-lane",
-   "title": "CUT (rev 9): WKTR lane: >= 3 CI runs classed per type, scheduled on demand (workflow_dispatch)",
+   "title": "WKTR lane: >= 3 CI runs classed per type, scheduled on demand (workflow_dispatch) (kept running, rev 9.1; not modelled in the report)",
    "stream": "ci",
-   "milestone": "MX",
-   "deps": [],
+   "milestone": "M3",
+   "deps": [
+    "wktr-local"
+   ],
    "owner": "measure-engineer",
    "writes": [
     ".github/workflows/wktr.yml",
@@ -1007,10 +1009,12 @@
   },
   {
    "id": "webkit-table-regen",
-   "title": "CUT (rev 9): Regenerate the WebKit determinism table with --warmup 1 and load stamps, on CI, before the plan quotes it",
+   "title": "Regenerate the WebKit determinism table with --warmup 1 and load stamps, on CI (runs inside webkit-quiet after the C1 GO; restored rev 9.1)",
    "stream": "measure",
-   "milestone": "MX",
-   "deps": [],
+   "milestone": "M1",
+   "deps": [
+    "webkit-green"
+   ],
    "owner": "measure-engineer",
    "writes": [
     "packages/measure-webkit/README.md"
@@ -1505,7 +1509,8 @@
    "stream": "measure",
    "milestone": "M1",
    "deps": [],
-   "owner": "lead"
+   "owner": "lead",
+   "evidence": "GO (lead, 2026-10-18): webkit-green f03e94b, two consecutive green webkit-sim runs 39048376821 (19 min) and 39050061299 (24 min) on free xcode-27"
   },
   {
    "id": "zone-baseline-lean",
@@ -1569,7 +1574,7 @@
   },
   {
    "id": "shells",
-   "title": "Static shells (Q36) for every section outside the end-of-page region: the original's box height per breakpoint and static text, no drivers; PL1 outer box only",
+   "title": "Static shells (Q36, lands first) for every section outside the end-of-page region: the original's box height per breakpoint and static text, no drivers; PL1 outer box only; each shell is later replaced by its port-<section>",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
@@ -1584,20 +1589,17 @@
   },
   {
    "id": "port-morph",
-   "title": "Port morph.{mount,tween,panel,countdown,columns} faithful (3 h box each) through the probe-scoped gate; with the 4 pilots the 9 end-of-page parts",
+   "title": "Umbrella: the five morph.* ports faithful; closes when port-morph-{mount,tween,panel,countdown,columns} have landed (no work of its own)",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
-    "css-decide",
-    "breakpoint-lint",
-    "verdict-to-lean",
-    "shells"
+    "port-morph-mount",
+    "port-morph-tween",
+    "port-morph-panel",
+    "port-morph-countdown",
+    "port-morph-columns"
    ],
-   "owner": "part-builder",
-   "writes": [
-    "apps/site/src/parts/morph/**",
-    "apps/site/presets/**"
-   ]
+   "owner": "lead"
   },
   {
    "id": "phone-session-2",
@@ -1611,6 +1613,9 @@
    "owner": "lead",
    "devices": [
     "phone"
+   ],
+   "needs": [
+    "device"
    ]
   },
   {
@@ -1622,6 +1627,215 @@
     "math-r10-fix"
    ],
    "owner": "math-reviewer"
+  },
+  {
+   "id": "port-morph-mount",
+   "title": "Port morph.mount faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.mount/**"
+   ]
+  },
+  {
+   "id": "port-morph-tween",
+   "title": "Port morph.tween faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.tween/**"
+   ]
+  },
+  {
+   "id": "port-morph-panel",
+   "title": "Port morph.panel faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.panel/**"
+   ]
+  },
+  {
+   "id": "port-morph-countdown",
+   "title": "Port morph.countdown faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.countdown/**"
+   ]
+  },
+  {
+   "id": "port-morph-columns",
+   "title": "Port morph.columns faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.columns/**"
+   ]
+  },
+  {
+   "id": "port-nav",
+   "title": "Port Top nav (P0) faithful (nav, nav.langMenu); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/nav.langMenu/**"
+   ]
+  },
+  {
+   "id": "port-hero",
+   "title": "Port Hero (P1) faithful (hero, hero.orbit, hero.deck, hero.accent, hero.cue); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/parts/hero.orbit/**",
+    "apps/site/src/parts/hero.deck/**",
+    "apps/site/src/parts/hero.accent/**",
+    "apps/site/src/parts/hero.cue/**"
+   ]
+  },
+  {
+   "id": "port-people",
+   "title": "Port People (P2) faithful (people.card, people.o, people.deck, people.carousel); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/people.card/**",
+    "apps/site/src/parts/people.o/**",
+    "apps/site/src/parts/people.deck/**",
+    "apps/site/src/parts/people.carousel/**"
+   ]
+  },
+  {
+   "id": "port-pain",
+   "title": "Port Pain (P3) faithful (pain, pain.notes); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/pain/**",
+    "apps/site/src/parts/pain.notes/**"
+   ]
+  },
+  {
+   "id": "port-commission",
+   "title": "Port Commission (P4) faithful (commission, commission.typing); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "apps/site/src/parts/commission.typing/**"
+   ]
+  },
+  {
+   "id": "port-platform",
+   "title": "Port Platform (P5) faithful (platform, platform.sweep, platform.glint, platform.entries, platform.stageBg, platform.marquee); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/platform.glint/**",
+    "apps/site/src/parts/platform.entries/**",
+    "apps/site/src/parts/platform.stageBg/**",
+    "apps/site/src/parts/platform.marquee/**"
+   ]
+  },
+  {
+   "id": "port-overlays",
+   "title": "Port Overlays (signup, drawer) faithful (overlays.signup, overlays.drawer); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/overlays.signup/**",
+    "apps/site/src/parts/overlays.drawer/**"
+   ]
+  },
+  {
+   "id": "vj-vt-chromium",
+   "title": "V-j shown and V-t replay / stall-alarm precision (>= 90 %) on the Chromium lane only (the Chromium half of vj-vt, rev 9.1)",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "zone-baselines-chromium"
+   ],
+   "owner": "measure-engineer",
+   "devices": [
+    "ci"
+   ]
   }
  ],
  "deadline": {
@@ -1633,17 +1847,17 @@
    {
     "id": "C1",
     "at": "2026-10-18T11:15:00+07:00",
-    "what": "T+12h: Q34-Q37 answered or defaulted; WebKit Simulator lane GO/NO-GO (webkit-gonogo); refreeze, zone-baseline-lean, store-cirun finished or cut"
+    "what": "T+12h: Q34-Q37 answered or defaulted; WebKit Simulator lane GO/NO-GO (webkit-gonogo); refreeze, zone-baseline-lean, store-cirun finished or cut; WebKit GO recorded (f03e94b)"
    },
    {
     "id": "C2",
     "at": "2026-10-18T23:15:00+07:00",
-    "what": "T+24h: shells + port-morph faithful on Chromium; phone session 1 held"
+    "what": "T+24h: shells + the 5 morph ports faithful on Chromium; section ports running in parallel; phone session 1 held"
    },
    {
     "id": "C3",
     "at": "2026-10-19T23:15:00+07:00",
-    "what": "T+48h: faithful-checks, bands-freeze, experiments decided; phone session 2 held; write-up starts"
+    "what": "T+48h: faithful-checks, bands-freeze, experiments decided; phone session 2 held; write-up starts; any section still a shell is listed in the report"
    },
    {
     "id": "C4",

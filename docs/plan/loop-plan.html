@@ -265,7 +265,7 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
 
 <nav class="toc" aria-label="Sections">
   <div class="scroller">
-    <a href="#rev9">Revision 9</a>
+    <a href="#rev9">Revisions 9 and 9.1</a>
     <a href="#why">Why v2</a>
     <a href="#chat">What the chats showed</a>
     <a href="#loop">The two-speed loop</a>
@@ -285,20 +285,21 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
   <section id="rev9">
     <div class="stack col">
       <span class="eyebrow">What changed</span>
-      <h2>What changed in revision 9: the 3-day frame</h2>
-      <p class="lede">On 2026-10-17 at 23:13 the user decided that the whole experiment may take no more than 3 days from its first commit (931aa35, 2026-10-17 13:15 +0700). The report is due <strong>2026-10-20 13:15 +0700</strong>. Revision 9 cuts the plan to the smallest experiment that still answers the study question, fixes four checkpoints, and names what the user does and when. Revisions 7 and 7.1 (measurement on CI, count classes, WKTR without a rented Mac) are summarised in PLAN.md Appendix D.</p>
+      <h2>What changed in revisions 9 and 9.1: the 3-day frame, then parallel ports</h2>
+      <p class="lede">On 2026-10-17 at 23:13 the user decided that the whole experiment may take no more than 3 days from its first commit (931aa35, 2026-10-17 13:15 +0700). The report is due <strong>2026-10-20 13:15 +0700</strong>. Revision 9 cuts the plan to the smallest experiment that still answers the study question, fixes four checkpoints, and names what the user does and when. Revision 9.1 (2026-10-18, after the user answered Q34-Q36 in chat) records those answers and the WebKit GO, and restructures the work graph so independent work runs at once: five morph ports and seven section ports in parallel, shells first. Revisions 7 and 7.1 are summarised in PLAN.md Appendix D.</p>
     </div>
     <div class="tbl">
       <table>
         <thead><tr><th>Area</th><th>Change</th></tr></thead>
         <tbody>
-          <tr><td class="k">The question</td><td>Does the ported end-of-page region (the 4 pilot parts plus <code>morph.*</code>, 9 parts) do the same per-frame work as the original, and does an optimized arm do less, on Chromium counts and on the phone? Everything outside that region becomes a static shell (Q36) with the original's box heights, so the scroll positions stay honest.</td></tr>
+          <tr><td class="k">The question</td><td>Does the ported end-of-page region (the 4 pilot parts plus <code>morph.*</code>, 9 parts) do the same per-frame work as the original, and does an optimized arm do less, on Chromium counts and on the phone? Everything outside that region ships first as a static shell with the original's box heights, so the scroll positions stay honest; then (rev 9.1, Q36) every section is ported in parallel and replaces its shell once a cheaper swap check passes at every breakpoint.</td></tr>
           <tr><td class="k">Measurement</td><td>Chromium counts exist per virtual frame and per scroll zone (12 zones per run), not per part (measured; conflict A31). The touch-input race is fixed (c38088e): the rewrite is deterministic and the original stable on <code>swipe-touch-v1</code>, 0 wedges in 3 CI runs. Zone sums of the original are stored from CI run 39048702153 (c719d73); the cross-run baseline waits on <code>refreeze</code> and the Lean op <code>measure.zoneBaseline</code>.</td></tr>
-          <tr><td class="k">WebKit</td><td>The Simulator lane gets a go/no-go at checkpoint C1 (2026-10-18 11:15): GO means two consecutive <code>webkit-sim</code> runs completed with the determinism step under 45 minutes. On NO-GO the lane is cut and the phone is the only WebKit truth. No paid runners.</td></tr>
+          <tr><td class="k">WebKit</td><td>The Simulator lane gets a go/no-go at checkpoint C1 (2026-10-18 11:15): GO means two consecutive <code>webkit-sim</code> runs completed with the determinism step under 45 minutes. On NO-GO the lane is cut and the phone is the only WebKit truth. No paid runners. <strong>Outcome (rev 9.1): GO</strong>, recorded from two consecutive green runs (19 and 24 minutes, f03e94b); <code>webkit-quiet</code>, <code>step-align</code> and <code>zone-baselines-webkit</code> now run as parallel lanes.</td></tr>
           <tr><td class="k">Phone</td><td>Two booked sessions of 45 minutes replace calibration: session 1 (2026-10-18, 13:00-23:00) checks the device and the Q33 gaps and swipes original against rewrite; session 2 (2026-10-19, 14:00-23:00) is the blind A/B of the end-of-page arms, 4 vs 4. The model stays <code>uncalibrated</code> (Q37); no coefficient is fitted.</td></tr>
-          <tr><td class="k">Checkpoints</td><td>C1 T+12h (2026-10-18 11:15): questions answered, WebKit decided, tonight's tasks finished or cut. C2 T+24h (23:15): shells and the 9 parts faithful on Chromium, session 1 held. C3 T+48h (2026-10-19 23:15): checks and bands frozen, the decision made, session 2 held, writing starts. C4 T+62h (2026-10-20 13:15): report delivered; text frozen at T+60h. A task past its checkpoint is cut, not extended.</td></tr>
-          <tr><td class="k">Cut</td><td>Porting all 27 other sections (M4 is out of scope), calibration K1-K10, the WKTR CI lane, the device gap check as its own task, the V-j/V-t gates, the WebKit class table, the A/B bench and spawn-guard blocking (Q31/Q32 deferred). Cut tasks sit in milestone MX and are never started. Lean-first is kept for everything that remains.</td></tr>
-          <tr><td class="k">User actions</td><td>Answer Q34-Q37 by 2026-10-18 11:15 or the defaults apply (c, a, shells, uncalibrated); hold the two phone sessions; read the report at T+62h.</td></tr>
+          <tr><td class="k">Checkpoints</td><td>C1 T+12h (2026-10-18 11:15): questions answered, WebKit decided, tonight's tasks finished or cut. C2 T+24h (23:15): shells and the 9 parts faithful on Chromium, section ports running, session 1 held. C3 T+48h (2026-10-19 23:15): checks and bands frozen, the decision made, session 2 held, writing starts; any section still a shell is listed in the report. C4 T+62h (2026-10-20 13:15): report delivered; text frozen at T+60h. A task past its checkpoint is cut, not extended.</td></tr>
+          <tr><td class="k">Cut</td><td>Calibration K1-K10, the WebKit half of the V-j/V-t gates, the A/B bench and spawn-guard blocking (Q31/Q32 deferred), and the full breakpoint gate for all 36 parts (M4). Cut tasks sit in milestone MX and are never started. Rev 9.1 keeps the WKTR CI lane (it was running), the Chromium half of V-j/V-t (<code>vj-vt-chromium</code>) and the device gap check (inside phone session 1), and restores the WebKit class table after the GO.</td></tr>
+          <tr><td class="k">Parallel lanes (rev 9.1)</td><td><code>port-morph</code> is split into <code>port-morph-mount</code>, <code>-tween</code>, <code>-panel</code>, <code>-countdown</code>, <code>-columns</code>, none waiting for shells. One task per remaining section, <code>port-nav</code>, <code>-hero</code>, <code>-people</code>, <code>-pain</code>, <code>-commission</code>, <code>-platform</code>, <code>-overlays</code>, starts when shells land and writes only its own part folders. Limits: 5 macOS CI slots, about 20 Linux jobs, the Mac's load and the lead's review rate, so 6-8 port agents at once. Estimate (inferred): all sections ported by about T+28h to T+32h (2026-10-19 03:15-07:15). Parallelism does not shorten the serial chain faithful-checks, bands-freeze, experiments, phone session 2, write-up.</td></tr>
+          <tr><td class="k">User actions</td><td>Q34 (c), Q35 (a) and Q36 (shells, then parallel ports) answered on 2026-10-18; Q37 stays open with default (a) and is verified by the phone sessions. Hold the two phone sessions; read the report at T+62h.</td></tr>
           <tr><td class="k">Risks</td><td>R34: the deadline is missed; fallbacks are named per checkpoint and a missed item is listed as not done, never hidden. R35: shells hide work the original does elsewhere, so the claim is about the end-of-page zones, not the whole page.</td></tr>
         </tbody>
       </table>
@@ -12877,10 +12878,10 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
           <tbody>
             <tr><td class="k">M0 Bootstrap</td><td><code>fwcore serve</code> behind console-api; the M0 Lean modules agreed in the math view (0 disagree, 0 stale) and every M0 mutant killed (done); the step queue live; the M0 spikes decided.</td></tr>
             <tr><td class="k">M1 Original measured</td><td>Every used Chromium count type signed deterministic or stable (worst class over at least 3 CI runs), with the touch fix checked on CI; 0 sheet mutations on the original; WebKit's deterministic and stable types cover fixtures K1–K9; per-zone baselines per engine on CI; SPK-r passed or a fallback chosen; status replay and stall-alarm precision (≥ 90%) reported.</td></tr>
-            <tr><td class="k">M2 Pilots faithful</td><td>3 parts faithful, each through the breakpoint gate with its unreachable cells checked on a Simulator or device; the breakpoint lint green; PL5 and N3 bands frozen; the user's answers to Q34 and Q35 applied.</td></tr>
-            <tr><td class="k">M3 Calibrated</td><td>Simulator-to-phone count transfer and ranking checked on the phone; WKTR counts on CI; model status per output recorded; <code>@layer mui</code> kept or dropped from K10; first blind feel check scheduled.</td></tr>
-            <tr><td class="k">M4 All parts promoted</td><td>Every part faithful or faithful-with-delta through the full breakpoint gate; Simulator check passed; per-module Lean evidence review.</td></tr>
-            <tr><td class="k">M5 Experiments</td><td>The end-of-page behaviour decided first; the backlog run as flag arms, each known v1 outcome also a postdiction test; G1 reached; agreement measured on ≥ 10 changes.</td></tr>
+            <tr><td class="k">M2 End-of-page region faithful</td><td>The 9 end-of-page parts faithful through the probe-scoped gate; shells first, then every section ported in parallel behind the swap check (rev 9.1); PL5 and N3 bands frozen; Q34 and Q35 applied.</td></tr>
+            <tr><td class="k">M3 Device truth</td><td>Two phone sessions held with their checks recorded; no calibration in v2 (Q37).</td></tr>
+            <tr><td class="k">M4 All parts promoted</td><td>Out of scope for v2 (rev 9): the full breakpoint gate for every part belongs to a later study.</td></tr>
+            <tr><td class="k">M5 Experiments</td><td>The end-of-page decision made on Chromium counts and verified on the phone (blind 4 vs 4).</td></tr>
             <tr><td class="k">M6 Distill</td><td>Write-up material complete; publishing is the user's call.</td></tr>
           </tbody>
         </table>
@@ -12892,18 +12893,18 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
     <div class="stack col">
       <span class="eyebrow">Review</span>
       <h2>Decisions</h2>
-      <p>Everything the user decided on 2026-10-17 is applied, including the 3-day frame (23:13). Open until 2026-10-18 11:15, then the default applies: Q34, Q35, Q36 (shells), Q37 (uncalibrated model). Q32 is deferred past v2.
+      <p>Everything the user decided on 2026-10-17 is applied, including the 3-day frame (23:13). On 2026-10-18 the user answered Q34 (c), Q35 (a) and Q36 (shells first, then every section ported in parallel). Q37 (uncalibrated model) stays open with default (a); Q32 is deferred past v2.
     </div>
     <div class="tbl">
       <table>
         <thead><tr><th>Question</th><th>Status</th><th>Answer</th></tr></thead>
         <tbody>
           <tr><td class="k">Deadline</td><td><span class="chip ok">decided</span></td><td>The whole experiment takes at most 3 days from the first commit; the report is due 2026-10-20 13:15 +0700 (user, 2026-10-17 23:13). No paid CI runners.</td></tr>
-          <tr><td class="k">Q36 Shells</td><td><span class="chip open">open</span></td><td>Sections outside the end-of-page region become static shells with the original's box height per breakpoint and no drivers. Default (a): yes, applies at 2026-10-18 11:15.</td></tr>
-          <tr><td class="k">Q37 Uncalibrated model</td><td><span class="chip open">open</span></td><td>No coefficient is fitted in v2; the report labels the model <code>uncalibrated</code> and the decision rests on Chromium counts plus the phone's blind A/B. Default (a): yes, applies at 2026-10-18 11:15.</td></tr>
+          <tr><td class="k">Q36 Shells, then ports</td><td><span class="chip ok">decided</span></td><td>Sections outside the end-of-page region ship first as static shells with the original's box height per breakpoint, so the page is complete by C2; then every section is ported in parallel, off the critical path, and replaces its shell once it passes a visual check at every breakpoint (PL1 boxes and look parity). The goal is the whole homepage rewritten, identical-looking, with faster animations (user, 2026-10-18).</td></tr>
+          <tr><td class="k">Q37 Uncalibrated model</td><td><span class="chip open">open, default a</span></td><td>No coefficient is fitted in v2; the report labels the model <code>uncalibrated</code> and the decision rests on Chromium counts plus the phone's blind A/B. The user did not pick (a) yet; the default applies and the two phone sessions verify it.</td></tr>
           <tr><td class="k">Q32 A/B bench window</td><td><span class="chip open">deferred</span></td><td>The parallel-work bench (8 blocks, a random labeling out of 70) must run with no agent alive: about 96 minutes plus baselines. Recommended: one evening slot after M0, when no phone session is running.</td></tr>
-          <tr><td class="k">Q34 MUI <code>cssVariables</code></td><td><span class="chip open">open, default c at 2026-10-18 11:15</span></td><td>Turn on MUI's CSS-variables theme for the ported parts? It adds custom properties the original does not have. Recommended: off, so the style-work bound N4 stays within ±10 %.</td></tr>
-          <tr><td class="k">Q35 Dead CSS</td><td><span class="chip open">open, default a at 2026-10-18 11:15</span></td><td>Add the original's unused CSS back as an inert sheet, so the rule count matches? Recommended: no; record the difference as a fixture parameter instead.</td></tr>
+          <tr><td class="k">Q34 MUI <code>cssVariables</code></td><td><span class="chip ok">decided</span></td><td>(c) off: <code>cssVariables: false</code>, so the style-work bound N4 stays within ±10 % (user, 2026-10-18; applied in 7efa3df).</td></tr>
+          <tr><td class="k">Q35 Dead CSS</td><td><span class="chip ok">decided</span></td><td>(a) no inert sheet; the rule-count difference is recorded as a fixture parameter (user, 2026-10-18).</td></tr>
           <tr><td class="k">Q1 Phone sessions</td><td><span class="chip ok">decided</span></td><td>On demand: the user starts a session when an agent asks for one; no fixed windows. The second iPhone stays a free-play device, kept out of measurement.</td></tr>
           <tr><td class="k">Q31 Spawn-guard</td><td><span class="chip ok">decided</span></td><td>Yes, switch to blocking, after three conditions: a liveness feed fills its <code>alive</code>/<code>recent</code> lists, one day of logs shows no wrong refusal, and the A/B bench has run (task <code>spawn-enforce</code>).</td></tr>
           <tr><td class="k">Q33 Unreachable breakpoint cells</td><td><span class="chip ok">decided</span></td><td>A Simulator or device check for both the fractional gaps and the hover × pointer cross. The Lean gate gets an <code>unreachable</code> state, so such a cell can never pass silently.</td></tr>
@@ -12967,7 +12968,7 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
 
 <div class="wrap">
   <footer>
-    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 9; evidence and history in <span class="mono">research/notes/2026/10-17-plan-evidence.md</span>), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
+    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 9.1; evidence and history in <span class="mono">research/notes/2026/10-17-plan-evidence.md</span>), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
     <span>A personal, educational study of the public fastwork.com homepage. Not affiliated with Fastwork.</span>
   </footer>
 </div>

@@ -4,8 +4,8 @@ kind: decision
 title: "v2 loop-engineering experiment: design and plan (for user review)"
 status: review
 created: 2026-10-17
-updated: 2026-10-17
-revision: 9 (the 3-day frame: user decision 2026-10-17 23:13 +0700, report due 2026-10-20 13:15 +0700; end-of-page region only, Chromium inner loop, phone as WebKit truth, four checkpoints, cut list; state at ad5eeea; rev 8 was 54aa9d7)
+updated: 2026-10-18
+revision: 9.1 (parallel implementation: Q34 c, Q35 a, Q36 shells then parallel ports, Q37 open; C1 WebKit GO recorded; one task per morph part and per section port; §10.5 parallel lanes; state at a0b5a1d; rev 9 was 5b57aa4, rev 8 was 54aa9d7)
 authors: [agent:plan-architect]
 topics: [plan, architecture, measurement, lean, parts, agent-teams, styling]
 links:
@@ -59,9 +59,11 @@ Appendix D logs every change.
 **Revision 9 is the 3-day revision.** You decided (2026-10-17, 23:13 +0700; recorded in ad5eeea) that the whole
 experiment may take no more than 3 days, counted from the first commit (931aa35, 2026-10-17 13:15 +0700, MEASURED
 `git log`), so it ends with a report by **2026-10-20 13:15 +0700**. §10 holds the frame: the minimum experiment, the
-engines, four checkpoints with fallbacks, the cut list and what you do when. Open for you: Q34-Q37 by the first
-checkpoint (§12.1) and two phone sessions (§10.3). Work still runs as a dependency graph; the checkpoints are the only
-dates, and each exists because the deadline does.
+engines, four checkpoints with fallbacks, the cut list and what you do when. **Revision 9.1** (2026-10-18 00:15)
+records your answers (Q34 c, Q35 a, Q36 shells first, then every section ported in parallel; Q37 open with default
+a), the C1 WebKit GO, and restructures the graph so independent work runs at once (§10.5). Open for you: Q37
+(§12.1) and two phone sessions (§10.3). Work still runs as a dependency graph; the checkpoints are the only dates,
+and each exists because the deadline does.
 
 **Status words.** CONFIRMED = a note cites a source, doc or v1 record for it, or it was checked on this Mac today.
 INFERRED = a design choice or expectation that a spike or measurement must still check. MEASURED = a number from a
@@ -87,6 +89,7 @@ run in this repo, with its commit. Targets and thresholds are proposals until yo
 | **tier T0 … T3** | v1's pixel-difference tiers | §6.6 |
 | **K1 … K10** | calibration fixture pages: K1-K9 WebKit [04 §9]; K10 sheet mutation, both engines [09.03 §5.2] | §4.4 |
 | **R1 … R35** | risks | §11 |
+| swap check | the check a section port passes to replace its shell: PL1 boxes + look tier at every breakpoint, one part, Chromium on CI; cheaper than the full gate | §10.5 |
 | task ids (`class-freeze`, `port-morph` …) | tasks in `docs/team/work-graph.json`; a task id is also the agent name and the console card id | §10.4 |
 | stages | question → build → screen → review → (device) → land, always written as words; derived from evidence events, never set by hand (§9.2) | §9 |
 
@@ -137,11 +140,12 @@ generated page (§5.3).
   counts are deterministic; every style, layout and compositing count is quarantined (`packages/measure-wktr/README.md`).
 - **Breakpoint gate:** green; a part's probe scope cuts its gate to 10.8 job-minutes (`gate-probe-scope`); the gaps
   lane reaches 8 of 8 cells in Chromium, and WebKit's cells are `unreachable` as the Lean model predicts (Q33).
-- **Waiting on you:** Q34 and Q35 (`css-decide`); phone session 1 (on demand).
+- **Waiting on you:** phone session 1 (on demand); Q37 only if you want something other than the default (a).
 
 **The 3-day frame (rev 9; the full argument is §10).** The minimum experiment that still answers the study's question
 is the **end-of-page region**: the 4 pilot parts already built plus the 5 `morph.*` parts, ported `faithful` through
-the breakpoint gate; every other section ships as a static **shell** of the original's height (Q36). The inner loop
+the breakpoint gate; every other section ships first as a static **shell** of the original's height, then is ported
+`faithful` in parallel and replaces its shell once a cheaper swap check passes (Q36, §10.5). The inner loop
 is Chromium counts on CI; the iPhone is the WebKit truth in two booked sessions; the Simulator lane joins only if it
 is green at T+12h. The experiment is v1's end-of-page decision as flag arms, screened by the proved dominance rule
 (§4.3) and verified by your finger (blind 4 vs 4, §5.1). Checkpoints: T+12h WebKit go/no-go, T+24h region faithful
@@ -637,8 +641,9 @@ roots) are listed in each part's `parity.json` wrapper map, which PL0/PL1 and N3
 **Experiment parts** (the full backlog): `morph.*`, `people.*` (reveal and deck), avatars, `engine.scroll` and
 `nav.hitTest` (scroll-engine reads), `hero.countdown`; only these need full work parity (PL5-PL6). **Rev 9 scope
 (§10.1):** the 9 end-of-page parts (`engine.scroll`, `hero.countdown`, `hero.exit`, `nav.hitTest`, `morph.{mount,
-tween, panel, countdown, columns}`) are ported `faithful`; every other section is a static shell (Q36); `people.*`,
-avatars and the rest of the backlog are out of scope for v2.
+tween, panel, countdown, columns}`) are ported `faithful` through the gate; every other section is a shell first,
+then ported `faithful` in parallel behind the swap check (Q36, §10.5); the `people.*` reveal experiments, avatars
+and the rest of the experiment backlog are out of scope for v2.
 
 Dead CSS (about half of the Platform section's animation CSS never runs [02 §2.6]) is not ported as live rules.
 Whether `faithful` adds it back as an **inert stylesheet** with the same rule count is **open (Q35)**. The
@@ -1034,7 +1039,7 @@ device time, tool bugs and elapsed time (§1). Every item below is the smallest 
 | Piece | Rev 8 design | Rev 9 (3 days) | Why this is enough |
 |---|---|---|---|
 | Parts ported `faithful` | all ~36, each through the full breakpoint gate (M4) | **the end-of-page region**: the 4 pilots (`engine.scroll`, `hero.countdown`, `hero.exit`, `nav.hitTest`) plus `morph.{mount, tween, panel, countdown, columns}`, 9 parts through the probe-scoped gate (10.8 job-min each, MEASURED `gate-probe-scope`) | v1's decision and all of its measured effect sit in the end-of-page zones; the pilots are built and the scroll engine is shared |
-| Every other section | ported, look parity PL0-PL3 | a static **shell**: the original's box height per breakpoint, static text, no gate (Q36) | the scroll zones y00000 … y04500 keep the original's geometry, so zone sums stay comparable; a shell does no per-frame work, which the faithful check on the end-of-page zones sees and reports |
+| Every other section | ported, look parity PL0-PL3 | **shells first** (the original's box height per breakpoint, static text, no gate), **then ported `faithful` in parallel** off the critical path; a port replaces its shell when the swap check passes (Q36, §10.5) | the shells make the page complete by C2, so zone sums compare; the ports give you the whole homepage rewritten and identical-looking with faster animations, which is your stated goal; any section still a shell at C3 is listed in the report |
 | Inner loop | Chromium + WebKit Simulator counts on CI | **Chromium counts on CI** (green, A and R side by side); the Simulator lane only if it passes the T+12h go/no-go (§10.2) | Chromium is deterministic per type and already stores zone sums; the Simulator lane has failed every run under host load 401-836 (MEASURED `10-17-sim-speed.md`) and paid runners are out |
 | WebKit truth | Simulator counts + WKTR counts + a calibrated phone model (M3) | **the iPhone itself** in two booked sessions (§10.3); WKTR not modelled (only `renderingUpdates` and `layerFlushes` are deterministic, MEASURED `packages/measure-wktr/README.md`) | with two sessions no model can be calibrated (5-10 needed, INFERRED [FR §1.8]); the phone can still verify one decision directly, and that is the claim we make |
 | Cost model | K1-K10 fits, licence per change class | **stays `uncalibrated`** (Q37); the proved dominance screen (`Fw/Spec/Screen`: every count type ≤, at least one <) and the 4 vs 4 verdict (`Fw/Spec/Verdict`, 1/70) decide | class W needs no coefficients (§9.2); it needs counts and a proof that the comparison rule is sound, which exist |
@@ -1045,9 +1050,9 @@ device time, tool bugs and elapsed time (§1). Every item below is the smallest 
 
 | Checkpoint | Local time | Must be true | Fallback if not |
 |---|---|---|---|
-| **C1 WebKit go/no-go** | **T+12h = 2026-10-18 11:15** | **GO** only if two consecutive `webkit-sim` runs on `ci/webkit-green` completed with their determinism step in ≤ 45 min each (healthy job 33-43 min, CONFIRMED `handoffs/ci-webkit.md`). Also: the cross-run Chromium zone baseline exists (`measure.zoneBaseline` + `refreeze`); `shells` and `port-morph` started; Q34-Q37 answered or their defaults applied | **NO-GO**: `webkit-quiet`, `zone-baselines-webkit` and `step-align` move to MX; WebKit truth is the phone only; no further agent time on the Simulator lane |
-| **C2 Region faithful** | **T+24h = 2026-10-18 23:15** | M1 closed (Chromium only if NO-GO); M2: the 9 parts `faithful` through the gate, `faithful-checks` green on zones y04000/y04500/tail in Chromium, PL5 and N3 bands frozen; phone session 1 held | a part past its 3 h time box lands `faithful-with-delta` with the delta named; no session → session 1's checks move into session 2 and the report says so |
-| **C3 Decision** | **T+48h = 2026-10-19 23:15** | M5: the three arms screened on counts (dominance per zone); phone session 2 held: blind A/B, 4 vs 4, the feel metric (§4.6) per arm; the verdict recorded by `fwcore` | no session → a counts-only decision, reported as class W without device truth (a stated gap, not a hidden one) |
+| **C1 WebKit go/no-go** | **T+12h = 2026-10-18 11:15** | **GO** only if two consecutive `webkit-sim` runs on `ci/webkit-green` completed with their determinism step in ≤ 45 min each (healthy job 33-43 min, CONFIRMED `handoffs/ci-webkit.md`). Also: the cross-run Chromium zone baseline exists (`measure.zoneBaseline` + `refreeze`); `shells` and the morph ports started; Q34-Q37 answered or their defaults applied. **Outcome: GO** (lead, 2026-10-18; `webkit-green` f03e94b: runs 39048376821 in 19 min and 39050061299 in 24 min, MEASURED); `webkit-quiet`, `step-align` and `zone-baselines-webkit` run as parallel lanes | **NO-GO** (not taken): `webkit-quiet`, `zone-baselines-webkit` and `step-align` move to MX; WebKit truth is the phone only; no further agent time on the Simulator lane |
+| **C2 Region faithful** | **T+24h = 2026-10-18 23:15** | M1 closed (Chromium only if NO-GO); M2: shells landed and the 9 parts `faithful` through the gate, `faithful-checks` green on zones y04000/y04500/tail in Chromium, PL5 and N3 bands frozen; section ports running (§10.5); phone session 1 held | a part past its 3 h time box lands `faithful-with-delta` with the delta named; no session → session 1's checks move into session 2 and the report says so |
+| **C3 Decision** | **T+48h = 2026-10-19 23:15** | M5: the three arms screened on counts (dominance per zone); phone session 2 held: blind A/B, 4 vs 4, the feel metric (§4.6) per arm; the verdict recorded by `fwcore`; every section port landed or listed as still a shell | no session → a counts-only decision, reported as class W without device truth (a stated gap, not a hidden one) |
 | **C4 Report** | **T+62h = 2026-10-20 13:15** | M6: report published; math view 0 disagree, 0 stale (`math-final` by T+52h); `fw usage` totals per milestone in the report | nothing: the deadline is yours; what is not in the text at T+60h is listed as "not done" |
 
 **Gates, retargeted.** M0 closes with `mutant-ids-stable` (non-blocking after C1). **M1** = Chromium zone baselines
@@ -1057,20 +1062,24 @@ calibrated model). **M4** = **out of scope for v2** (all parts promoted; nothing
 = the end-of-page decision made and verified. **M6** = report by the deadline. The `faithful` rule per part is
 unchanged (§6.6); the waiver is only that shells need no gate (Q36).
 
-**Critical path (INFERRED, rev 9).** `css-decide` → `port-morph` (with `shells`) → `faithful-checks` →
-`bands-freeze` → `experiments` → `phone-session-2` → `write-up`. The Chromium baseline chain (`refreeze`,
-`zone-baseline-lean`, `zone-baselines-chromium`) runs beside it and must finish before `faithful-checks`. WebKit is
-off the critical path by construction; its lane either joins at C1 or is cut.
+**Critical path (INFERRED, rev 9.1).** `css-decide` (done) → the five `port-morph-*` tasks (in parallel; the
+slowest one sets the pace) → `faithful-checks` → `bands-freeze` → `experiments` → `phone-session-2` → `write-up`.
+The Chromium baseline chain (`refreeze`, `zone-baseline-lean`, `zone-baselines-chromium`) runs beside it and must
+finish before `faithful-checks`. `shells` and the section ports (§10.5) are off the critical path. The WebKit lane
+joined at C1 (GO) and stays off the path. **Parallelism does not shorten this serial chain**; it only makes sure
+nothing else waits behind it.
 
 ### 10.3 What you do, and when
 
 | When (local) | What | Why it is you |
 |---|---|---|
-| by T+12h (2026-10-18 11:15) | answer **Q34, Q35, Q36, Q37** (§12.1), or let the defaults (c, a, shells, uncalibrated) apply | they fix the CSS and the scope every part is built against |
-| **session 1**, 45 min, between 2026-10-18 13:00 and 23:00 | `fw device check` (one get-ready step); the Q33 gap probe (was `gap-device`); original vs rewrite swipes A/A and A/R with frames > 50 ms recorded | the real engine; the only WebKit truth if C1 is NO-GO |
+| done 2026-10-18 00:15 | you answered **Q34 (c), Q35 (a), Q36 (shells, then parallel ports)**; Q37 stays open with default (a), and the phone sessions verify it | they fix the CSS and the scope every part is built against |
+| **session 1**, 45 min, between 2026-10-18 13:00 and 23:00 | `fw device check` (one get-ready step); the Q33 gap probe (`gap-device`, run inside the session); original vs rewrite swipes A/A and A/R with frames > 50 ms recorded | the real engine; the only WebKit truth if C1 is NO-GO |
 | **session 2**, 45 min, between 2026-10-19 14:00 and 23:00 | blind A/B of the end-of-page arms, 4 vs 4, in your swipe (§4.6) | the claim of the report is checked by your finger |
 | optional session 3, 2026-10-20 09:00-11:00 | a repeat of any block that was refused (thermal class change, link loss) | only if session 2 left a hole |
 | at T+62h | read the report; it is yours to publish or not (M6) | your study |
+
+**Device tasks (`needs: ["device"]`, marked by `device-lane-lean`; each needs the iPhone and you).** `q1-phone`: decided. `gap-device` (the Q33 gap probe): ready when `gap-harness` lands; run in session 1. `phone-session-1`: ready when `gap-harness` and `shells` land (window above). `swipe-baseline` (original vs rewrite swipes on the phone) and `gap-light` (a shorter gap probe): defined by `device-lane-lean`, ready as it says (INFERRED names). `phone-session-2`: ready when `experiments` is screened (window above). `calibration`: cut (Q37).
 
 A session is booked by a console step; the lead posts the ready step when the device work is queued (Q1). Keep the
 second iPhone for free play; it is not part of any measurement.
@@ -1081,27 +1090,61 @@ second iPhone for free play; it is not part of any measurement.
 
 | Task | Reason |
 |---|---|
-| `port-parts` | replaced by `port-morph` + `shells` (§10.1): 27 ported sections do not fit, and the decision does not need them |
+| `port-parts` | replaced by `shells` + one `port-<section>` task per section behind the swap check (§10.5); the full breakpoint gate for all 36 parts (M4) does not fit |
 | `calibration` | two sessions cannot calibrate K1-K10 (Q37); replaced by the direct checks in `phone-session-1/2` |
-| `wktr-ci-lane`, `wktr-readme-fix` | WKTR gives two deterministic harness counts and no engine count; it would model nothing in 3 days |
-| `gap-device` | folded into `phone-session-1` as the Q33 gap probe |
-| `vj-vt` | V-j and V-t stay reported from the Chromium baseline runs, not gated; the stall-alarm precision is reported, not required |
-| `webkit-table-regen` | a WebKit class table is only meaningful on a lane that passes (C1) |
+| `wktr-readme-fix` | trivial or not at all; `wktr-ci-lane` is **kept** (rev 9.1: it was running, so it finishes; its counts are reported, not modelled) |
+| `vj-vt` (WebKit half) | the Chromium half is kept as `vj-vt-chromium` (rev 9.1): V-j shown and V-t replay precision from the Chromium baseline runs |
 | `ab-bench`, `spawn-enforce` | Q31/Q32 deferred: a 96-minute no-agent window does not exist in a 3-day frame |
-| `webkit-quiet`, `zone-baselines-webkit`, `step-align` | **conditional**: stay until C1, cut on NO-GO |
+| `webkit-quiet` (with `webkit-table-regen`), `zone-baselines-webkit`, `step-align` | were conditional on C1; **C1 was GO**, so they run as parallel lanes (rev 9.1) |
 
 **Kept running (started tonight, finish or cut at C1):** `refreeze` and `zone-baseline-lean` (the cross-run zone
 baseline, needed by `faithful-checks`), `store-cirun` (Lean op for `fw ci`), `ci-paths-guard` (saves macOS slots),
-`mutant-ids-stable` (non-blocking; finishes or stops at C1), `webkit-green` (until C1).
+`mutant-ids-stable` (non-blocking; finishes or stops at C1), `webkit-green` (done, f03e94b), `wktr-ci-lane`.
+`gap-device` is not cut: it runs inside `phone-session-1` as the Q33 gap probe.
 
-**Added:** `webkit-gonogo` (lead, M1, C1 decision), `zone-baseline-lean` (lean-prover, M1), `shells`
-(part-builder, M2), `port-morph` (part-builder, M2, after `css-decide`, `breakpoint-lint`, `verdict-to-lean`,
-`shells`), `phone-session-2` (lead, M5, after `experiments`), `math-final` (math-reviewer, M6).
+**Added (rev 9):** `webkit-gonogo` (lead, M1, C1 decision), `zone-baseline-lean` (lean-prover, M1), `shells`
+(part-builder, M2), `phone-session-2` (lead, M5, after `experiments`), `math-final` (math-reviewer, M6).
+**Added (rev 9.1):** `port-morph-{mount, tween, panel, countdown, columns}` (part-builder, M2, each after
+`css-decide`, `breakpoint-lint`, `verdict-to-lean`; **not** after `shells`), `port-{nav, hero, people, pain,
+commission, platform, overlays}` (part-builder, M2, each after `shells`, `part-anchors`, `css-decide`),
+`vj-vt-chromium` (measure-engineer, M1). `port-morph` stays as an umbrella that closes when its five ports land, so
+the tasks behind it keep their dependency.
 **Re-wired:** `faithful-checks` no longer waits for WebKit; `experiments` waits for `port-morph`, `faithful-checks`
 and `bands-freeze`; `write-up` waits for `experiments`, `phone-session-2` and `math-final`; `phone-session-1` waits
-for `gap-harness` and `port-morph`. Lean-first holds for everything that remains: `zone-baseline-lean`,
+for `gap-harness`, `port-morph` and Q1 in the graph; rev 9.1 asks the lead to drop `port-morph` there (session 1
+swipes whatever has landed) when `device-lane-lean` lands its device marks on the phone tasks. Lean-first holds for everything that remains: `zone-baseline-lean`,
 `store-cirun`, `verdict-to-lean` and the frozen classes are the Lean ops the remaining tasks run through; a TS
 stand-in is listed in the task's report (R32).
+
+### 10.5 Parallel lanes (rev 9.1): what runs at once
+
+**Each task writes only its own files.** A morph port writes `apps/site/src/parts/morph.<x>/**`; a section port
+writes the directories of its parts (listed in the graph); the registry, presets and shared styles are merged by the
+lead. A section port **replaces its shell when the swap check passes**: `gate-breakpoints --parts <id>` restricted to
+PL1 boxes (every breakpoint, both arms) plus the V-g look tier (T1 screenshots at each stop), Chromium on CI, verdict
+from `Fw/Gate` (`verdict-to-lean`). It is cheaper than the full gate because it runs one part (the `--parts` filter,
+`gate-part-filter`) and no work-parity probes (PL5/PL6); the 9 end-of-page parts still take the full probe-scoped
+gate. The original's section list is [02 §2]: P0 nav, P1 hero, P2 people, P3 pain, P4 commission, P5 platform, P6
+morph (end-of-page), plus the overlays.
+
+| Lane | Tasks (at once) | Starts when | Limit that binds |
+|---|---|---|---|
+| morph ports (critical path) | `port-morph-mount`, `-tween`, `-panel`, `-countdown`, `-columns` | now (`css-decide` done; `breakpoint-lint`, `verdict-to-lean` landed) | the slowest port (3 h box each) |
+| shells | `shells` | now | one agent; lands before C2 |
+| section ports (off path) | `port-nav`, `-hero`, `-pain`, then `-people`, `-commission`, `-platform`, `-overlays` | when `shells` lands | lead review rate and Mac load (below) |
+| Chromium baseline | `zone-baselines-chromium`, `vj-vt-chromium`, `store-cirun` | running | ~20 Linux CI jobs; not binding |
+| WebKit (GO) | `webkit-quiet` + `webkit-table-regen`, `step-align`, then `zone-baselines-webkit` | running | **5 macOS CI slots** shared with `wktr-ci-lane` and the gate's WebKit half |
+| Lean / math | `freeze-refuse`, `mutant-ids-stable`, `math-final` later | running | none |
+
+**Limits and estimate (INFERRED unless marked).** GitHub free plan: 5 concurrent macOS jobs, 20 Linux (CONFIRMED,
+GitHub docs; R33), so the swap check runs Chromium on Linux and WebKit only where a macOS slot is free. On the Mac
+each port agent builds `apps/site` and runs tests; the mutation pass drove load to ~500 (R30, MEASURED), so **6-8
+port agents at once** is the working limit, set as much by the lead's review rate (~3-4 landings per hour) as by load.
+12 ports in two waves: wave 1 = the 5 morph ports + `nav`, `hero`, `pain` (3 h box each + a ~10 min swap check +
+review), about 4 h; wave 2 = `people`, `commission`, `platform` (the heaviest [02 §2.6]) and `overlays`, 4-6 h. If
+`shells` lands by T+18h (2026-10-18 17:15), every section is ported by about **T+28h to T+32h** (2026-10-19
+03:15-07:15), well before C3; the morph ports gate `faithful-checks` at about T+22h, which C2 needs. **None of this
+shortens the serial chain** `faithful-checks` → `bands-freeze` → `experiments` → `phone-session-2` → `write-up`.
 
 ## 11. Risks and mitigations
 
@@ -1141,16 +1184,19 @@ stand-in is listed in the task's report (R32).
 | R32 | Lean-first debt grows: TS stand-ins outlive their Lean spec | medium / low | console stand-ins are gone (acc5d83); left: `compositeCuts`, `reduceWindows` in the WebKit harness; agents list stand-ins in every report |
 | R33 | CI capacity: WebKit Simulator runs take 10-38 min and fail under host load 401-836 on the free `xcode-27` runner (MEASURED `10-17-sim-speed.md`); 5 concurrent macOS jobs shared by `xcode-27` and `macos-26` and filled by our own jobs (MEASURED, 56fe6c9); paid runners are out | high / medium | `paths:` filters, stale-run cancel (6723de2) and `ci-paths-guard`; the C1 go/no-go (§10.2) caps the agent time the lane may cost; WebKit truth from the phone; one short local debug run allowed (§4.1) |
 | **R34** | **The 3-day deadline is missed**: a part overruns its box, a phone session is not held, or the write-up starts late | medium / high | checkpoints with named fallbacks (§10.2); a task past its checkpoint is cut, not extended; writing starts at T+48h and the text freezes at T+60h; a missed item is listed as not done, never hidden |
-| **R35** | **Shells hide work the original does** outside the region, so a whole-page comparison of R against A is not like for like | certain / medium | the faithful check and the decision use the end-of-page zones only (§6.6, §10.1); shell zones are reported as such; the report claims the region, not the page (Q36) |
+| **R35** | **Shells hide work the original does** outside the region, so a whole-page comparison of R against A is not like for like | certain / medium | the faithful check and the decision use the end-of-page zones only (§6.6, §10.1); shell zones are reported as such; section ports replace shells as their swap check passes (§10.5), and the report lists what was still a shell at C3 (Q36) |
 
 ## 12. Decisions
 
-### 12.0 Decisions made 2026-10-17
+### 12.0 Decisions made 2026-10-17 and 2026-10-18
 
 | # | Question | Your decision | Applied in |
 |---|---|---|---|
 | — | **Time frame** (23:13 +0700, ad5eeea) | **The whole experiment takes at most 3 days** from the first commit (931aa35, 13:15 +0700), so the report is due **2026-10-20 13:15 +0700**; rev 9 is the plan that fits | §0, §10, G3, R34 |
 | — | **No paid runners or rented Macs** (`10-17-macos-rent.md`) | free GitHub runners only; the Simulator lane gets a go/no-go instead of money (C1) | §4.1, §10.2, R33 |
+| Q34 | MUI `cssVariables` (chat, 2026-10-18 00:15) | **(c) `false`** (`css-decide` done; applied in `apps/site/src/theme.ts`, 7efa3df) | §6.5 S8, N4 |
+| Q35 | The original's dead CSS (same) | **(a) no inert sheet**; the N4 rule-count difference stays a K-fixture parameter | §6.1, §6.7 |
+| Q36 | Shells or ports (same) | **Shells first, then every section ported `faithful` in parallel.** Your goal is the whole homepage rewritten, identical-looking, with faster animations. Shells land first so the page is complete and zone sums compare by C2; each port then replaces its shell once the swap check passes at every breakpoint (§10.5); a section still a shell at C3 is listed in the report | §0, §6.1, §10.1, §10.5, A29 |
 | Q1 | Devices and sessions | **iPhone 15 Pro Max on iOS 27.0.1 (Safari 27); no Android phone.** Chromium stays a development aid (Q8). Phone sessions on demand (rev 7); rev 9 books two (§10.3). The second iPhone stays free-play | §0, §1.2 V-c, §4.1, §4.6, §10.3 |
 | Q2 | Install the Lean toolchain? | **Yes.** elan 4.2.4 and Lean 4.35.0 via Homebrew (CONFIRMED [ENV]); `lean-toolchain` pins `leanprover/lean4:v4.35.0` | §3.2, R11 |
 | Q3 | Repo visibility (1594cd5) | **Public, with history, MIT for our code.** Fastwork approved publishing its compiled site; the snapshot is tracked unmodified. Only you push `main`; agents may push `ci/*` | §5.4, §7.1, §7.3, R10, R29 |
@@ -1173,35 +1219,21 @@ stand-in is listed in the task's report (R32).
 | Q33 | Breakpoint cells the harness cannot reach | **A Simulator or device check for both** the fractional gaps and the hover × pointer cross; the gate has an `unreachable` state. Rev 9: the device check is the Q33 probe in phone session 1 | §6.6, §10.3 |
 | — | Count-type classes (SPK-i) | **Stable types count as totals with margin 2t; the signed class is the worst over ≥ 3 CI runs** (6b4237e; `class-freeze`) | §1.2 V-i, §4.2 |
 
-### 12.1 Open questions for you (answer by T+12h = 2026-10-18 11:15, or the default applies)
+### 12.1 Open questions for you (Q37 only; the default applies at T+12h = 2026-10-18 11:15 unless you say otherwise)
 
-**Q34. MUI `cssVariables` (rule S8).** The theme emits its tokens as `:root` custom properties (`true`) and nothing
-reads them. (a) keep `true`, (b) `true` trimmed to referenced tokens, (c) `false`. **Default c:** only c keeps N4's
-root custom-property count within ±10 % of the original, and `true`'s one measured benefit also holds with `false`
-in MUI 9.5 (INFERRED from code, `10-17-css-decisions.md` Decision 1). Task `css-decide` applies it.
-
-**Q35. The original's dead CSS (§6.1).** Should `faithful` add the never-matching rules back as an inert stylesheet?
-(a) no (today; about +30 % N4 rules over the original), (b) an inert sheet with the original's rule count (about
-+40 %), (c) a sheet sized to equal N4 (impossible: negative rules); percentages INFERRED. **Default a:** MUI's static
-census already puts the rewrite above the original's rule count, and neither engine's per-element matching sees
-unmatched class-keyed rules; the N4 difference stays a K-fixture parameter (same note, Decision 2).
-
-**Q36. Shells instead of ported sections (new, rev 9).** Outside the end-of-page region, every section ships as a
-static shell with the original's box height per breakpoint (§10.1), with no breakpoint gate. This is a waiver of
-"every breakpoint for every part" for v2 only. (a) shells, (b) port the sections but gate only PL1 box heights (adds
-about 27 parts of work; INFERRED not to fit), (c) port everything (rev 8; does not fit 3 days). **Default a.**
-
-**Q37. No calibrated WebKit model in the v2 report (new, rev 9).** With two phone sessions the cost model stays
-`uncalibrated`; the report claims a counts-screened, phone-verified decision, not a model that stands in for the
-phone. (a) accept, (b) spend session 2 on K1-K10 fixtures instead of the blind A/B (then the decision has counts but
-no device truth). **Default a.**
+**Q37. No calibrated WebKit model in the v2 report (rev 9; still open).** You answered Q34-Q36 on 2026-10-18 and did
+not pick (a) here, so Q37 stays open. With two phone sessions the cost model stays `uncalibrated`; the report
+claims a counts-screened, phone-verified decision, not a model that stands in for the phone. (a) accept, (b) spend
+session 2 on K1-K10 fixtures instead of the blind A/B (then the decision has counts but no device truth).
+**Default a**, and the two phone sessions are what verify it: if session 2's blind A/B agrees with the counts, the
+claim holds without a model; if it does not, the report says so.
 
 **Q32 (deferred past v2).** The A/B bench needs a 96-minute no-agent window (`docs/team/parallel-plan.md`); none
 exists in the 3-day frame. Q31's blocking waits with it.
 
 ### 12.2 Defaults we will use unless you object (one line each)
 
-- **Q5 Fidelity:** look + work parity (PL0-PL6) for the 9 end-of-page parts; shells elsewhere (Q36); a 3 h time box per part, then `faithful-with-delta` with the delta named.
+- **Q5 Fidelity:** look + work parity (PL0-PL6) for the 9 end-of-page parts; every other section a shell first, then ported with look parity behind the swap check (Q36, §10.5); a 3 h time box per part, then `faithful-with-delta` with the delta named.
 - **Q6 Parity reference:** the snapshot `b1789284481295-a455e793`; the faithful morph is the original 680 ms scroll-jacked tween; `v1-best` is v1's g0.0m as a preset, its look changes are proposals.
 - **Q7 Device budget:** iPhone 15 Pro Max on iOS 27.0.1; two booked sessions in v2 (§10.3); classes X and P always use the phone; the "5-10 sessions to a licence" rule is for a longer study.
 - **Q8 Chromium's role:** a development aid (counts, mechanism, screening, timing parity), no fitted coefficients; no Android phone.
@@ -1256,7 +1288,7 @@ exists in the 3-day frame. Q31's blocking waits with it.
 | A26 | Where WKTR runs: cloud Mac vs prebuilt on CI | Prebuilt on `macos-26` (`wktr-local`); the cloud Mac out (your decision); in v2 WKTR is not modelled (§10.1) |
 | A27 | Unreachable breakpoint cells | Your Q33: an `unreachable` state, then a Simulator or device check per cell; in v2 the device check is in session 1 |
 | A28 | Where counts are measured: local vs CI | CI (§4.1); local runs are debug only |
-| **A29** | **Every breakpoint for every part (your rule) vs the 3-day frame (your decision)** | **Shells with no gate outside the end-of-page region (Q36), a waiver for v2 only; the rule itself stands and the 9 ported parts pass the full probe-scoped gate.** The deadline is the later decision, and the question does not need the other 27 parts |
+| **A29** | **Every breakpoint for every part (your rule) vs the 3-day frame (your decision)** | **Rev 9.1: shells first, then every section ported in parallel; a port replaces its shell only after a check at every breakpoint (PL1 boxes + look), cheaper than the full gate (§10.5).** The 9 end-of-page parts pass the full probe-scoped gate. The waiver is now only that the other sections skip the work-parity probes, not the breakpoints; the deadline decides the depth, your rule decides the breadth |
 | **A30** | **Rev 8 M3 "calibrated" vs two phone sessions** | **M3 becomes device truth (two sessions, checks recorded); the model stays `uncalibrated` (Q37).** 5-10 sessions were needed for a licence (INFERRED [FR §1.8]); the report claims only what the phone verified |
 | **A31** | **The §3.2 "count vector per (frame, part, zone)" vs what Chromium records** | **Counts exist per frame and per scroll zone only (12 zones); no per-part counts (MEASURED, lead 2026-10-17).** The plan now says so (§3.2, §4.1); per-part attribution would need a probe harness that is out of scope for v2 |
 
@@ -1277,6 +1309,22 @@ study; nothing in the 3-day path waits on it.
 ## Appendix C. (folded into Q17, §12.2, in revision 9)
 
 ## Appendix D. Review log
+
+### Revision 9.1 (parallel implementation; state at a0b5a1d; rev 9 was 5b57aa4)
+
+Task `plan-rev9-1`, by Fable. Your answers in chat (2026-10-18 ~00:15 +0700) and the lead's C1 facts, applied.
+
+| Change | Where |
+|---|---|
+| Q34 = c, Q35 = a (`css-decide` done, evidence "user chat 10-18: Q34 c, Q35 a", applied 7efa3df); Q36 = shells, then parallel ports; Q37 left open with default (a), verified by the phone sessions | §0, §12.0, §12.1, §10.3 |
+| C1 WebKit **GO** recorded (`webkit-green` f03e94b, two green runs in 19 and 24 min); `webkit-quiet` (+ `webkit-table-regen`), `step-align`, `zone-baselines-webkit` run as parallel lanes | §10.2, §10.4, work graph |
+| Graph restructured for parallel work: `port-morph` split into five independent tasks (no shell dependency; `port-morph` kept as an umbrella); one `port-<section>` task per remaining section (nav, hero, people, pain, commission, platform, overlays) after `shells` + `part-anchors`, writing only its own part directories; `vj-vt-chromium` added; `wktr-ci-lane` kept; `gap-device` restored inside `phone-session-1`; `phone-session-1` no longer waits for the morph ports | §10.4, §10.5, work graph |
+| New §10.5: lanes that run at once, the limits (5 macOS slots, ~20 Linux jobs, Mac load, lead review rate, 6-8 port agents), the swap check a port passes to replace its shell, and an INFERRED wall-clock estimate (ports done by about T+28h to T+32h); the serial chain is not shortened | §10.5, §10.1 |
+| A29 restated (breadth from your rule, depth from the deadline); R35 mitigation names the ports; Q5 default; glossary row for the swap check | App A, §11, §12.2, glossary |
+
+**Which way the plan goes.** Rev 9 said shells only; you said shells, then ports. The plan follows you: the
+shells stay because they make C2 comparable, the ports come because the goal is the whole page; neither waits for
+the other, and the report names what is still a shell.
 
 ### Revision 9 (the 3-day frame; state at ad5eeea; rev 8 was 54aa9d7)
 
@@ -1301,13 +1349,9 @@ harness (A31: the harness wins; the text was wrong).
 
 ### Revisions 2 to 8 (item tables in [EV §12] and git history)
 
-Rev 8 (54aa9d7, `plan-cut`): 1,698 → 1,537 lines; evidence tables, history and worked examples moved verbatim to
-[EV]; nothing decided or open dropped. Rev 7.1 (7d564e2): the 15 findings of the rev 7 review applied; frozen
-Chromium classes and the Lean freeze rule; the rewrite on the Chromium CI lane; math review round 8. Rev 7 (d41aef0):
-measure on CI; SPK-i decided (A25); the touch fix on CI; WKTR on GitHub macOS; Q1, Q31, Q33 answered; Q34, Q35
-opened. Rev 6 (e4d9853): the repo public (MIT, snapshot tracked); public CI; token policy and helper roles; the
-cache-TTL rule; spawn-guard in shadow mode; the console M0 core; per-type count classes (A24); 15 review findings
-applied. Rev 5: your requirements (automated console, Lean-first, math view) from `docs/plan/rev5-delta.md`; the
-L1-L3 inventory; breakpoints for every part [11]; the dependency-graph roadmap; Q22-Q30. Rev 4: MUI everywhere with
-Emotion AOT, S1-S13, N0-N5, V-q, K10. Rev 3: the 18 improvements of [08]. Rev 2: the 34 items of [FR].
+Rev 8 (54aa9d7): cut to 1,537 lines, evidence moved to [EV]. Rev 7.1 (7d564e2): rev 7 review applied; frozen
+classes; the rewrite on the Chromium CI lane. Rev 7 (d41aef0): measure on CI; SPK-i decided (A25); WKTR on GitHub
+macOS; Q1, Q31, Q33 answered. Rev 6 (e4d9853): repo public; public CI; token policy; cache-TTL rule; console M0 core;
+per-type classes (A24). Rev 5: console, Lean-first, math view (`rev5-delta.md`); Q22-Q30. Rev 4: MUI everywhere with
+Emotion AOT, S1-S13, N0-N5. Rev 3: the 18 improvements of [08]. Rev 2: the 34 items of [FR].
 
