@@ -6,11 +6,14 @@ import { httpFor, land } from "./land.ts";
 import { renderPlan, syncCommands, type WorkGraph } from "./plan.ts";
 import { readFileSync } from "node:fs";
 import { watchMain } from "./watch.ts";
+import { runCli } from "./run.ts";
 
 const [group, ...rest] = process.argv.slice(2);
 try {
-  const base = apiBase(process.env);
-  if (group === "watch") {
+  const base = group === "run" ? "" : apiBase(process.env); // `fw run` needs no console-api
+  if (group === "run") {
+    process.exitCode = runCli(rest, process.cwd());
+  } else if (group === "watch") {
     process.exitCode = await watchMain(rest, process.cwd());
   } else if (group === "status") {
     const b = await (await fetch(`${base}/api/board`)).json();
