@@ -88,7 +88,35 @@ sockets.
 
 ## Results
 
-See the section appended after the CI runs (stable vs quarantined per count type).
+MEASURED on `macos-26` (image 20261013, 3 CPUs), original page, 104 scroll steps of 50 px, 2 fresh-process passes per job.
+Run 39036983052 (cold only, 3 jobs, 6 passes) and run 39042087508 (3 jobs, 12 passes: cold 6, warm 6). "warm" scrolls the
+page through once first so lazy loads are done (`--warm`; counts files `counts-warm-<p>.json`). Classes are fwcore
+`frames` mode, kMax 4, tMax 24, over all passes of all jobs; the same classes held in each job's own 2 passes.
+
+| count type | class (cold, both runs) | class (warm) | identical steps across 6 passes (cold / warm, of 104) |
+|---|---|---|---|
+| `renderingUpdates` | deterministic | deterministic | 104 / 104 (always 2 per step, i.e. the harness cadence) |
+| `layerFlushes` | deterministic | deterministic | 104 / 104 (2 per step) |
+| `styleRecalcs` | quarantined (k 67-76, t 18-71) | quarantined | 10 / 8 |
+| `styleUpdateSizeSum` | quarantined | quarantined | 7 / 7 |
+| `lastStyleUpdateSize` (raw) | quarantined | quarantined | 30 / 35 |
+| `undercountedRecalcs` | quarantined | quarantined | 10 / 8 |
+| `layoutUpdates` | quarantined | quarantined | 1 / 3 |
+| `compositingUpdates` | quarantined | quarantined | 5 / 10 |
+| `styleInvalidations` | quarantined | quarantined | 48 / 52 |
+
+- **Stable:** only `renderingUpdates` and `layerFlushes`, and they are stable because the harness drives them (one
+  rendering update per animation frame); they say nothing about the page.
+- **Quarantined: everything that reflects the page's style work.** Totals over a pass: `styleRecalcs` 619-694 (about 6
+  per step against 2 rendering updates), `styleUpdateSizeSum` 4800-6500 cold and 8000-10900 warm, `layoutUpdates`
+  527-619. The shape repeats (for example step 34 has 16 recalcs in every pass) but each step jitters by 2 to 3 recalcs
+  and tens of restyled nodes between passes and between jobs.
+- **Warming did not help.** Lazy-load arrival is therefore not the cause; the likely causes are the page's own timers and
+  animations, which the pinned clock (Date and Math.random only) does not freeze. This is INFERRED, not measured.
+- The `attempts` field in each counts file's `meta` records launch retries (the app's GPU process crashed once at launch
+  on a runner in an earlier run, `#CRASHED - com.apple.WebKit.GPU.Development`; the driver now retries up to twice). No
+  retry was needed in 39042087508.
+- Wall time per pass 25-57 s on the runner (not phone time).
 
 ## TS stand-ins (CLAUDE.md "Lean first")
 
