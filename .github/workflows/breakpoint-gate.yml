@@ -19,6 +19,13 @@ on:
         description: Shards per engine (1 to 16)
         type: string
         default: '8'
+      parts:
+        description: >-
+          Pilot parts to check, comma separated (engine.scroll, nav.hitTest, hero.countdown, hero.exit); empty = all.
+          A narrowed run collects and judges only those parts, and its summary names the parts covered and skipped.
+          (Not the pnpm FILTERS of setup-pnpm, which select packages to install.)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -39,6 +46,7 @@ jobs:
     outputs:
       shards: ${{ steps.p.outputs.shards }}
       engines: ${{ steps.p.outputs.engines }}
+      parts: ${{ steps.p.outputs.parts }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -53,6 +61,7 @@ jobs:
         env:
           ENGINES: ${{ inputs.engines || 'both' }}
           SHARDS: ${{ inputs.shards || '8' }}
+          PARTS: ${{ inputs.parts || '' }}
         run: |
           set -euo pipefail
           case "$SHARDS" in ''|*[!0-9]*) echo "shards must be a number" >&2; exit 1 ;; esac
@@ -62,8 +71,12 @@ jobs:
             playwright-webkit) engines='["playwright-webkit"]' ;;
             *) echo "bad engines" >&2; exit 1 ;;
           esac
-          shards=$(node .github/scripts/gate-shards.mjs --shards "$SHARDS")
+          # gate-shards checks the part ids against anchors.json (exit 2 on an unknown id); empty means all parts.
+          parts_args=()
+          if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
+          shards=$(node .github/scripts/gate-shards.mjs --shards "$SHARDS" ${parts_args[@]+"${parts_args[@]}"})
           echo "engines=$engines" >> "$GITHUB_OUTPUT"
+          echo "parts=$PARTS" >> "$GITHUB_OUTPUT"
           echo "shards=$shards" >> "$GITHUB_OUTPUT"
           echo "$engines"
           echo "$shards"
@@ -129,10 +142,14 @@ jobs:
         env:
           ENGINE: ${{ matrix.engine }}
           PROBES: ${{ fromJSON(needs.plan.outputs.shards).probes[matrix.shard] }}
+          PARTS: ${{ needs.plan.outputs.parts }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
-        run: node src/cli.mjs run --engine "$ENGINE" --probes "$PROBES" --sweeps none --concurrency 4 --out out/shard
+        run: |
+          parts_args=()
+          if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
+          node src/cli.mjs run --engine "$ENGINE" --probes "$PROBES" --sweeps none --concurrency 4 ${parts_args[@]+"${parts_args[@]}"} --out out/shard
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gate-${{ matrix.engine }}-${{ matrix.shard }}
@@ -176,10 +193,14 @@ jobs:
       - name: Run the sweeps (no matrix probes)
         env:
           ENGINE: ${{ matrix.engine }}
+          PARTS: ${{ needs.plan.outputs.parts }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
-        run: node src/cli.mjs run --engine "$ENGINE" --probes none --concurrency 4 --out out/sweeps
+        run: |
+          parts_args=()
+          if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
+          node src/cli.mjs run --engine "$ENGINE" --probes none --concurrency 4 ${parts_args[@]+"${parts_args[@]}"} --out out/sweeps
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gate-${{ matrix.engine }}-sweeps

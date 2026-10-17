@@ -1,10 +1,13 @@
 // Splits the breakpoint matrix (Lean-generated apps/site/src/breakpoints.gen.json, 124 loads per engine) into N shards
 // for the CI matrix. Glue only: the probes and their ids come from the gen file; nothing is decided here.
-//   node .github/scripts/gate-shards.mjs [--shards 8] [--gen <path>]
+//   node .github/scripts/gate-shards.mjs [--shards 8] [--gen <path>] [--parts id,...]
 // Prints one JSON object: {"shard":["s0",...],"probes":{"s0":"id,id,...",...}}. Each value is passed to
 // `cli.mjs run --probes <value>`, whose filter is `p.id.includes(o) || p.block === o`; this script checks that the filter
 // picks exactly the assigned ids (so a shard never runs a probe twice or drops one), and that the union is the whole matrix.
 // Round-robin by matrix order, so the cheap and the expensive blocks spread evenly.
+// --parts only validates the part ids against packages/gate-breakpoints/src/anchors.json (exit 2 on an unknown id) and
+// echoes the covered/skipped split to stderr; the plan job passes the same value to `cli.mjs run --parts`, so shards are
+// still cut by probe (every probe is checked for every selected part) and the output JSON is unchanged.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -13,6 +16,15 @@ const arg = (n, d) => { const i = argv.indexOf(`--${n}`); return i < 0 ? d : arg
 const n = Number(arg('shards', '8'));
 const genPath = resolve(arg('gen', 'apps/site/src/breakpoints.gen.json'));
 if (!Number.isInteger(n) || n < 1 || n > 32) { console.error('--shards must be an integer 1..32'); process.exit(2); }
+
+const partsArg = arg('parts', undefined);
+if (partsArg !== undefined) {
+  const known = Object.keys(JSON.parse(readFileSync(resolve('packages/gate-breakpoints/src/anchors.json'), 'utf8')).parts);
+  const want = partsArg.split(',').map((x) => x.trim()).filter(Boolean);
+  const bad = want.filter((x) => !known.includes(x));
+  if (want.length === 0 || bad.length > 0) { console.error(`--parts: ${want.length === 0 ? 'empty list' : `unknown part ${bad.join(', ')}`}; known: ${known.join(', ')}`); process.exit(2); }
+  console.error(`parts covered: ${known.filter((k) => want.includes(k)).join(', ')}; skipped: ${known.filter((k) => !want.includes(k)).join(', ') || 'none'}`);
+}
 
 const gen = JSON.parse(readFileSync(genPath, 'utf8'));
 const probes = gen.matrix.probes;
