@@ -6,7 +6,7 @@ import { httpFor, land } from "./land.ts";
 import { lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { watchMain } from "./watch.ts";
+import { nextMain, watchMain } from "./watch.ts";
 import { runCli } from "./run.ts";
 import { ciCli } from "./ci.ts";
 import { ghBudgetCli } from "@fw/gh-budget";
@@ -14,7 +14,7 @@ import { engineCheckCli } from "./engine-check.ts";
 
 const [group, ...rest] = process.argv.slice(2);
 try {
-  const base = group === "run" || group === "ci" || group === "engine-check" ? "" : apiBase(process.env); // `fw run` needs no console-api
+  const base = group === "run" || group === "ci" || group === "next" || group === "engine-check" ? "" : apiBase(process.env); // `fw run` needs no console-api
   if (group === "engine-check") {
     process.exitCode = engineCheckCli(rest, process.cwd());
   } else if (group === "run") {
@@ -25,6 +25,8 @@ try {
     process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "watch") {
     process.exitCode = await watchMain(rest, process.cwd());
+  } else if (group === "next") {
+    process.exitCode = await nextMain(rest, process.cwd()); // read-only: prints the NEXT list once
   } else if (group === "status") {
     const b = await (await fetch(`${base}/api/board`)).json();
     console.log(renderBoard(b as never));
@@ -76,7 +78,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

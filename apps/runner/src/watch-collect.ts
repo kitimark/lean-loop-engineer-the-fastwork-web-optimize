@@ -43,7 +43,7 @@ export interface SystemSnap {
   load1: number; memPressure: "normal" | "warn" | "critical"; diskFreeGB: number;
   simLock: { holder: string | null; since: number | null };
   docker: { id: string; name: string; startedAt: number }[]; worktrees: number; consolePids: number[];
-  ci: { workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null }[];
+  ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null }[];
   /** floor of the 1-min load average (fwcore compares it with loadMax) */
   loadFloor?: number;
   /** process trees this Claude session started through its Bash tool: root shell pid, the first non-shell program's
@@ -391,6 +391,7 @@ export function parseCi(out: string | null): SystemSnap["ci"] {
   try {
     const arr = JSON.parse(out) as any[];
     return arr.map((r) => ({
+      ...(typeof r.databaseId === "number" ? { id: r.databaseId } : {}), // run id: the `ci` fact of obs.next
       workflow: String(r.workflowName ?? "?"), branch: String(r.headBranch ?? "?"), status: String(r.status ?? "?"),
       conclusion: str(r.conclusion), startedAt: Date.parse(String(r.createdAt)) || 0,
       // a completed run's last update is its end (gh has no endedAt field)
@@ -529,7 +530,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
     exec("docker", ["ps", "--format", "{{.ID}}\t{{.Names}}\t{{.CreatedAt}}"], 3000),
-    exec("gh", ["run", "list", "--limit", "20", "--json", "workflowName,headBranch,status,conclusion,createdAt,updatedAt"], 10000, p.root),
+    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt"], 10000, p.root),
     exec("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], 3000),
   ]);
   // a failed (not missing) gh or docker call keeps the previous value, marked stale, instead of reporting "none":
