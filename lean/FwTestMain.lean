@@ -1,5 +1,6 @@
 import FwTest.Lease
 import FwTest.Golden
+import FwTest.Serve
 import Fw.Measure.Golden
 
 /-- `lake test`: pseudo-random lease traces, golden JSON-lines round trips, the `Rat` wire form,
@@ -9,6 +10,8 @@ def main : IO UInt32 := do
   let a ← FwTest.Golden.consoleApply
   let w ← FwTest.Golden.wire
   let r ← FwTest.Golden.ratRoundTrip
+  let sb := (← FwTest.Serve.boardGolden) + (← FwTest.Serve.serveEquiv)
+  FwTest.Serve.timing
   -- measure.* goldens: regenerated from Lean and compared with packages/contracts/golden/measure/ byte for byte
   let mg ← Fw.Wire.Measure.Golden.run (← FwTest.Golden.root) false
   -- replay timing (informational): 2,000 events through the reducer
@@ -19,6 +22,6 @@ def main : IO UInt32 := do
   let n := (s.cards.filter (·.approved)).length
   let t1 ← IO.monoNanosNow
   IO.println s!"console replay: 2000 events, {n} approved cards, {(t1 - t0) / 1000000} ms"
-  let ok := leaseOk && a == 0 && w == 0 && r == 0 && mg == 0 && n == 1000
+  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && n == 1000
   IO.println (if ok then "fwtest: all passed" else "fwtest: FAILED")
   return if ok then 0 else 1

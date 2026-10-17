@@ -29,6 +29,6 @@ describe("fwcore samples vs zod", () => {
   it("replaying the apply sample through fwcore reproduces its reply", async () => {
     const s = named("console.apply");
     const req = ApplyRequest.parse(s.request);
-    expect(JSON.parse(JSON.stringify(await core.apply(req.state, req.event)))).toEqual(s.response);
+    expect(JSON.parse(JSON.stringify(await core.applyPure(req.state, req.event)))).toEqual(s.response);
   });
 });

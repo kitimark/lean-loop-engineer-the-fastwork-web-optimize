@@ -2,8 +2,9 @@
 import { execFileSync } from "node:child_process";
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { Event, emptyState, type Board, type Command, type CommandReply, type State } from "@fw/contracts";
+import { Event, type Board, type Command, type CommandReply } from "@fw/contracts";
 import type { Core } from "./core/index.ts";
+import { logLines } from "./core/lean.ts";
 
 /** `.fw-console/` lives at the main checkout root, even when run from a worktree. */
 export function consoleDir(cwd = process.cwd()): string {
@@ -14,7 +15,6 @@ export function consoleDir(cwd = process.cwd()): string {
 }
 
 export class Store {
-  state: State = emptyState();
   seq = 0;
   private fd: number;
   private refusedFd: number;
@@ -53,10 +53,9 @@ export class Store {
       if (good.length !== lines.length) writeFileSync(path, good.map((l) => l + "\n").join(""));
     }
     const s = new Store(dir, core, clock);
-    for (const e of s.readEvents()) {
-      s.state = (await core.apply(s.state, e)).state;
-      s.seq = Math.max(s.seq, e.seq);
-    }
+    // fwcore holds the projection: replay the log once now; the core replays it again after any restart
+    await core.open(() => logLines(path));
+    for (const e of s.readEvents()) s.seq = Math.max(s.seq, e.seq);
     return s;
   }
 
@@ -76,22 +75,26 @@ export class Store {
 
   private async submitNow(cmd: Command): Promise<CommandReply> {
     const ts = this.clock();
-    const { state, outcome } = await this.core.apply(this.state, { ...cmd, ts });
+    const { outcome } = await this.core.apply({ ...cmd, ts });
     if (!outcome.accepted) {
       writeSync(this.refusedFd, JSON.stringify({ ts, command: cmd, reason: outcome.reason }) + "\n");
       return { ok: false, reason: outcome.reason };
     }
     if (outcome.duplicate) return { ok: true, seq: null, duplicate: true };
     const seq = this.seq + 1;
-    writeSync(this.fd, JSON.stringify({ ...cmd, seq, ts }) + "\n");
-    fsyncSync(this.fd);
+    try {
+      writeSync(this.fd, JSON.stringify({ ...cmd, seq, ts }) + "\n");
+      fsyncSync(this.fd);
+    } catch (e) {
+      this.core.restart(); // fwcore accepted an event the log does not hold: rebuild it from the log
+      throw e;
+    }
     this.seq = seq;
-    this.state = state;
     for (const l of this.listeners) l();
     return { ok: true, seq, duplicate: false };
   }
 
-  board(): Promise<Board> { return this.core.board(this.state, this.clock(), this.seq); }
+  board(): Promise<Board> { return this.core.board(this.clock(), this.seq); }
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
