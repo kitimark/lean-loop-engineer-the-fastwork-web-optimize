@@ -3503,7 +3503,8 @@
     "lean/scripts/TimingGolden.lean",
     "packages/contracts/golden/obs/timing.jsonl",
     "docs/team/handoffs/timing-small-n.md"
-   ]
+   ],
+   "evidence": "03f90ab"
   },
   {
    "id": "land-test-speed",
