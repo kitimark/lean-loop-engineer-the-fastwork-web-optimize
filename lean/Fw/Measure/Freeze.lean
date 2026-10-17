@@ -86,7 +86,7 @@ theorem Level.rank_worse (a b : Level) : (a.worse b).rank = max a.rank b.rank :=
 /-- The class order is preserved by the levels: a class at most as strict as another has a level of
 at most the same rank.
 
-$$\forall c, c' \in \mathrm{Class}:\ \operatorname{le}(c, c') \;\Rightarrow\; \operatorname{rank}(\operatorname{lvl}(c)) \le \operatorname{rank}(\operatorname{lvl}(c'))$$
+$$\forall c, c' \in \mathrm{Class}:\ c \preceq c' \;\Rightarrow\; \operatorname{rank}(\operatorname{lvl}(c)) \le \operatorname{rank}(\operatorname{lvl}(c'))$$
 -/
 theorem levelOf_mono : ∀ {c c' : Class}, c.le c' = true → (levelOf c).rank ≤ (levelOf c').rank := by
   intro c c' h
@@ -479,7 +479,7 @@ theorem worstOf_refreeze {tbs : List Table} (hne : tbs ≠ []) (ty : String) :
 /-- The class table of one workflow run, as `classifyAllU` decides it (the `measure.classify` reply):
 each type's level, maxima and, for pixel-area types, the gap bound.
 
-$$\operatorname{table}_{p,q}(\mathcal{R}) = \big[\,(\tau,\ (\operatorname{lvl}(c),\ k,\ t,\ \beta_\tau))\,\big]_{(\tau, c, k, t) \in \operatorname{classifyAll}_{p,q}(\mathcal{R})},\quad \beta_\tau = \begin{cases} \operatorname{tBound}_{p,q}(\mathrm{px}, R_\tau) & \operatorname{unit}(\tau) = \mathrm{px} \\ \bot & \operatorname{unit}(\tau) = \mathrm{count} \end{cases},\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
+$$\operatorname{table}_{p,q}(\mathcal{R}) = \big[\,(\tau,\ (\operatorname{lvl}(c),\ k,\ t,\ \beta_\tau))\,\big]_{(\tau, c, k, t) \in \operatorname{classifyAll}_{p,q}(\mathcal{R})},\quad \beta_\tau = \begin{cases} \operatorname{tb}_{p,q}(\mathrm{px}, R_\tau) & \operatorname{unit}(\tau) = \mathrm{px} \\ \bot & \operatorname{unit}(\tau) = \mathrm{count} \end{cases},\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
 -/
 def tableOf (p : Policy) (q : PxTol) (runs : List (List Counts)) : Table :=
   (classifyAllU p q runs).map fun r =>

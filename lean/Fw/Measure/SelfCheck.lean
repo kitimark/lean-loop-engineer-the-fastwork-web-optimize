@@ -498,7 +498,7 @@ theorem gap_le_spread {a b : Int} : ∀ {ts : List Int}, a ∈ ts → b ∈ ts �
 /-- Each row's class is the class of that type's observations (with its GC-bound flag), and its
 `maxDiff`, spread and totals are those observations.
 
-$$\forall \theta,\ \mathcal{R},\ (k, c, \delta, s, T) \in \operatorname{check}_\theta(\mathcal{R}):\ c = \operatorname{cls}_\theta(k \in \theta.\mathrm{gcBound}, o_k) \land \delta = \delta(R_k) \land s = \operatorname{spread}(T) \land T = [\Sigma r]_{r \in R_k},\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}},\ o_k = \operatorname{obs}(R_k)$$
+$$\forall \theta,\ \mathcal{R},\ (k, c, d, s, T) \in \operatorname{check}_\theta(\mathcal{R}):\ c = \operatorname{cls}_\theta(k \in \theta.\mathrm{gcBound}, o_k) \land d = \delta(R_k) \land s = \operatorname{spread}(T) \land T = [\Sigma r]_{r \in R_k},\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}},\ o_k = \operatorname{obs}(R_k)$$
 -/
 theorem check_sound (θ : Thresholds) (runs : List (List Counts)) :
     ∀ row ∈ check θ runs, let rs := runs.map (seriesOf row.type)

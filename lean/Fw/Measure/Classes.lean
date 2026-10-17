@@ -284,7 +284,7 @@ theorem le_obs {rs : List Series} {a b : Series} (ha : a ∈ rs) (hb : b ∈ rs)
 
 /-- The observed maxima are at most any bound that holds for every pair.
 
-$$\forall R, k, t:\ (\forall a, b \in R:\ \operatorname{diff}(a, b) \le k \land \operatorname{gap}(a, b) \le t) \;\Rightarrow\; k(R) \le k \ \land\ t(R) \le t$$
+$$\forall R,\ \forall K, T \in \mathbb{N}:\ (\forall a, b \in R:\ \operatorname{diff}(a, b) \le K \land \operatorname{gap}(a, b) \le T) \;\Rightarrow\; k(R) \le K \ \land\ t(R) \le T$$
 -/
 theorem obs_le {rs : List Series} {k t : Nat}
     (h : ∀ a ∈ rs, ∀ b ∈ rs, diffFrames a b ≤ k ∧ totalGap a b ≤ t) : kObs rs ≤ k ∧ tObs rs ≤ t := by
@@ -504,7 +504,7 @@ deriving Repr, DecidableEq
 
 /-- Classify every count type that occurs in any frame of any run (sorted by name).
 
-$$\operatorname{classifyAll}_p(\mathcal{R}) = \big[\,(k,\ \operatorname{classify}_p(R_k),\ k(R_k),\ t(R_k))\,\big]_{k \in \operatorname{keys}(\mathcal{R})},\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}}$$
+$$\operatorname{classifyAll}_p(\mathcal{R}) = \big[\,(\tau,\ \operatorname{classify}_p(R_\tau),\ k(R_\tau),\ t(R_\tau))\,\big]_{\tau \in \operatorname{keys}(\mathcal{R})},\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
 -/
 def classifyAll (p : Policy) (runs : List (List Counts)) : List ClassRow :=
   (keysOf runs.flatten).map fun k =>
@@ -793,7 +793,7 @@ theorem classifyU_tol_mono (p : Policy) {q q' : PxTol} (hn : q.num ≤ q'.num) (
 /-- Classify every count type that occurs in any frame of any run (sorted by name), each under the
 policy of its unit.
 
-$$\operatorname{classifyAll}_{p,q}(\mathcal{R}) = \big[\,(k,\ \operatorname{classify}_{p,q}(\operatorname{unit}(k), R_k),\ k(R_k),\ t(R_k))\,\big]_{k \in \operatorname{keys}(\mathcal{R})},\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}}$$
+$$\operatorname{classifyAll}_{p,q}(\mathcal{R}) = \big[\,(\tau,\ \operatorname{classify}_{p,q}(\operatorname{unit}(\tau), R_\tau),\ k(R_\tau),\ t(R_\tau))\,\big]_{\tau \in \operatorname{keys}(\mathcal{R})},\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
 -/
 def classifyAllU (p : Policy) (q : PxTol) (runs : List (List Counts)) : List ClassRow :=
   (keysOf runs.flatten).map fun k =>
@@ -814,7 +814,7 @@ theorem classifyAllU_types (p : Policy) (q : PxTol) (runs : List (List Counts)) 
 
 /-- Each row is the unit-aware classification of its type's series, with the observed maxima.
 
-$$\forall p, q, \mathcal{R}, (k, c, k', t') \in \operatorname{classifyAll}_{p,q}(\mathcal{R}):\ c = \operatorname{classify}_{p,q}(\operatorname{unit}(k), R_k) \ \land\ k' = k(R_k) \ \land\ t' = t(R_k),\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}}$$
+$$\forall p, q, \mathcal{R}, (\tau, c, k', t') \in \operatorname{classifyAll}_{p,q}(\mathcal{R}):\ c = \operatorname{classify}_{p,q}(\operatorname{unit}(\tau), R_\tau) \ \land\ k' = k(R_\tau) \ \land\ t' = t(R_\tau),\quad R_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{R}}$$
 -/
 theorem classifyAllU_row (p : Policy) (q : PxTol) (runs : List (List Counts)) :
     ∀ row ∈ classifyAllU p q runs, let rs := runs.map (seriesOf row.type)
