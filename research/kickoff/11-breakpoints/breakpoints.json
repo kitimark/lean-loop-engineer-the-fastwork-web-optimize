@@ -1,0 +1,4615 @@
+{
+ "schema": "fw.breakpoints/1",
+ "source": {
+  "snapshot": "b1789284481295-a455e793",
+  "root": "site-pretty",
+  "baseline": "../fastwork-com-web-optimize/baseline.json",
+  "sweeps": [
+   "raw-css.md",
+   "raw-js.md",
+   "raw-v1.md",
+   "verification pass (merged here)"
+  ],
+  "note": "Conditions, citations and plain-language effects only; no Fastwork code. Lines are 1-based in the prettified snapshot."
+ },
+ "totals": {
+  "mediaConditions": 30,
+  "cssMediaConditions": 29,
+  "jsOnlyMediaConditions": 1,
+  "sharedCssJs": 6,
+  "nonMediaGates": 20,
+  "cssBlocks": 92,
+  "cssRules": 418,
+  "jsMatchMediaSites": 29,
+  "edges": 18,
+  "widthEdgePairs": 15
+ },
+ "conditions": [
+  {
+   "id": "mq.rm-reduce",
+   "condition": "(prefers-reduced-motion: reduce)",
+   "kind": "css-media+js-matchMedia",
+   "features": [
+    "prefers-reduced-motion"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "commission",
+    "commission.typing",
+    "engine.scroll",
+    "hero",
+    "hero.accent",
+    "hero.countdown",
+    "hero.cue",
+    "hero.exit",
+    "hero.orbit",
+    "morph.columns",
+    "morph.countdown",
+    "morph.panel",
+    "morph.tween",
+    "nav",
+    "nav.langMenu",
+    "overlays.drawer",
+    "overlays.signup",
+    "pain",
+    "pain.notes",
+    "people.card",
+    "people.carousel",
+    "people.deck",
+    "people.o",
+    "platform",
+    "platform.entries",
+    "platform.glint",
+    "platform.marquee",
+    "platform.stageBg",
+    "ui.shared(sb-*)"
+   ],
+   "sites": [
+    "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:438",
+    "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:590",
+    "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:637",
+    "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:711",
+    "_app/immutable/assets/2.gBuqKVzi.css:1167",
+    "_app/immutable/assets/2.gBuqKVzi.css:1376",
+    "_app/immutable/assets/2.gBuqKVzi.css:2127",
+    "_app/immutable/assets/2.gBuqKVzi.css:3614",
+    "_app/immutable/assets/2.gBuqKVzi.css:3900",
+    "_app/immutable/assets/2.gBuqKVzi.css:5150",
+    "_app/immutable/assets/2.gBuqKVzi.css:6324",
+    "_app/immutable/assets/2.gBuqKVzi.css:6500",
+    "_app/immutable/assets/2.gBuqKVzi.css:6641",
+    "_app/immutable/assets/2.gBuqKVzi.css:7174",
+    "_app/immutable/assets/2.gBuqKVzi.css:7547",
+    "_app/immutable/assets/2.gBuqKVzi.css:8169",
+    "_app/immutable/assets/2.gBuqKVzi.css:8615",
+    "_app/immutable/assets/2.gBuqKVzi.css:8725",
+    "_app/immutable/assets/2.gBuqKVzi.css:8864",
+    "_app/immutable/assets/2.gBuqKVzi.css:9144",
+    "_app/immutable/assets/2.gBuqKVzi.css:9229",
+    "_app/immutable/assets/2.gBuqKVzi.css:9361",
+    "_app/immutable/assets/2.gBuqKVzi.css:10090",
+    "_app/immutable/assets/2.gBuqKVzi.css:10246",
+    "_app/immutable/assets/2.gBuqKVzi.css:10812",
+    "_app/immutable/assets/2.gBuqKVzi.css:11288",
+    "_app/immutable/assets/2.gBuqKVzi.css:11599",
+    "_app/immutable/assets/2.gBuqKVzi.css:11766",
+    "index.html:58",
+    "_app/immutable/nodes/2.DyWL8TcE.js:2495-2498",
+    "_app/immutable/nodes/2.DyWL8TcE.js:2917-2919",
+    "_app/immutable/nodes/2.DyWL8TcE.js:3101",
+    "_app/immutable/nodes/2.DyWL8TcE.js:3681",
+    "_app/immutable/nodes/2.DyWL8TcE.js:3817",
+    "_app/immutable/nodes/2.DyWL8TcE.js:4156",
+    "_app/immutable/nodes/2.DyWL8TcE.js:4596",
+    "_app/immutable/nodes/2.DyWL8TcE.js:6225-6260",
+    "_app/immutable/nodes/2.DyWL8TcE.js:10780",
+    "_app/immutable/nodes/2.DyWL8TcE.js:10917",
+    "_app/immutable/nodes/2.DyWL8TcE.js:11295",
+    "_app/immutable/nodes/2.DyWL8TcE.js:11607",
+    "_app/immutable/nodes/2.DyWL8TcE.js:11861",
+    "_app/immutable/nodes/2.DyWL8TcE.js:11995-12001",
+    "_app/immutable/nodes/2.DyWL8TcE.js:12197-12215",
+    "_app/immutable/nodes/2.DyWL8TcE.js:12433-12449",
+    "_app/immutable/nodes/2.DyWL8TcE.js:12979"
+   ],
+   "effect": "Reduced motion: animations/transitions off or final states, and layout changes too (hero track height, sticky off via the no-preference twins, smooth scroll off).",
+   "cssBlocks": 29,
+   "jsSites": 17,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:438",
+     "kind": "css-media",
+     "parts": [
+      "ui.shared(sb-*)"
+     ],
+     "effect": "sb ring/spinner animation shortened.",
+     "rules": 1,
+     "props": [
+      "animation-duration"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:590",
+     "kind": "css-media",
+     "parts": [
+      "ui.shared(sb-*)"
+     ],
+     "effect": "sb-button delayed-loading animation delay dropped.",
+     "rules": 1,
+     "props": [
+      "animation-delay"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:637",
+     "kind": "css-media",
+     "parts": [
+      "ui.shared(sb-*)"
+     ],
+     "effect": "sb-button transitions off.",
+     "rules": 1,
+     "props": [
+      "transition-duration"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:711",
+     "kind": "css-media",
+     "parts": [
+      "overlays.signup"
+     ],
+     "effect": "sb-dialog open animation off.",
+     "rules": 1,
+     "props": [
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:1167",
+     "kind": "css-media",
+     "parts": [
+      "pain.notes",
+      "commission",
+      "commission.typing",
+      "overlays.drawer"
+     ],
+     "effect": "Extra pain notes and every commission animation static (underline, fee avatars/messages, typing caret, why-bring).",
+     "rules": 9,
+     "props": [
+      "opacity",
+      "transform",
+      "animation",
+      "will-change",
+      "filter",
+      "transition",
+      "display"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:1376",
+     "kind": "css-media",
+     "parts": [
+      "hero.accent"
+     ],
+     "effect": "Script accent static.",
+     "rules": 5,
+     "props": [
+      "transition",
+      "opacity",
+      "transform",
+      "animation",
+      "stroke-dashoffset"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:2127",
+     "kind": "css-media",
+     "parts": [
+      "hero",
+      "hero.exit",
+      "hero.orbit",
+      "hero.cue"
+     ],
+     "effect": "Hero track height changes (layout), no scatter/blur, cards/copy/CTA static.",
+     "rules": 6,
+     "props": [
+      "height",
+      "--exit-scatter",
+      "position",
+      "--entered",
+      "--profile-reveal",
+      "filter",
+      "transform",
+      "translate",
+      "scale",
+      "animation",
+      "--copy-in",
+      "transition"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3614",
+     "kind": "css-media",
+     "parts": [
+      "people.card",
+      "people.deck",
+      "people.o",
+      "people.carousel"
+     ],
+     "effect": "People transitions off; people-o expanded state static.",
+     "rules": 6,
+     "props": [
+      "margin-top",
+      "transition",
+      "animation",
+      "grid-template-columns",
+      "height",
+      "justify-content",
+      "gap",
+      "visibility",
+      "opacity",
+      "pointer-events",
+      "flex-basis",
+      "width"
+     ],
+     "propsTruncated": 3
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3900",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Vinyl record spin off.",
+     "rules": 1,
+     "props": [
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:5150",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Profile feed panel animation off.",
+     "rules": 1,
+     "props": [
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:6324",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform"
+     ],
+     "effect": "Row point panel/desc transition off.",
+     "rules": 1,
+     "props": [
+      "transition"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:6500",
+     "kind": "css-media",
+     "parts": [
+      "platform.marquee",
+      "platform"
+     ],
+     "effect": "Credential marquees stopped.",
+     "rules": 2,
+     "props": [
+      "animation",
+      "filter",
+      "opacity",
+      "transform"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:6641",
+     "kind": "css-media",
+     "parts": [
+      "platform.marquee",
+      "platform"
+     ],
+     "effect": "Secure currencies track off.",
+     "rules": 1,
+     "props": [
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:7174",
+     "kind": "css-media",
+     "parts": [
+      "platform.glint",
+      "platform"
+     ],
+     "effect": "Secure network rings/shield/glint static.",
+     "rules": 3,
+     "props": [
+      "opacity",
+      "transform",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:7547",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform",
+      "platform.marquee"
+     ],
+     "effect": "Profile phone and reviews track static.",
+     "rules": 3,
+     "props": [
+      "filter",
+      "opacity",
+      "transform",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:8169",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform"
+     ],
+     "effect": "Service quote steps static.",
+     "rules": 1,
+     "props": [
+      "opacity",
+      "transform",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:8615",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform"
+     ],
+     "effect": "Invoice doc/card entrance static.",
+     "rules": 3,
+     "props": [
+      "filter",
+      "opacity",
+      "transform",
+      "animation",
+      "transition"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:8725",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform"
+     ],
+     "effect": "Invoice/orders card static.",
+     "rules": 1,
+     "props": [
+      "opacity",
+      "transform",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:8864",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform"
+     ],
+     "effect": "Orders card static.",
+     "rules": 1,
+     "props": [
+      "opacity",
+      "transform",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:9144",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform.stageBg",
+      "platform"
+     ],
+     "effect": "Agents search typing/caret static.",
+     "rules": 2,
+     "props": [
+      "opacity",
+      "animation",
+      "transform",
+      "display"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:9229",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform.stageBg",
+      "platform"
+     ],
+     "effect": "Service card entrance static.",
+     "rules": 1,
+     "props": [
+      "filter",
+      "transform",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:9361",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform"
+     ],
+     "effect": "Service card transitions off.",
+     "rules": 1,
+     "props": [
+      "transition"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:10090",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform"
+     ],
+     "effect": "Paid trace/packet/transfer/confetti static.",
+     "rules": 3,
+     "props": [
+      "animation",
+      "display",
+      "filter",
+      "transform"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:10246",
+     "kind": "css-media",
+     "parts": [
+      "platform.entries",
+      "platform"
+     ],
+     "effect": "Agents bubbles/replies static.",
+     "rules": 2,
+     "props": [
+      "filter",
+      "opacity",
+      "transform",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:10812",
+     "kind": "css-media",
+     "parts": [
+      "morph.panel",
+      "morph.tween",
+      "nav",
+      "morph.columns"
+     ],
+     "effect": "Morph pill/panel/nav morph and column track: no transitions/blur.",
+     "rules": 2,
+     "props": [
+      "filter",
+      "transition",
+      "will-change",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11288",
+     "kind": "css-media",
+     "parts": [
+      "nav.langMenu"
+     ],
+     "effect": "Language menu animation off.",
+     "rules": 1,
+     "props": [
+      "opacity",
+      "animation",
+      "transform"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11599",
+     "kind": "css-media",
+     "parts": [
+      "nav",
+      "morph.tween"
+     ],
+     "effect": "Nav transitions/blur off.",
+     "rules": 2,
+     "props": [
+      "transition",
+      "filter"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11766",
+     "kind": "css-media",
+     "parts": [
+      "engine.scroll"
+     ],
+     "effect": "Root scroll-behavior auto (smooth otherwise).",
+     "rules": 1,
+     "props": [
+      "scroll-behavior"
+     ]
+    },
+    {
+     "site": "index.html:58",
+     "kind": "css-media",
+     "parts": [
+      "hero",
+      "morph.panel"
+     ],
+     "effect": "RSVP button border transition off (inline style block).",
+     "rules": 1,
+     "props": [
+      "transition"
+     ]
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:2495-2498",
+     "kind": "js-matchMedia",
+     "parts": [
+      "commission.typing"
+     ],
+     "effect": "No typing loop; final text."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:2917-2919",
+     "kind": "js-matchMedia",
+     "parts": [
+      "commission"
+     ],
+     "effect": "Why-bring close delay 0 instead of 480 ms."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:3101",
+     "kind": "js-matchMedia",
+     "parts": [
+      "commission"
+     ],
+     "effect": "Runway spacer only when not reduced (and not C1000)."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:3681",
+     "kind": "js-matchMedia",
+     "parts": [
+      "hero.accent"
+     ],
+     "effect": "Accent-word cycle never starts (read once)."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:3817",
+     "kind": "js-matchMedia",
+     "parts": [
+      "hero.countdown",
+      "morph.countdown"
+     ],
+     "effect": "Svelte MediaQuery store: digit spring skipped."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:4156",
+     "kind": "js-matchMedia",
+     "parts": [
+      "hero.orbit"
+     ],
+     "effect": "OR (width<=600): ring splash skipped/finished."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:4596",
+     "kind": "js-matchMedia",
+     "parts": [
+      "pain.notes"
+     ],
+     "effect": "Extra-note ticker off."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:6225-6260",
+     "kind": "js-matchMedia",
+     "parts": [
+      "people.o"
+     ],
+     "effect": "Reveal: expanded state and faces at once (else staged 1300 ms + 120 ms); reset when the heading leaves the 0.35 IntersectionObserver threshold."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:10780",
+     "kind": "js-matchMedia",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Desktop scroll-driven deck off."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:10917",
+     "kind": "js-matchMedia",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Deck mode recomputed on change."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:11295",
+     "kind": "js-matchMedia",
+     "parts": [
+      "people.card",
+      "pain"
+     ],
+     "effect": "Future shrink becomes a step at 0.5."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:11607",
+     "kind": "js-matchMedia",
+     "parts": [
+      "people.carousel"
+     ],
+     "effect": "Avatar cycle off."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:11861",
+     "kind": "js-matchMedia",
+     "parts": [
+      "platform.entries"
+     ],
+     "effect": "Final state shown."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:11995-12001",
+     "kind": "js-matchMedia",
+     "parts": [
+      "platform.entries",
+      "platform.glint"
+     ],
+     "effect": "Final state; glint SVG animate loop off."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:12197-12215",
+     "kind": "js-matchMedia",
+     "parts": [
+      "platform.entries"
+     ],
+     "effect": "Agents/credibility/orders final state."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:12433-12449",
+     "kind": "js-matchMedia",
+     "parts": [
+      "platform"
+     ],
+     "effect": "Platform shrink becomes a step at 0.5."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:12979",
+     "kind": "js-matchMedia",
+     "parts": [
+      "nav"
+     ],
+     "effect": "OR (width<=600): hero chrome ready at once."
+    }
+   ],
+   "ruleCount": 64
+  },
+  {
+   "id": "mq.rm-nopref",
+   "condition": "(prefers-reduced-motion: no-preference)",
+   "kind": "css-media",
+   "features": [
+    "prefers-reduced-motion"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "nav",
+    "overlays.drawer",
+    "pain",
+    "platform",
+    "platform.sweep",
+    "ui.shared(sb-*)"
+   ],
+   "sites": [
+    "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:111",
+    "_app/immutable/assets/2.gBuqKVzi.css:2299",
+    "_app/immutable/assets/2.gBuqKVzi.css:3986",
+    "_app/immutable/assets/2.gBuqKVzi.css:11081",
+    "_app/immutable/assets/2.gBuqKVzi.css:11530"
+   ],
+   "effect": "Motion allowed: entrance animations, pain sticky, drawer slide-in, title sweep, nav sheen.",
+   "cssBlocks": 5,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:111",
+     "kind": "css-media",
+     "parts": [
+      "ui.shared(sb-*)"
+     ],
+     "effect": "Tooltip entrance animation (+1 @keyframes).",
+     "rules": 1,
+     "props": [
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:2299",
+     "kind": "css-media",
+     "parts": [
+      "pain"
+     ],
+     "effect": "Pain sticky (layout).",
+     "rules": 1,
+     "props": [
+      "position",
+      "top"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3986",
+     "kind": "css-media",
+     "parts": [
+      "overlays.drawer"
+     ],
+     "effect": "Drawer slide-in per side (+4 @keyframes).",
+     "rules": 5,
+     "props": [
+      "transition",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11081",
+     "kind": "css-media",
+     "parts": [
+      "platform.sweep",
+      "platform"
+     ],
+     "effect": "Title sweep gradient animation.",
+     "rules": 1,
+     "props": [
+      "color",
+      "-webkit-text-fill-color",
+      "background-image",
+      "background-size",
+      "background-clip",
+      "animation"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11530",
+     "kind": "css-media",
+     "parts": [
+      "nav"
+     ],
+     "effect": "Earn button sheen/unmask.",
+     "rules": 2,
+     "props": [
+      "mask-image",
+      "animation",
+      "mask-size",
+      "mask-repeat"
+     ]
+    }
+   ],
+   "ruleCount": 10
+  },
+  {
+   "id": "mq.hover-hover",
+   "condition": "(hover: hover)",
+   "kind": "css-media",
+   "features": [
+    "hover"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "ui.shared(sb-*)"
+   ],
+   "sites": [
+    "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:537"
+   ],
+   "effect": "sb-button hover tint only on hover-capable input.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/DialogHeader.Qcgwm6ST.css:537",
+     "kind": "css-media",
+     "parts": [
+      "ui.shared(sb-*)"
+     ],
+     "effect": "sb-button hover background.",
+     "rules": 1,
+     "props": [
+      "background-image"
+     ]
+    }
+   ],
+   "ruleCount": 1
+  },
+  {
+   "id": "mq.hover-none",
+   "condition": "(hover: none)",
+   "kind": "js-matchMedia",
+   "features": [
+    "hover"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "ui.shared(sb-*)"
+   ],
+   "sites": [
+    "_app/immutable/chunks/D313Dngs.js:1172-1181"
+   ],
+   "effect": "UI-kit tooltip keeps itself open on pointer-leave on hover-less input; no tooltip is used on this page (INFERRED inert).",
+   "cssBlocks": 0,
+   "jsSites": 1,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/chunks/D313Dngs.js:1172-1181",
+     "kind": "js-matchMedia",
+     "parts": [
+      "ui.shared(sb-*)"
+     ],
+     "effect": "Tooltip: no hide on pointer-leave (INFERRED unused on this page)."
+    }
+   ]
+  },
+  {
+   "id": "mq.dark",
+   "condition": "(prefers-color-scheme: dark)",
+   "kind": "css-media",
+   "features": [
+    "prefers-color-scheme"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "theme.tokens"
+   ],
+   "sites": [
+    "_app/immutable/assets/0.ChGpbVhU.css:250"
+   ],
+   "effect": "Flips the light/dark toggles on the root; neutralised by html data-theme=light and the later light rule (0:258). Page must stay light (INFERRED no visible effect).",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/0.ChGpbVhU.css:250",
+     "kind": "css-media",
+     "parts": [
+      "theme.tokens"
+     ],
+     "effect": "Light/dark toggles flipped; neutralised (0:258, html data-theme=light; portals copy data-theme UI:883).",
+     "rules": 1,
+     "props": [
+      "--lightningcss-light",
+      "--lightningcss-dark"
+     ]
+    }
+   ],
+   "ruleCount": 1
+  },
+  {
+   "id": "mq.w-le-400",
+   "condition": "(width<=400px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    400
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      400,
+      401
+     ]
+    }
+   ],
+   "parts": [
+    "hero.countdown",
+    "morph.countdown"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:1489"
+   ],
+   "effect": "Countdown smallest size.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:1489",
+     "kind": "css-media",
+     "parts": [
+      "hero.countdown",
+      "morph.countdown"
+     ],
+     "effect": "Countdown font 24 (cell 31 per v1).",
+     "rules": 4,
+     "props": [
+      "gap",
+      "border-radius",
+      "width",
+      "min-width",
+      "height",
+      "padding",
+      "font-size"
+     ]
+    }
+   ],
+   "ruleCount": 4
+  },
+  {
+   "id": "mq.w-le-461",
+   "condition": "(width<=461px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    461
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      461,
+      462
+     ]
+    }
+   ],
+   "parts": [
+    "people.carousel"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:3594"
+   ],
+   "effect": "Community pill stacks; proof text wraps.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3594",
+     "kind": "css-media",
+     "parts": [
+      "people.carousel"
+     ],
+     "effect": "Community pill stacks.",
+     "rules": 2,
+     "props": [
+      "white-space",
+      "background",
+      "border",
+      "flex-direction",
+      "gap",
+      "width",
+      "max-width",
+      "padding",
+      "border-radius",
+      "align-items",
+      "display"
+     ]
+    }
+   ],
+   "ruleCount": 2
+  },
+  {
+   "id": "mq.w-le-480",
+   "condition": "(width<=480px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    480
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      480,
+      481
+     ]
+    }
+   ],
+   "parts": [
+    "people.deck"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:4635"
+   ],
+   "effect": "Profile review summary restacks.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4635",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Review summary restacks.",
+     "rules": 3,
+     "props": [
+      "grid-template-columns",
+      "gap",
+      "flex-flow",
+      "align-items",
+      "flex-basis"
+     ]
+    }
+   ],
+   "ruleCount": 3
+  },
+  {
+   "id": "mq.w-le-600",
+   "condition": "(width<=600px)",
+   "kind": "css-media+js-matchMedia",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    600
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      600,
+      601
+     ]
+    }
+   ],
+   "parts": [
+    "hero",
+    "hero.accent",
+    "hero.cue",
+    "hero.deck",
+    "hero.exit",
+    "hero.orbit",
+    "morph.panel",
+    "nav",
+    "overlays.signup"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:2031",
+    "_app/immutable/assets/2.gBuqKVzi.css:5325",
+    "_app/immutable/assets/2.gBuqKVzi.css:11733",
+    "index.html:58",
+    "_app/immutable/nodes/2.DyWL8TcE.js:4157",
+    "_app/immutable/nodes/2.DyWL8TcE.js:12980"
+   ],
+   "effect": "Phone hero (mobile deck replaces orbit), CTA stack one column, accent box, signup padding; JS: ring splash skipped/finished and nav chrome ready at once (each OR reduced motion).",
+   "cssBlocks": 4,
+   "jsSites": 2,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:2031",
+     "kind": "css-media",
+     "parts": [
+      "hero",
+      "hero.exit",
+      "hero.orbit",
+      "hero.cue",
+      "hero.deck"
+     ],
+     "effect": "Orbit hidden, mobile deck shown, copy repositioned, title sizes, cue placement.",
+     "rules": 13,
+     "props": [
+      "min-height",
+      "display",
+      "--copy-in",
+      "width",
+      "max-width",
+      "opacity",
+      "filter",
+      "transform",
+      "gap",
+      "padding",
+      "animation",
+      "position"
+     ],
+     "propsTruncated": 19
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:5325",
+     "kind": "css-media",
+     "parts": [
+      "hero.accent",
+      "hero"
+     ],
+     "effect": "Accent box size.",
+     "rules": 1,
+     "props": [
+      "flex",
+      "width",
+      "height"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11733",
+     "kind": "css-media",
+     "parts": [
+      "overlays.signup"
+     ],
+     "effect": "Signup content bottom padding (safe-area max()).",
+     "rules": 1,
+     "props": [
+      "padding-bottom"
+     ]
+    },
+    {
+     "site": "index.html:58",
+     "kind": "css-media",
+     "parts": [
+      "hero",
+      "morph.panel"
+     ],
+     "effect": "CTA stacks one column, RSVP first (legacy max-width syntax, inline style after the linked sheets).",
+     "rules": 2,
+     "props": [
+      "grid-template-columns",
+      "order"
+     ]
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:4157",
+     "kind": "js-matchMedia",
+     "parts": [
+      "hero.orbit"
+     ],
+     "effect": "OR reduced motion: skip ring splash at load/bfcache; change listener finishes it when it starts to match; widening never restarts it."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:12980",
+     "kind": "js-matchMedia",
+     "parts": [
+      "nav"
+     ],
+     "effect": "OR reduced motion: is-hero-chrome-ready at once, else after 1140 ms or splash done; change listeners."
+    }
+   ],
+   "ruleCount": 17,
+   "equivalentForms": [
+    "(max-width: 600px)",
+    "(max-width:600px)"
+   ]
+  },
+  {
+   "id": "mq.w-gt-600",
+   "condition": "(width>600px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    600
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      600,
+      601
+     ]
+    }
+   ],
+   "parts": [
+    "hero.cue",
+    "nav"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:1925",
+    "_app/immutable/assets/2.gBuqKVzi.css:11391"
+   ],
+   "effect": "Hero scroll-cue entrance and nav hero-pill fade-in only above 600.",
+   "cssBlocks": 2,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:1925",
+     "kind": "css-media",
+     "parts": [
+      "hero.cue"
+     ],
+     "effect": "Cue blur/copy-from-ring entrance; rest transform after splash.",
+     "rules": 2,
+     "props": [
+      "filter",
+      "animation",
+      "--copy-in",
+      "opacity",
+      "transform"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11391",
+     "kind": "css-media",
+     "parts": [
+      "nav"
+     ],
+     "effect": "Hero pill hidden until chrome ready, then fades in.",
+     "rules": 2,
+     "props": [
+      "opacity",
+      "pointer-events",
+      "transition"
+     ]
+    }
+   ],
+   "ruleCount": 4
+  },
+  {
+   "id": "mq.w-601-1279",
+   "condition": "(width>=601px) and (width<=1279px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    600,
+    1279
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      600,
+      601
+     ]
+    },
+    {
+     "feature": "width",
+     "pair": [
+      1279,
+      1280
+     ]
+    }
+   ],
+   "parts": [
+    "hero.orbit"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:2026"
+   ],
+   "effect": "Orbit edge push variable (continuous in vw inside the band).",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:2026",
+     "kind": "css-media",
+     "parts": [
+      "hero.orbit"
+     ],
+     "effect": "Edge push = max(0, (1280 - 100vw) x 0.35).",
+     "rules": 1,
+     "props": [
+      "--orbit-edge-push"
+     ]
+    }
+   ],
+   "ruleCount": 1
+  },
+  {
+   "id": "mq.w-601-1511",
+   "condition": "(width>=601px) and (width<=1511px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    600,
+    1511
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      600,
+      601
+     ]
+    },
+    {
+     "feature": "width",
+     "pair": [
+      1511,
+      1512
+     ]
+    }
+   ],
+   "parts": [
+    "hero.orbit"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:2009"
+   ],
+   "effect": "Orbit stage full width; side cards pushed in by the edge push.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:2009",
+     "kind": "css-media",
+     "parts": [
+      "hero.orbit"
+     ],
+     "effect": "Stage full width; side cards pushed in.",
+     "rules": 3,
+     "props": [
+      "width",
+      "left",
+      "transform",
+      "right"
+     ]
+    }
+   ],
+   "ruleCount": 3
+  },
+  {
+   "id": "mq.w-le-640",
+   "condition": "(width<=640px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    640
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      640,
+      641
+     ]
+    }
+   ],
+   "parts": [
+    "commission",
+    "morph.columns",
+    "morph.panel",
+    "morph.tween",
+    "nav",
+    "nav.langMenu",
+    "overlays.drawer",
+    "people.card",
+    "people.deck",
+    "platform",
+    "platform.stageBg"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:1133",
+    "_app/immutable/assets/2.gBuqKVzi.css:3586",
+    "_app/immutable/assets/2.gBuqKVzi.css:7803",
+    "_app/immutable/assets/2.gBuqKVzi.css:10888",
+    "_app/immutable/assets/2.gBuqKVzi.css:11274",
+    "_app/immutable/assets/2.gBuqKVzi.css:11564"
+   ],
+   "effect": "Phone geometry: commission titles, why-bring full-width sheet, profile deck bleed, platform single column, morph pill/panel vars, nav geometry, compact language switch.",
+   "cssBlocks": 6,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:1133",
+     "kind": "css-media",
+     "parts": [
+      "commission",
+      "overlays.drawer"
+     ],
+     "effect": "Commission titles; why-bring full-width bottom sheet (safe-area padding at 2:1159).",
+     "rules": 6,
+     "props": [
+      "letter-spacing",
+      "font-size",
+      "top",
+      "justify-content",
+      "align-items",
+      "padding",
+      "border-radius",
+      "width",
+      "max-width",
+      "max-height",
+      "transform",
+      "scrollbar-width"
+     ],
+     "propsTruncated": 2
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3586",
+     "kind": "css-media",
+     "parts": [
+      "people.card",
+      "people.deck"
+     ],
+     "effect": "Future shrink radius; deck bleed.",
+     "rules": 2,
+     "props": [
+      "--future-shrink-radius",
+      "--profile-deck-bleed"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:7803",
+     "kind": "css-media",
+     "parts": [
+      "platform",
+      "platform.stageBg"
+     ],
+     "effect": "Rows single column; stage aspect.",
+     "rules": 4,
+     "props": [
+      "grid-template-columns",
+      "align-items",
+      "width",
+      "grid-area",
+      "aspect-ratio",
+      "height",
+      "padding"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:10888",
+     "kind": "css-media",
+     "parts": [
+      "platform",
+      "morph.panel",
+      "morph.columns"
+     ],
+     "effect": "Platform features/rows; morph pill/panel geometry vars; columns 4+ hidden.",
+     "rules": 21,
+     "props": [
+      "padding",
+      "white-space",
+      "font-size",
+      "grid-template-columns",
+      "justify-content",
+      "row-gap",
+      "width",
+      "max-width",
+      "flex",
+      "min-width",
+      "gap",
+      "line-height"
+     ],
+     "propsTruncated": 14
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11274",
+     "kind": "css-media",
+     "parts": [
+      "nav.langMenu"
+     ],
+     "effect": "Language switch icon only.",
+     "rules": 3,
+     "props": [
+      "height",
+      "padding",
+      "width"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11564",
+     "kind": "css-media",
+     "parts": [
+      "nav",
+      "morph.tween"
+     ],
+     "effect": "Nav phone geometry (pill/panel vars, top, inset, logo scale, button sizes).",
+     "rules": 7,
+     "props": [
+      "--hero-pill-w",
+      "--pill-w",
+      "--pill-h",
+      "--panel-w",
+      "--panel-h",
+      "top",
+      "--nav-bar-inset-x",
+      "padding",
+      "transform-origin",
+      "scale",
+      "gap",
+      "height"
+     ],
+     "propsTruncated": 5
+    }
+   ],
+   "ruleCount": 43
+  },
+  {
+   "id": "mq.w-gt-640",
+   "condition": "(width>640px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    640
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      640,
+      641
+     ]
+    }
+   ],
+   "parts": [
+    "nav"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:11369"
+   ],
+   "effect": "Nav translucent white background.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:11369",
+     "kind": "css-media",
+     "parts": [
+      "nav"
+     ],
+     "effect": "Translucent white nav background.",
+     "rules": 2,
+     "props": [
+      "background"
+     ]
+    }
+   ],
+   "ruleCount": 2
+  },
+  {
+   "id": "mq.w-641-1000",
+   "condition": "(width>=641px) and (width<=1000px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    640,
+    1000
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      640,
+      641
+     ]
+    },
+    {
+     "feature": "width",
+     "pair": [
+      1000,
+      1001
+     ]
+    }
+   ],
+   "parts": [
+    "commission"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:1106"
+   ],
+   "effect": "Commission tablet band: rows as a 2-column grid.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:1106",
+     "kind": "css-media",
+     "parts": [
+      "commission"
+     ],
+     "effect": "Rows 2-column grid, divider horizontal.",
+     "rules": 4,
+     "props": [
+      "flex-direction",
+      "align-items",
+      "gap",
+      "flex",
+      "justify-content",
+      "width",
+      "min-width",
+      "max-width",
+      "display",
+      "grid-template-columns",
+      "grid-column"
+     ]
+    }
+   ],
+   "ruleCount": 4
+  },
+  {
+   "id": "mq.w-le-720",
+   "condition": "(width<=720px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    720
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      720,
+      721
+     ]
+    }
+   ],
+   "parts": [
+    "morph.panel",
+    "platform"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:7825",
+    "_app/immutable/assets/2.gBuqKVzi.css:10793"
+   ],
+   "effect": "Platform section padding/radius/tools grid; morph footer stacks.",
+   "cssBlocks": 2,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:7825",
+     "kind": "css-media",
+     "parts": [
+      "platform"
+     ],
+     "effect": "Section padding, shrink radius, card, title, pain underlay vars, tools grid.",
+     "rules": 9,
+     "props": [
+      "padding",
+      "--platform-shrink-radius",
+      "gap",
+      "font-size",
+      "z-index",
+      "margin-top",
+      "--platform-enter-shrink",
+      "--platform-shrink",
+      "background",
+      "grid-template-columns"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:10793",
+     "kind": "css-media",
+     "parts": [
+      "morph.panel"
+     ],
+     "effect": "Morph footer stacks.",
+     "rules": 3,
+     "props": [
+      "justify-content",
+      "display",
+      "width"
+     ]
+    }
+   ],
+   "ruleCount": 12
+  },
+  {
+   "id": "mq.w-le-860",
+   "condition": "(width<=860px)",
+   "kind": "css-media+js-matchMedia",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    860
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      860,
+      861
+     ]
+    }
+   ],
+   "parts": [
+    "overlays.drawer",
+    "overlays.signup",
+    "pain",
+    "pain.notes",
+    "people.card",
+    "people.carousel",
+    "people.o",
+    "platform",
+    "ui.shared(sb-*)"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:899",
+    "_app/immutable/assets/2.gBuqKVzi.css:2305",
+    "_app/immutable/assets/2.gBuqKVzi.css:3519",
+    "_app/immutable/assets/2.gBuqKVzi.css:4093",
+    "_app/immutable/assets/2.gBuqKVzi.css:7798",
+    "_app/immutable/nodes/2.DyWL8TcE.js:4415",
+    "_app/immutable/nodes/2.DyWL8TcE.js:4592-4645",
+    "_app/immutable/nodes/2.DyWL8TcE.js:6203-6217",
+    "_app/immutable/nodes/2.DyWL8TcE.js:7179",
+    "_app/immutable/nodes/2.DyWL8TcE.js:11295-11296"
+   ],
+   "effect": "Pure-width phone path: why-bring drawer, pain layout + notes hidden, people card/o/carousel, signup shell, platform checks hidden; JS: seller preview off, pain note layout set, pain-dark rule, (inert) sheet store.",
+   "cssBlocks": 5,
+   "jsSites": 5,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:899",
+     "kind": "css-media",
+     "parts": [
+      "overlays.drawer"
+     ],
+     "effect": "Why-bring drawer bottom-sheet style.",
+     "rules": 4,
+     "props": [
+      "justify-content",
+      "padding",
+      "transform",
+      "text-wrap",
+      "white-space",
+      "top",
+      "right"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:2305",
+     "kind": "css-media",
+     "parts": [
+      "pain",
+      "pain.notes"
+     ],
+     "effect": "Pain phone layout; notes hidden (JS twin N2:4415).",
+     "rules": 10,
+     "props": [
+      "background",
+      "overflow",
+      "justify-content",
+      "align-items",
+      "padding",
+      "gap",
+      "width",
+      "max-width",
+      "letter-spacing",
+      "font-size",
+      "font-weight",
+      "line-height"
+     ],
+     "propsTruncated": 3
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3519",
+     "kind": "css-media",
+     "parts": [
+      "people.card",
+      "people.o",
+      "people.carousel"
+     ],
+     "effect": "Future card layout, people-o face size, community pill.",
+     "rules": 12,
+     "props": [
+      "gap",
+      "min-height",
+      "padding",
+      "overflow",
+      "margin-bottom",
+      "letter-spacing",
+      "text-wrap",
+      "flex-direction",
+      "align-items",
+      "font-size",
+      "line-height",
+      "display"
+     ],
+     "propsTruncated": 10
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4093",
+     "kind": "css-media",
+     "parts": [
+      "overlays.signup",
+      "ui.shared(sb-*)"
+     ],
+     "effect": "Dialog bar/action footer re-grid, sticky footer (safe-area padding at 2:4100).",
+     "rules": 6,
+     "props": [
+      "padding-inline",
+      "grid-template-areas",
+      "z-index",
+      "padding",
+      "background",
+      "position",
+      "bottom",
+      "flex",
+      "grid-area",
+      "justify-self"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:7798",
+     "kind": "css-media",
+     "parts": [
+      "platform"
+     ],
+     "effect": "Row checks hidden.",
+     "rules": 1,
+     "props": [
+      "display"
+     ]
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:4415",
+     "kind": "js-matchMedia",
+     "parts": [
+      "pain.notes"
+     ],
+     "effect": "Base note layout: mobile set centred on an 860 design, desktop set on 1440x868; change listener + ResizeObserver."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:4592-4645",
+     "kind": "js-matchMedia",
+     "parts": [
+      "pain.notes"
+     ],
+     "effect": "NOT matching and not reduced: 3 s extra-note ticker (max 12); see js.pain-container-1100."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:6203-6217",
+     "kind": "js-matchMedia",
+     "parts": [
+      "people.o"
+     ],
+     "effect": "Seller preview (hover/focus/click) disabled; read per event."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:7179",
+     "kind": "js-matchMedia",
+     "parts": [
+      "overlays.signup"
+     ],
+     "effect": "Reactive store for a sheet presentation; the only caller passes dialog (N2:13306), so inert but created."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:11295-11296",
+     "kind": "js-matchMedia",
+     "parts": [
+      "people.card",
+      "pain"
+     ],
+     "effect": "Above 860 pain always dark; at <=860 only once the showcase top <= 0.5 px; change listener."
+    }
+   ],
+   "ruleCount": 33,
+   "equivalentForms": [
+    "(max-width: 860px)"
+   ]
+  },
+  {
+   "id": "mq.w-ge-861",
+   "condition": "(width>=861px)",
+   "kind": "css-media+js-matchMedia",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    860
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      860,
+      861
+     ]
+    }
+   ],
+   "parts": [
+    "people.deck",
+    "platform",
+    "platform.sweep"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:3248",
+    "_app/immutable/assets/2.gBuqKVzi.css:5818",
+    "_app/immutable/nodes/2.DyWL8TcE.js:10780-10813"
+   ],
+   "effect": "Desktop profile showcase (inactive shells hidden) and desktop platform row titles; JS: one arm of the desktop deck gate.",
+   "cssBlocks": 2,
+   "jsSites": 1,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3248",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Inactive profile shells display:none (2:3267). At touch 861-1200 / landscape device-width<=500 this overlaps mq.c860; 2:3267 (0,2,0) beats 2:3468 (0,1,0) display:flex regardless of order, so inactive shells stay hidden there (INFERRED visible outcome; measure 1024t, 932x430).",
+     "rules": 1,
+     "props": [
+      "display"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:5818",
+     "kind": "css-media",
+     "parts": [
+      "platform",
+      "platform.sweep"
+     ],
+     "effect": "Desktop per-row title layout and sweep variant; later than 2:5672 so wins on shared props in the overlap.",
+     "rules": 26,
+     "props": [
+      "font-size",
+      "font-weight",
+      "line-height",
+      "color",
+      "-webkit-text-fill-color",
+      "background-image",
+      "background-size",
+      "background-clip",
+      "height",
+      "animation",
+      "display"
+     ],
+     "propsTruncated": 3
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:10780-10813",
+     "kind": "js-matchMedia",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Desktop deck = (min-width: 861px) AND NOT c860 AND NOT reduced: section height deck + 1.45vh + (n-1) x 0.34vh, --profile-scale eases from min(1.22, (innerWidth-112)/(deckWidth-248)) to 1; polled per frame."
+    }
+   ],
+   "ruleCount": 27,
+   "equivalentForms": [
+    "(min-width: 861px)"
+   ]
+  },
+  {
+   "id": "mq.w-ge-861-nopref",
+   "condition": "(width>=861px) and (prefers-reduced-motion: no-preference)",
+   "kind": "css-media",
+   "features": [
+    "width",
+    "prefers-reduced-motion"
+   ],
+   "edges_px": [
+    860
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      860,
+      861
+     ]
+    }
+   ],
+   "parts": [
+    "people.deck"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:3249"
+   ],
+   "effect": "Nested block: profile sticky, chrome and tabs desktop geometry.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3249",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Profile sticky, chrome, tabs desktop geometry (nested in 2:3248).",
+     "rules": 3,
+     "props": [
+      "--profile-scale",
+      "z-index",
+      "width",
+      "position",
+      "top",
+      "justify-content",
+      "gap",
+      "flex-basis",
+      "max-width"
+     ]
+    }
+   ],
+   "ruleCount": 3
+  },
+  {
+   "id": "mq.w-861-1000",
+   "condition": "(width>=861px) and (width<=1000px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    860,
+    1000
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      860,
+      861
+     ]
+    },
+    {
+     "feature": "width",
+     "pair": [
+      1000,
+      1001
+     ]
+    }
+   ],
+   "parts": [
+    "platform"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:5624"
+   ],
+   "effect": "Platform card/mission spacing band.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:5624",
+     "kind": "css-media",
+     "parts": [
+      "platform"
+     ],
+     "effect": "Card/mission spacing, mission title size.",
+     "rules": 3,
+     "props": [
+      "padding-top",
+      "gap",
+      "font-size",
+      "font-weight"
+     ]
+    }
+   ],
+   "ruleCount": 3
+  },
+  {
+   "id": "mq.w-le-960",
+   "condition": "(width<=960px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    960
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      960,
+      961
+     ]
+    }
+   ],
+   "parts": [
+    "platform",
+    "platform.stageBg"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:10836"
+   ],
+   "effect": "Platform header/features/rows tablet layout.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:10836",
+     "kind": "css-media",
+     "parts": [
+      "platform",
+      "platform.stageBg"
+     ],
+     "effect": "Header/features/rows tablet layout.",
+     "rules": 10,
+     "props": [
+      "padding",
+      "gap",
+      "grid-template-columns",
+      "justify-content",
+      "width",
+      "max-width",
+      "white-space",
+      "flex-direction",
+      "align-items",
+      "flex",
+      "order",
+      "aspect-ratio"
+     ],
+     "propsTruncated": 2
+    }
+   ],
+   "ruleCount": 10
+  },
+  {
+   "id": "mq.w-le-1000",
+   "condition": "(width<=1000px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    1000
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      1000,
+      1001
+     ]
+    }
+   ],
+   "parts": [
+    "morph.panel",
+    "platform",
+    "platform.sweep"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:7753",
+    "_app/immutable/assets/2.gBuqKVzi.css:10651"
+   ],
+   "effect": "Platform row copy and row-title type; morph title size.",
+   "cssBlocks": 2,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:7753",
+     "kind": "css-media",
+     "parts": [
+      "platform",
+      "platform.sweep"
+     ],
+     "effect": "Row copy padding, row-title type/overflow.",
+     "rules": 4,
+     "props": [
+      "padding",
+      "font-size",
+      "font-weight",
+      "line-height",
+      "overflow",
+      "white-space",
+      "height"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:10651",
+     "kind": "css-media",
+     "parts": [
+      "morph.panel"
+     ],
+     "effect": "Morph title 36px.",
+     "rules": 1,
+     "props": [
+      "font-size"
+     ]
+    }
+   ],
+   "ruleCount": 5
+  },
+  {
+   "id": "mq.w-ge-1001",
+   "condition": "(width>=1001px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    1000
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      1000,
+      1001
+     ]
+    }
+   ],
+   "parts": [
+    "platform"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:5810"
+   ],
+   "effect": "Platform mission title size.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:5810",
+     "kind": "css-media",
+     "parts": [
+      "platform"
+     ],
+     "effect": "Mission title size.",
+     "rules": 1,
+     "props": [
+      "letter-spacing",
+      "white-space",
+      "font-size",
+      "font-weight"
+     ]
+    }
+   ],
+   "ruleCount": 1
+  },
+  {
+   "id": "mq.w-ge-1001-nopref",
+   "condition": "(width>=1001px) and (prefers-reduced-motion: no-preference)",
+   "kind": "css-media",
+   "features": [
+    "width",
+    "prefers-reduced-motion"
+   ],
+   "edges_px": [
+    1000
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      1000,
+      1001
+     ]
+    }
+   ],
+   "parts": [
+    "commission"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:226"
+   ],
+   "effect": "Desktop sticky commission.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:226",
+     "kind": "css-media",
+     "parts": [
+      "commission"
+     ],
+     "effect": "Sticky commission (min-height 100vh+48, top -48). Overlaps mq.c1000 at touch 1001-1200 and landscape device-width<=500.",
+     "rules": 1,
+     "props": [
+      "min-height",
+      "position",
+      "top"
+     ]
+    }
+   ],
+   "ruleCount": 1
+  },
+  {
+   "id": "mq.w-le-1100",
+   "condition": "(width<=1100px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    1100
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      1100,
+      1101
+     ]
+    }
+   ],
+   "parts": [
+    "platform"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:7748"
+   ],
+   "effect": "Platform tools grid columns.",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:7748",
+     "kind": "css-media",
+     "parts": [
+      "platform"
+     ],
+     "effect": "Tools grid columns.",
+     "rules": 1,
+     "props": [
+      "grid-template-columns"
+     ]
+    }
+   ],
+   "ruleCount": 1
+  },
+  {
+   "id": "mq.w-le-1200",
+   "condition": "(width<=1200px)",
+   "kind": "css-media",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    1200
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      1200,
+      1201
+     ]
+    }
+   ],
+   "parts": [
+    "people.deck"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:4484",
+    "_app/immutable/assets/2.gBuqKVzi.css:4508",
+    "_app/immutable/assets/2.gBuqKVzi.css:4935"
+   ],
+   "effect": "Profile rail, posts grid and reviews gap (plain width, no touch clause: a separate desktop band 1031-1200).",
+   "cssBlocks": 3,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4484",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Profile rail thumb/title smaller.",
+     "rules": 2,
+     "props": [
+      "flex-basis",
+      "width",
+      "font-size",
+      "line-height"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4508",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Posts grid columns/gap.",
+     "rules": 1,
+     "props": [
+      "grid-template-columns",
+      "gap"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4935",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Reviews gap.",
+     "rules": 1,
+     "props": [
+      "gap"
+     ]
+    }
+   ],
+   "ruleCount": 4
+  },
+  {
+   "id": "mq.c860",
+   "condition": "(width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px)",
+   "kind": "css-media+js-matchMedia",
+   "features": [
+    "width",
+    "device-width",
+    "hover",
+    "pointer"
+   ],
+   "edges_px": [
+    500,
+    860,
+    1200
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      860,
+      861
+     ]
+    },
+    {
+     "feature": "device-width",
+     "pair": [
+      500,
+      501
+     ]
+    },
+    {
+     "feature": "width(touch)",
+     "pair": [
+      1200,
+      1201
+     ]
+    }
+   ],
+   "parts": [
+    "commission",
+    "morph.panel",
+    "morph.tween",
+    "nav",
+    "pain.notes",
+    "people.card",
+    "people.deck",
+    "platform",
+    "platform.stageBg",
+    "platform.sweep"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:3384",
+    "_app/immutable/assets/2.gBuqKVzi.css:3650",
+    "_app/immutable/assets/2.gBuqKVzi.css:5672",
+    "_app/immutable/assets/2.gBuqKVzi.css:10990",
+    "_app/immutable/nodes/2.DyWL8TcE.js:4647-4669",
+    "_app/immutable/nodes/2.DyWL8TcE.js:10913-10918"
+   ],
+   "effect": "Combo 860 (phone OR small device OR touch tablet to 1200): all shrink vars neutralised, profile deck becomes a snap rail, platform phone titles/sweep, nav+morph panel = viewport minus 40; JS: compact deck mode, note drag off.",
+   "cssBlocks": 4,
+   "jsSites": 2,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3384",
+     "kind": "css-media",
+     "parts": [
+      "people.card",
+      "people.deck"
+     ],
+     "effect": "Shrink vars reset, profile sticky off, tabs horizontal drag rail, deck x-mandatory snap; all shells shown only where (width>=861px) is false (see 2:3248).",
+     "rules": 15,
+     "props": [
+      "--future-shrink-scale",
+      "--future-shrink-radius",
+      "--profile-scale",
+      "position",
+      "top",
+      "flex-direction",
+      "justify-content",
+      "align-items",
+      "gap",
+      "overflow",
+      "touch-action",
+      "visibility"
+     ],
+     "propsTruncated": 37
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3650",
+     "kind": "css-media",
+     "parts": [
+      "people.card"
+     ],
+     "effect": "Re-asserts future shrink scale 1 / radius 0.",
+     "rules": 1,
+     "props": [
+      "--future-shrink-scale",
+      "--future-shrink-radius"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:5672",
+     "kind": "css-media",
+     "parts": [
+      "platform",
+      "platform.sweep"
+     ],
+     "effect": "Mission/row titles stacked; 28px sweep variant (loses to 2:5818 in the overlap).",
+     "rules": 13,
+     "props": [
+      "font-size",
+      "font-weight",
+      "gap",
+      "line-height",
+      "color",
+      "-webkit-text-fill-color",
+      "background-image",
+      "background-size",
+      "background-clip",
+      "height",
+      "animation"
+     ],
+     "propsTruncated": 3
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:10990",
+     "kind": "css-media",
+     "parts": [
+      "commission",
+      "people.card",
+      "platform",
+      "platform.stageBg",
+      "platform.sweep",
+      "morph.panel",
+      "morph.tween",
+      "nav"
+     ],
+     "effect": "All shrink vars neutralised; platform card/stage/artboard resized; nav+morph panel = 100dvh-40 x 100vw-40.",
+     "rules": 14,
+     "props": [
+      "--future-shrink-scale",
+      "--commission-shrink-scale",
+      "--platform-shrink-scale",
+      "border-radius",
+      "transform",
+      "padding",
+      "aspect-ratio"
+     ],
+     "propsTruncated": 15
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:4647-4669",
+     "kind": "js-matchMedia",
+     "parts": [
+      "pain.notes"
+     ],
+     "effect": "Note drag disabled (keys still move notes)."
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:10913-10918",
+     "kind": "js-matchMedia",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Compact deck: horizontal tabs, drag rail (4 px slop), snap tracking (150 ms + scrollend), active +-1 shells rendered; change listener."
+    }
+   ],
+   "ruleCount": 43,
+   "equivalentForms": [
+    "(max-width: 860px), (max-device-width: 500px), (hover: none) and (pointer: coarse) and (max-width: 1200px)"
+   ]
+  },
+  {
+   "id": "mq.c1000",
+   "condition": "(width<=1000px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px)",
+   "kind": "css-media+js-matchMedia",
+   "features": [
+    "width",
+    "device-width",
+    "hover",
+    "pointer"
+   ],
+   "edges_px": [
+    500,
+    1000,
+    1200
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      1000,
+      1001
+     ]
+    },
+    {
+     "feature": "device-width",
+     "pair": [
+      500,
+      501
+     ]
+    },
+    {
+     "feature": "width(touch)",
+     "pair": [
+      1200,
+      1201
+     ]
+    }
+   ],
+   "parts": [
+    "commission"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:916",
+    "_app/immutable/nodes/2.DyWL8TcE.js:3085-3099"
+   ],
+   "effect": "Combo 1000: commission phone/tablet layout; JS: compact class, compact arrow, runway spacer and title-wrap detection (polled per frame, no change listener).",
+   "cssBlocks": 1,
+   "jsSites": 1,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:916",
+     "kind": "css-media",
+     "parts": [
+      "commission"
+     ],
+     "effect": "Phone/tablet commission: sticky off, single column, compact copy, fee visual scale, why-link.",
+     "rules": 33,
+     "props": [
+      "--commission-shrink-scale",
+      "--commission-shrink-radius",
+      "overflow",
+      "min-height",
+      "position",
+      "top",
+      "border-radius",
+      "flex",
+      "padding",
+      "transform",
+      "height",
+      "display"
+     ],
+     "propsTruncated": 24
+    },
+    {
+     "site": "_app/immutable/nodes/2.DyWL8TcE.js:3085-3099",
+     "kind": "js-matchMedia",
+     "parts": [
+      "commission"
+     ],
+     "effect": "Compact class + arrow; runway 0.06 x innerHeight only when not compact and not reduced; title-wrap detection only when compact; polled per scroll/resize frame, no change listener."
+    }
+   ],
+   "ruleCount": 33,
+   "equivalentForms": [
+    "three matchMedia calls OR-ed: (max-width: 1000px) | (max-device-width: 500px) | (hover: none) and (pointer: coarse) and (max-width: 1200px)"
+   ]
+  },
+  {
+   "id": "mq.c1030",
+   "condition": "(width<=1030px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px)",
+   "kind": "css-media",
+   "features": [
+    "width",
+    "device-width",
+    "hover",
+    "pointer"
+   ],
+   "edges_px": [
+    500,
+    1030,
+    1200
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      1030,
+      1031
+     ]
+    },
+    {
+     "feature": "device-width",
+     "pair": [
+      500,
+      501
+     ]
+    },
+    {
+     "feature": "width(touch)",
+     "pair": [
+      1200,
+      1201
+     ]
+    }
+   ],
+   "parts": [
+    "people.deck"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:3271",
+    "_app/immutable/assets/2.gBuqKVzi.css:3684",
+    "_app/immutable/assets/2.gBuqKVzi.css:3786",
+    "_app/immutable/assets/2.gBuqKVzi.css:4290",
+    "_app/immutable/assets/2.gBuqKVzi.css:4378",
+    "_app/immutable/assets/2.gBuqKVzi.css:4514",
+    "_app/immutable/assets/2.gBuqKVzi.css:4612",
+    "_app/immutable/assets/2.gBuqKVzi.css:4770",
+    "_app/immutable/assets/2.gBuqKVzi.css:4940",
+    "_app/immutable/assets/2.gBuqKVzi.css:5055",
+    "_app/immutable/assets/2.gBuqKVzi.css:5133"
+   ],
+   "effect": "Combo 1030: every profile widget compact (about, posts, reviews, gallery, feed).",
+   "cssBlocks": 11,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3271",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Widgets compact (crumb/claim hidden, cover, identity, avatar, stats).",
+     "rules": 20,
+     "props": [
+      "gap",
+      "padding",
+      "display",
+      "flex-direction",
+      "order",
+      "aspect-ratio",
+      "border-radius",
+      "max-height",
+      "z-index",
+      "margin-top",
+      "position",
+      "color"
+     ],
+     "propsTruncated": 13
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3684",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Widget logo smaller.",
+     "rules": 1,
+     "props": [
+      "border-radius",
+      "width",
+      "height",
+      "padding",
+      "font-size"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:3786",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "About widget compact.",
+     "rules": 12,
+     "props": [
+      "gap",
+      "padding-top",
+      "font-size",
+      "line-height",
+      "padding"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4290",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Post card compact.",
+     "rules": 11,
+     "props": [
+      "border-radius",
+      "gap",
+      "padding",
+      "font-size",
+      "line-height",
+      "width",
+      "height",
+      "-webkit-line-clamp",
+      "bottom",
+      "left",
+      "top",
+      "right"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4378",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Post meta compact.",
+     "rules": 1,
+     "props": [
+      "gap",
+      "font-size",
+      "line-height"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4514",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Posts masonry columns, rail layout.",
+     "rules": 4,
+     "props": [
+      "grid-template-columns",
+      "column-count",
+      "column-gap",
+      "margin-bottom",
+      "display"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4612",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Review summary compact.",
+     "rules": 6,
+     "props": [
+      "gap",
+      "white-space",
+      "font-size",
+      "line-height"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4770",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Review item compact.",
+     "rules": 6,
+     "props": [
+      "border-radius",
+      "gap",
+      "padding",
+      "font-size",
+      "line-height",
+      "width",
+      "height"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:4940",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Reviews compact; filters horizontal scroll.",
+     "rules": 12,
+     "props": [
+      "grid-template-columns",
+      "gap",
+      "height",
+      "padding",
+      "font-size",
+      "line-height",
+      "border-radius",
+      "width",
+      "margin-left",
+      "margin-inline",
+      "padding-inline",
+      "scrollbar-width"
+     ],
+     "propsTruncated": 2
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:5055",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Gallery grid compact.",
+     "rules": 3,
+     "props": [
+      "grid-template-columns",
+      "gap",
+      "border-radius",
+      "margin-bottom",
+      "font-size",
+      "line-height"
+     ]
+    },
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:5133",
+     "kind": "css-media",
+     "parts": [
+      "people.deck"
+     ],
+     "effect": "Feed compact.",
+     "rules": 4,
+     "props": [
+      "--feed-inset",
+      "margin-top",
+      "gap",
+      "padding",
+      "font-size",
+      "line-height",
+      "padding-top"
+     ]
+    }
+   ],
+   "ruleCount": 80
+  },
+  {
+   "id": "mq.c1000-nodw",
+   "condition": "(width<=1000px), (hover: none) and (pointer: coarse) and (width<=1200px)",
+   "kind": "css-media",
+   "features": [
+    "width",
+    "hover",
+    "pointer"
+   ],
+   "edges_px": [
+    1000,
+    1200
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      1000,
+      1001
+     ]
+    },
+    {
+     "feature": "width(touch)",
+     "pair": [
+      1200,
+      1201
+     ]
+    }
+   ],
+   "parts": [
+    "hero.countdown",
+    "morph.countdown"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:1473"
+   ],
+   "effect": "Countdown medium size. The only combo WITHOUT the device-width arm; differs from mq.c1000 only for fine pointer + device-width<=500 + width>1000 (INFERRED no real device).",
+   "cssBlocks": 1,
+   "jsSites": 0,
+   "status": "CONFIRMED",
+   "uses": [
+    {
+     "site": "_app/immutable/assets/2.gBuqKVzi.css:1473",
+     "kind": "css-media",
+     "parts": [
+      "hero.countdown",
+      "morph.countdown"
+     ],
+     "effect": "Countdown medium size (font 28, cell 36 per v1).",
+     "rules": 3,
+     "props": [
+      "border-radius",
+      "gap",
+      "width",
+      "min-width",
+      "height",
+      "padding",
+      "font-size"
+     ]
+    }
+   ],
+   "ruleCount": 3
+  },
+  {
+   "id": "css.floor-320",
+   "condition": "root min-width 320px (below it the page stops shrinking and scrolls sideways)",
+   "kind": "css-floor",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    319
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      319,
+      320
+     ]
+    }
+   ],
+   "parts": [
+    "engine.scroll",
+    "theme.tokens"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:11745"
+   ],
+   "effect": "Hard lower bound of every width band.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "html.viewport-meta",
+   "condition": "viewport meta width=device-width, initial-scale=1; no viewport-fit=cover",
+   "kind": "html-attr",
+   "features": [
+    "width",
+    "device-width"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "engine.scroll"
+   ],
+   "sites": [
+    "index.html:5"
+   ],
+   "effect": "Every width query depends on it (without it iOS lays out at 980). Ship the identical meta. Without viewport-fit=cover iOS safe-area insets are 0 (INFERRED).",
+   "status": "CONFIRMED (meta); safe-area consequence INFERRED"
+  },
+  {
+   "id": "css.safe-area",
+   "condition": "env(safe-area-inset-bottom) inside width blocks",
+   "kind": "css-env",
+   "features": [
+    "width",
+    "safe-area"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "overlays.drawer",
+    "overlays.signup",
+    "ui.shared(sb-*)"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:1159",
+    "_app/immutable/assets/2.gBuqKVzi.css:4100",
+    "_app/immutable/assets/2.gBuqKVzi.css:11735"
+   ],
+   "effect": "Sheet/footer/signup bottom padding; same fallbacks (0px twice, max(24px, inset) once).",
+   "status": "CONFIRMED (CSS); value 0 INFERRED"
+  },
+  {
+   "id": "css.hover-ungated",
+   "condition": "16 plain :hover rules not gated by (hover: hover)",
+   "kind": "css-hover-ungated",
+   "features": [
+    "hover",
+    "pointer"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "hero",
+    "nav",
+    "overlays.drawer",
+    "people.o",
+    "platform"
+   ],
+   "sites": [
+    "_app/immutable/assets/2.gBuqKVzi.css:894",
+    "_app/immutable/assets/2.gBuqKVzi.css:1873-1879",
+    "_app/immutable/assets/2.gBuqKVzi.css:2564"
+   ],
+   "effect": "Sticky hover after a tap on touch; the rewrite must NOT add hover gates the original lacks.",
+   "status": "CONFIRMED (grep count 16)"
+  },
+  {
+   "id": "js.hero-splash-stage-1280",
+   "condition": "hero stage clientWidth (fallback innerWidth) < 1280, splash expanding phase only",
+   "kind": "js-width-check",
+   "features": [
+    "width"
+   ],
+   "edges_px": [
+    1279
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      1279,
+      1280
+     ]
+    }
+   ],
+   "parts": [
+    "hero.orbit"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:4033-4034",
+    "_app/immutable/nodes/2.DyWL8TcE.js:4100-4110",
+    "_app/immutable/nodes/2.DyWL8TcE.js:4192"
+   ],
+   "effect": "Splash cards pulled in by (1280 - stage) x 0.35 px; design canvas 1512x779. Stage = viewport width at 601-1511 (INFERRED from 2:2009).",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.pain-container-1100",
+   "condition": "pain-notes container width < 1100 (only when not (width<=860px) and not reduced)",
+   "kind": "js-width-check",
+   "features": [
+    "container-width",
+    "prefers-reduced-motion"
+   ],
+   "edges_px": [
+    1099
+   ],
+   "edges": [
+    {
+     "feature": "container-width",
+     "pair": [
+      1099,
+      1100
+     ]
+    }
+   ],
+   "parts": [
+    "pain.notes"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:4592-4645",
+    "_app/immutable/nodes/2.DyWL8TcE.js:4692-4702"
+   ],
+   "effect": "Extra-note placement: jittered slots below 1100, 120 scored random samples at or above; extras cleared when the commission card top < 0.995vh. Viewport width at which the container hits 1100 to be MEASURED.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.commission-visual-scale",
+   "condition": "ResizeObserver on parent: --visual-scale = min(0.8, parentWidth / 432)",
+   "kind": "js-width-check",
+   "features": [
+    "container-width"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "commission.typing"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:2511-2518"
+   ],
+   "effect": "Continuous scale below a 345.6 px parent; live.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.countdown-cell",
+   "condition": "digit spacer offsetHeight via ResizeObserver (follows CSS font at 400 / 1000-or-touch-1200)",
+   "kind": "js-measure",
+   "features": [
+    "width",
+    "prefers-reduced-motion"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "hero.countdown",
+    "morph.countdown"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:3817",
+    "_app/immutable/nodes/2.DyWL8TcE.js:3829-3833",
+    "_app/immutable/nodes/2.DyWL8TcE.js:3858-3873",
+    "_app/immutable/chunks/BSBv9QXB.js:3110-3137"
+   ],
+   "effect": "Face translateY = slot x measured cell height (v1: 31/36/52); faces hidden until height > 0; live on resize.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.people-o-preview",
+   "condition": "preview width min(320, innerWidth-24), 12 px from edges, flip above if past innerHeight-12; re-run on every scroll/resize frame",
+   "kind": "js-width-check",
+   "features": [
+    "width",
+    "height"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "people.o"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:6204-6215",
+    "_app/immutable/nodes/2.DyWL8TcE.js:6269",
+    "_app/immutable/nodes/2.DyWL8TcE.js:6304-6307"
+   ],
+   "effect": "Knee at innerWidth 344; live recomputation via the scene engine subscription.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.people-o-reveal-io",
+   "condition": "IntersectionObserver threshold 0.35 on the future heading",
+   "kind": "js-geometry",
+   "features": [
+    "height"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "people.o"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:6261-6268"
+   ],
+   "effect": "Reveal staged when visible, reset when it leaves.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.profile-sticky-computed",
+   "condition": "computed position of the profile sticky == sticky (true only under mq.w-ge-861-nopref and not mq.c860)",
+   "kind": "js-indirect",
+   "features": [
+    "width",
+    "device-width",
+    "hover",
+    "pointer",
+    "prefers-reduced-motion"
+   ],
+   "edges_px": [
+    860
+   ],
+   "edges": [
+    {
+     "feature": "width",
+     "pair": [
+      860,
+      861
+     ]
+    }
+   ],
+   "parts": [
+    "nav",
+    "people.deck"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:12966-12977",
+    "_app/immutable/nodes/2.DyWL8TcE.js:13001",
+    "_app/immutable/nodes/2.DyWL8TcE.js:13230-13231"
+   ],
+   "effect": "Nav scroll-hidden / profile-sticky-hidden while pinned; per scroll frame.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.nav-on-dark",
+   "condition": "elementFromPoint at the nav centre against section selectors",
+   "kind": "js-geometry",
+   "features": [
+    "width",
+    "height"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "nav",
+    "nav.hitTest"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:12950-12964"
+   ],
+   "effect": "is-on-dark over pain/platform/shrinking commission; per scroll frame.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.morph-arm",
+   "condition": "platform rect height >= 0.45 x (visualViewport.height or innerHeight) and bottom <= that + 8; IO rootMargin 200%",
+   "kind": "js-geometry",
+   "features": [
+    "height"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "morph.mount",
+    "morph.tween"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:12691-12700",
+    "_app/immutable/nodes/2.DyWL8TcE.js:13040-13047",
+    "_app/immutable/nodes/2.DyWL8TcE.js:13082-13088"
+   ],
+   "effect": "Arms wheel/touch scroll-jack for the 680 ms morph tween; reduced motion jumps. No width gate.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.commission-bands",
+   "condition": "card top in [0.06, 0.42] x innerHeight; bottom in [0.35, 0.85] x innerHeight; reduced = step at 0.5",
+   "kind": "js-geometry",
+   "features": [
+    "height",
+    "prefers-reduced-motion"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "commission"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:3075-3084",
+    "_app/immutable/nodes/2.DyWL8TcE.js:3112-3124"
+   ],
+   "effect": "Enter-shrink / shrink vars; no width gate.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.future-shrink-band",
+   "condition": "viewport-height band 0.85-0.35 (reduced = step at 0.5)",
+   "kind": "js-geometry",
+   "features": [
+    "height",
+    "prefers-reduced-motion"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "people.card"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:11285-11290"
+   ],
+   "effect": "--future-shrink; no width gate in JS (CSS mq.c860 neutralises it).",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.scene-activation",
+   "condition": "scene active if rect within [-innerHeight, 2 x innerHeight]; IO rootMargin 100% (pain 150%)",
+   "kind": "js-geometry",
+   "features": [
+    "height"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "engine.scene"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:2663-2680",
+    "_app/immutable/nodes/2.DyWL8TcE.js:2689-2731",
+    "_app/immutable/nodes/2.DyWL8TcE.js:2768"
+   ],
+   "effect": "data scene active/paused; deferred rendering with measured intrinsic size; one rAF for scroll+resize.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.dialog-direction",
+   "condition": "unit vector from viewport centre to the focused trigger (16 px scale), at open",
+   "kind": "js-geometry",
+   "features": [
+    "width",
+    "height"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "overlays.signup",
+    "ui.shared(sb-*)"
+   ],
+   "sites": [
+    "_app/immutable/chunks/D313Dngs.js:1927-1934",
+    "_app/immutable/chunks/D313Dngs.js:2001-2012"
+   ],
+   "effect": "--dialog-dir-x/y entrance direction; fallback 0/16 px.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.waitlist-dialog-size",
+   "condition": "width min(360px, 100vw - 48px); maxHeight 85vh (props, not media queries)",
+   "kind": "js-width-check",
+   "features": [
+    "width",
+    "height"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "overlays.signup"
+   ],
+   "sites": [
+    "_app/immutable/nodes/2.DyWL8TcE.js:7313",
+    "_app/immutable/nodes/2.DyWL8TcE.js:13304"
+   ],
+   "effect": "360 px at viewport >= 408, 100vw-48 below.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.preload-hover",
+   "condition": "link preload on mousemove (20 ms debounce) vs mousedown/touchstart",
+   "kind": "js-touch-check",
+   "features": [
+    "hover",
+    "pointer"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "engine.scroll"
+   ],
+   "sites": [
+    "index.html:64",
+    "_app/immutable/chunks/CzkAa0og.js:1180-1192"
+   ],
+   "effect": "Network only, no visual effect; match or exclude on purpose.",
+   "status": "CONFIRMED"
+  },
+  {
+   "id": "js.firefox-ua",
+   "condition": "user agent contains Firefox",
+   "kind": "js-ua",
+   "features": [
+    "user-agent"
+   ],
+   "edges_px": [],
+   "edges": [],
+   "parts": [
+    "engine.scroll"
+   ],
+   "sites": [
+    "_app/immutable/chunks/BSBv9QXB.js:1417",
+    "_app/immutable/chunks/BSBv9QXB.js:2133"
+   ],
+   "effect": "Svelte runtime template import path; no visual effect; not a breakpoint (listed for completeness).",
+   "status": "CONFIRMED"
+  }
+ ],
+ "edges": [
+  {
+   "feature": "width",
+   "px": 319,
+   "pair": [
+    319,
+    320
+   ],
+   "conditions": [
+    "css.floor-320"
+   ],
+   "parts": [
+    "engine.scroll",
+    "theme.tokens"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "width",
+   "px": 400,
+   "pair": [
+    400,
+    401
+   ],
+   "conditions": [
+    "mq.w-le-400"
+   ],
+   "parts": [
+    "hero.countdown",
+    "morph.countdown"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "width",
+   "px": 461,
+   "pair": [
+    461,
+    462
+   ],
+   "conditions": [
+    "mq.w-le-461"
+   ],
+   "parts": [
+    "people.carousel"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "width",
+   "px": 480,
+   "pair": [
+    480,
+    481
+   ],
+   "conditions": [
+    "mq.w-le-480"
+   ],
+   "parts": [
+    "people.deck"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "device-width",
+   "px": 500,
+   "pair": [
+    500,
+    501
+   ],
+   "conditions": [
+    "mq.c860",
+    "mq.c1000",
+    "mq.c1030"
+   ],
+   "parts": [
+    "commission",
+    "morph.panel",
+    "morph.tween",
+    "nav",
+    "pain.notes",
+    "people.card",
+    "people.deck",
+    "platform",
+    "platform.stageBg",
+    "platform.sweep"
+   ],
+   "gatedBy": "css+js"
+  },
+  {
+   "feature": "width",
+   "px": 600,
+   "pair": [
+    600,
+    601
+   ],
+   "conditions": [
+    "mq.w-le-600",
+    "mq.w-gt-600",
+    "mq.w-601-1279",
+    "mq.w-601-1511"
+   ],
+   "parts": [
+    "hero",
+    "hero.accent",
+    "hero.cue",
+    "hero.deck",
+    "hero.exit",
+    "hero.orbit",
+    "morph.panel",
+    "nav",
+    "overlays.signup"
+   ],
+   "gatedBy": "css+js"
+  },
+  {
+   "feature": "width",
+   "px": 640,
+   "pair": [
+    640,
+    641
+   ],
+   "conditions": [
+    "mq.w-le-640",
+    "mq.w-gt-640",
+    "mq.w-641-1000"
+   ],
+   "parts": [
+    "commission",
+    "morph.columns",
+    "morph.panel",
+    "morph.tween",
+    "nav",
+    "nav.langMenu",
+    "overlays.drawer",
+    "people.card",
+    "people.deck",
+    "platform",
+    "platform.stageBg"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "width",
+   "px": 720,
+   "pair": [
+    720,
+    721
+   ],
+   "conditions": [
+    "mq.w-le-720"
+   ],
+   "parts": [
+    "morph.panel",
+    "platform"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "width",
+   "px": 860,
+   "pair": [
+    860,
+    861
+   ],
+   "conditions": [
+    "mq.w-le-860",
+    "mq.w-ge-861",
+    "mq.w-ge-861-nopref",
+    "mq.w-861-1000",
+    "mq.c860",
+    "js.profile-sticky-computed"
+   ],
+   "parts": [
+    "commission",
+    "morph.panel",
+    "morph.tween",
+    "nav",
+    "overlays.drawer",
+    "overlays.signup",
+    "pain",
+    "pain.notes",
+    "people.card",
+    "people.carousel",
+    "people.deck",
+    "people.o",
+    "platform",
+    "platform.stageBg",
+    "platform.sweep",
+    "ui.shared(sb-*)"
+   ],
+   "gatedBy": "css+js"
+  },
+  {
+   "feature": "width",
+   "px": 960,
+   "pair": [
+    960,
+    961
+   ],
+   "conditions": [
+    "mq.w-le-960"
+   ],
+   "parts": [
+    "platform",
+    "platform.stageBg"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "width",
+   "px": 1000,
+   "pair": [
+    1000,
+    1001
+   ],
+   "conditions": [
+    "mq.w-641-1000",
+    "mq.w-861-1000",
+    "mq.w-le-1000",
+    "mq.w-ge-1001",
+    "mq.w-ge-1001-nopref",
+    "mq.c1000",
+    "mq.c1000-nodw"
+   ],
+   "parts": [
+    "commission",
+    "hero.countdown",
+    "morph.countdown",
+    "morph.panel",
+    "platform",
+    "platform.sweep"
+   ],
+   "gatedBy": "css+js"
+  },
+  {
+   "feature": "width",
+   "px": 1030,
+   "pair": [
+    1030,
+    1031
+   ],
+   "conditions": [
+    "mq.c1030"
+   ],
+   "parts": [
+    "people.deck"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "container-width",
+   "px": 1099,
+   "pair": [
+    1099,
+    1100
+   ],
+   "conditions": [
+    "js.pain-container-1100"
+   ],
+   "parts": [
+    "pain.notes"
+   ],
+   "gatedBy": "js"
+  },
+  {
+   "feature": "width",
+   "px": 1100,
+   "pair": [
+    1100,
+    1101
+   ],
+   "conditions": [
+    "mq.w-le-1100"
+   ],
+   "parts": [
+    "platform"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "width",
+   "px": 1200,
+   "pair": [
+    1200,
+    1201
+   ],
+   "conditions": [
+    "mq.w-le-1200"
+   ],
+   "parts": [
+    "people.deck"
+   ],
+   "gatedBy": "css"
+  },
+  {
+   "feature": "width(touch)",
+   "px": 1200,
+   "pair": [
+    1200,
+    1201
+   ],
+   "conditions": [
+    "mq.c860",
+    "mq.c1000",
+    "mq.c1030",
+    "mq.c1000-nodw"
+   ],
+   "parts": [
+    "commission",
+    "hero.countdown",
+    "morph.countdown",
+    "morph.panel",
+    "morph.tween",
+    "nav",
+    "pain.notes",
+    "people.card",
+    "people.deck",
+    "platform",
+    "platform.stageBg",
+    "platform.sweep"
+   ],
+   "gatedBy": "css+js"
+  },
+  {
+   "feature": "width",
+   "px": 1279,
+   "pair": [
+    1279,
+    1280
+   ],
+   "conditions": [
+    "mq.w-601-1279",
+    "js.hero-splash-stage-1280"
+   ],
+   "parts": [
+    "hero.orbit"
+   ],
+   "gatedBy": "css+js"
+  },
+  {
+   "feature": "width",
+   "px": 1511,
+   "pair": [
+    1511,
+    1512
+   ],
+   "conditions": [
+    "mq.w-601-1511"
+   ],
+   "parts": [
+    "hero.orbit"
+   ],
+   "gatedBy": "css"
+  }
+ ],
+ "overlaps": [
+  {
+   "a": "mq.c860",
+   "b": "mq.w-ge-861",
+   "region": "touch (hover:none, pointer:coarse) at 861-1200, or device-width<=500 with width>=861 (phone landscape 932x430)",
+   "outcome": "Both match. People: 2:3384 later wins on sticky/position, but 2:3267 (0,2,0) beats 2:3468 (0,1,0) so inactive shells stay display:none. Platform: 2:5818 is later than 2:5672 and wins; 2:10990 single-class selectors lose to 2:5818's multi-class ones (INFERRED).",
+   "status": "CONFIRMED syntax; visible outcome INFERRED (measure at 1024t and 932x430)"
+  },
+  {
+   "a": "mq.c1000",
+   "b": "mq.w-ge-1001-nopref",
+   "region": "touch at 1001-1200, or device-width<=500 with width>=1001",
+   "outcome": "Both match on commission; source order and specificity decide.",
+   "status": "CONFIRMED syntax; outcome INFERRED"
+  },
+  {
+   "a": "mq.c1000",
+   "b": "mq.w-ge-1001",
+   "region": "as above",
+   "outcome": "Commission compact and platform desktop mission title both apply.",
+   "status": "INFERRED"
+  },
+  {
+   "a": "mq.c860 (JS)",
+   "b": "mq.w-ge-861 (JS)",
+   "region": "as the CSS overlap",
+   "outcome": "JS resolves it: desktop deck requires NOT c860, so touch tablets get the compact JS deck while CSS still hides inactive shells.",
+   "status": "CONFIRMED (N2:10783)"
+  },
+  {
+   "a": "mq.w-le-860",
+   "b": "mq.c860",
+   "region": "touch or device-width<=500 with width>860",
+   "outcome": "Pure-width users (people.o preview, pain layout, pain notes hidden, pain-dark, sheet store) take the DESKTOP path while combo users (deck, note drag, shrinks) take the compact path. Never substitute one for the other.",
+   "status": "CONFIRMED"
+  }
+ ],
+ "fractionalGaps": [
+  {
+   "lower": "(width<=600px)",
+   "upper": "(width>=601px)",
+   "open": [
+    600,
+    601
+   ],
+   "probe": 600.5,
+   "note": "(width>600px) matches in the gap; 2:2009/2:2026 do not."
+  },
+  {
+   "lower": "(width<=640px)",
+   "upper": "(width>=641px)",
+   "open": [
+    640,
+    641
+   ],
+   "probe": 640.5,
+   "note": "(width>640px) matches; 2:1106 does not."
+  },
+  {
+   "lower": "(width<=860px)",
+   "upper": "(width>=861px)",
+   "open": [
+    860,
+    861
+   ],
+   "probe": 860.5,
+   "note": "CSS and JS ((max-width: 860px) vs (min-width: 861px)) both leave it unmatched."
+  },
+  {
+   "lower": "(width<=1000px)",
+   "upper": "(width>=1001px)",
+   "open": [
+    1000,
+    1001
+   ],
+   "probe": 1000.5,
+   "note": "2:226 and 2:5810 vs the <=1000 rules."
+  }
+ ],
+ "continuous": [
+  {
+   "sites": "2:1764",
+   "expression": "hero h1 font clamp 40px / 4.5vw / 64px",
+   "knees_px": [
+    889,
+    1422
+   ],
+   "axis": "width",
+   "parts": [
+    "hero"
+   ]
+  },
+  {
+   "sites": "2:1777",
+   "expression": "hero title gap clamp 14 / 1.6vw / 24",
+   "knees_px": [
+    875,
+    1500
+   ],
+   "axis": "width",
+   "parts": [
+    "hero"
+   ]
+  },
+  {
+   "sites": "2:2261",
+   "expression": "pain note padding clamp 12 / 2.6vw / 20",
+   "knees_px": [
+    462,
+    769
+   ],
+   "axis": "width",
+   "parts": [
+    "pain.notes"
+   ]
+  },
+  {
+   "sites": "2:2289",
+   "expression": "pain note text clamp 14 / 2.2vw / 20",
+   "knees_px": [
+    636,
+    909
+   ],
+   "axis": "width",
+   "parts": [
+    "pain.notes"
+   ]
+  },
+  {
+   "sites": "2:2442, 2:5445, 2:5668",
+   "expression": "future / platform / mission title clamp 36 / 4vw / 48",
+   "knees_px": [
+    900,
+    1200
+   ],
+   "axis": "width",
+   "parts": [
+    "people.card",
+    "platform"
+   ]
+  },
+  {
+   "sites": "2:10894",
+   "expression": "platform title clamp 32 / 8vw / 40 (inside width<=640)",
+   "knees_px": [
+    400,
+    500
+   ],
+   "axis": "width",
+   "parts": [
+    "platform"
+   ]
+  },
+  {
+   "sites": "2:3019-3020",
+   "expression": "profile shell height clamp 743 / 100vh-80 / 820",
+   "knees_px": [
+    823,
+    900
+   ],
+   "axis": "height",
+   "parts": [
+    "people.deck"
+   ]
+  },
+  {
+   "sites": "2:2026",
+   "expression": "orbit edge push max(0, (1280 - 100vw) x 0.35)",
+   "knees_px": [
+    1280
+   ],
+   "axis": "width",
+   "parts": [
+    "hero.orbit"
+   ]
+  },
+  {
+   "sites": "2:1569, 2:1600",
+   "expression": "orbit unit 100cqw / 302 on an inline-size container",
+   "knees_px": [],
+   "axis": "container-width",
+   "parts": [
+    "hero.orbit"
+   ]
+  },
+  {
+   "sites": "2:6394-6398",
+   "expression": "platform artboard scale 100cqw / 640 (named inline-size container)",
+   "knees_px": [],
+   "axis": "container-width",
+   "parts": [
+    "platform.stageBg"
+   ]
+  },
+  {
+   "sites": "2:6975-6993",
+   "expression": "secure-network arm sizes from cqw/cqh (size container)",
+   "knees_px": [],
+   "axis": "container-size",
+   "parts": [
+    "platform.glint"
+   ]
+  },
+  {
+   "sites": "N2:2511-2518",
+   "expression": "commission fee visual min(0.8, parent / 432)",
+   "knees_px": [
+    345.6
+   ],
+   "axis": "container-width",
+   "parts": [
+    "commission.typing"
+   ]
+  },
+  {
+   "sites": "N2:6204-6215",
+   "expression": "seller preview min(320, innerWidth - 24)",
+   "knees_px": [
+    344
+   ],
+   "axis": "width",
+   "parts": [
+    "people.o"
+   ]
+  },
+  {
+   "sites": "N2:13304",
+   "expression": "waitlist dialog min(360, 100vw - 48)",
+   "knees_px": [
+    408
+   ],
+   "axis": "width",
+   "parts": [
+    "overlays.signup"
+   ]
+  },
+  {
+   "sites": "N2:10800",
+   "expression": "desktop deck scale min(1.22, (innerWidth - 112) / (deckWidth - 248))",
+   "knees_px": [],
+   "axis": "width",
+   "parts": [
+    "people.deck"
+   ]
+  },
+  {
+   "sites": "all sheets",
+   "expression": "viewport units: vw 34, vh 15, svh 9, dvh 7 uses; 16 clamp() calls",
+   "knees_px": [],
+   "axis": "width+height",
+   "parts": [
+    "*"
+   ]
+  }
+ ],
+ "absent": [
+  "@supports",
+  "@container queries (containers exist only for cq units)",
+  "orientation",
+  "resolution",
+  "any-hover",
+  "any-pointer",
+  "height/aspect-ratio queries",
+  "print/screen/not/only",
+  "devicePixelRatio",
+  "screen.*",
+  "maxTouchPoints",
+  "ontouchstart/TouchEvent",
+  "GestureEvent",
+  "multi-URL srcset"
+ ],
+ "unmappedPartIds": [
+  "ui.shared(sb-*)",
+  "theme.tokens",
+  "hero (section shell)",
+  "platform (section shell)"
+ ],
+ "matrix": {
+  "edgePairs": [
+   [
+    319,
+    320
+   ],
+   [
+    400,
+    401
+   ],
+   [
+    461,
+    462
+   ],
+   [
+    480,
+    481
+   ],
+   [
+    600,
+    601
+   ],
+   [
+    640,
+    641
+   ],
+   [
+    720,
+    721
+   ],
+   [
+    860,
+    861
+   ],
+   [
+    960,
+    961
+   ],
+   [
+    1000,
+    1001
+   ],
+   [
+    1030,
+    1031
+   ],
+   [
+    1100,
+    1101
+   ],
+   [
+    1200,
+    1201
+   ],
+   [
+    1279,
+    1280
+   ],
+   [
+    1511,
+    1512
+   ]
+  ],
+  "deviceWidthPairs": [
+   [
+    500,
+    501
+   ]
+  ],
+  "containerPairs": [
+   {
+    "pair": [
+     1099,
+     1100
+    ],
+    "of": "pain-notes container (js.pain-container-1100)",
+    "viewport": "find by measurement"
+   }
+  ],
+  "featureCombos": {
+   "profiles": [
+    {
+     "id": "desk",
+     "hover": "hover",
+     "pointer": "fine",
+     "deviceWidth": "= viewport width",
+     "reducedMotion": "no-preference",
+     "dpr": 1,
+     "height": 900,
+     "at": "every edge pair"
+    },
+    {
+     "id": "desk-rm",
+     "hover": "hover",
+     "pointer": "fine",
+     "deviceWidth": "= viewport width",
+     "reducedMotion": "reduce",
+     "dpr": 1,
+     "height": 900,
+     "at": "every edge pair (reduced motion changes layout)"
+    },
+    {
+     "id": "touch",
+     "hover": "none",
+     "pointer": "coarse",
+     "deviceWidth": "= viewport width",
+     "reducedMotion": "no-preference",
+     "dpr": "3 if width<=500 else 2",
+     "height": 900,
+     "at": "every edge pair"
+    },
+    {
+     "id": "touch-rm",
+     "hover": "none",
+     "pointer": "coarse",
+     "deviceWidth": "= viewport width",
+     "reducedMotion": "reduce",
+     "dpr": 2,
+     "height": 900,
+     "at": [
+      [
+       600,
+       601
+      ],
+      [
+       860,
+       861
+      ],
+      [
+       1000,
+       1001
+      ],
+      [
+       1030,
+       1031
+      ],
+      [
+       1200,
+       1201
+      ]
+     ]
+    }
+   ],
+   "special": [
+    {
+     "id": "phone-landscape",
+     "viewport": [
+      932,
+      430
+     ],
+     "screen": [
+      430,
+      932
+     ],
+     "hover": "none",
+     "pointer": "coarse",
+     "dpr": 3,
+     "reducedMotion": [
+      "no-preference",
+      "reduce"
+     ],
+     "why": "device-width<=500 arm with width>860/1000: both overlap pairs (mq.c860 + mq.w-ge-861, mq.c1000 + mq.w-ge-1001)"
+    },
+    {
+     "id": "dw-arm-isolate",
+     "viewport": [
+      [
+       1001,
+       900
+      ],
+      [
+       1031,
+       900
+      ],
+      [
+       1201,
+       900
+      ]
+     ],
+     "screen": [
+      [
+       500,
+       900
+      ],
+      [
+       501,
+       900
+      ]
+     ],
+     "hover": "hover",
+     "pointer": "fine",
+     "dpr": 1,
+     "reducedMotion": "no-preference",
+     "why": "device-width 500/501 alone flips mq.c860/c1000/c1030 but NOT mq.c1000-nodw (the one combo without the arm)"
+    },
+    {
+     "id": "hover-pointer-cross",
+     "viewport": [
+      [
+       1024,
+       768
+      ],
+      [
+       1200,
+       900
+      ]
+     ],
+     "combos": [
+      [
+       "none",
+       "fine"
+      ],
+      [
+       "hover",
+       "coarse"
+      ]
+     ],
+     "dpr": 2,
+     "reducedMotion": "no-preference",
+     "why": "the combos need hover:none AND pointer:coarse; each alone must not match; (hover: hover) and (hover: none) checked separately"
+    },
+    {
+     "id": "dark",
+     "viewport": [
+      [
+       1440,
+       900
+      ],
+      [
+       430,
+       932
+      ]
+     ],
+     "prefersColorScheme": "dark",
+     "why": "mq.dark must stay neutralised: pixels equal to light"
+    },
+    {
+     "id": "fractional-gaps",
+     "viewport": [
+      600.5,
+      640.5,
+      860.5,
+      1000.5
+     ],
+     "via": "DPR 1.25 / browser zoom so innerWidth is fractional",
+     "why": "the original leaves (N, N+1) unmatched by both sides; the rewrite must too"
+    },
+    {
+     "id": "height-probes",
+     "viewport": [
+      [
+       1440,
+       822
+      ],
+      [
+       1440,
+       823
+      ],
+      [
+       1440,
+       900
+      ],
+      [
+       1440,
+       901
+      ],
+      [
+       430,
+       775
+      ],
+      [
+       430,
+       815
+      ]
+     ],
+     "why": "profile shell clamp knees at viewport height 823/900; iOS toolbar heights; vh-band JS gates"
+    }
+   ]
+  },
+  "dpr": [
+   {
+    "dpr": 1,
+    "for": "desk, desk-rm, dw-arm-isolate"
+   },
+   {
+    "dpr": 2,
+    "for": "touch above 500 px, touch-rm, hover-pointer-cross"
+   },
+   {
+    "dpr": 3,
+    "for": "touch at or below 500 px, phone-landscape"
+   },
+   {
+    "dpr": 1.25,
+    "for": "fractional-gaps probes (and v1's 1536 check)"
+   },
+   {
+    "dpr": 2.625,
+    "for": "fractional-gaps probes on a phone width (412)"
+   }
+  ],
+  "dprNote": "No DPR-dependent code: no devicePixelRatio, no resolution queries, every srcset has one URL (CONFIRMED by grep). DPR changes raster only, plus fractional CSS widths.",
+  "liveResize": {
+   "edges": [
+    319,
+    400,
+    461,
+    480,
+    600,
+    640,
+    720,
+    860,
+    960,
+    1000,
+    1030,
+    1100,
+    1200,
+    1279,
+    1511
+   ],
+   "jsEdges": [
+    {
+     "edge": 600,
+     "why": "change listeners (splash finish is one-way; chrome ready)",
+     "conditions": [
+      "mq.w-le-600"
+     ]
+    },
+    {
+     "edge": 860,
+     "why": "w860 listeners (pain layout, pain-dark), c860 deck listener, ResizeObserver on notes",
+     "conditions": [
+      "mq.w-le-860",
+      "mq.c860",
+      "mq.w-ge-861"
+     ]
+    },
+    {
+     "edge": 1000,
+     "why": "commission compact polled per frame, no listener",
+     "conditions": [
+      "mq.c1000"
+     ]
+    },
+    {
+     "edge": 400,
+     "why": "countdown cell via ResizeObserver",
+     "conditions": [
+      "mq.w-le-400",
+      "js.countdown-cell"
+     ]
+    },
+    {
+     "edge": 1279,
+     "why": "splash stage pull, only during the splash",
+     "conditions": [
+      "js.hero-splash-stage-1280"
+     ]
+    }
+   ],
+   "sequences": [
+    {
+     "id": "desk-down-up",
+     "widths": [
+      1512,
+      1511,
+      1280,
+      1279,
+      1201,
+      1200,
+      1101,
+      1100,
+      1031,
+      1030,
+      1001,
+      1000,
+      961,
+      960,
+      861,
+      860,
+      721,
+      720,
+      641,
+      640,
+      601,
+      600,
+      481,
+      480,
+      462,
+      461,
+      401,
+      400,
+      320,
+      "reverse"
+     ],
+     "height": 900
+    },
+    {
+     "id": "rotate",
+     "viewports": [
+      [
+       430,
+       932
+      ],
+      [
+       932,
+       430
+      ],
+      [
+       430,
+       932
+      ]
+     ],
+     "screen": [
+      430,
+      932
+     ],
+     "touch": true
+    },
+    {
+     "id": "v1-pain",
+     "widths": [
+      1440,
+      600,
+      1440,
+      600,
+      1440
+     ],
+     "note": "original non-deterministic (pain IO after reflow): accept either A/A class"
+    },
+    {
+     "id": "touch-1024",
+     "widths": [
+      1024,
+      1201,
+      1024
+     ],
+     "touch": true
+    }
+   ],
+   "liveMediaFlips": [
+    {
+     "flip": "prefers-reduced-motion reduce <-> no-preference",
+     "at": [
+      430,
+      1024,
+      1440
+     ]
+    },
+    {
+     "flip": "touch on <-> off (pointer-only change)",
+     "at": [
+      1024
+     ],
+     "note": "commission c1000 is polled with no change listener: updates at the next scroll/resize frame (INFERRED); the rewrite must match"
+    }
+   ],
+   "compare": "rewrite after sequence vs original after the SAME sequence (not vs a fresh load): some original state is path-dependent"
+  },
+  "estimate": {
+   "loadsPerEngine": 124,
+   "breakdown": {
+    "desk": 30,
+    "desk-rm": 30,
+    "touch": 30,
+    "touch-rm": 10,
+    "phone-landscape": 2,
+    "dw-arm-isolate": 6,
+    "hover-pointer-cross": 4,
+    "dark": 2,
+    "fractional-gaps": 4,
+    "height-probes": 6
+   },
+   "engines": [
+    "chromium",
+    "playwright-webkit"
+   ],
+   "plus": "one Simulator check (430x775 DPR 3) and the live-resize sequences",
+   "status": "INFERRED arithmetic"
+  }
+ }
+}
