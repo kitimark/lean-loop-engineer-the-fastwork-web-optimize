@@ -851,7 +851,8 @@
    "writes": [
     ".github/workflows/wktr.yml",
     "packages/measure-wktr/**"
-   ]
+   ],
+   "evidence": "c5d10bd"
   },
   {
    "id": "wktr-readme-fix",

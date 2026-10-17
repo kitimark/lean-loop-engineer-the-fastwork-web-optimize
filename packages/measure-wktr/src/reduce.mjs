@@ -36,7 +36,11 @@ export function stepCounts(samples) {
   }
   const a = samples[0], z = samples[samples.length - 1];
   const d = (key) => NUM(z[key]) - NUM(a[key]);
+  // cause trace (variant flag `trace`): monotone event counters `ev` in the samples become `ev_<name>` deltas
+  const evCounts = {};
+  if (a.ev || z.ev) for (const k of new Set([...Object.keys(a.ev || {}), ...Object.keys(z.ev || {})])) evCounts[`ev_${k}`] = NUM(z.ev?.[k]) - NUM(a.ev?.[k]);
   return {
+    ...evCounts,
     styleUpdateSizeSum: restyled,
     lastStyleUpdateSize: NUM(z.ls),
     styleRecalcs: d('sr'),
@@ -51,10 +55,14 @@ export function stepCounts(samples) {
 
 /** Frames for the class policy: one per scroll step, { n, phase, scrollY, counts } (Fw.Measure.Wire frame shape). */
 export function framesOf(steps, endSample) {
-  return steps.map((s, i) => {
+  const frames = steps.map((s, i) => {
     const next = i + 1 < steps.length ? steps[i + 1].b : endSample;
     return { n: i, phase: 'scroll', scrollY: s.y, counts: stepCounts([s.b, ...(s.mids || []), next]) };
   });
+  // every frame carries every count type that any frame of the run has (a trace counter only exists after its first event)
+  const keys = new Set(frames.flatMap((f) => Object.keys(f.counts)));
+  for (const f of frames) for (const k of keys) if (!(k in f.counts)) f.counts[k] = 0;
+  return frames;
 }
 
 /** Parse the `FWWKTR <tag> <json>` console lines out of WKTR's stdout text. */

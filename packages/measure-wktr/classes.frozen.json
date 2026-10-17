@@ -1,0 +1,336 @@
+{
+ "schema": "fw.wktr.classes.frozen/1",
+ "lane": "wktr (WebKitTestRunner, GitHub-hosted macos-26), counts only, never phone time",
+ "rule": "The signed class of a type is its worst class (deterministic < stable < quarantined) over the workflow runs listed per variant; a type missing from a run counts as quarantined there; fewer than 3 workflow runs, a repeated run id and mixed image digests are refused (fwcore measure.freeze, Lean Fw.Measure.Freeze).",
+ "policy": {
+  "kMax": 4,
+  "tMax": 24
+ },
+ "image": {
+  "id": "5035786f47c7740e73253cb0378039298ed95aa4b2246da40887b2571badee55/23F77",
+  "archive": {
+   "revision": "324039@main",
+   "commit": "e1c510bc7fae8b20c296f2bcc3aeac3c5c8df578",
+   "sha256": "5035786f47c7740e73253cb0378039298ed95aa4b2246da40887b2571badee55"
+  },
+  "device": {
+   "name": "iPhone 17",
+   "runtime": "26.5",
+   "runtimeBuild": "23F77"
+  },
+  "runnerImageVersions": [
+   "20261013.0424.1"
+  ],
+  "note": "id = archive sha256 / iOS runtime build; runner VM image versions are listed, not required equal"
+ },
+ "harness": {
+  "commit": "82b049593ccd52cd9dbe85f4609c16fe272ac9f1",
+  "note": "every workflow run below ran this commit; fwcore was built from it by the same workflow"
+ },
+ "profiles": {
+  "live": {
+   "workflowRuns": [
+    "39054209180",
+    "39058900156",
+    "39061993891"
+   ],
+   "jobsPerRun": 2,
+   "countsFilesPerRun": [
+    6,
+    6,
+    6
+   ],
+   "image": "5035786f47c7740e73253cb0378039298ed95aa4b2246da40887b2571badee55/23F77",
+   "frames": 104,
+   "trajectoriesEqual": true,
+   "harness": {
+    "step": 50,
+    "frames": 2,
+    "settleMs": 6000,
+    "warm": false,
+    "vt": false,
+    "trace": false,
+    "still": false,
+    "header": "useFlexibleViewport=true"
+   },
+   "viewport": {
+    "innerWidth": 402,
+    "innerHeight": 820,
+    "dpr": 2,
+    "docH": 5963
+   },
+   "tally": {
+    "deterministic": 2,
+    "stable": 0,
+    "quarantined": 7
+   },
+   "pooledTally": {
+    "deterministic": 2,
+    "stable": 0,
+    "quarantined": 7
+   },
+   "types": {
+    "compositingUpdates": {
+     "class": "quarantined",
+     "k": 69,
+     "t": 29,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "lastStyleUpdateSize": {
+     "class": "quarantined",
+     "k": 47,
+     "t": 151,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "layerFlushes": {
+     "class": "deterministic",
+     "k": 0,
+     "t": 0,
+     "perRun": [
+      "deterministic",
+      "deterministic",
+      "deterministic"
+     ],
+     "pooledClass": "deterministic",
+     "role": "gate"
+    },
+    "layoutUpdates": {
+     "class": "quarantined",
+     "k": 86,
+     "t": 55,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "renderingUpdates": {
+     "class": "deterministic",
+     "k": 0,
+     "t": 0,
+     "perRun": [
+      "deterministic",
+      "deterministic",
+      "deterministic"
+     ],
+     "pooledClass": "deterministic",
+     "role": "gate"
+    },
+    "styleInvalidations": {
+     "class": "quarantined",
+     "k": 32,
+     "t": 244,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "styleRecalcs": {
+     "class": "quarantined",
+     "k": 78,
+     "t": 30,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "styleUpdateSizeSum": {
+     "class": "quarantined",
+     "k": 85,
+     "t": 1909,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "undercountedRecalcs": {
+     "class": "quarantined",
+     "k": 78,
+     "t": 29,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    }
+   }
+  },
+  "vt": {
+   "workflowRuns": [
+    "39054209180",
+    "39058900156",
+    "39061993891"
+   ],
+   "jobsPerRun": 2,
+   "countsFilesPerRun": [
+    6,
+    6,
+    6
+   ],
+   "image": "5035786f47c7740e73253cb0378039298ed95aa4b2246da40887b2571badee55/23F77",
+   "frames": 104,
+   "trajectoriesEqual": true,
+   "harness": {
+    "step": 50,
+    "frames": 2,
+    "settleMs": 6000,
+    "warm": false,
+    "vt": true,
+    "trace": false,
+    "still": false,
+    "header": "useFlexibleViewport=true"
+   },
+   "viewport": {
+    "innerWidth": 402,
+    "innerHeight": 820,
+    "dpr": 2,
+    "docH": 5963
+   },
+   "tally": {
+    "deterministic": 2,
+    "stable": 1,
+    "quarantined": 6
+   },
+   "pooledTally": {
+    "deterministic": 2,
+    "stable": 1,
+    "quarantined": 6
+   },
+   "types": {
+    "compositingUpdates": {
+     "class": "quarantined",
+     "k": 60,
+     "t": 14,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "lastStyleUpdateSize": {
+     "class": "quarantined",
+     "k": 26,
+     "t": 111,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "layerFlushes": {
+     "class": "deterministic",
+     "k": 0,
+     "t": 0,
+     "perRun": [
+      "deterministic",
+      "deterministic",
+      "deterministic"
+     ],
+     "pooledClass": "deterministic",
+     "role": "gate"
+    },
+    "layoutUpdates": {
+     "class": "quarantined",
+     "k": 80,
+     "t": 26,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "renderingUpdates": {
+     "class": "deterministic",
+     "k": 0,
+     "t": 0,
+     "perRun": [
+      "deterministic",
+      "deterministic",
+      "deterministic"
+     ],
+     "pooledClass": "deterministic",
+     "role": "gate"
+    },
+    "styleInvalidations": {
+     "class": "stable",
+     "k": 3,
+     "t": 13,
+     "perRun": [
+      "stable",
+      "stable",
+      "stable"
+     ],
+     "pooledClass": "stable",
+     "role": "gate"
+    },
+    "styleRecalcs": {
+     "class": "quarantined",
+     "k": 31,
+     "t": 42,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "styleUpdateSizeSum": {
+     "class": "quarantined",
+     "k": 30,
+     "t": 100,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    },
+    "undercountedRecalcs": {
+     "class": "quarantined",
+     "k": 31,
+     "t": 42,
+     "perRun": [
+      "quarantined",
+      "quarantined",
+      "quarantined"
+     ],
+     "pooledClass": "quarantined",
+     "role": "finding"
+    }
+   }
+  }
+ }
+}
