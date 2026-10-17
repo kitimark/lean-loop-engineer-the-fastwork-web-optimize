@@ -1,16 +1,17 @@
 ---
 id: 2026-10-17-class-policy-draft
 kind: note
-title: "Determinism-class policy per lane (DRAFT for the lead to sign)"
-status: draft
+title: "Determinism-class policy per lane (Chromium decided by the lead; WebKit still a draft)"
+status: review
 created: 2026-10-17
 topics: [determinism, measurement, policy, chromium, webkit, spk-i, spk-j]
 ---
 
 # Determinism-class policy (frozen on signature)
 
-**Status: DRAFT.** Nothing here is signed. The lead signs by moving this file to `research/decisions/` and changing
-`status` to `signed`. Values marked **PROPOSAL** are my reading of the evidence, not a fact.
+**Status.** Section 2 (Chromium) and the use rule are **DECIDED** by the lead (6b4237e, "Lead decision" in
+`spk-i.md`) and in PLAN revision 7 (§1.2 V-i rules). Section 3 (WebKit) is still a **DRAFT**. Values marked
+**PROPOSAL** are a reading of the evidence, not a fact.
 Evidence commits: `ddc91b2` (Lean `Fw.Measure`, READMEs of both lanes), `e01f9e5` (Chromium lane), `1d6c88c` (WebKit lane).
 
 ## 1. What the classes mean (CONFIRMED, Lean)
@@ -29,16 +30,30 @@ Evidence commits: `ddc91b2` (Lean `Fw.Measure`, READMEs of both lanes), `e01f9e5
 - **Adding runs can only demote** (`classify_mono`, `classifyCells_snoc` for `relTol <= 1`): a class is a statement
   about the runs seen. That unseen runs stay in the class is a premise outside Lean (lean-measure handoff, "Gaps").
 
-## 2. Chromium lane (container, `swipe-v1`, 503 frames, 3 runs)
+## 2. Chromium lane (DECIDED; container, `swipe-v1`, 503 frames, 3 runs per workflow run)
 
 | Parameter | Value | Status |
 |---|---|---|
-| `kMax` | **4** frames | policy used for the 28/14/8 result; default in `classify.mjs:12` |
-| `tMax` | **24** (count units over the run) | same; see the note below |
-| minimum runs to assign a class | **3** | PROPOSAL (Lean accepts 2; the evidence was built on 3) |
+| `kMax` | **4** frames | DECIDED; default in `classify.mjs:12` |
+| `tMax` | **24** (count units over the run) | DECIDED; see the note below |
+| pixel-area types (name ends in `AreaPx`) | bound max(tMax, ⌊smallest absolute run total ÷ 1000⌋) | DECIDED (6b4237e); proved in `Fw/Measure/Classes`, `classifyU_*` (5879861) |
+| runs per class | **3** per workflow run; the **signed** class is the worst over **≥ 3 CI workflow runs** with the image pinned | DECIDED (6b4237e); task `class-freeze` |
 
-**Result (MEASURED, 3 runs, same machine/image/snapshot; `lean-measure.md` @ddc91b2):** 28 deterministic, 14 stable,
-8 quarantined, of 50 count types.
+**Result on CI (MEASURED, 3 workflow runs of 3 runs each; 13b6c98, re-classed in 5879861):**
+
+| Workflow run | det / stable / quarantined (counts rule) | with the pixel-area bound |
+|---|---|---|
+| 39029423874 | 33 / 20 / 9 | 33 / 22 / 7 |
+| 39031884554 | 31 / 21 / 10 | 31 / 23 / 8 |
+| 39033771018 | 27 / 25 / 10 | 27 / 27 / 8 |
+
+`census.activeTileAreaPx` and `census.drawingAreaPx` leave quarantine in all 3 runs (largest gap 382 ppm of the
+smallest total); no count type changes class. The classes drift between runs of the same code (6 types det → stable,
+`trace.Paint` stable → quarantined; cause runner noise or an unpinned image, INFERRED), which is why one run's
+classes are never signed (`spk-i.md`).
+
+**Local run (rev 6, superseded by the CI rows; kept for the type names).** 3 local container runs gave 28
+deterministic, 14 stable, 8 quarantined of 50 types (`lean-measure.md` @ddc91b2):
 
 - **Deterministic (28):** hasDamage, RecalcStyleCount, JSEventListeners, UpdateLayoutTree, ScheduleStyleRecalculation,
   Layerize, Commit, ScrollLayer, FireAnimationFrame, RequestAnimationFrame, FunctionCall, EvaluateScript,
@@ -55,19 +70,20 @@ Evidence commits: `ddc91b2` (Lean `Fw.Measure`, READMEs of both lanes), `e01f9e5
 
 **Note on `tMax` (INFERRED):** every type admitted as stable has totals within 1 (Paint 3). `tMax = 24` only mattered for
 `elementCount` (up to 24 of 48,300), which fails on `k` (38 > 4) anyway. **PROPOSAL:** keep 4/24 as the frozen
-policy because it reproduces 28/14/8; the lead may tighten `tMax` to 4, which should change no class. That claim is
-checkable with `node src/classify.mjs <3 runs> --tMax 4` (not run here; I do no measurements).
+policy; the lead may tighten `tMax` to 4, which should change no count class. That claim is checkable with
+`node src/classify.mjs <3 runs> --tMax 4` (not run here). For pixel-area types `tMax` is only a floor (above).
 
-**Use (PROPOSAL, from `Tolerance`):** deterministic types feed the screen frame by frame; stable types only through
-totals with margin `2t`; quarantined types are logged and never gated on. **Open for V-i:** the PLAN row requires
-"Chromium: all used types deterministic" (PLAN V-i). Measured: 14 stable types exist that K1-K9 may need (layout and paint
-families). See `spk-i.md` for the re-scope.
+**Use (DECIDED, 6b4237e, from `Tolerance`):** deterministic types feed the screen frame by frame; stable types only
+through totals with margin `2t`; quarantined types are logged and never gated on. "Deterministic only" was rejected:
+it would drop trace.Layout, trace.Paint, trace.RasterTask and LayoutCount, the main scroll-cost signals.
 
 Known sources of residual noise (README, MEASURED): asynchronous image decode and iframe parsing against frame
 boundaries (a 100 ms real-time barrier after each frame removed the PaintImage/RasterTask clusters), hover-recompute
-hit tests after a programmatic `scrollTo`, GC timing. Software raster only; touch input not used.
+hit tests after a programmatic `scrollTo`, GC timing. Software raster only. Touch input wedged BeginFrame until
+`--disable-features=WaitForLateScrollEvents` (25bd9f4; 21 local runs; the CI check is task `touch-ci-verify`);
+`trace.HitTest` stays quarantined.
 
-## 3. WebKit lane (iOS Simulator, 4 passes in 2 independent boots, clock pinned)
+## 3. WebKit lane (DRAFT; iOS Simulator, 4 passes in 2 independent boots, clock pinned)
 
 Tolerances `TOL` (`packages/measure-webkit/src/reduce.mjs:130-138` @1d6c88c; Lean `measure.classify` mode `cells`):
 
@@ -108,14 +124,15 @@ Tolerances `TOL` (`packages/measure-webkit/src/reduce.mjs:130-138` @1d6c88c; Lea
 
 - The two lanes use different meanings of "stable" (frame-shift vs cell spread). The `Tolerance` theorem bridges them
   for totals; the lead should confirm that is acceptable for one gate.
-- A fourth Chromium run, ideally on another day, to test the premise that unseen runs stay in class (owner: measure-engineer).
-- The WebKit harness still calls its TS `reduce.mjs`, not fwcore (lean-measure handoff).
-- `meas-chromium-2` has uncommitted work in its worktree (clock shim, run loop, Dockerfile, apt manifest). If it changes
-  the classes, redo section 2.
+- Chromium: the premise that unseen runs stay in class is now handled by signing the worst class over ≥ 3 CI runs
+  (`class-freeze`), not by a fourth local run.
+- WebKit: the harness still calls its TS `reduce.mjs` (`compositeCuts`, `reduceWindows` are Lean-first debt); the
+  WebKit classes need CI runs too (task `sim-speed` first: Simulator runs take 10-38 min and fail at warm-up).
 
-## What this changes in the plan
+## What this changed in the plan (applied in PLAN revision 7)
 
-- PLAN §4.2 / V-i (line 146): replace "all used types deterministic" by "every used type is deterministic, or stable
-  under the policy above and used only by totals with margin 2t; quarantined types are never used".
-- PLAN §10.2 M0: the "two byte-identical vectors" clause is met only for the 28 deterministic types; this policy is the
-  recorded re-scope (see `spk-i.md`).
+- PLAN §1.2 V-i: "all used types deterministic" became the V-i rules: deterministic types frame by frame, stable
+  types as totals with margin 2t, quarantined never; the signed class is the worst over ≥ 3 CI runs.
+- PLAN §4.2: the CI rows and the pixel-area re-class above replace the local 28/14/8 numbers.
+- PLAN §10.2 M1: "every used type signed deterministic or stable"; the M0 "byte-identical vectors" clause was
+  re-scoped to per-type classes in revision 6.
