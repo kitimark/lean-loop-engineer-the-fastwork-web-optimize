@@ -23,3 +23,4 @@ port-nav, port-commission, port-overlays. One merge commit each. CI run ids are 
 ## Open
 - Not kept: nothing dropped. `scripts/mathview-cached.sh` does not exist in this tree; used `lake exe mathview` (0 errors, all `sorryFree`).
 - Read first: `page.mjs prepareInPage`, then the `prepare` keys in anchors.json.
+- CI: the first push of ci/integrate-ports raised a ref-lock error and started no run; a second push triggered it.
