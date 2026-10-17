@@ -60,9 +60,11 @@ describe("the real work graph through fwcore", () => {
       if (t.state === "blocked") expect(undone.length).toBeGreaterThan(0);
       expect(t.state === "done", t.id).toBe(t.evidence !== null);
     }
-    const ready = new Set(p.tasks.filter((t) => t.state === "ready").map((t) => t.id));
-    expect(p.parallelSafe.flat().sort()).toEqual([...ready].sort()); // groups partition the ready tasks
-    p.criticalPath.slice(1).forEach((id, i) => expect(st.get(id)!.deps).toContain(p.criticalPath[i]));
+    for (const t of p.tasks) expect(t.lane, t.id).toBe(t.needs.includes("device") ? "device" : "agent"); // Lean lane_device_iff
+    const byId = new Map(file.tasks.map((t) => [t.id, t]));
+    for (const t of p.tasks) expect(t.needs, t.id).toEqual(byId.get(t.id)!.needs ?? []); // sync stores needs (missing = [])
+    const ready = new Set(p.tasks.filter((t) => t.state === "ready" && t.lane === "agent").map((t) => t.id));
+    expect(p.parallelSafe.flat().sort()).toEqual([...ready].sort()); // groups partition the agent-ready tasks    p.criticalPath.slice(1).forEach((id, i) => expect(st.get(id)!.deps).toContain(p.criticalPath[i]));
     for (const m of p.milestones) expect(m.total).toBe(file.tasks.filter((t) => t.milestone === m.id).length);
     // second sync: every key is already applied
     for (const c of cmds) expect(await store.submit(c)).toMatchObject({ ok: true, duplicate: true });

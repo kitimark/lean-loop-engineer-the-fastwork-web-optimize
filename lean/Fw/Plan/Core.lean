@@ -11,14 +11,16 @@ the critical path and the parallel-safe groups are derived (`view`), never store
   of an unknown or done task. `exec` applies an accepted command.
 * `run_inv`: every reachable state has unique task ids and an acyclic dependency graph.
 * `exec_isDone`: done is monotone. `tstate_ready_iff`, `tstate_blocked`, `ready_indep`: the derived
-  states. `groups_pairwise`, `groups_perm`: the parallel-safe groups. `view_criticalPath`: the
-  critical path is a longest chain of undone tasks.
+  states. `lane_device_iff`, `ready_split`: a task's lane (`device` iff it needs `"device"`) splits
+  the ready set into agent work and device work. `groups_pairwise`, `groups_perm`: the parallel-safe
+  groups of the agent-ready tasks. `view_criticalPath`: the critical path is a longest chain of
+  undone tasks.
 -/
 namespace Fw.Plan
 
 /-- A `task.define` payload: the task's definition and optional evidence that it is already done.
 
-$$d = (\mathit{task}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{evidence}_\bot)$$
+$$d = (\mathit{task}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot)$$
 -/
 structure Def where
   task      : String
@@ -29,6 +31,7 @@ structure Def where
   owner     : String
   writes    : List String
   devices   : List String
+  needs     : List String
   evidence  : Option String
 deriving Repr, DecidableEq
 
@@ -88,11 +91,11 @@ deriving Repr, DecidableEq
 
 /-- The row a definition makes, with the given agent and evidence.
 
-$$\operatorname{row}(d, a, e) = (d.\mathit{task}, d.\mathit{title}, d.\mathit{stream}, d.\mathit{milestone}, d.\mathit{deps}, d.\mathit{owner}, d.\mathit{writes}, d.\mathit{devices}, e, a)$$
+$$\operatorname{row}(d, a, e) = (d.\mathit{task}, d.\mathit{title}, d.\mathit{stream}, d.\mathit{milestone}, d.\mathit{deps}, d.\mathit{owner}, d.\mathit{writes}, d.\mathit{devices}, d.\mathit{needs}, e, a)$$
 -/
 def Def.row (d : Def) (agent evidence : Option String) : Task :=
   { id := d.task, title := d.title, stream := d.stream, milestone := d.milestone, deps := d.deps,
-    owner := d.owner, writes := d.writes, devices := d.devices, evidence, agent }
+    owner := d.owner, writes := d.writes, devices := d.devices, needs := d.needs, evidence, agent }
 
 /-- Apply `f` to every row with id `x`.
 
@@ -125,6 +128,7 @@ bottom inside each case).
 $$\operatorname{check}(\pi, c) = \begin{cases}
 \begin{array}{l} \texttt{"title: at most 200 characters"} \text{ if } |d.\mathit{title}| > 200;\ \texttt{"deps: at most 32"} \text{ if } |d.\mathit{deps}| > 32; \\
 \quad \texttt{"writes: at most 32"} \text{ if } |d.\mathit{writes}| > 32;\ \texttt{"devices: at most 8"} \text{ if } |d.\mathit{devices}| > 8; \\
+\quad \texttt{"needs: at most 8"} \text{ if } |d.\mathit{needs}| > 8; \\
 \quad \texttt{"dep not defined: "} x \text{ for the first } x \in d.\mathit{deps} \setminus \operatorname{ids}(U); \\
 \quad \texttt{"dependency cycle"} \text{ if } \neg\operatorname{acyclicB}(U);\ \bot \end{array} & c = \mathrm{define}(d),\ U = \operatorname{upsert}(\pi.\mathit{tasks}, d) \\
 \begin{array}{l} \texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task is done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x); \\
@@ -141,6 +145,7 @@ def check (s : State) (c : Cmd) : Option String :=
     else if d.deps.length > 32 then some "deps: at most 32"
     else if d.writes.length > 32 then some "writes: at most 32"
     else if d.devices.length > 8 then some "devices: at most 8"
+    else if d.needs.length > 8 then some "needs: at most 8"
     else match d.deps.find? (fun x => !(ids u).contains x) with
       | some x => some s!"dep not defined: {x}"
       | none => if acyclicB u then none else some "dependency cycle"
@@ -377,6 +382,7 @@ theorem define_acyclic {π : State} {d : Def} (h : check π (.define d) = none) 
   split at h; · cases h
   split at h; · cases h
   split at h; · cases h
+  split at h; · cases h
   split at h
   · cases h
   · split at h
@@ -545,11 +551,83 @@ $$\operatorname{readyRows}(ts) = [\, t \in ts : \operatorname{tstate}(ts, t) = \
 -/
 def readyRows (ts : List Task) : List Task := ts.filter fun t => tstate ts t == .ready
 
-/-- The parallel-safe groups: the ready rows placed greedily in row order.
+/-! ## Lanes: agent work and device work -/
 
-$$\operatorname{groups}(ts) = \operatorname{foldl}(\operatorname{place}, [\,], \operatorname{readyRows}(ts))$$
+/-- The lane of a task: an agent alone can do it, or it needs the device (the measurement iPhone
+and the user at it).
+
+$$\mathrm{Lane} = \{\mathrm{agent}, \mathrm{device}\}$$
 -/
-def groups (ts : List Task) : List (List Task) := (readyRows ts).foldl place []
+inductive Lane where
+  | agent | device
+deriving Repr, DecidableEq
+
+/-- The wire name of a lane.
+
+$$\operatorname{name}(\mathrm{agent}) = \texttt{"agent"},\ \operatorname{name}(\mathrm{device}) = \texttt{"device"}$$
+-/
+def Lane.name : Lane → String
+  | .agent => "agent" | .device => "device"
+
+/-- The lane of a task is derived from its needs: `device` when it needs `"device"`, else `agent`.
+
+$$\operatorname{lane}(t) = \begin{cases} \mathrm{device} & \texttt{"device"} \in t.\mathit{needs} \\ \mathrm{agent} & \text{otherwise} \end{cases}$$
+-/
+def lane (t : Task) : Lane := if t.needs.contains "device" then .device else .agent
+
+/-- The ready rows of one lane, in row order.
+
+$$\operatorname{readyIn}(ts, l) = [\, t \in \operatorname{readyRows}(ts) : \operatorname{lane}(t) = l \,]$$
+-/
+def readyIn (ts : List Task) (l : Lane) : List Task := (readyRows ts).filter fun t => lane t == l
+
+/-- **A task is in the device lane exactly when it needs the device.**
+
+$$\forall t:\quad \operatorname{lane}(t) = \mathrm{device} \iff \texttt{"device"} \in t.\mathit{needs}$$
+-/
+theorem lane_device_iff (t : Task) : lane t = .device ↔ "device" ∈ t.needs := by
+  unfold lane
+  split <;> simp_all
+
+/-- A task is in the agent lane exactly when it does not need the device.
+
+$$\forall t:\quad \operatorname{lane}(t) = \mathrm{agent} \iff \texttt{"device"} \notin t.\mathit{needs}$$
+-/
+theorem lane_agent_iff (t : Task) : lane t = .agent ↔ "device" ∉ t.needs := by
+  unfold lane
+  split <;> simp_all
+
+/-- The ready rows of a lane are the ready rows in that lane.
+
+$$\forall ts, l, t:\quad t \in \operatorname{readyIn}(ts, l) \iff t \in \operatorname{readyRows}(ts) \land \operatorname{lane}(t) = l$$
+-/
+theorem mem_readyIn {ts : List Task} {l : Lane} {t : Task} :
+    t ∈ readyIn ts l ↔ t ∈ readyRows ts ∧ lane t = l := by
+  simp [readyIn]
+
+/-- **The ready set splits by lane**: the agent-ready rows followed by the device-ready rows are a
+permutation of the ready rows, and no row is in both.
+
+$$\forall ts:\quad \operatorname{readyIn}(ts, \mathrm{agent}) \mathbin{+\!\!+} \operatorname{readyIn}(ts, \mathrm{device}) \sim \operatorname{readyRows}(ts) \;\land\; \forall t:\ \neg\big(t \in \operatorname{readyIn}(ts, \mathrm{agent}) \land t \in \operatorname{readyIn}(ts, \mathrm{device})\big)$$
+-/
+theorem ready_split (ts : List Task) :
+    (readyIn ts .agent ++ readyIn ts .device).Perm (readyRows ts) ∧
+    ∀ t, ¬ (t ∈ readyIn ts .agent ∧ t ∈ readyIn ts .device) := by
+  refine ⟨?_, fun t ⟨ha, hd⟩ => ?_⟩
+  · have hc : readyIn ts .device = (readyRows ts).filter fun t => !(lane t == .agent) := by
+      unfold readyIn
+      exact List.filter_congr fun t _ => by cases lane t <;> rfl
+    rw [hc]
+    exact List.filter_append_perm _ _
+  · have := (mem_readyIn.mp ha).2.symm.trans (mem_readyIn.mp hd).2
+    cases this
+
+/-- The parallel-safe groups: the agent-ready rows placed greedily in row order (device-lane tasks
+wait for the user and are not grouped).
+
+$$\operatorname{groups}(ts) = \operatorname{foldl}(\operatorname{place}, [\,], \operatorname{readyIn}(ts, \mathrm{agent}))$$
+-/
+def groups (ts : List Task) : List (List Task) := (readyIn ts .agent).foldl place []
 
 /-- `fits` as a proposition.
 
@@ -617,18 +695,18 @@ $$\forall ts, g:\quad g \in \operatorname{groups}(ts) \Rightarrow \forall i < j 
 theorem groups_pairwise (ts : List Task) : ∀ g ∈ groups ts, g.Pairwise ok :=
   (foldl_place _ [] (by simp)).1
 
-/-- **The parallel-safe groups partition the ready tasks.**
+/-- **The parallel-safe groups partition the agent-ready tasks.**
 
-$$\forall ts:\quad \operatorname{flatten}(\operatorname{groups}(ts)) \sim \operatorname{readyRows}(ts)$$
+$$\forall ts:\quad \operatorname{flatten}(\operatorname{groups}(ts)) \sim \operatorname{readyIn}(ts, \mathrm{agent})$$
 -/
-theorem groups_perm (ts : List Task) : (groups ts).flatten.Perm (readyRows ts) := by
-  have := (foldl_place (readyRows ts) [] (by simp)).2
+theorem groups_perm (ts : List Task) : (groups ts).flatten.Perm (readyIn ts .agent) := by
+  have := (foldl_place (readyIn ts .agent) [] (by simp)).2
   unfold groups
   simpa using this
 
 /-- A task as the board shows it.
 
-$$v = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{owner}, \mathit{deps}, \mathit{state}, \mathit{blockers}, \mathit{agent}_\bot, \mathit{evidence}_\bot)$$
+$$v = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{owner}, \mathit{deps}, \mathit{needs}, \mathit{lane}, \mathit{state}, \mathit{blockers}, \mathit{agent}_\bot, \mathit{evidence}_\bot)$$
 -/
 structure TaskView where
   id        : String
@@ -637,6 +715,8 @@ structure TaskView where
   milestone : Option String
   owner     : String
   deps      : List String
+  needs     : List String
+  lane      : Lane
   state     : TState
   blockers  : List String
   agent     : Option String
@@ -667,11 +747,12 @@ deriving Repr, DecidableEq
 
 /-- The board view of one task.
 
-$$\operatorname{taskView}(ts, t) = (t.\mathit{id}, t.\mathit{title}, t.\mathit{stream}, t.\mathit{milestone}, t.\mathit{owner}, t.\mathit{deps}, \operatorname{tstate}(ts, t), \operatorname{blockers}(ts, t), t.\mathit{agent}, t.\mathit{evidence})$$
+$$\operatorname{taskView}(ts, t) = (t.\mathit{id}, t.\mathit{title}, t.\mathit{stream}, t.\mathit{milestone}, t.\mathit{owner}, t.\mathit{deps}, t.\mathit{needs}, \operatorname{lane}(t), \operatorname{tstate}(ts, t), \operatorname{blockers}(ts, t), t.\mathit{agent}, t.\mathit{evidence})$$
 -/
 def taskView (ts : List Task) (t : Task) : TaskView :=
   { id := t.id, title := t.title, stream := t.stream, milestone := t.milestone, owner := t.owner,
-    deps := t.deps, state := tstate ts t, blockers := blockers ts t, agent := t.agent,
+    deps := t.deps, needs := t.needs, lane := lane t, state := tstate ts t,
+    blockers := blockers ts t, agent := t.agent,
     evidence := t.evidence }
 
 /-- The board view of one milestone: its tasks and its done tasks.
@@ -710,11 +791,11 @@ theorem view_criticalPath {π : State} (h : Inv π) : UChain π.tasks (view π).
 
 /-- A definition with the given id and deps (test helper).
 
-$$\operatorname{mk}(x, D, W) = (x, x, \texttt{"s"}, \bot, D, \texttt{"o"}, W, [\,], \bot)$$
+$$\operatorname{mk}(x, D, W) = (x, x, \texttt{"s"}, \bot, D, \texttt{"o"}, W, [\,], [\,], \bot)$$
 -/
 def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
   { task := x, title := x, stream := "s", milestone := none, deps, owner := "o", writes,
-    devices := [], evidence := none }
+    devices := [], needs := [], evidence := none }
 
 #guard check {} (.define (mk "a" ["b"])) == some "dep not defined: b"
 #guard check {} (.define (mk "a" ["a"])) == some "dependency cycle"
@@ -742,5 +823,14 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
 #guard let s := run [.milestone "M0" "Start", .define { mk "a" [] with milestone := some "M0" },
     .define { mk "b" [] with milestone := some "M0" }, .done "a" "abc1234"]
   (view s).milestones == [{ id := "M0", title := "Start", done := 1, total := 2 }]
+#guard check {} (.define { mk "a" [] with needs := List.replicate 9 "x" }) == some "needs: at most 8"
+#guard lane { (mk "a" []).row none none with needs := ["device"] } == .device
+#guard lane { (mk "a" []).row none none with needs := ["other", "device"] } == .device
+#guard lane { (mk "a" []).row none none with needs := ["other"] } == .agent
+#guard lane ((mk "a" []).row none none) == .agent
+#guard let s := run [.define (mk "a" [] ["x/**"]), .define { mk "p" [] with needs := ["device"] },
+    .define { mk "q" ["a"] with needs := ["device"] }, .define (mk "c" [] ["z/**"])]
+  (view s).parallelSafe == [["a", "c"]] && (readyIn s.tasks .device).map (·.id) == ["p"] &&
+  (view s).tasks.map (·.lane) == [.agent, .device, .device, .agent]
 
 end Fw.Plan
