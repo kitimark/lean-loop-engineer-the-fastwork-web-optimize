@@ -3452,7 +3452,8 @@
     ".gitattributes",
     "packages/contracts/golden/ops/ledger-merge.jsonl",
     "docs/team/tools/ledger-merge.md"
-   ]
+   ],
+   "evidence": "156f99c"
   },
   {
    "id": "ci-trigger-lean",
