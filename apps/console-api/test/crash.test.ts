@@ -15,9 +15,12 @@ describe("fwcore failure handling", () => {
     const incidents: Incident[] = [];
     core = selectCore(process.env, undefined, (i) => incidents.push(i));
     expect((await core.apply(emptyState(), open)).outcome).toEqual({ accepted: true, duplicate: false });
-    core.killForTest(); // the exit event has not arrived yet, so this call goes to the dying process
+    core.stopForTest(); // frozen child: it cannot answer before it is killed, so the call is truly in flight
     const inflight = core.apply(emptyState(), { ...open, key: "k2" });
-    await expect(inflight).rejects.toThrow(/fwcore crashed/);
+    const exited = core.killForTest();
+    const settled = inflight.then(() => "ok", (e: Error) => e);
+    await exited; // explicit: the process is known dead and the crash is accounted
+    expect(await settled).toMatchObject({ message: expect.stringMatching(/fwcore crashed/) });
     expect(incidents.some((i) => i.kind === "exit")).toBe(true);
     expect(core.restarts).toBe(1);
     expect((await core.apply(emptyState(), open)).outcome).toEqual({ accepted: true, duplicate: false });

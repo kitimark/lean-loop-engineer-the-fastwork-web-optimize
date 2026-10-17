@@ -33,6 +33,7 @@ export class LeanCore implements Core {
   private pending = new Map<number, Pending>();
   private closed = false;
   restarts = 0;
+  private exitedOf = new Map<ChildProcessWithoutNullStreams, { promise: Promise<void>; done: () => void }>();
 
   private bin: LeanBin;
   private onIncident: (i: Incident) => void;
@@ -52,6 +53,8 @@ export class LeanCore implements Core {
       stdio: ["pipe", "pipe", "pipe"],
     }) as ChildProcessWithoutNullStreams;
     this.child = child;
+    let done!: () => void;
+    this.exitedOf.set(child, { promise: new Promise<void>((r) => { done = r; }), done });
     createInterface({ input: child.stdout }).on("line", (line) => {
       let msg: { id?: unknown; error?: string };
       try { msg = JSON.parse(line); } catch { this.incident("bad-line", line.slice(0, 200)); return; }
@@ -62,20 +65,25 @@ export class LeanCore implements Core {
       else p.ok(msg as Record<string, unknown>);
     });
     createInterface({ input: child.stderr }).on("line", (l) => this.incident("stderr", l));
-    child.stdin.on("error", () => {}); // EPIPE after a crash is reported through exit
+    // A write error (EPIPE) never fails calls by itself: it only makes sure the child is dead. Calls fail in
+    // crashed(), which runs once per child on exit or error, so "process known dead" always precedes rejection.
+    child.stdin.on("error", () => { child.kill("SIGKILL"); });
     child.on("error", (e) => this.crashed(child, `spawn error: ${e.message}`));
     child.on("exit", (code, sig) => this.crashed(child, `exit code=${code} signal=${sig}`));
     return child;
   }
 
   private crashed(child: ChildProcessWithoutNullStreams, detail: string) {
-    if (this.child !== child) return; // already handled or closed
+    const ex = this.exitedOf.get(child);
+    if (!ex || this.child !== child) { ex?.done(); return; } // already handled or closed
     this.child = null; // restart lazily on the next call (no hot loop)
     this.restarts++;
     this.incident("exit", detail);
     const err = new Error(`fwcore crashed (${detail}); it restarts on the next call`);
     for (const p of this.pending.values()) p.err(err);
     this.pending.clear();
+    this.exitedOf.delete(child);
+    ex.done(); // after incident, restart count and rejections
   }
 
   private call(op: string, fields: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -84,7 +92,7 @@ export class LeanCore implements Core {
       try { child = this.ensure(); } catch (e) { err(e as Error); return; }
       const id = this.nextId++;
       this.pending.set(id, { ok, err });
-      child.stdin.write(JSON.stringify({ id, op, ...fields }) + "\n");
+      child.stdin.write(JSON.stringify({ id, op, ...fields }) + "\n", (e) => { if (e) child.kill("SIGKILL"); });
     });
   }
 
@@ -99,8 +107,18 @@ export class LeanCore implements Core {
   /** raw op, for the samples test */
   raw(op: string, fields: Record<string, unknown> = {}) { return this.call(op, fields); }
 
-  /** test hook: kill the child as a crash would */
-  killForTest() { this.child?.kill("SIGKILL"); }
+  /** test hook: freeze the child (SIGSTOP) so a call written next cannot be answered before killForTest() */
+  stopForTest() { this.child?.kill("SIGSTOP"); }
+
+  /** test hook: kill the child as a crash would; resolves once the crash is fully handled (incident logged,
+   *  restarts counted, in-flight calls rejected). */
+  killForTest(): Promise<void> {
+    const c = this.child;
+    if (!c) return Promise.resolve();
+    const ex = this.exitedOf.get(c)!.promise;
+    c.kill("SIGKILL");
+    return ex;
+  }
 
   close() {
     this.closed = true;
