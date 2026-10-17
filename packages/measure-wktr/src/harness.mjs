@@ -53,6 +53,15 @@ const RUN_SRC = `(() => {
   });
   const run = async () => {
     await sleep(P.settleMs);
+    // Warm-up (variant "warm"): scroll the whole page once, wait for the images it started loading, go back to the top.
+    // The measured pass then meets no lazy-load arrival; trackers are not running yet, so none of this is counted.
+    if (P.warm) {
+      const h0 = document.documentElement.scrollHeight;
+      for (const y of schedule(Math.max(0, h0 - innerHeight), 200)) { scrollTo({ top: y, behavior: 'instant' }); await raf(() => 0); await raf(() => 0); await sleep(40); }
+      for (let i = 0; i < 80 && Array.from(document.images).some((im) => !im.complete); i++) await sleep(100);
+      scrollTo({ top: 0, behavior: 'instant' });
+      await sleep(1500);
+    }
     // Layout facts, read once before the run (these reads may force layout; the trackers are started after them).
     const docH = document.documentElement.scrollHeight;
     const maxY = Math.max(0, docH - innerHeight);
@@ -89,8 +98,8 @@ const RUN_SRC = `(() => {
  * The harness: the same bootstrap as the Inspector lane (pinned Date, seeded Math.random; measure-webkit/src/page.mjs),
  * then the run. `params`: { step, frames, settleMs }.
  */
-export function harnessSource({ step = 50, frames = 2, settleMs = 6000, clock = 'pinned' } = {}) {
+export function harnessSource({ step = 50, frames = 2, settleMs = 6000, clock = 'pinned', warm = false } = {}) {
   if (!Number.isInteger(frames) || frames < 1) throw new Error('frames must be an integer >= 1');
   if (!Number.isInteger(step) || step < 1) throw new Error('step must be an integer >= 1');
-  return bootstrapSource({ clock }) + '\n' + RUN_SRC.replace('__PARAMS__', JSON.stringify({ step, frames, settleMs, clock }));
+  return bootstrapSource({ clock }) + '\n' + RUN_SRC.replace('__PARAMS__', JSON.stringify({ step, frames, settleMs, clock, warm: !!warm }));
 }

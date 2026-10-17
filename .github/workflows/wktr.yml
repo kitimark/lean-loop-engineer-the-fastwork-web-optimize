@@ -8,6 +8,16 @@ name: wktr
 on:
   push:
     branches: ['ci/**']
+    paths:
+      - 'packages/measure-wktr/**'
+      - 'packages/measure-chromium/src/classify.mjs'
+      - 'lean/**'
+      - 'snapshot/**'
+      - 'snapshot.lock.json'
+      - '.github/scripts/verify-snapshot.mjs'
+      - '.github/scripts/runner-info.sh'
+      - '.github/actions/setup-lean/**'
+      - '.github/workflows/wktr.yml'
   workflow_dispatch:
     inputs:
       jobs:
@@ -117,16 +127,21 @@ jobs:
             xcrun simctl list devicetypes | grep "iPhone 17"
           } | tee "$RUNNER_TEMP/result/tools.txt"
 
-      - name: WKTR, the original, fresh process per pass
+      # Two variants per job, each `passes` fresh processes: cold (settle, then scroll) writes counts-<p>.json; warm (the page
+      # is first scrolled through once so lazy loads are done, then back to the top) writes counts-warm-<p>.json.
+      - name: WKTR, the original, fresh process per pass (cold, then warm)
         env:
           PASSES: ${{ inputs.passes || '2' }}
           STEP: ${{ inputs.step || '50' }}
           JOB: ${{ matrix.job }}
         run: |
           set -euo pipefail
-          node packages/measure-wktr/src/cli.mjs run \
+          node packages/measure-wktr/src/cli.mjs run --keep \
             --root "$RUNNER_TEMP/wktr-root" --site snapshot/site --out "$RUNNER_TEMP/result" \
             --passes "$PASSES" --step "$STEP" --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
+          node packages/measure-wktr/src/cli.mjs run --warm \
+            --root "$RUNNER_TEMP/wktr-root" --site snapshot/site --out "$RUNNER_TEMP/result" \
+            --passes "$PASSES" --step "$STEP" --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run-warm.log"
           ls -l "$RUNNER_TEMP/result"
 
       - name: Delete the Simulator device
@@ -194,26 +209,28 @@ jobs:
           cd "$RUNNER_TEMP/runs"
           ls
           cls="$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs"
-          files=(wktr-j*/counts-*.json)
-          printf '%s\n' "${files[@]}"
-          node "$cls" "${files[@]}" --kMax 4 --tMax 24 | tee "$out/classes-all.txt"
-          node "$cls" "${files[@]}" --kMax 4 --tMax 24 --json > "$out/classes-all.json"
-          for d in wktr-j*; do
-            node "$cls" "$d"/counts-*.json --kMax 4 --tMax 24 | tee "$out/classes-$d.txt"
-          done
-          sha256sum "${files[@]}" | tee "$out/sha256.txt"
           cat wktr-j*/runner.json > "$out/runners.jsonl"
-          {
-            echo '### wktr: classes over all passes of all jobs (kMax 4, tMax 24)'
-            echo '```'
-            cat "$out/classes-all.txt"
-            echo '```'
-            for d in wktr-j*; do echo "#### $d (its passes alone)"; echo '```'; cat "$out/classes-$d.txt"; echo '```'; done
-            echo '### sha256 of counts per pass'
-            echo '```'
-            cat "$out/sha256.txt"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          : > "$out/sha256.txt"
+          # cold: counts-<p>.json (names classes-all.*, classes-<job>.txt); warm: counts-warm-<p>.json (classes-warm-*)
+          for variant in cold warm; do
+            if [ "$variant" = cold ]; then pat='counts-[0-9]*.json'; pre=classes; else pat='counts-warm-*.json'; pre=classes-warm; fi
+            files=(wktr-j*/$pat)
+            printf '%s\n' "${files[@]}"
+            node "$cls" "${files[@]}" --kMax 4 --tMax 24 | tee "$out/$pre-all.txt"
+            node "$cls" "${files[@]}" --kMax 4 --tMax 24 --json > "$out/$pre-all.json"
+            for d in wktr-j*; do
+              node "$cls" "$d"/$pat --kMax 4 --tMax 24 | tee "$out/$pre-$d.txt"
+            done
+            sha256sum "${files[@]}" | tee -a "$out/sha256.txt"
+            {
+              echo "### wktr $variant: classes over all passes of all jobs (kMax 4, tMax 24)"
+              echo '```'
+              cat "$out/$pre-all.txt"
+              echo '```'
+              for d in wktr-j*; do echo "#### $variant $d (its passes alone)"; echo '```'; cat "$out/$pre-$d.txt"; echo '```'; done
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+          { echo '### sha256 of counts per pass'; echo '```'; cat "$out/sha256.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wktr-classes

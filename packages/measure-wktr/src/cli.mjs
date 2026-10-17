@@ -22,7 +22,7 @@ const { values: v, positionals } = parseArgs({
     settle: { type: 'string', default: '6000' }, header: { type: 'string', default: DEFAULT_HEADER },
     'device-name': { type: 'string', default: 'fw-wktr' }, 'device-type': { type: 'string', default: 'iPhone 17' },
     'ios-version': { type: 'string', default: '26.5' }, label: { type: 'string', default: 'local' },
-    keep: { type: 'boolean', default: false }, timeout: { type: 'string', default: '240000' },
+    keep: { type: 'boolean', default: false }, warm: { type: 'boolean', default: false }, timeout: { type: 'string', default: '240000' },
   },
 });
 
@@ -35,27 +35,28 @@ async function main() {
   if (!existsSync(join(site, 'index.html'))) throw new Error(`${site}/index.html not found`);
   const out = resolve(v.out);
   mkdirSync(out, { recursive: true });
-  const passes = Number(v.passes), step = Number(v.step), frames = Number(v.frames), settleMs = Number(v.settle);
+  const passes = Number(v.passes), step = Number(v.step), frames = Number(v.frames), settleMs = Number(v.settle), warm = v.warm;
+  const tag = warm ? 'warm-' : '';
 
   const dev = sim.ensureDevice({ name: v['device-name'], typeName: v['device-type'], version: v['ios-version'] });
   console.log(`device ${v['device-name']} (${v['device-type']}, iOS ${dev.runtime.version} build ${dev.runtime.buildversion}) created=${dev.created}`);
   sim.boot(dev.udid);
   sim.install(dev.udid, app);
-  const srv = await serveOriginal(site, harnessSource({ step, frames, settleMs }));
+  const srv = await serveOriginal(site, harnessSource({ step, frames, settleMs, warm }));
   console.log(`serving ${site} at ${srv.url}`);
   const results = [];
   try {
     for (let p = 1; p <= passes; p++) {
       const r = await runOnce({ udid: dev.udid, root, bundleId: ARCHIVE.bundleId, url: srv.url, header: v.header, timeoutMs: Number(v.timeout) });
-      writeFileSync(join(out, `raw-${p}.txt`), r.stdout);
-      writeFileSync(join(out, `stderr-${p}.txt`), r.stderr);
+      writeFileSync(join(out, `raw-${tag}${p}.txt`), r.stdout);
+      writeFileSync(join(out, `stderr-${tag}${p}.txt`), r.stderr);
       const parsed = parseOutput(r.stdout);
       const run = buildRun(parsed, {
         lane: 'wktr', label: v.label, pass: p, archive: { revision: ARCHIVE.revision, commit: ARCHIVE.commit, sha256: ARCHIVE.sha256 },
         device: { name: v['device-type'], runtime: dev.runtime.version, runtimeBuild: dev.runtime.buildversion },
-        header: v.header, step, frames, settleMs, wallMs: r.ms,
+        header: v.header, step, frames, settleMs, warm, wallMs: r.ms,
       });
-      writeFileSync(join(out, `counts-${p}.json`), JSON.stringify(run));
+      writeFileSync(join(out, `counts-${tag}${p}.json`), JSON.stringify(run));
       const tot = {};
       for (const f of run.frames) for (const [k, n] of Object.entries(f.counts)) tot[k] = (tot[k] || 0) + n;
       results.push(tot);
