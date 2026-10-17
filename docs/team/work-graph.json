@@ -335,7 +335,8 @@
    "stream": "parts",
    "milestone": "M2",
    "deps": [
-    "gate-part-filter"
+    "gate-part-filter",
+    "verdict-to-lean"
    ],
    "owner": "lean-prover",
    "writes": [
@@ -782,7 +783,7 @@
   },
   {
    "id": "wktr-local",
-   "title": "WKTR spike on this Mac: prebuilt iOS-sim WKTR (r324039, iOS 26.5); internals.lastStyleUpdateSize with styleRecalcCount, steps bracketed by renderingUpdateCount; original twice",
+   "title": "WKTR spike, CI-first: prebuilt iOS-sim WKTR (r324039, iOS 26.5) on GitHub macos-26; internals.lastStyleUpdateSize with styleRecalcCount, steps bracketed by renderingUpdateCount; original twice. Local: one short debug run under the sim-lock only",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [
@@ -790,6 +791,7 @@
    ],
    "owner": "measure-engineer",
    "writes": [
+    ".github/workflows/wktr.yml",
     "packages/measure-wktr/**"
    ],
    "devices": [
@@ -798,7 +800,7 @@
   },
   {
    "id": "wktr-ci-lane",
-   "title": "WKTR lane on GitHub macos-26 (prebuilt products, iOS 26.5 runtime)",
+   "title": "WKTR lane: >= 3 CI runs classed per type, scheduled on demand (workflow_dispatch)",
    "stream": "ci",
    "milestone": "M3",
    "deps": [
@@ -942,6 +944,7 @@
    "stream": "parallel",
    "milestone": null,
    "deps": [
+    "con-plan",
     "spk-hooks"
    ],
    "owner": "researcher",
