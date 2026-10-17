@@ -16,14 +16,15 @@ name: sim-speed
 #   qe     early, plus the home-screen widget host (chronod) and other daemons a page load does not need booted out of the
 #          device's launchd while it boots
 #   combo  f6, on the device that is already on the image
-#   xl     f6, on the larger runner xcode-27-xlarge (needs a paid larger-runner pool; cancelled if no runner picks it up)
+#   (xl, f6 on the paid larger runner xcode-27-xlarge, was removed: user decision 2026-10-17, no paid runners; its rounds
+#   2-3 results stay in research/notes/2026/10-17-sim-speed.md)
 on:
   push:
     branches: ['ci/sim-speed']
   workflow_dispatch:
     inputs:
       arms:
-        description: Space-separated arms (base pre fast quiet bg f6 early qe combo xl)
+        description: Space-separated arms (base pre fast quiet bg f6 early qe combo)
         type: string
         default: 'base f6 combo xl'
       reps:
@@ -47,12 +48,12 @@ jobs:
     steps:
       - id: m
         env:
-          ARMS: ${{ inputs.arms || 'base f6 combo xl' }}
+          ARMS: ${{ inputs.arms || 'base f6 combo' }}
           REPS: ${{ inputs.reps || '3' }}
         run: |
           set -euo pipefail
           case "$REPS" in 1|2|3) ;; *) echo "reps must be 1..3" >&2; exit 1 ;; esac
-          for a in $ARMS; do case "$a" in base|pre|fast|quiet|bg|f6|early|qe|combo|xl) ;; *) echo "unknown arm $a" >&2; exit 1 ;; esac; done
+          for a in $ARMS; do case "$a" in base|pre|fast|quiet|bg|f6|early|qe|combo) ;; *) echo "unknown arm $a" >&2; exit 1 ;; esac; done
           arms=$(printf '%s\n' $ARMS | jq -R -s -c 'split("\n") | map(select(length > 0))')
           reps=$(seq 1 "$REPS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           matrix=$(jq -n -c --argjson a "$arms" --argjson r "$reps" '{arm: $a, rep: $r}')
@@ -61,7 +62,7 @@ jobs:
 
   probe:
     needs: plan
-    runs-on: ${{ matrix.arm == 'xl' && 'xcode-27-xlarge' || 'xcode-27' }}
+    runs-on: xcode-27
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -74,7 +75,7 @@ jobs:
       CONNECT: ${{ (matrix.arm == 'base' || matrix.arm == 'pre' || matrix.arm == 'quiet') && 'legacy' || 'fast' }}
       EXTRA: '1'
       EARLY: ${{ (matrix.arm == 'early' || matrix.arm == 'qe') && '1' || '0' }}
-      RESEND_MS: ${{ (matrix.arm == 'f6' || matrix.arm == 'early' || matrix.arm == 'qe' || matrix.arm == 'combo' || matrix.arm == 'xl') && '6000' || '15000' }}
+      RESEND_MS: ${{ (matrix.arm == 'f6' || matrix.arm == 'early' || matrix.arm == 'qe' || matrix.arm == 'combo') && '6000' || '15000' }}
       FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
