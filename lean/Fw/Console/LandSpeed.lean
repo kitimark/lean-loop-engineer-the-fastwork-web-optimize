@@ -518,6 +518,38 @@ theorem prelockAction_fallback (head m0 : String) (v : Bool) (a n : Nat) (hh : h
 #guard prelockAction "m1" "m0" false 2 3 == .recheck
 #guard prelockAction "m1" "m0" true 3 3 == .fallback
 #guard prelockAction "m1" "m0" true 0 0 == .fallback
+
+/-! ## Pool size under load -/
+
+/-- How many checks may run at once: the cores not taken by other work (`loadCeil` = the one-minute load average rounded up),
+at least one. The pool size never changes a verdict (`verdict_perm`); it only changes how many run at the same time.
+$$\operatorname{pool}(c, \ell) = \max(1,\ c - \ell)$$ -/
+def poolSize (cores loadCeil : Nat) : Nat := max 1 (cores - loadCeil)
+
+/-- The pool is never empty, so a land always makes progress.
+$$\forall c, \ell:\ 1 \le \operatorname{pool}(c, \ell)$$ -/
+theorem poolSize_pos (cores loadCeil : Nat) : 1 ≤ poolSize cores loadCeil := by
+  unfold poolSize; omega
+
+/-- **Monotone in load.** More load never gives a larger pool.
+$$\forall c, \ell \le \ell':\ \operatorname{pool}(c, \ell') \le \operatorname{pool}(c, \ell)$$ -/
+theorem poolSize_anti_load (cores l l' : Nat) (h : l ≤ l') : poolSize cores l' ≤ poolSize cores l := by
+  unfold poolSize; omega
+
+/-- **Monotone in cores.** More cores never give a smaller pool.
+$$\forall c \le c', \ell:\ \operatorname{pool}(c, \ell) \le \operatorname{pool}(c', \ell)$$ -/
+theorem poolSize_mono_cores (c c' l : Nat) (h : c ≤ c') : poolSize c l ≤ poolSize c' l := by
+  unfold poolSize; omega
+
+/-- The pool never exceeds the cores (when there is at least one).
+$$\forall c \ge 1, \ell:\ \operatorname{pool}(c, \ell) \le c$$ -/
+theorem poolSize_le_cores (cores l : Nat) (hc : 1 ≤ cores) : poolSize cores l ≤ cores := by
+  unfold poolSize; omega
+
+#guard poolSize 10 0 == 10
+#guard poolSize 10 3 == 7
+#guard poolSize 10 23 == 1
+#guard poolSize 0 0 == 1
 #guard old (· ++ "+" ++ ·) (fun _ => true) "m0" "b" == .commit "m0+b" ["m0", "b"]
 #guard pre (· ++ "+" ++ ·) "m0" true "m1" "b" == .retry
 

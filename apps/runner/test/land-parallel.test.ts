@@ -1,4 +1,5 @@
 // Parallel check scheduling (Lean Fw.Console.LandSpeed.verdict_perm): same verdict as sequential, every failure listed.
+import "./land-timeout.ts";
 import { describe, expect, it } from "vitest";
 import { checkDeps } from "../src/land.ts";
 
