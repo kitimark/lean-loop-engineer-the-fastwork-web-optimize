@@ -5,7 +5,7 @@
    "id": "inc-orphan-wait-loop",
    "at": "2026-10-18T03:00+07:00",
    "title": "Agent wait loop that can never finish keeps a done agent 'waiting on its own background work'",
-   "symptom": "Agents reported back but stayed held: wktr-ci-lane for 2 h 54 min, ghb-runner 22 min, integrate-ports 35 min. fw watch raised proc.long sleep#<pid>.",
+   "symptom": "Agents reported back but stayed held: wktr-ci-lane for 2 h 54 min, ghb-runner 22 min, port-platform 35 min (first attributed to integrate-ports by the lead; corrected from the transcript tool-use id, research/notes/2026/10-18-transcript-signals.md). fw watch raised proc.long sleep#<pid>.",
    "cause": "CONFIRMED (process command lines read with ps): open-ended `until grep -q <text> <file>; do sleep N; done` loops whose text could never appear. (1) The shared scratch name watch2.txt was overwritten by other agents. (2) The pattern '# pass' never appears in vitest output. (3) The watched file was the output of a background task that had already exited.",
    "evidence": [
     {
@@ -277,6 +277,62 @@
     "task": "obs-next-glue"
    },
    "regression": "Fw.Obs.Next keep_of_open_action and golden case 8; apps/runner/test/next.test.ts (hasWorktree)"
+  },
+  {
+   "id": "inc-variant-gate-flags-off",
+   "at": "2026-10-18T04:30+07:00",
+   "title": "Variant gate runs tested the rewrite with every flag off",
+   "symptom": "breakpoint-gate had no variant-flag input, so runs on ci/variant-* compared original vs rewrite with flags off; morph.mount:shift landed on such a run (39067215069) and hidden-pause reported one (39067391933)",
+   "cause": "CONFIRMED: .github/workflows/breakpoint-gate.yml workflow_dispatch inputs were engines, shards, parts only; found by the variant-hidden-pause agent",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39067215069",
+     "note": "morph.mount:shift gate, flags off"
+    },
+    {
+     "kind": "ci",
+     "ref": "39067391933",
+     "note": "hidden-pause gate, flags off"
+    },
+    {
+     "kind": "ci",
+     "ref": "39067656223",
+     "note": "first flagged run (FW_SEARCH ?fw=morph.tween:waapi) from the tween branch"
+    }
+   ],
+   "repro": "Push a variant branch to ci/<x> and read FW_SEARCH in the gate log: empty before the fix.",
+   "fix": {
+    "task": "variant-regate",
+    "also": [
+     "variant-morph-tween-waapi"
+    ]
+   },
+   "regression": "breakpoint-gate summary names the flags it ran with; a variant land requires a flagged run"
+  },
+  {
+   "id": "inc-silent-stdin-bg",
+   "at": "2026-10-18T00:54+07:00",
+   "title": "A background shell blocked on stdin ran 3 h with no end signal",
+   "symptom": "port-nav ran grep plus `cat > file` with no input; the harness auto-backgrounded it at 00:54; it never ended, emitted nothing, and was found only by the transcript research at about 04:25 and killed by PID",
+   "cause": "CONFIRMED (ps and transcript): a command reading stdin in a non-interactive shell blocks forever; no file records a hang, only ps shows it",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-transcript-signals.md",
+     "note": "port-nav timeline, part B"
+    },
+    {
+     "kind": "proc",
+     "ref": "cat (child of a session shell, elapsed 3:10:14)",
+     "note": "killed by the lead"
+    }
+   ],
+   "repro": "Run `cat > /tmp/x` in a background Bash call: it never exits.",
+   "fix": {
+    "task": "obs-signals"
+   },
+   "regression": "golden/obs: a pending bg task with no end marker older than T and a live proc whose command reads stdin -> killOrphan"
   }
  ]
 }

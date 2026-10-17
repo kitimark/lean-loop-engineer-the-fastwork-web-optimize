@@ -2648,6 +2648,45 @@
     "packages/contracts/golden/engine/**",
     "research/findings/**"
    ]
+  },
+  {
+   "id": "obs-signals",
+   "title": "(M) Fw.Obs.Signals: classify each agent from transcript signals (BG launched minus END notified/[exited]/[killed]; turn open/closed; handback) into working | waiting-own-bg | handed-back-held | handed-back-done | finished | idle, with proofs (total, deterministic, monotone in t for END); golden from the 8 real timelines in research/notes/2026/10-18-transcript-signals.md; collector fixes: retention not from meta.finished, stale finished on resume, workflow-agent bg tasks, branch from meta.worktreeBranch, [killed] marker, silent hung bg tasks via ps",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "obs-next-glue"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Signals.lean",
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "lean/Fw.lean",
+    "lean/FwTestMain.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/next.ts",
+    "apps/runner/test/**",
+    "docs/team/incidents/ledger.json"
+   ]
+  },
+  {
+   "id": "variant-regate",
+   "title": "(S) re-gate every landed or pending variant with its flag on (fw input of breakpoint-gate): morph.mount:shift, hidden-pause (3 parts; add them to the gate scope, wire engine.scene), morph.panel:rest after integrate-ports; compare each against a flags-off baseline run of the same commit; record per-variant per-engine verdicts",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "variant-morph-tween-waapi"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Gate/Scope.lean",
+    "apps/site/src/App.tsx",
+    "apps/site/src/registry/index.ts",
+    "results/**"
+   ]
   }
  ],
  "deadline": {
