@@ -2,6 +2,7 @@ import Lean.Data.Json
 import Std.Data.TreeMap.Raw.Lemmas
 import Fw.Obs.Health
 import Fw.Obs.Next
+import Fw.Obs.Timing
 import Fw.Ops.Wire
 import Fw.Wire.Sched
 /-!
@@ -540,13 +541,18 @@ def childOf (j : Json) : Except String Child := do
 /-- A branch as JSON. -/
 def branchJson (b : Branch) : Json :=
   Json.mkObj [("name", .str b.name), ("ahead", toJson b.ahead), ("landed", .bool b.landed), ("queued", .bool b.queued),
-    ("mergesClean", .bool b.mergesClean), ("deps", .arr (b.deps.toArray.map .str))]
+    ("mergesClean", .bool b.mergesClean), ("deps", .arr (b.deps.toArray.map .str)),
+    ("onMain", .bool b.onMain), ("landLock", ostr b.landLock)]
 
 /-- Decode a branch (`name`, `ahead`, `landed` required; `queued` default false). -/
 def branchOf (j : Json) : Except String Branch := do
   pure { name := ← str j "name", ahead := ← nat j "ahead", landed := ← asBool "landed" (← field j "landed"),
          queued := ← boolD j "queued" false, mergesClean := ← boolD j "mergesClean" true,
-         deps := ← (← arrD j "deps").mapM (fun v => match v with | .str x => pure x | _ => throw "deps: string expected") }
+         deps := ← (← arrD j "deps").mapM (fun v => match v with | .str x => pure x | _ => throw "deps: string expected"),
+         onMain := ← boolD j "onMain" false,
+         landLock := ← match opt j "landLock" with
+           | none => pure none
+           | some v => some <$> asStr "landLock" v }
 
 /-- A worktree as JSON. -/
 def worktreeJson (w : Worktree) : Json := Json.mkObj [("lockPid", onat w.lockPid), ("lockAlive", .bool w.lockAlive)]
@@ -734,8 +740,63 @@ def opSignals (req : Json) : Except String Reply := do
   let (p, now, gs) ← sigReqOf req
   pure (signalsReply p now gs)
 
+/-! ## `obs.timing` and `obs.slow`: the verdicts of `Fw.Obs.Timing` and the slow steps that are alerts -/
+
+namespace Timing
+
+/-- Decode a host (`"local"` or `"ci"`). -/
+def hostOf (k : String) (j : Json) : Except String Fw.Obs.Timing.Host := do
+  match ← asStr k j with
+  | "local" => pure .«local»
+  | "ci" => pure .ci
+  | h => throw s!"field {k}: unknown host {h}"
+
+/-- Decode a history key. -/
+def keyOf (j : Json) : Except String Fw.Obs.Timing.Key := do
+  pure { tool := ← str j "tool", step := ← str j "step", host := ← hostOf "host" (← field j "host") }
+
+/-- Decode a sample (`load` default 0). -/
+def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
+  pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
+         host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0 }
+
+/-- Decode a group. -/
+def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do
+  pure { name := ← str j "name", keys := ← (← arrD j "keys").mapM keyOf }
+
+/-- Decode a stage. -/
+def stageOf (j : Json) : Except String Fw.Obs.Timing.Stage := do
+  pure { id := ← str j "id", groups := ← (← arrD j "groups").mapM groupOf }
+
+/-- Decode the parameters (each field optional, the defaults of `Fw.Obs.Timing.Params`). -/
+def paramsOf (j : Json) : Except String Fw.Obs.Timing.Params := do
+  let d : Fw.Obs.Timing.Params := {}
+  pure { nMin := ← natD j "nMin" d.nMin, window := ← natD j "window" d.window, kNum := ← natD j "kNum" d.kNum,
+         kDen := ← natD j "kDen" d.kDen, budgetMs := ← natD j "budgetMs" d.budgetMs,
+         budgets := ← (← arrD j "budgets").mapM (fun b => do pure (← str b "tool", ← nat b "ms")),
+         loadMax := ← natD j "loadMax" d.loadMax, stages := ← (← arrD j "stages").mapM stageOf }
+
+/-- Decode a request body: `params` (optional) and `samples` (time order). -/
+def reqOf (j : Json) : Except String (Fw.Obs.Timing.Params × List Fw.Obs.Timing.Sample) := do
+  let p ← match opt j "params" with
+    | none => pure {}
+    | some v => paramsOf v
+  pure (p, ← (← arrD j "samples").mapM sampleOf)
+
+/-- `obs.timing`: one verdict per sample, then the structural verdicts (`Fw.Obs.Timing.timingVerdicts`). -/
+def opTiming (req : Json) : Except String Reply := do
+  let (p, ss) ← reqOf req
+  pure [("verdicts", .arr ((Fw.Obs.Timing.timingVerdicts p ss).map Fw.Wire.Obs.Timing.verdictJson).toArray)]
+
+/-- `obs.slow`: the alert subjects `<tool>/<step>` (`Fw.Obs.Next.slowSteps` of the verdicts). -/
+def opSlow (req : Json) : Except String Reply := do
+  let (p, ss) ← reqOf req
+  pure [("slow", .arr ((Fw.Obs.Next.slowSteps (Fw.Obs.Timing.timingVerdicts p ss)).toArray.map .str))]
+
+end Timing
+
 /-- The `Fw.Obs` ops. -/
-def ops : List String := ["obs.health", "obs.next", "obs.signals"]
+def ops : List String := ["obs.health", "obs.next", "obs.signals", "obs.timing", "obs.slow"]
 
 /-- Dispatch an `Fw.Obs` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -743,6 +804,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "obs.health" => some (opHealth req)
   | "obs.next" => some (opNext req)
   | "obs.signals" => some (opSignals req)
+  | "obs.timing" => some (Timing.opTiming req)
+  | "obs.slow" => some (Timing.opSlow req)
   | _ => none
 
 /-! ## Examples -/
@@ -799,6 +862,19 @@ def run (op : String) (r : String) : String :=
   "error: field code: expected an integer"
 #guard run "obs.signals" "{\"now\":5,\"agents\":[{\"agent\":\"a\",\"procs\":[{\"id\":\"b\",\"pid\":9,\"kind\":\"tty\"}]}]}" ==
   "error: field kind: unknown value tty"
+-- obs.slow: a slow latest sample is an alert subject `<tool>/<step>`; a newer ok sample clears it; bad host refused
+#guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\"}]}" ==
+  "{\"slow\":[\"t/s\"]}"
+#guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"}]}" ==
+  "{\"slow\":[]}"
+#guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"mars\"}]}" == "error: field host: unknown host mars"
+#guard run "obs.slow" "{}" == "{\"slow\":[]}"
+#guard run "obs.timing" "{}" == "{\"verdicts\":[]}"
+-- obs.next: a branch whose land commit is on main, or that the live land lock names, gets no land action
+#guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false}}]}").splitOn "\"land\"").length == 2
+#guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"onMain\":true}}]}").splitOn "\"land\"").length == 1
+#guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"w\"}}]}").splitOn "\"land\"").length == 1
+#guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"x\"}}]}").splitOn "\"land\"").length == 2
 -- obs.next with signals: the hung stdin child of an idle, handed-back agent is killed and the agent kept; a loop
 -- watching task `b` sees its producer exited once another agent's signals end `b` (`killed`).
 #guard run "obs.next" "{\"now\":1800005,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":9,\"chain\":[1],\"kind\":\"stdinWait\",\"startedAt\":1}],\"signals\":{\"agent\":\"a\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"bounds\":[{\"time\":0,\"start\":true},{\"time\":2,\"start\":false}],\"handbacks\":[2],\"procs\":[{\"id\":\"b\",\"pid\":9,\"kind\":\"stdin\"}]}}]}" ==
@@ -923,6 +999,12 @@ def typed : List Typed := [
     fs := [{ ex "a" .done with handbackAt := some (ago 5), children := [lp 100 (ago 60)] }] },
   { name := "handed back, branch 0 ahead and unlanded -> none"
     fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 0, landed := false, queued := false } }] },
+  { name := "inc-watch-unlanded-after-land: branch 3 ahead, not an ancestor of main, but a land commit for its task is on main -> none"
+    fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 3, landed := false, queued := false, onMain := true } }] },
+  { name := "inc-watch-alert-during-land: branch 3 ahead and unlanded, the live land lock names this branch -> none"
+    fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 3, landed := false, queued := false, landLock := some "wt-z" } }] },
+  { name := "a land lock held for another branch does not suppress: branch 3 ahead and unlanded -> land"
+    fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 3, landed := false, queued := false, landLock := some "wt-other" } }] },
   { name := "handed back, no branch, worktree present -> none"
     fs := [{ ex "z" .done with handbackAt := some (ago 5), worktree := some {} }] },
   { name := "parked with context 210000 -> nudgeHandoff"
