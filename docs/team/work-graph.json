@@ -2076,7 +2076,8 @@
    "writes": [
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "packages/contracts/golden/parts/morph-tween-waapi.jsonl"
-   ]
+   ],
+   "evidence": "ebcd1d4"
   },
   {
    "id": "variant-morph-tween-waapi",
