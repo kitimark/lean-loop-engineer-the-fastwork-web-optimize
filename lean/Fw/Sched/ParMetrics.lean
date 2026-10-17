@@ -70,7 +70,7 @@ def merge (l : List Iv) : List Iv :=
 
 /-- `sortS` sorts by start.
 
-$$\forall l:\quad \operatorname{sortS}(l) \text{ is sorted: } \forall i < j:\ s_{l_i} \le s_{l_j}$$
+$$\forall l,\ \forall i < j < |\operatorname{sortS}(l)|:\quad s_{\operatorname{sortS}(l)_i} \le s_{\operatorname{sortS}(l)_j}$$
 -/
 theorem sortS_sorted (l : List Iv) : (sortS l).Pairwise fun a b => a.s ≤ b.s := by
   have := List.pairwise_mergeSort (le := fun a b : Iv => decide (a.s ≤ b.s))
@@ -97,7 +97,7 @@ theorem mergeGo_start : ∀ (c : Iv) (ys : List Iv), ys.Pairwise (fun a b => a.s
 
 /-- `mergeGo` emits disjoint, separated, non-empty intervals.
 
-$$\forall c, ys:\quad ys \text{ sorted by } s,\ (\forall y \in ys:\ s_c \le s_y \land s_y < e_y),\ s_c < e_c \Rightarrow \operatorname{go}(c, ys) \text{ has } e_o < s_{o'} \text{ for } o \text{ before } o' \text{, and } s_o < e_o$$
+$$\forall c, ys:\quad ys \text{ sorted by } s \land (\forall y \in ys:\ s_c \le s_y) \land s_c < e_c \land (\forall y \in ys:\ s_y < e_y) \Rightarrow \big(\forall i < j < |g|:\ e_{g_i} < s_{g_j}\big) \land \big(\forall o \in g:\ s_o < e_o\big), \quad g = \operatorname{go}(c, ys)$$
 -/
 theorem mergeGo_ok : ∀ (c : Iv) (ys : List Iv), ys.Pairwise (fun a b => a.s ≤ b.s) →
     (∀ y ∈ ys, c.s ≤ y.s) → c.s < c.e → (∀ y ∈ ys, y.s < y.e) →
@@ -136,7 +136,7 @@ theorem mergeGo_within (a b : Nat) : ∀ (c : Iv) (ys : List Iv), a ≤ c.s → 
 
 /-- `mergeGo` covers exactly the points of its inputs.
 
-$$\forall c, ys, p:\quad ys \text{ sorted by } s \land (\forall y \in ys:\ s_c \le s_y) \Rightarrow \big(p \in c \lor \exists y \in ys:\ p \in y\big) \iff \exists o \in \operatorname{go}(c, ys):\ p \in o$$
+$$\forall c, ys, p:\quad ys \text{ sorted by } s \land (\forall y \in ys:\ s_c \le s_y) \Rightarrow \Big[\big(p \in c \lor \exists y \in ys:\ p \in y\big) \iff \exists o \in \operatorname{go}(c, ys):\ p \in o\Big]$$
 -/
 theorem mergeGo_cover : ∀ (c : Iv) (ys : List Iv) (p : Nat), ys.Pairwise (fun a b => a.s ≤ b.s) →
     (∀ y ∈ ys, c.s ≤ y.s) →
@@ -163,10 +163,10 @@ theorem mergeGo_cover : ∀ (c : Iv) (ys : List Iv) (p : Nat), ys.Pairwise (fun 
     · simp only [List.mem_cons, or_and_right, exists_or, exists_eq_left]
       rw [← mergeGo_cover y ys p hs.2 hs.1]
 
-/-- **Merge is disjoint and sorted**: consecutive merged intervals are separated by a gap, and
+/-- **Merge is disjoint and sorted**: every merged interval ends before any later one starts, and
 every merged interval is non-empty (so they are also strictly sorted by start).
 
-$$\forall l:\quad \forall i < j < |\operatorname{merge}(l)|:\ e_{m_i} < s_{m_j}, \qquad \forall o \in \operatorname{merge}(l):\ s_o < e_o$$
+$$\forall l,\ m = \operatorname{merge}(l):\quad \big(\forall i < j < |m|:\ e_{m_i} < s_{m_j}\big) \land \big(\forall o \in m:\ s_o < e_o\big)$$
 -/
 theorem merge_disjoint_sorted (l : List Iv) :
     (merge l).Pairwise (fun a b => a.e < b.s) ∧ ∀ o ∈ merge l, o.s < o.e := by
@@ -271,16 +271,18 @@ theorem busy_le_alive (a b : Nat) (l : List Iv) : busy a b l ≤ b - a := by
   obtain ⟨j, _, rfl⟩ := hi
   simp only [clip]; omega
 
-/-- Speedup over the window: summed busy time divided by the window length (0 for an empty window).
+/-- Speedup over the window: summed busy time divided, as a rational, by the window length (0 for an
+empty window).
 
-$$S_{a,b}(\mathit{ag}) = \frac{\sum_{l \in \mathit{ag}} \operatorname{busy}_{a,b}(l)}{b \mathbin{\dot-} a} \qquad (x / 0 = 0)$$
+$$S_{a,b}(\mathit{ag}) = \frac{\sum_{l \in \mathit{ag}} \operatorname{busy}_{a,b}(l)}{b \mathbin{\dot-} a} \in \mathbb{Q} \qquad (\text{ℕ numerator and denominator cast to } \mathbb{Q};\ x / 0 = 0)$$
 -/
 def speedup (a b : Nat) (agents : List (List Iv)) : Rat :=
   (((agents.map (busy a b)).sum : Nat) : Rat) / ((b - a : Nat) : Rat)
 
-/-- A Nat ratio is at most `k` when the numerator is at most `k` times the denominator.
+/-- The rational quotient of two naturals is at most `k` when the numerator is at most `k` times the
+denominator.
 
-$$\forall x, y, k \in \mathbb N:\quad x \le k \cdot y \Rightarrow x / y \le k \qquad (x / 0 = 0)$$
+$$\forall x, y, k \in \mathbb N:\quad x \le k \cdot y \Rightarrow x / y \le k \text{ in } \mathbb{Q} \qquad (x, y, k \text{ cast to } \mathbb{Q};\ x / 0 = 0)$$
 -/
 theorem div_le_of_le_mul (x y k : Nat) (h : x ≤ k * y) : (x : Rat) / (y : Rat) ≤ (k : Rat) := by
   rw [Rat.div_def]
@@ -321,14 +323,15 @@ theorem speedup_le_agents (a b : Nat) (agents : List (List Iv)) :
 
 /-- The number of agents busy at point `p`.
 
-$$\operatorname{busyAt}(\mathit{ag}, p) = \big|\{\, l \in \mathit{ag} \mid \exists i \in l:\ s_i \le p < e_i \,\}\big|$$
+$$\operatorname{busyAt}(\mathit{ag}, p) = \big|[\, l \in \mathit{ag} \mid \exists i \in l:\ s_i \le p < e_i \,]\big| \qquad (\text{list filter, repeats counted})$$
 -/
 def busyAt (agents : List (List Iv)) (p : Nat) : Nat :=
   (agents.filter fun l => l.any fun i => covers i p).length
 
-/-- The breakpoints of the window: `a`, `b` and every interval end inside $[a, b]$, sorted.
+/-- The breakpoints of the window: `a`, `b` and every interval start and end inside $[a, b]$, sorted
+ascending, repeats kept.
 
-$$\operatorname{pts}_{a,b}(\mathit{ag}) = \operatorname{sort}\big([\, p \in [a, b] \cup \{ s_i, e_i \mid i \in l \in \mathit{ag} \} \mid a \le p \le b \,]\big)$$
+$$\operatorname{pts}_{a,b}(\mathit{ag}) = \operatorname{sort}\big([\, p \in a :: b :: [\, s_i, e_i \mid l \in \mathit{ag},\ i \in l \,] \mid a \le p \le b \,]\big)$$
 -/
 def points (a b : Nat) (agents : List (List Iv)) : List Nat :=
   ((a :: b :: agents.flatMap fun l => l.flatMap fun i => [i.s, i.e]).filter
@@ -336,7 +339,7 @@ def points (a b : Nat) (agents : List (List Iv)) : List Nat :=
 
 /-- Sum the gaps between consecutive points whose left end satisfies `f`.
 
-$$\operatorname{segSum}_f(p :: q :: r) = [f(p)] \cdot (q - p) + \operatorname{segSum}_f(q :: r), \qquad \operatorname{segSum}_f(l) = 0 \text{ for } |l| < 2$$
+$$\operatorname{segSum}_f(p :: q :: r) = [f(p)] \cdot (q \mathbin{\dot-} p) +\operatorname{segSum}_f(q :: r), \qquad \operatorname{segSum}_f(l) = 0 \text{ for } |l| < 2$$
 -/
 def segSum (f : Nat → Bool) : List Nat → Nat
   | p :: q :: rest => (if f p then q - p else 0) + segSum f (q :: rest)
@@ -350,9 +353,9 @@ $$\operatorname{serial}_{a,b}(\mathit{ag}) = \operatorname{segSum}_{p \mapsto \o
 def serial (a b : Nat) (agents : List (List Iv)) : Nat :=
   segSum (fun p => decide (busyAt agents p ≤ 1)) (points a b agents)
 
-/-- Serial share: serial time over the window length (0 for an empty window).
+/-- Serial share: serial time divided, as a rational, by the window length (0 for an empty window).
 
-$$\operatorname{serialShare}_{a,b}(\mathit{ag}) = \operatorname{serial}_{a,b}(\mathit{ag}) / (b \mathbin{\dot-} a) \qquad (x / 0 = 0)$$
+$$\operatorname{serialShare}_{a,b}(\mathit{ag}) = \operatorname{serial}_{a,b}(\mathit{ag}) / (b \mathbin{\dot-} a) \in \mathbb{Q} \qquad (\text{ℕ inputs cast to } \mathbb{Q};\ x / 0 = 0)$$
 -/
 def serialShare (a b : Nat) (agents : List (List Iv)) : Rat :=
   ((serial a b agents : Nat) : Rat) / ((b - a : Nat) : Rat)
@@ -401,9 +404,10 @@ theorem serial_share_le_one (a b : Nat) (agents : List (List Iv)) : serialShare 
 
 /-! ## Stretch -/
 
-/-- Stretch of one job: its duration over its solo duration (0 when the solo duration is 0).
+/-- Stretch of one job: its duration divided, as a rational, by its solo duration (0 when the solo
+duration is 0).
 
-$$\operatorname{stretch}(d, d_{solo}) = d / d_{solo} \qquad (x / 0 = 0)$$
+$$\operatorname{stretch}(d, d_{solo}) = d / d_{solo} \in \mathbb{Q} \qquad (d, d_{solo} \in \mathbb N \text{ cast to } \mathbb{Q};\ x / 0 = 0)$$
 -/
 def stretch (d dsolo : Nat) : Rat := (d : Rat) / (dsolo : Rat)
 
@@ -482,9 +486,10 @@ inductive CP where
   | cycle
 deriving DecidableEq, Repr
 
-/-- The critical path: Kahn's pass with fuel $|V| = n$ from nothing done and all nodes remaining.
+/-- The critical path: Kahn's pass with fuel $|V| = n$ from nothing done and all nodes remaining; the
+largest finish time, 0 when there are no nodes.
 
-$$\operatorname{cp}(n, w, E) = \begin{cases} \mathrm{ok}(\max_{(v, d) \in D} d) & \operatorname{kahn}(n, [\,], [0, n)) = D \\ \mathrm{cycle} & \operatorname{kahn}(n, [\,], [0, n)) = \bot \end{cases}$$
+$$\operatorname{cp}(n, w, E) = \begin{cases} \mathrm{ok}\big(\operatorname{maxl}([\, d \mid (v, d) \in D \,])\big) \ (\operatorname{maxl}([\,]) = 0) &\operatorname{kahn}(n, [\,], [0, n)) = D \\ \mathrm{cycle} & \operatorname{kahn}(n, [\,], [0, n)) = \bot \end{cases}$$
 -/
 def cp (n : Nat) (w : List Nat) (E : List (Nat × Nat)) : CP :=
   match kahn n w E n [] (List.range n) with

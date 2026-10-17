@@ -177,7 +177,7 @@ deriving Repr, DecidableEq
 
 /-- **Per-step reduction** (`reduceSteps`) with `n = |M|` steps.
 
-$$\big|[\, r \in R \mid \operatorname{place}(M, e, r) = \mathrm{before} \,]\big|$$
+$$\operatorname{reduceSteps}(R, M, e) = \Big([\operatorname{tally}(R_k).\mathit{counts}]_{k < n},\ [\operatorname{tally}(R_k).\mathit{paintArea}]_{k < n},\ \operatorname{tally}(W(R)),\ \big|[\, r \in R \mid \operatorname{place}(M, e, r) = \mathrm{before} \,]\big|\Big), \qquad n = |M|$$
 -/
 def reduceSteps (rows : List Row) (marks : List Rat) (endTime : Rat) : Reduced :=
   let per := (List.range marks.length).map fun k => tally (stepRows marks endTime rows k)

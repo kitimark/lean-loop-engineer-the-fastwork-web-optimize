@@ -108,7 +108,7 @@ theorem violations_nil_iff (globs paths : List String) :
 
 /-- The scope rule, unfolded.
 
-$$\mathrm{in}(S, x) \iff \mathrm{segs}(x) \ne [\,] \land \texttt{..} \notin \mathrm{segs}(x) \land \big(\exists g \in I:\ \mathrm{mp}(g, \mathrm{segs}(x))\big) \land \big(\forall g \in E:\ \lnot\mathrm{mp}(g, \mathrm{segs}(x))\big)$$
+$$\forall S = (I, E),\ x:\quad \mathrm{in}(S, x) \iff \mathrm{segs}(x) \ne [\,] \land \texttt{..} \notin \mathrm{segs}(x) \land \big(\exists g \in I:\ \mathrm{mp}(g, \mathrm{segs}(x))\big) \land \big(\forall g \in E:\ \lnot\mathrm{mp}(g, \mathrm{segs}(x))\big)$$
 -/
 theorem inScope_iff (sc : Scope) (x : String) : inScope sc x = true ↔
     segs x ≠ [] ∧ ".." ∉ segs x ∧ (∃ g ∈ sc.incl, matchesPath g (segs x) = true) ∧

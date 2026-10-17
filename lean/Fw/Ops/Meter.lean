@@ -171,10 +171,10 @@ def fresh : List Key → List Key → List Key
   | _, [] => []
   | seen, c :: cs => if c ∈ seen then fresh seen cs else c :: fresh (c :: seen) cs
 
-/-- One meter tick at time `now` (seconds): the window is $\lfloor \mathit{now} / \omega \rfloor$; a
-new window forgets the fired keys; the fresh candidates are emitted and remembered.
+/-- One meter tick at time `now` (seconds): the window is $\lfloor \mathit{now} / \omega \rfloor$ (0 when
+$\omega = 0$); a new window forgets the fired keys; the fresh candidates are emitted and remembered.
 
-$$\mathrm{step}(\sigma, \mathit{now}, O) = \big((w,\ N \mathbin{+\!\!+} F_0),\ [(a, r, w) : (a, r) \in N]\big), \quad w = \lfloor \mathit{now}/\omega \rfloor,\ F_0 = \begin{cases} \sigma.F & w = \sigma.w \\ [\,] & w \ne \sigma.w \end{cases},\ N = \mathrm{fresh}(F_0, \mathrm{cand}(p, O))$$
+$$\mathrm{step}(\sigma, \mathit{now}, O) = \big((w,\ N \mathbin{+\!\!+} F_0),\ [(a, r, w) : (a, r) \in N]\big), \quad w = \lfloor \mathit{now}/\omega \rfloor \ (w = 0 \text{ when } \omega = 0),\ F_0 = \begin{cases} \sigma.F & w = \sigma.w \\ [\,] & w \ne \sigma.w \end{cases},\ N = \mathrm{fresh}(F_0, \mathrm{cand}(p, O))$$
 -/
 def step (p : Params) (s : State) (now : Nat) (obs : List Obs) : State × List Alert :=
   let w := now / p.windowSec
@@ -240,7 +240,7 @@ theorem fresh_nodup (seen cs : List Key) : (fresh seen cs).Nodup := by
 
 /-- A tick is complete: a firing rule whose key was not yet alerted in this window is alerted now.
 
-$$\forall o \in O, r:\quad r(o) \land (o.\mathit{agent}, r) \notin F_0 \Rightarrow (o.\mathit{agent}, r, w) \in \mathrm{step}(\sigma, \mathit{now}, O).2$$
+$$\forall p, \sigma, \mathit{now}, O,\ o \in O,\ r:\quad r(o) \land (o.\mathit{agent}, r) \notin F_0 \Rightarrow (o.\mathit{agent}, r, w) \in \mathrm{step}(\sigma, \mathit{now}, O).2, \qquad w = \lfloor \mathit{now}/\omega \rfloor \ (0 \text{ when } \omega = 0),\ F_0 = \begin{cases} \sigma.F & w = \sigma.w \\ [\,] & w \ne \sigma.w \end{cases}$$
 -/
 theorem step_complete (p : Params) (s : State) (now : Nat) (obs : List Obs) (o : Obs) (ho : o ∈ obs)
     (r : Rule) (hr : holds p o r = true)
@@ -253,7 +253,7 @@ theorem step_complete (p : Params) (s : State) (now : Nat) (obs : List Obs) (o :
 
 /-- A tick is sound: every alert is a firing rule of an observed agent.
 
-$$\forall (a, r, w) \in \mathrm{step}(\sigma, \mathit{now}, O).2:\quad \exists o \in O:\ o.\mathit{agent} = a \land r(o)$$
+$$\forall p, \sigma, \mathit{now}, O,\ (a, r, w) \in \mathrm{step}(\sigma, \mathit{now}, O).2:\quad \exists o \in O:\ o.\mathit{agent} = a \land r(o)$$
 -/
 theorem step_sound (p : Params) (s : State) (now : Nat) (obs : List Obs) (a : Alert)
     (h : a ∈ (step p s now obs).2) : ∃ o ∈ obs, o.agent = a.1 ∧ holds p o a.2.1 = true := by
@@ -268,7 +268,7 @@ theorem step_sound (p : Params) (s : State) (now : Nat) (obs : List Obs) (a : Al
 have no repeats, and each is in a later window than the state's, or in the same window with a key
 not yet fired.
 
-$$\mathrm{times}(T) \text{ non-decreasing} \land \forall (t, O) \in T:\ \sigma.w \le \lfloor t/\omega \rfloor \Rightarrow \mathrm{run}(\sigma, T).2 \text{ has no repeats} \land \forall (a, r, w) \in \mathrm{run}(\sigma, T).2:\ w > \sigma.w \lor \big(w = \sigma.w \land (a, r) \notin \sigma.F\big)$$
+$$\forall p, \sigma, T:\quad \big(\mathrm{times}(T) \text{ non-decreasing} \land \forall (t, O) \in T:\ \sigma.w \le \lfloor t/\omega \rfloor\big) \Rightarrow \big(\mathrm{run}(\sigma, T).2 \text{ has no repeats} \land \forall (a, r, w) \in \mathrm{run}(\sigma, T).2:\ w > \sigma.w \lor (w = \sigma.w \land (a, r) \notin \sigma.F)\big) \qquad (\lfloor t/0 \rfloor = 0)$$
 -/
 theorem run_inv (p : Params) (s : State) (tr : List (Nat × List Obs))
     (hmono : (tr.map (·.1)).Pairwise (· ≤ ·)) (hge : ∀ x ∈ tr, s.window ≤ x.1 / p.windowSec) :

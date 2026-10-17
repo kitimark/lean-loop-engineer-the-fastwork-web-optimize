@@ -78,9 +78,10 @@ def Tbl.push {α : Type} (key : α → String) (t : Tbl α) (a : α) : Tbl α :=
   match t with
   | ⟨rows, idx⟩ => let idx := idx.insert (key a) rows.size; ⟨rows.push a, idx⟩
 
-/-- Apply `f` to the row with id `k` (in place), if there is one.
+/-- Apply `f` to the row with id `k` (in place), if there is one; an index entry past the last row
+changes nothing.
 
-$$\operatorname{modify}(T, k, f) = \begin{cases} (\mathit{rows}[i := f(\mathit{rows}_i)],\ I) & I(k) = i \\ T & k \notin \operatorname{dom}(I) \end{cases}$$
+$$\operatorname{modify}(T, k, f) = \begin{cases} (\mathit{rows}[i := f(\mathit{rows}_i)],\ I) & I(k) = i < |\mathit{rows}| \\ (\mathit{rows}, I) & I(k) = i \ge |\mathit{rows}| \\ T & k \notin \operatorname{dom}(I) \end{cases}$$
 -/
 def Tbl.modify {α : Type} (t : Tbl α) (k : String) (f : α → α) : Tbl α :=
   match t with
@@ -94,7 +95,7 @@ variable {α : Type} {key : α → String}
 
 /-- The empty table is exact.
 
-$$\operatorname{Ok}_{\mathit{key}}(T_0)$$
+$$\forall \alpha,\ \mathit{key} : \alpha \to \mathrm{String}:\quad \operatorname{Ok}_{\mathit{key}}(T_0)$$
 -/
 theorem empty_ok : Ok key (Tbl.empty (α := α)) := by
   intro k i
@@ -102,7 +103,7 @@ theorem empty_ok : Ok key (Tbl.empty (α := α)) := by
 
 /-- In an exact table, two rows with the same id are the same row.
 
-$$\operatorname{Ok}_{\mathit{key}}(T) \land \mathit{key}(\mathit{rows}_i) = \mathit{key}(\mathit{rows}_j) \;\Rightarrow\; i = j$$
+$$\forall \mathit{key}, T, i, j:\quad \operatorname{Ok}_{\mathit{key}}(T) \land i < |\mathit{rows}| \land j < |\mathit{rows}| \land \mathit{key}(\mathit{rows}_i) = \mathit{key}(\mathit{rows}_j) \;\Rightarrow\; i = j$$
 -/
 theorem ok_unique {t : Tbl α} (h : Ok key t) {i j : Nat} (hi : i < t.rows.size) (hj : j < t.rows.size)
     (he : key t.rows[i] = key t.rows[j]) : i = j := by
@@ -112,7 +113,7 @@ theorem ok_unique {t : Tbl α} (h : Ok key t) {i j : Nat} (hi : i < t.rows.size)
 
 /-- In an exact table, the index lookup `has` is the linear scan `any`.
 
-$$\operatorname{Ok}_{\mathit{key}}(T) \;\Rightarrow\; \operatorname{has}(T, k) = \exists x \in \mathit{rows}:\ \mathit{key}(x) = k$$
+$$\forall \mathit{key}, T, k:\quad \operatorname{Ok}_{\mathit{key}}(T) \;\Rightarrow\; \big(\operatorname{has}(T, k) \iff \exists x \in \mathit{rows}:\ \mathit{key}(x) = k\big)$$
 -/
 theorem has_eq {t : Tbl α} (h : Ok key t) (k : String) :
     t.has k = t.rows.toList.any (fun x => key x == k) := by
@@ -134,7 +135,7 @@ theorem has_eq {t : Tbl α} (h : Ok key t) (k : String) :
 
 /-- In an exact table, the index lookup `get` is the linear scan `find?` (the first row with id `k`).
 
-$$\operatorname{Ok}_{\mathit{key}}(T) \;\Rightarrow\; \operatorname{get}(T, k) = \operatorname{find}(\lambda x.\ \mathit{key}(x) = k,\ \mathit{rows})$$
+$$\forall \mathit{key}, T, k:\quad \operatorname{Ok}_{\mathit{key}}(T) \;\Rightarrow\; \operatorname{get}(T, k) =\operatorname{find}(\lambda x.\ \mathit{key}(x) = k,\ \mathit{rows})$$
 -/
 theorem get?_eq {t : Tbl α} (h : Ok key t) (k : String) :
     t.get? k = t.rows.toList.find? (fun x => key x == k) := by
@@ -162,21 +163,21 @@ theorem get?_eq {t : Tbl α} (h : Ok key t) (k : String) :
 
 /-- Pushing appends the row.
 
-$$\operatorname{push}_{\mathit{key}}(T, a).\mathit{rows} = \mathit{rows} \mathbin{+\!\!+} [a]$$
+$$\forall \mathit{key}, T, a:\quad \operatorname{push}_{\mathit{key}}(T, a).\mathit{rows} =\mathit{rows} \mathbin{+\!\!+} [a]$$
 -/
 theorem push_rows (t : Tbl α) (a : α) : (t.push key a).rows.toList = t.rows.toList ++ [a] := by
   cases t; simp [push]
 
 /-- `push` in projection form (its code destructures the table so the array is updated in place).
 
-$$\operatorname{push}_{\mathit{key}}(T, a) = (\mathit{rows} \mathbin{+\!\!+} [a],\ I[\mathit{key}(a) \mapsto |\mathit{rows}|])$$
+$$\forall \mathit{key}, T, a:\quad \operatorname{push}_{\mathit{key}}(T, a) =(\mathit{rows} \mathbin{+\!\!+} [a],\ I[\mathit{key}(a) \mapsto |\mathit{rows}|])$$
 -/
 theorem push_eq (t : Tbl α) (a : α) : t.push key a = ⟨t.rows.push a, t.idx.insert (key a) t.rows.size⟩ := by
   cases t; rfl
 
 /-- `modify` in projection form (its code destructures the table so the array is updated in place).
 
-$$\operatorname{modify}(T, k, f) = \begin{cases} (\mathit{rows}[i := f(\mathit{rows}_i)],\ I) & I(k) = i \\ T & k \notin \operatorname{dom}(I) \end{cases}$$
+$$\forall T, k, f:\quad \operatorname{modify}(T, k, f) = \begin{cases} (\mathit{rows}[i := f(\mathit{rows}_i)],\ I) & I(k) = i < |\mathit{rows}| \\ (\mathit{rows}, I) & I(k) = i \ge |\mathit{rows}| \\ T & k \notin \operatorname{dom}(I) \end{cases}$$
 -/
 theorem modify_eq (t : Tbl α) (k : String) (f : α → α) :
     t.modify k f = match t.idx[k]? with
@@ -186,7 +187,7 @@ theorem modify_eq (t : Tbl α) (k : String) (f : α → α) :
 
 /-- Pushing a row whose id is new keeps the table exact.
 
-$$\operatorname{Ok}_{\mathit{key}}(T) \land \neg\operatorname{has}(T, \mathit{key}(a)) \;\Rightarrow\; \operatorname{Ok}_{\mathit{key}}(\operatorname{push}_{\mathit{key}}(T, a))$$
+$$\forall \mathit{key}, T, a:\quad \operatorname{Ok}_{\mathit{key}}(T) \land \neg\operatorname{has}(T, \mathit{key}(a)) \;\Rightarrow\; \operatorname{Ok}_{\mathit{key}}(\operatorname{push}_{\mathit{key}}(T, a))$$
 -/
 theorem push_ok {t : Tbl α} (h : Ok key t) {a : α} (hn : t.has (key a) = false) :
     Ok key (t.push key a) := by
@@ -224,7 +225,7 @@ theorem push_ok {t : Tbl α} (h : Ok key t) {a : α} (hn : t.has (key a) = false
 
 /-- In an exact table, modifying the row with id `k` is mapping `f` over every row with id `k`.
 
-$$\operatorname{Ok}_{\mathit{key}}(T) \;\Rightarrow\; \operatorname{modify}(T, k, f).\mathit{rows} = \big[\, \textbf{if } \mathit{key}(x) = k \textbf{ then } f(x) \textbf{ else } x \ :\ x \in \mathit{rows} \,\big]$$
+$$\forall \mathit{key}, T, k, f:\quad \operatorname{Ok}_{\mathit{key}}(T) \;\Rightarrow\; \operatorname{modify}(T, k, f).\mathit{rows} = \big[\, \textbf{if } \mathit{key}(x) = k \textbf{ then } f(x) \textbf{ else } x \ :\ x \in \mathit{rows} \,\big]$$
 -/
 theorem modify_rows {t : Tbl α} (h : Ok key t) (k : String) (f : α → α) :
     (t.modify k f).rows.toList = t.rows.toList.map (fun x => if key x = k then f x else x) := by
@@ -256,7 +257,7 @@ theorem modify_rows {t : Tbl α} (h : Ok key t) (k : String) (f : α → α) :
 
 /-- Modifying with an id-preserving `f` keeps the table exact.
 
-$$\operatorname{Ok}_{\mathit{key}}(T) \land \forall x:\ \mathit{key}(f(x)) = \mathit{key}(x) \;\Rightarrow\; \operatorname{Ok}_{\mathit{key}}(\operatorname{modify}(T, k, f))$$
+$$\forall \mathit{key}, T, k, f:\quad \operatorname{Ok}_{\mathit{key}}(T) \land \big(\forall x:\ \mathit{key}(f(x)) = \mathit{key}(x)\big) \;\Rightarrow\; \operatorname{Ok}_{\mathit{key}}(\operatorname{modify}(T, k, f))$$
 -/
 theorem modify_ok {t : Tbl α} (h : Ok key t) (k : String) {f : α → α} (hf : ∀ x, key (f x) = key x) :
     Ok key (t.modify k f) := by
@@ -640,9 +641,10 @@ def openIdx (ss : List Step) : Std.HashMap String Step :=
     | some c => if x.status.isOpen then m.insert c x else m
     | none => m) {}
 
-/-- The number of running runs of each card.
+/-- The number of running runs of each card (each list entry counts; a card with no running run has
+no entry).
 
-$$\operatorname{runIdx}(rs)(c) = \#\{\, r \in rs : r.\mathit{card} = c \land r.\mathit{status} = \mathrm{running} \,\}$$
+$$\operatorname{runIdx}(rs)(c) = \begin{cases} n_c & n_c > 0 \\ \text{absent} & n_c = 0 \end{cases}, \qquad n_c = \big|[\, r \in rs \mid r.\mathit{card} = c \land r.\mathit{status} = \mathrm{running} \,]\big|$$
 -/
 def runIdx (rs : List Run) : Std.HashMap String Nat :=
   rs.foldr (fun r m => if r.status == .running then m.insert r.card (m.getD r.card 0 + 1) else m) {}
@@ -671,9 +673,9 @@ theorem openIdx_get (ss : List Step) (cid : String) :
           simp only [h', h'', Bool.false_eq_true, ite_false]
           exact ih
 
-/-- The index lookup of `runIdx` is the count `boardCard` does.
+/-- The index lookup of `runIdx`, reading an absent card as 0, is the count `boardCard` does.
 
-$$\forall rs, c:\quad \operatorname{runIdx}(rs)(c) = \#\{\, r \in rs : r.\mathit{card} = c \land r.\mathit{status} = \mathrm{running} \,\}$$
+$$\forall rs, c:\quad \operatorname{runIdx}(rs)(c) = \big|[\, r \in rs \mid r.\mathit{card} = c \land r.\mathit{status} = \mathrm{running} \,]\big| \qquad (\text{absent} = 0)$$
 -/
 theorem runIdx_get (rs : List Run) (cid : String) :
     (runIdx rs).getD cid 0 = (rs.filter (fun r => r.card == cid && r.status == .running)).length := by
@@ -692,9 +694,12 @@ theorem runIdx_get (rs : List Run) (cid : String) :
       simp only [hs', Bool.false_eq_true, ite_false, Bool.and_false]
       exact ih
 
-/-- One board row from the two indexes (the same fields as `boardCard`).
+/-- One board row from the two indexes (the same fields as `boardCard`, with the open step and the
+running count read from the indexes instead of scanned).
 
-$$\operatorname{frow}(O, R, \mathit{now}, c) = \operatorname{row}(\sigma, \mathit{now}, c) \text{ with } m = O(c.\mathit{id}),\ \rho = R(c.\mathit{id})$$
+$$\operatorname{frow}(O, R, \mathit{now}, c) = \big(c.\mathit{id}, c.\mathit{owner}, \operatorname{stage}(c), \operatorname{next}(c, \operatorname{stage}(c)), c.\mathit{lastAt}, \operatorname{needs}(m)_\bot, \rho, c.\mathit{head}, c.\mathit{landed}, c.\mathit{violation}, \neg c.\mathit{landed} \land \rho = 0 \land m = \bot \land \mathrm{STALE} \le \mathit{now} \mathbin{\dot-} c.\mathit{lastAt}\big)$$
+
+where $m = O(c.\mathit{id})$ ($\bot$ if absent) and $\rho = R(c.\mathit{id})$ ($0$ if absent).
 -/
 def fastRow (oi : Std.HashMap String Step) (ri : Std.HashMap String Nat) (now : Nat) (c : Card) : BoardCard :=
   let st := stage c
@@ -963,7 +968,7 @@ theorem query_eq_of_st {v w : Srv} (h : v.st = w.st) (now seq : Nat) :
 /-- After serve calls without a reset from a fresh server, the query reply is the board of the
 projection of their events.
 
-$$\forall cs, \mathit{now}, \mathit{seq}:\quad (\forall c \in cs,\ c \ne \mathrm{reset}) \;\Rightarrow\; \operatorname{exec}(\operatorname{run}(v_0, cs), \mathrm{query}(\mathit{now}, \mathit{seq}))_2 = \mathrm{board}\big(\operatorname{board}(\operatorname{project}(\operatorname{ev}(c_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{ev}(c_n)), \mathit{now}, \mathit{seq})\big)$$
+$$\forall cs = [c_1, \dots, c_n], \mathit{now}, \mathit{seq}:\quad (\forall c \in cs,\ c \ne \mathrm{reset}) \;\Rightarrow\; \operatorname{exec}(\operatorname{run}(v_0, cs), \mathrm{query}(\mathit{now}, \mathit{seq}))_2 = \mathrm{board}\big(\operatorname{board}(\operatorname{project}(\operatorname{ev}(c_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{ev}(c_n)), \mathit{now}, \mathit{seq})\big)$$
 -/
 theorem query_after_run (cs : List Cmd) (hr : ∀ c ∈ cs, c.isReset = false) (now seq : Nat) :
     (exec (run init cs) (.query now seq)).2 = .board (board (project (cs.flatMap Cmd.events)) now seq) := by
