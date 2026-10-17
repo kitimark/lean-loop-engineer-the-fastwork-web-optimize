@@ -708,6 +708,9 @@
    "devices": [
     "phone"
    ],
+   "needs": [
+    "device"
+   ],
    "evidence": "0c901f2: 8/8 cells agree with Lean and the Simulator"
   },
   {
@@ -758,6 +761,9 @@
    "milestone": "M3",
    "deps": [],
    "owner": "user",
+   "needs": [
+    "device"
+   ],
    "evidence": "b205acc"
   },
   {
@@ -773,6 +779,9 @@
    "owner": "lead",
    "devices": [
     "phone"
+   ],
+   "needs": [
+    "device"
    ],
    "evidence": "0c901f2: >50ms frames/100 22.9 vs 0; finger swipe pending"
   },
@@ -848,6 +857,31 @@
    "owner": "measure-engineer",
    "devices": [
     "phone"
+   ],
+   "needs": [
+    "device"
+   ]
+  },
+  {
+   "id": "swipe-baseline",
+   "title": "Finger swipe on the original, iPhone (5-10 min, your hand): frames > 50 ms per 100 on the real compositor path; session 1 measured only scripted scroll",
+   "stream": "calibration",
+   "milestone": "M3",
+   "deps": [],
+   "owner": "lead",
+   "needs": [
+    "device"
+   ]
+  },
+  {
+   "id": "gap-light",
+   "title": "gap-device S check again with the phone in Light mode (≈5 min; session 1 differed from the Simulator only in dark)",
+   "stream": "calibration",
+   "milestone": "M3",
+   "deps": [],
+   "owner": "lead",
+   "needs": [
+    "device"
    ]
   },
   {

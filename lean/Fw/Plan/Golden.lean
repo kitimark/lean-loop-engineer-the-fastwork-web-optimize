@@ -37,16 +37,18 @@ def query : Json := Json.mkObj [("op", .str "console.query"), ("now", toJson (0 
 
 /-- The body fields of a `task.define`. -/
 def defFields (task : String) (deps : List String) (milestone : Option String := none)
-    (writes devices : List String := []) (evidence : Option String := none) : List (String × Json) :=
+    (writes devices : List String := []) (evidence : Option String := none)
+    (needs : List String := []) : List (String × Json) :=
   [("task", .str task), ("title", .str s!"Task {task}"), ("stream", .str "lean"),
    ("milestone", ostr milestone), ("deps", strsJson deps), ("owner", .str "lean-prover"),
-   ("writes", strsJson writes), ("devices", strsJson devices), ("evidence", ostr evidence)]
+   ("writes", strsJson writes), ("devices", strsJson devices)]
+  ++ (if needs.isEmpty then [] else [("needs", strsJson needs)]) ++ [("evidence", ostr evidence)]
 
 /-- A `task.define` by the lead (key `d:<task>` unless given). -/
 def define (task : String) (deps : List String) (milestone : Option String := none)
     (writes devices : List String := []) (evidence : Option String := none)
-    (key : String := s!"d:{task}") (actor : String := "lead") : Json :=
-  apply key actor "task.define" (defFields task deps milestone writes devices evidence)
+    (key : String := s!"d:{task}") (actor : String := "lead") (needs : List String := []) : Json :=
+  apply key actor "task.define" (defFields task deps milestone writes devices evidence needs)
 
 /-- The synthetic cases: (name, requests). -/
 def cases : List (String × List Json) := [
@@ -73,6 +75,15 @@ def cases : List (String × List Json) := [
     define "many" ((List.range 33).map toString),
     define "w" [] none ((List.range 33).map fun i => s!"f{i}"),
     define "v" [] none [] ((List.range 9).map fun i => s!"dev{i}"),
+    define "n" [] (needs := (List.range 9).map fun i => s!"need{i}"),
+    query]),
+  ("lanes: needs device puts a task in the device lane, out of the parallel-safe groups", [
+    define "base" [] (evidence := some "0000001"),
+    define "a" ["base"] none ["lean/A/**"],
+    define "p" [] (needs := ["device"]),
+    define "q" ["base"] none ["research/q.md"] ["phone"] (needs := ["other", "device"]),
+    define "w" ["a"] (needs := ["device"]),
+    define "x" [] (needs := ["other"]),
     query]),
   ("drop: refused while an undone task depends on it, refused when done, then allowed", [
     define "a" [],
@@ -171,7 +182,7 @@ def workGraphRequests (wg : Json) : List Json :=
   ++ (topo ts.toList).map (fun t => apply s!"d:{(s t "id").compress}" "lead" "task.define"
       [("task", s t "id"), ("title", s t "title"), ("stream", s t "stream"),
        ("milestone", s t "milestone"), ("deps", l t "deps"), ("owner", s t "owner"),
-       ("writes", l t "writes"), ("devices", l t "devices"), ("evidence", s t "evidence")])
+       ("writes", l t "writes"), ("devices", l t "devices"), ("needs", l t "needs"), ("evidence", s t "evidence")])
   ++ [query]
 
 /-- Check one golden file by replay: every line's requests, sent to a fresh server, give its replies.

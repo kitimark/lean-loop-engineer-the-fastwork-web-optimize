@@ -19,9 +19,10 @@ The pure graph layer under `Fw.Plan.Core` (the console's `task.*` commands).
 namespace Fw.Plan
 
 /-- A task row of the work graph: its definition (id, title, stream, milestone, deps, owner, write
-globs, devices) and its two observed facts, the evidence that it is done and the agent that claimed it.
+globs, exclusive devices, and needs such as `"device"` for the iPhone with the user at it) and its two
+observed facts, the evidence that it is done and the agent that claimed it.
 
-$$t = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{evidence}_\bot, \mathit{agent}_\bot)$$
+$$t = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{agent}_\bot)$$
 -/
 structure Task where
   id        : String
@@ -32,6 +33,7 @@ structure Task where
   owner     : String
   writes    : List String
   devices   : List String
+  needs     : List String
   evidence  : Option String
   agent     : Option String
 deriving Repr, DecidableEq
