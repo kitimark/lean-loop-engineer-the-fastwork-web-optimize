@@ -39,6 +39,27 @@ def syntheticFrames (seed : Nat) : Json :=
     Json.mkObj [("n", toJson i), ("phase", .str p), ("scrollY", toJson y), ("vt", toJson (i * 16)),
       ("counts", Json.mkObj counts)])
 
+/-- Run `j` (0, 1 or 2) of the self-check case: 100 swipe frames; `det` and `metric.Nodes` equal in
+all runs; run 1 moves one unit of `stable` a frame later (2 frames differ) and one of `shift` over
+4 frames, and has one `trace.MinorGC`; run 2 adds 50 to `quar` and has one `rare`. -/
+def selfRun (j : Nat) : Json :=
+  .arr ((List.range 100).toArray.map fun i =>
+    let stable : Int := if j == 1 && i == 10 then 0 else if j == 1 && i == 11 then 2 else 1
+    let shift : Int := if j == 1 && (i == 20 || i == 21 || i == 22) then 0 else if j == 1 && i == 23 then 4 else 1
+    let quar : Int := if j == 2 && 30 ≤ i && i < 35 then 11 else 1
+    let counts : List (String × Json) :=
+      [("det", toJson (1 : Nat)), ("metric.Nodes", toJson (500 : Nat)), ("quar", toJson quar),
+       ("shift", toJson shift), ("stable", toJson stable)] ++
+      (if j == 1 && i == 5 then [("trace.MinorGC", toJson (1 : Nat))] else []) ++
+      (if j == 2 && i == 50 then [("rare", toJson (1 : Nat))] else [])
+    Json.mkObj [("n", toJson i), ("phase", .str "swipe"), ("scrollY", toJson (10 * i)), ("counts", Json.mkObj counts)])
+
+/-- Runs of `n` frames whose only count `x` sits in frame 0, one run per value. -/
+def oneFrameRuns (n : Nat) (vals : List Int) : Json :=
+  .arr (vals.toArray.map fun v => Json.mkObj [("frames", .arr ((List.range n).toArray.map fun i =>
+    Json.mkObj [("n", toJson i), ("phase", .str "rest"), ("scrollY", toJson (0 : Nat)),
+      ("counts", Json.mkObj (if i == 0 then [("x", toJson v)] else []))]))])
+
 /-- Parse a literal request (a parse error becomes a visible bad case). -/
 def lit (s : String) : Json := (Json.parse s).toOption.getD (Json.mkObj [("unparsable", .str s)])
 
@@ -98,7 +119,30 @@ def cases : List (String × List (String × Json)) := [
     ("empty", lit "{\"a\":[],\"b\":[]}")]),
   ("measure.summarize", [
     ("worst level wins; a repeated level keeps its last class; groups in order of first appearance", lit "{\"rows\":[{\"family\":\"scroll\",\"metric\":\"Layout\",\"level\":\"total\",\"cls\":\"stable\"},{\"family\":\"scroll\",\"metric\":\"Layout\",\"level\":\"per step\",\"cls\":\"quarantined\"},{\"family\":\"census\",\"metric\":\"layerCount\",\"level\":\"per state\",\"cls\":\"deterministic\"},{\"family\":\"scroll\",\"metric\":\"Layout\",\"level\":\"per step\",\"cls\":\"deterministic\"}]}"),
-    ("no rows", lit "{\"rows\":[]}")])]
+    ("no rows", lit "{\"rows\":[]}")]),
+  ("measure.selfCheck", [
+    ("100 frames, 3 runs: deterministic, stable (2% of frames), shifting, quarantined, GC-bound, rare type",
+      Json.mkObj [("runs", .arr #[selfRun 0, selfRun 1, selfRun 2])]),
+    ("spread at 0.2% of the mean exactly (500·m·s = |S|) is stable", Json.mkObj [("runs", oneFrameRuns 50 [1998, 2002])]),
+    ("one below the 0.2% bound is shifting", Json.mkObj [("runs", oneFrameRuns 50 [1997, 2001])]),
+    ("negative totals use |mean|", Json.mkObj [("runs", oneFrameRuns 50 [-1998, -2002])]),
+    ("spread 4 above max(3, 2% of the mean) is quarantined", Json.mkObj [("runs", oneFrameRuns 50 [100, 104, 103])]),
+    ("spread 3 is within the floor whatever the mean", Json.mkObj [("runs", oneFrameRuns 50 [1, 4])]),
+    ("2% of frames: 49 frames with one differing frame is not stable", Json.mkObj [("runs", oneFrameRuns 49 [1, 2])]),
+    ("one run: everything deterministic", Json.mkObj [("runs", .arr #[selfRun 0])]),
+    ("runs as arrays; a shorter run pads with 0; a longer later run's extra frames count in totals only; phases differ", lit "{\"runs\":[[{\"phase\":\"rest\",\"scrollY\":0,\"counts\":{\"a\":1}},{\"phase\":\"swipe\",\"scrollY\":10,\"counts\":{\"a\":1}}],[{\"phase\":\"rest\",\"scrollY\":0,\"counts\":{\"a\":1}}],[{\"phase\":\"rest\",\"scrollY\":0,\"counts\":{\"a\":1}},{\"phase\":\"tail\",\"scrollY\":10,\"counts\":{\"a\":1}},{\"phase\":\"tail\",\"scrollY\":10,\"counts\":{\"a\":7}}]]}"),
+    ("scrollY compared as exact numbers (1.0 = 1); no count types", lit "{\"runs\":[{\"frames\":[{\"phase\":\"rest\",\"scrollY\":1,\"counts\":{}}]},{\"frames\":[{\"phase\":\"rest\",\"scrollY\":1.0,\"counts\":{}}]}]}"),
+    ("a different scrollY breaks alignment", lit "{\"runs\":[{\"frames\":[{\"phase\":\"rest\",\"scrollY\":1,\"counts\":{\"a\":0}}]},{\"frames\":[{\"phase\":\"rest\",\"scrollY\":2,\"counts\":{\"a\":0}}]}]}"),
+    ("no runs is refused", lit "{\"runs\":[]}"),
+    ("a non-integer count is refused", lit "{\"runs\":[[{\"phase\":\"rest\",\"scrollY\":0,\"counts\":{\"a\":0.5}}]]}")]),
+  ("measure.snapshotCounts", [
+    ("empty snapshot object", lit "{\"snapshot\":{}}"),
+    ("null snapshot counts as empty", lit "{\"snapshot\":null}"),
+    ("layers, tilings, invalidation quads (8 entries: 2 rects; 5: 1 rect; 3: invalidated, no rect), tiles", lit "{\"snapshot\":{\"tile_manager_basic_state\":{\"tile_count\":42},\"active_tree\":{\"layers\":[{\"draws_content\":true,\"bounds\":{\"width\":390,\"height\":844},\"tilings\":[{},{}],\"invalidation\":[0,0,10,20,5,5,3,4]},{\"draws_content\":false,\"bounds\":{\"width\":100,\"height\":100},\"invalidation\":[1,2,3,4,9]},{\"draws_content\":true,\"tilings\":[{}],\"invalidation\":[7,7,7]},{\"draws_content\":true,\"bounds\":{\"width\":50},\"invalidation\":[]}]},\"active_tiles\":[{\"draw_info\":{\"is_solid_color\":true},\"content_rect\":[0,0,256,256]},{\"draw_info\":{\"is_solid_color\":false},\"content_rect\":[0,256,256,100,99]},{\"draw_info\":{}},{}]}}"),
+    ("null fields count as absent", lit "{\"snapshot\":{\"tile_manager_basic_state\":null,\"active_tree\":{\"layers\":null},\"active_tiles\":null}}"),
+    ("one layer without fields", lit "{\"snapshot\":{\"active_tree\":{\"layers\":[{}]}}}"),
+    ("a content_rect with fewer than 4 numbers is refused", lit "{\"snapshot\":{\"active_tiles\":[{\"content_rect\":[0,0]}]}}"),
+    ("a non-boolean draws_content is refused", lit "{\"snapshot\":{\"active_tree\":{\"layers\":[{\"draws_content\":1}]}}}")])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json

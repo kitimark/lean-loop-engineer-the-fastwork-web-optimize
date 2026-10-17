@@ -1,5 +1,7 @@
 import Lean.Data.Json
 import Fw.Measure.WebKit
+import Fw.Measure.SelfCheck
+import Fw.Measure.Snapshot
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
 
@@ -19,6 +21,8 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.webkit.zones` | `ys` (≥ 0), `perStep`, `perStepPaintArea`, `zonePx` (default 500) | `zones` [{zone, y0, steps, counts, paintArea}] |
 | `measure.symDiff` | `a`, `b` (string arrays) | `symDiff` |
 | `measure.summarize` | `rows` [{family, metric, level, cls}] | `summary` [{family, metric, levels, worst}] |
+| `measure.selfCheck` | `runs` (≥ 1; each an array of frames {phase, scrollY, counts} or an object with `frames`) | `rows` [{type, class, maxDiffFrames, spread, totals}], `frames`, `framesAligned`, `runs` |
+| `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
 namespace Fw.Wire.Measure
 open Lean Fw.Measure Fw.Measure.WebKit
@@ -196,6 +200,92 @@ def opNoMoreWork (req : Json) : Except String Reply := do
   let failing := ((List.range os.length).zip os).filter (fun (_, o) => !typeOk o.cls o.base o.var) |>.map (·.1)
   pure [("noMoreWork", .bool (noMoreWork os)), ("failing", toJson failing)]
 
+/-- The frames of one run as JSON: an array of frames, or an object with a `frames` array. -/
+def runArr (j : Json) : Except String (Array Json) :=
+  match j with
+  | .arr a => pure a
+  | .obj _ => arr j "frames"
+  | _ => throw "field runs: each run must be an array of frames or an object with frames"
+
+/-- The alignment key of a frame: its `phase` (a string) and `scrollY` (an exact number), each
+absent when missing or `null`. -/
+def frameKey (f : Json) : Except String (Option String × Option Rat) := do
+  let ph ← match opt f "phase" with
+    | none => pure none
+    | some j => some <$> asStr "phase" j
+  let y ← match opt f "scrollY" with
+    | none => pure none
+    | some j => some <$> asRat "scrollY" j
+  pure (ph, y)
+
+/-- Encode a self-check row. -/
+def sRowJson (r : SelfCheck.SRow) : Json := Json.mkObj [
+  ("type", .str r.type), ("class", .str r.cls.name), ("maxDiffFrames", toJson r.maxDiff),
+  ("spread", toJson r.spread), ("totals", toJson r.totals)]
+
+/-- `measure.selfCheck`: `{runs}` (≥ 1; each an array of frames or an object with `frames`) →
+`{rows, frames, framesAligned, runs}` under the harness thresholds. -/
+def opSelfCheck (req : Json) : Except String Reply := do
+  let runsJ ← arr req "runs"
+  if runsJ.size < 1 then throw "need at least one run"
+  let fs ← runsJ.toList.mapM runArr
+  let runs ← fs.mapM fun a => a.toList.mapM fun f => do countsOf "counts" (← field f "counts")
+  let keys ← fs.mapM fun a => a.toList.mapM frameKey
+  let rows := SelfCheck.check SelfCheck.harness runs
+  pure [("rows", .arr (rows.toArray.map sRowJson)), ("frames", toJson (fs.headD #[]).size),
+        ("framesAligned", .bool (SelfCheck.aligned keys)), ("runs", toJson runs.length)]
+
+/-- A value along a path of object keys (absent when a step is missing, `null` or not an object). -/
+def path (j : Json) : List String → Option Json
+  | [] => some j
+  | k :: ks => (opt j k).bind (path · ks)
+
+/-- An optional boolean (absent or `null` is false). -/
+def optBool (k : String) : Option Json → Except String Bool
+  | none => pure false
+  | some (.bool b) => pure b
+  | some _ => throw s!"field {k}: expected a boolean"
+
+/-- An optional integer (absent or `null` is 0). -/
+def optInt (k : String) : Option Json → Except String Int
+  | none => pure 0
+  | some v => asInt k v
+
+/-- An optional array (absent or `null` is empty). -/
+def optArr (k : String) : Option Json → Except String (Array Json)
+  | none => pure #[]
+  | some v => asArr k v
+
+/-- Decode a layer of `active_tree.layers`. -/
+def layerOf (j : Json) : Except String Snapshot.Layer := do
+  pure { draws := ← optBool "draws_content" (opt j "draws_content"),
+         width := ← optInt "bounds.width" (path j ["bounds", "width"]),
+         height := ← optInt "bounds.height" (path j ["bounds", "height"]),
+         tilings := (← optArr "tilings" (opt j "tilings")).size,
+         invalidation := ← (← optArr "invalidation" (opt j "invalidation")).toList.mapM (asInt "invalidation") }
+
+/-- Decode an active tile: `draw_info.is_solid_color`, and `content_rect` `[x, y, w, h, …]`
+(absent is all zeros; fewer than 4 entries is refused). -/
+def tileOf (j : Json) : Except String Snapshot.Tile := do
+  let solid ← optBool "draw_info.is_solid_color" (path j ["draw_info", "is_solid_color"])
+  let (w, h) ← match opt j "content_rect" with
+    | none => pure ((0 : Int), (0 : Int))
+    | some v => do
+      let r ← asArr "content_rect" v
+      if r.size < 4 then throw "field content_rect: expected at least 4 numbers"
+      pure (← asInt "content_rect" (r.getD 2 .null), ← asInt "content_rect" (r.getD 3 .null))
+  pure ⟨solid, w, h⟩
+
+/-- `measure.snapshotCounts`: `{snapshot}` (the `args.snapshot` of one `LayerTreeHostImpl:snapshot`
+event; a non-object counts as empty) → `{counts}`. -/
+def opSnapshotCounts (req : Json) : Except String Reply := do
+  let s := (opt req "snapshot").getD (Json.mkObj [])
+  let snap : Snapshot.Snap := {
+    tileCount := ← optInt "tile_manager_basic_state.tile_count" (path s ["tile_manager_basic_state", "tile_count"]),
+    layers := ← (← optArr "active_tree.layers" (path s ["active_tree", "layers"])).toList.mapM layerOf,
+    tiles := ← (← optArr "active_tiles" (opt s "active_tiles")).toList.mapM tileOf }
+  pure [("counts", objOf ((Snapshot.census snap).map fun (k, v) => (k, toJson v)))]
+
 /-! ## WebKit lane -/
 
 /-- Decode a raw row `[type, start, end, extra]`: a non-number start is `none`; a Paint row's
@@ -282,7 +372,8 @@ def opSummarize (req : Json) : Except String Reply := do
 /-- The `measure.*` ops. -/
 def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
-   "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.symDiff", "measure.summarize"]
+   "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.symDiff", "measure.summarize",
+   "measure.selfCheck", "measure.snapshotCounts"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -295,6 +386,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.webkit.zones" => some (opWebkitZones req)
   | "measure.symDiff" => some (opSymDiff req)
   | "measure.summarize" => some (opSummarize req)
+  | "measure.selfCheck" => some (opSelfCheck req)
+  | "measure.snapshotCounts" => some (opSnapshotCounts req)
   | _ => none
 
 end Fw.Wire.Measure
