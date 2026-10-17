@@ -13,6 +13,7 @@
 // from the repo (root devDependency: `pnpm install`).
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -225,7 +226,7 @@ const tallyText = (n) => [
   `${n.agree} agree`, `${n.disagree} disagree`, ...(n.stale ? [`${n.stale} stale`] : []), `${n.pending} pending`,
 ].join(' / ');
 
-function render(mods, all, commit) {
+function render(mods, all, stamp) {
   const nThm = all.filter(isThm).length;
   const out = [
     BEGIN,
@@ -241,7 +242,7 @@ function render(mods, all, commit) {
     '</details>',
     `<nav class="mv-jump" aria-label="Math view modules">${mods.map((m) => `<a href="#${modId(m.name)}">${esc(modLabel(m.name))}</a>`).join('')}</nav>`,
     '<div class="mv-all">',
-    `<p class="mv-count">${all.length} declarations in ${mods.length} modules: ${nThm} theorems, ${all.length - nThm} definitions. Review: ${tallyText(tally(all))}. Generated from <span class="mono">lake exe mathview</span> on <span class="mono">lean/</span> at <span class="mono">${esc(commit)}</span>; formulas pre-rendered as MathML by KaTeX ${KATEX_VERSION}.</p>`,
+    `<p class="mv-count">${all.length} declarations in ${mods.length} modules: ${nThm} theorems, ${all.length - nThm} definitions. Review: ${tallyText(tally(all))}. Generated from <span class="mono">lake exe mathview</span> on <span class="mono">lean/</span> (export <span class="mono">${stamp}</span>, a sha256 of every name, stmtHash and mathHash); formulas pre-rendered as MathML by KaTeX ${KATEX_VERSION}.</p>`,
   ];
   for (const m of mods) {
     const thms = m.decls.filter(isThm);
@@ -262,7 +263,7 @@ function render(mods, all, commit) {
 }
 
 // The review panel above the view: chip, tally, records, axioms.
-function renderReview(all, commit) {
+function renderReview(all, stamp) {
   const n = tally(all);
   const done = n.agree === all.length;
   const record = existsSync(join(root, FWCORE_RECORD))
@@ -275,8 +276,8 @@ function renderReview(all, commit) {
     `<h3><a class="chip ${done ? 'ok' : 'open'}" href="#mv-review">${done ? 'reviewed' : 'review pending'}</a> ${tallyText(n)}</h3>`,
     `<p id="mv-review">Each declaration shows its status: <i>agree</i> or <i>disagree</i> from a math-reviewer record, <i>review stale</i> when the Lean statement or, for rows that carry a docstring hash, the docstring changed after the review, <i>review pending</i> when no record covers it yet. Record for <span class="mono">lean/</span>: ${record}. The protocol: write its own math from the Lean, then compare it clause by clause with the docstring (ℕ vs ℤ, every hypothesis, ≤ vs &lt;, rounding, empty lists, ties, direction of ⇒ and ⇔).</p>`,
     `<p>${clean
-      ? `At <span class="mono">${esc(commit)}</span> all ${all.length} declarations (${nThm} theorems) are free of <code>sorry</code> and use only the standard axioms (<code>propext</code>, <code>Classical.choice</code>, <code>Quot.sound</code>), checked by <code>lake exe mathview --lint</code>.`
-      : `At <span class="mono">${esc(commit)}</span> some declarations use <code>sorry</code> or a non-standard axiom.`} The kickoff sketch's 72 declarations were reviewed earlier (<a href="../../${SKETCH_RECORD}">72 agree / 0 disagree</a>); that record does not cover <span class="mono">lean/</span>.</p>`,
+      ? `In export <span class="mono">${stamp}</span> all ${all.length} declarations (${nThm} theorems) are free of <code>sorry</code> and use only the standard axioms (<code>propext</code>, <code>Classical.choice</code>, <code>Quot.sound</code>), checked by <code>lake exe mathview --lint</code>.`
+      : `In export <span class="mono">${stamp}</span> some declarations use <code>sorry</code> or a non-standard axiom.`} The kickoff sketch's 72 declarations were reviewed earlier (<a href="../../${SKETCH_RECORD}">72 agree / 0 disagree</a>); that record does not cover <span class="mono">lean/</span>.</p>`,
     REND,
   ].join('\n');
 }
@@ -290,12 +291,11 @@ const names = [...order.filter((m) => byMod.has(m)), ...[...byMod.keys()].filter
 const mods = names.map((name) => ({ name, decls: byMod.get(name).sort((x, y) => x.line - y.line) }));
 const all = mods.flatMap((m) => m.decls);
 
-let commit = 'working tree';
-try {
-  const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
-  commit = git(['log', '-1', '--format=%h', '--', 'lean']) || commit;
-  if (git(['status', '--porcelain', '--', 'lean'])) commit += ' + uncommitted changes';
-} catch { /* not a git checkout: keep "working tree" */ }
+// The stamp is a content hash of the export, not a git sha, so a rebase that leaves lean/ unchanged keeps the page
+// up to date: the first 12 hex digits of sha256 over the sorted lines `name<TAB>stmtHash<TAB>mathHash`.
+const stamp = createHash('sha256')
+  .update(all.map((d) => `${d.name}\t${d.stmtHash}\t${d.mathHash}`).sort().join('\n'))
+  .digest('hex').slice(0, 12);
 
 const page = readFileSync(pagePath, 'utf8');
 const splice = (text, begin, end, content) => {
@@ -304,7 +304,7 @@ const splice = (text, begin, end, content) => {
   if (a < 0 || b < a) throw new Error(`markers ${begin.slice(0, 24)}… not found in ${relative(root, pagePath)}`);
   return text.slice(0, a) + content + text.slice(b + end.length);
 };
-const next = splice(splice(page, BEGIN, END, render(mods, all, commit)), RBEGIN, REND, renderReview(all, commit));
+const next = splice(splice(page, BEGIN, END, render(mods, all, stamp)), RBEGIN, REND, renderReview(all, stamp));
 const summary = `${all.length} declarations from ${mods.length} modules; review ${tallyText(tally(all))}`;
 if (process.argv.includes('--check')) {
   if (next !== page) { console.error('math view is out of date: run node docs/plan/tools/build-math-view.mjs'); process.exit(1); }

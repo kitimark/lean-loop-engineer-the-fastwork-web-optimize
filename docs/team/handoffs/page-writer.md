@@ -22,6 +22,10 @@ State at 9367dea + uncommitted (Math view sourced from fwcore `lean/`; previousl
   last row within a record. A record with rows but no `round:` ranks below all rounds (by file name) and the generator
   warns; two records with the same round fail. The fw-spec record (sketch, 72 agree) has no rows and is only linked
   as history. A new review record: next round number, then re-run the generator; nothing else to edit.
+- Backfill: every r3 row carries a mathHash (lean/Fw unchanged since a65aaa7); fwcore rows carry one only where the
+  docstring is unchanged since 9367dea (176 of 224; 48 stay stmt-only with an empty mathHash cell).
+- The generated blocks carry no git sha: the stamp is `export <12 hex>`, sha256 of the sorted
+  `name\tstmtHash\tmathHash` lines, so a rebase that leaves lean/ unchanged keeps `--check` green.
 - At 9367dea: 224 declarations, 12 modules, 93 theorems, all sorry-free with standard axioms, 224 review pending.
 - 375 px check: Chrome headless needs CDP `Emulation.setDeviceMetricsOverride` with `mobile:false` (the window
   minimum is 500 px, and `mobile:true` gives a 980 px layout viewport because the page has no viewport meta).
