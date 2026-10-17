@@ -35,6 +35,29 @@ export function selectParts(allIds, wanted) {
   return { covered, skipped, narrowed: skipped.length > 0 };
 }
 
+export const SCOPE_PATH = join(dirname(fileURLToPath(import.meta.url)), 'scope.gen.json');
+
+/** The Lean-generated probe scope of each pilot part (lean/Fw/Gate/ScopeGen.lean; scripts/scopegen.mjs regenerates). */
+export function loadScope(path = SCOPE_PATH) {
+  return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+/**
+ * The loads and sweeps a narrowed run needs: the union of the Lean scopes of the covered parts, as ordered id lists
+ * (matrix order, spec order). Lean proves that running any superset of a part's scope keeps that part's verdict
+ * (Fw.Gate.scope_sound, under the hypothesis stated in scope.gen.json). Null when the run is not narrowed or a covered
+ * part has no scope entry: then the whole matrix and every sweep run. Selection only, no decision.
+ */
+export function scopeFor(sel, gen, scope = loadScope()) {
+  if (!sel.narrowed || sel.covered.some((id) => !scope.parts[id])) return null;
+  const probes = new Set(sel.covered.flatMap((id) => scope.parts[id].probes));
+  const sweeps = new Set(sel.covered.flatMap((id) => scope.parts[id].sweeps));
+  return {
+    probes: gen.matrix.probes.map((p) => p.id).filter((id) => probes.has(id)),
+    sweeps: sweepDefs(gen).map((s) => s.id).filter((id) => sweeps.has(id)),
+  };
+}
+
 export function partJson(id) {
   const p = join(PART_JSON_DIR, id, 'part.json');
   return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null;

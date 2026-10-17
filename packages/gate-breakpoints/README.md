@@ -16,8 +16,12 @@ node --test "test/*.test.mjs"                        # the pure rule and the dat
 Options of `run`: `--engine chromium|playwright-webkit|both`, `--concurrency N` (default 4), `--probes id-or-block,...`,
 `--sweeps id,...|none`, `--parts id,...` (pilot part ids of `src/anchors.json`: engine.scroll, nav.hitTest,
 hero.countdown, hero.exit; default all). `--parts` collects and judges only those parts; the run header and the summary
-then name the parts covered and skipped (a default run is byte-identical to before the flag). It does not cut loads:
-every probe applies to every part, so combine it with `--probes`/`--sweeps` to shorten a run. `summary --parts` narrows
+then name the parts covered and skipped (a default run is byte-identical to before the flag). A narrowed run loads only
+the union of its parts' probe scopes (`src/scope.gen.json`, generated from `lean/Fw/Gate/Scope.lean`; `scope_sound`
+proves the part's verdict equals its full-matrix verdict under the hypothesis stated in the file): engine.scroll 4
+probes, nav.hitTest 1, hero.countdown 9 + 3 sweeps, hero.exit 9 + 3 sweeps (all four: 20 + 4). The header lists the scope
+and `merge-gate` checks it. Regenerate with `node scripts/scopegen.mjs` (`--check` compares; needs a built `lean/`).
+The full matrix (no `--parts`) stays the gate of record. `summary --parts` narrows
 the verdict further, to parts the run collected. In CI: the `parts` input of `breakpoint-gate` (empty = all). Env: `CHROME_PATH`, `FW_SNAPSHOT_SITE`, `FW_SITE_DIST`.
 
 | File | Role |
