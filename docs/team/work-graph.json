@@ -1356,7 +1356,7 @@
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Measure/**",
-    "lean/MathView/**",
+    "lean/MathViewMain.lean",
     "lean/scripts/mathview*"
    ]
   }
