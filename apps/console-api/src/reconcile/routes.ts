@@ -2,9 +2,15 @@
 // where `stage` is computed by Lean; `ready` is just stage == land_ready).
 import type { Hono } from "hono";
 import type { Store } from "../store.ts";
+import { repoUrl } from "./git.ts";
 import type { Reconciler } from "./reconciler.ts";
 
 export function mountReconcile(app: Hono, store: Store, rec: Reconciler) {
+  // public repo URL from `git remote get-url origin`; the board builds `<commit>/<sha>` links from it
+  app.get("/api/repo", (c) => {
+    const url = repoUrl(rec.repoDir);
+    return c.json({ url, commit: url ? `${url}/commit/` : null });
+  });
   app.post("/api/reconcile", async (c) => c.json(await rec.reconcile()));
   app.get("/api/land/:card", async (c) => {
     await rec.reconcile();
