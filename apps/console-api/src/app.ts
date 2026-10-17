@@ -11,6 +11,8 @@ const MIME: Record<string, string> = {
 
 export function createApp(store: Store, webDist?: string) {
   const app = new Hono();
+  // a failed core call (fwcore crash, bad reply) fails the request; the core restarts itself
+  app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
 
   // Typed commands only. 400 = not a valid command; 422 = the reducer refused it, with the reason.
   app.post("/api/commands", async (c) => {
@@ -24,7 +26,7 @@ export function createApp(store: Store, webDist?: string) {
     return c.json(reply, reply.ok ? 200 : 422);
   });
 
-  app.get("/api/board", (c) => c.json(store.board()));
+  app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/events", (c) => {
     const since = Number(c.req.query("since") ?? 0);
     return c.json(store.readEvents().filter((e) => e.seq > since));
@@ -37,7 +39,7 @@ export function createApp(store: Store, webDist?: string) {
       const push = () => wake?.();
       const off = store.subscribe(push);
       stream.onAbort(() => { closed = true; off(); push(); });
-      const send = () => stream.writeSSE({ event: "board", data: JSON.stringify(store.board()) });
+      const send = async () => stream.writeSSE({ event: "board", data: JSON.stringify(await store.board()) });
       await send();
       while (!closed) {
         await new Promise<void>((res) => { wake = res; setTimeout(res, 15000); });

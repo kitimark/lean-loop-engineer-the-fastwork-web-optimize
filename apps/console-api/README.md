@@ -26,11 +26,15 @@ Actor is self-declared for now; a capability hook is to replace it (PLAN §8.5).
 
 ## Decision backend (`src/core/`)
 
-One interface `Core { apply, board }`. `FW_CORE=ts` uses the stand-in `reducer.ts` (marked
-`replaced by fwcore console.apply`); `FW_CORE=lean` spawns `lake exe fwcore` in `lean/` (JSON lines
-`{"id","op":"console.apply","state","event"}` -> `{"id","state","outcome"}`; override with `FW_CORE_CMD`).
-Unset: lean when `lean/.lake/build/bin/fwcore` exists, else ts. Board derivation (`board.ts`) is TS for both.
+All decisions come from `fwcore` (Lean): `console.apply` is the reducer, `console.board` the board. There is no TS
+fallback. `Core { apply, board, close }` in `index.ts`; `lean.ts` spawns `lean/.lake/build/bin/fwcore` with
+`LEAN_ABORT_ON_PANIC=1`. console-api refuses to start (exit 1) if the binary is missing and prints
+`build it with: cd lean && lake build`. `FW_CORE_BIN` overrides the path (tests).
 
-Golden cases: `packages/contracts/golden/console-apply.jsonl` (state+event -> state'+outcome). Check a backend with
-`FW_CORE=lean pnpm --filter @fw/console-api test`. Regenerate from the TS table: `pnpm --filter @fw/console-api gen:golden`.
+Crash handling: a dead fwcore fails the in-flight calls (HTTP 500 `decision core failed`), is logged as an incident
+(stderr and `.fw-console/incidents.jsonl`), and is respawned on the next call. Stderr output is logged as an incident.
+
+Tests (`pnpm test` at the root runs `lake build` first, or prints a loud skip message if `lake` is absent):
+golden conformance (`packages/contracts/golden/console-apply.jsonl`, 42+ cases, Lean only), `samples` op vs the zod
+schemas, crash/restart, API. The golden file is now static (it was generated from the removed TS reducer).
 JSON Schemas: `pnpm --filter @fw/contracts gen` -> `packages/contracts/schema/`.

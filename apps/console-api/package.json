@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "start": "node src/main.ts",
-    "gen:golden": "node scripts/gen-golden.ts",
     "test":"vitest run",
     "typecheck": "tsc --noEmit"
   },

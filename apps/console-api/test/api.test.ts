@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
-import { tsCore } from "../src/core/index.ts";
+import { selectCore } from "../src/core/index.ts";
 import { Store } from "../src/store.ts";
 
 let stores: Store[] = [];
 afterEach(() => { stores.forEach((s) => s.close()); stores = []; });
 const fresh = async (dir = mkdtempSync(join(tmpdir(), "fw-console-"))) => {
-  const store = await Store.open(dir, tsCore(), () => 1_700_000_000_000);
+  const store = await Store.open(dir, selectCore(), () => 1_700_000_000_000);
   stores.push(store);
   return { dir, store, app: createApp(store) };
 };
@@ -43,7 +43,7 @@ describe("console-api", () => {
     await post(app, open);
     const before = store.state;
     store.close(); stores = [];
-    const again = await Store.open(dir, tsCore());
+    const again = await Store.open(dir, selectCore());
     stores.push(again);
     expect(again.state).toEqual(before);
     expect(again.seq).toBe(1);

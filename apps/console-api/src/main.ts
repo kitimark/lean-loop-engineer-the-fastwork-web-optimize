@@ -1,4 +1,4 @@
-import { writeFileSync, rmSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
@@ -7,7 +7,17 @@ import { selectCore } from "./core/index.ts";
 import { Store, consoleDir } from "./store.ts";
 
 const dir = consoleDir();
-const core = selectCore();
+mkdirSync(dir, { recursive: true });
+let core;
+try {
+  core = selectCore(process.env, undefined, (i) => {
+    console.error("fwcore incident:", JSON.stringify(i));
+    appendFileSync(join(dir, "incidents.jsonl"), JSON.stringify(i) + "\n");
+  });
+} catch (e) {
+  console.error(`console-api: cannot start. ${(e as Error).message}`);
+  process.exit(1);
+}
 const store = await Store.open(dir, core);
 const here = dirname(fileURLToPath(import.meta.url));
 const app = createApp(store, join(here, "../../console-web/dist"));

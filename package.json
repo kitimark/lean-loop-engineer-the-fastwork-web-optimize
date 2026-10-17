@@ -6,7 +6,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "pnpm -r --if-present test",
+    "lean:build": "if command -v lake >/dev/null 2>&1; then (cd lean && lake build); else echo '!!! lake not found: SKIPPING the Lean build. console-api tests need lean/.lake/build/bin/fwcore and fail without it (brew install elan-init, then cd lean && lake build).' >&2; fi",
+    "test": "pnpm lean:build && pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
     "build": "pnpm -r --if-present build",
     "fw": "node apps/runner/src/fw.ts"
   },

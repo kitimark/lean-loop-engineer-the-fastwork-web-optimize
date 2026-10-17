@@ -1,5 +1,4 @@
-// Runs the language-neutral golden cases against the SELECTED backend (FW_CORE=ts|lean).
-// This is how lean/'s fwcore is checked against exactly the same file as the TS stand-in.
+// Runs the language-neutral golden cases against fwcore (Lean only; the TS stand-in is gone).
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +10,7 @@ const cases = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.pars
 const core = selectCore();
 afterAll(() => core.close());
 
-describe(`console.apply golden conformance (backend: ${core.name})`, () => {
+describe("console.apply golden conformance (fwcore)", () => {
   for (const c of cases) {
     it(c.name, async () => {
       expect(JSON.parse(JSON.stringify(await core.apply(c.request.state, c.request.event)))).toEqual(c.response);

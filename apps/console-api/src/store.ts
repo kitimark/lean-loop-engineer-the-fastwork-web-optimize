@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { Event, emptyState, type Command, type CommandReply, type State } from "@fw/contracts";
+import { Event, emptyState, type Board, type Command, type CommandReply, type State } from "@fw/contracts";
 import type { Core } from "./core/index.ts";
 
 /** `.fw-console/` lives at the main checkout root, even when run from a worktree. */
@@ -91,7 +91,7 @@ export class Store {
     return { ok: true, seq, duplicate: false };
   }
 
-  board() { return this.core.board(this.state, this.clock(), this.seq); }
+  board(): Promise<Board> { return this.core.board(this.state, this.clock(), this.seq); }
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
