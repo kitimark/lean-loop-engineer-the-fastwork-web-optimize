@@ -16,6 +16,8 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
 import { HeroCountdown } from './parts/hero.countdown';
+import { EngineScroll } from './parts/engine.scroll';
+import { NavHitTest } from './parts/nav.hitTest';
 import type { FwConfig } from './registry/types';
 import { setHydrated } from './fw';
 
@@ -32,6 +34,8 @@ export function App({ config }: { config: FwConfig }) {
 
   return (
     <>
+      <EngineScroll variant={config.variants['engine.scroll'] ?? 'faithful'} />
+      <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
       <AppBar position="sticky" data-fw="nav">
         <Toolbar>
           <Typography variant="h6" component="div" style={{ flexGrow: 1 }}>

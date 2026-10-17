@@ -26,6 +26,7 @@ const query = arg('query', '');
 const engineName = arg('browser', 'chrome'); // chrome (puppeteer-core) | webkit (playwright-core)
 if (engineName === 'chrome' && !existsSync(chromePath)) throw new Error(`Chrome not found at ${chromePath} (use --chrome or CHROME_PATH)`);
 
+import { pageFor } from './pages.mjs';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 function serve(dir) {
   const server = http.createServer(async (req, res) => {
@@ -33,7 +34,7 @@ function serve(dir) {
     let file = path.join(dir, decodeURIComponent(url.pathname));
     if (!file.startsWith(dir)) return void res.writeHead(403).end();
     if (url.pathname === '/favicon.ico') return void res.writeHead(204).end();
-    if (url.pathname.endsWith('/')) file = path.join(file, 'index.html');
+    if (url.pathname.endsWith('/')) file = path.join(file, url.pathname === '/' ? pageFor(dir, url.search) : 'index.html');
     try {
       if (!(await stat(file)).isFile()) throw new Error('nf');
       res.writeHead(200, { 'content-type': MIME[path.extname(file)] ?? 'application/octet-stream' });

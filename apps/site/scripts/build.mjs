@@ -12,6 +12,10 @@ import { build } from 'vite';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argEngine = process.argv.indexOf('--engine');
 const engine = argEngine > 0 ? process.argv[argEngine + 1] : 'aot';
+// --config '<search>' (repeatable) and --configs presets|single|all|none: configs to prerender, one HTML per hash.
+// Default: all (the default config, every preset, every single-part variant swap).
+const extraSearches = process.argv.flatMap((a, i, v) => (a === '--config' ? [v[i + 1]] : []));
+const cfgKinds = process.argv.indexOf('--configs') > 0 ? process.argv[process.argv.indexOf('--configs') + 1] : 'all';
 if (engine !== 'aot' && engine !== 'runtime') throw new Error(`--engine must be aot|runtime, got ${engine}`);
 
 process.env.NODE_ENV = 'production';
@@ -56,8 +60,12 @@ await build({
 });
 const t2 = performance.now();
 
-const { prerender } = await import(pathToFileURL(path.join(ssrDir, 'entry-server.js')).href);
-const pre = prerender();
+const { prerender, enumerateSearches } = await import(pathToFileURL(path.join(ssrDir, 'entry-server.js')).href);
+const searches = [
+  ...enumerateSearches(cfgKinds === 'all' ? ['presets', 'single'] : cfgKinds === 'none' ? [] : [cfgKinds]),
+  ...extraSearches,
+];
+const pre = prerender([...new Set(searches)]);
 const t3 = performance.now();
 
 // ---- assemble the static page
@@ -90,20 +98,31 @@ for (const c of imported) head += `<link rel="modulepreload" href="/${c.file}">`
 scripts += `<script type="module" src="/${entry.file}"></script>`;
 
 const template = await readFile(path.join(root, 'index.html'), 'utf8');
-const html = template
-  .replace('<!--fw-head-->', () => head)
-  .replace('<!--fw-config-->', pre.configHash)
-  .replace('<!--fw-root-->', () => pre.homeHtml)
-  .replace('<!--fw-scripts-->', () => scripts);
+const pageHtml = (pg) =>
+  template
+    .replace('<!--fw-head-->', () => head)
+    .replace('<!--fw-config-->', pg.configHash)
+    .replace('<!--fw-root-->', () => pg.homeHtml)
+    .replace('<!--fw-scripts-->', () => scripts);
+const html = pageHtml(pre.pages[0]);
 await writeFile(path.join(outDir, 'index.html'), html);
+// Other configs: dist/<engine>/c/<hash>.html; configs.json maps a requested search to its page (scripts/pages.mjs).
+await mkdir(path.join(outDir, 'c'), { recursive: true });
+const byHash = { [pre.pages[0].configHash]: 'index.html' };
+for (const pg of pre.pages.slice(1)) {
+  await writeFile(path.join(outDir, 'c', `${pg.configHash}.html`), pageHtml(pg));
+  byHash[pg.configHash] = `c/${pg.configHash}.html`;
+}
+await writeFile(path.join(outDir, 'configs.json'), JSON.stringify({ bySearch: pre.bySearch, byHash }, null, 1));
 await writeFile(path.join(root, 'dist', `.census-${engine}.html`), pre.censusHtml);
 
 // ---- build gates (PLAN 6.5)
 const gates = [];
 const gate = (name, ok, detail = '') => gates.push({ name, ok, detail });
 if (engine === 'aot') {
-  gate('no <style> tag in prerendered HTML', !/<style[\s>]/i.test(html));
-  gate('no data-emotion in prerendered HTML', !/data-emotion/.test(html));
+  const all = pre.pages.map((p) => pageHtml(p)).join('');
+  gate('no <style> tag in prerendered HTML', !/<style[\s>]/i.test(all), `${pre.pages.length} pages`);
+  gate('no data-emotion in prerendered HTML', !/data-emotion/.test(all));
   gate('census produced ids', pre.ids.length > 0, `${pre.ids.length} ids`);
   const bad = muiCss.match(/[:(\s](null|undefined|NaN)(px|%|em|rem|vh|vw|s|ms)?[;}\s)]/g);
   gate('no null/undefined/NaN in emitted CSS', !bad, bad ? bad.slice(0, 5).join(' | ') : '');

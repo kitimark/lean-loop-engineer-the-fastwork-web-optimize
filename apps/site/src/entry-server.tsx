@@ -3,14 +3,34 @@ import { renderToString } from 'react-dom/server';
 import { App } from './App';
 import { Census } from './Census';
 import { createServerCache } from './emotion';
-import { resolveSearch } from './registry';
+import { parts, presets, resolveSearch } from './registry';
 import { Root } from './Root';
 import { themeVariablesCss } from './theme';
+
+export interface PrerenderedPage {
+  /** the `?fw=...` / `?preset=...` search string this page answers ('' = default). */
+  search: string;
+  configHash: string;
+  homeHtml: string;
+}
+
+/** Every config a measured run can request without hand-listing: the default, each preset, each single-part variant swap. */
+export function enumerateSearches(kinds: ('presets' | 'single')[]): string[] {
+  const out = [''];
+  if (kinds.includes('presets')) for (const n of Object.keys(presets)) out.push(`?preset=${n}`);
+  if (kinds.includes('single'))
+    for (const p of parts) for (const v of Object.keys(p.variants)) out.push(`?fw=${p.id}:${v}`);
+  return out;
+}
 
 export interface PrerenderResult {
   configHash: string;
   /** HTML of the home page for the default (all `faithful`) config. */
   homeHtml: string;
+  /** one page per distinct config hash (first search wins), default first. */
+  pages: PrerenderedPage[];
+  /** every requested search -> config hash. */
+  bySearch: Record<string, string>;
   /** `aot`: every Emotion rule found in home + census, as plain CSS text (not yet layered). */
   css: string;
   /** `aot`: every Emotion cache id that css contains; the client marks these inserted before hydration. */
@@ -25,19 +45,28 @@ export interface PrerenderResult {
 }
 
 /** Runs once at build time, in Node. */
-export function prerender(): PrerenderResult {
-  const resolved = resolveSearch('');
-  if (!resolved.ok) throw new Error(resolved.errors.join('; '));
+export function prerender(searches: string[] = ['']): PrerenderResult {
+  const list = searches.includes('') ? searches : ['', ...searches];
 
   const cache = createServerCache();
   // Sets `cache.compat = true`: Emotion then collects rules instead of rendering inline `<style>` tags.
   const { extractCriticalToChunks, constructStyleTagsFromChunks } = createEmotionServer(cache);
 
-  const homeHtml = renderToString(
-    <Root cache={cache}>
-      <App config={resolved.config} />
-    </Root>,
-  );
+  const pages: PrerenderedPage[] = [];
+  const bySearch: Record<string, string> = {};
+  for (const search of list) {
+    const resolved = resolveSearch(search);
+    if (!resolved.ok) throw new Error(`config "${search}": ${resolved.errors.join('; ')}`);
+    bySearch[search] = resolved.configHash;
+    if (pages.some((p) => p.configHash === resolved.configHash)) continue;
+    const html = renderToString(
+      <Root cache={cache}>
+        <App config={resolved.config} />
+      </Root>,
+    );
+    pages.push({ search, configHash: resolved.configHash, homeHtml: html });
+  }
+  const homeHtml = pages[0]!.homeHtml;
   const aot = __FW_ENGINE__ === 'aot';
   const censusHtml = aot
     ? renderToString(
@@ -48,10 +77,12 @@ export function prerender(): PrerenderResult {
     : '';
 
   // The extractor keeps the regular rules whose class names occur in the given html, so hand it both pages.
-  const chunks = extractCriticalToChunks(homeHtml + censusHtml);
+  const chunks = extractCriticalToChunks(pages.map((p) => p.homeHtml).join('') + censusHtml);
   return {
-    configHash: resolved.configHash,
+    configHash: pages[0]!.configHash,
     homeHtml,
+    pages,
+    bySearch,
     css: aot ? chunks.styles.map((s) => s.css).join('') : '',
     // Every id Emotion inserted, not only those whose class is in the HTML: a styled(Wrapper) also inserts its own
     // intermediate rule (its class is merged into the child's, never put on the DOM). Those rules are dead CSS,
