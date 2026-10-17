@@ -285,7 +285,8 @@
     "lean/Fw/Console/**",
     "lean/Fw/Wire/Plan.lean",
     "packages/contracts/golden/plan/**"
-   ]
+   ],
+   "evidence": "0de2fec"
   },
   {
    "id": "con-plan",
@@ -301,7 +302,8 @@
     "apps/console-api/**",
     "apps/console-web/**",
     "apps/runner/**"
-   ]
+   ],
+   "evidence": "e920459"
   },
   {
    "id": "math-view-refresh",
@@ -455,7 +457,8 @@
     "lean/Fw/Measure/**",
     "packages/measure-chromium/src/classes.mjs",
     "packages/measure-chromium/src/classify.mjs"
-   ]
+   ],
+   "evidence": "baa3291"
   },
   {
    "id": "fw-ci",
@@ -667,7 +670,7 @@
   },
   {
    "id": "gap-harness",
-   "title": "Q33: gate lane for the unreachable cells (Simulator iPhone/iPad, page zoom), checked against Lean's expected media values; the lane must also run on CI (iPad/iPhone Simulator on macos runners) or name why not",
+   "title": "Q33: gate lane for unreachable cells (Simulator iPhone/iPad, page zoom) checked against Lean media values; runs on CI macOS Simulators or names why not",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
@@ -784,7 +787,7 @@
   },
   {
    "id": "wktr-local",
-   "title": "WKTR spike, CI-first: prebuilt iOS-sim WKTR (r324039, iOS 26.5) on GitHub macos-26; internals.lastStyleUpdateSize with styleRecalcCount, steps bracketed by renderingUpdateCount; original twice. Local: one short debug run under the sim-lock only",
+   "title": "WKTR spike, CI-first: prebuilt iOS-sim WKTR r324039 on macos-26; lastStyleUpdateSize + styleRecalcCount per step, bracketed by renderingUpdateCount; original twice",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [
@@ -941,7 +944,7 @@
   },
   {
    "id": "spawn-guard-workflows",
-   "title": "Spawn-guard: Workflow spawns skip it (18 of 26); log expected vs given kind (one deny:kindMismatch unexplained); show decisions on the board; also SPK-p part 3 (wake test: emit.mjs keeps a background_tasks count)",
+   "title": "Spawn-guard sees Workflow spawns (18 of 26 skip it); log expected vs given kind; decisions on the board; SPK-p part 3 (background_tasks count in emit.mjs)",
    "stream": "parallel",
    "milestone": null,
    "deps": [
@@ -956,7 +959,7 @@
   },
   {
    "id": "alert-steps",
-   "title": "Console alert steps from Notification hooks: say which agent, which kind (permission prompt vs needs input) and which tool; close the alert by itself when that agent's next tool call or answer arrives (rule in Lean)",
+   "title": "Alert steps name the agent, kind (permission prompt or needs input) and tool, and close themselves on that agent's next tool call or answer (rule in Lean)",
    "stream": "console",
    "milestone": null,
    "deps": [

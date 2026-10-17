@@ -75,7 +75,7 @@ describe("agent door", () => {
     const app = createApp(store);
     const secret = readFileSync(join(dir, "secret"), "utf8").trim();
     const argv = ["plan", "sync", "g.json"], hash = sha256(argv.join(" ")), now = Date.now();
-    appendFileSync(join(dir, "caps.jsonl"), JSON.stringify({ agent_id: null, agent_type: "main", tool_use_id: "t1", cmd_hash: hash, mac: capMac(secret, "main", "t1", hash), ts: now }) + "\n");
+    appendFileSync(join(dir, "caps.jsonl"), JSON.stringify({ agent_id: null, agent_type: "main", tool_use_id: "t1", cmd_hash: hash, mac: capMac(secret, null, "main", "t1", hash), ts: now }) + "\n");
     const cmds = [...syncCommands(mini()), { ...syncCommands(mini())[1]!, key: "bad", task: "z", deps: ["nope"] }];
     const r = await app.request("/api/agent/commands", { method: "POST", body: JSON.stringify({ argv, command: cmds }), headers: { "content-type": "application/json" } });
     const body = (await r.json()) as { ok: boolean; reason?: string; replies: { ok: boolean; reason?: string }[] };
