@@ -466,11 +466,10 @@
   },
   {
    "id": "fw-ci",
-   "title": "fw ci: pull CI artifacts into the artifact store (reduction in fwcore)",
+   "title": "fw ci: pull CI artifacts into the artifact store (reduction in fwcore); Chromium first, WebKit when webkit-green passes",
    "stream": "ci",
    "milestone": "M1",
    "deps": [
-    "webkit-green",
     "lean-ci-cache"
    ],
    "owner": "console-builder",
@@ -781,11 +780,12 @@
   },
   {
    "id": "wktr-cloud",
-   "title": "Fallback only: rent a cloud Mac for WKTR if the prebuilt route fails (your call)",
+   "title": "Closed: no rented cloud Mac for WKTR (user: never pay; WKTR runs on free GitHub macos-26)",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [],
-   "owner": "user"
+   "owner": "user",
+   "evidence": "user decision 2026-10-17: never pay for macOS compute (research/notes/2026/10-17-macos-rent.md)"
   },
   {
    "id": "wktr-ci",
@@ -1452,6 +1452,23 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
+   ]
+  },
+  {
+   "id": "plan-rev9",
+   "title": "PLAN revision 9: no paid runners (user), WebKit role after webkit-green, WKTR results (counts quarantined), macOS rental note, gap harness, probe scope, critical path without WebKit",
+   "stream": "plan",
+   "milestone": "M1",
+   "deps": [
+    "plan-cut",
+    "wktr-local",
+    "gap-harness",
+    "gate-probe-scope"
+   ],
+   "owner": "plan-editor",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/plan/loop-plan.html"
    ]
   }
  ]
