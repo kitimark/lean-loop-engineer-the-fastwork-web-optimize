@@ -10,8 +10,8 @@ const Num = z.number();
 const Output = z.object({
   agents: z.array(z.object({ id: Str, state: Str, alerts: z.array(Str) })),
   system: z.object({ alerts: z.array(Str) }),
-  counts: z.object({ active: Num, idle: Num, parked: Num, stalled: Num, done: Num }),
-  alerts: z.array(z.object({ code: Str, subject: Str, detail: Str })),
+  counts: z.object({ active: Num, idle: Num, parked: Num, stalled: Num, gone: Num.default(0), done: Num }), // gone/critical: watch-slow; older lines lack them
+  alerts: z.array(z.object({ code: Str, subject: Str, detail: Str, critical: z.boolean().default(false) })),
 });
 const Input = z.object({
   now: Num,

@@ -24,8 +24,8 @@ const line = (at: number) => JSON.stringify({
   output: {
     agents: [{ id: "a1", state: "active", alerts: [] }, { id: "a2", state: "stalled", alerts: ["agent.stalled"] }],
     system: { alerts: ["ci.failed", "sys.diskLow"] },
-    counts: { active: 1, idle: 0, parked: 0, stalled: 1, done: 0 },
-    alerts: [{ code: "agent.stalled", subject: "beta-task", detail: "d1" }, { code: "ci.failed", subject: "w", detail: "d2" }],
+    counts: { active: 1, idle: 0, parked: 0, stalled: 1, gone: 2, done: 0 },
+    alerts: [{ code: "agent.stalled", subject: "beta-task", detail: "d1", critical: true }, { code: "ci.failed", subject: "w", detail: "d2" }],
   },
 });
 
@@ -55,5 +55,7 @@ describe("GET /api/health", () => {
     expect(r.body.agents[0].inflight.tool).toBe("Bash");
     expect(r.body.system.stale).toEqual(["ci"]);
     expect(r.body.counts.stalled).toBe(1);
+    expect(r.body.counts.gone).toBe(2);
+    expect(r.body.alerts.map((a: { critical: boolean }) => a.critical)).toEqual([true, false]); // absent -> false
   });
 });

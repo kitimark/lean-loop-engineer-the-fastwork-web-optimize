@@ -8,17 +8,17 @@ import { age } from "@/lib/api";
 // nothing here compares a value with a threshold.
 export type HealthView = {
   at: number; now: number;
-  counts: Record<"active" | "idle" | "parked" | "stalled" | "done", number>;
+  counts: Record<"active" | "idle" | "parked" | "stalled" | "gone" | "done", number>;
   agents: { id: string; label: string; kind: string; state: string; alerts: string[]; lastAt: number | null; errTail: number;
     ctxTokens: number | null; inflight: { tool: string; since: number } | null }[];
-  alerts: { code: string; subject: string; detail: string }[];
+  alerts: { code: string; subject: string; detail: string; critical: boolean }[];
   systemAlerts: string[];
   system: { diskFreeGB: number; memPressure: string; simLock: { holder: string | null; since: number | null };
     docker: { name: string; startedAt: number }[]; worktrees: number;
     ci: { workflow: string; branch: string; status: string; conclusion: string | null }[]; stale: string[] };
 };
 
-const STATES = ["stalled", "active", "idle", "parked", "done"] as const; // display grouping only
+const STATES = ["stalled", "active", "idle", "parked", "gone", "done"] as const; // display grouping only
 
 function useHealth(): { health: HealthView | null | undefined; error: boolean } {
   const [health, setHealth] = useState<HealthView | null | undefined>(undefined);
@@ -71,7 +71,7 @@ export function HealthView({ now }: { now: number }) {
           {health.alerts.length === 0 && <p className="text-sm text-muted-foreground">No alerts.</p>}
           {health.alerts.map((a, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2 text-sm">
-              <Badge variant="destructive">{a.code}</Badge><span className="font-medium">{a.subject}</span>
+              {a.critical && <Badge variant="outline">critical path</Badge>}<Badge variant="destructive">{a.code}</Badge><span className="font-medium">{a.subject}</span>
               <span className="text-muted-foreground">{a.detail}</span>
             </div>
           ))}
