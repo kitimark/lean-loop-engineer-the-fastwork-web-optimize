@@ -269,3 +269,20 @@ All numbers MEASURED on GitHub Actions (ubuntu-24.04-arm), original target, harn
   other (concurrency), so the five dispatches ran from five `ci/chromium-ci-*` branches at the same commit.
 - Reproduce: `gh workflow run chromium-counts.yml --ref ci/<branch> -f profile=swipe-touch-v1 -f runs=3 -f image_run=39038861283`
   (the image artifact lives 3 days; after that rebuild and re-freeze).
+
+## Update 2026-10-17 (rewrite-ci-lane: the rewrite on CI next to the original)
+
+`chromium-counts.yml` now measures the rewrite (`apps/site`, prerendered `dist/aot`) next to the original with the same profile, image,
+flags and host. `host.mjs` already had `--target original|rewrite|fixture` and `--search`; the workflow now passes them.
+
+- Dispatch inputs: `target` (both | original | rewrite, default both), `preset` (rewrite preset name, default `original`), `fw` (comma
+  separated `part:variant`, default empty), plus the earlier `profile`, `runs`, `image_run`. `preset`/`fw` only shape the rewrite query
+  (`?preset=<name>&fw=<flags>`); the original jobs ignore them; the plan job refuses them with `target=original`.
+- Jobs: `plan` (matrix of target x run, one VM per job) -> `site` (setup-lean + setup-pnpm, `pnpm --filter @fw/site build`, which first checks
+  `src/breakpoints.gen.json` against `lake exe breakgen`; a non-default query is added with `--config`) -> `counts (target, run)` ->
+  `classify`. The rewrite jobs download the `site-dist` artifact to `apps/site/dist/aot`; the run refuses a page that did not hydrate.
+- Artifacts: `chromium-counts-<target>-<run>` (counts.json, zones.json, host.json with the container attempts, runner.json, image-id.txt) and
+  `chromium-classes` with one directory per target (`original/`, `rewrite/`: classes.txt/json, sha256, attempts, image ids) plus
+  `a-vs-r.txt` (class(k,t) per type, A next to R), `image-inputs.txt`, `run.txt`. Both targets go through the same `classify.mjs` (fwcore).
+- The paths filter gained `apps/site/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` and the setup-pnpm action (`lean/**` was
+  already there, so the breakpoint sources are covered).
