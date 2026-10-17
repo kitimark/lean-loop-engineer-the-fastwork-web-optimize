@@ -1637,7 +1637,7 @@
     "apps/site/src/parts/**",
     "apps/site/presets/**"
    ],
-   "evidence": "7fe0cea: people, pain, commission, platform; 42/43 probes <=0.5px"
+   "evidence": "7fe0cea: 4 shells; 42/43 probes within 0.5 px"
   },
   {
    "id": "port-morph",
