@@ -2646,7 +2646,8 @@
     "lean/Fw/Engine/Chromium.lean",
     "lean/Fw/Engine/WebKit.lean",
     "research/findings/**"
-   ]
+   ],
+   "evidence": "9c14908"
   },
   {
    "id": "why-parts",
@@ -2684,7 +2685,8 @@
     "apps/runner/src/next.ts",
     "apps/runner/test/**",
     "docs/team/incidents/ledger.json"
-   ]
+   ],
+   "evidence": "f087fea"
   },
   {
    "id": "variant-regate",
@@ -2756,7 +2758,8 @@
     "apps/runner/test/**",
     "apps/console-web/src/**",
     "docs/team/tools/**"
-   ]
+   ],
+   "evidence": "1149bca"
   },
   {
    "id": "sweeps-lean",
@@ -2860,7 +2863,8 @@
    "writes": [
     "research/notes/2026/10-18-mistake-retro.md",
     "research/mistakes/**"
-   ]
+   ],
+   "evidence": "4cf4e8c"
   },
   {
    "id": "incident-lean-fields",
@@ -2878,7 +2882,8 @@
     "apps/runner/src/incidents.ts",
     "apps/runner/test/**",
     "docs/team/incidents/**"
-   ]
+   ],
+   "evidence": "f1f5489"
   },
   {
    "id": "lean-coverage",
@@ -2894,11 +2899,12 @@
     "apps/runner/src/coverage.ts",
     "apps/runner/test/**",
     "docs/team/tools/**"
-   ]
+   ],
+   "evidence": "aa205f9"
   },
   {
    "id": "fix-proofs",
-   "title": "(M) Lean proof per integration fix (nav, commission, misc, people WebKit): each fixed value is Lean-sourced (generated CSS constant or golden vector, layout formula proved at all breakpoints) so it cannot drift; why each escaped Lean recorded in the findings ledger",
+   "title": "(L) Lean coverage of the gate probes, bulk then per fix: static values generated from the snapshot-extract reference data via Lean (Fw.Site.Reference -> generated CSS per part, moves probes from uncovered to generated; lean-coverage first run: 168 of 52346 covered, 280 of 292 failing cells uncovered); dynamic fixes (commission driver phase, nav body rule, stageBg) proved per fix; the 7 golden-covered-but-failing items explained; why each escaped Lean recorded in the findings ledger",
    "stream": "site",
    "milestone": "M5",
    "deps": [
@@ -2907,7 +2913,8 @@
     "fix-misc",
     "fix-people-webkit",
     "lean-coverage",
-    "gate-settle"
+    "gate-settle",
+    "snapshot-extract"
    ],
    "owner": "lean-prover",
    "writes": [
@@ -2964,10 +2971,13 @@
   },
   {
    "id": "cap-diagnose",
-   "title": "(S) fw capability misses say why: cap hook decides in Lean (Fw.Ops.Identity) mint | noMint(reason: notFwPrefix e.g. cd/-s, trailingPipe, unknownActor) and fw prints the reason instead of a bare 403; golden ops.cap.jsonl",
+   "title": "(S) fw capability misses say why: cap hook decides in Lean (Fw.Ops.Identity) mint | noMint(reason: notFwPrefix e.g. cd/-s, trailingPipe, unknownActor) and fw prints the reason instead of a bare 403; golden ops.cap.jsonl; DEFECT: /api/commands takes actor from the body with no capability check (app.ts:23-31) — same Lean identity decision; wt-prep counts the Lean LSP as a build (scripts/wt-prep.sh:21-27)",
    "stream": "console",
    "milestone": "M5",
-   "deps": [],
+   "deps": [
+    "lean-coverage",
+    "premise-tests"
+   ],
    "owner": "console-builder",
    "writes": [
     "lean/Fw/Ops/Identity.lean",
@@ -2977,7 +2987,10 @@
     "apps/runner/hooks/lib.mjs",
     "apps/runner/src/fw.ts",
     "apps/runner/test/**",
-    "docs/team/tools/**"
+    "docs/team/tools/**",
+    "apps/console-api/src/app.ts",
+    "packages/contracts/src/index.ts",
+    "scripts/wt-prep.sh"
    ]
   },
   {
@@ -3045,7 +3058,8 @@
     "apps/runner/src/fw.ts",
     "apps/runner/test/**",
     "docs/team/tools/premises.md"
-   ]
+   ],
+   "evidence": "aada757"
   },
   {
    "id": "snapshot-extract",
@@ -3090,7 +3104,8 @@
     "packages/difftest/**",
     ".github/workflows/difftest.yml",
     "docs/team/tools/difftest.md"
-   ]
+   ],
+   "evidence": "7341aaa"
   },
   {
    "id": "land-speed-lean",
@@ -3105,7 +3120,8 @@
     "lean/Fw/Console/LandSpeed.lean",
     "lean/Fw.lean",
     "packages/contracts/golden/console/land-speed.jsonl"
-   ]
+   ],
+   "evidence": "e1417e1"
   },
   {
    "id": "mathview-axreach",
@@ -3120,7 +3136,8 @@
     "lean/MathView.lean",
     "lean/Fw/Spec/AxReach.lean",
     "lean/Fw.lean"
-   ]
+   ],
+   "evidence": "a59ed74"
   },
   {
    "id": "land-timing-ceiling",
@@ -3136,7 +3153,8 @@
     "packages/contracts/golden/obs/timing.jsonl",
     "apps/runner/src/land.ts",
     "docs/team/incidents/**"
-   ]
+   ],
+   "evidence": "c883cd3"
   },
   {
    "id": "checksfor-inputs",
@@ -3151,7 +3169,8 @@
    "writes": [
     "apps/runner/src/land.ts",
     "apps/runner/test/**"
-   ]
+   ],
+   "evidence": "29385a2"
   },
   {
    "id": "check-dag",
@@ -3168,7 +3187,8 @@
     "lean/scripts/check-partial.sh",
     "apps/runner/src/land.ts",
     "apps/runner/test/**"
-   ]
+   ],
+   "evidence": "59e08f2"
   },
   {
    "id": "land-prelock",
@@ -3185,7 +3205,8 @@
     "lean/Fw/Console/Land.lean",
     "apps/runner/hooks/land-guard.mjs",
     "apps/runner/test/**"
-   ]
+   ],
+   "evidence": "55a7c30"
   },
   {
    "id": "mathview-module-cache",
@@ -3202,6 +3223,253 @@
     "lean/MathView.lean",
     "lean/scripts/mathview-cached.sh",
     ".github/workflows/lean.yml"
+   ]
+  },
+  {
+   "id": "gate-exit-verdict",
+   "title": "(S) DEFECT: gate summary exits 0 when parts fail (cli.mjs:25-27); Fw.Gate.Exit exit_zero_iff (exit 0 iff merged verdict pass) + golden; agents read the verdict, never job conclusions (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "gate-speed-ci"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Gate/Exit.lean",
+    "lean/Fw.lean",
+    "packages/gate-breakpoints/src/cli.mjs",
+    "packages/gate-breakpoints/test/exit*.test.mjs",
+    "packages/contracts/golden/gate/exit.jsonl"
+   ]
+  },
+  {
+   "id": "check-map-lean",
+   "title": "(S) DEFECT: shell-measure.mjs does not parse; Fw.Ops.CheckMap precommit_covers, tracked_mapped: every tracked file kind maps to a static check run pre-commit; argv golden for own CLIs (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "check-dag"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/CheckMap.lean",
+    "scripts/hooks/pre-commit",
+    "scripts/check.sh",
+    "apps/site/scripts/shell-measure.mjs",
+    "packages/contracts/golden/ops/checkmap.jsonl"
+   ]
+  },
+  {
+   "id": "wait-guard",
+   "title": "(S) Fw.Ops.Wait wait_bounded, handback_no_open_bg: every wait has a bound and an owner; handback refused with open background work (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "timing-alert"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "ci-runner-lint",
+   "title": "(S) Fw.Ci.Runners labels_free, mac_le_five, jobs_le_cap: workflow lint (free runners only, macOS concurrency, job cap) (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "gate-speed-ci",
+    "premise-tests",
+    "visual-diff",
+    "snapshot-extract",
+    "ts-lean-diff"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Ci/Runners.lean",
+    "scripts/ci-lint.mjs",
+    ".github/workflows/**"
+   ]
+  },
+  {
+   "id": "mathdoc-binders",
+   "title": "(S) MathView binder coverage both ways, List-cardinality notation lint, lint on changed decls pre-push (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "mathview-module-cache"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "scripts/hooks/pre-push"
+   ]
+  },
+  {
+   "id": "claim-lint",
+   "title": "(S) Fw.Plan.Claims claim_ok_iff: CONFIRMED needs a source/doc, MEASURED needs a run id, a bound needs a theorem; lint over research notes and handoffs (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Claims.lean",
+    "packages/plan-lint/**",
+    "packages/contracts/golden/plan/claims.jsonl"
+   ]
+  },
+  {
+   "id": "plan-principles-lint",
+   "title": "(S) Fw.Plan.Principles: a decision needs a Lean dependency; no calendar dates; local-lane allow-list; next ranked by critical path (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Principles.lean",
+    "packages/contracts/golden/plan/principles.jsonl"
+   ]
+  },
+  {
+   "id": "admit-reads",
+   "title": "(S) Fw.Sched.Admit read sets: reads_disjoint with concurrent writes; scratch names injective per agent (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Sched/Admit.lean",
+    "packages/contracts/golden/sched/**"
+   ]
+  },
+  {
+   "id": "task-spec-lint",
+   "title": "(S) Fw.Plan.TaskSpec spec_ok_iff (deliverable vs title/writes); land refuses without a handoff (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-prelock"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/TaskSpec.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "policy-from-lean",
+   "title": "(M) Fw.Ops.Policy forbidden_denied, kill_iff_owner; golden = every violating command in the ledger; settings deny list generated (lead reviews before enabling) (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "cap-diagnose"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Policy.lean",
+    "apps/runner/hooks/policy.mjs",
+    "packages/contracts/golden/ops/policy.jsonl",
+    "docs/team/tools/policy.md"
+   ]
+  },
+  {
+   "id": "resume-rule",
+   "title": "(S) Fw.Obs.Resume resume_iff (idle < TTL or ctx < 30k; never > 250k) in fw next (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "timing-alert"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Resume.lean",
+    "apps/runner/src/next.ts",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "measure-valid",
+   "title": "(S) Fw.Measure.Valid: a verdict implies settled, aligned key, one clock, unit-typed tolerance; harness sample records carry the proof inputs (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "gate-settle",
+    "step-align"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Measure/Valid.lean",
+    "packages/measure-webkit/src/**",
+    "packages/measure-chromium/src/**"
+   ]
+  },
+  {
+   "id": "lean-ops-gap",
+   "title": "(M) Lean-first violations found by ts-lean-diff: give each TS decision without a Lean op one (parts logic.ts wire ops, spool/workflow.ts, plan-sync syncFrom, shells/model.ts, measure-wktr reduce, parseMemLevel, gh-budget wait verdict, next.ts classifyTree, judgeDevice, spawn-guard mode mapping, emit.mjs) and add each to packages/difftest; also diff flags.resolve and measure.splits",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "ts-lean-diff"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Wire/**",
+    "lean/Fw/Ops/**",
+    "packages/difftest/**",
+    "packages/contracts/golden/**"
+   ]
+  },
+  {
+   "id": "wktr-p1p4",
+   "title": "(M) goldens P1 (scrollDriven RecalculateStyles = 0) and P4 (styleRecalcs = 0) contradict WebKit source (scroll timeline restyles each update, scroll_comp_ride; why-engines): WKTR scroll-timeline fixture on CI decides it; regenerate the goldens; re-check every Parts theorem that assumes P1/P4 on WebKit and restate verdicts that change; register the premise in premise-tests",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "why-engines"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-wktr/**",
+    "packages/contracts/golden/engine/**",
+    "lean/Fw/Engine/WebKit.lean",
+    "research/findings/**"
+   ]
+  },
+  {
+   "id": "ledger-merge-driver",
+   "title": "(S) git merge driver for JSON ledgers keyed by id (incidents, findings, mistakes): union by id, conflict only when one id differs on both sides; Lean model mergeById comm/assoc + conflict_iff (reuse Fw.Gate.Merge); .gitattributes entries; three ledger land conflicts on 2026-10-18",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "scripts/merge-ledger.mjs",
+    ".gitattributes",
+    "packages/contracts/golden/ops/ledger-merge.jsonl",
+    "docs/team/tools/ledger-merge.md"
+   ],
+   "evidence": "156f99c"
+  },
+  {
+   "id": "ci-trigger-lean",
+   "title": "(M) ci-trigger-scope (M1, done) did not hold: on 2026-10-18 every ci/* push still started 5-7 workflows (~40 runs for 20 free runners; lead cancelled 18). Decide triggers in Lean from declared inputs (checksfor-inputs read sets; fwcore users depend on the built binary hash, not on all of lean/**); generate on.push.paths; a lint fails when a workflow trigger differs from the Lean decision (regression guard); interim rule: agents cancel push runs they will not read",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "checksfor-inputs",
+    "gate-speed-ci"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    ".github/workflows/**"
    ]
   }
  ],

@@ -105,7 +105,7 @@
    "chromium": "win",
    "webkit": "win",
    "visual": "E: hitSkip_visSame, hitSkipAnswer_onDark (is-on-dark is forced true when morph > 0.2; the probe runs fresh again in the first frame with morph ≤ 0.2)",
-   "mechanism": "Style and hit-test stages, only on frames with morph > 0.2. Skipping the probe removes the pointer-events write and restore (−2 forced UpdateLayoutTree, hitSkip_style_two), one HitTest, Blink's pre-paint walk inside elementFromPoint (layout_view.cc:139-141@f842f52) and its paint-for-hit-test invalidation (layout_object.cc:3477-3481). Forced layout moves to the track-rect read; it is not removed. Visible in UpdateLayoutTree/HitTest (det on the rewrite arm) only if the scenario opens the morph. swipe-v1 uses scrollTo, and the morph opens only on wheel/touch pushes (morph.tween/driver.ts:28).",
+   "mechanism": "Style and hit-test stages, only on frames with morph > 0.2. Skipping the probe removes the pointer-events write and restore (−2 forced UpdateLayoutTree, hitSkip_style_two), one HitTest, Blink's pre-paint walk inside elementFromPoint (layout_view.cc:139-141@f842f52) and its paint-for-hit-test invalidation (layout_object.cc:3477-3481). Forced layout moves to the track-rect read; it is not removed. Visible in UpdateLayoutTree/HitTest (det on the rewrite arm) only if the scenario opens the morph. swipe-v1 uses scrollTo, and the morph opens only on wheel/touch pushes (morph.tween/driver.ts:28). why-engines: every elementFromPoint runs UpdateAllLifecyclePhasesExceptPaint up to kPrePaintClean with no clean early return (layout_view.cc:149-151, local_frame_view.cc:2199-2203, 2395-2452@f842f52), so each hit adds a props (pre-paint) pass: crWorkH_props_ge_hits, and skipping one probe is -1 props pass (hitSkip_props). CONFIRMED.",
    "leanFor": [
     "Fw.Parts.NavHitTest.hitSkip_morph",
     "Fw.Parts.NavHitTest.expanded_masks",
@@ -113,7 +113,10 @@
     "Fw.Parts.NavHitTestOpt.hitSkip_style_two",
     "Fw.Parts.NavHitTestOpt.hitSkip_run_dominates",
     "Fw.Parts.NavHitTestOpt.hitSkip_visSame",
-    "Fw.Parts.NavHitTestOpt.hitSkipAnswer_onDark"
+    "Fw.Parts.NavHitTestOpt.hitSkipAnswer_onDark",
+    "Fw.Engine.Chromium.crWorkH_props_ge_hits",
+    "Fw.Engine.Chromium.hitSkip_props",
+    "Fw.Engine.Chromium.crWorkH_ge"
    ],
    "leanAgainst": [
     "Fw.Parts.NavHitTestOpt.skip_layout_le"
@@ -128,11 +131,6 @@
      "statement": "Layout moved, not saved: $\\forall \\mathit{pre}, \\mathit{post}, d:\\ \\mathrm{forced}_L(d, \\mathit{pre} \\mathbin{+\\!\\!+} \\mathit{track} \\mathbin{+\\!\\!+} \\mathit{post}) = \\mathrm{forced}_L(d, \\mathit{pre} \\mathbin{+\\!\\!+} \\mathit{probe}_o \\mathbin{+\\!\\!+} \\mathit{track} \\mathbin{+\\!\\!+} \\mathit{post})$",
      "module": "Fw.Parts.NavHitTestOpt",
      "needs": "nothing (follows from probes_layout)"
-    },
-    {
-     "statement": "Blink pre-paint per hit test: $\\mathrm{passes}_{cr}(\\mathrm{props}) \\ge \\mathrm{hits}$ on frames where a style-only change precedes a hit test (UpdateAllLifecyclePhasesExceptPaint), so a skip also gives $\\mathrm{PrePaint}_v \\le \\mathrm{PrePaint}_o - 1$ on such frames",
-     "module": "Fw.Engine.Chromium",
-     "needs": "hit tests tied to forced props passes in frameWork (now hits are carried separately)"
     }
    ],
    "premises": [
@@ -154,7 +152,7 @@
    "chromium": "win",
    "webkit": "win",
    "visual": "E under premise AL (the allow-list equals the nav boxes that re-enable pointer-events): allowHit_eq_faithful, elementsSkip_visSame(_port). firstOutside_ne_faithful shows that AL is necessary.",
-   "mechanism": "Every scrolled frame: there is no inline pointer-events write, so −2 forced style passes (elements_style_two) and no inherited restyle of the nav subtree, which includes the mounted morph panel. Blink also drops the per-descendant paint-for-hit-test invalidation (layout_object.cc:3477-3481@f842f52); WebKit drops RecompositeLayer and the event-region update. Layout is unchanged (elements_layout_eq). New, unmodelled cost: a kListBased|kPenetratingList hit test (tree_scope.cc:430-433) visits every box under the point and is never cached (hit_test_cache.cc:55). Counters: UpdateLayoutTree and Paint (det on the rewrite arm); HitTest stays =o.",
+   "mechanism": "Every scrolled frame: there is no inline pointer-events write, so −2 forced style passes (elements_style_two) and no inherited restyle of the nav subtree, which includes the mounted morph panel. Blink also drops the per-descendant paint-for-hit-test invalidation (layout_object.cc:3477-3481@f842f52); WebKit drops RecompositeLayer and the event-region update. Layout is unchanged (elements_layout_eq). New, unmodelled cost: a kListBased|kPenetratingList hit test (tree_scope.cc:430-433) visits every box under the point and is never cached (hit_test_cache.cc:55). Counters: UpdateLayoutTree and Paint (det on the rewrite arm); HitTest stays =o. why-engines: list-based requests avoid the hit-test cache (hit_test_cache.cc:54-56, hit_test_request.h:146-152@f842f52) and visit every layer of a penetrating list (hit_test_result.cc:565-586), so hitUnits(single) <= hitUnits(list), strict iff the first hit is not the last candidate (single_lt_list_iff). CONFIRMED. why-engines (model correction): an inherited pointer-events change sets SetShouldInvalidatePaintForHitTest per box (layout_object.cc:3477-3480, 5211-5219@f842f52), but pre-paint repaints the box's painting layer (pre_paint_tree_walk.cc:285-302), so the paint units are the distinct painting layers, not the boxes: 1 <= peUnits <= |inh| (pePaintUnits_bounds), = 1 when the nav shares one layer (pePaintUnits_shared). The stated >= |inh| fan-out over-counts. CONFIRMED.",
    "leanFor": [
     "Fw.Parts.NavHitTest.allowHit_eq_faithful",
     "Fw.Parts.NavHitTestOpt.elementsSkip_work_lt",
@@ -162,26 +160,27 @@
     "Fw.Parts.NavHitTestOpt.elements_layout_eq",
     "Fw.Parts.NavHitTestOpt.elementsSkip_run_dominates",
     "Fw.Parts.NavHitTestOpt.elementsSkip_visSame",
-    "Fw.Parts.NavHitTestOpt.elementsSkip_visSame_port"
+    "Fw.Parts.NavHitTestOpt.elementsSkip_visSame_port",
+    "Fw.Engine.Chromium.pePaintUnits_bounds",
+    "Fw.Engine.Chromium.pePaintUnits_distinct"
    ],
    "leanAgainst": [
-    "Fw.Parts.NavHitTest.firstOutside_ne_faithful"
+    "Fw.Parts.NavHitTest.firstOutside_ne_faithful",
+    "Fw.Engine.Chromium.single_le_list",
+    "Fw.Engine.Chromium.single_lt_list_iff",
+    "Fw.Engine.Chromium.list_uncached",
+    "Fw.Engine.Chromium.pePaintUnits_shared"
    ],
    "missingWhy": [
-    {
-     "statement": "Hit-test unit trade: $\\mathrm{hitUnits}(\\mathrm{listBased}, p) \\ge \\mathrm{hitUnits}(\\mathrm{single}, p)$, and list-based results are never served from the hit-test cache. So elements-skip strictly dominates on passes but is $\\preceq$ only if hit-test units are excluded from the vector.",
-     "module": "Fw.Engine.Chromium",
-     "needs": "a hit-test unit model (layers visited, cache hit) in Work, alongside hits"
-    },
-    {
-     "statement": "Paint fan-out of the toggle: with $\\mathrm{pe}$ a CrProp, a write of $\\mathrm{pe}$ on the nav root gives $\\mathrm{units}_{cr}(\\mathrm{paint}) \\ge |\\{b \\in \\mathrm{nav} : b \\text{ inherits } \\mathrm{pe}\\}|$ per write, hence $\\mathrm{units}_e(\\mathrm{paint}) + 2\\,|\\mathrm{inh}(\\mathrm{nav})| \\le \\mathrm{units}_o(\\mathrm{paint})$",
-     "module": "Fw.Engine.Chromium / Fw.Engine.WebKit",
-     "needs": "a pointer-events property in both engine tables (the handoff says neither has one; `pes` is a free parameter today) and R2-style inherited fan-out units"
-    },
     {
      "statement": "AL generated from CSS: $\\forall b \\in \\mathrm{nav}:\\ \\mathrm{allow}(b) \\iff \\mathrm{pe}_{\\mathrm{declared}}(b) \\notin \\{\\varnothing, \\mathrm{inherit}\\}$, checked against the shipped stylesheet in every breakpoint band",
      "module": "Fw.Parts.NavHitTest",
      "needs": "a stylesheet restatement of the nav's pointer-events declarations, plus a generator for ALLOW_SELECTOR"
+    },
+    {
+     "statement": "Toggle saving with the corrected fan-out: $\\mathrm{units}_e(\\mathrm{paint}) + 2\\,\\operatorname{peUnits}(L, \\mathrm{inh}(\\mathrm{nav})) \\le \\mathrm{units}_o(\\mathrm{paint})$ over Fw.Engine.Chromium.chromiumX (pointerEvents row), with $L$ the nav boxes' painting layers.",
+     "needs": "a nav layer map L (one painting layer for the whole nav is the likely case, so the saving is 2 paint units per frame, not 2|inh|); engine half PROVED in Fw.Engine.Chromium.pePaintUnits_bounds",
+     "module": "Fw.Parts.NavHitTestOpt"
     }
    ],
    "premises": [
@@ -295,7 +294,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E inside the clip window, every env/width/instant (strip_visSame from strip_shows_same); no premise beyond the restated geometry",
-   "mechanism": "Saving is resident: one will-change layer per face (compositing_reason_finder.cc:76-137@f842f52) becomes one per digit, 80->8 (hero_layers). Per frame, stage passes are equal (strip_passes_eq); only units drop from 10r to r (strip_units), and units are visible only in the quarantined UpdateLayoutTree.elementCount (C-3). CI can see census.layers (<o) and nothing per frame. New cost: 12 instead of 10 cells backed per digit (strip_backing_gt, full-layer rule INFERRED), so the label is trade. On WebKit, layers exist only under the Normal policy (wk_owns). The v1 re-entry paint drop comes from coverage-rect backing detach (GraphicsLayerCA.cpp:3035-3060@862f17d), which is not modelled.",
+   "mechanism": "Saving is resident: one will-change layer per face (compositing_reason_finder.cc:76-137@f842f52) becomes one per digit, 80->8 (hero_layers). Per frame, stage passes are equal (strip_passes_eq); only units drop from 10r to r (strip_units), and units are visible only in the quarantined UpdateLayoutTree.elementCount (C-3). CI can see census.layers (<o) and nothing per frame. New cost: 12 instead of 10 cells backed per digit (strip_backing_gt, full-layer rule INFERRED), so the label is trade. On WebKit, layers exist only under the Normal policy (wk_owns). The v1 re-entry paint drop comes from coverage-rect backing detach (GraphicsLayerCA.cpp:3035-3060@862f17d), which is not modelled. why-engines: backing is kept iff the layer meets the coverage rect, does not allow detaching, or is pinned by a transform animation (GraphicsLayerCA.cpp:3036-3061@862f17d); a re-attach calls setNeedsDisplay over the whole bounds (PlatformCALayerRemote.mm:719-731, RemoteLayerBackingStore.mm:240-243) and a fresh store has no front buffer, so the first display is full (ImageBufferSet.cpp:42-50). A face that leaves and re-enters C repaints its whole area (face_reattach); the strip always meets C and pays 0 (strip_no_reattach). The full repaint on re-attach, INFERRED before, is now CONFIRMED.",
    "leanFor": [
     "strip_visSame",
     "strip_shows_same",
@@ -305,7 +304,10 @@
     "strip_layers_lt",
     "hero_layers",
     "wk_normal_layers",
-    "Fw.Engine.work_eq_of_stages"
+    "Fw.Engine.work_eq_of_stages",
+    "Fw.Engine.WebKit.face_reattach",
+    "Fw.Engine.WebKit.strip_no_reattach",
+    "Fw.Engine.WebKit.reattachPaint_rise"
    ],
    "leanAgainst": [
     "strip_passes_eq",
@@ -317,11 +319,6 @@
     "Fw.Engine.resident_only_noClaim"
    ],
    "missingWhy": [
-    {
-     "statement": "WebKit re-entry repaint: if a layer has backing iff $\\mathrm{bbox}(L)\\cap C\\neq\\emptyset$ ($C$ = coverage rect) and a re-attach repaints the whole layer, then for every roll $\\rho$ that moves a face out of $C$ and back, $\\mathrm{paint}^{wk}_{\\mathrm{faces}}(\\rho)\\ge 1$, while $\\mathrm{paint}^{wk}_{\\mathrm{strip}}(\\rho)=0$, because the strip always meets $C$",
-     "module": "Fw.Engine.WebKit + Fw.Parts.HeroCountdownOpt",
-     "needs": "a coverage-rect backing attach/detach rule as a per-frame paint source (GraphicsLayerCA.cpp:3035-3060@862f17d CONFIRMED; full repaint on re-attach INFERRED)"
-    },
     {
      "statement": "Scheduling confound: with the TS strip's shared-loop subscriber, $\\forall f$ with no roll: $\\mathrm{script}_v(f)=1>0=\\mathrm{script}_o(f)$, hence $\\neg(W(v,f)\\preceq W(o,f))$ and $\\mathrm{screen}=\\mathrm{mixed}$",
      "module": "Fw.Parts.HeroCountdownOpt",
@@ -346,7 +343,7 @@
    "chromium": "win",
    "webkit": "trade",
    "visual": "E-s only at one fixed cadence, given that frame times equal the keyframe sample times (R5 clock premise). Not E across cadences: the spring integrates in min(left,16) ms slices (springLoop), so its path depends on how time is split into frames.",
-   "mechanism": "The roll moves from a per-frame rAF transform write (Chromium `direct`: script, style, props, commit) to a compositor transform animation (transformAnim_comp). On WebKit the legacy CA path accepts keyword-linear keyframes; legacy_rejects covers only linear() with points and steps(). Chromium saves script (FireAnimationFrame, FunctionCall: det) and the commit (cc.Commit: det) on every roll frame; lane style stays 1 per BeginFrame (F1). Each roll adds one start (style, props, commit). WebKit's web process does 0 work per frame only while nothing else renders: every rendering update ticks and invalidates every relevant animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d). CA asks for 80-120 Hz (PlatformCAAnimationRemote.mm:611-612), a UI-process cost no counter sees.",
+   "mechanism": "The roll moves from a per-frame rAF transform write (Chromium `direct`: script, style, props, commit) to a compositor transform animation (transformAnim_comp). On WebKit the legacy CA path accepts keyword-linear keyframes; legacy_rejects covers only linear() with points and steps(). Chromium saves script (FireAnimationFrame, FunctionCall: det) and the commit (cc.Commit: det) on every roll frame; lane style stays 1 per BeginFrame (F1). Each roll adds one start (style, props, commit). WebKit's web process does 0 work per frame only while nothing else renders: every rendering update ticks and invalidates every relevant animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d). CA asks for 80-120 Hz (PlatformCAAnimationRemote.mm:611-612), a UI-process cost no counter sees. why-engines (statement refuted as written): an accelerated animation is ticked, and so restyles its target (WebAnimation.cpp:1558-1582, KeyframeEffect.cpp:1731-1735, 127-135@862f17d), only when its timeline is updated; a document timeline updates only when an update was scheduled for it, and a fully accelerated running effect schedules none (DocumentTimeline.cpp:190-205, 350-399; KeyframeEffect.cpp:2724-2745). So a rendering update alone adds no style for cd-roll-ca (time_comp_no_ride); it rides along exactly when ticks(time, upd, sched) (ride_iff), i.e. when another main-thread animation keeps the document timeline scheduled. CONFIRMED.",
    "leanFor": [
     "transformAnim_comp",
     "compTransform_no_layout_paint",
@@ -354,7 +351,10 @@
     "anim_comp_zero",
     "compFrame_zero",
     "comp_accelerated",
-    "path_default"
+    "path_default",
+    "Fw.Engine.WebKit.time_comp_no_ride",
+    "Fw.Engine.WebKit.ride_iff",
+    "Fw.Engine.WebKit.withAnim_idle_zero"
    ],
    "leanAgainst": [],
    "missingWhy": [
@@ -369,9 +369,9 @@
      "needs": "multi-keyframe linear WAAPI semantics (extend MorphTweenOpt.WaapiPremises)"
     },
     {
-     "statement": "WebKit ride-along: $\\forall m, a, f:\\ \\operatorname{update}(f) \\land \\operatorname{relevant}(a) \\Rightarrow \\mathrm{style} \\in \\operatorname{touched}(W_{wk}(f \\oplus a))$. So anim_comp_zero holds only in frames where nothing else triggers a rendering update",
-     "module": "Fw.Engine.WebKit",
-     "needs": "a per-update tick/invalidate clause for accelerated animations. Today anim_comp_zero has no frame context"
+     "statement": "cd-roll-ca ride-along premise: in the hero's frames the document timeline is scheduled ($\\sigma = \\mathrm{true}$) iff another non-accelerated animation or transition runs on it, so $\\mathrm{style}$ rides along on exactly those frames (Fw.Engine.WebKit.ride_iff).",
+     "needs": "the hero's animation inventory per frame (which main-thread animations share the document timeline); engine half PROVED in Fw.Engine.WebKit.ride_iff / time_comp_no_ride",
+     "module": "Fw.Parts.HeroCountdownOpt"
     }
    ],
    "premises": [
@@ -512,7 +512,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "Not equal (class L). Scaling a box is not resizing it (radius and text scale), and a scroll-linked timeline replaces the time-based 680 ms tween, which changes the interaction. v1 tiered it and did not prove it.",
-   "mechanism": "Per-frame top/width/height/radius writes (layoutFull: layout and paint) become transforms (jsTransform_lt_topLeft, compTransform_no_layout_paint). Chromium runs them on the compositor only if the scroll source is user-scrollable (bit 16; the scroll-jack undermines this), and style stays 1 per BeginFrame (F1). On WebKit every scroll update ticks and invalidates the threaded animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d), so style stays. The saving lands in layout and paint (Layout stable, raster.invalidationAreaPx). New costs: 8 clipper layers (resident up), more style, and Chrome glass corners.",
+   "mechanism": "Per-frame top/width/height/radius writes (layoutFull: layout and paint) become transforms (jsTransform_lt_topLeft, compTransform_no_layout_paint). Chromium runs them on the compositor only if the scroll source is user-scrollable (bit 16; the scroll-jack undermines this), and style stays 1 per BeginFrame (F1). On WebKit every scroll update ticks and invalidates the threaded animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d), so style stays. The saving lands in layout and paint (Layout stable, raster.invalidationAreaPx). New costs: 8 clipper layers (resident up), more style, and Chrome glass corners. why-engines: a scroll timeline answers yes in every update while its source is connected (ScrollTimeline.cpp:291-298@862f17d), and the timelines controller ticks each of its animations (AnimationTimelinesController.cpp:138-178), whose tick invalidates the target's style even when accelerated (WebAnimation.cpp:1558-1582, KeyframeEffect.cpp:2129-2132, 1731-1735, 127-135). So the CM style floor holds in WebKit: one style pass and +1 style unit per updating frame (scroll_comp_ride). CONFIRMED. This contradicts the golden P1 'scrollDriven RecalculateStyles = 0' and P4 'styleRecalcs = 0' predictions (WebKit.lean golden rows), which were never measured on a scroll-driven fixture: OPEN for a WKTR fixture and a golden regeneration.",
    "leanFor": [
     "jsTransform_le_topLeft",
     "jsTransform_lt_topLeft",
@@ -526,7 +526,8 @@
     "Fw.Engine.rrect_no_fixed_box",
     "Fw.Engine.comp_move_ge_on",
     "Fw.Engine.comp_move_not_le",
-    "Fw.Engine.claim_ne_dominates_of_layers"
+    "Fw.Engine.claim_ne_dominates_of_layers",
+    "Fw.Engine.WebKit.scroll_comp_ride"
    ],
    "missingWhy": [
     {
@@ -536,8 +537,8 @@
     },
     {
      "statement": "Style floor and trade: $\\forall\\epsilon,k\\in\\mathrm{range}:\\ W_\\epsilon(\\mathrm{CM},k).\\mathrm{passes}(\\mathrm{style})\\ge1$ and $R_{CM}.\\mathrm{layers}=R_o.\\mathrm{layers}+8$, hence $\\operatorname{claim}\\in\\{\\mathrm{trade},\\mathrm{noClaim}\\}$",
-     "module": "Fw.Engine.WebKit",
-     "needs": "Core part PROVED (Fw.Engine.comp_move_ge_on, Fw.Engine.claim_ne_dominates_of_layers: layer growth rules out dominates); remaining: a WebKit scroll-driven tick/invalidate clause (anim_comp_zero currently predicts 0 style) and the clipper layers in Resident"
+     "module": "Fw.Parts.MorphTweenOpt",
+     "needs": "WebKit tick clause PROVED (Fw.Engine.WebKit.scroll_comp_ride); remaining: the clipper layers in Resident (parts), and regenerating golden P1/P4 scroll-driven style rows (now contradicted by source) after a WKTR scroll-timeline fixture"
     }
    ],
    "premises": [
@@ -629,14 +630,18 @@
    "chromium": "no-win",
    "webkit": "trade",
    "visual": "Q. v1 found only the bar's 1 px outline different mid-motion (accepted in PR-038); Chrome is unchanged (T0).",
-   "mechanism": "On WebKit, a composited layer that paints nothing (a simple container) shows its background as solid-colour contents with no backing store (RenderLayerBacking.cpp:3326-3338, 3657-3659@862f17d). A painted layer's backing is cleared and fully repainted on every size change (RemoteLayerBackingStore.mm:145-152). Moving the colour to flat layers and the radius to a clip removes a full-screen backing (about 11 MB) and its resize repaint. New cost: 2 or more extra layers. Visible in the WebKit LayerTree census and Paint (stable only as a total); Chromium is not affected.",
-   "leanFor": [],
-   "leanAgainst": [],
+   "mechanism": "On WebKit, a composited layer that paints nothing (a simple container) shows its background as solid-colour contents with no backing store (RenderLayerBacking.cpp:3326-3338, 3657-3659@862f17d). A painted layer's backing is cleared and fully repainted on every size change (RemoteLayerBackingStore.mm:145-152). Moving the colour to flat layers and the radius to a clip removes a full-screen backing (about 11 MB) and its resize repaint. New cost: 2 or more extra layers. Visible in the WebKit LayerTree census and Paint (stable only as a total); Chromium is not affected. why-engines: a layer that neither draws content nor delegates display drops its backing store (PlatformCALayerRemote.mm:224-228@862f17d); a resize re-creates the backing parameters (:596-608, 333-355), which clears the store and dirties the whole layer (RemoteLayerBackingStore.mm:139-152), and a layer with no store has nothing to dirty (:357-375). So simple layers hold 0 kpx and paint 0 on resize (simple_layer); backed ones repaint their whole area (backed_resize). CONFIRMED.",
+   "leanFor": [
+    "Fw.Engine.WebKit.simple_layer"
+   ],
+   "leanAgainst": [
+    "Fw.Engine.WebKit.backed_resize"
+   ],
    "missingWhy": [
     {
-     "statement": "$\\forall L:\\ \\operatorname{simple}(L)\\Rightarrow R(L).\\mathrm{backingKpx}=0 \\land \\forall f:\\ \\operatorname{resize}_f(L)\\Rightarrow \\mathrm{paint}_f(L)=0$; $\\lnot\\operatorname{simple}(L)\\land\\operatorname{resize}_f(L)\\Rightarrow \\mathrm{paint}_f(L)=\\operatorname{area}(L)$. Hence for g0.0f, $R_v.\\mathrm{backingKpx}<R_o.\\mathrm{backingKpx}$ and $R_v.\\mathrm{layers}>R_o.\\mathrm{layers}$, so claim = trade",
-     "module": "Fw.Engine.WebKit",
-     "needs": "a contents kind (solid vs painted) in LayerState and the resize-clears-backing rule, as a per-frame paint source"
+     "statement": "g0.0f trade: $R_v.\\mathrm{backingKpx}<R_o.\\mathrm{backingKpx}$ and $R_v.\\mathrm{layers}>R_o.\\mathrm{layers}$, so claim = trade.",
+     "module": "Fw.Parts.MorphPanelOpt",
+     "needs": "engine rule PROVED (Fw.Engine.WebKit.simple_layer, backed_resize); remaining: the bar's layer inventory (solid vs painted) in Resident"
     }
    ],
    "premises": [
@@ -656,7 +661,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "Q (fade_visSame_Q): the scenes are equal, but the blur moves from Skia raster to the compositor, which samples differently",
-   "mechanism": "Chromium: an own layer moves the blur's cost from raster to compositing: raster -1 unit per fade frame (cr_fade_raster_drop) for +1 resident layer (fade_layers_up), so claim = trade (cr_fade_trade). A blur filter animation still runs on main (bit 12), so style and props stay per frame. WebKit: paint -2 and props +2 (wk_fade_paint_drop, wk_fade_props_up), which have no per-frame order (wk_not_mono). Promoting for each fade and demoting afterwards also allocates the panel's backing for every tween; v1 saw 13.25 MB rebuilt per tween.",
+   "mechanism": "Chromium: an own layer moves the blur's cost from raster to compositing: raster -1 unit per fade frame (cr_fade_raster_drop) for +1 resident layer (fade_layers_up), so claim = trade (cr_fade_trade). A blur filter animation still runs on main (bit 12), so style and props stay per frame. WebKit: paint -2 and props +2 (wk_fade_paint_drop, wk_fade_props_up), which have no per-frame order (wk_not_mono). Promoting for each fade and demoting afterwards also allocates the panel's backing for every tween; v1 saw 13.25 MB rebuilt per tween. why-engines: the tween's first frame attaches a new backing store (setNeedsDisplay over the whole bounds, PlatformCALayerRemote.mm:719-731@862f17d; no front buffer, so full display, ImageBufferSet.cpp:42-50), so it adds the element's area to resident memory and paints at least that area (promote_tween). CONFIRMED.",
    "leanFor": [
     "fade_visSame_Q",
     "cr_fade_le",
@@ -670,13 +675,14 @@
     "wk_fade_not_le",
     "wk_not_mono",
     "Fw.Engine.claim_ne_dominates_of_layers",
-    "Fw.Engine.comp_move_ge_on"
+    "Fw.Engine.comp_move_ge_on",
+    "Fw.Engine.WebKit.promote_tween"
    ],
    "missingWhy": [
     {
-     "statement": "Promote per tween: if an element is composited only while it animates, then every tween $\\tau$ has a frame $k_0(\\tau)$ with $\\Delta R.\\mathrm{backingKpx}=\\operatorname{area}$ and $\\mathrm{paint}_{k_0}\\ge\\operatorname{area}$. The build lands in the first motion frame, so $\\max_{k\\in\\mathrm{motion}} W_v \\not\\preceq \\max W_o$",
-     "module": "Fw.Engine.WebKit",
-     "needs": "Resident transitions (layer build and free events per frame); the WebKit start forces a compositing update (v1 C7, KeyframeEffect cites on another branch: INFERRED at the pin)"
+     "statement": "The promote lands in the first motion frame, so $\\max_{k\\in\\mathrm{motion}} W_v \\not\\preceq \\max W_o$.",
+     "module": "Fw.Parts.MorphPanelOpt",
+     "needs": "engine half PROVED (Fw.Engine.WebKit.promote_tween); remaining: Resident transitions per frame in the part's run"
     }
    ],
    "premises": [
@@ -743,18 +749,20 @@
    "chromium": "worse",
    "webkit": "trade",
    "visual": "not-equal in Chromium: v1 saw new-layer text drawn up to 1 device px off in every variant tried, so v1 limited the rule to iOS. WebKit is Q: glyph antialiasing differs mid-open (up to 76 levels) and is 0 at rest.",
-   "mechanism": "Painted pixels per roll frame are the same with or without the layer. The WebKit saving is in per-layer display: each display swaps buffers and copies the earlier painted area forward, the whole layer after a volatility mark. That cost grows with the host's backing (5.7 MB centre vs 1.2 MB wrapper), not with dirty area. INFERRED: cited at WebKit main 6d3243c9, not re-read at 862f17d. Blink re-records and re-rasters only invalidated rects, so Chromium gains nothing and pays +1 layer. Core.Work counts paint units, not backing area, so neither the model nor Timeline Paint records can see it.",
+   "mechanism": "Painted pixels per roll frame are the same with or without the layer. The WebKit saving is in per-layer display: each display swaps buffers and copies the earlier painted area forward, the whole layer after a volatility mark. That cost grows with the host's backing (5.7 MB centre vs 1.2 MB wrapper), not with dirty area. INFERRED: cited at WebKit main 6d3243c9, not re-read at 862f17d. Blink re-records and re-rasters only invalidated rects, so Chromium gains nothing and pays +1 layer. Core.Work counts paint units, not backing area, so neither the model nor Timeline Paint records can see it. why-engines (WebKit half, statement refuted): a store paints only its dirty rect when its front buffer is valid and partial repaint is supported, copying the rest forward from the back buffer (ImageBufferSet.cpp:103-147@862f17d); it paints the whole store only with no or purged front buffer, or when partial repaint is off, which happens for backends <= 64x64 px (ImageBufferSet.cpp:42-56, RemoteLayerBackingStore.mm:293-307). So in the steady state D_wk(o) = a, not B, and an own layer cannot paint less (host_steady_le_own). CONFIRMED.",
    "leanFor": [],
    "leanAgainst": [
     "Fw.Engine.claim_trade_iff",
     "Fw.Engine.raster_path_fails_fracAlpha",
-    "Fw.Engine.resident_only_noClaim"
+    "Fw.Engine.resident_only_noClaim",
+    "Fw.Engine.WebKit.host_steady_le_own",
+    "Fw.Engine.WebKit.display_bounds"
    ],
    "missingWhy": [
     {
-     "statement": "A display term that scales with backing. For an element with dirty area $a$ inside host layer $H$ (backing $B$), versus its own layer $L$ (backing $b \\ge a$): $D_{\\mathrm{wk}}(v) = b$ and $D_{\\mathrm{wk}}(o) = B$, so $D_{\\mathrm{wk}}(v) < D_{\\mathrm{wk}}(o) \\iff b < B$, with $R_v = R_o + (1, b)$, hence $\\mathrm{claim} = \\mathrm{trade}$. Chromium: $\\mathrm{raster}_{\\mathrm{cr}}(v) = a = \\mathrm{raster}_{\\mathrm{cr}}(o)$ and $R_v \\succ R_o$, hence worse.",
-     "module": "Fw.Engine.WebKit (+ Fw.Engine.Chromium)",
-     "needs": "a per-display cost unit (host backingKpx per display) in Work; the WebKit backing-store copy path re-read at 862f17d"
+     "statement": "Chromium half: $\\mathrm{raster}_{\\mathrm{cr}}(v) = a = \\mathrm{raster}_{\\mathrm{cr}}(o)$ and $R_v \\succ R_o$, hence the own clock layer is worse in Chromium.",
+     "module": "Fw.Engine.Chromium",
+     "needs": "a raster-invalidation-rect unit in Work for Chromium (cc partial raster, not read at f842f52 yet); the WebKit half is PROVED (Fw.Engine.WebKit.host_steady_le_own)"
     }
    ],
    "premises": [
@@ -990,7 +998,7 @@
    "chromium": "win",
    "webkit": "win",
    "visual": "E in every env: inside c860 the CSS pins scale 1 and radius 0, so the look does not depend on --future-shrink (look_gated), exactly there (look_const_iff), and the class sequences agree (cls_agree).",
-   "mechanism": "The saving is script (rAF and FunctionCall on tail frames) and style (custom-property restyle, a Chromium styleOnly unit), plus a forced style pass when a rect read follows the write (gate_lt_forced). There is no layout or paint, because the value never reached them. CI: FunctionCall and UpdateLayoutTree are det, but the golden is softened to <=o. swipe-v1 scrolls every frame, so no tail frame is guaranteed, and other parts restyle in the same frame. The style element count is quarantined (C-3), and WebKit has no custom-property row.",
+   "mechanism": "The saving is script (rAF and FunctionCall on tail frames) and style (custom-property restyle, a Chromium styleOnly unit), plus a forced style pass when a rect read follows the write (gate_lt_forced). There is no layout or paint, because the value never reached them. CI: FunctionCall and UpdateLayoutTree are det, but the golden is softened to <=o. swipe-v1 scrolls every frame, so no tail frame is guaranteed, and other parts restyle in the same frame. The style element count is quarantined (C-3), and WebKit has no custom-property row. why-engines: custom properties live in the inherited rare data (StyleInheritedRareData.h:153@862f17d), so a changed value is Change::Inherited (StyleChange.cpp:42-43) and the resolver restyles every child, passing on through each child whose style changes (StyleTreeResolver.cpp:283-311, 1185-1212). Style units = 1 + |reached| (custom_style_units), and skipping the write is strictly less work (customSkip_lt). CONFIRMED.",
    "leanFor": [
     "Fw.Parts.PeopleCardOpt.peopleCard_visSame",
     "Fw.Parts.PeopleCardOpt.look_gated",
@@ -999,16 +1007,18 @@
     "Fw.Parts.PeopleCardOpt.gate_lt_tail",
     "Fw.Parts.PeopleCardOpt.gate_lt_forced",
     "Fw.Parts.PeopleCardOpt.cr_dominates",
-    "Fw.Parts.PeopleCardOpt.wk_dominates"
+    "Fw.Parts.PeopleCardOpt.wk_dominates",
+    "Fw.Engine.WebKit.custom_style_units",
+    "Fw.Engine.WebKit.customSkip_lt"
    ],
    "leanAgainst": [
     "Fw.Parts.PeopleCardOpt.frames_ungated_eq"
    ],
    "missingWhy": [
     {
-     "statement": "WebKit custom-property restyle row: $\\mathrm{style} \\in \\mathrm{stagesOf}_{\\mathrm{wk}}(e, \\mathrm{custom}, \\ell)$ with $\\mathrm{units}(\\mathrm{style}) = |\\mathrm{restyled\\ subtree}(e)|$ (R2), so that $W_{\\mathrm{wk}}(v,k) \\prec W_{\\mathrm{wk}}(o,k)$ on every in-band frame where the value moves.",
-     "module": "Fw.Engine.WebKit",
-     "needs": "R2 fan-out cite; a lane scenario with a guaranteed tail frame so <o is checkable"
+     "statement": "people.card lane: a scenario with a guaranteed in-band tail frame where --future-shrink moves, so $W_{\\mathrm{wk}}(v,k) \\prec W_{\\mathrm{wk}}(o,k)$ is checkable.",
+     "module": "Fw.Parts.PeopleCardOpt",
+     "needs": "engine row PROVED (Fw.Engine.WebKit.customSkip_lt); remaining: the lane scenario"
     }
    ],
    "premises": [
@@ -1056,26 +1066,23 @@
    "chromium": "win",
    "webkit": "trade",
    "visual": "not-equal under the gate: blur 0.24 CSS px against none fails filterQ (tolerance 1e-3), and the 17-stop resample is off by up to 0.03 px. Snapping to `none` also removes the filter's containing block and stacking context (R10). Class L unless the user adopts a perceptual blur tolerance.",
-   "mechanism": "Chromium keeps any blur animation on main (failBits bit 12), so 0.7 s fewer filter frames means fewer paint and raster passes of a viewport-sized layer. WebKit differs. linear() with points is rejected by CA, and KeyframeEffectStack::allowsAcceleration returns false if any effect cannot be accelerated (KeyframeEffectStack.cpp:215-253@862f17d). The card's transform and opacity transitions therefore also leave CA. v1's WebKit result is explained mostly by this thread flip: paint area fell, and the cubic-bezier retime that re-enabled CA doubled Composite.",
+   "mechanism": "Chromium keeps any blur animation on main (failBits bit 12), so 0.7 s fewer filter frames means fewer paint and raster passes of a viewport-sized layer. WebKit differs. linear() with points is rejected by CA, and KeyframeEffectStack::allowsAcceleration returns false if any effect cannot be accelerated (KeyframeEffectStack.cpp:215-253@862f17d). The card's transform and opacity transitions therefore also leave CA. v1's WebKit result is explained mostly by this thread flip: paint area fell, and the cubic-bezier retime that re-enabled CA doubled Composite. why-engines (statement over-strong, corrected): KeyframeEffectStack::allowsAcceleration fails if any effect preventsAcceleration, or on implicit-keyframe overlap or a threaded/non-threaded mix on a shared accelerated property (KeyframeEffectStack.cpp:215-283@862f17d), then stops every effect (:285-300) (stack_rule). preventsAcceleration is false on the threaded path and for an effect that animates no accelerated property and has no motion path (KeyframeEffect.cpp:2035-2058), so a non-accelerable main-thread effect such as a background animation does not stop the stack (stack_free, stackDemo guard). CONFIRMED.",
    "leanFor": [
     "Fw.Engine.Chromium.failBits",
-    "Fw.Engine.Chromium.CrProp.movesPixels"
+    "Fw.Engine.Chromium.CrProp.movesPixels",
+    "Fw.Engine.WebKit.stack_rule"
    ],
    "leanAgainst": [
     "Fw.Engine.WebKit.legacy_rejects",
     "Fw.Engine.WebKit.blur_comp",
-    "Fw.Engine.tail_not_Q"
+    "Fw.Engine.tail_not_Q",
+    "Fw.Engine.WebKit.stack_free"
    ],
    "missingWhy": [
     {
-     "statement": "Effect-stack rule: $\\exists e \\in \\mathrm{stack}(x):\\ \\neg\\,\\mathrm{canAccel}(e) \\Rightarrow \\forall e' \\in \\mathrm{stack}(x):\\ \\mathrm{wkThread}(e') = \\mathrm{main}$.",
-     "module": "Fw.Engine.WebKit",
-     "needs": "a per-element effect stack in WkAnim; cite KeyframeEffectStack.cpp:215-253"
-    },
-    {
      "statement": "A UI-process composite cost for a CA blur, $C_{\\mathrm{comp}}(k) \\propto \\mathrm{area}\\cdot r_{\\mathrm{blur}}$, to show that accelerating a large-area blur can raise per-frame cost (v1: Composite 55 -> 111).",
      "module": "Fw.Engine.WebKit",
-     "needs": "a comp-stage cost unit (today comp is passes only)"
+     "needs": "a comp-stage cost unit (today comp is passes only); why-engines: OPEN, the CA filter cost runs in the closed-source render server (no engine source to cite at 862f17d), so it needs a measured comp-stage cost, not a source proof"
     }
    ],
    "premises": [
@@ -1189,17 +1196,21 @@
    "chromium": "win",
    "webkit": "win",
    "visual": "Q under the gate: near tolStyle 0.999 1 holds exactly at the boundary (|0.001| <= 1e-3). Pixel E holds if the engine rounds once to nearest: |0.001(d-s)| <= 0.255 < 1/2, and quantizing alpha first gives rnd(0.999*255) = 255, which is also exact. It fails only if alpha is truncated (Skia/CA quantization OPEN). v1 Chrome screenshots differed by 0.00 %.",
-   "mechanism": "WebKit: opacity crossing 1 and a transform appearing or disappearing force layout (opacityCross1_layout; StyleDifference.cpp:208-215). Resting just off the flip value removes them. New finding at the Chromium pin: opacity < 1 makes a stacking context (HasNonInitialOpacity, computed_style.h:2224), and a stacking flip calls SetNeedsFullLayout (computed_style.cc:779-784@f842f52). It is avoided only while a current animation holds the flag (computed_style.h:2070-2076). So KD#8's 'Blink does not relayout' and the Chromium model's opacity row are incomplete. Cost: slot layers stay composited at rest.",
+   "mechanism": "WebKit: opacity crossing 1 and a transform appearing or disappearing force layout (opacityCross1_layout; StyleDifference.cpp:208-215). Resting just off the flip value removes them. New finding at the Chromium pin: opacity < 1 makes a stacking context (HasNonInitialOpacity, computed_style.h:2224), and a stacking flip calls SetNeedsFullLayout (computed_style.cc:779-784@f842f52). It is avoided only while a current animation holds the flag (computed_style.h:2070-2076). So KD#8's 'Blink does not relayout' and the Chromium model's opacity row are incomplete. Cost: slot layers stay composited at rest. why-engines: opacity < 1 makes the box a stacking context (computed_style.h:2085, computed_style.cc:2958-2995@f842f52); a flip of that bit asks for full layout and paint invalidation (computed_style.cc:779-784), unless another reason keeps the box a stacking context. So 1 -> 0.999 costs layoutFull (opacityCross1_layout) and resting at 0.999 is never above the plain opacity row (rest999_le). CONFIRMED.",
    "leanFor": [
     "Fw.Engine.WebKit.opacityCross1_layout",
-    "Fw.Engine.alpha999_round"
+    "Fw.Engine.alpha999_round",
+    "Fw.Engine.Chromium.opacityCross1_layout",
+    "Fw.Engine.Chromium.rest999_le"
    ],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Engine.Chromium.opacityCross1_otherSC"
+   ],
    "missingWhy": [
     {
-     "statement": "Chromium table fix: a key opacityCross1 with $\\mathrm{crLevel} = \\mathrm{layoutFull}$ when $\\mathrm{isSC}(\\mathrm{old}) \\ne \\mathrm{isSC}(\\mathrm{new})$ and no current-animation flag is set, else the current opacity row. Then cr_rest999_lt: $\\forall k \\in \\mathrm{slide\\ end}:\\ W_{\\mathrm{cr}}(v,k) \\prec W_{\\mathrm{cr}}(o,k)$.",
-     "module": "Fw.Engine.Chromium",
-     "needs": "a stacking-context state in Change for Chromium; a CI fixture (opacity 1 -> 0.9 -> 1 with no animation) to falsify it"
+     "statement": "cr_rest999_lt: $\\forall k \\in \\mathrm{slide\\ end}:\\ W_{\\mathrm{cr}}(v,k) \\prec W_{\\mathrm{cr}}(o,k)$ over Fw.Engine.Chromium.chromiumX (opacityCross1 row); and a CI fixture (opacity 1 -> 0.9 -> 1, no animation) that would falsify the row.",
+     "module": "Fw.Parts",
+     "needs": "engine row PROVED (Fw.Engine.Chromium.opacityCross1_layout, rest999_le); remaining: the carousel bridge and the CI fixture"
     }
    ],
    "premises": [
@@ -1248,7 +1259,7 @@
    "chromium": "no-win",
    "webkit": "win",
    "visual": "E in Q (deck_vis); engine E under premise Faithful (double); a float Length path can give +1/64 px at widths 770/1123/1187 (INFERRED), removed by the nudged formula (snap_nudged)",
-   "mechanism": "WebKit marks every fixed/sticky renderer for layout on each layout-viewport move (LocalFrameView.cpp:1930-1939,3735-3746@862f17d). The link into the aspect-ratio shells is UNRESOLVED, so the saving is in layout units inside a pass the frame pays anyway. Layout pass counts stay =o, and the Chromium lane has no viewport move (swipe_eq). New WebKit cost: the deck becomes a size container, and any style traversal through it adds an interleaved layout (StyleTreeResolver.cpp:1328,1377,1460-1480,1515-1522@862f17d). Blink interleaves only when the container needs layout (element.cc:5187-5208@f842f52).",
+   "mechanism": "WebKit marks every fixed/sticky renderer for layout on each layout-viewport move (LocalFrameView.cpp:1930-1939,3735-3746@862f17d). The link into the aspect-ratio shells is UNRESOLVED, so the saving is in layout units inside a pass the frame pays anyway. Layout pass counts stay =o, and the Chromium lane has no viewport move (swipe_eq). New WebKit cost: the deck becomes a size container, and any style traversal through it adds an interleaved layout (StyleTreeResolver.cpp:1328,1377,1460-1480,1515-1522@862f17d). Blink interleaves only when the container needs layout (element.cc:5187-5208@f842f52). why-engines (statement corrected): a reached size container skips its descendants and queues a container query state (StyleTreeResolver.cpp:1377, 1391-1394, 1460-1478@862f17d); resolve() asks for another round (:1515-1522) and Document::resolveStyle runs a layout between rounds only if the render tree needs one (Document.cpp:2897-2911). So a reached container costs >= 2 style rounds (wkRounds_ge_two) but layouts only when layout-dirty (wkLayouts_le); 'layout passes >= 1' was wrong. CONFIRMED.",
    "leanFor": [
     "Fw.Parts.PeopleDeckOpt.deck_content",
     "Fw.Parts.PeopleDeckOpt.cqiShell_eq",
@@ -1261,18 +1272,20 @@
     "Fw.Parts.PeopleDeckOpt.snap_nudged",
     "Fw.Parts.PeopleDeckOpt.deck_le",
     "Fw.Parts.PeopleDeckOpt.deck_lt",
-    "Fw.Parts.PeopleDeckOpt.deck_run_dominates"
+    "Fw.Parts.PeopleDeckOpt.deck_run_dominates",
+    "Fw.Engine.WebKit.wkLayouts_le"
    ],
    "leanAgainst": [
     "Fw.Parts.PeopleDeckOpt.swipe_eq",
     "Fw.Engine.passes_absorb",
-    "Fw.Engine.passes_absorb_changes"
+    "Fw.Engine.passes_absorb_changes",
+    "Fw.Engine.WebKit.wkRounds_ge_two"
    ],
    "missingWhy": [
     {
-     "statement": "WebKit size-container interleave: for a frame f with traversal set $\\mathrm{trav}(f)$ and size containers $C$: $\\mathrm{trav}(f)\\cap C\\ne\\emptyset \\Rightarrow W_{wk}(f).\\mathrm{passes}(\\mathrm{layout})\\ge 1 \\land W_{wk}(f).\\mathrm{units}(\\mathrm{layout})\\ge |\\mathrm{trav}(f)\\cap C|$; hence $W_{wk}(\\mathrm{cqiF}(d))\\preceq W_{wk}(\\mathrm{orig}(d)) \\iff d.\\mathrm{relayout}\\lor \\mathrm{deck}\\notin\\mathrm{trav}(d)$",
-     "module": "Fw.Engine.WebKit (+ Fw.Parts.PeopleDeckOpt)",
-     "needs": "FrameIn needs a style-traversal set and a size-container set; cite StyleTreeResolver.cpp lines above; Chromium counterpart gated on layout-dirty containers"
+     "statement": "cqiFormula with the corrected count: $W_{wk}(\\mathrm{cqiF}(d))$ adds $\\operatorname{wkRounds}-1$ style rounds and $\\operatorname{wkLayouts}$ layouts when the deck is in $\\mathrm{trav}(d)$, versus the original's aspect-ratio layout.",
+     "module": "Fw.Parts.PeopleDeckOpt",
+     "needs": "engine rule PROVED (Fw.Engine.WebKit.wkRounds_ge_two, wkLayouts_le); remaining: trav(d) and the deck's layout-dirty flag per frame in the part"
     },
     {
      "statement": "Relayout mechanism: $\\mathrm{vpMove}(k)\\land|\\mathrm{sticky}|>0 \\Rightarrow d_k.\\mathrm{relayout}$ and $W(\\mathrm{orig},k).\\mathrm{units}(\\mathrm{layout}) - W(\\mathrm{cqi},k).\\mathrm{units}(\\mathrm{layout}) = |\\mathrm{shells}|$ while $\\mathrm{passes}(\\mathrm{layout})$ are equal",
@@ -1414,16 +1427,16 @@
    "chromium": "no-win",
    "webkit": "win",
    "visual": "E iff no @container query or cq unit resolves against the removed container and its inline size is definite from outside (OPEN; the rewrite platform/visuals.module.css declares container-type, so lengths would need restating)",
-   "mechanism": "In WebKit, every size container (inline-size included, StyleContainerType.h:62@862f17d) that style resolution visits, even only to pass through, defers its descendants and adds an interleaved layout round (StyleTreeResolver.cpp:1377,1460-1480,1515-1522@862f17d). Blink skips into layout only when the container will itself be laid out (element.cc:5187-5208@f842f52). The saving lands in WebKit style+layout rounds per restyle frame. A pure text write may not traverse the resolver (OPEN).",
-   "leanFor": [],
-   "leanAgainst": [],
-   "missingWhy": [
-    {
-     "statement": "WebKit: layout rounds in a style update $= 1 + \\mathrm{depth}_C(\\mathrm{trav}(f))$; Chromium: rounds $= 1 + \\mathrm{depth}_{C\\cap\\mathrm{layoutDirty}(f)}(\\mathrm{trav}(f))$. Hence removing $c\\in C$ never adds work and lowers WebKit layout passes iff $c\\in\\mathrm{trav}(f)$",
-     "module": "Fw.Engine.WebKit / Fw.Engine.Chromium",
-     "needs": "a traversal set and a container set in FrameIn"
-    }
+   "mechanism": "In WebKit, every size container (inline-size included, StyleContainerType.h:62@862f17d) that style resolution visits, even only to pass through, defers its descendants and adds an interleaved layout round (StyleTreeResolver.cpp:1377,1460-1480,1515-1522@862f17d). Blink skips into layout only when the container will itself be laid out (element.cc:5187-5208@f842f52). The saving lands in WebKit style+layout rounds per restyle frame. A pure text write may not traverse the resolver (OPEN). why-engines (statement corrected): the rounds are style rounds, WebKit 1 + max reached-container depth (StyleTreeResolver.cpp:1460-1478, 1515-1522; Document.cpp:2897-2911@862f17d), Chromium 1 + max layout-dirty container depth, resumed inside the one layout pass (element.cc:5187-5225, 5360-5375@f842f52). Removing a container never adds a round in either engine (wkRounds_remove, crRounds_remove), but lowers WebKit's only if it is on a deepest chain, not iff c in trav(f) (wkRounds_not_iff). CONFIRMED.",
+   "leanFor": [
+    "Fw.Engine.WebKit.wkRounds_remove",
+    "Fw.Engine.Chromium.crRounds_remove",
+    "Fw.Engine.Chromium.crRounds_le_depth"
    ],
+   "leanAgainst": [
+    "Fw.Engine.WebKit.wkRounds_not_iff"
+   ],
+   "missingWhy": [],
    "premises": [
     "WebKit interleave on traversal: CONFIRMED in source",
     "Text-only writes traverse the tree resolver: OPEN",
@@ -1526,12 +1539,14 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "Geometry E-s: x2 - x1 = 120 at every key time, so the glint is a pure translation of the gradient (unproved). Pixels Q: anti-aliased edge rows <= 64 LSB (Chrome), <= 33 (WebKit), and the untouched grey dash differs <= 17 LSB in WebKit because it becomes a composited layer",
-   "mechanism": "The original's per-frame attribute change, CONFIRMED: Chromium x1/x2 -> InvalidateGradient -> MarkAllClientsForInvalidation(kPaintInvalidation) (svg_linear_gradient_element.cc:69-76, svg_gradient_element.cc:135-138, layout_svg_resource_gradient.cc:81-87@f842f52) = paint, no style or layout. WebKit legacy SVG adds a render-tree style update plus layout (SVGLinearGradientElement.cpp:94-100, SVGGradientElement.cpp:83-92, Document.cpp:2968-2990, RenderTreeUpdater.cpp:399-414@862f17d), which explains the v1 Sim Layout of about one per frame. The variant is a compositor transform; new layers.",
+   "mechanism": "The original's per-frame attribute change, CONFIRMED: Chromium x1/x2 -> InvalidateGradient -> MarkAllClientsForInvalidation(kPaintInvalidation) (svg_linear_gradient_element.cc:69-76, svg_gradient_element.cc:135-138, layout_svg_resource_gradient.cc:81-87@f842f52) = paint, no style or layout. WebKit legacy SVG adds a render-tree style update plus layout (SVGLinearGradientElement.cpp:94-100, SVGGradientElement.cpp:83-92, Document.cpp:2968-2990, RenderTreeUpdater.cpp:399-414@862f17d), which explains the v1 Sim Layout of about one per frame. The variant is a compositor transform; new layers. why-engines: Chromium invalidates the gradient resource's clients for paint only (svg_linear_gradient_element.cc:69-78, svg_gradient_element.cc:135-138, layout_svg_resource_container.cc:337-342, layout_svg_resource_gradient.cc:81-86@f842f52): svgAttr_paint_only. WebKit queues a renderer update that marks the renderer for layout in both SVG engines (SVGLinearGradientElement.cpp:94-104, SVGGradientElement.cpp:83-92, Document.cpp:2968-2990, RenderTreeUpdater.cpp:399-414, LegacyRenderSVGResource.cpp:157-215@862f17d): svgAttr_layout, one layout pass per glint frame. CONFIRMED (Chromium commit stage INFERRED).",
    "leanFor": [
     "Fw.Parts.PlatformGlint.sample_periodic",
     "Fw.Parts.PlatformGlint.sample_range",
     "Fw.Engine.Chromium.transformAnim_comp",
-    "Fw.Engine.WebKit.anim_comp_zero"
+    "Fw.Engine.WebKit.anim_comp_zero",
+    "Fw.Engine.Chromium.svgAttr_paint_only",
+    "Fw.Engine.WebKit.svgAttr_layout"
    ],
    "leanAgainst": [
     "Fw.Engine.raster_path_fails_fracAlpha",
@@ -1542,11 +1557,6 @@
      "statement": "glint_translate: $\\forall s,\\ u\\in[0,1):\\ x_2(s,u)-x_1(s,u)=120$, hence $\\mathrm{grad}(s,u)=\\mathrm{shift}_{x_1(s,u)+200}\\circ\\mathrm{grad}(\\mathrm{rest}(\\mathrm{left}))$",
      "module": "Fw.Parts.PlatformGlint",
      "needs": "nothing new (unfold interp/lerp)"
-    },
-    {
-     "statement": "Engine rows: $\\mathrm{keyLevel}(\\mathrm{svgPaintServerAttr},l)=\\mathrm{paint}$ (Chromium); $\\mathrm{rawDiff}(\\mathrm{svgResourceAttr})=(\\mathrm{layout},\\emptyset)$ (WebKit legacy SVG engine), so $W_{wk}(o).\\mathrm{passes}(\\mathrm{layout})=1$ per glint frame",
-     "module": "Fw.Engine.Chromium / Fw.Engine.WebKit",
-     "needs": "new CrKey/WkProp constructors with the cites above"
     }
    ],
    "premises": [
@@ -1600,7 +1610,7 @@
    "chromium": "no-win",
    "webkit": "no-win",
    "visual": "E: hidden_pause_eq / panel_visSame (panel opacity 0 iff m <= 0.08); needs seek to origClock on resume",
-   "mechanism": "A compositor transform animation costs no main-thread or web-process stage: real Chrome (cr_realChrome_pause_eq) and WebKit (wk_pause_eq, wk_marquee_bands) are equal, so the only saving is the UI or compositor thread tick. The CI lane alone shows style 1 -> 0 per frame (cr_marquee_bands), because every BeginFrame is a main frame there (R1 OPEN), which measures the harness. Blink may already skip a target that does not paint (kAnimationHasNoVisibleChange, compositor_animations.cc:491-495,514-572; animation.cc:860-865,3389-3393@f842f52), which would erase even the lane win.",
+   "mechanism": "A compositor transform animation costs no main-thread or web-process stage: real Chrome (cr_realChrome_pause_eq) and WebKit (wk_pause_eq, wk_marquee_bands) are equal, so the only saving is the UI or compositor thread tick. The CI lane alone shows style 1 -> 0 per frame (cr_marquee_bands), because every BeginFrame is a main frame there (R1 OPEN), which measures the harness. Blink may already skip a target that does not paint (kAnimationHasNoVisibleChange, compositor_animations.cc:491-495,514-572; animation.cc:860-865,3389-3393@f842f52), which would erase even the lane win. why-engines: an animation whose only failure reason is kAnimationHasNoVisibleChange (bit 17, compositor_animations.h:116-120@f842f52) is neither ticked on the main thread nor started on the compositor (animation.cc:860-865, 3389-3393): it idles, so dropping it leaves the frame unchanged (idle_drops); visible animations keep the old rule (animFrameV_visible).",
    "leanFor": [
     "Fw.Parts.HiddenPause.cr_marquee_bands",
     "Fw.Parts.HiddenPause.cr_pause_style_units",
@@ -1612,13 +1622,16 @@
     "Fw.Parts.HiddenPause.wk_pause_eq",
     "Fw.Parts.HiddenPause.wk_marquee_bands",
     "Fw.Engine.pause_off_comp",
-    "Fw.Engine.pause_no_main"
+    "Fw.Engine.pause_no_main",
+    "Fw.Engine.Chromium.idle_drops",
+    "Fw.Engine.Chromium.crRunV_idle_iff",
+    "Fw.Engine.Chromium.animFrameV_visible"
    ],
    "missingWhy": [
     {
      "statement": "R6 residual: $\\alpha_{eff}(\\mathrm{target}(a))=0 \\Rightarrow 17\\in\\mathrm{failBits}(\\mathrm{lane},a) \\Rightarrow W_{cr}(f).\\mathrm{units}(\\mathrm{style})=W_{cr}(\\mathrm{paused}(f)).\\mathrm{units}(\\mathrm{style})$, turning cr_marquee_bands into equality",
      "module": "Fw.Engine.Chromium",
-     "needs": "a visibleChange flag on CrAnim with the cites above, settled by the R6 CI fixture"
+     "needs": "second implication PROVED (Fw.Engine.Chromium.idle_drops, crRunV_idle_iff); remaining: the premise alpha_eff = 0 => bit 17 (whether an ancestor opacity of 0 sets kAnimationHasNoVisibleChange; compositor_animations.cc:285-290, 491-495, 514-588 read, ancestor case not found), settled by the R6 CI fixture"
     }
    ],
    "premises": [

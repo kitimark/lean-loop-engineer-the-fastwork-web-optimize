@@ -4,7 +4,10 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } f
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+// These tests start fwcore and version-control child processes; the 5 s default failed them under machine load. No wall-clock assertions.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 import { LiveBoard } from "@fw/contracts";
 import { createApp } from "../src/app.ts";
 import { capMac, sha256 } from "../src/cap/cap.ts";
