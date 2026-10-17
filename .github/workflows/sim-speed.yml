@@ -26,7 +26,7 @@ on:
       arms:
         description: Space-separated arms (base pre fast quiet bg f6 early qe combo)
         type: string
-        default: 'base f6 combo xl'
+        default: 'base f6 combo'
       reps:
         description: Independent VMs per arm (1 to 3)
         type: string
