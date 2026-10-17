@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { LiveBoard, Plan, PlanTask } from "@fw/contracts";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,8 +87,27 @@ function Columns({ plan }: { plan: Plan }) {
   );
 }
 
-/** The repo has no public remote yet, so the evidence is the commit id plus the command that shows it. */
-const Evidence = ({ sha }: { sha: string }) => <code title={`git show ${sha}`}>{sha.slice(0, 9)}</code>;
+let repoCommit: Promise<string | null> | undefined;
+/** GET /api/repo once: the commit URL prefix from origin, or null (no origin / fetch failed). */
+const fetchRepoCommit = () =>
+  (repoCommit ??= fetch("/api/repo")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => (typeof j?.commit === "string" ? j.commit : null))
+    .catch(() => null));
+
+/** Evidence is the short commit id; a link to the public commit when /api/repo knows the origin, else plain text. */
+function Evidence({ sha }: { sha: string }) {
+  const [base, setBase] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void fetchRepoCommit().then((c) => live && setBase(c));
+    return () => { live = false; };
+  }, []);
+  const short = sha.slice(0, 9);
+  return base
+    ? <a href={`${base}${sha}`} target="_blank" rel="noreferrer" className="underline"><code>{short}</code></a>
+    : <code title={`git show ${sha}`}>{short}</code>;
+}
 
 // ---- layered DAG (inline SVG) ----------------------------------------------------------
 
