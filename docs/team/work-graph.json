@@ -1531,6 +1531,39 @@
     "packages/measure-chromium/src/zone-baseline.mjs",
     "packages/measure-chromium/test/**"
    ]
+  },
+  {
+   "id": "where-cleanup",
+   "title": "Move the 64 dangling where-clauses into their $$ blocks (WhereLint hits outside Fw/Measure) and make WhereLint an error",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "math-r10-fix"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Console.lean",
+    "lean/Fw/Store/**",
+    "lean/Fw/Plan/**",
+    "lean/Fw/Site/**",
+    "lean/Fw/Ops/**",
+    "lean/Fw/Sched/**",
+    "lean/MathViewMain.lean"
+   ]
+  },
+  {
+   "id": "report-draft",
+   "title": "Draft the v2 report skeleton (M6) from what exists now: loop metrics vs v1, what was proved, measured, cut; every number sourced; filled in as results land",
+   "stream": "plan",
+   "milestone": "M6",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "docs/report/v2-report.md"
+   ]
   }
  ]
 }
