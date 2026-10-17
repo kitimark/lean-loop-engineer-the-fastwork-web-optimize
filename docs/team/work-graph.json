@@ -1905,16 +1905,15 @@
   },
   {
    "id": "vj-vt-chromium",
-   "title": "V-j shown and V-t replay / stall-alarm precision (>= 90 %) on the Chromium lane only (the Chromium half of vj-vt, rev 9.1)",
+   "title": "CUT by the user 2026-10-18: V-j/V-t are reported not gated (PLAN:200,210), no dependents, the 90% bar is the enforcer rule (PLAN:251-254), inputs are private v1 data (not CI, not public)",
    "stream": "measure",
-   "milestone": "M1",
-   "deps": [
-    "zone-baselines-chromium"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "measure-engineer",
    "devices": [
     "ci"
-   ]
+   ],
+   "cut": true
   },
   {
    "id": "engine-core-lean",
