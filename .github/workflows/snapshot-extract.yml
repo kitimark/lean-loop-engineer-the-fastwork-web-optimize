@@ -1,0 +1,146 @@
+name: snapshot-extract
+
+# Reference extraction: the computed styles of the unmodified original (snapshot/site, served as the breakpoint gate serves it)
+# and of our port at the gate's whole-pixel environments, in Chromium and Playwright WebKit, with the declared source of
+# each value. Three independent extraction jobs per engine; a value is kept only when all three agree (the empirical
+# premise of Fw.Site.Reference.reference_deterministic, premise-tests id snapshot-extract.determinism). The report job
+# merges them, compares the port with the reference and lists fonts used without a loaded face.
+# Free runners only. Engines on the runner as in breakpoint-gate: Chrome Headless Shell (pinned) and Playwright WebKit on Linux.
+on:
+  push:
+    branches: ['ci/**', main]
+    paths:
+      - 'packages/snapshot-extract/**'
+      - 'packages/gate-breakpoints/**'
+      - 'apps/site/**'
+      - 'snapshot/**'
+      - 'snapshot.lock.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/scripts/verify-snapshot.mjs'
+      - '.github/actions/setup-lean/**'
+      - '.github/actions/setup-pnpm/**'
+      - '.github/actions/gate-engine/**'
+      - '.github/workflows/snapshot-extract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+
+env:
+  # Same pinned browser as packages/measure-chromium/Dockerfile and breakpoint-gate.
+  HS_VERSION: 156.0.8078.4
+  HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
+
+jobs:
+  site:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/site...'
+      - name: Build the port (default prerendered config)
+        run: pnpm --filter @fw/site build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+          if-no-files-found: error
+          retention-days: 3
+
+  tests:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Unit tests of the data shaping and the report
+        working-directory: packages/snapshot-extract
+        run: node --test "test/*.test.mjs"
+
+  extract:
+    needs: [site]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, playwright-webkit]
+        rep: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints @fw/snapshot-extract'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Extract
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/snapshot-extract
+        run: node src/cli.mjs extract --engine "$ENGINE" --concurrency 4 --out out
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: extract-${{ matrix.engine }}-${{ matrix.rep }}
+          path: packages/snapshot-extract/out/extract-${{ matrix.engine }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  report:
+    needs: [tests, extract]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: extract-*
+          path: runs
+      - name: Merge the three runs of each engine, report
+        working-directory: packages/snapshot-extract
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+        run: |
+          set -euo pipefail
+          for e in chromium playwright-webkit; do
+            node src/cli.mjs merge --engine "$e" --in "../../runs/extract-$e-1/extract-$e.json,../../runs/extract-$e-2/extract-$e.json,../../runs/extract-$e-3/extract-$e.json" --out ../../dataset
+          done
+          node src/cli.mjs report --in ../../dataset --out ../../dataset
+          cat ../../dataset/report.md >> "$GITHUB_STEP_SUMMARY"
+          ls -l ../../dataset
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: snapshot-reference
+          path: dataset
+          if-no-files-found: error
+          retention-days: 30

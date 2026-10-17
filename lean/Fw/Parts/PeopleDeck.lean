@@ -3,6 +3,7 @@ import Fw.Engine.WebKit
 import Fw.Engine.Visual
 import Fw.Site.Breakpoints
 import Fw.Parts.MorphMountOpt
+import Fw.Parts.EndFlags
 /-!
 # people.deck, variant `cqi`: container-query units instead of `aspect-ratio` (PLAN rev 10)
 
@@ -657,5 +658,51 @@ def exFrame (P : Type) : DeckFrame P := ⟨⟨0, 0, 0, 0, [], 0⟩, true, false�
 #guard (frameWork wkDeck ((exFrame _).cqiF [1, 2])).passes .commit == 0
 #guard (frameWork wkDeck ((exFrame _).cqiF [1, 2])).ltb (frameWork wkDeck ((exFrame _).orig [1, 2]))
 #guard (frameWork crDeck ((exFrame _).cqiF [1, 2])).ltb (frameWork crDeck ((exFrame _).orig [1, 2]))
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+Both arms run the same shared frame and differ only in appended relayout changes, so they force the same passes.
+Dropping a relayout cannot leave a stage dirtier at frame end (hypothesis `hm`), so both verdicts carry over
+(`Fw.Parts.EndFlags.frameE_le_mono`, `Fw.Parts.EndFlags.frameE_lt_mono`); the strict layout-unit saving does not
+depend on end flags. -/
+
+section EndPass
+
+open Fw.Parts.EndFlags
+
+/-- **Work (⪯) under `frameWorkE`.** For end flags where the variant's stage is dirty only if the original's is, the
+variant does no more work.
+
+$$\forall \varepsilon, d, S,\ \forall e_v, e_o:\ \big(\forall s \in \operatorname{touched}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)) \preceq \operatorname{frameWork}^{e_o}_{\operatorname{lift}(\varepsilon)}(\operatorname{orig}(d, S))$$
+
+The frame-end pass does not undo the skipped relayout. -/
+theorem deck_leE {P M : Type} (ε : Engine P M) (d : DeckFrame P) (shells : List Nat) (ev eo : Stage → Bool)
+    (hm : ∀ s, s ∈ touched (lift ε) (d.cqiF shells) → ev s = true → eo s = true) :
+    (frameWorkE (lift ε) (d.cqiF shells) ev).le (frameWorkE (lift ε) (d.orig shells) eo) :=
+  frameE_le_mono _ ev eo (fun s => by cases s <;> rfl) (deck_le ε d shells) hm
+
+/-- **Work (≺) under `frameWorkE`, where the original relayouts.**
+
+$$\forall \varepsilon, d, S,\ \forall e_v, e_o:\ d.\mathrm{relayout} \land \lnot d.\mathrm{widthStep} \land S \ne [\,] \land \big(\forall s \in \operatorname{touched}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_{\operatorname{lift}(\varepsilon)}(\operatorname{cqiF}(d, S)) \prec \operatorname{frameWork}^{e_o}_{\operatorname{lift}(\varepsilon)}(\operatorname{orig}(d, S))$$
+
+One layout unit per shell is saved whatever the end flags say. -/
+theorem deck_ltE {P M : Type} (ε : Engine P M) (d : DeckFrame P) (shells : List Nat) (hr : d.relayout = true)
+    (hw : d.widthStep = false) (hne : shells ≠ []) (ev eo : Stage → Bool)
+    (hm : ∀ s, s ∈ touched (lift ε) (d.cqiF shells) → ev s = true → eo s = true) :
+    (frameWorkE (lift ε) (d.cqiF shells) ev).lt (frameWorkE (lift ε) (d.orig shells) eo) := by
+  refine frameE_lt_mono _ ev eo (fun s => by cases s <;> rfl) (deck_le ε d shells) hm (Or.inl ⟨.layout, ?_⟩)
+  have hc : (relayouts shells : List (Change (DeckProp P))).countP
+      (fun c => decide (Stage.layout ∈ (lift ε).stagesOf c)) = shells.length := by
+    rw [List.countP_eq_length.2 (fun c hc => ?_)]
+    · simp [relayouts]
+    · simp only [relayouts, List.mem_map] at hc
+      obtain ⟨e, _, rfl⟩ := hc
+      simp [lift]
+  have hpos : 0 < shells.length := List.length_pos_iff.2 hne
+  simp only [DeckFrame.cqiF, DeckFrame.orig, hr, hw, Bool.or_false, Bool.false_eq_true, ↓reduceIte, stageUnits,
+    withExtra, List.countP_append, hc, List.countP_nil]
+  omega
+
+end EndPass
 
 end Fw.Parts.PeopleDeck

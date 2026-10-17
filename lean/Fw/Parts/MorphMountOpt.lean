@@ -3,6 +3,7 @@ import Fw.Engine.Chromium
 import Fw.Engine.WebKit
 import Fw.Engine.Visual
 import Fw.Parts.MorphMount
+import Fw.Parts.EndFlags
 /-!
 # morph.mount, variant `shift`: warm the panel up at a still moment (MM-S)
 
@@ -1048,5 +1049,63 @@ def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
 #guard (crTypes.map fun t => predict t.exact (series crV t) (series crO t)) ==
   ["any", "any", "=o", "=o", "=o", "any", "=o", "any"]
 #guard (wkTypes.map fun t => predict t.exact (series wkV t) (series wkO t)) == ["=o", "=o", "=o", "any"]
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+The shift verdict (`mount_shift`, `shift_screen_mixed`) is stated on units and hit tests, which `frameWorkE` counts
+exactly as `frameWork` does (`armE_units`, `armE_hits`). The mount and swipe frames only write (no forced pass), so
+every touched stage ends dirty and the per-frame work is unchanged as well (`armE_eq_arm`). Verdict unchanged: a
+shift, `mixed` on the screen, in both engines. -/
+
+section EndPass
+
+open Fw.Parts.EndFlags
+
+/-- The arm's per-frame work under `frameWorkE`, with end flags $e_i$ for frame $i$.
+
+$$\operatorname{arm}^{e}_E(F, M, a, n) = \Big[\operatorname{frameWork}^{e_i}_E\big(\textstyle\begin{cases} F_i \oplus M & i = a \\ F_i & i \ne a \end{cases}\big)\Big]_{i < n}$$
+
+The mount arm with the frame-end pass counted. -/
+def armE {P M : Type} (E : Engine P M) (fs : Nat → FrameIn P) (mnt : FrameIn P) (a n : Nat)
+    (e : Nat → Stage → Bool) : List Work :=
+  (List.range n).map fun i => frameWorkE E (if i = a then merge (fs i) mnt else fs i) (e i)
+
+/-- **Units do not see the end flags.**
+
+$$\forall E, F, M, a, n, e, s:\ \big[w.\mathrm{units}(s)\big]_{w \in \operatorname{arm}^{e}_E(F, M, a, n)} = \big[w.\mathrm{units}(s)\big]_{w \in \operatorname{arm}_E(F, M, a, n)}$$
+
+The shift's unit argument holds for every flag assignment. -/
+theorem armE_units {P M : Type} (E : Engine P M) (fs : Nat → FrameIn P) (mnt : FrameIn P) (a n : Nat)
+    (e : Nat → Stage → Bool) (s : Stage) :
+    (armE E fs mnt a n e).map (fun w => w.units s) = (arm E fs mnt a n).map (fun w => w.units s) := by
+  simp only [armE, arm, List.map_map]
+  rfl
+
+/-- **Hit tests do not see the end flags.**
+
+$$\forall E, F, M, a, n, e:\ \big[w.\mathrm{hits}\big]_{w \in \operatorname{arm}^{e}_E(F, M, a, n)} = \big[w.\mathrm{hits}\big]_{w \in \operatorname{arm}_E(F, M, a, n)}$$
+
+Neither does the hit-test count. -/
+theorem armE_hits {P M : Type} (E : Engine P M) (fs : Nat → FrameIn P) (mnt : FrameIn P) (a n : Nat)
+    (e : Nat → Stage → Bool) :
+    (armE E fs mnt a n e).map (fun w => w.hits) = (arm E fs mnt a n).map (fun w => w.hits) := by
+  simp only [armE, arm, List.map_map]
+  rfl
+
+/-- **Read-free frames: the arm is unchanged.** If every frame's touched stages end dirty, `armE` is `arm`.
+
+$$\forall E, F, M, a, n, e:\ \Big(\forall i < n,\ \forall s \in \operatorname{touched}_E(G_i):\ e_i(s) = \top\Big) \Rightarrow \operatorname{arm}^{e}_E(F, M, a, n) = \operatorname{arm}_E(F, M, a, n),\quad G_i = \begin{cases} F_i \oplus M & i = a \\ F_i & i \ne a \end{cases}$$
+
+Frames that only write pay every touched stage at frame end, as `frameWork` assumed. -/
+theorem armE_eq_arm {P M : Type} (E : Engine P M) (fs : Nat → FrameIn P) (mnt : FrameIn P) (a n : Nat)
+    (e : Nat → Stage → Bool)
+    (h : ∀ i, i < n → ∀ s, s ∈ touched E (if i = a then merge (fs i) mnt else fs i) → e i s = true) :
+    armE E fs mnt a n e = arm E fs mnt a n := by
+  unfold armE arm
+  apply List.map_congr_left
+  intro i hi
+  exact frameWorkE_eq_of_dirty E _ (e i) (h i (List.mem_range.mp hi))
+
+end EndPass
 
 end Fw.Parts.MorphMountOpt

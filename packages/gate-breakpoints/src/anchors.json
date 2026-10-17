@@ -811,6 +811,31 @@
           "why": "max-content track of two identical sets; width follows the card set"
         }
       ]
+    },
+    "engine.scene": {
+      "anchors": [],
+      "cites": [
+        "rewrite: EngineScene (apps/site/src/parts/engine.scene) pauses the platform section's CSS animations while it paints nothing (data-fw-hidden); the original runs a scene scheduler, 2.DyWL8TcE.js (see lean/Fw/Parts/HiddenPause.lean)",
+        "original: .start-selling-platform, the section the scene scheduler watches"
+      ],
+      "excluded": [
+        {
+          "what": "animation-play-state and every other animation longhand, transform of the running scenes",
+          "why": "animation-* is skipped for every part by the style skipPrefixes and the phase of a running animation is not pinned at load; the pause itself (what the variant changes) is not a number the gate reads. The variant is judged here only as: it removes nothing the other parts compare (their rows run under the same flags) and the observed section still exists once"
+        }
+      ],
+      "roles": [
+        {
+          "role": "scene",
+          "orig": ".start-selling-platform",
+          "rewrite": "[data-fw=\"platform\"]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the observed scene section exists once in both arms at every breakpoint (count); no width gate: the pause follows visibility, not a media edge"
+        }
+      ]
     }
   }
 }

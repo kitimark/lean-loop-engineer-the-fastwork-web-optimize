@@ -249,4 +249,39 @@ def view (s : St) (side : Side) (now : Rat) : Rat × Rat :=
   | some a => sample side (now - a)
   | none => rest side
 
+/-! ## The glint is a translation (ledger n=24)
+
+Both end points move by the same amount at every key time, so their distance is always 120. A linear gradient is a
+function of $(x - x_1)/(x_2 - x_1)$, hence every animated gradient is the rest gradient of the left dash shifted by
+$x_1 + 200$. That is why a transform on a fixed gradient can replace the attribute animation without changing a
+pixel (exact arithmetic; pixel snapping is not modelled). -/
+
+/-- The colour of a linear gradient with end points $x_1, x_2$ at position $x$, for a colour ramp $c$.
+
+$$\operatorname{grad}(c, x_1, x_2, x) = c\Big(\frac{x - x_1}{x_2 - x_1}\Big)$$
+
+How an SVG linear gradient maps a point to a ramp position. -/
+def gradAt {α : Type} (c : Rat → α) (x1 x2 x : Rat) : α := c ((x - x1) / (x2 - x1))
+
+#guard gradAt id (-200) (-80) (-140) == 1 / 2
+
+/-- **glint_translate.** At every cycle fraction the end points are 120 apart, and the gradient is the left dash's
+rest gradient shifted by $x_1 + 200$.
+
+$$\forall s,\ \forall u \in \mathbb{Q}:\ x_2(s, u) - x_1(s, u) = 120 \land \forall \text{types } \alpha,\ \forall c : \mathbb{Q} \to \alpha,\ \forall x \in \mathbb{Q}:\ \operatorname{grad}\big(c, x_1(s, u), x_2(s, u), x\big) = \operatorname{grad}\big(c, -200, -80, x - (x_1(s, u) + 200)\big)$$
+
+The attribute animation only slides one fixed gradient. -/
+theorem glint_translate (s : Side) (u : Rat) :
+    x2At s u - x1At s u = 120 ∧
+      ∀ {α : Type} (c : Rat → α) (x : Rat), gradAt c (x1At s u) (x2At s u) x =
+        gradAt c (rest .left).1 (rest .left).2 (x - (x1At s u + 200)) := by
+  have h : x2At s u - x1At s u = 120 := by
+    cases s <;> simp only [x1At, x2At, interp, lerp] <;> (repeat' split) <;> grind
+  refine ⟨h, fun c x => ?_⟩
+  simp only [gradAt, rest]
+  have h2 : x2At s u = x1At s u + 120 := by grind
+  rw [h2]
+  congr 1
+  grind
+
 end Fw.Parts.PlatformGlint
