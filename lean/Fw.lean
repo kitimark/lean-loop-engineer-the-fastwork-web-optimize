@@ -24,6 +24,7 @@ import Fw.Parts.MorphTween
 import Fw.Parts.MorphTweenOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes
+import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.Wire

@@ -341,7 +341,28 @@ def cases : List (String × List (String × Json)) := [
           ("only.r", cls "deterministic" 0 0)])]),
     ("both arms empty", Json.mkObj [("a", Json.mkObj []), ("r", Json.mkObj [])]),
     ("an unknown class name is refused",
-      Json.mkObj [("a", Json.mkObj [("x", cls "shifting" 0 0)]), ("r", Json.mkObj [])])])]
+      Json.mkObj [("a", Json.mkObj [("x", cls "shifting" 0 0)]), ("r", Json.mkObj [])])]),
+  ("measure.quietSteps", [
+    ("limit 30: the slow step 1 of pass 0 is left out; a differing count on step 1 no longer counts; one differing count on kept step 2 is stable",
+      Json.mkObj [("limit", toJson (30 : Nat)), ("minKept", toJson (2 : Nat)),
+        ("tol", Json.mkObj [("absTol", toJson (1 : Nat)), ("relTol", toJson (0 : Nat))]),
+        ("durs", lit "[[5,90,7],[9,3,11]]"),
+        ("series", lit "[{\"type\":\"a\",\"runs\":[[1,2,3],[1,9,4]]},{\"type\":\"b\",\"runs\":[[1,2,3],[1,9,3]]},{\"type\":\"c\",\"runs\":[[1,2,3],[1,2,6]]}]")]),
+    ("limit 100: every step is kept, the class is the plain cell class",
+      Json.mkObj [("limit", toJson (100 : Nat)), ("minKept", toJson (1 : Nat)),
+        ("tol", Json.mkObj [("absTol", toJson (1 : Nat)), ("relTol", toJson (0 : Nat))]),
+        ("durs", lit "[[5,90,7],[9,3,11]]"),
+        ("series", lit "[{\"type\":\"b\",\"runs\":[[1,2,3],[1,9,3]]}]")]),
+    ("fewer than minKept quiet steps: not enough, no classes",
+      Json.mkObj [("limit", toJson (10 : Nat)), ("minKept", toJson (3 : Nat)),
+        ("tol", Json.mkObj [("absTol", toJson (1 : Nat)), ("relTol", toJson (0 : Nat))]),
+        ("durs", lit "[[5,90,7],[9,3,11]]"),
+        ("series", lit "[{\"type\":\"b\",\"runs\":[[1,2,3],[1,9,3]]}]")]),
+    ("no series: only the kept steps; passes of different length use the shortest",
+      Json.mkObj [("limit", toJson (10 : Nat)), ("minKept", toJson (1 : Nat)),
+        ("durs", lit "[[5,6,7,8],[9,3]]")]),
+    ("a non-natural duration is refused",
+      Json.mkObj [("limit", toJson (10 : Nat)), ("minKept", toJson (1 : Nat)), ("durs", lit "[[5,-1]]")])])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json

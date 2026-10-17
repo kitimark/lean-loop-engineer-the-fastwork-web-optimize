@@ -1,0 +1,1553 @@
+{
+ "schema": "fw.webkit.classes/1",
+ "sessions": 3,
+ "passesPerSession": [
+  2,
+  2,
+  2
+ ],
+ "byLevel": {
+  "total": {
+   "RecalculateStyles": {
+    "class": "stable",
+    "sessions": [
+     "stable",
+     "stable",
+     "stable"
+    ],
+    "maxSpread": 12,
+    "maxRelSpread": 0.0167
+   },
+   "Layout": {
+    "class": "quarantined",
+    "sessions": [
+     "stable",
+     "stable",
+     "quarantined"
+    ],
+    "maxSpread": 40,
+    "maxRelSpread": 0.0587
+   },
+   "Paint": {
+    "class": "quarantined",
+    "sessions": [
+     "stable",
+     "stable",
+     "quarantined"
+    ],
+    "maxSpread": 105,
+    "maxRelSpread": 0.073
+   },
+   "Composite": {
+    "class": "stable",
+    "sessions": [
+     "deterministic",
+     "stable",
+     "deterministic"
+    ],
+    "maxSpread": 2,
+    "maxRelSpread": 0.0094
+   },
+   "RenderingFrame": {
+    "class": "deterministic",
+    "sessions": [
+     "deterministic",
+     "deterministic",
+     "deterministic"
+    ],
+    "maxSpread": 0,
+    "maxRelSpread": 0
+   },
+   "FireAnimationFrame": {
+    "class": "stable",
+    "sessions": [
+     "stable",
+     "stable",
+     "stable"
+    ],
+    "maxSpread": 16,
+    "maxRelSpread": 0.0218
+   },
+   "TimerFire": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 86,
+    "maxRelSpread": 0.3127
+   },
+   "ObserverCallback": {
+    "class": "quarantined",
+    "sessions": [
+     "stable",
+     "stable",
+     "quarantined"
+    ],
+    "maxSpread": 15,
+    "maxRelSpread": 0.1181
+   },
+   "EventDispatch": {
+    "class": "stable",
+    "sessions": [
+     "deterministic",
+     "stable",
+     "deterministic"
+    ],
+    "maxSpread": 1,
+    "maxRelSpread": 0.0093
+   },
+   "FunctionCall": {
+    "class": "quarantined",
+    "sessions": [
+     "stable",
+     "quarantined",
+     "stable"
+    ],
+    "maxSpread": 104,
+    "maxRelSpread": 0.0865
+   },
+   "ScheduleStyleRecalculation": {
+    "class": "stable",
+    "sessions": [
+     "stable",
+     "stable",
+     "stable"
+    ],
+    "maxSpread": 14,
+    "maxRelSpread": 0.0213
+   },
+   "InvalidateLayout": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "stable",
+     "quarantined"
+    ],
+    "maxSpread": 33,
+    "maxRelSpread": 0.0559
+   },
+   "paintArea": {
+    "class": "quarantined",
+    "sessions": [
+     "stable",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 5346105,
+    "maxRelSpread": 0.0636
+   }
+  },
+  "zone": {
+   "RecalculateStyles": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 16,
+    "maxRelSpread": 0.186
+   },
+   "Layout": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 19,
+    "maxRelSpread": 0.3529
+   },
+   "Paint": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 46,
+    "maxRelSpread": 0.2479
+   },
+   "Composite": {
+    "class": "stable",
+    "sessions": [
+     "deterministic",
+     "stable",
+     "deterministic"
+    ],
+    "maxSpread": 2,
+    "maxRelSpread": 0.1429
+   },
+   "RenderingFrame": {
+    "class": "deterministic",
+    "sessions": [
+     "deterministic",
+     "deterministic",
+     "deterministic"
+    ],
+    "maxSpread": 0,
+    "maxRelSpread": 0
+   },
+   "FireAnimationFrame": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 18,
+    "maxRelSpread": 0.2278
+   },
+   "TimerFire": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 34,
+    "maxRelSpread": 1
+   },
+   "ObserverCallback": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 5,
+    "maxRelSpread": 0.3333
+   },
+   "EventDispatch": {
+    "class": "stable",
+    "sessions": [
+     "deterministic",
+     "stable",
+     "deterministic"
+    ],
+    "maxSpread": 1,
+    "maxRelSpread": 0.1429
+   },
+   "FunctionCall": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 38,
+    "maxRelSpread": 0.2774
+   },
+   "ScheduleStyleRecalculation": {
+    "class": "quarantined",
+    "sessions": [
+     "stable",
+     "quarantined",
+     "stable"
+    ],
+    "maxSpread": 6,
+    "maxRelSpread": 0.1333
+   },
+   "InvalidateLayout": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 25,
+    "maxRelSpread": 0.4054
+   },
+   "paintArea": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 3614522,
+    "maxRelSpread": 0.2225
+   }
+  },
+  "step": {
+   "RecalculateStyles": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 3,
+    "maxRelSpread": 0.5
+   },
+   "Layout": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 6,
+    "maxRelSpread": 0.7143
+   },
+   "Paint": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 27,
+    "maxRelSpread": 0.7778
+   },
+   "Composite": {
+    "class": "quarantined",
+    "sessions": [
+     "deterministic",
+     "quarantined",
+     "deterministic"
+    ],
+    "maxSpread": 0,
+    "maxRelSpread": 0
+   },
+   "RenderingFrame": {
+    "class": "quarantined",
+    "sessions": [
+     "deterministic",
+     "quarantined",
+     "deterministic"
+    ],
+    "maxSpread": 0,
+    "maxRelSpread": 0
+   },
+   "FireAnimationFrame": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 2,
+    "maxRelSpread": 0.25
+   },
+   "TimerFire": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 12,
+    "maxRelSpread": 1
+   },
+   "ObserverCallback": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 4,
+    "maxRelSpread": 1
+   },
+   "EventDispatch": {
+    "class": "quarantined",
+    "sessions": [
+     "deterministic",
+     "quarantined",
+     "deterministic"
+    ],
+    "maxSpread": 0,
+    "maxRelSpread": 0
+   },
+   "FunctionCall": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 11,
+    "maxRelSpread": 0.5714
+   },
+   "ScheduleStyleRecalculation": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 3,
+    "maxRelSpread": 0.6
+   },
+   "InvalidateLayout": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 8,
+    "maxRelSpread": 0.8571
+   },
+   "paintArea": {
+    "class": "quarantined",
+    "sessions": [
+     "quarantined",
+     "quarantined",
+     "quarantined"
+    ],
+    "maxSpread": 1743661,
+    "maxRelSpread": 0.9112
+   }
+  }
+ },
+ "rows": [
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=0",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=0",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=1500",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=1500",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=3000",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=3000",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=4500",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=4500",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=5267",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=5267",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason (gone)",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason animation",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason backfaceVisibilityHidden",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason clipsCompositingDescendants",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason filterWithCompositedDescendants",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "stable",
+    "quarantined",
+    "stable"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason filters",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason maskWithCompositedDescendants",
+   "level": "per state",
+   "class": "stable",
+   "sessions": [
+    "deterministic",
+    "stable",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason opacityWithCompositedDescendants",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason overflowScrollingTouch",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason overlap",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason perspective",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason positionFixed",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason positionSticky",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason root",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason stacking",
+   "level": "per state",
+   "class": "stable",
+   "sessions": [
+    "stable",
+    "stable",
+    "stable"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason transform3D",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason transformWithCompositedDescendants",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason willChange",
+   "level": "per state",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "paintCount (sum, cumulative)",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "paintCount delta in a 2000 ms window",
+   "level": "per state",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "census",
+   "metric": "layer set (name, bounds, bytes, reasons)",
+   "level": "per state, symmetric difference vs run 1",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "RecalculateStyles",
+   "level": "total",
+   "class": "stable",
+   "sessions": [
+    "stable",
+    "stable",
+    "stable"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "Layout",
+   "level": "total",
+   "class": "quarantined",
+   "sessions": [
+    "stable",
+    "stable",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "Paint",
+   "level": "total",
+   "class": "quarantined",
+   "sessions": [
+    "stable",
+    "stable",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "Composite",
+   "level": "total",
+   "class": "stable",
+   "sessions": [
+    "deterministic",
+    "stable",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "RenderingFrame",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "FireAnimationFrame",
+   "level": "total",
+   "class": "stable",
+   "sessions": [
+    "stable",
+    "stable",
+    "stable"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "TimerFire",
+   "level": "total",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "ObserverCallback",
+   "level": "total",
+   "class": "quarantined",
+   "sessions": [
+    "stable",
+    "stable",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "EventDispatch",
+   "level": "total",
+   "class": "stable",
+   "sessions": [
+    "deterministic",
+    "stable",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "FunctionCall",
+   "level": "total",
+   "class": "quarantined",
+   "sessions": [
+    "stable",
+    "quarantined",
+    "stable"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "ScheduleStyleRecalculation",
+   "level": "total",
+   "class": "stable",
+   "sessions": [
+    "stable",
+    "stable",
+    "stable"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "InvalidateLayout",
+   "level": "total",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "stable",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "paintArea",
+   "level": "total",
+   "class": "quarantined",
+   "sessions": [
+    "stable",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "RecalculateStyles",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "Layout",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "Paint",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "Composite",
+   "level": "per 500 px zone",
+   "class": "stable",
+   "sessions": [
+    "deterministic",
+    "stable",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "RenderingFrame",
+   "level": "per 500 px zone",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "FireAnimationFrame",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "TimerFire",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "ObserverCallback",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "EventDispatch",
+   "level": "per 500 px zone",
+   "class": "stable",
+   "sessions": [
+    "deterministic",
+    "stable",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "FunctionCall",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "ScheduleStyleRecalculation",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "stable",
+    "quarantined",
+    "stable"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "InvalidateLayout",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "paintArea",
+   "level": "per 500 px zone",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "RecalculateStyles",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "Layout",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "Paint",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "Composite",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "deterministic",
+    "quarantined",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "RenderingFrame",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "deterministic",
+    "quarantined",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "FireAnimationFrame",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "TimerFire",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "ObserverCallback",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "EventDispatch",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "deterministic",
+    "quarantined",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "FunctionCall",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "ScheduleStyleRecalculation",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "InvalidateLayout",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "scroll",
+   "metric": "paintArea",
+   "level": "per step",
+   "class": "quarantined",
+   "sessions": [
+    "quarantined",
+    "quarantined",
+    "quarantined"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=0 free RecalculateStyles",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=0 free Layout",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=0 free Paint",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=0 free Composite",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=0 seeked RecalculateStyles",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=0 seeked Layout",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=0 seeked Paint",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=0 seeked Composite",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=10 free RecalculateStyles",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=10 free Layout",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=10 free Paint",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=10 free Composite",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=10 seeked RecalculateStyles",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=10 seeked Layout",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=10 seeked Paint",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=10 seeked Composite",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=50 free RecalculateStyles",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=50 free Layout",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=50 free Paint",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=50 free Composite",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=50 seeked RecalculateStyles",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=50 seeked Layout",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=50 seeked Paint",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=50 seeked Composite",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=100 free RecalculateStyles",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=100 free Layout",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=100 free Paint",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=100 free Composite",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=100 seeked RecalculateStyles",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=100 seeked Layout",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=100 seeked Paint",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  },
+  {
+   "family": "seek",
+   "metric": "n=100 seeked Composite",
+   "level": "total",
+   "class": "deterministic",
+   "sessions": [
+    "deterministic",
+    "deterministic",
+    "deterministic"
+   ]
+  }
+ ]
+}
