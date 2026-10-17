@@ -19,6 +19,7 @@ import { probe } from './rfprobe.mjs';
 import { screenAndTicks } from './handoff.mjs';
 import { warmUpLoad, perStepPasses, classifyModes, perStepTable } from './perstep.mjs';
 import { quietPasses } from './quiet.mjs';
+import { byArm, armsTable, devCorrelation } from './quietreport.mjs';
 import { onePassRetrying, classifyPasses, reasonNames, markdownTable, resolveStates } from './determinism.mjs';
 import { COUNT_TYPES, zones, summarize } from './reduce.mjs';
 
@@ -129,6 +130,15 @@ async function main() {
       const arms = v.arms.split(',').map(num);
       const passes = await withSession((ctx) => quietPasses(ctx, { arms, reps: num(v.reps), clock: v.clock, settleMs: num(v.settle), step: num(v.step), framesPerStep: num(v.frames), log, warmup: num(v.warmup), mode: v.mode }), sessionOpts);
       save('quiet', { schema: 'fw.webkit.quiet/1', arms, reps: num(v.reps), clock: v.clock, mode: v.mode, passes });
+      break;
+    }
+    case 'quiet-report': {
+      // quiet-report <quiet.json>...: Markdown dose-response tables (jitter between passes of the same arm and file)
+      const files = positionals.map((f) => JSON.parse(readFileSync(resolve(f), 'utf8')));
+      console.log(armsTable(byArm(files)));
+      const c = devCorrelation(files), l = devCorrelation(files, 'lag');
+      console.log('\n| count type | corr(count dev, log step dur dev) | corr(count dev, log1p lag dev) |\n|---|---|---|');
+      for (const t of COUNT_TYPES) console.log(`| ${t} | ${c[t]} | ${l[t]} |`);
       break;
     }
     case 'perstep': {

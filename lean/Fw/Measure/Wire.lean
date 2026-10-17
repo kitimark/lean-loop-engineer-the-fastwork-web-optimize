@@ -6,6 +6,7 @@ import Fw.Measure.Freeze
 import Fw.Measure.Neutral
 import Fw.Measure.Arms
 import Fw.Measure.ZoneBaseline
+import Fw.Measure.Quiet
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
 
@@ -18,6 +19,7 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 |---|---|---|
 | `measure.zoneSums` | `zoneHeightPx` (≥ 1), `frames` [{n, phase, scrollY, counts}] | `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, sums}] |
 | `measure.classify` (`mode` `frames`) | `kMax`, `tMax`, `runs` (≥ 2; each an array of frames or an object with `frames`), optional `pxRel` {num, den ≥ 1} (default 1/1000) | `classes` {type: {class, k, t}} (+ `unit` `px` and `tBound` for `*AreaPx` types), `runs` |
+| `measure.quietSteps` | `limit`, `minKept` (naturals), `durs` (per-pass step durations in whole ms), optional `tol`, `series` [{type, runs}] | `kept`, `keptCount`, `total`, `enough` (+ `classes` {type: cls} over the kept steps) |
 | `measure.classify` (`mode` `cells`) | `tol` {absTol, relTol}, `runs` (≥ 2 integer arrays) | `cls`, `cells`, `differingCells`, `cellsBeyondTolerance`, `maxSpread`, `maxRelSpread`, `k`, `t` (+ `reason`) |
 | `measure.noMoreWork` | `types` [{class: {class, k, t}, base, var}] | `noMoreWork`, `failing` (indices) |
 | `measure.webkit.tally` | `rows` (raw `fw.webkit.records/1` rows) | `counts`, `paintArea`, `other` |
@@ -586,12 +588,38 @@ def opZoneBaseline (req : Json) : Except String Reply := do
         ("tally", Json.mkObj [("deterministic", cnt "deterministic"), ("stable", cnt "stable"),
           ("quarantined", cnt "quarantined"), ("unlisted", cnt "unlisted")])]
 
+/-- `measure.quietSteps`: `{limit, minKept, tol, durs, series?}`. `durs` is the step duration in whole ms of every
+pass (arrays of naturals); `series` is optional, `[{type, runs}]` with the per-step counts of each pass. Reply:
+`kept` (step indices, ascending), `keptCount`, `total`, `enough` (`keptCount ≥ minKept`) and, when `enough`
+and `series` is given, `classes` `{type: cls}` over the kept steps (rule: `Fw.Measure.Quiet`). -/
+def opQuietSteps (req : Json) : Except String Reply := do
+  let limit ← nat req "limit"
+  let minKept ← nat req "minKept"
+  let durs ← (← arr req "durs").toList.mapM fun r => do (← asArr "durs" r).toList.mapM fun x => do
+    match x.getNat? with
+    | .ok n => pure n
+    | .error _ => throw "field durs: expected naturals"
+  let kept := Fw.Measure.Quiet.quietSteps limit durs
+  let enough := decide (minKept ≤ kept.length)
+  let base : Reply := [("kept", toJson kept), ("keptCount", toJson kept.length),
+    ("total", toJson (Fw.Measure.Quiet.stepCount durs)), ("enough", .bool enough)]
+  match opt req "series" with
+  | none => pure base
+  | some sj =>
+    if !enough then pure base else
+    let tj ← field req "tol"
+    let tol : Tol := ⟨← asRat "tol.absTol" (← field tj "absTol"), ← asRat "tol.relTol" (← field tj "relTol")⟩
+    let rows ← (← asArr "series" sj).toList.mapM fun e => do
+      let runs ← (← arr e "runs").toList.mapM fun r => do (← asArr "runs" r).toList.mapM (asInt "runs")
+      pure (← str e "type", statusName (Fw.Measure.Quiet.classifyQuiet tol limit durs runs))
+    pure (base ++ [("classes", objOf (rows.map fun (t, c) => (t, Json.str c)))])
+
 /-- The `measure.*` ops. -/
 def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
    "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.symDiff", "measure.summarize",
    "measure.selfCheck", "measure.snapshotCounts", "measure.freeze", "measure.splits", "measure.n0Windows",
-   "measure.spkq", "measure.arms", "measure.zoneBaseline"]
+   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -612,6 +640,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.spkq" => some (opSpkq req)
   | "measure.arms" => some (opArms req)
   | "measure.zoneBaseline" => some (opZoneBaseline req)
+  | "measure.quietSteps" => some (opQuietSteps req)
   | _ => none
 
 end Fw.Wire.Measure

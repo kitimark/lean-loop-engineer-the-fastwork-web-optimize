@@ -22,6 +22,7 @@ import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroExit
 import Fw.Measure.Zones
 import Fw.Measure.Classes
+import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.Wire

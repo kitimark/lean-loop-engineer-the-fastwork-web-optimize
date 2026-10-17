@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { quietReply } from '../src/quietsteps.mjs';
 import { tally, reduceSteps, zones, classify, symDiff, summarize } from '../src/reduce.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -32,6 +33,7 @@ const TS = {
   'measure.webkit.zones': (q) => ({ zones: q.zonePx === undefined ? zones(q.ys, q.perStep, q.perStepPaintArea) : zones(q.ys, q.perStep, q.perStepPaintArea, q.zonePx) }),
   'measure.symDiff': (q) => ({ symDiff: symDiff(q.a, q.b) }),
   'measure.summarize': (q) => ({ summary: summarize(q.rows.map((r) => ({ ...r }))).map(({ family, metric, levels, worst }) => ({ family, metric, levels, worst })) }),
+  'measure.quietSteps': (q) => quietReply(q),
   'measure.classify': (q) => (q.mode === 'cells' ? classify(q.runs, q.tol) : undefined),
 };
 
