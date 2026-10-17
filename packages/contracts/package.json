@@ -9,7 +9,7 @@
   },
   "scripts": {
     "gen": "node scripts/gen-json-schema.ts",
-    "test": "vitest run",
+    "test": "tsc --noEmit && vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

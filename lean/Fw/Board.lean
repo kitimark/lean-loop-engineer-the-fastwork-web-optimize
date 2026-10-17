@@ -93,10 +93,10 @@ deriving Repr, DecidableEq
 you; it is stale only when it has not landed, no run on it is running, no step on it is open and
 no event came for `staleMs`.
 
-$$\operatorname{row}(\sigma, \mathit{now}, c) = \big(c.\mathit{id}, c.\mathit{owner}, \operatorname{stage}(c), \operatorname{next}(c, \operatorname{stage}(c)), c.\mathit{lastAt}, \operatorname{needs}(m)_\bot, \rho, c.\mathit{head}, c.\mathit{landed}, c.\mathit{violation}, \neg c.\mathit{landed} \land \rho = 0 \land m = \bot \land \mathrm{STALE} \le \mathit{now} \mathbin{\dot-} c.\mathit{lastAt}\big)$$
+$$\operatorname{row}(\sigma, \mathit{now}, c) = \big(c.\mathit{id}, c.\mathit{owner}, \operatorname{stage}(c), \operatorname{next}(c, \operatorname{stage}(c)), c.\mathit{lastAt}, \operatorname{map}(\operatorname{needs}, m), \rho, c.\mathit{head}, c.\mathit{landed}, c.\mathit{violation}, \neg c.\mathit{landed} \land \rho = 0 \land m = \bot \land \mathrm{STALE} \le \mathit{now} \mathbin{\dot{-}} c.\mathit{lastAt}\big)$$
 
 where $m$ is the first step $s$ with $\operatorname{isOpen}(s.\mathit{status}) \land s.\mathit{card} = c.\mathit{id}$ (or $\bot$), and
-$\rho = \#\{\, r \in \mathit{runs} : r.\mathit{card} = c.\mathit{id} \land r.\mathit{status} = \mathrm{running} \,\}$.
+$\rho = |[\, r \in \sigma.\mathit{runs} \mid r.\mathit{card} = c.\mathit{id} \land r.\mathit{status} = \mathrm{running} \,]|$ (a list count), and $\mathrm{STALE} = \mathrm{staleMs}$.
 -/
 def boardCard (s : State) (now : Nat) (c : Card) : BoardCard :=
   let st := stage c
@@ -110,7 +110,7 @@ def boardCard (s : State) (now : Nat) (c : Card) : BoardCard :=
 /-- The board: the sequence number and server clock it was computed at, one row per card (in
 card order), all steps, and the needs-you list (every open step, in step order).
 
-$$\operatorname{board}(\sigma, \mathit{now}, \mathit{seq}) = \big(\mathit{seq},\ \mathit{now},\ [\operatorname{row}(\sigma, \mathit{now}, c) : c \in \mathit{cards}],\ \mathit{steps},\ [\operatorname{needs}(s) : s \in \mathit{steps},\ \operatorname{isOpen}(s.\mathit{status})]\big)$$
+$$\operatorname{board}(\sigma, \mathit{now}, \mathit{seq}) = \big(\mathit{seq},\ \mathit{now},\ [\operatorname{row}(\sigma, \mathit{now}, c) : c \in \sigma.\mathit{cards}],\ \sigma.\mathit{steps},\ [\operatorname{needs}(s) : s \in \sigma.\mathit{steps},\ \operatorname{isOpen}(s.\mathit{status})]\big)$$
 -/
 structure Board where
   seq      : Nat
@@ -121,7 +121,7 @@ structure Board where
 
 /-- Compute the board (see `Board`).
 
-$$\operatorname{board}(\sigma, \mathit{now}, \mathit{seq}) = \big(\mathit{seq},\ \mathit{now},\ [\operatorname{row}(\sigma, \mathit{now}, c) : c \in \mathit{cards}],\ \mathit{steps},\ [\operatorname{needs}(s) : s \in \mathit{steps},\ \operatorname{isOpen}(s.\mathit{status})]\big)$$
+$$\operatorname{board}(\sigma, \mathit{now}, \mathit{seq}) = \big(\mathit{seq},\ \mathit{now},\ [\operatorname{row}(\sigma, \mathit{now}, c) : c \in \sigma.\mathit{cards}],\ \sigma.\mathit{steps},\ [\operatorname{needs}(s) : s \in \sigma.\mathit{steps},\ \operatorname{isOpen}(s.\mathit{status})]\big)$$
 -/
 def board (s : State) (now seq : Nat) : Board :=
   { seq, now, cards := s.cards.map (boardCard s now), steps := s.steps,
@@ -168,7 +168,7 @@ theorem row_land_iff (s : State) (now : Nat) (c : Card) :
 
 /-- Every needs-you entry comes from an open step.
 
-$$\forall \sigma,\ \forall \mathit{now}, \mathit{seq} \in \mathbb{N},\ \forall n \in \operatorname{board}(\sigma, \mathit{now}, \mathit{seq}).\mathit{needsYou}:\ \exists s \in \mathit{steps}:\ \operatorname{isOpen}(s.\mathit{status}) \land n = \operatorname{needs}(s)$$
+$$\forall \sigma,\ \forall \mathit{now}, \mathit{seq} \in \mathbb{N},\ \forall n \in \operatorname{board}(\sigma, \mathit{now}, \mathit{seq}).\mathit{needsYou}:\ \exists s \in \sigma.\mathit{steps}:\ \operatorname{isOpen}(s.\mathit{status}) \land n = \operatorname{needs}(s)$$
 -/
 theorem needsYou_open (s : State) (now seq : Nat) (n : NeedsYou)
     (h : n ∈ (board s now seq).needsYou) :

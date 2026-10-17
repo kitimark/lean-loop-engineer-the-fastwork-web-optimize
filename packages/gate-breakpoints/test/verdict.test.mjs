@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { call, cellVerdicts, context, evaluate, styleEq, tallies } from '../src/verdict.mjs';
+import { call, cellVerdicts, context, evaluate, reach, styleEq, tallies } from '../src/verdict.mjs';
 
 const GOLDEN = join(resolve(dirname(fileURLToPath(import.meta.url)), '../../..'), 'packages/contracts/golden/gate');
 const lines = (f) => readFileSync(join(GOLDEN, f), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -35,9 +35,30 @@ test('tally: rollup and table cells', () => {
   assert.deepEqual(tallies([
     { verdicts: ['pass', 'not-comparable', 'pass'] }, { verdicts: ['pass', 'fail'] }, { verdicts: ['not-comparable'] }, { verdicts: [] }, { verdicts: [], block: true },
   ]), [
-    { verdict: 'pass', failing: 0, total: 2 }, { verdict: 'fail', failing: 1, total: 2 }, { verdict: 'not-comparable', failing: 0, total: 0 },
-    { verdict: 'not-comparable', failing: 0, total: 0 }, { verdict: 'not-run', failing: 0, total: 0 },
+    { verdict: 'pass', failing: 0, total: 2, unreachable: 0 }, { verdict: 'fail', failing: 1, total: 2, unreachable: 0 },
+    { verdict: 'not-comparable', failing: 0, total: 0, unreachable: 0 },
+    { verdict: 'not-comparable', failing: 0, total: 0, unreachable: 0 }, { verdict: 'not-run', failing: 0, total: 0, unreachable: 0 },
   ]);
+});
+
+test('tally: unreachable verdicts are neither pass nor fail', () => {
+  assert.deepEqual(tallies([
+    { verdicts: ['unreachable:whole-width', 'pass'] }, { verdicts: ['unreachable:primary-pair', 'fail'] },
+    { verdicts: ['unreachable:whole-width', 'unreachable:primary-pair'], block: true },
+  ]), [
+    { verdict: 'pass', failing: 0, total: 1, unreachable: 1 }, { verdict: 'fail', failing: 1, total: 1, unreachable: 1 },
+    { verdict: 'unreachable:primary-pair', failing: 0, total: 0, unreachable: 2 },
+  ]);
+});
+
+test('reach: WebKit cannot reach a fractional width or a cross hover/pointer pair; Chromium needs whole device px', () => {
+  const env = (width, dpr, hover, pointer) => ({ width, height: 900, deviceWidth: width, dpr, hover, pointer, reducedMotion: 'no-preference', colorScheme: 'light' });
+  const envs = [env(600.5, 2, 'hover', 'fine'), env(1200, 1, 'hover', 'coarse'), env(1200, 1, 'none', 'none'), env(600.5, 1.25, 'none', 'coarse')];
+  assert.deepEqual(reach('webkit-apple', envs), ['whole-width', 'primary-pair', 'primary-pair', 'whole-width']);
+  assert.deepEqual(reach('webkit-glib', envs), ['whole-width', 'primary-pair', null, 'whole-width']);
+  assert.deepEqual(reach('chromium', envs), [null, null, null, 'width-dpr']);
+  assert.deepEqual(reach('chromium', []), []);
+  assert.throws(() => reach('gecko', envs), /unknown port gecko/);
 });
 
 test('styleValueEq: exact, or numbers within 1/1000 (exact decimals, inclusive) with equal skeletons', () => {
@@ -55,9 +76,9 @@ const anchors = {
     { role: 'unit', boxRel: { role: 'frame', index: 0 }, dims: ['x', 'w'], skipSets: [], skipProps: ['top'], why: 'the units' }] } },
 };
 const props = { p: { frame: { restated: ['width', 'animation-name'], originOnly: [] }, unit: { restated: ['color', 'top'], originOnly: ['extra'] } } };
-const requested = { width: 600.5, height: 900, deviceWidth: 600.5, dpr: 1.25, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
+const requested = { width: 600.5, height: 900, deviceWidth: 600.5, dpr: 2, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
 const arm = ({ fx = 0, ux = [5, 20], color = 'red', extra = 'a', truth = { a: true, b: false }, observed = {}, viewport = {} } = {}) => ({
-  viewport: { innerHeight: 900, screenWidth: 601, dpr: 1.25, ...viewport },
+  viewport: { innerHeight: 900, screenWidth: 601, dpr: 2, ...viewport },
   observed: { widthExact: true, hoverHover: true, hoverNone: false, pointerFine: true, pointerCoarse: false, reducedMotion: false, dark: false, ...observed },
   truth, truthLegacy: { a: true, b: null }, neutral: { print: false },
   parts: { p: {
@@ -100,6 +121,20 @@ test('part items: boxes relative to the reference, skipped properties never fail
   // a role absent on one arm: count missing, shown with null
   const gone = arm(); delete gone.parts.p.unit;
   assert.deepEqual(one(arm(), gone).fails.p.map((x) => [x.cls, x.role, x.status, x.a, x.b]), [['count', 'unit', 'missing', 2, null]]);
+});
+
+test('state verdict: a part failure fails the state; an unreachable state on WebKit has no pass, fail or failing item', () => {
+  const col = one(arm(), arm({ color: 'blue' }));
+  assert.equal(col.rows['matchMedia =Lean'], 'pass');
+  assert.equal(col.reach, null);
+  assert.equal(col.verdict, 'fail');
+  const wk = evaluate(context({ anchors, parts: ['p'], props, deviceEdges: [[500, 501]], port: 'webkit-apple' }),
+    [{ requested, orig: arm(), rewrite: arm({ color: 'blue' }), expect: { a: true, b: false }, expectNeutral: { print: false } }]).states[0];
+  assert.equal(wk.reach, 'whole-width');
+  assert.equal(wk.verdict, 'unreachable:whole-width');
+  assert.deepEqual(Object.values(wk.rows), Array(4).fill('unreachable:whole-width'));
+  assert.deepEqual(wk.fails.p, []);
+  assert.ok(wk.truth.every((t) => !t.fails));
 });
 
 test('sweep hysteresis counts', () => {

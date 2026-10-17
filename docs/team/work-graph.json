@@ -1244,6 +1244,36 @@
     ".github/workflows/mutants.yml",
     "lean/scripts/mutants.sh"
    ]
+  },
+  {
+   "id": "freeze-lean",
+   "title": "Worst-class-over-runs freeze in Lean (Fw/Measure), table generated via fwcore; replaces chromium-ci scratch freeze script (Lean first)",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "class-freeze"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Measure/**",
+    "packages/measure-chromium/src/freeze.mjs",
+    "packages/measure-chromium/classes.frozen.json",
+    "packages/contracts/golden/measure/**"
+   ]
+  },
+  {
+   "id": "rewrite-ci-lane",
+   "title": "chromium-counts builds the rewrite site (apps/site) and measures it next to the original (host --target), so A vs R counts come from CI",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "class-freeze"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/chromium-counts.yml",
+    "packages/measure-chromium/src/host.mjs"
+   ]
   }
  ]
 }

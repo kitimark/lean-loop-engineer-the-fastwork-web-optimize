@@ -451,6 +451,48 @@ theorem accepted_nested_read_only (i : Input) (ρ : Role) (hr : roleOf i = some 
   · rfl
   · exact absurd ⟨hd, he⟩ hne
 
+/-- The kind the named role is meant to run as (`none` for a role not in the table); the spawn
+hook logs it next to the kind the call produces, $\kappa(i.\mathit{req})$, so a mismatch explains itself.
+
+$$\operatorname{wantKind}(i) = \begin{cases} \mathrm{some}(\rho.\mathit{runsAs}) & \mathrm{role}(i) = \mathrm{some}(\rho) \\ \bot & \mathrm{role}(i) = \bot \end{cases}$$
+-/
+def wantKind (i : Input) : Option Kind := (roleOf i).map (·.runsAs)
+
+/-- A `kindMismatch` denial carries the wanted kind of the role and the kind the call produces.
+
+$$\forall i, w, g:\quad \operatorname{check}(i) = \mathrm{some}(\mathrm{kindMismatch}(w, g)) \implies \operatorname{wantKind}(i) = \mathrm{some}(w) \land g = \kappa(i.\mathit{req}) \land w \ne g$$
+
+A mismatch reason always names the role's kind and the call's kind, and they differ.
+-/
+theorem kindMismatch_fields (i : Input) (w g : Kind) (h : check i = some (.kindMismatch w g)) :
+    wantKind i = some w ∧ g = effKind i.req ∧ w ≠ g := by
+  unfold check at h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  rename_i r hr
+  unfold roleCheck at h
+  split at h
+  · rename_i hne
+    simp only [Option.some.injEq, Reason.kindMismatch.injEq] at h
+    obtain ⟨rfl, rfl⟩ := h
+    exact ⟨by simp [wantKind, hr], rfl, fun he => hne he.symm⟩
+  split at h
+  · cases h
+  split at h
+  · cases h
+  unfold capFail at h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  cases ho : overRole i.caps.perRole (newAgent i.req :: i.alive) <;> simp [ho] at h
+
 /-! ## Examples -/
 
 /-- The roster rows the examples use.
@@ -483,6 +525,8 @@ def exInput (alive : List Agent) (recent : List (String × Nat)) (q : Req) : Inp
 #guard decide (exInput [⟨"a", "reviewer", .subagent, "lead"⟩] [] ⟨"a", "lean-prover", true, "", "lead", 0⟩) ==
   .deny .nameInUse
 #guard decide (exInput [] [] ⟨"x", "nobody", true, "", "lead", 0⟩) == .deny .unknownRole
+#guard wantKind (exInput [] [] ⟨"x", "nobody", true, "", "lead", 0⟩) == none
+#guard wantKind (exInput [] [] ⟨"x", "researcher", true, "", "lead", 0⟩) == some .teammate
 #guard decide (exInput [] [] ⟨"x", "lean-prover", true, "", "eng-webkit", 1⟩) == .deny .nestedEditor
 #guard decide (exInput [] [] ⟨"x", "reviewer", false, "", "eng-webkit", 1⟩) == .allow
 -- the 4th lean-prover hits the per-role cap

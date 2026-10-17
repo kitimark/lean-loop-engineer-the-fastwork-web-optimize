@@ -28,6 +28,10 @@ on:
         description: Determinism runs, each on its own VM (1 to 10)
         type: string
         default: '3'
+      image_run:
+        description: Optional run id of an earlier chromium-counts run; its chromium-image artifact is reused instead of building (class-freeze pins one image across workflow runs this way)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -91,13 +95,18 @@ jobs:
   image:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
+    # actions: read lets the reuse step download the artifact of an earlier run of this workflow.
+    permissions:
+      contents: read
+      actions: read
     outputs:
-      image-id: ${{ steps.build.outputs.image-id }}
+      image-id: ${{ steps.build.outputs.image-id || steps.reuse.outputs.image-id }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
       - id: build
+        if: ${{ inputs.image_run == '' }}
         run: |
           set -euo pipefail
           docker build -t "$IMAGE" packages/measure-chromium
@@ -106,18 +115,36 @@ jobs:
           echo "image id: $id"
           docker run --rm --entrypoint sh -v "$PWD/packages/measure-chromium/src:/driver:ro" "$IMAGE" /driver/image-check.sh
       - name: Save the image
+        if: ${{ inputs.image_run == '' }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/image"
           docker save "$IMAGE" | zstd -T0 -10 -q -o "$RUNNER_TEMP/image/image.tar.zst"
           ls -l "$RUNNER_TEMP/image"
+      # Reuse: the same image bytes as an earlier run, so several workflow runs share one image id.
+      - name: Reuse the image of an earlier run
+        if: ${{ inputs.image_run != '' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: chromium-image
+          path: ${{ runner.temp }}/image
+          run-id: ${{ inputs.image_run }}
+          github-token: ${{ github.token }}
+      - id: reuse
+        if: ${{ inputs.image_run != '' }}
+        run: |
+          set -euo pipefail
+          zstd -dc "$RUNNER_TEMP/image/image.tar.zst" | docker load
+          id=$(docker image inspect --format '{{.Id}}' "$IMAGE")
+          echo "image-id=$id" >> "$GITHUB_OUTPUT"
+          echo "reused image id: $id (from run ${{ inputs.image_run }})"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chromium-image
           path: ${{ runner.temp }}/image/image.tar.zst
           compression-level: 0
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 3
 
   counts:
     needs: [plan, fwcore, image]
@@ -222,6 +249,7 @@ jobs:
       - name: Classes and byte comparison
         env:
           FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
+          PROFILE: ${{ needs.plan.outputs.profile }}
         run: |
           set -euo pipefail
           chmod +x "$FW_CORE_BIN"
@@ -234,6 +262,10 @@ jobs:
           node "$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs" "${files[@]}" --kMax 4 --tMax 24 --json > "$out/classes.json"
           sha256sum chromium-counts-*/counts.json chromium-counts-*/zones.json | tee "$out/sha256-all.txt"
           cat chromium-counts-*/runner.json > "$out/runners.jsonl"
+          # The pinned inputs of the image (class-freeze records them next to the image id).
+          cat chromium-counts-*/image-id.txt | sort | uniq -c > "$out/image-ids.txt"
+          (cd "$GITHUB_WORKSPACE/packages/measure-chromium" && sha256sum Dockerfile docker/apt-manifest.txt docker/driver/package-lock.json) > "$out/image-inputs.txt"
+          echo "profile $PROFILE, workflow run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT, sha $GITHUB_SHA" > "$out/run.txt"
           {
             echo '### chromium-counts: classes over the runs'
             echo '```'

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
 import { selectCore } from "../src/core/index.ts";
-import { Drain, alertFor, summarize } from "../src/spool/drain.ts";
+import { Drain, summarize } from "../src/spool/drain.ts";
 import { Store } from "../src/store.ts";
 
 let stores: Store[] = [];
@@ -80,12 +80,55 @@ describe("spool drain", () => {
     expect(await d.run()).toMatchObject({ alerts: 1, accepted: 1, duplicates: 1 });
     expect(lines(join(dir, "events.jsonl"))).toHaveLength(1);
   });
-  it("only StopFailure and Notification make alerts", () => {
-    expect(alertFor(rec() as never, "k")).toBeNull();
-    expect(alertFor(rec({ hook_event_name: "Notification" }) as never, "k")?.type).toBe("step.post");
-    expect(alertFor(rec({ hook_event_name: "Notification", agent_id: null, agent_type: null }) as never, "k")).toBeNull();
+  it("an agent's permission prompt names agent, kind and tool; its next tool result cancels it", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "a1", rec({ hook_event_name: "Notification", tool_use_id: null, tool_name: "Bash", notification_type: "permission_prompt", message_len: 40, ts: 10 }));
+    const d = new Drain(store);
+    expect(await d.run()).toMatchObject({ accepted: 1, alerts: 1 });
+    let steps = (await store.board()).steps;
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({ id: "alert-a1-10", status: "waiting" });
+    expect(steps[0]!.title).toContain("builder");
+    expect(steps[0]!.title).toContain("permission to use Bash");
+    spool(dir, "a1", rec({ tool_use_id: "t5", ts: 20 }));
+    await d.run();
+    steps = (await store.board()).steps;
+    expect(steps[0]!.status).toBe("cancelled");
+    expect(lines(join(dir, "events.jsonl")).map((e) => [e.type, e.actor])).toEqual([["step.post", "script"], ["step.cancel", "script"]]);
+    // idempotent: a fresh drain over the same spool adds nothing
+    expect(await new Drain(store).run()).toMatchObject({ accepted: 0, alerts: 0 });
+    expect(lines(join(dir, "events.jsonl"))).toHaveLength(2);
   });
-  it("summarize ignores non-tool events", () => {
-    expect(summarize([{ ...rec(), hook_event_name: "SubagentStart", key: "k" } as never])).toEqual([]);
+  it("a second prompt of the same agent while one is open posts nothing; another agent's tool result keeps it open", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "a1", rec({ hook_event_name: "Notification", tool_use_id: null, notification_type: "agent_needs_input", ts: 10 }),
+      rec({ hook_event_name: "Notification", tool_use_id: null, notification_type: "agent_needs_input", ts: 11 }));
+    spool(dir, "a2", rec({ agent_id: "a2", tool_use_id: "t7", ts: 30 }));
+    expect(await new Drain(store).run()).toMatchObject({ accepted: 3, alerts: 1 });
+    expect((await store.board()).steps.map((s) => [s.id, s.status])).toEqual([["alert-a1-10", "waiting"]]);
+  });
+  it("the lead's own Notification (no agent_id, nothing else in flight) is no alert", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "main", rec({ agent_id: null, agent_type: null, hook_event_name: "Notification", tool_use_id: null, notification_type: "permission_prompt", ts: 5 }));
+    expect(await new Drain(store).run()).toMatchObject({ accepted: 1, alerts: 0 });
+    expect((await store.board()).steps).toHaveLength(0);
+  });
+  it("a Notification without agent_id is attributed to the single agent with a tool in flight", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "a1", rec({ hook_event_name: "PreToolUse", tool_use_id: "t1", ts: 1 }));
+    spool(dir, "main", rec({ agent_id: null, agent_type: null, hook_event_name: "PreToolUse", tool_name: "Agent", tool_use_id: "tm", ts: 2 }),
+      rec({ agent_id: null, agent_type: null, hook_event_name: "Notification", tool_use_id: null, tool_name: "Bash", notification_type: "permission_prompt", ts: 5 }));
+    expect(await new Drain(store).run()).toMatchObject({ alerts: 1 });
+    expect((await store.board()).steps.map((s) => s.id)).toEqual(["alert-a1-5"]);
+  });
+  it("StopFailure posts an alert naming the agent", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "a1", rec({ hook_event_name: "StopFailure", tool_use_id: null, tool_name: null, ts: 4 }));
+    await new Drain(store).run();
+    expect((await store.board()).steps[0]!.title).toContain("builder stopped on an API failure");
+  });
+  it("summarize ignores non-tool events", async () => {
+    const { store } = await fresh();
+    expect(await summarize(store.core, [{ ...rec(), hook_event_name: "SubagentStart", key: "k" } as never])).toEqual([]);
   });
 });

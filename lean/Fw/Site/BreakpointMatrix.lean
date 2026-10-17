@@ -13,6 +13,8 @@ Proved here:
 * `matrix_observes_every_edge`: for every condition and every edge of it, the matrix has two probes of one block,
   agreeing on all discrete features, at `N` and `N+1` on that axis, where the condition **does** flip. With
   `MQ.eval_congr` this means the matrix sees every change of every condition, and every listed edge is real;
+* `matrix_width_dpr_whole`: every probe asks for a whole number of device pixels across (width x DPR whole; the
+  fractional probes run at DPR 2), and `fractional_dpr_indep`: the move from DPR 5/4 changed no expected value;
 * the neutral set (MUI-internal media): `print` and `(forced-colors: active)` are false on every gate load;
   `(hover: hover)` / `(hover: none)` are the inventory's hover conditions and take both values in the
   hover × pointer crossing.
@@ -117,7 +119,7 @@ def matrix : List Probe :=
      { touchEnv (.ofNat 430) (.ofNat 932) (.ofNat 3) .noPreference with scheme := .dark }⟩] ++
   ([600, 640, 860, 1000].map fun n =>
     ⟨.fractionalGaps, s!"{n}.5",
-     deskEnv (.half n) (.ofNat 900) ⟨5, 4, by decide⟩ .noPreference⟩) ++
+     deskEnv (.half n) (.ofNat 900) (.ofNat 2) .noPreference⟩) ++
   ([(1440, 822), (1440, 823), (1440, 900), (1440, 901)].map fun (w, h) =>
     ⟨.heightProbes, s!"{w}x{h}", deskEnv (.ofNat w) (.ofNat h) (.ofNat 1) .noPreference⟩) ++
   ([775, 815].map fun h =>
@@ -227,6 +229,63 @@ theorem matrix_fractional_in_gaps :
     (matrix.filter (·.block == .fractionalGaps)).map (fun p => [600, 640, 860, 1000].filter fun n =>
       decide (p.env.width.GtNat n) && !decide (p.env.width.GeNat (n + 1))) = [[600], [640], [860], [1000]] := by
   decide +kernel
+
+/-! ## Realizability: whole widths and whole device pixels -/
+
+/-- A length is a whole number of CSS px: $q \mid p$ for $x = p/q$.
+
+$$ \forall x,\quad \mathrm{Whole}(x) \iff x.\mathrm{num} \bmod x.\mathrm{den} = 0 $$
+
+The value is an integer, whatever the representation. -/
+def Px.Whole (x : Px) : Prop := x.num % x.den = 0
+
+instance (x : Px) : Decidable x.Whole := inferInstanceAs (Decidable (_ = _))
+
+/-- A length times a ratio is a whole number: $x \cdot r \in \mathbb N$ for $x = p/q$, $r = c/d$.
+
+$$ \forall x, r,\quad \mathrm{MulWhole}(x, r) \iff (x.\mathrm{num} \cdot r.\mathrm{num}) \bmod (x.\mathrm{den} \cdot r.\mathrm{den}) = 0 $$
+
+Width times device pixel ratio is a whole number of device pixels. -/
+def Px.MulWhole (x r : Px) : Prop := (x.num * r.num) % (x.den * r.den) = 0
+
+instance (x r : Px) : Decidable (x.MulWhole r) := inferInstanceAs (Decidable (_ = _))
+
+/-- A width that is a whole number $P$ of device pixels divided by the ratio $r$ has a whole product
+with $r$.
+
+$$ \forall x, r \in \mathrm{Px},\ \forall P \in \mathbb N,\quad x.\mathrm{num} \cdot r.\mathrm{num} = P \cdot (x.\mathrm{den} \cdot r.\mathrm{den}) \implies \mathrm{MulWhole}(x, r) $$
+
+A Chromium media width $P / r$ (with $P$ whole physical px) always satisfies the realizability test. -/
+theorem Px.mulWhole_of_device_px (x r : Px) (P : Nat) (h : x.num * r.num = P * (x.den * r.den)) :
+    x.MulWhole r := by
+  unfold Px.MulWhole; rw [h]; exact Nat.mul_mod_left _ _
+
+/-- **Realizability.** Every probe of the matrix asks for a whole number of device pixels across.
+
+$$ \forall p \in M,\quad \mathrm{MulWhole}(w(p),\ r(p)) $$
+
+Every probe width times its DPR is whole; the fractional gaps run at DPR 2, $(N + \tfrac12) \cdot 2 = 2N + 1$. -/
+theorem matrix_width_dpr_whole : ∀ p ∈ matrix, p.env.width.MulWhole p.env.dpr := by decide +kernel
+
+/-- The probe widths are whole exactly outside the fractional-gaps block.
+
+$$ \forall p \in M,\quad \mathrm{Whole}(w(p)) \iff b(p) \ne \text{fractional-gaps} $$
+
+Only the four fractional loads ask for a non-integer width. -/
+theorem matrix_whole_iff : ∀ p ∈ matrix, (p.env.width.Whole ↔ p.block ≠ .fractionalGaps) := by
+  decide +kernel
+
+/-- Moving a fractional probe from DPR $\tfrac54$ to DPR 2 changes no condition, so no expected vector
+changes.
+
+$$ \forall N \in \mathbb N,\ \forall q \in \mathrm{MQ},\quad \llbracket q \rrbracket_{\mathrm{desk}(N + \frac12,\ 900,\ 2,\ \text{no-preference})} = \llbracket q \rrbracket_{\mathrm{desk}(N + \frac12,\ 900,\ \frac54,\ \text{no-preference})} $$
+
+The DPR change is invisible to every media condition (`MQ.eval_indep_height_dpr`). -/
+theorem fractional_dpr_indep (N : Nat) (q : MQ) :
+    q.eval (deskEnv (.half N) (.ofNat 900) (.ofNat 2) .noPreference) =
+      q.eval (deskEnv (.half N) (.ofNat 900) ⟨5, 4, by decide⟩ .noPreference) :=
+  MQ.eval_indep_height_dpr q (deskEnv (.half N) (.ofNat 900) ⟨5, 4, by decide⟩ .noPreference)
+    (.ofNat 900) (.ofNat 900) (.ofNat 2)
 
 /-! ## Neutral queries emitted by MUI internals -/
 

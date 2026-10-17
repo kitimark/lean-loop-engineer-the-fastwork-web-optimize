@@ -20,7 +20,7 @@ def reply (op s : String) : String :=
   | none => "none"
 
 -- every listed op is dispatched, and every dispatched op is listed
-#guard ops == ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor"]
+#guard ops == ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.obs"]
 #guard ops.all fun o => (handle o (Json.mkObj [])).isSome
 
 -- ops.meter: TTL from absent w5m/w1h, absent wakeGapSec, absent state window
@@ -50,12 +50,12 @@ def reply (op s : String) : String :=
 -- ops.spawn: a role without `edits` does not edit (so a nested spawn is allowed); perRole caps are read
 #guard reply "ops.spawn" ("{\"alive\":[],\"roles\":[{\"name\":\"r\",\"runsAs\":\"subagent\"}],\"now\":0," ++
     "\"req\":{\"name\":\"x\",\"role\":\"r\",\"depth\":1}}") ==
-  "{\"decision\":\"allow\",\"kind\":\"subagent\",\"reason\":null}"
+  "{\"decision\":\"allow\",\"kind\":\"subagent\",\"reason\":null,\"wantKind\":\"subagent\"}"
 #guard reply "ops.spawn" ("{\"alive\":[],\"roles\":[{\"name\":\"r\",\"runsAs\":\"teammate\"}],\"caps\":{\"perRole\":" ++
     "{\"r\":0}},\"now\":0,\"req\":{\"name\":\"x\",\"role\":\"r\"}}") ==
-  "{\"decision\":\"deny\",\"kind\":\"teammate\",\"reason\":\"capRole\",\"role\":\"r\"}"
+  "{\"decision\":\"deny\",\"kind\":\"teammate\",\"reason\":\"capRole\",\"role\":\"r\",\"wantKind\":\"teammate\"}"
 #guard reply "ops.spawn" ("{\"alive\":[],\"roles\":[{\"name\":\"r\",\"runsAs\":\"teammate\"}],\"caps\":{}," ++
     "\"now\":0,\"req\":{\"name\":\"x\",\"role\":\"r\"}}") ==
-  "{\"decision\":\"allow\",\"kind\":\"teammate\",\"reason\":null}"
+  "{\"decision\":\"allow\",\"kind\":\"teammate\",\"reason\":null,\"wantKind\":\"teammate\"}"
 
 end FwTest.Mutants.OpsWire

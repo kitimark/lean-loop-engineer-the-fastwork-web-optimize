@@ -123,13 +123,13 @@ def isDone (ts : List Task) (x : String) : Bool := ts.any fun t => t.id == x && 
 bottom inside each case).
 
 $$\operatorname{check}(\pi, c) = \begin{cases}
-\texttt{"title: at most 200 characters"} \text{ if } |d.\mathit{title}| > 200;\ \texttt{"deps: at most 32"} \text{ if } |d.\mathit{deps}| > 32; \\
+\begin{array}{l} \texttt{"title: at most 200 characters"} \text{ if } |d.\mathit{title}| > 200;\ \texttt{"deps: at most 32"} \text{ if } |d.\mathit{deps}| > 32; \\
 \quad \texttt{"writes: at most 32"} \text{ if } |d.\mathit{writes}| > 32;\ \texttt{"devices: at most 8"} \text{ if } |d.\mathit{devices}| > 8; \\
 \quad \texttt{"dep not defined: "} x \text{ for the first } x \in d.\mathit{deps} \setminus \operatorname{ids}(U); \\
-\quad \texttt{"dependency cycle"} \text{ if } \neg\operatorname{acyclicB}(U);\ \bot & c = \mathrm{define}(d),\ U = \operatorname{upsert}(\pi.\mathit{tasks}, d) \\
-\texttt{"no such task"} \text{ if } x \notin \operatorname{ids};\ \texttt{"task is done"} \text{ if } \operatorname{isDone}(x); \\
-\quad \texttt{"task "} y \texttt{" depends on it"} \text{ for the first undone } t \text{ with } x \in t.\mathit{deps},\ y = t.\mathit{id};\ \bot & c = \mathrm{drop}(x) \\
-\texttt{"no such task"} \text{ if } x \notin \operatorname{ids};\ \texttt{"task already done"} \text{ if } \operatorname{isDone}(x);\ \bot & c \in \{\mathrm{claim}(x, \cdot), \mathrm{done}(x, \cdot)\} \\
+\quad \texttt{"dependency cycle"} \text{ if } \neg\operatorname{acyclicB}(U);\ \bot \end{array} & c = \mathrm{define}(d),\ U = \operatorname{upsert}(\pi.\mathit{tasks}, d) \\
+\begin{array}{l} \texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task is done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x); \\
+\quad \texttt{"task "} y \texttt{" depends on it"} \text{ for the first } t \in \pi.\mathit{tasks} \text{ with } t.\mathit{evidence} = \bot \land x \in t.\mathit{deps},\ y = t.\mathit{id};\ \bot \end{array} & c = \mathrm{drop}(x) \\
+\texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task already done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x);\ \bot & c \in \{\mathrm{claim}(x, \cdot), \mathrm{done}(x, \cdot)\} \\
 \bot & c = \mathrm{milestone}(\cdot, \cdot)
 \end{cases}$$
 -/
@@ -676,7 +676,7 @@ def taskView (ts : List Task) (t : Task) : TaskView :=
 
 /-- The board view of one milestone: its tasks and its done tasks.
 
-$$\operatorname{msView}(ts, m) = \big(m.\mathit{id}, m.\mathit{title},\ |\{ t \in ts : t.\mathit{milestone} = m.\mathit{id} \land t.\mathit{evidence} \ne \bot \}|,\ |\{ t \in ts : t.\mathit{milestone} = m.\mathit{id} \}|\big)$$
+$$\operatorname{msView}(ts, m) = \big(m.\mathit{id}, m.\mathit{title},\ |[\, t \in ts : t.\mathit{milestone} = m.\mathit{id} \land t.\mathit{evidence} \ne \bot \,]|,\ |[\, t \in ts : t.\mathit{milestone} = m.\mathit{id} \,]|\big)$$
 -/
 def msView (ts : List Task) (m : Milestone) : MilestoneView :=
   let mine := ts.filter fun t => t.milestone == some m.id
@@ -685,7 +685,7 @@ def msView (ts : List Task) (m : Milestone) : MilestoneView :=
 
 /-- The board plan of a plan state.
 
-$$\operatorname{view}(\pi) = \big([\operatorname{taskView}(t)]_{t},\ [\operatorname{msView}(m)]_{m},\ \operatorname{criticalPath}(\pi.\mathit{tasks}),\ [\operatorname{ids}(g) : g \in \operatorname{groups}(\pi.\mathit{tasks})]\big)$$
+$$\operatorname{view}(\pi) = \big([\operatorname{taskView}(\pi.\mathit{tasks}, t) : t \in \pi.\mathit{tasks}],\ [\operatorname{msView}(\pi.\mathit{tasks}, m) : m \in \pi.\mathit{milestones}],\ \operatorname{criticalPath}(\pi.\mathit{tasks}),\ [\operatorname{ids}(g) : g \in \operatorname{groups}(\pi.\mathit{tasks})]\big)$$
 -/
 def view (s : State) : View :=
   { tasks := s.tasks.map (taskView s.tasks), milestones := s.milestones.map (msView s.tasks),
@@ -700,7 +700,7 @@ theorem msView_done_le (ts : List Task) (m : Milestone) : (msView ts m).done ≤
 
 /-- **The board's critical path is a longest chain of undone tasks** (on an invariant state).
 
-$$\forall \pi:\quad \operatorname{Inv}(\pi) \Rightarrow \operatorname{UChain}(\operatorname{view}(\pi).\mathit{criticalPath}) \land \forall l:\ \operatorname{UChain}(l) \Rightarrow |l| \le |\operatorname{view}(\pi).\mathit{criticalPath}|$$
+$$\forall \pi:\quad \operatorname{Inv}(\pi) \Rightarrow \operatorname{UChain}_{\pi.\mathit{tasks}}(\operatorname{view}(\pi).\mathit{criticalPath}) \land \forall l:\ \operatorname{UChain}_{\pi.\mathit{tasks}}(l) \Rightarrow |l| \le |\operatorname{view}(\pi).\mathit{criticalPath}|$$
 -/
 theorem view_criticalPath {π : State} (h : Inv π) : UChain π.tasks (view π).criticalPath ∧
     ∀ l, UChain π.tasks l → l.length ≤ (view π).criticalPath.length :=

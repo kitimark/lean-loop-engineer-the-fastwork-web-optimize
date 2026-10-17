@@ -57,7 +57,7 @@ def SClass.rank : SClass → Nat
 
 /-- The class name on the wire and in the table.
 
-$$\operatorname{name}(c) \in \{\texttt{deterministic}, \texttt{stable}, \texttt{shifting}, \texttt{quarantined}\}$$
+$$\operatorname{name}(\mathrm{det}) = \texttt{deterministic},\ \operatorname{name}(\mathrm{stable}) = \texttt{stable},\ \operatorname{name}(\mathrm{shifting}) = \texttt{shifting},\ \operatorname{name}(\mathrm{quar}) = \texttt{quarantined}$$
 -/
 def SClass.name : SClass → String
   | .deterministic => "deterministic" | .stable => "stable" | .shifting => "shifting"
@@ -169,7 +169,7 @@ def spreadOf : List Int → Nat
 
 /-- The observations of one count type over the runs.
 
-$$\operatorname{obs}(r_0, \dots, r_{m-1}) = \Big(|r_0|,\ \delta(r),\ \operatorname{spread}\big([\Sigma r_j]_j\big),\ \sum_{j<m} \Sigma r_j,\ m\Big)$$
+$$\operatorname{obs}(r_0, \dots, r_{m-1}) = \Big(|r_0|,\ \delta(r_0, \dots, r_{m-1}),\ \operatorname{spread}\big([\Sigma r_j]_{j<m}\big),\ \sum_{j<m} \Sigma r_j,\ m\Big)\ (m \ge 1),\qquad \operatorname{obs}(\,) = (0, 0, 0, 0, 0)$$
 -/
 def obs (rs : List Series) : Obs :=
   ⟨(rs.headD []).length, maxDiff rs, spreadOf (rs.map total), sumBy total rs, rs.length⟩
@@ -227,7 +227,7 @@ theorem classOf_det_iff (θ : Thresholds) (gc : Bool) (o : Obs) :
 
 /-- A GC-bound type is `deterministic` or `quarantined`, never `stable` or `shifting`.
 
-$$\operatorname{cls}_\theta(\top, o) \in \{\mathrm{det}, \mathrm{quar}\}$$
+$$\forall \theta,\ o \in \mathrm{Obs}:\ \operatorname{cls}_\theta(\top, o) \in \{\mathrm{det}, \mathrm{quar}\}$$
 -/
 theorem classOf_gc (θ : Thresholds) (o : Obs) :
     classOf θ true o = .deterministic ∨ classOf θ true o = .quarantined := by
@@ -363,7 +363,7 @@ theorem diffVs_zero_iff (n : Nat) (a b : Series) :
 
 /-- `maxDiff` bounds the differing frames of every run against the first.
 
-$$r \in (r_0 :: R) \implies \operatorname{diff}_{|r_0|}(r_0, r) \le \delta(r_0 :: R)$$
+$$\forall r_0, r \in \mathbb{Z}^{*},\ R \in (\mathbb{Z}^{*})^{*}:\ r \in r_0 :: R \implies \operatorname{diff}_{|r_0|}(r_0, r) \le \delta(r_0 :: R)$$
 -/
 theorem diffVs_le_maxDiff {r₀ r : Series} {rs : List Series} (h : r ∈ r₀ :: rs) :
     diffVs r₀.length r₀ r ≤ maxDiff (r₀ :: rs) :=
@@ -371,7 +371,7 @@ theorem diffVs_le_maxDiff {r₀ r : Series} {rs : List Series} (h : r ∈ r₀ :
 
 /-- `maxDiff` is zero exactly when every run equals the first run on the first run's frames.
 
-$$\delta(r_0 :: R) = 0 \iff \forall r \in r_0 :: R,\ \forall i < |r_0|:\ r_0[i] = r[i]$$
+$$\forall r_0 \in \mathbb{Z}^{*},\ R \in (\mathbb{Z}^{*})^{*}:\ \delta(r_0 :: R) = 0 \iff \forall r \in r_0 :: R,\ \forall i < |r_0|:\ r_0[i] = r[i]$$ (with $r[i] = 0$ for $i \ge |r|$, as in `diffVs`)
 -/
 theorem maxDiff_zero_iff (r₀ : Series) (rs : List Series) :
     maxDiff (r₀ :: rs) = 0 ↔ ∀ r ∈ r₀ :: rs, ∀ i < r₀.length, valAt r₀ i = valAt r i := by
@@ -432,7 +432,7 @@ theorem diffFrames_zero_iff : ∀ a b : Series, diffFrames a b = 0 ↔ ∀ i, va
 /-- For runs no longer than the first, `maxDiff = 0` is the pairwise `deterministic` class of
 `Fw.Measure` (every pair of runs agrees on every frame).
 
-$$(\forall r \in r_0 :: R:\ |r| \le |r_0|) \implies \big(\delta(r_0 :: R) = 0 \iff \operatorname{Holds}(\mathrm{det}, r_0 :: R)\big)$$
+$$\forall r_0 \in \mathbb{Z}^{*},\ R \in (\mathbb{Z}^{*})^{*}:\ (\forall r \in r_0 :: R:\ |r| \le |r_0|) \implies \big(\delta(r_0 :: R) = 0 \iff \operatorname{Holds}(\mathrm{det}, r_0 :: R)\big)$$
 -/
 theorem maxDiff_zero_iff_holds (r₀ : Series) (rs : List Series)
     (hlen : ∀ r ∈ r₀ :: rs, r.length ≤ r₀.length) :
@@ -498,7 +498,7 @@ theorem gap_le_spread {a b : Int} : ∀ {ts : List Int}, a ∈ ts → b ∈ ts �
 /-- Each row's class is the class of that type's observations (with its GC-bound flag), and its
 `maxDiff`, spread and totals are those observations.
 
-$$(k, c, \delta, s, T) \in \operatorname{check}_\theta(\mathcal{R}) \implies c = \operatorname{cls}_\theta(k \in \theta.\mathrm{gcBound}, o_k) \land \delta = \delta(R_k) \land s = \operatorname{spread}(T) \land T = [\Sigma r]_{r \in R_k},\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}}$$
+$$\forall \theta,\ \mathcal{R},\ (k, c, \delta, s, T) \in \operatorname{check}_\theta(\mathcal{R}):\ c = \operatorname{cls}_\theta(k \in \theta.\mathrm{gcBound}, o_k) \land \delta = \delta(R_k) \land s = \operatorname{spread}(T) \land T = [\Sigma r]_{r \in R_k},\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}},\ o_k = \operatorname{obs}(R_k)$$
 -/
 theorem check_sound (θ : Thresholds) (runs : List (List Counts)) :
     ∀ row ∈ check θ runs, let rs := runs.map (seriesOf row.type)
@@ -511,7 +511,7 @@ theorem check_sound (θ : Thresholds) (runs : List (List Counts)) :
 
 /-- `aligned` holds exactly when all key lists are equal.
 
-$$\operatorname{aligned}(K) \iff \forall a, b \in K:\ a = b$$
+$$\forall K \in (\alpha^{*})^{*}:\ \operatorname{aligned}(K) \iff \forall a, b \in K:\ a = b$$
 -/
 theorem aligned_iff {α : Type} [DecidableEq α] (ks : List (List α)) :
     aligned ks = true ↔ ∀ a ∈ ks, ∀ b ∈ ks, a = b := by
