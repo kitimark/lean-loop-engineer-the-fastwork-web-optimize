@@ -3,7 +3,8 @@
 // comparison itself is reduce.mjs (the one pure module, slated for a Lean spec).
 import { loadFresh, pageInfo } from './page.mjs';
 import { loadStamp } from './load.mjs';
-import { navigateTab, openTab } from './wip.mjs';
+import { navigateTab, reconnect } from './wip.mjs';
+import { attempts } from './timeouts.mjs';
 import { censusAt } from './census.mjs';
 import { scrollRun } from './scrollrun.mjs';
 import { seekExperiment } from './seek.mjs';
@@ -27,10 +28,9 @@ export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindo
   let scroll;
   for (let attempt = 1; ; attempt++) {
     try { await loadFresh(c, { clock, settleMs, timers: mode.includes('hold') ? 'hold' : 'live' }); scroll = await scrollRun(c, { step, framesPerStep, mode }); break; } catch (e) {
-      if (attempt >= 2) throw e;
+      if (attempt >= attempts()) throw e;
       log(`  scroll attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
-      try { ctx.c.close(); } catch { /* closed */ }
-      ctx.setClient(await openTab(ctx.url));
+      await reconnect(ctx, { log });
       c = ctx.c;
     }
   }

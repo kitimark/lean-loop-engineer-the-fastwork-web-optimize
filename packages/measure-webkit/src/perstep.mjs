@@ -4,7 +4,8 @@
 // (experiment (c), computed from the same raw records).
 import { loadFresh } from './page.mjs';
 import { loadStamp } from './load.mjs';
-import { openTab } from './wip.mjs';
+import { reconnect } from './wip.mjs';
+import { attempts } from './timeouts.mjs';
 import { scrollRun } from './scrollrun.mjs';
 import { COUNT_TYPES, TOL, classify, zones, reduceWindows } from './reduce.mjs';
 
@@ -17,10 +18,9 @@ export async function warmUpLoad(ctx, { clock, settleMs, step, framesPerStep, lo
       log(`warm-up ${w + 1}/${warmup} (discarded): style ${s.reduced.total.RecalculateStyles} raf ${s.reduced.total.FireAnimationFrame}`);
       return;
     } catch (e) {
-      if (attempt >= 2) throw e;
+      if (attempt >= attempts()) throw e;
       log(`  warm-up attempt ${attempt} failed (${e.message}); reconnecting`);
-      try { ctx.c.close(); } catch { /* closed */ }
-      ctx.setClient(await openTab(ctx.url));
+      await reconnect(ctx, { log });
     }
   }
 }
@@ -41,10 +41,9 @@ export async function perStepPasses(ctx, { modes, runs, clock, settleMs, step, f
           scroll = await scrollRun(ctx.c, { step, framesPerStep, mode });
           break;
         } catch (e) {
-          if (attempt >= 2) throw e;
+          if (attempt >= attempts()) throw e;
           log(`  ${mode} attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
-          try { ctx.c.close(); } catch { /* closed */ }
-          ctx.setClient(await openTab(ctx.url));
+          await reconnect(ctx, { log });
         }
       }
       const t = scroll.reduced.total;

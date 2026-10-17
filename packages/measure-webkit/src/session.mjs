@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
 import { bootDevice, openUrl, shutdownDevice, startProxy, proxyCheck, findDevice, sleep } from './sim.mjs';
 import { openTab } from './wip.mjs';
+import { T } from './timeouts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const FIXTURES = resolve(HERE, '..', 'fixtures');
@@ -59,14 +60,14 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
   process.once('SIGTERM', () => onSignal('SIGTERM'));
   try {
     device = await bootDevice({ log });
-    await sleep(3000); // an openurl right after the launch is sometimes dropped
+    await sleep(T(3000)); // an openurl right after the launch is sometimes dropped
     openUrl(device.udid, server.url + startPath.slice(1));
     proxy = await startProxy({ log });
-    try { client = await openTab(server.url, { waitMs: 10000 }); } catch (e) {
+    try { client = await openTab(server.url, { waitMs: T(10000), log }); } catch (e) {
       // the proxy sometimes lists the tab late or Safari dropped the first openurl: ask once more
       log(`${e.message}; opening the URL again`);
       openUrl(device.udid, server.url + startPath.slice(1));
-      client = await openTab(server.url, { waitMs: 40000 });
+      client = await openTab(server.url, { waitMs: T(40000), log });
     }
     await proxyCheck();
     const ctx = {

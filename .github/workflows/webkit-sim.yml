@@ -111,14 +111,20 @@ jobs:
           SESSIONS: ${{ inputs.sessions || '2' }}
           FRESH: ${{ inputs.fresh_boot && 'yes' || 'no' }}
           VM: ${{ matrix.vm }}
+          # The runner (3 vCPU) boots the Simulator and Safari several times slower than a Mac: every wait in
+          # packages/measure-webkit is multiplied by this (counts do not depend on waits), and a load + scroll step
+          # may retry twice after a reconnect. Local runs use neither (defaults 1 and 2).
+          FW_WK_TIMEOUT_SCALE: '4'
+          FW_WK_ATTEMPTS: '3'
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
+          mkdir -p out
           for s in $(seq 1 "$SESSIONS"); do
             keep=--keep
             # fresh_boot: no --keep, so each session ends with the device shut down and the next one boots it again
             if [ "$FRESH" = yes ]; then keep=; fi
-            node src/cli.mjs determinism --runs 2 $keep --out "out/$VM-session-$s.json" | tee "out/$VM-session-$s.md"
+            node src/cli.mjs determinism --runs 2 $keep --out "out/$VM-session-$s.json" 2> >(tee "out/$VM-session-$s.log" >&2) | tee "out/$VM-session-$s.md"
           done
           ls -l out
 
@@ -131,6 +137,17 @@ jobs:
           files=(out/"$VM"-session-*.json)
           node src/cli.mjs merge "${files[@]}" | tee "out/$VM-classes.md"
           cp out/"$VM"-* "$RUNNER_TEMP/result/"
+
+      # Kept even when a session failed: the logs say where a slow start stalled.
+      - name: Keep logs and host state
+        if: ${{ always() }}
+        working-directory: packages/measure-webkit
+        env:
+          VM: ${{ matrix.vm }}
+        run: |
+          mkdir -p out "$RUNNER_TEMP/result"
+          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > out/"$VM"-host.txt 2>&1 || true
+          cp out/"$VM"-* "$RUNNER_TEMP/result/" 2>/dev/null || true
 
       # Always: stop the proxy's device and delete it, even when a step failed or the job was cancelled.
       - name: Shut down and delete the Simulator
