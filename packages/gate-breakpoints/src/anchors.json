@@ -156,6 +156,383 @@
           "why": "the part renders nothing and restates no CSS; only the document element's width is compared. If the mark is missing the rewrite count is 0 and the count differs"
         }
       ]
+    },
+    "people.card": {
+      "anchors": [
+        "people-card"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:2358-2418 (.start-selling-future, -card)",
+        "2430-2444 title; 2784-2860 copy, showcase",
+        "3519-3600 (<=860, <=640), 3614-3650 (reduced motion, 860 combo)"
+      ],
+      "excluded": [
+        {
+          "what": "font-family and font metrics",
+          "why": "the rewrite uses the host font stack (the original Google Sans is not shipped), so text-dependent boxes (title and copy line counts) can differ"
+        },
+        {
+          "what": "the \"o\", the showcase and the community pill",
+          "why": "owned by people.o, people.deck and people.carousel"
+        }
+      ],
+      "roles": [
+        {
+          "role": "section",
+          "orig": "section#people",
+          "rewrite": "[data-fw=\"people\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the section: margin-top, flex column and the box width; its height is the card plus the showcase (the PL1 box)"
+        },
+        {
+          "role": "card",
+          "orig": "section#people > .start-selling-future-card",
+          "rewrite": "[data-fw=\"people\"] > [data-fw=\"people-card\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "white card: padding 80/56 (32/20/48 at <=860), gap, min-height 100svh on phones, radius from --future-shrink"
+        },
+        {
+          "role": "header",
+          "orig": "section#people .start-selling-future-header",
+          "rewrite": "[data-fw=\"people-card\"] > div:first-child",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "height follows the title and copy line counts (host font)"
+        },
+        {
+          "role": "title",
+          "orig": "section#people #future-heading",
+          "rewrite": "[data-fw=\"people\"] #future-heading",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "font-size clamp(36px, 4vw, 48px), line-height 1.15; width and line count follow the host font"
+        },
+        {
+          "role": "copy",
+          "orig": "section#people .start-selling-future-copy",
+          "rewrite": "[data-fw=\"people-card\"] > div:first-child p",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "text box follows the host font"
+        },
+        {
+          "role": "showcase",
+          "orig": "section#people .start-selling-future-showcase",
+          "rewrite": "[data-fw=\"people-card\"] > div:nth-child(2)",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "height is the deck section, set by JS from the viewport height"
+        }
+      ]
+    },
+    "people.o": {
+      "anchors": [
+        "people-o"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:2430-2780 (the o, its stage, vector, stack, faces, preview card)",
+        "3566-3569 (<=860), 3614-3626 (reduced motion)"
+      ],
+      "excluded": [
+        {
+          "what": "face photos and the o.svg glyph",
+          "why": "not shipped: faces are neutral fills, the glyph is a ring; only the boxes and the declared properties are compared"
+        },
+        {
+          "what": "the preview card",
+          "why": "opens on hover or focus of an opened face; the gate never hovers"
+        }
+      ],
+      "roles": [
+        {
+          "role": "o",
+          "orig": ".start-selling-future-people-o",
+          "rewrite": "[data-fw=\"people-o\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "em-sized grid cell: 0.6042em x 1.0417em closed (the title font-size is shared), opened after 1.42 s"
+        },
+        {
+          "role": "stage",
+          "orig": ".start-selling-future-people-o-stage",
+          "rewrite": "[data-fw=\"people-o\"] > span",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "fills the cell"
+        },
+        {
+          "role": "stack",
+          "orig": ".start-selling-future-people-o-stack",
+          "rewrite": "[data-fw=\"people-o\"] > span > span:last-child",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "5.1667em x 1em row of faces, hidden until stacked"
+        },
+        {
+          "role": "face",
+          "orig": ".start-selling-future-people-o-face",
+          "rewrite": "[data-fw=\"people-o\"] button",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "1em circle with a -1/6em overlap; disabled and invisible until opened"
+        }
+      ]
+    },
+    "people.carousel": {
+      "anchors": [
+        "people-carousel"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:2784-2860 (.start-selling-future-community-pill), 2866-2915 (avatars)",
+        "3519-3600 (<=860 and <=461 pill), 3614-3626 (reduced motion)"
+      ],
+      "excluded": [
+        {
+          "what": "avatar photos",
+          "why": "not shipped: the 32px slots are neutral fills"
+        },
+        {
+          "what": "pill text and button label widths",
+          "why": "follow the host font"
+        }
+      ],
+      "roles": [
+        {
+          "role": "pill",
+          "orig": ".start-selling-future-community-pill",
+          "rewrite": "[data-fw=\"people-pill\"]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "rounded pill; row at >461, stacked column at <=461; width follows the text"
+        },
+        {
+          "role": "avatars",
+          "orig": ".start-selling-avatars.is-carousel",
+          "rewrite": "[data-fw=\"people-carousel\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "104x32 clipped row"
+        },
+        {
+          "role": "avatar",
+          "orig": ".start-selling-avatars.is-carousel img:nth-child(2)",
+          "rewrite": "[data-fw=\"people-carousel\"] > span:nth-child(2)",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": ["background-color"],
+          "why": "the second slot (the first leaves during a swap, whose phase differs between arms): 32px circle, -8px overlap; background-color is the neutral fill that stands in for the photo"
+        },
+        {
+          "role": "button",
+          "orig": ".start-selling-future-community-pill button",
+          "rewrite": "[data-fw=\"people-pill\"] > button",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "dark pill button, 36px (28px at <=860); width follows the label"
+        }
+      ]
+    },
+    "people.deck": {
+      "anchors": [
+        "people-deck"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:2888-3350 (showcase, shell, panel), 3351-3560 (touch layout), 3599-3650 (reduced motion)",
+        "2.DyWL8TcE.js:10743-11250 (the deck component)"
+      ],
+      "excluded": [
+        {
+          "what": "the Services, Reviews and About panels, avatars, covers, post and service photos",
+          "why": "delta: only the Portfolio panel is restated, photos are neutral fills"
+        },
+        {
+          "what": "transform of the active shell and --profile-scale",
+          "why": "written per frame by the scroll driver; the gate loads at the top where both arms rest at the same targets only up to the lerp, so transform is skipped"
+        }
+      ],
+      "roles": [
+        {
+          "role": "section",
+          "orig": "#profile-showcase",
+          "rewrite": "[data-fw=\"people-deck\"]",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "height is set by script on wide viewports (sticky height plus 3.15 viewport heights)"
+        },
+        {
+          "role": "sticky",
+          "orig": "#profile-showcase > .start-selling-profile-sticky",
+          "rewrite": "[data-fw=\"people-deck\"] > div",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "sticky at top 48px from 861 px with motion allowed; relative on the touch layout"
+        },
+        {
+          "role": "chrome",
+          "orig": "#profile-showcase .start-selling-profile-chrome",
+          "rewrite": "[data-fw=\"people-deck\"] > div > div",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "row of tabs and deck; column on the touch layout"
+        },
+        {
+          "role": "tabs",
+          "orig": "#profile-showcase .start-selling-profile-tabs",
+          "rewrite": "[data-fw=\"people-deck\"] [aria-label=\"Occupations\"]",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "264px rail on wide, drag row on touch"
+        },
+        {
+          "role": "tab",
+          "orig": "#profile-showcase .start-selling-profile-tab",
+          "rewrite": "[data-fw=\"people-deck\"] [data-profession-tab]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "transition-delay"
+          ],
+          "why": "tab text boxes follow the host font; the stagger delay is a calc of --tab-i"
+        },
+        {
+          "role": "deck",
+          "orig": "#profile-showcase .start-selling-profile-deck",
+          "rewrite": "[data-fw=\"people-deck\"] [data-active]",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "scroll-snap row on the touch layout"
+        },
+        {
+          "role": "shell",
+          "orig": "#profile-showcase .start-selling-profile-shell.is-active-shell",
+          "rewrite": "[data-fw=\"people-deck\"] [data-profession][class*=\"isActiveShell\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "transform",
+            "transform-origin"
+          ],
+          "why": "active shell: 743..820 px tall (clamp on the viewport height) on wide, 353:764 on touch"
+        },
+        {
+          "role": "panel",
+          "orig": "#profile-showcase .start-selling-profile-shell.is-active-shell > .start-selling-profile-panel",
+          "rewrite": "[data-fw=\"people-deck\"] [data-profession][class*=\"isActiveShell\"] > div",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "white panel; height follows the shell"
+        }
+      ]
     }
   }
 }

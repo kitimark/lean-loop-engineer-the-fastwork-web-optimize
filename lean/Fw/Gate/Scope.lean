@@ -342,7 +342,26 @@ def pilotParts : List PartUse := [
   { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
     extra := [], knees := [],
     dismissed := [
-      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] }
+      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] },
+  { id := "people.card", owners := ["people.card"],
+    orig := ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-860", "mq.c860"], rewrite := ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-860", "mq.c860"],
+    extra := [],
+    knees := [⟨"future / platform / mission title clamp 36 / 4vw / 48", 900⟩, ⟨"future / platform / mission title clamp 36 / 4vw / 48", 1200⟩],
+    dismissed := [("js.future-shrink-band", "viewport-height band of the card's bottom edge at a scroll position, not a width edge; the gate loads at the top")] },
+  { id := "people.o", owners := ["people.o"], orig := ["mq.rm-reduce", "mq.w-le-860"], rewrite := ["mq.rm-reduce", "mq.w-le-860"],
+    extra := [], knees := [⟨"seller preview min(320, innerWidth - 24)", 344⟩],
+    dismissed := [
+      ("css.hover-ungated", "plain :hover rules; the gate never hovers an element"),
+      ("js.people-o-preview", "the preview card opens only on hover or focus of an opened face; the gate never hovers"),
+      ("js.people-o-reveal-io", "IntersectionObserver at threshold 0.35 on the heading: a scroll position, not a width edge; the gate loads at the top")] },
+  { id := "people.deck", owners := ["people.deck"],
+    orig := ["mq.rm-reduce", "mq.w-le-480", "mq.w-le-640", "mq.w-ge-861", "mq.w-ge-861-nopref", "mq.w-le-1200", "mq.c860", "mq.c1030"],
+    rewrite := ["mq.rm-reduce", "mq.w-le-640", "mq.w-ge-861", "mq.w-ge-861-nopref", "mq.w-le-1200", "mq.c860", "mq.c1030"],
+    extra := [], knees := [⟨"profile shell height clamp 743 / 100vh-80 / 820", 823⟩, ⟨"profile shell height clamp 743 / 100vh-80 / 820", 900⟩],
+    dismissed := [("js.profile-sticky-computed", "computed position of the sticky child, a function of mq.w-ge-861-nopref and mq.c860 which are in the key")] },
+  { id := "people.carousel", owners := ["people.carousel"],
+    orig := ["mq.rm-reduce", "mq.w-le-461", "mq.w-le-860"], rewrite := ["mq.rm-reduce", "mq.w-le-461", "mq.w-le-860"],
+    extra := [], knees := [], dismissed := [] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.

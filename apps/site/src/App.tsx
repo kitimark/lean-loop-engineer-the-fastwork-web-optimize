@@ -60,7 +60,7 @@ export function App({ config }: { config: FwConfig }) {
         <HeroCountdown variant={config.variants['hero.countdown'] ?? 'faithful'} />
         <HeroExit variant={config.variants['hero.exit'] ?? 'faithful'} />
 
-        <People variant={config.variants['people'] ?? 'shell'} />
+        <People variants={config.variants} />
         <Pain variant={config.variants['pain'] ?? 'shell'} />
         <Commission variant={config.variants['commission'] ?? 'shell'} />
         <Platform variant={config.variants['platform'] ?? 'shell'} />
