@@ -1,26 +1,30 @@
 # Handoff: sim-speed
 
-State: branch `ci/sim-speed` (worktree branch pushed as `ci/sim-speed`), probe and note committed. Read first:
-`research/notes/2026/10-17-sim-speed.md` (answer, table, risks, ranked recommendation).
+State: probe and note on `main` (merge 7563f79); review c13e9e8 (changes requested) answered by the sim-speed-fix
+commit on this worktree branch (note revision 2, iwdp pin). Read first: `research/notes/2026/10-17-sim-speed.md`
+(answer, table, baseline run, cost, risks, ranked recommendation), then `research/notes/2026/10-17-sim-speed-review.md`.
 
 Files
 - `.github/workflows/sim-speed.yml`: boot + connect + one page, per-phase marks, host sampler. Arms: base pre fast quiet
-  bg f6 early qe combo xl; inputs `arms` (default `base f6 combo xl`) and `reps` (1..3). Runs on push to `ci/sim-speed`.
-- `.github/scripts/sim-speed-probe.mjs`, `sim-speed-mark.sh`, `sim-speed-sampler.sh`. The probe imports
-  `packages/measure-webkit/src` read-only; it never edits it or `webkit-sim.yml`.
+  bg f6 early qe combo xl; inputs `arms` and `reps` (1..3). Runs on push to `ci/sim-speed`.
+- `.github/scripts/sim-speed-probe.mjs`, `sim-speed-mark.sh`, `sim-speed-sampler.sh` (imports
+  `packages/measure-webkit/src` read-only).
+- iwdp source pin: `refs/upstream/sources.lock.yaml` id `ios-webkit-debug-proxy` (v1.9.2 = 278bf48 = brew 1.9.2_2);
+  fetch with `node scripts/refs-fetch.mjs ios-webkit-debug-proxy`.
 
-Runs: R1 39038015877, R2 39041142432, R3 39043591653; baseline 39036078841. Download:
-`gh run download <id> -n sim-speed-<arm>-<rep>`; marks.txt is `<epoch ms> <label>`, sampler.txt has load/memory/top.
+Runs: R1 39038015877, R2 39041142432, R3 39043591653; baseline 39036078841. Numbers: `gh run view <id> --log`, grep
+`MARK <epoch ms> <label>`; job minutes from `gh run view <id> --json jobs`; host load from artifacts (`sampler.txt`).
+Boot = "boot begin" to "bootstatus -b returned".
 
-Findings: lane is host-capacity bound; xlarge runner (boot 41-50 s vs median 120 s) and one boot per job (warm session
-5-22 s vs 101-218 s) are the levers; overlap, quieting, bootout, image device, fast connect gave no gain.
+Findings: host-capacity bound. xlarge measured (boot about 60 to 77 s faster) but REJECTED (user 2026-10-17: no paid
+runners; larger runners are billed even on public repos). Ranked levers now: fail fast on dead proxy / "no page
+target", keep Safari between sessions (lane already boots once), polling instead of `T()` sleeps.
 
 Open items
-- The fast connect (f6/combo/xl) failed in 5 of 9 R3 jobs (`no tab (0 tabs)` / `fetch failed`, proxy output empty);
-  not root-caused. Check proxy restart after 3 openurls in `sim-speed-probe.mjs` before trusting it.
-- Direct Web Inspector / safaridriver connection was not tested.
-- The ci-webkit owner applies the recommendations (webkit-sim.yml, packages/measure-webkit); verify class stability over
-  >= 3 CI jobs afterwards (xlarge, warm reuse).
+- Probe bug: after `proxy restarted` every poll is `fetch failed` (R3 xl-2, xl-3, combo-1). Await the old proxy's
+  exit, check `alive()`, log exit code in `sim-speed-probe.mjs:160` before reusing the fast connect.
+- Keep-Safari change needs a session-2 count equality check over >= 3 CI jobs before adoption.
+- Direct Web Inspector / safaridriver connection not tested. xlarge with the legacy connect never run (moot: rejected).
 - Every `ci/**` push runs all workflows; cancel the others when only this one is wanted.
 
-Conventions: measured on CI only; local runs only under sim-lock; no personal data; attribution lines on commits.
+Conventions: measured on CI only; no new CI in the fix; no personal data; attribution lines and `Task: sim-speed`.
