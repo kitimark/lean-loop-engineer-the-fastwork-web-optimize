@@ -1,0 +1,163 @@
+name: sim-speed
+
+# Research probe (note: research/notes/2026/10-17-sim-speed.md): how fast can the iOS Simulator be booted and reached
+# from Node on the GitHub-hosted xcode-27 image? Boot + connect + ONE page load per job, a mark per phase, a host
+# sampler (load, memory, swap, top CPU) in the background from the start. Counts are not taken here, and nothing
+# measured here is phone time. It does not touch webkit-sim.yml or packages/measure-webkit (it imports them read-only).
+#
+# Arms (one matrix job each, `rep` = an independent VM):
+#   base   the harness path as is: new device, blocking boot, terminate + launch Safari, fixed sleep, openurl, proxy
+#   pre    base, but on a device that is already on the image instead of a newly created one
+#   fast   new device, blocking boot, then the fast connect (openurl launches Safari, poll, re-send every 15 s)
+#   quiet  base, plus Spotlight off and unified logging down on the host and in the Simulator
+#   bg     fast connect, and `simctl boot` started in the background right after create (overlaps setup-node and brew)
+#   combo  pre + bg + quiet + fast connect
+on:
+  push:
+    branches: ['ci/sim-speed']
+  workflow_dispatch:
+    inputs:
+      arms:
+        description: Space-separated arms (base pre fast quiet bg combo)
+        type: string
+        default: 'base pre fast quiet bg'
+      reps:
+        description: Independent VMs per arm (1 to 3)
+        type: string
+        default: '2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        env:
+          ARMS: ${{ inputs.arms || 'base pre fast quiet bg' }}
+          REPS: ${{ inputs.reps || '2' }}
+        run: |
+          set -euo pipefail
+          case "$REPS" in 1|2|3) ;; *) echo "reps must be 1..3" >&2; exit 1 ;; esac
+          for a in $ARMS; do case "$a" in base|pre|fast|quiet|bg|combo) ;; *) echo "unknown arm $a" >&2; exit 1 ;; esac; done
+          arms=$(printf '%s\n' $ARMS | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          reps=$(seq 1 "$REPS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          matrix=$(jq -n -c --argjson a "$arms" --argjson r "$reps" '{arm: $a, rep: $r}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix"
+
+  probe:
+    needs: plan
+    runs-on: xcode-27
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      FW_IOS_VERSION: '27.0'
+      FW_IOS_BUILD: 24A434
+      FW_SIM_NAME: fw-iphone-27
+      ARM: ${{ matrix.arm }}
+      CONNECT: ${{ (matrix.arm == 'base' || matrix.arm == 'pre' || matrix.arm == 'quiet') && 'legacy' || 'fast' }}
+      EXTRA: '1'
+      FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      # Marks go to $RUNNER_TEMP/result/marks.txt as "<epoch ms> <label>"; the sampler starts before `simctl create`.
+      - name: Marks and host sampler
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/result"
+          sh .github/scripts/sim-speed-mark.sh "job start arm=$ARM rep=${{ matrix.rep }}"
+          nohup sh .github/scripts/sim-speed-sampler.sh "$RUNNER_TEMP/result/sampler.txt" 15 >/dev/null 2>&1 &
+          echo $! > "$RUNNER_TEMP/sampler.pid"
+
+      - name: Host quieting (arms quiet, combo)
+        if: ${{ matrix.arm == 'quiet' || matrix.arm == 'combo' }}
+        run: |
+          for c in "mdutil -a -i off" "log config --mode persist:off" "log config --mode level:off"; do
+            s=$(date +%s)
+            # shellcheck disable=SC2086
+            if sudo -n $c; then r=ok; else r="failed"; fi
+            sh .github/scripts/sim-speed-mark.sh "quiet host: $c -> $r in $(( $(date +%s) - s )) s"
+          done
+
+      - name: Pinned iOS runtime build, then the device (new, or the image's own for pre/combo)
+        run: |
+          set -euo pipefail
+          sh .github/scripts/sim-speed-mark.sh "create begin"
+          if [ "$ARM" = pre ] || [ "$ARM" = combo ]; then sh .github/scripts/check-simulator.sh; else sh .github/scripts/check-simulator.sh --create; fi
+          sh .github/scripts/sim-speed-mark.sh "create end"
+
+      # bg/combo: boot now, in the background, so it overlaps setup-node and brew. Waited for with bootstatus in the probe.
+      - name: Background boot (arms bg, combo)
+        if: ${{ matrix.arm == 'bg' || matrix.arm == 'combo' }}
+        run: |
+          set -euo pipefail
+          xcrun simctl shutdown all || true
+          if [ "$ARM" = combo ]; then
+            udid=$(xcrun simctl list -j devices | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8"));const d=Object.entries(j.devices).filter(([k])=>/SimRuntime\.iOS-27-0$/.test(k)).flatMap(([,v])=>v).filter(x=>x.isAvailable!==false&&/iPhone/.test(x.name));const p=d.find(x=>x.name==="iPhone 15 Pro Max")||d.find(x=>/Pro Max/.test(x.name))||d[0];console.log(p.udid)')
+          else
+            udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
+          fi
+          sh .github/scripts/sim-speed-mark.sh "boot-bg: started"
+          nohup sh -c "xcrun simctl boot $udid; sh .github/scripts/sim-speed-mark.sh 'boot-bg: simctl boot returned'" >"$RUNNER_TEMP/result/boot-bg.log" 2>&1 &
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - name: ios_webkit_debug_proxy
+        run: |
+          set -euo pipefail
+          sh .github/scripts/sim-speed-mark.sh "brew begin"
+          brew install ios-webkit-debug-proxy
+          sh .github/scripts/sim-speed-mark.sh "brew end"
+
+      - name: Tool and runner facts
+        run: |
+          set -euo pipefail
+          sh .github/scripts/runner-info.sh "$RUNNER_TEMP/result/runner.json"
+          {
+            sw_vers
+            xcodebuild -version
+            xcrun simctl list runtimes
+            xcrun simctl list devices
+            sysctl hw.memsize hw.ncpu
+            df -h / | tail -1
+          } > "$RUNNER_TEMP/result/tools.txt" 2>&1 || true
+          sh .github/scripts/sim-speed-mark.sh "facts end"
+
+      - name: Probe (boot, connect, one page, then the extra sessions)
+        run: |
+          set -euo pipefail
+          if [ "$ARM" != bg ] && [ "$ARM" != combo ]; then xcrun simctl shutdown all || true; fi
+          node .github/scripts/sim-speed-probe.mjs 2>&1 | tee "$RUNNER_TEMP/result/probe.log"
+
+      # Always: stop only the sampler this job started, keep the log, delete the device.
+      - name: Stop sampler, shut down
+        if: ${{ always() }}
+        run: |
+          kill "$(cat "$RUNNER_TEMP/sampler.pid")" 2>/dev/null || true
+          sh .github/scripts/sim-speed-mark.sh "teardown"
+          xcrun simctl shutdown all || true
+          xcrun simctl delete "$FW_SIM_NAME" || true
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() }}
+        with:
+          name: sim-speed-${{ matrix.arm }}-${{ matrix.rep }}
+          path: ${{ runner.temp }}/result
+          if-no-files-found: error
+          retention-days: 30
