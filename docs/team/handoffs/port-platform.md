@@ -6,6 +6,7 @@ Verdicts: platform, platform.stageBg, platform.sweep, platform.glint, platform.e
 ## Delta (named)
 - Shield logo glyph is a neutral circle (brand asset not restated). Images are the original's public paths (`/selling/...`), absent in the repo and in `dist`.
 - Locale: English only. No web font in the rewrite yet, so title wrapping differs (line counts at 390/720/861/1001); text-dependent boxes are skipped in anchors.json.
+- WebKit only: platform.stageBg stage/grain/bg height at sweep probes 401-481 px wide (about 32 px short of the original's 288/361 aspect box; chromium passes). Cause not found; section/card heights are skipped in anchors (title wraps, no web font).
 - Dead CSS not ported (paid, quote, service-card, fx swaps, tools). Checks list is in the DOM but `display:none` at every width, as in the original.
 
 ## Evidence (this Mac, short debug runs, not results)
