@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
 import { bootDevice, openUrl, shutdownDevice, startProxy, proxyCheck, findDevice, sleep } from './sim.mjs';
 import { openTab } from './wip.mjs';
-import { T } from './timeouts.mjs';
+import { T, attempts } from './timeouts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const FIXTURES = resolve(HERE, '..', 'fixtures');
@@ -63,11 +63,13 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     await sleep(T(3000)); // an openurl right after the launch is sometimes dropped
     openUrl(device.udid, server.url + startPath.slice(1));
     proxy = await startProxy({ log });
-    try { client = await openTab(server.url, { waitMs: T(10000), log }); } catch (e) {
-      // the proxy sometimes lists the tab late or Safari dropped the first openurl: ask once more
-      log(`${e.message}; opening the URL again`);
-      openUrl(device.udid, server.url + startPath.slice(1));
-      client = await openTab(server.url, { waitMs: T(40000), log });
+    // the proxy sometimes lists the tab late or Safari dropped the openurl: ask again, bounded (FW_WK_ATTEMPTS asks in all)
+    for (let ask = 1; !client; ask++) {
+      try { client = await openTab(server.url, { waitMs: T(ask === 1 ? 10000 : 40000), log }); } catch (e) {
+        if (ask >= Math.max(2, attempts())) throw e;
+        log(`${e.message}; opening the URL again (ask ${ask + 1})`);
+        openUrl(device.udid, server.url + startPath.slice(1));
+      }
     }
     await proxyCheck();
     const ctx = {

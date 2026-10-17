@@ -98,7 +98,7 @@ export async function bootDevice({ log = () => {} } = {}) {
 }
 
 export const openUrl = (udid, url) => {
-  const r = simctl(['openurl', udid, url]);
+  const r = simctl(['openurl', udid, url], { timeoutMs: T(120000) }); // blocked 77 s once on a loaded runner
   if (r.status !== 0) throw new Error(`simctl openurl failed: ${tail(r)}`);
 };
 

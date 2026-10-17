@@ -114,7 +114,7 @@ jobs:
           # The runner (3 vCPU) boots the Simulator and Safari several times slower than a Mac: every wait in
           # packages/measure-webkit is multiplied by this (counts do not depend on waits), and a load + scroll step
           # may retry twice after a reconnect. Local runs use neither (defaults 1 and 2).
-          FW_WK_TIMEOUT_SCALE: '4'
+          FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
         working-directory: packages/measure-webkit
         run: |
