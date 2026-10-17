@@ -269,6 +269,9 @@
     .rowFlip .rowCopy {
       grid-area: auto;
     }
+    .stageSlot {
+      align-self: start;
+    }
     .rowCopy {
       width: 100%;
       height: auto;
