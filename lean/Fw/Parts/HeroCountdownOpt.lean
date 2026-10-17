@@ -1,5 +1,6 @@
 import Fw.Engine
 import Fw.Parts.HeroCountdown
+import Fw.Parts.EndFlags
 
 /-!
 # hero.countdown and morph.countdown, variant `strip`: same picture, fewer layers (CD-W, PLAN rev 10)
@@ -787,5 +788,90 @@ def goldenJsonl : String := goldenRow "swipe-v1" ++ "\n" ++ goldenRow "swipe-tou
 #guard (goldenJsonl.splitOn "\n").length == 3
 #guard (goldenRow "swipe-v1").startsWith "{\"base\":\"rewrite\",\"countType\":\"census.layers\""
 #guard ((goldenRow "swipe-v1").splitOn "\"prediction\":\"<o\"").length == 2
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+Strips and faces write the same stages at the same point of the same frame and add no read, so the stage flags end
+the same way under both: one common end-flag assignment `e`. The verdicts carry over unchanged (`=o` passes, fewer
+units). -/
+
+section EndPass
+
+open Fw.Parts.EndFlags
+
+/-- **Frame order under `frameWorkE`.** For every common end-flag assignment, strips are at most faces.
+
+$$\forall E, p, \ell, S:\ \big(\forall e:\ E.\mathrm{stagesOf}(e, p, \ell) = S\big) \Rightarrow \forall f, D,\ \forall \epsilon : \mathrm{Stage} \to \mathbb{B}:\ \operatorname{frameWork}^{\epsilon}_E(\operatorname{withWrites}(f, \operatorname{stripWrites}(p, \ell, D))) \preceq \operatorname{frameWork}^{\epsilon}_E(\operatorname{withWrites}(f, \operatorname{faceWrites}(p, \ell, D)))$$
+
+The end pass is paid the same way by both. -/
+theorem strip_frame_leE {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
+    (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (f : FrameIn P) (ds : List Nat) (e : Stage → Bool) :
+    (frameWorkE E (withWrites f (stripWrites p ℓ ds)) e).le (frameWorkE E (withWrites f (faceWrites p ℓ ds)) e) :=
+  frameE_le_of_same_forced E e (fun s => by cases s <;> rfl) (strip_frame_le E p ℓ S hS f ds)
+
+/-- **Strict under `frameWorkE`.** If some digit rolls and the write touches some stage, strips stay strictly below
+faces for every common end-flag assignment.
+
+$$\forall E, p, \ell, S:\ \big(\forall e:\ E.\mathrm{stagesOf}(e, p, \ell) = S\big) \land S \ne [\,] \Rightarrow \forall f,\ \forall D \ne [\,],\ \forall \epsilon:\ \operatorname{frameWork}^{\epsilon}_E(\operatorname{withWrites}(f, \operatorname{stripWrites}(p, \ell, D))) \prec \operatorname{frameWork}^{\epsilon}_E(\operatorname{withWrites}(f, \operatorname{faceWrites}(p, \ell, D)))$$
+
+The saved units do not depend on end flags. -/
+theorem strip_frame_ltE {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
+    (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (hS0 : S ≠ []) (f : FrameIn P) (ds : List Nat) (hd : ds ≠ [])
+    (e : Stage → Bool) :
+    (frameWorkE E (withWrites f (stripWrites p ℓ ds)) e).lt (frameWorkE E (withWrites f (faceWrites p ℓ ds)) e) := by
+  refine frameE_lt_mono E e e (fun s => by cases s <;> rfl) (strip_frame_le E p ℓ S hS f ds)
+    (fun _ _ h => h) (Or.inl ?_)
+  obtain ⟨s, hs⟩ := List.exists_mem_of_ne_nil S hS0
+  refine ⟨s, ?_⟩
+  have h := strip_units E p ℓ S hS f ds s
+  have : 0 < ds.length := List.length_pos_iff.mpr hd
+  simp only [frameWork, hs, ite_true] at h
+  show stageUnits E _ s < stageUnits E _ s
+  omega
+
+end EndPass
+
+/-! ## Scheduling: a per-frame subscriber is worse (ledger n=7, n=8)
+
+The TS strip first ran its springs from a shared per-frame loop. That loop calls back in every frame, also in the
+frames where no digit rolls, where the original runs nothing. One extra callback is one extra `script` unit, so
+those frames are not `⪯` the original's, whatever the end flags, and the run cannot dominate: the confound, not the
+strip, decides the screen. The aimed timer (n=8) runs one callback per second, as the original's interval does, so
+both arms have the same run and Core's claim is `noClaim`. -/
+
+section Schedule
+
+/-- A frame with $k$ extra script callbacks.
+
+$$\operatorname{addScript}(f, k) = f\ \text{with}\ \mathrm{script} := f.\mathrm{script} + k$$
+
+The page frame plus a subscriber's callbacks. -/
+def addScript {P : Type} (f : FrameIn P) (k : Nat) : FrameIn P := { f with script := f.script + k }
+
+/-- **A still frame with a subscriber is not `⪯` the original's**, in every engine and for all end flags.
+
+$$\forall E, p, \ell, f,\ \forall k > 0,\ \forall e_v, e_o:\ \neg\Big(\operatorname{frameWork}^{e_v}_E\big(\operatorname{withWrites}(\operatorname{addScript}(f, k), \operatorname{stripWrites}(p, \ell, [\,]))\big) \preceq \operatorname{frameWork}^{e_o}_E\big(\operatorname{withWrites}(f, \operatorname{faceWrites}(p, \ell, [\,]))\big)\Big)$$
+
+The callback costs a script unit the original does not pay. -/
+theorem sub_still_not_le {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (f : FrameIn P) (k : Nat)
+    (hk : 0 < k) (ev eo : Stage → Bool) :
+    ¬ (frameWorkE E (withWrites (addScript f k) (stripWrites p ℓ [])) ev).le
+        (frameWorkE E (withWrites f (faceWrites p ℓ [])) eo) := by
+  intro h
+  have hu := (h.1 .script).2
+  simp only [frameWorkE, stageUnits, withWrites, addScript, stripWrites, faceWrites, List.map_nil,
+    List.flatMap_nil, List.append_nil, ↓reduceIte] at hu
+  omega
+
+/-- **The aimed timer has no claim.** Two arms with the same per-frame work get `noClaim`, for every resident state.
+
+$$\forall W \in \mathrm{Work}^{*},\ \forall r_v, r_o:\ \operatorname{claim}\big(\operatorname{screen}(\operatorname{toRun}(W), \operatorname{toRun}(W)), r_v, r_o\big) = \mathrm{noClaim}$$
+
+One callback per second against one callback per second is no work order (Lesson `resident_only_noClaim`). -/
+theorem same_run_noClaim (ws : List Work) (rv ro : Resident) :
+    claim (Screen.screen (toRun ws) (toRun ws)) rv ro = .noClaim :=
+  resident_only_noClaim ws ws rv ro rfl
+
+end Schedule
 
 end Fw.Parts.HeroCountdownOpt
