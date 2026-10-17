@@ -1435,6 +1435,24 @@
     "packages/measure-chromium/src/input*.mjs",
     "packages/measure-chromium/src/run.mjs"
    ]
+  },
+  {
+   "id": "watch-proc-allow",
+   "title": "fw watch proc.long: skip intended long-runners (caffeinate, console-api, monitors, wait loops of a live agent); 6 of 7 alerts on the first run were these",
+   "stream": "console",
+   "milestone": null,
+   "deps": [
+    "watch-slow"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*.ts",
+    "docs/team/tools/watch.md"
+   ]
   }
  ]
 }
