@@ -809,6 +809,51 @@
     "calibration"
    ],
    "owner": "lead"
+  },
+  {
+   "id": "watch-lean",
+   "title": "Team health in Lean: per-agent state (active/idle/waiting/stalled/done) and alert rules over observation snapshots, proved; fwcore op obs.health",
+   "stream": "console",
+   "milestone": "M0",
+   "deps": [
+    "lean-serve"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/**"
+   ]
+  },
+  {
+   "id": "watch-cli",
+   "title": "fw watch: collect spool, transcripts meta/usage, system and CI facts; fwcore obs.health; table + health.jsonl; --interval, --until-alert",
+   "stream": "console",
+   "milestone": "M0",
+   "deps": [
+    "watch-lean"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*.ts",
+    "docs/team/tools/watch.md"
+   ]
+  },
+  {
+   "id": "watch-web",
+   "title": "Console Health tab from health.jsonl / obs.health",
+   "stream": "console",
+   "milestone": "M0",
+   "deps": [
+    "watch-cli",
+    "con-plan"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/console-web/**",
+    "apps/console-api/**"
+   ]
   }
  ]
 }
