@@ -48,6 +48,8 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
   glue stay unproved, and they hold no decision logic. A TS stand-in is temporary and listed in your report.
 - **Lean math:** every theorem's docstring carries its statement as LaTeX math, because the user reviews the math,
   not the Lean.
+- **Processes:** never kill by app or pattern name (`pkill -f "Google Chrome"` closed the user's browser once); kill
+  only PIDs your own run started, use separate browser profile dirs, and clean up child process groups you spawned.
 - **Context:** never print > ~150 lines into context: filter (`grep -n`, `tail -40`), send long output to a scratch
   file and read excerpts; Read with offset/limit; do not re-read unchanged files.
 - Answers to the user: answer first, short plain bullets, numbers in small tables.
