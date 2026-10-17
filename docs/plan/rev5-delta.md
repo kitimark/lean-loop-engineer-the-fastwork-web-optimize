@@ -2,7 +2,7 @@
 id: 2026-10-17-plan-rev5-delta
 kind: decision
 title: "PLAN revision 5 delta: automated console, Lean-first scope, math view"
-status: review
+status: accepted
 created: 2026-10-17
 updated: 2026-10-17
 authors: [agent:automation-proof-synthesis]
@@ -18,6 +18,11 @@ links:
 ---
 
 # PLAN revision 5: the delta to apply
+
+> **Applied (2026-10-17), and partly superseded.** This delta was applied to `docs/plan/PLAN.md` as revision 5. Its
+> Day-N schedule, "before Monday", `~/.fw-console/` and bare-repo text are superseded by your later decisions (no
+> calendar; console state in the gitignored `.fw-console/`; `main` a normal branch). PLAN.md Appendix D records each
+> override. This file is kept as history.
 
 **Source.** Your three requirements of 2026-10-17: (R1) v1's console needed agents to update parts of it by hand;
 automate it so agents do not maintain status. (R2) Prove as much as possible with Lean. (R3) You do not read Lean; show

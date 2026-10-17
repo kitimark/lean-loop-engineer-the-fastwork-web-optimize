@@ -20,6 +20,7 @@ links:
     - research/kickoff/08-chat-forensics/README.md
     - research/kickoff/09-mui-zero-runtime/README.md
     - research/kickoff/10-automation-and-proof/README.md
+    - research/kickoff/11-breakpoints/README.md
     - research/notes/2026/10-17-v2-plan-feasibility-review.md
     - research/notes/env-setup.md
   v1_repo: ../fastwork-com-web-optimize (read-only)
@@ -57,7 +58,7 @@ proposals until you accept them.
 | **S1 … S13** | styling rules inside parts | §6.5 |
 | **class W / SM / X / P** | landing classes: less **W**ork, **SM**oothness or mixed, device-only (**X**), **P**roposal | §9.2 |
 | **SPK-a … SPK-u** | spikes (short experiments that answer one question) | Appendix B |
-| **L1 / L1-cond / L2 / L3** | proof levels: proved in Lean; proved but with a named unprovable premise; Lean spec + TS copy kept equal by tests; not provable | §5.1 |
+| **L1 / L1-cond / L2 / L3** | proof levels: proved in Lean; proved but with a named unprovable premise; Lean spec with Lean-generated code or golden vectors for TS; not provable | §5.1 |
 | **tier T0 … T3** | v1's pixel-difference tiers | §6.6 |
 | **K1 … K10** | calibration fixture pages: K1-K9 WebKit [04 §9]; K10 sheet mutation, both engines [09.03 §5.2] | §4.4 |
 | **R1 … R28** | risks | §11 |
@@ -106,14 +107,14 @@ when the Lean changed after a math-reviewer signed it (§5.3).
   but Chromium cannot predict iPhone Safari, so the cost model is calibrated for WebKit first (§4.4, Q8). There is
   no Android phone (decided 2026-10-17): the Android emulator gives Chrome-for-Android counts only, never timing.
 - **Lean costs more up front:** about 20 modules instead of 4 and $700-1,100 of Lean work instead of $280 (INFERRED
-  [10.03 §7.1]); a module that costs much and catches nothing moves back to TypeScript (§5.1).
+  [10.03 §7.1], made before the Lean-first rule reached the site and parts, so to re-estimate); a module that costs much and catches nothing moves back to TypeScript (§5.1).
 
 **Headline goal.** Rebuild the page and reproduce v1's outcome on the phone as flag arms, with a fraction of v1's
 device time, tool bugs and elapsed time; cost reported, not capped; every claimed speed-up checked by your finger (§1).
 
 **Order of work: a dependency graph, no calendar (decided 2026-10-17).** Workstreams start as soon as their inputs
-exist and run in parallel; since 2026-10-17 the Lean core, both counts lanes, the console MVP, the site + AOT spike,
-the breakpoint inventory and the explainer page run at once. Milestones M0-M6 are gates: M1 the **original** measured
+exist and run in parallel, from 2026-10-17 on (the live status is in the console, not in this plan). Milestones
+M0-M6 are gates: M1 the **original** measured
 in both engines before any rewrite, M2 three pilot parts, M3 the WebKit model calibrated, M4 all parts promoted, M5
 experiments, M6 write-up (§10).
 
@@ -163,7 +164,7 @@ Each criterion has a measurement and an owner. "Proposal" thresholds become bind
 |---|---|---|
 | Frozen, hash-pinned baseline | The pin changed only twice, both on purpose [01 §B.2] | `snapshot.lock.json` pins the original; each rewrite build is pinned by commit + flag vector + `servedHash` |
 | One change per arm | Overlays gave clean A/B arms | Overlays become **flag arms**; never bundle fixes in one arm (bundled builds hid causes) |
-| A/A noise floor; "better" only with disjoint ranges; ±4 ms twins | g0.0l vs g0.0m was correctly called level [01 §B.2] | The landing verdict is **4 vs 4** runs with disjoint ranges (or v1's sequential ABBA rule). Its false-win rate under the null is proved to be exactly 1/70, and comparisons are counted per experiment (§5.1) |
+| A/A noise floor; "better" only with disjoint ranges; ±4 ms twins | g0.0l vs g0.0m was correctly called level [01 §B.2] | The landing verdict is **4 vs 4** runs with disjoint ranges (or v1's sequential ABBA rule). Its false-win rate under the null is at most 1/C(8,4) = 1/70 (exactly 1/70 when ties have probability 0), to prove in M0 (planned), and comparisons are counted per experiment (§5.1) |
 | Prediction cards before data | 17 or more flagged prediction misses in 153 rows | The question card carries a pre-registered predicted Δ per stage and zone (§9) |
 | Claim status words, engine-build applicability, "read source first" | Claim C1 (`layerPainted`) reached you as fact on two probes [01 §B.2] | Rule cards in `refs/rules/` with file:line@commit, status (incl. WEAKENED), builds [04 §11] |
 | Pixel tiers T0-T3, screencast capture, frozen frames | False 0 % passes after a scroll (P14) | Parity levels PL0-PL6 (§6.6) |
@@ -274,7 +275,7 @@ fixtures [06 §2.5, 05 §6].
 |---|---|---|
 | runner → site | URL `?fw=part:variant,…`, `?impl=part:plain,…`, `?preset=<id>`, `seed`, `t0`, `rm`; page exposes `window.__fw = {config, configHash, scroll, clock, hydrated, styleMisses, markMeasureStart}` and `<meta name="fw-config">` | The same harness drives arm A (original) by injecting an equivalent `__fw.scroll`; `markMeasureStart()` is refused before `hydrated` [02 §3.5, 09.03 §2] |
 | site build → runner | Vite `manifest.json` → `servedHash` per route | Edits to part X change the keys only of routes that serve X [06 §3.1] |
-| runner → plugin | `MeasurePlugin {id, semantics, lane, input, output, run, reduce}` | `reduce()` is pure and golden-tested; an output that fails its schema is an incident, never a result [06 §2.4] |
+| runner → plugin | `MeasurePlugin {id, semantics, lane, input, output, run, reduce}` | count reduction runs in `fwcore` (§3.3); the plugin's TS keeps only I/O, or passes Lean golden vectors; an output that fails its schema is an incident, never a result [06 §2.4] |
 | plugin → artifact store | key = `sha256(canonical JSON of {subject, tool{plugin,semantics}, engine{build,flags}, profile, protocol})` (sorted keys; full JCS later if needed) | Counts artifacts are reused; timing artifacts append samples [06 §3.1] |
 | artifact store → model | count vector per (frame, part, zone) + coefficient set `(device, engine build, thermal class, ρ_page)` → `{stage p50/p90, missed vsyncs, status: uncalibrated | ranks-only | sizes}` | Pure; applied at report time, so a refit re-runs no measurement [06 §3.3] |
 | TS → fwcore | `fwcore serve` is long-lived and **stateful**: it holds the reducer state, the queues and the gates. Ops: `console.apply` (one event → accepted \| refused(reason) + changed rows), `console.replay`, `console.query` (rows, steps, queues, plan), plus stateless decisions (`verdict`, `ticks`, `twins`, `flags.resolve`, `flags.enumerate`, `screen`, `samples`) | Node → fwcore round trip 17.6 µs (MEASURED [10.03 §4.2]; [05 §1] measured ≈141 µs with the same method and a different binary, not yet explained; re-measured in lean-core). 100k events replay in under 1 s. The state loop uses `modifyGet` (a get-then-set copy was 66× slower, MEASURED). **Hardening below** |
@@ -307,10 +308,10 @@ fixtures [06 §2.5, 05 §6].
   (a) it runs in `fwcore`; or (b) Lean generates it (constants, CSS media strings, JSON such as
   `breakpoints.gen.json`, test matrices); or (c) the TS/React code must pass Lean-generated golden vectors. Only I/O,
   rendering and glue stay unproved, and they hold no decision. A TS stand-in is temporary and listed in the report.
-- **Exception: code that must run in the browser.** Only the site's flag resolver, a TS mirror. A TL2 test checks it
-  against `fwcore flags.resolve` on **every** single-part override of every preset (`fwcore flags.enumerate`; the
-  domain is finite, so this is as strong as a proof for that registry version), plus 2,000 fast-check cases for
-  multi-part URL overrides [10.03 §2.10].
+- **Code that must run in the browser or stay in TS** (L2): media strings, motion curves, part logic, the flag
+  resolver and the console's temporary TS reducer are generated by Lean or checked against Lean golden vectors. The
+  flag resolver's TL2 test covers **every** single-part override of every preset (`fwcore flags.enumerate`; a finite
+  domain, so as strong as a proof for that registry version), plus 2,000 fast-check multi-part cases [10.03 §2.10].
 - **Bookkeeping too:** the console reducer and views, the queues, `fw plan`, cache prune, the path check, spawn-guard
   and usage dedupe are L1 modules (§5.1); v1 failed exactly there (hand-kept board, scheduler) [10.03 §1].
 - **Priority is data you own.** One ordered list (`presets/priority.json`, or dragged in the console). Both queues read
@@ -328,7 +329,7 @@ fixtures [06 §2.5, 05 §6].
 | apps | `site`, `runner` (`fw`), `console-web`, `console-api` | — |
 | packages | `contracts`, `measure-chromium`, `measure-webkit`, `model` (stats + cost model), `kb`, `fwcore-client` | split `measure-sdk`; separate `artifact-store`, `usage` packages; `core` |
 | console storage | `.fw-console/` in the main checkout (gitignored; console-api is its only writer): `events.jsonl` (append + fsync, then apply) + snapshots, spool, CLI socket, secrets; the projection lives in `fwcore serve`; one run queue and one device job queue (Lean); reconcilers (git refs, spool, artifacts, transcripts) and three watchers (device, stall, notice coalescer, §8.5); daily exports to `results/console/` | SQLite read model (if queries get slow). The device lease is no longer "later": it is an M1 Lean module (§5.1, Q26) |
-| Lean | Lean-first, by milestone (§5.1): M0 console core (reducer, authority, steps, needs-you, landing rule), phone queue, spawn-guard, path check, usage meter, budget, JSON decoders, Frames, Verdict; M1-M3 the rest of the L1 inventory | only what an incident or a new decision calls for (M5-M6); the optional Mathlib package `FwMath` (§5.2). No engine-rule data in Lean |
+| Lean | Lean-first, by milestone (§5.1): `Fw/Site` and `Fw/Parts` (site breakpoints, pilot-part specs and goldens) from the start; M0 console core (reducer, authority, steps, needs-you, landing rule), phone queue, spawn-guard, path check, usage meter, budget, JSON decoders, Frames, Verdict; M1-M3 the rest of the L1 inventory | only what an incident or a new decision calls for (M5-M6); the optional Mathlib package `FwMath` (§5.2). No engine-rule data in Lean |
 | hooks | `SessionStart` brief (also after compaction); one observer emitter `emit.mjs` (synchronous, spool-only, silent) on SessionStart, SubagentStart, SubagentStop, TeammateIdle, PreCompact, PostCompact, StopFailure, Notification(permission_prompt\|agent_needs_input), PostToolUseFailure(Bash); the capability hook `PreToolUse(Bash)` on `pnpm fw *`; `PreToolUse(Agent)` spawn-guard (`onFailure: block`). Not used: `http` hooks (lose events silently), `WorktreeCreate` (replaces git behaviour), `SessionEnd` as a source of truth (1.5 s timeout) | `TaskCreated`/`TaskCompleted` observers, `SubagentStart` role brief |
 | repo tooling | pnpm workspaces, Biome, lefthook (one pre-commit), Vitest | Turborepo, knip, dependency-cruiser, ast-grep rule sets, REUSE.toml, JCS keys |
 | knowledge store | 4 kinds (`note`, `decision`, `ref`, `rule`), 5 claim statuses | more kinds if the index needs them |
@@ -482,13 +483,17 @@ All fixtures are our own pages in `fixtures/calibration/`. No Fastwork code goes
 
 **Primary device metric:** frames > 50 ms per 100 moving frames in the finger's zone, from the swiped run (7 of 7 in
 v1). Also reported: slow-frame % (> 34 ms) and the longest frame per zone, binned by **vsync ticks** (proved tick
-math) and placed by **crossing coordinates** (the nearest code threshold, not raw y).
+math; today's `Fw.Frames.tick` is fixed at 120 Hz while the iPhone page renders at 60 Hz, so lean-core is
+parameterising it by refresh rate, and until then it applies to Chrome only) and placed by **crossing coordinates**
+(the nearest code threshold, not raw y).
 
 ## 5. Lean strategy
 
 ### 5.1 What is proved
 
-**Lean-first (your requirement of 2026-10-17).** [10.03] lists 87 decisions, state machines and pure functions in
+**Lean-first (your requirement of 2026-10-17).** [10.03] lists 87 decisions, state machines and pure functions (console
+and tooling scope; the site and part items added by the Lean-first rule are not counted yet, so the counts are to
+re-estimate, INFERRED) in
 this design and places each at a proof level. `lean/README.md` holds the inventory; the generated math view (§5.3)
 shows each item's math.
 
@@ -496,7 +501,7 @@ shows each item's math.
 |---|---|---|
 | **L1** | 54 | Implemented and proved in Lean, run through `fwcore`; inputs are the console's own events, ids and counts |
 | **L1-cond** | 30 | Proved in Lean, but its real-world meaning needs a named L3 premise (for example: the counts are right, every spawn passes the hook, the declared dependencies are complete, the signer's identity) |
-| **L2** | 3 | Lean spec + TS copy kept equal by tests: the site's flag resolver (exhaustive over its finite domain), JSON wire codecs, console-web's optimistic preview |
+| **L2** | 3 in [10.03]; more to re-estimate | Lean spec; the shipped TS/React/CSS is generated by Lean or must pass Lean-generated golden vectors (§3.3 b, c): the site's flag resolver (exhaustive over its finite domain), JSON wire codecs, console-web's optimistic preview, and since the Lean-first rule also the media strings, motion curves, part logic and the console's temporary TS reducer |
 | **L3** | 18 categories | Not provable; each names how it is checked and which L1 decision it feeds (below) |
 
 Lean reaches the code in one of the three ways of §3.3: it runs in `fwcore`, it generates the artifact, or it emits
@@ -508,9 +513,9 @@ strings the parts import and the 124-load gate matrix), motion curves, and count
 
 | Milestone | Lean modules | v1 bug classes they remove |
 |---|---|---|
-| M0 | `Fw/Console` (reducer, authority table, steps, needs-you, replay, landing rule with violations, review independence, staleness; P in `ConsoleV2.lean` and `03-inventory/Auto/Console.lean`); `Fw/Spec/DeviceQueue` (priority with aging, no starvation, one job at a time, fits-the-window, no head-of-line blocking, hard stop at the window end; P); `Fw/Ops` (spawn-guard, path check, usage dedupe, budget alerts); `Fw/Wire` (hardened, + JSON decoders for hook payloads and usage records); `Fw/Spec/Frames`, `Fw/Spec/Verdict` (P; + `land_null_prob`, multiplicity gate, `better_sound_higher`, the tick-vs-34 ms count, both P in [10.04 §5]); the math-view lint | hand-kept board (I-044, I-108, I-145, I-162, I-183, I-248), double-answered steps (I-059), scheduler (I-011, I-041, I-049, I-185), spawn storms |
-| M1 | `Fw/Spec/ArtifactKey`, `Plan`, `Store` (P for keys and minimal invalidation); rows, threads, proposals, notices, stall watcher, digests; run queue, sessions, preflight, lease (Q26) and user step; stage lifecycle, prediction-before-data, land queue; determinism class; budgets and vsyncs | stale reuse, cherry-picking, lease mid-step (I-122, I-123), a renew that shortens (I-091), a re-queue that loses its place (I-113) |
-| M2 | `Fw/Spec/Flags` + `Fw/Gen/Registry` (P), presets; parity bands and part lifecycle; `Cost`/`screen`, alignment, uncounted families, landing classifier, `land_requires` (full) | arms that changed more than the named thing; over-trusting proxies |
+| M0 | `Fw/Console` (reducer, authority table, steps, needs-you, replay, landing rule with violations, review independence, staleness; P in `ConsoleV2.lean` and `03-inventory/Auto/Console.lean`); `Fw/Spec/DeviceQueue` (priority with aging, no starvation, one job at a time, fits-the-window, no head-of-line blocking, hard stop at the window end; P); `Fw/Ops` (spawn-guard, path check, usage dedupe, budget alerts); `Fw/Wire` (hardened, + JSON decoders for hook payloads and usage records); `Fw/Spec/Frames`, `Fw/Spec/Verdict` (P; `better_sound_higher` and the tick-vs-34 ms count P in [10.04 §5]; planned: `land_null_prob` (L1-cond) and the multiplicity gate); the math-view lint | hand-kept board (I-044, I-108, I-145, I-162, I-183, I-248), double-answered steps (I-059), scheduler (I-011, I-041, I-049, I-185), spawn storms |
+| M1 | `Fw/Site` (the breakpoint model and generator; workstream lean-site); `Fw/Spec/ArtifactKey`, `Plan`, `Store` (P for keys and minimal invalidation); rows, threads, proposals, notices, stall watcher, digests; run queue, sessions, preflight, lease (Q26) and user step; stage lifecycle, prediction-before-data, land queue; determinism class; budgets and vsyncs | stale reuse, cherry-picking, lease mid-step (I-122, I-123), a renew that shortens (I-091), a re-queue that loses its place (I-113) |
+| M2 | `Fw/Parts` (pilot-part specs and their golden vectors; workstream lean-parts); `Fw/Spec/Flags` + `Fw/Gen/Registry` (P), presets; parity bands and part lifecycle; `Cost`/`screen`, alignment, uncounted families, landing classifier, `land_requires` (full) | arms that changed more than the named thing; over-trusting proxies |
 | M3 | model ladder, fit-certificate checker, WebKit model monotonicity, licence, spot-check schedule, validation metrics, block validity | a model used beyond its evidence |
 | M4 | sequential ABBA, Hodges–Lehmann (in `FwMath` if it needs Mathlib, §5.2), union bound; **per-module evidence review** | — |
 
@@ -520,7 +525,7 @@ agent-day on each of two consecutive changes while the ledger shows 0 bugs caugh
 it blocks a console feature for more than 1 working day. The Lean spec then stays as the oracle for a TS
 implementation. At M4 the lead reviews the per-module table; Lean as a whole is not on trial.
 
-**Still dropped:** engine decision rules as Lean data, metric reducers, part geometry claims (a proof about our
+**Still dropped:** engine decision rules as Lean data and part geometry claims (a proof about our
 transcription of an engine rule cannot catch a transcription error); engine rules get **table tests** instead.
 
 **Not proved (L3), each with its check:** engine behaviour (table tests); work counts (V-a, V-b, V-i, V-n);
@@ -531,8 +536,10 @@ replay`); YAML and CSS parsing (golden files); human and LLM judgement (blind pr
 (reconcilers); **actor identity** (the capability hook, SPK-t); **completeness of declared dependencies** (SPK-u);
 **"answered / complete"** (your click or a typed close).
 
-**Multiplicity.** Each experiment records how many comparisons it made (k). A landing needs `k · p_null ≤ 0.05`:
-4v4 (1/70) allows k ≤ 3; above that use 5v5 (1/252, also proved by enumeration) or v1's sequential rule.
+**Multiplicity.** Each experiment records how many comparisons it made (k). A landing needs `k · p_null ≤ 0.05`.
+Under the null, Pr[better] ≤ 1/C(8,4) = 1/70 for 4v4 and ≤ 1/C(10,5) = 1/252 for 5v5, with equality iff ties have
+probability 0 (premise: runs exchangeable; L1-cond, both to prove by enumeration in M0, planned). 4v4 allows k ≤ 3;
+above that use 5v5 or v1's sequential rule.
 
 ### 5.2 How TypeScript and Lean connect
 
@@ -550,7 +557,7 @@ replay`); YAML and CSS parsing (golden files); human and LLM judgement (blind pr
   optional [05 §0]; it follows the same math and sign-off rules.
 - Types: zod is the source of truth (`packages/contracts`). Lean types derive `ToJson`/`FromJson`. `fwcore samples`
   emits golden JSON that zod must parse byte-for-byte, so the Lean JSON shape cannot drift [05 §2, 06 §2.5].
-- Mirrors: only the site's resolver (browser), tested against `fwcore` on its whole domain in TL2 (§3.3).
+- TS copies: only L2 items (§3.3), each generated by Lean or held to Lean golden vectors in TL2.
 
 ### 5.3 How you read a theorem, and a worked example
 
@@ -571,7 +578,7 @@ run at build time.
 | Review | The math-reviewer sees the signature, the machine-made math and the definitions, not the docstring; it writes its own math and compares clause by clause: ℕ vs ℤ, every hypothesis, ≤ vs <, rounding down and truncated subtraction, empty lists, ties, repeats, override and fold order, `= true` for Bool, the direction of ⇔/⇒. Agreement → it signs; disagreement → a second independent reviewer, then you (Q28) |
 | Toolchain bump | `mathview accept --toolchain-bump` re-signs only entries whose signature and machine-made LaTeX are unchanged, in one reviewed PR (R24) |
 
-**Worked example** (`lean/Fw/Spec/Verdict.lean`, M0):
+**Worked example** (planned for `lean/Fw/Spec/Verdict.lean` in M0; `land` and `falseBetterProb` are not in committed Lean yet):
 
 ```lean
 /-- Landing verdict: 4 control and 4 variant runs; lower is better.
@@ -582,9 +589,10 @@ def land (ctl var : List Int) : Verdict := verdictN 4 .lower ctl var
 $$\operatorname{land}(C, V) = \mathrm{better} \Rightarrow \forall y \in V,\ \forall x \in C:\ y < x$$ -/
 theorem land_sound (h : land ctl var = .better) : ∀ y ∈ var, ∀ x ∈ ctl, y < x := …
 
-/-- With no real difference, a false "better" happens with probability exactly 1/70.
-$$\Pr_{\text{null}}\big[\operatorname{land}(C, V) = \mathrm{better}\big] = 1 \big/ \tbinom{8}{4} = 1/70$$ -/
-theorem land_null_prob : falseBetterProb 4 4 = (1 : Rat) / 70 := by decide   -- 70 orderings enumerated
+/-- With no real difference (runs exchangeable), a false "better" happens with probability at most 1/70,
+exactly 1/70 when ties have probability 0.
+$$\Pr_{\text{null}}\big[\operatorname{land}(C, V) = \mathrm{better}\big] \le 1 \big/ \tbinom{8}{4} = 1/70$$ -/
+theorem land_null_prob : falseBetterProb 4 4 ≤ (1 : Rat) / 70 := …   -- planned: enumerate the 70 orderings
 
 -- Examples run at build time (illustrative numbers; real rows are taken from v1's results index):
 #guard land [21, 19, 23, 20] [4, 3, 5, 2] = .better
@@ -1174,24 +1182,28 @@ history is the timeline, and the meter reports time and cost per gate (G3, §8.4
 
 ### 10.1 Workstreams
 
-**Running now** (started 2026-10-17): the rows marked running or started. `packages/measure` is split into `measure-chromium` and
+Work started on 2026-10-17. This table holds no status: the live state of each workstream is in the console. Items
+already landed are marked with their commit. `packages/measure` is split into `measure-chromium` and
 `measure-webkit` so the two engine lanes build in parallel.
 
 | Workstream (where) | Blocked by | Outputs, and what they unblock |
 |---|---|---|
-| **lean-core** (`lean/`) — running | — (seeded from the 05 and 10 sketches) | `fwcore serve`: `Fw/Console`, `Fw/Spec/DeviceQueue`, `Fw/Ops`, `Fw/Wire` (hardened), `Frames`, `Verdict`; the math-view lint and the first signed entries; mutants killed; round trip re-measured (17.6 vs 141 µs, §3.2) → console-mvp's Lean core, M1 Lean modules |
-| **counts-chromium** (`packages/measure-chromium`) — running | the local snapshot | SPK-i (container, BeginFrameControl, fonts from `snapshot/`, byte-identical vectors), SPK-j and SPK-q on the Chromium side, per-zone counts of the original, first V-a run → artifact store, baseline |
-| **webkit-spike** (`packages/measure-webkit`) — running | — | Simulator + iwdp, `Page.enable` before `Timeline.start`, free-running `LayerTree` census, two-rAF stepping, seek-overhead fixture, SPK-m, SPK-q (WebKit); then WebKit counts per type on the original (time box 2 agent-days, then the §4.2 fallback) → baseline, calibration |
-| **console-mvp** (`packages/contracts`, `apps/console-api`, `apps/console-web`, `apps/runner`) — running | lean-core for the Lean reducer (until then a temporary TS reducer, checked by a replay oracle and replaced by `fwcore` once `fwcore serve` passes it) | the step queue first (post, Start, answer, Done) before any Simulator or phone step asks you anything; console-api as single writer (spool drain, `events.jsonl` + snapshots in `.fw-console/`, CLI socket with capability check, git reconciler that backfills from refs, SSE); console-web with derived columns and "why" popovers; `fw land` → agent-ops, every device step |
-| **site-aot** (`apps/site`) — done (d380999) | — | site scaffold, MUI theme, census route, registry and flags; **SPK-r Chromium half passed** (§6.5, Appendix B); left: the extractor fix, the WebKit run, the styling decision record → pilot parts |
-| **breakpoints** (`research/kickoff/11-breakpoints/`) — running | the local snapshot | the breakpoint inventory and the generated `breakpoints.json` → breakpoint lint and gate (§6.6), pilot parts |
-| **explainer page** (`docs/plan/loop-plan.html`) — running | this plan | the revision 5 page with the math view |
-| **lean-site** (`lean/Fw/Site/`) — running | breakpoints (the extracted file as golden) | the Lean breakpoint model and generator: `breakpoints.gen.json`, media strings, the gate matrix → breakpoint lint and gate, pilot parts; later flag rules and motion curves as goldens |
+| **lean-core** (`lean/`) | — (seeded from the 05 and 10 sketches) | `fwcore serve`: `Fw/Console`, `Fw/Spec/DeviceQueue`, `Fw/Ops`, `Fw/Wire` (hardened), `Frames`, `Verdict`; the math-view lint and the first signed entries; mutants killed; round trip re-measured (17.6 vs 141 µs, §3.2) → console-mvp's Lean core, M1 Lean modules |
+| **counts-chromium** (`packages/measure-chromium`) | the local snapshot | SPK-i (container, BeginFrameControl, fonts from `snapshot/`, byte-identical vectors), SPK-j and SPK-q on the Chromium side, per-zone counts of the original, first V-a run → artifact store, baseline |
+| **webkit-spike** (`packages/measure-webkit`) | — | Simulator + iwdp, `Page.enable` before `Timeline.start`, free-running `LayerTree` census, two-rAF stepping, seek-overhead fixture, SPK-m, SPK-q (WebKit); then WebKit counts per type on the original (time box 2 agent-days, then the §4.2 fallback) → baseline, calibration |
+| **console-mvp** (`packages/contracts`, `apps/console-api`, `apps/console-web`, `apps/runner`); MVP landed 8bec088 | lean-core for the Lean reducer (until then a temporary TS reducer, checked by a replay oracle and replaced by `fwcore` once `fwcore serve` passes it) | the step queue first (post, Start, answer, Done) before any Simulator or phone step asks you anything; console-api as single writer (spool drain, `events.jsonl` + snapshots in `.fw-console/`, CLI socket with capability check, git reconciler that backfills from refs, SSE); console-web with derived columns and "why" popovers; `fw land` → agent-ops, every device step |
+| **site-aot** (`apps/site`); landed d380999 | — | site scaffold, MUI theme, census route, registry and flags; **SPK-r Chromium half passed** (§6.5, Appendix B); left: the extractor fix, the WebKit run, the styling decision record → pilot parts |
+| **breakpoints** (`research/kickoff/11-breakpoints/`); landed a3e1e9c | the local snapshot | the breakpoint inventory and the generated `breakpoints.json` → breakpoint lint and gate (§6.6), pilot parts |
+| **explainer page** (`docs/plan/loop-plan.html`) | this plan | the revision 5 page with the math view |
+| **lean-site** (`lean/Fw/Site/`) | breakpoints (the extracted file as golden) | the Lean breakpoint model and generator: `breakpoints.gen.json`, media strings, the gate matrix → breakpoint lint and gate, pilot parts; later flag rules and motion curves as goldens |
 | **agent-ops** (`.claude/`, hooks) | console-mvp (socket) | `settings.json` sandbox block; hooks `emit.mjs` (spool format with unit tests: no socket, full disk, bad payload, < 100 ms, silent), `cap.mjs`, spawn-guard; role files incl. math-reviewer; SPK-o, SPK-p, SPK-t; the transcript tailer and the meter check (TTL by expected wait) → worktree agents may commit; `fw land` is the only way to `main` |
 | **store-and-run** (`packages/contracts`, `apps/runner`) | counts-chromium (count-vector schema), lean-core | count reduction and verdicts moved into `fwcore` (TS keeps only I/O); the artifact store; `fw run` with `--fw`, `--preset`, `--engines`, `--dry`; V-j; harness neutrality fixtures (V-n) → M1 |
 | **lean-m1+** (`lean/`) | lean-core | the M1, M2, M3 Lean modules of §5.1, each as soon as its consumer needs it |
 | **rule cards** (`refs/rules/**`) | counts lanes | v1's 16 WebKit rules and Chromium's `compositeFailed` reasons with table tests; K1-K10 fixture drafts → calibration |
-| **pilot parts** (`apps/site/src/parts/*`) — started | site-aot (SPK-r verdict), breakpoints, M1 baseline, Lean `Flags` + registry | `engine.scroll`, `hero.countdown`, `nav.hitTest`, `hero.exit` with `impl: plain` twins; N0-N5; PL0-PL6; bands frozen → M2 |
+| **math-to-lean study page** (`research/kickoff/12-math-to-lean/`) | the math view | a study of turning the plan's math into Lean (`StudyA.lean`, `StudyB.lean`) and a page for you |
+| **lean-parts** (`lean/Fw/Parts/`) | lean-site, lean-core | pilot-part specs and their golden vectors (`Fw/Parts`) → part-engine, part-hero |
+| **part-engine** (`apps/site/src/parts/{engine.scroll,nav.hitTest}`) | site-aot, lean-parts, lean-site; M1 baseline for PL5 | pilot parts `engine.scroll` and `nav.hitTest` with `impl: plain` twins, passing the Lean goldens; N0-N5; PL0-PL6 → M2 |
+| **part-hero** (`apps/site/src/parts/{hero.countdown,hero.exit}`) | as part-engine | pilot parts `hero.countdown` and `hero.exit`, the same way → M2. Four pilot parts are built; three must pass M2, and the bands are frozen from them |
 | **calibration** (fixtures, phone) | webkit counts, K fixtures, the WKTR spike (cloud Mac, Q10), booked phone sessions (Q1) | iPhone K1-K10, `ρ_page`, holdouts, validity table v0 → M3 |
 | **port parts** | M2 | every other part; whole-page PL6 with N5 → M4 |
 | **experiments** | M4 for the parts they touch; M3 for any class SM landing | the end-of-page behaviour decision first, then the [01 §A.1] backlog → M5 |
@@ -1199,18 +1211,20 @@ history is the timeline, and the meter reports time and cost per gate (G3, §8.4
 
 ```mermaid
 flowchart LR
-  LC[lean-core] --> CON[console-mvp] --> OPS[agent-ops] --> M0{{M0 bootstrap}}
-  LC --> LM[lean-m1+] & M0
-  CC[counts-chromium] --> SR[store-and-run] --> M1{{M1 original measured}}
+  LC[lean-core] --> CON[console-mvp] --> OPS[agent-ops] --> M0{{M0 bootstrap}} --> M1{{M1 original measured}}
+  LC --> LM[lean-m1+] & M0 & SR[store-and-run]
+  CC[counts-chromium] --> SR --> M1
+  AOT[site-aot: SPK-r] & CON --> M1
   CC --> M0 & RC[rule cards]
   WK[webkit-spike] --> M1 & RC & CAL[calibration]
-  BP[breakpoints] --> LS[lean-site]
-  AOT[site-aot: SPK-r] & LS & M1 & LM --> PP[pilot parts] --> M2{{M2 pilots faithful}}
+  BP[breakpoints] --> LS[lean-site] --> LP[lean-parts]
+  AOT & LS & LP & M1 & LM --> PP[part-engine, part-hero] --> M2{{M2 pilots faithful}}
   M2 --> PORT[port parts] --> M4{{M4 all parts promoted}} --> EXP[experiments] --> M5{{M5}} --> WR[write-up] --> M6{{M6}}
   RC & CON --> CAL --> M3{{M3 calibrated}} -. "class SM only" .-> EXP
 ```
 
-**Critical path** (INFERRED; re-checked at every gate): site-aot and breakpoints → pilot parts (M2) → port parts (M4)
+**Critical path** (INFERRED; re-checked at every gate): breakpoints → lean-site → lean-parts → part-engine and
+part-hero (M2) → port parts (M4)
 → experiments (M5) → write-up. Calibration (M3) is the second chain and is gated by your booked phone sessions and
 the cloud-Mac WKTR spike; class W experiments do not wait for it. Added only when their absence causes a failure:
 Turborepo, knip, dependency-cruiser, ast-grep rule sets, REUSE.toml, JCS keys, `kb lint` beyond the schema, and the
@@ -1222,7 +1236,7 @@ later hooks (§3.4).
 |---|---|
 | **M0 Bootstrap** | two byte-identical Chromium count vectors for the original (or SPK-i failure recorded and V-i re-scoped); `fwcore serve` behind console-api with the M0 Lean modules signed in the math view and every M0 mutant killed; the step queue live; SPK-a…e, i, j, k, l, o, p, q, t answered as decision records (SPK-t passed, or the separate-user fallback set up) |
 | **M1 Original measured** | Chromium: all used count types deterministic; N0/N1 read 0 on arm A (SPK-q); WebKit: the deterministic + stable set covers what K1-K9 need; per-zone baselines for the original; V-j shown; SPK-r passed, or a fallback chosen; V-t replay and the stall alarm precision (≥ 90 %) reported |
-| **M2 Pilots faithful** | 3 parts `faithful` (V-g, V-h, V-o, V-q), each through the breakpoint gate; `breakpoints.json` generated and the breakpoint lint green; PL5 and N3 bands re-set from pilot data and frozen; `cssVariables` and inert-dead-CSS decisions made; optional SPK-s run |
+| **M2 Pilots faithful** | of the 4 pilot parts built, 3 `faithful` (V-g, V-h, V-o, V-q), each through the breakpoint gate; `breakpoints.json` generated and the breakpoint lint green; PL5 and N3 bands re-set from pilot data and frozen; `cssVariables` and inert-dead-CSS decisions made; optional SPK-s run |
 | **M3 Calibrated** | V-b and V-c on the phone; model status per output recorded; `@layer mui` kept or dropped from K10; first V-f attempt scheduled |
 | **M4 All parts promoted** | every part `faithful` or `faithful-with-delta` through the full breakpoint gate (§6.6); Simulator check passed; console validity, proposals and usage views; **per-module Lean evidence review** (§5.1) |
 | **M5 Experiments** | the end-of-page decision made (class P, Try-it: faithful tween vs finger-following proposal); the backlog run as flag arms by v1's measured impact, each known v1 outcome also a **postdiction test**; G1 reached; V-d/V-e/V-f on ≥ 10 changes |
@@ -1299,7 +1313,7 @@ week; yes to the free-play phone.
 - **Q9 Acceptance bands:** V-a to V-t as in §1.2; a licence is per change class, never for all changes at once.
 - **Q10 WebKit element counts:** from now, no class W for style-affecting diffs and ranks-only for style changes; a 1-day WKTR spike on a rented cloud Mac at the start of M3 (one day's rental; cloud Macs often have a 24-hour minimum, INFERRED).
 - **Q11 Optimized variants:** compositor gate (free-running), layer budget, no pixel-moving filter animation, no scroll-linked JS style writes unless waived; 60 Hz canonical, 120 Hz also reported for Chromium.
-- **Q13 Landing verdict:** 4 vs 4 runs with a proved 1/70 null rate; comparisons counted per experiment; 5v5 or sequential when k > 3.
+- **Q13 Landing verdict:** 4 vs 4 runs with a null false-win rate ≤ 1/70 (to prove in M0, planned); comparisons counted per experiment; 5v5 or sequential when k > 3.
 - **Q14 Loop protocol:** question → build → screen → review → (device) → land, with classes W/SM/X/P (§9).
 - **Q15 Raw traces:** local artifact store only; git gets index lines and summaries.
 - **Q17 Agent-team operation and helper tools:** the lead writes one decision record after the M0 spikes, starting from the draft in Appendix C.
@@ -1415,6 +1429,7 @@ your Lean packaging and install decisions.
 | 13 | Breakpoint inventory [11] applied: 30 conditions, 18 edges (table), the pure-860 vs C860 parity rule, overlaps, fractional gaps, the 124-load gate per engine, live-resize sweeps; PLAN ids `hero`, `platform`, `ui.shared`, `theme.tokens` added; still to be MEASURED: the container-1100 viewport edge and the overlap outcomes ; §12.3's AOT-timing item dropped (SPK-r already runs); §3.1, §5.3, §8.3, §8.4 compacted | §6.1, §6.6, §12.3 |
 | 14 | Lean first for everything reproducible (your direction): three ways to code (runs in `fwcore`, generated by Lean, golden vectors); `Fw/Site/Breakpoints` generates `breakpoints.gen.json`, media strings and the gate matrix; new running workstream lean-site; Q24 decided; console TS reducer and measurement reduction/verdicts move to `fwcore` | §3.1, §3.3, §5.1, §6.6, §10.1, §12.0 |
 | 15 | SPK-r Chromium result (d380999): AOT 0 insertions, control caught; census marks all inserted ids (8 first-open misses from `styled(Wrapper)` rules, fix in progress); S7 corrected (`Tab` outside `Tabs` throws in 9.5.0, so `ButtonBase role="tab"`); Dialog/Container default `@media` replaced from `breakpoints.gen.json` (S12, build gate); site-aot done, pilot parts started | §6.5, §10.1, Appendix B |
+| 16 | Review of rev 5 (changes requested): the 1/70 and 1/252 rates stated as bounds with their premise, L1-cond, to prove in M0 (not in committed Lean); count reduction in `fwcore`, "metric reducers" no longer dropped; L2 widened to Lean-generated code and golden vectors; module and cost estimates marked to re-estimate; `Fw/Site` and `Fw/Parts` added; the tick is 120 Hz today and is being parameterised by rate; graph edges fixed; §10.1 holds no hand-written status, landed items carry commits, new workstreams lean-parts, part-engine, part-hero, math-to-lean study; 4 pilots built, 3 must pass M2; `rev5-delta.md` marked applied and superseded where this log says so | §0, §2.1, §3.2-§3.4, §4.6, §5.1-§5.3, §10, §12.2, frontmatter |
 
 Differences from the delta (why): V-t avoids "G1-style" (G1 is an outcome goal); "judge" became "the reviewer's own
 math vs the docstring"; `Write(...)` rules became `Edit(...)` (A22); the canonical-numbers table stays in the delta
