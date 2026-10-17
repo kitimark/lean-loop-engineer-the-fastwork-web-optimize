@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { getClock } from '../../engine/clock';
 import { getScrollEngine } from '../../engine/scroll';
 import { COPY } from '../people/data';
@@ -30,7 +30,7 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const section = sectionRef.current;
     const card = cardRef.current;
     const header = headerRef.current;
@@ -70,6 +70,7 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
     });
     const stopActive = watchActive(section, (a) => {
       active = a;
+      section.setAttribute('data-fw-scene', a ? 'active' : 'paused'); // the original's data-start-selling-scene (dE manageAnimations)
       if (a) driver.onScroll();
     });
     const onMedia = () => driver.onMediaChange();
@@ -80,6 +81,7 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
       reduce?.removeEventListener('change', onMedia);
       narrow?.removeEventListener('change', onMedia);
       stopActive();
+      section.removeAttribute('data-fw-scene');
       off();
       driver.dispose();
     };

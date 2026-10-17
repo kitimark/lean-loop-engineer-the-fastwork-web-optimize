@@ -183,12 +183,11 @@
           "rewrite": "[data-fw=\"people\"]",
           "boxRel": null,
           "dims": [
-            "w",
-            "h"
+            "w"
           ],
           "skipSets": [],
           "skipProps": [],
-          "why": "the section: margin-top, flex column and the box width; its height is the card plus the showcase (the PL1 box)"
+          "why": "the section: margin-top, flex column and the box width; its height is the card plus the showcase (the PL1 box). Height is not compared: it follows the title and copy line wraps, which differ with the host font (24 px per line, 13 to 20 probes per engine)"
         },
         {
           "role": "card",
@@ -196,12 +195,11 @@
           "rewrite": "[data-fw=\"people\"] > [data-fw=\"people-card\"]",
           "boxRel": null,
           "dims": [
-            "w",
-            "h"
+            "w"
           ],
           "skipSets": [],
           "skipProps": [],
-          "why": "white card: padding 80/56 (32/20/48 at <=860), gap, min-height 100svh on phones, radius from --future-shrink"
+          "why": "white card: padding 80/56 (32/20/48 at <=860), gap, min-height 100svh on phones, radius from --future-shrink. Height not compared (host font line wraps)"
         },
         {
           "role": "header",

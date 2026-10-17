@@ -83,6 +83,7 @@ export function PeopleDeck({ variant }: { variant: string }) {
     });
     const stop = watchActive(sc!, (a) => {
       isActive = a;
+      sc!.setAttribute('data-fw-scene', a ? 'active' : 'paused'); // the original's data-start-selling-scene (dE manageAnimations)
       if (a) driver.request();
     });
     const onTouch = () => driver.onMobileChange();
@@ -94,6 +95,7 @@ export function PeopleDeck({ variant }: { variant: string }) {
       touch?.removeEventListener('change', onTouch);
       reduce?.removeEventListener('change', onReduce);
       stop();
+      sc!.removeAttribute('data-fw-scene');
       off();
       driver.dispose();
       driverRef.current = null;

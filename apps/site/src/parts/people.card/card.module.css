@@ -19,6 +19,11 @@
     position: relative;
     overflow: visible;
   }
+  .future[data-fw-scene='paused'],
+  .future[data-fw-scene='paused'] :where(*) {
+    will-change: auto !important;
+    animation-play-state: paused !important;
+  }
   .card {
     z-index: 2;
     isolation: isolate;
