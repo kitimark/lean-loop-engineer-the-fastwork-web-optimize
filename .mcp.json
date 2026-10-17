@@ -1,15 +1,29 @@
 {
   "mcpServers": {
     "serena-lean": {
-      "command": "serena",
-      "args": ["start-mcp-server", "--context=claude-code", "--project", "lean"]
+      "command": "uvx",
+      "args": [
+        "--from",
+        "serena-agent==2.0.0",
+        "serena",
+        "start-mcp-server",
+        "--context=claude-code",
+        "--project",
+        "lean",
+        "--agent-interface",
+        "tools"
+      ]
     },
     "lean-lsp": {
       "command": "uvx",
       "args": [
-        "--from", "lean-lsp-mcp==0.31.0", "lean-lsp-mcp",
-        "--lean-project-path", "lean",
-        "--disable-tools", "lean_leansearch,lean_loogle,lean_leanfinder,lean_hammer_premise,lean_run_code"
+        "--from",
+        "lean-lsp-mcp==0.31.0",
+        "lean-lsp-mcp",
+        "--lean-project-path",
+        "lean",
+        "--disable-tools",
+        "lean_leansearch,lean_loogle,lean_leanfinder,lean_hammer_premise,lean_run_code"
       ]
     }
   }
