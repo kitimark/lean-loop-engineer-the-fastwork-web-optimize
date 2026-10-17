@@ -1579,7 +1579,8 @@
    "deps": [
     "refreeze"
    ],
-   "owner": "lean-prover"
+   "owner": "lean-prover",
+   "evidence": "fd8ed4d: freeze_frames; 403-vs-409 golden; table byte-identical"
   },
   {
    "id": "math-r11-fix",
