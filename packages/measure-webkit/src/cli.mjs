@@ -195,6 +195,15 @@ async function main() {
       console.log('| family | count type | level | class (worst of sessions) | sessions agree |');
       console.log('|---|---|---|---|---|');
       for (const r of out) console.log(`| ${r.family} | ${r.metric} | ${r.level} | **${r.cls}** | ${r.agree ? 'yes' : r.classes.join(' / ')} |`);
+      if (v.out) { // machine-readable table for the baselines: scroll rows by level, {class, per-session classes, worst spread}
+        const level = (l) => (l === 'total' ? 'total' : l === 'per 500 px zone' ? 'zone' : l === 'per step' ? 'step' : null);
+        const byLevel = { total: {}, zone: {}, step: {} };
+        out.forEach((r, i) => {
+          const lv = r.family === 'scroll' ? level(r.level) : null;
+          if (lv) byLevel[lv][r.metric] = { class: r.cls, sessions: r.classes, maxSpread: Math.max(...sessions.map((rows) => rows[i].maxSpread ?? 0)), maxRelSpread: Math.max(...sessions.map((rows) => rows[i].maxRelSpread ?? 0)) };
+        });
+        save('classes', { schema: 'fw.webkit.classes/1', sessions: sessions.length, passesPerSession: raw.map((p) => p.length), byLevel, rows: out.map(({ family, metric, level: lv, cls, classes }) => ({ family, metric, level: lv, class: cls, sessions: classes })) });
+      }
       break;
     }
     case 'sim': {
