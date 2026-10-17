@@ -3,8 +3,6 @@
    The media query texts are byte-equal to the generated conditions (media.test.ts). Placeholder pictures only. */
 @layer parts {
   .scale {
-    --fw-font: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue",
-      "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     --visual-scale: 0.8;
     box-sizing: border-box;
     width: calc(432px * var(--visual-scale));
@@ -90,7 +88,7 @@
   }
   .message p {
     color: #171717;
-    font-family: var(--fw-font);
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     text-overflow: clip;
     white-space: nowrap;
     margin: 0;
@@ -125,7 +123,7 @@
   }
   .label {
     color: #2b313b;
-    font-family: var(--fw-font);
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     margin: 0;
     font-size: 12px;
     font-weight: 400;
@@ -153,7 +151,7 @@
   .earned {
     color: #2b313b;
     height: 48px;
-    font-family: var(--fw-font);
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
@@ -198,7 +196,7 @@
   }
   .percent {
     color: #2b313b;
-    font-family: var(--fw-font);
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     white-space: nowrap;
     font-size: 48px;
     font-weight: 700;

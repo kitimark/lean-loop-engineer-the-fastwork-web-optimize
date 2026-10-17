@@ -4,16 +4,15 @@
    The media query texts are byte-equal to the generated conditions (media.test.ts). */
 @layer parts {
   .commission {
-    --fw-font: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue",
-      "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     --commission-enter-shrink: 1;
     --commission-shrink: 1;
-    --commission-shrink-scale: calc(1 - 0.083333 * max(var(--commission-enter-shrink), var(--commission-shrink)));
+    --commission-shrink-scale: calc(1 - .083333 * max(var(--commission-enter-shrink), var(--commission-shrink)));
     --commission-shrink-radius: 32px;
     z-index: 3;
     color: #2b313b;
     background: transparent;
-    width: 100%;
+    /* the original's page root has min-width 320px: below it the page scrolls sideways instead of shrinking */
+    width: max(100%, 320px);
     margin-top: -100svh;
     position: relative;
   }
@@ -87,7 +86,7 @@
   }
   .header h2 {
     color: #2b313b;
-    font-family: var(--fw-font);
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     letter-spacing: -0.96px;
     white-space: nowrap;
     flex-direction: column;
@@ -269,7 +268,7 @@
   }
   .copy h3 {
     color: #2b313b;
-    font-family: var(--fw-font);
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     flex-flow: wrap;
     align-items: baseline;
     column-gap: 0.35em;
@@ -297,7 +296,7 @@
   }
   .copy p {
     color: #50555e;
-    font-family: var(--fw-font);
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     margin: 0;
     font-size: 16px;
     font-weight: 400;
@@ -326,7 +325,7 @@
   }
   .whyLink {
     color: #2b313b;
-    font-family: var(--fw-font);
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     text-underline-offset: 4px;
     cursor: pointer;
     background: transparent;
@@ -365,7 +364,7 @@
   }
   .clientPill {
     color: #2b313b;
-    font-family: var(--fw-font);
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     white-space: nowrap;
     align-items: center;
     gap: 8px;
