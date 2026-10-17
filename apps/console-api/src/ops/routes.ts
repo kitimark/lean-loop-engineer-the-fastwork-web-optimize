@@ -7,6 +7,7 @@ const PathCheckReq = z.object({ scope: z.array(z.string()), paths: z.array(z.str
 
 const LandScopeReq = z.object({
   writes: z.array(z.string()), names: z.array(z.string()).optional(), allow: z.array(z.string()).optional(), paths: z.array(z.string()),
+  task: z.string().optional(), stream: z.string().optional(), // the task kind (port-*, proof-*, measure) adds its registration set
 });
 
 export function mountOps(app: Hono, store: Store) {

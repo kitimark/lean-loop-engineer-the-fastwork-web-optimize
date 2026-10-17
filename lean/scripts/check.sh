@@ -5,6 +5,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 scripts/check-partial.sh
+node scripts/check-imports.mjs  # every Fw module is imported by a root, none twice in Fw.lean (the union merge can repeat a line)
 lake build
 lake test
 scripts/mathview-cached.sh >/dev/null  # lint; replayed from .lake/mathview-cache/ when the sources are unchanged
