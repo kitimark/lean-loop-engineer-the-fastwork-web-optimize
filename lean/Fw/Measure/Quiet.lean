@@ -67,9 +67,9 @@ def classifyQuiet (tol : Tol) (L : Nat) (durs : List (List Nat)) (runs : List Se
   classifyCells tol (runs.map (restrict (quietSteps L durs)))
 
 /-- A quiet-step verdict: the class over the kept steps, and how many steps were kept out of how
-many; `none` (not enough quiet steps to say anything) when fewer than `minKept` remain.
+many (the `none` case for too few quiet steps belongs to `verdict`).
 
-$$\operatorname{verdict} = \begin{cases} \bot & |Q_L| < m \\ (\operatorname{classifyQuiet},\ |Q_L|,\ n) & \text{otherwise} \end{cases}$$
+$$\mathrm{Verdict} = (\mathit{cls}, \mathit{kept}, \mathit{total}) \in \mathbb{N}^3$$
 -/
 structure Verdict where
   cls : Nat
