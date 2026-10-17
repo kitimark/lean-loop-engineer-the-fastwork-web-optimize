@@ -2900,7 +2900,7 @@
   },
   {
    "id": "fix-proofs",
-   "title": "(M) Lean proof per integration fix (nav, commission, misc, people WebKit): each fixed value is Lean-sourced (generated CSS constant or golden vector, layout formula proved at all breakpoints) so it cannot drift; why each escaped Lean recorded in the findings ledger",
+   "title": "(L) Lean coverage of the gate probes, bulk then per fix: static values generated from the snapshot-extract reference data via Lean (Fw.Site.Reference -> generated CSS per part, moves probes from uncovered to generated; lean-coverage first run: 168 of 52346 covered, 280 of 292 failing cells uncovered); dynamic fixes (commission driver phase, nav body rule, stageBg) proved per fix; the 7 golden-covered-but-failing items explained; why each escaped Lean recorded in the findings ledger",
    "stream": "site",
    "milestone": "M5",
    "deps": [
@@ -2909,7 +2909,8 @@
     "fix-misc",
     "fix-people-webkit",
     "lean-coverage",
-    "gate-settle"
+    "gate-settle",
+    "snapshot-extract"
    ],
    "owner": "lean-prover",
    "writes": [
