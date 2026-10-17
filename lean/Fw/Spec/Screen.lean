@@ -116,7 +116,7 @@ theorem dot_mono (cs : List Rat) (hc : ∀ c ∈ cs, 0 ≤ c) :
 
 /-- `leRun` means `leVec` frame by frame, with equal frame counts.
 
-$$\operatorname{leRun}(A, B) = \mathrm{true} \;\Rightarrow\; |A| = |B| \ \land\ \forall (a, b) \in \operatorname{zip}(A, B):\ \operatorname{leVec}(a, b) = \mathrm{true}$$
+$$\forall A, B \in \mathrm{Run}:\quad \operatorname{leRun}(A, B) = \mathrm{true} \;\Rightarrow\; |A| = |B| \ \land\ \forall (a, b) \in \operatorname{zip}(A, B):\ \operatorname{leVec}(a, b) = \mathrm{true}$$
 -/
 theorem leRun_spec : ∀ {A B : Run}, leRun A B = true →
     A.length = B.length ∧ ∀ p ∈ A.zip B, leVec p.1 p.2 = true
@@ -137,7 +137,7 @@ theorem leRun_spec : ∀ {A B : Run}, leRun A B = true →
 frames as the baseline, differs from it, and under every constant term and every non-negative
 coefficient vector no aligned frame of the variant is predicted to cost more than the baseline's.
 
-$$\operatorname{screen}(B, V) = \mathrm{ok}(\mathrm{dominates}) \;\Rightarrow\; |V| = |B| \ \land\ V \ne B \ \land\ \forall \kappa \in \mathbb{Q},\ \forall c \in \mathbb{Q}^{*}:\ (\forall j:\ 0 \le c_j) \Rightarrow \forall (v, b) \in \operatorname{zip}(V, B):\ T_{\kappa, c}(v) \le T_{\kappa, c}(b)$$
+$$\forall B, V \in \mathrm{Run}:\quad \operatorname{screen}(B, V) = \mathrm{ok}(\mathrm{dominates}) \;\Rightarrow\; |V| = |B| \ \land\ V \ne B \ \land\ \forall \kappa \in \mathbb{Q},\ \forall c \in \mathbb{Q}^{*}:\ (\forall j:\ 0 \le c_j) \Rightarrow \forall (v, b) \in \operatorname{zip}(V, B):\ T_{\kappa, c}(v) \le T_{\kappa, c}(b)$$
 -/
 theorem screen_sound {base var : Run} (h : screen base var = .ok .dominates) :
     var.length = base.length ∧ var ≠ base ∧
@@ -158,7 +158,7 @@ theorem screen_sound {base var : Run} (h : screen base var = .ok .dominates) :
 /-- The mirror image: if the screen says "worse", no aligned frame of the baseline is predicted to
 cost more than the variant's, under every constant term and non-negative coefficients.
 
-$$\operatorname{screen}(B, V) = \mathrm{ok}(\mathrm{worse}) \;\Rightarrow\; |B| = |V| \ \land\ V \ne B \ \land\ \forall \kappa \in \mathbb{Q},\ \forall c \in \mathbb{Q}^{*}:\ (\forall j:\ 0 \le c_j) \Rightarrow \forall (b, v) \in \operatorname{zip}(B, V):\ T_{\kappa, c}(b) \le T_{\kappa, c}(v)$$
+$$\forall B, V \in \mathrm{Run}:\quad \operatorname{screen}(B, V) = \mathrm{ok}(\mathrm{worse}) \;\Rightarrow\; |B| = |V| \ \land\ V \ne B \ \land\ \forall \kappa \in \mathbb{Q},\ \forall c \in \mathbb{Q}^{*}:\ (\forall j:\ 0 \le c_j) \Rightarrow \forall (b, v) \in \operatorname{zip}(B, V):\ T_{\kappa, c}(b) \le T_{\kappa, c}(v)$$
 -/
 theorem screen_worse {base var : Run} (h : screen base var = .ok .worse) :
     base.length = var.length ∧ var ≠ base ∧

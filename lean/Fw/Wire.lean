@@ -351,7 +351,9 @@ def opConsoleBoard (req : Json) : Except String Reply := do
   let s ← stateOfJson (← field req "state")
   pure [("board", boardJson (Fw.Console.board s (← nat req "now") (← nat req "seq")))]
 
-/-- `verdict`: `{dir, ctl:[int], var:[int]}` → `{verdict, pNull}`. -/
+/-- `verdict`: `{dir, ctl:[int], var:[int]}` → `{verdict, pNull}`. `pNull` is proved for every
+m, n (`Fw.Null.pAt_le_pNull`, `pAt_distinct`, `falseBetterProb_eq_pNull`): it bounds the
+false-"better" probability under the uniform-labeling premise, with equality for distinct values. -/
 def opVerdict (req : Json) : Except String Reply := do
   let d ← dirOf (← str req "dir")
   let ctl ← ints req "ctl"
@@ -359,7 +361,9 @@ def opVerdict (req : Json) : Except String Reply := do
   pure [("verdict", .str (verdictName (Fw.Verdict.verdict d ctl var))),
         ("pNull", ratToJson (Fw.Null.pNull ctl.length var.length))]
 
-/-- `multiplicity`: `{k, m, n}` or `{k, p}` → `{p, ok}` (ok iff k·p ≤ 1/20). -/
+/-- `multiplicity`: `{k, m, n}` or `{k, p}` → `{p, ok}` (ok iff k·p ≤ 1/20). With `m, n` the `p`
+is `pNull m n`, a proved bound for every m, n (`Fw.Null.pAt_le_pNull`); a caller-supplied `p` is
+taken as given. -/
 def opMultiplicity (req : Json) : Except String Reply := do
   let k ← nat req "k"
   let p ← match opt req "p" with

@@ -6,8 +6,9 @@ Under the null hypothesis the $m + n$ runs are exchangeable and have no ties, so
 assignment of the ranks $0, \dots, m+n-1$ to $m$ control and $n$ variant runs is equally likely.
 `falseBetterProb m n` enumerates those assignments and runs the real `verdict` on each one, so the
 probability is about the deployed function, not a re-statement of it. `pNull` is the closed form
-the wire uses (`1 / C(m+n, n)` once both sides have `minRuns` runs); it is checked against the
-enumeration for 3v3, 4v4 and 5v5 by `decide`.
+the wire uses (`1 / C(m+n, n)` once both sides have `minRuns` runs). It is checked against the
+enumeration for 3v3, 4v4 and 5v5 by `decide`, and proved equal to it for every m, n
+(`falseBetterProb_eq_pNull`, at the end of this file).
 -/
 namespace Fw.Null
 open Fw.Verdict
@@ -17,7 +18,7 @@ in a fixed order.
 
 $$\operatorname{arr}(k, n) = \big[\, b \in \{\mathrm{false}, \mathrm{true}\}^{k} \;\big|\; \#\{\, i : b_i = \mathrm{true} \,\} = n \,\big]$$
 
-$$\operatorname{arr}(0, n) = \begin{cases} [\,[\,]\,] & n = 0 \\ [\,] & n > 0 \end{cases}, \qquad \operatorname{arr}(k+1, n) = \mathrm{false} :: \operatorname{arr}(k, n) \ \mathbin{+\!\!+}\ \begin{cases} [\,] & n = 0 \\ \mathrm{true} :: \operatorname{arr}(k, n-1) & n > 0 \end{cases}$$
+$$\operatorname{arr}(0, n) = \begin{cases} [\,[\,]\,] & n = 0 \\ [\,] & n > 0 \end{cases}, \qquad \operatorname{arr}(k+1, n) = \operatorname{map}\big(\mathrm{false} :: \cdot,\ \operatorname{arr}(k, n)\big) \ \mathbin{+\!\!+}\ \begin{cases} [\,] & n = 0 \\ \operatorname{map}\big(\mathrm{true} :: \cdot,\ \operatorname{arr}(k, n-1)\big) & n > 0 \end{cases}$$
 -/
 def arr : Nat → Nat → List (List Bool)
   | 0, n => if n = 0 then [[]] else []
@@ -52,41 +53,52 @@ assignments on which the verdict says "better".
 
 $$\operatorname{falseBetterProb}(m, n) = \frac{\operatorname{wins}(m, n)}{\lvert \operatorname{arr}(m+n, n) \rvert} \in \mathbb{Q}$$
 
-Edge: Lean's $x / 0 = 0$, but $\lvert \operatorname{arr}(m+n, n) \rvert = \binom{m+n}{n} \ge 1$ always.
+Edge: Lean's $x / 0 = 0$, but $\lvert \operatorname{arr}(m+n, n) \rvert = \operatorname{choose}(m+n, n) = \binom{m+n}{n} \ge 1$
+for all $m, n$ (proved: `arr_length_choose`, `choose_eq_binom`, `binom_pos`).
 -/
 def falseBetterProb (m n : Nat) : Rat := (wins m n : Rat) / ((arr (m + n) n).length : Rat)
 
 /-- The binomial coefficient, computed by the exact multiplicative recurrence
-$\binom{k}{i+1} = \binom{k}{i} \cdot (k - i) / (i + 1)$.
+$\binom{k}{i+1} = \binom{k}{i} \cdot (k - i) / (i + 1)$; the floor never discards anything, and
+$\operatorname{choose}(k, j) = \binom{k}{j}$ for all $k, j$ is proved below (`choose_eq_binom`).
 
-$$\operatorname{choose}(k, j) = c_j, \qquad c_0 = 1, \qquad c_{i+1} = \left\lfloor \frac{c_i \cdot (k \mathbin{\dot-} i)}{i + 1} \right\rfloor \qquad \Big(= \tbinom{k}{j} \text{ on every value checked below}\Big)$$
+$$\operatorname{choose}(k, j) = c_j, \qquad c_0 = 1, \qquad c_{i+1} = \left\lfloor \frac{c_i \cdot (k \mathbin{\dot-} i)}{i + 1} \right\rfloor$$
 -/
 def choose (k j : Nat) : Nat := (List.range j).foldl (fun c i => c * (k - i) / (i + 1)) 1
 
 #guard choose 8 4 == 70 && choose 10 5 == 252 && choose 6 3 == 20 && choose 3 4 == 0 && choose 5 0 == 1
 
 /-- The closed form the wire reports as `pNull`: 0 when either side has fewer than `minRuns`
-runs (the verdict is then never "better"), otherwise one assignment in $\binom{m+n}{n}$.
+runs (the verdict is then never "better"), otherwise one assignment in $\binom{m+n}{n}$. Proved for
+all $m, n$: it equals the enumerated `falseBetterProb` (`falseBetterProb_eq_pNull`), equals the
+false-"better" share for any distinct run values (`pAt_distinct`), and bounds that share for any
+values, ties allowed (`pAt_le_pNull`).
 
 $$\operatorname{pNull}(m, n) = \begin{cases} 0 & \text{if } m < 3 \ \lor\ n < 3 \\ 1 \big/ \operatorname{choose}(m + n, n) & \text{otherwise} \end{cases} \in \mathbb{Q}$$
 -/
 def pNull (m n : Nat) : Rat :=
   if m < minRuns ∨ n < minRuns then 0 else 1 / (choose (m + n) n : Rat)
 
-/-- The landing verdict (4 control vs 4 variant runs): with no real difference, a false "better"
-happens with probability exactly 1/70 (all 70 rank assignments enumerated through `verdict`).
+/-- The landing verdict (4 control vs 4 variant runs): if the 8 run values are distinct and every
+labeling is equally likely (the L3 premise), a false "better" has probability exactly 1/70 (all 70
+rank assignments enumerated through `verdict`; any distinct values: `pAt_distinct`); with ties it
+is at most 1/70 (`null_bound_4v4_5v5`).
 
 $$\operatorname{falseBetterProb}(4, 4) = 1/70 = \operatorname{pNull}(4, 4)$$
 -/
 theorem land_null_prob : falseBetterProb 4 4 = 1 / 70 ∧ pNull 4 4 = 1 / 70 := by decide +kernel
 
-/-- 5 vs 5 runs: a false "better" happens with probability exactly 1/252.
+/-- 5 vs 5 runs: if the 10 run values are distinct and every labeling is equally likely (the L3
+premise), a false "better" has probability exactly 1/252; with ties it is at most 1/252
+(`null_bound_4v4_5v5`).
 
 $$\operatorname{falseBetterProb}(5, 5) = 1/252 = \operatorname{pNull}(5, 5)$$
 -/
 theorem null_prob_5v5 : falseBetterProb 5 5 = 1 / 252 ∧ pNull 5 5 = 1 / 252 := by decide +kernel
 
-/-- 3 vs 3 runs (v1's minimum): a false "better" happens with probability exactly 1/20.
+/-- 3 vs 3 runs (v1's minimum): if the 6 run values are distinct and every labeling is equally
+likely (the L3 premise), a false "better" has probability exactly 1/20; with ties it is at most
+1/20 (`pAt_le_pNull`).
 
 $$\operatorname{falseBetterProb}(3, 3) = 1/20 = \operatorname{pNull}(3, 3)$$
 -/
@@ -109,13 +121,18 @@ theorem mult_4v4 : multOk 3 (pNull 4 4) = true ∧ multOk 4 (pNull 4 4) = false 
 
 The enumeration above uses the distinct ranks $0, \dots, m+n-1$. For arbitrary run values
 $v \in \mathbb{Z}^{m+n}$ (ties allowed) we prove that **at most one** of the
-$\binom{m+n}{n}$ labelings makes the verdict say "better", for every $m, n$, so under the
-uniform-labeling null the false-"better" probability is at most $1/\binom{m+n}{n}$.
+$\lvert \operatorname{arr}(m+n, n) \rvert = \binom{m+n}{n}$ labelings makes the verdict say
+"better", for every $m, n$, so under the uniform-labeling null the false-"better" probability is
+at most $1/\binom{m+n}{n}$ (`pAt_le`, then `pAt_le_choose` and `pAt_le_pNull` in the next section,
+where $\lvert \operatorname{arr}(k, n) \rvert = \binom{k}{n}$ is proved for all $k, n$).
 
-What is *not* proved here: (1) that for every set of distinct values exactly one labeling wins
-(it is proved for the canonical ranks only, by `decide`); (2) that exchangeable runs make every
-labeling equally likely: that is the modeling premise (an L3 assumption about the runs), stated
-by defining the probability as the share of labelings. -/
+For *distinct* values and $m, n \ge 3$, exactly one labeling wins (`winsAt_distinct`, any distinct
+values, any $m, n$), so the probability is exactly $1/\binom{m+n}{n} = \operatorname{pNull}(m, n)$
+(`pAt_distinct`, `falseBetterProb_eq_pNull`).
+
+What is *not* proved here: that exchangeable runs make every labeling equally likely. That is the
+modeling premise (an L3 assumption about the runs), stated by defining the probability as the
+share of labelings. -/
 
 /-- The values at the positions labelled `f` (`true` = variant, `false` = control), in order.
 
@@ -128,7 +145,7 @@ def sel (f : Bool) (b : List Bool) (v : List Int) : List Int :=
 
 /-- A value whose position carries label `f` is among the selected values.
 
-$$i < |b| \ \land\ i < |v| \ \land\ b_i = f \;\Rightarrow\; v_i \in \operatorname{sel}(f, b, v)$$
+$$\forall f \in \{\mathrm{false}, \mathrm{true}\},\ \forall b \in \{\mathrm{false}, \mathrm{true}\}^{*},\ \forall v \in \mathbb{Z}^{*},\ \forall i \in \mathbb{N}:\quad i < |b| \ \land\ i < |v| \ \land\ b_i = f \;\Rightarrow\; v_i \in \operatorname{sel}(f, b, v)$$
 -/
 theorem mem_sel {f : Bool} {b : List Bool} {v : List Int} {i : Nat} (hb : i < b.length)
     (hv : i < v.length) (h : b[i] = f) : v[i] ∈ sel f b v := by
@@ -143,7 +160,7 @@ theorem mem_sel {f : Bool} {b : List Bool} {v : List Int} {i : Nat} (hb : i < b.
 
 /-- If every `true` of `b` is a `true` of `b'` (position by position), `b` has no more `true`s.
 
-$$|b| = |b'| \ \land\ (\forall i:\ b_i \Rightarrow b'_i) \;\Rightarrow\; \#_{\mathrm{true}}(b) \le \#_{\mathrm{true}}(b')$$
+$$\forall b, b' \in \{\mathrm{false}, \mathrm{true}\}^{*}:\quad |b| = |b'| \ \land\ (\forall i < |b|:\ b_i \Rightarrow b'_i) \;\Rightarrow\; \#_{\mathrm{true}}(b) \le \#_{\mathrm{true}}(b')$$
 -/
 theorem count_le_of_imp : ∀ (b b' : List Bool), b.length = b'.length →
     (∀ (i : Nat) (h : i < b.length) (h' : i < b'.length), b[i] = true → b'[i] = true) →
@@ -161,7 +178,7 @@ theorem count_le_of_imp : ∀ (b b' : List Bool), b.length = b'.length →
 /-- If every `true` of `b` is a `true` of `b'` and both have the same number of `true`s, they are
 equal.
 
-$$|b| = |b'| \ \land\ (\forall i:\ b_i \Rightarrow b'_i) \ \land\ \#_{\mathrm{true}}(b) = \#_{\mathrm{true}}(b') \;\Rightarrow\; b = b'$$
+$$\forall b, b' \in \{\mathrm{false}, \mathrm{true}\}^{*}:\quad |b| = |b'| \ \land\ (\forall i < |b|:\ b_i \Rightarrow b'_i) \ \land\ \#_{\mathrm{true}}(b) = \#_{\mathrm{true}}(b') \;\Rightarrow\; b = b'$$
 -/
 theorem eq_of_imp_count : ∀ (b b' : List Bool), b.length = b'.length →
     (∀ (i : Nat) (h : i < b.length) (h' : i < b'.length), b[i] = true → b'[i] = true) →
@@ -186,7 +203,7 @@ theorem eq_of_imp_count : ∀ (b b' : List Bool), b.length = b'.length →
 /-- Two different labelings with the same number of `true`s: some position is `true` in the
 first and `false` in the second.
 
-$$|b| = |b'| \ \land\ \#_{\mathrm{true}}(b) = \#_{\mathrm{true}}(b') \ \land\ b \ne b' \;\Rightarrow\; \exists i:\ b_i = \mathrm{true} \land b'_i = \mathrm{false}$$
+$$\forall b, b' \in \{\mathrm{false}, \mathrm{true}\}^{*}:\quad |b| = |b'| \ \land\ \#_{\mathrm{true}}(b) = \#_{\mathrm{true}}(b') \ \land\ b \ne b' \;\Rightarrow\; \exists i < |b|:\ b_i = \mathrm{true} \land b'_i = \mathrm{false}$$
 -/
 theorem exists_true_false (b b' : List Bool) (hl : b.length = b'.length)
     (hc : b.count true = b'.count true) (hne : b ≠ b') :
@@ -203,7 +220,7 @@ theorem exists_true_false (b b' : List Bool) (hl : b.length = b'.length)
 /-- **At most one winning labeling, ties allowed.** For any run values, two labelings with the same
 number of variant runs on which the verdict says "better" (lower is better) are equal.
 
-$$\forall v \in \mathbb{Z}^{*},\ \forall b, b' \in \{0,1\}^{|v|}:\quad \#_{\mathrm{true}}(b) = \#_{\mathrm{true}}(b') \ \land\ \operatorname{verdict}(\mathrm{lower}, \operatorname{sel}(\mathrm{false}, b, v), \operatorname{sel}(\mathrm{true}, b, v)) = \mathrm{better} \ \land\ \operatorname{verdict}(\mathrm{lower}, \operatorname{sel}(\mathrm{false}, b', v), \operatorname{sel}(\mathrm{true}, b', v)) = \mathrm{better} \;\Rightarrow\; b = b'$$
+$$\forall v \in \mathbb{Z}^{*},\ \forall b, b' \in \{\mathrm{false}, \mathrm{true}\}^{|v|}:\quad \#_{\mathrm{true}}(b) = \#_{\mathrm{true}}(b') \ \land\ \operatorname{verdict}(\mathrm{lower}, \operatorname{sel}(\mathrm{false}, b, v), \operatorname{sel}(\mathrm{true}, b, v)) = \mathrm{better} \ \land\ \operatorname{verdict}(\mathrm{lower}, \operatorname{sel}(\mathrm{false}, b', v), \operatorname{sel}(\mathrm{true}, b', v)) = \mathrm{better} \;\Rightarrow\; b = b'$$
 -/
 theorem better_labeling_unique {v : List Int} {b b' : List Bool} (hb : b.length = v.length)
     (hb' : b'.length = v.length) (hc : b.count true = b'.count true)
@@ -221,7 +238,7 @@ theorem better_labeling_unique {v : List Int} {b b' : List Bool} (hb : b.length 
 
 /-- Every labeling in `arr k n` has length `k` and exactly `n` entries `true`.
 
-$$\forall b \in \operatorname{arr}(k, n):\quad |b| = k \ \land\ \#_{\mathrm{true}}(b) = n$$
+$$\forall k, n \in \mathbb{N},\ \forall b \in \operatorname{arr}(k, n):\quad |b| = k \ \land\ \#_{\mathrm{true}}(b) = n$$
 -/
 theorem mem_arr : ∀ {k n : Nat} {b : List Bool}, b ∈ arr k n → b.length = k ∧ b.count true = n
   | 0, n, b, h => by
@@ -241,7 +258,7 @@ theorem mem_arr : ∀ {k n : Nat} {b : List Bool}, b ∈ arr k n → b.length = 
 
 /-- `arr k n` lists each labeling once.
 
-$$\operatorname{arr}(k, n) \text{ has no repeated element}$$
+$$\forall k, n \in \mathbb{N}:\quad \operatorname{arr}(k, n) \text{ has no repeated element}$$
 -/
 theorem arr_nodup : ∀ (k n : Nat), (arr k n).Nodup
   | 0, n => by by_cases hn : n = 0 <;> simp [arr, hn]
@@ -275,7 +292,8 @@ def winsAt (v : List Int) (m n : Nat) : Nat :=
 #guard winsAt [1, 2, 3, 4, 4, 5, 6, 7] 4 4 == 0 && winsAt [1, 2, 3, 3, 4, 4, 5, 6] 4 4 == 1
 
 /-- **Combinatorial core, ties allowed.** For any $m + n$ run values, at most one of the
-$\binom{m+n}{n}$ labelings gives "better".
+labelings in $\operatorname{arr}(m+n, n)$ gives "better" (there are $\binom{m+n}{n}$ of them:
+`arr_length_choose`).
 
 $$\forall m, n \in \mathbb{N},\ \forall v \in \mathbb{Z}^{m+n}:\quad \operatorname{winsAt}(v, m, n) \le 1$$
 -/
@@ -311,7 +329,7 @@ def pAt (v : List Int) (m n : Nat) : Rat := (winsAt v m n : Rat) / ((arr (m + n)
 /-- The bound: for any values (ties allowed), the false-"better" probability is at most one
 labeling's share.
 
-$$\forall m, n,\ \forall v \in \mathbb{Z}^{m+n}:\quad \operatorname{pAt}(v, m, n) \le \frac{1}{\lvert \operatorname{arr}(m+n, n) \rvert}$$
+$$\forall m, n \in \mathbb{N},\ \forall v \in \mathbb{Z}^{m+n}:\quad \operatorname{pAt}(v, m, n) \le \frac{1}{\lvert \operatorname{arr}(m+n, n) \rvert}$$
 -/
 theorem pAt_le (v : List Int) (m n : Nat) (hv : v.length = m + n) :
     pAt v m n ≤ 1 / ((arr (m + n) n).length : Rat) := by
@@ -329,7 +347,8 @@ theorem pAt_le (v : List Int) (m n : Nat) (hv : v.length = m + n) :
   simpa using this
 
 /-- 4v4 and 5v5 with ties allowed: the false-"better" probability is at most 1/70 and 1/252
-(equality for the distinct ranks is `land_null_prob` and `null_prob_5v5`).
+(equality for distinct values is `pAt_distinct`; for the ranks $0, \dots, m+n-1$ the enumerated
+`falseBetterProb` of `land_null_prob` and `null_prob_5v5` is this `pAt` by `falseBetterProb_eq_pAt`).
 
 $$\forall v \in \mathbb{Z}^{8}:\ \operatorname{pAt}(v, 4, 4) \le \tfrac{1}{70}, \qquad \forall v \in \mathbb{Z}^{10}:\ \operatorname{pAt}(v, 5, 5) \le \tfrac{1}{252}$$
 -/
@@ -339,5 +358,358 @@ theorem null_bound_4v4_5v5 :
   have h8 : ((arr (4 + 4) 4).length : Rat) = 70 := by decide +kernel
   have h10 : ((arr (5 + 5) 5).length : Rat) = 252 := by decide +kernel
   exact ⟨fun v hv => h8 ▸ pAt_le v 4 4 hv, fun v hv => h10 ▸ pAt_le v 5 5 hv⟩
+
+/-! ## Counting labelings: $\lvert \operatorname{arr}(k, n) \rvert = \binom{k}{n}$ for all $k, n$
+
+`binom` is the binomial coefficient by Pascal's rule. We prove that `arr k n` has `binom k n`
+elements and that the wire's multiplicative `choose` equals `binom`, so the bound `pAt_le` reads
+$\operatorname{pAt} \le 1/\binom{m+n}{n}$ for every $m, n$, and $\operatorname{pAt} \le \operatorname{pNull}$. -/
+
+/-- The binomial coefficient by Pascal's rule.
+
+$$\operatorname{binom}(k, 0) = 1, \qquad \operatorname{binom}(0, n+1) = 0, \qquad \operatorname{binom}(k+1, n+1) = \operatorname{binom}(k, n) + \operatorname{binom}(k, n+1) \qquad (k, n \in \mathbb{N})$$
+-/
+def binom : Nat → Nat → Nat
+  | _, 0 => 1
+  | 0, _ + 1 => 0
+  | k + 1, n + 1 => binom k n + binom k (n + 1)
+
+#guard binom 8 4 == 70 && binom 10 5 == 252 && binom 6 3 == 20 && binom 3 4 == 0 && binom 0 0 == 1
+
+/-- Choosing nothing: one way.
+
+$$\forall k \in \mathbb{N}:\quad \operatorname{binom}(k, 0) = 1$$
+-/
+theorem binom_zero_right (k : Nat) : binom k 0 = 1 := by cases k <;> rfl
+
+/-- `arr k n` has exactly `binom k n` labelings.
+
+$$\forall k, n \in \mathbb{N}:\quad \lvert \operatorname{arr}(k, n) \rvert = \operatorname{binom}(k, n)$$
+-/
+theorem arr_length : ∀ k n, (arr k n).length = binom k n
+  | 0, 0 => rfl
+  | 0, _ + 1 => rfl
+  | k + 1, 0 => by simp [arr, arr_length k 0, binom_zero_right]
+  | k + 1, n + 1 => by simp [arr, arr_length k n, arr_length k (n + 1), binom]; omega
+
+/-- More to choose than there are: no way.
+
+$$\forall k, n \in \mathbb{N}:\quad k < n \;\Rightarrow\; \operatorname{binom}(k, n) = 0$$
+-/
+theorem binom_eq_zero : ∀ {k n : Nat}, k < n → binom k n = 0
+  | _, 0, h => absurd h (by omega)
+  | 0, _ + 1, _ => rfl
+  | k + 1, n + 1, h => by
+    simp only [binom]; rw [binom_eq_zero (by omega), binom_eq_zero (by omega)]
+
+/-- At most as many as there are: at least one way.
+
+$$\forall k, n \in \mathbb{N}:\quad n \le k \;\Rightarrow\; 0 < \operatorname{binom}(k, n)$$
+-/
+theorem binom_pos : ∀ {k n : Nat}, n ≤ k → 0 < binom k n
+  | k, 0, _ => by simp [binom_zero_right]
+  | 0, _ + 1, h => absurd h (by omega)
+  | k + 1, n + 1, h => by
+    simp only [binom]; have := binom_pos (k := k) (n := n) (by omega); omega
+
+/-- The multiplicative step of the binomial coefficient, on $\mathbb{N}$ with truncated
+subtraction (both sides are 0 when $i \ge k$).
+
+$$\forall k, i \in \mathbb{N}:\quad \operatorname{binom}(k, i+1) \cdot (i + 1) = \operatorname{binom}(k, i) \cdot (k \mathbin{\dot-} i)$$
+-/
+theorem binom_succ_mul : ∀ k i, binom k (i + 1) * (i + 1) = binom k i * (k - i)
+  | 0, i => by simp [binom]
+  | k + 1, 0 => by
+    have := binom_succ_mul k 0
+    simp [binom, binom_zero_right] at this ⊢
+    omega
+  | k + 1, j + 1 => by
+    have h1 := binom_succ_mul k (j + 1)
+    have h0 := binom_succ_mul k j
+    simp only [binom]
+    by_cases hk : j + 1 ≤ k
+    · obtain ⟨r, rfl⟩ : ∃ r, k = j + 1 + r := ⟨k - (j + 1), by omega⟩
+      have e1 : j + 1 + r - (j + 1) = r := by omega
+      have e2 : j + 1 + r + 1 - (j + 1) = r + 1 := by omega
+      have e3 : j + 1 + r - j = r + 1 := by omega
+      rw [e1] at h1; rw [e3] at h0; rw [e2]
+      grind
+    · rw [binom_eq_zero (k := k) (n := j + 1) (by omega),
+        binom_eq_zero (k := k) (n := j + 1 + 1) (by omega)]
+      have : k + 1 - (j + 1) = 0 := by omega
+      simp [this]
+
+/-- The wire's multiplicative `choose` is the binomial coefficient (each floor division is exact).
+
+$$\forall k, j \in \mathbb{N}:\quad \operatorname{choose}(k, j) = \operatorname{binom}(k, j)$$
+-/
+theorem choose_eq_binom (k : Nat) : ∀ j, choose k j = binom k j
+  | 0 => by simp [choose, binom]
+  | j + 1 => by
+    rw [choose, List.range_succ, List.foldl_append, ← choose, choose_eq_binom k j]
+    simp only [List.foldl_cons, List.foldl_nil]
+    rw [← binom_succ_mul, Nat.mul_div_cancel _ (by omega)]
+
+/-- **Gap B closed.** The number of labelings is the binomial coefficient, for all $k, n$.
+
+$$\forall k, n \in \mathbb{N}:\quad \lvert \operatorname{arr}(k, n) \rvert = \operatorname{choose}(k, n) = \binom{k}{n}$$
+-/
+theorem arr_length_choose (k n : Nat) : (arr k n).length = choose k n := by
+  rw [arr_length, choose_eq_binom]
+
+/-- The bound with the binomial coefficient: for any values (ties allowed), the false-"better"
+probability is at most $1/\binom{m+n}{n}$; the denominator is at least 1 (`binom_pos`).
+
+$$\forall m, n \in \mathbb{N},\ \forall v \in \mathbb{Z}^{m+n}:\quad \operatorname{pAt}(v, m, n) \le \frac{1}{\operatorname{choose}(m+n, n)}$$
+-/
+theorem pAt_le_choose (v : List Int) (m n : Nat) (hv : v.length = m + n) :
+    pAt v m n ≤ 1 / (choose (m + n) n : Rat) := by
+  rw [← arr_length_choose]; exact pAt_le v m n hv
+
+/-- `arr k n` lists every labeling of length `k` with `n` entries `true` (the converse of
+`mem_arr`).
+
+$$\forall k, n \in \mathbb{N},\ \forall b \in \{\mathrm{false}, \mathrm{true}\}^{*}:\quad b \in \operatorname{arr}(k, n) \iff |b| = k \ \land\ \#_{\mathrm{true}}(b) = n$$
+-/
+theorem mem_arr_iff : ∀ {k n : Nat} {b : List Bool}, b ∈ arr k n ↔ b.length = k ∧ b.count true = n
+  | k, n, b => by
+    constructor
+    · exact mem_arr
+    · intro ⟨hl, hc⟩
+      induction b generalizing k n with
+      | nil => subst hl; simp at hc; subst hc; simp [arr]
+      | cons x b ih =>
+        cases k with
+        | zero => simp at hl
+        | succ k =>
+          simp at hl
+          simp only [arr, List.mem_append, List.mem_map]
+          cases x with
+          | false =>
+            left; exact ⟨b, ih _ _ hl (by simpa using hc), rfl⟩
+          | true =>
+            right
+            cases n with
+            | zero => simp at hc
+            | succ n =>
+              simp only [List.mem_map]
+              exact ⟨b, ih _ _ hl (by simpa using hc), rfl⟩
+
+/-- `sel` on a cons: the head value is kept exactly when its label is `f`.
+
+$$\forall f, x \in \{\mathrm{false}, \mathrm{true}\},\ \forall b, y, v:\quad \operatorname{sel}(f, x :: b, y :: v) = \begin{cases} y :: \operatorname{sel}(f, b, v) & x = f \\ \operatorname{sel}(f, b, v) & x \ne f \end{cases}$$
+-/
+theorem sel_cons (f x : Bool) (b : List Bool) (y : Int) (v : List Int) :
+    sel f (x :: b) (y :: v) = if x = f then y :: sel f b v else sel f b v := by
+  by_cases h : x = f <;> simp [sel, h]
+
+/-- With as many labels as values, `sel` keeps one value per label `f`.
+
+$$\forall f,\ \forall b \in \{\mathrm{false}, \mathrm{true}\}^{*},\ \forall v \in \mathbb{Z}^{*}:\quad |b| = |v| \;\Rightarrow\; \lvert \operatorname{sel}(f, b, v) \rvert = \#_{f}(b)$$
+-/
+theorem length_sel (f : Bool) : ∀ (b : List Bool) (v : List Int), b.length = v.length →
+    (sel f b v).length = b.count f
+  | [], _, _ => by simp [sel]
+  | _ :: _, [], h => by simp at h
+  | x :: b, y :: v, h => by
+    rw [sel_cons, List.count_cons]
+    have := length_sel f b v (by simpa using h)
+    by_cases hx : x = f <;> simp [hx, this]
+
+/-- Every label is `true` or `false`.
+
+$$\forall b \in \{\mathrm{false}, \mathrm{true}\}^{*}:\quad \#_{\mathrm{true}}(b) + \#_{\mathrm{false}}(b) = |b|$$
+-/
+theorem count_true_add_false : ∀ (b : List Bool), b.count true + b.count false = b.length
+  | [] => rfl
+  | x :: b => by
+    have := count_true_add_false b
+    cases x <;> simp <;> omega
+
+/-- With fewer than 3 runs on a side, no labeling gives "better" (the verdict is `tooFew`).
+
+$$\forall m, n \in \mathbb{N},\ \forall v \in \mathbb{Z}^{m+n}:\quad m < 3 \ \lor\ n < 3 \;\Rightarrow\; \operatorname{winsAt}(v, m, n) = 0$$
+-/
+theorem winsAt_tooFew {v : List Int} {m n : Nat} (hl : v.length = m + n)
+    (h : m < minRuns ∨ n < minRuns) : winsAt v m n = 0 := by
+  unfold winsAt
+  rw [List.length_eq_zero_iff, List.filter_eq_nil_iff]
+  intro b hb
+  obtain ⟨hbl, hbc⟩ := mem_arr hb
+  have l1 : (sel true b v).length = n := by rw [length_sel _ _ _ (by omega)]; exact hbc
+  have l0 : (sel false b v).length = m := by
+    rw [length_sel _ _ _ (by omega)]; have := count_true_add_false b; omega
+  simp [verdict, l0, l1, h]
+
+/-- **The wire's `pNull` bounds the false-"better" probability**, for any values (ties allowed)
+and any $m, n$.
+
+$$\forall m, n \in \mathbb{N},\ \forall v \in \mathbb{Z}^{m+n}:\quad \operatorname{pAt}(v, m, n) \le \operatorname{pNull}(m, n)$$
+-/
+theorem pAt_le_pNull (v : List Int) (m n : Nat) (hv : v.length = m + n) : pAt v m n ≤ pNull m n := by
+  unfold pNull
+  split
+  · rename_i h; simp [pAt, winsAt_tooFew hv h, Rat.div_def]
+  · exact pAt_le_choose v m n hv
+
+/-! ## Distinct values: exactly one labeling wins (Gap A closed)
+
+For distinct values the winning labeling marks the $n$ smallest values as variant runs. We find a
+threshold $t$ with exactly $n$ values below it (sort the values; take the $(n+1)$-th smallest),
+label $v_i < t$ as variant, and combine with `winsAt_le_one`. -/
+
+/-- In a strictly increasing list, exactly $n$ entries lie below the $n$-th one (0-based).
+
+$$\forall s \in \mathbb{Z}^{*}\ \text{with}\ \forall i < j < |s|:\ s_i < s_j,\quad \forall n < |s|:\quad \#\{\, i < |s| : s_i < s_n \,\} = n$$
+-/
+theorem countP_lt_getElem : ∀ (s : List Int), s.Pairwise (· < ·) → ∀ (n : Nat) (h : n < s.length),
+    s.countP (fun x => decide (x < s[n])) = n
+  | [], _, n, h => by simp at h
+  | a :: s, hp, 0, _ => by
+    simp only [List.getElem_cons_zero, List.countP_cons]
+    rw [List.pairwise_cons] at hp
+    have : s.countP (fun x => decide (x < a)) = 0 := by
+      rw [List.countP_eq_zero]; intro x hx; have := hp.1 x hx; simp; omega
+    simp [this]
+  | a :: s, hp, n + 1, h => by
+    rw [List.pairwise_cons] at hp
+    simp only [List.getElem_cons_succ, List.countP_cons]
+    have hn : n < s.length := by simp at h; omega
+    have hlt : a < s[n] := hp.1 _ (List.getElem_mem _)
+    rw [countP_lt_getElem s hp.2 n (by simpa using h)]
+    simp [hlt]
+
+/-- Distinct values can be split at any count: some threshold has exactly $n$ values below it.
+
+$$\forall v \in \mathbb{Z}^{*}\ \text{with pairwise distinct entries},\ \forall n \in \mathbb{N}:\quad n < |v| \;\Rightarrow\; \exists t \in \mathbb{Z}:\ \#\{\, i < |v| : v_i < t \,\} = n$$
+-/
+theorem exists_threshold (v : List Int) (hv : v.Nodup) (n : Nat) (hn : n < v.length) :
+    ∃ t : Int, v.countP (fun x => decide (x < t)) = n := by
+  let s := v.mergeSort (fun a b => decide (a ≤ b))
+  have hperm : s.Perm v := List.mergeSort_perm _ _
+  have hsorted : s.Pairwise (fun a b => decide (a ≤ b) = true) :=
+    List.pairwise_mergeSort (by intro a b c h1 h2; simp at *; omega) (by intro a b; simp; omega) v
+  have hnd : s.Nodup := hperm.nodup_iff.mpr hv
+  have hlt : s.Pairwise (· < ·) :=
+    (hsorted.and hnd).imp (fun ⟨h1, h2⟩ => by simp at h1; omega)
+  have hlen : n < s.length := by rw [hperm.length_eq]; exact hn
+  exact ⟨s[n], by rw [← hperm.countP_eq]; exact countP_lt_getElem s hlt n hlen⟩
+
+/-- Labeling each value by a test `g` and selecting label `f` is filtering by $g = f$.
+
+$$\forall f,\ \forall g : \mathbb{Z} \to \{\mathrm{false}, \mathrm{true}\},\ \forall v \in \mathbb{Z}^{*}:\quad \operatorname{sel}\big(f,\ [g(v_0), \dots, g(v_{|v|-1})],\ v\big) = [\, v_i : g(v_i) = f \,] \text{ (in order)}$$
+-/
+theorem sel_map (f : Bool) (g : Int → Bool) :
+    ∀ v : List Int, sel f (v.map g) v = v.filter (fun x => g x == f)
+  | [] => rfl
+  | y :: v => by
+    rw [List.map_cons, sel_cons, sel_map f g v]; by_cases h : g y = f <;> simp [h]
+
+/-- **Exactly one winning labeling for distinct values**, for every $m, n \ge 3$.
+
+$$\forall m, n \in \mathbb{N},\ \forall v \in \mathbb{Z}^{m+n}:\quad v \text{ has pairwise distinct entries} \ \land\ 3 \le m \ \land\ 3 \le n \;\Rightarrow\; \operatorname{winsAt}(v, m, n) = 1$$
+-/
+theorem winsAt_distinct {v : List Int} {m n : Nat} (hv : v.Nodup) (hl : v.length = m + n)
+    (hm : minRuns ≤ m) (hn : minRuns ≤ n) : winsAt v m n = 1 := by
+  obtain ⟨t, ht⟩ := exists_threshold v hv n (by simp [minRuns] at hm; omega)
+  have hbl : (v.map (fun x => decide (x < t))).length = v.length := by simp
+  have hb_cnt : (v.map (fun x => decide (x < t))).count true = n := by
+    rw [← length_sel true _ v hbl, sel_map, ← List.countP_eq_length_filter, ← ht]; simp
+  have hmem : v.map (fun x => decide (x < t)) ∈ arr (m + n) n :=
+    mem_arr_iff.mpr ⟨by simp [hl], hb_cnt⟩
+  have l1 := length_sel true _ v hbl
+  have l0 := length_sel false _ v hbl
+  have hc := count_true_add_false (v.map (fun x => decide (x < t)))
+  have hbelow : below (sel true (v.map (fun x => decide (x < t))) v)
+      (sel false (v.map (fun x => decide (x < t))) v) = true := by
+    rw [below_spec, sel_map, sel_map]; intro y hy x hx; simp at hy hx; omega
+  have hwin : verdict .lower (sel false (v.map (fun x => decide (x < t))) v)
+      (sel true (v.map (fun x => decide (x < t))) v) = .better := by
+    have : ¬ ((sel false (v.map (fun x => decide (x < t))) v).length < minRuns ∨
+        (sel true (v.map (fun x => decide (x < t))) v).length < minRuns) := by
+      rw [l0, l1]; simp at hc; omega
+    simp [verdict, this, hbelow]
+  have hle := winsAt_le_one v m n hl
+  have hpos : 0 < winsAt v m n := by
+    unfold winsAt; apply List.length_pos_of_mem (a := v.map (fun x => decide (x < t)))
+    simp only [List.mem_filter, beq_iff_eq]; exact ⟨hmem, hwin⟩
+  omega
+
+/-- **Exact null rate for distinct values.** Under the uniform-labeling premise, distinct run values
+give a false "better" with probability exactly `pNull`, for every $m, n$.
+
+$$\forall m, n \in \mathbb{N},\ \forall v \in \mathbb{Z}^{m+n} \text{ with pairwise distinct entries}:\quad \operatorname{pAt}(v, m, n) = \operatorname{pNull}(m, n)$$
+-/
+theorem pAt_distinct (v : List Int) (m n : Nat) (hd : v.Nodup) (hv : v.length = m + n) :
+    pAt v m n = pNull m n := by
+  unfold pNull pAt
+  split
+  · rename_i h; simp [winsAt_tooFew hv h, Rat.div_def]
+  · rename_i h
+    rw [winsAt_distinct hd hv (by omega) (by omega), arr_length_choose]; simp
+
+/-- The ranks as integers, $0$ to $k-1$.
+
+$$\operatorname{idx}(k) = [0, 1, \dots, k-1] \in \mathbb{Z}^{k}$$
+-/
+def idx (k : Nat) : List Int := (List.range k).map (fun (i : Nat) => (i : Int))
+
+#guard idx 4 == [0, 1, 2, 3] && idx 0 == []
+
+/-- The ranks are distinct.
+
+$$\forall k \in \mathbb{N}:\quad \operatorname{idx}(k) \text{ has no repeated element}$$
+-/
+theorem idx_nodup (k : Nat) : (idx k).Nodup :=
+  List.Pairwise.map _ (fun a b h e => h (by omega)) List.nodup_range
+
+/-- Selecting from consecutive integers starting at $s$ returns the positions (offset by $s$) of
+the label `f`.
+
+$$\forall f,\ \forall b \in \{\mathrm{false}, \mathrm{true}\}^{*},\ \forall s \in \mathbb{N}:\quad \operatorname{sel}\big(f,\ b,\ [s, s+1, \dots, s+|b|-1]\big) = [\, s + i : i < |b|,\ b_i = f \,] \text{ (in order)}$$
+-/
+theorem sel_range'_zipIdx (f : Bool) : ∀ (b : List Bool) (s : Nat),
+    sel f b ((List.range' s b.length).map (fun (i : Nat) => (i : Int))) =
+      ((b.zipIdx s).filter (fun p => p.1 == f)).map (fun p => (p.2 : Int))
+  | [], _ => by simp [sel]
+  | x :: b, s => by
+    rw [List.length_cons, List.range'_succ, List.map_cons, sel_cons, List.zipIdx_cons,
+      List.filter_cons, sel_range'_zipIdx f b (s + 1)]
+    by_cases hx : x = f <;> simp [hx]
+
+/-- `ranks` is `sel` on the values $0, \dots, |b|-1$ (the link from the enumeration to `pAt`).
+
+$$\forall f,\ \forall b \in \{\mathrm{false}, \mathrm{true}\}^{*}:\quad \operatorname{sel}\big(f,\ b,\ \operatorname{idx}(|b|)\big) = \operatorname{ranks}(f, b)$$
+-/
+theorem sel_idx (f : Bool) (b : List Bool) : sel f b (idx b.length) = ranks f b := by
+  rw [idx, List.range_eq_range', sel_range'_zipIdx]
+  rfl
+
+/-- The enumeration counts the winning labelings of the ranks $0, \dots, m+n-1$.
+
+$$\forall m, n \in \mathbb{N}:\quad \operatorname{wins}(m, n) = \operatorname{winsAt}\big(\operatorname{idx}(m+n), m, n\big)$$
+-/
+theorem wins_eq_winsAt (m n : Nat) : wins m n = winsAt (idx (m + n)) m n := by
+  unfold wins winsAt
+  congr 1
+  apply List.filter_congr
+  intro b hb
+  have := (mem_arr hb).1
+  rw [← this, sel_idx, sel_idx]
+
+/-- The enumerated probability is `pAt` at the ranks.
+
+$$\forall m, n \in \mathbb{N}:\quad \operatorname{falseBetterProb}(m, n) = \operatorname{pAt}\big(\operatorname{idx}(m+n), m, n\big)$$
+-/
+theorem falseBetterProb_eq_pAt (m n : Nat) : falseBetterProb m n = pAt (idx (m + n)) m n := by
+  rw [falseBetterProb, pAt, wins_eq_winsAt]
+
+/-- **The wire's closed form is the enumerated probability**, for every $m, n$ (not only 3v3,
+4v4, 5v5).
+
+$$\forall m, n \in \mathbb{N}:\quad \operatorname{falseBetterProb}(m, n) = \operatorname{pNull}(m, n)$$
+-/
+theorem falseBetterProb_eq_pNull (m n : Nat) : falseBetterProb m n = pNull m n := by
+  rw [falseBetterProb_eq_pAt]; exact pAt_distinct _ m n (idx_nodup _) (by simp [idx])
 
 end Fw.Null

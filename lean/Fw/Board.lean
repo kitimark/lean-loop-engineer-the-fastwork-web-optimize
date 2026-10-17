@@ -139,7 +139,7 @@ def board (s : State) (now seq : Nat) : Board :=
 
 /-- A landed card is never stale.
 
-$$c.\mathit{landed} \;\Rightarrow\; \operatorname{row}(\sigma, \mathit{now}, c).\mathit{stale} = \mathrm{false}$$
+$$\forall \sigma,\ \forall \mathit{now} \in \mathbb{N},\ \forall c:\quad c.\mathit{landed} \;\Rightarrow\; \operatorname{row}(\sigma, \mathit{now}, c).\mathit{stale} = \mathrm{false}$$
 -/
 theorem landed_not_stale (s : State) (now : Nat) (c : Card) (h : c.landed = true) :
     (boardCard s now c).stale = false := by
@@ -147,7 +147,7 @@ theorem landed_not_stale (s : State) (now : Nat) (c : Card) (h : c.landed = true
 
 /-- A card with a running run is never stale (a live wait is not staleness).
 
-$$\big(\exists r \in \mathit{runs}:\ r.\mathit{card} = c.\mathit{id} \land r.\mathit{status} = \mathrm{running}\big) \;\Rightarrow\; \operatorname{row}(\sigma, \mathit{now}, c).\mathit{stale} = \mathrm{false}$$
+$$\forall \sigma,\ \forall \mathit{now} \in \mathbb{N},\ \forall c:\quad \big(\exists r \in \mathit{runs}:\ r.\mathit{card} = c.\mathit{id} \land r.\mathit{status} = \mathrm{running}\big) \;\Rightarrow\; \operatorname{row}(\sigma, \mathit{now}, c).\mathit{stale} = \mathrm{false}$$
 -/
 theorem running_not_stale (s : State) (now : Nat) (c : Card) (r : Run) (hr : r ∈ s.runs)
     (hc : r.card = c.id) (hs : r.status = .running) : (boardCard s now c).stale = false := by
@@ -159,7 +159,7 @@ theorem running_not_stale (s : State) (now : Nat) (c : Card) (r : Run) (hr : r �
 
 /-- The row's stage is `stage` of the card, so a row says "land" exactly when the card landed.
 
-$$\operatorname{row}(\sigma, \mathit{now}, c).\mathit{stage} = \mathrm{land} \iff c.\mathit{landed}$$
+$$\forall \sigma,\ \forall \mathit{now} \in \mathbb{N},\ \forall c:\quad \operatorname{row}(\sigma, \mathit{now}, c).\mathit{stage} = \mathrm{land} \iff c.\mathit{landed}$$
 -/
 theorem row_land_iff (s : State) (now : Nat) (c : Card) :
     (boardCard s now c).stage = .land ↔ c.landed = true := by
@@ -168,7 +168,7 @@ theorem row_land_iff (s : State) (now : Nat) (c : Card) :
 
 /-- Every needs-you entry comes from an open step.
 
-$$\forall n \in \operatorname{board}(\sigma, \mathit{now}, \mathit{seq}).\mathit{needsYou}:\ \exists s \in \mathit{steps}:\ \operatorname{isOpen}(s.\mathit{status}) \land n = \operatorname{needs}(s)$$
+$$\forall \sigma,\ \forall \mathit{now}, \mathit{seq} \in \mathbb{N},\ \forall n \in \operatorname{board}(\sigma, \mathit{now}, \mathit{seq}).\mathit{needsYou}:\ \exists s \in \mathit{steps}:\ \operatorname{isOpen}(s.\mathit{status}) \land n = \operatorname{needs}(s)$$
 -/
 theorem needsYou_open (s : State) (now seq : Nat) (n : NeedsYou)
     (h : n ∈ (board s now seq).needsYou) :

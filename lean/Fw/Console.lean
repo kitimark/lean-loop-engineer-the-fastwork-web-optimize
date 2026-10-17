@@ -260,9 +260,9 @@ $$\operatorname{cardRefusal}(c, b) = \begin{cases}
 L \text{ if } \mathit{landed};\ \texttt{"already approved"} \text{ if } \mathit{approved};\ \bot & b = \mathrm{cardApprove} \\
 L \text{ if } \mathit{landed};\ \bot & b = \mathrm{cardBuild} \text{ or } \mathrm{cardLanded} \\
 L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\ \bot \text{ if } \mathit{pass};\ \texttt{"failed screen does not advance the card"} & b = \mathrm{cardScreen}(\cdot, \mathit{sha}, \mathit{pass}) \\
-L;\ \Sigma;\ \texttt{"reviewer owns or built this card"} \text{ if } r = \mathit{owner} \lor r \in \mathit{builders};\ \bot \text{ if } \mathit{ok};\ \texttt{"rejected review does not advance the card"} & b = \mathrm{cardReview}(\cdot, \mathit{sha}, r, \mathit{ok}) \\
-L;\ \Sigma;\ \bot \text{ if } \mathit{better};\ \texttt{"not better: device evidence not recorded"} & b = \mathrm{cardSwipe}(\cdot, \mathit{sha}, \mathit{better}) \\
-L;\ \Sigma;\ \bot \text{ if } \operatorname{ready}(c);\ \texttt{"card is not land-ready"} & b = \mathrm{cardLandRequest}(\cdot, \mathit{sha}) \\
+L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\\texttt{"reviewer owns or built this card"} \text{ if } r = \mathit{owner} \lor r \in \mathit{builders};\ \bot \text{ if } \mathit{ok};\ \texttt{"rejected review does not advance the card"} & b = \mathrm{cardReview}(\cdot, \mathit{sha}, r, \mathit{ok}) \\
+L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\\bot \text{ if } \mathit{better};\ \texttt{"not better: device evidence not recorded"} & b = \mathrm{cardSwipe}(\cdot, \mathit{sha}, \mathit{better}) \\
+L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\\bot \text{ if } \operatorname{ready}(c);\ \texttt{"card is not land-ready"} & b = \mathrm{cardLandRequest}(\cdot, \mathit{sha}) \\
 \bot & \text{any other body}
 \end{cases}$$
 -/
@@ -376,7 +376,7 @@ run" and "the card" are the first ones in their list with that id.
 $$\operatorname{check}(\sigma, e) = \begin{cases}
 \texttt{"actor } \mathit{a} \texttt{ may not cause } \tau \texttt{"} & \neg\operatorname{may}(a, \tau),\ a = \mathit{actor}(e),\ \tau = \operatorname{type}(\mathit{body}(e)) \\
 \texttt{"card exists"} \text{ if } \exists c:\ c.\mathit{id} = \mathit{id};\ \bot & b = \mathrm{cardOpen}(\mathit{id}, \dots) \\
-\texttt{"step exists"};\ \texttt{"no such card"} \text{ if } \mathit{card} \ne \bot \text{ is unknown};\ \texttt{"choice step needs at least 2 options"} \text{ if } \mathit{kind} = \mathrm{choice} \land |\mathit{options}| < 2;\ \bot & b = \mathrm{stepPost} \\
+\texttt{"step exists"} \text{ if } \exists s:\ s.\mathit{id} = \mathit{id};\ \texttt{"no such card"} \text{ if } \mathit{card} \ne \bot \text{ is unknown};\ \texttt{"choice step needs at least 2 options"} \text{ if } \mathit{kind} = \mathrm{choice} \land |\mathit{options}| < 2;\ \bot & b = \mathrm{stepPost}(\mathit{id}, \mathit{card}, \cdot, \mathit{kind}, \mathit{options}) \\
 \texttt{"no such step"} \text{ if unknown};\ \operatorname{stepRefusal}(st, b) & b \in \{\mathrm{stepStart}, \mathrm{stepAnswer}, \mathrm{stepDone}, \mathrm{stepCancel}\} \\
 \texttt{"no such card"} \text{ if unknown};\ \texttt{"run exists"} \text{ if } \exists r:\ r.\mathit{id} = \mathit{run};\ \bot & b = \mathrm{runStart}(\mathit{run}, \mathit{card}, \cdot) \\
 \texttt{"no such run"} \text{ if unknown};\ \bot \text{ if } r.\mathit{status} = \mathrm{running};\ \texttt{"run already finished"} & b = \mathrm{runFinish}(\mathit{run}, \cdot) \\
@@ -519,14 +519,14 @@ def stale (lim now liveWaits : Nat) (c : Card) : Bool :=
 
 /-- A seen key is a no-op, reported as a duplicate.
 
-$$\mathit{key}(e) \in S \;\Rightarrow\; \operatorname{step}(\sigma, e) = (\sigma,\ \mathrm{accepted}(\mathrm{true}))$$
+$$\forall \sigma, e:\quad \mathit{key}(e) \in S \;\Rightarrow\; \operatorname{step}(\sigma, e) = (\sigma,\ \mathrm{accepted}(\mathrm{true}))$$
 -/
 theorem step_seen {s : State} {e : Event} (h : e.key ∈ s.seen) : step s e = (s, .accepted true) := by
   simp [step, h]
 
 /-- A refused event changes nothing at all (not even the seen list).
 
-$$\operatorname{step}(\sigma, e)_2 = \mathrm{refused}(w) \;\Rightarrow\; \operatorname{step}(\sigma, e)_1 = \sigma$$
+$$\forall \sigma, e, w:\quad \operatorname{step}(\sigma, e)_2 = \mathrm{refused}(w) \;\Rightarrow\; \operatorname{step}(\sigma, e)_1 = \sigma$$
 -/
 theorem refused_keeps {s : State} {e : Event} {w : String} (h : (step s e).2 = .refused w) :
     (step s e).1 = s := by
@@ -540,7 +540,7 @@ theorem refused_keeps {s : State} {e : Event} {w : String} (h : (step s e).2 = .
 
 /-- A refusal from `check` leaves the state unchanged.
 
-$$\operatorname{check}(\sigma, e) = w \;\Rightarrow\; \operatorname{apply}(\sigma, e) = \sigma$$
+$$\forall \sigma, e, w:\quad \operatorname{check}(\sigma, e) = w \;\Rightarrow\; \operatorname{apply}(\sigma, e) = \sigma$$
 -/
 theorem reject_keeps {s : State} {e : Event} {why : String} (h : check s e = some why) :
     apply s e = s := by
@@ -548,8 +548,8 @@ theorem reject_keeps {s : State} {e : Event} {why : String} (h : check s e = som
   · rfl
   · simp [h]
 
-/-- Idempotency: applying the same event twice equals applying it once, and the second delivery
-is reported as a duplicate or with the same refusal.
+/-- Idempotency: applying the same event twice equals applying it once (states only; for the
+reported outcome see `step_twice`).
 
 $$\forall \sigma, e:\quad \operatorname{apply}(\operatorname{apply}(\sigma, e), e) = \operatorname{apply}(\sigma, e)$$
 -/
@@ -562,9 +562,25 @@ theorem apply_idem (s : State) (e : Event) : apply (apply s e) e = apply s e := 
       have : apply s e = { accept s e with seen := e.key :: s.seen } := by simp [apply, step, hk, hc]
       rw [this]; simp [apply, step]
 
+/-- The second delivery of an event is reported as a duplicate or with the same outcome as the
+first (the same refusal; a first duplicate stays a duplicate).
+
+$$\forall \sigma, e:\quad \operatorname{step}\big(\operatorname{apply}(\sigma, e), e\big)_2 = \mathrm{accepted}(\mathrm{true}) \ \lor\ \operatorname{step}\big(\operatorname{apply}(\sigma, e), e\big)_2 = \operatorname{step}(\sigma, e)_2$$
+-/
+theorem step_twice (s : State) (e : Event) :
+    (step (apply s e) e).2 = .accepted true ∨ (step (apply s e) e).2 = (step s e).2 := by
+  by_cases hk : e.key ∈ s.seen
+  · left; simp [apply, step, hk]
+  · cases hc : check s e with
+    | some why => right; rw [reject_keeps hc]
+    | none =>
+      left
+      have : apply s e = { accept s e with seen := e.key :: s.seen } := by simp [apply, step, hk, hc]
+      rw [this]; simp [step]
+
 /-- Only actors in the `MAY` table get a fresh event accepted.
 
-$$\operatorname{step}(\sigma, e)_2 = \mathrm{accepted}(\mathrm{false}) \;\Rightarrow\; \operatorname{may}(\mathit{actor}(e), \operatorname{type}(\mathit{body}(e))) = \mathrm{true}$$
+$$\forall \sigma, e:\quad \operatorname{step}(\sigma, e)_2 = \mathrm{accepted}(\mathrm{false}) \;\Rightarrow\; \operatorname{may}(\mathit{actor}(e), \operatorname{type}(\mathit{body}(e))) = \mathrm{true}$$
 -/
 theorem accepted_may {s : State} {e : Event} (h : (step s e).2 = .accepted false) :
     may e.actor e.body.type = true := by
@@ -580,7 +596,7 @@ theorem accepted_may {s : State} {e : Event} (h : (step s e).2 = .accepted false
 
 /-- An actor outside the `MAY` table is refused with the table's reason.
 
-$$\operatorname{may}(\mathit{actor}(e), \operatorname{type}(\mathit{body}(e))) = \mathrm{false} \;\Rightarrow\; \operatorname{check}(\sigma, e) = \texttt{"actor } \operatorname{name}(\mathit{actor}(e)) \texttt{ may not cause } \operatorname{name}(\operatorname{type}(\mathit{body}(e))) \texttt{"}$$
+$$\forall \sigma, e:\quad \operatorname{may}(\mathit{actor}(e), \operatorname{type}(\mathit{body}(e))) = \mathrm{false} \;\Rightarrow\; \operatorname{check}(\sigma, e) = \texttt{"actor } \operatorname{name}(\mathit{actor}(e)) \texttt{ may not cause } \operatorname{name}(\operatorname{type}(\mathit{body}(e))) \texttt{"}$$
 -/
 theorem unauthorized_rejected {s : State} {e : Event} (h : may e.actor e.body.type = false) :
     check s e = some s!"actor {e.actor.name} may not cause {e.body.type.name}" := by
@@ -588,7 +604,7 @@ theorem unauthorized_rejected {s : State} {e : Event} (h : may e.actor e.body.ty
 
 /-- Only the user answers or starts steps: an answer or start from anyone else changes nothing.
 
-$$\mathit{body}(e) \in \{\mathrm{stepAnswer}, \mathrm{stepStart}\}(\dots) \ \land\ \mathit{actor}(e) \ne \mathrm{user} \;\Rightarrow\; \operatorname{apply}(\sigma, e) = \sigma$$
+$$\forall \sigma, e:\quad \mathit{body}(e) \in \{\mathrm{stepAnswer}, \mathrm{stepStart}\}(\dots) \ \land\ \mathit{actor}(e) \ne \mathrm{user} \;\Rightarrow\; \operatorname{apply}(\sigma, e) = \sigma$$
 -/
 theorem only_user_answers {s : State} {e : Event}
     (hb : (∃ id a, e.body = .stepAnswer id a) ∨ (∃ id, e.body = .stepStart id))
@@ -600,7 +616,7 @@ theorem only_user_answers {s : State} {e : Event}
 
 /-- A git `card.landed` fact for a known card that has not landed is never refused.
 
-$$\mathit{body}(e) = \mathrm{cardLanded}(\mathit{id}, \mathit{sha}) \ \land\ \mathit{actor}(e) = \mathrm{git} \ \land\ c \text{ is the first card with id } \mathit{id} \ \land\ \neg c.\mathit{landed} \;\Rightarrow\; \operatorname{check}(\sigma, e) = \bot$$
+$$\forall \sigma, e, \mathit{id}, \mathit{sha}, c:\quad \mathit{body}(e) = \mathrm{cardLanded}(\mathit{id}, \mathit{sha}) \ \land\ \mathit{actor}(e) = \mathrm{git} \ \land\ c \text{ is the first card with id } \mathit{id} \ \land\ \neg c.\mathit{landed} \;\Rightarrow\; \operatorname{check}(\sigma, e) = \bot$$
 -/
 theorem landed_fact_accepted {s : State} {e : Event} {id sha : String} {c : Card}
     (hb : e.body = .cardLanded id sha) (ha : e.actor = .git)
@@ -656,7 +672,7 @@ theorem cardStep_inv (t : Nat) (b : Body) (c : Card) (h : CardInv c) : CardInv (
 
 /-- Mapping an invariant-keeping function over the cards keeps the state invariant.
 
-$$(\forall c:\ \operatorname{CardInv}(c) \Rightarrow \operatorname{CardInv}(f(c))) \ \land\ (\forall c \in cs:\ \operatorname{CardInv}(c)) \;\Rightarrow\; \forall c \in \operatorname{mapCards}(\mathit{id}, f, cs):\ \operatorname{CardInv}(c)$$
+$$\forall \mathit{id}, f, cs:\quad (\forall c:\ \operatorname{CardInv}(c) \Rightarrow \operatorname{CardInv}(f(c))) \ \land\ (\forall c \in cs:\ \operatorname{CardInv}(c)) \;\Rightarrow\; \forall c \in \operatorname{mapCards}(\mathit{id}, f, cs):\ \operatorname{CardInv}(c)$$
 -/
 theorem mapCards_inv {id : String} {f : Card → Card} {cs : List Card}
     (hf : ∀ c, CardInv c → CardInv (f c)) (h : ∀ c ∈ cs, CardInv c) :
@@ -750,7 +766,7 @@ theorem review_independent (l : List Event) (c : Card) (hc : c ∈ (project l).c
 
 /-- A new build sends an approved, unlanded card back to `screen`.
 
-$$\neg c.\mathit{landed} \ \land\ c.\mathit{approved} \;\Rightarrow\; \operatorname{stage}\big(\operatorname{cardStep}_t(\mathrm{cardBuild}(\mathit{id}, \mathit{sha}, a), c)\big) = \mathrm{screen}$$
+$$\forall t \in \mathbb{N},\ \forall \mathit{id}, \mathit{sha}, a, c:\quad \neg c.\mathit{landed} \ \land\ c.\mathit{approved} \;\Rightarrow\; \operatorname{stage}\big(\operatorname{cardStep}_t(\mathrm{cardBuild}(\mathit{id}, \mathit{sha}, a), c)\big) = \mathrm{screen}$$
 -/
 theorem built_resets (t : Nat) (id sha a : String) (c : Card)
     (hl : c.landed = false) (ha : c.approved = true) :
@@ -759,7 +775,7 @@ theorem built_resets (t : Nat) (id sha a : String) (c : Card)
 
 /-- Staleness only grows with time.
 
-$$\mathit{now} \le \mathit{now}' \ \land\ \operatorname{stale}(\mathit{lim}, \mathit{now}, w, c) \;\Rightarrow\; \operatorname{stale}(\mathit{lim}, \mathit{now}', w, c)$$
+$$\forall \mathit{lim}, \mathit{now}, \mathit{now}', w \in \mathbb{N},\ \forall c:\quad \mathit{now} \le \mathit{now}' \ \land\ \operatorname{stale}(\mathit{lim}, \mathit{now}, w, c) \;\Rightarrow\; \operatorname{stale}(\mathit{lim}, \mathit{now}', w, c)$$
 -/
 theorem stale_mono {lim now now' w : Nat} {c : Card} (h : now ≤ now')
     (hs : stale lim now w c = true) : stale lim now' w c = true := by
@@ -767,7 +783,7 @@ theorem stale_mono {lim now now' w : Nat} {c : Card} (h : now ≤ now')
 
 /-- A row with a live wait is never stale.
 
-$$0 < w \;\Rightarrow\; \operatorname{stale}(\mathit{lim}, \mathit{now}, w, c) = \mathrm{false}$$
+$$\forall \mathit{lim}, \mathit{now}, w \in \mathbb{N},\ \forall c:\quad 0 < w \;\Rightarrow\; \operatorname{stale}(\mathit{lim}, \mathit{now}, w, c) = \mathrm{false}$$
 -/
 theorem stale_live {lim now w : Nat} {c : Card} (hw : 0 < w) : stale lim now w c = false := by
   simp [stale]; omega

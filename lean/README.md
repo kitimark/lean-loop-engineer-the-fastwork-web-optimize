@@ -35,8 +35,8 @@ JSON lines on stdin/stdout, one reply line per input line, in order, flushed aft
 |---|---|---|---|
 | `console.apply` | `state`, `event` (the `packages/contracts` `State` / `ReducerEvent`; `seq` ignored) | `state`, `outcome` | `Fw.Console.step` |
 | `console.board` | `state`, `now`, `seq` | `board` (contracts `Board`) | `Fw.Console.board` |
-| `verdict` | `dir` (`lower`/`higher`), `ctl`, `var` (int lists) | `verdict`, `pNull` (Rat) | `Fw.Verdict.verdict`, `Fw.Null.pNull` |
-| `multiplicity` | `k` and (`m`,`n`) or `p` (Rat) | `p`, `ok` (k·p ≤ 1/20) | `Fw.Null.multOk` |
+| `verdict` | `dir` (`lower`/`higher`), `ctl`, `var` (int lists) | `verdict`, `pNull` (Rat; a proved bound for every m, n, exact for distinct values) | `Fw.Verdict.verdict`, `Fw.Null.pNull` |
+| `multiplicity` | `k` and (`m`,`n`) or `p` (Rat) | `p`, `ok` (k·p ≤ 1/20; `p` from `m`,`n` is `pNull`) | `Fw.Null.multOk` |
 | `ticks` | `hz`, `dtNs` (nat list), optional `thresholdsNs` | `ticks`, `above` (count per threshold) | `Fw.Frames.tickAt`, `countAbove` |
 | `screen` | `base`, `var` (per-frame count vectors) | `screen` (`dominates`/`equal`/`worse`/`mixed`) | `Fw.Screen.screen` |
 | `cost` | `unit` {style,layout,paint}, `budgetUs`, `work` {scriptUs,styleElems,layoutObjs,paintKpx} | `mainUs`, `onTime` | `Fw.Cost.mainUs`, `onTime` |
@@ -53,16 +53,15 @@ JSON lines on stdin/stdout, one reply line per input line, in order, flushed aft
 |---|---|
 | `Fw/Spec/Frames` | ticks (µs, and `tickAt` at any rate in ns; 120 Hz equals `tick`, 60 Hz case), threshold counts, the >34 ms vs ≥5-tick gap |
 | `Fw/Spec/Verdict` | the v1 verdict and its soundness, swap, direction duality |
-| `Fw/Spec/Null` | false-"better" rate: exactly 1/20, 1/70, 1/252 on distinct ranks (enumeration through `verdict`); **with ties, at most one labeling wins for any values and any m, n**, so `pAt ≤ 1/C(m+n,n)`; multiplicity gate |
+| `Fw/Spec/Null` | false-"better" rate through the real `verdict`: `arr k n` has C(k,n) labelings for all k, n; **with ties, at most one labeling wins for any values and any m, n**, so `pAt ≤ 1/C(m+n,n) = pNull`; **for distinct values exactly one wins** (m, n ≥ 3), so `pAt = pNull` and the enumeration equals `pNull` for every m, n (1/20, 1/70, 1/252 at 3v3, 4v4, 5v5); multiplicity gate |
 | `Fw/Spec/Screen` | class-W screening: dominates ⇒ no frame costs more under any non-negative coefficients |
 | `Fw/Spec/Cost`, `Flags`, `Stage`, `Lease` | seeded from the kickoff sketch (statements unchanged) |
-| `Fw/Spec/DeviceQueue`, `ArtifactKey` | ported from the kickoff scratch (proofs unchanged) |
+| `Fw/Spec/DeviceQueue`, `ArtifactKey` | ported from the kickoff scratch; DeviceQueue adds aging-based bounded overtaking and the starvation case (a job longer than the window never starts) |
 | `Fw/Console`, `Fw/Board` | console reducer (console-mvp contract: cards, steps with kinds, runs, the MAY table) and the board projection |
 | `Fw/Wire`, `Main` | the JSON-lines boundary (not in the math view) |
 
-Not proved (stated in `Fw/Spec/Null`): that every set of *distinct* values has exactly one winning
-labeling (proved for the canonical ranks only), and that exchangeable runs make labelings equally
-likely (the modeling premise, L3).
+Not proved (stated in `Fw/Spec/Null`): that exchangeable runs make labelings equally likely (the
+modeling premise, L3). Every probability above is a share of labelings under that premise.
 
 ## Known limits
 

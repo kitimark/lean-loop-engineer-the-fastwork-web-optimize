@@ -151,7 +151,7 @@ theorem fields_inj : ∀ {k k' : List (Input × Val)}, fields k = fields k' → 
 
 /-- Equal encoded keys mean the two artifacts saw exactly the same inputs with the same values.
 
-$$\operatorname{enc}\big(\operatorname{fields}(\operatorname{key}_v(a))\big) = \operatorname{enc}\big(\operatorname{fields}(\operatorname{key}_{v'}(b))\big) \;\Rightarrow\; \mathit{deps}(a) = \mathit{deps}(b) \ \land\ \forall i \in \mathit{deps}(a):\ v(i) = v'(i)$$
+$$\forall v, v' : \mathrm{Input} \to \mathrm{Val},\ \forall a, b \in \mathrm{Artifact}:\quad \operatorname{enc}\big(\operatorname{fields}(\operatorname{key}_v(a))\big) =\operatorname{enc}\big(\operatorname{fields}(\operatorname{key}_{v'}(b))\big) \;\Rightarrow\; \mathit{deps}(a) = \mathit{deps}(b) \ \land\ \forall i \in \mathit{deps}(a):\ v(i) = v'(i)$$
 -/
 theorem key_sound (v v' : Input → Val) (a b : Artifact)
     (h : enc (fields (key v a)) = enc (fields (key v' b))) :

@@ -85,7 +85,7 @@ def pick (t : Nat) : List Job → Option Job
 
 /-- The fold returns its seed or one of the jobs it scanned.
 
-$$\operatorname{pickFrom}_t(b, ks) = b \ \lor\ \operatorname{pickFrom}_t(b, ks) \in ks$$
+$$\forall t \in \mathbb{N},\ \forall b \in \mathrm{Job},\ \forall ks \in \mathrm{Job}^{*}:\quad \operatorname{pickFrom}_t(b, ks) = b \ \lor\ \operatorname{pickFrom}_t(b, ks) \in ks$$
 -/
 theorem pickFrom_mem (t : Nat) (best : Job) (ks : List Job) :
     pickFrom t best ks = best ∨ pickFrom t best ks ∈ ks := by
@@ -99,7 +99,7 @@ theorem pickFrom_mem (t : Nat) (best : Job) (ks : List Job) :
 
 /-- The fold's result goes no later than its seed and every job it scanned.
 
-$$\operatorname{before}_t\big(\operatorname{pickFrom}_t(b, ks),\ b\big) \ \land\ \forall k \in ks:\ \operatorname{before}_t\big(\operatorname{pickFrom}_t(b, ks),\ k\big)$$
+$$\forall t \in \mathbb{N},\ \forall b \in \mathrm{Job},\ \forall ks \in \mathrm{Job}^{*}:\quad \operatorname{before}_t\big(\operatorname{pickFrom}_t(b, ks),\ b\big) \ \land\ \forall k \in ks:\ \operatorname{before}_t\big(\operatorname{pickFrom}_t(b, ks),\ k\big)$$
 -/
 theorem pickFrom_min (t : Nat) (best : Job) (ks : List Job) :
     before t (pickFrom t best ks) best = true ∧ ∀ k ∈ ks, before t (pickFrom t best ks) k = true := by
@@ -127,7 +127,7 @@ theorem pickFrom_min (t : Nat) (best : Job) (ks : List Job) :
 
 /-- `pick` returns a queued job.
 
-$$\operatorname{pick}_t(Q) = j \;\Rightarrow\; j \in Q$$
+$$\forall t \in \mathbb{N},\ \forall Q \in \mathrm{Job}^{*},\ \forall j \in \mathrm{Job}:\quad \operatorname{pick}_t(Q) = j \;\Rightarrow\; j \in Q$$
 -/
 theorem pick_mem {t : Nat} {q : List Job} {j : Job} (h : pick t q = some j) : j ∈ q := by
   cases q with
@@ -140,7 +140,7 @@ theorem pick_mem {t : Nat} {q : List Job} {j : Job} (h : pick t q = some j) : j 
 
 /-- No queued job goes before the picked one.
 
-$$\operatorname{pick}_t(Q) = j \;\Rightarrow\; \forall k \in Q:\ \operatorname{before}_t(j, k)$$
+$$\forall t \in \mathbb{N},\ \forall Q \in \mathrm{Job}^{*},\ \forall j \in \mathrm{Job}:\quad \operatorname{pick}_t(Q) = j \;\Rightarrow\; \forall k \in Q:\ \operatorname{before}_t(j, k)$$
 -/
 theorem pick_min {t : Nat} {q : List Job} {j : Job} (h : pick t q = some j) :
     ∀ k ∈ q, before t j k = true := by
@@ -154,8 +154,10 @@ theorem pick_min {t : Nat} {q : List Job} {j : Job} (h : pick t q = some j) :
     · exact h1
     · exact h2 k hk
 
-/-- **No starvation.** Once `j` has waited `A·base(j)` seconds it goes before every job that
-arrived after it, whatever their class, and none of them goes before it.
+/-- **Aging.** Once `j` has waited `A·base(j)` seconds it goes before every job that arrived after
+it, whatever their class, and none of them goes before it (a key lemma, not starvation-freedom of
+`dispatch`: it says nothing about older jobs, and a job that fits no window is never started, see
+`unfit_never_starts`).
 
 $$\forall t, j, k:\quad \mathit{enq}(j) + A \cdot \mathit{base}(j) \le t \ \land\ \mathit{seq}(j) < \mathit{seq}(k) \;\Rightarrow\; \operatorname{before}_t(j, k) = \mathrm{true} \ \land\ \operatorname{before}_t(k, j) = \mathrm{false}$$
 -/
@@ -227,7 +229,7 @@ theorem dispatch_busy (p : Phone) (t : Nat) (r : Job × Nat) (h : p.running = so
 /-- Whatever `dispatch` starts is a queued job that fits the booked window, started now, and no
 queued job that also fits goes before it.
 
-$$p.\mathit{running} = \bot \ \land\ \operatorname{dispatch}(p, t).\mathit{running} = (j, t_0) \;\Rightarrow\; t_0 = t \ \land\ j \in Q \ \land\ \exists s, e:\ p.\mathit{window} = (s, e) \ \land\ s \le t \ \land\ t + \mathit{dur}(j) \le e \ \land\ \forall k \in Q:\ \operatorname{fits}(s, e, t, k) \Rightarrow \operatorname{before}_t(j, k)$$
+$$\forall p,\ \forall t, t_0 \in \mathbb{N},\ \forall j \in \mathrm{Job}:\quad p.\mathit{running} = \bot \ \land\ \operatorname{dispatch}(p, t).\mathit{running} = (j, t_0) \;\Rightarrow\; t_0 = t \ \land\ j \in Q \ \land\ \exists s, e:\ p.\mathit{window} = (s, e) \ \land\ s \le t \ \land\ t + \mathit{dur}(j) \le e \ \land\ \forall k \in Q:\ \operatorname{fits}(s, e, t, k) \Rightarrow \operatorname{before}_t(j, k)$$
 -/
 theorem dispatch_sound (p : Phone) (t : Nat) (j : Job) (t0 : Nat)
     (hfree : p.running = none) (h : (dispatch p t).running = some (j, t0)) :
@@ -255,7 +257,7 @@ theorem dispatch_sound (p : Phone) (t : Nat) (j : Job) (t0 : Nat)
 /-- **Work conservation.** If the phone is free, the window is booked, and `dispatch` still starts
 nothing, then no queued job fits the rest of the window.
 
-$$p.\mathit{running} = \bot \ \land\ p.\mathit{window} = (s, e) \ \land\ \operatorname{dispatch}(p, t).\mathit{running} = \bot \;\Rightarrow\; \forall k \in Q:\ \operatorname{fits}(s, e, t, k) = \mathrm{false}$$
+$$\forall p,\ \forall t, s, e \in \mathbb{N}:\quad p.\mathit{running} = \bot \ \land\ p.\mathit{window} = (s, e) \ \land\ \operatorname{dispatch}(p, t).\mathit{running} = \bot \;\Rightarrow\; \forall k \in Q:\ \operatorname{fits}(s, e, t, k) = \mathrm{false}$$
 -/
 theorem dispatch_conserving (p : Phone) (t s e : Nat)
     (hfree : p.running = none) (hw : p.window = some (s, e))
@@ -272,10 +274,45 @@ theorem dispatch_conserving (p : Phone) (t s e : Nat)
     | cons a as =>
       simp [dispatch, hfree, hw, hq, pick] at hidle
 
+/-- **Bounded overtaking.** Once a queued job `j` is fully aged and fits the window, `dispatch` can
+start only a job that arrived no later than it (with unique arrival numbers: `j` itself or an
+older job), so the jobs that can still go ahead of `j` are the finitely many older ones.
+
+$$\forall p, t, t_0, s, e, j, k:\quad p.\mathit{running} = \bot \ \land\ p.\mathit{window} = (s, e) \ \land\ j \in Q \ \land\ \operatorname{fits}(s, e, t, j) \ \land\ \mathit{enq}(j) + A \cdot \mathit{base}(j) \le t \ \land\ \operatorname{dispatch}(p, t).\mathit{running} = (k, t_0) \;\Rightarrow\; \mathit{seq}(k) \le \mathit{seq}(j)$$
+-/
+theorem aged_not_overtaken (p : Phone) (t t0 s e : Nat) (j k : Job)
+    (hfree : p.running = none) (hw : p.window = some (s, e)) (hj : j ∈ p.queue)
+    (hfit : fits s e t j = true) (hage : j.enq + A * j.base ≤ t)
+    (h : (dispatch p t).running = some (k, t0)) : k.seq ≤ j.seq := by
+  obtain ⟨_, _, s', e', hw', _, _, hmin⟩ := dispatch_sound p t k t0 hfree h
+  rw [hw] at hw'
+  simp only [Option.some.injEq, Prod.mk.injEq] at hw'
+  obtain ⟨rfl, rfl⟩ := hw'
+  have hkj := hmin j hj hfit
+  apply Nat.le_of_not_lt
+  intro hlt
+  have := (aged_beats_newer t j k hage hlt).2
+  rw [hkj] at this
+  cases this
+
+/-- **A job longer than the window starves.** If the booked window is shorter than a job's
+duration, `dispatch` never starts that job, at any time, however long it has waited.
+
+$$\forall p, t, t_0, s, e, j:\quad p.\mathit{running} = \bot \ \land\ p.\mathit{window} = (s, e) \ \land\ e < s + \mathit{dur}(j) \;\Rightarrow\; \operatorname{dispatch}(p, t).\mathit{running} \ne (j, t_0)$$
+-/
+theorem unfit_never_starts (p : Phone) (t t0 s e : Nat) (j : Job)
+    (hfree : p.running = none) (hw : p.window = some (s, e)) (hshort : e < s + j.dur) :
+    (dispatch p t).running ≠ some (j, t0) := by
+  intro h
+  obtain ⟨_, _, s', e', hw', hs, he, _⟩ := dispatch_sound p t j t0 hfree h
+  rw [hw] at hw'
+  simp only [Option.some.injEq, Prod.mk.injEq] at hw'
+  omega
+
 /-- The clock tick: a running job is stopped when its duration is used up or the window has ended
 (the window end is a hard stop); a running job without a window is left alone.
 
-$$\operatorname{tick}(p, \mathit{now}) = \begin{cases} p[\mathit{running} := \bot] & \text{if } \mathit{running} = (j, t_0),\ \mathit{window} = (s, e),\ t_0 + \mathit{dur}(j) \le \mathit{now} \ \lor\ e \le \mathit{now} \\ p & \text{otherwise} \end{cases}$$
+$$\operatorname{tick}(p, \mathit{now}) = \begin{cases} p[\mathit{running} := \bot] & \text{if } \mathit{running} = (j, t_0),\ \mathit{window} = (s, e),\ \big(t_0 + \mathit{dur}(j) \le \mathit{now} \ \lor\ e \le \mathit{now}\big) \\ p & \text{otherwise} \end{cases}$$
 -/
 def tick (p : Phone) (now : Nat) : Phone :=
   match p.running, p.window with
@@ -284,7 +321,7 @@ def tick (p : Phone) (now : Nat) : Phone :=
 
 /-- Nothing runs past the booked window once the tick at its end has been applied.
 
-$$p.\mathit{window} = (s, e) \ \land\ e \le \mathit{now} \;\Rightarrow\; \operatorname{tick}(p, \mathit{now}).\mathit{running} = \bot$$
+$$\forall p,\ \forall \mathit{now}, s, e \in \mathbb{N}:\quad p.\mathit{window} = (s, e) \ \land\ e \le \mathit{now} \;\Rightarrow\; \operatorname{tick}(p, \mathit{now}).\mathit{running} = \bot$$
 -/
 theorem tick_kills_at_end (p : Phone) (now s e : Nat) (hw : p.window = some (s, e)) (hle : e ≤ now) :
     (tick p now).running = none := by
