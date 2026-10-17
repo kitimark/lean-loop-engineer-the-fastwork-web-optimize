@@ -19,7 +19,7 @@ const BARRIER_MS = +(process.env.FW_BARRIER_MS ?? 100); // real-time grace after
 const TOUCH_ACK_MS = +(process.env.FW_TOUCH_ACK_MS ?? 200); // real-time grace for a touch event's ack after the frame
 const TOUCH_SETTLE_MS = +(process.env.FW_TOUCH_SETTLE_MS ?? 50); // real time for gesture events to reach the compositor before the frame
 const touch = { frames: 0, unacked: 0, sent: 0, stalls: 0, waiters: [], settled() { return this.unacked === 0 ? Promise.resolve() : new Promise((r) => this.waiters.push(r)); } };
-const T0 = 5_000_000; // BeginFrame tick base (ms); any value above the browser's uptime works
+const T0 = 5_000_000; // BeginFrame tick base (ms), about 4900 s ahead of the container clock, so a deadline at frame_time never fires (see --disable-features below)
 const START_VT = 20_000; // virtual ms at which the profile begins, whatever number of frames the load took
 const EPOCH_MS = Date.parse(profile.pinnedDate);
 
@@ -33,6 +33,9 @@ const CHROME_ARGS = [
   '--remote-debugging-port=9222', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--user-data-dir=/tmp/fw-profile',
   '--enable-begin-frame-control', '--run-all-compositor-stages-before-draw', // --deterministic-mode minus --disable-threaded-animation (compositor animations stay on the compositor, as on real Chrome)
   '--disable-new-content-rendering-timeout', '--disable-checker-imaging', '--disable-image-animation-resync', '--num-raster-threads=2',
+  // cc features::kWaitForLateScrollEvents (default on, cc/base/features.cc@f842f52) arms a WAIT_FOR_SCROLL deadline at frame_time + 0.333 * interval while a scroll is active
+  // and no input is queued; frame_time here is virtual (T0 + vt, ~4900 s ahead of the container's monotonic clock), so that deadline never fires and BeginFrame wedges (README).
+  '--disable-features=WaitForLateScrollEvents',
   '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost, EXCLUDE 127.0.0.1',
   '--font-render-hinting=none', '--force-color-profile=srgb', '--hide-scrollbars', '--mute-audio',
   '--disable-background-networking', '--disable-breakpad', '--no-first-run', '--lang=en-US', ...(process.env.FW_CHROME_EXTRA ? process.env.FW_CHROME_EXTRA.split(' ') : []), 'about:blank',
