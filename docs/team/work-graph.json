@@ -1149,7 +1149,8 @@
    "deps": [
     "css-decisions"
    ],
-   "owner": "user"
+   "owner": "user",
+   "evidence": "user chat 10-18: Q34 c, Q35 a; applied 7efa3df"
   },
   {
    "id": "sim-speed",
@@ -1367,7 +1368,8 @@
    "writes": [
     "packages/measure-webkit/**",
     ".github/workflows/webkit-sim.yml"
-   ]
+   ],
+   "evidence": "f03e94b; runs 39048376821, 39050061299 green, 19-24 min"
   },
   {
    "id": "n1-lean",
@@ -1541,7 +1543,8 @@
     "lean/Fw/Ops/**",
     "lean/Fw/Sched/**",
     "lean/MathViewMain.lean"
-   ]
+   ],
+   "evidence": "merge of c54c7bf; WhereLint error outside Fw.Measure"
   },
   {
    "id": "report-draft",

@@ -9,6 +9,7 @@
 // `location.href` and reconnect.
 import { listTabs, sleep, ports } from './sim.mjs';
 import { T } from './timeouts.mjs';
+import { attachFresh } from './poll.mjs';
 
 /** Connect to a tab's websocket. Resolves once a page target exists. */
 export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
@@ -117,25 +118,30 @@ export async function openTab(urlPrefix, { waitMs = T(30000), p = ports(), log =
 }
 
 /**
- * Drop the context's client and connect again. The old socket is closed and its close is awaited first, then a short
- * pause, so the proxy has released the tab's inspector slot before the new client attaches.
+ * Drop the context's client and connect again. The old socket is closed and its close is awaited (so the proxy has
+ * released the tab's inspector slot), then `openTab` polls until the tab is listed and answers: no fixed pause.
  */
-export async function reconnect(ctx, { log = () => {}, waitMs = T(60000) } = {}) {
+export async function reconnect(ctx, { log = () => {}, waitMs = T(60000), openTabFn = openTab } = {}) {
   try { await ctx.c.close(); } catch { /* closed */ }
   await ctx.ensureProxy?.();
-  await sleep(T(1500));
-  ctx.setClient(await openTab(ctx.url, { waitMs, log }));
+  ctx.setClient(await openTabFn(ctx.url, { waitMs, log }));
 }
 
 /**
  * Navigate the tab to `url` (Page.navigate is unavailable on Mobile Safari: `location.href`), close `c` (its target
- * dies with the navigation) and return a new connection with readyState complete.
+ * dies with the navigation) and return a new connection to the NEW document with readyState complete. No fixed
+ * sleep: the old document gets a marker, and a client that attaches to it before the navigation lands is released and
+ * the attach repeated until a document without the marker answers and is complete.
  */
-export async function navigateTab(c, url, opts) {
-  await c.evaluate(`setTimeout(() => { location.href = ${JSON.stringify(url)}; }, 30); 'nav'`);
+export async function navigateTab(c, url, { waitMs = T(60000), log = () => {}, openTabFn = openTab, clock } = {}) {
+  await c.evaluate(`window.__fwNav = 1; setTimeout(() => { location.href = ${JSON.stringify(url)}; }, 30); 'nav'`);
   await c.close();
-  await sleep(T(2000));
-  const c2 = await openTab(url, opts);
-  for (let i = 0; i < 100 && (await c2.evaluate('document.readyState')) !== 'complete'; i++) await sleep(100);
-  return c2;
+  return attachFresh({
+    attach: (ms) => openTabFn(url, { waitMs: Math.min(ms, T(15000)), log }),
+    isFresh: async (x) => (await x.evaluate('window.__fwNav === undefined')) === true,
+    ready: async (x) => (await x.evaluate('document.readyState')) === 'complete',
+    release: (x) => x.close(),
+    timeoutMs: waitMs,
+    clock,
+  });
 }

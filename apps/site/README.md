@@ -81,4 +81,4 @@ After the media/extractor fixes the Chrome results above are unchanged (aot PASS
 
 - Flag resolution `src/registry/resolve.ts` (Lean `Fw.Flags.resolve` covers defaults/override/ok; **not yet specified**: `?fw=` parsing,
   `?preset=` with `extends`, `@impl`, canonical config text and its hash, the hydrate-vs-client-render decision).
-- `themeVariablesCss` serialiser (`src/theme.ts`), countdown text formatting (`src/parts/hero.countdown`), layer-wrap rule (`LAYER_ONLY` in `src/emotion.ts`).
+- countdown text formatting (`src/parts/hero.countdown`), layer-wrap rule (`LAYER_ONLY` in `src/emotion.ts`).

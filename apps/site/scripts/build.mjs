@@ -84,7 +84,7 @@ let scripts = '';
 let muiCssName = null;
 let muiCss = '';
 if (engine === 'aot') {
-  muiCss = `@layer reset, mui, parts, flags;\n@layer mui{${pre.themeCss}${pre.css}}\n`;
+  muiCss = `@layer reset, mui, parts, flags;\n@layer mui{${pre.css}}\n`;
   muiCssName = `mui.${createHash('sha256').update(muiCss).digest('hex').slice(0, 8)}.css`;
   await writeFile(path.join(outDir, muiCssName), muiCss);
   await writeFile(path.join(outDir, 'emotion-ids.json'), JSON.stringify(pre.ids));

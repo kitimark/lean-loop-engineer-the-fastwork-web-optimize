@@ -723,7 +723,7 @@ result (dominates / mixed / worse) and the model status. The console's Run build
    | S5 | No MUI `Fade`/`Grow`/`Slide`/`Collapse`/`Zoom` on scroll-linked or always-mounted paths; overlays use class-toggled keyframes restated from the original | forced reflow, rect reads, inline writes | lint; PL4 |
    | S6 | Ripples off theme-wide; focus styles restated in CSS | a re-render, rect read and `@keyframes` insertion at first touch | theme unit test; N0 |
    | S7 | On scroll paths: no MUI `Tabs` (reads `getBoundingClientRect` on every render and resize), `Popper`, `Tooltip`, `Autocomplete`; `Avatar` gets its `<img>` as a child, never `src` (two commits per mount) | rect reads; forced layouts; hidden commits | lint; PL5; N2 |
-   | S8 | One theme at module scope, one colour scheme, nothing written on `<html>` at hydration; `cssVariables` per Q34 (default `false`) | `<Global>` insertion, root invalidation | N0/N1; N4; N5 |
+   | S8 | One theme at module scope, one colour scheme, nothing written on `<html>` at hydration; `cssVariables: false` (Q34 = c, decided 2026-10-18) | `<Global>` insertion, root invalidation, consumer re-renders | N0/N1 in W-load/W-rest; N4; N5 |
    | S9 | No Emotion `<Global>` at runtime (`CssBaseline`, `GlobalStyles`, `enableColorScheme`); the reset is static CSS in `@layer reset` | `<Global>` bypasses `cache.inserted` | lint; N0 |
    | S10 | No `useMediaQuery` or `useScrollTrigger` for looks; breakpoints live in CSS | commits on scroll and toolbar resizes (775↔815) | lint with an allow-list |
    | S11 | Emotion configuration fixed (production `speedy`, one cache `mui`, `@layer mui`, no `injectFirst`); config and MUI version in the build ID; every MUI bump re-runs N0-N5 | an unpriced styling-engine change | build-ID hash |
