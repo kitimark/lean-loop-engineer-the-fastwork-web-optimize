@@ -2,10 +2,11 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { Worker } from "node:worker_threads";
 import { fwcoreBin, fwcoreCall, type Env, type FwCall, type Json } from "../src/core.ts";
+import { fakeGh } from "./fake-gh-core.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const repoRoot = join(here, "..", "..", "..");
@@ -83,20 +84,29 @@ export function fastCore(): FwCall {
   return shared;
 }
 
-export function mkWorld(start: number, opts: { realClock?: boolean; spawnCore?: boolean } = {}): World {
+/** `fastGh`: answer `gh` in this process (`fakeGh`, the code the spawned fake runs too) instead of spawning a node
+ *  process per call. For replays of thousands of calls; a test of the spawn itself (env, stderr capture) leaves it off. */
+export function mkWorld(start: number, opts: { realClock?: boolean; spawnCore?: boolean; fastGh?: boolean } = {}): World {
   const root = mkdtempSync(join(tmpdir(), "ghb-"));
   const bin = join(root, "bin");
   const fakeDir = join(root, "fake");
   const stateDir = join(root, "state");
   mkdirSync(bin); mkdirSync(fakeDir);
   const ghPath = join(bin, "gh");
-  copyFileSync(join(here, "fake-gh.mjs"), ghPath);
+  // the spawned fake: a short wrapper over the same function the in-process fake calls
+  writeFileSync(ghPath, [
+    "#!/usr/bin/env node",
+    `import { fakeGh } from ${JSON.stringify(pathToFileURL(join(here, "fake-gh-core.ts")).href)};`,
+    "const r = fakeGh(process.env.FAKE_GH_DIR, process.argv.slice(2), process.env.FAKE_GH_COST);",
+    "process.stdout.write(r.stdout); process.stderr.write(r.stderr); process.exitCode = r.status;", "",
+  ].join("\n"));
   chmodSync(ghPath, 0o755);
   process.env.FAKE_GH_DIR = fakeDir;
   delete process.env.FAKE_GH_COST;
   const sim = new Sim(start, opts.realClock ? null : join(fakeDir, "clock"));
   const env: Env = {
     dir: stateDir, core: opts.spawnCore ? fwcoreCall(repoRoot) : fastCore(), gh: ghPath,
+    ...(opts.fastGh ? { exec: (args: string[]) => fakeGh(fakeDir, args, process.env.FAKE_GH_COST, Math.floor(Date.now() / 1000)) } : {}),
     now: opts.realClock ? () => Math.floor(Date.now() / 1000) : sim.now,
     sleepUntil: opts.realClock ? (t) => new Promise((r) => setTimeout(r, Math.max(10, t * 1000 - Date.now()))) : sim.sleepUntil,
   };

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Land lock: nothing else commits in the main checkout while `fw land` holds its merge open (incident
-// inc-commit-during-land). Two users:
+// Land lock: nothing else commits in the main checkout while `fw land` advances it (incident inc-commit-during-land). The
+// pre-lock land holds the lock only for the `merge --ff-only` instant (checks run before, in a land worktree); the fallback
+// protocol still holds it around an open merge. Two users:
 //   * `fw land` (src/land.ts) takes `<git common dir>/fw-land.lock` around merge --no-commit .. commit and releases it;
 //   * the git `pre-commit` hook (scripts/hooks/pre-commit runs this file) refuses a commit in the locked checkout unless
 //     it is the land's own (env FW_LAND_TOKEN = the lock's token).
@@ -24,7 +25,7 @@ export function coreBin() {
 /** Ask Lean one op. The reply fields, or null when fwcore is missing, slow or refuses the request. */
 export function askCore(op, req, bin = coreBin()) {
   if (!existsSync(bin)) return null;
-  const r = spawnSync(bin, [], { input: JSON.stringify({ id: 1, op, ...req }) + "\n", encoding: "utf8", timeout: 5000 });
+  const r = spawnSync(bin, [], { input: JSON.stringify({ id: 1, op, ...req }) + "\n", encoding: "utf8", timeout: 30_000 });
   try {
     const m = JSON.parse((r.stdout ?? "").split("\n")[0] ?? "");
     return m && m.id === 1 && !m.error ? m : null;
@@ -85,7 +86,7 @@ export function guard(cwd, env = process.env) {
   }
   if (r.verdict === "allow") return { allow: true, message: "" };
   if (r.verdict === "held") {
-    return { allow: false, message: `commit refused: ${who} holds the merge of this checkout (${file}). Wait for it to finish, or stop that pid.` };
+    return { allow: false, message: `commit refused: ${who} is advancing this checkout (${file}): normally a sub-second fast-forward, or a fallback land with its merge open. Retry in a moment, or stop that pid if it hangs.` };
   }
   return { allow: false, message: `commit refused: stale land lock ${file}: ${who} is no longer running. Not removed. Look at \`git status\` (an open merge: \`git merge --abort\`), then delete the file.` };
 }

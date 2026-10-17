@@ -2663,7 +2663,8 @@
     "lean/Fw/Parts/**",
     "packages/contracts/golden/engine/**",
     "research/findings/**"
-   ]
+   ],
+   "evidence": "c9c9afc"
   },
   {
    "id": "obs-signals",
@@ -2703,7 +2704,8 @@
     "apps/site/src/App.tsx",
     "apps/site/src/registry/index.ts",
     "results/**"
-   ]
+   ],
+   "evidence": "55564ec"
   },
   {
    "id": "timing-spans",
@@ -3039,7 +3041,8 @@
     ".github/workflows/breakpoint-gate.yml",
     ".github/scripts/merge-gate.mjs",
     "docs/team/tools/gate-speed.md"
-   ]
+   ],
+   "evidence": "f9d28e0"
   },
   {
    "id": "premise-tests",
@@ -3058,7 +3061,8 @@
     "apps/runner/src/fw.ts",
     "apps/runner/test/**",
     "docs/team/tools/premises.md"
-   ]
+   ],
+   "evidence": "aada757"
   },
   {
    "id": "snapshot-extract",
@@ -3074,7 +3078,8 @@
     "lean/Fw.lean",
     "packages/contracts/golden/site/**",
     "docs/team/tools/snapshot-extract.md"
-   ]
+   ],
+   "evidence": "152846b"
   },
   {
    "id": "visual-diff",
@@ -3168,7 +3173,8 @@
    "writes": [
     "apps/runner/src/land.ts",
     "apps/runner/test/**"
-   ]
+   ],
+   "evidence": "29385a2"
   },
   {
    "id": "check-dag",
@@ -3185,7 +3191,8 @@
     "lean/scripts/check-partial.sh",
     "apps/runner/src/land.ts",
     "apps/runner/test/**"
-   ]
+   ],
+   "evidence": "59e08f2"
   },
   {
    "id": "land-prelock",
@@ -3202,7 +3209,8 @@
     "lean/Fw/Console/Land.lean",
     "apps/runner/hooks/land-guard.mjs",
     "apps/runner/test/**"
-   ]
+   ],
+   "evidence": "55a7c30"
   },
   {
    "id": "mathview-module-cache",
@@ -3219,14 +3227,17 @@
     "lean/MathView.lean",
     "lean/scripts/mathview-cached.sh",
     ".github/workflows/lean.yml"
-   ]
+   ],
+   "evidence": "a4416ca"
   },
   {
    "id": "gate-exit-verdict",
    "title": "(S) DEFECT: gate summary exits 0 when parts fail (cli.mjs:25-27); Fw.Gate.Exit exit_zero_iff (exit 0 iff merged verdict pass) + golden; agents read the verdict, never job conclusions (research/notes/2026/10-18-mistake-retro.md)",
    "stream": "measure",
    "milestone": "M5",
-   "deps": [],
+   "deps": [
+    "gate-speed-ci"
+   ],
    "owner": "measure-engineer",
    "writes": [
     "lean/Fw/Gate/Exit.lean",
@@ -3446,6 +3457,144 @@
     ".gitattributes",
     "packages/contracts/golden/ops/ledger-merge.jsonl",
     "docs/team/tools/ledger-merge.md"
+   ],
+   "evidence": "156f99c"
+  },
+  {
+   "id": "ci-trigger-lean",
+   "title": "(M) ci-trigger-scope (M1, done) did not hold: on 2026-10-18 every ci/* push still started 5-7 workflows (~40 runs for 20 free runners; lead cancelled 18). Decide triggers in Lean from declared inputs (checksfor-inputs read sets; fwcore users depend on the built binary hash, not on all of lean/**); generate on.push.paths; a lint fails when a workflow trigger differs from the Lean decision (regression guard); interim rule: agents cancel push runs they will not read",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "checksfor-inputs",
+    "gate-speed-ci"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    ".github/workflows/**"
+   ]
+  },
+  {
+   "id": "gate-align-equiv",
+   "title": "(S) Lean rule: declared align-self pair judged equal when both give start-behaviour per css-align-3 6.2.5 / css-grid-1 6.2 (aspect-ratio grid item); geometry still compared (no skipProps); JS replays goldens; premise grid-normal-aspect-ratio-no-stretch",
+   "stream": "gate",
+   "milestone": "M2",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/AlignEquiv.lean",
+    "lean/Fw.lean",
+    "packages/gate-breakpoints/src/align-equiv.mjs",
+    "packages/gate-breakpoints/test/align-equiv.test.mjs",
+    "docs/team/handoffs/gate-align-equiv.md"
+   ]
+  },
+  {
+   "id": "timing-small-n",
+   "title": "(S) Fw.Obs.Timing: median baseline (p90 = max for n<=9 masked a repeated 27 s site build), structural/noise call per stage group; theorems no_self_mask, stable_never_slow, monotone",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/TimingGolden.lean",
+    "packages/contracts/golden/obs/timing.jsonl",
+    "docs/team/handoffs/timing-small-n.md"
+   ],
+   "evidence": "03f90ab"
+  },
+  {
+   "id": "land-test-speed",
+   "title": "(M) land checks: gate-breakpoints 105-112 s, gh-budget 81 s, runner 43-46 s tests made fast without weakening (fake clock, shared launch, Lean decision goldens); poolSize vs idle lake serve load proposal",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/test/**",
+    "packages/gh-budget/**",
+    "apps/runner/test/**",
+    "docs/team/handoffs/land-test-speed.md"
+   ],
+   "evidence": "9bef00e"
+  },
+  {
+   "id": "slow-site-build",
+   "title": "(S) investigate timing.slow site build 2 s -> 50 s: breakgen imports SweepsGen (Scope/Console/Plan), shared Lake cache key saved by narrow jobs; note",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-slow-site-build.md"
+   ]
+  },
+  {
+   "id": "site-build-cache",
+   "title": "(S) split a sweepsgen exe from breakgen; only the lean workflow saves the Lake cache; Lean cache_complete + rebuild_mono in Fw.Ops.Cache",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "slow-site-build",
+    "gate-speed-ci"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/lakefile.lean",
+    "lean/Fw/Ops/Cache.lean",
+    ".github/workflows/**"
+   ]
+  },
+  {
+   "id": "visual-diff-2",
+   "title": "(M) visual-diff re-run with real assets: both arms serve snapshot fonts and images (first run showed serif fallback + grey placeholders, 0 passes = invalid sample); settled predicate from gate-settle; Lean premise assets_loaded before any pixel verdict",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "visual-diff",
+    "snapshot-extract"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/visual-diff/**",
+    "lean/Fw/Gate/Pixel.lean",
+    "docs/team/handoffs/visual-diff-2.md"
+   ]
+  },
+  {
+   "id": "wktr-fixture-speed",
+   "title": "(M) wktr-fixtures: spans per pass (launch/settle/run); premise test counts equal serial vs k-parallel per variant (live variants likely timing-dependent); Lean rule k-parallel only if premise holds; job max-parallel from free macOS slots (run 39075991405: j1-j3 serial, ~13 min each, 39 launches ~18 s)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "wktr-p1p4"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/wktr-fixtures.yml",
+    "packages/measure-wktr/fixtures/**",
+    "packages/measure-wktr/src/**"
+   ]
+  },
+  {
+   "id": "hero-exit-restate",
+   "title": "(M) HeroExitOpt rebuilt on webkitX: wkVar_eq, wk_var_exact, wk_trade false as stated (WebKit restyles 1/update on scroll timelines, wktr-p1p4); restate with WktrStyleRate.Holds, regenerate hero-exit.jsonl (<o to <=o), premise wktr_scroll_timeline_restyle (lane test), downstream claims, mistake row",
+   "stream": "proofs",
+   "milestone": "M3",
+   "deps": [
+    "wktr-p1p4"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "packages/contracts/golden/parts/hero-exit.jsonl",
+    "lean/Fw/Ops/Premise.lean",
+    "research/mistakes/ledger.json",
+    "docs/team/handoffs/hero-exit-restate.md"
    ]
   }
  ],

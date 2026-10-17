@@ -36,6 +36,7 @@ try {
     process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "incidents") {
     process.exitCode = await (await import("./incidents.ts")).incidentsCli(rest, process.cwd()); // incident-lint: board optional
+  } else if (group === "premises") { process.exitCode = await (await import("./premises.ts")).premisesCli(rest, process.cwd()); // Lean premises vs browser tests
   } else if (group === "coverage") {
     process.exitCode = await (await import("./coverage.ts")).coverageCli(rest, process.cwd()); // lean-coverage: warn mode
   } else if (group === "watch") {

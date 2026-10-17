@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>hit.pointer-events</title>
+<style>
+  body { margin: 0 }
+  #under { position: absolute; left: 0; top: 0; width: 200px; height: 200px; background: #ccc }
+  #layer { position: absolute; left: 0; top: 0; width: 200px; height: 200px; pointer-events: none }
+  #hole { position: absolute; left: 100px; top: 0; width: 100px; height: 200px; pointer-events: auto; background: #888 }
+</style>
+<div id="under"></div>
+<div id="layer"><div id="hole"></div></div>
