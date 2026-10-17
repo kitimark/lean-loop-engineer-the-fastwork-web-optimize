@@ -12,6 +12,10 @@
     --panel-w: min(1398px, calc(100vw - 40px));
     --panel-h: min(820px, calc(100vh - 40px));
     top: calc(16px + (20px - 16px) * var(--morph));
+    /* the original's page text colour and body font stack reach the nav (and the buttons that `font: inherit`) through
+       the body (assets/0.ChGpbVhU.css:176, 512-524: --color-text-primary #171717, --font-family-body) */
+    color: #171717;
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     z-index: 40;
     box-sizing: border-box;
     width: calc(
