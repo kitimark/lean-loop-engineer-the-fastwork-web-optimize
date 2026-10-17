@@ -86,7 +86,7 @@ function Surfaces() {
         </Toolbar>
       </AppBar>
       <AppBar position="sticky" color="transparent" elevation={0}>
-        <Toolbar disableGutters variant="dense" />
+        <Toolbar />
       </AppBar>
       <AppBar position="fixed" color="primary">
         <Toolbar />
@@ -197,7 +197,7 @@ function Overlays() {
           <Button>x</Button>
         </DialogActions>
       </Dialog>
-      <Dialog open disablePortal fullWidth maxWidth="sm" scroll="body">
+      <Dialog open disablePortal fullWidth scroll="body">
         <DialogContent>c</DialogContent>
       </Dialog>
       <Dialog open disablePortal fullScreen>

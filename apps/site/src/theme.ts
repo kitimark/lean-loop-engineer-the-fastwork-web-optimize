@@ -8,6 +8,12 @@ export const theme = createTheme({
     fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
   },
   components: {
+    // No MUI breakpoint media: Toolbar `regular`/gutters and Dialog `maxWidth` emit @media from MUI's default
+    // xs..xl. Sites conditions come only from src/breakpoints.ts (Lean-generated), so these defaults avoid them.
+    MuiToolbar: { defaultProps: { disableGutters: true, variant: 'dense' } },
+    MuiDialog: { defaultProps: { maxWidth: false } },
+    MuiMenuItem: { defaultProps: { dense: true } },
+    MuiTabs: { defaultProps: { allowScrollButtonsMobile: true } },
     MuiButtonBase: {
       defaultProps: { disableRipple: true, disableTouchRipple: true },
     },

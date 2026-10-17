@@ -34,8 +34,12 @@ Findings while building (all CONFIRMED by running it):
   the home page uses `ButtonBase role="tab"`; `Tabs`/`Tab` stay in the census. S7 needs a wording fix.
 - `disableStyleSheetGeneration` is a real ThemeProvider prop but missing from the typings (cast in `src/Root.tsx`).
 - Default colour-scheme selector is `media`, so nothing is written on `<html>` (census records `html-attribute` events: none).
-- MUI Dialog `maxWidth`/Container use MUI's default `xs..xl` breakpoints in emitted `@media` (1 media rule in `mui.css`). These
-  must be replaced by conditions from the Lean-generated breakpoints before any part is promoted.
+- MUI's default `xs..xl` media are removed through theme defaults (`src/theme.ts`): `Toolbar` dense + `disableGutters`,
+  `Dialog maxWidth={false}`, `MenuItem dense`, `Tabs allowScrollButtonsMobile`. Parts that need width-dependent looks use CSS
+  Modules with conditions from `src/breakpoints.ts`. The census asserts it (`scripts/media-check.mjs`): every `@media` in the built
+  CSS must be in `breakpoints.gen.json` (currently an empty placeholder, so none are allowed) or in `src/mui-internal-media.json`
+  (MUI feature queries `print`, `(hover: hover)`, `(hover: none)`, `(forced-colors: active)`, which no theme option removes; reported
+  separately, they need a lead decision against the original's inventory).
 
 ## Registry and flags (`src/registry/`)
 
@@ -61,6 +65,17 @@ Hooks: `CSSStyleSheet` insertRule/deleteRule/replace/replaceSync/addRule, `CSSGr
 
 Build time (client + SSR + prerender, wall): aot about 0.5-3.3 s, runtime about 0.5-2.7 s (first runs 0.5-0.65 s warm; noisy, one Mac).
 `mui.css` 223 kB raw (245 ids), prerendered HTML 20 kB.
+
+### WebKit half (SPK-r), Playwright WebKit 27.2 on Mac (`--browser webkit`), 3 runs each, no variance
+
+| Build | scroll | triggers | cache.insert after mark | verdict |
+|---|---|---|---|---|
+| `aot` | 0 | 0 | 0 | PASS |
+| `runtime` | 0 | 69 | 23 | control caught |
+
+Same hooks as Chrome (all JS-level, so they work in WebKit). Limits: desktop WebKit with a 430x932 viewport, no touch, no iOS toolbar,
+no Safari/Simulator run; WebKit-internal style rebuild counts are not visible here (needs WKTR).
+After the media/extractor fixes the Chrome results above are unchanged (aot PASS 0/0/0).
 
 ## Pure logic for a Lean spec + golden vectors
 

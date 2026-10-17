@@ -10,6 +10,8 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
+import { webkit } from 'playwright-core';
+import { checkMedia } from './media-check.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (name, dflt) => {
@@ -21,7 +23,8 @@ const runs = Number(arg('runs', '1'));
 const chromePath =
   arg('chrome') ?? process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const query = arg('query', '');
-if (!existsSync(chromePath)) throw new Error(`Chrome not found at ${chromePath} (use --chrome or CHROME_PATH)`);
+const engineName = arg('browser', 'chrome'); // chrome (puppeteer-core) | webkit (playwright-core)
+if (engineName === 'chrome' && !existsSync(chromePath)) throw new Error(`Chrome not found at ${chromePath} (use --chrome or CHROME_PATH)`);
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 function serve(dir) {
@@ -46,15 +49,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const hooks = await readFile(path.join(root, 'scripts/census-hooks.js'), 'utf8');
 
 async function censusOnce(browser, engine, port) {
-  const page = await browser.newPage();
-  await page.setViewport({ width: 430, height: 932, deviceScaleFactor: 1 });
+  const wk = engineName === 'webkit';
+  const page = wk ? await browser.newPage({ viewport: { width: 430, height: 932 } }) : await browser.newPage();
+  if (!wk) await page.setViewport({ width: 430, height: 932, deviceScaleFactor: 1 });
   const consoleErrors = [];
   page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
   page.on('pageerror', (e) => consoleErrors.push(String(e)));
-  await page.evaluateOnNewDocument(hooks);
+  if (wk) await page.addInitScript(hooks);
+  else await page.evaluateOnNewDocument(hooks);
 
   await page.goto(`http://127.0.0.1:${port}/${query}`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__fw?.hydrated === true, { timeout: 10000 });
+  await page.waitForFunction(() => window.__fw?.hydrated === true, ...(wk ? [null, { timeout: 10000 }] : [{ timeout: 10000 }]));
   await sleep(800); // W-rest: let hydration effects and the countdown settle
   const flush = () => page.evaluate(() => window.__census.flush());
   await flush();
@@ -136,8 +141,11 @@ async function censusOnce(browser, engine, port) {
   };
 }
 
-const browser = await puppeteer.launch({ executablePath: chromePath, headless: true });
-const report = { chrome: await browser.version(), runs, results: [] };
+const browser =
+  engineName === 'webkit'
+    ? await webkit.launch()
+    : await puppeteer.launch({ executablePath: chromePath, headless: true });
+const report = { browser: engineName, chrome: engineName === 'webkit' ? `WebKit ${browser.version()}` : await browser.version(), runs, results: [] };
 let exit = 0;
 try {
   for (const engine of engines) {
@@ -153,7 +161,7 @@ try {
 }
 
 const pad = (s, n) => String(s).padEnd(n);
-console.log(`Chrome ${report.chrome}, ${runs} run(s) per build, viewport 430x932, query "${query}"\n`);
+console.log(`${report.chrome}, ${runs} run(s) per build, viewport 430x932, query "${query}"\n`);
 console.log(pad('engine', 9) + pad('mode', 10) + pad('scroll', 8) + pad('trigger', 9) + pad('cache.insert', 14) + pad('rules mark->end', 18) + 'verdict');
 for (const r of report.results) {
   const total = r.scroll.count + r.trigger.count + r.cacheInsertsAfterMark;
@@ -177,6 +185,17 @@ for (const r of report.results) {
   const kinds = {};
   for (const e of [...r.scroll.events, ...r.trigger.events]) kinds[`${e.phase}:${e.kind}`] = (kinds[`${e.phase}:${e.kind}`] ?? 0) + 1;
   if (Object.keys(kinds).length) console.log('   events:', JSON.stringify(kinds));
+}
+if (engines.includes('aot')) {
+  const m = await checkMedia(root, 'aot');
+  console.log(`\n@media check (dist/aot): ${m.ok ? 'PASS' : 'FAIL'}`);
+  console.log('   in breakpoints.gen.json:', JSON.stringify(m.fromGen));
+  console.log('   MUI feature queries (mui-internal-media.json):', JSON.stringify(m.fromInternal));
+  if (!m.ok) {
+    console.log('   NOT ALLOWED:', JSON.stringify(m.unknown));
+    exit = 1;
+  }
+  report.media = m;
 }
 const outFile = arg('json');
 if (outFile) await writeFile(outFile, JSON.stringify(report, null, 2));

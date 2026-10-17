@@ -1,0 +1,4 @@
+{
+  "note": "Media conditions MUI components emit that no theme option removes (feature queries, not breakpoints). They are not width breakpoints, are checked separately from breakpoints.gen.json, and need a lead decision against the original's inventory before promotion.",
+  "conditions": ["(hover: hover)", "(hover: none)", "(forced-colors: active)", "print"]
+}
