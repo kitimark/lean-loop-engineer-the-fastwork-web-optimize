@@ -1,6 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { goldenConformance } from '../../engine/golden.testutil';
 import * as L from './logic';
 import { createExitDriver } from './driver';
 
@@ -79,14 +78,36 @@ describe('exit driver', () => {
   });
 });
 
-describe('hero.exit golden conformance', () => {
-  const file = resolve(__dirname, '../../../../../packages/contracts/golden/parts/hero.exit.jsonl');
-  it.skipIf(!existsSync(file))('every golden line matches', () => {
-    const fns = L as unknown as Record<string, (...a: unknown[]) => unknown>;
-    for (const line of readFileSync(file, 'utf8').split('\n').filter(Boolean)) {
-      const { fn, in: input, out } = JSON.parse(line) as { fn: string; in: Record<string, unknown>; out: unknown };
-      expect(fns[fn], `unknown fn ${fn}`).toBeTypeOf('function');
-      expect(fns[fn]!(...L.GOLDEN_ARGS[fn]!.map((k) => input[k])), line).toEqual(out);
+goldenConformance('hero.exit', Object.fromEntries(
+  Object.entries(L.GOLDEN_ARGS).map(([fn, names]) => [
+    fn,
+    (i: Record<string, unknown>) => (L as unknown as Record<string, (...a: unknown[]) => unknown>)[fn]!(...names.map((k) => i[k])),
+  ]),
+));
+
+describe('hero.exit full cue readings', () => {
+  it('settled readings agree with the full ones only in the settled state', () => {
+    for (const scatter of [0, 0.25, 1])
+      for (const le of [false, true]) {
+        const copyIn = 1;
+        const splashDone = true;
+        expect(L.cueBlurPx(scatter)).toBeCloseTo(L.cueBlurPxFull(copyIn, scatter, le, splashDone));
+        expect(L.cueTranslateYPx(scatter, le)).toBeCloseTo(L.cueTranslateYPxFull(copyIn, scatter, le, splashDone));
+      }
+    // during the desktop ring splash the settled reading is wrong
+    expect(L.cueBlurPxFull(0, 0, false, false)).toBe(16);
+    expect(L.cueTranslateYPxFull(0, 0, false, false)).toBe(12);
+    expect(L.cueBlurPx(0)).toBe(0);
+  });
+  it('nav hero progress is 1 - exit opacity; 0.72 flip', () => {
+    for (const top of [100, 0, -400, -576, -800, -900]) {
+      expect(L.navHeroProgress(top, 1600, 800).progress).toBeCloseTo(1 - L.exitOpacity(top, 1600, 800), 12);
     }
+    expect(L.navHeroProgress(-576, 1600, 800).pillPassed).toBe(true);
+    expect(L.navHeroProgress(-575, 1600, 800).pillPassed).toBe(false);
+  });
+  it('le600 includes 600', () => {
+    expect(L.le600(600)).toBe(true);
+    expect(L.le600(600.5)).toBe(false);
   });
 });

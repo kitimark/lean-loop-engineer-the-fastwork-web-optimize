@@ -26,13 +26,64 @@ export function classifyHit(f: { hasElement: boolean; inExclude: boolean; inIncl
   return f.inInclude || f.inShrinking;
 }
 
+/** One box at the probe point, top-most first (`elementsFromPoint` order, nav at its normal `pointer-events`). */
+export interface Hit {
+  insideNav: boolean;
+  /** the box sets `pointer-events` itself, so it stays hit-testable while the nav root is forced to `none`. */
+  reEnabled: boolean;
+}
+
+/** JS `findIndex` with -1 for none. */
+export function findIdx<T>(p: (x: T) => boolean, xs: readonly T[]): number {
+  return xs.findIndex(p);
+}
+
 /**
- * hit-skip: index of the first element of the `elementsFromPoint` stack that lies outside the nav subtree
- * (what `elementFromPoint` returns while the nav has `pointer-events: none`), or -1.
+ * Index `elementFromPoint` returns in the original (F, 12959-12961): with the nav root at `pointer-events: none`, the
+ * first box that is outside the nav or re-enabled inside it (nav actions, expanded morph panel, active morph pill,
+ * earn button; CSS 11442, 10557, 10519, 11498).
+ */
+export function faithfulHit(stack: readonly Hit[]): number {
+  return findIdx((h) => !h.insideNav || h.reEnabled, stack);
+}
+
+/**
+ * Naive skip: index of the first element outside the nav subtree. NOT faithful: it passes over the re-enabled boxes
+ * (Lean `firstOutside_ne_faithful`). Kept only to pin that difference; no variant uses it.
  */
 export function firstOutside(insideNav: readonly boolean[]): number {
-  return insideNav.findIndex((b) => !b);
+  return findIdx((b) => !b, insideNav);
 }
+
+/**
+ * elements-skip (v1 `nav-hit-test`): first box outside the nav or allow-listed inside it. Equals `faithfulHit` when the
+ * allow-list agrees with `reEnabled` on the nav's boxes (Lean `allowHit_eq_faithful`).
+ */
+export function allowHit(allow: (h: Hit) => boolean, stack: readonly Hit[]): number {
+  return findIdx((h) => !h.insideNav || allow(h), stack);
+}
+
+/** Above this morph the nav is dark whatever the hit test says (N2:13228: `is-on-dark = g || morph > 0.2`). */
+export const MORPH_DARK_ABOVE = 0.2;
+
+/** `is-on-dark`: the hit answer or morph strictly past 0.2. */
+export function isOnDark(hit: boolean, morph: number): boolean {
+  return hit || morph > MORPH_DARK_ABOVE;
+}
+
+/** hit-skip (v1 `hit-skip`): skip the hit test while the answer is invisible, i.e. while `morph > 0.2` (Lean `hitSkip_morph`). */
+export function skipHitTest(morph: number): boolean {
+  return morph > MORPH_DARK_ABOVE;
+}
+
+/** Selectors of the nav boxes that set `pointer-events` themselves (CSS 11442, 10557, 10519, 11498). */
+export const ALLOW_SELECTOR = [
+  '.start-selling-top-nav-actions',
+  '.start-selling-morph.is-expanded .start-selling-morph-panel',
+  '.start-selling-top-nav.is-expanded .start-selling-morph-panel',
+  '.start-selling-morph.is-active:not(.is-expanded) .start-selling-morph-pill',
+  '.start-selling-top-nav:not(.is-hero-pill, .is-morphing) .start-selling-top-nav-btn.is-earn',
+].join(', ');
 
 /** Write on change only. */
 export function changed(prev: boolean, next: boolean): boolean {

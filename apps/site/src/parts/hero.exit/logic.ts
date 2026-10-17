@@ -75,6 +75,35 @@ export function cueBlurPx(scatter: number): number {
 export function cueTranslateYPx(scatter: number, le600: boolean): number {
   return le600 ? scatter * -10 : 0;
 }
+/**
+ * scroll-cue blur in px, full reading (css 1911, 1925-1928, 1930-1933): `scatter * 18` on `(width<=600px)` or once the
+ * desktop ring splash is done; otherwise (desktop, splash running) `(1 - copy-in) * 16 + scatter * 18`.
+ * `cueBlurPx` above is the settled reading; they agree when `le600 => copyIn = 1` and `!le600 => splashDone`.
+ */
+export function cueBlurPxFull(copyIn: number, scatter: number, le600: boolean, splashDone: boolean): number {
+  return le600 || splashDone ? scatter * 18 : (1 - copyIn) * 16 + scatter * 18;
+}
+/**
+ * scroll-cue translateY in px, full reading (css 1913, 1930-1935): `0` on desktop once the splash is done, otherwise
+ * `(1 - copy-in) * 12 + scatter * -10`.
+ */
+export function cueTranslateYPxFull(copyIn: number, scatter: number, le600: boolean, splashDone: boolean): number {
+  return !le600 && splashDone ? 0 : (1 - copyIn) * 12 + scatter * -10;
+}
+/** The phone band `(width<=600px)` (its complement `(width>600px)` is the other band; no gap for fractional widths). */
+export function le600(width: number): boolean {
+  return width <= 600;
+}
+/**
+ * The nav's own hero progress (N2:13002-13007), `min(r, max(0, -top)) / r`, `r = max(1, height - vh)`; `pillPassed` is
+ * its `>= 0.72` flip (is-hero-pill off). Equals `1 - exitOpacity`, so one owner serves both.
+ */
+export function navHeroProgress(trackTop: number, trackHeight: number, viewportHeight: number): { progress: number; pillPassed: boolean } {
+  const r = exitRange(trackHeight, viewportHeight);
+  const progress = Math.min(r, Math.max(0, -trackTop)) / r;
+  return { progress, pillPassed: progress >= 0.72 };
+}
+
 /** orbit/deck card opacity (css 1577): `1 - scatter * 0.35`. */
 export function cardOpacity(scatter: number): number {
   return 1 - scatter * 0.35;
@@ -98,6 +127,10 @@ export const GOLDEN_ARGS: Record<string, string[]> = {
   copyTranslateYPx: ['copyIn', 'scatter', 'le600'],
   cueBlurPx: ['scatter'],
   cueTranslateYPx: ['scatter', 'le600'],
+  cueBlurPxFull: ['copyIn', 'scatter', 'le600', 'splashDone'],
+  cueTranslateYPxFull: ['copyIn', 'scatter', 'le600', 'splashDone'],
+  le600: ['width'],
+  navHeroProgress: ['trackTop', 'trackHeight', 'viewportHeight'],
   cardOpacity: ['scatter'],
   cardTranslate: ['entered', 'enter', 'scatter', 'scatterOffset'],
 };

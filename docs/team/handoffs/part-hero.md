@@ -24,3 +24,18 @@ State at 88a4302 (written by the lead from part-hero's report).
 - Gates at this commit: test and typecheck pass; census aot 0/0/0, runtime CAUGHT; media-check FAIL as expected
   (breakpoints.gen.json is `{}` until lean-site's generator lands).
 - Goldens: lean-parts writes `packages/contracts/golden/parts/<id>.jsonl` with the fn names in logic.ts.
+
+## Update: conformance with the Lean specs (lean-parts findings)
+
+- Golden harness: `apps/site/src/engine/golden.testutil.ts` (`goldenConformance(id, impl)`). Decodes `{num,den}` Rats, compares
+  numbers with |delta| <= 1e-9, everything else exact (springStep `done` included). Runs `<id>.jsonl` and, when present,
+  `<id>.spec.jsonl`; a missing main file or an fn without a TS implementation fails (no skips). hero.countdown has no spec file.
+- hero.countdown: `faceDelta` range documented as (-5, 5] and computed with floored remainders (as Lean `fmod10`);
+  `digitAt(v, 0)` returns 0 (Lean), never NaN.
+- hero.exit logic: added `cueBlurPxFull`, `cueTranslateYPxFull` (use these during the desktop ring splash; the old
+  `cueBlurPx`/`cueTranslateYPx` stay as the settled reading, equal when `le600 => copyIn = 1` and `!le600 => splashDone`,
+  Lean `cue_ts_eq_full`), `le600`, `navHeroProgress` (+ `pillPassed` at >= 0.72). The shipped CSS is the settled state
+  (`--copy-in: 1`), so no CSS change; hero.orbit owns the splash.
+- hero.exit scheduling (faithful engine): `mountExit` in driver.ts. The engine callback only requests the part's own rAF
+  (`{own:true}`, one-shot); the body (rect read, two writes) runs in it, before the next engine frame, and once on mount
+  (N2:4173-4175, 4240). Batched engine: read in the callback, writer returned.

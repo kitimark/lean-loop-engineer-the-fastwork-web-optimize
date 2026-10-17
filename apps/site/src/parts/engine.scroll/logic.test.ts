@@ -1,31 +1,36 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createScrollEngine, type ScrollEnv } from '../../engine/scroll';
 import type { MotionClock, Tick } from '../../engine/clock';
+import { goldenConformance } from '../../engine/golden.testutil';
 import * as logic from './logic';
 
-const GOLDEN = new URL('../../../../../packages/contracts/golden/parts/engine.scroll.jsonl', import.meta.url);
-
-describe.skipIf(!existsSync(GOLDEN))('engine.scroll golden conformance', () => {
-  const lines = existsSync(GOLDEN) ? readFileSync(GOLDEN, 'utf8').split('\n').filter((l) => l.trim()) : [];
-  it.each(lines.map((l, i) => [i + 1, JSON.parse(l) as { fn: string; in: Record<string, unknown>; out: unknown }] as const))(
-    'line %i',
-    (_i, v) => {
-      const f = (logic as Record<string, unknown>)[v.fn] as (...a: unknown[]) => unknown;
-      expect(typeof f, `unknown fn ${v.fn}`).toBe('function');
-      const i = v.in;
-      const out =
-        v.fn === 'orderCallbacks' ? f(i.entries)
-        : v.fn === 'framePlan' ? f(i.variant, i.writers)
-        : v.fn === 'shouldSchedule' ? f(i.pending)
-        : v.fn === 'listenerAction' ? f(i.attached, i.size)
-        : undefined;
-      expect(out).toEqual(v.out);
-    },
-  );
+goldenConformance('engine.scroll', {
+  orderCallbacks: (i) => logic.orderCallbacks(i.entries),
+  framePlan: (i) => logic.framePlan(i.variant, i.writers),
+  shouldSchedule: (i) => logic.shouldSchedule(i.pending),
+  listenerAction: (i) => logic.listenerAction(i.attached, i.size),
+  forcedCounts: (i) => logic.forcedCounts(i.accesses, i.dirty),
+  forcedCountsBatched: (i) => logic.forcedCountsBatched(i.accesses, i.dirty),
+  planLayouts: (i) => logic.planLayouts(i.variant, i.writers, i.dirty),
+  engineRuns: (i) => logic.engineRuns(i.pending, i.events),
 });
 
 describe('engine.scroll logic', () => {
+  it('pilot frame cost: faithful 3-4 forced style passes, batched at most 1', () => {
+    expect(logic.forcedCounts(logic.PILOT_FRAME, true).style).toBe(4);
+    expect(logic.forcedCounts(logic.PILOT_FRAME, false).style).toBe(3);
+    expect(logic.forcedCounts(logic.PILOT_FRAME, true).layout).toBe(1);
+    expect(logic.forcedCountsBatched(logic.PILOT_FRAME, true).style).toBe(1);
+    expect(logic.forcedCountsBatched(logic.PILOT_FRAME, false).style).toBe(0);
+  });
+  it('faithful plan cost formula [d and nonempty] + writers among all but the last', () => {
+    for (const ws of [[], [true], [true, true], [false, true, true], [true, false, true, true]])
+      for (const d of [false, true]) {
+        const expected = (d && ws.length > 0 ? 1 : 0) + ws.slice(0, -1).filter(Boolean).length;
+        expect(logic.planLayouts('faithful', ws, d)).toBe(expected);
+        expect(logic.planLayouts('batched', ws, d)).toBeLessThanOrEqual(1);
+      }
+  });
   it('orders by order then registration', () => {
     expect(logic.orderCallbacks([{ id: 'b', order: 2, seq: 0 }, { id: 'a', order: 1, seq: 1 }, { id: 'c', order: 1, seq: 2 }])).toEqual(['a', 'c', 'b']);
   });

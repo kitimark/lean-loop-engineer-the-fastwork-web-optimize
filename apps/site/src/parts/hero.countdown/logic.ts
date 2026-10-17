@@ -35,13 +35,14 @@ export function digitPlaces(value: number, padStart = false): number[] {
 
 /** N2:3832-3834 (`qE`): the digit of `value` at `place`. */
 export function digitAt(value: number, place: number): number {
+  if (place === 0) return 0; // the original would give NaN but never passes 0; match the Lean spec (0), never NaN
   return Math.floor(Math.abs(Math.floor(value)) / place) % 10;
 }
 
-/** N2:3827-3831 (`KE`): signed shortest distance in digits from the spring position `current` to face `face`, in [-5, 5]. */
+/** N2:3827-3831 (`KE`): signed shortest distance in digits from the spring position `current` to face `face`, in (-5, 5] (a half-turn counts as +5). */
 export function faceDelta(face: number, current: number): number {
-  const n = ((current % 10) + 10) % 10;
-  const r = (10 + face - n) % 10;
+  const mod10 = (x: number) => ((x % 10) + 10) % 10; // floored remainder, as the Lean spec
+  const r = mod10(10 + face - mod10(current));
   return r > 5 ? r - 10 : r;
 }
 

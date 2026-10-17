@@ -1,26 +1,17 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { goldenConformance } from '../../engine/golden.testutil';
 import * as logic from './logic';
 
-const GOLDEN = new URL('../../../../../packages/contracts/golden/parts/nav.hitTest.jsonl', import.meta.url);
-
-describe.skipIf(!existsSync(GOLDEN))('nav.hitTest golden conformance', () => {
-  const lines = existsSync(GOLDEN) ? readFileSync(GOLDEN, 'utf8').split('\n').filter((l) => l.trim()) : [];
-  it.each(lines.map((l, i) => [i + 1, JSON.parse(l) as { fn: string; in: Record<string, unknown>; out: unknown }] as const))(
-    'line %i',
-    (_i, v) => {
-      const f = (logic as Record<string, unknown>)[v.fn] as (...a: unknown[]) => unknown;
-      expect(typeof f, `unknown fn ${v.fn}`).toBe('function');
-      const i = v.in;
-      const out =
-        v.fn === 'hitPoint' ? f(i.rect)
-        : v.fn === 'classifyHit' ? f(i)
-        : v.fn === 'firstOutside' ? f(i.insideNav)
-        : v.fn === 'changed' ? f(i.prev, i.next)
-        : undefined;
-      expect(out).toEqual(v.out);
-    },
-  );
+goldenConformance('nav.hitTest', {
+  hitPoint: (i) => logic.hitPoint(i.rect),
+  classifyHit: (i) => logic.classifyHit(i as Parameters<typeof logic.classifyHit>[0]),
+  firstOutside: (i) => logic.firstOutside(i.insideNav),
+  changed: (i) => logic.changed(i.prev, i.next),
+  faithfulHit: (i) => ({
+    faithful: logic.faithfulHit(i.stack),
+    firstOutside: logic.firstOutside((i.stack as logic.Hit[]).map((h) => h.insideNav)),
+  }),
+  isOnDark: (i) => logic.isOnDark(i.hit, i.morph),
 });
 
 describe('nav.hitTest logic', () => {
@@ -45,5 +36,24 @@ describe('nav.hitTest logic', () => {
   it('write on change', () => {
     expect(logic.changed(false, true)).toBe(true);
     expect(logic.changed(true, true)).toBe(false);
+  });
+  it('faithful hit reports re-enabled nav boxes; the naive skip does not', () => {
+    const stack: logic.Hit[] = [{ insideNav: true, reEnabled: true }, { insideNav: false, reEnabled: false }];
+    expect(logic.faithfulHit(stack)).toBe(0);
+    expect(logic.firstOutside(stack.map((h) => h.insideNav))).toBe(1);
+  });
+  it('allow-list equal to reEnabled reproduces the faithful hit', () => {
+    const stacks: logic.Hit[][] = [
+      [],
+      [{ insideNav: true, reEnabled: false }, { insideNav: false, reEnabled: false }],
+      [{ insideNav: true, reEnabled: false }, { insideNav: true, reEnabled: true }, { insideNav: false, reEnabled: false }],
+      [{ insideNav: true, reEnabled: false }],
+    ];
+    for (const s of stacks) expect(logic.allowHit((h) => h.reEnabled, s)).toBe(logic.faithfulHit(s));
+  });
+  it('morph skip: past 0.2 the class ignores the hit answer', () => {
+    expect(logic.skipHitTest(0.2)).toBe(false);
+    expect(logic.skipHitTest(0.2001)).toBe(true);
+    for (const g of [false, true]) expect(logic.isOnDark(g, 0.5)).toBe(true);
   });
 });

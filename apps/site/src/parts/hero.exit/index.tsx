@@ -1,8 +1,9 @@
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { registerScroll } from '../../engine/scroll';
-import { createExitDriver } from './driver';
+import { getClock } from '../../engine/clock';
+import { getScrollEngine } from '../../engine/scroll';
+import { createExitDriver, mountExit } from './driver';
 import { matchList } from './media';
 import css from './hero.module.css';
 
@@ -25,8 +26,8 @@ export function HeroExit({ variant, impl = 'mui' }: HeroExitProps) {
     if (!track || !hero) return;
     const reduce = matchList('mq.rm-reduce');
     const driver = createExitDriver({ track, hero, reduced: () => reduce?.matches ?? false });
-    // registering requests one frame (the original runs the handler once on mount too)
-    return registerScroll('hero.exit', 10, (f) => driver.read(f.vh));
+    // faithful engine: own rAF per frame, run once on mount; batched engine: read in the callback, write in its writer
+    return mountExit({ driver, engine: getScrollEngine(), clock: getClock(), readVh: () => window.innerHeight });
   }, []);
 
   const mui = impl === 'mui';

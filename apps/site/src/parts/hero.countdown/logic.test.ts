@@ -1,6 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { goldenConformance } from '../../engine/golden.testutil';
 import * as L from './logic';
 import { GOLDEN_ARGS } from './logic';
 
@@ -29,18 +28,21 @@ describe('hero.countdown logic', () => {
     expect(L.digitAt(1234, 100)).toBe(2);
     expect(L.digitAt(-1234.9, 1)).toBe(5);
     expect(L.digitAt(5, 10)).toBe(0);
+    expect(L.digitAt(7, 0)).toBe(0); // place 0: Lean gives 0, never NaN
   });
   it('faceDelta is the signed shortest distance', () => {
     expect(L.faceDelta(3, 3)).toBe(0);
     expect(L.faceDelta(9, 0)).toBe(-1);
     expect(L.faceDelta(0, 9)).toBe(1);
-    expect(L.faceDelta(5, 0)).toBe(5);
+    expect(L.faceDelta(5, 0)).toBe(5); // range is (-5, 5]: the half turn is +5
+    expect(L.faceDelta(5, 10)).toBe(5);
+    expect(L.faceDelta(0, 5)).toBe(5);
     expect(L.faceDelta(6, 0)).toBe(-4);
     expect(L.faceDelta(0, -0.5)).toBeCloseTo(0.5);
     for (let f = 0; f < 10; f++)
       for (const a of [-13.2, 0, 4.4, 9.99, 27.5]) {
         const d = L.faceDelta(f, a);
-        expect(d).toBeGreaterThanOrEqual(-5);
+        expect(d).toBeGreaterThan(-5);
         expect(d).toBeLessThanOrEqual(5);
       }
   });
@@ -84,16 +86,9 @@ describe('hero.countdown logic', () => {
   });
 });
 
-describe('hero.countdown golden conformance', () => {
-  const file = resolve(__dirname, '../../../../../packages/contracts/golden/parts/hero.countdown.jsonl');
-  const have = existsSync(file);
-  it.skipIf(!have)('every golden line matches', () => {
-    const fns = L as unknown as Record<string, (...a: unknown[]) => unknown>;
-    for (const line of readFileSync(file, 'utf8').split('\n').filter(Boolean)) {
-      const { fn, in: input, out } = JSON.parse(line) as { fn: string; in: Record<string, unknown>; out: unknown };
-      const f = fns[fn];
-      expect(f, `unknown fn ${fn}`).toBeTypeOf('function');
-      expect(f!(...GOLDEN_ARGS[fn]!.map((k) => input[k])), line).toEqual(out);
-    }
-  });
-});
+goldenConformance('hero.countdown', Object.fromEntries(
+  Object.entries(GOLDEN_ARGS).map(([fn, names]) => [
+    fn,
+    (i: Record<string, unknown>) => (L as unknown as Record<string, (...a: unknown[]) => unknown>)[fn]!(...names.map((k) => i[k])),
+  ]),
+));
