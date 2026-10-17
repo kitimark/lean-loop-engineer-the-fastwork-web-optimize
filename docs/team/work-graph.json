@@ -2861,7 +2861,8 @@
    "writes": [
     "research/notes/2026/10-18-mistake-retro.md",
     "research/mistakes/**"
-   ]
+   ],
+   "evidence": "4cf4e8c"
   },
   {
    "id": "incident-lean-fields",
