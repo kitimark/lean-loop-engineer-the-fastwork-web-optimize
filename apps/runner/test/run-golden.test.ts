@@ -22,8 +22,10 @@ describe("store golden vectors parse with the contracts", () => {
     it(`${stem}: ${cases.length} cases`, () => {
       expect(cases.length).toBeGreaterThan(0);
       for (const c of cases) {
-        expect(Req.safeParse(c.request).success, `${c.name} request`).toBe(true);
-        const ok = Rep.safeParse(c.response).success || StoreError.safeParse(c.response).success;
+        // A request outside the schema (e.g. no target) must be one fwcore refuses with an error.
+        const refused = StoreError.safeParse(c.response).success;
+        expect(Req.safeParse(c.request).success || refused, `${c.name} request`).toBe(true);
+        const ok = Rep.safeParse(c.response).success || refused;
         expect(ok, `${c.name} response`).toBe(true);
       }
     });

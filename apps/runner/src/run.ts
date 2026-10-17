@@ -1,4 +1,4 @@
-// `fw run --fw <part:variant,...> --preset <name> --engines chromium,webkit [--dry]` (PLAN 10.1).
+// `fw run --target original|rewrite --fw <part:variant,...> --preset <name> --engines chromium,webkit [--dry]` (PLAN 10.1).
 // CI-first: this never measures on this machine. It asks fwcore (`store.plan`) for the jobs, prints them (--dry), or
 // dispatches each GitHub Actions workflow with `gh`, waits for the run, downloads its artifacts and files them in the
 // content-addressed store (`.fw-console/store/`). Every rule (which jobs, what is blocked, whether a manifest is valid,
@@ -11,16 +11,21 @@ import { ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest }
 import { UsageError } from "./lib.ts";
 
 export type RunArgs = {
-  preset: string; fw: string[]; engines: string[]; profile?: string; runs?: number; dry: boolean;
+  target: string; preset: string; fw: string[]; engines: string[]; profile?: string; runs?: number; dry: boolean;
   ref?: string; sha?: string; images: Record<string, string>; fromRun: Record<string, string>;
 };
 
-export const RUN_USAGE = "usage: fw run --preset <name> [--fw part:variant,...] --engines chromium,webkit [--profile <id>] [--runs 2..10]\n" +
+export const RUN_USAGE = "usage: fw run --target original|rewrite [--preset <name>] [--fw part:variant,...] --engines chromium,webkit\n" +
+  "              [--profile <id>] [--runs 2..10]\n" +
   "              [--ref <pushed branch>] [--sha <git sha>] [--image engine=sha256:...] [--from-run engine=<run id>] [--dry]";
 
-/** argv after `run` -> RunArgs. `--fw` may repeat and take commas; `--image` and `--from-run` take `engine=value`. */
+/**
+ * argv after `run` -> RunArgs. `--target` and `--engines` are required (the target is part of the store key, and an
+ * original run must not file under a rewrite key); `--fw` may repeat and take commas; `--image` and `--from-run` take
+ * `engine=value`. Whether the target name is valid and fits the preset and flags is fwcore's (`store.plan` problems).
+ */
 export function parseRunArgs(argv: string[]): RunArgs {
-  const a: RunArgs = { preset: "original", fw: [], engines: [], dry: false, images: {}, fromRun: {} };
+  const a: RunArgs = { target: "", preset: "original", fw: [], engines: [], dry: false, images: {}, fromRun: {} };
   const val = (i: number, flag: string) => {
     const v = argv[i + 1];
     if (v === undefined || v.startsWith("--")) throw new UsageError(`flag ${flag} needs a value\n${RUN_USAGE}`);
@@ -34,6 +39,7 @@ export function parseRunArgs(argv: string[]): RunArgs {
   for (let i = 0; i < argv.length; i++) {
     const f = argv[i]!;
     if (f === "--dry") a.dry = true;
+    else if (f === "--target") a.target = val(i++, f);
     else if (f === "--preset") a.preset = val(i++, f);
     else if (f === "--fw") a.fw.push(...val(i++, f).split(",").filter(Boolean));
     else if (f === "--engines") a.engines = val(i++, f).split(",").filter(Boolean);
@@ -46,6 +52,7 @@ export function parseRunArgs(argv: string[]): RunArgs {
     else throw new UsageError(`unknown flag ${f}\n${RUN_USAGE}`);
   }
   if (a.engines.length === 0) throw new UsageError(`--engines is required\n${RUN_USAGE}`);
+  if (!a.target) throw new UsageError(`--target is required (original = the snapshot, rewrite = apps/site)\n${RUN_USAGE}`);
   return a;
 }
 
@@ -95,11 +102,11 @@ export type Ingest = { manifest: RunManifest; path: string; objects: number; reu
  * File a downloaded CI run: hash every file, copy it to its content-addressed object (fwcore gives the path), build the
  * manifest and have fwcore validate it before it is written. Throws, naming the problems, when fwcore refuses.
  */
-export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, meta: { preset: string; fw: string[]; profile: string; gitSha: string; runId: string }): Ingest {
+export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, meta: { target: string; preset: string; fw: string[]; profile: string; gitSha: string; runId: string }): Ingest {
   const files = walk(dir).map((p) => ({ p, name: relative(dir, p).split("\\").join("/") })).sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0));
   const entries = files.map(({ p, name }) => { const b = readFileSync(p); return { name, digest: sha256(b), bytes: b.length, p }; });
   const manifest: RunManifest = {
-    engine: job.engine, preset: meta.preset, fw: meta.fw, profile: meta.profile, gitSha: meta.gitSha, image: job.image as RunManifest["image"],
+    engine: job.engine, target: meta.target as RunManifest["target"], preset: meta.preset, fw: meta.fw, profile: meta.profile, gitSha: meta.gitSha, image: job.image as RunManifest["image"],
     runId: meta.runId, entries: entries.map(({ name, digest, bytes }) => ({ name, digest, bytes })),
   };
   const checked = ManifestReply.parse(call({ op: "store.manifest", manifest }));
@@ -135,7 +142,7 @@ export type Planned = { reply: PlanReply; sha: string; args: RunArgs };
 
 /** Ask fwcore for the plan; the cache column comes from the digests of the job keys against the store. */
 export function planRun(call: FwCall, args: RunArgs, sha: string, store: string): Planned {
-  const base = { op: "store.plan", preset: args.preset, fw: args.fw, engines: args.engines, sha, images: args.images,
+  const base = { op: "store.plan", target: args.target, preset: args.preset, fw: args.fw, engines: args.engines, sha, images: args.images,
     ...(args.profile ? { profile: args.profile } : {}), ...(args.runs !== undefined ? { runs: args.runs } : {}) };
   const first = PlanReply.parse(call(base));
   const digests = Object.fromEntries(first.jobs.map((j) => [j.engine, keyDigest(j.key as [string, string][])]));
@@ -145,7 +152,7 @@ export function planRun(call: FwCall, args: RunArgs, sha: string, store: string)
 
 export function renderPlan(p: Planned, dry: boolean): string[] {
   const { reply, args } = p;
-  const out = [`fw run${dry ? " (dry)" : ""}: preset ${args.preset}, flags ${reply.fw.join(",") || "-"}, sha ${p.sha.slice(0, 7)}`];
+  const out = [`fw run${dry ? " (dry)" : ""}: target ${args.target}, preset ${args.preset}, flags ${reply.fw.join(",") || "-"}, sha ${p.sha.slice(0, 7)}`];
   for (const pr of reply.problems) out.push(`  problem: ${pr}`);
   for (const j of reply.jobs) {
     const ins = Object.entries(j.inputs).map(([k, v]) => `${k}=${v}`).join(" ") || "-";
@@ -182,7 +189,7 @@ export function runMain(args: RunArgs, d: RunDeps): number {
     const dir = join(d.tmp, `${j.engine}-${runId}`);
     mkdirSync(dir, { recursive: true });
     d.gh(["run", "download", runId, "-D", dir]);
-    const r = ingest(d.call, d.store, dir, j, { preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runId });
+    const r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runId });
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);
   }
   return 0;
