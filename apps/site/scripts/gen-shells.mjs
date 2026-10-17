@@ -16,7 +16,9 @@ const must = [...gen.matrix.probes.map((p) => Math.ceil(p.width)), ...gen.edgePa
 const model = fit(rows, 0.05, must);
 
 const files = new Map([['src/shells/boxes.gen.json', JSON.stringify(model, null, 1) + '\n']]);
-for (const id of SECTION_IDS) files.set(`src/parts/${id}/box.module.css`, sectionCss(model, id));
+// sections already ported (their folder holds the real part, no box.module.css): the fit stays in boxes.gen.json
+const PORTED = new Set(['pain']);
+for (const id of SECTION_IDS) if (!PORTED.has(id)) files.set(`src/parts/${id}/box.module.css`, sectionCss(model, id));
 
 let bad = 0;
 for (const [f, text] of files) {
