@@ -30,3 +30,5 @@ import Fw.Ops.PathCheck
 import Fw.Ops.Usage
 import Fw.Ops.Meter
 import Fw.Ops.Wire
+import Fw.Sched.Admit
+import Fw.Sched.ParMetrics
