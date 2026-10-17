@@ -1,7 +1,7 @@
 # Handoff: port-people (people.card, people.o, people.deck, people.carousel)
 
 Branch worktree-agent-a0f32f59682e1d759 (CI ref ci/port-people). Verdicts: people.card, people.o, people.carousel `faithful`;
-people.deck `faithful-with-delta` (mechanics faithful, panel content delta). Gate run id: see the report to the lead.
+people.deck `faithful-with-delta` (mechanics faithful, panel content delta). Gate: run 39059296556 (ci/port-people, `breakpoint-gate`, scoped to the 4 parts by default? no: full push run). Chromium: all four people parts pass every cell. WebKit: o, carousel, deck pass; card fails 2/10 touch-rm probes on `filter` (the original is mid-transition blur(0.0027px), the rewrite already `none`: a transition timing race, not structure). Card section/card HEIGHT is not compared (host font line wraps, 24 px per line); widths are.
 
 ## Files
 - Lean: `lean/Fw/Parts/People{Card,O,Deck,Carousel}.lean` (math docstrings, proofs: smoothstep/ae range+monotone, coverage, lerp
@@ -24,7 +24,7 @@ people.deck `faithful-with-delta` (mechanics faithful, panel content delta). Gat
 - Photos not shipped: avatars, covers, post and service thumbs, o.svg glyph are neutral fills / a ring. Font is the host stack.
 - Deck panel: top block (crumb, identity, stats, cover) and the Portfolio tab (masonry, vinyl, services rail) restated; Services, Reviews and About
   feed panels are empty; article/video posts are plain fills. Not ported: scene pausing and content-visibility deferral of `dE`.
-- Local debug gate (chromium, 4 probes) passed all four parts; `pnpm check:shell-boxes` has a syntax error in scripts/shell-measure.mjs:112 (not mine).
+- `pnpm check:shell-boxes` has a syntax error in scripts/shell-measure.mjs:112 (not mine). Scene pausing is a `data-fw-scene` attribute plus CSS on the card and deck sections.
 
 ## Open
 - Item-level mathview warnings (binder not quantified) in the new Lean files; 0 failing.
