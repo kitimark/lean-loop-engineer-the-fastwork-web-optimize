@@ -6,7 +6,7 @@
 // here with KaTeX 0.16.11 as MathML (browsers draw it natively), so the page needs no script, and a TeX
 // parse error fails this script. The review status of each declaration comes from the table rows of
 // research/notes/*/*-math-review-*.md (see reviews() below). Re-run after any change to lean/ or a record:
-//   node docs/plan/tools/build-math-view.mjs                 (runs lake build, mathview --lint, mathview; writes the page)
+//   node docs/plan/tools/build-math-view.mjs                 (reads the cached mathview export, computed once per Lean source state; writes the page)
 //   node docs/plan/tools/build-math-view.mjs --json <file>   (uses a saved `lake exe mathview` export instead of lake)
 //   node docs/plan/tools/build-math-view.mjs --check         (exits 1 if the page is out of date or the TeX does not parse)
 // KaTeX comes from FW_KATEX (path to katex.js or katex.min.js of 0.16.11), else from `katex` resolvable
@@ -93,15 +93,15 @@ function segments(body) {
   return out;
 }
 
-// The `lake exe mathview` export: from --json <file>, else built and linted here.
+// The `lake exe mathview` export: from --json <file>, else the cached export of lean/scripts/mathview-cached.sh
+// (one build + lint + export per source state; a hit runs no lake at all). The lint decision stays in Lean.
 function loadExport() {
   const i = process.argv.indexOf('--json');
   if (i >= 0) return JSON.parse(readFileSync(process.argv[i + 1], 'utf8'));
-  const lake = (args, opts = {}) => execFileSync('lake', args, { cwd: leanDir, encoding: 'utf8', maxBuffer: 1 << 28, ...opts });
   try {
-    lake(['build'], { stdio: ['ignore', 'ignore', 'inherit'] });
-    lake(['exe', 'mathview', '--lint'], { stdio: ['ignore', 'ignore', 'inherit'] });
-    return JSON.parse(lake(['exe', 'mathview']));
+    const path = execFileSync('sh', [join(leanDir, 'scripts/mathview-cached.sh'), '--build'],
+      { cwd: leanDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
+    return JSON.parse(readFileSync(join(leanDir, path), 'utf8'));
   } catch (e) {
     console.error(`lake build / mathview --lint failed in lean/ (${e.message.split('\n')[0]}); fix lean/ or pass --json <file>`);
     process.exit(1);

@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 scripts/check-partial.sh
 lake build
 lake test
-lake exe mathview --lint
+scripts/mathview-cached.sh >/dev/null  # lint; replayed from .lake/mathview-cache/ when the sources are unchanged
 LEAN_ABORT_ON_PANIC=1 .lake/build/bin/fwcore < golden/wire-requests.txt | diff - golden/wire-replies.txt
 echo "check: fwcore binary reproduces golden/wire-replies.txt"
 lake exe breakgen --check Fw/Site/breakpoints.gen.json

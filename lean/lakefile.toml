@@ -2,6 +2,9 @@ name = "fwcore"
 version = "0.1.0"
 defaultTargets = ["Fw", "fwcore", "mathview", "breakgen", "partsgolden"]
 testDriver = "fwtest"
+# Lake's local artifact cache (Lake/Config/PackageConfig.lean:289@eb6cafb): build products are also stored in the
+# toolchain's offline cache and hard-linked back (Lake/Build/Common.lean:489,652), so a fresh worktree builds from it.
+enableArtifactCache = true
 
 # Mathlib-free on purpose (PLAN §5.2): core Lean only, no `require`.
 
