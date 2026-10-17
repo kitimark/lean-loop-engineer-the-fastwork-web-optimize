@@ -77,7 +77,10 @@ structure Verdict where
   total : Nat
 deriving Repr, DecidableEq
 
-/-- The verdict of one series family at limit `L` with at least `minKept` kept steps. -/
+/-- The verdict of one series family at limit `L` with at least `minKept` kept steps.
+
+$$\operatorname{verdict}(L, m) = \begin{cases} \bot & |Q_L| < m \\ \mathrm{some}(\operatorname{classifyQuiet},\ |Q_L|,\ n) & \text{otherwise} \end{cases}$$
+-/
 def verdict (tol : Tol) (L minKept : Nat) (durs : List (List Nat)) (runs : List Series) : Option Verdict :=
   let q := quietSteps L durs
   if q.length < minKept then none
