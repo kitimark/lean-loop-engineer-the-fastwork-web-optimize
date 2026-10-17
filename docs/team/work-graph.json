@@ -2941,6 +2941,58 @@
     "apps/site/src/parts/platform/**",
     "docs/team/handoffs/fix-stagebg-webkit.md"
    ]
+  },
+  {
+   "id": "workflow-claim",
+   "title": "(S) a Workflow run binds a task like a named spawn: workflow start/end with meta.name = task id become agent.spawn/stop (hook or watch collector); Lean Fw.Plan workflow_binds + claim-order commutation still holds; mistake-retro sat in ready while running",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Plan/Core.lean",
+    "lean/Fw/Plan/**",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/hooks/**",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "cap-diagnose",
+   "title": "(S) fw capability misses say why: cap hook decides in Lean (Fw.Ops.Identity) mint | noMint(reason: notFwPrefix e.g. cd/-s, trailingPipe, unknownActor) and fw prints the reason instead of a bare 403; golden ops.cap.jsonl",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Ops/Identity.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/runner/hooks/cap.mjs",
+    "apps/runner/hooks/lib.mjs",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "sim-transient-retry",
+   "title": "(S) webkit-sim: transient simulator errors (simctl ETIMEDOUT) retried by a Lean policy (retry iff class transient and attempt < n, bounded backoff; theorem retry_terminates, permanent_never_retried); step-align run 39068024107 lost >1 h to one simctl timeout",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "step-align"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Measure/Retry.lean",
+    "lean/Fw/Measure/Golden.lean",
+    "packages/contracts/golden/measure/**",
+    "packages/measure-webkit/src/**",
+    ".github/workflows/webkit-sim.yml"
+   ]
   }
  ],
  "deadline": {
