@@ -63,6 +63,10 @@ for (const f of [
 ]) {
   await copyFile(path.join(fontSrc, f), path.join(outDir, 'fonts', f));
 }
+await copyFile(
+  path.join(root, '../../snapshot/site/selling/fonts/playpen-sans-latin.woff2'),
+  path.join(outDir, 'fonts', 'playpen-sans-latin.woff2'),
+);
 const t1 = performance.now();
 
 await build({

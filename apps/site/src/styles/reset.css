@@ -38,6 +38,15 @@
   src: url('/fonts/google-sans-thai-italic.Cygf3A0N.woff2') format('woff2');
   unicode-range: U+2D7, U+303, U+331, U+E01-E5B, U+200C-200D, U+25CC;
 }
+/* Playpen Sans for the Start Selling notes (pain.notes): same source rule as the original (weights 400-600, swap);
+   the file is copied from snapshot/site/selling/fonts/ by scripts/build.mjs. */
+@font-face {
+  font-family: 'Playpen Sans Start Selling';
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/playpen-sans-latin.woff2') format('woff2');
+}
 
 @layer reset {
   *,
