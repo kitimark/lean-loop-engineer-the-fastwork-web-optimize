@@ -178,12 +178,17 @@ test('diffPaths lists the differing leaves', () => {
 
 // The committed cross-shard baseline is fwcore measure.zoneBaseline over the committed zones file and the current frozen
 // table (zone-baseline.mjs baseline --check). After a refreeze of classes.frozen.json this fails until it is re-run.
-test('results/baselines/chromium/swipe-v1/original.baseline.json is the Lean baseline of the committed zones and frozen table', () => {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const r = spawnSync(process.execPath, [join(here, '../src/zone-baseline.mjs'), 'baseline', '--out', join(here, '../../../results/baselines/chromium'), '--check']);
-  assert.equal(r.status, 0, `stale baseline (re-run: node packages/measure-chromium/src/zone-baseline.mjs baseline --out results/baselines/chromium): ${r.stderr}`);
-  const b = JSON.parse(readFileSync(join(here, '../../../results/baselines/chromium/swipe-v1/original.baseline.json'), 'utf8'));
-  assert.deepStrictEqual(b.runs, ['r1', 'r2', 'r3']);
-  assert.deepStrictEqual(b.detDrift, []);
-  for (const z of b.zones) for (const c of Object.values(z.types)) assert.ok(c.lo <= c.base && c.base <= c.hi && c.perRun.includes(c.base));
-});
+for (const [profile, target] of [['swipe-v1', 'original'], ['swipe-v1', 'rewrite'], ['swipe-touch-v1', 'original'], ['swipe-touch-v1', 'rewrite']]) {
+  test(`results/baselines/chromium/${profile}/${target}.baseline.json is the Lean baseline of the committed zones and frozen table`, () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const out = join(here, '../../../results/baselines/chromium');
+    const r = spawnSync(process.execPath, [join(here, '../src/zone-baseline.mjs'), 'baseline', '--out', out, '--profile', profile, '--target', target, '--check']);
+    assert.equal(r.status, 0, `stale baseline (re-run: node packages/measure-chromium/src/zone-baseline.mjs baseline --out results/baselines/chromium --profile ${profile} --target ${target}): ${r.stderr}`);
+    const b = JSON.parse(readFileSync(join(out, profile, `${target}.baseline.json`), 'utf8'));
+    assert.deepStrictEqual(b.runs, ['r1', 'r2', 'r3']);
+    assert.deepStrictEqual(b.detDrift, []);
+    assert.deepStrictEqual(b.detDriftTotals, []);
+    assert.equal(b.tally.unlisted, 0);
+    for (const z of b.zones) for (const c of Object.values(z.types)) assert.ok(c.lo <= c.base && c.base <= c.hi && c.perRun.includes(c.base));
+  });
+}
