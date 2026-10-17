@@ -61,10 +61,11 @@ function settleOf(label, state) {
 const unsettledRows = (rows) => Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, String(v).startsWith('unreachable') ? v : 'not-comparable']));
 
 /**
- * Probes on nodes that are not rendered (Fw.Gate.Settle.cell, page.mjs collectInPage `skipped`): in either arm a node under a
- * skipping ancestor has no layout, so its values are no evidence. Such an item gets no verdict: the other arm's item is copied
- * over it before Lean compares (so it can neither fail nor pass), and `notRenderedParts` names the parts to report as
- * not-comparable when they would otherwise pass. Returns the state with the copies and the list of masked items.
+ * Probes the collector flagged unrendered (Fw.Gate.Settle.cell; an item carrying `skipped: true`). INERT today: collectInPage flags
+ * nothing, because a content-visibility skip is not a reason to drop a probe (premise-tests run 39076735134: an auto margin in a
+ * skipped subtree resolves to px). A flag needs its own tested premise. A flagged item gets no verdict: the other arm's item is
+ * copied over it before Lean compares (so it can neither fail nor pass), and a part row that would pass is not-comparable.
+ * Returns the state with the copies and the list of masked items.
  */
 export function maskNotRendered(state) {
   const rawOf = (arm) => arm.raw ?? arm;

@@ -310,15 +310,9 @@ export function collectInPage(arg) {
         const cs = getComputedStyle(el);
         const style = {};
         for (const n of names) style[n] = cs.getPropertyValue(n);
-        // Fw.Gate.Settle.rendered: the node sits under an ancestor that skips its subtree (content-visibility), where the engine has
-        // no layout and an auto margin has no used value. Reported, never decided here; the summary makes the cell notRendered.
-        let skipped = false;
-        if (typeof el.checkVisibility === 'function') {
-          let under = false;
-          for (let a = el.parentElement; a && !under; a = a.parentElement) { const cv = getComputedStyle(a).contentVisibility; under = cv === 'auto' || cv === 'hidden'; }
-          skipped = under && !el.checkVisibility({ contentVisibilityAuto: true });
-        }
-        return skipped ? { rect, style, skipped: true } : { rect, style };
+        // No item is flagged unrendered: a content-visibility skip is no reason to drop a probe (premise-tests run 39076735134: an
+        // auto margin there resolves to px). summary.mjs maskNotRendered acts only on an item that carries `skipped: true`.
+        return { rect, style };
       });
       out.parts[pid][role] = { count: els.length, declared: Array.from(declared).sort(), items: arg.props ? items : [] };
     }

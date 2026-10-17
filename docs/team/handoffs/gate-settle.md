@@ -21,7 +21,11 @@ Page functions are self-contained (toString); the Node side decides with the Lea
 
 ## Open items
 - mountPanel/"ready" stage still sleeps 300 ms (no settle after it); the 600 ms debounce hypothesis is untested (guard: same-width stops and fresh-final).
-- A node under `content-visibility:auto` is reported, not measured. pain.notes: the original's pain canvas/notes/text were `skipped` at the
-  1440 sweep stops in a local chromium debug run (the original defers `.start-selling` with content-visibility); bringing it into view to
-  measure it is not done.
+- notRendered: Lean `Verdict`/`Cell`/theorems are generic (the flag is an input); the gate flags NOTHING. The first design flagged nodes
+  under a content-visibility skip, on the premise that an auto margin there is unresolved; premise-tests (run 39076735134) refuted
+  it (resolved px on both engines). commission inner/rows margin goes back to integrate-ports as a possible real difference. Only
+  docstrings carried that premise; no theorem did. Commit 5b60ed8 (run 39075162003) still flags, so its `notRendered` list is not a verdict.
+- Header flake (variant-regate, nav.hitTest originOnly differs between shards): the declared-name list depends on timer phase, not on
+  a settled sample. Phase 0 now parks the pointer first (covers a hover left by the pointer); a timer-phase cause is NOT covered by
+  settle (a timer-driven state never settles). Classified, not proven fixed.
 - CI result and added seconds: see the lead report (run id in the final message).

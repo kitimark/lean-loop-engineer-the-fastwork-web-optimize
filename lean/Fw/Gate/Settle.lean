@@ -246,14 +246,15 @@ theorem report_settled (i j : Nat) (e : Bool) :
 -- a probe on a node that is not rendered has no verdict (fix-commission: inner/rows margin-inline at pain-1440 #0)
 -- ---------------------------------------------------------------------------------------------------------------
 
-/-- A node is rendered when no element on its ancestor chain (itself included) skips its subtree, by `content-visibility`
-off screen or by being unrendered. A computed `margin: auto` is only resolved to a used value for a rendered node; inside
-a skipped subtree the engine has no layout for it, so the value read there depends on whether the subtree was laid out
-before the skip, not on the page.
+/-- A node counts as rendered when no element on its ancestor chain (itself included) is flagged by the caller as unrendered.
+The flags are an INPUT: this module proves what a flagged probe means (no verdict), not when a flag is right. The gate supplies
+no flag today. Run 39071577161 suggested flagging a node under a `content-visibility` skip (its `inner/rows` auto margin), but
+premise-tests (run 39076735134) refuted the premise: `getComputedStyle` returns the resolved length (150px) there on Chromium and
+WebKit, so a skip is no reason to drop a probe. A flag needs its own tested premise (for example no layout box at all).
 
 $$\operatorname{rendered}(s_1,\dots,s_n) \iff \forall i,\ s_i = \bot$$
 
-where `s_i` says that ancestor `i` skips its subtree. -/
+where `s_i` says that the caller flagged ancestor `i` as unrendered. -/
 def rendered (skips : List Bool) : Bool := !skips.any id
 
 /-- The classification of one probe in one arm.
@@ -265,7 +266,7 @@ inductive Verdict where
   | ok
   deriving DecidableEq, Repr
 
-/-- `sampleOk` extended with rendering: a probe on a node in a skipped or unrendered subtree is `notRendered`, whatever
+/-- `sampleOk` extended with rendering: a probe the caller flagged as unrendered is `notRendered`, whatever
 its observation says; otherwise `ok` exactly when `sampleOk` holds, else `unsettled`.
 
 $$\operatorname{classify}_\pi(r, o) = \begin{cases}\mathrm{notRendered} & \neg r\\ \mathrm{ok} & r \wedge \operatorname{sampleOk}_\pi(o)\\ \mathrm{unsettled} & r \wedge \neg\operatorname{sampleOk}_\pi(o)\end{cases}$$ -/
@@ -307,7 +308,7 @@ $$c \in \{\mathrm{fail}, \mathrm{unsettled}, \mathrm{notRendered}\} \;\Longright
 theorem Cell.passes_iff (c : Cell) : c.passes = true ↔ c = .pass := by
   cases c <;> simp [Cell.passes]
 
-/-- A probe on a node under a skipping ancestor is `notRendered`, whatever the observation.
+/-- A probe on a node under a flagged ancestor is `notRendered`, whatever the observation.
 
 $$(\exists i,\ s_i = \top) \;\Longrightarrow\; \operatorname{classify}_\pi(\operatorname{rendered}(s), o) = \mathrm{notRendered}$$ -/
 theorem skipped_classified_notRendered (p : Policy) (skips : List Bool) (o : Obs) (h : true ∈ skips) :
@@ -702,7 +703,7 @@ def cellCases : List (String × Bool × Bool × Outcome × Outcome × Bool) :=
   [ ("both rendered, equal", true, true, .settled 1, .settled 2, true),
     ("both rendered, different", true, true, .settled 1, .settled 2, false),
     ("both rendered, one unsettled", true, true, .unsettled, .settled 2, true),
-    ("commission inner/rows margin: original in a skipped subtree, values different", false, true, .settled 1, .settled 2, false),
+    ("original flagged unrendered, values different", false, true, .settled 1, .settled 2, false),
     ("rewrite not rendered, values equal", true, false, .settled 1, .settled 2, true),
     ("neither rendered, both unsettled", false, false, .unsettled, .unsettled, false) ]
 
