@@ -31,9 +31,10 @@ def minRatio : Rat := 7 / 20
 /-- Linear mix. $$\operatorname{lerp}(a, b, w) = a + (b - a)\,w$$ -/
 def lerp (a b w : Rat) : Rat := a + (b - a) * w
 
-/-- Linear interpolation over six equally spaced key times $0, \tfrac15, \dots, 1$ (`keyTimes="0;0.2;...;1"`).
+/-- Linear interpolation over six equally spaced key times $0, \tfrac15, \dots, 1$ (`keyTimes="0;0.2;...;1"`); total on
+$\mathbb{Q}$: below $\tfrac15$ (also $u < 0$) the first segment, from $\tfrac45$ on (also $u > 1$) the last.
 
-$$f(u) = \operatorname{lerp}\big(a_k, a_{k+1}, 5u - k\big)\ \text{ for } u \in \big[\tfrac k5, \tfrac{k+1}5\big]$$ -/
+$$\forall a_0, \dots, a_5, u \in \mathbb{Q}:\quad \operatorname{interp}(a_0, \dots, a_5; u) = \operatorname{lerp}\big(a_k, a_{k+1}, 5u - k\big),\quad k = \min(4, \max(0, \lfloor 5u \rfloor))$$ -/
 def interp (a0 a1 a2 a3 a4 a5 : Rat) (u : Rat) : Rat :=
   if u < 1 / 5 then lerp a0 a1 (5 * u)
   else if u < 2 / 5 then lerp a1 a2 (5 * u - 1)
@@ -45,16 +46,16 @@ def interp (a0 a1 a2 a3 a4 a5 : Rat) (u : Rat) : Rat :=
 inductive Side | left | right
 deriving Repr, DecidableEq
 
-/-- `x1` at cycle fraction $u$. Left: $-200, 200, 200, 200, -200, -200$; right: $-200, -200, 200, -200, -200, -200$.
+/-- `x1` at cycle fraction $u$.
 
-$$x_1(\mathit{side}, u) = \operatorname{interp}(a_0, \dots, a_5; u)$$ -/
+$$\forall u \in \mathbb{Q}:\quad x_1(\mathrm{left}, u) = \operatorname{interp}(-200, 200, 200, 200, -200, -200; u),\quad x_1(\mathrm{right}, u) = \operatorname{interp}(-200, -200, 200, -200, -200, -200; u)$$ -/
 def x1At : Side → Rat → Rat
   | .left, u => interp (-200) 200 200 200 (-200) (-200) u
   | .right, u => interp (-200) (-200) 200 (-200) (-200) (-200) u
 
-/-- `x2` at cycle fraction $u$. Left: $-80, 320, 320, 320, -80, -80$; right: $-80, -80, 320, -80, -80, -80$.
+/-- `x2` at cycle fraction $u$.
 
-$$x_2(\mathit{side}, u) = \operatorname{interp}(b_0, \dots, b_5; u)$$ -/
+$$\forall u \in \mathbb{Q}:\quad x_2(\mathrm{left}, u) = \operatorname{interp}(-80, 320, 320, 320, -80, -80; u),\quad x_2(\mathrm{right}, u) = \operatorname{interp}(-80, -80, 320, -80, -80, -80; u)$$ -/
 def x2At : Side → Rat → Rat
   | .left, u => interp (-80) 320 320 320 (-80) (-80) u
   | .right, u => interp (-80) (-80) 320 (-80) (-80) (-80) u

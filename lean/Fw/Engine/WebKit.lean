@@ -759,7 +759,7 @@ structure Scenario where
 - P4 (wktr, per scroll step): a JS scroll handler repainting a background vs a threaded scroll-driven animation;
 - P5 (wktr, per frame): a rAF writer of a 2D transform without a compositing reason vs the same with a 3D op.
 
-$$\mathrm{scenarios} = [(\mathrm{id}_i, \mathrm{lane}_i, \mathrm{original}_i, \mathrm{variants}_i)]_{i=1}^{6},\quad (\mathrm{id}_i)_i = (\mathrm{P1}, \mathrm{P2}, \mathrm{P3a}, \mathrm{P3b}, \mathrm{P4}, \mathrm{P5}),\ (\mathrm{lane}_i)_i = (\mathrm{sim}^4, \mathrm{wktr}^2),\ |\mathrm{variants}_i| = 1$$
+$$\begin{aligned} \mathrm{scenarios} = [\ &(\texttt{P1}, \mathrm{sim}, \operatorname{scrollStep}(\operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{layer})])), [(\texttt{scrollDriven}, \operatorname{scrollStep}(\mathit{sd}))]), \\ &(\texttt{P2}, \mathrm{sim}, \operatorname{jsFrame}([\,]), [(\texttt{cssTime}, \operatorname{animFrame}(\mathrm{safari}, \operatorname{clean}([\mathrm{opacity}], \mathrm{time}), [(1, \mathrm{opacity}, \mathrm{own})]))]), \\ &(\texttt{P3a}, \mathrm{sim}, \operatorname{jsFrame}([(1, \mathrm{clipPath}, \mathrm{own})]), [(\texttt{cssAnim}, \operatorname{animFrame}(\mathrm{safari}, \operatorname{clean}([\mathrm{clipPath}], \mathrm{time}), [(1, \mathrm{clipPath}, \mathrm{own})]))]), \\ &(\texttt{P3b}, \mathrm{sim}, \operatorname{jsFrame}([(1, \mathrm{background}, \mathrm{layer})]), [(\texttt{cssAnim}, \operatorname{animFrame}(\mathrm{safari}, \operatorname{clean}([\mathrm{background}], \mathrm{time}), [(1, \mathrm{background}, \mathrm{layer})]))]), \\ &(\texttt{P4}, \mathrm{wktr}, \operatorname{scrollStep}(\operatorname{jsFrame}([(1, \mathrm{background}, \mathrm{layer})])), [(\texttt{scrollDriven}, \operatorname{scrollStep}(\mathit{sd}))]), \\ &(\texttt{P5}, \mathrm{wktr}, \operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{layer})]), [(\texttt{js3d}, \operatorname{jsFrame}([(1, \mathrm{transform}, \mathrm{own})]))])\ ], \\ \text{with } \mathit{sd} = {} &\operatorname{animFrame}(\mathrm{safari}, \operatorname{clean}([\mathrm{transform}], \mathrm{scroll}), [(1, \mathrm{transform}, \mathrm{layer})]) \end{aligned}$$
 -/
 def scenarios : List Scenario :=
   let sd := animFrame .safari (.clean [.transform] .scroll) [⟨1, .transform, .layer⟩]
@@ -787,8 +787,9 @@ deriving Repr, DecidableEq
 
 /-- The rows of one scenario: for each counted stage of its lane, the original arm (`predO`, variant name
 `original`), then each variant (`predV` against the original; variants outer, counts inner), all under `webkit`.
+Stage and prediction are stored as their wire strings.
 
-$$\operatorname{rows}(\sigma) = \big[(\texttt{webkit}, \sigma.\mathrm{id}, \texttt{original}, s, \operatorname{predO}(W_o, s), k)\big]_{(s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})} \mathbin{+\!\!+} \big[(\texttt{webkit}, \sigma.\mathrm{id}, n, s, \operatorname{predV}(W_v, W_o, s), k)\big]_{(n, v) \in \sigma.\mathrm{variants},\ (s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})},\quad W_x = \operatorname{frameWork}_{\mathrm{webkit}}(x)$$
+$$\begin{aligned} \forall \sigma:\quad \operatorname{rows}(\sigma) = {} &\big[(\texttt{webkit}, \sigma.\mathrm{id}, \texttt{original}, \operatorname{name}(s), \operatorname{str}(\operatorname{predO}(W_o, s)), k)\big]_{(s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})} \\ \mathbin{+\!\!+} {} &\big[(\texttt{webkit}, \sigma.\mathrm{id}, n, \operatorname{name}(s), \operatorname{str}(\operatorname{predV}(W_v, W_o, s)), k)\big]_{(n, v) \in \sigma.\mathrm{variants},\ (s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})}, \\ \text{with } W_o = {} &\operatorname{frameWork}_{\mathrm{webkit}}(\sigma.\mathrm{original}),\ W_v = \operatorname{frameWork}_{\mathrm{webkit}}(v) \end{aligned}$$
 -/
 def rowsOf (sc : Scenario) : List Row :=
   let o := frameWork webkit sc.original
@@ -812,9 +813,10 @@ def Row.json (r : Row) : String :=
   (Json.mkObj [("engine", .str r.engine), ("scenario", .str r.scenario), ("variant", .str r.variant),
     ("stage", .str r.stage), ("prediction", .str r.prediction), ("countType", .str r.countType)]).compress
 
-/-- The contents of `packages/contracts/golden/engine/webkit.jsonl`: one JSON row per line, newline-terminated.
+/-- The contents of `packages/contracts/golden/engine/webkit.jsonl`: one JSON row per line, newline-terminated, in the
+order of `goldenRows`.
 
-$$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{rows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big)$$
+$$\mathrm{goldenJsonl} = \mathop{\Vert}_{r \in \mathrm{goldenRows}} \big(\operatorname{json}(r) \mathbin{+\!\!+} \texttt{\textbackslash n}\big)$$
 -/
 def goldenJsonl : String := String.join (goldenRows.map fun r => r.json ++ "\n")
 

@@ -199,10 +199,10 @@ structure Finding where
   detail   : String
 deriving Repr
 
-/-- Tasks left by Kahn's pass (those in a cycle or behind one): repeatedly drop rows none of whose
-deps is a remaining row... here: keep rows that still have a dep among the remaining rows, `fuel` rounds.
+/-- Tasks left by Kahn's pass (those in a cycle or behind one): each round keeps the rows that still have a dep
+among the remaining rows, at most `fuel` rounds, and stops early when a round drops nothing.
 
-$$\operatorname{stuck}(R) = \text{the rows of } R \text{ left when every remaining row still has a dep among them}$$
+$$\begin{aligned} \forall R:\quad &\operatorname{stuck}(0, R) = R, \\ \forall f \in \mathbb N,\ \forall R:\quad &\operatorname{stuck}(f+1, R) = \begin{cases} R & |R'| = |R| \\ \operatorname{stuck}(f, R') & |R'| \ne |R| \end{cases} \\ &\text{with } R' = [\, t \in R \mid \exists d \in t.\mathit{deps},\ \exists r \in R:\ r.\mathit{id} = d \,] \text{ (order kept)} \end{aligned}$$
 -/
 def stuck : Nat → List Task → List Task
   | 0, r => r
@@ -210,16 +210,16 @@ def stuck : Nat → List Task → List Task
     let r' := r.filter fun t => t.deps.any fun d => r.any (·.id == d)
     if r'.length == r.length then r else stuck f r'
 
-/-- The ids named by `Task:` trailers of the commits.
+/-- The ids named by `Task:` trailers of the commits, as a list: commit order kept, repeats kept.
 
-$$\mathit{named}(C) = \bigcup_{c \in C} \operatorname{trailers}(c.\mathit{body})$$
+$$\forall C = [c_1, \dots, c_n]:\quad \mathit{named}(C) = \operatorname{trailers}(c_1.\mathit{body}) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{trailers}(c_n.\mathit{body}) \quad (\mathit{named}([\,]) = [\,])$$
 -/
 def namedIds (cs : List Fw.Plan.Trailer.Commit) : List String :=
   cs.flatMap fun c => Fw.Plan.Trailer.trailers c.body
 
 /-- The detail text of a finding.
 
-$$\operatorname{detail}(t, k) = \begin{cases}\text{the unknown deps} & k = \mathrm{unknownDep}\\ \text{the evidence} & \text{evidence kinds}\\ \varepsilon & \text{otherwise}\end{cases}$$
+$$\forall \mathit{ctx} = (\mathit{ids}, \mathit{named}),\ \forall t, k:\quad \operatorname{detail}(\mathit{ctx}, t, k) = \begin{cases}\operatorname{join}(\texttt{", "}, [\, d \in t.\mathit{deps} \mid d \notin \mathit{ids} \,]) & k = \mathrm{unknownDep}\\ \varepsilon & k \in \{\mathrm{evidenceNoTrailer}, \mathrm{trailerNoEvidence}, \mathrm{longTitle}\}\\ e & k \in \{\mathrm{evOther}, \mathrm{evLong}, \mathrm{evUser}, \mathrm{evProse}\} \land t.\mathit{evidence} = e \\ \varepsilon & k \in \{\mathrm{evOther}, \mathrm{evLong}, \mathrm{evUser}, \mathrm{evProse}\} \land t.\mathit{evidence} = \bot \end{cases}$$
 -/
 def detailOf (c : Ctx) (t : Task) : Code → String
   | .unknownDep => ", ".intercalate (t.deps.filter (fun d => !c.ids.contains d))
@@ -228,7 +228,7 @@ def detailOf (c : Ctx) (t : Task) : Code → String
 
 /-- All findings: per task in file order, codes in report order; then the graph-wide `cycle`.
 
-$$\operatorname{lint}(T, C) = [\, (t, k) : t \in T,\ k \in \operatorname{codes}(t) \,] \mathbin{+\!\!+} [\, \mathrm{cycle} \mid \neg\operatorname{acyclicB}(T) \,]$$
+$$\begin{aligned} \forall T, C:\quad \operatorname{lint}(T, C) = {} &[\, (t.\mathit{id}, \operatorname{name}(k), \operatorname{sev}(k), \operatorname{detail}(\mathit{ctx}, t, k)) \mid t \in T,\ k \in \operatorname{codes}(\mathit{ctx}, t) \,] \\ \mathbin{+\!\!+} {} &\begin{cases} [\,] & \operatorname{acyclicB}(T) \\ [(\texttt{*}, \texttt{cycle}, \texttt{error}, \operatorname{join}(\texttt{", "}, [\, r.\mathit{id} \mid r \in \operatorname{stuck}(|T|, T) \,]))] & \neg\operatorname{acyclicB}(T) \end{cases} \\ \text{with } \mathit{ctx} = {} &([\, t.\mathit{id} \mid t \in T \,],\ \mathit{named}(C)) \end{aligned}$$
 -/
 def lint (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) : List Finding :=
   let c : Ctx := { ids := ts.map (·.id), named := namedIds cs }

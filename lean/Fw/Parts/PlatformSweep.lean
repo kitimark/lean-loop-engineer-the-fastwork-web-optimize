@@ -48,9 +48,9 @@ theorem phase_periodic (t : Rat) : phase (t + period) = phase t := by
 
 /-- `background-position` as a fraction ($1 = 100\%$) at time $t$.
 
-$$p(t) = 1 - \varphi(t),\qquad p(t) \in (0, 1]$$
+$$\forall t \in \mathbb{Q}:\quad p(t) = 1 - \varphi(t)$$
 
-Starts at 100 % and falls linearly to 0 % over 4 s, then jumps back. -/
+Starts at 100 % and falls linearly towards 0 % over 4 s, then jumps back (the range is `pos_mem`). -/
 def pos (t : Rat) : Rat := 1 - phase t
 
 /-- The position stays in $(0, 1]$. $$\forall t:\ 0 < p(t) \le 1$$ It never leaves the keyframe range. -/
@@ -77,7 +77,8 @@ abbrev Rgb := Rat × Rat × Rat
 /-- White. $$w = (255, 255, 255)$$ -/
 def white : Rgb := (255, 255, 255)
 
-/-- The six coloured stops, in order (the words' colours). $$c_1 = \#82bcff,\ c_2 = \#2483ff,\ c_3 = \#ff66f4,\ c_4 = \#ff3029,\ c_5 = \#fe7b02$$ -/
+/-- The first of the five coloured stops (the words' colours; $c_2, \dots, c_5$ are the next definitions).
+$$c_1 = \#82bcff = (130, 188, 255)$$ -/
 def c1 : Rgb := (130, 188, 255)
 /-- $\#2483ff$. $$c_2 = (36, 131, 255)$$ -/
 def c2 : Rgb := (36, 131, 255)
