@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>anim.list</title>
+<style>
+  @keyframes grow { from { width: 10px } to { width: 90px } }
+  .box { height: 10px; background: #888 }
+  #css { width: 10px; animation: grow 1s linear infinite alternate }
+  #tr { width: 10px; transition: width 1s linear }
+  #quick { width: 10px; transition: width 40ms linear }
+  #lerp { width: 10px }
+</style>
+<div id="css" class="box"></div>
+<div id="tr" class="box"></div>
+<div id="quick" class="box"></div>
+<div id="lerp" class="box"></div>

@@ -221,6 +221,12 @@ importers:
 
   packages/measure-wktr: {}
 
+  packages/premise-tests:
+    dependencies:
+      playwright-core:
+        specifier: 1.64.1
+        version: 1.64.1
+
 packages:
 
   '@babel/code-frame@7.29.7':
