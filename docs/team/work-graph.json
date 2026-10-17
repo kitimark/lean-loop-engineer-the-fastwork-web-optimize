@@ -1578,6 +1578,16 @@
     "refreeze"
    ],
    "owner": "lean-prover"
+  },
+  {
+   "id": "math-r11-fix",
+   "title": "Fix the 5 disagree rows of math review round 11 (ZoneBaseline.refusal cases, Serve.touched LaTeX, Gate.partVerdict_pass_iff args, Gate.pairs_congr map, Gate.truthKey defs)",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "where-cleanup"
+   ],
+   "owner": "lean-prover"
   }
  ]
 }
