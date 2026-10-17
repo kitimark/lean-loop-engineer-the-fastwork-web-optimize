@@ -31,12 +31,12 @@ This is the design for you to review. It merges the kickoff notes, cited as `[01
 `[08]` is the forensics of v1's raw chat history (§2.3). `[09]` is the MUI zero-runtime study,
 `research/kickoff/09-mui-zero-runtime/README.md`, and its sub-notes are cited as `[09.01]` to `[09.04]`. `[10]` is the
 automation-and-proof study, `research/kickoff/10-automation-and-proof/README.md`, with sub-notes `[10.01]` to
-`[10.04]`. It also merges the feasibility review, cited as `[FR]`
-(`research/notes/2026/10-17-v2-plan-feasibility-review.md`), and the device setup note `[ENV]`
-(`research/notes/env-setup.md`). Where the notes disagree, Appendix A says which way this plan goes and why. Appendix
-D logs every change. **Revision 4 applies your four decisions of 2026-10-17; revision 5 applies your three
-requirements of the same day: nobody hand-writes console state, Lean wherever it can prove something, and math you can
-read (§12.0).** Only the two open parts of Q1 remain, needed before the first phone session. Work runs as a
+`[10.04]`. `[11]` is the breakpoint inventory, `research/kickoff/11-breakpoints/README.md`. It also merges the
+feasibility review, cited as `[FR]` (`research/notes/2026/10-17-v2-plan-feasibility-review.md`), and the device setup
+note `[ENV]` (`research/notes/env-setup.md`). Where the notes disagree, Appendix A says which way this plan goes and
+why. Appendix D logs every change. **Revision 4 applies your four decisions of 2026-10-17; revision 5 applies your
+three requirements of the same day: nobody hand-writes console state, Lean wherever it can prove something, and math
+you can read (§12.0).** Only the two open parts of Q1 remain, needed before the first phone session. Work runs as a
 dependency graph, not a calendar (§10).
 
 **Status words.** CONFIRMED = a note cites a source, doc or v1 record for it, or it was checked on this Mac today.
@@ -250,10 +250,8 @@ flowchart TB
 
   SITE -- "URL ?fw= / ?preset=, window.__fw" --> LANES
   SNAP -- "same harness" --> LANES
-  LANES --> CR
-  LANES --> WK
-  CR -- "count vectors (zod)" --> AS
-  WK -- "count vectors (zod)" --> AS
+  LANES --> CR & WK
+  CR & WK -- "count vectors (zod)" --> AS
   AS --> CM
   CM -- "predictions + model status" --> API
   LANES <-- "screen, verdict ops" --> FW
@@ -600,15 +598,6 @@ The JSON-lines op it backs (one line each way, the id echoed):
 `{"id":"r-17","op":"verdict","n":4,"dir":"lower","ctl":[21,19,23,20],"var":[4,3,5,2]}` →
 `{"id":"r-17","verdict":"better","pNull":{"num":"1","den":"70"}}`
 
-The TL2 test that keeps the browser's TS resolver equal to Lean's on its whole single-override domain:
-
-```ts
-test('site resolver = fwcore flags.resolve, every single-part override', async () => {
-  for (const req of await fwcore.call({ op: 'flags.enumerate' }))    // id-checked, times out, aborts on panic
-    expect(resolve(registry, req)).toEqual(await fwcore.call({ op: 'flags.resolve', req }));
-});
-```
-
 ### 5.4 Test strategy per layer
 
 | Layer | What | Tool | Runs when | Budget |
@@ -635,8 +624,9 @@ the local gate becomes a bottleneck.
 The parts follow the page anatomy in [02 §2]: `nav`, `nav.hitTest`, `nav.langMenu`; `hero.{orbit, deck, exit,
 accent, countdown, cue}`; `people.{card, o, deck, carousel}`; `pain`, `pain.notes`; `commission`,
 `commission.typing`; `platform.{sweep, glint, entries, stageBg, marquee}`; `morph.{mount, tween, panel, countdown,
-columns}`; `overlays.{signup, drawer}`; and the cross-cutting parts `engine.scroll`, `engine.scene` and `images`
-(about 32 in all).
+columns}`; `overlays.{signup, drawer}`; the cross-cutting parts `engine.scroll`, `engine.scene` and `images`; and,
+added from the breakpoint inventory [11], the section shells `hero` and `platform`, the shared buttons `ui.shared`
+(`sb-*`) and the root `theme.tokens` (with the 320 px floor) (about 36 in all).
 
 **Every part with markup is built from Material UI components** (decided 2026-10-17: `Box`, `Stack`, `Typography`,
 `Button`, `Link`, `AppBar`, `Card`, `Avatar`, `Dialog`, `Drawer`, `Menu`, `Tab` …). Looks come from CSS Modules that
@@ -776,15 +766,37 @@ rewrite at preset `original`. Both arms load the same image and font bytes from 
 arm A in the counts lane and requires the **same sign of Δ per stage** as on the rewrite; otherwise it is "transfer
 unchecked" and cannot land as class W.
 
-**Every breakpoint, identically, for every part (your requirement of 2026-10-17).** The breakpoint list is generated,
-never hand-kept: `breakpoints.json` is extracted from the original's CSS (media and container queries) and JS (width,
-touch, hover and pointer gates), per part (inventory: `research/kickoff/11-breakpoints/`). **Breakpoint gate**, required
-before **any** part is promoted: PL0-PL3 at both sides of every edge (N and N+1 px), in each touch/hover/pointer and
-device-width combination the original distinguishes, at every JS-gated width, plus a live resize across each edge.
-**Breakpoint lint** (in `fw gate`): fails when a part's CSS or JS uses a breakpoint not in the inventory, or misses one
-the original uses for that part (the set check is an L1 decision in `fwcore`; the extraction is L3, golden files).
-`faithful-with-delta` never covers a missing or shifted breakpoint. **Viewports per PR:** the core matrix (430×932 and
-430×775/815 at DPR 3 with touch; 375×667 and 1440×900 at DPR 2; reduced motion) stays the fast subset; one Simulator
+**Every breakpoint, identically, for every part (your requirement of 2026-10-17).** The inventory [11] found 30
+distinct media conditions (29 in CSS, plus `(hover: none)` in JS only), 92 CSS `@media` blocks, 29 JS `matchMedia`
+sites and 20 non-media gates, giving **18 edges** (CONFIRMED [11 §1]). `breakpoints.json` is generated from the
+snapshot by an extractor (L3, golden files) and never edited by hand.
+
+| Edges (N → N+1) | Gated by |
+|---|---|
+| 319→320 (the root `min-width` floor), 400, 461, 480, 640, 720, 960, 1030, 1100, 1200, 1511 | CSS only |
+| 600, 860, 1000, 1279 | CSS and JS |
+| device-width 500; the touch arm `(hover: none) and (pointer: coarse) and (width <= 1200px)` | the OR-combos C860, C1000, C1030 (C1000-nodw, the countdown's, has no device-width arm) |
+| pain-notes container width < 1100 | JS (the viewport width where it flips is still to be MEASURED) |
+
+- **Pure 860 is not C860 (parity rule).** A touch tablet at 861-1200 or a phone in landscape (device-width ≤ 500)
+  takes the desktop path for people.o, the pain layout, pain-dark and hidden notes, and the compact path for the deck,
+  note drag and shrinks. The rewrite keeps the two conditions apart, and the gate tests both paths at 1024 (touch)
+  and 932×430 (v1's README said tablets take the phone path; they take both [11 §5]).
+- **Overlaps** (there C860 and `>=861` both match, as do C1000 and `>=1001`) keep the original's source order and
+  specificity winner (visible outcome still to be MEASURED). **Fractional gaps** (600.5, 640.5, 860.5, 1000.5 match
+  neither side) need exactly restated bounds. **JS gates** run the identical query with the same update style.
+
+**Breakpoint lint** (in `fw gate --part`; the set check is an L1 decision in `fwcore`): per part and kind (CSS, JS),
+the normalised conditions must **equal** the inventory's set (an extra, missing or shifted condition fails;
+`useMediaQuery` for looks fails, S10), and per condition the rewrite must cover the original's property names.
+**Breakpoint gate**, required before **any** part is promoted (`faithful-with-delta` never waives it): PL0-PL3,
+original vs rewrite with a per-config A/A, in Chromium and Playwright WebKit, **124 loads per engine** (INFERRED
+arithmetic [11 §4]): the 15 width pairs as desktop, desktop reduced-motion and touch (90), touch reduced (10), phone
+landscape (2), the device-width arm alone (6), the hover × pointer cross (4), dark (2), the fractional gaps (4) and
+height probes (6); plus one width inside each continuous band (clamp knees), and **live-resize sweeps** compared with
+the original after the same sequence (1512 → 320 → 1512 across every edge, 430×932 ↔ 932×430, touch 1024 ↔ 1201,
+v1's 1440 → 600 → 1440 pain sequence, live reduced-motion and touch flips). **Per PR**, the core matrix (430×932 and
+430×775/815 at DPR 3 with touch; 375×667 and 1440×900 at DPR 2; reduced motion) is the fast subset; one Simulator
 check closes promotion, because Playwright WebKit has no toolbar and no Conservative compositing policy [02 §7].
 
 ### 6.7 Styling-neutrality gate (N0-N5)
@@ -1005,10 +1017,8 @@ hour or more, write a handoff note and stop.
       "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git add -- *)", "Bash(git commit -m *)",
       "Bash(git checkout -b *)", "Bash(git worktree add .claude/worktrees/*)", "Bash(gh search code *)",
       "Bash(git rebase main)", "Bash(xcrun simctl list*)",
-      "mcp__lean-lsp__lean_goal", "mcp__lean-lsp__lean_term_goal", "mcp__lean-lsp__lean_diagnostic_messages",
-      "mcp__lean-lsp__lean_hover_info", "mcp__lean-lsp__lean_completions",          // local tools only (SPK-l)
-      "mcp__serena__find_symbol", "mcp__serena__find_referencing_symbols", "mcp__serena__get_symbols_overview",
-      "mcp__serena__find_declaration", "mcp__serena__get_diagnostics_for_file"],
+      /* lean-lsp local tools only (goal, term_goal, diagnostics, hover, completions; SPK-l) and Serena's read
+         tools (find_symbol, find_referencing_symbols, get_symbols_overview, find_declaration, diagnostics) */],
     "ask":   ["Agent(model:*fable*)", "CronCreate", "Edit(/.claude/**)", "Edit(/CLAUDE.md)", "mcp__serena__rename_symbol"],
     "deny":  ["Bash(gh api*)",                       // upstream reads go through `pnpm fw src:fetch` (GET only)
               "Bash(git push*)", "Bash(git -C * push*)", "Bash(git commit*--no-verify*)",
@@ -1018,14 +1028,10 @@ hour or more, write a handoff note and stop.
               "Edit(/.cache/upstream/**)", "Edit(/.fw-console/**)", "Read(/.fw-console/secret/**)",    // §7.3
               "Bash(git clean*)",                       // -x would delete the gitignored console state
               "Edit(/lean/math.lock.json)", "Edit(/docs/math/**)", "Edit(/results/console/**)",   // generated
-              "mcp__chrome-devtools__performance_start_trace",
-              "mcp__serena__replace_symbol_body", "mcp__serena__insert_after_symbol",
-              "mcp__serena__insert_before_symbol", "mcp__serena__replace_content", "mcp__serena__replace_in_files",
-              "mcp__serena__safe_delete_symbol", "mcp__serena__write_memory"]
+              "mcp__chrome-devtools__performance_start_trace" /* + every Serena edit tool and write_memory */]
   },
   "sandbox": {
-    "enabled": true,
-    "allowUnsandboxedCommands": false,                         // no dangerouslyDisableSandbox retry
+    "enabled": true, "allowUnsandboxedCommands": false,       // no dangerouslyDisableSandbox retry
     "filesystem": { "denyWrite": [".fw-console"], "denyRead": [".fw-console/secret"] },   // path forms: SPK-t
     "network":    { "allowUnixSockets": [".fw-console/run/cli.sock"] }   // the only door: requests
     // never list `pnpm fw` in excludedCommands: fw lives in each worktree and could be edited there
@@ -1034,10 +1040,8 @@ hour or more, write a handoff note and stop.
     // emit.mjs: synchronous, < 100 ms, prints nothing (a hook's stdout can reach Claude); writes one spool file, exits
     "SessionStart":  [/* session-brief.mjs (also on "compact"; ≤ 15 lines: live roster with idle minutes and context,
                          the lead address, the naming rule, spend today, open steps, device, disk) + emit.mjs */],
-    "SubagentStart": [/* emit.mjs */], "SubagentStop": [/* emit.mjs */], "TeammateIdle": [/* emit.mjs */],
-    "PreCompact": [/* emit.mjs */], "PostCompact": [/* emit.mjs */], "StopFailure": [/* emit.mjs */],
-    "Notification":  [/* emit.mjs, matcher "permission_prompt|agent_needs_input" */],
-    "PostToolUseFailure": [/* emit.mjs, matcher "Bash" */],
+    // emit.mjs also on SubagentStart, SubagentStop, TeammateIdle, PreCompact, PostCompact, StopFailure,
+    // Notification (matcher "permission_prompt|agent_needs_input") and PostToolUseFailure (matcher "Bash")
     "PreToolUse":    [/* spawn-guard.mjs, matcher "Agent", onFailure: block: deny an unnamed call, a name in use, name +
                          editing subagent_type without isolation, a 6th teammate, > 10 spawns per 10 min per spawner,
                          model fable without the ask path;
@@ -1086,13 +1090,11 @@ rules, and the Opus share limit. Kept: reporting, a forecast to report against, 
   math-reviewer work in place of the forecast's $280, mostly in M0-M2, minus roughly $200-300 of console TS work that
   Lean now does (INFERRED [10.03 §7.1]). The push console should remove most of v1's polling cost (9,042 poll-only
   turns, 1.87 B context tokens [10.01 §3.2]).
-- **Soft alerts, no stops.** A milestone above 1.5× its forecast, a day above 2× the running daily average, or a
-  cold-wake share above 10 % adds one line to the daily summary. **The weekly usage limit is the one real stop**, and
-  it is the provider's, not this plan's (v1 hit it three times [08]); the console header alerts at 60 % and 80 %.
-- **Reporting.** `pnpm fw usage` (v1's transcript meter, ported; console-api's transcript tailer dedupes by
-  `message.id`, an L1 decision) gives tokens and list-price dollars per milestone, role and day, cache-read and
-  cold-wake shares, compactions, isolation refusals and resumes per role, and the lead's counterparts and inbound
-  messages per hour (alarms at 10 and 60; v1's p90 was 13 and 80).
+- **Soft alerts, no stops** (a gate above 1.5× its forecast, a day above 2× the average, cold wakes above 10 %).
+  **The weekly usage limit is the one real stop** (the provider's; v1 hit it three times [08]): alerts at 60 % and 80 %.
+- **Reporting.** `pnpm fw usage` (transcript tailer, deduped by `message.id`, an L1 decision): tokens and dollars per
+  gate, role and day; cache-read and cold-wake shares; compactions, refusals and resumes per role; the lead's
+  counterparts and inbound messages per hour (alarms at 10 and 60; v1's p90 was 13 and 80).
 
 ### 8.5 Coordination rules (from the v1 chat history)
 
@@ -1310,8 +1312,6 @@ week; yes to the free-play phone.
 
 ### 12.3 Open items from the revision 4 review (styling), with recommendations
 
-- **Emotion AOT spike timing.** Resolved by the dependency graph: SPK-r runs now (site-aot), and no part is built with
-  MUI before its verdict, so a failure costs no part work.
 - **Base UI vs Pigment as the fallback.** **Recommend:** Base UI per part first; Pigment for the whole site only if
   SPK-r fails at the mechanism level (Q21), because Pigment is a paused alpha.
 - **Neutrality-gate blind spots** (Emotion's per-render JS, style-sheet shape cost). **Recommend:** N4 and PL6 for
@@ -1408,6 +1408,7 @@ your Lean packaging and install decisions.
 | 10 | Questions: Q1 mostly answered; Q12 moved to §12.0; Q22 (strict sandbox) and Q23 (console state inside the repo, `main` a normal branch) answered and applied; defaults Q24-Q30; the rev 4 review's open styling items listed with recommendations (§12.3) | §12 |
 | 11 | Every breakpoint of the original, for every part (your requirement): generated `breakpoints.json`, breakpoint lint, breakpoint gate before promotion; V-g, R8, M2/M4 exits, Q5 | §1.2, §6.6, §7.1, §9.2, §10.1, §11, §12 |
 | 12 | No calendar (your decision): §10 is a dependency graph of workstreams (blocked-by, outputs, Mermaid graph, critical path); milestones are gates; what runs now is listed; every "Day N" and date reference replaced (§0, §8.1, §8.2, App B, R7, R17, R25, §12); `packages/measure` split into `measure-chromium` and `measure-webkit` | §0, §1.1 G3, §3, §7.1, §8, §10, §11, §12, App A-B |
+| 13 | Breakpoint inventory [11] applied: 30 conditions, 18 edges (table), the pure-860 vs C860 parity rule, overlaps, fractional gaps, the 124-load gate per engine, live-resize sweeps; PLAN ids `hero`, `platform`, `ui.shared`, `theme.tokens` added; still to be MEASURED: the container-1100 viewport edge and the overlap outcomes ; §12.3's AOT-timing item dropped (SPK-r already runs); §3.1, §5.3, §8.3, §8.4 compacted | §6.1, §6.6, §12.3 |
 
 Differences from the delta (why): V-t avoids "G1-style" (G1 is an outcome goal); "judge" became "the reviewer's own
 math vs the docstring"; `Write(...)` rules became `Edit(...)` (A22); the canonical-numbers table stays in the delta
