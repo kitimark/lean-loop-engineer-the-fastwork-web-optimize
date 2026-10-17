@@ -30,6 +30,12 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
   ask the lead first.
 - Claims carry a status: CONFIRMED (source, doc or measurement cited), INFERRED, MEASURED. Read the source code
   (WebKit, Chromium, Lean, libraries) before guessing; cite file:line@commit.
+- **Upstream source, not WebFetch:** WebFetch summarises and truncates (100k chars, lossy), so never read source code
+  through it. Read pinned sparse clones in `.cache/upstream/<repo>@<sha7>/` (gitignored; `node scripts/refs-fetch.mjs
+  [<repo>] [--paths a,b]`, pins in `refs/upstream/sources.lock.yaml`). For a single file use
+  `curl -fsSL https://raw.githubusercontent.com/<o>/<r>/<sha>/<path>`. For GitHub use the authenticated `gh` CLI
+  (`gh repo clone`, `gh search code`), which has far higher rate limits; `gh api` stays denied (it can write).
+  WebFetch is for docs pages only.
 - **Lean first** (console, site, measurement, tooling): every pure, reproducible piece (decisions, reducers, gates,
   breakpoint conditions, flag rules, motion curves, count reduction, verdicts, test matrices) is specified and proved
   in Lean *before* it is coded. Then either it runs in Lean (`fwcore`), or Lean generates it (constants, CSS media
