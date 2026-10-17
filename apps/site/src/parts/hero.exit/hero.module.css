@@ -1,0 +1,215 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:1523-1590, 1725-1740, 1905-1936, 2040-2048, 2128-2160).
+   Placeholder content only. --copy-in is 1: this part is the post-splash resting state (the entrance is hero.accent/orbit). */
+@layer parts {
+  .track {
+    background: #fff;
+    height: 200vh;
+    position: relative;
+  }
+  .hero {
+    --exit-opacity: 1;
+    --exit-scatter: calc(1 - var(--exit-opacity));
+    --copy-in: 1;
+    z-index: 2;
+    color: #2b313b;
+    background: #fff;
+    justify-content: center;
+    align-items: center;
+    height: 100svh;
+    min-height: 680px;
+    display: flex;
+    position: sticky;
+    top: 0;
+    overflow: visible;
+  }
+  .cards {
+    z-index: 4;
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+  }
+  .card {
+    --scatter-x: 0px;
+    --scatter-y: 0px;
+    z-index: 1;
+    opacity: calc(1 - var(--exit-scatter) * 0.35);
+    pointer-events: auto;
+    translate: calc(var(--exit-scatter) * var(--scatter-x)) calc(var(--exit-scatter) * var(--scatter-y));
+    transform-origin: 50%;
+    will-change: transform, translate, scale, opacity;
+    background: #fff;
+    border: 1px solid #e4e8eff7;
+    border-radius: 12px;
+    position: absolute;
+    overflow: hidden;
+    box-shadow: 0 2px 4px #00000014;
+    width: 180px;
+    height: 224px;
+  }
+  .card:nth-child(1) {
+    top: 12%;
+    left: 6%;
+    --scatter-x: -120px;
+    --scatter-y: -60px;
+  }
+  .card:nth-child(2) {
+    top: 56%;
+    left: 12%;
+    --scatter-x: -160px;
+    --scatter-y: 90px;
+  }
+  .card:nth-child(3) {
+    top: 18%;
+    right: 8%;
+    --scatter-x: 140px;
+    --scatter-y: -80px;
+  }
+  .card:nth-child(4) {
+    top: 60%;
+    right: 14%;
+    --scatter-x: 170px;
+    --scatter-y: 80px;
+  }
+  .copy {
+    z-index: 3;
+    color: #2b313b;
+    text-align: center;
+    width: min(92vw, 900px);
+    max-width: 900px;
+    opacity: calc(var(--copy-in) * var(--exit-opacity));
+    filter: blur(calc((1 - var(--copy-in)) * 16px + var(--exit-scatter) * 18px));
+    transform: translateY(calc((1 - var(--copy-in)) * 12px + var(--exit-scatter) * -10px));
+    will-change: opacity, filter, transform;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    display: flex;
+  }
+  .copyMain {
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    display: flex;
+    overflow: visible;
+  }
+  .title {
+    color: #2b313b;
+    letter-spacing: -0.025em;
+    margin: 0;
+    font-size: clamp(40px, 4.5vw, 64px);
+    font-weight: 500;
+    line-height: 1.15;
+  }
+  .lead {
+    color: #2b313b;
+    max-width: 42rem;
+    margin: 0;
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .cta {
+    color: #fff;
+    background: #0569ff;
+    border-radius: 999px;
+    padding: 12px 24px;
+    font: inherit;
+  }
+  .cta:focus-visible,
+  .cue:focus-visible {
+    outline-offset: 3px;
+    outline: 2px solid #0569ff;
+  }
+  .cue {
+    z-index: 3;
+    color: #2b313b;
+    opacity: calc(var(--copy-in) * var(--exit-opacity));
+    filter: blur(calc(var(--exit-scatter) * 18px));
+    cursor: pointer;
+    transform: translate(-50%, calc((1 - var(--copy-in)) * 12px + var(--exit-scatter) * -10px));
+    background: 0 0;
+    border: 0;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+    display: flex;
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+  }
+  .cueLabel {
+    color: #8d9197;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 17px;
+  }
+
+  @media (width>600px) {
+    .cue {
+      opacity: var(--exit-opacity);
+      filter: blur(calc(var(--exit-scatter) * 18px));
+      transform: translate(-50%);
+    }
+  }
+
+  @media (width<=600px) {
+    .hero {
+      min-height: 100svh;
+    }
+    .cards {
+      z-index: 2;
+    }
+    .card:nth-child(1) {
+      --scatter-x: -42vw;
+      --scatter-y: -12vh;
+    }
+    .card:nth-child(2) {
+      --scatter-x: -48vw;
+      --scatter-y: 22vh;
+    }
+    .card:nth-child(3) {
+      --scatter-x: 42vw;
+      --scatter-y: -12vh;
+    }
+    .card:nth-child(4) {
+      --scatter-x: 48vw;
+      --scatter-y: 22vh;
+    }
+    .copy {
+      width: 100%;
+      max-width: 393px;
+      opacity: var(--exit-opacity);
+      filter: none;
+      transform: translate(-50%, calc(var(--exit-scatter) * -8px));
+      gap: 40px;
+      padding: 0 20px;
+      position: absolute;
+      top: 20.6573%;
+      left: 50%;
+    }
+    .title {
+      letter-spacing: -1.6px;
+      font-size: 40px;
+      line-height: 1.15;
+    }
+    .lead {
+      max-width: 300px;
+      padding: 0;
+    }
+    .cue {
+      z-index: 4;
+      top: 90.3756%;
+      bottom: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .track {
+      height: auto;
+    }
+    .hero {
+      --exit-scatter: 0;
+      position: relative;
+    }
+  }
+}

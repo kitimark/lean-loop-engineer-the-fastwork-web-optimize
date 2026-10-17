@@ -1,52 +1,158 @@
-import Card from '@mui/material/Card';
+import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getClock } from '../../engine/clock';
+import { createCountdownDriver, type DigitHandle } from './driver';
+import { digitPlaces, remainingSeconds, unitsFromSeconds } from './logic';
+import { matchList } from './media';
 import css from './hero.module.css';
 
-/** Placeholder countdown. Faithful stacks several faces per digit (as the original layers them); strip has one. */
-const FACES: Record<string, number> = { faithful: 4, strip: 1 };
-const TOTAL_SECONDS = 3600;
-const INITIAL = '0:59:59'; // static text, identical on server and client; the clock takes over after mount
+/** Placeholder unit labels (not the site's text). */
+const LABELS = ['Days', 'Hrs', 'Min', 'Sec'] as const;
 
-export function HeroCountdown({ variant }: { variant: string }) {
+export interface HeroCountdownProps {
+  variant: string;
+  /** `mui` (default) uses MUI components for the wrapper and labels; `plain` uses bare elements. Same CSS Module and driver. */
+  impl?: 'mui' | 'plain';
+  inverse?: boolean;
+}
+
+const cls = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
+
+function Digits({ n, strip }: { n: number; strip: boolean }) {
+  return (
+    <span className={css.number} data-value>
+      {Array.from({ length: n }, (_, k) => (
+        <span key={`${n}-${k}`} className={css.digit} data-digit data-place={10 ** (n - k - 1)}>
+          <span className={css.spacer} aria-hidden="true" data-spacer>
+            0
+          </span>
+          {strip ? (
+            <span className={css.strip} aria-hidden="true" data-strip>
+              {Array.from({ length: 12 }, (_, j) => (
+                <span key={j} className={css.entry}>
+                  {(j + 9) % 10}
+                </span>
+              ))}
+            </span>
+          ) : (
+            Array.from({ length: 10 }, (_, f) => (
+              <span key={f} className={css.face} aria-hidden="true" data-face>
+                {f}
+              </span>
+            ))
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * hero.countdown. Server and first client render show the original's hidden placeholders ("0", "00"); after mount the
+ * digit shape is set once (a discrete flip) and from then on only the driver writes transforms on the clock.
+ */
+export function HeroCountdown({ variant, impl = 'mui', inverse = false }: HeroCountdownProps) {
+  const strip = variant === 'strip';
   const rootRef = useRef<HTMLDivElement>(null);
-  const faces = FACES[variant] ?? 1;
+  const [shape, setShape] = useState<number[] | null>(null);
+
+  useEffect(() => {
+    setShape(unitsFromSeconds(remainingSeconds(Date.now())).map((v, i) => digitPlaces(v, i > 0).length));
+  }, []);
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
-    const start = performance.now();
-    let last = -1;
-    // Driver: one writer on the MotionClock, writes text on the consuming nodes, no React state.
-    return getClock().subscribe((now) => {
-      const left = Math.max(0, TOTAL_SECONDS - Math.floor((now - start) / 1000));
-      if (left === last) return;
-      last = left;
-      const text = `${Math.floor(left / 3600)}:${String(Math.floor((left % 3600) / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
-      const digits = root.querySelectorAll<HTMLElement>('[data-digit]');
-      digits.forEach((d, i) => {
-        for (const face of d.children) face.textContent = text[i] ?? '';
-      });
+    if (!root || !shape) return;
+    const nodes = [...root.querySelectorAll<HTMLElement>('[data-digit]')];
+    const handles: DigitHandle[] = [];
+    let k = 0;
+    shape.forEach((n, unit) => {
+      for (let d = 0; d < n; d++, k++) {
+        const el = nodes[k]!;
+        const parts = strip
+          ? [el.querySelector<HTMLElement>('[data-strip]')!]
+          : [...el.querySelectorAll<HTMLElement>('[data-face]')];
+        handles.push({ unit, place: Number(el.dataset.place), nodes: parts });
+      }
     });
-  }, [variant]);
+    const reduce = matchList('mq.rm-reduce');
+    const driver = createCountdownDriver({
+      variant: strip ? 'strip' : 'faithful',
+      digits: handles,
+      dateNow: Date.now,
+      reduced: () => reduce?.matches ?? false,
+    });
+    // the original binds the spacer's offsetHeight (a ResizeObserver) so the cell follows the CSS font size
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        const i = nodes.indexOf((e.target as HTMLElement).parentElement as HTMLElement);
+        const h = (e.target as HTMLElement).offsetHeight;
+        if (strip) nodes[i]!.style.setProperty('--cell', `${h}px`);
+        driver.setCell(i, h);
+      }
+    });
+    nodes.forEach((el) => ro.observe(el.querySelector('[data-spacer]')!));
+    const unsub = getClock().subscribe((now) => {
+      if (!driver.tick(now)) return;
+      const next = driver.shape();
+      if (next.length !== shape.length || next.some((v, i) => v !== shape[i])) setShape(next);
+    });
+    return () => {
+      unsub();
+      ro.disconnect();
+    };
+  }, [shape, strip]);
 
+  const Root = (impl === 'mui' ? MuiRoot : PlainRoot) as typeof PlainRoot;
+  const Label = impl === 'mui' ? MuiLabel : PlainLabel;
   return (
-    <Card ref={rootRef} className={css.root} data-fw="hero-countdown" data-fw-variant={variant} elevation={0}>
-      <Typography variant="overline" component="p">
-        Offer ends in
-      </Typography>
-      <div className={css.digits} aria-label="countdown">
-        {[...INITIAL].map((ch, i) => (
-          <span key={i} className={css.digit} data-digit>
-            {Array.from({ length: faces }, (_, f) => (
-              <span key={f} className={css.face} aria-hidden={f < faces - 1 ? 'true' : undefined}>
-                {ch}
-              </span>
-            ))}
+    <Root
+      rootRef={rootRef}
+      className={cls(css.countdown, inverse && css.inverse)}
+      variant={variant}
+    >
+      {LABELS.map((label, i) => (
+        <div key={label} className={css.unit} aria-hidden="true">
+          <span className={css.value}>
+            {shape ? <Digits n={shape[i]!} strip={strip} /> : <span className={css.placeholder}>{i > 0 ? '00' : '0'}</span>}
           </span>
-        ))}
-      </div>
-    </Card>
+          <Label>{label}</Label>
+        </div>
+      ))}
+    </Root>
+  );
+}
+
+interface RootProps {
+  rootRef: React.Ref<HTMLDivElement>;
+  className: string;
+  variant: string;
+  children: ReactNode;
+}
+const rootAttrs = { role: 'timer', 'aria-live': 'off' as const, 'aria-label': 'countdown', 'data-fw': 'hero-countdown' };
+
+function PlainRoot({ rootRef, className, variant, children }: RootProps) {
+  return (
+    <div ref={rootRef} className={className} data-fw-variant={variant} {...rootAttrs}>
+      {children}
+    </div>
+  );
+}
+function MuiRoot({ rootRef, className, variant, children }: RootProps) {
+  return (
+    <Box ref={rootRef} className={className} data-fw-variant={variant} {...rootAttrs}>
+      {children}
+    </Box>
+  );
+}
+function PlainLabel({ children }: { children: ReactNode }) {
+  return <span className={css.label}>{children}</span>;
+}
+function MuiLabel({ children }: { children: ReactNode }) {
+  return (
+    <Typography variant="caption" component="span" className={css.label}>
+      {children}
+    </Typography>
   );
 }
