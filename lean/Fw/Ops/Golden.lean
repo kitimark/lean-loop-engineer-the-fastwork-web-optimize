@@ -148,6 +148,14 @@ def extra : List (String × String × List (String × Json)) := [
     ("the lead's next tool result closes the lead's alert", lit "{\"event\":{\"hook_event_name\":\"PostToolUse\",\"ts\":11},\"open\":[\"alert-main-10\"]}"),
     ("SubagentStop closes", lit "{\"event\":{\"hook_event_name\":\"SubagentStop\",\"agent_id\":\"a1\",\"ts\":12},\"open\":[\"alert-a1-10\"]}"),
     ("missing ts is refused", lit "{\"event\":{\"hook_event_name\":\"Stop\"}}")]),
+  ("console", "console.landScope", [
+    ("writes, own handoff, generated and registration files land", lit "{\"writes\":[\"apps/runner/src/land.ts\",\"apps/runner/test/land*.ts\"],\"names\":[\"pa-land\"],\"paths\":[\"apps/runner/src/land.ts\",\"apps/runner/test/land-x.ts\",\"docs/team/handoffs/pa-land.md\",\"packages/contracts/golden/ops/a.jsonl\",\"lean/Fw.lean\"]}"),
+    ("a file outside every glob is refused", lit "{\"writes\":[\"apps/runner/src/land.ts\"],\"names\":[\"pa-land\"],\"paths\":[\"apps/runner/src/land.ts\",\"apps/site/x.tsx\",\"docs/team/handoffs/other.md\"]}"),
+    ("no writes and no allow: refused with the reason", lit "{\"writes\":[],\"names\":[\"t\"],\"paths\":[\"a.md\"]}"),
+    ("--allow admits its glob only", lit "{\"writes\":[],\"allow\":[\"notes/**\"],\"paths\":[\"notes/a.md\",\"x.md\"]}"),
+    ("protected paths are refused even under **", lit "{\"writes\":[\"**\"],\"paths\":[\".git/config\",\".fw-console/events.jsonl\",\".claude/settings.json\",\"lean/.lake/x\",\"a.md\"]}"),
+    ("names with a slash or star make no handoff glob", lit "{\"writes\":[\"a/**\"],\"names\":[\"../x\",\"b/*\"],\"paths\":[\"docs/team/handoffs/../x.md\",\"docs/team/handoffs/b/c.md\"]}"),
+    ("missing paths is refused", lit "{\"writes\":[]}")]),
   ("console", "console.actor", [
     ("all sources", lit "{}"),
     ("the alert source writes as script", lit "{\"source\":\"alert\"}"),

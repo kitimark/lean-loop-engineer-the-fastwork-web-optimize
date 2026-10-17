@@ -295,9 +295,9 @@ theorem fade_ends : fade 0 = 1 ∧ ∀ m, fadeEnd ≤ m → fade m = 0 := by
     have : 1 ≤ m / fadeEnd := by rw [hdiv]; unfold fadeEnd at h; grind
     grind
 
-/-- **Pointer cut-over.** The platform stops taking pointer events exactly above $m = 0.5225$ (for $m \ge 0$).
+/-- **Pointer cut-over.** The platform stops taking pointer events exactly above $m = 0.5225$.
 
-$$m \ge 0 \Rightarrow \big(\operatorname{pointerNone}(m) = \top \iff m > 0.95 \cdot 0.55 = \tfrac{209}{400}\big)$$
+$$\forall m \in \mathbb{Q}:\ \operatorname{pointerNone}(m) = \top \iff m > 0.95 \cdot 0.55 = \tfrac{209}{400}$$
 
 The cut is strict, so $m = 0.5225$ still takes pointer events. -/
 theorem pointerNone_iff (m : Rat) : pointerNone m = true ↔ 209 / 400 < m := by

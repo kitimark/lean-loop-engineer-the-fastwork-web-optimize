@@ -1905,16 +1905,15 @@
   },
   {
    "id": "vj-vt-chromium",
-   "title": "V-j shown and V-t replay / stall-alarm precision (>= 90 %) on the Chromium lane only (the Chromium half of vj-vt, rev 9.1)",
+   "title": "CUT by the user 2026-10-18: V-j/V-t are reported not gated (PLAN:200,210), no dependents, the 90% bar is the enforcer rule (PLAN:251-254), inputs are private v1 data (not CI, not public)",
    "stream": "measure",
-   "milestone": "M1",
-   "deps": [
-    "zone-baselines-chromium"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "measure-engineer",
    "devices": [
     "ci"
-   ]
+   ],
+   "cut": true
   },
   {
    "id": "engine-core-lean",
@@ -1942,7 +1941,8 @@
    "writes": [
     "lean/Fw/Engine/Chromium.lean",
     "packages/contracts/golden/engine/chromium.jsonl"
-   ]
+   ],
+   "evidence": "583b1c3"
   },
   {
    "id": "engine-webkit-lean",
@@ -1956,7 +1956,8 @@
    "writes": [
     "lean/Fw/Engine/WebKit.lean",
     "packages/contracts/golden/engine/webkit.jsonl"
-   ]
+   ],
+   "evidence": "0164351"
   },
   {
    "id": "engine-ci-check",
@@ -1973,7 +1974,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "48511ae"
   },
   {
    "id": "engine-gaps",
@@ -1984,7 +1986,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-18-engine-gaps.md"
-   ]
+   ],
+   "evidence": "affa1bb"
   },
   {
    "id": "webkit-sim-rewrite",
@@ -2363,6 +2366,47 @@
     "apps/site/src/App.tsx",
     "apps/site/src/registry/index.ts",
     "lean/Fw/Gate/Scope.lean"
+   ]
+  },
+  {
+   "id": "pa-land",
+   "title": "(S-M) fw land usable for every landing: Lean scope = task.writes + handoffs + generated files (path-match theorem), marker check, branch -d only, refuse live/dirty worktrees, merge not rebase, CI advisory, never push",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land*.ts",
+    "lean/Fw/Console/Land.lean"
+   ]
+  },
+  {
+   "id": "pa-evidence-lint",
+   "title": "(S) plan lint: evidence is a main commit, CI run or user decision; back-fill missing evidence from Task: trailers on main (one commit); no Core.lean change",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "pa-land"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/plan.ts",
+    "lean/Fw/Plan/Lint.lean",
+    "docs/team/work-graph.json"
+   ]
+  },
+  {
+   "id": "pa-sync-main",
+   "title": "(S) fw plan sync refuses unless run from the main checkout at HEAD of main (drafts never reach the live board)",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "pa-evidence-lint"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/plan.ts"
    ]
   }
  ],

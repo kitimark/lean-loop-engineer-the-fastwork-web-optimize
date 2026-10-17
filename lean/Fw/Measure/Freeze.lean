@@ -534,7 +534,7 @@ deriving Repr, DecidableEq
 /-- One workflow run: its id, the image digest reported by each of its jobs, its class table, and its
 jobs.
 
-$$\mathrm{Run} = \Sigma^{*} \times (\Sigma^{*})^{*} \times \mathrm{Table} \times \mathrm{Job}^{*}$$
+$$\mathrm{RunTable} = \Sigma^{*} \times (\Sigma^{*})^{*} \times \mathrm{Table} \times \mathrm{Job}^{*}$$
 -/
 structure RunTable where
   id : String
