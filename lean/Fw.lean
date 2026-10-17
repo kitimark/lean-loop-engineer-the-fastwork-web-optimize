@@ -55,6 +55,7 @@ import Fw.Gate.Rule
 import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
+import Fw.Gate.Coverage
 import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
