@@ -2298,6 +2298,52 @@
    "writes": [
     "apps/site/src/try/typing-chunks/**"
    ]
+  },
+  {
+   "id": "ghb-lean",
+   "title": "(M) Fw.Ci.Budget: charged ledger; <= B requests per 3600 s for any number of waiters; no call while remaining <= F or before retry-after; each watched run polled every P s",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/FwTest/CiBudget.lean",
+    "packages/contracts/golden/ci-budget/**"
+   ]
+  },
+  {
+   "id": "ghb-glue",
+   "title": "(M) packages/gh-budget: lock + ledger + ghCharged + elected poller + 'pnpm fw ci wait'; header parse via GH_DEBUG=api (option A); replay test against Lean golden vectors",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "ghb-lean"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gh-budget/**"
+   ]
+  },
+  {
+   "id": "ghb-runner",
+   "title": "(M) route apps/runner gh calls (run, ci, watch-collect) through ghCharged; agent docs say 'pnpm fw ci wait' instead of gh loops",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "ghb-glue"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "apps/runner/src/run.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/fw.ts",
+    ".claude/agents/measure-engineer.md",
+    "docs/team/tools/**"
+   ]
   }
  ],
  "deadline": {
