@@ -19,10 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-NOTICE
-
-The MIT license above covers this repository's own code and documentation.
-The directory snapshot/ holds Fastwork's compiled site, unmodified. It is
-published here with Fastwork's approval and remains under Fastwork's terms;
-the MIT license does not apply to it.
