@@ -4,6 +4,7 @@
   .track {
     background: #fff;
     height: 200vh;
+    width: max(100%, 320px);
     position: relative;
   }
   .hero {
@@ -144,7 +145,28 @@
     line-height: 17px;
   }
 
+  /* before the width blocks: the >600 cue rule below restores its own blur, so the cue's none applies at <=600 only */
+  @media (prefers-reduced-motion: reduce) {
+    .track {
+      height: auto;
+    }
+    .hero {
+      --exit-scatter: 0;
+      position: relative;
+    }
+    .copy,
+    .cue {
+      filter: none;
+    }
+  }
+
   @media (width>600px) {
+    .copy {
+      padding: 0 24px;
+      position: relative;
+      top: 0;
+      left: 0;
+    }
     .cue {
       opacity: var(--exit-opacity);
       filter: blur(calc(var(--exit-scatter) * 18px));
@@ -200,16 +222,6 @@
       z-index: 4;
       top: 90.3756%;
       bottom: auto;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .track {
-      height: auto;
-    }
-    .hero {
-      --exit-scatter: 0;
-      position: relative;
     }
   }
 }
