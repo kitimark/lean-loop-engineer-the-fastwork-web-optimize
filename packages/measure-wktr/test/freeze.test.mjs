@@ -26,7 +26,7 @@ function makeRun(root, id, wildShift) {
   }
   mkdirSync(join(dir, 'wktr-classes'), { recursive: true });
   writeFileSync(join(dir, 'wktr-classes', 'run.txt'), `workflow run ${id}, attempt 1, sha abc123, variants live\n`);
-  writeFileSync(join(dir, 'wktr-classes', 'runners.jsonl'), JSON.stringify({ imageVersion: 'v1' }) + '\n' + JSON.stringify({ imageVersion: 'v1' }) + '\n');
+  writeFileSync(join(dir, 'wktr-classes', 'runners.jsonl'), JSON.stringify({ imageVersion: 'v1', note: 'a } "b" {' }, null, 2) + '\n' + JSON.stringify({ imageVersion: 'v1' }, null, 2) + '\n');
   const [r] = call([{ op: 'measure.classify', mode: 'frames', kMax: 4, tMax: 24, runs: files.map((c) => ({ frames: c.frames })) }]);
   writeFileSync(join(dir, 'wktr-classes', 'classes-live-all.json'), JSON.stringify(r.classes));
   return dir;

@@ -1,6 +1,6 @@
 // The frozen (signed) class table of the WKTR lane, from workflow runs already downloaded to disk. Downloads nothing:
 //   gh run download <run> --dir runs/<run>      (artifacts wktr-j1.., wktr-classes), once per workflow run, then
-//   node src/freeze.mjs runs/<run> runs/<run> runs/<run> ... [--kMax 4] [--tMax 24] [--out classes.frozen.json] [--check]
+//   node src/freeze.mjs runs/<run> runs/<run> runs/<run> ... [--kMax 4] [--tMax 24] [--variants a,b] [--out classes.frozen.json] [--check]
 // Every decision is fwcore's; nothing is decided here (CLAUDE.md "Lean first"):
 //   - each workflow run's class table per variant is re-derived from its counts files with fwcore measure.classify and
 //     must equal the run's own wktr-classes/classes-<variant>-all.json (else the run is refused);
@@ -17,12 +17,28 @@ import { readFileSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
+import { createHash } from 'node:crypto';
 import { call } from '../../measure-chromium/src/fwcore.mjs';
 
 const PKG = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LANE_RUNNER = 'macos-26';
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 const readText = (p) => readFileSync(p, 'utf8').trim();
+
+/** The JSON objects of a text of concatenated (one-line or pretty-printed) objects, e.g. the cat of runner.json files. */
+export function jsonObjects(text) {
+  const out = [];
+  let depth = 0, start = -1, inStr = false, esc = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; }
+    if (ch === '"') inStr = true;
+    else if (ch === '{') { if (depth++ === 0) start = i; }
+    else if (ch === '}' && --depth === 0) out.push(JSON.parse(text.slice(start, i + 1)));
+  }
+  if (depth !== 0) throw new Error('runners.jsonl: unbalanced braces');
+  return out;
+}
 
 /** One downloaded workflow run: run.txt facts, its jobs' counts files per variant, its classes artifacts. */
 export function readRun(dir) {
@@ -40,7 +56,7 @@ export function readRun(dir) {
     if (files.length === 0) throw new Error(`${dir}: no counts files for variant ${v}`);
     byVariant[v] = { files, classes: readJson(join(c, `classes-${v}-all.json`)) };
   }
-  const runners = readText(join(c, 'runners.jsonl')).replace(/}\s*{/g, '}\n{').split('\n').map((l) => JSON.parse(l));
+  const runners = jsonObjects(readText(join(c, 'runners.jsonl')));
   return { dir, id: m[1], attempt: m[2], sha: m[3], variants, byVariant, jobs: jobDirs, runners };
 }
 
@@ -59,9 +75,10 @@ function same(items, f, what) {
 const tallyOrdered = (t) => ({ deterministic: t.deterministic, stable: t.stable, quarantined: t.quarantined });
 
 /** The frozen table object for downloaded workflow-run directories (see the header). */
-export function freezeRuns(dirs, { kMax = 4, tMax = 24 } = {}) {
+export function freezeRuns(dirs, { kMax = 4, tMax = 24, only = null } = {}) {
   const runs = dirs.map(readRun);
-  const variants = same(runs, (r) => r.variants, 'variants per workflow run');
+  const allVariants = same(runs, (r) => r.variants, 'variants per workflow run');
+  const variants = only ? only.map((v) => { if (!allVariants.includes(v)) throw new Error('variant ' + v + ' is not in the runs (' + allVariants + ')'); return v; }) : allVariants;
   const profiles = {};
   const allMeta = [];
   for (const variant of variants) {
@@ -73,21 +90,27 @@ export function freezeRuns(dirs, { kMax = 4, tMax = 24 } = {}) {
     const allFiles = perRunFiles.flat();
     const [pooled] = call([classifyReq(allFiles, kMax, tMax)]);
     const [frozen] = call([{ op: 'measure.freeze', pooled: pooled.classes,
-      runs: runs.map((r, i) => ({ id: r.id, images: r.byVariant[variant].files.map((f) => digestOf(f.counts.meta)), classes: perRun[i].classes })) }]);
+      runs: runs.map((r, i) => ({ id: r.id, images: r.byVariant[variant].files.map((f) => digestOf(f.counts.meta)), classes: perRun[i].classes,
+        // every counts file is a "job" for fwcore: one frame count for all, and the requested scroll positions as the trajectory
+        jobs: r.byVariant[variant].files.map((f) => ({ name: `${f.job}/${f.file}`, frames: f.counts.frames.length,
+          trajectorySha256: createHash('sha256').update(JSON.stringify(f.counts.frames.map((x) => x.scrollY))).digest('hex') })) })) }]);
     const metas = allFiles.map((f) => f.counts.meta);
     allMeta.push(...metas);
     for (const k of ['step', 'frames', 'settleMs', 'warm', 'vt', 'trace', 'still', 'header', 'variant']) same(metas, (m) => m[k], `${variant}: meta.${k}`);
     for (const k of ['innerWidth', 'innerHeight', 'dpr', 'docH', 'maxY']) same(metas, (m) => m.page[k], `${variant}: meta.page.${k}`);
     const types = {};
     for (const [ty, v] of Object.entries(frozen.types)) {
-      types[ty] = { class: v.class, k: v.k, t: v.t, perRun: v.perRun, ...(v.pooledClass !== undefined && { pooledClass: v.pooledClass }) };
+      types[ty] = { class: v.class, k: v.k, t: v.t, perRun: v.perRun, ...(v.pooledClass !== undefined && { pooledClass: v.pooledClass }),
+        ...(v.role !== undefined && { role: v.role }), ...(v.reason !== undefined && { reason: v.reason }) };
     }
     profiles[variant] = {
       workflowRuns: frozen.runs,
       jobsPerRun: same(runs, (r) => r.jobs.length, `${variant}: jobs per run`),
       countsFilesPerRun: perRunFiles.map((fs) => fs.length),
       image: frozen.image,
-      harness: { step: metas[0].step, frames: metas[0].frames, settleMs: metas[0].settleMs, warm: metas[0].warm, vt: metas[0].vt, trace: metas[0].trace, header: metas[0].header },
+      frames: frozen.frames,
+      trajectoriesEqual: frozen.trajectoriesEqual,
+      harness: { step: metas[0].step, frames: metas[0].frames, settleMs: metas[0].settleMs, warm: metas[0].warm, vt: metas[0].vt, trace: metas[0].trace, still: !!metas[0].still, header: metas[0].header },
       viewport: { innerWidth: metas[0].page.innerWidth, innerHeight: metas[0].page.innerHeight, dpr: metas[0].page.dpr, docH: metas[0].page.docH },
       tally: tallyOrdered(frozen.tally),
       pooledTally: tallyOrdered(frozen.pooledTally),
@@ -125,10 +148,10 @@ export function diffPaths(a, b, path = '$', out = [], max = 40) {
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const argv = process.argv.slice(2);
   const opt = (n) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : undefined; };
-  const valued = new Set(['--kMax', '--tMax', '--out']);
+  const valued = new Set(['--kMax', '--tMax', '--out', '--variants']);
   const dirs = argv.filter((a, i) => !a.startsWith('--') && !valued.has(argv[i - 1]));
   const out = opt('out') ?? join(PKG, 'classes.frozen.json');
-  const frozen = freezeRuns(dirs, { kMax: Number(opt('kMax') ?? 4), tMax: Number(opt('tMax') ?? 24) });
+  const frozen = freezeRuns(dirs, { kMax: Number(opt('kMax') ?? 4), tMax: Number(opt('tMax') ?? 24), only: opt('variants')?.split(',') ?? null });
   const text = JSON.stringify(frozen, null, 1) + '\n';
   if (argv.includes('--check')) {
     const cur = existsSync(out) ? readFileSync(out, 'utf8') : '';
