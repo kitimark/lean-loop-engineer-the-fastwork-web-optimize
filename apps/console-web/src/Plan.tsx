@@ -41,7 +41,7 @@ function Milestones({ plan }: { plan: Plan }) {
 }
 
 const Task = ({ t, extra }: { t: PlanTask; extra?: React.ReactNode }) => (
-  <li className="rounded border p-2 text-sm" title={t.title}>
+  <li className={`rounded border p-2 text-sm${t.state === "cut" ? " opacity-50" : ""}`} title={t.title} data-state={t.state}>
     <div className="font-medium">{t.id}</div>
     <div className="truncate text-xs text-muted-foreground">{t.title}</div>
     <div className="mt-1 flex flex-wrap gap-1 text-xs">
@@ -92,10 +92,11 @@ export function DeviceLane({ plan }: { plan: Plan }) {
   );
 }
 
-function Columns({ plan }: { plan: Plan }) {
+/** The four columns; cut tasks (fwcore state "cut") are listed greyed under Done, nowhere else. */
+export function Columns({ plan }: { plan: Plan }) {
   const by = new Map(plan.tasks.map((t) => [t.id, t]));
   const of = (s: string) => plan.tasks.filter((t) => t.state === s);
-  const running = of("running"), blocked = of("blocked"), done = of("done");
+  const running = of("running"), blocked = of("blocked"), done = of("done"), cut = of("cut");
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
@@ -123,7 +124,11 @@ function Columns({ plan }: { plan: Plan }) {
       <Card>
         <CardHeader><CardTitle>Done ({done.length})</CardTitle></CardHeader>
         <CardContent><ul className="space-y-2">
-          {done.map((t) => <Task key={t.id} t={t} extra={t.evidence && <Evidence sha={t.evidence} />} />)}</ul></CardContent>
+          {done.map((t) => <Task key={t.id} t={t} extra={t.evidence && <Evidence sha={t.evidence} />} />)}</ul>
+          {cut.length > 0 && <>
+            <div className="mb-1 mt-3 text-xs text-muted-foreground">Cut from the plan ({cut.length})</div>
+            <ul className="space-y-2">{cut.map((t) => <Task key={t.id} t={t} />)}</ul>
+          </>}</CardContent>
       </Card>
     </div>
   );
@@ -155,9 +160,10 @@ function Evidence({ sha }: { sha: string }) {
 
 export type Layout = { nodes: { id: string; layer: number; row: number }[]; layers: number; rows: number };
 
-/** Longest-path layering of the undone tasks: layer = 1 + the deepest undone dep (done deps do not count). */
+/** Longest-path layering of the undone tasks: layer = 1 + the deepest undone dep (done deps do not count). Cut tasks
+ *  are left out. */
 export function layout(tasks: PlanTask[]): Layout {
-  const undone = tasks.filter((t) => t.state !== "done");
+  const undone = tasks.filter((t) => t.state !== "done" && t.state !== "cut");
   const ids = new Set(undone.map((t) => t.id));
   const by = new Map(undone.map((t) => [t.id, t]));
   const memo = new Map<string, number>();

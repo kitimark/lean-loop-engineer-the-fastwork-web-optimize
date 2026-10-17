@@ -7,7 +7,7 @@ import { UsageError } from "./lib.ts";
 
 type GraphTask = {
   id: string; title: string; stream: string; milestone?: string | null; deps?: string[]; owner: string;
-  writes?: string[]; devices?: string[]; needs?: string[]; evidence?: string | null;
+  writes?: string[]; devices?: string[]; needs?: string[]; evidence?: string | null; cut?: boolean;
 };
 export type WorkGraph = { milestones: { id: string; title: string }[]; tasks: GraphTask[] };
 
@@ -40,18 +40,20 @@ export function syncCommands(g: WorkGraph, actor: Actor = "lead"): Command[] {
     const body = { task: t.id, title: clip(t.title), stream: t.stream, milestone: t.milestone ?? null, deps: t.deps ?? [], owner: t.owner,
       writes: t.writes ?? [], devices: t.devices ?? [],
       // only when present, so a task without needs keeps its key (digest) from before the field existed
-      ...(t.needs?.length ? { needs: t.needs } : {}), evidence: t.evidence ?? null };
+      ...(t.needs?.length ? { needs: t.needs } : {}), evidence: t.evidence ?? null,
+      // likewise only when true (a task cut from the plan: fwcore derives state "cut")
+      ...(t.cut ? { cut: true } : {}) };
     cmds.push(Command.parse({ type: "task.define", key: `plan:d:${t.id}:${digest(body)}`, actor, ...body }));
   }
   return cmds;
 }
 
 /** Text for `fw plan show`: agent-ready (by parallel-safe group), the device lane (ready, then blocked with blockers),
- *  running, agent-blocked (with blockers), critical path. Lane, state, blockers and groups all come from fwcore. */
+ *  running, agent-blocked (with blockers), critical path, cut. Lane, state, blockers and groups all come from fwcore. */
 export function renderPlan(p: Plan): string {
   const byId = new Map(p.tasks.map((t) => [t.id, t]));
   const count = (s: string) => p.tasks.filter((t) => t.state === s).length;
-  const L: string[] = [`${p.tasks.length} tasks: ${count("done")} done, ${count("running")} running, ${count("ready")} ready, ${count("blocked")} blocked`];
+  const L: string[] = [`${p.tasks.length} tasks: ${count("done")} done, ${count("running")} running, ${count("ready")} ready, ${count("blocked")} blocked, ${count("cut")} cut`];
   for (const m of p.milestones) L.push(`  ${m.id} ${m.done}/${m.total}  ${m.title.slice(0, 70)}`);
   L.push("READY (tasks in one group can run in parallel):");
   p.parallelSafe.forEach((g, i) => L.push(`  group ${i + 1}: ${g.join(", ")}`));
@@ -66,5 +68,7 @@ export function renderPlan(p: Plan): string {
   L.push("BLOCKED (waiting on):");
   for (const t of p.tasks.filter((x) => x.state === "blocked" && x.lane === "agent")) L.push(`  ${t.id} <- ${t.blockers.join(", ")}`);
   L.push(`CRITICAL PATH (${p.criticalPath.length}): ${p.criticalPath.map((id) => byId.get(id)?.id ?? id).join(" -> ") || "none"}`);
+  const cut = p.tasks.filter((x) => x.state === "cut").map((x) => x.id);
+  L.push(`CUT (${cut.length}): ${cut.join(", ") || "none"}`);
   return L.join("\n");
 }

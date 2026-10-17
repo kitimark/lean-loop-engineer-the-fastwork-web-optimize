@@ -816,6 +816,18 @@
               "type": "null"
             }
           ]
+        },
+        "cut": {
+          "type": "boolean"
+        },
+        "live": {
+          "maxItems": 64,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
         }
       },
       "required": [

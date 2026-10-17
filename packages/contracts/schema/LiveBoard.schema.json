@@ -320,6 +320,7 @@
                 "type": "string",
                 "enum": [
                   "done",
+                  "cut",
                   "running",
                   "ready",
                   "blocked"

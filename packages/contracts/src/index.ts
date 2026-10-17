@@ -50,6 +50,11 @@ export const Command = z.discriminatedUnion("type", [
     /** what the task needs besides an agent; "device" = the measurement iPhone and the user at it. Missing = [] */
     needs: z.array(Id).max(8).optional(),
     evidence: Sha.nullable(),
+    /** the task was cut from the plan (Lean `Fw.Plan` state `cut`: never ready, not counted). Missing = false */
+    cut: z.boolean().optional(),
+    /** a fact the console adds on receipt (a client's value is replaced): the names of the live agents
+     *  (not gone, not done). Lean decides: a live agent named like the task claims it. Missing = [] */
+    live: z.array(Id).max(64).optional(),
   }),
   cmd("task.drop", { task: Id }),
   cmd("task.claim", { task: Id, agent: Id }),
@@ -160,7 +165,8 @@ export const BoardCard = z.object({
 export type BoardCard = z.infer<typeof BoardCard>;
 
 // ---- board.plan: derived by fwcore (Fw.Plan), never stored as status ---------------------
-export const TaskState = z.enum(["done", "running", "ready", "blocked"]);
+/** "cut": the task was cut from the plan (never ready, off the critical path, not in milestone totals) */
+export const TaskState = z.enum(["done", "cut", "running", "ready", "blocked"]);
 export type TaskState = z.infer<typeof TaskState>;
 export const TaskLane = z.enum(["agent", "device"]);
 export type TaskLane = z.infer<typeof TaskLane>;

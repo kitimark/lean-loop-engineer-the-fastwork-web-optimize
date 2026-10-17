@@ -399,6 +399,7 @@
    "title": "CUT (rev 9): Switch spawn-guard from shadow to enforce",
    "stream": "parallel",
    "milestone": "MX",
+   "cut": true,
    "deps": [],
    "owner": "lead",
    "writes": [
@@ -618,6 +619,7 @@
    "title": "CUT (rev 9): the WebKit half of V-j/V-t; the Chromium half is vj-vt-chromium (rev 9.1)",
    "stream": "measure",
    "milestone": "MX",
+   "cut": true,
    "deps": [],
    "owner": "measure-engineer",
    "devices": [
@@ -629,6 +631,7 @@
    "title": "CUT (rev 9): Parallel-work A/B bench (randomised labels, nothing else running) (local by nature: it measures this Mac's agent throughput, not the page)",
    "stream": "parallel",
    "milestone": "MX",
+   "cut": true,
    "deps": [],
    "owner": "lead",
    "devices": [
@@ -703,6 +706,7 @@
    "title": "CUT (rev 9): Q33: prove the gap harness on the real iPhone (same probes, compare with the Simulator) (local by nature: the real phone)",
    "stream": "parts",
    "milestone": "MX",
+   "cut": true,
    "deps": [],
    "owner": "measure-engineer",
    "devices": [
@@ -842,6 +846,7 @@
    "title": "CUT (rev 9): measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update",
    "stream": "measure",
    "milestone": "MX",
+   "cut": true,
    "deps": [],
    "owner": "measure-engineer",
    "writes": [
@@ -853,6 +858,7 @@
    "title": "CUT (rev 9): iPhone K1-K10, rho_page, holdouts, validity table v0 (phone part local by nature)",
    "stream": "calibration",
    "milestone": "MX",
+   "cut": true,
    "deps": [],
    "owner": "measure-engineer",
    "devices": [
@@ -891,6 +897,7 @@
    "title": "CUT (rev 9): Port every other part through the full breakpoint gate",
    "stream": "parts",
    "milestone": "MX",
+   "cut": true,
    "deps": [],
    "owner": "part-builder"
   },
