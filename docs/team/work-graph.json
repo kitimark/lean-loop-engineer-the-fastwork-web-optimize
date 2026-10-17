@@ -2499,7 +2499,7 @@
   },
   {
    "id": "claim-order-lean",
-   "title": "(S) bug: agent-task binding depends on event order (claim only at spawn if the task exists; define-time claim only if the agent is in the last 300 s fw watch snapshot). Record spawns as events and derive the binding in Fw.Plan.Core so it is order-independent; prove spawn/define commute on the agent field; golden incl. the obs-next-lean 03:03/03:05 trace",
+   "title": "(S) bug: agent-task binding depends on event order (claim only at spawn if the task exists; define-time claim only if the agent is in the last 300 s fw watch snapshot). Record spawns as events and derive the binding in Fw.Plan.Core so it is order-independent; prove spawn/define commute on the agent field; golden incl. the obs-next-lean 03:03/03:05 trace; reconciler runs plan sync whenever main HEAD moves (defines no longer wait for a fw land)",
    "stream": "console",
    "milestone": "M5",
    "deps": [],
@@ -2513,7 +2513,9 @@
     "apps/console-api/src/spool/drain.ts",
     "apps/console-api/src/store.ts",
     "apps/console-api/src/health.ts",
-    "apps/console-api/test/**"
+    "apps/console-api/test/**",
+    "apps/console-api/src/reconcile/**",
+    "apps/runner/src/plan.ts"
    ]
   }
  ],
