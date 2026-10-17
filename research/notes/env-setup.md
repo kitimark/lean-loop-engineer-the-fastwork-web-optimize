@@ -44,3 +44,13 @@ SDK root: `/opt/homebrew/share/android-commandlinetools`.
 - `xcodes runtimes` (and `--include-betas`) list iOS 26.0 through 26.5, then 27.0, 27.1, 27.2 betas. There is no
   iOS 26.6 entry, so nothing to install. The iPhone's 26.6 cannot be matched by the simulator; closest is 26.5.
 - iOS 27.x runtimes exist and could be installed if wanted (not done; not requested).
+
+## 2026-10-17: iOS 27.0 Simulator runtime (matches phone iOS 27.0.1)
+- `xcodes runtimes` lists a release (non-beta) "iOS 27.0" (no beta flag needed). Installed with
+  `xcodes runtimes install "iOS 27.0"`; no Apple ID prompt, no sudo.
+- `xcrun simctl list runtimes`: iOS 26.5 (23F77) kept, iOS 27.0 (24A434) added. Xcode 27.1.
+- Disk used: about 8 GB (free space 57 GiB -> 49 GiB).
+- Device: `xcrun simctl create fw-iphone-27 "iPhone 15 Pro Max" com.apple.CoreSimulator.SimRuntime.iOS-27-0`.
+- Verification: booted headless, shut down cleanly. `simctl openurl ... about:blank` fails with
+  LSApplicationWorkspaceErrorDomain 115 (about: scheme not routable); `openurl https://example.com` succeeds and
+  com.apple.mobilesafari is running. Use an https URL for Safari checks.
