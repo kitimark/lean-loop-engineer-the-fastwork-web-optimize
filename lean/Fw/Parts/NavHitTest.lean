@@ -141,7 +141,7 @@ def allowHit (allow : Hit → Bool) (stack : List Hit) : Int := findIdx (fun h =
 #guard firstOutside [true, true] == -1
 #guard firstOutside [] == -1
 
-/-- Searching with two tests that agree on the list finds the same index. $$(\forall x \in xs:\ p(x) = q(x)) \Rightarrow \operatorname{findIdx?}(p, xs) = \operatorname{findIdx?}(q, xs)$$ -/
+/-- Searching with two tests that agree on the list finds the same index. $$\forall p, q, xs:\ (\forall x \in xs:\ p(x) = q(x)) \Rightarrow \operatorname{findIdx?}(p, xs) = \operatorname{findIdx?}(q, xs)$$ -/
 theorem findIdx?_congr' {α : Type} (p q : α → Bool) (xs : List α) (h : ∀ x ∈ xs, p x = q x) :
     xs.findIdx? p = xs.findIdx? q := by
   induction xs with
@@ -149,7 +149,7 @@ theorem findIdx?_congr' {α : Type} (p q : α → Bool) (xs : List α) (h : ∀ 
   | cons x xs ih =>
     simp only [List.findIdx?_cons, h x (by simp), ih (fun y hy => h y (by simp [hy]))]
 
-/-- The same for the -1-defaulted search. $$(\forall x \in xs:\ p(x) = q(x)) \Rightarrow \operatorname{findIdx}(p, xs) = \operatorname{findIdx}(q, xs)$$ -/
+/-- The same for the -1-defaulted search. $$\forall p, q, xs:\ (\forall x \in xs:\ p(x) = q(x)) \Rightarrow \operatorname{findIdx}(p, xs) = \operatorname{findIdx}(q, xs)$$ -/
 theorem findIdx_congr {α : Type} (p q : α → Bool) (xs : List α) (h : ∀ x ∈ xs, p x = q x) :
     findIdx p xs = findIdx q xs := by
   unfold findIdx

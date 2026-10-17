@@ -41,9 +41,11 @@ theorem catalogue_queries_nodup : (catalogue.map (·.query)).Nodup := by decide
 /-- **Byte-exact CSS.** The printed normal form of every condition equals the inventory's `condition` string
 (`breakpoints.json`, schema `fw.breakpoints/1`, ids `mq.*`).
 
-$$ \forall i < 30.\ (\mathrm{id}_i, \mathrm{ts}_i, \mathrm{css}(q_i)) = (\mathrm{id}^{inv}_i, \mathrm{ts}_i, s^{inv}_i) $$
+$$ \forall i < 30.\ (\mathrm{id}_i, \mathrm{ts}_i, \mathrm{css}(q_i)) = (\mathrm{id}^{inv}_i, t_i, s^{inv}_i),\quad t = (\texttt{rmReduce}, \texttt{rmNopref}, \dots, \texttt{c1000Nodw}) $$
 
-Each condition prints exactly as the inventory writes it. -/
+where $t$ is the list of TS ids written in the theorem (`breakpoints.json` has no TS-id field).
+
+Each condition prints exactly as the inventory writes it, under the listed TS id. -/
 theorem catalogue_css : catalogue.map (fun c => (c.id, c.tsId, c.query.css)) = [
   ("mq.rm-reduce", "rmReduce", "(prefers-reduced-motion: reduce)"),
   ("mq.rm-nopref", "rmNopref", "(prefers-reduced-motion: no-preference)"),
@@ -116,13 +118,15 @@ theorem catalogue_edges : catalogue.map (fun c => (c.id, c.query.taggedEdges.map
   ("mq.c1000-nodw", [("width", 1000), ("width(touch)", 1200)])
 ] := by decide
 
-/-- The width edges and device-width edges used by `MQ.eval_congr` are exactly the inventory's edge pixels
-(per axis).
+/-- The width edges and device-width edges used by `MQ.eval_congr` are exactly the tagged edge pixels (per
+axis), and the tagged edges are the inventory's by `catalogue_edges`.
 
-$$ \forall i.\ \{N \mid N \in E_w(q_i)\} = \{N \mid (\text{width}\,|\,\text{width(touch)}, N) \in E^{inv}_i\}
-   \land \{N \mid N \in E_d(q_i)\} = \{N \mid (\text{device-width}, N) \in E^{inv}_i\} $$
+$$ \forall i < 30.\ \{N \mid N \in E_w(q_i)\} = \{N \mid (a, N) \in E(q_i),\ a \in \{\text{width}, \text{width(touch)}\}\}
+   \land \{N \mid N \in E_d(q_i)\} = \{N \mid (\text{device-width}, N) \in E(q_i)\} $$
 
-The edges in the sufficiency theorem are the inventory's edges, no more and no fewer. -/
+(and $E(q_i) = E^{inv}_i$ by `catalogue_edges`).
+
+The edges in the sufficiency theorem are the tagged edges, hence the inventory's edges, no more and no fewer. -/
 theorem catalogue_axis_edges : catalogue.all (fun c =>
     (c.query.widthEdges.all fun n => c.query.taggedEdges.any fun t => t.1 != .deviceWidth && t.2 == n) &&
     (c.query.taggedEdges.all fun t => t.1 == .deviceWidth || c.query.widthEdges.contains t.2) &&
@@ -380,9 +384,10 @@ local macro "pomega" : tactic =>
 
 /-- Height, device height and DPR never change any condition.
 
-$$ \llbracket q \rrbracket_{e[h:=h',\,d_h:=d_h',\,r:=r']} = \llbracket q \rrbracket_e $$
+$$ \forall q, e, h', d_h', r':\quad \llbracket q \rrbracket_{e[h:=h',\,d_h:=d_h',\,r:=r']} = \llbracket q \rrbracket_e $$
 
-The page has no height, device-height or resolution media query, so these inputs only affect the raster. -/
+The page has no height, device-height or resolution media query, so these inputs never change a media condition
+(height can still change layout through vh units and JS viewport-height reads). -/
 theorem MQ.eval_indep_height_dpr (q : MQ) (e : Env) (h dh r : Px) :
     q.eval { e with height := h, deviceHeight := dh, dpr := r } = q.eval e :=
   MQ.eval_congr ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩ (fun _ _ => ⟨Iff.rfl, Iff.rfl⟩) (fun _ _ => ⟨Iff.rfl, Iff.rfl⟩)
@@ -622,53 +627,83 @@ Integer probes can never land in a fractional gap. -/
 theorem no_gap_ofNat (N k : Nat) : (Px.ofNat k).LeNat N ↔ ¬ (Px.ofNat k).GeNat (N + 1) := by
   simp only [Px.LeNat, Px.GeNat, Px.ofNat]; omega
 
-/-- Gap 600 at the probe 600.5: `<=600`, `601-1279` and `601-1511` all fail, while `>600` matches.
+/-- A length of value $N + \tfrac12$ lies strictly between $N$ and $N+1$, in any representation.
 
-$$ w = 600.5 \Rightarrow e \not\models (w \le 600) \land e \not\models (601 \le w \le 1279) \land
-   e \not\models (601 \le w \le 1511) \land e \models (w > 600) $$
+$$ \forall N, p, q \in \mathbb{N},\ q > 0:\quad 2p = (2N+1)\,q \Rightarrow N q < p \land p < (N+1)\,q $$
 
-At 600.5 px the hero has neither its phone rules nor its 601+ orbit rules, but `>600` rules apply. -/
-theorem gap600 (e : Env) (h : e.width = Px.half 600) :
+A half-pixel width is never a whole pixel and never reaches the next one. -/
+theorem half_bounds (N x y : Nat) (h : 2 * x = (2 * N + 1) * y) (hy : 0 < y) : N * y < x ∧ x < (N + 1) * y := by
+  constructor <;> grind
+
+/-- The probe `Px.half N` has value $N + \tfrac12$ in the form the gap theorems take.
+
+$$ \forall N \in \mathbb{N}:\quad 2 \cdot \mathrm{num}(\mathrm{half}(N)) = (2N+1) \cdot \mathrm{den}(\mathrm{half}(N)) $$
+
+`Px.half N` satisfies the hypothesis of `gap600` … `gap1000` for its `N`. -/
+theorem half_value (N : Nat) : 2 * (Px.half N).num = (2 * N + 1) * (Px.half N).den :=
+  Nat.mul_comm 2 (2 * N + 1)
+
+/-- Gap 600 at any width whose value is 600.5: `<=600`, `601-1279` and `601-1511` all fail, while `>600` matches.
+
+$$ \forall e.\ \tfrac{p_w}{q_w} = \tfrac{1201}{2}\ (\text{i.e. } 2p_w = 1201\,q_w) \Rightarrow e \not\models (w \le 600) \land
+   e \not\models (601 \le w \le 1279) \land e \not\models (601 \le w \le 1511) \land e \models (w > 600) $$
+
+At 600.5 px (in any representation, e.g. `Px.half 600` or 2402/4) the hero has neither its phone rules nor its 601+
+orbit rules, but `>600` rules apply. -/
+theorem gap600 (e : Env) (h : 2 * e.width.num = 1201 * e.width.den) :
     ¬ wLe600.Holds e ∧ ¬ w601to1279.Holds e ∧ ¬ w601to1511.Holds e ∧ wGt600.Holds e := by
-  rw [wLe600_iff, w601to1279_iff, w601to1511_iff, wGt600_iff, h]
-  simp only [Px.LeNat, Px.GeNat, Px.GtNat, Px.half]
-  omega
+  rw [wLe600_iff, w601to1279_iff, w601to1511_iff, wGt600_iff]
+  simp only [Px.LeNat, Px.GeNat, Px.GtNat]
+  obtain ⟨_, _⟩ := half_bounds 600 _ _ h e.width.den_pos
+  clear h
+  and_intros <;> omega
 
-/-- Gap 640 at the probe 640.5: `<=640` and `641-1000` fail, while `>640` matches.
+/-- Gap 640 at any width whose value is 640.5: `<=640` and `641-1000` fail, while `>640` matches.
 
-$$ w = 640.5 \Rightarrow e \not\models (w \le 640) \land e \not\models (641 \le w \le 1000) \land e \models (w > 640) $$
+$$ \forall e.\ \tfrac{p_w}{q_w} = \tfrac{1281}{2}\ (\text{i.e. } 2p_w = 1281\,q_w) \Rightarrow e \not\models (w \le 640) \land
+   e \not\models (641 \le w \le 1000) \land e \models (w > 640) $$
 
-At 640.5 px neither the phone geometry nor the commission tablet band applies, but the `>640` nav background does. -/
-theorem gap640 (e : Env) (h : e.width = Px.half 640) :
+At 640.5 px (in any representation) neither the phone geometry nor the commission tablet band applies, but the
+`>640` nav background does. -/
+theorem gap640 (e : Env) (h : 2 * e.width.num = 1281 * e.width.den) :
     ¬ wLe640.Holds e ∧ ¬ w641to1000.Holds e ∧ wGt640.Holds e := by
-  rw [wLe640_iff, w641to1000_iff, wGt640_iff, h]
-  simp only [Px.LeNat, Px.GeNat, Px.GtNat, Px.half]
-  omega
+  rw [wLe640_iff, w641to1000_iff, wGt640_iff]
+  simp only [Px.LeNat, Px.GeNat, Px.GtNat]
+  obtain ⟨_, _⟩ := half_bounds 640 _ _ h e.width.den_pos
+  clear h
+  and_intros <;> omega
 
-/-- Gap 860 at the probe 860.5: `<=860`, `>=861`, `>=861 and no-preference` and `861-1000` all fail.
+/-- Gap 860 at any width whose value is 860.5: `<=860`, `>=861`, `>=861 and no-preference` and `861-1000` all fail.
 
-$$ w = 860.5 \Rightarrow e \not\models (w \le 860) \land e \not\models (w \ge 861) \land
-   e \not\models (w \ge 861 \land \mu = \text{no-preference}) \land e \not\models (861 \le w \le 1000) $$
-
-At 860.5 px neither the pure-width phone path nor the desktop path matches, in CSS and in JS. -/
-theorem gap860 (e : Env) (h : e.width = Px.half 860) :
-    ¬ wLe860.Holds e ∧ ¬ wGe861.Holds e ∧ ¬ wGe861Nopref.Holds e ∧ ¬ w861to1000.Holds e := by
-  rw [wLe860_iff, wGe861_iff, wGe861Nopref_iff, w861to1000_iff, h]
-  simp only [Px.LeNat, Px.GeNat, Px.half]
-  omega
-
-/-- Gap 1000 at the probe 1000.5: `<=1000`, `>=1001`, `>=1001 and no-preference`, `641-1000` and `861-1000` all fail.
-
-$$ w = 1000.5 \Rightarrow e \not\models (w \le 1000) \land e \not\models (w \ge 1001) \land
-   e \not\models (w \ge 1001 \land \mu = \text{no-preference}) \land e \not\models (641 \le w \le 1000) \land
+$$ \forall e.\ \tfrac{p_w}{q_w} = \tfrac{1721}{2}\ (\text{i.e. } 2p_w = 1721\,q_w) \Rightarrow e \not\models (w \le 860) \land
+   e \not\models (w \ge 861) \land e \not\models (w \ge 861 \land \mu = \text{no-preference}) \land
    e \not\models (861 \le w \le 1000) $$
 
-At 1000.5 px no width rule at the 1000 edge matches on either side. -/
-theorem gap1000 (e : Env) (h : e.width = Px.half 1000) :
+At 860.5 px (in any representation) neither the pure-width phone path nor the desktop path matches, in CSS and
+in JS. -/
+theorem gap860 (e : Env) (h : 2 * e.width.num = 1721 * e.width.den) :
+    ¬ wLe860.Holds e ∧ ¬ wGe861.Holds e ∧ ¬ wGe861Nopref.Holds e ∧ ¬ w861to1000.Holds e := by
+  rw [wLe860_iff, wGe861_iff, wGe861Nopref_iff, w861to1000_iff]
+  simp only [Px.LeNat, Px.GeNat]
+  obtain ⟨_, _⟩ := half_bounds 860 _ _ h e.width.den_pos
+  clear h
+  and_intros <;> omega
+
+/-- Gap 1000 at any width whose value is 1000.5: `<=1000`, `>=1001`, `>=1001 and no-preference`, `641-1000` and
+`861-1000` all fail.
+
+$$ \forall e.\ \tfrac{p_w}{q_w} = \tfrac{2001}{2}\ (\text{i.e. } 2p_w = 2001\,q_w) \Rightarrow e \not\models (w \le 1000) \land
+   e \not\models (w \ge 1001) \land e \not\models (w \ge 1001 \land \mu = \text{no-preference}) \land
+   e \not\models (641 \le w \le 1000) \land e \not\models (861 \le w \le 1000) $$
+
+At 1000.5 px (in any representation) no width rule at the 1000 edge matches on either side. -/
+theorem gap1000 (e : Env) (h : 2 * e.width.num = 2001 * e.width.den) :
     ¬ wLe1000.Holds e ∧ ¬ wGe1001.Holds e ∧ ¬ wGe1001Nopref.Holds e ∧ ¬ w641to1000.Holds e ∧
       ¬ w861to1000.Holds e := by
-  rw [wLe1000_iff, wGe1001_iff, wGe1001Nopref_iff, w641to1000_iff, w861to1000_iff, h]
-  simp only [Px.LeNat, Px.GeNat, Px.half]
-  omega
+  rw [wLe1000_iff, wGe1001_iff, wGe1001Nopref_iff, w641to1000_iff, w861to1000_iff]
+  simp only [Px.LeNat, Px.GeNat]
+  obtain ⟨_, _⟩ := half_bounds 1000 _ _ h e.width.den_pos
+  clear h
+  and_intros <;> omega
 
 end Fw.Site.Breakpoints

@@ -85,7 +85,10 @@ def touchDpr (w : Nat) : Px := if w ≤ 500 then .ofNat 3 else .ofNat 2
 
 /-- The probes at both sides of each edge for one profile.
 
-$$ \mathrm{pairs}(b, E, f) = [(b, w, f(w)) \mid N \in E,\ w \in (N, N{+}1)] $$ -/
+$$ \mathrm{pairs}(b, E, f) = [(b, \mathrm{str}(w), f(w)) \mid N \leftarrow E,\ w \leftarrow [N, N{+}1]] $$
+
+(list comprehension in order: for each edge, first the probe at $N$, then the probe at $N+1$; the tag is the
+decimal text of $w$). -/
 def pairProbes (block : Block) (edges : List Nat) (mk : Nat → Env) : List Probe :=
   edges.flatMap fun n => [n, n + 1].map fun w => ⟨block, toString w, mk w⟩
 
@@ -200,10 +203,10 @@ theorem matrix_observes_every_edge :
     (catalogue.all fun c => c.query.taggedEdges.all fun (tag, n) => observesFlip c.query tag n) = true := by
   decide +kernel
 
-/-- **Desktop-profile pairs differ only in size.** In the `desk`, `desk-rm` and `touch` blocks, the probes at `N`
-and `N+1` agree on every discrete feature.
+/-- **Desktop-profile pairs differ only in size.** In the desk, desk-rm, touch and touch-rm blocks, the probes at
+`N` and `N+1` agree on every discrete feature.
 
-$$ \forall b\ \forall N \in E_{15}\ \forall p, p' \in M_b.\ w(p) = N \land w(p') = N{+}1 \Rightarrow p \sim p' $$
+$$ \forall b \in \{\text{desk}, \text{desk-rm}, \text{touch}, \text{touch-rm}\}\ \forall N \in E_{15}\ \forall p, p' \in M_b.\ w(p) = N \land w(p') = N{+}1 \Rightarrow p \sim p' $$
 
 An edge pair varies the width (and the screen width that tracks it), nothing else a query reads. -/
 theorem matrix_pairs_agree :
@@ -213,15 +216,16 @@ theorem matrix_pairs_agree :
           decide (Agree p.env p'.env)) = true := by
   decide +kernel
 
-/-- **Fractional probes land in the gaps.** Each `fractional-gaps` probe has a width strictly between `N` and
-`N+1` for its edge `N`, so neither `(width<=N)` nor `(width>=N+1)` matches.
+/-- **Fractional probes land in the gaps, one per gap.** Listing, for each `fractional-gaps` probe in matrix
+order, the edges `N` among 600, 640, 860, 1000 with `N < w < N+1` gives exactly `[600], [640], [860], [1000]`:
+there are four probes, each lies strictly inside exactly one gap, and the four gaps are distinct.
 
-$$ \forall p \in M_{\text{frac}}\ \exists N \in \{600, 640, 860, 1000\}.\ N < w(p) < N{+}1 $$
+$$ \big(\,[N \leftarrow (600, 640, 860, 1000) \mid N < w(p) < N{+}1]\,\big)_{p \in M_{\text{frac}}} = ([600], [640], [860], [1000]) $$
 
-The four fractional loads really probe the four gaps. -/
+The four fractional loads cover the four gaps at 600, 640, 860 and 1000, one load strictly inside each. -/
 theorem matrix_fractional_in_gaps :
-    ((matrix.filter (·.block == .fractionalGaps)).all fun p => [600, 640, 860, 1000].any fun n =>
-      decide (p.env.width.GtNat n) && !decide (p.env.width.GeNat (n + 1))) = true := by
+    (matrix.filter (·.block == .fractionalGaps)).map (fun p => [600, 640, 860, 1000].filter fun n =>
+      decide (p.env.width.GtNat n) && !decide (p.env.width.GeNat (n + 1))) = [[600], [640], [860], [1000]] := by
   decide +kernel
 
 /-! ## Neutral queries emitted by MUI internals -/
@@ -317,7 +321,7 @@ no combo's touch arm matches, so at 1200 px (screen 1200) no combo matches at al
 `c1030` matches, through its width arm.
 
 $$ \forall p \in M_{\text{cross}}.\ \neg\mathrm{touch}(p) \land
-   (w(p) = 1200 \Rightarrow \bigwedge_{C} p \not\models C) \land
+   (w(p) = 1200 \Rightarrow \textstyle\bigwedge_{C \in \{C_{860}, C_{1000}, C_{1030}, C^{nodw}_{1000}\}} p \not\models C) \land
    (w(p) = 1024 \Rightarrow p \models C_{1030} \land p \not\models C_{860} \land p \not\models C_{1000} \land p \not\models C^{nodw}_{1000}) $$
 
 Half a touch device is not a touch device; note that `c1030` still matches at 1024 px by width. -/
@@ -333,8 +337,11 @@ theorem matrix_cross_no_touch_arm :
 `c860`, `c1000`, `c1030` and never `c1000Nodw`; at viewport 1001 it flips `c860` and `c1000` while `c1030`
 already holds by width.
 
-$$ \forall v \in \{1031, 1201\}.\ \bigwedge_{C \in \{C_{860}, C_{1000}, C_{1030}\}} (p_{v,500} \models C \land p_{v,501} \not\models C)
-   \land \forall v.\ p_{v,s} \not\models C^{nodw}_{1000} $$
+$$ \forall p \in M_{\text{dw}}.\ p \not\models C^{nodw}_{1000} \land \big(d_w(p) = 500 \Rightarrow p \models C_{860} \land p \models C_{1000} \land p \models C_{1030}\big)
+   \land \big(d_w(p) \ne 500 \Rightarrow p \not\models C_{860} \land p \not\models C_{1000} \land (p \models C_{1030} \iff w(p) = 1001)\big) $$
+
+(structural equality of `Px` values, as in the Lean; the block's probes are the viewports 1001, 1031, 1201 at
+screens 500 and 501.)
 
 Only the device-width arm separates the combos from the countdown combo. -/
 theorem matrix_dw_arm :
@@ -346,9 +353,10 @@ theorem matrix_dw_arm :
   decide +kernel
 
 /-- Phone landscape (932×430 on a 430×932 screen, touch) is in the C860 / `>=861` overlap for both motion
-settings, but **not** in the C1000 / `>=1001` overlap: 932 < 1001, so only C1000 matches there. (The inventory's
-`phone-landscape.why` claims both overlap pairs; the C1000 one needs a viewport of at least 1001 px with a small
-screen or touch, which the `touch` probes at 1031 and 1200 and the `dw-arm-isolate` probes provide.)
+settings, but **not** in the C1000 / `>=1001` overlap: 932 < 1001, so only C1000 matches there. (As the
+inventory's `phone-landscape.why` states, the C1000 / `>=1001` overlap needs a viewport of at least 1001 px with a
+small screen or touch; the `touch` probes at 1031 and 1200 and the `dw-arm-isolate` probes with screen 500 provide
+it.)
 
 $$ \forall p \in M_{\text{landscape}}.\ p \models C_{860} \land p \models (w \ge 861) \land p \models C_{1000} \land p \not\models (w \ge 1001) $$
 

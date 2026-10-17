@@ -223,13 +223,40 @@ def exitFrame (reduced : Bool) (trackTop trackHeight viewportHeight : Rat) : Exi
 
 $$\forall T, h, v,\ y_1 \le y_2:\quad \operatorname{pointerOff}(\operatorname{exitOpacityAt}(y_1)) \Rightarrow \operatorname{pointerOff}(\operatorname{exitOpacityAt}(y_2))$$
 
-There is a single scroll position past which the hero ignores taps; it never flickers back on while scrolling down. -/
+Once the hero ignores taps, scrolling further down keeps it that way; it never flickers back on while scrolling
+down. -/
 theorem pointerOff_mono (T h v y1 y2 : Rat) (hy : y1 ≤ y2) (hp : pointerOff (exitOpacityAt T h v y1) = true) :
     pointerOff (exitOpacityAt T h v y2) = true := by
   have := exitOpacity_antitone T h v y1 y2 hy
   unfold pointerOff at *
   simp only [decide_eq_true_eq] at *
   grind
+
+/-- The pointer-off threshold: pointer events are off exactly when the scroll is strictly past
+$T + \tfrac{19}{20} n$.
+
+$$\forall T, h, v, y \in \mathbb{Q}:\quad \operatorname{pointerOff}(\operatorname{exitOpacityAt}(T, h, v, y)) \iff y > T + \tfrac{19}{20}\,n,\quad n = \max(1, h - v)$$
+
+There is a single scroll position, 95% of the way through the exit range, past which the hero ignores taps. -/
+theorem pointerOff_iff_threshold (T h v y : Rat) :
+    pointerOff (exitOpacityAt T h v y) = true ↔ T + 19 / 20 * exitRange h v < y := by
+  have hn := exitRange_pos h v
+  have q := div_mul_pos (exitClamp (T - y) (exitRange h v)) (exitRange h v) hn
+  unfold pointerOff exitOpacityAt exitOpacity
+  simp only [decide_eq_true_eq]
+  generalize hx : exitClamp (T - y) (exitRange h v) / exitRange h v = x at q
+  have hc : exitClamp (T - y) (exitRange h v) = min (exitRange h v) (max 0 (-(T - y))) := rfl
+  constructor
+  · intro hlt
+    have := Rat.mul_lt_mul_of_pos_right (show 19 / 20 < x by grind) hn
+    grind
+  · intro hgt
+    apply Classical.byContradiction; intro hge
+    have hx' : x ≤ 19 / 20 := by grind
+    rcases Rat.le_iff_lt_or_eq.mp hx' with hl | he
+    · have := Rat.mul_lt_mul_of_pos_right hl hn
+      grind
+    · subst he; grind
 
 /-! ## The nav's restatement and the 0.72 threshold (single owner) -/
 

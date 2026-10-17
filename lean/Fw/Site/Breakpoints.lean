@@ -215,23 +215,23 @@ $$ \mathrm{kw}(\text{none}) = \texttt{none},\ \mathrm{kw}(\text{hover}) = \textt
 def hoverKw : Hover → String | .none => "none" | .hover => "hover"
 /-- CSS keyword of a `pointer` value.
 
-$$ \mathrm{kw}(v) \in \{\texttt{none}, \texttt{coarse}, \texttt{fine}\} $$ -/
+$$ \mathrm{kw}(\text{none}) = \texttt{none},\ \mathrm{kw}(\text{coarse}) = \texttt{coarse},\ \mathrm{kw}(\text{fine}) = \texttt{fine} $$ -/
 def pointerKw : Pointer → String | .none => "none" | .coarse => "coarse" | .fine => "fine"
 /-- CSS keyword of a `prefers-reduced-motion` value.
 
-$$ \mathrm{kw}(v) \in \{\texttt{no-preference}, \texttt{reduce}\} $$ -/
+$$ \mathrm{kw}(\text{no-preference}) = \texttt{no-preference},\ \mathrm{kw}(\text{reduce}) = \texttt{reduce} $$ -/
 def motionKw : Motion → String | .noPreference => "no-preference" | .reduce => "reduce"
 /-- CSS keyword of a `prefers-color-scheme` value.
 
-$$ \mathrm{kw}(v) \in \{\texttt{light}, \texttt{dark}\} $$ -/
+$$ \mathrm{kw}(\text{light}) = \texttt{light},\ \mathrm{kw}(\text{dark}) = \texttt{dark} $$ -/
 def schemeKw : Scheme → String | .light => "light" | .dark => "dark"
 /-- CSS keyword of a media type.
 
-$$ \mathrm{kw}(v) \in \{\texttt{screen}, \texttt{print}\} $$ -/
+$$ \mathrm{kw}(\text{screen}) = \texttt{screen},\ \mathrm{kw}(\text{print}) = \texttt{print} $$ -/
 def mediaTypeKw : MediaType → String | .screen => "screen" | .print => "print"
 /-- CSS keyword of a `forced-colors` value.
 
-$$ \mathrm{kw}(v) \in \{\texttt{none}, \texttt{active}\} $$ -/
+$$ \mathrm{kw}(\text{none}) = \texttt{none},\ \mathrm{kw}(\text{active}) = \texttt{active} $$ -/
 def forcedColorsKw : ForcedColors → String | .none => "none" | .active => "active"
 
 /-- The feature in the inventory's normal form (range syntax, no spaces around the comparison,
@@ -252,7 +252,7 @@ def css : Feature → String
 
 /-- The feature in legacy `min-`/`max-` syntax, if one exists (`width > N` has no exact legacy form).
 
-$$ \mathrm{legacy}(w \le N) = \texttt{(max-width: }N\texttt{px)},\ \mathrm{legacy}(w > N) = \bot,\ \mathrm{legacy}(w \ge N{+}1) = \texttt{(min-width: }N{+}1\texttt{px)} $$ -/
+$$ \mathrm{legacy}(w \le N) = \texttt{(max-width: }N\texttt{px)},\ \mathrm{legacy}(w > N) = \bot,\ \mathrm{legacy}(w \ge N{+}1) = \texttt{(min-width: }N{+}1\texttt{px)},\ \mathrm{legacy}(d_w \le N) = \texttt{(max-device-width: }N\texttt{px)},\ \mathrm{legacy}(f) = \mathrm{css}(f) \text{ otherwise} $$ -/
 def legacyCss : Feature → Option String
   | widthLe n => some s!"(max-width: {n}px)"
   | widthGt _ => none
@@ -327,9 +327,9 @@ instance (q : MQ) (e : Env) : Decidable (q.Holds e) := inferInstanceAs (Decidabl
 $$ \mathrm{css}(q) = \mathrm{join}_{\texttt{, }}\big(\mathrm{join}_{\texttt{ and }}(\mathrm{css}(f_{ij}))_j\big)_i $$ -/
 def css (q : MQ) : String := ", ".intercalate (q.arms.map fun arm => " and ".intercalate (arm.map Feature.css))
 
-/-- Legacy `min-`/`max-` text, if every feature has a legacy form.
+/-- Legacy `min-`/`max-` text, if every feature has a legacy form; none otherwise.
 
-$$ \mathrm{legacy}(q) = \mathrm{join}_{\texttt{, }}\big(\mathrm{join}_{\texttt{ and }}(\mathrm{legacy}(f_{ij}))_j\big)_i \text{ if every } \mathrm{legacy}(f_{ij}) \ne \bot $$ -/
+$$ \mathrm{legacy}(q) = \begin{cases} \mathrm{join}_{\texttt{, }}\big(\mathrm{join}_{\texttt{ and }}(\mathrm{legacy}(f_{ij}))_j\big)_i & \forall i,j.\ \mathrm{legacy}(f_{ij}) \ne \bot \\ \bot & \text{otherwise} \end{cases} $$ -/
 def legacyCss (q : MQ) : Option String := do
   let arms ← q.arms.mapM fun arm => do
     let fs ← arm.mapM Feature.legacyCss
@@ -360,7 +360,7 @@ def pushNew {α} [BEq α] (l : List α) (x : α) : List α := if l.contains x th
 /-- The inventory's tagged edges in order of first appearance: `(axis, N)` where the axis is `width`,
 `device-width`, or `width(touch)` for a width bound inside a touch arm.
 
-$$ E(q) = \mathrm{dedup}\,[(a(f), N) \mid f \in q,\ N \in E_w(f) \cup E_d(f)] $$ -/
+$$ E(q) = \mathrm{dedup}_{\text{first}}\,[(a(A_i,f), N) \mid i \text{ in order},\ f \in A_i \text{ in order},\ N \in E_w(f) \mathbin{+\!\!+} E_d(f)],\quad a(A,f) = \begin{cases} \text{device-width} & f = (d_w \le N) \\ \text{width(touch)} & f \text{ a width test} \land \mathrm{touchArm}(A) \\ \text{width} & f \text{ a width test} \land \neg\mathrm{touchArm}(A) \end{cases} $$ -/
 def taggedEdges (q : MQ) : List (Axis × Nat) :=
   q.arms.foldl (init := []) fun acc arm =>
     arm.foldl (init := acc) fun acc f =>
@@ -400,7 +400,7 @@ def touchArm : List Feature := [hover .none, pointer .coarse, widthLe 1200]
 
 /-- Combo `N`: `(width<=Npx), (device-width<=500px), <touch arm>`; without the device-width arm if `dw = false`.
 
-$$ C_N = (w \le N) \lor (d_w \le 500) \lor (\eta = \mathrm{none} \land \pi = \mathrm{coarse} \land w \le 1200) $$
+$$ C_{N,dw} = \begin{cases} (w \le N) \lor (d_w \le 500) \lor (\eta = \mathrm{none} \land \pi = \mathrm{coarse} \land w \le 1200) & dw = \mathrm{true} \\ (w \le N) \lor (\eta = \mathrm{none} \land \pi = \mathrm{coarse} \land w \le 1200) & dw = \mathrm{false} \end{cases} \quad \text{(arms in this order)} $$
 
 The phone-or-small-device-or-touch-tablet query family; `combo N false` drops the middle arm. -/
 def combo (n : Nat) (dw : Bool := true) : MQ :=
@@ -535,7 +535,7 @@ deriving DecidableEq, Repr
 
 /-- The inventory's `kind` string.
 
-$$ \mathrm{str}(\kappa) \in \{\texttt{css-media}, \texttt{js-matchMedia}, \texttt{css-media+js-matchMedia}\} $$ -/
+$$ \mathrm{str}(\text{css}) = \texttt{css-media},\ \mathrm{str}(\text{js}) = \texttt{js-matchMedia},\ \mathrm{str}(\text{css+js}) = \texttt{css-media+js-matchMedia} $$ -/
 def Kind.str : Kind → String
   | .css => "css-media" | .js => "js-matchMedia" | .cssJs => "css-media+js-matchMedia"
 

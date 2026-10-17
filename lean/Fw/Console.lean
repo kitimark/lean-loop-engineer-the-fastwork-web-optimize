@@ -260,9 +260,9 @@ $$\operatorname{cardRefusal}(c, b) = \begin{cases}
 L \text{ if } \mathit{landed};\ \texttt{"already approved"} \text{ if } \mathit{approved};\ \bot & b = \mathrm{cardApprove} \\
 L \text{ if } \mathit{landed};\ \bot & b = \mathrm{cardBuild} \text{ or } \mathrm{cardLanded} \\
 L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\ \bot \text{ if } \mathit{pass};\ \texttt{"failed screen does not advance the card"} & b = \mathrm{cardScreen}(\cdot, \mathit{sha}, \mathit{pass}) \\
-L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\\texttt{"reviewer owns or built this card"} \text{ if } r = \mathit{owner} \lor r \in \mathit{builders};\ \bot \text{ if } \mathit{ok};\ \texttt{"rejected review does not advance the card"} & b = \mathrm{cardReview}(\cdot, \mathit{sha}, r, \mathit{ok}) \\
-L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\\bot \text{ if } \mathit{better};\ \texttt{"not better: device evidence not recorded"} & b = \mathrm{cardSwipe}(\cdot, \mathit{sha}, \mathit{better}) \\
-L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\\bot \text{ if } \operatorname{ready}(c);\ \texttt{"card is not land-ready"} & b = \mathrm{cardLandRequest}(\cdot, \mathit{sha}) \\
+L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\ \texttt{"reviewer owns or built this card"} \text{ if } r = \mathit{owner} \lor r \in \mathit{builders};\ \bot \text{ if } \mathit{ok};\ \texttt{"rejected review does not advance the card"} & b = \mathrm{cardReview}(\cdot, \mathit{sha}, r, \mathit{ok}) \\
+L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\ \bot \text{ if } \mathit{better};\ \texttt{"not better: device evidence not recorded"} & b = \mathrm{cardSwipe}(\cdot, \mathit{sha}, \mathit{better}) \\
+L \text{ if } \mathit{landed};\ \Sigma \text{ if } \mathit{head} \ne \mathit{sha};\ \bot \text{ if } \operatorname{ready}(c);\ \texttt{"card is not land-ready"} & b = \mathrm{cardLandRequest}(\cdot, \mathit{sha}) \\
 \bot & \text{any other body}
 \end{cases}$$
 -/

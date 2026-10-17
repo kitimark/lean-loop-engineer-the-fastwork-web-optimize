@@ -21,9 +21,12 @@ open Lean
 
 /-! ## Encoders -/
 
-/-- Exact decimal of a rational with a terminating expansion (denominator $2^a 5^b$), if any.
+/-- Exact decimal of a rational whose reduced denominator is $2^a 5^b$ with $a, b \le 40$ (i.e. divides
+$10^{40}$), with the fewest digits; none otherwise.
 
-$$\operatorname{dec}(q) = (m, e)\ \text{with}\ q = m \cdot 10^{-e},\ e \le 40$$
+$$\operatorname{dec}(q) = \begin{cases} \operatorname{some}\big(q.\mathrm{num} \cdot \tfrac{10^{e}}{q.\mathrm{den}},\ e\big),\ e = \min\{e \le 40 : q.\mathrm{den} \mid 10^{e}\} & \text{if such } e \text{ exists} \\ \operatorname{none} & \text{otherwise} \end{cases}$$
+
+where $(m, e)$ stands for the JSON number $m \cdot 10^{-e}$ (so $q = m \cdot 10^{-e}$ in the first case).
 
 The JSON number for a rational input, when one exists. -/
 def decimal? (q : Rat) : Option JsonNumber :=
@@ -35,7 +38,9 @@ def ratWire (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("de
 
 /-- A rational input: an exact JSON decimal, else the wire form.
 
-$$\operatorname{rin}(q) = \begin{cases} \operatorname{dec}(q) & \text{terminating} \\ \operatorname{wire}(q) & \text{otherwise} \end{cases}$$
+$$\operatorname{rin}(q) = \begin{cases} n & \operatorname{dec}(q) = \operatorname{some}(n) \\ \operatorname{wire}(q) & \operatorname{dec}(q) = \operatorname{none} \end{cases}$$
+
+(so a terminating $q$ whose denominator does not divide $10^{40}$, e.g. $2^{-41}$, goes to the wire form).
 
 How a rational argument is written into a golden line. -/
 def rin (q : Rat) : Json := match decimal? q with
@@ -163,7 +168,11 @@ end Nav
 section Countdown
 open Fw.Parts.HeroCountdown
 
-/-- JSON of a spring state. $$(x, v) \mapsto \{\mathrm{value}, \mathrm{velocity}\}$$ A spring as JSON. -/
+/-- JSON of a spring state, in the wire form or as `rin` inputs.
+
+$$\operatorname{springJ}(\mathit{wire}, (x, v)) = \{\mathrm{value}: \operatorname{enc}(x), \mathrm{velocity}: \operatorname{enc}(v)\},\quad \operatorname{enc} = \begin{cases} \operatorname{wire} & \mathit{wire} \\ \operatorname{rin} & \lnot\mathit{wire} \end{cases}$$
+
+A spring as JSON. -/
 def springJ (wire : Bool) (s : Spring) : Json :=
   if wire then Json.mkObj [("value", ratWire s.value), ("velocity", ratWire s.velocity)]
   else Json.mkObj [("value", rin s.value), ("velocity", rin s.velocity)]
@@ -278,9 +287,10 @@ def exitSpecLines : List String :=
 
 end Exit
 
-/-- Write every golden file into `outDir` (first argument, default `../packages/contracts/golden/parts`).
+/-- Write the 7 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
+one `.jsonl` per pilot part, and a `.spec.jsonl` for every pilot part except `hero.countdown` (which has none).
 
-$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl}, \mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \mathrm{pilot}\}$$
+$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\},\quad |\mathit{files}| = 7$$
 
 Regenerates the pilot parts' golden vectors from the Lean definitions. -/
 def main (args : List String) : IO Unit := do

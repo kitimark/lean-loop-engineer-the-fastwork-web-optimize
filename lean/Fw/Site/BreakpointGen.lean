@@ -78,9 +78,9 @@ def backingTheorems : List String := [
   "Fw.Site.Breakpoints.gap_iff", "Fw.Site.Breakpoints.matrix_neutral_inert",
   "Fw.Site.Breakpoints.matrix_neutral_hover_both_sides"]
 
-/-- The fractional gaps: lower and upper feature, and the probe width.
+/-- The fractional gaps: lower and upper feature, the open pair, and the probe width.
 
-$$ \mathrm{gaps} = ((w \le N, w \ge N{+}1, N + \tfrac12))_{N \in \{600, 640, 860, 1000\}} $$
+$$ \mathrm{gaps} = \big(\{\mathrm{lower}{=}\mathrm{css}(w \le N),\ \mathrm{upper}{=}\mathrm{css}(w \ge N{+}1),\ \mathrm{open}{=}[N, N{+}1],\ \mathrm{probe}{=}N + \tfrac12\}\big)_{N = 600, 640, 860, 1000} $$
 
 The four gaps the inventory names, with their probes. -/
 def gapsJson : Json :=
@@ -90,7 +90,7 @@ def gapsJson : Json :=
 
 /-- The generated document.
 
-$$ \mathrm{genJson} = \{\mathrm{conditions}, \mathrm{edgePairs}, \mathrm{fractionalGaps}, \mathrm{neutral}, \mathrm{matrix}\} $$
+$$ \mathrm{genJson} = \{\mathrm{schema}{=}\texttt{fw.breakpoints.gen/1},\ \mathrm{generatedBy},\ \mathrm{inventory},\ \mathrm{backingTheorems},\ \mathrm{conditions},\ \mathrm{edgePairs},\ \mathrm{fractionalGaps},\ \mathrm{neutral},\ \mathrm{matrix}\} $$
 
 The single source the site and the breakpoint gate consume. -/
 def genJson : Json :=
@@ -125,17 +125,20 @@ def getK (j : Json) (k : String) : Json := (j.getObjVal? k).toOption.getD .null
 
 /-- A JSON list of naturals, if it is one.
 
-$$ \mathrm{natList}(j) \in \mathbb{N}^* \cup \{\bot\} $$ -/
+$$ \mathrm{natList}(j) = \begin{cases} (n_1,\dots,n_k) & j = [n_1,\dots,n_k],\ n_i \in \mathbb{N} \\ \bot & \text{otherwise} \end{cases} $$ -/
 def natList (j : Json) : Option (List Nat) := (fromJson? j : Except String (List Nat)).toOption
 
 /-- A JSON list of strings, if it is one.
 
-$$ \mathrm{strList}(j) \in \Sigma^{**} \cup \{\bot\} $$ -/
+$$ \mathrm{strList}(j) = \begin{cases} (s_1,\dots,s_k) & j = [s_1,\dots,s_k],\ s_i \text{ strings} \\ \bot & \text{otherwise} \end{cases} $$ -/
 def strList (j : Json) : Option (List String) := (fromJson? j : Except String (List String)).toOption
 
 /-- Mismatches of one catalogue row against its inventory row (empty when equal).
 
-$$ \mathrm{checkCond}(c, r) = [\,] \iff \mathrm{css}(q) = r.\mathrm{condition} \land \kappa = r.\mathrm{kind} \land \mathrm{features}(q) = r.\mathrm{features} \land E(q) = r.\mathrm{edges} \land \dots $$ -/
+$$ \mathrm{checkCond}(c, r) = [\,] \iff r.\mathrm{id} = c.\mathrm{id} \land r.\mathrm{condition} = \mathrm{css}(q) \land r.\mathrm{kind} = \mathrm{str}(\kappa) \land r.\mathrm{features} = \mathrm{features}(q) \land r.\mathrm{edges} = [(\mathrm{str}(a), [N, N{+}1])]_{(a,N) \in E(q)} \land r.\mathrm{edges\_px} = \mathrm{edgesPx}(q) \land \big((\exists s \in r.\mathrm{equivalentForms}.\ s \text{ starts with } \texttt{(}) \Rightarrow \mathrm{legacy}(q) \ne \bot \land \mathrm{legacy}(q) \in r.\mathrm{equivalentForms}\big) $$
+
+(Each equality requires the inventory field to have the right JSON type; an `equivalentForms` that is not a list of
+strings counts as empty.) -/
 def checkCond (c : Entry) (inv : Json) : List String :=
   let s (k : String) : Option String := (getK inv k).getStr?.toOption
   let edgesInv : Option (List (String × Nat)) :=
@@ -163,9 +166,14 @@ def checkCond (c : Entry) (inv : Json) : List String :=
 
 /-- Every mismatch between the Lean catalogue / matrix and the inventory document (empty when they agree).
 
-$$ \mathrm{checkInventory}(I) = [\,] \iff \forall i < 30.\ \mathrm{row}_i(\mathrm{catalogue}) = \mathrm{row}_i(I) \land M \text{ agrees with } I.\mathrm{matrix} $$
+$$ \mathrm{checkInventory}(I) = [\,] \iff |R| = 30 \land \forall i < 30.\ \mathrm{checkCond}(c_i, R_i) = [\,] \land I.\mathrm{edgePairs} = [[N,N{+}1]]_{N \in \mathrm{widthEdgePairs}} \land I.\mathrm{deviceWidthPairs} = [[500,501]] \land I.\text{touch-rm.at} = [[N,N{+}1]]_{N \in \mathrm{touchRmEdges}} \land I.\mathrm{estimate.loadsPerEngine} = |M| \land \forall (b,n) \in \mathrm{blockBreakdown}.\ I.\mathrm{estimate.breakdown}[b] = n $$
 
-The generator refuses to write unless this list is empty. -/
+Here $R$ is the list of `I.conditions` rows whose id starts with `mq.`, in order, $c_i$ is the $i$-th catalogue
+entry, and every `I.*` field other than `conditions` is read under `I.matrix` (`touch-rm.at` is the `at` field of
+the `featureCombos.profiles` entry with id `touch-rm`).
+
+`run` exits 1 when `--inventory` is given and this list is not empty; `opBreakpointsGen` returns the list next to
+`gen`. -/
 def checkInventory (inv : Json) : List String :=
   let rows := match getK inv "conditions" with
     | .arr cs => cs.toList.filter fun c => ((getK c "id").getStr?.toOption.getD "").startsWith "mq."
@@ -189,16 +197,19 @@ def checkInventory (inv : Json) : List String :=
 
 /-- fwcore op body `breakpoints.gen`: `{inventory?: <breakpoints.json object>}` → `{gen, mismatches}`.
 
-$$ \mathrm{op}(\mathit{req}) = \{\mathrm{gen} = \mathrm{genJson},\ \mathrm{mismatches} = \mathrm{checkInventory}(\mathit{req}.\mathrm{inventory})\} $$ -/
+$$ \mathrm{op}(\mathit{req}) = \mathrm{ok}\,\{\mathrm{gen} = \mathrm{genJson},\ \mathrm{mismatches} = \begin{cases} \mathrm{checkInventory}(\mathit{req}.\mathrm{inventory}) & \text{inventory} \in \mathit{req} \\ [\,] & \text{otherwise} \end{cases}\} $$
+
+The result is always `ok`; a request without an `inventory` key (or one that is not a JSON object) gets no
+mismatches. -/
 def opBreakpointsGen (req : Json) : Except String (List (String × Json)) := do
   let mism := match req.getObjVal? "inventory" with
     | .ok inv => checkInventory inv
     | .error _ => []
   pure [("gen", genJson), ("mismatches", toJson mism)]
 
-/-- The value after flag `key` in an argument list.
+/-- The value after the first occurrence of flag `key` that has a successor in the argument list.
 
-$$ \mathrm{argOf}(\dots, k, v, \dots;\ k) = v $$ -/
+$$ \mathrm{argOf}(l, k) = \begin{cases} l_{i+1} & i = \min\{i \mid l_i = k,\ i+1 < |l|\} \\ \bot & \text{no such } i \end{cases} $$ -/
 def argOf : List String → String → Option String
   | k :: v :: rest, key => if k == key then some v else argOf (v :: rest) key
   | _, _ => none
@@ -217,7 +228,9 @@ def genText : String := genJson.pretty 120 ++ "\n"
 `--check` it prints the generated JSON to stdout; with `--check <file>` it fails when the file's bytes differ from
 the generated text; with `--inventory` it first fails on any mismatch against the inventory.
 
-$$ \mathrm{run}(I, f) = \begin{cases} 1 & \mathrm{checkInventory}(I) \ne [\,] \\ 1 & f \text{ given} \land \mathrm{bytes}(f) \ne \mathrm{utf8}(\mathrm{genText}) \\ 0,\ \text{stdout} := \mathrm{genText} \text{ unless } f \text{ given} & \text{otherwise} \end{cases} $$ -/
+$$ \mathrm{run}(\mathit{args}) = \begin{cases} 2 & \texttt{--inventory } P \text{ given} \land P \text{ does not parse as JSON} \\ 1 & \texttt{--inventory } P \text{ given} \land \mathrm{checkInventory}(I_P) \ne [\,] \\ 0 & \text{else if } \texttt{--check } f \text{ given} \land \mathrm{bytes}(f) = \mathrm{utf8}(\mathrm{genText}) \\ 1 & \text{else if } \texttt{--check } f \text{ given} \\ 0,\ \text{stdout} := \mathrm{genText} & \text{otherwise} \end{cases} $$
+
+(An unreadable file raises an IO error; flags are found by `argOf`.) -/
 def run (args : List String) : IO UInt32 := do
   if let some invPath := argOf args "--inventory" then
     let inv ← match Json.parse (← IO.FS.readFile invPath) with

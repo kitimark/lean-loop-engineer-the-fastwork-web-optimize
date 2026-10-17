@@ -26,7 +26,7 @@ Lean states every media condition, proves its edges, its overlaps and the gaps, 
 | C860 and `>=861` overlap exactly when the width is at least 861 and either the screen is at most 500 or the input is touch at up to 1200 | `overlap_c860_wGe861` (also `overlap_c1000_wGe1001`, `overlap_c1000_wGe1001Nopref`) |
 | Pure 860 is not C860 | `c860_not_wLe860` |
 | The JS desktop deck is off on touch tablets and small screens | `deskDeck_iff`, `touchTablet_overlap`, `smallScreen_overlap` |
-| The four fractional gaps are real, and integer probes never land in them | `gap_iff`, `no_gap_ofNat`, `gap600`, `gap640`, `gap860`, `gap1000` |
+| The four fractional gaps are real (at any width of value N+½, in any representation), and integer probes never land in them | `gap_iff`, `no_gap_ofNat`, `half_bounds`, `half_value`, `gap600`, `gap640`, `gap860`, `gap1000`; one fractional load per gap: `matrix_fractional_in_gaps` |
 | 124 loads, per-block counts as in `matrix.estimate` | `matrix_length`, `matrix_blocks` |
 | Both sides of every edge in every required profile | `matrix_edge_pairs`, `matrix_pairs_agree` |
 | For every condition and every edge it lists, the matrix contains a pair at `N` and `N+1` that flips it | `matrix_observes_every_edge` |

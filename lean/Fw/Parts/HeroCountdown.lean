@@ -116,7 +116,9 @@ theorem unitsFromSeconds_sum (n : Nat) :
 
 /-- Lexicographic order on four-unit tuples (days first).
 
-$$[d, h, m, s] \preceq [d', h', m', s'] \iff d < d' \lor (d = d' \land (h < h' \lor (h = h' \land (m < m' \lor (m = m' \land s \le s')))))$$
+$$[d,h,m,s] \preceq [d',h',m',s'] \iff d < d' \lor (d = d' \land (h < h' \lor (h = h' \land (m < m' \lor (m = m' \land s \le s'))))),\qquad x \preceq y \text{ is false if } |x| \ne 4 \lor |y| \ne 4$$
+
+(for lists $x, y \in \mathbb{N}^*$).
 
 The order in which a clock reading counts as "no later" than another. -/
 def lexLe : List Nat → List Nat → Prop
@@ -407,11 +409,11 @@ theorem strip_shows_same (a : Rat) (k : Int) (hk0 : 0 ≤ k) (hk1 : k < 10) (o :
     rw [this, ← hw]
     grind
 
-/-- Settled digits: with the spring at rest on digit `d`, only face `d` is in the window, at offset 0.
+/-- Settled digits: with the spring at rest on digit `d`, face `d` sits at offset 0 and no other face does.
 
 $$\forall d, k \in \{0..9\}:\quad \operatorname{faceDelta}(k, d) = 0 \iff k = d$$
 
-When the spring has settled, the faithful clock shows exactly the digit it was told to show. -/
+When the spring has settled, the digit it was told to show is the one face at offset 0. -/
 theorem faceDelta_settled (d k : Int) (hd0 : 0 ≤ d) (hd1 : d < 10) (hk0 : 0 ≤ k) (hk1 : k < 10) :
     faceDelta k (d : Rat) = 0 ↔ k = d := by
   obtain ⟨z, hz⟩ := faceDelta_congr k (d : Rat)
@@ -512,9 +514,9 @@ theorem springStep_done (s : Spring) (target dt : Rat) (h : (springStep s target
 
 /-- A non-positive frame gap runs no slice.
 
-$$\forall s, x^\ast,\ \mathit{dt} \le 0:\quad \operatorname{slices}(\mathit{dt}) = 0$$
+$$\forall \mathit{dt} \in \mathbb{Q},\ \mathit{dt} \le 0:\quad \operatorname{slices}(\mathit{dt}) = 0$$
 
-If no time passed, the spring is only tested for settling, not moved. -/
+If no time passed, the slice loop runs zero times. -/
 theorem slices_nonpos (dt : Rat) (h : dt ≤ 0) : slices dt = 0 := by
   unfold slices
   have : max 0 dt = 0 := by grind

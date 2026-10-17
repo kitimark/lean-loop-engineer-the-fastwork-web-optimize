@@ -51,7 +51,7 @@ def orderCallbacks (es : List Entry) : List String := (es.mergeSort entryLe).map
 #guard orderCallbacks [⟨"b", 2, 0⟩, ⟨"a", 1, 1⟩, ⟨"c", 1, 2⟩] == ["a", "c", "b"]
 #guard orderCallbacks [] == []
 
-/-- The `(order, seq)` comparison is transitive. $$e_1 \sqsubseteq e_2 \land e_2 \sqsubseteq e_3 \Rightarrow e_1 \sqsubseteq e_3$$ -/
+/-- The `(order, seq)` comparison is transitive. $$\forall e_1, e_2, e_3:\ e_1 \sqsubseteq e_2 \land e_2 \sqsubseteq e_3 \Rightarrow e_1 \sqsubseteq e_3$$ -/
 theorem entryLe_trans (a b c : Entry) (h1 : entryLe a b = true) (h2 : entryLe b c = true) : entryLe a c = true := by
   unfold entryLe at *
   simp only [Bool.or_eq_true, decide_eq_true_eq, Bool.and_eq_true, beq_iff_eq] at *
@@ -67,7 +67,8 @@ theorem entryLe_total (a b : Entry) : (entryLe a b || entryLe b a) = true := by
 
 $$\forall es:\quad \operatorname{orderCallbacks}(es) \sim [\,e.\mathit{id} \mid e \in es\,]$$
 
-Every registered callback runs exactly once per frame. -/
+The frame order lists every registered callback exactly once (as often as it is registered); nothing is dropped or
+duplicated. -/
 theorem orderCallbacks_perm (es : List Entry) : List.Perm (orderCallbacks es) (es.map (·.id)) :=
   (List.mergeSort_perm es entryLe).map _
 
@@ -104,7 +105,9 @@ deriving Repr, BEq, DecidableEq
 
 /-- Faithful plan from index `k`: read then (if it writes) write, callback by callback.
 
-$$\operatorname{faithfulFrom}(k, [w_0, \dots]) = (\mathrm{R}, k), [(\mathrm{W}, k)]_{w_0}, \operatorname{faithfulFrom}(k + 1, [w_1, \dots])$$
+$$\operatorname{faithfulFrom}(k, [\,]) = [\,],\quad \operatorname{faithfulFrom}(k, w :: ws) = (\mathrm{R}, k) :: \big([(\mathrm{W}, k) \mid w] \mathbin{+\!\!+} \operatorname{faithfulFrom}(k + 1, ws)\big)$$
+
+(here $[(\mathrm{W}, k) \mid w]$ is $[(\mathrm{W}, k)]$ if $w$ and $[\,]$ otherwise).
 
 The original's interleaved order of reads and writes. -/
 def faithfulFrom (k : Nat) : List Bool → List Step
@@ -143,10 +146,10 @@ def Step.isRead (s : Step) : Bool :=
   | .read => true
   | .write => false
 
-/-- Read steps are reads. $$\operatorname{isRead}((\mathrm{R}, k)) = \top$$ A read step counts as a read. -/
+/-- Read steps are reads. $$\forall k \in \mathbb{N}:\ \operatorname{isRead}((\mathrm{R}, k)) = \top$$ A read step counts as a read. -/
 @[simp] theorem isRead_read (k : Nat) : (⟨.read, k⟩ : Step).isRead = true := rfl
 
-/-- Write steps are not reads. $$\operatorname{isRead}((\mathrm{W}, k)) = \bot$$ A write step does not count as a read. -/
+/-- Write steps are not reads. $$\forall k \in \mathbb{N}:\ \operatorname{isRead}((\mathrm{W}, k)) = \bot$$ A write step does not count as a read. -/
 @[simp] theorem isRead_write (k : Nat) : (⟨.write, k⟩ : Step).isRead = false := rfl
 
 /-- The read steps of the faithful plan are the batched read phase. $$\forall k, ws:\ \operatorname{filter}_{\mathrm{R}}(\operatorname{faithfulFrom}(k, ws)) = \operatorname{readsFrom}(k, ws)$$ -/
@@ -243,7 +246,7 @@ theorem layoutRole_sound : Sound layoutRole := by intro a h; cases a <;> simp_al
 
 /-- More pending work never means fewer forced updates.
 
-$$\forall \rho, as:\quad (d \Rightarrow e) \Rightarrow \operatorname{forced}_\rho(d, as) \le \operatorname{forced}_\rho(e, as)$$
+$$\forall \rho, as, d, e:\quad (d \Rightarrow e) \Rightarrow \operatorname{forced}_\rho(d, as) \le \operatorname{forced}_\rho(e, as)$$
 
 Starting a sequence dirty can only add forced updates, never remove them. -/
 theorem forced_mono (role : Access → Role) (as : List Access) :
@@ -315,9 +318,9 @@ theorem batched_le_faithful (role : Access → Role) (hs : Sound role) (as : Lis
 
 /-- Batched costs at most one forced update per kind: the first read pays for what was pending at frame start.
 
-$$\forall \rho \text{ sound},\ d,\ as:\quad \operatorname{forced}_\rho\big(d, \operatorname{filter}_{\mathrm{R}}(as) \mathbin{+\!\!+} \operatorname{filter}_{\mathrm{W}}(as)\big) \le 1$$
+$$\forall \rho \text{ sound with } (\forall a:\ \operatorname{isReadA}(a) \Rightarrow \rho(a) \ne \mathrm{dirty}),\ d,\ as:\quad \operatorname{forced}_\rho\big(d, \operatorname{filter}_{\mathrm{R}}(as) \mathbin{+\!\!+} \operatorname{filter}_{\mathrm{W}}(as)\big) \le 1$$
 
-A batched frame forces style at most once and layout at most once. -/
+($\rho_S$ and $\rho_L$ both meet the side condition: no read dirties.) A batched frame forces style at most once and layout at most once. -/
 theorem batched_le_one (role : Access → Role) (hs : Sound role) (as : List Access) (d : Bool)
     (hr : ∀ a, a.isRead = true → role a ≠ .dirty) :
     forced role d (as.filter Access.isRead ++ as.filter (fun a => !a.isRead)) ≤ 1 := by
@@ -439,7 +442,9 @@ def countEv (x : Ev) (es : List Ev) : Nat := (es.filter (fun e => decide (e = x)
 
 /-- Coalescing: at most one run per frame, and (from idle) at most one run per scroll event.
 
-$$\forall p, es:\ \operatorname{runs}(p, es) \le \#_{\mathrm{frame}}(es);\qquad \forall es:\ \operatorname{runs}(\bot, es) \le \#_{\mathrm{scroll}}(es)$$
+$$\forall p, es:\quad \operatorname{runs}(p, es) \le \#_{\mathrm{frame}}(es) \ \land\ \operatorname{runs}(p, es) \le [p] + \#_{\mathrm{scroll}}(es)$$
+
+(Iverson bracket: $[p] = 1$ if a run is already pending, else $0$.)
 
 However many scroll events arrive, the callbacks run at most once per frame, and never without a request. -/
 theorem runs_le (p : Bool) (es : List Ev) :

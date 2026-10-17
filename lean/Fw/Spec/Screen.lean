@@ -114,7 +114,7 @@ theorem dot_mono (cs : List Rat) (hc : ∀ c ∈ cs, 0 ≤ c) :
         have h2 : dot cs xs ≤ dot cs ys := ih (fun c' hc' => hc c' (by simp [hc'])) h.2
         exact Rat.le_trans (Rat.add_le_add_right.mpr h1) (Rat.add_le_add_left.mpr h2)
 
-/-- `leRun` means `leVec` frame by frame, with equal frame counts.
+/-- If `leRun` holds, the runs have equal frame counts and `leVec` holds frame by frame.
 
 $$\forall A, B \in \mathrm{Run}:\quad \operatorname{leRun}(A, B) = \mathrm{true} \;\Rightarrow\; |A| = |B| \ \land\ \forall (a, b) \in \operatorname{zip}(A, B):\ \operatorname{leVec}(a, b) = \mathrm{true}$$
 -/
