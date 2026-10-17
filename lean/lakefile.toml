@@ -5,6 +5,11 @@ testDriver = "fwtest"
 # Lake's local artifact cache (Lake/Config/PackageConfig.lean:289@eb6cafb): build products are also stored in the
 # toolchain's offline cache and hard-linked back (Lake/Build/Common.lean:489,652), so a fresh worktree builds from it.
 enableArtifactCache = true
+# Hard-link every cached artifact (.olean included) back into .lake/build (Lake/Config/PackageConfig.lean:291-301,
+# Lake/Build/Module.lean:816-832,1058-1069@eb6cafb). Lake's default restores only the .ilean, so a build served from
+# the cache leaves no .olean in .lake/build, and `lake exe mathview` (importModules over .lake/build/lib/lean) failed
+# on every CI run with a restored cache. Restoring is a hard link (Lake/Build/Common.lean:648-654), so it stays cheap.
+restoreAllArtifacts = true
 
 # Mathlib-free on purpose (PLAN §5.2): core Lean only, no `require`.
 
