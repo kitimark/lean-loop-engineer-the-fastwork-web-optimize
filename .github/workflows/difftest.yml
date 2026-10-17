@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       seed:
-        description: Seed for the rotating job (default: the run id)
+        description: Seed for the rotating job (empty means the run id)
         type: string
         default: ''
       runs:
