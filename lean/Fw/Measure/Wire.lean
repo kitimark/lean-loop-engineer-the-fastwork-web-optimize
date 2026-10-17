@@ -2,6 +2,7 @@ import Lean.Data.Json
 import Fw.Measure.WebKit
 import Fw.Measure.SelfCheck
 import Fw.Measure.Snapshot
+import Fw.Measure.Freeze
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
 
@@ -22,6 +23,7 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.symDiff` | `a`, `b` (string arrays) | `symDiff` |
 | `measure.summarize` | `rows` [{family, metric, level, cls}] | `summary` [{family, metric, levels, worst}] |
 | `measure.selfCheck` | `runs` (≥ 1; each an array of frames {phase, scrollY, counts} or an object with `frames`) | `rows` [{type, class, maxDiffFrames, spread, totals}], `frames`, `framesAligned`, `runs` |
+| `measure.freeze` | `runs` (≥ 3, distinct `id`s) [{id, images (≥ 1 digest, all runs one digest), classes {type: {class, k, t, tBound?}}}], optional `pooled` {type: {class, k, t, tBound?}} | `image`, `runs` (ids), `types` {type: {class, k, t, perRun (class or `missing`), `unit` `px` + `tBound` for `*AreaPx` types, `pooledClass`?}}, `tally`, `pooledTally`? |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
 namespace Fw.Wire.Measure
@@ -380,11 +382,58 @@ def opSummarize (req : Json) : Except String Reply := do
     ("levels", objOf (s.levels.map fun (l, c) => (l, .str (statusName c)))),
     ("worst", .str (statusName s.worst))]))]
 
+/-! ## Freeze (Fw.Measure.Freeze) -/
+
+/-- Name of a level. -/
+def levelName : Freeze.Level → String
+  | .det => "deterministic" | .stable => "stable" | .quar => "quarantined"
+
+/-- Decode a level name; any other string is an error. -/
+def levelOfName : String → Except String Freeze.Level
+  | "deterministic" => .ok .det | "stable" => .ok .stable | "quarantined" => .ok .quar
+  | c => .error s!"unknown class {c}"
+
+/-- Decode a class table `{type: {class, k, t, tBound?}}` (the `classes` reply of `measure.classify`). -/
+def tableOf (k : String) : Json → Except String Freeze.Table
+  | .obj kvs => kvs.toArray.toList.mapM fun ⟨ty, v⟩ => do
+      let tb ← match opt v "tBound" with
+        | none => pure none
+        | some b => some <$> asNat s!"{k}.{ty}.tBound" b
+      pure (ty, { cls := ← levelOfName (← str v "class"), k := ← nat v "k", t := ← nat v "t", tBound := tb })
+  | _ => .error s!"field {k}: expected an object"
+
+/-- Encode a tally `(det, stable, quar)`. -/
+def tallyJson (c : Nat × Nat × Nat) : Json :=
+  Json.mkObj [("deterministic", toJson c.1), ("stable", toJson c.2.1), ("quarantined", toJson c.2.2)]
+
+/-- `measure.freeze`: `{runs:[{id, images, classes}], pooled?}` → `{image, runs, types, tally, pooledTally?}`;
+an error when a table does not decode or `Freeze.freeze` refuses. In `perRun` a run without the type is the
+string `"missing"`. -/
+def opFreeze (req : Json) : Except String Reply := do
+  let runs ← (← arr req "runs").toList.mapM fun r => do
+    pure ({ id := ← str r "id", images := ← strs r "images", table := ← tableOf "classes" (← field r "classes") }
+      : Freeze.RunTable)
+  let pooled ← match opt req "pooled" with
+    | none => pure none
+    | some j => some <$> tableOf "pooled" j
+  let (img, rows) ← Freeze.freeze runs
+  let rowJson (r : Freeze.FRow) : Json := Json.mkObj <|
+    [("class", .str (levelName r.cls)), ("k", toJson r.k), ("t", toJson r.t),
+     ("perRun", .arr (r.perRun.toArray.map fun o => .str ((o.map levelName).getD "missing")))] ++
+    (match unitOf r.type with | .px => [("unit", .str "px")] | .count => []) ++
+    (match r.tBound with | some b => [("tBound", toJson b)] | none => []) ++
+    (match pooled.bind (Freeze.entry? · r.type) with
+      | some e => [("pooledClass", .str (levelName e.cls))] | none => [])
+  pure ([("image", .str img), ("runs", toJson (runs.map (·.id))),
+         ("types", objOf (rows.map fun r => (r.type, rowJson r))),
+         ("tally", tallyJson (Freeze.tally (rows.map (·.cls))))] ++
+        (match pooled with | some p => [("pooledTally", tallyJson (Freeze.tally (p.map (·.2.cls))))] | none => []))
+
 /-- The `measure.*` ops. -/
 def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
    "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.symDiff", "measure.summarize",
-   "measure.selfCheck", "measure.snapshotCounts"]
+   "measure.selfCheck", "measure.snapshotCounts", "measure.freeze"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -399,6 +448,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.summarize" => some (opSummarize req)
   | "measure.selfCheck" => some (opSelfCheck req)
   | "measure.snapshotCounts" => some (opSnapshotCounts req)
+  | "measure.freeze" => some (opFreeze req)
   | _ => none
 
 end Fw.Wire.Measure
