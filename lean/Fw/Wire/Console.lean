@@ -13,9 +13,13 @@ imports it, so it decodes the card fields it needs itself).
 | op | request | reply |
 |---|---|---|
 | `console.landReadiness` | `card` {id, needsDevice, owner?, approved?, head?, screenAt?, reviewAt?, deviceAt?, landed?} (a board or reducer card; other fields ignored), `sha` | `ready`, `needs` (`approve`/`build`/`screen`/`review`/`device`, in that order), `refusal` (the `card.land_request` refusal at `sha`, or null) |
-| `console.actor` | `source`? (`alert`/`claim`/`build`/`landed`/`taskDone`; missing = all) | `sources` [{source, actor, type, allowed}] |
+| `console.actor` | `source`? (`alert`/`spawn`/`stop`/`build`/`landed`/`taskDone`/`planDefine`/`planMilestone`; missing = all) | `sources` [{source, actor, type, allowed}] |
 | `console.alert` | `event` {hook_event_name, ts, agent_id?, agent_type?, tool_name?, notification_type?}, `flights`? [{agent_id?, agent_type?, tool_name?}] (tool calls in flight; no agent_id = the lead), `open`? [step ids] (alert steps still open on the board) | `post` (null or {step, key, title, kind, agent}: the `step.post` to send as actor script), `close` [{step, key}] (the `step.cancel`s to send as actor script) |
-| `console.landScope` | `writes` [globs], `names`? [agent/task names for handoff files], `allow`? [globs], `paths` [changed files] | `ok`, `reason` (null / `noWrites` / `outOfScope`), `violations`, `scope` (the globs used; `!` = exclude) |
+| `console.landScope` | `writes` [globs], `names`? [agent/task names for handoff files], `allow`? [globs], `paths` [changed files], `task`? / `stream`? (the task id and stream: port-*, proof-*, measure add their registration set) | `ok`, `reason` (null / `noWrites` / `outOfScope`), `violations`, `scope` (the globs used; `!` = exclude) |
+| `console.landLock` | `held` (lock file exists), `alive`? (its pid is alive) | `verdict` (`free`/`busy`/`stale`) |
+| `console.landGuard` | `held`, `alive`?, `here`? (commit is in the locked checkout), `own`? (the land's own commit) | `verdict` (`allow`/`held`/`stale`), `allow` |
+| `console.landCommit` | `locked`, `mergeHead`? (null: MERGE_HEAD gone), `head`, `pre` (HEAD when the lock was taken) | `ok`, `tip`, `reason` (`no lock`/`merge state gone`/`head moved`) |
+| `console.landPick` | `givenAhead`, `others`? [{name, ahead, contains}] | `pick` (`given`/`other`/`nothing`/`ambiguous`), `branch`, `names` |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?}], `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
@@ -110,12 +114,58 @@ def opLandScope (req : Json) : Except String Reply := do
   let names ← strs "names" (← arrD req "names")
   let allow ← strs "allow" (← arrD req "allow")
   let paths ← strs "paths" (← arr req "paths").toList
-  let (ok, reason, vs) := match landVerdict writes names allow paths with
+  let task ← strD req "task" ""
+  let stream ← strD req "stream" ""
+  let (ok, reason, vs) := match landVerdict writes names allow paths task stream with
     | .ok => (true, Json.null, [])
     | .noWrites => (false, Json.str "noWrites", [])
     | .outOfScope v => (false, Json.str "outOfScope", v)
   pure [("ok", .bool ok), ("reason", reason), ("violations", .arr (vs.toArray.map Json.str)),
-        ("scope", .arr ((landScope writes names allow).toArray.map Json.str))]
+        ("scope", .arr ((landScope writes names allow task stream).toArray.map Json.str))]
+
+/-! ## console.landLock, console.landGuard, console.landCommit, console.landPick -/
+
+open Fw.Console.Land in
+/-- `console.landLock`: may a land take the lock? (`Fw.Console.Land.lockVerdict`). -/
+def opLandLock (req : Json) : Except String Reply := do
+  let held ← asBool "held" (← field req "held")
+  let alive ← boolD req "alive" false
+  let v := match lockVerdict held alive with | .free => "free" | .busy => "busy" | .stale => "stale"
+  pure [("verdict", .str v)]
+
+open Fw.Console.Land in
+/-- `console.landGuard`: may this commit go through the `pre-commit` hook? (`Fw.Console.Land.guardVerdict`). -/
+def opLandGuard (req : Json) : Except String Reply := do
+  let held ← asBool "held" (← field req "held")
+  let alive ← boolD req "alive" false
+  let here ← boolD req "here" true
+  let own ← boolD req "own" false
+  let v := match guardVerdict held alive here own with | .allow => "allow" | .held => "held" | .stale => "stale"
+  pure [("verdict", .str v), ("allow", .bool (v == "allow"))]
+
+open Fw.Console.Land in
+/-- `console.landCommit`: may the land commit its merge? (`Fw.Console.Land.landTip`). -/
+def opLandCommit (req : Json) : Except String Reply := do
+  let locked ← asBool "locked" (← field req "locked")
+  let merge ← optStr req "mergeHead"
+  let head ← str req "head"
+  let pre ← str req "pre"
+  pure (match landTip locked merge head pre with
+    | .ok t => [("ok", .bool true), ("tip", .str t), ("reason", .null)]
+    | .error r => [("ok", .bool false), ("tip", .null), ("reason", .str r)])
+
+open Fw.Console.Land in
+/-- `console.landPick`: which branch to land (`Fw.Console.Land.pick`). -/
+def opLandPick (req : Json) : Except String Reply := do
+  let ahead ← asBool "givenAhead" (← field req "givenAhead")
+  let cs ← (← arrD req "others").mapM fun c => do
+    pure ({ name := ← str c "name", ahead := ← asBool "ahead" (← field c "ahead"),
+            contains := ← asBool "contains" (← field c "contains") } : Cand)
+  pure (match pick ahead cs with
+    | .given => [("pick", .str "given"), ("branch", .null), ("names", .arr #[])]
+    | .other n => [("pick", .str "other"), ("branch", .str n), ("names", .arr #[.str n])]
+    | .nothing => [("pick", .str "nothing"), ("branch", .null), ("names", .arr #[])]
+    | .ambiguous ns => [("pick", .str "ambiguous"), ("branch", .null), ("names", .arr (ns.toArray.map Json.str))])
 
 /-! ## plan.lint -/
 
@@ -141,7 +191,8 @@ def opPlanLint (req : Json) : Except String Reply := do
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
-def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "plan.trailers", "plan.lint"]
+def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
+  "console.landCommit", "console.landPick", "plan.trailers", "plan.lint"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -150,6 +201,10 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.actor" => some (opActor req)
   | "console.alert" => some (opAlert req)
   | "console.landScope" => some (opLandScope req)
+  | "console.landLock" => some (opLandLock req)
+  | "console.landGuard" => some (opLandGuard req)
+  | "console.landCommit" => some (opLandCommit req)
+  | "console.landPick" => some (opLandPick req)
   | "plan.trailers" => some (opTrailers req)
   | "plan.lint" => some (opPlanLint req)
   | _ => none

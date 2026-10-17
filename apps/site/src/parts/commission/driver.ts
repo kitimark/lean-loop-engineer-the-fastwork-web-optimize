@@ -197,7 +197,12 @@ export function mountCommission({ els, classes, engine, clock, env }: Deps): () 
   setRender(active);
   cleanups.push(env.observe(els.section, { rootMargin: '100% 0px' }, (e) => setActive(e.isIntersecting)));
   cleanups.push(engine.register('commission', COMMISSION_ORDER, () => {
-    if (active) request();
+    // the original's `iE` runs the callback inside the same animation frame as the scroll/resize (no extra frame)
+    if (active) {
+      cancelOwn?.();
+      cancelOwn = null;
+      body();
+    }
     return undefined;
   }));
   request(); // the scheduler asks for a frame when a scene registers (rE())

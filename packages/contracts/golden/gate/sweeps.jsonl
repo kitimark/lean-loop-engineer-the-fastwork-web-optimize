@@ -1,0 +1,13 @@
+{"case":"reduced-desktop-widths","count":45,"full":[1512,1511,1280,1279,1201,1200,1101,1100,1031,1030,1001,1000,961,960,861,860,721,720,641,640,601,600,481,480,462,461,401,400,320,400,401,461,462,480,481,600,601,640,641,720,721,860,861,960,961,1000,1001,1030,1031,1100,1101,1200,1201,1279,1280,1511,1512],"reduced":[1512,1511,1280,1279,1200,1100,1030,1000,960,861,860,721,720,640,601,600,481,480,462,461,401,400,320,400,401,461,462,480,481,600,601,640,641,721,860,861,960,961,1001,1031,1101,1201,1280,1511,1512]}
+{"case":"reduced-stops:desktop-1512-320-1512","reducedStops":45,"stops":57}
+{"case":"reduced-stops:phone-rotation","reducedStops":5,"stops":5}
+{"case":"reduced-stops:touch-1024-1201","reducedStops":5,"stops":5}
+{"case":"reduced-stops:pain-1440-600-1440","reducedStops":5,"stops":5}
+{"case":"merge-ok","out":["desk-600","desk-601","phone-430"],"records":["phone-430","desk-600","desk-601"],"want":["desk-600","desk-601","phone-430"]}
+{"case":"merge-sweeps-by-id","out":["desktop-1512-320-1512","phone-rotation","touch-1024-1201","pain-1440-600-1440"],"records":["pain-1440-600-1440","touch-1024-1201","phone-rotation","desktop-1512-320-1512"],"want":["desktop-1512-320-1512","phone-rotation","touch-1024-1201","pain-1440-600-1440"]}
+{"case":"merge-duplicate","out":null,"records":["desk-600","desk-601","desk-600"],"want":["desk-600","desk-601"]}
+{"case":"merge-missing","out":null,"records":["desk-600"],"want":["desk-600","desk-601"]}
+{"case":"merge-extra","out":null,"records":["desk-600","desk-601"],"want":["desk-600"]}
+{"case":"merge-empty","out":[],"records":[],"want":[]}
+{"case":"split-sweep","hv":"fail iff |collapsed history| >= 3","key":"width <= 600","pieces":[[700,600],[700]],"splitVerdict":"pass","whole":[700,600,700],"wholeVerdict":"fail"}
+{"case":"mount-once-vs-every","every":[[false,true],[true,true],[true,true]],"near":true,"once":[[false,true],[true,true],[true,true]],"resizes":"identity x 3","start":false}

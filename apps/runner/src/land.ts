@@ -2,11 +2,13 @@
 // (Lean: card readiness; `Fw.Console.Land.landVerdict` for the file scope); this file runs git and the checks, sends
 // typed commands, and prints a digest. It merges (never rebases), never pushes, never forces, and touches only the
 // lead's main checkout (plus removing a finished, clean, unlocked worktree of the landed branch).
-import { execFileSync, spawnSync } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { execFileSync, spawn } from "node:child_process";
+import { appendFileSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
+import { begin, span } from "./timing.ts";
+import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 
 export type Http = {
   get(path: string): Promise<{ status: number; body: any }>;
@@ -63,6 +65,10 @@ export const MARKER_RE = "^(<<<<<<<|>>>>>>>)";
 
 const git = (cwd: string, args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 const tryGit = (cwd: string, args: string[]) => { try { git(cwd, args); return true; } catch { return false; } };
+const tryGitEnv = (cwd: string, args: string[], env: Record<string, string>) => {
+  try { execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env } }); return true; } catch { return false; }
+};
+const tryHead = (cwd: string) => { try { return git(cwd, ["rev-parse", "--short", "HEAD"]); } catch { return "?"; } };
 
 type Wt = { dir: string; branch: string | null; locked: string | null };
 /** All worktrees with their branch and lock reason (`""` = locked without a reason). */
@@ -127,10 +133,26 @@ export function writeEvidence(dir: string, task: string, evidence: string): "wri
   } catch { return "failed"; }
 }
 
-type PlanTask = { id: string; state: string; owner?: string; writes?: string[] };
+type PlanTask = { id: string; state: string; owner?: string; stream?: string; writes?: string[] };
 
-export async function land(branch: string, o: LandOptions): Promise<LandResult> {
-  const lines: string[] = [];
+/** Facts for `console.landPick`: is `branch` already in main, and the branches that could hold its work (`ci/<task>` and every
+ *  branch checked out in a worktree: an agent that switched its worktree to `ci/<task>` commits there), each with
+ *  "ahead of main" and "contains `branch`". Lean (`console.landPick`) chooses; this only reads git. */
+export function pickFacts(cwd: string, main: string, branch: string, task?: string): { givenAhead: boolean; others: { name: string; ahead: boolean; contains: boolean }[] } {
+  const inMain = (ref: string) => tryGit(cwd, ["merge-base", "--is-ancestor", ref, main]);
+  const givenAhead = !inMain(branch);
+  if (givenAhead) return { givenAhead, others: [] };
+  const names = new Set<string>();
+  if (task && tryGit(cwd, ["rev-parse", "--verify", "-q", `refs/heads/ci/${task}`])) names.add(`ci/${task}`);
+  // only the worktree this branch was made for (<name>/ of `worktree-<name>`): any later branch of main contains a merged one
+  const stem = branch.replace(/^worktree-/, "").replace(/\//g, "-");
+  for (const w of worktrees(cwd)) if (w.branch && basename(w.dir).endsWith(stem)) names.add(w.branch);
+  names.delete(branch); names.delete(main);
+  return { givenAhead, others: [...names].map((name) => ({ name, ahead: !inMain(name), contains: tryGit(cwd, ["merge-base", "--is-ancestor", branch, name]) })) };
+}
+
+export async function land(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
+  const lines: string[] = via ? [`${via} has nothing to land; landing ${branch}, which is ahead of it and contains it`] : [];
   const fail = (m: string): LandResult => { lines.push(`REFUSED: ${m}`); return { ok: false, lines }; };
   const main = o.mainRef ?? "main";
   const bc = branchCard(branch);
@@ -140,6 +162,20 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
   const mainDir = worktreeOf(o.cwd, main);
   if (!mainDir) return fail(`${main} is not checked out in any worktree`);
   if (git(mainDir, ["status", "--porcelain", "--untracked-files=no"])) return fail(`${main} checkout has uncommitted changes`);
+  // 0. the given branch has nothing to land: the agent may have committed on its ci/<task> branch (Lean: console.landPick)
+  if (!via) {
+    const pk = pickFacts(o.cwd, main, branch, o.task);
+    if (!pk.givenAhead && pk.others.length) {
+      const r = askCore("console.landPick", pk);
+      if (!r) return fail("fwcore is not available to choose the branch to land (build lean/.lake)");
+      if (r.pick === "other") {
+        const res = await land(r.branch as string, o, branch);
+        if (res.ok && tryGit(mainDir, ["branch", "-d", branch])) res.lines.push(`branch ${branch} deleted (it was already in ${main})`);
+        return res;
+      }
+      if (r.pick === "ambiguous") return fail(`${branch} has nothing to land, and several branches are ahead of ${main} and contain it: ${(r.names as string[]).join(", ")}; land one of them`);
+    }
+  }
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
   const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, branch]);
   if (behind && !o.task) return fail(`${branch} is behind ${main}; a fast-forward is impossible (land it with --task for a merge commit; branches are never rebased)`);
@@ -155,15 +191,18 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
   }
   // the writes are in the work graph file of the main checkout (the board does not carry them)
   let writes: string[] = [];
+  let stream = task?.stream ?? "";
   if (task) {
     try {
       const g = JSON.parse(readFileSync(join(mainDir, "docs/team/work-graph.json"), "utf8")) as { tasks?: PlanTask[] };
-      writes = g.tasks?.find((x) => x.id === o.task)?.writes ?? [];
+      const row = g.tasks?.find((x) => x.id === o.task);
+      writes = row?.writes ?? [];
+      stream = row?.stream ?? stream;
     } catch { /* no work graph file: no writes */ }
   }
   const changed = git(o.cwd, ["diff", "--name-only", `${main}...${branch}`]).split("\n").filter(Boolean);
   const allow = o.allow ?? [];
-  const sc = await o.http.post("/api/ops/land-scope", { writes, names: [o.task, task?.owner].filter(Boolean), allow, paths: changed });
+  const sc = await o.http.post("/api/ops/land-scope", { writes, names: [o.task, task?.owner].filter(Boolean), allow, paths: changed, task: o.task ?? "", stream });
   if (sc.status !== 200) return fail(`scope check unavailable: ${sc.body.reason ?? sc.status}`);
   if (!sc.body.ok) {
     const list = (xs: string[]) => xs.map((x) => `\n  ${x}`).join("");
@@ -195,10 +234,21 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
   // check output goes to .fw-console/land-logs/<task|branch>-<sha7>.log (gitignored); one line per check
   const logFile = join(mainDir, ".fw-console", "land-logs", `${(o.task ?? branch).replace(/[^A-Za-z0-9._-]/g, "_")}-${sha.slice(0, 7)}.log`);
   let logStarted = false;
-  const runChecks = (cwd: string, list: string[][]): string | null => {
+  // async (not spawnSync) so SIGINT/SIGTERM handlers of the land run while a check is running
+  const runCheck = (cwd: string, argv: string[]) => new Promise<{ status: number | null; stdout: string; stderr: string; error?: Error }>((resolve) => {
+    const c = spawn(argv[0]!, argv.slice(1), { cwd, env: { ...process.env, ...o.env } });
+    let stdout = "", stderr = "";
+    c.stdout.on("data", (d) => { stdout += d; }); c.stderr.on("data", (d) => { stderr += d; });
+    const kill = () => { c.kill("SIGTERM"); };
+    process.once("SIGTERM", kill); process.once("SIGINT", kill);
+    const done = (status: number | null, error?: Error) => { process.off("SIGTERM", kill); process.off("SIGINT", kill); resolve({ status, stdout, stderr, error }); };
+    c.on("error", (e) => done(null, e));
+    c.on("close", (code) => done(code));
+  });
+  const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
     for (const argv of list) {
-      const p = spawnSync(argv[0]!, argv.slice(1), { cwd, encoding: "utf8", maxBuffer: 1 << 28, env: { ...process.env, ...o.env } });
-      const out = `${p.stdout ?? ""}${p.stderr ?? ""}${p.error ? String(p.error) : ""}`;
+      const p = await span("fw land", argv.join(" "), () => runCheck(cwd, argv), (r) => r.status); // timing-spans
+      const out = `${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}`;
       mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
       if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
       appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${out}\n[exit ${p.status}]\n\n`);
@@ -215,33 +265,75 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
   let mergeSha: string;
   if (!o.task) {
     // card fast-forward: the checks run in the branch's own checkout (or main) before main moves
-    const bad = runChecks(worktreeOf(o.cwd, branch) ?? mainDir, checks);
+    const bad = await runChecks(worktreeOf(o.cwd, branch) ?? mainDir, checks);
     if (bad) return fail(bad);
     const e = await requestLand();
     if (e) return fail(e);
-    if (!tryGit(mainDir, ["merge", "--ff-only", branch])) return fail(`${main} cannot fast-forward to ${branch}`);
+    const endMerge = begin("fw land", "merge");
+    const ffOk = tryGit(mainDir, ["merge", "--ff-only", branch]);
+    endMerge(ffOk ? 0 : 1);
+    if (!ffOk) return fail(`${main} cannot fast-forward to ${branch}`);
     mergeSha = git(mainDir, ["rev-parse", "HEAD"]);
   } else {
-    // 3. merge into the main checkout without committing; every refusal below aborts it (main is left as it was)
+    // 3. take the land lock (Lean: console.landLock), merge into the main checkout without committing, check, commit, release.
+    // While the lock is held the pre-commit hook (hooks/land-guard.mjs) refuses every other commit in this checkout.
     const pre = git(mainDir, ["rev-parse", "HEAD"]);
-    const abort = (m: string): LandResult => { tryGit(mainDir, ["merge", "--abort"]); return fail(`${m} (merge aborted, ${main} unchanged at ${pre.slice(0, 7)})`); };
-    if (!tryGit(mainDir, ["merge", "--no-ff", "--no-commit", branch])) return abort(`${main} cannot merge ${branch} cleanly`);
-    if (!tryGit(mainDir, ["rev-parse", "-q", "--verify", "MERGE_HEAD"])) return fail(`${branch} has nothing to land (already in ${main})`);
-    let marks = "";
-    try { marks = git(mainDir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
-    if (marks) return abort(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`);
-    lines.push("no conflict markers");
-    const bad = runChecks(mainDir, checks);
-    if (bad) return abort(bad);
-    const e = await requestLand();
-    if (e) return abort(e);
-    // the task's evidence goes into the merge commit itself, next to the Task: trailer (a commit of the branch, so on main)
-    const ev = writeEvidence(mainDir, o.task, sha.slice(0, 7));
-    if (ev === "failed") return abort("could not write the evidence into docs/team/work-graph.json");
-    if (ev === "written") lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`);
-    const trailer = [`Task: ${o.task}`, ...(allow.length ? [`Land-Allow: ${allow.join(", ")}`] : []), ...(o.attribution ?? ATTRIBUTION)].join("\n");
-    if (!tryGit(mainDir, ["commit", "-m", `land ${branch}`, "-m", trailer])) return abort("commit of the merge failed");
-    mergeSha = git(mainDir, ["rev-parse", "HEAD"]);
+    const lf = lockFile(mainDir);
+    const lk0 = lockFacts(lf);
+    const lv = askCore("console.landLock", { held: lk0.held, alive: lk0.alive });
+    const holder = lk0.lock ? `pid ${lk0.lock.pid}, branch ${lk0.lock.branch ?? "?"}, since ${lk0.lock.at ?? "?"}` : "";
+    if (!lv) return fail("fwcore is not available to decide the land lock (build lean/.lake)");
+    if (lv.verdict === "busy") return fail(`another fw land holds ${lf} (${holder}); wait for it`);
+    if (lv.verdict === "stale") return fail(`stale land lock ${lf} (${holder}; that process is gone). It was not removed: look at \`git status\` in ${mainDir} (an open merge: git merge --abort), then delete the file`);
+    const lock = takeLock(lf, { branch, pre, dir: realpathSync(mainDir) });
+    if (!lock) return fail(`another fw land took ${lf} just now; wait for it`);
+    let released = false;
+    const release = () => { if (!released) { released = true; dropLock(lf, lock.token); } };
+    // the facts of `console.landCommit`: is the lock still ours, is MERGE_HEAD there, where is HEAD
+    const facts = () => {
+      let mh: string | null = null;
+      try { mh = git(mainDir, ["rev-parse", "-q", "--verify", "MERGE_HEAD"]); } catch { /* none */ }
+      return askCore("console.landCommit", { locked: readLock(lf)?.token === lock.token, mergeHead: mh, head: git(mainDir, ["rev-parse", "HEAD"]), pre });
+    };
+    // `merge --abort` only while the merge is still ours (lock held, MERGE_HEAD there, HEAD unmoved); otherwise nothing is reset
+    const abort = (m: string): LandResult => {
+      const d = facts();
+      if (d?.ok) { tryGit(mainDir, ["merge", "--abort"]); return fail(`${m} (merge aborted, ${main} unchanged at ${pre.slice(0, 7)})`); }
+      return fail(`${m}\nthe merge state is not intact (${d?.reason ?? "fwcore unavailable"}): ${main} is at ${tryHead(mainDir)}, the land started at ${pre.slice(0, 7)}; nothing was reset`);
+    };
+    const onSignal = (sig: NodeJS.Signals) => () => {
+      try { if (facts()?.ok) tryGit(mainDir, ["merge", "--abort"]); } catch { /* best effort */ }
+      release();
+      process.exit(sig === "SIGINT" ? 130 : 143);
+    };
+    const onInt = onSignal("SIGINT"), onTerm = onSignal("SIGTERM");
+    process.once("SIGINT", onInt); process.once("SIGTERM", onTerm);
+    try {
+      if (!span("fw land", "merge", () => tryGit(mainDir, ["merge", "--no-ff", "--no-commit", branch]), (ok) => (ok ? 0 : 1))) return abort(`${main} cannot merge ${branch} cleanly`);
+      if (!tryGit(mainDir, ["rev-parse", "-q", "--verify", "MERGE_HEAD"])) return fail(`${branch} has nothing to land (already in ${main})`);
+      let marks = "";
+      try { marks = git(mainDir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
+      if (marks) return abort(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`);
+      lines.push("no conflict markers");
+      const bad = await runChecks(mainDir, checks);
+      if (bad) return abort(bad);
+      const e = await requestLand();
+      if (e) return abort(e);
+      // the task's evidence goes into the merge commit itself, next to the Task: trailer (a commit of the branch, so on main)
+      const ev = writeEvidence(mainDir, o.task, sha.slice(0, 7));
+      if (ev === "failed") return abort("could not write the evidence into docs/team/work-graph.json");
+      if (ev === "written") lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`);
+      // commit only into the merge the land opened (Lean: landTip): no lock, no MERGE_HEAD or a moved HEAD means someone
+      // else touched main; then nothing is committed and nothing is reset
+      const d = facts();
+      if (!d?.ok) return fail(`will not commit: ${d ? d.reason : "fwcore is not available to decide"}. ${main} is at ${tryHead(mainDir)}, the land started at ${pre.slice(0, 7)}; ${main} was not reset. Inspect \`git status\` and \`git log\` in ${mainDir}`);
+      const trailer = [`Task: ${o.task}`, ...(allow.length ? [`Land-Allow: ${allow.join(", ")}`] : []), ...(o.attribution ?? ATTRIBUTION)].join("\n");
+      if (!span("fw land", "merge commit", () => tryGitEnv(mainDir, ["commit", "-m", `land ${branch}`, "-m", trailer], { FW_LAND_TOKEN: lock.token }), (ok) => (ok ? 0 : 1))) return abort("commit of the merge failed");
+      mergeSha = git(mainDir, ["rev-parse", "HEAD"]);
+    } finally {
+      process.off("SIGINT", onInt); process.off("SIGTERM", onTerm);
+      release();
+    }
   }
 
   // From here main has moved: nothing below may fail the landing. Each step is tried twice; a step that still fails is
@@ -256,7 +348,7 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
   const step = async (name: string, cmd: string, fn: () => Promise<string | void>): Promise<void> => {
     let last = "";
     for (let i = 0; i < 2; i++) {
-      try { const r = await fn(); if (!r) return; last = r; } catch (e) { last = why(e); }
+      try { const r = await span("fw land", name, fn, (x) => (x ? 1 : 0)); if (!r) return; last = r; } catch (e) { last = why(e); }
       if (i === 0) await pause();
     }
     warnings.push(`step ${name} failed twice: ${last}`);
@@ -288,6 +380,7 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
   }
 
   // 6. safe cleanup: `branch -d` only; the worktree only when clean and not locked (local, no console needed)
+  const endCleanup = begin("fw land", "worktree cleanup");
   try {
     const wt = worktrees(o.cwd).find((w) => w.branch === branch);
     let removed = true;
@@ -311,6 +404,7 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
     warnings.push(`step cleanup failed: ${why(e)}`);
     remaining.push(`  cleanup: git worktree remove <dir of ${branch}> ; git branch -d ${branch}`);
   }
+  endCleanup(0);
 
   if (o.after) await step("plan sync", "pnpm fw plan sync docs/team/work-graph.json", async () => { lines.push(...(await o.after!(mainDir))); });
 

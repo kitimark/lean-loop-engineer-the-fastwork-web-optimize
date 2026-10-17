@@ -3,6 +3,8 @@ import { getClock } from '../../engine/clock';
 import { registerScroll } from '../../engine/scroll';
 import { createTweenDriver, type TweenEnv } from './driver';
 import { matchList } from './media';
+import { createWaapiDriver, type AnimTarget, type WaapiEnv } from './waapi.driver';
+import { FADE_CSS, REGISTERED } from './waapi.logic';
 
 /** Where the scroll pin sits on the engine: after the nav's hit test (order 100), as the original's pin callback follows it. */
 export const MORPH_PIN_ORDER = 110;
@@ -22,7 +24,7 @@ export interface MorphTweenProps {
  * the nav element straight from the frame (a style property, never React state). Wiring: the driver in driver.ts,
  * decisions in logic.ts (Lean `Fw.Parts.MorphTween`).
  */
-export function MorphTween({ platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]' }: MorphTweenProps) {
+export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]' }: MorphTweenProps) {
   useEffect(() => {
     const root = document.documentElement;
     // Anchor for the breakpoint parity gate: one attribute write at mount, never per frame; absent in the prerendered HTML.
@@ -46,7 +48,7 @@ export function MorphTween({ platformSelector = '.start-selling-platform, [data-
         nav.dataset.fwMorph = String(value);
       },
     };
-    const driver = createTweenDriver(env);
+    const driver = variant === 'waapi' ? createWaapiDriver(waapiEnv(env, platform, navSelector)) : createTweenDriver(env);
     const target = platform();
     const io = target ? new IntersectionObserver(([entry]) => driver.setNear(!!entry?.isIntersecting), { rootMargin: '200% 0px' }) : undefined;
     if (target && io) io.observe(target);
@@ -57,6 +59,58 @@ export function MorphTween({ platformSelector = '.start-selling-platform, [data-
       driver.dispose();
       root.removeAttribute('data-fw-morph-tween');
     };
-  }, [platformSelector, navSelector]);
+  }, [variant, platformSelector, navSelector]);
   return null;
+}
+
+/** `CSS.registerProperty` for the animated properties: `<number>`, not inherited, initial 0 (once; a second call throws and is ignored). */
+function registerProperties(): void {
+  for (const name of REGISTERED) {
+    try {
+      CSS.registerProperty({ name, syntax: '<number>', inherits: false, initialValue: '0' });
+    } catch {
+      /* already registered */
+    }
+  }
+}
+
+/** The environment of the `waapi` variant on the window; shares the faithful variant's listener and viewport wiring. */
+function waapiEnv(base: TweenEnv, platform: () => HTMLElement | null, navSelector: string): WaapiEnv {
+  registerProperties();
+  const nav = () => document.querySelector<HTMLElement>(navSelector);
+  return {
+    timelineNow: () => {
+      const t = document.timeline.currentTime;
+      return t === null ? null : Number(t);
+    },
+    reduced: base.reduced,
+    viewportHeight: base.viewportHeight,
+    nav: () => nav() as unknown as AnimTarget | null,
+    platform: () => platform() as unknown as ReturnType<WaapiEnv['platform']>,
+    scrollY: base.scrollY,
+    scrollToInstant: base.scrollToInstant,
+    addListener: base.addListener,
+    removeListener: base.removeListener,
+    hint: (value) => {
+      const n = nav();
+      if (n) n.dataset.fwMorph = String(value);
+    },
+    settle: (value, props) => {
+      const n = nav();
+      if (n) {
+        for (const [k, v] of Object.entries(props.nav)) n.style.setProperty(k, v);
+        n.dataset.fwMorph = String(value);
+      }
+      const p = platform();
+      if (p) {
+        for (const [k, v] of Object.entries(props.platform)) p.style.setProperty(k, v);
+        p.style.pointerEvents = props.pointerEvents;
+      }
+    },
+    preparePlatform: () => {
+      const p = platform();
+      if (p && p.style.getPropertyValue('--morph-fade') !== FADE_CSS) p.style.setProperty('--morph-fade', FADE_CSS);
+    },
+    onActivate: base.onActivate,
+  };
 }

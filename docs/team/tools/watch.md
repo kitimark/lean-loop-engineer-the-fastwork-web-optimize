@@ -79,3 +79,43 @@ Scope (collection, not health): agents with no Stop and no event for 24 h are tr
 1 h later. Params are the Lean defaults (`DEFAULT_PARAMS` in `apps/runner/src/watch-collect.ts`).
 fwcore is found via `FW_CORE_BIN`, this checkout, the main checkout, then sibling worktrees, the first that knows
 `obs.health`. Env: `FW_CONSOLE_DIR`, `FW_PROJECTS_DIR` (tests).
+
+## NEXT lines, `pnpm fw next`, `agent.held`, `agent.unlanded` (obs-next-glue)
+
+Agents that look busy while nothing will happen (handed back but never landed, held by their own dead wait loop, waiting
+on CI, near the context limit) get a next action from `fwcore` (`obs.next`, lean/Fw/Obs/Next.lean; golden
+packages/contracts/golden/obs/next.jsonl). `fw watch` prints one line per non-`none` action after the table:
+
+    NEXT <agent> <action> <k=v args>      e.g.  NEXT port-nav routeIntegrator branch=wt-port-nav
+                                                NEXT ghb-runner killOrphan pid=555
+
+`pnpm fw next` prints the same list once, exits 0, and is read-only (no log line, no kill, no land): the lead acts.
+Actions: `killOrphan pid`, `land branch task`, `routeIntegrator branch`, `waitCi run`, `cleanupWorktree`,
+`respawnFromHandoff`, `nudgeHandoff`, `claimTask task agent`, `investigate reason`. Nothing to do prints nothing
+(`fw next` prints `NEXT: none`). Without a built `fwcore` that knows `obs.next`, `fw watch` prints no NEXT lines and
+`fw next` says so.
+
+`land` is proposed only for a branch that merges into `main` cleanly (`git merge-tree --write-tree main <branch>` exits 0)
+and has no unlanded dependency (it contains no other unlanded agent branch, and the dependencies of its task on the
+board are done). Otherwise: `waitDeps dep=<first dependency>` or `investigate reason=conflict`. `respawnFromHandoff` is
+proposed only for a stalled or gone agent whose task is on the board and not done and whose
+`docs/team/handoffs/<name>.md` exists (an agent without an open task gets nothing). Retention: an ended agent stays in the
+snapshot after the 1 h window while its worktree directory exists (`hasWorktree`); Lean's `keepB`
+(`keep_of_open_action`) says which ended agents have an open action, and the TS pre-filter only skips agents without a
+worktree. Limitation (INFERRED): an unlanded branch whose worktree directory is gone is not seen.
+
+Two alerts are derived from the actions and use the normal alert plumbing (health.jsonl, `--until-alert` exits 3):
+- `agent.held`: `killOrphan` proposed (the agent's own `until ...; do sleep` loop can never finish);
+- `agent.unlanded`: `land` or `routeIntegrator` proposed (handed back, branch ahead of `main`, not landed).
+
+Facts collected per agent (apps/runner/src/next.ts; observation only, every decision is Lean's): Health state (the same
+check); handback = time of the last `SubagentHandback` tool call in the transcript; branch of the worktree
+`agent-<id>`: `rev-list --count main..<branch>`, `merge-base --is-ancestor <branch> main`, queued = the branch name
+appears in `docs/team/handoffs/integrate-ports.md`; worktree lock pid from `git worktree list --porcelain` and `kill -0`;
+children = the session's Bash trees owned by the agent (same owner lookup as `proc.long`): kind from the root command
+line (`waitrun.sh <run> [min]` / `ci wait <run>` = ciWait, `until ...; do ... sleep` = sleepLoop, lake/vitest/tsc/pnpm
+test = build, else other), ppid chain, age, the file named in the `until ... <file>` clause with its mtime and
+`producerExited` (last line `[exited with code N]`); CI run = the latest `ci/<task>` run of the existing budgeted
+`gh run list` call (no extra gh calls); board row = `GET /api/plan` task named like the agent. Command lines are read to
+classify and never stored or printed. Limits: a loop outside the session's tree is never seen (only owned trees are
+listed); an agent without a worktree has no branch fact.

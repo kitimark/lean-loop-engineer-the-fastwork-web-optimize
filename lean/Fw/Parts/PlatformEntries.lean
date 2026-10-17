@@ -51,7 +51,7 @@ def by' (b : Bez) (u : Rat) : Rat :=
 
 /-- Bisection on $B_x(u) = x$, `n` halvings of $[lo, hi]$.
 
-$$[lo, hi] \mapsto \begin{cases} [m, hi] & B_x(m) < x \\ [lo, m] & \text{otherwise} \end{cases},\quad m = \tfrac{lo + hi}{2}$$ -/
+$$\begin{aligned} \forall b, x, lo, hi:\quad &\operatorname{bis}_{b,x}(0, (lo, hi)) = (lo, hi), \\ \forall n \in \mathbb N:\quad &\operatorname{bis}_{b,x}(n+1, (lo, hi)) = \begin{cases} \operatorname{bis}_{b,x}(n, (m, hi)) & B_x(m) < x \\ \operatorname{bis}_{b,x}(n, (lo, m)) & B_x(m) \ge x \end{cases},\quad m = \tfrac{lo + hi}{2} \end{aligned}$$ -/
 def bis (b : Bez) (x : Rat) : Nat → Rat × Rat → Rat × Rat
   | 0, p => p
   | n + 1, (lo, hi) => if bx b ((lo + hi) / 2) < x then bis b x n ((lo + hi) / 2, hi) else bis b x n (lo, (lo + hi) / 2)
@@ -59,7 +59,9 @@ def bis (b : Bez) (x : Rat) : Nat → Rat × Rat → Rat × Rat
 /-- Number of halvings (resolution $2^{-24}$). $$N = 24$$ -/
 def steps : Nat := 24
 
-/-- The parameter whose $x$ is closest to $x$ after $N$ halvings, mid-point. $$u(x) = \tfrac{lo_N + hi_N}{2}$$ -/
+/-- The parameter whose $x$ is closest to $x$ after $N$ halvings, mid-point.
+
+$$\forall b, x:\quad u_b(x) = \tfrac{lo_N + hi_N}{2},\quad (lo_N, hi_N) = \operatorname{bis}_{b,x}(N, (0, 1)),\ N = 24$$ -/
 def solve (b : Bez) (x : Rat) : Rat :=
   let p := bis b x steps (0, 1)
   (p.1 + p.2) / 2
@@ -92,11 +94,11 @@ theorem solve_mem (b : Bez) (x : Rat) : 0 ≤ solve b x ∧ solve b x ≤ 1 := b
 
 /-- For the spring curve ($y_1 = y_2 = 1$) the $y$ coordinate is $1 - (1-u)^3$.
 
-$$B_y(u) = 1 - (1 - u)^3$$ -/
+$$\forall u \in \mathbb{Q}:\quad B_y^{\mathrm{spring}}(u) = 1 - (1 - u)^3$$ -/
 theorem spring_by (u : Rat) : by' spring u = 1 - (1 - u) * (1 - u) * (1 - u) := by
   unfold by' spring; grind
 
-/-- The spring ease stays in $[0, 1]$. $$\forall x:\ 0 \le \operatorname{ease}(x) \le 1$$ Entries never overshoot. -/
+/-- The spring ease stays in $[0, 1]$. $$\forall x \in \mathbb{Q}:\ 0 \le \operatorname{ease}_{\mathrm{spring}}(x) \le 1$$ Entries never overshoot. -/
 theorem ease_mem (x : Rat) : 0 ≤ ease spring x ∧ ease spring x ≤ 1 := by
   unfold ease
   split
@@ -118,7 +120,7 @@ theorem ease_mem (x : Rat) : 0 ≤ ease spring x ∧ ease spring x ≤ 1 := by
     have h5 : 0 ≤ (1 - u) * (1 - u) * (1 - u) := Rat.mul_nonneg h3 h0
     grind
 
-/-- The ease starts at 0 and ends at 1. $$\operatorname{ease}(0) = 0 \land \operatorname{ease}(1) = 1$$ -/
+/-- The spring ease starts at 0 and ends at 1. $$\operatorname{ease}_{\mathrm{spring}}(0) = 0 \land \operatorname{ease}_{\mathrm{spring}}(1) = 1$$ -/
 theorem ease_ends : ease spring 0 = 0 ∧ ease spring 1 = 1 := by
   constructor <;> decide +kernel
 
@@ -162,53 +164,50 @@ deriving Repr
 def liftBlur : List Tr :=
   [⟨"opacity", 0, 1⟩, ⟨"translateY", 18, 0⟩, ⟨"scale", 24 / 25, 1⟩, ⟨"blur", 8, 0⟩]
 
-/-- Credibility card $i$ (delay $70 i$ ms, `--cred-enter-delay`). $$D = 420,\ d = 70i$$ -/
+/-- Credibility card $i$ (delay $70 i$ ms, `--cred-enter-delay`). $$\forall i \in \mathbb N:\quad \operatorname{credCard}(i) = (\texttt{cred-card-in}, 420, 70i, \mathrm{liftBlur})$$ -/
 def credCard (i : Nat) : Entry := ⟨"cred-card-in", 420, 70 * i, liftBlur⟩
 
-/-- Profile phone. $$D = 620,\ d = 0$$ -/
+/-- Profile phone. $$\mathrm{profilePhone} = (\texttt{profile-phone-in}, 620, 0, \mathrm{liftBlur})$$ -/
 def profilePhone : Entry := ⟨"profile-phone-in", 620, 0, liftBlur⟩
 
-/-- Secure-network rings. $$D = 480,\ d = 0$$, opacity $0\to1$, scale $1.04\to1$. -/
+/-- Secure-network rings. $$\mathrm{rings} = (\texttt{secure-network-rings-in}, 480, 0, [(\texttt{opacity}, 0, 1),\ (\texttt{scale}, 1.04, 1)])$$ -/
 def rings : Entry := ⟨"secure-network-rings-in", 480, 0, [⟨"opacity", 0, 1⟩, ⟨"scale", 26 / 25, 1⟩]⟩
 
-/-- Left face. $$D = 320,\ d = 0$$, translateX $-8\to0$. -/
+/-- Left face. $$\mathrm{faceLeft} = (\texttt{secure-network-face-left-in}, 320, 0, [(\texttt{opacity}, 0, 1),\ (\texttt{translateX}, -8, 0)])$$ -/
 def faceLeft : Entry := ⟨"secure-network-face-left-in", 320, 0, [⟨"opacity", 0, 1⟩, ⟨"translateX", -8, 0⟩]⟩
 
-/-- Right face. $$D = 320,\ d = 0$$, translateX $8\to0$. -/
+/-- Right face. $$\mathrm{faceRight} = (\texttt{secure-network-face-right-in}, 320, 0, [(\texttt{opacity}, 0, 1),\ (\texttt{translateX}, 8, 0)])$$ -/
 def faceRight : Entry := ⟨"secure-network-face-right-in", 320, 0, [⟨"opacity", 0, 1⟩, ⟨"translateX", 8, 0⟩]⟩
 
-/-- Dash. $$D = 260,\ d = 60$$, scaleX $0\to1$. -/
+/-- Dash. $$\mathrm{dash} = (\texttt{secure-network-dash-in}, 260, 60, [(\texttt{opacity}, 0, 1),\ (\texttt{scaleX}, 0, 1)])$$ -/
 def dash : Entry := ⟨"secure-network-dash-in", 260, 60, [⟨"opacity", 0, 1⟩, ⟨"scaleX", 0, 1⟩]⟩
 
-/-- Shield. $$D = 420,\ d = 180$$, scale $0.88\to1$. -/
+/-- Shield. $$\mathrm{shield} = (\texttt{secure-network-shield-in}, 420, 180, [(\texttt{opacity}, 0, 1),\ (\texttt{scale}, 0.88, 1)])$$ -/
 def shield : Entry := ⟨"secure-network-shield-in", 420, 180, [⟨"opacity", 0, 1⟩, ⟨"scale", 22 / 25, 1⟩]⟩
 
-/-- Logo mark. $$D = 280,\ d = 680$$, scale $0.7\to1$. -/
+/-- Logo mark. $$\mathrm{logo} = (\texttt{secure-network-logo-in}, 280, 680, [(\texttt{opacity}, 0, 1),\ (\texttt{scale}, 0.7, 1)])$$ -/
 def logo : Entry := ⟨"secure-network-logo-in", 280, 680, [⟨"opacity", 0, 1⟩, ⟨"scale", 7 / 10, 1⟩]⟩
 
-/-- Delay of flag number $k$ (1-based child index): 600, 560, 520, 520, 560, 600 ms.
+/-- Delay of flag number $k$ (1-based child index): 600, 560, 520, 520, 560, 600 ms; every other $k$
+(including $k = 0$) gets 600.
 
-$$d(k) = \begin{cases} 600 & k \in \{1, 6, \ge 7\} \\ 560 & k \in \{2, 5\} \\ 520 & k \in \{3, 4\} \end{cases}$$
-
-$$d(k) = \begin{cases} 600 & k \in \{1, 6, \ge 7\} \\ 560 & k \in \{2, 5\} \\ 520 & k \in \{3, 4\} \end{cases}$$
-
-$$d(k) = \begin{cases} 600 & k \in \{1, 6, \ge 7\} \\ 560 & k \in \{2, 5\} \\ 520 & k \in \{3, 4\} \end{cases}$$ -/
+$$\forall k \in \mathbb N:\quad d(k) = \begin{cases} 560 & k \in \{2, 5\} \\ 520 & k \in \{3, 4\} \\ 600 & k \notin \{2, 3, 4, 5\} \ (k = 0,\ k = 1 \text{ or } k \ge 6) \end{cases}$$ -/
 def flagDelay : Nat → Rat
   | 1 => 600 | 2 => 560 | 3 => 520 | 4 => 520 | 5 => 560 | _ => 600
 
-/-- Flag $k$. $$D = 280,\ d = \mathrm{flagDelay}(k)$$, scale $0.82\to1$. -/
+/-- Flag $k$. $$\forall k \in \mathbb N:\quad \operatorname{flag}(k) = (\texttt{secure-network-flag-in}, 280, \operatorname{flagDelay}(k), [(\texttt{opacity}, 0, 1),\ (\texttt{scale}, 0.82, 1)])$$ -/
 def flag (k : Nat) : Entry := ⟨"secure-network-flag-in", 280, flagDelay k, [⟨"opacity", 0, 1⟩, ⟨"scale", 41 / 50, 1⟩]⟩
 
-/-- Invoice card (the `invoice-i` variant of the last row). $$D = 560,\ d = 620$$, translateY $22\to0$, scale $0.94\to1$. -/
+/-- Invoice card (the `invoice-i` variant of the last row). $$\mathrm{invoiceCard} = (\texttt{invoice-card-in}, 560, 620, [(\texttt{opacity}, 0, 1),\ (\texttt{translateY}, 22, 0),\ (\texttt{scale}, 0.94, 1)])$$ -/
 def invoiceCard : Entry := ⟨"invoice-card-in", 560, 620, [⟨"opacity", 0, 1⟩, ⟨"translateY", 22, 0⟩, ⟨"scale", 47 / 50, 1⟩]⟩
 
-/-- Orders row $i$ (delay $140 i$ ms, `--orders-card-delay`). $$D = 620,\ d = 140 i$$, translateX $20\to0$. -/
+/-- Orders row $i$ (delay $140 i$ ms, `--orders-card-delay`). $$\forall i \in \mathbb N:\quad \operatorname{orderRow}(i) = (\texttt{invoice-i-row-in}, 620, 140i, [(\texttt{opacity}, 0, 1),\ (\texttt{translateX}, 20, 0)])$$ -/
 def orderRow (i : Nat) : Entry := ⟨"invoice-i-row-in", 620, 140 * i, [⟨"opacity", 0, 1⟩, ⟨"translateX", 20, 0⟩]⟩
 
-/-- Search title, field and service $i$ entering (delay $140 i$ ms). $$D = 560,\ d = 140 i$$, translateY $10\to0$. -/
+/-- Search title, field and service $i$ entering (delay $140 i$ ms). $$\forall i \in \mathbb N:\quad \operatorname{askIn}(i) = (\texttt{agents-ask-in}, 560, 140i, [(\texttt{opacity}, 0, 1),\ (\texttt{translateY}, 10, 0)])$$ -/
 def askIn (i : Nat) : Entry := ⟨"agents-ask-in", 560, 140 * i, [⟨"opacity", 0, 1⟩, ⟨"translateY", 10, 0⟩]⟩
 
-/-- Search service $i$ leaving. $$D = 560,\ d = 140 i$$, opacity $1\to0$, translateY $0\to10$. -/
+/-- Search service $i$ leaving. $$\forall i \in \mathbb N:\quad \operatorname{askOut}(i) = (\texttt{agents-ask-out}, 560, 140i, [(\texttt{opacity}, 1, 0),\ (\texttt{translateY}, 0, 10)])$$ -/
 def askOut (i : Nat) : Entry := ⟨"agents-ask-out", 560, 140 * i, [⟨"opacity", 1, 0⟩, ⟨"translateY", 0, 10⟩]⟩
 
 /-- Linear progress of an entry $t$ ms after its animation was started (`both` fill).
@@ -216,19 +215,19 @@ def askOut (i : Nat) : Entry := ⟨"agents-ask-out", 560, 140 * i, [⟨"opacity"
 $$x(t) = \frac{t - d}{D}$$ -/
 def lin (e : Entry) (t : Rat) : Rat := (t - e.delay) / e.dur
 
-/-- Eased progress. $$p(t) = \operatorname{ease}(x(t))$$ -/
+/-- Eased progress on the spring curve. $$\forall e, \forall t \in \mathbb{Q}:\quad p_e(t) = \operatorname{ease}_{\mathrm{spring}}(x_e(t)) = \operatorname{ease}_{\mathrm{spring}}\!\left(\tfrac{t - d}{D}\right)$$ -/
 def progress (e : Entry) (t : Rat) : Rat := ease spring (lin e t)
 
 /-- A property's value $t$ ms in. $$v(t) = a + (b - a)\,p(t)$$ -/
 def value (e : Entry) (tr : Tr) (t : Rat) : Rat := tr.a + (tr.b - tr.a) * progress e t
 
-/-- Before the delay the entry sits on its first keyframe (fill `both`). $$t \le d \Rightarrow p(t) = 0$$ -/
+/-- Before the delay the entry sits on its first keyframe (fill `both`). $$\forall e = (\mathit{name}, D, d, \mathit{props}),\ \forall t \in \mathbb{Q}:\quad D > 0 \land t \le d \Rightarrow p_e(t) = 0$$ -/
 theorem progress_before (e : Entry) (t : Rat) (hD : 0 < e.dur) (h : t ≤ e.delay) : progress e t = 0 := by
   unfold progress lin ease
   have : (t - e.delay) / e.dur ≤ 0 := div_nonpos' _ _ hD (by grind)
   simp [this]
 
-/-- After delay plus duration it sits on its last keyframe. $$t \ge d + D \Rightarrow p(t) = 1$$ -/
+/-- After delay plus duration it sits on its last keyframe. $$\forall e = (\mathit{name}, D, d, \mathit{props}),\ \forall t \in \mathbb{Q}:\quad D > 0 \land t \ge d + D \Rightarrow p_e(t) = 1$$ -/
 theorem progress_after (e : Entry) (t : Rat) (hD : 0 < e.dur) (h : e.delay + e.dur ≤ t) : progress e t = 1 := by
   unfold progress lin ease
   have h1 : 1 ≤ (t - e.delay) / e.dur := one_le_div' _ _ hD (by grind)
@@ -335,21 +334,19 @@ deriving Repr, DecidableEq
 /-- Floor to a natural number. $$\lfloor x \rfloor_{\mathbb N} = \max(0, \lfloor x \rfloor)$$ -/
 def fl (x : Rat) : Nat := x.floor.toNat
 
-/-- The query length $\tau$ ms into a topic of length $L$ whose reveal wait is $r$.
+/-- The query length $\tau$ ms into a topic of length $L$ whose reveal wait is $r$ ($\lfloor\cdot\rfloor_{\mathbb N}$ is
+`fl`, $\dot-$ truncated subtraction).
 
-$$\ell(\tau) = \begin{cases} \lfloor \tau/32 \rfloor + 1 & \tau < 32L \\ L & \tau < 32L + r + 3000 \\ \max(0,\ L - \lfloor (\tau - 32L - r - 3000)/18 \rfloor - 1) & \text{otherwise} \end{cases}$$ -/
+$$\forall L \in \mathbb N,\ \forall r, \tau \in \mathbb{Q}:\quad \ell_{L,r}(\tau) = \begin{cases} \min(L,\ \lfloor \tau/32 \rfloor_{\mathbb N} + 1) & \tau < 32L \\ L & 32L \le \tau < 32L + r + 3000 \\ L \mathbin{\dot-} \big(\lfloor (\tau - (32L + r + 3000))/18 \rfloor_{\mathbb N} + 1\big) & \tau \ge 32L + r + 3000 \end{cases}$$ -/
 def lenAt (L : Nat) (reveal τ : Rat) : Nat :=
   if τ < typeStep * L then min L (fl (τ / typeStep) + 1)
   else if τ < typeStep * L + reveal + holdMs then L
   else L - (fl ((τ - (typeStep * L + reveal + holdMs)) / eraseStep) + 1)
 
-/-- One topic's view. `prev` is the topic whose list was shown before.
+/-- One topic's view. `prev` is the topic whose list was shown before; `first` picks the 280 ms reveal, else the
+700 ms swap.
 
-$$\operatorname{topicView}(i, p, L, f, \tau) = (\ell(\tau),\ i,\ [\,32L \le \tau\,]\ ?\ i : p,\ \ldots)$$
-
-$$\operatorname{topicView}(i, p, L, f, \tau) = (\ell(\tau),\ i,\ [\,32L \le \tau\,]\ ?\ i : p,\ \ldots)$$
-
-$$\operatorname{topicView}(i, p, L, f, \tau) = (\ell(\tau),\ i,\ [\,32L \le \tau\,]\ ?\ i : p,\ \ldots)$$ -/
+$$\begin{aligned} \forall i, p, L \in \mathbb N,\ \forall f \in \mathbb B,\ \forall \tau \in \mathbb{Q}:\quad \operatorname{topicView}(i, p, L, f, \tau) = \big(&\ell_{L,r}(\tau),\ i,\ (32L \le \tau\ ?\ i : p),\ \lnot f \land 32L \le \tau < 32L + 700, \\ &\lnot f \lor 32L + 280 \le \tau,\ \top\big),\quad r = (f\ ?\ 280 : 700) \end{aligned}$$ -/
 def topicView (idx prev L : Nat) (first : Bool) (τ : Rat) : View :=
   let reveal := if first then firstReveal else swapMs
   let typed := typeStep * L
@@ -359,13 +356,9 @@ def topicView (idx prev L : Nat) (first : Bool) (τ : Rat) : View :=
     results := !first || typed + firstReveal ≤ τ,
     caret := true }
 
-/-- Walk the topic list: the first entry whose duration holds $r$.
+/-- Walk the topic list: the first entry whose duration holds $r$, with $r$ made relative to that entry.
 
-$$\operatorname{locate}((i, L) :: R, r) = \begin{cases} (i, L, r) & r < 50L + 3700 \\ \operatorname{locate}(R, r - 50L - 3700) & \text{otherwise} \end{cases}$$
-
-$$\operatorname{locate}((i, L) :: R, r) = \begin{cases} (i, L, r) & r < 50L + 3700 \\ \operatorname{locate}(R, r - 50L - 3700) & \text{otherwise} \end{cases}$$
-
-$$\operatorname{locate}((i, L) :: R, r) = \begin{cases} (i, L, r) & r < 50L + 3700 \\ \operatorname{locate}(R, r - 50L - 3700) & \text{otherwise} \end{cases}$$ -/
+$$\forall r \in \mathbb{Q}:\quad \operatorname{locate}([\,], r) = \bot,\qquad \operatorname{locate}((i, L) :: R, r) = \begin{cases} (i, L, r) & r < 50L + 3700 \\ \operatorname{locate}(R,\ r - (50L + 3700)) & r \ge 50L + 3700 \end{cases}$$ -/
 def locate : List (Nat × Nat) → Rat → Option (Nat × Nat × Rat)
   | [], _ => none
   | (i, L) :: rest, r => if r < topicDur L swapMs then some (i, L, r) else locate rest (r - topicDur L swapMs)
@@ -380,39 +373,26 @@ def wrap (P r : Rat) : Rat := r - P * (r / P).floor
 
 /-- The rotation after the first topic: topics $1, \dots, n-1$, then $0$ again, each with its query length.
 
-$$\operatorname{rot}(L_0 :: R) = [(1, L_1), \dots, (n-1, L_{n-1}), (0, L_0)]$$
-
-$$\operatorname{rot}(L_0 :: R) = [(1, L_1), \dots, (n-1, L_{n-1}), (0, L_0)]$$
-
-$$\operatorname{rot}(L_0 :: R) = [(1, L_1), \dots, (n-1, L_{n-1}), (0, L_0)]$$ -/
+$$\operatorname{rot}([\,]) = [\,],\qquad \forall n \ge 1:\ \operatorname{rot}([L_0, L_1, \dots, L_{n-1}]) = [\,(k, L_k) \mid k = 1, \dots, n-1\,] \mathbin{+\!\!+} [(0, L_0)]$$ -/
 def rotation (lens : List Nat) : List (Nat × Nat) :=
   match lens with
   | [] => []
   | L0 :: rest => (rest.zipIdx 1).map (fun p => (p.2, p.1)) ++ [(0, L0)]
 
 /-- The repeating part, $r$ ms after the first topic ended: wrap into the rotation, then locate the topic.
+The list shown before topic $i$ is the one of the previous topic in the rotation ($n - 1$ before topic 0).
 
-The list shown before topic $i$ is the one of the previous topic in the rotation.
-
-$$\operatorname{cyc}(r) = \operatorname{topicView}\big(\operatorname{locate}(\operatorname{rot}, \operatorname{wrap}_P(r))\big)$$
-
-$$\operatorname{cyc}(r) = \operatorname{topicView}\big(\operatorname{locate}(\operatorname{rot}, \operatorname{wrap}_P(r))\big)$$
-
-$$\operatorname{cyc}(r) = \operatorname{topicView}\big(\operatorname{locate}(\operatorname{rot}, \operatorname{wrap}_P(r))\big)$$ -/
+$$\begin{aligned} \forall \mathit{lens}, \forall r \in \mathbb{Q}:\quad \operatorname{cyc}_{\mathit{lens}}(r) = {} &\begin{cases} \operatorname{topicView}(i,\ (i = 0\ ?\ n \mathbin{\dot-} 1 : i - 1),\ L,\ \bot,\ \tau) & \operatorname{locate}(\operatorname{rot}(\mathit{lens}), \operatorname{wrap}_P(r)) = (i, L, \tau) \\ (0, 0, 0, \bot, \bot, \bot) & \operatorname{locate}(\operatorname{rot}(\mathit{lens}), \operatorname{wrap}_P(r)) = \bot \end{cases} \\ \text{with } n = {} &|\mathit{lens}|,\ P = \operatorname{cycleLen}(\operatorname{rot}(\mathit{lens})) \end{aligned}$$ -/
 def cycView (lens : List Nat) (r : Rat) : View :=
   match locate (rotation lens) (wrap (cycleLen (rotation lens)) r) with
   | some (i, L, τ) => topicView i (if i = 0 then (lens.length - 1) else i - 1) L false τ
   | none => ⟨0, 0, 0, false, false, false⟩
 
 /-- The view at time $t$ after the stage became visible. `lens` are the query lengths in topic order.
+Before $700$ ms: empty. Then topic 0 once with the 280 ms reveal; then the rotation $1, 2, \dots, n-1, 0$ with the
+700 ms swap, repeating.
 
-Before $700$ ms: empty. Then topic 0 once with the 280 ms reveal; then the rotation $1, 2, \dots, n-1, 0$ with the 700 ms swap, repeating.
-
-$$\operatorname{ask}(t) = \begin{cases} \text{empty} & t < 700 \\ \operatorname{topicView}(0, \ldots, t - 700) & t - 700 < D_0 \\ \operatorname{cyc}(t - 700 - D_0) & \text{otherwise} \end{cases}$$
-
-$$\operatorname{ask}(t) = \begin{cases} \text{empty} & t < 700 \\ \operatorname{topicView}(0, \ldots, t - 700) & t - 700 < D_0 \\ \operatorname{cyc}(t - 700 - D_0) & \text{otherwise} \end{cases}$$
-
-$$\operatorname{ask}(t) = \begin{cases} \text{empty} & t < 700 \\ \operatorname{topicView}(0, \ldots, t - 700) & t - 700 < D_0 \\ \operatorname{cyc}(t - 700 - D_0) & \text{otherwise} \end{cases}$$ -/
+$$\begin{aligned} \forall t \in \mathbb{Q}:\quad &\operatorname{ask}_{\mathit{lens}}(t) = (0, 0, 0, \bot, \bot, \bot) \quad \text{if } t < 700 \lor \mathit{lens} = [\,], \\ \text{else, for } \mathit{lens} = L_0 :: R:\quad &\operatorname{ask}_{\mathit{lens}}(t) = \begin{cases} \operatorname{topicView}(0, 0, L_0, \top, t - 700) & t - 700 < D_0 \\ \operatorname{cyc}_{\mathit{lens}}(t - 700 - D_0) & t - 700 \ge D_0 \end{cases},\quad D_0 = 50L_0 + 3280 \end{aligned}$$ -/
 def askView (lens : List Nat) (t : Rat) : View :=
   if t < askLead then ⟨0, 0, 0, false, false, false⟩
   else

@@ -36,7 +36,7 @@ describe("console-api's own events match Lean console.actor", () => {
     { source: string; actor: string; type: string; allowed: boolean }[];
   const bySource = Object.fromEntries(all.map((s) => [s.source, s]));
   it("every source is allowed by the MAY table", () => {
-    expect(all.map((s) => s.source)).toEqual(["alert", "claim", "build", "landed", "taskDone"]);
+    expect(all.map((s) => s.source)).toEqual(["alert", "spawn", "stop", "build", "landed", "taskDone", "planDefine", "planMilestone"]);
     for (const s of all) expect(s.allowed).toBe(true);
   });
   it("alertPlan posts and cancels as the alert source", async () => {
@@ -47,8 +47,10 @@ describe("console-api's own events match Lean console.actor", () => {
     const c = (await alertPlan(core, { ...rec, hook_event_name: "PostToolUse", ts: 2 }, [], ["alert-a1-1"])).close;
     expect(c.map((x) => [x.actor, x.type])).toEqual([["script", "step.cancel"]]);
   });
-  it("claims, builds, landings and trailers write as hook and git (literals in drain.ts and reconciler.ts)", () => {
-    expect([bySource.claim, bySource.build, bySource.landed, bySource.taskDone].map((s) => [s!.actor, s!.type])).toEqual(
-      [["hook", "task.claim"], ["git", "card.build"], ["git", "card.landed"], ["git", "task.done"]]);
+  it("spawns, stops, builds, landings, trailers and the plan sync write as hook, git and script (literals in drain.ts and reconciler.ts)", () => {
+    const srcs = [bySource.spawn, bySource.stop, bySource.build, bySource.landed, bySource.taskDone, bySource.planDefine, bySource.planMilestone];
+    expect(srcs.map((s) => [s!.actor, s!.type])).toEqual(
+      [["hook", "agent.spawn"], ["hook", "agent.stop"], ["git", "card.build"], ["git", "card.landed"], ["git", "task.done"],
+        ["script", "task.define"], ["script", "milestone.define"]]);
   });
 });

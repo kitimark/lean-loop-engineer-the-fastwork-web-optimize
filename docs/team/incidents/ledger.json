@@ -1,0 +1,391 @@
+{
+ "about": "Team tooling incidents, one record per root cause. Evidence kinds: commit (sha on main), event (seq in .fw-console/events.jsonl, local-only), ci (GitHub Actions run id), file (repo path), proc (process shape, no pids that matter later). Each incident names the work-graph task that fixes it (fix.task, plus fix.also); status is derived, never stored: fixed iff fix.task and every also task are done, fixing iff one of them is claimed, else open (Fw.Plan.Incident; check with pnpm fw incidents lint, see README.md).",
+ "incidents": [
+  {
+   "id": "inc-orphan-wait-loop",
+   "at": "2026-10-18T03:00+07:00",
+   "title": "Agent wait loop that can never finish keeps a done agent 'waiting on its own background work'",
+   "symptom": "Agents reported back but stayed held: wktr-ci-lane for 2 h 54 min, ghb-runner 22 min, port-platform 35 min (first attributed to integrate-ports by the lead; corrected from the transcript tool-use id, research/notes/2026/10-18-transcript-signals.md). fw watch raised proc.long sleep#<pid>.",
+   "cause": "CONFIRMED (process command lines read with ps): open-ended `until grep -q <text> <file>; do sleep N; done` loops whose text could never appear. (1) The shared scratch name watch2.txt was overwritten by other agents. (2) The pattern '# pass' never appears in vitest output. (3) The watched file was the output of a background task that had already exited.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "until grep -q 'Run wktr\\|completed' <scratchpad>/watch2.txt; sleep 45 (elapsed 2:54:28)",
+     "note": "killed by the lead; wktr-ci-lane completed at once"
+    },
+    {
+     "kind": "proc",
+     "ref": "until grep -q '# pass' /tmp/ghb-test.log; sleep 3 (elapsed 22:06)",
+     "note": "the vitest log never contains '# pass'"
+    },
+    {
+     "kind": "proc",
+     "ref": "until grep -q 'merge (playwright-webkit) completed' <tasks>/bo3ksfboe.output; sleep 15 (elapsed 35:07)",
+     "note": "the producer had exited with only 'gate (chromium, s7) completed success'"
+    }
+   ],
+   "repro": "Spawn an agent that backgrounds `until grep -q X f; do sleep 3; done` where f never gets X; it hands back; the harness shows it as waiting on background work forever.",
+   "fix": {
+    "task": "obs-next-lean",
+    "also": [
+     "obs-next-glue"
+    ]
+   },
+   "regression": "packages/contracts/golden/obs/next.jsonl cases 2, 3, 6"
+  },
+  {
+   "id": "inc-unlanded-handback",
+   "at": "2026-10-18T01:23+07:00",
+   "title": "Agent reported back with a green gate, but its branch sat unlanded and looked stuck",
+   "symptom": "port-nav reported back at 01:23 with every gate job green. Its branch was queued for the integrator and nothing showed that. The user asked whether it was stuck about 1.5 h later.",
+   "cause": "CONFIRMED: nothing derives 'handed back + branch ahead + not landed + not in an integrator queue' into a next action.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39057124869",
+     "note": "port-nav gate, all jobs success; the integrator-queue note (handoffs/integrate-ports.md) exists only on the unlanded branch ci/integrate-ports, so it is not cited as a file on main"
+    }
+   ],
+   "repro": "An agent hands back with a branch that is ahead of main; fw watch shows no action for it.",
+   "fix": {
+    "task": "obs-next-lean",
+    "also": [
+     "obs-next-glue"
+    ]
+   },
+   "regression": "packages/contracts/golden/obs/next.jsonl case 1"
+  },
+  {
+   "id": "inc-claim-order",
+   "at": "2026-10-18T03:03+07:00",
+   "title": "Agent not bound to its task when the task is defined after the spawn",
+   "symptom": "obs-next-lean was running but the board showed its task as 'ready' with no agent. The lead claimed it by hand.",
+   "cause": "CONFIRMED (code read): the claim at spawn (apps/console-api/src/spool/drain.ts claimFor) runs once and needs the task to exist. The claim at define time (Fw.Plan.Core Def.liveAgent) needs the agent in the latest fw watch snapshot, which is taken every 300 s. Neither retries.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "7202de9",
+     "note": "task committed at 03:02:56"
+    },
+    {
+     "kind": "event",
+     "ref": "480",
+     "note": "task.define obs-next-lean at 03:05:16 (after the spawn)"
+    },
+    {
+     "kind": "event",
+     "ref": "486",
+     "note": "manual task.claim by the lead"
+    }
+   ],
+   "repro": "Commit a task, spawn an agent with the task's name, then run fw plan sync within one watch interval: the task stays unclaimed.",
+   "fix": {
+    "task": "claim-order-lean"
+   },
+   "regression": "packages/contracts/golden/plan (obs-next-lean trace in both orders)"
+  },
+  {
+   "id": "inc-plan-sync-on-land-only",
+   "at": "2026-10-18T03:30+07:00",
+   "title": "New tasks reach the board only when something runs fw plan sync",
+   "symptom": "A task committed to main was not on the board after 5 min. The lead's foreground wait looked stuck to the user.",
+   "cause": "CONFIRMED: only fw land (and a manual fw plan sync) applies work-graph defines; the reconciler does not watch main.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "b2e5ff1",
+     "note": "claim-order-lean committed; not defined until a manual sync"
+    }
+   ],
+   "repro": "Commit a new task to docs/team/work-graph.json on main and query /api/board: the task is absent until fw plan sync.",
+   "fix": {
+    "task": "claim-order-lean"
+   },
+   "regression": "apps/console-api/test (sync on main HEAD move)"
+  },
+  {
+   "id": "inc-land-post-commit-throw",
+   "at": "2026-10-18T02:46+07:00",
+   "title": "fw land exits 1 with 'fetch failed' after the merge commit, which skips cleanup and sync",
+   "symptom": "Lands of ghb-runner, proof-morph-mount and proof-nav-hittest merged but exited 1, so the lead cleaned up by hand.",
+   "cause": "CONFIRMED by pa-sync-main: any throw after the merge commit skipped cleanup and sync, and the internal sync used a capability that was already spent.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "1c64c85",
+     "note": "ghb-runner land that exited 1"
+    },
+    {
+     "kind": "commit",
+     "ref": "ca48604",
+     "note": "the fix: retry, a warning list, exit 0 once merged"
+    }
+   ],
+   "repro": "Run fw land while the console API is unreachable after the merge commit.",
+   "fix": {
+    "task": "pa-sync-main"
+   },
+   "regression": "apps/runner/test/land-post.test.ts"
+  },
+  {
+   "id": "inc-commit-during-land",
+   "at": "2026-10-18T03:40+07:00",
+   "title": "A lead commit on main during fw land's open merge became the land's merge commit",
+   "symptom": "The lead's work-graph commit dec1226 had parents (b2e5ff1, e33e16f), with the lead's message and no Task trailer. The land process was still running its checks.",
+   "cause": "CONFIRMED: fw land does merge --no-ff --no-commit and keeps it open for minutes of checks. Nothing stops other commits in the main checkout meanwhile.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "80d7610",
+     "note": "dec1226 amended with the Task: proof-pain-notes trailer after the land process group was stopped"
+    }
+   ],
+   "repro": "Start fw land on a branch with Lean changes; while check.sh runs, git commit any file on main.",
+   "fix": {
+    "task": "land-hardening"
+   },
+   "regression": "apps/runner/test (commit during land is refused)"
+  },
+  {
+   "id": "inc-land-scope-registrations",
+   "at": "2026-10-18T03:20+07:00",
+   "title": "fw land refuses the normal registration files of a port or a measurement task",
+   "symptom": "port-platform was refused for registry/index.ts, App.tsx, gen-shells.mjs, Gate/Scope.lean, Parts/Golden.lean, anchors.json and its Lean part files. zone-baselines-webkit was refused for its adapter, test and results. Every land needed hand-written --allow.",
+   "cause": "CONFIRMED: Fw.Console.Land admits task.writes + handoff + generated + a fixed registration list. Ports and measurement tasks have registration sets that list does not know.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "6e968ba",
+     "note": "port-platform landed with 7 --allow globs (Land-Allow trailer)"
+    },
+    {
+     "kind": "commit",
+     "ref": "20f0388",
+     "note": "zone-baselines-webkit landed with 2 --allow globs"
+    }
+   ],
+   "repro": "fw land a port branch without --allow.",
+   "fix": {
+    "task": "land-hardening"
+   },
+   "regression": "packages/contracts/golden/console/console.landScope.jsonl"
+  },
+  {
+   "id": "inc-agent-on-ci-branch",
+   "at": "2026-10-18T03:25+07:00",
+   "title": "An agent committed on its ci/* branch, so fw land of the worktree branch said 'nothing to land'",
+   "symptom": "zone-baselines-webkit's commit 6b5933d was only on ci/zone-baselines-webkit. The worktree branch was already in main.",
+   "cause": "CONFIRMED: the agent checked out ci/<task> in its worktree. fw land only looks at the branch it is given.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "20f0388",
+     "note": "landed from ci/zone-baselines-webkit by hand"
+    }
+   ],
+   "repro": "In a worktree, git checkout -b ci/x, commit, and fw land the worktree branch.",
+   "fix": {
+    "task": "land-hardening"
+   },
+   "regression": "apps/runner/test (land finds the agent's ci/<task> branch)"
+  },
+  {
+   "id": "inc-fw-lean-import-conflict",
+   "at": "2026-10-18T03:00+07:00",
+   "title": "Every parallel proof branch conflicted on lean/Fw.lean",
+   "symptom": "proof-hidden-pause, proof-hero-exit and port-platform each needed a hand merge of one import line.",
+   "cause": "CONFIRMED: lean/Fw.lean is a hand-kept list of imports.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "8a9fe61",
+     "note": "stopgap: .gitattributes merge=union"
+    }
+   ],
+   "repro": "Two branches each append an import to lean/Fw.lean and both merge into main.",
+   "fix": {
+    "task": "land-hardening"
+   },
+   "regression": "lean/scripts/check.sh (every lean/Fw/**/*.lean module is imported exactly once)"
+  },
+  {
+   "id": "inc-gh-rate-limit",
+   "at": "2026-10-18T01:07+07:00",
+   "title": "The agents' shared GitHub token emptied its 5000/h core bucket",
+   "symptom": "Every agent's CI wait failed with 403 at the same time.",
+   "cause": "CONFIRMED (X-Ratelimit headers): about 12 agents polled gh run view every 30 s, and gh run watch defaults to 3 s.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-gh-rate-budget.md"
+    },
+    {
+     "kind": "commit",
+     "ref": "1c64c85",
+     "note": "ghb-runner: every runner gh call goes through ghCharged"
+    }
+   ],
+   "repro": "research/notes/2026/10-18-gh-rate-budget.md, the call-count model.",
+   "fix": {
+    "task": "ghb-runner",
+    "also": [
+     "ghb-lean",
+     "ghb-glue"
+    ]
+   },
+   "regression": "packages/gh-budget tests; Fw.Ci.Budget theorems"
+  },
+  {
+   "id": "inc-next-false-positives",
+   "at": "2026-10-18T03:30+07:00",
+   "title": "fw next proposed land for a branch that conflicts with main and respawn for agents that finished long ago",
+   "symptom": "Live `fw next` printed `NEXT variant-morph-panel-rest land` for a branch that contains the unlanded port-morph-panel branch and conflicts with main, and 11 `respawnFromHandoff` lines for long-finished agents (env-elan, explainer-rev6, lean-math, macos-queue, ...).",
+   "cause": "CONFIRMED (Fw.Obs.Next at 8a52856): `lands` looked only at ahead/landed/queued, and `respawn` only at stuck and no child. Neither read whether the branch merges cleanly, whether it carries unlanded dependencies, or whether the agent's task is still open.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "packages/contracts/golden/obs/next.jsonl",
+     "note": "cases 9, 9b (waitDeps, conflict) and 10-10c (no respawn without an open task and a handoff); rules before the fix at branch commit 8a52856"
+    }
+   ],
+   "repro": "Fw.Obs.Next: a handed-back agent whose branch has deps or does not merge cleanly got `land`; a gone agent with a done task got `respawnFromHandoff`.",
+   "fix": {
+    "task": "obs-next-glue"
+   },
+   "regression": "Fw.Obs.Next land_sound, waitDeps_sound, respawn_sound and the golden cases; apps/runner/test/next.test.ts"
+  },
+  {
+   "id": "inc-retention-hides-unlanded",
+   "at": "2026-10-18T03:30+07:00",
+   "title": "The health collector dropped an agent one hour after it ended, hiding its unlanded branch",
+   "symptom": "port-nav ended at 01:23 with its branch unlanded; at 03:23 it was gone from the health agents list and from the NEXT input, so no routeIntegrator or land could be proposed.",
+   "cause": "CONFIRMED (source): SCOPE.keepDoneMs = 1 h in apps/runner/src/watch-collect.ts:71 drops ended agents from the snapshot regardless of open work (branch ahead of main, worktree, child).",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/watch-collect.ts",
+     "note": "SCOPE.keepDoneMs = 1 h at line 71 (main 6d5bf87) when the incident was seen"
+    },
+    {
+     "kind": "event",
+     "ref": "health snapshot at 03:23",
+     "note": "port-nav absent from the agents list (local-only)"
+    }
+   ],
+   "repro": "End an agent with an unlanded branch, wait more than an hour, run fw watch: the agent is not in the snapshot.",
+   "fix": {
+    "task": "obs-next-glue"
+   },
+   "regression": "Fw.Obs.Next keep_of_open_action and golden case 8; apps/runner/test/next.test.ts (hasWorktree)"
+  },
+  {
+   "id": "inc-variant-gate-flags-off",
+   "at": "2026-10-18T04:30+07:00",
+   "title": "Variant gate runs tested the rewrite with every flag off",
+   "symptom": "breakpoint-gate had no variant-flag input, so runs on ci/variant-* compared original vs rewrite with flags off; morph.mount:shift landed on such a run (39067215069) and hidden-pause reported one (39067391933)",
+   "cause": "CONFIRMED: .github/workflows/breakpoint-gate.yml workflow_dispatch inputs were engines, shards, parts only; found by the variant-hidden-pause agent",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39067215069",
+     "note": "morph.mount:shift gate, flags off"
+    },
+    {
+     "kind": "ci",
+     "ref": "39067391933",
+     "note": "hidden-pause gate, flags off"
+    },
+    {
+     "kind": "ci",
+     "ref": "39067656223",
+     "note": "first flagged run (FW_SEARCH ?fw=morph.tween:waapi) from the tween branch"
+    }
+   ],
+   "repro": "Push a variant branch to ci/<x> and read FW_SEARCH in the gate log: empty before the fix.",
+   "fix": {
+    "task": "variant-regate",
+    "also": [
+     "variant-morph-tween-waapi"
+    ]
+   },
+   "regression": "breakpoint-gate summary names the flags it ran with; a variant land requires a flagged run"
+  },
+  {
+   "id": "inc-silent-stdin-bg",
+   "at": "2026-10-18T00:54+07:00",
+   "title": "A background shell blocked on stdin ran 3 h with no end signal",
+   "symptom": "port-nav ran grep plus `cat > file` with no input; the harness auto-backgrounded it at 00:54; it never ended, emitted nothing, and was found only by the transcript research at about 04:25 and killed by PID",
+   "cause": "CONFIRMED (ps and transcript): a command reading stdin in a non-interactive shell blocks forever; no file records a hang, only ps shows it",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-transcript-signals.md",
+     "note": "port-nav timeline, part B"
+    },
+    {
+     "kind": "proc",
+     "ref": "cat (child of a session shell, elapsed 3:10:14)",
+     "note": "killed by the lead"
+    }
+   ],
+   "repro": "Run `cat > /tmp/x` in a background Bash call: it never exits.",
+   "fix": {
+    "task": "obs-signals"
+   },
+   "regression": "golden/obs: a pending bg task with no end marker older than T and a live proc whose command reads stdin -> killOrphan"
+  },
+  {
+   "id": "inc-worktree-role-as-teammate",
+   "at": "2026-10-18T01:56+07:00",
+   "title": "Worktree roles spawned by name without isolation ran as teammates in the main checkout",
+   "symptom": "The shadow spawn guard logged deny:kindMismatch (wanted worktree, got teammate) for part-builder (port-people-fix, 01:56) and measure-engineer (step-align-fix, 02:38), plus two earlier unattributed ones; the spawns went ahead because the guard only logged, so their edits would land in the lead's checkout, untracked by any branch.",
+   "cause": "CONFIRMED (code read, PLAN 8.1 and lean/Fw/Ops/SpawnGuard.lean effKind): a named Agent call from the lead without isolation is a teammate in the main checkout, whatever the role file asks for; the guard saw it and was in shadow mode.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ops/SpawnGuard.lean",
+     "note": "trap_exact: the exact verdict for this call shape"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/hooks/spawn-guard.mjs",
+     "note": "shadow mode before this fix; enforce prints a deny with the reason"
+    }
+   ],
+   "repro": "Agent call from the lead with subagent_type part-builder and a name but no isolation: fwcore ops.spawn answers deny kindMismatch.",
+   "fix": {
+    "task": "spawn-enforce"
+   },
+   "regression": "apps/runner/test/spawn-guard.test.ts 'refused with its reason: worktree role without isolation (I-272 trap)' and Lean trap_exact"
+  },
+  {
+   "id": "inc-workflow-unbound",
+   "at": "2026-10-18T04:40+07:00",
+   "title": "A task worked on by a Workflow run showed in the ready lane",
+   "symptom": "Task mistake-retro ran as Workflow run wf_b3d4e643-ace (meta.name = the task id) but the board kept it in ready, unbound; the lead claimed it by hand (task.claim with agent=wf_b3d4e643-ace, event seq 577).",
+   "cause": "CONFIRMED (code read, lean/Fw/Plan/Core.lean agentOf/cands, docs/team/tools/spawn-guard.md): the board binds an agent to a task only from agent.spawn / agent.stop of named Agent spawns. A Workflow run and its unnamed subagents never emit one (PreToolUse(Agent) does not fire for workflow agents), so nothing bound the task.",
+   "evidence": [
+    {
+     "kind": "event",
+     "ref": "577",
+     "note": "the hand claim: task.claim mistake-retro by agent wf_b3d4e643-ace (run id wf_b3d4e643-ace)"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Plan/Workflow.lean",
+     "note": "workflow_binds, workflow_ends, workflow_foreign_agentOf, define_workflow_comm"
+    },
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-transcript-signals.md",
+     "note": "run start = workflows/scripts/<meta.name>-<runId>.js, run end = workflows/<runId>.json"
+    }
+   ],
+   "repro": "Start a Workflow whose meta.name equals a ready task id: the task stays in ready while the run is alive.",
+   "fix": {
+    "task": "workflow-claim"
+   },
+   "regression": "packages/contracts/golden/plan/workflow.jsonl (Lean Fw.Plan.wfEvents) checked by apps/console-api/test/workflow-claim.test.ts, plus the Lean theorems workflow_binds and define_workflow_comm"
+  }
+ ]
+}
