@@ -7,7 +7,8 @@ import FwTest.Golden
   `Fw.Wire.Serve.boardGolden` byte for byte (Lean is the source; regenerate with
   `lake env lean --run scripts/BoardGolden.lean`), every case's `request.state` is the projection of
   its `events`, and both the stateless `console.board` and the stateful
-  `console.reset` + `console.replay` + `console.query` give its `response.board`.
+  `console.reset` + `console.replay` + `console.query` give its `response.board` (the stateful one
+  with the empty board plan added as `plan`).
 * Serve lines: applying a synthetic log one `console.apply` line at a time, and replaying it in one
   `console.replay` line, give the same `console.query` reply.
 * Timing (informational): 100,000 synthetic events through `exec` and through one `console.replay`
@@ -64,7 +65,9 @@ def boardGolden : IO Nat := do
       let (_, q) := Fw.Wire.Serve.serveLine v2
         (Json.mkObj [("op", "console.query"), ("now", now), ("seq", seq)]).compress
       let ok := (Json.parse stateless).toOption.map (·.getObjValD "board") == some wantB &&
-        (Json.parse q).toOption.map (·.getObjValD "board") == some wantB &&
+        -- the stateful board also carries the board plan (empty: these logs have no plan events)
+        (Json.parse q).toOption.map (·.getObjValD "board") ==
+          some (Fw.Wire.Plan.withPlan wantB (Fw.Plan.view {})) &&
         (Json.parse rep).toOption.map (fun j => (j.getObjValD "replayed").getObjValD "refused") == some (toJson 0) &&
         Fw.Wire.stateJson v2.st == req.getObjValD "state"
       unless ok do

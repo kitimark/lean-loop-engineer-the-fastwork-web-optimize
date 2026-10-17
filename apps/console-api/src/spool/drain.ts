@@ -98,6 +98,13 @@ export class Drain {
     return res;
   }
 
+  /** Name matching only (glue): is there a task with this id? Everything else is the reducer's call. */
+  private async claimFor(name: string): Promise<Command | null> {
+    const t = (await this.store.board()).plan.tasks.find((x) => x.id === name);
+    if (!t || t.state === "done") return null;
+    return { type: "task.claim", key: `claim:${name}`, actor: "hook", task: name, agent: name };
+  }
+
   private async decode(rec: ObsRecord): Promise<Hook | null> {
     const payload = { session_id: "spool", hook_event_name: rec.hook_event_name, agent_id: rec.agent_id, tool_use_id: rec.tool_use_id };
     const r = await this.store.core.ops("ops.hook", { payloads: [payload] });
@@ -114,6 +121,9 @@ export class Drain {
     if (!hook) { res.invalid++; return "done"; }
     const key = `${hook.agentId ?? "main"}|${hook.event}|${hook.toolUseId ?? rec.ts}`;
     if (this.seen.has(key)) { res.duplicates++; return "done"; }
+    // work graph: an agent whose name equals a task id was spawned -> task.claim (the reducer decides if it counts)
+    const claim = rec.hook_event_name === "SpawnGuard" && rec.agent_name ? await this.claimFor(rec.agent_name) : null;
+    if (claim) await this.store.submit(claim); // a refusal is logged in refused.jsonl; it never blocks the spool
     const alert = alertFor(rec, key);
     if (alert) {
       const reply = await this.store.submit(alert);

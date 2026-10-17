@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ApplyResponse, ApplyRequest, Command } from "../src/index.ts";
+import { ApplyResponse, ApplyRequest, LiveBoard, Command, Plan, ReducerEvent } from "../src/index.ts";
 import { allJsonSchemas } from "../src/schemas.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -30,6 +30,29 @@ describe("golden fixtures", () => {
       expect(ApplyResponse.safeParse(c.response).success).toBe(true);
     }
   });
+});
+
+describe("plan golden (lean-plan, packages/contracts/golden/plan)", () => {
+  type Reply = { board?: { plan: unknown } };
+  for (const f of ["serve.jsonl", "work-graph.jsonl"]) {
+    it(`${f}: every request command and board plan parses`, () => {
+      const lines = readFileSync(join(root, "golden/plan", f), "utf8").trim().split("\n").map((l) => JSON.parse(l)) as
+        { requests: { op: string; event?: unknown }[]; replies: Reply[] }[];
+      let boards = 0;
+      for (const c of lines) {
+        // an event Lean accepted must parse; one it refused may be refused by zod at the door as well (length limits)
+        c.requests.forEach((r, i) => {
+          if (r.op !== "console.apply") return;
+          const out = (c.replies[i] as { outcome?: { accepted: boolean } }).outcome;
+          if (out?.accepted) expect(ReducerEvent.safeParse(r.event).success, JSON.stringify(r.event)).toBe(true);
+        });
+        for (const r of c.replies) {
+          if (r.board) { expect(Plan.safeParse(r.board.plan).success).toBe(true); expect(LiveBoard.safeParse(r.board).success).toBe(true); boards++; }
+        }
+      }
+      expect(boards).toBeGreaterThan(0);
+    });
+  }
 });
 
 describe("json schema export", () => {

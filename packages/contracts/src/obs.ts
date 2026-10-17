@@ -12,6 +12,8 @@ export const ObsRecord = z.object({
   duration_ms: z.number().int().nonnegative().nullable(),
   is_error: z.boolean().nullable(),
   verb: z.string().max(40).nullable(),
+  /** SpawnGuard only: the `name` of the spawned agent (work-graph tasks are claimed by agents named like the task) */
+  agent_name: z.string().max(200).nullable().optional(),
   ts: z.number().int().nonnegative(),
 }).strict();
 export type ObsRecord = z.infer<typeof ObsRecord>;

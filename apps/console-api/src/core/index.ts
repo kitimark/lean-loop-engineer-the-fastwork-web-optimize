@@ -3,7 +3,7 @@
 // reducer on one event, `console.query` the board projection. There is no TS fallback and no TS copy of the state.
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Board, ReducerEvent } from "@fw/contracts";
+import type { LiveBoard, ReducerEvent } from "@fw/contracts";
 import { LeanCore, leanBinary, type Incident, type Replayed, type ServeApply } from "./lean.ts";
 
 export interface Core {
@@ -13,7 +13,7 @@ export interface Core {
   /** `fwcore console.apply`: event -> (outcome, changed rows); fwcore keeps the new state */
   apply(event: ReducerEvent): Promise<ServeApply>;
   /** `fwcore console.query`: (now, seq) -> board of the current state */
-  board(now: number, seq: number): Promise<Board>;
+  board(now: number, seq: number): Promise<LiveBoard>;
   /** drop the process; the next call replays the log into a fresh one */
   restart(): void;
   /** any other fwcore op (`ops.*`): fields in, reply fields out */

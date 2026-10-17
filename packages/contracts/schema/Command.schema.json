@@ -712,6 +712,288 @@
         "ok"
       ],
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "task.define"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "task": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "stream": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "milestone": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deps": {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "writes": {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "devices": {
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "actor",
+        "task",
+        "title",
+        "stream",
+        "milestone",
+        "deps",
+        "owner",
+        "writes",
+        "devices",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "task.drop"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "task": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "actor",
+        "task"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "task.claim"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "task": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "agent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "actor",
+        "task",
+        "agent"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "task.done"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "task": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "actor",
+        "task",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "milestone.define"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "milestone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "type",
+        "key",
+        "actor",
+        "milestone",
+        "title"
+      ],
+      "additionalProperties": false
     }
   ]
 }

@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { emptyState, type ReducerEvent, type State } from "@fw/contracts";
+import { emptyPlan, emptyState, type ReducerEvent, type State } from "@fw/contracts";
 import { selectCore } from "../src/core/index.ts";
 import { logLines } from "../src/core/lean.ts";
 
@@ -59,7 +59,7 @@ describe("fwcore serve: replay equivalence", () => {
     const now = 1000 + 30 * 60 * 1000 + 5;
     const ba = await a.board(now, 7);
     expect(await b.board(now, 7)).toEqual(ba);
-    expect(await b.boardPure(state, now, 7)).toEqual(ba);
+    expect({ ...(await b.boardPure(state, now, 7)), plan: emptyPlan() }).toEqual(ba);
   }, 30_000);
   it("changed rows: an accepted event reports the rows it touched in the new state", async () => {
     const c = fresh();
