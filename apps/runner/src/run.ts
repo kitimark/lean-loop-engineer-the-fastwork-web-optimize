@@ -189,7 +189,9 @@ export function runMain(args: RunArgs, d: RunDeps): number {
       d.log(`${j.engine}: dispatched ${j.workflow} on ${ref}; waiting for the run`);
       runId = newestRun(d.gh, j.workflow, ref, before, d.pollMs ?? 5000);
     }
-    d.gh(["run", "watch", runId, "--exit-status"]);
+    // -i 120: gh's default is 3 s at 3 + J requests per tick, which alone used most of the 5000/h bucket
+    // (research/notes/2026/10-18-gh-rate-budget.md); stopgap until the shared poller (ghb-*) owns all waits
+    d.gh(["run", "watch", runId, "-i", "120", "--exit-status"]);
     const head = (JSON.parse(d.gh(["run", "view", runId, "--json", "headSha"])) as { headSha: string }).headSha;
     if (head !== sha) throw new UsageError(`${j.engine}: run ${runId} measured ${head.slice(0, 7)}, not ${sha.slice(0, 7)}`);
     const dir = join(d.tmp, `${j.engine}-${runId}`);
