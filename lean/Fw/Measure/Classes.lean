@@ -94,8 +94,8 @@ $$\operatorname{Holds}(c, R) \iff \forall a, b \in R:\ \operatorname{Within}(c, 
 -/
 def Holds (c : Class) (rs : List Series) : Prop := ∀ a ∈ rs, ∀ b ∈ rs, Within c a b
 
-/-- "At least as strict as": `c.le c'` when every pair within `c` is within `c'`
-(`deterministic` ≤ `stable k t` ≤ `stable k' t'` (k ≤ k', t ≤ t') ≤ `quarantined`).
+/-- The syntactic strictness order: `c.le c'` implies every pair within `c` is within `c'` (`within_mono`); the
+converse fails for `stable 0 t` (`deterministic` ≤ `stable k t` ≤ `stable k' t'` (k ≤ k', t ≤ t') ≤ `quarantined`).
 
 $$c \preceq c' \iff \begin{cases} \top & c = \mathrm{det} \ \lor\ c' = \mathrm{quar} \\ k \le k' \land t \le t' & c = \mathrm{stable}(k, t),\ c' = \mathrm{stable}(k', t') \\ \bot & \text{otherwise} \end{cases}$$
 -/
@@ -153,7 +153,7 @@ def tObs (rs : List Series) : Nat := maxOf (pairVals totalGap rs)
 
 /-- **The classification** of one count type from its runs.
 
-$$\operatorname{classify}_p(R) = \begin{cases} \mathrm{det} & k(R) = 0 \\ \mathrm{stable}(k(R), t(R)) & k(R) \le k_{\max} \ \land\ t(R) \le t_{\max} \\ \mathrm{quar} & \text{otherwise} \end{cases}$$
+$$\operatorname{classify}_p(R) = \begin{cases} \mathrm{det} & k(R) = 0 \\ \mathrm{stable}(k(R), t(R)) & 1 \le k(R) \le k_{\max} \ \land\ t(R) \le t_{\max} \\ \mathrm{quar} & \text{otherwise} \end{cases}$$
 -/
 def classify (p : Policy) (rs : List Series) : Class :=
   if kObs rs = 0 then .deterministic
@@ -162,7 +162,7 @@ def classify (p : Policy) (rs : List Series) : Class :=
 
 /-- A class the policy allows: deterministic, quarantined, or stable within the policy's bounds.
 
-$$\operatorname{adm}_p(c) \iff c = \mathrm{det} \ \lor\ c = \mathrm{quar} \ \lor\ (c = \mathrm{stable}(k, t) \land k \le k_{\max} \land t \le t_{\max})$$
+$$\operatorname{adm}_p(c) \iff c = \mathrm{det} \ \lor\ c = \mathrm{quar} \ \lor\ \exists k, t \in \mathbb{N}:\ (c = \mathrm{stable}(k, t) \land k \le k_{\max} \land t \le t_{\max})$$
 -/
 def Admissible (p : Policy) : Class → Prop
   | .stable k t => k ≤ p.kMax ∧ t ≤ p.tMax
@@ -237,7 +237,7 @@ theorem total_eq_of_diff_zero : ∀ a b : Series, diffFrames a b = 0 → total a
 
 /-- The pair statistic of two runs is among the values over all pairs.
 
-$$a, b \in R \;\Rightarrow\; g(a, b) \in \operatorname{pairs}_g(R)$$
+$$\forall g, R, a, b:\ a, b \in R \;\Rightarrow\; g(a, b) \in \operatorname{pairs}_g(R)$$
 -/
 theorem mem_pairVals {g : Series → Series → Nat} {rs : List Series} {a b : Series}
     (ha : a ∈ rs) (hb : b ∈ rs) : g a b ∈ pairVals g rs := by
@@ -246,7 +246,7 @@ theorem mem_pairVals {g : Series → Series → Nat} {rs : List Series} {a b : S
 
 /-- Every value over all pairs comes from a pair of runs.
 
-$$x \in \operatorname{pairs}_g(R) \;\Rightarrow\; \exists a, b \in R:\ x = g(a, b)$$
+$$\forall g, R, x:\ x \in \operatorname{pairs}_g(R) \;\Rightarrow\; \exists a, b \in R:\ x = g(a, b)$$
 -/
 theorem of_mem_pairVals {g : Series → Series → Nat} {rs : List Series} {x : Nat}
     (h : x ∈ pairVals g rs) : ∃ a ∈ rs, ∃ b ∈ rs, g a b = x := by
@@ -255,7 +255,7 @@ theorem of_mem_pairVals {g : Series → Series → Nat} {rs : List Series} {x : 
 
 /-- Every element is at most the maximum.
 
-$$x \in L \;\Rightarrow\; x \le \max{}^{*}(L)$$
+$$\forall L, x:\ x \in L \;\Rightarrow\; x \le \max{}^{*}(L)$$
 -/
 theorem le_maxOf : ∀ {l : List Nat} {x : Nat}, x ∈ l → x ≤ maxOf l
   | y :: ys, x, h => by
@@ -266,7 +266,7 @@ theorem le_maxOf : ∀ {l : List Nat} {x : Nat}, x ∈ l → x ≤ maxOf l
 
 /-- The maximum is at most any common upper bound.
 
-$$(\forall x \in L:\ x \le m) \;\Rightarrow\; \max{}^{*}(L) \le m$$
+$$\forall L, m:\ (\forall x \in L:\ x \le m) \;\Rightarrow\; \max{}^{*}(L) \le m$$
 -/
 theorem maxOf_le : ∀ {l : List Nat} {m : Nat}, (∀ x ∈ l, x ≤ m) → maxOf l ≤ m
   | [], _, _ => Nat.zero_le _
@@ -276,7 +276,7 @@ theorem maxOf_le : ∀ {l : List Nat} {m : Nat}, (∀ x ∈ l, x ≤ m) → maxO
 
 /-- The observed maxima bound every pair.
 
-$$a, b \in R \;\Rightarrow\; \operatorname{diff}(a, b) \le k(R) \ \land\ \operatorname{gap}(a, b) \le t(R)$$
+$$\forall R, a, b:\ a, b \in R \;\Rightarrow\; \operatorname{diff}(a, b) \le k(R) \ \land\ \operatorname{gap}(a, b) \le t(R)$$
 -/
 theorem le_obs {rs : List Series} {a b : Series} (ha : a ∈ rs) (hb : b ∈ rs) :
     diffFrames a b ≤ kObs rs ∧ totalGap a b ≤ tObs rs :=
@@ -284,7 +284,7 @@ theorem le_obs {rs : List Series} {a b : Series} (ha : a ∈ rs) (hb : b ∈ rs)
 
 /-- The observed maxima are at most any bound that holds for every pair.
 
-$$(\forall a, b \in R:\ \operatorname{diff}(a, b) \le k \land \operatorname{gap}(a, b) \le t) \;\Rightarrow\; k(R) \le k \ \land\ t(R) \le t$$
+$$\forall R, k, t:\ (\forall a, b \in R:\ \operatorname{diff}(a, b) \le k \land \operatorname{gap}(a, b) \le t) \;\Rightarrow\; k(R) \le k \ \land\ t(R) \le t$$
 -/
 theorem obs_le {rs : List Series} {k t : Nat}
     (h : ∀ a ∈ rs, ∀ b ∈ rs, diffFrames a b ≤ k ∧ totalGap a b ≤ t) : kObs rs ≤ k ∧ tObs rs ≤ t := by

@@ -35,8 +35,11 @@ def main (args : List String) : IO UInt32 := do
   if args.contains "--lint" then
     let bad := es.toList.flatMap MathView.lintEntry
     for b in bad do IO.eprintln s!"mathview: {b}"
+    let strict := es.toList.flatMap (MathView.warnEntry false)
+    let warns := es.toList.flatMap (MathView.warnEntry true)
+    for w in warns do IO.eprintln s!"mathview: warning: {w}"
     let thms := (es.filter (·.kind == "theorem")).size
-    IO.println s!"mathview lint: {es.size} entries ({thms} theorems) in {mods.size} modules, {bad.length} failing"
+    IO.println s!"mathview lint: {es.size} entries ({thms} theorems) in {mods.size} modules, {bad.length} failing, {warns.length} quantifier warnings ({strict.length} counting a renamed binder as free)"
     return if bad.isEmpty then 0 else 1
   IO.println (toJson es).pretty
   return 0

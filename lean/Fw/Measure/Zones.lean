@@ -76,7 +76,7 @@ def padStart5 (s : String) : String := String.ofList (List.replicate (5 - s.leng
 /-- The zone of a frame for zone height `h`: a swipe frame's zone is named after the start of its
 `h`-pixel band (floor division, as JS `Math.floor`), any other frame's zone is its phase name.
 
-$$\operatorname{zone}_h(f) = \begin{cases} \texttt{"y"} \cdot \operatorname{pad}_5\big(\operatorname{dec}(\lfloor f.\mathrm{scrollY} / h \rfloor \cdot h)\big) & f.\mathrm{phase} = \texttt{"swipe"} \\ f.\mathrm{phase} & \text{otherwise} \end{cases}$$
+$$\operatorname{zone}_h(f) = \begin{cases} \texttt{"y"} \cdot \operatorname{pad}_5\big(\operatorname{dec}(\lfloor f.\mathrm{scrollY} / h \rfloor \cdot h)\big) & f.\mathrm{phase} = \texttt{"swipe"} \\ f.\mathrm{phase} & \text{otherwise} \end{cases}\quad(\lfloor y/0 \rfloor := 0,\ \text{so } h = 0 \text{ gives } \texttt{"y00000"})$$
 -/
 def zoneId (h : Nat) (f : Frame) : String :=
   if f.phase = "swipe" then "y" ++ padStart5 (toString (f.scrollY / (h : Int) * (h : Int))) else f.phase
@@ -127,7 +127,7 @@ def firstSeen (l : List String) : List String :=
 
 /-- Insert a key into a sorted key list, keeping it sorted and without duplicates.
 
-$$\operatorname{ins}(k, L) = \operatorname{sort}(\{k\} \cup L)$$
+$$\operatorname{ins}(k, [\,]) = [k],\quad \operatorname{ins}(k, x :: xs) = \begin{cases} k :: x :: xs & k < x \\ x :: xs & k = x \\ x :: \operatorname{ins}(k, xs) & \text{otherwise} \end{cases}$$ so that $$\operatorname{ins}(k, L) = \operatorname{sort}(\{k\} \cup L) \text{ for strictly increasing } L$$
 -/
 def insKey (k : String) : List String → List String
   | [] => [k]
@@ -240,7 +240,7 @@ private def seed : List Frame :=
 
 /-- A sum over a concatenation is the sum of the two sums.
 
-$$\operatorname{sumBy}(g, A \mathbin{+\!\!+} B) = \operatorname{sumBy}(g, A) + \operatorname{sumBy}(g, B)$$
+$$\forall g, A, B:\ \operatorname{sumBy}(g, A \mathbin{+\!\!+} B) = \operatorname{sumBy}(g, A) + \operatorname{sumBy}(g, B)$$
 -/
 theorem sumBy_append {α : Type} (g : α → Int) (a b : List α) :
     sumBy g (a ++ b) = sumBy g a + sumBy g b := by
@@ -258,7 +258,7 @@ theorem sumBy_zero {α : Type} : ∀ l : List α, sumBy (fun _ => (0 : Int)) l =
 
 /-- Sums of functions that agree on the list are equal.
 
-$$(\forall x \in L:\ g(x) = g'(x)) \;\Rightarrow\; \sum_{x \in L} g(x) = \sum_{x \in L} g'(x)$$
+$$\forall g, g', L:\ (\forall x \in L:\ g(x) = g'(x)) \;\Rightarrow\; \sum_{x \in L} g(x) = \sum_{x \in L} g'(x)$$
 -/
 theorem sumBy_congr {α : Type} {g g' : α → Int} :
     ∀ {l : List α}, (∀ x ∈ l, g x = g' x) → sumBy g l = sumBy g' l
@@ -269,7 +269,7 @@ theorem sumBy_congr {α : Type} {g g' : α → Int} :
 
 /-- Sums are monotone in the summand.
 
-$$(\forall x \in L:\ g(x) \le g'(x)) \;\Rightarrow\; \sum_{x \in L} g(x) \le \sum_{x \in L} g'(x)$$
+$$\forall g, g', L:\ (\forall x \in L:\ g(x) \le g'(x)) \;\Rightarrow\; \sum_{x \in L} g(x) \le \sum_{x \in L} g'(x)$$
 -/
 theorem sumBy_mono {α : Type} {g g' : α → Int} :
     ∀ {l : List α}, (∀ x ∈ l, g x ≤ g' x) → sumBy g l ≤ sumBy g' l
@@ -282,7 +282,7 @@ theorem sumBy_mono {α : Type} {g g' : α → Int} :
 
 /-- A sum of non-negative terms is non-negative.
 
-$$(\forall x \in L:\ 0 \le g(x)) \;\Rightarrow\; 0 \le \sum_{x \in L} g(x)$$
+$$\forall g, L:\ (\forall x \in L:\ 0 \le g(x)) \;\Rightarrow\; 0 \le \sum_{x \in L} g(x)$$
 -/
 theorem sumBy_nonneg {α : Type} {g : α → Int} :
     ∀ {l : List α}, (∀ x ∈ l, 0 ≤ g x) → 0 ≤ sumBy g l
@@ -295,7 +295,7 @@ theorem sumBy_nonneg {α : Type} {g : α → Int} :
 
 /-- Summing over a mapped list is summing the composite.
 
-$$\sum_{y \in f(L)} g(y) = \sum_{x \in L} g(f(x))$$
+$$\forall g, f, L:\ \sum_{y \in [f(x)]_{x \in L}} g(y) = \sum_{x \in L} g(f(x))$$
 -/
 theorem sumBy_map {α β : Type} (g : β → Int) (f : α → β) :
     ∀ l : List α, sumBy g (l.map f) = sumBy (g ∘ f) l
@@ -304,7 +304,7 @@ theorem sumBy_map {α β : Type} (g : β → Int) (f : α → β) :
 
 /-- Summing ones counts the elements.
 
-$$\sum_{x \in L} 1 = |L|$$
+$$\forall L:\ \sum_{x \in L} 1 = |L|$$
 -/
 theorem sumBy_one {α : Type} : ∀ l : List α, sumBy (fun _ => (1 : Int)) l = l.length
   | [] => rfl
@@ -312,7 +312,7 @@ theorem sumBy_one {α : Type} : ∀ l : List α, sumBy (fun _ => (1 : Int)) l = 
 
 /-- Tagging a concatenation tags the second part from where the first part ended.
 
-$$\operatorname{tag}_h(y, A \mathbin{+\!\!+} B) = \operatorname{tag}_h(y, A) \mathbin{+\!\!+} \operatorname{tag}_h(\operatorname{lastY}(y, A), B)$$
+$$\forall h, y, A, B:\ \operatorname{tag}_h(y, A \mathbin{+\!\!+} B) = \operatorname{tag}_h(y, A) \mathbin{+\!\!+} \operatorname{tag}_h(\operatorname{lastY}(y, A), B)$$
 -/
 theorem tag_append (h : Nat) :
     ∀ (y : Int) (a b : List Frame), tag h y (a ++ b) = tag h y a ++ tag h (lastY y a) b
@@ -321,7 +321,7 @@ theorem tag_append (h : Nat) :
 
 /-- The zones of the tagged rows are the zones of the frames.
 
-$$[r.\mathrm{id}]_{r \in \operatorname{tag}_h(y, F)} = [\operatorname{zone}_h(f)]_{f \in F}$$
+$$\forall h, y, F:\ [r.\mathrm{id}]_{r \in \operatorname{tag}_h(y, F)} = [\operatorname{zone}_h(f)]_{f \in F}$$
 -/
 theorem tag_ids (h : Nat) : ∀ (y : Int) (fs : List Frame),
     (tag h y fs).map (·.id) = fs.map (zoneId h)
@@ -330,7 +330,7 @@ theorem tag_ids (h : Nat) : ∀ (y : Int) (fs : List Frame),
 
 /-- Rows of a zone, read back as frames: count sums do not depend on the scroll start.
 
-$$\sum_{r \in \operatorname{rows}(\operatorname{tag}_h(y, F), Z)} \operatorname{countIn}(r.\mathrm{counts}, k) = \sum_{f \in F,\ \operatorname{zone}_h(f) = Z} c_f(k)$$
+$$\forall h, y, F, Z, k:\ \sum_{r \in \operatorname{rows}(\operatorname{tag}_h(y, F), Z)} \operatorname{countIn}(r.\mathrm{counts}, k) = \sum_{f \in F,\ \operatorname{zone}_h(f) = Z} c_f(k)$$
 -/
 theorem sumBy_rows_tag (h : Nat) (Z k : String) : ∀ (y : Int) (fs : List Frame),
     sumBy (fun r => countIn r.counts k) (rowsOf (tag h y fs) Z) =
@@ -344,7 +344,9 @@ theorem sumBy_rows_tag (h : Nat) (Z k : String) : ∀ (y : Int) (fs : List Frame
 
 /-- A zone has as many tagged rows as frames.
 
-$$|\operatorname{rows}(\operatorname{tag}_h(y, F), Z)| = |\{ f \in F \mid \operatorname{zone}_h(f) = Z \}|$$
+$$\forall h, y, F, Z:\ |\operatorname{rows}(\operatorname{tag}_h(y, F), Z)| = \big|[\, f \in F \mid \operatorname{zone}_h(f) = Z \,]\big|$$
+
+(A list filter: repeated frames are counted each time.)
 -/
 theorem length_rows_tag (h : Nat) (Z : String) : ∀ (y : Int) (fs : List Frame),
     (rowsOf (tag h y fs) Z).length = (fs.filter (zoneId h · == Z)).length
@@ -357,7 +359,7 @@ theorem length_rows_tag (h : Nat) (Z : String) : ∀ (y : Int) (fs : List Frame)
 
 /-- Inserting a key adds exactly that key.
 
-$$x \in \operatorname{ins}(k, L) \iff x = k \lor x \in L$$
+$$\forall k, x, L:\ x \in \operatorname{ins}(k, L) \iff x = k \lor x \in L$$
 -/
 theorem mem_insKey (k x : String) : ∀ l : List String, x ∈ insKey k l ↔ x = k ∨ x ∈ l
   | [] => by simp [insKey]
@@ -377,7 +379,7 @@ theorem mem_insKey (k x : String) : ∀ l : List String, x ∈ insKey k l ↔ x 
 
 /-- A name not among the inserted keys has count 0 and was not in the start list.
 
-$$k \notin \operatorname{foldr}(\operatorname{ins} \circ \pi_1, A, C) \;\Rightarrow\; \operatorname{countIn}(C, k) = 0 \land k \notin A$$
+$$\forall k, C, A:\ k \notin \operatorname{foldr}(\operatorname{ins} \circ \pi_1, A, C) \;\Rightarrow\; \operatorname{countIn}(C, k) = 0 \land k \notin A$$
 -/
 theorem countIn_eq_zero_of_not_mem_foldr (k : String) :
     ∀ (cs : Counts) (acc : List String), k ∉ cs.foldr (fun p a => insKey p.1 a) acc →
@@ -393,7 +395,7 @@ theorem countIn_eq_zero_of_not_mem_foldr (k : String) :
 
 /-- A count type that is not among the keys of a list of rows sums to 0 over those rows.
 
-$$k \notin \operatorname{keys}([r.\mathrm{counts}]_{r \in R}) \;\Rightarrow\; \sum_{r \in R} \operatorname{countIn}(r.\mathrm{counts}, k) = 0$$
+$$\forall k, R:\ k \notin \operatorname{keys}([r.\mathrm{counts}]_{r \in R}) \;\Rightarrow\; \sum_{r \in R} \operatorname{countIn}(r.\mathrm{counts}, k) = 0$$
 -/
 theorem sumBy_eq_zero_of_not_mem_keys (k : String) :
     ∀ fs : List Tagged, k ∉ keysOf (fs.map (·.counts)) → sumBy (fun r => countIn r.counts k) fs = 0
@@ -405,7 +407,7 @@ theorem sumBy_eq_zero_of_not_mem_keys (k : String) :
 
 /-- Looking up a key in a key-value list built from a key list.
 
-$$\operatorname{lookup}(k, [(j, g(j))]_{j \in K}) = \begin{cases} g(k) & k \in K \\ \bot & k \notin K \end{cases}$$
+$$\forall g, k, K:\ \operatorname{lookup}(k, [(j, g(j))]_{j \in K}) = \begin{cases} g(k) & k \in K \\ \bot & k \notin K \end{cases}$$
 -/
 theorem lookup_map_keys (g : String → Int) (k : String) : ∀ ks : List String,
     (ks.map (fun j => (j, g j))).lookup k = if k ∈ ks then some (g k) else none
@@ -419,7 +421,7 @@ theorem lookup_map_keys (g : String → Int) (k : String) : ∀ ks : List String
 
 /-- The sum of `k` in the record of zone `Z` is the sum of `k` over the rows of `Z`.
 
-$$\operatorname{sum}(\operatorname{zoneOf}(R, Z), k) = \sum_{r \in \operatorname{rows}(R, Z)} \operatorname{countIn}(r.\mathrm{counts}, k)$$
+$$\forall R, Z, k:\ \operatorname{sum}(\operatorname{zoneOf}(R, Z), k) = \sum_{r \in \operatorname{rows}(R, Z)} \operatorname{countIn}(r.\mathrm{counts}, k)$$
 -/
 theorem zoneOf_sum (rs : List Tagged) (Z k : String) :
     (zoneOf rs Z).sum k = sumBy (fun r => countIn r.counts k) (rowsOf rs Z) := by
@@ -430,7 +432,7 @@ theorem zoneOf_sum (rs : List Tagged) (Z k : String) :
 
 /-- Finding zone `Z` among zone records built from a name list.
 
-$$\operatorname{find}([\operatorname{zoneOf}(R, j)]_{j \in L}, Z) = \begin{cases} \operatorname{zoneOf}(R, Z) & Z \in L \\ \bot & Z \notin L \end{cases}$$
+$$\forall R, Z, L:\ \operatorname{find}([\operatorname{zoneOf}(R, j)]_{j \in L}, Z) = \begin{cases} \operatorname{zoneOf}(R, Z) & Z \in L \\ \bot & Z \notin L \end{cases}$$
 -/
 theorem find_map_zoneOf (rs : List Tagged) (Z : String) : ∀ L : List String,
     findZone (L.map (zoneOf rs)) Z = if Z ∈ L then some (zoneOf rs Z) else none
@@ -447,7 +449,7 @@ theorem find_map_zoneOf (rs : List Tagged) (Z : String) : ∀ L : List String,
 
 /-- The first-appearance fold keeps a duplicate-free accumulator duplicate-free and collects exactly the accumulator and the list.
 
-$$\operatorname{nodup}(A) \;\Rightarrow\; \operatorname{nodup}(\operatorname{fold}(A, L)) \land \forall y:\ y \in \operatorname{fold}(A, L) \iff y \in A \lor y \in L$$
+$$\forall A, L:\ \operatorname{nodup}(A) \;\Rightarrow\; \operatorname{nodup}(\operatorname{fold}(A, L)) \land \forall y:\ \big(y \in \operatorname{fold}(A, L) \iff y \in A \lor y \in L\big),\quad \operatorname{fold}(A, L) = \operatorname{foldl}\big((acc, x) \mapsto (acc \text{ if } x \in acc \text{ else } acc \mathbin{+\!\!+} [x]),\ A,\ L\big)$$
 -/
 theorem firstSeen_aux (l : List String) : ∀ acc : List String, acc.Nodup →
     (l.foldl (fun acc x => if x ∈ acc then acc else acc ++ [x]) acc).Nodup ∧
@@ -490,14 +492,14 @@ theorem firstSeen_aux (l : List String) : ∀ acc : List String, acc.Nodup →
 
 /-- `firstSeen` has no duplicates.
 
-$$\operatorname{nodup}(\operatorname{firstSeen}(L))$$
+$$\forall L:\ \operatorname{nodup}(\operatorname{firstSeen}(L))$$
 -/
 theorem firstSeen_nodup (l : List String) : (firstSeen l).Nodup :=
   (firstSeen_aux l [] List.nodup_nil).1
 
 /-- `firstSeen` keeps exactly the elements of the list.
 
-$$y \in \operatorname{firstSeen}(L) \iff y \in L$$
+$$\forall L, y:\ y \in \operatorname{firstSeen}(L) \iff y \in L$$
 -/
 theorem mem_firstSeen (l : List String) (y : String) : y ∈ firstSeen l ↔ y ∈ l := by
   have := (firstSeen_aux l [] List.nodup_nil).2 y
@@ -505,7 +507,7 @@ theorem mem_firstSeen (l : List String) (y : String) : y ∈ firstSeen l ↔ y �
 
 /-- Summing over the zones of a duplicate-free list of names covering every row is summing over the rows.
 
-$$\operatorname{nodup}(L) \land (\forall r \in R:\ r.\mathrm{id} \in L) \;\Rightarrow\; \sum_{Z \in L} \sum_{r \in \operatorname{rows}(R, Z)} g(r) = \sum_{r \in R} g(r)$$
+$$\forall g, R, L:\ \operatorname{nodup}(L) \land (\forall r \in R:\ r.\mathrm{id} \in L) \;\Rightarrow\; \sum_{Z \in L} \sum_{r \in \operatorname{rows}(R, Z)} g(r) = \sum_{r \in R} g(r)$$
 -/
 theorem sum_partition (g : Tagged → Int) : ∀ (rs : List Tagged) (L : List String), L.Nodup →
     (∀ r ∈ rs, r.id ∈ L) → sumBy (fun Z => sumBy g (rowsOf rs Z)) L = sumBy g rs
@@ -549,7 +551,7 @@ theorem sum_partition (g : Tagged → Int) : ∀ (rs : List Tagged) (L : List St
 
 /-- A name that no row carries has no rows.
 
-$$Z \notin [r.\mathrm{id}]_{r \in R} \;\Rightarrow\; \operatorname{rows}(R, Z) = [\,]$$
+$$\forall R, Z:\ Z \notin [r.\mathrm{id}]_{r \in R} \;\Rightarrow\; \operatorname{rows}(R, Z) = [\,]$$
 -/
 theorem rowsOf_eq_nil_of_not_mem (rs : List Tagged) (Z : String) (h : Z ∉ rs.map (·.id)) :
     rowsOf rs Z = [] := by
@@ -574,7 +576,9 @@ theorem sumAt_spec (h : Nat) (y₀ : Int) (fs : List Frame) (Z k : String) :
 /-- **Zone frame counts are filter lengths.** The number of frames reported for zone $Z$ is the
 number of frames whose zone is $Z$.
 
-$$\forall h, y_0, F, Z:\quad \operatorname{framesAt}(\operatorname{zoneSums}_h(y_0, F), Z) = \big|\{\, f \in F \mid \operatorname{zone}_h(f) = Z \,\}\big|$$
+$$\forall h, y_0, F, Z:\quad \operatorname{framesAt}(\operatorname{zoneSums}_h(y_0, F), Z) = \big|[\, f \in F \mid \operatorname{zone}_h(f) = Z \,]\big|$$
+
+(A list filter: repeated frames are counted each time.)
 -/
 theorem framesAt_spec (h : Nat) (y₀ : Int) (fs : List Frame) (Z : String) :
     framesAt (zoneSumsFrom h y₀ fs) Z = (fs.filter (zoneId h · == Z)).length := by
@@ -646,7 +650,7 @@ def Below (h : Nat) (k : String) : List Frame → List Frame → Prop
 
 /-- Filter sums are monotone under `below`.
 
-$$\operatorname{below}_{h,k}(F, G) \;\Rightarrow\; \sum_{f \in F,\ \operatorname{zone}_h(f) = Z} c_f(k) \le \sum_{g \in G,\ \operatorname{zone}_h(g) = Z} c_g(k)$$
+$$\forall h, k, Z, F, G:\ \operatorname{below}_{h,k}(F, G) \;\Rightarrow\; \sum_{f \in F,\ \operatorname{zone}_h(f) = Z} c_f(k) \le \sum_{g \in G,\ \operatorname{zone}_h(g) = Z} c_g(k)$$
 -/
 theorem sumBy_filter_below (h : Nat) (k Z : String) : ∀ fs gs : List Frame, Below h k fs gs →
     sumBy (fun f => f.count k) (fs.filter (zoneId h · == Z)) ≤
@@ -696,7 +700,7 @@ def zoneIds (zs : List Zone) : List String := zs.map (·.id)
 
 /-- The output's zone names are the frames' zones in order of first appearance.
 
-$$\operatorname{ids}(\operatorname{zoneSums}_h(y_0, F)) = \operatorname{firstSeen}([\operatorname{zone}_h(f)]_{f \in F})$$
+$$\forall h, y_0, F:\ \operatorname{ids}(\operatorname{zoneSums}_h(y_0, F)) = \operatorname{firstSeen}([\operatorname{zone}_h(f)]_{f \in F})$$
 -/
 theorem zoneIds_zoneSumsFrom (h : Nat) (y₀ : Int) (fs : List Frame) :
     zoneIds (zoneSumsFrom h y₀ fs) = firstSeen (fs.map (zoneId h)) := by
@@ -722,7 +726,7 @@ theorem mem_zoneIds (h : Nat) (y₀ : Int) (fs : List Frame) (Z : String) :
 
 /-- A sum over the output zones is a sum over their names.
 
-$$\sum_{z \in \operatorname{zoneSums}_h(y_0, F)} g(z) = \sum_{Z \in \operatorname{firstSeen}(R.\mathrm{id})} g(\operatorname{zoneOf}(R, Z)),\quad R = \operatorname{tag}_h(y_0, F)$$
+$$\forall h, y_0, F, g:\ \sum_{z \in \operatorname{zoneSums}_h(y_0, F)} g(z) = \sum_{Z \in \operatorname{firstSeen}(R.\mathrm{id})} g(\operatorname{zoneOf}(R, Z)),\quad R = \operatorname{tag}_h(y_0, F)$$
 -/
 theorem sumBy_zones (h : Nat) (y₀ : Int) (fs : List Frame) (g : Zone → Int) :
     sumBy g (zoneSumsFrom h y₀ fs) =
@@ -731,7 +735,7 @@ theorem sumBy_zones (h : Nat) (y₀ : Int) (fs : List Frame) (g : Zone → Int) 
 
 /-- Every tagged row's zone is among the output names.
 
-$$\forall r \in R:\ r.\mathrm{id} \in \operatorname{firstSeen}(R.\mathrm{id}),\quad R = \operatorname{tag}_h(y_0, F)$$
+$$\forall h, y_0, F,\ \forall r \in R:\ r.\mathrm{id} \in \operatorname{firstSeen}(R.\mathrm{id}),\quad R = \operatorname{tag}_h(y_0, F)$$
 -/
 theorem cover_tag (h : Nat) (y₀ : Int) (fs : List Frame) :
     ∀ r ∈ tag h y₀ fs, r.id ∈ firstSeen ((tag h y₀ fs).map (·.id)) := by
@@ -739,7 +743,7 @@ theorem cover_tag (h : Nat) (y₀ : Int) (fs : List Frame) :
 
 /-- Tagging keeps the count totals.
 
-$$\sum_{r \in \operatorname{tag}_h(y, F)} \operatorname{countIn}(r.\mathrm{counts}, k) = \sum_{f \in F} c_f(k)$$
+$$\forall k, h, y, F:\ \sum_{r \in \operatorname{tag}_h(y, F)} \operatorname{countIn}(r.\mathrm{counts}, k) = \sum_{f \in F} c_f(k)$$
 -/
 theorem sumBy_tag_counts (k : String) : ∀ (h : Nat) (y : Int) (fs : List Frame),
     sumBy (fun r => countIn r.counts k) (tag h y fs) = sumBy (fun f => f.count k) fs
@@ -748,7 +752,7 @@ theorem sumBy_tag_counts (k : String) : ∀ (h : Nat) (y : Int) (fs : List Frame
 
 /-- The scroll increments telescope to the final position minus the start.
 
-$$\sum_{r \in \operatorname{tag}_h(y, F)} r.dy = \operatorname{lastY}(y, F) - y$$
+$$\forall h, y, F:\ \sum_{r \in \operatorname{tag}_h(y, F)} r.dy = \operatorname{lastY}(y, F) - y$$
 -/
 theorem sumBy_tag_dy : ∀ (h : Nat) (y : Int) (fs : List Frame),
     sumBy (·.dy) (tag h y fs) = lastY y fs - y
@@ -758,7 +762,7 @@ theorem sumBy_tag_dy : ∀ (h : Nat) (y : Int) (fs : List Frame),
 
 /-- Tagging keeps the number of frames.
 
-$$|\operatorname{tag}_h(y, F)| = |F|$$
+$$\forall h, y, F:\ |\operatorname{tag}_h(y, F)| = |F|$$
 -/
 theorem length_tag : ∀ (h : Nat) (y : Int) (fs : List Frame), (tag h y fs).length = fs.length
   | _, _, [] => rfl

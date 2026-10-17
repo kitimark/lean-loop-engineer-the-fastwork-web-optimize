@@ -36,27 +36,27 @@ def leFrames : Series → Series → Bool
 #guard leFrames [1, 2] [1, 3, 0]
 #guard !leFrames [1, 2, 1] [1, 3]
 
-/-- The padded value of a non-empty series at 0 and at a successor index.
+/-- The padded value of a non-empty series at index 0.
 
-$$(x :: r)[0] = x,\quad (x :: r)[i + 1] = r[i],\quad [\,][i] = 0$$
+$$\forall x \in \mathbb{Z}, r \in \mathbb{Z}^{*}:\ (x :: r)[0] = x$$
 -/
 theorem valAt_cons_zero (x : Int) (r : Series) : valAt (x :: r) 0 = x := rfl
 
 /-- The padded value at a successor index.
 
-$$(x :: r)[i + 1] = r[i]$$
+$$\forall x \in \mathbb{Z}, r \in \mathbb{Z}^{*}, i \in \mathbb{N}:\ (x :: r)[i + 1] = r[i]$$
 -/
 theorem valAt_cons_succ (x : Int) (r : Series) (i : Nat) : valAt (x :: r) (i + 1) = valAt r i := rfl
 
 /-- The padded value of the empty series.
 
-$$[\,][i] = 0$$
+$$\forall i \in \mathbb{N}:\ [\,][i] = 0$$
 -/
 theorem valAt_nil (i : Nat) : valAt [] i = 0 := by simp [valAt]
 
 /-- Pointwise statements about a cons split into index 0 and the rest.
 
-$$(\forall i:\ P(i)) \iff P(0) \land \forall i:\ P(i + 1)$$
+$$\forall P : \mathbb{N} \to \mathbf{Prop}:\ (\forall i:\ P(i)) \iff P(0) \land \forall i:\ P(i + 1)$$
 -/
 theorem forall_nat_split (P : Nat → Prop) : (∀ i, P i) ↔ P 0 ∧ ∀ i, P (i + 1) :=
   ⟨fun h => ⟨h 0, fun i => h (i + 1)⟩, fun ⟨h0, hs⟩ i => by cases i with | zero => exact h0 | succ i => exact hs i⟩
@@ -135,8 +135,8 @@ theorem det_frames_sound {b b' v v' : Series} (h : leFrames v b = true)
   rw [diffFrames_zero_iff] at hb hv
   intro i; rw [← hb i, ← hv i]; exact h i
 
-/-- **Stable types can not enter frame by frame.** With one frame allowed to differ and no total
-gap, frame-by-frame dominance of the observed runs does not carry over (a unit of work moved one
+/-- **Stable types can not enter frame by frame.** With two frames allowed to differ (`k ≥ 2`) and
+no total gap, frame-by-frame dominance of the observed runs does not carry over (a unit of work moved one
 frame earlier in the variant's unseen run).
 
 $$\forall k \ge 2:\ \exists b, b', v, v' \in \mathbb{N}^{*}:\ \operatorname{leF}(v, b) \ \land\ \operatorname{Within}(\mathrm{stable}(k, 0), b, b') \ \land\ \operatorname{Within}(\mathrm{stable}(k, 0), v, v') \ \land\ \neg\operatorname{leF}(v', b')$$
@@ -162,7 +162,7 @@ def marginOf (k t : Nat) : Int := if k = 0 then 0 else 2 * (t : Int)
 baseline's, then every unseen pair within stable(k, t) of the observed runs has the variant's total
 at most the baseline's (for any integer counts).
 
-$$\forall k, t, b, b', v, v' \in \mathbb{Z}^{*}:\ \operatorname{Within}(\mathrm{stable}(k, t), b, b') \land \operatorname{Within}(\mathrm{stable}(k, t), v, v') \land \Sigma v + \operatorname{margin}(k, t) \le \Sigma b \;\Rightarrow\; \Sigma v' \le \Sigma b'$$
+$$\forall k, t \in \mathbb{N},\ b, b', v, v' \in \mathbb{Z}^{*}:\ \operatorname{Within}(\mathrm{stable}(k, t), b, b') \land \operatorname{Within}(\mathrm{stable}(k, t), v, v') \land \Sigma v + \operatorname{margin}(k, t) \le \Sigma b \;\Rightarrow\; \Sigma v' \le \Sigma b'$$
 -/
 theorem margin_sound {k t : Nat} {b b' v v' : Series} (hb : Within (.stable k t) b b')
     (hv : Within (.stable k t) v v') (h : total v + marginOf k t ≤ total b) : total v' ≤ total b' := by
@@ -285,7 +285,7 @@ def Promise : Class → Series → Series → Prop
 
 /-- One type's test is sound under the class premise.
 
-$$\operatorname{ok}(c, b, v) \land \operatorname{Within}(c, b, b') \land \operatorname{Within}(c, v, v') \;\Rightarrow\; \operatorname{Promise}(c, b', v')$$
+$$\forall c, b, b', v, v':\ \operatorname{ok}(c, b, v) \land \operatorname{Within}(c, b, b') \land \operatorname{Within}(c, v, v') \;\Rightarrow\; \operatorname{Promise}(c, b', v')$$
 -/
 theorem typeOk_sound {c : Class} {b b' v v' : Series} (h : typeOk c b v = true)
     (hb : Within c b b') (hv : Within c v v') : Promise c b' v' := by
@@ -302,7 +302,7 @@ theorem typeOk_sound {c : Class} {b b' v v' : Series} (h : typeOk c b v = true)
 all unseen runs within the type's class of the observed ones, the variant does no more work than
 the baseline: in every frame for deterministic types, in total for stable types.
 
-$$\operatorname{noMoreWork}(O) \;\Rightarrow\; \forall o \in O,\ \forall b', v':\ \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{base}, b') \land \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{var}, v') \Rightarrow \operatorname{Promise}(o.\mathrm{cls}, b', v')$$
+$$\forall O:\ \operatorname{noMoreWork}(O) \;\Rightarrow\; \forall o \in O,\ \forall b', v':\ \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{base}, b') \land \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{var}, v') \Rightarrow \operatorname{Promise}(o.\mathrm{cls}, b', v')$$
 -/
 theorem noMoreWork_sound {os : List TypeObs} (h : noMoreWork os = true) :
     ∀ o ∈ os, ∀ b' v' : Series, Within o.cls o.base b' → Within o.cls o.var v' → Promise o.cls b' v' := by
@@ -312,7 +312,7 @@ theorem noMoreWork_sound {os : List TypeObs} (h : noMoreWork os = true) :
 
 /-- A promise for a non-quarantined type bounds the total.
 
-$$c \ne \mathrm{quar} \land \operatorname{Promise}(c, b', v') \;\Rightarrow\; \Sigma v' \le \Sigma b'$$
+$$\forall c, b', v':\ c \ne \mathrm{quar} \land \operatorname{Promise}(c, b', v') \;\Rightarrow\; \Sigma v' \le \Sigma b'$$
 -/
 theorem promise_total {c : Class} {b' v' : Series} (hc : c ≠ .quarantined) (h : Promise c b' v') :
     total v' ≤ total b' := by
@@ -345,7 +345,7 @@ def runCost (sel : Entry → Series) : List Entry → Rat
 non-negative cost coefficients the screened types' linear run cost of any unseen variant run is at
 most that of any unseen baseline run (each within its type's class of the observed runs).
 
-$$\operatorname{noMoreWork}([e.\mathrm{obs}]_{e \in E}) \land \forall e \in E:\ \big(0 \le e.\mathrm{coef} \land \operatorname{Within}(e.\mathrm{cls}, e.\mathrm{base}, e.b') \land \operatorname{Within}(e.\mathrm{cls}, e.\mathrm{var}, e.v')\big) \;\Rightarrow\; \operatorname{cost}(E, v') \le \operatorname{cost}(E, b')$$
+$$\forall E:\ \operatorname{noMoreWork}([e.\mathrm{obs}]_{e \in E}) \land \forall e \in E:\ \big(0 \le e.\mathrm{coef} \land \operatorname{Within}(e.\mathrm{cls}, e.\mathrm{base}, e.b') \land \operatorname{Within}(e.\mathrm{cls}, e.\mathrm{var}, e.v')\big) \;\Rightarrow\; \operatorname{cost}(E, e \mapsto e.v') \le \operatorname{cost}(E, e \mapsto e.b')$$
 -/
 theorem noMoreWork_cost (es : List Entry) (h : noMoreWork (es.map (·.obs)) = true)
     (hw : ∀ e ∈ es, 0 ≤ e.coef) (hb : ∀ e ∈ es, Within e.obs.cls e.obs.base e.base')

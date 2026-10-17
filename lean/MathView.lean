@@ -194,6 +194,7 @@ structure Entry where
   line      : Nat
   heartbeats : Nat            -- heartbeats this entry cost (each entry has its own budget)
   error     : Option String := none  -- the export of this entry failed (lint failure)
+  binders   : List String := []  -- names of a theorem's explicit, non-proof binders (for the quantifier lint)
 deriving ToJson
 
 def mathBlocks (doc : String) : List String :=
@@ -235,6 +236,17 @@ def bounded {α} (k : Nat) (x : MetaM α) : MetaM (Except String α) :=
 /-- The heartbeats spent since `start`, in thousands. -/
 def spentSince (start : Nat) : CoreM Nat := do return ((← IO.getNumHeartbeats) - start) / 1000
 
+/-- Names of the explicit and implicit binders of a theorem's type that are data (not proofs, not types, not compiler-named). -/
+def dataBinders (ci : ConstantInfo) : MetaM (List String) :=
+  forallTelescope ci.type fun xs _ => do
+    let mut out := []
+    for x in xs do
+      let d ← x.fvarId!.getDecl
+      if d.binderInfo.isInstImplicit || d.userName.hasMacroScopes || d.userName.isInaccessibleUserName then continue
+      if (← isProp d.type) || (← whnf d.type).isSort then continue
+      out := out ++ [d.userName.toString]
+    return out
+
 /-- The export of one declaration (`none` when it is not a math-view entry). -/
 def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc : Option String) :
     MetaM (Option Entry) := do
@@ -254,11 +266,14 @@ def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc
     | .ok t => pure t
     | .error _ => pure "?"
   let axs ← collectAxioms n
+  let binders ← match ci with
+    | .thmInfo _ => dataBinders ci
+    | _ => pure []
   return some {
     name := n.toString, kind := kindOf ci, module := mod.toString, doc,
     english := (doc.map english).getD "", math := (doc.map mathBlocks).getD [], signature := sig, autoTex := auto,
     stmtHash := s!"{stmtHash env ci}", mathHash := s!"{mathHash doc}", axioms := axs.toList.map toString,
-    sorryFree := !axs.contains ``sorryAx, line, heartbeats := ← spentSince start }
+    sorryFree := !axs.contains ``sorryAx, line, binders, heartbeats := ← spentSince start }
 
 def entries : MetaM (Array Entry) := do
   let env ← getEnv
@@ -298,5 +313,89 @@ def lintEntry (e : Entry) : List String :=
   (if !e.sorryFree && e.error.isNone then [s!"{e.name} ({e.module}:{e.line}): depends on sorryAx (unfinished proof)"] else []) ++
   ((e.axioms.filter (fun a => a != "sorryAx" && !standardAxioms.contains a)).map
     fun a => s!"{e.name} ({e.module}:{e.line}): non-standard axiom {a}")
+
+/-! ## Quantifier lint (heuristic, warning only): a theorem's explicit binders must be bound in its `$$` math -/
+
+/-- The LaTeX spelling of a Lean binder name: subscripts, primes and trailing digits dropped (`y₀`, `g'`, `x1` all
+become the stem), Greek letters mapped to their commands. `none` when the name has no recognisable stem. -/
+def binderStem (n : String) : Option String :=
+  let cs := n.toList.filter fun c => !(c == '\'' || ('₀' ≤ c && c ≤ '₉'))
+  let cs := (cs.reverse.dropWhile Char.isDigit).reverse
+  match String.ofList cs with
+  | "" => none
+  | "ℓ" => some "\\ell" | "σ" => some "\\sigma" | "κ" => some "\\kappa" | "λ" => some "\\lambda"
+  | "α" => some "\\alpha" | "β" => some "\\beta" | "γ" => some "\\gamma" | "δ" => some "\\delta"
+  | "ε" => some "\\varepsilon" | "τ" => some "\\tau" | "μ" => some "\\mu" | "φ" => some "\\varphi"
+  | "π" => some "\\pi" | "ρ" => some "\\rho" | "ω" => some "\\omega" | "θ" => some "\\theta"
+  | "Σ" => some "\\Sigma"
+  | s => if s.all Char.isAlphanum then some s else none
+
+/-- Does `stem` occur in `hay` as a whole token (not inside a longer word or LaTeX command; a following `_`, `'`,
+`^` is a subscript, prime or power of the same variable)? -/
+def hasToken (hay stem : String) : Bool :=
+  let h := hay.toList.toArray
+  let t := stem.toList.toArray
+  let isCmd := t[0]? == some '\\'
+  Id.run do
+    for i in [:h.size] do
+      if i + t.size > h.size then break
+      if (List.range t.size).all (fun j => h[i + j]! == t[j]!) then
+        let before := if i == 0 then ' ' else h[i - 1]!
+        let after := if i + t.size < h.size then h[i + t.size]! else ' '
+        let okBefore := !(before.isAlphanum || before == '\\')
+        let okAfter := !after.isAlphanum
+        if (isCmd || okBefore) && okAfter then return true
+    return false
+
+/-- The text before position `i` of `cs` that can belong to one binder list: walk back over letters, commas,
+spaces, braces, parentheses, primes and subscripts, then keep only what follows the last connective. -/
+def binderListBefore (cs : Array Char) (i : Nat) : String :=
+  let ok (c : Char) := c.isAlphanum || c == ',' || c == ' ' || c == '_' || c == '\'' || c == '{' || c == '}' ||
+    c == '\\' || c == '(' || c == ')' || c == '.'
+  let rec go : Nat → Nat
+    | 0 => 0
+    | k + 1 => if ok cs[k]! then go k else k + 1
+  let from_ := go i
+  let s := String.ofList ((cs.extract from_ i).toList)
+  let cut := ["\\land", "\\lor", "\\Rightarrow", "\\iff", "\\Leftrightarrow"]
+  cut.foldl (fun s c => match s.splitOn c with | [] => s | ps => ps.getLast!) s
+
+/-- Every substring of `math` where a variable can be introduced: after a `\forall` / `\exists` up to the next
+colon, and the binder list before each `\in`, `\notin`, `\subseteq` or `:`. -/
+def binderZones (math : String) : List String :=
+  let cs := math.toList.toArray
+  let startsAt (i : Nat) (p : String) := (p.toList.toArray.size > 0) && i + p.length ≤ cs.size &&
+    (List.range p.length).all (fun j => cs[i + j]! == p.toList.toArray[j]!)
+  Id.run do
+    let mut zs : List String := []
+    for i in [:cs.size] do
+      for q in ["\\forall", "\\exists"] do
+        if startsAt i q then
+          let rest := String.ofList (cs.extract (i + q.length) cs.size).toList
+          zs := (rest.splitOn ":" |>.headD "") :: zs
+      for q in ["\\in", "\\notin", "\\subseteq", ":"] do
+        if startsAt i q && !(q == "\\in" && startsAt i "\\infty") then zs := binderListBefore cs i :: zs
+    return zs
+
+/-- Quantifier warnings of one theorem entry: an explicit data binder whose name occurs in no binder position of
+any `$$` block (so the math leaves it free). With `lenient`, a binder also passes when only its initial letter (either
+case) is quantified, as for `fs` written `F` or `rows` written `R` in the math. Heuristic: it can miss a binder used
+in a looser position, and flag a binder the math names differently (`lenient` also accepts `s` written `\sigma`,
+`l` written `\ell`, `k` written `\kappa`; `a` written `x` is still flagged). -/
+def warnEntry (lenient : Bool) (e : Entry) : List String :=
+  if e.kind != "theorem" || e.error.isSome then [] else
+  let zones := e.math.flatMap binderZones
+  e.binders.filterMap fun b =>
+    match binderStem b with
+    | none => none
+    | some stem =>
+      let initials : List String :=
+        if lenient && !stem.startsWith "\\" then
+          let c := stem.front
+          [c.toString, c.toUpper.toString, c.toLower.toString] ++
+            (if c == 's' then ["\\sigma"] else if c == 'l' then ["\\ell"] else if c == 'k' then ["\\kappa"] else [])
+        else []
+      if (stem :: initials).any (fun st => zones.any (hasToken · st)) then none
+      else some s!"{e.name} ({e.module}:{e.line}): binder `{b}` is not quantified in the $$ math"
 
 end MathView
