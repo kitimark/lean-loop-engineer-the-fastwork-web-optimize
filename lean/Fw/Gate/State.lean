@@ -1,4 +1,5 @@
 import Fw.Gate.Items
+import Fw.Gate.Reach
 /-!
 # One sampled state of the breakpoint gate (port of `envDeviations`, `truthItems` and the row
 verdicts in `packages/gate-breakpoints/src/verdict.mjs` / `summary.mjs`)
@@ -15,12 +16,17 @@ rewrite) what the page reported (viewport, media features, matchMedia truth) and
   checks for the neutral queries.
 * `rowVerdicts`: the three matchMedia rows, then one row per part, each by the rule of
   `Fw.Gate.Rule`.
+* `reqReason`/`stateReach`: with a port in the context, a request the port cannot produce
+  (`Fw.Gate.Reach`) makes every row `unreachable`.
+* `evalState.verdict`: the rollup of all rows, part rows included (a part failure fails the state).
 * `tally`/`blockCell`: a table cell over the probe or stop verdicts of a block or sweep.
 
 Proved: `envDeviations_eq_nil_iff`, `truthItems_lean_na` (without an achieved environment the
 `=Lean` row is not comparable), `truthItems_ar_iff`, `evalState_part_row` (a part's row is its
-`partVerdict`), `tally_perm` and `blockCell_perm` (a cell does not depend on the order of its
-rows).
+`partVerdict`), `evalState_part_fail` (a failing part fails the state), `evalState_unreachable_iff`
+(unreachable exactly by the reach rule), `matrix_reqReason` (the request-form rule agrees with
+`envReason` on every probe and port), `tally_perm` and `blockCell_perm` (a cell does not depend on
+the order of its rows).
 -/
 namespace Fw.Gate
 
@@ -317,20 +323,98 @@ structure StateIn where
   deriving Repr, Inhabited
 
 /-- What every state is judged against: the skips, the covered parts in order, the recorded
-properties, and the device-width edges.
+properties, the device-width edges, and the engine port (`none`: no reach claim).
 
-$$c = (A,\ [\pi_1, \dots, \pi_k],\ \mathit{props},\ [n_1, \dots, n_j]) \in \mathrm{Anchors} \times \mathrm{PartSpec}^{*} \times (\mathrm{String} \times \mathrm{PartProps})^{*} \times \mathbb Q^{*}$$
+$$c = (A,\ [\pi_1, \dots, \pi_k],\ \mathit{props},\ [n_1, \dots, n_j],\ \pi) \in \mathrm{Anchors} \times \mathrm{PartSpec}^{*} \times (\mathrm{String} \times \mathrm{PartProps})^{*} \times \mathbb Q^{*} \times \mathcal P_\bot$$
 -/
 structure Ctx where
   anchors : Anchors
   parts : List PartSpec
   props : List (String × PartProps)
   edges : List Rat
+  port : Option Port := none
   deriving Repr, Inhabited
 
-/-- The evaluation of one state.
+/-! ## Reach of a requested environment -/
 
-$$(\mathit{dev}_O,\ \mathit{dev}_R,\ \mathit{achieved},\ T,\ \Pi,\ \mathit{rows},\ \mathit{compared}) \in (\mathrm{String}^{*})^{2} \times \mathbb B \times \mathrm{TItem}^{*} \times (\mathrm{String} \times \mathrm{PItem}^{*})^{*} \times (\mathrm{String} \times \mathrm{Verdict})^{*} \times (\mathrm{String} \times \mathbb N)^{*}$$
+/-- The `hover` keyword as a Lean value (`none` for any other text).
+
+$$\forall t \in \mathrm{String},\quad \operatorname{hoverOf}(t) = \begin{cases} \mathrm{hover} & t = \texttt{hover} \\ \mathrm{none} & t = \texttt{none} \\ \bot & \text{otherwise} \end{cases}$$
+
+Parses the requested hover keyword. -/
+def hoverOf : String → Option Fw.Site.Breakpoints.Hover
+  | "hover" => some .hover
+  | "none" => some .none
+  | _ => none
+
+/-- The `pointer` keyword as a Lean value (`none` for any other text).
+
+$$\forall t \in \mathrm{String},\quad \operatorname{pointerOf}(t) = \begin{cases} \mathrm{none} & t = \texttt{none} \\ \mathrm{coarse} & t = \texttt{coarse} \\ \mathrm{fine} & t = \texttt{fine} \\ \bot & \text{otherwise} \end{cases}$$
+
+Parses the requested pointer keyword. -/
+def pointerOf : String → Option Fw.Site.Breakpoints.Pointer
+  | "none" => some .none
+  | "coarse" => some .coarse
+  | "fine" => some .fine
+  | _ => none
+
+/-- Whether the requested (hover, pointer) pair is a primary pair of the port; an unknown keyword
+makes no claim (true).
+
+$$\forall \pi, q,\quad \operatorname{pairIn}_\pi(q) = \begin{cases} (h, k) \in \operatorname{pairs}(\pi) & \text{if } \exists h, k,\ \operatorname{hoverOf}(q.\mathrm{hover}) = \mathrm{some}\ h \wedge \operatorname{pointerOf}(q.\mathrm{pointer}) = \mathrm{some}\ k \\ \top & \text{otherwise (some keyword unknown)} \end{cases}$$
+
+Only a recognised pair can be ruled out. -/
+def pairIn (pt : Port) (q : Requested) : Bool :=
+  match hoverOf q.hover, pointerOf q.pointer with
+  | some h, some k => pt.pairs.contains (h, k)
+  | _, _ => true
+
+/-- The reach rule on a requested environment (rational width and DPR).
+
+$$\forall \pi, q,\quad \operatorname{reach}_\pi(q) = \operatorname{reason}_\pi\bigl(\operatorname{pairIn}_\pi(q),\ q.W \in \mathbb Z,\ q.W \cdot q.\mathit{dpr} \in \mathbb Z\bigr)$$
+
+Why the port cannot produce this request, or none. -/
+def reqReason (pt : Port) (q : Requested) : Option Reason :=
+  pt.reason (pairIn pt q) (q.width.den == 1) ((q.width * q.dpr).den == 1)
+
+/-- The reach of a state: none without a port, else the reach rule on its request.
+
+$$\forall C, s,\quad \operatorname{reach}(C, s) = \begin{cases} \bot & C.\pi = \bot \\ \operatorname{reach}_{\pi}(s.\mathit{req}) & C.\pi = \pi \end{cases}$$
+
+A state is unreachable only on a named port. -/
+def stateReach (c : Ctx) (s : StateIn) : Option Reason := c.port.bind fun pt => reqReason pt s.requested
+
+/-- A Lean length as a rational number.
+
+$$\forall x \in \mathrm{Px},\quad \operatorname{pxRat}(x) = x.\mathrm{num} / x.\mathrm{den} \in \mathbb Q$$
+
+The exact value of a probe length. -/
+def pxRat (x : Fw.Site.Breakpoints.Px) : Rat := (x.num : Rat) / x.den
+
+/-- The request a matrix probe makes (as the generator prints it).
+
+$$\forall e,\quad \operatorname{req}(e) = (w(e), h(e), d_w(e), r(e), \operatorname{kw}(\eta(e)), \operatorname{kw}(\kappa(e)), \operatorname{kw}(\mu(e)), \operatorname{kw}(\sigma(e)))$$
+
+A probe environment in the gate's request form. -/
+def requestOf (e : Fw.Site.Breakpoints.Env) : Requested :=
+  ⟨pxRat e.width, pxRat e.height, pxRat e.deviceWidth, pxRat e.dpr,
+   Fw.Site.Breakpoints.Feature.hoverKw e.hover, Fw.Site.Breakpoints.Feature.pointerKw e.pointer,
+   Fw.Site.Breakpoints.Feature.motionKw e.motion, Fw.Site.Breakpoints.Feature.schemeKw e.scheme⟩
+
+/-- The request form agrees with the proved reach of every matrix probe, on every port.
+
+$$\forall \pi \in \mathcal P,\ \forall p \in M,\quad \operatorname{reach}_\pi(\operatorname{req}(p)) = \operatorname{reach}_\pi(p)$$
+
+The rule the gate runs on requests is the one `Fw.Gate.Reach` proves facts about. -/
+theorem matrix_reqReason :
+    ∀ pt ∈ [Port.chromium, .webkitApple, .webkitGLib], ∀ p ∈ Fw.Site.Breakpoints.matrix,
+      reqReason pt (requestOf p.env) = envReason pt p.env := by
+  decide +kernel
+
+/-- The evaluation of one state; `rows` are all `unreachable r` when the state's reach is `r`, and
+`verdict` rolls up every row, part rows included.
+
+$$(\mathit{dev}_O,\ \mathit{dev}_R,\ \mathit{achieved},\ T,\ \Pi,\ \mathit{rows},\ \mathit{compared},\ \mathit{reach},\ \mathit{verdict}) \in (\mathrm{String}^{*})^{2} \times \mathbb B \times \mathrm{TItem}^{*} \times (\mathrm{String} \times \mathrm{PItem}^{*})^{*} \times (\mathrm{String} \times \mathcal V)^{*} \times (\mathrm{String} \times \mathbb N)^{*} \times \mathcal R_\bot \times \mathcal V$$
 -/
 structure StateOut where
   devO : List String
@@ -340,6 +424,8 @@ structure StateOut where
   parts : List (String × List PItem)
   rows : List (String × Verdict)
   compared : List (String × Nat)
+  reach : Option Reason
+  verdict : Verdict
   deriving Repr, Inhabited
 
 /-- An item is compared when it is not information and not `na`.
@@ -356,6 +442,13 @@ $$\operatorname{fails}(s) \iff s \ne \mathrm{na} \wedge s \ne \mathrm{equal}$$
 The items listed under failures. -/
 def failsS (s : Status) : Bool := s != .na && s != .equal
 
+/-- An item of an evaluated state is listed as failing when the state is reachable and the item fails.
+
+$$\forall e, s,\quad \operatorname{itemFails}(e, s) \iff e.\mathit{reach} = \bot \wedge \operatorname{fails}(s)$$
+
+An unreachable state lists no failing item. -/
+def StateOut.itemFails (e : StateOut) (s : Status) : Bool := e.reach.isNone && failsS s
+
 /-- The items of every covered part in one state.
 
 $$\operatorname{stateParts}(C, o, r) = [\,(P.\mathrm{id}, \operatorname{partItems}(A, P, o[P], r[P], \Pi_P)) \mid P \in C.\mathrm{parts}\,]$$
@@ -365,9 +458,22 @@ def stateParts (c : Ctx) (o r : List (String × PartRaw)) : List (String × List
   c.parts.map fun sp =>
     (sp.id, partItems c.anchors sp (o.lookup sp.id) (r.lookup sp.id) ((c.props.lookup sp.id).getD []))
 
-/-- Evaluate one state: deviations, achieved, truth items, part items, row verdicts, compared counts.
+/-- The rows of a state given its reach: every row `unreachable r` when the reach is `r`, else the
+rows unchanged.
 
-$$\mathit{ach} \iff \operatorname{dev}(q, o) = [\,] \wedge \operatorname{dev}(q, r) = [\,], \qquad \operatorname{rows} = \operatorname{rows}(\operatorname{truthItems}(o, r, e, e^N, \mathit{ach}), \operatorname{stateParts}(C, o, r))$$
+$$\forall \mathit{rows}, \rho,\quad \operatorname{reachRows}(\rho, \mathit{rows}) = \begin{cases} [\,(n, \mathrm{unreachable}(r)) \mid (n, v) \in \mathit{rows}\,] & \rho = r \ne \bot \\ \mathit{rows} & \rho = \bot \end{cases}$$
+
+An unreachable state has no pass, fail or NC row. -/
+def reachRows (reach : Option Reason) (rows : List (String × Verdict)) : List (String × Verdict) :=
+  match reach with
+  | some r => rows.map fun x => (x.1, .unreachable r)
+  | none => rows
+
+/-- Evaluate one state: deviations, achieved, truth items, part items, row verdicts (unreachable on
+the state's port when its reach says so), compared counts, reach, and the state verdict over all rows
+(matchMedia rows and part rows).
+
+$$\forall C, s,\quad \mathit{ach} \iff \operatorname{dev}(q, o) = [\,] \wedge \operatorname{dev}(q, r) = [\,], \qquad \mathit{rows} = \operatorname{reachRows}(\operatorname{reach}(C, s), \operatorname{rowVerdicts}(\operatorname{truthItems}(o, r, e, e^N, \mathit{ach}), \operatorname{stateParts}(C, o, r))), \qquad \mathit{verdict} = \operatorname{rollup}([\,v \mid (n, v) \in \mathit{rows}\,])$$
 
 The whole judgement of one probe or sweep stop. -/
 def evalState (c : Ctx) (s : StateIn) : StateOut :=
@@ -376,20 +482,113 @@ def evalState (c : Ctx) (s : StateIn) : StateOut :=
   let ach := devO.isEmpty && devR.isEmpty
   let ti := truthItems s.orig.truth s.rewrite.truth s.expect s.expectNeutral ach
   let ps := stateParts c s.orig.parts s.rewrite.parts
-  { devO, devR, achieved := ach, truth := ti, parts := ps, rows := rowVerdicts ti ps,
-    compared := ps.map fun p => (p.1, p.2.countP isCompared) }
+  let reach := stateReach c s
+  let rows := reachRows reach (rowVerdicts ti ps)
+  { devO, devR, achieved := ach, truth := ti, parts := ps, rows,
+    compared := ps.map fun p => (p.1, p.2.countP isCompared), reach,
+    verdict := rollup (rows.map (·.2)) }
 
-/-- The row of a part is its part verdict.
+/-- The row of a part is its part verdict, on a reachable state.
 
-$$\forall C, s, P \in C.\mathrm{parts},\quad (P.\mathrm{id}, \operatorname{partVerdict}(A, P, o[P], r[P], \Pi_P)) \in \operatorname{evalState}(C, s).\mathrm{rows}$$
+$$\forall C, s, P \in C.\mathrm{parts},\quad \operatorname{reach}(C, s) = \bot \implies (P.\mathrm{id}, \operatorname{partVerdict}(A, P, o[P], r[P], \Pi_P)) \in \operatorname{evalState}(C, s).\mathrm{rows}$$
 
 The table shows exactly the part rule for every covered part. -/
-theorem evalState_part_row (c : Ctx) (s : StateIn) (sp : PartSpec) (h : sp ∈ c.parts) :
+theorem evalState_part_row (c : Ctx) (s : StateIn) (sp : PartSpec) (h : sp ∈ c.parts)
+    (h0 : stateReach c s = none) :
     (sp.id, partVerdict c.anchors sp (s.orig.parts.lookup sp.id) (s.rewrite.parts.lookup sp.id)
       ((c.props.lookup sp.id).getD [])) ∈ (evalState c s).rows := by
-  simp only [evalState, rowVerdicts, stateParts, List.mem_append, List.map_map]
+  simp only [evalState, h0, reachRows, rowVerdicts, stateParts, List.mem_append, List.map_map]
   right
   exact List.mem_map.mpr ⟨sp, h, rfl⟩
+
+/-- The state verdict is the rollup of its rows.
+
+$$\forall C, s,\quad \operatorname{evalState}(C, s).\mathit{verdict} = \operatorname{rollup}([\,v \mid (n, v) \in \operatorname{evalState}(C, s).\mathrm{rows}\,])$$
+
+Every row, part rows included, enters the state verdict. -/
+theorem evalState_verdict (c : Ctx) (s : StateIn) :
+    (evalState c s).verdict = rollup ((evalState c s).rows.map (·.2)) := rfl
+
+/-- A state fails exactly when one of its rows fails.
+
+$$\forall C, s,\quad \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{fail} \iff \exists (n, v) \in \operatorname{evalState}(C, s).\mathrm{rows},\ v = \mathrm{fail}$$
+
+One failing row, matchMedia or part, fails the state. -/
+theorem evalState_fail_iff (c : Ctx) (s : StateIn) :
+    (evalState c s).verdict = .fail ↔ ∃ x ∈ (evalState c s).rows, x.2 = .fail := by
+  rw [evalState_verdict, rollup_fail_iff, List.mem_map]
+
+/-- A state passes exactly when some row passes and none fails.
+
+$$\forall C, s,\quad \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{pass} \iff (\exists (n, v) \in \mathrm{rows},\ v = \mathrm{pass}) \wedge \forall (n, v) \in \mathrm{rows},\ v \ne \mathrm{fail}$$
+
+(with $\mathrm{rows} = \operatorname{evalState}(C, s).\mathrm{rows}$.) A state passes only if no row, part rows included, fails. -/
+theorem evalState_pass_iff (c : Ctx) (s : StateIn) :
+    (evalState c s).verdict = .pass ↔
+      (∃ x ∈ (evalState c s).rows, x.2 = .pass) ∧ ∀ x ∈ (evalState c s).rows, x.2 ≠ .fail := by
+  rw [evalState_verdict, rollup_pass_iff, List.mem_map, List.mem_map]
+  exact and_congr Iff.rfl ⟨fun h x hx he => h ⟨x, hx, he⟩, fun h ⟨x, hx, he⟩ => h x hx he⟩
+
+/-- **A part failure never gives pass** (review finding on the gap harness): on a reachable state, a
+failing covered part fails the state.
+
+$$\forall C, s, P \in C.\mathrm{parts},\quad \operatorname{reach}(C, s) = \bot \wedge \operatorname{partVerdict}(A, P, o[P], r[P], \Pi_P) = \mathrm{fail} \implies \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{fail}$$
+
+engine.scroll, nav.hitTest, hero.countdown and hero.exit count as much as the matchMedia rows. -/
+theorem evalState_part_fail (c : Ctx) (s : StateIn) (sp : PartSpec) (h : sp ∈ c.parts)
+    (h0 : stateReach c s = none)
+    (hf : partVerdict c.anchors sp (s.orig.parts.lookup sp.id) (s.rewrite.parts.lookup sp.id)
+      ((c.props.lookup sp.id).getD []) = .fail) :
+    (evalState c s).verdict = .fail :=
+  (evalState_fail_iff c s).mpr ⟨_, evalState_part_row c s sp h h0, hf⟩
+
+/-- On an unreachable state every row and the verdict are `unreachable` with the state's reason.
+
+$$\forall C, s, r,\quad \operatorname{reach}(C, s) = r \implies (\forall (n, v) \in \operatorname{evalState}(C, s).\mathrm{rows},\ v = \mathrm{unreachable}(r)) \wedge \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{unreachable}(r)$$
+
+A cell the port cannot produce is neither pass, fail nor NC. -/
+theorem evalState_unreachable (c : Ctx) (s : StateIn) (r : Reason) (h : stateReach c s = some r) :
+    (∀ x ∈ (evalState c s).rows, x.2 = .unreachable r) ∧ (evalState c s).verdict = .unreachable r := by
+  have hrows : ∀ x ∈ (evalState c s).rows, x.2 = .unreachable r := by
+    intro x hx
+    simp only [evalState, h, reachRows, List.mem_map] at hx
+    obtain ⟨y, _, rfl⟩ := hx
+    rfl
+  refine ⟨hrows, ?_⟩
+  have hne : (evalState c s).rows.map (·.2) ≠ [] := by
+    simp [evalState, h, reachRows, rowVerdicts, truthRows]
+  have hall : ∀ v ∈ (evalState c s).rows.map (·.2), v.isUnreachable = true := by
+    intro v hv
+    obtain ⟨x, hx, rfl⟩ := List.mem_map.mp hv
+    rw [hrows x hx]; rfl
+  obtain ⟨r', hr'⟩ := (rollup_unreachable_iff _).mpr ⟨hne, hall⟩
+  have hm := rollup_unreachable_mem _ r' hr'
+  obtain ⟨x, hx, hx2⟩ := List.mem_map.mp hm
+  rw [hrows x hx] at hx2
+  cases hx2
+  rw [evalState_verdict]; exact hr'
+
+/-- A state is unreachable exactly when its reach names a reason.
+
+$$\forall C, s,\quad (\exists r,\ \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{unreachable}(r)) \iff \operatorname{reach}(C, s) \ne \bot$$
+
+Unreachable comes only from the proved reach rule, never from the measured rows. -/
+theorem evalState_unreachable_iff (c : Ctx) (s : StateIn) :
+    (∃ r, (evalState c s).verdict = .unreachable r) ↔ (stateReach c s).isSome := by
+  cases h : stateReach c s with
+  | some r => exact ⟨fun _ => rfl, fun _ => ⟨r, (evalState_unreachable c s r h).2⟩⟩
+  | none =>
+    simp only [Option.isSome_none, Bool.false_eq_true, iff_false]
+    rintro ⟨r, hr⟩
+    rw [evalState_verdict] at hr
+    have hm := rollup_unreachable_mem _ r hr
+    obtain ⟨x, hx, hx2⟩ := List.mem_map.mp hm
+    simp only [evalState, h, reachRows, rowVerdicts, List.mem_append, List.mem_map] at hx
+    rcases hx with ⟨y, _, rfl⟩ | ⟨y, _, rfl⟩
+    all_goals
+      dsimp only at hx2
+      have := congrArg Verdict.isUnreachable hx2
+      rw [cellVerdict_isUnreachable] at this; cases this
 
 /-- Sweep hysteresis: items compared and items differing or missing, the state after a sequence
 against a fresh load.
@@ -458,8 +657,30 @@ private def exT2 : TruthRaw := ⟨[("a", some true), ("b", some true)], [("a", s
 #guard (rowVerdicts (truthItems exT exT (some []) (some []) true) []).map (·.2) == [.pass, .fail, .pass]
 #guard (rowVerdicts (truthItems exT exT (some []) (some []) false) []).map (·.2) == [.pass, .nc, .pass]
 #guard blockCell [] == none
-#guard blockCell [.pass, .nc, .fail] == some ⟨.fail, 1, 2⟩
+#guard blockCell [.pass, .nc, .fail] == some ⟨.fail, 1, 2, 0⟩
+#guard blockCell [.unreachable .primaryPair, .pass] == some ⟨.pass, 0, 1, 1⟩
+#guard hoverOf "hover" == some .hover && hoverOf "none" == some .none && hoverOf "x" == none
+#guard pointerOf "fine" == some .fine && pointerOf "coarse" == some .coarse && pointerOf "none" == some .none &&
+  pointerOf "" == none
+#guard pairIn .webkitApple exReq && !pairIn .webkitApple { exReq with hover := "none", pointer := "fine" } &&
+  pairIn .webkitApple { exReq with hover := "?", pointer := "fine" }
+#guard reqReason .webkitApple exReq == none
+#guard reqReason .webkitGLib { exReq with hover := "hover", pointer := "coarse" } == some .primaryPair
+#guard reqReason .webkitApple { exReq with width := 1201 / 2, dpr := 2 } == some .wholeWidth
+#guard reqReason .chromium { exReq with width := 1201 / 2, dpr := 5 / 4 } == some .widthDpr
+#guard reqReason .chromium { exReq with width := 1201 / 2, dpr := 2 } == none
+#guard stateReach default { (default : StateIn) with requested := { exReq with hover := "none" } } == none
+#guard reachRows (some .wholeWidth) [("a", .pass), ("b", .fail)] ==
+  [("a", .unreachable .wholeWidth), ("b", .unreachable .wholeWidth)]
+#guard reachRows none [("a", .pass)] == [("a", .pass)]
+#guard (evalState { (default : Ctx) with port := some .webkitApple }
+  { (default : StateIn) with requested := { exReq with hover := "hover", pointer := "coarse" } }).verdict ==
+  .unreachable .primaryPair
+#guard (evalState default { (default : StateIn) with requested := exReq }).verdict == .nc
 #guard isCompared ⟨.box, "r", 0, "x", .differ, false⟩ && !isCompared ⟨.info, "r", 0, "x", .na, true⟩
 #guard failsS .missing && failsS .differ && !failsS .equal && !failsS .na
+#guard ({ (default : StateOut) with reach := none }).itemFails .differ
+#guard !({ (default : StateOut) with reach := some .wholeWidth }).itemFails .differ
+#guard !({ (default : StateOut) with reach := none }).itemFails .equal
 
 end Fw.Gate

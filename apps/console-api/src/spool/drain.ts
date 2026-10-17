@@ -1,8 +1,7 @@
 // Spool drain: .fw-console/spool/*.jsonl -> obs.jsonl (observations) and, for alerts only, events.jsonl through
-// the normal reducer path (a `step.post` caused by actor "script", i.e. console-api itself; the Lean authority table
+// the normal reducer path (a `step.post` / `step.cancel` caused by actor "script", i.e. console-api itself; the Lean authority table
 // still decides). A key is marked seen only after its fact is accepted, so a refused alert is retried next drain.
 import { existsSync, fsyncSync, openSync, closeSync, readFileSync, readdirSync, statSync, writeSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { ObsLine, ObsRecord, type Command, type ObsSummaryRow } from "@fw/contracts";
 import type { Core } from "../core/index.ts";
@@ -10,17 +9,23 @@ import type { Store } from "../store.ts";
 
 export type DrainResult = { accepted: number; duplicates: number; invalid: number; retry: number; alerts: number };
 
-/** Hook events that need a human or signal a stopped agent; everything else is an observation only.
- *  The lead's own Notification (no agent_id) is not an alert: its prompt is already in front of the user in the
- *  terminal. TS STAND-IN until task alert-steps moves this rule to Lean. */
-export function alertFor(r: ObsRecord, key: string): Command | null {
-  if (r.hook_event_name === "Notification" && r.agent_id === null) return null;
-  const who = (r.agent_type ?? "main").slice(0, 60);
-  const title = r.hook_event_name === "StopFailure" ? `Agent ${who} stopped on an API failure; the lead restarts it from its handoff`
-    : r.hook_event_name === "Notification" ? `Agent ${who} waits for you in the Claude Code terminal: answer its prompt there, then press Done` : null;
-  if (!title) return null;
-  return { type: "step.post", key: `alert:${key}`, actor: "script", step: `alert-${createHash("sha256").update(key).digest("hex").slice(0, 12)}`,
-    card: null, title, kind: "action", options: null };
+/** A tool call in flight (a PreToolUse seen, no PostToolUse yet); no agent_id is the lead. */
+export type Flight = { agent_id: string | null; agent_type: string | null; tool_name: string | null };
+/** What the drain does for one record (Lean `console.alert`, `Fw.Console.Alert.act`): the alert step to post and the
+ *  open alert steps to cancel, both as commands of actor script. */
+export type AlertPlan = { post: Command | null; close: Command[] };
+
+/** Which alert (if any) a record opens and which open alerts it closes. The rule is Lean's; this only maps the reply to
+ *  commands. Open alerts are the board's waiting/started steps with an `alert-` id. */
+export async function alertPlan(core: Pick<Core, "ops">, rec: ObsRecord, flights: readonly Flight[], open: readonly string[]): Promise<AlertPlan> {
+  const r = await core.ops("console.alert", {
+    event: { hook_event_name: rec.hook_event_name, agent_id: rec.agent_id, agent_type: rec.agent_type, tool_name: rec.tool_name,
+      notification_type: rec.notification_type ?? null, ts: rec.ts },
+    flights, open,
+  });
+  const p = r.post as { step: string; key: string; title: string } | null;
+  const close = (r.close as { step: string; key: string }[]).map((c): Command => ({ type: "step.cancel", key: c.key, actor: "script", step: c.step }));
+  return { post: p ? { type: "step.post", key: p.key, actor: "script", step: p.step, card: null, title: p.title, kind: "action", options: null } : null, close };
 }
 
 /** Tool calls per (agent type, tool): count, errors, summed hook duration, in first-seen order. Lean `ops.obs`
@@ -45,6 +50,9 @@ export async function obsKey(core: Pick<Core, "ops">, rec: ObsRecord): Promise<s
 export class Drain {
   private seen = new Set<string>();
   private offsets = new Map<string, number>();
+  /** tool calls in flight by tool_use_id (evidence for attributing an agent-less Notification; empty after a restart) */
+  private flights = new Map<string, Flight>();
+  private openAlerts = new Set<string>();
   private busy: Promise<unknown> = Promise.resolve();
   private obsPath: string;
 
@@ -79,6 +87,9 @@ export class Drain {
     const res: DrainResult = { accepted: 0, duplicates: 0, invalid: 0, retry: 0, alerts: 0 };
     const spool = join(this.store.dir, "spool");
     if (!existsSync(spool)) return res;
+    // the alert steps still open on the board (refreshed each drain: a person may have answered or cancelled one)
+    this.openAlerts = new Set((await this.store.board()).steps
+      .filter((st) => st.id.startsWith("alert-") && (st.status === "waiting" || st.status === "started")).map((st) => st.id));
     for (const f of readdirSync(spool).filter((n) => n.endsWith(".jsonl")).sort()) {
       const path = join(spool, f);
       const start = this.offsets.get(path) ?? 0;
@@ -115,10 +126,20 @@ export class Drain {
     // work graph: an agent whose name equals a task id was spawned -> task.claim (the reducer decides if it counts)
     const claim = rec.hook_event_name === "SpawnGuard" && rec.agent_name ? await this.claimFor(rec.agent_name) : null;
     if (claim) await this.store.submit(claim); // a refusal is logged in refused.jsonl; it never blocks the spool
-    const alert = alertFor(rec, key);
-    if (alert) {
-      const reply = await this.store.submit(alert);
+    // flight bookkeeping (glue): a PreToolUse starts a tool call, its PostToolUse(Failure) ends it, SubagentStop drops the agent's
+    if (rec.tool_use_id && rec.hook_event_name === "PreToolUse") this.flights.set(rec.tool_use_id, { agent_id: rec.agent_id, agent_type: rec.agent_type, tool_name: rec.tool_name });
+    if (rec.tool_use_id && (rec.hook_event_name === "PostToolUse" || rec.hook_event_name === "PostToolUseFailure")) this.flights.delete(rec.tool_use_id);
+    if (rec.hook_event_name === "SubagentStop") for (const [k, f] of this.flights) if (f.agent_id === rec.agent_id) this.flights.delete(k);
+    let plan: AlertPlan;
+    try { plan = await alertPlan(this.store.core, rec, [...this.flights.values()], [...this.openAlerts]); } catch { plan = { post: null, close: [] }; }
+    for (const c of plan.close) { // a refusal (answered or cancelled meanwhile) is logged; never blocks
+      await this.store.submit(c);
+      if (c.type === "step.cancel") this.openAlerts.delete(c.step);
+    }
+    if (plan.post) {
+      const reply = await this.store.submit(plan.post);
       if (!reply.ok) { res.retry++; return "retry"; } // not accepted: do NOT mark seen
+      if (plan.post.type === "step.post") this.openAlerts.add(plan.post.step);
       res.alerts++;
     }
     const fd = openSync(this.obsPath, "a");

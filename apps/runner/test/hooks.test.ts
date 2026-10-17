@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { fwArgv, tokens, cmdHash, identity } from "../hooks/cap.mjs";
 import { capMac, sha256 } from "../hooks/lib.mjs";
-import { verbOf } from "../hooks/emit.mjs";
+import { notification, verbOf } from "../hooks/emit.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const hook = (n: string) => join(here, "../hooks", n);
@@ -48,6 +48,15 @@ describe("emit.mjs", () => {
       expect(t).not.toContain(user);
       expect(t).not.toContain("@");
     }
+  });
+  it("Notification: type, message length and the tool token only; never the message text", () => {
+    const d = tmp();
+    run("emit.mjs", JSON.stringify({ hook_event_name: "Notification", agent_id: "a1b2", agent_type: "builder", notification_type: "permission_prompt",
+      message: "Claude needs your permission to use Bash for the hidden-detail", cwd: d }), d);
+    const txt = readFileSync(join(d, "spool", "a1b2.jsonl"), "utf8");
+    expect(JSON.parse(txt)).toMatchObject({ hook_event_name: "Notification", tool_name: "Bash", notification_type: "permission_prompt", message_len: "Claude needs your permission to use Bash for the hidden-detail".length });
+    expect(txt).not.toContain("hidden-detail");
+    expect(notification({ message: "x", notification_type: "Bad Type!" })).toEqual({ type: null, len: 1, tool: null });
   });
   it("verb: allowlisted first token or other; never a path", () => {
     expect(verbOf("pnpm test")).toBe("pnpm");
@@ -181,6 +190,6 @@ describe("emit.mjs: unseen spawns and background_tasks", () => {
     run("emit.mjs", JSON.stringify({ hook_event_name: "SubagentStop", agent_id: "q", background_tasks: [{ id: "t1", command: "secret cmd" }, { id: "t2" }] }), d);
     const t = readFileSync(join(d, "spool", "q.jsonl"), "utf8");
     expect(JSON.parse(t).background_tasks).toBe(2);
-    expect(t).not.toContain("secret");
+    expect(t).not.toContain("hidden-detail");
   });
 });

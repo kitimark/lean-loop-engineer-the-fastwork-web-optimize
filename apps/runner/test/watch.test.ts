@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  collectAgents, findTranscripts, parseCi, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
-  summarizeSpool, summarizeTranscript,
+  collectAgents, collectSystem, findTranscripts, parseCi, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
+  summarizeLead, summarizeSpool, summarizeTranscript, type Runner, type SystemSnap,
 } from "../src/watch-collect.ts";
-import { alertKey, newAlerts, parseWatchArgs, renderTable, type Health } from "../src/watch.ts";
+import { alertKey, appendLog, newAlerts, parseWatchArgs, readLastLog, renderTable, type Health } from "../src/watch.ts";
 
 const T0 = Date.parse("2026-10-17T10:00:00Z");
 const ev = (agent: string, h: string, ts: number, extra: object = {}) =>
@@ -28,15 +28,25 @@ describe("spool", () => {
       ev("a", "PostToolUseFailure", T0 + 3000, { is_error: true }), "{torn",
     ].join("\n"));
     const s = summarizeSpool(evs);
-    expect(s).toMatchObject({ tools: 3, errors: 2, errTail: 2, startedAt: T0, lastAt: T0 + 3000, stoppedAt: null, waiting: false });
+    expect(s).toMatchObject({ tools: 3, errors: 2, errTail: 2, startedAt: T0, lastAt: T0 + 3000, stoppedAt: null, lastTool: "Bash", lastToolAt: T0 + 3000, idleAt: null });
     expect(summarizeSpool(parseSpool([ev("a", "SubagentStart", 1), ev("a", "SubagentStop", 5)].join("\n"))).stoppedAt).toBe(5);
     expect(summarizeSpool(parseSpool([ev("a", "SubagentStart", 1), ev("a", "SubagentStop", 5), ev("a", "SubagentStart", 9)].join("\n"))).stoppedAt).toBeNull();
+    expect(summarizeSpool(parseSpool([ev("a", "SubagentStop", 5), ev("a", "PostToolUse", 9)].join("\n"))).stoppedAt).toBeNull();
   });
-  it("waiting only while the notification is the latest tool-level event", () => {
-    const w = summarizeSpool(parseSpool([ev("a", "PostToolUse", 1), ev("a", "Notification", 2)].join("\n")));
-    expect(w.waiting).toBe(true);
-    const r = summarizeSpool(parseSpool([ev("a", "Notification", 2), ev("a", "PostToolUse", 3)].join("\n")));
-    expect(r.waiting).toBe(false);
+  it("last tool and TeammateIdle; a teammate's Stop then Idle is a turn end, not an exit", () => {
+    const t = summarizeSpool(parseSpool([
+      ev("a", "SubagentStart", 1), ev("a", "PostToolUse", 2, { tool_name: "SendMessage" }), ev("a", "SubagentStop", 3), ev("a", "TeammateIdle", 4),
+    ].join("\n")));
+    expect(t).toMatchObject({ lastTool: "SendMessage", lastToolAt: 2, idleAt: 4, stoppedAt: null });
+    const x = summarizeSpool(parseSpool([ev("a", "TeammateIdle", 2), ev("a", "SubagentStop", 3)].join("\n")));
+    expect(x).toMatchObject({ idleAt: 2, stoppedAt: 3 });
+  });
+  it("the lead: newest tool event and newest Notification, agent events ignored", () => {
+    const l = summarizeLead(parseSpool([
+      ev("", "PostToolUse", 5, { agent_id: null }), ev("", "Notification", 7, { agent_id: null }), ev("a", "PostToolUse", 9),
+    ].join("\n")));
+    expect(l).toEqual({ lastToolAt: 5, noteAt: 7 });
+    expect(summarizeLead([])).toEqual({ lastToolAt: null, noteAt: null });
   });
 });
 
@@ -49,11 +59,16 @@ describe("transcript", () => {
     line({ type: "api-request-blob", message: { content: [{ type: "tool_use", id: "zz", name: "Blob" }] } }),
   ].join("\n");
   it("takes ctx from the last usage, sums out, finds the in-flight tool", () => {
-    const i = summarizeTranscript(tr, { name: "x", description: "d", agentType: "t", spawnDepth: 2 });
-    expect(i).toMatchObject({ name: "x", task: "d", type: "t", depth: 2, model: "claude-opus-5-5", ctxTokens: 208, toolUses: 2, toolErrors: 1, endedTurn: false });
+    const i = summarizeTranscript(tr, { name: "x", description: "d", agentType: "t", spawnDepth: 2, taskKind: "in_process_teammate", toolUseId: "u9" });
+    expect(i).toMatchObject({ name: "x", task: "d", type: "t", teammate: true, toolUseId: "u9", model: "claude-opus-5-5", ctxTokens: 208, toolUses: 2, toolErrors: 1, endedTurn: false, lastTool: "Bash", lastToolAt: T0 + 2 * 60000 });
     expect(i.tokens).toEqual({ in: 5, out: 30, cacheRead: 300, cacheWrite: 55 });
     expect(i.inflight).toEqual({ tool: "Bash", verb: null, since: T0 + 2 * 60000 });
     expect(JSON.stringify(i)).not.toContain("SECRET");
+  });
+  it("collects Agent/Task call ids (a child's meta.toolUseId)", () => {
+    const t = asst("m1", 0, [{ type: "tool_use", id: "c1", name: "Agent" }, { type: "tool_use", id: "c2", name: "Task" }, { type: "tool_use", id: "c3", name: "Read" }], {});
+    expect(summarizeTranscript(t, null).agentCalls).toEqual(["c1", "c2"]);
+    expect(summarizeTranscript(t, null).teammate).toBe(false);
   });
   it("StructuredOutput result means the agent ended", () => {
     const done = tr + "\n" + asst("m3", 3, [{ type: "tool_use", id: "t3", name: "StructuredOutput" }], {}) + "\n" +
@@ -89,9 +104,55 @@ describe("collectAgents", () => {
     const agents = collectAgents(p, now);
     expect(agents.map((a) => a.id)).toEqual(["live", "wfold"]);
     const a = agents[0]!;
-    expect(a).toMatchObject({ name: "alive", model: "claude-sonnet-5-5", stoppedAt: null, tools: 1, ctxTokens: 10 });
+    expect(a).toMatchObject({ name: "alive", model: "claude-sonnet-5-5", stoppedAt: null, tools: 1, ctxTokens: 10, kind: "subagent", parent: null, transcriptOnly: false, lastTool: "Bash" });
     expect(a.inflight?.tool).toBe("Bash");
     expect(Math.round((now - a.lastAt) / 60000)).toBe(2);
+    expect(agents[1]).toMatchObject({ kind: "workflow", transcriptOnly: true, workflowDone: false });
+  });
+  it("kind from meta and path, parent from the Agent call id, workflowDone from the run file", () => {
+    const base = tmp();
+    const consoleDir = join(base, "fw");
+    mkdirSync(join(consoleDir, "spool"), { recursive: true });
+    const sess = join(base, "projects", "-x-r", "s1");
+    const sub = join(sess, "subagents");
+    mkdirSync(join(sub, "workflows", "wf_9"), { recursive: true });
+    mkdirSync(join(sess, "workflows"), { recursive: true });
+    const now = Date.now();
+    const at = new Date(now - 60000).toISOString();
+    const call = (id: string, name: string) => line({ type: "assistant", timestamp: at, message: { id: "m", content: [{ type: "tool_use", id, name }], usage: {} } });
+    writeFileSync(join(sub, "agent-tm.jsonl"), call("u1", "Agent"));
+    writeFileSync(join(sub, "agent-tm.meta.json"), JSON.stringify({ name: "mate", taskKind: "in_process_teammate" }));
+    writeFileSync(join(sub, "agent-kid.jsonl"), call("k1", "Read"));
+    writeFileSync(join(sub, "agent-kid.meta.json"), JSON.stringify({ toolUseId: "u1" }));
+    writeFileSync(join(sub, "workflows", "wf_9", "agent-wf.jsonl"), call("w1", "Read"));
+    writeFileSync(join(sess, "workflows", "wf_9.json"), JSON.stringify({ status: "completed" }));
+    const p = pathsFor("/x/r", { FW_CONSOLE_DIR: consoleDir, FW_PROJECTS_DIR: join(base, "projects") } as never);
+    const by = new Map(collectAgents(p, now).map((x) => [x.id, x]));
+    expect(by.get("tm")).toMatchObject({ kind: "teammate", parent: null });
+    expect(by.get("kid")).toMatchObject({ kind: "subagent", parent: "tm" });
+    expect(by.get("wf")).toMatchObject({ kind: "workflow", workflowDone: true, transcriptOnly: true });
+  });
+});
+
+describe("system carry-forward", () => {
+  const p = pathsFor("/x/r", { FW_CONSOLE_DIR: "/nonexistent-fw", FW_PROJECTS_DIR: "/nonexistent-proj" } as never);
+  const prevSys = (): SystemSnap => ({
+    load1: 1, memPressure: "normal", diskFreeGB: 50, simLock: { holder: null, since: null }, worktrees: 1, consolePids: [], stale: [],
+    docker: [{ id: "d1", name: "web", startedAt: 1 }], ci: [{ workflow: "ci", branch: "b", status: "completed", conclusion: "failure", startedAt: 1 }],
+  });
+  const exec = (fail: "timeout" | "missing"): Runner => async (cmd) =>
+    cmd === "gh" || cmd === "docker" ? (fail === "missing" ? { missing: true } : null) : "";
+  it("a failed gh/docker call keeps the previous value, marked stale", async () => {
+    const s = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, exec("timeout"));
+    expect(s.stale.sort()).toEqual(["ci", "docker"]);
+    expect(s.ci).toHaveLength(1);
+    expect(s.docker).toHaveLength(1);
+  });
+  it("a previous check older than 1 h is not carried; a missing program is empty, not stale", async () => {
+    const old = await collectSystem(p, { at: 0, system: prevSys() }, 3600_001, exec("timeout"));
+    expect(old).toMatchObject({ stale: ["docker", "ci"], ci: [], docker: [] });
+    const miss = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, exec("missing"));
+    expect(miss).toMatchObject({ stale: [], ci: [], docker: [] });
   });
 });
 
@@ -121,20 +182,36 @@ describe("cli", () => {
     const prev = new Set([alertKey({ code: "a", subject: "1", detail: "" })]);
     expect(newAlerts(prev, h([["a", "1"], ["b", "2"]])).map(alertKey)).toEqual(["b|2"]);
   });
+  it("the last logged check is read back as the baseline", () => {
+    const base = tmp();
+    const p = pathsFor("/x/r", { FW_CONSOLE_DIR: join(base, "fw"), FW_PROJECTS_DIR: base } as never);
+    expect(readLastLog(p)).toBeNull();
+    const h = (code: string): Health => ({ agents: [], system: { alerts: [] }, counts: {}, alerts: [{ code, subject: "s", detail: "" }] });
+    const snap = (now: number) => ({ now, params: {}, agents: [], lead: { lastToolAt: null, noteAt: null }, system: { pad: "x".repeat(70000) } }) as never;
+    appendLog(p, snap(1), h("one"));
+    appendLog(p, snap(2), h("two"));
+    const last = readLastLog(p)!;
+    expect(last.at).toBe(2);
+    expect(newAlerts(new Set(last.output.alerts.map(alertKey)), h("two"))).toEqual([]);
+  });
   it("renders at most 40 lines and never the agent ids of done agents", () => {
     const agents = Array.from({ length: 60 }, (_, i) => ({
-      id: `id${i}`, name: `agent-${i}`, task: null, type: "t", model: "claude-opus-5-5", depth: 1, startedAt: T0, lastAt: T0 - i * 60000, stoppedAt: i % 7 === 0 ? T0 : null,
-      tools: i, errors: 0, errTail: 0, inflight: null, waitingPermission: false, ctxTokens: 1000 * i, tokens: { in: 0, out: 0, cacheRead: 0, cacheWrite: 0 },
+      id: `id${i}`, name: `agent-${i}`, task: null, type: "t", model: "claude-opus-5-5", kind: "subagent" as const, parent: null,
+      startedAt: T0, lastAt: T0 - i * 60000, stoppedAt: i % 7 === 0 ? T0 : null, tools: i, errors: 0, errTail: 0, inflight: null,
+      lastTool: null, lastToolAt: null, idleAt: null, workflowDone: false, transcriptOnly: false,
+      ctxTokens: 1000 * i, tokens: { in: 0, out: 0, cacheRead: 0, cacheWrite: 0 },
     }));
-    const snap = { now: T0, params: {}, agents, system: { load1: 1, memPressure: "normal" as const, diskFreeGB: 50, simLock: { holder: null, since: null }, docker: [], worktrees: 3, consolePids: [], ci: [] } };
+    const snap = { now: T0, params: {}, agents, lead: { lastToolAt: null, noteAt: null }, system: { load1: 1, memPressure: "normal" as const, diskFreeGB: 50, simLock: { holder: null, since: null }, docker: [], worktrees: 3, consolePids: [], ci: [], stale: ["ci"] } };
     const h: Health = {
       agents: agents.map((a) => ({ id: a.id, state: a.stoppedAt ? "done" : "active", alerts: [] })),
-      system: { alerts: [] }, counts: { active: 50, idle: 0, waiting: 0, stalled: 0, done: 10 },
+      system: { alerts: [] }, counts: { active: 50, idle: 0, parked: 0, stalled: 0, done: 10 },
       alerts: Array.from({ length: 30 }, (_, i) => ({ code: "agent.ctxHigh", subject: `id${i}`, detail: "d" })),
     };
     const out = renderTable(snap, h);
     expect(out.split("\n").length).toBeLessThanOrEqual(40);
     expect(out).toContain("+");
     expect(out).toContain("agent-1 ");
+    expect(out).toContain("parked 0");
+    expect(out).toContain("(0 failed) stale");
   });
 });

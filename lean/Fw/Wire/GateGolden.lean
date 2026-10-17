@@ -1,4 +1,5 @@
 import Fw.Ops.Golden
+import Fw.Site.BreakpointGen
 /-!
 # Golden vectors of the gate ops (`gate.*`)
 
@@ -56,9 +57,30 @@ def arm (bx u0 u1 : String) (c e t : String) : String :=
 def requested : String :=
   "{\"width\":1280,\"height\":900,\"deviceWidth\":1280,\"dpr\":1,\"hover\":\"hover\",\"pointer\":\"fine\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}"
 
-/-- A `gate.state` request over the literal anchors with one state. -/
-def stateReq (o r : String) (expect : String) (expectNeutral : String := "[[\"print\",false]]") : Json :=
-  lit ("{\"anchors\":" ++ anchors ++ ",\"parts\":[\"p\"],\"props\":" ++ props ++ ",\"deviceEdges\":[[500,501]],\"states\":[{\"requested\":" ++ requested ++ ",\"orig\":" ++ o ++ ",\"rewrite\":" ++ r ++ ",\"expect\":" ++ expect ++ ",\"expectNeutral\":" ++ expectNeutral ++ "}]}")
+/-- A fractional requested environment (600.5 px at DPR 2, desktop inputs). -/
+def requestedHalf : String :=
+  "{\"width\":600.5,\"height\":900,\"deviceWidth\":600.5,\"dpr\":2,\"hover\":\"hover\",\"pointer\":\"fine\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}"
+
+/-- A cross requested environment (hover `hover` with pointer `coarse`, 1200 px). -/
+def requestedCross : String :=
+  "{\"width\":1200,\"height\":900,\"deviceWidth\":1200,\"dpr\":1,\"hover\":\"hover\",\"pointer\":\"coarse\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}"
+
+/-- A `gate.state` request over the literal anchors with one state (`port`: the JSON of the optional port
+field, empty for none). -/
+def stateReq (o r : String) (expect : String) (expectNeutral : String := "[[\"print\",false]]")
+    (req : String := requested) (port : String := "") : Json :=
+  lit ("{\"anchors\":" ++ anchors ++ ",\"parts\":[\"p\"],\"props\":" ++ props ++ ",\"deviceEdges\":[[500,501]]" ++
+    (if port.isEmpty then "" else ",\"port\":" ++ port) ++ ",\"states\":[{\"requested\":" ++ req ++ ",\"orig\":" ++ o ++ ",\"rewrite\":" ++ r ++ ",\"expect\":" ++ expect ++ ",\"expectNeutral\":" ++ expectNeutral ++ "}]}")
+
+/-- The requested fields of a matrix probe. -/
+def probeReq (p : Fw.Site.Breakpoints.Probe) : Json :=
+  let j := Fw.Site.BreakpointGen.probeJson p
+  Json.mkObj (["width", "height", "deviceWidth", "dpr", "hover", "pointer", "reducedMotion", "colorScheme"].map
+    fun k => (k, j.getObjValD k))
+
+/-- A `gate.reach` request over the whole matrix for one port. -/
+def matrixReach (port : String) : Json :=
+  Json.mkObj [("port", .str port), ("envs", .arr (Fw.Site.Breakpoints.matrix.map probeReq).toArray)]
 
 /-- The literal cases: (name, op, request without op). -/
 def literalCases : List (String × String × Json) := [
@@ -83,7 +105,28 @@ def literalCases : List (String × String × Json) := [
   ("stale: the box moved after the sweep, against a fresh load", "gate.stale",
    lit ("{\"anchors\":" ++ anchors ++ ",\"parts\":[\"p\"],\"props\":" ++ props ++ ",\"pairs\":[{\"after\":" ++
      ((lit (arm "10" "20" "40" "red" "a" "true")).getObjValD "parts").compress ++ ",\"fresh\":" ++
-     ((lit (arm "12" "20" "40" "red" "a" "true")).getObjValD "parts").compress ++ "}]}"))]
+     ((lit (arm "12" "20" "40" "red" "a" "true")).getObjValD "parts").compress ++ "}]}")),
+  ("tally: unreachable verdicts count neither pass nor fail; an all-unreachable cell is unreachable", "gate.tally",
+   lit "{\"cells\":[{\"verdicts\":[\"unreachable:whole-width\",\"unreachable:primary-pair\"],\"block\":true},{\"verdicts\":[\"unreachable:width-dpr\",\"pass\"]},{\"verdicts\":[\"unreachable:whole-width\",\"fail\"]},{\"verdicts\":[\"unreachable:whole-width\",\"not-comparable\"]}]}"),
+  ("state: a fractional width on WebKit (Apple) is unreachable: every row, the verdict, and no failing item",
+   "gate.state", stateReq (arm "10" "20" "40" "red" "a" "true") (arm "10" "20.75" "40" "blue" "a" "true") "[[\"(width >= 600px)\",false]]"
+     (req := requestedHalf) (port := "\"webkit-apple\"")),
+  ("state: the same fractional state on Chromium is reachable (600.5 x 2 is whole) and fails",
+   "gate.state", stateReq (arm "10" "20" "40" "red" "a" "true") (arm "10" "20.75" "40" "blue" "a" "true") "[[\"(width >= 600px)\",false]]"
+     (req := requestedHalf) (port := "\"chromium\"")),
+  ("state: hover with a coarse pointer on WebKit (GLib) is unreachable by its primary pair",
+   "gate.state", stateReq (arm "10" "20" "40" "red" "a" "true") (arm "10" "20" "40" "red" "a" "true") "[[\"(width >= 600px)\",true]]"
+     (req := requestedCross) (port := "\"webkit-glib\"")),
+  ("state: a part failure fails the state verdict even when every matchMedia row passes",
+   "gate.state", stateReq (arm "10" "20" "40" "red" "a" "true") (arm "10" "20" "40" "blue" "a" "true") "[[\"(width >= 600px)\",true]]"
+     (port := "null")),
+  ("state: an unknown port is refused", "gate.state",
+   stateReq (arm "10" "20" "40" "red" "a" "true") (arm "10" "20" "40" "red" "a" "true") "null" (port := "\"gecko\"")),
+  ("reach: every matrix probe on Chromium (all reachable)", "gate.reach", matrixReach "chromium"),
+  ("reach: every matrix probe on WebKit (Apple): the fractional and cross probes are unreachable", "gate.reach",
+   matrixReach "webkit-apple"),
+  ("reach: every matrix probe on WebKit (GLib): the fractional and cross probes are unreachable", "gate.reach",
+   matrixReach "webkit-glib")]
 
 /-- The text of `literal.jsonl`. -/
 def literalText : String :=

@@ -20,14 +20,25 @@ export function verbOf(command) {
 const str = (v) => (typeof v === "string" && v.length <= 200 ? v : null);
 const num = (v) => (Number.isFinite(v) ? Math.round(v) : null);
 
+/** Notification facts for alert steps: the type (a short token), the message LENGTH, and, for a permission prompt, the
+ *  tool name taken from "...permission to use <Tool>" (one identifier token; the message text itself never leaves). */
+export function notification(p) {
+  const msg = typeof p.message === "string" ? p.message : "";
+  const m = /permission to use ([A-Za-z0-9_.:-]{1,60})/.exec(msg);
+  const type = typeof p.notification_type === "string" && /^[a-z_]{1,40}$/.test(p.notification_type) ? p.notification_type : null;
+  return { type, len: msg.length, tool: m ? m[1] : null };
+}
+
 /** The only fields that ever leave the payload. */
 export function record(p, now = Date.now()) {
   const ev = str(p.hook_event_name);
   if (!ev) return null;
   const failed = ev === "PostToolUseFailure";
+  const note = ev === "Notification" ? notification(p) : null;
   return {
     agent_id: str(p.agent_id), agent_type: str(p.agent_type), hook_event_name: ev,
-    tool_name: str(p.tool_name), tool_use_id: str(p.tool_use_id), duration_ms: num(p.duration_ms),
+    tool_name: str(p.tool_name) ?? note?.tool ?? null, tool_use_id: str(p.tool_use_id), duration_ms: num(p.duration_ms),
+    ...(note ? { notification_type: note.type, message_len: note.len } : {}),
     is_error: ev === "PostToolUse" || failed ? failed : null,
     verb: p.tool_name === "Bash" ? verbOf(p.tool_input?.command) : null,
     ts: now,

@@ -5,6 +5,8 @@
 //   Fw.Gate.Compare  value comparisons: style values exact or numbers within 1/1000 (exact decimals), boxes within 1/2 px
 //   Fw.Gate.Items    which properties are compared (skips with reasons), the items of one part, the part verdict
 //   Fw.Gate.State    environment achieved, matchMedia truth items, the rows of one state, sweep hysteresis counts
+//   Fw.Gate.Reach    cells an engine port cannot reach (WebKit: primary hover/pointer pairs, whole media width;
+//                    Chromium: whole device px), proved; such rows are unreachable, never pass or fail
 // This file has no decision logic: it shapes requests, moves JSON lines, and attaches the display values (orig /
 // rewrite values of a failing item) from the raw data.
 // The binary is lean/.lake/build/bin/fwcore (FW_CORE_BIN overrides), spawned with LEAN_ABORT_ON_PANIC=1.
@@ -55,8 +57,9 @@ const partsReq = (rawParts, parts) => Object.fromEntries(parts.filter((p) => raw
 const mapReq = (m) => (m ? Object.entries(m) : null);
 
 /** The shared context of a request: anchors.json as is, the covered part ids (in order), the run's recorded
- *  properties, and the device-width edge pairs [n, n+1]. */
-export const context = ({ anchors, parts, props, deviceEdges }) => ({ anchors, parts, props, deviceEdges });
+ *  properties, the device-width edge pairs [n, n+1], and the engine port (`chromium`, `webkit-apple`,
+ *  `webkit-glib`; absent: no reach claim). */
+export const context = ({ anchors, parts, props, deviceEdges, port }) => ({ anchors, parts, props, deviceEdges, port: port ?? null });
 
 /** A `gate.state` request: states are {requested, orig, rewrite, expect?, expectNeutral?} with raw arms. */
 export const stateRequest = (ctx, states) => ({
@@ -92,7 +95,8 @@ function shown(roleSpecs, oPart, rPart, it) {
 }
 
 /** One `gate.state` reply entry with the raw arms it was asked about -> {dev, achieved, truth, truthCounts, rows,
- *  compared, fails, infoDiffs}. `fails`: per part, the failing count/box/style items; `infoDiffs`: per part, the
+ *  compared, reach, verdict, fails, infoDiffs}. `reach`: null or the reason the port cannot reach the state;
+ *  `verdict`: Lean's rollup of every row, part rows included. `fails`: per part, the failing count/box/style items; `infoDiffs`: per part, the
  *  properties only the original declares whose values differ (never in a verdict). */
 export function readState(anchors, state, ev) {
   const o = (state.orig.raw ?? state.orig).parts, r = (state.rewrite.raw ?? state.rewrite).parts;
@@ -107,6 +111,7 @@ export function readState(anchors, state, ev) {
     truth: ev.truth,
     truthCounts: ev.truthCounts,
     rows: Object.fromEntries(ev.rows), compared: Object.fromEntries(ev.compared),
+    reach: ev.reach, verdict: ev.verdict,
     fails, infoDiffs,
   };
 }
@@ -118,9 +123,12 @@ export function evaluate(ctx, states, stalePairs = []) {
 }
 
 /** Table cells (Lean `Fw.Gate.tally`, `Fw.Gate.blockCell`): cells are {verdicts, block}; a block cell with no
- *  verdicts is not-run. Returns {verdict, failing, total} per cell. */
+ *  verdicts is not-run. Returns {verdict, failing, total, unreachable} per cell (`total` counts pass and fail only). */
 export const tallies = (cells) =>
-  (cells.length === 0 ? [] : call([{ op: 'gate.tally', cells }])[0].cells.map(({ verdict, failing, total }) => ({ verdict, failing, total })));
+  (cells.length === 0 ? [] : call([{ op: 'gate.tally', cells }])[0].cells.map(({ verdict, failing, total, unreachable }) => ({ verdict, failing, total, unreachable })));
+
+/** The reach rule (Lean `Fw.Gate.reqReason`) on requested environments for one port: null or a reason per env. */
+export const reach = (port, envs) => (envs.length === 0 ? [] : call([{ op: 'gate.reach', port, envs }])[0].reasons);
 
 /** The rule over status lists (Lean `Fw.Gate.cellVerdict`), one verdict per list. */
 export const cellVerdicts = (lists) => call(lists.map((statuses) => ({ op: 'gate.cell', statuses }))).map((x) => x.verdict);

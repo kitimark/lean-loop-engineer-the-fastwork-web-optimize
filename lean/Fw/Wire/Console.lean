@@ -1,9 +1,10 @@
 import Fw.Ops.Wire
 import Fw.Console.Land
 import Fw.Console.Self
+import Fw.Console.Alert
 import Fw.Plan.Trailer
 /-!
-# JSON for the console's own rules (`console.landReadiness`, `console.actor`, `plan.trailers`)
+# JSON for the console's own rules (`console.landReadiness`, `console.actor`, `console.alert`, `plan.trailers`)
 
 Stateless ops, dispatched by `Fw.Wire.handleCore` (this module cannot import `Fw.Wire`, which
 imports it, so it decodes the card fields it needs itself).
@@ -12,6 +13,7 @@ imports it, so it decodes the card fields it needs itself).
 |---|---|---|
 | `console.landReadiness` | `card` {id, needsDevice, owner?, approved?, head?, screenAt?, reviewAt?, deviceAt?, landed?} (a board or reducer card; other fields ignored), `sha` | `ready`, `needs` (`approve`/`build`/`screen`/`review`/`device`, in that order), `refusal` (the `card.land_request` refusal at `sha`, or null) |
 | `console.actor` | `source`? (`alert`/`claim`/`build`/`landed`/`taskDone`; missing = all) | `sources` [{source, actor, type, allowed}] |
+| `console.alert` | `event` {hook_event_name, ts, agent_id?, agent_type?, tool_name?, notification_type?}, `flights`? [{agent_id?, agent_type?, tool_name?}] (tool calls in flight; no agent_id = the lead), `open`? [step ids] (alert steps still open on the board) | `post` (null or {step, key, title, kind, agent}: the `step.post` to send as actor script), `close` [{step, key}] (the `step.cancel`s to send as actor script) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
 namespace Fw.Wire.Console
@@ -61,6 +63,25 @@ def opActor (req : Json) : Except String Reply := do
       | none => throw s!"field source: unknown source {n}"
   pure [("sources", .arr (ss.toArray.map sourceJson))]
 
+/-! ## console.alert -/
+
+open Fw.Console.Alert in
+/-- `console.alert`: which alert step an event opens and which open ones it closes
+(`Fw.Console.Alert.act`). -/
+def opAlert (req : Json) : Except String Reply := do
+  let j ← field req "event"
+  let e : Ev := { event := ← str j "hook_event_name", ts := ← nat j "ts", agentId := ← optStr j "agent_id",
+                  agentType := ← optStr j "agent_type", tool := ← optStr j "tool_name", ntype := ← optStr j "notification_type" }
+  let fs ← (← arrD req "flights").mapM fun f => do
+    pure ({ agentId := ← optStr f "agent_id", agentType := ← optStr f "agent_type", tool := ← optStr f "tool_name" } : Flight)
+  let opn ← (← arrD req "open").mapM fun v => asStr "open" v
+  let o := act e fs opn
+  pure [("post", match o.post with
+          | none => .null
+          | some a => Json.mkObj [("step", .str a.step), ("key", .str a.key), ("title", .str a.title),
+                                  ("kind", .str a.kind.name), ("agent", .str a.agent)]),
+        ("close", .arr (o.close.toArray.map fun s => Json.mkObj [("step", .str s), ("key", .str (closeKey s))]))]
+
 /-! ## plan.trailers -/
 
 open Fw.Plan.Trailer in
@@ -79,13 +100,14 @@ def opTrailers (req : Json) : Except String Reply := do
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
-def ops : List String := ["console.landReadiness", "console.actor", "plan.trailers"]
+def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "plan.trailers"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "console.landReadiness" => some (opLandReadiness req)
   | "console.actor" => some (opActor req)
+  | "console.alert" => some (opAlert req)
   | "plan.trailers" => some (opTrailers req)
   | _ => none
 
