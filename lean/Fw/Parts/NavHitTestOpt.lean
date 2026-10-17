@@ -509,6 +509,334 @@ theorem elementsSkip_run_dominates :
         (toRun (run.map fun x => frameWork WebKit.webkit (elementsFrame x.1))) = .ok .dominates) :=
   ⟨fun run h => elementsSkip_run_dominates_any _ run h, fun run h => elementsSkip_run_dominates_any _ run h⟩
 
+/-! ## The frame-end pass (`frameWorkE`, ledger n=3, 4)
+
+`frameWork` charges every touched stage one lifecycle pass; `frameWorkE` charges it only when the stage's flag is
+still dirty at frame end (`Fw.Engine.frameWork_overcount`). For the nav frame the style and layout end flags come from
+the script accesses (`fin`), or-ed with a `late` flag for changes the frame makes after its last read, shared by the
+variant and the original; every other stage keeps `late`. With `late` all true this is `frameWork` again.
+
+**Verdicts unchanged.** Both variants still dominate on every engine and every frame context. The original's probe
+ends with the `pointer-events` restore write, so its style flag is dirty after the probe; the variant's saved forced
+passes are never paid back at frame end (`tot_start_bounds`: a dirty start costs at most one pass in total). -/
+
+/-- `fin` is the Core end flag of the role flags.
+
+$$\forall \rho,\ \forall d \in \mathbb{B},\ \forall as:\ \operatorname{fin}_\rho(d, as) = \operatorname{fE}(d, \operatorname{flags}_\rho(as))$$
+
+The part's final flag and Core's end flag agree. -/
+theorem fin_eq_flagEnd (ρ : Access → Role) : ∀ (d : Bool) (as : List Access),
+    fin ρ d as = flagEnd d (Fw.Parts.EngineScroll.flags ρ as)
+  | _, [] => rfl
+  | d, a :: as => by
+    have ih := fun e => fin_eq_flagEnd ρ e as
+    show _ = flagEnd d ((ρ a).toFlag :: Fw.Parts.EngineScroll.flags ρ as)
+    cases h : ρ a <;> simp [fin, h, Fw.Parts.EngineScroll.Role.toFlag, flagEnd, ih]
+
+/-- **Forced plus end passes against the start flag.** Starting dirty never lowers the stage's passes, forced plus
+frame-end, and raises them by at most one.
+
+$$\forall \rho,\ \forall as:\ \operatorname{forced}_\rho(\bot, as) + [\operatorname{fin}_\rho(\bot, as)] \le \operatorname{forced}_\rho(\top, as) + [\operatorname{fin}_\rho(\top, as)] \le \operatorname{forced}_\rho(\bot, as) + [\operatorname{fin}_\rho(\bot, as)] + 1$$
+
+A dirty start is paid once, by a read or at frame end. -/
+theorem tot_start_bounds (ρ : Access → Role) (as : List Access) :
+    forced ρ false as + (fin ρ false as).toNat ≤ forced ρ true as + (fin ρ true as).toNat ∧
+      forced ρ true as + (fin ρ true as).toNat ≤ forced ρ false as + (fin ρ false as).toNat + 1 := by
+  have h := Fw.Parts.EngineScroll.total_start_bounds ρ as
+  simp only [Fw.Parts.EngineScroll.total_eq, ← fin_eq_flagEnd] at h
+  exact h
+
+/-- A shared late write keeps a stage-wise bound.
+
+$$\forall f_v, f_o \in \mathbb{N},\ \forall e_v, e_o, x \in \mathbb{B}:\ f_v \le f_o \land f_v + [e_v] \le f_o + [e_o] \Rightarrow f_v + [e_v \lor x] \le f_o + [e_o \lor x]$$
+
+A write after the last read dirties both frames alike. -/
+theorem or_late_le (fv fo : Nat) (ev eo x : Bool) (h1 : fv ≤ fo) (h2 : fv + ev.toNat ≤ fo + eo.toNat) :
+    fv + (ev || x).toNat ≤ fo + (eo || x).toNat := by
+  revert h2; cases x <;> cases ev <;> cases eo <;> simp <;> omega
+
+/-- A shared late write keeps a strict stage-wise bound.
+
+$$\forall f_v, f_o \in \mathbb{N},\ \forall e_v, e_o, x \in \mathbb{B}:\ f_v < f_o \land f_v + [e_v] < f_o + [e_o] \Rightarrow f_v + [e_v \lor x] < f_o + [e_o \lor x]$$
+
+A saved forced pass stays saved when both frames end dirty. -/
+theorem or_late_lt (fv fo : Nat) (ev eo x : Bool) (h1 : fv < fo) (h2 : fv + ev.toNat < fo + eo.toNat) :
+    fv + (ev || x).toNat < fo + (eo || x).toNat := by
+  revert h2; cases x <;> cases ev <;> cases eo <;> simp <;> omega
+
+/-- One stage's corrected passes: a stage-wise strict bound gives strictly fewer passes when touching is inherited.
+
+$$\forall A, B \in \mathrm{Prop},\ \forall f_v, f_o \in \mathbb{N},\ \forall e_v, e_o \in \mathbb{B}:\ (A \Rightarrow B) \land f_v < f_o \land f_v + [e_v] < f_o + [e_o] \Rightarrow [A \land e_v] + f_v < [B \land e_o] + f_o$$
+
+A stage the variant touches the original touches too, so its saved passes stay saved. -/
+theorem ite_touch_lt (A B : Prop) [Decidable A] [Decidable B] (hAB : A → B) (fv fo : Nat) (ev eo : Bool)
+    (h1 : fv < fo) (h2 : fv + ev.toNat < fo + eo.toNat) :
+    (if A ∧ ev = true then 1 else 0) + fv < (if B ∧ eo = true then 1 else 0) + fo := by
+  by_cases hA : A
+  · have hB := hAB hA
+    revert h2; cases ev <;> cases eo <;> simp [hA, hB] <;> omega
+  · simp only [hA, false_and, ↓reduceIte]; split <;> omega
+
+/-- The faithful end flags of a nav frame with a given probe: style and layout from the script accesses, or-ed with
+the shared late flag; every other stage is the late flag.
+
+$$\operatorname{end}(c, \pi, \ell)(s) = \begin{cases} \operatorname{fin}_{\mathrm{style}}(c.d_S, c.\mathrm{pre} \mathbin{+\!\!+} \pi \mathbin{+\!\!+} c.\mathrm{post}) \lor \ell(\mathrm{style}) & s = \mathrm{style} \\ \operatorname{fin}_{\mathrm{layout}}(c.d_L, c.\mathrm{pre} \mathbin{+\!\!+} \pi \mathbin{+\!\!+} c.\mathrm{post}) \lor \ell(\mathrm{layout}) & s = \mathrm{layout} \\ \ell(s) & \text{otherwise} \end{cases}$$
+
+Which stages are still dirty when the frame ends. -/
+def navEnd {P : Type} (c : NavCtx P) (probe : List Access) (late : Stage → Bool) : Stage → Bool
+  | .style => fin styleRole c.dS (c.pre ++ probe ++ c.post) || late .style
+  | .layout => fin layoutRole c.dL (c.pre ++ probe ++ c.post) || late .layout
+  | s => late s
+
+/-- hit-skip's probe at morph `m`: none when it skips, else the faithful probe.
+
+$$\operatorname{probe}(m) = \begin{cases} [\,] & m > \tfrac15 \\ \mathit{probe}_o & \text{otherwise} \end{cases}$$
+
+The accesses hit-skip runs in place of the probe. -/
+def hitSkipProbe (m : Rat) : List Access := if skipHitTest m then [] else probeFaithful
+
+#guard hitSkipProbe 1 == [] && hitSkipProbe 0 == probeFaithful
+
+/-- Dropping the faithful probe saves forced plus end style passes: strictly fewer.
+
+$$\forall \mathit{pre}, \mathit{post},\ \forall d:\ \operatorname{forced}_S(d, \mathit{pre} \mathbin{+\!\!+} [\,] \mathbin{+\!\!+} \mathit{post}) + [\operatorname{fin}_S(d, \mathit{pre} \mathbin{+\!\!+} [\,] \mathbin{+\!\!+} \mathit{post})] < \operatorname{forced}_S(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_o \mathbin{+\!\!+} \mathit{post}) + [\operatorname{fin}_S(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_o \mathbin{+\!\!+} \mathit{post})]$$
+
+The probe's restore write leaves style dirty, so the frame end pays it back no more than once. -/
+theorem skip_style_tot_lt (pre post : List Access) (d : Bool) :
+    forced styleRole d (pre ++ [] ++ post) + (fin styleRole d (pre ++ [] ++ post)).toNat <
+      forced styleRole d (pre ++ probeFaithful ++ post) + (fin styleRole d (pre ++ probeFaithful ++ post)).toNat := by
+  simp only [List.append_nil, forced_append, fin_append]
+  obtain ⟨h1, h2⟩ := probeFaithful_style (fin styleRole d pre)
+  rw [h2, h1]
+  have hb := (tot_start_bounds styleRole post).1
+  cases fin styleRole d pre <;> simp <;> omega
+
+/-- Dropping the faithful probe never adds forced plus end layout passes.
+
+$$\forall \mathit{pre}, \mathit{post},\ \forall d:\ \operatorname{forced}_L(d, \mathit{pre} \mathbin{+\!\!+} [\,] \mathbin{+\!\!+} \mathit{post}) + [\operatorname{fin}_L(d, \mathit{pre} \mathbin{+\!\!+} [\,] \mathbin{+\!\!+} \mathit{post})] \le \operatorname{forced}_L(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_o \mathbin{+\!\!+} \mathit{post}) + [\operatorname{fin}_L(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_o \mathbin{+\!\!+} \mathit{post})]$$
+
+A dirty layout the probe would have flushed is flushed later instead, at most once. -/
+theorem skip_layout_tot_le (pre post : List Access) (d : Bool) :
+    forced layoutRole d (pre ++ [] ++ post) + (fin layoutRole d (pre ++ [] ++ post)).toNat ≤
+      forced layoutRole d (pre ++ probeFaithful ++ post) + (fin layoutRole d (pre ++ probeFaithful ++ post)).toNat := by
+  simp only [List.append_nil, forced_append, fin_append]
+  obtain ⟨h1, -, h3, -⟩ := probes_layout (fin layoutRole d pre)
+  rw [h3, h1]
+  have hb := (tot_start_bounds layoutRole post).2
+  cases fin layoutRole d pre <;> simp <;> omega
+
+/-- The elements probe has strictly fewer forced plus end style passes than the faithful probe.
+
+$$\forall \mathit{pre}, \mathit{post},\ \forall d:\ \operatorname{forced}_S(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_e \mathbin{+\!\!+} \mathit{post}) + [\operatorname{fin}_S(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_e \mathbin{+\!\!+} \mathit{post})] < \operatorname{forced}_S(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_o \mathbin{+\!\!+} \mathit{post}) + [\operatorname{fin}_S(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_o \mathbin{+\!\!+} \mathit{post})]$$
+
+Elements-skip writes no style, so nothing is left for the frame end to pay. -/
+theorem elements_style_tot_lt (pre post : List Access) (d : Bool) :
+    forced styleRole d (pre ++ probeElements ++ post) + (fin styleRole d (pre ++ probeElements ++ post)).toNat <
+      forced styleRole d (pre ++ probeFaithful ++ post) + (fin styleRole d (pre ++ probeFaithful ++ post)).toNat := by
+  simp only [forced_append, fin_append]
+  obtain ⟨h1, h2⟩ := probeFaithful_style (fin styleRole d pre)
+  obtain ⟨h3, h4⟩ := probeElements_style (fin styleRole d pre)
+  rw [h2, h1, h4, h3]
+  have hb := (tot_start_bounds styleRole post).1
+  omega
+
+/-- The elements probe has the faithful probe's forced plus end layout passes.
+
+$$\forall \mathit{pre}, \mathit{post},\ \forall d:\ \operatorname{fin}_L(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_e \mathbin{+\!\!+} \mathit{post}) = \operatorname{fin}_L(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_o \mathbin{+\!\!+} \mathit{post})$$
+
+Neither probe writes layout, so both leave the same layout flag. -/
+theorem elements_layout_fin_eq (pre post : List Access) (d : Bool) :
+    fin layoutRole d (pre ++ probeElements ++ post) = fin layoutRole d (pre ++ probeFaithful ++ post) := by
+  simp only [fin_append]
+  obtain ⟨-, -, h3, h4⟩ := probes_layout (fin layoutRole d pre)
+  rw [h3, h4]
+
+/-- **A probe frame against the original, corrected work.** A probe with no more hit tests than one, and no more forced
+and forced-plus-end passes on style and layout than the faithful probe, gives no more `frameWorkE` work.
+
+$$\forall \varepsilon, c, \pi, h, \mathit{pes}, \ell:\ h \le 1 \land \big(\forall X \in \{S, L\}:\ \operatorname{forced}_X(\pi) \le \operatorname{forced}_X(\mathit{probe}_o) \land \operatorname{forced}_X(\pi) + [\operatorname{fin}_X(\pi)] \le \operatorname{forced}_X(\mathit{probe}_o) + [\operatorname{fin}_X(\mathit{probe}_o)]\big) \Rightarrow \operatorname{frameWork}^{\operatorname{end}(c, \pi, \ell)}_\varepsilon(\operatorname{frame}(c, \pi, h, [\,])) \preceq \operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_o, \ell)}_\varepsilon(\operatorname{orig}(c, \mathit{pes}))$$
+
+where $\operatorname{forced}_S(\pi)$ abbreviates $\operatorname{forced}_{\mathrm{style}}(c.d_S, c.\mathrm{pre} \mathbin{+\!\!+} \pi \mathbin{+\!\!+} c.\mathrm{post})$ and likewise for layout with $c.d_L$ and for $\operatorname{fin}$.
+
+The shared lemma behind both variants' corrected verdicts. -/
+theorem navE_le {P M : Type} (ε : Engine P M) (c : NavCtx P) (pv : List Access) (hv : Nat) (pes : List (Change P))
+    (late : Stage → Bool) (hh : hv ≤ 1)
+    (hS : forced styleRole c.dS (c.pre ++ pv ++ c.post) ≤ forced styleRole c.dS (c.pre ++ probeFaithful ++ c.post))
+    (hL : forced layoutRole c.dL (c.pre ++ pv ++ c.post) ≤ forced layoutRole c.dL (c.pre ++ probeFaithful ++ c.post))
+    (hS' : forced styleRole c.dS (c.pre ++ pv ++ c.post) + (fin styleRole c.dS (c.pre ++ pv ++ c.post)).toNat ≤
+      forced styleRole c.dS (c.pre ++ probeFaithful ++ c.post) +
+        (fin styleRole c.dS (c.pre ++ probeFaithful ++ c.post)).toNat)
+    (hL' : forced layoutRole c.dL (c.pre ++ pv ++ c.post) + (fin layoutRole c.dL (c.pre ++ pv ++ c.post)).toNat ≤
+      forced layoutRole c.dL (c.pre ++ probeFaithful ++ c.post) +
+        (fin layoutRole c.dL (c.pre ++ probeFaithful ++ c.post)).toNat) :
+    (frameWorkE ε (probeFrame c pv hv []) (navEnd c pv late)).le
+      (frameWorkE ε (origFrame c pes) (navEnd c probeFaithful late)) := by
+  have hperm := orig_perm c pes
+  have hcov := coverB_refl ε (c.changes ++ [])
+  have hhit : (probeFrame c pv hv []).hits ≤ (origFrame c pes).hits := by
+    show c.hits + hv ≤ c.hits + 1; omega
+  have hle := frame_le_of_cover ε (v := probeFrame c pv hv []) (o := origFrame c pes) (c.changes ++ []) pes hperm hcov
+    (Nat.le_refl _) hS hL hhit (Nat.le_refl _)
+  refine Fw.Parts.EndFlags.frameE_le_of_total ε _ _
+    (touched_of_cover ε (v := probeFrame c pv hv []) (o := origFrame c pes) (c.changes ++ []) pes hperm hcov
+      (Nat.le_refl _) (Nat.le_refl _))
+    (fun s => (hle.1 s).2) hhit ?_ ?_
+  · intro s; cases s <;> first | exact hS | exact hL | exact Nat.le_refl _
+  · intro s _
+    cases s
+    case style => exact or_late_le _ _ _ _ _ hS hS'
+    case layout => exact or_late_le _ _ _ _ _ hL hL'
+    all_goals exact Nat.le_refl _
+
+/-- **hit-skip, one frame, any engine, corrected work:** never more `frameWorkE` work than the original, for every
+shared late flag.
+
+$$\forall \varepsilon,\ \forall c,\ \forall m \in \mathbb{Q},\ \forall \mathit{pes},\ \forall \ell : \mathrm{Stage} \to \mathbb{B}:\ \operatorname{frameWork}^{\operatorname{end}(c, \operatorname{probe}(m), \ell)}_\varepsilon(\operatorname{hitSkip}(c, m, \mathit{pes})) \preceq \operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_o, \ell)}_\varepsilon(\operatorname{orig}(c, \mathit{pes}))$$
+
+The verdict of `hitSkip_le_any` survives the frame-end correction. -/
+theorem hitSkipE_le_any {P M : Type} (ε : Engine P M) (c : NavCtx P) (m : Rat) (pes : List (Change P))
+    (late : Stage → Bool) :
+    (frameWorkE ε (hitSkipFrame c m pes) (navEnd c (hitSkipProbe m) late)).le
+      (frameWorkE ε (origFrame c pes) (navEnd c probeFaithful late)) := by
+  cases hk : skipHitTest m
+  · simp only [hitSkipFrame, hitSkipProbe, hk, Bool.false_eq_true, ↓reduceIte]; exact Work.le_refl _
+  · simp only [hitSkipFrame, hitSkipProbe, hk, ↓reduceIte]
+    exact navE_le ε c [] 0 pes late (Nat.zero_le _) (Nat.le_of_lt (skip_style_lt c.pre c.post c.dS))
+      (skip_layout_le c.pre c.post c.dL) (Nat.le_of_lt (skip_style_tot_lt c.pre c.post c.dS))
+      (skip_layout_tot_le c.pre c.post c.dL)
+
+/-- **hit-skip, one frame, any engine, corrected work:** when it skips (`morph > 0.2`), strictly less `frameWorkE`
+work, for every shared late flag.
+
+$$\forall \varepsilon,\ \forall c,\ \forall m \in \mathbb{Q},\ \forall \mathit{pes},\ \forall \ell:\ m > \tfrac15 \Rightarrow \operatorname{frameWork}^{\operatorname{end}(c, [\,], \ell)}_\varepsilon(\operatorname{hitSkip}(c, m, \mathit{pes})) \prec \operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_o, \ell)}_\varepsilon(\operatorname{orig}(c, \mathit{pes}))$$
+
+The verdict of `hitSkip_lt_any` survives: the saved hit test and style passes are not paid back at frame end. -/
+theorem hitSkipE_lt_any {P M : Type} (ε : Engine P M) (c : NavCtx P) (m : Rat) (pes : List (Change P))
+    (late : Stage → Bool) (hm : m > 1 / 5) :
+    (frameWorkE ε (hitSkipFrame c m pes) (navEnd c [] late)).lt
+      (frameWorkE ε (origFrame c pes) (navEnd c probeFaithful late)) := by
+  have hk : skipHitTest m = true := by simp [skipHitTest, hm]
+  simp only [hitSkipFrame, hk, ↓reduceIte]
+  have hle := navE_le ε c [] 0 pes late (Nat.zero_le _) (Nat.le_of_lt (skip_style_lt c.pre c.post c.dS))
+      (skip_layout_le c.pre c.post c.dL) (Nat.le_of_lt (skip_style_tot_lt c.pre c.post c.dS))
+      (skip_layout_tot_le c.pre c.post c.dL)
+  exact ⟨hle, Or.inr (by show c.hits + 0 < c.hits + 1; omega)⟩
+
+/-- **elements-skip, one frame, any engine, corrected work:** strictly less `frameWorkE` work, for every shared late
+flag.
+
+$$\forall \varepsilon,\ \forall c,\ \forall \mathit{pes},\ \forall \ell:\ \operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_e, \ell)}_\varepsilon(\operatorname{elements}(c)) \prec \operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_o, \ell)}_\varepsilon(\operatorname{orig}(c, \mathit{pes}))$$
+
+The verdict of `elementsSkip_lt_any` survives: the saved style passes are not paid back at frame end. -/
+theorem elementsSkipE_lt_any {P M : Type} (ε : Engine P M) (c : NavCtx P) (pes : List (Change P))
+    (late : Stage → Bool) :
+    (frameWorkE ε (elementsFrame c) (navEnd c probeElements late)).lt
+      (frameWorkE ε (origFrame c pes) (navEnd c probeFaithful late)) := by
+  have hS := elements_style_lt c.pre c.post c.dS
+  have hS' := elements_style_tot_lt c.pre c.post c.dS
+  have hL := elements_layout_eq c.pre c.post c.dL
+  have hLf := elements_layout_fin_eq c.pre c.post c.dL
+  have hle := navE_le ε c probeElements 1 pes late (Nat.le_refl _) (Nat.le_of_lt hS) (Nat.le_of_eq hL)
+    (Nat.le_of_lt hS') (Nat.le_of_eq (by rw [hL, hLf]))
+  refine ⟨hle, Or.inl ⟨.style, Or.inl ?_⟩⟩
+  exact ite_touch_lt _ _ (touched_of_cover ε (v := elementsFrame c) (o := origFrame c pes) (c.changes ++ []) pes
+    (orig_perm c pes) (coverB_refl ε _) (Nat.le_refl _) (Nat.le_refl _) .style) _ _ _ _ (Nat.lt_of_succ_le hS)
+    (or_late_lt _ _ _ _ (late .style) (Nat.lt_of_succ_le hS) hS')
+
+/-- **Corrected work, Chromium and WebKit:** hit-skip is strictly cheaper on every skipped frame and elements-skip on
+every frame, for every frame context and shared late flag.
+
+$$\forall m \in \mathbb{Q}:\ m > \tfrac15 \Rightarrow \forall \varepsilon \in \{\mathrm{cr}, \mathrm{wk}\},\ \forall c, \mathit{pes}, \ell:\ \operatorname{frameWork}^{\operatorname{end}(c, [\,], \ell)}_\varepsilon(\operatorname{hitSkip}(c, m, \mathit{pes})) \prec \operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_o, \ell)}_\varepsilon(\operatorname{orig}(c, \mathit{pes})) \land \operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_e, \ell)}_\varepsilon(\operatorname{elements}(c)) \prec \operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_o, \ell)}_\varepsilon(\operatorname{orig}(c, \mathit{pes}))$$
+
+The engine-pair verdicts of `hitSkip_work_lt` and `elementsSkip_work_lt` are unchanged under `frameWorkE`. -/
+theorem navE_work_lt (m : Rat) (hm : m > 1 / 5) :
+    (∀ (c : NavCtx Chromium.CrProp) pes late,
+      (frameWorkE Chromium.chromium (hitSkipFrame c m pes) (navEnd c [] late)).lt
+        (frameWorkE Chromium.chromium (origFrame c pes) (navEnd c probeFaithful late)) ∧
+      (frameWorkE Chromium.chromium (elementsFrame c) (navEnd c probeElements late)).lt
+        (frameWorkE Chromium.chromium (origFrame c pes) (navEnd c probeFaithful late))) ∧
+    (∀ (c : NavCtx WebKit.WkProp) pes late,
+      (frameWorkE WebKit.webkit (hitSkipFrame c m pes) (navEnd c [] late)).lt
+        (frameWorkE WebKit.webkit (origFrame c pes) (navEnd c probeFaithful late)) ∧
+      (frameWorkE WebKit.webkit (elementsFrame c) (navEnd c probeElements late)).lt
+        (frameWorkE WebKit.webkit (origFrame c pes) (navEnd c probeFaithful late))) :=
+  ⟨fun c pes late => ⟨hitSkipE_lt_any _ c m pes late hm, elementsSkipE_lt_any _ c pes late⟩,
+   fun c pes late => ⟨hitSkipE_lt_any _ c m pes late hm, elementsSkipE_lt_any _ c pes late⟩⟩
+
+/-- **Corrected runs, any engine:** with each frame's late flag given by its context, a run with one frame past morph
+0.2 is screened as dominated by hit-skip, and every non-empty run as dominated by elements-skip.
+
+$$\forall \varepsilon,\ \forall \ell : \mathrm{NavCtx}(P) \to \mathrm{Stage} \to \mathbb{B}:\ \Big(\forall R:\ \big(\exists (c, m, \mathit{pes}) \in R:\ m > \tfrac15\big) \Rightarrow \operatorname{screen}\big(\operatorname{toRun}[\operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_o, \ell(c))}_\varepsilon(\operatorname{orig}(c, \mathit{pes}))]_R,\ \operatorname{toRun}[\operatorname{frameWork}^{\operatorname{end}(c, \operatorname{probe}(m), \ell(c))}_\varepsilon(\operatorname{hitSkip}(c, m, \mathit{pes}))]_R\big) = \mathrm{ok}(\mathrm{dominates})\Big) \land \Big(\forall R' \ne [\,]:\ \operatorname{screen}\big(\operatorname{toRun}[\operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_o, \ell(c))}_\varepsilon(\operatorname{orig}(c, \mathit{pes}))]_{R'},\ \operatorname{toRun}[\operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_e, \ell(c))}_\varepsilon(\operatorname{elements}(c))]_{R'}\big) = \mathrm{ok}(\mathrm{dominates})\Big)$$
+
+where $R$ ranges over lists of $(c, m, \mathit{pes})$ and $R'$ over lists of $(c, \mathit{pes})$.
+
+The run verdicts of `hitSkip_run_dominates_any` and `elementsSkip_run_dominates_any` are unchanged under
+`frameWorkE`. -/
+theorem navE_run_dominates_any {P M : Type} (ε : Engine P M) (late : NavCtx P → Stage → Bool) :
+    (∀ run : List (NavCtx P × Rat × List (Change P)), (∃ x ∈ run, x.2.1 > 1 / 5) →
+      Screen.screen (toRun (run.map fun x => frameWorkE ε (origFrame x.1 x.2.2) (navEnd x.1 probeFaithful (late x.1))))
+        (toRun (run.map fun x => frameWorkE ε (hitSkipFrame x.1 x.2.1 x.2.2)
+          (navEnd x.1 (hitSkipProbe x.2.1) (late x.1)))) = .ok .dominates) ∧
+    (∀ run : List (NavCtx P × List (Change P)), run ≠ [] →
+      Screen.screen (toRun (run.map fun x => frameWorkE ε (origFrame x.1 x.2) (navEnd x.1 probeFaithful (late x.1))))
+        (toRun (run.map fun x => frameWorkE ε (elementsFrame x.1) (navEnd x.1 probeElements (late x.1)))) =
+          .ok .dominates) := by
+  refine ⟨fun run h => ?_, fun run h => ?_⟩
+  · refine run_dominates (leAll_map _ _ run fun x _ => hitSkipE_le_any ε x.1 x.2.1 x.2.2 (late x.1))
+      (someLt_map _ _ run ?_)
+    obtain ⟨x, hx, hm⟩ := h
+    have hk : skipHitTest x.2.1 = true := by simp [skipHitTest, hm]
+    refine ⟨x, hx, ?_⟩
+    have hp : hitSkipProbe x.2.1 = [] := by simp [hitSkipProbe, hk]
+    show (frameWorkE ε (hitSkipFrame x.1 x.2.1 x.2.2) (navEnd x.1 (hitSkipProbe x.2.1) (late x.1))).lt _
+    rw [hp]
+    exact hitSkipE_lt_any ε x.1 x.2.1 x.2.2 (late x.1) hm
+  · obtain ⟨x, xs, rfl⟩ := List.exists_cons_of_ne_nil h
+    exact run_dominates (leAll_map _ _ _ fun y _ => (elementsSkipE_lt_any ε y.1 y.2 (late y.1)).1)
+      (someLt_map _ _ _ ⟨x, List.mem_cons_self .., elementsSkipE_lt_any ε x.1 x.2 (late x.1)⟩)
+
+/-! ## Outside the morph, and where the layout goes (ledger n=3) -/
+
+/-- **Outside the morph nothing changes (ledger n=3 row 1).** At morph at most 1/5 hit-skip runs the original's frame,
+so its work equals the original's in both models, frame by frame and over a whole run.
+
+$$\forall m \in \mathbb{Q}:\ m \le \tfrac15 \Rightarrow \forall c, \mathit{pes}:\ \operatorname{hitSkip}(c, m, \mathit{pes}) = \operatorname{orig}(c, \mathit{pes}) \land \operatorname{probe}(m) = \mathit{probe}_o$$
+
+So on a scenario whose frames never pass morph 1/5 (`swipe-v1`), every hit-skip golden row is $=o$. -/
+theorem hitSkip_eq_orig {P : Type} (m : Rat) (hm : m ≤ 1 / 5) (c : NavCtx P) (pes : List (Change P)) :
+    hitSkipFrame c m pes = origFrame c pes ∧ hitSkipProbe m = probeFaithful := by
+  have hk : skipHitTest m = false := by unfold skipHitTest; exact decide_eq_false (Rat.not_lt.mpr hm)
+  simp [hitSkipFrame, hitSkipProbe, hk]
+
+/-- **A run that never opens the morph is the original's run**, in both models.
+
+$$\forall \varepsilon,\ \forall \ell,\ \forall R:\ (\forall (c, m, \mathit{pes}) \in R:\ m \le \tfrac15) \Rightarrow [\operatorname{frameWork}_\varepsilon(\operatorname{hitSkip}(c, m, \mathit{pes}))]_R = [\operatorname{frameWork}_\varepsilon(\operatorname{orig}(c, \mathit{pes}))]_R \land [\operatorname{frameWork}^{\operatorname{end}(c, \operatorname{probe}(m), \ell(c))}_\varepsilon(\operatorname{hitSkip}(c, m, \mathit{pes}))]_R = [\operatorname{frameWork}^{\operatorname{end}(c, \mathit{probe}_o, \ell(c))}_\varepsilon(\operatorname{orig}(c, \mathit{pes}))]_R$$
+
+hit-skip gives nothing on a scenario without a morph push. -/
+theorem hitSkip_run_eq {P M : Type} (ε : Engine P M) (late : NavCtx P → Stage → Bool)
+    (run : List (NavCtx P × Rat × List (Change P))) (h : ∀ x ∈ run, x.2.1 ≤ 1 / 5) :
+    run.map (fun x => frameWork ε (hitSkipFrame x.1 x.2.1 x.2.2)) =
+        run.map (fun x => frameWork ε (origFrame x.1 x.2.2)) ∧
+      run.map (fun x => frameWorkE ε (hitSkipFrame x.1 x.2.1 x.2.2) (navEnd x.1 (hitSkipProbe x.2.1) (late x.1))) =
+        run.map (fun x => frameWorkE ε (origFrame x.1 x.2.2) (navEnd x.1 probeFaithful (late x.1))) := by
+  constructor <;> refine List.map_congr_left fun x hx => ?_ <;>
+    obtain ⟨h1, h2⟩ := hitSkip_eq_orig x.2.1 (h x hx) x.1 x.2.2 <;> simp only [h1, h2]
+
+/-- **Layout moved, not saved (ledger n=3 row 2).** With the hero-track read right after the probe, dropping the probe
+leaves the forced layouts and the final layout flag unchanged: the layout the probe forced is forced by the track read
+instead.
+
+$$\forall \mathit{pre}, \mathit{post},\ \forall d:\ \operatorname{forced}_L(d, \mathit{pre} \mathbin{+\!\!+} \mathit{track} \mathbin{+\!\!+} \mathit{post}) = \operatorname{forced}_L(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_o \mathbin{+\!\!+} \mathit{track} \mathbin{+\!\!+} \mathit{post}) \land \operatorname{fin}_L(d, \mathit{pre} \mathbin{+\!\!+} \mathit{track} \mathbin{+\!\!+} \mathit{post}) = \operatorname{fin}_L(d, \mathit{pre} \mathbin{+\!\!+} \mathit{probe}_o \mathbin{+\!\!+} \mathit{track} \mathbin{+\!\!+} \mathit{post})$$
+
+hit-skip gives no layout saving in the original's nav callback; the `Layout` golden row is $\le o$, never $<o$. -/
+theorem layout_moved (pre post : List Access) (d : Bool) :
+    forced layoutRole d (pre ++ navTrack ++ post) = forced layoutRole d (pre ++ probeFaithful ++ navTrack ++ post) ∧
+      fin layoutRole d (pre ++ navTrack ++ post) = fin layoutRole d (pre ++ probeFaithful ++ navTrack ++ post) := by
+  simp only [forced_append, fin_append]
+  obtain ⟨h1, -, h3, -⟩ := probes_layout (fin layoutRole d pre)
+  rw [h3, h1]
+  cases fin layoutRole d pre <;> simp [navTrack, forced, fin, layoutRole]
+
 /-! ## Write on change -/
 
 /-- A frame with the `is-on-dark` class write `w` added when `b` holds.
@@ -532,6 +860,29 @@ theorem writeOnChange_le {P M : Type} (ε : Engine P M) (f : FrameIn P) (w : Cha
   · exact frame_le_of_cover ε (f.changes ++ []) [w] (by simp [withWrite])
       (coverB_refl ε _) (Nat.le_refl _) (Nat.le_refl _) (Nat.le_refl _) (Nat.le_refl _) (Nat.le_refl _)
   · exact Work.le_refl _
+
+/-- The changes a forced `classList.toggle(c, n)` makes when the class state is `p`: a write only when the state
+differs (a `DOMTokenList` toggle with the same state does not mutate the attribute; ledger n=5 premises).
+
+$$\operatorname{tog}(w, p, n) = \begin{cases} [\,] & p = n \\ [w] & p \ne n \end{cases}$$
+
+What an always-toggle leaves for the engine. -/
+def toggleChanges {P : Type} (w : Change P) (p n : Bool) : List (Change P) := if p = n then [] else [w]
+
+#guard (toggleChanges (P := Nat) ⟨0, 0, .none⟩ true true).length == 0
+#guard (toggleChanges (P := Nat) ⟨0, 0, .none⟩ true false).length == 1
+
+/-- **No-op toggles are free in the engine (ledger n=5).** An always-toggle and a write-on-change leave the same
+changes, so they cost the same in both models: write-on-change gains nothing over a forced toggle.
+
+$$\forall \varepsilon,\ \forall f, w,\ \forall p, n \in \mathbb{B},\ \forall e:\ \operatorname{frameWork}_\varepsilon(f \text{ with changes} \mathbin{+\!\!+}= \operatorname{tog}(w, p, n)) = \operatorname{frameWork}_\varepsilon(\operatorname{withWrite}(f, w, p \ne n)) \land \operatorname{frameWork}^{e}_\varepsilon(f \text{ with changes} \mathbin{+\!\!+}= \operatorname{tog}(w, p, n)) = \operatorname{frameWork}^{e}_\varepsilon(\operatorname{withWrite}(f, w, p \ne n))$$
+
+The DOM already skips an unchanged class, so the JS check is redundant. -/
+theorem toggle_noop {P M : Type} (ε : Engine P M) (f : FrameIn P) (w : Change P) (p n : Bool) (e : Stage → Bool) :
+    frameWork ε { f with changes := f.changes ++ toggleChanges w p n } = frameWork ε (withWrite f w (changed p n)) ∧
+      frameWorkE ε { f with changes := f.changes ++ toggleChanges w p n } e =
+        frameWorkE ε (withWrite f w (changed p n)) e := by
+  cases p <;> cases n <;> exact ⟨rfl, rfl⟩
 
 /-! ## The visual side in the `VisSame` shape -/
 
@@ -613,8 +964,9 @@ structure Row where
   base       : String
 deriving Repr, DecidableEq
 
-/-- The Chromium count types and the model stage and prediction for each, per variant. `trace.Layout` is not in the
-rewrite arm's frozen classes, so its rows come back unusable until it is.
+/-- The Chromium count types and the model stage and prediction for each, per variant; the hit-skip column holds on a
+scenario that opens the morph (`goldenRows` uses $=o$ otherwise). `trace.Layout` is not in the rewrite arm's frozen
+classes, so its rows come back unusable until it is.
 
 $$\mathrm{crTypes} = [(\text{trace.FunctionCall}, \mathrm{script}, =o, =o), (\text{trace.FireAnimationFrame}, \mathrm{script}, =o, =o), (\text{trace.UpdateLayoutTree}, \mathrm{style}, <o, <o), (\text{trace.Layout}, \mathrm{layout}, \le o, \le o), (\text{trace.PrePaint}, \mathrm{paint}, \le o, \le o), (\text{trace.Paint}, \mathrm{paint}, \le o, \le o), (\text{raster.invalidationAreaPx}, \mathrm{raster}, \le o, \le o), (\text{trace.cc.Commit}, \mathrm{commit}, \le o, \le o), (\text{trace.HitTest}, \mathrm{hits}, <o, =o)]$$
 -/
@@ -641,16 +993,35 @@ def variantKey (n : String) : String := "rewrite+?fw=nav.hitTest:" ++ n
 
 #guard variantKey "hit-skip" == "rewrite+?fw=nav.hitTest:hit-skip"
 
-/-- The golden rows: per engine, per variant (hit-skip, elements-skip), per count type, scenario `swipe-v1`, base the
-faithful rewrite.
+/-- The scenarios whose frames push the morph past 1/5. None so far: `swipe-v1` scrolls with `scrollTo` only, and the
+morph opens on wheel or touch pushes (`apps/site/src/parts/morph.tween/driver.ts:28`; ledger n=3 premise, INFERRED).
 
-$$\mathrm{rows} = [\,(\mathit{eng}, \texttt{swipe-v1}, \operatorname{key}(n), s, p_n, k, \texttt{rewrite}) \mid (\mathit{eng}, T) \in [(\mathrm{chromium}, \mathrm{crTypes}), (\mathrm{webkit}, \mathrm{wkTypes})],\ n \in [\text{hit-skip}, \text{elements-skip}],\ (k, s, p_{\text{hit-skip}}, p_{\text{elements-skip}}) \in T\,]$$
+$$\mathrm{morphScenarios} = [\,]$$
+-/
+def morphScenarios : List String := []
+
+/-- Whether a scenario opens the morph past 1/5.
+
+$$\operatorname{reachesMorph}(x) \iff x \in \mathrm{morphScenarios}$$
+-/
+def reachesMorph (scenario : String) : Bool := morphScenarios.contains scenario
+
+#guard reachesMorph "swipe-v1" == false
+
+/-- The golden rows: per engine, per variant (hit-skip, elements-skip), per count type, scenario `swipe-v1`, base the
+faithful rewrite. The type tables give hit-skip's prediction on a scenario that opens the morph; on one that does not,
+hit-skip runs the original's frame (`hitSkip_run_eq`), so its prediction is $=o$.
+
+$$\mathrm{rows} = [\,(\mathit{eng}, \texttt{swipe-v1}, \operatorname{key}(n), s, q_n, k, \texttt{rewrite}) \mid (\mathit{eng}, T) \in [(\mathrm{chromium}, \mathrm{crTypes}), (\mathrm{webkit}, \mathrm{wkTypes})],\ n \in [\text{hit-skip}, \text{elements-skip}],\ (k, s, p_{\text{hit-skip}}, p_{\text{elements-skip}}) \in T\,]$$
+
+where $q_{\text{elements-skip}} = p_{\text{elements-skip}}$, and $q_{\text{hit-skip}} = p_{\text{hit-skip}}$ if $\operatorname{reachesMorph}(\texttt{swipe-v1})$, else $=o$.
 -/
 def goldenRows : List Row :=
   [("chromium", crTypes), ("webkit", wkTypes)].flatMap fun (eng, ts) =>
     ["hit-skip", "elements-skip"].flatMap fun n =>
       ts.map fun (k, s, ph, pe) =>
-        ⟨eng, "swipe-v1", variantKey n, s, if n == "hit-skip" then ph else pe, k, "rewrite"⟩
+        ⟨eng, "swipe-v1", variantKey n, s,
+          if n == "hit-skip" then (if reachesMorph "swipe-v1" then ph else "=o") else pe, k, "rewrite"⟩
 
 /-- One row as compact JSON (keys sorted by the JSON writer).
 
@@ -713,9 +1084,32 @@ def rowsHold (n : String) (v o : Work) : Bool :=
   goldenRows.all fun r =>
     !(r.engine == "chromium" && r.variant == variantKey n) || holds r.prediction (readStage r.stage v) (readStage r.stage o)
 
+/-- Whether hit-skip's morph-open predictions (the type table's hit-skip column) hold on frames `v` against `o`.
+
+$$\operatorname{morphHold}(v, o) \iff \forall (k, s, p_h, p_e) \in \mathrm{crTypes}:\ \operatorname{holds}(p_h, \operatorname{read}(s, v), \operatorname{read}(s, o))$$
+-/
+def morphHold (v o : Work) : Bool :=
+  crTypes.all fun (_, s, ph, _) => holds ph (readStage s v) (readStage s o)
+
 #guard goldenRows.length == 28
-#guard rowsHold "hit-skip" (frameWork Chromium.chromium (hitSkipFrame sampleCtx (1 / 2) []))
+#guard (goldenRows.filter fun r => r.variant == variantKey "hit-skip").all (·.prediction == "=o")
+-- swipe-v1: hit-skip never skips, its frame is the original's.
+#guard rowsHold "hit-skip" (frameWork Chromium.chromium (hitSkipFrame sampleCtx 0 []))
   (frameWork Chromium.chromium (origFrame sampleCtx []))
+-- A morph-open frame: the table's hit-skip predictions hold, in both models.
+#guard morphHold (frameWork Chromium.chromium (hitSkipFrame sampleCtx (1 / 2) []))
+  (frameWork Chromium.chromium (origFrame sampleCtx []))
+#guard morphHold (frameWorkE Chromium.chromium (hitSkipFrame sampleCtx (1 / 2) []) (navEnd sampleCtx [] fun _ => false))
+  (frameWorkE Chromium.chromium (origFrame sampleCtx []) (navEnd sampleCtx probeFaithful fun _ => false))
+#guard rowsHold "elements-skip"
+  (frameWorkE Chromium.chromium (elementsFrame sampleCtx) (navEnd sampleCtx probeElements fun _ => false))
+  (frameWorkE Chromium.chromium (origFrame sampleCtx []) (navEnd sampleCtx probeFaithful fun _ => false))
+-- Corrected work: the original's style flag is clean at frame end on the sample (the track read flushes it), so
+-- `frameWorkE` drops the lifecycle pass `frameWork` charged; the saving stays two passes.
+#guard navEnd sampleCtx probeFaithful (fun _ => false) .style == false
+#guard (frameWorkE Chromium.chromium (origFrame sampleCtx []) (navEnd sampleCtx probeFaithful fun _ => false)).passes
+  .style == (frameWorkE Chromium.chromium (elementsFrame sampleCtx)
+    (navEnd sampleCtx probeElements fun _ => false)).passes .style + 2
 #guard rowsHold "elements-skip" (frameWork Chromium.chromium (elementsFrame sampleCtx))
   (frameWork Chromium.chromium (origFrame sampleCtx []))
 -- The sample shows the two saved forced style passes.
