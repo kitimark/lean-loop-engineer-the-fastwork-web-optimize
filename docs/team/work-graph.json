@@ -399,12 +399,12 @@
   },
   {
    "id": "spawn-enforce",
-   "title": "CUT (rev 9): Switch spawn-guard from shadow to enforce",
+   "title": "(S) BROUGHT BACK 2026-10-18: switch spawn-guard from shadow to enforce after a shadow-log false-positive check; the enforce decision in Lean with a theorem; incidents ledger regression",
    "stream": "parallel",
-   "milestone": "MX",
-   "cut": true,
+   "milestone": "M5",
+   "cut": false,
    "deps": [],
-   "owner": "lead",
+   "owner": "console-builder",
    "writes": [
     ".claude/settings.json",
     "apps/runner/hooks/spawn-guard.mjs"
@@ -857,10 +857,10 @@
   },
   {
    "id": "wktr-readme-fix",
-   "title": "CUT (rev 9): measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update",
+   "title": "(S) BROUGHT BACK 2026-10-18 (lane is live): measure-wktr/measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update; cite WebKit source",
    "stream": "measure",
-   "milestone": "MX",
-   "cut": true,
+   "milestone": "M5",
+   "cut": false,
    "deps": [],
    "owner": "measure-engineer",
    "writes": [
@@ -908,11 +908,13 @@
   },
   {
    "id": "port-parts",
-   "title": "CUT (rev 9): Port every other part through the full breakpoint gate",
+   "title": "(L) BROUGHT BACK 2026-10-18, rescoped: port the parts the findings ledger needs (not-tried/not-proved candidates on unported parts: people.o, people.carousel, hero.accent, hero.cue, commission.typing; confirm the list against apps/site/src/parts after integrate-ports) through the full breakpoint gate",
    "stream": "parts",
-   "milestone": "MX",
-   "cut": true,
-   "deps": [],
+   "milestone": "M5",
+   "cut": false,
+   "deps": [
+    "integrate-ports"
+   ],
    "owner": "part-builder"
   },
   {
