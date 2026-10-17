@@ -1,0 +1,23 @@
+{
+ "snapshot": "b1789284481295-a455e793",
+ "build": "1789284481295",
+ "origin": "https://fastwork.com",
+ "builtAt": "2026-09-13T07:28:01.295Z",
+ "v1Pin": {
+  "contentHash": "a455e79328523d96d63d60976a1adb81045c63921e6931c3a4e7d59c9248f993",
+  "trees": {
+   "site": "c15a27be5676fe08bee1fed9ed99e1b9d903c80c",
+   "site-pretty": "8b18962f93407eefc22b7831f6d9be4f439a3998"
+  }
+ },
+ "trees": {
+  "site": {
+   "sha256": "236f9807584cdd9d5fef1e58a82d64ec1cc43783d8231aee40b2279a7e858299",
+   "files": 266
+  },
+  "site-pretty": {
+   "sha256": "ac64ab8d2603b540d0c3d87b099197bc1cad977274d26014176ae5af9fbb21d6",
+   "files": 266
+  }
+ }
+}

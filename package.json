@@ -1,0 +1,11 @@
+{
+  "name": "fastwork-loop-v2",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build",
+    "fw": "pnpm --filter @fw/runner exec fw"
+  }
+}

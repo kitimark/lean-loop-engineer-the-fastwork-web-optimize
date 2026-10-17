@@ -2,3 +2,11 @@
 .local/
 .claude/settings.local.json
 .lake/
+# Fastwork's property: local only, never in git
+snapshot/
+# console state (single writer: console-api)
+.fw-console/
+node_modules/
+dist/
+.cache/
+.lake/
