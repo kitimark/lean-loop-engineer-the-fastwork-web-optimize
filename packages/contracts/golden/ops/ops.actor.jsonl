@@ -1,0 +1,16 @@
+{"name":"lead: no agent_id, no agent_type","request":{"op":"ops.actor"},"response":{"actor":"lead","role":null,"who":"lead"}}
+{"name":"lead: null agent_id","request":{"agent_id":null,"agent_type":null,"op":"ops.actor"},"response":{"actor":"lead","role":null,"who":"lead"}}
+{"name":"lead: no agent_id, agent_type set (main session started with an agent)","request":{"agent_type":"lean-prover","op":"ops.actor"},"response":{"actor":"lead","role":null,"who":"lead"}}
+{"name":"lead: the caps.jsonl lead record","request":{"agent_id":null,"agent_type":"main","op":"ops.actor"},"response":{"actor":"lead","role":null,"who":"lead"}}
+{"name":"subagent role: owner","request":{"agent_id":"a0123456789abcdef","agent_type":"lean-prover","op":"ops.actor"},"response":{"actor":"owner","role":"lean-prover","who":"agent"}}
+{"name":"reviewer role","request":{"agent_id":"a0123456789abcdef","agent_type":"reviewer","op":"ops.actor"},"response":{"actor":"reviewer","role":"reviewer","who":"agent"}}
+{"name":"review in the type, any ASCII case","request":{"agent_id":"a0123456789abcdef","agent_type":"Math-REVIEWER","op":"ops.actor"},"response":{"actor":"reviewer","role":"Math-REVIEWER","who":"agent"}}
+{"name":"near miss: revie is an owner","request":{"agent_id":"a0123456789abcdef","agent_type":"revie-w","op":"ops.actor"},"response":{"actor":"owner","role":"revie-w","who":"agent"}}
+{"name":"agent typed main is an owner, never the lead","request":{"agent_id":"a0123456789abcdef","agent_type":"main","op":"ops.actor"},"response":{"actor":"owner","role":"main","who":"agent"}}
+{"name":"teammate: agent_type is its name (role unresolved, SPK-c open)","request":{"agent_id":"aeng-webkit-0123456789abcdef","agent_type":"eng-webkit","op":"ops.actor"},"response":{"actor":"owner","role":"eng-webkit","who":"agent"}}
+{"name":"forked internal agent: empty agent_type is unknown","request":{"agent_id":"a0123456789abcdef","agent_type":"","op":"ops.actor"},"response":{"actor":null,"role":null,"who":"unknown"}}
+{"name":"agent_id without agent_type is unknown","request":{"agent_id":"a0123456789abcdef","op":"ops.actor"},"response":{"actor":null,"role":null,"who":"unknown"}}
+{"name":"agent_id with null agent_type is unknown","request":{"agent_id":"a0123456789abcdef","agent_type":null,"op":"ops.actor"},"response":{"actor":null,"role":null,"who":"unknown"}}
+{"name":"empty agent_id is unknown","request":{"agent_id":"","agent_type":"lean-prover","op":"ops.actor"},"response":{"actor":null,"role":null,"who":"unknown"}}
+{"name":"non-string agent_id is refused","request":{"agent_id":7,"agent_type":"lean-prover","op":"ops.actor"},"response":{"error":"field agent_id: expected a string"}}
+{"name":"non-string agent_type is refused","request":{"agent_id":"a1","agent_type":true,"op":"ops.actor"},"response":{"error":"field agent_type: expected a string"}}

@@ -12,7 +12,8 @@ cd lean && lake env lean --run scripts/OpsGolden.lean --check   # fail if a file
 ```
 
 `lake test` runs the same check. Consumers: the hooks agent (`emit.mjs`, `spawn-guard.mjs`:
-`ops.hook`, `ops.spawn`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
+`ops.hook`, `ops.spawn`; `cap.mjs`: `ops.actor`), console-api's capability door (`cap.ts`
+`actorFor`: `ops.actor`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
 meter (`ops.usage`, `ops.meter`).
 -/
 namespace Fw.Wire.Ops.Golden
@@ -88,7 +89,25 @@ def cases : List (String × List (String × Json)) := [
     ("main thread has no agent_id; failure fields", lit "{\"payloads\":[{\"session_id\":\"s1\",\"hook_event_name\":\"PostToolUseFailure\",\"tool_name\":\"Edit\",\"tool_use_id\":\"toolu_2\",\"error\":\"denied\",\"is_interrupt\":false,\"duration_ms\":3}]}"),
     ("TeammateIdle and SubagentStart", lit "{\"payloads\":[{\"session_id\":\"s1\",\"hook_event_name\":\"TeammateIdle\",\"agent_id\":\"a2\",\"teammate_name\":\"eng-webkit\",\"team_name\":\"t\"},{\"session_id\":\"s1\",\"hook_event_name\":\"SubagentStart\",\"agent_id\":\"a3\",\"agent_type\":\"reviewer\"}]}"),
     ("bad payloads are reported by index, the rest decoded", lit "{\"payloads\":[{\"hook_event_name\":\"PostToolUse\"},{\"session_id\":\"s1\",\"hook_event_name\":\"PostToolUse\",\"duration_ms\":1.5},\"x\",{\"session_id\":\"s1\",\"hook_event_name\":\"Stop\"}]}"),
-    ("missing payloads is refused", lit "{}")])]
+    ("missing payloads is refused", lit "{}"),
+    ("identity: forked internal agent (empty agent_type) is unknown, never the lead", lit "{\"payloads\":[{\"session_id\":\"s1\",\"hook_event_name\":\"SubagentStop\",\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"\"},{\"session_id\":\"s1\",\"hook_event_name\":\"Stop\"}]}")]),
+  ("ops.actor", [
+    ("lead: no agent_id, no agent_type", lit "{}"),
+    ("lead: null agent_id", lit "{\"agent_id\":null,\"agent_type\":null}"),
+    ("lead: no agent_id, agent_type set (main session started with an agent)", lit "{\"agent_type\":\"lean-prover\"}"),
+    ("lead: the caps.jsonl lead record", lit "{\"agent_id\":null,\"agent_type\":\"main\"}"),
+    ("subagent role: owner", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"lean-prover\"}"),
+    ("reviewer role", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"reviewer\"}"),
+    ("review in the type, any ASCII case", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"Math-REVIEWER\"}"),
+    ("near miss: revie is an owner", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"revie-w\"}"),
+    ("agent typed main is an owner, never the lead", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"main\"}"),
+    ("teammate: agent_type is its name (role unresolved, SPK-c open)", lit "{\"agent_id\":\"aeng-webkit-0123456789abcdef\",\"agent_type\":\"eng-webkit\"}"),
+    ("forked internal agent: empty agent_type is unknown", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"\"}"),
+    ("agent_id without agent_type is unknown", lit "{\"agent_id\":\"a0123456789abcdef\"}"),
+    ("agent_id with null agent_type is unknown", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":null}"),
+    ("empty agent_id is unknown", lit "{\"agent_id\":\"\",\"agent_type\":\"lean-prover\"}"),
+    ("non-string agent_id is refused", lit "{\"agent_id\":7,\"agent_type\":\"lean-prover\"}"),
+    ("non-string agent_type is refused", lit "{\"agent_id\":\"a1\",\"agent_type\":true}")])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
