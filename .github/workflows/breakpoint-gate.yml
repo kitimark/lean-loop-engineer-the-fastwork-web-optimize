@@ -248,13 +248,18 @@ jobs:
           jobs=("$parts"/gate-"$ENGINE"-j[0-9]*/"$ENGINE".json)
           node .github/scripts/merge-gate.mjs --out "$out/$ENGINE.json" "${jobs[@]}"
           # `summary` is the same code the Mac run uses; it reads <engine>.json from --out.
-          node packages/gate-breakpoints/src/cli.mjs summary --out "$out"
+          # `summary` exits non-zero exactly when the merged verdict is not pass (gate-exit-verdict, Lean exit_zero_iff). Keep the
+          # code, write the step summary, and fail the job at the end, so the upload below still runs on a failing verdict.
+          rc=0
+          node packages/gate-breakpoints/src/cli.mjs summary --out "$out" || rc=$?
           sha256sum "$out"/*.json | tee "$out/sha256.txt"
           {
             echo "### breakpoint-gate: $ENGINE"
             cat "$out/summary.md"
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
         with:
           name: gate-merged-${{ matrix.engine }}
           path: ${{ runner.temp }}/gate
