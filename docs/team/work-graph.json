@@ -3026,6 +3026,70 @@
     ".github/scripts/merge-gate.mjs",
     "docs/team/tools/gate-speed.md"
    ]
+  },
+  {
+   "id": "premise-tests",
+   "title": "(M) every empirical premise of a Lean theorem gets a named Playwright test on Chromium + WebKit (CI); Fw.Ops.Premise registry + premiseLint_sound; fw premises lint; failing premise flags its theorems",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/premise-tests/**",
+    ".github/workflows/premise-tests.yml",
+    "apps/runner/src/premises.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/premises.md"
+   ]
+  },
+  {
+   "id": "snapshot-extract",
+   "title": "(M) browser-extracted reference values of the original (computed + inherited source) per part x breakpoint x engine, consumed by Lean (Fw.Site.Reference); port-vs-reference diff and missing-font report; replaces hand transcription",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/snapshot-extract/**",
+    ".github/workflows/snapshot-extract.yml",
+    "lean/Fw/Site/Reference.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/site/**",
+    "docs/team/tools/snapshot-extract.md"
+   ]
+  },
+  {
+   "id": "visual-diff",
+   "title": "(M) per-part screenshot diff original vs rewrite on both engines at gate breakpoints (CI artifacts only); verdict in Lean Fw.Gate.Pixel (unsettled_never_pass, tolerance_monotone)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Gate/Pixel.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/pixel.jsonl",
+    "packages/visual-diff/**",
+    ".github/workflows/visual-diff.yml",
+    "docs/team/tools/visual-diff.md"
+   ]
+  },
+  {
+   "id": "ts-lean-diff",
+   "title": "(M) randomized differential tests TS vs fwcore (fast-check, shrinking) for every wire op with a TS mirror; inventory of TS decision logic without a Lean op",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "packages/difftest/**",
+    ".github/workflows/difftest.yml",
+    "docs/team/tools/difftest.md"
+   ]
   }
  ],
  "deadline": {
