@@ -3227,7 +3227,9 @@
    "title": "(S) DEFECT: gate summary exits 0 when parts fail (cli.mjs:25-27); Fw.Gate.Exit exit_zero_iff (exit 0 iff merged verdict pass) + golden; agents read the verdict, never job conclusions (research/notes/2026/10-18-mistake-retro.md)",
    "stream": "measure",
    "milestone": "M5",
-   "deps": [],
+   "deps": [
+    "gate-speed-ci"
+   ],
    "owner": "measure-engineer",
    "writes": [
     "lean/Fw/Gate/Exit.lean",
