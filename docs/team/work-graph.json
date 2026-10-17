@@ -978,7 +978,8 @@
     "scripts/hooks/pre-commit",
     "lefthook.yml",
     "package.json"
-   ]
+   ],
+   "evidence": "d2574b0"
   },
   {
    "id": "fw-land-log",
