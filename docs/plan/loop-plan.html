@@ -231,7 +231,7 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
     <span class="eyebrow">Loop engineering · experiment 2 · plan for review</span>
     <h1>Fastwork Loop v2</h1>
     <p class="thesis">Rebuild the fastwork.com homepage as MUI parts behind flags, <b>count the work the engine does</b> on every change, put <b>Lean first for everything reproducible</b> (it runs in <code>fwcore</code>, Lean generates it, or the code must pass Lean golden vectors) and show it as math, and save <i>the iPhone</i> for calibration and feel.</p>
-    <div class="meta"><span>Plan revision 7 + user decisions</span><span>2026-10-17</span><span>docs/plan/PLAN.md</span></div>
+    <div class="meta"><span>Plan revision 7.1 + user decisions</span><span>2026-10-17</span><span>docs/plan/PLAN.md</span></div>
     <figure class="ruler" aria-label="Frame budget ruler">
       <svg viewBox="0 0 900 118" role="img" aria-labelledby="rulerTitle">
         <title id="rulerTitle">Frame time thresholds used by the plan, from 0 to 60 milliseconds</title>
@@ -285,8 +285,8 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
   <section id="rev7">
     <div class="stack col">
       <span class="eyebrow">What changed</span>
-      <h2>What changed in revision 7</h2>
-      <p class="lede">Revision 7 catches the plan up to commit d41aef0: measurement moved to CI, the count-class rule was decided, WKTR no longer needs a rented Mac, and the user answered three questions.</p>
+      <h2>What changed in revisions 7 and 7.1</h2>
+      <p class="lede">Revision 7 caught the plan up to commit d41aef0: measurement moved to CI, the count-class rule was decided, WKTR is planned without a rented Mac, and the user answered three questions. Revision 7.1 (catch-up to 7d564e2) applies the 15 findings of an adversarial review and adds the frozen Chromium class table, the freeze rule in Lean, the rewrite on the Chromium CI lane and math review round 8.</p>
     </div>
     <div class="tbl">
       <table>
@@ -295,11 +295,15 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
           <tr><td class="k">Measure on CI</td><td>Chromium counts, WebKit Simulator counts, the breakpoint gate and WKTR run on GitHub Actions, not on this Mac (user direction, 417d90d). The Mac keeps phone sessions and one short debug run.</td></tr>
           <tr><td class="k">CI trigger scope</td><td>21 of 28 runs touched no input of their workflow; 248 of 414 job-minutes were wasted. Workflows now run only when their inputs change, and a newer push cancels a stale run (6723de2).</td></tr>
           <tr><td class="k">Count classes</td><td>Decided (6b4237e): stable types count only as totals with margin 2t; a type's signed class is its worst over at least 3 CI runs; pixel-area types get a relative bound (see Measuring below).</td></tr>
-          <tr><td class="k">WKTR</td><td>WebKit's own prebuilt iOS-simulator build (315 MB) runs on GitHub <code>macos-26</code> (591a815). No WebKit build and no rented Mac; the cloud Mac is a fallback only.</td></tr>
+          <tr><td class="k">WKTR</td><td>WebKit's own prebuilt iOS-simulator build (315 MB) is built against the iOS 26.5 SDK that GitHub <code>macos-26</code> has (measured, 591a815); that it runs there is inferred until the first local run. No WebKit build and no rented Mac. Prebuilt first, cloud Mac as fallback, is the lead's reading of an unanswered card, not a user answer; the user can override it (Q10).</td></tr>
           <tr><td class="k">User answers</td><td>Q1: phone sessions on demand; the second iPhone stays free-play. Q31: spawn-guard blocks after a liveness feed, one clean day of logs and the A/B bench. Q33: a Simulator or device check for every cell the harness cannot reach.</td></tr>
           <tr><td class="k">Lean</td><td>The gate verdict, the work graph, a team health watch (<code>fw watch</code>), agent identity and the last console TypeScript stand-ins now run in <code>fwcore</code>. Of 625 M0 mutants, 621 were caught; the other 4 do not compile or do not change behaviour, so 0 survived.</td></tr>
           <tr><td class="k">Team</td><td>Changes from the Fable review: a <code>Task:</code> trailer on each landing marks the task done; the lead watches for slow work; <code>pkill</code> and <code>killall</code> are denied; a pre-commit scrub checks every commit for personal data.</td></tr>
-          <tr><td class="k">Still open</td><td>Two CSS questions for the M2 gate: Q34 (MUI <code>cssVariables</code>) and Q35 (add the original's dead CSS back as an inert sheet). Plus Q32, a window for the A/B bench.</td></tr>
+          <tr><td class="k">7.1: Chromium classes signed</td><td>Worst class over 3 CI workflow runs on one pinned image (deterministic / stable / quarantined): swipe-v1 27/25/10, swipe-touch-v1 16/27/19 (measured, da287ff). <code>trace.Paint</code> is quarantined, so Chromium paint is not screened. The touch fix held on CI: 0 wedges in 9 jobs (measured, da287ff).</td></tr>
+          <tr><td class="k">7.1: Freeze rule in Lean</td><td>The freeze rule runs in <code>fwcore</code> as <code>measure.freeze</code>, proved order-independent, monotone and idempotent; it regenerated <code>classes.frozen.json</code> with the class data unchanged (confirmed, bc2e28a).</td></tr>
+          <tr><td class="k">7.1: Rewrite on CI</td><td>The Chromium lane measures the original and the rewrite on separate VMs (fee88b2). Per workflow run, measured: swipe-v1 original 27/25/10 and 30/22/10, rewrite 37/6/1 and 37/7/0; touch original 31/20/11, rewrite 40/0/4.</td></tr>
+          <tr><td class="k">7.1: Done</td><td><code>touch-ci-verify</code>, <code>class-freeze</code>, <code>store-and-run</code>, <code>gate-unreachable</code>, <code>freeze-lean</code>, <code>rewrite-ci-lane</code>; math review round 8: 453 of 502 rows agree, the 49 others are being fixed (<code>math-r8-fix</code>, measured, 7d564e2).</td></tr>
+          <tr><td class="k">Still open</td><td>Two CSS questions for the M2 gate: Q34 (MUI <code>cssVariables</code>) and Q35 (add the original's dead CSS back as an inert sheet; options a, b, c in the plan). Plus Q32, a window for the A/B bench, and whether the WKTR route the lead read stands (Q10).</td></tr>
         </tbody>
       </table>
     </div>
@@ -494,7 +498,7 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
       </div>
       <div class="panel p">
         <h3>WebKit · the target</h3>
-        <p>Mobile Safari on the iOS Simulator (GitHub <code>macos-26</code> runners) through the Web Inspector protocol, plus WebKitTestRunner for restyled-element counts. The model is calibrated on the real iPhone, because only the phone shows render-server, GPU and finger-only costs.</p>
+        <p>Mobile Safari on the iOS Simulator (GitHub <code>xcode-27</code> runners) through the Web Inspector protocol, plus WebKitTestRunner for restyled-element counts. The model is calibrated on the real iPhone, because only the phone shows render-server, GPU and finger-only costs.</p>
         <p class="mono" style="font-size:var(--s-1);color:var(--muted)">sheet mutations · recalc styles · layouts · paint area · layer census · backing bytes · accelerated animations</p>
       </div>
     </div>
@@ -503,8 +507,8 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
         <thead><tr><th>Device</th><th>Version</th><th>Used for</th></tr></thead>
         <tbody>
           <tr><td class="k">iPhone 15 Pro Max</td><td>iOS 27.0.1, Safari 27; Developer Mode allowed</td><td>The target: calibration, licences, spot-checks, classes X and P, feel. Sessions on demand; a second iPhone stays free-play and is never measured.</td></tr>
-          <tr><td class="k">iOS Simulator on CI</td><td>GitHub <code>macos-26</code>, iOS 26.5 runtime</td><td>WebKit counts on every change. The Mac's iOS 27.0 Simulator is for short debug runs; V-b checks counts against the phone per count type.</td></tr>
-          <tr><td class="k">WebKitTestRunner</td><td>WebKit's prebuilt iOS-simulator build (trunk), on <code>macos-26</code></td><td>Restyled-element counts, which the Simulator cannot give. A rented cloud Mac is the fallback only.</td></tr>
+          <tr><td class="k">iOS Simulator on CI</td><td>GitHub <code>xcode-27</code>, iOS 27.0 runtime (24A434)</td><td>WebKit counts once <code>sim-speed</code> makes the runs pass (today they fail at warm-up). The Mac's iOS 27.0 Simulator is for short debug runs; V-b checks counts against the phone per count type.</td></tr>
+          <tr><td class="k">WebKitTestRunner</td><td>WebKit's prebuilt iOS-simulator build (trunk), planned on <code>macos-26</code> (iOS 26.5; inferred until it runs)</td><td>Restyled-element counts, which the Simulator cannot give. A rented cloud Mac is the fallback only.</td></tr>
           <tr><td class="k">Linux container on CI</td><td>headless-shell, BeginFrameControl, <code>ubuntu-24.04-arm</code></td><td>Chromium counts on every change.</td></tr>
           <tr><td class="k">Android emulator <code>fw-pixel</code></td><td>Chrome 133</td><td>Chrome-for-Android counts only, never timing.</td></tr>
           <tr><td class="k">Android phone</td><td>none (decided)</td><td>So Chromium stays a development aid with no fitted coefficients.</td></tr>
@@ -532,26 +536,29 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
 
   <section id="findings">
     <div class="stack col">
-      <span class="eyebrow">Measurement · what the runs showed (revision 7)</span>
+      <span class="eyebrow">Measurement · what the runs showed (revision 7.1)</span>
       <h2>Byte identity was too strict, so counts are classed per type</h2>
       <p>Whole count files are never byte-identical (thread ids, GC, async work). Each count type is classed deterministic, stable or quarantined. Chromium: stable means at most 4 frames differ and run totals differ by at most 24 count units, over 3 runs; pixel-area types allow up to 1/1000 of their smallest total. WebKit: a tolerance per cell, 2 passes in each of 2 boots.</p>
-      <p><b>How classes are used (decided).</b> Deterministic types are compared frame by frame. Stable types are compared only as run totals, with a proved margin of 2t. Quarantined types are never used. A type's signed class is its worst over at least 3 CI runs, because classes drifted between runs of the same code.</p>
+      <p><b>How classes are used (decided).</b> Deterministic types are compared frame by frame. Stable types are compared only as run totals, with a proved margin of 2t. Quarantined types are never used. A type's signed class is its worst over at least 3 CI runs, because classes drifted between runs of the same code. In the frozen table <code>trace.Paint</code> is quarantined, so Chromium paint is not screened; paint terms come from WebKit counts, or from raster counts where those are stable.</p>
     </div>
     <div class="tbl">
       <table>
-        <thead><tr><th>Finding</th><th>Engine</th><th>Source</th></tr></thead>
+        <thead><tr><th>Finding</th><th>Engine</th><th>Status, source</th></tr></thead>
         <tbody>
-          <tr><td>Whole count files are never byte-identical; the deterministic types held under host load1 360–450</td><td>Chromium</td><td>70c3370</td></tr>
-          <tr><td>The rewrite under <code>scrollTo</code>: all 43 types deterministic except MinorGC (local run)</td><td>Chromium</td><td>70c3370</td></tr>
-          <tr><td>Three CI workflow runs (deterministic / stable / quarantined): 33/22/7, 31/23/8, 27/27/8 with the pixel-area bound (33/20/9, 31/21/10, 27/25/10 without). The local 28/14/8 is superseded</td><td>Chromium</td><td>13b6c98, 5879861</td></tr>
-          <tr><td>Classes drift between runs of the same code: 6 types deterministic → stable, <code>trace.Paint</code> stable → quarantined; cause runner noise or an unpinned image (inferred)</td><td>Chromium</td><td>spk-i.md</td></tr>
-          <tr><td>Touch wedged BeginFrame: a scroll feature set a timer about 4,900 s ahead of the container clock. With it off, 21 local runs passed; a CI check follows</td><td>Chromium</td><td>25bd9f4</td></tr>
-          <tr><td><code>HitTest</code> stays quarantined (a touch move lands in frame k or k+1)</td><td>Chromium</td><td>25bd9f4</td></tr>
-          <tr><td>Per-step Layout, Paint, InvalidateLayout, ObserverCallback quarantined; RecalculateStyles within 1; totals within 3–5 %</td><td>WebKit</td><td>367fec2</td></tr>
-          <tr><td>The first load after a Simulator boot differs (FireAnimationFrame 703–709 vs 729–739), so one warm-up run is the default</td><td>WebKit</td><td>367fec2</td></tr>
-          <tr><td><code>RenderingFrame</code> reads 0 on iOS 27.0 (24A434) and about 60/s on 26.5; to compare with the CI xcode-27 image</td><td>WebKit</td><td>367fec2</td></tr>
-          <tr><td>The rewrite's hit-skip cuts RecalculateStyles 164 → 19, but its steps do not align with the original's (74 vs 107), so no delta is claimed yet</td><td>WebKit</td><td>367fec2</td></tr>
-          <tr><td>Simulator runs on CI take 10–38 min and fail at warm-up; a speed-up task comes first</td><td>WebKit</td><td>10-17-ci-trigger-scope.md</td></tr>
+          <tr><td>Whole count files are never byte-identical; the deterministic types held under host load1 360–450</td><td>Chromium</td><td>measured, 70c3370 (local debug) and CI</td></tr>
+          <tr><td>The rewrite under <code>scrollTo</code>: all 43 types deterministic except MinorGC (local run)</td><td>Chromium</td><td>measured locally (debug), 70c3370</td></tr>
+          <tr><td>Three CI workflow runs (deterministic / stable / quarantined): 33/22/7, 31/23/8, 27/27/8 with the pixel-area bound (33/20/9, 31/21/10, 27/25/10 without). The local 28/14/8 is superseded</td><td>Chromium</td><td>measured, 13b6c98, 5879861</td></tr>
+          <tr><td>Classes drift between runs of the same code: 6 types deterministic → stable, <code>trace.Paint</code> stable → quarantined; cause runner noise or an unpinned image</td><td>Chromium</td><td>drift measured, cause inferred; spk-i.md</td></tr>
+          <tr><td>Frozen table, worst class over 3 workflow runs of 3 jobs on one pinned image: swipe-v1 27/25/10, swipe-touch-v1 16/27/19 of 62 types; <code>trace.Paint</code> quarantined in both</td><td>Chromium</td><td>measured, da287ff</td></tr>
+          <tr><td>The freeze rule runs in Lean (<code>measure.freeze</code>) and regenerates the frozen table with identical class data</td><td>Chromium</td><td>confirmed, bc2e28a</td></tr>
+          <tr><td>Touch wedged BeginFrame: a scroll feature set a timer about 4,900 s ahead of the container clock. With it off, 0 wedges in 9 CI jobs (the result); locally 1 wedge in 21 debug runs, passed on retry</td><td>Chromium</td><td>measured, da287ff (fix 25bd9f4)</td></tr>
+          <tr><td>Original vs rewrite on CI, per workflow run: swipe-v1 original 27/25/10 and 30/22/10, rewrite 37/6/1 and 37/7/0; touch original 31/20/11, rewrite 40/0/4 (quarantined: EventDispatch, FunctionCall, HitTest, PrePaint). The original reports 62 types, the rewrite 44, so the tallies are not like for like</td><td>Chromium</td><td>measured, fee88b2</td></tr>
+          <tr><td><code>HitTest</code> stays quarantined (a touch move lands in frame k or k+1)</td><td>Chromium</td><td>measured, 25bd9f4, da287ff</td></tr>
+          <tr><td>Per-step Layout, Paint, InvalidateLayout, ObserverCallback quarantined; RecalculateStyles within 1; totals within 3–5 %</td><td>WebKit</td><td>measured locally (debug), 367fec2</td></tr>
+          <tr><td>The first load after a Simulator boot differs (FireAnimationFrame 703–709 vs 729–739), so one warm-up run is the default</td><td>WebKit</td><td>measured locally (debug), 367fec2</td></tr>
+          <tr><td><code>RenderingFrame</code> reads 0 on iOS 27.0 (24A434) and about 60/s on 26.5; to compare with the CI xcode-27 image</td><td>WebKit</td><td>measured locally (debug), 367fec2</td></tr>
+          <tr><td>The rewrite's hit-skip cuts RecalculateStyles 164 → 19, but its steps do not align with the original's (74 vs 107), so no delta is claimed yet</td><td>WebKit</td><td>measured locally (debug), 367fec2</td></tr>
+          <tr><td>Simulator runs on CI take 10–38 min and fail at warm-up; a speed-up task comes first</td><td>WebKit</td><td>measured, catch-up log (sim-speed entry)</td></tr>
         </tbody>
       </table>
     </div>
@@ -699,7 +706,7 @@ $$\Pr_{\text{null}}[\mathrm{better}] \le 1/\binom{8}{4}$$ -/</span>
       </div>
       <div class="panel">
         <h3>Cost and packaging</h3>
-        <p>The estimate was about 20 modules and roughly $700–1,100 of Lean work; by commit d41aef0 the core has 42 modules and 1,643 declarations (see the math view). The core needs no Mathlib; a proof that does goes in a separate <code>FwMath</code> package that <code>Fw</code> never imports. The browser's flag resolver is checked against Lean on every single-part override of every preset, plus 2,000 generated multi-part cases.</p>
+        <p>The estimate was about 20 modules and roughly $700–1,100 of Lean work; at commit 7d564e2 the math view lists 1,947 declarations (910 theorems) in 51 modules (measured; the same figure as the plan). The core needs no Mathlib; a proof that does goes in a separate <code>FwMath</code> package that <code>Fw</code> never imports. The browser's flag resolver is checked against Lean on every single-part override of every preset, plus 2,000 generated multi-part cases.</p>
       </div>
     </div>
   </section>
