@@ -1,25 +1,8 @@
-// Unit tests for the two pure modules (no Docker). Golden vectors here are the seed for the Lean spec of reduce.mjs.
+// Unit tests of the pure extraction module (no Docker). Zone sums moved to Lean (fwcore measure.zoneSums): see
+// test/fwcore.test.mjs and packages/contracts/golden/measure/.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { zoneSums } from '../src/reduce.mjs';
 import { traceToFrameCounts } from '../src/trace.mjs';
-
-test('zoneSums: swipe frames group by 500 px zone, other phases by name, sums and scrolledPx add up', () => {
-  const frames = [
-    { n: 0, phase: 'rest', scrollY: 0, counts: { a: 1, b: 2 } },
-    { n: 1, phase: 'swipe', scrollY: 10, counts: { a: 1, b: 0 } },
-    { n: 2, phase: 'swipe', scrollY: 490, counts: { a: 2, b: 1 } },
-    { n: 3, phase: 'swipe', scrollY: 500, counts: { a: 4, b: 1 } },
-    { n: 4, phase: 'tail', scrollY: 500, counts: { a: 0, b: 7 } },
-  ];
-  const z = zoneSums(frames, 500);
-  assert.deepEqual(z.map((x) => x.id), ['rest', 'y00000', 'y00500', 'tail']);
-  assert.deepEqual(z.map((x) => x.frames), [1, 2, 1, 1]);
-  assert.deepEqual(z.map((x) => x.scrolledPx), [0, 490, 10, 0]);
-  assert.deepEqual(z[1].sums, { a: 3, b: 1 });
-  // totals are conserved
-  assert.equal(z.reduce((s, x) => s + x.sums.a, 0), 8);
-});
 
 test('traceToFrameCounts: main-thread events are bucketed by the F<n> marks, compositor events by BeginImplFrame', () => {
   const M = (pid, tid, name) => ({ ph: 'M', name: 'thread_name', pid, tid, args: { name } });

@@ -1,0 +1,300 @@
+import Lean.Data.Json
+import Fw.Measure.WebKit
+/-!
+# JSON codecs and ops of the measurement lanes (`measure.*`)
+
+The glue between `fwcore`'s JSON lines and `Fw.Measure` (namespace `Fw.Wire.Measure`, so the
+math view treats it as wire code, like `Fw.Wire`). Total decoders only (`Except String`); no
+partial operations. Integers are refused when not integral; times, offsets, clip coordinates and
+tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponent)).
+
+| op | request | reply |
+|---|---|---|
+| `measure.zoneSums` | `zoneHeightPx` (≥ 1), `frames` [{n, phase, scrollY, counts}] | `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, sums}] |
+| `measure.classify` (`mode` `frames`) | `kMax`, `tMax`, `runs` (≥ 2; each an array of frames or an object with `frames`) | `classes` {type: {class, k, t}}, `runs` |
+| `measure.classify` (`mode` `cells`) | `tol` {absTol, relTol}, `runs` (≥ 2 integer arrays) | `cls`, `cells`, `differingCells`, `cellsBeyondTolerance`, `maxSpread`, `maxRelSpread`, `k`, `t` (+ `reason`) |
+| `measure.noMoreWork` | `types` [{class: {class, k, t}, base, var}] | `noMoreWork`, `failing` (indices) |
+| `measure.webkit.tally` | `rows` (raw `fw.webkit.records/1` rows) | `counts`, `paintArea`, `other` |
+| `measure.webkit.reduceSteps` | `rows`, `marks` (non-empty, non-decreasing), `endTime` | `countTypes`, `perStep`, `perStepPaintArea`, `total`, `other`, `rowsBeforeFirstStep` |
+| `measure.webkit.zones` | `ys` (≥ 0), `perStep`, `perStepPaintArea`, `zonePx` (default 500) | `zones` [{zone, y0, steps, counts, paintArea}] |
+| `measure.symDiff` | `a`, `b` (string arrays) | `symDiff` |
+| `measure.summarize` | `rows` [{family, metric, level, cls}] | `summary` [{family, metric, levels, worst}] |
+-/
+namespace Fw.Wire.Measure
+open Lean Fw.Measure Fw.Measure.WebKit
+
+/-- The fields of a reply. -/
+abbrev Reply := List (String × Json)
+
+/-- A required field. -/
+def field (j : Json) (k : String) : Except String Json :=
+  match j.getObjVal? k with
+  | .ok v => .ok v
+  | .error _ => .error s!"missing field {k}"
+
+/-- An optional field (`null` counts as absent). -/
+def opt (j : Json) (k : String) : Option Json :=
+  match j.getObjVal? k with
+  | .ok .null => none
+  | .ok v => some v
+  | .error _ => none
+
+/-- A JSON value as an array. -/
+def asArr (k : String) : Json → Except String (Array Json)
+  | .arr a => .ok a
+  | _ => .error s!"field {k}: expected an array"
+
+/-- A JSON value as a string. -/
+def asStr (k : String) : Json → Except String String
+  | .str s => .ok s
+  | _ => .error s!"field {k}: expected a string"
+
+/-- A JSON value as an integer. -/
+def asInt (k : String) (j : Json) : Except String Int :=
+  match j.getInt? with
+  | .ok n => .ok n
+  | .error _ => .error s!"field {k}: expected an integer"
+
+/-- A JSON value as a natural number. -/
+def asNat (k : String) (j : Json) : Except String Nat :=
+  match j.getNat? with
+  | .ok n => .ok n
+  | .error _ => .error s!"field {k}: expected a non-negative integer"
+
+/-- A JSON number as an exact rational. -/
+def asRat (k : String) : Json → Except String Rat
+  | .num n => .ok (mkRat n.mantissa (10 ^ n.exponent))
+  | _ => .error s!"field {k}: expected a number"
+
+/-- A required natural field. -/
+def nat (j : Json) (k : String) : Except String Nat := do asNat k (← field j k)
+
+/-- A required array field. -/
+def arr (j : Json) (k : String) : Except String (Array Json) := do asArr k (← field j k)
+
+/-- A required string field. -/
+def str (j : Json) (k : String) : Except String String := do asStr k (← field j k)
+
+/-- A required array of integers. -/
+def ints (j : Json) (k : String) : Except String (List Int) := do (← arr j k).toList.mapM (asInt k)
+
+/-- A required array of strings. -/
+def strs (j : Json) (k : String) : Except String (List String) := do (← arr j k).toList.mapM (asStr k)
+
+/-- A required array of numbers. -/
+def rats (j : Json) (k : String) : Except String (List Rat) := do (← arr j k).toList.mapM (asRat k)
+
+/-- An exact rational as a JSON number when its denominator is a power of 10 up to 10¹² (always
+the case for decimal inputs), else as `{"num","den"}`. -/
+def ratJson (q : Rat) : Json :=
+  match (List.range 13).find? (fun e => (10 ^ e) % q.den == 0) with
+  | some e => .num ⟨q.num * ((10 ^ e / q.den : Nat) : Int), e⟩
+  | none => Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
+
+/-- An object of integer counts as name–value entries (sorted by name). -/
+def countsOf (k : String) : Json → Except String Counts
+  | .obj kvs => kvs.toArray.toList.mapM fun ⟨name, v⟩ => do pure (name, ← asInt s!"{k}.{name}" v)
+  | _ => .error s!"field {k}: expected an object"
+
+/-- Name–value entries as a JSON object. -/
+def objOf (kvs : List (String × Json)) : Json := Json.mkObj kvs
+
+/-! ## Chromium lane -/
+
+/-- Decode a frame `{n, phase, scrollY, counts}` (other fields ignored). -/
+def frameOf (j : Json) : Except String Frame := do
+  pure { n := ← nat j "n", phase := ← str j "phase", scrollY := ← asInt "scrollY" (← field j "scrollY"),
+         counts := ← countsOf "counts" (← field j "counts") }
+
+/-- Encode a zone. -/
+def zoneJson (z : Zone) : Json := Json.mkObj [
+  ("id", .str z.id), ("frames", toJson z.frames), ("scrolledPx", toJson z.scrolledPx),
+  ("firstFrame", toJson z.firstFrame), ("lastFrame", toJson z.lastFrame),
+  ("sums", objOf (z.sums.map fun (k, v) => (k, toJson v)))]
+
+/-- `measure.zoneSums`: `{zoneHeightPx, frames}` → `{zones}`. -/
+def opZoneSums (req : Json) : Except String Reply := do
+  let h ← nat req "zoneHeightPx"
+  if h = 0 then throw "zoneHeightPx must be positive"
+  let fs ← (← arr req "frames").toList.mapM frameOf
+  pure [("zones", .arr ((zoneSums h fs).toArray.map zoneJson))]
+
+/-- The frames of one run: an array of frames, or an object with a `frames` array. -/
+def runFrames (j : Json) : Except String (List Counts) := do
+  let a ← match j with
+    | .arr a => pure a
+    | .obj _ => arr j "frames"
+    | _ => throw "field runs: each run must be an array of frames or an object with frames"
+  a.toList.mapM fun f => do countsOf "counts" (← field f "counts")
+
+/-- Encode a class with its observed maxima. -/
+def classJson (c : Class) (k t : Nat) : Json :=
+  let name := match c with
+    | .deterministic => "deterministic" | .stable _ _ => "stable" | .quarantined => "quarantined"
+  Json.mkObj [("class", .str name), ("k", toJson k), ("t", toJson t)]
+
+/-- Class name of a cell status. -/
+def statusName : Nat → String
+  | 0 => "deterministic" | 1 => "stable" | _ => "quarantined"
+
+/-- Round half up to 4 decimals, as a JSON number (JS `Math.round(x * 1e4) / 1e4`). -/
+def round4 (q : Rat) : Json := .num ⟨roundHalfUp (q * 10000), 4⟩
+
+/-- The report of the cell mode: class, counts of differing and out-of-tolerance cells, the
+largest spread and relative spread, and the frame-sense maxima `k`, `t`. -/
+def cellsReport (tol : Tol) (runs : List Series) : Reply :=
+  let len := (runs.headD []).length
+  let k := kObs runs
+  let t := tObs runs
+  if runs.any (·.length != len) then
+    [("cls", .str "quarantined"), ("reason", .str "vector length differs between runs"), ("cells", toJson len),
+     ("differingCells", .null), ("cellsBeyondTolerance", .null), ("maxSpread", .null), ("maxRelSpread", .null),
+     ("k", toJson k), ("t", toJson t)]
+  else
+    let cells := (List.range len).map fun i => cellVals runs i
+    let st := cells.map stats
+    let differing := st.filter fun s => s.2.1 - s.1 != 0
+    let spreads := differing.map fun s => s.2.1 - s.1
+    let maxSpread := spreads.foldr max 0
+    let rels := (differing.filter fun s => s.2.2 > 0).map fun s => ((s.2.1 - s.1 : Int) : Rat) / ((s.2.2 : Int) : Rat)
+    let maxRel := rels.foldr (fun a b => if a < b then b else a) 0
+    [("cls", .str (statusName (classifyCells tol runs))), ("cells", toJson len),
+     ("differingCells", toJson differing.length),
+     ("cellsBeyondTolerance", toJson ((cells.filter fun c => cellStatus tol c == 2).length)),
+     ("maxSpread", toJson maxSpread), ("maxRelSpread", round4 maxRel), ("k", toJson k), ("t", toJson t)]
+
+/-- `measure.classify`: frame mode (Chromium per-frame counts) or cell mode (WebKit cells). -/
+def opClassify (req : Json) : Except String Reply := do
+  let mode ← str req "mode"
+  let runsJ ← arr req "runs"
+  if runsJ.size < 2 then throw "need at least two runs"
+  match mode with
+  | "frames" =>
+    let p : Policy := ⟨← nat req "kMax", ← nat req "tMax"⟩
+    let runs ← runsJ.toList.mapM runFrames
+    let rows := classifyAll p runs
+    pure [("classes", objOf (rows.map fun r => (r.type, classJson r.cls r.k r.t))), ("runs", toJson runs.length)]
+  | "cells" =>
+    let tj ← field req "tol"
+    let tol : Tol := ⟨← asRat "tol.absTol" (← field tj "absTol"), ← asRat "tol.relTol" (← field tj "relTol")⟩
+    let runs ← runsJ.toList.mapM fun r => do (← asArr "runs" r).toList.mapM (asInt "runs")
+    pure (cellsReport tol runs)
+  | m => throw s!"unknown mode {m} (frames or cells)"
+
+/-- Decode a class `{class, k, t}` (k, t only for stable). -/
+def classOf (j : Json) : Except String Class := do
+  match ← str j "class" with
+  | "deterministic" => pure .deterministic
+  | "stable" => pure (.stable (← nat j "k") (← nat j "t"))
+  | "quarantined" => pure .quarantined
+  | c => throw s!"unknown class {c}"
+
+/-- `measure.noMoreWork`: `{types:[{class, base, var}]}` → `{noMoreWork, failing}`. -/
+def opNoMoreWork (req : Json) : Except String Reply := do
+  let os ← (← arr req "types").toList.mapM fun t => do
+    pure ({ cls := ← classOf (← field t "class"), base := ← ints t "base", var := ← ints t "var" } : TypeObs)
+  let failing := ((List.range os.length).zip os).filter (fun (_, o) => !typeOk o.cls o.base o.var) |>.map (·.1)
+  pure [("noMoreWork", .bool (noMoreWork os)), ("failing", toJson failing)]
+
+/-! ## WebKit lane -/
+
+/-- Decode a raw row `[type, start, end, extra]`: a non-number start is `none`; a Paint row's
+extra must be an array of numbers (the clip quad) or anything else (no clip). -/
+def rowOf (j : Json) : Except String Row := do
+  let a := (← asArr "rows" j).toList
+  let ty ← match a.head? with
+    | some (.str s) => pure s
+    | _ => throw "field rows: each row must start with its type"
+  let start := match a.drop 1 |>.head? with
+    | some (.num n) => some (mkRat n.mantissa (10 ^ n.exponent))
+    | _ => none
+  let clip ← match a.drop 3 |>.head? with
+    | some (.arr q) => if ty == "Paint" then q.toList.mapM (asRat "rows.clip") else pure []
+    | _ => pure []
+  pure ⟨ty, start, clip⟩
+
+/-- Encode tally counts as an object keyed by count type. -/
+def countsJson (cs : List Nat) : List (String × Json) := (countTypes.zip cs).map fun (k, v) => (k, toJson v)
+
+/-- Encode the "other" types. -/
+def otherJson (o : List (String × Nat)) : Json := objOf (o.map fun (k, v) => (k, toJson v))
+
+/-- `measure.webkit.tally`: `{rows}` → `{counts, paintArea, other}`. -/
+def opTally (req : Json) : Except String Reply := do
+  let t := tally (← (← arr req "rows").toList.mapM rowOf)
+  pure [("counts", objOf (countsJson t.counts)), ("paintArea", toJson t.paintArea), ("other", otherJson t.other)]
+
+/-- Non-decreasing check. -/
+def nondecreasing : List Rat → Bool
+  | a :: b :: rest => decide (a ≤ b) && nondecreasing (b :: rest)
+  | _ => true
+
+/-- `measure.webkit.reduceSteps`: `{rows, marks, endTime}` → the `reduceSteps` object. -/
+def opReduceSteps (req : Json) : Except String Reply := do
+  let rows ← (← arr req "rows").toList.mapM rowOf
+  let marks ← rats req "marks"
+  if marks.isEmpty then throw "marks must be non-empty"
+  if !nondecreasing marks then throw "marks must be non-decreasing"
+  let e ← asRat "endTime" (← field req "endTime")
+  let r := reduceSteps rows marks e
+  pure [("countTypes", toJson countTypes), ("perStep", toJson r.perStep),
+        ("perStepPaintArea", toJson r.perStepPaintArea),
+        ("total", objOf (countsJson r.total.counts ++ [("paintArea", toJson r.total.paintArea)])),
+        ("other", otherJson r.total.other), ("rowsBeforeFirstStep", toJson r.rowsBeforeFirstStep)]
+
+/-- `measure.webkit.zones`: `{ys, perStep, perStepPaintArea, zonePx?}` → `{zones}`. -/
+def opWebkitZones (req : Json) : Except String Reply := do
+  let ys ← rats req "ys"
+  let per ← (← arr req "perStep").toList.mapM fun r => do (← asArr "perStep" r).toList.mapM (asInt "perStep")
+  let pa ← ints req "perStepPaintArea"
+  let h ← match opt req "zonePx" with
+    | none => pure 500
+    | some v => asNat "zonePx" v
+  if h = 0 then throw "zonePx must be positive"
+  if per.length != ys.length || pa.length != ys.length then
+    throw "ys, perStep and perStepPaintArea must have the same length"
+  if ys.any (· < 0) then throw "ys: negative scroll offset"
+  if per.any (·.length > countTypes.length) then throw "perStep: a row is longer than countTypes"
+  let steps := (ys.zip (per.zip pa)).map fun (y, r, a) => ({ y, row := r, area := a } : Step)
+  pure [("zones", .arr ((zones h countTypes.length steps).toArray.map fun z => Json.mkObj [
+    ("zone", toJson z.zone), ("y0", toJson z.y0), ("steps", toJson z.steps), ("counts", toJson z.counts),
+    ("paintArea", toJson z.paintArea)]))]
+
+/-- `measure.symDiff`: `{a, b}` → `{symDiff}`. -/
+def opSymDiff (req : Json) : Except String Reply := do
+  pure [("symDiff", toJson (symDiff (← strs req "a") (← strs req "b")))]
+
+/-- Class number of a class name. -/
+def clsNum : String → Except String Nat
+  | "deterministic" => .ok 0 | "stable" => .ok 1 | "quarantined" => .ok 2
+  | c => .error s!"unknown class {c}"
+
+/-- `measure.summarize`: `{rows:[{family, metric, level, cls}]}` → `{summary}`. -/
+def opSummarize (req : Json) : Except String Reply := do
+  let rows ← (← arr req "rows").toList.mapM fun r => do
+    pure ({ family := ← str r "family", metric := ← str r "metric", level := ← str r "level",
+            cls := ← clsNum (← str r "cls") } : CRow)
+  pure [("summary", .arr ((summarize rows).toArray.map fun s => Json.mkObj [
+    ("family", .str s.family), ("metric", .str s.metric),
+    ("levels", objOf (s.levels.map fun (l, c) => (l, .str (statusName c)))),
+    ("worst", .str (statusName s.worst))]))]
+
+/-- The `measure.*` ops. -/
+def ops : List String :=
+  ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
+   "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.symDiff", "measure.summarize"]
+
+/-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
+def handle (op : String) (req : Json) : Option (Except String Reply) :=
+  match op with
+  | "measure.zoneSums" => some (opZoneSums req)
+  | "measure.classify" => some (opClassify req)
+  | "measure.noMoreWork" => some (opNoMoreWork req)
+  | "measure.webkit.tally" => some (opTally req)
+  | "measure.webkit.reduceSteps" => some (opReduceSteps req)
+  | "measure.webkit.zones" => some (opWebkitZones req)
+  | "measure.symDiff" => some (opSymDiff req)
+  | "measure.summarize" => some (opSummarize req)
+  | _ => none
+
+end Fw.Wire.Measure

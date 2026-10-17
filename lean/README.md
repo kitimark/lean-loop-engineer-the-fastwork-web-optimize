@@ -8,7 +8,8 @@ The proved decision core of the loop (PLAN §3.2, §5). Toolchain `leanprover/le
 | Command | What it does |
 |---|---|
 | `lake build` | all `Fw` modules (every proof and `#guard` example runs here), `fwcore`, `mathview` |
-| `lake test` | `fwtest`: 42 console-apply golden cases, 23 JSON-lines golden lines, `Rat` wire round trips, 2,000 pseudo-random lease traces, a replay timing |
+| `lake test` | `fwtest`: 42 console-apply golden cases, 23 JSON-lines golden lines, `Rat` wire round trips, 2,000 pseudo-random lease traces, the `measure.*` goldens (regenerated and compared byte for byte), a replay timing |
+| `lake env lean --run scripts/MeasureGolden.lean [--check]` | writes (or checks) `../packages/contracts/golden/measure/<op>.jsonl` from `Fw/Measure/Golden.lean` |
 | `lake exe partsgolden [<outDir>]` | lean-parts' golden vectors (`Fw/Parts/Golden.lean`) into `<outDir>` (default `../packages/contracts/golden/parts`) |
 | `lake exe breakgen [--inventory <json>] [--check <file>]` | prints `Fw/Site/breakpoints.gen.json` to stdout; `--check` exits 1 on a byte diff, `--inventory` on any mismatch with the inventory (see `Fw/Site/README.md`) |
 | `lake exe mathview [--lint]` | JSON export of every `Fw` declaration; `--lint` fails on missing `$$` math or English, `sorryAx`, or an axiom other than `propext`, `Classical.choice`, `Quot.sound`. Each declaration is exported with its own heartbeat budget (`MathView.declBudget`; `autoTex` gets `texBudget`, else `"?"`), and an exception in one declaration becomes a lint failure naming it (`export failed`) instead of crashing the export |
@@ -45,6 +46,11 @@ JSON lines on stdin/stdout, one reply line per input line, in order, flushed aft
 | `flags.resolve` | `registry` {variants:{part:[…]}, rules:[{kind,p,v,q,w}]}, `req` [{part,variant}] | `config` | `Fw.Flags.resolve` |
 | `lease.step` | `state`, `cmd` (derived codecs) | `state`, `reply` | `Fw.Lease.step` |
 | `breakpoints.gen` | optional `inventory` (the `breakpoints.json` object) | `gen` (the `breakpoints.gen.json` document), `mismatches` | `Fw.Site.BreakpointGen.genJson`, `checkInventory` |
+| `measure.zoneSums` | `zoneHeightPx` (≥ 1), `frames` [{n, phase, scrollY, counts}] (fw.counts/1 frames; int counts) | `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, sums}] | `Fw.Measure.zoneSums` |
+| `measure.classify` | `mode`: `frames` with `kMax`, `tMax`, `runs` (≥ 2 frame arrays or counts.json objects); `cells` with `tol` {absTol, relTol}, `runs` (≥ 2 int arrays) | `frames`: `classes` {type: {class, k, t}}; `cells`: `cls`, `cells`, `differingCells`, `cellsBeyondTolerance`, `maxSpread`, `maxRelSpread`, `k`, `t` | `Fw.Measure.classifyAll`, `Fw.Measure.WebKit.classifyCells` |
+| `measure.noMoreWork` | `types` [{class: {class, k?, t?}, base, var}] | `noMoreWork`, `failing` | `Fw.Measure.noMoreWork` |
+| `measure.webkit.tally` / `.reduceSteps` / `.zones` | raw `fw.webkit.records/1` rows (+ `marks`, `endTime`) / `ys`, `perStep`, `perStepPaintArea`, `zonePx` | as `packages/measure-webkit/src/reduce.mjs` | `Fw.Measure.WebKit.tally`, `reduceSteps`, `zones` |
+| `measure.symDiff`, `measure.summarize` | `a`, `b` / `rows` [{family, metric, level, cls}] | `symDiff` / `summary` | `Fw.Measure.WebKit.symDiff`, `summarize` |
 | `samples` | — | `samples`: one request and reply per op, for zod | — |
 
 `console.apply` is stateless (state in, state out), matching console-api's `lean.ts`; it passes all
@@ -61,7 +67,11 @@ JSON lines on stdin/stdout, one reply line per input line, in order, flushed aft
 | `Fw/Spec/Cost`, `Flags`, `Stage`, `Lease` | seeded from the kickoff sketch (statements unchanged) |
 | `Fw/Spec/DeviceQueue`, `ArtifactKey` | ported from the kickoff scratch; DeviceQueue adds aging-based bounded overtaking and the starvation case (a job longer than the window never starts) |
 | `Fw/Console`, `Fw/Board` | console reducer (console-mvp contract: cards, steps with kinds, runs, the MAY table) and the board projection |
-| `Fw/Wire`, `Main` | the JSON-lines boundary (not in the math view) |
+| `Fw/Measure/Zones` | Chromium `zoneSums`: lookups are filter sums, additivity over concatenation, monotonicity, partition (sums, frames, scroll distance), each zone once |
+| `Fw/Measure/Classes` | determinism classes deterministic / stable(k, t) / quarantined, `classify` sound, strictest admissible, monotone in the runs; deterministic iff stable(0, 0) |
+| `Fw/Measure/Tolerance` | which classes enter the screen: deterministic frame by frame, stable(k, t) by totals with margin 2t (exact: no smaller margin is sound), quarantined never; `noMoreWork` and its run-cost soundness |
+| `Fw/Measure/WebKit` | WebKit `reduce.mjs`: tally, step join (partition, rows conserved), dense zones (partition), cell-spread classes (monotone for relTol ≤ 1, deterministic cells ⇒ deterministic runs), symDiff, summarize |
+| `Fw/Wire`, `Fw/Measure/Wire`, `Fw/Measure/Golden`, `Main` | the JSON-lines boundary and golden generator (not in the math view) |
 
 Not proved (stated in `Fw/Spec/Null`): that exchangeable runs make labelings equally likely (the
 modeling premise, L3). Every probability above is a share of labelings under that premise.

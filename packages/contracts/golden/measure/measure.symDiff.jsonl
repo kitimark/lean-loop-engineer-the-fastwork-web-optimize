@@ -1,0 +1,3 @@
+{"name":"same multiset","request":{"a":["a","b"],"b":["b","a"],"op":"measure.symDiff"},"response":{"symDiff":0}}
+{"name":"multiplicities count","request":{"a":["a","a","b"],"b":["a","c"],"op":"measure.symDiff"},"response":{"symDiff":3}}
+{"name":"empty","request":{"a":[],"b":[],"op":"measure.symDiff"},"response":{"symDiff":0}}

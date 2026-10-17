@@ -4,6 +4,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { writeFileSync } from 'node:fs';
+import { zoneSums } from './fwcore.mjs';
 import { fileURLToPath } from 'node:url';
 
 const PKG = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -49,4 +51,17 @@ const r = spawnSync('docker', [
   '--entrypoint', 'node', IMAGE, ...inner,
 ], { stdio: ['ignore', 'inherit', 'inherit'] });
 console.error(`wrote ${join(out, 'counts.json')} (host wall ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
-process.exit(r.status ?? 1);
+if (r.status !== 0) process.exit(r.status ?? 1);
+// Per-zone sums come from fwcore (Lean Fw.Measure.zoneSums), never from TS. Without a built fwcore the raw counts stay
+// valid and only zones.json is missing.
+try {
+  const counts = JSON.parse(readFileSync(join(out, 'counts.json'), 'utf8'));
+  const zoneHeightPx = JSON.parse(readFileSync(join(PKG, 'profiles', `${profile}.json`), 'utf8')).zoneHeightPx;
+  const zones = zoneSums(counts.frames, zoneHeightPx);
+  writeFileSync(join(out, 'zones.json'), JSON.stringify({ schema: 'fw.zones/1', counts: 'counts.json', zoneHeightPx, zones }, null, 1) + '\n');
+  console.error(`wrote ${join(out, 'zones.json')} (${zones.length} zones, from fwcore)`);
+} catch (e) {
+  console.error(`zones.json not written: ${e.message}`);
+  process.exit(3);
+}
+process.exit(0);

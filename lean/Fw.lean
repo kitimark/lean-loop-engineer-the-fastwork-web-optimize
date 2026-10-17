@@ -19,3 +19,8 @@ import Fw.Parts.EngineScroll
 import Fw.Parts.NavHitTest
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroExit
+import Fw.Measure.Zones
+import Fw.Measure.Classes
+import Fw.Measure.Tolerance
+import Fw.Measure.WebKit
+import Fw.Measure.Wire

@@ -1,14 +1,13 @@
 // In-container driver (counts lane, Chromium arm; PLAN 4.2 "One virtual frame in Chromium").
 // Runs inside the image built from ../Dockerfile. Mounts: /driver (this dir, ro), /profiles (ro), /snapshot/site (ro),
 // /out (rw). Writes /out/counts.json: raw per-frame counts only, plain JSON, stable schema "fw.counts/1".
-// No decision logic lives here: reduction is in reduce.mjs (pure), verdicts/screening are Lean's.
+// No decision logic lives here: zone sums, classes, screening and verdicts are Lean (fwcore, called by the host).
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, openSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
-import { zoneSums } from './reduce.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')).map(([k, v]) => [k, v ?? true]));
 const profile = JSON.parse(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`, 'utf8'));
@@ -154,7 +153,6 @@ const result = {
     docHeightPx: geo.docH, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
   },
   frames,
-  zones: zoneSums(frames, profile.zoneHeightPx),
   runLevel,
 };
 mkdirSync(OUT, { recursive: true });

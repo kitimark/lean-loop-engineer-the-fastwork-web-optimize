@@ -18,12 +18,15 @@ pnpm --filter @fw/measure-chromium count -- --profile swipe-v1 --label a
 node src/host.mjs --profile swipe-v1 --label a                 # same thing without pnpm
 pnpm --filter @fw/measure-chromium determinism                 # two runs (det-a, det-b) and the comparison
 node src/compare.mjs out/swipe-v1/a/counts.json out/swipe-v1/b/counts.json [--show type1,type2]
-node --test test/pure.test.mjs                                 # unit tests of the two pure modules (no Docker)
+node src/classify.mjs out/swipe-v1/a/counts.json out/swipe-v1/b/counts.json [more] [--kMax 4] [--tMax 24]  # classes, from fwcore
+node --test test/pure.test.mjs test/fwcore.test.mjs           # extraction unit tests + fwcore golden conformance (no Docker)
 pnpm --filter @fw/measure-chromium build:image                 # or: docker build -t fw-measure-chromium:1 .
 ```
 
 The first run builds the image `fw-measure-chromium:1` (about 2 min; downloads the browser zip, verified by sha256).
-Output: `out/<profile>/<label>/counts.json` (gitignored). `--dump-trace` also keeps the raw trace (about 50 MB).
+Output: `out/<profile>/<label>/counts.json` (gitignored), then the host writes `zones.json` next to it from `fwcore`
+(`measure.zoneSums`; needs `cd lean && lake build`, exit code 3 if it is missing). `--dump-trace` also keeps the raw
+trace (about 50 MB).
 A run takes about 85 s of wall time (503 frames; 100 ms real-time grace per frame, see below). Wall time is printed to
 stderr only and never enters `counts.json`.
 
@@ -70,8 +73,10 @@ fling. A programmatic `scrollTo` also fires Chromium's hover recompute (see HitT
 ## Output schema `fw.counts/1`
 
 `counts.json`: `meta` (browser, image id, snapshot id, served-bytes hash, viewport, page height, start date), `frames`
-(array of `{n, phase, scrollY, vt, counts:{type:number}}`), `zones` (per 500 px zone: `frames`, `scrolledPx`, sums per
-type), `runLevel` (run totals of worker-thread tasks). Plain JSON, no wall-clock values, so equal runs are equal bytes.
+(array of `{n, phase, scrollY, vt, counts:{type:number}}`), `runLevel` (run totals of worker-thread tasks). Plain JSON,
+no wall-clock values, so equal runs are equal bytes. `zones.json` (`fw.zones/1`, written by the host from fwcore): per
+500 px zone `id`, `frames`, `scrolledPx`, `firstFrame`, `lastFrame`, sums per type (Lean `Fw.Measure.zoneSums`; the same
+values the former TS reducer stored under `zones`, checked on three 503-frame runs).
 
 Count types: `hasDamage`; `metric.*` (Performance.getMetrics deltas: LayoutCount, RecalcStyleCount, Nodes,
 LayoutObjects, JSEventListeners, Documents, Frames, Resources); `trace.*` (UpdateLayoutTree and `.elementCount`, Layout
@@ -103,10 +108,18 @@ per-run time origin; (2) timer phases shifted by the number of frames the browse
 Remaining sources: asynchronous image decode and iframe parsing finishing relative to frame boundaries (a 25 ms barrier
 left clusters of 35 PaintImage / 19 RasterTask moving one frame; 100 ms removed them in these runs), hover and GC.
 
-## Pure modules (to get a Lean spec and golden vectors)
+Classes are decided by fwcore (`measure.classify`, mode `frames`; Lean `Fw.Measure.Classes`): deterministic = no frame
+differs in any pair of runs; stable(k, t) = at most k frames differ and totals differ by at most t, with k <= kMax and
+t <= tMax; quarantined otherwise. On the three runs above with kMax 4, tMax 24 it gives 28 deterministic, 14 stable,
+8 quarantined; it differs from the hand table in three places: `UpdateLayoutTree.elementCount` is quarantined (38
+differing frames), `metric.Frames` and `metric.Resources` are stable (2 frames, equal totals). How each class may enter
+the screen (deterministic frame by frame, stable by totals with margin 2t, quarantined never) is proved in
+`Fw.Measure.Tolerance` (`measure.noMoreWork`).
 
-- `src/reduce.mjs` `zoneSums(frames, zoneHeightPx)`: per-zone sums. The ONLY reduction in the TS harness. Tests in
-  `test/pure.test.mjs`.
+## Pure modules
+
+- Zone sums and classes: Lean (`lean/Fw/Measure`), called through `src/fwcore.mjs`. Golden vectors in
+  `packages/contracts/golden/measure/`, conformance in `test/fwcore.test.mjs`. The TS `reduce.mjs` is deleted.
 - `src/trace.mjs` `traceToFrameCounts(events, nFrames)`: trace events to per-frame counts (bucketing rules above).
   Extraction, not decision logic.
 - `src/compare.mjs`: run-to-run equality report (a harness self-check, not a verdict). Per-100px normalisation,

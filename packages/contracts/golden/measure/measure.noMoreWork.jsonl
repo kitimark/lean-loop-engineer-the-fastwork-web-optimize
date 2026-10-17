@@ -1,0 +1,4 @@
+{"name":"deterministic frame by frame, stable with margin 2t, quarantined left out","request":{"op":"measure.noMoreWork","types":[{"base":[3,1],"class":{"class":"deterministic"},"var":[2,1]},{"base":[10,0],"class":{"class":"stable","k":2,"t":1},"var":[0,8]},{"base":[0],"class":{"class":"quarantined"},"var":[99]}]},"response":{"failing":[],"noMoreWork":true}}
+{"name":"stable inside the margin fails","request":{"op":"measure.noMoreWork","types":[{"base":[10,0],"class":{"class":"stable","k":2,"t":1},"var":[0,9]}]},"response":{"failing":[0],"noMoreWork":false}}
+{"name":"deterministic work moved a frame fails","request":{"op":"measure.noMoreWork","types":[{"base":[1,0],"class":{"class":"deterministic"},"var":[0,1]}]},"response":{"failing":[0],"noMoreWork":false}}
+{"name":"stable with k = 0 needs no margin","request":{"op":"measure.noMoreWork","types":[{"base":[3],"class":{"class":"stable","k":0,"t":5},"var":[3]}]},"response":{"failing":[],"noMoreWork":true}}

@@ -147,7 +147,11 @@ animation per step" is not what this build shows for N up to 100: one invalidati
 All reduction after raw rows is in `src/reduce.mjs` (pure, no I/O) and has unit tests (`test/reduce.test.mjs`); it
 needs a Lean spec and golden vectors, and none of it is a verdict, landing class or gate:
 `quadArea`, `flattenRecords`, `tally`, `markTimes`/`markTime`, `bucketBySteps`, `reduceSteps`, `zones`,
-`classify` (+ `TOL`), `symDiff`, `layerKey`, `summarize`. The existing `fwcore` ops (`ticks`, `screen`, `verdict`,
+`classify` (+ `TOL`), `symDiff`, `layerKey`, `summarize`. **Lean spec landed:** `lean/Fw/Measure/WebKit.lean` specifies `quadArea`, `tally`, the step join
+(`bucketBySteps`/`reduceSteps`), `zones`, `classify`, `symDiff` and `summarize` (fwcore ops `measure.webkit.*`,
+`measure.classify` mode `cells`, `measure.symDiff`, `measure.summarize`); `test/fwcore.test.mjs` checks every golden
+line in `packages/contracts/golden/measure/` against both fwcore and these TS functions. `flattenRecords`,
+`markTimes`/`markTime` and `layerKey` are extraction and stay unspecified. The existing `fwcore` ops (`ticks`, `screen`, `verdict`,
 `cost`) are not used: nothing here is a frame tick, a dominance screen, a verdict or a cost.
 Raw schemas are documented at the top of `reduce.mjs` (`fw.webkit.records/1`) and in `scrollrun.mjs`
 (`fw.webkit.scroll/1`), `seek.mjs` (`fw.webkit.seek/1`): per-step records as plain JSON, `[type, start, end, clip|mark]`.
