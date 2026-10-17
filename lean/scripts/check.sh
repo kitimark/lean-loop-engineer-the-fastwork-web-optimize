@@ -10,4 +10,6 @@ lake test
 lake exe mathview --lint
 LEAN_ABORT_ON_PANIC=1 .lake/build/bin/fwcore < golden/wire-requests.txt | diff - golden/wire-replies.txt
 echo "check: fwcore binary reproduces golden/wire-replies.txt"
+lake exe breakgen --check Fw/Site/breakpoints.gen.json
+lake exe breakgen --check ../apps/site/src/breakpoints.gen.json || echo "check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet"
 echo "check: all lean/ gates green"
