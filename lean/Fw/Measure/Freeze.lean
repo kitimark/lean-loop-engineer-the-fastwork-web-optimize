@@ -12,15 +12,21 @@ tables of at least three workflow runs that used one pinned container image:
 * a type missing from any run's table counts as `quarantined` in that run;
 * `k` and `t` are the maxima over the runs, `tBound` the smallest recorded bound;
 * fewer than 3 runs, a repeated run id, a run without an image digest, or two different image
-  digests are refused.
+  digests are refused;
+* a run without jobs, or jobs (of any runs) that recorded different numbers of frames, are refused;
+  the refusal names every job whose frame count is not the most frequent one (task freeze-refuse:
+  a 403-frame job among 409-frame jobs had moved 30 classes). Trajectory hashes are compared and
+  reported, not refused (touch input is not trajectory-deterministic).
 
 Proved: the worst class depends only on the set of tables (`worstOf_congr`), so it is
 order-independent (`worstOf_perm`) and idempotent (`worstOf_append_self`, `worstOf_replicate`,
 `worstOf_refreeze`); adding a run never improves a class (`worstOf_mono`, `worstOf_cons`); it is
 the least upper bound of the runs' classes (`le_worstOf`, `worstOf_attained`); a missing type is
 quarantined (`worstOf_missing`); on a single run it is the class `classifyU` gives
-(`worstOf_single_classify`); and `freeze` answers exactly when the run conditions hold
-(`freeze_ok_iff`).
+(`worstOf_single_classify`); `freeze` answers exactly when the run and job conditions hold
+(`freeze_ok_iff`), so accepted runs have one frame count (`freeze_frames`, `freeze_frames_differ`);
+and a frame refusal names at least one job, each with a frame count another job does not share
+(`freeze_eq_framesMsg`, `oddJobs_ne_nil`, `oddJobs_sound`).
 -/
 namespace Fw.Measure.Freeze
 open Fw.Measure
@@ -514,22 +520,36 @@ $$m = 3$$
 -/
 def minRuns : Nat := 3
 
-/-- One workflow run: its id, the image digest reported by each of its jobs, and its class table.
+/-- One job (one VM) of a workflow run: its artifact name, the number of frames it recorded, and the
+hash of its trajectory (the per-frame phase and scroll position; $\bot$ when the counts file names none).
 
-$$\mathrm{Run} = \Sigma^{*} \times (\Sigma^{*})^{*} \times \mathrm{Table}$$
+$$\mathrm{Job} = \Sigma^{*} \times \mathbb{N} \times (\Sigma^{*} \cup \{\bot\})$$
+-/
+structure Job where
+  name : String
+  frames : Nat
+  trajectory : Option String
+deriving Repr, DecidableEq
+
+/-- One workflow run: its id, the image digest reported by each of its jobs, its class table, and its
+jobs.
+
+$$\mathrm{Run} = \Sigma^{*} \times (\Sigma^{*})^{*} \times \mathrm{Table} \times \mathrm{Job}^{*}$$
 -/
 structure RunTable where
   id : String
   images : List String
   table : Table
+  jobs : List Job
 deriving Repr, DecidableEq
 
-/-- **The freeze.** Refuses fewer than $m$ runs, a repeated run id, a run without an image digest,
-and two different digests; otherwise the common digest and the frozen table.
+/-- **The freeze of the tables** (the run conditions without the jobs). Refuses fewer than $m$ runs, a
+repeated run id, a run without an image digest, and two different digests; otherwise the common
+digest and the frozen table.
 
-$$\operatorname{freeze}(\mathcal{W}) = \begin{cases} \text{refused} & |\mathcal{W}| < m \\ \text{refused} & |\mathcal{W}| \ge m,\ \text{the ids } [w.\mathrm{id}]_{w \in \mathcal{W}} \text{ repeat} \\ \text{refused} & \text{the above pass},\ \exists w \in \mathcal{W}:\ w.\mathrm{images} = [\,] \\ \text{refused} & \text{the above pass},\ \exists w, w' \in \mathcal{W}, x \in w.\mathrm{images}, x' \in w'.\mathrm{images}:\ x \ne x' \\ (d,\ \operatorname{frozen}([w.\mathrm{table}]_{w \in \mathcal{W}})) & \text{otherwise, } d \text{ the common digest} \end{cases}$$
+$$\operatorname{freezeTables}(\mathcal{W}) = \begin{cases} \text{refused} & |\mathcal{W}| < m \\ \text{refused} & |\mathcal{W}| \ge m,\ \text{the ids } [w.\mathrm{id}]_{w \in \mathcal{W}} \text{ repeat} \\ \text{refused} & \text{the above pass},\ \exists w \in \mathcal{W}:\ w.\mathrm{images} = [\,] \\ \text{refused} & \text{the above pass},\ \exists w, w' \in \mathcal{W}, x \in w.\mathrm{images}, x' \in w'.\mathrm{images}:\ x \ne x' \\ (d,\ \operatorname{frozen}([w.\mathrm{table}]_{w \in \mathcal{W}})) & \text{otherwise, } d \text{ the common digest} \end{cases}$$
 -/
-def freeze (runs : List RunTable) : Except String (String × List FRow) :=
+def freezeTables (runs : List RunTable) : Except String (String × List FRow) :=
   if runs.length < minRuns then
     .error s!"need at least {minRuns} workflow runs, got {runs.length}"
   else if !decide (runs.map (·.id)).Nodup then
@@ -542,25 +562,26 @@ def freeze (runs : List RunTable) : Except String (String × List FRow) :=
       if ds.all (· == d) then .ok (d, freezeCore (runs.map (·.table)))
       else .error "mixed image digests"
 
-#guard (freeze [⟨"1", ["x"], []⟩, ⟨"2", ["x"], []⟩]).toOption.isNone
-#guard (freeze [⟨"1", ["x"], []⟩, ⟨"1", ["x"], []⟩, ⟨"2", ["x"], []⟩]).toOption.isNone
-#guard (freeze [⟨"1", ["x"], []⟩, ⟨"2", [], []⟩, ⟨"3", ["x"], []⟩]).toOption.isNone
-#guard (freeze [⟨"1", ["x", "x"], []⟩, ⟨"2", ["x"], []⟩, ⟨"3", ["y"], []⟩]).toOption.isNone
-#guard (freeze [⟨"1", ["x", "x"], [("a", e .det 0 0)]⟩, ⟨"2", ["x"], [("a", e .stable 1 1)]⟩,
-    ⟨"3", ["x"], [("b", e .det 0 0)]⟩]).toOption ==
+#guard (freezeTables [⟨"1", ["x"], [], []⟩, ⟨"2", ["x"], [], []⟩]).toOption.isNone
+#guard (freezeTables [⟨"1", ["x"], [], []⟩, ⟨"1", ["x"], [], []⟩, ⟨"2", ["x"], [], []⟩]).toOption.isNone
+#guard (freezeTables [⟨"1", ["x"], [], []⟩, ⟨"2", [], [], []⟩, ⟨"3", ["x"], [], []⟩]).toOption.isNone
+#guard (freezeTables [⟨"1", ["x", "x"], [], []⟩, ⟨"2", ["x"], [], []⟩, ⟨"3", ["y"], [], []⟩]).toOption.isNone
+#guard (freezeTables [⟨"1", ["x", "x"], [("a", e .det 0 0)], []⟩, ⟨"2", ["x"], [("a", e .stable 1 1)], []⟩,
+    ⟨"3", ["x"], [("b", e .det 0 0)], []⟩]).toOption ==
   some ("x", [⟨"a", .quar, 1, 1, [some .det, some .stable, none], none⟩,
               ⟨"b", .quar, 0, 0, [none, none, some .det], none⟩])
 
-/-- **When the freeze answers.** It answers $(d, F)$ exactly when there are at least $m$ runs with
-distinct ids, every run reports at least one digest, every digest is $d$, and $F$ is the frozen table.
+/-- **When the freeze of the tables answers.** It answers $(d, F)$ exactly when there are at least $m$
+runs with distinct ids, every run reports at least one digest, every digest is $d$, and $F$ is the
+frozen table.
 
-$$\forall \mathcal{W}, d, F:\ \operatorname{freeze}(\mathcal{W}) = (d, F) \iff |\mathcal{W}| \ge m \land [w.\mathrm{id}]_{w \in \mathcal{W}} \text{ has no repeats} \land (\forall w \in \mathcal{W}:\ w.\mathrm{images} \ne [\,]) \land (\forall w \in \mathcal{W}, x \in w.\mathrm{images}:\ x = d) \land F = \operatorname{frozen}([w.\mathrm{table}]_{w \in \mathcal{W}})$$
+$$\forall \mathcal{W}, d, F:\ \operatorname{freezeTables}(\mathcal{W}) = (d, F) \iff |\mathcal{W}| \ge m \land [w.\mathrm{id}]_{w \in \mathcal{W}} \text{ has no repeats} \land (\forall w \in \mathcal{W}:\ w.\mathrm{images} \ne [\,]) \land (\forall w \in \mathcal{W}, x \in w.\mathrm{images}:\ x = d) \land F = \operatorname{frozen}([w.\mathrm{table}]_{w \in \mathcal{W}})$$
 -/
-theorem freeze_ok_iff (ws : List RunTable) (d : String) (fr : List FRow) :
-    freeze ws = .ok (d, fr) ↔
+theorem freezeTables_ok_iff (ws : List RunTable) (d : String) (fr : List FRow) :
+    freezeTables ws = .ok (d, fr) ↔
       minRuns ≤ ws.length ∧ (ws.map (·.id)).Nodup ∧ (∀ w ∈ ws, w.images ≠ []) ∧
       (∀ w ∈ ws, ∀ x ∈ w.images, x = d) ∧ fr = freezeCore (ws.map (·.table)) := by
-  unfold freeze
+  unfold freezeTables
   by_cases hl : ws.length < minRuns
   · simp only [hl, ite_true]
     constructor
@@ -630,6 +651,377 @@ theorem freeze_ok_iff (ws : List RunTable) (d : String) (fr : List FRow) :
     constructor
     · intro h; cases h
     · rintro ⟨_, h, _⟩; exact h.elim
+
+/-! ## Jobs: one frame count for all, the jobs that differ named -/
+
+/-- Whether all items of a list are equal (true for the empty list).
+
+$$\forall l, a:\quad \operatorname{allSame}([\,]) = \top,\qquad \operatorname{allSame}(a :: l) = (\forall b \in l:\ b = a)$$
+-/
+def allSame {α : Type} [DecidableEq α] : List α → Bool
+  | [] => true
+  | a :: l => l.all fun b => decide (b = a)
+
+#guard allSame ([] : List Nat) && allSame [409, 409, 409] && !allSame [409, 409, 403]
+
+/-- `allSame` holds exactly when any two items are equal.
+
+$$\forall l:\ \operatorname{allSame}(l) \iff \forall a, b \in l:\ a = b$$
+-/
+theorem allSame_iff {α : Type} [DecidableEq α] (l : List α) :
+    allSame l = true ↔ ∀ a ∈ l, ∀ b ∈ l, a = b := by
+  cases l with
+  | nil => simp [allSame]
+  | cons a l =>
+    simp only [allSame, List.all_eq_true, decide_eq_true_eq, List.mem_cons]
+    constructor
+    · intro h x hx y hy
+      have hx' : x = a := by
+        rcases hx with hx | hx
+        · exact hx
+        · exact h x hx
+      have hy' : y = a := by
+        rcases hy with hy | hy
+        · exact hy
+        · exact h y hy
+      rw [hx', hy']
+    · intro h b hb; exact h b (Or.inr hb) a (Or.inl rfl)
+
+/-- The frame counts of the jobs of a list of runs, in run order.
+
+$$\forall n, w_1, \dots, w_n:\quad \operatorname{frames}([w_1, \dots, w_n]) = [j.\mathrm{frames}]_{j \in w_1.\mathrm{jobs}} \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} [j.\mathrm{frames}]_{j \in w_n.\mathrm{jobs}}$$
+-/
+def framesOf (ws : List RunTable) : List Nat := ws.flatMap fun w => w.jobs.map (·.frames)
+
+/-- The jobs of a list of runs in run order, each with its run's id.
+
+$$\forall n, w_1, \dots, w_n:\quad \operatorname{jobs}([w_1, \dots, w_n]) = [(w_1.\mathrm{id}, j)]_{j \in w_1.\mathrm{jobs}} \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} [(w_n.\mathrm{id}, j)]_{j \in w_n.\mathrm{jobs}}$$
+-/
+def jobsOf (ws : List RunTable) : List (String × Job) := ws.flatMap fun w => w.jobs.map (w.id, ·)
+
+/-- The most frequent item of a list of frame counts: the first item whose number of occurrences is
+largest; 0 for the empty list.
+
+$$\forall l:\quad \operatorname{mode}(l) = \begin{cases} 0 & l = [\,] \\ l_i,\ i \text{ the least index with } |[\,y \in l \mid y = l_i\,]| = \max_{x \in l} |[\,y \in l \mid y = x\,]| & l \ne [\,] \end{cases}$$
+-/
+def modeOf (l : List Nat) : Nat := l.foldl (fun m x => if l.count m < l.count x then x else m) (l.headD 0)
+
+#guard modeOf [] == 0 && modeOf [409, 409, 403, 409] == 409 && modeOf [403, 409, 409] == 409 &&
+  modeOf [403, 409] == 403
+
+/-- The jobs the frame refusal names: those whose frame count is not the most frequent one, in run
+order.
+
+$$\forall \mathcal{W}:\quad \operatorname{odd}(\mathcal{W}) = [\,(i, j) \in \operatorname{jobs}(\mathcal{W}) \mid j.\mathrm{frames} \ne \operatorname{mode}(\operatorname{frames}(\mathcal{W}))\,]$$
+-/
+def oddJobs (ws : List RunTable) : List (String × Job) :=
+  let m := modeOf (framesOf ws)
+  (jobsOf ws).filter fun p => decide (p.2.frames ≠ m)
+
+/-- The text of the frame refusal: each job of `oddJobs` with its run and frame count, then how many of
+all jobs have the most frequent count.
+
+$$\forall \mathcal{W}:\quad \operatorname{msg}(\mathcal{W}) = \text{“frame counts differ between jobs: ”} \cdot \big(\text{“job } j.\mathrm{name} \text{ of workflow run } i \text{ has } j.\mathrm{frames} \text{ frames”}\big)_{(i, j) \in \operatorname{odd}(\mathcal{W})} \cdot \text{“; } c \text{ of } |\operatorname{frames}(\mathcal{W})| \text{ jobs have } \mu \text{ frames”}$$
+$$\text{with } \mu = \operatorname{mode}(\operatorname{frames}(\mathcal{W})),\ c = |[\,x \in \operatorname{frames}(\mathcal{W}) \mid x = \mu\,]|, \text{ the job texts joined by “; ”}$$
+-/
+def framesMsg (ws : List RunTable) : String :=
+  let fs := framesOf ws
+  let m := modeOf fs
+  let odd := (oddJobs ws).map fun (i, j) => s!"job {j.name} of workflow run {i} has {j.frames} frames"
+  s!"frame counts differ between jobs: {"; ".intercalate odd}; {fs.count m} of {fs.length} jobs have {m} frames"
+
+/-- **The frame refusal.** A run without jobs is refused (naming the first such run); otherwise jobs
+whose frame counts are not all equal are refused, naming the jobs that differ from the most frequent
+count; otherwise nothing is refused.
+
+$$\forall \mathcal{W}:\quad \operatorname{refuseFrames}(\mathcal{W}) = \begin{cases} \text{“workflow run } w.\mathrm{id} \text{ reports no job”} & w \text{ the first run of } \mathcal{W} \text{ with } w.\mathrm{jobs} = [\,] \\ \operatorname{msg}(\mathcal{W}) & \text{no such run},\ \neg\operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \\ \bot & \text{no such run},\ \operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \end{cases}$$
+-/
+def framesRefusal (ws : List RunTable) : Option String :=
+  match ws.find? (·.jobs.isEmpty) with
+  | some w => some s!"workflow run {w.id} reports no job"
+  | none => if allSame (framesOf ws) then none else some (framesMsg ws)
+
+/-- **The trajectories agree**: every job of every run has the same trajectory hash (reported, not
+refused: touch input is not trajectory-deterministic).
+
+$$\forall \mathcal{W}:\quad \operatorname{sameTraj}(\mathcal{W}) = \operatorname{allSame}([j.\mathrm{trajectory}]_{w \in \mathcal{W},\ j \in w.\mathrm{jobs}})$$
+-/
+def trajectoriesEqual (ws : List RunTable) : Bool :=
+  allSame (ws.flatMap fun w => w.jobs.map (·.trajectory))
+
+/-- The common frame count reported with an accepted freeze: the first job's (0 without jobs).
+
+$$\forall \mathcal{W}:\quad \operatorname{framesCommon}(\mathcal{W}) = \begin{cases} x & \operatorname{frames}(\mathcal{W}) = x :: l \\ 0 & \operatorname{frames}(\mathcal{W}) = [\,] \end{cases}$$
+-/
+def framesCommon (ws : List RunTable) : Nat := (framesOf ws).headD 0
+
+/-- A job for the examples below. -/
+private def jb (n : String) (f : Nat) (t : String := "t") : Job := ⟨n, f, some t⟩
+
+#guard framesRefusal [⟨"1", ["x"], [], [jb "r1" 409]⟩, ⟨"2", ["x"], [], []⟩] ==
+  some "workflow run 2 reports no job"
+#guard framesRefusal [⟨"1", ["x"], [], [jb "r1" 409, jb "r2" 409]⟩, ⟨"2", ["x"], [], [jb "r1" 409, jb "r2" 409]⟩] ==
+  none
+#guard framesRefusal [⟨"1", ["x"], [], [jb "r1" 409, jb "r2" 409]⟩, ⟨"2", ["x"], [], [jb "r1" 409, jb "r2" 403]⟩] ==
+  some "frame counts differ between jobs: job r2 of workflow run 2 has 403 frames; 3 of 4 jobs have 409 frames"
+#guard framesRefusal [⟨"1", ["x"], [], [jb "r1" 403, jb "r2" 409, jb "r3" 409]⟩] ==
+  some "frame counts differ between jobs: job r1 of workflow run 1 has 403 frames; 2 of 3 jobs have 409 frames"
+#guard framesRefusal [] == none
+#guard trajectoriesEqual [⟨"1", [], [], [jb "r1" 1 "a", jb "r2" 1 "a"]⟩] &&
+  !trajectoriesEqual [⟨"1", [], [], [jb "r1" 1 "a"]⟩, ⟨"2", [], [], [jb "r1" 1 "b"]⟩] &&
+  !trajectoriesEqual [⟨"1", [], [], [jb "r1" 1 "a", ⟨"r2", 1, none⟩]⟩]
+#guard framesCommon [⟨"1", [], [], [jb "r1" 409]⟩] == 409 && framesCommon [] == 0
+
+/-- The frame counts are those of the jobs.
+
+$$\forall \mathcal{W}, x:\ x \in \operatorname{frames}(\mathcal{W}) \iff \exists w \in \mathcal{W}, j \in w.\mathrm{jobs}:\ j.\mathrm{frames} = x$$
+-/
+theorem mem_framesOf (ws : List RunTable) (x : Nat) :
+    x ∈ framesOf ws ↔ ∃ w ∈ ws, ∃ j ∈ w.jobs, j.frames = x := by
+  simp [framesOf, List.mem_flatMap, List.mem_map]
+
+/-- The listed jobs are the jobs, each with its run's id.
+
+$$\forall \mathcal{W}, i, j:\ (i, j) \in \operatorname{jobs}(\mathcal{W}) \iff \exists w \in \mathcal{W}:\ w.\mathrm{id} = i \land j \in w.\mathrm{jobs}$$
+-/
+theorem mem_jobsOf (ws : List RunTable) (i : String) (j : Job) :
+    (i, j) ∈ jobsOf ws ↔ ∃ w ∈ ws, w.id = i ∧ j ∈ w.jobs := by
+  simp only [jobsOf, List.mem_flatMap, List.mem_map, Prod.mk.injEq]
+  constructor
+  · rintro ⟨w, hw, a, ha, rfl, rfl⟩; exact ⟨w, hw, rfl, ha⟩
+  · rintro ⟨w, hw, rfl, hj⟩; exact ⟨w, hw, j, hj, rfl, rfl⟩
+
+/-- A left fold whose step returns its accumulator or its item stays in a list that holds the start
+value and every item.
+
+$$\forall l, f, s, m:\ (\forall a, x:\ f(a, x) \in \{x, a\}) \land m \in l \land (\forall x \in s:\ x \in l) \;\Rightarrow\; \operatorname{foldl}(f, m, s) \in l$$
+-/
+theorem foldl_pick_mem (l : List Nat) (f : Nat → Nat → Nat) (hf : ∀ a x, f a x = x ∨ f a x = a) :
+    ∀ (s : List Nat) (m : Nat), m ∈ l → (∀ x ∈ s, x ∈ l) → s.foldl f m ∈ l := by
+  intro s
+  induction s with
+  | nil => intro m hm _; exact hm
+  | cons x s ih =>
+    intro m hm hs
+    simp only [List.foldl_cons]
+    apply ih
+    · rcases hf m x with h | h <;> rw [h]
+      · exact hs x (List.mem_cons_self ..)
+      · exact hm
+    · intro y hy; exact hs y (List.mem_cons_of_mem _ hy)
+
+/-- The most frequent item of a non-empty list is one of its items.
+
+$$\forall l:\ l \ne [\,] \;\Rightarrow\; \operatorname{mode}(l) \in l$$
+-/
+theorem modeOf_mem {l : List Nat} (h : l ≠ []) : modeOf l ∈ l := by
+  unfold modeOf
+  apply foldl_pick_mem l _ (fun m x => by by_cases hc : l.count m < l.count x <;> simp [hc]) l
+  · cases l with
+    | nil => exact absurd rfl h
+    | cons a t => exact List.mem_cons_self ..
+  · exact fun _ hx => hx
+
+/-- **Every named job differs.** Each job the frame refusal names belongs to a run of the list, and some
+job of the list has another frame count.
+
+$$\forall \mathcal{W}, i, j:\ (i, j) \in \operatorname{odd}(\mathcal{W}) \;\Rightarrow\; (\exists w \in \mathcal{W}:\ w.\mathrm{id} = i \land j \in w.\mathrm{jobs}) \land \exists w' \in \mathcal{W}, j' \in w'.\mathrm{jobs}:\ j'.\mathrm{frames} \ne j.\mathrm{frames}$$
+-/
+theorem oddJobs_sound {ws : List RunTable} {i : String} {j : Job} (h : (i, j) ∈ oddJobs ws) :
+    (∃ w ∈ ws, w.id = i ∧ j ∈ w.jobs) ∧ ∃ w' ∈ ws, ∃ j' ∈ w'.jobs, j'.frames ≠ j.frames := by
+  simp only [oddJobs, List.mem_filter, decide_eq_true_eq] at h
+  obtain ⟨hm, hne⟩ := h
+  refine ⟨(mem_jobsOf ws i j).1 hm, ?_⟩
+  obtain ⟨w, hw, _, hj⟩ := (mem_jobsOf ws i j).1 hm
+  have hl : framesOf ws ≠ [] := List.ne_nil_of_mem ((mem_framesOf ws j.frames).2 ⟨w, hw, j, hj, rfl⟩)
+  obtain ⟨w', hw', j', hj', he⟩ := (mem_framesOf ws _).1 (modeOf_mem hl)
+  exact ⟨w', hw', j', hj', by rw [he]; exact fun h' => hne h'.symm⟩
+
+/-- **A frame mismatch names a job.** When the frame counts are not all equal, the frame refusal names
+at least one job.
+
+$$\forall \mathcal{W}:\ \neg\operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \;\Rightarrow\; \operatorname{odd}(\mathcal{W}) \ne [\,]$$
+-/
+theorem oddJobs_ne_nil {ws : List RunTable} (h : allSame (framesOf ws) = false) : oddJobs ws ≠ [] := by
+  have hn : ¬ ∀ a ∈ framesOf ws, ∀ b ∈ framesOf ws, a = b := by
+    rw [← allSame_iff]; simp [h]
+  have : ∃ x ∈ framesOf ws, x ≠ modeOf (framesOf ws) := by
+    apply Classical.byContradiction
+    intro hc
+    apply hn
+    intro a ha b hb
+    have ha' : a = modeOf (framesOf ws) := Classical.byContradiction fun hx => hc ⟨a, ha, hx⟩
+    have hb' : b = modeOf (framesOf ws) := Classical.byContradiction fun hx => hc ⟨b, hb, hx⟩
+    rw [ha', hb']
+  obtain ⟨x, hx, hxm⟩ := this
+  obtain ⟨w, hw, j, hj, rfl⟩ := (mem_framesOf ws x).1 hx
+  apply List.ne_nil_of_mem (a := (w.id, j))
+  simp only [oddJobs, List.mem_filter, decide_eq_true_eq]
+  exact ⟨(mem_jobsOf ws w.id j).2 ⟨w, hw, rfl, hj⟩, hxm⟩
+
+/-- **When the frame refusal is silent**: exactly when every run has a job and any two jobs (of any
+two runs) recorded the same number of frames.
+
+$$\forall \mathcal{W}:\ \operatorname{refuseFrames}(\mathcal{W}) = \bot \iff (\forall w \in \mathcal{W}:\ w.\mathrm{jobs} \ne [\,]) \land \forall w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{frames} = j'.\mathrm{frames}$$
+-/
+theorem framesRefusal_eq_none_iff (ws : List RunTable) : framesRefusal ws = none ↔
+    (∀ w ∈ ws, w.jobs ≠ []) ∧ ∀ w ∈ ws, ∀ w' ∈ ws, ∀ j ∈ w.jobs, ∀ j' ∈ w'.jobs, j.frames = j'.frames := by
+  have key : allSame (framesOf ws) = true ↔
+      ∀ w ∈ ws, ∀ w' ∈ ws, ∀ j ∈ w.jobs, ∀ j' ∈ w'.jobs, j.frames = j'.frames := by
+    rw [allSame_iff]
+    constructor
+    · intro h w hw w' hw' j hj j' hj'
+      exact h _ ((mem_framesOf ws _).2 ⟨w, hw, j, hj, rfl⟩) _ ((mem_framesOf ws _).2 ⟨w', hw', j', hj', rfl⟩)
+    · intro h a ha b hb
+      obtain ⟨w, hw, j, hj, rfl⟩ := (mem_framesOf ws a).1 ha
+      obtain ⟨w', hw', j', hj', rfl⟩ := (mem_framesOf ws b).1 hb
+      exact h w hw w' hw' j hj j' hj'
+  unfold framesRefusal
+  split
+  · rename_i w hw
+    simp only [reduceCtorEq, false_iff, not_and]
+    intro hne
+    have he : w.jobs.isEmpty = true := List.find?_some (p := fun x : RunTable => x.jobs.isEmpty) hw
+    exact absurd (List.isEmpty_iff.mp he) (hne w (List.mem_of_find?_eq_some hw))
+  · rename_i hn
+    have hne : ∀ w ∈ ws, w.jobs ≠ [] := fun w hw h0 => by
+      have := List.find?_eq_none.mp hn w hw
+      simp [h0] at this
+    by_cases hs : allSame (framesOf ws) = true
+    · simp only [hs, ite_true, true_iff]
+      exact ⟨hne, key.1 hs⟩
+    · simp only [hs, Bool.false_eq_true, ite_false, reduceCtorEq, false_iff, not_and]
+      intro _ h
+      exact hs (key.2 h)
+
+/-- **The frame refusal is the message naming the odd jobs** when every run has a job and the frame
+counts are not all equal (at least one job is named: `oddJobs_ne_nil`).
+
+$$\forall \mathcal{W}:\ (\forall w \in \mathcal{W}:\ w.\mathrm{jobs} \ne [\,]) \land \neg\operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \;\Rightarrow\; \operatorname{refuseFrames}(\mathcal{W}) = \operatorname{msg}(\mathcal{W})$$
+-/
+theorem framesRefusal_eq_msg {ws : List RunTable} (hj : ∀ w ∈ ws, w.jobs ≠ [])
+    (h : allSame (framesOf ws) = false) : framesRefusal ws = some (framesMsg ws) := by
+  have hn : ws.find? (·.jobs.isEmpty) = none := List.find?_eq_none.mpr fun w hw he =>
+    hj w hw (List.isEmpty_iff.mp he)
+  simp [framesRefusal, hn, h]
+
+/-- The trajectories agree exactly when any two jobs (of any two runs) have the same trajectory hash.
+
+$$\forall \mathcal{W}:\ \operatorname{sameTraj}(\mathcal{W}) \iff \forall w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{trajectory} = j'.\mathrm{trajectory}$$
+-/
+theorem trajectoriesEqual_iff (ws : List RunTable) : trajectoriesEqual ws = true ↔
+    ∀ w ∈ ws, ∀ w' ∈ ws, ∀ j ∈ w.jobs, ∀ j' ∈ w'.jobs, j.trajectory = j'.trajectory := by
+  unfold trajectoriesEqual
+  rw [allSame_iff]
+  simp only [List.mem_flatMap, List.mem_map]
+  constructor
+  · intro h w hw w' hw' j hj j' hj'
+    exact h _ ⟨w, hw, j, hj, rfl⟩ _ ⟨w', hw', j', hj', rfl⟩
+  · rintro h a ⟨w, hw, j, hj, rfl⟩ b ⟨w', hw', j', hj', rfl⟩
+    exact h w hw w' hw' j hj j' hj'
+
+/-! ## The freeze -/
+
+/-- **The freeze.** The freeze of the tables, refused also when a run has no job or the jobs' frame
+counts differ (that refusal names the jobs that differ).
+
+$$\forall \mathcal{W}:\quad \operatorname{freeze}(\mathcal{W}) = \begin{cases} \text{refused with } e & \operatorname{freezeTables}(\mathcal{W}) \text{ refuses with } e \\ \text{refused with } e & \operatorname{freezeTables}(\mathcal{W}) = (d, F),\ \operatorname{refuseFrames}(\mathcal{W}) = e \\ (d, F) & \operatorname{freezeTables}(\mathcal{W}) = (d, F),\ \operatorname{refuseFrames}(\mathcal{W}) = \bot \end{cases}$$
+-/
+def freeze (runs : List RunTable) : Except String (String × List FRow) :=
+  match freezeTables runs with
+  | .error e => .error e
+  | .ok r => match framesRefusal runs with
+    | some e => .error e
+    | none => .ok r
+
+#guard (freeze [⟨"1", ["x"], [], [jb "r1" 409]⟩, ⟨"2", ["x"], [], [jb "r1" 409]⟩]).toOption.isNone
+#guard (freeze [⟨"1", ["x"], [], [jb "r1" 409]⟩, ⟨"2", ["x"], [], [jb "r1" 409]⟩,
+    ⟨"3", ["x"], [], [jb "r1" 409]⟩]).toOption == some ("x", [])
+#guard (freeze [⟨"1", ["x"], [], [jb "r1" 409]⟩, ⟨"2", ["x"], [], [jb "r1" 409]⟩,
+    ⟨"3", ["x"], [], []⟩]) matches .error "workflow run 3 reports no job"
+#guard (freeze [⟨"1", ["x"], [], [jb "r1" 409, jb "r2" 409]⟩, ⟨"2", ["x"], [], [jb "r1" 409, jb "r2" 403]⟩,
+    ⟨"3", ["x"], [], [jb "r1" 409, jb "r2" 409]⟩]) matches
+  .error "frame counts differ between jobs: job r2 of workflow run 2 has 403 frames; 5 of 6 jobs have 409 frames"
+#guard (freeze [⟨"1", ["x"], [], [jb "r1" 409 "a"]⟩, ⟨"2", ["x"], [], [jb "r1" 409 "b"]⟩,
+    ⟨"3", ["x"], [], [jb "r1" 409]⟩]).toOption == some ("x", [])
+#guard (freeze [⟨"1", ["x"], [], [jb "r1" 409]⟩, ⟨"2", ["y"], [], [jb "r1" 403]⟩,
+    ⟨"3", ["x"], [], [jb "r1" 409]⟩]) matches .error "mixed image digests"
+
+/-- **When the freeze answers.** It answers $(d, F)$ exactly when there are at least $m$ runs with
+distinct ids, every run reports at least one digest, every digest is $d$, every run has a job, any two
+jobs recorded the same number of frames, and $F$ is the frozen table.
+
+$$\forall \mathcal{W}, d, F:\ \operatorname{freeze}(\mathcal{W}) = (d, F) \iff |\mathcal{W}| \ge m \land [w.\mathrm{id}]_{w \in \mathcal{W}} \text{ has no repeats} \land (\forall w \in \mathcal{W}:\ w.\mathrm{images} \ne [\,]) \land (\forall w \in \mathcal{W}, x \in w.\mathrm{images}:\ x = d) \land (\forall w \in \mathcal{W}:\ w.\mathrm{jobs} \ne [\,]) \land (\forall w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{frames} = j'.\mathrm{frames}) \land F = \operatorname{frozen}([w.\mathrm{table}]_{w \in \mathcal{W}})$$
+-/
+theorem freeze_ok_iff (ws : List RunTable) (d : String) (fr : List FRow) :
+    freeze ws = .ok (d, fr) ↔
+      minRuns ≤ ws.length ∧ (ws.map (·.id)).Nodup ∧ (∀ w ∈ ws, w.images ≠ []) ∧
+      (∀ w ∈ ws, ∀ x ∈ w.images, x = d) ∧ (∀ w ∈ ws, w.jobs ≠ []) ∧
+      (∀ w ∈ ws, ∀ w' ∈ ws, ∀ j ∈ w.jobs, ∀ j' ∈ w'.jobs, j.frames = j'.frames) ∧
+      fr = freezeCore (ws.map (·.table)) := by
+  have hT := freezeTables_ok_iff ws d fr
+  have hF := framesRefusal_eq_none_iff ws
+  unfold freeze
+  cases h1 : freezeTables ws with
+  | error e =>
+    simp only [reduceCtorEq, false_iff]
+    rintro ⟨a, b, c, dd, _, _, f⟩
+    have := hT.2 ⟨a, b, c, dd, f⟩
+    rw [h1] at this; cases this
+  | ok r =>
+    rw [h1] at hT
+    cases h2 : framesRefusal ws with
+    | some e =>
+      simp only [reduceCtorEq, false_iff]
+      rintro ⟨_, _, _, _, hj, hf, _⟩
+      rw [hF.2 ⟨hj, hf⟩] at h2; cases h2
+    | none =>
+      obtain ⟨hj, hf⟩ := hF.1 h2
+      simp only
+      constructor
+      · intro h; obtain ⟨a, b, c, dd, f⟩ := hT.1 h; exact ⟨a, b, c, dd, hj, hf, f⟩
+      · rintro ⟨a, b, c, dd, _, _, f⟩; exact hT.2 ⟨a, b, c, dd, f⟩
+
+/-- **Accepted runs have one frame count**: when the freeze answers, any two jobs of any two runs
+recorded the same number of frames, and every job recorded the reported common count.
+
+$$\forall \mathcal{W}, d, F:\ \operatorname{freeze}(\mathcal{W}) = (d, F) \;\Rightarrow\; (\forall w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{frames} = j'.\mathrm{frames}) \land \forall w \in \mathcal{W}, j \in w.\mathrm{jobs}:\ j.\mathrm{frames} = \operatorname{framesCommon}(\mathcal{W})$$
+-/
+theorem freeze_frames {ws : List RunTable} {d : String} {fr : List FRow} (h : freeze ws = .ok (d, fr)) :
+    (∀ w ∈ ws, ∀ w' ∈ ws, ∀ j ∈ w.jobs, ∀ j' ∈ w'.jobs, j.frames = j'.frames) ∧
+    ∀ w ∈ ws, ∀ j ∈ w.jobs, j.frames = framesCommon ws := by
+  obtain ⟨_, _, _, _, _, hf, _⟩ := (freeze_ok_iff ws d fr).1 h
+  refine ⟨hf, fun w hw j hj => ?_⟩
+  unfold framesCommon
+  cases hl : framesOf ws with
+  | nil =>
+    have := (mem_framesOf ws j.frames).2 ⟨w, hw, j, hj, rfl⟩
+    rw [hl] at this; cases this
+  | cons x l =>
+    have hx : x ∈ framesOf ws := by rw [hl]; exact List.mem_cons_self ..
+    obtain ⟨w', hw', j', hj', rfl⟩ := (mem_framesOf ws x).1 hx
+    exact hf w hw w' hw' j hj j' hj'
+
+/-- **A job with another frame count is refused** (the case of a 403-frame job among 409-frame jobs).
+
+$$\forall \mathcal{W}:\ (\exists w, w' \in \mathcal{W}, j \in w.\mathrm{jobs}, j' \in w'.\mathrm{jobs}:\ j.\mathrm{frames} \ne j'.\mathrm{frames}) \;\Rightarrow\; \forall d, F:\ \operatorname{freeze}(\mathcal{W}) \ne (d, F)$$
+-/
+theorem freeze_frames_differ {ws : List RunTable}
+    (h : ∃ w ∈ ws, ∃ w' ∈ ws, ∃ j ∈ w.jobs, ∃ j' ∈ w'.jobs, j.frames ≠ j'.frames) (d : String) (fr : List FRow) :
+    freeze ws ≠ .ok (d, fr) := by
+  intro hf
+  obtain ⟨w, hw, w', hw', j, hj, j', hj', hne⟩ := h
+  exact hne ((freeze_frames hf).1 w hw w' hw' j hj j' hj')
+
+/-- **The frame refusal reaches the caller**: when the tables freeze, every run has a job and the frame
+counts are not all equal, the freeze answers with the message naming the odd jobs.
+
+$$\forall \mathcal{W}, d, F:\ \operatorname{freezeTables}(\mathcal{W}) = (d, F) \land (\forall w \in \mathcal{W}:\ w.\mathrm{jobs} \ne [\,]) \land \neg\operatorname{allSame}(\operatorname{frames}(\mathcal{W})) \;\Rightarrow\; \operatorname{freeze}(\mathcal{W}) = \text{refused with } \operatorname{msg}(\mathcal{W})$$
+-/
+theorem freeze_eq_framesMsg {ws : List RunTable} {d : String} {fr : List FRow}
+    (ht : freezeTables ws = .ok (d, fr)) (hj : ∀ w ∈ ws, w.jobs ≠ [])
+    (h : allSame (framesOf ws) = false) : freeze ws = .error (framesMsg ws) := by
+  simp [freeze, ht, framesRefusal_eq_msg hj h]
 
 /-- **Fewer than three runs are refused.**
 

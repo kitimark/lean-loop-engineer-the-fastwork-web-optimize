@@ -1,0 +1,482 @@
+{
+ "cells": [
+  {
+   "id": "hover-pointer-cross-1024x768-none-fine",
+   "kind": "cross",
+   "lean": "unreachable:primary-pair",
+   "requested": {
+    "hover": "none",
+    "pointer": "fine"
+   },
+   "records": [
+    {
+     "key": "load-0",
+     "device": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    },
+    {
+     "key": "load-1",
+     "device": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    }
+   ],
+   "realizedOnPhone": false,
+   "agree": true,
+   "why": []
+  },
+  {
+   "id": "hover-pointer-cross-1024x768-hover-coarse",
+   "kind": "cross",
+   "lean": "unreachable:primary-pair",
+   "requested": {
+    "hover": "hover",
+    "pointer": "coarse"
+   },
+   "records": [
+    {
+     "key": "load-0",
+     "device": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    },
+    {
+     "key": "load-1",
+     "device": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    }
+   ],
+   "realizedOnPhone": false,
+   "agree": true,
+   "why": []
+  },
+  {
+   "id": "hover-pointer-cross-1200x900-none-fine",
+   "kind": "cross",
+   "lean": "unreachable:primary-pair",
+   "requested": {
+    "hover": "none",
+    "pointer": "fine"
+   },
+   "records": [
+    {
+     "key": "load-0",
+     "device": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    },
+    {
+     "key": "load-1",
+     "device": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    }
+   ],
+   "realizedOnPhone": false,
+   "agree": true,
+   "why": []
+  },
+  {
+   "id": "hover-pointer-cross-1200x900-hover-coarse",
+   "kind": "cross",
+   "lean": "unreachable:primary-pair",
+   "requested": {
+    "hover": "hover",
+    "pointer": "coarse"
+   },
+   "records": [
+    {
+     "key": "load-0",
+     "device": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    },
+    {
+     "key": "load-1",
+     "device": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 430,
+      "vvWidth": 430,
+      "innerWidth": 430,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    }
+   ],
+   "realizedOnPhone": false,
+   "agree": true,
+   "why": []
+  },
+  {
+   "id": "fractional-gaps-600.5",
+   "kind": "fractional",
+   "lean": "unreachable:whole-width",
+   "requested": {
+    "width": 600.5
+   },
+   "records": [
+    {
+     "key": "vp-width-600.5",
+     "device": {
+      "mediaWidth": 601,
+      "vvWidth": 601,
+      "innerWidth": 601,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 601,
+      "vvWidth": 601,
+      "innerWidth": 601,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    },
+    {
+     "key": "aim-600.5",
+     "device": {
+      "mediaWidth": 601,
+      "vvWidth": 601,
+      "innerWidth": 601,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 601,
+      "vvWidth": 601,
+      "innerWidth": 601,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    }
+   ],
+   "realizedOnPhone": false,
+   "agree": true,
+   "why": []
+  },
+  {
+   "id": "fractional-gaps-640.5",
+   "kind": "fractional",
+   "lean": "unreachable:whole-width",
+   "requested": {
+    "width": 640.5
+   },
+   "records": [
+    {
+     "key": "vp-width-640.5",
+     "device": {
+      "mediaWidth": 641,
+      "vvWidth": 641,
+      "innerWidth": 641,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 641,
+      "vvWidth": 641,
+      "innerWidth": 641,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    },
+    {
+     "key": "aim-640.5",
+     "device": {
+      "mediaWidth": 641,
+      "vvWidth": 641,
+      "innerWidth": 641,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 641,
+      "vvWidth": 641,
+      "innerWidth": 641,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    }
+   ],
+   "realizedOnPhone": false,
+   "agree": true,
+   "why": []
+  },
+  {
+   "id": "fractional-gaps-860.5",
+   "kind": "fractional",
+   "lean": "unreachable:whole-width",
+   "requested": {
+    "width": 860.5
+   },
+   "records": [
+    {
+     "key": "vp-width-860.5",
+     "device": {
+      "mediaWidth": 861,
+      "vvWidth": 861,
+      "innerWidth": 861,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 861,
+      "vvWidth": 861,
+      "innerWidth": 861,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    },
+    {
+     "key": "aim-860.5",
+     "device": {
+      "mediaWidth": 861,
+      "vvWidth": 861,
+      "innerWidth": 861,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 861,
+      "vvWidth": 861,
+      "innerWidth": 861,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    }
+   ],
+   "realizedOnPhone": false,
+   "agree": true,
+   "why": []
+  },
+  {
+   "id": "fractional-gaps-1000.5",
+   "kind": "fractional",
+   "lean": "unreachable:whole-width",
+   "requested": {
+    "width": 1000.5
+   },
+   "records": [
+    {
+     "key": "vp-width-1000.5",
+     "device": {
+      "mediaWidth": 1001,
+      "vvWidth": 1001,
+      "innerWidth": 1001,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 1001,
+      "vvWidth": 1001,
+      "innerWidth": 1001,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    },
+    {
+     "key": "aim-1000.5",
+     "device": {
+      "mediaWidth": 1001,
+      "vvWidth": 1001,
+      "innerWidth": 1001,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     },
+     "simulator": {
+      "mediaWidth": 1001,
+      "vvWidth": 1001,
+      "innerWidth": 1001,
+      "screenWidth": 430,
+      "pair": {
+       "hover": "none",
+       "pointer": "coarse"
+      }
+     }
+    }
+   ],
+   "realizedOnPhone": false,
+   "agree": true,
+   "why": []
+  }
+ ],
+ "agree": 8,
+ "disagree": 0
+}

@@ -172,6 +172,10 @@ export const PlanTask = z.object({
   blockers: z.array(Id),
   agent: Id.nullable(),
   evidence: z.string().nullable(),
+  /** what the task needs beyond an agent (e.g. "device"); computed by fwcore, absent from older cores */
+  needs: z.array(z.string()).optional(),
+  /** "device" iff "device" is in needs: the task needs the user and the real iPhone; computed by fwcore */
+  lane: z.enum(["agent", "device"]).optional(),
 });
 export type PlanTask = z.infer<typeof PlanTask>;
 

@@ -1,0 +1,469 @@
+{
+ "target": "original",
+ "schema": "fw.phone.frames/1",
+ "kind": "scripted scroll (rAF-driven scrollTo at constant px/s), not a finger swipe",
+ "speedPxPerS": 800,
+ "device": {
+  "model": "iPhone 15 Pro Max",
+  "os": "27.0.1",
+  "build": "24A446"
+ },
+ "rounds": 2,
+ "repsPerRound": [
+  5,
+  5
+ ],
+ "readouts": [
+  {
+   "at": "2026-10-17T16:57:27.116Z",
+   "batteryPct": 80,
+   "charging": false,
+   "batteryVirtualTemp": 32,
+   "batterySkinTemp": 32,
+   "thermalState": "not exposed over USB lockdown or the inspector (no API); battery temperature is the proxy"
+  },
+  {
+   "at": "2026-10-17T16:58:51.117Z",
+   "batteryPct": 80,
+   "charging": false,
+   "batteryVirtualTemp": 32,
+   "batterySkinTemp": 32,
+   "thermalState": "not exposed over USB lockdown or the inspector (no API); battery temperature is the proxy"
+  },
+  {
+   "at": "2026-10-17T17:00:16.171Z",
+   "batteryPct": 80,
+   "charging": false,
+   "batteryVirtualTemp": 32,
+   "batterySkinTemp": 32,
+   "thermalState": "not exposed over USB lockdown or the inspector (no API); battery temperature is the proxy"
+  },
+  {
+   "at": "2026-10-17T17:01:40.528Z",
+   "batteryPct": 80,
+   "charging": false,
+   "batteryVirtualTemp": 32,
+   "batterySkinTemp": 32,
+   "thermalState": "not exposed over USB lockdown or the inspector (no API); battery temperature is the proxy"
+  }
+ ],
+ "perRound": [
+  {
+   "zonePx": 500,
+   "thresholdsMs": {
+    "slow": 34,
+    "bad": 50
+   },
+   "total": {
+    "moving": 1031,
+    "over34": 287,
+    "over50": 229,
+    "per100Over34": 27.84,
+    "per100Over50": 22.21,
+    "longestMs": 144,
+    "medianMs": 17
+   },
+   "zones": [
+    {
+     "zone": 0,
+     "y0": 0,
+     "moving": 35,
+     "over34": 35,
+     "over50": 34,
+     "per100Over34": 100,
+     "per100Over50": 97.14,
+     "longestMs": 102,
+     "medianMs": 79
+    },
+    {
+     "zone": 1,
+     "y0": 500,
+     "moving": 39,
+     "over34": 39,
+     "over50": 36,
+     "per100Over34": 100,
+     "per100Over50": 92.31,
+     "longestMs": 106,
+     "medianMs": 79
+    },
+    {
+     "zone": 2,
+     "y0": 1000,
+     "moving": 45,
+     "over34": 45,
+     "over50": 39,
+     "per100Over34": 100,
+     "per100Over50": 86.67,
+     "longestMs": 106,
+     "medianMs": 68
+    },
+    {
+     "zone": 3,
+     "y0": 1500,
+     "moving": 37,
+     "over34": 37,
+     "over50": 35,
+     "per100Over34": 100,
+     "per100Over50": 94.59,
+     "longestMs": 144,
+     "medianMs": 87
+    },
+    {
+     "zone": 4,
+     "y0": 2000,
+     "moving": 44,
+     "over34": 44,
+     "over50": 36,
+     "per100Over34": 100,
+     "per100Over50": 81.82,
+     "longestMs": 119,
+     "medianMs": 69
+    },
+    {
+     "zone": 5,
+     "y0": 2500,
+     "moving": 48,
+     "over34": 47,
+     "over50": 39,
+     "per100Over34": 97.92,
+     "per100Over50": 81.25,
+     "longestMs": 115,
+     "medianMs": 65
+    },
+    {
+     "zone": 6,
+     "y0": 3000,
+     "moving": 117,
+     "over34": 39,
+     "over50": 10,
+     "per100Over34": 33.33,
+     "per100Over50": 8.55,
+     "longestMs": 110,
+     "medianMs": 17
+    },
+    {
+     "zone": 7,
+     "y0": 3500,
+     "moving": 187,
+     "over34": 0,
+     "over50": 0,
+     "per100Over34": 0,
+     "per100Over50": 0,
+     "longestMs": 19,
+     "medianMs": 17
+    },
+    {
+     "zone": 8,
+     "y0": 4000,
+     "moving": 187,
+     "over34": 0,
+     "over50": 0,
+     "per100Over34": 0,
+     "per100Over50": 0,
+     "longestMs": 26,
+     "medianMs": 17
+    },
+    {
+     "zone": 9,
+     "y0": 4500,
+     "moving": 187,
+     "over34": 1,
+     "over50": 0,
+     "per100Over34": 0.53,
+     "per100Over50": 0,
+     "longestMs": 40,
+     "medianMs": 17
+    },
+    {
+     "zone": 10,
+     "y0": 5000,
+     "moving": 105,
+     "over34": 0,
+     "over50": 0,
+     "per100Over34": 0,
+     "per100Over50": 0,
+     "longestMs": 17,
+     "medianMs": 17
+    }
+   ]
+  },
+  {
+   "zonePx": 500,
+   "thresholdsMs": {
+    "slow": 34,
+    "bad": 50
+   },
+   "total": {
+    "moving": 972,
+    "over34": 287,
+    "over50": 229,
+    "per100Over34": 29.53,
+    "per100Over50": 23.56,
+    "longestMs": 164,
+    "medianMs": 17
+   },
+   "zones": [
+    {
+     "zone": 0,
+     "y0": 0,
+     "moving": 34,
+     "over34": 34,
+     "over50": 34,
+     "per100Over34": 100,
+     "per100Over50": 100,
+     "longestMs": 96,
+     "medianMs": 77
+    },
+    {
+     "zone": 1,
+     "y0": 500,
+     "moving": 44,
+     "over34": 44,
+     "over50": 42,
+     "per100Over34": 100,
+     "per100Over50": 95.45,
+     "longestMs": 103,
+     "medianMs": 77
+    },
+    {
+     "zone": 2,
+     "y0": 1000,
+     "moving": 42,
+     "over34": 42,
+     "over50": 38,
+     "per100Over34": 100,
+     "per100Over50": 90.48,
+     "longestMs": 105,
+     "medianMs": 80
+    },
+    {
+     "zone": 3,
+     "y0": 1500,
+     "moving": 33,
+     "over34": 33,
+     "over50": 31,
+     "per100Over34": 100,
+     "per100Over50": 93.94,
+     "longestMs": 135,
+     "medianMs": 94
+    },
+    {
+     "zone": 4,
+     "y0": 2000,
+     "moving": 38,
+     "over34": 38,
+     "over50": 38,
+     "per100Over34": 100,
+     "per100Over50": 100,
+     "longestMs": 164,
+     "medianMs": 84
+    },
+    {
+     "zone": 5,
+     "y0": 2500,
+     "moving": 41,
+     "over34": 41,
+     "over50": 34,
+     "per100Over34": 100,
+     "per100Over50": 82.93,
+     "longestMs": 129,
+     "medianMs": 79
+    },
+    {
+     "zone": 6,
+     "y0": 3000,
+     "moving": 75,
+     "over34": 54,
+     "over50": 12,
+     "per100Over34": 72,
+     "per100Over50": 16,
+     "longestMs": 108,
+     "medianMs": 44
+    },
+    {
+     "zone": 7,
+     "y0": 3500,
+     "moving": 186,
+     "over34": 0,
+     "over50": 0,
+     "per100Over34": 0,
+     "per100Over50": 0,
+     "longestMs": 18,
+     "medianMs": 17
+    },
+    {
+     "zone": 8,
+     "y0": 4000,
+     "moving": 189,
+     "over34": 0,
+     "over50": 0,
+     "per100Over34": 0,
+     "per100Over50": 0,
+     "longestMs": 25,
+     "medianMs": 17
+    },
+    {
+     "zone": 9,
+     "y0": 4500,
+     "moving": 185,
+     "over34": 1,
+     "over50": 0,
+     "per100Over34": 0.54,
+     "per100Over50": 0,
+     "longestMs": 44,
+     "medianMs": 17
+    },
+    {
+     "zone": 10,
+     "y0": 5000,
+     "moving": 105,
+     "over34": 0,
+     "over50": 0,
+     "per100Over34": 0,
+     "per100Over50": 0,
+     "longestMs": 18,
+     "medianMs": 17
+    }
+   ]
+  }
+ ],
+ "summary": {
+  "zonePx": 500,
+  "thresholdsMs": {
+   "slow": 34,
+   "bad": 50
+  },
+  "total": {
+   "moving": 2003,
+   "over34": 574,
+   "over50": 458,
+   "per100Over34": 28.66,
+   "per100Over50": 22.87,
+   "longestMs": 164,
+   "medianMs": 17
+  },
+  "zones": [
+   {
+    "zone": 0,
+    "y0": 0,
+    "moving": 69,
+    "over34": 69,
+    "over50": 68,
+    "per100Over34": 100,
+    "per100Over50": 98.55,
+    "longestMs": 102,
+    "medianMs": 77
+   },
+   {
+    "zone": 1,
+    "y0": 500,
+    "moving": 83,
+    "over34": 83,
+    "over50": 78,
+    "per100Over34": 100,
+    "per100Over50": 93.98,
+    "longestMs": 106,
+    "medianMs": 77
+   },
+   {
+    "zone": 2,
+    "y0": 1000,
+    "moving": 87,
+    "over34": 87,
+    "over50": 77,
+    "per100Over34": 100,
+    "per100Over50": 88.51,
+    "longestMs": 106,
+    "medianMs": 72
+   },
+   {
+    "zone": 3,
+    "y0": 1500,
+    "moving": 70,
+    "over34": 70,
+    "over50": 66,
+    "per100Over34": 100,
+    "per100Over50": 94.29,
+    "longestMs": 144,
+    "medianMs": 90
+   },
+   {
+    "zone": 4,
+    "y0": 2000,
+    "moving": 82,
+    "over34": 82,
+    "over50": 74,
+    "per100Over34": 100,
+    "per100Over50": 90.24,
+    "longestMs": 164,
+    "medianMs": 74
+   },
+   {
+    "zone": 5,
+    "y0": 2500,
+    "moving": 89,
+    "over34": 88,
+    "over50": 73,
+    "per100Over34": 98.88,
+    "per100Over50": 82.02,
+    "longestMs": 129,
+    "medianMs": 72
+   },
+   {
+    "zone": 6,
+    "y0": 3000,
+    "moving": 192,
+    "over34": 93,
+    "over50": 22,
+    "per100Over34": 48.44,
+    "per100Over50": 11.46,
+    "longestMs": 110,
+    "medianMs": 18
+   },
+   {
+    "zone": 7,
+    "y0": 3500,
+    "moving": 373,
+    "over34": 0,
+    "over50": 0,
+    "per100Over34": 0,
+    "per100Over50": 0,
+    "longestMs": 19,
+    "medianMs": 17
+   },
+   {
+    "zone": 8,
+    "y0": 4000,
+    "moving": 376,
+    "over34": 0,
+    "over50": 0,
+    "per100Over34": 0,
+    "per100Over50": 0,
+    "longestMs": 26,
+    "medianMs": 17
+   },
+   {
+    "zone": 9,
+    "y0": 4500,
+    "moving": 372,
+    "over34": 2,
+    "over50": 0,
+    "per100Over34": 0.54,
+    "per100Over50": 0,
+    "longestMs": 44,
+    "medianMs": 17
+   },
+   {
+    "zone": 10,
+    "y0": 5000,
+    "moving": 210,
+    "over34": 0,
+    "over50": 0,
+    "per100Over34": 0,
+    "per100Over50": 0,
+    "longestMs": 18,
+    "medianMs": 17
+   }
+  ]
+ }
+}

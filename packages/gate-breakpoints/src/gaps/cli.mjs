@@ -5,6 +5,7 @@
 //   node src/cli.mjs gaps summary --out out/gaps-a              (judge the raw files with fwcore, write gaps.json and gaps.md)
 //   node src/cli.mjs gaps run     ...                           (collect, then summary)
 //   node src/cli.mjs gaps device-serve --out out/device-a [--port 8765] [--tok phone]    (phone session; src/gaps/DEVICE.md)
+//   node src/cli.mjs gaps device-drive --sim out/gaps-a/evidence.json --out DIR    (phone driven over the Web Inspector; DEVICE.md steps 2-4)
 //   node src/cli.mjs gaps device-judge --device FILE --sim out/gaps-a/evidence.json [--out DIR]
 // Local `collect` of the Simulator steps needs the sim-lock held by --owner; `--ci` (GitHub runner, own VM) skips that check
 // and creates the iPad device when the image has none. A step that cannot run on the machine (no WKWebView host, no device
@@ -25,6 +26,7 @@ import { judgeRun, modelCheck, pairOf } from './judge.mjs';
 import { judgeDevice } from './devicejudge.mjs';
 import { startProbeServer } from './probe.mjs';
 import { deviceMain } from './device.mjs';
+import { deviceDrive } from './devicedrive.mjs';
 
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const ENGINES = ['chromium', 'playwright-webkit'];
@@ -230,8 +232,9 @@ export async function gapsMain(args, outDir) {
   else if (sub === 'run') { await collect(opts); writeSummary(outDir); }
   else if (sub === 'summary') writeSummary(outDir);
   else if (sub === 'device-serve' || sub === 'device-judge') await deviceMain(sub, args, outDir);
+  else if (sub === 'device-drive') await deviceDrive(args, outDir); // the phone driven through the Web Inspector (measurement phone only)
   else {
-    console.error('usage: cli.mjs gaps collect|summary|run|device-serve|device-judge --out DIR [...]');
+    console.error('usage: cli.mjs gaps collect|summary|run|device-serve|device-judge|device-drive --out DIR [...]');
     process.exit(2);
   }
 }

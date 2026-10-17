@@ -706,7 +706,8 @@
    "owner": "measure-engineer",
    "devices": [
     "phone"
-   ]
+   ],
+   "evidence": "0c901f2: 8/8 cells agree with Lean and the Simulator"
   },
   {
    "id": "faithful-checks",
@@ -771,7 +772,8 @@
    "owner": "lead",
    "devices": [
     "phone"
-   ]
+   ],
+   "evidence": "0c901f2: >50ms frames/100 22.9 vs 0; finger swipe pending"
   },
   {
    "id": "wktr-cloud",
@@ -1569,6 +1571,17 @@
    "milestone": "M1",
    "deps": [
     "refreeze"
+   ],
+   "owner": "lean-prover",
+   "evidence": "fd8ed4d: freeze_frames; 403-vs-409 golden; table byte-identical"
+  },
+  {
+   "id": "math-r11-fix",
+   "title": "Fix the 5 disagree rows of math review round 11 (ZoneBaseline.refusal cases, Serve.touched LaTeX, Gate.partVerdict_pass_iff args, Gate.pairs_congr map, Gate.truthKey defs)",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "where-cleanup"
    ],
    "owner": "lean-prover"
   },

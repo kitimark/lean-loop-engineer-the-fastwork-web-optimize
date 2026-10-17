@@ -329,7 +329,15 @@ the counts files: A 70, R 52 in swipe-v1; A 70, R 51 in swipe-touch-v1). Touch c
   quarantined. Its log shows `attempts=1`, host wall 111.8 s (the others 113-115 s): no wedge retry, no early stop, no stall. The
   touch planner is closed loop (the stroke ends when scrollY reaches the page end), and in that job the scroll advanced 20 px in one
   frame at frame 172 (two touchmoves' worth, the touchmove-race residual of touch-race), so the page end came 6 moves early. A fourth
-  touch run (39050423094) replaced it. This is a decision of the lead, not of the freeze rule: `measure.freeze` has no frame-count check.
+  touch run (39050423094) replaced it. This was a decision of the lead; since task freeze-refuse the freeze rule makes it (below).
+- **Update 2026-10-18 (freeze-refuse): `measure.freeze` refuses jobs with different frame counts.** `src/freeze.mjs` sends each job's
+  `{name, frames, trajectorySha256}`; Lean `Fw.Measure.Freeze.freeze` refuses a run without jobs and any two jobs (of any runs of one
+  arm) whose frame counts differ, naming every job whose count is not the most frequent one (proved: accepted => one frame count,
+  `freeze_frames`; every named job differs from another, `oddJobs_sound`). With 39049478836 instead of 39050423094 the freeze now
+  stops with `swipe-touch-v1/rewrite: fwcore measure.freeze: frame counts differ between jobs: job chromium-counts-rewrite-r2 of
+  workflow run 39049478836 has 403 frames; 8 of 9 jobs have 409 frames` (MEASURED 2026-10-18). Trajectory hashes are compared, not
+  refused (touch A has two trajectories at one frame count); `allTrajectoriesEqual` now comes from Lean (`trajectoriesEqual`). The
+  committed table regenerates identically with the six runs below. `measure.classify` is unchanged (it reads missing frames as 0).
 - Schema change: `profiles.<profile>.arms.{original,rewrite}` hold what `profiles.<profile>` held (types with `class`, `k`, `t`, `perRun`,
   `role`, `reason?`, `tBound?`, `pooledClass`; `tally`, `roles`, `pooledTally`); `profiles.<profile>.crossArm` is new.
 - Workflow fix (`.github/workflows/chromium-counts.yml`): `classify` now has an `if` that ignores the skipped `site` job, so a dispatch

@@ -26,7 +26,7 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.symDiff` | `a`, `b` (string arrays) | `symDiff` |
 | `measure.summarize` | `rows` [{family, metric, level, cls}] | `summary` [{family, metric, levels, worst}] |
 | `measure.selfCheck` | `runs` (≥ 1; each an array of frames {phase, scrollY, counts} or an object with `frames`) | `rows` [{type, class, maxDiffFrames, spread, totals}], `frames`, `framesAligned`, `runs` |
-| `measure.freeze` | `runs` (≥ 3, distinct `id`s) [{id, images (≥ 1 digest, all runs one digest), classes {type: {class, k, t, tBound?}}}], optional `pooled` {type: {class, k, t, tBound?}} | `image`, `runs` (ids), `types` {type: {class, k, t, perRun (class or `missing`), `unit` `px` + `tBound` for `*AreaPx` types, `pooledClass`?, `role` (`gate`, `finding`, `byDesign`), `reason`?}}, `tally`, `roles`, `pooledTally`? |
+| `measure.freeze` | `runs` (≥ 3, distinct `id`s) [{id, images (≥ 1 digest, all runs one digest), classes {type: {class, k, t, tBound?}}, jobs (≥ 1) [{name, frames, trajectorySha256?}] (all jobs of all runs one `frames`)}], optional `pooled` {type: {class, k, t, tBound?}} | `image`, `runs` (ids), `frames` (the common count), `trajectoriesEqual`, `types` {type: {class, k, t, perRun (class or `missing`), `unit` `px` + `tBound` for `*AreaPx` types, `pooledClass`?, `role` (`gate`, `finding`, `byDesign`), `reason`?}}, `tally`, `roles`, `pooledTally`? |
 | `measure.splits` | `slices` [{name, ph, ts, dur?}] (integer µs) | `splits` [{name, within, base, key}], `n1Keys`, `n1Excluded`, `n1Gated`, `counts` {base and split types} |
 | `measure.n0Windows` | `events` [{kind, vt}], `frameVts` (non-decreasing), `startVt`, `dt` | `windows` (per event: `load`, `preroll`, `after` or a frame index), `load`, `preroll`, `after`, `frames` [{n0.events, n0.cssom, n0.sheetNode}] |
 | `measure.spkq` | a counts file: `frames` [{counts}], optional `meta.n0` {enabled, load, preroll, after {total}} | `verdict` (`pass`, `fail`, `missing`), `required`, `n1Gated`, `n1Excluded`, `unrecorded`, `nonzeroN0`, `nonzeroN1` (frame indices), `preroll`?, `after`? |
@@ -427,13 +427,21 @@ def roleFields (ty : String) (l : Freeze.Level) : List (String × Json) :=
 def roleTallyJson (c : Nat × Nat × Nat) : Json :=
   Json.mkObj [("gate", toJson c.1), ("finding", toJson c.2.1), ("byDesign", toJson c.2.2)]
 
-/-- `measure.freeze`: `{runs:[{id, images, classes}], pooled?}` → `{image, runs, types, tally, roles, pooledTally?}`;
-an error when a table does not decode or `Freeze.freeze` refuses. In `perRun` a run without the type is the
-string `"missing"`. -/
+/-- Decode a job `{name, frames, trajectorySha256?}` (`frames` the number of recorded frames). -/
+def jobOf (j : Json) : Except String Freeze.Job := do
+  let tr ← match opt j "trajectorySha256" with
+    | none => pure none
+    | some t => some <$> asStr "jobs.trajectorySha256" t
+  pure { name := ← str j "name", frames := ← nat j "frames", trajectory := tr }
+
+/-- `measure.freeze`: `{runs:[{id, images, classes, jobs}], pooled?}` →
+`{image, runs, frames, trajectoriesEqual, types, tally, roles, pooledTally?}`; an error when a table or job
+does not decode or `Freeze.freeze` refuses (a frame refusal names the jobs that differ). In `perRun` a run
+without the type is the string `"missing"`. -/
 def opFreeze (req : Json) : Except String Reply := do
   let runs ← (← arr req "runs").toList.mapM fun r => do
-    pure ({ id := ← str r "id", images := ← strs r "images", table := ← tableOf "classes" (← field r "classes") }
-      : Freeze.RunTable)
+    pure ({ id := ← str r "id", images := ← strs r "images", table := ← tableOf "classes" (← field r "classes"),
+            jobs := ← (← arr r "jobs").toList.mapM jobOf } : Freeze.RunTable)
   let pooled ← match opt req "pooled" with
     | none => pure none
     | some j => some <$> tableOf "pooled" j
@@ -447,6 +455,8 @@ def opFreeze (req : Json) : Except String Reply := do
       | some e => [("pooledClass", .str (levelName e.cls))] | none => []) ++
     roleFields r.type r.cls
   pure ([("image", .str img), ("runs", toJson (runs.map (·.id))),
+         ("frames", toJson (Freeze.framesCommon runs)),
+         ("trajectoriesEqual", .bool (Freeze.trajectoriesEqual runs)),
          ("types", objOf (rows.map fun r => (r.type, rowJson r))),
          ("tally", tallyJson (Freeze.tally (rows.map (·.cls)))),
          ("roles", roleTallyJson (Arms.roleTally rows))] ++
