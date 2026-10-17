@@ -58,7 +58,10 @@ export function App({ config }: { config: FwConfig }) {
       <main>
         <HeroCountdown variant={config.variants['hero.countdown'] ?? 'faithful'} />
         <HeroExit variant={config.variants['hero.exit'] ?? 'faithful'} />
-        <MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />
+        {/* stand-in for the morph panel at rest (scene paused); morph.panel replaces this host */}
+        <div data-start-selling-scene="paused">
+          <MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />
+        </div>
 
         <section aria-label="tabs">
           <div role="tablist" style={{ display: 'flex', justifyContent: 'center' }}>

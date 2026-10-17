@@ -13,6 +13,11 @@ describe('morph.countdown', () => {
     expect(css).not.toMatch(/@media/);
     for (const d of ['justify-content: center', 'width: 100%', 'margin-top: 32px', 'display: flex']) expect(css).toContain(d);
   });
+  it('restates the paused-scene rule (css 11754-11758)', () => {
+    expect(css).toContain("[data-start-selling-scene='paused']");
+    expect(css).toMatch(/will-change: auto !important/);
+    expect(css).toMatch(/animation-play-state: paused !important/);
+  });
   it('renders the inverse clock under its own anchor, not the hero one', () => {
     const html = renderToString(createElement(MorphCountdown, { variant: 'faithful', impl: 'plain' }));
     expect(html).toContain('data-fw="morph-countdown"');

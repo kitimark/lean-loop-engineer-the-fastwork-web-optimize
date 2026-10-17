@@ -7,4 +7,13 @@
     margin-top: 32px;
     display: flex;
   }
+
+  /* The panel the clock lives in is `data-start-selling-scene="paused"` until the morph is active (N2:13198 sets the
+     attribute), and the page pauses everything below it (css 11754-11758, there under `.start-selling`; this page has no
+     such root). Without it the digit faces keep `will-change: transform` that the original's paused panel drops. */
+  :global([data-start-selling-scene='paused']),
+  :global([data-start-selling-scene='paused']) :where(*) {
+    will-change: auto !important;
+    animation-play-state: paused !important;
+  }
 }
