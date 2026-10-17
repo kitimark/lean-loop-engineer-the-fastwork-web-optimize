@@ -224,3 +224,4 @@ export const jsonSchemas = {
   CommandReply,
 } as const;
 export * from "./obs.ts";
+export * from "./artifacts.ts";
