@@ -38,6 +38,6 @@ export function mountAgentRoutes(app: Hono, store: Store): { drain: Drain; caps:
   });
 
   app.post("/api/spool/drain", async (c) => c.json(await drain.run()));
-  app.get("/api/obs/summary", (c) => c.json(drain.summary()));
+  app.get("/api/obs/summary", async (c) => c.json(await drain.summary()));
   return { drain, caps };
 }

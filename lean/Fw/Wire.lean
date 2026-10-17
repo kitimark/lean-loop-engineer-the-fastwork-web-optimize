@@ -14,6 +14,7 @@ import Fw.Ops.Wire
 import Fw.Wire.Sched
 import Fw.Wire.Gate
 import Fw.Wire.Obs
+import Fw.Wire.Console
 /-!
 # JSON-lines protocol (the only boundary the TypeScript shell sees)
 
@@ -442,6 +443,7 @@ def ops : List String :=
   ++ Fw.Wire.Sched.ops
   ++ Fw.Wire.Gate.ops
   ++ Fw.Wire.Obs.ops -- watch-lean: obs.health
+  ++ Fw.Wire.Console.ops -- lean-console-gaps: console.landReadiness, console.actor, plan.trailers
   ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
@@ -471,6 +473,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.Obs.handle other req with  -- watch-lean: obs.health
+    | some r => r
+    | none =>
+    match Fw.Wire.Console.handle other req with  -- lean-console-gaps
     | some r => r
     | none => throw s!"unknown op {other}"
 

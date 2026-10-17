@@ -50,12 +50,12 @@ export function ask(bin, req) {
   } catch { return null; }
 }
 
-/** TS STAND-IN for Lean `Fw.Ops.SpawnGuard.effKind`/`roleOf`: expected vs given kind, logged so a kindMismatch explains
- *  itself. The decision itself still comes from fwcore; this only describes the request. Replace by a fwcore reply field. */
-export function kinds(req) {
-  const role = ROLES.find((r) => r.name === req.role);
-  const got = req.isolation ? "worktree" : req.depth === 0 && req.name ? "teammate" : "subagent";
-  return { role: req.role, want_kind: role ? role.runsAs : null, got_kind: got, has_name: !!req.name, isolation: !!req.isolation, depth: req.depth };
+/** Expected vs given kind, logged so a kindMismatch explains itself. Both come from the same fwcore `ops.spawn` reply
+ *  as the decision (`wantKind` = Lean `SpawnGuard.wantKind`, the role's runsAs or null; `kind` = `effKind`), so no
+ *  extra call; null when fwcore was unavailable. */
+export function kinds(req, reply) {
+  const k = (v) => (typeof v === "string" ? v : null);
+  return { role: req.role, want_kind: k(reply?.wantKind), got_kind: k(reply?.kind), has_name: !!req.name, isolation: !!req.isolation, depth: req.depth };
 }
 
 /** The spool record for a decision. */
@@ -66,7 +66,7 @@ export function record(p, reply, now = Date.now()) {
     agent_id: str(p.agent_id), agent_type: str(p.agent_type), hook_event_name: "SpawnGuard", tool_name: "Agent",
     tool_use_id: str(p.tool_use_id), duration_ms: null, is_error: null, verb: verb.slice(0, 40), ts: now,
     agent_name: str(p.tool_input && typeof p.tool_input === "object" ? p.tool_input.name : null),
-    ...kinds(request(p).req), seen_by: "pre-tool-use",
+    ...kinds(request(p).req, reply), seen_by: "pre-tool-use",
   };
 }
 
