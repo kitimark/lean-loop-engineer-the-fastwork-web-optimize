@@ -1,0 +1,2 @@
+# lean/Fw.lean is only import lines; parallel proof branches each add one, so keep both sides
+lean/Fw.lean merge=union
