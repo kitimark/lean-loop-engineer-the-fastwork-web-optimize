@@ -219,7 +219,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E-s at the computed-value level under RG11 (consumer_eq_s; exact at integer scroll offsets, otherwise within the progress quantum: 1/(16R) in Chromium, 1 px on WebKit's main thread). Pixels: WebKit E in the v1 Simulator except a 30 px top band (78 levels). Chromium not-equal under the pixel rule (v1: ≤ 6 levels on 15-42k px, 1 device-px copy shift from GPU blending and snapping), so Q at best: PathPremises.raster_path fails there (INFERRED).",
-   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow. PROVED (toy rasters): raster_path fails for a half-pixel translate (snap 0 vs resample 128, Fw.Engine.raster_path_fails_fracXf) and for group opacity 1/2 over child 3/10 (38 vs 39, Fw.Engine.raster_path_fails_fracAlpha), so PathPremises needs C5 and C4 (Fw.Engine.PathPremises5, shown_eq5). A compositor move adds the comp stage, so it is never framewise <= (Fw.Engine.comp_move_not_le): mixed or noClaim when the original pays no comp, trade only when it already does. Under frameWorkE both trades stand (cr_real_tradeE, wk_tradeE). Given the premise that each animated consumer adds a composited layer, the claim cannot be dominates on either engine, WebKit included (Fw.Engine.claim_ne_dominates_of_layers): at best trade. wktr-p1p4 (scroll_comp_ride, MEASURED): on WebKit the threaded scroll-driven animations still tick and restyle their targets in every rendering update, so wkVar_eq and wk_var_exact (variant style passes 0 and units 0) are contradicted: the variant's scrolled frame has style passes 1 and style units N+3, the original's 1 and |wkOrigChanges|. MEASURED (task wktr-p1p4, WKTR of the iOS 26.5 Simulator on macos-26, CI run 39075991405, 3 jobs x 3 passes, fixtures in packages/measure-wktr/fixtures): a transform animation on animation-timeline: scroll(root) costs exactly 1 style recalc per rendering update (53 of 53, then 159 of 159 with two idle updates per step); the scroll-only control 0; the same animation on the document timeline (accelerated) 0; classes by fwcore (kMax 4, tMax 24) over 9 runs: styleRecalcs deterministic in all three; a JS rAF write is quarantined (0.74 to 0.93 per update).",
+   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow. PROVED (toy rasters): raster_path fails for a half-pixel translate (snap 0 vs resample 128, Fw.Engine.raster_path_fails_fracXf) and for group opacity 1/2 over child 3/10 (38 vs 39, Fw.Engine.raster_path_fails_fracAlpha), so PathPremises needs C5 and C4 (Fw.Engine.PathPremises5, shown_eq5). A compositor move adds the comp stage, so it is never framewise <= (Fw.Engine.comp_move_not_le): mixed or noClaim when the original pays no comp, trade only when it already does. Under frameWorkE both trades stand (cr_real_tradeE, wk_tradeE). Given the premise that each animated consumer adds a composited layer, the claim cannot be dominates on either engine, WebKit included (Fw.Engine.claim_ne_dominates_of_layers): at best trade. wktr-p1p4 (scroll_comp_ride, MEASURED): on WebKit the threaded scroll-driven animations still tick and restyle their targets in every rendering update, so the old wkVar_eq and wk_var_exact (variant style passes 0 and units 0) were false. Restated (hero-exit-restate): wkVar is rebuilt on webkitX as a fold of withAnim over the N+3 (target, animation) pairs; under the premise WktrStyleRate.Holds (registry id wktr_scroll_timeline_restyle, lane wktr-fixtures.yml) the variant's scrolled frame has style passes 1 and style units N+3 (wk_var_exact), the original's 1 and 2N+4, so wk_trade still holds against wkOrigChanges with layered targets (lo != none) but not for every change list (wk_trade_not_general: against an empty callback the variant does more main-thread work). Golden hero-exit.jsonl: WebKit RecalculateStyles and styleRecalcs move from <o to <=o (7 vs 12 units at gN=4); every other row unchanged; the claim stays trade. MEASURED (task wktr-p1p4, WKTR of the iOS 26.5 Simulator on macos-26, CI run 39075991405, 3 jobs x 3 passes, fixtures in packages/measure-wktr/fixtures): a transform animation on animation-timeline: scroll(root) costs exactly 1 style recalc per rendering update (53 of 53, then 159 of 159 with two idle updates per step); the scroll-only control 0; the same animation on the document timeline (accelerated) 0; classes by fwcore (kMax 4, tMax 24) over 9 runs: styleRecalcs deterministic in all three; a JS rAF write is quarantined (0.74 to 0.93 per update).",
    "leanFor": [
     "Fw.Parts.HeroExit.exitOpacity_linear",
     "Fw.Parts.HeroExitOpt.progress_eq_js",
@@ -229,7 +229,10 @@
     "Fw.Engine.comp_move_le_off",
     "Fw.Engine.shown_eq5",
     "Fw.Parts.HeroExitOpt.cr_real_tradeE",
-    "Fw.Parts.HeroExitOpt.wk_tradeE"
+    "Fw.Parts.HeroExitOpt.wk_tradeE",
+    "Fw.Parts.HeroExitOpt.wkVar_eq",
+    "Fw.Parts.HeroExitOpt.wk_var_exact",
+    "Fw.Parts.HeroExitOpt.wkIdle_eq"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroExitOpt.cr_real_trade",
@@ -244,10 +247,9 @@
     "Fw.Engine.comp_move_not_le",
     "Fw.Engine.comp_move_ge_on",
     "Fw.Engine.claim_ne_dominates_of_layers",
-    "Fw.Parts.HeroExitOpt.wk_var_exact",
-    "Fw.Parts.HeroExitOpt.wkVar_eq",
     "Fw.Engine.WebKit.style_rate_model",
-    "Fw.Engine.WebKit.style_rate_old_refuted"
+    "Fw.Engine.WebKit.style_rate_old_refuted",
+    "Fw.Parts.HeroExitOpt.wk_trade_not_general"
    ],
    "missingWhy": [
     {
@@ -259,11 +261,6 @@
      "statement": "Edge-frame cost on WebKit: the frames where the filter goes $\\mathrm{none} \\leftrightarrow \\mathrm{blur}(\\epsilon)$ or opacity crosses 1 pay layout: $\\mathrm{layout} \\in \\mathrm{stages}_{wk}$ on those frames, $\\#\\mathrm{edgeFrames}_v \\ge 1$ per rest→live switch",
      "module": "Fw.Parts.HeroExitOpt",
      "needs": "tabling WebKit.opacityCross1_layout and a filter-presence clause for the variant's start and park frames"
-    },
-    {
-     "statement": "Corrected WebKit frame of the variant: $V = \\operatorname{foldl}(\\operatorname{withAnim}_{\\mathrm{safari}}, \\operatorname{scrollStep}^{X}(\\varnothing), \\operatorname{wkAnims}(\\ell, N))$ (one ride-along per animation, distinct targets). Then $V.\\mathrm{passes}(\\mathrm{style}) = 1$ and $V.\\mathrm{units}(\\mathrm{style}) = N + 3$ (gN=4, phone band: 1 and 7; the original's scrolled frame: 1 and 12), $V.\\mathrm{passes}(\\mathrm{comp}) = 1$, $V.\\mathrm{units}(\\mathrm{comp}) = N + 3$, script 0, layout 0, paint 0. Expected verdict changes on WebKit (computed in a scratch file against Fw.Parts.HeroExitOpt.framePred, not committed): golden hero-exit.jsonl rows webkit RecalculateStyles and styleRecalcs move from `<o` to `\\le o` (the scroll frame ties on passes, the idle frame has no rendering update so 0 = 0); every other WebKit row is unchanged; the claim stays trade. Theorems of HeroExitOpt that stop holding as stated: wkVar_eq, wk_var_exact (style passes 0, units 0), wk_trade for every cs (for cs = [] the original's style units 0 < N+3 breaks mainLt; it still holds at cs = wkOrigChanges); still true: wk_anim_comp, wk_all_comp, wk_legacy_main, wkAnims_*.",
-     "module": "Fw.Parts.HeroExitOpt",
-     "needs": "why-parts: rebuild wkVar/wkFrames on Fw.Engine.WebKit.webkitX with withAnim and scrollStepX (Fw.Engine.WebKit.style_rate_model is the measured base case), restate wk_var_exact with style passes 1 and units N+3, add the cs side condition to wk_trade, regenerate hero-exit.jsonl"
     }
    ],
    "premises": [
@@ -275,7 +272,7 @@
     "pointer-events by an IO sentinel: its delivery lag is glue, not proved (Blink posted task CONFIRMED intersection_observer_controller.cc:90-105)",
     "raster_path for Chromium: OPEN, contradicted by v1 OBSERVED pixel diffs",
     "Each animated consumer of --exit-opacity holds one more composited layer in V than in O (R_V.layers > R_O.layers): INFERRED (Chromium active compositor animation; WebKit animation compositing reason), premise of claim_ne_dominates_of_layers",
-    "scroll-timeline animations restyle their target once per rendering update on WebKit even when accelerated: MEASURED (wktr-p1p4)"
+    "scroll-timeline animations restyle their target once per rendering update on WebKit even when accelerated: MEASURED (wktr-p1p4) (registry id wktr_scroll_timeline_restyle, kind lane: .github/workflows/wktr-fixtures.yml)"
    ],
    "v1Evidence": "KD#2 (../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 2): median slow frames 31 → 18 → 7 (original, v4, v6), and the user preferred v6 in both blind swipes. ../fastwork-com-web-optimize/fixes/hero-exit-threaded/README.md: shipped WebKit-only (GestureEvent gate) because Blink compositing changed pixels (≤ 6 levels on 15-42k px, 1 device-px copy shift). WebKit: a transform animation on .hero-copy made the accent repaint about 1.4× as often; none → blur(0.009px) costs one Layout; the 30 px top band was 78 levels off, so the writer was kept there; P-081: go-live-from-rest frames cost more than C's.",
    "lesson": "Moving main-thread work to the compositor is a trade, never dominance. In the CI lane style passes stay one per frame, so only script and the quarantined elementCount drop. Compositing also changes rasterization, so value-level E-s is not pixel E.",

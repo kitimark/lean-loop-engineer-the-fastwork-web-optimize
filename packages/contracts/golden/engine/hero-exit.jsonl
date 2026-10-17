@@ -10,11 +10,11 @@
 {"base":"original","countType":"trace.cc.Commit","engine":"chromium","prediction":"≤o","scenario":"swipe-v1","stage":"commit","variant":"hero-exit-threaded"}
 {"base":"original","countType":"census.layers","engine":"chromium","prediction":"any","scenario":"swipe-v1","stage":"comp","variant":"hero-exit-threaded"}
 {"base":"original","countType":"FireAnimationFrame","engine":"webkit","prediction":"<o","scenario":"swipe-v1","stage":"script","variant":"hero-exit-threaded"}
-{"base":"original","countType":"RecalculateStyles","engine":"webkit","prediction":"<o","scenario":"swipe-v1","stage":"style","variant":"hero-exit-threaded"}
+{"base":"original","countType":"RecalculateStyles","engine":"webkit","prediction":"≤o","scenario":"swipe-v1","stage":"style","variant":"hero-exit-threaded"}
 {"base":"original","countType":"Layout","engine":"webkit","prediction":"<o","scenario":"swipe-v1","stage":"layout","variant":"hero-exit-threaded"}
 {"base":"original","countType":"Paint","engine":"webkit","prediction":"<o","scenario":"swipe-v1","stage":"paint","variant":"hero-exit-threaded"}
 {"base":"original","countType":"Composite","engine":"webkit","prediction":"≤o","scenario":"swipe-v1","stage":"commit","variant":"hero-exit-threaded"}
-{"base":"original","countType":"styleRecalcs","engine":"webkit","prediction":"<o","scenario":"swipe-v1","stage":"style","variant":"hero-exit-threaded"}
+{"base":"original","countType":"styleRecalcs","engine":"webkit","prediction":"≤o","scenario":"swipe-v1","stage":"style","variant":"hero-exit-threaded"}
 {"base":"original","countType":"layoutUpdates","engine":"webkit","prediction":"<o","scenario":"swipe-v1","stage":"layout","variant":"hero-exit-threaded"}
 {"base":"original","countType":"compositingUpdates","engine":"webkit","prediction":"≤o","scenario":"swipe-v1","stage":"props","variant":"hero-exit-threaded"}
 {"base":"original","countType":"renderingUpdates","engine":"webkit","prediction":"≤o","scenario":"swipe-v1","stage":"commit","variant":"hero-exit-threaded"}
