@@ -1,197 +1,129 @@
-// THE decision code of the breakpoint gate: pure functions, no I/O, no page access, no clocks. Everything the runner
-// collects is raw; everything below turns raw into statuses and the pass/fail rule. This file is the list handed to
-// Lean ("Lean first"): each export has a statement in its comment. The tolerances come from PLAN section 6.6:
-// boxes within 0.5 CSS px (PL1), computed styles exact after normalisation with numbers within 1e-3 (PL2).
+// The breakpoint gate's decisions, answered by Lean through fwcore. Every status, verdict, count and table cell
+// comes from lean/Fw/Gate (statements and proofs there; the op table is lean/Fw/Wire/Gate.lean):
+//   Fw.Gate.Rule     the rule: no applicable item -> not-comparable, an applicable item not equal -> fail, else pass;
+//                    rollups and table cells (failing / comparable counts)
+//   Fw.Gate.Compare  value comparisons: style values exact or numbers within 1/1000 (exact decimals), boxes within 1/2 px
+//   Fw.Gate.Items    which properties are compared (skips with reasons), the items of one part, the part verdict
+//   Fw.Gate.State    environment achieved, matchMedia truth items, the rows of one state, sweep hysteresis counts
+// This file has no decision logic: it shapes requests, moves JSON lines, and attaches the display values (orig /
+// rewrite values of a failing item) from the raw data.
+// The binary is lean/.lake/build/bin/fwcore (FW_CORE_BIN overrides), spawned with LEAN_ABORT_ON_PANIC=1.
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-export const TOL = Object.freeze({ boxPx: 0.5, styleNumber: 1e-3 });
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
-/** Status of one compared item. 'na' items do not take part in a verdict. */
-export const STATUS = Object.freeze({ equal: 'equal', differ: 'differ', missing: 'missing', na: 'na' });
-
-// ---------------------------------------------------------------------------------------------------------------
-// THE RULE (one function). For a list of item statuses:
-//   no applicable item (empty, or every item 'na')  ->  'not-comparable'
-//   some applicable item is not 'equal'              ->  'fail'
-//   otherwise                                        ->  'pass'
-// In math: let A = {s | s != na}. verdict = NC if A = {} ; fail if exists s in A, s != equal ; pass otherwise.
-// Rollups (probe verdicts -> block verdict -> table) reuse the same function through `verdictToStatus`.
-// ---------------------------------------------------------------------------------------------------------------
-export function cellVerdict(statuses) {
-  const applicable = statuses.filter((s) => s !== STATUS.na);
-  if (applicable.length === 0) return 'not-comparable';
-  return applicable.every((s) => s === STATUS.equal) ? 'pass' : 'fail';
+export function fwcoreBin() {
+  const p = process.env.FW_CORE_BIN ?? join(ROOT, 'lean/.lake/build/bin/fwcore');
+  if (!existsSync(p)) throw new Error(`fwcore not found at ${p}; build it with: cd lean && lake build fwcore`);
+  return p;
 }
 
-/** pass -> equal, fail -> differ, not-comparable -> na, so verdicts can be rolled up with `cellVerdict` itself. */
-export function verdictToStatus(v) {
-  return v === 'pass' ? STATUS.equal : v === 'fail' ? STATUS.differ : STATUS.na;
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-// Value comparisons
-// ---------------------------------------------------------------------------------------------------------------
-const NUM = /-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?/gi;
-
-/**
- * Computed-style values: equal as strings, or, after replacing each number by a hole, equal skeletons with the same
- * count of numbers, each pair within 1e-3. Missing (undefined) on either side is never equal.
- * Statement: styleValueEq a b <-> a = b  or  (skel a = skel b  and  |nums a| = |nums b|  and  forall i, |a_i - b_i| <= 1e-3).
- */
-export function styleValueEq(a, b) {
-  if (a === undefined || b === undefined || a === null || b === null) return false;
-  if (a === b) return true;
-  const sa = String(a), sb = String(b);
-  if (sa.replace(NUM, '#') !== sb.replace(NUM, '#')) return false;
-  const na = (sa.match(NUM) ?? []).map(Number), nb = (sb.match(NUM) ?? []).map(Number);
-  if (na.length !== nb.length) return false;
-  return na.every((x, i) => Math.abs(x - nb[i]) <= TOL.styleNumber);
-}
-
-/** Box dimension in CSS px: |a - b| <= 0.5. Missing is never equal. */
-export function boxEq(a, b) {
-  if (typeof a !== 'number' || typeof b !== 'number' || Number.isNaN(a) || Number.isNaN(b)) return false;
-  return Math.abs(a - b) <= TOL.boxPx;
-}
-
-/** Element counts of an anchor role: equal and positive. Both zero is 'missing' (the anchor is absent in both). */
-export function countStatus(a, b) {
-  if (a === 0 && b === 0) return STATUS.missing;
-  return a === b ? STATUS.equal : STATUS.differ;
-}
-
-export function styleStatus(a, b) {
-  if (a === undefined || b === undefined) return STATUS.missing;
-  return styleValueEq(a, b) ? STATUS.equal : STATUS.differ;
-}
-
-export function boxStatus(a, b) {
-  if (a === undefined || a === null || b === undefined || b === null) return STATUS.missing;
-  return boxEq(a, b) ? STATUS.equal : STATUS.differ;
+/** Send requests (objects with `op`) in one fwcore run, return the replies (ids stripped). Throws on any `error` reply. */
+export function call(requests) {
+  const input = requests.map((r, i) => JSON.stringify({ ...r, id: i })).join('\n') + '\n';
+  const r = spawnSync(fwcoreBin(), [], { input, env: { ...process.env, LEAN_ABORT_ON_PANIC: '1' }, maxBuffer: 1 << 30 });
+  if (r.status !== 0) throw new Error(`fwcore exited with ${r.status ?? r.signal}: ${r.stderr}`);
+  if (r.stderr.length) console.error(`fwcore stderr (incident): ${r.stderr}`);
+  const replies = r.stdout.toString().trim().split('\n').map((l) => JSON.parse(l));
+  if (replies.length !== requests.length) throw new Error(`fwcore: ${replies.length} replies for ${requests.length} requests`);
+  return replies.map((x, i) => {
+    if (x.id !== i) throw new Error(`fwcore: reply ${i} has id ${x.id}`);
+    if (x.error !== undefined) throw new Error(`fwcore ${requests[i].op}: ${x.error}`);
+    const { id, ...rest } = x;
+    return rest;
+  });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Which properties are compared, and the items of one part
+// Request shapes
 // ---------------------------------------------------------------------------------------------------------------
 
-/** A property is skipped if it equals a skip name, or equals/starts with `prefix-` of a skip prefix. */
-export function isSkipped(prop, skipNames, skipPrefixes) {
-  if (skipNames.includes(prop)) return true;
-  return skipPrefixes.some((p) => prop === p || prop.startsWith(`${p}-`));
-}
+/** One arm of a raw record ({truth, truthLegacy, neutral, observed, viewport, parts}, or {raw: ...}), trimmed to the
+ *  covered parts. The matchMedia maps travel as [key, value] entries so their order is kept. */
+const armReq = (x, parts) => {
+  const r = x.raw ?? x;
+  return {
+    viewport: r.viewport, observed: r.observed,
+    truth: Object.entries(r.truth ?? {}), truthLegacy: Object.entries(r.truthLegacy ?? {}), neutral: Object.entries(r.neutral ?? {}),
+    parts: partsReq(r.parts, parts),
+  };
+};
+const partsReq = (rawParts, parts) => Object.fromEntries(parts.filter((p) => rawParts?.[p] !== undefined).map((p) => [p, rawParts[p]]));
+const mapReq = (m) => (m ? Object.entries(m) : null);
 
-/** The properties compared for a role: the rewrite-declared (restated) set minus the role's skips. Order kept. */
-export function comparedProps(restated, roleSpec, anchors) {
-  const names = [...(roleSpec.skipProps ?? [])];
-  for (const set of roleSpec.skipSets ?? []) names.push(...anchors.style.skipSets[set].props);
-  const prefixes = anchors.style.skipPrefixes.map((p) => p.prefix);
-  return restated.filter((p) => !isSkipped(p, names, prefixes));
-}
+/** The shared context of a request: anchors.json as is, the covered part ids (in order), the run's recorded
+ *  properties, and the device-width edge pairs [n, n+1]. */
+export const context = ({ anchors, parts, props, deviceEdges }) => ({ anchors, parts, props, deviceEdges });
 
-/** Box of an item relative to the first item of a reference role (or absolute when there is none). */
-export function relBox(item, ref) {
-  if (!item) return null;
-  if (!ref) return { x: item.rect.x, y: item.rect.y, w: item.rect.w, h: item.rect.h };
-  return { x: item.rect.x - ref.rect.x, y: item.rect.y - ref.rect.y, w: item.rect.w, h: item.rect.h };
-}
+/** A `gate.state` request: states are {requested, orig, rewrite, expect?, expectNeutral?} with raw arms. */
+export const stateRequest = (ctx, states) => ({
+  op: 'gate.state', ...ctx,
+  states: states.map((s) => ({ requested: s.requested, orig: armReq(s.orig, ctx.parts), rewrite: armReq(s.rewrite, ctx.parts), expect: mapReq(s.expect), expectNeutral: mapReq(s.expectNeutral) })),
+});
 
-/**
- * All items of one part at one probe, as plain records {cls, role, idx, key, a, b, status}. a = original, b = rewrite.
- * origPart / rewritePart: the raw `parts[partId]` of each arm. props: { [role]: { restated, originOnly } } of the run.
- * `info` items (properties only the original declares) are returned with cls 'info' and status 'na' (never in a verdict).
- */
-export function partItems(partSpec, origPart, rewritePart, props, anchors) {
-  const out = [];
-  for (const spec of partSpec.roles) {
-    const o = origPart?.[spec.role], r = rewritePart?.[spec.role];
-    if (!o || !r) { out.push({ cls: 'count', role: spec.role, idx: -1, key: 'count', a: o ? o.count : null, b: r ? r.count : null, status: STATUS.missing }); continue; }
-    out.push({ cls: 'count', role: spec.role, idx: -1, key: 'count', a: o.count, b: r.count, status: countStatus(o.count, r.count) });
-    const n = Math.min(o.items.length, r.items.length);
-    const refRole = spec.boxRel ? spec.boxRel.role : null;
-    const refO = refRole ? origPart[refRole]?.items?.[spec.boxRel.index] : null;
-    const refR = refRole ? rewritePart[refRole]?.items?.[spec.boxRel.index] : null;
-    const compared = comparedProps(props[spec.role]?.restated ?? [], spec, anchors);
-    const info = (props[spec.role]?.originOnly ?? []).filter((p) => !isSkipped(p, [], anchors.style.skipPrefixes.map((x) => x.prefix)));
-    for (let i = 0; i < n; i++) {
-      if (spec.dims.length > 0) {
-        const bo = relBox(o.items[i], refO), br = relBox(r.items[i], refR);
-        for (const d of spec.dims) out.push({ cls: 'box', role: spec.role, idx: i, key: d, a: bo?.[d], b: br?.[d], status: boxStatus(bo?.[d], br?.[d]) });
-      }
-      for (const p of compared) {
-        const a = o.items[i].style[p], b = r.items[i].style[p];
-        out.push({ cls: 'style', role: spec.role, idx: i, key: p, a, b, status: styleStatus(a, b) });
-      }
-      for (const p of info) {
-        const a = o.items[i].style[p], b = r.items[i].style[p];
-        out.push({ cls: 'info', role: spec.role, idx: i, key: p, a, b, status: STATUS.na, differs: !styleValueEq(a, b) });
-      }
-    }
+/** A `gate.stale` request: pairs are {after, fresh} raw records (the arm after a sweep, a fresh load there). */
+export const staleRequest = (ctx, pairs) => ({
+  op: 'gate.stale', ...ctx,
+  pairs: pairs.map(({ after, fresh }) => ({ after: partsReq((after.raw ?? after).parts, ctx.parts), fresh: partsReq((fresh.raw ?? fresh).parts, ctx.parts) })),
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Replies -> the records summary.mjs prints
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Display values of a part item (orig a, rewrite b), read from the raw data; no decision is made here. Boxes are
+ *  shown relative to the reference item exactly as Lean compares them (Fw.Gate.relRect), in floating point. */
+function shown(roleSpecs, oPart, rPart, it) {
+  const o = oPart?.[it.role], r = rPart?.[it.role];
+  if (it.cls === 'count') return { a: o ? o.count : null, b: r ? r.count : null };
+  if (it.cls === 'box') {
+    const rs = roleSpecs.find((x) => x.role === it.role);
+    const rel = (part, item) => {
+      const ref = rs.boxRel ? part?.[rs.boxRel.role]?.items?.[rs.boxRel.index] : null;
+      const q = item.rect;
+      return (ref ? { x: q.x - ref.rect.x, y: q.y - ref.rect.y, w: q.w, h: q.h } : { x: q.x, y: q.y, w: q.w, h: q.h })[it.key];
+    };
+    return { a: rel(oPart, o.items[it.idx]), b: rel(rPart, r.items[it.idx]) };
   }
-  return out;
+  return { a: o.items[it.idx].style[it.key], b: r.items[it.idx].style[it.key] };
 }
 
-// ---------------------------------------------------------------------------------------------------------------
-// Environment achieved, and matchMedia truth
-// ---------------------------------------------------------------------------------------------------------------
-
-/** Both on the same side of every device-width edge pair [n, n+1]: (a <= n) == (b <= n). */
-export function sameSideOfEdges(a, b, edgePairs) {
-  return edgePairs.every(([n]) => (a <= n) === (b <= n));
-}
-
-/**
- * Which requested features the engine did not deliver, from what the page itself reports. Empty = env achieved.
- * requested: { width, height, deviceWidth, dpr, hover, pointer, reducedMotion, colorScheme }; raw: one arm's {viewport, observed}.
- * Device width is allowed to differ when both are on the same side of every device-width edge (500/501), because no
- * condition can tell them apart (Lean: MQ.eval_congr). Width must be exact (matchMedia `(width: Wpx)`).
- */
-export function envDeviations(requested, raw, deviceEdgePairs) {
-  const v = raw.viewport, o = raw.observed, d = [];
-  if (o.widthExact !== true) d.push('width');
-  if (v.innerHeight !== requested.height) d.push('height');
-  if (!(v.screenWidth === requested.deviceWidth || sameSideOfEdges(v.screenWidth, requested.deviceWidth, deviceEdgePairs))) d.push('deviceWidth');
-  if (v.dpr !== requested.dpr) d.push('dpr');
-  if (requested.hover === 'hover' ? !(o.hoverHover === true && o.hoverNone === false) : !(o.hoverNone === true && o.hoverHover === false)) d.push('hover');
-  if (requested.pointer === 'fine' ? !(o.pointerFine === true && o.pointerCoarse === false) : !(o.pointerCoarse === true && o.pointerFine === false)) d.push('pointer');
-  if ((requested.reducedMotion === 'reduce') !== (o.reducedMotion === true)) d.push('reducedMotion');
-  if ((requested.colorScheme === 'dark') !== (o.dark === true)) d.push('colorScheme');
-  return d;
-}
-
-/**
- * matchMedia items of one probe. a = original, b = rewrite, expect = Lean's value (undefined when the probe has no vector).
- *  truth.AR      orig = rewrite                                  (always applicable)
- *  truth.lean    orig = expect and rewrite = expect              (applicable only when the env is achieved on both arms and a vector exists)
- *  truth.legacy  the legacy max-/min- text gives the same value as the range text, on each arm (where a legacy text exists)
- *  truth.neutral.AR / truth.neutral.lean  the same two checks for the neutral queries (print, forced colors, the hover pair)
- */
-export function truthItems(orig, rewrite, expect, expectNeutral, achieved) {
-  const out = [];
-  for (const k of Object.keys(orig.truth)) {
-    out.push({ cls: 'truth.AR', key: k, a: orig.truth[k], b: rewrite.truth[k], status: orig.truth[k] === rewrite.truth[k] ? STATUS.equal : STATUS.differ });
-    if (expect && achieved) {
-      const ok = orig.truth[k] === expect[k] && rewrite.truth[k] === expect[k];
-      out.push({ cls: 'truth.lean', key: k, a: orig.truth[k], b: rewrite.truth[k], expect: expect[k], status: ok ? STATUS.equal : STATUS.differ });
-    } else {
-      out.push({ cls: 'truth.lean', key: k, a: orig.truth[k], b: rewrite.truth[k], expect: expect ? expect[k] : null, status: STATUS.na });
-    }
-    if (orig.truthLegacy[k] !== null && orig.truthLegacy[k] !== undefined) {
-      const ok = orig.truthLegacy[k] === orig.truth[k] && rewrite.truthLegacy[k] === rewrite.truth[k];
-      out.push({ cls: 'truth.legacy', key: k, a: orig.truthLegacy[k], b: rewrite.truthLegacy[k], expect: null, status: ok ? STATUS.equal : STATUS.differ });
-    }
+/** One `gate.state` reply entry with the raw arms it was asked about -> {dev, achieved, truth, truthCounts, rows,
+ *  compared, fails, infoDiffs}. `fails`: per part, the failing count/box/style items; `infoDiffs`: per part, the
+ *  properties only the original declares whose values differ (never in a verdict). */
+export function readState(anchors, state, ev) {
+  const o = (state.orig.raw ?? state.orig).parts, r = (state.rewrite.raw ?? state.rewrite).parts;
+  const fails = {}, infoDiffs = {};
+  for (const [pid, p] of ev.parts) {
+    const roles = anchors.parts[pid].roles;
+    fails[pid] = p.fails.map((it) => ({ ...it, ...shown(roles, o?.[pid], r?.[pid], it) }));
+    infoDiffs[pid] = p.infoDiffs.map((it) => ({ ...it, ...shown(roles, o?.[pid], r?.[pid], it) }));
   }
-  for (const k of Object.keys(orig.neutral)) {
-    out.push({ cls: 'truth.neutral.AR', key: k, a: orig.neutral[k], b: rewrite.neutral[k], status: orig.neutral[k] === rewrite.neutral[k] ? STATUS.equal : STATUS.differ });
-    if (expectNeutral && achieved) {
-      const ok = orig.neutral[k] === expectNeutral[k] && rewrite.neutral[k] === expectNeutral[k];
-      out.push({ cls: 'truth.neutral.lean', key: k, a: orig.neutral[k], b: rewrite.neutral[k], expect: expectNeutral[k], status: ok ? STATUS.equal : STATUS.differ });
-    } else {
-      out.push({ cls: 'truth.neutral.lean', key: k, a: orig.neutral[k], b: rewrite.neutral[k], expect: null, status: STATUS.na });
-    }
-  }
-  return out;
+  return {
+    dev: ev.dev, achieved: ev.achieved,
+    truth: ev.truth,
+    truthCounts: ev.truthCounts,
+    rows: Object.fromEntries(ev.rows), compared: Object.fromEntries(ev.compared),
+    fails, infoDiffs,
+  };
 }
 
-/** Verdict of a list of probe verdicts (block or table cell): the same rule, through verdictToStatus. */
-export function rollup(verdicts) {
-  return cellVerdict(verdicts.map(verdictToStatus));
+/** Evaluate states and sweep hysteresis pairs in one fwcore run: {states: [readState ...], stale: [{compared, differ}]}. */
+export function evaluate(ctx, states, stalePairs = []) {
+  const [s, t] = call([stateRequest(ctx, states), staleRequest(ctx, stalePairs)]);
+  return { states: s.states.map((ev, i) => readState(ctx.anchors, states[i], ev)), stale: t.stale };
 }
+
+/** Table cells (Lean `Fw.Gate.tally`, `Fw.Gate.blockCell`): cells are {verdicts, block}; a block cell with no
+ *  verdicts is not-run. Returns {verdict, failing, total} per cell. */
+export const tallies = (cells) =>
+  (cells.length === 0 ? [] : call([{ op: 'gate.tally', cells }])[0].cells.map(({ verdict, failing, total }) => ({ verdict, failing, total })));
+
+/** The rule over status lists (Lean `Fw.Gate.cellVerdict`), one verdict per list. */
+export const cellVerdicts = (lists) => call(lists.map((statuses) => ({ op: 'gate.cell', statuses }))).map((x) => x.verdict);
+
+/** Computed-style equality (Lean `Fw.Gate.styleValueEq`) for [a, b] pairs; undefined/null is absent. */
+export const styleEq = (pairs) => call([{ op: 'gate.styleEq', pairs: pairs.map(([a, b]) => [a ?? null, b ?? null]) }])[0].eq;

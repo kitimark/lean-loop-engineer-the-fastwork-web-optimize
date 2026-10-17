@@ -1,102 +1,113 @@
+// The gate's decisions are Lean's (lean/Fw/Gate); these tests run them through the fwcore binary, so they check the
+// binary is current, the request shapes of verdict.mjs, and the display values verdict.mjs attaches.
+// Needs lean/.lake/build/bin/fwcore (cd lean && lake build fwcore).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { STATUS, boxEq, cellVerdict, comparedProps, countStatus, envDeviations, isSkipped, partItems, relBox, rollup, sameSideOfEdges, styleValueEq, truthItems, verdictToStatus } from '../src/verdict.mjs';
+import { readFileSync } from 'node:fs';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { call, cellVerdicts, context, evaluate, styleEq, tallies } from '../src/verdict.mjs';
+
+const GOLDEN = join(resolve(dirname(fileURLToPath(import.meta.url)), '../../..'), 'packages/contracts/golden/gate');
+const lines = (f) => readFileSync(join(GOLDEN, f), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+
+test('golden: the binary answers the saved-run cases as Lean does', () => {
+  const cases = JSON.parse(readFileSync(join(GOLDEN, 'cases.json'), 'utf8'));
+  const want = lines('gate.jsonl');
+  assert.equal(cases.length, want.length);
+  const got = call(cases.map((c) => c.request));
+  cases.forEach((c, i) => { assert.equal(want[i].name, c.name); assert.deepEqual(got[i], want[i].response, c.name); });
+});
+
+test('golden: the literal cases, refusals included', () => {
+  for (const c of lines('literal.jsonl')) {
+    if (c.response.error !== undefined) assert.throws(() => call([c.request]), new RegExp(c.response.error.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), c.name);
+    else assert.deepEqual(call([c.request])[0], c.response, c.name);
+  }
+});
 
 test('cellVerdict: the one rule', () => {
-  assert.equal(cellVerdict([]), 'not-comparable');
-  assert.equal(cellVerdict(['na', 'na']), 'not-comparable');
-  assert.equal(cellVerdict(['equal', 'equal']), 'pass');
-  assert.equal(cellVerdict(['equal', 'na', 'equal']), 'pass');
-  assert.equal(cellVerdict(['equal', 'differ']), 'fail');
-  assert.equal(cellVerdict(['equal', 'missing']), 'fail');
-  assert.equal(cellVerdict(['na', 'missing']), 'fail');
+  assert.deepEqual(cellVerdicts([[], ['na', 'na'], ['equal', 'equal'], ['equal', 'na', 'equal'], ['equal', 'differ'], ['equal', 'missing'], ['na', 'missing']]),
+    ['not-comparable', 'not-comparable', 'pass', 'pass', 'fail', 'fail', 'fail']);
 });
 
-test('rollup reuses the rule through verdictToStatus', () => {
-  assert.equal(verdictToStatus('pass'), STATUS.equal);
-  assert.equal(rollup(['pass', 'not-comparable', 'pass']), 'pass');
-  assert.equal(rollup(['pass', 'fail']), 'fail');
-  assert.equal(rollup(['not-comparable']), 'not-comparable');
-  assert.equal(rollup([]), 'not-comparable');
+test('tally: rollup and table cells', () => {
+  assert.deepEqual(tallies([
+    { verdicts: ['pass', 'not-comparable', 'pass'] }, { verdicts: ['pass', 'fail'] }, { verdicts: ['not-comparable'] }, { verdicts: [] }, { verdicts: [], block: true },
+  ]), [
+    { verdict: 'pass', failing: 0, total: 2 }, { verdict: 'fail', failing: 1, total: 2 }, { verdict: 'not-comparable', failing: 0, total: 0 },
+    { verdict: 'not-comparable', failing: 0, total: 0 }, { verdict: 'not-run', failing: 0, total: 0 },
+  ]);
 });
 
-test('styleValueEq: exact, or numbers within 1e-3 with equal skeletons', () => {
-  assert.ok(styleValueEq('120px', '120px'));
-  assert.ok(styleValueEq('120px', '120.0009px'));
-  assert.ok(!styleValueEq('120px', '120.002px'));
-  assert.ok(!styleValueEq('120px', '120em'));
-  assert.ok(styleValueEq('matrix(1, 0, 0, 1, -5, 0)', 'matrix(1, 0, 0, 1, -5.0005, 0)'));
-  assert.ok(!styleValueEq('rgb(0, 0, 0)', 'rgb(0, 0, 1)'));
-  assert.ok(!styleValueEq('auto', undefined));
-  assert.ok(!styleValueEq('auto', '0px'));
+test('styleValueEq: exact, or numbers within 1/1000 (exact decimals, inclusive) with equal skeletons', () => {
+  assert.deepEqual(styleEq([
+    ['120px', '120px'], ['120px', '120.0009px'], ['120px', '120.001px'], ['120px', '120.002px'], ['120px', '120em'],
+    ['matrix(1, 0, 0, 1, -5, 0)', 'matrix(1, 0, 0, 1, -5.0005, 0)'], ['rgb(0, 0, 0)', 'rgb(0, 0, 1)'], ['auto', undefined], ['auto', '0px'],
+  ]), [true, true, true, false, false, true, false, false, false]);
 });
 
-test('boxEq: 0.5 px inclusive', () => {
-  assert.ok(boxEq(10, 10.5));
-  assert.ok(!boxEq(10, 10.51));
-  assert.ok(!boxEq(undefined, 1));
-  assert.ok(!boxEq(NaN, 1));
+// A small part: a frame (width only) and two units boxed relative to the frame's first item.
+const anchors = {
+  style: { skipPrefixes: [{ prefix: 'animation', why: 'motion' }], skipSets: { ld: { props: ['width'], why: 'derived from the box' } } },
+  parts: { p: { roles: [
+    { role: 'frame', boxRel: null, dims: ['w'], skipSets: ['ld'], skipProps: [], why: 'the frame' },
+    { role: 'unit', boxRel: { role: 'frame', index: 0 }, dims: ['x', 'w'], skipSets: [], skipProps: ['top'], why: 'the units' }] } },
+};
+const props = { p: { frame: { restated: ['width', 'animation-name'], originOnly: [] }, unit: { restated: ['color', 'top'], originOnly: ['extra'] } } };
+const requested = { width: 600.5, height: 900, deviceWidth: 600.5, dpr: 1.25, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
+const arm = ({ fx = 0, ux = [5, 20], color = 'red', extra = 'a', truth = { a: true, b: false }, observed = {}, viewport = {} } = {}) => ({
+  viewport: { innerHeight: 900, screenWidth: 601, dpr: 1.25, ...viewport },
+  observed: { widthExact: true, hoverHover: true, hoverNone: false, pointerFine: true, pointerCoarse: false, reducedMotion: false, dark: false, ...observed },
+  truth, truthLegacy: { a: true, b: null }, neutral: { print: false },
+  parts: { p: {
+    frame: { count: 1, items: [{ rect: { x: fx, y: 0, w: 100, h: 10 }, style: { width: `${fx}px`, 'animation-name': `n${fx}` } }] },
+    unit: { count: 2, items: ux.map((x) => ({ rect: { x, y: 0, w: 10, h: 10 }, style: { color, top: `${x}px`, extra } })) },
+  } },
+});
+const ctx = context({ anchors, parts: ['p'], props, deviceEdges: [[500, 501]] });
+const one = (o, r, expect = { a: true, b: false }, expectNeutral = { print: false }) => evaluate(ctx, [{ requested, orig: o, rewrite: r, expect, expectNeutral }]).states[0];
+
+test('environment achieved: width exact; device width on the same side of every edge', () => {
+  assert.deepEqual(one(arm(), arm()).dev, { orig: [], rewrite: [] });
+  assert.deepEqual(one(arm({ observed: { widthExact: false } }), arm()).dev, { orig: ['width'], rewrite: [] });
+  assert.deepEqual(one(arm(), arm({ observed: { pointerFine: false, pointerCoarse: true } })).dev, { orig: [], rewrite: ['pointer'] });
+  assert.deepEqual(one(arm({ viewport: { screenWidth: 400 } }), arm()).dev.orig, ['deviceWidth']);
 });
 
-test('countStatus: both zero means the anchor is absent', () => {
-  assert.equal(countStatus(4, 4), 'equal');
-  assert.equal(countStatus(4, 3), 'differ');
-  assert.equal(countStatus(0, 0), 'missing');
+test('truth: the Lean row is not comparable without an achieved env or a vector', () => {
+  assert.equal(one(arm(), arm()).rows['matchMedia =Lean'], 'pass');
+  assert.equal(one(arm({ observed: { dark: true } }), arm()).rows['matchMedia =Lean'], 'not-comparable');
+  assert.equal(one(arm(), arm(), null, null).rows['matchMedia =Lean'], 'not-comparable');
+  assert.equal(one(arm(), arm(), { a: false, b: false }).rows['matchMedia =Lean'], 'fail');
+  const diff = one(arm(), arm({ truth: { a: false, b: false } }));
+  assert.equal(diff.rows['matchMedia orig=rewrite'], 'fail');
+  assert.deepEqual(diff.truth.find((t) => t.cls === 'truth.AR' && t.key === 'a'), { cls: 'truth.AR', key: 'a', status: 'differ', fails: true, a: true, b: false });
 });
 
-test('isSkipped and comparedProps', () => {
-  assert.ok(isSkipped('animation', [], ['animation']));
-  assert.ok(isSkipped('animation-name', [], ['animation']));
-  assert.ok(!isSkipped('animations', [], ['animation']));
-  assert.ok(isSkipped('width', ['width'], []));
-  const anchors = { style: { skipPrefixes: [{ prefix: 'animation' }], skipSets: { ld: { props: ['width', 'height'] } } } };
-  assert.deepEqual(comparedProps(['width', 'color', 'animation-name', 'top'], { skipSets: ['ld'], skipProps: ['top'] }, anchors), ['color']);
+test('part items: boxes relative to the reference, skipped properties never fail, info outside the verdict', () => {
+  // the frame moves by 100 and the units with it; width, animation-* and top are skipped; extra is info only
+  const same = one(arm({ fx: 0, ux: [5, 20], extra: 'a' }), arm({ fx: 100, ux: [105, 120], extra: 'b' }));
+  assert.equal(same.rows.p, 'pass');
+  assert.equal(same.compared.p, 1 + 1 + 1 + 2 * 3);
+  assert.deepEqual(same.infoDiffs.p.map((x) => [x.role, x.idx, x.key, x.a, x.b]), [['unit', 0, 'extra', 'a', 'b'], ['unit', 1, 'extra', 'a', 'b']]);
+  // a unit 0.75 px off against its frame fails, 0.5 px does not; display values are relative to the frame
+  const off = one(arm({ fx: 0, ux: [5, 20] }), arm({ fx: 100, ux: [105.75, 120.5] }));
+  assert.equal(off.rows.p, 'fail');
+  assert.deepEqual(off.fails.p.map((x) => [x.cls, x.role, x.idx, x.key, x.status, x.a, x.b]), [['box', 'unit', 0, 'x', 'differ', 5, 5.75]]);
+  const col = one(arm(), arm({ color: 'blue' }));
+  assert.deepEqual(col.fails.p.map((x) => [x.cls, x.idx, x.key, x.a, x.b]), [['style', 0, 'color', 'red', 'blue'], ['style', 1, 'color', 'red', 'blue']]);
+  // a role absent on one arm: count missing, shown with null
+  const gone = arm(); delete gone.parts.p.unit;
+  assert.deepEqual(one(arm(), gone).fails.p.map((x) => [x.cls, x.role, x.status, x.a, x.b]), [['count', 'unit', 'missing', 2, null]]);
 });
 
-test('relBox', () => {
-  const it = { rect: { x: 10, y: 20, w: 5, h: 6 } };
-  assert.deepEqual(relBox(it, { rect: { x: 4, y: 5, w: 1, h: 1 } }), { x: 6, y: 15, w: 5, h: 6 });
-  assert.deepEqual(relBox(it, null), { x: 10, y: 20, w: 5, h: 6 });
+test('sweep hysteresis counts', () => {
+  const { stale } = evaluate(ctx, [], [{ after: arm(), fresh: arm() }, { after: arm({ ux: [5, 21] }), fresh: arm() }]);
+  assert.deepEqual(stale, [{ compared: 9, differ: 0 }, { compared: 9, differ: 1 }]);
 });
 
-test('sameSideOfEdges and envDeviations', () => {
-  assert.ok(sameSideOfEdges(600, 601, [[500, 501]]));
-  assert.ok(!sameSideOfEdges(500, 501, [[500, 501]]));
-  const req = { width: 600.5, height: 900, deviceWidth: 600.5, dpr: 1.25, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
-  const raw = { viewport: { innerHeight: 900, screenWidth: 601, dpr: 1.25 }, observed: { widthExact: false, hoverHover: true, hoverNone: false, pointerFine: true, pointerCoarse: false, reducedMotion: false, dark: false } };
-  assert.deepEqual(envDeviations(req, raw, [[500, 501]]), ['width']);
-  raw.observed.widthExact = true;
-  assert.deepEqual(envDeviations(req, raw, [[500, 501]]), []);
-  raw.observed.pointerFine = false; raw.observed.pointerCoarse = true;
-  assert.deepEqual(envDeviations(req, raw, [[500, 501]]), ['pointer']);
-});
-
-test('truthItems: the Lean check is n/a without an achieved env or a vector', () => {
-  const side = { truth: { a: true, b: false }, truthLegacy: { a: true, b: null }, neutral: { print: false } };
-  const items = truthItems(side, side, { a: true, b: false }, { print: false }, true);
-  assert.equal(cellVerdict(items.map((i) => i.status)), 'pass');
-  const off = truthItems(side, side, { a: true, b: false }, { print: false }, false);
-  assert.ok(off.filter((i) => i.cls === 'truth.lean').every((i) => i.status === 'na'));
-  const wrong = truthItems(side, side, { a: false, b: false }, { print: false }, true);
-  assert.equal(cellVerdict(wrong.map((i) => i.status)), 'fail');
-  const diff = truthItems(side, { ...side, truth: { a: false, b: false } }, undefined, undefined, true);
-  assert.ok(diff.some((i) => i.cls === 'truth.AR' && i.status === 'differ'));
-});
-
-test('partItems: counts, boxes relative to a reference, styles, and info items outside the verdict', () => {
-  const anchors = { style: { skipPrefixes: [{ prefix: 'animation' }], skipSets: {} } };
-  const spec = { roles: [{ role: 'unit', boxRel: { role: 'unit', index: 0 }, dims: ['x', 'w'], skipSets: [], skipProps: [] }] };
-  const mk = (x0, x1, color) => ({ unit: { count: 2, declared: [], items: [
-    { rect: { x: x0, y: 0, w: 10, h: 10 }, style: { color, extra: 'a' } },
-    { rect: { x: x1, y: 0, w: 10, h: 10 }, style: { color, extra: 'a' } }] } });
-  const props = { unit: { restated: ['color'], originOnly: ['extra'] } };
-  const same = partItems(spec, mk(5, 20, 'red'), mk(100, 115, 'red'), props, anchors);
-  assert.equal(cellVerdict(same.map((i) => i.status)), 'pass');
-  assert.ok(same.some((i) => i.cls === 'info' && i.status === 'na'));
-  const off = partItems(spec, mk(5, 20, 'red'), mk(100, 116, 'red'), props, anchors);
-  assert.equal(cellVerdict(off.map((i) => i.status)), 'fail');
-  const col = partItems(spec, mk(5, 20, 'red'), mk(5, 20, 'blue'), props, anchors);
-  assert.ok(col.some((i) => i.cls === 'style' && i.status === 'differ'));
-  const none = partItems({ roles: [] }, {}, {}, {}, anchors);
-  assert.equal(cellVerdict(none.map((i) => i.status)), 'not-comparable');
+test('anchors that drop a comparison without a reason are refused', () => {
+  const bad = { ...anchors, style: { ...anchors.style, skipPrefixes: [{ prefix: 'animation', why: '' }] } };
+  assert.throws(() => evaluate({ ...ctx, anchors: bad }, [{ requested, orig: arm(), rewrite: arm() }]), /without a reason/);
 });
