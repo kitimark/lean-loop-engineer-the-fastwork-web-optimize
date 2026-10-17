@@ -5,6 +5,9 @@ import { z } from "zod";
 
 export const StoreEngine = z.enum(["chromium", "webkit"]);
 export type StoreEngine = z.infer<typeof StoreEngine>;
+/** The page a run measures: the original site (snapshot) or the rewrite (apps/site); Lean `Fw.Store.Target`. */
+export const StoreTarget = z.enum(["original", "rewrite"]);
+export type StoreTarget = z.infer<typeof StoreTarget>;
 
 /** sha256 as 64 lowercase hex digits. */
 export const Digest = z.string().regex(/^[0-9a-f]{64}$/);
@@ -27,7 +30,8 @@ export type ManifestEntry = z.infer<typeof ManifestEntry>;
 
 export const RunManifest = z.object({
   engine: StoreEngine,
-  preset: z.string(),
+  target: StoreTarget, // part of the run key (key version 2)
+  preset: z.string(), // the original target takes only `original` and no flags
   fw: z.array(FlagStr), // strictly increasing by part
   profile: z.string(),
   gitSha: GitSha,
@@ -40,6 +44,7 @@ export type RunManifest = z.infer<typeof RunManifest>;
 // ---- store.plan --------------------------------------------------------------------------------------------------
 export const PlanRequest = z.object({
   op: z.literal("store.plan"),
+  target: z.string(), // `original` or `rewrite` (anything else is a problem); no default
   preset: z.string().optional(),
   fw: z.array(FlagStr).optional(),
   engines: z.array(z.string()),
