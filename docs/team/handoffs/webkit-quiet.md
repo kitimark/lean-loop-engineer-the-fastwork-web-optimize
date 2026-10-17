@@ -17,8 +17,8 @@ Lean: `lean/Fw/Measure/Quiet.lean` (proved, no sorry), wire op `measure.quietSte
 
 Conventions: counts classed per type over separate CI sessions; worst of sessions wins; dispatch descriptions must be YAML-safe (no colon).
 Open items:
-1. The 4th/5th session (dispatch 39059517229, determinism sessions=2) was queued when I stopped; if done, merge its two session JSONs
-   with the three in the note (`merge ... --out`) and refresh the JSON; the tally may worsen again.
+1. A 4th/5th session (determinism dispatch, sessions=2) never got a runner and was cancelled (39059517229); `sessions=2` is still
+   untested with the new code. More sessions can only worsen the worst-of-sessions tally; merge with `merge ... --out`.
 2. Load stamps: `loadavg` decays within a pass and is useless here; use step durations as the per-step load proxy.
 3. A way to lower load (stop diagnosticd/apsd inside the Simulator) is untried; it is the only dose in the downward direction.
 4. `zone-baselines-webkit` should use the noise band (`maxSpread`) per quarantined type and the timer-hold mode for TimerFire.
