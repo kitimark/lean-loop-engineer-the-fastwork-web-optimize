@@ -139,6 +139,71 @@ theorem touched_of_le_same_forced {P M : Type} (E : Engine P M) {v o : FrameIn P
   · exact ho
   · simp [ho] at h; omega
 
+/-! ## Transfer of whole verdicts -/
+
+/-- **Read-free transfer of `≤`.** If both frames' end-flag assignments are true on every touched stage (what a frame
+with no forced read gets, `flagEnd_of_forced_zero`), a `frameWork` bound is a `frameWorkE` bound.
+
+$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}_E(v):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_E(o):\ e_o(s) = \top) \land \operatorname{frameWork}_E(v) \preceq \operatorname{frameWork}_E(o) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \preceq \operatorname{frameWork}^{e_o}_E(o)$$
+
+With nothing cleaning a flag, both models count the same. -/
+theorem frameE_le_of_dirty {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched E v → ev s = true) (ho : ∀ s, s ∈ touched E o → eo s = true)
+    (h : (frameWork E v).le (frameWork E o)) : (frameWorkE E v ev).le (frameWorkE E o eo) := by
+  rw [frameWorkE_eq_of_dirty E v ev hv, frameWorkE_eq_of_dirty E o eo ho]; exact h
+
+/-- **Read-free transfer of `≺`.**
+
+$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}_E(v):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_E(o):\ e_o(s) = \top) \land \operatorname{frameWork}_E(v) \prec \operatorname{frameWork}_E(o) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \prec \operatorname{frameWork}^{e_o}_E(o)$$
+
+A strict win with nothing cleaning a flag stays strict. -/
+theorem frameE_lt_of_dirty {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched E v → ev s = true) (ho : ∀ s, s ∈ touched E o → eo s = true)
+    (h : (frameWork E v).lt (frameWork E o)) : (frameWorkE E v ev).lt (frameWorkE E o eo) := by
+  rw [frameWorkE_eq_of_dirty E v ev hv, frameWorkE_eq_of_dirty E o eo ho]; exact h
+
+/-- **Read-free transfer of `⋠`** (a trade or a loss stays one).
+
+$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}_E(v):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_E(o):\ e_o(s) = \top) \land \operatorname{frameWork}_E(v) \not\preceq \operatorname{frameWork}_E(o) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \not\preceq \operatorname{frameWork}^{e_o}_E(o)$$
+
+A read-free frame that costs more in one stage still does. -/
+theorem frameE_not_le_of_dirty {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched E v → ev s = true) (ho : ∀ s, s ∈ touched E o → eo s = true)
+    (h : ¬ (frameWork E v).le (frameWork E o)) : ¬ (frameWorkE E v ev).le (frameWorkE E o eo) := by
+  rw [frameWorkE_eq_of_dirty E v ev hv, frameWorkE_eq_of_dirty E o eo ho]; exact h
+
+/-- **Same forced passes, end flags no dirtier: `≤` transfers.** If the frames force the same passes, the variant
+does no more `frameWork` work, and on every stage the variant touches its end flag is dirty only if the original's
+is, then the variant does no more `frameWorkE` work.
+
+$$\forall E,\ \forall v, o,\ \forall e_v, e_o:\ (\forall s:\ \operatorname{forced}(v, s) = \operatorname{forced}(o, s)) \land \operatorname{frameWork}_E(v) \preceq \operatorname{frameWork}_E(o) \land \big(\forall s \in \operatorname{touched}_E(v):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \preceq \operatorname{frameWork}^{e_o}_E(o)$$
+
+Removing writes under the same reads cannot leave a stage dirtier. -/
+theorem frameE_le_mono {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
+    (hF : ∀ s, forcedPasses v s = forcedPasses o s) (hle : (frameWork E v).le (frameWork E o))
+    (hm : ∀ s, s ∈ touched E v → ev s = true → eo s = true) :
+    (frameWorkE E v ev).le (frameWorkE E o eo) := by
+  refine frameE_le_of_total E ev eo (touched_of_le_same_forced E hF hle) (fun s => (hle.1 s).2) hle.2
+    (fun s => Nat.le_of_eq (hF s)) (fun s hs => ?_)
+  have := hm s hs
+  rw [hF s]; revert this; cases ev s <;> cases eo s <;> simp
+
+/-- **Same forced passes: a strict saving in units or hits transfers.** Under the hypotheses of `frameE_le_mono`, a
+stage with fewer units, or fewer hits, keeps the variant strictly cheaper.
+
+$$\forall E, v, o, e_v, e_o:\ \text{hyp.\ of } \texttt{frameE\_le\_mono} \land \big((\exists s:\ \operatorname{units}_E(v, s) < \operatorname{units}_E(o, s)) \lor v.\mathrm{hits} < o.\mathrm{hits}\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \prec \operatorname{frameWork}^{e_o}_E(o)$$
+
+Units and hits do not depend on the end flags. -/
+theorem frameE_lt_mono {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
+    (hF : ∀ s, forcedPasses v s = forcedPasses o s) (hle : (frameWork E v).le (frameWork E o))
+    (hm : ∀ s, s ∈ touched E v → ev s = true → eo s = true)
+    (hs : (∃ s, stageUnits E v s < stageUnits E o s) ∨ v.hits < o.hits) :
+    (frameWorkE E v ev).lt (frameWorkE E o eo) := by
+  refine ⟨frameE_le_mono E ev eo hF hle hm, ?_⟩
+  rcases hs with ⟨s, h⟩ | h
+  · exact Or.inl ⟨s, Or.inr h⟩
+  · exact Or.inr h
+
 #guard flagEnd false [.check, .dirty, .neutral] == true
 #guard flagForced false [.check, .dirty, .neutral] == 0
 

@@ -1,5 +1,6 @@
 import Fw.Engine
 import Fw.Parts.HeroCountdown
+import Fw.Parts.EndFlags
 
 /-!
 # hero.countdown and morph.countdown, variant `strip`: same picture, fewer layers (CD-W, PLAN rev 10)
@@ -787,5 +788,47 @@ def goldenJsonl : String := goldenRow "swipe-v1" ++ "\n" ++ goldenRow "swipe-tou
 #guard (goldenJsonl.splitOn "\n").length == 3
 #guard (goldenRow "swipe-v1").startsWith "{\"base\":\"rewrite\",\"countType\":\"census.layers\""
 #guard ((goldenRow "swipe-v1").splitOn "\"prediction\":\"<o\"").length == 2
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+Strips and faces write the same stages at the same point of the same frame and add no read, so the stage flags end
+the same way under both: one common end-flag assignment `e`. The verdicts carry over unchanged (`=o` passes, fewer
+units). -/
+
+section EndPass
+
+open Fw.Parts.EndFlags
+
+/-- **Frame order under `frameWorkE`.** For every common end-flag assignment, strips are at most faces.
+
+$$\forall E, p, \ell, S:\ \big(\forall e:\ E.\mathrm{stagesOf}(e, p, \ell) = S\big) \Rightarrow \forall f, D,\ \forall \epsilon : \mathrm{Stage} \to \mathbb{B}:\ \operatorname{frameWork}^{\epsilon}_E(\operatorname{withWrites}(f, \operatorname{stripWrites}(p, \ell, D))) \preceq \operatorname{frameWork}^{\epsilon}_E(\operatorname{withWrites}(f, \operatorname{faceWrites}(p, \ell, D)))$$
+
+The end pass is paid the same way by both. -/
+theorem strip_frame_leE {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
+    (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (f : FrameIn P) (ds : List Nat) (e : Stage → Bool) :
+    (frameWorkE E (withWrites f (stripWrites p ℓ ds)) e).le (frameWorkE E (withWrites f (faceWrites p ℓ ds)) e) :=
+  frameE_le_of_same_forced E e (fun s => by cases s <;> rfl) (strip_frame_le E p ℓ S hS f ds)
+
+/-- **Strict under `frameWorkE`.** If some digit rolls and the write touches some stage, strips stay strictly below
+faces for every common end-flag assignment.
+
+$$\forall E, p, \ell, S:\ \big(\forall e:\ E.\mathrm{stagesOf}(e, p, \ell) = S\big) \land S \ne [\,] \Rightarrow \forall f,\ \forall D \ne [\,],\ \forall \epsilon:\ \operatorname{frameWork}^{\epsilon}_E(\operatorname{withWrites}(f, \operatorname{stripWrites}(p, \ell, D))) \prec \operatorname{frameWork}^{\epsilon}_E(\operatorname{withWrites}(f, \operatorname{faceWrites}(p, \ell, D)))$$
+
+The saved units do not depend on end flags. -/
+theorem strip_frame_ltE {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (S : List Stage)
+    (hS : ∀ e, E.stagesOf ⟨e, p, ℓ⟩ = S) (hS0 : S ≠ []) (f : FrameIn P) (ds : List Nat) (hd : ds ≠ [])
+    (e : Stage → Bool) :
+    (frameWorkE E (withWrites f (stripWrites p ℓ ds)) e).lt (frameWorkE E (withWrites f (faceWrites p ℓ ds)) e) := by
+  refine frameE_lt_mono E e e (fun s => by cases s <;> rfl) (strip_frame_le E p ℓ S hS f ds)
+    (fun _ _ h => h) (Or.inl ?_)
+  obtain ⟨s, hs⟩ := List.exists_mem_of_ne_nil S hS0
+  refine ⟨s, ?_⟩
+  have h := strip_units E p ℓ S hS f ds s
+  have : 0 < ds.length := List.length_pos_iff.mpr hd
+  simp only [frameWork, hs, ite_true] at h
+  show stageUnits E _ s < stageUnits E _ s
+  omega
+
+end EndPass
 
 end Fw.Parts.HeroCountdownOpt
