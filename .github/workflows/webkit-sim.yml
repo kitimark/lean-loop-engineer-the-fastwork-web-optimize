@@ -360,9 +360,16 @@ jobs:
             test -f "$r" || { echo "no rewrite counterpart for $n" >&2; exit 1; }
             node packages/measure-webkit/src/cli.mjs align "$a" "$r" --out "$out/${n%.json}.align.json" | tee "$out/${n%.json}.align.md"
           done
+          # classes of the full-zone sums over every pass of every VM and session (deterministic / stable / quarantined)
+          args=()
+          for a in "$RUNNER_TEMP"/vms/v*-session-*.json; do n=$(basename "$a"); args+=("$a" "$RUNNER_TEMP/vms/r${n#v}"); done
+          node packages/measure-webkit/src/cli.mjs align-classes "${args[@]}" --types RecalculateStyles,Layout,Paint,Composite,RenderingFrame --out "$out/classes.align.json" | tee "$out/classes.align.md"
           {
             echo '### webkit-sim: original (A) against rewrite (R) by scroll position'
-            cat "$out"/*.align.md
+            echo '#### classes of the full-zone sums over all passes'
+            cat "$out/classes.align.md"
+            echo '#### per zone, per VM and session'
+            cat "$out"/v*.align.md
           } >> "$GITHUB_STEP_SUMMARY"
           sha256sum "$RUNNER_TEMP"/vms/*-session-*.json | tee "$out/sha256.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

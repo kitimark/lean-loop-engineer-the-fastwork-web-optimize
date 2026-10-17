@@ -8,7 +8,7 @@
 // equal; zones (500 px bands) are summed over the paired steps, and a zone is `full` when every step of both runs in
 // it is paired.
 import { fwcoreCall } from './handoff.mjs';
-import { COUNT_TYPES } from './reduce.mjs';
+import { COUNT_TYPES, TOL, classify } from './reduce.mjs';
 
 /** The scroll part of one pass as an align request side. */
 export const runOf = (scroll) => ({ ys: scroll.ys, perStep: scroll.reduced.perStep, perStepPaintArea: scroll.reduced.perStepPaintArea });
@@ -51,4 +51,31 @@ export function zoneTable(pairs, type) {
 export function coverageLine(pair, aSteps, rSteps) {
   const zones = pair.zones.length;
   return `zones ${zones}, full ${pair.full.zones}; paired steps ${pair.paired.steps} of A ${aSteps} / R ${rSteps}; steps in full zones ${pair.full.steps}`;
+}
+
+/**
+ * Classes of the aligned zone sums over many passes (all passes of all VMs and sessions): per count type, the A sums, the R
+ * sums and the delta A - R over the zones that are `full` in every pass, classified like the other zone rows (`classify`
+ * with TOL.zone, the same function the Lean classifier is checked against). `sameFull` says whether every pass found the
+ * same full zones (the structure is a property of the two page heights, so it should).
+ */
+export function classifyAligned(pairs, tol = TOL.zone) {
+  if (pairs.length < 2) throw new Error('need at least two passes');
+  const key = (p) => p.zones.map((z) => (z.full ? 1 : 0)).join('');
+  const sameFull = pairs.every((p) => key(p) === key(pairs[0]));
+  const idx = pairs[0].zones.map((_, i) => i).filter((i) => pairs.every((p) => p.zones[i]?.full));
+  const rows = [];
+  for (const type of COUNT_TYPES) {
+    for (const [arm, f] of [['A', (z) => z.countsA[type]], ['R', (z) => z.countsB[type]], ['A - R', (z) => z.delta[type]]]) {
+      rows.push({ type, arm, ...classify(pairs.map((p) => idx.map((i) => f(p.zones[i]))), tol) });
+    }
+  }
+  return { sameFull, fullZones: idx.map((i) => pairs[0].zones[i].y0), rows };
+}
+
+/** Markdown table of `classifyAligned` rows for the listed count types. */
+export function classTable(res, types) {
+  const lines = [`full zones (y0): ${res.fullZones.join(', ')}; same full zones in every pass: ${res.sameFull ? 'yes' : 'NO'}`, '', '| count type | arm | class | cells | differing | max spread |', '|---|---|---|---|---|---|'];
+  for (const r of res.rows) if (types.includes(r.type)) lines.push(`| ${r.type} | ${r.arm} | **${r.cls}** | ${r.cells} | ${r.differingCells ?? '-'} | ${r.maxSpread ?? '-'} |`);
+  return lines.join('\n');
 }

@@ -8,7 +8,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { runOf, scrollsOf, alignPasses, zoneTable, coverageLine } from '../src/align.mjs';
+import { runOf, scrollsOf, alignPasses, zoneTable, coverageLine, classifyAligned, classTable } from '../src/align.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const GOLDEN = join(HERE, '../../contracts/golden/measure/measure.webkit.align.jsonl');
@@ -69,4 +69,17 @@ test('zoneTable and coverageLine print the reply as it is', () => {
   assert.equal(zoneTable([pair], 'Layout').split('\n')[2], '| 0 | 2 / 2 | 2 | yes | 3 | 1 | 2 |');
   assert.throws(() => zoneTable([pair], 'Nope'), /unknown count type/);
   assert.match(coverageLine(pair, 2, 2), /zones 1, full 1; paired steps 2 of A 2 \/ R 2; steps in full zones 2/);
+});
+
+test('classifyAligned: classes of the full-zone sums over passes; a zone that is not full in some pass is left out', () => {
+  const zone = (full, a, b) => ({ y0: 0, full, countsA: { Layout: a }, countsB: { Layout: b }, delta: { Layout: a - b } });
+  const mk = (a, b) => ({ zones: [zone(true, a, b), zone(true, 10, 4), zone(false, 1, 1)] });
+  const res = classifyAligned([mk(10, 4), mk(10, 4), mk(11, 4)]);
+  assert.equal(res.sameFull, true);
+  const get = (arm) => res.rows.find((r) => r.type === 'Layout' && r.arm === arm);
+  assert.equal(get('R').cls, 'deterministic');
+  assert.equal(get('A').cls, 'stable'); // spread 1 within the zone tolerance (abs 2)
+  assert.equal(get('A').cells, 2);
+  assert.match(classTable(res, ['Layout']), /\| Layout \| A \| \*\*stable\*\*/);
+  assert.throws(() => classifyAligned([mk(1, 1)]), /at least two/);
 });

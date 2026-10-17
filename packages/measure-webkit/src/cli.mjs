@@ -17,7 +17,7 @@ import { scrollRun } from './scrollrun.mjs';
 import { seekExperiment } from './seek.mjs';
 import { probe } from './rfprobe.mjs';
 import { screenAndTicks } from './handoff.mjs';
-import { alignPasses, scrollsOf, zoneTable, coverageLine } from './align.mjs';
+import { alignPasses, scrollsOf, zoneTable, coverageLine, classifyAligned, classTable } from './align.mjs';
 import { warmUpLoad, perStepPasses, classifyModes, perStepTable } from './perstep.mjs';
 import { onePassRetrying, classifyPasses, reasonNames, markdownTable, resolveStates } from './determinism.mjs';
 import { COUNT_TYPES, zones, summarize } from './reduce.mjs';
@@ -174,6 +174,18 @@ async function main() {
       if (v.out) save('align', { schema: 'fw.webkit.align/1', a: aFile, r: rFile, zonePx: num(v['zone-px']), passes: res.passes, pairs: res.pairs });
       break;
     }
+    case 'align-classes': {
+      // align-classes <a1.json> <r1.json> <a2.json> <r2.json> ...: every pass of every pair aligned, then the zone sums of the full zones
+      // classified over all passes (deterministic / stable / quarantined) for the A arm, the R arm and the delta.
+      if (positionals.length < 2 || positionals.length % 2) throw new Error('usage: align-classes <a1.json> <r1.json> [<a2.json> <r2.json> ...] [--types t1,t2] [--zone-px 500] [--out file]');
+      const read = (f) => JSON.parse(readFileSync(resolve(f), 'utf8'));
+      const pairs = [];
+      for (let i = 0; i < positionals.length; i += 2) pairs.push(...(await alignPasses(scrollsOf(read(positionals[i]), v.mode), scrollsOf(read(positionals[i + 1]), v.mode), num(v['zone-px']))).pairs);
+      const res = classifyAligned(pairs);
+      console.log(`passes ${pairs.length} (${positionals.length / 2} file pairs)\n\n${classTable(res, v.types.split(','))}`);
+      if (v.out) save('align-classes', { schema: 'fw.webkit.align-classes/1', files: positionals, zonePx: num(v['zone-px']), ...res });
+      break;
+    }
     case 'merge': {
       // merge: classes of independent determinism sessions (JSON files from `determinism --out`), the worse one wins
       const rank = { deterministic: 0, stable: 1, quarantined: 2 };
@@ -199,7 +211,7 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: census|scroll|seek|determinism|align <a.json> <r.json>|merge <a.json> <b.json>|sim down  [--state y[,y|max]] [--clock pinned|live] [--hold ms] [--settle ms] [--window ms] [--step px] [--frames n] [--ns a,b] [--runs n] [--out file] [--keep] [--vendors off|live] [--no-seek]');
+      console.error('usage: census|scroll|seek|determinism|align <a.json> <r.json>|align-classes <a.json> <r.json>...|merge <a.json> <b.json>|sim down  [--state y[,y|max]] [--clock pinned|live] [--hold ms] [--settle ms] [--window ms] [--step px] [--frames n] [--ns a,b] [--runs n] [--out file] [--keep] [--vendors off|live] [--no-seek]');
       process.exitCode = 2;
   }
 }
