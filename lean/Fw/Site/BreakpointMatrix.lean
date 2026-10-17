@@ -151,9 +151,7 @@ theorem matrix_blocks :
 
 /-- Probe ids are unique.
 
-$$ \forall i, j < |M|,\quad i \ne j \Rightarrow \mathrm{id}(M_i) \ne \mathrm{id}(M_j) $$
-
-where $M_i$ is the $i$-th probe of the list $M$ (from 0).
+$$ \forall i, j < |M|,\quad i \ne j \Rightarrow \mathrm{id}(M_i) \ne \mathrm{id}(M_j),\quad \text{where } M_i = \text{the } i\text{-th probe of the list } M \text{ (from 0)} $$
 
 Every load has its own name. -/
 theorem matrix_ids_nodup : (matrix.map (·.id)).Nodup := by decide +kernel

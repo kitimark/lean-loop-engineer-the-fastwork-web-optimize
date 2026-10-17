@@ -93,10 +93,7 @@ deriving Repr, DecidableEq
 you; it is stale only when it has not landed, no run on it is running, no step on it is open and
 no event came for `staleMs`.
 
-$$\operatorname{row}(\sigma, \mathit{now}, c) = \big(c.\mathit{id}, c.\mathit{owner}, \operatorname{stage}(c), \operatorname{next}(c, \operatorname{stage}(c)), c.\mathit{lastAt}, \operatorname{map}(\operatorname{needs}, m), \rho, c.\mathit{head}, c.\mathit{landed}, c.\mathit{violation}, \neg c.\mathit{landed} \land \rho = 0 \land m = \bot \land \mathrm{STALE} \le \mathit{now} \mathbin{\dot{-}} c.\mathit{lastAt}\big)$$
-
-where $m$ is the first $s \in \sigma.\mathit{steps}$ (in list order) with $\operatorname{isOpen}(s.\mathit{status}) \land s.\mathit{card} = c.\mathit{id}$ (a step with no card never matches), or $\bot$ if there is none, and
-$\rho = |[\, r \in \sigma.\mathit{runs} \mid r.\mathit{card} = c.\mathit{id} \land r.\mathit{status} = \mathrm{running} \,]|$ (a list count), and $\mathrm{STALE} = \mathrm{staleMs}$.
+$$\operatorname{row}(\sigma, \mathit{now}, c) = \big(c.\mathit{id}, c.\mathit{owner}, \operatorname{stage}(c), \operatorname{next}(c, \operatorname{stage}(c)), c.\mathit{lastAt}, \operatorname{map}(\operatorname{needs}, m), \rho, c.\mathit{head}, c.\mathit{landed}, c.\mathit{violation}, \neg c.\mathit{landed} \land \rho = 0 \land m = \bot \land \mathrm{STALE} \le \mathit{now} \mathbin{\dot{-}} c.\mathit{lastAt}\big),\quad \text{where } m = \text{the first } s \in \sigma.\mathit{steps} \text{ (in list order) with } \operatorname{isOpen}(s.\mathit{status}) \land s.\mathit{card} = c.\mathit{id} \text{ (a step with no card never matches), or } \bot \text{ if there is none},\ \rho = |[\, r \in \sigma.\mathit{runs} \mid r.\mathit{card} = c.\mathit{id} \land r.\mathit{status} = \mathrm{running} \,]| \text{ (a list count)},\ \mathrm{STALE} = \mathrm{staleMs}$$
 -/
 def boardCard (s : State) (now : Nat) (c : Card) : BoardCard :=
   let st := stage c

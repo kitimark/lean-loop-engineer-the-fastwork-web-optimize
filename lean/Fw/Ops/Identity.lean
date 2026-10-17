@@ -65,9 +65,8 @@ def infixOf (p : List Char) : List Char → Bool
 
 /-- A reviewing role: its type contains `review`, ignoring ASCII case.
 
-$$\operatorname{isReviewRole}(t) = \operatorname{infixOf}(\texttt{review}, \operatorname{lower}(t))$$
+$$\operatorname{isReviewRole}(t) = \operatorname{infixOf}(\texttt{review}, \operatorname{lower}(t)),\quad \text{where } \operatorname{lower} \text{ lowercases ASCII letters only (as JavaScript's } \texttt{/review/i} \text{ does)}$$
 
-where $\operatorname{lower}$ lowercases ASCII letters only (as JavaScript's `/review/i` does).
 An agent type counts as a reviewer when it contains the word review in any ASCII case.
 -/
 def isReviewRole (t : String) : Bool := infixOf "review".toList t.toLower.toList

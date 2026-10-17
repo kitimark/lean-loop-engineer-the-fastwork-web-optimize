@@ -24,9 +24,7 @@ open Lean
 /-- Exact decimal of a rational whose reduced denominator is $2^a 5^b$ with $a, b \le 40$ (i.e. divides
 $10^{40}$), with the fewest digits; none otherwise.
 
-$$\operatorname{dec}(q) = \begin{cases} \operatorname{some}\big(q.\mathrm{num} \cdot \tfrac{10^{e}}{q.\mathrm{den}},\ e\big),\ e = \min\{e \le 40 : q.\mathrm{den} \mid 10^{e}\} & \text{if such } e \text{ exists} \\ \operatorname{none} & \text{otherwise} \end{cases}$$
-
-where $(m, e)$ stands for the JSON number $m \cdot 10^{-e}$ (so $q = m \cdot 10^{-e}$ in the first case).
+$$\operatorname{dec}(q) = \begin{cases} \operatorname{some}\big(q.\mathrm{num} \cdot \tfrac{10^{e}}{q.\mathrm{den}},\ e\big),\ e = \min\{e \le 40 : q.\mathrm{den} \mid 10^{e}\} & \text{if such } e \text{ exists} \\ \operatorname{none} & \text{otherwise} \end{cases},\quad \text{where } (m, e) \text{ stands for the JSON number } m \cdot 10^{-e} \text{ (so } q = m \cdot 10^{-e} \text{ in the first case)}$$
 
 The JSON number for a rational input, when one exists. -/
 def decimal? (q : Rat) : Option JsonNumber :=

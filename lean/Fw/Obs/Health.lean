@@ -194,8 +194,7 @@ deriving DecidableEq, Repr
 of its first command (never the command line), its start time (ms), every other pid in the tree, and the id of the
 agent whose Bash call started it (`none`: the lead session, or not known).
 
-$$q = (\mathit{pid}, \mathit{name}, \mathit{start}, P, \mathit{owner}_\bot) \in \mathbb N \times \mathrm{String} \times \mathbb N \times \mathbb N^* \times \mathrm{String}_\bot$$
-where $\mathit{owner}(q) = \mathit{owner}_\bot$ is the last component.
+$$q = (\mathit{pid}, \mathit{name}, \mathit{start}, P, \mathit{owner}_\bot) \in \mathbb N \times \mathrm{String} \times \mathbb N \times \mathbb N^* \times \mathrm{String}_\bot,\quad \mathit{owner}(q) = \mathit{owner}_\bot \ \text{(the last component)}$$
 -/
 structure Proc where
   pid       : Nat
@@ -764,8 +763,7 @@ order: context over `ctxResumeMax` (do not resume it), context over `ctxWarn`, a
 failed calls in a row, stalled, a tool hung, a tool slow. An unknown context size counts as 0. Every alert has
 $\mathit{crit} = \mathrm{false}$ here (`agentAll` marks it).
 
-$$\operatorname{agentAlerts}(p, t, A, a) = \begin{cases} [] & \operatorname{ended}(p, t, a) \vee \operatorname{parked}(a) \\ \operatorname{when}(\kappa > \mathit{ctxMax}, (\texttt{ctxHigh}, \mathit{id}(a), \text{“}\kappa\text{ context tokens”})) \mathbin{+\!\!+} \operatorname{when}(\kappa > \mathit{ctxWarn}, (\texttt{ctxWarn}, \mathit{id}(a), \text{“}\kappa\text{ context tokens”})) \\ \quad \mathbin{+\!\!+} \operatorname{when}(\mathit{errTail}(a) \ge \max(\mathit{err}, 1), (\texttt{errStreak}, \mathit{id}(a), \text{“}\mathit{errTail}(a)\text{ failed tool calls in a row”})) \\ \quad \mathbin{+\!\!+} \operatorname{when}(\operatorname{stallB}(p, t, A, a), (\texttt{stalled}, \mathit{id}(a), \text{“no event for }\operatorname{mins}(t \mathbin{\dot-} \mathit{last}(a))\text{ min”})) \\ \quad \mathbin{+\!\!+} \operatorname{when}(\operatorname{hung}(p, t, A, a), (\texttt{toolHang}, \mathit{id}(a), \delta(t, a))) \mathbin{+\!\!+} \operatorname{when}(\operatorname{slow}(p, t, A, a), (\texttt{toolSlow}, \mathit{id}(a), \delta(t, a))) & \text{otherwise} \end{cases}$$
-where $\kappa = \mathit{ctx}(a)$ if $\mathit{ctx}(a) \ne \bot$, else $\kappa = 0$ (numbers in decimal).
+$$\operatorname{agentAlerts}(p, t, A, a) = \begin{cases} [] & \operatorname{ended}(p, t, a) \vee \operatorname{parked}(a) \\ \operatorname{when}(\kappa > \mathit{ctxMax}, (\texttt{ctxHigh}, \mathit{id}(a), \text{“}\kappa\text{ context tokens”})) \mathbin{+\!\!+} \operatorname{when}(\kappa > \mathit{ctxWarn}, (\texttt{ctxWarn}, \mathit{id}(a), \text{“}\kappa\text{ context tokens”})) \\ \quad \mathbin{+\!\!+} \operatorname{when}(\mathit{errTail}(a) \ge \max(\mathit{err}, 1), (\texttt{errStreak}, \mathit{id}(a), \text{“}\mathit{errTail}(a)\text{ failed tool calls in a row”})) \\ \quad \mathbin{+\!\!+} \operatorname{when}(\operatorname{stallB}(p, t, A, a), (\texttt{stalled}, \mathit{id}(a), \text{“no event for }\operatorname{mins}(t \mathbin{\dot-} \mathit{last}(a))\text{ min”})) \\ \quad \mathbin{+\!\!+} \operatorname{when}(\operatorname{hung}(p, t, A, a), (\texttt{toolHang}, \mathit{id}(a), \delta(t, a))) \mathbin{+\!\!+} \operatorname{when}(\operatorname{slow}(p, t, A, a), (\texttt{toolSlow}, \mathit{id}(a), \delta(t, a))) & \text{otherwise} \end{cases},\quad \text{where } \kappa = \begin{cases} \mathit{ctx}(a) & \mathit{ctx}(a) \ne \bot \\ 0 & \mathit{ctx}(a) = \bot \end{cases}\ \text{(numbers in decimal)}$$
 -/
 def agentAlerts (p : Params) (now : Nat) (agents : List Agent) (a : Agent) : List Alert :=
   if ended p now a || parkedB a then [] else
@@ -791,8 +789,7 @@ def newGone (p : Params) (prev : Option Nat) (a : Agent) : Bool :=
 /-- The `agent.gone` alert of an agent: raised once, at the first check where the agent is gone (state `gone`) and the
 previous check did not see it gone.
 
-$$\operatorname{goneAlert}(p, o, a) = \operatorname{when}\bigl(\neg\operatorname{stopped}(p, t, a) \wedge \operatorname{gone}(p, t, a) \wedge \operatorname{newGone}(p, \mathit{prev}, a),\ (\texttt{agent.gone}, \mathit{id}(a), \text{“no event for }\operatorname{mins}(t \mathbin{\dot-} \mathit{last}(a))\text{ min”}, \mathrm{false})\bigr)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\operatorname{goneAlert}(p, o, a) = \operatorname{when}\bigl(\neg\operatorname{stopped}(p, t, a) \wedge \operatorname{gone}(p, t, a) \wedge \operatorname{newGone}(p, \mathit{prev}, a),\ (\texttt{agent.gone}, \mathit{id}(a), \text{“no event for }\operatorname{mins}(t \mathbin{\dot-} \mathit{last}(a))\text{ min”}, \mathrm{false})\bigr),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 def goneAlert (p : Params) (o : Obs) (a : Agent) : List Alert :=
   when (!stopped p o.now a && goneB p o.now a && newGone p o.prevAt a)
@@ -831,8 +828,7 @@ def mark (k : Bool) (x : Alert) : Alert := { x with crit := k }
 /-- Every `agent.*` alert of one agent: its `agent.gone` alert and its live-agent alerts, each marked critical when
 the agent works on a critical-path task.
 
-$$\operatorname{agentAll}(p, o, a) = \operatorname{map}\bigl(\operatorname{mark}(\operatorname{critA}(K, a)),\ \operatorname{goneAlert}(p, o, a) \mathbin{+\!\!+} \operatorname{agentAlerts}(p, t, A, a)\bigr)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\operatorname{agentAll}(p, o, a) = \operatorname{map}\bigl(\operatorname{mark}(\operatorname{critA}(K, a)),\ \operatorname{goneAlert}(p, o, a) \mathbin{+\!\!+} \operatorname{agentAlerts}(p, t, A, a)\bigr),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 def agentAll (p : Params) (o : Obs) (a : Agent) : List Alert :=
   (goneAlert p o a ++ agentAlerts p o.now o.agents a).map (mark (critAgent o.critical a))
@@ -893,8 +889,7 @@ theorem agentAll_subject (p : Params) (o : Obs) (a : Agent) (x : Alert) (h : x �
 
 /-- A gone agent raises only `agent.gone`: every alert of a gone agent has that code.
 
-$$\forall p, o, a, x:\quad \operatorname{state}(p, t, A, a) = \mathrm{gone} \wedge x \in \operatorname{agentAll}(p, o, a) \Rightarrow \mathit{code}(x) = \texttt{agent.gone}$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\forall p, o, a, x:\quad \operatorname{state}(p, t, A, a) = \mathrm{gone} \wedge x \in \operatorname{agentAll}(p, o, a) \Rightarrow \mathit{code}(x) = \texttt{agent.gone},\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 theorem gone_alerts (p : Params) (o : Obs) (a : Agent) (h : state p o.now o.agents a = .gone) (x : Alert)
     (hx : x ∈ agentAll p o a) : x.code = .gone := by
@@ -910,8 +905,7 @@ theorem gone_alerts (p : Params) (o : Obs) (a : Agent) (h : state p o.now o.agen
 /-- `agent.gone` is raised for an agent exactly when its state is gone and it was not gone at the previous check (or
 there was none).
 
-$$\forall p, o, a:\quad (\exists x \in \operatorname{agentAll}(p, o, a).\ \mathit{code}(x) = \texttt{agent.gone}) \iff \operatorname{state}(p, t, A, a) = \mathrm{gone} \wedge \operatorname{newGone}(p, \mathit{prev}, a)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\forall p, o, a:\quad (\exists x \in \operatorname{agentAll}(p, o, a).\ \mathit{code}(x) = \texttt{agent.gone}) \iff \operatorname{state}(p, t, A, a) = \mathrm{gone} \wedge \operatorname{newGone}(p, \mathit{prev}, a),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 theorem goneAlert_iff (p : Params) (o : Obs) (a : Agent) :
     (∃ x ∈ agentAll p o a, x.code = .gone) ↔ state p o.now o.agents a = .gone ∧ newGone p o.prevAt a = true := by
@@ -1028,8 +1022,7 @@ def keepProgs : List String := ["caffeinate"]
 /-- Whether a process tree is an intended long-runner: its name is on the allowlist `keepProgs`, or one of its pids
 (root included) is a service pid or a pid the lead declared (`fw watch --keep`).
 
-$$\operatorname{declared}(S, D, q) \iff \mathit{name}(q) \in \mathit{Keep} \vee \exists x \in \mathit{pid}(q) \mathbin{::} P(q).\ x \in S \vee x \in D$$
-where $P(q)$ is the list of the tree's other pids.
+$$\operatorname{declared}(S, D, q) \iff \mathit{name}(q) \in \mathit{Keep} \vee \exists x \in \mathit{pid}(q) \mathbin{::} P(q).\ x \in S \vee x \in D,\quad \text{where } P(q) = \text{the list of the tree's other pids}$$
 -/
 def declaredB (services keep : List Nat) (q : Proc) : Bool :=
   keepProgs.contains q.name || (q.pid :: q.pids).any fun x => services.contains x || keep.contains x
@@ -1048,8 +1041,7 @@ def ownerLiveB (p : Params) (now : Nat) (agents : List Agent) (q : Proc) : Bool 
 (the lead's own trees, and orphans of ended or gone agents), and it has been alive for strictly more than `procMaxMin`
 minutes.
 
-$$\operatorname{procLong}(p, o, q) \iff \neg\operatorname{declared}(S, D, q) \wedge \neg\operatorname{ownerLive}(p, t, A, q) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{procLong}(p, o, q) \iff \neg\operatorname{declared}(S, D, q) \wedge \neg\operatorname{ownerLive}(p, t, A, q) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def procLongB (p : Params) (o : Obs) (q : Proc) : Bool :=
   !declaredB o.system.services o.system.keep q && !ownerLiveB p o.now o.agents q &&
@@ -1101,9 +1093,7 @@ def permB (l : Lead) : Bool :=
 
 /-- `team.overCap`: more live non-lead agents than `agentCap` (the detail counts them by kind and counts the helpers).
 
-$$\operatorname{sOver}(p, o) = \operatorname{when}\bigl(\mathit{cap} < n,\ (\texttt{team.overCap}, \texttt{team}, \text{“}n\text{ live agents: }k_{\mathrm{teammate}}\text{ teammate, }k_{\mathrm{subagent}}\text{ subagent, }k_{\mathrm{workflow}}\text{ workflow; }h\text{ with a parent agent”}, \mathrm{false})\bigr)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$, $n = \operatorname{nLive}(p, t, A)$, $k_\kappa = \operatorname{nKind}(p, t, A, \kappa)$ and
-$h = \operatorname{nHelpers}(p, t, A)$ (numbers in decimal).
+$$\operatorname{sOver}(p, o) = \operatorname{when}\bigl(\mathit{cap} < n,\ (\texttt{team.overCap}, \texttt{team}, \text{“}n\text{ live agents: }k_{\mathrm{teammate}}\text{ teammate, }k_{\mathrm{subagent}}\text{ subagent, }k_{\mathrm{workflow}}\text{ workflow; }h\text{ with a parent agent”}, \mathrm{false})\bigr),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ n = \operatorname{nLive}(p, t, A),\ k_\kappa = \operatorname{nKind}(p, t, A, \kappa),\ h = \operatorname{nHelpers}(p, t, A)\ \text{(numbers in decimal)}$$
 -/
 def sOver (p : Params) (o : Obs) : List Alert :=
   when (decide (p.agentCap < nLive p o.now o.agents)) ⟨.overCap, "team",
@@ -1111,24 +1101,21 @@ def sOver (p : Params) (o : Obs) : List Alert :=
 
 /-- `sys.diskLow`: free disk strictly below `diskMinGB`.
 
-$$\operatorname{sDisk}(p, o) = \operatorname{when}(\mathit{disk} < \mathit{diskMin},\ (\texttt{sys.diskLow}, \texttt{disk}, \text{“}\mathit{disk}\text{ GB free”}, \mathrm{false}))$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sDisk}(p, o) = \operatorname{when}(\mathit{disk} < \mathit{diskMin},\ (\texttt{sys.diskLow}, \texttt{disk}, \text{“}\mathit{disk}\text{ GB free”}, \mathrm{false})),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sDisk (p : Params) (o : Obs) : List Alert :=
   when (decide (o.system.diskFreeGB < p.diskMinGB)) ⟨.diskLow, "disk", s!"{o.system.diskFreeGB} GB free", false⟩
 
 /-- `sys.memCritical`: memory pressure critical.
 
-$$\operatorname{sMem}(o) = \operatorname{when}(m = \mathrm{critical},\ (\texttt{sys.memCritical}, \texttt{memory}, \text{“memory pressure critical”}, \mathrm{false}))$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sMem}(o) = \operatorname{when}(m = \mathrm{critical},\ (\texttt{sys.memCritical}, \texttt{memory}, \text{“memory pressure critical”}, \mathrm{false})),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sMem (o : Obs) : List Alert :=
   when (o.system.memPressure == .critical) ⟨.memCritical, "memory", "memory pressure critical", false⟩
 
 /-- `sys.loadHigh`: the floor of the 1-min load average at or above `loadMax`.
 
-$$\operatorname{sLoad}(p, o) = \operatorname{when}(\mathit{loadMax} \le \lambda,\ (\texttt{sys.loadHigh}, \texttt{load}, \text{“load average }\lambda\text{ (1 min, floor)”}, \mathrm{false}))$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sLoad}(p, o) = \operatorname{when}(\mathit{loadMax} \le \lambda,\ (\texttt{sys.loadHigh}, \texttt{load}, \text{“load average }\lambda\text{ (1 min, floor)”}, \mathrm{false})),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sLoad (p : Params) (o : Obs) : List Alert :=
   when (decide (p.loadMax ≤ o.system.loadFloor))
@@ -1136,10 +1123,7 @@ def sLoad (p : Params) (o : Obs) : List Alert :=
 
 /-- `sim.lockLong`: the simulator lock has a holder and a start time and has been held for `simLockMaxMin` minutes.
 
-$$\operatorname{sLockLong}(p, o) = \operatorname{when}\bigl(\mathit{holder}(L) \ne \bot \wedge \exists \sigma.\ \mathit{since}(L) = \sigma \wedge \mu\,\mathit{simMax} \le t \mathbin{\dot-} \sigma,\ (\texttt{sim.lockLong}, \texttt{sim}, \text{“held by }h\text{ for }\operatorname{mins}(t \mathbin{\dot-} \sigma_0)\text{ min”}, \mathrm{false})\bigr)$$
-where $h$ is $\mathit{holder}(L)$, or $\varepsilon$ when it is $\bot$, and $\sigma_0$ is $\mathit{since}(L)$, or $0$ when it is
-$\bot$.
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sLockLong}(p, o) = \operatorname{when}\bigl(\mathit{holder}(L) \ne \bot \wedge \exists \sigma.\ \mathit{since}(L) = \sigma \wedge \mu\,\mathit{simMax} \le t \mathbin{\dot-} \sigma,\ (\texttt{sim.lockLong}, \texttt{sim}, \text{“held by }h\text{ for }\operatorname{mins}(t \mathbin{\dot-} \sigma_0)\text{ min”}, \mathrm{false})\bigr),\quad \text{where } h = \begin{cases} \mathit{holder}(L) & \mathit{holder}(L) \ne \bot \\ \varepsilon & \mathit{holder}(L) = \bot \end{cases},\ \sigma_0 = \begin{cases} \mathit{since}(L) & \mathit{since}(L) \ne \bot \\ 0 & \mathit{since}(L) = \bot \end{cases},\ o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sLockLong (p : Params) (o : Obs) : List Alert :=
   when (o.system.simLock.holder.isSome &&
@@ -1149,9 +1133,7 @@ def sLockLong (p : Params) (o : Obs) : List Alert :=
 
 /-- `sim.lockOrphan`: the simulator lock is orphaned.
 
-$$\operatorname{sOrphan}(p, o) = \operatorname{when}(\operatorname{orphanB}(p, t, A, L),\ (\texttt{sim.lockOrphan}, \texttt{sim}, \text{“held by }h\text{”}, \mathrm{false}))$$
-where $h$ is $\mathit{holder}(L)$, or $\varepsilon$ when it is $\bot$.
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sOrphan}(p, o) = \operatorname{when}(\operatorname{orphanB}(p, t, A, L),\ (\texttt{sim.lockOrphan}, \texttt{sim}, \text{“held by }h\text{”}, \mathrm{false})),\quad \text{where } h = \begin{cases} \mathit{holder}(L) & \mathit{holder}(L) \ne \bot \\ \varepsilon & \mathit{holder}(L) = \bot \end{cases},\ o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sOrphan (p : Params) (o : Obs) : List Alert :=
   when (orphanB p o.now o.agents o.system.simLock)
@@ -1159,9 +1141,7 @@ def sOrphan (p : Params) (o : Obs) : List Alert :=
 
 /-- `ci.failed`: the latest run of a workflow and branch failed (critical when the branch is a critical task's).
 
-$$\operatorname{sCiFailed}(o) = [\,(\texttt{ci.failed}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“latest run }c_\varepsilon(r)\text{”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciFailing}(r) \wedge \operatorname{ciLatest}(R, r)\,]$$
-where $c_\varepsilon(r)$ is $\mathit{concl}(r)$, or $\varepsilon$ when it is $\bot$; the order of $R$ is kept.
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sCiFailed}(o) = [\,(\texttt{ci.failed}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“latest run }c_\varepsilon(r)\text{”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciFailing}(r) \wedge \operatorname{ciLatest}(R, r)\,],\quad \text{where } c_\varepsilon(r) = \begin{cases} \mathit{concl}(r) & \mathit{concl}(r) \ne \bot \\ \varepsilon & \mathit{concl}(r) = \bot \end{cases}\ \text{(the order of } R \text{ is kept)},\ o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sCiFailed (o : Obs) : List Alert :=
   (o.system.ci.filter fun r => ciFailing r && ciLatest o.system.ci r).map fun r =>
@@ -1169,8 +1149,7 @@ def sCiFailed (o : Obs) : List Alert :=
 
 /-- `ci.slow`: a run waiting or running for more than `ciSlowMin` minutes.
 
-$$\operatorname{sCiSlow}(p, o) = [\,(\texttt{ci.slow}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“}\mathit{status}(r)\text{ for }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(r))\text{ min”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciSlow}(p, t, r)\,]$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sCiSlow}(p, o) = [\,(\texttt{ci.slow}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“}\mathit{status}(r)\text{ for }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(r))\text{ min”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciSlow}(p, t, r)\,],\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sCiSlow (p : Params) (o : Obs) : List Alert :=
   (o.system.ci.filter (ciSlowB p o.now)).map fun r =>
@@ -1178,10 +1157,7 @@ def sCiSlow (p : Params) (o : Obs) : List Alert :=
 
 /-- `ci.finished`: a run flagged slow by the previous check has finished (once): its conclusion and duration.
 
-$$\operatorname{sCiFin}(p, o) = [\,(\texttt{ci.finished}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“}c_\varepsilon(r)\text{ after }\operatorname{mins}(e_0(r) \mathbin{\dot-} \mathit{start}(r))\text{ min”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciFin}(p, \mathit{prev}, r)\,]$$
-where $c_\varepsilon(r)$ is $\mathit{concl}(r)$, or $\varepsilon$ when it is $\bot$, and $e_0(r)$ is $\mathit{end}(r)$, or
-$0$ when it is $\bot$.
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sCiFin}(p, o) = [\,(\texttt{ci.finished}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“}c_\varepsilon(r)\text{ after }\operatorname{mins}(e_0(r) \mathbin{\dot-} \mathit{start}(r))\text{ min”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciFin}(p, \mathit{prev}, r)\,],\quad \text{where } c_\varepsilon(r) = \begin{cases} \mathit{concl}(r) & \mathit{concl}(r) \ne \bot \\ \varepsilon & \mathit{concl}(r) = \bot \end{cases},\ e_0(r) = \begin{cases} \mathit{end}(r) & \mathit{end}(r) \ne \bot \\ 0 & \mathit{end}(r) = \bot \end{cases},\ o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sCiFin (p : Params) (o : Obs) : List Alert :=
   (o.system.ci.filter (ciFinishedB p o.prevAt)).map fun r =>
@@ -1190,8 +1166,7 @@ def sCiFin (p : Params) (o : Obs) : List Alert :=
 
 /-- `docker.orphan`: an orphaned container.
 
-$$\operatorname{sDocker}(p, o) = [\,(\texttt{docker.orphan}, \mathit{name}(c), \text{“container }\mathit{id}(c)\text{”}, \mathrm{false}) \mid c \leftarrow C,\ \operatorname{dockerOrphan}(p, t, A, c)\,]$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sDocker}(p, o) = [\,(\texttt{docker.orphan}, \mathit{name}(c), \text{“container }\mathit{id}(c)\text{”}, \mathrm{false}) \mid c \leftarrow C,\ \operatorname{dockerOrphan}(p, t, A, c)\,],\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sDocker (p : Params) (o : Obs) : List Alert :=
   (o.system.docker.filter (dockerOrphanB p o.now o.agents)).map fun c =>
@@ -1200,8 +1175,7 @@ def sDocker (p : Params) (o : Obs) : List Alert :=
 /-- The `proc.long` alert of a process tree: subject `name#pid`, detail its age in whole minutes, plus the owner's
 id when an agent started it (that agent is not live, so the tree is an orphan).
 
-$$\operatorname{procAlert}(o, q) = \begin{cases} (\texttt{proc.long}, \mathit{name}(q)\texttt{\#}\mathit{pid}(q), \text{“alive }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(q))\text{ min”}, \mathrm{false}) & \mathit{owner}(q) = \bot \\ (\texttt{proc.long}, \mathit{name}(q)\texttt{\#}\mathit{pid}(q), \text{“alive }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(q))\text{ min, agent }g\text{ ended”}, \mathrm{false}) & \mathit{owner}(q) = g \end{cases}$$
-where $t$ is the time of $o$.
+$$\operatorname{procAlert}(o, q) = \begin{cases} (\texttt{proc.long}, \mathit{name}(q)\texttt{\#}\mathit{pid}(q), \text{“alive }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(q))\text{ min”}, \mathrm{false}) & \mathit{owner}(q) = \bot \\ (\texttt{proc.long}, \mathit{name}(q)\texttt{\#}\mathit{pid}(q), \text{“alive }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(q))\text{ min, agent }g\text{ ended”}, \mathrm{false}) & \mathit{owner}(q) = g \end{cases},\quad \text{where } t = \text{the time of } o$$
 -/
 def procAlert (o : Obs) (q : Proc) : Alert :=
   match q.agent with
@@ -1217,25 +1191,21 @@ theorem procAlert_code (o : Obs) (q : Proc) : (procAlert o q).code = .procLong :
 
 /-- `proc.long`: a process tree of the session alive too long, not declared, and not owned by a live agent.
 
-$$\operatorname{sProc}(p, o) = [\,\operatorname{procAlert}(o, q) \mid q \leftarrow Q,\ \operatorname{procLong}(p, o, q)\,]$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sProc}(p, o) = [\,\operatorname{procAlert}(o, q) \mid q \leftarrow Q,\ \operatorname{procLong}(p, o, q)\,],\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sProc (p : Params) (o : Obs) : List Alert :=
   (o.system.procs.filter (procLongB p o)).map (procAlert o)
 
 /-- `worktrees.many`: more worktrees than `worktreesMax`.
 
-$$\operatorname{sWt}(p, o) = \operatorname{when}(\mathit{wtMax} < \mathit{wt},\ (\texttt{worktrees.many}, \texttt{worktrees}, \text{“}\mathit{wt}\text{ worktrees”}, \mathrm{false}))$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sWt}(p, o) = \operatorname{when}(\mathit{wtMax} < \mathit{wt},\ (\texttt{worktrees.many}, \texttt{worktrees}, \text{“}\mathit{wt}\text{ worktrees”}, \mathrm{false})),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sWt (p : Params) (o : Obs) : List Alert :=
   when (decide (p.worktreesMax < o.system.worktrees)) ⟨.worktreesMany, "worktrees", s!"{o.system.worktrees} worktrees", false⟩
 
 /-- `team.permissionWait`: a notification newer than the lead's last tool call.
 
-$$\operatorname{sPerm}(o) = \operatorname{when}\bigl(\operatorname{permB}(\ell),\ (\texttt{team.permissionWait}, \texttt{lead}, \text{“notification }\operatorname{mins}(t \mathbin{\dot-} \nu_0)\text{ min ago, no lead tool call since”}, \mathrm{false})\bigr)$$
-where $\nu_0$ is $\mathit{noteAt}(\ell)$, or $0$ when it is $\bot$ (never the case when $\operatorname{permB}(\ell)$ holds).
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\operatorname{sPerm}(o) = \operatorname{when}\bigl(\operatorname{permB}(\ell),\ (\texttt{team.permissionWait}, \texttt{lead}, \text{“notification }\operatorname{mins}(t \mathbin{\dot-} \nu_0)\text{ min ago, no lead tool call since”}, \mathrm{false})\bigr),\quad \text{where } \nu_0 = \begin{cases} \mathit{noteAt}(\ell) & \mathit{noteAt}(\ell) \ne \bot \\ 0 & \mathit{noteAt}(\ell) = \bot \end{cases}\ \text{(the second case never occurs when } \operatorname{permB}(\ell) \text{ holds)},\ o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 def sPerm (o : Obs) : List Alert :=
   when (permB o.lead)
@@ -1300,8 +1270,7 @@ def countState (p : Params) (now : Nat) (agents : List Agent) (s : State) : Nat 
 
 /-- The health report of one observation.
 
-$$\operatorname{health}(p, o) = \bigl(\operatorname{map}(\mathit{row}, A),\ [\, c \in \mathcal C \mid \exists x \in \operatorname{sysAlerts}(p, o).\ \mathit{code}(x) = c \,],\ (\operatorname{count}(p, t, A, s))_{s \in \mathcal S},\ \operatorname{sortU}(\operatorname{raw}(p, o))\bigr)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\mathcal C$ is taken in rank order.
+$$\operatorname{health}(p, o) = \bigl(\operatorname{map}(\mathit{row}, A),\ [\, c \in \mathcal C \mid \exists x \in \operatorname{sysAlerts}(p, o).\ \mathit{code}(x) = c \,],\ (\operatorname{count}(p, t, A, s))_{s \in \mathcal S},\ \operatorname{sortU}(\operatorname{raw}(p, o))\bigr),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)\ \text{and } \mathcal C \text{ is taken in rank order}$$
 -/
 def health (p : Params) (o : Obs) : Report :=
   { agents := o.agents.map fun a => ⟨a.id, state p o.now o.agents a, (agentAll p o a).map (·.code)⟩
@@ -1402,8 +1371,7 @@ theorem sysAlerts_notAgent (p : Params) (o : Obs) (x : Alert) (h : x ∈ sysAler
 /-- Every `agent.*` alert in the report names an agent of the observation that is neither done nor parked; a gone
 agent raises only `agent.gone`.
 
-$$\forall p, o, x:\quad x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \operatorname{isAgent}(\mathit{code}(x)) \Rightarrow \exists a \in A.\ \operatorname{state}(p, t, A, a) \notin \{\mathrm{done}, \mathrm{parked}\} \wedge (\operatorname{state}(p, t, A, a) = \mathrm{gone} \Rightarrow \mathit{code}(x) = \texttt{agent.gone}) \wedge \mathit{id}(a) = \mathit{subj}(x)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\forall p, o, x:\quad x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \operatorname{isAgent}(\mathit{code}(x)) \Rightarrow \exists a \in A.\ \operatorname{state}(p, t, A, a) \notin \{\mathrm{done}, \mathrm{parked}\} \wedge (\operatorname{state}(p, t, A, a) = \mathrm{gone} \Rightarrow \mathit{code}(x) = \texttt{agent.gone}) \wedge \mathit{id}(a) = \mathit{subj}(x),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 theorem agent_alert_live (p : Params) (o : Obs) (x : Alert) (hx : x ∈ (health p o).alerts)
     (ha : x.code.isAgent = true) :
@@ -1473,8 +1441,7 @@ theorem when_ne_nil (b : Bool) (x : Alert) : when b x ≠ [] ↔ b = true := by
 /-- The simulator lock raises `sim.lockOrphan` exactly when it has a holder that names no live agent (by id, name or
 task).
 
-$$\forall p, o:\quad (\exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{sim.lockOrphan}) \iff \exists h.\ \mathit{holder}(L) = h \wedge \neg \exists a \in A.\ \operatorname{live}(p, t, a) \wedge \operatorname{names}(h, a)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $L$ is the simulator lock of $\Sigma$.
+$$\forall p, o:\quad (\exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{sim.lockOrphan}) \iff \exists h.\ \mathit{holder}(L) = h \wedge \neg \exists a \in A.\ \operatorname{live}(p, t, a) \wedge \operatorname{names}(h, a),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ L = \text{the simulator lock of } \Sigma$$
 -/
 theorem lockOrphan_iff (p : Params) (o : Obs) :
     (∃ x ∈ (health p o).alerts, x.code = .simLockOrphan) ↔
@@ -1489,8 +1456,7 @@ theorem lockOrphan_iff (p : Params) (o : Obs) :
 /-- `team.permissionWait` fires exactly when a notification exists that is newer than the lead's last finished tool
 call (or the lead has finished none).
 
-$$\forall p, o:\quad (\exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{team.permissionWait}) \iff \exists \nu.\ \mathit{noteAt}(\ell) = \nu \wedge \forall s.\ \mathit{lastToolAt}(\ell) = s \Rightarrow s < \nu$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\forall p, o:\quad (\exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{team.permissionWait}) \iff \exists \nu.\ \mathit{noteAt}(\ell) = \nu \wedge \forall s.\ \mathit{lastToolAt}(\ell) = s \Rightarrow s < \nu,\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 theorem permissionWait_iff (p : Params) (o : Obs) :
     (∃ x ∈ (health p o).alerts, x.code = .permissionWait) ↔
@@ -1504,8 +1470,7 @@ theorem permissionWait_iff (p : Params) (o : Obs) :
 
 /-- `sys.loadHigh` fires exactly when the floor of the 1-min load average is at or above `loadMax`.
 
-$$\forall p, o:\quad (\exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{sys.loadHigh}) \iff \mathit{loadMax}_p \le \lambda$$
-where $\lambda$ is the `loadFloor` of the system snapshot of $o$.
+$$\forall p, o:\quad (\exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{sys.loadHigh}) \iff \mathit{loadMax}_p \le \lambda,\quad \text{where } \lambda = \text{the } \mathit{loadFloor} \text{ of the system snapshot of } o$$
 -/
 theorem loadHigh_iff (p : Params) (o : Obs) :
     (∃ x ∈ (health p o).alerts, x.code = .loadHigh) ↔ p.loadMax ≤ o.system.loadFloor := by
@@ -1514,8 +1479,7 @@ theorem loadHigh_iff (p : Params) (o : Obs) :
 
 /-- A run waiting or running for more than `ciSlowMin` minutes raises `ci.slow` with subject `workflow@branch`.
 
-$$\forall p, o, r:\quad r \in R \wedge \operatorname{ciSlow}(p, t, r) \Rightarrow \exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{ci.slow} \wedge \mathit{subj}(x) = \mathit{wf}(r)\texttt{@}\mathit{br}(r)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $R$ is the run list of $\Sigma$.
+$$\forall p, o, r:\quad r \in R \wedge \operatorname{ciSlow}(p, t, r) \Rightarrow \exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{ci.slow} \wedge \mathit{subj}(x) = \mathit{wf}(r)\texttt{@}\mathit{br}(r),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ R = \text{the run list of } \Sigma$$
 -/
 theorem ciSlow_raised (p : Params) (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci) (h : ciSlowB p o.now r = true) :
     ∃ x ∈ (health p o).alerts, x.code = .ciSlow ∧ x.subject = s!"{r.workflow}@{r.branch}" := by
@@ -1528,8 +1492,7 @@ theorem ciSlow_raised (p : Params) (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci
 
 /-- The report holds a `proc.long` alert exactly when it is the alert of a process tree that runs too long.
 
-$$\forall p, o, x:\quad \bigl(x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{proc.long}\bigr) \iff \exists q \in Q.\ \operatorname{procLong}(p, o, q) \wedge x = \operatorname{procAlert}(o, q)$$
-where $Q$ is the process-tree list of the system snapshot of $o$.
+$$\forall p, o, x:\quad \bigl(x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{proc.long}\bigr) \iff \exists q \in Q.\ \operatorname{procLong}(p, o, q) \wedge x = \operatorname{procAlert}(o, q),\quad \text{where } Q = \text{the process-tree list of the system snapshot of } o$$
 -/
 theorem procLong_iff (p : Params) (o : Obs) (x : Alert) :
     (x ∈ (health p o).alerts ∧ x.code = .procLong) ↔
@@ -1550,8 +1513,7 @@ theorem procLong_iff (p : Params) (o : Obs) (x : Alert) :
 
 /-- A process tree started by a live agent's Bash call never runs too long, whatever its age.
 
-$$\forall p, o, q, a:\quad a \in A \wedge \mathit{owner}(q) = \mathit{id}(a) \wedge \operatorname{live}(p, t, a) \Rightarrow \neg\operatorname{procLong}(p, o, q)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\forall p, o, q, a:\quad a \in A \wedge \mathit{owner}(q) = \mathit{id}(a) \wedge \operatorname{live}(p, t, a) \Rightarrow \neg\operatorname{procLong}(p, o, q),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 theorem ownerLive_quiet (p : Params) (o : Obs) (q : Proc) (a : Agent) (ha : a ∈ o.agents)
     (hg : q.agent = some a.id) (hl : live p o.now a = true) : procLongB p o q = false := by
@@ -1561,8 +1523,7 @@ theorem ownerLive_quiet (p : Params) (o : Obs) (q : Proc) (a : Agent) (ha : a �
 
 /-- An intended long-runner (allowlisted program, service pid, or declared pid in its tree) never runs too long.
 
-$$\forall p, o, q:\quad \operatorname{declared}(S, D, q) \Rightarrow \neg\operatorname{procLong}(p, o, q)$$
-where $S$ and $D$ are the service and declared pids of the system snapshot of $o$.
+$$\forall p, o, q:\quad \operatorname{declared}(S, D, q) \Rightarrow \neg\operatorname{procLong}(p, o, q),\quad \text{where } S = \text{the service pids},\ D = \text{the declared pids (both of the system snapshot of } o\text{)}$$
 -/
 theorem declared_quiet (p : Params) (o : Obs) (q : Proc) (h : declaredB o.system.services o.system.keep q = true) :
     procLongB p o q = false := by
@@ -1571,8 +1532,7 @@ theorem declared_quiet (p : Params) (o : Obs) (q : Proc) (h : declaredB o.system
 /-- Every `proc.long` alert comes from a process tree of the session that is not declared, whose owner is not a live
 agent, and that is alive for strictly more than `procMaxMin` minutes.
 
-$$\forall p, o, x:\quad x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{proc.long} \Rightarrow \exists q \in Q.\ x = \operatorname{procAlert}(o, q) \wedge \neg\operatorname{declared}(S, D, q) \wedge \neg\bigl(\exists a \in A.\ \mathit{owner}(q) = \mathit{id}(a) \wedge \operatorname{live}(p, t, a)\bigr) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\forall p, o, x:\quad x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{proc.long} \Rightarrow \exists q \in Q.\ x = \operatorname{procAlert}(o, q) \wedge \neg\operatorname{declared}(S, D, q) \wedge \neg\bigl(\exists a \in A.\ \mathit{owner}(q) = \mathit{id}(a) \wedge \operatorname{live}(p, t, a)\bigr) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 theorem procLong_sound (p : Params) (o : Obs) (x : Alert) (hx : x ∈ (health p o).alerts)
     (hc : x.code = .procLong) :
@@ -1592,8 +1552,7 @@ theorem procLong_sound (p : Params) (o : Obs) (x : Alert) (hx : x ∈ (health p 
 that no live agent of the list carries (the agent ended, is gone, or dropped out), and that is alive for strictly
 more than `procMaxMin` minutes, has its alert in the report.
 
-$$\forall p, o, q, g:\quad q \in Q \wedge \neg\operatorname{declared}(S, D, q) \wedge \mathit{owner}(q) = g \wedge \bigl(\forall a \in A.\ \mathit{id}(a) = g \Rightarrow \neg\operatorname{live}(p, t, a)\bigr) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q) \Rightarrow \operatorname{procAlert}(o, q) \in \operatorname{health}(p, o).\mathit{alerts}$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+$$\forall p, o, q, g:\quad q \in Q \wedge \neg\operatorname{declared}(S, D, q) \wedge \mathit{owner}(q) = g \wedge \bigl(\forall a \in A.\ \mathit{id}(a) = g \Rightarrow \neg\operatorname{live}(p, t, a)\bigr) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q) \Rightarrow \operatorname{procAlert}(o, q) \in \operatorname{health}(p, o).\mathit{alerts},\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 theorem orphan_raised (p : Params) (o : Obs) (q : Proc) (g : String) (hq : q ∈ o.system.procs)
     (hd : declaredB o.system.services o.system.keep q = false) (hg : q.agent = some g)
@@ -1865,8 +1824,7 @@ theorem agent_perm (p : Params) (t : Nat) (A l : List Agent) (a : Agent) (hl : l
 
 /-- The team and system alerts do not depend on the order of the agents.
 
-$$\forall p, o, l:\quad l \sim A \Rightarrow \operatorname{sysAlerts}(p, o[A := l]) = \operatorname{sysAlerts}(p, o)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\forall p, o, l:\quad l \sim A \Rightarrow \operatorname{sysAlerts}(p, o[A := l]) = \operatorname{sysAlerts}(p, o),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 theorem sysAlerts_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.agents) :
     sysAlerts p { o with agents := l } = sysAlerts p o := by
@@ -1888,8 +1846,7 @@ theorem sysAlerts_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.ag
 
 /-- The report's alerts, system codes and counts do not depend on the order of the agents (the rows follow it).
 
-$$\forall p, o, l:\quad l \sim A \Rightarrow \operatorname{health}(p, o[A := l]).(\mathit{alerts}, \mathit{sysCodes}, n) = \operatorname{health}(p, o).(\mathit{alerts}, \mathit{sysCodes}, n)$$
-where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\forall p, o, l:\quad l \sim A \Rightarrow \operatorname{health}(p, o[A := l]).(\mathit{alerts}, \mathit{sysCodes}, n) = \operatorname{health}(p, o).(\mathit{alerts}, \mathit{sysCodes}, n),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 theorem health_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.agents) :
     (health p { o with agents := l }).alerts = (health p o).alerts ∧
@@ -1912,9 +1869,7 @@ theorem health_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.agent
 
 /-- The counts add up to the number of agents.
 
-$$\forall p, o:\quad n_{\mathrm{active}} + n_{\mathrm{idle}} + n_{\mathrm{parked}} + n_{\mathrm{stalled}} + n_{\mathrm{gone}} + n_{\mathrm{done}} = |A|$$
-where $(n_{\mathrm{active}}, n_{\mathrm{idle}}, n_{\mathrm{parked}}, n_{\mathrm{stalled}}, n_{\mathrm{gone}}, n_{\mathrm{done}}) =
-\operatorname{health}(p, o).\mathit{counts}$ and $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+$$\forall p, o:\quad n_{\mathrm{active}} + n_{\mathrm{idle}} + n_{\mathrm{parked}} + n_{\mathrm{stalled}} + n_{\mathrm{gone}} + n_{\mathrm{done}} = |A|,\quad \text{where } (n_{\mathrm{active}}, n_{\mathrm{idle}}, n_{\mathrm{parked}}, n_{\mathrm{stalled}}, n_{\mathrm{gone}}, n_{\mathrm{done}}) = \operatorname{health}(p, o).\mathit{counts},\ o = (t, A, \ell, \Sigma, \mathit{prev}, K)$$
 -/
 theorem counts_total (p : Params) (o : Obs) :
     let c := (health p o).counts

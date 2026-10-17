@@ -237,9 +237,10 @@ Rounds 9 (`layers_additive`) and 10 (`crossLevel_classify`) of the math review f
 placed after the `$$` block. The export keeps the English before the first `$$` and the `$$` blocks only, so the
 clause is dropped and `A_\tau` reads as undefined in the math. The lint reports a text segment that directly follows a
 `$$` block, starts with `where`, `with`, `(where` or `(with` (lower case: `Where a card sits …` is an English
-sentence), and has an inline snippet `$…$` whose first name or operator name (the symbol it defines) occurs in that
-block. It warns and leaves the exit code alone: on the current entries it has many true hits outside this task's
-files (the count is printed with the lint summary). -/
+sentence), and has an inline snippet `$…$` whose left-hand side (`definedSym`: the first name before `=`, or the
+snippet itself when the prose goes on with `is`/`are`) occurs in that block. A hit is an error (exit 1), except in
+`Fw.Measure.*`, where it is still a warning (`warnOnly`, TODO(where-cleanup)); both counts are printed with the lint
+summary. -/
 namespace WhereLint
 open ShadowLint
 
@@ -248,12 +249,39 @@ def clauseHead (s : String) : Bool :=
   let t := s.trimAscii.toString
   ["where ", "with ", "(where ", "(with ", "where\n", "with\n"].any fun (p : String) => t.startsWith p
 
-/-- The first name or operator name of an inline snippet: the symbol it defines (`A` in `A_\tau = …`). -/
-def definedSym (m : String) : Option String := (tokenize m).toList.findSome? Tok.word?
+/-- Relation tokens that end the left-hand side of a defining snippet. -/
+def defRels : List Tok := [.ch "=", .cmd "\\coloneqq", .cmd "\\equiv", .cmd "\\iff"]
+
+/-- Does the text start with the word `w` (followed by a space or a line break, after leading blanks)? -/
+def startsWord (s w : String) : Bool :=
+  let t := s.trimAsciiStart.toString
+  t.startsWith (w ++ " ") || t.startsWith (w ++ "\n")
+
+/-- The symbol an inline snippet `m` defines, given the text `after` it: the first name or operator name of its
+left-hand side, the tokens before its first `=`, `\coloneqq`, `\equiv` or `\iff` (`A` in `A_\tau = …`, `d` in
+`(d_1, r_1) = …`). A snippet without such a relation is a left-hand side only when the text after it starts with `is`
+or `are` (`$m$ is the first …`); otherwise it defines nothing (`neither $\mathrm{true}$ nor …`).
+
+$$\forall m, a,\quad \operatorname{definedSym}(m, a) = \begin{cases} \operatorname{firstWord}(T_{<r}) & r = \min\{\, j \mid T_j \in \mathit{Rel} \,\} \text{ exists} \\ \operatorname{firstWord}(T) & \text{no } T_j \in \mathit{Rel} \text{ and } a \text{ starts with the word is or are (after blanks)} \\ \bot & \text{otherwise} \end{cases},\quad T = \operatorname{tokenize}(m),\ \mathit{Rel} = \{=, \backslash\mathrm{coloneqq}, \backslash\mathrm{equiv}, \backslash\mathrm{iff}\},\ \operatorname{firstWord}(L) = \text{the first name or operator name of } L \ (\bot \text{ if none})$$
+
+A snippet defines the first symbol on the left of its equation sign, or itself when the prose says it "is" something. -/
+def definedSym (m after : String) : Option String :=
+  let ts := (tokenize m).toList
+  match ts.findIdx? (defRels.contains ·) with
+  | some r => (ts.take r).findSome? Tok.word?
+  | none => if startsWord after "is" || startsWord after "are" then ts.findSome? Tok.word? else none
+
+#guard definedSym "A_\\tau = 1" "" == some "A"
+#guard definedSym "(d_1, r_1) = \\operatorname{takeDigits}(cs)" "" == some "d"
+#guard definedSym "\\mathrm{STALE} = \\mathrm{staleMs}" "." == some "STALE"
+#guard definedSym "m" " is the first step" == some "m"
+-- the noise the first-word rule produced: a value named in prose is not a definition
+#guard definedSym "\\mathrm{true}" " nor " == none
+#guard definedSym "\\rho.\\mathrm{role}" " in the list" == none
 
 /-- The symbols defined after a `$$` block and used inside it, one list per offending block.
 
-$$\forall d,\quad \operatorname{dangling}(d) = \big[\,D_i \;\big|\; (m_i, t_i) \in \operatorname{after}(d),\ \operatorname{clause}(t_i),\ D_i \ne [\,]\,\big],\quad D_i = [\,v \in \operatorname{dedup}(\operatorname{defs}(t_i)) \mid v \in \operatorname{words}(m_i)\,],\quad \text{for a docstring } d \text{ with } \operatorname{split}_{\$\$}(d) = [s_0, s_1, \dots]:\ \operatorname{after}(d) = [(s_{i-1}, s_i) \mid i \ge 2 \text{ even}],\ \operatorname{clause}(t) \iff t \text{ starts with where, with, (where or (with},\ \operatorname{defs}(t) = \text{the first name of each inline } \$\ldots\$ \text{ snippet of } t,\ \operatorname{words}(m) = \text{the names of } m$$
+$$\forall d,\quad \operatorname{dangling}(d) = \big[\,D_i \;\big|\; (m_i, t_i) \in \operatorname{after}(d),\ \operatorname{clause}(t_i),\ D_i \ne [\,]\,\big],\quad D_i = [\,v \in \operatorname{dedup}(\operatorname{defs}(t_i)) \mid v \in \operatorname{words}(m_i)\,],\quad \text{for a docstring } d \text{ with } \operatorname{split}_{\$\$}(d) = [s_0, s_1, \dots]:\ \operatorname{after}(d) = [(s_{i-1}, s_i) \mid i \ge 2 \text{ even}],\ \operatorname{clause}(t) \iff t \text{ (leading blanks dropped) starts with where, with, (where or (with, followed by a space, or with where or with followed by a line break},\ \operatorname{defs}(t) = [\,v \mid j \text{ odd},\ \operatorname{definedSym}(u_j, u_{j+1}) = v \ne \bot\,] \text{ for } \operatorname{split}_{\$}(t) = [u_0, u_1, \dots] \ (u_{j+1} = \varepsilon \text{ past the end}),\ \operatorname{words}(m) = \text{the names and operator names of } m$$
 
 Pairs each `$$` block with the text up to the next `$$` and keeps the clauses that define a symbol of the block. -/
 def dangling (doc : String) : List (List String) :=
@@ -261,8 +289,10 @@ def dangling (doc : String) : List (List String) :=
   (List.range parts.size).filterMap fun i =>
     if i % 2 == 0 && i ≥ 2 && clauseHead parts[i]! then
       let words := (tokenize parts[i - 1]!).toList.filterMap Tok.word?
-      let inl := ((parts[i]!.splitOn "$").zipIdx.filter (·.2 % 2 == 1)).map (·.1)
-      let used := (inl.filterMap definedSym).eraseDups.filter words.contains
+      let segs := (parts[i]!.splitOn "$").toArray
+      let defs := (List.range segs.size).filterMap fun j =>
+        if j % 2 == 1 then definedSym segs[j]! (segs[j + 1]?.getD "") else none
+      let used := defs.eraseDups.filter words.contains
       if used.isEmpty then none else some used
     else none
 
@@ -273,11 +303,24 @@ def dangling (doc : String) : List (List String) :=
 #guard dangling "Hit. $$h(x) = 1$$ Where a value lands, $x$." == []
 #guard dangling "Ok. $$h(x) = 1$$ where $y = 2$ is not in the math." == []
 #guard dangling "Inside. $$h(A_\\tau) = 1,\\quad A_\\tau = 2$$ One sentence." == []
+-- left-hand sides only: a clause that names `true`/`false` in prose defines neither; `$h$ is …` defines `h`
+#guard dangling "Env. $$f(x) = \\mathrm{true}$$ where $\\bot$ equals neither $\\mathrm{true}$ nor $\\mathrm{false}$." == []
+#guard dangling "Hold. $$g(h) = 1$$ where $h$ is the holder." == [["h"]]
 
-/-- The dangling-where warnings of one entry, one per offending `$$` block. -/
-def warnEntry (e : MathView.Entry) : List String :=
+/-- The dangling-where findings of one entry, one per offending `$$` block. -/
+def lintEntry (e : MathView.Entry) : List String :=
   (dangling (e.doc.getD "")).map fun vs =>
     s!"{e.name} ({e.module}:{e.line}): a where/with clause after the $$ block defines {vs}, which the export drops"
+
+/-- Does a dangling clause in module `mod` only warn? TODO(where-cleanup): `Fw.Measure.*` keeps a warning until the
+task zone-baseline-lean has moved its clauses into the `$$` blocks; then drop this exception (every module errors).
+
+$$\forall \mathit{mod},\quad \operatorname{warnOnly}(\mathit{mod}) \iff \mathit{mod} \text{ starts with the string } \texttt{Fw.Measure.}$$
+
+Only the measurement modules are still let off with a warning. -/
+def warnOnly (mod : String) : Bool := mod.startsWith "Fw.Measure."
+
+#guard warnOnly "Fw.Measure.Arms" && !warnOnly "Fw.Obs.Health" && !warnOnly "Fw.MeasureX"
 
 end WhereLint
 
@@ -291,8 +334,8 @@ def outFile? : List String → Option String
 English, math, signature, machine LaTeX, deep statement hash, docstring hash, axioms); with `--lint`, exit 1 when
 a declaration lacks `$$` math or English, depends on `sorryAx`, or on on an axiom other than
 `propext`, `Classical.choice`, `Quot.sound`, or when its `$$` math binds a name that it also applies as a function
-and uses as a value (`ShadowLint`); it only warns (exit code unchanged) on a `where` / `with` clause after a `$$`
-block that defines a symbol of that block (`WhereLint`). With `--out <file>` the JSON export is also written to
+and uses as a value (`ShadowLint`), or when a `where` / `with` clause after a `$$` block defines a symbol of that
+block (`WhereLint`; in `Fw.Measure.*` that clause only warns, TODO(where-cleanup)). With `--out <file>` the JSON export is also written to
 `<file>` (the same bytes as the plain export on stdout), so one run serves both the lint and the export;
 `scripts/mathview-cached.sh` keeps that file keyed by a hash of the sources. -/
 def main (args : List String) : IO UInt32 := do
@@ -307,15 +350,18 @@ def main (args : List String) : IO UInt32 := do
   if let some f := outFile? args then IO.FS.writeFile f (render ())
   if args.contains "--lint" then
     let shadow := es.toList.flatMap ShadowLint.lintEntry
-    let bad := es.toList.flatMap MathView.lintEntry ++ shadow
+    -- TODO(where-cleanup): `warnOnly` lets Fw.Measure.* off with a warning until zone-baseline-lean lands
+    let (whereWarnEs, whereBadEs) := es.toList.partition (WhereLint.warnOnly ·.module)
+    let wheres := whereBadEs.flatMap WhereLint.lintEntry
+    let bad := es.toList.flatMap MathView.lintEntry ++ shadow ++ wheres
     for b in bad do IO.eprintln s!"mathview: {b}"
     let strict := es.toList.flatMap (MathView.warnEntry false)
     let warns := es.toList.flatMap (MathView.warnEntry true)
     for w in warns do IO.eprintln s!"mathview: warning: {w}"
-    let wheres := es.toList.flatMap WhereLint.warnEntry
-    for w in wheres do IO.eprintln s!"mathview: warning: {w}"
+    let whereWarns := whereWarnEs.flatMap WhereLint.lintEntry
+    for w in whereWarns do IO.eprintln s!"mathview: warning: {w}"
     let thms := (es.filter (·.kind == "theorem")).size
-    IO.println s!"mathview lint: {es.size} entries ({thms} theorems) in {mods.size} modules, {bad.length} failing ({shadow.length} bound-and-applied), {warns.length} quantifier warnings ({strict.length} counting a renamed binder as free), {wheres.length} dangling-where warnings"
+    IO.println s!"mathview lint: {es.size} entries ({thms} theorems) in {mods.size} modules, {bad.length} failing ({shadow.length} bound-and-applied, {wheres.length} dangling-where), {warns.length} quantifier warnings ({strict.length} counting a renamed binder as free), {whereWarns.length} dangling-where warnings (Fw.Measure)"
     return if bad.isEmpty then 0 else 1
   if (outFile? args).isNone then IO.print (render ())
   return 0

@@ -146,9 +146,9 @@ def withExp (p : Nat × Int × List Char) : Nat × Int × List Char :=
 /-- An unsigned number `(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?` at the start of the input: mantissa,
 power of ten and the rest of the input.
 
-$$\operatorname{unsigned}(cs) = \begin{cases} \operatorname{withExp}(\operatorname{digitsVal}(d_1 \mathbin{+\!\!+} d_2), -|d_2|, r) & r_1 = \texttt{.} :: r_2,\ (d_2, r) = \operatorname{takeDigits}(r_2),\ d_1 \mathbin{+\!\!+} d_2 \ne [\,] \\ \bot & r_1 = \texttt{.} :: r_2,\ d_1 = [\,],\ (d_2, r) = \operatorname{takeDigits}(r_2),\ d_2 = [\,] \\ \operatorname{withExp}(\operatorname{digitsVal}(d_1), 0, r_1) & \operatorname{head}(r_1) \ne \texttt{.}\ (\text{or } r_1 = [\,]),\ d_1 \ne [\,] \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{unsigned}(cs) = \begin{cases} \operatorname{withExp}(\operatorname{digitsVal}(d_1 \mathbin{+\!\!+} d_2), -|d_2|, r) & r_1 = \texttt{.} :: r_2,\ (d_2, r) = \operatorname{takeDigits}(r_2),\ d_1 \mathbin{+\!\!+} d_2 \ne [\,] \\ \bot & r_1 = \texttt{.} :: r_2,\ d_1 = [\,],\ (d_2, r) = \operatorname{takeDigits}(r_2),\ d_2 = [\,] \\ \operatorname{withExp}(\operatorname{digitsVal}(d_1), 0, r_1) & \operatorname{head}(r_1) \ne \texttt{.}\ (\text{or } r_1 = [\,]),\ d_1 \ne [\,] \\ \bot & \text{otherwise} \end{cases},\quad \text{where } (d_1, r_1) = \operatorname{takeDigits}(cs)\ \text{(both digit runs are maximal)}$$
 
-where $(d_1, r_1) = \operatorname{takeDigits}(cs)$ (both digit runs are maximal). Digits with an optional dot and fraction, or a dot with at least one digit. -/
+Digits with an optional dot and fraction, or a dot with at least one digit. -/
 def unsignedNum (cs : List Char) : Option (Nat × Int × List Char) :=
   let d1 := (takeDigits cs).1
   let r1 := (takeDigits cs).2
@@ -281,9 +281,9 @@ def tolBox : Rat := 1 / 2
 /-- Computed-style values are equal: the same string, or the same skeleton with as many numbers,
 each pair within $10^{-3}$. Absent on either side is never equal.
 
-$$\operatorname{styleEq}(a, b) \iff a, b \ne \bot \wedge \Bigl(a = b \ \vee\ \bigl(\operatorname{skel}(a) = \operatorname{skel}(b) \wedge |\operatorname{nums}(a)| = |\operatorname{nums}(b)| \wedge \forall i < |\operatorname{nums}(a)|,\ |\operatorname{val}(\operatorname{nums}(a)_i) - \operatorname{val}(\operatorname{nums}(b)_i)| \le 10^{-3}\bigr)\Bigr)$$
+$$\operatorname{styleEq}(a, b) \iff a, b \ne \bot \wedge \Bigl(a = b \ \vee\ \bigl(\operatorname{skel}(a) = \operatorname{skel}(b) \wedge |\operatorname{nums}(a)| = |\operatorname{nums}(b)| \wedge \forall i < |\operatorname{nums}(a)|,\ |\operatorname{val}(\operatorname{nums}(a)_i) - \operatorname{val}(\operatorname{nums}(b)_i)| \le 10^{-3}\bigr)\Bigr),\quad \text{where } (\operatorname{skel}(s), \operatorname{nums}(s)) = \operatorname{scan}(\operatorname{chars}(s)) \text{ for a present string } s$$
 
-where $(\operatorname{skel}(s), \operatorname{nums}(s)) = \operatorname{scan}(\operatorname{chars}(s))$ for a present string $s$. Style values agree as text, up to a thousandth in each number. -/
+Style values agree as text, up to a thousandth in each number. -/
 def styleValueEq : Option String → Option String → Bool
   | some a, some b =>
     a == b ||
