@@ -13,12 +13,13 @@ topics: [spike, decision-record, messaging, hooks, compaction]
 background task wake an idle teammate; does `SessionStart` fire with source `compact` so `session-brief` can
 re-inject the roster?
 
-**Status: PARTIAL, 2 of 3 answered.** Address and compaction answered; the wake test is still open. Claude Code 2.1.302.
+**Status: ANSWERED, 3 of 3.** Address and compaction answered; wake test run (Part 2): an idle in-process teammate
+is **not** woken by its own background task, while background subagents are. Claude Code 2.1.302.
 
 | Part | Answer | Status |
 |---|---|---|
 | 1. Lead's address | In-process teammates reach the lead as **`team-lead`** (33 of 33 sends succeeded). Background subagents are told to use **`main`**. | MEASURED (teammates); CONFIRMED by tool description (`main`, not exercised) |
-| 2. Finished background task wakes an idle teammate | Not measurable from the spool: `emit.mjs` drops `background_tasks`, and only 1 TeammateIdle was recorded. v1 said no (I-274). | OPEN |
+| 2. Finished background task wakes an idle teammate | **No** for an in-process teammate: the task finished 48 s into idle, the notification sat queued ~54 min and arrived only with the next lead message (Part 2). **Yes** for background subagents (3 of 3 resumed on their own). Matches v1 (I-274). | MEASURED (n = 1 teammate, 3 subagents) |
 | 3. `SessionStart` on compaction | **Yes, for the lead.** 10 of 10 compactions produced a SessionStart, 53 to 269 ms before PostCompact. Claude Code runs the session-start hooks with source `compact` during compaction. No subagent or teammate ever fired SessionStart. | MEASURED (firing); CONFIRMED by code (`source`); source value not in the spool |
 
 ## Evidence
@@ -65,9 +66,42 @@ The full per-event audit (counts, gaps, ordering, latency, spawn-guard log) is i
   teammate; else subagent), most likely a named worktree role called without `isolation: "worktree"` (the case the
   unit test covers) . INFERRED. New records log `role`, `want_kind`, `got_kind`, `has_name`, `isolation`, `depth`.
 
+## Part 2: wake test (spk-p-wake, 2026-10-17)
+**Answer.** A finished background Bash task does **not** wake an idle in-process teammate. The process survives the
+teammate's idle and finishes, but its completion notification is queued and delivered only on the teammate's next
+turn, which only a message starts. Background subagents, in contrast, resume on their own when their work finishes.
+
+**Setup.** Teammate `spk-p-wake` (in-process, agent type `researcher`, Claude Code 2.1.302). One Bash call with
+`run_in_background: true`: write start epoch, `sleep 60`, write done epoch (task `bkwro2qb9`). A separate detached
+`nohup` probe logged every 5 s whether that PID lived and whether the done file existed. The teammate then ended its
+turn with no other work pending.
+
+| Claim | Evidence | Status |
+|---|---|---|
+| Task started 14:40:08 UTC, finished 14:41:08 UTC (exit 0, output `finished`); teammate's turn ended ~14:40:20, so the task finished ~48 s into idle | scratch `start.txt`/`done.txt` epochs 1792248008/1792248068; task output file | MEASURED |
+| The process was **not** killed at idle: probe saw it alive at +13 to +58 s, gone with done file at +63 s | probe log, 18 samples | MEASURED |
+| No turn followed the completion: the next turn started at ~15:35 UTC (epoch 1792251312 read in it), by a lead message, ~54 min after completion | lead's report; no transcript turn in between | MEASURED |
+| The `<task-notification>` for `bkwro2qb9` (status completed) was delivered **inside** that lead-started turn, after its first tool result, not at completion | this teammate's transcript | MEASURED |
+| Background subagents are woken: `mutants-ci`, `hittest`, `gate-probe-scope` each stopped "waiting on its own background work" and resumed by themselves when it finished | lead's observation of their task notifications | MEASURED (by the lead) |
+| Tool text promises the wake to every agent: Bash `run_in_background` "re-invokes you when it exits"; Agent "you'll be notified when one completes". For an in-process teammate the promise does not hold | own tool list | CONFIRMED (text); contradicted by MEASURED row 3 |
+| Docs: a command that a *foreground subagent* started stops when its run ends; one started by the main conversation or a background subagent keeps running | [tools-reference, "When a background command stops"](https://code.claude.com/docs/en/tools-reference) | CONFIRMED (doc) |
+| Docs: an in-process teammate gets no background subagents ("a teammate's background work can't outlive the lead's process"); its `run_in_background` Agent request errors or runs in the foreground | [agent-teams, Limitations](https://code.claude.com/docs/en/agent-teams#limitations) | CONFIRMED (doc) |
+| Docs never say what wakes an idle teammate except messages ("Automatic message delivery"; a lead/teammate message also wakes one waiting on an API retry) | [agent-teams, Context and communication; Agents stopping early](https://code.claude.com/docs/en/agent-teams) | CONFIRMED (doc, by absence) |
+| Why: an idle teammate's loop waits on its mailbox only; the task registry queues the notification for the next turn. The teammate is neither a foreground subagent (its task was not killed) nor a background subagent (no self-wake) | rows above | INFERRED |
+| Monitor tool: not in this teammate's tool list (deferred or absent), so untested here; its events likely queue the same way | own tool list | INFERRED |
+
+**Limits.** n = 1 teammate run, one 60 s task, Bash only (not Agent or Monitor). The ~54 min figure is the gap until
+the lead happened to message, not a timeout.
+
+**Consequence for agents that wait on CI.** An in-process teammate must never end its turn "waiting for a completion
+notification": it will sleep until someone messages it. Options, best first: (1) run CI waits in a **background subagent** (self-wakes, MEASURED);
+(2) keep the teammate's turn open with a blocking foreground wait (`gh run watch --exit-status`, Bash `timeout` up to
+10 min, repeated); (3) the stall watcher (§8.5) or the lead sends a wake message when the run's notification lands in
+the lead. A teammate's handoff must state which of these it relies on.
+
 ## Missing
-- Part 2: let `emit.mjs` keep a `background_tasks` count on SubagentStop (a number, no user text),
-  then run the controlled test: a teammate starts a background command, goes idle, the command ends, no message arrives.
+- ~~Part 2 controlled test~~: done (Part 2). Still open: the same test with Monitor and with an Agent-tool subagent
+  started by a teammate; a spool record (`background_tasks` > 0 on TeammateIdle) for the same event.
 - Part 1: one send to `main` from a background subagent.
 - Keep `source` in the spool record, so the compaction answer is measured rather than read from code.
 
@@ -75,3 +109,8 @@ The full per-event audit (counts, gaps, ordering, latency, spawn-guard log) is i
 - §8.1: the two verified addresses replace "the lead's address was `main`".
 - §3.4 hooks row: "`session-brief` on SessionStart (lead only; fires on compaction, MEASURED 10 of 10); agents get their
   brief on SubagentStart". Appendix B: SPK-p "partial: address answered, compaction answered, wake open". R18 unchanged.
+- Part 2 (spk-p-wake): Appendix B: SPK-p "answered: an idle in-process teammate is not woken by its own background
+  task (MEASURED n = 1); background subagents are (MEASURED 3 of 3)". §8.5 stall watcher: add the rule "a teammate
+  idle with a background task still running, or finished but undelivered, is stalled: the lead messages it". §3.x
+  role/spawn rules: any wait on CI (`gh run watch`, Monitor) runs in a background subagent or a blocking foreground
+  call, never as "end turn and wait" in a teammate. Decision 3 above is replaced by this.
