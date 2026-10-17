@@ -47,7 +47,7 @@ proposals until you accept them.
 
 | Label | Means | Where |
 |---|---|---|
-| **Q1 … Q30** | questions and defaults for you (Q2-Q4, Q12, Q16, Q22, Q23 and most of Q1 are answered; see §12.0); Q22-Q30 added in rev 5 | §12 |
+| **Q1 … Q30** | questions and defaults for you (Q2-Q4, Q12, Q16, Q22-Q24 and most of Q1 are answered; see §12.0); Q22-Q30 added in rev 5 | §12 |
 | **M0 … M6** | milestone gates (exit states, not dates) | §10.2 |
 | **G1 … G4** | outcome goals | §1.1 |
 | **V-a … V-t** | method (validation) criteria | §1.2 |
@@ -81,15 +81,13 @@ of its 276 incidents were filed against its own tools, 45 of them feature reques
 woken by polls, idle contexts, home-made coordination tools, you as device technician and status bus). v2 fixes that
 with scripts, events and hooks, not with more agents or rules (§8.5).
 
-**Nobody writes status (revision 5).** In v1, 10.9 % of all tool turns did nothing but write or poll the console, and
-56 % of the 4,412 status-board writes recorded something a machine knew or will know in v2 [10.01]. In v2 every
-console view is a formula over one append-only event log that only console-api writes. Agents have no write path to
-it: facts are observed (git, Claude Code hooks, watchers, console-api's own jobs), and agents send typed requests that
-the Lean reducer accepts or refuses. What is still judgement is one catalogue of typed commands (§3.2, §8.5).
+**Nobody writes status (revision 5).** In v1, 10.9 % of all tool turns were console upkeep, and 56 % of 4,412 status
+writes recorded something a machine knows in v2 [10.01]. Now every console view is a formula over one event log that
+only console-api writes; facts are observed, and agents send typed requests the Lean reducer accepts or refuses (§8.5).
 
-**You read math, not Lean (revision 5).** Every theorem and every definition you read carries its math in its
-docstring. A generated page shows it, the build fails when the Lean (or a definition it uses) changed after the math
-was signed, and a separate reviewer role signs the math (§5.3).
+**Lean first, and you read math, not Lean (revision 5).** Everything reproducible is proved in Lean before it is
+coded (§3.3). Every theorem and definition you read carries its math; a generated page shows it, and the build fails
+when the Lean changed after a math-reviewer signed it (§5.3).
 
 **What to expect, plainly** (so you can judge pain points 1 and 2 with the right expectations):
 - **The phone does not go away.** Before the model may stand in for the phone for one kind of change, it needs a
@@ -263,6 +261,7 @@ flowchart TB
   PHONE -- "timeline segments, verdicts" --> API
   API --> KB
   RES -. "whole-domain test (TL2)" .- FW
+  FW -- "generates: breakpoints.gen.json, media strings, constants, golden vectors" --> SITE
 ```
 
 ### 3.2 Modules and their narrow contracts
@@ -302,14 +301,18 @@ fixtures [06 §2.5, 05 §6].
 
 ### 3.3 Where each decision runs (one place only)
 
-- **Default: in `fwcore`.** The Node side sends inputs and gets the decision back. TS never re-implements it [05 §0].
+- **Lean first for everything reproducible (your direction, 2026-10-17; `CLAUDE.md`).** Every pure piece of the
+  console, the site, measurement and tooling (decisions, reducers, gates, breakpoint conditions, flag rules, motion
+  curves, count reduction, verdicts, test matrices) is specified and proved in Lean **before** it is coded. Then
+  (a) it runs in `fwcore`; or (b) Lean generates it (constants, CSS media strings, JSON such as
+  `breakpoints.gen.json`, test matrices); or (c) the TS/React code must pass Lean-generated golden vectors. Only I/O,
+  rendering and glue stay unproved, and they hold no decision. A TS stand-in is temporary and listed in the report.
 - **Exception: code that must run in the browser.** Only the site's flag resolver, a TS mirror. A TL2 test checks it
   against `fwcore flags.resolve` on **every** single-part override of every preset (`fwcore flags.enumerate`; the
   domain is finite, so this is as strong as a proof for that registry version), plus 2,000 fast-check cases for
   multi-part URL overrides [10.03 §2.10].
-- **Bookkeeping is in `fwcore` too (Lean-first).** The console reducer and views, the device and run queues, `fw
-  plan`'s hits and todo sets, cache prune, the land-time path check, spawn-guard's decision, usage dedupe and the JSON
-  decoders are L1 modules (§5.1): v1 failed exactly there (hand-kept board, scheduler) [10.03 §1].
+- **Bookkeeping too:** the console reducer and views, the queues, `fw plan`, cache prune, the path check, spawn-guard
+  and usage dedupe are L1 modules (§5.1); v1 failed exactly there (hand-kept board, scheduler) [10.03 §1].
 - **Priority is data you own.** One ordered list (`presets/priority.json`, or dragged in the console). Both queues read
   it through one proved Lean function of the list, the job class (user step > calibration > class X/P > spot-check)
   and the waiting time (aging, Q27); it starts the most urgent job **that fits** the booked window (no head-of-line
@@ -496,6 +499,11 @@ shows each item's math.
 | **L2** | 3 | Lean spec + TS copy kept equal by tests: the site's flag resolver (exhaustive over its finite domain), JSON wire codecs, console-web's optimistic preview |
 | **L3** | 18 categories | Not provable; each names how it is checked and which L1 decision it feeds (below) |
 
+Lean reaches the code in one of the three ways of §3.3: it runs in `fwcore`, it generates the artifact, or it emits
+golden vectors. Site and measurement items are in scope too: the breakpoint model `Fw/Site/Breakpoints` (conditions,
+edges, overlaps, the fractional-gap and pure-860-vs-C860 facts; it generates `breakpoints.gen.json`, the media
+strings the parts import and the 124-load gate matrix), motion curves, and count reduction and verdicts (in `fwcore`).
+
 **Modules by milestone** (P = proved in a kickoff sketch: `05-lean-sketch`, or `10-automation-and-proof/lean-scratch`):
 
 | Milestone | Lean modules | v1 bug classes they remove |
@@ -553,26 +561,15 @@ that the math says exactly what the Lean says; you check that it is what we mean
 run at build time.
 
 **The math view is generated, never hand-kept** ([10.04 §2]):
-1. `lake exe mathview` walks every `Fw` module and exports, per declaration: name, kind, file:line, the docstring's
-   English and math, the Lean signature, a machine-made LaTeX form of the statement (no LLM), axioms (`sorryAx` = not
-   proved), and a 64-bit **deep statement hash**: the statement plus the bodies of every `Fw` definition it reaches.
-2. A Node script renders `docs/math/index.html` with KaTeX as **MathML** (`throwOnError: true`), which browsers draw
-   natively: no script, stylesheet or font files, so it opens in the console or as an Artifact. Per entry: math,
-   English, chips (proved / sorry; signed / unsigned / stale), uses, the Lean collapsed. Sample:
-   `research/kickoff/10-automation-and-proof/math-view-sample.html`.
-3. **Sign-off is an event, not a file edit.** `pnpm fw math:sign <decl>` sends `math.signed {decl, stmtHash,
-   mathHash}`; only the math-reviewer role and you (console-web) may cause it. console-api exports the signed set to
-   `lean/math.lock.json` (generated, edits denied to agents, checked at pre-commit), so an agent that edits a theorem
-   cannot re-sign it.
-4. **The lint** (`lake exe mathview --lint`, TL0) fails on: missing math; `sorry` outside a `planned` allowlist; a
-   deep hash that differs from the signed one; math changed since signing; a KaTeX parse error; a lock entry for a
-   deleted declaration; an axiom other than `propext`, `Classical.choice`, `Quot.sound`.
-5. **Review protocol.** The math-reviewer sees the signature, the machine-made math and the definitions, not the
-   docstring; it writes its own math and compares it clause by clause with the docstring: ℕ vs ℤ, every hypothesis,
-   ≤ vs <, rounding down and truncated subtraction, empty lists, ties, repeats, override and fold order, `= true` for
-   Bool, the direction of ⇔/⇒. Agreement → it signs. Disagreement → a second independent reviewer, then you (Q28).
-6. A toolchain bump may change hashes; `mathview accept --toolchain-bump` re-signs only entries whose signature and
-   machine-made LaTeX are unchanged, in one reviewed PR (R24).
+
+| Step | What happens |
+|---|---|
+| Export | `lake exe mathview` walks every `Fw` module and exports, per declaration: name, kind, file:line, the docstring's English and math, the Lean signature, a machine-made LaTeX form of the statement (no LLM), axioms (`sorryAx` = not proved), and a 64-bit **deep statement hash** (the statement plus the bodies of every `Fw` definition it reaches) |
+| Page | A Node script renders `docs/math/index.html` with KaTeX as **MathML** (`throwOnError: true`): no script, stylesheet or font files, so it opens in the console or as an Artifact. Per entry: math, English, chips (proved / sorry; signed / unsigned / stale), uses, the Lean collapsed. Sample: `research/kickoff/10-automation-and-proof/math-view-sample.html` |
+| Sign-off | **An event, not a file edit:** `pnpm fw math:sign <decl>` sends `math.signed {decl, stmtHash, mathHash}`; only the math-reviewer role and you (console-web) may cause it. console-api exports the signed set to `lean/math.lock.json` (generated, edits denied, checked at pre-commit), so an agent that edits a theorem cannot re-sign it |
+| Lint | `lake exe mathview --lint` (TL0) fails on: missing math; `sorry` outside a `planned` allowlist; a deep hash that differs from the signed one; math changed since signing; a KaTeX parse error; a lock entry for a deleted declaration; an axiom other than `propext`, `Classical.choice`, `Quot.sound` |
+| Review | The math-reviewer sees the signature, the machine-made math and the definitions, not the docstring; it writes its own math and compares clause by clause: ℕ vs ℤ, every hypothesis, ≤ vs <, rounding down and truncated subtraction, empty lists, ties, repeats, override and fold order, `= true` for Bool, the direction of ⇔/⇒. Agreement → it signs; disagreement → a second independent reviewer, then you (Q28) |
+| Toolchain bump | `mathview accept --toolchain-bump` re-signs only entries whose signature and machine-made LaTeX are unchanged, in one reviewed PR (R24) |
 
 **Worked example** (`lean/Fw/Spec/Verdict.lean`, M0):
 
@@ -769,7 +766,8 @@ unchecked" and cannot land as class W.
 **Every breakpoint, identically, for every part (your requirement of 2026-10-17).** The inventory [11] found 30
 distinct media conditions (29 in CSS, plus `(hover: none)` in JS only), 92 CSS `@media` blocks, 29 JS `matchMedia`
 sites and 20 non-media gates, giving **18 edges** (CONFIRMED [11 §1]). `breakpoints.json` is generated from the
-snapshot by an extractor (L3, golden files) and never edited by hand.
+snapshot by an extractor (L3, golden files) and never edited by hand. The Lean breakpoint model (§5.1) generates
+`breakpoints.gen.json`, the media strings and the gate matrix; the build fails unless it equals the extracted file.
 
 | Edges (N → N+1) | Gated by |
 |---|---|
@@ -1172,7 +1170,7 @@ history is the timeline, and the meter reports time and cost per gate (G3, §8.4
 
 ### 10.1 Workstreams
 
-**Running now** (started 2026-10-17): the first seven rows. `packages/measure` is split into `measure-chromium` and
+**Running now** (started 2026-10-17): the first eight rows. `packages/measure` is split into `measure-chromium` and
 `measure-webkit` so the two engine lanes build in parallel.
 
 | Workstream (where) | Blocked by | Outputs, and what they unblock |
@@ -1180,12 +1178,13 @@ history is the timeline, and the meter reports time and cost per gate (G3, §8.4
 | **lean-core** (`lean/`) — running | — (seeded from the 05 and 10 sketches) | `fwcore serve`: `Fw/Console`, `Fw/Spec/DeviceQueue`, `Fw/Ops`, `Fw/Wire` (hardened), `Frames`, `Verdict`; the math-view lint and the first signed entries; mutants killed; round trip re-measured (17.6 vs 141 µs, §3.2) → console-mvp's Lean core, M1 Lean modules |
 | **counts-chromium** (`packages/measure-chromium`) — running | the local snapshot | SPK-i (container, BeginFrameControl, fonts from `snapshot/`, byte-identical vectors), SPK-j and SPK-q on the Chromium side, per-zone counts of the original, first V-a run → artifact store, baseline |
 | **webkit-spike** (`packages/measure-webkit`) — running | — | Simulator + iwdp, `Page.enable` before `Timeline.start`, free-running `LayerTree` census, two-rAF stepping, seek-overhead fixture, SPK-m, SPK-q (WebKit); then WebKit counts per type on the original (time box 2 agent-days, then the §4.2 fallback) → baseline, calibration |
-| **console-mvp** (`packages/contracts`, `apps/console-api`, `apps/console-web`, `apps/runner`) — running | lean-core for the Lean reducer (until then a temporary TS reducer, checked by a replay oracle and deleted once `fwcore serve` passes it) | the step queue first (post, Start, answer, Done) before any Simulator or phone step asks you anything; console-api as single writer (spool drain, `events.jsonl` + snapshots in `.fw-console/`, CLI socket with capability check, git reconciler that backfills from refs, SSE); console-web with derived columns and "why" popovers; `fw land` → agent-ops, every device step |
+| **console-mvp** (`packages/contracts`, `apps/console-api`, `apps/console-web`, `apps/runner`) — running | lean-core for the Lean reducer (until then a temporary TS reducer, checked by a replay oracle and replaced by `fwcore` once `fwcore serve` passes it) | the step queue first (post, Start, answer, Done) before any Simulator or phone step asks you anything; console-api as single writer (spool drain, `events.jsonl` + snapshots in `.fw-console/`, CLI socket with capability check, git reconciler that backfills from refs, SSE); console-web with derived columns and "why" popovers; `fw land` → agent-ops, every device step |
 | **site-aot** (`apps/site`) — running | — | site scaffold, MUI theme, census route, **SPK-r** (Emotion AOT) and its styling decision record → pilot parts |
 | **breakpoints** (`research/kickoff/11-breakpoints/`) — running | the local snapshot | the breakpoint inventory and the generated `breakpoints.json` → breakpoint lint and gate (§6.6), pilot parts |
 | **explainer page** (`docs/plan/loop-plan.html`) — running | this plan | the revision 5 page with the math view |
+| **lean-site** (`lean/Fw/Site/`) — running | breakpoints (the extracted file as golden) | the Lean breakpoint model and generator: `breakpoints.gen.json`, media strings, the gate matrix → breakpoint lint and gate, pilot parts; later flag rules and motion curves as goldens |
 | **agent-ops** (`.claude/`, hooks) | console-mvp (socket) | `settings.json` sandbox block; hooks `emit.mjs` (spool format with unit tests: no socket, full disk, bad payload, < 100 ms, silent), `cap.mjs`, spawn-guard; role files incl. math-reviewer; SPK-o, SPK-p, SPK-t; the transcript tailer and the meter check (TTL by expected wait) → worktree agents may commit; `fw land` is the only way to `main` |
-| **store-and-run** (`packages/contracts`, `apps/runner`) | counts-chromium (count-vector schema) | the artifact store; `fw run` with `--fw`, `--preset`, `--engines`, `--dry`; V-j; harness neutrality fixtures (V-n) → M1 |
+| **store-and-run** (`packages/contracts`, `apps/runner`) | counts-chromium (count-vector schema), lean-core | count reduction and verdicts moved into `fwcore` (TS keeps only I/O); the artifact store; `fw run` with `--fw`, `--preset`, `--engines`, `--dry`; V-j; harness neutrality fixtures (V-n) → M1 |
 | **lean-m1+** (`lean/`) | lean-core | the M1, M2, M3 Lean modules of §5.1, each as soon as its consumer needs it |
 | **rule cards** (`refs/rules/**`) | counts lanes | v1's 16 WebKit rules and Chromium's `compositeFailed` reasons with table tests; K1-K10 fixture drafts → calibration |
 | **pilot parts** (`apps/site/src/parts/*`) | site-aot (SPK-r verdict), breakpoints, M1 baseline, Lean `Flags` + registry | `engine.scroll`, `hero.countdown`, `nav.hitTest`, `hero.exit` with `impl: plain` twins; N0-N5; PL0-PL6; bands frozen → M2 |
@@ -1201,7 +1200,8 @@ flowchart LR
   CC[counts-chromium] --> SR[store-and-run] --> M1{{M1 original measured}}
   CC --> M0 & RC[rule cards]
   WK[webkit-spike] --> M1 & RC & CAL[calibration]
-  AOT[site-aot: SPK-r] & BP[breakpoints] & M1 & LM --> PP[pilot parts] --> M2{{M2 pilots faithful}}
+  BP[breakpoints] --> LS[lean-site]
+  AOT[site-aot: SPK-r] & LS & M1 & LM --> PP[pilot parts] --> M2{{M2 pilots faithful}}
   M2 --> PORT[port parts] --> M4{{M4 all parts promoted}} --> EXP[experiments] --> M5{{M5}} --> WR[write-up] --> M6{{M6}}
   RC & CON --> CAL --> M3{{M3 calibrated}} -. "class SM only" .-> EXP
 ```
@@ -1273,6 +1273,7 @@ later hooks (§3.4).
 | Q23 | Where the console lives, and who moves `main` | **Inside the repo**, in the gitignored `.fw-console/`, protected by a sandbox write-deny, `Edit` deny rules and console-api as its single writer. **`main` stays a normal branch** (no bare repo); the lead lands with `fw land` (ff-only), and a commit on `main` that did not come through it is detected from events and flagged as a violation | §2.2, §3.2, §3.4, §7, §8.2, §8.3, §9.2, R28, A21 |
 | — | Breakpoints | **The rewrite supports every breakpoint of the original identically, for every part**: a generated `breakpoints.json`, a breakpoint lint, and a breakpoint gate (PL0-PL3 at both sides of every edge, input-mode combinations, JS-gated widths, live resizes) before any part is promoted | §1.2 V-g, §6.6, §9.2, §10.1 M2/M4, R8, Q5 |
 | — | Schedule | **No calendar:** a dependency graph run as soon as possible in parallel; milestones are gates, not dates; time is reported per gate | §0, §10, G3 |
+| Q24 | Lean first, everywhere reproducible | Console (so Q24: `fwcore` is the console brain), site, measurement and tooling: specified and proved in Lean before coding; Lean runs it, generates it, or provides golden vectors; only I/O, rendering and glue stay unproved | §3.1, §3.3, §5.1, §6.6, §10.1 |
 | — | Console upkeep | **Nobody writes status** (your requirement): every view is derived from the event log; agents have no write path; judgement is a typed command | §0, §2.2, §3.2, §7, §8.3, §8.5, §9.2, §10.2 |
 | — | Reading proofs | **You read math, not Lean** (your requirement): docstring math, a generated math view, a build gate on unsigned or stale math, a math-reviewer role | §0, §5.3, §5.4, §8.2 |
 | — | Lean packaging | **Mathlib-free core, optional `FwMath`** for proofs that need Mathlib; `Fw` never imports it | §3.4, §5.1, §5.2 |
@@ -1302,7 +1303,6 @@ week; yes to the free-play phone.
 - **Q19 Screen capture:** Simulator frames allowed; phone-screen frames only for named recording sets made with Do Not Disturb on, kept in the local artifact store.
 - **Q20 Supervision:** no recurring LLM check prompts; `CronCreate` asks you first; console-api watchers wake agents only on a change (§8.5).
 - **Q21 MUI fallbacks and the style-engine A/B:** SPK-r decides. A part falls back to Base UI 1.9.0 + CSS Modules, one at a time, when its census cannot be completed, an N0/N1/N5 incident cannot be fixed in its time box, or its N2/N3 delta comes from MUI (§6.7). The whole site moves to Pigment on MUI 9.0.1 only if SPK-r fails at the mechanism level. The optional Pigment arm (SPK-s, 1 agent-day, M2) runs once unless you say skip.
-- **Q24 fwcore as the console brain:** the console's behaviour is written and proved in Lean (`fwcore serve`), and TypeScript only moves data; the alternative is rev 4's TS console with Lean for 4 decisions. Default: Lean.
 - **Q25 Math view placement and scope:** a tab in console-web that shows the generated page (also openable on its own); math required on every theorem and on every definition you read, not only on theorems. Default: both.
 - **Q26 Lease starvation:** the device lease can be renewed forever today (MEASURED [10.04 §5]). Default: no renewing while someone is waiting, plus a cap on total hold time, with a bounded-wait theorem; alternatives: the cap only, or a fairness assumption stated in the theorem.
 - **Q27 Aging step:** a waiting job rises one priority level every A = 300 s, so a spot-check overtakes newly arriving user steps only after about 25 h. Default: a tighter bound, every job starts within 2 h of a booked window that fits it.
@@ -1409,6 +1409,7 @@ your Lean packaging and install decisions.
 | 11 | Every breakpoint of the original, for every part (your requirement): generated `breakpoints.json`, breakpoint lint, breakpoint gate before promotion; V-g, R8, M2/M4 exits, Q5 | §1.2, §6.6, §7.1, §9.2, §10.1, §11, §12 |
 | 12 | No calendar (your decision): §10 is a dependency graph of workstreams (blocked-by, outputs, Mermaid graph, critical path); milestones are gates; what runs now is listed; every "Day N" and date reference replaced (§0, §8.1, §8.2, App B, R7, R17, R25, §12); `packages/measure` split into `measure-chromium` and `measure-webkit` | §0, §1.1 G3, §3, §7.1, §8, §10, §11, §12, App A-B |
 | 13 | Breakpoint inventory [11] applied: 30 conditions, 18 edges (table), the pure-860 vs C860 parity rule, overlaps, fractional gaps, the 124-load gate per engine, live-resize sweeps; PLAN ids `hero`, `platform`, `ui.shared`, `theme.tokens` added; still to be MEASURED: the container-1100 viewport edge and the overlap outcomes ; §12.3's AOT-timing item dropped (SPK-r already runs); §3.1, §5.3, §8.3, §8.4 compacted | §6.1, §6.6, §12.3 |
+| 14 | Lean first for everything reproducible (your direction): three ways to code (runs in `fwcore`, generated by Lean, golden vectors); `Fw/Site/Breakpoints` generates `breakpoints.gen.json`, media strings and the gate matrix; new running workstream lean-site; Q24 decided; console TS reducer and measurement reduction/verdicts move to `fwcore` | §3.1, §3.3, §5.1, §6.6, §10.1, §12.0 |
 
 Differences from the delta (why): V-t avoids "G1-style" (G1 is an outcome goal); "judge" became "the reviewer's own
 math vs the docstring"; `Write(...)` rules became `Edit(...)` (A22); the canonical-numbers table stays in the delta
