@@ -3006,7 +3006,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-18-land-speed.md"
-   ]
+   ],
+   "evidence": "51ca579"
   },
   {
    "id": "gate-speed-ci",
