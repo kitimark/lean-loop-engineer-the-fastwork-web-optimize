@@ -32,5 +32,6 @@ the verdict further, to parts the run collected. In CI: the `parts` input of `br
 | `src/engines.mjs` | env emulation per engine (the header comment says how, and what is not reachable) |
 | `src/run.mjs`, `src/spec.mjs`, `src/serve.mjs` | runner, probes and sweeps from the gen file, read-only static servers |
 | `src/summary.mjs` | groups the raw files with `verdict.mjs` into the table |
+| `src/gaps/` | the `gaps` lane (`node src/cli.mjs gaps collect|summary|run|device-serve|device-judge`): the 8 cells the default run cannot reach, collected and judged on CI (`.github/workflows/gate-gaps.yml`); see `src/gaps/README.md`, phone session `src/gaps/DEVICE.md`; results in `results/gaps/` (from CI artifacts only) |
 
 The run files hold only raw facts and are byte-deterministic (no timestamps or durations).

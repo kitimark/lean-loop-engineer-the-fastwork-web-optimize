@@ -1,0 +1,1333 @@
+{
+ "ar": null,
+ "engines": {
+  "chromium": {
+   "blocks": {
+    "fractional-gaps": {
+     "failing": 0,
+     "total": 4,
+     "unreachable": 0,
+     "verdict": "pass"
+    },
+    "hover-pointer-cross": {
+     "failing": 0,
+     "total": 4,
+     "unreachable": 0,
+     "verdict": "pass"
+    }
+   },
+   "cells": [
+    {
+     "achieved": true,
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 768,
+      "deviceWidth": 1024,
+      "dpr": 2,
+      "height": 768,
+      "hover": "none",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1024
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "--blink-settings primaryHoverType/primaryPointerType (one browser per pair)",
+     "id": "hover-pointer-cross-1024x768-none-fine",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "none",
+        "pointer": "fine"
+       },
+       "vvWidth": 1024
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "none",
+        "pointer": "fine"
+       },
+       "vvWidth": 1024
+      }
+     },
+     "port": "chromium",
+     "reach": null,
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 768,
+      "deviceWidth": 1024,
+      "dpr": 2,
+      "height": 768,
+      "hover": "none",
+      "override": {
+       "deviceScaleFactor": 2,
+       "height": 768,
+       "width": 1024
+      },
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1024,
+      "zoom": 1
+     },
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "verdict": "pass"
+    },
+    {
+     "achieved": true,
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 768,
+      "deviceWidth": 1024,
+      "dpr": 2,
+      "height": 768,
+      "hover": "hover",
+      "pointer": "coarse",
+      "reducedMotion": "no-preference",
+      "width": 1024
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "--blink-settings primaryHoverType/primaryPointerType (one browser per pair)",
+     "id": "hover-pointer-cross-1024x768-hover-coarse",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "hover",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1024
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "hover",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1024
+      }
+     },
+     "port": "chromium",
+     "reach": null,
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 768,
+      "deviceWidth": 1024,
+      "dpr": 2,
+      "height": 768,
+      "hover": "hover",
+      "override": {
+       "deviceScaleFactor": 2,
+       "height": 768,
+       "width": 1024
+      },
+      "pointer": "coarse",
+      "reducedMotion": "no-preference",
+      "width": 1024,
+      "zoom": 1
+     },
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "verdict": "pass"
+    },
+    {
+     "achieved": true,
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1200,
+      "dpr": 2,
+      "height": 900,
+      "hover": "none",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1200
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "--blink-settings primaryHoverType/primaryPointerType (one browser per pair)",
+     "id": "hover-pointer-cross-1200x900-none-fine",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "none",
+        "pointer": "fine"
+       },
+       "vvWidth": 1200
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "none",
+        "pointer": "fine"
+       },
+       "vvWidth": 1200
+      }
+     },
+     "port": "chromium",
+     "reach": null,
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1200,
+      "dpr": 2,
+      "height": 900,
+      "hover": "none",
+      "override": {
+       "deviceScaleFactor": 2,
+       "height": 900,
+       "width": 1200
+      },
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1200,
+      "zoom": 1
+     },
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "verdict": "pass"
+    },
+    {
+     "achieved": true,
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1200,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "coarse",
+      "reducedMotion": "no-preference",
+      "width": 1200
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "--blink-settings primaryHoverType/primaryPointerType (one browser per pair)",
+     "id": "hover-pointer-cross-1200x900-hover-coarse",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "hover",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1200
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "hover",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1200
+      }
+     },
+     "port": "chromium",
+     "reach": null,
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1200,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "override": {
+       "deviceScaleFactor": 2,
+       "height": 900,
+       "width": 1200
+      },
+      "pointer": "coarse",
+      "reducedMotion": "no-preference",
+      "width": 1200,
+      "zoom": 1
+     },
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "verdict": "pass"
+    },
+    {
+     "achieved": true,
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 600.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 600.5
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Chromium browser zoom (profile Preferences partition.default_zoom_level.x = log(d)/log(1.2)) + CDP setDeviceMetricsOverride width w*d, DSF 1",
+     "id": "fractional-gaps-600.5",
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 600,
+       "mediaWidth": 600.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 600.5
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 600,
+       "mediaWidth": 600.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 600.5
+      }
+     },
+     "port": "chromium",
+     "reach": null,
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 600.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "override": {
+       "deviceScaleFactor": 1,
+       "height": 1800,
+       "width": 1201
+      },
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 600.5,
+      "zoom": 2
+     },
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "verdict": "pass"
+    },
+    {
+     "achieved": true,
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 640.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 640.5
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Chromium browser zoom (profile Preferences partition.default_zoom_level.x = log(d)/log(1.2)) + CDP setDeviceMetricsOverride width w*d, DSF 1",
+     "id": "fractional-gaps-640.5",
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 640,
+       "mediaWidth": 640.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 640.5
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 640,
+       "mediaWidth": 640.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 640.5
+      }
+     },
+     "port": "chromium",
+     "reach": null,
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 640.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "override": {
+       "deviceScaleFactor": 1,
+       "height": 1800,
+       "width": 1281
+      },
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 640.5,
+      "zoom": 2
+     },
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "verdict": "pass"
+    },
+    {
+     "achieved": true,
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 860.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 860.5
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Chromium browser zoom (profile Preferences partition.default_zoom_level.x = log(d)/log(1.2)) + CDP setDeviceMetricsOverride width w*d, DSF 1",
+     "id": "fractional-gaps-860.5",
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 860,
+       "mediaWidth": 860.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 860.5
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 860,
+       "mediaWidth": 860.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 860.5
+      }
+     },
+     "port": "chromium",
+     "reach": null,
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 860.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "override": {
+       "deviceScaleFactor": 1,
+       "height": 1800,
+       "width": 1721
+      },
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 860.5,
+      "zoom": 2
+     },
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "verdict": "pass"
+    },
+    {
+     "achieved": true,
+     "deviations": {
+      "orig": [],
+      "rewrite": []
+     },
+     "engine": "chromium",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1000.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1000.5
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Chromium browser zoom (profile Preferences partition.default_zoom_level.x = log(d)/log(1.2)) + CDP setDeviceMetricsOverride width w*d, DSF 1",
+     "id": "fractional-gaps-1000.5",
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1000,
+       "mediaWidth": 1000.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1000.5
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1000,
+       "mediaWidth": 1000.5,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1000.5
+      }
+     },
+     "port": "chromium",
+     "reach": null,
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1000.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "override": {
+       "deviceScaleFactor": 1,
+       "height": 1800,
+       "width": 2001
+      },
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1000.5,
+      "zoom": 2
+     },
+     "rows": {
+      "engine.scroll": "pass",
+      "hero.countdown": "pass",
+      "hero.exit": "pass",
+      "matchMedia =Lean": "pass",
+      "matchMedia legacy text": "pass",
+      "matchMedia orig=rewrite": "pass",
+      "nav.hitTest": "pass"
+     },
+     "verdict": "pass"
+    }
+   ],
+   "port": "chromium"
+  },
+  "playwright-webkit": {
+   "blocks": {
+    "fractional-gaps": {
+     "failing": 0,
+     "total": 0,
+     "unreachable": 4,
+     "verdict": "unreachable:whole-width"
+    },
+    "hover-pointer-cross": {
+     "failing": 0,
+     "total": 0,
+     "unreachable": 4,
+     "verdict": "unreachable:primary-pair"
+    }
+   },
+   "cells": [
+    {
+     "achieved": false,
+     "deviations": {
+      "orig": [
+       "pointer"
+      ],
+      "rewrite": [
+       "pointer"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 768,
+      "deviceWidth": 1024,
+      "dpr": 2,
+      "height": 768,
+      "hover": "none",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1024
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Lean environment as is; WebKit derives primary hover and pointer from one platform value (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780, WebPageGLib.cpp:229-258@862f17d)",
+     "id": "hover-pointer-cross-1024x768-none-fine",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "none",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1024
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "none",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1024
+      }
+     },
+     "port": "webkit-glib",
+     "reach": "primary-pair",
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 768,
+      "deviceWidth": 1024,
+      "dpr": 2,
+      "height": 768,
+      "hover": "none",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1024
+     },
+     "rows": {
+      "engine.scroll": "unreachable:primary-pair",
+      "hero.countdown": "unreachable:primary-pair",
+      "hero.exit": "unreachable:primary-pair",
+      "matchMedia =Lean": "unreachable:primary-pair",
+      "matchMedia legacy text": "unreachable:primary-pair",
+      "matchMedia orig=rewrite": "unreachable:primary-pair",
+      "nav.hitTest": "unreachable:primary-pair"
+     },
+     "verdict": "unreachable:primary-pair"
+    },
+    {
+     "achieved": false,
+     "deviations": {
+      "orig": [
+       "pointer"
+      ],
+      "rewrite": [
+       "pointer"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 768,
+      "deviceWidth": 1024,
+      "dpr": 2,
+      "height": 768,
+      "hover": "hover",
+      "pointer": "coarse",
+      "reducedMotion": "no-preference",
+      "width": 1024
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Lean environment as is; WebKit derives primary hover and pointer from one platform value (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780, WebPageGLib.cpp:229-258@862f17d)",
+     "id": "hover-pointer-cross-1024x768-hover-coarse",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1024
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1024,
+       "mediaWidth": 1024,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1024
+      }
+     },
+     "port": "webkit-glib",
+     "reach": "primary-pair",
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 768,
+      "deviceWidth": 1024,
+      "dpr": 2,
+      "height": 768,
+      "hover": "hover",
+      "pointer": "coarse",
+      "reducedMotion": "no-preference",
+      "width": 1024
+     },
+     "rows": {
+      "engine.scroll": "unreachable:primary-pair",
+      "hero.countdown": "unreachable:primary-pair",
+      "hero.exit": "unreachable:primary-pair",
+      "matchMedia =Lean": "unreachable:primary-pair",
+      "matchMedia legacy text": "unreachable:primary-pair",
+      "matchMedia orig=rewrite": "unreachable:primary-pair",
+      "nav.hitTest": "unreachable:primary-pair"
+     },
+     "verdict": "unreachable:primary-pair"
+    },
+    {
+     "achieved": false,
+     "deviations": {
+      "orig": [
+       "pointer"
+      ],
+      "rewrite": [
+       "pointer"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1200,
+      "dpr": 2,
+      "height": 900,
+      "hover": "none",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1200
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Lean environment as is; WebKit derives primary hover and pointer from one platform value (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780, WebPageGLib.cpp:229-258@862f17d)",
+     "id": "hover-pointer-cross-1200x900-none-fine",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "none",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1200
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "none",
+        "pointer": "coarse"
+       },
+       "vvWidth": 1200
+      }
+     },
+     "port": "webkit-glib",
+     "reach": "primary-pair",
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1200,
+      "dpr": 2,
+      "height": 900,
+      "hover": "none",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1200
+     },
+     "rows": {
+      "engine.scroll": "unreachable:primary-pair",
+      "hero.countdown": "unreachable:primary-pair",
+      "hero.exit": "unreachable:primary-pair",
+      "matchMedia =Lean": "unreachable:primary-pair",
+      "matchMedia legacy text": "unreachable:primary-pair",
+      "matchMedia orig=rewrite": "unreachable:primary-pair",
+      "nav.hitTest": "unreachable:primary-pair"
+     },
+     "verdict": "unreachable:primary-pair"
+    },
+    {
+     "achieved": false,
+     "deviations": {
+      "orig": [
+       "pointer"
+      ],
+      "rewrite": [
+       "pointer"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1200,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "coarse",
+      "reducedMotion": "no-preference",
+      "width": 1200
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Lean environment as is; WebKit derives primary hover and pointer from one platform value (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780, WebPageGLib.cpp:229-258@862f17d)",
+     "id": "hover-pointer-cross-1200x900-hover-coarse",
+     "kind": "cross",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1200
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1200,
+       "mediaWidth": 1200,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1200
+      }
+     },
+     "port": "webkit-glib",
+     "reach": "primary-pair",
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1200,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "coarse",
+      "reducedMotion": "no-preference",
+      "width": 1200
+     },
+     "rows": {
+      "engine.scroll": "unreachable:primary-pair",
+      "hero.countdown": "unreachable:primary-pair",
+      "hero.exit": "unreachable:primary-pair",
+      "matchMedia =Lean": "unreachable:primary-pair",
+      "matchMedia legacy text": "unreachable:primary-pair",
+      "matchMedia orig=rewrite": "unreachable:primary-pair",
+      "nav.hitTest": "unreachable:primary-pair"
+     },
+     "verdict": "unreachable:primary-pair"
+    },
+    {
+     "achieved": false,
+     "deviations": {
+      "orig": [
+       "width"
+      ],
+      "rewrite": [
+       "width"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 600.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 600.5
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Lean environment as is (Playwright viewport = ceil(width)); WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d)",
+     "id": "fractional-gaps-600.5",
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 601,
+       "mediaWidth": 601,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 601
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 601,
+       "mediaWidth": 601,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 601
+      }
+     },
+     "port": "webkit-glib",
+     "reach": "whole-width",
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 600.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 600.5
+     },
+     "rows": {
+      "engine.scroll": "unreachable:whole-width",
+      "hero.countdown": "unreachable:whole-width",
+      "hero.exit": "unreachable:whole-width",
+      "matchMedia =Lean": "unreachable:whole-width",
+      "matchMedia legacy text": "unreachable:whole-width",
+      "matchMedia orig=rewrite": "unreachable:whole-width",
+      "nav.hitTest": "unreachable:whole-width"
+     },
+     "verdict": "unreachable:whole-width"
+    },
+    {
+     "achieved": false,
+     "deviations": {
+      "orig": [
+       "width"
+      ],
+      "rewrite": [
+       "width"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 640.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 640.5
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Lean environment as is (Playwright viewport = ceil(width)); WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d)",
+     "id": "fractional-gaps-640.5",
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 641,
+       "mediaWidth": 641,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 641
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 641,
+       "mediaWidth": 641,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 641
+      }
+     },
+     "port": "webkit-glib",
+     "reach": "whole-width",
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 640.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 640.5
+     },
+     "rows": {
+      "engine.scroll": "unreachable:whole-width",
+      "hero.countdown": "unreachable:whole-width",
+      "hero.exit": "unreachable:whole-width",
+      "matchMedia =Lean": "unreachable:whole-width",
+      "matchMedia legacy text": "unreachable:whole-width",
+      "matchMedia orig=rewrite": "unreachable:whole-width",
+      "nav.hitTest": "unreachable:whole-width"
+     },
+     "verdict": "unreachable:whole-width"
+    },
+    {
+     "achieved": false,
+     "deviations": {
+      "orig": [
+       "width"
+      ],
+      "rewrite": [
+       "width"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 860.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 860.5
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Lean environment as is (Playwright viewport = ceil(width)); WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d)",
+     "id": "fractional-gaps-860.5",
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 861,
+       "mediaWidth": 861,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 861
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 861,
+       "mediaWidth": 861,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 861
+      }
+     },
+     "port": "webkit-glib",
+     "reach": "whole-width",
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 860.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 860.5
+     },
+     "rows": {
+      "engine.scroll": "unreachable:whole-width",
+      "hero.countdown": "unreachable:whole-width",
+      "hero.exit": "unreachable:whole-width",
+      "matchMedia =Lean": "unreachable:whole-width",
+      "matchMedia legacy text": "unreachable:whole-width",
+      "matchMedia orig=rewrite": "unreachable:whole-width",
+      "nav.hitTest": "unreachable:whole-width"
+     },
+     "verdict": "unreachable:whole-width"
+    },
+    {
+     "achieved": false,
+     "deviations": {
+      "orig": [
+       "width"
+      ],
+      "rewrite": [
+       "width"
+      ]
+     },
+     "engine": "playwright-webkit",
+     "env": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1000.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1000.5
+     },
+     "fails": {
+      "engine.scroll": [],
+      "hero.countdown": [],
+      "hero.exit": [],
+      "nav.hitTest": []
+     },
+     "how": "Lean environment as is (Playwright viewport = ceil(width)); WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d)",
+     "id": "fractional-gaps-1000.5",
+     "kind": "fractional",
+     "measured": {
+      "orig": {
+       "dpr": 2,
+       "innerWidth": 1001,
+       "mediaWidth": 1001,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1001
+      },
+      "rewrite": {
+       "dpr": 2,
+       "innerWidth": 1001,
+       "mediaWidth": 1001,
+       "pair": {
+        "hover": "hover",
+        "pointer": "fine"
+       },
+       "vvWidth": 1001
+      }
+     },
+     "port": "webkit-glib",
+     "reach": "whole-width",
+     "realized": {
+      "colorScheme": "light",
+      "deviceHeight": 900,
+      "deviceWidth": 1000.5,
+      "dpr": 2,
+      "height": 900,
+      "hover": "hover",
+      "pointer": "fine",
+      "reducedMotion": "no-preference",
+      "width": 1000.5
+     },
+     "rows": {
+      "engine.scroll": "unreachable:whole-width",
+      "hero.countdown": "unreachable:whole-width",
+      "hero.exit": "unreachable:whole-width",
+      "matchMedia =Lean": "unreachable:whole-width",
+      "matchMedia legacy text": "unreachable:whole-width",
+      "matchMedia orig=rewrite": "unreachable:whole-width",
+      "nav.hitTest": "unreachable:whole-width"
+     },
+     "verdict": "unreachable:whole-width"
+    }
+   ],
+   "port": "webkit-glib"
+  }
+ },
+ "genSha256": "d210ce0c05944f5ed96eff00b921b0d6ad28ec7002cffbb356841d4e4f0033e9",
+ "models": [
+  {
+   "contradicted": [],
+   "mech": "playwright-webkit/run fractional",
+   "port": "webkit-glib",
+   "records": 8,
+   "unreadable": 0,
+   "verdict": "pass"
+  },
+  {
+   "contradicted": [],
+   "mech": "playwright-webkit/run cross",
+   "port": "webkit-glib",
+   "records": 8,
+   "unreadable": 0,
+   "verdict": "pass"
+  },
+  {
+   "contradicted": [],
+   "mech": "playwright-webkit/dpr",
+   "port": "webkit-glib",
+   "records": 16,
+   "unreadable": 0,
+   "verdict": "pass"
+  },
+  {
+   "contradicted": [],
+   "mech": "playwright-webkit/pair",
+   "port": "webkit-glib",
+   "records": 4,
+   "unreadable": 0,
+   "verdict": "pass"
+  }
+ ],
+ "platform": "linux",
+ "schema": "fw.gate-breakpoints.gaps/2",
+ "simulatorCheck": {},
+ "skipped": {
+  "apple": "not collected on linux: the macOS and Simulator arms need an Apple host"
+ },
+ "variants": []
+}

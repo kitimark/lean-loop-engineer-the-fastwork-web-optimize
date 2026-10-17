@@ -63,7 +63,10 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     const fails = new Map(), infos = new Map();
 
     // one fwcore run: every probe state, every sweep stop, every sweep's hysteresis pair (orig, rewrite)
-    const ctx = context({ anchors, parts: PARTS, props: run.header.props, deviceEdges });
+    // The engine port names the cells the engine cannot reach (Lean Fw.Gate.Reach); runs made before the header carried it
+    // have a port only for Chromium (WebKit's would be a guess: Apple or GLib).
+    const port = run.header.port ?? (engine === 'chromium' ? 'chromium' : null);
+    const ctx = context({ anchors, parts: PARTS, props: run.header.props, deviceEdges, port });
     const states = run.probes.map((rec) => {
       const g = byId.get(rec.id);
       return { requested: rec.env, orig: rec.orig, rewrite: rec.rewrite, expect: g.expect, expectNeutral: g.expectNeutral };
@@ -86,7 +89,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
       probeRows.push({
         id: rec.id, block: rec.block, achieved: ev.achieved, deviations: ev.dev,
         settled: { orig: rec.orig.settle.splash ?? rec.orig.settle.ready, rewrite: rec.rewrite.settle.ready },
-        verdicts: ev.rows,
+        verdicts: ev.rows, verdict: ev.verdict, reach: ev.reach,
         truthCounts: ev.truthCounts,
         compared: ev.compared,
       });
@@ -135,11 +138,17 @@ export function summarize(outDir, { parts: requested = null } = {}) {
   return result;
 }
 
-const cell = (c) => (c.verdict === 'pass' ? 'pass' : c.verdict === 'fail' ? `FAIL ${c.failing}/${c.total}` : c.verdict === 'not-comparable' ? 'NC' : '-');
+/** A table cell (Lean's tally: verdict, failing / comparable probes, unreachable probes). `unreachable:<reason>` = every probe
+ *  of the cell is unreachable on this engine port (proved in Fw.Gate.Reach); mixed cells show the unreachable count after. */
+const cell = (c) => {
+  if (c.verdict.startsWith('unreachable')) return `UNREACHABLE ${c.unreachable} (${c.verdict.slice('unreachable:'.length)})`;
+  const base = c.verdict === 'pass' ? 'pass' : c.verdict === 'fail' ? `FAIL ${c.failing}/${c.total}` : c.verdict === 'not-comparable' ? 'NC' : '-';
+  return c.unreachable > 0 ? `${base} +${c.unreachable} unreachable` : base;
+};
 
 function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel) {
   const cols = [...blocks, ...sweepRows.map((s) => `sweep:${s.id}`)];
-  const out = [`## ${engine} (${header.browser})`, '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / - = block not run.`, ''];
+  const out = [`## ${engine} (${header.browser})`, '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), `+n unreachable` = n such probes left out of the count / - = block not run.`, ''];
   // No silent narrowing: a narrowed verdict says which parts it covers and which it does not. matchMedia rows are
   // part-independent (every load collects them), so they stay in the table.
   if (sel.narrowed) out.push(`**Narrowed to parts: ${sel.covered.join(', ')}. Skipped (no verdict for them): ${sel.skipped.join(', ')}.** The matchMedia rows are not part-specific and are kept.`, '');
