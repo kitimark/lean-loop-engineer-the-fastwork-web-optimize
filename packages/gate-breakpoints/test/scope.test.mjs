@@ -76,7 +76,8 @@ test("each part's conditions are its media.ts ids and its owners' inventory cond
     const conts = inv.continuous.filter((c) => (c.parts ?? []).some((x) => owners.has(x)));
     // a knee of a viewport-width value is the inventory's px; a knee of a container value (axis container-width) is stated
     // in the inventory in the container's px, and the part states it in viewport px where the layout puts the container there
-    const wide = conts.filter((c) => c.axis === 'width').flatMap((c) => c.knees_px);
+    // a viewport-height value (people.deck's profile shell height) is stated in the inventory's height px and probed at those px
+    const wide = conts.filter((c) => c.axis === 'width' || c.axis === 'height').flatMap((c) => c.knees_px);
     const boxed = conts.filter((c) => c.axis === 'container-width' && (c.knees_px ?? []).length > 0).map((c) => c.expression);
     assert.deepEqual(u.knees.filter((k) => !boxed.includes(k.expression)).map((k) => k.px), wide, `${pid}: knees = owners' continuous knees`);
     for (const e of boxed) {

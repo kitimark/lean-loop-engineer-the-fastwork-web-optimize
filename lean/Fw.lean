@@ -35,6 +35,7 @@ import Fw.Parts.HeroOrbit
 import Fw.Parts.HeroAccent
 import Fw.Parts.HeroDeck
 import Fw.Parts.HeroGolden
+import Fw.Parts.PeopleGolden
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Tolerance

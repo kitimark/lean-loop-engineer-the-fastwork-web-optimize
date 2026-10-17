@@ -57,7 +57,7 @@ export function App({ config }: { config: FwConfig }) {
           <MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />
         </div>
 
-        <People variant={config.variants['people'] ?? 'shell'} />
+        <People variants={config.variants} />
         <Pain variant={config.variants['pain'] ?? 'shell'} />
         <Commission variant={config.variants['commission'] ?? 'faithful'} typingVariant={config.variants['commission.typing'] ?? 'faithful'} />
         <Platform variant={config.variants['platform'] ?? 'shell'} />

@@ -9,6 +9,7 @@ import Fw.Parts.NavGolden
 import Fw.Parts.CommissionGolden
 import Fw.Parts.OverlayGolden
 import Fw.Parts.HeroGolden
+import Fw.Parts.PeopleGolden
 /-!
 # Golden vectors for the M2 pilot parts
 
@@ -355,10 +356,10 @@ def morphPanelLines : List String :=
 
 end MorphPanelSec
 
-/-- Write the 17 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
+/-- Write the 21 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
 one `.jsonl` per pilot part (plus morph.panel), and a `.spec.jsonl` for every pilot part except `hero.countdown` (which has none).
 
-$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\} \cup \{\text{morph.tween.jsonl}, \text{morph.panel.jsonl}, \text{nav.jsonl}, \text{nav.langMenu.jsonl}, \text{commission.jsonl}, \text{commission.typing.jsonl}, \text{overlays.drawer.jsonl}, \text{overlays.signup.jsonl}, \text{hero.orbit.jsonl}, \text{hero.accent.jsonl}\},\quad |\mathit{files}| = 17$$
+$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\} \cup \{\text{morph.tween.jsonl}, \text{morph.panel.jsonl}, \text{nav.jsonl}, \text{nav.langMenu.jsonl}, \text{commission.jsonl}, \text{commission.typing.jsonl}, \text{overlays.drawer.jsonl}, \text{overlays.signup.jsonl}, \text{hero.orbit.jsonl}, \text{hero.accent.jsonl}, \text{people.card.jsonl}, \text{people.o.jsonl}, \text{people.deck.jsonl}, \text{people.carousel.jsonl}\},\quad |\mathit{files}| = 21$$
 
 Regenerates the pilot parts' golden vectors from the Lean definitions. -/
 def main (args : List String) : IO Unit := do
@@ -374,7 +375,7 @@ def main (args : List String) : IO Unit := do
      ("commission.jsonl", Fw.Parts.CommissionGolden.commissionLines),
      ("commission.typing.jsonl", Fw.Parts.CommissionGolden.typingLines),
      ("overlays.drawer.jsonl", OverlayGolden.drawerLines), ("overlays.signup.jsonl", OverlayGolden.signupLines),
-     ("hero.orbit.jsonl", Fw.Parts.HeroGolden.orbitLines), ("hero.accent.jsonl", Fw.Parts.HeroGolden.accentLines)]
+     ("hero.orbit.jsonl", Fw.Parts.HeroGolden.orbitLines), ("hero.accent.jsonl", Fw.Parts.HeroGolden.accentLines)] ++ Fw.Parts.PeopleGolden.files
   for (name, ls) in files do
     IO.FS.writeFile (dir ++ "/" ++ name) (String.join (ls.map (· ++ "\n")))
     IO.println s!"{name}: {ls.length} lines"
