@@ -1343,6 +1343,22 @@
     "apps/runner/src/run*.ts",
     "apps/runner/test/run*.ts"
    ]
+  },
+  {
+   "id": "math-r9-fix",
+   "title": "Fix the 6 Fw.Measure disagree rows of math review round 9; add a mathview lint for a bound variable that shadows a function name (the top finding of rounds 8 and 9)",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "math-r8-fix",
+    "freeze-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Measure/**",
+    "lean/MathView/**",
+    "lean/scripts/mathview*"
+   ]
   }
  ]
 }
