@@ -10,3 +10,5 @@ import Fw
 #print axioms Fw.Flags.resolve_sound
 #print axioms Fw.Stage.enter_F
 #print axioms Fw.Cost.onTime_of_le
+#print axioms Fw.Frames.countAbove34_sub_tick5
+#print axioms Fw.Verdict.better_sound_higher
