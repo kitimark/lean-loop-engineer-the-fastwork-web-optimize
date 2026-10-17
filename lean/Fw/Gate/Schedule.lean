@@ -334,13 +334,19 @@ theorem graham_runs (m : Nat) (hm : 0 < m) (r : Nat) (ds : List Nat) :
 
 /-! ## 2. The job split of one gate run -/
 
-/-- The two browser engines of the gate. -/
+/-- The two browser engines of the gate.
+
+$$\mathrm{Eng} = \{\text{chromium}, \text{webkit}\}$$
+-/
 inductive Eng where
   | chromium
   | webkit
 deriving DecidableEq, Repr
 
-/-- The four live-resize sweeps of the gate (`spec.mjs sweepDefs`). A sweep moves between jobs only as a whole. -/
+/-- The four live-resize sweeps of the gate (`spec.mjs sweepDefs`). A sweep moves between jobs only as a whole.
+
+$$\mathrm{Sw} = \{\text{desktop}, \text{phone}, \text{touch}, \text{pain}\}$$
+-/
 inductive Sw where
   | desktop
   | phone
