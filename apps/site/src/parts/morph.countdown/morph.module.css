@@ -1,0 +1,10 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:11296-11301, `.waitlist-closing-countdown`). The clock inside
+   is the hero.countdown component with `inverse` (N2:13160); its rules live in that part's module. */
+@layer parts {
+  .wrap {
+    justify-content: center;
+    width: 100%;
+    margin-top: 32px;
+    display: flex;
+  }
+}
