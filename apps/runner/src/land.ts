@@ -28,6 +28,8 @@ export type LandOptions = {
   /** fast checks as argv arrays; default: lean/scripts/check.sh and pnpm test */
   checks?: string[][];
   env?: Record<string, string | undefined>;
+  /** work-graph task this landing completes: merged with --no-ff and a `Task: <id>` trailer, then task.done(evidence = merge commit) */
+  task?: string;
 };
 export type LandResult = { ok: boolean; lines: string[] };
 
@@ -70,6 +72,14 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
   }
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
 
+  if (o.task) {
+    if (!/^[A-Za-z0-9._-]+$/.test(o.task)) return fail(`bad task id ${o.task}`);
+    const pl = await o.http.get("/api/plan");
+    const t = (pl.body?.tasks as { id: string; state: string }[] | undefined)?.find((x) => x.id === o.task);
+    if (!t) return fail(`unknown task ${o.task} (fw plan sync first)`);
+    if (t.state === "done") return fail(`task ${o.task} is already done`);
+  }
+
   // 2. ask the console: reconcile git facts first, then read readiness (stage is computed by Lean)
   await o.http.post("/api/reconcile", {});
   const r = await o.http.get(`/api/land/${encodeURIComponent(bc.card)}`);
@@ -100,12 +110,28 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
   const lr = await (o.submit ?? ((c) => o.http.post("/api/agent/commands", { argv: o.argv ?? [], command: c })))(cmd);
   if (!lr.body.ok) return fail(`land_request: ${lr.body.reason}`);
 
-  // 6. fast-forward main. No push, ever.
-  if (!tryGit(mainDir, ["merge", "--ff-only", branch])) return fail(`${main} cannot fast-forward to ${branch}`);
+  // 6. merge into main. No push, ever. Without --task: fast-forward as before. With --task: a merge commit whose
+  //    message carries the `Task:` trailer, so the reconciler can also find it if the record below is lost.
+  const merged = o.task
+    ? tryGit(mainDir, ["merge", "--no-ff", "-m", `land ${branch}`, "-m", `Task: ${o.task}`, branch])
+    : tryGit(mainDir, ["merge", "--ff-only", branch]);
+  if (!merged) { if (o.task) tryGit(mainDir, ["merge", "--abort"]); return fail(`${main} cannot ${o.task ? "merge" : "fast-forward to"} ${branch}`); }
 
   // 7. the reconciler records card.landed; a violation here would mean the request did not match
   await o.http.post("/api/reconcile", {});
   const after = (await o.http.get(`/api/land/${encodeURIComponent(bc.card)}`)).body as { landed: boolean; violation: boolean };
   lines.push(`landed ${bc.card} ${sha.slice(0, 7)} on ${main}: ${after.landed ? "recorded" : "NOT recorded"}${after.violation ? " VIOLATION" : ""}`);
-  return { ok: after.landed && !after.violation, lines };
+  let ok = after.landed && !after.violation;
+  if (o.task) {
+    // same key as the reconciler's trailer pass, so whichever arrives first wins and the other is a duplicate
+    const merge = git(mainDir, ["rev-parse", "HEAD"]);
+    const td = Command.parse({ type: "task.done", key: `taskdone:${o.task}`, actor: "lead", task: o.task, evidence: merge });
+    const tr = await (o.submit ?? ((c) => o.http.post("/api/agent/commands", { argv: o.argv ?? [], command: c })))(td);
+    if (!tr.body.ok) { lines.push(`task.done refused: ${tr.body.reason}`); ok = false; }
+    else {
+      const url = (await o.http.get("/api/repo").catch(() => null))?.body?.commit as string | null | undefined;
+      lines.push(`task ${o.task} done: ${url ? url + merge : merge}`);
+    }
+  }
+  return { ok, lines };
 }

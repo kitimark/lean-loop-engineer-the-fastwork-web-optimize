@@ -25,3 +25,29 @@ export function isAncestor(repo: string, sha: string, of: string): boolean {
   try { execFileSync("git", ["merge-base", "--is-ancestor", sha, of], { cwd: repo, stdio: "ignore" }); return true; }
   catch { return false; }
 }
+
+/** `Task: <id>` trailers on the first-parent history of `ref`, newest first (TS STAND-IN: the id -> done mapping is
+ *  still decided by the Lean plan reducer; this only reads text from commit messages). */
+export function taskTrailers(repo: string, ref: string, max = 300): { sha: string; task: string }[] {
+  let out: string;
+  try { out = git(repo, ["log", "--first-parent", `-n${max}`, "--format=%H%x1f%B%x1e", ref]); } catch { return []; }
+  const res: { sha: string; task: string }[] = [];
+  for (const rec of out.split("\x1e")) {
+    const [sha, body] = rec.trim().split("\x1f");
+    if (!sha || !body) continue;
+    for (const m of body.matchAll(/^Task:[ \t]*([A-Za-z0-9._-]+)[ \t]*$/gm)) res.push({ sha, task: m[1]! });
+  }
+  return res;
+}
+
+/** Public web URL of the repo, derived from `origin` at runtime (never hard-coded); null if there is no usable remote. */
+export function repoUrl(repo: string): string | null {
+  let u: string;
+  try { u = git(repo, ["remote", "get-url", "origin"]); } catch { return null; }
+  const m = /^(?:https?:\/\/(?:[^@/]+@)?|ssh:\/\/(?:[^@/]+@)?|[^@/:]+@)([^/:]+)[:/](.+?)(?:\.git)?\/?$/.exec(u);
+  return m ? `https://${m[1]}/${m[2]}` : null;
+}
+export const commitUrl = (repo: string, sha: string): string | null => {
+  const b = repoUrl(repo);
+  return b ? `${b}/commit/${sha}` : null;
+};

@@ -26,8 +26,10 @@ try {
       if (!body.ok) { if (!rs.length) console.error(`refused: ${body.reason}`); process.exitCode = 2; }
     } else throw new UsageError("usage: fw plan sync <work-graph.json> | fw plan show");
   } else if (group === "land") {
-    if (!rest[0]) throw new UsageError("usage: fw land <card/branch>");
-    const res = await land(rest[0], { http: httpFor(base), cwd: process.cwd(), argv: process.argv.slice(2),
+    if (!rest[0]) throw new UsageError("usage: fw land <card/branch> [--task <task-id>]");
+    const ti = rest.indexOf("--task");
+    if (ti >= 0 && !rest[ti + 1]) throw new UsageError("usage: fw land <card/branch> [--task <task-id>]");
+    const res = await land(rest[0], { http: httpFor(base), cwd: process.cwd(), argv: process.argv.slice(2), task: ti >= 0 ? rest[ti + 1] : undefined,
       // FW_LAND_CHECKS='[["cmd","arg"]]' replaces the default fast checks (used by the e2e script on a temp repo)
       checks: process.env.FW_LAND_CHECKS ? JSON.parse(process.env.FW_LAND_CHECKS) : undefined });
     for (const l of res.lines) (res.ok ? console.log : console.error)(l);

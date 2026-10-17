@@ -2,7 +2,7 @@
 // the reducer (Lean) accepts, refuses or marks a violation; keys make every fact idempotent.
 import type { Command } from "@fw/contracts";
 import type { Store } from "../store.ts";
-import { branches, commitsAhead, isAncestor } from "./git.ts";
+import { branches, commitsAhead, isAncestor, taskTrailers } from "./git.ts";
 import { branchCard } from "./naming.ts";
 
 export type ReconcileStats = { submitted: number; duplicate: number; refused: number; skipped: number };
@@ -20,6 +20,8 @@ export class Reconciler {
   constructor(store: Store, repo: string, mainRef = "main") {
     this.store = store; this.repo = repo; this.mainRef = mainRef;
   }
+
+  get repoDir() { return this.repo; }
 
   /** Serialized: passes never overlap. */
   reconcile(): Promise<ReconcileStats> {
@@ -62,6 +64,11 @@ export class Reconciler {
     const board = await this.store.board();
     const undone = new Set(board.plan.tasks.filter((t) => t.state !== "done").map((t) => t.id));
     if (undone.size > 0) {
+      // 3a. explicit: a `Task: <id>` trailer on a main commit (merge done with plain git or by `fw land --task`); oldest first
+      for (const t of taskTrailers(this.repo, this.mainRef).reverse()) {
+        if (undone.has(t.task)) await this.send({ type: "task.done", key: `taskdone:${t.task}`, actor: "git", task: t.task, evidence: t.sha }, s);
+      }
+      // 3b. inferred: card id or branch agent
       for (const c of board.cards) {
         if (!c.landed || !c.head) continue;
         const names = new Set([c.id]);
