@@ -1,0 +1,222 @@
+name: wktr
+
+# WKTR lane (research/notes/2026/10-17-wktr-on-github-actions.md): WebKit's own prebuilt iOS-simulator
+# WebKitTestRunner (CI archive r324039, Xcode 26.5, iOS 26.5; nothing is built here) runs the ORIGINAL page in an iOS 26.5
+# Simulator on macos-26 and records, per scroll step, internals.lastStyleUpdateSize with styleRecalcCount, the steps
+# bracketed by renderingUpdateCount. Counts only: nothing measured here is phone time. Each job runs the original twice
+# (two fresh WebKitTestRunnerApp processes); the classes job classes all runs per count type with fwcore (kMax 4, tMax 24).
+on:
+  push:
+    branches: ['ci/**']
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: Independent macOS jobs (1 to 4); each runs the original `passes` times
+        type: string
+        default: '3'
+      passes:
+        description: Fresh-process passes per job (2 to 4)
+        type: string
+        default: '2'
+      step:
+        description: Scroll step in CSS px
+        type: string
+        default: '50'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        env:
+          JOBS: ${{ inputs.jobs || '3' }}
+          PASSES: ${{ inputs.passes || '2' }}
+        run: |
+          set -euo pipefail
+          case "$JOBS" in 1|2|3|4) ;; *) echo "jobs must be 1..4" >&2; exit 1 ;; esac
+          case "$PASSES" in 2|3|4) ;; *) echo "passes must be 2..4" >&2; exit 1 ;; esac
+          matrix=$(seq 1 "$JOBS" | jq -R -s -c '{job: (split("\n") | map(select(length > 0)) | map("j" + .))}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix"
+
+  # One job fetches the archive (315 MB) into actions/cache so the matrix jobs find it. The key carries the revision and
+  # the hash of archive.json (url, size, sha256): a new pin is a new key. The zip is checked against size and sha256 by
+  # fetch-archive.sh whether it came from the cache or from the WebKit CI bucket.
+  archive:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: cache
+        with:
+          path: ${{ runner.temp }}/wktr-zip
+          key: wktr-ios-min-324039-${{ hashFiles('packages/measure-wktr/src/archive.json') }}
+      - name: Download the archive on a cache miss, verify size and sha256
+        run: |
+          set -euo pipefail
+          zipdir="$RUNNER_TEMP/wktr-zip"
+          mkdir -p "$zipdir"
+          # fetch-archive.sh downloads when the zip is missing, then verifies it; extraction is done per job
+          sh packages/measure-wktr/scripts/fetch-archive.sh "$zipdir" "$RUNNER_TEMP/wktr-root-check"
+          echo "cache-hit=${{ steps.cache.outputs.cache-hit }}"
+          ls -l "$zipdir"
+
+  wktr:
+    needs: [plan, archive]
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: cache
+        with:
+          path: ${{ runner.temp }}/wktr-zip
+          key: wktr-ios-min-324039-${{ hashFiles('packages/measure-wktr/src/archive.json') }}
+
+      - name: Archive, extracted into an empty directory (size and sha256 verified)
+        run: sh packages/measure-wktr/scripts/fetch-archive.sh "$RUNNER_TEMP/wktr-zip" "$RUNNER_TEMP/wktr-root"
+
+      # The archive was built with Xcode 26.5 against the iOS 26.5 simulator SDK; run it with the same Xcode and runtime.
+      - name: Select Xcode 26.5 and show the tools
+        run: |
+          set -euo pipefail
+          ls -d /Applications/Xcode_26.5*.app
+          sudo xcode-select -s /Applications/Xcode_26.5.app
+          mkdir -p "$RUNNER_TEMP/result"
+          sh .github/scripts/runner-info.sh "$RUNNER_TEMP/result/runner.json"
+          {
+            sw_vers
+            xcodebuild -version
+            xcrun simctl list runtimes
+            xcrun simctl list devicetypes | grep "iPhone 17"
+          } | tee "$RUNNER_TEMP/result/tools.txt"
+
+      - name: WKTR, the original, fresh process per pass
+        env:
+          PASSES: ${{ inputs.passes || '2' }}
+          STEP: ${{ inputs.step || '50' }}
+          JOB: ${{ matrix.job }}
+        run: |
+          set -euo pipefail
+          node packages/measure-wktr/src/cli.mjs run \
+            --root "$RUNNER_TEMP/wktr-root" --site snapshot/site --out "$RUNNER_TEMP/result" \
+            --passes "$PASSES" --step "$STEP" --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
+          ls -l "$RUNNER_TEMP/result"
+
+      - name: Delete the Simulator device
+        if: ${{ always() }}
+        run: |
+          xcrun simctl shutdown all || true
+          xcrun simctl delete fw-wktr || true
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() }}
+        with:
+          name: wktr-${{ matrix.job }}
+          path: ${{ runner.temp }}/result
+          if-no-files-found: error
+          retention-days: 30
+
+  # fwcore decides the classes (Lean Fw.Measure.classify); it is built here and used by the classes job.
+  fwcore:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      - name: lake build fwcore
+        working-directory: lean
+        run: lake build fwcore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wktr-fwcore
+          path: lean/.lake/build/bin/fwcore
+          if-no-files-found: error
+          retention-days: 1
+
+  # Classes per count type over every pass of every job (policy kMax 4, tMax 24), and over the passes of each job alone.
+  classes:
+    needs: [wktr, fwcore]
+    if: ${{ always() && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: wktr-fwcore
+          path: ${{ runner.temp }}/fwcore
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: wktr-j*
+          path: ${{ runner.temp }}/runs
+      - name: Classes
+        env:
+          FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
+        run: |
+          set -euo pipefail
+          chmod +x "$FW_CORE_BIN"
+          out="$RUNNER_TEMP/classes"
+          mkdir -p "$out"
+          cd "$RUNNER_TEMP/runs"
+          ls
+          cls="$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs"
+          files=(wktr-j*/counts-*.json)
+          printf '%s\n' "${files[@]}"
+          node "$cls" "${files[@]}" --kMax 4 --tMax 24 | tee "$out/classes-all.txt"
+          node "$cls" "${files[@]}" --kMax 4 --tMax 24 --json > "$out/classes-all.json"
+          for d in wktr-j*; do
+            node "$cls" "$d"/counts-*.json --kMax 4 --tMax 24 | tee "$out/classes-$d.txt"
+          done
+          sha256sum "${files[@]}" | tee "$out/sha256.txt"
+          cat wktr-j*/runner.json > "$out/runners.jsonl"
+          {
+            echo '### wktr: classes over all passes of all jobs (kMax 4, tMax 24)'
+            echo '```'
+            cat "$out/classes-all.txt"
+            echo '```'
+            for d in wktr-j*; do echo "#### $d (its passes alone)"; echo '```'; cat "$out/classes-$d.txt"; echo '```'; done
+            echo '### sha256 of counts per pass'
+            echo '```'
+            cat "$out/sha256.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wktr-classes
+          path: ${{ runner.temp }}/classes
+          if-no-files-found: error
+          retention-days: 30
