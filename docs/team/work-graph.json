@@ -329,7 +329,8 @@
     "math-fix-r5",
     "lean-ci-cache"
    ],
-   "owner": "math-reviewer"
+   "owner": "math-reviewer",
+   "evidence": "e6908db"
   },
   {
    "id": "gate-probe-scope",
@@ -338,6 +339,7 @@
    "milestone": "M2",
    "deps": [
     "gate-part-filter",
+    "gate-unreachable",
     "verdict-to-lean"
    ],
    "owner": "lean-prover",
@@ -657,7 +659,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-css-decisions.md"
-   ]
+   ],
+   "evidence": "115a8da"
   },
   {
    "id": "gap-research",
@@ -668,21 +671,30 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-gate-gaps-*.md"
-   ]
+   ],
+   "evidence": "115a8da"
   },
   {
    "id": "gap-harness",
-   "title": "Q33: gate lane for unreachable cells (Simulator iPhone/iPad, page zoom) checked against Lean media values; runs on CI macOS Simulators or names why not",
+   "title": "Q33 harness on main: judge through fwcore, touchArm out of check X, iOS viewport-meta rounding probes, CI lanes; results from CI artifacts only",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
     "gap-research",
-    "gate-part-filter"
+    "gate-part-filter",
+    "gate-unreachable"
    ],
    "owner": "measure-engineer",
    "writes": [
+    ".github/workflows/gate-gaps.yml",
+    "packages/gate-breakpoints/README.md",
+    "packages/gate-breakpoints/results/gaps/**",
+    "packages/gate-breakpoints/src/cli.mjs",
     "packages/gate-breakpoints/src/gaps/**",
-    "packages/gate-breakpoints/README.md"
+    "packages/gate-breakpoints/src/run.mjs",
+    "packages/gate-breakpoints/src/summary.mjs",
+    "packages/gate-breakpoints/test/**",
+    "research/notes/2026/10-17-gate-gaps-*.md"
    ],
    "devices": [
     "simulator"
@@ -856,6 +868,7 @@
    "deps": [
     "bands-freeze",
     "breakpoint-lint",
+    "css-decide",
     "css-decisions",
     "verdict-to-lean"
    ],
@@ -1129,6 +1142,34 @@
    "writes": [
     "research/notes/2026/10-17-math-review-r7.md"
    ]
+  },
+  {
+   "id": "gate-unreachable",
+   "title": "Lean first for Q33: 'unreachable' cell state in Fw.Gate, WebKit primary pairs per port, part rows in the rollup, fractional probes at dpr 2 with a realizability theorem",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "verdict-to-lean",
+    "gap-research"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/Fw/Site/**",
+    "apps/site/src/breakpoints.gen.json",
+    "packages/gate-breakpoints/src/verdict.mjs",
+    "packages/contracts/golden/gate/**"
+   ]
+  },
+  {
+   "id": "css-decide",
+   "title": "User decides the two M2 CSS questions in the console (css-cssvariables, css-inert-dead)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decisions"
+   ],
+   "owner": "user"
   }
  ]
 }
