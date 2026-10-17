@@ -470,7 +470,7 @@
    "stream": "ci",
    "milestone": "M1",
    "deps": [
-    "ci-webkit",
+    "webkit-green",
     "lean-ci-cache"
    ],
    "owner": "console-builder",
@@ -518,7 +518,7 @@
    "stream": "measure",
    "milestone": "M1",
    "deps": [
-    "ci-webkit"
+    "webkit-green"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -531,7 +531,7 @@
    "stream": "measure",
    "milestone": "M1",
    "deps": [
-    "ci-webkit",
+    "webkit-green",
     "touch-wedge"
    ],
    "owner": "measure-engineer",
@@ -836,7 +836,7 @@
    "stream": "measure",
    "milestone": "M3",
    "deps": [
-    "ci-webkit",
+    "webkit-green",
     "wktr-local"
    ],
    "owner": "measure-engineer",
@@ -1029,7 +1029,7 @@
    "stream": "measure",
    "milestone": "M1",
    "deps": [
-    "ci-webkit"
+    "webkit-green"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -1372,6 +1372,21 @@
    "writes": [
     "lean/FwTest/Mutants/**",
     "lean/scripts/mutants.sh"
+   ]
+  },
+  {
+   "id": "webkit-green",
+   "title": "webkit-sim passes on CI: session 2 stalls on the overloaded xcode-27 runner (load 400-800); apply the sim-speed winner (fresh boot, 1 session, xlarge or Safari relaunch)",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "ci-webkit",
+    "sim-speed"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-webkit/**",
+    ".github/workflows/webkit-sim.yml"
    ]
   }
  ]
