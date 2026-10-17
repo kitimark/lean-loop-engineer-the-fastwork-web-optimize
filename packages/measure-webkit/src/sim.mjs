@@ -15,6 +15,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { T } from './timeouts.mjs';
+import { retryWhile } from './poll.mjs';
 
 export const DEVICE_NAME = process.env.FW_SIM_NAME || 'fw-iphone-27';
 export const SAFARI = 'com.apple.mobilesafari';
@@ -113,10 +114,12 @@ export function shutdownDevice(udid, { log = () => {} } = {}) {
 
 const IWDP_ID = /^[A-Fa-f0-9-]{25,}$/;
 /** Ids of attached iPhones (USB and network); [] when idevice_id is not installed. Fails closed on odd output. */
-export function phoneIds() {
+export function phoneIds({ exec = run, tries = 3 } = {}) {
   const ids = new Set();
   for (const flag of ['-l', '-n']) {
-    const r = run('idevice_id', [flag], { timeoutMs: 15000 });
+    // idevice_id can take longer than a fixed 15 s on a loaded runner: scaled timeout, and a timeout or a failed spawn is
+    // asked again (a non-zero exit is a real failure, and so is the last timeout: the proxy then does not start)
+    const r = retryWhile(() => exec('idevice_id', [flag], { timeoutMs: T(15000) }), { tries, retryable: (x) => x.error && x.error.code !== 'ENOENT' });
     if (r.error?.code === 'ENOENT') return [];
     if (r.error || r.status !== 0) throw new Error(`idevice_id ${flag} failed; not starting the proxy (it could attach a phone)`);
     for (const s of r.stdout.split('\n').map((x) => x.trim()).filter(Boolean)) {

@@ -5,9 +5,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
-import { bootDevice, openUrl, shutdownDevice, startProxy, proxyCheck, findDevice, sleep } from './sim.mjs';
+import { bootDevice, openUrl, shutdownDevice, startProxy, proxyCheck, findDevice, listTabs, sleep } from './sim.mjs';
 import { openTab } from './wip.mjs';
 import { T, attempts } from './timeouts.mjs';
+import { ensureTab } from './poll.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const FIXTURES = resolve(HERE, '..', 'fixtures');
@@ -60,15 +61,19 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
   process.once('SIGTERM', () => onSignal('SIGTERM'));
   try {
     device = await bootDevice({ log });
-    await sleep(T(3000)); // an openurl right after the launch is sometimes dropped
-    openUrl(device.udid, server.url + startPath.slice(1));
+    // The first openurl is dropped in 10 of 10 first sessions on the CI runner, and a fixed sleep before it did not help.
+    // Ask now, then poll the tab list: while no tab is listed, ask again every 6 s up to the (scaled) deadline.
+    const tabUrl = server.url + startPath.slice(1);
+    openUrl(device.udid, tabUrl);
     proxy = await startProxy({ log });
-    // the proxy sometimes lists the tab late or Safari dropped the openurl: ask again, bounded (FW_WK_ATTEMPTS asks in all)
     for (let ask = 1; !client; ask++) {
-      try { client = await openTab(server.url, { waitMs: T(ask === 1 ? 10000 : 40000), log }); } catch (e) {
+      try {
+        await ensureTab({ list: async () => (await listTabs()).filter((x) => x.webSocketDebuggerUrl && String(x.url).startsWith(server.url)), ask: () => openUrl(device.udid, tabUrl), timeoutMs: T(30000), log });
+        client = await openTab(server.url, { waitMs: T(30000), log });
+      } catch (e) {
         if (ask >= Math.max(2, attempts())) throw e;
         log(`${e.message}; opening the URL again (ask ${ask + 1})`);
-        openUrl(device.udid, server.url + startPath.slice(1));
+        openUrl(device.udid, tabUrl);
       }
     }
     await proxyCheck();
