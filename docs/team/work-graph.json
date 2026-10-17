@@ -2377,7 +2377,7 @@
    "writes": [
     "packages/gh-budget/**"
    ],
-   "evidence": "bd2ffac"
+   "evidence": "901481f"
   },
   {
    "id": "ghb-runner",
@@ -2423,7 +2423,7 @@
     "apps/runner/test/land*.ts",
     "lean/Fw/Console/Land.lean"
    ],
-   "evidence": "bd8e20b"
+   "evidence": "50434d4"
   },
   {
    "id": "pa-evidence-lint",
@@ -2438,7 +2438,8 @@
     "apps/runner/src/plan.ts",
     "lean/Fw/Plan/Lint.lean",
     "docs/team/work-graph.json"
-   ]
+   ],
+   "evidence": "2d743c5"
   },
   {
    "id": "pa-sync-main",

@@ -88,12 +88,13 @@ $$S_{gen} = \{\texttt{**/*.gen.json},\ \texttt{packages/contracts/golden/**},\ \
 def generated : List String :=
   ["**/*.gen.json", "packages/contracts/golden/**", "lean/golden/**", "lean/math.lock.json"]
 
-/-- The one-line registrations every new module needs.
+/-- The registrations every new module needs: the wire modules, the library root, the test main and the CLI entry point.
 
-$$S_{reg} = \{\texttt{lean/Fw.lean},\ \texttt{lean/Fw/Wire.lean},\ \texttt{lean/FwTestMain.lean},\ \texttt{apps/runner/src/fw.ts}\}$$
+$$S_{reg} = \{\texttt{lean/Fw/Wire/**.lean},\ \texttt{lean/Fw/*/Wire.lean},\ \texttt{lean/Fw/Wire.lean},\ \texttt{lean/Fw.lean},\ \texttt{lean/FwTestMain.lean},\ \texttt{apps/runner/src/fw.ts}\}$$
 -/
 def registrations : List String :=
-  ["lean/Fw.lean", "lean/Fw/Wire.lean", "lean/FwTestMain.lean", "apps/runner/src/fw.ts"]
+  ["lean/Fw/Wire/**.lean", "lean/Fw/*/Wire.lean", "lean/Fw/Wire.lean", "lean/Fw.lean", "lean/FwTestMain.lean",
+    "apps/runner/src/fw.ts"]
 
 /-- A name usable in a handoff file name: non-empty, only letters, digits, `-`, `_` and `.`, and not `.` or
 `..` (no `/`, no `*`), so a name can never widen the scope.
@@ -111,13 +112,77 @@ $$H(N) = [\texttt{docs/team/handoffs/}n\texttt{.md} : n \in N,\ \operatorname{sa
 def handoffs (names : List String) : List String :=
   (names.filter safeName).map fun n => "docs/team/handoffs/" ++ n ++ ".md"
 
+/-- The test glob of a written path under `apps|packages/<n>/src/`: the same package's `test/` directory
+(`n` a plain name, so it never widens the scope).
+
+$$\operatorname{testGlob}(w) = \begin{cases} p/n/\texttt{test/**} & w = p/n/\texttt{src}/\cdots,\ p \in \{\texttt{apps},\texttt{packages}\},\ \operatorname{safe}(n) \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def testGlob (w : String) : Option String :=
+  match w.splitOn "/" with
+  | p :: n :: "src" :: _ =>
+    if (p == "apps" || p == "packages") && safeName n then some (p ++ "/" ++ n ++ "/test/**") else none
+  | _ => none
+
+/-- The test globs of all written paths.
+
+$$T(w) = [\operatorname{testGlob}(x) : x \in w,\ \operatorname{testGlob}(x) \ne \bot]$$
+-/
+def testGlobs (writes : List String) : List String := writes.filterMap testGlob
+
+/-- A test glob exists exactly for a write `p/n/src/...` with `p` apps or packages and a plain `n`, and it is that
+package's `p/n/test/**`; any other write (no `src`, another root, a wildcard in `n`) yields none.
+
+$$\operatorname{testGlob}(w) = \mathrm{some}(g) \iff \exists p, n, r:\ w = p/n/\texttt{src}/r \land p \in \{\texttt{apps},\texttt{packages}\} \land \operatorname{safe}(n) \land g = p/n/\texttt{test/**}$$
+
+(`r` stands for any remaining segments.)
+-/
+theorem testGlob_eq_some (w g : String) :
+    testGlob w = some g ↔ ∃ p n rest, w.splitOn "/" = p :: n :: "src" :: rest ∧
+      (p = "apps" ∨ p = "packages") ∧ safeName n = true ∧ g = p ++ "/" ++ n ++ "/test/**" := by
+  unfold testGlob
+  constructor
+  · intro h
+    rcases hs : w.splitOn "/" with _ | ⟨p, _ | ⟨n, _ | ⟨s, rest⟩⟩⟩ <;> rw [hs] at h
+    · simp at h
+    · simp at h
+    · simp at h
+    · by_cases hsrc : s = "src"
+      · subst hsrc
+        by_cases hc : ((p == "apps" || p == "packages") && safeName n) = true
+        · simp only [hc, ite_true, Option.some.injEq] at h
+          simp only [Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq] at hc
+          exact ⟨p, n, rest, rfl, hc.1, hc.2, h.symm⟩
+        · simp only [hc] at h; cases h
+      · simp [hsrc] at h
+  · rintro ⟨p, n, rest, hs, hp, hn, hg⟩
+    rw [hs]
+    rcases hp with rfl | rfl <;> simp [hn, hg]
+
 /-- The scope of a landing of a task with write globs `w`, names `N` (task id, owner), and explicit
 `--allow` globs `a`.
 
-$$\operatorname{scope}(w, N, a) = w \mathbin{+\!\!+} H(N) \mathbin{+\!\!+} S_{gen} \mathbin{+\!\!+} S_{reg} \mathbin{+\!\!+} a \mathbin{+\!\!+} P$$
+$$\operatorname{scope}(w, N, a) = w \mathbin{+\!\!+} T(w) \mathbin{+\!\!+} H(N) \mathbin{+\!\!+} S_{gen} \mathbin{+\!\!+} S_{reg} \mathbin{+\!\!+} a \mathbin{+\!\!+} P$$
 -/
 def landScope (writes names allow : List String) : List String :=
-  writes ++ handoffs names ++ generated ++ registrations ++ allow ++ protectedGlobs
+  writes ++ testGlobs writes ++ handoffs names ++ generated ++ registrations ++ allow ++ protectedGlobs
+
+/-- Every test glob is in the scope of the landing.
+
+$$\forall g \in T(w):\ g \in \operatorname{scope}(w, N, a)$$
+-/
+theorem landScope_mem_tests (writes names allow : List String) (g : String) (h : g ∈ testGlobs writes) :
+    g ∈ landScope writes names allow := by
+  unfold landScope
+  simp [h]
+
+/-- The protected globs stay last, so no addition (tests, registrations, `--allow`) can lift them: the scope always
+ends with $P$.
+
+$$\exists X:\ \operatorname{scope}(w,N,a) = X \mathbin{+\!\!+} P$$
+-/
+theorem landScope_protected_suffix (writes names allow : List String) :
+    ∃ x, landScope writes names allow = x ++ protectedGlobs :=
+  ⟨writes ++ testGlobs writes ++ handoffs names ++ generated ++ registrations ++ allow, rfl⟩
 
 /-- The verdict on a landing.
 
@@ -208,6 +273,16 @@ private def tw : List String := ["apps/runner/src/land.ts", "apps/runner/test/la
 #guard landVerdict tw ["pa-land"] [] ["packages/contracts/golden/ops/a.jsonl", "packages/gate-breakpoints/src/scope.gen.json", "lean/Fw.lean"] == .ok
 #guard landVerdict tw ["../x", "a/*"] [] ["docs/team/handoffs/../x.md", "docs/team/handoffs/a/b.md"] ==
   .outOfScope ["docs/team/handoffs/../x.md", "docs/team/handoffs/a/b.md"]
+#guard landVerdict ["apps/runner/src/land.ts"] ["t"] [] ["apps/runner/test/x.test.ts", "apps/runner/test/sub/y.ts"] == .ok
+#guard landVerdict ["packages/gh/src/**"] ["t"] [] ["packages/gh/test/a.ts"] == .ok
+#guard landVerdict ["apps/runner/src/land.ts"] ["t"] [] ["apps/console-web/test/x.ts"] == .outOfScope ["apps/console-web/test/x.ts"]
+#guard landVerdict ["docs/x.md"] ["t"] [] ["apps/runner/test/x.ts"] == .outOfScope ["apps/runner/test/x.ts"]
+#guard testGlob "apps/*/src/a.ts" == none
+#guard testGlob "lean/Fw/src/a.ts" == none
+#guard testGlob "apps/runner/test/a.ts" == none
+#guard testGlobs ["apps/runner/src/a.ts", "packages/c/src/**", "lean/Fw.lean"] == ["apps/runner/test/**", "packages/c/test/**"]
+#guard landVerdict ["lean/Fw/X.lean"] ["t"] [] ["lean/Fw/Wire/Console.lean", "lean/Fw/Plan/Wire.lean", "lean/Fw.lean", "lean/FwTestMain.lean"] == .ok
+#guard landVerdict ["lean/Fw/X.lean"] ["t"] [] ["lean/Fw/Plan/Other.lean"] == .outOfScope ["lean/Fw/Plan/Other.lean"]
 #guard landVerdict [] ["pa-land"] [] ["a"] == .noWrites
 #guard landVerdict [] ["pa-land"] ["notes/**"] ["notes/a.md", "x.md"] == .outOfScope ["x.md"]
 #guard landVerdict ["**"] ["t"] [] [".git/config", ".fw-console/events.jsonl", "lean/.lake/x", ".claude/settings.json", "a.md"] ==

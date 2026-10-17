@@ -3,7 +3,7 @@ import { Command } from "@fw/contracts";
 import { UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land } from "./land.ts";
-import { lintCli, renderPlan, syncCommands, type WorkGraph } from "./plan.ts";
+import { lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { watchMain } from "./watch.ts";
@@ -33,6 +33,8 @@ try {
       const b = (await (await fetch(`${base}/api/board`)).json()) as { plan: never };
       console.log(renderPlan(b.plan));
     } else if (rest[0] === "sync" && rest[1]) {
+      const refusal = syncRefusal(process.cwd());
+      if (refusal) throw new Error(refusal);
       const cmds = syncCommands(JSON.parse(readFileSync(rest[1], "utf8")) as WorkGraph);
       const { body } = await send(base, cmds, process.argv.slice(2)); // one capability, one array
       const rs = body.replies ?? [];
@@ -51,16 +53,19 @@ try {
     const allow = rest.flatMap((a, i) => (a === "--allow" ? [rest[i + 1] ?? ""] : []));
     if (allow.some((a) => !a)) throw new UsageError(LAND_USAGE);
     const res = await land(rest[0], { http: httpFor(base), cwd: process.cwd(), argv: process.argv.slice(2), task: ti >= 0 ? rest[ti + 1] : undefined, allow,
-      // after a landing, sync the board from the work graph of the main checkout (same capability as the land: `pnpm fw land ...`)
-      after: async () => {
-        const f = join(process.cwd(), "docs/team/work-graph.json");
+      // after a landing, sync the board from the work graph of the main checkout, through the plain command door: the
+      // capability of this `pnpm fw land` call may be spent, and the hook mints one only for `pnpm fw ...` commands
+      base,
+      after: async (mainDir) => {
+        const f = join(mainDir, "docs/team/work-graph.json");
         if (!existsSync(f)) return [];
-        const { body } = await send(base, syncCommands(JSON.parse(readFileSync(f, "utf8")) as WorkGraph), process.argv.slice(2));
-        return [`plan sync: ${body.ok ? "ok" : `refused: ${body.reason ?? "see replies"}`}`];
+        const refusal = syncRefusal(mainDir);
+        if (refusal) throw new Error(refusal);
+        return [await syncViaCommands(httpFor(base), JSON.parse(readFileSync(f, "utf8")) as WorkGraph)];
       },
       // FW_LAND_CHECKS='[["cmd","arg"]]' replaces the default checks (used by the e2e script on a temp repo)
       checks: process.env.FW_LAND_CHECKS ? JSON.parse(process.env.FW_LAND_CHECKS) : undefined });
-    for (const l of res.lines) (res.ok ? console.log : console.error)(l);
+    for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
     if (!res.ok) process.exitCode = 2;
   } else if (group === "step" || group === "card" || group === "send") {
     // `fw send '<json command>'` is the escape hatch for run.* commands
