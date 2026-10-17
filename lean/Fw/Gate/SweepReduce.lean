@@ -15,7 +15,7 @@ A sweep stop whose key equals the previous stop's key adds nothing to the collap
   the truth rows of `summary.mjs`) together with every pilot part key $\kappa_u$. `reduceSweep` drops its stutters;
   `reduceSweep_part_history` and `reduceSweep_cond_history` keep every history, so `reduced_scopedVerdict`,
   `reduced_scope_sound` and `reduced_cond_scopedVerdict` keep every verdict cell.
-* `reducedDeskWidths`: the desktop sweep's 57 widths reduce to 35 (`reducedDeskWidths_eq`).
+* `reducedDeskWidths`: the desktop sweep's 57 widths reduce to 45 (`reducedDeskWidths_eq`).
 * Caveat (`reduced_desk_tally_ne`): the cells' verdicts are equal (`sweepCell_verdict_reduce`), the tally counts are
   not. The sweep column's `FAIL k/n` counts stops, so the reduced sweep shows smaller `k` and `n`.
 
@@ -470,23 +470,25 @@ theorem reduceSweep_desk (w : Sweep) (h : sweeps.head? = some w) :
   simp only [reduceSweep, this, reducedDeskWidths]
   exact dropStutter_map sweepKey deskStop deskSweepFull
 
-/-- **The reduced desktop sweep has 35 stops** (18 down to 400, 17 back up), down from 57: 22 of the 57 stops
-repeat the previous stop's combined key and are dropped, including the turn at 320 (no key tells 320 from 400).
+/-- **The reduced desktop sweep has 45 stops** (22 down to 400, the turn at 320, 22 back up), down from 57: 12 of the 57
+stops repeat the previous stop's combined key and are dropped. With every ported part in the scope the turn at 320 is
+kept (a ported part's key tells 320 from 400); before the ports, 35 stops remained.
 
-$$R = (1512, 1511, 1280, 1279, 1200, 1100, 1030, 1000, 960, 861, 860, 720, 640, 600, 481, 480, 461, 400,\ 401, 462, 481, 600, 601, 641, 721, 861, 960, 961, 1001, 1031, 1101, 1201, 1280, 1511, 1512)$$
+$$R = (1512, 1511, 1280, 1279, 1200, 1100, 1030, 1000, 960, 861, 860, 721, 720, 640, 601, 600, 481, 480, 462, 461, 401, 400, 320,\ 400, 401, 461, 462, 480, 481, 600, 601, 640, 641, 721, 860, 861, 960, 961, 1001, 1031, 1101, 1201, 1280, 1511, 1512)$$
 
 The exact width list `sweeps.gen.json` carries. -/
 theorem reducedDeskWidths_eq : reducedDeskWidths =
-    [1512, 1511, 1280, 1279, 1200, 1100, 1030, 1000, 960, 861, 860, 720, 640, 600, 481, 480, 461, 400,
-     401, 462, 481, 600, 601, 641, 721, 861, 960, 961, 1001, 1031, 1101, 1201, 1280, 1511, 1512] := by
+    [1512, 1511, 1280, 1279, 1200, 1100, 1030, 1000, 960, 861, 860, 721, 720, 640, 601, 600, 481, 480, 462, 461,
+     401, 400, 320, 400, 401, 461, 462, 480, 481, 600, 601, 640, 641, 721, 860, 861, 960, 961, 1001, 1031, 1101,
+     1201, 1280, 1511, 1512] := by
   decide +kernel
 
-/-- The stop counts: 57 before, 35 after.
+/-- The stop counts: 57 before, 45 after.
 
-$$|D_{\mathrm{full}}| = 57 \wedge |R| = 35$$
+$$|D_{\mathrm{full}}| = 57 \wedge |R| = 45$$
 
-22 resize stops fewer per engine. -/
-theorem reducedDesk_length : deskSweepFull.length = 57 ∧ reducedDeskWidths.length = 35 := by
+12 resize stops fewer per engine. -/
+theorem reducedDesk_length : deskSweepFull.length = 57 ∧ reducedDeskWidths.length = 45 := by
   rw [reducedDeskWidths_eq]; decide
 
 /-- The reduced desktop sweep starts and ends where the full one does, so the first load and the hysteresis pair
@@ -537,16 +539,16 @@ theorem tally_const_fail {κ : Type} [DecidableEq κ] (key : Env → κ) (s : Li
 
 /-- **Caveat: a reduced sweep's cell has other counts.** The verdict of a sweep cell is the same after the reduction
 whenever the row's key history is (`sweepCell_verdict_reduce`), but its counts are not: when every stop fails, the
-full desktop sweep's cell is $(\mathrm{fail}, 57, 57, 0)$ and the reduced one's $(\mathrm{fail}, 35, 35, 0)$.
+full desktop sweep's cell is $(\mathrm{fail}, 57, 57, 0)$ and the reduced one's $(\mathrm{fail}, 45, 45, 0)$.
 
-$$\forall \kappa,\quad \operatorname{tally}(\operatorname{stops}_{\kappa,\,h \mapsto \mathrm{fail}}(\operatorname{deskStop}(R))) = (\mathrm{fail}, 35, 35, 0) \wedge \operatorname{tally}(\operatorname{stops}_{\kappa,\,h \mapsto \mathrm{fail}}(\operatorname{deskStop}(D_{\mathrm{full}}))) = (\mathrm{fail}, 57, 57, 0)$$
+$$\forall \kappa,\quad \operatorname{tally}(\operatorname{stops}_{\kappa,\,h \mapsto \mathrm{fail}}(\operatorname{deskStop}(R))) = (\mathrm{fail}, 45, 45, 0) \wedge \operatorname{tally}(\operatorname{stops}_{\kappa,\,h \mapsto \mathrm{fail}}(\operatorname{deskStop}(D_{\mathrm{full}}))) = (\mathrm{fail}, 57, 57, 0)$$
 
-So the report text changes from `FAIL 57/57` to `FAIL 35/35`. Reports that print counts change: the sweep column's
+So the report text changes from `FAIL 57/57` to `FAIL 45/45`. Reports that print counts change: the sweep column's
 `FAIL k/n` (`summary.mjs` cell text) and the failure list's per-item stop counts. The verdict word of every cell
 (`pass`, `FAIL`, `NC`), the probe blocks' cells (`blockCell`, no sweep stop in them) and the hysteresis pair
 (`reducedDesk_ends`) do not change. -/
 theorem reduced_desk_tally_ne {κ : Type} [DecidableEq κ] (key : Env → κ) :
-    tally (stopVerdicts key (fun _ => .fail) (reducedDeskWidths.map deskStop)) = ⟨.fail, 35, 35, 0⟩ ∧
+    tally (stopVerdicts key (fun _ => .fail) (reducedDeskWidths.map deskStop)) = ⟨.fail, 45, 45, 0⟩ ∧
     tally (stopVerdicts key (fun _ => .fail) (deskSweepFull.map deskStop)) = ⟨.fail, 57, 57, 0⟩ := by
   have h1 : reducedDeskWidths.map deskStop ≠ [] := by rw [reducedDeskWidths_eq]; simp
   have h2 : deskSweepFull.map deskStop ≠ [] := by
