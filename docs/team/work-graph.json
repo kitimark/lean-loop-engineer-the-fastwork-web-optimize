@@ -1986,7 +1986,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-18-engine-gaps.md"
-   ]
+   ],
+   "evidence": "affa1bb"
   },
   {
    "id": "webkit-sim-rewrite",
