@@ -1,0 +1,6 @@
+{"name":"the given branch has commits: keep it","request":{"givenAhead":true,"op":"console.landPick","others":[{"ahead":true,"contains":true,"name":"ci/t"}]},"response":{"branch":null,"names":[],"pick":"given"}}
+{"name":"nothing to land and no candidate","request":{"givenAhead":false,"op":"console.landPick","others":[]},"response":{"branch":null,"names":[],"pick":"nothing"}}
+{"name":"the agent's ci branch is the one candidate","request":{"givenAhead":false,"op":"console.landPick","others":[{"ahead":true,"contains":true,"name":"ci/t"},{"ahead":false,"contains":true,"name":"w"}]},"response":{"branch":"ci/t","names":["ci/t"],"pick":"other"}}
+{"name":"a candidate that does not contain the given branch is no candidate","request":{"givenAhead":false,"op":"console.landPick","others":[{"ahead":true,"contains":false,"name":"ci/t"}]},"response":{"branch":null,"names":[],"pick":"nothing"}}
+{"name":"two different candidates: ambiguous, refuse","request":{"givenAhead":false,"op":"console.landPick","others":[{"ahead":true,"contains":true,"name":"ci/t"},{"ahead":true,"contains":true,"name":"w"}]},"response":{"branch":null,"names":["ci/t","w"],"pick":"ambiguous"}}
+{"name":"missing givenAhead is refused","request":{"op":"console.landPick","others":[]},"response":{"error":"missing field givenAhead"}}

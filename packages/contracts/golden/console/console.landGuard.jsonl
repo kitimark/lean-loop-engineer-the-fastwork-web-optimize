@@ -1,0 +1,6 @@
+{"name":"no lock: any commit is allowed","request":{"held":false,"op":"console.landGuard"},"response":{"allow":true,"verdict":"allow"}}
+{"name":"lock held by a live land: another commit is refused","request":{"alive":true,"held":true,"here":true,"op":"console.landGuard","own":false},"response":{"allow":false,"verdict":"held"}}
+{"name":"the land's own commit goes through","request":{"alive":true,"held":true,"here":true,"op":"console.landGuard","own":true},"response":{"allow":true,"verdict":"allow"}}
+{"name":"a commit in another checkout is allowed","request":{"alive":true,"held":true,"here":false,"op":"console.landGuard","own":false},"response":{"allow":true,"verdict":"allow"}}
+{"name":"dead pid: stale, refused and reported","request":{"alive":false,"held":true,"here":true,"op":"console.landGuard","own":false},"response":{"allow":false,"verdict":"stale"}}
+{"name":"missing held is refused","request":{"op":"console.landGuard"},"response":{"error":"missing field held"}}

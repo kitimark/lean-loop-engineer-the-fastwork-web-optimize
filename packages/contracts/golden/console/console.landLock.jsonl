@@ -1,0 +1,4 @@
+{"name":"no lock file: free","request":{"held":false,"op":"console.landLock"},"response":{"verdict":"free"}}
+{"name":"a live pid holds it: busy","request":{"alive":true,"held":true,"op":"console.landLock"},"response":{"verdict":"busy"}}
+{"name":"a dead pid holds it: stale, reported","request":{"alive":false,"held":true,"op":"console.landLock"},"response":{"verdict":"stale"}}
+{"name":"missing held is refused","request":{"op":"console.landLock"},"response":{"error":"missing field held"}}

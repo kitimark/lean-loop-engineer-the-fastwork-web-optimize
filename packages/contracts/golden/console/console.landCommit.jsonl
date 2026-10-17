@@ -1,0 +1,5 @@
+{"name":"locked, merge open, head unchanged: commit","request":{"head":"m0","locked":true,"mergeHead":"b1","op":"console.landCommit","pre":"m0"},"response":{"ok":true,"reason":null,"tip":"b1"}}
+{"name":"no lock","request":{"head":"m0","locked":false,"mergeHead":"b1","op":"console.landCommit","pre":"m0"},"response":{"ok":false,"reason":"no lock","tip":null}}
+{"name":"MERGE_HEAD gone: refuse, do not reset","request":{"head":"m0","locked":true,"mergeHead":null,"op":"console.landCommit","pre":"m0"},"response":{"ok":false,"reason":"merge state gone","tip":null}}
+{"name":"HEAD moved by another commit: refuse","request":{"head":"x9","locked":true,"mergeHead":"b1","op":"console.landCommit","pre":"m0"},"response":{"ok":false,"reason":"head moved","tip":null}}
+{"name":"missing pre is refused","request":{"head":"m0","locked":true,"op":"console.landCommit"},"response":{"error":"missing field pre"}}
