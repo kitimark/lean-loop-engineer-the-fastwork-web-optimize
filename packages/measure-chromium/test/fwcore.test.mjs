@@ -9,7 +9,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { classify, fwcoreBin, zoneSums } from '../src/fwcore.mjs';
-import { snapshotCounts } from '../src/trace.mjs';
+import { snapshotCounts, traceToFrameCounts, SPLITS, MAIN, N1_KEYS } from '../src/trace.mjs';
+import { n0Windows, n0FrameCounts } from '../src/n0.mjs';
 import { freezeRuns, diffPaths } from '../src/freeze.mjs';
 
 const GOLDEN = join(dirname(fileURLToPath(import.meta.url)), '../../contracts/golden/measure');
@@ -31,7 +32,41 @@ test('snapshotCounts (trace.mjs) equals every non-refused golden of measure.snap
   for (const c of cases) assert.deepStrictEqual(snapshotCounts(c.request.snapshot), c.response.counts, c.name);
 });
 
-for (const op of ['measure.zoneSums', 'measure.classify', 'measure.noMoreWork', 'measure.selfCheck', 'measure.snapshotCounts', 'measure.freeze']) {
+// trace.mjs keeps its own copy of the split table (Lean Fw.Measure.Splits): the same slices, put on a renderer main
+// thread after an F0 mark, give the golden split counts; SPLITS and N1_KEYS equal the golden table.
+test('trace.mjs splits (SPLITS, N1_KEYS, containment) equal every non-refused golden of measure.splits', () => {
+  const cases = load('measure.splits').filter((c) => c.response.error === undefined);
+  assert.ok(cases.length > 0);
+  const tsSplits = Object.entries(SPLITS).map(([name, s]) => ({ base: MAIN[name].key, key: s.spec.key, name, within: s.within }));
+  for (const c of cases) {
+    assert.deepStrictEqual(tsSplits, c.response.splits, c.name);
+    assert.deepStrictEqual(N1_KEYS, c.response.n1Keys, c.name);
+    const ts0 = Math.min(0, ...c.request.slices.map((s) => s.ts)) - 1;
+    const ev = [{ ph: 'M', name: 'thread_name', pid: 1, tid: 1, args: { name: 'CrRendererMain' } },
+      { ph: 'I', name: 'TimeStamp', pid: 1, tid: 1, ts: ts0, args: { data: { message: 'F0' } } },
+      ...c.request.slices.map((s) => ({ ...s, pid: 1, tid: 1, args: {} }))];
+    const f = traceToFrameCounts(ev, 1).perFrame[0];
+    const got = Object.fromEntries(Object.keys(c.response.counts).map((k) => [k, f[k] ?? 0]));
+    assert.deepStrictEqual(got, c.response.counts, c.name);
+  }
+});
+
+// n0.mjs (container side) attributes census events to windows; checked against Lean Fw.Measure.Neutral.
+test('n0Windows / n0FrameCounts (n0.mjs) equal every non-refused golden of measure.n0Windows', () => {
+  const cases = load('measure.n0Windows').filter((c) => c.response.error === undefined);
+  assert.ok(cases.length > 0);
+  for (const c of cases) {
+    const { events, frameVts, startVt, dt } = c.request;
+    const { win, perFrame } = n0Windows(events, frameVts, startVt, dt);
+    const where = (e) => (win.load.includes(e) ? 'load' : win.preroll.includes(e) ? 'preroll' : win.after.includes(e) ? 'after' : perFrame.findIndex((l) => l.includes(e)));
+    assert.deepStrictEqual(events.map(where), c.response.windows, c.name);
+    assert.deepStrictEqual([win.load.length, win.preroll.length, win.after.length], [c.response.load, c.response.preroll, c.response.after], c.name);
+    assert.deepStrictEqual(perFrame.map(n0FrameCounts), c.response.frames, c.name);
+  }
+});
+
+for (const op of ['measure.zoneSums', 'measure.classify', 'measure.noMoreWork', 'measure.selfCheck', 'measure.snapshotCounts', 'measure.freeze',
+  'measure.splits', 'measure.n0Windows', 'measure.spkq', 'measure.arms']) {
   test(`${op}: fwcore reproduces every golden line`, () => {
     const cases = load(op);
     assert.ok(cases.length > 0);

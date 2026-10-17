@@ -3,6 +3,8 @@ import Fw.Measure.WebKit
 import Fw.Measure.SelfCheck
 import Fw.Measure.Snapshot
 import Fw.Measure.Freeze
+import Fw.Measure.Neutral
+import Fw.Measure.Arms
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
 
@@ -23,7 +25,11 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.symDiff` | `a`, `b` (string arrays) | `symDiff` |
 | `measure.summarize` | `rows` [{family, metric, level, cls}] | `summary` [{family, metric, levels, worst}] |
 | `measure.selfCheck` | `runs` (≥ 1; each an array of frames {phase, scrollY, counts} or an object with `frames`) | `rows` [{type, class, maxDiffFrames, spread, totals}], `frames`, `framesAligned`, `runs` |
-| `measure.freeze` | `runs` (≥ 3, distinct `id`s) [{id, images (≥ 1 digest, all runs one digest), classes {type: {class, k, t, tBound?}}}], optional `pooled` {type: {class, k, t, tBound?}} | `image`, `runs` (ids), `types` {type: {class, k, t, perRun (class or `missing`), `unit` `px` + `tBound` for `*AreaPx` types, `pooledClass`?}}, `tally`, `pooledTally`? |
+| `measure.freeze` | `runs` (≥ 3, distinct `id`s) [{id, images (≥ 1 digest, all runs one digest), classes {type: {class, k, t, tBound?}}}], optional `pooled` {type: {class, k, t, tBound?}} | `image`, `runs` (ids), `types` {type: {class, k, t, perRun (class or `missing`), `unit` `px` + `tBound` for `*AreaPx` types, `pooledClass`?, `role` (`gate`, `finding`, `byDesign`), `reason`?}}, `tally`, `roles`, `pooledTally`? |
+| `measure.splits` | `slices` [{name, ph, ts, dur?}] (integer µs) | `splits` [{name, within, base, key}], `n1Keys`, `n1Excluded`, `n1Gated`, `counts` {base and split types} |
+| `measure.n0Windows` | `events` [{kind, vt}], `frameVts` (non-decreasing), `startVt`, `dt` | `windows` (per event: `load`, `preroll`, `after` or a frame index), `load`, `preroll`, `after`, `frames` [{n0.events, n0.cssom, n0.sheetNode}] |
+| `measure.spkq` | a counts file: `frames` [{counts}], optional `meta.n0` {enabled, load, preroll, after {total}} | `verdict` (`pass`, `fail`, `missing`), `required`, `n1Gated`, `n1Excluded`, `unrecorded`, `nonzeroN0`, `nonzeroN1` (frame indices), `preroll`?, `after`? |
+| `measure.arms` | `a`, `r` (class tables {type: {class, k, t, tBound?}} of the original and the rewrite) | `types` {type: {a, r (class or `absent`), class (cross-arm), role, reason?}}, `gates`, `roles` |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
 namespace Fw.Wire.Measure
@@ -406,7 +412,20 @@ def tableOf (k : String) : Json → Except String Freeze.Table
 def tallyJson (c : Nat × Nat × Nat) : Json :=
   Json.mkObj [("deterministic", toJson c.1), ("stable", toJson c.2.1), ("quarantined", toJson c.2.2)]
 
-/-- `measure.freeze`: `{runs:[{id, images, classes}], pooled?}` → `{image, runs, types, tally, pooledTally?}`;
+/-- Name of a role. -/
+def roleName : Arms.Role → String
+  | .gate => "gate" | .finding => "finding" | .byDesign => "byDesign"
+
+/-- The `role` field of a type of level `l`, with its `reason` when it is quarantined by design. -/
+def roleFields (ty : String) (l : Freeze.Level) : List (String × Json) :=
+  [("role", .str (roleName (Arms.roleOf ty l)))] ++
+    (match Arms.reasonOf ty with | some s => [("reason", .str s)] | none => [])
+
+/-- Encode a role tally `(gate, finding, byDesign)`. -/
+def roleTallyJson (c : Nat × Nat × Nat) : Json :=
+  Json.mkObj [("gate", toJson c.1), ("finding", toJson c.2.1), ("byDesign", toJson c.2.2)]
+
+/-- `measure.freeze`: `{runs:[{id, images, classes}], pooled?}` → `{image, runs, types, tally, roles, pooledTally?}`;
 an error when a table does not decode or `Freeze.freeze` refuses. In `perRun` a run without the type is the
 string `"missing"`. -/
 def opFreeze (req : Json) : Except String Reply := do
@@ -423,17 +442,107 @@ def opFreeze (req : Json) : Except String Reply := do
     (match unitOf r.type with | .px => [("unit", .str "px")] | .count => []) ++
     (match r.tBound with | some b => [("tBound", toJson b)] | none => []) ++
     (match pooled.bind (Freeze.entry? · r.type) with
-      | some e => [("pooledClass", .str (levelName e.cls))] | none => [])
+      | some e => [("pooledClass", .str (levelName e.cls))] | none => []) ++
+    roleFields r.type r.cls
   pure ([("image", .str img), ("runs", toJson (runs.map (·.id))),
          ("types", objOf (rows.map fun r => (r.type, rowJson r))),
-         ("tally", tallyJson (Freeze.tally (rows.map (·.cls))))] ++
+         ("tally", tallyJson (Freeze.tally (rows.map (·.cls)))),
+         ("roles", roleTallyJson (Arms.roleTally rows))] ++
         (match pooled with | some p => [("pooledTally", tallyJson (Freeze.tally (p.map (·.2.cls))))] | none => []))
+
+/-! ## Splits, N0 windows, the SPK-q verdict, arms (Fw.Measure.Splits, .Neutral, .Arms) -/
+
+/-- A list of strings as a JSON array. -/
+def strArr (l : List String) : Json := .arr (l.toArray.map .str)
+
+/-- Decode a trace slice `{name, ph, ts, dur?}` (integers, µs; a missing or `null` `dur` is 0). -/
+def sliceOf (j : Json) : Except String Splits.Slice := do
+  let dur ← match opt j "dur" with
+    | none => pure 0
+    | some d => asInt "dur" d
+  pure { name := ← str j "name", ph := ← str j "ph", ts := ← asInt "ts" (← field j "ts"), dur := dur }
+
+/-- `measure.splits`: `{slices}` → `{splits, n1Keys, n1Excluded, n1Gated, counts}` (`counts`: the
+split counts of `Splits.splitTable` over all the slices). -/
+def opSplits (req : Json) : Except String Reply := do
+  let evs ← (← arr req "slices").toList.mapM sliceOf
+  pure [("splits", .arr (Splits.splits.toArray.map fun s => Json.mkObj
+          [("name", .str s.name), ("within", .str s.within), ("base", .str s.base), ("key", .str s.key)])),
+        ("n1Keys", strArr Splits.n1Keys), ("n1Excluded", strArr Splits.n1Excluded),
+        ("n1Gated", strArr Splits.n1Gated),
+        ("counts", objOf ((Splits.splitTable evs).map fun (k, v) => (k, toJson v)))]
+
+/-- A window as JSON: `"load"`, `"preroll"`, `"after"`, or the frame index. -/
+def winJson : Neutral.Win → Json
+  | .load => .str "load" | .preroll => .str "preroll" | .after => .str "after" | .frame i => toJson i
+
+/-- `measure.n0Windows`: `{events [{kind, vt}], frameVts (non-decreasing), startVt, dt}` →
+`{windows, load, preroll, after, frames}` (`windows` per event; `frames` the N0 counts per recorded frame). -/
+def opN0Windows (req : Json) : Except String Reply := do
+  let es ← (← arr req "events").toList.mapM fun e => do
+    pure ({ kind := ← str e "kind", vt := ← asRat "vt" (← field e "vt") } : Neutral.N0Event)
+  let fv ← rats req "frameVts"
+  if !nondecreasing fv then throw "field frameVts: must be non-decreasing"
+  let s ← asRat "startVt" (← field req "startVt")
+  let dt ← asRat "dt" (← field req "dt")
+  let n (w : Neutral.Win) : Json := toJson (Neutral.eventsIn fv s dt w es).length
+  pure [("windows", .arr (es.toArray.map fun e => winJson (Neutral.winOf fv s dt e.vt))),
+        ("load", n .load), ("preroll", n .preroll), ("after", n .after),
+        ("frames", .arr ((Neutral.perFrame fv s dt es).toArray.map fun l =>
+          objOf ((Neutral.frameCounts l).map fun (k, v) => (k, toJson v))))]
+
+/-- A window total `meta.n0.<w>.total` (an error when absent). -/
+def n0Total (n0 : Json) (w : String) : Except String Nat := do nat (← field n0 w) "total"
+
+/-- Name of a verdict. -/
+def verdictName : Neutral.Verdict → String
+  | .pass => "pass" | .fail => "fail" | .missing => "missing"
+
+/-- `measure.spkq`: a counts file `{frames [{counts}], meta {n0 {enabled, load, preroll, after}}}` →
+`{verdict, required, n1Gated, n1Excluded, unrecorded, nonzeroN0, nonzeroN1, preroll?, after?}`. The census
+is off (`none`) when `meta`, `meta.n0` or `enabled: true` is missing. -/
+def opSpkq (req : Json) : Except String Reply := do
+  let frames ← runFrames req
+  let n0 := (opt req "meta").bind (opt · "n0")
+  let w ← match n0 with
+    | some j =>
+      if opt j "enabled" == some (.bool true) then
+        pure (some ({ load := ← n0Total j "load", preroll := ← n0Total j "preroll",
+                      after := ← n0Total j "after" } : Neutral.N0Win))
+      else pure none
+    | none => pure none
+  pure ([("verdict", .str (verdictName (Neutral.verdict w frames))),
+         ("required", strArr Neutral.required), ("n1Gated", strArr Splits.n1Gated),
+         ("n1Excluded", strArr Splits.n1Excluded),
+         ("unrecorded", toJson (Neutral.unrecorded frames)),
+         ("nonzeroN0", toJson (Neutral.nonzero Neutral.n0Keys frames)),
+         ("nonzeroN1", toJson (Neutral.nonzero Splits.n1Gated frames))] ++
+        (match w with
+          | some v => [("preroll", toJson v.preroll), ("after", toJson v.after)]
+          | none => []))
+
+/-- `measure.arms`: `{a, r}` (class tables of the original and the rewrite, as in `measure.classify`
+`classes`) → `{types {type: {a, r, class, role, reason?}}, gates, roles}`; an arm without the type reads
+`"absent"`. -/
+def opArms (req : Json) : Except String Reply := do
+  let ta ← tableOf "a" (← field req "a")
+  let tr ← tableOf "r" (← field req "r")
+  let lv (o : Option Freeze.Level) : Json := .str ((o.map levelName).getD "absent")
+  let rows := (Freeze.typesOf [ta, tr]).map fun ty =>
+    let c := (Arms.crossLevel (Arms.levelAt? ta ty) (Arms.levelAt? tr ty)).getD .quar
+    (ty, c, Json.mkObj ([("a", lv (Arms.levelAt? ta ty)), ("r", lv (Arms.levelAt? tr ty)),
+      ("class", .str (levelName c))] ++ roleFields ty c))
+  pure [("types", objOf (rows.map fun (ty, _, j) => (ty, j))),
+        ("gates", strArr ((rows.filter fun (ty, c, _) => Arms.roleOf ty c == .gate).map (·.1))),
+        ("roles", roleTallyJson (Arms.roleTally (rows.map fun (ty, c, _) =>
+          ({ type := ty, cls := c, k := 0, t := 0, perRun := [], tBound := none } : Freeze.FRow))))]
 
 /-- The `measure.*` ops. -/
 def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
    "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.symDiff", "measure.summarize",
-   "measure.selfCheck", "measure.snapshotCounts", "measure.freeze"]
+   "measure.selfCheck", "measure.snapshotCounts", "measure.freeze", "measure.splits", "measure.n0Windows",
+   "measure.spkq", "measure.arms"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -449,6 +558,10 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.selfCheck" => some (opSelfCheck req)
   | "measure.snapshotCounts" => some (opSnapshotCounts req)
   | "measure.freeze" => some (opFreeze req)
+  | "measure.splits" => some (opSplits req)
+  | "measure.n0Windows" => some (opN0Windows req)
+  | "measure.spkq" => some (opSpkq req)
+  | "measure.arms" => some (opArms req)
   | _ => none
 
 end Fw.Wire.Measure
