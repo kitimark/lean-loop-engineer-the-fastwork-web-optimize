@@ -2663,7 +2663,8 @@
     "lean/Fw/Parts/**",
     "packages/contracts/golden/engine/**",
     "research/findings/**"
-   ]
+   ],
+   "evidence": "c9c9afc"
   },
   {
    "id": "obs-signals",
@@ -3452,7 +3453,8 @@
     ".gitattributes",
     "packages/contracts/golden/ops/ledger-merge.jsonl",
     "docs/team/tools/ledger-merge.md"
-   ]
+   ],
+   "evidence": "156f99c"
   },
   {
    "id": "ci-trigger-lean",
