@@ -26,6 +26,7 @@ import Fw.Parts.MorphTween
 import Fw.Parts.MorphTweenOpt
 import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
+import Fw.Parts.PeopleCard
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Quiet
