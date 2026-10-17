@@ -11,6 +11,12 @@ export const frames = (page, n) =>
     n,
   );
 
+/** Wait (up to 3 s) until the engine reports the content-visibility:auto subtree skipped, without reading any style. */
+export const waitSkipped = async (page) => {
+  await page.waitForFunction(() => window.__cv.length > 0, null, { timeout: 3000 }).catch(() => {});
+  return page.evaluate(() => ({ events: window.__cv.slice(), scrollY, innerHeight, top: document.getElementById('cv').getBoundingClientRect().top }));
+};
+
 export const TESTS = [
   {
     id: 'prem.anim.list', premise: 'anim.list', page: 'anim.list.html',
@@ -27,7 +33,7 @@ export const TESTS = [
         requestAnimationFrame(loop);
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         const during = describe();
-        await new Promise((r) => setTimeout(r, 400)); // the 40 ms transition is long over
+        await new Promise((r) => setTimeout(r, 1500)); // the 300 ms transition is long over
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         const after = describe();
         const lerpMoved = parseFloat(lerp.style.width) > 20;
@@ -49,12 +55,12 @@ export const TESTS = [
   {
     id: 'prem.cv.auto-margin', premise: 'cv.auto-margin', page: 'cv.auto-margin.html',
     async run({ page }) {
-      await frames(page, 2);
+      const state = await waitSkipped(page);
       const skipped = await page.evaluate(() => {
-        const cv = document.getElementById('cv'); const m = document.getElementById('m');
-        return { margin: getComputedStyle(m).marginLeft, width: getComputedStyle(m).width,
-          skipped: cv.checkVisibility ? !cv.checkVisibility({ contentVisibilityAuto: true }) : null };
+        const m = document.getElementById('m');
+        return { margin: getComputedStyle(m).marginLeft, width: getComputedStyle(m).width, wasSkipped: window.__cv[0] === true };
       });
+      skipped.state = state;
       await page.evaluate(() => document.getElementById('cv').scrollIntoView());
       await frames(page, 3);
       const shown = await page.evaluate(() => getComputedStyle(document.getElementById('m')).marginLeft);
@@ -70,17 +76,18 @@ export const TESTS = [
     // The behaviour found when prem.cv.auto-margin was first run (both engines): a style read forces the lock open.
     id: 'prem.cv.read-forces-lock', premise: 'cv.read-forces-lock', page: 'cv.read-forces-lock.html',
     async run({ page }) {
-      await frames(page, 2);
+      const state = await waitSkipped(page);
       const o = await page.evaluate(() => {
-        const cv = document.getElementById('cv'); const m = document.getElementById('m');
-        const skippedBefore = cv.checkVisibility ? !cv.checkVisibility({ contentVisibilityAuto: true }) : null;
-        const cs = getComputedStyle(m);
-        return { skippedBefore, margin: cs.marginLeft, width: cs.width, displayNoneMargin: getComputedStyle(document.getElementById('dm')).marginLeft };
+        const cs = getComputedStyle(document.getElementById('m'));
+        return { skippedBefore: window.__cv[0] === true, margin: cs.marginLeft, width: cs.width, displayNoneMargin: getComputedStyle(document.getElementById('dm')).marginLeft };
       });
-      assert.notEqual(o.skippedBefore, false, 'the subtree was skipped before the read');
-      assert.equal(o.margin, '150px', 'a getComputedStyle read in a skipped subtree resolves the auto margin');
-      assert.equal(o.width, '100px');
-      assert.equal(o.displayNoneMargin, 'auto', 'control: only a display:none subtree reports the unresolved auto');
+      o.state = state;
+      try {
+        assert.equal(o.skippedBefore, true, 'the engine reported the subtree skipped before the read');
+        assert.equal(o.margin, '150px', 'a getComputedStyle read in a skipped subtree resolves the auto margin');
+        assert.equal(o.width, '100px');
+        assert.equal(o.displayNoneMargin, 'auto', 'control: only a display:none subtree reports the unresolved auto');
+      } catch (e) { e.observed = o; throw e; }
       return o;
     },
   },

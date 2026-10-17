@@ -9,3 +9,8 @@
 </style>
 <div class="spacer"></div>
 <section id="cv"><div id="m"></div></section>
+<script>
+  // The engine's own signal that the subtree is skipped, recorded without reading any style.
+  window.__cv = [];
+  document.getElementById('cv').addEventListener('contentvisibilityautostatechange', (e) => window.__cv.push(e.skipped));
+</script>
