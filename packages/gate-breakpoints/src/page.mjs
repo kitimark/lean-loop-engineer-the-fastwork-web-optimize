@@ -161,6 +161,98 @@ export async function waitResize() {
 }
 
 /**
+ * A point in the viewport where the pointer is over no probed element or descendant of one (hover cannot change a probed
+ * value from there), or null. The gate parks the pointer there in both arms (Fw.Gate.Settle: hero.orbit). Reports; decides
+ * nothing. arg: { roots: [selector] }.
+ */
+export function findParkPoint(arg) {
+  const probed = new Set();
+  for (const sel of arg.roots) for (const el of Array.from(document.querySelectorAll(sel)).slice(0, 64)) probed.add(el);
+  const w = window.innerWidth, h = window.innerHeight;
+  const xs = [w - 2, 2, Math.round(w / 2), Math.round(w * 0.25), Math.round(w * 0.75)];
+  const ys = [h - 2, 2, Math.round(h / 2), Math.round(h * 0.25), Math.round(h * 0.75)];
+  for (const y of ys) {
+    for (const x of xs) {
+      if (x < 0 || y < 0 || x >= w || y >= h) continue;
+      if (!document.elementsFromPoint(x, y).some((el) => probed.has(el))) return { x, y };
+    }
+  }
+  return null;
+}
+
+/**
+ * The gate's settle wait (Fw.Gate.Settle). Runs after load and after each resize, with the pointer parked, before anything is
+ * collected. One observation per real requestAnimationFrame (a 250 ms timer only keeps the loop alive if no frame comes; it does
+ * not count as a frame): the finite animations and transitions under the probed subtree (`getAnimations`), the real frames
+ * since the wait began, the run of quiet frames (every probed box, transform number and opacity within eps of the frame before:
+ * this is what sees a requestAnimationFrame-driven lerp that `getAnimations` does not list), and whether the pointer is inside a
+ * probed element. It stops at the first settled observation or when the budget is spent. The outcome is NOT decided here: the
+ * runner applies Lean's `wait` (settle.mjs waitTrace) to the returned trace.
+ * arg: { policy: {minFrames, minStable, eps, timeoutMs}, roots: [selector] }.
+ * The two predicates between the markers are replayed against the Lean golden by test/settle.test.mjs (extracted from this text).
+ */
+export async function settleInPage(arg) {
+  const p = arg.policy;
+  // <settled>
+  const settled = (q, o) => o.running === 0 && q.minFrames <= o.frames && q.minStable <= o.stable && !o.hoverInside;
+  // </settled>
+  // <quiet>
+  const quiet = (eps, u, v) => u.length === v.length && u.every((a, i) => Math.abs(a - v[i]) <= eps);
+  // </quiet>
+  const micro = (x) => Math.round(x * 1e6);
+  const els = () => {
+    const seen = new Set();
+    for (const sel of arg.roots) for (const el of Array.from(document.querySelectorAll(sel)).slice(0, 64)) seen.add(el);
+    return Array.from(seen);
+  };
+  const numbers = (s) => (s.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/g) || []).map(Number);
+  const observe = () => {
+    const list = els();
+    const anims = new Set();
+    for (const el of list) {
+      let as = [];
+      try { as = el.getAnimations({ subtree: true }); } catch { as = []; }
+      for (const a of as) {
+        const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+        if (t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle') anims.add(a);
+      }
+    }
+    const sig = [micro(window.innerWidth), micro(window.innerHeight)];
+    let hover = false;
+    for (const el of list) {
+      const r = el.getBoundingClientRect();
+      sig.push(micro(r.x), micro(r.y), micro(r.width), micro(r.height));
+      const cs = getComputedStyle(el);
+      for (const n of numbers(cs.transform === 'none' ? '' : cs.transform)) sig.push(micro(n));
+      sig.push(micro(Number(cs.opacity)));
+      if (el.matches(':hover')) hover = true;
+    }
+    return { running: anims.size, hover, sig };
+  };
+  const t0 = performance.now();
+  const trace = [];
+  let prev = observe().sig;
+  let frames = 0, stable = 0;
+  for (;;) {
+    const gotFrame = await new Promise((resolve) => {
+      let done = false;
+      requestAnimationFrame(() => { if (!done) { done = true; resolve(true); } });
+      setTimeout(() => { if (!done) { done = true; resolve(false); } }, 250);
+    });
+    const o = observe();
+    if (gotFrame) {
+      frames++;
+      stable = quiet(p.eps, prev, o.sig) ? stable + 1 : 0;
+      prev = o.sig;
+    }
+    const obs = { running: o.running, frames, stable, hoverInside: o.hover, t: Math.round(performance.now() - t0) };
+    trace.push(obs);
+    if (settled(p, obs) || obs.t > p.timeoutMs) break;
+  }
+  return { trace };
+}
+
+/**
  * Collect the raw facts of one arm in its current state.
  * arg: { site: 'orig'|'rewrite', conditions: [{tsId, css, legacyCss}], neutral: [{tsId, css}], dprWanted, widthWanted,
  *        parts: { [partId]: [{ role, selector, rect }] }, props: { [partId]: { [role]: string[] } } | null, filter: string }

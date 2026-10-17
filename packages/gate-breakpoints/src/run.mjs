@@ -5,7 +5,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
-import { PIN_SRC, collectInPage, prepareInPage, waitReady, waitResize } from './page.mjs';
+import { PIN_SRC, collectInPage, findParkPoint, prepareInPage, settleInPage, waitReady, waitResize } from './page.mjs';
+import { GATE_POLICY, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
@@ -84,10 +85,35 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const mountOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'mount')]));
   const overlayOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'overlay')]));
   const evalReady = (s, site) => s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
+  // The settle wait (Lean Fw.Gate.Settle, settle.mjs): before anything is collected, in both arms and both engines, the pointer is
+  // parked where it is over no probed element (hover cannot move a probed value), then the page is observed on real frames
+  // until nothing animates, two frames have passed since the resize, the probed values stay within eps for three frames, and the
+  // pointer is outside every probed element; or the budget is spent (outcome 'unsettled', recorded, never a silent pass).
+  const rootsOf = (site) => Object.values(partsArg[site]).flatMap((roles) => roles.map((r) => r.selector));
+  // The sample's wait is the first wait plus the waits for the overlays opened during collection: unsettled when any is.
+  const foldSettle = (first, extra) => (extra || []).reduce((a, w) => ({
+    ...a, outcome: a.outcome === 'unsettled' || w.outcome === 'unsettled' ? 'unsettled' : a.outcome,
+    observations: a.observations + w.observations, waitedMs: a.waitedMs + w.waitedMs, parked: a.parked && w.parked,
+  }), first);
+  const parkEarly = async (s, env) => { if (env.hover === 'hover' && s.mouse) await s.mouse(Math.max(1, Math.round(env.width) - 2), Math.max(1, env.height - 2)); };
+  async function settleArm(s, site, env, only) {
+    const roots = only || rootsOf(site);
+    let parked = false;
+    if (env.hover === 'hover' && s.mouse) {
+      const pt = await s.evaluate(findParkPoint, { roots });
+      if (pt) { await s.mouse(pt.x, pt.y); parked = true; }
+    }
+    const { trace } = await s.evaluate(settleInPage, { policy: GATE_POLICY, roots });
+    const last = trace[trace.length - 1];
+    return {
+      outcome: waitTrace(GATE_POLICY, trace), parked, hoverCapable: env.hover === 'hover',
+      observations: trace.length, frames: last.frames, waitedMs: last.t, running: last.running, stable: last.stable, hoverInside: last.hoverInside,
+    };
+  }
   const collectArg = (site, env, props, parts) => ({
     site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, filter: FILTER[site],
   });
-  async function evalCollect(s, site, env, props) {
+  async function evalCollect(s, site, env, props, settleRoots) {
     const mountIds = Object.keys(mountOf[site]);
     const overlayIds = Object.keys(overlayOf[site]);
     const pick = (ids, inside) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid) === inside));
@@ -95,6 +121,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     for (const pid of overlayIds) {
       const steps = overlayOf[site][pid];
       await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
+      // an opened overlay animates in (WebKit run 39067170911 read the signup dialog at scale 0.9977): settle it before reading
+      if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
       const one = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
       raw.parts = { ...raw.parts, ...one.parts };
       await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
@@ -141,8 +169,11 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     return withRetry(`${site} ${env.width}x${env.height}`, async () => {
       const s = await load(env, site);
       try {
+        await parkEarly(s, env);
         const settle = await evalReady(s, site);
-        const raw = await evalCollect(s, site, env, collectProps);
+        const settleWait = await settleArm(s, site, env);
+        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots));
+        raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
         if (gaps) raw.gap = await s.evaluate(gaps.collect, gaps.collectArg);
         return { settle, raw };
       } finally { await s.close().catch(() => {}); }
@@ -173,10 +204,14 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       const s = await load(sw.stops[0], site);
       try {
         const stops = [];
+        await parkEarly(s, sw.stops[0]);
         await evalReady(s, site);
         for (let i = 0; i < sw.stops.length; i++) {
           if (i > 0) { await s.resize(sw.stops[i]); await s.evaluate(waitResize); }
-          stops.push(await evalCollect(s, site, sw.stops[i], collectProps));
+          const settleWait = await settleArm(s, site, sw.stops[i]);
+          const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots));
+          raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
+          stops.push(raw);
         }
         return stops;
       } finally { await s.close().catch(() => {}); }

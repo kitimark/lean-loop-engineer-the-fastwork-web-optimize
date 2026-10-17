@@ -65,6 +65,7 @@ import Fw.Gate.Rule
 import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
+import Fw.Gate.Settle  -- gate-settle: when a gate sample is settled
 import Fw.Wire.Gate
 import Fw.Engine
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops

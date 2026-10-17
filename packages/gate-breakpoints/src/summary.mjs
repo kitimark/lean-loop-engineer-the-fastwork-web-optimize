@@ -5,6 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadAnchors, loadGen, expectFor, partJson, selectParts } from './spec.mjs';
 import { context, evaluate, tallies } from './verdict.mjs';
+import { report as settleReport } from './settle.mjs';
 
 const ENGINES = ['chromium', 'playwright-webkit'];
 /** The matchMedia rows of the table, as Lean names them (Fw.Gate.truthRows); the part rows follow. */
@@ -38,6 +39,26 @@ function infoDiffs(acc, label, ev, partIds) {
     }
   }
 }
+
+/** The settle wait of an arm record (probe arm {settle, raw} or sweep stop raw), or null for a run made before the wait. */
+const waitOf = (arm) => (arm.raw ?? arm).settleWait ?? null;
+
+/**
+ * Lean's report (Fw.Gate.Settle.report, settle.mjs) for one state: 'unsettled' when either arm's wait ended unsettled. The
+ * values' equality is not needed for that case, so true is passed; the entries name the arms that did not settle.
+ */
+function settleOf(label, state) {
+  const w = { orig: waitOf(state.orig), rewrite: waitOf(state.rewrite) };
+  if (!w.orig || !w.rewrite) return { unsettled: false, entry: null };
+  const r = settleReport(w.orig.outcome, w.rewrite.outcome, true);
+  if (r !== 'unsettled') return { unsettled: false, entry: null };
+  const arms = ['orig', 'rewrite'].filter((a) => w[a].outcome === 'unsettled')
+    .map((a) => ({ arm: a, frames: w[a].frames, waitedMs: w[a].waitedMs, running: w[a].running, stable: w[a].stable, hoverInside: w[a].hoverInside, parked: w[a].parked }));
+  return { unsettled: true, entry: { at: label, arms } };
+}
+
+/** An unsettled state has no verdict: its rows are not comparable (never pass, never fail); unreachable stays unreachable. */
+const unsettledRows = (rows) => Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, String(v).startsWith('unreachable') ? v : 'not-comparable']));
 
 export function summarize(outDir, { parts: requested = null } = {}) {
   const { gen, sha256 } = loadGen();
@@ -82,14 +103,29 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     if (evs.length > 0 && Object.keys(evs[0].rows).join('\n') !== ROWS.join('\n')) throw new Error(`fwcore rows ${Object.keys(evs[0].rows)} are not ${ROWS}`);
 
     const probeRows = [];
+    const unsettledList = [];
+    const waitStats = { samples: 0, unsettled: 0, totalWaitMs: 0, maxWaitMs: 0, totalFrames: 0 };
+    const countWait = (state) => {
+      for (const a of ['orig', 'rewrite']) {
+        const w = waitOf(state[a]);
+        if (!w) continue;
+        waitStats.samples++; waitStats.totalWaitMs += w.waitedMs; waitStats.totalFrames += w.frames;
+        waitStats.maxWaitMs = Math.max(waitStats.maxWaitMs, w.waitedMs);
+        if (w.outcome === 'unsettled') waitStats.unsettled++;
+      }
+    };
     run.probes.forEach((rec, k) => {
       const ev = evs[k];
-      failures(fails, rec.id, ev, PARTS);
-      infoDiffs(infos, rec.id, ev, PARTS);
+      countWait(rec);
+      const st = settleOf(rec.id, rec);
+      if (st.unsettled) { unsettledList.push(st.entry); ev.rows = unsettledRows(ev.rows); } else {
+        failures(fails, rec.id, ev, PARTS);
+        infoDiffs(infos, rec.id, ev, PARTS);
+      }
       probeRows.push({
-        id: rec.id, block: rec.block, achieved: ev.achieved, deviations: ev.dev,
+        id: rec.id, block: rec.block, achieved: ev.achieved, deviations: ev.dev, ...(st.unsettled ? { unsettled: true } : {}),
         settled: { orig: rec.orig.settle.splash ?? rec.orig.settle.ready, rewrite: rec.rewrite.settle.ready },
-        verdicts: ev.rows, verdict: ev.verdict, reach: ev.reach,
+        verdicts: ev.rows, verdict: st.unsettled ? 'not-comparable' : ev.verdict, reach: ev.reach,
         truthCounts: ev.truthCounts,
         compared: ev.compared,
       });
@@ -98,10 +134,15 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     let next = run.probes.length;
     const sweepStops = run.sweeps.map((sw, j) => sw.stops.map((env, i) => {
       const ev = evs[next++];
-      failures(fails, `${sw.id}#${i}@${env.width}x${env.height}`, ev, PARTS);
-      infoDiffs(infos, `${sw.id}#${i}`, ev, PARTS);
+      const label = `${sw.id}#${i}@${env.width}x${env.height}`;
+      countWait({ orig: sw.orig[i], rewrite: sw.rewrite[i] });
+      const st = settleOf(label, { orig: sw.orig[i], rewrite: sw.rewrite[i] });
+      if (st.unsettled) { unsettledList.push(st.entry); ev.rows = unsettledRows(ev.rows); } else {
+        failures(fails, label, ev, PARTS);
+        infoDiffs(infos, `${sw.id}#${i}`, ev, PARTS);
+      }
       const v = vectors[j][i];
-      return { i, width: env.width, height: env.height, achieved: ev.achieved, vector: v ? v.from : null, verdicts: ev.rows };
+      return { i, width: env.width, height: env.height, achieved: ev.achieved, ...(st.unsettled ? { unsettled: true } : {}), vector: v ? v.from : null, verdicts: ev.rows };
     }));
 
     // table: rows = truth + parts, columns = blocks + sweeps; every cell is a Lean tally
@@ -128,8 +169,8 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     const failList = [...fails.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
     const infoList = [...infos.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
-    result.engines[engine] = { browser: run.header.browser, ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
-    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel));
+    result.engines[engine] = { browser: run.header.browser, ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
+    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList));
   }
 
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(result, null, 1) + '\n');
@@ -146,7 +187,7 @@ const cell = (c) => {
   return c.unreachable > 0 ? `${base} +${c.unreachable} unreachable` : base;
 };
 
-function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel) {
+function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList) {
   const cols = [...blocks, ...sweepRows.map((s) => `sweep:${s.id}`)];
   const out = [`## ${engine} (${header.browser})`, '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), \`+n unreachable\` = n such probes left out of the count / - = block not run.`, ''];
   // No silent narrowing: a narrowed verdict says which parts it covers and which it does not. matchMedia rows are
@@ -155,6 +196,9 @@ function render(engine, header, table, envRow, sweepRows, failList, infoList, bl
   out.push(`| row | ${cols.join(' | ')} |`, `|---|${cols.map(() => '---').join('|')}|`);
   out.push(`| env achieved | ${blocks.map((b) => `${envRow[b].achieved}/${envRow[b].total}`).join(' | ')} | ${sweepRows.map(() => '').join(' | ')} |`);
   for (const row of Object.keys(table)) out.push(`| ${row} | ${cols.map((c) => cell(table[row][c])).join(' | ')} |`);
+  out.push('', `Settle wait (Lean Fw.Gate.Settle): ${waitStats.samples} arm samples waited ${waitStats.totalWaitMs} ms in total (max ${waitStats.maxWaitMs} ms); ${waitStats.unsettled} ended UNSETTLED. A state with an unsettled arm has no verdict (its rows are NC) and its items are not in the failing list.`);
+  for (const u of unsettledList.slice(0, 40)) out.push(`- UNSETTLED ${u.at}: ${u.arms.map((a) => `${a.arm} (frames ${a.frames}, ${a.waitedMs} ms, running ${a.running}, quiet run ${a.stable}, pointer in target ${a.hoverInside}, parked ${a.parked})`).join('; ')}`);
+  if (unsettledList.length > 40) out.push(`- ... ${unsettledList.length - 40} more in summary.json`);
   out.push('', 'Sweep hysteresis (state after the sequence vs a fresh load at the same final env, per arm; items differing / compared):', '');
   for (const s of sweepRows) out.push(`- ${s.id}: orig ${s.stale.orig.differ}/${s.stale.orig.compared}, rewrite ${s.stale.rewrite.differ}/${s.stale.rewrite.compared}`);
   out.push('', 'Failing items (count = probes or stops where the item differed; first example):', '', '| part | kind | role | key | count | first at | orig | rewrite | lean |', '|---|---|---|---|---|---|---|---|---|');
