@@ -11,9 +11,10 @@ every status and verdict comes from `Fw.Gate`. Numbers are read as exact decimal
 
 | op | request | reply |
 |---|---|---|
-| `gate.state` | `anchors` (anchors.json as is), `parts` [id] (covered, in order), `props` (run header), `deviceEdges` [[n, n+1]], `states` [State] | `states` [Eval] |
+| `gate.state` | `anchors` (anchors.json as is), `parts` [id] (covered, in order), `props` (run header), `deviceEdges` [[n, n+1]], `port`? (`chromium`, `webkit-apple`, `webkit-glib`; absent or `null`: no reach claim), `states` [State] | `states` [Eval] |
 | `gate.stale` | `anchors`, `parts`, `props`, `pairs` [{`after`, `fresh`}] (raw `parts` objects) | `stale` [{`compared`, `differ`}] |
-| `gate.tally` | `cells` [{`verdicts` [verdict], `block` bool}] | `cells` [{`verdict`, `failing`, `total`}] (`not-run` for an empty block) |
+| `gate.tally` | `cells` [{`verdicts` [verdict], `block` bool}] | `cells` [{`verdict`, `failing`, `total`, `unreachable`}] (`not-run` for an empty block) |
+| `gate.reach` | `port`, `envs` [requested] | `reasons` [reason or `null`] (`Fw.Gate.reqReason`) |
 | `gate.styleEq` | `pairs` [[a, b]] (string, or `null` = absent) | `eq` [bool] |
 | `gate.cell` | `statuses` [status] | `verdict` |
 
@@ -26,10 +27,13 @@ object would be re-sorted); `v` is `true`, `false` or `null`.
 
 Eval: `{dev {orig, rewrite}, achieved, truth [{cls, key, status, fails, a?, b?, expect?}], truthCounts
 {"kind:status": n},
-parts [[id, {fails [Item], infoDiffs [Item]}]], rows [[row, verdict]], compared [[id, n]]}` with
+parts [[id, {fails [Item], infoDiffs [Item]}]], rows [[row, verdict]], compared [[id, n]], reach,
+verdict}` with
 Item `{cls, role, idx, key, status}`: per part the failing count/box/style items and the `info`
-items whose values differ, each in item order. Names: status `equal|differ|missing|na`, verdict
-`pass|fail|not-comparable`, truth kinds `truth.AR|truth.lean|truth.legacy|truth.neutral.AR|
+items whose values differ, each in item order (an unreachable state lists no failing item). `reach`
+is `null` or a reason; `verdict` is the rollup of all `rows`, part rows included. Names: status
+`equal|differ|missing|na`, verdict `pass|fail|not-comparable|unreachable:<reason>`, reason
+`primary-pair|whole-width|width-dpr`, truth kinds `truth.AR|truth.lean|truth.legacy|truth.neutral.AR|
 truth.neutral.lean`. A truth value absent on an arm is left out of the reply (`a?`, `b?`).
 
 `anchors` must be well-formed (`Fw.Gate.wellFormed`: every skip and role has a reason, every named
@@ -52,14 +56,38 @@ def statusOf : String → Except String Status
   | "equal" => .ok .equal | "differ" => .ok .differ | "missing" => .ok .missing | "na" => .ok .na
   | s => .error s!"unknown status {s}"
 
+/-- The wire name of an unreachable reason. -/
+def reasonName : Reason → String
+  | .primaryPair => "primary-pair" | .wholeWidth => "whole-width" | .widthDpr => "width-dpr"
+
 /-- The wire name of a verdict. -/
 def verdictName : Verdict → String
   | .pass => "pass" | .fail => "fail" | .nc => "not-comparable"
+  | .unreachable r => "unreachable:" ++ reasonName r
 
 /-- A verdict from its wire name. -/
 def verdictOf : String → Except String Verdict
   | "pass" => .ok .pass | "fail" => .ok .fail | "not-comparable" => .ok .nc
+  | "unreachable:primary-pair" => .ok (.unreachable .primaryPair)
+  | "unreachable:whole-width" => .ok (.unreachable .wholeWidth)
+  | "unreachable:width-dpr" => .ok (.unreachable .widthDpr)
   | s => .error s!"unknown verdict {s}"
+
+/-- The wire name of a port. -/
+def portName : Port → String
+  | .chromium => "chromium" | .webkitApple => "webkit-apple" | .webkitGLib => "webkit-glib"
+
+/-- A port from its wire name. -/
+def portOf : String → Except String Port
+  | "chromium" => .ok .chromium | "webkit-apple" => .ok .webkitApple | "webkit-glib" => .ok .webkitGLib
+  | s => .error s!"unknown port {s}"
+
+/-- The optional `port` of a request (absent or `null`: none). -/
+def optPort (req : Json) : Except String (Option Port) :=
+  match opt req "port" with
+  | none | some .null => pure none
+  | some (.str s) => do pure (some (← portOf s))
+  | some _ => throw "port: expected a string or null"
 
 /-- The wire name of an item kind. -/
 def clsName : Cls → String
@@ -142,7 +170,7 @@ def ctxOf (req : Json) : Except String Ctx := do
     match (← asArr "deviceEdges" e).toList with
     | n :: _ => asRat "deviceEdges" n
     | [] => throw "deviceEdges: empty pair"
-  pure ⟨a, ps, props, edges⟩
+  pure ⟨a, ps, props, edges, ← optPort req⟩
 
 /-- A box. -/
 def rectOf (j : Json) : Except String Rect := do
@@ -219,10 +247,10 @@ def tvalField (k : String) : TVal → List (String × Json)
   | some none => [(k, .null)]
   | some (some b) => [(k, .bool b)]
 
-/-- One truth item. -/
-def titemJson (t : TItem) : Json :=
+/-- One truth item (`fails` as `StateOut.itemFails`). -/
+def titemJson (e : StateOut) (t : TItem) : Json :=
   Json.mkObj ([("cls", .str (tclsName t.cls)), ("key", .str t.key), ("status", .str (statusName t.status)),
-    ("fails", .bool (failsS t.status))] ++ tvalField "a" t.a ++ tvalField "b" t.b ++ tvalField "expect" t.expect)
+    ("fails", .bool (e.itemFails t.status))] ++ tvalField "a" t.a ++ tvalField "b" t.b ++ tvalField "expect" t.expect)
 
 /-- One part item. -/
 def pitemJson (it : PItem) : Json :=
@@ -242,19 +270,22 @@ def evalJson (e : StateOut) : Json :=
   Json.mkObj [
     ("dev", Json.mkObj [("orig", strsJson e.devO), ("rewrite", strsJson e.devR)]),
     ("achieved", .bool e.achieved),
-    ("truth", .arr (e.truth.map titemJson).toArray),
+    ("truth", .arr (e.truth.map (titemJson e)).toArray),
     ("truthCounts", truthCounts e.truth),
     ("parts", .arr (e.parts.map fun p => Json.arr #[.str p.1, Json.mkObj [
-      ("fails", .arr ((p.2.filter fun it => failsS it.status).map pitemJson).toArray),
+      ("fails", .arr ((p.2.filter fun it => e.itemFails it.status).map pitemJson).toArray),
       ("infoDiffs", .arr ((p.2.filter fun it => it.cls == .info && it.differs).map pitemJson).toArray)]]).toArray),
     ("rows", .arr (e.rows.map fun r => Json.arr #[.str r.1, .str (verdictName r.2)]).toArray),
-    ("compared", .arr (e.compared.map fun c => Json.arr #[.str c.1, toJson c.2]).toArray)]
+    ("compared", .arr (e.compared.map fun c => Json.arr #[.str c.1, toJson c.2]).toArray),
+    ("reach", match e.reach with | none => .null | some r => .str (reasonName r)),
+    ("verdict", .str (verdictName e.verdict))]
 
 /-- A table cell. -/
 def tallyJson : Option Tally → Json
-  | none => Json.mkObj [("verdict", .str "not-run"), ("failing", toJson (0 : Nat)), ("total", toJson (0 : Nat))]
+  | none => Json.mkObj [("verdict", .str "not-run"), ("failing", toJson (0 : Nat)), ("total", toJson (0 : Nat)),
+      ("unreachable", toJson (0 : Nat))]
   | some t => Json.mkObj [("verdict", .str (verdictName t.verdict)), ("failing", toJson t.failing),
-      ("total", toJson t.total)]
+      ("total", toJson t.total), ("unreachable", toJson t.unreachable)]
 
 /-! ## Ops -/
 
@@ -302,8 +333,17 @@ def opCell (req : Json) : Except String Reply := do
   let ss ← (← arr req "statuses").toList.mapM fun s => do statusOf (← asStr "statuses" s)
   pure [("verdict", .str (verdictName (cellVerdict ss)))]
 
+/-- `gate.reach`: the reach rule on each requested environment for one port. -/
+def opReach (req : Json) : Except String Reply := do
+  let pt ← portOf (← str req "port")
+  let out ← (← arr req "envs").toList.mapM fun q => do
+    pure (match reqReason pt (← requestedOf q) with
+      | none => Json.null
+      | some r => .str (reasonName r))
+  pure [("reasons", .arr out.toArray)]
+
 /-- The ops of this module. -/
-def ops : List String := ["gate.state", "gate.stale", "gate.tally", "gate.styleEq", "gate.cell"]
+def ops : List String := ["gate.state", "gate.stale", "gate.tally", "gate.styleEq", "gate.cell", "gate.reach"]
 
 /-- Dispatch a gate op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -313,6 +353,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "gate.tally" => some (opTally req)
   | "gate.styleEq" => some (opStyleEq req)
   | "gate.cell" => some (opCell req)
+  | "gate.reach" => some (opReach req)
   | _ => none
 
 /-! ## Examples -/
@@ -329,7 +370,19 @@ private def run (s : String) : String :=
 #guard run "{\"op\":\"gate.cell\",\"statuses\":[]}" == "{\"verdict\":\"not-comparable\"}"
 #guard run "{\"op\":\"gate.styleEq\",\"pairs\":[[\"1px\",\"1.0004px\"],[\"a\",null]]}" == "{\"eq\":[true,false]}"
 #guard run "{\"op\":\"gate.tally\",\"cells\":[{\"verdicts\":[],\"block\":true},{\"verdicts\":[\"pass\",\"fail\",\"not-comparable\"]}]}" ==
-  "{\"cells\":[{\"failing\":0,\"total\":0,\"verdict\":\"not-run\"},{\"failing\":1,\"total\":2,\"verdict\":\"fail\"}]}"
+  "{\"cells\":[{\"failing\":0,\"total\":0,\"unreachable\":0,\"verdict\":\"not-run\"},{\"failing\":1,\"total\":2,\"unreachable\":0,\"verdict\":\"fail\"}]}"
+#guard run "{\"op\":\"gate.tally\",\"cells\":[{\"verdicts\":[\"unreachable:whole-width\",\"unreachable:primary-pair\"],\"block\":true},{\"verdicts\":[\"pass\",\"unreachable:width-dpr\"]}]}" ==
+  "{\"cells\":[{\"failing\":0,\"total\":0,\"unreachable\":2,\"verdict\":\"unreachable:primary-pair\"},{\"failing\":0,\"total\":1,\"unreachable\":1,\"verdict\":\"pass\"}]}"
+#guard run "{\"op\":\"gate.tally\",\"cells\":[{\"verdicts\":[\"unreachable:other\"]}]}" == "unknown verdict unreachable:other"
+#guard run ("{\"op\":\"gate.reach\",\"port\":\"webkit-apple\",\"envs\":[" ++
+  "{\"width\":600.5,\"height\":900,\"deviceWidth\":600.5,\"dpr\":2,\"hover\":\"hover\",\"pointer\":\"fine\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}," ++
+  "{\"width\":1024,\"height\":768,\"deviceWidth\":1024,\"dpr\":2,\"hover\":\"none\",\"pointer\":\"fine\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}," ++
+  "{\"width\":1024,\"height\":768,\"deviceWidth\":1024,\"dpr\":2,\"hover\":\"none\",\"pointer\":\"coarse\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}]}") ==
+  "{\"reasons\":[\"whole-width\",\"primary-pair\",null]}"
+#guard run ("{\"op\":\"gate.reach\",\"port\":\"chromium\",\"envs\":[" ++
+  "{\"width\":600.5,\"height\":900,\"deviceWidth\":600.5,\"dpr\":1.25,\"hover\":\"hover\",\"pointer\":\"fine\",\"reducedMotion\":\"no-preference\",\"colorScheme\":\"light\"}]}") ==
+  "{\"reasons\":[\"width-dpr\"]}"
+#guard run "{\"op\":\"gate.reach\",\"port\":\"gecko\",\"envs\":[]}" == "unknown port gecko"
 #guard run "{\"op\":\"gate.state\",\"anchors\":{\"style\":{\"skipPrefixes\":[],\"skipSets\":{}},\"parts\":{}},\"parts\":[\"x\"],\"states\":[]}" ==
   "unknown part x"
 
