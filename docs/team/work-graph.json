@@ -711,7 +711,8 @@
    "owner": "measure-engineer",
    "devices": [
     "phone"
-   ]
+   ],
+   "evidence": "0c901f2: 8/8 cells agree with Lean and the Simulator"
   },
   {
    "id": "faithful-checks",
@@ -776,7 +777,8 @@
    "owner": "lead",
    "devices": [
     "phone"
-   ]
+   ],
+   "evidence": "0c901f2: >50ms frames/100 22.9 vs 0; finger swipe pending"
   },
   {
    "id": "wktr-cloud",
