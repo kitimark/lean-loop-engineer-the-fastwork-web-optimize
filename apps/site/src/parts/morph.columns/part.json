@@ -1,0 +1,13 @@
+{
+  "id": "morph.columns",
+  "slot": "morph",
+  "anchors": ["morph-columns"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12887-12935,13125-13152; assets/2.gBuqKVzi.css:10559-10607,10812-10825,10983-10988" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

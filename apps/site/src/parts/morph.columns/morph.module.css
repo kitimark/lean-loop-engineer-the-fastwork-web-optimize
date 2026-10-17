@@ -1,0 +1,83 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:10559-10607 backdrop, columns, tracks, images, keyframes;
+   10812-10825 reduced motion; 10983-10988 <=640). The backdrop is the panel's; its box rules that decide the columns'
+   layout are restated here so the columns sit in the same flex row. Placeholder content only. */
+@layer parts {
+  .stage {
+    position: relative;
+    height: 320px;
+    overflow: hidden;
+    background: #131922;
+    /* stand-in for the panel at morph = 0: its transform is scale(0.96 + 0.04 * var(--morph)) (css 10549), which scales
+       every box inside it; morph.panel owns the real one */
+    transform: scale(0.96);
+  }
+  /* the scene scheduler's rule (css 11754-11758): the original panel is "paused" while morph = 0, which stops the
+     marquee and drops will-change. The attribute is the panel's; morph.panel will drive it, here it is a prop. */
+  .stage[data-scene="paused"] :where(*) {
+    will-change: auto !important;
+    animation-play-state: paused !important;
+  }
+  .backdrop {
+    opacity: 0.4;
+    gap: 12px;
+    display: flex;
+    position: absolute;
+    inset: 0 -3%;
+    overflow: hidden;
+  }
+  .col {
+    min-width: 0;
+    transform: translateY(var(--col-offset, 0));
+    flex-direction: column;
+    flex: 1 1 0;
+    display: flex;
+  }
+  .track {
+    will-change: transform;
+    flex-direction: column;
+    gap: 12px;
+    display: flex;
+  }
+  .col:nth-child(odd) .track {
+    animation: 16s ease-in-out infinite alternate up;
+  }
+  .col:nth-child(2n) .track {
+    animation: 16s ease-in-out infinite alternate down;
+  }
+  .col img {
+    object-fit: cover;
+    border-radius: 12px;
+    width: 100%;
+    display: block;
+  }
+  @keyframes up {
+    0% {
+      transform: translateY(56px);
+    }
+    to {
+      transform: translateY(-56px);
+    }
+  }
+  @keyframes down {
+    0% {
+      transform: translateY(-56px);
+    }
+    to {
+      transform: translateY(56px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .track {
+      will-change: auto;
+      animation: none;
+    }
+  }
+  @media (width<=640px) {
+    .backdrop {
+      gap: 8px;
+    }
+    .col:nth-child(n + 4) {
+      display: none;
+    }
+  }
+}
