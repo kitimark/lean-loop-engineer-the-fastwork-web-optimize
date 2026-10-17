@@ -4,8 +4,20 @@ name: chromium-counts
 # run. N runs on N fresh VMs give the cross-machine determinism check (V-i) that one Mac cannot.
 # CI results are a separate `platform` key until a local-vs-CI V-b check passes (research note ci-measurement-feasibility).
 on:
+  # Inputs: the Chromium harness and image, fwcore (lean/), the snapshot and its lock, the scripts and actions the jobs use.
+  # A push runs this workflow only when it changes one of these paths; `workflow_dispatch` runs it on demand
+  # (gh workflow run <name> --ref <branch>). Why: docs/team/handoffs/ci-trigger-scope.md.
   push:
     branches: ['ci/**', main]
+    paths:
+      - 'packages/measure-chromium/**'
+      - 'lean/**'
+      - 'snapshot/**'
+      - 'snapshot.lock.json'
+      - '.github/scripts/verify-snapshot.mjs'
+      - '.github/scripts/runner-info.sh'
+      - '.github/actions/setup-lean/**'
+      - '.github/workflows/chromium-counts.yml'
   workflow_dispatch:
     inputs:
       profile:
@@ -20,9 +32,10 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 
 env:
   IMAGE: fw-measure-chromium:1

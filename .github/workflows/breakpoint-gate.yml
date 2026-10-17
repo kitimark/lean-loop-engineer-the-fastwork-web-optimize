@@ -6,8 +6,29 @@ name: breakpoint-gate
 # Chrome) and Playwright WebKit on Linux (a WebKitGTK/WPE port, NOT Mobile Safari). Both are separate `platform` keys:
 # a CI table is a second opinion, not a replacement for the Mac run (research note ci-measurement-feasibility).
 on:
+  # Inputs: the gate package, the rewrite it builds (apps/site), lean/ (breakgen, fwcore), the snapshot and its lock, the pnpm
+  # workspace files, the scripts and actions the jobs use.
+  # A push runs this workflow only when it changes one of these paths; `workflow_dispatch` runs it on demand
+  # (gh workflow run <name> --ref <branch>). Why: docs/team/handoffs/ci-trigger-scope.md.
   push:
     branches: ['ci/**', main]
+    paths:
+      - 'packages/gate-breakpoints/**'
+      - 'apps/site/**'
+      - 'lean/**'
+      - 'snapshot/**'
+      - 'snapshot.lock.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/scripts/gate-shards.mjs'
+      - '.github/scripts/gate-smoke.mjs'
+      - '.github/scripts/merge-gate.mjs'
+      - '.github/scripts/verify-snapshot.mjs'
+      - '.github/actions/setup-lean/**'
+      - '.github/actions/setup-pnpm/**'
+      - '.github/actions/gate-engine/**'
+      - '.github/workflows/breakpoint-gate.yml'
   workflow_dispatch:
     inputs:
       engines:
@@ -30,9 +51,10 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 
 env:
   # Same pinned browser as packages/measure-chromium/Dockerfile.
