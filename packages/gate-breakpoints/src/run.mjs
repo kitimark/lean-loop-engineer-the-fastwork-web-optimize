@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
-import { PIN_SRC, collectInPage, findParkPoint, prepareInPage, settleInPage, waitReady, waitResize } from './page.mjs';
+import { PIN_SRC, collectInPage, prepareInPage, settleInPage, waitReady, waitResize } from './page.mjs';
 import { GATE_POLICY, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
@@ -95,15 +95,14 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     ...a, outcome: a.outcome === 'unsettled' || w.outcome === 'unsettled' ? 'unsettled' : a.outcome,
     observations: a.observations + w.observations, waitedMs: a.waitedMs + w.waitedMs, parked: a.parked && w.parked,
   }), first);
-  const parkEarly = async (s, env) => { if (env.hover === 'hover' && s.mouse) await s.mouse(Math.max(1, Math.round(env.width) - 2), Math.max(1, env.height - 2)); };
+  // The pointer is parked outside the viewport (-1, -1): no element is under it, so a resize can bring no element under it and
+  // a hover rule or a pointerenter handler never runs. (A point inside the viewport can lie over a hover target at some widths:
+  // hero.orbit z-index = 1 + the pointerenter events, run 39078493093 with the pointer at the corner.)
+  const park = async (s, env) => { if (env.hover === 'hover' && s.mouse) { await s.mouse(-1, -1); return true; } return false; };
+  const parkEarly = park;
   async function settleArm(s, site, env, only) {
     const roots = only || rootsOf(site);
-    let parked = false;
-    if (env.hover === 'hover' && s.mouse) {
-      const pt = await s.evaluate(findParkPoint, { roots });
-      if (pt) { await s.mouse(pt.x, pt.y); parked = true; }
-    }
-    if (s.front) await s.front();
+    const parked = await park(s, env);
     const { trace } = await s.evaluate(settleInPage, { policy: GATE_POLICY, roots, hoverCapable: env.hover === 'hover' });
     const last = trace[trace.length - 1];
     const outcome = waitTrace(GATE_POLICY, trace);
@@ -149,6 +148,11 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     const s = await load(refEnv, site);
     await parkEarly(s, refEnv); // the declared lists are read with the pointer parked, as every sample is (nav.hitTest header flake)
     await evalReady(s, site);
+    // The declared lists are read from a settled page (Lean Fw.Gate.Settle), as every sample is: a rule that matches only while an
+    // entry animation or a pointer/focus state runs (WebKit run 39077507337: the original nav `opacity` listed in 3 of 4 jobs) must
+    // not decide the list. The union over the timer period still covers a state that never settles. An unsettled wait is logged,
+    // and the scans go on (the list is a union, so it only gains names).
+    await settleArm(s, site, refEnv);
     const scans = [(await evalCollect(s, site, refEnv, null)).parts];
     const timed = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !overlayOf[site][pid]));
     for (let i = 0; i < SCAN_EXTRA; i++) {

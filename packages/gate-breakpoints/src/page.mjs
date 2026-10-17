@@ -152,26 +152,6 @@ export async function waitResize() {
 }
 
 /**
- * A point in the viewport where the pointer is over no probed element or descendant of one (hover cannot change a probed
- * value from there), or null. The gate parks the pointer there in both arms (Fw.Gate.Settle: hero.orbit). Reports; decides
- * nothing. arg: { roots: [selector] }.
- */
-export function findParkPoint(arg) {
-  const probed = new Set();
-  for (const sel of arg.roots) for (const el of Array.from(document.querySelectorAll(sel)).slice(0, 64)) probed.add(el);
-  const w = window.innerWidth, h = window.innerHeight;
-  const xs = [w - 2, 2, Math.round(w / 2), Math.round(w * 0.25), Math.round(w * 0.75)];
-  const ys = [h - 2, 2, Math.round(h / 2), Math.round(h * 0.25), Math.round(h * 0.75)];
-  for (const y of ys) {
-    for (const x of xs) {
-      if (x < 0 || y < 0 || x >= w || y >= h) continue;
-      if (!document.elementsFromPoint(x, y).some((el) => probed.has(el))) return { x, y };
-    }
-  }
-  return null;
-}
-
-/**
  * The gate's settle wait (Fw.Gate.Settle). Runs after load and after each resize, with the pointer parked, before anything is
  * collected. One observation per real requestAnimationFrame (a 250 ms timer only keeps the loop alive if no frame comes; it does
  * not count as a frame): the finite animations and transitions under the probed subtree (`getAnimations`), the real frames
