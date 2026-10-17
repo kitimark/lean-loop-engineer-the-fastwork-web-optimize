@@ -119,3 +119,14 @@ sources:
       - packages/react-reconciler
       - packages/scheduler
       - packages/shared
+
+  - id: ios-webkit-debug-proxy
+    repo: google/ios-webkit-debug-proxy
+    tag: v1.9.2
+    version: Homebrew ios-webkit-debug-proxy 1.9.2_2 (installed by the webkit-sim and sim-speed jobs, runs 39038015877 to 39043591653)
+    sha: 278bf4874e6d3d3599baa90e1c59f7ac48bb8b1b
+    status: CONFIRMED
+    why: WebKit Simulator lane proxy (tab listing, attach); research/notes/2026/10-17-sim-speed.md
+    paths:
+      - src
+      - include
