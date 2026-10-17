@@ -54,3 +54,14 @@ SDK root: `/opt/homebrew/share/android-commandlinetools`.
 - Verification: booted headless, shut down cleanly. `simctl openurl ... about:blank` fails with
   LSApplicationWorkspaceErrorDomain 115 (about: scheme not routable); `openurl https://example.com` succeeds and
   com.apple.mobilesafari is running. Use an https URL for Safari checks.
+
+## 2026-10-17: Lean toolchain manager switched from curl elan to Homebrew elan-init
+- Removed the curl-installed `~/.elan` (2.8 GB) and its PATH lines in `~/.zprofile` and `~/.profile` (done by the
+  user; backups kept as `.bak`).
+- `brew install elan-init` (formula elan-init 4.2.4, bottled). It links `elan`, `lean`, `lake` (and other proxies)
+  into `/opt/homebrew/bin`, so no profile edit is needed. Brew elan also uses `~/.elan` as ELAN_HOME (toolchains).
+- `elan toolchain install leanprover/lean4:v4.35.0` and `elan default leanprover/lean4:v4.35.0`.
+- Verified: `lean --version` = Lean 4.35.0 (arm64-apple-darwin24.6.0, commit eb6cafb); `lake --version` = Lake 5.0.0
+  (Lean 4.35.0); `which elan lean lake` all under `/opt/homebrew/bin`.
+- `lake build` in `research/kickoff/05-lean-sketch`: PASS, 20 jobs, 21 s wall.
+- Disk: `~/.elan` back to 2.8 GB (toolchain), plus the small brew formula.
