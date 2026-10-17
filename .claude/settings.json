@@ -81,6 +81,7 @@
       "mcp__lean-lsp__lean_local_search"
     ],
     "ask": [
+      "Bash(git push origin main)",
       "Bash(git remote add *)",
       "Bash(git config remote.*)",
       "Agent(model:*fable*)",
@@ -91,7 +92,8 @@
       "Edit(/CLAUDE.md)"
     ],
     "deny": [
-      "Bash(git push*main*)",
+      "Bash(git push*:*main*)",
+      "Bash(git push*main *)",
       "Bash(git push*--force*)",
       "Bash(git push -f*)",
       "Bash(git push * -f*)",
