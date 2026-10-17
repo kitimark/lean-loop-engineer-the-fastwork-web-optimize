@@ -318,12 +318,12 @@ def registry : List Premise := [
     engines := both
     testId := "prem.io.async-delivery" },
   { id := "grid.normal-aspect-ratio-no-stretch"
-    statement := r"\text{on a fresh load, a non-replaced grid item with a preferred aspect ratio, a definite width and } \texttt{height:auto} \text{ in a row taller than its ratio height has the same block size under } \texttt{align-self:normal} \text{ and } \texttt{start} \text{ (the ratio height), and fills the row under } \texttt{stretch}"
-    theorems := ["Fw.Gate.AlignEquiv.equivSpec_sound"]
+    statement := r"\text{on a fresh load, in a 300 px grid row: a non-replaced item with a preferred aspect ratio, a definite width and } \texttt{height:auto} \text{ (no min/max) gets its ratio height under } \texttt{align-self:start} \text{ and fills the row under } \texttt{stretch}\text{; a non-replaced block item without an aspect ratio fills the row under } \texttt{normal} \text{ (the } \operatorname{mode} \text{ table). Under } \texttt{normal} \text{ the ratio item is engine-dependent (observed only), hence } \operatorname{mode} = \mathrm{other}"
+    theorems := ["Fw.Gate.AlignEquiv.equivSpec_sound", "Fw.Gate.AlignEquiv.modeOf_normal_ratio"]
     engines := both
     testId := "prem.grid.normal-aspect-ratio-no-stretch" },
   { id := "grid.stretch-fill-equals-start"
-    statement := r"\text{on a fresh load, for a grid item in one auto row: the resolved } \texttt{grid-template-rows} \text{ lists the used row sizes, and when the } \texttt{start}\text{-aligned item fills its row, } \texttt{stretch} \text{ gives the same box (the measurement premise } \operatorname{agrees} \text{)}"
+    statement := r"\text{on a fresh load, for every arm } s \text{ and its used layout } L,\ \operatorname{agrees}(s, L) \text{: the content size respects min/max, the resolved } \texttt{grid-template-rows} \text{ and } \texttt{row-gap} \text{ are the used track sizes and gap, the item's row is one of them, and its measured offset and outer size are its placed box; tested on single-column grids where the } \texttt{start}\text{-aligned item fills its row and } \texttt{stretch} \text{ gives the same box}"
     theorems := ["Fw.Gate.AlignEquiv.equivSpec_sound"]
     engines := both
     testId := "prem.grid.stretch-fill-equals-start" }

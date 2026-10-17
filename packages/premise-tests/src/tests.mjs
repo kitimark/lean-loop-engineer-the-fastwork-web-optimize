@@ -299,17 +299,20 @@ export const TESTS = [
   {
     id: 'prem.grid.normal-aspect-ratio-no-stretch', premise: 'grid.normal-aspect-ratio-no-stretch', page: 'grid.normal-aspect-ratio-no-stretch.html',
     async run({ page }) {
-      // three fresh grids, one per align-self value, each in a 300 px row taller than the ratio box
-      const read = () => page.evaluate(() => ['n', 's', 't'].map((id) => {
-        const r = document.querySelector(`#${id} > .r`).getBoundingClientRect();
+      // fresh grids, each in a 300 px row taller than the ratio box: n/s/t = normal/start/stretch on a ratio box,
+      // m = normal on a block without a ratio. normal on the ratio box is engine-dependent (CI run 39080496538:
+      // Chromium fills the row, WebKit gives the ratio height), so it is observed only (Lean modeOf_normal_ratio).
+      const read = () => page.evaluate(() => ['n', 's', 't', 'm'].map((id) => {
+        const r = document.querySelector(`#${id} > :first-child`).getBoundingClientRect();
         return { w: r.width, h: r.height };
       }));
       const fresh = await read();
-      const [n, s, t] = fresh;
-      const ratioH = n.w * 512 / 640;
-      assert.ok(Math.abs(n.h - ratioH) <= 1 / 64, `normal: ratio height ${ratioH}, got ${n.h}`);
-      assert.equal(n.h, s.h, 'normal and start give the same block size');
+      const [n, s, t, m] = fresh;
+      const ratioH = s.w * 512 / 640;
+      assert.ok(Math.abs(s.h - ratioH) <= 1 / 64, `start: ratio height ${ratioH}, got ${s.h}`);
       assert.equal(t.h, 300, 'stretch fills the 300 px row');
+      assert.equal(m.h, 300, 'normal without an aspect ratio fills the row as stretch does');
+      const normalWithRatio = Math.abs(n.h - 300) <= 1 / 64 ? 'fill' : Math.abs(n.h - ratioH) <= 1 / 64 ? 'content' : 'neither';
       // observed only (the WebKit stale-track question of fix-stagebg-webkit): a width change and back
       const vp = page.viewportSize();
       await page.setViewportSize({ width: vp.width - 100, height: vp.height });
@@ -318,7 +321,7 @@ export const TESTS = [
       await page.setViewportSize(vp);
       await frames(page, 3);
       const after = await read();
-      return { fresh, narrow, after, ratioH };
+      return { normalWithRatio, fresh, narrow, after, ratioH };
     },
   },
   {

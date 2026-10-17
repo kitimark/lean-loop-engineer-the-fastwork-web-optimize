@@ -35,7 +35,7 @@ export function modeOf(s) {
   if (v === 'start' || v === 'flex-start') return 'content';
   if (v === 'normal' && blockContainer(s)) {
     const r = ratioOf(s.aspectRatio);
-    return r === true ? 'content' : r === false ? 'fill' : 'other';
+    return r === false ? 'fill' : 'other'; // with a ratio: Chromium stretches, WebKit does not (Lean modeOf_normal_ratio)
   }
   return 'other';
 }

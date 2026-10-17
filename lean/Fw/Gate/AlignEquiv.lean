@@ -21,14 +21,17 @@ Spec (csswg-drafts@7b4c69e):
 * css-grid-1 §6.2 Grid Item Sizing: `normal` with no preferred aspect ratio (and, if replaced, no natural size) sizes
   as `stretch`; otherwise by the block-level rules for the axis. `stretch` is the stretch-fit size; every other value
   uses fit-content.
+* MEASURED (premise `grid.normal-aspect-ratio-no-stretch`, CI run 39080496538): for a non-replaced item with a
+  preferred aspect ratio, `normal` gives the ratio height in WebKit but stretches to the row in Chromium, so the rule
+  gives that case mode `other` (judged by neither engine's reading).
 * css-sizing-3 §2.1: for block containers the min-content and max-content block sizes are the content block size, so
   fit-content in the block axis is the block-level auto height.
 
 What breaks the rule (the item is then not eligible, or its mode is `other`): auto block margins, a declared non-auto
 height, `baseline` or any value other than normal / stretch / start / flex-start, a writing mode other than
 `horizontal-tb` on the item or its container, absolute positioning, a container that is not a grid, `normal` on a
-box that is not a non-replaced HTML block container, and an `auto` that resolves to a parent `align-items` outside
-those values.
+box that is not a non-replaced HTML block container, `normal` on a box with a preferred aspect ratio (engines differ),
+and an `auto` that resolves to a parent `align-items` outside those values.
 -/
 
 namespace Fw.Gate.AlignEquiv
@@ -64,7 +67,7 @@ declared-style facts read from the matched rules and the inline style (`autoMarg
 (`rectTop`, `rectHeight` of the item, `parentRectTop` of its container). `parent*` and `alignItems`,
 `alignContent`, `rows`, `rowGap` are the container's.
 
-$$s \in \mathrm{String}^{25} \times \mathbb B^{3} \times \mathbb Q^{3}$$
+$$s \in \mathrm{String}^{24} \times \mathbb B^{3} \times \mathbb Q^{3}$$
 
 One arm's view of one item. -/
 structure Side where
@@ -110,7 +113,7 @@ def resolve (s : Side) : String :=
 
 /-- A positive number with nothing after it, in the number grammar of `Fw.Gate.numAt`.
 
-$$\operatorname{pos}(v) \iff \operatorname{numAt}(\operatorname{chars}(v)) = (d, [\,]) \wedge \operatorname{val}(d) > 0$$
+$$\operatorname{pos}(v) \iff \exists d,\ \operatorname{numAt}(\operatorname{chars}(v)) = \mathrm{some}(d, [\,]) \wedge \operatorname{val}(d) > 0$$
 
 A ratio term that is a positive number. -/
 def posNum (v : String) : Bool :=
@@ -121,7 +124,7 @@ def posNum (v : String) : Bool :=
 /-- Whether the computed `aspect-ratio` gives a preferred aspect ratio: `auto` none; `a / b` or `auto a / b` with
 $a, b > 0$ one (the box is non-replaced where it matters, so `auto a / b` uses the ratio); anything else unknown.
 
-$$\operatorname{ratio}(v) = \begin{cases} \mathrm{some}(\mathrm{false}) & v = \texttt{auto} \\ \mathrm{some}(\mathrm{true}) & v' = a \mathbin{\texttt{" / "}} b,\ \operatorname{pos}(a),\ \operatorname{pos}(b) \\ \bot & \text{otherwise} \end{cases},\quad v' = \begin{cases} v \text{ without its first 5 chars} & v \text{ starts with } \texttt{"auto "} \\ v & \text{otherwise} \end{cases}$$
+$$\operatorname{ratio}(v) = \begin{cases} \mathrm{some}(\mathrm{false}) & v = \texttt{auto} \\ \mathrm{some}(\mathrm{true}) & \operatorname{split}_{\texttt{" / "}}(v') = [a, b] \text{ (exactly one separator)},\ \operatorname{pos}(a),\ \operatorname{pos}(b) \\ \bot & \text{otherwise} \end{cases},\quad v' = \begin{cases} v \text{ without its first 5 chars} & v \text{ starts with } \texttt{"auto "} \\ v & \text{otherwise} \end{cases}$$
 
 (a degenerate ratio such as `0 / 1` is unknown). Tri-state, so an unreadable value never picks a mode. -/
 def ratioOf (v : String) : Option Bool :=
@@ -151,9 +154,10 @@ def blockContainer (s : Side) : Bool :=
 
 /-- The mode of the resolved value (css-align-3 §6.1, §4.1, §6.2.5; css-grid-1 §6.2).
 
-$$\operatorname{mode}(s) = \begin{cases} \mathrm{fill} & v = \texttt{stretch} \\ \mathrm{content} & v \in \{\texttt{start}, \texttt{flex-start}\} \\ \mathrm{content} & v = \texttt{normal} \wedge \operatorname{blockC}(s) \wedge \operatorname{ratio}(s.\mathrm{aspectRatio}) = \mathrm{some}(\mathrm{true}) \\ \mathrm{fill} & v = \texttt{normal} \wedge \operatorname{blockC}(s) \wedge \operatorname{ratio}(s.\mathrm{aspectRatio}) = \mathrm{some}(\mathrm{false}) \\ \mathrm{other} & \text{otherwise} \end{cases},\quad v = \operatorname{resolve}(s)$$
+$$\operatorname{mode}(s) = \begin{cases} \mathrm{fill} & v = \texttt{stretch} \\ \mathrm{content} & v \in \{\texttt{start}, \texttt{flex-start}\} \\ \mathrm{fill} & v = \texttt{normal} \wedge \operatorname{blockC}(s) \wedge \operatorname{ratio}(s.\mathrm{aspectRatio}) = \mathrm{some}(\mathrm{false}) \\ \mathrm{other} & \text{otherwise} \end{cases},\quad v = \operatorname{resolve}(s)$$
 
-How the value sizes and places the item, or `other`. -/
+How the value sizes and places the item, or `other` (also for `normal` with a preferred aspect ratio, where the
+engines differ). -/
 def modeOf (s : Side) : Mode :=
   match resolve s with
   | "stretch" => .fill
@@ -162,11 +166,23 @@ def modeOf (s : Side) : Mode :=
   | "normal" =>
     if blockContainer s then
       match ratioOf s.aspectRatio with
-      | some true => .content
+      | some true => .other
       | some false => .fill
       | none => .other
     else .other
   | _ => .other
+
+/-- `normal` on a box with a preferred aspect ratio is never judged: Chromium stretches it, WebKit does not
+(MEASURED, premise `grid.normal-aspect-ratio-no-stretch`).
+
+$$\forall s,\quad \operatorname{resolve}(s) = \texttt{normal} \wedge \operatorname{ratio}(s.\mathrm{aspectRatio}) = \mathrm{some}(\mathrm{true}) \implies \operatorname{mode}(s) = \mathrm{other}$$
+
+An engine-dependent size gives no mode. -/
+theorem modeOf_normal_ratio (s : Side) (hn : resolve s = "normal") (hr : ratioOf s.aspectRatio = some true) :
+    modeOf s = .other := by
+  unfold modeOf
+  rw [hn]
+  split <;> simp_all
 
 /-- The item is an in-flow grid item in a horizontal writing mode, with no auto block margin and no declared
 non-auto height.
@@ -185,7 +201,7 @@ def eligible (s : Side) : Bool :=
 
 /-- A CSS pixel length `<number>px`.
 
-$$\operatorname{px}(v) = \begin{cases} \operatorname{val}(d) & \operatorname{numAt}(\operatorname{chars}(v)) = (d, [\texttt{p}, \texttt{x}]) \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{px}(v) = \begin{cases} \operatorname{val}(d) & \operatorname{numAt}(\operatorname{chars}(v)) = \mathrm{some}(d, [\texttt{p}, \texttt{x}]) \\ \bot & \text{otherwise} \end{cases}$$
 
 Reads a resolved length. -/
 def px (v : String) : Option Rat :=
@@ -225,7 +241,7 @@ def gapOf (s : Side) : Option Rat :=
 
 $$\operatorname{bh}(s) = \begin{cases} \operatorname{px}(s.\mathrm{height}) & s.\mathrm{boxSizing} = \texttt{border-box} \\ \operatorname{px}(s.\mathrm{height}) + \operatorname{px}(s.\mathrm{paddingTop}) + \operatorname{px}(s.\mathrm{paddingBottom}) + \operatorname{px}(s.\mathrm{borderTop}) + \operatorname{px}(s.\mathrm{borderBottom}) & \text{otherwise} \end{cases}$$
 
-($\bot$ if any term is $\bot$). Layout height, free of transforms. -/
+$\operatorname{bh}(s) = \bot$ iff $\operatorname{px}(s.\mathrm{height}) = \bot$ (under `border-box`; the other four are not read), or any of the five $\operatorname{px}$ terms is $\bot$ (otherwise). Layout height, free of transforms. -/
 def borderH (s : Side) : Option Rat := do
   let h ← px s.height
   if s.boxSizing == "border-box" then some h
@@ -238,7 +254,7 @@ def borderH (s : Side) : Option Rat := do
 
 /-- The item's outer (margin-box) block size.
 
-$$\operatorname{outer}(s) = \operatorname{bh}(s) + \operatorname{px}(s.\mathrm{marginTop}) + \operatorname{px}(s.\mathrm{marginBottom})\quad (\bot \text{ if any term is } \bot)$$
+$$\operatorname{outer}(s) = \operatorname{bh}(s) + \operatorname{px}(s.\mathrm{marginTop}) + \operatorname{px}(s.\mathrm{marginBottom})\quad (\bot \text{ if } \operatorname{bh}(s) = \bot \text{ or either } \operatorname{px} \text{ is } \bot)$$
 
 What the alignment container holds. -/
 def outerOf (s : Side) : Option Rat := do
@@ -276,7 +292,7 @@ def tolFill : Rat := 1 / 16
 
 /-- The indices whose start is within $\tau_f$ of an offset.
 
-$$\operatorname{at}(S, x) = [\,k \mid k \in [0, |S|),\ |S_k - x| \le \tau_f\,]$$
+$$\operatorname{at}(S, x) = [\,k : 0 \le k < |S|,\ |S_k - x| \le \tau_f\,] \text{ (the list of such } k \text{ in increasing order; no } k \ge |S| \text{)}$$
 
 Rows the measured offset could belong to. -/
 def matchesAt (ss : List Rat) (x : Rat) : List Nat :=
@@ -307,7 +323,7 @@ def spanOne (s : Side) : Bool :=
 is unscaled, exactly one row starts at its offset, and that row's size is its outer size (each within $\tau_f$).
 
 $$\operatorname{fills}(s) \iff s.\mathrm{alignContent} \in \{\texttt{normal}, \texttt{stretch}, \texttt{start}, \texttt{flex-start}\} \wedge \operatorname{span1}(s) \wedge T = \operatorname{tracks}(s.\mathrm{rows}) \ne \bot \wedge g = \operatorname{gap}(s) \ne \bot \wedge b = \operatorname{bh}(s) \ne \bot \wedge o = \operatorname{outer}(s) \ne \bot \wedge x = \operatorname{off}(s) \ne \bot$$
-$$\wedge\ b > 0 \wedge |s.\mathrm{rectHeight} - b| \le \tau_f \wedge \operatorname{at}(\operatorname{starts}(T, g), x) = [i] \wedge T_i \text{ exists} \wedge |T_i - o| \le \tau_f$$
+$$\wedge\ b > 0 \wedge |s.\mathrm{rectHeight} - b| \le \tau_f \wedge \operatorname{at}(\operatorname{starts}(T, g), x) = [i] \text{ (exactly one index)} \wedge i < |T| \wedge |T_i - o| \le \tau_f$$
 
 So stretching it would change nothing. -/
 def contentFill (s : Side) : Bool :=
@@ -418,8 +434,10 @@ def dist (a b : Rat) : Rat := if a ≤ b then b - a else a - b
 /-- The measurement premise for one arm: its layout's content size is allowed by min/max, its tracks and gap are the
 parsed ones, its area is one of those rows, and the measured offset and outer size are its placed box.
 
-$$\operatorname{agrees}(s, L) \iff L.\mathit{lo} \le L.C \wedge (\forall h,\ L.\mathit{hi} = h \implies L.C \le h) \wedge \exists T, g, j,\ \operatorname{tracks}(s.\mathrm{rows}) = T \wedge \operatorname{gap}(s) = g \wedge T_j = L.A \wedge \operatorname{starts}(T, g)_j = L.\mathit{start}$$
-$$\wedge\ \forall p,\ \operatorname{place}(L, \operatorname{mode}(s)) = p \implies \operatorname{off}(s) = L.\mathit{start} + p_1 \wedge \operatorname{outer}(s) = p_2$$
+$$\operatorname{agrees}(s, L) \iff L.\mathit{lo} \le L.C \wedge (\forall h,\ L.\mathit{hi} = h \implies L.C \le h) \wedge \exists T, g, j,\ \big(\operatorname{tracks}(s.\mathrm{rows}) = \mathrm{some}(T) \wedge \operatorname{gap}(s) = \mathrm{some}(g) \wedge j < |T| \wedge T_j = L.A \wedge \operatorname{starts}(T, g)_j = L.\mathit{start}$$
+$$\wedge\ \forall p,\ \operatorname{place}(L, \operatorname{mode}(s)) = \mathrm{some}(p) \implies \operatorname{off}(s) = \mathrm{some}(L.\mathit{start} + p_1) \wedge \operatorname{outer}(s) = \mathrm{some}(p_2)\big)$$
+
+When $\operatorname{mode}(s) = \mathrm{other}$, $\operatorname{place} = \bot$ and the last clause holds vacuously.
 
 Rects and resolved values report the layout (registered premise `grid.stretch-fill-equals-start`). -/
 def Agrees (s : Side) (L : Layout) : Prop :=
@@ -445,7 +463,7 @@ theorem clamp_dist (lo : Rat) (hi : Option Rat) (a c t : Rat) (hlo : lo ≤ c) (
 
 /-- If row $j$ starts exactly at the offset and the offset matches only row $i$, then $i = j$.
 
-$$\forall S, x, i, j,\quad S_j = x \wedge \operatorname{at}(S, x) = [i] \implies i = j$$
+$$\forall S, x, i, j,\quad j < |S| \wedge S_j = x \wedge \operatorname{at}(S, x) = [i] \implies i = j$$
 
 The measured offset identifies the row. -/
 theorem matchesAt_unique (ss : List Rat) (x : Rat) (i j : Nat) (hj : ss[j]? = some x)
@@ -464,9 +482,9 @@ theorem matchesAt_unique (ss : List Rat) (x : Rat) (i j : Nat) (hj : ss[j]? = so
 
 /-- Soundness: when the rule judges two values equivalent, on one of the two arms (the measured content arm, or
 either when the modes agree) placing the item with the original's mode or with the rewrite's mode gives the same
-offset and outer sizes within $\tau_f$, for every layout that agrees with that arm's facts; neither mode is `other`.
+offset exactly ($p_1 = q_1$) and outer sizes within $\tau_f$ ($\operatorname{dist}(p_2, q_2) \le \tau_f$), for every layout that agrees with that arm's facts; neither mode is `other`.
 
-$$\forall o, r,\quad \operatorname{eqv}(o, r) \implies \exists X \in \{o, r\},\ \forall L,\ \operatorname{agrees}(X, L) \implies \exists p, q,\ \operatorname{place}(L, \operatorname{mode}(o)) = p \wedge \operatorname{place}(L, \operatorname{mode}(r)) = q \wedge p_1 = q_1 \wedge \operatorname{dist}(p_2, q_2) \le \tau_f$$
+$$\forall o, r,\quad \operatorname{eqv}(o, r) \implies \exists X \in \{o, r\},\ \forall L,\ \operatorname{agrees}(X, L) \implies \exists p, q,\ \operatorname{place}(L, \operatorname{mode}(o)) = \mathrm{some}(p) \wedge \operatorname{place}(L, \operatorname{mode}(r)) = \mathrm{some}(q) \wedge p_1 = q_1 \wedge \operatorname{dist}(p_2, q_2) \le \tau_f$$
 
 The two values give the same used alignment. -/
 theorem equivSpec_sound (o r : Side) (h : equivSpec o r = true) :
@@ -595,7 +613,9 @@ theorem geometry_still_compared (rs : RoleSpec) (cmp info : List String) (refO r
 /-- The platform stage at width ≤ 640 on the rewrite arm: `align-self: start`, container `align-items: stretch`,
 an aspect-ratio box of 300 px in a 300 px first row.
 
-$$s_0 = \text{the stage facts}$$
+$$s_0 = (\mathrm{alignSelf} = \texttt{start},\ \mathrm{alignItems} = \texttt{stretch},\ \mathrm{display} = \texttt{block},\ \mathrm{aspectRatio} = \texttt{640 / 512},\ \mathrm{parentDisplay} = \texttt{grid},\ \mathrm{rows} = \texttt{300px 52.1875px},\ \mathrm{height} = \texttt{300px},\ \mathrm{rectTop} = \mathrm{parentRectTop} = 100,\ \mathrm{rectHeight} = 300,\ \dots)$$
+
+Every field is listed in the definition below; all paddings, borders and margins are `0px`.
 
 The base case the golden vectors vary. -/
 def base : Side where
@@ -688,7 +708,9 @@ def cases : List (String × Side × Side) := [
 
 /-- An exact decimal JSON number (the golden values are multiples of $10^{-6}$).
 
-$$\operatorname{dec}(x) = \tfrac{x_{\mathrm{num}} \cdot (10^6 / x_{\mathrm{den}})}{10^6}$$
+$$\operatorname{dec}(x) = \tfrac{x_{\mathrm{num}} \cdot \lfloor 10^6 / x_{\mathrm{den}} \rfloor}{10^6}$$
+
+Exact only when $x_{\mathrm{den}} \mid 10^6$ (true for every golden value); otherwise the printed value is wrong, not rounded.
 
 Golden numbers print as JavaScript reads them. -/
 def ratJson (x : Rat) : Json :=
@@ -750,8 +772,8 @@ private def eqvOf (n : String) : Option Bool :=
 
 #guard eqvOf "stage-stretch-vs-start-fills" == some true
 #guard eqvOf "stage-start-does-not-fill" == some false
-#guard eqvOf "auto-normal-ratio-vs-start" == some true
-#guard eqvOf "auto-normal-ratio-auto-prefix" == some true
+#guard eqvOf "auto-normal-ratio-vs-start" == some false
+#guard eqvOf "auto-normal-ratio-auto-prefix" == some false
 #guard eqvOf "normal-no-ratio-vs-start-fills" == some true
 #guard eqvOf "normal-no-ratio-vs-start-short" == some false
 #guard eqvOf "normal-degenerate-ratio" == some false

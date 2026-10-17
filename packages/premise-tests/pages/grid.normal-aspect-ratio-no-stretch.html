@@ -9,7 +9,11 @@
   #n > .r { align-self: normal }
   #s > .r { align-self: start }
   #t > .r { align-self: stretch }
+  .p { align-self: normal; height: auto; background: #888 }
+  .p > i { display: block; height: 10px }
 </style>
 <div class="g" id="n"><div class="r"></div><div class="tall"></div></div>
 <div class="g" id="s"><div class="r"></div><div class="tall"></div></div>
 <div class="g" id="t"><div class="r"></div><div class="tall"></div></div>
+<!-- m: normal on a block item without an aspect ratio (the rule's normal = fill branch) -->
+<div class="g" id="m"><div class="p"><i></i></div><div class="tall"></div></div>
