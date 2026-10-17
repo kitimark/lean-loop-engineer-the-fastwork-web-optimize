@@ -9,11 +9,14 @@ import type { Store } from "../store.ts";
 
 export type DrainResult = { accepted: number; duplicates: number; invalid: number; retry: number; alerts: number };
 
-/** Hook events that need a human or signal a stopped agent; everything else is an observation only. */
+/** Hook events that need a human or signal a stopped agent; everything else is an observation only.
+ *  The lead's own Notification (no agent_id) is not an alert: its prompt is already in front of the user in the
+ *  terminal. TS STAND-IN until task alert-steps moves this rule to Lean. */
 export function alertFor(r: ObsRecord, key: string): Command | null {
+  if (r.hook_event_name === "Notification" && r.agent_id === null) return null;
   const who = (r.agent_type ?? "main").slice(0, 60);
-  const title = r.hook_event_name === "StopFailure" ? `Agent ${who} stopped on an API failure`
-    : r.hook_event_name === "Notification" ? `Agent ${who} needs input` : null;
+  const title = r.hook_event_name === "StopFailure" ? `Agent ${who} stopped on an API failure; the lead restarts it from its handoff`
+    : r.hook_event_name === "Notification" ? `Agent ${who} waits for you in the Claude Code terminal: answer its prompt there, then press Done` : null;
   if (!title) return null;
   return { type: "step.post", key: `alert:${key}`, actor: "script", step: `alert-${createHash("sha256").update(key).digest("hex").slice(0, 12)}`,
     card: null, title, kind: "action", options: null };

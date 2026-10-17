@@ -83,6 +83,7 @@ describe("spool drain", () => {
   it("only StopFailure and Notification make alerts", () => {
     expect(alertFor(rec() as never, "k")).toBeNull();
     expect(alertFor(rec({ hook_event_name: "Notification" }) as never, "k")?.type).toBe("step.post");
+    expect(alertFor(rec({ hook_event_name: "Notification", agent_id: null, agent_type: null }) as never, "k")).toBeNull();
   });
   it("summarize ignores non-tool events", () => {
     expect(summarize([{ ...rec(), hook_event_name: "SubagentStart", key: "k" } as never])).toEqual([]);
