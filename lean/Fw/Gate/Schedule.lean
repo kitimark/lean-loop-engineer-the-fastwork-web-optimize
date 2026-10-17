@@ -331,6 +331,130 @@ theorem graham_runs (m : Nat) (hm : 0 < m) (r : Nat) (ds : List Nat) :
   have := Nat.mul_le_mul_left (m - 1) (lmax_copies_le r ds)
   omega
 
+/-! ### The lower bounds: work over runners, and the longest job -/
+
+/-- The total of a list is at most its length times its maximum.
+
+$$\textstyle\sum L \le |L| \cdot \max L$$
+-/
+theorem sum_le_len_mul_lmax (l : List Nat) : l.sum ≤ l.length * lmax l := by
+  induction l with
+  | nil => simp [lmax]
+  | cons x xs ih =>
+    simp only [List.sum_cons, List.length_cons, lmax]
+    have h1 : xs.length * lmax xs ≤ xs.length * max x (lmax xs) := Nat.mul_le_mul_left _ (Nat.le_max_right _ _)
+    have h2 : x ≤ max x (lmax xs) := Nat.le_max_left _ _
+    rw [Nat.succ_mul]
+    omega
+
+/-- Scheduling keeps the number of runners.
+
+$$L \ne [\,] \Rightarrow |\operatorname{sched}(L, ds)| = |L|$$
+-/
+theorem sched_length : ∀ (ds l : List Nat), l ≠ [] → (sched l ds).length = l.length := by
+  intro ds
+  induction ds with
+  | nil => intro l _; rfl
+  | cons d ds ih =>
+    intro l hl
+    have hne : place l d ≠ [] := by simp [place]
+    simp only [sched]
+    rw [ih _ hne, place_length l d hl]
+
+/-- Scheduling adds the jobs' total to the load.
+
+$$L \ne [\,] \Rightarrow \textstyle\sum \operatorname{sched}(L, ds) = \sum L + \sum ds$$
+-/
+theorem sched_sum : ∀ (ds l : List Nat), l ≠ [] → (sched l ds).sum = l.sum + ds.sum := by
+  intro ds
+  induction ds with
+  | nil => intro l _; simp [sched]
+  | cons d ds ih =>
+    intro l hl
+    have hne : place l d ≠ [] := by simp [place]
+    simp only [sched, List.sum_cons]
+    rw [ih _ hne, place_sum l d hl]; omega
+
+/-- **Work lower bound.** $m$ runners cannot finish $\sum d_j$ of work in less than $\sum d_j / m$:
+
+$$\sum_j d_j \le m \cdot C_{\max}(m, ds)$$
+-/
+theorem sum_le_mul_makespan (m : Nat) (hm : 0 < m) (ds : List Nat) : ds.sum ≤ m * makespan m ds := by
+  have hne : List.replicate m 0 ≠ [] := by
+    intro h; have := congrArg List.length h; simp at this; omega
+  have h1 := sched_sum ds _ hne
+  have h2 := sched_length ds _ hne
+  have h3 := sum_le_len_mul_lmax (sched (List.replicate m 0) ds)
+  rw [h2] at h3
+  simp only [makespan]
+  simp at h1 h2
+  rw [h1] at h3
+  simpa using h3
+
+/-- A member of a list is at most the maximum of the list with it removed, or is that member.
+
+$$a \in L \Rightarrow \max L \le \max(a, \max(L \setminus \{a\}))$$
+-/
+theorem lmax_le_erase (a : Nat) (l : List Nat) (h : a ∈ l) : lmax l ≤ max a (lmax (l.erase a)) := by
+  induction l with
+  | nil => simp at h
+  | cons x xs ih =>
+    by_cases hx : x = a
+    · subst hx; simp [List.erase_cons_head, lmax]
+    · have hxs : a ∈ xs := by
+        rcases List.mem_cons.1 h with rfl | h'
+        · exact absurd rfl hx
+        · exact h'
+      have : (x :: xs).erase a = x :: xs.erase a := by simp [hx]
+      rw [this]; simp only [lmax]
+      have := ih hxs
+      omega
+
+/-- Placing a job never lowers the maximum load.
+
+$$\max L \le \max \operatorname{place}(L, d)$$
+-/
+theorem lmax_le_place (l : List Nat) (d : Nat) : lmax l ≤ lmax (place l d) := by
+  by_cases hl : l = []
+  · subst hl; simp [lmax]
+  · have h1 := lmax_le_erase (pickMin l) l (pickMin_mem hl)
+    simp only [place, lmax]
+    omega
+
+/-- Scheduling never lowers the maximum load.
+
+$$\max L \le \max \operatorname{sched}(L, ds)$$
+-/
+theorem lmax_le_sched : ∀ (ds l : List Nat), lmax l ≤ lmax (sched l ds) := by
+  intro ds
+  induction ds with
+  | nil => intro l; exact Nat.le_refl _
+  | cons d ds ih => intro l; exact Nat.le_trans (lmax_le_place l d) (ih _)
+
+/-- Every job ends on some runner, so the finish time is at least each job.
+
+$$d \in ds \Rightarrow d \le \max \operatorname{sched}(L, ds)$$
+-/
+theorem mem_le_lmax_sched : ∀ (ds l : List Nat) (d : Nat), d ∈ ds → d ≤ lmax (sched l ds) := by
+  intro ds
+  induction ds with
+  | nil => intro l d h; simp at h
+  | cons x ds ih =>
+    intro l d h
+    simp only [sched]
+    rcases List.mem_cons.1 h with rfl | h'
+    · have : d ≤ lmax (place l d) := by
+        simp only [place, lmax]; omega
+      exact Nat.le_trans this (lmax_le_sched ds _)
+    · exact ih _ d h'
+
+/-- **Longest-job lower bound.** No job finishes before it has run:
+
+$$d \in ds \Rightarrow d \le C_{\max}(m, ds)$$
+-/
+theorem le_makespan (m : Nat) (ds : List Nat) (d : Nat) (h : d ∈ ds) : d ≤ makespan m ds :=
+  mem_le_lmax_sched ds _ d h
+
 
 /-! ## 2. The job split of one gate run -/
 
@@ -737,5 +861,127 @@ $$P_{\text{reduced}}: d_{\text{desktop}} = \lfloor d \cdot 35 / 57 \rfloor\ (150
 def noteReduced : Params where
   chromium := { noteCached.chromium with desktop := 245000 * 35 / 57 }
   webkit := { noteCached.webkit with desktop := 191000 * 35 / 57 }
+
+/-! ## 4. Wall time on $k$ free runners, and the fixed jobs around the gate -/
+
+/-- The wall time of one gate run when $k$ runners are free for it (the rest of the 20 are held by other runs),
+sharing them with $r - 1$ other runs of the same split: the job before the gate (`pre`), the gate jobs
+queued on $k$ runners, and the job after (`post`).
+
+$$W(\mathrm{pre}, \mathrm{post}, k, r, ds) = \mathrm{pre} + C_{\max}(k, \operatorname{copies}(r, ds)) + \mathrm{post}$$
+-/
+def wall (pre post k r : Nat) (ds : List Nat) : Nat := pre + makespan k (copies r ds) + post
+
+/-- **Wall time is at least the chain and at least the work over the runners.** With $k \ge 1$ free runners and
+$r \ge 1$ runs, for every gate job $d$:
+
+$$\mathrm{pre} + d + \mathrm{post} \le W \qquad\text{and}\qquad r\sum_j d_j + k(\mathrm{pre} + \mathrm{post}) \le k\,W$$
+
+that is $W \ge \max(\text{chain},\ \text{work}/k)$ where the chain is the longest single path
+$\mathrm{pre} + d + \mathrm{post}$ and the work is the gate jobs' total.
+-/
+theorem wall_lower (pre post k : Nat) (hk : 0 < k) (r : Nat) (hr : 0 < r) (ds : List Nat) :
+    (∀ d ∈ ds, pre + d + post ≤ wall pre post k r ds) ∧
+    r * ds.sum + k * (pre + post) ≤ k * wall pre post k r ds := by
+  refine ⟨fun d hd => ?_, ?_⟩
+  · obtain ⟨r', rfl⟩ : ∃ r', r = r' + 1 := ⟨r - 1, by omega⟩
+    have : d ∈ copies (r' + 1) ds := by simp only [copies]; exact List.mem_append_left _ hd
+    have := le_makespan k _ d this
+    simp only [wall]; omega
+  · have := sum_le_mul_makespan k hk (copies r ds)
+    rw [sum_copies] at this
+    simp only [wall, Nat.mul_add]
+    omega
+
+/-- **Wall time is at most the chain plus Graham's term.** With $k \ge 1$ free runners and $r$ runs,
+
+$$k\,W \le k(\mathrm{pre} + \mathrm{post}) + r\sum_j d_j + (k-1)\max_j d_j .$$
+-/
+theorem wall_upper (pre post k : Nat) (hk : 0 < k) (r : Nat) (ds : List Nat) :
+    k * wall pre post k r ds ≤ k * (pre + post) + (r * ds.sum + (k - 1) * lmax ds) := by
+  have := graham_runs k hk r ds
+  simp only [wall, Nat.mul_add]
+  omega
+
+/-- The fixed jobs around the gate, in milliseconds: the plan job, the site build, the runner setup of a merge
+job, the build of `fwcore` and the `summary` of one engine (`.github/workflows/breakpoint-gate.yml`).
+
+$$F = (\text{plan},\ \text{site},\ \text{mergeSetup},\ \text{fwcore},\ \text{summary})$$
+-/
+structure Fixed where
+  plan : Nat
+  site : Nat
+  mergeSetup : Nat
+  fwcore : Nat
+  summary : Nat
+
+/-- Before: a plan job, a site job and one merge job per engine, each building `fwcore`.
+
+$$\mathrm{old}(F) = [\text{plan},\ \text{site},\ s + f + u,\ s + f + u]$$
+-/
+def Fixed.oldJobs (F : Fixed) : List Nat :=
+  [F.plan, F.site, F.mergeSetup + F.fwcore + F.summary, F.mergeSetup + F.fwcore + F.summary]
+
+/-- After: the plan runs inside the site job (it needs only the repository), and one merge job builds `fwcore`
+once and summarizes both engines.
+
+$$\mathrm{new}(F) = [\text{plan} + \text{site},\ s + f + 2u]$$
+-/
+def Fixed.newJobs (F : Fixed) : List Nat :=
+  [F.plan + F.site, F.mergeSetup + F.fwcore + 2 * F.summary]
+
+/-- The wall time with no queue, before: plan and site run side by side, then the gate, then one merge job.
+
+$$T_{\text{old}} = \max(\text{plan}, \text{site}) + G + (s + f + u)$$
+-/
+def Fixed.oldChain (F : Fixed) (g : Nat) : Nat :=
+  max F.plan F.site + g + (F.mergeSetup + F.fwcore + F.summary)
+
+/-- The wall time with no queue, after: site job (with the plan), the gate, one merge job for both engines.
+
+$$T_{\text{new}} = \text{plan} + \text{site} + G + (s + f + 2u)$$
+-/
+def Fixed.newChain (F : Fixed) (g : Nat) : Nat :=
+  F.plan + F.site + g + (F.mergeSetup + F.fwcore + 2 * F.summary)
+
+/-- **The new layout starts two jobs fewer** (each takes a runner of the shared 20):
+
+$$|\mathrm{new}(F)| + 2 = |\mathrm{old}(F)|$$
+-/
+theorem Fixed.two_fewer_jobs (F : Fixed) : F.newJobs.length + 2 = F.oldJobs.length := by
+  simp [Fixed.newJobs, Fixed.oldJobs]
+
+/-- **The new layout does less runner work, by one setup and one `fwcore` build** (the plan's time moves into
+the site job, the second `summary` into the single merge job):
+
+$$\sum \mathrm{old}(F) = \sum \mathrm{new}(F) + (s + f)$$
+-/
+theorem Fixed.work_saved (F : Fixed) : F.oldJobs.sum = F.newJobs.sum + (F.mergeSetup + F.fwcore) := by
+  simp only [Fixed.oldJobs, Fixed.newJobs, List.sum_cons, List.sum_nil]
+  omega
+
+/-- **The no-queue wall time grows by at most the plan and one `summary`:**
+
+$$T_{\text{new}} \le T_{\text{old}} + \text{plan} + u$$
+-/
+theorem Fixed.chain_cost (F : Fixed) (g : Nat) : F.newChain g ≤ F.oldChain g + F.plan + F.summary := by
+  simp only [Fixed.newChain, Fixed.oldChain]
+  omega
+
+/-- Fixed-job times of runs R1 to R3 of `gate-speed-ci`: plan 5 s, site 40 s, merge setup 20 s, `fwcore` build
+36 s, `summary` 13 s (MEASURED from the job timings in `docs/team/handoffs/gate-speed-ci.md`).
+
+$$F_{\text{ci}} = (5, 40, 20, 36, 13)\ \text{s}$$
+-/
+def noteFixed : Fixed := ⟨5000, 40000, 20000, 36000, 13000⟩
+
+/-- On the measured times the new layout uses two fewer jobs and 56 s less runner time.
+
+$$|\mathrm{new}| + 2 = |\mathrm{old}| \ \wedge\ \textstyle\sum \mathrm{old} = \sum \mathrm{new} + 56\,\mathrm{s}$$
+-/
+theorem noteFixed_savings : noteFixed.newJobs.length + 2 = noteFixed.oldJobs.length ∧
+    noteFixed.oldJobs.sum = noteFixed.newJobs.sum + 56000 := by
+  refine ⟨Fixed.two_fewer_jobs _, ?_⟩
+  rw [Fixed.work_saved]; rfl
 
 end Fw.Gate.Schedule

@@ -2,12 +2,12 @@
 // lean/Fw/Gate/ScheduleGolden.lean from Fw.Gate.Schedule.choose). Glue only: how many jobs there are, how many probes each
 // takes and which whole sweeps ride on which job is Lean's decision; this script deals the probe ids by matrix order and
 // verifies that the result runs every probe and every sweep exactly once.
-//   node .github/scripts/gate-jobs.mjs [--params cached] [--runs 2] [--engines both|chromium|playwright-webkit]
+//   node .github/scripts/gate-jobs.mjs [--params cached] [--runs 2] [--free 8] [--engines both|chromium|playwright-webkit]
 //                                      [--parts id,...] [--golden <file>] [--gen <path>]
 // Prints one JSON object {"include":[{"engine","job","probes","sweeps"}...],"engines":[...]} on stdout: `probes` goes to
 // `cli.mjs run --probes`, `sweeps` to `--sweeps` ("none" = nothing). Progress goes to stderr.
-// --params / --runs choose the golden line: the time set (base, cached, reduced) and the number r of runs sharing the
-// 20-job pool. --parts narrows to the Lean scope of those parts (spec.scopeFor), as gate-shards.mjs did: the probes of the
+// --params / --runs / --free choose the golden line: the time set (base, cached, reduced), the number r of runs sharing the
+// pool and the number m of runners free for them (4, 8, 12 or 20 of the account's 20). --parts narrows to the Lean scope of those parts (spec.scopeFor), as gate-shards.mjs did: the probes of the
 // scope are dealt over fewer probe jobs (a job keeps the full run's probe count, ceil(124 / k)), the sweeps outside the scope
 // are dropped, and a job left with nothing is not started.
 import { readFileSync } from 'node:fs';
@@ -20,6 +20,7 @@ const die = (m, code = 1) => { console.error(`gate-jobs: ${m}`); process.exit(co
 
 const paramsName = arg('params', 'cached');
 const runs = Number(arg('runs', '2'));
+const free = Number(arg('free', '8'));
 const enginesArg = arg('engines', 'both');
 const goldenPath = resolve(arg('golden', 'packages/contracts/golden/gate/schedule.jsonl'));
 const genPath = resolve(arg('gen', 'apps/site/src/breakpoints.gen.json'));
@@ -28,8 +29,8 @@ const engineList = { both: ['chromium', 'playwright-webkit'], chromium: ['chromi
 if (!engineList) die(`--engines: bad value ${enginesArg}`, 2);
 
 const golden = readFileSync(goldenPath, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
-const line = golden.find((g) => g.params === paramsName && g.r === runs);
-if (!line) die(`no golden line for params=${paramsName} r=${runs}`, 2);
+const line = golden.find((g) => g.params === paramsName && g.r === runs && g.m === free);
+if (!line) die(`no golden line for params=${paramsName} r=${runs} free=${free}`, 2);
 const chosen = line.chosen;
 if (!chosen.grahamOk) die('the golden line does not satisfy the Graham bound');
 
@@ -106,4 +107,4 @@ for (const eng of engineList) {
 }
 
 process.stdout.write(JSON.stringify({ include, engines: engineList }) + '\n');
-console.error(`${paramsName} r=${runs}: ${include.length} jobs: ${include.map((j) => `${j.engine}/${j.job}=${j.probes === 'none' ? 0 : j.probes.split(',').length}p+${j.sweeps === 'none' ? 0 : j.sweeps.split(',').length}s`).join(' ')}`);
+console.error(`${paramsName} r=${runs} free=${free}: ${include.length} jobs: ${include.map((j) => `${j.engine}/${j.job}=${j.probes === 'none' ? 0 : j.probes.split(',').length}p+${j.sweeps === 'none' ? 0 : j.sweeps.split(',').length}s`).join(' ')}`);

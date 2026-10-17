@@ -16,7 +16,7 @@ const cacheG = readFileSync(join(root, 'packages/contracts/golden/ops/cache.json
 const node = (script, args) => spawnSync(process.execPath, [join(root, '.github/scripts', script), ...args], { cwd: root, encoding: 'utf8' });
 
 test('golden schedule: every line is a valid, bounded and never-worse split', () => {
-  assert.equal(sched.length, 9);
+  assert.equal(sched.length, 36);
   for (const g of sched) {
     for (const side of [g.chosen, g.current]) {
       const durs = side.jobs.map((j) => j.ms);
@@ -24,6 +24,8 @@ test('golden schedule: every line is a valid, bounded and never-worse split', ()
       assert.equal(side.max, Math.max(...durs), g.name);
       assert.equal(side.bound, g.r * side.sum + (g.m - 1) * side.max, `${g.name}: Graham numerator`);
       assert.ok(g.m * side.makespan <= side.bound, `${g.name}: m*makespan <= bound`);
+      assert.equal(side.wallOk, true, `${g.name}: wall between its lower and upper bound`);
+      assert.equal(side.wall, g.fixed.pre + side.makespan + g.fixed.post, `${g.name}: wall = pre + makespan + post`);
       for (const eng of ['chromium', 'playwright-webkit']) {
         const js = side.jobs.filter((j) => j.engine === eng);
         assert.equal(js.reduce((a, j) => a + j.probes, 0), 124, `${g.name} ${eng}: 124 probes`);
@@ -42,7 +44,7 @@ test('golden schedule: every line is a valid, bounded and never-worse split', ()
 
 test('gate-jobs: every golden line gives a matrix that covers all probes and sweeps once', () => {
   for (const g of sched) {
-    const r = node('gate-jobs.mjs', ['--params', g.params, '--runs', String(g.r)]);
+    const r = node('gate-jobs.mjs', ['--params', g.params, '--runs', String(g.r), '--free', String(g.m)]);
     assert.equal(r.status, 0, `${g.name}: ${r.stderr}`);
     const out = JSON.parse(r.stdout);
     assert.equal(out.include.length, g.chosen.jobCount, g.name);
@@ -67,6 +69,7 @@ test('gate-jobs: --engines narrows, --parts narrows to the Lean scope and drops 
   }
   assert.equal(node('gate-jobs.mjs', ['--parts', 'no.such']).status, 2);
   assert.equal(node('gate-jobs.mjs', ['--runs', '4']).status, 2);
+  assert.equal(node('gate-jobs.mjs', ['--free', '7']).status, 2);
   assert.equal(node('gate-jobs.mjs', ['--params', 'nope']).status, 2);
 });
 

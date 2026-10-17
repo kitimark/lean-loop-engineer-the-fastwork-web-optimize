@@ -49,6 +49,12 @@ on:
           (the split is the same for 1 to 3 with the cached times; it differs once the reduced sweep is live)
         type: string
         default: '2'
+      free:
+        description: >-
+          Runners of the account's 20 you expect to be free for this run (4, 8, 12 or 20); picks the line of the Lean split
+          (fewer free runners favour fewer jobs: Fw.Gate.Schedule.wall_lower, wall_upper)
+        type: string
+        default: '8'
       times:
         description: Time set of the Lean split (base, cached, reduced); cached until the reduced sweep is wired into run.mjs
         type: string
@@ -73,7 +79,7 @@ permissions:
 # Runs of other branches never cancel each other (the ref is in the group). Dispatches on one branch with different inputs
 # (flag set, parts, engines) are different groups, so a loop of variant dispatches is not cancelled by its own next iteration.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.fw }}-${{ inputs.parts }}-${{ inputs.engines }}-${{ inputs.runs }}-${{ inputs.times }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.fw }}-${{ inputs.parts }}-${{ inputs.engines }}-${{ inputs.runs }}-${{ inputs.free }}-${{ inputs.times }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 
 env:
@@ -82,9 +88,13 @@ env:
   HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
 
 jobs:
-  plan:
+  # The rewrite, built once; every gate job downloads this exact build (its buildId is in each run header, and the merge
+  # job refuses files whose headers differ).
+  # It also holds the plan (the Lean job split, a few ms of node): a separate plan job took a runner of the shared 20
+  # and its own queue wait (Fw.Gate.Schedule: Fixed.two_fewer_jobs).
+  site:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 10
+    timeout-minutes: 60
     outputs:
       matrix: ${{ steps.p.outputs.matrix }}
       engines: ${{ steps.p.outputs.engines }}
@@ -93,23 +103,21 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
-          sparse-checkout: |
-            .github/scripts
-            apps/site/src/breakpoints.gen.json
-            packages/gate-breakpoints/src
-            packages/contracts/golden/gate/schedule.jsonl
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
       - id: p
+        name: Plan the gate jobs (Lean split for the free runners)
         env:
           ENGINES: ${{ inputs.engines || 'both' }}
           RUNS: ${{ inputs.runs || '2' }}
+          FREE: ${{ inputs.free || '8' }}
           TIMES: ${{ inputs.times || 'cached' }}
           PARTS: ${{ inputs.parts || '' }}
         run: |
           set -euo pipefail
           case "$RUNS" in 1|2|3) ;; *) echo "runs must be 1, 2 or 3" >&2; exit 1 ;; esac
+          case "$FREE" in 4|8|12|20) ;; *) echo "free must be 4, 8, 12 or 20" >&2; exit 1 ;; esac
           case "$TIMES" in base|cached|reduced) ;; *) echo "times must be base, cached or reduced" >&2; exit 1 ;; esac
           case "$ENGINES" in
             both) engines='["chromium","playwright-webkit"]' ;;
@@ -120,8 +128,7 @@ jobs:
           # gate-jobs checks the part ids against anchors.json (exit 2 on an unknown id); empty means all parts.
           parts_args=()
           if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
-          case "$ENGINES" in both) eng_arg=both ;; *) eng_arg="$ENGINES" ;; esac
-          jobs=$(node .github/scripts/gate-jobs.mjs --params "$TIMES" --runs "$RUNS" --engines "$eng_arg" ${parts_args[@]+"${parts_args[@]}"})
+          jobs=$(node .github/scripts/gate-jobs.mjs --params "$TIMES" --runs "$RUNS" --free "$FREE" --engines "$ENGINES" ${parts_args[@]+"${parts_args[@]}"})
           matrix=$(printf '%s' "$jobs" | node -e 'process.stdout.write(JSON.stringify({include: JSON.parse(require("fs").readFileSync(0, "utf8")).include}))')
           {
             echo "engines=$engines"
@@ -130,16 +137,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "$engines"
           echo "$matrix" | cut -c1-400
-
-  # The rewrite, built once; every gate job downloads this exact build (its buildId is in each run header, and the merge
-  # job refuses files whose headers differ).
-  site:
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          persist-credentials: false
       - uses: ./.github/actions/setup-lean
       # `pnpm build` of the site first runs `lake exe breakgen --check` (the checked-in gen file must equal Lean's output).
       - uses: ./.github/actions/setup-pnpm
@@ -156,13 +153,13 @@ jobs:
 
   # One job per entry of the Lean split: its probes (`cli.mjs run --probes`) and its whole sweeps (`--sweeps`); "none" = nothing.
   gate:
-    needs: [plan, site]
+    needs: [site]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     name: gate ${{ matrix.engine }} ${{ matrix.job }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.site.outputs.matrix) }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -194,7 +191,7 @@ jobs:
           ENGINE: ${{ matrix.engine }}
           PROBES: ${{ matrix.probes }}
           SWEEPS: ${{ matrix.sweeps }}
-          PARTS: ${{ needs.plan.outputs.parts }}
+          PARTS: ${{ needs.site.outputs.parts }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
           FW_SEARCH: ${{ inputs.fw && format('?fw={0}', inputs.fw) || '' }}
@@ -210,16 +207,14 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # One merge job per engine, so a failing WebKit job does not hide the Chromium table.
+  # One merge job for the engines: `fwcore` is built once (a merge job per engine built it twice, 36 s each, and took a second
+  # runner of the shared 20: Fw.Gate.Schedule.Fixed.work_saved). Each engine is merged and summarized on its own, so a failing
+  # WebKit job does not hide the Chromium table, and each keeps its own artifact.
   merge:
-    needs: [plan, gate]
-    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    needs: [site, gate]
+    if: ${{ !cancelled() && needs.site.result == 'success' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        engine: ${{ fromJSON(needs.plan.outputs.engines) }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -234,34 +229,45 @@ jobs:
         run: lake build fwcore
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: gate-${{ matrix.engine }}-*
+          pattern: gate-*-j*
           path: ${{ runner.temp }}/parts
       - name: Merge the jobs and summarize
         env:
-          ENGINE: ${{ matrix.engine }}
+          ENGINES: ${{ join(fromJSON(needs.site.outputs.engines), ' ') }}
         run: |
           set -euo pipefail
           parts="$RUNNER_TEMP/parts"
-          out="$RUNNER_TEMP/gate"
-          mkdir -p "$out"
           ls "$parts"
-          jobs=("$parts"/gate-"$ENGINE"-j[0-9]*/"$ENGINE".json)
-          node .github/scripts/merge-gate.mjs --out "$out/$ENGINE.json" "${jobs[@]}"
           # `summary` is the same code the Mac run uses; it reads <engine>.json from --out.
           # `summary` exits non-zero exactly when the merged verdict is not pass (gate-exit-verdict, Lean exit_zero_iff). Keep the
-          # code, write the step summary, and fail the job at the end, so the upload below still runs on a failing verdict.
+          # code per engine, write the step summary, and fail the job at the end, so the uploads below still run on a failing verdict.
           rc=0
-          node packages/gate-breakpoints/src/cli.mjs summary --out "$out" || rc=$?
-          sha256sum "$out"/*.json | tee "$out/sha256.txt"
-          {
-            echo "### breakpoint-gate: $ENGINE"
-            cat "$out/summary.md"
-          } >> "$GITHUB_STEP_SUMMARY"
+          for ENGINE in $ENGINES; do
+            out="$RUNNER_TEMP/gate-$ENGINE"
+            mkdir -p "$out"
+            jobs=("$parts"/gate-"$ENGINE"-j[0-9]*/"$ENGINE".json)
+            if ! node .github/scripts/merge-gate.mjs --out "$out/$ENGINE.json" "${jobs[@]}"; then rc=1; continue; fi
+            erc=0
+            node packages/gate-breakpoints/src/cli.mjs summary --out "$out" || erc=$?
+            sha256sum "$out"/*.json | tee "$out/sha256.txt"
+            {
+              echo "### breakpoint-gate: $ENGINE"
+              cat "$out/summary.md"
+            } >> "$GITHUB_STEP_SUMMARY"
+            if [ "$erc" -ne 0 ]; then rc="$erc"; fi
+          done
           exit "$rc"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
-          name: gate-merged-${{ matrix.engine }}
-          path: ${{ runner.temp }}/gate
-          if-no-files-found: error
+          name: gate-merged-chromium
+          path: ${{ runner.temp }}/gate-chromium
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: gate-merged-playwright-webkit
+          path: ${{ runner.temp }}/gate-playwright-webkit
+          if-no-files-found: ignore
           retention-days: 30

@@ -62,29 +62,52 @@ def jobsJson (P : Params) (pl : Plan) : Json :=
         ("ms", (j.dur P : Json))]
   Json.arr ((one .chromium pl.1 ++ one .webkit pl.2).toArray)
 
-/-- One summary of a plan under `P`, `m`, `r`: the jobs, $\sum d$, $\max d$, the Graham numerator, and the simulated
-makespan of $r$ copies of the job list. -/
-def planJson (P : Params) (r : Nat) (pl : Plan) : Json :=
+/-- The runners free for the run: the 20 of the pool minus what other runs hold. -/
+def freeRunners : List Nat := [4, 8, 12, 20]
+
+/-- The job before the gate (plan folded into the site job) and the job after (one merge job, both engines). -/
+def preMs : Nat := noteFixed.plan + noteFixed.site
+def postMs : Nat := noteFixed.mergeSetup + noteFixed.fwcore + 2 * noteFixed.summary
+
+/-- One summary of a plan under `P`, `m` free runners, `r` runs: the jobs, $\sum d$, $\max d$, the Graham numerator, the
+simulated makespan of $r$ copies of the job list, and the wall time `wall` with its two bounds (`wall_lower`,
+`wall_upper`). -/
+def planJson (P : Params) (m r : Nat) (pl : Plan) : Json :=
   let ds := durs P pl
-  let mk := makespan poolM (copies r ds)
+  let mk := makespan m (copies r ds)
+  let w := wall preMs postMs m r ds
+  let wLo := preMs + postMs + max (lmax ds) ((r * ds.sum + m - 1) / m)
   Json.mkObj [
     ("plan", Json.mkObj [("chromium", cfgJson pl.1), ("webkit", cfgJson pl.2)]),
     ("jobs", jobsJson P pl), ("jobCount", (ds.length : Json)),
     ("sum", (ds.sum : Json)), ("max", (lmax ds : Json)),
-    ("bound", (bound P poolM r pl : Json)), ("makespan", (mk : Json)),
-    ("grahamOk", Json.bool (decide (poolM * mk ≤ bound P poolM r pl)))]
+    ("bound", (bound P m r pl : Json)), ("makespan", (mk : Json)),
+    ("grahamOk", Json.bool (decide (m * mk ≤ bound P m r pl))),
+    ("wall", (w : Json)), ("wallLo", (wLo : Json)),
+    ("wallOk", Json.bool (decide (wLo ≤ w ∧ m * w ≤ m * (preMs + postMs) + bound P m r pl)))]
 
 def paramSets : List (String × Params) := [("base", noteBase), ("cached", noteCached), ("reduced", noteReduced)]
 
-/-- The cases of `schedule.jsonl`. -/
+/-- The fixed jobs around the gate before and after folding the plan into the site job and merging once. -/
+def fixedJson : Json :=
+  let F := noteFixed
+  Json.mkObj [
+    ("plan", (F.plan : Json)), ("site", (F.site : Json)), ("mergeSetup", (F.mergeSetup : Json)),
+    ("fwcore", (F.fwcore : Json)), ("summary", (F.summary : Json)),
+    ("oldJobs", Json.arr (F.oldJobs.map fun (x : Nat) => Json.num x).toArray), ("newJobs", Json.arr (F.newJobs.map fun (x : Nat) => Json.num x).toArray),
+    ("oldWork", (F.oldJobs.sum : Json)), ("newWork", (F.newJobs.sum : Json)),
+    ("pre", (preMs : Json)), ("post", (postMs : Json))]
+
+/-- The cases of `schedule.jsonl`: time set x free runners x concurrent runs. -/
 def scheduleCases : List Json :=
-  paramSets.flatMap fun (nm, P) => [1, 2, 3].map fun r =>
-    let c := choose P poolM r
+  paramSets.flatMap fun (nm, P) => freeRunners.flatMap fun m => [1, 2, 3].map fun r =>
+    let c := choose P m r
     Json.mkObj [
-      ("name", Json.str s!"{nm} r={r} m={poolM}"), ("params", Json.str nm), ("m", (poolM : Json)), ("r", (r : Json)),
+      ("name", Json.str s!"{nm} r={r} m={m}"), ("params", Json.str nm), ("m", (m : Json)), ("r", (r : Json)),
       ("times", Json.mkObj [("chromium", epJson P.chromium), ("playwright-webkit", epJson P.webkit)]),
-      ("chosen", planJson P r c), ("current", planJson P r current),
-      ("neverWorse", Json.bool (decide (bound P poolM r c ≤ bound P poolM r current)))]
+      ("fixed", fixedJson),
+      ("chosen", planJson P m r c), ("current", planJson P m r current),
+      ("neverWorse", Json.bool (decide (bound P m r c ≤ bound P m r current)))]
 
 /-! ## Cache keys -/
 
