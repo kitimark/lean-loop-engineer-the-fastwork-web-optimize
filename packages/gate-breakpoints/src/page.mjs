@@ -61,6 +61,34 @@ export async function waitReady(arg) {
   return { ready, splash, fwMode: fw ? fw.mode : null, hydrationErrors: fw ? (fw.hydrationErrors ? fw.hydrationErrors.length ?? fw.hydrationErrors : 0) : null };
 }
 
+/**
+ * Prime the original (anchors.json `prime.orig`, used by morph.panel): scroll `arg.scrollTo` toward the middle of the viewport
+ * once, wait until `arg.until` exists (the original mounts it lazily and keeps it mounted), then scroll back to where the
+ * page was. Reports whether the element appeared. No decisions: the arm is only brought to the state the part is compared in.
+ */
+export async function primeOrig(arg) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
+  const target = document.querySelector(arg.scrollTo);
+  if (!target) return { primed: false, why: 'no scroll target' };
+  const y0 = window.scrollY;
+  window.scrollTo({ top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.5), behavior: 'instant' });
+  const t0 = performance.now();
+  while (!document.querySelector(arg.until) && performance.now() - t0 < arg.capMs) await sleep(50);
+  const primed = !!document.querySelector(arg.until);
+  await frame();
+  window.scrollTo({ top: y0, behavior: 'instant' });
+  for (let i = 0; i < 3; i++) await frame();
+  await sleep(300);
+  const running = () => document.getAnimations().filter((a) => {
+    const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+    return t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
+  }).length;
+  const t1 = performance.now();
+  while (running() > 0 && performance.now() - t1 < arg.capMs) await sleep(50);
+  return { primed, scrollY: window.scrollY };
+}
+
 /** A short pause after a live resize: two frames and 600 ms (the original debounces its resize work with timers). */
 export async function waitResize() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
