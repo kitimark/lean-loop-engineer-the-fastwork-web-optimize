@@ -3,7 +3,7 @@ import { Command } from "@fw/contracts";
 import { UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land } from "./land.ts";
-import { renderPlan, syncCommands, type WorkGraph } from "./plan.ts";
+import { lintCli, renderPlan, syncCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { watchMain } from "./watch.ts";
@@ -40,7 +40,9 @@ try {
       console.log(`plan sync: ${cmds.length} commands, ${n((r) => r.ok && !r.duplicate)} applied, ${n((r) => r.ok && !!r.duplicate)} unchanged, ${n((r) => !r.ok)} refused`);
       for (const r of rs) if (!r.ok) console.error(`refused: ${r.reason}`);
       if (!body.ok) { if (!rs.length) console.error(`refused: ${body.reason}`); process.exitCode = 2; }
-    } else throw new UsageError("usage: fw plan sync <work-graph.json> | fw plan show");
+    } else if (rest[0] === "lint") {
+      process.exitCode = await lintCli(rest.slice(1), process.cwd());
+    } else throw new UsageError("usage: fw plan sync <work-graph.json> | fw plan show | fw plan lint <work-graph.json>");
   } else if (group === "land") {
     const LAND_USAGE = "usage: fw land <branch> [--task <task-id>] [--allow <glob>]...";
     if (!rest[0]) throw new UsageError(LAND_USAGE);

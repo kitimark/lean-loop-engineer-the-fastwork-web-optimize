@@ -47,3 +47,4 @@ import Fw.Gate.State
 import Fw.Wire.Gate
 import Fw.Engine
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
+import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
