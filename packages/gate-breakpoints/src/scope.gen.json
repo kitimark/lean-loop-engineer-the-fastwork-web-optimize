@@ -21,6 +21,7 @@
    "desk-rm-320",
    "desk-rm-400",
    "desk-rm-401",
+   "desk-rm-461",
    "desk-rm-601",
    "desk-rm-641",
    "desk-rm-721",
@@ -705,7 +706,51 @@
  "schema": "fw.gate-breakpoints.scope/1",
  "ports": ["chromium", "webkitApple", "webkitGLib"],
  "parts":
- {"nav.langMenu":
+ {"overlays.signup":
+  {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
+   "probes":
+   ["desk-319",
+    "desk-600",
+    "desk-601",
+    "desk-860",
+    "desk-861",
+    "desk-rm-319",
+    "desk-rm-461",
+    "desk-rm-601",
+    "desk-rm-861"],
+   "owners": ["overlays.signup"],
+   "knees": [{"px": 408, "expression": "waitlist dialog min(360, 100vw - 48)", "css": "(width<=408px)"}],
+   "key": ["(prefers-reduced-motion: reduce)", "(width<=600px)", "(width<=860px)", "(width<=408px)"],
+   "extra": [],
+   "dismissed":
+   [{"why":
+     "max(24px, env(safe-area-inset-bottom)) in the <=600 padding: 0 in a non-notched browser, the same rule in both arms",
+     "id": "css.safe-area"},
+    {"why":
+     "the entrance direction from the focused trigger; the gate opens the dialog with the body focused (fallback 0, 16 px) and the rounding is proved in Lean Fw.Parts.OverlaySignup",
+     "id": "js.dialog-direction"},
+    {"why":
+     "width min(360px, 100vw - 48px) and max-height 85vh: the knee 408 carries the width edge, the height is a viewport fraction",
+     "id": "js.waitlist-dialog-size"}],
+   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-600"], "orig": ["mq.rm-reduce", "mq.w-le-600", "mq.w-le-860"]}},
+  "overlays.drawer":
+  {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
+   "probes": ["desk-640", "desk-641", "desk-860", "desk-861", "desk-rm-319", "desk-rm-641", "desk-rm-861"],
+   "owners": ["overlays.drawer"],
+   "knees": [],
+   "key":
+   ["(prefers-reduced-motion: reduce)", "(prefers-reduced-motion: no-preference)", "(width<=640px)", "(width<=860px)"],
+   "extra": [],
+   "dismissed":
+   [{"why":
+     "env(safe-area-inset-bottom) in the sheet's body padding: 0 in a desktop or non-notched browser and the same fallback in both arms",
+     "id": "css.safe-area"},
+    {"why": "plain :hover rule on the footer button (css 894); the gate never hovers an element",
+     "id": "css.hover-ungated"}],
+   "conditions":
+   {"rewrite": ["mq.rm-reduce", "mq.w-le-860", "mq.w-le-640"],
+    "orig": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-640", "mq.w-le-860"]}},
+  "nav.langMenu":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-640", "desk-641", "desk-rm-319", "desk-rm-641"],
    "owners": ["nav.langMenu"],

@@ -71,17 +71,37 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   async function load(env, site) {
     return engine.open(env, { origin: servers[site].origin, path: '/', init: PIN_SRC });
   }
-  // anchors.json `prepare` (per part and arm) is the one route for elements the page mounts lazily: steps run once after the
-  // ready wait, then the page is back at the top before anything is collected (morph.countdown, morph.columns, morph.panel)
-  const prepare = Object.fromEntries(SITES.map((site) => [site, Object.values(activeParts).flatMap((p) => (p.prepare && p.prepare[site]) || [])]));
+  // anchors.json `prepare` (per part and arm) is the one route for page states that exist only after an action, all run by
+  // page.mjs prepareInPage. kind "mount" (morph.countdown, morph.columns, morph.panel): the steps run once after the ready
+  // wait and the page is back at the top before anything is collected. kind "overlay" (overlays.*): the part is collected
+  // alone between its open stage and its close stage, so every other part is read in the closed page.
+  const stepsOf = (site, kind) => Object.fromEntries(Object.entries(activeParts)
+    .map(([pid, p]) => [pid, ((p.prepare && p.prepare[site]) || []).filter((st) => st.kind === kind)])
+    .filter(([, steps]) => steps.length > 0));
+  const mountSteps = Object.fromEntries(SITES.map((site) => [site, Object.values(stepsOf(site, 'mount')).flat()]));
+  const overlaySteps = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'overlay')]));
   const evalReady = async (s, site) => {
     const settle = await s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
-    if (prepare[site].length > 0) settle.prepared = await s.evaluate(prepareInPage, { steps: prepare[site], capMs: CAP_MS[site] });
+    if (mountSteps[site].length > 0) settle.prepared = await s.evaluate(prepareInPage, { stage: 'ready', steps: mountSteps[site], capMs: CAP_MS[site] });
     return settle;
   };
-  const evalCollect = (s, site, env, props) => s.evaluate(collectInPage, {
-    site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts: partsArg[site], props, filter: FILTER[site],
+  const collectArg = (site, env, props, parts) => ({
+    site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, filter: FILTER[site],
   });
+  async function evalCollect(s, site, env, props) {
+    const late = Object.keys(overlaySteps[site]);
+    if (late.length === 0) return s.evaluate(collectInPage, collectArg(site, env, props, partsArg[site]));
+    const early = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !late.includes(pid)));
+    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, early));
+    for (const pid of late) {
+      const steps = overlaySteps[site][pid];
+      await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
+      const one = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
+      raw.parts = { ...raw.parts, ...one.parts };
+      await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
+    }
+    return raw;
+  }
 
   // Phase 0: the property lists. Declared names depend on the stylesheets and the elements, not on the environment,
   // so one reference load per arm fixes them (the engine expands shorthands, so they are per engine).

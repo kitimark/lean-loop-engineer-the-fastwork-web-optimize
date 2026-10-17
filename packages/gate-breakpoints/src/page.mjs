@@ -62,37 +62,66 @@ export async function waitReady(arg) {
 }
 
 /**
- * Part-declared preparation of the original (anchors.json `prepare`, only for parts a run covers): some elements exist only
- * after the page has been near them (the morph panel mounts when the platform section is within 200% of the viewport and
- * stays mounted). The ONE lazy-mount mechanism of the gate (morph.countdown, morph.columns, morph.panel). Per step: scroll so
- * the `scrollNear` element's top is 1.5 viewports below the fold, wait for `waitFor` to exist, then return to the top, let a
- * few frames pass and wait out running finite animations, so every part is collected from the top in the same state.
- * Reports what it saw; no decision.
+ * Part-declared preparation of an arm (anchors.json `prepare`, only for parts a run covers): the ONE mechanism for page states
+ * that exist only after an action. `arg.steps` are the steps to run and `arg.stage` says which half. Self-contained (it is
+ * serialised into the page); reports what it saw, decides nothing.
+ *  - kind "mount", stage "ready" (morph.countdown, morph.columns, morph.panel): some elements exist only after the page has
+ *    been near them (the morph panel mounts when the platform section is within 200% of the viewport and stays mounted). Per
+ *    step: scroll so the `scrollNear` element's top is 1.5 viewports below the fold, wait for `waitFor`, then return to the
+ *    top and wait out running finite animations, so every part is collected from the top in the same state.
+ *  - kind "overlay", stage "open" (overlays.drawer, overlays.signup): click `trigger`, wait for `ready`, wait out the finite
+ *    animations, settle three frames and 300 ms. The caller collects that one part, then runs stage "close": click `close`,
+ *    wait until `gone` no longer matches, so the next read starts from the closed page.
  */
 export async function prepareInPage(arg) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
-  const t0 = performance.now();
-  const found = [];
-  for (const step of arg.steps) {
-    const near = document.querySelector(step.scrollNear);
-    if (near) {
-      const top = near.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({ top: Math.max(0, top - window.innerHeight * 1.5), behavior: 'instant' });
-    }
-    for (let i = 0; i < 3; i++) await frame();
-    while (!document.querySelector(step.waitFor) && performance.now() - t0 < arg.capMs) await sleep(50);
-    found.push(!!document.querySelector(step.waitFor));
-  }
-  window.scrollTo({ top: 0, behavior: 'instant' });
-  for (let i = 0; i < 3; i++) await frame();
-  await sleep(300);
   const running = () => document.getAnimations().filter((a) => {
     const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
     return t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
   }).length;
-  const t1 = performance.now();
-  while (running() > 0 && performance.now() - t1 < arg.capMs) await sleep(50);
+  const idle = async (capMs) => {
+    const t1 = performance.now();
+    while (running() > 0 && performance.now() - t1 < capMs) await sleep(50);
+  };
+  const t0 = performance.now();
+  const found = [];
+  if (arg.stage === 'ready') {
+    for (const step of arg.steps) {
+      const near = document.querySelector(step.scrollNear);
+      if (near) {
+        const top = near.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ top: Math.max(0, top - window.innerHeight * 1.5), behavior: 'instant' });
+      }
+      for (let i = 0; i < 3; i++) await frame();
+      while (!document.querySelector(step.waitFor) && performance.now() - t0 < arg.capMs) await sleep(50);
+      found.push(!!document.querySelector(step.waitFor));
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    for (let i = 0; i < 3; i++) await frame();
+    await sleep(300);
+    await idle(arg.capMs);
+  } else if (arg.stage === 'open') {
+    for (const step of arg.steps) {
+      const btn = document.querySelector(step.trigger);
+      if (!btn) { found.push(false); continue; }
+      btn.click();
+      while (!document.querySelector(step.ready) && performance.now() - t0 < 5000) await sleep(50);
+      found.push(!!document.querySelector(step.ready));
+      await idle(5000);
+      for (let i = 0; i < 3; i++) await frame();
+      await sleep(300);
+    }
+  } else if (arg.stage === 'close') {
+    for (const step of arg.steps) {
+      const btn = document.querySelector(step.close);
+      if (btn) btn.click();
+      while (document.querySelector(step.gone) && performance.now() - t0 < 5000) await sleep(50);
+      found.push(!document.querySelector(step.gone));
+      for (let i = 0; i < 2; i++) await frame();
+      await sleep(100);
+    }
+  }
   return found;
 }
 
