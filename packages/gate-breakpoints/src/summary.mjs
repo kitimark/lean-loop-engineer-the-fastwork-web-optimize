@@ -7,17 +7,17 @@ import { STATUS, cellVerdict, envDeviations, partItems, rollup, truthItems } fro
 
 const ENGINES = ['chromium', 'playwright-webkit'];
 
-const statuses = (items) => items.map((i) => i.status);
+export const statuses = (items) => items.map((i) => i.status);
 /** Rows of the table: the matchMedia checks split by what they compare, then the four parts. */
 const TRUTH_ROWS = { 'matchMedia orig=rewrite': ['truth.AR', 'truth.neutral.AR'], 'matchMedia =Lean': ['truth.lean', 'truth.neutral.lean'], 'matchMedia legacy text': ['truth.legacy'] };
 const rowsOf = (parts) => [...Object.keys(TRUTH_ROWS), ...parts];
-const rowVerdicts = (ev, parts) => ({
+export const rowVerdicts = (ev, parts) => ({
   ...Object.fromEntries(Object.entries(TRUTH_ROWS).map(([row, cls]) => [row, cellVerdict(statuses(ev.truth.filter((i) => cls.includes(i.cls))))])),
   ...Object.fromEntries(parts.map((p) => [p, cellVerdict(statuses(ev.parts[p]))])),
 });
 
 /** Everything the table needs for one sampled state: env deviations, truth items, per-part items. */
-function evaluateState({ requested, orig, rewrite, expect, expectNeutral, header, anchors, deviceEdges, parts: partIds }) {
+export function evaluateState({ requested, orig, rewrite, expect, expectNeutral, header, anchors, deviceEdges, parts: partIds }) {
   const dev = { orig: envDeviations(requested, orig.raw ?? orig, deviceEdges), rewrite: envDeviations(requested, rewrite.raw ?? rewrite, deviceEdges) };
   const achieved = dev.orig.length === 0 && dev.rewrite.length === 0;
   const o = orig.raw ?? orig, r = rewrite.raw ?? rewrite;

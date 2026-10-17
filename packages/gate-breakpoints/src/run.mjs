@@ -34,7 +34,12 @@ async function withRetry(label, fn, tries = 3) {
   throw last;
 }
 
-export async function runEngine({ engineName, outDir, concurrency = 4, probeFilter = null, sweepFilter = null, partFilter = null }) {
+/**
+ * `gaps` (optional, used only by the gaps lane, src/gaps/): { launcher, mapProbe, collect, collectArg } replaces the engine
+ * launcher, maps each matrix probe to the environment the lane can build, and adds one extra in-page report under
+ * `raw.gap`. Null (the default) leaves every byte of the run file as before.
+ */
+export async function runEngine({ engineName, outDir, concurrency = 4, probeFilter = null, sweepFilter = null, partFilter = null, gaps = null }) {
   const { gen, sha256: genSha } = loadGen();
   const anchors = loadAnchors();
   // Part selection (glue): only the chosen parts' elements are collected, so only their raw facts and property lists are
@@ -45,7 +50,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const dist = siteDist();
   const buildInfo = JSON.parse(readFileSync(join(dist, 'build-info.json'), 'utf8'));
   const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist) };
-  const engine = await LAUNCHERS[engineName]();
+  const engine = await (gaps ? gaps.launcher : LAUNCHERS[engineName])();
   const cond = gen.conditions.map((c) => ({ tsId: c.tsId, css: c.css, legacyCss: c.legacyCss }));
   const neutral = gen.neutral.map((n) => ({ tsId: n.tsId, css: n.css }));
   const partsArg = Object.fromEntries(['orig', 'rewrite'].map((site) => [site, Object.fromEntries(
@@ -91,6 +96,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       try {
         const settle = await evalReady(s, site);
         const raw = await evalCollect(s, site, env, collectProps);
+        if (gaps) raw.gap = await s.evaluate(gaps.collect, gaps.collectArg);
         return { settle, raw };
       } finally { await s.close().catch(() => {}); }
     });
@@ -101,12 +107,12 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const tasks = probes.flatMap((p) => SITES.map((site) => ({ p, site })));
   let done = 0;
   const sampled = await pool(tasks, concurrency, async ({ p, site }) => {
-    const r = await sample(probeEnv(p), site);
+    const r = await sample(gaps ? gaps.mapProbe(p) : probeEnv(p), site);
     if (++done % 20 === 0) log(`  ${engineName}: ${done}/${tasks.length} loads`);
     return r;
   });
   const probeRecords = probes.map((p, i) => ({
-    id: p.id, block: p.block, env: probeEnv(p),
+    id: p.id, block: p.block, env: gaps ? gaps.mapProbe(p) : probeEnv(p),
     orig: sampled[2 * i], rewrite: sampled[2 * i + 1],
   }));
 
