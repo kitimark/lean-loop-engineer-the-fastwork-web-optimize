@@ -191,6 +191,15 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
 
+  packages/gate-breakpoints:
+    dependencies:
+      playwright-core:
+        specifier: 1.64.1
+        version: 1.64.1
+      puppeteer-core:
+        specifier: 25.14.0
+        version: 25.14.0
+
   packages/measure-chromium: {}
 
   packages/measure-webkit: {}
