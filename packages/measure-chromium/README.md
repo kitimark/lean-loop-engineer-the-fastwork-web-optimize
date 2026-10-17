@@ -185,3 +185,4 @@ Env knobs: `FW_BARRIER_MS`, `FW_BARRIER_MIN_MS` (conditional barrier), `FW_TOUCH
   nav.hitTest:hit-skip W dominates (Paint 556 vs 1152, UpdateLayoutTree 94 vs 784), S equal; hero.countdown:strip W equal, S mixed
   (FunctionCall 730 vs 911, FireAnimationFrame 385 vs 566). `ticks` with the nominal 16.67 ms frame (this lane has no durations): 385
   ticks, 0 above 34/50 ms. Not judged here.
+<!-- ci-trigger-scope test 2 (dropped before landing) -->
