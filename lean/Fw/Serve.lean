@@ -2,6 +2,7 @@ import Std.Data.HashSet
 import Fw.Console
 import Fw.Board
 import Fw.Wire
+import Fw.Wire.Plan
 /-!
 # `fwcore serve`: the stateful console session (PLAN §3.2, the `TS → fwcore` row)
 
@@ -277,9 +278,10 @@ theorem modify_ok {t : Tbl α} (h : Ok key t) (k : String) {f : α → α} (hf :
 end Tbl
 /-! ## The server state -/
 
-/-- The server state: the seen keys (a list, newest first, and a hash set) and the three tables.
+/-- The server state: the seen keys (a list, newest first, and a hash set), the three tables and
+the plan (the work graph, kept as the console keeps it).
 
-$$v = (S, K, T_{\mathit{cards}}, T_{\mathit{steps}}, T_{\mathit{runs}})$$
+$$v = (S, K, T_{\mathit{cards}}, T_{\mathit{steps}}, T_{\mathit{runs}}, \pi)$$
 -/
 structure Srv where
   seen  : List String
@@ -287,18 +289,20 @@ structure Srv where
   cards : Tbl Card
   steps : Tbl Step
   runs  : Tbl Run
+  plan  : Fw.Plan.State
 
 /-- The console state a server state stands for.
 
-$$\operatorname{st}(v) = (S,\ T_{\mathit{cards}}.\mathit{rows},\ T_{\mathit{steps}}.\mathit{rows},\ T_{\mathit{runs}}.\mathit{rows})$$
+$$\operatorname{st}(v) = (S,\ T_{\mathit{cards}}.\mathit{rows},\ T_{\mathit{steps}}.\mathit{rows},\ T_{\mathit{runs}}.\mathit{rows},\ \pi)$$
 -/
-def Srv.st (v : Srv) : State := ⟨v.seen, v.cards.rows.toList, v.steps.rows.toList, v.runs.rows.toList⟩
+def Srv.st (v : Srv) : State :=
+  ⟨v.seen, v.cards.rows.toList, v.steps.rows.toList, v.runs.rows.toList, v.plan⟩
 
 /-- The initial server state.
 
-$$v_0 = ([\,], \varnothing, T_0, T_0, T_0), \qquad \operatorname{st}(v_0) = \sigma_0$$
+$$v_0 = ([\,], \varnothing, T_0, T_0, T_0, \pi_0), \qquad \operatorname{st}(v_0) = \sigma_0$$
 -/
-def init : Srv := ⟨[], {}, .empty, .empty, .empty⟩
+def init : Srv := ⟨[], {}, .empty, .empty, .empty, {}⟩
 
 /-- The indexes agree with the rows: the key set is the seen list, and every table is exact for its id.
 
@@ -338,6 +342,7 @@ def fcheck (v : Srv) (e : Event) : Option String :=
     match v.runs.get? r with
     | none => some "no such run"
     | some run => if run.status = .running then none else some "run already finished"
+  | .plan c => Fw.Plan.check v.plan c
   | b => match cardOf b with
     | none => none
     | some id => match v.cards.get? id with
@@ -358,38 +363,39 @@ def runFin (ok : Bool) (x : Run) : Run := { x with status := if ok then .passed 
 
 /-- `accept` on the tables: appends are pushes, in-place edits are index-addressed `modify`s.
 
-$$\operatorname{faccept}(v, e) = \operatorname{accept}(\operatorname{st}(v), e) \text{ with } {+\!\!+}[x] \text{ read as } \operatorname{push} \text{ and } \operatorname{mapCards}/\operatorname{mapSteps}/\operatorname{map} \text{ as } \operatorname{modify}$$
+$$\operatorname{faccept}(v, e) = \operatorname{accept}(\operatorname{st}(v), e) \text{ with } {+\!\!+}[x] \text{ read as } \operatorname{push} \text{ and } \operatorname{mapCards}/\operatorname{mapSteps}/\operatorname{map} \text{ as } \operatorname{modify} \text{ (a plan body: } \pi := \operatorname{Plan.exec}(\pi, c))$$
 -/
 def faccept (v : Srv) (e : Event) : Srv :=
   let t := e.ts
   match v with
-  | ⟨seen, keys, cards, steps, runs⟩ =>
+  | ⟨seen, keys, cards, steps, runs, plan⟩ =>
   match e.body with
   | .cardOpen id owner dev =>
-    ⟨seen, keys, cards.push Card.id { id, owner, needsDevice := dev, lastAt := t }, steps, runs⟩
+    ⟨seen, keys, cards.push Card.id { id, owner, needsDevice := dev, lastAt := t }, steps, runs, plan⟩
   | .stepPost id card title kind opts =>
-    ⟨seen, keys, cards, steps.push Step.id { id, card, title, kind, options := opts, postedAt := t, lastAt := t }, runs⟩
-  | .stepStart id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .started }), runs⟩
+    ⟨seen, keys, cards, steps.push Step.id { id, card, title, kind, options := opts, postedAt := t, lastAt := t }, runs, plan⟩
+  | .stepStart id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .started }), runs, plan⟩
   | .stepAnswer id a =>
-    ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .answered, answer := some a }), runs⟩
-  | .stepDone id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .done }), runs⟩
-  | .stepCancel id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .cancelled }), runs⟩
+    ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .answered, answer := some a }), runs, plan⟩
+  | .stepDone id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .done }), runs, plan⟩
+  | .stepCancel id => ⟨seen, keys, cards, steps.modify id (stepUpd t fun x => { x with status := .cancelled }), runs, plan⟩
   | .runStart r card kind =>
-    ⟨seen, keys, cards.modify card (touch t), steps, runs.push Run.id { id := r, card, kind, startedAt := t }⟩
+    ⟨seen, keys, cards.modify card (touch t), steps, runs.push Run.id { id := r, card, kind, startedAt := t }, plan⟩
   | .runFinish r ok =>
     match runs.get? r with
-    | some run => ⟨seen, keys, cards.modify run.card (touch t), steps, runs.modify r (runFin ok)⟩
-    | none => ⟨seen, keys, cards, steps, runs⟩
+    | some run => ⟨seen, keys, cards.modify run.card (touch t), steps, runs.modify r (runFin ok), plan⟩
+    | none => ⟨seen, keys, cards, steps, runs, plan⟩
+  | .plan c => ⟨seen, keys, cards, steps, runs, Fw.Plan.exec plan c⟩
   | b => match cardOf b with
-    | some id => ⟨seen, keys, cards.modify id (cardStep t b), steps, runs⟩
-    | none => ⟨seen, keys, cards, steps, runs⟩
+    | some id => ⟨seen, keys, cards.modify id (cardStep t b), steps, runs, plan⟩
+    | none => ⟨seen, keys, cards, steps, runs, plan⟩
 
 /-- `faccept` leaves the seen list and the key set alone.
 
 $$\forall v, e:\quad \operatorname{faccept}(v, e).S = v.S \;\land\; \operatorname{faccept}(v, e).K = v.K$$
 -/
 theorem faccept_seen (v : Srv) (e : Event) : (faccept v e).seen = v.seen ∧ (faccept v e).keys = v.keys := by
-  obtain ⟨seen, keys, cards, steps, runs⟩ := v
+  obtain ⟨seen, keys, cards, steps, runs, plan⟩ := v
   cases e with
   | mk key ts actor body =>
     cases body <;> simp only [faccept] <;> (try split) <;> simp
@@ -405,7 +411,8 @@ def fstep (v : Srv) (e : Event) : Srv × Outcome :=
     | some w => (v, .refused w)
     | none =>
       match faccept v e with
-      | ⟨seen, keys, cards, steps, runs⟩ => (⟨e.key :: seen, keys.insert e.key, cards, steps, runs⟩, .accepted false)
+      | ⟨seen, keys, cards, steps, runs, plan⟩ =>
+        (⟨e.key :: seen, keys.insert e.key, cards, steps, runs, plan⟩, .accepted false)
 
 /-- The server state after one event.
 
@@ -500,6 +507,7 @@ theorem faccept_indexed {v : Srv} (h : Indexed v) (e : Event) (hn : fcheck v e =
     | stepAnswer id a => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr⟩
     | stepDone id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr⟩
     | stepCancel id => exact ⟨hk, hc, ms _ _ _ (fun _ => rfl), hr⟩
+    | plan c => exact ⟨hk, hc, hs, hr⟩
     | _ => exact ⟨hk, mc _ _ (cardStep_id _ _), hs, hr⟩
 
 /-- On an indexed server, `fstep` gives exactly the console state and the outcome of `step`.
@@ -808,23 +816,23 @@ def replayFrom : Srv → Tally → List Event → Srv × Tally
 
 /-- The reply of a serve command.
 
-$$\mathrm{Resp} = \mathrm{applied}(o, \Delta) \mid \mathrm{replayed}(t) \mid \mathrm{board}(b) \mid \mathrm{reset}$$
+$$\mathrm{Resp} = \mathrm{applied}(o, \Delta) \mid \mathrm{replayed}(t) \mid \mathrm{board}(b, P) \mid \mathrm{reset}$$
 -/
 inductive Resp where
   | applied (o : Outcome) (d : Delta)
   | replayed (t : Tally)
-  | board (b : Board)
+  | board (b : Board) (p : Fw.Plan.View)
   | reset
 
 /-- One serve command: apply reports the outcome and the changed rows, replay the tally, query the
-board of the current console state; reset returns to the initial state.
+board and the board plan of the current console state; reset returns to the initial state.
 
-$$\operatorname{exec}(v, c) = \begin{cases} \big(v',\ \mathrm{applied}(o, \operatorname{changed}(v', e, o))\big),\ (v', o) = \operatorname{fstep}(v, e) & c = \mathrm{apply}(e) \\ \big(v',\ \mathrm{replayed}(t)\big),\ (v', t) = \operatorname{replay}(v, (0,0,0), es) & c = \mathrm{replay}(es) \\ \big(v,\ \mathrm{board}(\operatorname{fastBoard}(\operatorname{st}(v), \mathit{now}, \mathit{seq}))\big) & c = \mathrm{query}(\mathit{now}, \mathit{seq}) \\ (v_0,\ \mathrm{reset}) & c = \mathrm{reset} \end{cases}$$
+$$\operatorname{exec}(v, c) = \begin{cases} \big(v',\ \mathrm{applied}(o, \operatorname{changed}(v', e, o))\big),\ (v', o) = \operatorname{fstep}(v, e) & c = \mathrm{apply}(e) \\ \big(v',\ \mathrm{replayed}(t)\big),\ (v', t) = \operatorname{replay}(v, (0,0,0), es) & c = \mathrm{replay}(es) \\ \big(v,\ \mathrm{board}(\operatorname{fastBoard}(\operatorname{st}(v), \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{st}(v).\mathit{plan}))\big) & c = \mathrm{query}(\mathit{now}, \mathit{seq}) \\ (v_0,\ \mathrm{reset}) & c = \mathrm{reset} \end{cases}$$
 -/
 def exec (v : Srv) : Cmd → Srv × Resp
   | .apply e => let r := fstep v e; (r.1, .applied r.2 (changed r.1 e r.2))
   | .replay es => let r := replayFrom v {} es; (r.1, .replayed r.2)
-  | .query now seq => (v, .board (fastBoard v.st now seq))
+  | .query now seq => (v, .board (fastBoard v.st now seq) (Fw.Plan.view v.st.plan))
   | .reset => (init, .reset)
 
 /-- Run a sequence of serve commands, keeping only the final server state.
@@ -948,12 +956,12 @@ theorem accepted_changed {v : Srv} (hv : Indexed v) {e : Event} {d : Delta}
   rw [hd]
   exact ftouched_eq (fstep_indexed hv e) e
 
-/-- A query changes nothing and answers the board of the current console state.
+/-- A query changes nothing and answers the board and the board plan of the current console state.
 
-$$\forall v, \mathit{now}, \mathit{seq}:\quad \operatorname{exec}(v, \mathrm{query}(\mathit{now}, \mathit{seq})) = \big(v,\ \mathrm{board}(\operatorname{board}(\operatorname{st}(v), \mathit{now}, \mathit{seq}))\big)$$
+$$\forall v, \mathit{now}, \mathit{seq}:\quad \operatorname{exec}(v, \mathrm{query}(\mathit{now}, \mathit{seq})) = \big(v,\ \mathrm{board}(\operatorname{board}(\operatorname{st}(v), \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{st}(v).\mathit{plan}))\big)$$
 -/
 theorem query_keeps (v : Srv) (now seq : Nat) :
-    exec v (.query now seq) = (v, .board (board v.st now seq)) := by
+    exec v (.query now seq) = (v, .board (board v.st now seq) (Fw.Plan.view v.st.plan)) := by
   simp [exec, fastBoard_eq]
 
 /-- The query reply is a function of the console state alone (not of the indexes or of how the state
@@ -965,13 +973,14 @@ theorem query_eq_of_st {v w : Srv} (h : v.st = w.st) (now seq : Nat) :
     (exec v (.query now seq)).2 = (exec w (.query now seq)).2 := by
   simp [exec, h]
 
-/-- After serve calls without a reset from a fresh server, the query reply is the board of the
-projection of their events.
+/-- After serve calls without a reset from a fresh server, the query reply is the board and the board
+plan of the projection of their events.
 
-$$\forall cs = [c_1, \dots, c_n], \mathit{now}, \mathit{seq}:\quad (\forall c \in cs,\ c \ne \mathrm{reset}) \;\Rightarrow\; \operatorname{exec}(\operatorname{run}(v_0, cs), \mathrm{query}(\mathit{now}, \mathit{seq}))_2 = \mathrm{board}\big(\operatorname{board}(\operatorname{project}(\operatorname{ev}(c_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{ev}(c_n)), \mathit{now}, \mathit{seq})\big)$$
+$$\forall cs = [c_1, \dots, c_n], \mathit{now}, \mathit{seq}:\quad (\forall c \in cs,\ c \ne \mathrm{reset}) \;\Rightarrow\; \operatorname{exec}(\operatorname{run}(v_0, cs), \mathrm{query}(\mathit{now}, \mathit{seq}))_2 = \mathrm{board}\big(\operatorname{board}(\sigma, \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\sigma.\mathit{plan})\big),\ \sigma = \operatorname{project}(\operatorname{ev}(c_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{ev}(c_n))$$
 -/
 theorem query_after_run (cs : List Cmd) (hr : ∀ c ∈ cs, c.isReset = false) (now seq : Nat) :
-    (exec (run init cs) (.query now seq)).2 = .board (board (project (cs.flatMap Cmd.events)) now seq) := by
+    (exec (run init cs) (.query now seq)).2 = .board (board (project (cs.flatMap Cmd.events)) now seq)
+      (Fw.Plan.view (project (cs.flatMap Cmd.events)).plan) := by
   simp [exec, run_init_eq_project cs hr, fastBoard_eq]
 
 #guard
@@ -1001,8 +1010,9 @@ def cmdOf (op : String) (req : Json) : Option (Except String Cmd) :=
   match op with
   | "console.apply" =>
     if (opt req "state").isSome then none
-    else some (do pure (.apply (← eventOfJson (← field req "event"))))
-  | "console.replay" => some (do pure (.replay (← (← arr req "events").toList.mapM eventOfJson)))
+    else some (do pure (.apply (← Fw.Wire.Plan.eventOfJson (← field req "event"))))
+  | "console.replay" =>
+    some (do pure (.replay (← (← arr req "events").toList.mapM Fw.Wire.Plan.eventOfJson)))
   | "console.query" => some (do pure (.query (← nat req "now") (← nat req "seq")))
   | "console.reset" => some (pure .reset)
   | _ => none
@@ -1017,7 +1027,7 @@ def respFields : Resp → Reply
   | .applied o d => [("outcome", outcomeJson o), ("changed", deltaJson d)]
   | .replayed t => [("replayed", Json.mkObj [("accepted", toJson t.accepted),
       ("duplicate", toJson t.duplicate), ("refused", toJson t.refused)])]
-  | .board b => [("board", boardJson b)]
+  | .board b p => [("board", Fw.Wire.Plan.withPlan (boardJson b) p)]
   | .reset => [("reset", .bool true)]
 
 /-- Answer one input line against the server state: stateful ops run `exec`, every other op is the
@@ -1118,6 +1128,7 @@ def eventJson (e : Event) : Json :=
     | .stepCancel s => [("step", .str s)]
     | .runStart r c k => [("run", .str r), ("card", .str c), ("kind", .str (runKindName k))]
     | .runFinish r ok => [("run", .str r), ("ok", .bool ok)]
+    | .plan c => Fw.Wire.Plan.cmdFields c
   Json.mkObj ([("key", .str e.key), ("ts", toJson e.ts), ("type", .str e.body.type.name),
     ("actor", .str e.actor.name)] ++ b)
 
