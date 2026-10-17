@@ -168,6 +168,11 @@
     line-height: 1.15;
     display: inline;
   }
+  /* the original's "organized" word has no nowrap / top alignment of its own */
+  .word.wordFree {
+    vertical-align: baseline;
+    white-space: normal;
+  }
   .rest {
     color: #fffc;
     opacity: 1;
@@ -310,6 +315,13 @@
     .rowTitle {
       width: 100%;
       font-size: 28px;
+      line-height: 1.15;
+    }
+  }
+  /* the original sets the document row title back to 40px from 861 on, after its touch block */
+  @media (width>=861px) {
+    .row[data-fw-row='document'] .rowTitle {
+      font-size: 40px;
       line-height: 1.15;
     }
   }

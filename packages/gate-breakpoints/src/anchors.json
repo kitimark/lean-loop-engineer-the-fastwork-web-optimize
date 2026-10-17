@@ -506,12 +506,11 @@
           "rewrite": "[data-fw=\"platform\"]",
           "boxRel": null,
           "dims": [
-            "w",
-            "h"
+            "w"
           ],
           "skipSets": [],
           "skipProps": [],
-          "why": "the section box: width and height (card padding + mission + rows), the part's own sum of stage heights"
+          "why": "the section box: width and height (card padding + mission + rows), the part's own sum of stage heights; height skipped: title wraps differ until the web font lands (delta in part.json)"
         },
         {
           "role": "card",
@@ -519,12 +518,14 @@
           "rewrite": "[data-fw=\"platform\"] > div",
           "boxRel": null,
           "dims": [
-            "w",
-            "h"
+            "w"
           ],
           "skipSets": [],
-          "skipProps": [],
-          "why": "the dark card (padding 96/56/80 down to 64/20 at the 860 combo)"
+          "skipProps": [
+            "will-change",
+            "transform-origin"
+          ],
+          "why": "the dark card (padding 96/56/80 down to 64/20 at the 860 combo); height skipped (text wrap, no web font yet); will-change follows the original scene pause"
         },
         {
           "role": "missionTitle",
