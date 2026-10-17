@@ -1,0 +1,14 @@
+{
+  "id": "engine.scroll",
+  "slot": "engine",
+  "anchors": [],
+  "experiment": true,
+  "impls": ["mui", "plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:2667-2782" } },
+    "batched": { "kind": "optimized", "tier": "T0" }
+  },
+  "requires": {},
+  "conflicts": {}
+}

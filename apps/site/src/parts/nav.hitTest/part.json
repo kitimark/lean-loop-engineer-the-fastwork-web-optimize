@@ -1,0 +1,14 @@
+{
+  "id": "nav.hitTest",
+  "slot": "nav",
+  "anchors": [],
+  "experiment": true,
+  "impls": ["mui", "plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12950-12964" } },
+    "hit-skip": { "kind": "optimized", "tier": "T0", "provenance": { "v1Fix": "hit-skip" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}
