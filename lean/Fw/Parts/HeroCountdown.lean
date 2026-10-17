@@ -593,7 +593,7 @@ replacement (E-s) can match it at one fixed cadence only. -/
 
 /-- **spring_split_differs.** Two half steps differ from one full step, from the state $(4, 0)$ toward $3$.
 
-$$\operatorname{springStep}\big(\operatorname{springStep}((4, 0), 3, 8).s,\ 3,\ 8\big).s \ne \operatorname{springStep}((4, 0), 3, 16).s$$
+$$\operatorname{springStep}\big(\operatorname{springStep}((4, 0), 3, 8).\mathrm{state},\ 3,\ 8\big).\mathrm{state} \ne \operatorname{springStep}((4, 0), 3, 16).\mathrm{state}$$
 
 Why the spring cannot become one frame-rate-free keyframe list. -/
 theorem spring_split_differs :

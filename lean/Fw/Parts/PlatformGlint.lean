@@ -268,7 +268,7 @@ def gradAt {α : Type} (c : Rat → α) (x1 x2 x : Rat) : α := c ((x - x1) / (x
 /-- **glint_translate.** At every cycle fraction the end points are 120 apart, and the gradient is the left dash's
 rest gradient shifted by $x_1 + 200$.
 
-$$\forall s,\ \forall u \in \mathbb{Q}:\ x_2(s, u) - x_1(s, u) = 120 \land \forall c,\ \forall x \in \mathbb{Q}:\ \operatorname{grad}\big(c, x_1(s, u), x_2(s, u), x\big) = \operatorname{grad}\big(c, -200, -80, x - (x_1(s, u) + 200)\big)$$
+$$\forall s,\ \forall u \in \mathbb{Q}:\ x_2(s, u) - x_1(s, u) = 120 \land \forall \text{types } \alpha,\ \forall c : \mathbb{Q} \to \alpha,\ \forall x \in \mathbb{Q}:\ \operatorname{grad}\big(c, x_1(s, u), x_2(s, u), x\big) = \operatorname{grad}\big(c, -200, -80, x - (x_1(s, u) + 200)\big)$$
 
 The attribute animation only slides one fixed gradient. -/
 theorem glint_translate (s : Side) (u : Rat) :
