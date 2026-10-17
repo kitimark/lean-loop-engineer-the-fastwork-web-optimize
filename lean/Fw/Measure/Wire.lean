@@ -13,7 +13,7 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | op | request | reply |
 |---|---|---|
 | `measure.zoneSums` | `zoneHeightPx` (≥ 1), `frames` [{n, phase, scrollY, counts}] | `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, sums}] |
-| `measure.classify` (`mode` `frames`) | `kMax`, `tMax`, `runs` (≥ 2; each an array of frames or an object with `frames`) | `classes` {type: {class, k, t}}, `runs` |
+| `measure.classify` (`mode` `frames`) | `kMax`, `tMax`, `runs` (≥ 2; each an array of frames or an object with `frames`), optional `pxRel` {num, den ≥ 1} (default 1/1000) | `classes` {type: {class, k, t}} (+ `unit` `px` and `tBound` for `*AreaPx` types), `runs` |
 | `measure.classify` (`mode` `cells`) | `tol` {absTol, relTol}, `runs` (≥ 2 integer arrays) | `cls`, `cells`, `differingCells`, `cellsBeyondTolerance`, `maxSpread`, `maxRelSpread`, `k`, `t` (+ `reason`) |
 | `measure.noMoreWork` | `types` [{class: {class, k, t}, base, var}] | `noMoreWork`, `failing` (indices) |
 | `measure.webkit.tally` | `rows` (raw `fw.webkit.records/1` rows) | `counts`, `paintArea`, `other` |
@@ -175,9 +175,20 @@ def opClassify (req : Json) : Except String Reply := do
   match mode with
   | "frames" =>
     let p : Policy := ⟨← nat req "kMax", ← nat req "tMax"⟩
+    let q : PxTol ← match opt req "pxRel" with
+      | none => pure pxTolDefault
+      | some j => pure ⟨← nat j "num", ← nat j "den"⟩
+    if q.den = 0 then throw "pxRel.den must be at least 1"
     let runs ← runsJ.toList.mapM runFrames
-    let rows := classifyAll p runs
-    pure [("classes", objOf (rows.map fun r => (r.type, classJson r.cls r.k r.t))), ("runs", toJson runs.length)]
+    let rows := classifyAllU p q runs
+    -- count rows keep the count schema; pixel-area rows also name their unit and gap bound
+    let rowJson (r : ClassRow) : Json := match unitOf r.type with
+      | .px => Json.mkObj [("class", .str (match r.cls with
+            | .deterministic => "deterministic" | .stable _ _ => "stable" | .quarantined => "quarantined")),
+          ("k", toJson r.k), ("t", toJson r.t), ("unit", .str "px"),
+          ("tBound", toJson (tBound p q .px (runs.map (seriesOf r.type))))]
+      | .count => classJson r.cls r.k r.t
+    pure [("classes", objOf (rows.map fun r => (r.type, rowJson r))), ("runs", toJson runs.length)]
   | "cells" =>
     let tj ← field req "tol"
     let tol : Tol := ⟨← asRat "tol.absTol" (← field tj "absTol"), ← asRat "tol.relTol" (← field tj "relTol")⟩
