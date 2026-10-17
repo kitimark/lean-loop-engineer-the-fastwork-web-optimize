@@ -30,7 +30,7 @@ $$o = (\mathit{run}, \mathit{fr}, \mathit{st}, \mathit{hov}, t) \in \mathbb{N}\t
 
 `running`: finite animations and transitions under the probed subtree that have not finished; `frames`: real
 `requestAnimationFrame` callbacks since the wait began (the wait begins after the last resize); `stable`: consecutive
-frames whose probed boxes did not change; `hoverInside`: the pointer is inside a hover-reactive probed target;
+frames whose probed boxes did not change; `hoverInside`: the pointer is inside a hover-reactive probed target (always false in an environment that cannot hover: `:hover` can match there after a touch, but no hover rule applies);
 `t`: milliseconds since the wait began. -/
 structure Obs where
   running : Nat
@@ -54,10 +54,10 @@ structure Policy where
   deriving DecidableEq, Repr
 
 /-- The policy the gate uses: two frames after each resize (a `ResizeObserver` notification, then the callback it
-schedules), three quiet frames in a row, quiet meaning every probed value moved by at most 0.0001, 3000 ms.
+schedules), three quiet frames in a row, quiet meaning every probed value moved by at most 0.0001, 10000 ms.
 
-$$\pi_{\mathrm{gate}} = (2, 3, 100, 3000)$$ -/
-def gatePolicy : Policy := { minFrames := 2, minStable := 3, eps := 100, timeoutMs := 3000 }
+$$\pi_{\mathrm{gate}} = (2, 3, 100, 10000)$$ -/
+def gatePolicy : Policy := { minFrames := 2, minStable := 3, eps := 100, timeoutMs := 10000 }
 
 /-- The decision on one observation: nothing animates, enough real frames passed, the boxes were stable, and the pointer
 is not inside a hover-reactive target.
@@ -673,13 +673,13 @@ def waitCases : List (String × Policy × List Obs) :=
     ("settles at once",
       gatePolicy, [ob 0 2 3 false 0, ob 0 3 4 false 16]),
     ("an animation outlasts the budget",
-      gatePolicy, [ob 1 1 0 false 16, ob 1 2 0 false 1500, ob 1 3 0 false 2900, ob 0 4 1 false 3100, ob 0 5 2 false 3116]),
+      gatePolicy, [ob 1 1 0 false 16, ob 1 2 0 false 1500, ob 1 3 0 false 9900, ob 0 4 1 false 10100, ob 0 5 2 false 10116]),
     ("settles only after the budget",
-      gatePolicy, [ob 0 1 0 false 1000, ob 0 2 3 false 3001, ob 0 3 4 false 3017]),
+      gatePolicy, [ob 0 1 0 false 1000, ob 0 2 3 false 10001, ob 0 3 4 false 10017]),
     ("settles exactly at the budget",
-      gatePolicy, [ob 0 1 0 false 1000, ob 0 2 3 false 3000]),
+      gatePolicy, [ob 0 1 0 false 1000, ob 0 2 3 false 10000]),
     ("no frame ever (requestAnimationFrame never fires)",
-      gatePolicy, [ob 0 0 0 false 250, ob 0 0 0 false 1000, ob 0 0 0 false 3000]),
+      gatePolicy, [ob 0 0 0 false 250, ob 0 0 0 false 1000, ob 0 0 0 false 10000]),
     ("pointer stays inside a hover target",
       gatePolicy, [ob 0 2 2 true 16, ob 0 3 3 true 33, ob 0 4 4 true 50]),
     ("empty trace", gatePolicy, []),
@@ -783,7 +783,7 @@ def run (args : List String) : IO UInt32 := do
 #guard settled gatePolicy (ob 0 2 3 false 100) == true
 #guard settled gatePolicy (ob 0 1 5 false 100) == false
 #guard waitList gatePolicy [ob 1 1 0 false 16, ob 0 2 1 false 33, ob 0 3 3 false 50] == .settled 2
-#guard waitList gatePolicy [ob 0 1 0 false 1000, ob 0 2 3 false 3001, ob 0 3 4 false 3017] == .unsettled
+#guard waitList gatePolicy [ob 0 1 0 false 1000, ob 0 2 3 false 10001, ob 0 3 4 false 10017] == .unsettled
 #guard waitList gatePolicy [] == .unsettled
 #guard cell false true (.settled 1) (.settled 2) false == .notRendered
 #guard cell true true (.settled 1) (.settled 2) false == .fail

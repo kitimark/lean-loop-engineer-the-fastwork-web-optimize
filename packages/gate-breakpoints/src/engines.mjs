@@ -113,6 +113,9 @@ export async function launchWebkit() {
         evaluate: (fn, arg) => frame.evaluate(fn, arg),
         async resize(next) { await page.setViewportSize({ width: next.width, height: next.height }); },
         async mouse(x, y) { await page.mouse.move(x, y); },
+        // The CI WebKit (GLib port) gave a page about one frame per second (run 39075162003); a page that is not the front one of
+        // its browser is throttled there. The settle wait counts real frames, so the page is brought to the front first.
+        async front() { await page.bringToFront(); },
         async close() { await context.close(); },
       };
     },

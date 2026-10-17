@@ -7,8 +7,8 @@
 //   report    Fw.Gate.Settle.report         pass / fail only when both arms settled, else unsettled
 // No decision beyond what Lean proves is made here.
 
-/** Fw.Gate.Settle.gatePolicy: two frames after the resize, three quiet frames, quiet = moved by at most 0.0001, 3000 ms. */
-export const GATE_POLICY = Object.freeze({ minFrames: 2, minStable: 3, eps: 100, timeoutMs: 3000 });
+/** Fw.Gate.Settle.gatePolicy: two frames after the resize, three quiet frames, quiet = moved by at most 0.0001, 10000 ms. */
+export const GATE_POLICY = Object.freeze({ minFrames: 2, minStable: 3, eps: 100, timeoutMs: 10000 });
 
 /** Values to Lean's integer millionths. */
 export const micro = (x) => Math.round(x * 1e6);

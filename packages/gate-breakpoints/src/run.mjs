@@ -103,7 +103,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       const pt = await s.evaluate(findParkPoint, { roots });
       if (pt) { await s.mouse(pt.x, pt.y); parked = true; }
     }
-    const { trace } = await s.evaluate(settleInPage, { policy: GATE_POLICY, roots });
+    if (s.front) await s.front();
+    const { trace } = await s.evaluate(settleInPage, { policy: GATE_POLICY, roots, hoverCapable: env.hover === 'hover' });
     const last = trace[trace.length - 1];
     const outcome = waitTrace(GATE_POLICY, trace);
     // stderr only (the output JSON carries the same numbers in settleWait): per-stop settle time, for gate-speed's before/after

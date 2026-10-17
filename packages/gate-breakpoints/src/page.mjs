@@ -179,7 +179,8 @@ export function findParkPoint(arg) {
  * this is what sees a requestAnimationFrame-driven lerp that `getAnimations` does not list), and whether the pointer is inside a
  * probed element. It stops at the first settled observation or when the budget is spent. The outcome is NOT decided here: the
  * runner applies Lean's `wait` (settle.mjs waitTrace) to the returned trace.
- * arg: { policy: {minFrames, minStable, eps, timeoutMs}, roots: [selector] }.
+ * arg: { policy: {minFrames, minStable, eps, timeoutMs}, roots: [selector], hoverCapable: boolean } (an environment that cannot
+ * hover never reports the pointer inside: `:hover` can stay matched there after a touch, but no hover rule applies).
  * The two predicates between the markers are replayed against the Lean golden by test/settle.test.mjs (extracted from this text).
  */
 export async function settleInPage(arg) {
@@ -216,7 +217,7 @@ export async function settleInPage(arg) {
       const cs = getComputedStyle(el);
       for (const n of numbers(cs.transform === 'none' ? '' : cs.transform)) sig.push(micro(n));
       sig.push(micro(Number(cs.opacity)));
-      if (el.matches(':hover')) hover = true;
+      if (arg.hoverCapable && el.matches(':hover')) hover = true;
     }
     return { running: anims.size, hover, sig };
   };
