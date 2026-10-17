@@ -1,6 +1,6 @@
 {
  "schema": "fw.work-graph/1",
- "about": "The team's task graph: what is left to do, what each task needs first, which files and devices it holds. No status here: done comes from 'evidence' (a commit on main) or from console events; ready, blocked and running are derived by fwcore (Lean). Task id = agent name = console card id. Edited by the lead; synced into the console with 'fw plan sync'. Revision 9 (2026-10-17): the experiment ends with a report by 2026-10-20 13:15 +0700 (see 'deadline'); milestone MX holds tasks cut in revision 9 and is never started; tasks marked '(only on GO at C1)' are cut if the WebKit Simulator lane is NO-GO at checkpoint C1.",
+ "about": "The team's task graph: what is left to do, what each task needs first, which files and devices it holds. No status here: done comes from 'evidence' (a commit on main) or from console events; ready, blocked and running are derived by fwcore (Lean). Task id = agent name = console card id. Edited by the lead; synced into the console with 'fw plan sync'. Revision 9 (2026-10-17): the experiment ends with a report by 2026-10-20 13:15 +0700 (see 'deadline'); milestone MX holds tasks cut in revision 9 and is never started; tasks marked '(only on GO at C1)' are cut if the WebKit Simulator lane is NO-GO at checkpoint C1. Revision 10 (2026-10-18): the evidence per part is a Lean theorem pair (same visual, no more work) under the engine models, for all t and all widths; CI counts falsify the models (F0-F5); the phone is an optional spot check with no dependents; milestone M5 holds the proof tasks.",
  "milestones": [
   {
    "id": "M0",
@@ -16,7 +16,7 @@
   },
   {
    "id": "M3",
-   "title": "Device truth: two phone sessions held, checks recorded (no calibration in v2)"
+   "title": "Optional phone spot checks: never evidence, no dependents (rev 10; session 1 held, 0c901f2)"
   },
   {
    "id": "M4",
@@ -24,7 +24,7 @@
   },
   {
    "id": "M5",
-   "title": "Experiments: end-of-page decision on Chromium counts and the phone"
+   "title": "Proofs and the end-of-page decision: engine models in Lean, one theorem pair (visual, work) per part x optimization, CI falsification checks F0-F5, decision from the proof ledger"
   },
   {
    "id": "M6",
@@ -32,7 +32,7 @@
   },
   {
    "id": "MX",
-   "title": "Cut in revision 9 (do not start)"
+   "title": "Cut in revisions 9 and 10 (do not start; a cut dep blocks until its edge is removed)"
   }
  ],
  "tasks": [
@@ -735,13 +735,12 @@
   },
   {
    "id": "bands-freeze",
-   "title": "PL5 and N3 bands set from the 9 end-of-page parts and frozen",
+   "title": "CUT (rev 10: the F4 margin is the frozen class margin 2t (margin_sound); PL5 bands are reported by faithful-checks, not frozen): PL5 and N3 bands set from the 9 end-of-page parts and frozen",
    "stream": "parts",
-   "milestone": "M2",
-   "deps": [
-    "faithful-checks"
-   ],
-   "owner": "lead"
+   "milestone": "MX",
+   "deps": [],
+   "owner": "lead",
+   "cut": true
   },
   {
    "id": "explainer-rev6",
@@ -903,24 +902,39 @@
   },
   {
    "id": "experiments",
-   "title": "End-of-page decision: original vs morph arms, Chromium counts (screen) then the phone (session 2)",
+   "title": "(S) Decision from the proof ledger: per part the theorem pair, premise status and F3/F4 on the rewrite arm per flag; v2-proved = flags with a proved pair and no falsified prediction; look changes = proposals; closes at C3",
    "stream": "experiments",
    "milestone": "M5",
    "deps": [
     "port-morph",
     "faithful-checks",
-    "bands-freeze"
+    "engine-ci-check",
+    "engine-gaps",
+    "morph-tween-waapi",
+    "variant-morph-tween-waapi",
+    "proof-nav-hittest",
+    "proof-countdown-strip",
+    "proof-hidden-pause",
+    "proof-morph-mount",
+    "proof-morph-panel",
+    "proof-hero-exit",
+    "proof-people-card",
+    "proof-pain-notes",
+    "proof-people-deck",
+    "proof-hero-accent",
+    "variant-hidden-pause",
+    "variant-morph-mount-shift",
+    "variant-morph-panel-rest"
    ],
    "owner": "lead"
   },
   {
    "id": "write-up",
-   "title": "Report (M6, by 2026-10-20 13:15 +0700): G4 material, the end-of-page decision, model status uncalibrated, not-done list, cost report",
+   "title": "Report (M6, by 2026-10-20 13:15 +0700): per part the theorem pair and its premises, F0-F5 results, the v2-proved arm, proposals (look changes), not-done list, cost report",
    "stream": "write-up",
    "milestone": "M6",
    "deps": [
     "experiments",
-    "phone-session-2",
     "math-final"
    ],
    "owner": "lead"
@@ -1662,11 +1676,10 @@
   },
   {
    "id": "phone-session-2",
-   "title": "Phone session 2 (2026-10-19 14:00-23:00, 45 min): blind A/B of the end-of-page arms, 4 vs 4, frames > 50 ms recorded Protocol per arm (user, blind): (1) normal reading swipes; (2) worst case: hard flicks top to bottom; (3) worst case: flick into the end-of-page tween and reverse mid-animation x3; each paired with a scripted run.",
+   "title": "OPTIONAL phone spot check (never evidence, no dependents; rev 10): swipe the v2-proved arm vs original; what neither proof nor CI covers (UIKit scrollTo feel, path premises H1-H3)",
    "stream": "experiments",
-   "milestone": "M5",
+   "milestone": "M3",
    "deps": [
-    "experiments",
     "phone-session-1"
    ],
    "owner": "lead",
@@ -1898,6 +1911,346 @@
    "devices": [
     "ci"
    ]
+  },
+  {
+   "id": "engine-core-lean",
+   "title": "(M) Fw.Engine.Core + Visual: Stage, Work, Resident, frame_le_of_cover, frame_le_union, run_dominates -> screen_sound, toCost -> mainUs_mono; Scene, visible, E/Q relations, PathPremises H1-H3; types first",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine.lean",
+    "lean/Fw/Engine/Core.lean",
+    "lean/Fw/Engine/Visual.lean"
+   ]
+  },
+  {
+   "id": "engine-chromium-lean",
+   "title": "(M) Fw.Engine.Chromium: CrLevel chain with cites, crThread (bits 0,5,12,13,16), crStages_mono, scroll rule, lane mode; golden rows F0-F2 + signatures",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-core-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Chromium.lean",
+    "packages/contracts/golden/engine/chromium.jsonl"
+   ]
+  },
+  {
+   "id": "engine-webkit-lean",
+   "title": "(M) Fw.Engine.WebKit: Diff + adjust by LayerState, stage sets with cites, wk_not_mono guard, wkThread, per-update baseline, scroll rule; golden rows P1-P5",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-core-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/WebKit.lean",
+    "packages/contracts/golden/engine/webkit.jsonl"
+   ]
+  },
+  {
+   "id": "engine-ci-check",
+   "title": "(M) fw engine-check: Lean op measure.engineCheck reads engine golden rows and checks F0-F4 on chromium-counts runs (det exact, stable within 2t, quarantined never); runner glue; a mismatch = model-bug item",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-core-lean"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Measure/EngineCheck.lean",
+    "apps/runner/src/engine-check.ts"
+   ],
+   "devices": [
+    "ci"
+   ]
+  },
+  {
+   "id": "engine-gaps",
+   "title": "(M) Close research gaps RG1-RG11 at the pins (chromium@f842f52, WebKit@862f17d), each CONFIRMED or explicitly open; one note; feeds the premise table of the decision",
+   "stream": "research",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-engine-gaps.md"
+   ]
+  },
+  {
+   "id": "webkit-sim-rewrite",
+   "title": "(M) webkit-sim.yml serves ?fw= so F5 (P1-P5) gets Simulator counts on the rewrite; if not green by C3, WebKit stays model-only and the report says so",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "step-align"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "packages/measure-webkit/src/**"
+   ],
+   "devices": [
+    "ci"
+   ]
+  },
+  {
+   "id": "morph-tween-curve",
+   "title": "(S) MT1 bezier_eq_ease: 1-(1-t)^3 = cubic-bezier(1/3,1,2/3,1) by ring; MT2 solver_exact: |Y(t)-ease(x)| <= 3 eps; RG8 fp-tie check as a Node golden test (10^4 points)",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/curve.golden.test.ts"
+   ]
+  },
+  {
+   "id": "morph-tween-waapi",
+   "title": "(M) morph.tween waapi: MT3 waapi_eq_tween, MT4 flags_same_frame (vis, E-s), MT-W waapi_work_le (script strict, style/layout/paint equal); both engines, all width bands; golden vectors + CI predictions",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-curve",
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl"
+   ]
+  },
+  {
+   "id": "variant-morph-tween-waapi",
+   "title": "(M) TS variant morph.tween:waapi (@property --morph, one WAAPI animation, startTime = push time, discrete flag keyframes) checked against the Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-waapi",
+    "port-morph-tween"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.tween/**"
+   ]
+  },
+  {
+   "id": "proof-nav-hittest",
+   "title": "(S) nav.hitTest hit-skip, elements-skip, write-on-change: work theorems hitSkip_work_lt, elementsSkip_work_lt via EngineScroll.forced_rho (vis already proved); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/NavHitTestOpt.lean",
+    "packages/contracts/golden/engine/nav-hittest.jsonl"
+   ]
+  },
+  {
+   "id": "proof-countdown-strip",
+   "title": "(S) hero.countdown + morph.countdown strip: Resident layers 80 -> 16 per clock, per-frame work = o (vis strip_shows_same already proved); reported as a resident win; both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroCountdownOpt.lean",
+    "packages/contracts/golden/engine/countdown-strip.jsonl"
+   ]
+  },
+  {
+   "id": "proof-hidden-pause",
+   "title": "(M) morph.columns, morph.countdown, engine.scene hidden pause: hidden_pause_eq (E: visible drops the box) + work (style 1 -> 0 per frame Chromium, 0 delta WebKit, falsifiable); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HiddenPause.lean",
+    "packages/contracts/golden/engine/hidden-pause.jsonl"
+   ]
+  },
+  {
+   "id": "proof-morph-mount",
+   "title": "(M) morph.mount warm-up at a still moment: E after mount (mountNext_mono trigger) + shift theorem (max motion-frame work <, total =); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphMountOpt.lean",
+    "packages/contracts/golden/engine/morph-mount.jsonl"
+   ]
+  },
+  {
+   "id": "proof-morph-panel",
+   "title": "(M) morph.panel blur(0) -> none at rest (E under the containing-block premise RG10; effect node removed) and own layer during the fade (Q; raster <, layers +1 = trade); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphPanelOpt.lean",
+    "packages/contracts/golden/engine/morph-panel.jsonl"
+   ]
+  },
+  {
+   "id": "proof-hero-exit",
+   "title": "(M-L; drop first if the path slips) hero.exit threaded: E-s from exitOpacity_linear + scroll-timeline progress (RG11); consumers off main except blur (Chromium bit 12); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "packages/contracts/golden/engine/hero-exit.jsonl"
+   ]
+  },
+  {
+   "id": "proof-people-card",
+   "title": "(M) people.card MQ-gated shrink: E (CSS forces scale 1, radius 0 in those bands) + work (no JS lerp frames); includes the faithful restatement of the card lerp; both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/PeopleCard.lean",
+    "packages/contracts/golden/engine/people-card.jsonl"
+   ]
+  },
+  {
+   "id": "proof-pain-notes",
+   "title": "(S) pain.notes interval armed only when visible: E (notes display:none <= 860 px, covered otherwise) + work (33 Hz idle -> 0); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/PainNotes.lean",
+    "packages/contracts/golden/engine/pain-notes.jsonl"
+   ]
+  },
+  {
+   "id": "proof-people-deck",
+   "title": "(M; second wave) people.deck cqi sizing: E by algebra when the container inline size equals the shell width + work (no aspect-ratio relayout); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/PeopleDeck.lean",
+    "packages/contracts/golden/engine/people-deck.jsonl"
+   ]
+  },
+  {
+   "id": "proof-hero-accent",
+   "title": "(M; second wave) hero.accent boil: E per sample on the 60 Hz grid (every sample on a plateau) + work (style/paint per 4 s); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroAccent.lean",
+    "packages/contracts/golden/engine/hero-accent.jsonl"
+   ]
+  },
+  {
+   "id": "variant-hidden-pause",
+   "title": "(M) TS variants hidden-pause for morph.columns, morph.countdown and engine.scene (pause animations whose box visible drops) checked against Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "proof-hidden-pause",
+    "port-morph-countdown",
+    "port-morph-columns"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.columns/**",
+    "apps/site/src/parts/morph.countdown/**",
+    "apps/site/src/parts/engine.scene/**"
+   ]
+  },
+  {
+   "id": "variant-morph-mount-shift",
+   "title": "(S) TS variant morph.mount:shift (mount at the still moment mountNext_mono names) checked against Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "proof-morph-mount",
+    "port-morph-mount"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.mount/**"
+   ]
+  },
+  {
+   "id": "variant-morph-panel-rest",
+   "title": "(S) TS variant morph.panel:rest (filter none at rest; own layer only during the fade) checked against Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "proof-morph-panel",
+    "port-morph-panel"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.panel/**"
+   ]
+  },
+  {
+   "id": "pixel-spot",
+   "title": "(S; optional, no dependents) Chromium BeginFrame screenshots at sampled t, original vs each proved flag, byte-compare; covers H1-H3 in Chromium only",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-ci-check",
+    "variant-morph-tween-waapi"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-chromium/src/pixel-spot/**"
+   ],
+   "devices": [
+    "ci"
+   ]
   }
  ],
  "deadline": {
@@ -1914,17 +2267,17 @@
    {
     "id": "C2",
     "at": "2026-10-18T23:15:00+07:00",
-    "what": "T+24h: shells + the 5 morph ports faithful on Chromium; section ports running in parallel; phone session 1 held"
+    "what": "T+24h: shells + the 5 morph ports faithful on Chromium; section ports running; engine-core-lean, engine-chromium-lean, engine-webkit-lean landed; engine-ci-check F0-F2 green on fixture-rest; morph-tween-curve landed"
    },
    {
     "id": "C3",
     "at": "2026-10-19T23:15:00+07:00",
-    "what": "T+48h: faithful-checks, bands-freeze, experiments decided; phone session 2 held; write-up starts; any section still a shell is listed in the report"
+    "what": "T+48h: faithful-checks done; proof ledger closed (every proof-* and variant-* task landed or cut with its edge removed); F3/F4 on the rewrite arm per proved flag; experiments decided; write-up starts"
    },
    {
     "id": "C4",
     "at": "2026-10-20T13:15:00+07:00",
-    "what": "T+62h: report delivered (M6); text frozen at T+60h"
+    "what": "T+62h: report delivered (M6); text frozen at T+60h; phone session 2 (optional) reported only as a spot check"
    }
   ]
  }
