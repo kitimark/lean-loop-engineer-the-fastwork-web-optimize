@@ -16,7 +16,7 @@
 #        scripts/mutants.sh -m [-r tag] <shard dir>...     (merge shard results; builds nothing)
 #   -j  parallel workers (default 3)           -f  only these files (repeatable; default: the M0 set)
 #   -p  only these operators (design = the .patch mutants)
-#   -i  only the (file, id) pairs of a TSV, e.g. a previous run's survivors.tsv
+#   -i  only the (file, id) pairs of a TSV, e.g. a previous run's survivors.tsv (id = <decl>#<k>:<op>:<repl>)
 #   -n  first N mutants only (smoke test; applied after -S)   -s  at most N string-literal mutants per def (default 2)
 #   -r  run tag: results in .cache/mutants/<tag>/{results,survivors,meta}.tsv + summary.txt (default: run)
 #   -b  own baseline .cache/mutants/base-<tag> (lets a second run go while another one uses base)
@@ -132,6 +132,16 @@ for p in "$B"/lean/FwTest/Mutants/*/*.patch; do
   rel=${p#"$B/lean/FwTest/Mutants/"}
   printf '%s\tpatch:%s\tdesign\t%s\t0\t-\t-\n' "$f" "$rel" "$(basename "$p" .patch)" >>"$R/all.tsv"
 done
+# a stale equivalent.tsv id (its declaration was edited) fails here, not as a survivor at the end: every entry of a
+# listed file must name a mechanical mutant (uncapped list, so -s does not matter)
+(cd "$B/lean" && node "$GEN" list $FILES) >"$R/full.tsv"
+if ! awk -F'\t' -v files=" $FILES " '
+  FNR == NR { have[$1 "\t" $2] = 1; next }
+  /^#/ || NF < 2 || !index(files, " " $1 " ") { next }
+  !(($1 "\t" $2) in have) { print "mutants: stale equivalent.tsv id: " $1 " " $2; bad = 1 }
+  END { exit bad }' "$R/full.tsv" "$EQUIV"; then
+  echo "mutants: update FwTest/Mutants/equivalent.tsv (ids: gen.mjs header)"; exit 1
+fi
 awk -F'\t' -v ops=",$OPS," -v ids="$IDS" '
   BEGIN { if (ids != "") while ((getline l < ids) > 0) { split(l, a, "\t"); want[a[1] "\t" a[2]] = 1 } }
   (ops == ",," || index(ops, "," $3 ",")) && (ids == "" || ($1 "\t" $2) in want)
