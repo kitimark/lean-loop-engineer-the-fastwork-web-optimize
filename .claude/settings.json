@@ -111,6 +111,8 @@
       "Bash(gh repo create*)",
       "Bash(gh release*)",
       "Bash(gh gist*)",
+      "Bash(pkill*)",
+      "Bash(killall*)",
       "Edit(/.local/**)"
     ]
   }

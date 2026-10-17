@@ -739,11 +739,25 @@
   },
   {
    "id": "q1-phone",
-   "title": "Q1: phone session windows, free-play phone (your answer)",
+   "title": "Q1 decided 2026-10-17: phone sessions on demand (the lead posts a ready step when device work is queued; you start it)",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [],
    "owner": "user"
+  },
+  {
+   "id": "phone-session-1",
+   "title": "First phone session (on demand): original vs rewrite on iOS 27, and the Q33 gap-harness proof; the lead posts the ready step",
+   "stream": "calibration",
+   "milestone": "M3",
+   "deps": [
+    "gap-harness",
+    "q1-phone"
+   ],
+   "owner": "lead",
+   "devices": [
+    "phone"
+   ]
   },
   {
    "id": "wktr-cloud",
