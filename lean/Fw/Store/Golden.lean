@@ -101,9 +101,51 @@ def reduceCases : List (String × String × Json) := [
   ("one baseline run has no class: refused", "store.reduce",
    lit s!"\{\"kMax\":4,\"tMax\":24,\"arms\":[\{\"engine\":\"chromium\",\"base\":[{run [3]}],\"var\":[{run [3]}]}]}")]
 
+/-- The run metadata of a `both` run (two shards per target) with a changed field, as JSON text. -/
+def ciRunJ (extra : String := "") (jobs : String := "[{\"name\":\"plan\",\"conclusion\":\"success\"},{\"name\":\"counts (original, r1)\",\"conclusion\":\"success\"},{\"name\":\"counts (original, r2)\",\"conclusion\":\"success\"},{\"name\":\"counts (rewrite, r2)\",\"conclusion\":\"success\"},{\"name\":\"counts (rewrite, r1)\",\"conclusion\":\"success\"},{\"name\":\"classify\",\"conclusion\":\"success\"}]") : String :=
+  s!"\{\"runId\":\"42\",\"workflowName\":\"chromium-counts\",\"status\":\"completed\",\"conclusion\":\"success\",\"headSha\":\"{sha}\",\"jobs\":{jobs}{extra}}"
+
+/-- The facts of one downloaded shard artifact. -/
+def fact (name : String) (search : String := "") (more : String := "") : String :=
+  s!"\{\"name\":\"{name}\",\"profile\":\"swipe-v1\",\"image\":\"runner:ubuntu-24.04-arm\",\"search\":\"{search}\"{more}}"
+
+/-- The four shard artifacts of `ciRunJ` (the rewrite with query `q`). -/
+def allArts (q : String := "") : String :=
+  s!"[{fact "chromium-counts-original-r1"},{fact "chromium-counts-original-r2"},{fact "chromium-counts-rewrite-r1" q},{fact "chromium-counts-rewrite-r2" q}]"
+
+/-- The `store.ciRun` cases. -/
+def ciRunCases : List (String × String × Json) := [
+  ("before the download: a complete run is accepted, one store key per target, shards sorted, no key inputs yet", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ}}"),
+  ("after the download: key inputs per target; the original takes the default configuration, so the two keys differ in the target pair", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ},\"artifacts\":{allArts},\"classes\":[\"original\",\"rewrite\"]}"),
+  ("the rewrite query gives preset and flags (sorted by part)", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ},\"artifacts\":{allArts "?preset=strip-demo&fw=nav.hitTest:hit-skip,hero.countdown:strip"},\"classes\":[\"original\",\"rewrite\"]}"),
+  ("a failed run is refused before the download and stores nothing", "store.ciRun",
+   lit s!"\{\"run\":{(ciRunJ).replace "\"conclusion\":\"success\",\"headSha\"" "\"conclusion\":\"failure\",\"headSha\""}}"),
+  ("a run still in progress (conclusion null) is refused", "store.ciRun",
+   lit s!"\{\"run\":{(ciRunJ).replace "\"status\":\"completed\",\"conclusion\":\"success\"" "\"status\":\"in_progress\",\"conclusion\":null"}}"),
+  ("another workflow is refused", "store.ciRun",
+   lit s!"\{\"run\":{(ciRunJ).replace "\"workflowName\":\"chromium-counts\"" "\"workflowName\":\"webkit-sim\""}}"),
+  ("a run without shard jobs is refused", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ "" "[{\"name\":\"plan\",\"conclusion\":\"success\"}]"}}"),
+  ("a failed and an unfinished shard job are refused, each named", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ "" "[{\"name\":\"counts (original, r1)\",\"conclusion\":\"failure\"},{\"name\":\"counts (original, r2)\",\"conclusion\":null}]"}}"),
+  ("a missing shard artifact is refused after the download", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ},\"artifacts\":[{fact "chromium-counts-original-r1"},{fact "chromium-counts-original-r2"},{fact "chromium-counts-rewrite-r1"}],\"classes\":[\"original\",\"rewrite\"]}"),
+  ("a missing chromium-classes directory is refused", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ},\"artifacts\":{allArts},\"classes\":[\"original\"]}"),
+  ("shards of one target that disagree on the image are refused", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ},\"artifacts\":[{fact "chromium-counts-original-r1"},{(fact "chromium-counts-original-r2").replace "ubuntu-24.04-arm" "ubuntu-24.04"},{fact "chromium-counts-rewrite-r1"},{fact "chromium-counts-rewrite-r2"}],\"classes\":[\"original\",\"rewrite\"]}"),
+  ("a shard that measured another target than its name says is refused", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ},\"artifacts\":[{fact "chromium-counts-original-r1" "" ",\"target\":\"rewrite\""},{fact "chromium-counts-original-r2"},{fact "chromium-counts-rewrite-r1"},{fact "chromium-counts-rewrite-r2"}],\"classes\":[\"original\",\"rewrite\"]}"),
+  ("a rewrite-only run: one store key", "store.ciRun",
+   lit s!"\{\"run\":{ciRunJ "" "[{\"name\":\"counts (rewrite, r1)\",\"conclusion\":\"success\"}]"},\"artifacts\":[{fact "chromium-counts-rewrite-r1" "?fw=hero.countdown:strip"}],\"classes\":[\"rewrite\"]}"),
+  ("a request without run is refused", "store.ciRun", lit "{\"artifacts\":[]}")]
+
 /-- The files: (file stem, cases). -/
 def files : List (String × List (String × String × Json)) :=
-  [("plan", planCases), ("manifest", manifestCases), ("objectPath", pathCases), ("reduce", reduceCases)]
+  [("plan", planCases), ("manifest", manifestCases), ("objectPath", pathCases), ("reduce", reduceCases), ("ciRun", ciRunCases)]
 
 /-- The text of one golden file. -/
 def fileText (cs : List (String × String × Json)) : String :=

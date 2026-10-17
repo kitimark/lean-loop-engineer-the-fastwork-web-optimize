@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Store.Layout
 import Fw.Store.Reduce
+import Fw.Store.Ci
 import Fw.Measure.Wire
 import Fw.Ops.Wire
 /-!
@@ -16,6 +17,7 @@ no partial operations. Flags are strings `"part:variant"`; digests are lowercase
 | `store.plan` | `target` (`original` or `rewrite`), `preset`? (default `original`), `fw`? [`part:variant`], `engines` [name], `profile`? (default `swipe-v1`), `runs`? (default 3), `sha`, `images`? {engine: image}, `digests`? {engine: sha256 of the job key}, `present`? [digest] (objects/runs already in the store) | `problems` [string], `fw` (sorted), `jobs` [{engine, workflow, inputs {name: value}, key [[name, value]], image, blocked (string or null), digest?, cache?, manifest?}] |
 | `store.manifest` | `manifest` {engine, target, preset, fw [`part:variant`], profile, gitSha, image, runId, entries [{name, digest, bytes}]} | `valid`, `problems`, `key` [[name, value]] (when the engine and the target are known), `paths` [object path per entry] (when valid) |
 | `store.objectPath` | `digest` (64 hex) | `path` |
+| `store.ciRun` | `run` {runId, workflowName, status, conclusion (null = empty), headSha, jobs [{name, conclusion (null = empty)}]}, `artifacts`? [{name, profile, image, search? (default empty), target?}] (the downloaded shard artifacts with their `counts.json` / `image-id.txt` facts; absent = the check before the download), `classes`? [dir under chromium-classes] (default empty) | `accept`, `refusals` [string], `targets` [{target, classes, shards [{artifact, dir}], meta? {engine, target, preset, fw, profile, gitSha, image, runId}, key? [[name, value]]}] (empty when refused; `meta`, `key` after the download) |
 | `store.reduce` | `kMax`, `tMax`, `pxRel`? {num, den}, `arms` [{engine, base (≥ 2 runs), var (≥ 1 run)}], each run an array of frames or an object with `frames` | `noMoreWork`, `arms` [{engine, noMoreWork, failing [type], types [{type, class, ok}]}] |
 -/
 namespace Fw.Wire.Store
@@ -147,8 +149,57 @@ def opReduce (req : Json) : Except String Reply := do
   let oks := arms.map fun (_, base, var) => reduceOk p q base var
   pure [("noMoreWork", .bool (overall oks)), ("arms", .arr rows.toArray)]
 
+/-- A string field where absent or `null` means the empty string (gh reports an unfinished conclusion as `null` or `""`). -/
+def strE (j : Json) (k : String) : Except String String :=
+  match opt j k with
+  | none => pure ""
+  | some v => asStr k v
+
+/-- Decode the run metadata of `store.ciRun`. -/
+def ciRunOf (j : Json) : Except String CiRun := do
+  let jobs ← (← arr j "jobs").toList.mapM fun x => do
+    pure ({ name := ← str x "name", conclusion := ← strE x "conclusion" } : CiJob)
+  pure { runId := ← str j "runId", workflow := ← str j "workflowName", status := ← str j "status",
+         conclusion := ← strE j "conclusion", headSha := ← str j "headSha", jobs := jobs }
+
+/-- Decode the facts of one downloaded shard artifact. -/
+def shardFactsOf (j : Json) : Except String ShardFacts := do
+  let target ← match opt j "target" with
+    | none => pure none
+    | some v => some <$> asStr "target" v
+  pure { name := ← str j "name", profile := ← str j "profile", image := ← str j "image", search := ← strE j "search",
+         target := target }
+
+/-- Encode one store key of `store.ciRun`. -/
+def ciTargetJson (r : CiRun) (c : CiTarget) : Json :=
+  let base : Reply := [("target", .str c.target.name), ("classes", .str c.target.name),
+    ("shards", .arr (c.shards.toArray.map fun s => Json.mkObj [("artifact", .str s.artifact), ("dir", .str s.dir)]))]
+  let extra : Reply := match c.req with
+    | none => []
+    | some q => [
+        ("meta", Json.mkObj [("engine", .str q.engine.name), ("target", .str q.target.name), ("preset", .str q.preset),
+          ("fw", .arr (q.fw.toArray.map fun p => .str (flagStr p))), ("profile", .str q.profile), ("gitSha", .str q.sha),
+          ("image", .str q.image), ("runId", .str r.runId)]),
+        ("key", pairsJson (keyPairs q))]
+  Json.mkObj (base ++ extra)
+
+/-- `store.ciRun`. -/
+def opCiRun (req : Json) : Except String Reply := do
+  let r ← ciRunOf (← field req "run")
+  let got ← match opt req "artifacts" with
+    | none => pure none
+    | some a => do
+      let arts ← (← Fw.Wire.Ops.asArr "artifacts" a).toList.mapM shardFactsOf
+      let classes ← match opt req "classes" with
+        | none => pure []
+        | some c => (← Fw.Wire.Ops.asArr "classes" c).toList.mapM (asStr "classes")
+      pure (some ({ artifacts := arts, classes := classes } : Got))
+  let res := ciRun r got
+  pure [("accept", .bool res.refusals.isEmpty), ("refusals", .arr (res.refusals.toArray.map .str)),
+        ("targets", .arr (res.targets.toArray.map (ciTargetJson r)))]
+
 /-- The `store.*` ops. -/
-def ops : List String := ["store.plan", "store.manifest", "store.objectPath", "store.reduce"]
+def ops : List String := ["store.plan", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun"]
 
 /-- Dispatch a `store.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -157,6 +208,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "store.manifest" => some (opManifest req)
   | "store.objectPath" => some (opObjectPath req)
   | "store.reduce" => some (opReduce req)
+  | "store.ciRun" => some (opCiRun req)
   | _ => none
 
 end Fw.Wire.Store
