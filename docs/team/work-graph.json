@@ -2481,7 +2481,7 @@
   },
   {
    "id": "obs-next-glue",
-   "title": "(S) fw watch: collect the Fw.Obs.Next facts (transcript handback, ps tree under the session, git main..branch, worktree locks, fw ci state) and print NEXT lines; fw next lists them; alert agent.held / agent.unlanded; TS checked against the Lean golden",
+   "title": "(S) fw watch: collect the Fw.Obs.Next facts (transcript handback, ps tree under the session, git main..branch, worktree locks, fw ci state) and print NEXT lines; fw next lists them; alert agent.held / agent.unlanded; TS checked against the Lean golden; claim retry: a task.define for an id equal to a live agent name claims it (spawn-before-define race, drain.ts claimFor runs once)",
    "stream": "console",
    "milestone": "M5",
    "deps": [
@@ -2494,7 +2494,9 @@
     "apps/runner/src/next.ts",
     "apps/runner/src/fw.ts",
     "apps/runner/test/**",
-    "docs/team/tools/**"
+    "docs/team/tools/**",
+    "apps/console-api/src/spool/drain.ts",
+    "apps/console-api/test/**"
    ]
   }
  ],
