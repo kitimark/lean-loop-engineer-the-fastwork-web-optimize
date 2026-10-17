@@ -4,7 +4,8 @@ name: mutants
 # mutant id (FNV-1a of file + id, mod the shard count; one Linux job each), merged into one summary artifact. The run
 # fails if a mutant survives or a shard's verdicts are missing. Locally only smoke runs (docs/team/handoffs/mutants-ci.md).
 on:
-  # Inputs: the M0 modules (mutant ids are line:col, so any edit there changes the list), the killers, equivalent.tsv
+  # Inputs: the M0 modules (an edit there can add, drop or renumber mutants; ids are <decl>#<k>:<op>:<repl>, so only
+  # the edited declaration's ids move, see gen.mjs), the killers, equivalent.tsv
   # and the design patches (lean/FwTest/Mutants/**), the driver, setup-lean. Other Lean edits run in lean.yml only.
   push:
     branches: ['ci/**', main]

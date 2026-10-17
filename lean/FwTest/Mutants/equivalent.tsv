@@ -1,5 +1,5 @@
 # Equivalent mutants: file<TAB>id<TAB>reason. A survivor listed here is reported as "equivalent", not "survived".
 # Each reason says why no test can tell the mutant apart; the guard named in it checks that reason still holds.
-Fw/Wire.lean	505:36:str:""	samples: the key of the handleCore-error branch; dead because every fixed sample request is answered without error (#guard in FwTest/Mutants/Wire.lean)
-Fw/Wire.lean	507:53:str:""	samples: the key of the parse-error branch; dead because every fixed sample request parses (#guard in FwTest/Mutants/Wire.lean)
-Fw/Ops/SpawnGuard.lean	183:28:num:2	hasInfix: range (|s|+2) adds start position |s|+1, whose window equals the one at |s| (theorem infix_past_end in FwTest/Mutants/SpawnGuard.lean)
+Fw/Wire.lean	samples#1:str:""	samples: the key of the handleCore-error branch; dead because every fixed sample request is answered without error (#guard in FwTest/Mutants/Wire.lean)
+Fw/Wire.lean	samples#6:str:""	samples: the key of the parse-error branch; dead because every fixed sample request parses (#guard in FwTest/Mutants/Wire.lean)
+Fw/Ops/SpawnGuard.lean	hasInfix#1:num:2	hasInfix: range (|s|+2) adds start position |s|+1, whose window equals the one at |s| (theorem infix_past_end in FwTest/Mutants/SpawnGuard.lean)

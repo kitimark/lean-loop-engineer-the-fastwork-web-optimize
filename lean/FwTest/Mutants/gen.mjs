@@ -8,13 +8,19 @@
 //   node gen.mjs regions <file.lean>           JSON: [{kind,name,start,end}] line ranges (1-based, inclusive)
 //   node gen.mjs classify <log> <leanDir> <file>  verdict<TAB>detail of a failed build log (see mutants.sh)
 //
+// Mutant id: `<decl>#<k>:<op>:<repl>`, e.g. `samples#3:str:""`: decl = the enclosing def/abbrev/instance name
+// (`_` if anonymous; `name@n` if the file has several with that name), k = the 1-based ordinal of the mutation
+// site among the sites of the same op in that declaration, repl = the replacement (see mutantId). No line numbers,
+// so an edit elsewhere in the file keeps the ids (and equivalent.tsv) valid. Tests: node --test gen.test.mjs.
+//
 // Mutants are only placed inside the bodies of `def`/`abbrev`/`instance` commands (after the first `:=` or the
 // first match arm), never in comments, docstrings, string escapes, theorems, `#guard`s or signatures.
 // Operators: rel (< <= > >= swapped with their strict/non-strict twin), eq (== !=), eqp (` = ` to ≠), bool (&& ||),
 // prop (∧ ∨), opt (isSome/isNone), not (drop `!`),
 // tf (true/false), ite (negate an `if` condition = swap its branches), num (n+1, n-1), arith (+ -), minmax,
 // anyall, filter (drop a `.filter p`), list (head?/getLast?, take/drop, drop `.reverse`), str (empty a literal).
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 /** Code mask: 1 for code chars, 0 for comments; 2 for string-literal contents (incl. quotes). */
 function mask(src) {
@@ -98,8 +104,15 @@ export function mutants(src) {
   const starts = []; let off = 0;
   for (const l of lines) { starts.push(off); off += l.length + 1; }
   const res = [];
-  for (const r of regions(src)) {
-    if (!['def', 'abbrev', 'instance'].includes(r.kind)) continue;
+  // declaration label: the name (`_` for an anonymous instance), plus `@n` (n-th of them, 1-based) when the same
+  // label names several def/abbrev/instance commands of the file (same short name in two namespaces)
+  const decls = regions(src).filter((r) => ['def', 'abbrev', 'instance'].includes(r.kind));
+  const uses = {}, seen = {};
+  for (const r of decls) uses[r.name || '_'] = (uses[r.name || '_'] ?? 0) + 1;
+  for (const r of decls) {
+    const nm = r.name || '_';
+    seen[nm] = (seen[nm] ?? 0) + 1;
+    const label = uses[nm] > 1 ? `${nm}@${seen[nm]}` : nm;
     const a = starts[r.start - 1], z = r.end < lines.length ? starts[r.end] - 1 : src.length;
     // body start: first `:=` in code, or the first line starting with an arm `|`
     let b = -1;
@@ -109,7 +122,7 @@ export function mutants(src) {
     // a `deriving` / `where` structure-instance tail stays in; `termination_by`/`decreasing_by` proofs are cut off
     let e = z;
     for (let k = r.start; k < r.end; k++) if (/^\s*(termination_by|decreasing_by)\b/.test(lines[k])) { e = Math.min(e, starts[k]); break; }
-    const add = (s, t, to, op) => res.push({ start: s, end: t, to, op, def: r.name });
+    const add = (s, t, to, op) => res.push({ start: s, end: t, to, op, def: r.name, label });
     const code = (s, t) => { for (let j = s; j < t; j++) if (m[j] !== 1) return false; return true; };
     for (let j = b; j < e; j++) {
       if (m[j] === 2 && src[j] === '"' && (j === 0 || m[j - 1] !== 2)) { // string literal start
@@ -177,10 +190,31 @@ export function mutants(src) {
     }
   }
   const lineOf = (p) => { let lo = 0, hi = starts.length - 1; while (lo < hi) { const md = (lo + hi + 1) >> 1; if (starts[md] <= p) lo = md; else hi = md - 1; } return lo; };
-  return res.map((x) => {
+  // id = <label>#<k>:<op>:<repl>, k = rank (1-based) of this mutant's start offset among the distinct start offsets
+  // of the same op in the same declaration. Edits outside the declaration leave it unchanged (no line numbers).
+  const sites = {};
+  for (const x of res) (sites[`${x.label}\t${x.op}`] ??= new Set()).add(x.start);
+  const rank = {};
+  for (const [k, s] of Object.entries(sites)) rank[k] = new Map([...s].sort((p, q) => p - q).map((p, i) => [p, i + 1]));
+  const out = res.map((x) => {
     const ln = lineOf(x.start);
-    return { ...x, line: ln + 1, col: x.start - starts[ln] + 1, from: src.slice(x.start, x.end), id: `${ln + 1}:${x.start - starts[ln] + 1}:${x.op}:${x.to === '' ? 'drop' : [...x.to].length <= 12 ? x.to : 'x'}` };
+    return { ...x, line: ln + 1, col: x.start - starts[ln] + 1, from: src.slice(x.start, x.end), id: mutantId(x.label, rank[`${x.label}\t${x.op}`].get(x.start), x.op, x.to) };
   });
+  // Unique by construction: (label, op, k) fixes the start offset, and the only op with two mutants at one start is
+  // num (n+1 vs n-1), whose replacements are rendered in full. Checked anyway, since apply picks by id.
+  const ids = new Set();
+  for (const x of out) {
+    if (ids.has(x.id)) throw new Error(`gen: duplicate mutant id ${x.id} (line ${x.line})`);
+    ids.add(x.id);
+  }
+  return out;
+}
+
+/** The id text: `<label>#<k>:<op>:<repl>`; repl is `drop` for an empty replacement, `x` for one longer than 12
+ * characters or holding a tab/newline (num replacements always in full, so n+1 and n-1 stay apart). */
+export function mutantId(label, k, op, to) {
+  const repl = to === '' ? 'drop' : op === 'num' || ([...to].length <= 12 && !/[\t\n]/.test(to)) ? to : 'x';
+  return `${label}#${k}:${op}:${repl}`;
 }
 
 /** Kind and name of the top-level command that holds line `ln` of `src`. */
@@ -191,8 +225,15 @@ function where(src, ln) {
 const PROOF = new Set(['theorem', 'lemma', 'example']);
 const esc = (s) => s.replace(/\\/g, '\\\\').replace(/\t/g, '\\t').replace(/\n/g, '\\n');
 
-const [cmd, ...args] = process.argv.slice(2);
-if (cmd === 'list') {
+/** 32-bit FNV-1a of the UTF-8 bytes of `s` (the shard key hash). */
+export const fnv = (s) => { let h = 0x811c9dc5; for (const b of Buffer.from(s, 'utf8')) h = Math.imul(h ^ b, 0x01000193) >>> 0; return h; };
+
+// CLI only when run as a script (the tests import this module)
+const main = process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
+const [cmd, ...args] = main ? process.argv.slice(2) : ['--imported'];
+if (cmd === '--imported') {
+  // imported as a module: nothing to run
+} else if (cmd === 'list') {
   // list [--skip def,def] <file>...  → TSV: file id op def line from to
   // --str-cap N: at most N `str` mutants per def, evenly spread over its literals (first and last included)
   let skip = new Set(), cap = Infinity;
@@ -245,7 +286,6 @@ if (cmd === 'list') {
   if (!(Number.isInteger(i) && Number.isInteger(n) && n >= 1 && i >= 0 && i < n)) {
     console.error('gen: shard <i> <n> needs integers 0 <= i < n'); process.exit(2);
   }
-  const fnv = (s) => { let h = 0x811c9dc5; for (const b of Buffer.from(s, 'utf8')) h = Math.imul(h ^ b, 0x01000193) >>> 0; return h; };
   const out = [];
   for (const l of readFileSync(0, 'utf8').split('\n')) {
     if (l === '') continue;
