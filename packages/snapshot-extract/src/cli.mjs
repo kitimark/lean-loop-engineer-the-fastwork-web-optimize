@@ -5,7 +5,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { snapshotRoot } from '../../gate-breakpoints/src/serve.mjs';
-import { runExtract } from './extract.mjs';
 import { cleanSource, fromJsonl, inOrder, stableRows, toJsonl } from './reduce.mjs';
 import { compare, fontReport, renderMarkdown, rootTable, summarize } from './report.mjs';
 
@@ -21,6 +20,7 @@ const engineFile = (e) => (e === 'chromium' ? 'chromium' : 'webkit');
 
 if (cmd === 'extract') {
   if (!v.engine) throw new Error('--engine required');
+  const { runExtract } = await import('./extract.mjs');
   await runExtract({ engineName: v.engine, outDir: v.out, concurrency: Number(v.concurrency), envFilter: v.envs ? v.envs.split(',').map(Number) : null });
 } else if (cmd === 'merge') {
   const runs = v.in.split(',').map((f) => JSON.parse(readFileSync(f, 'utf8')));
