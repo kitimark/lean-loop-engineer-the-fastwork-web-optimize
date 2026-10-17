@@ -220,6 +220,100 @@
             {"role": "grad", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-grad", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"grad\"]", "boxRel": null, "dims": [], "skipSets": [], "skipProps": [], "why": "fixed 24 x 1 px gradient rule"},
             {"role": "privacy", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-footer-end > a", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"footer-end\"] > a", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "link text differs"}
       ]
+    },
+    "nav": {
+      "anchors": ["nav"],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:11320-11640 (pill, bar, logo, actions, earn button, phone band, reduced motion); 2.DyWL8TcE.js:12897-13018, 13224-13245 (state and classes)",
+        "the gate loads at the top: the nav is the hero pill (is-hero-pill, --morph 0) and, after its 1140 ms chrome-ready delay, visible in both arms"
+      ],
+      "excluded": [
+        { "what": "the logo artwork", "why": "the original's glyph is not restated; the rewrite draws a placeholder shape in the same 122 px wide box (svg height auto), so the box is compared and the paths are not" },
+        { "what": "the morph panel inside the nav (title, columns, CTAs, footer) and the nav at morph > 0", "why": "owned by morph.panel and morph.tween; the rewrite page has no platform section, so the morph never arms in the gate. The geometry as a function of --morph is specified in lean/Fw/Parts/Nav.lean (rest_box, end_box, navWidth_mono ...)" },
+        { "what": "is-on-dark, is-scroll-hidden", "why": "is-on-dark belongs to nav.hitTest and needs the dark sections; is-scroll-hidden needs the profile sticky item (people, a shell). Their decisions are Lean golden vectors (logic.test.ts)" }
+      ],
+      "roles": [
+        {
+          "role": "nav",
+          "orig": "header.start-selling-top-nav",
+          "rewrite": "[data-fw=\"nav\"]",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the floating pill: fixed at top 16px, centred, min(984px, 100vw - 48px) wide (100vw - 32px at <=640), 64px (52px at <=640) high"
+        },
+        {
+          "role": "bar",
+          "orig": ".start-selling-top-nav-bar",
+          "rewrite": "[data-fw=\"nav\"] > div",
+          "boxRel": { "role": "nav", "index": 0 },
+          "dims": ["x", "y", "w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the absolutely positioned row that holds the logo and the actions; its padding (8px 8px 8px 24px, 16px at <=640) is the part's own"
+        },
+        {
+          "role": "logo",
+          "orig": ".start-selling-top-nav-logo",
+          "rewrite": "[data-fw=\"nav\"] > div > a",
+          "boxRel": { "role": "bar", "index": 0 },
+          "dims": ["x", "y", "w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the 122px wide inline SVG (scale 0.75 at <=640); the glyph is a placeholder, the box is the original's"
+        },
+        {
+          "role": "actions",
+          "orig": ".start-selling-top-nav-actions",
+          "rewrite": "[data-fw=\"nav\"] > div > div",
+          "boxRel": null,
+          "dims": ["h"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "right-aligned flex row; its width is the language switch's text width (a font), so only the height is compared"
+        },
+        {
+          "role": "earn",
+          "orig": ".start-selling-top-nav-btn.is-earn",
+          "rewrite": "[data-fw=\"nav-earn\"]",
+          "boxRel": null,
+          "dims": ["h"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the Join waitlist button, collapsed (max-width and padding 0) in the hero pill; its height (48px, 36px at <=640) and its collapse rules are compared"
+        }
+      ]
+    },
+    "nav.langMenu": {
+      "anchors": ["nav-lang"],
+      "cites": ["snapshot 2.gBuqKVzi.css:11106-11295 (switch, icon, code, chevron, menu, options, <=640, reduced motion); 2.DyWL8TcE.js:12720-12880"],
+      "excluded": [
+        { "what": "the open menu and its options", "why": "the menu is not rendered until a click, in both arms; the gate loads and does not interact. The phase machine and its timer are Lean golden vectors (logic.test.ts) and controller tests" },
+        { "what": "the icon artwork and the switch width", "why": "the globe icon is drawn from circle and ellipse in the same 16px box; the width follows the label font, which differs between the arms" }
+      ],
+      "roles": [
+        {
+          "role": "wrap",
+          "orig": ".start-selling-language-switch-wrap",
+          "rewrite": "[data-fw=\"nav-lang\"]",
+          "boxRel": null,
+          "dims": ["h"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "relative wrapper (z-index 2) around the switch button"
+        },
+        {
+          "role": "switch",
+          "orig": ".start-selling-language-switch",
+          "rewrite": "[data-fw=\"nav-lang\"] > button",
+          "boxRel": null,
+          "dims": ["h"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the 48px pill button (36px at <=640) with a blurred translucent fill and a 1px border"
+        }
+      ]
     }
   }
 }
