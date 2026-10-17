@@ -22,6 +22,8 @@ scripts/MeasureGolden.lean` from `lean/`; mathview lint 0 failing.
 Open items
 - webkit-quiet also edits webkit-sim.yml / session.mjs: expect a merge conflict in the workflow (jobs `plan`, `sim`).
 - Preset/fw on the rewrite arm are still refused by `plan` (default config only).
+- `align-classes` step in the workflow has not run on CI yet (only locally on run 39053799594 artifacts); `merge` fails on 3 original VMs
+  (census label y=5268 vs 5267, webkit-quiet's area).
 - The note's counts come from CI run ids listed there; re-run `gh workflow run webkit-sim.yml -f target=both -f vms=3`.
 
 Read first: the note, then StepAlign.lean doc header, then `align.mjs`.
