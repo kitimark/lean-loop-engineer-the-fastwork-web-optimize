@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import { HeroCountdown } from './parts/hero.countdown';
 import { HeroExit } from './parts/hero.exit';
 import { EngineScroll } from './parts/engine.scroll';
+import { MorphCountdown } from './parts/morph.countdown';
 import { NavHitTest } from './parts/nav.hitTest';
 import type { FwConfig } from './registry/types';
 import { setHydrated } from './fw';
@@ -57,6 +58,7 @@ export function App({ config }: { config: FwConfig }) {
       <main>
         <HeroCountdown variant={config.variants['hero.countdown'] ?? 'faithful'} />
         <HeroExit variant={config.variants['hero.exit'] ?? 'faithful'} />
+        <MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />
 
         <section aria-label="tabs">
           <div role="tablist" style={{ display: 'flex', justifyContent: 'center' }}>
