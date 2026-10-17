@@ -55,25 +55,30 @@ def partJson (u : PartUse) : Json :=
 
 /-- The union of all pilot scopes, in matrix and spec order.
 
-$$S_\cup = [\,p \in M \mid \exists u \in \mathrm{pilot},\ p \in S(u)\,],\quad K_\cup = [\,w \in W \mid \exists u \in \mathrm{pilot},\ w \in K(u)\,]$$
+$$\operatorname{unionJson} = \{\mathrm{probes}: \operatorname{ids}(S_\cup),\ \mathrm{sweeps}: [\,\mathrm{id}(w) \mid w \in K_\cup\,]\},\quad S_\cup = [\,p \in M \mid \exists u \in \mathrm{pilot},\ \exists q \in S(u):\ \mathrm{id}(q) = \mathrm{id}(p)\,],\quad K_\cup = [\,w \in W \mid \exists u \in \mathrm{pilot},\ \exists v \in K(u):\ \mathrm{id}(v) = \mathrm{id}(w)\,],\quad \text{with } M = \mathrm{matrix},\ W = \mathrm{sweeps},\ S = \operatorname{scopeProbes},\ K = \operatorname{scopeSweeps}$$
 
-What `--parts` with every pilot part runs. -/
+What `--parts` with every pilot part runs: the matrix probes and spec sweeps whose id some pilot scope names, in
+matrix and spec order. -/
 def unionJson : Json :=
   Json.mkObj [
     ("probes", probeIds (matrix.filter fun p => pilotParts.any fun u => (scopeProbes u).any (·.id == p.id))),
     ("sweeps", toJson ((sweeps.filter fun w => pilotParts.any fun u => (scopeSweeps u).any (·.id == w.id)).map (·.id)))]
 
-/-- Hypothesis H in words, as the JSON states it.
+/-- Hypothesis H in words, as the JSON states it: a separate fixed paraphrase, not a copy of the module text of
+hypothesis H in `Fw.Gate.Scope` (it leaves out the clamp-in-vw detail and adds the gate-of-record sentence).
 
-$$H = \text{the text of hypothesis H of } \texttt{Fw.Gate.Scope}$$
+$$\operatorname{hypothesisText} = \text{``H: on a fixed engine port, a part's verdict at a fresh load depends only on its key (the truth vector of the part's key queries), and at a sweep stop only on the key history so far with repeats collapsed; it is never unreachable except by the port's proved reason (}\texttt{Fw.Gate.envReason}\text{). H fails if the part reads a condition outside its key, if the rewrite's media text differs from Lean's, or if a continuous value differs between the arms at some widths of one key class only. The full matrix (no }\texttt{-{}-parts}\text{) stays the gate of record.''}$$
 
-What the scoped verdict relies on. -/
+A fixed English string, written by hand, that the generated scope file carries as its hypothesis. -/
 def hypothesisText : String :=
   "H: on a fixed engine port, a part's verdict at a fresh load depends only on its key (the truth vector of the " ++
   "part's key queries), and at a sweep stop only on the key history so far with repeats collapsed; it is never " ++
   "unreachable except by the port's proved reason (Fw.Gate.envReason). H fails if the part reads a condition " ++
   "outside its key, if the rewrite's media text differs from Lean's, or if a continuous value differs between " ++
   "the arms at some widths of one key class only. The full matrix (no --parts) stays the gate of record."
+
+#guard hypothesisText.startsWith "H: on a fixed engine port, " &&
+  hypothesisText.endsWith "The full matrix (no --parts) stays the gate of record."
 
 /-- The whole generated document.
 
