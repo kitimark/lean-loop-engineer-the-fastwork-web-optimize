@@ -40,6 +40,11 @@ on:
         description: Shards per engine (1 to 16)
         type: string
         default: '8'
+      fw:
+        description: >-
+          Flag set of the rewrite arm, e.g. morph.tween:waapi (becomes ?fw=...; the build prerenders every single-variant page). Empty = the default config.
+        type: string
+        default: ''
       parts:
         description: >-
           Pilot parts to check, comma separated (engine.scroll, nav.hitTest, hero.countdown, hero.exit); empty = all.
@@ -157,6 +162,7 @@ jobs:
           ENGINE: ${{ matrix.engine }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_SEARCH: ${{ inputs.fw && format('?fw={0}', inputs.fw) || '' }}
           SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
         working-directory: packages/gate-breakpoints
         timeout-minutes: 5
@@ -168,6 +174,7 @@ jobs:
           PARTS: ${{ needs.plan.outputs.parts }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_SEARCH: ${{ inputs.fw && format('?fw={0}', inputs.fw) || '' }}
         working-directory: packages/gate-breakpoints
         run: |
           parts_args=()
@@ -209,6 +216,7 @@ jobs:
           ENGINE: ${{ matrix.engine }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_SEARCH: ${{ inputs.fw && format('?fw={0}', inputs.fw) || '' }}
           SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
         working-directory: packages/gate-breakpoints
         timeout-minutes: 5
@@ -219,6 +227,7 @@ jobs:
           PARTS: ${{ needs.plan.outputs.parts }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_SEARCH: ${{ inputs.fw && format('?fw={0}', inputs.fw) || '' }}
         working-directory: packages/gate-breakpoints
         run: |
           parts_args=()
