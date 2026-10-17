@@ -37,6 +37,8 @@ test('traceToFrameCounts: HitTest inside the overlay-ad detector is its own type
     { ph: 'X', name: 'StyleEngine::updateActiveStyleSheets', pid: 1, tid: 1, ts: 300, dur: 3, args: {} },
     { ph: 'I', name: 'TimeStamp', pid: 1, tid: 1, ts: 400, args: { data: { message: 'F1' } } },
     { ph: 'X', name: 'HitTest', pid: 1, tid: 1, ts: 410, dur: 4, args: {} },
+    { ph: 'X', name: 'IsolatedSVGDocumentHost::IsolatedSVGDocumentHost', pid: 1, tid: 1, ts: 500, dur: 30, args: {} },
+    { ph: 'X', name: 'StyleEngine::updateActiveStyleSheets', pid: 1, tid: 1, ts: 510, dur: 3, args: {} },
   ];
   const r = traceToFrameCounts(ev, 2);
   assert.equal(r.perFrame[0]['trace.HitTest'], 1);
@@ -46,6 +48,8 @@ test('traceToFrameCounts: HitTest inside the overlay-ad detector is its own type
   assert.equal(r.perFrame[1]['trace.HitTest'], 1);
   assert.equal(r.perFrame[1]['trace.HitTest.overlayAdDetector'], undefined);
   assert.equal(r.perFrame[1]['trace.N1.updateActiveStyleSheets'], 0);
+  assert.equal(r.perFrame[1]['trace.N1.svgImageDocument'], 1);
+  assert.equal(r.perFrame[0]['trace.N1.svgImageDocument'], 0);
 });
 
 test('n0Windows: events go to the first frame at or after their time; load, preroll and after are separate', async () => {

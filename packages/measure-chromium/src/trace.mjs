@@ -33,7 +33,7 @@ const MAIN = {
   ScrollLayer: { key: 'trace.ScrollLayer' },
   'LocalFrameView::NotifyResizeObservers': { key: 'trace.ResizeObserverNotify' },
   'IntersectionObserverController::computeIntersections': { key: 'trace.IntersectionObserverCompute' },
-  HitTest: { key: 'trace.HitTest' }, // HitTests inside OverlayInterstitialAdDetector::MaybeFireDetection are counted under HIT_TEST_DETECTOR instead
+  HitTest: { key: 'trace.HitTest' }, // HitTests inside OverlayInterstitialAdDetector::MaybeFireDetection are counted under SPLITS instead
   // N1 (PLAN 6.7): the engine-side style-sheet update slices. Zero on a page that never changes its sheets after load.
   'StyleEngine::updateActiveStyleSheets': { key: 'trace.N1.updateActiveStyleSheets' },
   'StyleEngine::scheduleInvalidationsForRuleSets': { key: 'trace.N1.scheduleInvalidationsForRuleSets' },
@@ -58,8 +58,16 @@ const MAIN = {
 // the detector every 8-9 frames, and which of two adjacent frames gets it follows real time. It is browser-internal
 // work, not page work, so it is counted under its own type and kept out of trace.HitTest.
 const DETECTOR = 'OverlayInterstitialAdDetector::MaybeFireDetection';
-const HIT_TEST_DETECTOR = { key: 'trace.HitTest.overlayAdDetector' };
-export const N1_KEYS = Object.values(MAIN).map((s) => s.key).filter((k) => k.startsWith('trace.N1.'));
+// The same containment split for N1: a page that shows SVG images makes Blink build one isolated SVG document per image
+// (IsolatedSVGDocumentHost, SVGImage), and each one runs its own first StyleEngine::updateActiveStyleSheets while
+// its parse finishes (Document::FinishedParsing > UpdateLayoutTree > Document::updateActiveStyle). That is image decoding,
+// not a change to the page's sheets, so a slice inside an SVG-image host is counted as trace.N1.svgImageDocument.
+const SVG_HOST = 'IsolatedSVGDocumentHost::IsolatedSVGDocumentHost';
+const SPLITS = {
+  HitTest: { within: DETECTOR, spec: { key: 'trace.HitTest.overlayAdDetector' } },
+  'StyleEngine::updateActiveStyleSheets': { within: SVG_HOST, spec: { key: 'trace.N1.svgImageDocument' } },
+};
+export const N1_KEYS = [...Object.values(MAIN).map((s) => s.key), 'trace.N1.svgImageDocument'].filter((k) => k.startsWith('trace.N1.'));
 const COMP = {
   'LayerTreeHostImpl::ActivateSyncTree': { key: 'trace.cc.Activate', ph: ['X'] },
   'ProxyImpl::Commit': { key: 'trace.cc.Commit', ph: ['X'] },
@@ -99,12 +107,13 @@ export function traceToFrameCounts(events, nFrames) {
   const main = events.filter((e) => mainKeys.has(`${e.pid}:${e.tid}`) && e.ph !== 'M').sort(stable);
   let cur = -1;
   const stacks = new Map();
-  const detector = main.filter((e) => e.name === DETECTOR && e.ph === 'X').map((e) => [e.ts, e.ts + (e.dur ?? 0)]);
-  const inDetector = (e) => detector.some(([a, b]) => a <= e.ts && e.ts + (e.dur ?? 0) <= b);
+  const outer = new Map(Object.values(SPLITS).map((x) => [x.within, main.filter((e) => e.name === x.within && e.ph === 'X').map((e) => [e.ts, e.ts + (e.dur ?? 0)])]));
+  const inside = (e, within) => e.ph === 'X' && outer.get(within).some(([a, b]) => a <= e.ts && e.ts + (e.dur ?? 0) <= b);
   for (const e of main) {
     if (e.name === 'TimeStamp' && /^F\d+$/.test(e.args?.data?.message ?? '')) { cur = +e.args.data.message.slice(1); continue; }
     if (cur < 0 || cur >= nFrames) continue;
-    const spec = e.name === 'HitTest' && e.ph === 'X' && inDetector(e) ? HIT_TEST_DETECTOR : specOf(MAIN, e);
+    const split = SPLITS[e.name];
+    const spec = split && inside(e, split.within) ? split.spec : specOf(MAIN, e);
     const tid = `${e.pid}:${e.tid}`;
     if (!stacks.has(tid)) stacks.set(tid, []);
     if (e.ph === 'B') stacks.get(tid).push({ spec, frame: cur });
