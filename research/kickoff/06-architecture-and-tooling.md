@@ -645,7 +645,7 @@ pre-push:
 2. Should **raw traces** ever be committed (e.g. via git LFS), or only manifests and summaries, with raw files local?
    This note assumes local only.
 3. Should Serena's **`rename_symbol`** be enabled (v2 recommendation), or should it stay fully read-only as in v1?
-4. Will this repo be **public** like v1 (`kitimark/loop-engineer-the-fastwork-web-optimize`)? That decides how strict
+4. Will this repo be **public** like the v1 repo? That decides how strict
    the pre-push scrub and the excerpt-license checks must be.
 5. Should lean-lsp-mcp's **remote search tools** (LeanSearch, Loogle, LeanFinder: queries leave the machine) be
    enabled? They are on by default.
