@@ -1668,11 +1668,12 @@
    "stream": "parts",
    "milestone": "M2",
    "deps": [
-    "port-morph-mount",
-    "port-morph-tween",
-    "port-morph-panel",
+    "integrate-ports",
+    "port-morph-columns",
     "port-morph-countdown",
-    "port-morph-columns"
+    "port-morph-mount",
+    "port-morph-panel",
+    "port-morph-tween"
    ],
    "owner": "lead"
   },
@@ -2347,6 +2348,20 @@
     "apps/runner/src/fw.ts",
     ".claude/agents/measure-engineer.md",
     "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "integrate-ports",
+   "title": "Integrate finished port branches (morph.panel, nav, commission, overlays, hero, people) into one branch from main; one gate prepare mechanism + animation settle; one full gate run, then the lead lands it",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "packages/gate-breakpoints/src/**",
+    "apps/site/src/App.tsx",
+    "apps/site/src/registry/index.ts",
+    "lean/Fw/Gate/Scope.lean"
    ]
   }
  ],
