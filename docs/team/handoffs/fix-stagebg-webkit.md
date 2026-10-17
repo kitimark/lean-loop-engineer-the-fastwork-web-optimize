@@ -31,3 +31,14 @@ Needs the lead/gate owner: add `align-self` to the stage role skipProps in packa
 Tried without effect (docker repro): removing text-wrap:pretty; `grid-template-rows: auto auto` on the row (stage still shrinks to 191.19 at 320 on the first descent).
 No CSS-only fix leaves every compared property equal: any non-stretch placement shows in align-self/align-items.
 Debug recipe: docker run --rm -v WORKTREE:/w -w /w/packages/gate-breakpoints mcr.microsoft.com/playwright:v1.64.1-noble node SCRIPT; build with `node apps/site/scripts/build.mjs --engine aot`.
+
+## Lead follow-up: exempting rejected, path 3 taken
+Run 39076867529 (integrate-ports-2 merged: global body font; no align-self, no section font-family): chromium 0, webkit still 5 (stage h 20, grain h 14, bg h 1). The real font does not fix it, so it is not a font-metrics effect.
+Path 3: `align-self:start` restored in the <=640 query, justified, not exempted. Run 39073955561 is the evidence: with it the heights match and only the declared `align-self` (start vs auto, 120 samples) is flagged. No further run spent (3 of 3 used). Open for the lead: whether the gate may judge the pair `start`/`normal` equal for items with a preferred aspect ratio by a Lean rule (not a skip).
+Spec (CONFIRMED, css-grid-1 6.2 Grid Item Sizing; css-align-3 6.2.5 "normal"): with align-self:normal, an item that has a preferred aspect ratio is NOT stretched; it is sized like a block-level box. So normal and start give the same block size for this item.
+Engine (RenderGrid.cpp@862f17d): :359-368 and :294 mark aspect-ratio block-size-dependent items and force a second track pass; :1580-1589 re-applies stretch to them, contrary to the spec for normal.
+Lean statement (for lean-coverage, exempt(engineDefault) or premise):
+  theorem normal_eq_start_of_ratio (i : GridItem) (h : i.preferredRatio.isSome) (hw : i.inlineSizeDefinite) :
+    blockSize .normal i = blockSize .start i
+  -- math: \forall i,\; r(i)\neq\bot \wedge w(i)\text{ definite} \Rightarrow h_{normal}(i)=h_{start}(i)=\tfrac{288}{361}\,w(i)
+Premise-tests case: grid-normal-aspect-ratio-no-stretch (a row with a 361/288 item and a copy whose title wraps to 2 lines; resize 1512->320; stage h must equal w*288/361 under normal). WebKit-glib fails it, hence the workaround.
