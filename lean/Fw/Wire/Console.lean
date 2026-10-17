@@ -14,6 +14,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landReadiness` | `card` {id, needsDevice, owner?, approved?, head?, screenAt?, reviewAt?, deviceAt?, landed?} (a board or reducer card; other fields ignored), `sha` | `ready`, `needs` (`approve`/`build`/`screen`/`review`/`device`, in that order), `refusal` (the `card.land_request` refusal at `sha`, or null) |
 | `console.actor` | `source`? (`alert`/`claim`/`build`/`landed`/`taskDone`; missing = all) | `sources` [{source, actor, type, allowed}] |
 | `console.alert` | `event` {hook_event_name, ts, agent_id?, agent_type?, tool_name?, notification_type?}, `flights`? [{agent_id?, agent_type?, tool_name?}] (tool calls in flight; no agent_id = the lead), `open`? [step ids] (alert steps still open on the board) | `post` (null or {step, key, title, kind, agent}: the `step.post` to send as actor script), `close` [{step, key}] (the `step.cancel`s to send as actor script) |
+| `console.landScope` | `writes` [globs], `names`? [agent/task names for handoff files], `allow`? [globs], `paths` [changed files] | `ok`, `reason` (null / `noWrites` / `outOfScope`), `violations`, `scope` (the globs used; `!` = exclude) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
 namespace Fw.Wire.Console
@@ -97,10 +98,27 @@ def opTrailers (req : Json) : Except String Reply := do
         ("verdicts", .arr ((verdicts ts cs).toArray.map fun (x, s, v) =>
             Json.mkObj [("task", .str x), ("sha", .str s), ("verdict", .str v.name)]))]
 
+/-! ## console.landScope -/
+
+open Fw.Console.Land in
+/-- `console.landScope`: may these changed paths land? (`Fw.Console.Land.landVerdict`). -/
+def opLandScope (req : Json) : Except String Reply := do
+  let strs (k : String) (a : List Json) : Except String (List String) := a.mapM (asStr k)
+  let writes ← strs "writes" (← arr req "writes").toList
+  let names ← strs "names" (← arrD req "names")
+  let allow ← strs "allow" (← arrD req "allow")
+  let paths ← strs "paths" (← arr req "paths").toList
+  let (ok, reason, vs) := match landVerdict writes names allow paths with
+    | .ok => (true, Json.null, [])
+    | .noWrites => (false, Json.str "noWrites", [])
+    | .outOfScope v => (false, Json.str "outOfScope", v)
+  pure [("ok", .bool ok), ("reason", reason), ("violations", .arr (vs.toArray.map Json.str)),
+        ("scope", .arr ((landScope writes names allow).toArray.map Json.str))]
+
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
-def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "plan.trailers"]
+def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "plan.trailers"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -108,6 +126,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.landReadiness" => some (opLandReadiness req)
   | "console.actor" => some (opActor req)
   | "console.alert" => some (opAlert req)
+  | "console.landScope" => some (opLandScope req)
   | "plan.trailers" => some (opTrailers req)
   | _ => none
 
