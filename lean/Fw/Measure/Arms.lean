@@ -322,9 +322,7 @@ theorem levelAt_tableOf (p : Policy) (q : PxTol) (runs : List (List Counts)) (τ
 the two arm tables is the worse of the two `classifyU` levels, each over its own arm's runs; the
 arm without the type contributes `det` (its series reads 0 in every frame).
 
-$$\forall p, q, \mathcal{A}, \mathcal{B}, \tau:\ \tau \in \operatorname{keys}(\operatorname{flatten}(\mathcal{A})) \cup \operatorname{keys}(\operatorname{flatten}(\mathcal{B})) \;\Rightarrow\; \operatorname{cross}\big(\operatorname{at}(\operatorname{table}_{p,q}(\mathcal{A}), \tau),\ \operatorname{at}(\operatorname{table}_{p,q}(\mathcal{B}), \tau)\big) = \operatorname{lvl}\big(\operatorname{classify}_{p,q}(\operatorname{unit}(\tau), A_\tau)\big) \curlyvee \operatorname{lvl}\big(\operatorname{classify}_{p,q}(\operatorname{unit}(\tau), B_\tau)\big)$$
-
-where $A_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{A}}$ and $B_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{B}}$.
+$$\forall p, q, \mathcal{A}, \mathcal{B}, \tau:\ \tau \in \operatorname{keys}(\operatorname{flatten}(\mathcal{A})) \cup \operatorname{keys}(\operatorname{flatten}(\mathcal{B})) \;\Rightarrow\; \operatorname{cross}\big(\operatorname{at}(\operatorname{table}_{p,q}(\mathcal{A}), \tau),\ \operatorname{at}(\operatorname{table}_{p,q}(\mathcal{B}), \tau)\big) = \mathrm{some}\Big(\operatorname{lvl}\big(\operatorname{classify}_{p,q}(\operatorname{unit}(\tau), A_\tau)\big) \curlyvee \operatorname{lvl}\big(\operatorname{classify}_{p,q}(\operatorname{unit}(\tau), B_\tau)\big)\Big),\quad A_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{A}},\ B_\tau = [\operatorname{series}_\tau(r)]_{r \in \mathcal{B}}$$
 -/
 theorem crossLevel_classify (p : Policy) (q : PxTol) (as bs : List (List Counts)) (τ : String)
     (h : τ ∈ keysOf as.flatten ∨ τ ∈ keysOf bs.flatten) :
