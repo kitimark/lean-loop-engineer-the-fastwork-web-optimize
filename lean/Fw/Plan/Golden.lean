@@ -18,6 +18,8 @@ cd lean && lake test                          # fail if a file is stale or a cas
   `task.define` in dependency order, then a query). Written from the JSON at generation time; the
   check replays the stored requests and compares the stored replies, so a later edit of the work
   graph does not make it stale (regenerate to refresh it).
+* `sync.jsonl`: `Fw.Plan.syncFrom` vectors, one per line `{name, main, refs, last, from}`, for the
+  reconciler's plan sync (which commit to read the work graph from). Checked byte for byte.
 
 `lake test` runs the check. Consumer: con-plan (console-web / console-api plan view).
 -/
@@ -162,7 +164,65 @@ def cases : List (String × List Json) := [
     define "e" [] (some "MX") (evidence := some "abc1234") (cut := true),
     define "f" [] (some "MX") ["z/**"] (needs := ["device"]) (cut := true),
     apply "c:c" "hook" "task.claim" [("task", .str "c"), ("agent", .str "agent-c")],
-    query])]
+    query]),
+  ("spawn race (obs-next-lean): define then spawn binds the agent", [
+    define "obs-next-lean" [] (key := "plan:d:obs-next-lean"),
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "obs-next-lean")],
+    query]),
+  ("spawn race (obs-next-lean): spawn then define binds the same agent", [
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "obs-next-lean")],
+    define "obs-next-lean" [] (key := "plan:d:obs-next-lean"),
+    query]),
+  ("stop before define: the agent ended before its task existed, the task is ready", [
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
+    define "a" [],
+    query]),
+  ("stop and respawn: a stop unbinds an undone task, a done task keeps its agent, a respawn binds again", [
+    define "a" [],
+    define "b" [],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "spawn:t2" "hook" "agent.spawn" [("agent", .str "b")],
+    apply "t:b" "git" "task.done" [("task", .str "b"), ("evidence", .str "abc1234")],
+    apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
+    apply "stop:b1" "hook" "agent.stop" [("agent", .str "b")],
+    query,
+    apply "spawn:t3" "hook" "agent.spawn" [("agent", .str "a")],
+    query]),
+  ("claim and spawn: an explicit claim wins; when its agent stops the name match takes over", [
+    define "a" [],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "c:a" "lead" "task.claim" [("task", .str "a"), ("agent", .str "lead-1")],
+    query,
+    apply "stop:l1" "hook" "agent.stop" [("agent", .str "lead-1")],
+    query]),
+  ("authority: agent.spawn by hook, script and lead; refused for owner; a seen key is a duplicate", [
+    apply "spawn:t1" "owner" "agent.spawn" [("agent", .str "a")],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "spawn:t2" "script" "agent.spawn" [("agent", .str "b")],
+    apply "stop:x" "lead" "agent.stop" [("agent", .str "b")]])]
+
+/-- The plan-sync vectors (`Fw.Plan.syncFrom`): name, main's ref name, the refs, the last synced
+commit, and the commit to sync from (or none). -/
+def syncCases : List (String × String × List (String × String) × Option String) := [
+  ("first pass: main's head is synced", "main", [("ci/x", "c1"), ("main", "m1")], none),
+  ("same head: skipped", "main", [("main", "m1")], some "m1"),
+  ("main moved: synced", "main", [("ci/x", "c1"), ("main", "m2")], some "m1"),
+  ("no main ref: skipped", "main", [("ci/x", "c1")], some "m1"),
+  ("no refs: skipped", "main", [], none),
+  ("a worktree branch never syncs", "main", [("worktree-agent-x", "w1")], none),
+  ("duplicate main: the first one", "main", [("main", "m1"), ("main", "m2")], none)]
+
+/-- One sync line: `{name, main, refs: [[name, sha]], last, from}`. -/
+def syncLine (c : String × String × List (String × String) × Option String) : String :=
+  let (n, m, refs, last) := c
+  (Json.mkObj [("name", .str n), ("main", .str m),
+    ("refs", .arr (refs.toArray.map fun (r, h) => .arr #[.str r, .str h])), ("last", ostr last),
+    ("from", ostr (Fw.Plan.syncFrom m refs last))]).compress
+
+/-- The text of `sync.jsonl`. -/
+def syncText : String := String.join (syncCases.map fun c => syncLine c ++ "\n")
 
 /-- Run requests through `serveLine` from a fresh server; the reply lines. -/
 def replies (reqs : List Json) : List String :=
@@ -245,9 +305,11 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let d := root / dir
   let sp := d / "serve.jsonl"
   let wp := d / "work-graph.jsonl"
+  let yp := d / "sync.jsonl"
   if write then
     IO.FS.createDirAll d
     IO.FS.writeFile sp serveText
+    IO.FS.writeFile yp syncText
     let wg ← IO.FS.readFile (root / ".." / "docs" / "team" / "work-graph.json")
     match Json.parse wg with
     | .error e => throw (IO.userError s!"plan golden: work-graph.json: {e}")
@@ -258,6 +320,10 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let mut bad := 0
   if cur != serveText then
     IO.println s!"plan golden: {sp} is stale (regenerate: cd lean && lake test -- --write-plan-golden)"
+    bad := bad + 1
+  let ycur ← try IO.FS.readFile yp catch _ => pure ""
+  if ycur != syncText then
+    IO.println s!"plan golden: {yp} is stale (regenerate: cd lean && lake test -- --write-plan-golden)"
     bad := bad + 1
   bad := bad + (← replayFile sp) + (← replayFile wp)
   IO.println s!"plan golden: {cases.length} cases + work graph, {bad} failing"

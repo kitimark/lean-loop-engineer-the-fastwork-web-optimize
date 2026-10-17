@@ -34,6 +34,7 @@ def main (args : List String) : IO UInt32 := do
   -- gate.* goldens (verdict-to-lean): packages/contracts/golden/gate/, checked against the saved summaries
   let gg ← Fw.Wire.Gate.Golden.run (← FwTest.Golden.root) false
   let obg ← Fw.Wire.Obs.Golden.run (← FwTest.Golden.root) false  -- watch-lean
+  let nxg ← Fw.Wire.Obs.NextGolden.run (← FwTest.Golden.root) false  -- obs-next-glue: packages/contracts/golden/obs/next.jsonl
   let stg ← Fw.Wire.Store.Golden.run' (← FwTest.Golden.root) false  -- store-and-run: packages/contracts/golden/store/
   -- ghb-lean: packages/contracts/golden/ci-budget/ (`-- --write-ci-budget-golden` regenerates), then the fixture replay
   if args.contains "--write-ci-budget-golden" then discard <| Fw.Wire.Ci.Golden.run (← FwTest.Golden.root) true
@@ -46,6 +47,6 @@ def main (args : List String) : IO UInt32 := do
   let n := (s.cards.filter (·.approved)).length
   let t1 ← IO.monoNanosNow
   IO.println s!"console replay: 2000 events, {n} approved cards, {(t1 - t0) / 1000000} ms"
-  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && sg == 0 && pg == 0 && gg == 0 && obg == 0 && stg == 0 && cbg == 0 && n == 1000
+  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && sg == 0 && pg == 0 && gg == 0 && obg == 0 && nxg == 0 && stg == 0 && cbg == 0 && n == 1000
   IO.println (if ok then "fwtest: all passed" else "fwtest: FAILED")
   return if ok then 0 else 1

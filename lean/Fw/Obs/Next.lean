@@ -81,15 +81,19 @@ structure Child where
 deriving DecidableEq, Repr
 
 /-- The agent's branch: name, commits ahead of `main` (`git rev-list --count main..branch`), whether its tip is an
-ancestor of `main` (landed), and whether it is on the integrator's list (queued).
+ancestor of `main` (landed), whether it is on the integrator's list (queued), whether it merges into `main` without
+conflict (`git merge-tree --write-tree main <branch>` exits 0; default true), and its unlanded dependencies (branches of
+other agents it contains that are not on `main`, or tasks of its own dependencies that are not done; default none).
 
-$$b = (\mathit{name}, \mathit{ahead}, \mathit{landed}, \mathit{queued}) \in \mathrm{String} \times \mathbb N \times \mathbb B^2$$
+$$b = (\mathit{name}, \mathit{ahead}, \mathit{landed}, \mathit{queued}, \mathit{clean}, D) \in \mathrm{String} \times \mathbb N \times \mathbb B^2 \times \mathbb B \times \mathrm{String}^*$$
 -/
 structure Branch where
   name   : String
   ahead  : Nat
   landed : Bool
   queued : Bool
+  mergesClean : Bool := true
+  deps   : List String := []
 deriving DecidableEq, Repr
 
 /-- The agent's worktree: the pid in its lock (`none`: not locked) and whether that pid is alive.
@@ -123,9 +127,10 @@ deriving DecidableEq, Repr
 
 /-- The facts of one agent: id, task id, Health state, time of its handback (`none`: not seen), the session pid its
 processes descend from, its branch, worktree and context tokens (0 when unknown), its live child processes, the
-latest CI run of its `ci/*` branch, and the board row of the task named like the agent (`none`: no such task).
+latest CI run of its `ci/*` branch, the board row of the task named like the agent (`none`: no such task), and
+whether its handoff note exists.
 
-$$f = (\mathit{id}, \mathit{task}, s, h_\bot, \sigma, b_\bot, w_\bot, \mathit{ctx}, C, r_\bot, \tau_\bot)$$
+$$f = (\mathit{id}, \mathit{task}, s, h_\bot, \sigma, b_\bot, w_\bot, \mathit{ctx}, C, r_\bot, \tau_\bot, \mathit{ho})$$
 -/
 structure AgentFacts where
   id         : String
@@ -139,23 +144,25 @@ structure AgentFacts where
   children   : List Child := []
   ci         : Option Ci := none
   board      : Option TaskRow := none
+  /-- the handoff note `docs/team/handoffs/<name>.md` exists -/
+  handoff    : Bool := false
 deriving DecidableEq, Repr
 
 /-- Why an agent needs a look by the lead: held by a child that gets no kill, a CI wait past its own timeout, a sleep
-loop outside the session's process tree (never killed here), or a dead lock pid on the worktree of an agent that has
-not ended and has not handed back.
+loop outside the session's process tree (never killed here), a dead lock pid on the worktree of an agent that has
+not ended and has not handed back, or a branch that does not merge into `main` cleanly.
 
-$$\mathcal R = \{\mathrm{heldByChild}, \mathrm{ciWaitOverdue}, \mathrm{foreignLoop}, \mathrm{lockDead}\}$$
+$$\mathcal R = \{\mathrm{heldByChild}, \mathrm{ciWaitOverdue}, \mathrm{foreignLoop}, \mathrm{lockDead}, \mathrm{conflict}\}$$
 -/
 inductive Reason where
-  | heldByChild | ciWaitOverdue | foreignLoop | lockDead
+  | heldByChild | ciWaitOverdue | foreignLoop | lockDead | conflict
 deriving DecidableEq, Repr
 
 /-- The next actions: nothing, wait for a CI run, land a branch for a task, route a branch to the integrator, kill an
 orphan process, remove the worktree, stop and respawn from the handoff note, ask the agent to write its handoff, or
 look at it (with a reason), or bind a task to the agent on the board.
 
-$$\mathcal A = \{\mathrm{none}, \mathrm{cleanupWorktree}, \mathrm{respawnFromHandoff}, \mathrm{nudgeHandoff}\} \cup \{\mathrm{waitCi}(r), \mathrm{killOrphan}(q) : r, q \in \mathbb N\} \cup \{\mathrm{land}(b, k), \mathrm{routeIntegrator}(b), \mathrm{claimTask}(k, a) : b, k, a \in \mathrm{String}\} \cup \{\mathrm{investigate}(\rho) : \rho \in \mathcal R\}$$
+$$\mathcal A = \{\mathrm{none}, \mathrm{cleanupWorktree}, \mathrm{respawnFromHandoff}, \mathrm{nudgeHandoff}\} \cup \{\mathrm{waitCi}(r), \mathrm{killOrphan}(q) : r, q \in \mathbb N\} \cup \{\mathrm{land}(b, k), \mathrm{routeIntegrator}(b), \mathrm{claimTask}(k, a) : b, k, a \in \mathrm{String}\} \cup \{\mathrm{waitDeps}(d) : d \in \mathrm{String}\} \cup \{\mathrm{investigate}(\rho) : \rho \in \mathcal R\}$$
 -/
 inductive Action where
   | none
@@ -168,6 +175,7 @@ inductive Action where
   | nudgeHandoff
   | investigate (reason : Reason)
   | claimTask (task agent : String)
+  | waitDeps (dep : String)
 deriving DecidableEq, Repr
 
 /-! ## Tests -/
@@ -287,6 +295,21 @@ def lockDeadB (f : AgentFacts) : Bool :=
     | some w => w.lockPid.isSome && !w.lockAlive
     | none => false
 
+/-- The agent's task is open: the board has the task named like the agent and it is not done.
+
+$$\operatorname{open}(f) \iff \exists \tau.\ \tau_\bot(f) = \tau \wedge \neg\mathit{done}(\tau)$$
+-/
+def openTaskB (f : AgentFacts) : Bool :=
+  match f.board with
+  | some r => !r.done
+  | none => false
+
+/-- Respawn from the handoff is valid: stuck, no live child, its task exists and is not done, and a handoff note exists.
+
+$$\operatorname{respawn}(f) \iff \operatorname{stuck}(f) \wedge C(f) = [\,] \wedge \operatorname{open}(f) \wedge \mathit{ho}(f)$$
+-/
+def respawnB (f : AgentFacts) : Bool := stuckB f && f.children.isEmpty && openTaskB f && f.handoff
+
 /-! ## The pieces and the decision -/
 
 /-- A one-element list when the test holds, else empty.
@@ -311,15 +334,24 @@ def waits (f : AgentFacts) : List Action :=
   | some c => opt (ciRunning c.run) (.waitCi c.id)
   | none => []
 
-/-- Land or route a handed-back agent's unlanded branch when it has no live child: to the integrator when queued,
-else `land` with the agent's task.
+/-- Land or route a handed-back agent's unlanded branch when it has no live child. On the integrator's list: route.
+Otherwise a branch that does not merge cleanly is `investigate conflict`, a branch with an unlanded dependency waits
+for it (`waitDeps` of the first), and only a clean branch without unlanded dependencies is `land`ed with the agent's task.
 
-$$\operatorname{lands}(f) = \begin{cases} [\mathrm{routeIntegrator}(\mathit{name}(b))] & \operatorname{hb}(f) \wedge C(f) = [\,] \wedge b_\bot(f) = b \wedge 0 < \mathit{ahead}(b) \wedge \neg\mathit{landed}(b) \wedge \mathit{queued}(b) \\ [\mathrm{land}(\mathit{name}(b), \mathit{task}(f))] & \text{same but } \neg\mathit{queued}(b) \\ [\,] & \text{otherwise} \end{cases}$$
+$$\operatorname{lands}(f) = \begin{cases} [\mathrm{routeIntegrator}(\mathit{name}(b))] & \operatorname{hb}(f) \wedge C(f) = [\,] \wedge b_\bot(f) = b \wedge 0 < \mathit{ahead}(b) \wedge \neg\mathit{landed}(b) \wedge \mathit{queued}(b) \\ [\mathrm{investigate}(\mathrm{conflict})] & \text{same but } \neg\mathit{queued}(b) \wedge \neg\mathit{clean}(b) \\ [\mathrm{waitDeps}(d)] & \text{same but } \neg\mathit{queued}(b) \wedge \mathit{clean}(b) \wedge D(b) = d :: \_ \\ [\mathrm{land}(\mathit{name}(b), \mathit{task}(f))] & \text{same but } \neg\mathit{queued}(b) \wedge \mathit{clean}(b) \wedge D(b) = [\,] \\ [\,] & \text{otherwise} \end{cases}$$
 -/
 def lands (f : AgentFacts) : List Action :=
   if handedBack f && f.children.isEmpty then
     match f.branch with
-    | some b => opt (decide (0 < b.ahead) && !b.landed) (if b.queued then .routeIntegrator b.name else .land b.name f.task)
+    | some b =>
+      if decide (0 < b.ahead) && !b.landed then
+        (if b.queued then [.routeIntegrator b.name]
+         else if b.mergesClean then
+           (match b.deps with
+            | d :: _ => [.waitDeps d]
+            | [] => [.land b.name f.task])
+         else [.investigate .conflict])
+      else []
     | none => []
   else []
 
@@ -361,13 +393,13 @@ def claims (f : AgentFacts) : List Action :=
 nudge (high context or any kill); otherwise kills, waits, land or route, cleanup, respawn, nudge and probes, in this
 order; `[none]` when nothing fires.
 
-$$\operatorname{next}(p, t, f) = \begin{cases} \operatorname{orNone}\bigl(\operatorname{claims}(f) \mathbin{+\!\!+} \operatorname{kills}(p, t, f) \mathbin{+\!\!+} \operatorname{waits}(f) \mathbin{+\!\!+} \operatorname{opt}(\operatorname{nudge}(p, f) \vee \operatorname{kills}(p, t, f) \ne [\,], \mathrm{nudgeHandoff})\bigr) & s(f) = \mathrm{active} \\ \operatorname{orNone}\bigl(\operatorname{claims}(f) \mathbin{+\!\!+} \operatorname{kills}(p, t, f) \mathbin{+\!\!+} \operatorname{waits}(f) \mathbin{+\!\!+} \operatorname{lands}(f) \mathbin{+\!\!+} \operatorname{cleans}(f) \mathbin{+\!\!+} \operatorname{opt}(\operatorname{stuck}(f) \wedge C(f) = [\,], \mathrm{respawnFromHandoff}) \mathbin{+\!\!+} \operatorname{opt}(\operatorname{nudge}(p, f), \mathrm{nudgeHandoff}) \mathbin{+\!\!+} \operatorname{probes}(p, t, f)\bigr) & \text{otherwise} \end{cases}$$
+$$\operatorname{next}(p, t, f) = \begin{cases} \operatorname{orNone}\bigl(\operatorname{claims}(f) \mathbin{+\!\!+} \operatorname{kills}(p, t, f) \mathbin{+\!\!+} \operatorname{waits}(f) \mathbin{+\!\!+} \operatorname{opt}(\operatorname{nudge}(p, f) \vee \operatorname{kills}(p, t, f) \ne [\,], \mathrm{nudgeHandoff})\bigr) & s(f) = \mathrm{active} \\ \operatorname{orNone}\bigl(\operatorname{claims}(f) \mathbin{+\!\!+} \operatorname{kills}(p, t, f) \mathbin{+\!\!+} \operatorname{waits}(f) \mathbin{+\!\!+} \operatorname{lands}(f) \mathbin{+\!\!+} \operatorname{cleans}(f) \mathbin{+\!\!+} \operatorname{opt}(\operatorname{respawn}(f), \mathrm{respawnFromHandoff}) \mathbin{+\!\!+} \operatorname{opt}(\operatorname{nudge}(p, f), \mathrm{nudgeHandoff}) \mathbin{+\!\!+} \operatorname{probes}(p, t, f)\bigr) & \text{otherwise} \end{cases}$$
 -/
 def next (p : Params) (now : Nat) (f : AgentFacts) : List Action :=
   if f.state == .active then
     orNone (claims f ++ kills p now f ++ waits f ++ opt (nudgeB p f || !(kills p now f).isEmpty) .nudgeHandoff)
   else orNone (claims f ++ kills p now f ++ waits f ++ lands f ++ cleans f ++
-    opt (stuckB f && f.children.isEmpty) .respawnFromHandoff ++ opt (nudgeB p f) .nudgeHandoff ++ probes p now f)
+    opt (respawnB f) .respawnFromHandoff ++ opt (nudgeB p f) .nudgeHandoff ++ probes p now f)
 
 /-! ## Proofs -/
 
@@ -411,22 +443,20 @@ theorem waits_kind (f : AgentFacts) (x : Action) (h : x ∈ waits f) :
   · rename_i c hc; rw [mem_opt] at h; exact ⟨c, hc, h.1, h.2⟩
   · simp at h
 
-/-- `lands` holds only `routeIntegrator` or `land` actions.
+/-- `lands` holds only `routeIntegrator`, `land`, `waitDeps` or `investigate conflict` actions.
 
-$$\forall f, x:\quad x \in \operatorname{lands}(f) \Rightarrow (\exists b.\ x = \mathrm{routeIntegrator}(b)) \vee (\exists b, k.\ x = \mathrm{land}(b, k))$$
+$$\forall f, x:\quad x \in \operatorname{lands}(f) \Rightarrow (\exists b.\ x = \mathrm{routeIntegrator}(b)) \vee (\exists b, k.\ x = \mathrm{land}(b, k)) \vee (\exists d.\ x = \mathrm{waitDeps}(d)) \vee x = \mathrm{investigate}(\mathrm{conflict})$$
 -/
 theorem lands_kind (f : AgentFacts) (x : Action) (h : x ∈ lands f) :
-    (∃ b, x = .routeIntegrator b) ∨ ∃ b k, x = .land b k := by
+    (∃ b, x = .routeIntegrator b) ∨ (∃ b k, x = .land b k) ∨ (∃ d, x = .waitDeps d) ∨ x = .investigate .conflict := by
   unfold lands at h
-  split at h
-  · split at h
-    · rw [mem_opt] at h
-      obtain ⟨_, rfl⟩ := h
-      split
-      · exact .inl ⟨_, rfl⟩
-      · exact .inr ⟨_, _, rfl⟩
-    · simp at h
-  · simp at h
+  repeat' split at h
+  all_goals simp only [List.mem_singleton, List.not_mem_nil] at h
+  all_goals first
+    | (subst h; exact .inl ⟨_, rfl⟩)
+    | (subst h; exact .inr (.inl ⟨_, _, rfl⟩))
+    | (subst h; exact .inr (.inr (.inl ⟨_, rfl⟩)))
+    | (subst h; exact .inr (.inr (.inr rfl)))
 
 /-- `probes` holds only `investigate` actions.
 
@@ -461,7 +491,7 @@ theorem claim_mem (p : Params) (t : Nat) (f : AgentFacts) (k a : String)
   have hw : Action.claimTask k a ∉ waits f := by
     intro h; obtain ⟨_, _, _, h⟩ := waits_kind f _ h; cases h
   have hl : Action.claimTask k a ∉ lands f := by
-    intro h; rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
+    intro h; rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, h⟩ | h <;> cases h
   have hc : Action.claimTask k a ∉ cleans f := by
     unfold cleans; exact ho _ _ (by simp)
   have hpr : Action.claimTask k a ∉ probes p t f := by
@@ -530,13 +560,13 @@ theorem live_claim (p : Params) (t : Nat) (f : AgentFacts) (τ : TaskRow) (hd : 
 /-- Membership in `next` for an action other than `none`: in the claims or kills, or in the pieces the active gate
 allows.
 
-$$\forall p, t, f, x:\quad x \ne \mathrm{none} \Rightarrow \Bigl(x \in \operatorname{next}(p, t, f) \iff x \in \operatorname{claims}(f) \vee x \in \operatorname{kills}(p,t,f) \vee \begin{cases} x \in \operatorname{waits}(f) \vee x \in \operatorname{opt}(\operatorname{nudge}(p, f) \vee \operatorname{kills}(p,t,f) \ne [\,], \mathrm{nudgeHandoff}) & s(f) = \mathrm{active} \\ x \in \operatorname{waits}(f) \vee x \in \operatorname{lands}(f) \vee x \in \operatorname{cleans}(f) \vee x \in \operatorname{opt}(\operatorname{stuck}(f) \wedge C(f) = [\,], \mathrm{respawnFromHandoff}) \vee x \in \operatorname{opt}(\operatorname{nudge}(p, f), \mathrm{nudgeHandoff}) \vee x \in \operatorname{probes}(p,t,f) & \text{otherwise}\end{cases}\Bigr)$$
+$$\forall p, t, f, x:\quad x \ne \mathrm{none} \Rightarrow \Bigl(x \in \operatorname{next}(p, t, f) \iff x \in \operatorname{claims}(f) \vee x \in \operatorname{kills}(p,t,f) \vee \begin{cases} x \in \operatorname{waits}(f) \vee x \in \operatorname{opt}(\operatorname{nudge}(p, f) \vee \operatorname{kills}(p,t,f) \ne [\,], \mathrm{nudgeHandoff}) & s(f) = \mathrm{active} \\ x \in \operatorname{waits}(f) \vee x \in \operatorname{lands}(f) \vee x \in \operatorname{cleans}(f) \vee x \in \operatorname{opt}(\operatorname{respawn}(f), \mathrm{respawnFromHandoff}) \vee x \in \operatorname{opt}(\operatorname{nudge}(p, f), \mathrm{nudgeHandoff}) \vee x \in \operatorname{probes}(p,t,f) & \text{otherwise}\end{cases}\Bigr)$$
 -/
 theorem mem_next (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (hx : x ≠ .none) :
     x ∈ next p t f ↔ x ∈ claims f ∨ x ∈ kills p t f ∨
       if f.state = .active then x ∈ waits f ∨ x ∈ opt (nudgeB p f || !(kills p t f).isEmpty) .nudgeHandoff
       else x ∈ waits f ∨ x ∈ lands f ∨ x ∈ cleans f ∨
-        x ∈ opt (stuckB f && f.children.isEmpty) .respawnFromHandoff ∨ x ∈ opt (nudgeB p f) .nudgeHandoff ∨
+        x ∈ opt (respawnB f) .respawnFromHandoff ∨ x ∈ opt (nudgeB p f) .nudgeHandoff ∨
         x ∈ probes p t f := by
   unfold next
   by_cases h : f.state = .active
@@ -557,7 +587,7 @@ theorem next_total (p : Params) (t : Nat) (f : AgentFacts) :
   have hw : Action.none ∉ waits f := by
     intro h; obtain ⟨_, _, _, h⟩ := waits_kind f _ h; cases h
   have hl : Action.none ∉ lands f := by
-    intro h; rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
+    intro h; rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, h⟩ | h <;> cases h
   have hc : Action.none ∉ cleans f := by
     unfold cleans; rw [mem_opt]; rintro ⟨_, h⟩; cases h
   have hpr : Action.none ∉ probes p t f := by
@@ -603,7 +633,7 @@ theorem kill_mem (p : Params) (t : Nat) (f : AgentFacts) (q : Nat) :
       · rw [mem_opt] at h; cases h.2
     · rcases h with h | h | h | h | h | h
       · obtain ⟨_, _, _, h⟩ := waits_kind f _ h; cases h
-      · rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
+      · rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, h⟩ | h <;> cases h
       · unfold cleans at h; rw [mem_opt] at h; cases h.2
       · rw [mem_opt] at h; cases h.2
       · rw [mem_opt] at h; cases h.2
@@ -764,30 +794,40 @@ theorem lands_mem (p : Params) (t : Nat) (f : AgentFacts) (x : Action)
       · exact absurd h hpr
     · exact fun h => .inr (.inr (.inr (.inl h)))
 
-/-- **Land safety.** `land` only for an agent that handed back, has no live child, and whose branch is ahead of `main`,
-not landed and not on the integrator's list; the task is the agent's.
+/-- Where an action of `lands` comes from: the agent handed back, has no live child, its branch is ahead of `main` and
+not landed, and the action is one of the four cases of `lands`.
 
-$$\forall p, t, f, b, k:\quad \mathrm{land}(b, k) \in \operatorname{next}(p, t, f) \Rightarrow h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge k = \mathit{task}(f) \wedge \exists \beta.\ b_\bot(f) = \beta \wedge \mathit{name}(\beta) = b \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta) \wedge \neg\mathit{queued}(\beta)$$
+$$\forall f, x:\quad x \in \operatorname{lands}(f) \Rightarrow h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge \exists \beta.\ b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta) \wedge \bigl(\mathit{queued}(\beta) \wedge x = \mathrm{routeIntegrator}(\mathit{name}(\beta)) \vee \neg\mathit{queued}(\beta) \wedge \neg\mathit{clean}(\beta) \wedge x = \mathrm{investigate}(\mathrm{conflict}) \vee \neg\mathit{queued}(\beta) \wedge \mathit{clean}(\beta) \wedge (\exists d, D'.\ D(\beta) = d :: D' \wedge x = \mathrm{waitDeps}(d)) \vee \neg\mathit{queued}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,] \wedge x = \mathrm{land}(\mathit{name}(\beta), \mathit{task}(f))\bigr)$$
+-/
+theorem lands_cases (f : AgentFacts) (x : Action) (h : x ∈ lands f) :
+    f.handbackAt.isSome ∧ f.children = [] ∧ ∃ br, f.branch = some br ∧ 0 < br.ahead ∧ br.landed = false ∧
+      ((br.queued = true ∧ x = .routeIntegrator br.name) ∨
+       (br.queued = false ∧ br.mergesClean = false ∧ x = .investigate .conflict) ∨
+       (br.queued = false ∧ br.mergesClean = true ∧ ∃ d ds, br.deps = d :: ds ∧ x = .waitDeps d) ∨
+       (br.queued = false ∧ br.mergesClean = true ∧ br.deps = [] ∧ x = .land br.name f.task)) := by
+  unfold lands at h
+  repeat' split at h
+  all_goals simp only [List.mem_singleton, List.not_mem_nil] at h
+  all_goals subst h
+  all_goals simp_all [handedBack]
+
+/-- **Land safety.** `land` only for an agent that handed back, has no live child, and whose branch is ahead of `main`,
+not landed, not on the integrator's list, merges cleanly and has no unlanded dependency; the task is the agent's.
+
+$$\forall p, t, f, b, k:\quad \mathrm{land}(b, k) \in \operatorname{next}(p, t, f) \Rightarrow h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge k = \mathit{task}(f) \wedge \exists \beta.\ b_\bot(f) = \beta \wedge \mathit{name}(\beta) = b \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta) \wedge \neg\mathit{queued}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,]$$
 -/
 theorem land_sound (p : Params) (t : Nat) (f : AgentFacts) (b k : String) (h : Action.land b k ∈ next p t f) :
     f.handbackAt.isSome ∧ f.children = [] ∧ k = f.task ∧
-      ∃ br, f.branch = some br ∧ br.name = b ∧ 0 < br.ahead ∧ br.landed = false ∧ br.queued = false := by
+      ∃ br, f.branch = some br ∧ br.name = b ∧ 0 < br.ahead ∧ br.landed = false ∧ br.queued = false ∧
+        br.mergesClean = true ∧ br.deps = [] := by
   have h2 := ((lands_mem p t f _ (.inr ⟨b, k, rfl⟩)).1 h).2
-  unfold lands at h2
-  split at h2
-  · rename_i hh
-    simp only [handedBack, Bool.and_eq_true, List.isEmpty_iff] at hh
-    split at h2
-    · rename_i br hbr
-      rw [mem_opt] at h2
-      obtain ⟨hc, hl⟩ := h2
-      simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true'] at hc
-      cases hq : br.queued <;> simp only [hq, Bool.false_eq_true, ite_false, ite_true] at hl
-      · simp only [Action.land.injEq] at hl
-        exact ⟨hh.1, hh.2, hl.2, br, hbr, hl.1.symm, hc.1, hc.2, hq⟩
-      · cases hl
-    · simp at h2
-  · simp at h2
+  obtain ⟨h1, h3, br, hbr, ha, hl, hc⟩ := lands_cases f _ h2
+  rcases hc with ⟨_, hx⟩ | ⟨_, _, hx⟩ | ⟨_, _, _, _, _, hx⟩ | ⟨hq, hm, hd, hx⟩
+  · cases hx
+  · cases hx
+  · cases hx
+  · simp only [Action.land.injEq] at hx
+    exact ⟨h1, h3, hx.2, br, hbr, hx.1.symm, ha, hl, hq, hm, hd⟩
 
 /-- **Route safety.** `routeIntegrator` only for an agent that handed back, has no live child, and whose branch is
 ahead of `main`, not landed and on the integrator's list.
@@ -799,30 +839,64 @@ theorem route_sound (p : Params) (t : Nat) (f : AgentFacts) (b : String)
     f.handbackAt.isSome ∧ f.children = [] ∧
       ∃ br, f.branch = some br ∧ br.name = b ∧ 0 < br.ahead ∧ br.landed = false ∧ br.queued = true := by
   have h2 := ((lands_mem p t f _ (.inl ⟨_, rfl⟩)).1 h).2
-  unfold lands at h2
-  split at h2
-  · rename_i hh
-    simp only [handedBack, Bool.and_eq_true, List.isEmpty_iff] at hh
-    split at h2
-    · rename_i br hbr
-      rw [mem_opt] at h2
-      obtain ⟨hc, hl⟩ := h2
-      simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true'] at hc
-      cases hq : br.queued <;> simp only [hq, Bool.false_eq_true, ite_false, ite_true] at hl
-      · cases hl
-      · simp only [Action.routeIntegrator.injEq] at hl
-        exact ⟨hh.1, hh.2, br, hbr, hl.symm, hc.1, hc.2, hq⟩
-    · simp at h2
-  · simp at h2
+  obtain ⟨h1, h3, br, hbr, ha, hl, hc⟩ := lands_cases f _ h2
+  rcases hc with ⟨hq, hx⟩ | ⟨_, _, hx⟩ | ⟨_, _, _, _, _, hx⟩ | ⟨_, _, _, hx⟩
+  · simp only [Action.routeIntegrator.injEq] at hx
+    exact ⟨h1, h3, br, hbr, hx.symm, ha, hl, hq⟩
+  · cases hx
+  · cases hx
+  · cases hx
+
+/-- **Wait-deps and conflict safety.** `waitDeps d` only for a handed-back agent whose clean, unqueued, unlanded branch
+has `d` as first unlanded dependency; `investigate conflict` only when its unqueued branch does not merge cleanly.
+
+$$\forall p, t, f, d:\quad \mathrm{waitDeps}(d) \in \operatorname{next}(p, t, f) \Rightarrow \exists \beta, D'.\ b_\bot(f) = \beta \wedge D(\beta) = d :: D' \wedge \neg\mathit{landed}(\beta) \wedge \neg\mathit{queued}(\beta)$$
+-/
+theorem waitDeps_sound (p : Params) (t : Nat) (f : AgentFacts) (d : String)
+    (h : Action.waitDeps d ∈ next p t f) :
+    ∃ br ds, f.branch = some br ∧ br.deps = d :: ds ∧ br.landed = false ∧ br.queued = false := by
+  have hn : Action.waitDeps d ≠ .none := by simp
+  rw [mem_next p t f _ hn] at h
+  have hk : Action.waitDeps d ∉ kills p t f := by
+    rw [mem_kills]; rintro ⟨_, _, _, h⟩; cases h
+  have hw : Action.waitDeps d ∉ waits f := by
+    intro h; obtain ⟨_, _, _, h⟩ := waits_kind f _ h; cases h
+  have hcl : Action.waitDeps d ∉ claims f := by
+    intro h; obtain ⟨_, _, h⟩ := claims_kind f _ h; cases h
+  have ho : ∀ b y, y ≠ Action.waitDeps d → Action.waitDeps d ∉ opt b y := by
+    intro b y hy h; rw [mem_opt] at h; exact hy h.2.symm
+  have hc : Action.waitDeps d ∉ cleans f := by unfold cleans; exact ho _ _ (by simp)
+  have hpr : Action.waitDeps d ∉ probes p t f := by
+    intro h; obtain ⟨_, h⟩ := probes_kind p t f _ h; cases h
+  split at h
+  · rcases h with h | h | h | h
+    · exact absurd h hcl
+    · exact absurd h hk
+    · exact absurd h hw
+    · exact absurd h (ho _ _ (by simp))
+  · rcases h with h | h | h | h | h | h | h | h
+    · exact absurd h hcl
+    · exact absurd h hk
+    · exact absurd h hw
+    · obtain ⟨_, _, br, hbr, _, hl, hc2⟩ := lands_cases f _ h
+      rcases hc2 with ⟨_, hx⟩ | ⟨_, _, hx⟩ | ⟨hq, _, d2, ds, hds, hx⟩ | ⟨_, _, _, hx⟩
+      · cases hx
+      · cases hx
+      · simp only [Action.waitDeps.injEq] at hx; subst hx; exact ⟨br, ds, hbr, hds, hl, hq⟩
+      · cases hx
+    · exact absurd h hc
+    · exact absurd h (ho _ _ (by simp))
+    · exact absurd h (ho _ _ (by simp))
+    · exact absurd h hpr
 
 /-- An action outside `kills`, `waits` and the nudge is in `next` only for a non-active agent, through the matching
 piece (used for cleanup and respawn).
 
-$$\forall p, t, f, y:\quad y \in \{\mathrm{cleanupWorktree}, \mathrm{respawnFromHandoff}\} \wedge y \in \operatorname{next}(p, t, f) \Rightarrow s(f) \ne \mathrm{active} \wedge \bigl(y \in \operatorname{cleans}(f) \vee y \in \operatorname{opt}(\operatorname{stuck}(f) \wedge C(f) = [\,], \mathrm{respawnFromHandoff})\bigr)$$
+$$\forall p, t, f, y:\quad y \in \{\mathrm{cleanupWorktree}, \mathrm{respawnFromHandoff}\} \wedge y \in \operatorname{next}(p, t, f) \Rightarrow s(f) \ne \mathrm{active} \wedge \bigl(y \in \operatorname{cleans}(f) \vee y \in \operatorname{opt}(\operatorname{respawn}(f), \mathrm{respawnFromHandoff})\bigr)$$
 -/
 theorem plain_mem (p : Params) (t : Nat) (f : AgentFacts) (y : Action)
     (hy : y = .cleanupWorktree ∨ y = .respawnFromHandoff) (h : y ∈ next p t f) :
-    f.state ≠ .active ∧ (y ∈ cleans f ∨ y ∈ opt (stuckB f && f.children.isEmpty) .respawnFromHandoff) := by
+    f.state ≠ .active ∧ (y ∈ cleans f ∨ y ∈ opt (respawnB f) .respawnFromHandoff) := by
   have hn : y ≠ .none := by rcases hy with rfl | rfl <;> simp
   rw [mem_next p t f y hn] at h
   have hk : y ∉ kills p t f := by
@@ -842,7 +916,7 @@ theorem plain_mem (p : Params) (t : Nat) (f : AgentFacts) (y : Action)
     refine ⟨ha, ?_⟩
     rcases h with h | h | h | h | h | h
     · exact absurd h hw
-    · rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ <;> rcases hy with hy | hy <;> rw [hy] at h <;> cases h
+    · rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, h⟩ | h <;> rcases hy with hy | hy <;> rw [hy] at h <;> cases h
     · exact .inl h
     · exact .inr h
     · exact absurd h (hnu _)
@@ -868,38 +942,146 @@ theorem cleanup_sound (p : Params) (t : Nat) (f : AgentFacts) (h : Action.cleanu
     · cases hl
   · rw [mem_opt] at h; cases h.2
 
-/-- **Respawn safety.** `respawnFromHandoff` only for an agent with no handback, stalled or gone, with no live child.
+/-- **Respawn safety.** `respawnFromHandoff` only for an agent with no handback, stalled or gone, with no live child,
+whose task is on the board and not done, and whose handoff note exists.
 
-$$\forall p, t, f:\quad \mathrm{respawnFromHandoff} \in \operatorname{next}(p, t, f) \Rightarrow h_\bot(f) = \bot \wedge s(f) \in \{\mathrm{stalled}, \mathrm{gone}\} \wedge C(f) = [\,]$$
+$$\forall p, t, f:\quad \mathrm{respawnFromHandoff} \in \operatorname{next}(p, t, f) \Rightarrow h_\bot(f) = \bot \wedge s(f) \in \{\mathrm{stalled}, \mathrm{gone}\} \wedge C(f) = [\,] \wedge (\exists \tau.\ \tau_\bot(f) = \tau \wedge \neg\mathit{done}(\tau)) \wedge \mathit{ho}(f)$$
 -/
 theorem respawn_sound (p : Params) (t : Nat) (f : AgentFacts) (h : Action.respawnFromHandoff ∈ next p t f) :
-    f.handbackAt = none ∧ (f.state = .stalled ∨ f.state = .gone) ∧ f.children = [] := by
+    f.handbackAt = none ∧ (f.state = .stalled ∨ f.state = .gone) ∧ f.children = [] ∧
+      (∃ r, f.board = some r ∧ r.done = false) ∧ f.handoff = true := by
   obtain ⟨_, h | h⟩ := plain_mem p t f _ (.inr rfl) h
   · unfold cleans at h; rw [mem_opt] at h; cases h.2
   · rw [mem_opt] at h
     obtain ⟨hc, _⟩ := h
-    simp only [stuckB, handedBack, Bool.and_eq_true, Bool.not_eq_true', Option.isSome_eq_false_iff,
-      Option.isNone_iff_eq_none, Bool.or_eq_true, beq_iff_eq, List.isEmpty_iff] at hc
-    exact ⟨hc.1.1, hc.1.2, hc.2⟩
+    simp only [respawnB, openTaskB, stuckB, handedBack, Bool.and_eq_true, Bool.not_eq_true',
+      Option.isSome_eq_false_iff, Option.isNone_iff_eq_none, Bool.or_eq_true, beq_iff_eq,
+      List.isEmpty_iff] at hc
+    obtain ⟨⟨⟨⟨h1, h2⟩, h3⟩, h4⟩, h5⟩ := hc
+    refine ⟨h1, h2, h3, ?_, h5⟩
+    cases hb : f.board with
+    | none => simp [hb] at h4
+    | some r => simp [hb] at h4; exact ⟨r, rfl, h4⟩
 
-/-- **Liveness: land.** A non-active agent that handed back, has no live child, and whose branch is ahead of `main`
-and not landed gets `land` (with its task) or `routeIntegrator`.
+/-- **Liveness: land.** A non-active agent that handed back, has no live child, and whose branch is ahead of `main`,
+not landed, merges cleanly and has no unlanded dependency gets `land` (with its task) or `routeIntegrator`.
 
-$$\forall p, t, f, \beta:\quad s(f) \ne \mathrm{active} \wedge h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta) \Rightarrow \mathrm{land}(\mathit{name}(\beta), \mathit{task}(f)) \in \operatorname{next}(p, t, f) \vee \mathrm{routeIntegrator}(\mathit{name}(\beta)) \in \operatorname{next}(p, t, f)$$
+$$\forall p, t, f, \beta:\quad s(f) \ne \mathrm{active} \wedge h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,] \Rightarrow \mathrm{land}(\mathit{name}(\beta), \mathit{task}(f)) \in \operatorname{next}(p, t, f) \vee \mathrm{routeIntegrator}(\mathit{name}(\beta)) \in \operatorname{next}(p, t, f)$$
 -/
 theorem live_land (p : Params) (t : Nat) (f : AgentFacts) (β : Branch) (ha : f.state ≠ .active)
     (hb : f.handbackAt.isSome) (hc : f.children = []) (hbr : f.branch = some β) (hah : 0 < β.ahead)
-    (hl : β.landed = false) :
+    (hl : β.landed = false) (hm : β.mergesClean = true) (hd : β.deps = []) :
     Action.land β.name f.task ∈ next p t f ∨ Action.routeIntegrator β.name ∈ next p t f := by
-  have hls : (if β.queued then Action.routeIntegrator β.name else .land β.name f.task) ∈ lands f := by
-    unfold lands
-    rw [ite_eq_left (by simp [handedBack, hb, hc]), hbr, mem_opt]
-    exact ⟨by simp [hah, hl], rfl⟩
+  have hhh : (handedBack f && f.children.isEmpty) = true := by simp [handedBack, hb, hc]
+  have hcond : (decide (0 < β.ahead) && !β.landed) = true := by simp [hah, hl]
   cases hq : β.queued
-  · simp only [hq, Bool.false_eq_true, ite_false] at hls
+  · have hls : Action.land β.name f.task ∈ lands f := by
+      simp [lands, hhh, hbr, hcond, hq, hm, hd]
     exact .inl ((lands_mem p t f _ (.inr ⟨_, _, rfl⟩)).2 ⟨ha, hls⟩)
-  · simp only [hq, ite_true] at hls
+  · have hls : Action.routeIntegrator β.name ∈ lands f := by
+      simp [lands, hhh, hbr, hcond, hq]
     exact .inr ((lands_mem p t f _ (.inl ⟨_, rfl⟩)).2 ⟨ha, hls⟩)
+
+/-! ## Retention: which agents stay in the snapshot -/
+
+/-- The branch is ahead of `main` and not landed.
+
+$$\operatorname{openBranch}(f) \iff \exists \beta.\ b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta)$$
+-/
+def openBranchB (f : AgentFacts) : Bool :=
+  match f.branch with
+  | some b => decide (0 < b.ahead) && !b.landed
+  | none => false
+
+/-- The agent's latest CI run is still running.
+
+$$\operatorname{ciRun}(f) \iff \exists r.\ r_\bot(f) = r \wedge \operatorname{running}(\rho(r))$$
+-/
+def ciRunningB (f : AgentFacts) : Bool :=
+  match f.ci with
+  | some c => ciRunning c.run
+  | none => false
+
+/-- Retention: an agent stays in the snapshot while it has not ended, or has an open branch, a worktree, a live child, a
+running CI run, or a valid respawn. An ended agent with none of these has no open action.
+
+$$\operatorname{keep}(f) \iff \neg\operatorname{ended}(s(f)) \vee \operatorname{openBranch}(f) \vee w_\bot(f) \ne \bot \vee C(f) \ne [\,] \vee \operatorname{ciRun}(f) \vee \operatorname{respawn}(f)$$
+-/
+def keepB (f : AgentFacts) : Bool :=
+  !endedS f.state || openBranchB f || f.worktree.isSome || !f.children.isEmpty || ciRunningB f || respawnB f
+
+/-- If a predicate holds for some child, the child list is not empty.
+
+$$\forall \ell, g:\quad \bigl(\exists c \in \ell.\ g(c)\bigr) \Rightarrow \ell \ne [\,]$$
+-/
+theorem any_nonempty (l : List Child) (g : Child → Bool) (h : l.any g = true) : l.isEmpty = false := by
+  cases l with
+  | nil => simp at h
+  | cons _ _ => simp
+
+/-- **Retention is sound.** Every action other than `none` implies the agent is kept: dropping an agent that `keep`
+rejects never loses an open action.
+
+$$\forall p, t, f, x:\quad x \in \operatorname{next}(p, t, f) \wedge x \ne \mathrm{none} \Rightarrow \operatorname{keep}(f)$$
+-/
+theorem keep_of_open_action (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (hx : x ∈ next p t f)
+    (hn : x ≠ .none) : keepB f = true := by
+  by_cases he : endedS f.state = true
+  · have hna : ¬ f.state = .active := by
+      intro h; simp [endedS, h] at he
+    rw [mem_next p t f x hn] at hx
+    simp only [hna, ite_false] at hx
+    suffices hs : openBranchB f = true ∨ f.worktree.isSome = true ∨ f.children.isEmpty = false ∨
+        ciRunningB f = true ∨ respawnB f = true by
+      unfold keepB
+      rcases hs with h | h | h | h | h <;> simp [h]
+    rcases hx with h | h | h | h | h | h | h | h
+    · unfold claims at h
+      split at h
+      · rw [mem_opt] at h; simp [he] at h
+      · simp at h
+    · rw [mem_kills] at h
+      obtain ⟨c, hc, _⟩ := h
+      right; right; left
+      cases hch : f.children with
+      | nil => rw [hch] at hc; simp at hc
+      | cons _ _ => simp
+    · unfold waits at h
+      split at h
+      · rename_i c hc
+        rw [mem_opt] at h
+        right; right; right; left
+        simp [ciRunningB, hc, h.1]
+      · simp at h
+    · obtain ⟨_, _, br, hbr, ha, hl, _⟩ := lands_cases f _ h
+      left
+      simp [openBranchB, hbr, ha, hl]
+    · unfold cleans at h
+      rw [mem_opt] at h
+      right; left
+      have := h.1
+      simp only [Bool.and_eq_true] at this
+      exact this.1.1.1
+    · rw [mem_opt] at h
+      right; right; right; right; exact h.1
+    · rw [mem_opt] at h
+      have := h.1
+      simp [nudgeB] at this
+      simp [endedS] at he
+      rcases he with he | he <;> simp [he] at this
+    · simp only [probes, List.mem_append, mem_opt] at h
+      rcases h with ((⟨h1, _⟩ | ⟨h1, _⟩) | ⟨h1, _⟩) | ⟨h1, _⟩
+      · simp only [Bool.and_eq_true] at h1
+        right; right; left; exact any_nonempty _ _ h1.2
+      · right; right; left; exact any_nonempty _ _ h1
+      · right; right; left; exact any_nonempty _ _ h1
+      · right; left
+        unfold lockDeadB at h1
+        split at h1
+        · rename_i w hw; simp [hw]
+        · simp at h1
+  · have : endedS f.state = false := by simpa using he
+    simp [keepB, this]
 
 /-- A child gets `killOrphan` when it gets a kill.
 
@@ -1001,22 +1183,22 @@ def ex (k : String) (s : State) : AgentFacts := { id := k, task := k, state := s
 -- port-nav: handed back, branch 3 ahead, queued for the integrator → route; not queued → land
 #guard next {} t0
     { ex "port-nav" .done with
-      handbackAt := some (ago 90), branch := some ⟨"wt-a", 3, false, true⟩, worktree := some {} }
+      handbackAt := some (ago 90), branch := some { name := "wt-a", ahead := 3, landed := false, queued := true }, worktree := some {} }
   == [.routeIntegrator "wt-a"]
 #guard next {} t0
     { ex "port-nav" .done with
-      handbackAt := some (ago 90), branch := some ⟨"wt-a", 3, false, false⟩, worktree := some {} }
+      handbackAt := some (ago 90), branch := some { name := "wt-a", ahead := 3, landed := false, queued := false }, worktree := some {} }
   == [.land "wt-a" "port-nav"]
 -- ghb-runner: handed back, landed, a sleep loop under the session on a stale file → kill only (cleanup next time)
 #guard next {} t0
     { ex "ghb-runner" .done with
-      handbackAt := some (ago 25), branch := some ⟨"b", 0, true, false⟩, worktree := some {},
+      handbackAt := some (ago 25), branch := some { name := "b", ahead := 0, landed := true, queued := false }, worktree := some {},
       children := [{ pid := 555, chain := [100, 1], kind := .sleepLoop, startedAt := ago 22,
                      watchedAt := some (ago 20) }] }
   == [.killOrphan 555]
 #guard next {} t0
     { ex "ghb-runner" .done with
-      handbackAt := some (ago 25), branch := some ⟨"b", 0, true, false⟩, worktree := some {} }
+      handbackAt := some (ago 25), branch := some { name := "b", ahead := 0, landed := true, queued := false }, worktree := some {} }
   == [.cleanupWorktree]
 -- port-platform: waiting on its CI run → waitCi
 #guard next {} t0
@@ -1045,12 +1227,30 @@ def ex (k : String) (s : State) : AgentFacts := { id := k, task := k, state := s
 #guard next {} t0
     { ex "g" .active with board := some { id := "g", done := false, agent := some "g" } } == [.none]
 #guard next {} t0 { ex "g" .idle with board := some { id := "g", done := true } } == [.none]
-#guard next {} t0 { ex "g" .gone with board := some { id := "g", done := false } } == [.respawnFromHandoff]
+#guard next {} t0 { ex "g" .gone with board := some { id := "g", done := false }, handoff := true } == [.respawnFromHandoff]
+-- respawn needs an open task and a handoff note
+#guard next {} t0 { ex "g" .gone with board := some { id := "g", done := false } } == [.none]
+#guard next {} t0 { ex "g" .gone with board := some { id := "g", done := true }, handoff := true } == [.none]
+#guard next {} t0 { ex "g" .gone with handoff := true } == [.none]
+-- land needs a clean merge and no unlanded dependency
+#guard next {} t0
+    { ex "m" .done with handbackAt := some (ago 9), branch := some { name := "wt-m", ahead := 2, landed := false, queued := false, mergesClean := false } }
+  == [.investigate .conflict]
+#guard next {} t0
+    { ex "m" .done with handbackAt := some (ago 9), branch := some { name := "wt-m", ahead := 2, landed := false, queued := false, deps := ["wt-dep", "x"] } }
+  == [.waitDeps "wt-dep"]
 -- nothing to do
 #guard next {} t0 (ex "e" .idle) == [.none]
 -- a build child is never killed; a stuck agent held by it is investigated
 #guard next {} t0
     { ex "f" .stalled with children := [{ pid := 800, chain := [100, 1], kind := .build, startedAt := ago 99 }] }
   == [.investigate .heldByChild]
+-- retention: an ended agent with an unlanded branch ahead of main is kept; one with nothing open is dropped
+#guard keepB { ex "port-nav" .done with handbackAt := some (ago 120), branch := some { name := "wt-port-nav", ahead := 3, landed := false, queued := true } }
+#guard !keepB { ex "old" .done with handbackAt := some (ago 120), branch := some { name := "wt-old", ahead := 0, landed := true, queued := false } }
+#guard keepB { ex "wt" .done with worktree := some {} }
+#guard !keepB { ex "g" .gone with board := some { id := "g", done := true }, handoff := true }
+#guard keepB { ex "g2" .gone with board := some { id := "g2", done := false }, handoff := true }
+#guard keepB (ex "idle" .idle)
 
 end Fw.Obs.Next

@@ -6,27 +6,40 @@ import { httpFor, land } from "./land.ts";
 import { lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { watchMain } from "./watch.ts";
+import { nextMain, watchMain } from "./watch.ts";
 import { runCli } from "./run.ts";
 import { ciCli } from "./ci.ts";
 import { ghBudgetCli } from "@fw/gh-budget";
 import { engineCheckCli } from "./engine-check.ts";
+import { begin, timingsView } from "./timing.ts";
+import { backfill, ingestRuns, runIdsOf } from "./timing-ci.ts";
 
 const [group, ...rest] = process.argv.slice(2);
+// timing-spans: one span per invocation (step = group + subcommand); `watch` times each pass itself, `timings` is a view
+const SUBS = new Set(["plan", "ci", "incidents", "step", "card"]);
+if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c)); }
 try {
-  const base = group === "run" || group === "ci" || group === "engine-check" || group === "incidents" ? "" : apiBase(process.env); // `fw run` needs no console-api
-  if (group === "engine-check") {
+  const base = group === "run" || group === "ci" || group === "next" || group === "engine-check" || group === "incidents" ? "" : apiBase(process.env); // `fw run` needs no console-api
+  if (group === "timings") {
+    console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : timingsView(rest, process.cwd()));
+  } else if (group === "engine-check") {
     process.exitCode = engineCheckCli(rest, process.cwd());
   } else if (group === "run") {
     process.exitCode = await runCli(rest, process.cwd());
   } else if (group === "ci" && (rest[0] === "wait" || rest[0] === "budget")) {
+    const seen: string[] = []; const log = console.log;
+    if (rest[0] === "wait") console.log = (...a: unknown[]) => { seen.push(String(a[0])); log(...a); }; // timing-spans: run ids that finished
     process.exitCode = await ghBudgetCli(rest, process.cwd()); // shared GitHub poller: no gh loops (packages/gh-budget)
+    console.log = log;
+    if (rest[0] === "wait") await ingestRuns(runIdsOf(seen.flatMap((x) => x.split("\n"))), process.cwd()); // jobs fetched once, deduped by run id
   } else if (group === "ci") {
     process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "incidents") {
     process.exitCode = await (await import("./incidents.ts")).incidentsCli(rest, process.cwd()); // incident-lint: board optional
   } else if (group === "watch") {
     process.exitCode = await watchMain(rest, process.cwd());
+  } else if (group === "next") {
+    process.exitCode = await nextMain(rest, process.cwd()); // read-only: prints the NEXT list once
   } else if (group === "status") {
     const b = await (await fetch(`${base}/api/board`)).json();
     console.log(renderBoard(b as never));
@@ -78,7 +91,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] | fw incidents lint [ledger.json] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] | fw incidents lint [ledger.json] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

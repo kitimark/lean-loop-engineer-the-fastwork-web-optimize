@@ -40,7 +40,7 @@ theorem phase_periodic (t : Rat) : phase (t + period) = phase t := by
 
 /-- The left track moves from $0$ towards $-w/2$ and never past it.
 
-$$w \ge 0 \Rightarrow -\tfrac w2 < x_L(w, t) \le 0$$ -/
+$$\forall w, t \in \mathbb{Q}:\quad w \ge 0 \Rightarrow -\tfrac w2 \le x_L(w, t) \le 0$$ -/
 theorem left_range (w t : Rat) (hw : 0 ≤ w) : -(w / 2) ≤ offsetLeft w t ∧ offsetLeft w t ≤ 0 := by
   have h := phase_mem t
   unfold offsetLeft

@@ -127,7 +127,7 @@ theorem shrink_ends (reduced : Bool) (bottom vh : Rat) (hv : 0 < vh) :
     rw [this]
     cases reduced <;> decide +kernel
 
-/-- Under reduced motion the shrink is 0 or 1 and nothing between. $$s \in \{0, 1\}$$ -/
+/-- Under reduced motion the shrink is 0 or 1 and nothing between. $$\forall b, \mathit{vh} \in \mathbb{Q}:\quad \operatorname{shrink}(\top, b, \mathit{vh}) \in \{0, 1\}$$ -/
 theorem shrink_reduced_two (bottom vh : Rat) : shrink true bottom vh = 0 ∨ shrink true bottom vh = 1 := by
   unfold shrink
   simp only [ite_true]

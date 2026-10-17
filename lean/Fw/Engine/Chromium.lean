@@ -760,7 +760,7 @@ def bitCount (b : Nat) (as : List CrAnim) : Nat := (as.filter fun a => decide (b
 /-- One golden F0 row: the number of the scenario's animations with bit 0 set in the lane (always 0,
 `failBits_lane_no0`).
 
-$$\operatorname{f0}(x, A) = \{\mathrm{test}{:}\,\mathrm{F0},\ \mathrm{scenario}{:}\,x,\ \mathrm{stage}{:}\,\mathrm{comp},\ v{:}\,\operatorname{bitCount}(0, A),\ \mathrm{pred}{:}\,=\!0, \ldots\}$$
+$$\begin{aligned} \forall x, A:\quad \operatorname{f0}(x, A) = \{&\mathrm{kind}{:}\,\texttt{stage},\ \mathrm{test}{:}\,\texttt{F0},\ \mathrm{scenario}{:}\,x,\ \mathrm{ref}{:}\,\texttt{rest},\ \mathrm{mode}{:}\,\texttt{lane},\ \mathrm{stage}{:}\,\texttt{comp}, \\ &\mathrm{counts}{:}\,[\texttt{trace.Animation.compositeFailedBits.bit0}],\ v{:}\,\operatorname{bitCount}(0, A),\ o{:}\,\operatorname{bitCount}(0, \mathrm{fxRest}), \\ &\mathrm{vUnits}{:}\,0,\ \mathrm{oUnits}{:}\,0,\ \mathrm{pred}{:}\,(\texttt{=0} \text{ if } \operatorname{bitCount}(0, A) = 0 \text{ else } \texttt{any})\} \end{aligned}$$
 -/
 def f0Row (x : String) (ax : List CrAnim) : Lean.Json :=
   Lean.Json.mkObj [("kind", "stage"), ("test", "F0"), ("scenario", .str x), ("ref", "rest"), ("mode", "lane"),
