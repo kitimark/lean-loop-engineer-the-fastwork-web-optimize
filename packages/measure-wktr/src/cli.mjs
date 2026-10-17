@@ -47,14 +47,24 @@ async function main() {
   const results = [];
   try {
     for (let p = 1; p <= passes; p++) {
-      const r = await runOnce({ udid: dev.udid, root, bundleId: ARCHIVE.bundleId, url: srv.url, header: v.header, timeoutMs: Number(v.timeout) });
+      // The app's GPU process sometimes crashes at launch on a runner ("#CRASHED - com.apple.WebKit.GPU.Development", no
+      // output at all): such a pass has no counts, so launch a fresh process again (up to 2 retries) and record the attempts.
+      let r, attempts = 0;
+      for (;;) {
+        attempts++;
+        try { r = await runOnce({ udid: dev.udid, root, bundleId: ARCHIVE.bundleId, url: srv.url, header: v.header, timeoutMs: Number(v.timeout) }); break; }
+        catch (e) {
+          console.log(`pass ${p} attempt ${attempts} failed: ${String(e.message).split('\n')[0].slice(0, 300)}`);
+          if (attempts > 2 || !/closed before the end marker|did not connect/.test(e.message)) throw e;
+        }
+      }
       writeFileSync(join(out, `raw-${tag}${p}.txt`), r.stdout);
       writeFileSync(join(out, `stderr-${tag}${p}.txt`), r.stderr);
       const parsed = parseOutput(r.stdout);
       const run = buildRun(parsed, {
         lane: 'wktr', label: v.label, pass: p, archive: { revision: ARCHIVE.revision, commit: ARCHIVE.commit, sha256: ARCHIVE.sha256 },
         device: { name: v['device-type'], runtime: dev.runtime.version, runtimeBuild: dev.runtime.buildversion },
-        header: v.header, step, frames, settleMs, warm, wallMs: r.ms,
+        header: v.header, step, frames, settleMs, warm, attempts, wallMs: r.ms,
       });
       writeFileSync(join(out, `counts-${tag}${p}.json`), JSON.stringify(run));
       const tot = {};
