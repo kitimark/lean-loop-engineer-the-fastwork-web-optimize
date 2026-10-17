@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LiveBoard, Plan, PlanTask } from "@fw/contracts";
+import { Smartphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -11,6 +12,7 @@ export function PlanView({ board }: { board: LiveBoard }) {
   }
   return (
     <div className="space-y-6">
+      <DeviceLane plan={p} />
       <Milestones plan={p} />
       <Columns plan={p} />
       <Dag plan={p} />
@@ -45,10 +47,50 @@ const Task = ({ t, extra }: { t: PlanTask; extra?: React.ReactNode }) => (
     <div className="mt-1 flex flex-wrap gap-1 text-xs">
       <Badge variant="secondary">{t.owner}</Badge>
       {t.milestone && <Badge variant="outline">{t.milestone}</Badge>}
+      {t.lane === "device" && <DeviceBadge />}
       {extra}
     </div>
   </li>
 );
+
+export const DeviceBadge = () => (
+  <Badge variant="outline" data-testid="device-badge"><Smartphone className="size-3" aria-hidden />needs you + iPhone</Badge>
+);
+
+/** Device lane: tasks the API marks `lane: "device"`. Lane and ready state come from fwcore; absent lane shows nothing. */
+export function DeviceLane({ plan }: { plan: Plan }) {
+  const dev = plan.tasks.filter((t) => t.lane === "device");
+  if (dev.length === 0) return null;
+  const ready = dev.filter((t) => t.state === "ready");
+  const open = dev.filter((t) => t.state === "blocked" || t.state === "running");
+  const done = dev.filter((t) => t.state === "done");
+  return (
+    <Card data-testid="device-lane">
+      <CardHeader><CardTitle>Device lane ({dev.length}): needs you and the iPhone</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <section>
+          <h3 className="mb-1 text-xs font-medium">Ready: bring the phone ({ready.length})</h3>
+          <ul className="space-y-2">{ready.map((t) => <Task key={t.id} t={t} />)}</ul>
+          {ready.length === 0 && <p className="text-sm text-muted-foreground">No device task is ready.</p>}
+        </section>
+        {open.length > 0 && (
+          <section>
+            <h3 className="mb-1 text-xs font-medium">Not ready ({open.length})</h3>
+            <ul className="space-y-2">
+              {open.map((t) => <Task key={t.id} t={t} extra={t.blockers.length > 0 && <span className="text-muted-foreground">waits on {t.blockers.join(", ")}</span>} />)}
+            </ul>
+          </section>
+        )}
+        {done.length > 0 && (
+          <details>
+            <summary className="cursor-pointer text-xs font-medium">Done ({done.length})</summary>
+            <ul className="mt-2 space-y-2">{done.map((t) => <Task key={t.id} t={t} extra={t.evidence && <Evidence sha={t.evidence} />} />)}</ul>
+          </details>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function Columns({ plan }: { plan: Plan }) {
   const by = new Map(plan.tasks.map((t) => [t.id, t]));
