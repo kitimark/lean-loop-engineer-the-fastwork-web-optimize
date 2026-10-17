@@ -1,27 +1,22 @@
-# Handoff: zone-baselines-chromium (measure-engineer)
+# Handoff: zone-baselines-chromium (measure-engineer), part 2
 
-State: branch `ci/zone-baselines-chromium` (pushed for CI) and the worktree branch; commit with trailer `Task: zone-baselines-chromium`.
-Done: CI run 39048702153 (3 original shards, image = frozen image), stored with `pnpm fw ci`, per-shard zone sums in
-`results/baselines/chromium/swipe-v1/original.zones.json` (+ `original.classes.json`), README with run id, sha, image.
-`packages/measure-chromium/src/zone-baseline.mjs` is glue only (store read, fwcore `measure.zoneSums`, `--check`).
+State: branch `worktree-agent-a640e2b5cfb5a1b15`, commit trailer `Task: zone-baselines-chromium`. Part 1 (swipe-v1 original) is on main.
+Done: all four (profile, arm) baselines exist under `results/baselines/chromium/<profile>/<arm>.{zones,classes,baseline}.json`:
+swipe-v1 original+rewrite (run 39048702153) and swipe-touch-v1 original+rewrite (run 39050423094, no new CI run). detDrift and
+detDriftTotals empty in all four, 0 unlisted. Table and numbers: `results/baselines/chromium/README.md` (Part 2); note in
+`research/notes/2026/10-17-zone-baselines-chromium.md`.
+Code: `packages/measure-chromium/src/zone-baseline.mjs` got `--profile` (select among stored runs); `test/fwcore.test.mjs` checks all four
+baselines (`--check`, empty drift, 0 unlisted).
 
 Learned
-- `pnpm fw ci` writes to the MAIN checkout's `.fw-console/store` even from a worktree (storeDir follows the git common dir).
-- A `target=original` dispatch skips `site`, so `classify` is skipped (no `if: !cancelled()`), and `fw ci` then refuses
-  (`missing chromium-classes/original`). Dispatch `target=both` until the workflow (not my file) is fixed.
-- A push to a `ci/*` branch starts all workflows incl. macOS ones (wktr, gate-gaps, webkit-sim): cancel them.
+- `pnpm fw ci` writes to the MAIN checkout's store; a worktree needs `pnpm install --offline --frozen-lockfile`; `fw ci` finds main's fwcore, but
+  `zone-baseline.mjs` needs `FW_CORE_BIN=<main>/lean/.lake/build/bin/fwcore` when the worktree has no lake build.
+- A copy of the fwcore binary in the scratchpad could not be executed (spawn failed); use the main path.
+- A target=original dispatch skips classify; dispatch `target=both` (the refreeze runs did).
 
-LEAN REQUEST (open, blocks the cross-shard baseline): op `measure.zoneBaseline`.
-- Request: `zoneHeightPx` (>= 1), `runs` (>= 3, distinct `id`) [{id, frames}], `classes` {type: {class, k, t, tBound?}} (the frozen table).
-- Refuse: runs whose zone structure differs (id, frames, scrolledPx, firstFrame, lastFrame per zone).
-- Reply per zone and per type seen in any run: `class` (from the table; a type absent from it is `unlisted`, rule = quarantined),
-  `perRun` sums in run order, `lo`, `hi`, `base` (the observed run total at sorted index floor((n-1)/2), a real observation);
-  plus whole-run `totals` per type with the same fields.
-- Theorems: det class => lo = hi (or the cell is reported in `detDrift`, which must be empty for equal-trajectory runs); totals =
-  sum over zones per run (reuse `zones_sum_total`); lo <= base <= hi; order independence of the runs.
-- Then `zone-baseline.mjs` calls it and writes `original.baseline.json`; golden vectors under `packages/contracts/golden/measure/`.
-- Decide with the lead: `refreeze` first (frozen table lacks 8 types incl. N1/N0; HitTest changed class), and whether a part dimension is wanted
-  (counts have none).
-
-Open: swipe-touch-v1 waits for touch-race; the rewrite target's zones were not produced (key 12670b98... is stored).
-Read first: `results/baselines/chromium/README.md`, `zone-baseline.mjs` header.
+Open
+- Re-run `zone-baseline.mjs baseline --profile p --target t` after any refreeze (the test fails while stale).
+- The swipe-v1 rewrite is the early rewrite (sha cba3040); take a fresh `target=rewrite` run after ports land and re-pull it.
+- Touch rewrite/original frame counts (409/531) differ from swipe-v1 (385/503) by design; only compare within a profile.
+- No per-part dimension (Chromium counts have none).
+Read first: `results/baselines/chromium/README.md` (Part 2 table).
