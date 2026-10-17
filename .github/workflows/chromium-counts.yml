@@ -319,6 +319,8 @@ jobs:
   # Classes over all runs, decided by fwcore (the same classify the local lane uses), plus the byte comparison.
   classify:
     needs: [plan, fwcore, counts]
+    # `counts` runs when `site` is skipped (target=original); without this condition that skip propagates to classify.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.fwcore.result == 'success' && needs.counts.result == 'success' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
