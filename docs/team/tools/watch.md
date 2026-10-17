@@ -17,16 +17,29 @@ Lead, in the background (you are re-invoked when it exits 3): `pnpm fw watch --i
 
 Reading the table: one row per live agent (name or task, kind `tm`/`sub`/`wf`, type, model, state, minutes since the
 last event, tool calls, failed calls, context tokens, in-flight tool and its age), worst states first; then one system
-line (counts, load, memory pressure, free disk, sim lock, docker, worktrees, CI runs and failures; `stale` after
+line (counts including `gone`, load, memory pressure, free disk, sim lock, docker, worktrees, CI runs and failures; `stale` after
 docker or ci = that collector failed and the value is the previous check's); then the alerts (subject shown as the
-agent's name).
+agent's name; `*` = tied to a critical-path task, listed first).
 
 States (Lean `state`, first match): **done** = stopped, or a workflow agent whose workflow run finished, or a
-transcript-only workflow agent silent >= `wfQuietMin` (30) min; **parked** = a teammate with no tool in flight whose
+transcript-only workflow agent silent >= `wfQuietMin` (30) min; **gone** = not stopped but silent > `goneAfterMin`
+(120) min: it has ended without a Stop, so it is not live (not in `team.overCap`, not a holder for the sim lock or
+docker checks, not a child that turns a long `Agent` call into a wait); **parked** = a teammate with no tool in flight whose
 last tool was `SendMessage` or whose last `TeammateIdle` is newer than its last tool (it waits for a message on
 purpose; no stall alert); **stalled** = silent >= `stallMin` with no tool in flight or a hung one; **idle**; **active**.
 A tool in flight >= `toolHangMin` is `agent.toolHang`, except an `Agent` or `SendMessage` call while a child agent
 (`parent` = this agent) is live: that is a wait. `team.overCap` counts live non-lead agents and names them by kind.
+Slow work (this replaces the lead's ad-hoc monitor; every threshold is strict `>` except the load):
+`agent.gone` once, at the first check that sees the agent gone (the previous check, `prevAt`, did not; the first check
+raises it for every gone agent); `agent.toolSlow` = a tool in flight > `toolSlowMin` (15) min, with the same wait
+exception as `toolHang`; `ci.slow` = a run queued, waiting or in progress > `ciSlowMin` (20) min; `ci.finished` = a run
+the previous check saw running > `ciSlowMin` has completed since then: its conclusion and duration, once;
+`proc.long` = a process tree this Claude session started through its Bash tool, alive > `procMaxMin` (20) min, unless
+it holds this `fw watch` process or console-api (`services`); `sys.loadHigh` = the floor of the 1-min load average
+>= `loadMax` (150).
+Critical path: the snapshot's `critical` is GET `/api/plan` `.criticalPath` (task ids). An agent is tied to task c when
+its id, name or task is c or c-<digits>; a CI run when its branch is `ci/c` or `ci/c-<digits>`. Their alerts carry
+`critical: true` and fwcore sorts them before all others (then by code, subject, detail).
 `team.permissionWait`: a Notification in the lead's spool is newer than the lead's last tool event. Hook Notifications
 carry no agent id, so this is team-level; limits: any lead tool event clears it, and Notifications also fire for idle
 input prompts, not only permission prompts.
@@ -44,9 +57,12 @@ Sources (read-only; names, counts and times only, never payload text):
   Workflow done: `<session>/workflows/<wf>.json` has a `status` other than running/pending. The newest file with the
   agent id wins. A transcript-only agent that ended with text or a finished `StructuredOutput` call counts as stopped.
 - system: `sysctl kern.memorystatus_vm_pressure_level`, statfs, `.local/locks/sim`, `docker ps` (3 s),
-  `git worktree list`, `.fw-console/api.json`, `gh run list` (10 s). A gh or docker failure or timeout carries the
-  previous check's value forward (if <= 1 h old) and lists it in `system.stale`; a program that is not installed
-  gives an empty value, not stale.
+  `git worktree list`, `.fw-console/api.json`, `gh run list` (10 s; `updatedAt` of a completed run is its end),
+  `ps -A -o pid=,ppid=,etime=,comm=` (process trees: the shell children of this process's nearest `claude` ancestor,
+  named by their first non-shell program, executable basename only; a tree keeps its first name), GET `/api/plan`
+  (3 s). A gh, docker, ps or plan failure or timeout carries the previous check's value forward (if <= 1 h old) and
+  lists it in `system.stale` (`ci`, `docker`, `procs`, `plan`); a program that is not installed, or console-api not
+  running, gives an empty value, not stale. `prevAt` is the previous check's time (the last line of `health.jsonl`).
 
 Scope (collection, not health): agents with no Stop and no event for 24 h are treated as ended; ended agents drop out
 1 h later. Params are the Lean defaults (`DEFAULT_PARAMS` in `apps/runner/src/watch-collect.ts`).
