@@ -443,4 +443,33 @@ theorem before_lead (lens : List Nat) (t : Rat) (h : t < askLead) : (askView len
 #guard (askView [23, 25, 22, 20] (700 + 32 * 23 + 280)).results == true
 #guard (askView [23, 25, 22, 20] (700 + 32 * 23 + 279)).results == false
 
+/-! ## Typing in chunks of two is a subsample, not the same text (ledger n=22)
+
+Counted in typing steps ($k$ steps of 32 ms each), the original shows $\min(L, k)$ characters and the 2-per-step
+variant shows $\min(L, 2\lfloor k/2 \rfloor)$. The variant shows exactly the original's text at the even steps, starts
+and ends equal, but differs at every odd step before the end: it is a subsample (fewer text writes), not a visual
+no-op, so the visual verdict is "not E". -/
+
+/-- Characters the original shows after $k$ typing steps of a query of length $L$. $$\operatorname{typedO}(L, k) = \min(L, k)$$ -/
+def typedO (L k : Nat) : Nat := min L k
+
+/-- Characters the 2-per-step variant shows after $k$ typing steps. $$\operatorname{typedV}(L, k) = \min(L, 2\lfloor k/2 \rfloor)$$ -/
+def typedV (L k : Nat) : Nat := min L (2 * (k / 2))
+
+#guard typedO 5 3 == 3
+#guard typedV 5 3 == 2
+#guard typedV 5 6 == 5
+
+/-- **typing_subsample.** The variant is the original sampled at even steps; it differs at step 1 for $L \ge 2$; it
+starts at 0 and, from step $L + 1$ on, shows the whole query, like the original.
+
+$$\forall L, k \in \mathbb{N}:\ \operatorname{typedV}(L, k) = \operatorname{typedO}(L, 2\lfloor k/2 \rfloor)\ \land\ \big(L \ge 2 \Rightarrow \operatorname{typedV}(L, 1) \ne \operatorname{typedO}(L, 1)\big)\ \land\ \operatorname{typedV}(L, 0) = \operatorname{typedO}(L, 0) = 0\ \land\ \big(k \ge L + 1 \Rightarrow \operatorname{typedV}(L, k) = \operatorname{typedO}(L, k) = L\big)$$
+
+Fewer writes, the same first and last text, but not the same frames. -/
+theorem typing_subsample (L k : Nat) :
+    typedV L k = typedO L (2 * (k / 2)) ∧ (2 ≤ L → typedV L 1 ≠ typedO L 1) ∧
+      (typedV L 0 = 0 ∧ typedO L 0 = 0) ∧ (L + 1 ≤ k → typedV L k = L ∧ typedO L k = L) := by
+  simp only [typedV, typedO]
+  refine ⟨trivial, fun h => by omega, by omega, fun h => by omega⟩
+
 end Fw.Parts.PlatformEntries

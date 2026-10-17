@@ -585,4 +585,86 @@ theorem countdownMetrics_cell (le400 c1000nodw : Bool) :
     ((countdownMetrics le400 c1000nodw).cellPx : Int) = cellHeight (countdownMetrics le400 c1000nodw).fontPx := by
   cases le400 <;> cases c1000nodw <;> decide +kernel
 
+/-! ## The spring depends on the frame split (ledger n=8)
+
+Two 8 ms steps from a displaced spring do not land where one 16 ms step lands: the integrator is not
+time-consistent. So no keyframe list fixed in advance reproduces the spring at every frame rate; a WAAPI
+replacement (E-s) can match it at one fixed cadence only. -/
+
+/-- **spring_split_differs.** Two half steps differ from one full step, from the state $(4, 0)$ toward $3$.
+
+$$\operatorname{springStep}\big(\operatorname{springStep}((4, 0), 3, 8).s,\ 3,\ 8\big).s \ne \operatorname{springStep}((4, 0), 3, 16).s$$
+
+Why the spring cannot become one frame-rate-free keyframe list. -/
+theorem spring_split_differs :
+    (springStep (springStep ⟨4, 0⟩ 3 8).state 3 8).state ≠ (springStep ⟨4, 0⟩ 3 16).state := by
+  decide +kernel
+
+/-! ## A drifting interval skips a second (ledger n=8)
+
+`setInterval(1000)` fires late by a drift $d_i \ge \delta > 0$ on every tick. The fire times then gain at least
+1000 ms more than $n$ whole seconds after $n \ge 1000/\delta$ ticks, so the shown seconds must drop by 2 on some
+tick: a digit is skipped. An aimed timeout chain re-aims at each second boundary and shows every second, so the two
+arms are not visually equal (the variant is the faithful one), while their work is the same
+(`Fw.Parts.HeroCountdownOpt.same_run_noClaim`). -/
+
+/-- One tick moves the ceiling-seconds count by 1 or 2 when the step is in $[1000, 2000)$ ms.
+
+$$\forall x, D \in \mathbb{Z}:\ 1000 \le D < 2000 \Rightarrow \Big\lfloor \tfrac{x + D + 999}{1000} \Big\rfloor - \Big\lfloor \tfrac{x + 999}{1000} \Big\rfloor \in \{1, 2\}$$
+
+A step of one to two seconds crosses one or two second boundaries. -/
+private theorem step_drop (x D : Int) (h1 : 1000 ≤ D) (h2 : D < 2000) :
+    (x + D + 999) / 1000 - (x + 999) / 1000 = 1 ∨ (x + D + 999) / 1000 - (x + 999) / 1000 = 2 := by
+  omega
+
+/-- **drift_skips.** If every tick fires $1000 + d_i$ ms after the previous with $\delta \le d_i < 1000$, $\delta > 0$,
+and $n \delta \ge 1000$ with the $n$-th tick not after the target, some tick among the first $n$ drops the shown
+seconds by 2.
+
+$$\forall t, d : \mathbb{N} \to \mathbb{Z},\ \forall \delta, T \in \mathbb{Z},\ \forall n \in \mathbb{N}:\ \big(\forall i:\ t_{i+1} = t_i + 1000 + d_i \land \delta \le d_i < 1000\big) \land \delta > 0 \land n\delta \ge 1000 \land t_n \le T \Rightarrow \exists i < n:\ R(t_i, T) = R(t_{i+1}, T) + 2$$
+
+Drift accumulates until one tick crosses two second boundaries. -/
+theorem drift_skips (t d : Nat → Int) (δ T : Int) (n : Nat) (ht : ∀ i, t (i + 1) = t i + 1000 + d i)
+    (hd : ∀ i, δ ≤ d i ∧ d i < 1000) (hδ : 0 < δ) (hn : 1000 ≤ (n : Int) * δ) (hT : t n ≤ T) :
+    ∃ i, i < n ∧ remainingSeconds (t i) T = remainingSeconds (t (i + 1)) T + 2 := by
+  -- the fire times only grow, so every tick up to `n` is before the target
+  have hmono : ∀ i k, t i ≤ t (i + k) := by
+    intro i k
+    induction k with
+    | zero => exact Int.le_refl _
+    | succ k ih => have := ht (i + k); have := hd (i + k); rw [← Nat.add_assoc]; omega
+  -- the elapsed time after `k` ticks is at least `1000 k + k δ`
+  have hgrow : ∀ k, t 0 + 1000 * k + k * δ ≤ t k := by
+    intro k
+    induction k with
+    | zero => simp
+    | succ k ih =>
+      have := ht k; have := hd k
+      push_cast
+      rw [Int.add_mul, Int.one_mul]
+      omega
+  -- if no tick dropped by 2, the count dropped by at most `k` after `k ≤ n` ticks
+  apply Classical.byContradiction
+  intro hno
+  have hle : ∀ k, k ≤ n → (T - t 0 + 999) / 1000 ≤ (T - t k + 999) / 1000 + k := by
+    intro k
+    induction k with
+    | zero => intro _; simp
+    | succ k ih =>
+      intro hk
+      have h1 := ih (by omega)
+      have hx : 0 ≤ T - t (k + 1) := by
+        have := hmono (k + 1) (n - (k + 1)); rw [show k + 1 + (n - (k + 1)) = n by omega] at this; omega
+      have hs := step_drop (T - t (k + 1)) (d k + 1000) (by have := hd k; omega) (by have := hd k; omega)
+      have hne : ¬ remainingSeconds (t k) T = remainingSeconds (t (k + 1)) T + 2 := fun h => hno ⟨k, by omega, h⟩
+      have htk := ht k
+      have e1 : T - t (k + 1) + (d k + 1000) = T - t k := by omega
+      rw [e1] at hs
+      simp only [remainingSeconds] at hne
+      omega
+  have h1 := hle n (Nat.le_refl _)
+  have h2 := hgrow n
+  have hx : 0 ≤ T - t n := by omega
+  omega
+
 end Fw.Parts.HeroCountdown

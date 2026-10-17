@@ -831,4 +831,47 @@ theorem strip_frame_ltE {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState)
 
 end EndPass
 
+/-! ## Scheduling: a per-frame subscriber is worse (ledger n=7, n=8)
+
+The TS strip first ran its springs from a shared per-frame loop. That loop calls back in every frame, also in the
+frames where no digit rolls, where the original runs nothing. One extra callback is one extra `script` unit, so
+those frames are not `⪯` the original's, whatever the end flags, and the run cannot dominate: the confound, not the
+strip, decides the screen. The aimed timer (n=8) runs one callback per second, as the original's interval does, so
+both arms have the same run and Core's claim is `noClaim`. -/
+
+section Schedule
+
+/-- A frame with $k$ extra script callbacks.
+
+$$\operatorname{addScript}(f, k) = f\ \text{with}\ \mathrm{script} := f.\mathrm{script} + k$$
+
+The page frame plus a subscriber's callbacks. -/
+def addScript {P : Type} (f : FrameIn P) (k : Nat) : FrameIn P := { f with script := f.script + k }
+
+/-- **A still frame with a subscriber is not `⪯` the original's**, in every engine and for all end flags.
+
+$$\forall E, p, \ell, f,\ \forall k > 0,\ \forall e_v, e_o:\ \neg\Big(\operatorname{frameWork}^{e_v}_E\big(\operatorname{withWrites}(\operatorname{addScript}(f, k), \operatorname{stripWrites}(p, \ell, [\,]))\big) \preceq \operatorname{frameWork}^{e_o}_E\big(\operatorname{withWrites}(f, \operatorname{faceWrites}(p, \ell, [\,]))\big)\Big)$$
+
+The callback costs a script unit the original does not pay. -/
+theorem sub_still_not_le {P M : Type} (E : Engine P M) (p : P) (ℓ : LayerState) (f : FrameIn P) (k : Nat)
+    (hk : 0 < k) (ev eo : Stage → Bool) :
+    ¬ (frameWorkE E (withWrites (addScript f k) (stripWrites p ℓ [])) ev).le
+        (frameWorkE E (withWrites f (faceWrites p ℓ [])) eo) := by
+  intro h
+  have hu := (h.1 .script).2
+  simp only [frameWorkE, stageUnits, withWrites, addScript, stripWrites, faceWrites, List.map_nil,
+    List.flatMap_nil, List.append_nil, ↓reduceIte] at hu
+  omega
+
+/-- **The aimed timer has no claim.** Two arms with the same per-frame work get `noClaim`, for every resident state.
+
+$$\forall W \in \mathrm{Work}^{*},\ \forall r_v, r_o:\ \operatorname{claim}\big(\operatorname{screen}(\operatorname{toRun}(W), \operatorname{toRun}(W)), r_v, r_o\big) = \mathrm{noClaim}$$
+
+One callback per second against one callback per second is no work order (Lesson `resident_only_noClaim`). -/
+theorem same_run_noClaim (ws : List Work) (rv ro : Resident) :
+    claim (Screen.screen (toRun ws) (toRun ws)) rv ro = .noClaim :=
+  resident_only_noClaim ws ws rv ro rfl
+
+end Schedule
+
 end Fw.Parts.HeroCountdownOpt

@@ -675,4 +675,46 @@ theorem hiddenTick_ltE {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Na
 
 end EndPass
 
+/-! ## Magnitude of a skipped tick (ledger n=21)
+
+A hidden tick without a read ($a = b = 0$) changes the units only on `script`, by its $n$ callbacks, and the hit
+tests not at all. Passes can change only on `script` and on the engine's base stages (the tick makes an idle frame
+"update"; whether a write-free timer callback really schedules a rendering update in WebKit is the open cite that
+decides the commit pass in `wk_idle_tick`). So the saving of the gate is the skipped callbacks, plus at most one
+pass per base stage in frames that would otherwise be idle. -/
+
+/-- **Units of a skipped tick.** Only `script` changes, by $n$; hit tests are equal.
+
+$$\forall E, f, n, a, b,\ \forall s:\ \operatorname{frameWork}_E(\operatorname{withTick}(f, n, a, b)).\mathrm{units}(s) = \operatorname{frameWork}_E(f).\mathrm{units}(s) + [s = \mathrm{script}]\cdot n \ \land\ \operatorname{frameWork}_E(\operatorname{withTick}(f, n, a, b)).\mathrm{hits} = \operatorname{frameWork}_E(f).\mathrm{hits}$$
+
+The tick's only unit cost is its callbacks. -/
+theorem tick_units {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat) (s : Stage) :
+    (frameWork E (withTick f n a b)).units s = (frameWork E f).units s + (if s = .script then n else 0) ∧
+      (frameWork E (withTick f n a b)).hits = (frameWork E f).hits := by
+  refine ⟨?_, rfl⟩
+  simp only [frameWork, stageUnits, withTick]
+  by_cases h : s = .script <;> simp only [h, ↓reduceIte] <;> omega
+
+/-- **Passes of a read-free tick.** Off `script` and the base stages, a tick with no forced pass leaves every stage's
+passes equal.
+
+$$\forall E, f, n,\ \forall s:\ s \ne \mathrm{script} \land s \notin E.\mathrm{base} \Rightarrow \operatorname{frameWork}_E(\operatorname{withTick}(f, n, 0, 0)).\mathrm{passes}(s) = \operatorname{frameWork}_E(f).\mathrm{passes}(s)$$
+
+A write-free callback touches no stage of its own beyond script and the update it may schedule. -/
+theorem tick_passes_eq {P M : Type} (E : Engine P M) (f : FrameIn P) (n : Nat) (s : Stage) (hs : s ≠ .script)
+    (hb : s ∉ E.base) :
+    (frameWork E (withTick f n 0 0)).passes s = (frameWork E f).passes s := by
+  have hb' : ∀ c : Bool, s ∉ (if c = true then E.base else []) := by
+    intro c; split <;> simp_all
+  have hs' : ∀ x : Nat, s ∉ (if 0 < x then [Stage.script] else []) := by
+    intro x; split <;> simp_all
+  have hm : s ∈ touched E (withTick f n 0 0) ↔ s ∈ touched E f := by
+    simp only [touched, List.mem_append, hb', hs', or_false]
+    exact Iff.rfl
+  have hF : forcedPasses (withTick f n 0 0) s = forcedPasses f s := by cases s <;> rfl
+  simp only [frameWork, hF]
+  by_cases h : s ∈ touched E f
+  · simp [h, hm.mpr h]
+  · simp [h, mt hm.mp h]
+
 end Fw.Parts.PainNotes
