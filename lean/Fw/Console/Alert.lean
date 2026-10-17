@@ -88,9 +88,7 @@ def closer (ev : String) : Bool :=
 /-- Who a `Notification` without `agent_id` belongs to: the single agent with a tool in flight,
 and only when the lead has no tool in flight other than the `Agent` call waiting for it.
 
-$$\operatorname{attrib}(\mathit{fs}) = \begin{cases} \bot & \exists f \in \mathit{fs}:\ f.\mathit{agent} = \bot \land f.\mathit{tool} \ne \texttt{Agent} \\ f_1 & \text{else if } F_a = f_1 :: R \text{ and } \forall g \in R:\ g.\mathit{agent} = f_1.\mathit{agent} \\ \bot & \text{otherwise} \end{cases}$$
-where $F_a = [\, f \in \mathit{fs} \mid f.\mathit{agent} \ne \bot \,]$ is the list of agent flights in the order of
-$\mathit{fs}$ (cases are tried first match first).
+$$\operatorname{attrib}(\mathit{fs}) = \begin{cases} \bot & \exists f \in \mathit{fs}:\ f.\mathit{agent} = \bot \land f.\mathit{tool} \ne \texttt{Agent} \\ f_1 & \text{else if } F_a = f_1 :: R \text{ and } \forall g \in R:\ g.\mathit{agent} = f_1.\mathit{agent} \\ \bot & \text{otherwise} \end{cases},\quad \text{where } F_a = [\, f \in \mathit{fs} \mid f.\mathit{agent} \ne \bot \,] \text{ is the list of agent flights in the order of } \mathit{fs} \text{ (cases are tried first match first)}$$
 -/
 def attrib (fs : List Flight) : Option Flight :=
   if fs.any (fun f => f.agentId.isNone && f.tool != some "Agent") then none
@@ -295,10 +293,7 @@ private def clip (n : Nat) (s : String) : String := String.ofList (s.toList.take
 
 /-- The title of an alert: names the agent (its type), the kind and the tool.
 
-$$\operatorname{title}(k, \mathit{who}, \mathit{tool}) = \begin{cases} \text{“Agent } w \text{ asks permission to use } u \text{: answer its prompt in the Claude Code terminal, then press Done”} & k = \mathrm{permission} \\ \text{“Agent } w \text{ needs your input: answer it in the Claude Code terminal, then press Done”} & k = \mathrm{needsInput} \\ \text{“Agent } w \text{ stopped on an API failure; the lead restarts it from its handoff”} & k = \mathrm{stopFailure} \end{cases}$$
-where $w = \operatorname{clip}_{60}(\mathit{who})$, $u = \operatorname{clip}_{40}(\mathit{tool})$ if $\mathit{tool} \ne \bot$ and
-$u = \operatorname{clip}_{40}(\text{“a tool”})$ if $\mathit{tool} = \bot$, and $\operatorname{clip}_n(s)$ is the first $n$
-characters of $s$ (all of $s$ if it is shorter).
+$$\operatorname{title}(k, \mathit{who}, \mathit{tool}) = \begin{cases} \text{“Agent } w \text{ asks permission to use } u \text{: answer its prompt in the Claude Code terminal, then press Done”} & k = \mathrm{permission} \\ \text{“Agent } w \text{ needs your input: answer it in the Claude Code terminal, then press Done”} & k = \mathrm{needsInput} \\ \text{“Agent } w \text{ stopped on an API failure; the lead restarts it from its handoff”} & k = \mathrm{stopFailure} \end{cases},\quad \text{where } w = \operatorname{clip}_{60}(\mathit{who}),\ u = \begin{cases} \operatorname{clip}_{40}(\mathit{tool}) & \mathit{tool} \ne \bot \\ \operatorname{clip}_{40}(\text{“a tool”}) & \mathit{tool} = \bot \end{cases},\ \operatorname{clip}_n(s) = \text{the first } n \text{ characters of } s \text{ (all of } s \text{ if it is shorter)}$$
 -/
 def title (k : Kind) (who : String) (tool : Option String) : String :=
   let w := clip 60 who
@@ -338,8 +333,7 @@ def closes (e : Ev) (id : String) : Bool :=
 still open on the board.
 
 $$\operatorname{act}(e, \mathit{fs}, \mathit{opn}) = (\mathit{post}, \mathit{close}),\quad \mathit{close} = [\, \mathit{id} \in \mathit{opn} \mid \operatorname{closes}(e, \mathit{id}) \,]$$
-$$\mathit{post} = \begin{cases} (s, \texttt{alert:} \cdot s, \operatorname{title}(k, \tau, \mathit{tool}), k, \operatorname{slug}(a)) & \operatorname{kindOf}(e) = k \land \operatorname{subject}(e, \mathit{fs}) = (a, \mathit{ty}, \mathit{tool}) \land \neg \exists \mathit{id} \in \mathit{opn}:\ \operatorname{owner}(\mathit{id}) = \operatorname{slug}(a) \\ \bot & \text{otherwise} \end{cases}$$
-where $s = \operatorname{stepId}(a, e.\mathit{ts})$ and $\tau = \mathit{ty}$ if $\mathit{ty} \ne \bot$, else $\texttt{main}$.
+$$\mathit{post} = \begin{cases} (s, \texttt{alert:} \cdot s, \operatorname{title}(k, \tau, \mathit{tool}), k, \operatorname{slug}(a)) & \operatorname{kindOf}(e) = k \land \operatorname{subject}(e, \mathit{fs}) = (a, \mathit{ty}, \mathit{tool}) \land \neg \exists \mathit{id} \in \mathit{opn}:\ \operatorname{owner}(\mathit{id}) = \operatorname{slug}(a) \\ \bot & \text{otherwise} \end{cases},\quad \text{where } s = \operatorname{stepId}(a, e.\mathit{ts}),\ \tau = \begin{cases} \mathit{ty} & \mathit{ty} \ne \bot \\ \texttt{main} & \mathit{ty} = \bot \end{cases}$$
 -/
 def act (e : Ev) (fs : List Flight) (opn : List String) : Out :=
   let close := opn.filter (closes e)

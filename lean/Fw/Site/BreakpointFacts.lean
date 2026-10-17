@@ -41,9 +41,7 @@ theorem catalogue_queries_nodup : (catalogue.map (·.query)).Nodup := by decide
 /-- **Byte-exact CSS.** The printed normal form of every condition equals the inventory's `condition` string
 (`breakpoints.json`, schema `fw.breakpoints/1`, ids `mq.*`).
 
-$$ \forall i < 30.\ (\mathrm{id}_i, \mathrm{ts}_i, \mathrm{css}(q_i)) = (\mathrm{id}^{inv}_i, t_i, s^{inv}_i),\quad t = (\texttt{rmReduce}, \texttt{rmNopref}, \dots, \texttt{c1000Nodw}) $$
-
-where $t$ is the list of TS ids written in the theorem (`breakpoints.json` has no TS-id field).
+$$ \forall i < 30.\ (\mathrm{id}_i, \mathrm{ts}_i, \mathrm{css}(q_i)) = (\mathrm{id}^{inv}_i, t_i, s^{inv}_i),\quad t = (\texttt{rmReduce}, \texttt{rmNopref}, \dots, \texttt{c1000Nodw}) \ \text{(the TS ids written in the theorem; } \texttt{breakpoints.json} \text{ has no TS-id field)} $$
 
 Each condition prints exactly as the inventory writes it, under the listed TS id. -/
 theorem catalogue_css : catalogue.map (fun c => (c.id, c.tsId, c.query.css)) = [

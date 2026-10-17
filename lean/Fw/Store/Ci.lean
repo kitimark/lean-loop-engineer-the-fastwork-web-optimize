@@ -220,9 +220,7 @@ def ciRefusals (r : CiRun) (got : Option Got) : List String :=
 /-- The parameters of a page query `?k=v&k=v` (a leading `?` dropped, empty segments skipped, the value after the
 first `=`, empty when there is none). No percent-decoding: chromium-counts.yml writes the query raw.
 
-$$\operatorname{params}(q) = [\,\operatorname{kv}(\sigma) \mid \sigma \in \operatorname{split}_{\texttt{\&}}(q'),\ \sigma \ne \varepsilon\,],\quad \operatorname{kv}(\sigma) = \begin{cases} (k, v) & \sigma = k \mathbin{+\!\!+} \texttt{=} \mathbin{+\!\!+} v,\ \texttt{=} \notin k \ (v \text{ may contain } \texttt{=}) \\ (\sigma, \varepsilon) & \texttt{=} \notin \sigma \end{cases}$$
-
-where $q'$ is $q$ without its leading `?` (if any).
+$$\operatorname{params}(q) = [\,\operatorname{kv}(\sigma) \mid \sigma \in \operatorname{split}_{\texttt{\&}}(q'),\ \sigma \ne \varepsilon\,],\quad \operatorname{kv}(\sigma) = \begin{cases} (k, v) & \sigma = k \mathbin{+\!\!+} \texttt{=} \mathbin{+\!\!+} v,\ \texttt{=} \notin k \ (v \text{ may contain } \texttt{=}) \\ (\sigma, \varepsilon) & \texttt{=} \notin \sigma \end{cases},\quad \text{where } q' = q \text{ without its leading } \texttt{?} \text{ (if any)}$$
 -/
 def queryParams (search : String) : List (String × String) :=
   let q := match search.toList with

@@ -338,9 +338,7 @@ theorem entriesSorted_nodup {es : List Entry} (h : entriesSorted es = true) :
 
 /-- Every problem of a manifest, as a message (empty = valid).
 
-$$\begin{aligned} \operatorname{problems}(m) ={} & [\texttt{engine: unknown} \mid \operatorname{ofName}(m.\mathit{engine}) = \bot] \mathbin{+\!\!+} [\texttt{target: not original or rewrite} \mid \operatorname{ofName}_{\mathrm{Target}}(m.\mathit{target}) = \bot] \\ & \mathbin{+\!\!+} [\texttt{target: original takes no preset or flags} \mid \neg\operatorname{fits}(m.\mathit{target}, m.\mathit{preset}, m.\mathit{fw})] \mathbin{+\!\!+} [\texttt{preset: not an id} \mid \neg\operatorname{isId}(m.\mathit{preset})] \mathbin{+\!\!+} [\texttt{profile: not an id} \mid \neg\operatorname{isId}(m.\mathit{profile})] \\ & \mathbin{+\!\!+} [\texttt{fw: parts must be strictly increasing} \mid \neg\operatorname{flagsOk}(m.\mathit{fw})] \mathbin{+\!\!+} [\texttt{fw: part and variant must be ids} \mid \exists (a, v) \in m.\mathit{fw}:\ \neg\operatorname{isPart}(a) \lor \neg\operatorname{isId}(v)] \\ & \mathbin{+\!\!+} [\texttt{gitSha: not 40 hex digits} \mid \neg\operatorname{isHex}_{40}(m.\mathit{gitSha})] \mathbin{+\!\!+} [\texttt{image: not sha256:<64 hex> or runner:<id>} \mid \neg\operatorname{imageOk}(m.\mathit{image})] \\ & \mathbin{+\!\!+} [\texttt{runId: not digits} \mid m.\mathit{runId} = \varepsilon \lor \exists c \in m.\mathit{runId}:\ c \notin \{\texttt{0}..\texttt{9}\}] \mathbin{+\!\!+} [\texttt{entries: names must be strictly increasing} \mid \neg\operatorname{entriesSorted}(m.\mathit{entries})] \\ & \mathbin{+\!\!+} [\texttt{entries: name escapes the run directory} \mid \exists e \in m.\mathit{entries}:\ \neg\operatorname{safeName}(e.\mathit{name})] \\ & \mathbin{+\!\!+} [\texttt{entries: digest not 64 hex digits} \mid \exists e \in m.\mathit{entries}:\ \neg\operatorname{isHex}_{64}(e.\mathit{digest})] \end{aligned}$$
-
-where $[x \mid c]$ is $[x]$ when $c$ holds and $[\,]$ otherwise; the messages come in this order.
+$$\begin{aligned} \operatorname{problems}(m) ={} & [\texttt{engine: unknown} \mid \operatorname{ofName}(m.\mathit{engine}) = \bot] \mathbin{+\!\!+} [\texttt{target: not original or rewrite} \mid \operatorname{ofName}_{\mathrm{Target}}(m.\mathit{target}) = \bot] \\ & \mathbin{+\!\!+} [\texttt{target: original takes no preset or flags} \mid \neg\operatorname{fits}(m.\mathit{target}, m.\mathit{preset}, m.\mathit{fw})] \mathbin{+\!\!+} [\texttt{preset: not an id} \mid \neg\operatorname{isId}(m.\mathit{preset})] \mathbin{+\!\!+} [\texttt{profile: not an id} \mid \neg\operatorname{isId}(m.\mathit{profile})] \\ & \mathbin{+\!\!+} [\texttt{fw: parts must be strictly increasing} \mid \neg\operatorname{flagsOk}(m.\mathit{fw})] \mathbin{+\!\!+} [\texttt{fw: part and variant must be ids} \mid \exists (a, v) \in m.\mathit{fw}:\ \neg\operatorname{isPart}(a) \lor \neg\operatorname{isId}(v)] \\ & \mathbin{+\!\!+} [\texttt{gitSha: not 40 hex digits} \mid \neg\operatorname{isHex}_{40}(m.\mathit{gitSha})] \mathbin{+\!\!+} [\texttt{image: not sha256:<64 hex> or runner:<id>} \mid \neg\operatorname{imageOk}(m.\mathit{image})] \\ & \mathbin{+\!\!+} [\texttt{runId: not digits} \mid m.\mathit{runId} = \varepsilon \lor \exists c \in m.\mathit{runId}:\ c \notin \{\texttt{0}..\texttt{9}\}] \mathbin{+\!\!+} [\texttt{entries: names must be strictly increasing} \mid \neg\operatorname{entriesSorted}(m.\mathit{entries})] \\ & \mathbin{+\!\!+} [\texttt{entries: name escapes the run directory} \mid \exists e \in m.\mathit{entries}:\ \neg\operatorname{safeName}(e.\mathit{name})] \\ & \mathbin{+\!\!+} [\texttt{entries: digest not 64 hex digits} \mid \exists e \in m.\mathit{entries}:\ \neg\operatorname{isHex}_{64}(e.\mathit{digest})] \end{aligned}\qquad \text{where } [x \mid c] = \begin{cases} [x] & c \\ [\,] & \neg c \end{cases} \text{ (the messages come in this order)}$$
 -/
 def Manifest.problems (m : Manifest) : List String :=
   (if (Engine.ofName m.engine).isSome then [] else ["engine: unknown"]) ++
@@ -668,10 +666,7 @@ def reqProblems (q : Request) : List String :=
 
 /-- The jobs of a request for one target: one per distinct requested engine, in canonical order.
 
-$$\operatorname{jobsFor}(q, t) = [\,(e, \operatorname{workflow}(e), \operatorname{dispatch}(e, q), \operatorname{keyPairs}((e, t, q.\mathit{preset}, q.\mathit{fw}, q.\mathit{profile}, q.\mathit{sha}, \operatorname{imageOf}(q, e))), \operatorname{blocked}(e, q)) \mid e \in \operatorname{canon}(E_q)\,]$$
-
-where $E_q = [\,\operatorname{ofName}(n) \mid n \in q.\mathit{engines},\ \operatorname{ofName}(n) \ne \bot\,]$ (unknown names dropped) and the
-tuple is (engine, workflow, inputs, key, blocked); the inner tuple is a `Req`.
+$$\operatorname{jobsFor}(q, t) = [\,(e, \operatorname{workflow}(e), \operatorname{dispatch}(e, q), \operatorname{keyPairs}((e, t, q.\mathit{preset}, q.\mathit{fw}, q.\mathit{profile}, q.\mathit{sha}, \operatorname{imageOf}(q, e))), \operatorname{blocked}(e, q)) \mid e \in \operatorname{canon}(E_q)\,],\quad \text{where } E_q = [\,\operatorname{ofName}(n) \mid n \in q.\mathit{engines},\ \operatorname{ofName}(n) \ne \bot\,] \text{ (unknown names dropped); the tuple is (engine, workflow, inputs, key, blocked) and the inner tuple is a } \texttt{Req}$$
 -/
 def jobsFor (q : Request) (t : Target) : List Job :=
   let es := canonEngines (q.engines.filterMap Engine.ofName)
@@ -730,10 +725,7 @@ theorem plan_eq_jobsFor {q : Request} {t : Target} (h : reqProblems q = []) (ht 
 /-- **One job per distinct engine.** The engines of a plan are exactly the requested ones, in
 canonical order, with no repeat.
 
-$$\forall q:\ \operatorname{reqProblems}(q) = [\,] \Rightarrow \operatorname{engines}(\operatorname{plan}(q)) = \operatorname{canon}(E_q)\ \land\ \operatorname{engines}(\operatorname{plan}(q))\ \text{has no repeated element}$$
-
-where $E_q = [\,\operatorname{ofName}(n) \mid n \in q.\mathit{engines},\ \operatorname{ofName}(n) \ne \bot\,]$ and
-$\operatorname{engines}(P) = [\,j.\mathrm{engine} \mid j \in P\,]$.
+$$\forall q:\ \operatorname{reqProblems}(q) = [\,] \Rightarrow \operatorname{engines}(\operatorname{plan}(q)) = \operatorname{canon}(E_q)\ \land\ \operatorname{engines}(\operatorname{plan}(q))\ \text{has no repeated element},\quad \text{where } E_q = [\,\operatorname{ofName}(n) \mid n \in q.\mathit{engines},\ \operatorname{ofName}(n) \ne \bot\,],\ \operatorname{engines}(P) = [\,j.\mathrm{engine} \mid j \in P\,]$$
 -/
 theorem plan_engines {q : Request} (h : reqProblems q = []) :
     (plan q).map (·.engine) = canonEngines (q.engines.filterMap Engine.ofName) ∧

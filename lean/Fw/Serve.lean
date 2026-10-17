@@ -578,9 +578,7 @@ structure Delta where
 a card event or `runStart`, the step of a step event, the run of a run event and, for `runFinish`, the
 card of that run.
 
-$$\operatorname{touched}(\sigma, e) = \begin{cases} (\lfloor \mathit{card}(\mathit{id}) \rfloor, [\,], [\,]) & \mathrm{cardOpen}(\mathit{id}, \dots) \text{ or } \operatorname{cardOf}(b) = \mathit{id} \\ ([\,], \lfloor \mathit{step}(\mathit{id}) \rfloor, [\,]) & \text{a step event on } \mathit{id} \\ (\lfloor \mathit{card}(c) \rfloor, [\,], \lfloor \mathit{run}(r) \rfloor) & \mathrm{runStart}(r, c, \cdot) \\ (\lfloor \mathit{card}(x.\mathit{card}) \rfloor, [\,], [x]) & \mathrm{runFinish}(r, \cdot),\ x = \mathit{run}(r) \\ ([\,], [\,], [\,]) & \text{otherwise (incl. } \mathrm{runFinish}(r, \cdot) \text{ with } \mathit{run}(r) = \bot \text{)} \end{cases}$$
-
-where $\mathit{card}(k)$, $\mathit{step}(k)$, $\mathit{run}(k)$ are the first rows of $\sigma$ with id $k$ and $\lfloor x \rfloor$ is $[x]$ or $[\,]$ for $\bot$.
+$$\operatorname{touched}(\sigma, e) = \begin{cases} (\lfloor \mathit{card}(\mathit{id}) \rfloor, [\,], [\,]) & \mathrm{cardOpen}(\mathit{id}, \dots) \text{ or } \operatorname{cardOf}(b) = \mathit{id} \\ ([\,], \lfloor \mathit{step}(\mathit{id}) \rfloor, [\,]) & \text{a step event on } \mathit{id} \\ (\lfloor \mathit{card}(c) \rfloor, [\,], \lfloor \mathit{run}(r) \rfloor) & \mathrm{runStart}(r, c, \cdot) \\ (\lfloor \mathit{card}(x.\mathit{card}) \rfloor, [\,], [x]) & \mathrm{runFinish}(r, \cdot),\ x = \mathit{run}(r) \\ ([\,], [\,], [\,]) & \text{otherwise (incl. } \mathrm{runFinish}(r, \cdot) \text{ with } \mathit{run}(r) = \bot \text{)} \end{cases},\quad \text{where each of } \mathit{card}(k), \mathit{step}(k), \mathit{run}(k) \text{ is the first row of its table in } \sigma \text{ with id } k \text{ (} \bot \text{ if none)},\\lfloor x \rfloor = [x],\ \lfloor \bot \rfloor = [\,]$$
 -/
 def touched (s : State) (e : Event) : Delta :=
   match e.body with
@@ -705,9 +703,7 @@ theorem runIdx_get (rs : List Run) (cid : String) :
 /-- One board row from the two indexes (the same fields as `boardCard`, with the open step and the
 running count read from the indexes instead of scanned).
 
-$$\operatorname{frow}(O, R, \mathit{now}, c) = \big(c.\mathit{id}, c.\mathit{owner}, \operatorname{stage}(c), \operatorname{next}(c, \operatorname{stage}(c)), c.\mathit{lastAt}, \operatorname{needs}(m)_\bot, \rho, c.\mathit{head}, c.\mathit{landed}, c.\mathit{violation}, \neg c.\mathit{landed} \land \rho = 0 \land m = \bot \land \mathrm{STALE} \le \mathit{now} \mathbin{\dot-} c.\mathit{lastAt}\big)$$
-
-where $m = O(c.\mathit{id})$ ($\bot$ if absent) and $\rho = R(c.\mathit{id})$ ($0$ if absent).
+$$\operatorname{frow}(O, R, \mathit{now}, c) = \big(c.\mathit{id}, c.\mathit{owner}, \operatorname{stage}(c), \operatorname{next}(c, \operatorname{stage}(c)), c.\mathit{lastAt}, \operatorname{needs}(m)_\bot, \rho, c.\mathit{head}, c.\mathit{landed}, c.\mathit{violation}, \neg c.\mathit{landed} \land \rho = 0 \land m = \bot \land \mathrm{STALE} \le \mathit{now} \mathbin{\dot-} c.\mathit{lastAt}\big),\quad \text{where } m = O(c.\mathit{id})\ (\bot \text{ if absent}),\ \rho = R(c.\mathit{id})\ (0 \text{ if absent})$$
 -/
 def fastRow (oi : Std.HashMap String Step) (ri : Std.HashMap String Nat) (now : Nat) (c : Card) : BoardCard :=
   let st := stage c

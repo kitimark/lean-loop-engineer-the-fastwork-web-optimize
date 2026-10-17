@@ -91,12 +91,9 @@ def sameSide (a : Option Rat) (b : Rat) (edges : List Rat) : Bool :=
 
 /-- The eight environment checks, in report order, with whether each holds.
 
-$$\begin{aligned} \mathrm{width} &: \mathrm{widthExact} = \mathrm{true} \\ \mathrm{height} &: \mathrm{innerHeight} = q.h \\ \mathrm{deviceWidth} &: \mathrm{screenWidth} = q.\mathrm{dw} \vee \operatorname{sameSide}(\mathrm{screenWidth}, q.\mathrm{dw}, E) \\ \mathrm{dpr} &: \mathrm{dpr} = q.\mathrm{dpr} \\ \mathrm{hover} &: (\mathrm{hoverHover}, \mathrm{hoverNone}) = \begin{cases} (\mathrm{true}, \mathrm{false}) & q.\mathrm{hover} = \texttt{hover} \\ (\mathrm{false}, \mathrm{true}) & \text{otherwise} \end{cases} \\ \mathrm{pointer} &: (\mathrm{pointerFine}, \mathrm{pointerCoarse}) = \begin{cases} (\mathrm{true}, \mathrm{false}) & q.\mathrm{pointer} = \texttt{fine} \\ (\mathrm{false}, \mathrm{true}) & \text{otherwise} \end{cases} \\ \mathrm{reducedMotion} &: (q.\mathrm{rm} = \texttt{reduce}) \iff \mathrm{reducedMotion} = \mathrm{true} \\ \mathrm{colorScheme} &: (q.\mathrm{cs} = \texttt{dark}) \iff \mathrm{dark} = \mathrm{true} \end{aligned}$$
+$$\begin{aligned} \mathrm{width} &: \mathrm{widthExact} = \mathrm{true} \\ \mathrm{height} &: \mathrm{innerHeight} = q.h \\ \mathrm{deviceWidth} &: \mathrm{screenWidth} = q.\mathrm{dw} \vee \operatorname{sameSide}(\mathrm{screenWidth}, q.\mathrm{dw}, E) \\ \mathrm{dpr} &: \mathrm{dpr} = q.\mathrm{dpr} \\ \mathrm{hover} &: (\mathrm{hoverHover}, \mathrm{hoverNone}) = \begin{cases} (\mathrm{true}, \mathrm{false}) & q.\mathrm{hover} = \texttt{hover} \\ (\mathrm{false}, \mathrm{true}) & \text{otherwise} \end{cases} \\ \mathrm{pointer} &: (\mathrm{pointerFine}, \mathrm{pointerCoarse}) = \begin{cases} (\mathrm{true}, \mathrm{false}) & q.\mathrm{pointer} = \texttt{fine} \\ (\mathrm{false}, \mathrm{true}) & \text{otherwise} \end{cases} \\ \mathrm{reducedMotion} &: (q.\mathrm{rm} = \texttt{reduce}) \iff \mathrm{reducedMotion} = \mathrm{true} \\ \mathrm{colorScheme} &: (q.\mathrm{cs} = \texttt{dark}) \iff \mathrm{dark} = \mathrm{true} \\ & \text{where the observed and viewport fields are those of } o \text{ and } v; \\ & \text{in the width, height, deviceWidth, dpr, hover and pointer rows an unreported value } \bot \text{ equals neither } \mathrm{true} \text{ nor } \mathrm{false} \text{ nor any number,} \\ & \quad \text{so it satisfies none of their equations (deviceWidth can still hold through sameSide);} \\ & \text{in the reducedMotion and colorScheme rows } \bot \text{ counts as } \mathrm{false} \text{, so the row holds when the request is not reduce (not dark)} \end{aligned}$$
 
-where the observed and viewport fields are those of $o$ and $v$. In the width, height, deviceWidth, dpr, hover and
-pointer rows an unreported value ($\bot$) equals neither $\mathrm{true}$ nor $\mathrm{false}$ nor any number, so it
-satisfies none of their equations (deviceWidth can still hold through sameSide); in the reducedMotion and colorScheme
-rows $\bot$ counts as false, so the row holds when the request is not reduce (not dark). What "achieved" means, one
+What "achieved" means, one
 feature at a time. -/
 def envChecks (q : Requested) (v : Viewport) (o : Observed) (edges : List Rat) : List (String × Bool) :=
   [("width", o.widthExact == some true),
@@ -190,9 +187,9 @@ def eqS (c : Bool) : Status := if c then .equal else .differ
 
 /-- The truth items of one range-text key `k` with original value `x`.
 
-$$\begin{aligned} \mathrm{ar} &: \operatorname{eqS}(a = b) \\ \mathrm{lean} &: \begin{cases} \operatorname{eqS}(a = e_k \wedge b = e_k) & e \ne \bot \wedge \mathit{ach} \\ \mathrm{na} & \text{otherwise} \end{cases} \\ \mathrm{legacy} &: \operatorname{eqS}(\ell^o_k = a \wedge \ell^r_k = b) \quad \text{only if } \ell^o_k \text{ is a boolean} \end{aligned}$$
+$$\begin{aligned} \mathrm{ar} &: \operatorname{eqS}(a = b) \\ \mathrm{lean} &: \begin{cases} \operatorname{eqS}(a = e_k \wedge b = e_k) & e \ne \bot \wedge \mathit{ach} \\ \mathrm{na} & \text{otherwise} \end{cases} \\ \mathrm{legacy} &: \operatorname{eqS}(\ell^o_k = a \wedge \ell^r_k = b) \quad \text{only if } \ell^o_k \text{ is a boolean} \\ & \text{where } a = x,\ b = r_k \end{aligned}$$
 
-with $a = x$, $b = r_k$. Three checks per media condition. -/
+Three checks per media condition. -/
 def truthKey (r : TruthRaw) (oLegacy : TMap) (ex : Option TMap) (ach : Bool) (k : String)
     (x : Option Bool) : List TItem :=
   let a : TVal := some x
@@ -456,10 +453,9 @@ def StateOut.itemFails (e : StateOut) (s : Status) : Bool := e.reach.isNone && f
 
 /-- The items of every covered part in one state.
 
-$$\operatorname{stateParts}(C, o, r) = [\,(P.\mathrm{id}, \operatorname{partItems}(C.A, P, o[P.\mathrm{id}], r[P.\mathrm{id}], \Pi_P)) \mid P \in C.\mathrm{parts}\,]$$
+$$\operatorname{stateParts}(C, o, r) = [\,(P.\mathrm{id}, \operatorname{partItems}(C.A, P, o[P.\mathrm{id}], r[P.\mathrm{id}], \Pi_P)) \mid P \in C.\mathrm{parts}\,],\quad \text{where } x[k] = \text{the value of the first entry of the association list } x \text{ with key } k \text{ (} \bot \text{ if there is none)},\ \Pi_P = \begin{cases} C.\mathit{props}[P.\mathrm{id}] & \text{that entry exists} \\ [\,] & \text{otherwise} \end{cases}$$
 
-where $x[k]$ is the value of the first entry of the association list $x$ with key $k$, or $\bot$ if there is none, and
-$\Pi_P = C.\mathit{props}[P.\mathrm{id}]$ if that entry exists, else $\Pi_P = [\,]$. Each covered part, judged on both
+Each covered part, judged on both
 arms. -/
 def stateParts (c : Ctx) (o r : List (String × PartRaw)) : List (String × List PItem) :=
   c.parts.map fun sp =>
@@ -481,9 +477,9 @@ the state's port when its reach says so), compared counts, reach, and the state 
 (matchMedia rows and part rows).
 
 $$\forall C, s,\quad \operatorname{evalState}(C, s) = (\mathit{dev}_O, \mathit{dev}_R, \mathit{ach}, T, \Pi, \mathit{rows}, \mathit{compared}, \operatorname{reach}(C, s), \mathit{verdict})$$
-$$\begin{aligned} \mathit{dev}_O &= \operatorname{dev}(q, v_O, o_O, C.\mathit{edges}), \quad \mathit{dev}_R = \operatorname{dev}(q, v_R, o_R, C.\mathit{edges}), \quad \mathit{ach} \iff \mathit{dev}_O = [\,] \wedge \mathit{dev}_R = [\,] \\ T &= \operatorname{truthItems}(T_O, T_R, E, E_N, \mathit{ach}), \quad \Pi = \operatorname{stateParts}(C, \Pi_O, \Pi_R) \\ \mathit{rows} &= \operatorname{reachRows}(\operatorname{reach}(C, s), \operatorname{rowVerdicts}(T, \Pi)), \quad \mathit{compared} = [\,(n, |[\,it \in I \mid \operatorname{compared}(it)\,]|) \mid (n, I) \in \Pi\,] \\ \mathit{verdict} &= \operatorname{rollup}([\,v \mid (n, v) \in \mathit{rows}\,]) \end{aligned}$$
+$$\begin{aligned} \mathit{dev}_O &= \operatorname{dev}(q, v_O, o_O, C.\mathit{edges}), \quad \mathit{dev}_R = \operatorname{dev}(q, v_R, o_R, C.\mathit{edges}), \quad \mathit{ach} \iff \mathit{dev}_O = [\,] \wedge \mathit{dev}_R = [\,] \\ T &= \operatorname{truthItems}(T_O, T_R, E, E_N, \mathit{ach}), \quad \Pi = \operatorname{stateParts}(C, \Pi_O, \Pi_R) \\ \mathit{rows} &= \operatorname{reachRows}(\operatorname{reach}(C, s), \operatorname{rowVerdicts}(T, \Pi)), \quad \mathit{compared} = [\,(n, |[\,it \in I \mid \operatorname{compared}(it)\,]|) \mid (n, I) \in \Pi\,] \\ \mathit{verdict} &= \operatorname{rollup}([\,v \mid (n, v) \in \mathit{rows}\,]) \\ & \text{where } s = (q, \alpha_O, \alpha_R, E, E_N),\ \alpha_O = (v_O, o_O, T_O, \Pi_O),\ \alpha_R = (v_R, o_R, T_R, \Pi_R) \end{aligned}$$
 
-where $s = (q, \alpha_O, \alpha_R, E, E_N)$, $\alpha_O = (v_O, o_O, T_O, \Pi_O)$ and $\alpha_R = (v_R, o_R, T_R, \Pi_R)$. The whole
+The whole
 judgement of one probe or sweep stop. -/
 def evalState (c : Ctx) (s : StateIn) : StateOut :=
   let devO := envDeviations s.requested s.orig.viewport s.orig.observed c.edges
@@ -529,9 +525,9 @@ theorem evalState_fail_iff (c : Ctx) (s : StateIn) :
 
 /-- A state passes exactly when some row passes and none fails.
 
-$$\forall C, s,\quad \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{pass} \iff (\exists (n, v) \in \mathrm{rows},\ v = \mathrm{pass}) \wedge \forall (n, v) \in \mathrm{rows},\ v \ne \mathrm{fail}$$
+$$\forall C, s,\quad \operatorname{evalState}(C, s).\mathit{verdict} = \mathrm{pass} \iff (\exists (n, v) \in \mathrm{rows},\ v = \mathrm{pass}) \wedge \forall (n, v) \in \mathrm{rows},\ v \ne \mathrm{fail},\quad \text{where } \mathrm{rows} = \operatorname{evalState}(C, s).\mathrm{rows}$$
 
-(with $\mathrm{rows} = \operatorname{evalState}(C, s).\mathrm{rows}$.) A state passes only if no row, part rows included, fails. -/
+A state passes only if no row, part rows included, fails. -/
 theorem evalState_pass_iff (c : Ctx) (s : StateIn) :
     (evalState c s).verdict = .pass ↔
       (∃ x ∈ (evalState c s).rows, x.2 = .pass) ∧ ∀ x ∈ (evalState c s).rows, x.2 ≠ .fail := by
@@ -602,10 +598,9 @@ theorem evalState_unreachable_iff (c : Ctx) (s : StateIn) :
 /-- Sweep hysteresis: items compared and items differing or missing, the state after a sequence
 against a fresh load.
 
-$$\operatorname{stale}(C, a, f) = \bigl(|[\,it \in I \mid \operatorname{compared}(it)\,]|,\ |[\,it \in I \mid it.\mathrm{cls} \ne \mathrm{info} \wedge it.\mathrm{status} \in \{\mathrm{differ}, \mathrm{missing}\}\,]|\bigr)$$
+$$\operatorname{stale}(C, a, f) = \bigl(|[\,it \in I \mid \operatorname{compared}(it)\,]|,\ |[\,it \in I \mid it.\mathrm{cls} \ne \mathrm{info} \wedge it.\mathrm{status} \in \{\mathrm{differ}, \mathrm{missing}\}\,]|\bigr),\quad \text{where } I = \textstyle\bigoplus_{(n, J) \in \operatorname{stateParts}(C, a, f)} J \text{ is the concatenated item list (counts are of list entries, repeats included)}$$
 
-where $I = \bigoplus_{(n, J) \in \operatorname{stateParts}(C, a, f)} J$ is the concatenated item list (counts are of list
-entries, repeats included). How much of the page a resize sequence leaves different from a fresh load. -/
+How much of the page a resize sequence leaves different from a fresh load. -/
 def stale (c : Ctx) (after fresh : List (String × PartRaw)) : Nat × Nat :=
   let items := (stateParts c after fresh).flatMap (·.2)
   (items.countP isCompared,

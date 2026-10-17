@@ -56,9 +56,8 @@ def trailerOf (w : List Char) : Option String :=
 
 /-- The trailer ids of a commit message, in line order.
 
-$$\operatorname{trailers}(B) = [\, \operatorname{trailer}(w) \mid w \in \operatorname{lines}(B),\ \operatorname{trailer}(w) \ne \bot \,]$$
+$$\operatorname{trailers}(B) = [\, \operatorname{trailer}(w) \mid w \in \operatorname{lines}(B),\ \operatorname{trailer}(w) \ne \bot \,],\quad \text{where } \operatorname{lines}(B) \text{ splits } B \text{ at every line end } (\operatorname{eol})$$
 
-where $\operatorname{lines}(B)$ splits $B$ at every line end ($\operatorname{eol}$).
 Every `Task:` line of a message, in order.
 -/
 def trailers (body : String) : List String :=

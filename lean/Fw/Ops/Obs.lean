@@ -22,9 +22,8 @@ namespace Fw.Ops.Obs
 /-- The idempotency key of an observation: agent id (or `main`), event and tool-use id (or the
 timestamp), joined by `|`.
 
-$$\operatorname{obsKey}(i, e, u, t) = a \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} e \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} x, \quad a = \begin{cases} s & i = s \\ \texttt{"main"} & i = \bot \end{cases}, \quad x = \begin{cases} v & u = v \\ \operatorname{dec}(t) & u = \bot \end{cases} \qquad (i, u \in \mathrm{String} \cup \{\bot\},\ e \in \mathrm{String},\ t \in \mathbb{N})$$
+$$\operatorname{obsKey}(i, e, u, t) = a \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} e \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} x, \quad a = \begin{cases} s & i = s \\ \texttt{"main"} & i = \bot \end{cases}, \quad x = \begin{cases} v & u = v \\ \operatorname{dec}(t) & u = \bot \end{cases} \qquad (i, u \in \mathrm{String} \cup \{\bot\},\ e \in \mathrm{String},\ t \in \mathbb{N}),\quad \text{where } \operatorname{dec}(t) = \text{the decimal numeral of } t\ \text{(an empty string } s \text{ or } v \text{ is kept as it is; only } \bot \text{ is replaced)}$$
 
-where $\operatorname{dec}(t)$ is the decimal numeral of $t$; an empty string $s$ or $v$ is kept as it is (only $\bot$ is replaced).
 The key names who did what, and which tool call or moment it was.
 -/
 def obsKey (agentId : Option String) (event : String) (toolUseId : Option String) (ts : Nat) : String :=

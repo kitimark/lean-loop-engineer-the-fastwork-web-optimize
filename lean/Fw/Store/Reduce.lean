@@ -19,8 +19,7 @@ open Fw.Measure
 /-- The rows of an arm pair: type name and its `TypeObs` (class from the baseline runs, series of
 the first baseline run and the first variant run).
 
-$$\operatorname{obs}_{p,q}(B, V) = \big[\,(k,\ \operatorname{classify}_{p,q}(\operatorname{unit}(k), [\operatorname{series}_k(r)]_{r \in B}),\ \operatorname{series}_k(\operatorname{hd}_{[]}(B)),\ \operatorname{series}_k(\operatorname{hd}_{[]}(V)))\,\big]_{k \in \operatorname{keys}(\operatorname{flatten}(B \mathbin{+\!\!+} V))}$$
-where $\operatorname{hd}_{[]}(r_1 :: \dots) = r_1$ and $\operatorname{hd}_{[]}([\,]) = [\,]$ (the empty run, whose series is empty).
+$$\operatorname{obs}_{p,q}(B, V) = \big[\,(k,\ \operatorname{classify}_{p,q}(\operatorname{unit}(k), [\operatorname{series}_k(r)]_{r \in B}),\ \operatorname{series}_k(\operatorname{hd}_{[]}(B)),\ \operatorname{series}_k(\operatorname{hd}_{[]}(V)))\,\big]_{k \in \operatorname{keys}(\operatorname{flatten}(B \mathbin{+\!\!+} V))},\quad \text{where } \operatorname{hd}_{[]}(r_1 :: \dots) = r_1,\ \operatorname{hd}_{[]}([\,]) = [\,] \text{ (the empty run, whose series is empty)}$$
 -/
 def obsOf (p : Policy) (q : PxTol) (base var : List (List Counts)) : List (String × TypeObs) :=
   (keysOf (base ++ var).flatten).map fun k =>
@@ -72,8 +71,7 @@ theorem failing_eq_nil_iff (p : Policy) (q : PxTol) (base var : List (List Count
 unseen pair of runs within the type's class of the observed first runs, the variant does no more
 work than the baseline (frame by frame for deterministic types, in total for stable types).
 
-$$\forall p, q, B, V:\ \operatorname{reduceOk}_{p,q}(B, V) \Rightarrow \forall r \in \operatorname{obs}_{p,q}(B, V),\ \forall b', v' \in \mathrm{Series}:\ \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{base}, b') \land \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{var}, v') \Rightarrow \operatorname{Promise}(o.\mathrm{cls}, b', v')$$
-where $r = (k, o)$ is a row: a type name $k$ and its observation $o$.
+$$\forall p, q, B, V:\ \operatorname{reduceOk}_{p,q}(B, V) \Rightarrow \forall r \in \operatorname{obs}_{p,q}(B, V),\ \forall b', v' \in \mathrm{Series}:\ \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{base}, b') \land \operatorname{Within}(o.\mathrm{cls}, o.\mathrm{var}, v') \Rightarrow \operatorname{Promise}(o.\mathrm{cls}, b', v'),\quad \text{where } r = (k, o) \text{ is a row: a type name } k \text{ and its observation } o$$
 -/
 theorem reduceOk_sound (p : Policy) (q : PxTol) (base var : List (List Counts))
     (h : reduceOk p q base var = true) :

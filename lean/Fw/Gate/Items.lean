@@ -178,10 +178,9 @@ def isSkipped (p : String) (names pres : List String) : Bool :=
 
 /-- The names a role skips: its own `skipProps`, then the properties of its named `skipSets`.
 
-$$\operatorname{skipNames}(A, \rho) = \rho.\mathrm{skipProps} \mathbin{+\!\!+} \textstyle\bigoplus_{s \in \rho.\mathrm{skipSets}} \operatorname{props}_A(s)$$
+$$\operatorname{skipNames}(A, \rho) = \rho.\mathrm{skipProps} \mathbin{+\!\!+} \textstyle\bigoplus_{s \in \rho.\mathrm{skipSets}} \operatorname{props}_A(s),\quad \operatorname{props}_A(s) = \begin{cases} S.P & S \text{ is the first element of } A.\mathcal S \text{ (in list order) with } S.\mathit{name} = s \\ [\,] & \text{there is none} \end{cases}$$
 
-where $\operatorname{props}_A(s) = S.P$ for the first $S \in A.\mathcal S$ (in list order) with $S.\mathit{name} = s$, and
-$\operatorname{props}_A(s) = [\,]$ if there is none. A role's own skips and those of the sets it names (an undeclared set adds nothing). -/
+A role's own skips and those of the sets it names (an undeclared set adds nothing). -/
 def skipNames (a : Anchors) (rs : RoleSpec) : List String :=
   rs.skipProps ++ rs.skipSets.flatMap fun s => ((a.skipSets.find? (·.name == s)).map (·.props)).getD []
 
@@ -234,12 +233,7 @@ def boxDim (it : Item) (ref : Option Rect) (d : String) : Option Rat :=
 
 /-- The items at one index of a role: boxes, compared styles, then information.
 
-$$\operatorname{itemAt}_{\rho, C, I, q_o, q_r}(i, x, y) = [\operatorname{box}_d \mid d \in \rho.\mathrm{dims}] \mathbin{+\!\!+} [\operatorname{style}_p \mid p \in C] \mathbin{+\!\!+} [\operatorname{info}_p \mid p \in I]$$
-
-with $\operatorname{box}_d = (\mathrm{box}, \rho.\mathrm{role}, i, d, \operatorname{boxStatus}(\operatorname{boxDim}(x, q_o, d), \operatorname{boxDim}(y, q_r, d)), \mathrm{false})$,
-$\operatorname{style}_p = (\mathrm{style}, \rho.\mathrm{role}, i, p, \operatorname{styleStatus}(x_p, y_p), \mathrm{false})$ and
-$\operatorname{info}_p = (\mathrm{info}, \rho.\mathrm{role}, i, p, \mathrm{na}, \neg\operatorname{styleValueEq}(x_p, y_p))$, where $x_p$ is the
-value of the first entry of $x.\sigma$ with key $p$ ($\bot$ if absent), and likewise $y_p$.
+$$\operatorname{itemAt}_{\rho, C, I, q_o, q_r}(i, x, y) = [\operatorname{box}_d \mid d \in \rho.\mathrm{dims}] \mathbin{+\!\!+} [\operatorname{style}_p \mid p \in C] \mathbin{+\!\!+} [\operatorname{info}_p \mid p \in I],\quad \text{where } \operatorname{box}_d = (\mathrm{box}, \rho.\mathrm{role}, i, d, \operatorname{boxStatus}(\operatorname{boxDim}(x, q_o, d), \operatorname{boxDim}(y, q_r, d)), \mathrm{false}),\ \operatorname{style}_p = (\mathrm{style}, \rho.\mathrm{role}, i, p, \operatorname{styleStatus}(x_p, y_p), \mathrm{false}),\ \operatorname{info}_p = (\mathrm{info}, \rho.\mathrm{role}, i, p, \mathrm{na}, \neg\operatorname{styleValueEq}(x_p, y_p)),\ x_p = \text{the value of the first entry of } x.\sigma \text{ with key } p \text{ (} \bot \text{ if absent)},\ y_p = \text{likewise for } y$$
 
 One element pair yields its box, style and information items. -/
 def itemAt (rs : RoleSpec) (cmp info : List String) (refO refR : Option Rect) (i : Nat)
@@ -268,10 +262,9 @@ def refRect (pr : Option PartRaw) (b : Option BoxRel) : Option Rect :=
 /-- The items of one role: a count, then the paired items; a role absent on either arm gives one
 `missing` count.
 
-$$\operatorname{roleItems}(A, \rho, \mathit{pr}, q_o, q_r, o, r) = \begin{cases} (\mathrm{count}, \rho.\mathrm{role}, -1, \texttt{count}, \operatorname{countStatus}(o.n, r.n), \mathrm{false}) :: \operatorname{pairs}(\operatorname{itemAt}_{\rho, C, I, q_o, q_r}, 0, o.\mathrm{items}, r.\mathrm{items}) & o \ne \bot \wedge r \ne \bot \\ [\,(\mathrm{count}, \rho.\mathrm{role}, -1, \texttt{count}, \mathrm{missing}, \mathrm{false})\,] & \text{otherwise} \end{cases}$$
+$$\operatorname{roleItems}(A, \rho, \mathit{pr}, q_o, q_r, o, r) = \begin{cases} (\mathrm{count}, \rho.\mathrm{role}, -1, \texttt{count}, \operatorname{countStatus}(o.n, r.n), \mathrm{false}) :: \operatorname{pairs}(\operatorname{itemAt}_{\rho, C, I, q_o, q_r}, 0, o.\mathrm{items}, r.\mathrm{items}) & o \ne \bot \wedge r \ne \bot \\ [\,(\mathrm{count}, \rho.\mathrm{role}, -1, \texttt{count}, \mathrm{missing}, \mathrm{false})\,] & \text{otherwise} \end{cases},\quad \text{where } C = \operatorname{compared}(A, \rho, R),\ I = \operatorname{infoProps}(A, O),\ R = \begin{cases} \mathit{pr}.P_{\mathrm{restated}} & \mathit{pr} \ne \bot \\ [\,] & \mathit{pr} = \bot \end{cases},\ O = \begin{cases} \mathit{pr}.P_{\mathrm{originOnly}} & \mathit{pr} \ne \bot \\ [\,] & \mathit{pr} = \bot \end{cases}$$
 
-where $C = \operatorname{compared}(A, \rho, R)$ with $R = \mathit{pr}.P_{\mathrm{restated}}$ if $\mathit{pr} \ne \bot$ else $[\,]$, and
-$I = \operatorname{infoProps}(A, O)$ with $O = \mathit{pr}.P_{\mathrm{originOnly}}$ if $\mathit{pr} \ne \bot$ else $[\,]$. A role is compared element by element once both arms have it. -/
+A role is compared element by element once both arms have it. -/
 def roleItems (a : Anchors) (rs : RoleSpec) (props : Option RoleProps) (refO refR : Option Rect) :
     Option RoleRaw → Option RoleRaw → List PItem
   | some o, some r =>
@@ -282,10 +275,9 @@ def roleItems (a : Anchors) (rs : RoleSpec) (props : Option RoleProps) (refO ref
 
 /-- All items of one part: the roles' items in declared order.
 
-$$\operatorname{partItems}(A, P, o, r, \Pi) = \textstyle\bigoplus_{\rho \in P.\mathrm{roles}} \operatorname{roleItems}(A, \rho, \Pi[\rho], \operatorname{ref}(o, \rho.b), \operatorname{ref}(r, \rho.b), o[\rho], r[\rho])$$
+$$\operatorname{partItems}(A, P, o, r, \Pi) = \textstyle\bigoplus_{\rho \in P.\mathrm{roles}} \operatorname{roleItems}(A, \rho, \Pi[\rho], \operatorname{ref}(o, \rho.b), \operatorname{ref}(r, \rho.b), o[\rho], r[\rho]),\quad \text{where } x[\rho] = \text{the value of the first entry with key } \rho.\mathrm{role} \text{ in the association list } x,\ \bot \text{ if there is none or } x = \bot$$
 
-where $x[\rho]$ is the value of the first entry with key $\rho.\mathrm{role}$ in the association list $x$, $\bot$ if there is
-none or $x = \bot$. Everything one part compares in one state. -/
+Everything one part compares in one state. -/
 def partItems (a : Anchors) (spec : PartSpec) (o r : Option PartRaw) (props : PartProps) :
     List PItem :=
   spec.roles.flatMap fun rs =>
@@ -373,9 +365,9 @@ theorem partItems_na_iff (a : Anchors) (spec : PartSpec) (o r : Option PartRaw) 
 
 /-- A part passes exactly when it compared something and every compared item is equal.
 
-$$\forall A, \mathit{spec}, o, r, \mathit{props},\quad \operatorname{partVerdict} = \mathrm{pass} \iff (\exists it \in \mathcal I,\ it.\mathrm{cls} \ne \mathrm{info}) \wedge \forall it \in \mathcal I,\ it.\mathrm{cls} \ne \mathrm{info} \implies it.\mathrm{status} = \mathrm{equal}$$
+$$\forall A, \mathit{spec}, o, r, \mathit{props},\quad \operatorname{partVerdict} = \mathrm{pass} \iff (\exists it \in \mathcal I,\ it.\mathrm{cls} \ne \mathrm{info}) \wedge \forall it \in \mathcal I,\ it.\mathrm{cls} \ne \mathrm{info} \implies it.\mathrm{status} = \mathrm{equal},\quad \text{where } \mathcal I = \operatorname{partItems}(A, \mathit{spec}, o, r, \mathit{props})$$
 
-where $\mathcal I = \operatorname{partItems}(A, \mathit{spec}, o, r, \mathit{props})$. A part's cell passes iff all its compared items pass. -/
+A part's cell passes iff all its compared items pass. -/
 theorem partVerdict_pass_iff (a : Anchors) (spec : PartSpec) (o r : Option PartRaw) (props : PartProps) :
     partVerdict a spec o r props = .pass ↔
       (∃ it ∈ partItems a spec o r props, it.cls ≠ .info) ∧
@@ -543,9 +535,9 @@ theorem refRect_mapRole (ρ : String) (g : Item → Item) (hg : ∀ x, (g x).rec
 
 /-- Changing the elements of both arms keeps the paired statuses when it keeps each pair's.
 
-$$\forall f, h_1, h_2,\quad \bigl(\forall i, x, y,\ \operatorname{st}(f(i, h_1 x, h_2 y)) = \operatorname{st}(f(i, x, y))\bigr) \implies \forall i, xs, ys,\ \operatorname{st}(\operatorname{pairs}(f, i, h_1(xs), h_2(ys))) = \operatorname{st}(\operatorname{pairs}(f, i, xs, ys))$$
+$$\forall f, h_1, h_2,\quad \bigl(\forall i, x, y,\ \operatorname{st}(f(i, h_1 x, h_2 y)) = \operatorname{st}(f(i, x, y))\bigr) \implies \forall i, xs, ys,\ \operatorname{st}(\operatorname{pairs}(f, i, h_1(xs), h_2(ys))) = \operatorname{st}(\operatorname{pairs}(f, i, xs, ys)),\quad \text{where } \operatorname{st}(L) = [\,it.\mathrm{status} \mid it \in L\,]$$
 
-where $\operatorname{st}$ lists the statuses. Pairing respects element-wise invariance. -/
+Pairing respects element-wise invariance. -/
 theorem pairs_congr (f : Nat → Item → Item → List PItem) (h₁ h₂ : Item → Item)
     (hf : ∀ i x y, (f i (h₁ x) (h₂ y)).map (·.status) = (f i x y).map (·.status)) :
     ∀ (i : Nat) (xs ys : List Item),
@@ -561,10 +553,9 @@ theorem pairs_congr (f : Nat → Item → Item → List PItem) (h₁ h₂ : Item
 
 /-- The statuses at one index depend only on the boxes and the compared properties.
 
-$$\forall \mathit{rs}, C, I, \mathit{refO}, \mathit{refR}, i, x, x', y, y',\quad \bigl(x.\mathrm{rect} = x'.\mathrm{rect} \wedge y.\mathrm{rect} = y'.\mathrm{rect} \wedge (\forall q \in C,\ x[q] = x'[q] \wedge y[q] = y'[q])\bigr) \implies \operatorname{st}(\operatorname{itemAt}_{\mathit{rs}, C, I, \mathit{refO}, \mathit{refR}}(i, x, y)) = \operatorname{st}(\operatorname{itemAt}_{\mathit{rs}, C, I, \mathit{refO}, \mathit{refR}}(i, x', y'))$$
+$$\forall \mathit{rs}, C, I, \mathit{refO}, \mathit{refR}, i, x, x', y, y',\quad \bigl(x.\mathrm{rect} = x'.\mathrm{rect} \wedge y.\mathrm{rect} = y'.\mathrm{rect} \wedge (\forall q \in C,\ x[q] = x'[q] \wedge y[q] = y'[q])\bigr) \implies \operatorname{st}(\operatorname{itemAt}_{\mathit{rs}, C, I, \mathit{refO}, \mathit{refR}}(i, x, y)) = \operatorname{st}(\operatorname{itemAt}_{\mathit{rs}, C, I, \mathit{refO}, \mathit{refR}}(i, x', y')),\quad \text{where } \operatorname{st}(L) = [\,it.\mathrm{status} \mid it \in L\,],\ x[q] = \text{the first style entry of } x \text{ with key } q \text{ (} \bot \text{ if absent)}$$
 
-where $\operatorname{st}(L) = [\,it.\mathrm{status} \mid it \in L\,]$ and $x[q]$ is the first style entry of $x$ with key $q$ ($\bot$ if
-absent). Information properties never touch a status. -/
+Information properties never touch a status. -/
 theorem itemAt_congr (rs : RoleSpec) (cmp info : List String) (refO refR : Option Rect) (i : Nat)
     (x x' y y' : Item) (hx : x.rect = x'.rect) (hy : y.rect = y'.rect)
     (hs : ∀ q ∈ cmp, x.style.lookup q = x'.style.lookup q ∧ y.style.lookup q = y'.style.lookup q) :
@@ -646,10 +637,9 @@ theorem partItems_skip_invariant (a : Anchors) (spec : PartSpec) (o r : Option P
 
 /-- Setting one skipped property to any value on both arms keeps the verdict.
 
-$$\forall A, P, o, r, \Pi, \rho, p, v, w,\quad \bigl(\forall \sigma \in P.\mathrm{roles},\ \sigma.\mathrm{role} = \rho \implies \operatorname{skipped}(p, \operatorname{skipNames}(A, \sigma), \operatorname{prefixes}(A))\bigr) \implies \operatorname{partVerdict}(A, P, \operatorname{mapRole}_{\rho, \operatorname{setStyle}_{p,v}}(o), \operatorname{mapRole}_{\rho, \operatorname{setStyle}_{p,w}}(r), \Pi) = \operatorname{partVerdict}(A, P, o, r, \Pi)$$
+$$\forall A, P, o, r, \Pi, \rho, p, v, w,\quad \bigl(\forall \sigma \in P.\mathrm{roles},\ \sigma.\mathrm{role} = \rho \implies \operatorname{skipped}(p, \operatorname{skipNames}(A, \sigma), \operatorname{prefixes}(A))\bigr) \implies \operatorname{partVerdict}(A, P, \operatorname{mapRole}_{\rho, \operatorname{setStyle}_{p,v}}(o), \operatorname{mapRole}_{\rho, \operatorname{setStyle}_{p,w}}(r), \Pi) = \operatorname{partVerdict}(A, P, o, r, \Pi),\quad \text{where } v, w \in \mathrm{String}_\bot,\ o, r \in \mathrm{PartRaw}_\bot,\ \operatorname{mapRole} \text{ is applied through the option } (\bot \mapsto \bot)$$
 
-where $v, w \in \mathrm{String}_\bot$, $o, r \in \mathrm{PartRaw}_\bot$, and $\operatorname{mapRole}$ is applied through the option
-($\bot \mapsto \bot$). A skipped property never fails a cell, whatever its value on either arm. -/
+A skipped property never fails a cell, whatever its value on either arm. -/
 theorem partVerdict_setStyle (a : Anchors) (spec : PartSpec) (o r : Option PartRaw)
     (props : PartProps) (ρ p : String) (v w : Option String)
     (hskip : ∀ rs ∈ spec.roles, rs.role = ρ → isSkipped p (skipNames a rs) (prefixes a) = true) :
