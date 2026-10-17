@@ -301,3 +301,35 @@ flags and host. `host.mjs` already had `--target original|rewrite|fixture` and `
   `--target fixture --site-dir fixtures/sheet-mutate --profile fixture-rest` reads 4 events in 4 frames.
 - **N1 (`src/trace.mjs`).** Needs the trace categories `blink` and `blink_style`; keys `trace.N1.updateActiveStyleSheets`,
   `trace.N1.scheduleInvalidationsForRuleSets`, `trace.N1.fontUpdateInvalidation`, zero-filled.
+
+## Update 2026-10-17 (refreeze: both arms, the split types, roles)
+
+`classes.frozen.json` is regenerated (schema `fw.classes.frozen/2`) by `src/freeze.mjs` over 3 workflow runs per profile, each with
+3 jobs per arm on separate VMs, one image (`sha256:8f0e17f5...`, built by run 39049264131, the other five reused it through
+`image_run`). Harness commit `f87bf94` (main `c719d73`, which holds the HitTest/N1 splits of `f90c08f`/`33fdcfe` and the touchmove
+fix of `c38088e`, plus the one-line workflow fix below). Every type the harness emits is in the table (checked against the union of
+the counts files: A 70, R 52 in swipe-v1; A 70, R 51 in swipe-touch-v1).
+
+| profile | arm | workflow runs | before det/stable/quar (types) | after det/stable/quar (types) | roles gate/finding/byDesign |
+|---|---|---|---|---|---|
+| swipe-v1 | A | 39049264131, 39049466889, 39049469621 | 27/25/10 (62) | 32/28/10 (70) | 60/9/1 |
+| swipe-v1 | R | same | none | 44/7/1 (52) | 51/1/0 |
+| swipe-touch-v1 | A | 39049471997, 39049478836, 39049481754 | 16/27/19 (62) | 22/32/16 (70) | 54/15/1 |
+| swipe-touch-v1 | R | same | none | 20/1/30 (51) | 21/30/0 |
+
+- Eight types are new (the splits and the N0 census): `trace.HitTest.overlayAdDetector`, `trace.N1.updateActiveStyleSheets`,
+  `trace.N1.svgImageDocument`, `trace.N1.fontUpdateInvalidation`, `trace.N1.scheduleInvalidationsForRuleSets`, `n0.cssom`, `n0.events`,
+  `n0.sheetNode`. `trace.HitTest` went from quarantined to stable on A in both profiles (swipe-v1 on R too: deterministic).
+- Roles are Lean's (`Fw.Measure.Arms`, in the `role`/`reason` fields of `measure.freeze` rows): `trace.HitTest.overlayAdDetector`
+  is `byDesign` whatever its class (A: quarantined; the rewrite never records it). `crossArm` is `measure.arms` over the two frozen tables:
+  an arm without the type reads as deterministic there, so the one-arm type is decided by the arm that has it (swipe-v1: 59 gates, 10
+  findings, 1 byDesign; touch: 31 / 38 / 1).
+- **swipe-touch-v1 R is not deterministic across all 3 workflow runs.** In run 39049478836 job r2 recorded 403 frames, the other eight
+  jobs 409; 30 types become quarantined (k up to 94). touch-race (3 runs) had no such job, so the touchmove race has a residual; the rule
+  takes the worst class, so the table carries it. A fourth run cannot improve a worst-class table.
+- Schema change: `profiles.<profile>.arms.{original,rewrite}` hold what `profiles.<profile>` held (types with `class`, `k`, `t`, `perRun`,
+  `role`, `reason?`, `tBound?`, `pooledClass`; `tally`, `roles`, `pooledTally`); `profiles.<profile>.crossArm` is new.
+- Workflow fix (`.github/workflows/chromium-counts.yml`): `classify` now has an `if` that ignores the skipped `site` job, so a dispatch
+  with `target=original` writes `chromium-classes` (before, the skip of `site` propagated to `classify`).
+- Reproduce: `gh run download <id> --dir runs/<id> --pattern 'chromium-c*'` for the six runs, then
+  `node src/freeze.mjs runs/<six dirs> --built-by 39049264131 --check` prints "identical".

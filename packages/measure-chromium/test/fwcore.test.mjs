@@ -101,27 +101,33 @@ test('zoneSums through the client: the pure.test.mjs seed vector', () => {
   assert.equal(z.reduce((s, x) => s + x.sums.a, 0), 8);
 });
 
-// freeze.mjs (the frozen class table) over synthetic downloaded workflow runs: 3 runs x 2 jobs, one image.
+// freeze.mjs (the frozen class table) over synthetic downloaded workflow runs: 3 runs x 2 jobs x 2 arms, one image.
 // Type `a` is identical everywhere, `b` moves one frame in run 3 (deterministic inside every run, stable pooled), `c`
-// exists only in run 2 (so it is quarantined; pooled, its total gap 100 is above tMax).
+// exists only in run 2 (so it is quarantined; pooled, its total gap 100 is above tMax). The rewrite arm lacks `c` and
+// has `onlyR`; the original arm has the overlay-ad detector type (by design).
+const OVERLAY = 'trace.HitTest.overlayAdDetector';
 function fakeRuns({ images = ['sha256:i', 'sha256:i', 'sha256:i'], n = 3, tamper = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'fw-freeze-'));
-  const meta = (img) => ({ image: img, snapshot: 's1', servedSha256: 'f00', target: 'original', trajectorySha256: 'tr' });
-  const frames = (run) => [0, 1].map((i) => ({ n: i, phase: 'swipe', scrollY: i,
-    counts: { a: 1, b: run === 2 ? 1 - i : i, ...(run === 1 ? { c: 50 } : {}) } }));
   const dirs = [];
   for (let r = 0; r < n; r++) {
     const dir = join(root, `run${r}`);
-    const jobs = [1, 2].map(() => ({ frames: frames(r), meta: meta(images[r]) }));
-    jobs.forEach((c, j) => {
-      mkdirSync(join(dir, `chromium-counts-r${j + 1}`), { recursive: true });
-      writeFileSync(join(dir, `chromium-counts-r${j + 1}`, 'counts.json'), JSON.stringify(c));
-      writeFileSync(join(dir, `chromium-counts-r${j + 1}`, 'image-id.txt'), `${images[r]}\n`);
-    });
-    const classes = classify(jobs, 4, 24);
-    if (tamper && r === 0) classes.a.class = 'stable';
-    mkdirSync(join(dir, 'chromium-classes'));
-    writeFileSync(join(dir, 'chromium-classes', 'classes.json'), JSON.stringify(classes));
+    mkdirSync(join(dir, 'chromium-classes'), { recursive: true });
+    for (const target of ['original', 'rewrite']) {
+      const meta = { image: images[r], snapshot: 's1', servedSha256: 'f00', target, trajectorySha256: 'tr' };
+      const frames = [0, 1].map((i) => ({ n: i, phase: 'swipe', scrollY: i, counts: target === 'original'
+        ? { a: 1, b: r === 2 ? 1 - i : i, [OVERLAY]: i * r, ...(r === 1 ? { c: 50 } : {}) }
+        : { a: 1, onlyR: 2 } }));
+      const jobs = [1, 2].map(() => ({ frames, meta }));
+      jobs.forEach((c, j) => {
+        mkdirSync(join(dir, `chromium-counts-${target}-r${j + 1}`), { recursive: true });
+        writeFileSync(join(dir, `chromium-counts-${target}-r${j + 1}`, 'counts.json'), JSON.stringify(c));
+        writeFileSync(join(dir, `chromium-counts-${target}-r${j + 1}`, 'image-id.txt'), `${images[r]}\n`);
+      });
+      const classes = classify(jobs, 4, 24);
+      if (tamper && r === 0 && target === 'original') classes.a.class = 'stable';
+      mkdirSync(join(dir, 'chromium-classes', target));
+      writeFileSync(join(dir, 'chromium-classes', target, 'classes.json'), JSON.stringify(classes));
+    }
     writeFileSync(join(dir, 'chromium-classes', 'run.txt'), `profile swipe-v1, workflow run ${100 + r}, attempt 1, sha abc\n`);
     writeFileSync(join(dir, 'chromium-classes', 'image-inputs.txt'), 'd0  Dockerfile\nd1  docker/apt-manifest.txt\n');
     dirs.push(dir);
@@ -129,18 +135,29 @@ function fakeRuns({ images = ['sha256:i', 'sha256:i', 'sha256:i'], n = 3, tamper
   return dirs;
 }
 
-test('freeze.mjs: worst class over 3 runs through fwcore measure.freeze; a type missing from a run is quarantined', () => {
+test('freeze.mjs: worst class over 3 runs through fwcore measure.freeze; a type missing from a run is quarantined; roles and cross-arm from Lean', () => {
   const f = freezeRuns(fakeRuns(), { builtBy: 100, dockerfile: '/nonexistent' });
   const p = f.profiles['swipe-v1'];
   assert.deepStrictEqual(p.workflowRuns, ['100', '101', '102']);
-  assert.equal(p.image, 'sha256:i');
-  assert.equal(p.jobsPerRun, 2);
+  const o = p.arms.original;
+  assert.deepStrictEqual(o.workflowRuns, ['100', '101', '102']);
+  assert.equal(o.image, 'sha256:i');
+  assert.equal(o.jobsPerRun, 2);
   const det3 = ['deterministic', 'deterministic', 'deterministic'];
-  assert.deepStrictEqual(p.types.a, { class: 'deterministic', k: 0, t: 0, perRun: det3, pooledClass: 'deterministic' });
-  assert.deepStrictEqual(p.types.b, { class: 'deterministic', k: 0, t: 0, perRun: det3, pooledClass: 'stable' });
-  assert.deepStrictEqual(p.types.c, { class: 'quarantined', k: 0, t: 0, perRun: ['missing', 'deterministic', 'missing'], pooledClass: 'quarantined' });
-  assert.deepStrictEqual(p.tally, { deterministic: 2, stable: 0, quarantined: 1 });
-  assert.deepStrictEqual(p.pooledTally, { deterministic: 1, stable: 1, quarantined: 1 });
+  assert.deepStrictEqual(o.types.a, { class: 'deterministic', k: 0, t: 0, perRun: det3, role: 'gate', pooledClass: 'deterministic' });
+  assert.deepStrictEqual(o.types.b, { class: 'deterministic', k: 0, t: 0, perRun: det3, role: 'gate', pooledClass: 'stable' });
+  assert.deepStrictEqual(o.types.c, { class: 'quarantined', k: 0, t: 0, perRun: ['missing', 'deterministic', 'missing'], role: 'finding', pooledClass: 'quarantined' });
+  assert.equal(o.types[OVERLAY].role, 'byDesign');
+  assert.ok(o.types[OVERLAY].reason);
+  assert.deepStrictEqual(o.roles, { gate: 2, finding: 1, byDesign: 1 });
+  assert.deepStrictEqual(o.tally, { deterministic: 3, stable: 0, quarantined: 1 });
+  assert.deepStrictEqual(p.arms.rewrite.tally, { deterministic: 2, stable: 0, quarantined: 0 });
+  // cross-arm: `c` is on A only (A decides: quarantined, a finding); `onlyR` on R only (R decides: deterministic, a gate)
+  assert.equal(p.crossArm.types.c.r, 'absent');
+  assert.equal(p.crossArm.types.c.class, 'quarantined');
+  assert.equal(p.crossArm.types.onlyR.a, 'absent');
+  assert.equal(p.crossArm.types.onlyR.class, 'deterministic');
+  assert.ok(p.crossArm.gates.includes('onlyR') && !p.crossArm.gates.includes('c') && !p.crossArm.gates.includes(OVERLAY));
   assert.deepStrictEqual(f.harness, { commit: 'abc', note: 'every workflow run below ran this commit; fwcore was built from it by the same workflow' });
   assert.equal(f.image.builtByRun, '100');
   assert.equal(f.image.baseImage, undefined);
@@ -149,7 +166,7 @@ test('freeze.mjs: worst class over 3 runs through fwcore measure.freeze; a type 
 test('freeze.mjs refuses 2 runs, mixed image digests, and a classes artifact fwcore does not reproduce', () => {
   assert.throws(() => freezeRuns(fakeRuns({ n: 2 })), /need at least 3 workflow runs/);
   assert.throws(() => freezeRuns(fakeRuns({ images: ['sha256:i', 'sha256:j', 'sha256:i'] })), /mixed image digests/);
-  assert.throws(() => freezeRuns(fakeRuns({ tamper: true })), /differs from the run's classes.json/);
+  assert.throws(() => freezeRuns(fakeRuns({ tamper: true })), /differs from the run's original classes.json/);
 });
 
 test('diffPaths lists the differing leaves', () => {
