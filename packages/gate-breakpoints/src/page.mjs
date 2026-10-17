@@ -48,17 +48,35 @@ export async function waitReady(arg) {
     splash = done();
     ready = !!document.querySelector('.hero-track .hero');
   }
-  // every finite CSS animation or transition has finished (infinite ones, e.g. the call-to-action orbit, are ignored)
-  const running = () => document.getAnimations().filter((a) => {
+  // Every FINITE CSS animation or transition has finished, so the page is compared in its end state and never in a tail
+  // (infinite ones, e.g. the call-to-action orbit, are ignored). Parts mount at different times (the original's people
+  // card after hydration, long after the hero splash), so a transition can start after the first quiet moment: the wait
+  // is repeated after the 3 frames and 300 ms until a whole pass finds none. Bounded by capMs; no tolerance anywhere.
+  const finiteRunning = () => document.getAnimations().filter((a) => {
     const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
-    return t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
-  }).length;
+    return t && Number.isFinite(t.iterations) && (a.playState === 'running' || a.playState === 'pending');
+  });
   const t1 = performance.now();
-  while (running() > 0 && performance.now() - t1 < capMs) await sleep(50);
-  for (let i = 0; i < 3; i++) await frame();
-  await sleep(300);
+  let awaited = 0;
+  let passes = 0;
+  while (performance.now() - t1 < capMs) {
+    let list = finiteRunning();
+    while (list.length > 0 && performance.now() - t1 < capMs) {
+      awaited += list.length;
+      const left = capMs - (performance.now() - t1);
+      await Promise.race([Promise.all(list.map((a) => a.finished.catch(() => {}))), sleep(left)]);
+      list = finiteRunning();
+    }
+    for (let i = 0; i < 3; i++) await frame();
+    await sleep(300);
+    passes++;
+    if (finiteRunning().length === 0) break;
+  }
   const fw = window.__fw;
-  return { ready, splash, fwMode: fw ? fw.mode : null, hydrationErrors: fw ? (fw.hydrationErrors ? fw.hydrationErrors.length ?? fw.hydrationErrors : 0) : null };
+  return {
+    ready, splash, fwMode: fw ? fw.mode : null, hydrationErrors: fw ? (fw.hydrationErrors ? fw.hydrationErrors.length ?? fw.hydrationErrors : 0) : null,
+    animations: { waitedMs: Math.round(performance.now() - t1), awaited, passes, left: finiteRunning().length },
+  };
 }
 
 /**
