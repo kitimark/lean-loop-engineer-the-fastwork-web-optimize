@@ -3,11 +3,14 @@ import { Command } from "@fw/contracts";
 import { UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land } from "./land.ts";
+import { watchMain } from "./watch.ts";
 
 const [group, ...rest] = process.argv.slice(2);
 try {
   const base = apiBase(process.env);
-  if (group === "status") {
+  if (group === "watch") {
+    process.exitCode = await watchMain(rest, process.cwd());
+  } else if (group === "status") {
     const b = await (await fetch(`${base}/api/board`)).json();
     console.log(renderBoard(b as never));
   } else if (group === "land") {
@@ -26,7 +29,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw land <card/branch> | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw watch [--json] [--interval s] [--until-alert] | fw land <card/branch> | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));
