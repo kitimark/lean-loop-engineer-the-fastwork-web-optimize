@@ -871,7 +871,8 @@
    "owner": "lead",
    "needs": [
     "device"
-   ]
+   ],
+   "evidence": "5ced4f6: finger 2.6 vs scripted 22.9 frames>50ms/100"
   },
   {
    "id": "gap-light",
@@ -882,7 +883,8 @@
    "owner": "lead",
    "needs": [
     "device"
-   ]
+   ],
+   "evidence": "5ced4f6: Light mode 8/8 agree; W X T S L pass"
   },
   {
    "id": "port-parts",
