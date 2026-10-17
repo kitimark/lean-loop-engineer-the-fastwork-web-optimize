@@ -3447,6 +3447,23 @@
     "packages/contracts/golden/ops/ledger-merge.jsonl",
     "docs/team/tools/ledger-merge.md"
    ]
+  },
+  {
+   "id": "ci-trigger-lean",
+   "title": "(M) ci-trigger-scope (M1, done) did not hold: on 2026-10-18 every ci/* push still started 5-7 workflows (~40 runs for 20 free runners; lead cancelled 18). Decide triggers in Lean from declared inputs (checksfor-inputs read sets; fwcore users depend on the built binary hash, not on all of lean/**); generate on.push.paths; a lint fails when a workflow trigger differs from the Lean decision (regression guard); interim rule: agents cancel push runs they will not read",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "checksfor-inputs",
+    "gate-speed-ci"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    ".github/workflows/**"
+   ]
   }
  ],
  "deadline": {
