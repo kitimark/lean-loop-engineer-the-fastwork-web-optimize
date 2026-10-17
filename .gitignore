@@ -1,9 +1,13 @@
-# local-only: v1 chat digests (personal data), toolchain caches, Fastwork snapshot
+# local-only: v1 chat digests (personal data), toolchain caches
 .local/
 .claude/settings.local.json
 .lake/
-# Fastwork's property: local only, never in git
-snapshot/
+# Fastwork's compiled site is tracked unmodified (snapshot/site, published with Fastwork's approval).
+# Derived copies and crawl/serve scratch stay local.
+snapshot/site-pretty/
+snapshot/site/.mirror/missing-local.txt
+snapshot/site/.mirror/chrome-profile/
+.DS_Store
 # console state (single writer: console-api)
 .fw-console/
 node_modules/
