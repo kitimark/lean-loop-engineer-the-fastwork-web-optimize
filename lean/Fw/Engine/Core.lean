@@ -349,6 +349,41 @@ theorem forcedPasses_le {P : Type} {f g : FrameIn P} (s : Stage) (h1 : f.forcedS
     (h2 : f.forcedLayout ≤ g.forcedLayout) : forcedPasses f s ≤ forcedPasses g s := by
   cases s <;> simp [forcedPasses, h1, h2]
 
+/-- Under a cover by a sub-multiset of the original's changes, with no more callbacks and no more compositor
+animations, every stage the variant touches the original touches.
+
+$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall m, r \in \mathrm{Change}(P)^{*}:\ (m \mathbin{+\!\!+} r) \sim o.\mathrm{changes} \land \operatorname{cover}_E(v.\mathrm{changes}, m) = \mathrm{true} \land v.\mathrm{script} \le o.\mathrm{script} \land v.\mathrm{compAnims} \le o.\mathrm{compAnims} \Rightarrow \forall s \in \mathrm{Stage}:\ s \in \operatorname{touched}_E(v) \Rightarrow s \in \operatorname{touched}_E(o)$$
+
+A covered variant touches no new stage. -/
+theorem touched_of_cover {P M : Type} (E : Engine P M) {v o : FrameIn P} (m rest : List (Change P))
+    (hperm : (m ++ rest).Perm o.changes) (hcov : coverB E v.changes m = true)
+    (hs : v.script ≤ o.script) (hc : v.compAnims ≤ o.compAnims) :
+    ∀ s, s ∈ touched E v → s ∈ touched E o := by
+  have hmem : ∀ d, d ∈ m → d ∈ o.changes := fun d hd => hperm.mem_iff.mp (List.mem_append_left _ hd)
+  have hlen : v.changes.length ≤ o.changes.length := by
+    rw [coverB_length E hcov, ← hperm.length_eq, List.length_append]; omega
+  have hupd : v.updates = true → o.updates = true := by
+    unfold FrameIn.updates
+    cases h1 : v.changes <;> cases h2 : o.changes <;> simp_all <;> omega
+  intro s h
+  simp only [touched, List.mem_append] at h ⊢
+  rcases h with ((h | h) | h) | h
+  · left; left; left
+    obtain ⟨d, hd, hs'⟩ := List.mem_flatMap.mp (coverB_mem E s hcov h)
+    exact List.mem_flatMap.mpr ⟨d, hmem d hd, hs'⟩
+  · left; left; right
+    split at h
+    · simp only [show 0 < o.compAnims by omega, ↓reduceIte]; exact h
+    · simp at h
+  · left; right
+    split at h
+    · rename_i hu; simp only [hupd hu, ↓reduceIte]; exact h
+    · simp at h
+  · right
+    split at h
+    · simp only [show 0 < o.script by omega, ↓reduceIte]; exact h
+    · simp at h
+
 /-- **Frame dominance from a cover.** If the variant's changes are covered pairwise, stage set inside stage set, by
 a sub-multiset `m` of the original's changes (`m ++ rest` is a permutation of them, so `i ↦ m_i` is an injection
 into the original's changes), and the variant has no more callbacks, forced passes, hit tests or compositor
@@ -361,31 +396,7 @@ theorem frame_le_of_cover {P M : Type} (E : Engine P M) {v o : FrameIn P} (m res
     (hs : v.script ≤ o.script) (hfs : v.forcedStyle ≤ o.forcedStyle) (hfl : v.forcedLayout ≤ o.forcedLayout)
     (hh : v.hits ≤ o.hits) (hc : v.compAnims ≤ o.compAnims) :
     (frameWork E v).le (frameWork E o) := by
-  have hmem : ∀ d, d ∈ m → d ∈ o.changes := fun d hd => hperm.mem_iff.mp (List.mem_append_left _ hd)
-  have hlen : v.changes.length ≤ o.changes.length := by
-    rw [coverB_length E hcov, ← hperm.length_eq, List.length_append]; omega
-  have hupd : v.updates = true → o.updates = true := by
-    unfold FrameIn.updates
-    cases h1 : v.changes <;> cases h2 : o.changes <;> simp_all <;> omega
-  have htouch : ∀ s, s ∈ touched E v → s ∈ touched E o := by
-    intro s h
-    simp only [touched, List.mem_append] at h ⊢
-    rcases h with ((h | h) | h) | h
-    · left; left; left
-      obtain ⟨d, hd, hs'⟩ := List.mem_flatMap.mp (coverB_mem E s hcov h)
-      exact List.mem_flatMap.mpr ⟨d, hmem d hd, hs'⟩
-    · left; left; right
-      split at h
-      · simp only [show 0 < o.compAnims by omega, ↓reduceIte]; exact h
-      · simp at h
-    · left; right
-      split at h
-      · rename_i hu; simp only [hupd hu, ↓reduceIte]; exact h
-      · simp at h
-    · right
-      split at h
-      · simp only [show 0 < o.script by omega, ↓reduceIte]; exact h
-      · simp at h
+  have htouch := touched_of_cover E m rest hperm hcov hs hc
   have hcount : ∀ s, v.changes.countP (fun c => decide (s ∈ E.stagesOf c)) ≤
       o.changes.countP (fun c => decide (s ∈ E.stagesOf c)) := by
     intro s
@@ -834,5 +845,309 @@ theorem leFrames_series (f : Work → Nat) (hf : ∀ a b : Work, a.le b → f a 
     simp only [leAll, Bool.and_eq_true] at h
     simp only [series, List.map_cons, Measure.leFrames, Bool.and_eq_true, decide_eq_true_eq]
     exact ⟨Int.ofNat_le.mpr (hf v o ((Work.leb_iff _ _).mp h.1)), leFrames_series f hf h.2⟩
+
+/-! ## End-dirty correction (ledger n=1)
+
+`frameWork` charges a touched stage one lifecycle pass, plus its forced passes. The engines skip the lifecycle pass
+when nothing left the stage dirty: Chromium `Document::UpdateStyleAndLayoutTreeForThisDocument` returns before its
+`UpdateLayoutTree` trace event when `!NeedsLayoutTreeUpdateForThisDocument()` (third_party/blink/renderer/core/dom/
+document.cc:2757-2762, trace at 2815 @f842f52), and WebKit `Document::updateStyleIfNeeded` returns at
+`if (!needsStyleRecalc()) return false;` (Source/WebCore/dom/Document.cpp:3042-3043 @862f17d). So a frame whose last
+style access is a read pays `forced` passes, not `forced + 1`. `frameWorkE` takes the end-of-script dirty flag per
+stage; `frameWork` is the case where every stage ends dirty. The generic flag machine below mirrors
+`Fw.Parts.EngineScroll.forced` and `Fw.Parts.NavHitTestOpt.fin` on one stage's roles. -/
+
+/-- What one access does to one stage's dirty flag: a read checks it (and runs a forced pass when dirty), a write
+dirties it, anything else leaves it.
+
+$$\mathrm{FlagOp} = \{\mathrm{check}, \mathrm{dirty}, \mathrm{neutral}\}$$
+-/
+inductive FlagOp where
+  | check
+  | dirty
+  | neutral
+deriving Repr, DecidableEq
+
+/-- Forced passes of an access sequence from start flag `d`: a check while dirty is one forced pass and cleans the flag.
+
+$$\operatorname{fF}(d, [\,]) = 0,\quad \operatorname{fF}(d, a :: as) = \begin{cases} [d] + \operatorname{fF}(\bot, as) & a = \mathrm{check} \\ \operatorname{fF}(\top, as) & a = \mathrm{dirty} \\ \operatorname{fF}(d, as) & a = \mathrm{neutral} \end{cases}$$
+
+How many synchronous passes the script forces on this stage. -/
+def flagForced : Bool → List FlagOp → Nat
+  | _, [] => 0
+  | d, .check :: as => d.toNat + flagForced false as
+  | _, .dirty :: as => flagForced true as
+  | d, .neutral :: as => flagForced d as
+
+/-- The flag after the sequence, from start flag `d`.
+
+$$\operatorname{fE}(d, [\,]) = d,\quad \operatorname{fE}(d, a :: as) = \begin{cases} \operatorname{fE}(\bot, as) & a = \mathrm{check} \\ \operatorname{fE}(\top, as) & a = \mathrm{dirty} \\ \operatorname{fE}(d, as) & a = \mathrm{neutral} \end{cases}$$
+
+Whether the stage is still dirty when the lifecycle runs. -/
+def flagEnd : Bool → List FlagOp → Bool
+  | d, [] => d
+  | _, .check :: as => flagEnd false as
+  | _, .dirty :: as => flagEnd true as
+  | d, .neutral :: as => flagEnd d as
+
+/-- All passes the stage runs in the frame: the forced ones, plus one lifecycle pass when the flag ends dirty.
+
+$$\operatorname{fT}(d, as) = \operatorname{fF}(d, as) + [\operatorname{fE}(d, as)]$$
+
+The trace-event count of the stage for one frame's script. -/
+def flagTotal (d : Bool) (as : List FlagOp) : Nat := flagForced d as + (flagEnd d as).toNat
+
+/-- The first access that is not neutral, if any.
+
+$$\operatorname{first}([\,]) = \mathrm{none},\quad \operatorname{first}(a :: as) = \begin{cases} \operatorname{first}(as) & a = \mathrm{neutral} \\ \mathrm{some}(a) & \text{otherwise} \end{cases}$$
+
+The access that decides whether a dirty start flag is paid alone. -/
+def firstFlag : List FlagOp → Option FlagOp
+  | [] => none
+  | .neutral :: as => firstFlag as
+  | .check :: _ => some .check
+  | .dirty :: _ => some .dirty
+
+/-- The last access that is not neutral, if any: the first one of the reversed sequence.
+
+$$\operatorname{last}(as) = \operatorname{first}(\operatorname{rev}(as))$$
+
+The access that decides the end flag. -/
+def lastFlag (as : List FlagOp) : Option FlagOp := firstFlag as.reverse
+
+/-- Maximal runs of writes, neutral accesses transparent; `p` says whether a run is open.
+
+$$\operatorname{runs}(p, [\,]) = 0,\quad \operatorname{runs}(p, a :: as) = \begin{cases} \operatorname{runs}(\bot, as) & a = \mathrm{check} \\ [\lnot p] + \operatorname{runs}(\top, as) & a = \mathrm{dirty} \\ \operatorname{runs}(p, as) & a = \mathrm{neutral} \end{cases}$$
+
+The number of write batches the script makes. -/
+def dirtyRuns : Bool → List FlagOp → Nat
+  | _, [] => 0
+  | _, .check :: as => dirtyRuns false as
+  | p, .dirty :: as => (!p).toNat + dirtyRuns true as
+  | p, .neutral :: as => dirtyRuns p as
+
+#guard flagForced false [.dirty, .check, .dirty, .check] == 2
+#guard flagEnd false [.dirty, .check, .dirty, .check] == false
+#guard flagTotal false [.dirty, .check, .dirty, .check] == 2
+#guard flagTotal false [.dirty, .check, .dirty] == 2
+#guard flagTotal true [] == 1
+#guard flagTotal true [.check, .check] == 1
+#guard lastFlag [.dirty, .neutral] == some .dirty
+#guard lastFlag [.neutral] == none
+#guard firstFlag [.neutral, .check, .dirty] == some .check
+#guard dirtyRuns false [.dirty, .neutral, .dirty, .check, .dirty] == 2
+#guard dirtyRuns true [.dirty, .check] == 0
+
+/-- **Frame work with end flags.** Like `frameWork`, but a touched stage pays its lifecycle pass only when
+`endDirty` says it is still dirty when the lifecycle runs (ledger n=1).
+
+$$\operatorname{frameWork}^{e}_E(f) = \Big(s \mapsto [s \in \operatorname{touched}_E(f) \land e(s)] + \operatorname{forced}(f, s),\ \ s \mapsto \operatorname{units}_E(f, s),\ \ f.\mathrm{hits}\Big)$$
+
+The corrected per-frame work model. -/
+def frameWorkE {P M : Type} (E : Engine P M) (f : FrameIn P) (endDirty : Stage → Bool) : Work where
+  passes s := (if s ∈ touched E f ∧ endDirty s = true then 1 else 0) + forcedPasses f s
+  units s := stageUnits E f s
+  hits := f.hits
+
+/-- `frameWork` is the all-dirty case of `frameWorkE`.
+
+$$\forall E,\ \forall f \in \mathrm{FrameIn}(P):\ \operatorname{frameWork}^{(s \mapsto \top)}_E(f) = \operatorname{frameWork}_E(f)$$
+
+The old model assumes every touched stage ends dirty. -/
+theorem frameWorkE_all_dirty {P M : Type} (E : Engine P M) (f : FrameIn P) :
+    frameWorkE E f (fun _ => true) = frameWork E f := by
+  simp [frameWorkE, frameWork]
+
+/-- **The over-count.** The old model's passes exceed the corrected ones by exactly one on a touched stage that ends
+clean, and by nothing elsewhere.
+
+$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall e : \mathrm{Stage} \to \mathbb{B},\ \forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_E(f).\mathrm{passes}(s) = \operatorname{frameWork}^{e}_E(f).\mathrm{passes}(s) + [s \in \operatorname{touched}_E(f) \land e(s) = \bot]$$
+
+The old count is one too high exactly when a touched stage ends clean. -/
+theorem frameWork_overcount {P M : Type} (E : Engine P M) (f : FrameIn P) (e : Stage → Bool) (s : Stage) :
+    (frameWork E f).passes s =
+      (frameWorkE E f e).passes s + (if s ∈ touched E f ∧ e s = false then 1 else 0) := by
+  simp only [frameWork, frameWorkE]
+  by_cases ht : s ∈ touched E f <;> cases e s <;> simp [ht] <;> omega
+
+/-- The old model bounds the corrected one from above, for every end-flag assignment.
+
+$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall e : \mathrm{Stage} \to \mathbb{B}:\ \operatorname{frameWork}^{e}_E(f) \preceq \operatorname{frameWork}_E(f)$$
+
+Every count the old model predicts is an upper bound. -/
+theorem frameWorkE_le {P M : Type} (E : Engine P M) (f : FrameIn P) (e : Stage → Bool) :
+    (frameWorkE E f e).le (frameWork E f) :=
+  ⟨fun s => ⟨by rw [frameWork_overcount E f e s]; omega, Nat.le_refl _⟩, Nat.le_refl _⟩
+
+/-- Forced passes split at a concatenation.
+
+$$\forall d \in \mathbb{B},\ \forall as, bs \in \mathrm{FlagOp}^{*}:\ \operatorname{fF}(d, as \mathbin{+\!\!+} bs) = \operatorname{fF}(d, as) + \operatorname{fF}(\operatorname{fE}(d, as), bs)$$
+
+The second part starts from the first part's end flag. -/
+theorem flagForced_append : ∀ (d : Bool) (as bs : List FlagOp),
+    flagForced d (as ++ bs) = flagForced d as + flagForced (flagEnd d as) bs
+  | _, [], _ => by simp [flagForced, flagEnd]
+  | d, .check :: as, bs => by simp [flagForced, flagEnd, flagForced_append false as bs]; omega
+  | _, .dirty :: as, bs => by simp [flagForced, flagEnd, flagForced_append true as bs]
+  | d, .neutral :: as, bs => by simp [flagForced, flagEnd, flagForced_append d as bs]
+
+/-- The end flag composes at a concatenation.
+
+$$\forall d \in \mathbb{B},\ \forall as, bs \in \mathrm{FlagOp}^{*}:\ \operatorname{fE}(d, as \mathbin{+\!\!+} bs) = \operatorname{fE}(\operatorname{fE}(d, as), bs)$$
+
+The flag machine is a fold. -/
+theorem flagEnd_append : ∀ (d : Bool) (as bs : List FlagOp),
+    flagEnd d (as ++ bs) = flagEnd (flagEnd d as) bs
+  | _, [], _ => rfl
+  | _, .check :: as, bs => flagEnd_append false as bs
+  | _, .dirty :: as, bs => flagEnd_append true as bs
+  | d, .neutral :: as, bs => flagEnd_append d as bs
+
+/-- All passes split at a concatenation: the first part's forced passes, then the second part's total from the first
+part's end flag.
+
+$$\forall d \in \mathbb{B},\ \forall as, bs \in \mathrm{FlagOp}^{*}:\ \operatorname{fT}(d, as \mathbin{+\!\!+} bs) = \operatorname{fF}(d, as) + \operatorname{fT}(\operatorname{fE}(d, as), bs)$$
+
+Only the last part pays the lifecycle pass. -/
+theorem flagTotal_append (d : Bool) (as bs : List FlagOp) :
+    flagTotal d (as ++ bs) = flagForced d as + flagTotal (flagEnd d as) bs := by
+  simp only [flagTotal, flagForced_append, flagEnd_append]; omega
+
+/-- **The end flag is decided by the last non-neutral access**: clean after a check, dirty after a write, the start
+flag when there is none.
+
+$$\forall d \in \mathbb{B},\ \forall as \in \mathrm{FlagOp}^{*}:\ \operatorname{fE}(d, as) = \begin{cases} \bot & \operatorname{last}(as) = \mathrm{check} \\ \top & \operatorname{last}(as) = \mathrm{dirty} \\ d & \operatorname{last}(as) = \mathrm{none} \end{cases}$$
+
+A frame ends dirty exactly when its last style access is a write, or it has none and started dirty. -/
+theorem flagEnd_last (d : Bool) (as : List FlagOp) :
+    flagEnd d as = (match lastFlag as with
+      | some .check => false
+      | some .dirty => true
+      | _ => d) := by
+  have key : ∀ (d : Bool) (l : List FlagOp), flagEnd d l.reverse = (match firstFlag l with
+      | some .check => false
+      | some .dirty => true
+      | _ => d) := by
+    intro d l
+    induction l with
+    | nil => rfl
+    | cons a l ih =>
+      rw [List.reverse_cons, flagEnd_append, ih]
+      cases a <;> simp [firstFlag, flagEnd]
+  have := key d as.reverse
+  rw [List.reverse_reverse] at this
+  exact this
+
+/-- **The over-count on a script-driven stage.** If the stage is touched, its forced passes are those of an access
+sequence, and its end flag is that sequence's end flag, then the corrected model counts the sequence's total and the
+old model counts one more exactly when the sequence ends clean.
+
+$$\forall E,\ \forall f \in \mathrm{FrameIn}(P),\ \forall e : \mathrm{Stage} \to \mathbb{B},\ \forall s \in \mathrm{Stage},\ \forall d \in \mathbb{B},\ \forall as \in \mathrm{FlagOp}^{*}:\ s \in \operatorname{touched}_E(f) \land \operatorname{forced}(f, s) = \operatorname{fF}(d, as) \land e(s) = \operatorname{fE}(d, as) \Rightarrow \operatorname{frameWork}^{e}_E(f).\mathrm{passes}(s) = \operatorname{fT}(d, as) \land \operatorname{frameWork}_E(f).\mathrm{passes}(s) = \operatorname{fT}(d, as) + [\operatorname{fE}(d, as) = \bot]$$
+
+The trace count is the sequence total; the old model adds one when the script's last access is a read. -/
+theorem frameWork_flag {P M : Type} (E : Engine P M) (f : FrameIn P) (e : Stage → Bool) (s : Stage) (d : Bool)
+    (as : List FlagOp) (ht : s ∈ touched E f) (hf : forcedPasses f s = flagForced d as)
+    (he : e s = flagEnd d as) :
+    (frameWorkE E f e).passes s = flagTotal d as ∧
+      (frameWork E f).passes s = flagTotal d as + (if flagEnd d as = false then 1 else 0) := by
+  constructor
+  · simp only [frameWorkE, flagTotal, ht, he, hf, true_and]; cases flagEnd d as <;> simp <;> omega
+  · rw [frameWork_overcount E f e s]
+    simp only [frameWorkE, flagTotal, ht, he, hf, true_and]
+    cases flagEnd d as <;> simp <;> omega
+
+/-- Write runs from a closed and from an open state differ by one exactly when the first non-neutral access is a
+write.
+
+$$\forall as \in \mathrm{FlagOp}^{*}:\ \operatorname{runs}(\bot, as) = \operatorname{runs}(\top, as) + [\operatorname{first}(as) = \mathrm{dirty}]$$
+
+An open run absorbs a leading write. -/
+theorem dirtyRuns_false : ∀ as : List FlagOp,
+    dirtyRuns false as = dirtyRuns true as + (if firstFlag as = some .dirty then 1 else 0)
+  | [] => by simp [dirtyRuns, firstFlag]
+  | .check :: as => by simp [dirtyRuns, firstFlag]
+  | .dirty :: as => by simp [dirtyRuns, firstFlag]; omega
+  | .neutral :: as => dirtyRuns_false as
+
+/-- **The batching closed form.** A stage's total passes in one frame are the write runs, plus one when the frame
+starts dirty and its first non-neutral access is not a write (a read pays for it, or the lifecycle does).
+
+$$\forall d \in \mathbb{B},\ \forall as \in \mathrm{FlagOp}^{*}:\ \operatorname{fT}(d, as) = [d \land \operatorname{first}(as) \ne \mathrm{dirty}] + \operatorname{runs}(\bot, as)$$
+
+Each write batch costs one pass, whoever pays it. -/
+theorem flagTotal_closed : ∀ (d : Bool) (as : List FlagOp),
+    flagTotal d as = (if d = true ∧ firstFlag as ≠ some .dirty then 1 else 0) + dirtyRuns false as
+  | d, [] => by cases d <;> decide
+  | d, .check :: as => by
+    have ih := flagTotal_closed false as
+    have hc : flagTotal d (.check :: as) = d.toNat + flagTotal false as := by
+      simp only [flagTotal, flagForced, flagEnd]; omega
+    rw [hc, ih]
+    cases d <;> simp [firstFlag, dirtyRuns]
+  | d, .dirty :: as => by
+    have ih := flagTotal_closed true as
+    have hr := dirtyRuns_false as
+    have hc : flagTotal d (.dirty :: as) = flagTotal true as := by simp only [flagTotal, flagForced, flagEnd]
+    rw [hc, ih]
+    by_cases h : firstFlag as = some .dirty <;> simp [h, firstFlag, dirtyRuns] at hr ⊢ <;> omega
+  | d, .neutral :: as => flagTotal_closed d as
+
+/-- **The stated closed form fails on an empty frame.** The form $[d \land \operatorname{first}(as) = \mathrm{check}] +
+\operatorname{runs}(\bot, as)$ misses the lifecycle pass of a frame that starts dirty and has no access.
+
+$$\operatorname{fT}(\top, [\,]) = 1 \ne 0 = [\top \land \operatorname{first}([\,]) = \mathrm{check}] + \operatorname{runs}(\bot, [\,])$$
+
+The correct condition is "first access not a write", not "first access a read". -/
+theorem flagTotal_closed_head_check_false :
+    flagTotal true [] ≠ (if true = true ∧ firstFlag [] = some .check then 1 else 0) + dirtyRuns false [] := by
+  decide
+
+/-- **Removing one read.** Dropping a read from a sequence never adds a pass, and saves exactly one when the flag is
+dirty at the read and the next non-neutral access after it is a write.
+
+$$\forall d \in \mathbb{B},\ \forall p, q \in \mathrm{FlagOp}^{*}:\ \operatorname{fT}(d, p \mathbin{+\!\!+} \mathrm{check} :: q) = \operatorname{fT}(d, p \mathbin{+\!\!+} q) + [\operatorname{fE}(d, p) \land \operatorname{first}(q) = \mathrm{dirty}]$$
+
+A read saves a pass only when it splits a write batch in two. -/
+theorem flagTotal_remove_check (d : Bool) (p q : List FlagOp) :
+    flagTotal d (p ++ .check :: q) =
+      flagTotal d (p ++ q) + (if flagEnd d p = true ∧ firstFlag q = some .dirty then 1 else 0) := by
+  rw [flagTotal_append, flagTotal_append]
+  have h1 := flagTotal_closed (flagEnd d p) q
+  have h2 : flagTotal (flagEnd d p) (.check :: q) =
+      (flagEnd d p).toNat + dirtyRuns false q := by
+    have h3 := flagTotal_closed false q
+    have hc : flagTotal (flagEnd d p) (.check :: q) = (flagEnd d p).toNat + flagTotal false q := by
+      simp only [flagTotal, flagForced, flagEnd]; omega
+    rw [hc, h3]; simp
+  rw [h1, h2]
+  cases flagEnd d p <;> by_cases hq : firstFlag q = some .dirty <;> simp [hq] <;> omega
+
+/-- **Frame dominance from a cover, with end flags.** As `frame_le_of_cover`, and wherever the variant's touched stage
+ends dirty while the original's ends clean, the variant has strictly fewer forced passes there.
+
+$$\forall E,\ \forall v, o \in \mathrm{FrameIn}(P),\ \forall e_v, e_o : \mathrm{Stage} \to \mathbb{B},\ \forall m, r \in \mathrm{Change}(P)^{*}:\ (m \mathbin{+\!\!+} r) \sim o.\mathrm{changes} \land \operatorname{cover}_E(v.\mathrm{changes}, m) = \mathrm{true} \land v.\mathrm{script} \le o.\mathrm{script} \land v.\mathrm{forcedStyle} \le o.\mathrm{forcedStyle} \land v.\mathrm{forcedLayout} \le o.\mathrm{forcedLayout} \land v.\mathrm{hits} \le o.\mathrm{hits} \land v.\mathrm{compAnims} \le o.\mathrm{compAnims} \land \big(\forall s \in \mathrm{Stage}:\ s \in \operatorname{touched}_E(v) \land e_v(s) = \top \land e_o(s) = \bot \Rightarrow \operatorname{forced}(v, s) < \operatorname{forced}(o, s)\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(v) \preceq \operatorname{frameWork}^{e_o}_E(o)$$
+
+A variant that leaves a stage dirty where the original left it clean must pay for it with a saved forced pass. -/
+theorem frameE_le_of_cover {P M : Type} (E : Engine P M) {v o : FrameIn P} (ev eo : Stage → Bool)
+    (m rest : List (Change P))
+    (hperm : (m ++ rest).Perm o.changes) (hcov : coverB E v.changes m = true)
+    (hs : v.script ≤ o.script) (hfs : v.forcedStyle ≤ o.forcedStyle) (hfl : v.forcedLayout ≤ o.forcedLayout)
+    (hh : v.hits ≤ o.hits) (hc : v.compAnims ≤ o.compAnims)
+    (hend : ∀ s, s ∈ touched E v → ev s = true → eo s = false → forcedPasses v s < forcedPasses o s) :
+    (frameWorkE E v ev).le (frameWorkE E o eo) := by
+  have hold := frame_le_of_cover E m rest hperm hcov hs hfs hfl hh hc
+  have htouch := touched_of_cover E m rest hperm hcov hs hc
+  refine ⟨fun s => ⟨?_, (hold.1 s).2⟩, hh⟩
+  have hf := forcedPasses_le s hfs hfl
+  simp only [frameWorkE]
+  by_cases ht : s ∈ touched E v
+  · have hto := htouch s ht
+    by_cases hv : ev s = true
+    · by_cases ho : eo s = true
+      · simp [ht, hv, hto, ho]; omega
+      · have := hend s ht hv (by simpa using ho)
+        simp [ht, hv, ho]; omega
+    · simp [ht, hv]; split <;> omega
+  · simp [ht]; split <;> omega
 
 end Fw.Engine

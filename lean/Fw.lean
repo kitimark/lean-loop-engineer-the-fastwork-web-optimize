@@ -43,6 +43,15 @@ import Fw.Parts.MorphTweenOpt
 import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
 import Fw.Parts.HeroExitOpt
+import Fw.Parts.PainNotes
+import Fw.Parts.PainNotesGolden
+import Fw.Parts.PeopleDeck
+import Fw.Parts.PeopleCard
+import Fw.Parts.PainNotesOpt
+import Fw.Parts.MorphPanelOpt
+import Fw.Parts.PeopleDeckOpt
+import Fw.Parts.PeopleCardOpt
+import Fw.Parts.HeroAccentOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Quiet
@@ -69,3 +78,6 @@ import Fw.Wire.Gate
 import Fw.Engine
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
+import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
+import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
+import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples

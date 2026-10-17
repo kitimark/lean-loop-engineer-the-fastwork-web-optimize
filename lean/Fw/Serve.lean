@@ -1044,6 +1044,10 @@ def serveLine (v : Srv) (line : String) : Srv × String :=
         | some (.ok c) => let (v', r) := exec v c; (v', render id (respFields r))
         | some (.error e) => (v, renderError id e)
         | none =>
+          match Fw.Wire.Plan.handle op req with  -- incident-lint: plan.incidentLint
+          | some (.ok fields) => (v, render id fields)
+          | some (.error e) => (v, renderError id e)
+          | none =>
           match handle req with
           | .ok fields => (v, render id fields)
           | .error e => (v, renderError id e)

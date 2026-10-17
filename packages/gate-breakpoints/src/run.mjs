@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
 import { PIN_SRC, collectInPage, prepareInPage, waitReady, waitResize } from './page.mjs';
-import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
+import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
@@ -58,7 +58,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const lock = JSON.parse(readFileSync(resolve(PKG, '../../snapshot.lock.json'), 'utf8'));
   const dist = siteDist();
   const buildInfo = JSON.parse(readFileSync(join(dist, 'build-info.json'), 'utf8'));
-  const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist) };
+  const variantPage = rewriteFor(dist); // FW_SEARCH: a flagged config of the rewrite (default: none)
+  const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist, variantPage.rewrite) };
   const engine = await (gaps ? gaps.launcher : LAUNCHERS[engineName])();
   const cond = gen.conditions.map((c) => ({ tsId: c.tsId, css: c.css, legacyCss: c.legacyCss }));
   const neutral = gen.neutral.map((n) => ({ tsId: n.tsId, css: n.css }));
@@ -70,7 +71,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     }))]));
 
   async function load(env, site) {
-    return engine.open(env, { origin: servers[site].origin, path: '/', init: PIN_SRC });
+    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: PIN_SRC });
   }
   // anchors.json `prepare` (per part and arm) is the one route for page states that exist only after an action, all run by
   // page.mjs prepareInPage. A part with a prepare step is collected AFTER the rest, so every other part is read in the state a

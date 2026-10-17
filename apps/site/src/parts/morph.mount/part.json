@@ -6,7 +6,8 @@
   "impls": ["mui", "plain"],
   "muiStates": [],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:13040-13089" } }
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:13040-13089" } },
+    "shift": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphMountOpt" } }
   },
   "requires": {},
   "conflicts": {}

@@ -157,7 +157,7 @@ inductive Body where
   | plan            (c : Fw.Plan.Cmd)
 deriving Repr, DecidableEq
 
-/-- The 15 card/step/run event types and the 5 plan command types (the `type` field on the wire).
+/-- The 15 card/step/run event types and the 7 plan command types (the `type` field on the wire).
 
 $$\mathrm{EvType} = \{\texttt{card.open}, \texttt{card.approve}, \texttt{card.build}, \texttt{card.screen}, \texttt{card.review}, \texttt{card.swipe}, \texttt{card.land\_request}, \texttt{card.landed}, \texttt{step.post}, \texttt{step.start}, \texttt{step.answer}, \texttt{step.done}, \texttt{step.cancel}, \texttt{run.start}, \texttt{run.finish}\} \cup \{\mathrm{plan}(\tau) : \tau \in \mathrm{Plan.CmdType}\}$$
 -/
@@ -217,9 +217,9 @@ deriving Repr, DecidableEq
 
 /-- The authority table (`MAY`): the actors allowed to cause each event type.
 
-$$\begin{aligned} &\mathrm{MAY}(\texttt{card.open}) = \{\mathrm{owner}, \mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.approve}) = \{\mathrm{lead}, \mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{card.build}) = \{\mathrm{git}\}, && \mathrm{MAY}(\texttt{card.screen}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.review}) = \{\mathrm{reviewer}\}, && \mathrm{MAY}(\texttt{card.swipe}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.land\_request}) = \{\mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.landed}) = \{\mathrm{git}\}, \\ &\mathrm{MAY}(\texttt{step.post}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{step.start}) = \{\mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{step.answer}) = \{\mathrm{user}\}, && \mathrm{MAY}(\texttt{step.done}) = \{\mathrm{user}, \mathrm{owner}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{step.cancel}) = \{\mathrm{script}, \mathrm{user}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{run.start}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, \\ &\mathrm{MAY}(\texttt{run.finish}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.define}) = \mathrm{MAY}(\texttt{task.drop}) = \mathrm{MAY}(\texttt{milestone.define}) = \{\mathrm{lead}, \mathrm{user}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.claim}) = \{\mathrm{hook}, \mathrm{script}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{task.done}) = \{\mathrm{git}, \mathrm{lead}, \mathrm{user}\} \end{aligned}$$
+$$\begin{aligned} &\mathrm{MAY}(\texttt{card.open}) = \{\mathrm{owner}, \mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.approve}) = \{\mathrm{lead}, \mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{card.build}) = \{\mathrm{git}\}, && \mathrm{MAY}(\texttt{card.screen}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.review}) = \{\mathrm{reviewer}\}, && \mathrm{MAY}(\texttt{card.swipe}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.land\_request}) = \{\mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.landed}) = \{\mathrm{git}\}, \\ &\mathrm{MAY}(\texttt{step.post}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{step.start}) = \{\mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{step.answer}) = \{\mathrm{user}\}, && \mathrm{MAY}(\texttt{step.done}) = \{\mathrm{user}, \mathrm{owner}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{step.cancel}) = \{\mathrm{script}, \mathrm{user}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{run.start}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, \\ &\mathrm{MAY}(\texttt{run.finish}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.define}) = \mathrm{MAY}(\texttt{task.drop}) = \mathrm{MAY}(\texttt{milestone.define}) = \{\mathrm{lead}, \mathrm{user}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.claim}) = \{\mathrm{hook}, \mathrm{script}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{task.done}) = \{\mathrm{git}, \mathrm{lead}, \mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{agent.spawn}) = \mathrm{MAY}(\texttt{agent.stop}) = \{\mathrm{hook}, \mathrm{script}, \mathrm{lead}\} \end{aligned}$$
 
-Edge: the actor $\mathrm{hook}$ may cause only $\texttt{task.claim}$ (an agent start observed by a hook).
+Edge: the actor $\mathrm{hook}$ may cause only $\texttt{task.claim}$, $\texttt{agent.spawn}$ and $\texttt{agent.stop}$ (agent starts and stops observed by a hook).
 -/
 def mayList : EvType → List Actor
   | .cardOpen => [.owner, .lead, .user]
@@ -240,6 +240,7 @@ def mayList : EvType → List Actor
   | .plan .define | .plan .drop | .plan .milestone => [.lead, .user, .script]
   | .plan .claim => [.hook, .script, .lead]
   | .plan .done => [.git, .lead, .user]
+  | .plan .spawn | .plan .stop => [.hook, .script, .lead]
 
 /-- An actor may cause an event type iff it is in the table.
 

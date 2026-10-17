@@ -23,8 +23,13 @@ Classes come from fwcore (Lean `Fw.Measure.classify`, mode `frames`, kMax 4, tMa
 
 ## Method
 
-- **Archive.** `src/archive.json` pins WebKit CI revision r324039 (commit e1c510bc, Xcode 26.5, iOS 26.5; 315 MB; size
-  and sha256 checked). `scripts/fetch-archive.sh` downloads it into an empty directory and extracts it there. The
+- **Archive (nothing is built).** WebKit's CI builder `Apple-iOS-26-Simulator-Release-Build` uploads a minified archive of
+  every revision to the public bucket `minified-archives.webkit.org` (`Tools/CISupport/build-webkit-org/steps.py:58-59,485-491@862f17d`,
+  builder at `config.json:425`; testers fetch the full archive with an unauthenticated `curl --fail`,
+  `Tools/CISupport/download-built-product:54@862f17d`; CONFIRMED). `webkit.org/build-archives` lists macOS only, so a
+  prebuilt iOS-Simulator WebKitTestRunner is easy to miss, but it exists. `src/archive.json` pins WebKit CI revision r324039
+  (commit e1c510bc, Xcode 26.5, iOS 26.5; 315 MB; size and sha256 checked; url
+  `https://s3-us-west-2.amazonaws.com/minified-archives.webkit.org/ios-simulator-26-x86_64-arm64-release/324039%40main.zip`). `scripts/fetch-archive.sh` downloads it into an empty directory and extracts it there. The
   archive is cached with `actions/cache` (key = revision + hash of `archive.json`) (the first job downloads it, later jobs restore it; the jobs run one at a time). Nothing is
   committed.
 - **No webkitpy.** `src/wktr.mjs` speaks WKTR's iOS socket protocol directly: launch with `xcrun simctl launch
@@ -42,7 +47,9 @@ Classes come from fwcore (Lean `Fw.Measure.classify`, mode `frames`, kMax 4, tMa
   step k: in a native `requestAnimationFrame` callback sample the counters, then `scrollTo(0, y_k)`; sample once per
   following frame (`frames`, default 2); the next step's first sample closes the window. `scrollY` is never read inside
   the loop (`LocalDOMWindow::scrollY` forces a layout update); the requested positions are recorded, the real one is read
-  once at the end.
+  once at the end. The loop does not use WebKit's `UIHelper.renderingUpdate()`: that helper is one rAF callback followed by
+  one `setTimeout(0)` (`LayoutTests/resources/ui-helper.js:182-191@862f17d`, CONFIRMED), not a single rendering update.
+  How many rendering updates a step spans is read from `internals.renderingUpdateCount` (`renderingUpdates` above).
 - **Internals relied on** (`Source/WebCore/testing/Internals.cpp` and `.idl` at e1c510bc, the archive's commit):
   `startTrackingStyleRecalcs` 4637, `styleRecalcCount` 4647, `lastStyleUpdateSize` 4656 (attribute, IDL 1006, returns
   `Document::lastStyleUpdateSizeForTesting`), `styleInvalidationTraversalCount` 4664, `startTrackingLayerFlushes` 4618 /
@@ -102,7 +109,7 @@ sockets.
 
 ## Why the counts drift (answer first)
 
-**Mostly a harness issue and fixable; a residue is inherent. WKTR gives a stable gate on rendering updates and layer flushes only, and (MEASURED) quarantined classes for everything that reflects the page's style work.** So it is a finding lane, not a gate lane, in the 3-day plan.
+**Mostly a harness issue and fixable; a residue is inherent. WKTR gives a gateable class (deterministic) on rendering updates and layer flushes, and under `vt` a stable one on style invalidations; (MEASURED) quarantined classes for everything that reflects the page's style work.** So it is a findings lane, not a gate lane, in the 3-day plan (`classes.frozen.json` tags those three types `role: gate` and the other six `role: finding`; runs 39054209180, 39058900156, 39061993891).
 
 Chain of evidence (all MEASURED on `macos-26`, exploratory run 39050685079 and 39051976631 and 39053133940, 3 passes each,
 and the three signed runs below):

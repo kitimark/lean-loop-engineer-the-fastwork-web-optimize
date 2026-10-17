@@ -875,8 +875,9 @@ def crCounts (s : Stage) : List String :=
 /-- **Golden rows.** Chromium: every stage and count type; `props` (lifecycle frames) and `comp` (layer census) are
 `any`. WebKit: the Simulator and WKTR count types.
 
-$$\mathrm{rows} = [(\mathrm{chromium}, s, \kappa, p_{\mathrm{cr}}(s)) \mid s \in \mathrm{Stage}, \kappa \in \operatorname{crCounts}(s)] \mathbin{+\!\!+} [(\mathrm{webkit}, s, \kappa, \operatorname{framePred}(F_{\mathrm{wk}}, s)) \mid (s, \kappa) \in \operatorname{counts}(\mathrm{sim}) \mathbin{+\!\!+} \operatorname{counts}(\mathrm{wktr})]$$
-$$p_{\mathrm{cr}}(s) = \begin{cases} \text{any} & s \in \{\mathrm{props}, \mathrm{comp}\} \\ \operatorname{framePred}(F_{\mathrm{cr}}, s) & \text{otherwise} \end{cases}$$
+Each row is (engine, scenario, variant, stage name, prediction, count type).
+
+$$\begin{aligned} \mathrm{rows} = {} &[(\texttt{chromium}, \mathrm{gScenario}, \mathrm{gVariant}, \operatorname{name}_{\mathrm{cr}}(s), p_{\mathrm{cr}}(s), \kappa) \mid s \in [\mathrm{script}, \mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}, \mathrm{comp}],\ \kappa \in \operatorname{crCounts}(s)] \\ \mathbin{+\!\!+} {} &[(\texttt{webkit}, \mathrm{gScenario}, \mathrm{gVariant}, \operatorname{name}_{\mathrm{wk}}(s), \operatorname{framePred}(F_{\mathrm{wk}}, s), \kappa) \mid (s, \kappa) \in \operatorname{counts}(\mathrm{sim}) \mathbin{+\!\!+} \operatorname{counts}(\mathrm{wktr})], \\ \text{with } p_{\mathrm{cr}}(s) = {} &\begin{cases} \texttt{any} & s \in \{\mathrm{props}, \mathrm{comp}\} \\ \operatorname{framePred}(F_{\mathrm{cr}}, s) & s \notin \{\mathrm{props}, \mathrm{comp}\} \end{cases} \end{aligned}$$
 -/
 def goldenRows : List GRow :=
   let stages : List Stage := [.script, .style, .layout, .props, .paint, .raster, .commit, .comp]
