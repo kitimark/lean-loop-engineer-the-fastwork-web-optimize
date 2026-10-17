@@ -1490,7 +1490,8 @@
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
-   ]
+   ],
+   "evidence": "2120a2e merge: rev 9 + 9.1 (Fable), 3-day frame, parallel lanes"
   },
   {
    "id": "math-r10-fix",
