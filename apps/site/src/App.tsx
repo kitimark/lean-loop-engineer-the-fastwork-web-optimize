@@ -23,6 +23,7 @@ import { People } from './parts/people';
 import { Pain } from './parts/pain';
 import { Commission } from './parts/commission';
 import { Platform } from './parts/platform';
+import { MorphPanel } from './parts/morph.panel';
 import type { FwConfig } from './registry/types';
 import { setHydrated } from './fw';
 
@@ -56,6 +57,8 @@ export function App({ config }: { config: FwConfig }) {
           </Button>
         </Toolbar>
       </AppBar>
+
+      <MorphPanel variant={config.variants['morph.panel'] ?? 'faithful'} impl={config.impl['morph.panel']} />
 
       <main>
         <HeroCountdown variant={config.variants['hero.countdown'] ?? 'faithful'} />

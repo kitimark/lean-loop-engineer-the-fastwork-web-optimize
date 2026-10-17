@@ -1,0 +1,261 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css, .start-selling-morph-panel and its children, the
+   .start-selling-morph-cta-stack and .waitlist-closing-countdown component rules; media blocks in source order:
+   <=1000, <=720, reduced motion, <=640). Placeholder content only. font-family is not restated (the original reads
+   var(--font-family-body); the rewrite has no such token yet).
+   The panel root reads --morph, which the host (the nav in the original) sets. */
+@layer parts {
+  /* stand-in for the nav: a fixed, invisible box the panel fills (inset 0). The real host is the nav part. */
+  .host {
+    --morph: 0;
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    width: min(984px, calc(100vw - 32px));
+    height: 64px;
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 30;
+  }
+  .panel {
+    color: #fff;
+    filter: blur(calc((1 - clamp(0, calc((var(--morph) - 0.08) / 0.72), 1)) * 12px));
+    height: 100%;
+    opacity: clamp(0, calc((var(--morph) - 0.08) / 0.72), 1);
+    pointer-events: none;
+    transform: scale(calc(0.96 + 0.04 * var(--morph)));
+    z-index: 1;
+    width: 100%;
+    position: absolute;
+    inset: 0;
+  }
+  .panel[data-expanded] {
+    pointer-events: auto;
+  }
+  .backdrop {
+    opacity: 0.4;
+    gap: 12px;
+    display: flex;
+    position: absolute;
+    inset: 0 -3%;
+    overflow: hidden;
+  }
+  .veil {
+    background: radial-gradient(123% 74%, #131922 44.7%, #13192200 100%);
+    position: absolute;
+    inset: 0;
+  }
+  .center {
+    box-sizing: border-box;
+    text-align: center;
+    z-index: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 48px;
+    width: 100%;
+    height: fit-content;
+    padding: 0 88px;
+    display: flex;
+    position: absolute;
+    inset: 50% auto auto 50%;
+    overflow: hidden;
+    transform: translate(-50%, -50%);
+  }
+  .title {
+    color: #fff;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    width: min(941px, 100%);
+    max-width: min(941px, 100%);
+    margin: 0;
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1.15;
+  }
+  .countdown {
+    justify-content: center;
+    width: 100%;
+    margin-top: 32px;
+    display: flex;
+  }
+  /* component rule (column flex, gap 8) overridden by the page's inline style (grid, 12px / 8px gaps; 1 column at <=600) */
+  .ctaStack {
+    flex-direction: column;
+    flex: none;
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 8px;
+  }
+  .cta {
+    appearance: none;
+    box-sizing: border-box;
+    color: #2b313b;
+    cursor: pointer;
+    white-space: nowrap;
+    background: #eff2f7;
+    border: 0;
+    border-radius: 999px;
+    flex: none;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    height: 48px;
+    min-height: 48px;
+    padding: 0 24px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    text-decoration: none;
+    display: inline-flex;
+  }
+  .cta:hover,
+  .cta:focus-visible {
+    background: #f8fafd;
+    outline: none;
+  }
+  .rsvp {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0 24px;
+    border-radius: 999px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    background-color: transparent;
+    transition: border-color 0.2s;
+    color: #fff;
+    border: 1px solid #d4d4d425;
+  }
+  .rsvp:hover {
+    border-color: #d4d4d466;
+  }
+  .rsvp:focus-visible {
+    outline: 2px solid #0569ff;
+    outline-offset: 3px;
+  }
+  .ctaIcon {
+    flex: none;
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+  .footer {
+    box-sizing: border-box;
+    color: #fff;
+    z-index: 2;
+    background: linear-gradient(#13192200 0%, #131922 55%);
+    justify-content: space-between;
+    align-items: center;
+    height: 68px;
+    padding: 24px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    display: flex;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+  }
+  .footer p {
+    color: #fff;
+    white-space: nowrap;
+    margin: 0;
+    font-size: 14px;
+    line-height: 20px;
+  }
+  .footer a {
+    color: #fff;
+    font-size: 14px;
+    line-height: 20px;
+    text-decoration: none;
+  }
+  .footerEnd {
+    align-items: center;
+    gap: 0 16px;
+    display: flex;
+  }
+  .grad {
+    background: linear-gradient(90deg, #84b5ff 0%, #0569ff 30%, #ae8eff 75%, #ffcca5 100%);
+    flex: none;
+    width: 24px;
+    height: 1px;
+    display: block;
+  }
+  @media (width<=1000px) {
+    .title {
+      font-size: 36px;
+    }
+  }
+  @media (width<=720px) {
+    .footer {
+      justify-content: center;
+    }
+    .footer > p {
+      display: none;
+    }
+    .footerEnd {
+      justify-content: center;
+      width: 100%;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .panel {
+      filter: none;
+      transition: none;
+    }
+    .rsvp {
+      transition: none;
+    }
+  }
+  @media (width<=640px) {
+    .center {
+      justify-content: center;
+      gap: 28px;
+      width: 100%;
+      height: fit-content;
+      padding: 0 20px;
+      inset: 50% auto auto 50%;
+      transform: translate(-50%, -50%);
+    }
+    .title {
+      font-size: 32px;
+    }
+    .footer {
+      text-align: center;
+      flex-direction: column;
+      gap: 12px;
+      height: auto;
+      padding: 24px;
+    }
+    .footer p {
+      white-space: normal;
+    }
+    .footerEnd {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .backdrop {
+      gap: 8px;
+    }
+  }
+  @media (width<=600px) {
+    .ctaStack {
+      grid-template-columns: auto;
+    }
+    .rsvp {
+      order: -1;
+    }
+  }
+}

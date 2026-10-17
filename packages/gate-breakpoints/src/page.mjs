@@ -64,8 +64,10 @@ export async function waitReady(arg) {
 /**
  * Part-declared preparation of the original (anchors.json `prepare`, only for parts a run covers): some elements exist only
  * after the page has been near them (the morph panel mounts when the platform section is within 200% of the viewport and
- * stays mounted). Per step: scroll so the `scrollNear` element's top is 1.5 viewports below the fold, wait for `waitFor`
- * to exist, then return to the top and let a few frames pass. Reports what it saw; no decision.
+ * stays mounted). The ONE lazy-mount mechanism of the gate (morph.countdown, morph.columns, morph.panel). Per step: scroll so
+ * the `scrollNear` element's top is 1.5 viewports below the fold, wait for `waitFor` to exist, then return to the top, let a
+ * few frames pass and wait out running finite animations, so every part is collected from the top in the same state.
+ * Reports what it saw; no decision.
  */
 export async function prepareInPage(arg) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -85,6 +87,12 @@ export async function prepareInPage(arg) {
   window.scrollTo({ top: 0, behavior: 'instant' });
   for (let i = 0; i < 3; i++) await frame();
   await sleep(300);
+  const running = () => document.getAnimations().filter((a) => {
+    const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+    return t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
+  }).length;
+  const t1 = performance.now();
+  while (running() > 0 && performance.now() - t1 < arg.capMs) await sleep(50);
   return found;
 }
 
@@ -180,26 +188,3 @@ export function collectInPage(arg) {
   return out;
 }
 
-/**
- * Original only: the morph panel is mounted lazily. A one-way flag is set the first time the platform section comes within
- * 200 % of the viewport (IntersectionObserver, 2.DyWL8TcE.js:13080-13089), so this scrolls there, waits for the first
- * column, and returns to the top. Self-contained (it is serialised into the page). Reports what it saw; decides nothing.
- */
-export async function mountPanel() {
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
-  const sel = '.start-selling-morph-col';
-  const y0 = window.scrollY;
-  const target = document.querySelector('#platform');
-  if (target) {
-    const r = target.getBoundingClientRect();
-    window.scrollTo({ top: window.scrollY + r.top - window.innerHeight / 2, behavior: 'instant' });
-  }
-  const t0 = performance.now();
-  while (!document.querySelector(sel) && performance.now() - t0 < 8000) { await frame(); await sleep(50); }
-  const mounted = document.querySelectorAll(sel).length;
-  window.scrollTo({ top: y0, behavior: 'instant' });
-  for (let i = 0; i < 3; i++) await frame();
-  await sleep(300);
-  return { target: !!target, mounted, scrollY: window.scrollY };
-}

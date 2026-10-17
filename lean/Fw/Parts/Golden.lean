@@ -4,6 +4,7 @@ import Fw.Parts.NavHitTest
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
+import Fw.Parts.MorphPanel
 /-!
 # Golden vectors for the M2 pilot parts
 
@@ -330,10 +331,30 @@ def tweenLines : List String :=
 
 end Tween
 
-/-- Write the 7 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
-one `.jsonl` per pilot part, and a `.spec.jsonl` for every pilot part except `hero.countdown` (which has none).
+/-! ## morph.panel -/
 
-$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\},\quad |\mathit{files}| = 7$$
+section MorphPanelSec
+open Fw.Parts.MorphPanel
+
+/-- morph.panel lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS morph panel. -/
+def morphPanelLines : List String :=
+  let ms : List Rat := [0, 0.001, 0.0011, 0.08, 0.2, 0.35, 0.3499, 0.44, 0.55, 0.5499, 0.8, 0.92, 0.9201, 1]
+  (ms.flatMap fun m =>
+    [line "panelProgress" [("morph", rin m)] (ratWire (panelProgress m)),
+     line "panelOpacity" [("morph", rin m)] (ratWire (panelOpacity m)),
+     line "panelBlurPx" [("morph", rin m)] (ratWire (panelBlurPx m)),
+     line "panelScale" [("morph", rin m)] (ratWire (panelScale m)),
+     line "sceneActive" [("morph", rin m)] (.bool (sceneActive m)),
+     line "ariaHidden" [("morph", rin m)] (.bool (ariaHidden m)),
+     line "ctaTabOff" [("morph", rin m)] (.bool (ctaTabOff m)),
+     line "expanded" [("morph", rin m)] (.bool (expanded m))])
+
+end MorphPanelSec
+
+/-- Write the 9 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
+one `.jsonl` per pilot part (plus morph.panel), and a `.spec.jsonl` for every pilot part except `hero.countdown` (which has none).
+
+$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\} \cup \{\text{morph.tween.jsonl}, \text{morph.panel.jsonl}\},\quad |\mathit{files}| = 9$$
 
 Regenerates the pilot parts' golden vectors from the Lean definitions. -/
 def main (args : List String) : IO Unit := do
@@ -343,7 +364,8 @@ def main (args : List String) : IO Unit := do
     [("engine.scroll.jsonl", engineLines), ("engine.scroll.spec.jsonl", engineSpecLines),
      ("nav.hitTest.jsonl", navLines), ("nav.hitTest.spec.jsonl", navSpecLines),
      ("hero.countdown.jsonl", countdownLines), ("hero.exit.jsonl", exitLines),
-     ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines)]
+     ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines),
+     ("morph.panel.jsonl", morphPanelLines)]
   for (name, ls) in files do
     IO.FS.writeFile (dir ++ "/" ++ name) (String.join (ls.map (· ++ "\n")))
     IO.println s!"{name}: {ls.length} lines"

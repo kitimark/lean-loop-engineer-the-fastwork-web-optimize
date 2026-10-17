@@ -4,7 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
-import { PIN_SRC, collectInPage, mountPanel, prepareInPage, waitReady, waitResize } from './page.mjs';
+import { PIN_SRC, collectInPage, prepareInPage, waitReady, waitResize } from './page.mjs';
 import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
@@ -12,10 +12,6 @@ const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const SITES = ['orig', 'rewrite'];
 const FILTER = { orig: '\\.svelte-', rewrite: '-module_' };
 const CAP_MS = { orig: 20000, rewrite: 15000 };
-/** Parts whose original elements exist only after a page action. Their roles are collected in a second pass, after the
- *  action, so every other part is read in the state a fresh load has (the action is a scroll there and back). */
-const ORIG_PREPARE = { 'morph.columns': mountPanel };
-
 async function pool(items, n, fn) {
   const results = new Array(items.length);
   let next = 0;
@@ -75,27 +71,17 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   async function load(env, site) {
     return engine.open(env, { origin: servers[site].origin, path: '/', init: PIN_SRC });
   }
-  // anchors.json `prepare` (per part and arm): steps that bring up elements the page mounts lazily, run once after
-  // the ready wait (morph.countdown); ORIG_PREPARE below is the other route (mount after the early parts are collected)
+  // anchors.json `prepare` (per part and arm) is the one route for elements the page mounts lazily: steps run once after the
+  // ready wait, then the page is back at the top before anything is collected (morph.countdown, morph.columns, morph.panel)
   const prepare = Object.fromEntries(SITES.map((site) => [site, Object.values(activeParts).flatMap((p) => (p.prepare && p.prepare[site]) || [])]));
   const evalReady = async (s, site) => {
     const settle = await s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
     if (prepare[site].length > 0) settle.prepared = await s.evaluate(prepareInPage, { steps: prepare[site], capMs: CAP_MS[site] });
     return settle;
   };
-  const lateIds = new Set(Object.keys(activeParts).filter((pid) => ORIG_PREPARE[pid]));
-  const pick = (site, late) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => (site === 'orig' && lateIds.has(pid)) === late));
-  const collectArg = (site, env, props, parts) => ({
-    site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, filter: FILTER[site],
+  const evalCollect = (s, site, env, props) => s.evaluate(collectInPage, {
+    site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts: partsArg[site], props, filter: FILTER[site],
   });
-  async function evalCollect(s, site, env, props) {
-    if (site !== 'orig' || lateIds.size === 0) return s.evaluate(collectInPage, collectArg(site, env, props, partsArg[site]));
-    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, pick(site, false)));
-    for (const pid of lateIds) await s.evaluate(ORIG_PREPARE[pid]);
-    const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(site, true)));
-    raw.parts = { ...raw.parts, ...late.parts };
-    return raw;
-  }
 
   // Phase 0: the property lists. Declared names depend on the stylesheets and the elements, not on the environment,
   // so one reference load per arm fixes them (the engine expands shorthands, so they are per engine).

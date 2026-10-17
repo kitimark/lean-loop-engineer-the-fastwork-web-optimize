@@ -147,6 +147,7 @@
     },
     "morph.columns": {
       "anchors": ["morph-columns"],
+      "prepare": { "orig": [{ "scrollNear": ".start-selling-platform", "waitFor": ".start-selling-morph-col", "why": "the original mounts the morph panel (and its columns) only when .start-selling-platform comes within 200% of the viewport (2.DyWL8TcE.js:13080-13089) and keeps it; the gate scrolls near it, waits for the first column, then returns to the top" }] },
       "cites": ["snapshot 2.gBuqKVzi.css:10559-10607 (backdrop, col, track, img, keyframes)", "10812-10825 (reduced motion)", "10983-10988 (<=640)", "2.DyWL8TcE.js:12887-12935 (column data), 13125-13152 (markup)", "the original mounts the panel only after the platform section nears the viewport (IntersectionObserver, 200% margin, 13080-13089); run.mjs scrolls the original there and back before collecting these roles (ORIG_PREPARE)"],
       "excluded": [
         { "what": "the panel, pill, veil, centre content, countdown", "why": "owned by morph.panel, morph.countdown, morph.mount and morph.tween" },
@@ -181,6 +182,43 @@
           "skipProps": [],
           "why": "the part renders nothing and restates no CSS; only the document element's width is compared. If the mark is missing the rewrite count is 0 and the count differs"
         }
+      ]
+    },
+    "morph.panel": {
+      "anchors": [
+        "morph-panel"
+      ],
+      "cites": [
+        "original: the panel is mounted inside header.start-selling-top-nav after the first platform intersection and stays mounted (nodes/2.DyWL8TcE.js:12978-13089, 13212-13214), markup 12879; CSS assets/2.gBuqKVzi.css .start-selling-morph-panel and children, with media blocks <=1000, <=720, reduced motion, <=640"
+      ],
+      "prepare": { "orig": [{ "scrollNear": ".start-selling-platform", "waitFor": ".start-selling-morph-panel", "why": "the original mounts the panel lazily (an IntersectionObserver with a 200% margin on the platform section) and keeps it; the gate scrolls near the platform once after the arm settles, waits for the panel, and returns to the top. The rewrite renders the panel from the start (mounting is morph.mount)" }] },
+      "excluded": [
+        {
+          "what": "the panel's x, y, w, h and the host",
+          "why": "the host is the nav in the original and a fixed stand-in in the rewrite; at morph 0 the panel is invisible (opacity 0) in both, and it is compared through its style"
+        },
+        {
+          "what": "font-family, the image columns, the countdown digits, the call-to-action icons",
+          "why": "font-family is not restated (no font token in the rewrite yet); the columns and the countdown are morph.columns and morph.countdown; the icons are placeholders"
+        }
+      ],
+      "roles": [
+            {"role": "panel", "orig": ".start-selling-top-nav .start-selling-morph-panel", "rewrite": "[data-fw=\"morph-panel\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "the panel fills its host (inset 0): the original host is the nav pill (984 x 64 at 1280, narrower and 52 high on phones), the rewrite's host is a stand-in, so the box is not compared; the opacity, blur and scale that make it invisible at morph 0 are"},
+            {"role": "backdrop", "orig": ".start-selling-top-nav .start-selling-morph-panel > .start-selling-morph-backdrop", "rewrite": "[data-fw=\"morph-panel\"] > [data-fw-role=\"backdrop\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["left", "right"], "why": "inset 0 -3% resolves left and right against the host width"},
+            {"role": "veil", "orig": ".start-selling-top-nav .start-selling-morph-panel > .start-selling-morph-veil", "rewrite": "[data-fw=\"morph-panel\"] > [data-fw-role=\"veil\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "fills the panel; size follows the host"},
+            {"role": "center", "orig": ".start-selling-top-nav .start-selling-morph-panel > .start-selling-morph-center", "rewrite": "[data-fw=\"morph-panel\"] > [data-fw-role=\"center\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["top", "left", "right", "bottom", "transform"], "why": "inset 50% auto auto 50% and translate(-50%, -50%) resolve against the host and the content height; padding, gap, alignment and overflow are compared"},
+            {"role": "title", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-title", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"title\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "line count of the placeholder text differs; font size (48, 36 at <=1000, 32 at <=640), colour, spacing and wrapping mode are compared"},
+            {"role": "countdown", "orig": ".start-selling-top-nav .start-selling-morph-panel .waitlist-closing-countdown", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"countdown\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "the wrapper only; the clock inside is morph.countdown"},
+            {"role": "ctaStack", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-cta-stack", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"cta-stack\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["grid-template-columns"], "why": "a two-column grid (one column at <=600) of the action and the link; the resolved track sizes in px follow the label widths, the template is the same; gaps and alignment are compared"},
+            {"role": "cta", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-cta", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"cta\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "fixed height 48 and padding are compared; the label width differs (placeholder text, icon)"},
+            {"role": "link", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-cta-rsvp", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"link\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "the page's inline style (index.html) gives the RSVP link a 48 px pill; width follows the label"},
+            {"role": "icon", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-cta-stack .cta-icon", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"cta-stack\"] svg", "boxRel": null, "dims": [], "skipSets": [], "skipProps": [], "why": "the two 20 x 20 icons (placeholder drawings); only the fixed box is compared"},
+            {"role": "footer", "orig": ".start-selling-top-nav .start-selling-morph-panel > .start-selling-morph-footer", "rewrite": "[data-fw=\"morph-panel\"] > footer", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["bottom", "left", "right"], "why": "height 68 (auto at <=640) follows the content; the anchoring to the panel edges is compared through bottom/left/right being 0, skipped only because used values of an auto-sized box differ"},
+            {"role": "footerLead", "orig": ".start-selling-top-nav .start-selling-morph-panel > .start-selling-morph-footer > p", "rewrite": "[data-fw=\"morph-panel\"] > footer > p", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "hidden at <=720 (display none): count and display are compared, the text box is not"},
+            {"role": "footerEnd", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-footer-end", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"footer-end\"]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "flex row (wraps and centres at <=640)"},
+            {"role": "footerEndLine", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-footer-end > p", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"footer-end\"] > p", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "text line, size from the placeholder text"},
+            {"role": "grad", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-grad", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"grad\"]", "boxRel": null, "dims": [], "skipSets": [], "skipProps": [], "why": "fixed 24 x 1 px gradient rule"},
+            {"role": "privacy", "orig": ".start-selling-top-nav .start-selling-morph-panel .start-selling-morph-footer-end > a", "rewrite": "[data-fw=\"morph-panel\"] [data-fw-role=\"footer-end\"] > a", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [], "why": "link text differs"}
       ]
     }
   }

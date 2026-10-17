@@ -346,7 +346,11 @@ def pilotParts : List PartUse := [
   { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
     extra := [], knees := [],
     dismissed := [
-      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] }
+      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] },
+  { id := "morph.panel", owners := ["morph.panel"],
+    orig := ["mq.rm-reduce", "mq.w-le-600", "mq.w-le-640", "mq.w-le-720", "mq.w-le-1000", "mq.c860"],
+    rewrite := ["mq.w-le-1000", "mq.w-le-720", "mq.rm-reduce", "mq.w-le-640", "mq.w-le-600"],
+    extra := [], knees := [], dismissed := [] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.
