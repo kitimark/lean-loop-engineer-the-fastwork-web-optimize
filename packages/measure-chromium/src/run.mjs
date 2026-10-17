@@ -39,6 +39,10 @@ const CHROME_ARGS = [
   // cc features::kWaitForLateScrollEvents (default on, cc/base/features.cc@f842f52) arms a WAIT_FOR_SCROLL deadline at frame_time + 0.333 * interval while a scroll is active
   // and no input is queued; frame_time here is virtual (T0 + vt, ~4900 s ahead of the container's monotonic clock), so that deadline never fires and BeginFrame wedges (README).
   '--disable-features=WaitForLateScrollEvents',
+  // touch-race: blink's MainThreadEventQueue::DispatchRafAlignedInput (platform/widget/input/main_thread_event_queue.cc:741-770@f842f52) holds an async touchmove back
+  // while the rAF-aligned queue holds exactly 1 event and frame_time < last_async_touch_move_timestamp_ + 200 ms. Whether the queue holds 1 or 2 events depends on whether
+  // touch n+1 reached the renderer before BeginMainFrame n+1 (a thread race), so the touchmove lands in frame n or n+1. Interval 0 never holds (switch: blink/common/switches.cc).
+  ...((profile.input?.mode === 'touch' && process.env.FW_TOUCH_THROTTLE !== 'default') ? ['--async-touch-move-throttle-time-ms=0'] : []),
   '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost, EXCLUDE 127.0.0.1',
   '--font-render-hinting=none', '--force-color-profile=srgb', '--hide-scrollbars', '--mute-audio',
   '--disable-background-networking', '--disable-breakpad', '--no-first-run', '--lang=en-US', ...(process.env.FW_CHROME_EXTRA ? process.env.FW_CHROME_EXTRA.split(' ') : []), 'about:blank',
