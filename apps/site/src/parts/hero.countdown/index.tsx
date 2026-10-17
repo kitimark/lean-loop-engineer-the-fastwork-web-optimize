@@ -15,6 +15,8 @@ export interface HeroCountdownProps {
   /** `mui` (default) uses MUI components for the wrapper and labels; `plain` uses bare elements. Same CSS Module and driver. */
   impl?: 'mui' | 'plain';
   inverse?: boolean;
+  /** `data-fw` anchor of the root (default `hero-countdown`); morph.countdown passes its own so each anchor has one clock. */
+  fwId?: string;
 }
 
 const cls = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
@@ -52,7 +54,7 @@ function Digits({ n, strip }: { n: number; strip: boolean }) {
  * hero.countdown. Server and first client render show the original's hidden placeholders ("0", "00"); after mount the
  * digit shape is set once (a discrete flip) and from then on only the driver writes transforms on the clock.
  */
-export function HeroCountdown({ variant, impl = 'mui', inverse = false }: HeroCountdownProps) {
+export function HeroCountdown({ variant, impl = 'mui', inverse = false, fwId = 'hero-countdown' }: HeroCountdownProps) {
   const strip = variant === 'strip';
   const rootRef = useRef<HTMLDivElement>(null);
   const [shape, setShape] = useState<number[] | null>(null);
@@ -117,6 +119,7 @@ export function HeroCountdown({ variant, impl = 'mui', inverse = false }: HeroCo
       rootRef={rootRef}
       className={cls(css.countdown, inverse && css.inverse)}
       variant={variant}
+      fwId={fwId}
     >
       {LABELS.map((label, i) => (
         <div key={label} className={css.unit} aria-hidden="true">
@@ -134,20 +137,21 @@ interface RootProps {
   rootRef: React.Ref<HTMLDivElement>;
   className: string;
   variant: string;
+  fwId: string;
   children: ReactNode;
 }
-const rootAttrs = { role: 'timer', 'aria-live': 'off' as const, 'aria-label': 'countdown', 'data-fw': 'hero-countdown' };
+const rootAttrs = { role: 'timer', 'aria-live': 'off' as const, 'aria-label': 'countdown' };
 
-function PlainRoot({ rootRef, className, variant, children }: RootProps) {
+function PlainRoot({ rootRef, className, variant, fwId, children }: RootProps) {
   return (
-    <div ref={rootRef} className={className} data-fw-variant={variant} {...rootAttrs}>
+    <div ref={rootRef} className={className} data-fw={fwId} data-fw-variant={variant} {...rootAttrs}>
       {children}
     </div>
   );
 }
-function MuiRoot({ rootRef, className, variant, children }: RootProps) {
+function MuiRoot({ rootRef, className, variant, fwId, children }: RootProps) {
   return (
-    <Box ref={rootRef} className={className} data-fw-variant={variant} {...rootAttrs}>
+    <Box ref={rootRef} className={className} data-fw={fwId} data-fw-variant={variant} {...rootAttrs}>
       {children}
     </Box>
   );

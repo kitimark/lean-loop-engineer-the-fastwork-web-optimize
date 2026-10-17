@@ -61,6 +61,33 @@ export async function waitReady(arg) {
   return { ready, splash, fwMode: fw ? fw.mode : null, hydrationErrors: fw ? (fw.hydrationErrors ? fw.hydrationErrors.length ?? fw.hydrationErrors : 0) : null };
 }
 
+/**
+ * Part-declared preparation of the original (anchors.json `prepare`, only for parts a run covers): some elements exist only
+ * after the page has been near them (the morph panel mounts when the platform section is within 200% of the viewport and
+ * stays mounted). Per step: scroll so the `scrollNear` element's top is 1.5 viewports below the fold, wait for `waitFor`
+ * to exist, then return to the top and let a few frames pass. Reports what it saw; no decision.
+ */
+export async function prepareInPage(arg) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
+  const t0 = performance.now();
+  const found = [];
+  for (const step of arg.steps) {
+    const near = document.querySelector(step.scrollNear);
+    if (near) {
+      const top = near.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: Math.max(0, top - window.innerHeight * 1.5), behavior: 'instant' });
+    }
+    for (let i = 0; i < 3; i++) await frame();
+    while (!document.querySelector(step.waitFor) && performance.now() - t0 < arg.capMs) await sleep(50);
+    found.push(!!document.querySelector(step.waitFor));
+  }
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  for (let i = 0; i < 3; i++) await frame();
+  await sleep(300);
+  return found;
+}
+
 /** A short pause after a live resize: two frames and 600 ms (the original debounces its resize work with timers). */
 export async function waitResize() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
