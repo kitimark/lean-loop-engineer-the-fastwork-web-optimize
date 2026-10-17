@@ -1,0 +1,234 @@
+name: breakpoint-gate
+
+# Breakpoint parity gate (PLAN 6.6): original snapshot against the rewrite, 124 loads per engine, in 8 shards per engine,
+# plus the 4 live-resize sweeps, merged into the same <engine>.json that `cli.mjs summary` reads on the Mac.
+# Engines on the runner: Chrome Headless Shell 156.0.8078.4 (the counts lane's browser; the local gate uses desktop
+# Chrome) and Playwright WebKit on Linux (a WebKitGTK/WPE port, NOT Mobile Safari). Both are separate `platform` keys:
+# a CI table is a second opinion, not a replacement for the Mac run (research note ci-measurement-feasibility).
+on:
+  push:
+    branches: ['ci/**', main]
+  workflow_dispatch:
+    inputs:
+      engines:
+        description: Engines to run
+        type: choice
+        options: [both, chromium, playwright-webkit]
+        default: both
+      shards:
+        description: Shards per engine (1 to 16)
+        type: string
+        default: '8'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same pinned browser as packages/measure-chromium/Dockerfile.
+  HS_VERSION: 156.0.8078.4
+  HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    outputs:
+      shards: ${{ steps.p.outputs.shards }}
+      engines: ${{ steps.p.outputs.engines }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts
+            apps/site/src/breakpoints.gen.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - id: p
+        env:
+          ENGINES: ${{ inputs.engines || 'both' }}
+          SHARDS: ${{ inputs.shards || '8' }}
+        run: |
+          set -euo pipefail
+          case "$SHARDS" in ''|*[!0-9]*) echo "shards must be a number" >&2; exit 1 ;; esac
+          case "$ENGINES" in
+            both) engines='["chromium","playwright-webkit"]' ;;
+            chromium) engines='["chromium"]' ;;
+            playwright-webkit) engines='["playwright-webkit"]' ;;
+            *) echo "bad engines" >&2; exit 1 ;;
+          esac
+          shards=$(node .github/scripts/gate-shards.mjs --shards "$SHARDS")
+          echo "engines=$engines" >> "$GITHUB_OUTPUT"
+          echo "shards=$shards" >> "$GITHUB_OUTPUT"
+          echo "$engines"
+          echo "$shards"
+
+  # The rewrite, built once; every gate job downloads this exact build (its buildId is in each run header, and the merge
+  # job refuses shards whose headers differ).
+  site:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      # `pnpm build` of the site first runs `lake exe breakgen --check` (the checked-in gen file must equal Lean's output).
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/site...'
+      - name: Build the rewrite (default prerendered config)
+        run: pnpm --filter @fw/site build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+          if-no-files-found: error
+          retention-days: 3
+
+  gate:
+    needs: [plan, site]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJSON(needs.plan.outputs.engines) }}
+        shard: ${{ fromJSON(needs.plan.outputs.shards).shard }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Smoke test the engine (fails in under two minutes instead of burning the job budget)
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
+        working-directory: packages/gate-breakpoints
+        timeout-minutes: 5
+        run: node "$SMOKE" --engine "$ENGINE"
+      - name: Run the shard
+        env:
+          ENGINE: ${{ matrix.engine }}
+          PROBES: ${{ fromJSON(needs.plan.outputs.shards).probes[matrix.shard] }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: node src/cli.mjs run --engine "$ENGINE" --probes "$PROBES" --sweeps none --concurrency 4 --out out/shard
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gate-${{ matrix.engine }}-${{ matrix.shard }}
+          path: packages/gate-breakpoints/out/shard/${{ matrix.engine }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  sweeps:
+    needs: [plan, site]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJSON(needs.plan.outputs.engines) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Smoke test the engine (fails in under two minutes instead of burning the job budget)
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
+        working-directory: packages/gate-breakpoints
+        timeout-minutes: 5
+        run: node "$SMOKE" --engine "$ENGINE"
+      - name: Run the sweeps (no matrix probes)
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: node src/cli.mjs run --engine "$ENGINE" --probes none --concurrency 4 --out out/sweeps
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gate-${{ matrix.engine }}-sweeps
+          path: packages/gate-breakpoints/out/sweeps/${{ matrix.engine }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  # One merge job per engine, so a failing WebKit shard does not hide the Chromium table.
+  merge:
+    needs: [plan, gate, sweeps]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJSON(needs.plan.outputs.engines) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: gate-${{ matrix.engine }}-*
+          path: ${{ runner.temp }}/parts
+      - name: Merge the shards and summarize
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: |
+          set -euo pipefail
+          parts="$RUNNER_TEMP/parts"
+          out="$RUNNER_TEMP/gate"
+          mkdir -p "$out"
+          ls "$parts"
+          shards=("$parts"/gate-"$ENGINE"-s[0-9]*/"$ENGINE".json)
+          node .github/scripts/merge-gate.mjs --out "$out/$ENGINE.json" --sweeps "$parts/gate-$ENGINE-sweeps/$ENGINE.json" "${shards[@]}"
+          # `summary` is the same code the Mac run uses; it reads <engine>.json from --out.
+          node packages/gate-breakpoints/src/cli.mjs summary --out "$out"
+          sha256sum "$out"/*.json | tee "$out/sha256.txt"
+          {
+            echo "### breakpoint-gate: $ENGINE"
+            cat "$out/summary.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gate-merged-${{ matrix.engine }}
+          path: ${{ runner.temp }}/gate
+          if-no-files-found: error
+          retention-days: 30

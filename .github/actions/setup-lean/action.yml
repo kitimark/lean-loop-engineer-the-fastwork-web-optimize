@@ -1,0 +1,56 @@
+name: setup-lean
+description: >-
+  Install elan from a pinned release (sha256 checked), install the Lean toolchain named in lean/lean-toolchain, and
+  restore/save Lake's local artifact cache. Run after actions/checkout. Linux arm64 only.
+
+runs:
+  using: composite
+  steps:
+    - name: Install elan (pinned release, sha256 checked)
+      shell: bash
+      env:
+        ELAN_VERSION: v4.2.4
+        ELAN_SHA256: 05febd124d84ebf994b2e7479922a5650b1e950c17ae3bd1ddd776b65bb72bf9
+      run: |
+        set -euo pipefail
+        test "$(uname -m)" = aarch64
+        dir="$RUNNER_TEMP/elan-dl"
+        mkdir -p "$dir"
+        curl -fsSL --retry 5 --retry-all-errors -o "$dir/elan.tgz" \
+          "https://github.com/leanprover/elan/releases/download/${ELAN_VERSION}/elan-aarch64-unknown-linux-gnu.tar.gz"
+        echo "${ELAN_SHA256}  $dir/elan.tgz" | sha256sum -c -
+        tar -xzf "$dir/elan.tgz" -C "$dir"
+        "$dir/elan-init" -y --no-modify-path --default-toolchain none
+        echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+    - name: Lake cache location
+      id: lake
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Same file system as the build directory, so Lake can hard-link cached artifacts back (lean-fast handoff).
+        echo "LAKE_CACHE_DIR=$GITHUB_WORKSPACE/.lake-cache" >> "$GITHUB_ENV"
+        mkdir -p "$GITHUB_WORKSPACE/.lake-cache"
+        echo "toolchain=$(cat lean/lean-toolchain)" >> "$GITHUB_OUTPUT"
+
+    # Key = architecture + toolchain pin + Lake manifest (+ the sources, so a changed tree saves a new entry).
+    # restore-keys fall back to the newest entry with the same toolchain and manifest: Lake re-checks every trace, so a
+    # stale entry only costs a rebuild of what changed.
+    - name: Restore Lake artifact cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ github.workspace }}/.lake-cache
+        key: lake-${{ runner.arch }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}-${{ hashFiles('lean/lakefile.toml', 'lean/*.lean', 'lean/Fw/**', 'lean/FwTest/**') }}
+        restore-keys: |
+          lake-${{ runner.arch }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}-
+
+    - name: Install the Lean toolchain
+      shell: bash
+      env:
+        TOOLCHAIN: ${{ steps.lake.outputs.toolchain }}
+      run: |
+        set -euo pipefail
+        elan toolchain install "$TOOLCHAIN"
+        cd lean
+        lean --version
+        lake --version
