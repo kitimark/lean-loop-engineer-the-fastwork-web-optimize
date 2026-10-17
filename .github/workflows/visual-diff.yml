@@ -1,0 +1,206 @@
+name: visual-diff
+
+# Pixel diff of the original snapshot against the rewrite (task visual-diff): each part's box is screenshotted in both
+# arms at the gate's breakpoints, compared with pixelmatch, and judged by the Lean rule (lean/Fw/Gate/Pixel.lean:
+# pass, fail or unsettled per part tolerance). It sees what the breakpoint gate's computed styles cannot: a fallback font
+# drawing other glyphs, stacking order, paint. Diff images are CI artifacts only; nothing here writes into git.
+# Engines: Chrome Headless Shell 156.0.8078.4 and Playwright WebKit on Linux (a WebKitGTK/WPE port, NOT Mobile Safari),
+# installed by the gate-engine action; two separate engine keys, as in the breakpoint gate.
+on:
+  push:
+    branches: ['ci/**', main]
+    paths:
+      - 'packages/visual-diff/**'
+      - 'packages/gate-breakpoints/src/**'
+      - 'apps/site/**'
+      - 'snapshot/**'
+      - 'snapshot.lock.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/scripts/verify-snapshot.mjs'
+      - '.github/actions/setup-lean/**'
+      - '.github/actions/setup-pnpm/**'
+      - '.github/actions/gate-engine/**'
+      - '.github/workflows/visual-diff.yml'
+  workflow_dispatch:
+    inputs:
+      engines:
+        description: Engines to run
+        type: choice
+        options: [both, chromium, playwright-webkit]
+        default: both
+      shards:
+        description: Shards per engine (1 to 16)
+        type: string
+        default: '2'
+      probes:
+        description: >-
+          Probe ids of the gate's Lean matrix, comma separated (for example desk-1512,touch-401); empty = the default
+          breakpoint set in packages/visual-diff/probes.default.json
+        type: string
+        default: ''
+      parts:
+        description: >-
+          Part ids of the gate's anchors.json, comma separated; empty = every part except those whose first role is the
+          document itself (engine.scroll, morph.tween).
+        type: string
+        default: ''
+      fw:
+        description: >-
+          Flag set of the rewrite arm, e.g. morph.tween:waapi (becomes ?fw=...; the build prerenders every single-variant
+          page). Empty = the default config.
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+
+env:
+  # Same pinned browser as packages/measure-chromium/Dockerfile.
+  HS_VERSION: 156.0.8078.4
+  HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    outputs:
+      shards: ${{ steps.p.outputs.shards }}
+      engines: ${{ steps.p.outputs.engines }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            apps/site/src/breakpoints.gen.json
+            packages/gate-breakpoints/src/anchors.json
+            packages/visual-diff
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - id: p
+        env:
+          ENGINES: ${{ inputs.engines || 'both' }}
+          SHARDS: ${{ inputs.shards || '2' }}
+          PROBES: ${{ inputs.probes || '' }}
+          PARTS: ${{ inputs.parts || '' }}
+        run: |
+          set -euo pipefail
+          case "$SHARDS" in ''|*[!0-9]*) echo "shards must be a number" >&2; exit 1 ;; esac
+          case "$ENGINES" in
+            both) engines='["chromium","playwright-webkit"]' ;;
+            chromium) engines='["chromium"]' ;;
+            playwright-webkit) engines='["playwright-webkit"]' ;;
+            *) echo "bad engines" >&2; exit 1 ;;
+          esac
+          shards=$(node packages/visual-diff/src/shards.mjs --shards "$SHARDS" --probes "$PROBES" --parts "$PARTS")
+          echo "engines=$engines" >> "$GITHUB_OUTPUT"
+          echo "shards=$shards" >> "$GITHUB_OUTPUT"
+          echo "$engines"
+          echo "$shards"
+
+  # The rewrite, built once; every shard downloads this exact build.
+  site:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/site...'
+      - name: Build the rewrite (default prerendered config)
+        run: pnpm --filter @fw/site build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+          if-no-files-found: error
+          retention-days: 3
+
+  shoot:
+    needs: [plan, site]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJSON(needs.plan.outputs.engines) }}
+        shard: ${{ fromJSON(needs.plan.outputs.shards).shard }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+      # The gate-engine action installs its browser through the gate package's playwright-core (same pinned version as ours).
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints @fw/visual-diff'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: ${{ matrix.engine }}
+      - name: Unit tests (Lean golden vectors, diff counts)
+        working-directory: packages/visual-diff
+        run: pnpm test
+      - name: Screenshot, compare, judge
+        env:
+          ENGINE: ${{ matrix.engine }}
+          PROBES: ${{ fromJSON(needs.plan.outputs.shards).probes[matrix.shard] }}
+          PARTS: ${{ inputs.parts || '' }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_FLAGS: ${{ inputs.fw || '' }}
+        working-directory: packages/visual-diff
+        run: |
+          parts_args=()
+          if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
+          node src/cli.mjs run --engine "$ENGINE" --probes "$PROBES" --concurrency 2 ${parts_args[@]+"${parts_args[@]}"} --out out/shard
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          # the counts and verdicts (<engine>.visual.json) and the original/rewrite/diff PNGs of every cell that is not a pass
+          name: vd-${{ matrix.engine }}-${{ matrix.shard }}
+          path: packages/visual-diff/out/shard
+          if-no-files-found: error
+          retention-days: 14
+
+  report:
+    needs: [plan, shoot]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: packages/visual-diff
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: vd-*
+          path: ${{ runner.temp }}/parts
+      - name: Merge the shards into one table
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/report"
+          node packages/visual-diff/src/cli.mjs report --in "$RUNNER_TEMP/parts" --out "$RUNNER_TEMP/report/visual-diff" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: visual-diff-report
+          path: ${{ runner.temp }}/report
+          if-no-files-found: error
+          retention-days: 30

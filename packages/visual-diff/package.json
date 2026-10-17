@@ -1,0 +1,17 @@
+{
+  "name": "@fw/visual-diff",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pixel diff of the original snapshot against the rewrite, per part crop, per breakpoint, per engine (task visual-diff). Verdict function: lean/Fw/Gate/Pixel.lean.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "visual": "node src/cli.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "pixelmatch": "8.0.0",
+    "playwright-core": "1.64.1",
+    "pngjs": "7.0.0"
+  }
+}
