@@ -1,3 +1,5 @@
+import Fw.Gate.Merge
+
 /-!
 # Gate job schedule (task `gate-speed-ci`)
 
@@ -13,10 +15,10 @@ module proves how long that can take and picks the job split of one run.
   bound for $r$ concurrent runs; it starts from the current split (8 probe shards plus one sweeps job per
   engine), so it changes the split only for a strictly smaller bound (`choose_le_current`).
 * **Correctness of sharding** is not re-proved here. A sweep's verdicts depend on its whole history
-  (`Fw.Gate.Scope.stopVerdicts`), so only whole sweeps move between jobs; `split_partitions` shows every
-  candidate runs each probe and each sweep exactly once, which is the premise of
-  `Fw.Gate.Merge.mergeById_eq_unsharded` (sweeps-lean). Until that module is on `main`, `split_sound`
-  takes its conclusion as the hypothesis `H`.
+  (`Fw.Gate.Scope.stopVerdicts`; `Fw.Gate.split_sweep_changes_verdict` shows a split sweep can change a
+  verdict), so only whole sweeps move between jobs; `split_partitions` shows every candidate runs each
+  probe and each sweep exactly once, and `layout_merge_sound` feeds that to
+  `Fw.Gate.mergeGateById_eq_unsharded` (sweeps-lean) and `Fw.Gate.sharded_verdict_eq`.
 
 Times are natural numbers (milliseconds). Everything the Graham bound says is about the combined job
 list, not about one run's wall time, which also waits for the plan, site and merge jobs.
@@ -666,19 +668,36 @@ theorem choose_valid (P : Params) (m r : Nat) :
     rw [hc]; exact split_partitions current current_mem
   · exact split_partitions _ h
 
-/-- **Sharding by whole sweeps is sound, given the merge law.** If merging per-job sweep lists that
-partition the sweeps gives the unsharded result (`H`, the conclusion of
-`Fw.Gate.Merge.mergeById_eq_unsharded`, taken as a hypothesis until sweeps-lean lands), then merging the
-sweeps of the jobs of any valid layout of one engine gives the unsharded result.
+/-- Mapping a record lookup over each job's sweeps and concatenating is mapping it over the concatenation.
 
-$$\big(\forall \text{parts}.\ \operatorname{concat}(\text{parts}) \sim \mathrm{Sw} \Rightarrow \operatorname{merged}(\text{parts}) = \operatorname{unsharded}(\mathrm{Sw})\big) \Rightarrow \operatorname{merged}\big([S_j]_{j}\big) = \operatorname{unsharded}(\mathrm{Sw})$$
+$$\operatorname{flatten}\big([\,\operatorname{map}\ \mathrm{rec}\ S_j\,]_j\big) = \operatorname{map}\ \mathrm{rec}\ \big(\operatorname{flatMap}\ S\ J\big)$$
 -/
-theorem split_sound {α : Type} (unsharded : List Sw → α) (merged : List (List Sw) → α)
-    (H : ∀ parts : List (List Sw), parts.flatten.Perm Sw.all → merged parts = unsharded Sw.all)
-    (js : List Job) (hv : ValidEng js) : merged (js.map Job.sweeps) = unsharded Sw.all := by
-  apply H
-  have h := hv.2
-  rwa [List.flatMap_def] at h
+theorem flatten_sweeps_map {β : Type} (rec : Sw → β) (js : List Job) :
+    (js.map (fun j => j.sweeps.map rec)).flatten = (js.flatMap Job.sweeps).map rec := by
+  induction js with
+  | nil => rfl
+  | cons j js ih => rw [List.map_cons, List.flatten_cons, List.flatMap_cons, List.map_append, ih]
+
+/-- **Sharding by whole sweeps reproduces the unsharded run** (the merge law is the real
+`Fw.Gate.mergeGateById_eq_unsharded`, not re-proved). Let `rec : Sw → β` give the record of each sweep and
+`K = [rec s]_{s ∈ Sw}` the unsharded sweep records. If the run files `F` follow a valid layout `js` (file $j$
+holds exactly the records of job $j$'s sweeps, whole), their probes are a permutation of the unsharded probes
+`P`, and the headers agree, then the by-id merge gives the unsharded run.
+
+$$\operatorname{ValidEng}(J) \wedge (\forall j.\ \mathrm{sw}(f_j) = [\mathrm{rec}(s)]_{s \in S_j}) \wedge \operatorname{flatMap}(\mathrm{pr}, F) \sim P \wedge \dots \Rightarrow \operatorname{mg}'\big([\iota(p)]_{p \in P}, [\sigma(k)]_{k \in K}, F\big) = \mathrm{some}(h, P, K)$$
+-/
+theorem layout_merge_sound {H α β : Type} [DecidableEq H] (hdrOk : H → Bool) (pid : α → String)
+    (sid : β → String) (h : H) (P : List α) (rec : Sw → β) (js : List Job) (hv : ValidEng js)
+    (files : List (Fw.Gate.RunFile H α β)) (hfj : files.map (·.sweeps) = js.map (fun j => j.sweeps.map rec))
+    (hok : hdrOk h = true) (hnd : (P.map pid).Nodup) (hknd : ((Sw.all.map rec).map sid).Nodup)
+    (hne : files ≠ []) (hh : ∀ f ∈ files, f.header = h) (hp : (files.flatMap (·.probes)).Perm P) :
+    Fw.Gate.mergeGateById hdrOk pid sid (P.map pid) ((Sw.all.map rec).map sid) files
+      = some ⟨h, P, Sw.all.map rec⟩ := by
+  apply Fw.Gate.mergeGateById_eq_unsharded hdrOk pid sid h P _ files hok hnd hknd hne hh hp
+  have e1 : files.flatMap (·.sweeps) = (files.map (·.sweeps)).flatten := by
+    rw [List.flatMap_def]
+  rw [e1, hfj, flatten_sweeps_map]
+  exact hv.2.map rec
 
 /-! ## 3. Times of the note (run 39067656223) -/
 
@@ -703,5 +722,14 @@ $$P_{\text{cached}}: \text{setup}\ (22, 53)\,\text{s}$$
 def noteCached : Params where
   chromium := { noteBase.chromium with setup := 22000 }
   webkit := { noteBase.webkit with setup := 53000 }
+
+/-- The cached times with the reduced desktop sweep (35 stops instead of 57, `Fw.Gate.reduceSweep`,
+`reducedDeskWidths_eq`), the desktop time scaled by 35/57 (INFERRED; the stops cost about the same each).
+
+$$P_{\text{reduced}}: d_{\text{desktop}} = \lfloor d \cdot 35 / 57 \rfloor\ (150.4,\ 117.3)\,\text{s}$$
+-/
+def noteReduced : Params where
+  chromium := { noteCached.chromium with desktop := 245000 * 35 / 57 }
+  webkit := { noteCached.webkit with desktop := 191000 * 35 / 57 }
 
 end Fw.Gate.Schedule
