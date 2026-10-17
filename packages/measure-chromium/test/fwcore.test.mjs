@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { fwcoreBin, zoneSums } from '../src/fwcore.mjs';
+import { classify, fwcoreBin, zoneSums } from '../src/fwcore.mjs';
 import { snapshotCounts } from '../src/trace.mjs';
 
 const GOLDEN = join(dirname(fileURLToPath(import.meta.url)), '../../contracts/golden/measure');
@@ -37,6 +37,16 @@ for (const op of ['measure.zoneSums', 'measure.classify', 'measure.noMoreWork', 
     cases.forEach((c, i) => assert.deepStrictEqual(got[i], c.response, c.name));
   });
 }
+
+// classify.mjs (the CI classifier) sends only kMax/tMax; the pixel-area rule and its default 1/1000 live in Lean
+// (Fw.Measure.classifyAllU). Totals of census.drawingAreaPx from CI run 39033771018, one frame per run.
+test('classify through the client: pixel areas get the relative bound, the same gap on a count type does not', () => {
+  const tot = [5340886817, 5338843401, 5340887569];
+  const runs = tot.map((v) => ({ frames: [{ counts: { 'census.drawingAreaPx': v, 'census.drawingArea': v } }] }));
+  const c = classify(runs, 4, 24);
+  assert.deepStrictEqual(c['census.drawingAreaPx'], { class: 'stable', k: 1, t: 2044168, unit: 'px', tBound: 5338843 });
+  assert.deepStrictEqual(c['census.drawingArea'], { class: 'quarantined', k: 1, t: 2044168 });
+});
 
 test('zoneSums through the client: the pure.test.mjs seed vector', () => {
   const frames = [

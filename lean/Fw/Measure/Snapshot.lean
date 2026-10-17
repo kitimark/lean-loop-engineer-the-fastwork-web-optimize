@@ -82,7 +82,8 @@ def natSum (l : List Nat) : Nat := l.foldr (· + ·) 0
 
 /-- The census of one snapshot.
 
-$$\begin{aligned} \operatorname{census}(s) = \big(&1,\ |L|,\ |\{l \in L \mid l.\mathrm{draws}\}|,\ \textstyle\sum_{l \in L,\ l.\mathrm{draws}} l.w \cdot l.h,\ \sum_{l \in L} l.\mathrm{tilings},\ s.\mathrm{tileCount},\ |T|,\ |\{t \in T \mid t.\mathrm{solid}\}|,\ \sum_{t \in T} t.w \cdot t.h, \\ &|\{l \in L \mid l.\mathrm{inv} \ne [\,]\}|,\ \textstyle\sum_{l \in L} \lfloor |l.\mathrm{inv}| / 4 \rfloor,\ \sum_{l \in L} \operatorname{area}(l.\mathrm{inv})\big),\quad L = s.\mathrm{layers},\ T = s.\mathrm{tiles} \end{aligned}$$
+$$\begin{aligned} \operatorname{census}(s) = \big[\,&(\texttt{census.snapshots},\ 1),\ (\texttt{census.layers},\ |L|),\ (\texttt{census.drawingLayers},\ |[\,l \in L \mid l.\mathrm{draws}\,]|), \\ &(\texttt{census.drawingAreaPx},\ \textstyle\sum_{l \in L,\ l.\mathrm{draws}} l.w \cdot l.h),\ (\texttt{census.tilings},\ \sum_{l \in L} l.\mathrm{tilings}),\ (\texttt{census.tiles},\ s.\mathrm{tileCount}), \\ &(\texttt{census.activeTiles},\ |T|),\ (\texttt{census.solidTiles},\ |[\,t \in T \mid t.\mathrm{solid}\,]|),\ (\texttt{census.activeTileAreaPx},\ \textstyle\sum_{t \in T} t.w \cdot t.h), \\ &(\texttt{raster.invalidatedLayers},\ |[\,l \in L \mid l.\mathrm{inv} \ne [\,]\,]|),\ (\texttt{raster.invalidationRects},\ \textstyle\sum_{l \in L} \lfloor |l.\mathrm{inv}| / 4 \rfloor), \\ &(\texttt{raster.invalidationAreaPx},\ \textstyle\sum_{l \in L} \operatorname{area}(l.\mathrm{inv}))\,\big],\quad L = s.\mathrm{layers},\ T = s.\mathrm{tiles} \end{aligned}$$
+where $|[\,x \in X \mid P(x)\,]|$ is the length of the filtered list (duplicates counted)
 (the second-to-last entry is computed as $\sum_l |\operatorname{rects}(l.\mathrm{inv})|$, equal by `rects_length`)
 -/
 def census (s : Snap) : List (String × Int) :=
@@ -136,7 +137,7 @@ theorem rects_length : ∀ l : List Int, (rects l).length = l.length / 4
 
 /-- The census names, in order, are the twelve fixed names (every snapshot reports every name).
 
-$$\forall s \in \mathrm{Snap}:\ \operatorname{names}(\operatorname{census}(s)) = [\texttt{census.snapshots}, \dots, \texttt{raster.invalidationAreaPx}]\ (12\ \text{names, independent of } s)$$
+$$\begin{aligned} \forall s \in \mathrm{Snap}:\ \operatorname{names}(\operatorname{census}(s)) = [\,&\texttt{census.snapshots}, \texttt{census.layers}, \texttt{census.drawingLayers}, \texttt{census.drawingAreaPx}, \\ &\texttt{census.tilings}, \texttt{census.tiles}, \texttt{census.activeTiles}, \texttt{census.solidTiles}, \texttt{census.activeTileAreaPx}, \\ &\texttt{raster.invalidatedLayers}, \texttt{raster.invalidationRects}, \texttt{raster.invalidationAreaPx}\,] \end{aligned}$$
 -/
 theorem census_names (s : Snap) : (census s).map (·.1) =
     ["census.snapshots", "census.layers", "census.drawingLayers", "census.drawingAreaPx", "census.tilings",
@@ -145,7 +146,7 @@ theorem census_names (s : Snap) : (census s).map (·.1) =
 
 /-- Drawing layers and invalidated layers are among the layers; solid tiles among the active tiles.
 
-$$\forall s = (c, L, T) \in \mathrm{Snap}:\ |\{l \in L \mid l.\mathrm{draws}\}| \le |L| \ \land\ |\{l \in L \mid l.\mathrm{inv} \ne [\,]\}| \le |L| \ \land\ |\{t \in T \mid t.\mathrm{solid}\}| \le |T|$$
+$$\forall s = (c, L, T) \in \mathrm{Snap}:\ |[\,l \in L \mid l.\mathrm{draws}\,]| \le |L| \ \land\ |[\,l \in L \mid l.\mathrm{inv} \ne [\,]\,]| \le |L| \ \land\ |[\,t \in T \mid t.\mathrm{solid}\,]| \le |T|$$
 -/
 theorem subsets_le (s : Snap) :
     (s.layers.filter (·.draws)).length ≤ s.layers.length ∧
@@ -156,7 +157,7 @@ theorem subsets_le (s : Snap) :
 /-- A layer contributes rects only if its invalidation is non-empty, so a positive rect count
 implies an invalidated layer.
 
-$$\sum_{l \in L} |\operatorname{rects}(l.\mathrm{inv})| > 0 \implies |\{l \in L \mid l.\mathrm{inv} \ne [\,]\}| > 0$$
+$$\forall L \in \mathrm{Layer}^{*}:\ \sum_{l \in L} |\operatorname{rects}(l.\mathrm{inv})| > 0 \implies |[\,l \in L \mid l.\mathrm{inv} \ne [\,]\,]| > 0$$
 -/
 theorem invalidated_of_rects : ∀ ls : List Layer,
     0 < natSum (ls.map fun l => (rects l.invalidation).length) →
@@ -182,7 +183,7 @@ theorem sumBy_nonneg {α : Type} (g : α → Int) : ∀ l : List α, (∀ x ∈ 
 
 /-- The rect area is non-negative when every entry is.
 
-$$(\forall x \in L:\ x \ge 0) \implies \operatorname{area}(L) \ge 0$$
+$$\forall L \in \mathbb{Z}^{*}:\ (\forall x \in L:\ x \ge 0) \implies \operatorname{area}(L) \ge 0$$
 -/
 theorem rectArea_nonneg : ∀ l : List Int, (∀ x ∈ l, 0 ≤ x) → 0 ≤ rectArea l
   | [], _ => by simp [rectArea, rects, sumBy]
@@ -199,6 +200,7 @@ theorem rectArea_nonneg : ∀ l : List Int, (∀ x ∈ l, 0 ≤ x) → 0 ≤ rec
 and invalidation area; the counts are filter lengths, additive by `List.filter_append`).
 
 $$\forall L_1, L_2:\ \Sigma^{\mathrm{draw}}(L_1 \mathbin{+\!\!+} L_2) = \Sigma^{\mathrm{draw}}(L_1) + \Sigma^{\mathrm{draw}}(L_2) \ \land\ \Sigma^{\mathrm{area}}(L_1 \mathbin{+\!\!+} L_2) = \Sigma^{\mathrm{area}}(L_1) + \Sigma^{\mathrm{area}}(L_2) \ \land\ \Sigma^{\mathrm{rects}}(L_1 \mathbin{+\!\!+} L_2) = \Sigma^{\mathrm{rects}}(L_1) + \Sigma^{\mathrm{rects}}(L_2)$$
+where $\Sigma^{\mathrm{draw}}(L) = \sum_{l \in L,\ l.\mathrm{draws}} l.w \cdot l.h$, $\Sigma^{\mathrm{area}}(L) = \sum_{l \in L} \operatorname{area}(l.\mathrm{inv})$ and $\Sigma^{\mathrm{rects}}(L) = \sum_{l \in L} |\operatorname{rects}(l.\mathrm{inv})|$ (in $\mathbb{N}$), for all $L_1, L_2 \in \mathrm{Layer}^{*}$
 -/
 theorem layers_additive (l₁ l₂ : List Layer) :
     sumBy (fun l => if l.draws then l.width * l.height else 0) (l₁ ++ l₂) =

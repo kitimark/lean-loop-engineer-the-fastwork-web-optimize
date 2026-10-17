@@ -526,4 +526,323 @@ theorem classifyAll_sound (p : Policy) (runs : List (List Counts)) :
   obtain ⟨k, _, rfl⟩ := h
   exact classify_sound p _
 
+/-! ## Pixel-area types: a relative total tolerance (SPK-i, contradiction 4)
+
+`tMax = 24` is a bound in count units. A pixel-area census type (`census.activeTileAreaPx`,
+`census.drawingAreaPx`, `raster.invalidationAreaPx`) sums areas of order 10⁶ px per frame, so one
+tile moved by a frame changes its run total by thousands of pixels: on CI the two census areas were
+quarantined by `tMax` alone with k ≤ 2 (spk-i.md). For these types the total-gap bound is
+`max(tMax, ⌊num · m / den⌋)` with `m` the smallest absolute run total, default `num/den = 1/1000`
+(observed on CI at most 382 ppm, i.e. 0.0382 %, so the default leaves a 2.6× headroom). The frame
+bound `kMax` is unchanged, and so is the rule for every other (count) type.
+
+The smallest total (not the largest) keeps the rule monotone in the runs: adding a run can only
+lower `m`, so the bound only shrinks and the class can only move towards quarantined
+(`classifyU_mono`), as for counts (`classify_mono`).
+
+Re-class of the three CI runs of spk-i.md with this rule (fwcore on the downloaded `counts.json`,
+MEASURED): runs 39029423874 / 39031884554 / 39033771018 go from 33/20/9, 31/21/10, 27/25/10 to
+33/22/7, 31/23/8, 27/27/8 (det/stable/quar); in each run exactly the two census areas leave
+quarantine (k ≤ 2, gap ≤ 382 ppm of the smallest total), `raster.invalidationAreaPx` stays stable
+and no count type changes class.
+-/
+
+/-- The unit of a count type's values.
+
+$$\mathrm{Unit} = \{\mathrm{count}, \mathrm{px}\}$$
+-/
+inductive TypeUnit where
+  | count
+  | px
+deriving Repr, DecidableEq
+
+/-- The unit of a type, read from its name: a name ending in `AreaPx` is a pixel area, every other
+name a count.
+
+$$\operatorname{unit}(n) = \begin{cases} \mathrm{px} & n \text{ ends with } \texttt{AreaPx} \\ \mathrm{count} & \text{otherwise} \end{cases}$$
+-/
+def unitOf (name : String) : TypeUnit := if name.endsWith "AreaPx" then .px else .count
+
+#guard unitOf "census.activeTileAreaPx" == .px && unitOf "census.drawingAreaPx" == .px
+#guard unitOf "raster.invalidationAreaPx" == .px
+#guard unitOf "census.activeTiles" == .count && unitOf "trace.Paint" == .count && unitOf "" == .count
+#guard unitOf "census.scrollPx" == .count
+
+/-- The relative tolerance of pixel-area totals, as the fraction `num / den`.
+
+$$\mathrm{PxTol} = (\mathit{num}, \mathit{den}) \in \mathbb{N}^2$$
+-/
+structure PxTol where
+  num : Nat
+  den : Nat
+deriving Repr, DecidableEq
+
+/-- The default pixel-area tolerance, one per mille of the smallest run total.
+
+$$q_0 = (1, 1000)$$
+-/
+def pxTolDefault : PxTol := ⟨1, 1000⟩
+
+/-- The smallest absolute run total (0 for no runs).
+
+$$m(R) = \begin{cases} \min_{r \in R} |\Sigma r| & R \ne [\,] \\ 0 & R = [\,] \end{cases}$$
+-/
+def minAbsTotal : List Series → Nat
+  | [] => 0
+  | [r] => (total r).natAbs
+  | r :: r' :: rs => min (total r).natAbs (minAbsTotal (r' :: rs))
+
+#guard minAbsTotal [] == 0
+#guard minAbsTotal [[5, -9]] == 4
+#guard minAbsTotal [[10], [3, 4], [-8]] == 7
+
+/-- The total-gap bound of a type: `tMax` for counts, and for pixel areas the larger of `tMax` and
+the fraction `num / den` (rounded down) of the smallest absolute run total.
+
+$$\operatorname{tb}_{p,q}(u, R) = \begin{cases} t_{\max} & u = \mathrm{count} \\ \max\big(t_{\max},\ \lfloor q.\mathit{num} \cdot m(R) / q.\mathit{den} \rfloor\big) & u = \mathrm{px} \end{cases}\qquad (\lfloor x / 0 \rfloor := 0)$$
+-/
+def tBound (p : Policy) (q : PxTol) : TypeUnit → List Series → Nat
+  | .count, _ => p.tMax
+  | .px, rs => max p.tMax (q.num * minAbsTotal rs / q.den)
+
+/-- The policy a type of unit `u` is classified with: the same `kMax`, the gap bound `tBound`.
+
+$$p_{q}(u, R) = \big(k_{\max},\ \operatorname{tb}_{p,q}(u, R)\big)$$
+-/
+def policyFor (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) : Policy :=
+  ⟨p.kMax, tBound p q u rs⟩
+
+/-- **The unit-aware classification**: `classify` under the type's own policy.
+
+$$\operatorname{classify}_{p,q}(u, R) = \operatorname{classify}_{p_q(u, R)}(R) = \begin{cases} \mathrm{det} & k(R) = 0 \\ \mathrm{stable}(k(R), t(R)) & 1 \le k(R) \le k_{\max} \ \land\ t(R) \le \operatorname{tb}_{p,q}(u, R) \\ \mathrm{quar} & \text{otherwise} \end{cases}$$
+-/
+def classifyU (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) : Class :=
+  classify (policyFor p q u rs) rs
+
+-- the CI run totals of census.drawingAreaPx in run 39033771018, as one frame each (k = 1, t = 2044168)
+#guard classify ⟨4, 24⟩ [[5340886817], [5338843401], [5340887569]] == .quarantined
+#guard classifyU ⟨4, 24⟩ pxTolDefault .px [[5340886817], [5338843401], [5340887569]] == .stable 1 2044168
+#guard classifyU ⟨4, 24⟩ pxTolDefault .count [[5340886817], [5338843401], [5340887569]] == .quarantined
+-- 0.1 % of 1000 is 1: a gap of 2 is beyond it but within tMax = 24; a gap of 25 is beyond both
+#guard classifyU ⟨4, 24⟩ pxTolDefault .px [[1000], [1002]] == .stable 1 2
+#guard classifyU ⟨4, 24⟩ pxTolDefault .px [[1000], [1025]] == .quarantined
+-- den = 0 falls back to tMax; k beyond kMax stays quarantined whatever the unit
+#guard classifyU ⟨4, 24⟩ ⟨1, 0⟩ .px [[100000], [100100]] == .quarantined
+#guard classifyU ⟨1, 24⟩ pxTolDefault .px [[1, 0, 2], [0, 1, 2]] == .quarantined
+#guard classifyU ⟨4, 24⟩ pxTolDefault .px [] == .deterministic
+
+/-- **Counts are unaffected.** A count type is classified exactly as before.
+
+$$\forall p, q, R:\ \operatorname{classify}_{p,q}(\mathrm{count}, R) = \operatorname{classify}_p(R)$$
+-/
+theorem classifyU_count (p : Policy) (q : PxTol) (rs : List Series) :
+    classifyU p q .count rs = classify p rs := rfl
+
+/-- The pixel bound is never below `tMax`.
+
+$$\forall p, q, u, R:\ t_{\max} \le \operatorname{tb}_{p,q}(u, R)$$
+-/
+theorem tMax_le_tBound (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) :
+    p.tMax ≤ tBound p q u rs := by
+  cases u with
+  | count => exact Nat.le_refl _
+  | px => exact Nat.le_max_left _ _
+
+/-- The pixel bound without rounding: for `den > 0`, a gap is within it exactly when it is within
+`tMax` or at most `num / den` of the smallest absolute total.
+
+$$\forall p, q, R, t:\ q.\mathit{den} > 0 \implies \big(t \le \operatorname{tb}_{p,q}(\mathrm{px}, R) \iff t \le t_{\max} \ \lor\ t \cdot q.\mathit{den} \le q.\mathit{num} \cdot m(R)\big)$$
+-/
+theorem le_tBound_px_iff (p : Policy) (q : PxTol) (rs : List Series) (t : Nat) (hd : 0 < q.den) :
+    t ≤ tBound p q .px rs ↔ t ≤ p.tMax ∨ t * q.den ≤ q.num * minAbsTotal rs := by
+  simp only [tBound]
+  rw [← Nat.le_div_iff_mul_le hd]
+  generalize q.num * minAbsTotal rs / q.den = d
+  omega
+
+/-- **Monotone in the policy.** A looser policy never gives a stricter class: with `kMax ≤ kMax'`
+and `tMax ≤ tMax'`, the class under the looser policy is at most as strict.
+
+$$\forall p, p', R:\ k_{\max} \le k'_{\max} \ \land\ t_{\max} \le t'_{\max} \;\Rightarrow\; \operatorname{classify}_{p'}(R) \preceq \operatorname{classify}_{p}(R)$$
+-/
+theorem classify_policy_mono {p p' : Policy} (hk : p.kMax ≤ p'.kMax) (ht : p.tMax ≤ p'.tMax)
+    (rs : List Series) : (classify p' rs).le (classify p rs) = true := by
+  apply classify_strictest p' rs _ _ (classify_sound p rs)
+  have h := classify_admissible p rs
+  revert h
+  cases classify p rs with
+  | stable k t => intro h; exact ⟨Nat.le_trans h.1 hk, Nat.le_trans h.2 ht⟩
+  | deterministic => intro _; trivial
+  | quarantined => intro _; trivial
+
+/-- **The pixel rule is never stricter than the count rule.** Classifying any type by its unit
+gives a class at most as strict as the count rule's.
+
+$$\forall p, q, u, R:\ \operatorname{classify}_{p,q}(u, R) \preceq \operatorname{classify}_p(R)$$
+-/
+theorem classifyU_le_classify (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) :
+    (classifyU p q u rs).le (classify p rs) = true :=
+  classify_policy_mono (p := p) (p' := policyFor p q u rs) (Nat.le_refl _)
+    (tMax_le_tBound p q u rs) rs
+
+/-- **Soundness.** The class returned holds for the runs.
+
+$$\forall p, q, u, R:\ \operatorname{Holds}(\operatorname{classify}_{p,q}(u, R), R)$$
+-/
+theorem classifyU_sound (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) :
+    Holds (classifyU p q u rs) rs :=
+  classify_sound _ rs
+
+/-- **Strictest.** Any class the type's policy allows and the runs satisfy is at most as strict as
+the one returned.
+
+$$\forall p, q, u, R, c:\ \operatorname{adm}_{p_q(u, R)}(c) \ \land\ \operatorname{Holds}(c, R) \;\Rightarrow\; \operatorname{classify}_{p,q}(u, R) \preceq c$$
+-/
+theorem classifyU_strictest (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) (c : Class)
+    (hc : Admissible (policyFor p q u rs) c) (h : Holds c rs) : (classifyU p q u rs).le c = true :=
+  classify_strictest _ rs c hc h
+
+/-- Quarantined exactly when the runs are not stable within `kMax` and the type's gap bound.
+
+$$\forall p, q, u, R:\ \operatorname{classify}_{p,q}(u, R) = \mathrm{quar} \iff \neg\operatorname{Holds}\big(\mathrm{stable}(k_{\max}, \operatorname{tb}_{p,q}(u, R)), R\big)$$
+-/
+theorem classifyU_quarantined_iff (p : Policy) (q : PxTol) (u : TypeUnit) (rs : List Series) :
+    classifyU p q u rs = .quarantined ↔ ¬ Holds (.stable p.kMax (tBound p q u rs)) rs :=
+  classify_quarantined_iff _ rs
+
+/-- The smallest absolute total is at most the absolute total of each run.
+
+$$\forall R, r:\ r \in R \;\Rightarrow\; m(R) \le |\Sigma r|$$
+-/
+theorem minAbsTotal_le : ∀ {rs : List Series} {r : Series}, r ∈ rs → minAbsTotal rs ≤ (total r).natAbs
+  | [_], _, h => by simp at h; subst h; simp [minAbsTotal]
+  | a :: b :: rs, r, h => by
+    simp only [minAbsTotal]
+    rcases List.mem_cons.mp h with h | h
+    · subst h; exact Nat.min_le_left _ _
+    · exact Nat.le_trans (Nat.min_le_right _ _) (minAbsTotal_le h)
+
+/-- For runs, the smallest absolute total is the absolute total of one of them.
+
+$$\forall R:\ R \ne [\,] \;\Rightarrow\; \exists r \in R:\ m(R) = |\Sigma r|$$
+-/
+theorem minAbsTotal_mem : ∀ {rs : List Series}, rs ≠ [] → ∃ r ∈ rs, minAbsTotal rs = (total r).natAbs
+  | [r], _ => ⟨r, by simp, rfl⟩
+  | a :: b :: rs, _ => by
+    obtain ⟨r, hr, he⟩ := minAbsTotal_mem (rs := b :: rs) (by simp)
+    simp only [minAbsTotal]
+    by_cases hle : (total a).natAbs ≤ minAbsTotal (b :: rs)
+    · exact ⟨a, by simp, Nat.min_eq_left hle⟩
+    · exact ⟨r, List.mem_cons_of_mem _ hr, by rw [Nat.min_eq_right (by omega), he]⟩
+
+/-- Adding runs never raises the bound: for non-empty `R ⊆ R'` the bound of `R'` is at most that
+of `R`.
+
+$$\forall p, q, u, R, R':\ R \ne [\,] \ \land\ R \subseteq R' \;\Rightarrow\; \operatorname{tb}_{p,q}(u, R') \le \operatorname{tb}_{p,q}(u, R)$$
+-/
+theorem tBound_anti (p : Policy) (q : PxTol) (u : TypeUnit) {rs rs' : List Series} (hne : rs ≠ [])
+    (hs : ∀ r ∈ rs, r ∈ rs') : tBound p q u rs' ≤ tBound p q u rs := by
+  cases u with
+  | count => exact Nat.le_refl _
+  | px =>
+    obtain ⟨r, hr, he⟩ := minAbsTotal_mem hne
+    have hm : minAbsTotal rs' ≤ minAbsTotal rs := he ▸ minAbsTotal_le (hs r hr)
+    have hd := Nat.div_le_div_right (c := q.den) (Nat.mul_le_mul_left q.num hm)
+    simp only [tBound]
+    generalize q.num * minAbsTotal rs' / q.den = a at hd ⊢
+    generalize q.num * minAbsTotal rs / q.den = b at hd ⊢
+    omega
+
+/-- `classify` of no runs is deterministic.
+
+$$\forall p:\ \operatorname{classify}_p([\,]) = \mathrm{det}$$
+-/
+theorem classify_nil (p : Policy) : classify p [] = .deterministic := rfl
+
+/-- **Monotone in the runs.** Classifying a superset of the runs never gives a stricter class, for
+counts and pixel areas alike.
+
+$$\forall p, q, u, R, R':\ R \subseteq R' \;\Rightarrow\; \operatorname{classify}_{p,q}(u, R) \preceq \operatorname{classify}_{p,q}(u, R')$$
+-/
+theorem classifyU_mono (p : Policy) (q : PxTol) (u : TypeUnit) {rs rs' : List Series}
+    (hs : ∀ r ∈ rs, r ∈ rs') : (classifyU p q u rs).le (classifyU p q u rs') = true := by
+  by_cases hne : rs = []
+  · subst hne; rfl
+  · have h1 : (classifyU p q u rs).le (classify (policyFor p q u rs') rs) = true :=
+      classify_policy_mono (p := policyFor p q u rs') (p' := policyFor p q u rs) (Nat.le_refl _)
+        (tBound_anti p q u hne hs) rs
+    exact Class.le_trans h1 (classify_mono _ hs)
+
+/-- **Monotone in the tolerance.** With the same denominator, a larger numerator never gives a
+stricter class.
+
+$$\forall p, q, q', u, R:\ q.\mathit{num} \le q'.\mathit{num} \ \land\ q.\mathit{den} = q'.\mathit{den} \;\Rightarrow\; \operatorname{classify}_{p,q'}(u, R) \preceq \operatorname{classify}_{p,q}(u, R)$$
+-/
+theorem classifyU_tol_mono (p : Policy) {q q' : PxTol} (hn : q.num ≤ q'.num) (hd : q.den = q'.den)
+    (u : TypeUnit) (rs : List Series) : (classifyU p q' u rs).le (classifyU p q u rs) = true := by
+  apply classify_policy_mono (p := policyFor p q u rs) (p' := policyFor p q' u rs) (Nat.le_refl _)
+  cases u with
+  | count => exact Nat.le_refl _
+  | px =>
+    have h := Nat.div_le_div_right (c := q.den) (Nat.mul_le_mul_right (minAbsTotal rs) hn)
+    simp only [policyFor, tBound, ← hd]
+    generalize q.num * minAbsTotal rs / q.den = a at h ⊢
+    generalize q'.num * minAbsTotal rs / q.den = b at h ⊢
+    omega
+
+/-- Classify every count type that occurs in any frame of any run (sorted by name), each under the
+policy of its unit.
+
+$$\operatorname{classifyAll}_{p,q}(\mathcal{R}) = \big[\,(k,\ \operatorname{classify}_{p,q}(\operatorname{unit}(k), R_k),\ k(R_k),\ t(R_k))\,\big]_{k \in \operatorname{keys}(\mathcal{R})},\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}}$$
+-/
+def classifyAllU (p : Policy) (q : PxTol) (runs : List (List Counts)) : List ClassRow :=
+  (keysOf runs.flatten).map fun k =>
+    let rs := runs.map (seriesOf k)
+    ⟨k, classifyU p q (unitOf k) rs, kObs rs, tObs rs⟩
+
+#guard classifyAllU ⟨4, 24⟩ pxTolDefault
+    [[[("a", 1), ("x.AreaPx", 100000)]], [[("a", 30), ("x.AreaPx", 100050)]]] ==
+  [⟨"a", .quarantined, 1, 29⟩, ⟨"x.AreaPx", .stable 1 50, 1, 50⟩]
+
+/-- **Total.** The table has exactly one row per count type, in the order of the keys.
+
+$$\forall p, q, \mathcal{R}:\ [\,k \mid (k, \cdot, \cdot, \cdot) \in \operatorname{classifyAll}_{p,q}(\mathcal{R})\,] = \operatorname{keys}(\mathcal{R})$$
+-/
+theorem classifyAllU_types (p : Policy) (q : PxTol) (runs : List (List Counts)) :
+    (classifyAllU p q runs).map (·.type) = keysOf runs.flatten := by
+  simp [classifyAllU, Function.comp_def]
+
+/-- Each row is the unit-aware classification of its type's series, with the observed maxima.
+
+$$\forall p, q, \mathcal{R}, (k, c, k', t') \in \operatorname{classifyAll}_{p,q}(\mathcal{R}):\ c = \operatorname{classify}_{p,q}(\operatorname{unit}(k), R_k) \ \land\ k' = k(R_k) \ \land\ t' = t(R_k),\quad R_k = [\operatorname{series}_k(r)]_{r \in \mathcal{R}}$$
+-/
+theorem classifyAllU_row (p : Policy) (q : PxTol) (runs : List (List Counts)) :
+    ∀ row ∈ classifyAllU p q runs, let rs := runs.map (seriesOf row.type)
+      row.cls = classifyU p q (unitOf row.type) rs ∧ row.k = kObs rs ∧ row.t = tObs rs := by
+  intro row h
+  simp only [classifyAllU, List.mem_map] at h
+  obtain ⟨k, _, rfl⟩ := h
+  exact ⟨rfl, rfl, rfl⟩
+
+/-- **Count rows are unchanged.** When no type is a pixel area, the table is the count table.
+
+$$\forall p, q, \mathcal{R}:\ (\forall k \in \operatorname{keys}(\mathcal{R}):\ \operatorname{unit}(k) = \mathrm{count}) \;\Rightarrow\; \operatorname{classifyAll}_{p,q}(\mathcal{R}) = \operatorname{classifyAll}_p(\mathcal{R})$$
+-/
+theorem classifyAllU_eq_of_counts (p : Policy) (q : PxTol) (runs : List (List Counts))
+    (h : ∀ k ∈ keysOf runs.flatten, unitOf k = .count) : classifyAllU p q runs = classifyAll p runs := by
+  simp only [classifyAllU, classifyAll]
+  apply List.map_congr_left
+  intro k hk
+  simp [h k hk, classifyU_count]
+
+/-- Each row's class holds for that type's series over all the runs.
+
+$$\forall p, q, \mathcal{R}, (k, c, \cdot, \cdot) \in \operatorname{classifyAll}_{p,q}(\mathcal{R}):\ \operatorname{Holds}(c, [\operatorname{series}_k(r)]_{r \in \mathcal{R}})$$
+-/
+theorem classifyAllU_sound (p : Policy) (q : PxTol) (runs : List (List Counts)) :
+    ∀ row ∈ classifyAllU p q runs, Holds row.cls (runs.map (seriesOf row.type)) := by
+  intro row h
+  rw [(classifyAllU_row p q runs row h).1]
+  exact classifyU_sound _ _ _ _
+
 end Fw.Measure
