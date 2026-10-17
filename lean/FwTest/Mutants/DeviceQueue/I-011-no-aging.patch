@@ -1,0 +1,13 @@
+Design mutant (m0-mutants, PLAN V-r): v1 I-011 class: no aging, so a low-priority job waits forever behind newer urgent ones.
+
+--- a/Fw/Spec/DeviceQueue.lean
++++ b/Fw/Spec/DeviceQueue.lean
+@@ -35,7 +35,7 @@
+ Edge: $\dot-$ is truncated subtraction on $\mathbb{N}$; a time before the enqueue time counts as no
+ waiting.
+ -/
+-def eff (t : Nat) (j : Job) : Nat := j.base - min j.base ((t - j.enq) / A)
++def eff (t : Nat) (j : Job) : Nat := j.base
+ 
+ /-- `j` goes no later than `k` at time `t`: lower effective priority first, ties by arrival order.
+ 
