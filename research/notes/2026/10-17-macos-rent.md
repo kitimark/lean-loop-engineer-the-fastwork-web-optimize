@@ -1,0 +1,36 @@
+---
+title: macOS compute cheaper than GitHub larger runners (rental, CI vendors, self-hosted)
+date: 2026-10-17
+status: CONFIRMED
+---
+
+# macOS compute for the WebKit lanes: what costs less than GitHub xlarge
+
+Workflow `macos-rent`: three researcher sweeps (rental, CI vendors, self-hosted) and one adversarial check that re-opened the pricing pages on 2026-10-17. Context: standard GitHub macOS runners are free on this public repo but overloaded; `xcode-27-xlarge` costs $0.102/min and the user decided never to pay for runners (2026-10-17). Prices ex VAT; per-month figures assume ~300 jobs of 15 min.
+
+## Checked answer
+
+Verdict: changes-requested (mostly right; fixes below). Yes, cheaper exists. (a) $0: GitHub standard runners (free, overloaded) or self-hosted on owned Mac in throwaway Tart VM (blocked: 18 GiB free vs ~85 GB image). (b) Paid, under xlarge $0.102/min: Bitrise Build Hub ~$0.03/min (cheapest/min; $15-180 tiers; org; Xcode 27 UNKNOWN), Namespace $0.04-0.06, Blacksmith/WarpBuild $0.08 (Blacksmith has macos-27 label; org only). Flat: OakHost EUR 80-95/mo (stock risk), Scaleway EUR 115/mo or EUR 4.08/day (24 h min). At 300 jobs/mo all beat xlarge $459. Risk: none of the paid runners is GitHub's xlarge, so we must re-baseline. Self-hosted on a public repo lets fork-PR code run on our machine. Lock it down: no pull_request trigger for that label (dispatch/ci/* only), approve all outside contributors, ephemeral JIT runner in a fresh Tart VM, no secrets or home dir. Sources seen 2026-10-17.
+
+## Ranked options
+
+| Option | Per job | Per month | Fit | Risk | Status | Source |
+|---|---|---|---|---|---|---|
+| (a1) GitHub standard macOS runner | $0 | $0 | Native, xcode-27 image already used | Overload: 120 s boot median, stalls | CONFIRMED | https://docs.github.com/en/billing/reference/actions-runner-pricing |
+| (a2) Own Mac + Tart ephemeral VM, pinned image digest | ~$0.003 power | ~$1 | Self-hosted GHA runner; Xcode 27 and 26.5 images exist | Disk blocks it today; public-repo fork code; CLAUDE.md bars measuring on this Mac | INFERRED | https://docs.github.com/en/actions/reference/security/secure-use |
+| (b1) Bitrise Build Hub M4 Large | $0.45 ($0.03/min) | $180 tier for 4,500 min (6,000 min pool) | runs-on drop-in; GitHub Org/Enterprise only | Xcode 27/iOS 27 UNKNOWN; personal repo must move to org; overage UNKNOWN | INFERRED | https://bitrise.io/pricing ; https://bitrise.io/platform/build-hub |
+| (b2) OakHost dedicated M1 16GB / M2 16GB | n/a monthly (~EUR 0.27 at 300) | EUR 80 / EUR 95 ex VAT | Root + KVM, self-install runner + Tart | Page banner says all unavailable; minimum term UNKNOWN; self-hosted hardening | CONFIRMED | https://www.oakhost.com/mac-mini-hosting |
+| (b3) Scaleway M2-M 16GB (or M4-SP 512GB) | EUR 4.08 per day used (24 h min); EUR 0.41/job at 10/day | EUR 115 (M4-SP EUR 165); ~EUR 41 if 10 batched days | Bare metal, self-install runner | 24 h minimum; macOS version list UNKNOWN; 256 GB disk tight | CONFIRMED | https://www.scaleway.com/en/pricing/apple-silicon/ ; https://www.scaleway.com/en/docs/apple-silicon/faq/ |
+| (b4) Namespace 4 vCPU 7GB / 6 vCPU 14GB | $0.90 / $1.35 pay-as-you-go | $270 / $405 PAYG; ~$220 / ~$355 on Team $100 | Drop-in; macos.version=27.x gives Xcode 27 | Org support UNKNOWN; 4 vCPU/7GB same size as standard | CONFIRMED | https://namespace.so/pricing ; https://namespace.so/docs/architecture/compute/macos |
+| (b5) Blacksmith 6 vCPU M4 24GB | $1.20 (first 10/mo free) | ~$348 | Drop-in, macos-27 label ships Xcode 27 (beta image) | Orgs only, not personal repos (CONFIRMED) | CONFIRMED | https://www.blacksmith.sh/pricing ; https://docs.blacksmith.sh/introduction/quickstart |
+| Not cheaper / out: AWS EC2 Mac, Flow Swiss, Buildkite, CircleCI, MacinCloud PAYG, Cirrus Runners | AWS $15.60/day min | >= $199-475 | various | 24 h mins, Sequoia cap, Cirrus closed to new customers | CONFIRMED | https://aws.amazon.com/ec2/dedicated-hosts/pricing/ ; https://warpbuild.com/blog/cirrus-ci-shutting-down |
+
+## Corrections the check made to the sweeps
+
+1 Self-hosted fee did not "start 2026-03-01": GitHub postponed it in 12/2025 and public repos were never in scope (theregister.com/2025/12/17). 2 Cirrus Runners entry 1 "CONFIRMED available": wrong, it takes no new customers since 2026-04. 3 OakHost M4 EUR 115 is out of stock; M6.S EUR 120 is listed; a banner says all unavailable. 4 Namespace: M4 Pro or M5 Max (M5 Max only via support), not "M5 Max mostly". 5 Scaleway: the 24 h minimum is in the FAQ, not the pricing page; M4-SP 512GB EUR 165 is missing. 6 Bitrise: the month costs the $180 tier, not $135; the page says Org/Enterprise. 7 AWS hourly rates are not on the cited dedicated-hosts page (24 h min is). 8 WarpBuild macos-latest = macOS 15.
+
+## Sweep notes
+
+- Seen 2026-10-17. Xcode 27 needs macOS 26.6+. Xcode 26.5 runs on macOS 26.2-26.x, so both lanes fit on one Tahoe 26.6+ host (INFERRED). A rental or self-hosted Mac at about EUR 80-165/mo beats GitHub xlarge ($459 for 300 jobs) and even AWS. Hourly hosts (AWS, Scaleway, Flow) carry Apple's 24 h minimum lease, so batch each day's runs. Public repo: GitHub says self-hosted runners 'should almost never be used' on public repos, because a fork PR can edit the workflow to target the runner. To lock it down: approval for all external contributors, self-hosted jobs only on push to ci/* or workflow_dispatch, a JIT runner in a fresh Tart VM pinned by digest per job, no secrets on the host. Self-hosted runner minutes are free on public repos; a $0.002/min fee was postponed.
+- The only free macOS CI is GitHub's own standard runners, which our public repo already gets. Paid drop-ins that cost less than GitHub xlarge ($0.102/min): Bitrise Build Hub (about $0.03/min, INFERRED), Namespace ($0.06-0.09), and Blacksmith, WarpBuild and Depot ($0.08). At 300 jobs a month that is roughly $135-360 per month, not $0. Blacksmith's free allowance covers about 10 jobs/month, CircleCI's about 10, Codemagic's about 33 (own CI). All the drop-ins need a GitHub org; Blacksmith CONFIRMED, others INFERRED. Our repo is user-owned, so moving it to an org is the user's call. Fork-PR risk: on a public repo, any fork PR can run on these runners and spend paid minutes. Lock-down: run macOS jobs only on push to ci/* and workflow_dispatch (never pull_request), require approval for fork PR workflows from all external contributors, and limit the runner group to this repo. Vendor images update in place, so pin the label and log the image version and Xcode build. I wrote no note file: the task said not to edit the repo.
+- Public-repo lockdown (user repo, so no runner groups; those need an org): pick 'Require approval for all external contributors' (Settings > Actions > General). Merged contributors bypass the first-time options. Even an approved fork PR runs its own workflow on our runner, and pull_request_target always runs. Add an ACTIONS_RUNNER_HOOK_JOB_STARTED script that exits non-zero unless the event is push/workflow_dispatch, the ref is refs/heads/ci/*, and the actor is the owner (a non-zero exit means the job does not run). Use one Tart VM per job from a pinned digest, a JIT runner, no secrets, delete the VM after. Never run it on the user's login. Electricity is under $2/month. No note file was written, because the task said no repo edits.
