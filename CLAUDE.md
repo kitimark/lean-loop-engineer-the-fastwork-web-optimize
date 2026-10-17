@@ -27,10 +27,14 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
   the lead.
 
 ## Rules
-- The repo is **private**; only the user pushes. Never add remotes or publish anything.
+- The repo is going **public** (user decision 2026-10-17; MIT for our own code): treat every committed file as
+  public. Only the user pushes `main`, adds remotes and creates repos. Agents may push only `ci/*` branches to
+  `origin` to trigger CI (`git push origin ci/<name>`; never force, never delete, never `main`).
 - **No personal data** in committed files: no emails, names, LAN IPs, device ids, home paths. `.local/` holds
   local-only data (v1 chat digests) and is gitignored; never copy from it verbatim.
-- **No Fastwork code or assets** in git (the original stays in a gitignored local snapshot).
+- **Fastwork material:** Fastwork approved publishing its compiled site, fonts included. Its files enter git only
+  as the unmodified snapshot under `snapshot/` (added by the publish-prep step, source noted); never copy its code
+  into our code, and restate CSS values instead.
 - **Install tools with Homebrew** (`brew install` / `brew install --cask`) when a formula or cask exists; otherwise
   ask the lead first.
 - Claims carry a status: CONFIRMED (source, doc or measurement cited), INFERRED, MEASURED. Read the source code
