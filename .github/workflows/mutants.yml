@@ -31,11 +31,11 @@ on:
       jobs:
         description: mutants.sh workers per shard job (1 to 4; a runner has 4 vCPUs)
         type: string
-        default: '2'
+        default: '3'
       shards:
-        description: Shard jobs (1 to 16)
+        description: Shard jobs (1 to 24)
         type: string
-        default: '8'
+        default: '16'
       limit:
         description: At most this many mutants per shard (0 = all; a smoke run)
         type: string
@@ -65,14 +65,14 @@ jobs:
         id: plan
         env:
           TAG: ${{ inputs.tag || 'ci' }}
-          JOBS: ${{ inputs.jobs || '2' }}
-          SHARDS: ${{ inputs.shards || '8' }}
+          JOBS: ${{ inputs.jobs || '3' }}
+          SHARDS: ${{ inputs.shards || '16' }}
           LIMIT: ${{ inputs.limit || '0' }}
         run: |
           set -euo pipefail
           [[ "$TAG" =~ ^[A-Za-z0-9._-]{1,40}$ ]] || { echo "::error::tag: $TAG"; exit 1; }
           [[ "$JOBS" =~ ^[1-4]$ ]] || { echo "::error::jobs: $JOBS"; exit 1; }
-          [[ "$SHARDS" =~ ^[0-9]+$ ]] && [ "$SHARDS" -ge 1 ] && [ "$SHARDS" -le 16 ] || { echo "::error::shards: $SHARDS"; exit 1; }
+          [[ "$SHARDS" =~ ^[0-9]+$ ]] && [ "$SHARDS" -ge 1 ] && [ "$SHARDS" -le 24 ] || { echo "::error::shards: $SHARDS"; exit 1; }
           [[ "$LIMIT" =~ ^[0-9]+$ ]] || { echo "::error::limit: $LIMIT"; exit 1; }
           {
             echo "shards=[$(seq -s, 0 $((SHARDS - 1)))]"
