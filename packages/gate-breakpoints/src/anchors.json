@@ -156,6 +156,44 @@
           "why": "the part renders nothing and restates no CSS; only the document element's width is compared. If the mark is missing the rewrite count is 0 and the count differs"
         }
       ]
+    },
+    "pain": {
+      "anchors": ["pain"],
+      "cites": ["snapshot 2.gBuqKVzi.css:2166-2250 (section, sticky, hold, canvas, inner, copy), 2299-2357 (reduced-motion pin, <=860)","2.DyWL8TcE.js:4407-4410 (markup), 4749-4825 (render)","rewrite: parts/pain; the notes board inside .pain-inner is the part pain.notes"],
+      "excluded": [{"what":"is-pain-dark and the people flip","why":"the class is toggled on the section by the people part (JS 11324); at the first paint the original has none at <=860 and the dark default above, as the rewrite does"},{"what":"page y of every box","why":"the sections above differ (placeholders), so y is compared relative to the pain section where it is compared at all"}],
+      "roles": [
+        { "role": "section", "orig": "section.pain", "rewrite": "[data-fw=\"pain\"]", "boxRel": null, "dims": ["w","h"], "skipSets": [], "skipProps": ["--font-family-body"],
+          "why": "width and height (sticky 100svh or its content, plus 200svh) are the part's own; --font-family-body is declared on the section in the rewrite (the original inherits it from :root), same stack, different serialisation" },
+        { "role": "sticky", "orig": ".pain > .pain-sticky", "rewrite": "[data-fw=\"pain\"] > div:first-child", "boxRel": {"role":"section","index":0}, "dims": ["x","y","w","h"], "skipSets": [], "skipProps": [],
+          "why": "min-height 100svh, padding 96/56/80 (0 at <=860), flex centring; its position is the section's top" },
+        { "role": "hold", "orig": ".pain > .pain-hold", "rewrite": "[data-fw=\"pain\"] > div:last-child", "boxRel": {"role":"section","index":0}, "dims": ["x","w","h"], "skipSets": [], "skipProps": [],
+          "why": "200svh of hold; y follows the sticky box height and is compared through the section height" },
+        { "role": "canvas", "orig": ".pain-sticky > .pain-canvas", "rewrite": "[data-fw=\"pain\"] > div:first-child > div:first-child", "boxRel": {"role":"sticky","index":0}, "dims": ["x","y","w","h"], "skipSets": [], "skipProps": [],
+          "why": "inset 0 over the sticky box, empty in both arms" },
+        { "role": "inner", "orig": ".pain-sticky > .pain-inner", "rewrite": "[data-fw=\"pain\"] > div:first-child > div:nth-child(2)", "boxRel": {"role":"sticky","index":0}, "dims": ["x","w"], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "max-width 780 centred; its height is the copy plus the notes board and follows the font, so only x and width are compared" },
+        { "role": "copy", "orig": ".pain-inner > .pain-copy", "rewrite": "[data-fw=\"pain\"] [data-fw=\"pain-copy\"]", "boxRel": {"role":"inner","index":0}, "dims": ["x","w"], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "column of the heading and the lead; height follows the font" },
+        { "role": "heading", "orig": ".pain-copy > h2", "rewrite": "[data-fw=\"pain\"] [data-fw=\"pain-copy\"] > h2", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "font size, weight, line-height, letter-spacing, colour and wrap are compared; the box follows the font (Google Sans is not shipped in the rewrite yet)" },
+        { "role": "lead", "orig": ".pain-copy > p", "rewrite": "[data-fw=\"pain\"] [data-fw=\"pain-copy\"] > p", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "font size, line-height and colour are compared; the box follows the font" }
+      ]
+    },
+    "pain.notes": {
+      "anchors": ["pain-notes"],
+      "cites": ["snapshot 2.gBuqKVzi.css:2239-2298 (board, stage, note, stick keyframes), 2344-2356 (<=860), 1167-1172 (reduced motion)","2.DyWL8TcE.js:4411-4748 (script), 4749-4796 (render): the five base notes appear on the first frame after mount and keep their layout until the 3 s tick adds extras, which needs the board 12 % visible; the gate loads at the top, so only the base notes exist","rewrite: parts/pain.notes; randomness is a seeded stream (delta), the base layout is not random"],
+      "excluded": [{"what":"extra notes (the 3 s tick) and the drag","why":"decided by the Lean spec (Fw.Parts.PainNotes: tick, place, drag) and checked by golden vectors; the gate loads at the top where the board is not visible"},{"what":"animation properties","why":"skipped for every part by the style skipPrefixes (the keyframes name is hashed in the rewrite)"}],
+      "roles": [
+        { "role": "board", "orig": ".pain-inner > .pain-notes", "rewrite": "[data-fw=\"pain-notes\"]", "boxRel": null, "dims": ["w","h"], "skipSets": [], "skipProps": [],
+          "why": "aspect-ratio 780/528, width 100% up to 780 px, display none at <=860; the rect is zero in both arms there" },
+        { "role": "stage", "orig": ".pain-notes > .pain-notes-stage", "rewrite": "[data-fw=\"pain-notes\"] > div", "boxRel": {"role":"board","index":0}, "dims": ["x","y","w","h"], "skipSets": [], "skipProps": [],
+          "why": "fills the board" },
+        { "role": "note", "orig": ".pain-notes-stage > .pain-note", "rewrite": "[data-fw=\"pain-notes\"] [role=\"button\"]", "boxRel": {"role":"stage","index":0}, "dims": ["x","y","w","h"], "skipSets": [], "skipProps": [],
+          "why": "count (5 at >=861, 0 at <=860) and each note's rect inside the stage: 240 px boxes rotated by the note's angle, at the percent position of the base layout (Lean baseLayout)" },
+        { "role": "text", "orig": ".pain-note > p", "rewrite": "[data-fw=\"pain-notes\"] [role=\"button\"] > p", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "font size (clamp 14 / 2.2vw / 20, 16 at <=860), line-height 1.25, colour and font stack are compared; the box follows the font (Playpen Sans is not shipped in the rewrite yet)" }
+      ]
     }
   }
 }

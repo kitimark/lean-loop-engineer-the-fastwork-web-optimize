@@ -342,7 +342,15 @@ def pilotParts : List PartUse := [
   { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
     extra := [], knees := [],
     dismissed := [
-      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] }
+      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] },
+  { id := "pain", owners := ["pain"], orig := ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-860"],
+    rewrite := ["mq.rm-nopref", "mq.w-le-860"], extra := [], knees := [], dismissed := [] },
+  { id := "pain.notes", owners := ["pain.notes"], orig := ["mq.rm-reduce", "mq.w-le-860", "mq.c860"],
+    rewrite := ["mq.rm-reduce", "mq.w-le-860", "mq.c860"], extra := [],
+    knees := [⟨"pain note padding clamp 12 / 2.6vw / 20", 462⟩, ⟨"pain note padding clamp 12 / 2.6vw / 20", 769⟩,
+              ⟨"pain note text clamp 14 / 2.2vw / 20", 636⟩, ⟨"pain note text clamp 14 / 2.2vw / 20", 909⟩],
+    dismissed := [
+      ("js.pain-container-1100", "the stage is at most 780 px wide (Fw.Parts.Pain.stageW_lt_split), so the 1100 px test always takes the jittered placement: no viewport width reaches the other branch")] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.

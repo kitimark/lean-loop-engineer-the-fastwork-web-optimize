@@ -61,7 +61,7 @@ export function App({ config }: { config: FwConfig }) {
         <HeroExit variant={config.variants['hero.exit'] ?? 'faithful'} />
 
         <People variant={config.variants['people'] ?? 'shell'} />
-        <Pain variant={config.variants['pain'] ?? 'shell'} />
+        <Pain variant={config.variants['pain'] ?? 'faithful'} notesVariant={config.variants['pain.notes'] ?? 'faithful'} />
         <Commission variant={config.variants['commission'] ?? 'shell'} />
         <Platform variant={config.variants['platform'] ?? 'shell'} />
         <MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} />
