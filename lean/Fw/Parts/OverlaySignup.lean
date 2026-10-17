@@ -289,14 +289,14 @@ def emailOk (s : List Char) : Bool :=
 /-- Form validity (`iD`). $$\operatorname{valid}(n, m) \iff \operatorname{trim}(n) \ne \varepsilon \land \operatorname{email}(\operatorname{trim}(m))$$ -/
 def valid (name email : List Char) : Bool := !(trim name).isEmpty && emailOk (trim email)
 
-#guard valid "Ann".toList "a\x40b.co".toList
-#guard !valid "".toList "a\x40b.co".toList
-#guard !valid "  ".toList "a\x40b.co".toList
+#guard valid "Ann".toList "a\x40example.com".toList
+#guard !valid "".toList "a\x40example.com".toList
+#guard !valid "  ".toList "a\x40example.com".toList
 #guard !valid "Ann".toList "a@b".toList
 #guard !valid "Ann".toList "a\x40.co".toList
 #guard !valid "Ann".toList "a\x40b.".toList
-#guard !valid "Ann".toList "a b\x40c.de".toList
-#guard !valid "Ann".toList "a\x40\x40c.de".toList
+#guard !valid "Ann".toList "a b\x40example.com".toList
+#guard !valid "Ann".toList "a\x40\x40example.com".toList
 #guard valid " Ann ".toList " a\x40b.c.d ".toList
 
 /-- A blank name is never valid. $$\operatorname{trim}(n) = \varepsilon \Rightarrow \lnot\operatorname{valid}(n, m)$$ -/

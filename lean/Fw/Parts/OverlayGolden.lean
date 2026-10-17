@@ -131,10 +131,10 @@ def signupLines : List String :=
   ([false, true].map fun b => line "closeAllowed" [("submitting", .bool b)] (.bool (closeAllowed b))) ++
   ([false, true].flatMap fun a => [false, true].map fun b =>
     line "sync" [("isOpen", .bool a), ("domOpen", .bool b)] (.str (syncName (sync a b)))) ++
-  (([("Ann", "a\x40b.co"), ("", "a\x40b.co"), ("  ", "a\x40b.co"), ("Ann", "a@b"), ("Ann", "a\x40.co"), ("Ann", "a\x40b."),
-     ("Ann", "a b\x40c.de"), ("Ann", "a\x40\x40c.de"), (" Ann ", " a\x40b.c.d "), ("Ann", "\x40b.co"), ("Ann", "a\x40b.c"),
-     ("Ann", "a\x40b..c"), ("Ann", ""), ("Ann", "a\x40b.c\x40d"), ("Ann", "a \x40b.co"), ("　", "a\x40b.co"),
-     ("Ann", "ปก\x40b.co"), ("Ann", "a\x40b.co ")] : List (String × String)).map fun (n, e) =>
+  (([("Ann", "a\x40example.com"), ("", "a\x40example.com"), ("  ", "a\x40example.com"), ("Ann", "a@b"), ("Ann", "a\x40.co"), ("Ann", "a\x40b."),
+     ("Ann", "a b\x40example.com"), ("Ann", "a\x40\x40example.com"), (" Ann ", " a\x40b.c.d "), ("Ann", "\x40example.com"), ("Ann", "a\x40b.c"),
+     ("Ann", "a\x40b..c"), ("Ann", ""), ("Ann", "a\x40b.c\x40d"), ("Ann", "a \x40example.com"), ("　", "a\x40example.com"),
+     ("Ann", "ปก\x40example.com"), ("Ann", "a\x40example.com ")] : List (String × String)).map fun (n, e) =>
     line "valid" [("name", .str n), ("email", .str e)] (.bool (valid n.toList e.toList))) ++
   (let forms : List Form := [Form.init, ⟨true, false, false⟩, ⟨false, true, false⟩, ⟨false, false, true⟩]
    forms.flatMap fun f => [false, true].flatMap fun v => [false, true].map fun h =>
