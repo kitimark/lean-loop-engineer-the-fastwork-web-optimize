@@ -1,0 +1,13 @@
+{
+  "name": "@fw/measure-wktr",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WebKitTestRunner (prebuilt iOS-simulator archive) restyle counts: internals.lastStyleUpdateSize with styleRecalcCount per scroll step",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "run": "node src/cli.mjs run",
+    "classify": "node ../measure-chromium/src/classify.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "revision": "324039@main",
+  "commit": "e1c510bc7fae8b20c296f2bcc3aeac3c5c8df578",
+  "url": "https://s3-us-west-2.amazonaws.com/minified-archives.webkit.org/ios-simulator-26-x86_64-arm64-release/324039%40main.zip",
+  "bytes": 315035677,
+  "sha256": "5035786f47c7740e73253cb0378039298ed95aa4b2246da40887b2571badee55",
+  "xcode": "26.5 (17F42)",
+  "runtime": "iOS 26.5",
+  "buildRoot": "Release-iphonesimulator",
+  "app": "WebKitTestRunnerApp.app",
+  "bundleId": "org.webkit.WebKitTestRunnerApp"
+}
