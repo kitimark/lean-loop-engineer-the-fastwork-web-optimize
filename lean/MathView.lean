@@ -1,4 +1,5 @@
 import Lean
+import Fw.Spec.AxReach
 /-!
 # Math view (ported from the kickoff scratch `04-mathview`, note 10/04)
 
@@ -247,9 +248,47 @@ def dataBinders (ci : ConstantInfo) : MetaM (List String) :=
       out := out ++ [d.userName.toString]
     return out
 
-/-- The export of one declaration (`none` when it is not a math-view entry). -/
-def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc : Option String) :
-    MetaM (Option Entry) := do
+/-! ## Axioms: one memo shared by all entries (spec and proofs: `Fw.Spec.AxReach`)
+
+`collectAxioms` starts every call from an empty cache, and with `loadExts := false` its per-module table is empty
+too, so each entry re-walked its whole closure (96 % of the lint, research/notes/2026/10-18-land-speed.md). Here the
+walk is `Fw.AxReach.query` over the same graph with one memo for the whole export; `Fw.AxReach.query_exact` proves
+each result is exactly the reachable axioms, the set the old per-call walk returned. -/
+
+/-- The constants `c` mentions, in the cases of Lean's `CollectAxioms.collect`
+(Lean/Util/CollectAxioms.lean:56-67 @ v4.35.0): type and value of a definition, theorem or opaque; the type of an
+axiom, constructor or recursor; the type and the constructors of an inductive; nothing for `Quot` or an unknown name.
+
+$$\mathit{succ}(c) = \begin{cases} \mathrm{consts}(\tau_c) \mathbin{+\!\!+} \mathrm{consts}(v_c) & c \text{ a def,
+theorem or opaque} \\ \mathrm{consts}(\tau_c) \mathbin{+\!\!+} \mathrm{ctors}(c) & c \text{ an inductive} \\ [\,] &
+c \text{ a quotient primitive or unknown} \\ \mathrm{consts}(\tau_c) & \text{otherwise} \end{cases}$$
+where $\tau_c$, $v_c$ and $\mathrm{ctors}(c)$ are the type, value and constructors of $\mathit{kenv}(c)$.
+-/
+def axSucc (kenv : Kernel.Environment) (c : Name) : List Name :=
+  match kenv.find? c with
+  | some (.axiomInfo v) => v.type.getUsedConstants.toList
+  | some (.defnInfo v) => (v.type.getUsedConstants ++ v.value.getUsedConstants).toList
+  | some (.thmInfo v) => (v.type.getUsedConstants ++ v.value.getUsedConstants).toList
+  | some (.opaqueInfo v) => (v.type.getUsedConstants ++ v.value.getUsedConstants).toList
+  | some (.quotInfo _) => []
+  | some (.ctorInfo v) => v.type.getUsedConstants.toList
+  | some (.recInfo v) => v.type.getUsedConstants.toList
+  | some (.inductInfo v) => v.type.getUsedConstants.toList ++ v.ctors
+  | none => []
+
+/-- Is `c` declared as an axiom in the kernel environment?
+
+$$\mathit{isAx}(c) = \mathrm{true} \iff \mathit{kenv}(c) = \mathrm{axiomInfo}(\_)$$
+(false for an unknown name and for every other kind)
+-/
+def axIsAx (kenv : Kernel.Environment) (c : Name) : Bool :=
+  match kenv.find? c with
+  | some (.axiomInfo _) => true
+  | _ => false
+
+/-- The export of one declaration (`none` when it is not a math-view entry); `axs` are its axioms, sorted. -/
+def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc : Option String)
+    (axs : Array Name) : MetaM (Option Entry) := do
   let line := ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
   if line == 0 || (← isInstance n) || (← isProjectionFn n) then return none
   let start ← IO.getNumHeartbeats
@@ -265,7 +304,6 @@ def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc
       latex (eqnTy?.getD ci.type)) with
     | .ok t => pure t
     | .error _ => pure "?"
-  let axs ← collectAxioms n
   let binders ← match ci with
     | .thmInfo _ => dataBinders ci
     | _ => pure []
@@ -278,7 +316,13 @@ def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc
 def entries : MetaM (Array Entry) := do
   let env ← getEnv
   let mut out := #[]
-  for (n, ci) in env.constants.toList do
+  -- the kernel view `collectAxioms` reads (Lean/Util/CollectAxioms.lean:56,151 @ v4.35.0)
+  let kenv := (env.setExporting false).toKernelEnv
+  let consts := env.constants.toList
+  -- the search stack holds distinct constants, so its depth stays below their number (+1 for an unknown leaf)
+  let fuel := consts.length + 2
+  let mut memo : Std.HashMap Name (List Name) := {}
+  for (n, ci) in consts do
     if skip env n ci then continue
     let some modIdx := env.getModuleIdxFor? n | continue
     let mod := env.header.moduleNames[modIdx.toNat]!
@@ -287,7 +331,12 @@ def entries : MetaM (Array Entry) := do
     -- derived-instance helpers (`instReprWork.repr`, `instToJsonCmd.toJson`, ...)
     if n.components.any (fun c => c.toString.startsWith "inst") then continue
     -- one declaration can never crash the export: its failure becomes a lint failure with its name
-    match ← bounded declBudget (entryOf env n ci mod doc) with
+    -- sorted like `collectAxioms`; out of fuel (not expected, see `fuel`) falls back to the old per-call walk
+    let mut axs : Array Name := #[]
+    match Fw.AxReach.query (axSucc kenv) (axIsAx kenv) fuel memo n with
+    | some (s, m') => memo := m'; axs := s.toArray.qsort Name.lt
+    | none => axs ← collectAxioms n
+    match ← bounded declBudget (entryOf env n ci mod doc axs) with
     | .ok none => pure ()
     | .ok (some e) => out := out.push e
     | .error msg =>

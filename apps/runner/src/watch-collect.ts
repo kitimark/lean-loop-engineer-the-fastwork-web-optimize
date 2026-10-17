@@ -4,7 +4,7 @@
 // Privacy: only names, counts, ids and times are read out of the files; payload text is never kept.
 import { execFile } from "node:child_process";
 import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg } from "node:os";
 import { basename, dirname, join } from "node:path";
 
@@ -67,8 +67,10 @@ export interface Snapshot {
 
 // SCOPE (collection only, not health decisions): an agent with no SubagentStop and no activity for 24 h is
 // treated as ended (its hooks never fired Stop); ended agents are dropped from the snapshot 1 h after they ended,
-// unless their worktree directory still exists (retention is Fw.Obs.Next.keepB; this pre-filter only skips agents
-// that rule would also drop: no worktree, hence no open branch/child/CI/respawn is observable for them).
+// unless their worktree directory still exists or their transcript shows a background id launched within 24 h
+// with no end (retention is Fw.Obs.Next.keepB; this pre-filter only skips agents that rule would also drop: no
+// worktree and no pending id, hence no open branch/child/CI/respawn/signal is observable for them). meta.finished
+// is never used for retention.
 // A failed gh/docker collector carries the previous check's value forward only if that check is <= 1 h old.
 export const SCOPE = { ghostMs: 24 * 3600_000, keepDoneMs: 3600_000, carryMs: 3600_000 };
 
@@ -146,7 +148,9 @@ export function summarizeLead(events: SpoolEvent[]): LeadSnap {
 }
 
 /** Summarize one subagent transcript (+ meta). Only usage numbers, model, tool names/ids and times are kept. */
-export function summarizeTranscript(jsonl: string, meta: Record<string, unknown> | null): TranscriptInfo {
+/** `metaAt`: the mtime of the meta file. A `meta.finished` is stale (ignored) on a resumed agent: when a tool call is
+ *  still open or the transcript has records more than 1 s after the meta was written. */
+export function summarizeTranscript(jsonl: string, meta: Record<string, unknown> | null, metaAt: number | null = null): TranscriptInfo {
   const info: TranscriptInfo = {
     name: str(meta?.name), task: str(meta?.description), type: str(meta?.agentType), model: null,
     teammate: (str(meta?.taskKind) ?? "").includes("teammate"), workflowPhase: meta?.workflowPhase != null,
@@ -187,7 +191,14 @@ export function summarizeTranscript(jsonl: string, meta: Record<string, unknown>
           if (info.lastToolAt === null || t >= info.lastToolAt) { info.lastTool = tool; info.lastToolAt = t; }
           if (o.type === "assistant" && (tool === "Agent" || tool === "Task")) info.agentCalls.push(c.id); // a child's meta.toolUseId
         }
-        else if (c?.type === "tool_result" && typeof c.tool_use_id === "string") { if (open.get(c.tool_use_id)?.tool === "StructuredOutput") structDone = true; open.delete(c.tool_use_id); if (c.is_error === true) info.toolErrors++; }
+        else if (c?.type === "tool_result" && typeof c.tool_use_id === "string") {
+          const tool = open.get(c.tool_use_id)?.tool;
+          if (tool === "StructuredOutput") structDone = true;
+          // a workflow agent's Bash result names its background id only in the text
+          const tb = !bg && tool === "Bash" ? BG_TEXT.exec(textOf(c.content))?.[1] : undefined;
+          if (tb && !info.bgTasks.includes(tb)) info.bgTasks.push(tb);
+          open.delete(c.tool_use_id); if (c.is_error === true) info.toolErrors++;
+        }
       }
       endedTurn = o.type === "assistant" && !hasUse && m.content.some((c: any) => c?.type === "text");
     }
@@ -198,10 +209,209 @@ export function summarizeTranscript(jsonl: string, meta: Record<string, unknown>
   }
   if (lastUsage) info.ctxTokens = num(lastUsage.input_tokens) + num(lastUsage.cache_read_input_tokens) + num(lastUsage.cache_creation_input_tokens);
   info.endedTurn = (endedTurn || structDone) && open.size === 0;
+  if (info.finished && (open.size > 0 || (metaAt !== null && info.lastAt !== null && info.lastAt > metaAt + 1000))) info.finished = false;
   let last: { tool: string; at: number } | null = null;
   for (const v of open.values()) if (!last || v.at >= last.at) last = v;
   if (last) info.inflight = { tool: last.tool, verb: null, since: last.at };
   return info;
+}
+
+// ---- transcript signals: the facts of Fw.Obs.Signals (the state itself is fwcore's `obs.signals`) ----
+/** How an end of a background id was seen (Fw.Obs.Signals.How). */
+export type SigEnd = { id: string; time: number; how: "notified" | "killed" } | { id: string; time: number; how: "exited"; code: number };
+export type SigProcKind = "stdin" | "sleepLoop" | "other";
+/** Wire shape of Fw.Obs.Signals.Facts (times in ms). */
+export interface SigFacts {
+  agent: string; launched: { id: string; time: number }[]; ends: SigEnd[]; bounds: { time: number; start: boolean }[];
+  handbacks: number[]; notices: { time: number; finished: boolean }[]; procs: { id: string; pid: number; kind: SigProcKind }[];
+  metaFinished: number[];
+}
+/** Signals read from one transcript, plus what the collector needs to finish them: the command text of each Bash
+ *  background id (kept in memory to classify its live process, never written out), the output file of each id,
+ *  whether a tool call is still open, and the time of the last record. */
+export interface TranscriptSignals { facts: SigFacts; commands: Map<string, string>; outputs: Map<string, string>; openCall: boolean; lastAt: number | null }
+
+const BG_TEXT = /(?:running in background with ID:|moved to the background \(ID:)\s*([A-Za-z0-9]+)/;
+const OUT_TEXT = /Output is being written to:\s*(\S+?\.output)\b/;
+/** One `<task-notification>`: task id, status, summary, output file. */
+export interface TaskNote { id: string; status: string; summary: string; outputFile: string | null }
+/** Every `<task-notification>` block in a text. */
+export function parseNotifications(text: string): TaskNote[] {
+  const out: TaskNote[] = [];
+  for (const m of text.matchAll(/<task-notification>([^]*?)<\/task-notification>/g)) {
+    const tag = (k: string) => new RegExp(`<${k}>([^]*?)</${k}>`).exec(m[1]!)?.[1]?.trim() ?? null;
+    const id = tag("task-id");
+    if (id) out.push({ id, status: tag("status") ?? "", summary: tag("summary") ?? "", outputFile: tag("output-file") });
+  }
+  return out;
+}
+/** A notification that only says the agent stopped with its own background work still running: not an end. */
+export const waitingNote = (n: TaskNote) => /waiting on its own background work/.test(n.summary);
+const noteEnd = (n: TaskNote, time: number): SigEnd => ({ id: n.id, time, how: n.status === "killed" ? "killed" : "notified" });
+const textOf = (c: unknown): string =>
+  typeof c === "string" ? c : Array.isArray(c) ? c.map((x: any) => (typeof x === "string" ? x : typeof x?.text === "string" ? x.text : textOf(x?.content))).join("\n") : "";
+
+/** The signal facts of one agent's transcript: background ids launched (Bash `backgroundTaskId`, the text form of a
+ *  workflow agent's Bash result matched by tool_use_id, async child agents), their end notifications, the turn
+ *  boundaries (START: first record and every user record with a top-level `origin`; END: `end_turn` and every
+ *  `toolEndsTurn` result) and the handbacks (an accepted `SubagentHandback` / `StructuredOutput` result). */
+export function signalsOf(agent: string, jsonl: string): TranscriptSignals {
+  const facts: SigFacts = { agent, launched: [], ends: [], bounds: [], handbacks: [], notices: [], procs: [], metaFinished: [] };
+  const commands = new Map<string, string>(), outputs = new Map<string, string>();
+  const uses = new Map<string, { name: string; command: string | null }>();
+  const open = new Set<string>();
+  const launched = new Set<string>(), ended = new Set<string>();
+  let lastAt: number | null = null;
+  const launch = (id: string, time: number, command: string | null) => {
+    if (launched.has(id)) return;
+    launched.add(id); facts.launched.push({ id, time });
+    if (command) commands.set(id, command);
+  };
+  for (const line of jsonl.split("\n")) {
+    if (!line) continue;
+    let o: any;
+    try { o = JSON.parse(line); } catch { continue; }
+    const t0 = typeof o.timestamp === "string" ? Date.parse(o.timestamp) : NaN;
+    if (!Number.isFinite(t0)) continue;
+    const at = Math.floor(t0);
+    if (lastAt === null) facts.bounds.push({ time: at, start: true });
+    lastAt = Math.max(lastAt ?? 0, at);
+    const m = o.message;
+    if (o.type === "user" && o.origin && typeof o.origin === "object") facts.bounds.push({ time: at, start: true });
+    if (o.type === "assistant" && m?.stop_reason === "end_turn") facts.bounds.push({ time: at, start: false });
+    if (o.type === "attachment" && o.attachment?.type === "queued_command") {
+      for (const n of parseNotifications(textOf(o.attachment.prompt))) {
+        if (n.outputFile) outputs.set(n.id, n.outputFile);
+        if (!waitingNote(n) && !ended.has(n.id)) { ended.add(n.id); facts.ends.push(noteEnd(n, at)); }
+      }
+    }
+    if ((o.type === "assistant" || o.type === "user") && Array.isArray(m?.content)) {
+      for (const c of m.content) {
+        if (c?.type === "tool_use" && typeof c.id === "string") {
+          uses.set(c.id, { name: String(c.name ?? ""), command: typeof c.input?.command === "string" ? c.input.command : null });
+          open.add(c.id);
+        } else if (c?.type === "tool_result" && typeof c.tool_use_id === "string") {
+          open.delete(c.tool_use_id);
+          const u = uses.get(c.tool_use_id);
+          const txt = textOf(c.content);
+          const bg = str(o.toolUseResult?.backgroundTaskId) ?? (u?.name === "Bash" ? BG_TEXT.exec(txt)?.[1] ?? null : null);
+          if (bg) {
+            launch(bg, at, u?.command ?? null);
+            const f = OUT_TEXT.exec(txt)?.[1];
+            if (f) outputs.set(bg, f);
+          }
+          const child = o.toolUseResult?.status === "async_launched" ? str(o.toolUseResult?.agentId) : null;
+          if (child) launch(child, at, null);
+          if (o.toolEndsTurn === true) {
+            facts.bounds.push({ time: at, start: false });
+            if (u && /(?:SubagentHandback|StructuredOutput)$/.test(u.name) && o.toolUseResult?.success !== false) facts.handbacks.push(at);
+          }
+        }
+      }
+    } else if (o.type === "user" && typeof m?.content === "string" && o.origin?.kind === "task-notification") {
+      for (const n of parseNotifications(m.content)) if (!waitingNote(n) && !ended.has(n.id)) { ended.add(n.id); facts.ends.push(noteEnd(n, at)); }
+    }
+  }
+  return { facts, commands, outputs, openCall: open.size > 0, lastAt };
+}
+
+/** The end marker a finished Bash task leaves as the last line of its output file: `[exited with code N]` or
+ *  `[killed]` (null: none). */
+export function markerOf(lastLine: string): { how: "exited"; code: number } | { how: "killed" } | null {
+  const s = lastLine.trim();
+  const m = /^\[exited with code (-?\d+)\]$/.exec(s);
+  if (m) return { how: "exited", code: Number(m[1]) };
+  return s === "[killed]" ? { how: "killed" } : null;
+}
+
+/** One lead-queue notification: the time it was enqueued, its task id, and whether it is the 'waiting on its own
+ *  background work' notice (else it is an end; for an agent id also its 'finished' notice). */
+export interface LeadNote { time: number; id: string; waiting: boolean; killed: boolean }
+/** The task notifications the lead's session file enqueues (`queue-operation` / `enqueue`). */
+export function leadNotesOf(text: string): LeadNote[] {
+  const out: LeadNote[] = [];
+  for (const line of text.split("\n")) {
+    if (!line.includes("queue-operation") || !line.includes("task-notification")) continue;
+    let o: any;
+    try { o = JSON.parse(line); } catch { continue; }
+    if (o.type !== "queue-operation" || o.operation !== "enqueue" || typeof o.content !== "string") continue;
+    const t = Date.parse(o.timestamp);
+    if (!Number.isFinite(t)) continue;
+    for (const n of parseNotifications(o.content)) out.push({ time: Math.floor(t), id: n.id, waiting: waitingNote(n), killed: n.status === "killed" });
+  }
+  return out;
+}
+
+/** The lead's notes, read incrementally: the lead file only grows, so the bytes read before are cached in
+ *  `.fw-console/lead-notes.json` with their offset (a shorter or different file starts over). */
+export function readLeadNotes(p: Paths, leadFile: string | null): LeadNote[] {
+  if (!leadFile) return [];
+  const cacheFile = join(p.consoleDir, "lead-notes.json");
+  let cache: { file: string; offset: number; notes: LeadNote[] } = { file: leadFile, offset: 0, notes: [] };
+  try {
+    const c = JSON.parse(readFileSync(cacheFile, "utf8"));
+    if (c?.file === leadFile && typeof c.offset === "number" && Array.isArray(c.notes)) cache = c;
+  } catch { /* none yet */ }
+  let size = 0;
+  try { size = statSync(leadFile).size; } catch { return cache.notes; }
+  if (size < cache.offset) cache = { file: leadFile, offset: 0, notes: [] };
+  if (size > cache.offset) {
+    const fd = openSync(leadFile, "r");
+    try {
+      const buf = Buffer.alloc(Math.min(size - cache.offset, 64_000_000));
+      const n = readSync(fd, buf, 0, buf.length, cache.offset);
+      const text = buf.subarray(0, n).toString("utf8");
+      const cut = text.lastIndexOf("\n");
+      if (cut >= 0) {
+        cache.notes.push(...leadNotesOf(text.slice(0, cut)));
+        cache.offset += Buffer.byteLength(text.slice(0, cut + 1));
+      }
+    } finally { closeSync(fd); }
+    try { mkdirSync(p.consoleDir, { recursive: true }); writeFileSync(cacheFile, JSON.stringify(cache)); } catch { /* read-only: recompute next time */ }
+  }
+  return cache.notes;
+}
+
+/** The lead's session file for a transcript `<project>/<session>/subagents/[workflows/<wf>/]agent-<id>.jsonl`:
+ *  `<project>/<session>.jsonl` (null: none). */
+export function leadFileOf(transcript: string): string | null {
+  let d = dirname(transcript);
+  while (basename(d) !== "subagents" && d !== dirname(d)) d = dirname(d);
+  const f = `${dirname(d)}.jsonl`;
+  return existsSync(f) ? f : null;
+}
+
+/** Add the lead's notes to an agent's facts: notifications about its own id are its notices; those about an id it
+ *  launched are ends of that id. */
+export function withLeadNotes(f: SigFacts, notes: LeadNote[]): SigFacts {
+  const mine = new Set(f.launched.map((l) => l.id));
+  const ends = [...f.ends], notices = [...f.notices];
+  for (const n of notes) {
+    if (n.id === f.agent) notices.push({ time: n.time, finished: !n.waiting });
+    else if (mine.has(n.id) && !n.waiting) ends.push({ id: n.id, time: n.time, how: n.killed ? "killed" : "notified" });
+  }
+  return { ...f, ends, notices };
+}
+
+/** A shell command that waits on stdin forever when nothing feeds it: a simple `cat`, `tee` or `read` command with no
+ *  file operand and no input redirection that does not follow a pipe (port-nav's `cat > /tmp/x.lean`). */
+export function readsStdin(cmd: string): boolean {
+  for (const part of cmd.split(/;|&&|\|\||\n/)) {
+    const seg = part.trim();
+    if (!seg || seg.includes("|") || seg.includes("<")) continue;
+    const toks = seg.split(/\s+/);
+    const w = toks[0];
+    if (w !== "cat" && w !== "tee" && w !== "read") continue;
+    const rest: string[] = [];
+    for (let i = 1; i < toks.length; i++) {
+      const x = toks[i]!;
+      if (/^\d*>>?&?$/.test(x)) { i++; continue; } // a redirection, then its target
+      if (/^\d*>>?/.test(x)) continue; // a redirection with its target attached
+      rest.push(x);
+    }
+    if (w === "read" || w === "tee" || rest.every((x) => x.startsWith("-"))) return true;
+  }
+  return false;
 }
 
 // ---- file discovery ----
@@ -246,8 +456,32 @@ export function findTranscripts(p: Paths): Map<string, string> {
   return new Map([...found].map(([k, v]) => [k, v.file]));
 }
 
-function readMeta(jsonlFile: string): Record<string, unknown> | null {
+export function readMeta(jsonlFile: string): Record<string, unknown> | null {
   try { return JSON.parse(readFileSync(jsonlFile.replace(/\.jsonl$/, ".meta.json"), "utf8")); } catch { return null; }
+}
+const trCache = new Map<string, { size: number; mtimeMs: number; metaAt: number | null; tr: TranscriptInfo; sig: SigFacts }>();
+/** A transcript's summary and signal facts, parsed again only when the transcript or its meta changed (a long `fw
+ *  watch` re-reads the ghost window every check). */
+export function readTranscript(tf: string, id: string): { tr: TranscriptInfo; sig: SigFacts } | null {
+  try {
+    const st = statSync(tf), metaAt = metaMtime(tf);
+    const hit = trCache.get(tf);
+    if (hit && hit.size === st.size && hit.mtimeMs === st.mtimeMs && hit.metaAt === metaAt) return hit;
+    const text = readFileSync(tf, "utf8");
+    const e = { size: st.size, mtimeMs: st.mtimeMs, metaAt, tr: summarizeTranscript(text, readMeta(tf), metaAt), sig: signalsOf(id, text).facts };
+    trCache.set(tf, e);
+    return e;
+  } catch { return null; }
+}
+/** The mtime of a transcript's meta file (null: none). */
+export function metaMtime(jsonlFile: string): number | null {
+  try { return statSync(jsonlFile.replace(/\.jsonl$/, ".meta.json")).mtimeMs; } catch { return null; }
+}
+/** The background ids an agent launched within `ms` before `now` whose end its own transcript does not show (a
+ *  superset of the pending ids of Fw.Obs.Signals: the lead's notes and output markers are not read here). */
+export function pendingBg(s: SigFacts, now: number, ms: number): string[] {
+  const ended = new Set(s.ends.map((e) => e.id));
+  return s.launched.filter((l) => !ended.has(l.id) && now - l.time <= ms).map((l) => l.id);
 }
 
 /** Kind from the transcript meta and path: `taskKind` *teammate* -> teammate; under `subagents/workflows/` or with a
@@ -286,21 +520,27 @@ export function collectAgents(p: Paths, now: number, owners?: Map<string, string
   }
   const transcripts = findTranscripts(p);
   const ids = new Set([...spools.keys(), ...transcripts.keys()]);
-  const kept: { id: string; sp: SpoolSummary | null; tf: string | undefined; tr: TranscriptInfo | null }[] = [];
+  const kept: { id: string; sp: SpoolSummary | null; tf: string | undefined; tr: TranscriptInfo | null; pending: string[]; closed: boolean }[] = [];
   for (const id of ids) {
     const sp = spools.get(id) ?? null;
     const tf = transcripts.get(id);
-    // cheap pre-filter before reading a big transcript: skip agents that clearly ended long ago
+    // cheap pre-filter before reading a big transcript: skip agents not written within the ghost window (an ended
+    // agent with a worktree is always read). Not from meta.finished: it is stale on a resumed agent and is set while
+    // the agent still holds background work (a held agent writes nothing for hours).
     let tmtime = 0;
     if (tf) { try { tmtime = statSync(tf).mtimeMs; } catch { /* gone */ } }
-    const meta = tf ? readMeta(tf) : null;
     const lastGuess = Math.max(sp?.lastAt ?? 0, tmtime);
-    const endedGuess = sp?.stoppedAt ?? (meta?.finished === true ? tmtime : null);
-    if (endedGuess !== null && now - endedGuess > SCOPE.keepDoneMs && !hasWorktree(p, id)) continue;
-    if (endedGuess === null && now - lastGuess > SCOPE.ghostMs) continue;
-    let tr: TranscriptInfo | null = null;
-    if (tf) { try { tr = summarizeTranscript(readFileSync(tf, "utf8"), meta); } catch { /* unreadable */ } }
-    kept.push({ id, sp, tf, tr });
+    if (now - lastGuess > SCOPE.ghostMs && !(sp?.stoppedAt != null && hasWorktree(p, id))) continue;
+    let tr: TranscriptInfo | null = null, pending: string[] = [], closed = false;
+    if (tf) {
+      const r = readTranscript(tf, id);
+      if (r) {
+        tr = r.tr;
+        pending = pendingBg(withLeadNotes(r.sig, readLeadNotes(p, leadFileOf(tf))), now, SCOPE.ghostMs);
+        closed = r.sig.bounds.at(-1)?.start === false; // the last turn ended (end_turn or a turn-ending tool result)
+      }
+    }
+    kept.push({ id, sp, tf, tr, pending, closed });
   }
   // parent link: a child's meta.toolUseId is the id of the Agent call in its parent's transcript (none: the lead)
   const owner = new Map<string, string>();
@@ -308,10 +548,13 @@ export function collectAgents(p: Paths, now: number, owners?: Map<string, string
   if (owners) for (const k of kept) for (const t of k.tr?.bgTasks ?? []) owners.set(t, k.id);
   const wfCache = new Map<string, boolean>();
   const out: AgentSnap[] = [];
-  for (const { id, sp, tf, tr } of kept) {
+  for (const { id, sp, tf, tr, pending, closed } of kept) {
     const lastAt = Math.max(sp?.lastAt ?? 0, tr?.lastAt ?? 0);
     if (lastAt === 0) continue;
-    if (!sp && tr?.endedTurn && now - lastAt > SCOPE.keepDoneMs && !hasWorktree(p, id)) continue;
+    // an ended agent (spool Stop; no spool: its last turn ended) leaves after keepDoneMs unless it has a worktree or
+    // still holds background ids
+    const ended = sp ? sp.stoppedAt !== null : !!tr?.endedTurn || closed;
+    if (ended && now - lastAt > SCOPE.keepDoneMs && !hasWorktree(p, id) && pending.length === 0) continue;
     let stoppedAt = sp?.stoppedAt ?? null;
     // transcript-only agents (no spool) that ended their turn on text or StructuredOutput have exited
     if (stoppedAt === null && (tr?.finished || (!sp && tr?.endedTurn))) stoppedAt = tr.lastAt ?? lastAt;
@@ -599,4 +842,26 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
   const { critical, stale } = carryCritical(crit, prev, now);
   if (stale) system.stale.push("plan");
   return { now, params, agents, lead: collectLead(p), system, prevAt: prev?.at ?? null, critical };
+}
+
+// ---- timing samples (timing-alert): the spans of .fw-console/timings.jsonl as the samples of `obs.slow` ----
+/** A `Fw.Obs.Timing.Sample` on the wire. */
+export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number }
+/** Spans in time order -> samples (the last `cap` ones: a bound on the input size, not a threshold; the verdict is Lean's).
+ *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average. */
+export function parseSamples(text: string, cap = 3000): TimingSample[] {
+  const rows: { at: number; s: TimingSample }[] = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const o = JSON.parse(line);
+      if (typeof o.tool !== "string" || typeof o.step !== "string" || !Number.isFinite(o.durMs) || o.durMs < 0 || (o.host !== "local" && o.host !== "ci")) continue;
+      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0 } });
+    } catch { /* partial line */ }
+  }
+  return rows.sort((a, b) => a.at - b.at).slice(-cap).map((r) => r.s);
+}
+/** The samples of the console's timings file (empty when there is none). */
+export function readSamples(p: Paths): TimingSample[] {
+  try { return parseSamples(readFileSync(join(p.consoleDir, "timings.jsonl"), "utf8")); } catch { return []; }
 }

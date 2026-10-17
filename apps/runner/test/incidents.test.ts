@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { existingFiles, gitOnMain, incidentsCli, renderIncidents, taskRows, type IncidentReply } from "../src/incidents.ts";
+import { existingFiles, gitOnMain, incidentsCli, mistakeClasses, renderIncidents, taskRows, type IncidentReply } from "../src/incidents.ts";
 import { coreCandidates, coreCaller } from "../src/watch.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -22,13 +22,15 @@ const tasks = [
   { id: "a", evidence: "1c64c85", agent: null }, { id: "b", evidence: null, agent: "b" },
   { id: "c", evidence: null, agent: null }, { id: "d", evidence: "ca48604", agent: "d" },
 ];
-const facts = { tasks, commits: ["1c64c85", "ca48604"], files: ["docs/team/incidents/ledger.json"] };
+const facts = { tasks, commits: ["1c64c85", "ca48604"], files: ["docs/team/incidents/ledger.json"], classes: ["c-quota", "c-orphan-wait"] };
 const good = {
   id: "inc-good", at: "2026-10-18T00:00+07:00", title: "t", symptom: "s", cause: "CONFIRMED (code read): x",
   evidence: [{ kind: "commit", ref: "1c64c85", note: "n" }, { kind: "ci", ref: "39057124869", note: "n" },
     { kind: "file", ref: "docs/team/incidents/ledger.json", note: "n" }],
   repro: "r", fix: { task: "a", also: ["d"] }, regression: "g",
+  leanVerdict: "provable", leanReason: "a pure equality", hardening: "c", mistakeClass: "c-quota",
 };
+const no = { ...good, id: "inc-no", leanVerdict: "no", leanReason: "a platform fact", hardening: undefined, empiricalCheck: "ci: breakpoint-gate" };
 const req = (incidents: unknown, extra: Record<string, unknown> = {}) => ({ op: "plan.incidentLint", incidents, ...facts, ...extra });
 const cases: [string, Record<string, unknown>][] = [
   ["good: commit, ci and file evidence on main, fix and also tasks done: fixed, no finding", req([good])],
@@ -56,6 +58,17 @@ const cases: [string, Record<string, unknown>][] = [
   ["more facts never add a finding: no commits and no files known", req([good], { commits: [], files: [] })],
   ["no tasks: every fix task is missing", req([good], { tasks: [] })],
   ["empty ledger: ok", req([])],
+  ["lean fields: an entry written before them names every missing field", req([{ ...good, leanVerdict: undefined, leanReason: undefined, hardening: undefined, mistakeClass: undefined }])],
+  ["lean fields: verdict not one of provable, partly, no (case-sensitive)", req([{ ...good, leanVerdict: "Provable" }, { ...good, id: "inc-2", leanVerdict: "maybe", hardening: undefined }])],
+  ["lean fields: blank verdict and blank reason", req([{ ...good, leanVerdict: " ", leanReason: "" }])],
+  ["lean fields: partly without hardening; provable with an unknown hardening task", req([{ ...good, leanVerdict: "partly", hardening: undefined }, { ...good, id: "inc-2", hardening: "zz" }])],
+  ["lean fields: no with an empirical check and no hardening: ok", req([no])],
+  ["lean fields: no without an empirical check is refused", req([{ ...no, empiricalCheck: undefined }, { ...no, id: "inc-2", empiricalCheck: "  " }])],
+  ["lean fields: no with a hardening task: the task must exist", req([{ ...no, hardening: "c" }, { ...no, id: "inc-2", hardening: "zz" }])],
+  ["lean fields: partly with an empirical check and a hardening task: ok", req([{ ...good, leanVerdict: "partly", empiricalCheck: "ps at handback" }])],
+  ["lean fields: unknown mistake class; no mistakeClass is fine", req([{ ...good, mistakeClass: "c-nope" }, { ...good, id: "inc-2", mistakeClass: undefined }])],
+  ["lean fields: no classes known: every mistakeClass is unknown", req([good], { classes: [] })],
+  ["refused: a non-string leanVerdict", req([{ ...good, leanVerdict: true }])],
   ["refused: missing incidents", { op: "plan.incidentLint", tasks }],
   ["refused: missing tasks", { op: "plan.incidentLint", incidents: [good] }],
   ["refused: an incident without id", req([{ ...good, id: undefined }])],
@@ -88,10 +101,20 @@ describe("plan.incidentLint golden (packages/contracts/golden/plan/incident-lint
     const st = new Set(lines.flatMap((l) => (l.response.incidents ?? []).map((i) => i.status)));
     expect([...st].sort()).toEqual(["fixed", "fixing", "open"]);
     expect(lines.some((l) => l.response.ok === true) && lines.some((l) => l.response.ok === false)).toBe(true);
-    expect(lines.filter((l) => typeof l.response.error === "string").length).toBe(4);
+    expect(lines.filter((l) => typeof l.response.error === "string").length).toBe(5);
     const codes = new Set(lines.flatMap((l) => (l.response.incidents ?? []).flatMap((i) => i.findings.map((f) => f.code))));
     for (const c of ["noEvidence", "unknownKind", "badRef", "commitNotOnMain", "fileMissing", "missingFixTask", "missingRepro",
-      "missingRegression", "noStatusPrefix", "statusField", "dupId", "eventRef", "procRef"]) expect(codes.has(c), c).toBe(true);
+      "missingRegression", "noStatusPrefix", "statusField", "missingLeanVerdict", "badLeanVerdict", "missingLeanReason",
+      "missingHardening", "unknownHardening", "missingEmpiricalCheck", "unknownMistakeClass", "dupId", "eventRef", "procRef"]) expect(codes.has(c), c).toBe(true);
+  });
+
+  it("a lean-field finding names the field it wants (so a newer entry learns exactly what is missing)", () => {
+    const lines = readFileSync(goldenFile, "utf8").trim().split("\n").map((l) => JSON.parse(l)) as { response: Partial<IncidentReply> }[];
+    const field: Record<string, string> = { missingLeanVerdict: "leanVerdict", badLeanVerdict: "leanVerdict", missingLeanReason: "leanReason",
+      missingHardening: "hardening", unknownHardening: "hardening", missingEmpiricalCheck: "empiricalCheck", unknownMistakeClass: "mistakeClass" };
+    const fs = lines.flatMap((l) => (l.response.incidents ?? []).flatMap((i) => i.findings)).filter((f) => f.code in field);
+    expect(fs.length).toBeGreaterThan(0);
+    for (const f of fs) expect(f.detail.startsWith(field[f.code]!), `${f.code}: ${f.detail}`).toBe(true);
   });
 
   it("order independence: the reversed pair gives the reversed results", () => {
@@ -115,6 +138,12 @@ describe("fact collection", () => {
       .toEqual(["docs/team/incidents/ledger.json"]);
   });
 
+  it("mistakeClasses: the class ids of research/mistakes/ledger.json; none when the file is missing", () => {
+    const ids = (JSON.parse(readFileSync(join(root, "research/mistakes/ledger.json"), "utf8")) as { classes: { id: string }[] }).classes.map((c) => c.id);
+    expect(mistakeClasses(root)).toEqual(ids);
+    expect(mistakeClasses(here)).toEqual([]);
+  });
+
   it("gitOnMain: a main commit yes, an unknown sha or an option-like ref no", () => {
     const on = gitOnMain(root);
     const head = execFileSync("git", ["rev-parse", "main"], { cwd: root, encoding: "utf8" }).trim();
@@ -133,6 +162,8 @@ describe("fact collection", () => {
     expect(seen.op).toBe("plan.incidentLint");
     expect(seen.incidents).toEqual(ledger.incidents);
     expect(seen.commits).toEqual(["1c64c85"]);
+    expect(seen.classes).toEqual(mistakeClasses(root));
+    expect((seen.classes as string[]).length).toBeGreaterThan(0);
     expect(await incidentsCli(["lint"], here, { ...deps, core: fake(false) })).toBe(1);
     await expect(incidentsCli([], here)).rejects.toThrow(/usage/);
     await expect(incidentsCli(["show"], here)).rejects.toThrow(/usage/);

@@ -1,17 +1,70 @@
 #!/bin/sh
-# All lean/ gates (TL0): grep gates, build (proofs + #guard), tests (golden round trips),
-# math-view lint (math present, no sorryAx, standard axioms only), and the real binary on the
-# golden lines with LEAN_ABORT_ON_PANIC=1.
-set -eu
+# All lean/ gates (TL0) as a DAG (research/notes/2026/10-18-land-speed.md, P2):
+#   serial   grep gates -> import check -> lake build (proofs + #guard; also builds fwtest)
+#   parallel math-view lint | fwtest (golden round trips) | golden wire replay (real fwcore binary, LEAN_ABORT_ON_PANIC=1)
+#            | breakgen checks x5 (generated JSON equals the Lean output)
+# The parallel jobs call the built binaries directly (.lake/build/bin/...), not `lake exe`, so none of them takes Lake's lock.
+# Every failing stage is reported (not just the first); exit non-zero if any failed. The verdict is the conjunction of the
+# stage verdicts, independent of order and completion: Lean Fw.Console.LandSpeed.verdict_perm.
+set -u
 cd "$(dirname "$0")/.."
 . ../scripts/span.sh  # span <tool> <step> <cmd...>: one timing line per stage in .fw-console/timings.jsonl (docs/team/tools/timings.md)
-span lean/check "grep gates" scripts/check-partial.sh
-span lean/check "import check" node scripts/check-imports.mjs  # every Fw module is imported by a root, none twice in Fw.lean (the union merge can repeat a line)
-span lean/check "lake build" lake build
-span lean/check "lake test" lake test
-span lean/check "mathview lint" scripts/mathview-cached.sh >/dev/null  # lint; replayed from .lake/mathview-cache/ when the sources are unchanged
-span lean/check "golden wire replay" sh -c 'LEAN_ABORT_ON_PANIC=1 .lake/build/bin/fwcore < golden/wire-requests.txt | diff - golden/wire-replies.txt'
-echo "check: fwcore binary reproduces golden/wire-replies.txt"
-span lean/check "breakgen check lean" lake exe breakgen --check Fw/Site/breakpoints.gen.json
-span lean/check "breakgen check site" lake exe breakgen --check ../apps/site/src/breakpoints.gen.json || echo "check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet"
+fails=""
+serial() {  # serial <step> <cmd...>: a failing serial stage is recorded and the script goes on
+  if ! span lean/check "$@"; then
+    fails="$fails
+  - $1"
+    echo "check: FAILED stage: $1"
+  fi
+}
+serial "grep gates" scripts/check-partial.sh
+serial "import check" node scripts/check-imports.mjs  # every Fw module is imported by a root, none twice in Fw.lean (the union merge can repeat a line)
+# the parallel stages read the products of lake build, so a failed build ends the run here
+if ! span lean/check "lake build" sh -c 'lake build && lake build fwtest'; then
+  fails="$fails
+  - lake build"
+  echo "check: FAILED: $fails"
+  exit 1
+fi
+
+bin=.lake/build/bin
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/fwcheck.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT INT TERM
+n=0; pids=""
+job() {  # job <step> <cmd...>: run in the background; output kept in $tmp/<n>.out, name in $tmp/<n>.name
+  echo "$1" > "$tmp/$n.name"
+  ( span lean/check "$@" ) > "$tmp/$n.out" 2>&1 &
+  pids="$pids $!"
+  n=$((n + 1))
+}
+run_group() {
+  job "mathview lint" scripts/mathview-cached.sh   # lint; replayed from .lake/mathview-cache/ when the sources are unchanged
+  job "lake test" $bin/fwtest
+  job "golden wire replay" sh -c "LEAN_ABORT_ON_PANIC=1 $bin/fwcore < golden/wire-requests.txt | diff - golden/wire-replies.txt && echo 'check: fwcore binary reproduces golden/wire-replies.txt'"
+  job "breakgen check lean" $bin/breakgen --check Fw/Site/breakpoints.gen.json
+  job "breakgen check site" sh -c "$bin/breakgen --check ../apps/site/src/breakpoints.gen.json || echo 'check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet'"
+  job "breakgen sweeps lean" $bin/breakgen --sweeps --check Fw/Site/sweeps.gen.json
+  job "breakgen sweeps site" $bin/breakgen --sweeps --check ../apps/site/src/sweeps.gen.json
+  job "breakgen sweeps golden" $bin/breakgen --sweeps-golden --check ../packages/contracts/golden/gate/sweeps.jsonl
+  i=0
+  for p in $pids; do
+    wait "$p" || echo "$i" >> "$tmp/failed"
+    i=$((i + 1))
+  done
+}
+span lean/check "parallel group" run_group
+
+i=0
+while [ "$i" -lt "$n" ]; do
+  if grep -qx "$i" "$tmp/failed" 2>/dev/null; then
+    fails="$fails
+  - $(cat "$tmp/$i.name")"
+    echo "check: FAILED stage: $(cat "$tmp/$i.name")"
+    cat "$tmp/$i.out"
+  else
+    grep -v '^$' "$tmp/$i.out" | tail -3
+  fi
+  i=$((i + 1))
+done
+if [ -n "$fails" ]; then echo "check: FAILED: $fails"; exit 1; fi
 echo "check: all lean/ gates green"

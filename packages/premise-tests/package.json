@@ -1,0 +1,15 @@
+{
+  "name": "@fw/premise-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "One browser test per empirical premise a Lean theorem relies on (registry: lean/Fw/Ops/Premise.lean), run on Chromium and WebKit.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "premises": "node src/run.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "playwright-core": "1.64.1"
+  }
+}
