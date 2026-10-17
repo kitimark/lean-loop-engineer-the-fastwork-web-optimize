@@ -1182,6 +1182,38 @@
     ".github/workflows/sim-speed.yml",
     "research/notes/2026/10-17-sim-speed.md"
    ]
+  },
+  {
+   "id": "ci-trigger-scope",
+   "title": "CI blocker: every ci/** push starts all workflows; per-workflow paths filters and concurrency cancel, verified on CI (lead slow-work watch)",
+   "stream": "ci",
+   "milestone": "M1",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/lean.yml",
+    ".github/workflows/chromium-counts.yml",
+    ".github/workflows/breakpoint-gate.yml",
+    "research/notes/2026/10-17-ci-trigger-scope.md"
+   ]
+  },
+  {
+   "id": "watch-slow",
+   "title": "Slow-work rules in Lean (obs.health): CI run, tool call, local process and load thresholds, flagged when the task is on the critical path; replaces the lead stand-in monitor",
+   "stream": "team",
+   "milestone": null,
+   "deps": [
+    "watch-fix"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*.ts",
+    "docs/team/tools/watch.md"
+   ]
   }
  ]
 }
