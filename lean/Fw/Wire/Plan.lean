@@ -30,7 +30,7 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 
 | op | request | reply |
 |---|---|---|
-| `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
+| `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist], `classes`? [class ids of research/mistakes/ledger.json] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
 -/
 namespace Fw.Wire.Plan
 open Lean Fw.Wire Fw.Plan
@@ -124,7 +124,8 @@ def strE (j : Json) (k : String) : Except String String :=
 
 open Fw.Plan.Incident in
 /-- Decode one ledger record (fields the lint does not read are ignored; a `status` key, even `null`,
-sets `hasStatus`). A missing or `null` `fix` has no fix task and no `also` tasks. -/
+sets `hasStatus`). A missing or `null` `fix` has no fix task and no `also` tasks. The Lean fields
+(`leanVerdict`, `leanReason`, `hardening`, `empiricalCheck`, `mistakeClass`) are optional strings. -/
 def incidentOfJson (j : Json) : Except String Incident := do
   let ev ← (← (match opt j "evidence" with | none => pure #[] | some v => asArr "evidence" v)).toList.mapM
     fun e => do pure ({ kind := ← strE e "kind", ref := ← strE e "ref" } : Ev)
@@ -133,7 +134,10 @@ def incidentOfJson (j : Json) : Except String Incident := do
     | some f => do pure (← optStr f "task", ← strsD f "also")
   pure { id := ← str j "id", cause := ← strE j "cause", evidence := ev, repro := ← optStr j "repro",
          fixTask, also, regression := ← optStr j "regression",
-         hasStatus := (j.getObjVal? "status").toOption.isSome }
+         hasStatus := (j.getObjVal? "status").toOption.isSome,
+         leanVerdict := ← optStr j "leanVerdict", leanReason := ← optStr j "leanReason",
+         hardening := ← optStr j "hardening", empiricalCheck := ← optStr j "empiricalCheck",
+         mistakeClass := ← optStr j "mistakeClass" }
 
 /-- Decode a task row of `plan.incidentLint`: id, evidence and agent (string or null/missing). -/
 def incidentTaskOfJson (t : Json) : Except String Task := do
@@ -146,7 +150,8 @@ open Fw.Plan.Incident in
 def opIncidentLint (req : Json) : Except String Reply := do
   let l ← (← arr req "incidents").toList.mapM incidentOfJson
   let ts ← (← arr req "tasks").toList.mapM incidentTaskOfJson
-  let F : Facts := { tasks := ts, commits := ← strsD req "commits", files := ← strsD req "files" }
+  let F : Facts := { tasks := ts, commits := ← strsD req "commits", files := ← strsD req "files",
+                     classes := ← strsD req "classes" }
   let rs := lintAll F l
   let fs := rs.flatMap (·.findings)
   pure [("ok", .bool (okAll F l)), ("errors", toJson (fs.filter (·.code.isError)).length),

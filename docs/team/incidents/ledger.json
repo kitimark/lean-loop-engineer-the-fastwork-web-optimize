@@ -1,5 +1,5 @@
 {
- "about": "Team tooling incidents, one record per root cause. Evidence kinds: commit (sha on main), event (seq in .fw-console/events.jsonl, local-only), ci (GitHub Actions run id), file (repo path), proc (process shape, no pids that matter later). Each incident names the work-graph task that fixes it (fix.task, plus fix.also); status is derived, never stored: fixed iff fix.task and every also task are done, fixing iff one of them is claimed, else open (Fw.Plan.Incident; check with pnpm fw incidents lint, see README.md).",
+ "about": "Team tooling incidents, one record per root cause. Evidence kinds: commit (sha on main), event (seq in .fw-console/events.jsonl, local-only), ci (GitHub Actions run id), file (repo path), proc (process shape, no pids that matter later). Each incident names the work-graph task that fixes it (fix.task, plus fix.also); status is derived, never stored: fixed iff fix.task and every also task are done, fixing iff one of them is claimed, else open (Fw.Plan.Incident; check with pnpm fw incidents lint, see README.md). Each incident also carries its mistake-retro link (research/mistakes/ledger.json): leanVerdict (provable | partly | no), leanReason, hardening (a work-graph task id; required unless the verdict is no), empiricalCheck (the test or CI check; required when the verdict is no), mistakeClass (a retro class id) and mistake (the retro row, informational).",
  "incidents": [
   {
    "id": "inc-orphan-wait-loop",
@@ -31,7 +31,12 @@
      "obs-next-glue"
     ]
    },
-   "regression": "packages/contracts/golden/obs/next.jsonl cases 2, 3, 6"
+   "regression": "packages/contracts/golden/obs/next.jsonl cases 2, 3, 6",
+   "mistake": "m090",
+   "mistakeClass": "c-orphan-wait",
+   "leanVerdict": "provable",
+   "leanReason": "Wait with deadline terminates by construction; obs-signals flags BG minus END.",
+   "hardening": "wait-guard"
   },
   {
    "id": "inc-unlanded-handback",
@@ -53,7 +58,12 @@
      "obs-next-glue"
     ]
    },
-   "regression": "packages/contracts/golden/obs/next.jsonl case 1"
+   "regression": "packages/contracts/golden/obs/next.jsonl case 1",
+   "mistake": "m133",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "keep_of_open_action, unlanded alert (done).",
+   "hardening": "obs-next-lean"
   },
   {
    "id": "inc-claim-order",
@@ -82,7 +92,12 @@
    "fix": {
     "task": "claim-order-lean"
    },
-   "regression": "packages/contracts/golden/plan (obs-next-lean trace in both orders)"
+   "regression": "packages/contracts/golden/plan (obs-next-lean trace in both orders)",
+   "mistake": "m128",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "define_spawn_comm (done fafc0d5).",
+   "hardening": "claim-order-lean"
   },
   {
    "id": "inc-plan-sync-on-land-only",
@@ -101,7 +116,12 @@
    "fix": {
     "task": "claim-order-lean"
    },
-   "regression": "apps/console-api/test (sync on main HEAD move)"
+   "regression": "apps/console-api/test (sync on main HEAD move)",
+   "mistake": "m130",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "Sync on HEAD move (done).",
+   "hardening": "claim-order-lean"
   },
   {
    "id": "inc-land-post-commit-throw",
@@ -125,7 +145,12 @@
    "fix": {
     "task": "pa-sync-main"
    },
-   "regression": "apps/runner/test/land-post.test.ts"
+   "regression": "apps/runner/test/land-post.test.ts",
+   "mistake": "m139",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "Land as a resumable step machine (step_inv; done 618654e).",
+   "hardening": "pa-sync-main"
   },
   {
    "id": "inc-commit-during-land",
@@ -144,7 +169,12 @@
    "fix": {
     "task": "land-hardening"
    },
-   "regression": "apps/runner/test (commit during land is refused)"
+   "regression": "apps/runner/test (commit during land is refused)",
+   "mistake": "m065",
+   "mistakeClass": "c-shared-no-lock",
+   "leanVerdict": "provable",
+   "leanReason": "Land lock protocol: run_safe_locked, land_commit_exact (done).",
+   "hardening": "land-hardening"
   },
   {
    "id": "inc-land-scope-registrations",
@@ -168,7 +198,12 @@
    "fix": {
     "task": "land-hardening"
    },
-   "regression": "packages/contracts/golden/console/console.landScope.jsonl"
+   "regression": "packages/contracts/golden/console/console.landScope.jsonl",
+   "mistake": "m141",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "kindRegs_mem_landScope (done).",
+   "hardening": "land-hardening"
   },
   {
    "id": "inc-agent-on-ci-branch",
@@ -187,7 +222,12 @@
    "fix": {
     "task": "land-hardening"
    },
-   "regression": "apps/runner/test (land finds the agent's ci/<task> branch)"
+   "regression": "apps/runner/test (land finds the agent's ci/<task> branch)",
+   "mistake": "m140",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "pick_given_iff (done).",
+   "hardening": "land-hardening"
   },
   {
    "id": "inc-fw-lean-import-conflict",
@@ -206,7 +246,12 @@
    "fix": {
     "task": "land-hardening"
    },
-   "regression": "lean/scripts/check.sh (every lean/Fw/**/*.lean module is imported exactly once)"
+   "regression": "lean/scripts/check.sh (every lean/Fw/**/*.lean module is imported exactly once)",
+   "mistake": "m066",
+   "mistakeClass": "c-shared-no-lock",
+   "leanVerdict": "provable",
+   "leanReason": "Generated import list; check-imports (done).",
+   "hardening": "land-hardening"
   },
   {
    "id": "inc-gh-rate-limit",
@@ -233,7 +278,12 @@
      "ghb-glue"
     ]
    },
-   "regression": "packages/gh-budget tests; Fw.Ci.Budget theorems"
+   "regression": "packages/gh-budget tests; Fw.Ci.Budget theorems",
+   "mistake": "m100",
+   "mistakeClass": "c-quota",
+   "leanVerdict": "provable",
+   "leanReason": "Ci/Budget window_bound (done 84fb01c).",
+   "hardening": "ghb-lean"
   },
   {
    "id": "inc-next-false-positives",
@@ -252,7 +302,12 @@
    "fix": {
     "task": "obs-next-glue"
    },
-   "regression": "Fw.Obs.Next land_sound, waitDeps_sound, respawn_sound and the golden cases; apps/runner/test/next.test.ts"
+   "regression": "Fw.Obs.Next land_sound, waitDeps_sound, respawn_sound and the golden cases; apps/runner/test/next.test.ts",
+   "mistake": "m134",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "land_sound, respawn_sound (done).",
+   "hardening": "obs-next-lean"
   },
   {
    "id": "inc-retention-hides-unlanded",
@@ -276,7 +331,12 @@
    "fix": {
     "task": "obs-next-glue"
    },
-   "regression": "Fw.Obs.Next keep_of_open_action and golden case 8; apps/runner/test/next.test.ts (hasWorktree)"
+   "regression": "Fw.Obs.Next keep_of_open_action and golden case 8; apps/runner/test/next.test.ts (hasWorktree)",
+   "mistake": "m133",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "keep_of_open_action, unlanded alert (done).",
+   "hardening": "obs-next-lean"
   },
   {
    "id": "inc-variant-gate-flags-off",
@@ -308,7 +368,12 @@
      "variant-morph-tween-waapi"
     ]
    },
-   "regression": "breakpoint-gate summary names the flags it ran with; a variant land requires a flagged run"
+   "regression": "breakpoint-gate summary names the flags it ran with; a variant land requires a flagged run",
+   "mistake": "m043",
+   "mistakeClass": "c-proxy-verdict",
+   "leanVerdict": "provable",
+   "leanReason": "flags(run) = flags(task) is a pure equality in the verdict record.",
+   "hardening": "gate-exit-verdict"
   },
   {
    "id": "inc-silent-stdin-bg",
@@ -332,7 +397,13 @@
    "fix": {
     "task": "obs-signals"
    },
-   "regression": "packages/contracts/golden/obs/signals.jsonl (port-nav @ 01:24:30 and @ 03:58:00: hung bh6n4n7sw), Fw.Wire.Obs guard obs.next stdinWait -> killOrphan, apps/runner/test/signals.test.ts"
+   "regression": "packages/contracts/golden/obs/signals.jsonl (port-nav @ 01:24:30 and @ 03:58:00: hung bh6n4n7sw), Fw.Wire.Obs guard obs.next stdinWait -> killOrphan, apps/runner/test/signals.test.ts",
+   "mistake": "m092",
+   "mistakeClass": "c-orphan-wait",
+   "leanVerdict": "partly",
+   "leanReason": "Static detection of a stdin reader is approximate; a deadline on every background task is provable.",
+   "hardening": "obs-signals",
+   "empiricalCheck": "ps of open background tasks at handback"
   },
   {
    "id": "inc-worktree-role-as-teammate",
@@ -356,7 +427,12 @@
    "fix": {
     "task": "spawn-enforce"
    },
-   "regression": "apps/runner/test/spawn-guard.test.ts 'refused with its reason: worktree role without isolation (I-272 trap)' and Lean trap_exact"
+   "regression": "apps/runner/test/spawn-guard.test.ts 'refused with its reason: worktree role without isolation (I-272 trap)' and Lean trap_exact",
+   "mistake": "m116",
+   "mistakeClass": "c-identity-heuristic",
+   "leanVerdict": "provable",
+   "leanReason": "trap_worktree_role_as_teammate; enforce (done).",
+   "hardening": "spawn-enforce"
   },
   {
    "id": "inc-workflow-unbound",
@@ -385,7 +461,12 @@
    "fix": {
     "task": "workflow-claim"
    },
-   "regression": "packages/contracts/golden/plan/workflow.jsonl (Lean Fw.Plan.wfEvents) checked by apps/console-api/test/workflow-claim.test.ts, plus the Lean theorems workflow_binds and define_workflow_comm"
+   "regression": "packages/contracts/golden/plan/workflow.jsonl (Lean Fw.Plan.wfEvents) checked by apps/console-api/test/workflow-claim.test.ts, plus the Lean theorems workflow_binds and define_workflow_comm",
+   "mistake": "m144",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "workflow_binds (done 21c8c42).",
+   "hardening": "workflow-claim"
   },
   {
    "id": "inc-slow-land",
@@ -420,7 +501,11 @@
      "land-prelock"
     ]
    },
-   "regression": "Fw.Obs.Timing ceilings (landCeilings: fw land / total 30 s, fw land / lock held 5 s) with the theorem land_budget_alert (a non-noisy land over its ceiling is slow with no history), golden packages/contracts/golden/obs/timing.jsonl, and the #guard that replays the three measured check.sh spans as lock-held samples"
+   "regression": "Fw.Obs.Timing ceilings (landCeilings: fw land / total 30 s, fw land / lock held 5 s) with the theorem land_budget_alert (a non-noisy land over its ceiling is slow with no history), golden packages/contracts/golden/obs/timing.jsonl, and the #guard that replays the three measured check.sh spans as lock-held samples",
+   "leanVerdict": "provable",
+   "leanReason": "Pure decisions: axiom-reach memo equals the per-call search (Fw.Spec.AxReach query_exact), check cache and pre-lock land (Fw.Console.LandSpeed cache_sound, preLand_commit_exact), regression budget (Fw.Obs.Timing land_budget_alert).",
+   "hardening": "mathview-axreach",
+   "mistakeClass": "c-late-check"
   },
   {
    "id": "inc-watch-unlanded-after-land",
@@ -449,7 +534,11 @@
    "fix": {
     "task": "timing-alert"
    },
-   "regression": "Lean theorem no_unlanded_once_on_main (lean/Fw/Obs/Next.lean), golden case in packages/contracts/golden/obs/next.jsonl, apps/runner/test/timing-alert.test.ts (landCommitOnMain reads the `Task:` trailer from main)"
+   "regression": "Lean theorem no_unlanded_once_on_main (lean/Fw/Obs/Next.lean), golden case in packages/contracts/golden/obs/next.jsonl, apps/runner/test/timing-alert.test.ts (landCommitOnMain reads the `Task:` trailer from main)",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Obs.Next no_unlanded_once_on_main: landed is decided from main history, not branch existence.",
+   "hardening": "timing-alert",
+   "mistakeClass": "c-order-derived"
   },
   {
    "id": "inc-watch-alert-during-land",
@@ -478,7 +567,11 @@
    "fix": {
     "task": "timing-alert"
    },
-   "regression": "Lean theorems alert_suppressed_iff_locked and no_unlanded_while_locked (lean/Fw/Obs/Next.lean), golden cases in next.jsonl, apps/runner/test/timing-alert.test.ts"
+   "regression": "Lean theorems alert_suppressed_iff_locked and no_unlanded_while_locked (lean/Fw/Obs/Next.lean), golden cases in next.jsonl, apps/runner/test/timing-alert.test.ts",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Obs.Next alert_suppressed_iff_locked, no_unlanded_while_locked: the land lock holder is suppressed.",
+   "hardening": "timing-alert",
+   "mistakeClass": "c-order-derived"
   }
  ]
 }
