@@ -1,7 +1,7 @@
 ---
 name: page-writer
 description: Writes and updates the HTML explainer pages under docs/ (e.g. docs/plan/loop-plan.html, the Lean math view rendered with KaTeX). Use for any change to a published page.
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 effort: medium
 tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch
 maxTurns: 150

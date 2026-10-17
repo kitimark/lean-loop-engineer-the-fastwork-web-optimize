@@ -17,9 +17,14 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
 - **Handoff before you finish:** write or update `docs/team/handoffs/<your-name>.md` (≤ 30 lines: state with commit,
   conventions you followed, open items, what to read first) so a fresh agent can continue without your context.
 - **Cache-aware resumes (lead):** subagent and teammate prompt caches live 5 minutes (MEASURED: all cache writes are
-  `ephemeral_5m`). Resume an agent only while it has been idle < 5 min, or when its context is small. Otherwise stop
-  it (`TaskStop`, no model turn) and spawn a fresh agent of the same role that starts from the handoff note.
-  Never send a shutdown message to an expired agent: answering it costs a full context re-read.
+  `ephemeral_5m`). Resume an agent only while it has been idle < its own TTL, or when its context is < 30k tokens;
+  never resume one > 250k. Otherwise stop it (`TaskStop`, no model turn) and spawn a fresh agent of the same role
+  that starts from the handoff note. Never send a shutdown message to an expired agent: answering it costs a full
+  context re-read.
+- **Helpers:** lean-prover, researcher, plan-editor, measure-engineer and console-builder may spawn `scout`/`runner`
+  (Haiku) and `checker` (Sonnet) per `docs/team/token-policy.md`; only the lead spawns `patcher`. Helpers are
+  read-only unless named for an edit, never commit, write no handoff, and return ≤ 1k tokens to their spawner, not
+  the lead.
 
 ## Rules
 - The repo is **private**; only the user pushes. Never add remotes or publish anything.
@@ -43,4 +48,6 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
   glue stay unproved, and they hold no decision logic. A TS stand-in is temporary and listed in your report.
 - **Lean math:** every theorem's docstring carries its statement as LaTeX math, because the user reviews the math,
   not the Lean.
+- **Context:** never print > ~150 lines into context: filter (`grep -n`, `tail -40`), send long output to a scratch
+  file and read excerpts; Read with offset/limit; do not re-read unchanged files.
 - Answers to the user: answer first, short plain bullets, numbers in small tables.
