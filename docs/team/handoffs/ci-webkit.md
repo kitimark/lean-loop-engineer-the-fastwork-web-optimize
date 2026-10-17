@@ -1,6 +1,6 @@
 # Handoff: ci-webkit (make .github/workflows/webkit-sim.yml pass)
 
-State: branch worktree-agent-aaceeac204ace4637, pushed as `ci/webkit-fix` (3 pushes used of 4). Read the commits first.
+State: branch worktree-agent-aaceeac204ace4637, pushed as `ci/webkit-fix` (4 pushes used of 4). Read the commits first.
 
 Causes found (CONFIRMED from run logs, artifacts via `gh run download <id> -n webkit-sim-v1`):
 1. `tee out/...` ran before `out/` existed: workflow now `mkdir -p out`.
@@ -17,6 +17,12 @@ Changes (I/O glue only, no decisions): `src/timeouts.mjs` (`FW_WK_TIMEOUT_SCALE`
 `reasonNames` in `determinism.mjs`, tab asks loop in `session.mjs`. Workflow: scale 8, attempts 3, stderr kept as
 `out/<vm>-session-N.log`, host state and logs uploaded always. Local defaults unchanged (`pnpm test` in
 packages/measure-webkit: 37 pass with the main checkout's fwcore symlinked at lean/.lake/build/bin/fwcore).
+
+5. Run 39036078841: v1 PASSED end to end (scale 4->8, attempts 3). v2 stalled in session 2 pass 2: LayerTree reply timed out
+   (120 s), retried passes failed again, then the proxy process was gone (ECONNREFUSED). Fix pushed (not yet proven on CI):
+   `ctx.ensureProxy()` restarts the proxy on reconnect. Run was cancelled after 65 min.
+Workflow now: vms default 1, max-parallel 2, job timeout 60 (healthy 33-43 min), determinism step 50, `preset`/`fw` inputs
+(plan job stops if not 'original'/empty: the lane serves only the snapshot), main's path-filter trigger kept.
 
 Open items:
 - Counts on the runner are taken under host load 400-800 (cpu idle 0 %): expect more "quarantined" classes than on a Mac;

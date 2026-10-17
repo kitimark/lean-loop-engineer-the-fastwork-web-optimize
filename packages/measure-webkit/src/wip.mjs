@@ -122,6 +122,7 @@ export async function openTab(urlPrefix, { waitMs = T(30000), p = ports(), log =
  */
 export async function reconnect(ctx, { log = () => {}, waitMs = T(60000) } = {}) {
   try { await ctx.c.close(); } catch { /* closed */ }
+  await ctx.ensureProxy?.();
   await sleep(T(1500));
   ctx.setClient(await openTab(ctx.url, { waitMs, log }));
 }

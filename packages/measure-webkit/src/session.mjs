@@ -75,6 +75,13 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     const ctx = {
       c: client, url: server.url + startPath.slice(1), base: server.url.replace(/\/$/, ''), root, device: { name: device.name }, log,
       setClient: (c2) => { client = c2; ctx.c = c2; },
+      // the proxy can die under host load (seen on a runner: ECONNREFUSED after a 1006 close); start it again, Safari still runs
+      ensureProxy: async () => {
+        if (proxy?.alive()) { try { await proxyCheck(); return; } catch { /* answers no more */ } }
+        log('the inspector proxy is gone or not answering; starting it again');
+        try { await proxy?.stop(); } catch { /* already gone */ }
+        proxy = await startProxy({ log });
+      },
     };
     return await fn(ctx);
   } finally {
