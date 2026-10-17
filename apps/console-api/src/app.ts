@@ -4,12 +4,14 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { Command } from "@fw/contracts";
 import type { Store } from "./store.ts";
+import { mountReconcile } from "./reconcile/routes.ts";
+import type { Reconciler } from "./reconcile/reconciler.ts";
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
 };
 
-export function createApp(store: Store, webDist?: string) {
+export function createApp(store: Store, webDist?: string, reconciler?: Reconciler) {
   const app = new Hono();
   // a failed core call (fwcore crash, bad reply) fails the request; the core restarts itself
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
@@ -26,6 +28,7 @@ export function createApp(store: Store, webDist?: string) {
     return c.json(reply, reply.ok ? 200 : 422);
   });
 
+  if (reconciler) mountReconcile(app, store, reconciler);
   app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/events", (c) => {
     const since = Number(c.req.query("since") ?? 0);

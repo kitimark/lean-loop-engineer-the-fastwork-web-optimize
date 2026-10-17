@@ -5,6 +5,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { selectCore } from "./core/index.ts";
 import { Store, consoleDir } from "./store.ts";
+import { Reconciler } from "./reconcile/reconciler.ts";
 
 const dir = consoleDir();
 mkdirSync(dir, { recursive: true });
@@ -20,7 +21,9 @@ try {
 }
 const store = await Store.open(dir, core);
 const here = dirname(fileURLToPath(import.meta.url));
-const app = createApp(store, join(here, "../../console-web/dist"));
+const reconciler = new Reconciler(store, dirname(dir));
+reconciler.start();
+const app = createApp(store, join(here, "../../console-web/dist"), reconciler);
 
 // port 0 = the OS picks a free port (override with PORT); printed and written to api.json
 const server = serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 0), hostname: "127.0.0.1" }, (info) => {
@@ -29,6 +32,7 @@ const server = serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 0), ho
 });
 
 const stop = () => {
+  reconciler.stop();
   rmSync(join(dir, "api.json"), { force: true });
   store.close();
   server.close();
