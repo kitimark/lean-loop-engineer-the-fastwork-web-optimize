@@ -7,8 +7,11 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
 ## Team
 - The main session is the **orchestrator (lead)**: it splits work, decides, reviews results, commits and talks to
   the user. Teammates and subagents do the work and report back.
-- **Only the lead commits.** Teammates never run `git commit`, `git push` or change branches; they finish by sending
-  the lead a short result (≤ 5 lines) plus the list of files they changed.
+- **Who commits:** in the planning phase only the lead commits. Once the build starts, named worktree subagents may
+  commit inside their own worktree branch (`git add -- <paths>`, `git commit -m`); only the lead lands on `main`.
+  Nobody runs `git push`.
+- **Reporting:** send your result to the agent named "reports to" in your spawn prompt (the lead by default): at most
+  ~300 characters plus file paths. Never write status; the console derives it from events.
 - Each teammate writes only the files its task names. Two teammates never edit the same file at the same time.
 - Durable results live in files (`research/`, `docs/`), never only in a message.
 
