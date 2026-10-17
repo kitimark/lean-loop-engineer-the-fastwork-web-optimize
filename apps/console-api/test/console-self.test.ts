@@ -9,7 +9,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { selectCore } from "../src/core/index.ts";
-import { alertFor } from "../src/spool/drain.ts";
+import { alertPlan } from "../src/spool/drain.ts";
 
 type Case = { name: string; request: { op: string } & Record<string, unknown>; response: Record<string, unknown> };
 const golden = (f: string): Case[] => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../../packages/contracts/golden", f), "utf8")
@@ -23,7 +23,7 @@ const reply = async (req: Case["request"]): Promise<unknown> => {
   try { const { id: _id, ...r } = await core.ops(op, fields); return r; } catch (e) { return { error: (e as Error).message.replace(/^fwcore: /, "") }; }
 };
 
-for (const f of ["ops/ops.obs.jsonl", "plan/plan.trailers.jsonl", "console/console.landReadiness.jsonl", "console/console.actor.jsonl"]) {
+for (const f of ["ops/ops.obs.jsonl", "plan/plan.trailers.jsonl", "console/console.landReadiness.jsonl", "console/console.actor.jsonl", "console/console.alert.jsonl"]) {
   describe(`${f} golden conformance (fwcore)`, () => {
     const cases = golden(f);
     it("has cases", () => expect(cases.length).toBeGreaterThanOrEqual(3));
@@ -39,10 +39,13 @@ describe("console-api's own events match Lean console.actor", () => {
     expect(all.map((s) => s.source)).toEqual(["alert", "claim", "build", "landed", "taskDone"]);
     for (const s of all) expect(s.allowed).toBe(true);
   });
-  it("alertFor posts as the alert source", () => {
-    const a = alertFor({ agent_id: "a1", agent_type: "builder", hook_event_name: "Notification", tool_name: null, tool_use_id: null,
-      duration_ms: null, is_error: null, verb: null, ts: 1 }, "k");
+  it("alertPlan posts and cancels as the alert source", async () => {
+    const rec = { agent_id: "a1", agent_type: "builder", hook_event_name: "Notification", tool_name: null, tool_use_id: null,
+      duration_ms: null, is_error: null, verb: null, ts: 1 };
+    const a = (await alertPlan(core, rec, [], [])).post;
     expect(a && { actor: a.actor, type: a.type }).toEqual({ actor: bySource.alert!.actor, type: bySource.alert!.type });
+    const c = (await alertPlan(core, { ...rec, hook_event_name: "PostToolUse", ts: 2 }, [], ["alert-a1-1"])).close;
+    expect(c.map((x) => [x.actor, x.type])).toEqual([["script", "step.cancel"]]);
   });
   it("claims, builds, landings and trailers write as hook and git (literals in drain.ts and reconciler.ts)", () => {
     expect([bySource.claim, bySource.build, bySource.landed, bySource.taskDone].map((s) => [s!.actor, s!.type])).toEqual(

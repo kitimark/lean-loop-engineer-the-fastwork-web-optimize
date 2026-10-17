@@ -22,6 +22,9 @@ export const ObsRecord = z.object({
   isolation: z.boolean().nullable().optional(),
   depth: z.number().int().nonnegative().nullable().optional(),
   has_name: z.boolean().nullable().optional(),
+  /** Notification only (alert-steps): the notification type and the message length; never the message text */
+  notification_type: z.string().max(40).nullable().optional(),
+  message_len: z.number().int().nonnegative().nullable().optional(),
   ts: z.number().int().nonnegative(),
 }).strict();
 export type ObsRecord = z.infer<typeof ObsRecord>;
