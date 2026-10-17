@@ -1,0 +1,13 @@
+{
+  "id": "morph.tween",
+  "slot": "morph",
+  "anchors": ["morph-tween"],
+  "experiment": true,
+  "impls": ["mui", "plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12683-12701,12999-13089" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

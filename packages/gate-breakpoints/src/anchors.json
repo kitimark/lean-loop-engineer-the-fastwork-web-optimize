@@ -137,6 +137,25 @@
         { "role": "img", "orig": ".start-selling-morph-col img", "rewrite": "[data-fw=\"morph-columns\"] img", "boxRel": null, "dims": ["h"], "skipSets": ["layoutDerived"], "skipProps": [],
           "why": "width is the column's share of the host; the height is inline in both arms" }
       ]
+    },
+    "morph.tween": {
+      "anchors": ["morph-tween"],
+      "cites": ["rewrite: MorphTween marks the document element with data-fw-morph-tween once mounted; original: the tween listens on the window and is armed by the platform section, 2.DyWL8TcE.js:12999-13089"],
+      "excluded": [
+        { "what": "the platform section, the nav morph and the value --morph", "why": "owned by morph.mount, morph.panel and the nav; the rewrite page has no platform section yet, so the tween never arms. Its decisions are covered by the Lean golden vectors (logic.test.ts) and the driver tests" }
+      ],
+      "roles": [
+        {
+          "role": "scroller",
+          "orig": "html",
+          "rewrite": "html[data-fw-morph-tween]",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the part renders nothing and restates no CSS; only the document element's width is compared. If the mark is missing the rewrite count is 0 and the count differs"
+        }
+      ]
     }
   }
 }
