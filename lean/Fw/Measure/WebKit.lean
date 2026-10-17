@@ -86,7 +86,9 @@ deriving Repr, DecidableEq
 /-- The tally of a list of rows: one count per tallied type, the rounded paint area, and the
 counts of the other (not ignored) types.
 
-$$\mathrm{Tally} = \mathbb{N}^{|T|} \times \mathbb{Z} \times (\Sigma^{*} \times \mathbb{N})^{*}$$
+$$\mathrm{Tally} = \mathbb{N}^{*} \times \mathbb{Z} \times (\Sigma^{*} \times \mathbb{N})^{*}$$
+
+(`tally` fills `counts` with `|T|` entries.)
 -/
 structure Tally where
   counts : List Nat
@@ -96,7 +98,7 @@ deriving Repr, DecidableEq
 
 /-- The number of rows of one type.
 
-$$n_\tau(R) = |\{\, r \in R \mid r.\mathrm{type} = \tau \,\}|$$
+$$n_\tau(R) = \big|\{\, i < |R| \mid R_i.\mathrm{type} = \tau \,\}\big|$$
 -/
 def countType (rows : List Row) (τ : String) : Nat := (rows.filter (·.type == τ)).length
 
@@ -121,14 +123,14 @@ def tally (rows : List Row) : Tally :=
 /-- The step of a start time `s ≥ m₀`: the number of marks at or before `s`, minus one (for
 non-decreasing marks this is the last `k` with `m_k ≤ s`, which the JS binary search finds).
 
-$$\operatorname{step}(M, s) = |\{\, k \mid m_k \le s \,\}| - 1$$
+$$\operatorname{step}(M, s) = \big|\{\, k < |M| \mid m_k \le s \,\}\big| \mathbin{\dot-} 1 \quad (= 0 \text{ when no } m_k \le s)$$
 -/
 def stepOf (marks : List Rat) (s : Rat) : Nat := (marks.filter (· ≤ s)).length - 1
 
 /-- Where a row goes: before the first mark (also when its start is not a number), into a step,
 or after the end (dropped).
 
-$$\operatorname{place}(M, e, r) = \begin{cases} \mathrm{before} & r.\mathrm{start} = \bot \ \lor\ r.\mathrm{start} < m_0 \\ \mathrm{after} & r.\mathrm{start} \ge e \\ \mathrm{step}(\operatorname{step}(M, r.\mathrm{start})) & \text{otherwise} \end{cases}$$
+$$\mathrm{Place} = \{\mathrm{before}, \mathrm{after}\} \cup \{\, \mathrm{step}(k) \mid k \in \mathbb{N} \,\}$$
 -/
 inductive Place where
   | before
@@ -138,7 +140,7 @@ deriving Repr, DecidableEq
 
 /-- The place of one row (with `m₀ = 0` for an empty mark list; the wire refuses one).
 
-$$\operatorname{place}(M, e, r) \text{ as in } \mathrm{Place}$$
+$$\operatorname{place}(M, e, r) = \begin{cases} \mathrm{before} & r.\mathrm{start} = \bot \ \lor\ r.\mathrm{start} < m_0 \\ \mathrm{after} & m_0 \le r.\mathrm{start} \ \land\ e \le r.\mathrm{start} \\ \mathrm{step}(\operatorname{step}(M, r.\mathrm{start})) & m_0 \le r.\mathrm{start} < e \end{cases},\quad m_0 = \begin{cases} M_0 & M \ne [\,] \\ 0 & M = [\,] \end{cases}$$
 -/
 def place (marks : List Rat) (endTime : Rat) (r : Row) : Place :=
   match r.start with
@@ -162,7 +164,9 @@ def stepRows (marks : List Rat) (endTime : Rat) (rows : List Row) (k : Nat) : Li
 /-- The result of `reduceSteps`: per-step count rows (columns `countTypes`), per-step paint areas,
 the window tally and the number of rows before the first step.
 
-$$\mathrm{Reduced} = (\mathbb{N}^{|T|})^{n} \times \mathbb{Z}^{n} \times \mathrm{Tally} \times \mathbb{N}$$
+$$\mathrm{Reduced} = (\mathbb{N}^{*})^{*} \times \mathbb{Z}^{*} \times \mathrm{Tally} \times \mathbb{N}$$
+
+(`reduceSteps` fills `n = |M|` rows of `|T|` counts.)
 -/
 structure Reduced where
   perStep : List (List Nat)
@@ -173,7 +177,7 @@ deriving Repr, DecidableEq
 
 /-- **Per-step reduction** (`reduceSteps`) with `n = |M|` steps.
 
-$$\operatorname{reduceSteps}(R, M, e) = \Big([\operatorname{tally}(R_k).\mathrm{counts}]_{k < n},\ [\operatorname{tally}(R_k).\mathrm{area}]_{k < n},\ \operatorname{tally}(W(R)),\ |\{ r \in R \mid \operatorname{place}(M, e, r) = \mathrm{before} \}|\Big)$$
+$$\big|[\, r \in R \mid \operatorname{place}(M, e, r) = \mathrm{before} \,]\big|$$
 -/
 def reduceSteps (rows : List Row) (marks : List Rat) (endTime : Rat) : Reduced :=
   let per := (List.range marks.length).map fun k => tally (stepRows marks endTime rows k)
@@ -201,7 +205,7 @@ theorem stepOf_lt (marks : List Rat) (s : Rat) (h : marks ≠ []) : stepOf marks
 
 /-- A row in the window lands in some step below `|M|`.
 
-$$|M| \ge 1 \land \operatorname{place}(M, e, r) = \mathrm{step}(k) \;\Rightarrow\; k < |M|$$
+$$\forall M, e, r, k:\ M \ne [\,] \land \operatorname{place}(M, e, r) = \mathrm{step}(k) \;\Rightarrow\; k < |M|$$
 -/
 theorem place_step_lt {marks : List Rat} {endTime : Rat} {r : Row} {k : Nat} (h : marks ≠ [])
     (hp : place marks endTime r = .step k) : k < marks.length := by
@@ -217,7 +221,7 @@ theorem place_step_lt {marks : List Rat} {endTime : Rat} {r : Row} {k : Nat} (h 
 /-- Generic partition: summing over the distinct keys `0 … n-1` of the rows with each key is
 summing over all rows, when every row's key is below `n`.
 
-$$(\forall r \in R:\ \kappa(r) < n) \;\Rightarrow\; \sum_{z < n} \sum_{r \in R,\ \kappa(r) = z} g(r) = \sum_{r \in R} g(r)$$
+$$\forall \kappa : \alpha \to \mathbb{N},\ g : \alpha \to \mathbb{Z},\ n \in \mathbb{N},\ R \in \alpha^{*}:\ (\forall r \in R:\ \kappa(r) < n) \;\Rightarrow\; \sum_{z < n} \sum_{r \in R,\ \kappa(r) = z} g(r) = \sum_{r \in R} g(r)$$
 -/
 theorem sum_partition_range {α : Type} (key : α → Nat) (g : α → Int) : ∀ (n : Nat) (rs : List α),
     (∀ r ∈ rs, key r < n) →
@@ -256,7 +260,7 @@ theorem sum_partition_range {α : Type} (key : α → Nat) (g : α → Int) : �
 /-- **Step partition.** For each tallied type, the per-step counts add up to the window tally's
 count: every row in the window lands in exactly one step.
 
-$$|M| \ge 1 \;\Rightarrow\; \forall \tau:\ \sum_{k < |M|} n_\tau(R_k) = n_\tau(W(R))$$
+$$\forall R, M, e, \tau:\ M \ne [\,] \;\Rightarrow\; \sum_{k < |M|} n_\tau(R_k) = n_\tau(W(R))$$
 -/
 theorem steps_partition (rows : List Row) (marks : List Rat) (endTime : Rat) (τ : String)
     (h : marks ≠ []) :
@@ -297,7 +301,7 @@ theorem steps_partition (rows : List Row) (marks : List Rat) (endTime : Rat) (τ
 /-- **Rows are conserved.** Every row is before the first step, in exactly one step, or after the
 end.
 
-$$|R| = |\{r \mid \operatorname{place} = \mathrm{before}\}| + \sum_{k < |M|} |R_k| + |\{r \mid \operatorname{place} = \mathrm{after}\}| \quad (|M| \ge 1)$$
+$$\forall R, M, e:\ M \ne [\,] \Rightarrow |R| = \big|[r \in R \mid \operatorname{place}(M,e,r) = \mathrm{before}]\big| + \sum_{k < |M|} |R_k| + \big|[r \in R \mid \operatorname{place}(M,e,r) = \mathrm{after}]\big|$$
 -/
 theorem rows_conserved (rows : List Row) (marks : List Rat) (endTime : Rat) (h : marks ≠ []) :
     (rows.length : Int) = (rows.filter (place marks endTime · == .before)).length +
@@ -341,7 +345,9 @@ theorem rows_conserved (rows : List Row) (marks : List Rat) (endTime : Rat) (h :
 
 /-- One dense zone: index, start offset, number of steps, column sums and paint area.
 
-$$\mathrm{WZone} = \mathbb{N} \times \mathbb{N} \times \mathbb{N} \times \mathbb{Z}^{w} \times \mathbb{Z}$$
+$$\mathrm{WZone} = \mathbb{N} \times \mathbb{N} \times \mathbb{N} \times \mathbb{Z}^{*} \times \mathbb{Z}$$
+
+(`zones_{h,w}` fills `counts` with `w` entries.)
 -/
 structure WZone where
   zone : Nat
@@ -406,7 +412,7 @@ def zones (h w : Nat) (steps : List Step) : List WZone :=
 
 /-- Every step's zone is below the number of zones.
 
-$$\forall s \in S:\ \operatorname{zix}_h(s.y) < N_h(S)$$
+$$\forall h \in \mathbb{N},\ S,\ s \in S:\ \operatorname{zix}_h(s.y) < N_h(S)$$
 -/
 theorem zoneIx_lt (h : Nat) (steps : List Step) : ∀ s ∈ steps, zoneIx h s.y < zoneCount h steps := by
   intro s hs
@@ -480,7 +486,7 @@ def stStep (st : Int × Int × Int) (v : Int) : Int × Int × Int := (min st.1 v
 
 /-- The (lo, hi, big) of a non-empty list of values ((0, 0, 0) for none).
 
-$$\operatorname{stats}(v_1, \dots, v_m) = (\min_i v_i,\ \max_i v_i,\ \max_i |v_i|)$$
+$$\operatorname{stats}(v_1, \dots, v_m) = \begin{cases} (0, 0, 0) & m = 0 \\ (\min_i v_i,\ \max_i v_i,\ \max_i |v_i|) & m \ge 1 \end{cases}$$
 -/
 def stats : List Int → Int × Int × Int
   | [] => (0, 0, 0)
@@ -507,7 +513,7 @@ def cellVals (runs : List Series) (i : Nat) : List Int := runs.map (valAt · i)
 else the worst cell status (0 deterministic, 1 stable, 2 quarantined). The wire refuses fewer
 than two runs, as JS does.
 
-$$\operatorname{classifyCells}(R, \mathrm{tol}) = \begin{cases} \mathrm{quar} & \exists r \in R:\ |r| \ne |R_1| \\ \mathrm{det} & \max_{i < |R_1|} \operatorname{status}(\operatorname{cell}_i(R)) = 0 \\ \mathrm{stable} & \max_i \operatorname{status} = 1 \\ \mathrm{quar} & \max_i \operatorname{status} = 2 \end{cases}$$
+$$\operatorname{classifyCells}(R, \mathrm{tol}) = \begin{cases} 2 & \exists r \in R:\ |r| \ne |R_1| \\ \max{}^{*}_{i < |R_1|} \operatorname{status}(\operatorname{cell}_i(R)) & \text{otherwise} \end{cases},\quad R_1 = [\,] \text{ if } R = [\,]$$
 -/
 def classifyCells (tol : Tol) (runs : List Series) : Nat :=
   let len := (runs.headD []).length
@@ -531,24 +537,24 @@ def Inv (st : Int × Int × Int) : Prop := st.1 ≤ st.2.1 ∧ st.2.1 ≤ st.2.2
 
 /-- One step keeps the invariant.
 
-$$\operatorname{Inv}(\sigma) \;\Rightarrow\; \operatorname{Inv}(\operatorname{st}(\sigma; v))$$
+$$\forall \sigma \in \mathbb{Z}^3,\ v \in \mathbb{Z}:\ \operatorname{Inv}(\sigma) \Rightarrow \operatorname{Inv}(\operatorname{st}(\sigma; v))$$
 -/
 theorem inv_step {st : Int × Int × Int} (v : Int) (h : Inv st) : Inv (stStep st v) := by
   obtain ⟨l, hi, b⟩ := st
   simp only [Inv, stStep, absI] at h ⊢
   split <;> omega
 
-/-- The invariant holds for the stats of a non-empty list, folded from any invariant start.
+/-- Folding `st` over any list from a start that satisfies the invariant keeps the invariant.
 
-$$\operatorname{Inv}(\sigma) \;\Rightarrow\; \operatorname{Inv}(\operatorname{foldl}(\operatorname{st}, \sigma, V))$$
+$$\forall V \in \mathbb{Z}^{*},\ \sigma \in \mathbb{Z}^3:\ \operatorname{Inv}(\sigma) \Rightarrow \operatorname{Inv}(\operatorname{foldl}(\operatorname{st}, \sigma, V))$$
 -/
 theorem inv_foldl : ∀ (vs : List Int) (st : Int × Int × Int), Inv st → Inv (vs.foldl stStep st)
   | [], _, h => h
   | v :: vs, _, h => inv_foldl vs _ (inv_step v h)
 
-/-- The stats of a non-empty list satisfy the invariant.
+/-- The stats of any list satisfy the invariant (`stats [] = (0, 0, 0)`).
 
-$$V \ne [\,] \;\Rightarrow\; \operatorname{Inv}(\operatorname{stats}(V))$$
+$$\forall V \in \mathbb{Z}^{*}:\ \operatorname{Inv}(\operatorname{stats}(V))$$
 -/
 theorem inv_stats : ∀ vs : List Int, Inv (stats vs)
   | [] => by simp [stats, Inv]
@@ -556,7 +562,7 @@ theorem inv_stats : ∀ vs : List Int, Inv (stats vs)
 
 /-- Appending a value is one more step.
 
-$$V \ne [\,] \;\Rightarrow\; \operatorname{stats}(V \mathbin{+\!\!+} [x]) = \operatorname{st}(\operatorname{stats}(V); x)$$
+$$\forall V \in \mathbb{Z}^{*},\ x \in \mathbb{Z}:\ V \ne [\,] \Rightarrow \operatorname{stats}(V \mathbin{+\!\!+} [x]) = \operatorname{st}(\operatorname{stats}(V); x)$$
 -/
 theorem stats_snoc : ∀ (vs : List Int) (x : Int), vs ≠ [] → stats (vs ++ [x]) = stStep (stats vs) x
   | [], _, h => absurd rfl h
@@ -565,7 +571,7 @@ theorem stats_snoc : ∀ (vs : List Int) (x : Int), vs ≠ [] → stats (vs ++ [
 /-- **Spread grows at least as fast as the largest magnitude.** Adding a value raises the spread
 by at least as much as it raises `big`, and never lowers either.
 
-$$\operatorname{Inv}(\ell, h, b) \land (\ell', h', b') = \operatorname{st}(\ell, h, b; x) \;\Rightarrow\; 0 \le b' - b \le (h' - \ell') - (h - \ell)$$
+$$\forall (\ell, h, b) \in \mathbb{Z}^3,\ x \in \mathbb{Z}:\ \operatorname{Inv}(\ell, h, b) \land (\ell', h', b') = \operatorname{st}(\ell, h, b; x) \Rightarrow 0 \le b' - b \le (h' - \ell') - (h - \ell)$$
 -/
 theorem spread_step (st : Int × Int × Int) (x : Int) (h : Inv st) :
     0 ≤ (stStep st x).2.2 - st.2.2 ∧
@@ -577,7 +583,7 @@ theorem spread_step (st : Int × Int × Int) (x : Int) (h : Inv st) :
 /-- **A cell's status never decreases when a run is added**, provided `relTol ≤ 1` (true for every
 lane tolerance: 0, 0.02, 0.05, 0.1).
 
-$$r \le 1 \land V \ne [\,] \;\Rightarrow\; \operatorname{status}(V) \le \operatorname{status}(V \mathbin{+\!\!+} [x])$$
+$$\forall \mathrm{tol} = (a, r),\ V \in \mathbb{Z}^{*},\ x \in \mathbb{Z}:\ r \le 1 \land V \ne [\,] \Rightarrow \operatorname{status}_{\mathrm{tol}}(V) \le \operatorname{status}_{\mathrm{tol}}(V \mathbin{+\!\!+} [x])$$
 -/
 theorem cellStatus_snoc (tol : Tol) (hr1 : tol.relTol.num ≤ tol.relTol.den)
     (vs : List Int) (x : Int) (hne : vs ≠ []) : cellStatus tol vs ≤ cellStatus tol (vs ++ [x]) := by
@@ -615,7 +621,7 @@ theorem cellStatus_snoc (tol : Tol) (hr1 : tol.relTol.num ≤ tol.relTol.den)
 
 /-- The maximum of pointwise larger values is larger.
 
-$$(\forall x \in L:\ f(x) \le g(x)) \;\Rightarrow\; \max{}^{*} f(L) \le \max{}^{*} g(L)$$
+$$\forall f, g : \alpha \to \mathbb{N},\ L \in \alpha^{*}:\ (\forall x \in L:\ f(x) \le g(x)) \Rightarrow \max{}^{*} f(L) \le \max{}^{*} g(L)$$
 -/
 theorem maxOf_map_le {α : Type} {f g : α → Nat} : ∀ {l : List α}, (∀ x ∈ l, f x ≤ g x) →
     maxOf (l.map f) ≤ maxOf (l.map g)
@@ -630,7 +636,7 @@ theorem maxOf_map_le {α : Type} {f g : α → Nat} : ∀ {l : List α}, (∀ x 
 /-- **The cell class is monotone in the runs.** Adding a run never makes the class stricter, when
 `relTol ≤ 1` and there is at least one run.
 
-$$r \le 1 \land R \ne [\,] \;\Rightarrow\; \operatorname{classifyCells}(R, \mathrm{tol}) \le \operatorname{classifyCells}(R \mathbin{+\!\!+} [x], \mathrm{tol})$$
+$$\forall \mathrm{tol} = (a, r),\ R \in (\mathbb{Z}^{*})^{*},\ x \in \mathbb{Z}^{*}:\ r \le 1 \land R \ne [\,] \Rightarrow \operatorname{classifyCells}(R, \mathrm{tol}) \le \operatorname{classifyCells}(R \mathbin{+\!\!+} [x], \mathrm{tol})$$
 -/
 theorem classifyCells_snoc (tol : Tol) (hr1 : tol.relTol.num ≤ tol.relTol.den)
     (runs : List Series) (x : Series) (hne : runs ≠ []) :
@@ -663,7 +669,7 @@ theorem classifyCells_snoc (tol : Tol) (hr1 : tol.relTol.num ≤ tol.relTol.den)
 
 /-- A list whose stats have zero spread is constant.
 
-$$h - \ell = 0 \text{ for } \operatorname{stats}(V) \;\Rightarrow\; \forall u, v \in V:\ u = v$$
+$$\forall V \in \mathbb{Z}^{*}:\ (\ell, h, b) = \operatorname{stats}(V) \land h - \ell = 0 \Rightarrow \forall u, v \in V:\ u = v$$
 -/
 theorem const_of_spread_zero (vs : List Int) (h : (stats vs).2.1 - (stats vs).1 = 0) :
     ∀ u ∈ vs, ∀ v ∈ vs, u = v := by
@@ -697,7 +703,7 @@ theorem const_of_spread_zero (vs : List Int) (h : (stats vs).2.1 - (stats vs).1 
 pair of runs is identical frame by frame, so the runs are `deterministic` in the sense of
 `Fw.Measure.Classes` (and enter the screen frame by frame).
 
-$$\operatorname{classifyCells}(R, \mathrm{tol}) = 0 \;\Rightarrow\; \operatorname{Holds}(\mathrm{det}, R)$$
+$$\forall \mathrm{tol},\ R:\ \operatorname{classifyCells}(R, \mathrm{tol}) = 0 \Rightarrow \operatorname{Holds}(\mathrm{det}, R)$$
 -/
 theorem classifyCells_det_holds (tol : Tol) (runs : List Series) (h : classifyCells tol runs = 0) :
     Holds .deterministic runs := by
@@ -734,7 +740,7 @@ theorem classifyCells_stable (runs : List Series) : Holds (.stable (kObs runs) (
 
 /-- `classifyCells` is 0 exactly when the runs have equal lengths and every cell is identical.
 
-$$\operatorname{classifyCells}(R, \mathrm{tol}) = 0 \iff (\forall r \in R:\ |r| = |R_1|) \land \forall i < |R_1|:\ \operatorname{status}(\operatorname{cell}_i(R)) = 0$$
+$$\forall \mathrm{tol},\ R:\ \operatorname{classifyCells}(R, \mathrm{tol}) = 0 \iff (\forall r \in R:\ |r| = |R_1|) \land \forall i < |R_1|:\ \operatorname{status}(\operatorname{cell}_i(R)) = 0,\quad R_1 = [\,] \text{ if } R = [\,]$$
 -/
 theorem classifyCells_det_iff (tol : Tol) (runs : List Series) :
     classifyCells tol runs = 0 ↔ (∀ r ∈ runs, r.length = (runs.headD []).length) ∧
@@ -778,7 +784,7 @@ def symDiff (a b : List String) : Nat :=
 
 /-- The keys of singleton count lists are the keys inserted one by one.
 
-$$\operatorname{keys}([[(x_1, 0)], \dots, [(x_m, 0)]]) = \operatorname{ins}(x_1, \dots \operatorname{ins}(x_m, [\,]))$$
+$$\forall m,\ x_1, \dots, x_m \in \Sigma^{*}:\ \operatorname{keys}([[(x_1, 0)], \dots, [(x_m, 0)]]) = \operatorname{ins}(x_1, \operatorname{ins}(x_2, \dots \operatorname{ins}(x_m, [\,])))$$
 -/
 theorem keysOf_singletons (l : List String) :
     keysOf (l.map fun x => [(x, (0 : Int))]) = l.foldr (fun x acc => insKey x acc) [] := by
@@ -799,7 +805,9 @@ theorem symDiff_self (a : List String) : symDiff a a = 0 := by
 
 /-- **Symmetry** of the multiset symmetric difference, as a sum over any key list.
 
-$$\forall K:\ \sum_{x \in K} |\#_x(A) - \#_x(B)| = \sum_{x \in K} |\#_x(B) - \#_x(A)|$$
+$$\forall A, B, K \in (\Sigma^{*})^{*}:\ \sum_{x \in K} |\#_x(A) - \#_x(B)| = \sum_{x \in K} |\#_x(B) - \#_x(A)|$$
+
+(`symDiff A B = symDiff B A` itself is not proved here, since `keys (A ++ B) = keys (B ++ A)` is not shown.)
 -/
 theorem symDiff_terms_comm (a b : List String) (ks : List String) :
     (ks.map fun x => ((occ a x : Int) - occ b x).natAbs).foldr (· + ·) 0 =
@@ -813,7 +821,9 @@ theorem symDiff_terms_comm (a b : List String) (ks : List String) :
 /-- One classification row: family, metric, aggregation level and class (0 deterministic,
 1 stable, 2 quarantined).
 
-$$\mathrm{CRow} = \Sigma^{*} \times \Sigma^{*} \times \Sigma^{*} \times \{0, 1, 2\}$$
+$$\mathrm{CRow} = \Sigma^{*} \times \Sigma^{*} \times \Sigma^{*} \times \mathbb{N}$$
+
+(The classes used are 0, 1, 2.)
 -/
 structure CRow where
   family : String
@@ -844,7 +854,7 @@ def lastCls (rows : List CRow) (lv : String) : Nat :=
 /-- **Summary** (`summarize`): group rows by the key `family|metric` in order of first appearance;
 per group the levels with their last class (sorted by level) and the worst of them.
 
-$$\operatorname{summarize}(R) = \Big[\big(f_g, m_g, [(\lambda, \operatorname{last}_\lambda(R_g))]_{\lambda \in \operatorname{levels}(R_g)}, \max_\lambda \operatorname{last}_\lambda(R_g)\big)\Big]_{g \in \operatorname{firstSeen}([r.f \cdot \texttt{"|"} \cdot r.m]_{r \in R})}$$
+$$\operatorname{summarize}(R) = \Big[\big(R_g[0].f,\ R_g[0].m,\ [(\lambda, \operatorname{last}_\lambda(R_g))]_{\lambda \in \operatorname{sort}\{r.\mathrm{level} \mid r \in R_g\}},\ \max{}^{*}_\lambda \operatorname{last}_\lambda(R_g)\big)\Big]_{g \in \operatorname{firstSeen}([\kappa(r)]_{r \in R})},\ \kappa(r) = r.f \cdot \texttt{"|"} \cdot r.m,\ R_g = [r \in R \mid \kappa(r) = g]$$
 -/
 def summarize (rows : List CRow) : List Summary :=
   let key := fun (r : CRow) => r.family ++ "|" ++ r.metric
@@ -861,7 +871,7 @@ def summarize (rows : List CRow) : List Summary :=
 /-- **The worst class bounds every level.** In each summary entry, every level's class is at most
 the entry's worst class.
 
-$$\forall e \in \operatorname{summarize}(R),\ (\lambda, c) \in e.\mathrm{levels}:\ c \le e.\mathrm{worst}$$
+$$\forall R,\ e \in \operatorname{summarize}(R),\ (\lambda, c) \in e.\mathrm{levels}:\ c \le e.\mathrm{worst}$$
 -/
 theorem summarize_worst (rows : List CRow) :
     ∀ e ∈ summarize rows, ∀ p ∈ e.levels, p.2 ≤ e.worst := by

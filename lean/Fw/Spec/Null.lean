@@ -88,16 +88,16 @@ $$\operatorname{falseBetterProb}(4, 4) = 1/70 = \operatorname{pNull}(4, 4)$$
 -/
 theorem land_null_prob : falseBetterProb 4 4 = 1 / 70 ∧ pNull 4 4 = 1 / 70 := by decide +kernel
 
-/-- 5 vs 5 runs: if every labeling is equally likely (the L3 premise), a false "better" has
-probability exactly 1/252 (all 252 rank assignments enumerated through `verdict`; any distinct
+/-- 5 vs 5 runs: if the 10 run values are distinct and every labeling is equally likely (the L3 premise), a false
+"better" has probability exactly 1/252 (all 252 rank assignments enumerated through `verdict`; any distinct
 values: `pAt_distinct`); with ties it is at most 1/252 (`null_bound_4v4_5v5`).
 
 $$\operatorname{falseBetterProb}(5, 5) = 1/252 = \operatorname{pNull}(5, 5)$$
 -/
 theorem null_prob_5v5 : falseBetterProb 5 5 = 1 / 252 ∧ pNull 5 5 = 1 / 252 := by decide +kernel
 
-/-- 3 vs 3 runs (v1's minimum): if every labeling is equally likely (the L3 premise), a false
-"better" has probability exactly 1/20 (all 20 rank assignments enumerated through `verdict`; any
+/-- 3 vs 3 runs (v1's minimum): if the 6 run values are distinct and every labeling is equally likely (the L3
+premise), a false "better" has probability exactly 1/20 (all 20 rank assignments enumerated through `verdict`; any
 distinct values: `pAt_distinct`); with ties it is at most 1/20 (`pAt_le_pNull`).
 
 $$\operatorname{falseBetterProb}(3, 3) = 1/20 = \operatorname{pNull}(3, 3)$$

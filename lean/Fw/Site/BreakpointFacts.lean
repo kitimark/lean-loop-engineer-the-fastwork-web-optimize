@@ -690,13 +690,15 @@ theorem gap860 (e : Env) (h : 2 * e.width.num = 1721 * e.width.den) :
   and_intros <;> omega
 
 /-- Gap 1000 at any width whose value is 1000.5: `<=1000`, `>=1001`, `>=1001 and no-preference`, `641-1000` and
-`861-1000` all fail.
+`861-1000` all fail (the combos `c1000` and `c1000-nodw` lose their `(width<=1000px)` arm).
 
 $$ \forall e.\ \tfrac{p_w}{q_w} = \tfrac{2001}{2}\ (\text{i.e. } 2p_w = 2001\,q_w) \Rightarrow e \not\models (w \le 1000) \land
    e \not\models (w \ge 1001) \land e \not\models (w \ge 1001 \land \mu = \text{no-preference}) \land
    e \not\models (641 \le w \le 1000) \land e \not\models (861 \le w \le 1000) $$
 
-At 1000.5 px (in any representation) no width rule at the 1000 edge matches on either side. -/
+At 1000.5 px (in any representation) none of the five rules (width<=1000px), (width>=1001px), (width>=1001px) and
+no-preference, 641-1000 and 861-1000 matches; the combos c1000 / c1000-nodw lose their (width<=1000px) arm but can
+still match through the device-width or touch arm. -/
 theorem gap1000 (e : Env) (h : 2 * e.width.num = 2001 * e.width.den) :
     ¬ wLe1000.Holds e ∧ ¬ wGe1001.Holds e ∧ ¬ wGe1001Nopref.Holds e ∧ ¬ w641to1000.Holds e ∧
       ¬ w861to1000.Holds e := by
