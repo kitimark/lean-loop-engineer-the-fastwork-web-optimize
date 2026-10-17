@@ -2218,7 +2218,8 @@
    "writes": [
     "lean/Fw/Parts/PainNotes.lean",
     "packages/contracts/golden/engine/pain-notes.jsonl"
-   ]
+   ],
+   "evidence": "80d7610"
   },
   {
    "id": "proof-people-deck",
@@ -2516,6 +2517,44 @@
     "apps/console-api/test/**",
     "apps/console-api/src/reconcile/**",
     "apps/runner/src/plan.ts"
+   ]
+  },
+  {
+   "id": "incident-lint",
+   "title": "(S) Fw.Plan.Incident: lint docs/team/incidents/ledger.json against the work graph: every incident has >= 1 evidence of a known kind (commit on main, ci run id, existing repo file, event seq, proc), a fix task that exists, a regression pointer; status derived (fixed iff fix task done); fw plan lint reports incidents; golden vectors; theorems on the derivation",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Incident.lean",
+    "lean/Fw/Plan/Lint.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/src/plan.ts",
+    "apps/runner/test/**",
+    "docs/team/incidents/**"
+   ]
+  },
+  {
+   "id": "land-hardening",
+   "title": "(M) fw land: (a) land lock: no other commit on main while a land holds its merge (pre-commit hook + lock file, Lean protocol theorem: the merge commit parents are exactly (main0, branch) and its message carries the Task trailer); (b) Lean landScope admits a task kind registration set (part ports: registry, App, gen-shells, Gate/Scope, Parts/Golden, Parts/<Part>*.lean, anchors.json; measure tasks: packages/measure-*/**, results/baselines/**) instead of hand --allow; (c) land finds the agent ci/<task> branch when the worktree branch has nothing; (d) lean/Fw.lean generated or checked: every lean/Fw/**/*.lean imported exactly once (replaces the union stopgap); regression tests from docs/team/incidents/ledger.json",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "apps/runner/hooks/**",
+    "lean/Fw/Console/Land.lean",
+    "lean/Fw.lean",
+    "lean/scripts/**",
+    "packages/contracts/golden/console/**",
+    ".gitattributes",
+    "docs/team/tools/**"
    ]
   }
  ],
