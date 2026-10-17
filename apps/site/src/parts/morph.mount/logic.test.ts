@@ -14,6 +14,26 @@ goldenConformance('morph.mount', {
   repin: (i) => logic.repin(i.active, i.y, i.pin),
 });
 
+describe('variant shift (Lean MorphMountOpt.mountV)', () => {
+  it('warm counts as an intersecting entry; monotone', () => {
+    expect(logic.mountNextWarm(false, false, false, true)).toBe(true);
+    expect(logic.mountNextWarm(false, false, false, false)).toBe(false);
+    expect(logic.mountNextWarm(true, false, false, false)).toBe(true);
+    for (const m of [false, true])
+      for (const n of [false, true])
+        for (const p of [false, true]) if (logic.mountNext(m, n, p)) expect(logic.mountNextWarm(m, n, p, false)).toBe(true);
+  });
+  it('still means idle morph and a quiet gap', () => {
+    expect(logic.warmStill(false, logic.WARM_QUIET_MS)).toBe(true);
+    expect(logic.warmStill(true, 1e6)).toBe(false);
+    expect(logic.warmStill(false, logic.WARM_QUIET_MS - 1)).toBe(false);
+    // boundary: exactly 150 ms is still
+    expect(logic.WARM_QUIET_MS).toBe(150);
+    expect(logic.warmStill(false, 150)).toBe(true);
+    expect(logic.warmStill(false, 149.999)).toBe(false);
+  });
+});
+
 describe('morph.mount constants (restated from the original)', () => {
   it('observer margin and arm thresholds', () => {
     expect(logic.IO_ROOT_MARGIN).toBe('200% 0px');
