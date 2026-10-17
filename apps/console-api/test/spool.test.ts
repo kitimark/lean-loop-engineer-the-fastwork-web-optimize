@@ -85,7 +85,8 @@ describe("spool drain", () => {
     expect(alertFor(rec({ hook_event_name: "Notification" }) as never, "k")?.type).toBe("step.post");
     expect(alertFor(rec({ hook_event_name: "Notification", agent_id: null, agent_type: null }) as never, "k")).toBeNull();
   });
-  it("summarize ignores non-tool events", () => {
-    expect(summarize([{ ...rec(), hook_event_name: "SubagentStart", key: "k" } as never])).toEqual([]);
+  it("summarize ignores non-tool events", async () => {
+    const { store } = await fresh();
+    expect(await summarize(store.core, [{ ...rec(), hook_event_name: "SubagentStart", key: "k" } as never])).toEqual([]);
   });
 });

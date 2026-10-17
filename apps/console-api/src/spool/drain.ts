@@ -5,6 +5,7 @@ import { existsSync, fsyncSync, openSync, closeSync, readFileSync, readdirSync, 
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { ObsLine, ObsRecord, type Command, type ObsSummaryRow } from "@fw/contracts";
+import type { Core } from "../core/index.ts";
 import type { Store } from "../store.ts";
 
 export type DrainResult = { accepted: number; duplicates: number; invalid: number; retry: number; alerts: number };
@@ -22,24 +23,23 @@ export function alertFor(r: ObsRecord, key: string): Command | null {
     card: null, title, kind: "action", options: null };
 }
 
-/** Decoded hook identity, from Lean `ops.hook` (the one decoder of hook payloads). */
-type Hook = { event: string; agentId: string | null; toolUseId: string | null };
+/** Tool calls per (agent type, tool): count, errors, summed hook duration, in first-seen order. Lean `ops.obs`
+ *  (`Fw.Ops.Obs.summarize`); only the fields the rule reads are sent. */
+export async function summarize(core: Pick<Core, "ops">, lines: readonly ObsLine[]): Promise<ObsSummaryRow[]> {
+  const r = await core.ops("ops.obs", { lines: lines.map((l) => ({
+    hook_event_name: l.hook_event_name, agent_type: l.agent_type, tool_name: l.tool_name, is_error: l.is_error, duration_ms: l.duration_ms,
+  })) });
+  return r.summary as ObsSummaryRow[];
+}
 
-/** Aggregate tool calls per (agent type, tool): count, errors, summed hook duration.
- *  TS STAND-IN, a Lean gap: `ops.usage` joins token usage, not tool calls; an `ops.obs` aggregation op is missing. */
-export function summarize(lines: readonly ObsLine[]): ObsSummaryRow[] {
-  const m = new Map<string, ObsSummaryRow>();
-  for (const l of lines) {
-    if (l.hook_event_name !== "PostToolUse" && l.hook_event_name !== "PostToolUseFailure") continue;
-    const agent_type = l.agent_type ?? "main", tool_name = l.tool_name ?? "?";
-    const k = `${agent_type}\0${tool_name}`;
-    const row = m.get(k) ?? { agent_type, tool_name, calls: 0, errors: 0, total_ms: 0 };
-    row.calls++;
-    if (l.is_error) row.errors++;
-    row.total_ms += l.duration_ms ?? 0;
-    m.set(k, row);
-  }
-  return [...m.values()];
+/** The obs key of a spool record: `agent|event|tool_use_id`, the timestamp standing in for a missing tool_use_id and
+ *  `main` for a missing agent_id. Lean `ops.obs` (`Fw.Ops.Obs.obsKey`); null when fwcore refuses the record. */
+export async function obsKey(core: Pick<Core, "ops">, rec: ObsRecord): Promise<string | null> {
+  try {
+    const r = await core.ops("ops.obs", { records: [{ agent_id: rec.agent_id, hook_event_name: rec.hook_event_name, tool_use_id: rec.tool_use_id, ts: rec.ts }] });
+    const k = (r.keys as unknown[] | undefined)?.[0];
+    return typeof k === "string" ? k : null;
+  } catch { return null; }
 }
 
 export class Drain {
@@ -66,7 +66,7 @@ export class Drain {
     return out;
   }
 
-  summary() { return summarize(this.obsLines()); }
+  summary(): Promise<ObsSummaryRow[]> { return summarize(this.store.core, this.obsLines()); }
 
   /** Serialised: two drains never interleave. */
   run(): Promise<DrainResult> {
@@ -105,21 +105,12 @@ export class Drain {
     return { type: "task.claim", key: `claim:${name}`, actor: "hook", task: name, agent: name };
   }
 
-  private async decode(rec: ObsRecord): Promise<Hook | null> {
-    const payload = { session_id: "spool", hook_event_name: rec.hook_event_name, agent_id: rec.agent_id, tool_use_id: rec.tool_use_id };
-    const r = await this.store.core.ops("ops.hook", { payloads: [payload] });
-    const h = (r.hooks as Hook[] | undefined)?.[0];
-    return h ?? null;
-  }
-
   private async handle(raw: string, res: DrainResult): Promise<"done" | "retry"> {
     let rec: ObsRecord;
     try { rec = ObsRecord.parse(JSON.parse(raw)); } catch { res.invalid++; return "done"; } // retrying cannot fix it
-    // `ops.hook` decodes the identity (agent, event, tool_use_id) from the same fields a transcript reconciler sees;
-    // the key joins them (events without a tool_use_id are hook-only, so their timestamp joins the key).
-    const hook = await this.decode(rec);
-    if (!hook) { res.invalid++; return "done"; }
-    const key = `${hook.agentId ?? "main"}|${hook.event}|${hook.toolUseId ?? rec.ts}`;
+    // the key joins agent, event and tool_use_id, the same fields a transcript reconciler sees (Lean `ops.obs`)
+    const key = await obsKey(this.store.core, rec);
+    if (key === null) { res.invalid++; return "done"; }
     if (this.seen.has(key)) { res.duplicates++; return "done"; }
     // work graph: an agent whose name equals a task id was spawned -> task.claim (the reducer decides if it counts)
     const claim = rec.hook_event_name === "SpawnGuard" && rec.agent_name ? await this.claimFor(rec.agent_name) : null;

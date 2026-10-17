@@ -4,6 +4,8 @@ import Fw.Wire
 
 `packages/contracts/golden/ops/<op>.jsonl`: one line per case, `{"name", "request", "response"}`,
 where `request` carries its `op` and `response` is what `fwcore` replies (without the `id`).
+The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
+`golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors).
 Generated from Lean, never by hand:
 
 ```
@@ -107,7 +109,35 @@ def cases : List (String × List (String × Json)) := [
     ("agent_id with null agent_type is unknown", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":null}"),
     ("empty agent_id is unknown", lit "{\"agent_id\":\"\",\"agent_type\":\"lean-prover\"}"),
     ("non-string agent_id is refused", lit "{\"agent_id\":7,\"agent_type\":\"lean-prover\"}"),
-    ("non-string agent_type is refused", lit "{\"agent_id\":\"a1\",\"agent_type\":true}")])]
+    ("non-string agent_type is refused", lit "{\"agent_id\":\"a1\",\"agent_type\":true}")]),
+  ("ops.obs", [
+    ("keys: tool_use_id joins; without it the timestamp; no agent_id is main", lit "{\"records\":[{\"agent_id\":\"a1\",\"hook_event_name\":\"PostToolUse\",\"tool_use_id\":\"toolu_1\",\"ts\":5},{\"agent_id\":null,\"hook_event_name\":\"Stop\",\"tool_use_id\":null,\"ts\":7},{\"hook_event_name\":\"Notification\",\"ts\":9}]}"),
+    ("keys: an empty agent_id stays empty (only null or missing is main)", lit "{\"records\":[{\"agent_id\":\"\",\"hook_event_name\":\"X\",\"tool_use_id\":\"\",\"ts\":7}]}"),
+    ("summary: calls, errors and summed duration per (agent type, tool), first-seen order", lit "{\"lines\":[{\"key\":\"k1\",\"hook_event_name\":\"PostToolUse\",\"agent_type\":\"b\",\"tool_name\":\"Bash\",\"is_error\":false,\"duration_ms\":100,\"ts\":1},{\"hook_event_name\":\"Stop\",\"agent_type\":\"b\"},{\"hook_event_name\":\"PostToolUse\"},{\"hook_event_name\":\"PostToolUseFailure\",\"agent_type\":\"b\",\"tool_name\":\"Bash\",\"is_error\":true,\"duration_ms\":50}]}"),
+    ("summary: null fields count as main, ?, no error and 0 ms", lit "{\"lines\":[{\"hook_event_name\":\"PostToolUse\",\"agent_type\":null,\"tool_name\":null,\"is_error\":null,\"duration_ms\":null}]}"),
+    ("empty request: no keys, no rows", lit "{}"),
+    ("record without ts is refused", lit "{\"records\":[{\"hook_event_name\":\"Stop\"}]}"),
+    ("fractional duration is refused", lit "{\"lines\":[{\"hook_event_name\":\"PostToolUse\",\"duration_ms\":1.5}]}")])]
+
+/-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
+def extra : List (String × String × List (String × Json)) := [
+  ("plan", "plan.trailers", [
+    ("oldest trailer marks done; later ones are duplicates; done and unknown ids are reported", lit "{\"commits\":[{\"sha\":\"s3\",\"body\":\"merge x\\n\\nTask: a\\nTask: c\"},{\"sha\":\"s2\",\"body\":\"Task: b\"},{\"sha\":\"s1\",\"body\":\"subject\\n\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"claimed\"},{\"id\":\"b\",\"state\":\"done\"}]}"),
+    ("trailer syntax: line start, blanks around the id, id chars only, CRLF ok", lit "{\"commits\":[{\"sha\":\"s1\",\"body\":\"Task:  t-1.x_2 \\r\\nTask: t 2\\n task: t3\\nTask:\\nxTask: t4\\nTask:t5\"}],\"tasks\":[{\"id\":\"t-1.x_2\",\"state\":\"open\"},{\"id\":\"t5\",\"state\":\"open\"}]}"),
+    ("two trailers of one task in one commit: the first is done, the second a duplicate", lit "{\"commits\":[{\"sha\":\"s1\",\"body\":\"Task: a\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"open\"}]}"),
+    ("no commits", lit "{\"commits\":[],\"tasks\":[{\"id\":\"a\",\"state\":\"open\"}]}"),
+    ("missing tasks is refused", lit "{\"commits\":[]}")]),
+  ("console", "console.landReadiness", [
+    ("new card needs everything (device too)", lit "{\"card\":{\"id\":\"c\",\"needsDevice\":true},\"sha\":\"h\"}"),
+    ("ready at head", lit "{\"card\":{\"id\":\"c\",\"owner\":\"o\",\"needsDevice\":false,\"approved\":true,\"head\":\"h\",\"screenAt\":\"h\",\"reviewAt\":\"h\"},\"sha\":\"h\"}"),
+    ("ready, but the request names an older sha", lit "{\"card\":{\"id\":\"c\",\"needsDevice\":false,\"approved\":true,\"head\":\"h\",\"screenAt\":\"h\",\"reviewAt\":\"h\"},\"sha\":\"g\"}"),
+    ("review at an old head; device missing", lit "{\"card\":{\"id\":\"c\",\"needsDevice\":true,\"approved\":true,\"head\":\"h\",\"screenAt\":\"h\",\"reviewAt\":\"g\",\"deviceAt\":null},\"sha\":\"h\"}"),
+    ("landed card", lit "{\"card\":{\"id\":\"c\",\"needsDevice\":false,\"approved\":true,\"head\":\"h\",\"screenAt\":\"h\",\"reviewAt\":\"h\",\"landed\":true},\"sha\":\"h\"}"),
+    ("missing needsDevice is refused", lit "{\"card\":{\"id\":\"c\"},\"sha\":\"h\"}")]),
+  ("console", "console.actor", [
+    ("all sources", lit "{}"),
+    ("the alert source writes as script", lit "{\"source\":\"alert\"}"),
+    ("unknown source is refused", lit "{\"source\":\"lead\"}")])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
@@ -131,11 +161,10 @@ def dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
 
 /-- Compare (or write) every golden file; returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
-  let d := root / dir
-  if write then IO.FS.createDirAll d
   let mut stale := 0
-  for (op, cs) in cases do
-    let p := d / s!"{op}.jsonl"
+  for (sub, op, cs) in cases.map (fun (op, cs) => ("ops", op, cs)) ++ extra do
+    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{op}.jsonl"
+    if write then IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / sub)
     let text := fileText op cs
     if write then
       IO.FS.writeFile p text
@@ -144,8 +173,8 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
       if cur != text then
         IO.println s!"ops golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/OpsGolden.lean)"
         stale := stale + 1
-  let n := cases.foldl (fun a c => a + c.2.length) 0
-  IO.println s!"ops golden: {cases.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
+  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0
+  IO.println s!"ops golden: {cases.length + extra.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
   return stale
 
 end Fw.Wire.Ops.Golden

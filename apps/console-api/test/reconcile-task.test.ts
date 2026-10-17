@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { selectCore } from "../src/core/index.ts";
-import { commitUrl, repoUrl, taskTrailers } from "../src/reconcile/git.ts";
+import { commitUrl, repoUrl, trailerFacts } from "../src/reconcile/git.ts";
 import { Reconciler } from "../src/reconcile/reconciler.ts";
 import { Store } from "../src/store.ts";
 import { makeRepo } from "./reconcile-fixture.ts";
@@ -31,11 +31,16 @@ describe("Task trailer on a plain git merge", () => {
     expect((await rec.reconcile()).submitted).toBe(0); // idempotent
   });
 
-  it("parses only whole-line trailers", () => {
+  it("parses only whole-line trailers (Lean plan.trailers)", async () => {
     const fx = makeRepo();
     fx.git(fx.root, "commit", "-q", "--allow-empty", "-m", "a", "-m", "Task: one");
     fx.git(fx.root, "commit", "-q", "--allow-empty", "-m", "b Task: two");
-    expect(taskTrailers(fx.root, "main").map((t) => t.task)).toEqual(["one"]);
+    const core = selectCore();
+    try {
+      const tasks = [{ id: "one", state: "open" }, { id: "two", state: "open" }];
+      expect((await trailerFacts(core, fx.root, "main", tasks)).map((t) => t.task)).toEqual(["one"]);
+      expect(await trailerFacts(core, fx.root, "no-such-ref", tasks)).toEqual([]);
+    } finally { core.close(); }
   });
 });
 

@@ -445,7 +445,9 @@ theorem look_map {K : List String} {F : String → List String} {x : String} (hx
 /-- The longest-chain table with fuel `k`: for every undone task `x`, a longest chain of undone tasks
 starting at `x` among those with at most `k + 1` tasks.
 
-$$T_0 = [\, (x, [x]) : x \in \operatorname{uids} \,], \qquad T_{k+1} = \big[\, \big(x,\ x :: \operatorname{best}([\, \operatorname{look}(T_k, y) : y \in \operatorname{dependents}(x) \,])\big) : x \in \operatorname{uids} \,\big]$$
+$$\operatorname{tab}(ts, 0) = [\, (x, [x]) : x \in \operatorname{uids}(ts) \,], \qquad \operatorname{tab}(ts, k+1) = \big[\, \big(x,\ x :: \operatorname{best}([\, \operatorname{look}(\operatorname{tab}(ts, k), y) : y \in \operatorname{dependents}_{ts}(x) \,])\big) : x \in \operatorname{uids}(ts) \,\big]$$
+
+Since $\operatorname{best}([\,]) = [\,]$, a task with no undone dependents gets the chain $[x]$.
 -/
 def tab (ts : List Task) : Nat → List (String × List String)
   | 0 => (uids ts).map fun x => (x, [x])
