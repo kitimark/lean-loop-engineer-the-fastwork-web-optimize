@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { z } from "zod";
-import { ApplyResponse, Board, Card, Outcome, Run, Step, type ReducerEvent, type State } from "@fw/contracts";
+import { ApplyResponse, Board, LiveBoard, Card, Outcome, Run, Step, type ReducerEvent, type State } from "@fw/contracts";
 import type { Core } from "./index.ts";
 
 export type LeanBin = { path: string };
@@ -199,8 +199,8 @@ export class LeanCore implements Core {
   }
 
   /** `console.query`: the board of the current state. */
-  async board(now: number, seq: number): Promise<Board> {
-    return Board.parse((await this.call("console.query", { now, seq })).board);
+  async board(now: number, seq: number): Promise<LiveBoard> {
+    return LiveBoard.parse((await this.call("console.query", { now, seq })).board);
   }
 
   /** Drop the current process; the next call starts a fresh one and replays the log (use when the log and the

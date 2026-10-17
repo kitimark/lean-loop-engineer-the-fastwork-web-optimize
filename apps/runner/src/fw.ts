@@ -3,6 +3,8 @@ import { Command } from "@fw/contracts";
 import { UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land } from "./land.ts";
+import { renderPlan, syncCommands, type WorkGraph } from "./plan.ts";
+import { readFileSync } from "node:fs";
 
 const [group, ...rest] = process.argv.slice(2);
 try {
@@ -10,6 +12,19 @@ try {
   if (group === "status") {
     const b = await (await fetch(`${base}/api/board`)).json();
     console.log(renderBoard(b as never));
+  } else if (group === "plan") {
+    if (rest[0] === "show") {
+      const b = (await (await fetch(`${base}/api/board`)).json()) as { plan: never };
+      console.log(renderPlan(b.plan));
+    } else if (rest[0] === "sync" && rest[1]) {
+      const cmds = syncCommands(JSON.parse(readFileSync(rest[1], "utf8")) as WorkGraph);
+      const { body } = await send(base, cmds, process.argv.slice(2)); // one capability, one array
+      const rs = body.replies ?? [];
+      const n = (f: (r: { ok: boolean; duplicate?: boolean }) => boolean) => rs.filter(f).length;
+      console.log(`plan sync: ${cmds.length} commands, ${n((r) => r.ok && !r.duplicate)} applied, ${n((r) => r.ok && !!r.duplicate)} unchanged, ${n((r) => !r.ok)} refused`);
+      for (const r of rs) if (!r.ok) console.error(`refused: ${r.reason}`);
+      if (!body.ok) { if (!rs.length) console.error(`refused: ${body.reason}`); process.exitCode = 2; }
+    } else throw new UsageError("usage: fw plan sync <work-graph.json> | fw plan show");
   } else if (group === "land") {
     if (!rest[0]) throw new UsageError("usage: fw land <card/branch>");
     const res = await land(rest[0], { http: httpFor(base), cwd: process.cwd(), argv: process.argv.slice(2),
@@ -26,7 +41,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw land <card/branch> | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw land <card/branch> | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

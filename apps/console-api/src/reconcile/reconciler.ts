@@ -58,6 +58,19 @@ export class Reconciler {
       if (c.landed || !c.head || !isAncestor(this.repo, c.head, this.mainRef)) continue;
       await this.send({ type: "card.landed", key: `landed:${this.mainRef}:${c.head}`, actor: "git", card: c.id, sha: c.head }, s);
     }
+    // 3. work graph: a landed card whose id (or whose branch's agent) equals an undone task id -> task.done(evidence = head)
+    const board = await this.store.board();
+    const undone = new Set(board.plan.tasks.filter((t) => t.state !== "done").map((t) => t.id));
+    if (undone.size > 0) {
+      for (const c of board.cards) {
+        if (!c.landed || !c.head) continue;
+        const names = new Set([c.id]);
+        for (const r of refs) { const bc = branchCard(r.ref); if (bc?.card === c.id && bc.agent) names.add(bc.agent); }
+        for (const n of names) {
+          if (undone.has(n)) await this.send({ type: "task.done", key: `taskdone:${n}`, actor: "git", task: n, evidence: c.head }, s);
+        }
+      }
+    }
     return s;
   }
 

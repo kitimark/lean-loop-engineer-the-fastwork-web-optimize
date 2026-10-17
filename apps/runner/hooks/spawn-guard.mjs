@@ -57,6 +57,7 @@ export function record(p, reply, now = Date.now()) {
   return {
     agent_id: str(p.agent_id), agent_type: str(p.agent_type), hook_event_name: "SpawnGuard", tool_name: "Agent",
     tool_use_id: str(p.tool_use_id), duration_ms: null, is_error: null, verb: verb.slice(0, 40), ts: now,
+    agent_name: str(p.tool_input && typeof p.tool_input === "object" ? p.tool_input.name : null),
   };
 }
 

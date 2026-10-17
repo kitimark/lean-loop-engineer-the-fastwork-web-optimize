@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { Event, type Board, type Command, type CommandReply } from "@fw/contracts";
+import { Event, type LiveBoard, type Command, type CommandReply } from "@fw/contracts";
 import type { Core } from "./core/index.ts";
 import { logLines } from "./core/lean.ts";
 
@@ -94,7 +94,7 @@ export class Store {
     return { ok: true, seq, duplicate: false };
   }
 
-  board(): Promise<Board> { return this.core.board(this.clock(), this.seq); }
+  board(): Promise<LiveBoard> { return this.core.board(this.clock(), this.seq); }
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
