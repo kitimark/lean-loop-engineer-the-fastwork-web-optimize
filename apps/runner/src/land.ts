@@ -79,6 +79,9 @@ const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catc
 /** Checks that cover the changed files: the Lean gates for lean/, the package's own tests for apps/<n>/ and packages/<n>/. */
 export function checksFor(root: string, changed: string[]): string[][] {
   const out: string[][] = [];
+  // a new or changed dependency must be installed before any package test runs (a new workspace package is otherwise
+  // unresolvable: TS2307 on the first landing of packages/gh-budget)
+  if (changed.some((f) => f === "pnpm-lock.yaml" || /(^|\/)package\.json$/.test(f))) out.push(["pnpm", "install", "--frozen-lockfile"]);
   if (changed.some((f) => f.startsWith("lean/"))) out.push(["sh", "lean/scripts/check.sh"]);
   const pkgs = new Set<string>();
   for (const f of changed) { const m = /^(apps|packages)\/([^/]+)\//.exec(f); if (m) pkgs.add(`${m[1]}/${m[2]}`); }

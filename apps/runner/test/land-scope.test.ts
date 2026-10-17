@@ -203,4 +203,8 @@ describe("checksFor", () => {
     const root = join(dirname(new URL(import.meta.url).pathname), "../../..");
     expect(checksFor(root, ["apps/runner/src/land.ts", "apps/runner/test/x.ts"])).toEqual([["pnpm", "--filter", "./apps/runner", "test"]]);
   });
+  it("installs first when a dependency changes", () => {
+    expect(checksFor("/nonexistent", ["pnpm-lock.yaml"])).toEqual([["pnpm", "install", "--frozen-lockfile"]]);
+    expect(checksFor("/nonexistent", ["packages/x/package.json"])[0]).toEqual(["pnpm", "install", "--frozen-lockfile"]);
+  });
 });
