@@ -2,6 +2,7 @@ import Lean.Data.Json
 import Std.Data.TreeMap.Raw.Lemmas
 import Fw.Obs.Health
 import Fw.Obs.Next
+import Fw.Obs.Timing
 import Fw.Ops.Wire
 import Fw.Wire.Sched
 /-!
@@ -33,11 +34,22 @@ e.g. `load1`, `consolePids`, `stale`, is ignored). `prevAt` is the time of the p
 `obs.next` shapes. Params: the Health params plus `loopCapMin [30], fileStaleMin [10]` (minutes). AgentFacts:
 `{id, task, state ["active"|"idle"|"parked"|"stalled"|"gone"|"done"], session, handbackAt?, branch? {name, ahead,
 landed, queued? [false], mergesClean? [true], deps? [[]]}, handoff? [false], worktree? {lockPid?, lockAlive? [false]}, ctxTokens? [0], children? [{pid, chain? [[]],
-kind ["sleepLoop"|"ciWait"|"build"|"other"], run and timeoutMin (ciWait only), startedAt, watchedAt?,
-producerExited? [false]}], ci? {id, workflow, branch, status, conclusion?, startedAt, endedAt?}, board? {id, done,
-agent?}}`. Action: `{action}` plus `run` (waitCi), `branch`, `task` (land), `branch` (routeIntegrator), `pid`
-(killOrphan), `reason` ["heldByChild"|"ciWaitOverdue"|"foreignLoop"|"lockDead"|"conflict"] (investigate), `task`, `agent`
-(claimTask), `dep` (waitDeps). Golden vectors in `packages/contracts/golden/obs/next.jsonl` (`Fw.Wire.Obs.NextGolden`, this file).
+kind ["sleepLoop"|"ciWait"|"build"|"other"|"stdinWait"], run and timeoutMin (ciWait only), startedAt, watchedAt?,
+producerExited? [false], watch? {kind ["task"|"agent"], id}}], ci? {id, workflow, branch, status, conclusion?,
+startedAt, endedAt?}, board? {id, done, agent?}, signals? SigFacts}`. Action: `{action}` plus `run` (waitCi), `branch`,
+`task` (land), `branch` (routeIntegrator), `pid` (killOrphan), `reason`
+["heldByChild"|"ciWaitOverdue"|"foreignLoop"|"lockDead"|"conflict"] (investigate), `task`, `agent` (claimTask), `dep`
+(waitDeps). The reply runs `next` on the facts resolved against all agents (`Fw.Obs.Next.resolve`); an agent with
+`signals` also gets `signal {state, ids}`, `handbackAt` and `keep`. Golden vectors in
+`packages/contracts/golden/obs/next.jsonl` (`Fw.Wire.Obs.NextGolden`, this file).
+
+`obs.signals` shapes. Request: `{now, params? (the obs.next params; hung after loopCapMin minutes), agents? [SigFacts]}`.
+SigFacts: `{agent, launched? [{id, time}], ends? [{id, time, how? ["notified"|"killed"|"exited"] ["notified"], code
+(exited only, an integer)}], bounds? [{time, start}], handbacks? [[]], notices? [{time, finished}], procs? [{id, pid,
+kind ["stdin"|"sleepLoop"|"other"]}], metaFinished? [[]] (recorded, never read)}` (lists default to empty). Reply:
+per agent `{agent, state ["working"|"waitingOwnBg"|"handedBackHeld"|"handedBackDone"|"finished"|"idle"|"hung"], ids,
+handbackAt}`. Golden vectors in `packages/contracts/golden/obs/signals.jsonl` (`Fw.Wire.Obs.SignalsGolden`, this
+file): the 8 real timelines of `Fw.Obs.Signals.golden`, seconds there, milliseconds on the wire.
 
 Proved: the round trips `paramsOf_paramsJson`, `agentOf_agentJson`, `leadOf_leadJson`, `systemOf_systemJson`,
 `procOf_procJson`, `reqOf_reqJson`, and
@@ -480,15 +492,31 @@ def stateOf : String → Except String State
 /-- A list of naturals as a JSON array. -/
 def natsJson (l : List Nat) : Json := .arr (l.toArray.map toJson)
 
-/-- A child process as JSON (`run` and `timeoutMin` only for a `ciWait`). -/
+/-- A watch as JSON: `{kind ["task"|"agent"], id}`. -/
+def watchJson : Fw.Obs.Next.Watch → Json
+  | .task b => Json.mkObj [("kind", .str "task"), ("id", .str b)]
+  | .agent a => Json.mkObj [("kind", .str "agent"), ("id", .str a)]
+
+/-- Decode a watch (an unknown kind is refused). -/
+def watchOf (j : Json) : Except String Fw.Obs.Next.Watch := do
+  match ← str j "kind" with
+  | "task" => pure (.task (← str j "id"))
+  | "agent" => pure (.agent (← str j "id"))
+  | s => throw s!"field kind: unknown value {s}"
+
+/-- A child process as JSON (`run` and `timeoutMin` only for a `ciWait`; `watch` only when known). -/
 def childJson (c : Child) : Json :=
   let k : List (String × Json) := match c.kind with
     | .sleepLoop => [("kind", .str "sleepLoop")]
     | .ciWait r m => [("kind", .str "ciWait"), ("run", toJson r), ("timeoutMin", toJson m)]
     | .build => [("kind", .str "build")]
     | .other => [("kind", .str "other")]
+    | .stdinWait => [("kind", .str "stdinWait")]
   Json.mkObj ([("pid", toJson c.pid), ("chain", natsJson c.chain)] ++ k ++
-    [("startedAt", toJson c.startedAt), ("watchedAt", onat c.watchedAt), ("producerExited", .bool c.producerExited)])
+    [("startedAt", toJson c.startedAt), ("watchedAt", onat c.watchedAt), ("producerExited", .bool c.producerExited)] ++
+    match c.watch with
+    | some v => [("watch", watchJson v)]
+    | none => [])
 
 /-- A child kind (`ciWait` needs `run` and `timeoutMin`; an unknown kind is refused). -/
 def childKindOf (j : Json) : Except String ChildKind := do
@@ -497,24 +525,34 @@ def childKindOf (j : Json) : Except String ChildKind := do
   | "ciWait" => pure (.ciWait (← nat j "run") (← nat j "timeoutMin"))
   | "build" => pure .build
   | "other" => pure .other
+  | "stdinWait" => pure .stdinWait
   | s => throw s!"field kind: unknown value {s}"
 
-/-- Decode a child process (`chain` optional, default empty; `watchedAt` optional; `producerExited` default false). -/
+/-- Decode a child process (`chain` optional, default empty; `watchedAt` optional; `producerExited` default false;
+`watch` optional). -/
 def childOf (j : Json) : Except String Child := do
   pure { pid := ← nat j "pid", chain := ← (← arrD j "chain").mapM (asNat "chain"), kind := ← childKindOf j,
          startedAt := ← nat j "startedAt", watchedAt := ← optN j "watchedAt",
-         producerExited := ← boolD j "producerExited" false }
+         producerExited := ← boolD j "producerExited" false,
+         watch := ← match opt j "watch" with
+           | none => pure none
+           | some v => some <$> watchOf v }
 
 /-- A branch as JSON. -/
 def branchJson (b : Branch) : Json :=
   Json.mkObj [("name", .str b.name), ("ahead", toJson b.ahead), ("landed", .bool b.landed), ("queued", .bool b.queued),
-    ("mergesClean", .bool b.mergesClean), ("deps", .arr (b.deps.toArray.map .str))]
+    ("mergesClean", .bool b.mergesClean), ("deps", .arr (b.deps.toArray.map .str)),
+    ("onMain", .bool b.onMain), ("landLock", ostr b.landLock)]
 
 /-- Decode a branch (`name`, `ahead`, `landed` required; `queued` default false). -/
 def branchOf (j : Json) : Except String Branch := do
   pure { name := ← str j "name", ahead := ← nat j "ahead", landed := ← asBool "landed" (← field j "landed"),
          queued := ← boolD j "queued" false, mergesClean := ← boolD j "mergesClean" true,
-         deps := ← (← arrD j "deps").mapM (fun v => match v with | .str x => pure x | _ => throw "deps: string expected") }
+         deps := ← (← arrD j "deps").mapM (fun v => match v with | .str x => pure x | _ => throw "deps: string expected"),
+         onMain := ← boolD j "onMain" false,
+         landLock := ← match opt j "landLock" with
+           | none => pure none
+           | some v => some <$> asStr "landLock" v }
 
 /-- A worktree as JSON. -/
 def worktreeJson (w : Worktree) : Json := Json.mkObj [("lockPid", onat w.lockPid), ("lockAlive", .bool w.lockAlive)]
@@ -547,15 +585,83 @@ def optObj {α : Type} (j : Json) (k : String) (f : Json → Except String α) :
   | none => .ok none
   | some v => some <$> f v
 
-/-- An agent's facts as JSON (every field written; absent options are `null`). -/
+/-! ### Signals (`Fw.Obs.Signals`) -/
+
+open Fw.Obs.Signals (How ProcKind) in
+/-- An end's `how` as fields: `how` plus `code` for an exit. -/
+def howFields : How → List (String × Json)
+  | .notified => [("how", .str "notified")]
+  | .killed => [("how", .str "killed")]
+  | .exited c => [("how", .str "exited"), ("code", toJson c)]
+
+open Fw.Obs.Signals (How) in
+/-- Decode an end's `how` (absent: `notified`; `exited` needs an integer `code`; an unknown value is refused). -/
+def howOf (j : Json) : Except String How :=
+  match opt j "how" with
+  | none => .ok .notified
+  | some (.str "notified") => .ok .notified
+  | some (.str "killed") => .ok .killed
+  | some (.str "exited") => match j.getObjValAs? Int "code" with
+    | .ok c => .ok (.exited c)
+    | .error _ => .error "field code: expected an integer"
+  | some v => .error s!"field how: unknown value {v.compress}"
+
+open Fw.Obs.Signals (ProcKind) in
+/-- A process kind's wire name. -/
+def procKindName : ProcKind → String
+  | .stdin => "stdin" | .sleepLoop => "sleepLoop" | .other => "other"
+
+open Fw.Obs.Signals (ProcKind) in
+/-- A process kind from its wire name (an unknown name is refused). -/
+def procKindOf : String → Except String ProcKind
+  | "stdin" => .ok .stdin | "sleepLoop" => .ok .sleepLoop | "other" => .ok .other
+  | s => .error s!"field kind: unknown value {s}"
+
+/-- An agent's signal facts as JSON (every list written). -/
+def sigFactsJson (g : Fw.Obs.Signals.Facts) : Json :=
+  Json.mkObj [("agent", .str g.agent),
+    ("launched", .arr (g.launched.toArray.map fun l => Json.mkObj [("id", .str l.id), ("time", toJson l.time)])),
+    ("ends", .arr (g.ends.toArray.map fun e =>
+      Json.mkObj ([("id", .str e.id), ("time", toJson e.time)] ++ howFields e.how))),
+    ("bounds", .arr (g.bounds.toArray.map fun b => Json.mkObj [("time", toJson b.time), ("start", .bool b.start)])),
+    ("handbacks", natsJson g.handbacks),
+    ("notices", .arr (g.notices.toArray.map fun n =>
+      Json.mkObj [("time", toJson n.time), ("finished", .bool n.finished)])),
+    ("procs", .arr (g.procs.toArray.map fun q =>
+      Json.mkObj [("id", .str q.id), ("pid", toJson q.pid), ("kind", .str (procKindName q.kind))])),
+    ("metaFinished", natsJson g.metaFinished)]
+
+/-- Decode an agent's signal facts; `agent` is required, every list defaults to empty. -/
+def sigFactsOf (j : Json) : Except String Fw.Obs.Signals.Facts := do
+  pure { agent := ← str j "agent",
+         launched := ← (← arrD j "launched").mapM fun v => do pure { id := ← str v "id", time := ← nat v "time" },
+         ends := ← (← arrD j "ends").mapM fun v => do
+           pure { id := ← str v "id", time := ← nat v "time", how := ← howOf v },
+         bounds := ← (← arrD j "bounds").mapM fun v => do
+           pure { time := ← nat v "time", start := ← asBool "start" (← field v "start") },
+         handbacks := ← (← arrD j "handbacks").mapM (asNat "handbacks"),
+         notices := ← (← arrD j "notices").mapM fun v => do
+           pure { time := ← nat v "time", finished := ← asBool "finished" (← field v "finished") },
+         procs := ← (← arrD j "procs").mapM fun v => do
+           pure { id := ← str v "id", pid := ← nat v "pid", kind := ← procKindOf (← str v "kind") },
+         metaFinished := ← (← arrD j "metaFinished").mapM (asNat "metaFinished") }
+
+/-- A signal state as JSON: `{state, ids}`. -/
+def sigStateJson (s : Fw.Obs.Signals.State) : Json :=
+  Json.mkObj [("state", .str s.name), ("ids", .arr (s.ids.toArray.map .str))]
+
+/-- An agent's facts as JSON (every field written, absent options are `null`; `signals` only when present). -/
 def factsJson (f : AgentFacts) : Json :=
-  Json.mkObj [("id", .str f.id), ("task", .str f.task), ("state", .str (stateName f.state)),
+  Json.mkObj ([("id", .str f.id), ("task", .str f.task), ("state", .str (stateName f.state)),
     ("handbackAt", onat f.handbackAt), ("session", toJson f.session),
     ("branch", match f.branch with | some b => branchJson b | none => .null),
     ("worktree", match f.worktree with | some w => worktreeJson w | none => .null),
     ("ctxTokens", toJson f.ctxTokens), ("children", .arr (f.children.toArray.map childJson)),
     ("ci", match f.ci with | some c => ciNextJson c | none => .null),
-    ("board", match f.board with | some r => taskRowJson r | none => .null), ("handoff", .bool f.handoff)]
+    ("board", match f.board with | some r => taskRowJson r | none => .null), ("handoff", .bool f.handoff)] ++
+    match f.signals with
+    | some g => [("signals", sigFactsJson g)]
+    | none => [])
 
 /-- Decode an agent's facts; `id`, `task`, `state` and `session` are required. -/
 def factsOf (j : Json) : Except String AgentFacts := do
@@ -564,7 +670,7 @@ def factsOf (j : Json) : Except String AgentFacts := do
          branch := ← optObj j "branch" branchOf, worktree := ← optObj j "worktree" worktreeOf,
          ctxTokens := ← natD j "ctxTokens" 0, children := ← (← arrD j "children").mapM childOf,
          ci := ← optObj j "ci" ciNextOf, board := ← optObj j "board" taskRowOf,
-         handoff := ← boolD j "handoff" false }
+         handoff := ← boolD j "handoff" false, signals := ← optObj j "signals" sigFactsOf }
 
 /-- An `obs.next` request body as JSON: `now`, `params`, `agents`. -/
 def nextReqJson (p : Fw.Obs.Next.Params) (now : Nat) (fs : List AgentFacts) : Json :=
@@ -596,24 +702,111 @@ def actionJson : Action → Json
   | .claimTask k a => Json.mkObj [("action", .str "claimTask"), ("task", .str k), ("agent", .str a)]
   | .waitDeps d => Json.mkObj [("action", .str "waitDeps"), ("dep", .str d)]
 
-/-- The reply fields of `obs.next`: per agent (input order) its id and actions. -/
+/-- The reply fields of `obs.next`: per agent (input order) its id and the actions on its resolved facts (`resolve`
+against all agents of the request); an agent with signals also gets its signal state, its resolved handback and
+whether retention keeps it. -/
 def nextReply (p : Fw.Obs.Next.Params) (now : Nat) (fs : List AgentFacts) : Reply :=
   [("agents", .arr (fs.toArray.map fun f =>
-    Json.mkObj [("id", .str f.id), ("actions", .arr ((Fw.Obs.Next.next p now f).toArray.map actionJson))]))]
+    let g := Fw.Obs.Next.resolve p now fs f
+    Json.mkObj ([("id", .str f.id), ("actions", .arr ((Fw.Obs.Next.next p now g).toArray.map actionJson))] ++
+      match Fw.Obs.Next.sigState p now g with
+      | some s => [("signal", sigStateJson s), ("handbackAt", onat g.handbackAt),
+                   ("keep", .bool (Fw.Obs.Next.keepB p now g))]
+      | none => [])))]
 
 /-- `obs.next`: decode the facts, compute each agent's next actions. -/
 def opNext (req : Json) : Except String Reply := do
   let (p, now, fs) ← nextReqOf req
   pure (nextReply p now fs)
 
+/-- Decode an `obs.signals` request body: `now`, `params` (the `obs.next` params; the hung threshold is `loopCapMin`
+minutes), `agents` (signal facts); `params` and `agents` are optional (defaults, no agents). -/
+def sigReqOf (j : Json) : Except String (Fw.Obs.Next.Params × Nat × List Fw.Obs.Signals.Facts) := do
+  let p ← match opt j "params" with
+    | none => pure {}
+    | some v => nextParamsOf v
+  pure (p, ← nat j "now", ← (← arrD j "agents").mapM sigFactsOf)
+
+/-- The reply fields of `obs.signals`: per agent (input order) its id, state, the ids the state names, and its latest
+handback at or before `now`. -/
+def signalsReply (p : Fw.Obs.Next.Params) (now : Nat) (gs : List Fw.Obs.Signals.Facts) : Reply :=
+  [("agents", .arr (gs.toArray.map fun g =>
+    let s := Fw.Obs.Signals.classify (Fw.Obs.Next.sigParams p) now g
+    Json.mkObj [("agent", .str g.agent), ("state", .str s.name), ("ids", .arr (s.ids.toArray.map .str)),
+      ("handbackAt", onat (Fw.Obs.Signals.lastHandback now g))]))]
+
+/-- `obs.signals`: decode the signal facts, classify each agent at `now`. -/
+def opSignals (req : Json) : Except String Reply := do
+  let (p, now, gs) ← sigReqOf req
+  pure (signalsReply p now gs)
+
+/-! ## `obs.timing` and `obs.slow`: the verdicts of `Fw.Obs.Timing` and the slow steps that are alerts -/
+
+namespace Timing
+
+/-- Decode a host (`"local"` or `"ci"`). -/
+def hostOf (k : String) (j : Json) : Except String Fw.Obs.Timing.Host := do
+  match ← asStr k j with
+  | "local" => pure .«local»
+  | "ci" => pure .ci
+  | h => throw s!"field {k}: unknown host {h}"
+
+/-- Decode a history key. -/
+def keyOf (j : Json) : Except String Fw.Obs.Timing.Key := do
+  pure { tool := ← str j "tool", step := ← str j "step", host := ← hostOf "host" (← field j "host") }
+
+/-- Decode a sample (`load` default 0). -/
+def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
+  pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
+         host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0 }
+
+/-- Decode a group. -/
+def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do
+  pure { name := ← str j "name", keys := ← (← arrD j "keys").mapM keyOf }
+
+/-- Decode a stage. -/
+def stageOf (j : Json) : Except String Fw.Obs.Timing.Stage := do
+  pure { id := ← str j "id", groups := ← (← arrD j "groups").mapM groupOf }
+
+/-- Decode the parameters (each field optional, the defaults of `Fw.Obs.Timing.Params`). -/
+def paramsOf (j : Json) : Except String Fw.Obs.Timing.Params := do
+  let d : Fw.Obs.Timing.Params := {}
+  pure { nMin := ← natD j "nMin" d.nMin, window := ← natD j "window" d.window, kNum := ← natD j "kNum" d.kNum,
+         kDen := ← natD j "kDen" d.kDen, budgetMs := ← natD j "budgetMs" d.budgetMs,
+         budgets := ← (← arrD j "budgets").mapM (fun b => do pure (← str b "tool", ← nat b "ms")),
+         ceilings := ← (← arrD j "ceilings").mapM (fun c => do pure (← str c "tool", ← str c "step", ← nat c "ms")),
+         loadMax := ← natD j "loadMax" d.loadMax, stages := ← (← arrD j "stages").mapM stageOf }
+
+/-- Decode a request body: `params` (optional) and `samples` (time order). -/
+def reqOf (j : Json) : Except String (Fw.Obs.Timing.Params × List Fw.Obs.Timing.Sample) := do
+  let p ← match opt j "params" with
+    | none => pure {}
+    | some v => paramsOf v
+  pure (p, ← (← arrD j "samples").mapM sampleOf)
+
+/-- `obs.timing`: one verdict per sample, then the structural verdicts (`Fw.Obs.Timing.timingVerdicts`). -/
+def opTiming (req : Json) : Except String Reply := do
+  let (p, ss) ← reqOf req
+  pure [("verdicts", .arr ((Fw.Obs.Timing.timingVerdicts p ss).map Fw.Wire.Obs.Timing.verdictJson).toArray)]
+
+/-- `obs.slow`: the alert subjects `<tool>/<step>` (`Fw.Obs.Next.slowSteps` of the verdicts). -/
+def opSlow (req : Json) : Except String Reply := do
+  let (p, ss) ← reqOf req
+  pure [("slow", .arr ((Fw.Obs.Next.slowSteps (Fw.Obs.Timing.timingVerdicts p ss)).toArray.map .str))]
+
+end Timing
+
 /-- The `Fw.Obs` ops. -/
-def ops : List String := ["obs.health", "obs.next"]
+def ops : List String := ["obs.health", "obs.next", "obs.signals", "obs.timing", "obs.slow"]
 
 /-- Dispatch an `Fw.Obs` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "obs.health" => some (opHealth req)
   | "obs.next" => some (opNext req)
+  | "obs.signals" => some (opSignals req)
+  | "obs.timing" => some (Timing.opTiming req)
+  | "obs.slow" => some (Timing.opSlow req)
   | _ => none
 
 /-! ## Examples -/
@@ -655,6 +848,40 @@ def run (op : String) (r : String) : String :=
   "{\"agents\":[{\"actions\":[{\"action\":\"killOrphan\",\"pid\":7},{\"action\":\"nudgeHandoff\"}],\"id\":\"a\"}]}"
 #guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":7,\"kind\":\"ciWait\",\"startedAt\":0}]}]}" ==
   "error: missing field run"
+-- obs.signals: no agents; an open turn; handed back with `b` pending; the same past the 30-min cap with a stdin proc.
+#guard run "obs.signals" "{\"now\":0}" == "{\"agents\":[]}"
+#guard run "obs.signals" "{\"now\":5,\"agents\":[{\"agent\":\"a\",\"bounds\":[{\"time\":0,\"start\":true}]}]}" ==
+  "{\"agents\":[{\"agent\":\"a\",\"handbackAt\":null,\"ids\":[],\"state\":\"working\"}]}"
+#guard run "obs.signals" "{\"now\":5,\"agents\":[{\"agent\":\"a\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"bounds\":[{\"time\":0,\"start\":true},{\"time\":2,\"start\":false}],\"handbacks\":[2]}]}" ==
+  "{\"agents\":[{\"agent\":\"a\",\"handbackAt\":2,\"ids\":[\"b\"],\"state\":\"handedBackHeld\"}]}"
+#guard run "obs.signals" "{\"now\":1800005,\"agents\":[{\"agent\":\"a\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"bounds\":[{\"time\":0,\"start\":true},{\"time\":2,\"start\":false}],\"handbacks\":[2],\"procs\":[{\"id\":\"b\",\"pid\":9,\"kind\":\"stdin\"}]}]}" ==
+  "{\"agents\":[{\"agent\":\"a\",\"handbackAt\":2,\"ids\":[\"b\"],\"state\":\"hung\"}]}"
+-- An exit with a negative code ends `b`; `exited` without a code and an unknown proc kind are refused.
+#guard run "obs.signals" "{\"now\":5,\"agents\":[{\"agent\":\"a\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"ends\":[{\"id\":\"b\",\"time\":3,\"how\":\"exited\",\"code\":-1}],\"bounds\":[{\"time\":0,\"start\":true},{\"time\":2,\"start\":false}],\"handbacks\":[2]}]}" ==
+  "{\"agents\":[{\"agent\":\"a\",\"handbackAt\":2,\"ids\":[],\"state\":\"handedBackDone\"}]}"
+#guard run "obs.signals" "{\"now\":5,\"agents\":[{\"agent\":\"a\",\"ends\":[{\"id\":\"b\",\"time\":3,\"how\":\"exited\"}]}]}" ==
+  "error: field code: expected an integer"
+#guard run "obs.signals" "{\"now\":5,\"agents\":[{\"agent\":\"a\",\"procs\":[{\"id\":\"b\",\"pid\":9,\"kind\":\"tty\"}]}]}" ==
+  "error: field kind: unknown value tty"
+-- obs.slow: a slow latest sample is an alert subject `<tool>/<step>`; a newer ok sample clears it; bad host refused
+#guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\"}]}" ==
+  "{\"slow\":[\"t/s\"]}"
+#guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"}]}" ==
+  "{\"slow\":[]}"
+#guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"mars\"}]}" == "error: field host: unknown host mars"
+#guard run "obs.slow" "{}" == "{\"slow\":[]}"
+#guard run "obs.timing" "{}" == "{\"verdicts\":[]}"
+-- obs.next: a branch whose land commit is on main, or that the live land lock names, gets no land action
+#guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false}}]}").splitOn "\"land\"").length == 2
+#guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"onMain\":true}}]}").splitOn "\"land\"").length == 1
+#guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"w\"}}]}").splitOn "\"land\"").length == 1
+#guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"x\"}}]}").splitOn "\"land\"").length == 2
+-- obs.next with signals: the hung stdin child of an idle, handed-back agent is killed and the agent kept; a loop
+-- watching task `b` sees its producer exited once another agent's signals end `b` (`killed`).
+#guard run "obs.next" "{\"now\":1800005,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":9,\"chain\":[1],\"kind\":\"stdinWait\",\"startedAt\":1}],\"signals\":{\"agent\":\"a\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"bounds\":[{\"time\":0,\"start\":true},{\"time\":2,\"start\":false}],\"handbacks\":[2],\"procs\":[{\"id\":\"b\",\"pid\":9,\"kind\":\"stdin\"}]}}]}" ==
+  "{\"agents\":[{\"actions\":[{\"action\":\"killOrphan\",\"pid\":9}],\"handbackAt\":2,\"id\":\"a\",\"keep\":true,\"signal\":{\"ids\":[\"b\"],\"state\":\"hung\"}}]}"
+#guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":7,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":0,\"watchedAt\":5,\"watch\":{\"kind\":\"task\",\"id\":\"b\"}}]},{\"id\":\"x\",\"task\":\"x\",\"state\":\"active\",\"session\":1,\"signals\":{\"agent\":\"x\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"ends\":[{\"id\":\"b\",\"time\":3,\"how\":\"killed\"}]}}]}" ==
+  "{\"agents\":[{\"actions\":[{\"action\":\"killOrphan\",\"pid\":7}],\"id\":\"a\"},{\"actions\":[{\"action\":\"none\"}],\"handbackAt\":null,\"id\":\"x\",\"keep\":false,\"signal\":{\"ids\":[],\"state\":\"idle\"}}]}"
 
 /-! ## Golden vectors of `obs.next`
 
@@ -773,6 +1000,12 @@ def typed : List Typed := [
     fs := [{ ex "a" .done with handbackAt := some (ago 5), children := [lp 100 (ago 60)] }] },
   { name := "handed back, branch 0 ahead and unlanded -> none"
     fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 0, landed := false, queued := false } }] },
+  { name := "inc-watch-unlanded-after-land: branch 3 ahead, not an ancestor of main, but a land commit for its task is on main -> none"
+    fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 3, landed := false, queued := false, onMain := true } }] },
+  { name := "inc-watch-alert-during-land: branch 3 ahead and unlanded, the live land lock names this branch -> none"
+    fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 3, landed := false, queued := false, landLock := some "wt-z" } }] },
+  { name := "a land lock held for another branch does not suppress: branch 3 ahead and unlanded -> land"
+    fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 3, landed := false, queued := false, landLock := some "wt-other" } }] },
   { name := "handed back, no branch, worktree present -> none"
     fs := [{ ex "z" .done with handbackAt := some (ago 5), worktree := some {} }] },
   { name := "parked with context 210000 -> nudgeHandoff"
@@ -865,5 +1098,112 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   return bad
 
 end NextGolden
+
+/-! ## Golden vectors of `obs.signals`
+
+`packages/contracts/golden/obs/signals.jsonl`: one line per checkpoint of the 8 real timelines of
+`Fw.Obs.Signals.golden`, `{"name", "request", "response", "expect"}`. The timelines count seconds since 23:00 (+07:00)
+on 2026-10-17; on the wire every time is milliseconds since the Unix epoch, `ms t = base + 1000 t`, so the default
+loop cap (30 min) is the golden's 1800 s. `expect` holds the note's rule state and the expected state; `run` checks
+that the file is current and that every response equals `expect.state`. -/
+namespace SignalsGolden
+open Fw.Obs.Signals
+
+/-- 2026-10-17 23:00 +07:00 in milliseconds since the Unix epoch. -/
+def base : Nat := 1792252800000
+
+/-- A golden time (seconds after `base`) in wire milliseconds. -/
+def ms (t : Nat) : Nat := base + 1000 * t
+
+/-- An agent's signal facts with every time mapped to wire milliseconds. -/
+def scale (f : Facts) : Facts :=
+  { f with
+    launched := f.launched.map fun l => { l with time := ms l.time }
+    ends := f.ends.map fun e => { e with time := ms e.time }
+    bounds := f.bounds.map fun b => { b with time := ms b.time }
+    handbacks := f.handbacks.map ms
+    notices := f.notices.map fun n => { n with time := ms n.time }
+    metaFinished := f.metaFinished.map ms }
+
+/-- `h:mm:ss` of a golden time (hours after 23:00 wrap at 24). -/
+def clock (t : Nat) : String :=
+  let h := (t / 3600 + 23) % 24
+  let two (n : Nat) := if n < 10 then s!"0{n}" else s!"{n}"
+  s!"{two h}:{two (t / 60 % 60)}:{two (t % 60)}"
+
+/-- One golden line: name, request body (without `op`), rule state and expected state. -/
+structure Case where
+  name : String
+  req : Json
+  rule : Fw.Obs.Signals.State
+  state : Fw.Obs.Signals.State
+
+/-- Every checkpoint of every timeline as a case. -/
+def cases : List Case :=
+  golden.flatMap fun τ => τ.checks.map fun c =>
+    { name := s!"{τ.name} @ {clock c.t}",
+      req := Json.mkObj [("now", toJson (ms c.t)), ("agents", .arr #[sigFactsJson (scale τ.facts)])],
+      rule := c.rule, state := c.state }
+
+/-- The reply to a request (without id): the reply fields, or `{error}`. -/
+def respond (req : Json) : Json :=
+  match opSignals req with
+  | .ok f => Json.mkObj f
+  | .error e => Json.mkObj [("error", .str e)]
+
+/-- The state of the first agent of a response (`none` for an error or a malformed reply). -/
+def stateOf (r : Json) : Option (String × List Json) := do
+  let a ← (r.getObjValD "agents").getArrVal? 0 |>.toOption
+  let s ← (a.getObjValAs? String "state").toOption
+  let ids ← (a.getObjValD "ids").getArr? |>.toOption
+  pure (s, ids.toList)
+
+/-- The cases whose response state differs from the expected state (empty when the golden reproduces). -/
+def mismatches : List String :=
+  cases.filterMap fun c =>
+    if stateOf (respond c.req) == some (c.state.name, c.state.ids.map Json.str) then none else some c.name
+
+#guard cases.length == 39
+#guard mismatches == []
+-- The signal-facts codec round-trips every golden timeline (with wire times).
+#guard golden.all fun τ => match sigFactsOf (sigFactsJson (scale τ.facts)) with
+  | .ok g => g == scale τ.facts
+  | .error _ => false
+-- Scaling to milliseconds keeps every checkpoint's state under the default 30-min loop cap.
+#guard golden.all fun τ => τ.checks.all fun c =>
+  classify (Fw.Obs.Next.sigParams {}) (ms c.t) (scale τ.facts) == classify goldenParams c.t τ.facts
+
+/-- The text of the golden file. -/
+def fileText : String :=
+  String.join (cases.map fun c =>
+    let opReq := match c.req with
+      | .obj kvs => Json.obj (kvs.insert "op" (.str "obs.signals"))
+      | j => j
+    (Json.mkObj [("name", .str c.name), ("request", opReq), ("response", respond c.req),
+      ("expect", Json.mkObj [("rule", sigStateJson c.rule), ("state", sigStateJson c.state)])]).compress ++ "\n")
+
+/-- The golden file, relative to `lean/`. -/
+def path : System.FilePath := ".." / "packages" / "contracts" / "golden" / "obs" / "signals.jsonl"
+
+/-- Compare (or write) the golden file; returns the number of failures (stale file or mismatched states). -/
+def run (root : System.FilePath) (write : Bool) : IO Nat := do
+  let p := root / path
+  let mut bad := 0
+  if write then
+    IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / "obs")
+    IO.FS.writeFile p fileText
+  else
+    let cur ← try IO.FS.readFile p catch _ => pure ""
+    if cur != fileText then
+      IO.println s!"obs.signals golden: {p} is stale (regenerate with Fw.Wire.Obs.SignalsGolden.run \".\" true)"
+      bad := bad + 1
+  for m in mismatches do
+    IO.println s!"obs.signals golden: {m} does not give the expected state"
+    bad := bad + 1
+  IO.println s!"obs.signals golden: {cases.length} checkpoints of {golden.length} timelines, {
+    if write then "written" else s!"{bad} failures"}"
+  return bad
+
+end SignalsGolden
 
 end Fw.Wire.Obs

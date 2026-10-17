@@ -1,0 +1,3409 @@
+{
+  "schema": "fw.mistakes/1",
+  "source": "mistake-retro at 84b9f19; harvest from lead transcript, 235 subagent transcripts, repo records",
+  "classes": [
+    {
+      "id": "c-handcopy",
+      "title": "Value or model hand-copied with no generated or golden link to Lean",
+      "rootCause": "Ports and docs restated original values by hand. Golden vectors covered only logic.ts, so static CSS (colours, fonts, heights, display, page order) had no Lean source, and a wrong copy type-checks and passes every check that exists.",
+      "existingLean": [
+        "lean/Fw/Site/Breakpoints.lean:703 MQ.eval_const_on_band (breakpoints generated, not copied)",
+        "lean/Fw/Gate/Scope.lean:587 scope_sound",
+        "lean/Fw/Gate/Rule.lean:482 rollup_fail_iff",
+        "lean/Fw/Parts/*Golden.lean (logic goldens only)"
+      ],
+      "hardening": {
+        "module": "Fw.Gate.Coverage",
+        "statementLatex": "\\forall (p,\\pi) \\in \\mathrm{Probes}(S),\\ \\mathrm{src}(p,\\pi) \\in \\{\\mathrm{gen},\\mathrm{golden}\\} \\lor \\big((p,\\pi) \\in E \\land \\mathrm{why}(p,\\pi) \\neq \\varepsilon\\big); \\quad \\mathrm{lint}(S) = [\\,] \\Rightarrow \\text{that}",
+        "enforcedBy": "fw lint in check.sh and fw land: an uncovered probe fails; static values emitted by Lean as CSS constants, TS checked against goldens",
+        "task": "lean-coverage (open), fix-proofs (open)"
+      }
+    },
+    {
+      "id": "c-mathdoc",
+      "title": "Docstring math with no mechanical link to the Lean statement",
+      "rootCause": "LaTeX was written by hand after the proof. Lints arrived one per review round (quantifier, shadow, where), so each round found the next pattern; nothing compared the binders of the math with the binders of the term.",
+      "existingLean": [
+        "lean/MathView.lean:169 mathHash (docstring-only edits mark reviews stale)",
+        "lean/MathView.lean:197 binders (quantifier lint)",
+        "lean/MathViewMain.lean:38 ShadowLint",
+        "lean/MathViewMain.lean:244 WhereLint"
+      ],
+      "hardening": {
+        "module": "MathView.BinderLint",
+        "statementLatex": "\\mathrm{fv}(\\mathrm{tex}(d)) \\subseteq \\mathrm{binders}(d) \\cup G \\;\\land\\; \\mathrm{binders}(d) \\subseteq \\mathrm{fv}(\\mathrm{tex}(d)) \\;\\land\\; (\\mathrm{type}(x) = \\mathrm{List}\\,\\alpha \\Rightarrow |\\{\\ldots x \\ldots\\}| \\notin \\mathrm{tex}(d))",
+        "enforcedBy": "mathview --lint on the changed declarations in the pre-push hook (not only in CI); error, not warning",
+        "task": "NEW mathdoc-binders"
+      }
+    },
+    {
+      "id": "c-unearned-claim",
+      "title": "Claim given a status (or a number) it had not earned",
+      "rootCause": "Status words CONFIRMED/MEASURED and numeric bounds are free text. Nothing ties CONFIRMED to a source citation, MEASURED to a run id, or a stated bound to a theorem, so a guess reads like a result.",
+      "existingLean": [
+        "lean/Fw/Plan/Lint.lean:254 ok_sound (task evidence kinds, pa-evidence-lint)",
+        "lean/Fw/Plan/Incident.lean:350 status_fixed_iff (incident evidence kinds)",
+        "lean/Fw/Sched/Admit.lean:875 aged_not_overtaken (the corrected bound)"
+      ],
+      "hardening": {
+        "module": "Fw.Plan.Claims",
+        "statementLatex": "\\forall c \\in C,\\ \\mathrm{st}(c) = \\mathrm{CONFIRMED} \\Rightarrow \\exists r \\in \\mathrm{refs}(c),\\ \\mathrm{kind}(r) \\in \\{\\mathrm{src@sha},\\mathrm{doc}\\};\\ \\mathrm{st}(c) = \\mathrm{MEASURED} \\Rightarrow \\exists r,\\ \\mathrm{kind}(r) = \\mathrm{run};\\ \\mathrm{bound}(c) \\Rightarrow \\exists \\theta \\in \\mathrm{Thm},\\ \\mathrm{cites}(c,\\theta)",
+        "enforcedBy": "fw lint over research/notes and docs/plan/PLAN.md (pre-commit); a claim without its kind of reference fails",
+        "task": "NEW claim-lint"
+      }
+    },
+    {
+      "id": "c-principle",
+      "title": "Plan or schedule not checked against the standing user principles",
+      "rootCause": "Principles (ASAP graph, Lean first, measure on CI, prove not phone-measure, every breakpoint) lived in memory and CLAUDE.md prose; the work graph had no lint that encodes them, so the lead's ordering choices could violate them silently.",
+      "existingLean": [
+        "lean/Fw/Plan/Graph.lean:574 criticalPath_longest",
+        "lean/Fw/Plan/Core.lean:455 define_cycle_refused",
+        "lean/Fw/Site/BreakpointMatrix.lean (every breakpoint, after the user stated it)"
+      ],
+      "hardening": {
+        "module": "Fw.Plan.Principles",
+        "statementLatex": "\\forall t \\in T,\\ \\mathrm{decides}(t) \\Rightarrow \\exists u \\in \\mathrm{deps}^{*}(t),\\ \\mathrm{owner}(u) = \\mathrm{lean} \\;\\land\\; (\\mathrm{lane}(t) = \\mathrm{local} \\Rightarrow t \\in L_{\\mathrm{allowed}}) \\;\\land\\; \\mathrm{date}(t) = \\bot; \\quad \\mathrm{next} = \\mathrm{sortBy}(\\mathrm{cp}, \\mathrm{ready})",
+        "enforcedBy": "fw plan lint (work-graph fields kind/lane/leanModule) and fw next ranking by critical path",
+        "task": "NEW plan-principles-lint"
+      }
+    },
+    {
+      "id": "c-proxy-verdict",
+      "title": "Success signal that does not entail the verdict",
+      "rootCause": "The only machine-read signals were exit codes and job conclusions; the real verdict (summary.json rollup, which flags ran, which scope, test exit) lived in files no gate read. The gate summary still exits 0 when parts fail.",
+      "existingLean": [
+        "lean/Fw/Gate/Rule.lean:482 rollup_fail_iff",
+        "lean/Fw/Gate/Items.lean:398 partVerdict_fail_iff",
+        "lean/Fw/Console/Land.lean:572 land_commit_exact"
+      ],
+      "hardening": {
+        "module": "Fw.Gate.Exit",
+        "statementLatex": "\\mathrm{exit}(s) = 0 \\iff \\mathrm{rollup}(s) = \\mathrm{pass} \\land \\mathrm{flags}(s) = \\mathrm{flags}(t) \\land \\mathrm{scope}(s) \\supseteq \\mathrm{scope}(t) \\land \\mathrm{head}(s) = \\mathrm{head}(t); \\quad \\mathrm{handback}(t) \\Rightarrow \\exists s,\\ \\mathrm{exit}(s) = 0",
+        "enforcedBy": "cli.mjs summary exits non-zero from the Lean verdict; fw land and fw next refuse a port/variant handback without a matching verdict record",
+        "task": "NEW gate-exit-verdict"
+      }
+    },
+    {
+      "id": "c-sample-validity",
+      "title": "Measurement validity precondition left implicit",
+      "rootCause": "The harness assumed samples were settled, aligned, on one clock and in one unit; the Lean models took samples as given, so a sample that broke the assumption became a verdict instead of a refusal.",
+      "existingLean": [
+        "lean/Fw/Measure/Freeze.lean:867 framesRefusal_eq_none_iff",
+        "lean/Fw/Measure/ZoneBaseline.lean:389 refusal_none",
+        "lean/Fw/Measure/SelfCheck.lean:516 aligned_iff",
+        "lean/Fw/Measure/WebKit.lean:265 steps_partition",
+        "lean/Fw/Measure/Classes.lean:645 tMax_le_tBound"
+      ],
+      "hardening": {
+        "module": "Fw.Gate.Settle + Fw.Measure.Valid",
+        "statementLatex": "\\mathrm{verdict}(S) \\neq \\bot \\Rightarrow \\forall s \\in S,\\ \\mathrm{settled}(s) \\land \\mathrm{key}(s) = \\mathrm{key}(s_0) \\land \\mathrm{clock}(s) = \\mathrm{clock}(s_0) \\land \\mathrm{unit}(s) = \\mathrm{unit}(\\mathrm{tol}(s))",
+        "enforcedBy": "sample records carry settle/key/clock/unit fields; Lean refuses with the failed precondition named; goldens from the real misreads",
+        "task": "gate-settle (open); NEW measure-valid"
+      }
+    },
+    {
+      "id": "c-shared-no-lock",
+      "title": "Shared file, branch or directory with no ownership or lock contract",
+      "rootCause": "Admission checked write-write overlap only; reads of shared contracts, hand-kept registration files, the main branch during a land, and scratch names had no owner, so parallel work collided.",
+      "existingLean": [
+        "lean/Fw/Console/Land.lean:549 run_safe_locked",
+        "lean/Fw/Console/Land.lean:635 guard_refuses_other",
+        "lean/Fw/Sched/Admit.lean:820 writes_disjoint",
+        "lean/Fw/Plan/Graph.lean:636 globOv_sound",
+        "lean/Fw/Ops/PathCheck.lean:105 violations_nil_iff"
+      ],
+      "hardening": {
+        "module": "Fw.Sched.Admit (read sets)",
+        "statementLatex": "\\forall t \\neq u \\in \\mathrm{Run},\\ W_t \\cap (W_u \\cup R_u) = \\emptyset; \\quad \\mathrm{scratch}(a,f) = \\mathrm{scratch}(a',f') \\Rightarrow a = a' \\land f = f'",
+        "enforcedBy": "work-graph tasks gain reads; spawn admission refuses overlap; registration files generated (land-hardening check-imports)",
+        "task": "land-hardening (done 0581ec6); NEW admit-reads"
+      }
+    },
+    {
+      "id": "c-late-check",
+      "title": "Cheap static check absent, or run only after the commit",
+      "rootCause": "node --check, zod, plan lint, mathview lint and YAML parse existed or were trivial, but ran in CI or at land, never on the changed files before the commit; no map said which check covers which path.",
+      "existingLean": [
+        "lean/Fw/Plan/Lint.lean:160 evLong_iff",
+        "lean/Fw/Plan/Lint.lean:169 longTitle_iff",
+        "lean/Fw/Store/Layout.lean:595 dispatch_target",
+        "lean/Fw/Console/Land.lean:370 landVerdict_ok_iff"
+      ],
+      "hardening": {
+        "module": "Fw.Ops.CheckMap",
+        "statementLatex": "\\forall f \\in \\mathrm{Tracked},\\ \\mathrm{checks}(f) \\neq \\emptyset \\;\\land\\; \\mathrm{precommit}(\\Delta) \\supseteq \\textstyle\\bigcup_{f \\in \\Delta} \\mathrm{checks}(f)",
+        "enforcedBy": "Lean generates the glob->check table; pre-commit hook runs checks(changed); fw lint fails on an unmapped tracked path",
+        "task": "NEW check-map-lean"
+      }
+    },
+    {
+      "id": "c-orphan-wait",
+      "title": "Wait or child process with no bound and no owner",
+      "rootCause": "Subagents had no sanctioned blocking wait, so they wrote shell loops; nothing required a deadline, a reachable predicate or an owner PID group, and nothing reported a child that never ended.",
+      "existingLean": [
+        "lean/Fw/Obs/Next.lean:704 kill_only_loops",
+        "lean/Fw/Obs/Health.lean:935 wait_not_hang",
+        "lean/Fw/Ci/Budget.lean:1113 poll_live"
+      ],
+      "hardening": {
+        "module": "Fw.Ops.Wait",
+        "statementLatex": "\\forall w \\in \\mathrm{Waits},\\ \\mathrm{end}(w) \\le \\mathrm{start}(w) + \\mathrm{deadline}(w) \\land \\mathrm{owner}(w) \\in \\mathrm{Live}; \\quad \\mathrm{handback}(a) \\Rightarrow |\\mathrm{BG}(a)| - |\\mathrm{END}(a)| = 0",
+        "enforcedBy": "PreToolUse(Bash) refuses until/while without a deadline and backgrounded stdin readers; obs-signals flags open background tasks at handback",
+        "task": "obs-signals (open); NEW wait-guard"
+      }
+    },
+    {
+      "id": "c-quota",
+      "title": "Shared capacity consumed with no admission budget",
+      "rootCause": "Shared pools (GitHub token, 5 macOS slots, 20-job cap, Mac CPU and disk, agent cap, prompt-cache TTL, context) had no budget at the point of use; each agent optimised locally.",
+      "existingLean": [
+        "lean/Fw/Ci/Budget.lean:961 window_bound",
+        "lean/Fw/Ci/Budget.lean:754 no_issue_when_exhausted",
+        "lean/Fw/Sched/Admit.lean:866 within_budget",
+        "lean/Fw/Obs/Next.lean:930 cleanup_sound"
+      ],
+      "hardening": {
+        "module": "Fw.Ci.Runners (+ Fw.Obs.Resume)",
+        "statementLatex": "\\forall j,\\ \\mathrm{label}(j) \\in F_{\\mathrm{free}} \\;\\land\\; \\textstyle\\sum_{w} |\\{j \\in w : \\mathrm{os}(j) = \\mathrm{mac}\\}| \\le 5 \\;\\land\\; |\\mathrm{jobs}(\\mathrm{push})| \\le 20; \\quad \\mathrm{resume}(a) \\iff \\mathrm{idle}(a) < \\mathrm{TTL} \\lor \\mathrm{ctx}(a) < 30\\mathrm{k},\\ \\mathrm{ctx}(a) \\le 250\\mathrm{k}",
+        "enforcedBy": "Lean generates runs-on, concurrency groups and paths filters; a workflow lint compares; fw next emits stop/respawn by the resume rule",
+        "task": "ghb-lean (done 84fb01c); NEW ci-runner-lint; NEW resume-rule"
+      }
+    },
+    {
+      "id": "c-identity-heuristic",
+      "title": "Authority or identity decided by a text or name heuristic",
+      "rootCause": "Who-is-who (lead vs fork, which process is a build, who owns a loop, which agent type) was inferred from argv text, empty fields or names instead of a recorded id fact, so a heuristic both over-granted and over-refused.",
+      "existingLean": [
+        "lean/Fw/Ops/Identity.lean:99 who_lead_iff",
+        "lean/Fw/Ops/SpawnGuard.lean:397 trap_worktree_role_as_teammate",
+        "lean/Fw/Console.lean:623 only_user_answers",
+        "lean/Fw/Console/Alert.lean:139 attrib_lead_only",
+        "lean/Fw/Plan/Workflow.lean:91 workflow_binds"
+      ],
+      "hardening": {
+        "module": "Fw.Ops.Identity (ids only)",
+        "statementLatex": "\\forall r_1 r_2,\\ \\mathrm{ids}(r_1) = \\mathrm{ids}(r_2) \\Rightarrow \\mathrm{decide}(r_1) = \\mathrm{decide}(r_2); \\quad \\mathrm{owner}(\\mathit{pid}) = \\mathrm{spawnRec}(\\mathit{pid}).\\mathrm{agent}",
+        "enforcedBy": "decisions take (agent_id, role, capability, pid-record) only; goldens with the same ids but different argv text; /api/commands actor from capability",
+        "task": "cap-diagnose (open); NEW policy-from-lean (pid ownership)"
+      }
+    },
+    {
+      "id": "c-order-derived",
+      "title": "State stored, or derived from event order or a naming convention, instead of from facts",
+      "rootCause": "Board, health and land state were partly written by hand (trailers, title prefixes, line:col ids, retention timers) or depended on which event came first, so the same facts in another order gave another state.",
+      "existingLean": [
+        "lean/Fw/Plan/Core.lean:861 define_spawn_comm",
+        "lean/Fw/Plan/Core.lean:311 cut_not_ready",
+        "lean/Fw/Plan/Workflow.lean:225 define_workflow_comm",
+        "lean/Fw/Obs/Next.lean:1027 keep_of_open_action",
+        "lean/Fw/Obs/Next.lean:819 land_sound",
+        "lean/Fw/Console/Land.lean:712 pick_given_iff"
+      ],
+      "hardening": {
+        "module": "Fw.Plan.Core / Fw.Obs.Signals (commutation)",
+        "statementLatex": "\\forall E\\,E',\\ E \\sim_{\\mathrm{perm}} E' \\Rightarrow \\mathrm{board}(E) = \\mathrm{board}(E') \\;\\land\\; \\mathrm{health}(E) = \\mathrm{health}(E')",
+        "enforcedBy": "every board/health field a fold over facts; goldens replay the real traces in shuffled order",
+        "task": "claim-order-lean (done fafc0d5), workflow-claim (done 21c8c42), obs-signals (open)"
+      }
+    },
+    {
+      "id": "c-env-assume",
+      "title": "Unverified assumption about a tool, platform or environment",
+      "rootCause": "The agent acted on a belief about a tool (flag, reload, cache, shell dialect, lemma name, runtime) without a cheap probe first; most of these are outside any pure model.",
+      "existingLean": [
+        "none (I/O); lean/Fw/Ops/SpawnGuard.lean:503 isolation_not_mismatch covers role substitution only"
+      ],
+      "hardening": {
+        "module": "Fw.Ops.Cli (own CLIs only)",
+        "statementLatex": "\\forall a \\in \\mathrm{argv},\\ a \\notin \\mathrm{Flags}(\\mathit{cli}) \\land a \\text{ starts with } \\texttt{-} \\Rightarrow \\mathrm{exit} = 64 \\land \\mathrm{writes} = \\emptyset",
+        "enforcedBy": "golden argv table for every repo CLI; for external tools the empirical probe named per mistake",
+        "task": "NEW check-map-lean (CLI argv golden); rest empirical"
+      }
+    },
+    {
+      "id": "c-spec-gap",
+      "title": "Instruction under-specified or not checked against the deliverable",
+      "rootCause": "Spawn prompts and task specs were not checked against what the task must deliver (handoff, files, tools), and human-channel instructions were long and asynchronous.",
+      "existingLean": [
+        "lean/Fw/Console/Land.lean:268 kindRegs_mem_landScope",
+        "lean/Fw/Console/Land.lean:363 noWrites_refused"
+      ],
+      "hardening": {
+        "module": "Fw.Plan.TaskSpec",
+        "statementLatex": "\\forall t,\\ \\mathrm{deliv}(t) \\cup \\{\\mathrm{handoff}(t)\\} \\subseteq \\mathrm{writes}(t) \\;\\land\\; \\mathrm{tools}(\\mathrm{prompt}(t)) \\subseteq \\mathrm{tools}(\\mathrm{role}(t)); \\quad \\mathrm{land}(t) \\Rightarrow \\mathrm{handoff}(t) \\in \\Delta(t)",
+        "enforcedBy": "fw plan lint and spawn-guard check the spec; fw land refuses without the handoff file",
+        "task": "NEW task-spec-lint"
+      }
+    },
+    {
+      "id": "c-policy-prose",
+      "title": "Safety or privacy rule only in prose, not enforced at the tool boundary",
+      "rootCause": "CLAUDE.md rules (kill by own PID, never force-push, no gh api, no home paths, stay in the repo, measure on CI) were read by the model but not compiled into deny rules or hooks; each was enforced only after an incident.",
+      "existingLean": [
+        "lean/Fw/Ops/PathCheck.lean:105 violations_nil_iff",
+        "lean/Fw/Ops/SpawnGuard.lean:271 accepted_iff",
+        "settings deny pkill/killall (b205acc, not Lean)",
+        "scrub pre-commit hook (not Lean)"
+      ],
+      "hardening": {
+        "module": "Fw.Ops.Policy",
+        "statementLatex": "\\forall c \\in \\mathrm{Cmd},\\ \\mathrm{forbidden}(c) \\Rightarrow \\mathrm{hook}(c) = \\mathrm{deny}; \\quad \\mathrm{kill}(p) \\text{ allowed} \\iff \\mathrm{owner}(p) = \\mathrm{self}",
+        "enforcedBy": "Lean generates settings deny/ask entries and the hook table; golden = every violating command found in this retro must be denied, every false positive allowed",
+        "task": "NEW policy-from-lean"
+      }
+    }
+  ],
+  "mistakes": [
+    {
+      "id": "m001",
+      "classId": "c-handcopy",
+      "title": "nav port: border colour and font-family wrong (no Lean source for these values)",
+      "when": "run 39067170911",
+      "who": "port-nav",
+      "symptom": "Every nav cell failed: border rgb(23,23,23) vs black, font-family missing on earn and lang switch.",
+      "rootCause": "Static CSS was restated by hand; Nav.lean models motion and hit test only (its one colour mention is a timing curve), so no check compared the copied value.",
+      "detectedBy": "integrate-ports full gate, about 3 h after the port handed back green",
+      "cost": "whole nav part failing; fix-nav",
+      "leanVerdict": "provable",
+      "leanReason": "A static value equal to a Lean-emitted constant is a pure equality; generate the CSS constant and the gate value cannot drift.",
+      "evidence": [
+        "origin/ci/integrate-ports:lean/Fw/Parts/Nav.lean:461",
+        "task fix-nav",
+        "T:33385"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m002",
+      "classId": "c-handcopy",
+      "title": "commission port: section/track heights, display and margins wrong",
+      "when": "run 39067170911",
+      "who": "port-commission",
+      "symptom": "Heights 829.77 vs 777.44, runway 0 vs 54, title display block vs flex.",
+      "rootCause": "Commission.lean models bands and runway (0.06 vh) but not section heights or static display/margin values; the port's local check used 13 Chrome probes.",
+      "detectedBy": "integrate-ports full gate",
+      "cost": "fix-commission",
+      "leanVerdict": "partly",
+      "leanReason": "Static values and the height formula are provable at every breakpoint; the laid-out height is engine output.",
+      "empiricalCheck": "breakpoint gate on both engines, all widths",
+      "evidence": [
+        "origin/ci/integrate-ports:lean/Fw/Parts/Commission.lean:44",
+        "task fix-commission"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m003",
+      "classId": "c-handcopy",
+      "title": "pain.notes stage x bound to the wrong container",
+      "when": "CI run 39057192529",
+      "who": "port-pain",
+      "symptom": "notes x off; found only on CI.",
+      "rootCause": "The model premise was transcribed wrong (stage bound to .pain-notes-stage, original binds .pain-canvas); Lean then proved properties of the wrong binding.",
+      "detectedBy": "port CI gate",
+      "cost": "one CI round",
+      "leanVerdict": "partly",
+      "leanReason": "Lean cannot know which DOM node the original binds; an anchor map generated from the snapshot plus a Lean check that the model names that anchor would catch it.",
+      "empiricalCheck": "gate cell pain.notes x",
+      "evidence": [
+        "origin/ci/port-pain:docs/team/handoffs/port-pain.md:8",
+        "origin/ci/integrate-ports:lean/Fw/Parts/PainNotes.lean:13"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m004",
+      "classId": "c-handcopy",
+      "title": "platform.stageBg 32 px short on WebKit (aspect-ratio under grid stretch)",
+      "when": "port-platform CI",
+      "who": "port-platform",
+      "symptom": "stage h 319.6 vs 351.8 at 401-481 px, WebKit only.",
+      "rootCause": "Out of model scope: PlatformSection.lean states the aspect ratio but not how WebKit resolves it under grid stretch.",
+      "detectedBy": "WebKit gate",
+      "cost": "open task fix-stagebg-webkit",
+      "leanVerdict": "partly",
+      "leanReason": "An Engine.WebKit lemma derived from the layout source could state the difference; the truth is WebKit's layout code.",
+      "empiricalCheck": "WebKit gate cells 401-481 px plus a pinned WebKit source read",
+      "evidence": [
+        "docs/team/handoffs/port-platform.md:9",
+        "lean/Fw/Parts/PlatformSection.lean:13",
+        "task fix-stagebg-webkit"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m005",
+      "classId": "c-handcopy",
+      "title": "TS pilot parts unfaithful in 5 places; 3 inventory errors",
+      "when": "2026-10-17T08:43Z",
+      "who": "part-builder (pilot)",
+      "symptom": "An independent Lean reading of the original disagreed with the TS in 5 places.",
+      "rootCause": "Ports hand-written from the original with no golden vectors.",
+      "detectedBy": "Lean (lean-parts) - the Lean-first rule worked here",
+      "cost": "fix wave 51eee11 (688 tests vs goldens)",
+      "leanVerdict": "provable",
+      "leanReason": "TS checked against Lean goldens is exactly the fix.",
+      "evidence": [
+        "commit 51eee11",
+        "T:4510",
+        "T:4914"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m006",
+      "classId": "c-handcopy",
+      "title": "morph.columns rendered before platform; panel-at-rest stand-ins and platform min width missing",
+      "when": "2026-10-18 00:21-02:02",
+      "who": "port-morph-columns, port-platform",
+      "symptom": "Wrong page order and rest state found by debug gate runs.",
+      "rootCause": "Page order and rest state lived in no spec; each port chose its own.",
+      "detectedBy": "debug gate run",
+      "cost": "3 fix commits",
+      "leanVerdict": "provable",
+      "leanReason": "Page order is a list and rest state a value; generate both from Lean.",
+      "evidence": [
+        "commit 0b77805",
+        "commit c17757e",
+        "commit 4d724e1"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m007",
+      "classId": "c-handcopy",
+      "title": "Golden files with no staleness check (exporter vs committed golden)",
+      "when": "2026-10-17 ~19:00-20:30Z",
+      "who": "engine-chromium-lean, engine-webkit-lean, morph-tween-waapi",
+      "symptom": "Agents reported no regenerate script and no staleness check in lake test.",
+      "rootCause": "Task write sets excluded lean/scripts and the test driver, so regen-and-diff was deferred.",
+      "detectedBy": "agent handbacks (self-reported)",
+      "cost": "TS possibly checked against stale vectors",
+      "leanVerdict": "provable",
+      "leanReason": "gen() = committed is a decidable equality run in lake test.",
+      "evidence": [
+        "subagent finals engine-chromium-lean, engine-webkit-lean, morph-tween-waapi"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m008",
+      "classId": "c-handcopy",
+      "title": "Lean proofs did not catch the port CSS failures (umbrella)",
+      "when": "2026-10-17T21:31Z",
+      "who": "lead (proof scope)",
+      "symptom": "Integrated ports failed 64 Chromium and 88 WebKit cells while every part had Lean proofs.",
+      "rootCause": "No coverage map from gate probe to Lean value: many probed properties had no model, goldens covered logic.ts only, and models were copied by hand.",
+      "detectedBy": "integration gate",
+      "cost": "4 fix agents plus lean-coverage",
+      "leanVerdict": "provable",
+      "leanReason": "A coverage map (probe -> Lean source or exemption) is a finite decidable relation.",
+      "evidence": [
+        "T:33385",
+        "commit 7c560f8",
+        "task lean-coverage"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m009",
+      "classId": "c-handcopy",
+      "title": "PLAN, explainer page and notes drifted; published page left at rev 5 while repo was at rev 8",
+      "when": "2026-10-17 08:01Z..16:11Z",
+      "who": "plan-editor, page-writer, lead",
+      "symptom": "Page showed decided questions as open, stale counts; user read the old page.",
+      "rootCause": "Hand-synced copies of the same decisions; no generation or staleness hash.",
+      "detectedBy": "reviewer-rev5, plan-rev7 review, the user",
+      "cost": "review rounds; user read stale content",
+      "leanVerdict": "partly",
+      "leanReason": "A staleness hash (page embeds hash of the PLAN sections it renders) is provable; content correctness is review.",
+      "empiricalCheck": "reviewer pass",
+      "evidence": [
+        "T:19935",
+        "research/notes/2026/10-17-plan-rev7-review.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m010",
+      "classId": "c-mathdoc",
+      "title": "Docstring math drifted from Lean in every review round (r3..r13)",
+      "when": "2026-10-17..18",
+      "who": "lean-prover agents",
+      "symptom": "Disagree rows: r3 54, r4 71, r5 62, r8 49, r13 72; ~13 fix agents.",
+      "rootCause": "LaTeX written from intuition after the proof; lints added one per round.",
+      "detectedBy": "math review rounds, hours after commit",
+      "cost": "~12 h of fix and re-review",
+      "leanVerdict": "partly",
+      "leanReason": "Free/bound variable coverage is decidable on parsed TeX vs Lean binders; semantic faithfulness needs a reviewer.",
+      "empiricalCheck": "math-reviewer checker rounds",
+      "evidence": [
+        "research/notes/2026/10-17-math-review-r4-740b06c.md",
+        "research/notes/2026/10-18-math-review-r13-0cee322.md",
+        "commit b63572c"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m011",
+      "classId": "c-mathdoc",
+      "title": "Set-builder counts where Lean takes list-filter lengths; injectivity for Nodup",
+      "when": "rounds 5, 7a",
+      "who": "lean-prover agents",
+      "symptom": "Admit eq_of_nodup_map read as a tautology; msView counts duplicates differently.",
+      "rootCause": "List vs set semantics not represented in the TeX convention.",
+      "detectedBy": "math review",
+      "cost": "fix rounds",
+      "leanVerdict": "partly",
+      "leanReason": "A lint flags |{...}| over a List-typed binder; whether the prose intends multiset is review.",
+      "empiricalCheck": "math review",
+      "evidence": [
+        "research/notes/2026/10-17-math-review-r5-c4ca5ad.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m012",
+      "classId": "c-mathdoc",
+      "title": "Bound variables shadowed functions in the math",
+      "when": "rounds 8, 9",
+      "who": "lean-prover agents",
+      "symptom": "r8 49/502, r9 7/155.",
+      "rootCause": "No shadow lint until f7962c5.",
+      "detectedBy": "math review",
+      "cost": "2 rounds",
+      "leanVerdict": "provable",
+      "leanReason": "Name collision between bound and free identifiers is syntactic (ShadowLint now does it).",
+      "evidence": [
+        "commit f7962c5",
+        "commit 19e980e"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m013",
+      "classId": "c-mathdoc",
+      "title": "Math fixes introduced new math errors (doubled backslash dropped a forall; row break)",
+      "when": "r5 fix, r6, r11",
+      "who": "lead / math fixers",
+      "symptom": "Admit.Inv lost its quantifier; Serve.touched where-clause broke.",
+      "rootCause": "Fixes not rendered or linted before commit.",
+      "detectedBy": "next review round",
+      "cost": "re-review",
+      "leanVerdict": "provable",
+      "leanReason": "A TeX parse plus binder coverage on the changed docstring rejects a dropped quantifier.",
+      "evidence": [
+        "commit 77b381c",
+        "commit d18e4a7"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m014",
+      "classId": "c-mathdoc",
+      "title": "Where-clauses placed after the $$ block (64 hits)",
+      "when": "round 10",
+      "who": "lean-prover agents",
+      "symptom": "Definitions outside the math went unread.",
+      "rootCause": "No position rule for where-clauses until WhereLint.",
+      "detectedBy": "math review r10",
+      "cost": "where-cleanup task",
+      "leanVerdict": "provable",
+      "leanReason": "Position of a where-clause relative to $$ is syntactic.",
+      "evidence": [
+        "commit 246ca9a"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m015",
+      "classId": "c-mathdoc",
+      "title": "Docstrings state only a count; renames leave stale math",
+      "when": "rounds 12, 13",
+      "who": "port and proof agents",
+      "symptom": "|crTypes|=8 only; RunTable named Run; pilotParts lists 6 of 14.",
+      "rootCause": "No rule that the math determines the definition; renames do not touch docstrings.",
+      "detectedBy": "math review",
+      "cost": "r13 fix (69 rows)",
+      "leanVerdict": "partly",
+      "leanReason": "Identifier staleness (math names a constant that no longer exists) is decidable; \"math determines the definition\" is not.",
+      "empiricalCheck": "math review",
+      "evidence": [
+        "commit 0d9b06c",
+        "research/notes/2026/10-18-math-review-r12-6504ec1.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m016",
+      "classId": "c-mathdoc",
+      "title": "English prose overclaims beyond the proved theorems",
+      "when": "2026-10-17 15:00+",
+      "who": "lean-prover (Null, DeviceQueue, hero-exit, engines)",
+      "symptom": "\"probability exactly 1/70\" without its premise; \"no starvation\" overclaimed.",
+      "rootCause": "Prose written ahead of the theorem; no rule that a claim cites a theorem.",
+      "detectedBy": "fwcore math review, checkers",
+      "cost": "4 fix commits",
+      "leanVerdict": "partly",
+      "leanReason": "A lint can require each claim sentence to name a theorem; whether the theorem supports it is review.",
+      "empiricalCheck": "checker review",
+      "evidence": [
+        "commit 74ffd03",
+        "commit f6544e3",
+        "commit c4f094c",
+        "commit 840a4e6"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m017",
+      "classId": "c-mathdoc",
+      "title": "Review staleness missed docstring-only edits; latest review chosen by file name",
+      "when": "2026-10-17T09:10Z",
+      "who": "page-mathview / lean-prover",
+      "symptom": "Docstring-only edits kept old reviews valid.",
+      "rootCause": "stmtHash covered the statement only; ordering relied on naming.",
+      "detectedBy": "lead review",
+      "cost": "review-chain rework",
+      "leanVerdict": "provable",
+      "leanReason": "mathHash of the normalised docstring plus a round: field is a pure key (now MathView.lean:169).",
+      "evidence": [
+        "lean/MathView.lean:169",
+        "T:5329"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m018",
+      "classId": "c-unearned-claim",
+      "title": "PLAN aging bound was false (item queued at t=25 vs claimed 20)",
+      "when": "before 4bd850f",
+      "who": "plan-editor / lead",
+      "symptom": "Counterexample #guard.",
+      "rootCause": "Bound stated in prose without proof.",
+      "detectedBy": "Lean (lean-sched) - Lean worked",
+      "cost": "PLAN correction",
+      "leanVerdict": "provable",
+      "leanReason": "Bounds are theorems; the proved one is (1+Psi) dmax.",
+      "evidence": [
+        "commit 4bd850f"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m019",
+      "classId": "c-unearned-claim",
+      "title": "Claim of 0 UpdateLayoutTree for compositor animations",
+      "when": "~2026-10-17T11:20Z",
+      "who": "meas-chromium / plan",
+      "symptom": "One main-thread style update per frame remains.",
+      "rootCause": "Claim stated before measured or read in source.",
+      "detectedBy": "Chromium lane counts",
+      "cost": "claim retracted",
+      "leanVerdict": "partly",
+      "leanReason": "An Engine.Chromium lemma from source could state it; truth is the trace.",
+      "empiricalCheck": "Chromium trace counts",
+      "evidence": [
+        "improvements log \"Chromium lane landed\""
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m020",
+      "classId": "c-unearned-claim",
+      "title": "Plan assumed per-part Chromium counts",
+      "when": "2026-10-17T16:23Z",
+      "who": "plan-editor",
+      "symptom": "Counts exist only per frame and per scroll zone.",
+      "rootCause": "Trace data shape not checked before planning.",
+      "detectedBy": "zone-baselines-chromium",
+      "cost": "redesign to zone baselines",
+      "leanVerdict": "no",
+      "leanReason": "Depends on what the external trace format provides.",
+      "empiricalCheck": "read one real CI trace before planning a metric",
+      "evidence": [
+        "T:20290"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m021",
+      "classId": "c-unearned-claim",
+      "title": "Assumed an iOS 26.6 runtime exists; xcodes 2.0.2 crashed",
+      "when": "2026-10-17T06:41Z",
+      "who": "env-ops",
+      "symptom": "Runtime install failed; phone upgraded to 27.0.1.",
+      "rootCause": "Availability not listed before planning.",
+      "detectedBy": "install attempt",
+      "cost": "setup detour",
+      "leanVerdict": "no",
+      "leanReason": "External service catalogue.",
+      "empiricalCheck": "list available runtimes before planning an install",
+      "evidence": [
+        "compaction summary T:2438"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m022",
+      "classId": "c-unearned-claim",
+      "title": "PLAN rev 7 marked WKTR on macos-26 CONFIRMED before any run; wrong runner for the sim lane",
+      "when": "5a1dff2",
+      "who": "plan-rev7",
+      "symptom": "CONFIRMED with nothing run; lane named macos-26 while it runs on xcode-27.",
+      "rootCause": "Status taken from the archive SDK; workflow file not read.",
+      "detectedBy": "plan-rev7 review",
+      "cost": "plan-rev7-1",
+      "leanVerdict": "partly",
+      "leanReason": "A claim lint would refuse CONFIRMED without a run id or file:line; whether the citation supports it is review.",
+      "empiricalCheck": "adversarial plan review",
+      "evidence": [
+        "commit 5a1dff2",
+        "research/notes/2026/10-17-plan-rev7-review.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m023",
+      "classId": "c-unearned-claim",
+      "title": "README: no prebuilt iOS WKTR exists; renderingUpdate is one update",
+      "when": "corrected 65b6704",
+      "who": "meas-webkit / wktr researcher",
+      "symptom": "Cloud Mac with 120 GB considered.",
+      "rootCause": "Claims not checked against WebKit CI steps or ui-helper.js.",
+      "detectedBy": "wktr-ci, wktr-readme-fix",
+      "cost": "wktr-cloud planning",
+      "leanVerdict": "partly",
+      "leanReason": "Claim lint requires src@sha; the reading is empirical.",
+      "empiricalCheck": "read the pinned WebKit source",
+      "evidence": [
+        "commit 65b6704"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m024",
+      "classId": "c-unearned-claim",
+      "title": "Plan assumptions refuted by the feasibility review (BeginFrameControl on macOS, page.clock, gh api -f, Lean panic default)",
+      "when": "2026-10-17",
+      "who": "plan-editor (rev 3-4)",
+      "symptom": "Five premises false.",
+      "rootCause": "Plan written before reading engine source and tool defaults.",
+      "detectedBy": "feasibility review",
+      "cost": "plan revision",
+      "leanVerdict": "partly",
+      "leanReason": "Claim lint forces a citation; the source reading itself is empirical.",
+      "empiricalCheck": "source read per premise",
+      "evidence": [
+        "research/notes/2026/10-17-v2-plan-feasibility-review.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m025",
+      "classId": "c-unearned-claim",
+      "title": "Note said the CI lane disables threaded animation; it does not",
+      "when": "2026-10-18 ~01:00",
+      "who": "engine researcher",
+      "symptom": "Assumed --deterministic-mode switches.",
+      "rootCause": "Inferred from a flag name, did not read run.mjs.",
+      "detectedBy": "improvements log review",
+      "cost": "note correction",
+      "leanVerdict": "provable",
+      "leanReason": "If the lane's switch list is Lean data (generated into run.mjs), the claim is a lookup.",
+      "evidence": [
+        "research/notes/2026/10-18-engine-chromium-pipeline.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m026",
+      "classId": "c-unearned-claim",
+      "title": "Hand-picked golden vector with a tie made the \"better\" example not better",
+      "when": "2026-10-17 ~18:30",
+      "who": "plan author",
+      "symptom": "U = 28.5, p = 48/924.",
+      "rootCause": "Example chosen by hand, tie unhandled.",
+      "detectedBy": "Lean evaluation",
+      "cost": "plan fix",
+      "leanVerdict": "provable",
+      "leanReason": "Goldens computed by #eval of the Lean verdict cannot disagree with it.",
+      "evidence": [
+        "docs/team/improvements/2026-10-17-plan.md:214"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m027",
+      "classId": "c-unearned-claim",
+      "title": "Profiler misattributed stalls (Mac sleep), build share (3% vs 12%) and Edit latency",
+      "when": "2026-10-17T09:55Z",
+      "who": "profiler / researcher",
+      "symptom": "14-26 min \"API stalls\" were machine sleep.",
+      "rootCause": "Tool time taken from the first block of multi-tool messages; caffeinate renewed with gaps.",
+      "detectedBy": "adversarial critique, pmset",
+      "cost": "profiler fix aa7b729",
+      "leanVerdict": "partly",
+      "leanReason": "The attribution rule over transcript events is a pure function and provable; sleep needs pmset logs.",
+      "empiricalCheck": "pmset log check",
+      "evidence": [
+        "commit aa7b729",
+        "docs/team/improvements/2026-10-17.md:44-57"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m028",
+      "classId": "c-unearned-claim",
+      "title": "load1 read as CPU overload",
+      "when": "2026-10-17T09:50Z",
+      "who": "lead",
+      "symptom": "load1 412 with 64% idle reported as oversubscribed.",
+      "rootCause": "On macOS load1 is not CPU demand.",
+      "detectedBy": "lead correction 1 h later",
+      "cost": "wrong capacity conclusion ~1 h",
+      "leanVerdict": "no",
+      "leanReason": "OS metric semantics.",
+      "empiricalCheck": "read CPU idle (top/vm_stat) beside load",
+      "evidence": [
+        "docs/team/improvements/2026-10-17.md:170-173"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m029",
+      "classId": "c-unearned-claim",
+      "title": "Rate-limit diagnosis flip-flopped (two tokens involved)",
+      "when": "2026-10-17T18:14-18:17Z",
+      "who": "lead",
+      "symptom": "Told the user twice, then corrected.",
+      "rootCause": "Concluded from one token's numbers without checking which token agents used.",
+      "detectedBy": "lead self-correction",
+      "cost": "wrong claim to the user twice",
+      "leanVerdict": "no",
+      "leanReason": "External service and credentials.",
+      "empiricalCheck": "identify the token in use (gh auth status) before quoting its budget",
+      "evidence": [
+        "T:25340",
+        "T:25415"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m030",
+      "classId": "c-unearned-claim",
+      "title": "sim-speed note: 11 review issues, CONFIRMED cause without code",
+      "when": "~2026-10-17T22:00",
+      "who": "sim-speed",
+      "symptom": "Recommendation already default; before numbers not reproducible.",
+      "rootCause": "Comparisons not like-for-like; status not earned.",
+      "detectedBy": "sim-speed review",
+      "cost": "sim-speed-fix",
+      "leanVerdict": "partly",
+      "leanReason": "Claim lint catches the missing citation; like-for-like is empirical.",
+      "empiricalCheck": "paired runs on the same runner",
+      "evidence": [
+        "research/notes/2026/10-17-sim-speed-review.md",
+        "commit c53a0d7"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m031",
+      "classId": "c-unearned-claim",
+      "title": "Upstream pins did not match published packages (Emotion); clones not on lock sha",
+      "when": "2026-10-17T09:27Z",
+      "who": "upstream-store / researcher",
+      "symptom": "Source read could be the wrong code.",
+      "rootCause": "Monorepo pinned by one commit instead of per-package release tags.",
+      "detectedBy": "refs-fix",
+      "cost": "refs-fix task",
+      "leanVerdict": "partly",
+      "leanReason": "HEAD == lock sha is decidable; package->tag mapping is external.",
+      "empiricalCheck": "compare published tarball to pinned source",
+      "evidence": [
+        "commit b65e983"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m032",
+      "classId": "c-unearned-claim",
+      "title": "gate --parts filter task saved nothing (528 vs 536 s)",
+      "when": "2026-10-17 ~12:00Z",
+      "who": "gate-part-filter",
+      "symptom": "Every probe applied to every part.",
+      "rootCause": "Saving expected without a cost model of the probe matrix.",
+      "detectedBy": "measurement",
+      "cost": "one task",
+      "leanVerdict": "provable",
+      "leanReason": "A theorem on scopeProbes shows the matrix shrinks only if probes are part-scoped.",
+      "evidence": [
+        "task gate-part-filter",
+        "research/notes/2026/10-17-team-review-fable.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m033",
+      "classId": "c-principle",
+      "title": "Roadmap planned as calendar days, not an ASAP dependency graph",
+      "when": "2026-10-17T07:47Z",
+      "who": "lead",
+      "symptom": "\"Monday ... Day 4-5\"; user reframed.",
+      "rootCause": "Plan section copied from v1 style; no lint against dates.",
+      "detectedBy": "the user",
+      "cost": "plan and page rewrite",
+      "leanVerdict": "partly",
+      "leanReason": "A lint forbidding dates in tasks is decidable; intent is human.",
+      "empiricalCheck": "user review",
+      "evidence": [
+        "T:2173",
+        "T:2175",
+        "commit 2d95173"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m034",
+      "classId": "c-principle",
+      "title": "Console decision logic written in TS before the Lean core existed",
+      "when": "2026-10-17T07:58Z",
+      "who": "lead",
+      "symptom": "User: why not Lean for provable?",
+      "rootCause": "Builder spawned before its Lean dependency; graph had no edge.",
+      "detectedBy": "the user",
+      "cost": "TS stand-in written then deleted",
+      "leanVerdict": "partly",
+      "leanReason": "\"decides => depends on a Lean task\" is a graph lint once tasks carry a kind label; the label is human.",
+      "empiricalCheck": "spawn review",
+      "evidence": [
+        "T:2562",
+        "commit ae0a06c"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m035",
+      "classId": "c-principle",
+      "title": "Gap harness judged Q33 with the retired TS verdict",
+      "when": "~2026-10-17T13:20Z",
+      "who": "gap-harness",
+      "symptom": "Verdicts not Lean's.",
+      "rootCause": "Old JS verdict path reused; Lean-first not enforced on harnesses.",
+      "detectedBy": "code review",
+      "cost": "redo",
+      "leanVerdict": "provable",
+      "leanReason": "An import lint (verdict functions only from fwcore ops) is decidable.",
+      "evidence": [
+        "commit 342a9fb",
+        "commit 5f76d6e"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m036",
+      "classId": "c-principle",
+      "title": "Every-breakpoint parity missing from the plan",
+      "when": "2026-10-17T07:39Z",
+      "who": "lead",
+      "symptom": "User had to state it.",
+      "rootCause": "Requirements not derived from the original CSS/JS.",
+      "detectedBy": "the user",
+      "cost": "plan revision",
+      "leanVerdict": "partly",
+      "leanReason": "Once stated, BreakpointMatrix enforces it; the omission was human.",
+      "empiricalCheck": "requirement review against the original",
+      "evidence": [
+        "T:1892",
+        "commit bcdc9c9"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m037",
+      "classId": "c-principle",
+      "title": "Device measurement planned as primary evidence; user redirected twice",
+      "when": "2026-10-17T17:29-17:33Z",
+      "who": "lead / plan-editor",
+      "symptom": "Phone sessions kept as main evidence; rev 10 replaced with proofs.",
+      "rootCause": "Evidence model chosen before the principle was stated.",
+      "detectedBy": "the user",
+      "cost": "plan rev 10, cut tasks",
+      "leanVerdict": "partly",
+      "leanReason": "A plan lint can require verdict kind = proof per optimisation; choosing the principle is human.",
+      "empiricalCheck": "user review",
+      "evidence": [
+        "T:23531",
+        "docs/plan/PLAN.md Appendix D"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m038",
+      "classId": "c-principle",
+      "title": "Upstream source store planned but never scheduled",
+      "when": "2026-10-17T09:00Z",
+      "who": "lead",
+      "symptom": "Agents read source through WebFetch.",
+      "rootCause": "PLAN item with no task.",
+      "detectedBy": "the user",
+      "cost": "lossy reads until b65e983",
+      "leanVerdict": "provable",
+      "leanReason": "PLAN item -> task coverage is a finite map.",
+      "evidence": [
+        "T:4956",
+        "T:5018"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m039",
+      "classId": "c-principle",
+      "title": "Critical-path blockers not prioritised until the user named them",
+      "when": "2026-10-17T17:37Z; 20:29Z",
+      "who": "lead",
+      "symptom": "User named shells, math-final, variant-morph-tween-waapi.",
+      "rootCause": "Ready tasks pulled without ranking.",
+      "detectedBy": "the user",
+      "cost": "critical-path latency",
+      "leanVerdict": "provable",
+      "leanReason": "criticalPath_longest exists; ranking ready by it is a pure sort.",
+      "evidence": [
+        "T:23684",
+        "T:30527",
+        "lean/Fw/Plan/Graph.lean:574"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m040",
+      "classId": "c-proxy-verdict",
+      "title": "Breakpoint-gate summary exits 0 while parts fail (still open)",
+      "when": "2026-10-18 01:23",
+      "who": "tool:gate-breakpoints",
+      "symptom": "Job green while nav failed every cell.",
+      "rootCause": "cli.mjs summary path has no non-zero exit; merge job fails only on shape errors.",
+      "detectedBy": "integrate-ports",
+      "cost": "port-nav sat ~1.5 h; bugs found late",
+      "leanVerdict": "provable",
+      "leanReason": "exit = 0 iff Lean rollup = pass is a pure function of summary.json.",
+      "evidence": [
+        "packages/gate-breakpoints/src/cli.mjs:25-27@84b9f19",
+        ".github/workflows/breakpoint-gate.yml:280-285"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m041",
+      "classId": "c-proxy-verdict",
+      "title": "Port agents reported pass from job conclusions",
+      "when": "2026-10-17T18:23Z",
+      "who": "port-nav, port-overlays (lead accepted)",
+      "symptom": "Merged summary failed 64/88.",
+      "rootCause": "Green conclusions read as verdict; \"did not read the merge verdict file\".",
+      "detectedBy": "integration",
+      "cost": "integrate-ports 180 min plus 5 agents",
+      "leanVerdict": "provable",
+      "leanReason": "Handback requires a verdict record whose rollup = pass.",
+      "evidence": [
+        "subagent port-nav handback (line 827)",
+        "subagent integrate-ports line 1901"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m042",
+      "classId": "c-proxy-verdict",
+      "title": "Scoped local debug gates reported as pass",
+      "when": "2026-10-18 00:48-02:00",
+      "who": "port-commission, port-hero, port-people",
+      "symptom": "\"13 probes: pass\"; CI failed.",
+      "rootCause": "Verdict record had no scope; local scoped run read as full.",
+      "detectedBy": "integration",
+      "cost": "4 fix tasks",
+      "leanVerdict": "provable",
+      "leanReason": "A verdict carries scope; handback requires scope = full on CI.",
+      "evidence": [
+        "origin/ci/port-commission:docs/team/handoffs/port-commission.md:20",
+        "commit 15ea289"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m043",
+      "classId": "c-proxy-verdict",
+      "title": "Variant gate runs tested flags off; morph.mount:shift landed on that pass",
+      "when": "2026-10-17T21:01Z",
+      "who": "breakpoint-gate workflow / lead / variant agents",
+      "symptom": "Runs 39067215069, 39067391933 passed with no flag on.",
+      "rootCause": "workflow_dispatch had no flag input; nobody checked which flags ran.",
+      "detectedBy": "lead review after landing",
+      "cost": "variant evidence void; variant-regate",
+      "leanVerdict": "provable",
+      "leanReason": "flags(run) = flags(task) is a pure equality in the verdict record.",
+      "evidence": [
+        "commit 7ceb81c",
+        "T:32339",
+        "inc-variant-gate-flags-off"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m044",
+      "classId": "c-proxy-verdict",
+      "title": "console-lean landed with a failing crash test",
+      "when": "2026-10-17T08:2xZ",
+      "who": "lead",
+      "symptom": "Merge regardless of test exit.",
+      "rootCause": "Land command merged unconditionally.",
+      "detectedBy": "re-run",
+      "cost": "main unverified; console-deflake",
+      "leanVerdict": "provable",
+      "leanReason": "land_commit_exact: merge only when checks pass (fw land now).",
+      "evidence": [
+        "compaction summary T:5769"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m045",
+      "classId": "c-proxy-verdict",
+      "title": "Lean build falsely green after a conflict merge",
+      "when": "2026-10-17T18:22Z",
+      "who": "lead",
+      "symptom": "Scope.lean not rebuilt; more conflicts than shown.",
+      "rootCause": "Conflict check relied on an incremental build.",
+      "detectedBy": "lead read of diff",
+      "cost": "near miss",
+      "leanVerdict": "partly",
+      "leanReason": "No conflict markers and full rebuild of touched modules is decidable; Lake staleness is the tool's.",
+      "empiricalCheck": "clean build of changed modules",
+      "evidence": [
+        "T:25713"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m046",
+      "classId": "c-proxy-verdict",
+      "title": "Agents handed back with no verdict-bearing run (header differs uninvestigated, runs cancelled, head not pushed)",
+      "when": "2026-10-17 18:30-20:00Z",
+      "who": "port-hero, port-morph-panel, port-people-fix, webkit-quiet",
+      "symptom": "Defects found at integration.",
+      "rootCause": "No completion gate.",
+      "detectedBy": "integration",
+      "cost": "fix rounds",
+      "leanVerdict": "provable",
+      "leanReason": "Handback requires a verdict at branch head.",
+      "evidence": [
+        "subagent port-hero final",
+        "subagent port-morph-panel final"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m047",
+      "classId": "c-proxy-verdict",
+      "title": "Code merges landed without review",
+      "when": "2026-10-17",
+      "who": "lead",
+      "symptom": "Only PLAN and math got adversarial review.",
+      "rootCause": "No review stage in the land path.",
+      "detectedBy": "Fable team review",
+      "cost": "unknown latent defects",
+      "leanVerdict": "partly",
+      "leanReason": "A land rule requiring a review record is decidable; review quality is human.",
+      "empiricalCheck": "reviewer pass per land",
+      "evidence": [
+        "research/notes/2026/10-17-team-review-fable.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m048",
+      "classId": "c-sample-validity",
+      "title": "Gate sampled unsettled pages; fix agents chased non-bugs (pain.notes, hero.orbit, overlays.signup, people.card filter tail)",
+      "when": "run 39067170911",
+      "who": "gate-breakpoints design",
+      "symptom": "fix-misc fixed 0 of 4 cells; all gate timing.",
+      "rootCause": "No settled-sample predicate (animations running, < 2 rAF after resize, pointer on hover target).",
+      "detectedBy": "fix-misc, port-people-fix",
+      "cost": "2 fix agents on non-bugs",
+      "leanVerdict": "partly",
+      "leanReason": "Settledness of a recorded sample is a pure predicate (gate-settle); whether the engine settled is I/O.",
+      "empiricalCheck": "repeat sample after settle, compare",
+      "evidence": [
+        "commit b37227c",
+        "task gate-settle"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m049",
+      "classId": "c-sample-validity",
+      "title": "Mounting lazy parts before collection made scroll-driven values lag",
+      "when": "run 39062347763",
+      "who": "integrate-ports",
+      "symptom": "hero and nav cells failed.",
+      "rootCause": "Prepare scrolled the original and back; collect read stale state.",
+      "detectedBy": "gate run",
+      "cost": "one full gate run",
+      "leanVerdict": "partly",
+      "leanReason": "Collect-after-settle ordering is provable as a step order; lag is engine.",
+      "empiricalCheck": "gate re-run",
+      "evidence": [
+        "origin/ci/integrate-ports:docs/team/handoffs/integrate-ports.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m050",
+      "classId": "c-sample-validity",
+      "title": "Shard merge refused: \"header differs\" between shards",
+      "when": "port-hero run 39057342983",
+      "who": "gate-breakpoints merge-gate.mjs",
+      "symptom": "WebKit merge failed for hero.accent.",
+      "rootCause": "Property list from one timed scan per shard.",
+      "detectedBy": "merge job",
+      "cost": "failed full runs",
+      "leanVerdict": "provable",
+      "leanReason": "Header as a function of scope only (Lean ScopeGen) is identical across shards by construction.",
+      "evidence": [
+        "research/notes (integrate-ports handoff: union of 9 scans)",
+        "docs/team/improvements/2026-10-17.md:592"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m051",
+      "classId": "c-sample-validity",
+      "title": "measure.freeze accepted a 403-frame job beside 409",
+      "when": "before refreeze",
+      "who": "freeze-lean spec gap",
+      "symptom": "Classes moved 50/1/0 to 20/1/30.",
+      "rootCause": "Freeze spec had no equal-frames precondition.",
+      "detectedBy": "lead manual drop",
+      "cost": "refreeze + freeze-refuse",
+      "leanVerdict": "provable",
+      "leanReason": "framesRefusal (now Freeze.lean:867).",
+      "evidence": [
+        "commit fd8ed4d",
+        "commit 82e8934"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m052",
+      "classId": "c-sample-validity",
+      "title": "WebKit A vs R steps compared by index though page heights differ",
+      "when": "found 17:02-19:38Z",
+      "who": "meas-webkit",
+      "symptom": "docH 6042 vs 4378 misaligned steps.",
+      "rootCause": "Index assumed equal to scroll position.",
+      "detectedBy": "step-align",
+      "cost": "268 agent-min",
+      "leanVerdict": "provable",
+      "leanReason": "Pair by offset is a pure function with a theorem.",
+      "evidence": [
+        "research/notes/2026/10-18-step-align.md"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m053",
+      "classId": "c-sample-validity",
+      "title": "step-align merge crashed: one VM had an extra step",
+      "when": "2026-10-17T19:39Z",
+      "who": "step-align",
+      "symptom": "VM2 y=5268 absent elsewhere.",
+      "rootCause": "Merge assumed identical step sets.",
+      "detectedBy": "CI merge job",
+      "cost": "step-align-fix",
+      "leanVerdict": "provable",
+      "leanReason": "aligned_iff exists; merge refuses naming the VM.",
+      "evidence": [
+        "T:28330",
+        "lean/Fw/Measure/SelfCheck.lean:516"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m054",
+      "classId": "c-sample-validity",
+      "title": "Chromium touchmove race made counts non-deterministic",
+      "when": "fixed 15:28-16:13Z",
+      "who": "meas-chromium-2 harness",
+      "symptom": "Two trajectories; k/k+1 counts.",
+      "rootCause": "Blink 200 ms async-touchmove hold not awaited.",
+      "detectedBy": "touch-race",
+      "cost": "45 min + refreeze",
+      "leanVerdict": "no",
+      "leanReason": "Engine timing.",
+      "empiricalCheck": "repeated CI runs: identical trajectories (touch-ci-verify)",
+      "evidence": [
+        "commit c38088e"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m055",
+      "classId": "c-sample-validity",
+      "title": "Chromium touch wedge: WaitForLateScrollEvents timer at virtual time",
+      "when": "found 25bd9f4",
+      "who": "meas-chromium harness",
+      "symptom": "BeginFrame stalled on the original.",
+      "rootCause": "Timer ~4900 s ahead of the container clock.",
+      "detectedBy": "bisect",
+      "cost": "2 tasks",
+      "leanVerdict": "no",
+      "leanReason": "Engine internals under virtual time.",
+      "empiricalCheck": "wedge count over CI jobs (0 in 9, b9bb373)",
+      "evidence": [
+        "commit 25bd9f4",
+        "commit b9bb373"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m056",
+      "classId": "c-sample-validity",
+      "title": "Clock shim faked performance.now but left document.timeline native",
+      "when": "~19:00Z",
+      "who": "meas-chromium harness",
+      "symptom": "waapi lane blocked.",
+      "rootCause": "Shim covered some time sources only.",
+      "detectedBy": "engine-gaps",
+      "cost": "waapi lane blocked",
+      "leanVerdict": "partly",
+      "leanReason": "\"Every time source reads the virtual clock\" is a statable invariant over a source list; coverage of the shim is I/O.",
+      "empiricalCheck": "probe each time source in-page",
+      "evidence": [
+        "subagent engine-gaps final"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m057",
+      "classId": "c-sample-validity",
+      "title": "BeginFrame harness errors (frame pending, Network.enable hang, TDZ)",
+      "when": "07:51-11:30Z",
+      "who": "meas-chromium, meas-chromium-2",
+      "symptom": "~3 h agent time.",
+      "rootCause": "Protocol ordering rules not modelled.",
+      "detectedBy": "harness runs",
+      "cost": "~3 h",
+      "leanVerdict": "no",
+      "leanReason": "CDP protocol behaviour.",
+      "empiricalCheck": "harness smoke test per change",
+      "evidence": [
+        "subagent meas-chromium transcripts"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m058",
+      "classId": "c-sample-validity",
+      "title": "HitTest and N1 counts polluted by unrelated engine work",
+      "when": "2026-10-17",
+      "who": "measure-chromium",
+      "symptom": "Overlay-ad detector inside HitTest; SVG-image docs in N1.",
+      "rootCause": "Events aggregated by name without containment split.",
+      "detectedBy": "hittest task",
+      "cost": "2 commits",
+      "leanVerdict": "partly",
+      "leanReason": "Split by parent event is pure once the trace tree is given.",
+      "empiricalCheck": "trace inspection",
+      "evidence": [
+        "commit 3c5e18b",
+        "commit f90c08f"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m059",
+      "classId": "c-sample-validity",
+      "title": "Pixel-area census types quarantined by count tolerance tMax = 24",
+      "when": "2026-10-17",
+      "who": "class policy",
+      "symptom": "activeTileAreaPx always quarantined.",
+      "rootCause": "One tolerance rule for counts and pixel areas (unit mismatch).",
+      "detectedBy": "spk-i",
+      "cost": "pixel-tolerance task",
+      "leanVerdict": "provable",
+      "leanReason": "Tolerance indexed by unit type makes the mismatch a type error.",
+      "evidence": [
+        "task pixel-tolerance",
+        "lean/Fw/Measure/Classes.lean:645"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m060",
+      "classId": "c-sample-validity",
+      "title": "WKTR lane drift from the page clock: 202 min to find it unfit as a gate",
+      "when": "13:06-19:57Z",
+      "who": "wktr-ci-lane / wktr-local",
+      "symptom": "2 deterministic, 7 quarantined.",
+      "rootCause": "Page clock and CSS animations not frozen before planning a gate lane.",
+      "detectedBy": "lane runs",
+      "cost": "355 agent-min",
+      "leanVerdict": "no",
+      "leanReason": "Harness/engine timing.",
+      "empiricalCheck": "repeatability runs before calling a lane a gate",
+      "evidence": [
+        "subagent wktr-ci-lane final"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m061",
+      "classId": "c-sample-validity",
+      "title": "webkit-sim lane still failing after 207 min and 4 pushes",
+      "when": "09:00-12:30Z",
+      "who": "ci-webkit",
+      "symptom": "Session stalls on loaded runner; rows joined by index.",
+      "rootCause": "Mac-tuned sleeps; index join.",
+      "detectedBy": "CI",
+      "cost": "207 min + webkit-green",
+      "leanVerdict": "partly",
+      "leanReason": "Row join by key is provable; stalls are runner load.",
+      "empiricalCheck": "CI repeat runs",
+      "evidence": [
+        "subagent ci-webkit final"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m062",
+      "classId": "c-sample-validity",
+      "title": "Chromium gate hung at >= 1000 px in the arm64 container",
+      "when": "10:31-11:20Z",
+      "who": "ci-workflows",
+      "symptom": "Renderer futex wait.",
+      "rootCause": "Root cause unknown; no fast-fail.",
+      "detectedBy": "local container",
+      "cost": "gate-smoke added",
+      "leanVerdict": "no",
+      "leanReason": "Environment-specific hang.",
+      "empiricalCheck": "gate-smoke 100 s timeout",
+      "evidence": [
+        "docs/team/handoffs/ci-workflows.md:20-24"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m063",
+      "classId": "c-sample-validity",
+      "title": "Load-sensitive tests flaked (hook <100 ms, runner test)",
+      "when": "10:xx, 18:30Z",
+      "who": "runner/console tests",
+      "symptom": "Fail under load, pass alone.",
+      "rootCause": "Wall-clock thresholds.",
+      "detectedBy": "re-runs",
+      "cost": "re-runs",
+      "leanVerdict": "no",
+      "leanReason": "Timing.",
+      "empiricalCheck": "run tests under synthetic load; no wall-clock thresholds",
+      "evidence": [
+        "T:26136"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m064",
+      "classId": "c-sample-validity",
+      "title": "console-api crash test race (exit vs EPIPE)",
+      "when": "~08:00Z",
+      "who": "console-mvp",
+      "symptom": "1 in 6 failures.",
+      "rootCause": "Restart accounting depended on event order.",
+      "detectedBy": "re-run",
+      "cost": "console-deflake",
+      "leanVerdict": "partly",
+      "leanReason": "Order-independent crash accounting is a commutation theorem; OS ordering is empirical.",
+      "empiricalCheck": "stress run (SIGSTOP in-flight)",
+      "evidence": [
+        "commit 19a8aa5"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m065",
+      "classId": "c-shared-no-lock",
+      "title": "Lead commit on main during fw land became the merge commit",
+      "when": "2026-10-17T20:23Z",
+      "who": "lead",
+      "symptom": "Commit without Task trailer; checks re-run.",
+      "rootCause": "Land held merge --no-commit open with no lock.",
+      "detectedBy": "lead",
+      "cost": "repair + re-run",
+      "leanVerdict": "provable",
+      "leanReason": "Land lock protocol: run_safe_locked, land_commit_exact (done).",
+      "evidence": [
+        "commit 80d7610",
+        "commit 6d5bf87",
+        "lean/Fw/Console/Land.lean:549"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m066",
+      "classId": "c-shared-no-lock",
+      "title": "Every parallel branch conflicted on lean/Fw.lean and registration files",
+      "when": "~18:30Z+",
+      "who": "lead (layout)",
+      "symptom": "Fw.lean conflict x6 in integrate-ports.",
+      "rootCause": "Hand-kept import list and registries.",
+      "detectedBy": "merges",
+      "cost": "integrate-ports 180 min",
+      "leanVerdict": "provable",
+      "leanReason": "Generated import list; check-imports (done).",
+      "evidence": [
+        "commit 8a9fe61",
+        "commit 0581ec6"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m067",
+      "classId": "c-shared-no-lock",
+      "title": "Ports diverged: four prepare paths, ~10 conflicting shared files",
+      "when": "2026-10-18 ~01:30",
+      "who": "lead (task split)",
+      "symptom": "Ports could not land one by one.",
+      "rootCause": "Shared gate machinery not factored before fan-out.",
+      "detectedBy": "integrate-ports",
+      "cost": "integrator + 4 fix agents",
+      "leanVerdict": "partly",
+      "leanReason": "\"Tasks writing a shared module depend on one owner task\" is a graph lint; the factoring choice is design.",
+      "empiricalCheck": "design review before fan-out",
+      "evidence": [
+        "docs/team/improvements/2026-10-17.md:586-588"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m068",
+      "classId": "c-shared-no-lock",
+      "title": "Semantic conflict: zone-baseline read the old classes.frozen.json schema",
+      "when": "2026-10-17T16:49Z",
+      "who": "lead (merge)",
+      "symptom": "8 unlisted types.",
+      "rootCause": "Producer and consumer changed in parallel; no shared schema type.",
+      "detectedBy": "landing",
+      "cost": "fix during land",
+      "leanVerdict": "provable",
+      "leanReason": "Producer/consumer from one Lean Wire type plus read-set admission.",
+      "evidence": [
+        "commit 64b13d9",
+        "T:21192"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m069",
+      "classId": "c-shared-no-lock",
+      "title": "Merge-order skew broke tests and guards (capMac arity, OpsWire, mutant guards)",
+      "when": "20:11-20:56",
+      "who": "lead",
+      "symptom": "Fix commits on main.",
+      "rootCause": "Branches built on an older main; checks per branch alone.",
+      "detectedBy": "main checks",
+      "cost": "3 fix commits",
+      "leanVerdict": "provable",
+      "leanReason": "Land re-checks on the merged tree; admission sees signature reads.",
+      "evidence": [
+        "commit 7fcbbfa",
+        "commit c67cbe4",
+        "commit aa8d961"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m070",
+      "classId": "c-shared-no-lock",
+      "title": "Parallel builds: lean-serve removed state con-land read",
+      "when": "~17:30",
+      "who": "lead",
+      "symptom": "6 console tests broke.",
+      "rootCause": "Hidden read dependency.",
+      "detectedBy": "tests",
+      "cost": "fix commit",
+      "leanVerdict": "provable",
+      "leanReason": "Read sets in admission.",
+      "evidence": [
+        "commit 7a1e8e8"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m071",
+      "classId": "c-shared-no-lock",
+      "title": "Four fix agents each merged the unlanded integration branch and hit the same conflict",
+      "when": "2026-10-17T21:28Z",
+      "who": "lead",
+      "symptom": "Same run.mjs conflict resolved 4-5 times.",
+      "rootCause": "Fan-out from an unlanded, stale branch.",
+      "detectedBy": "agents",
+      "cost": "divergent resolutions risk",
+      "leanVerdict": "provable",
+      "leanReason": "waitDeps: fan-out only after the dependency is landed (Obs.Next waitDeps_sound).",
+      "evidence": [
+        "subagent fix-nav line 16",
+        "lean/Fw/Obs/Next.lean:855"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m072",
+      "classId": "c-shared-no-lock",
+      "title": "Worktree creation race on parallel spawns",
+      "when": "2026-10-17T21:28Z",
+      "who": "tool:Agent",
+      "symptom": "\"failed to read .../commondir\".",
+      "rootCause": "Concurrent git worktree add.",
+      "detectedBy": "spawn error",
+      "cost": "respawn",
+      "leanVerdict": "no",
+      "leanReason": "git and platform internals.",
+      "empiricalCheck": "serialize worktree spawns",
+      "evidence": [
+        "T:33424"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m073",
+      "classId": "c-shared-no-lock",
+      "title": "Edits raced with concurrent writers (\"modified since read\")",
+      "when": "2026-10-17",
+      "who": "integrate-ports, lean-parts",
+      "symptom": "Re-reads.",
+      "rootCause": "Generator or parallel edit in the same tree.",
+      "detectedBy": "tool error",
+      "cost": "re-reads",
+      "leanVerdict": "partly",
+      "leanReason": "Single-writer per path is admission; generator timing is I/O.",
+      "empiricalCheck": "tool error is the check",
+      "evidence": [
+        "error census"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m074",
+      "classId": "c-shared-no-lock",
+      "title": "pub-prep wrote duplicate files into the main checkout",
+      "when": "~10:35Z",
+      "who": "pub-prep",
+      "symptom": "Merge failed on stray copies.",
+      "rootCause": "Absolute main paths from a worktree agent.",
+      "detectedBy": "merge",
+      "cost": "manual surgery",
+      "leanVerdict": "provable",
+      "leanReason": "PathCheck: writes inside own worktree.",
+      "evidence": [
+        "research/notes/2026/10-17-team-review-fable.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m075",
+      "classId": "c-shared-no-lock",
+      "title": "Lead cd into a worktree moved the session cwd; spawned agent inherited it",
+      "when": "2026-10-17T07:59Z",
+      "who": "lead",
+      "symptom": "page-rev5 started in a stale tree.",
+      "rootCause": "Session cwd persists across cd.",
+      "detectedBy": "agent question",
+      "cost": "clarification round",
+      "leanVerdict": "partly",
+      "leanReason": "A hook refusing a lead cd into .claude/worktrees is a pure decision; cwd inheritance is platform.",
+      "empiricalCheck": "none needed once refused",
+      "evidence": [
+        "T:2617",
+        "T:2661"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m076",
+      "classId": "c-shared-no-lock",
+      "title": "Scratch files in worktrees; shared scratch names collided (watch2.txt, check.log x24)",
+      "when": "all day",
+      "who": "many agents",
+      "symptom": "Wrong log read; orphan loop on overwritten file.",
+      "rootCause": "No per-agent scratch dir.",
+      "detectedBy": "lead incident review",
+      "cost": "misread builds; ~3 h held agent",
+      "leanVerdict": "provable",
+      "leanReason": "scratch(a,f) injective in a.",
+      "evidence": [
+        "commit 696ae09",
+        "inc-orphan-wait-loop"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m077",
+      "classId": "c-late-check",
+      "title": "summary.mjs unescaped backticks broke gate merge jobs on main ~2.4 h",
+      "when": "5f76d6e..cdefcf4",
+      "who": "gap-harness / lead",
+      "symptom": "SyntaxError in both merge jobs.",
+      "rootCause": "No node --check on src files; land did not wait for merge jobs.",
+      "detectedBy": "CI on main",
+      "cost": "main red 2.4 h",
+      "leanVerdict": "provable",
+      "leanReason": "*.mjs -> node --check in a check map.",
+      "evidence": [
+        "commit 5f76d6e",
+        "commit cdefcf4"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m078",
+      "classId": "c-late-check",
+      "title": "shell-measure.mjs:112 SyntaxError on main, flagged \"not mine\", still open",
+      "when": "7fe0cea..now",
+      "who": "shells",
+      "symptom": "node --check fails; check:shell-boxes broken.",
+      "rootCause": "No syntax check for apps/site/scripts; flagged issues create no task.",
+      "detectedBy": "agents noticed, nobody owned",
+      "cost": "broken check",
+      "leanVerdict": "provable",
+      "leanReason": "Same check map; a flagged defect becomes an incident.",
+      "evidence": [
+        "apps/site/scripts/shell-measure.mjs:112@84b9f19 (node --check fails)"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m079",
+      "classId": "c-late-check",
+      "title": "Duplicate import after a merge broke chromium-counts on CI",
+      "when": "ed503a5",
+      "who": "lead",
+      "symptom": "SyntaxError.",
+      "rootCause": "Union-style resolution, no syntax check.",
+      "detectedBy": "CI",
+      "cost": "one CI round",
+      "leanVerdict": "provable",
+      "leanReason": "node --check on merged tree.",
+      "evidence": [
+        "commit ee18c6b"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m080",
+      "classId": "c-late-check",
+      "title": "webkit-sim.yml invalid YAML (colon in description)",
+      "when": "2026-10-18 00:09",
+      "who": "webkit agent",
+      "symptom": "Workflow invalid.",
+      "rootCause": "No YAML parse/actionlint before landing.",
+      "detectedBy": "CI",
+      "cost": "fix round",
+      "leanVerdict": "provable",
+      "leanReason": "YAML parse is decidable.",
+      "evidence": [
+        "commit e262007"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m081",
+      "classId": "c-late-check",
+      "title": "Strict ObsRecord schema silently dropped every SpawnGuard record",
+      "when": "618c1b6..6228fcf",
+      "who": "spawn-guard-workflows / contracts",
+      "symptom": "No task claims for hours.",
+      "rootCause": "New fields not in the strict schema; rejects silent.",
+      "detectedBy": "lean-console-gaps",
+      "cost": "board wrong for hours",
+      "leanVerdict": "provable",
+      "leanReason": "Record type generated from one Lean Wire type; golden round-trip; reject counter.",
+      "evidence": [
+        "commit 6228fcf"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m082",
+      "classId": "c-late-check",
+      "title": "tsc red while vitest green (stale .d.mts stubs)",
+      "when": "~21:10",
+      "who": "alert-steps, spawn-guard-workflows",
+      "symptom": "runner typecheck failed.",
+      "rootCause": "Test scripts did not typecheck.",
+      "detectedBy": "main typecheck",
+      "cost": "fix commits",
+      "leanVerdict": "provable",
+      "leanReason": "Typecheck in the check map.",
+      "evidence": [
+        "commit bc4c46d",
+        "commit 4a4a756",
+        "commit 559b81b"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m083",
+      "classId": "c-late-check",
+      "title": "Work-graph edits broke plan sync: evidence >64 (x3), titles >200, two dependency cycles",
+      "when": "16:03Z..00:47",
+      "who": "lead, plan-rev9.1",
+      "symptom": "Sync refused.",
+      "rootCause": "Lean lint ran only at sync.",
+      "detectedBy": "fw plan sync",
+      "cost": "3 failed syncs + fixes",
+      "leanVerdict": "provable",
+      "leanReason": "evLong_iff, longTitle_iff, define_cycle_refused exist; run them pre-commit.",
+      "evidence": [
+        "commit fbba8a7",
+        "commit c6fada5",
+        "commit 56d3f96",
+        "T:19661",
+        "T:22616"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m084",
+      "classId": "c-late-check",
+      "title": "Port branches added Lean defs without LaTeX docstrings",
+      "when": "2026-10-17T17:41Z",
+      "who": "port-morph-panel, port-morph-tween",
+      "symptom": "Lean CI failed on 7+ defs.",
+      "rootCause": "math-view check not run locally.",
+      "detectedBy": "CI",
+      "cost": "two CI rounds",
+      "leanVerdict": "provable",
+      "leanReason": "Docstring presence is syntactic.",
+      "evidence": [
+        "T:24119"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m085",
+      "classId": "c-late-check",
+      "title": "morph.tween left out of the part registry",
+      "when": "2026-10-17T17:44Z",
+      "who": "port-morph-tween",
+      "symptom": "Lead wired it at merge.",
+      "rootCause": "No registration check.",
+      "detectedBy": "lead merge",
+      "cost": "manual wiring",
+      "leanVerdict": "provable",
+      "leanReason": "Registry generated from the Lean part list.",
+      "evidence": [
+        "T:24302"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m086",
+      "classId": "c-late-check",
+      "title": "Lockfile drift: new packages without lockfile entries (twice)",
+      "when": "08:53Z; 22:59",
+      "who": "meas agents, wktr-local",
+      "symptom": "Frozen install would refuse.",
+      "rootCause": "No frozen install on package.json change.",
+      "detectedBy": "install on main; fw land",
+      "cost": "2 fix commits",
+      "leanVerdict": "provable",
+      "leanReason": "package.json changed => frozen install in the check map (4c22b1c).",
+      "evidence": [
+        "commit a65aaa7",
+        "commit d8d3683",
+        "commit 4c22b1c"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m087",
+      "classId": "c-late-check",
+      "title": "Hand-written incident entries failed lint; check-partial and check-imports failures",
+      "when": "21:03Z+",
+      "who": "obs-signals, spawn-enforce, land-hardening",
+      "symptom": "fw land refused.",
+      "rootCause": "Lints run at land, not on edit.",
+      "detectedBy": "fw land",
+      "cost": "refused lands",
+      "leanVerdict": "provable",
+      "leanReason": "Same check map.",
+      "evidence": [
+        "commit 0aac45c"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m088",
+      "classId": "c-late-check",
+      "title": "CI workflows lacked inputs Lean Store.Layout expected",
+      "when": "14:00-16:30Z",
+      "who": "chromium-ci, store-and-run, store-target",
+      "symptom": "Lanes BLOCKED.",
+      "rootCause": "Workflow interface and workflowInputs designed separately.",
+      "detectedBy": "agents",
+      "cost": "3 follow-up tasks",
+      "leanVerdict": "provable",
+      "leanReason": "Generate workflow_dispatch inputs from workflowInputs (dispatch_target exists).",
+      "evidence": [
+        "lean/Fw/Store/Layout.lean:554",
+        "lean/Fw/Store/Layout.lean:595"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m089",
+      "classId": "c-late-check",
+      "title": "CI snapshot check assumed a gitignored tree",
+      "when": "2026-10-17 18:32",
+      "who": "ci",
+      "symptom": "3 of 4 workflows stopped.",
+      "rootCause": "Check read untracked local files.",
+      "detectedBy": "first CI run",
+      "cost": "one CI round",
+      "leanVerdict": "partly",
+      "leanReason": "\"checks read only tracked paths\" is decidable over git ls-files; CI checkout content is environment.",
+      "empiricalCheck": "first CI run",
+      "evidence": [
+        "commit eb807a4"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m090",
+      "classId": "c-orphan-wait",
+      "title": "Orphan until-grep loops held finished agents (2 h 54, 22, 35 min)",
+      "when": "2026-10-18 00:02-03:45",
+      "who": "wktr-ci-lane, ghb-runner, port-platform",
+      "symptom": "Agents shown waiting.",
+      "rootCause": "Predicate could never become true; no deadline.",
+      "detectedBy": "lead ps census",
+      "cost": "~4 agent-hours",
+      "leanVerdict": "provable",
+      "leanReason": "Wait with deadline terminates by construction; obs-signals flags BG minus END.",
+      "evidence": [
+        "inc-orphan-wait-loop",
+        "commit a8e46f5"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m091",
+      "classId": "c-orphan-wait",
+      "title": "Busy-loop shell left 66 min",
+      "when": "2026-10-17T18:32Z",
+      "who": "port-morph-panel",
+      "symptom": "until grep -q \"\" /dev/null burned CPU.",
+      "rootCause": "Malformed loop, no deadline or sleep.",
+      "detectedBy": "lead",
+      "cost": "66 min CPU",
+      "leanVerdict": "provable",
+      "leanReason": "Hook refuses until/while without deadline.",
+      "evidence": [
+        "T:26322"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m092",
+      "classId": "c-orphan-wait",
+      "title": "Background cat blocked on stdin 3 h 10 min",
+      "when": "2026-10-18 00:54",
+      "who": "port-nav",
+      "symptom": "Silent task.",
+      "rootCause": "stdin reader in a non-interactive shell.",
+      "detectedBy": "lead",
+      "cost": "3 h orphan",
+      "leanVerdict": "partly",
+      "leanReason": "Static detection of a stdin reader is approximate; a deadline on every background task is provable.",
+      "empiricalCheck": "ps of open background tasks at handback",
+      "evidence": [
+        "inc-silent-stdin-bg"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m093",
+      "classId": "c-orphan-wait",
+      "title": "Duplicate sampler ran 4 h after a pattern pkill was denied",
+      "when": "2026-10-17T10:17Z",
+      "who": "lead",
+      "symptom": "Old sampler kept running.",
+      "rootCause": "No recorded PID to stop by.",
+      "detectedBy": "lead",
+      "cost": "duplicate sampler",
+      "leanVerdict": "provable",
+      "leanReason": "Owner record (pid at start) makes stop a lookup.",
+      "evidence": [
+        "T:7697"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m094",
+      "classId": "c-orphan-wait",
+      "title": "e2e tests and stress scripts left child processes (console-api x2, 20 stress loops ~5.4 cores)",
+      "when": "12:07Z; 17:50",
+      "who": "console tests, measurement lanes",
+      "symptom": "Stray processes loaded the Mac.",
+      "rootCause": "No teardown invariant on child process groups.",
+      "detectedBy": "lead ps",
+      "cost": "load, stray servers",
+      "leanVerdict": "partly",
+      "leanReason": "children(start) subset killed(end) over a spawn record is provable; runtime cleanup is I/O.",
+      "empiricalCheck": "post-test ps check",
+      "evidence": [
+        "docs/team/improvements/2026-10-17.md:170-173"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m095",
+      "classId": "c-orphan-wait",
+      "title": "Foreground sleep waits blocked (37); Monitor not available to subagents",
+      "when": "all day",
+      "who": "33 agents",
+      "symptom": "Blocked: sleep N; gh ...",
+      "rootCause": "No sanctioned blocking wait for subagents.",
+      "detectedBy": "harness",
+      "cost": "37 round trips; pushed agents to loops",
+      "leanVerdict": "provable",
+      "leanReason": "fw ci wait as the one primitive (Ci/Budget poll_live) and a role->tool map lint.",
+      "evidence": [
+        "error census (37)",
+        "lean/Fw/Ci/Budget.lean:1113"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m096",
+      "classId": "c-orphan-wait",
+      "title": "Idle teammate not woken by its finished background task (54 min)",
+      "when": "14:41-15:35Z",
+      "who": "tool:Agent teams",
+      "symptom": "Notification sat until messaged.",
+      "rootCause": "Platform: only background subagents are woken.",
+      "detectedBy": "spk-p-wake",
+      "cost": "~54 min idle",
+      "leanVerdict": "no",
+      "leanReason": "Platform behaviour.",
+      "empiricalCheck": "use background subagents for waits (548f99c)",
+      "evidence": [
+        "commit 548f99c"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m097",
+      "classId": "c-orphan-wait",
+      "title": "Subagent final report never reached the lead",
+      "when": "2026-10-17T20:57Z",
+      "who": "variant-morph-mount-shift",
+      "symptom": "Lead read the handoff.",
+      "rootCause": "Hand-back not delivered.",
+      "detectedBy": "lead",
+      "cost": "manual read",
+      "leanVerdict": "no",
+      "leanReason": "Platform delivery.",
+      "empiricalCheck": "handoff file is the durable result",
+      "evidence": [
+        "T:31978"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m098",
+      "classId": "c-orphan-wait",
+      "title": "fw watch exits on every alert; health went stale when not relaunched",
+      "when": "~20:23Z",
+      "who": "lead",
+      "symptom": "Health frozen at 03:23; 27 exit-3 notices.",
+      "rootCause": "Alert ends the process instead of being an event.",
+      "detectedBy": "the user",
+      "cost": "blind health",
+      "leanVerdict": "provable",
+      "leanReason": "Watch as a non-terminating reducer emitting alerts.",
+      "evidence": [
+        "T:31698"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m099",
+      "classId": "c-orphan-wait",
+      "title": "Lead made a foreground wait of up to 5 min for a claim",
+      "when": "2026-10-17T20:03Z",
+      "who": "lead",
+      "symptom": "Lead blocked.",
+      "rootCause": "No background wait habit.",
+      "detectedBy": "lead",
+      "cost": "up to 5 min",
+      "leanVerdict": "partly",
+      "leanReason": "Rule \"lead waits only in background\" is a hook decision; habit is human.",
+      "empiricalCheck": "none",
+      "evidence": [
+        "T:30112"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m100",
+      "classId": "c-quota",
+      "title": "Shared GitHub token rate limit exhausted by polling",
+      "when": "2026-10-17T18:07Z",
+      "who": "agents, fw run",
+      "symptom": "HTTP 403 for everyone.",
+      "rootCause": "gh run watch 3 s default; 12 agents at 30 s; no shared budget.",
+      "detectedBy": "403s",
+      "cost": "~1 h blind CI",
+      "leanVerdict": "provable",
+      "leanReason": "Ci/Budget window_bound (done 84fb01c).",
+      "evidence": [
+        "T:25133",
+        "inc-gh-rate-limit",
+        "commit 84fb01c"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m101",
+      "classId": "c-quota",
+      "title": "Own jobs filled the 5 macOS slots; queued 20-33 min",
+      "when": "2026-10-17T14:12Z",
+      "who": "sim-speed / lead",
+      "symptom": "33.7 min all slots busy.",
+      "rootCause": "No macOS budget.",
+      "detectedBy": "queue",
+      "cost": "macOS time",
+      "leanVerdict": "provable",
+      "leanReason": "Sum of macOS jobs <= 5 over generated concurrency groups.",
+      "evidence": [
+        "commit 56fe6c9",
+        "research/notes/2026/10-17-macos-queue.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m102",
+      "classId": "c-quota",
+      "title": "Every ci/** push started all workflows (21 of 28 touched no input)",
+      "when": "~13:45Z",
+      "who": "ci-workflows",
+      "symptom": "~10 macOS jobs per push.",
+      "rootCause": "No paths filters or concurrency cancel.",
+      "detectedBy": "ci-trigger-scope",
+      "cost": "slot starvation",
+      "leanVerdict": "provable",
+      "leanReason": "Paths filters generated from the Lean input map.",
+      "evidence": [
+        "commit 6723de2"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m103",
+      "classId": "c-quota",
+      "title": "Stray macOS runs from a branch-local trigger fix and stale origin/main",
+      "when": "14:08Z-17:09Z",
+      "who": "lead",
+      "symptom": "7+ runs cancelled by hand.",
+      "rootCause": "Fix on one branch; diff base origin/main 142/33 behind.",
+      "detectedBy": "lead",
+      "cost": "queue time",
+      "leanVerdict": "partly",
+      "leanReason": "Diff base = local main is a rule; origin staleness depends on user pushes.",
+      "empiricalCheck": "ci-paths-guard",
+      "evidence": [
+        "commit 4151d8b",
+        "commit df77488"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m104",
+      "classId": "c-quota",
+      "title": "Paid xcode-27-xlarge runner used ($2.00)",
+      "when": "~14:00Z",
+      "who": "sim-speed",
+      "symptom": "Billing $2.00.",
+      "rootCause": "No free-label check.",
+      "detectedBy": "billing",
+      "cost": "$2.00",
+      "leanVerdict": "provable",
+      "leanReason": "runs-on label in a free list.",
+      "evidence": [
+        "commit 2a29286",
+        "commit d0a15bd"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m105",
+      "classId": "c-quota",
+      "title": "Gate run: 22 jobs near the 20-job cap; 830 s of 1284 s queueing; sweeps serial",
+      "when": "run 39067656223",
+      "who": "gate-breakpoints / ci",
+      "symptom": "Critical path 451 s.",
+      "rootCause": "Fan-out sized without the plan cap.",
+      "detectedBy": "sweeps-speed research",
+      "cost": "minutes per run",
+      "leanVerdict": "partly",
+      "leanReason": "Job count <= cap provable; queue time empirical.",
+      "empiricalCheck": "run timing (Fw.Obs.Timing)",
+      "evidence": [
+        "commit 33a43f1"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m106",
+      "classId": "c-quota",
+      "title": "Team over the agent cap; Mac near capacity",
+      "when": "18:13Z; 21:35Z",
+      "who": "lead",
+      "symptom": "13 agents, memory warn.",
+      "rootCause": "Spawns not admitted through Lean Admit.",
+      "detectedBy": "lead",
+      "cost": "contention",
+      "leanVerdict": "provable",
+      "leanReason": "within_budget exists; route spawns through it.",
+      "evidence": [
+        "T:25266",
+        "lean/Fw/Sched/Admit.lean:866"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m107",
+      "classId": "c-quota",
+      "title": "Local mutation pass held load ~500 for 23 min",
+      "when": "~13:30Z",
+      "who": "m0-mutants",
+      "symptom": "Other Lean agents held.",
+      "rootCause": "Heavy batch on the Mac.",
+      "detectedBy": "load sampler",
+      "cost": "23 min saturated",
+      "leanVerdict": "provable",
+      "leanReason": "Admit with a mac-CPU budget; lane=ci.",
+      "evidence": [
+        "commit cd49282"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m108",
+      "classId": "c-quota",
+      "title": "Every worktree agent rebuilt lean/.lake (80 s+)",
+      "when": "09:47Z",
+      "who": "lead (process)",
+      "symptom": "Load up.",
+      "rootCause": "No shared build cache until wt-prep/lean-fast.",
+      "detectedBy": "load investigation",
+      "cost": "minutes per agent",
+      "leanVerdict": "partly",
+      "leanReason": "Cache key soundness is provable (gate-speed-ci Fw.Ops.Cache); build cost empirical.",
+      "empiricalCheck": "fresh worktree build time",
+      "evidence": [
+        "commit 7d22517",
+        "commit c0bf898"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m109",
+      "classId": "c-quota",
+      "title": "Disk 92% full; landed worktrees not pruned",
+      "when": "~09:30Z",
+      "who": "worktree sprawl",
+      "symptom": "38 GiB free.",
+      "rootCause": "No cleanup after land.",
+      "detectedBy": "df",
+      "cost": "risk of failures",
+      "leanVerdict": "provable",
+      "leanReason": "cleanup_sound: landed and no live agent => remove.",
+      "evidence": [
+        "docs/team/improvements/2026-10-17.md:180",
+        "lean/Fw/Obs/Next.lean:930"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m110",
+      "classId": "c-quota",
+      "title": "Idle agents resumed past the 5-min cache TTL: ~3 M cache tokens rewritten",
+      "when": "2026-10-17T08:19Z",
+      "who": "lead",
+      "symptom": "User raised it.",
+      "rootCause": "No teardown/resume rule.",
+      "detectedBy": "the user",
+      "cost": "~3 M tokens",
+      "leanVerdict": "provable",
+      "leanReason": "resume iff idle < TTL or ctx < 30k is a pure decision.",
+      "evidence": [
+        "T:3623"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m111",
+      "classId": "c-quota",
+      "title": "Contexts over 250k (integrate-ports 300.8k messaged; plan-rev5 428k)",
+      "when": "2026-10-17/18",
+      "who": "lead",
+      "symptom": "Expensive re-reads.",
+      "rootCause": "No context check before message/resume.",
+      "detectedBy": "transcript-signals",
+      "cost": "tokens",
+      "leanVerdict": "provable",
+      "leanReason": "Same resume rule.",
+      "evidence": [
+        "research/notes/2026/10-18-transcript-signals.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m112",
+      "classId": "c-identity-heuristic",
+      "title": "wt-prep treated lean --server as a running build: clone skipped ~8.5 h",
+      "when": "12:52Z..21:28Z",
+      "who": "tool:wt-prep.sh",
+      "symptom": "~120 worktrees printed \"clone skipped\".",
+      "rootCause": "Any lean process with cwd main/lean counted as a build.",
+      "detectedBy": "agents worked around by hand",
+      "cost": "cold builds in dozens of worktrees",
+      "leanVerdict": "provable",
+      "leanReason": "Busy = a recorded lake build lock, not a process-name guess; pure decision.",
+      "evidence": [
+        "scripts/wt-prep.sh:21-27@84b9f19",
+        "subagent scrub-precommit line 16"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m113",
+      "classId": "c-identity-heuristic",
+      "title": "cap.mjs mapped empty agent_type to the lead",
+      "when": "~12:30Z",
+      "who": "con-hooks",
+      "symptom": "225 of 249 SubagentStops treated as lead.",
+      "rootCause": "Missing-or-empty type => lead.",
+      "detectedBy": "spk-hooks census",
+      "cost": "privilege confusion",
+      "leanVerdict": "provable",
+      "leanReason": "who_lead_iff: lead iff no agent_id (done).",
+      "evidence": [
+        "commit 2e0d21b",
+        "commit dec2d82",
+        "lean/Fw/Ops/Identity.lean:99"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m114",
+      "classId": "c-identity-heuristic",
+      "title": "/api/commands accepts a self-declared actor (still open)",
+      "when": "~09:50Z..now",
+      "who": "con-hooks / con-wire",
+      "symptom": "Actor from request body.",
+      "rootCause": "Actor field in the Command body, no capability on this route.",
+      "detectedBy": "con-hooks final",
+      "cost": "open authorization gap",
+      "leanVerdict": "provable",
+      "leanReason": "Actor from capability, not body, is a pure rule.",
+      "evidence": [
+        "apps/console-api/src/app.ts:23-31@84b9f19",
+        "packages/contracts/src/index.ts:22"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m115",
+      "classId": "c-identity-heuristic",
+      "title": "Workflow spawns bypassed spawn-guard (18 of 26)",
+      "when": "~12:30Z",
+      "who": "spawn-guard design",
+      "symptom": "Unguarded spawns.",
+      "rootCause": "Guard hooked only the Agent tool.",
+      "detectedBy": "spk-c",
+      "cost": "unguarded spawns",
+      "leanVerdict": "partly",
+      "leanReason": "Decision provable; hook coverage of spawn paths is platform.",
+      "empiricalCheck": "SubagentStart census vs guard records",
+      "evidence": [
+        "commit 618c1b6"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m116",
+      "classId": "c-identity-heuristic",
+      "title": "Worktree roles spawned by name without isolation ran as teammates",
+      "when": "18:56Z; 19:38Z",
+      "who": "lead",
+      "symptom": "port-people-fix, step-align-fix in main checkout.",
+      "rootCause": "Named call without isolation is a teammate; guard in shadow.",
+      "detectedBy": "shadow log",
+      "cost": "risk of main edits",
+      "leanVerdict": "provable",
+      "leanReason": "trap_worktree_role_as_teammate; enforce (done).",
+      "evidence": [
+        "T:26693",
+        "commit 94b8a97"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m117",
+      "classId": "c-identity-heuristic",
+      "title": "pnpm fw capability refused for cd-prefixed/piped calls (recurred)",
+      "when": "14:38Z; 18:29Z",
+      "who": "lead",
+      "symptom": "Refusal; board transiently empty.",
+      "rootCause": "Hook mints only for argv starting \"pnpm fw\"; gotcha recorded, not enforced.",
+      "detectedBy": "refusals",
+      "cost": "retries",
+      "leanVerdict": "provable",
+      "leanReason": "cap-diagnose: Lean decision with a reason.",
+      "evidence": [
+        "T:16963",
+        "task cap-diagnose"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m118",
+      "classId": "c-identity-heuristic",
+      "title": "Role files edited with sed, bypassing the Edit(/.claude/**) ask rule",
+      "when": "~09:0xZ",
+      "who": "lead",
+      "symptom": "Disclosed, approved after.",
+      "rootCause": "Ask rule covered only the Edit tool.",
+      "detectedBy": "lead disclosure",
+      "cost": "rule violation",
+      "leanVerdict": "partly",
+      "leanReason": "Path policy over all write tools is a pure decision; shell parsing is approximate.",
+      "empiricalCheck": "hook on Bash writes to .claude/",
+      "evidence": [
+        "compaction summary T:5769"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m119",
+      "classId": "c-identity-heuristic",
+      "title": "User's own ! git push origin main blocked by the deny rule",
+      "when": "14:25Z",
+      "who": "settings",
+      "symptom": "User push denied.",
+      "rootCause": "Deny rule had no user-run exemption.",
+      "detectedBy": "the user",
+      "cost": "settings change",
+      "leanVerdict": "partly",
+      "leanReason": "Actor-scoped rule is provable; matcher semantics external.",
+      "empiricalCheck": "permission doc check",
+      "evidence": [
+        "T:16313"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m120",
+      "classId": "c-identity-heuristic",
+      "title": "Team permission config had ineffective rules",
+      "when": "06:33Z",
+      "who": "lead",
+      "symptom": "Write deny never consulted; paths matched nothing.",
+      "rootCause": "Written without the matcher docs.",
+      "detectedBy": "review-team-config",
+      "cost": "protections absent",
+      "leanVerdict": "partly",
+      "leanReason": "Generated rules + golden matcher examples; matcher is external.",
+      "empiricalCheck": "permission-doc golden",
+      "evidence": [
+        "subagent review-team-config final"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m121",
+      "classId": "c-identity-heuristic",
+      "title": "TaskStop on agent names, not task ids (x3)",
+      "when": "09:33Z, 14:40Z, 15:35Z",
+      "who": "lead",
+      "symptom": "No task found.",
+      "rootCause": "Names used as ids.",
+      "detectedBy": "tool error",
+      "cost": "idle agents kept",
+      "leanVerdict": "partly",
+      "leanReason": "name->id map is data; tool is platform.",
+      "empiricalCheck": "none",
+      "evidence": [
+        "T:5902",
+        "T:17184",
+        "T:18818"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m122",
+      "classId": "c-identity-heuristic",
+      "title": "948 Bash calls refused by isolation as too complex to verify",
+      "when": "all day",
+      "who": "160 agents",
+      "symptom": "~950 round trips.",
+      "rootCause": "Compound one-liners with $(...), variables, pipes into sh.",
+      "detectedBy": "guard",
+      "cost": "~950 turns",
+      "leanVerdict": "partly",
+      "leanReason": "The guard decision is pure; agents' command style is human (this retro hit it twice).",
+      "empiricalCheck": "none",
+      "evidence": [
+        "error census (948 of 1327)"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m123",
+      "classId": "c-identity-heuristic",
+      "title": "Agents reached into main checkout or sibling worktrees",
+      "when": "all day",
+      "who": "26 agents",
+      "symptom": "Refusals.",
+      "rootCause": "No sanctioned read path (git show main:<path>).",
+      "detectedBy": "guard",
+      "cost": "refusals",
+      "leanVerdict": "provable",
+      "leanReason": "PathCheck plus a documented read primitive.",
+      "evidence": [
+        "subagent engine-ci-check"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m124",
+      "classId": "c-identity-heuristic",
+      "title": "Lead permission prompts mirrored as console alerts",
+      "when": "12:5xZ",
+      "who": "con-hooks",
+      "symptom": "Empty alerts.",
+      "rootCause": "Alert rule did not exclude the lead.",
+      "detectedBy": "the user",
+      "cost": "attention",
+      "leanVerdict": "provable",
+      "leanReason": "attrib_lead_only (done).",
+      "evidence": [
+        "commit 6eb9068",
+        "lean/Fw/Console/Alert.lean:139"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m125",
+      "classId": "c-identity-heuristic",
+      "title": "Stray fork agent with prompt \"noop\"",
+      "when": "13:49Z",
+      "who": "lean-console-gaps",
+      "symptom": "Unneeded full-context agent.",
+      "rootCause": "Wrong subagent_type, no allow-list.",
+      "detectedBy": "agent self-report",
+      "cost": "one agent",
+      "leanVerdict": "provable",
+      "leanReason": "Helper-role allow-list in SpawnGuard.",
+      "evidence": [
+        "subagent lean-console-gaps line 1052"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m126",
+      "classId": "c-identity-heuristic",
+      "title": "Lead tried to answer the user's console step (Lean refused)",
+      "when": "12:25Z",
+      "who": "lead",
+      "symptom": "refused: actor lead.",
+      "rootCause": "Lead relayed chat answer as step answer.",
+      "detectedBy": "Lean (only_user_answers) - worked",
+      "cost": "two calls",
+      "leanVerdict": "provable",
+      "leanReason": "Already proved.",
+      "evidence": [
+        "T:11474",
+        "lean/Fw/Console.lean:623"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m127",
+      "classId": "c-identity-heuristic",
+      "title": "Lead attributed an orphan loop to the wrong agent",
+      "when": "~03:13",
+      "who": "lead",
+      "symptom": "Messaged integrate-ports; owner was port-platform.",
+      "rootCause": "Owner guessed from command text.",
+      "detectedBy": "transcript-signals",
+      "cost": "wrong incident text",
+      "leanVerdict": "provable",
+      "leanReason": "Owner from the tool_use id record.",
+      "evidence": [
+        "commit a8e46f5"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m128",
+      "classId": "c-order-derived",
+      "title": "Claim race: agent spawned before its task reached the board",
+      "when": "20:03Z",
+      "who": "lead / console claim",
+      "symptom": "Task \"ready\" while running.",
+      "rootCause": "Claim at spawn needed the task to exist.",
+      "detectedBy": "the user",
+      "cost": "manual claim",
+      "leanVerdict": "provable",
+      "leanReason": "define_spawn_comm (done fafc0d5).",
+      "evidence": [
+        "commit fafc0d5",
+        "T:29825"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m129",
+      "classId": "c-order-derived",
+      "title": "Cut tasks shown as ready (title prefix)",
+      "when": "17:37Z",
+      "who": "plan-rev9",
+      "symptom": "MX tasks ready.",
+      "rootCause": "Cut was a title prefix, not a state.",
+      "detectedBy": "the user",
+      "cost": "confusion",
+      "leanVerdict": "provable",
+      "leanReason": "cut_not_ready (done).",
+      "evidence": [
+        "commit 32cf56d"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m130",
+      "classId": "c-order-derived",
+      "title": "Defines reached the board only on land/manual sync",
+      "when": "2026-10-17",
+      "who": "reconciler",
+      "symptom": "Committed task missing.",
+      "rootCause": "Reconciler did not watch main.",
+      "detectedBy": "claim-order-lean",
+      "cost": "stale board",
+      "leanVerdict": "provable",
+      "leanReason": "Sync on HEAD move (done).",
+      "evidence": [
+        "commit b2e5ff1",
+        "commit fafc0d5"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m131",
+      "classId": "c-order-derived",
+      "title": "44 landed tasks with no completion in the plan",
+      "when": "19:43Z",
+      "who": "fw land design",
+      "symptom": "Plan lint 44 errors.",
+      "rootCause": "Done only in commit trailers.",
+      "detectedBy": "plan lint",
+      "cost": "back-fill",
+      "leanVerdict": "provable",
+      "leanReason": "trailer lint (done).",
+      "evidence": [
+        "commit 2d743c5"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m132",
+      "classId": "c-order-derived",
+      "title": "Health showed 21 live agents when 9 existed",
+      "when": "14:42Z",
+      "who": "watch / obs",
+      "symptom": "\"stalled 367 min\" for a gone agent.",
+      "rootCause": "Hand stop sends no event; no inactivity end state.",
+      "detectedBy": "the user/lead",
+      "cost": "misleading view",
+      "leanVerdict": "provable",
+      "leanReason": "obs-signals end states from transcript facts.",
+      "evidence": [
+        "T:17320"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m133",
+      "classId": "c-order-derived",
+      "title": "Finished port-nav sat unlanded ~2 h and dropped from health",
+      "when": "01:23-03:23",
+      "who": "lead / watch-collect",
+      "symptom": "User asked why.",
+      "rootCause": "No next-action rule; keepDoneMs = 1 h.",
+      "detectedBy": "the user",
+      "cost": "~2 h idle branch",
+      "leanVerdict": "provable",
+      "leanReason": "keep_of_open_action, unlanded alert (done).",
+      "evidence": [
+        "inc-unlanded-handback",
+        "apps/runner/src/watch-collect.ts:73"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m134",
+      "classId": "c-order-derived",
+      "title": "fw next proposed conflicting lands and respawns of finished agents",
+      "when": "20:45Z",
+      "who": "obs-next-lean",
+      "symptom": "False positives.",
+      "rootCause": "Rules ignored mergeability and task openness.",
+      "detectedBy": "lead review",
+      "cost": "fix before land",
+      "leanVerdict": "provable",
+      "leanReason": "land_sound, respawn_sound (done).",
+      "evidence": [
+        "commit 5fb430f"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m135",
+      "classId": "c-order-derived",
+      "title": "Watch false alarms (6 of 7 intended long-runners; agent gone)",
+      "when": "15:xx-21:23Z",
+      "who": "fw watch rules",
+      "symptom": "Triage.",
+      "rootCause": "No allow-list, no transcript end state.",
+      "detectedBy": "lead",
+      "cost": "relaunches",
+      "leanVerdict": "provable",
+      "leanReason": "Allow-list and end states in Lean.",
+      "evidence": [
+        "T:32408"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m136",
+      "classId": "c-order-derived",
+      "title": "Draft plan synced to the live board before approval",
+      "when": "~18:28Z",
+      "who": "plan-rev10",
+      "symptom": "Unapproved graph on console.",
+      "rootCause": "Sync allowed from any tree.",
+      "detectedBy": "lead",
+      "cost": "board showed draft",
+      "leanVerdict": "provable",
+      "leanReason": "Sync only from main HEAD (done 618654e).",
+      "evidence": [
+        "commit 618654e"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m137",
+      "classId": "c-order-derived",
+      "title": "Task list lost after restart",
+      "when": "~07:20Z",
+      "who": "tool:TaskList",
+      "symptom": "Re-created by hand.",
+      "rootCause": "Platform state not persisted.",
+      "detectedBy": "lead",
+      "cost": "re-creation",
+      "leanVerdict": "no",
+      "leanReason": "Platform.",
+      "empiricalCheck": "work-graph in git is the source of truth (now)",
+      "evidence": [
+        "compaction summary T:2438"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m138",
+      "classId": "c-order-derived",
+      "title": "Mutant ids keyed by line:col went stale",
+      "when": "15:08Z",
+      "who": "m0-mutants",
+      "symptom": "False survivors on CI.",
+      "rootCause": "Positional ids.",
+      "detectedBy": "CI",
+      "cost": "false red",
+      "leanVerdict": "provable",
+      "leanReason": "Ids anchored to declaration and ordinal (done).",
+      "evidence": [
+        "commit 09f1874",
+        "commit 9890c3a"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m139",
+      "classId": "c-order-derived",
+      "title": "fw land exited 1 after the merge commit, skipping cleanup and sync",
+      "when": "19:30Z, 19:46Z",
+      "who": "fw land",
+      "symptom": "Manual sync twice.",
+      "rootCause": "Throw after commit aborted the rest; spent capability reused.",
+      "detectedBy": "lead",
+      "cost": "manual sync",
+      "leanVerdict": "provable",
+      "leanReason": "Land as a resumable step machine (step_inv; done 618654e).",
+      "evidence": [
+        "commit 1c64c85",
+        "commit ca48604"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m140",
+      "classId": "c-order-derived",
+      "title": "Agents committed on ci/* branches; fw land said nothing to land",
+      "when": "16:22Z; 20:15Z",
+      "who": "zone-baselines-*",
+      "symptom": "Manual land.",
+      "rootCause": "Land looked only at the worktree branch.",
+      "detectedBy": "lead",
+      "cost": "manual land",
+      "leanVerdict": "provable",
+      "leanReason": "pick_given_iff (done).",
+      "evidence": [
+        "commit 20f0388"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m141",
+      "classId": "c-order-derived",
+      "title": "fw land scope refused normal registration files (~8 re-lands)",
+      "when": "19:28Z-21:30Z",
+      "who": "lead / fw land",
+      "symptom": "REFUSED on registry, lockfile, tests.",
+      "rootCause": "Fixed list; under-specified writes.",
+      "detectedBy": "fw land",
+      "cost": "~8 re-lands",
+      "leanVerdict": "provable",
+      "leanReason": "kindRegs_mem_landScope (done).",
+      "evidence": [
+        "commit 6e968ba",
+        "lean/Fw/Console/Land.lean:268"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m142",
+      "classId": "c-order-derived",
+      "title": "Lead bypassed fw land and hand-wrote status (19 merges, 0 land events)",
+      "when": "2026-10-17",
+      "who": "lead",
+      "symptom": "34 of 167 commits bookkeeping.",
+      "rootCause": "fw land not usable yet.",
+      "detectedBy": "Fable review",
+      "cost": "status drift",
+      "leanVerdict": "partly",
+      "leanReason": "Main pre-commit guard can require a land; usage is human.",
+      "empiricalCheck": "none",
+      "evidence": [
+        "research/notes/2026/10-17-team-review-fable.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m143",
+      "classId": "c-order-derived",
+      "title": "Old alert steps never auto-close (id format changed)",
+      "when": "2026-10-17",
+      "who": "alert-steps",
+      "symptom": "Cancelled by hand.",
+      "rootCause": "Id format changed without migration.",
+      "detectedBy": "handoff",
+      "cost": "manual cancels",
+      "leanVerdict": "provable",
+      "leanReason": "Parser total over all historical formats.",
+      "evidence": [
+        "docs/team/handoffs/alert-steps.md:18"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m144",
+      "classId": "c-order-derived",
+      "title": "Workflow run named like a task did not bind it",
+      "when": "2026-10-18",
+      "who": "Workflow tool",
+      "symptom": "Task sat ready while running.",
+      "rootCause": "Only Agent spawns bound tasks.",
+      "detectedBy": "lead",
+      "cost": "board wrong",
+      "leanVerdict": "provable",
+      "leanReason": "workflow_binds (done 21c8c42).",
+      "evidence": [
+        "commit 21c8c42",
+        "inc-workflow-unbound"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m145",
+      "classId": "c-env-assume",
+      "title": "Fell back to general-purpose spawns when role types were not loaded",
+      "when": "2026-10-17T07:50Z",
+      "who": "lead",
+      "symptom": "User rejected the substitutes.",
+      "rootCause": "Role files created mid-session; lead substituted a type instead of asking for a reload.",
+      "detectedBy": "the user",
+      "cost": "rejected fan-out",
+      "leanVerdict": "partly",
+      "leanReason": "\"wanted role != spawned role => deny\" is a SpawnGuard rule; reload is platform.",
+      "empiricalCheck": "list agent types after adding roles",
+      "evidence": [
+        "T:2276",
+        "T:2306"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m146",
+      "classId": "c-env-assume",
+      "title": "Agent-teams env var assumed live after a reload",
+      "when": "06:32Z",
+      "who": "lead",
+      "symptom": "Named spawn came back as a plain subagent.",
+      "rootCause": "Env read only at startup.",
+      "detectedBy": "spawn result",
+      "cost": "restart",
+      "leanVerdict": "no",
+      "leanReason": "Platform startup.",
+      "empiricalCheck": "check spawn kind in the result",
+      "evidence": [
+        "T:938"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m147",
+      "classId": "c-env-assume",
+      "title": "--help on own CLIs had side effects (stray lean/--help/, page rewritten)",
+      "when": "2026-10-17",
+      "who": "lead",
+      "symptom": "Stray dir; unplanned regeneration.",
+      "rootCause": "CLIs treat unknown args as output paths.",
+      "detectedBy": "lead",
+      "cost": "cleanup",
+      "leanVerdict": "provable",
+      "leanReason": "Own CLIs reject unknown flags: argv golden.",
+      "evidence": [
+        "compaction summary T:5769",
+        "T:12600"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m148",
+      "classId": "c-env-assume",
+      "title": "Heredoc backticks executed by the shell",
+      "when": "~11:50Z",
+      "who": "lead",
+      "symptom": "Words lost; mathview ran at repo root.",
+      "rootCause": "Unquoted heredoc.",
+      "detectedBy": "lead",
+      "cost": "note repair",
+      "leanVerdict": "no",
+      "leanReason": "Shell semantics.",
+      "empiricalCheck": "quoted heredoc or the Write tool",
+      "evidence": [
+        "compaction summary T:12600"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m149",
+      "classId": "c-env-assume",
+      "title": "BSD sed and zsh incompatibilities (~50 failed edits/commands)",
+      "when": "all day",
+      "who": "~46 agents",
+      "symptom": "invalid command code, no matches found.",
+      "rootCause": "GNU idioms on macOS zsh.",
+      "detectedBy": "tool errors",
+      "cost": "~50 retries",
+      "leanVerdict": "no",
+      "leanReason": "Shell dialect.",
+      "empiricalCheck": "use the Edit tool; quote globs",
+      "evidence": [
+        "error census"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m150",
+      "classId": "c-env-assume",
+      "title": "Reads over the Read tool limit (46)",
+      "when": "all day",
+      "who": "many agents",
+      "symptom": "Token limit errors.",
+      "rootCause": "Whole-file reads.",
+      "detectedBy": "tool error",
+      "cost": "46 round trips",
+      "leanVerdict": "no",
+      "leanReason": "Tool limit.",
+      "empiricalCheck": "grep then offset/limit",
+      "evidence": [
+        "error census"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m151",
+      "classId": "c-env-assume",
+      "title": "Tools named in prompts not available (Monitor, bash, lean-lsp MCP)",
+      "when": "08:40Z..21:34Z",
+      "who": "27 calls",
+      "symptom": "No such tool.",
+      "rootCause": "Prompts and memory recommend tools subagents lack.",
+      "detectedBy": "tool errors",
+      "cost": "27 failed calls",
+      "leanVerdict": "provable",
+      "leanReason": "Role->tool map lint over prompts.",
+      "evidence": [
+        "error census"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m152",
+      "classId": "c-env-assume",
+      "title": "Lean lemma names guessed (Mathlib names in a Mathlib-free project)",
+      "when": "all day",
+      "who": "42 agents",
+      "symptom": "Unknown constant Rat.le_div_iff_mul_le x7.",
+      "rootCause": "No local search first; no shared lemma notes.",
+      "detectedBy": "compile errors",
+      "cost": "build cycles",
+      "leanVerdict": "no",
+      "leanReason": "Library contents.",
+      "empiricalCheck": "lean_local_search before use",
+      "evidence": [
+        "subagent port-people line 545"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m153",
+      "classId": "c-env-assume",
+      "title": "Serena 2.0.0 health check changed user-level config",
+      "when": "11:40Z",
+      "who": "lead",
+      "symptom": "Scratch projects registered; config rewritten.",
+      "rootCause": "Health check not isolated.",
+      "detectedBy": "lead",
+      "cost": "cleanup",
+      "leanVerdict": "no",
+      "leanReason": "External tool.",
+      "empiricalCheck": "isolated config dir",
+      "evidence": [
+        "compaction summary T:12600"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m154",
+      "classId": "c-env-assume",
+      "title": "Lake artifact cache restored without .olean (restoreAllArtifacts)",
+      "when": "~11:30Z",
+      "who": "lean-fast",
+      "symptom": "Lean CI red several runs.",
+      "rootCause": "Cache semantics not read.",
+      "detectedBy": "CI",
+      "cost": "several red runs",
+      "leanVerdict": "no",
+      "leanReason": "Lake behaviour.",
+      "empiricalCheck": "cold and warm CI build after a cache change",
+      "evidence": [
+        "commit 67192ef",
+        "commit 8ebdcce"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m155",
+      "classId": "c-env-assume",
+      "title": "LICENSE detected as Other; user pushed twice",
+      "when": "10:42Z",
+      "who": "pub-prep / lead",
+      "symptom": "GitHub license Other.",
+      "rootCause": "NOTICE inside LICENSE; not checked before asking.",
+      "detectedBy": "GitHub",
+      "cost": "extra push",
+      "leanVerdict": "no",
+      "leanReason": "External detector.",
+      "empiricalCheck": "license detection check before push",
+      "evidence": [
+        "commit 53ca23e"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m156",
+      "classId": "c-env-assume",
+      "title": "Out-of-repo profile edits relayed without idempotence; backup overwritten",
+      "when": "07:26Z",
+      "who": "env-elan / lead",
+      "symptom": "~/.profile.bak overwritten.",
+      "rootCause": "Steps not idempotent.",
+      "detectedBy": "lead",
+      "cost": "lost backup",
+      "leanVerdict": "no",
+      "leanReason": "Human-run shell.",
+      "empiricalCheck": "relay idempotent steps (cp -n)",
+      "evidence": [
+        "T:1595"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m157",
+      "classId": "c-env-assume",
+      "title": "Chained commit && worktree remove; later forced removals",
+      "when": "16:50Z..20:46Z",
+      "who": "lead",
+      "symptom": "Locked/dirty worktrees.",
+      "rootCause": "Cleanup without live/dirty check.",
+      "detectedBy": "git errors",
+      "cost": "risk to live work",
+      "leanVerdict": "provable",
+      "leanReason": "cleanup_sound: remove only landed, no live agent, clean.",
+      "evidence": [
+        "T:21309",
+        "T:31499"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m158",
+      "classId": "c-env-assume",
+      "title": "mathview shared heartbeat budget overflowed after Fw/Parts landed",
+      "when": "15:49",
+      "who": "lean-site",
+      "symptom": "204k vs 200k.",
+      "rootCause": "One budget for all declarations.",
+      "detectedBy": "lint crash",
+      "cost": "lean-site 47 min",
+      "leanVerdict": "no",
+      "leanReason": "Elaboration cost is runtime.",
+      "empiricalCheck": "per-declaration budget + timing",
+      "evidence": [
+        "commit 49c5b50"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m159",
+      "classId": "c-env-assume",
+      "title": "Work-graph commit reformatted the whole file",
+      "when": "2026-10-18 04:33",
+      "who": "lead",
+      "symptom": "+2941/-2875 then amended.",
+      "rootCause": "Different serializer.",
+      "detectedBy": "diff stat",
+      "cost": "amend",
+      "leanVerdict": "provable",
+      "leanReason": "Canonical serializer: write(read(g)) = g bytes.",
+      "evidence": [
+        "commit 4a6a3e6"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m160",
+      "classId": "c-env-assume",
+      "title": "Workflow launched with an unfilled placeholder \"__LOAD__\"",
+      "when": "~08:5xZ",
+      "who": "lead",
+      "symptom": "Stopped and relaunched.",
+      "rootCause": "Template token not replaced.",
+      "detectedBy": "lead",
+      "cost": "wasted launch",
+      "leanVerdict": "provable",
+      "leanReason": "Arg lint: no __[A-Z]+__ tokens.",
+      "evidence": [
+        "T:4767"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m161",
+      "classId": "c-env-assume",
+      "title": "Lead ad-hoc command errors (JSON parse, missing tool, blocked sleep, stale Edit string)",
+      "when": "all day",
+      "who": "lead",
+      "symptom": "Many small retries.",
+      "rootCause": "Unverified assumptions.",
+      "detectedBy": "tool errors",
+      "cost": "retries",
+      "leanVerdict": "no",
+      "leanReason": "Assorted I/O.",
+      "empiricalCheck": "none",
+      "evidence": [
+        "T:5168",
+        "T:9500",
+        "T:24999"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m162",
+      "classId": "c-env-assume",
+      "title": "Docker image pull failed on registry auth",
+      "when": "~07:55Z",
+      "who": "meas-chromium",
+      "symptom": "exit 125.",
+      "rootCause": "Image not pinned by digest or cached.",
+      "detectedBy": "pull",
+      "cost": "retries",
+      "leanVerdict": "no",
+      "leanReason": "External registry.",
+      "empiricalCheck": "digest-pinned cached image",
+      "evidence": [
+        "subagent meas-chromium"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m163",
+      "classId": "c-spec-gap",
+      "title": "plan-rev5 skipped the user's Q22/Q23 answers; crossed messages",
+      "when": "07:39Z",
+      "who": "plan-rev5 / lead",
+      "symptom": "Rev 5 still kept old state path; wait arrived late.",
+      "rootCause": "Instruction lacked locations; async messages.",
+      "detectedBy": "lead review",
+      "cost": "extra revision",
+      "leanVerdict": "partly",
+      "leanReason": "Decision registry -> required plan locations lint is decidable; async delivery is not.",
+      "empiricalCheck": "re-read decisions table",
+      "evidence": [
+        "T:2094"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m164",
+      "classId": "c-spec-gap",
+      "title": "Confusing phone-session instructions; swipe prompt bannered on the phone",
+      "when": "17:15-17:22Z",
+      "who": "lead / phone-session-1b",
+      "symptom": "User confused.",
+      "rootCause": "Agent cannot message mid-run; long instructions.",
+      "detectedBy": "the user",
+      "cost": "user time",
+      "leanVerdict": "no",
+      "leanReason": "Human channel.",
+      "empiricalCheck": "one short instruction at a time",
+      "evidence": [
+        "T:22952",
+        "T:23038"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m165",
+      "classId": "c-spec-gap",
+      "title": "Task write sets conflicted with task asks (handoff excluded, wire doc outside list, no task tool)",
+      "when": "2026-10-17",
+      "who": "lead (spawn prompts)",
+      "symptom": "Unfinished items.",
+      "rootCause": "Prompt not checked against deliverables or tools.",
+      "detectedBy": "agent finals",
+      "cost": "follow-up tasks",
+      "leanVerdict": "provable",
+      "leanReason": "deliv + handoff subset writes; tools subset role tools.",
+      "evidence": [
+        "subagent engine-gaps final",
+        "subagent lean-null-fix final"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m166",
+      "classId": "c-spec-gap",
+      "title": "lean-serve shipped without planned id-mismatch kill and timeout",
+      "when": "~10:00Z",
+      "who": "lean-serve",
+      "symptom": "Hang risk.",
+      "rootCause": "Scope cut silently.",
+      "detectedBy": "agent final",
+      "cost": "open item",
+      "leanVerdict": "partly",
+      "leanReason": "PLAN item -> acceptance coverage is decidable; doneness is review.",
+      "empiricalCheck": "review against PLAN",
+      "evidence": [
+        "subagent lean-serve final"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m167",
+      "classId": "c-spec-gap",
+      "title": "Port agents left no handoff note",
+      "when": "2026-10-18",
+      "who": "port-nav, port-morph-columns, port-morph-mount",
+      "symptom": "Fresh agents started cold.",
+      "rootCause": "Handoff not enforced at land.",
+      "detectedBy": "repo audit",
+      "cost": "context loss",
+      "leanVerdict": "provable",
+      "leanReason": "land requires handoff path in diff.",
+      "evidence": [
+        "git ls-tree origin/ci/port-nav docs/team/handoffs"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m168",
+      "classId": "c-policy-prose",
+      "title": "Gate agent ran pkill -f \"Google Chrome\"",
+      "when": "~10:15Z",
+      "who": "gate-breakpoints",
+      "symptom": "May have closed the user's Chrome.",
+      "rootCause": "Pattern kill; shared profile; rule only later.",
+      "detectedBy": "lead",
+      "cost": "user disruption",
+      "leanVerdict": "provable",
+      "leanReason": "kill allowed iff owner = self over recorded PIDs; deny generated.",
+      "evidence": [
+        "T:7886",
+        "commit 6fba06c",
+        "commit b205acc"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m169",
+      "classId": "c-policy-prose",
+      "title": "Agents pattern-killed lake, loop and host processes",
+      "when": "08:19Z, 08:34Z, ~11:00Z",
+      "who": "lean-site, console-deflake, meas-chromium-2",
+      "symptom": "Risk to others' builds.",
+      "rootCause": "Same.",
+      "detectedBy": "one denial",
+      "cost": "risk",
+      "leanVerdict": "provable",
+      "leanReason": "Same rule.",
+      "evidence": [
+        "subagent lean-site line 286",
+        "subagent console-deflake line 88"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m170",
+      "classId": "c-policy-prose",
+      "title": "Force push attempted on a ci/* branch",
+      "when": "~17:30Z",
+      "who": "wktr-ci-lane",
+      "symptom": "Denied; head unpushed.",
+      "rootCause": "Rebased a pushed branch.",
+      "detectedBy": "classifier",
+      "cost": "stale CI branch",
+      "leanVerdict": "provable",
+      "leanReason": "No --force* form allowed; merge not rebase on pushed ci/*.",
+      "evidence": [
+        "subagent wktr-ci-lane line 770"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m171",
+      "classId": "c-policy-prose",
+      "title": "Agents called gh api although denied (10)",
+      "when": "08:21Z..18:55Z",
+      "who": "10 agents",
+      "symptom": "Denied.",
+      "rootCause": "Needed rate-limit data with no allowed source.",
+      "detectedBy": "deny rule",
+      "cost": "10 denials",
+      "leanVerdict": "provable",
+      "leanReason": "Deny exists; fw ci budget gives the data.",
+      "evidence": [
+        "subagent port-hero"
+      ],
+      "evidenceStatus": "INFERRED"
+    },
+    {
+      "id": "m172",
+      "classId": "c-policy-prose",
+      "title": "Home paths in notes; LAN IPs in a test fixture",
+      "when": "2026-10-16/17",
+      "who": "researchers, phone-session-1",
+      "symptom": "Scrubbed or caught by hook.",
+      "rootCause": "No scrub gate until scrub-precommit.",
+      "detectedBy": "scrub hook",
+      "cost": "commit retries",
+      "leanVerdict": "partly",
+      "leanReason": "Scrub is a pure predicate; regex coverage is approximate.",
+      "empiricalCheck": "scrub hook golden",
+      "evidence": [
+        "subagent phone-session-1 line 817"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m173",
+      "classId": "c-policy-prose",
+      "title": "Agent tried to edit the user's dotfiles",
+      "when": "07:23Z",
+      "who": "env-elan",
+      "symptom": "Denied twice.",
+      "rootCause": "Task read as permission outside the repo.",
+      "detectedBy": "classifier",
+      "cost": "risk",
+      "leanVerdict": "provable",
+      "leanReason": "PathCheck: writes outside repo denied.",
+      "evidence": [
+        "subagent env-elan line 27"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m174",
+      "classId": "c-policy-prose",
+      "title": "Measurements run locally on an overloaded Mac against plan intent",
+      "when": "before 417d90d",
+      "who": "measure agents / lead",
+      "symptom": "Counts correlate with load (r 0.55-0.94).",
+      "rootCause": "No measure-on-CI rule until 417d90d.",
+      "detectedBy": "the user",
+      "cost": "noisy numbers",
+      "leanVerdict": "provable",
+      "leanReason": "Lane -> host map in the work graph; hook refuses local lanes not allow-listed.",
+      "evidence": [
+        "commit 417d90d",
+        "T:11956"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    }
+  ],
+  "dropped": [
+    {
+      "title": "Incident.lean proof broke (unsolved goals at :361)",
+      "reason": "normal proof iteration inside one task, not a process mistake"
+    },
+    {
+      "title": "Docker Hub auth outage as such",
+      "reason": "kept only as the unpinned-image mistake; the outage is external"
+    }
+  ]
+}

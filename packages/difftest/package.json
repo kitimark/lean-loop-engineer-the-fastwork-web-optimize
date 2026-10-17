@@ -1,0 +1,14 @@
+{
+  "name": "@fw/difftest",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Randomized differential tests: every TS function that mirrors a fwcore wire op is run on fast-check inputs next to fwcore (Lean), outputs compared, failures shrunk to a golden-row candidate.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "devDependencies": {
+    "fast-check": "^4.3.0"
+  }
+}
