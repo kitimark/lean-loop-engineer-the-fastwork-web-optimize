@@ -107,9 +107,8 @@ was signed, and a separate reviewer role signs the math (§5.3).
 - **Chromium is a development aid; the iPhone is the target.** The Chromium counts lane is fast and deterministic,
   but Chromium cannot predict iPhone Safari, so the cost model is calibrated for WebKit first (§4.4, Q8). There is
   no Android phone (decided 2026-10-17): the Android emulator gives Chrome-for-Android counts only, never timing.
-- **Lean costs more up front.** About 20 Lean modules (4-6k lines) instead of 4, mostly in M0-M2, about $700-1,100
-  of Lean work instead of $280 (INFERRED [10.03 §7.1]), partly offset by console work that is no longer TypeScript.
-  A module that costs too much without catching bugs moves back to TypeScript by a decision record (§5.1).
+- **Lean costs more up front:** about 20 modules instead of 4 and $700-1,100 of Lean work instead of $280 (INFERRED
+  [10.03 §7.1]); a module that costs much and catches nothing moves back to TypeScript (§5.1).
 
 **Headline goal.** Rebuild the page, reproduce v1's outcome on the phone as a set of flag arms, and do it with a
 fraction of v1's device time, tool bugs and calendar time. Cost is reported, not capped (decided 2026-10-17). Every
@@ -143,7 +142,7 @@ Each criterion has a measurement and an owner. "Proposal" thresholds become bind
 | V-d | **Decision agreement** | sign of predicted Δ vs measured Δ, where the prediction exceeds the noise band | ≥ 90 %, and 0 sign errors among "large" predictions | [03 §9.3, 04 §9] |
 | V-e | **Magnitude** | median abs(log(pred/meas)) | ≤ 0.3. If missed, the model is "ranks only" and may not size a change | [04 §9] |
 | V-f | **Feel agreement** | blind verdicts with predictions frozen first | 5 of 5, no sign disagreement, before the model can stand in for the device for a change class | v1 `stats-vs-finger.md` via [03 §9.3] |
-| V-g | **Visual parity** of each `faithful` part | v1 tiers against a same-run original-vs-original (A/A) baseline | tier **T1** at PL0-PL3 (all parts) and PL4 (experiment parts) in Chromium and Playwright WebKit on the core viewport matrix; element boxes ≤ 0.5 CSS px; one Simulator check at 430×775 DPR 3 | [02 §4] |
+| V-g | **Visual parity** of each `faithful` part | v1 tiers against a same-run original-vs-original (A/A) baseline | tier **T1** at PL0-PL3 (all parts) and PL4 (experiment parts) in Chromium and Playwright WebKit **at every breakpoint edge of the original** (§6.6; the core viewport matrix per PR); element boxes ≤ 0.5 CSS px; one Simulator check at 430×775 DPR 3 | [02 §4]; your requirement of 2026-10-17 |
 | V-h | **Work parity** of each experiment part | PL5 bands per count family (§6.6) | within the band for every family; layers ±0; same compositor/main-thread split | [02 §4.6, FR §2] |
 | V-i | **Determinism, per count type** | two identical counts-lane runs | each count type classified *deterministic* (byte-identical), *stable* (within a stated tolerance) or *quarantined* (never used). Chromium: all used types deterministic. WebKit: the deterministic set covers what the K1-K9 fixtures need | [03 §7.1, 04 §8.5] |
 | V-j | **Time to adopt a tool** | new measurement plugin → first cached artifact | ≤ 1 agent-day; tests run = that plugin + `contracts` only; 0 other artifacts invalidated (shown by `fw run --dry`) | [06 §3] |
@@ -778,9 +777,18 @@ rewrite at preset `original`. Both arms load the same image and font bytes from 
 
 **Transfer check (V-p), at every landing.** If the change can be an overlay on the original, the runner applies it to
 arm A in the counts lane and requires the **same sign of Δ per stage** as on the rewrite; otherwise it is "transfer
-unchecked" and cannot land as class W. **Viewports:** the core matrix on every PR (430×932 and 430×775/815 at DPR 3
-with touch; 375×667 and 1440×900 at DPR 2; reduced motion), the full 14 configs before promotion, then one Simulator
-check, because Playwright WebKit has no toolbar and no Conservative compositing policy [02 §7].
+unchecked" and cannot land as class W.
+
+**Every breakpoint, identically, for every part (your requirement of 2026-10-17).** The breakpoint list is generated,
+never hand-kept: `breakpoints.json` is extracted from the original's CSS (media and container queries) and JS (width,
+touch, hover and pointer gates), per part (inventory: `research/kickoff/11-breakpoints/`). **Breakpoint gate**, required
+before **any** part is promoted: PL0-PL3 at both sides of every edge (N and N+1 px), in each touch/hover/pointer and
+device-width combination the original distinguishes, at every JS-gated width, plus a live resize across each edge.
+**Breakpoint lint** (in `fw gate`): fails when a part's CSS or JS uses a breakpoint not in the inventory, or misses one
+the original uses for that part (the set check is an L1 decision in `fwcore`; the extraction is L3, golden files).
+`faithful-with-delta` never covers a missing or shifted breakpoint. **Viewports per PR:** the core matrix (430×932 and
+430×775/815 at DPR 3 with touch; 375×667 and 1440×900 at DPR 2; reduced motion) stays the fast subset; one Simulator
+check closes promotion, because Playwright WebKit has no toolbar and no Conservative compositing policy [02 §7].
 
 ### 6.7 Styling-neutrality gate (N0-N5)
 
@@ -817,6 +825,7 @@ fastwork-com-web-optimize-lean/
 ├─ .mcp.json                  serena, lean-lsp (local tools only), chrome-devtools (exploration only)
 ├─ .serena/project.yml  lefthook.yml  pnpm-workspace.yaml  package.json  biome.json
 ├─ snapshot.lock.json         id + content hash of the Fastwork snapshot (no content)
+├─ breakpoints.json           GENERATED from the snapshot's CSS and JS: every breakpoint edge, per part (§6.6)
 ├─ apps/
 │  ├─ site/                   React 19 + Material UI 9.5 + Vite 8, prerendered; /__harness/:part; /__census (build only)
 │  │  └─ src/{engine/, registry/, theme/, mui-aot/, parts/<id>/{part.json, parity.json, faithful/, variants/<v>/}}
@@ -1143,7 +1152,7 @@ line took 37 agents and 10.8 % of all cache reads in 78 h [08]).
 | Stage | What happens | Artifact | Gate | Signed by |
 |---|---|---|---|---|
 | **question** | hypothesis, part, variants, mechanism (rule cards cited), **pre-registered predicted Δ** per stage and zone, landing class, number of planned comparisons k; order from your priority list (§3.3); for a part whose behaviour is contested, first a class P decision on the behaviour | `results/experiments/<date>-<slug>/card.md` | card schema valid; prediction present before any data | experiment-owner writes, **lead** approves |
-| **build** | the variant behind its flag | commit on `<role>/<topic>`; config hash; parity report | `fw gate --part`: typecheck, TL1/TL2, styling lint (S1-S13) and build gates (AOT census, CSS values), declared parity level, compositor gate (optimized, free-running), N0 (+ N2/N3 for experiment parts), path check | script |
+| **build** | the variant behind its flag | commit on `<role>/<topic>`; config hash; parity report | `fw gate --part`: typecheck, TL1/TL2, styling lint (S1-S13), breakpoint lint and build gates (AOT census, CSS values), declared parity level, compositor gate (optimized, free-running), N0 (+ N2/N3 for experiment parts), path check | script |
 | **screen** | counts lane, both engines, original preset vs variant; ablations where needed for attribution; transfer overlay on arm A | artifact keys + `screen.json` (dominates / mixed / worse, per frame on aligned steps; model prediction + status; transfer sign) | determinism per count type; uncounted-family lint; `fwcore screen` | script |
 | **review** | fresh-context check: does the result match the card; attribution (positive and negative ablation); no cherry-picking; the `kb lint` mechanism check | `review.md` | reviewer verdict `accept` | **reviewer** (independent: not the owner, not a builder of the card; enforced by the reducer) |
 | **device** (only when the class requires it) | a job card queued for the next session you book; preflight first; phone block C V V C, warm-up, sentinel; blind A/B for feel; the owner hands off and exits while it waits | device record + `fwcore verdict` (4v4, k recorded) | verdict `better` or `level` as declared; validity row written | **you** (the swipe) + script |
@@ -1171,9 +1180,9 @@ the state is `landReady` (the lead's move). So the console shows stage, owner, n
 |---|---|---|
 | **M0 Bootstrap as a vertical slice** (Day 1-5) | your Q1 answer (§12.1); the 2026-10-17 decisions (§12.0) written as decision records; minimal settings + CLAUDE.md; the Chromium counts script in a container on the **original**; `fwcore verdict` round trip; WebKit Simulator spike; spikes SPK-a…e, i, j, k, l, o, p, q, t; the console step queue; **the console core in Lean** (`fwcore serve`: reducer, authority, steps, landing rule) with console-api as single writer, the observer hooks, the capability hook, the sandbox block and SPK-t; the math-view lint and the first signed entries | two byte-identical Chromium count vectors for the original (or SPK-i failure recorded and V-i re-scoped); `lake build` + math-view lint green; spike answers recorded as decision records; SPK-t passed (or the separate-user fallback set up); the M0 Lean modules signed in the math view; every M0 mutant killed |
 | **M1 Measure the original** (Day 6-13) | artifact store; per-zone Chromium counts and V-a transfer check; WebKit counts per type (time-boxed Day 7-8, then fallback); harness neutrality fixtures (V-n); the M1 Lean modules (§5.1); console skeleton (run builder, results, Try-it, comment on any row, a preset gallery on Wi-Fi); **in parallel, SPK-r (Emotion AOT)** in a minimal `apps/site` with the MUI theme and census route | Chromium: all used count types deterministic; N0/N1 read 0 on arm A after load (SPK-q); SPK-r passed, or the per-part or whole-site fallback chosen in a decision record; WebKit: the deterministic + stable set covers what K1-K9 need; baseline count vectors per zone for the original; one plugin refactor shows 0 re-runs (V-j) |
-| **M2 Pilot parts** (Day 14-18) | `engine.scroll` faithful, `hero.countdown`, `nav.hitTest`, `hero.exit`; registry + resolver + its whole-domain test; harness route; MUI theme + AOT build in the site; pilot parts built with MUI plus `impl: plain` twins; N0-N5 on the pilots; PL0-PL6; optional SPK-s (`style-engine` A/B) | 3 parts `faithful` (V-g, V-h, V-o, V-q); PL5 and N3 bands re-set from pilot data and frozen; `cssVariables` decision from N4; inert-dead-CSS decision made |
+| **M2 Pilot parts** (Day 14-18) | `engine.scroll` faithful, `hero.countdown`, `nav.hitTest`, `hero.exit`; registry + resolver + its whole-domain test; harness route; MUI theme + AOT build in the site; pilot parts built with MUI plus `impl: plain` twins; N0-N5 on the pilots; PL0-PL6; optional SPK-s (`style-engine` A/B) | 3 parts `faithful` (V-g, V-h, V-o, V-q), each through the breakpoint gate; `breakpoints.json` generated and the breakpoint lint green; PL5 and N3 bands re-set from pilot data and frozen; `cssVariables` decision from N4; inert-dead-CSS decision made |
 | **M3 Calibrate** (Day 19-23) | WKTR spike on a cloud Mac (Q10), with K10 in both engines; SPK-n link soak; iPhone K1-K10 session in a booked window; `ρ_page` on arm A; holdout; validity table v0 | V-b and V-c on the phone; model status per output recorded; `@layer mui` kept or dropped from K10; first V-f attempt scheduled |
-| **M4 Port the experiment parts** (Day 24-33) | remaining experiment parts at PL0-PL6 with N0-N3; all other parts at PL0-PL3 with N0; whole-page PL6 check with N5 (Mac Chrome, one Simulator, one phone); console: validity, proposals, usage; **per-module Lean evidence review** (demotion rule, §5.1) | every part promoted (`faithful` or `faithful-with-delta`); Simulator check passed |
+| **M4 Port the experiment parts** (Day 24-33) | remaining experiment parts at PL0-PL6 with N0-N3; all other parts at PL0-PL3 with N0; whole-page PL6 check with N5 (Mac Chrome, one Simulator, one phone); console: validity, proposals, usage; **per-module Lean evidence review** (demotion rule, §5.1) | every part promoted (`faithful` or `faithful-with-delta`) through the full breakpoint gate (§6.6); Simulator check passed |
 | **M5 Experiments** (Day 34-43) | first, the end-of-page behaviour decision (class P, Try-it: the `faithful` tween vs the finger-following `proposal`, both against `original`; only the chosen variant is optimized; reversing it later is a preset change); then the 22-row backlog from [01 §A.1] as flag arms, by v1's measured impact: end-of-page morph, People reveal, deck sizing under the toolbar, avatar presence flips, scroll-engine reads, countdown layers, idle loops. Each known v1 outcome is also a **postdiction test** of the model | G1 reached; V-d/V-e/V-f measured on ≥ 10 changes; G2 and G3 reported |
 | **M6 Distill** (Day 44-45) | write-up from the G4 material; transfer results; cost report | G4 met; report published (your call) |
 
@@ -1211,7 +1220,7 @@ eng-chromium and eng-webkit also write `refs/rules/**` (seeded with v1's 16 WebK
 | R5 | Coefficients are unidentifiable (collinear flag designs) or drift (heat, LPM, versions) | medium / medium | Micro-fixtures; fractional factorial designs; θ per run; `ρ_page`; re-calibration triggers |
 | R6 | Wrong spec, correct proof | medium / high | Math-reviewer back-translation without the docstring, a second reviewer on disagreement, you on a remaining disagreement (§5.3); deep statement hashes so a definition change marks its theorems stale; `#guard` examples from v1 data; mutants (V-r); no proofs about transcribed engine rules. Verification of the kickoff notes found 8 math-translation errors and 4 design faults that compiled fine [10] |
 | R7 | Over-engineering before the first measurement (v1 day 1 was 38 % process) | high / medium | Week 1 is a vertical slice; MVP tier (§3.4); every new tool names the incident class it prevents; a new agent rule must cite an agent-mistake incident, otherwise fix the tool |
-| R8 | Port size: ~11.8k lines of CSS, half dead; Platform visual mapping only inferred | high / medium | Full work parity only for experiment parts; time box per part; `faithful-with-delta` |
+| R8 | Port size: ~11.8k lines of CSS, half dead; Platform visual mapping only inferred; every breakpoint of every part must match (your requirement), which multiplies PL0-PL3 runs | high / medium | Full work parity only for experiment parts; time box per part; `faithful-with-delta` for work and pixel deltas but never for breakpoints; a generated breakpoint inventory and lint, so no edge is found late; the core matrix per PR, the full breakpoint gate only before promotion |
 | R9 | MUI everywhere pollutes measurements: Emotion inserts or moves style sheets (a WebKit full style rebuild per frame; invisible to the planned counts, CONFIRMED [09.04]), class churn, theme re-renders | high if unconstrained | Emotion AOT (§6.5); rules S1-S13 with lint; N0-N5 (§6.7) with `impl: plain` twins; K10 prices one insertion; SPK-r first; `runtime` build as a negative control |
 | R10 | Legal scope of a public port of copy and design values | low now / high | The repo stays private (decided 2026-10-17); assets never in git; the §7.3 rules keep a later partial publication possible |
 | R11 | Toolchain churn (Lean monthly, TS 7 native port vs tools, MUI minors) | medium / low | Pin `lean-toolchain` to `leanprover/lean4:v4.35.0`, `typescript@6.0.3` and exact MUI/Emotion versions; bump in one deliberate PR; an MUI bump re-runs N0-N5 on all parts (S11) |
@@ -1247,6 +1256,7 @@ eng-chromium and eng-webkit also write `refs/rules/**` (seeded with v1's 16 WebK
 | Q16 | Budget | **Looser: speed over token savings.** Hard caps and stop rules are removed. Cost reporting, the forecast and soft alerts stay. Opus or `high` effort is used where it speeds the work, and concurrency is higher. The anti-waste rules that also save time stay | §1.1 G3, §8.2-§8.5, R14 |
 | Q22 | Sandbox for every agent | **Yes, strict** (no unsandboxed retry) | §8.3, R25, SPK-t |
 | Q23 | Where the console lives, and who moves `main` | **Inside the repo**, in the gitignored `.fw-console/`, protected by a sandbox write-deny, `Edit` deny rules and console-api as its single writer. **`main` stays a normal branch** (no bare repo); the lead lands with `fw land` (ff-only), and a commit on `main` that did not come through it is detected from events and flagged as a violation | §2.2, §3.2, §3.4, §7, §8.2, §8.3, §9.2, R28, A21 |
+| — | Breakpoints | **The rewrite supports every breakpoint of the original identically, for every part**: a generated `breakpoints.json`, a breakpoint lint, and a breakpoint gate (PL0-PL3 at both sides of every edge, input-mode combinations, JS-gated widths, live resizes) before any part is promoted | §1.2 V-g, §6.6, §9.2, §10.1 M2/M4, R8, Q5 |
 | — | Console upkeep | **Nobody writes status** (your requirement): every view is derived from the event log; agents have no write path; judgement is a typed command | §0, §2.2, §3.2, §7, §8.3, §8.5, §9.2, §10.2 |
 | — | Reading proofs | **You read math, not Lean** (your requirement): docstring math, a generated math view, a build gate on unsigned or stale math, a math-reviewer role | §0, §5.3, §5.4, §8.2 |
 | — | Lean packaging | **Mathlib-free core, optional `FwMath`** for proofs that need Mathlib; `Fw` never imports it | §3.4, §5.1, §5.2 |
@@ -1261,7 +1271,7 @@ week; yes to the free-play phone.
 
 ### 12.2 Defaults we will use unless you object (one line each)
 
-- **Q5 Fidelity:** look + work parity (PL0-PL6) for experiment parts; look parity (PL0-PL3) for the rest; time box per part, then `faithful-with-delta`.
+- **Q5 Fidelity:** look + work parity (PL0-PL6) for experiment parts; look parity (PL0-PL3) for the rest; every breakpoint for all parts (decided); time box per part, then `faithful-with-delta`.
 - **Q6 Parity reference:** the snapshot `b1789284481295-a455e793`; the faithful morph is the original 680 ms scroll-jacked tween; g0.0m is the preset `v1-best`, and its look changes are proposals.
 - **Q7 Device budget:** iPhone 15 Pro Max on iOS 27.0.1 (Safari 27) is the target; expect 5-10 phone sessions before the first licensed class; classes X and P always use the phone; calibration every Safari/iOS change, every 14 days, or after 2 out-of-band spot-checks.
 - **Q8 Chromium's role:** a development aid (counts, mechanism, screening, timing parity), with no fitted coefficients, since there is no Android phone; the Android emulator adds Chrome-for-Android counts, never timing.
@@ -1383,27 +1393,17 @@ your Lean packaging and install decisions.
 | 8 | Mathlib-free core with an optional `FwMath` package (decided) | §3.4, §5.1, §5.2, §12.0 |
 | 9 | Spikes SPK-t (sandbox, socket, path resolution, violation detection, capability) and SPK-u (hermetic deps); risks R23-R28; R6 rewritten; conflicts A17-A22; A1, A9, A14 updated | Appendix A, Appendix B, §11 |
 | 10 | Questions: Q1 mostly answered; Q12 moved to §12.0; Q22 (strict sandbox) and Q23 (console state inside the repo, `main` a normal branch) answered and applied; defaults Q24-Q30; the rev 4 review's open styling items listed with recommendations (§12.3) | §12 |
+| 11 | Every breakpoint of the original, for every part (your requirement): generated `breakpoints.json`, breakpoint lint, breakpoint gate before promotion; V-g, R8, M2/M4 exits, Q5 | §1.2, §6.6, §7.1, §9.2, §10.1, §11, §12 |
 
-Differences from the delta, and why: V-t says "a replay of v1's status history", not "G1-style replay" (G1 is an
-outcome goal); "reviewer vs judge" became "the reviewer's own math vs the docstring" (no judge role here); `Write(...)`
-deny rules became `Edit(...)` only (A22); the `Frames` docstring example was folded into the worked example; the
-canonical-numbers table stays in the delta file (A19); "nothing is committed" left the intro. Your Q23
-answer replaced the delta's `~/.fw-console/` and bare repo: the state is in the gitignored `.fw-console/`, `main`
-is a normal branch, and landings outside `fw land` are detected, not prevented (A21, R28). To stay near 1,400
-lines, prose in §0, §2.3, §3.2-§3.3, §4, §5, §6, §7, §8 and Appendices C-D was shortened without changing content;
-the earlier text is in git history (commit 032ed71).
+Differences from the delta (why): V-t avoids "G1-style" (G1 is an outcome goal); "judge" became "the reviewer's own
+math vs the docstring"; `Write(...)` rules became `Edit(...)` (A22); the canonical-numbers table stays in the delta
+(A19); your Q23 answer replaced `~/.fw-console/` and the bare repo (A21, R28). Prose was shortened to stay near 1,400
+lines without changing content; earlier text is in git history (032ed71).
 
-### Revision 4 (your decisions of 2026-10-17)
+### Revisions 2 to 4
 
-Your four decisions and [09]: MUI everywhere with Emotion AOT; rules S1-S13 and build gates; the neutrality gate
-N0-N5, the sheet-mutation family and V-q; `impl: plain` twins; `style-engine` variants; K10, SPK-q/r/s; R9, R21, R22,
-A3; Lean pinned (Q2); repo private (Q3); looser budget (Q16). The rev 4 review then fixed the AOT cache wiring, the
-census for portals, Tabs and Avatar (S7), N2 commit counts and N0 wrapping, the neutrality claims, the Pigment
-evidence, SPK-r/SPK-h checks and the budget wording; its open items are §12.3. Tables: git history at 032ed71.
-
-### Revisions 2 and 3
-
-Revision 3 applied the 18 ranked improvements of [08] (wait policy, no LLM polling, the device job queue with booked
-sessions, no routing agents, `pnpm fw` verbs, the console as your channel, spawn hygiene, enforcer discipline, and
-more). Revision 2 applied all 34 items of [FR] (the Linux container, harness neutrality, per-frame class W, Q10, the
-4v4 verdict with its 1/70 null rate, the hardened Lean glue, the MVP tier, the glossary). Tables: git at 931aa35.
+Revision 4 (your four decisions, [09]): MUI everywhere with Emotion AOT, S1-S13, N0-N5 and V-q, `impl: plain`
+twins, K10, SPK-q/r/s, R9/R21/R22, Q2/Q3/Q16; its review fixed the AOT cache wiring, portals, Tabs and Avatar, N2/N0
+scope and the neutrality claims (open items: §12.3). Revision 3 applied the 18 improvements of [08]; revision 2 the
+34 items of [FR] (container, harness neutrality, per-frame class W, 4v4 verdict, Lean glue, MVP tier). Item tables
+are in git history (032ed71, 931aa35).
