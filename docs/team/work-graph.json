@@ -367,7 +367,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-spk-drafts/**"
-   ]
+   ],
+   "evidence": "2e0d21b"
   },
   {
    "id": "spk-i-record",
@@ -390,7 +391,8 @@
    "milestone": null,
    "deps": [
     "ab-bench",
-    "plan-rev6"
+    "plan-rev6",
+    "spawn-guard-workflows"
    ],
    "owner": "lead",
    "writes": [
@@ -853,6 +855,48 @@
    "writes": [
     "apps/console-web/**",
     "apps/console-api/**"
+   ]
+  },
+  {
+   "id": "cap-actor-fix",
+   "title": "Security: lead = record with no agent_id; refuse agent_id with empty agent_type (internal fork) instead of mapping it to main (cap.mjs:47, actorFor; Lean ops.hook first)",
+   "stream": "console",
+   "milestone": "M0",
+   "deps": [
+    "spk-hooks"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Hook*.lean",
+    "apps/runner/hooks/cap.mjs",
+    "apps/runner/hooks/lib.mjs",
+    "apps/console-api/src/cap/**"
+   ]
+  },
+  {
+   "id": "spawn-guard-workflows",
+   "title": "Spawn-guard does not see Workflow spawns (18 of 26 skipped): find a hook point or record the gap for Q31",
+   "stream": "parallel",
+   "milestone": null,
+   "deps": [
+    "spk-hooks"
+   ],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-17-spk-drafts/spk-p.md"
+   ]
+  },
+  {
+   "id": "spk-p-wake",
+   "title": "SPK-p part 3: the wake test",
+   "stream": "console",
+   "milestone": "M0",
+   "deps": [
+    "spk-hooks"
+   ],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-17-spk-drafts/spk-p.md"
    ]
   }
  ]
