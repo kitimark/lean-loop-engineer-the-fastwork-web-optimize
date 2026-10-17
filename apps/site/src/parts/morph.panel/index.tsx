@@ -83,7 +83,7 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
                 Action
               </button>
             )}
-            <a href="#morph-panel" data-fw-role="link">
+            <a href="#morph-panel" className={css.rsvp} data-fw-role="link">
               <Icon />
               Link
             </a>
@@ -104,7 +104,7 @@ export function MorphPanel({ variant, impl = 'mui', initialMorph = 0, writerRef,
 
 function Icon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.5" aria-hidden="true" focusable="false" width="20" height="20">
+    <svg className={css.ctaIcon} viewBox="0 0 24 24" fill="none" strokeWidth="1.5" aria-hidden="true" focusable="false">
       <circle cx="12" cy="12" r="9" stroke="currentColor" />
     </svg>
   );

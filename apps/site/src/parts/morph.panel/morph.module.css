@@ -78,12 +78,16 @@
     margin-top: 32px;
     display: flex;
   }
+  /* component rule (column flex, gap 8) overridden by the page's inline style (grid, 12px / 8px gaps; 1 column at <=600) */
   .ctaStack {
     flex-direction: column;
     flex: none;
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
     align-items: center;
-    gap: 8px;
-    display: flex;
+    column-gap: 12px;
+    row-gap: 8px;
   }
   .cta {
     appearance: none;
@@ -97,7 +101,7 @@
     flex: none;
     justify-content: center;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     height: 48px;
     min-height: 48px;
     padding: 0 24px;
@@ -111,6 +115,39 @@
   .cta:focus-visible {
     background: #f8fafd;
     outline: none;
+  }
+  .rsvp {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0 24px;
+    border-radius: 999px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    background-color: transparent;
+    transition: border-color 0.2s;
+    color: #fff;
+    border: 1px solid #d4d4d425;
+  }
+  .rsvp:hover {
+    border-color: #d4d4d466;
+  }
+  .rsvp:focus-visible {
+    outline: 2px solid #0569ff;
+    outline-offset: 3px;
+  }
+  .ctaIcon {
+    flex: none;
+    display: block;
+    width: 20px;
+    height: 20px;
   }
   .footer {
     box-sizing: border-box;
@@ -178,6 +215,9 @@
       filter: none;
       transition: none;
     }
+    .rsvp {
+      transition: none;
+    }
   }
   @media (width<=640px) {
     .center {
@@ -208,6 +248,14 @@
     }
     .backdrop {
       gap: 8px;
+    }
+  }
+  @media (width<=600px) {
+    .ctaStack {
+      grid-template-columns: auto;
+    }
+    .rsvp {
+      order: -1;
     }
   }
 }
