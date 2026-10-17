@@ -1653,7 +1653,7 @@
   },
   {
    "id": "phone-session-2",
-   "title": "Phone session 2 (2026-10-19 14:00-23:00, 45 min): blind A/B of the end-of-page arms, 4 vs 4, frames > 50 ms recorded",
+   "title": "Phone session 2 (2026-10-19 14:00-23:00, 45 min): blind A/B of the end-of-page arms, 4 vs 4, frames > 50 ms recorded Protocol per arm (user, blind): (1) normal reading swipes; (2) worst case: hard flicks top to bottom; (3) worst case: flick into the end-of-page tween and reverse mid-animation x3; each paired with a scripted run.",
    "stream": "experiments",
    "milestone": "M5",
    "deps": [
