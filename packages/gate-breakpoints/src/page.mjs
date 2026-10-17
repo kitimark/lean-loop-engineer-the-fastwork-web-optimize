@@ -61,6 +61,33 @@ export async function waitReady(arg) {
   return { ready, splash, fwMode: fw ? fw.mode : null, hydrationErrors: fw ? (fw.hydrationErrors ? fw.hydrationErrors.length ?? fw.hydrationErrors : 0) : null };
 }
 
+/**
+ * Part-declared preparation of the original (anchors.json `prepare`, only for parts a run covers): some elements exist only
+ * after the page has been near them (the morph panel mounts when the platform section is within 200% of the viewport and
+ * stays mounted). Per step: scroll so the `scrollNear` element's top is 1.5 viewports below the fold, wait for `waitFor`
+ * to exist, then return to the top and let a few frames pass. Reports what it saw; no decision.
+ */
+export async function prepareInPage(arg) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
+  const t0 = performance.now();
+  const found = [];
+  for (const step of arg.steps) {
+    const near = document.querySelector(step.scrollNear);
+    if (near) {
+      const top = near.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: Math.max(0, top - window.innerHeight * 1.5), behavior: 'instant' });
+    }
+    for (let i = 0; i < 3; i++) await frame();
+    while (!document.querySelector(step.waitFor) && performance.now() - t0 < arg.capMs) await sleep(50);
+    found.push(!!document.querySelector(step.waitFor));
+  }
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  for (let i = 0; i < 3; i++) await frame();
+  await sleep(300);
+  return found;
+}
+
 /** A short pause after a live resize: two frames and 600 ms (the original debounces its resize work with timers). */
 export async function waitResize() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -151,4 +178,28 @@ export function collectInPage(arg) {
     }
   }
   return out;
+}
+
+/**
+ * Original only: the morph panel is mounted lazily. A one-way flag is set the first time the platform section comes within
+ * 200 % of the viewport (IntersectionObserver, 2.DyWL8TcE.js:13080-13089), so this scrolls there, waits for the first
+ * column, and returns to the top. Self-contained (it is serialised into the page). Reports what it saw; decides nothing.
+ */
+export async function mountPanel() {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
+  const sel = '.start-selling-morph-col';
+  const y0 = window.scrollY;
+  const target = document.querySelector('#platform');
+  if (target) {
+    const r = target.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + r.top - window.innerHeight / 2, behavior: 'instant' });
+  }
+  const t0 = performance.now();
+  while (!document.querySelector(sel) && performance.now() - t0 < 8000) { await frame(); await sleep(50); }
+  const mounted = document.querySelectorAll(sel).length;
+  window.scrollTo({ top: y0, behavior: 'instant' });
+  for (let i = 0; i < 3; i++) await frame();
+  await sleep(300);
+  return { target: !!target, mounted, scrollY: window.scrollY };
 }

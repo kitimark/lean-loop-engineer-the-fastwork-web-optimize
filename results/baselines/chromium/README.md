@@ -1,4 +1,4 @@
-# Per-zone baselines of the original, Chromium (profile swipe-v1)
+# Per-zone baselines, Chromium (profiles swipe-v1 and swipe-touch-v1; arms original and rewrite)
 
 Raw counts are work, not milliseconds; nothing here is phone time. MEASURED on GitHub CI, not on this Mac.
 
@@ -26,3 +26,22 @@ What the data shows (MEASURED, this run): zone ids, frame counts and scrolled px
 NOT in this directory, with the reason:
 - **Count vectors per part.** The Chromium counts have frame and zone dimensions only; the original snapshot has no part attribution (nothing in `counts.json` is keyed by part).
 - **The frozen table `packages/measure-chromium/classes.frozen.json` does not cover 8 of the 70 types** (n0.*, trace.HitTest.overlayAdDetector, trace.N1.*; the run classifies them deterministic) and has trace.HitTest quarantined where the split harness gives stable (k 2). The `refreeze` task regenerates it; until then the frozen table is stale for these.
+
+## Part 2: all four (profile, arm) baselines (task zone-baselines-chromium, part 2)
+
+Each baseline is 3 shards (separate VMs) of ONE workflow run, same zone structure and frame counts in all 3 (Lean refuses otherwise).
+All four files are `fwcore measure.zoneBaseline` over the profile's arm table in `classes.frozen.json` (schema 2). No new CI run was needed.
+
+| profile | arm | CI run | harness sha | image | frames | zones | types | tally det/stable/quar/unlisted | detDrift |
+|---|---|---|---|---|---|---|---|---|---|
+| swipe-v1 | original | 39048702153 | cba3040 | ebefaf34... | 503 | 12 | 70 | 32/28/10/0 | 0 |
+| swipe-v1 | rewrite | 39048702153 | cba3040 | ebefaf34... | 385 | 9 | 51 | 44/7/0/0 | 0 |
+| swipe-touch-v1 | original | 39050423094 | f87bf94 | 8f0e17f5... | 531 | 13 | 70 | 23/32/15/0 | 0 |
+| swipe-touch-v1 | rewrite | 39050423094 | f87bf94 | 8f0e17f5... | 409 | 10 | 51 | 50/1/0/0 | 0 |
+
+- Pull: `pnpm fw ci <run> --branch <ci branch>` (swipe-v1 run on `ci/zone-baselines-chromium`, touch run on `ci/refreeze-b`), then
+  `node packages/measure-chromium/src/zone-baseline.mjs --store <store> --profile <p> --target <original|rewrite> --run <run> --out results/baselines/chromium`
+  and `... baseline --out results/baselines/chromium --profile <p> --target <t>` (`--check` compares; the test checks all four).
+- The swipe-v1 rewrite is the rewrite at harness sha cba3040 (the first rewrite CI run), not the current apps/site; re-pull a new `target=rewrite` run to move it. The swipe-v1 pair was measured on image ebefaf34..., the frozen table on 8f0e17f5... (classes are per type, not per image; the image is recorded in each file).
+- Zones are scroll bands (`rest`, `settle`, `yNNNNN`, `tail`), not parts. The rewrite page is shorter, so its last bands differ (touch rewrite stops at y03000; swipe-v1 rewrite at y03000 with 454 px); compare arms per zone id and per whole-run `totals`.
+- `detDrift` and `detDriftTotals` are empty in all four (MEASURED). Cells that differ between shards (profile/arm: stable cells, quarantined cells): swipe-v1 original 16 of 309, 27 of 107; touch original 13 of 401, 34 of 174; both rewrite baselines 0 (rewrite is deterministic/stable-only: 365+55 and 464+1 cells with no difference). Largest whole-run spans are pixel-area types (census.drawingAreaPx ~2.0e6, raster.invalidationAreaPx ~2.9e6 of ~1.9e8 in touch original).

@@ -30,7 +30,7 @@ export function safeJoin(root, urlPath) {
  * Start a server on 127.0.0.1. `port: 0` picks a free port.
  * @returns {Promise<{port:number, url:string, requests:string[], close:()=>Promise<void>}>}
  */
-export async function serveTree(root, { port = 0, vendors = 'off', mounts = {}, rewrite = null } = {}) {
+export async function serveTree(root, { port = 0, host = '127.0.0.1', vendors = 'off', mounts = {}, rewrite = null } = {}) {
   const requests = [];
   const server = http.createServer(async (req, res) => {
     const fail = (code, msg) => { res.writeHead(code, { 'content-type': 'text/plain', 'cache-control': 'no-store' }); res.end(msg); };
@@ -69,10 +69,10 @@ export async function serveTree(root, { port = 0, vendors = 'off', mounts = {}, 
       res.end(req.method === 'HEAD' ? undefined : body);
     } catch (e) { fail(500, String(e?.message || e)); }
   });
-  await new Promise((ok, bad) => { server.once('error', bad); server.listen(port, '127.0.0.1', ok); });
+  await new Promise((ok, bad) => { server.once('error', bad); server.listen(port, host, ok); });
   const p = server.address().port;
   return {
-    port: p, url: `http://127.0.0.1:${p}/`, requests,
+    port: p, url: `http://${host}:${p}/`, requests,
     close: () => new Promise((ok) => { server.closeAllConnections?.(); server.close(() => ok()); }),
   };
 }

@@ -25,6 +25,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { HeroCountdown } from './parts/hero.countdown';
 import { HeroExit } from './parts/hero.exit';
+import { MorphColumns } from './parts/morph.columns';
 import { parts } from './registry';
 
 /**
@@ -245,6 +246,8 @@ function PartsAll() {
             <HeroCountdown key={`${p.id}:${variant}`} variant={variant} />
           ) : p.id === 'hero.exit' ? (
             <HeroExit key={`${p.id}:${variant}`} variant={variant} />
+          ) : p.id === 'morph.columns' ? (
+            <MorphColumns key={`${p.id}:${variant}`} variant={variant} />
           ) : null,
         ),
       )}

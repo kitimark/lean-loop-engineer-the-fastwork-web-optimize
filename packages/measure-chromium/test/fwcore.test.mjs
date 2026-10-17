@@ -106,7 +106,7 @@ test('zoneSums through the client: the pure.test.mjs seed vector', () => {
 // exists only in run 2 (so it is quarantined; pooled, its total gap 100 is above tMax). The rewrite arm lacks `c` and
 // has `onlyR`; the original arm has the overlay-ad detector type (by design).
 const OVERLAY = 'trace.HitTest.overlayAdDetector';
-function fakeRuns({ images = ['sha256:i', 'sha256:i', 'sha256:i'], n = 3, tamper = false } = {}) {
+function fakeRuns({ images = ['sha256:i', 'sha256:i', 'sha256:i'], n = 3, tamper = false, short = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'fw-freeze-'));
   const dirs = [];
   for (let r = 0; r < n; r++) {
@@ -117,7 +117,7 @@ function fakeRuns({ images = ['sha256:i', 'sha256:i', 'sha256:i'], n = 3, tamper
       const frames = [0, 1].map((i) => ({ n: i, phase: 'swipe', scrollY: i, counts: target === 'original'
         ? { a: 1, b: r === 2 ? 1 - i : i, [OVERLAY]: i * r, ...(r === 1 ? { c: 50 } : {}) }
         : { a: 1, onlyR: 2 } }));
-      const jobs = [1, 2].map(() => ({ frames, meta }));
+      const jobs = [1, 2].map((_, j) => ({ frames: short && r === 1 && j === 1 ? frames.slice(0, 1) : frames, meta }));
       jobs.forEach((c, j) => {
         mkdirSync(join(dir, `chromium-counts-${target}-r${j + 1}`), { recursive: true });
         writeFileSync(join(dir, `chromium-counts-${target}-r${j + 1}`, 'counts.json'), JSON.stringify(c));
@@ -163,10 +163,13 @@ test('freeze.mjs: worst class over 3 runs through fwcore measure.freeze; a type 
   assert.equal(f.image.baseImage, undefined);
 });
 
-test('freeze.mjs refuses 2 runs, mixed image digests, and a classes artifact fwcore does not reproduce', () => {
+test('freeze.mjs refuses 2 runs, mixed image digests, a job with another frame count, and a classes artifact fwcore does not reproduce', () => {
   assert.throws(() => freezeRuns(fakeRuns({ n: 2 })), /need at least 3 workflow runs/);
   assert.throws(() => freezeRuns(fakeRuns({ images: ['sha256:i', 'sha256:j', 'sha256:i'] })), /mixed image digests/);
   assert.throws(() => freezeRuns(fakeRuns({ tamper: true })), /differs from the run's original classes.json/);
+  // a job that recorded fewer frames (the 403-of-409 case of CI run 39049478836): Lean names the job and its run
+  assert.throws(() => freezeRuns(fakeRuns({ short: true })),
+    /swipe-v1\/original: fwcore measure.freeze: frame counts differ between jobs: job chromium-counts-original-r2 of workflow run 101 has 1 frames; 5 of 6 jobs have 2 frames/);
 });
 
 test('diffPaths lists the differing leaves', () => {
@@ -175,12 +178,17 @@ test('diffPaths lists the differing leaves', () => {
 
 // The committed cross-shard baseline is fwcore measure.zoneBaseline over the committed zones file and the current frozen
 // table (zone-baseline.mjs baseline --check). After a refreeze of classes.frozen.json this fails until it is re-run.
-test('results/baselines/chromium/swipe-v1/original.baseline.json is the Lean baseline of the committed zones and frozen table', () => {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const r = spawnSync(process.execPath, [join(here, '../src/zone-baseline.mjs'), 'baseline', '--out', join(here, '../../../results/baselines/chromium'), '--check']);
-  assert.equal(r.status, 0, `stale baseline (re-run: node packages/measure-chromium/src/zone-baseline.mjs baseline --out results/baselines/chromium): ${r.stderr}`);
-  const b = JSON.parse(readFileSync(join(here, '../../../results/baselines/chromium/swipe-v1/original.baseline.json'), 'utf8'));
-  assert.deepStrictEqual(b.runs, ['r1', 'r2', 'r3']);
-  assert.deepStrictEqual(b.detDrift, []);
-  for (const z of b.zones) for (const c of Object.values(z.types)) assert.ok(c.lo <= c.base && c.base <= c.hi && c.perRun.includes(c.base));
-});
+for (const [profile, target] of [['swipe-v1', 'original'], ['swipe-v1', 'rewrite'], ['swipe-touch-v1', 'original'], ['swipe-touch-v1', 'rewrite']]) {
+  test(`results/baselines/chromium/${profile}/${target}.baseline.json is the Lean baseline of the committed zones and frozen table`, () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const out = join(here, '../../../results/baselines/chromium');
+    const r = spawnSync(process.execPath, [join(here, '../src/zone-baseline.mjs'), 'baseline', '--out', out, '--profile', profile, '--target', target, '--check']);
+    assert.equal(r.status, 0, `stale baseline (re-run: node packages/measure-chromium/src/zone-baseline.mjs baseline --out results/baselines/chromium --profile ${profile} --target ${target}): ${r.stderr}`);
+    const b = JSON.parse(readFileSync(join(out, profile, `${target}.baseline.json`), 'utf8'));
+    assert.deepStrictEqual(b.runs, ['r1', 'r2', 'r3']);
+    assert.deepStrictEqual(b.detDrift, []);
+    assert.deepStrictEqual(b.detDriftTotals, []);
+    assert.equal(b.tally.unlisted, 0);
+    for (const z of b.zones) for (const c of Object.values(z.types)) assert.ok(c.lo <= c.base && c.base <= c.hi && c.perRun.includes(c.base));
+  });
+}

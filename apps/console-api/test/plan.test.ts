@@ -60,10 +60,15 @@ describe("the real work graph through fwcore", () => {
       if (t.state === "blocked") expect(undone.length).toBeGreaterThan(0);
       expect(t.state === "done", t.id).toBe(t.evidence !== null);
     }
-    const ready = new Set(p.tasks.filter((t) => t.state === "ready").map((t) => t.id));
-    expect(p.parallelSafe.flat().sort()).toEqual([...ready].sort()); // groups partition the ready tasks
-    p.criticalPath.slice(1).forEach((id, i) => expect(st.get(id)!.deps).toContain(p.criticalPath[i]));
-    for (const m of p.milestones) expect(m.total).toBe(file.tasks.filter((t) => t.milestone === m.id).length);
+    for (const t of p.tasks) expect(t.lane, t.id).toBe(t.needs.includes("device") ? "device" : "agent"); // Lean lane_device_iff
+    const byId = new Map(file.tasks.map((t) => [t.id, t]));
+    for (const t of p.tasks) expect(t.needs, t.id).toEqual(byId.get(t.id)!.needs ?? []); // sync stores needs (missing = [])
+    const ready = new Set(p.tasks.filter((t) => t.state === "ready" && t.lane === "agent").map((t) => t.id));
+    expect(p.parallelSafe.flat().sort()).toEqual([...ready].sort()); // groups partition the agent-ready tasks    p.criticalPath.slice(1).forEach((id, i) => expect(st.get(id)!.deps).toContain(p.criticalPath[i]));
+    for (const m of p.milestones) expect(m.total).toBe(file.tasks.filter((t) => t.milestone === m.id && !t.cut).length); // msView_kept
+    for (const t of p.tasks) expect(t.state === "cut", t.id).toBe(!!byId.get(t.id)!.cut && t.evidence === null); // tstate_cut_iff
+    for (const id of p.criticalPath) expect(byId.get(id)!.cut ?? false, id).toBe(false); // view_criticalPath_not_cut
+    expect(p.tasks.filter((t) => t.state === "cut").length).toBeGreaterThan(0);
     // second sync: every key is already applied
     for (const c of cmds) expect(await store.submit(c)).toMatchObject({ ok: true, duplicate: true });
   });
@@ -100,6 +105,21 @@ describe("automation", () => {
     const t = (await planOf(store)).tasks.find((x) => x.id === "a")!;
     expect(t).toMatchObject({ state: "running", agent: "a" });
     expect(store.readEvents().filter((e) => e.type === "task.claim")).toMatchObject([{ actor: "hook", task: "a" }]);
+  });
+
+  it("a task defined after its agent was spawned is claimed when the agent is live (health), not when gone", async () => {
+    const { dir, store } = await open();
+    const agents = [["a1", "b", "active"], ["a2", "c", "gone"], ["a3", "zz", "idle"]];
+    appendFileSync(join(dir, "health.jsonl"), JSON.stringify({
+      at: 1, input: { now: 1, agents: agents.map(([id, name]) => ({ id, name })), system: { diskFreeGB: 100 } },
+      output: { agents: agents.map(([id, , state]) => ({ id, state, alerts: [] })), system: { alerts: [] },
+        counts: { active: 1, idle: 1, parked: 0, stalled: 0, gone: 1, done: 0 }, alerts: [] },
+    }) + "\n");
+    for (const c of syncCommands(mini())) await store.submit({ ...c, ...(c.type === "task.define" ? { live: ["c"] } : {}) } as never);
+    const p = await planOf(store);
+    expect(p.tasks.map((t) => [t.id, t.state, t.agent])).toEqual([["a", "ready", null], ["b", "running", "b"], ["c", "ready", null]]);
+    // the fact is the console's: a client's `live` is replaced by the health line's live names
+    expect(store.readEvents().filter((e) => e.type === "task.define").map((e) => (e as { live?: string[] }).live)).toEqual([["b", "zz"], ["b", "zz"], ["b", "zz"]]);
   });
 
   it("a card named like a task, once landed, finishes it with the landed sha as evidence", async () => {

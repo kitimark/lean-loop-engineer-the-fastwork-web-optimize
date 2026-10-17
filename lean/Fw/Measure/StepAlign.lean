@@ -368,4 +368,124 @@ $$\operatorname{col}_w(f, Z) = \Big[\sum_{z \in Z} f(z)[j]\Big]_{j < w}$$
 def colSum (w : Nat) (f : AZone → List Int) (zs : List AZone) : List Int :=
   (List.range w).map fun j => sumBy (fun z => valAt (f z) j) zs
 
+
+/-! ## Rows across sessions (the `merge` of the class tables)
+
+`merge` takes the class table of every session and keeps the worse class per row. A row is named by its
+key (family, count type, level, e.g. `census|layerCount|y=5268`); some keys depend on the page (the census
+states are labelled by the offset the browser measured, and the document height differs by a pixel on some
+VMs). A row is **paired** when every session has it; a row some sessions lack is **unpaired**, is reported
+with the number of sessions that have it and is left out of the merged table. -/
+
+/-- Whether every session has a row with this key.
+
+$$\operatorname{inAll}(\mathcal{S}, \kappa) \iff \forall S \in \mathcal{S}:\ \kappa \in S$$
+-/
+def inAll (ss : List (List String)) (k : String) : Bool := ss.all (·.contains k)
+
+/-- The paired rows: the keys of the first session, in its order, that every session has (none for no sessions).
+
+$$\operatorname{paired}(S_1 :: \mathcal{R}) = [\, \kappa \in S_1 \mid \operatorname{inAll}(S_1 :: \mathcal{R}, \kappa) \,]$$
+-/
+def pairedRows : List (List String) → List String
+  | [] => []
+  | s :: rest => s.filter (inAll (s :: rest))
+
+/-- How many sessions have a row with this key.
+
+$$\operatorname{count}(\mathcal{S}, \kappa) = |\{\, S \in \mathcal{S} \mid \kappa \in S \,\}|$$
+-/
+def sessionsWith (ss : List (List String)) (k : String) : Nat := (ss.filter (·.contains k)).length
+
+/-- The unpaired rows with the number of sessions that have them, each key once, in order of first appearance.
+
+$$\operatorname{unpaired}(\mathcal{S}) = [\, (\kappa, \operatorname{count}(\mathcal{S}, \kappa)) \mid \kappa \in \bigcup \mathcal{S},\ \neg \operatorname{inAll}(\mathcal{S}, \kappa) \,]$$
+-/
+def unpairedRows (ss : List (List String)) : List (String × Nat) :=
+  (ss.flatten.filter (fun k => !inAll ss k)).eraseDups.map fun k => (k, sessionsWith ss k)
+
+#guard pairedRows [["a", "b", "c"], ["b", "a"], ["a", "b", "d"]] == ["a", "b"]
+#guard unpairedRows [["a", "b", "c"], ["b", "a"], ["a", "b", "d"]] == [("c", 1), ("d", 1)]
+
+/-- **Paired means in every session.** A key is paired exactly when every session has it.
+
+$$\kappa \in \operatorname{paired}(S_1 :: \mathcal{R}) \iff \forall S \in S_1 :: \mathcal{R}:\ \kappa \in S$$
+-/
+theorem mem_pairedRows (s : List String) (rest : List (List String)) (k : String) :
+    k ∈ pairedRows (s :: rest) ↔ ∀ t ∈ s :: rest, k ∈ t := by
+  simp only [pairedRows, List.mem_filter, inAll, List.all_eq_true, List.contains_iff_mem]
+  constructor
+  · exact fun h => h.2
+  · intro h; exact ⟨h s List.mem_cons_self, h⟩
+
+/-- **Unpaired means in some session but not in all.** The keys of the unpaired rows are those some session has and some
+session lacks.
+
+$$\kappa \in \operatorname{keys}(\operatorname{unpaired}(\mathcal{S})) \iff (\exists S \in \mathcal{S}:\ \kappa \in S) \wedge (\exists S \in \mathcal{S}:\ \kappa \notin S)$$
+-/
+theorem mem_unpairedRows (ss : List (List String)) (k : String) :
+    k ∈ (unpairedRows ss).map (·.1) ↔ (∃ t ∈ ss, k ∈ t) ∧ (∃ t ∈ ss, k ∉ t) := by
+  simp only [unpairedRows, List.map_map, Function.comp_def, List.map_id', List.mem_eraseDups, List.mem_filter,
+    List.mem_flatten, inAll, Bool.not_eq_true', List.all_eq_false, List.contains_iff_mem]
+
+/-- **Nothing is dropped silently.** A key that some session has is paired or unpaired, and never both.
+
+$$\big(\exists S \in \mathcal{S}:\ \kappa \in S\big) \Rightarrow \big(\kappa \in \operatorname{paired}(\mathcal{S}) \,\veebar\, \kappa \in \operatorname{keys}(\operatorname{unpaired}(\mathcal{S}))\big)$$
+-/
+theorem pair_cover (s : List String) (rest : List (List String)) (k : String)
+    (h : ∃ t ∈ s :: rest, k ∈ t) :
+    (k ∈ pairedRows (s :: rest) ∧ k ∉ (unpairedRows (s :: rest)).map (·.1)) ∨
+    (k ∉ pairedRows (s :: rest) ∧ k ∈ (unpairedRows (s :: rest)).map (·.1)) := by
+  rw [mem_pairedRows, mem_unpairedRows]
+  by_cases hall : ∀ t ∈ s :: rest, k ∈ t
+  · left; refine ⟨hall, ?_⟩
+    rintro ⟨_, t, ht, hn⟩; exact hn (hall t ht)
+  · right
+    refine ⟨hall, h, ?_⟩
+    exact Classical.byContradiction fun hc =>
+      hall (fun t ht => Classical.byContradiction fun hn => hc ⟨t, ht, hn⟩)
+
+/-- **An unpaired row is in at least one session and fewer than all.**
+
+$$(\kappa, n) \in \operatorname{unpaired}(\mathcal{S}) \Rightarrow 1 \le n \wedge n < |\mathcal{S}|$$
+-/
+theorem unpairedRows_count (ss : List (List String)) (k : String) (n : Nat) (h : (k, n) ∈ unpairedRows ss) :
+    1 ≤ n ∧ n < ss.length := by
+  have hk := (mem_unpairedRows ss k).1 (List.mem_map.2 ⟨(k, n), h, rfl⟩)
+  have hn : n = sessionsWith ss k := by
+    simp only [unpairedRows, List.mem_map] at h
+    obtain ⟨k', _, he⟩ := h
+    simp only [Prod.mk.injEq] at he
+    rw [← he.2, he.1]
+  subst hn
+  obtain ⟨⟨t, ht, hkt⟩, u, hu, hku⟩ := hk
+  constructor
+  · simp only [sessionsWith]
+    exact List.length_pos_of_mem (List.mem_filter.2 ⟨ht, by simpa using hkt⟩)
+  · simp only [sessionsWith]
+    exact List.length_filter_lt_length_iff_exists.2 ⟨u, hu, by simpa using hku⟩
+
+/-- **Identical sessions pair everything.** `n + 1` copies of one session have all its rows paired and none unpaired.
+
+$$\operatorname{paired}(S^{n+1}) = S \wedge \operatorname{unpaired}(S^{n+1}) = []$$
+-/
+theorem pair_self (s : List String) (n : Nat) :
+    pairedRows (List.replicate (n + 1) s) = s ∧ unpairedRows (List.replicate (n + 1) s) = [] := by
+  have hall : ∀ k, inAll (List.replicate (n + 1) s) k = s.contains k := by
+    intro k
+    simp only [inAll]
+    cases hc : s.contains k <;> simp_all
+  constructor
+  · show List.filter (inAll (List.replicate (n + 1) s)) s = s
+    rw [List.filter_eq_self]
+    intro k hk; rw [hall]; exact List.contains_iff_mem.2 hk
+  · simp only [unpairedRows]
+    have : (List.replicate (n + 1) s).flatten.filter (fun k => !inAll (List.replicate (n + 1) s) k) = [] := by
+      rw [List.filter_eq_nil_iff]
+      intro k hk
+      rw [hall]
+      have hks : k ∈ s := by simpa [List.mem_flatten, List.mem_replicate] using hk
+      rw [List.contains_iff_mem.2 hks]; simp
+    simp [this]
+
 end Fw.Measure.StepAlign

@@ -19,11 +19,16 @@ What was built
 Conventions: Lean first (decisions in Lean, JS prints), goldens regenerate with `lake env lean --run
 scripts/MeasureGolden.lean` from `lean/`; mathview lint 0 failing.
 
+Merge across VMs (second round): rows are paired by key, in Lean (`StepAlign.pairedRows`/`unpairedRows`, op
+`measure.webkit.pairRows`, 6 goldens, proofs `mem_pairedRows`, `pair_cover`, `unpairedRows_count`, `pair_self`).
+`src/mergerows.mjs` + `cli.mjs merge` print paired rows (worst class) then unpaired rows ("k of n sessions" + reason);
+`--out` has `unpaired`. Test `test/mergerows.test.mjs` (VM2 y=5268 fixture). The `merge` job needs the fwcore artifact
+(fwcore job now runs when original is built). webkit-quiet conflict in webkit-sim.yml resolved as a union (quiet is
+original-only: plan refuses quiet with another target).
+
 Open items
-- webkit-quiet also edits webkit-sim.yml / session.mjs: expect a merge conflict in the workflow (jobs `plan`, `sim`).
 - Preset/fw on the rewrite arm are still refused by `plan` (default config only).
-- `align-classes` step in the workflow has not run on CI yet (only locally on run 39053799594 artifacts); `merge` fails on 3 original VMs
-  (census label y=5268 vs 5267, webkit-quiet's area).
-- The note's counts come from CI run ids listed there; re-run `gh workflow run webkit-sim.yml -f target=both -f vms=3`.
+- With one VM 1 px taller the end-of-page census state rows are excluded from the merged table (by design, reported).
+- CI result of ci/step-align after the merge fix: see the note and the lead's report.
 
 Read first: the note, then StepAlign.lean doc header, then `align.mjs`.

@@ -20,8 +20,11 @@ import Fw.Parts.EngineScroll
 import Fw.Parts.NavHitTest
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroExit
+import Fw.Parts.MorphTween
+import Fw.Parts.MorphTweenOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes
+import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.Wire
@@ -42,3 +45,5 @@ import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
 import Fw.Wire.Gate
+import Fw.Engine
+import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops

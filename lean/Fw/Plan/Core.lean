@@ -11,14 +11,23 @@ the critical path and the parallel-safe groups are derived (`view`), never store
   of an unknown or done task. `exec` applies an accepted command.
 * `run_inv`: every reachable state has unique task ids and an acyclic dependency graph.
 * `exec_isDone`: done is monotone. `tstate_ready_iff`, `tstate_blocked`, `ready_indep`: the derived
-  states. `groups_pairwise`, `groups_perm`: the parallel-safe groups. `view_criticalPath`: the
-  critical path is a longest chain of undone tasks.
+  states. `lane_device_iff`, `ready_split`: a task's lane (`device` iff it needs `"device"`) splits
+  the ready set into agent work and device work. `groups_pairwise`, `groups_perm`: the parallel-safe
+  groups of the agent-ready tasks. `view_criticalPath`: the critical path is a longest chain of
+  undone, uncut tasks.
+* Cut tasks (`cut` flag of the definition): state `cut` unless done (`tstate_cut_iff`), never ready
+  (`cut_not_ready`, `readyRows_not_cut`), never on the critical path (`view_criticalPath_not_cut`),
+  not counted in milestone totals (`msView_kept`).
+* Late definitions: a `task.define` carries the live agent names (a fact the console adds); a live
+  agent named like the task claims it (`upsert_live`, `step_define_live`).
 -/
 namespace Fw.Plan
 
-/-- A `task.define` payload: the task's definition and optional evidence that it is already done.
+/-- A `task.define` payload: the task's definition, optional evidence that it is already done, the
+`cut` flag (the task was cut from the plan; default false), and one observed fact the console adds on
+receipt: `live`, the names of the agents alive at that moment (not gone, not done; default empty).
 
-$$d = (\mathit{task}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{evidence}_\bot)$$
+$$d = (\mathit{task}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{cut}, \mathit{live})$$
 -/
 structure Def where
   task      : String
@@ -29,7 +38,10 @@ structure Def where
   owner     : String
   writes    : List String
   devices   : List String
+  needs     : List String
   evidence  : Option String
+  cut       : Bool := false
+  live      : List String := []
 deriving Repr, DecidableEq
 
 /-- The plan commands.
@@ -88,11 +100,19 @@ deriving Repr, DecidableEq
 
 /-- The row a definition makes, with the given agent and evidence.
 
-$$\operatorname{row}(d, a, e) = (d.\mathit{task}, d.\mathit{title}, d.\mathit{stream}, d.\mathit{milestone}, d.\mathit{deps}, d.\mathit{owner}, d.\mathit{writes}, d.\mathit{devices}, e, a)$$
+$$\operatorname{row}(d, a, e) = (d.\mathit{task}, d.\mathit{title}, d.\mathit{stream}, d.\mathit{milestone}, d.\mathit{deps}, d.\mathit{owner}, d.\mathit{writes}, d.\mathit{devices}, d.\mathit{needs}, e, a, d.\mathit{cut})$$
 -/
 def Def.row (d : Def) (agent evidence : Option String) : Task :=
   { id := d.task, title := d.title, stream := d.stream, milestone := d.milestone, deps := d.deps,
-    owner := d.owner, writes := d.writes, devices := d.devices, evidence, agent }
+    owner := d.owner, writes := d.writes, devices := d.devices, needs := d.needs, evidence, agent,
+    cut := d.cut }
+
+/-- The agent a definition claims its task for: the live agent whose name is the task id, if there is
+one.
+
+$$\operatorname{liveAgent}(d) = \begin{cases} d.\mathit{task} & d.\mathit{task} \in d.\mathit{live} \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def Def.liveAgent (d : Def) : Option String := if d.live.contains d.task then some d.task else none
 
 /-- Apply `f` to every row with id `x`.
 
@@ -101,17 +121,19 @@ $$\operatorname{setRow}(ts, x, f) = [\, \textbf{if } t.\mathit{id} = x \textbf{ 
 def setRow (ts : List Task) (x : String) (f : Task → Task) : List Task :=
   ts.map fun t => if t.id = x then f t else t
 
-/-- Upsert a definition: an existing id gets the new definition and keeps its agent and its evidence
-(new evidence only fills a missing one); a new id is appended, unclaimed.
+/-- Upsert a definition: an existing id gets the new definition and keeps its evidence (new evidence
+only fills a missing one); a new id is appended. A live agent named like the task claims it (an agent
+spawned before its task was defined); otherwise an existing row keeps its agent and a new row is
+unclaimed.
 
-$$\operatorname{upsert}(ts, d) = \begin{cases} \operatorname{setRow}\big(ts, d.\mathit{task}, t \mapsto \operatorname{row}(d, t.\mathit{agent}, t.\mathit{evidence} \mathbin{\langle|\rangle} d.\mathit{evidence})\big) & d.\mathit{task} \in \operatorname{ids}(ts) \\ ts \mathbin{+\!\!+} [\operatorname{row}(d, \bot, d.\mathit{evidence})] & \text{otherwise} \end{cases}$$
+$$\operatorname{upsert}(ts, d) = \begin{cases} \operatorname{setRow}\big(ts, d.\mathit{task}, t \mapsto \operatorname{row}(d, \operatorname{liveAgent}(d) \mathbin{\langle|\rangle} t.\mathit{agent}, t.\mathit{evidence} \mathbin{\langle|\rangle} d.\mathit{evidence})\big) & d.\mathit{task} \in \operatorname{ids}(ts) \\ ts \mathbin{+\!\!+} [\operatorname{row}(d, \operatorname{liveAgent}(d), d.\mathit{evidence})] & \text{otherwise} \end{cases}$$
 
 where $a \mathbin{\langle|\rangle} b$ is $a$ if present, else $b$.
 -/
 def upsert (ts : List Task) (d : Def) : List Task :=
   if (ids ts).contains d.task then
-    setRow ts d.task fun t => d.row t.agent (t.evidence <|> d.evidence)
-  else ts ++ [d.row none d.evidence]
+    setRow ts d.task fun t => d.row (d.liveAgent <|> t.agent) (t.evidence <|> d.evidence)
+  else ts ++ [d.row d.liveAgent d.evidence]
 
 /-- A task id is done: some row with that id has evidence.
 
@@ -125,6 +147,7 @@ bottom inside each case).
 $$\operatorname{check}(\pi, c) = \begin{cases}
 \begin{array}{l} \texttt{"title: at most 200 characters"} \text{ if } |d.\mathit{title}| > 200;\ \texttt{"deps: at most 32"} \text{ if } |d.\mathit{deps}| > 32; \\
 \quad \texttt{"writes: at most 32"} \text{ if } |d.\mathit{writes}| > 32;\ \texttt{"devices: at most 8"} \text{ if } |d.\mathit{devices}| > 8; \\
+\quad \texttt{"needs: at most 8"} \text{ if } |d.\mathit{needs}| > 8; \\
 \quad \texttt{"dep not defined: "} x \text{ for the first } x \in d.\mathit{deps} \setminus \operatorname{ids}(U); \\
 \quad \texttt{"dependency cycle"} \text{ if } \neg\operatorname{acyclicB}(U);\ \bot \end{array} & c = \mathrm{define}(d),\ U = \operatorname{upsert}(\pi.\mathit{tasks}, d) \\
 \begin{array}{l} \texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task is done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x); \\
@@ -141,6 +164,7 @@ def check (s : State) (c : Cmd) : Option String :=
     else if d.deps.length > 32 then some "deps: at most 32"
     else if d.writes.length > 32 then some "writes: at most 32"
     else if d.devices.length > 8 then some "devices: at most 8"
+    else if d.needs.length > 8 then some "needs: at most 8"
     else match d.deps.find? (fun x => !(ids u).contains x) with
       | some x => some s!"dep not defined: {x}"
       | none => if acyclicB u then none else some "dependency cycle"
@@ -193,18 +217,18 @@ def run (cs : List Cmd) : State := cs.foldl step {}
 
 /-- The derived state of a task.
 
-$$\mathrm{TState} = \{\mathrm{done}, \mathrm{running}, \mathrm{ready}, \mathrm{blocked}\}$$
+$$\mathrm{TState} = \{\mathrm{done}, \mathrm{cut}, \mathrm{running}, \mathrm{ready}, \mathrm{blocked}\}$$
 -/
 inductive TState where
-  | done | running | ready | blocked
+  | done | cut | running | ready | blocked
 deriving Repr, DecidableEq
 
 /-- The wire name of a task state.
 
-$$\operatorname{name}(\mathrm{done}) = \texttt{"done"},\ \operatorname{name}(\mathrm{running}) = \texttt{"running"},\ \operatorname{name}(\mathrm{ready}) = \texttt{"ready"},\ \operatorname{name}(\mathrm{blocked}) = \texttt{"blocked"}$$
+$$\operatorname{name}(\mathrm{done}) = \texttt{"done"},\ \operatorname{name}(\mathrm{cut}) = \texttt{"cut"},\ \operatorname{name}(\mathrm{running}) = \texttt{"running"},\ \operatorname{name}(\mathrm{ready}) = \texttt{"ready"},\ \operatorname{name}(\mathrm{blocked}) = \texttt{"blocked"}$$
 -/
 def TState.name : TState → String
-  | .done => "done" | .running => "running" | .ready => "ready" | .blocked => "blocked"
+  | .done => "done" | .cut => "cut" | .running => "running" | .ready => "ready" | .blocked => "blocked"
 
 /-- The blockers of a task: its deps that are not done, in dep order.
 
@@ -214,10 +238,11 @@ def blockers (ts : List Task) (t : Task) : List String := t.deps.filter fun d =>
 
 /-- The state of a task is computed, never written (first match wins).
 
-$$\operatorname{tstate}(ts, t) = \begin{cases} \mathrm{done} & t.\mathit{evidence} \ne \bot \\ \mathrm{running} & t.\mathit{agent} \ne \bot \\ \mathrm{ready} & \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & \text{otherwise} \end{cases}$$
+$$\operatorname{tstate}(ts, t) = \begin{cases} \mathrm{done} & t.\mathit{evidence} \ne \bot \\ \mathrm{cut} & t.\mathit{cut} \\ \mathrm{running} & t.\mathit{agent} \ne \bot \\ \mathrm{ready} & \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & \text{otherwise} \end{cases}$$
 -/
 def tstate (ts : List Task) (t : Task) : TState :=
   if t.evidence.isSome then .done
+  else if t.cut then .cut
   else if t.agent.isSome then .running
   else if blockers ts t = [] then .ready
   else .blocked
@@ -238,16 +263,34 @@ theorem mem_blockers {ts : List Task} {t : Task} {d : String} :
     d ∈ blockers ts t ↔ d ∈ t.deps ∧ isDone ts d = false := by
   simp [blockers]
 
-/-- **Ready means: not done, not running, and every dep done.**
+/-- **Ready means: not done, not cut, not running, and every dep done.**
 
-$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{ready} \iff t.\mathit{evidence} = \bot \land t.\mathit{agent} = \bot \land \forall d \in t.\mathit{deps}:\ \operatorname{isDone}(ts, d) = \mathrm{true}$$
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{ready} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land \forall d \in t.\mathit{deps}:\ \operatorname{isDone}(ts, d) = \mathrm{true}$$
 -/
 theorem tstate_ready_iff (ts : List Task) (t : Task) : tstate ts t = .ready ↔
-    t.evidence = none ∧ t.agent = none ∧ ∀ d ∈ t.deps, isDone ts d = true := by
+    t.evidence = none ∧ t.cut = false ∧ t.agent = none ∧ ∀ d ∈ t.deps, isDone ts d = true := by
   have hb : blockers ts t = [] ↔ ∀ d ∈ t.deps, isDone ts d = true := by
     simp [blockers, List.filter_eq_nil_iff]
   unfold tstate
-  cases he : t.evidence <;> cases ha : t.agent <;> simp [hb]
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> simp [hb]
+
+/-- **Cut means: not done and flagged cut.** (Evidence wins: a task done before it was cut stays done.)
+
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{cut} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{true}$$
+-/
+theorem tstate_cut_iff (ts : List Task) (t : Task) :
+    tstate ts t = .cut ↔ t.evidence = none ∧ t.cut = true := by
+  unfold tstate
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> simp <;> split <;> simp
+
+/-- **A cut task is never ready.**
+
+$$\forall ts, t:\quad t.\mathit{cut} = \mathrm{true} \Rightarrow \operatorname{tstate}(ts, t) \ne \mathrm{ready}$$
+-/
+theorem cut_not_ready {ts : List Task} {t : Task} (h : t.cut = true) : tstate ts t ≠ .ready := by
+  intro hr
+  have := ((tstate_ready_iff ts t).mp hr).2.1
+  rw [h] at this; cases this
 
 /-- **A blocked task has a blocker, and its blockers are exactly its undone deps.**
 
@@ -259,7 +302,7 @@ theorem tstate_blocked {ts : List Task} {t : Task} (h : tstate ts t = .blocked) 
   intro hn
   unfold tstate at h
   simp [hn] at h
-  split at h <;> (try split at h) <;> cases h
+  split at h <;> (try split at h) <;> (try split at h) <;> cases h
 
 /-- **Done is exactly "has evidence".**
 
@@ -267,16 +310,16 @@ $$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{done} \iff t.\mathi
 -/
 theorem tstate_done_iff (ts : List Task) (t : Task) : tstate ts t = .done ↔ t.evidence ≠ none := by
   unfold tstate
-  split <;> (try split) <;> (try split) <;> simp_all [Option.isSome_iff_ne_none]
+  split <;> (try split) <;> (try split) <;> (try split) <;> simp_all [Option.isSome_iff_ne_none]
 
-/-- **Running is exactly "claimed and not done".**
+/-- **Running is exactly "claimed, not done and not cut".**
 
-$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{agent} \ne \bot$$
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} \ne \bot$$
 -/
 theorem tstate_running_iff (ts : List Task) (t : Task) :
-    tstate ts t = .running ↔ t.evidence = none ∧ t.agent ≠ none := by
+    tstate ts t = .running ↔ t.evidence = none ∧ t.cut = false ∧ t.agent ≠ none := by
   unfold tstate
-  split <;> (try split) <;> (try split) <;> simp_all [Option.isSome_iff_ne_none]
+  split <;> (try split) <;> (try split) <;> (try split) <;> simp_all [Option.isSome_iff_ne_none]
 
 /-- With unique ids, rows with equal ids are equal.
 
@@ -302,8 +345,8 @@ $$\forall ts, a, b:\quad \operatorname{Nodup}(\operatorname{ids}(ts)) \land b \i
 theorem ready_indep {ts : List Task} {a b : Task} (hn : (ids ts).Nodup) (hb : b ∈ ts)
     (hra : tstate ts a = .ready) (hrb : tstate ts b = .ready) : b.id ∉ a.deps := by
   intro hd
-  obtain ⟨_, _, hall⟩ := (tstate_ready_iff ts a).mp hra
-  obtain ⟨hbe, _, _⟩ := (tstate_ready_iff ts b).mp hrb
+  obtain ⟨_, _, _, hall⟩ := (tstate_ready_iff ts a).mp hra
+  obtain ⟨hbe, _, _, _⟩ := (tstate_ready_iff ts b).mp hrb
   obtain ⟨r, hr, hid, hev⟩ := isDone_iff.mp (hall _ hd)
   rw [row_unique hn hr hb hid] at hev
   exact hev hbe
@@ -373,6 +416,7 @@ theorem define_acyclic {π : State} {d : Def} (h : check π (.define d) = none) 
     Acyclic (upsert π.tasks d) := by
   refine (acyclicB_iff _).mp ?_
   simp only [check] at h
+  split at h; · cases h
   split at h; · cases h
   split at h; · cases h
   split at h; · cases h
@@ -517,6 +561,46 @@ theorem step_isDone {π : State} (c : Cmd) {x : String} (h : isDone π.tasks x =
   · rename_i hc; exact exec_isDone hc h
   · exact h
 
+/-! ## Late definitions: a live agent named like the task claims it -/
+
+/-- An upsert with a live agent named like the task: the task has a row, and every row with that id
+is claimed by that agent.
+
+$$\forall ts, d:\quad d.\mathit{task} \in d.\mathit{live} \Rightarrow \big[(\exists t \in \operatorname{upsert}(ts, d):\ t.\mathit{id} = d.\mathit{task}) \land (\forall t \in \operatorname{upsert}(ts, d):\ t.\mathit{id} = d.\mathit{task} \Rightarrow t.\mathit{agent} = \mathrm{some}(d.\mathit{task}))\big]$$
+-/
+theorem upsert_live {ts : List Task} {d : Def} (hl : d.task ∈ d.live) :
+    (∃ t ∈ upsert ts d, t.id = d.task) ∧ ∀ t ∈ upsert ts d, t.id = d.task → t.agent = some d.task := by
+  have ha : d.liveAgent = some d.task := by simp [Def.liveAgent, hl]
+  unfold upsert
+  split
+  · rename_i hc
+    obtain ⟨t0, h0, hid0⟩ := List.mem_map.mp (List.contains_iff_mem.mp hc)
+    refine ⟨⟨_, List.mem_map_of_mem (f := fun t => if t.id = d.task then
+      d.row (d.liveAgent <|> t.agent) (t.evidence <|> d.evidence) else t) h0, by simp [hid0, Def.row]⟩, ?_⟩
+    intro t ht hid
+    obtain ⟨t1, _, rfl⟩ := List.mem_map.mp ht
+    split at hid
+    · rename_i h1; simp [h1, Def.row, ha]
+    · rename_i hne; exact absurd hid hne
+  · rename_i hc
+    refine ⟨⟨d.row d.liveAgent d.evidence, by simp, rfl⟩, ?_⟩
+    intro t ht hid
+    rcases List.mem_append.mp ht with ht | ht
+    · exact absurd (List.contains_iff_mem.mpr (hid ▸ List.mem_map_of_mem (f := Task.id) ht)) hc
+    · simp only [List.mem_singleton] at ht; subst ht; exact ha
+
+/-- **A task defined after its agent was spawned is claimed by it**: an accepted definition whose
+live agents include one named like the task leaves the task present and claimed by that agent.
+
+$$\forall \pi, d:\quad \big(\operatorname{check}(\pi, \mathrm{define}(d)) = \mathrm{none} \land d.\mathit{task} \in d.\mathit{live}\big) \Rightarrow \big[(\exists t \in \operatorname{step}(\pi, \mathrm{define}(d)).\mathit{tasks}:\ t.\mathit{id} = d.\mathit{task}) \land (\forall t \in \operatorname{step}(\pi, \mathrm{define}(d)).\mathit{tasks}:\ t.\mathit{id} = d.\mathit{task} \Rightarrow t.\mathit{agent} = \mathrm{some}(d.\mathit{task}))\big]$$
+-/
+theorem step_define_live {π : State} {d : Def} (hc : check π (.define d) = none)
+    (hl : d.task ∈ d.live) :
+    (∃ t ∈ (step π (.define d)).tasks, t.id = d.task) ∧
+    ∀ t ∈ (step π (.define d)).tasks, t.id = d.task → t.agent = some d.task := by
+  simp only [step, hc, ↓reduceIte, exec]
+  exact upsert_live hl
+
 /-! ## The board plan: views, milestone counts, parallel-safe groups -/
 
 /-- Two tasks may run side by side: neither conflicts with the other (writes or devices).
@@ -545,11 +629,91 @@ $$\operatorname{readyRows}(ts) = [\, t \in ts : \operatorname{tstate}(ts, t) = \
 -/
 def readyRows (ts : List Task) : List Task := ts.filter fun t => tstate ts t == .ready
 
-/-- The parallel-safe groups: the ready rows placed greedily in row order.
+/-- **The ready set excludes cut tasks.**
 
-$$\operatorname{groups}(ts) = \operatorname{foldl}(\operatorname{place}, [\,], \operatorname{readyRows}(ts))$$
+$$\forall ts, t:\quad t \in \operatorname{readyRows}(ts) \Rightarrow t.\mathit{cut} = \mathrm{false}$$
 -/
-def groups (ts : List Task) : List (List Task) := (readyRows ts).foldl place []
+theorem readyRows_not_cut {ts : List Task} {t : Task} (h : t ∈ readyRows ts) : t.cut = false := by
+  have hr : tstate ts t = .ready := by simpa [readyRows] using (List.mem_filter.mp h).2
+  exact ((tstate_ready_iff ts t).mp hr).2.1
+
+/-! ## Lanes: agent work and device work -/
+
+/-- The lane of a task: an agent alone can do it, or it needs the device (the measurement iPhone
+and the user at it).
+
+$$\mathrm{Lane} = \{\mathrm{agent}, \mathrm{device}\}$$
+-/
+inductive Lane where
+  | agent | device
+deriving Repr, DecidableEq
+
+/-- The wire name of a lane.
+
+$$\operatorname{name}(\mathrm{agent}) = \texttt{"agent"},\ \operatorname{name}(\mathrm{device}) = \texttt{"device"}$$
+-/
+def Lane.name : Lane → String
+  | .agent => "agent" | .device => "device"
+
+/-- The lane of a task is derived from its needs: `device` when it needs `"device"`, else `agent`.
+
+$$\operatorname{lane}(t) = \begin{cases} \mathrm{device} & \texttt{"device"} \in t.\mathit{needs} \\ \mathrm{agent} & \text{otherwise} \end{cases}$$
+-/
+def lane (t : Task) : Lane := if t.needs.contains "device" then .device else .agent
+
+/-- The ready rows of one lane, in row order.
+
+$$\operatorname{readyIn}(ts, l) = [\, t \in \operatorname{readyRows}(ts) : \operatorname{lane}(t) = l \,]$$
+-/
+def readyIn (ts : List Task) (l : Lane) : List Task := (readyRows ts).filter fun t => lane t == l
+
+/-- **A task is in the device lane exactly when it needs the device.**
+
+$$\forall t:\quad \operatorname{lane}(t) = \mathrm{device} \iff \texttt{"device"} \in t.\mathit{needs}$$
+-/
+theorem lane_device_iff (t : Task) : lane t = .device ↔ "device" ∈ t.needs := by
+  unfold lane
+  split <;> simp_all
+
+/-- A task is in the agent lane exactly when it does not need the device.
+
+$$\forall t:\quad \operatorname{lane}(t) = \mathrm{agent} \iff \texttt{"device"} \notin t.\mathit{needs}$$
+-/
+theorem lane_agent_iff (t : Task) : lane t = .agent ↔ "device" ∉ t.needs := by
+  unfold lane
+  split <;> simp_all
+
+/-- The ready rows of a lane are the ready rows in that lane.
+
+$$\forall ts, l, t:\quad t \in \operatorname{readyIn}(ts, l) \iff t \in \operatorname{readyRows}(ts) \land \operatorname{lane}(t) = l$$
+-/
+theorem mem_readyIn {ts : List Task} {l : Lane} {t : Task} :
+    t ∈ readyIn ts l ↔ t ∈ readyRows ts ∧ lane t = l := by
+  simp [readyIn]
+
+/-- **The ready set splits by lane**: the agent-ready rows followed by the device-ready rows are a
+permutation of the ready rows, and no row is in both.
+
+$$\forall ts:\quad \operatorname{readyIn}(ts, \mathrm{agent}) \mathbin{+\!\!+} \operatorname{readyIn}(ts, \mathrm{device}) \sim \operatorname{readyRows}(ts) \;\land\; \forall t:\ \neg\big(t \in \operatorname{readyIn}(ts, \mathrm{agent}) \land t \in \operatorname{readyIn}(ts, \mathrm{device})\big)$$
+-/
+theorem ready_split (ts : List Task) :
+    (readyIn ts .agent ++ readyIn ts .device).Perm (readyRows ts) ∧
+    ∀ t, ¬ (t ∈ readyIn ts .agent ∧ t ∈ readyIn ts .device) := by
+  refine ⟨?_, fun t ⟨ha, hd⟩ => ?_⟩
+  · have hc : readyIn ts .device = (readyRows ts).filter fun t => !(lane t == .agent) := by
+      unfold readyIn
+      exact List.filter_congr fun t _ => by cases lane t <;> rfl
+    rw [hc]
+    exact List.filter_append_perm _ _
+  · have := (mem_readyIn.mp ha).2.symm.trans (mem_readyIn.mp hd).2
+    cases this
+
+/-- The parallel-safe groups: the agent-ready rows placed greedily in row order (device-lane tasks
+wait for the user and are not grouped).
+
+$$\operatorname{groups}(ts) = \operatorname{foldl}(\operatorname{place}, [\,], \operatorname{readyIn}(ts, \mathrm{agent}))$$
+-/
+def groups (ts : List Task) : List (List Task) := (readyIn ts .agent).foldl place []
 
 /-- `fits` as a proposition.
 
@@ -617,18 +781,18 @@ $$\forall ts, g:\quad g \in \operatorname{groups}(ts) \Rightarrow \forall i < j 
 theorem groups_pairwise (ts : List Task) : ∀ g ∈ groups ts, g.Pairwise ok :=
   (foldl_place _ [] (by simp)).1
 
-/-- **The parallel-safe groups partition the ready tasks.**
+/-- **The parallel-safe groups partition the agent-ready tasks.**
 
-$$\forall ts:\quad \operatorname{flatten}(\operatorname{groups}(ts)) \sim \operatorname{readyRows}(ts)$$
+$$\forall ts:\quad \operatorname{flatten}(\operatorname{groups}(ts)) \sim \operatorname{readyIn}(ts, \mathrm{agent})$$
 -/
-theorem groups_perm (ts : List Task) : (groups ts).flatten.Perm (readyRows ts) := by
-  have := (foldl_place (readyRows ts) [] (by simp)).2
+theorem groups_perm (ts : List Task) : (groups ts).flatten.Perm (readyIn ts .agent) := by
+  have := (foldl_place (readyIn ts .agent) [] (by simp)).2
   unfold groups
   simpa using this
 
 /-- A task as the board shows it.
 
-$$v = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{owner}, \mathit{deps}, \mathit{state}, \mathit{blockers}, \mathit{agent}_\bot, \mathit{evidence}_\bot)$$
+$$v = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{owner}, \mathit{deps}, \mathit{needs}, \mathit{lane}, \mathit{state}, \mathit{blockers}, \mathit{agent}_\bot, \mathit{evidence}_\bot)$$
 -/
 structure TaskView where
   id        : String
@@ -637,6 +801,8 @@ structure TaskView where
   milestone : Option String
   owner     : String
   deps      : List String
+  needs     : List String
+  lane      : Lane
   state     : TState
   blockers  : List String
   agent     : Option String
@@ -667,29 +833,36 @@ deriving Repr, DecidableEq
 
 /-- The board view of one task.
 
-$$\operatorname{taskView}(ts, t) = (t.\mathit{id}, t.\mathit{title}, t.\mathit{stream}, t.\mathit{milestone}, t.\mathit{owner}, t.\mathit{deps}, \operatorname{tstate}(ts, t), \operatorname{blockers}(ts, t), t.\mathit{agent}, t.\mathit{evidence})$$
+$$\operatorname{taskView}(ts, t) = (t.\mathit{id}, t.\mathit{title}, t.\mathit{stream}, t.\mathit{milestone}, t.\mathit{owner}, t.\mathit{deps}, t.\mathit{needs}, \operatorname{lane}(t), \operatorname{tstate}(ts, t), \operatorname{blockers}(ts, t), t.\mathit{agent}, t.\mathit{evidence})$$
 -/
 def taskView (ts : List Task) (t : Task) : TaskView :=
   { id := t.id, title := t.title, stream := t.stream, milestone := t.milestone, owner := t.owner,
-    deps := t.deps, state := tstate ts t, blockers := blockers ts t, agent := t.agent,
+    deps := t.deps, needs := t.needs, lane := lane t, state := tstate ts t,
+    blockers := blockers ts t, agent := t.agent,
     evidence := t.evidence }
 
-/-- The board view of one milestone: its tasks and its done tasks.
+/-- The rows that are not cut, in row order.
 
-$$\operatorname{msView}(ts, m) = \big(m.\mathit{id}, m.\mathit{title},\ |[\, t \in ts : t.\mathit{milestone} = m.\mathit{id} \land t.\mathit{evidence} \ne \bot \,]|,\ |[\, t \in ts : t.\mathit{milestone} = m.\mathit{id} \,]|\big)$$
+$$\operatorname{kept}(ts) = [\, t \in ts : t.\mathit{cut} = \mathrm{false} \,]$$
+-/
+def kept (ts : List Task) : List Task := ts.filter fun t => !t.cut
+
+/-- The board view of one milestone: its tasks and its done tasks, cut tasks not counted.
+
+$$\operatorname{msView}(ts, m) = \big(m.\mathit{id}, m.\mathit{title},\ |[\, t \in \operatorname{kept}(ts) : t.\mathit{milestone} = m.\mathit{id} \land t.\mathit{evidence} \ne \bot \,]|,\ |[\, t \in \operatorname{kept}(ts) : t.\mathit{milestone} = m.\mathit{id} \,]|\big)$$
 -/
 def msView (ts : List Task) (m : Milestone) : MilestoneView :=
-  let mine := ts.filter fun t => t.milestone == some m.id
+  let mine := (kept ts).filter fun t => t.milestone == some m.id
   { id := m.id, title := m.title, done := (mine.filter fun t => t.evidence.isSome).length,
     total := mine.length }
 
 /-- The board plan of a plan state.
 
-$$\operatorname{view}(\pi) = \big([\operatorname{taskView}(\pi.\mathit{tasks}, t) : t \in \pi.\mathit{tasks}],\ [\operatorname{msView}(\pi.\mathit{tasks}, m) : m \in \pi.\mathit{milestones}],\ \operatorname{criticalPath}(\pi.\mathit{tasks}),\ [\operatorname{ids}(g) : g \in \operatorname{groups}(\pi.\mathit{tasks})]\big)$$
+$$\operatorname{view}(\pi) = \big([\operatorname{taskView}(\pi.\mathit{tasks}, t) : t \in \pi.\mathit{tasks}],\ [\operatorname{msView}(\pi.\mathit{tasks}, m) : m \in \pi.\mathit{milestones}],\ \operatorname{criticalPath}(\operatorname{kept}(\pi.\mathit{tasks})),\ [\operatorname{ids}(g) : g \in \operatorname{groups}(\pi.\mathit{tasks})]\big)$$
 -/
 def view (s : State) : View :=
   { tasks := s.tasks.map (taskView s.tasks), milestones := s.milestones.map (msView s.tasks),
-    criticalPath := criticalPath s.tasks, parallelSafe := (groups s.tasks).map ids }
+    criticalPath := criticalPath (kept s.tasks), parallelSafe := (groups s.tasks).map ids }
 
 /-- A milestone never has more done tasks than tasks.
 
@@ -698,23 +871,46 @@ $$\forall ts, m:\quad \operatorname{msView}(ts, m).\mathit{done} \le \operatorna
 theorem msView_done_le (ts : List Task) (m : Milestone) : (msView ts m).done ≤ (msView ts m).total :=
   List.length_filter_le _ _
 
-/-- **The board's critical path is a longest chain of undone tasks** (on an invariant state).
+/-- **Cut tasks are not counted in milestone totals**: a milestone's counts are those of the rows
+that are not cut.
 
-$$\forall \pi:\quad \operatorname{Inv}(\pi) \Rightarrow \operatorname{UChain}_{\pi.\mathit{tasks}}(\operatorname{view}(\pi).\mathit{criticalPath}) \land \forall l:\ \operatorname{UChain}_{\pi.\mathit{tasks}}(l) \Rightarrow |l| \le |\operatorname{view}(\pi).\mathit{criticalPath}|$$
+$$\forall ts, m:\quad \operatorname{msView}(ts, m) = \operatorname{msView}(\operatorname{kept}(ts), m)$$
 -/
-theorem view_criticalPath {π : State} (h : Inv π) : UChain π.tasks (view π).criticalPath ∧
-    ∀ l, UChain π.tasks l → l.length ≤ (view π).criticalPath.length :=
-  ⟨criticalPath_chain _, fun _ hl => criticalPath_longest h.2 hl⟩
+theorem msView_kept (ts : List Task) (m : Milestone) : msView ts m = msView (kept ts) m := by
+  simp [msView, kept, List.filter_filter]
+
+/-- **The board's critical path is a longest chain of undone, uncut tasks** (on an invariant state).
+
+$$\forall \pi:\quad \operatorname{Inv}(\pi) \Rightarrow \operatorname{UChain}_{\operatorname{kept}(\pi.\mathit{tasks})}(\operatorname{view}(\pi).\mathit{criticalPath}) \land \forall l:\ \operatorname{UChain}_{\operatorname{kept}(\pi.\mathit{tasks})}(l) \Rightarrow |l| \le |\operatorname{view}(\pi).\mathit{criticalPath}|$$
+-/
+theorem view_criticalPath {π : State} (h : Inv π) : UChain (kept π.tasks) (view π).criticalPath ∧
+    ∀ l, UChain (kept π.tasks) l → l.length ≤ (view π).criticalPath.length :=
+  ⟨criticalPath_chain _,
+   fun _ hl => criticalPath_longest (fun a h' => h.2 a (tg_mono (fun _ _ => dep_filter) h')) hl⟩
+
+/-- **No cut task is on the critical path**: every id on it is an undone row that is not cut.
+
+$$\forall \pi, x:\quad x \in \operatorname{view}(\pi).\mathit{criticalPath} \Rightarrow \exists t \in \pi.\mathit{tasks}:\ t.\mathit{id} = x \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{evidence} = \bot$$
+-/
+theorem view_criticalPath_not_cut {π : State} {x : String} (hx : x ∈ (view π).criticalPath) :
+    ∃ t ∈ π.tasks, t.id = x ∧ t.cut = false ∧ t.evidence = none := by
+  have hu := (criticalPath_chain (kept π.tasks)).2 x hx
+  simp only [uids, ids, undone, kept, List.filter_filter, List.mem_map, List.mem_filter,
+    Bool.and_eq_true, Bool.not_eq_true', Option.isNone_iff_eq_none] at hu
+  obtain ⟨t, ⟨ht, he, hc⟩, rfl⟩ := hu
+  exact ⟨t, ht, rfl, hc, he⟩
 
 /-! ## Examples -/
 
 /-- A definition with the given id and deps (test helper).
 
-$$\operatorname{mk}(x, D, W) = (x, x, \texttt{"s"}, \bot, D, \texttt{"o"}, W, [\,], \bot)$$
+$$\operatorname{mk}(x, D, W) = (x, x, \texttt{"s"}, \bot, D, \texttt{"o"}, W, [\,], [\,], \bot, \mathrm{false}, [\,]) \quad (W = [\,] \text{ by default})$$
+
+The twelve fields are task, title, stream, milestone, deps, owner, writes, devices, needs, evidence, cut, live; the last two keep their defaults.
 -/
 def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
   { task := x, title := x, stream := "s", milestone := none, deps, owner := "o", writes,
-    devices := [], evidence := none }
+    devices := [], needs := [], evidence := none }
 
 #guard check {} (.define (mk "a" ["b"])) == some "dep not defined: b"
 #guard check {} (.define (mk "a" ["a"])) == some "dependency cycle"
@@ -742,5 +938,33 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
 #guard let s := run [.milestone "M0" "Start", .define { mk "a" [] with milestone := some "M0" },
     .define { mk "b" [] with milestone := some "M0" }, .done "a" "abc1234"]
   (view s).milestones == [{ id := "M0", title := "Start", done := 1, total := 2 }]
+#guard check {} (.define { mk "a" [] with needs := List.replicate 9 "x" }) == some "needs: at most 8"
+#guard lane { (mk "a" []).row none none with needs := ["device"] } == .device
+#guard lane { (mk "a" []).row none none with needs := ["other", "device"] } == .device
+#guard lane { (mk "a" []).row none none with needs := ["other"] } == .agent
+#guard lane ((mk "a" []).row none none) == .agent
+#guard let s := run [.define (mk "a" [] ["x/**"]), .define { mk "p" [] with needs := ["device"] },
+    .define { mk "q" ["a"] with needs := ["device"] }, .define (mk "c" [] ["z/**"])]
+  (view s).parallelSafe == [["a", "c"]] && (readyIn s.tasks .device).map (·.id) == ["p"] &&
+  (view s).tasks.map (·.lane) == [.agent, .device, .device, .agent]
+-- late definition: a live agent named like the task claims it; another live agent does not
+#guard let s := run [.define { mk "a" [] with live := ["a", "x"] }, .define { mk "b" [] with live := ["x"] }]
+  s.tasks.map (·.agent) == [some "a", none] && s.tasks.map (tstate s.tasks) == [.running, .ready]
+#guard let s := run [.define (mk "a" []), .claim "a" "lead-1", .define { mk "a" [] with live := ["z"] }]
+  s.tasks.map (·.agent) == [some "lead-1"]
+#guard let s := run [.define (mk "a" []), .define { mk "a" ["b"] with live := ["a"] }]
+  s.tasks.map (·.agent) == [none]
+#guard (mk "a" []).liveAgent == none && { mk "a" [] with live := ["a"] }.liveAgent == some "a"
+-- cut: never ready, not grouped, not on the critical path, not counted; evidence still wins
+#guard let s := run [.milestone "M0" "Zero", .define { mk "a" [] ["x/**"] with milestone := some "M0" },
+    .define { mk "c" [] ["y/**"] with milestone := some "M0", cut := true },
+    .define { mk "d" ["c"] with milestone := some "M0", cut := true },
+    .define { mk "e" [] with milestone := some "M0", cut := true, evidence := some "abc1234" },
+    .claim "c" "agent-c"]
+  s.tasks.map (tstate s.tasks) == [.ready, .cut, .cut, .done] && (view s).parallelSafe == [["a"]] &&
+  (view s).criticalPath == ["a"] &&
+  (view s).milestones == [{ id := "M0", title := "Zero", done := 0, total := 1 }]
+#guard let s := run [.define { mk "a" [] with cut := true }, .define (mk "a" [])]
+  s.tasks.map (tstate s.tasks) == [.ready]
 
 end Fw.Plan

@@ -5,8 +5,9 @@
 // (`measure.zoneSums`, Lean `Fw.Measure.zoneSums`) for the per-zone sums of every shard's frames, checks them against
 // the `zones.json` the CI shard stored, and writes <profile>/<target>.zones.json and .classes.json.
 //
-//   node src/zone-baseline.mjs --store <dir> --target original [--run <run id>] --out <dir> [--check]
+//   node src/zone-baseline.mjs --store <dir> --target original|rewrite [--profile <p>] [--run <run id>] --out <dir> [--check]
 //
+// --profile only selects among stored runs (several profiles can be stored); the file path uses the run's own profile
 // --store  the artifact store (default $FW_CONSOLE_DIR/store or .fw-console/store)
 // --out    results dir; writes <profile>/<target>.zones.json (fw.zonebaseline.chromium/1: per shard per zone sums) and
 //          <profile>/<target>.classes.json (the run's fwcore classify over its shards, copied byte for byte)
@@ -32,13 +33,14 @@ if (args[0] === 'baseline') { baselineMode(); process.exit(0); }
 const store = arg('--store', join(process.env.FW_CONSOLE_DIR ?? '.fw-console', 'store'));
 const target = arg('--target', 'original');
 const runId = arg('--run');
+const wantProfile = arg('--profile');
 const out = arg('--out');
 const check = args.includes('--check');
-if (!out) { console.error('usage: zone-baseline.mjs --store <dir> --target original [--run <id>] --out <dir> [--check]'); process.exit(2); }
+if (!out) { console.error('usage: zone-baseline.mjs --store <dir> --target original|rewrite [--profile p] [--run <id>] --out <dir> [--check]'); process.exit(2); }
 
 const manifests = readdirSync(join(store, 'runs')).map((k) => ({ k, m: JSON.parse(readFileSync(join(store, 'runs', k, 'manifest.json'), 'utf8')) }))
-  .filter(({ m }) => m.engine === 'chromium' && m.target === target && (!runId || m.runId === runId));
-if (manifests.length !== 1) { console.error(`expected exactly one stored ${target} run${runId ? ` ${runId}` : ''}, found ${manifests.length} (use --run)`); process.exit(2); }
+  .filter(({ m }) => m.engine === 'chromium' && m.target === target && (!wantProfile || m.profile === wantProfile) && (!runId || m.runId === runId));
+if (manifests.length !== 1) { console.error(`expected exactly one stored ${target} run${runId ? ` ${runId}` : ''}${wantProfile ? ` of ${wantProfile}` : ''}, found ${manifests.length} (use --run, --profile)`); process.exit(2); }
 const { k: key, m } = manifests[0];
 
 const obj = (digest) => {

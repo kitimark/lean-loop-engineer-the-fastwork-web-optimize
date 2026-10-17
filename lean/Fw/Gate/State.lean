@@ -185,9 +185,10 @@ $$\operatorname{eqS}(c) = \begin{cases} \mathrm{equal} & c \\ \mathrm{differ} & 
 A yes/no check as a status. -/
 def eqS (c : Bool) : Status := if c then .equal else .differ
 
-/-- The truth items of one range-text key `k` with original value `x`.
+/-- The truth items of one range-text key `k` with original value `x`: the rewrite arm `r`, the original's
+legacy texts `oLegacy`, Lean's expected values `E` (if any) and whether the requested environment was achieved.
 
-$$\begin{aligned} \mathrm{ar} &: \operatorname{eqS}(a = b) \\ \mathrm{lean} &: \begin{cases} \operatorname{eqS}(a = e_k \wedge b = e_k) & e \ne \bot \wedge \mathit{ach} \\ \mathrm{na} & \text{otherwise} \end{cases} \\ \mathrm{legacy} &: \operatorname{eqS}(\ell^o_k = a \wedge \ell^r_k = b) \quad \text{only if } \ell^o_k \text{ is a boolean} \\ & \text{where } a = x,\ b = r_k \end{aligned}$$
+$$\begin{aligned} \forall r, o^\ell, E, \mathit{ach}, k, x:\quad & \operatorname{truthKey}(r, o^\ell, E, \mathit{ach}, k, x) = [\,(\mathrm{ar}, k, a, b, \bot, \operatorname{eqS}(a = b)),\ \lambda\,] \mathbin{+\!\!+} L, \\ \lambda = {} & \begin{cases} (\mathrm{lean}, k, a, b, e_k, \operatorname{eqS}(a = e_k \wedge b = e_k)) & E = \lceil m \rceil \wedge \mathit{ach} \\ (\mathrm{lean}, k, a, b, e_k, \mathrm{na}) & E = \lceil m \rceil \wedge \neg \mathit{ach} \\ (\mathrm{lean}, k, a, b, \lceil \mathrm{null} \rceil, \mathrm{na}) & E = \bot \end{cases} \\ L = {} & \begin{cases} [\,(\mathrm{legacy}, k, \ell^o_k, \ell^r_k, \lceil \mathrm{null} \rceil, \operatorname{eqS}(\ell^o_k = a \wedge \ell^r_k = b))\,] & \ell^o_k = \lceil t \rceil \text{ for some } t \in \mathbb B \\ [\,] & \ell^o_k \in \{\bot, \lceil \mathrm{null} \rceil\} \end{cases} \\ \text{where } & a = \lceil x \rceil,\ b = r.T[k],\ e_k = m[k],\ \ell^o_k = o^\ell[k],\ \ell^r_k = r.T_{\mathrm{legacy}}[k]; \\ & \text{for a map } M \text{ and key } k,\ M[k] = \lceil v \rceil \text{ for the first entry } (k, v) \in M \text{ and } M[k] = \bot \text{ (absent) if } k \text{ has no entry}; \\ & x, v \in \mathbb B \cup \{\mathrm{null}\};\ \text{a recorded value is } \bot \text{ (absent)},\ \lceil \mathrm{null} \rceil \text{ or } \lceil t \rceil,\ t \in \mathbb B,\ \text{and absent} \ne \lceil \mathrm{null} \rceil; \\ & \text{an item is } (\mathit{cls}, \mathit{key}, a, b, \mathit{expect}, \mathit{status}) \end{aligned}$$
 
 Three checks per media condition. -/
 def truthKey (r : TruthRaw) (oLegacy : TMap) (ex : Option TMap) (ach : Bool) (k : String)

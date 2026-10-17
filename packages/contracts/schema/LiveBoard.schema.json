@@ -301,10 +301,26 @@
                   "maxLength": 120
                 }
               },
+              "needs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                }
+              },
+              "lane": {
+                "type": "string",
+                "enum": [
+                  "agent",
+                  "device"
+                ]
+              },
               "state": {
                 "type": "string",
                 "enum": [
                   "done",
+                  "cut",
                   "running",
                   "ready",
                   "blocked"
@@ -344,6 +360,8 @@
               "milestone",
               "owner",
               "deps",
+              "needs",
+              "lane",
               "state",
               "blockers",
               "agent",

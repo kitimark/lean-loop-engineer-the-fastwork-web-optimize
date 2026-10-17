@@ -7,6 +7,8 @@ import Fw.Measure.Neutral
 import Fw.Measure.Arms
 import Fw.Measure.ZoneBaseline
 import Fw.Measure.StepAlign
+import Fw.Measure.Quiet
+import Fw.Measure.EngineCheck
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
 
@@ -19,20 +21,23 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 |---|---|---|
 | `measure.zoneSums` | `zoneHeightPx` (≥ 1), `frames` [{n, phase, scrollY, counts}] | `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, sums}] |
 | `measure.classify` (`mode` `frames`) | `kMax`, `tMax`, `runs` (≥ 2; each an array of frames or an object with `frames`), optional `pxRel` {num, den ≥ 1} (default 1/1000) | `classes` {type: {class, k, t}} (+ `unit` `px` and `tBound` for `*AreaPx` types), `runs` |
+| `measure.quietSteps` | `limit`, `minKept` (naturals), `durs` (per-pass step durations in whole ms), optional `tol`, `series` [{type, runs}] | `kept`, `keptCount`, `total`, `enough` (+ `classes` {type: cls} over the kept steps) |
 | `measure.classify` (`mode` `cells`) | `tol` {absTol, relTol}, `runs` (≥ 2 integer arrays) | `cls`, `cells`, `differingCells`, `cellsBeyondTolerance`, `maxSpread`, `maxRelSpread`, `k`, `t` (+ `reason`) |
 | `measure.noMoreWork` | `types` [{class: {class, k, t}, base, var}] | `noMoreWork`, `failing` (indices) |
 | `measure.webkit.tally` | `rows` (raw `fw.webkit.records/1` rows) | `counts`, `paintArea`, `other` |
 | `measure.webkit.reduceSteps` | `rows`, `marks` (non-empty, non-decreasing), `endTime` | `countTypes`, `perStep`, `perStepPaintArea`, `total`, `other`, `rowsBeforeFirstStep` |
 | `measure.webkit.zones` | `ys` (≥ 0), `perStep`, `perStepPaintArea`, `zonePx` (default 500) | `zones` [{zone, y0, steps, counts, paintArea}] |
 | `measure.webkit.align` | `a`, `b` (each `ys` strictly increasing and ≥ 0, `perStep`, `perStepPaintArea`; two scroll runs), `zonePx` (default 500) | `countTypes`, `zones` [{zone, y0, stepsA, stepsB, pairedA, pairedB, full, countsA, countsB, delta, areaA, areaB, areaDelta}], `paired` and `full` {zones, steps, countsA, countsB, delta, areaA, areaB, areaDelta} (sums over all zones, and over the full zones) |
+| `measure.webkit.pairRows` | `sessions` (≥ 1; each an array of row keys) | `sessions` (count), `paired` (keys of the first session that every session has), `unpaired` [{key, sessions, of, reason}] (keys some session lacks, each once, with the number of sessions that have it) |
 | `measure.symDiff` | `a`, `b` (string arrays) | `symDiff` |
 | `measure.summarize` | `rows` [{family, metric, level, cls}] | `summary` [{family, metric, levels, worst}] |
 | `measure.selfCheck` | `runs` (≥ 1; each an array of frames {phase, scrollY, counts} or an object with `frames`) | `rows` [{type, class, maxDiffFrames, spread, totals}], `frames`, `framesAligned`, `runs` |
-| `measure.freeze` | `runs` (≥ 3, distinct `id`s) [{id, images (≥ 1 digest, all runs one digest), classes {type: {class, k, t, tBound?}}}], optional `pooled` {type: {class, k, t, tBound?}} | `image`, `runs` (ids), `types` {type: {class, k, t, perRun (class or `missing`), `unit` `px` + `tBound` for `*AreaPx` types, `pooledClass`?, `role` (`gate`, `finding`, `byDesign`), `reason`?}}, `tally`, `roles`, `pooledTally`? |
+| `measure.freeze` | `runs` (≥ 3, distinct `id`s) [{id, images (≥ 1 digest, all runs one digest), classes {type: {class, k, t, tBound?}}, jobs (≥ 1) [{name, frames, trajectorySha256?}] (all jobs of all runs one `frames`)}], optional `pooled` {type: {class, k, t, tBound?}} | `image`, `runs` (ids), `frames` (the common count), `trajectoriesEqual`, `types` {type: {class, k, t, perRun (class or `missing`), `unit` `px` + `tBound` for `*AreaPx` types, `pooledClass`?, `role` (`gate`, `finding`, `byDesign`), `reason`?}}, `tally`, `roles`, `pooledTally`? |
 | `measure.splits` | `slices` [{name, ph, ts, dur?}] (integer µs) | `splits` [{name, within, base, key}], `n1Keys`, `n1Excluded`, `n1Gated`, `counts` {base and split types} |
 | `measure.n0Windows` | `events` [{kind, vt}], `frameVts` (non-decreasing), `startVt`, `dt` | `windows` (per event: `load`, `preroll`, `after` or a frame index), `load`, `preroll`, `after`, `frames` [{n0.events, n0.cssom, n0.sheetNode}] |
 | `measure.spkq` | a counts file: `frames` [{counts}], optional `meta.n0` {enabled, load, preroll, after {total}} | `verdict` (`pass`, `fail`, `missing`), `required`, `n1Gated`, `n1Excluded`, `unrecorded`, `nonzeroN0`, `nonzeroN1` (frame indices), `preroll`?, `after`? |
 | `measure.arms` | `a`, `r` (class tables {type: {class, k, t, tBound?}} of the original and the rewrite) | `types` {type: {a, r (class or `absent`), class (cross-arm), role, reason?}}, `gates`, `roles` |
+| `measure.engineCheck` | `rows`, `classes`, `observed` (see `Fw.Wire.Measure.EngineCheck`) | `verdicts` [row + `verdict`, `reason`, `class`, `runs`, `totals`], `tally` |
 | `measure.zoneBaseline` | `runs` (≥ 3, distinct `id`s) [{id, frames \| zones}] (frames as for `measure.zoneSums`, or that op's `zones`), `zoneHeightPx` (≥ 1, needed when a run gives `frames`), `classes` (the frozen table {type: {class, k, t, tBound?}}) | `runs` (ids), `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, types {type: cell}}], `totals` {type: cell}, `detDrift` [{zone, type}], `detDriftTotals` [type], `tally`; cell = {class (or `unlisted`), rule (`unlisted` reads `quarantined`), perRun, lo, hi, base} |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
@@ -416,6 +421,16 @@ def opWebkitAlign (req : Json) : Except String Reply := do
       ("areaA", toJson z.areaA), ("areaB", toJson z.areaB), ("areaDelta", toJson z.areaDelta)])),
     ("paired", alignTotals zs), ("full", alignTotals (zs.filter (·.full)))]
 
+/-- `measure.webkit.pairRows`: `{sessions}` (each an array of row keys) → `{sessions, paired, unpaired}`. -/
+def opWebkitPairRows (req : Json) : Except String Reply := do
+  let ss ← (← arr req "sessions").toList.mapM fun j => do (← asArr "sessions" j).toList.mapM (asStr "sessions")
+  if ss.isEmpty then throw "sessions must not be empty"
+  let n := ss.length
+  pure [("sessions", toJson n), ("paired", toJson (StepAlign.pairedRows ss)),
+    ("unpaired", .arr ((StepAlign.unpairedRows ss).toArray.map fun (k, c) => Json.mkObj [
+      ("key", toJson k), ("sessions", toJson c), ("of", toJson n),
+      ("reason", toJson s!"present in {c} of {n} sessions; a merged class needs the row in every session")]))]
+
 /-- `measure.symDiff`: `{a, b}` → `{symDiff}`. -/
 def opSymDiff (req : Json) : Except String Reply := do
   pure [("symDiff", toJson (symDiff (← strs req "a") (← strs req "b")))]
@@ -472,13 +487,21 @@ def roleFields (ty : String) (l : Freeze.Level) : List (String × Json) :=
 def roleTallyJson (c : Nat × Nat × Nat) : Json :=
   Json.mkObj [("gate", toJson c.1), ("finding", toJson c.2.1), ("byDesign", toJson c.2.2)]
 
-/-- `measure.freeze`: `{runs:[{id, images, classes}], pooled?}` → `{image, runs, types, tally, roles, pooledTally?}`;
-an error when a table does not decode or `Freeze.freeze` refuses. In `perRun` a run without the type is the
-string `"missing"`. -/
+/-- Decode a job `{name, frames, trajectorySha256?}` (`frames` the number of recorded frames). -/
+def jobOf (j : Json) : Except String Freeze.Job := do
+  let tr ← match opt j "trajectorySha256" with
+    | none => pure none
+    | some t => some <$> asStr "jobs.trajectorySha256" t
+  pure { name := ← str j "name", frames := ← nat j "frames", trajectory := tr }
+
+/-- `measure.freeze`: `{runs:[{id, images, classes, jobs}], pooled?}` →
+`{image, runs, frames, trajectoriesEqual, types, tally, roles, pooledTally?}`; an error when a table or job
+does not decode or `Freeze.freeze` refuses (a frame refusal names the jobs that differ). In `perRun` a run
+without the type is the string `"missing"`. -/
 def opFreeze (req : Json) : Except String Reply := do
   let runs ← (← arr req "runs").toList.mapM fun r => do
-    pure ({ id := ← str r "id", images := ← strs r "images", table := ← tableOf "classes" (← field r "classes") }
-      : Freeze.RunTable)
+    pure ({ id := ← str r "id", images := ← strs r "images", table := ← tableOf "classes" (← field r "classes"),
+            jobs := ← (← arr r "jobs").toList.mapM jobOf } : Freeze.RunTable)
   let pooled ← match opt req "pooled" with
     | none => pure none
     | some j => some <$> tableOf "pooled" j
@@ -492,6 +515,8 @@ def opFreeze (req : Json) : Except String Reply := do
       | some e => [("pooledClass", .str (levelName e.cls))] | none => []) ++
     roleFields r.type r.cls
   pure ([("image", .str img), ("runs", toJson (runs.map (·.id))),
+         ("frames", toJson (Freeze.framesCommon runs)),
+         ("trajectoriesEqual", .bool (Freeze.trajectoriesEqual runs)),
          ("types", objOf (rows.map fun r => (r.type, rowJson r))),
          ("tally", tallyJson (Freeze.tally (rows.map (·.cls)))),
          ("roles", roleTallyJson (Arms.roleTally rows))] ++
@@ -631,12 +656,38 @@ def opZoneBaseline (req : Json) : Except String Reply := do
         ("tally", Json.mkObj [("deterministic", cnt "deterministic"), ("stable", cnt "stable"),
           ("quarantined", cnt "quarantined"), ("unlisted", cnt "unlisted")])]
 
+/-- `measure.quietSteps`: `{limit, minKept, tol, durs, series?}`. `durs` is the step duration in whole ms of every
+pass (arrays of naturals); `series` is optional, `[{type, runs}]` with the per-step counts of each pass. Reply:
+`kept` (step indices, ascending), `keptCount`, `total`, `enough` (`keptCount ≥ minKept`) and, when `enough`
+and `series` is given, `classes` `{type: cls}` over the kept steps (rule: `Fw.Measure.Quiet`). -/
+def opQuietSteps (req : Json) : Except String Reply := do
+  let limit ← nat req "limit"
+  let minKept ← nat req "minKept"
+  let durs ← (← arr req "durs").toList.mapM fun r => do (← asArr "durs" r).toList.mapM fun x => do
+    match x.getNat? with
+    | .ok n => pure n
+    | .error _ => throw "field durs: expected naturals"
+  let kept := Fw.Measure.Quiet.quietSteps limit durs
+  let enough := decide (minKept ≤ kept.length)
+  let base : Reply := [("kept", toJson kept), ("keptCount", toJson kept.length),
+    ("total", toJson (Fw.Measure.Quiet.stepCount durs)), ("enough", .bool enough)]
+  match opt req "series" with
+  | none => pure base
+  | some sj =>
+    if !enough then pure base else
+    let tj ← field req "tol"
+    let tol : Tol := ⟨← asRat "tol.absTol" (← field tj "absTol"), ← asRat "tol.relTol" (← field tj "relTol")⟩
+    let rows ← (← asArr "series" sj).toList.mapM fun e => do
+      let runs ← (← arr e "runs").toList.mapM fun r => do (← asArr "runs" r).toList.mapM (asInt "runs")
+      pure (← str e "type", statusName (Fw.Measure.Quiet.classifyQuiet tol limit durs runs))
+    pure (base ++ [("classes", objOf (rows.map fun (t, c) => (t, Json.str c)))])
+
 /-- The `measure.*` ops. -/
 def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
-   "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.webkit.align", "measure.symDiff", "measure.summarize",
+   "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.webkit.align", "measure.webkit.pairRows", "measure.symDiff", "measure.summarize",
    "measure.selfCheck", "measure.snapshotCounts", "measure.freeze", "measure.splits", "measure.n0Windows",
-   "measure.spkq", "measure.arms", "measure.zoneBaseline"]
+   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps", "measure.engineCheck"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -648,6 +699,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.webkit.reduceSteps" => some (opReduceSteps req)
   | "measure.webkit.zones" => some (opWebkitZones req)
   | "measure.webkit.align" => some (opWebkitAlign req)
+  | "measure.webkit.pairRows" => some (opWebkitPairRows req)
   | "measure.symDiff" => some (opSymDiff req)
   | "measure.summarize" => some (opSummarize req)
   | "measure.selfCheck" => some (opSelfCheck req)
@@ -658,6 +710,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.spkq" => some (opSpkq req)
   | "measure.arms" => some (opArms req)
   | "measure.zoneBaseline" => some (opZoneBaseline req)
+  | "measure.quietSteps" => some (opQuietSteps req)
+  | "measure.engineCheck" => some (Fw.Wire.Measure.EngineCheck.op req)
   | _ => none
 
 end Fw.Wire.Measure

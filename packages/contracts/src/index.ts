@@ -46,7 +46,15 @@ export const Command = z.discriminatedUnion("type", [
   // work graph (lean/Fw/Plan): the plan is events too. Upsert by task id; the reducer refuses cycles and unknown deps.
   cmd("task.define", {
     task: Id, title: Text, stream: Id, milestone: Id.nullable(), deps: z.array(Id).max(32), owner: Id,
-    writes: z.array(Text).max(32), devices: z.array(Id).max(8), evidence: Sha.nullable(),
+    writes: z.array(Text).max(32), devices: z.array(Id).max(8),
+    /** what the task needs besides an agent; "device" = the measurement iPhone and the user at it. Missing = [] */
+    needs: z.array(Id).max(8).optional(),
+    evidence: Sha.nullable(),
+    /** the task was cut from the plan (Lean `Fw.Plan` state `cut`: never ready, not counted). Missing = false */
+    cut: z.boolean().optional(),
+    /** a fact the console adds on receipt (a client's value is replaced): the names of the live agents
+     *  (not gone, not done). Lean decides: a live agent named like the task claims it. Missing = [] */
+    live: z.array(Id).max(64).optional(),
   }),
   cmd("task.drop", { task: Id }),
   cmd("task.claim", { task: Id, agent: Id }),
@@ -157,8 +165,11 @@ export const BoardCard = z.object({
 export type BoardCard = z.infer<typeof BoardCard>;
 
 // ---- board.plan: derived by fwcore (Fw.Plan), never stored as status ---------------------
-export const TaskState = z.enum(["done", "running", "ready", "blocked"]);
+/** "cut": the task was cut from the plan (never ready, off the critical path, not in milestone totals) */
+export const TaskState = z.enum(["done", "cut", "running", "ready", "blocked"]);
 export type TaskState = z.infer<typeof TaskState>;
+export const TaskLane = z.enum(["agent", "device"]);
+export type TaskLane = z.infer<typeof TaskLane>;
 
 export const PlanTask = z.object({
   id: Id,
@@ -167,6 +178,10 @@ export const PlanTask = z.object({
   milestone: Id.nullable(),
   owner: z.string(),
   deps: z.array(Id),
+  /** what the task needs besides an agent ("device" = the measurement iPhone and the user at it) */
+  needs: z.array(Id),
+  /** derived by fwcore (Fw.Plan.lane): "device" iff "device" is in needs */
+  lane: TaskLane,
   state: TaskState,
   /** undone deps */
   blockers: z.array(Id),
@@ -185,7 +200,8 @@ export const Plan = z.object({
   milestones: z.array(PlanMilestone),
   /** longest chain of undone tasks, unit weights */
   criticalPath: z.array(Id),
-  /** ready tasks grouped so that no two in a group conflict (writes overlap or shared device) */
+  /** agent-lane ready tasks grouped so that no two in a group conflict (writes overlap or shared device);
+   *  device-lane ready tasks are not grouped (find them by lane + state in tasks) */
   parallelSafe: z.array(z.array(Id)),
 });
 export type Plan = z.infer<typeof Plan>;

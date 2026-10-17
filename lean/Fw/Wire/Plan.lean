@@ -8,7 +8,7 @@ same flat event envelope as the other console commands (`key`, `ts`, `actor`, `t
 
 | type | fields |
 |---|---|
-| `task.define` | `task`, `title`, `stream`, `owner`, `deps` (required); `milestone`, `evidence` (string or null/missing), `writes`, `devices` (string arrays, missing = `[]`) |
+| `task.define` | `task`, `title`, `stream`, `owner`, `deps` (required); `milestone`, `evidence` (string or null/missing), `writes`, `devices`, `needs`, `live` (string arrays, missing = `[]`), `cut` (boolean, missing = `false`) |
 | `task.drop` | `task` |
 | `task.claim` | `task`, `agent` |
 | `task.done` | `task`, `evidence` |
@@ -27,12 +27,19 @@ def strsD (j : Json) (k : String) : Except String (List String) :=
   | none => .ok []
   | some v => do (← asArr k v).toList.mapM (asStr k)
 
+/-- An optional boolean field: missing or `null` is `false`. -/
+def boolD (j : Json) (k : String) : Except String Bool :=
+  match opt j k with
+  | none => .ok false
+  | some (.bool b) => .ok b
+  | some _ => .error s!"field {k}: expected a boolean"
+
 /-- Decode a `task.define` payload. -/
 def defOfJson (j : Json) : Except String Def := do
   pure { task := ← str j "task", title := ← str j "title", stream := ← str j "stream",
          milestone := ← optStr j "milestone", deps := ← strs j "deps", owner := ← str j "owner",
-         writes := ← strsD j "writes", devices := ← strsD j "devices",
-         evidence := ← optStr j "evidence" }
+         writes := ← strsD j "writes", devices := ← strsD j "devices", needs := ← strsD j "needs",
+         evidence := ← optStr j "evidence", cut := ← boolD j "cut", live := ← strsD j "live" }
 
 /-- Decode a plan command of the given type; `none` when the type is not a plan type. -/
 def cmdOfJson (t : String) (j : Json) : Option (Except String Cmd) :=
@@ -60,7 +67,10 @@ def strsJson (l : List String) : Json := .arr (l.toArray.map .str)
 def cmdFields : Cmd → List (String × Json)
   | .define d => [("task", .str d.task), ("title", .str d.title), ("stream", .str d.stream),
       ("milestone", ostr d.milestone), ("deps", strsJson d.deps), ("owner", .str d.owner),
-      ("writes", strsJson d.writes), ("devices", strsJson d.devices), ("evidence", ostr d.evidence)]
+      ("writes", strsJson d.writes), ("devices", strsJson d.devices), ("needs", strsJson d.needs),
+      ("evidence", ostr d.evidence)]
+      ++ (if d.cut then [("cut", .bool true)] else [])
+      ++ (if d.live.isEmpty then [] else [("live", strsJson d.live)])
   | .drop x => [("task", .str x)]
   | .claim x a => [("task", .str x), ("agent", .str a)]
   | .done x e => [("task", .str x), ("evidence", .str e)]
@@ -70,7 +80,7 @@ def cmdFields : Cmd → List (String × Json)
 def taskViewJson (t : TaskView) : Json := Json.mkObj [
   ("id", .str t.id), ("title", .str t.title), ("stream", .str t.stream),
   ("milestone", ostr t.milestone), ("owner", .str t.owner), ("deps", strsJson t.deps),
-  ("state", .str t.state.name), ("blockers", strsJson t.blockers), ("agent", ostr t.agent),
+  ("needs", strsJson t.needs), ("lane", .str t.lane.name), ("state", .str t.state.name), ("blockers", strsJson t.blockers), ("agent", ostr t.agent),
   ("evidence", ostr t.evidence)]
 
 /-- Encode a milestone of the board plan. -/

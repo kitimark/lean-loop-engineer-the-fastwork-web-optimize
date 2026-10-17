@@ -1,6 +1,6 @@
 {
  "schema": "fw.work-graph/1",
- "about": "The team's task graph: what is left to do, what each task needs first, which files and devices it holds. No status here: done comes from 'evidence' (a commit on main) or from console events; ready, blocked and running are derived by fwcore (Lean). Task id = agent name = console card id. Edited by the lead; synced into the console with 'fw plan sync'.",
+ "about": "The team's task graph: what is left to do, what each task needs first, which files and devices it holds. No status here: done comes from 'evidence' (a commit on main) or from console events; ready, blocked and running are derived by fwcore (Lean). Task id = agent name = console card id. Edited by the lead; synced into the console with 'fw plan sync'. Revision 9 (2026-10-17): the experiment ends with a report by 2026-10-20 13:15 +0700 (see 'deadline'); milestone MX holds tasks cut in revision 9 and is never started; tasks marked '(only on GO at C1)' are cut if the WebKit Simulator lane is NO-GO at checkpoint C1. Revision 10 (2026-10-18): the evidence per part is a Lean theorem pair (same visual, no more work) under the engine models, for all t and all widths; CI counts falsify the models (F0-F5); the phone is an optional spot check with no dependents; milestone M5 holds the proof tasks.",
  "milestones": [
   {
    "id": "M0",
@@ -8,27 +8,31 @@
   },
   {
    "id": "M1",
-   "title": "Original measured: deterministic count types, per-zone baselines, V-j, V-t"
+   "title": "Original measured: deterministic Chromium count types, per-zone sums of the original, WebKit Simulator go/no-go at C1"
   },
   {
    "id": "M2",
-   "title": "Pilots faithful: 3 of 4 pilot parts faithful through the breakpoint gate, bands frozen"
+   "title": "End-of-page region faithful: 9 parts through the probe-scoped gate; shells first, then every section ported in parallel (swap check); bands frozen"
   },
   {
    "id": "M3",
-   "title": "Calibrated: phone sessions, WKTR counts, model status per output"
+   "title": "Optional phone spot checks: never evidence, no dependents (rev 10; session 1 held, 0c901f2)"
   },
   {
    "id": "M4",
-   "title": "All parts promoted through the full breakpoint gate"
+   "title": "Out of scope for v2: all parts promoted through the full breakpoint gate (not started)"
   },
   {
    "id": "M5",
-   "title": "Experiments: end-of-page decision, backlog as flag arms"
+   "title": "Proofs and the end-of-page decision: engine models in Lean, one theorem pair (visual, work) per part x optimization, CI falsification checks F0-F5, decision from the proof ledger"
   },
   {
    "id": "M6",
-   "title": "Distill: report"
+   "title": "Distill: report by 2026-10-20 13:15 +0700"
+  },
+  {
+   "id": "MX",
+   "title": "Cut in revisions 9 and 10 (do not start; a cut dep blocks until its edge is removed)"
   }
  ],
  "tasks": [
@@ -392,14 +396,11 @@
   },
   {
    "id": "spawn-enforce",
-   "title": "Switch spawn-guard from shadow to enforce",
+   "title": "CUT (rev 9): Switch spawn-guard from shadow to enforce",
    "stream": "parallel",
-   "milestone": null,
-   "deps": [
-    "ab-bench",
-    "plan-rev6",
-    "spawn-guard-workflows"
-   ],
+   "milestone": "MX",
+   "cut": true,
+   "deps": [],
    "owner": "lead",
    "writes": [
     ".claude/settings.json",
@@ -513,25 +514,27 @@
   },
   {
    "id": "webkit-quiet",
-   "title": "WebKit determinism on an idle runner: is per-step jitter load or engine?",
-   "stream": "measure",
-   "milestone": "M1",
-   "deps": [
-    "webkit-green"
-   ],
-   "owner": "measure-engineer",
-   "writes": [
-    "packages/measure-webkit/README.md"
-   ]
-  },
-  {
-   "id": "step-align",
-   "title": "Align rewrite and original scroll steps (74 vs 107) so values compare",
+   "title": "WebKit determinism on an idle runner: is per-step jitter load or engine? (C1 GO recorded; running as a parallel lane)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
     "webkit-green",
-    "touch-wedge"
+    "webkit-gonogo"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-webkit/README.md"
+   ],
+   "evidence": "80676e0"
+  },
+  {
+   "id": "step-align",
+   "title": "Align rewrite and original scroll steps (74 vs 107) so values compare (C1 GO recorded; running as a parallel lane)",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "touch-wedge",
+    "webkit-gonogo"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -566,7 +569,9 @@
    "deps": [
     "touch-wedge",
     "measure-ts-to-lean",
-    "fw-ci"
+    "fw-ci",
+    "refreeze",
+    "zone-baseline-lean"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -574,16 +579,18 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "c719d73+f2961f0: 2 profiles x A,R; detDrift empty"
   },
   {
    "id": "zone-baselines-webkit",
-   "title": "Per-zone baselines for the original, WebKit Simulator, on CI (idle runner)",
+   "title": "Per-zone baselines for the original, WebKit Simulator, on CI (idle runner) (C1 GO recorded; running as a parallel lane)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
     "webkit-quiet",
-    "fw-ci"
+    "fw-ci",
+    "webkit-gonogo"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -610,14 +617,11 @@
   },
   {
    "id": "vj-vt",
-   "title": "V-j shown; V-t replay and stall-alarm precision (>= 90 %)",
+   "title": "CUT (rev 9): the WebKit half of V-j/V-t; the Chromium half is vj-vt-chromium (rev 9.1)",
    "stream": "measure",
-   "milestone": "M1",
-   "deps": [
-    "zone-baselines-chromium",
-    "zone-baselines-webkit",
-    "store-and-run"
-   ],
+   "milestone": "MX",
+   "cut": true,
+   "deps": [],
    "owner": "measure-engineer",
    "devices": [
     "ci"
@@ -625,12 +629,11 @@
   },
   {
    "id": "ab-bench",
-   "title": "Parallel-work A/B bench (randomised labels, nothing else running) (local by nature: it measures this Mac's agent throughput, not the page)",
+   "title": "CUT (rev 9): Parallel-work A/B bench (randomised labels, nothing else running) (local by nature: it measures this Mac's agent throughput, not the page)",
    "stream": "parallel",
-   "milestone": null,
-   "deps": [
-    "lean-wire-sched"
-   ],
+   "milestone": "MX",
+   "cut": true,
+   "deps": [],
    "owner": "lead",
    "devices": [
     "whole-mac"
@@ -701,27 +704,28 @@
   },
   {
    "id": "gap-device",
-   "title": "Q33: prove the gap harness on the real iPhone (same probes, compare with the Simulator) (local by nature: the real phone)",
+   "title": "CUT (rev 9): Q33: prove the gap harness on the real iPhone (same probes, compare with the Simulator) (local by nature: the real phone)",
    "stream": "parts",
-   "milestone": "M2",
-   "deps": [
-    "gap-harness",
-    "q1-phone"
-   ],
+   "milestone": "MX",
+   "cut": true,
+   "deps": [],
    "owner": "measure-engineer",
    "devices": [
     "phone"
-   ]
+   ],
+   "needs": [
+    "device"
+   ],
+   "evidence": "0c901f2: 8/8 cells agree with Lean and the Simulator"
   },
   {
    "id": "faithful-checks",
-   "title": "V-g, V-h, V-o, V-q for the 4 pilot parts",
+   "title": "V-g, V-h, V-o, V-q for the 9 end-of-page parts, Chromium (WebKit Simulator only on GO at C1)",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
-    "step-align",
+    "port-morph",
     "zone-baselines-chromium",
-    "zone-baselines-webkit",
     "gate-part-filter",
     "gap-harness"
    ],
@@ -732,13 +736,12 @@
   },
   {
    "id": "bands-freeze",
-   "title": "PL5 and N3 bands re-set from pilot data and frozen",
+   "title": "CUT (rev 10: the F4 margin is the frozen class margin 2t (margin_sound); PL5 bands are reported by faithful-checks, not frozen): PL5 and N3 bands set from the 9 end-of-page parts and frozen",
    "stream": "parts",
-   "milestone": "M2",
-   "deps": [
-    "faithful-checks"
-   ],
-   "owner": "lead"
+   "milestone": "MX",
+   "deps": [],
+   "owner": "lead",
+   "cut": true
   },
   {
    "id": "explainer-rev6",
@@ -762,21 +765,29 @@
    "milestone": "M3",
    "deps": [],
    "owner": "user",
+   "needs": [
+    "device"
+   ],
    "evidence": "b205acc"
   },
   {
    "id": "phone-session-1",
-   "title": "First phone session (on demand): original vs rewrite on iOS 27, and the Q33 gap-harness proof; the lead posts the ready step",
+   "title": "Phone session 1 (2026-10-18 13:00-23:00, 45 min): fw device check, the Q33 gap probe, original vs rewrite swipes A/A and A/R",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [
     "gap-harness",
+    "port-morph",
     "q1-phone"
    ],
    "owner": "lead",
    "devices": [
     "phone"
-   ]
+   ],
+   "needs": [
+    "device"
+   ],
+   "evidence": "0c901f2: >50ms frames/100 22.9 vs 0; finger swipe pending"
   },
   {
    "id": "wktr-cloud",
@@ -818,7 +829,7 @@
   },
   {
    "id": "wktr-ci-lane",
-   "title": "WKTR lane: >= 3 CI runs classed per type, scheduled on demand (workflow_dispatch)",
+   "title": "WKTR lane: >= 3 CI runs classed per type, scheduled on demand (workflow_dispatch) (kept running, rev 9.1; not modelled in the report)",
    "stream": "ci",
    "milestone": "M3",
    "deps": [
@@ -832,13 +843,11 @@
   },
   {
    "id": "wktr-readme-fix",
-   "title": "measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update",
+   "title": "CUT (rev 9): measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update",
    "stream": "measure",
-   "milestone": "M3",
-   "deps": [
-    "webkit-green",
-    "wktr-local"
-   ],
+   "milestone": "MX",
+   "cut": true,
+   "deps": [],
    "owner": "measure-engineer",
    "writes": [
     "packages/measure-webkit/README.md"
@@ -846,52 +855,88 @@
   },
   {
    "id": "calibration",
-   "title": "iPhone K1-K10, rho_page, holdouts, validity table v0 (phone part local by nature)",
+   "title": "CUT (rev 9): iPhone K1-K10, rho_page, holdouts, validity table v0 (phone part local by nature)",
    "stream": "calibration",
-   "milestone": "M3",
-   "deps": [
-    "q1-phone",
-    "zone-baselines-chromium",
-    "zone-baselines-webkit",
-    "wktr-local"
-   ],
+   "milestone": "MX",
+   "cut": true,
+   "deps": [],
    "owner": "measure-engineer",
    "devices": [
     "phone"
+   ],
+   "needs": [
+    "device"
    ]
   },
   {
-   "id": "port-parts",
-   "title": "Port every other part through the full breakpoint gate",
-   "stream": "parts",
-   "milestone": "M4",
-   "deps": [
-    "bands-freeze",
-    "breakpoint-lint",
-    "css-decide",
-    "css-decisions",
-    "verdict-to-lean"
+   "id": "swipe-baseline",
+   "title": "Finger swipe on the original, iPhone (5-10 min, your hand): frames > 50 ms per 100 on the real compositor path; session 1 measured only scripted scroll",
+   "stream": "calibration",
+   "milestone": "M3",
+   "deps": [],
+   "owner": "lead",
+   "needs": [
+    "device"
    ],
+   "evidence": "5ced4f6: finger 2.6 vs scripted 22.9 frames>50ms/100"
+  },
+  {
+   "id": "gap-light",
+   "title": "gap-device S check again with the phone in Light mode (≈5 min; session 1 differed from the Simulator only in dark)",
+   "stream": "calibration",
+   "milestone": "M3",
+   "deps": [],
+   "owner": "lead",
+   "needs": [
+    "device"
+   ],
+   "evidence": "5ced4f6: Light mode 8/8 agree; W X T S L pass"
+  },
+  {
+   "id": "port-parts",
+   "title": "CUT (rev 9): Port every other part through the full breakpoint gate",
+   "stream": "parts",
+   "milestone": "MX",
+   "cut": true,
+   "deps": [],
    "owner": "part-builder"
   },
   {
    "id": "experiments",
-   "title": "End-of-page decision, then the backlog as flag arms",
+   "title": "(S) Decision from the proof ledger: per part the theorem pair, premise status and F3/F4 on the rewrite arm per flag; v2-proved = flags with a proved pair and no falsified prediction; look changes = proposals; closes at C3",
    "stream": "experiments",
    "milestone": "M5",
    "deps": [
-    "port-parts"
+    "port-morph",
+    "faithful-checks",
+    "engine-ci-check",
+    "engine-gaps",
+    "morph-tween-waapi",
+    "variant-morph-tween-waapi",
+    "proof-nav-hittest",
+    "proof-countdown-strip",
+    "proof-hidden-pause",
+    "proof-morph-mount",
+    "proof-morph-panel",
+    "proof-hero-exit",
+    "proof-people-card",
+    "proof-pain-notes",
+    "proof-people-deck",
+    "proof-hero-accent",
+    "variant-hidden-pause",
+    "variant-morph-mount-shift",
+    "variant-morph-panel-rest"
    ],
    "owner": "lead"
   },
   {
    "id": "write-up",
-   "title": "G4 material, transfer results, cost report",
+   "title": "Report (M6, by 2026-10-20 13:15 +0700): per part the theorem pair and its premises, F0-F5 results, the v2-proved arm, proposals (look changes), not-done list, cost report",
    "stream": "write-up",
    "milestone": "M6",
    "deps": [
     "experiments",
-    "calibration"
+    "math-final"
    ],
    "owner": "lead"
   },
@@ -1025,7 +1070,7 @@
   },
   {
    "id": "webkit-table-regen",
-   "title": "Regenerate the WebKit determinism table with --warmup 1 and load stamps, on CI, before the plan quotes it",
+   "title": "Regenerate the WebKit determinism table with --warmup 1 and load stamps, on CI (runs inside webkit-quiet after the C1 GO; restored rev 9.1)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
@@ -1037,7 +1082,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "80676e0"
   },
   {
    "id": "class-freeze",
@@ -1169,7 +1215,8 @@
    "deps": [
     "css-decisions"
    ],
-   "owner": "user"
+   "owner": "user",
+   "evidence": "user chat 10-18: Q34 c, Q35 a; applied 7efa3df"
   },
   {
    "id": "sim-speed",
@@ -1387,7 +1434,8 @@
    "writes": [
     "packages/measure-webkit/**",
     ".github/workflows/webkit-sim.yml"
-   ]
+   ],
+   "evidence": "f03e94b; runs 39048376821, 39050061299 green, 19-24 min"
   },
   {
    "id": "n1-lean",
@@ -1465,7 +1513,8 @@
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
-   ]
+   ],
+   "evidence": "2120a2e merge: rev 9 + 9.1 (Fable), 3-day frame, parallel lanes"
   },
   {
    "id": "math-r10-fix",
@@ -1518,20 +1567,28 @@
    ]
   },
   {
+   "id": "webkit-gonogo",
+   "title": "C1 (2026-10-18 11:15 +0700): WebKit Simulator lane GO/NO-GO. GO = two consecutive webkit-sim runs completed with the determinism step <= 45 min; NO-GO cuts webkit-quiet, zone-baselines-webkit, step-align and makes the phone the only WebKit truth",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [],
+   "owner": "lead",
+   "evidence": "GO: f03e94b; 3 green webkit-sim runs, 19-25 min, free xcode-27"
+  },
+  {
    "id": "zone-baseline-lean",
    "title": "Lean op measure.zoneBaseline: per-zone lo/hi/base over >= 3 runs under the frozen classes (contract in handoffs/zone-baselines-chromium.md); zone-baseline.mjs calls it",
    "stream": "measure",
    "milestone": "M1",
-   "deps": [
-    "zone-baselines-chromium"
-   ],
+   "deps": [],
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Measure/**",
     "packages/contracts/golden/measure/**",
     "packages/measure-chromium/src/zone-baseline.mjs",
     "packages/measure-chromium/test/**"
-   ]
+   ],
+   "evidence": "d5a90ac merge: measure.zoneBaseline, 4 theorems"
   },
   {
    "id": "where-cleanup",
@@ -1553,7 +1610,8 @@
     "lean/Fw/Ops/**",
     "lean/Fw/Sched/**",
     "lean/MathViewMain.lean"
-   ]
+   ],
+   "evidence": "merge of c54c7bf; WhereLint error outside Fw.Measure"
   },
   {
    "id": "report-draft",
@@ -1574,7 +1632,810 @@
    "deps": [
     "refreeze"
    ],
-   "owner": "lean-prover"
+   "owner": "lean-prover",
+   "evidence": "fd8ed4d: freeze_frames; 403-vs-409 golden; table byte-identical"
+  },
+  {
+   "id": "math-r11-fix",
+   "title": "Fix the 5 disagree rows of math review round 11 (ZoneBaseline.refusal cases, Serve.touched LaTeX, Gate.partVerdict_pass_iff args, Gate.pairs_congr map, Gate.truthKey defs)",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "where-cleanup"
+   ],
+   "owner": "lean-prover",
+   "evidence": "da5c531: 5 rows fixed (docstrings only); re-sign in math-final"
+  },
+  {
+   "id": "shells",
+   "title": "Static shells (Q36, lands first) for every section outside the end-of-page region: the original's box height per breakpoint and static text, no drivers; PL1 outer box only; each shell is later replaced by its port-<section>",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "breakpoint-lint",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/**",
+    "apps/site/presets/**"
+   ],
+   "evidence": "7fe0cea: 4 shells; 42/43 probes within 0.5 px"
+  },
+  {
+   "id": "port-morph",
+   "title": "Umbrella: the five morph.* ports faithful; closes when port-morph-{mount,tween,panel,countdown,columns} have landed (no work of its own)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "integrate-ports",
+    "port-morph-columns",
+    "port-morph-countdown",
+    "port-morph-mount",
+    "port-morph-panel",
+    "port-morph-tween"
+   ],
+   "owner": "lead"
+  },
+  {
+   "id": "phone-session-2",
+   "title": "OPTIONAL phone spot check (never evidence, no dependents; rev 10): swipe the v2-proved arm vs original; what neither proof nor CI covers (UIKit scrollTo feel, path premises H1-H3)",
+   "stream": "experiments",
+   "milestone": "M3",
+   "deps": [
+    "phone-session-1"
+   ],
+   "owner": "lead",
+   "devices": [
+    "phone"
+   ],
+   "needs": [
+    "device"
+   ]
+  },
+  {
+   "id": "math-final",
+   "title": "Final math review of every entry changed since round 10, signed by T+52h (2026-10-20 03:15 +0700)",
+   "stream": "lean",
+   "milestone": "M6",
+   "deps": [
+    "math-r10-fix"
+   ],
+   "owner": "math-reviewer"
+  },
+  {
+   "id": "port-morph-mount",
+   "title": "Port morph.mount faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.mount/**"
+   ],
+   "evidence": "7ba0436: faithful, no delta; gate 39053169745 pass"
+  },
+  {
+   "id": "port-morph-tween",
+   "title": "Port morph.tween faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.tween/**"
+   ],
+   "evidence": "67c7afe: faithful, no timing delta; gate 39053659719 pass"
+  },
+  {
+   "id": "port-morph-panel",
+   "title": "Port morph.panel faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.panel/**"
+   ]
+  },
+  {
+   "id": "port-morph-countdown",
+   "title": "Port morph.countdown faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.countdown/**"
+   ],
+   "evidence": "6626359"
+  },
+  {
+   "id": "port-morph-columns",
+   "title": "Port morph.columns faithful (3 h box) through the probe-scoped gate; runs in parallel with the other morph ports and with shells (no shell dependency); presets/registry merged by the lead",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.columns/**"
+   ],
+   "evidence": "66cbb13: faithful; gate 39053405313 pass chromium+webkit"
+  },
+  {
+   "id": "port-nav",
+   "title": "Port Top nav (P0) faithful (nav, nav.langMenu); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/nav.langMenu/**"
+   ]
+  },
+  {
+   "id": "port-hero",
+   "title": "Port Hero (P1) faithful (hero, hero.orbit, hero.deck, hero.accent, hero.cue); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/parts/hero.orbit/**",
+    "apps/site/src/parts/hero.deck/**",
+    "apps/site/src/parts/hero.accent/**",
+    "apps/site/src/parts/hero.cue/**"
+   ]
+  },
+  {
+   "id": "port-people",
+   "title": "Port People (P2) faithful (people.card, people.o, people.deck, people.carousel); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/people.card/**",
+    "apps/site/src/parts/people.o/**",
+    "apps/site/src/parts/people.deck/**",
+    "apps/site/src/parts/people.carousel/**"
+   ]
+  },
+  {
+   "id": "port-pain",
+   "title": "Port Pain (P3) faithful (pain, pain.notes); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/pain/**",
+    "apps/site/src/parts/pain.notes/**"
+   ]
+  },
+  {
+   "id": "port-commission",
+   "title": "Port Commission (P4) faithful (commission, commission.typing); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "apps/site/src/parts/commission.typing/**"
+   ]
+  },
+  {
+   "id": "port-platform",
+   "title": "Port Platform (P5) faithful (platform, platform.sweep, platform.glint, platform.entries, platform.stageBg, platform.marquee); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/platform.glint/**",
+    "apps/site/src/parts/platform.entries/**",
+    "apps/site/src/parts/platform.stageBg/**",
+    "apps/site/src/parts/platform.marquee/**"
+   ]
+  },
+  {
+   "id": "port-overlays",
+   "title": "Port Overlays (signup, drawer) faithful (overlays.signup, overlays.drawer); replaces its shell once the swap check passes at every breakpoint (PL1 boxes + look parity, Chromium on CI); off the critical path; still a shell at C3 -> listed in the report",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "shells",
+    "part-anchors",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/overlays.signup/**",
+    "apps/site/src/parts/overlays.drawer/**"
+   ]
+  },
+  {
+   "id": "vj-vt-chromium",
+   "title": "CUT by the user 2026-10-18: V-j/V-t are reported not gated (PLAN:200,210), no dependents, the 90% bar is the enforcer rule (PLAN:251-254), inputs are private v1 data (not CI, not public)",
+   "stream": "measure",
+   "milestone": "MX",
+   "deps": [],
+   "owner": "measure-engineer",
+   "devices": [
+    "ci"
+   ],
+   "cut": true
+  },
+  {
+   "id": "engine-core-lean",
+   "title": "(M) Fw.Engine.Core + Visual: Stage, Work, Resident, frame_le_of_cover, frame_le_union, run_dominates -> screen_sound, toCost -> mainUs_mono; Scene, visible, E/Q relations, PathPremises H1-H3; types first",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine.lean",
+    "lean/Fw/Engine/Core.lean",
+    "lean/Fw/Engine/Visual.lean"
+   ],
+   "evidence": "f079aa0"
+  },
+  {
+   "id": "engine-chromium-lean",
+   "title": "(M) Fw.Engine.Chromium: CrLevel chain with cites, crThread (bits 0,5,12,13,16), crStages_mono, scroll rule, lane mode; golden rows F0-F2 + signatures",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-core-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Chromium.lean",
+    "packages/contracts/golden/engine/chromium.jsonl"
+   ],
+   "evidence": "583b1c3"
+  },
+  {
+   "id": "engine-webkit-lean",
+   "title": "(M) Fw.Engine.WebKit: Diff + adjust by LayerState, stage sets with cites, wk_not_mono guard, wkThread, per-update baseline, scroll rule; golden rows P1-P5",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-core-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/WebKit.lean",
+    "packages/contracts/golden/engine/webkit.jsonl"
+   ],
+   "evidence": "0164351"
+  },
+  {
+   "id": "engine-ci-check",
+   "title": "(M) fw engine-check: Lean op measure.engineCheck reads engine golden rows and checks F0-F4 on chromium-counts runs (det exact, stable within 2t, quarantined never); runner glue; a mismatch = model-bug item",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-core-lean"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Measure/EngineCheck.lean",
+    "apps/runner/src/engine-check.ts"
+   ],
+   "devices": [
+    "ci"
+   ],
+   "evidence": "48511ae"
+  },
+  {
+   "id": "engine-gaps",
+   "title": "(M) Close research gaps RG1-RG11 at the pins (chromium@f842f52, WebKit@862f17d), each CONFIRMED or explicitly open; one note; feeds the premise table of the decision",
+   "stream": "research",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-engine-gaps.md"
+   ],
+   "evidence": "affa1bb"
+  },
+  {
+   "id": "webkit-sim-rewrite",
+   "title": "(M) webkit-sim.yml serves ?fw= so F5 (P1-P5) gets Simulator counts on the rewrite; if not green by C3, WebKit stays model-only and the report says so",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "step-align"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "packages/measure-webkit/src/**"
+   ],
+   "devices": [
+    "ci"
+   ]
+  },
+  {
+   "id": "morph-tween-curve",
+   "title": "(S) MT1 bezier_eq_ease: 1-(1-t)^3 = cubic-bezier(1/3,1,2/3,1) by ring; MT2 solver_exact: |Y(t)-ease(x)| <= 3 eps; RG8 fp-tie check as a Node golden test (10^4 points)",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "apps/site/src/parts/morph.tween/curve.golden.test.ts"
+   ],
+   "evidence": "b244c65"
+  },
+  {
+   "id": "morph-tween-waapi",
+   "title": "(M) morph.tween waapi: MT3 waapi_eq_tween, MT4 flags_same_frame (vis, E-s), MT-W waapi_work_le (script strict, style/layout/paint equal); both engines, all width bands; golden vectors + CI predictions",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-curve",
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl"
+   ]
+  },
+  {
+   "id": "variant-morph-tween-waapi",
+   "title": "(M) TS variant morph.tween:waapi (@property --morph, one WAAPI animation, startTime = push time, discrete flag keyframes) checked against the Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "morph-tween-waapi",
+    "port-morph-tween"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.tween/**"
+   ]
+  },
+  {
+   "id": "proof-nav-hittest",
+   "title": "(S) nav.hitTest hit-skip, elements-skip, write-on-change: work theorems hitSkip_work_lt, elementsSkip_work_lt via EngineScroll.forced_rho (vis already proved); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/NavHitTestOpt.lean",
+    "packages/contracts/golden/engine/nav-hittest.jsonl"
+   ]
+  },
+  {
+   "id": "proof-countdown-strip",
+   "title": "(S) hero.countdown + morph.countdown strip: Resident layers 80 -> 16 per clock, per-frame work = o (vis strip_shows_same already proved); reported as a resident win; both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroCountdownOpt.lean",
+    "packages/contracts/golden/engine/countdown-strip.jsonl"
+   ]
+  },
+  {
+   "id": "proof-hidden-pause",
+   "title": "(M) morph.columns, morph.countdown, engine.scene hidden pause: hidden_pause_eq (E: visible drops the box) + work (style 1 -> 0 per frame Chromium, 0 delta WebKit, falsifiable); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HiddenPause.lean",
+    "packages/contracts/golden/engine/hidden-pause.jsonl"
+   ]
+  },
+  {
+   "id": "proof-morph-mount",
+   "title": "(M) morph.mount warm-up at a still moment: E after mount (mountNext_mono trigger) + shift theorem (max motion-frame work <, total =); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphMountOpt.lean",
+    "packages/contracts/golden/engine/morph-mount.jsonl"
+   ]
+  },
+  {
+   "id": "proof-morph-panel",
+   "title": "(M) morph.panel blur(0) -> none at rest (E under the containing-block premise RG10; effect node removed) and own layer during the fade (Q; raster <, layers +1 = trade); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphPanelOpt.lean",
+    "packages/contracts/golden/engine/morph-panel.jsonl"
+   ]
+  },
+  {
+   "id": "proof-hero-exit",
+   "title": "(M-L; drop first if the path slips) hero.exit threaded: E-s from exitOpacity_linear + scroll-timeline progress (RG11); consumers off main except blur (Chromium bit 12); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "packages/contracts/golden/engine/hero-exit.jsonl"
+   ]
+  },
+  {
+   "id": "proof-people-card",
+   "title": "(M) people.card MQ-gated shrink: E (CSS forces scale 1, radius 0 in those bands) + work (no JS lerp frames); includes the faithful restatement of the card lerp; both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/PeopleCard.lean",
+    "packages/contracts/golden/engine/people-card.jsonl"
+   ]
+  },
+  {
+   "id": "proof-pain-notes",
+   "title": "(S) pain.notes interval armed only when visible: E (notes display:none <= 860 px, covered otherwise) + work (33 Hz idle -> 0); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/PainNotes.lean",
+    "packages/contracts/golden/engine/pain-notes.jsonl"
+   ]
+  },
+  {
+   "id": "proof-people-deck",
+   "title": "(M; second wave) people.deck cqi sizing: E by algebra when the container inline size equals the shell width + work (no aspect-ratio relayout); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/PeopleDeck.lean",
+    "packages/contracts/golden/engine/people-deck.jsonl"
+   ]
+  },
+  {
+   "id": "proof-hero-accent",
+   "title": "(M; second wave) hero.accent boil: E per sample on the 60 Hz grid (every sample on a plateau) + work (style/paint per 4 s); both engines, all width bands",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroAccent.lean",
+    "packages/contracts/golden/engine/hero-accent.jsonl"
+   ]
+  },
+  {
+   "id": "variant-hidden-pause",
+   "title": "(M) TS variants hidden-pause for morph.columns, morph.countdown and engine.scene (pause animations whose box visible drops) checked against Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "proof-hidden-pause",
+    "port-morph-countdown",
+    "port-morph-columns"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.columns/**",
+    "apps/site/src/parts/morph.countdown/**",
+    "apps/site/src/parts/engine.scene/**"
+   ]
+  },
+  {
+   "id": "variant-morph-mount-shift",
+   "title": "(S) TS variant morph.mount:shift (mount at the still moment mountNext_mono names) checked against Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "proof-morph-mount",
+    "port-morph-mount"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.mount/**"
+   ]
+  },
+  {
+   "id": "variant-morph-panel-rest",
+   "title": "(S) TS variant morph.panel:rest (filter none at rest; own layer only during the fade) checked against Lean golden vectors; flag on R",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "proof-morph-panel",
+    "port-morph-panel"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.panel/**"
+   ]
+  },
+  {
+   "id": "pixel-spot",
+   "title": "(S; optional, no dependents) Chromium BeginFrame screenshots at sampled t, original vs each proved flag, byte-compare; covers H1-H3 in Chromium only",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-ci-check",
+    "variant-morph-tween-waapi"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-chromium/src/pixel-spot/**"
+   ],
+   "devices": [
+    "ci"
+   ]
+  },
+  {
+   "id": "try-constant-glass",
+   "title": "(M) Try-it page, look change (user D2): constant glass (CM) - morph without the per-frame backdrop-blur repaint; flag variant + side-by-side page; Lean predicts work, no 'same' claim",
+   "stream": "proposals",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean",
+    "port-morph-panel"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/try/constant-glass/**"
+   ]
+  },
+  {
+   "id": "try-flip-st6",
+   "title": "(M) Try-it page, look change (user D2): FLIP / st6 - transform-based nav morph instead of layout of top/width/height; flag variant + side-by-side page; Lean predicts work, no 'same' claim",
+   "stream": "proposals",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean",
+    "port-nav",
+    "port-morph-tween"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/try/flip-st6/**"
+   ]
+  },
+  {
+   "id": "try-typing-chunks",
+   "title": "(S) Try-it page, look change (user D2): typing chunks - reveal typed text in chunks; flag variant + side-by-side page; Lean predicts work, no 'same' claim",
+   "stream": "proposals",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean",
+    "port-hero"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/try/typing-chunks/**"
+   ]
+  },
+  {
+   "id": "ghb-lean",
+   "title": "(M) Fw.Ci.Budget: charged ledger; <= B requests per 3600 s for any number of waiters; no call while remaining <= F or before retry-after; each watched run polled every P s",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/Budget.lean",
+    "lean/Fw/Ci/Wire.lean",
+    "lean/Fw/Ci/Golden.lean",
+    "lean/FwTest/CiBudget.lean",
+    "packages/contracts/golden/ci-budget/**"
+   ],
+   "evidence": "84fb01c"
+  },
+  {
+   "id": "ghb-glue",
+   "title": "(M) packages/gh-budget: lock + ledger + ghCharged + elected poller + 'pnpm fw ci wait'; header parse via GH_DEBUG=api (option A); replay test against Lean golden vectors",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "ghb-lean"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gh-budget/**"
+   ]
+  },
+  {
+   "id": "ghb-runner",
+   "title": "(M) route apps/runner gh calls (run, ci, watch-collect) through ghCharged; agent docs say 'pnpm fw ci wait' instead of gh loops",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "ghb-glue"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "apps/runner/src/run.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/fw.ts",
+    ".claude/agents/measure-engineer.md",
+    "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "integrate-ports",
+   "title": "Integrate finished port branches (morph.panel, nav, commission, overlays, hero, people) into one branch from main; one gate prepare mechanism + animation settle; one full gate run, then the lead lands it",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "packages/gate-breakpoints/src/**",
+    "apps/site/src/App.tsx",
+    "apps/site/src/registry/index.ts",
+    "lean/Fw/Gate/Scope.lean"
+   ]
+  },
+  {
+   "id": "pa-land",
+   "title": "(S-M) fw land usable for every landing: Lean scope = task.writes + handoffs + generated files (path-match theorem), marker check, branch -d only, refuse live/dirty worktrees, merge not rebase, CI advisory, never push",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land*.ts",
+    "lean/Fw/Console/Land.lean"
+   ]
+  },
+  {
+   "id": "pa-evidence-lint",
+   "title": "(S) plan lint: evidence is a main commit, CI run or user decision; back-fill missing evidence from Task: trailers on main (one commit); no Core.lean change",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "pa-land"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/plan.ts",
+    "lean/Fw/Plan/Lint.lean",
+    "docs/team/work-graph.json"
+   ]
+  },
+  {
+   "id": "pa-sync-main",
+   "title": "(S) fw plan sync refuses unless run from the main checkout at HEAD of main (drafts never reach the live board)",
+   "stream": "tooling",
+   "milestone": "M6",
+   "deps": [
+    "pa-evidence-lint"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/plan.ts"
+   ]
   }
- ]
+ ],
+ "deadline": {
+  "decided": "2026-10-17T23:13:00+07:00",
+  "firstCommit": "931aa35 at 2026-10-17T13:15:05+07:00",
+  "reportDue": "2026-10-20T13:15:00+07:00",
+  "t0": "2026-10-17T23:15:00+07:00",
+  "checkpoints": [
+   {
+    "id": "C1",
+    "at": "2026-10-18T11:15:00+07:00",
+    "what": "T+12h: Q34-Q37 answered or defaulted; WebKit Simulator lane GO/NO-GO (webkit-gonogo); refreeze, zone-baseline-lean, store-cirun finished or cut; WebKit GO recorded (f03e94b)"
+   },
+   {
+    "id": "C2",
+    "at": "2026-10-18T23:15:00+07:00",
+    "what": "T+24h: shells + the 5 morph ports faithful on Chromium; section ports running; engine-core-lean, engine-chromium-lean, engine-webkit-lean landed; engine-ci-check F0-F2 green on fixture-rest; morph-tween-curve landed"
+   },
+   {
+    "id": "C3",
+    "at": "2026-10-19T23:15:00+07:00",
+    "what": "T+48h: faithful-checks done; proof ledger closed (every proof-* and variant-* task landed or cut with its edge removed); F3/F4 on the rewrite arm per proved flag; experiments decided; write-up starts"
+   },
+   {
+    "id": "C4",
+    "at": "2026-10-20T13:15:00+07:00",
+    "what": "T+62h: report delivered (M6); text frozen at T+60h; phone session 2 (optional) reported only as a spot check"
+   }
+  ]
+ }
 }

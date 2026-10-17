@@ -1,0 +1,29 @@
+import { describe, expect, it } from 'vitest';
+import { goldenConformance } from '../../engine/golden.testutil';
+import * as logic from './logic';
+
+goldenConformance('morph.mount', {
+  armed: (i) => logic.armed({ height: i.height, bottom: i.bottom }, i.vh),
+  active: (i) => logic.active(i.target, i.value),
+  takes: (i) => logic.takes(i.active, i.delta, i.geom),
+  touchDelta: (i) => logic.touchDelta(i.prev, i.cur),
+  viewportHeight: (i) => logic.viewportHeight(i.visual, i.inner),
+  wanted: (i) => logic.wanted(i.near, i.active),
+  action: (i) => logic.action(i.attached, i.wanted),
+  mountNext: (i) => logic.mountNext(i.mounted, i.intersecting, i.pushed),
+  repin: (i) => logic.repin(i.active, i.y, i.pin),
+});
+
+describe('morph.mount constants (restated from the original)', () => {
+  it('observer margin and arm thresholds', () => {
+    expect(logic.IO_ROOT_MARGIN).toBe('200% 0px');
+    expect(logic.ARM_MIN_FRACTION).toBe(0.45);
+    expect(logic.ARM_BOTTOM_SLACK).toBe(8);
+  });
+  it('a push when idle needs forward and geometry', () => {
+    expect(logic.takes(false, 1, false)).toBe(false);
+    expect(logic.takes(false, -1, true)).toBe(false);
+    expect(logic.takes(false, 1, true)).toBe(true);
+    expect(logic.takes(true, -1, false)).toBe(true);
+  });
+});

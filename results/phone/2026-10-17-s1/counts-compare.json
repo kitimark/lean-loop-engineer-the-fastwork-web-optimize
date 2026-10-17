@@ -1,0 +1,2162 @@
+{
+ "arms": {
+  "phone original": 3,
+  "simulator original": 2,
+  "phone rewrite": 3
+ },
+ "types": {
+  "RecalculateStyles": {
+   "total": {
+    "phone original": {
+     "min": 652,
+     "max": 657,
+     "mean": 654,
+     "n": 3
+    },
+    "simulator original": {
+     "min": 713,
+     "max": 719,
+     "mean": 716,
+     "n": 2
+    },
+    "phone rewrite": {
+     "min": 161,
+     "max": 164,
+     "mean": 162.33,
+     "n": 3
+    }
+   },
+   "zones": [
+    {
+     "y0": 0,
+     "phone original": {
+      "min": 70,
+      "max": 74,
+      "mean": 71.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 79,
+      "max": 81,
+      "mean": 80,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 28,
+      "max": 28,
+      "mean": 28,
+      "n": 3
+     }
+    },
+    {
+     "y0": 500,
+     "phone original": {
+      "min": 64,
+      "max": 67,
+      "mean": 65.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 76,
+      "max": 77,
+      "mean": 76.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 29,
+      "max": 30,
+      "mean": 29.33,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1000,
+     "phone original": {
+      "min": 42,
+      "max": 44,
+      "mean": 42.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 41,
+      "max": 42,
+      "mean": 41.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1500,
+     "phone original": {
+      "min": 60,
+      "max": 64,
+      "mean": 61.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 68,
+      "max": 70,
+      "mean": 69,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 19,
+      "max": 19,
+      "mean": 19,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2000,
+     "phone original": {
+      "min": 59,
+      "max": 64,
+      "mean": 61,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 60,
+      "max": 62,
+      "mean": 61,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 19,
+      "max": 20,
+      "mean": 19.33,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2500,
+     "phone original": {
+      "min": 59,
+      "max": 61,
+      "mean": 60.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 61,
+      "max": 63,
+      "mean": 62,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 19,
+      "max": 20,
+      "mean": 19.67,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3000,
+     "phone original": {
+      "min": 64,
+      "max": 64,
+      "mean": 64,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 68,
+      "max": 71,
+      "mean": 69.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 19,
+      "max": 19,
+      "mean": 19,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3500,
+     "phone original": {
+      "min": 69,
+      "max": 70,
+      "mean": 69.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 83,
+      "max": 84,
+      "mean": 83.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 8,
+      "max": 8,
+      "mean": 8,
+      "n": 3
+     }
+    },
+    {
+     "y0": 4000,
+     "phone original": {
+      "min": 82,
+      "max": 82,
+      "mean": 82,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 67,
+      "max": 75,
+      "mean": 71,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 4500,
+     "phone original": {
+      "min": 46,
+      "max": 46,
+      "mean": 46,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 58,
+      "max": 61,
+      "mean": 59.5,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 5000,
+     "phone original": {
+      "min": 30,
+      "max": 30,
+      "mean": 30,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 41,
+      "max": 44,
+      "mean": 42.5,
+      "n": 2
+     },
+     "phone rewrite": null
+    }
+   ]
+  },
+  "Layout": {
+   "total": {
+    "phone original": {
+     "min": 615,
+     "max": 633,
+     "mean": 622,
+     "n": 3
+    },
+    "simulator original": {
+     "min": 687,
+     "max": 705,
+     "mean": 696,
+     "n": 2
+    },
+    "phone rewrite": {
+     "min": 153,
+     "max": 159,
+     "mean": 156.33,
+     "n": 3
+    }
+   },
+   "zones": [
+    {
+     "y0": 0,
+     "phone original": {
+      "min": 75,
+      "max": 78,
+      "mean": 76.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 84,
+      "max": 84,
+      "mean": 84,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 19,
+      "max": 19,
+      "mean": 19,
+      "n": 3
+     }
+    },
+    {
+     "y0": 500,
+     "phone original": {
+      "min": 65,
+      "max": 74,
+      "mean": 68.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 80,
+      "max": 82,
+      "mean": 81,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 22,
+      "mean": 21.33,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1000,
+     "phone original": {
+      "min": 41,
+      "max": 60,
+      "mean": 52,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 45,
+      "max": 49,
+      "mean": 47,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 22,
+      "max": 22,
+      "mean": 22,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1500,
+     "phone original": {
+      "min": 90,
+      "max": 97,
+      "mean": 93.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 98,
+      "max": 106,
+      "mean": 102,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 22,
+      "max": 22,
+      "mean": 22,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2000,
+     "phone original": {
+      "min": 65,
+      "max": 75,
+      "mean": 71.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 75,
+      "max": 78,
+      "mean": 76.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 22,
+      "mean": 21.33,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2500,
+     "phone original": {
+      "min": 61,
+      "max": 64,
+      "mean": 63,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 51,
+      "max": 57,
+      "mean": 54,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 22,
+      "mean": 20.67,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3000,
+     "phone original": {
+      "min": 31,
+      "max": 43,
+      "mean": 37.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 43,
+      "max": 47,
+      "mean": 45,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 22,
+      "max": 22,
+      "mean": 22,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3500,
+     "phone original": {
+      "min": 50,
+      "max": 55,
+      "mean": 52.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 64,
+      "max": 70,
+      "mean": 67,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 8,
+      "max": 8,
+      "mean": 8,
+      "n": 3
+     }
+    },
+    {
+     "y0": 4000,
+     "phone original": {
+      "min": 55,
+      "max": 58,
+      "mean": 56.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 42,
+      "max": 43,
+      "mean": 42.5,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 4500,
+     "phone original": {
+      "min": 30,
+      "max": 32,
+      "mean": 31,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 56,
+      "max": 64,
+      "mean": 60,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 5000,
+     "phone original": {
+      "min": 19,
+      "max": 19,
+      "mean": 19,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 35,
+      "max": 39,
+      "mean": 37,
+      "n": 2
+     },
+     "phone rewrite": null
+    }
+   ]
+  },
+  "Paint": {
+   "total": {
+    "phone original": {
+     "min": 1546,
+     "max": 1616,
+     "mean": 1575.33,
+     "n": 3
+    },
+    "simulator original": {
+     "min": 1329,
+     "max": 1356,
+     "mean": 1342.5,
+     "n": 2
+    },
+    "phone rewrite": {
+     "min": 170,
+     "max": 176,
+     "mean": 173.67,
+     "n": 3
+    }
+   },
+   "zones": [
+    {
+     "y0": 0,
+     "phone original": {
+      "min": 218,
+      "max": 236,
+      "mean": 226.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 157,
+      "max": 176,
+      "mean": 166.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 75,
+      "max": 75,
+      "mean": 75,
+      "n": 3
+     }
+    },
+    {
+     "y0": 500,
+     "phone original": {
+      "min": 200,
+      "max": 236,
+      "mean": 216,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 167,
+      "max": 169,
+      "mean": 168,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 22,
+      "max": 24,
+      "mean": 23.33,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1000,
+     "phone original": {
+      "min": 155,
+      "max": 201,
+      "mean": 185.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 121,
+      "max": 125,
+      "mean": 123,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 17,
+      "max": 17,
+      "mean": 17,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1500,
+     "phone original": {
+      "min": 222,
+      "max": 247,
+      "mean": 231,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 195,
+      "max": 196,
+      "mean": 195.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 15,
+      "max": 15,
+      "mean": 15,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2000,
+     "phone original": {
+      "min": 74,
+      "max": 91,
+      "mean": 82.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 84,
+      "max": 88,
+      "mean": 86,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 12,
+      "max": 15,
+      "mean": 14,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2500,
+     "phone original": {
+      "min": 73,
+      "max": 81,
+      "mean": 77.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 69,
+      "max": 71,
+      "mean": 70,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 12,
+      "max": 13,
+      "mean": 12.33,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3000,
+     "phone original": {
+      "min": 83,
+      "max": 88,
+      "mean": 86,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 69,
+      "max": 70,
+      "mean": 69.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 13,
+      "max": 13,
+      "mean": 13,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3500,
+     "phone original": {
+      "min": 128,
+      "max": 131,
+      "mean": 129.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 125,
+      "max": 140,
+      "mean": 132.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 4,
+      "max": 4,
+      "mean": 4,
+      "n": 3
+     }
+    },
+    {
+     "y0": 4000,
+     "phone original": {
+      "min": 182,
+      "max": 182,
+      "mean": 182,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 88,
+      "max": 117,
+      "mean": 102.5,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 4500,
+     "phone original": {
+      "min": 106,
+      "max": 106,
+      "mean": 106,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 137,
+      "max": 158,
+      "mean": 147.5,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 5000,
+     "phone original": {
+      "min": 53,
+      "max": 53,
+      "mean": 53,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 79,
+      "max": 84,
+      "mean": 81.5,
+      "n": 2
+     },
+     "phone rewrite": null
+    }
+   ]
+  },
+  "Composite": {
+   "total": {
+    "phone original": {
+     "min": 213,
+     "max": 213,
+     "mean": 213,
+     "n": 3
+    },
+    "simulator original": {
+     "min": 213,
+     "max": 213,
+     "mean": 213,
+     "n": 2
+    },
+    "phone rewrite": {
+     "min": 147,
+     "max": 147,
+     "mean": 147,
+     "n": 3
+    }
+   },
+   "zones": [
+    {
+     "y0": 0,
+     "phone original": {
+      "min": 19,
+      "max": 19,
+      "mean": 19,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 19,
+      "max": 19,
+      "mean": 19,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 19,
+      "max": 19,
+      "mean": 19,
+      "n": 3
+     }
+    },
+    {
+     "y0": 500,
+     "phone original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1000,
+     "phone original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1500,
+     "phone original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2000,
+     "phone original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2500,
+     "phone original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3000,
+     "phone original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3500,
+     "phone original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 8,
+      "max": 8,
+      "mean": 8,
+      "n": 3
+     }
+    },
+    {
+     "y0": 4000,
+     "phone original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 4500,
+     "phone original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 5000,
+     "phone original": {
+      "min": 14,
+      "max": 14,
+      "mean": 14,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 14,
+      "max": 14,
+      "mean": 14,
+      "n": 2
+     },
+     "phone rewrite": null
+    }
+   ]
+  },
+  "FireAnimationFrame": {
+   "total": {
+    "phone original": {
+     "min": 731,
+     "max": 731,
+     "mean": 731,
+     "n": 3
+    },
+    "simulator original": {
+     "min": 718,
+     "max": 734,
+     "mean": 726,
+     "n": 2
+    },
+    "phone rewrite": {
+     "min": 295,
+     "max": 295,
+     "mean": 295,
+     "n": 3
+    }
+   },
+   "zones": [
+    {
+     "y0": 0,
+     "phone original": {
+      "min": 68,
+      "max": 68,
+      "mean": 68,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 68,
+      "max": 68,
+      "mean": 68,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 39,
+      "max": 39,
+      "mean": 39,
+      "n": 3
+     }
+    },
+    {
+     "y0": 500,
+     "phone original": {
+      "min": 66,
+      "max": 66,
+      "mean": 66,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 66,
+      "max": 66,
+      "mean": 66,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 40,
+      "max": 40,
+      "mean": 40,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1000,
+     "phone original": {
+      "min": 60,
+      "max": 60,
+      "mean": 60,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 60,
+      "max": 60,
+      "mean": 60,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 40,
+      "max": 40,
+      "mean": 40,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1500,
+     "phone original": {
+      "min": 89,
+      "max": 89,
+      "mean": 89,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 89,
+      "max": 89,
+      "mean": 89,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 40,
+      "max": 40,
+      "mean": 40,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2000,
+     "phone original": {
+      "min": 85,
+      "max": 85,
+      "mean": 85,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 85,
+      "max": 85,
+      "mean": 85,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 40,
+      "max": 40,
+      "mean": 40,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2500,
+     "phone original": {
+      "min": 72,
+      "max": 72,
+      "mean": 72,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 72,
+      "max": 72,
+      "mean": 72,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 40,
+      "max": 40,
+      "mean": 40,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3000,
+     "phone original": {
+      "min": 63,
+      "max": 63,
+      "mean": 63,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 63,
+      "max": 63,
+      "mean": 63,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 40,
+      "max": 40,
+      "mean": 40,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3500,
+     "phone original": {
+      "min": 63,
+      "max": 63,
+      "mean": 63,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 70,
+      "max": 72,
+      "mean": 71,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 16,
+      "max": 16,
+      "mean": 16,
+      "n": 3
+     }
+    },
+    {
+     "y0": 4000,
+     "phone original": {
+      "min": 80,
+      "max": 80,
+      "mean": 80,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 61,
+      "max": 79,
+      "mean": 70,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 4500,
+     "phone original": {
+      "min": 56,
+      "max": 56,
+      "mean": 56,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 53,
+      "max": 53,
+      "mean": 53,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 5000,
+     "phone original": {
+      "min": 29,
+      "max": 29,
+      "mean": 29,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 29,
+      "max": 29,
+      "mean": 29,
+      "n": 2
+     },
+     "phone rewrite": null
+    }
+   ]
+  },
+  "TimerFire": {
+   "total": {
+    "phone original": {
+     "min": 32,
+     "max": 36,
+     "mean": 34.67,
+     "n": 3
+    },
+    "simulator original": {
+     "min": 113,
+     "max": 158,
+     "mean": 135.5,
+     "n": 2
+    },
+    "phone rewrite": {
+     "min": 2,
+     "max": 2,
+     "mean": 2,
+     "n": 3
+    }
+   },
+   "zones": [
+    {
+     "y0": 0,
+     "phone original": {
+      "min": 3,
+      "max": 4,
+      "mean": 3.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 11,
+      "max": 13,
+      "mean": 12,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 0,
+      "max": 0,
+      "mean": 0,
+      "n": 3
+     }
+    },
+    {
+     "y0": 500,
+     "phone original": {
+      "min": 3,
+      "max": 7,
+      "mean": 4.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 18,
+      "max": 20,
+      "mean": 19,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 0,
+      "max": 0,
+      "mean": 0,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1000,
+     "phone original": {
+      "min": 2,
+      "max": 4,
+      "mean": 3.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 8,
+      "max": 9,
+      "mean": 8.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 1,
+      "max": 1,
+      "mean": 1,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1500,
+     "phone original": {
+      "min": 4,
+      "max": 6,
+      "mean": 5,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 11,
+      "max": 16,
+      "mean": 13.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 0,
+      "max": 0,
+      "mean": 0,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2000,
+     "phone original": {
+      "min": 1,
+      "max": 5,
+      "mean": 3,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 6,
+      "max": 7,
+      "mean": 6.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 0,
+      "max": 0,
+      "mean": 0,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2500,
+     "phone original": {
+      "min": 3,
+      "max": 3,
+      "mean": 3,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 7,
+      "max": 9,
+      "mean": 8,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 1,
+      "max": 1,
+      "mean": 1,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3000,
+     "phone original": {
+      "min": 3,
+      "max": 3,
+      "mean": 3,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 9,
+      "max": 14,
+      "mean": 11.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 0,
+      "max": 0,
+      "mean": 0,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3500,
+     "phone original": {
+      "min": 7,
+      "max": 8,
+      "mean": 7.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 20,
+      "max": 32,
+      "mean": 26,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 0,
+      "max": 0,
+      "mean": 0,
+      "n": 3
+     }
+    },
+    {
+     "y0": 4000,
+     "phone original": {
+      "min": 0,
+      "max": 1,
+      "mean": 0.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 0,
+      "max": 18,
+      "mean": 9,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 4500,
+     "phone original": {
+      "min": 0,
+      "max": 1,
+      "mean": 0.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 16,
+      "max": 20,
+      "mean": 18,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 5000,
+     "phone original": {
+      "min": 0,
+      "max": 2,
+      "mean": 1,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 3,
+      "max": 4,
+      "mean": 3.5,
+      "n": 2
+     },
+     "phone rewrite": null
+    }
+   ]
+  },
+  "EventDispatch": {
+   "total": {
+    "phone original": {
+     "min": 107,
+     "max": 107,
+     "mean": 107,
+     "n": 3
+    },
+    "simulator original": {
+     "min": 107,
+     "max": 107,
+     "mean": 107,
+     "n": 2
+    },
+    "phone rewrite": {
+     "min": 148,
+     "max": 148,
+     "mean": 148,
+     "n": 3
+    }
+   },
+   "zones": [
+    {
+     "y0": 0,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 500,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1000,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1500,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2000,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2500,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3000,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 20,
+      "max": 20,
+      "mean": 20,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3500,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 8,
+      "max": 8,
+      "mean": 8,
+      "n": 3
+     }
+    },
+    {
+     "y0": 4000,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 4500,
+     "phone original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 5000,
+     "phone original": {
+      "min": 7,
+      "max": 7,
+      "mean": 7,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 7,
+      "max": 7,
+      "mean": 7,
+      "n": 2
+     },
+     "phone rewrite": null
+    }
+   ]
+  },
+  "paintArea": {
+   "total": {
+    "phone original": {
+     "min": 98458054,
+     "max": 106185219,
+     "mean": 101571743,
+     "n": 3
+    },
+    "simulator original": {
+     "min": 84253868,
+     "max": 85286394,
+     "mean": 84770131,
+     "n": 2
+    },
+    "phone rewrite": {
+     "min": 13796404,
+     "max": 14668014,
+     "mean": 14366584,
+     "n": 3
+    }
+   },
+   "zones": [
+    {
+     "y0": 0,
+     "phone original": {
+      "min": 12356580,
+      "max": 15988324,
+      "mean": 13745208.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 7532126,
+      "max": 8327897,
+      "mean": 7930011.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 5141592,
+      "max": 5141592,
+      "mean": 5141592,
+      "n": 3
+     }
+    },
+    {
+     "y0": 500,
+     "phone original": {
+      "min": 16767417,
+      "max": 19616706,
+      "mean": 18144982.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 15641517,
+      "max": 16470202,
+      "mean": 16055859.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 4140470,
+      "max": 4506400,
+      "mean": 4384423.33,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1000,
+     "phone original": {
+      "min": 10604624,
+      "max": 15888717,
+      "mean": 14099554.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 10963947,
+      "max": 11090814,
+      "mean": 11027380.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 1007262,
+      "max": 1007262,
+      "mean": 1007262,
+      "n": 3
+     }
+    },
+    {
+     "y0": 1500,
+     "phone original": {
+      "min": 22236032,
+      "max": 22619792,
+      "mean": 22460287.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 17976203,
+      "max": 18070261,
+      "mean": 18023232,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 1240120,
+      "max": 1240120,
+      "mean": 1240120,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2000,
+     "phone original": {
+      "min": 5947632,
+      "max": 6264289,
+      "mean": 6152244.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 6476076,
+      "max": 6537155,
+      "mean": 6506615.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 767120,
+      "max": 1240120,
+      "mean": 1082453.33,
+      "n": 3
+     }
+    },
+    {
+     "y0": 2500,
+     "phone original": {
+      "min": 6406593,
+      "max": 7428205,
+      "mean": 6933034.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 5968185,
+      "max": 6316903,
+      "mean": 6142544,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 767120,
+      "max": 799800,
+      "mean": 778013.33,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3000,
+     "phone original": {
+      "min": 5510454,
+      "max": 6370884,
+      "mean": 6047449,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 5248525,
+      "max": 6151612,
+      "mean": 5700068.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 602000,
+      "max": 602000,
+      "mean": 602000,
+      "n": 3
+     }
+    },
+    {
+     "y0": 3500,
+     "phone original": {
+      "min": 7302084,
+      "max": 7734572,
+      "mean": 7472571.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 6332755,
+      "max": 6484446,
+      "mean": 6408600.5,
+      "n": 2
+     },
+     "phone rewrite": {
+      "min": 130720,
+      "max": 130720,
+      "mean": 130720,
+      "n": 3
+     }
+    },
+    {
+     "y0": 4000,
+     "phone original": {
+      "min": 3281734,
+      "max": 3282222,
+      "mean": 3281992.67,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 2703448,
+      "max": 2853934,
+      "mean": 2778691,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 4500,
+     "phone original": {
+      "min": 2663925,
+      "max": 2664137,
+      "mean": 2664032.33,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 3434184,
+      "max": 3631844,
+      "mean": 3533014,
+      "n": 2
+     },
+     "phone rewrite": null
+    },
+    {
+     "y0": 5000,
+     "phone original": {
+      "min": 570385,
+      "max": 570385,
+      "mean": 570385,
+      "n": 3
+     },
+     "simulator original": {
+      "min": 589236,
+      "max": 738992,
+      "mean": 664114,
+      "n": 2
+     },
+     "phone rewrite": null
+    }
+   ]
+  }
+ },
+ "census": {
+  "phone original": [
+   {
+    "requestedY": 0,
+    "layerCount": {
+     "min": 124,
+     "max": 124,
+     "mean": 124,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 57670873,
+     "max": 63868900,
+     "mean": 61802891,
+     "n": 3
+    }
+   },
+   {
+    "requestedY": 1500,
+    "layerCount": {
+     "min": 124,
+     "max": 126,
+     "mean": 124.67,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 117714999,
+     "max": 140925230,
+     "mean": 133188486.33,
+     "n": 3
+    }
+   },
+   {
+    "requestedY": 3000,
+    "layerCount": {
+     "min": 42,
+     "max": 42,
+     "mean": 42,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 91457084,
+     "max": 91457084,
+     "mean": 91457084,
+     "n": 3
+    }
+   },
+   {
+    "requestedY": 4500,
+    "layerCount": {
+     "min": 47,
+     "max": 47,
+     "mean": 47,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 167421997,
+     "max": 167421997,
+     "mean": 167421997,
+     "n": 3
+    }
+   },
+   {
+    "requestedY": 5267,
+    "layerCount": {
+     "min": 30,
+     "max": 30,
+     "mean": 30,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 97568792,
+     "max": 97568792,
+     "mean": 97568792,
+     "n": 3
+    }
+   }
+  ],
+  "simulator original": [
+   {
+    "requestedY": 0,
+    "layerCount": {
+     "min": 106,
+     "max": 118,
+     "mean": 112,
+     "n": 2
+    },
+    "memoryBytes": {
+     "min": 36150025,
+     "max": 52032907,
+     "mean": 44091466,
+     "n": 2
+    }
+   },
+   {
+    "requestedY": 1500,
+    "layerCount": {
+     "min": 114,
+     "max": 128,
+     "mean": 121,
+     "n": 2
+    },
+    "memoryBytes": {
+     "min": 87055959,
+     "max": 102898509,
+     "mean": 94977234,
+     "n": 2
+    }
+   },
+   {
+    "requestedY": 3000,
+    "layerCount": {
+     "min": 42,
+     "max": 42,
+     "mean": 42,
+     "n": 2
+    },
+    "memoryBytes": {
+     "min": 79425174,
+     "max": 79425174,
+     "mean": 79425174,
+     "n": 2
+    }
+   },
+   {
+    "requestedY": 4500,
+    "layerCount": {
+     "min": 47,
+     "max": 47,
+     "mean": 47,
+     "n": 2
+    },
+    "memoryBytes": {
+     "min": 151352150,
+     "max": 151352150,
+     "mean": 151352150,
+     "n": 2
+    }
+   },
+   {
+    "requestedY": 5267,
+    "layerCount": {
+     "min": 30,
+     "max": 30,
+     "mean": 30,
+     "n": 2
+    },
+    "memoryBytes": {
+     "min": 89305293,
+     "max": 105156813,
+     "mean": 97231053,
+     "n": 2
+    }
+   }
+  ],
+  "phone rewrite": [
+   {
+    "requestedY": 0,
+    "layerCount": {
+     "min": 88,
+     "max": 88,
+     "mean": 88,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 48939168,
+     "max": 48939168,
+     "mean": 48939168,
+     "n": 3
+    }
+   },
+   {
+    "requestedY": 1500,
+    "layerCount": {
+     "min": 88,
+     "max": 88,
+     "mean": 88,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 37459704,
+     "max": 37459704,
+     "mean": 37459704,
+     "n": 3
+    }
+   },
+   {
+    "requestedY": 3000,
+    "layerCount": {
+     "min": 88,
+     "max": 88,
+     "mean": 88,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 33368976,
+     "max": 33368976,
+     "mean": 33368976,
+     "n": 3
+    }
+   },
+   {
+    "requestedY": 4500,
+    "layerCount": {
+     "min": 88,
+     "max": 88,
+     "mean": 88,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 28599696,
+     "max": 28599696,
+     "mean": 28599696,
+     "n": 3
+    }
+   },
+   {
+    "requestedY": 3603,
+    "layerCount": {
+     "min": 88,
+     "max": 88,
+     "mean": 88,
+     "n": 3
+    },
+    "memoryBytes": {
+     "min": 28599696,
+     "max": 28599696,
+     "mean": 28599696,
+     "n": 3
+    }
+   }
+  ]
+ }
+}

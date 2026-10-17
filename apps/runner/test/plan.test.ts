@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { Plan } from "@fw/contracts";
+import type { Plan, PlanTask } from "@fw/contracts";
 import { record } from "../hooks/spawn-guard.mjs";
 import { renderPlan, syncCommands, topoSort, type WorkGraph } from "../src/plan.ts";
 
@@ -25,7 +25,13 @@ describe("syncCommands", () => {
     const c = syncCommands(g);
     expect(c.map((x) => x.type)).toEqual(["milestone.define", "task.define", "task.define"]);
     expect(c[1]).toMatchObject({ task: "a", writes: ["x/**"], devices: [], evidence: "abc1234", milestone: "M" });
+    expect(c[1]).not.toHaveProperty("needs");
+    const d = syncCommands({ milestones: [], tasks: [T("p", [], { needs: ["device"] })] });
+    expect(d[0]).toMatchObject({ task: "p", needs: ["device"] });
     expect(c[2]).toMatchObject({ task: "b", deps: ["a"], evidence: null });
+    expect(c[2]).not.toHaveProperty("cut");
+    const x = syncCommands({ milestones: [], tasks: [T("x", [], { cut: true })] });
+    expect(x[0]).toMatchObject({ task: "x", cut: true });
   });
   it("keys are stable for equal content and change when a task is edited", () => {
     const k = (x: WorkGraph) => syncCommands(x).map((c) => c.key);
@@ -46,20 +52,43 @@ describe("syncCommands", () => {
 });
 
 describe("renderPlan", () => {
+  const ag = (): Pick<PlanTask, "needs" | "lane"> => ({ needs: [], lane: "agent" });
+  const dv = (): Pick<PlanTask, "needs" | "lane"> => ({ needs: ["device"], lane: "device" });
   const p: Plan = {
     tasks: [
-      { id: "a", title: "A", stream: "s", milestone: "M", owner: "o", deps: [], state: "done", blockers: [], agent: null, evidence: "abc1234" },
-      { id: "b", title: "B", stream: "s", milestone: "M", owner: "o", deps: ["a"], state: "ready", blockers: [], agent: null, evidence: null },
-      { id: "c", title: "C", stream: "s", milestone: "M", owner: "o", deps: ["a"], state: "running", blockers: [], agent: "c", evidence: null },
-      { id: "d", title: "D", stream: "s", milestone: "M", owner: "o", deps: ["b", "c"], state: "blocked", blockers: ["b", "c"], agent: null, evidence: null },
+      { id: "a", title: "A", stream: "s", milestone: "M", owner: "o", deps: [], ...ag(), state: "done", blockers: [], agent: null, evidence: "abc1234" },
+      { id: "b", title: "B", stream: "s", milestone: "M", owner: "o", deps: ["a"], ...ag(), state: "ready", blockers: [], agent: null, evidence: null },
+      { id: "c", title: "C", stream: "s", milestone: "M", owner: "o", deps: ["a"], ...ag(), state: "running", blockers: [], agent: "c", evidence: null },
+      { id: "d", title: "D", stream: "s", milestone: "M", owner: "o", deps: ["b", "c"], ...ag(), state: "blocked", blockers: ["b", "c"], agent: null, evidence: null },
     ],
     milestones: [{ id: "M", title: "mini", done: 1, total: 4 }], criticalPath: ["b", "d"], parallelSafe: [["b"]],
   };
   it("prints ready groups, running, blocked with blockers, critical path", () => {
     expect(renderPlan(p)).toBe([
-      "4 tasks: 1 done, 1 running, 1 ready, 1 blocked", "  M 1/4  mini", "READY (tasks in one group can run in parallel):", "  group 1: b",
-      "RUNNING:", "  c (agent c)", "BLOCKED (waiting on):", "  d <- b, c", "CRITICAL PATH (2): b -> d",
+      "4 tasks: 1 done, 1 running, 1 ready, 1 blocked, 0 cut", "  M 1/4  mini", "READY (tasks in one group can run in parallel):", "  group 1: b",
+      "DEVICE (needs you + the iPhone):", "  none",
+      "RUNNING:", "  c (agent c)", "BLOCKED (waiting on):", "  d <- b, c", "CRITICAL PATH (2): b -> d", "CUT (0): none",
     ].join("\n"));
+  });
+  it("lists cut tasks on one CUT line at the end, nowhere else", () => {
+    const q: Plan = { ...p, tasks: [...p.tasks,
+      { id: "x", title: "CUT: X", stream: "s", milestone: "MX", owner: "o", deps: [], ...ag(), state: "cut", blockers: [], agent: null, evidence: null },
+      { id: "y", title: "CUT: Y", stream: "s", milestone: "MX", owner: "o", deps: [], ...dv(), state: "cut", blockers: [], agent: null, evidence: null },
+    ] };
+    const out = renderPlan(q).split("\n");
+    expect(out[0]).toBe("6 tasks: 1 done, 1 running, 1 ready, 1 blocked, 2 cut");
+    expect(out.at(-1)).toBe("CUT (2): x, y");
+    expect(out.slice(0, -1).filter((l) => /\b[xy]\b/.test(l))).toEqual([]);
+  });
+  it("prints the device lane apart: ready first, then blocked with blockers; not in BLOCKED", () => {
+    const q: Plan = { ...p, tasks: [...p.tasks,
+      { id: "e", title: "E", stream: "s", milestone: "M", owner: "o", deps: ["d"], ...dv(), state: "blocked", blockers: ["d"], agent: null, evidence: null },
+      { id: "f", title: "Finger swipe", stream: "s", milestone: "M", owner: "o", deps: [], ...dv(), state: "ready", blockers: [], agent: null, evidence: null },
+    ] };
+    const out = renderPlan(q).split("\n");
+    const i = out.indexOf("DEVICE (needs you + the iPhone):");
+    expect(out.slice(i, i + 4)).toEqual(["DEVICE (needs you + the iPhone):", "  ready    f  Finger swipe", "  blocked  e <- d", "RUNNING:"]);
+    expect(out.slice(out.indexOf("BLOCKED (waiting on):"))).toEqual(["BLOCKED (waiting on):", "  d <- b, c", "CRITICAL PATH (2): b -> d", "CUT (0): none"]);
   });
 });
 

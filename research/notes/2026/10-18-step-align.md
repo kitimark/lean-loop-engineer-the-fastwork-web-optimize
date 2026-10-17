@@ -60,14 +60,23 @@ pairs vN/rN per session and writes `webkit-align`. Preset and fw overrides are s
   registers a second scroll listener or dispatches one more event; not investigated here).
 - Classes are over 6 passes from 3 VMs (kMax 4, tMax 24 policy applies to frames; zone rows use TOL.zone as in `determinism`).
 
+## merge across VMs: rows paired by key (Lean)
+
+- MEASURED (run 39053799594): `merge` over the three original VMs failed with "sessions do not have the same rows": VM v2 had
+  document height 6043 (maxY 5268, and 5263 in pass 2 of its census), the others 5267, so the census row labels differ
+  (`census|layerCount|y=5268` against `y=5267`). The label uses the measured offset, so page-height-dependent labels differ between VMs.
+- Fix: rows are matched by key, not by position. Lean `StepAlign.pairedRows` (keys of the first session that every session has) and
+  `unpairedRows` (keys some session lacks, each once, with the number of sessions that have it); fwcore op
+  `measure.webkit.pairRows`, 6 goldens. Proved: `mem_pairedRows`, `mem_unpairedRows`, `pair_cover` (a key is paired or unpaired,
+  never both, never lost), `unpairedRows_count` (1 <= n < sessions), `pair_self`.
+- Glue `src/mergerows.mjs`; `cli.mjs merge` prints the table of paired rows (worse class wins) and then the unpaired rows with
+  "k of n sessions" and Lean's reason; `--out` adds `unpaired`. It never crashes on differing labels and never drops silently.
+  Consequence: when one VM is 1 px taller, the end-of-page census state is excluded (y=5267 in 2 of 3, y=5268 in 1 of 3).
+- Test: `test/mergerows.test.mjs` (fixture with the y=5268 VM). The `merge` job now needs the fwcore artifact.
+
 ## Found on the way (not fixed, not mine)
 
-- `merge` fails on the three original VMs of this run ("sessions do not have the same rows"): VM v2 measured docH 6043 /
-  maxY 5268 (and 5263 in pass 2 of its census), so the census row labels `y=5268` differ from `y=5267`. The label uses the
-  measured offset. Owner: webkit-quiet (class tables); a fix is to label states by index.
-- The `align-classes` workflow step was added after run 39053799594; it is checked by actionlint and its CLI ran locally on the
-  artifacts of that run, but it has not run on CI yet. The default push (target original) was started as run 39061880977:
-  plan, site and fwcore resolved correctly (site and fwcore skipped, sim v1 started).
+- The `align-classes` workflow step was added after run 39053799594; see the CI result of the follow-up run below.
 
 ## Reproduce
 
