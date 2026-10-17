@@ -66,7 +66,7 @@ test('n0Windows / n0FrameCounts (n0.mjs) equal every non-refused golden of measu
 });
 
 for (const op of ['measure.zoneSums', 'measure.classify', 'measure.noMoreWork', 'measure.selfCheck', 'measure.snapshotCounts', 'measure.freeze',
-  'measure.splits', 'measure.n0Windows', 'measure.spkq', 'measure.arms']) {
+  'measure.splits', 'measure.n0Windows', 'measure.spkq', 'measure.arms', 'measure.zoneBaseline']) {
   test(`${op}: fwcore reproduces every golden line`, () => {
     const cases = load(op);
     assert.ok(cases.length > 0);
@@ -154,4 +154,16 @@ test('freeze.mjs refuses 2 runs, mixed image digests, and a classes artifact fwc
 
 test('diffPaths lists the differing leaves', () => {
   assert.deepStrictEqual(diffPaths({ a: 1, b: { c: [1, 2] } }, { a: 1, b: { c: [1, 3] }, d: 0 }), ['$.b.c.1: 2 -> 3', '$.d: undefined -> 0']);
+});
+
+// The committed cross-shard baseline is fwcore measure.zoneBaseline over the committed zones file and the current frozen
+// table (zone-baseline.mjs baseline --check). After a refreeze of classes.frozen.json this fails until it is re-run.
+test('results/baselines/chromium/swipe-v1/original.baseline.json is the Lean baseline of the committed zones and frozen table', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const r = spawnSync(process.execPath, [join(here, '../src/zone-baseline.mjs'), 'baseline', '--out', join(here, '../../../results/baselines/chromium'), '--check']);
+  assert.equal(r.status, 0, `stale baseline (re-run: node packages/measure-chromium/src/zone-baseline.mjs baseline --out results/baselines/chromium): ${r.stderr}`);
+  const b = JSON.parse(readFileSync(join(here, '../../../results/baselines/chromium/swipe-v1/original.baseline.json'), 'utf8'));
+  assert.deepStrictEqual(b.runs, ['r1', 'r2', 'r3']);
+  assert.deepStrictEqual(b.detDrift, []);
+  for (const z of b.zones) for (const c of Object.values(z.types)) assert.ok(c.lo <= c.base && c.base <= c.hi && c.perRun.includes(c.base));
 });

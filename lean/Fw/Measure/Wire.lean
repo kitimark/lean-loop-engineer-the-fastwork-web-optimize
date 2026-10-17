@@ -5,6 +5,7 @@ import Fw.Measure.Snapshot
 import Fw.Measure.Freeze
 import Fw.Measure.Neutral
 import Fw.Measure.Arms
+import Fw.Measure.ZoneBaseline
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
 
@@ -30,6 +31,7 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.n0Windows` | `events` [{kind, vt}], `frameVts` (non-decreasing), `startVt`, `dt` | `windows` (per event: `load`, `preroll`, `after` or a frame index), `load`, `preroll`, `after`, `frames` [{n0.events, n0.cssom, n0.sheetNode}] |
 | `measure.spkq` | a counts file: `frames` [{counts}], optional `meta.n0` {enabled, load, preroll, after {total}} | `verdict` (`pass`, `fail`, `missing`), `required`, `n1Gated`, `n1Excluded`, `unrecorded`, `nonzeroN0`, `nonzeroN1` (frame indices), `preroll`?, `after`? |
 | `measure.arms` | `a`, `r` (class tables {type: {class, k, t, tBound?}} of the original and the rewrite) | `types` {type: {a, r (class or `absent`), class (cross-arm), role, reason?}}, `gates`, `roles` |
+| `measure.zoneBaseline` | `runs` (≥ 3, distinct `id`s) [{id, frames \| zones}] (frames as for `measure.zoneSums`, or that op's `zones`), `zoneHeightPx` (≥ 1, needed when a run gives `frames`), `classes` (the frozen table {type: {class, k, t, tBound?}}) | `runs` (ids), `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, types {type: cell}}], `totals` {type: cell}, `detDrift` [{zone, type}], `detDriftTotals` [type], `tally`; cell = {class (or `unlisted`), rule (`unlisted` reads `quarantined`), perRun, lo, hi, base} |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
 namespace Fw.Wire.Measure
@@ -537,12 +539,59 @@ def opArms (req : Json) : Except String Reply := do
         ("roles", roleTallyJson (Arms.roleTally (rows.map fun (ty, c, _) =>
           ({ type := ty, cls := c, k := 0, t := 0, perRun := [], tBound := none } : Freeze.FRow))))]
 
+/-! ## Cross-run zone baseline (Fw.Measure.ZoneBaseline) -/
+
+/-- Decode a zone record `{id, frames, scrolledPx, firstFrame, lastFrame, sums}` (the `measure.zoneSums` reply). -/
+def zoneOfJson (j : Json) : Except String Zone := do
+  pure { id := ← str j "id", frames := ← nat j "frames", scrolledPx := ← asInt "scrolledPx" (← field j "scrolledPx"),
+         firstFrame := ← nat j "firstFrame", lastFrame := ← nat j "lastFrame", sums := ← countsOf "sums" (← field j "sums") }
+
+/-- Encode a baseline cell: class (or `unlisted`), the rule's level (`quarantined` when unlisted),
+per-run values, `lo`, `hi`, `base`. -/
+def bRowJson (tb : Freeze.Table) (r : ZoneBaseline.Row) : Json := Json.mkObj [
+  ("class", .str ((r.cls.map (levelName ·.cls)).getD "unlisted")),
+  ("rule", .str (levelName (Freeze.levelIn tb r.type))),
+  ("perRun", toJson r.perRun), ("lo", toJson r.lo), ("hi", toJson r.hi), ("base", toJson r.base)]
+
+/-- `measure.zoneBaseline`: `{runs:[{id, frames | zones}], zoneHeightPx?, classes}` →
+`{runs, zones, totals, detDrift, detDriftTotals, tally}`; an error when a run or the table does not decode or
+`ZoneBaseline.refusal` refuses. `tally` counts the whole-run types per class (`unlisted` separate). -/
+def opZoneBaseline (req : Json) : Except String Reply := do
+  let tb ← tableOf "classes" (← field req "classes")
+  let runs ← (← arr req "runs").toList.mapM fun r => do
+    let id ← str r "id"
+    let zs ← match opt r "frames", opt r "zones" with
+      | some fj, none => do
+        let h ← nat req "zoneHeightPx"
+        if h = 0 then throw "zoneHeightPx must be positive"
+        pure (zoneSums h (← (← asArr "frames" fj).toList.mapM frameOf))
+      | none, some zj => (← asArr "zones" zj).toList.mapM zoneOfJson
+      | _, _ => throw s!"run {id}: give exactly one of frames and zones"
+    pure ({ id := id, zones := zs } : ZoneBaseline.ZRun)
+  let b ← ZoneBaseline.zoneBaseline tb runs
+  let first := (runs.head?.map (·.zones)).getD []
+  let zoneJ (Z : String) (rows : List ZoneBaseline.Row) : Json :=
+    let base := match findZone first Z with
+      | some z => [("frames", toJson z.frames), ("scrolledPx", toJson z.scrolledPx),
+                   ("firstFrame", toJson z.firstFrame), ("lastFrame", toJson z.lastFrame)]
+      | none => []
+    Json.mkObj ([("id", .str Z)] ++ base ++ [("types", objOf (rows.map fun r => (r.type, bRowJson tb r)))])
+  let names := b.totals.map fun r => (r.cls.map (levelName ·.cls)).getD "unlisted"
+  let cnt (c : String) : Json := toJson (names.filter (· == c)).length
+  pure [("runs", toJson (runs.map (·.id))),
+        ("zones", .arr (b.zones.toArray.map fun (Z, rows) => zoneJ Z rows)),
+        ("totals", objOf (b.totals.map fun r => (r.type, bRowJson tb r))),
+        ("detDrift", .arr (b.detDrift.toArray.map fun (Z, ty) => Json.mkObj [("zone", .str Z), ("type", .str ty)])),
+        ("detDriftTotals", strArr b.detDriftTotals),
+        ("tally", Json.mkObj [("deterministic", cnt "deterministic"), ("stable", cnt "stable"),
+          ("quarantined", cnt "quarantined"), ("unlisted", cnt "unlisted")])]
+
 /-- The `measure.*` ops. -/
 def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
    "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.symDiff", "measure.summarize",
    "measure.selfCheck", "measure.snapshotCounts", "measure.freeze", "measure.splits", "measure.n0Windows",
-   "measure.spkq", "measure.arms"]
+   "measure.spkq", "measure.arms", "measure.zoneBaseline"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -562,6 +611,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.n0Windows" => some (opN0Windows req)
   | "measure.spkq" => some (opSpkq req)
   | "measure.arms" => some (opArms req)
+  | "measure.zoneBaseline" => some (opZoneBaseline req)
   | _ => none
 
 end Fw.Wire.Measure

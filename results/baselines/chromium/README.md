@@ -13,6 +13,8 @@ Raw counts are work, not milliseconds; nothing here is phone time. MEASURED on G
 Files in `swipe-v1/`:
 - `original.zones.json` (`fw.zonebaseline.chromium/1`): per shard, per zone: frames, scrolledPx, first/last frame and the sum of every count type (70 types). Zone assignment and sums are Lean `Fw.Measure.zoneSums` (fwcore `measure.zoneSums`).
 - `original.classes.json`: the run's own classes over its 3 shards (fwcore `measure.classify`, kMax 4, tMax 24), copied byte for byte from the store.
+- `original.baseline.json` (`fw.zonebaseline.chromium.baseline/1`): the cross-shard baseline, fwcore `measure.zoneBaseline` (Lean `Fw.Measure.ZoneBaseline`) over the 3 shards of `original.zones.json` and the `swipe-v1` profile of the frozen table `packages/measure-chromium/classes.frozen.json` (its sha256 is in `classTable`). Per zone and type, and per type for the whole run (`totals`): `class` (the frozen class, or `unlisted` = not in the table, rule quarantined), `perRun` (r1, r2, r3), `lo`, `hi`, `base` (the observed value at sorted index floor((n-1)/2), here the median of 3). `detDrift` lists deterministic cells with lo != hi: empty for this run (MEASURED). 8 types are `unlisted` until the refreeze.
+  **Re-run after every refreeze of the frozen table:** `node packages/measure-chromium/src/zone-baseline.mjs baseline --out results/baselines/chromium` (`--check` compares; `pnpm test` in `packages/measure-chromium` fails while the file is stale).
 
 Reproduce (needs the store entry and fwcore; the store is gitignored):
 `pnpm fw ci 39048702153 --branch ci/zone-baselines-chromium` then
@@ -22,6 +24,5 @@ The script recomputes every shard's zone sums with fwcore from `counts.json` and
 What the data shows (MEASURED, this run): zone ids, frame counts and scrolled px are identical in the 3 shards. Of 12 zones x 70 types, the cells that differ between shards are 18 of stable types and 25 of quarantined types by the run's own classes; none of a deterministic type.
 
 NOT in this directory, with the reason:
-- **Cross-shard baseline per zone and type (lo, hi, base, class attached).** It is a decision and fwcore has no op for it: Lean task request `measure.zoneBaseline` sent to the lead (handoff `docs/team/handoffs/zone-baselines-chromium.md`).
 - **Count vectors per part.** The Chromium counts have frame and zone dimensions only; the original snapshot has no part attribution (nothing in `counts.json` is keyed by part).
 - **The frozen table `packages/measure-chromium/classes.frozen.json` does not cover 8 of the 70 types** (n0.*, trace.HitTest.overlayAdDetector, trace.N1.*; the run classifies them deterministic) and has trace.HitTest quarantined where the split harness gives stable (k 2). The `refreeze` task regenerates it; until then the frozen table is stale for these.
