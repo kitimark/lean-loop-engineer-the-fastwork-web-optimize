@@ -7,6 +7,14 @@ name: webkit-sim
 on:
   push:
     branches: ['ci/**', main]
+    paths:
+      - 'packages/measure-webkit/**'
+      - 'snapshot/**'
+      - 'snapshot.lock.json'
+      - '.github/scripts/check-simulator.sh'
+      - '.github/scripts/verify-snapshot.mjs'
+      - '.github/scripts/runner-info.sh'
+      - '.github/workflows/webkit-sim.yml'
   workflow_dispatch:
     inputs:
       vms:
@@ -27,7 +35,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 
 jobs:
   plan:
