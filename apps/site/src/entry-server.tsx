@@ -5,7 +5,6 @@ import { Census } from './Census';
 import { createServerCache } from './emotion';
 import { parts, presets, resolveSearch } from './registry';
 import { Root } from './Root';
-import { themeVariablesCss } from './theme';
 
 export interface PrerenderedPage {
   /** the `?fw=...` / `?preset=...` search string this page answers ('' = default). */
@@ -35,8 +34,6 @@ export interface PrerenderResult {
   css: string;
   /** `aot`: every Emotion cache id that css contains; the client marks these inserted before hydration. */
   ids: string[];
-  /** `aot`: the theme's CSS variable sheet. */
-  themeCss: string;
   /** `runtime`: inline `<style data-emotion>` tags for the home page (plain Emotion SSR). */
   styleTags: string;
   /** `aot`: census page html (inspection only, written to dist/.census-aot.html, never linked). */
@@ -88,7 +85,6 @@ export function prerender(searches: string[] = ['']): PrerenderResult {
     // intermediate rule (its class is merged into the child's, never put on the DOM). Those rules are dead CSS,
     // so they are not emitted, but the client must still know they are "inserted" or it would insert them.
     ids: aot ? Object.keys(cache.inserted) : [],
-    themeCss: aot ? themeVariablesCss() : '',
     censusHtml,
     styleTags: aot ? '' : constructStyleTagsFromChunks(chunks),
     stats: { homeBytes: homeHtml.length, censusBytes: censusHtml.length, ruleChunks: chunks.styles.length },
