@@ -97,3 +97,13 @@ the 2nd and 3rd run); trace.CullRectUpdate, trace.ImageDecodeTask, trace.PaintIm
 - **§10.2 M0 row:** SPK-i is recorded as "byte-identical files not reachable" (this file, status decided); the
   re-scope signature still waits on the lead.
 - **Appendix B SPK-i row:** status "decided: not byte-identical; V-i per-type classes (spk-i.md)".
+
+## Lead decision (2026-10-17)
+- **Contradiction 1:** screening uses deterministic types, plus stable types only as totals with margin 2t.
+  "Deterministic only" would drop trace.Layout, trace.Paint, trace.RasterTask and LayoutCount, the main scroll-cost
+  signals, so it is rejected. PLAN §1.2 V-i is updated in revision 7.
+- **Contradiction 3:** the signed class of a type is its worst class over at least 3 CI workflow runs with the image
+  pinned (task class-freeze); one run's classes are never signed.
+- **Contradiction 4:** pixel-area census types get their own tolerance rule in `Fw/Measure/Classes` (task
+  pixel-tolerance); until then they stay quarantined.
+- Contradiction 2 (stale numbers) is fixed by plan revision 7.
