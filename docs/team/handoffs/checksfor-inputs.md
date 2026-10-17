@@ -16,3 +16,5 @@
 - The scan is static. Not seen: paths built at run time, `git` calls (span.sh records HEAD into timings only, which never decides a verdict), network, environment variables.
 
 **Open items.** Move `inScope`/`selectChecks` to an `fwcore` op (Lean has the spec). Land-prelock and check-dag use `candidateChecks`. Read first: the header of `land-inputs.test.ts`.
+
+**Late finding.** In the main checkout (not a fresh worktree) console-api reads `apps/console-web/dist`, a build product that exists only there; declared as `apps/console-web/**` (its source). The scan only sees files that exist, so it flags such reads only where the build output is present.

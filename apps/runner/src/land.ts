@@ -127,7 +127,7 @@ export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
  *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
  *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
 export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
-  "apps/console-api": ["apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**"],
+  "apps/console-api": ["apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**"],
   "apps/runner": ["apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh"],
   "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/contracts/golden/parts/**"],
