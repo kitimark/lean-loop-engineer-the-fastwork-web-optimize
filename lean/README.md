@@ -89,3 +89,5 @@ modeling premise, L3). Every probability above is a share of labelings under tha
   `signature` is printed without notation (`And (Eq …)`); `autoTex` is unaffected.
 - `console.apply` carries the whole state per call, so each call is O(state); a long-lived stateful
   `fwcore serve` (PLAN §3.2) would keep it in memory instead.
+
+<!-- ci-trigger-scope test 1 (dropped before landing) -->
