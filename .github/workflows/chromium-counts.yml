@@ -39,6 +39,14 @@ on:
         type: choice
         options: [both, original, rewrite]
         default: both
+      preset:
+        description: Rewrite preset to measure (apps/site/src/registry/presets/<name>.json); original = the default config. Applies to the rewrite jobs only (the original snapshot has no presets)
+        type: string
+        default: original
+      fw:
+        description: Rewrite flag set, comma separated part:variant (for example hero.countdown:strip), on top of the preset; empty = none. Applies to the rewrite jobs only
+        type: string
+        default: ''
       image_run:
         description: Optional run id of an earlier chromium-counts run; its chromium-image artifact is reused instead of building (class-freeze pins one image across workflow runs this way)
         type: string
@@ -64,6 +72,7 @@ jobs:
       profile: ${{ steps.m.outputs.profile }}
       targets: ${{ steps.m.outputs.targets }}
       rewrite: ${{ steps.m.outputs.rewrite }}
+      search: ${{ steps.m.outputs.search }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -74,12 +83,25 @@ jobs:
           PROFILE: ${{ inputs.profile || 'swipe-v1' }}
           RUNS: ${{ inputs.runs || '3' }}
           TARGET: ${{ inputs.target || 'both' }}
+          PRESET: ${{ inputs.preset || 'original' }}
+          FW: ${{ inputs.fw || '' }}
         run: |
           set -euo pipefail
           case "$PROFILE" in ''|*[!a-z0-9-]*) echo "bad profile name" >&2; exit 1 ;; esac
           case "$RUNS" in ''|*[!0-9]*) echo "runs must be a number" >&2; exit 1 ;; esac
           if [ "$RUNS" -lt 1 ] || [ "$RUNS" -gt 10 ]; then echo "runs must be 1..10" >&2; exit 1; fi
           test -f "packages/measure-chromium/profiles/$PROFILE.json"
+          # The rewrite page is chosen by its query string (apps/site: ?preset=<name>&fw=<part:variant,...>). The default
+          # config has the empty query. The site build prerenders exactly this query, so the measured page hydrates.
+          case "$PRESET" in ''|*[!a-z0-9-]*) echo "bad preset name" >&2; exit 1 ;; esac
+          case "$FW" in *[!A-Za-z0-9.:@,_-]*) echo "bad fw flag set" >&2; exit 1 ;; esac
+          search=""
+          if [ "$PRESET" != original ]; then search="?preset=$PRESET"; fi
+          if [ -n "$FW" ]; then
+            if [ -n "$search" ]; then search="$search&fw=$FW"; else search="?fw=$FW"; fi
+          fi
+          if [ -n "$search" ] && [ "$TARGET" = original ]; then echo "preset/fw apply to the rewrite: use target both or rewrite" >&2; exit 1; fi
+          echo "search=$search" >> "$GITHUB_OUTPUT"
           case "$TARGET" in
             both) targets='["original","rewrite"]' ;;
             original) targets='["original"]' ;;
@@ -129,7 +151,12 @@ jobs:
         with:
           filter: '@fw/site...'
       - name: Build the rewrite (default prerendered config)
-        run: pnpm --filter @fw/site build
+        env:
+          SEARCH: ${{ needs.plan.outputs.search }}
+        run: |
+          set -euo pipefail
+          # An empty search is the default config, which every build prerenders; any other query is added as a page.
+          if [ -n "$SEARCH" ]; then pnpm --filter @fw/site build --config "$SEARCH"; else pnpm --filter @fw/site build; fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site-dist
@@ -257,11 +284,16 @@ jobs:
           PROFILE: ${{ needs.plan.outputs.profile }}
           LABEL: ${{ matrix.run }}
           TARGET: ${{ matrix.target }}
+          SEARCH: ${{ needs.plan.outputs.search }}
           FW_SNAPSHOT_DIR: ${{ github.workspace }}/snapshot/site
           FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
           # Read by the harness once it learns it (harness change H2, see .github/README.md); a no-op until then.
           FW_DOCKER_CPUS: '4'
-        run: node packages/measure-chromium/src/host.mjs --profile "$PROFILE" --label "$LABEL" --target "$TARGET"
+        run: |
+          set -euo pipefail
+          args=(--profile "$PROFILE" --label "$LABEL" --target "$TARGET")
+          if [ "$TARGET" = rewrite ] && [ -n "$SEARCH" ]; then args+=(--search "$SEARCH"); fi
+          node packages/measure-chromium/src/host.mjs "${args[@]}"
 
       - name: Collect the result
         env:
@@ -309,6 +341,7 @@ jobs:
           FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
           PROFILE: ${{ needs.plan.outputs.profile }}
           TARGETS: ${{ needs.plan.outputs.targets }}
+          SEARCH: ${{ needs.plan.outputs.search }}
         run: |
           set -euo pipefail
           chmod +x "$FW_CORE_BIN"
@@ -318,6 +351,7 @@ jobs:
           cd "$RUNNER_TEMP/runs"
           ls
           echo "profile $PROFILE, workflow run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT, sha $GITHUB_SHA" > "$out/run.txt"
+          echo "search of the rewrite: '$SEARCH'" >> "$out/run.txt"
           # The pinned inputs of the image (class-freeze records them next to the image id).
           (cd "$GITHUB_WORKSPACE/packages/measure-chromium" && sha256sum Dockerfile docker/apt-manifest.txt docker/driver/package-lock.json) > "$out/image-inputs.txt"
           echo '### chromium-counts: classes over the runs' >> "$GITHUB_STEP_SUMMARY"
