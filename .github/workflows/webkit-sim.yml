@@ -272,16 +272,7 @@ jobs:
           done
           ls -l out
 
-      - name: Within-VM classes
-        if: ${{ (inputs.experiment || 'determinism') == 'determinism' }}
-        working-directory: packages/measure-webkit
-        env:
-          VM: ${{ matrix.vm }}
-        run: |
-          set -euo pipefail
-          files=(out/"$VM"-session-*.json)
-          node src/cli.mjs merge "${files[@]}" | tee "out/$VM-classes.md"
-          cp out/"$VM"-* "$RUNNER_TEMP/result/"
+      # The within-VM class tables are made by the merge job: pairing rows is fwcore's (Lean) and this job has no Linux binary.
 
       # Kept even when a session failed: the logs say where a slow start stalled.
       - name: Keep logs and host state
@@ -346,6 +337,11 @@ jobs:
           files=("$RUNNER_TEMP"/vms/v*-session-*.json)
           printf "%s\n" "${files[@]}"
           node packages/measure-webkit/src/cli.mjs merge "${files[@]}" | tee "$out/classes.md"
+          # within-VM tables (all sessions of one VM), as the sim jobs made them before merge needed fwcore
+          for f in "$RUNNER_TEMP"/vms/*-session-1.json; do
+            vm=$(basename "$f"); vm=${vm%%-session-*}
+            node packages/measure-webkit/src/cli.mjs merge "$RUNNER_TEMP"/vms/"$vm"-session-*.json > "$out/$vm-classes.md"
+          done
           sha256sum "${files[@]}" | tee "$out/sha256.txt"
           {
             echo '### webkit-sim: classes over all VMs and sessions (worst wins)'
