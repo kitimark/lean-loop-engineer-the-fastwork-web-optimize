@@ -61,7 +61,6 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
-          PATHS_GUARD_BASE: origin/ci/paths-guard-base
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/wktr.yml
 
   plan:
