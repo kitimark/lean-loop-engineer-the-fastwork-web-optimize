@@ -210,7 +210,7 @@ theorem transform_diff (e : Nat) : wkDiff ⟨e, .transform, .own⟩ = .recomposi
     wkDiff ⟨e, .transform, .layer⟩ = .overflow ∧ wkDiff ⟨e, .transform, .none⟩ = .layout := by
   refine ⟨?_, ?_, ?_⟩ <;> rfl
 
-/-- **Opacity crossing 1 → layout.** An opacity change that flips `isOpaque` is a full Layout on every layer state
+/-- **Opacity crossing 1 → layout.** An opacity change that flips `isOpaque` dirties layout on every layer state
 (`StyleDifference.cpp:208-214`; Chromium keeps it `direct`, design note §1.4).
 
 $$\forall m, \forall e \in \mathbb{N}, \forall \ell \in \mathrm{LayerState}:\ \mathrm{layout} \in \operatorname{webkitAt}(m).\mathrm{stagesOf}(e, \mathrm{opacityCross1}, \ell)$$
@@ -220,8 +220,8 @@ theorem opacityCross1_layout (m : WkMode) (e : Nat) (ℓ : LayerState) :
   have h : wkDiff ⟨e, .opacityCross1, ℓ⟩ = .layout := by cases ℓ <;> rfl
   simp [webkitAt, h, diffStages]
 
-/-- **stroke-dashoffset → layout.** A stroke-dashoffset change recomputes the cached stroke bounds, a full Layout on
-every layer state (`StyleDifference.cpp:161`; Chromium: paint).
+/-- **stroke-dashoffset → layout.** A stroke-dashoffset change recomputes the cached stroke bounds, so it dirties
+layout on every layer state (`StyleDifference.cpp:161`; Chromium: paint).
 
 $$\forall m, \forall e \in \mathbb{N}, \forall \ell \in \mathrm{LayerState}:\ \mathrm{layout} \in \operatorname{webkitAt}(m).\mathrm{stagesOf}(e, \mathrm{strokeDashoffset}, \ell)$$
 -/
@@ -354,8 +354,7 @@ $$\operatorname{scrollStep}(f) = f \text{ with } \mathrm{changes} := (0, \mathrm
 def scrollStep (f : FrameIn WkProp) : FrameIn WkProp :=
   { f with changes := ⟨0, .scrollPos, .none⟩ :: f.changes }
 
-/-- **Scroll rule.** Every delivered scroll position is exactly one rendering update with one commit pass, whatever the
-frame does besides (design note §1.3, prediction P4).
+/-- **Scroll rule.** Every delivered scroll position pays exactly one commit pass, whatever the frame does besides (design note §1.3, prediction P4).
 
 $$\forall m, \forall f \in \mathrm{FrameIn}(\mathrm{WkProp}):\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{scrollStep}(f)).\mathrm{passes}(\mathrm{commit}) = 1$$
 -/
@@ -600,7 +599,7 @@ $$\operatorname{animFrame}(m, a, \mathit{cs}) = \begin{cases} \operatorname{comp
 def animFrame (m : WkMode) (a : WkAnim) (cs : List (Change WkProp)) : FrameIn WkProp :=
   if wkThread m a = .comp then compFrame 1 else ⟨0, 0, 0, 0, cs, 0⟩
 
-/-- **A compositor animation costs zero web-process work**: no pass and no unit on any stage but `comp`.
+/-- **A compositor animation costs no web-process pass or unit**: no pass and no unit on any stage but `comp`.
 
 $$\forall m, \forall n \in \mathbb{N}, \forall s \ne \mathrm{comp}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{compFrame}(n)).\mathrm{passes}(s) = 0 \land \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{compFrame}(n)).\mathrm{units}(s) = 0$$
 -/
@@ -612,7 +611,7 @@ theorem compFrame_zero (m : WkMode) (n : Nat) (s : Stage) (hs : s ≠ .comp) :
         simp [frameWork, touched, stageUnits, forcedPasses, compFrame, webkitAt, FrameIn.updates] <;>
         by_cases hn : 0 < n <;> simp [hn])
 
-/-- A UI-process animation's frame has zero web-process work (`KeyframeEffect.cpp:2724-2744`: a completely
+/-- A UI-process animation's frame has no pass and no unit on any stage but `comp` (`KeyframeEffect.cpp:2724-2744`: a completely
 accelerated running effect does not tick; `DocumentTimeline.cpp:156-168`: no per-frame resolution).
 
 $$\forall m, a, \mathit{cs}:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \Rightarrow \forall s \ne \mathrm{comp}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{animFrame}(m, a, \mathit{cs})).\mathrm{passes}(s) = 0 \land \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{animFrame}(m, a, \mathit{cs})).\mathrm{units}(s) = 0$$
@@ -656,7 +655,8 @@ $$\mathrm{blurAnim} = \operatorname{clean}([\mathrm{filter}], \mathrm{time})$$
 def blurAnim : WkAnim := .clean [.filter] .time
 
 /-- **The blur filter animation is comp on WebKit**, in every mode: on the threaded path, and on the legacy path
-(which rejects only drop-shadow and mismatched op lists, `GraphicsLayerCA.cpp:3946-3958`). Chromium contrasts: bit 12
+(the clean animation passes every `caAccepts` clause; for a filter animation the legacy gate additionally rejects
+only drop-shadow and mismatched op lists, `GraphicsLayerCA.cpp:3946-3958`). Chromium contrasts: bit 12
 (blur or drop-shadow in `filter`, `compositor_animations.cc:405-417`@f842f52) keeps it on main (design note §1.4).
 
 $$\forall m \in \mathrm{WkMode}:\ \operatorname{wkThread}(m, \mathrm{blurAnim}) = \mathrm{comp}$$
@@ -665,7 +665,7 @@ theorem blur_comp (m : WkMode) : wkThread m blurAnim = .comp := by
   obtain ⟨tsd, ttb, p⟩ := m
   cases tsd <;> cases ttb <;> cases p <;> decide
 
-/-- **A blur animation costs no web-process work per frame**, whatever main-thread changes it would otherwise make.
+/-- **A blur animation costs no pass and no unit per frame on any stage but `comp`**, whatever main-thread changes it would otherwise make.
 
 $$\forall m, \mathit{cs}, \forall s \ne \mathrm{comp}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{animFrame}(m, \mathrm{blurAnim}, \mathit{cs})).\mathrm{passes}(s) = 0 \land \operatorname{frameWork}_{\operatorname{webkitAt}(m)}(\operatorname{animFrame}(m, \mathrm{blurAnim}, \mathit{cs})).\mathrm{units}(s) = 0$$
 -/
@@ -750,7 +750,7 @@ structure Scenario where
   original : FrameIn WkProp
   variants : List (String × FrameIn WkProp)
 
-/-- The five scenarios of WebKit note §5.3, in the default Safari mode (box 1 is the animated box):
+/-- The six scenarios (P3 split in two) of WebKit note §5.3, in the default Safari mode (box 1 is the animated box):
 - P1 (sim, per scroll step): a JS scroll handler writing a 2D transform on a non-composited layer vs a threaded
   scroll-driven transform animation;
 - P2 (sim, idle frame): a permanent rAF loop that writes nothing vs a CSS time-based opacity animation;
@@ -759,7 +759,7 @@ structure Scenario where
 - P4 (wktr, per scroll step): a JS scroll handler repainting a background vs a threaded scroll-driven animation;
 - P5 (wktr, per frame): a rAF writer of a 2D transform without a compositing reason vs the same with a 3D op.
 
-$$\mathrm{scenarios} = [\mathrm{P1}, \mathrm{P2}, \mathrm{P3a}, \mathrm{P3b}, \mathrm{P4}, \mathrm{P5}] \text{ as listed}$$
+$$\mathrm{scenarios} = [(\mathrm{id}_i, \mathrm{lane}_i, \mathrm{original}_i, \mathrm{variants}_i)]_{i=1}^{6},\quad (\mathrm{id}_i)_i = (\mathrm{P1}, \mathrm{P2}, \mathrm{P3a}, \mathrm{P3b}, \mathrm{P4}, \mathrm{P5}),\ (\mathrm{lane}_i)_i = (\mathrm{sim}^4, \mathrm{wktr}^2),\ |\mathrm{variants}_i| = 1$$
 -/
 def scenarios : List Scenario :=
   let sd := animFrame .safari (.clean [.transform] .scroll) [⟨1, .transform, .layer⟩]
@@ -786,7 +786,7 @@ structure Row where
 deriving Repr, DecidableEq
 
 /-- The rows of one scenario: for each counted stage of its lane, the original arm (`predO`, variant name
-`original`), then each variant (`predV` against the original), all under `webkit`.
+`original`), then each variant (`predV` against the original; variants outer, counts inner), all under `webkit`.
 
 $$\operatorname{rows}(\sigma) = \big[(\texttt{webkit}, \sigma.\mathrm{id}, \texttt{original}, s, \operatorname{predO}(W_o, s), k)\big]_{(s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})} \mathbin{+\!\!+} \big[(\texttt{webkit}, \sigma.\mathrm{id}, n, s, \operatorname{predV}(W_v, W_o, s), k)\big]_{(n, v) \in \sigma.\mathrm{variants},\ (s, k) \in \operatorname{counts}(\sigma.\mathrm{lane})},\quad W_x = \operatorname{frameWork}_{\mathrm{webkit}}(x)$$
 -/
@@ -800,7 +800,7 @@ def rowsOf (sc : Scenario) : List Row :=
 
 /-- All golden rows.
 
-$$\mathrm{rows} = \operatorname{flatMap}(\operatorname{rows}, \mathrm{scenarios})$$
+$$\mathrm{goldenRows} = \operatorname{flatMap}(\mathrm{scenarios}, \operatorname{rows})$$
 -/
 def goldenRows : List Row := scenarios.flatMap rowsOf
 
