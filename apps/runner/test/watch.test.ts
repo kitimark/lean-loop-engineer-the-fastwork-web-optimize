@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  carryCritical, collectAgents, collectCritical, collectSystem, exe, findTranscripts, keepNames, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
+  carryCritical, collectAgents, collectCritical, collectSystem, exe, findTranscripts, keepNames, liveKeep, ownProcs, parseTaskIds, readKeep, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
   summarizeLead, summarizeSpool, summarizeTranscript, type Runner, type SystemSnap,
 } from "../src/watch-collect.ts";
-import { alertKey, appendLog, newAlerts, parseWatchArgs, readLastLog, renderTable, type Health } from "../src/watch.ts";
+import { alertKey, appendLog, declareKeep, newAlerts, parseWatchArgs, readLastLog, renderTable, type Health } from "../src/watch.ts";
 
 const T0 = Date.parse("2026-10-17T10:00:00Z");
 const ev = (agent: string, h: string, ts: number, extra: object = {}) =>
@@ -199,6 +199,22 @@ describe("session processes", () => {
     const q = (pid: number, name: string, startedAt: number) => ({ pid, name, startedAt, pids: [] });
     expect(keepNames([q(1, "gh", 1000), q(2, "gh", 1000), q(3, "gh", 1000)], [q(1, "sleep", 2500), q(2, "sleep", 9000)]))
       .toEqual([q(1, "sleep", 1000), q(2, "gh", 1000), q(3, "gh", 1000)]);
+    // the owner carries over when this check found none; a found owner wins
+    expect(keepNames([q(1, "gh", 1000), { ...q(2, "gh", 1000), agent: "b" }], [{ ...q(1, "sleep", 1000), agent: "a" }, { ...q(2, "sleep", 1000), agent: "a" }]))
+      .toEqual([{ ...q(1, "sleep", 1000), agent: "a" }, { ...q(2, "sleep", 1000), agent: "b" }]);
+  });
+  it("owner: the root shell's stdout task file names the Bash task; the transcript that started it names the agent", () => {
+    const lsof = ["p101", "f1", "n/private/tmp/claude-501/proj/sess/tasks/bj5dpmo2u.output", "p120", "f1", "n/dev/null",
+      "p130", "f1", "n/private/tmp/claude-501/proj/sess/tasks/blead0001.output", ""].join("\n");
+    const ids = parseTaskIds(lsof);
+    expect([...ids]).toEqual([[101, "bj5dpmo2u"], [130, "blead0001"]]);
+    expect(parseTaskIds(null).size).toBe(0);
+    const q = (pid: number) => ({ pid, name: "sleep", startedAt: 0, pids: [] });
+    expect(ownProcs([q(101), q(120), q(130)], ids, new Map([["bj5dpmo2u", "a582f"]])))
+      .toEqual([{ ...q(101), agent: "a582f" }, q(120), q(130)]);
+    const t = [user(1, [{ type: "tool_result", tool_use_id: "x" }]).replace('"type":"user"', '"type":"user","toolUseResult":{"stdout":"","backgroundTaskId":"bj5dpmo2u"}'),
+      line({ type: "user", toolUseResult: "Error: text" }), line({ type: "user", toolUseResult: { stdout: "\"backgroundTaskId\":\"bfake\"" } })].join("\n");
+    expect(summarizeTranscript(t, null).bgTasks).toEqual(["bj5dpmo2u"]);
   });
 });
 
@@ -223,11 +239,38 @@ describe("critical path", () => {
 
 describe("cli", () => {
   it("parses flags", () => {
-    expect(parseWatchArgs([])).toEqual({ json: false, intervalS: null, untilAlert: false });
+    const base = { json: false, intervalS: null, untilAlert: false, keep: null, unkeep: null, note: null };
+    expect(parseWatchArgs([])).toEqual(base);
     expect(parseWatchArgs(["--until-alert"]).intervalS).toBe(300);
-    expect(parseWatchArgs(["--json", "--interval", "30"])).toEqual({ json: true, intervalS: 30, untilAlert: false });
+    expect(parseWatchArgs(["--json", "--interval", "30"])).toEqual({ ...base, json: true, intervalS: 30 });
     expect(() => parseWatchArgs(["--interval", "x"])).toThrow();
     expect(() => parseWatchArgs(["--nope"])).toThrow();
+  });
+  it("parses --keep/--note/--unkeep alone", () => {
+    const base = { json: false, intervalS: null, untilAlert: false, keep: null, unkeep: null, note: null };
+    expect(parseWatchArgs(["--keep", "42", "--note", "monitor"])).toEqual({ ...base, keep: 42, note: "monitor" });
+    expect(parseWatchArgs(["--unkeep", "42"])).toEqual({ ...base, unkeep: 42 });
+    for (const bad of [["--keep"], ["--keep", "0"], ["--keep", "1.5"], ["--keep", "4", "--interval", "9"], ["--keep", "4", "--unkeep", "4"],
+      ["--note", "x"], ["--unkeep", "4", "--note", "x"], ["--keep", "4", "--json"]])
+      expect(() => parseWatchArgs(bad)).toThrow();
+  });
+  it("--keep writes keep.json with the process start; --unkeep removes; gone or reused pids drop out", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fw-keep-"));
+    try {
+      const paths = pathsFor("/x/r", { FW_CONSOLE_DIR: dir } as never);
+      const rows = [{ pid: 7, ppid: 1, ageMs: 60_000, comm: "/usr/bin/caffeinate" }, { pid: 8, ppid: 1, ageMs: 5000, comm: "Python" }];
+      const o = (x: object) => ({ json: false, intervalS: null, untilAlert: false, keep: null, unkeep: null, note: null, ...x });
+      expect(declareKeep(paths, o({ keep: 7, note: "awake" }), rows, 100_000)).toContain("pid 7 (caffeinate) declared");
+      declareKeep(paths, o({ keep: 8 }), rows, 100_000);
+      expect(readKeep(paths)).toEqual([{ pid: 7, startedAt: 40_000, note: "awake" }, { pid: 8, startedAt: 95_000, note: null }]);
+      expect(() => declareKeep(paths, o({ keep: 9 }), rows, 100_000)).toThrow(/no running process 9/);
+      declareKeep(paths, o({ unkeep: 7 }), rows, 100_000);
+      expect(readKeep(paths).map((e) => e.pid)).toEqual([8]);
+      // pid 8 now names a process started 10 s later (reused pid): not the declared one
+      expect(liveKeep(readKeep(paths), [{ pid: 8, ppid: 1, ageMs: 0, comm: "x" }], 105_000)).toEqual([]);
+      expect(liveKeep(readKeep(paths), [{ pid: 8, ppid: 1, ageMs: 9000, comm: "x" }], 105_000)).toHaveLength(1);
+      expect(liveKeep(readKeep(paths), [], 105_000)).toEqual([]);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
   it("new alerts are those not in the previous check; the first check is a baseline", () => {
     const h = (codes: [string, string][]): Health => ({ agents: [], system: { alerts: [] }, counts: {}, alerts: codes.map(([code, subject]) => ({ code, subject, detail: "" })) });

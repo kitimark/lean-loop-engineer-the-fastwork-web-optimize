@@ -1,12 +1,14 @@
 // `fw watch`: collect the team snapshot, ask fwcore `obs.health` for states and alerts, print a compact table,
 // append input+output to .fw-console/health.jsonl. No decision logic here: every state and alert code is fwcore's.
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
-import { collectSnapshot, pathsFor, type AgentSnap, type Paths, type Prev, type Snapshot } from "./watch-collect.ts";
+import {
+  collectSnapshot, exe, liveKeep, parsePs, pathsFor, readKeep, writeKeep, type AgentSnap, type Paths, type Prev, type PsRow, type Snapshot,
+} from "./watch-collect.ts";
 
-export const WATCH_USAGE = "usage: fw watch [--json] [--interval <s>] [--until-alert]   (exit 3 when a new alert appears)";
+export const WATCH_USAGE = "usage: fw watch [--json] [--interval <s>] [--until-alert]   (exit 3 when a new alert appears)\n       fw watch --keep <pid> [--note <text>] | --unkeep <pid>   (declare an intended long-runner: no proc.long)";
 
 /** `critical`: tied to a critical-path task (fwcore sorts those first). */
 export interface Alert { code: string; subject: string; detail: string; critical?: boolean }
@@ -131,9 +133,18 @@ export function readLastLog(p: Paths): LogLine | null {
   } finally { closeSync(fd); }
 }
 
-export interface WatchOpts { json: boolean; intervalS: number | null; untilAlert: boolean }
+export interface WatchOpts {
+  json: boolean; intervalS: number | null; untilAlert: boolean;
+  /** declare (`--keep`) or withdraw (`--unkeep`) an intended long-runner, then exit without a check */
+  keep: number | null; unkeep: number | null; note: string | null;
+}
 export function parseWatchArgs(args: string[]): WatchOpts {
-  const o: WatchOpts = { json: false, intervalS: null, untilAlert: false };
+  const o: WatchOpts = { json: false, intervalS: null, untilAlert: false, keep: null, unkeep: null, note: null };
+  const pid = (s: string | undefined) => {
+    const n = Number(s);
+    if (!Number.isInteger(n) || n < 1) throw new UsageError(WATCH_USAGE);
+    return n;
+  };
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
     if (a === "--json") o.json = true;
@@ -142,10 +153,40 @@ export function parseWatchArgs(args: string[]): WatchOpts {
       const n = Number(args[++i]);
       if (!Number.isFinite(n) || n < 1) throw new UsageError(WATCH_USAGE);
       o.intervalS = n;
+    } else if (a === "--keep") o.keep = pid(args[++i]);
+    else if (a === "--unkeep") o.unkeep = pid(args[++i]);
+    else if (a === "--note") {
+      const t = args[++i];
+      if (t === undefined) throw new UsageError(WATCH_USAGE);
+      o.note = t;
     } else throw new UsageError(WATCH_USAGE);
   }
+  if ((o.keep !== null || o.unkeep !== null) && (o.intervalS !== null || o.untilAlert || o.json || (o.keep !== null && o.unkeep !== null)))
+    throw new UsageError(WATCH_USAGE);
+  if (o.note !== null && o.keep === null) throw new UsageError(WATCH_USAGE);
   if (o.untilAlert && o.intervalS === null) o.intervalS = 300;
   return o;
+}
+
+/** `--keep`/`--unkeep`: rewrite .fw-console/keep.json (entries whose process is gone are dropped on the way).
+ *  Returns the message to print. `rows` is the current `ps` table. */
+export function declareKeep(paths: Paths, o: WatchOpts, rows: PsRow[], now: number): string {
+  const cur = liveKeep(readKeep(paths), rows, now);
+  if (o.unkeep !== null) {
+    writeKeep(paths, cur.filter((e) => e.pid !== o.unkeep));
+    return `fw watch: pid ${o.unkeep} is no longer declared`;
+  }
+  const r = rows.find((x) => x.pid === o.keep);
+  if (!r) throw new UsageError(`fw watch: no running process ${o.keep}`);
+  writeKeep(paths, [...cur.filter((e) => e.pid !== o.keep), { pid: r.pid, startedAt: Math.floor(now - r.ageMs), note: o.note }]);
+  return `fw watch: pid ${r.pid} (${exe(r.comm)}) declared as an intended long-runner; its process tree raises no proc.long`;
+}
+
+function psRows(): Promise<PsRow[]> {
+  return new Promise((res) => {
+    execFile("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], { timeout: 3000, maxBuffer: 4_000_000 },
+      (err, stdout) => res(err ? [] : parsePs(String(stdout))));
+  });
 }
 
 export function repoRoots(cwd: string): Promise<{ root: string; main: string }> {
@@ -166,6 +207,17 @@ export async function watchMain(args: string[], cwd: string, print: (s: string) 
   const o = parseWatchArgs(args);
   const { root, main } = await repoRoots(cwd);
   const paths = pathsFor(main); // the console data (.fw-console, .local) lives in the main checkout
+  if (o.keep !== null || o.unkeep !== null) { print(declareKeep(paths, o, await psRows(), Date.now())); return 0; }
+  // a repeating watch is itself an intended long-runner: declare it while it runs, so other checks do not flag it
+  if (o.intervalS !== null) {
+    const me = (await psRows()).find((r) => r.pid === process.pid);
+    if (me) {
+      const now = Date.now();
+      writeKeep(paths, [...liveKeep(readKeep(paths), await psRows(), now).filter((e) => e.pid !== me.pid),
+        { pid: me.pid, startedAt: Math.floor(now - me.ageMs), note: "fw watch --interval" }]);
+      process.once("exit", () => { try { writeKeep(paths, readKeep(paths).filter((e) => e.pid !== me.pid)); } catch { /* best effort */ } });
+    }
+  }
   const call = core ?? coreCaller(coreCandidates(root, main));
   // the last logged check is the baseline: a relaunch after exit 3 does not re-report the alert it exited on,
   // and a failed gh/docker collector carries that check's value forward (marked stale)
