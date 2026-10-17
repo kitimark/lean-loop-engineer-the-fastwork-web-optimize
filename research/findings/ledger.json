@@ -232,14 +232,13 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E-s at the computed-value level under RG11 (consumer_eq_s; exact at integer scroll offsets, otherwise within the progress quantum: 1/(16R) in Chromium, 1 px on WebKit's main thread). Pixels: WebKit E in the v1 Simulator except a 30 px top band (78 levels). Chromium not-equal under the pixel rule (v1: ≤ 6 levels on 15-42k px, 1 device-px copy shift from GPU blending and snapping), so Q at best: PathPremises.raster_path fails there (INFERRED).",
-   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow. PROVED (toy rasters): raster_path fails for a half-pixel translate (snap 0 vs resample 128, Fw.Engine.raster_path_fails_fracXf) and for group opacity 1/2 over child 3/10 (38 vs 39, Fw.Engine.raster_path_fails_fracAlpha), so PathPremises needs C5 and C4 (Fw.Engine.PathPremises5, shown_eq5). A compositor move adds the comp stage, so it is never framewise <= (Fw.Engine.comp_move_not_le): mixed or noClaim when the original pays no comp, trade only when it already does.",
+   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow. PROVED (toy rasters): raster_path fails for a half-pixel translate (snap 0 vs resample 128, Fw.Engine.raster_path_fails_fracXf) and for group opacity 1/2 over child 3/10 (38 vs 39, Fw.Engine.raster_path_fails_fracAlpha), so PathPremises needs C5 and C4 (Fw.Engine.PathPremises5, shown_eq5). A compositor move adds the comp stage, so it is never framewise <= (Fw.Engine.comp_move_not_le): mixed or noClaim when the original pays no comp, trade only when it already does. wktr-p1p4 (scroll_comp_ride, MEASURED): on WebKit the threaded scroll-driven animations still tick and restyle their targets in every rendering update, so wkVar_eq and wk_var_exact (variant style passes 0 and units 0) are contradicted: the variant's scrolled frame has style passes 1 and style units N+3, the original's 1 and |wkOrigChanges|. MEASURED (task wktr-p1p4, WKTR of the iOS 26.5 Simulator on macos-26, CI run 39075991405, 3 jobs x 3 passes, fixtures in packages/measure-wktr/fixtures): a transform animation on animation-timeline: scroll(root) costs exactly 1 style recalc per rendering update (53 of 53, then 159 of 159 with two idle updates per step); the scroll-only control 0; the same animation on the document timeline (accelerated) 0; classes by fwcore (kMax 4, tMax 24) over 9 runs: styleRecalcs deterministic in all three; a JS rAF write is quarantined (0.74 to 0.93 per update).",
    "leanFor": [
     "Fw.Parts.HeroExit.exitOpacity_linear",
     "Fw.Parts.HeroExitOpt.progress_eq_js",
     "Fw.Parts.HeroExitOpt.consumer_eq_s",
     "Fw.Parts.HeroExitOpt.sentinel_iff_pointerOff",
     "Fw.Parts.HeroExitOpt.wk_all_comp",
-    "Fw.Parts.HeroExitOpt.wk_var_exact",
     "Fw.Engine.comp_move_le_off",
     "Fw.Engine.shown_eq5"
    ],
@@ -254,7 +253,11 @@
     "Fw.Engine.raster_path_fails_fracXf",
     "Fw.Engine.raster_path_fails_fracAlpha",
     "Fw.Engine.comp_move_not_le",
-    "Fw.Engine.comp_move_ge_on"
+    "Fw.Engine.comp_move_ge_on",
+    "Fw.Parts.HeroExitOpt.wk_var_exact",
+    "Fw.Parts.HeroExitOpt.wkVar_eq",
+    "Fw.Engine.WebKit.style_rate_model",
+    "Fw.Engine.WebKit.style_rate_old_refuted"
    ],
    "missingWhy": [
     {
@@ -271,6 +274,11 @@
      "statement": "Edge-frame cost on WebKit: the frames where the filter goes $\\mathrm{none} \\leftrightarrow \\mathrm{blur}(\\epsilon)$ or opacity crosses 1 pay layout: $\\mathrm{layout} \\in \\mathrm{stages}_{wk}$ on those frames, $\\#\\mathrm{edgeFrames}_v \\ge 1$ per rest→live switch",
      "module": "Fw.Parts.HeroExitOpt",
      "needs": "tabling WebKit.opacityCross1_layout and a filter-presence clause for the variant's start and park frames"
+    },
+    {
+     "statement": "Corrected WebKit frame of the variant: $V = \\operatorname{foldl}(\\operatorname{withAnim}_{\\mathrm{safari}}, \\operatorname{scrollStep}^{X}(\\varnothing), \\operatorname{wkAnims}(\\ell, N))$ (one ride-along per animation, distinct targets). Then $V.\\mathrm{passes}(\\mathrm{style}) = 1$ and $V.\\mathrm{units}(\\mathrm{style}) = N + 3$ (gN=4, phone band: 1 and 7; the original's scrolled frame: 1 and 12), $V.\\mathrm{passes}(\\mathrm{comp}) = 1$, $V.\\mathrm{units}(\\mathrm{comp}) = N + 3$, script 0, layout 0, paint 0. Expected verdict changes on WebKit (computed in a scratch file against Fw.Parts.HeroExitOpt.framePred, not committed): golden hero-exit.jsonl rows webkit RecalculateStyles and styleRecalcs move from `<o` to `\\le o` (the scroll frame ties on passes, the idle frame has no rendering update so 0 = 0); every other WebKit row is unchanged; the claim stays trade. Theorems of HeroExitOpt that stop holding as stated: wkVar_eq, wk_var_exact (style passes 0, units 0), wk_trade for every cs (for cs = [] the original's style units 0 < N+3 breaks mainLt; it still holds at cs = wkOrigChanges); still true: wk_anim_comp, wk_all_comp, wk_legacy_main, wkAnims_*.",
+     "module": "Fw.Parts.HeroExitOpt",
+     "needs": "why-parts: rebuild wkVar/wkFrames on Fw.Engine.WebKit.webkitX with withAnim and scrollStepX (Fw.Engine.WebKit.style_rate_model is the measured base case), restate wk_var_exact with style passes 1 and units N+3, add the cs side condition to wk_trade, regenerate hero-exit.jsonl"
     }
    ],
    "premises": [
@@ -280,7 +288,8 @@
     "threadedScrollDriven on in the WebKit lane, shipping Safari OPEN (R7/O2)",
     "the lane mode everyBeginFrameIsMainFrame: MEASURED, cause OPEN (R1)",
     "pointer-events by an IO sentinel: its delivery lag is glue, not proved (Blink posted task CONFIRMED intersection_observer_controller.cc:90-105)",
-    "raster_path for Chromium: OPEN, contradicted by v1 OBSERVED pixel diffs"
+    "raster_path for Chromium: OPEN, contradicted by v1 OBSERVED pixel diffs",
+    "scroll-timeline animations restyle their target once per rendering update on WebKit even when accelerated: MEASURED (wktr-p1p4)"
    ],
    "v1Evidence": "KD#2 (../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 2): median slow frames 31 → 18 → 7 (original, v4, v6), and the user preferred v6 in both blind swipes. ../fastwork-com-web-optimize/fixes/hero-exit-threaded/README.md: shipped WebKit-only (GestureEvent gate) because Blink compositing changed pixels (≤ 6 levels on 15-42k px, 1 device-px copy shift). WebKit: a transform animation on .hero-copy made the accent repaint about 1.4× as often; none → blur(0.009px) costs one Layout; the 30 px top band was 78 levels off, so the writer was kept there; P-081: go-live-from-rest frames cost more than C's.",
    "lesson": "Moving main-thread work to the compositor is a trade, never dominance. In the CI lane style passes stay one per frame, so only script and the quarantined elementCount drop. Compositing also changes rasterization, so value-level E-s is not pixel E.",
@@ -377,7 +386,7 @@
    "premises": [
     "the rAF time equals the document timeline time (R5): CONFIRMED in both engines; the lane clock shim breaks it unless an offset is added",
     "the WebKit legacy CA path accepts keyword-linear multi-keyframe transforms: CONFIRMED (legacy_rejects)",
-    "every rendering update ticks relevant accelerated animations and invalidates their style: CONFIRMED at the pin (cites above); not in the Lean model",
+    "every rendering update ticks relevant accelerated animations and invalidates their style: CONFIRMED at the pin for scroll timelines and now in the Lean model (withAnim, wkTicks); MEASURED false for an accelerated animation on the document timeline: 0 style recalcs in 53 of 53 updates with the animation running (time-accel fixture, wktr-p1p4), which confirms Fw.Engine.WebKit.compFrame_zero and time_comp_no_ride",
     "CA 80-120 Hz on the iPhone: CONFIRMED in source, OPEN on the device (v1 C9 UNRESOLVED)"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/research/gpu-lessons/README.md §1.1-1.3: countdown script calls per roll 23-26 -> 1; main frames 295-306 -> 250-262 per 6 s full page, 205 -> 79 on a frozen page; Paint and Layout equal; Simulator RenderingFrame 223/206 vs 210/203 per 4 s; 52-66 keyframes per cell per roll; the 60 Hz and 120 Hz paths differ by up to 29.6 px. The user accepted it as a near-identical look (PR-017).",
@@ -512,7 +521,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "Not equal (class L). Scaling a box is not resizing it (radius and text scale), and a scroll-linked timeline replaces the time-based 680 ms tween, which changes the interaction. v1 tiered it and did not prove it.",
-   "mechanism": "Per-frame top/width/height/radius writes (layoutFull: layout and paint) become transforms (jsTransform_lt_topLeft, compTransform_no_layout_paint). Chromium runs them on the compositor only if the scroll source is user-scrollable (bit 16; the scroll-jack undermines this), and style stays 1 per BeginFrame (F1). On WebKit every scroll update ticks and invalidates the threaded animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d), so style stays. The saving lands in layout and paint (Layout stable, raster.invalidationAreaPx). New costs: 8 clipper layers (resident up), more style, and Chrome glass corners. why-engines: a scroll timeline answers yes in every update while its source is connected (ScrollTimeline.cpp:291-298@862f17d), and the timelines controller ticks each of its animations (AnimationTimelinesController.cpp:138-178), whose tick invalidates the target's style even when accelerated (WebAnimation.cpp:1558-1582, KeyframeEffect.cpp:2129-2132, 1731-1735, 127-135). So the CM style floor holds in WebKit: one style pass and +1 style unit per updating frame (scroll_comp_ride). CONFIRMED. This contradicts the golden P1 'scrollDriven RecalculateStyles = 0' and P4 'styleRecalcs = 0' predictions (WebKit.lean golden rows), which were never measured on a scroll-driven fixture: OPEN for a WKTR fixture and a golden regeneration.",
+   "mechanism": "Per-frame top/width/height/radius writes (layoutFull: layout and paint) become transforms (jsTransform_lt_topLeft, compTransform_no_layout_paint). Chromium runs them on the compositor only if the scroll source is user-scrollable (bit 16; the scroll-jack undermines this), and style stays 1 per BeginFrame (F1). On WebKit every scroll update ticks and invalidates the threaded animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d), so style stays. The saving lands in layout and paint (Layout stable, raster.invalidationAreaPx). New costs: 8 clipper layers (resident up), more style, and Chrome glass corners. why-engines: a scroll timeline answers yes in every update while its source is connected (ScrollTimeline.cpp:291-298@862f17d), and the timelines controller ticks each of its animations (AnimationTimelinesController.cpp:138-178), whose tick invalidates the target's style even when accelerated (WebAnimation.cpp:1558-1582, KeyframeEffect.cpp:2129-2132, 1731-1735, 127-135). So the CM style floor holds in WebKit: one style pass and +1 style unit per updating frame (scroll_comp_ride). CONFIRMED. This contradicts the golden P1 'scrollDriven RecalculateStyles = 0' and P4 'styleRecalcs = 0' predictions (WebKit.lean golden rows), which were never measured on a scroll-driven fixture. MEASURED (task wktr-p1p4, WKTR of the iOS 26.5 Simulator on macos-26, CI run 39075991405, 3 jobs x 3 passes, fixtures in packages/measure-wktr/fixtures): a transform animation on animation-timeline: scroll(root) costs exactly 1 style recalc per rendering update (53 of 53, then 159 of 159 with two idle updates per step); the scroll-only control 0; the same animation on the document timeline (accelerated) 0; classes by fwcore (kMax 4, tMax 24) over 9 runs: styleRecalcs deterministic in all three; a JS rAF write is quarantined (0.74 to 0.93 per update). The source reading is right and the goldens were wrong: P1 RecalculateStyles and P4 styleRecalcs for scrollDriven are regenerated from =0 to =o (Fw.Engine.WebKit.style_rate_model, style_rate_old_refuted).",
    "leanFor": [
     "jsTransform_le_topLeft",
     "jsTransform_lt_topLeft",
@@ -527,7 +536,9 @@
     "Fw.Engine.comp_move_ge_on",
     "Fw.Engine.comp_move_not_le",
     "Fw.Engine.claim_ne_dominates_of_layers",
-    "Fw.Engine.WebKit.scroll_comp_ride"
+    "Fw.Engine.WebKit.scroll_comp_ride",
+    "Fw.Engine.WebKit.style_rate_model",
+    "Fw.Engine.WebKit.style_rate_old_refuted"
    ],
    "missingWhy": [
     {
@@ -538,18 +549,18 @@
     {
      "statement": "Style floor and trade: $\\forall\\epsilon,k\\in\\mathrm{range}:\\ W_\\epsilon(\\mathrm{CM},k).\\mathrm{passes}(\\mathrm{style})\\ge1$ and $R_{CM}.\\mathrm{layers}=R_o.\\mathrm{layers}+8$, hence $\\operatorname{claim}\\in\\{\\mathrm{trade},\\mathrm{noClaim}\\}$",
      "module": "Fw.Parts.MorphTweenOpt",
-     "needs": "WebKit tick clause PROVED (Fw.Engine.WebKit.scroll_comp_ride); remaining: the clipper layers in Resident (parts), and regenerating golden P1/P4 scroll-driven style rows (now contradicted by source) after a WKTR scroll-timeline fixture"
+     "needs": "WebKit tick clause PROVED (Fw.Engine.WebKit.scroll_comp_ride); remaining: the clipper layers in Resident (parts), golden P1/P4 scroll-driven style rows REGENERATED and measured (wktr-p1p4: Fw.Engine.WebKit.style_rate_model)"
     }
    ],
    "premises": [
     "WebKit threaded scroll-driven animations are on by default: CONFIRMED",
-    "per-update tick and invalidate for relevant animations: CONFIRMED at the pin; the Lean WebKit model contradicts it (gap)",
+    "per-update tick and invalidate for scroll-timeline animations: CONFIRMED at the pin and MEASURED (1 style recalc per rendering update, wktr-p1p4); the Lean model now has it (withAnim, wkTicks)",
     "Chromium needs UserScrollable for comp scroll timelines: CONFIRMED (bit 16)",
     "residual layout from forced hit tests and scrollY reads: MEASURED in v1"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/fixes/compositor-morph/README.md:194-240, P-157 iPhone per morph frame: Paint 11.45-12.01 -> 3.19-3.28 (0.28-0.29x); Layout 2.23-2.38 -> 1.00-1.04 (the ~0 prediction was refuted; the residue comes from elementsFromPoint hit tests and scrollY reads); style 1.82-1.90 -> 2.13-2.18; median frame 17 ms in all runs, no frame-time separation. Chrome glass shows square corners; on WebKit the glass blinks under the clippers.",
    "lesson": "Compositor animation removes layout and paint, never the per-frame style pass, and geometry tricks that emulate a resize add layers. Expect a trade, and remove the forced-read residue separately (hit-skip).",
-   "next": "Record CM as a class-L proposal. Prove rounded-rect rigidity to close the same-look question for good. Fix the WebKit model's scroll-driven style clause, then emit work-only golden rows for the try-it page."
+   "next": "Record CM as a class-L proposal. Prove rounded-rect rigidity to close the same-look question for good. The WebKit model's scroll-driven style clause is fixed and measured (wktr-p1p4); emit work-only golden rows for the try-it page."
   },
   {
    "n": 11,
@@ -1525,7 +1536,8 @@
    "premises": [
     "Pixel residual cause (device-pixel snapping vs sub-pixel transform): INFERRED hypothesis, OBSERVED residual",
     "WebKit keeps the masked band on the compositor: OBSERVED in v1 (no repaint), UNRESOLVED in source",
-    "Lane tail zone shows the cost: MEASURED (results/baselines/chromium/swipe-v1/original.zones.json tail: ULT 30, Paint 60, PrePaint 31 over 30 frames)"
+    "Lane tail zone shows the cost: MEASURED (results/baselines/chromium/swipe-v1/original.zones.json tail: ULT 30, Paint 60, PrePaint 31 over 30 frames)",
+    "a document-timeline accelerated animation costs no style recalc per rendering update on WebKit (compFrame_zero): MEASURED (time-accel fixture, wktr-p1p4: 0 of 53 updates; the ev_animActive gauge reads 53, so the animation did run). Note: ev_animActive does not count scroll-timeline animations (0 in the scroll-timeline fixture while it restyles every update), so use styleRecalcs, not animActive, to see a scroll-driven animation"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/fixes/platform-idle/README.md (P-077 PASS Chrome and Sim; Chrome style 240 -> 8, paints ~481 -> ~33 per 4 s; Sim RS ~478 -> 8, Layout ~237 -> 8, Paint ~952 -> 4, combined with glint; section layers 9 -> 26; PR-009 accepted as a look change); fixes/illusion-sweep/README.md (darken variant, +4 layers)",
    "lesson": "Moving an animation to the compositor lowers paint, raster and commit, never UpdateLayoutTree in the CI lane. It adds layers, so it is a Resident trade; judge it with cc.Commit/raster counters, not Paint or style.",

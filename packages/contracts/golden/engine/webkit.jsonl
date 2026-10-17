@@ -4,7 +4,7 @@
 {"countType":"Paint","engine":"webkit","prediction":">0","scenario":"P1","stage":"paint","variant":"original"}
 {"countType":"Composite","engine":"webkit","prediction":">0","scenario":"P1","stage":"commit","variant":"original"}
 {"countType":"FireAnimationFrame","engine":"webkit","prediction":"=0","scenario":"P1","stage":"script","variant":"scrollDriven"}
-{"countType":"RecalculateStyles","engine":"webkit","prediction":"=0","scenario":"P1","stage":"style","variant":"scrollDriven"}
+{"countType":"RecalculateStyles","engine":"webkit","prediction":"=o","scenario":"P1","stage":"style","variant":"scrollDriven"}
 {"countType":"Layout","engine":"webkit","prediction":"=0","scenario":"P1","stage":"layout","variant":"scrollDriven"}
 {"countType":"Paint","engine":"webkit","prediction":"=0","scenario":"P1","stage":"paint","variant":"scrollDriven"}
 {"countType":"Composite","engine":"webkit","prediction":"=o","scenario":"P1","stage":"commit","variant":"scrollDriven"}
@@ -42,7 +42,7 @@
 {"countType":"layoutUpdates","engine":"webkit","prediction":"=0","scenario":"P4","stage":"layout","variant":"original"}
 {"countType":"compositingUpdates","engine":"webkit","prediction":"=0","scenario":"P4","stage":"props","variant":"original"}
 {"countType":"renderingUpdates","engine":"webkit","prediction":">0","scenario":"P4","stage":"commit","variant":"original"}
-{"countType":"styleRecalcs","engine":"webkit","prediction":"=0","scenario":"P4","stage":"style","variant":"scrollDriven"}
+{"countType":"styleRecalcs","engine":"webkit","prediction":"=o","scenario":"P4","stage":"style","variant":"scrollDriven"}
 {"countType":"layoutUpdates","engine":"webkit","prediction":"=0","scenario":"P4","stage":"layout","variant":"scrollDriven"}
 {"countType":"compositingUpdates","engine":"webkit","prediction":"=0","scenario":"P4","stage":"props","variant":"scrollDriven"}
 {"countType":"renderingUpdates","engine":"webkit","prediction":"=o","scenario":"P4","stage":"commit","variant":"scrollDriven"}
