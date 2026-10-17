@@ -342,7 +342,21 @@ def pilotParts : List PartUse := [
   { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
     extra := [], knees := [],
     dismissed := [
-      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] }
+      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] },
+  { id := "overlays.drawer", owners := ["overlays.drawer"],
+    orig := ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-640", "mq.w-le-860"],
+    rewrite := ["mq.rm-reduce", "mq.w-le-860", "mq.w-le-640"],
+    extra := [], knees := [],
+    dismissed := [
+      ("css.safe-area", "env(safe-area-inset-bottom) in the sheet's body padding: 0 in a desktop or non-notched browser and the same fallback in both arms"),
+      ("css.hover-ungated", "plain :hover rule on the footer button (css 894); the gate never hovers an element")] },
+  { id := "overlays.signup", owners := ["overlays.signup"],
+    orig := ["mq.rm-reduce", "mq.w-le-600", "mq.w-le-860"], rewrite := ["mq.rm-reduce", "mq.w-le-600"],
+    extra := [], knees := [⟨"waitlist dialog min(360, 100vw - 48)", 408⟩],
+    dismissed := [
+      ("css.safe-area", "max(24px, env(safe-area-inset-bottom)) in the <=600 padding: 0 in a non-notched browser, the same rule in both arms"),
+      ("js.dialog-direction", "the entrance direction from the focused trigger; the gate opens the dialog with the body focused (fallback 0, 16 px) and the rounding is proved in Lean Fw.Parts.OverlaySignup"),
+      ("js.waitlist-dialog-size", "width min(360px, 100vw - 48px) and max-height 85vh: the knee 408 carries the width edge, the height is a viewport fraction")] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.

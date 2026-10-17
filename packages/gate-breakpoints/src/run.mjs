@@ -4,7 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
-import { PIN_SRC, collectInPage, mountPanel, waitReady, waitResize } from './page.mjs';
+import { PIN_SRC, closeOverlay, collectInPage, mountPanel, openOverlay, waitReady, waitResize } from './page.mjs';
 import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
@@ -12,9 +12,34 @@ const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const SITES = ['orig', 'rewrite'];
 const FILTER = { orig: '\\.svelte-', rewrite: '-module_' };
 const CAP_MS = { orig: 20000, rewrite: 15000 };
-/** Parts whose original elements exist only after a page action. Their roles are collected in a second pass, after the
- *  action, so every other part is read in the state a fresh load has (the action is a scroll there and back). */
-const ORIG_PREPARE = { 'morph.columns': mountPanel };
+/** Parts whose elements exist only after a page action, per arm. Their roles are collected in a later pass, after the action,
+ *  so every other part is read in the state a fresh load has. `open` runs before the collect and `close` (optional) after it,
+ *  each `{ fn, arg? }` evaluated in the page. morph.columns: the original mounts the panel after a scroll there and back.
+ *  Overlays: a click on the trigger (the original's own button; the rewrite's placeholder nav button, id open-drawer or
+ *  open-dialog) opens them, and a click on the close button returns the page to the closed state. */
+const PREPARE = {
+  orig: {
+    'morph.columns': { open: { fn: mountPanel } },
+    'overlays.drawer': {
+      open: { fn: openOverlay, arg: { trigger: '[data-selenium="start-selling.commission.button.why"]', ready: '.why-bring.is-open' } },
+      close: { fn: closeOverlay, arg: { close: '.why-bring-close', gone: '.why-bring' } },
+    },
+    'overlays.signup': {
+      open: { fn: openOverlay, arg: { trigger: '[data-selenium="start-selling.hero.button.get-started"]', ready: 'dialog[data-modal-name="waitlist-signup"][open]' } },
+      close: { fn: closeOverlay, arg: { close: 'dialog[data-modal-name="waitlist-signup"] button[aria-label="Close"]', gone: 'dialog[data-modal-name="waitlist-signup"][open]' } },
+    },
+  },
+  rewrite: {
+    'overlays.drawer': {
+      open: { fn: openOverlay, arg: { trigger: '#open-drawer', ready: '[data-fw="overlay-drawer"][class*="module_open"]' } },
+      close: { fn: closeOverlay, arg: { close: '[data-fw="overlay-drawer"] button[aria-label="Close"]', gone: '[data-fw="overlay-drawer"]' } },
+    },
+    'overlays.signup': {
+      open: { fn: openOverlay, arg: { trigger: '#open-dialog', ready: 'dialog[data-fw="overlay-signup"][open]' } },
+      close: { fn: closeOverlay, arg: { close: 'dialog[data-fw="overlay-signup"] button[aria-label="Close"]', gone: 'dialog[data-fw="overlay-signup"][open]' } },
+    },
+  },
+};
 
 async function pool(items, n, fn) {
   const results = new Array(items.length);
@@ -76,17 +101,22 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     return engine.open(env, { origin: servers[site].origin, path: '/', init: PIN_SRC });
   }
   const evalReady = (s, site) => s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
-  const lateIds = new Set(Object.keys(activeParts).filter((pid) => ORIG_PREPARE[pid]));
-  const pick = (site, late) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => (site === 'orig' && lateIds.has(pid)) === late));
+  const lateOf = (site) => Object.keys(activeParts).filter((pid) => PREPARE[site][pid]);
+  const pick = (site, late) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => (PREPARE[site][pid] ? late : !late)));
   const collectArg = (site, env, props, parts) => ({
     site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, filter: FILTER[site],
   });
   async function evalCollect(s, site, env, props) {
-    if (site !== 'orig' || lateIds.size === 0) return s.evaluate(collectInPage, collectArg(site, env, props, partsArg[site]));
+    const late = lateOf(site);
+    if (late.length === 0) return s.evaluate(collectInPage, collectArg(site, env, props, partsArg[site]));
     const raw = await s.evaluate(collectInPage, collectArg(site, env, props, pick(site, false)));
-    for (const pid of lateIds) await s.evaluate(ORIG_PREPARE[pid]);
-    const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(site, true)));
-    raw.parts = { ...raw.parts, ...late.parts };
+    for (const pid of late) {
+      const { open, close } = PREPARE[site][pid];
+      await s.evaluate(open.fn, open.arg);
+      const one = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
+      raw.parts = { ...raw.parts, ...one.parts };
+      if (close) await s.evaluate(close.fn, close.arg);
+    }
     return raw;
   }
 

@@ -156,6 +156,308 @@
           "why": "the part renders nothing and restates no CSS; only the document element's width is compared. If the mark is missing the rewrite count is 0 and the count differs"
         }
       ]
+    },
+    "overlays.drawer": {
+      "anchors": [
+        "overlay-drawer"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:684-734 (root, backdrop, panel), 735-899 (content), 899-914 (<=860), 1145-1165 (<=640), 1215-1218 (reduced motion)",
+        "2.DyWL8TcE.js:2893-3030 (the drawer component), 3284-3290 (mounted by the commission section)",
+        "collected in the open state: run.mjs PREPARE clicks the commission \"why\" button in the original and the placeholder nav button #open-drawer in the rewrite, waits until the panel is shown and every transition has ended, collects, then clicks the close button and waits for the unmount"
+      ],
+      "excluded": [
+        {
+          "what": "the brand mark path, the benefit icons and the divider images",
+          "why": "assets are not restated: the rewrite draws a placeholder glyph and 1x1 images; the boxes (32px mark, 24px icons, 1px divider) are the part's own"
+        },
+        {
+          "what": "the trigger (the commission \"why\" button)",
+          "why": "owned by the commission section; the rewrite opens the drawer from the placeholder nav button"
+        },
+        {
+          "what": "the slide-in and fade transitions in motion",
+          "why": "compared settled (animation* is skipped globally; the gate reads after every transition has ended); the curves and the state machine are proved in Lean Fw.Parts.OverlayDrawer"
+        }
+      ],
+      "roles": [
+        {
+          "role": "root",
+          "orig": ".why-bring",
+          "rewrite": "[data-fw=\"overlay-drawer\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "fixed inset 0 over the viewport, both arms; the reference for the boxes below (fixed, so they are viewport coordinates)"
+        },
+        {
+          "role": "backdrop",
+          "orig": ".why-bring-backdrop",
+          "rewrite": "[data-fw=\"overlay-drawer\"] > button",
+          "boxRel": {
+            "role": "root",
+            "index": 0
+          },
+          "dims": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "absolute inset 0 inside the root"
+        },
+        {
+          "role": "panel",
+          "orig": ".why-bring-panel",
+          "rewrite": "[data-fw=\"overlay-drawer\"] > div",
+          "boxRel": {
+            "role": "root",
+            "index": 0
+          },
+          "dims": [
+            "x",
+            "w"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "height",
+            "block-size"
+          ],
+          "why": "x and width are the layout (right-aligned 600, centred, or full-width sheet); y and height follow the text (the sheet and the centred layouts place it from the viewport edge)"
+        },
+        {
+          "role": "close",
+          "orig": ".why-bring-close",
+          "rewrite": "[data-fw=\"overlay-drawer\"] > div > button",
+          "boxRel": {
+            "role": "panel",
+            "index": 0
+          },
+          "dims": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "absolute top/right inside the panel: compared against the panel box"
+        },
+        {
+          "role": "body",
+          "orig": ".why-bring-body",
+          "rewrite": "[data-fw=\"overlay-drawer\"] > div > div",
+          "boxRel": {
+            "role": "panel",
+            "index": 0
+          },
+          "dims": [
+            "x",
+            "y",
+            "w"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "height",
+            "block-size"
+          ],
+          "why": "padding-driven offset inside the panel; its height is the text"
+        },
+        {
+          "role": "mark",
+          "orig": ".why-bring-mark",
+          "rewrite": "[data-fw=\"overlay-drawer\"] svg[class*=\"module_mark\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the 32px glyph box"
+        },
+        {
+          "role": "title",
+          "orig": ".why-bring-intro h2",
+          "rewrite": "[data-fw=\"overlay-drawer\"] h2",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "a text-driven box: the rewrite has no Google Sans font file, so widths and line counts differ; only the styles are compared"
+        },
+        {
+          "role": "item",
+          "orig": ".why-bring-item",
+          "rewrite": "[data-fw=\"overlay-drawer\"] li[class*=\"module_item\"]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "a text-driven box: the rewrite has no Google Sans font file, so widths and line counts differ; only the styles are compared"
+        },
+        {
+          "role": "button",
+          "orig": ".why-bring-footer button",
+          "rewrite": "[data-fw=\"overlay-drawer\"] [class*=\"module_footer\"] button",
+          "boxRel": null,
+          "dims": [
+            "h"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "fixed 48px height; the width follows the label"
+        }
+      ]
+    },
+    "overlays.signup": {
+      "anchors": [
+        "overlay-signup"
+      ],
+      "cites": [
+        "snapshot DialogHeader.Qcgwm6ST.css:642-714 (the sb-dialog shell and enter animation), 2.gBuqKVzi.css:11613-11623 (waitlist overrides), 11624-11740 (form)",
+        "2.DyWL8TcE.js:13265-13400 (the dialog content), 7201-7270 (the modal shell), chunks/D313Dngs.js:1927-2038 (open/close)",
+        "collected in the open state: run.mjs PREPARE clicks the hero get-started button in the original and the placeholder nav button #open-dialog in the rewrite (focus stays on the body, so both open with the (0, 16) direction), waits until the dialog is open and the enter animation has ended, collects, then clicks the close button"
+      ],
+      "excluded": [
+        {
+          "what": "the brand glyph",
+          "why": "assets are not restated: the rewrite draws a placeholder glyph in the 32px box"
+        },
+        {
+          "what": "the trigger buttons (hero, header and the drawer footer)",
+          "why": "owned by other parts; the rewrite opens the dialog from the placeholder nav button"
+        },
+        {
+          "what": "::backdrop",
+          "why": "a pseudo-element: not reachable by getComputedStyle on the element; its two values (rgba 13192259, blur 8px) are in the CSS Module"
+        },
+        {
+          "what": "the enter animation in motion",
+          "why": "compared settled (animation* is skipped globally); the curve and the direction math are proved in Lean Fw.Parts.OverlaySignup"
+        }
+      ],
+      "roles": [
+        {
+          "role": "dialog",
+          "orig": "dialog[data-modal-name=\"waitlist-signup\"]",
+          "rewrite": "dialog[data-fw=\"overlay-signup\"]",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "height",
+            "block-size",
+          "margin-top",
+          "margin-bottom"
+        ],
+          "why": "centred by margin auto: the width is min(360px, 100vw - 48px); the position is the browser's top-layer centring, the height follows the text and the font"
+        },
+        {
+          "role": "inner",
+          "orig": "dialog[data-modal-name=\"waitlist-signup\"] > div",
+          "rewrite": "dialog[data-fw=\"overlay-signup\"] > div",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "height",
+            "block-size"
+          ],
+          "why": "fills the dialog; the height follows the text"
+        },
+        {
+          "role": "signup",
+          "orig": "dialog[data-modal-name=\"waitlist-signup\"] .signup",
+          "rewrite": "dialog[data-fw=\"overlay-signup\"] [class*=\"module_signup\"]",
+          "boxRel": {
+            "role": "dialog",
+            "index": 0
+          },
+          "dims": [
+            "x",
+            "w"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "height",
+            "block-size"
+          ],
+          "why": "padding box of the content, at the dialog's left edge; the height follows the text"
+        },
+        {
+          "role": "close",
+          "orig": "dialog[data-modal-name=\"waitlist-signup\"] button[aria-label=\"Close\"]",
+          "rewrite": "dialog[data-fw=\"overlay-signup\"] button[aria-label=\"Close\"]",
+          "boxRel": {
+            "role": "signup",
+            "index": 0
+          },
+          "dims": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "absolute top/right 16px, 32px circle, inside the content box"
+        },
+        {
+          "role": "title",
+          "orig": "dialog[data-modal-name=\"waitlist-signup\"] h2",
+          "rewrite": "dialog[data-fw=\"overlay-signup\"] h2",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "a text-driven box: the rewrite has no Google Sans font file, so widths and line counts differ; only the styles are compared"
+        },
+        {
+          "role": "input",
+          "orig": "dialog[data-modal-name=\"waitlist-signup\"] input",
+          "rewrite": "dialog[data-fw=\"overlay-signup\"] input",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "full width of the fields column, 48px high"
+        },
+        {
+          "role": "submit",
+          "orig": "dialog[data-modal-name=\"waitlist-signup\"] button[type=\"submit\"]",
+          "rewrite": "dialog[data-fw=\"overlay-signup\"] button[type=\"submit\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "full width, at least 48px high"
+        }
+      ]
     }
   }
 }

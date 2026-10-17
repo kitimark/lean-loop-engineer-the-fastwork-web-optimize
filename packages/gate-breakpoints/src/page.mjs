@@ -176,3 +176,46 @@ export async function mountPanel() {
   await sleep(300);
   return { target: !!target, mounted, scrollY: window.scrollY };
 }
+
+/**
+ * Open an overlay by clicking its trigger, wait until `ready` matches, then until every finite animation and transition
+ * has ended, and settle for three frames and 300 ms. Self-contained (it is serialised into the page); reports what it saw.
+ * arg: { trigger: selector of the button to click, ready: selector that matches once the overlay is shown }
+ */
+export async function openOverlay(arg) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
+  const btn = document.querySelector(arg.trigger);
+  if (!btn) return { clicked: false, ready: false };
+  btn.click();
+  const t0 = performance.now();
+  while (!document.querySelector(arg.ready) && performance.now() - t0 < 5000) await sleep(50);
+  const ready = !!document.querySelector(arg.ready);
+  const running = () => document.getAnimations().filter((a) => {
+    const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+    return t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
+  }).length;
+  const t1 = performance.now();
+  while (running() > 0 && performance.now() - t1 < 5000) await sleep(50);
+  for (let i = 0; i < 3; i++) await frame();
+  await sleep(300);
+  return { clicked: true, ready };
+}
+
+/**
+ * Close an overlay opened by `openOverlay`: click its close button and wait until `gone` no longer matches (the drawer is
+ * unmounted 480 ms after the close; the dialog loses `open`), so the next read of the page starts from the closed state.
+ * arg: { close: selector of the close button, gone: selector that matches while the overlay is still up }
+ */
+export async function closeOverlay(arg) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
+  const btn = document.querySelector(arg.close);
+  if (!btn) return { clicked: false, gone: !document.querySelector(arg.gone) };
+  btn.click();
+  const t0 = performance.now();
+  while (document.querySelector(arg.gone) && performance.now() - t0 < 5000) await sleep(50);
+  for (let i = 0; i < 2; i++) await frame();
+  await sleep(100);
+  return { clicked: true, gone: !document.querySelector(arg.gone) };
+}

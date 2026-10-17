@@ -1,11 +1,5 @@
 import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Drawer from '@mui/material/Drawer';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Toolbar from '@mui/material/Toolbar';
@@ -22,13 +16,13 @@ import { People } from './parts/people';
 import { Pain } from './parts/pain';
 import { Commission } from './parts/commission';
 import { Platform } from './parts/platform';
+import { OverlayDrawer, openDrawer } from './parts/overlays.drawer';
+import { OverlaySignup, openSignup } from './parts/overlays.signup';
 import type { FwConfig } from './registry/types';
 import { setHydrated } from './fw';
 
 /** Placeholder home page. Overlays are mounted closed (no keepMounted: they portal in on open, like the real ones). */
 export function App({ config }: { config: FwConfig }) {
-  const [dialog, setDialog] = useState(false);
-  const [drawer, setDrawer] = useState(false);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   useEffect(() => setHydrated(), []); // root effects run after hydration has committed
@@ -47,10 +41,10 @@ export function App({ config }: { config: FwConfig }) {
           <Button color="inherit" id="open-menu" onClick={(e) => setAnchor(e.currentTarget)}>
             Menu
           </Button>
-          <Button color="inherit" id="open-drawer" onClick={() => setDrawer(true)}>
+          <Button color="inherit" id="open-drawer" onClick={openDrawer}>
             Drawer
           </Button>
-          <Button color="inherit" variant="outlined" id="open-dialog" onClick={() => setDialog(true)}>
+          <Button color="inherit" variant="outlined" id="open-dialog" onClick={openSignup}>
             Sign up
           </Button>
         </Toolbar>
@@ -73,20 +67,8 @@ export function App({ config }: { config: FwConfig }) {
           Item two
         </MenuItem>
       </Menu>
-      <Drawer anchor="right" open={drawer} onClose={() => setDrawer(false)}>
-        <Box style={{ width: 240, padding: 16 }}>
-          <Typography>Drawer content</Typography>
-        </Box>
-      </Drawer>
-      <Dialog open={dialog} onClose={() => setDialog(false)}>
-        <DialogTitle>Sign up</DialogTitle>
-        <DialogContent>
-          <Typography>Placeholder dialog.</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+      <OverlayDrawer variant={config.variants['overlays.drawer'] ?? 'faithful'} onGetStarted={openSignup} />
+      <OverlaySignup variant={config.variants['overlays.signup'] ?? 'faithful'} />
     </>
   );
 }
