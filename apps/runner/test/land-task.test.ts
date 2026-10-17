@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../console-api/src/app.ts";
 import { selectCore } from "../../console-api/src/core/index.ts";
@@ -26,7 +28,9 @@ async function setup() {
   const cmd = (c: object) => store.submit(c as never);
   await cmd({ type: "card.open", key: "o", actor: "owner", card: "A", owner: "o", needsDevice: false });
   await cmd({ type: "card.approve", key: "a", actor: "lead", card: "A" });
-  await cmd({ type: "task.define", key: "d", actor: "lead", task: "my-task", title: "t", stream: "s", milestone: null, deps: [], owner: "o", writes: [], devices: [], evidence: null });
+  await cmd({ type: "task.define", key: "d", actor: "lead", task: "my-task", title: "t", stream: "s", milestone: null, deps: [], owner: "o", writes: ["a.txt"], devices: [], evidence: null });
+  mkdirSync(join(fx.root, "docs/team"), { recursive: true });
+  writeFileSync(join(fx.root, "docs/team/work-graph.json"), JSON.stringify({ tasks: [{ id: "my-task", owner: "o", writes: ["a.txt"] }] }));
   const submit = (c: object) => http.post("/api/commands", c);
   const ready = async () => {
     const sha = fx.commit(fx.worktree("card/A"), "a.txt");
@@ -35,7 +39,7 @@ async function setup() {
     await cmd({ type: "card.review", key: "r", actor: "reviewer", card: "A", sha, signedBy: "rev", accept: true });
     return sha;
   };
-  return { fx, store, http, ready, opts: { http, cwd: fx.root, checks: [["true"]], submit } };
+  return { fx, store, http, ready, opts: { http, cwd: fx.root, checks: [["true"]], submit, ci: false as const } };
 }
 const task = async (s: Store) => (await s.board()).plan.tasks.find((t) => t.id === "my-task")!;
 
@@ -70,10 +74,10 @@ describe("fw land --task", () => {
     expect(fx.git(fx.root, "rev-parse", "main")).toBe(before);
   });
 
-  it("without --task still fast-forwards and records no task", async () => {
+  it("without --task still fast-forwards (with an explicit --allow) and records no task", async () => {
     const { fx, store, ready, opts } = await setup();
     const sha = await ready();
-    expect((await land("card/A", opts)).ok).toBe(true);
+    expect((await land("card/A", { ...opts, allow: ["a.txt"] })).ok).toBe(true);
     expect(fx.git(fx.root, "rev-parse", "main")).toBe(sha);
     expect((await task(store)).state).not.toBe("done");
   });
