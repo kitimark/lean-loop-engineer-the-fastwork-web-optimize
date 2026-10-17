@@ -1,6 +1,6 @@
 name = "fwcore"
 version = "0.1.0"
-defaultTargets = ["Fw", "fwcore", "mathview"]
+defaultTargets = ["Fw", "fwcore", "mathview", "breakgen"]
 testDriver = "fwtest"
 
 # Mathlib-free on purpose (PLAN §5.2): core Lean only, no `require`.
@@ -16,6 +16,10 @@ globs = ["Fw.*"]
 [[lean_exe]]
 name = "fwcore"
 root = "Main"
+
+[[lean_exe]]
+name = "breakgen"
+root = "BreakgenMain"
 
 [[lean_lib]]
 name = "MathView"

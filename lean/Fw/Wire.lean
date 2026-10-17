@@ -8,6 +8,7 @@ import Fw.Spec.Cost
 import Fw.Spec.Screen
 import Fw.Console
 import Fw.Board
+import Fw.Site.BreakpointGen
 /-!
 # JSON-lines protocol (the only boundary the TypeScript shell sees)
 
@@ -432,7 +433,7 @@ def renderError (id : Json) (e : String) : String := render id [("error", .str e
 /-- The ops this binary answers. -/
 def ops : List String :=
   ["console.apply", "console.board", "verdict", "multiplicity", "ticks", "screen", "cost",
-   "flags.resolve", "lease.step", "samples"]
+   "flags.resolve", "lease.step", "breakpoints.gen", "samples"]
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
 def handleCore (req : Json) : Except String Reply := do
@@ -446,6 +447,7 @@ def handleCore (req : Json) : Except String Reply := do
   | "cost" => opCost req
   | "flags.resolve" => opFlagsResolve req
   | "lease.step" => opLeaseStep req
+  | "breakpoints.gen" => Fw.Site.BreakpointGen.opBreakpointsGen req
   | other => throw s!"unknown op {other}"
 
 /-- The sample requests. -/

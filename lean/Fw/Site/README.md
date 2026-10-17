@@ -33,7 +33,7 @@ Lean states every media condition, proves its edges, its overlaps and the gaps, 
 | `print` and `(forced-colors: active)` are false on every gate load | `matrix_neutral_inert` |
 | `(hover: hover)` and `(hover: none)` are the inventory's hover conditions, and the cross block runs both sides | `matrix_neutral_hover_both_sides` |
 
-## Findings against the inventory (proved here)
+## Findings against the inventory (proved here; corrected in the inventory README and JSON)
 
 - **Phone landscape is not in the C1000 / `>=1001` overlap.** Its width is 932, which is below 1001, so C1000
   matches and `>=1001` does not (`matrix_landscape_overlaps`). `phone-landscape.why` claims both overlaps. The
@@ -55,26 +55,21 @@ Lean states every media condition, proves its edges, its overlaps and the gaps, 
 
 ## Generating `breakpoints.gen.json`
 
-`run` is `Fw.Site.BreakpointGen.run`, so any one-line `main` drives it. These are the two ways to wire it (the lead
-decides):
-
-```lean
--- lean/BreakpointsGenMain.lean, with [[lean_exe]] name = "breakpoints-gen", root = "BreakpointsGenMain"
-import Fw.Site.BreakpointGen
-def main (args : List String) : IO UInt32 := Fw.Site.BreakpointGen.run args
-```
+`lake exe breakgen` (root `lean/BreakgenMain.lean`, which calls `Fw.Site.BreakpointGen.run`) prints the document on
+stdout:
 
 ```sh
 cd lean
-lake exe breakpoints-gen --inventory ../research/kickoff/11-breakpoints/breakpoints.json --out Fw/Site/breakpoints.gen.json
-lake exe breakpoints-gen --inventory ../research/kickoff/11-breakpoints/breakpoints.json --out Fw/Site/breakpoints.gen.json --check
+lake exe breakgen > Fw/Site/breakpoints.gen.json
+lake exe breakgen --inventory ../research/kickoff/11-breakpoints/breakpoints.json --check Fw/Site/breakpoints.gen.json
 ```
 
-The other way is an fwcore op `breakpoints.gen`: one dispatch line in `Fw/Wire.lean` that calls
-`Fw.Site.BreakpointGen.opBreakpointsGen req`. It returns `{gen, mismatches}`.
+- `--check <file>` exits 1 when the file's bytes differ from the generated text.
+- `--inventory <path>` first checks the catalogue and the matrix against `breakpoints.json`, field by field, with CSS
+  strings compared byte for byte. It exits 1 on any mismatch.
 
-The generator exits 1 on any inventory mismatch, for example a CSS string that differs by one byte. With `--check`
-it also exits 1 when the file on disk is stale.
+The same document is available as the fwcore op `breakpoints.gen`. The request is `{"op":"breakpoints.gen"}`, with
+an optional `"inventory": <breakpoints.json object>`. The reply is `{gen, mismatches}`.
 
 ## `breakpoints.gen.json` layout
 

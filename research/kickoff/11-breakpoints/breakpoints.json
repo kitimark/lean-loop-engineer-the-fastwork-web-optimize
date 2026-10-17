@@ -3865,7 +3865,7 @@
   {
    "a": "mq.c1000",
    "b": "mq.w-ge-1001-nopref",
-   "region": "touch at 1001-1200, or device-width<=500 with width>=1001",
+   "region": "touch at 1001-1200, or device-width<=500 with width>=1001 (not phone landscape 932x430: 932 < 1001)",
    "outcome": "Both match on commission; source order and specificity decide.",
    "status": "CONFIRMED syntax; outcome INFERRED"
   },
@@ -4292,7 +4292,7 @@
       "no-preference",
       "reduce"
      ],
-     "why": "device-width<=500 arm with width>860/1000: both overlap pairs (mq.c860 + mq.w-ge-861, mq.c1000 + mq.w-ge-1001)"
+     "why": "device-width<=500 arm with width 932: the mq.c860 + mq.w-ge-861 overlap only. 932 < 1001, so mq.c1000 matches and mq.w-ge-1001 does not: NOT in the mq.c1000 + mq.w-ge-1001 overlap (proved: lean Fw.Site.Breakpoints.matrix_landscape_overlaps). That overlap is run by touch at 1031/1200 and dw-arm-isolate at 1031/1201 with screen 500"
     },
     {
      "id": "dw-arm-isolate",
@@ -4324,7 +4324,7 @@
      "pointer": "fine",
      "dpr": 1,
      "reducedMotion": "no-preference",
-     "why": "device-width 500/501 alone flips mq.c860/c1000/c1030 but NOT mq.c1000-nodw (the one combo without the arm)"
+     "why": "device-width 500/501 alone flips mq.c860/c1000/c1030 at viewports 1031 and 1201, and mq.c860/c1000 at 1001, where mq.c1030 already holds by width (1001 <= 1030) and does NOT flip; it never flips mq.c1000-nodw (the one combo without the arm) (proved: lean Fw.Site.Breakpoints.matrix_dw_arm)"
     },
     {
      "id": "hover-pointer-cross",
@@ -4350,7 +4350,7 @@
      ],
      "dpr": 2,
      "reducedMotion": "no-preference",
-     "why": "the combos need hover:none AND pointer:coarse; each alone must not match; (hover: hover) and (hover: none) checked separately"
+     "why": "the combos' touch arm needs hover:none AND pointer:coarse; each alone must not match it. At 1200 (screen 1200) no combo matches; at 1024 mq.c860, mq.c1000 and mq.c1000-nodw do not match, but mq.c1030 DOES, through its width arm (1024 <= 1030) (proved: lean Fw.Site.Breakpoints.matrix_cross_no_touch_arm). (hover: hover) and (hover: none) take both values in this block (matrix_neutral_hover_both_sides)"
     },
     {
      "id": "dark",

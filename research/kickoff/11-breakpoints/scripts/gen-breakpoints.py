@@ -286,7 +286,7 @@ OVERLAPS = [
  dict(a="mq.c860", b="mq.w-ge-861", region="touch (hover:none, pointer:coarse) at 861-1200, or device-width<=500 with width>=861 (phone landscape 932x430)",
       outcome="Both match. People: 2:3384 later wins on sticky/position, but 2:3267 (0,2,0) beats 2:3468 (0,1,0) so inactive shells stay display:none. Platform: 2:5818 is later than 2:5672 and wins; 2:10990 single-class selectors lose to 2:5818's multi-class ones (INFERRED).",
       status="CONFIRMED syntax; visible outcome INFERRED (measure at 1024t and 932x430)"),
- dict(a="mq.c1000", b="mq.w-ge-1001-nopref", region="touch at 1001-1200, or device-width<=500 with width>=1001", outcome="Both match on commission; source order and specificity decide.", status="CONFIRMED syntax; outcome INFERRED"),
+ dict(a="mq.c1000", b="mq.w-ge-1001-nopref", region="touch at 1001-1200, or device-width<=500 with width>=1001 (not phone landscape 932x430: 932 < 1001)", outcome="Both match on commission; source order and specificity decide.", status="CONFIRMED syntax; outcome INFERRED"),
  dict(a="mq.c1000", b="mq.w-ge-1001", region="as above", outcome="Commission compact and platform desktop mission title both apply.", status="INFERRED"),
  dict(a="mq.c860 (JS)", b="mq.w-ge-861 (JS)", region="as the CSS overlap", outcome="JS resolves it: desktop deck requires NOT c860, so touch tablets get the compact JS deck while CSS still hides inactive shells.", status="CONFIRMED (N2:10783)"),
  dict(a="mq.w-le-860", b="mq.c860", region="touch or device-width<=500 with width>860", outcome="Pure-width users (people.o preview, pain layout, pain notes hidden, pain-dark, sheet store) take the DESKTOP path while combo users (deck, note drag, shrinks) take the compact path. Never substitute one for the other.", status="CONFIRMED"),
@@ -390,11 +390,11 @@ profiles = [
 ]
 special = [
  dict(id="phone-landscape", viewport=[932, 430], screen=[430, 932], hover="none", pointer="coarse", dpr=3, reducedMotion=["no-preference", "reduce"],
-      why="device-width<=500 arm with width>860/1000: both overlap pairs (mq.c860 + mq.w-ge-861, mq.c1000 + mq.w-ge-1001)"),
+      why="device-width<=500 arm with width 932: the mq.c860 + mq.w-ge-861 overlap only. 932 < 1001, so mq.c1000 matches and mq.w-ge-1001 does not: NOT in the mq.c1000 + mq.w-ge-1001 overlap (proved: lean Fw.Site.Breakpoints.matrix_landscape_overlaps). That overlap is run by touch at 1031/1200 and dw-arm-isolate at 1031/1201 with screen 500"),
  dict(id="dw-arm-isolate", viewport=[[1001, 900], [1031, 900], [1201, 900]], screen=[[500, 900], [501, 900]], hover="hover", pointer="fine", dpr=1, reducedMotion="no-preference",
-      why="device-width 500/501 alone flips mq.c860/c1000/c1030 but NOT mq.c1000-nodw (the one combo without the arm)"),
+      why="device-width 500/501 alone flips mq.c860/c1000/c1030 at viewports 1031 and 1201, and mq.c860/c1000 at 1001, where mq.c1030 already holds by width (1001 <= 1030) and does NOT flip; it never flips mq.c1000-nodw (the one combo without the arm) (proved: lean Fw.Site.Breakpoints.matrix_dw_arm)"),
  dict(id="hover-pointer-cross", viewport=[[1024, 768], [1200, 900]], combos=[["none", "fine"], ["hover", "coarse"]], dpr=2, reducedMotion="no-preference",
-      why="the combos need hover:none AND pointer:coarse; each alone must not match; (hover: hover) and (hover: none) checked separately"),
+      why="the combos' touch arm needs hover:none AND pointer:coarse; each alone must not match it. At 1200 (screen 1200) no combo matches; at 1024 mq.c860, mq.c1000 and mq.c1000-nodw do not match, but mq.c1030 DOES, through its width arm (1024 <= 1030) (proved: lean Fw.Site.Breakpoints.matrix_cross_no_touch_arm). (hover: hover) and (hover: none) take both values in this block (matrix_neutral_hover_both_sides)"),
  dict(id="dark", viewport=[[1440, 900], [430, 932]], prefersColorScheme="dark", why="mq.dark must stay neutralised: pixels equal to light"),
  dict(id="fractional-gaps", viewport=[g["probe"] for g in GAPS], via="DPR 1.25 / browser zoom so innerWidth is fractional", why="the original leaves (N, N+1) unmatched by both sides; the rewrite must too"),
  dict(id="height-probes", viewport=[[1440, 822], [1440, 823], [1440, 900], [1440, 901], [430, 775], [430, 815]], why="profile shell clamp knees at viewport height 823/900; iOS toolbar heights; vh-band JS gates"),

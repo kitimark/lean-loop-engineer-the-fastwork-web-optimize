@@ -97,7 +97,10 @@ change.
   drag and shrinks.
 
 **Overlaps.** On a touch tablet at 861-1200, or in landscape with device-width ≤ 500, both C860 and `>=861` match.
-C1000 and `>=1001` also both match (`overlaps` in the JSON).
+C1000 and `>=1001` also both match, but only at a width of 1001 or more: a touch tablet at 1001-1200, or device-width
+≤ 500 with width ≥ 1001 (`overlaps` in the JSON). Phone landscape (932×430) is **not** in the C1000 overlap, because
+932 < 1001 (corrected; proved in Lean: `Fw.Site.Breakpoints.overlap_c860_wGe861`, `overlap_c1000_wGe1001`,
+`matrix_landscape_overlaps`).
 - People: `2:3384` wins on position, but `2:3267` (specificity 0,2,0) beats `2:3468` (0,1,0), so inactive shells stay
   hidden.
 - Platform: `2:5818` is later than `2:5672` and wins.
@@ -117,9 +120,21 @@ PL0-PL3, original vs rewrite with a per-config A/A, in Chromium and Playwright W
 | edge pairs, desktop, reduced | same, reduce | all 15 pairs | 30 |
 | edge pairs, touch | hover:none, coarse, DPR 3 at ≤ 500 px and 2 above | all 15 pairs | 30 |
 | touch, reduced | touch + reduce | 600, 860, 1000, 1030 and 1200 pairs | 10 |
-| phone landscape | 932×430 on a 430×932 screen, touch, DPR 3, both motion settings | both overlaps | 2 |
-| device-width arm alone | fine pointer, screen 500 vs 501, viewports 1001, 1031, 1201 | flips C860/C1000/C1030, not C1000-nodw | 6 |
-| hover × pointer cross | (none, fine) and (hover, coarse) at 1024 and 1200 | no combo may match | 4 |
+| phone landscape | 932×430 on a 430×932 screen, touch, DPR 3, both motion settings | the C860 / `>=861` overlap only (C1000 matches, `>=1001` does not) | 2 |
+| device-width arm alone | fine pointer, screen 500 vs 501, viewports 1001, 1031, 1201 | flips C860/C1000/C1030 at 1031 and 1201; at 1001 flips C860/C1000 only (C1030 holds by width); never C1000-nodw | 6 |
+| hover × pointer cross | (none, fine) and (hover, coarse) at 1024 and 1200 | no touch arm matches: no combo at 1200; at 1024 only C1030 (by width) | 4 |
+
+Corrected after the Lean check (`lean/Fw/Site/`). These are three rows of the table above, each proved over the
+generated matrix:
+
+| block | what was claimed | what holds | theorem |
+|---|---|---|---|
+| phone landscape | in both overlaps | in the C860 / `>=861` overlap only; 932 < 1001 | `Fw.Site.Breakpoints.matrix_landscape_overlaps` |
+| device-width arm alone | flips C1030 at every viewport | at 1001, C1030 already holds by width | `Fw.Site.Breakpoints.matrix_dw_arm` |
+| hover × pointer cross | no combo may match | true at 1200; at 1024, C1030 matches through `(width<=1030px)` | `Fw.Site.Breakpoints.matrix_cross_no_touch_arm` |
+
+The C1000 / `>=1001` overlap is still run: by `touch` at 1031 and 1200, and by `dw-arm-isolate` at 1031 and 1201
+with screen 500.
 | dark | `prefers-color-scheme: dark` at 1440 and 430 | must equal light | 2 |
 | fractional gaps | 600.5, 640.5, 860.5, 1000.5 via DPR 1.25 / zoom | neither side matches | 4 |
 | height probes | 1440×822/823/900/901, 430×775/815 | profile clamp knees at heights 823/900; iOS toolbar heights | 6 |
