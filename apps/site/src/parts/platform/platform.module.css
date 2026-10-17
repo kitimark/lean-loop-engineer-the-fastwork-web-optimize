@@ -267,6 +267,11 @@
     .rowFlip .rowCopy {
       grid-area: auto;
     }
+    /* engine workaround, spec-equivalent to the original's `normal`: css-grid-1 6.2 sizes a grid item with a preferred aspect ratio
+       as a block-level box under `normal` (no stretch); WebKit RenderGrid.cpp:1580-1589 still stretches it (handoff fix-stagebg-webkit) */
+    .stageSlot {
+      align-self: start;
+    }
     .rowCopy {
       width: 100%;
       height: auto;
