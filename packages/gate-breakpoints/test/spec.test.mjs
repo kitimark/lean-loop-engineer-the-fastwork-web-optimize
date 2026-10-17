@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ANCHORS_PATH, expectFor, loadAnchors, loadGen, partJson, probeEnv, sweepDefs } from '../src/spec.mjs';
+import { ANCHORS_PATH, expectFor, loadAnchors, loadGen, partJson, probeEnv, selectParts, sweepDefs } from '../src/spec.mjs';
 
 test('the matrix is the 124 probes of the generated file, with an expectation for every condition', () => {
   const { gen } = loadGen();
@@ -48,4 +48,14 @@ test('sweeps: stops stay on the matrix edge widths and the Lean vector is found 
   assert.ok(expectFor(gen, sweeps[1].stops[1]), 'phone landscape has a vector');
   assert.equal(expectFor(gen, sweeps[2].stops[0]), undefined, 'touch 1024 has none');
   assert.equal(probeEnv(gen.matrix.probes[0]).width, 319);
+});
+
+test('selectParts: default is all, a subset keeps anchors order and names the skipped parts, typos throw', () => {
+  const ids = Object.keys(loadAnchors().parts);
+  assert.deepEqual(selectParts(ids, null), { covered: ids, skipped: [], narrowed: false });
+  assert.deepEqual(selectParts(ids, [...ids].reverse()), { covered: ids, skipped: [], narrowed: false });
+  const one = selectParts(ids, ['hero.exit']);
+  assert.deepEqual(one, { covered: ['hero.exit'], skipped: ids.filter((i) => i !== 'hero.exit'), narrowed: true });
+  assert.throws(() => selectParts(ids, ['hero.exti']), /unknown part hero.exti/);
+  assert.throws(() => selectParts(ids, []), /empty list/);
 });

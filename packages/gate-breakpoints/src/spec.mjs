@@ -19,6 +19,22 @@ export function loadAnchors() {
   return JSON.parse(readFileSync(ANCHORS_PATH, 'utf8'));
 }
 
+/**
+ * Which pilot parts a run covers. `wanted` is null (all parts, the default) or a list of part ids as in anchors.json.
+ * Returns { covered, skipped } in anchors order; `narrowed` is true when some part is skipped. Unknown or empty ids throw
+ * (a typo must not silently run nothing). Selection only: the verdict rule is untouched (verdict.mjs).
+ */
+export function selectParts(allIds, wanted) {
+  if (wanted === null || wanted === undefined) return { covered: [...allIds], skipped: [], narrowed: false };
+  const bad = wanted.filter((id) => !allIds.includes(id));
+  if (wanted.length === 0 || bad.length > 0) {
+    throw new Error(`--parts: ${wanted.length === 0 ? 'empty list' : `unknown part ${bad.join(', ')}`}; known: ${allIds.join(', ')}`);
+  }
+  const covered = allIds.filter((id) => wanted.includes(id));
+  const skipped = allIds.filter((id) => !wanted.includes(id));
+  return { covered, skipped, narrowed: skipped.length > 0 };
+}
+
 export function partJson(id) {
   const p = join(PART_JSON_DIR, id, 'part.json');
   return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null;
