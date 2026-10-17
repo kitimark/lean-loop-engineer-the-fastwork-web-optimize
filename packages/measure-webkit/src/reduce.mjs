@@ -105,6 +105,49 @@ export function reduceSteps(rows, marks, endTime) {
   };
 }
 
+/**
+ * Window cuts for experiment (c): `cut[k]` = end time (start time when the record is open) of the first `Composite`
+ * row whose start lies in [marks[k], marks[k+1]) (the last step: [marks[n-1], endTime)); when step k has no Composite
+ * its cut is `marks[k+1]` (`endTime` for the last step), i.e. its window starts where the next step begins.
+ */
+export function compositeCuts(rows, marks, endTime) {
+  const n = marks.length;
+  const first = new Array(n).fill(null);
+  for (const r of rows) {
+    if (r[0] !== 'Composite' || typeof r[1] !== 'number' || r[1] < marks[0] || r[1] >= endTime) continue;
+    let lo = 0, hi = n - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (marks[mid] <= r[1]) lo = mid; else hi = mid - 1; }
+    if (first[lo] === null || r[1] < first[lo][1]) first[lo] = r;
+  }
+  return first.map((r, k) => (r ? (typeof r[2] === 'number' ? r[2] : r[1]) : k + 1 < n ? marks[k + 1] : endTime));
+}
+
+/**
+ * Per-step tallies where step k counts only rows with cut[k] <= start < cut[k+1] (the last: < endTime): the window
+ * starts after the step's first Composite. Rows before cut[0] are dropped. Cuts are made non-decreasing with a running
+ * maximum (a Composite that ends after the next mark must not make a window negative).
+ */
+export function reduceWindows(rows, marks, endTime) {
+  const raw = compositeCuts(rows, marks, endTime);
+  const cuts = [];
+  raw.forEach((v, i) => cuts.push(i === 0 ? v : Math.max(v, cuts[i - 1])));
+  const per = marks.map(() => []);
+  for (const r of rows) {
+    const s = r[1];
+    if (typeof s !== 'number' || s < cuts[0] || s >= endTime) continue;
+    let lo = 0, hi = cuts.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (cuts[mid] <= s) lo = mid; else hi = mid - 1; }
+    per[lo].push(r);
+  }
+  const t = per.map(tally);
+  return {
+    countTypes: COUNT_TYPES,
+    perStep: t.map((x) => COUNT_TYPES.map((k) => x.counts[k])),
+    perStepPaintArea: t.map((x) => x.paintArea),
+    total: Object.fromEntries([...COUNT_TYPES.map((k) => [k, t.reduce((a, x) => a + x.counts[k], 0)]), ['paintArea', t.reduce((a, x) => a + x.paintArea, 0)]]),
+  };
+}
+
 /** Aggregate per-step rows into zones of `zonePx` scroll px. `ys[i]` = scroll offset of step i. */
 export function zones(ys, perStep, perStepPaintArea, zonePx = 500) {
   const out = [];

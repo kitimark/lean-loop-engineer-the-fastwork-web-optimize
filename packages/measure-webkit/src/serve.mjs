@@ -30,13 +30,15 @@ export function safeJoin(root, urlPath) {
  * Start a server on 127.0.0.1. `port: 0` picks a free port.
  * @returns {Promise<{port:number, url:string, requests:string[], close:()=>Promise<void>}>}
  */
-export async function serveTree(root, { port = 0, vendors = 'off', mounts = {} } = {}) {
+export async function serveTree(root, { port = 0, vendors = 'off', mounts = {}, rewrite = null } = {}) {
   const requests = [];
   const server = http.createServer(async (req, res) => {
     const fail = (code, msg) => { res.writeHead(code, { 'content-type': 'text/plain', 'cache-control': 'no-store' }); res.end(msg); };
     try {
       if (req.method !== 'GET' && req.method !== 'HEAD') return fail(405, 'method not allowed');
-      const urlPath = req.url || '/';
+      let urlPath = req.url || '/';
+      // `rewrite(pathOnly, search)` -> a path under root, or null: lets a prerendered build serve one HTML per config hash
+      if (rewrite) { const [pth, ...q] = urlPath.split('?'); const to = rewrite(pth, q.length ? '?' + q.join('?') : ''); if (to) urlPath = to; }
       requests.push(urlPath.split('?')[0]);
       if (vendors === 'off' && urlPath.split('?')[0] === '/analytics.js') {
         res.writeHead(200, { 'content-type': MIME['.js'], 'cache-control': 'no-store' });

@@ -1,7 +1,7 @@
 // One measurement session: serve the original read-only snapshot on 127.0.0.1, boot the Simulator headless, open the
 // page in Mobile Safari, start the Inspector proxy, connect, run `fn`, and shut everything down in `finally`
 // (also on SIGINT/SIGTERM). The snapshot is read from disk per request and never copied.
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
@@ -30,10 +30,22 @@ export function snapshotRoot(env = process.env) {
  * @param {(ctx:{c:object, url:string, base:string, root:string, device:object, log:Function})=>Promise<any>} fn
  * @param {{keep?:boolean, vendors?:'off'|'live', log?:Function}} opts keep: leave the Simulator booted
  */
-export async function withSession(fn, { keep = false, vendors = 'off', log = (s) => console.error(s) } = {}) {
-  const root = snapshotRoot();
-  const server = await serveTree(root, { vendors, mounts: { '/__fixtures': FIXTURES } });
-  log(`serving the snapshot read-only at ${server.url}`);
+export async function withSession(fn, { keep = false, vendors = 'off', site = null, log = (s) => console.error(s) } = {}) {
+  // site: { dir, search } serves a prerendered build of apps/site (dist/aot): "/" + search is answered with the HTML of
+  // that search's config hash (configs.json), as a CDN rewrite would. Without it: the read-only snapshot.
+  let root, rewrite = null, startPath = '/';
+  if (site) {
+    root = resolve(site.dir);
+    const cfg = JSON.parse(readFileSync(join(root, 'configs.json'), 'utf8'));
+    const hash = cfg.bySearch[site.search ?? ''];
+    if (!hash) throw new Error(`search "${site.search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(' | ')}`);
+    const file = cfg.byHash[hash];
+    rewrite = (p) => (p === '/' || p === '/index.html' ? '/' + file : null);
+    startPath = '/' + (site.search ?? '');
+    site.configHash = hash;
+  } else root = snapshotRoot();
+  const server = await serveTree(root, { vendors, mounts: { '/__fixtures': FIXTURES }, rewrite });
+  log(`serving ${site ? 'the prerendered build ' + site.dir : 'the snapshot'} read-only at ${server.url}`);
   let device = null, proxy = null, client = null, cleaned = false;
   const cleanup = async () => {
     if (cleaned) return; cleaned = true;
@@ -48,17 +60,17 @@ export async function withSession(fn, { keep = false, vendors = 'off', log = (s)
   try {
     device = await bootDevice({ log });
     await sleep(3000); // an openurl right after the launch is sometimes dropped
-    openUrl(device.udid, server.url);
+    openUrl(device.udid, server.url + startPath.slice(1));
     proxy = await startProxy({ log });
     try { client = await openTab(server.url, { waitMs: 10000 }); } catch (e) {
       // the proxy sometimes lists the tab late or Safari dropped the first openurl: ask once more
       log(`${e.message}; opening the URL again`);
-      openUrl(device.udid, server.url);
+      openUrl(device.udid, server.url + startPath.slice(1));
       client = await openTab(server.url, { waitMs: 40000 });
     }
     await proxyCheck();
     const ctx = {
-      c: client, url: server.url, base: server.url.replace(/\/$/, ''), root, device: { name: device.name }, log,
+      c: client, url: server.url + startPath.slice(1), base: server.url.replace(/\/$/, ''), root, device: { name: device.name }, log,
       setClient: (c2) => { client = c2; ctx.c = c2; },
     };
     return await fn(ctx);

@@ -82,7 +82,12 @@ export async function bootDevice({ log = () => {} } = {}) {
   }
   // Safari restores the last session's tabs; terminate first so the run starts from the same state.
   simctl(['terminate', d.udid, SAFARI]);
-  const l = simctl(['launch', d.udid, SAFARI], { timeoutMs: 60000 });
+  let l;
+  for (let i = 0; i < 3; i++) { // under heavy host load a launch can time out; the device stays booted, so ask again
+    l = simctl(['launch', d.udid, SAFARI], { timeoutMs: 90000 });
+    if (l.status === 0) break;
+    log(`simctl launch Safari failed (${tail(l)}); attempt ${i + 1} of 3`);
+  }
   if (l.status !== 0) throw new Error(`simctl launch Safari failed: ${tail(l)}`);
   for (let i = 0; i < 60; i++) {
     if (findSockets().length) return { udid: d.udid, name: d.name, wasBooted };

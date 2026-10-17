@@ -2,6 +2,7 @@
 // in one Simulator boot; then classify every count type. Only orchestration and formatting live here; the
 // comparison itself is reduce.mjs (the one pure module, slated for a Lean spec).
 import { loadFresh, pageInfo } from './page.mjs';
+import { loadStamp } from './load.mjs';
 import { navigateTab, openTab } from './wip.mjs';
 import { censusAt } from './census.mjs';
 import { scrollRun } from './scrollrun.mjs';
@@ -12,9 +13,10 @@ import { COUNT_TYPES, TOL, classify, symDiff, zones, layerKey } from './reduce.m
 export const resolveStates = (spec, maxY) => String(spec).split(',').map((s) => (s.trim() === 'max' ? maxY : Number(s))).filter((n) => Number.isFinite(n));
 
 /** One pass of everything on one fresh load each (census states, then scroll, then optionally seek). */
-export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindowMs, step, framesPerStep, seek, seekNs, log }) {
+export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindowMs, step, framesPerStep, seek, seekNs, log, mode = 'base' }) {
   // an earlier pass may have left the tab on the seek fixture: go back to the snapshot page first
   if (new URL(await ctx.c.evaluate('location.href')).pathname !== '/') ctx.setClient(await navigateTab(ctx.c, ctx.url));
+  const load = { start: loadStamp() };
   let c = ctx.c;
   await loadFresh(c, { clock, settleMs });
   const info = await pageInfo(c);
@@ -24,7 +26,7 @@ export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindo
   // one retry from a fresh load: a Simulator evaluate occasionally stalls right after a heavy reload (seen once in 6 passes)
   let scroll;
   for (let attempt = 1; ; attempt++) {
-    try { await loadFresh(c, { clock, settleMs }); scroll = await scrollRun(c, { step, framesPerStep }); break; } catch (e) {
+    try { await loadFresh(c, { clock, settleMs, timers: mode.includes('hold') ? 'hold' : 'live' }); scroll = await scrollRun(c, { step, framesPerStep, mode }); break; } catch (e) {
       if (attempt >= 2) throw e;
       log(`  scroll attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
       try { ctx.c.close(); } catch { /* closed */ }
@@ -40,7 +42,9 @@ export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindo
     ctx.setClient(r.conn);
     seekRes = r.rows;
   }
-  return { info, census, scroll, seek: seekRes };
+  load.end = loadStamp();
+  log(`  host load1 ${load.start.load1} -> ${load.end.load1}, cpu idle ${load.start.idle}% -> ${load.end.idle}%`);
+  return { info, census, scroll, seek: seekRes, load };
 }
 
 /** Classification rows from R passes. */
