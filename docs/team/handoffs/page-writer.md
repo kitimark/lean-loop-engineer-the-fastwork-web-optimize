@@ -1,16 +1,23 @@
 # Handoff: page-writer
 
-State at f2988c0 (explainer page at plan rev 5 with review fixes, published).
+State at 9367dea + uncommitted (Math view sourced from fwcore `lean/`; previously f2988c0, rev 5 published).
 
 - `docs/plan/loop-plan.html` is the published artifact. The lead publishes it from this same file path.
 - Page contract: no doctype/html/head/body; `<title>` first; colors as tokens with both dark-mode blocks; the side
   gutter uses `max(16px, env(safe-area-inset-*))`; no horizontal scroll at 375 px; check light and dark.
 - `<meta charset="utf-8">` is at the top, because pre-rendered MathML garbles over file:// without it.
-- Math view: `node docs/plan/tools/build-math-view.mjs` rewrites the block between the generated markers.
-  `--check` fails on drift or bad TeX. It uses katex 0.16.11 from the root devDependency (`pnpm install`; `FW_KATEX`
-  overrides). Math is pre-rendered MathML, so the page loads no script.
-- The math source is `research/kickoff/05-lean-sketch/Fw/Spec/*.lean` docstrings. When `lean/` lands it moves there.
-- The reviewed chip links `research/notes/2026/10-17-math-review-fw-spec.md`.
+- Math view: `node docs/plan/tools/build-math-view.mjs` runs `lake build`, `lake exe mathview --lint` and
+  `lake exe mathview` in `lean/` (or takes `--json <export>`), then rewrites two generated blocks: `mathview` (the view,
+  grouped by module, order list in the script; new `Fw/` modules append by name) and `mathview-review` (the review
+  panel's chip, tally, record link, axiom line). `--check` fails on drift or bad TeX. KaTeX 0.16.11 from the root
+  devDependency (`FW_KATEX` overrides). Math is pre-rendered MathML, so the page loads no script.
+- Review status per declaration comes from table rows in `research/notes/*/*-math-review-*.md`:
+  `| \`Fw.Full.name\` | agree|disagree | <stmtHash, optional> |`. Later file name wins; a hash differing from the export
+  shows "review stale"; no row shows "review pending". The fw-spec record (sketch, 72 agree) has no such rows and is
+  only linked as history. After `10-17-math-review-fwcore.md` lands, re-run the generator; nothing else to edit.
+- At 9367dea: 224 declarations, 12 modules, 93 theorems, all sorry-free with standard axioms, 224 review pending.
+- 375 px check: Chrome headless needs CDP `Emulation.setDeviceMetricsOverride` with `mobile:false` (the window
+  minimum is 500 px, and `mobile:true` gives a 980 px layout viewport because the page has no viewport meta).
 - Roadmap: the dependency graph mirrors PLAN §10.1/§10.2. Landed boxes show their commit sha; nothing hand-written
   says "running".
 - A link to `docs/plan/math-to-lean.html` sits near the Math view heading, outside the generated markers.
