@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// Spawn guard, SHADOW MODE (PLAN 8.3): PreToolUse(Agent). Asks Lean (`fwcore ops.spawn`) what it would decide for this
-// `Agent` call and logs the decision to the spool; it NEVER blocks: no stdout, always exit 0. Lead decision:
+// Spawn guard (PLAN 8.3): PreToolUse(Agent). Asks Lean (`fwcore ops.spawn`) what it decides for this `Agent` call and
+// logs the decision to the spool. Mode (docs/team/tools/spawn-guard.md): `enforce` (default) prints a PreToolUse
+// permission decision (deny / ask) for a refused spawn; `shadow` only logs (no stdout); `off` does nothing. Always
+// exit 0; fwcore missing or slow fails open. Lead decision:
 // `caps.unnamedReadOnly = true` (unnamed read-only subagents are allowed). The decision is made in Lean; this file only
 // builds the request and writes the log line (an ObsRecord: event `SpawnGuard`, `verb` = decision[:reason]).
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appendLine, consoleDir, readPayload, safeName } from "./lib.mjs";
@@ -17,6 +19,7 @@ export const ROLES = [
   ["reviewer", "subagent", false], ["math-reviewer", "subagent", false], ["checker", "subagent", false],
   ["scout", "subagent", false], ["runner", "subagent", false], ["patcher", "subagent", true],
   ["Explore", "subagent", false], ["Plan", "subagent", false], ["general-purpose", "subagent", true],
+  ["fork", "subagent", false], ["workflow-subagent", "subagent", false], // = Lean SpawnGuard.prodRoles
 ].map(([name, runsAs, edits]) => ({ name, runsAs, edits }));
 
 /** Lead decision: unnamed read-only subagents are allowed. */
@@ -58,6 +61,29 @@ export function kinds(req, reply) {
   return { role: req.role, want_kind: k(reply?.wantKind), got_kind: k(reply?.kind), has_name: !!req.name, isolation: !!req.isolation, depth: req.depth };
 }
 
+/** The guard mode: FW_SPAWN_GUARD, else `mode` in <console dir>/spawn-guard.json, else `enforce`. Unknown values = enforce. */
+export function modeOf(dir, env = process.env) {
+  let m = env.FW_SPAWN_GUARD;
+  if (!m && dir) {
+    try { m = JSON.parse(readFileSync(join(dir, "spawn-guard.json"), "utf8")).mode; } catch { /* no file: default */ }
+  }
+  return m === "shadow" || m === "off" ? m : "enforce";
+}
+
+/** The refusal message: always names the reason (Lean `deny_names_reason`). */
+export function message(req, reply) {
+  const r = reply.reason ?? "unspecified";
+  const more = r === "kindMismatch" ? ` (role ${req.role} wants ${reply.want}, this call gives ${reply.got}; use isolation: "worktree" for a worktree role)`
+    : r === "capRole" ? ` (${reply.role})` : "";
+  return `spawn-guard ${reply.decision === "deny" ? "refused" : "asks"}: ${r}${more}. Set FW_SPAWN_GUARD=shadow to only log.`;
+}
+
+/** What to print for a decision in the given mode: the PreToolUse hook output, or null (allow, shadow, off, no reply). */
+export function verdict(mode, req, reply) {
+  if (mode !== "enforce" || !reply || (reply.decision !== "deny" && reply.decision !== "needsApproval")) return null;
+  return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: reply.decision === "deny" ? "deny" : "ask", permissionDecisionReason: message(req, reply) } };
+}
+
 /** The spool record for a decision. */
 export function record(p, reply, now = Date.now()) {
   const verb = reply ? (reply.reason ? `${reply.decision}:${reply.reason}` : reply.decision) : "unavailable";
@@ -75,14 +101,21 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const p = readPayload();
     if (p && p.tool_name === "Agent") {
       const dir = consoleDir(p.cwd);
-      if (dir) {
-        appendLine(join(dir, "spool", `${safeName(p.agent_id)}.jsonl`), record(p, ask(fwcorePath(dir), request(p))));
-        // pending marker: emit.mjs claims it on SubagentStart, so only spawns this guard did not see get a second record
-        const pd = join(dir, "spawn-pending");
-        mkdirSync(pd, { recursive: true });
-        writeFileSync(join(pd, `${Date.now()}-${safeName(p.tool_use_id)}.json`), JSON.stringify({ role: request(p).req.role }));
+      const mode = modeOf(dir);
+      if (dir && mode !== "off") {
+        const q = request(p);
+        const reply = ask(fwcorePath(dir), q);
+        appendLine(join(dir, "spool", `${safeName(p.agent_id)}.jsonl`), record(p, reply));
+        const out = verdict(mode, q.req, reply);
+        if (out) process.stdout.write(JSON.stringify(out) + "\n");
+        // a refused spawn never starts; otherwise a pending marker: emit.mjs claims it on SubagentStart, so only spawns this guard did not see get a second record
+        if (!(out && out.hookSpecificOutput.permissionDecision === "deny")) {
+          const pd = join(dir, "spawn-pending");
+          mkdirSync(pd, { recursive: true });
+          writeFileSync(join(pd, `${Date.now()}-${safeName(p.tool_use_id)}.json`), JSON.stringify({ role: q.req.role }));
+        }
       }
     }
-  } catch { /* shadow mode: never disturb the agent */ }
+  } catch { /* fail open: never disturb the agent */ }
   process.exit(0);
 }

@@ -333,6 +333,30 @@
     "task": "obs-signals"
    },
    "regression": "golden/obs: a pending bg task with no end marker older than T and a live proc whose command reads stdin -> killOrphan"
+  },
+  {
+   "id": "inc-worktree-role-as-teammate",
+   "at": "2026-10-18T01:56+07:00",
+   "title": "Worktree roles spawned by name without isolation ran as teammates in the main checkout",
+   "symptom": "The shadow spawn guard logged deny:kindMismatch (wanted worktree, got teammate) for part-builder (port-people-fix, 01:56) and measure-engineer (step-align-fix, 02:38), plus two earlier unattributed ones; the spawns went ahead because the guard only logged, so their edits would land in the lead's checkout, untracked by any branch.",
+   "cause": "CONFIRMED (code read, PLAN 8.1 and lean/Fw/Ops/SpawnGuard.lean effKind): a named Agent call from the lead without isolation is a teammate in the main checkout, whatever the role file asks for; the guard saw it and was in shadow mode.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ops/SpawnGuard.lean",
+     "note": "trap_exact: the exact verdict for this call shape"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/hooks/spawn-guard.mjs",
+     "note": "shadow mode before this fix; enforce prints a deny with the reason"
+    }
+   ],
+   "repro": "Agent call from the lead with subagent_type part-builder and a name but no isolation: fwcore ops.spawn answers deny kindMismatch.",
+   "fix": {
+    "task": "spawn-enforce"
+   },
+   "regression": "apps/runner/test/spawn-guard.test.ts 'refused with its reason: worktree role without isolation (I-272 trap)' and Lean trap_exact"
   }
  ]
 }
