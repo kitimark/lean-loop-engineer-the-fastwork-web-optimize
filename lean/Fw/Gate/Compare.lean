@@ -57,8 +57,9 @@ def takeDigits : List Char → List Char × List Char
 
 /-- The natural number written by a list of decimal digits.
 
-$$\operatorname{digitsVal}(d_1 \dots d_k) = \sum_{i=1}^{k} d_i \cdot 10^{k-i}$$
+$$\operatorname{digitsVal}(c_1 \dots c_k) = \sum_{i=1}^{k} (\operatorname{code}(c_i) \mathbin{\dot-} \operatorname{code}(\texttt{0})) \cdot 10^{k-i}$$
 
+with truncated subtraction $\dot-$ on character codes, for any characters; for decimal digits this is the digit value.
 Digits to their value. -/
 def digitsVal (ds : List Char) : Nat :=
   ds.foldl (fun n c => 10 * n + (c.toNat - '0'.toNat)) 0
@@ -83,9 +84,9 @@ theorem signSplit_len (cs : List Char) : (signSplit cs).2.length ≤ cs.length :
 
 /-- The optional exponent `(?:e[+-]?\d+)` (the `i` flag also allows `E`): its value and the rest.
 
-$$\operatorname{expPart}(cs) = \begin{cases} (\pm k, r) & cs = \mathtt{e}\,[\pm]\,d_1\dots d_j\, r,\ j \ge 1,\ k = \operatorname{digitsVal}(d) \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{expPart}(cs) = \begin{cases} ((-1)^{\sigma} \cdot \operatorname{digitsVal}(d),\ r) & cs = c :: cs',\ c \in \{\texttt{e}, \texttt{E}\},\ (\sigma, u) = \operatorname{signSplit}(cs'),\ (d, r) = \operatorname{takeDigits}(u),\ d \ne [\,] \\ \bot & \text{otherwise} \end{cases}$$
 
-An exponent is taken only when at least one digit follows the `e` and its sign. -/
+(the sign is optional and the digit run is maximal). An exponent is taken only when at least one digit follows the `e` and its sign. -/
 def expPart : List Char → Option (Int × List Char)
   | c :: rest =>
     if c = 'e' ∨ c = 'E' then
@@ -145,9 +146,9 @@ def withExp (p : Nat × Int × List Char) : Nat × Int × List Char :=
 /-- An unsigned number `(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?` at the start of the input: mantissa,
 power of ten and the rest of the input.
 
-$$\operatorname{unsigned}(cs) = \begin{cases} \operatorname{withExp}(\overline{d_1 d_2}, -|d_2|, r) & cs = d_1\,\texttt{.}\,d_2\,r,\ |d_1| + |d_2| \ge 1 \\ \operatorname{withExp}(\overline{d_1}, 0, r) & cs = d_1\, r,\ |d_1| \ge 1,\ \operatorname{head}(r) \ne \texttt{.} \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{unsigned}(cs) = \begin{cases} \operatorname{withExp}(\operatorname{digitsVal}(d_1 \mathbin{+\!\!+} d_2), -|d_2|, r) & r_1 = \texttt{.} :: r_2,\ (d_2, r) = \operatorname{takeDigits}(r_2),\ d_1 \mathbin{+\!\!+} d_2 \ne [\,] \\ \bot & r_1 = \texttt{.} :: r_2,\ d_1 = [\,],\ (d_2, r) = \operatorname{takeDigits}(r_2),\ d_2 = [\,] \\ \operatorname{withExp}(\operatorname{digitsVal}(d_1), 0, r_1) & \operatorname{head}(r_1) \ne \texttt{.}\ (\text{or } r_1 = [\,]),\ d_1 \ne [\,] \\ \bot & \text{otherwise} \end{cases}$$
 
-Digits with an optional dot and fraction, or a dot with at least one digit. -/
+where $(d_1, r_1) = \operatorname{takeDigits}(cs)$ (both digit runs are maximal). Digits with an optional dot and fraction, or a dot with at least one digit. -/
 def unsignedNum (cs : List Char) : Option (Nat × Int × List Char) :=
   let d1 := (takeDigits cs).1
   let r1 := (takeDigits cs).2
@@ -162,9 +163,9 @@ def unsignedNum (cs : List Char) : Option (Nat × Int × List Char) :=
 
 /-- A number `-?(...)` at the start of the input. A `-` not followed by a number starts none.
 
-$$\operatorname{numAt}(cs) = \begin{cases} ((1, m, e), r) & cs = \texttt{-}\,cs',\ \operatorname{unsigned}(cs') = (m, e, r) \\ \bot & cs = \texttt{-}\,cs',\ \operatorname{unsigned}(cs') = \bot \\ ((0, m, e), r) & \operatorname{head}(cs) \ne \texttt{-},\ \operatorname{unsigned}(cs) = (m, e, r) \end{cases}$$
+$$\operatorname{numAt}(cs) = \begin{cases} ((1, m, e), r) & cs = \texttt{-} :: cs',\ \operatorname{unsigned}(cs') = (m, e, r) \\ ((0, m, e), r) & cs \ne \texttt{-} :: cs' \text{ for every } cs',\ \operatorname{unsigned}(cs) = (m, e, r) \\ \bot & \text{otherwise} \end{cases}$$
 
-The regex's optional minus sign. -/
+(the cases do not overlap; $cs = [\,]$ falls in the second or third). The regex's optional minus sign. -/
 def numAt (cs : List Char) : Option (Dec × List Char) :=
   match cs with
   | '-' :: r => (unsignedNum r).map fun p => (⟨true, p.1, p.2.1⟩, p.2.2)
@@ -280,9 +281,9 @@ def tolBox : Rat := 1 / 2
 /-- Computed-style values are equal: the same string, or the same skeleton with as many numbers,
 each pair within $10^{-3}$. Absent on either side is never equal.
 
-$$\operatorname{styleEq}(a, b) \iff a, b \ne \bot \wedge \Bigl(a = b \ \vee\ \bigl(\operatorname{skel}(a) = \operatorname{skel}(b) \wedge |\operatorname{nums}(a)| = |\operatorname{nums}(b)| \wedge \forall i,\ |\operatorname{val}(a_i) - \operatorname{val}(b_i)| \le 10^{-3}\bigr)\Bigr)$$
+$$\operatorname{styleEq}(a, b) \iff a, b \ne \bot \wedge \Bigl(a = b \ \vee\ \bigl(\operatorname{skel}(a) = \operatorname{skel}(b) \wedge |\operatorname{nums}(a)| = |\operatorname{nums}(b)| \wedge \forall i < |\operatorname{nums}(a)|,\ |\operatorname{val}(\operatorname{nums}(a)_i) - \operatorname{val}(\operatorname{nums}(b)_i)| \le 10^{-3}\bigr)\Bigr)$$
 
-Style values agree as text, up to a thousandth in each number. -/
+where $(\operatorname{skel}(s), \operatorname{nums}(s)) = \operatorname{scan}(\operatorname{chars}(s))$ for a present string $s$. Style values agree as text, up to a thousandth in each number. -/
 def styleValueEq : Option String → Option String → Bool
   | some a, some b =>
     a == b ||
@@ -324,9 +325,9 @@ def countStatus (a b : Nat) : Status :=
 
 /-- Boolean equality is symmetric for a lawful `==`.
 
-$$\forall a, b,\quad (a == b) = (b == a)$$
+$$\forall \alpha \text{ with a lawful } {==},\ \forall a, b \in \alpha,\quad (a == b) = (b == a)$$
 
-Equality tests do not care about order. -/
+A lawful `==` is true exactly on equal values. Equality tests do not care about order. -/
 theorem beq_swap {α : Type} [BEq α] [LawfulBEq α] (a b : α) : (a == b) = (b == a) := by
   by_cases h : a = b
   · subst h; rfl

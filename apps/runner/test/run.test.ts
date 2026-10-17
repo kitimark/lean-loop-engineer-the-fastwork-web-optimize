@@ -57,9 +57,18 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
   it("a request the workflow cannot express is refused before any dispatch", () => {
     const logs: string[] = [];
     const gh: Gh = () => { throw new Error("no gh"); };
-    const code = runMain(parseRunArgs(["--engines", "chromium", "--fw", "hero.countdown:strip"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    // webkit-sim has no fw input (chromium-counts has one since fee88b2)
+    const code = runMain(parseRunArgs(["--engines", "webkit", "--fw", "hero.countdown:strip"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
     expect(code).toBe(2);
-    expect(logs.join("\n")).toMatch(/refused/);
+    expect(logs.join("\n")).toMatch(/refused: webkit \(fw\)/);
+  });
+
+  it("chromium-counts expresses preset and fw: a dry run is not refused", () => {
+    const logs: string[] = [];
+    const gh: Gh = () => { throw new Error("no gh"); };
+    const code = runMain(parseRunArgs(["--engines", "chromium", "--preset", "original", "--fw", "nav.hitTest:hit-skip,hero.countdown:strip", "--dry"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    expect(logs.join("\n")).not.toMatch(/refused|BLOCKED/);
+    expect(code).toBe(0);
   });
 
   it("dispatches, downloads and files artifacts; a second run is a cache hit", () => {

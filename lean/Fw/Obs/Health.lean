@@ -36,13 +36,14 @@ $$\mu = 60000$$
 -/
 def msPerMin : Nat := 60000
 
-/-- The thresholds. Upper thresholds (an alert needs a value at or above them): `idleMin`, `stallMin`, `toolHangMin`
-(minutes), `errStreak` (failed calls), `ctxResumeMax`, `ctxWarn` (tokens), `agentCap` (live non-lead agents),
-`simLockMaxMin` (minutes), `worktreesMax`; the lower threshold `diskMinGB` (free GB below it alerts); and
+/-- The thresholds. Upper thresholds reached at or above (a value equal to the threshold alerts): `idleMin`,
+`stallMin`, `toolHangMin` (minutes), `errStreak` (failed calls), `simLockMaxMin` (minutes); upper thresholds passed
+only strictly above (a value equal to the threshold does not alert): `ctxResumeMax`, `ctxWarn` (tokens), `agentCap`
+(live non-lead agents), `worktreesMax`; the lower threshold `diskMinGB` (free GB strictly below it alerts); and
 `wfQuietMin`, the minutes without an event after which a workflow agent seen only in its transcript counts as done
 (it is not an alert threshold).
 
-$$p = (\mathit{idle}, \mathit{stall}, \mathit{hang}, \mathit{err}, \mathit{ctxMax}, \mathit{ctxWarn}, \mathit{disk}, \mathit{cap}, \mathit{simMax}, \mathit{wtMax}, \mathit{wfQuiet}) \in \mathbb N^{11}$$
+$$p = (\mathit{idle}, \mathit{stall}, \mathit{hang}, \mathit{err}, \mathit{ctxMax}, \mathit{ctxWarn}, \mathit{diskMin}, \mathit{cap}, \mathit{simMax}, \mathit{wtMax}, \mathit{wfQuiet}) \in \mathbb N^{11}$$
 -/
 structure Params where
   idleMin       : Nat := 10
@@ -238,7 +239,7 @@ def hasLiveChild (p : Params) (now : Nat) (agents : List Agent) (a : Agent) : Bo
 /-- Whether the tool call in flight has hung: it has run for `toolHangMin` minutes and it is not a wait (an `Agent` or
 `SendMessage` call while a child of the agent is live).
 
-$$\operatorname{hung}(p, t, A, a) \iff \exists f.\ f(a) = f \wedge \neg(\operatorname{waitTool}(\mathit{tool}(f)) \wedge \operatorname{child}(p, t, A, a)) \wedge \mu\,\mathit{hang} \le t \mathbin{\dot-} \mathit{since}(f)$$
+$$\operatorname{hung}(p, t, A, a) \iff \exists \varphi.\ f(a) = \varphi \wedge \neg(\operatorname{waitTool}(\mathit{tool}(\varphi)) \wedge \operatorname{child}(p, t, A, a)) \wedge \mu\,\mathit{hang} \le t \mathbin{\dot-} \mathit{since}(\varphi)$$
 -/
 def hungB (p : Params) (now : Nat) (agents : List Agent) (a : Agent) : Bool :=
   match a.inflight with
@@ -254,7 +255,7 @@ def stallB (p : Params) (now : Nat) (agents : List Agent) (a : Agent) : Bool :=
 
 /-- The stall condition as a proposition.
 
-$$\operatorname{Stall}(p, t, A, a) \iff \mu\,\mathit{stall} \le t \mathbin{\dot-} \mathit{last}(a) \wedge \forall f.\ f(a) = f \Rightarrow \neg(\operatorname{waitTool}(\mathit{tool}(f)) \wedge \operatorname{child}(p, t, A, a)) \wedge \mu\,\mathit{hang} \le t \mathbin{\dot-} \mathit{since}(f)$$
+$$\operatorname{Stall}(p, t, A, a) \iff \mu\,\mathit{stall} \le t \mathbin{\dot-} \mathit{last}(a) \wedge \forall \varphi.\ f(a) = \varphi \Rightarrow \big(\neg(\operatorname{waitTool}(\mathit{tool}(\varphi)) \wedge \operatorname{child}(p, t, A, a)) \wedge \mu\,\mathit{hang} \le t \mathbin{\dot-} \mathit{since}(\varphi)\big)$$
 -/
 def Stall (p : Params) (now : Nat) (agents : List Agent) (a : Agent) : Prop :=
   p.stallMin * msPerMin ≤ now - a.lastAt ∧
@@ -631,10 +632,10 @@ def mins (d : Nat) : Nat := d / msPerMin
 (do not resume it), context over `ctxWarn`, at least `errStreak` (and at least one) failed calls in a row, stalled, a
 tool hung. An unknown context size counts as 0.
 
-$$\operatorname{agentAlerts}(p, t, A, a) = \begin{cases} [] & \operatorname{ended}(p, t, a) \vee \operatorname{parked}(a) \\ [\, (c, \mathit{id}(a), \cdot) \mid c \text{ raised} \,] & \text{otherwise} \end{cases}$$
-with $\texttt{ctxHigh} \iff \mathit{ctx}(a) > \mathit{ctxMax}$, $\texttt{ctxWarn} \iff \mathit{ctx}(a) > \mathit{ctxWarn}$,
-$\texttt{errStreak} \iff \mathit{errTail}(a) \ge \max(\mathit{err}, 1)$, $\texttt{stalled} \iff
-\operatorname{Stall}(p, t, A, a)$, $\texttt{toolHang} \iff \operatorname{hung}(p, t, A, a)$.
+$$\operatorname{agentAlerts}(p, t, A, a) = \begin{cases} [] & \operatorname{ended}(p, t, a) \vee \operatorname{parked}(a) \\ \operatorname{when}(\kappa > \mathit{ctxMax}, (\texttt{ctxHigh}, \mathit{id}(a), \text{“}\kappa\text{ context tokens”})) \mathbin{+\!\!+} \operatorname{when}(\kappa > \mathit{ctxWarn}, (\texttt{ctxWarn}, \mathit{id}(a), \text{“}\kappa\text{ context tokens”})) \\ \quad \mathbin{+\!\!+} \operatorname{when}(\mathit{errTail}(a) \ge \max(\mathit{err}, 1), (\texttt{errStreak}, \mathit{id}(a), \text{“}\mathit{errTail}(a)\text{ failed tool calls in a row”})) \\ \quad \mathbin{+\!\!+} \operatorname{when}(\operatorname{stallB}(p, t, A, a), (\texttt{stalled}, \mathit{id}(a), \text{“no event for }\operatorname{mins}(t \mathbin{\dot-} \mathit{last}(a))\text{ min”})) \\ \quad \mathbin{+\!\!+} \operatorname{when}(\operatorname{hung}(p, t, A, a), (\texttt{toolHang}, \mathit{id}(a), \delta)) & \text{otherwise} \end{cases}$$
+where $\kappa = \mathit{ctx}(a)$ if $\mathit{ctx}(a) \ne \bot$, else $\kappa = 0$; and
+$\delta = \text{“}\mathit{tool}(\varphi)\text{ running for }\operatorname{mins}(t \mathbin{\dot-} \mathit{since}(\varphi))\text{ min”}$ if
+$f(a) = \varphi$, else $\delta = \varepsilon$ (numbers in decimal).
 -/
 def agentAlerts (p : Params) (now : Nat) (agents : List Agent) (a : Agent) : List Alert :=
   if ended p now a || parkedB a then [] else
@@ -674,7 +675,7 @@ theorem agentAlerts_subject (p : Params) (t : Nat) (A : List Agent) (a : Agent) 
 /-- An `Agent` or `SendMessage` call in flight while a child of the agent is live is a wait, not a hang: the tool
 has not hung, the agent is not stalled, and it raises no `agent.toolHang`.
 
-$$\forall p, t, A, a, f:\quad f(a) = f \wedge \operatorname{waitTool}(\mathit{tool}(f)) \wedge \operatorname{child}(p, t, A, a) \Rightarrow \neg\operatorname{hung}(p, t, A, a) \wedge \operatorname{state}(p, t, A, a) \ne \mathrm{stalled} \wedge \forall x \in \operatorname{agentAlerts}(p, t, A, a).\ \mathit{code}(x) \ne \texttt{agent.toolHang}$$
+$$\forall p, t, A, a, \varphi:\quad f(a) = \varphi \wedge \operatorname{waitTool}(\mathit{tool}(\varphi)) \wedge \operatorname{child}(p, t, A, a) \Rightarrow \neg\operatorname{hung}(p, t, A, a) \wedge \operatorname{state}(p, t, A, a) \ne \mathrm{stalled} \wedge \forall x \in \operatorname{agentAlerts}(p, t, A, a).\ \mathit{code}(x) \ne \texttt{agent.toolHang}$$
 -/
 theorem wait_not_hang (p : Params) (t : Nat) (A : List Agent) (a : Agent) (f : Inflight)
     (hf : a.inflight = some f) (hw : waitTool f.tool = true) (hc : hasLiveChild p t A a = true) :
@@ -765,10 +766,12 @@ the helpers); free disk below `diskMinGB`; memory pressure critical; the simulat
 minutes; the lock orphaned; the latest run of a workflow and branch failed; an orphaned container; more worktrees than
 `worktreesMax`; a notification newer than the lead's last tool call.
 
-$$\begin{aligned} \operatorname{sysAlerts}(p, o) ={} & [\texttt{team.overCap} \mid \mathit{cap} < \operatorname{nLive}(p, t, A)] \mathbin{+\!\!+} [\texttt{sys.diskLow} \mid \mathit{disk} < \mathit{diskMin}] \mathbin{+\!\!+} [\texttt{sys.memCritical} \mid \mathit{mem} = \mathrm{critical}] \\ & \mathbin{+\!\!+} [\texttt{sim.lockLong} \mid \exists s.\ \mathit{since}(L) = s \wedge \mathit{holder}(L) \ne \bot \wedge \mu\,\mathit{simMax} \le t \mathbin{\dot-} s] \mathbin{+\!\!+} [\texttt{sim.lockOrphan} \mid \operatorname{orphanB}(p, t, A, L)] \\ & \mathbin{+\!\!+} [\,\texttt{ci.failed}(r) \mid r \leftarrow \mathit{ci},\ \operatorname{ciFailing}(r) \wedge \operatorname{ciLatest}(\mathit{ci}, r)\,] \mathbin{+\!\!+} [\,\texttt{docker.orphan}(c) \mid c \leftarrow \mathit{docker},\ \operatorname{dockerOrphan}(p, t, A, c)\,] \\ & \mathbin{+\!\!+} [\texttt{worktrees.many} \mid \mathit{wtMax} < \mathit{wt}] \mathbin{+\!\!+} [\texttt{team.permissionWait} \mid \exists n.\ \mathit{noteAt}(\ell) = n \wedge \operatorname{permB}(\ell)] \end{aligned}$$
+$$\begin{aligned} \operatorname{sysAlerts}(p, o) ={} & [(\texttt{team.overCap}, \texttt{team}, \text{“}n\text{ live agents: }k_{\mathrm{teammate}}\text{ teammate, }k_{\mathrm{subagent}}\text{ subagent, }k_{\mathrm{workflow}}\text{ workflow; }\operatorname{nHelpers}(p, t, A)\text{ with a parent agent”}) \mid \mathit{cap} < n] \\ & \mathbin{+\!\!+} [(\texttt{sys.diskLow}, \texttt{disk}, \text{“}\mathit{disk}\text{ GB free”}) \mid \mathit{disk} < \mathit{diskMin}] \mathbin{+\!\!+} [(\texttt{sys.memCritical}, \texttt{memory}, \text{“memory pressure critical”}) \mid m = \mathrm{critical}] \\ & \mathbin{+\!\!+} [(\texttt{sim.lockLong}, \texttt{sim}, \text{“held by }h\text{ for }\operatorname{mins}(t \mathbin{\dot-} s)\text{ min”}) \mid \exists s.\ \mathit{since}(L) = s \wedge \mathit{holder}(L) \ne \bot \wedge \mu\,\mathit{simMax} \le t \mathbin{\dot-} s] \\ & \mathbin{+\!\!+} [(\texttt{sim.lockOrphan}, \texttt{sim}, \text{“held by }h\text{”}) \mid \operatorname{orphanB}(p, t, A, L)] \\ & \mathbin{+\!\!+} [\,(\texttt{ci.failed}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“latest run }c_\varepsilon(r)\text{”}) \mid r \leftarrow R,\ \operatorname{ciFailing}(r) \wedge \operatorname{ciLatest}(R, r)\,] \\ & \mathbin{+\!\!+} [\,(\texttt{docker.orphan}, \mathit{name}(c), \text{“container }\mathit{id}(c)\text{”}) \mid c \leftarrow C,\ \operatorname{dockerOrphan}(p, t, A, c)\,] \\ & \mathbin{+\!\!+} [(\texttt{worktrees.many}, \texttt{worktrees}, \text{“}\mathit{wt}\text{ worktrees”}) \mid \mathit{wtMax} < \mathit{wt}] \\ & \mathbin{+\!\!+} [(\texttt{team.permissionWait}, \texttt{lead}, \text{“notification }\operatorname{mins}(t \mathbin{\dot-} n)\text{ min ago, no lead tool call since”}) \mid \exists n.\ \mathit{noteAt}(\ell) = n \wedge \operatorname{permB}(\ell)] \end{aligned}$$
 
-where $t$, $A$, $L$, $\ell$ are $o$'s time, agents, simulator lock and lead facts, $[x \mid c]$ is $[x]$ when $c$ holds and
-$[]$ otherwise, and the list comprehensions keep the order of $\mathit{ci}$ and $\mathit{docker}$.
+where $o = (t, A, \ell, \Sigma)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R)$; $n = \operatorname{nLive}(p, t, A)$ and
+$k_\kappa = \operatorname{nKind}(p, t, A, \kappa)$; $h$ is $\mathit{holder}(L)$, or $\varepsilon$ when it is $\bot$;
+$c_\varepsilon(r)$ is $\mathit{concl}(r)$, or $\varepsilon$ when it is $\bot$; numbers are written in decimal;
+$[x \mid c]$ is $[x]$ when $c$ holds and $[]$ otherwise, and the list comprehensions keep the order of $R$ and $C$.
 -/
 def sysAlerts (p : Params) (o : Obs) : List Alert :=
   let s := o.system
@@ -885,6 +888,7 @@ theorem sysAlerts_notAgent (p : Params) (o : Obs) (x : Alert) (h : x ∈ sysAler
 agents raise none.
 
 $$\forall p, o, x:\quad x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \operatorname{isAgent}(\mathit{code}(x)) \Rightarrow \exists a \in A.\ \operatorname{state}(p, t, A, a) \notin \{\mathrm{done}, \mathrm{parked}\} \wedge \mathit{id}(a) = \mathit{subj}(x)$$
+where $o = (t, A, \ell, \Sigma)$.
 -/
 theorem agent_alert_live (p : Params) (o : Obs) (x : Alert) (hx : x ∈ (health p o).alerts)
     (ha : x.code.isAgent = true) :
@@ -915,6 +919,7 @@ theorem mem_sys_of_notAgent (p : Params) (o : Obs) (x : Alert) (hx : x ∈ (heal
 task).
 
 $$\forall p, o:\quad (\exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{sim.lockOrphan}) \iff \exists h.\ \mathit{holder}(L) = h \wedge \neg \exists a \in A.\ \operatorname{live}(p, t, a) \wedge \operatorname{names}(h, a)$$
+where $o = (t, A, \ell, \Sigma)$ and $L$ is the simulator lock of $\Sigma$.
 -/
 theorem lockOrphan_iff (p : Params) (o : Obs) :
     (∃ x ∈ (health p o).alerts, x.code = .simLockOrphan) ↔
@@ -1174,6 +1179,8 @@ theorem health_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.agent
 /-- The counts add up to the number of agents.
 
 $$\forall p, o:\quad n_{\mathrm{active}} + n_{\mathrm{idle}} + n_{\mathrm{parked}} + n_{\mathrm{stalled}} + n_{\mathrm{done}} = |A|$$
+where $(n_{\mathrm{active}}, n_{\mathrm{idle}}, n_{\mathrm{parked}}, n_{\mathrm{stalled}}, n_{\mathrm{done}}) =
+\operatorname{health}(p, o).\mathit{counts}$ and $o = (t, A, \ell, \Sigma)$.
 -/
 theorem counts_total (p : Params) (o : Obs) :
     let c := (health p o).counts
