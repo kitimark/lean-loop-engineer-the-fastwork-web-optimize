@@ -1,0 +1,1654 @@
+{
+ "target": "original",
+ "schema": "fw.phone.counts/1",
+ "countTypes": [
+  "RecalculateStyles",
+  "Layout",
+  "Paint",
+  "Composite",
+  "RenderingFrame",
+  "FireAnimationFrame",
+  "TimerFire",
+  "ObserverCallback",
+  "EventDispatch",
+  "FunctionCall",
+  "ScheduleStyleRecalculation",
+  "InvalidateLayout"
+ ],
+ "profile": {
+  "states": "0,1500,3000,4500,max",
+  "clock": "pinned",
+  "step": 50,
+  "framesPerStep": 2,
+  "settleMs": 6000,
+  "warmup": 1,
+  "passes": 3
+ },
+ "device": {
+  "model": "iPhone 15 Pro Max",
+  "os": "27.0.1",
+  "build": "24A446"
+ },
+ "readouts": [
+  {
+   "at": "2026-10-17T16:46:28.865Z",
+   "batteryPct": 77,
+   "charging": true,
+   "batteryVirtualTemp": 32,
+   "batterySkinTemp": 32,
+   "thermalState": "not exposed over USB lockdown or the inspector (no API); battery temperature is the proxy"
+  },
+  {
+   "at": "2026-10-17T16:49:02.736Z",
+   "batteryPct": 78,
+   "charging": true,
+   "batteryVirtualTemp": 32,
+   "batterySkinTemp": 32,
+   "thermalState": "not exposed over USB lockdown or the inspector (no API); battery temperature is the proxy"
+  }
+ ],
+ "reduced": [
+  {
+   "info": {
+    "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Mobile/15E148 Safari/604.1",
+    "vw": 430,
+    "vh": 775,
+    "dpr": 3,
+    "docH": 6042,
+    "maxY": 5267,
+    "clock": "pinned",
+    "fw": null
+   },
+   "census": [
+    {
+     "requestedY": 0,
+     "scrollY": 0,
+     "layerCount": 124,
+     "memoryBytes": 63868900,
+     "reasonCounts": {
+      "(gone)": 2,
+      "animation": 8,
+      "clipsCompositingDescendants": 1,
+      "filterWithCompositedDescendants": 1,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 2,
+      "overflowScrollingTouch": 1,
+      "overlap": 6,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 94,
+      "transformWithCompositedDescendants": 6,
+      "willChange": 92
+     },
+     "paintCountTotal": 385,
+     "paintDeltaTotal": 64
+    },
+    {
+     "requestedY": 1500,
+     "scrollY": 1500,
+     "layerCount": 126,
+     "memoryBytes": 117714999,
+     "reasonCounts": {
+      "(gone)": 2,
+      "animation": 8,
+      "backfaceVisibilityHidden": 1,
+      "filterWithCompositedDescendants": 1,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 2,
+      "overflowScrollingTouch": 2,
+      "overlap": 6,
+      "perspective": 1,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 96,
+      "transform3D": 1,
+      "transformWithCompositedDescendants": 5,
+      "willChange": 93
+     },
+     "paintCountTotal": 678,
+     "paintDeltaTotal": 71
+    },
+    {
+     "requestedY": 3000,
+     "scrollY": 3000,
+     "layerCount": 42,
+     "memoryBytes": 91457084,
+     "reasonCounts": {
+      "animation": 9,
+      "backfaceVisibilityHidden": 1,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "opacityWithCompositedDescendants": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 7,
+      "transform3D": 2,
+      "transformWithCompositedDescendants": 7,
+      "willChange": 7
+     },
+     "paintCountTotal": 353,
+     "paintDeltaTotal": 121
+    },
+    {
+     "requestedY": 4500,
+     "scrollY": 4500,
+     "layerCount": 47,
+     "memoryBytes": 167421997,
+     "reasonCounts": {
+      "animation": 11,
+      "backfaceVisibilityHidden": 1,
+      "clipsCompositingDescendants": 7,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "opacityWithCompositedDescendants": 2,
+      "overlap": 6,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 6,
+      "transform3D": 2,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 7
+     },
+     "paintCountTotal": 1188,
+     "paintDeltaTotal": 370
+    },
+    {
+     "requestedY": 5267,
+     "scrollY": 5267,
+     "layerCount": 30,
+     "memoryBytes": 97568792,
+     "reasonCounts": {
+      "animation": 3,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "opacityWithCompositedDescendants": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "root": 1,
+      "stacking": 1,
+      "transformWithCompositedDescendants": 6,
+      "willChange": 6
+     },
+     "paintCountTotal": 1642,
+     "paintDeltaTotal": 360
+    }
+   ],
+   "steps": 107,
+   "scrollWallMs": 5853,
+   "total": {
+    "RecalculateStyles": 657,
+    "Layout": 633,
+    "Paint": 1616,
+    "Composite": 213,
+    "RenderingFrame": 0,
+    "FireAnimationFrame": 731,
+    "TimerFire": 32,
+    "ObserverCallback": 90,
+    "EventDispatch": 107,
+    "FunctionCall": 949,
+    "ScheduleStyleRecalculation": 630,
+    "InvalidateLayout": 502,
+    "paintArea": 106185221
+   },
+   "zones": [
+    {
+     "zone": 0,
+     "y0": 0,
+     "steps": 10,
+     "counts": [
+      71,
+      78,
+      236,
+      19,
+      0,
+      68,
+      3,
+      16,
+      10,
+      93,
+      72,
+      71
+     ],
+     "paintArea": 15988324
+    },
+    {
+     "zone": 1,
+     "y0": 500,
+     "steps": 10,
+     "counts": [
+      65,
+      67,
+      212,
+      20,
+      0,
+      66,
+      3,
+      11,
+      10,
+      87,
+      65,
+      65
+     ],
+     "paintArea": 18050825
+    },
+    {
+     "zone": 2,
+     "y0": 1000,
+     "steps": 10,
+     "counts": [
+      44,
+      60,
+      200,
+      20,
+      0,
+      60,
+      4,
+      6,
+      10,
+      87,
+      44,
+      64
+     ],
+     "paintArea": 15805323
+    },
+    {
+     "zone": 3,
+     "y0": 1500,
+     "steps": 10,
+     "counts": [
+      64,
+      97,
+      247,
+      20,
+      0,
+      89,
+      4,
+      11,
+      10,
+      110,
+      64,
+      60
+     ],
+     "paintArea": 22619792
+    },
+    {
+     "zone": 4,
+     "y0": 2000,
+     "steps": 10,
+     "counts": [
+      60,
+      65,
+      83,
+      20,
+      0,
+      85,
+      1,
+      5,
+      10,
+      100,
+      60,
+      40
+     ],
+     "paintArea": 6244812
+    },
+    {
+     "zone": 5,
+     "y0": 2500,
+     "steps": 10,
+     "counts": [
+      61,
+      64,
+      79,
+      20,
+      0,
+      72,
+      3,
+      11,
+      10,
+      92,
+      61,
+      55
+     ],
+     "paintArea": 6964306
+    },
+    {
+     "zone": 6,
+     "y0": 3000,
+     "steps": 10,
+     "counts": [
+      64,
+      43,
+      87,
+      20,
+      0,
+      63,
+      3,
+      4,
+      10,
+      79,
+      64,
+      29
+     ],
+     "paintArea": 6261009
+    },
+    {
+     "zone": 7,
+     "y0": 3500,
+     "steps": 10,
+     "counts": [
+      70,
+      55,
+      131,
+      20,
+      0,
+      63,
+      8,
+      7,
+      10,
+      89,
+      64,
+      37
+     ],
+     "paintArea": 7734572
+    },
+    {
+     "zone": 8,
+     "y0": 4000,
+     "steps": 10,
+     "counts": [
+      82,
+      55,
+      182,
+      20,
+      0,
+      80,
+      1,
+      5,
+      10,
+      96,
+      62,
+      43
+     ],
+     "paintArea": 3281734
+    },
+    {
+     "zone": 9,
+     "y0": 4500,
+     "steps": 10,
+     "counts": [
+      46,
+      30,
+      106,
+      20,
+      0,
+      56,
+      0,
+      10,
+      10,
+      75,
+      44,
+      19
+     ],
+     "paintArea": 2664137
+    },
+    {
+     "zone": 10,
+     "y0": 5000,
+     "steps": 7,
+     "counts": [
+      30,
+      19,
+      53,
+      14,
+      0,
+      29,
+      2,
+      4,
+      7,
+      41,
+      30,
+      19
+     ],
+     "paintArea": 570385
+    }
+   ],
+   "load": {
+    "start": {
+     "ts": "2026-10-17T16:46:40.966Z",
+     "load1": 4.91,
+     "idle": 59.8,
+     "cpus": 8
+    },
+    "end": {
+     "ts": "2026-10-17T16:47:25.796Z",
+     "load1": 4.9,
+     "idle": 67.55,
+     "cpus": 8
+    }
+   }
+  },
+  {
+   "info": {
+    "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Mobile/15E148 Safari/604.1",
+    "vw": 430,
+    "vh": 775,
+    "dpr": 3,
+    "docH": 6042,
+    "maxY": 5267,
+    "clock": "pinned",
+    "fw": null
+   },
+   "census": [
+    {
+     "requestedY": 0,
+     "scrollY": 0,
+     "layerCount": 124,
+     "memoryBytes": 63868900,
+     "reasonCounts": {
+      "(gone)": 2,
+      "animation": 8,
+      "clipsCompositingDescendants": 1,
+      "filterWithCompositedDescendants": 1,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 2,
+      "overflowScrollingTouch": 1,
+      "overlap": 6,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 94,
+      "transformWithCompositedDescendants": 6,
+      "willChange": 92
+     },
+     "paintCountTotal": 365,
+     "paintDeltaTotal": 64
+    },
+    {
+     "requestedY": 1500,
+     "scrollY": 1500,
+     "layerCount": 124,
+     "memoryBytes": 140925230,
+     "reasonCounts": {
+      "animation": 8,
+      "backfaceVisibilityHidden": 1,
+      "filterWithCompositedDescendants": 1,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 2,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "perspective": 1,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 94,
+      "transform3D": 1,
+      "transformWithCompositedDescendants": 5,
+      "willChange": 93
+     },
+     "paintCountTotal": 649,
+     "paintDeltaTotal": 81
+    },
+    {
+     "requestedY": 3000,
+     "scrollY": 3000,
+     "layerCount": 42,
+     "memoryBytes": 91457084,
+     "reasonCounts": {
+      "animation": 9,
+      "backfaceVisibilityHidden": 1,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "opacityWithCompositedDescendants": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 7,
+      "transform3D": 2,
+      "transformWithCompositedDescendants": 7,
+      "willChange": 7
+     },
+     "paintCountTotal": 343,
+     "paintDeltaTotal": 120
+    },
+    {
+     "requestedY": 4500,
+     "scrollY": 4500,
+     "layerCount": 47,
+     "memoryBytes": 167421997,
+     "reasonCounts": {
+      "animation": 11,
+      "backfaceVisibilityHidden": 1,
+      "clipsCompositingDescendants": 7,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "opacityWithCompositedDescendants": 2,
+      "overlap": 6,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 6,
+      "transform3D": 2,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 7
+     },
+     "paintCountTotal": 1179,
+     "paintDeltaTotal": 369
+    },
+    {
+     "requestedY": 5267,
+     "scrollY": 5267,
+     "layerCount": 30,
+     "memoryBytes": 97568792,
+     "reasonCounts": {
+      "animation": 3,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "opacityWithCompositedDescendants": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "root": 1,
+      "stacking": 1,
+      "transformWithCompositedDescendants": 6,
+      "willChange": 6
+     },
+     "paintCountTotal": 1640,
+     "paintDeltaTotal": 360
+    }
+   ],
+   "steps": 107,
+   "scrollWallMs": 6971,
+   "total": {
+    "RecalculateStyles": 653,
+    "Layout": 615,
+    "Paint": 1564,
+    "Composite": 213,
+    "RenderingFrame": 0,
+    "FireAnimationFrame": 731,
+    "TimerFire": 36,
+    "ObserverCallback": 89,
+    "EventDispatch": 107,
+    "FunctionCall": 952,
+    "ScheduleStyleRecalculation": 626,
+    "InvalidateLayout": 483,
+    "paintArea": 100071957
+   },
+   "zones": [
+    {
+     "zone": 0,
+     "y0": 0,
+     "steps": 10,
+     "counts": [
+      70,
+      76,
+      225,
+      19,
+      0,
+      68,
+      3,
+      15,
+      10,
+      92,
+      71,
+      69
+     ],
+     "paintArea": 12890722
+    },
+    {
+     "zone": 1,
+     "y0": 500,
+     "steps": 10,
+     "counts": [
+      64,
+      65,
+      200,
+      20,
+      0,
+      66,
+      3,
+      7,
+      10,
+      85,
+      63,
+      64
+     ],
+     "paintArea": 16767417
+    },
+    {
+     "zone": 2,
+     "y0": 1000,
+     "steps": 10,
+     "counts": [
+      42,
+      55,
+      201,
+      20,
+      0,
+      60,
+      4,
+      6,
+      10,
+      87,
+      43,
+      51
+     ],
+     "paintArea": 15888717
+    },
+    {
+     "zone": 3,
+     "y0": 1500,
+     "steps": 10,
+     "counts": [
+      60,
+      90,
+      222,
+      20,
+      0,
+      89,
+      6,
+      9,
+      10,
+      111,
+      60,
+      57
+     ],
+     "paintArea": 22525038
+    },
+    {
+     "zone": 4,
+     "y0": 2000,
+     "steps": 10,
+     "counts": [
+      64,
+      75,
+      91,
+      20,
+      0,
+      85,
+      5,
+      9,
+      10,
+      106,
+      64,
+      48
+     ],
+     "paintArea": 6264289
+    },
+    {
+     "zone": 5,
+     "y0": 2500,
+     "steps": 10,
+     "counts": [
+      61,
+      64,
+      73,
+      20,
+      0,
+      72,
+      3,
+      13,
+      10,
+      93,
+      61,
+      55
+     ],
+     "paintArea": 6406593
+    },
+    {
+     "zone": 6,
+     "y0": 3000,
+     "steps": 10,
+     "counts": [
+      64,
+      31,
+      83,
+      20,
+      0,
+      63,
+      3,
+      4,
+      10,
+      79,
+      64,
+      19
+     ],
+     "paintArea": 5510454
+    },
+    {
+     "zone": 7,
+     "y0": 3500,
+     "steps": 10,
+     "counts": [
+      70,
+      50,
+      128,
+      20,
+      0,
+      63,
+      8,
+      7,
+      10,
+      89,
+      64,
+      33
+     ],
+     "paintArea": 7302084
+    },
+    {
+     "zone": 8,
+     "y0": 4000,
+     "steps": 10,
+     "counts": [
+      82,
+      58,
+      182,
+      20,
+      0,
+      80,
+      0,
+      5,
+      10,
+      95,
+      62,
+      46
+     ],
+     "paintArea": 3282222
+    },
+    {
+     "zone": 9,
+     "y0": 4500,
+     "steps": 10,
+     "counts": [
+      46,
+      32,
+      106,
+      20,
+      0,
+      56,
+      1,
+      10,
+      10,
+      76,
+      44,
+      22
+     ],
+     "paintArea": 2664035
+    },
+    {
+     "zone": 10,
+     "y0": 5000,
+     "steps": 7,
+     "counts": [
+      30,
+      19,
+      53,
+      14,
+      0,
+      29,
+      0,
+      4,
+      7,
+      39,
+      30,
+      19
+     ],
+     "paintArea": 570385
+    }
+   ],
+   "load": {
+    "start": {
+     "ts": "2026-10-17T16:47:27.494Z",
+     "load1": 4.9,
+     "idle": 67.89,
+     "cpus": 8
+    },
+    "end": {
+     "ts": "2026-10-17T16:48:13.150Z",
+     "load1": 4.66,
+     "idle": 72.64,
+     "cpus": 8
+    }
+   }
+  },
+  {
+   "info": {
+    "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Mobile/15E148 Safari/604.1",
+    "vw": 430,
+    "vh": 775,
+    "dpr": 3,
+    "docH": 6042,
+    "maxY": 5267,
+    "clock": "pinned",
+    "fw": null
+   },
+   "census": [
+    {
+     "requestedY": 0,
+     "scrollY": 0,
+     "layerCount": 124,
+     "memoryBytes": 57670873,
+     "reasonCounts": {
+      "(gone)": 2,
+      "animation": 8,
+      "clipsCompositingDescendants": 1,
+      "filterWithCompositedDescendants": 1,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 2,
+      "overflowScrollingTouch": 1,
+      "overlap": 6,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 94,
+      "transformWithCompositedDescendants": 6,
+      "willChange": 92
+     },
+     "paintCountTotal": 367,
+     "paintDeltaTotal": 66
+    },
+    {
+     "requestedY": 1500,
+     "scrollY": 1500,
+     "layerCount": 124,
+     "memoryBytes": 140925230,
+     "reasonCounts": {
+      "animation": 8,
+      "backfaceVisibilityHidden": 1,
+      "filterWithCompositedDescendants": 1,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 2,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "perspective": 1,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 94,
+      "transform3D": 1,
+      "transformWithCompositedDescendants": 5,
+      "willChange": 93
+     },
+     "paintCountTotal": 646,
+     "paintDeltaTotal": 78
+    },
+    {
+     "requestedY": 3000,
+     "scrollY": 3000,
+     "layerCount": 42,
+     "memoryBytes": 91457084,
+     "reasonCounts": {
+      "animation": 9,
+      "backfaceVisibilityHidden": 1,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "opacityWithCompositedDescendants": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 7,
+      "transform3D": 2,
+      "transformWithCompositedDescendants": 7,
+      "willChange": 7
+     },
+     "paintCountTotal": 352,
+     "paintDeltaTotal": 123
+    },
+    {
+     "requestedY": 4500,
+     "scrollY": 4500,
+     "layerCount": 47,
+     "memoryBytes": 167421997,
+     "reasonCounts": {
+      "animation": 11,
+      "backfaceVisibilityHidden": 1,
+      "clipsCompositingDescendants": 7,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "opacityWithCompositedDescendants": 2,
+      "overlap": 6,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 6,
+      "transform3D": 2,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 7
+     },
+     "paintCountTotal": 1183,
+     "paintDeltaTotal": 370
+    },
+    {
+     "requestedY": 5267,
+     "scrollY": 5267,
+     "layerCount": 30,
+     "memoryBytes": 97568792,
+     "reasonCounts": {
+      "animation": 3,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "opacityWithCompositedDescendants": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "root": 1,
+      "stacking": 1,
+      "transformWithCompositedDescendants": 6,
+      "willChange": 6
+     },
+     "paintCountTotal": 1636,
+     "paintDeltaTotal": 360
+    }
+   ],
+   "steps": 107,
+   "scrollWallMs": 6644,
+   "total": {
+    "RecalculateStyles": 652,
+    "Layout": 618,
+    "Paint": 1546,
+    "Composite": 213,
+    "RenderingFrame": 0,
+    "FireAnimationFrame": 731,
+    "TimerFire": 36,
+    "ObserverCallback": 83,
+    "EventDispatch": 107,
+    "FunctionCall": 949,
+    "ScheduleStyleRecalculation": 625,
+    "InvalidateLayout": 478,
+    "paintArea": 98458054
+   },
+   "zones": [
+    {
+     "zone": 0,
+     "y0": 0,
+     "steps": 10,
+     "counts": [
+      74,
+      75,
+      218,
+      19,
+      0,
+      68,
+      4,
+      12,
+      10,
+      92,
+      75,
+      68
+     ],
+     "paintArea": 12356580
+    },
+    {
+     "zone": 1,
+     "y0": 500,
+     "steps": 10,
+     "counts": [
+      67,
+      74,
+      236,
+      20,
+      0,
+      66,
+      7,
+      12,
+      10,
+      99,
+      67,
+      75
+     ],
+     "paintArea": 19616706
+    },
+    {
+     "zone": 2,
+     "y0": 1000,
+     "steps": 10,
+     "counts": [
+      42,
+      41,
+      155,
+      20,
+      0,
+      60,
+      2,
+      2,
+      10,
+      75,
+      42,
+      33
+     ],
+     "paintArea": 10604624
+    },
+    {
+     "zone": 3,
+     "y0": 1500,
+     "steps": 10,
+     "counts": [
+      60,
+      94,
+      224,
+      20,
+      0,
+      89,
+      5,
+      9,
+      10,
+      110,
+      59,
+      61
+     ],
+     "paintArea": 22236032
+    },
+    {
+     "zone": 4,
+     "y0": 2000,
+     "steps": 10,
+     "counts": [
+      59,
+      74,
+      74,
+      20,
+      0,
+      85,
+      3,
+      9,
+      10,
+      104,
+      60,
+      48
+     ],
+     "paintArea": 5947632
+    },
+    {
+     "zone": 5,
+     "y0": 2500,
+     "steps": 10,
+     "counts": [
+      59,
+      61,
+      81,
+      20,
+      0,
+      72,
+      3,
+      9,
+      10,
+      91,
+      59,
+      47
+     ],
+     "paintArea": 7428205
+    },
+    {
+     "zone": 6,
+     "y0": 3000,
+     "steps": 10,
+     "counts": [
+      64,
+      39,
+      88,
+      20,
+      0,
+      63,
+      3,
+      4,
+      10,
+      79,
+      64,
+      25
+     ],
+     "paintArea": 6370884
+    },
+    {
+     "zone": 7,
+     "y0": 3500,
+     "steps": 10,
+     "counts": [
+      69,
+      53,
+      129,
+      20,
+      0,
+      63,
+      7,
+      7,
+      10,
+      88,
+      63,
+      36
+     ],
+     "paintArea": 7381059
+    },
+    {
+     "zone": 8,
+     "y0": 4000,
+     "steps": 10,
+     "counts": [
+      82,
+      57,
+      182,
+      20,
+      0,
+      80,
+      1,
+      5,
+      10,
+      96,
+      62,
+      45
+     ],
+     "paintArea": 3282022
+    },
+    {
+     "zone": 9,
+     "y0": 4500,
+     "steps": 10,
+     "counts": [
+      46,
+      31,
+      106,
+      20,
+      0,
+      56,
+      0,
+      10,
+      10,
+      75,
+      44,
+      21
+     ],
+     "paintArea": 2663925
+    },
+    {
+     "zone": 10,
+     "y0": 5000,
+     "steps": 7,
+     "counts": [
+      30,
+      19,
+      53,
+      14,
+      0,
+      29,
+      1,
+      4,
+      7,
+      40,
+      30,
+      19
+     ],
+     "paintArea": 570385
+    }
+   ],
+   "load": {
+    "start": {
+     "ts": "2026-10-17T16:48:14.840Z",
+     "load1": 4.45,
+     "idle": 70.73,
+     "cpus": 8
+    },
+    "end": {
+     "ts": "2026-10-17T16:49:00.863Z",
+     "load1": 5.37,
+     "idle": 52.1,
+     "cpus": 8
+    }
+   }
+  }
+ ],
+ "classes": [
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "per state",
+   "cls": "stable"
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=0",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=0",
+   "cls": "quarantined"
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=1500",
+   "cls": "stable"
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=1500",
+   "cls": "quarantined"
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=3000",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=3000",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=4500",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=4500",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layerCount",
+   "level": "y=5267",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "y=5267",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "backing memory bytes (sum)",
+   "level": "per state",
+   "cls": "quarantined"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason (gone)",
+   "level": "per state",
+   "cls": "quarantined"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason animation",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason backfaceVisibilityHidden",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason clipsCompositingDescendants",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason filterWithCompositedDescendants",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason filters",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason maskWithCompositedDescendants",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason opacityWithCompositedDescendants",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason overflowScrollingTouch",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason overlap",
+   "level": "per state",
+   "cls": "stable"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason perspective",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason positionFixed",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason positionSticky",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason root",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason stacking",
+   "level": "per state",
+   "cls": "stable"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason transform3D",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason transformWithCompositedDescendants",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "layers with reason willChange",
+   "level": "per state",
+   "cls": "deterministic"
+  },
+  {
+   "family": "census",
+   "metric": "paintCount (sum, cumulative)",
+   "level": "per state",
+   "cls": "stable"
+  },
+  {
+   "family": "census",
+   "metric": "paintCount delta in a 2000 ms window",
+   "level": "per state",
+   "cls": "quarantined"
+  },
+  {
+   "family": "census",
+   "metric": "layer set (name, bounds, bytes, reasons)",
+   "level": "per state, symmetric difference vs run 1",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "RecalculateStyles",
+   "level": "total",
+   "cls": "stable"
+  },
+  {
+   "family": "scroll",
+   "metric": "Layout",
+   "level": "total",
+   "cls": "stable"
+  },
+  {
+   "family": "scroll",
+   "metric": "Paint",
+   "level": "total",
+   "cls": "stable"
+  },
+  {
+   "family": "scroll",
+   "metric": "Composite",
+   "level": "total",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "RenderingFrame",
+   "level": "total",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "FireAnimationFrame",
+   "level": "total",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "TimerFire",
+   "level": "total",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "ObserverCallback",
+   "level": "total",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "EventDispatch",
+   "level": "total",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "FunctionCall",
+   "level": "total",
+   "cls": "stable"
+  },
+  {
+   "family": "scroll",
+   "metric": "ScheduleStyleRecalculation",
+   "level": "total",
+   "cls": "stable"
+  },
+  {
+   "family": "scroll",
+   "metric": "InvalidateLayout",
+   "level": "total",
+   "cls": "stable"
+  },
+  {
+   "family": "scroll",
+   "metric": "paintArea",
+   "level": "total",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "RecalculateStyles",
+   "level": "per 500 px zone",
+   "cls": "stable"
+  },
+  {
+   "family": "scroll",
+   "metric": "Layout",
+   "level": "per 500 px zone",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "Paint",
+   "level": "per 500 px zone",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "Composite",
+   "level": "per 500 px zone",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "RenderingFrame",
+   "level": "per 500 px zone",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "FireAnimationFrame",
+   "level": "per 500 px zone",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "TimerFire",
+   "level": "per 500 px zone",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "ObserverCallback",
+   "level": "per 500 px zone",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "EventDispatch",
+   "level": "per 500 px zone",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "FunctionCall",
+   "level": "per 500 px zone",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "ScheduleStyleRecalculation",
+   "level": "per 500 px zone",
+   "cls": "stable"
+  },
+  {
+   "family": "scroll",
+   "metric": "InvalidateLayout",
+   "level": "per 500 px zone",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "paintArea",
+   "level": "per 500 px zone",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "RecalculateStyles",
+   "level": "per step",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "Layout",
+   "level": "per step",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "Paint",
+   "level": "per step",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "Composite",
+   "level": "per step",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "RenderingFrame",
+   "level": "per step",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "FireAnimationFrame",
+   "level": "per step",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "TimerFire",
+   "level": "per step",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "ObserverCallback",
+   "level": "per step",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "EventDispatch",
+   "level": "per step",
+   "cls": "deterministic"
+  },
+  {
+   "family": "scroll",
+   "metric": "FunctionCall",
+   "level": "per step",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "ScheduleStyleRecalculation",
+   "level": "per step",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "InvalidateLayout",
+   "level": "per step",
+   "cls": "quarantined"
+  },
+  {
+   "family": "scroll",
+   "metric": "paintArea",
+   "level": "per step",
+   "cls": "quarantined"
+  }
+ ],
+ "classTally": {
+  "stable": 13,
+  "deterministic": 34,
+  "quarantined": 25
+ },
+ "fw": null
+}

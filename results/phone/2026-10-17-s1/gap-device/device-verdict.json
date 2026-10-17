@@ -1,0 +1,114 @@
+{
+ "pass": false,
+ "checks": [
+  {
+   "id": "W Lean reach model holds (whole media width, primary pair)",
+   "ok": true,
+   "detail": "10 records"
+  },
+  {
+   "id": "X pointer facts equal the Simulator",
+   "ok": true,
+   "detail": "10 records"
+  },
+  {
+   "id": "T touchArm equals Lean at the record's own width",
+   "ok": true,
+   "detail": "2 compared, 8 without a vector"
+  },
+  {
+   "id": "S equal to the Simulator at the same width",
+   "ok": false,
+   "detail": [
+    {
+     "label": "load-1",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    },
+    {
+     "label": "load-2",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    },
+    {
+     "label": "vp-width-600.5",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    },
+    {
+     "label": "vp-width-640.5",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    },
+    {
+     "label": "vp-width-860.5",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    },
+    {
+     "label": "vp-width-1000.5",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    },
+    {
+     "label": "aim-600.5",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    },
+    {
+     "label": "aim-640.5",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    },
+    {
+     "label": "aim-860.5",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    },
+    {
+     "label": "aim-1000.5",
+     "seq": 0,
+     "diff": [
+      "dark"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "L equal to Lean where a vector exists",
+   "ok": true,
+   "detail": "2 compared, 8 without a vector"
+  }
+ ],
+ "informative": {
+  "fractionalVv": [],
+  "withoutLeanVector": [
+   "vp-width-600.5#0",
+   "vp-width-640.5#0",
+   "vp-width-860.5#0",
+   "vp-width-1000.5#0",
+   "aim-600.5#0",
+   "aim-640.5#0",
+   "aim-860.5#0",
+   "aim-1000.5#0"
+  ]
+ }
+}
