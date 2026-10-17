@@ -50,7 +50,10 @@ Lean states every media condition, proves its edges, its overlaps and the gaps, 
 - `dark-1440x900` uses desktop inputs at DPR 1. `dark-430x932` uses touch inputs at DPR 3.
 - The `height-probes` loads at 1440 use desktop inputs at DPR 1. The loads at 430 use touch inputs at DPR 3 on a
   430×932 screen.
-- The fractional probes use desktop inputs at DPR 1.25 and height 900, with device width equal to the fractional width.
+- The fractional probes use desktop inputs at DPR 2 and height 900, with device width equal to the fractional width.
+  At DPR 2 every probe width is a whole number of device pixels (`matrix_width_dpr_whole`), as Chromium needs
+  (media width = whole physical px / DPR); DPR 1.25 asked for 750.625 device px. No expected value changes
+  (`fractional_dpr_indep`). WebKit's media width is whole, so these cells are unreachable there (`Fw.Gate.Reach`).
 - The test matrix contains no `print` or forced-colors environment. Every load is `screen` with forced colors `none`.
 
 ## Generating `breakpoints.gen.json`
