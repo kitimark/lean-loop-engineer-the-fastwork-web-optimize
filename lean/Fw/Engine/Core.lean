@@ -489,9 +489,9 @@ $$\forall w \in \mathrm{Work}:\ |\operatorname{toCounts}(w)| = 17$$
 theorem toCounts_length (w : Work) : (toCounts w).length = 17 := by
   simp [toCounts, Stage.all]
 
-/-- `leVec` over two concatenations follows from `leVec` on the parts.
+/-- `leVec` over two concatenations follows from `leVec` on the parts (`leVec` includes equal lengths).
 
-$$\forall x_1, x_2, y_1, y_2 \in \mathbb{N}^{*}:\ \operatorname{leVec}(x_1, y_1) \land \operatorname{leVec}(x_2, y_2) \Rightarrow \operatorname{leVec}(x_1 \mathbin{+\!\!+} x_2, y_1 \mathbin{+\!\!+} y_2)$$
+$$\forall x_1, y_1, x_2, y_2 \in \mathbb{N}^{*}:\ \operatorname{leVec}(x_1, y_1) = \mathrm{true} \land \operatorname{leVec}(x_2, y_2) = \mathrm{true} \Rightarrow \operatorname{leVec}(x_1 \mathbin{+\!\!+} x_2, y_1 \mathbin{+\!\!+} y_2) = \mathrm{true}$$
 -/
 theorem leVec_append : ∀ {x₁ y₁ : Screen.Counts} (x₂ y₂ : Screen.Counts), Screen.leVec x₁ y₁ = true →
     Screen.leVec x₂ y₂ = true → Screen.leVec (x₁ ++ x₂) (y₁ ++ y₂) = true
@@ -504,7 +504,7 @@ theorem leVec_append : ∀ {x₁ y₁ : Screen.Counts} (x₂ y₂ : Screen.Count
 
 /-- `leVec` of two maps over one list follows from `≤` at every element.
 
-$$\forall L,\ \forall f, g:\ (\forall x \in L:\ f(x) \le g(x)) \Rightarrow \operatorname{leVec}([f(x)]_{x \in L}, [g(x)]_{x \in L})$$
+$$\forall L,\ \forall f, g:\ (\forall x \in L:\ f(x) \le g(x)) \Rightarrow \operatorname{leVec}([f(x)]_{x \in L}, [g(x)]_{x \in L}) = \mathrm{true}$$
 -/
 theorem leVec_map {α : Type} (f g : α → Nat) :
     ∀ (l : List α), (∀ x ∈ l, f x ≤ g x) → Screen.leVec (l.map f) (l.map g) = true
@@ -515,7 +515,7 @@ theorem leVec_map {α : Type} (f g : α → Nat) :
 
 /-- `≤` on work gives `leVec` on the count vectors.
 
-$$\forall a, b \in \mathrm{Work}:\ a \preceq b \Rightarrow \operatorname{leVec}(\operatorname{toCounts}(a), \operatorname{toCounts}(b))$$
+$$\forall a, b \in \mathrm{Work}:\ a \preceq b \Rightarrow \operatorname{leVec}(\operatorname{toCounts}(a), \operatorname{toCounts}(b)) = \mathrm{true}$$
 -/
 theorem leVec_toCounts {a b : Work} (h : a.le b) : Screen.leVec (toCounts a) (toCounts b) = true := by
   unfold toCounts
@@ -740,11 +740,11 @@ def Shift (win : List Nat) (vs os : List Work) : Prop := (peak win vs).le (peak 
 
 instance (win : List Nat) (vs os : List Work) : Decidable (Shift win vs os) := inferInstanceAs (Decidable (_ ∧ _))
 
-/-- Every frame of the window is below the window's peak.
+/-- Every frame of the window is below the window's peak (an index past the end reads as zero work).
 
-$$\forall K \in \mathbb{N}^{*},\ \forall W \in \mathrm{Work}^{*},\ \forall k \in K:\ W[k] \preceq \operatorname{peak}(K, W)$$
+$$\forall W \in \mathrm{Work}^{*},\ \forall K \in \mathbb{N}^{*},\ \forall k \in K:\ \operatorname{frameAt}(W, k) \preceq \operatorname{peak}(K, W),\qquad \operatorname{frameAt}(W, k) = \begin{cases} W[k] & k < |W| \\ 0 & k \ge |W| \end{cases}$$
 -/
-theorem le_peak (ws : List Work) : ∀ (win : List Nat), ∀ k ∈ win, (frameAt ws k).le (peak win ws)
+theorem le_peak (ws : List Work) : ∀ (ks : List Nat), ∀ k ∈ ks, (frameAt ws k).le (peak ks ws)
   | [], _, h => by simp at h
   | j :: js, k, h => by
     simp only [List.mem_cons] at h
@@ -816,14 +816,14 @@ def paintW (n : Nat) : Work :=
 
 /-- The per-frame series of one work component (for example the units of one stage), as a measured count type.
 
-$$\operatorname{series}(f, W) = [\,f(w)\,]_{w \in W} \in \mathbb{Z}^{*}$$
+$$\operatorname{series}(f, W) = [\,(f(w) : \mathbb{Z})\,]_{w \in W} \in \mathbb{Z}^{*}$$
 -/
 def series (f : Work → Nat) (ws : List Work) : Measure.Series := ws.map fun w => (f w : Int)
 
 /-- A monotone component of framewise-dominated work is framewise `≤` as a measured series: the model's prediction
 for a deterministic count type (`Measure.leFrames`, the frame-by-frame rule of `noMoreWork`).
 
-$$\forall f : \mathrm{Work} \to \mathbb{N},\ \forall V, O \in \mathrm{Work}^{*}:\ (\forall a, b:\ a \preceq b \Rightarrow f(a) \le f(b)) \land \operatorname{leAll}(V, O) = \mathrm{true} \Rightarrow \operatorname{leF}(\operatorname{series}(f, V), \operatorname{series}(f, O)) = \mathrm{true}$$
+$$\forall f : \mathrm{Work} \to \mathbb{N},\ \forall V, O \in \mathrm{Work}^{*}:\ (\forall a, b:\ a \preceq b \Rightarrow f(a) \le f(b)) \land \operatorname{leAll}(V, O) = \mathrm{true} \Rightarrow \operatorname{leFrames}(\operatorname{series}(f, V), \operatorname{series}(f, O)) = \mathrm{true}$$
 -/
 theorem leFrames_series (f : Work → Nat) (hf : ∀ a b : Work, a.le b → f a ≤ f b) :
     ∀ {vs os : List Work}, leAll vs os = true → Measure.leFrames (series f vs) (series f os) = true

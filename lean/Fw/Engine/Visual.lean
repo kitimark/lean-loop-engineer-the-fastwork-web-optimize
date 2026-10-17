@@ -131,9 +131,10 @@ def Affine.bbox (m : Affine) (r : Rect) : Rect :=
 /-- A box paints nothing in the viewport when its effective opacity is at most 0, its computed `visibility` is
 `hidden`, its rectangular clip does not meet its ink, or its transformed ink does not meet the viewport. Every rule
 only drops boxes that paint nothing, so `visible` keeps every box that paints (occlusion is not modelled: an
-occluded box is kept).
+occluded box is kept). `lookup` takes the first entry with that key; a missing key never drops. A clip that is absent
+or not a rectangle never drops.
 
-$$\operatorname{drop}_{vp}(b) \iff b.\mathrm{alpha} \le 0 \ \lor\ \operatorname{lookup}(\texttt{"visibility"}, b.\mathrm{paint}) = \texttt{"hidden"} \ \lor\ \big(b.\mathrm{clip} = \mathrm{rect}(r) \land \neg\operatorname{meets}(r, b.\mathrm{ink})\big) \ \lor\ \neg\operatorname{meets}(vp, \operatorname{bbox}(b.\mathrm{xf}, b.\mathrm{ink}))$$
+$$\operatorname{drop}_{vp}(b) \iff b.\mathrm{alpha} \le 0 \ \lor\ \operatorname{lookup}(\texttt{"visibility"}, b.\mathrm{paint}) = \mathrm{some}(\texttt{"hidden"}) \ \lor\ \big(\exists r:\ b.\mathrm{clip} = \mathrm{some}(\mathrm{rect}(r)) \land \neg\operatorname{meets}(r, b.\mathrm{ink})\big) \ \lor\ \neg\operatorname{meets}(vp, \operatorname{bbox}(b.\mathrm{xf}, b.\mathrm{ink}))$$
 -/
 def BoxVis.drop (vp : Rect) (b : BoxVis) : Bool :=
   decide (b.alpha ≤ 0) || b.paint.lookup "visibility" == some "hidden" ||
@@ -188,7 +189,7 @@ def xfQ (m n : Affine) : Bool :=
 /-- Two paint lists agree: same length, the same property names in the same order, and each value pair equal under
 the gate's computed-style comparison (PL2).
 
-$$\operatorname{paintQ}(p, q) \iff |p| = |q| \land \forall i < |p|:\ p_i.1 = q_i.1 \land \operatorname{styleEq}(p_i.2, q_i.2)$$
+$$\operatorname{paintQ}(p, q) \iff |p| = |q| \land \forall i < |p|:\ p_i.1 = q_i.1 \land \operatorname{styleValueEq}(\mathrm{some}(p_i.2), \mathrm{some}(q_i.2)) = \mathrm{true}$$
 -/
 def paintQ : List (String × String) → List (String × String) → Bool
   | [], [] => true
@@ -455,7 +456,7 @@ visible scene under a path assignment (main thread or compositor per box) with `
 * **C3** (`c3o`, `c3v`): what each arm shows at frame time `t` is the raster of its own value function at `t`
   (the compositor samples the same function at its own frame time).
 
-$$\mathrm{PathPremises}(\mathit{vp}, o, v) = \Big(\mathit{raster}, \mathit{lcd}, \mathit{cs}, \pi_o, \pi_v, \mathit{shown}_o, \mathit{shown}_v\Big) \text{ such that } \begin{cases} \forall p, q : \mathrm{BoxId} \to \mathrm{Thread},\ \forall S \in \mathrm{Scene}:\ \big(\forall i:\ p(i) \ne q(i) \Rightarrow \neg\mathit{lcd}(i) \land \neg\mathit{cs}(i)\big) \Rightarrow \mathit{raster}(p, S) = \mathit{raster}(q, S) \\ \forall \mathit{env}, t, i:\ \pi_o(\mathit{env}, t)(i) \ne \pi_v(\mathit{env}, t)(i) \Rightarrow \neg\mathit{lcd}(i) & \text{(C1)} \\ \forall \mathit{env}, t, i:\ \pi_o(\mathit{env}, t)(i) \ne \pi_v(\mathit{env}, t)(i) \Rightarrow \neg\mathit{cs}(i) & \text{(C2)} \\ \forall \mathit{env}, t:\ \mathit{shown}_o(\mathit{env}, t) = \mathit{raster}\big(\pi_o(\mathit{env}, t), \operatorname{visible}_{\mathit{vp}(\mathit{env})}(o(\mathit{env}, t))\big) & \text{(C3)} \\ \forall \mathit{env}, t:\ \mathit{shown}_v(\mathit{env}, t) = \mathit{raster}\big(\pi_v(\mathit{env}, t), \operatorname{visible}_{\mathit{vp}(\mathit{env})}(v(\mathit{env}, t))\big) & \text{(C3)} \end{cases}$$
+$$\mathrm{PathPremises}_{\mathrm{Img}}(\mathit{vp}, o, v) = \Big(\mathit{raster} : (\mathrm{BoxId} \to \mathrm{Thread}) \to \mathrm{Scene} \to \mathrm{Img},\ \mathit{lcd}, \mathit{cs} : \mathrm{BoxId} \to \mathbb{B},\ \pi_o, \pi_v : \mathrm{Env} \to T \to \mathrm{BoxId} \to \mathrm{Thread},\ \mathit{shown}_o, \mathit{shown}_v : \mathrm{Env} \to T \to \mathrm{Img}\Big) \text{ such that } \begin{cases} \forall p, q : \mathrm{BoxId} \to \mathrm{Thread},\ \forall S \in \mathrm{Scene}:\ \big(\forall i:\ p(i) \ne q(i) \Rightarrow \neg\mathit{lcd}(i) \land \neg\mathit{cs}(i)\big) \Rightarrow \mathit{raster}(p, S) = \mathit{raster}(q, S) & \text{(raster\_path)} \\ \forall \mathit{env}, t, i:\ \pi_o(\mathit{env}, t)(i) \ne \pi_v(\mathit{env}, t)(i) \Rightarrow \neg\mathit{lcd}(i) & \text{(C1)} \\ \forall \mathit{env}, t, i:\ \pi_o(\mathit{env}, t)(i) \ne \pi_v(\mathit{env}, t)(i) \Rightarrow \neg\mathit{cs}(i) & \text{(C2)} \\ \forall \mathit{env}, t:\ \mathit{shown}_o(\mathit{env}, t) = \mathit{raster}\big(\pi_o(\mathit{env}, t), \operatorname{visible}_{\mathit{vp}(\mathit{env})}(o(\mathit{env}, t))\big) & \text{(C3)} \\ \forall \mathit{env}, t:\ \mathit{shown}_v(\mathit{env}, t) = \mathit{raster}\big(\pi_v(\mathit{env}, t), \operatorname{visible}_{\mathit{vp}(\mathit{env})}(v(\mathit{env}, t))\big) & \text{(C3)} \end{cases}$$
 -/
 structure PathPremises {Env T : Type} (Img : Type) (vp : Env → Rect) (o v : Env → T → Scene) where
   raster    : (BoxId → Thread) → Scene → Img
