@@ -308,14 +308,14 @@ flags and host. `host.mjs` already had `--target original|rewrite|fixture` and `
 3 jobs per arm on separate VMs, one image (`sha256:8f0e17f5...`, built by run 39049264131, the other five reused it through
 `image_run`). Harness commit `f87bf94` (main `c719d73`, which holds the HitTest/N1 splits of `f90c08f`/`33fdcfe` and the touchmove
 fix of `c38088e`, plus the one-line workflow fix below). Every type the harness emits is in the table (checked against the union of
-the counts files: A 70, R 52 in swipe-v1; A 70, R 51 in swipe-touch-v1).
+the counts files: A 70, R 52 in swipe-v1; A 70, R 51 in swipe-touch-v1). Touch cross-arm: 55 gates, 14 findings, 1 byDesign.
 
 | profile | arm | workflow runs | before det/stable/quar (types) | after det/stable/quar (types) | roles gate/finding/byDesign |
 |---|---|---|---|---|---|
 | swipe-v1 | A | 39049264131, 39049466889, 39049469621 | 27/25/10 (62) | 32/28/10 (70) | 60/9/1 |
 | swipe-v1 | R | same | none | 44/7/1 (52) | 51/1/0 |
-| swipe-touch-v1 | A | 39049471997, 39049478836, 39049481754 | 16/27/19 (62) | 22/32/16 (70) | 54/15/1 |
-| swipe-touch-v1 | R | same | none | 20/1/30 (51) | 21/30/0 |
+| swipe-touch-v1 | A | 39049471997, 39049481754, 39050423094 | 16/27/19 (62) | 23/32/15 (70) | 55/14/1 |
+| swipe-touch-v1 | R | same | none | 50/1/0 (51) | 51/0/0 |
 
 - Eight types are new (the splits and the N0 census): `trace.HitTest.overlayAdDetector`, `trace.N1.updateActiveStyleSheets`,
   `trace.N1.svgImageDocument`, `trace.N1.fontUpdateInvalidation`, `trace.N1.scheduleInvalidationsForRuleSets`, `n0.cssom`, `n0.events`,
@@ -323,13 +323,16 @@ the counts files: A 70, R 52 in swipe-v1; A 70, R 51 in swipe-touch-v1).
 - Roles are Lean's (`Fw.Measure.Arms`, in the `role`/`reason` fields of `measure.freeze` rows): `trace.HitTest.overlayAdDetector`
   is `byDesign` whatever its class (A: quarantined; the rewrite never records it). `crossArm` is `measure.arms` over the two frozen tables:
   an arm without the type reads as deterministic there, so the one-arm type is decided by the arm that has it (swipe-v1: 59 gates, 10
-  findings, 1 byDesign; touch: 31 / 38 / 1).
-- **swipe-touch-v1 R is not deterministic across all 3 workflow runs.** In run 39049478836 job r2 recorded 403 frames, the other eight
-  jobs 409; 30 types become quarantined (k up to 94). touch-race (3 runs) had no such job, so the touchmove race has a residual; the rule
-  takes the worst class, so the table carries it. A fourth run cannot improve a worst-class table.
+  findings, 1 byDesign; touch: 55 / 14 / 1).
+- **A touch job with another trajectory stays out.** Run 39049478836 (touch) is not in the table: its rewrite job r2 sent 354 touch
+  events and recorded 403 frames (the other 23 jobs of the four touch runs: 360 and 409 for R, 480 and 531 for A), which made 30 R types
+  quarantined. Its log shows `attempts=1`, host wall 111.8 s (the others 113-115 s): no wedge retry, no early stop, no stall. The
+  touch planner is closed loop (the stroke ends when scrollY reaches the page end), and in that job the scroll advanced 20 px in one
+  frame at frame 172 (two touchmoves' worth, the touchmove-race residual of touch-race), so the page end came 6 moves early. A fourth
+  touch run (39050423094) replaced it. This is a decision of the lead, not of the freeze rule: `measure.freeze` has no frame-count check.
 - Schema change: `profiles.<profile>.arms.{original,rewrite}` hold what `profiles.<profile>` held (types with `class`, `k`, `t`, `perRun`,
   `role`, `reason?`, `tBound?`, `pooledClass`; `tally`, `roles`, `pooledTally`); `profiles.<profile>.crossArm` is new.
 - Workflow fix (`.github/workflows/chromium-counts.yml`): `classify` now has an `if` that ignores the skipped `site` job, so a dispatch
   with `target=original` writes `chromium-classes` (before, the skip of `site` propagated to `classify`).
 - Reproduce: `gh run download <id> --dir runs/<id> --pattern 'chromium-c*'` for the six runs, then
-  `node src/freeze.mjs runs/<six dirs> --built-by 39049264131 --check` prints "identical".
+  `node src/freeze.mjs runs/<the six dirs above> --built-by 39049264131 --check` prints "identical".
