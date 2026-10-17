@@ -621,7 +621,7 @@ private theorem step_drop (x D : Int) (h1 : 1000 ≤ D) (h2 : D < 2000) :
 and $n \delta \ge 1000$ with the $n$-th tick not after the target, some tick among the first $n$ drops the shown
 seconds by 2.
 
-$$\forall t, d : \mathbb{N} \to \mathbb{Z},\ \forall \delta, T \in \mathbb{Z},\ \forall n \in \mathbb{N}:\ \big(\forall i:\ t_{i+1} = t_i + 1000 + d_i \land \delta \le d_i < 1000\big) \land \delta > 0 \land n\delta \ge 1000 \land t_n \le T \Rightarrow \exists i < n:\ R(t_i, T) = R(t_{i+1}, T) + 2$$
+$$\forall t, d : \mathbb{N} \to \mathbb{Z},\ \forall \delta, T \in \mathbb{Z},\ \forall n \in \mathbb{N}:\ \big(\forall i:\ t_{i+1} = t_i + 1000 + d_i \land \delta \le d_i < 1000\big) \land \delta > 0 \land n\delta \ge 1000 \land t_n \le T \Rightarrow \exists i < n:\ \operatorname{remainingSeconds}(t_i, T) = \operatorname{remainingSeconds}(t_{i+1}, T) + 2$$
 
 Drift accumulates until one tick crosses two second boundaries. -/
 theorem drift_skips (t d : Nat → Int) (δ T : Int) (n : Nat) (ht : ∀ i, t (i + 1) = t i + 1000 + d i)

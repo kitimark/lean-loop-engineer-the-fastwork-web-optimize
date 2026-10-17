@@ -5,41 +5,33 @@
    "n": 1,
    "part": "engine.scroll",
    "candidate": "batched (all reads, then all returned writes, one pass per frame)",
-   "status": "partly-proved",
+   "status": "proved",
    "chromium": "no-win",
    "webkit": "unknown",
    "visual": "open. E holds if no moved write changes a value that a later read in the same frame sees (premise NI, INFERRED true for the pilot: the hero writes --exit-opacity and pointer-events on .hero; the nav reads its own rect, the sticky profile and the track rect). Not E if batching also folds the hero-exit rAF trampoline, because the writes then land one frame earlier (v1 scroll-engine/01 note).",
-   "mechanism": "Style stage only. Total style passes per frame = [d ∧ (head is a read ∨ no write)] + #write-runs (checked exhaustively up to length 9, INFERRED). The engine merges only the hero's returned write run. The nav probe's two internal write→read pairs remain, so the pilot keeps 3 passes (1 with elements-skip): the moved pass comes back as the frame-end lifecycle update. Restyled elements are unchanged (same dirty sets, R2). Counter: trace.UpdateLayoutTree (det). A local run gave W equal, S equal (packages/measure-chromium/README.md:185). Core.frameWork counts [style touched] + forced, so it over-counts by 1 whenever the frame ends clean (last style access a read): PROVED Fw.Engine.frameWork_overcount; the faithful count forced + [endDirty] is Fw.Engine.frameWorkE (CONFIRMED: Chromium document.cc:2757-2762@f842f52 returns early when no style is dirty; WebKit Document.cpp:3042-3043@862f17d). Abstract closed form PROVED as Fw.Engine.flagTotal_closed: total = [d and first non-neutral access is not a write] + #write-runs (the form [d and head = R] alone fails at d, as = []). Golden finding: the forcedCountsBatched rows of Fw.Parts.Golden (engineSpecLines) are forced-only; read as totals they under-count every batched sequence that ends in a write by 1. Style totals faithful vs batched (d=true / d=false): pilot 4/3 vs 2/1 (forced alone says 1/0, so the batching saving is over-predicted by 1: 2, not 3), nav 3/2 vs 2/1 (forced says 1/0), [wS,rL] 1/1 vs 2/1 (forced says 1/0: batching is worse by 1 at d, not equal), [rL,wL,rL] 2/1 vs 2/1 (forced says 1/0: no saving, not 1). Layout totals for the same rows move the same way for [rL,wL,rL] (2/1 vs 2/1). No golden row was edited (the rows are labelled forced counts); the Parts proofs that should move to frameWorkE are listed in docs/team/handoffs/why-core-lessons.md.",
+   "mechanism": "Style stage only. Total style passes per frame = [d ∧ (head is a read ∨ no write)] + #write-runs (PROVED: Fw.Parts.EngineScroll.total_style_closed). The engine merges only the hero's returned write run. The nav probe's two internal write→read pairs remain, so the pilot keeps 3 passes (1 with elements-skip): the moved pass comes back as the frame-end lifecycle update. Restyled elements are unchanged (same dirty sets, R2). Counter: trace.UpdateLayoutTree (det). A local run gave W equal, S equal (packages/measure-chromium/README.md:185). Core.frameWork counts [style touched] + forced, so it over-counts by 1 whenever the frame ends clean (last style access a read): PROVED Fw.Engine.frameWork_overcount; the faithful count forced + [endDirty] is Fw.Engine.frameWorkE (CONFIRMED: Chromium document.cc:2757-2762@f842f52 returns early when no style is dirty; WebKit Document.cpp:3042-3043@862f17d). Abstract closed form PROVED as Fw.Engine.flagTotal_closed: total = [d and first non-neutral access is not a write] + #write-runs (the form [d and head = R] alone fails at d, as = []). Golden finding: the forcedCountsBatched rows of Fw.Parts.Golden (engineSpecLines) are forced-only; read as totals they under-count every batched sequence that ends in a write by 1. Style totals faithful vs batched (d=true / d=false): pilot 4/3 vs 2/1 (forced alone says 1/0, so the batching saving is over-predicted by 1: 2, not 3), nav 3/2 vs 2/1 (forced says 1/0), [wS,rL] 1/1 vs 2/1 (forced says 1/0: batching is worse by 1 at d, not equal), [rL,wL,rL] 2/1 vs 2/1 (forced says 1/0: no saving, not 1). Layout totals for the same rows move the same way for [rL,wL,rL] (2/1 vs 2/1). No golden row was edited (the rows are labelled forced counts); the Parts proofs that should move to frameWorkE are listed in docs/team/handoffs/why-core-lessons.md. Under the frame-end pass (frameWorkE) batching can also add a pass: it is worse exactly when the frame starts dirty and its first flag access is a write followed by a read (total_batch_worse_iff). The golden forcedCountsBatched rows are forced passes only: read as totals the pilot batched style row is 2/1 (dirty/clean start), not 1/0, against 4/3 faithful (Fw.Parts.Golden.pilot_batched_rows_forced_only).",
    "leanFor": [
     "Fw.Parts.EngineScroll.batched_le_faithful",
     "Fw.Parts.EngineScroll.batched_le_one",
     "Fw.Parts.EngineScroll.framePlan_batched_le",
-    "Fw.Parts.EngineScroll.framePlan_faithful_cost"
+    "Fw.Parts.EngineScroll.framePlan_faithful_cost",
+    "Fw.Parts.EngineScroll.total_batch_win_iff",
+    "Fw.Parts.EngineScroll.total_eq"
    ],
    "leanAgainst": [
     "Fw.Engine.frameWork_overcount",
     "Fw.Engine.frameWorkE_le",
     "Fw.Engine.flagTotal_closed",
     "Fw.Engine.flagTotal_remove_check",
-    "Fw.Engine.reader_removal"
+    "Fw.Engine.reader_removal",
+    "Fw.Parts.EngineScroll.total_style_closed",
+    "Fw.Parts.EngineScroll.total_batch_delta",
+    "Fw.Parts.EngineScroll.total_batch_worse_iff",
+    "Fw.Parts.EngineScroll.pilot_retBatch_noWin",
+    "Fw.Parts.EngineScroll.pilot_retBatch_layout",
+    "Fw.Parts.Golden.pilot_batched_rows_forced_only"
    ],
-   "missingWhy": [
-    {
-     "statement": "Closed form of all style passes, forced plus frame-end: $\\forall d,\\ as \\in \\{\\mathrm{R},\\mathrm{W}\\}^*:\\ \\mathrm{total}_S(d,as) := \\mathrm{forced}_{\\rho_S}(d,as) + [\\mathrm{fin}_{\\rho_S}(d,as)] = [d \\land (\\mathrm{head}(as)=\\mathrm{R} \\lor \\mathrm{W}\\notin as)] + \\#\\mathrm{runs}_{\\mathrm{W}}(as)$",
-     "module": "Fw.Parts.EngineScroll",
-     "needs": "move `fin` (end-dirty flag, now in NavHitTestOpt) into EngineScroll; add a maximal-write-run count; the abstract FlagOp form is PROVED in Core (Fw.Engine.flagTotal_closed, Fw.Engine.flagTotal_append); remaining is the bridge forced_rho(d, as) = flagForced(d, map (toFlag . rho) as)"
-    },
-    {
-     "statement": "Batching delta: $\\forall d, as:\\ \\mathrm{W}\\in as \\Rightarrow \\mathrm{total}_S(d, \\mathrm{filter}_R(as) \\mathbin{+\\!\\!+} \\mathrm{filter}_W(as)) = \\mathrm{total}_S(d,as) - (\\#\\mathrm{runs}_W(as) - 1) + [d \\land \\mathrm{head}(as)=\\mathrm{W} \\land \\mathrm{R}\\in as]$. So batching wins only when it merges $\\ge 2$ write runs, and it is worse by 1 when the frame starts dirty with a write (e.g. $d$, WR).",
-     "module": "Fw.Parts.EngineScroll",
-     "needs": "the closed form above"
-    },
-    {
-     "statement": "Pilot no-win: $\\forall d \\in \\mathbb{B},\\ \\forall p \\in \\{\\mathit{probe}_o, \\mathit{probe}_e\\}:\\ \\mathrm{total}_S(d, \\mathit{hero} \\mathbin{+\\!\\!+} \\mathit{nav}_p) = \\mathrm{total}_S(d, \\mathrm{R}(\\mathit{hero}) \\mathbin{+\\!\\!+} \\mathit{nav}_p \\mathbin{+\\!\\!+} \\mathrm{W}(\\mathit{hero}))$, with values $3+[d]$ for the faithful probe and $1+[d]$ for elements-skip",
-     "module": "Fw.Parts.EngineScroll",
-     "needs": "an engine-level batch that moves only returned writers (the TS engine's rule), not filter over the whole frame"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "R4 forced-update sites (getBoundingClientRect, getComputedStyle, elementFromPoint): CONFIRMED (engine-gaps R4)",
     "Chromium emits UpdateLayoutTree only when style is dirty at a lifecycle step: INFERRED (rewrite CI 784 vs local no-write probe 94 per 385 frames)",
@@ -48,8 +40,8 @@
     "the WebKit local 164 → 145 RecalculateStyles: MEASURED locally (debug), not a result, mechanism OPEN"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/fixes/scroll-engine/README.md /01 measure/mutate engine: forced style+layout 92 → 69 ms within noise, LoAF +25 ms ('WORSE', below the A/A noise), 'iE's forced total stays about the same', frames >20 ms are 'per-frame style and paint cost, which batching doesn't remove'; parked. v2 local: Chromium batched W equal, S equal (packages/measure-chromium/README.md:185-186); WebKit 164 → 145 RecalculateStyles (packages/measure-webkit/README.md:272), local debug only.",
-   "lesson": "Reordering reads before writes saves a style pass only for each extra write run it merges. A pass whose write ends the frame comes back as the lifecycle update. Predict with total = [d∧head-read] + #write-runs, not with forced alone.",
-   "next": "Prove the closed form, the batching delta and the pilot equality in EngineScroll. Fix Core.frameWork's style-pass overcount. Record batched as no-win for the pilot. Measure on CI only once ≥ 2 callbacks return batchable writers interleaved with reads (v1's five trampolines)."
+   "lesson": "Reordering reads before writes saves a style pass only for each extra write run it merges. A pass whose write ends the frame comes back as the lifecycle update. Predict with total = [d∧head-read] + #write-runs, not with forced alone. Count totals, never forced passes alone: a batched forced count of 0 can hide a frame-end pass.",
+   "next": "Add a totalCounts row kind to engine.scroll.spec.jsonl and to the TS logic (outside why-parts writes); keep batched as no-win."
   },
   {
    "n": 2,
@@ -59,22 +51,19 @@
    "chromium": "no-win",
    "webkit": "no-win",
    "visual": "not-equal per frame. Blink delivers IO by posted task (one frame late). IO thresholds are discrete, so continuous outputs (exit opacity, morph) cannot come from IO. An IO-based hit test ignores stacking and occlusion. E only at settled states, and for boolean thresholds through a sentinel (HeroExitOpt.sentinel_iff_pointerOff) up to that lag.",
-   "mechanism": "It would save forced style/layout on main. Removing one reader removes a pass only if no later reader in the frame pays the same flush. The nav's elementFromPoint and rect reads stay every frame, and WebKit's scrollY forces layout (LocalDOMWindow.cpp:1466-1479@862f17d). New cost: IO compute in every lifecycle (Blink local_frame_view.cc:1148-1189; WebKit Page.cpp:2367). Blink posts delivery (intersection_observer_controller.cc:90-105). WebKit calls back inside the update, then lays out again (Page.cpp:2337, 2399). Counters: trace.IntersectionObserverCompute (det), WebKit ObserverCallback.",
+   "mechanism": "It would save forced style/layout on main. Removing one reader removes a pass only if no later reader in the frame pays the same flush. The nav's elementFromPoint and rect reads stay every frame, and WebKit's scrollY forces layout (LocalDOMWindow.cpp:1466-1479@862f17d). New cost: IO compute in every lifecycle (Blink local_frame_view.cc:1148-1189; WebKit Page.cpp:2367). Blink posts delivery (intersection_observer_controller.cc:90-105). WebKit calls back inside the update, then lays out again (Page.cpp:2337, 2399). Counters: trace.IntersectionObserverCompute (det), WebKit ObserverCallback. Removing one checking read saves a pass only when the flag is dirty at the read and the next flag access after it is a write (PROVED: Fw.Parts.EngineScroll.total_remove_read).",
    "leanFor": [
     "Fw.Parts.HeroExit.pointerOff_iff_threshold",
     "Fw.Parts.HeroExitOpt.sentinel_iff_pointerOff",
-    "Fw.Parts.EngineScroll.forced_mono"
+    "Fw.Parts.EngineScroll.forced_mono",
+    "Fw.Parts.EngineScroll.total_remove_read",
+    "Fw.Parts.EngineScroll.total_style_remove_read"
    ],
    "leanAgainst": [
     "Fw.Engine.reader_removal",
     "Fw.Engine.flagTotal_remove_check"
    ],
    "missingWhy": [
-    {
-     "statement": "Reader removal (a corollary of the closed form in row 1): $\\mathrm{total}_S(d, as \\setminus i) < \\mathrm{total}_S(d, as)$ iff $as_i = \\mathrm{R}$ is the only read between two write runs, or $i = 0 \\land d \\land as_1 = \\mathrm{W}$. Otherwise the two totals are equal: the next reader or the frame-end pass pays the same flush (v1 scrollcb-g0).",
-     "module": "Fw.Parts.EngineScroll",
-     "needs": "the total_S closed form (row 1)"
-    },
     {
      "statement": "Observer timing: let $w$ be a write computed by an observer callback from the layout of frame $k$. Blink: $w$ is first visible in frame $k+1$. WebKit: $w$ is visible in frame $k$, and the update pays one extra style/layout pass when $w$ dirties them. Hence on crossing frames $\\mathrm{obs}_v(k) = \\mathrm{obs}_o(k-1)$ in Blink, and $\\mathrm{passes}_v(k) = \\mathrm{passes}_o(k) - \\mathrm{forced}_{\\mathrm{removed}} + [\\mathrm{crossing}(k)]$ in WebKit.",
      "module": "Fw.Engine.Core (new Observers section)",
@@ -105,7 +94,7 @@
    "chromium": "win",
    "webkit": "win",
    "visual": "E: hitSkip_visSame, hitSkipAnswer_onDark (is-on-dark is forced true when morph > 0.2; the probe runs fresh again in the first frame with morph ≤ 0.2)",
-   "mechanism": "Style and hit-test stages, only on frames with morph > 0.2. Skipping the probe removes the pointer-events write and restore (−2 forced UpdateLayoutTree, hitSkip_style_two), one HitTest, Blink's pre-paint walk inside elementFromPoint (layout_view.cc:139-141@f842f52) and its paint-for-hit-test invalidation (layout_object.cc:3477-3481). Forced layout moves to the track-rect read; it is not removed. Visible in UpdateLayoutTree/HitTest (det on the rewrite arm) only if the scenario opens the morph. swipe-v1 uses scrollTo, and the morph opens only on wheel/touch pushes (morph.tween/driver.ts:28).",
+   "mechanism": "Style and hit-test stages, only on frames with morph > 0.2. Skipping the probe removes the pointer-events write and restore (−2 forced UpdateLayoutTree, hitSkip_style_two), one HitTest, Blink's pre-paint walk inside elementFromPoint (layout_view.cc:139-141@f842f52) and its paint-for-hit-test invalidation (layout_object.cc:3477-3481). Forced layout moves to the track-rect read; it is not removed. Visible in UpdateLayoutTree/HitTest (det on the rewrite arm) only if the scenario opens the morph. swipe-v1 uses scrollTo, and the morph opens only on wheel/touch pushes (morph.tween/driver.ts:28). Under frameWorkE the verdict is unchanged (hitSkipE_lt_any). With morph <= 0.2 the variant is the original (hitSkip_eq_orig), so swipe-v1, which never opens the morph, predicts =o and its golden rows now say so. The skipped forced layout comes back as the frame-end layout: moved, not saved (layout_moved).",
    "leanFor": [
     "Fw.Parts.NavHitTest.hitSkip_morph",
     "Fw.Parts.NavHitTest.expanded_masks",
@@ -113,22 +102,22 @@
     "Fw.Parts.NavHitTestOpt.hitSkip_style_two",
     "Fw.Parts.NavHitTestOpt.hitSkip_run_dominates",
     "Fw.Parts.NavHitTestOpt.hitSkip_visSame",
-    "Fw.Parts.NavHitTestOpt.hitSkipAnswer_onDark"
+    "Fw.Parts.NavHitTestOpt.hitSkipAnswer_onDark",
+    "Fw.Parts.NavHitTestOpt.navE_le",
+    "Fw.Parts.NavHitTestOpt.hitSkipE_le_any",
+    "Fw.Parts.NavHitTestOpt.hitSkipE_lt_any",
+    "Fw.Parts.NavHitTestOpt.navE_work_lt",
+    "Fw.Parts.NavHitTestOpt.navE_run_dominates_any",
+    "Fw.Parts.NavHitTestOpt.skip_style_tot_lt"
    ],
    "leanAgainst": [
-    "Fw.Parts.NavHitTestOpt.skip_layout_le"
+    "Fw.Parts.NavHitTestOpt.skip_layout_le",
+    "Fw.Parts.NavHitTestOpt.hitSkip_eq_orig",
+    "Fw.Parts.NavHitTestOpt.hitSkip_run_eq",
+    "Fw.Parts.NavHitTestOpt.layout_moved",
+    "Fw.Parts.NavHitTestOpt.skip_layout_tot_le"
    ],
    "missingWhy": [
-    {
-     "statement": "Outside the morph, nothing changes: $\\forall \\varepsilon, c, m, \\mathit{pes}:\\ m \\le \\tfrac15 \\Rightarrow \\mathrm{frameWork}_\\varepsilon(\\mathrm{hitSkipFrame}(c,m,\\mathit{pes})) = \\mathrm{frameWork}_\\varepsilon(\\mathrm{origFrame}(c,\\mathit{pes}))$. So on any scenario whose run never has $m > \\tfrac15$ (swipe-v1), every golden row must be $=o$, not $<o$.",
-     "module": "Fw.Parts.NavHitTestOpt",
-     "needs": "nothing new; plus a scenario predicate 'reaches morph > 1/5' tied to the morph.tween driver (wheel/touch push)"
-    },
-    {
-     "statement": "Layout moved, not saved: $\\forall \\mathit{pre}, \\mathit{post}, d:\\ \\mathrm{forced}_L(d, \\mathit{pre} \\mathbin{+\\!\\!+} \\mathit{track} \\mathbin{+\\!\\!+} \\mathit{post}) = \\mathrm{forced}_L(d, \\mathit{pre} \\mathbin{+\\!\\!+} \\mathit{probe}_o \\mathbin{+\\!\\!+} \\mathit{track} \\mathbin{+\\!\\!+} \\mathit{post})$",
-     "module": "Fw.Parts.NavHitTestOpt",
-     "needs": "nothing (follows from probes_layout)"
-    },
     {
      "statement": "Blink pre-paint per hit test: $\\mathrm{passes}_{cr}(\\mathrm{props}) \\ge \\mathrm{hits}$ on frames where a style-only change precedes a hit test (UpdateAllLifecyclePhasesExceptPaint), so a skip also gives $\\mathrm{PrePaint}_v \\le \\mathrm{PrePaint}_o - 1$ on such frames",
      "module": "Fw.Engine.Chromium",
@@ -162,10 +151,13 @@
     "Fw.Parts.NavHitTestOpt.elements_layout_eq",
     "Fw.Parts.NavHitTestOpt.elementsSkip_run_dominates",
     "Fw.Parts.NavHitTestOpt.elementsSkip_visSame",
-    "Fw.Parts.NavHitTestOpt.elementsSkip_visSame_port"
+    "Fw.Parts.NavHitTestOpt.elementsSkip_visSame_port",
+    "Fw.Parts.NavHitTestOpt.elementsSkipE_lt_any",
+    "Fw.Parts.NavHitTestOpt.elements_style_tot_lt"
    ],
    "leanAgainst": [
-    "Fw.Parts.NavHitTest.firstOutside_ne_faithful"
+    "Fw.Parts.NavHitTest.firstOutside_ne_faithful",
+    "Fw.Parts.NavHitTestOpt.elements_layout_fin_eq"
    ],
    "missingWhy": [
     {
@@ -199,30 +191,26 @@
    "n": 5,
    "part": "nav.hitTest",
    "candidate": "write-on-change (toggle is-on-dark only when it changes)",
-   "status": "partly-proved",
+   "status": "proved",
    "chromium": "no-win",
    "webkit": "no-win",
    "visual": "E: changed_write (the final class is the same)",
-   "mechanism": "No stage changes. A classList.toggle(c, b) that matches current presence never updates the class attribute in either engine (Blink dom_token_list.cc:148-157@f842f52; WebKit DOMTokenList.cpp:139-161@862f17d), so there is no style invalidation to save. The original also diffs classes in Svelte set_class (snapshot chunks/BSBv9QXB.js:2841-2853) and in signal equality, and every TS variant already writes on change (nav.hitTest/index.tsx:40-45). Only a JS DOM call is saved, which no CI counter sees (FunctionCall counts callbacks). writeOnChange_le is true, but it counts a no-op toggle as a Change.",
+   "mechanism": "No stage changes. A classList.toggle(c, b) that matches current presence never updates the class attribute in either engine (Blink dom_token_list.cc:148-157@f842f52; WebKit DOMTokenList.cpp:139-161@862f17d), so there is no style invalidation to save. The original also diffs classes in Svelte set_class (snapshot chunks/BSBv9QXB.js:2841-2853) and in signal equality, and every TS variant already writes on change (nav.hitTest/index.tsx:40-45). Only a JS DOM call is saved, which no CI counter sees (FunctionCall counts callbacks). writeOnChange_le is true, but it counts a no-op toggle as a Change. The engine already drops a class toggle that does not change presence, so always-toggle and write-on-change give the same frame (PROVED: Fw.Parts.NavHitTestOpt.toggle_noop): no-win in both engines.",
    "leanFor": [
     "Fw.Parts.NavHitTest.changed_write",
     "Fw.Parts.NavHitTestOpt.writeOnChange_le"
    ],
-   "leanAgainst": [],
-   "missingWhy": [
-    {
-     "statement": "No-op toggles are free in the engine: with $\\mathrm{tog}(w,p,n) = [w]$ if $p \\ne n$ else $[\\,]$, $\\forall \\varepsilon, f, w, p, n:\\ \\mathrm{frameWork}_\\varepsilon(f \\text{ with changes} \\mathrel{+\\!\\!+}= \\mathrm{tog}(w,p,n)) = \\mathrm{frameWork}_\\varepsilon(\\mathrm{withWrite}(f, w, p \\ne n))$, i.e. always-toggle and write-on-change have equal work, so the strict part of writeOnChange_le never occurs",
-     "module": "Fw.Parts.NavHitTestOpt",
-     "needs": "a toggle semantics where an unchanged presence yields no Change (engine CONFIRMED source above)"
-    }
+   "leanAgainst": [
+    "Fw.Parts.NavHitTestOpt.toggle_noop"
    ],
+   "missingWhy": [],
    "premises": [
     "DOMTokenList.toggle(token, force) is a no-op when presence already equals force: CONFIRMED in both engines (raw files at the pins)",
     "the original's class binding diffs per key: CONFIRMED snapshot chunks/BSBv9QXB.js:2841-2853 (the alias U → set_class is INFERRED)",
     "every TS variant returns no writer when the class is unchanged: CONFIRMED apps/site/src/parts/nav.hitTest/index.tsx:40-45"
    ],
    "v1Evidence": "Listed in KD#1 as part of the winning bundle ('write on change only'; ../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 1). No isolated v1 measurement: it was always bundled with nav-hit-test and nav-hit-cache.",
-   "lesson": "Before claiming a saving from skipping no-op writes, check the engine and framework no-op paths (DOMTokenList toggle with force, Svelte class diff, equal inline values). When they already dedupe, the saving is zero.",
+   "lesson": "Before claiming a saving from skipping no-op writes, check the engine and framework no-op paths (DOMTokenList toggle with force, Svelte class diff, equal inline values). When they already dedupe, the saving is zero. Do not hand-dedupe writes the engine already dedupes; check the engine no-op path first.",
    "next": "Record as no-win and take it off the candidate list (it is already in the faithful port). Prove the no-op toggle equality, and add a no-op rule to the engine model's Change constructor so future candidates are not credited for engine-deduped writes."
   },
   {
@@ -233,7 +221,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E-s at the computed-value level under RG11 (consumer_eq_s; exact at integer scroll offsets, otherwise within the progress quantum: 1/(16R) in Chromium, 1 px on WebKit's main thread). Pixels: WebKit E in the v1 Simulator except a 30 px top band (78 levels). Chromium not-equal under the pixel rule (v1: ≤ 6 levels on 15-42k px, 1 device-px copy shift from GPU blending and snapping), so Q at best: PathPremises.raster_path fails there (INFERRED).",
-   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow. PROVED (toy rasters): raster_path fails for a half-pixel translate (snap 0 vs resample 128, Fw.Engine.raster_path_fails_fracXf) and for group opacity 1/2 over child 3/10 (38 vs 39, Fw.Engine.raster_path_fails_fracAlpha), so PathPremises needs C5 and C4 (Fw.Engine.PathPremises5, shown_eq5). A compositor move adds the comp stage, so it is never framewise <= (Fw.Engine.comp_move_not_le): mixed or noClaim when the original pays no comp, trade only when it already does.",
+   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow. PROVED (toy rasters): raster_path fails for a half-pixel translate (snap 0 vs resample 128, Fw.Engine.raster_path_fails_fracXf) and for group opacity 1/2 over child 3/10 (38 vs 39, Fw.Engine.raster_path_fails_fracAlpha), so PathPremises needs C5 and C4 (Fw.Engine.PathPremises5, shown_eq5). A compositor move adds the comp stage, so it is never framewise <= (Fw.Engine.comp_move_not_le): mixed or noClaim when the original pays no comp, trade only when it already does. Under frameWorkE both trades stand (cr_real_tradeE, wk_tradeE). Given the premise that each animated consumer adds a composited layer, the claim cannot be dominates on either engine, WebKit included (Fw.Engine.claim_ne_dominates_of_layers): at best trade.",
    "leanFor": [
     "Fw.Parts.HeroExit.exitOpacity_linear",
     "Fw.Parts.HeroExitOpt.progress_eq_js",
@@ -242,7 +230,9 @@
     "Fw.Parts.HeroExitOpt.wk_all_comp",
     "Fw.Parts.HeroExitOpt.wk_var_exact",
     "Fw.Engine.comp_move_le_off",
-    "Fw.Engine.shown_eq5"
+    "Fw.Engine.shown_eq5",
+    "Fw.Parts.HeroExitOpt.cr_real_tradeE",
+    "Fw.Parts.HeroExitOpt.wk_tradeE"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroExitOpt.cr_real_trade",
@@ -255,18 +245,14 @@
     "Fw.Engine.raster_path_fails_fracXf",
     "Fw.Engine.raster_path_fails_fracAlpha",
     "Fw.Engine.comp_move_not_le",
-    "Fw.Engine.comp_move_ge_on"
+    "Fw.Engine.comp_move_ge_on",
+    "Fw.Engine.claim_ne_dominates_of_layers"
    ],
    "missingWhy": [
     {
      "statement": "The lane cannot see the style saving: in lane mode $V.\\mathrm{passes}(\\mathrm{style}) = O.\\mathrm{passes}(\\mathrm{style})$ while $V.\\mathrm{units}(\\mathrm{style}) = N_{\\mathrm{anim}} < 1 + |\\mathrm{inh}(.\\mathrm{hero})| = O.\\mathrm{units}(\\mathrm{style})$. The only count that maps to units is elementCount, which is quarantined, so `noMoreWork` cannot confirm it (`quarantined_unsound`).",
      "module": "Fw.Parts.HeroExitOpt",
      "needs": "R2 inherited fan-out units in crOrig (it currently counts one change per consumer, which undercounts the original)"
-    },
-    {
-     "statement": "Resident trade: $R_V.\\mathrm{layers} = R_O.\\mathrm{layers} + k$ with $k \\ge 1$ (one composited layer per animated consumer), hence $\\mathrm{claim} = \\mathrm{trade}$ even on WebKit, where per-frame main work dominates",
-     "module": "Fw.Parts.HeroExitOpt",
-     "needs": "a Resident model for the variant's composited consumers (WebKit: an animation gives a compositing reason; Chromium: an active compositor animation)"
     },
     {
      "statement": "Edge-frame cost on WebKit: the frames where the filter goes $\\mathrm{none} \\leftrightarrow \\mathrm{blur}(\\epsilon)$ or opacity crosses 1 pay layout: $\\mathrm{layout} \\in \\mathrm{stages}_{wk}$ on those frames, $\\#\\mathrm{edgeFrames}_v \\ge 1$ per rest→live switch",
@@ -281,7 +267,8 @@
     "threadedScrollDriven on in the WebKit lane, shipping Safari OPEN (R7/O2)",
     "the lane mode everyBeginFrameIsMainFrame: MEASURED, cause OPEN (R1)",
     "pointer-events by an IO sentinel: its delivery lag is glue, not proved (Blink posted task CONFIRMED intersection_observer_controller.cc:90-105)",
-    "raster_path for Chromium: OPEN, contradicted by v1 OBSERVED pixel diffs"
+    "raster_path for Chromium: OPEN, contradicted by v1 OBSERVED pixel diffs",
+    "Each animated consumer of --exit-opacity holds one more composited layer in V than in O (R_V.layers > R_O.layers): INFERRED (Chromium active compositor animation; WebKit animation compositing reason), premise of claim_ne_dominates_of_layers"
    ],
    "v1Evidence": "KD#2 (../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 2): median slow frames 31 → 18 → 7 (original, v4, v6), and the user preferred v6 in both blind swipes. ../fastwork-com-web-optimize/fixes/hero-exit-threaded/README.md: shipped WebKit-only (GestureEvent gate) because Blink compositing changed pixels (≤ 6 levels on 15-42k px, 1 device-px copy shift). WebKit: a transform animation on .hero-copy made the accent repaint about 1.4× as often; none → blur(0.009px) costs one Layout; the 30 px top band was 78 levels off, so the writer was kept there; P-081: go-live-from-rest frames cost more than C's.",
    "lesson": "Moving main-thread work to the compositor is a trade, never dominance. In the CI lane style passes stay one per frame, so only script and the quarantined elementCount drop. Compositing also changes rasterization, so value-level E-s is not pixel E.",
@@ -295,7 +282,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E inside the clip window, every env/width/instant (strip_visSame from strip_shows_same); no premise beyond the restated geometry",
-   "mechanism": "Saving is resident: one will-change layer per face (compositing_reason_finder.cc:76-137@f842f52) becomes one per digit, 80->8 (hero_layers). Per frame, stage passes are equal (strip_passes_eq); only units drop from 10r to r (strip_units), and units are visible only in the quarantined UpdateLayoutTree.elementCount (C-3). CI can see census.layers (<o) and nothing per frame. New cost: 12 instead of 10 cells backed per digit (strip_backing_gt, full-layer rule INFERRED), so the label is trade. On WebKit, layers exist only under the Normal policy (wk_owns). The v1 re-entry paint drop comes from coverage-rect backing detach (GraphicsLayerCA.cpp:3035-3060@862f17d), which is not modelled.",
+   "mechanism": "Saving is resident: one will-change layer per face (compositing_reason_finder.cc:76-137@f842f52) becomes one per digit, 80->8 (hero_layers). Per frame, stage passes are equal (strip_passes_eq); only units drop from 10r to r (strip_units), and units are visible only in the quarantined UpdateLayoutTree.elementCount (C-3). CI can see census.layers (<o) and nothing per frame. New cost: 12 instead of 10 cells backed per digit (strip_backing_gt, full-layer rule INFERRED), so the label is trade. On WebKit, layers exist only under the Normal policy (wk_owns). The v1 re-entry paint drop comes from coverage-rect backing detach (GraphicsLayerCA.cpp:3035-3060@862f17d), which is not modelled. Scheduling confound: if the TS strip keeps a shared-loop subscriber (k > 0 script units on still frames) the still frame is not <= the original in any engine (sub_still_not_le); the strip win needs the subscriber removed.",
    "leanFor": [
     "strip_visSame",
     "strip_shows_same",
@@ -305,7 +292,9 @@
     "strip_layers_lt",
     "hero_layers",
     "wk_normal_layers",
-    "Fw.Engine.work_eq_of_stages"
+    "Fw.Engine.work_eq_of_stages",
+    "Fw.Parts.HeroCountdownOpt.strip_frame_leE",
+    "Fw.Parts.HeroCountdownOpt.strip_frame_ltE"
    ],
    "leanAgainst": [
     "strip_passes_eq",
@@ -314,18 +303,14 @@
     "wk_conservative_same",
     "paused_same",
     "strip_run_eq_of_still",
-    "Fw.Engine.resident_only_noClaim"
+    "Fw.Engine.resident_only_noClaim",
+    "Fw.Parts.HeroCountdownOpt.sub_still_not_le"
    ],
    "missingWhy": [
     {
      "statement": "WebKit re-entry repaint: if a layer has backing iff $\\mathrm{bbox}(L)\\cap C\\neq\\emptyset$ ($C$ = coverage rect) and a re-attach repaints the whole layer, then for every roll $\\rho$ that moves a face out of $C$ and back, $\\mathrm{paint}^{wk}_{\\mathrm{faces}}(\\rho)\\ge 1$, while $\\mathrm{paint}^{wk}_{\\mathrm{strip}}(\\rho)=0$, because the strip always meets $C$",
      "module": "Fw.Engine.WebKit + Fw.Parts.HeroCountdownOpt",
      "needs": "a coverage-rect backing attach/detach rule as a per-frame paint source (GraphicsLayerCA.cpp:3035-3060@862f17d CONFIRMED; full repaint on re-attach INFERRED)"
-    },
-    {
-     "statement": "Scheduling confound: with the TS strip's shared-loop subscriber, $\\forall f$ with no roll: $\\mathrm{script}_v(f)=1>0=\\mathrm{script}_o(f)$, hence $\\neg(W(v,f)\\preceq W(o,f))$ and $\\mathrm{screen}=\\mathrm{mixed}$",
-     "module": "Fw.Parts.HeroCountdownOpt",
-     "needs": "derive FrameIn.script from the clock source (setInterval + per-digit rAF vs per-frame subscriber); not modelled today"
     }
    ],
    "premises": [
@@ -346,7 +331,7 @@
    "chromium": "win",
    "webkit": "trade",
    "visual": "E-s only at one fixed cadence, given that frame times equal the keyframe sample times (R5 clock premise). Not E across cadences: the spring integrates in min(left,16) ms slices (springLoop), so its path depends on how time is split into frames.",
-   "mechanism": "The roll moves from a per-frame rAF transform write (Chromium `direct`: script, style, props, commit) to a compositor transform animation (transformAnim_comp). On WebKit the legacy CA path accepts keyword-linear keyframes; legacy_rejects covers only linear() with points and steps(). Chromium saves script (FireAnimationFrame, FunctionCall: det) and the commit (cc.Commit: det) on every roll frame; lane style stays 1 per BeginFrame (F1). Each roll adds one start (style, props, commit). WebKit's web process does 0 work per frame only while nothing else renders: every rendering update ticks and invalidates every relevant animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d). CA asks for 80-120 Hz (PlatformCAAnimationRemote.mm:611-612), a UI-process cost no counter sees.",
+   "mechanism": "The roll moves from a per-frame rAF transform write (Chromium `direct`: script, style, props, commit) to a compositor transform animation (transformAnim_comp). On WebKit the legacy CA path accepts keyword-linear keyframes; legacy_rejects covers only linear() with points and steps(). Chromium saves script (FireAnimationFrame, FunctionCall: det) and the commit (cc.Commit: det) on every roll frame; lane style stays 1 per BeginFrame (F1). Each roll adds one start (style, props, commit). WebKit's web process does 0 work per frame only while nothing else renders: every rendering update ticks and invalidates every relevant animation (AnimationTimelinesController.cpp:149-177, KeyframeEffect.cpp:2129-2131@862f17d). CA asks for 80-120 Hz (PlatformCAAnimationRemote.mm:611-612), a UI-process cost no counter sees. The spring path depends on the frame split (two 8 ms steps differ from one 16 ms step, spring_split_differs), so no fixed WAAPI curve is E across cadences: E-s at one cadence only.",
    "leanFor": [
     "transformAnim_comp",
     "compTransform_no_layout_paint",
@@ -356,13 +341,10 @@
     "comp_accelerated",
     "path_default"
    ],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Parts.HeroCountdown.spring_split_differs"
+   ],
    "missingWhy": [
-    {
-     "statement": "The spring path depends on the frame split: $\\exists s, x^\\ast:\\ \\operatorname{springStep}(\\operatorname{springStep}(s,x^\\ast,8).s,\\,x^\\ast,8).s \\neq \\operatorname{springStep}(s,x^\\ast,16).s$. So no single keyframe list equals the original for every cadence (decidable over $\\mathbb{Q}$)",
-     "module": "Fw.Parts.HeroCountdown",
-     "needs": "nothing (springStep exists)"
-    },
     {
      "statement": "E-s at a fixed cadence: $\\forall \\delta>0, k:\\ \\operatorname{waapiLin}(P_\\delta, k\\delta) = \\operatorname{spring}^{(k)}_\\delta$, where $P_\\delta$ holds the spring states sampled at $k\\delta$ as keyframes with linear easing between them",
      "module": "Fw.Parts.HeroCountdownOpt",
@@ -388,29 +370,21 @@
    "n": 8,
    "part": "hero.countdown",
    "candidate": "clock-aligned timer (KD#19): setInterval(1000) replaced by a timeout chain aimed at T0 + k*1000",
-   "status": "not-proved",
+   "status": "proved",
    "chromium": "no-win",
    "webkit": "worse",
-   "visual": "E against the drift-free original (Chromium-style re-arm from the scheduled time); the v1 chain aims at the original's own phase. Not equal on WebKit under thermal or low-power timer alignment: there the original skips one shown second about every 50 s and the variant does not. That makes it a correction, not a parity.",
-   "mechanism": "There is no stage to save: both arms fire one timer and write the digits once per shown second. WebKit re-arms a repeating timer from its actual fire time and aligns fire times to a coarser grid in low-power or thermal mode (DOMTimer.cpp:436-448, Page.cpp:3072@862f17d). The original therefore drifts about 20 ms per fire (1000/20 = 50 s per skip). The chain keeps 60 fires per minute against 58.92, which is +1.8 % timer work at Serious. The CI lanes have no thermal mode, so no counter sees either effect. The v2 TS per-frame subscriber version adds 1 rAF callback every frame.",
+   "visual": "E against the drift-free original (Chromium-style re-arm from the scheduled time); the v1 chain aims at the original's own phase. Not equal on WebKit under thermal or low-power timer alignment: there the original skips one shown second about every 50 s and the variant does not. That makes it a correction, not a parity. Against the drifting original it is not E: with drift d_i >= delta > 0 the original skips a shown second within n >= 1000/delta ticks (drift_skips), which the aimed chain never does.",
+   "mechanism": "There is no stage to save: both arms fire one timer and write the digits once per shown second. WebKit re-arms a repeating timer from its actual fire time and aligns fire times to a coarser grid in low-power or thermal mode (DOMTimer.cpp:436-448, Page.cpp:3072@862f17d). The original therefore drifts about 20 ms per fire (1000/20 = 50 s per skip). The chain keeps 60 fires per minute against 58.92, which is +1.8 % timer work at Serious. The CI lanes have no thermal mode, so no counter sees either effect. The v2 TS per-frame subscriber version adds 1 rAF callback every frame. Same run, same work: the per-second timer passes are equal, so there is no work claim (same_run_noClaim via Fw.Engine.resident_only_noClaim); the change is a visual fix, not an optimization.",
    "leanFor": [
     "remainingSeconds_ceil",
     "remainingSeconds_antitone",
-    "countdown_mono_in_time"
+    "countdown_mono_in_time",
+    "Fw.Parts.HeroCountdown.drift_skips"
    ],
-   "leanAgainst": [],
-   "missingWhy": [
-    {
-     "statement": "Drift skips: if $t_{i+1}=t_i+1000+\\delta_i$ with $\\delta\\le\\delta_i<1000$, then $\\forall n\\ge\\lceil 1000/\\delta\\rceil\\ \\exists i<n:\\ R(t_i)-R(t_{i+1})=2$ with $R=\\operatorname{remainingSeconds}(\\cdot,\\mathrm{target})$. The aimed chain $t_k=T_0+1000k+\\ell_k$ with $0\\le\\ell_k<1000-\\varphi$ shows $R(T_0+1000k)$, which equals the drift-free interval",
-     "module": "Fw.Parts.HeroCountdown",
-     "needs": "a fire-time sequence model (Int ms), no engine piece"
-    },
-    {
-     "statement": "No work order: the timer passes per second are equal, $1=1$, so claim = noClaim. A per-frame subscriber gives $\\mathrm{script}_v = \\mathrm{frames}/\\mathrm{s} > 1 = \\mathrm{script}_o$, so it is worse",
-     "module": "Fw.Parts.HeroCountdownOpt",
-     "needs": "timer stage or script derived from the clock source"
-    }
+   "leanAgainst": [
+    "Fw.Parts.HeroCountdownOpt.same_run_noClaim"
    ],
+   "missingWhy": [],
    "premises": [
     "WebKit thermal or low-power alignment interval (Page.cpp:3072, DOMTimer.cpp:436-448): CONFIRMED",
     "WebKit repeating timer re-arms from the actual fire time: CONFIRMED on WK main in v1 (F-266), not re-read at 862f17d: INFERRED",
@@ -418,7 +392,7 @@
     "Chromium setInterval is drift-free: INFERRED (v1 statement, not read at f842f52)"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/fixes/countdown-tick/README.md:131-150. GRID 30: original 58.92 fires per 60 s and 11.67 skipped seconds per 10 min (model 11.68); chain 60.00 fires and 0 skipped. GRID 0: both 60 per minute, 0 skipped. KD#19: about one second skipped every 50 s at Serious on the phone.",
-   "lesson": "Timer-phase fixes are correctness changes, not performance: they never lower work, and they show only under conditions (thermal, background) that the CI lanes do not reproduce. Never drive a 1 Hz clock from a per-frame subscriber.",
+   "lesson": "Timer-phase fixes are correctness changes, not performance: they never lower work, and they show only under conditions (thermal, background) that the CI lanes do not reproduce. Never drive a 1 Hz clock from a per-frame subscriber. A timer re-aim is a correctness fix (no skipped digits), never a work saving.",
    "next": "Prove the drift and aimed-chain theorems in HeroCountdown. Record the fix as no-win (correctness) and keep it out of the perf flags. In TS, separate the timeout chain from the strip flag."
   },
   {
@@ -440,7 +414,8 @@
     "cr_countdown_style",
     "wk_countdown_style",
     "Fw.Engine.passes_absorb",
-    "Fw.Engine.passes_absorb_changes"
+    "Fw.Engine.passes_absorb_changes",
+    "Fw.Parts.HiddenPause.skipWrites_leE"
    ],
    "leanAgainst": [
     "naive_pause_shifts"
@@ -476,7 +451,8 @@
     "waapi_work_le",
     "waapi_work_le_chromium",
     "waapi_work_le_webkit",
-    "drop_run_dominates"
+    "drop_run_dominates",
+    "Fw.Parts.MorphTweenOpt.waapi_work_leE"
    ],
    "leanAgainst": [
     "cr_custom_main",
@@ -568,7 +544,10 @@
     "wk_rest_le",
     "wk_rest_lt",
     "wk_rest_claim",
-    "wk_rest_layers"
+    "wk_rest_layers",
+    "Fw.Parts.MorphPanelOpt.cr_rest_leE",
+    "Fw.Parts.MorphPanelOpt.cr_rest_ltE",
+    "Fw.Parts.MorphPanelOpt.wk_rest_leE"
    ],
    "leanAgainst": [
     "cr_toggle_not_le",
@@ -696,7 +675,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E after the original mounts (E_after_mount), and E everywhere under HiddenBefore (visSame_mount); engine-free",
-   "mechanism": "The panel's DOM insertion (script plus layout and paint of the subtree) moves from a motion frame to a still frame. The motion-frame peak is strictly lower and totals are equal (cr_swipe_shift, wk_swipe_shift, shift_mainUs). The extra rendering update adds one commit pass (shift_passes_succ), and the framewise screen says mixed (shift_screen_mixed). The saving is a peak, not a sum: engine-check has no window, so totals read =o or any, and a per-zone check (y04500) needs a windowed lane. New resident cost, not modelled: the panel's layers, backing and running animations are held from the warm-up until the open (PhaseFree assumes no animations).",
+   "mechanism": "The panel's DOM insertion (script plus layout and paint of the subtree) moves from a motion frame to a still frame. The motion-frame peak is strictly lower and totals are equal (cr_swipe_shift, wk_swipe_shift, shift_mainUs). The extra rendering update adds one commit pass (shift_passes_succ), and the framewise screen says mixed (shift_screen_mixed). The saving is a peak, not a sum: engine-check has no window, so totals read =o or any, and a per-zone check (y04500) needs a windowed lane. New resident cost, not modelled: the panel's layers, backing and running animations are held from the warm-up until the open (PhaseFree assumes no animations). Under frameWorkE the mount arm is unchanged (armE_eq_arm: shift, mixed). Over the warm-up window the panel is resident in V only, so the claim is not dominates (Fw.Engine.claim_ne_dominates_of_layers).",
    "leanFor": [
     "E_after_mount",
     "visSame_mount",
@@ -704,7 +683,8 @@
     "shift_peak_lt",
     "cr_swipe_shift",
     "wk_swipe_shift",
-    "shift_mainUs"
+    "shift_mainUs",
+    "Fw.Parts.MorphMountOpt.armE_eq_arm"
    ],
    "leanAgainst": [
     "shift_passes_succ",
@@ -716,15 +696,10 @@
     "Fw.Engine.shift_framewise_eqv",
     "Fw.Engine.shift_not_dominates",
     "Fw.Engine.total_le_of_leAll",
-    "Fw.Engine.eqv_of_le_add"
+    "Fw.Engine.eqv_of_le_add",
+    "Fw.Engine.claim_ne_dominates_of_layers"
    ],
-   "missingWhy": [
-    {
-     "statement": "Warm-up cost: for a warm-up at $t_w$ before the open at $t_o$, $\\forall t\\in[t_w,t_o):\\ R_v(t)=R_o(t)+R(\\mathrm{panel}) \\Rightarrow \\operatorname{claim}=\\mathrm{trade}$. If the mounted subtree runs $a$ animations that are not hidden-paused, then $\\sum_{k\\in[t_w,t_o)} W_v.\\mathrm{units} > \\sum W_o.\\mathrm{units}$, which breaks shift_total",
-     "module": "Fw.Parts.MorphMountOpt (+ Fw.Parts.HiddenPause)",
-     "needs": "Resident per frame and the subtree's running animations (drop the PhaseFree premise)"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "DOM insertion = one layout-level change per box plus one script callback: INFERRED",
     "PhaseFree and HiddenBefore: premises",
@@ -783,7 +758,9 @@
     "Fw.Parts.HeroCountdownOpt.hero_layers",
     "Fw.Parts.HeroCountdownOpt.wk_normal_layers",
     "Fw.Engine.double_round_whole",
-    "Fw.Engine.shown_eq5"
+    "Fw.Engine.shown_eq5",
+    "Fw.Parts.HeroCountdownOpt.strip_frame_leE",
+    "Fw.Parts.HeroCountdownOpt.strip_frame_ltE"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroCountdownOpt.strip_passes_eq",
@@ -814,7 +791,7 @@
    "chromium": "no-win",
    "webkit": "trade",
    "visual": "E while hidden (hidden_pause_eq, panel_visSame; panel opacity 0 iff m <= 0.08), provided resume restores the original clock (a plain play-state pause is not E: naive_pause_shifts). v1 measured a 0-0.19 px column jump at re-open (about one frame of motion), so in practice it is Q.",
-   "mechanism": "The marquee is a compositable transform animation. Pausing it saves the lane's per-frame ride-along style (cr_marquee_bands: 1 -> 0, an artifact of R1 in the lane) and nothing in real Chrome (cr_realChrome_pause_eq). WebKit web-process work is already 0 per frame (wk_pause_eq, wk_marquee_bands). The real payoff is resident. A transform effect that is still affecting the property keeps its layer composited (RenderLayerCompositor.cpp:3847-3863@862f17d), and a static 2D transform does not (static2D_not_own). New cost: the layer is rebuilt in the first open frame, which collides with row 12.",
+   "mechanism": "The marquee is a compositable transform animation. Pausing it saves the lane's per-frame ride-along style (cr_marquee_bands: 1 -> 0, an artifact of R1 in the lane) and nothing in real Chrome (cr_realChrome_pause_eq). WebKit web-process work is already 0 per frame (wk_pause_eq, wk_marquee_bands). The real payoff is resident. A transform effect that is still affecting the property keeps its layer composited (RenderLayerCompositor.cpp:3847-3863@862f17d), and a static 2D transform does not (static2D_not_own). New cost: the layer is rebuilt in the first open frame, which collides with row 12. O keeps k column layers resident over the closed window and V does not, so with the re-open frame the claim is not dominates for either side (Fw.Engine.claim_ne_dominates_of_layers): a trade.",
    "leanFor": [
     "Fw.Parts.HiddenPause.hidden_pause_eq",
     "Fw.Parts.HiddenPause.panel_visSame",
@@ -829,15 +806,10 @@
     "Fw.Parts.HiddenPause.wk_marquee_bands",
     "Fw.Parts.HiddenPause.naive_pause_shifts",
     "Fw.Engine.pause_off_comp",
-    "Fw.Engine.pause_no_main"
+    "Fw.Engine.pause_no_main",
+    "Fw.Engine.claim_ne_dominates_of_layers"
    ],
-   "missingWhy": [
-    {
-     "statement": "Resident against re-open: with $k$ column layers of backing $B_k$, $R_o = R + (k, B_k)$ and $R_v = R$ over the closed window, and at the re-open frame $k_0$: $W_v(k_0) = W_o(k_0) + \\mathrm{composite}(k)$. So the per-frame screen over closed plus re-open is mixed, while $R_v \\prec R_o$: a trade, $\\mathrm{Shift}$-like.",
-     "module": "Fw.Parts.HiddenPause",
-     "needs": "WebKit CompReason.animation applies to paused but still-affecting effects; a layer-creation term in the first frame after unpause"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "R6 residual (which hidden forms drop the Chromium property node): OPEN",
     "Paused effect still 'currently affecting', hence composited: rule CONFIRMED (RenderLayerCompositor.cpp:3847-3863@862f17d), paused-implies-affecting INFERRED",
@@ -922,7 +894,9 @@
     "Fw.Parts.HeroAccent.clean_chain_grid",
     "Fw.Parts.HeroAccent.cr_main_le",
     "Fw.Parts.HeroAccent.cr_main_quiet_lt",
-    "Fw.Parts.HeroAccent.cr_main_run_dominates"
+    "Fw.Parts.HeroAccent.cr_main_run_dominates",
+    "Fw.Parts.HeroAccent.cr_main_leE",
+    "Fw.Parts.HeroAccent.cr_main_quiet_ltE"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroAccent.cr_comp_step_not_le",
@@ -933,7 +907,8 @@
     "Fw.Parts.HeroAccent.wk_run_equal",
     "Fw.Parts.HeroAccent.clean_chain_phase_bad",
     "Fw.Engine.new_stage_not_le",
-    "Fw.Engine.comp_move_not_le"
+    "Fw.Engine.comp_move_not_le",
+    "Fw.Parts.HeroAccent.cr_comp_step_not_leE"
    ],
    "missingWhy": [],
    "premises": [
@@ -990,7 +965,7 @@
    "chromium": "win",
    "webkit": "win",
    "visual": "E in every env: inside c860 the CSS pins scale 1 and radius 0, so the look does not depend on --future-shrink (look_gated), exactly there (look_const_iff), and the class sequences agree (cls_agree).",
-   "mechanism": "The saving is script (rAF and FunctionCall on tail frames) and style (custom-property restyle, a Chromium styleOnly unit), plus a forced style pass when a rect read follows the write (gate_lt_forced). There is no layout or paint, because the value never reached them. CI: FunctionCall and UpdateLayoutTree are det, but the golden is softened to <=o. swipe-v1 scrolls every frame, so no tail frame is guaranteed, and other parts restyle in the same frame. The style element count is quarantined (C-3), and WebKit has no custom-property row.",
+   "mechanism": "The saving is script (rAF and FunctionCall on tail frames) and style (custom-property restyle, a Chromium styleOnly unit), plus a forced style pass when a rect read follows the write (gate_lt_forced). There is no layout or paint, because the value never reached them. CI: FunctionCall and UpdateLayoutTree are det, but the golden is softened to <=o. swipe-v1 scrolls every frame, so no tail frame is guaranteed, and other parts restyle in the same frame. The style element count is quarantined (C-3), and WebKit has no custom-property row. Verdict change under frameWorkE: the forced-read saving is 1 style pass, not 2 (gate_forced_marginE; the old 2 was frameWork counting the frame-end pass as well, gate_forced_margin_old). It stays strict (gate_lt_forcedE); if the rest of the frame also dirties style the style passes tie (gate_forced_tieE) and the win is units only (gate_lt_stageE).",
    "leanFor": [
     "Fw.Parts.PeopleCard.peopleCard_visSame",
     "Fw.Parts.PeopleCard.look_gated",
@@ -999,10 +974,16 @@
     "Fw.Parts.PeopleCard.gate_lt_tail",
     "Fw.Parts.PeopleCard.gate_lt_forced",
     "Fw.Parts.PeopleCard.cr_dominates",
-    "Fw.Parts.PeopleCard.wk_dominates"
+    "Fw.Parts.PeopleCard.wk_dominates",
+    "Fw.Parts.PeopleCard.gate_leE",
+    "Fw.Parts.PeopleCard.gate_lt_forcedE",
+    "Fw.Parts.PeopleCard.gate_lt_stageE",
+    "Fw.Parts.PeopleCard.gate_forced_marginE"
    ],
    "leanAgainst": [
-    "Fw.Parts.PeopleCard.frames_ungated_eq"
+    "Fw.Parts.PeopleCard.frames_ungated_eq",
+    "Fw.Parts.PeopleCard.gate_forced_tieE",
+    "Fw.Parts.PeopleCard.gate_forced_margin_old"
    ],
    "missingWhy": [
     {
@@ -1095,7 +1076,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E for pixels: the card is opacity 0 in both arms until reveal, so it contributes no visible box. Non-visual differences remain (find-in-page, a11y mirror).",
-   "mechanism": "This is a Shift plus resident growth, not removal. Paint and backing allocation move from the reveal frame to load or idle time, so the peak reveal frame falls (v1: 50 -> 30.5 ms) while the total stays and Resident grows by about 22 MB. Core gives shift_peak and shift_total for the shift and claim_trade_iff for the label. Chromium likely does the same (INFERRED): R6 says the opacity-0 skip does not apply with will-change: opacity. CI: WebKit Paint is stable only as a total, so the move is invisible there. Chromium census drawing area shows the resident growth.",
+   "mechanism": "This is a Shift plus resident growth, not removal. Paint and backing allocation move from the reveal frame to load or idle time, so the peak reveal frame falls (v1: 50 -> 30.5 ms) while the total stays and Resident grows by about 22 MB. Core gives shift_peak and shift_total for the shift and claim_trade_iff for the label. Chromium likely does the same (INFERRED): R6 says the opacity-0 skip does not apply with will-change: opacity. CI: WebKit Paint is stable only as a total, so the move is invisible there. Chromium census drawing area shows the resident growth. The pre-painted card holds k more layers (R_v = R_o + (k, 22 MB)), so the claim is not dominates (Fw.Engine.claim_ne_dominates_of_layers); with Shift on the reveal it is a trade.",
    "leanFor": [
     "Fw.Engine.shift_peak",
     "Fw.Engine.shift_total"
@@ -1103,15 +1084,10 @@
    "leanAgainst": [
     "Fw.Engine.claim_trade_iff",
     "Fw.Engine.shift_not_dominates",
-    "Fw.Engine.shift_framewise_eqv"
+    "Fw.Engine.shift_framewise_eqv",
+    "Fw.Engine.claim_ne_dominates_of_layers"
    ],
-   "missingWhy": [
-    {
-     "statement": "prepaint_trade: $\\mathrm{Shift}(K_{\\mathrm{reveal}}, V, O)$ and $R_v = R_o + (k, 22\\,\\mathrm{MB})$, hence the peak is lower, the total is equal and $\\mathrm{claim} = \\mathrm{trade}$. Vis: $\\alpha = 0 \\Rightarrow \\mathrm{BoxVis.drop}$, so VisSame E.",
-     "module": "Fw.Parts.PeopleCard",
-     "needs": "WebKit backing allocation for a visibility:hidden versus opacity-0 composited layer"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "WebKit allocates and paints the opacity-0 layer when will-change: opacity is set: OBSERVED in v1, INFERRED at pin",
     "Chromium paints opacity-0 content under will-change: opacity: CONFIRMED rule exception (R6, paint_layer_painter.cc:168-191)"
@@ -1136,13 +1112,14 @@
     "Fw.Engine.WebKit.opacityCross1_layout"
    ],
    "leanAgainst": [
-    "Fw.Engine.raster_path_fails_fracXf"
+    "Fw.Engine.raster_path_fails_fracXf",
+    "Fw.Engine.claim_ne_dominates_of_layers"
    ],
    "missingWhy": [
     {
      "statement": "flip_work_lt: $\\forall \\epsilon,\\ \\forall k \\in (0, 920\\,\\mathrm{ms}):\\ W_\\epsilon(v,k) \\prec W_\\epsilon(o,k)$ (layoutFull versus comp translate). Equal at start and end, and $R_v \\succ R_o$ while animating, hence trade by Core's label.",
      "module": "Fw.Parts.PeopleO (new)",
-     "needs": "a restatement of the O transition and of the FLIP variant"
+     "needs": "PROVED (resident half) via Fw.Engine.claim_ne_dominates_of_layers: R_v has more layers, so the claim is not dominates; remaining: a restatement of the O transition and of the FLIP variant (new Fw.Parts.PeopleO) for flip_work_lt"
     }
    ],
    "premises": [
@@ -1261,7 +1238,9 @@
     "Fw.Parts.PeopleDeck.snap_nudged",
     "Fw.Parts.PeopleDeck.deck_le",
     "Fw.Parts.PeopleDeck.deck_lt",
-    "Fw.Parts.PeopleDeck.deck_run_dominates"
+    "Fw.Parts.PeopleDeck.deck_run_dominates",
+    "Fw.Parts.PeopleDeck.deck_leE",
+    "Fw.Parts.PeopleDeck.deck_ltE"
    ],
    "leanAgainst": [
     "Fw.Parts.PeopleDeck.swipe_eq",
@@ -1315,7 +1294,11 @@
     "Fw.Parts.PainNotes.hiddenTick_lt",
     "Fw.Parts.PainNotes.frames_le",
     "Fw.Parts.PainNotes.cr_idle_tick",
-    "Fw.Parts.PainNotes.wk_idle_tick"
+    "Fw.Parts.PainNotes.wk_idle_tick",
+    "Fw.Parts.PainNotes.hiddenTick_leE",
+    "Fw.Parts.PainNotes.hiddenTick_ltE",
+    "Fw.Parts.PainNotes.tick_units",
+    "Fw.Parts.PainNotes.tick_passes_eq"
    ],
    "leanAgainst": [
     "Fw.Parts.PainNotes.naive_rearm_shifts"
@@ -1324,7 +1307,7 @@
     {
      "statement": "Magnitude: if every skipped tick is idle ($\\mathrm{narrow}\\lor\\mathrm{covered}$ with $T=[]$), then $\\sum_k \\big(W(o,k)-W(v,k)\\big) = (\\mathrm{ticksIn}(t_0,a,b)\\cdot e_{\\mathrm{script}})$, i.e. only the script component is non-zero and $\\mathrm{ticksIn}(t_0,a,b)\\le\\lceil (b-a)/3000\\rceil$",
      "module": "Fw.Parts.PainNotes",
-     "needs": "nothing new beyond ticksIn; plus a WebKit cite on whether a write-free timer callback schedules a rendering update (to drop or keep the commit in wk_idle_tick)"
+     "needs": "PROVED Fw.Parts.PainNotes.tick_units, Fw.Parts.PainNotes.tick_passes_eq (an idle tick adds only script units, passes equal off the base stages); remaining: the bound ticksIn <= ceil((b-a)/3000) and a WebKit cite on whether a write-free timer callback schedules a rendering update"
     }
    ],
    "premises": [
@@ -1380,22 +1363,22 @@
    "chromium": "win",
    "webkit": "win",
    "visual": "E: compact band (CSS forces scale 1 and radius 0, as #16); desktop same values (write-on-change); RO line count E if RO delivery runs before paint in the same frame (INFERRED)",
-   "mechanism": "A forced layout after the frame's last write replaces the natural layout: the pass is moved into the script task, not added. The reorder saves a pass only when a write follows the read. The real savings: on phones the custom-property writes stop, and each one restyled the whole commission subtree (R2), so style units and layout go; matchMedia x3 per frame saves script. CI: trace.Layout (stable), UpdateLayoutTree (det). The rewrite commission part is a shell.",
+   "mechanism": "A forced layout after the frame's last write replaces the natural layout: the pass is moved into the script task, not added. The reorder saves a pass only when a write follows the read. The real savings: on phones the custom-property writes stop, and each one restyled the whole commission subtree (R2), so style units and layout go; matchMedia x3 per frame saves script. CI: trace.Layout (stable), UpdateLayoutTree (det). The rewrite commission part is a shell. REFUTED: the claim total(batch(as)) <= total(as) is false. On a dirty frame [write style, read layout] batching costs 2 style passes against 1 (batch_worse_example), while the forced counts are equal (batch_worse_forced_equal), so forced counts hide it; batching is worse exactly when the frame starts dirty and its first flag access is a write (total_batch_worse_iff). The verdict rests on removing the writes, not on the reorder.",
    "leanFor": [
     "Fw.Parts.EngineScroll.batched_le_faithful",
     "Fw.Parts.EngineScroll.batched_le_one",
     "Fw.Parts.HiddenPause.skipWrites_le",
     "Fw.Engine.reader_removal",
-    "Fw.Engine.flagTotal_remove_check"
+    "Fw.Engine.flagTotal_remove_check",
+    "Fw.Parts.EngineScroll.total_eq",
+    "Fw.Parts.EngineScroll.batch_writes_then_reads"
    ],
-   "leanAgainst": [],
-   "missingWhy": [
-    {
-     "statement": "Total passes $\\mathrm{total}_\\rho(d,as)=\\mathrm{forced}_\\rho(d,as)+[\\mathrm{dirty\\ at\\ end}]$: $\\mathrm{total}_\\rho(d,\\mathrm{batch}(as))\\le\\mathrm{total}_\\rho(d,as)$, with equality iff $as$ has at most one write$\\to$read alternation; in particular $as\\in W^{*}R^{+}\\Rightarrow$ equal (the forced layout is only moved)",
-     "module": "Fw.Parts.EngineScroll",
-     "needs": "the end-of-frame natural pass added to forced_ρ"
-    }
+   "leanAgainst": [
+    "Fw.Parts.EngineScroll.batch_worse_example",
+    "Fw.Parts.EngineScroll.batch_worse_forced_equal",
+    "Fw.Parts.EngineScroll.total_batch_worse_iff"
    ],
+   "missingWhy": [],
    "premises": [
     "Writes are invisible in the compact band: CONFIRMED (CSS 916-938 per v1 README)",
     "RO callback runs before paint in the same frame: INFERRED (HTML update-the-rendering)",
@@ -1403,7 +1386,7 @@
     "Rewrite commission is a shell: CONFIRMED"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/fixes/commission-forced-layout/README.md: mechanism verified (LoAF top script 7/10 -> 0/10), ABBA frames > 20 ms favour the patch in 10/10 pairs, final A/B contaminated and inconclusive",
-   "lesson": "A forced layout is a moved layout unless a later write re-dirties. Removing forced reads saves passes only on write-read-write frames; most real savings come from removing the writes (gate them on the CSS condition).",
+   "lesson": "A forced layout is a moved layout unless a later write re-dirties. Removing forced reads saves passes only on write-read-write frames; most real savings come from removing the writes (gate them on the CSS condition). A read-first reorder is not free: on a dirty write-then-read frame it adds the frame-end pass.",
    "next": "Prove the total-pass lemma; after the commission port, split the variant into mqGate / roLineCount / writeOnChange flags, each with its own E and work theorem and Chromium Layout/UpdateLayoutTree rows."
   },
   {
@@ -1437,10 +1420,10 @@
    "n": 22,
    "part": "commission.typing",
    "candidate": "typing-chunks: 2 characters per step (bubble, agents query), count-up written every 48 ms",
-   "status": "not-proved",
+   "status": "proved",
    "chromium": "win",
    "webkit": "win",
-   "visual": "not-equal (class L): the variant shows every other intermediate string; endpoints and total time are equal",
+   "visual": "not-equal (class L): the variant shows every other intermediate string; endpoints and total time are equal PROVED: the variant equals the original at even steps, differs at step 1 when L >= 2, and both start at 0 and end at L (typing_subsample).",
    "mechanism": "A text write dirties layout and paint of its line, not element style (INFERRED; no text property in either engine table). Half the writes halve the layout passes on frames where nothing else lays out. Style passes barely move (v1 627 -> 612), because other per-frame animations already touch the style stage. Under the per-frame union, removing one change lowers passes only for stages no other change touches. WebKit may gain more when restyles cross #platform's size containers (interleave, see the next finding). PROVED with a corrected hypothesis: removing a change whose stages are covered by the rest keeps every pass count only if the frame still updates without it (Fw.Engine.passes_remove_absorbed); the union lemma as first stated is false: a stage-less change on an otherwise empty frame drops the base stages (Fw.Engine.absorb_needs_updates).",
    "leanFor": [
     "Fw.Parts.HiddenPause.skipWrites_le",
@@ -1449,15 +1432,10 @@
    ],
    "leanAgainst": [
     "Fw.Engine.passes_absorb",
-    "Fw.Engine.absorb_needs_updates"
+    "Fw.Engine.absorb_needs_updates",
+    "Fw.Parts.PlatformEntries.typing_subsample"
    ],
-   "missingWhy": [
-    {
-     "statement": "Not-E (subsampling): $\\exists t:\\ \\mathrm{text}_v(t)\\ne\\mathrm{text}_o(t)$, and $\\{\\mathrm{text}_v(t)\\}_t = \\{\\mathrm{text}_o(t_{2k})\\}_k$ with equal first and last states",
-     "module": "Fw.Parts.PlatformEntries",
-     "needs": "a text-data property in CrProp/WkProp and a 'subsequence' relation in Fw.Engine.Visual"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "Text writes do not restyle elements: INFERRED",
     "Other per-frame animations share the style pass: MEASURED (v1 RecalcStyle 627 -> 612)"
@@ -1483,7 +1461,8 @@
     "Fw.Engine.WebKit.compFrame_zero",
     "Fw.Parts.PlatformSweep.pos_periodic",
     "Fw.Parts.PlatformSweep.phase_periodic",
-    "Fw.Engine.comp_move_le_off"
+    "Fw.Engine.comp_move_le_off",
+    "Fw.Parts.PlatformSweep.band_eq_bgpos"
    ],
    "leanAgainst": [
     "Fw.Parts.HiddenPause.cr_marquee_bands",
@@ -1493,11 +1472,6 @@
     "Fw.Engine.claim_ne_dominates_of_layers"
    ],
    "missingWhy": [
-    {
-     "statement": "band_eq_bgpos: for a band of width $3w$ translated by $x(t)=-2w\\,p(t)$, the colour at element coordinate $v\\in[0,1]$ is $\\mathrm{color}\\big((v+2p(t))/3\\big)=\\mathrm{shown}(v,t)$ for all $t$",
-     "module": "Fw.Parts.PlatformSweep",
-     "needs": "nothing new (ring/field_simp over Rat)"
-    },
     {
      "statement": "Snapping bound: if the original's positioning area is snapped to $1/\\mathrm{dpr}$ and the band is not, then $|\\Delta\\mathrm{colour}|\\le L\\cdot\\frac{1}{2\\,\\mathrm{dpr}\\cdot 3w}$ per channel, with $L$ the maximum gradient slope; this predicts the Q tolerance",
      "module": "Fw.Parts.PlatformSweep",
@@ -1531,18 +1505,14 @@
     "Fw.Parts.PlatformGlint.sample_periodic",
     "Fw.Parts.PlatformGlint.sample_range",
     "Fw.Engine.Chromium.transformAnim_comp",
-    "Fw.Engine.WebKit.anim_comp_zero"
+    "Fw.Engine.WebKit.anim_comp_zero",
+    "Fw.Parts.PlatformGlint.glint_translate"
    ],
    "leanAgainst": [
     "Fw.Engine.raster_path_fails_fracAlpha",
     "Fw.Engine.double_round_ne"
    ],
    "missingWhy": [
-    {
-     "statement": "glint_translate: $\\forall s,\\ u\\in[0,1):\\ x_2(s,u)-x_1(s,u)=120$, hence $\\mathrm{grad}(s,u)=\\mathrm{shift}_{x_1(s,u)+200}\\circ\\mathrm{grad}(\\mathrm{rest}(\\mathrm{left}))$",
-     "module": "Fw.Parts.PlatformGlint",
-     "needs": "nothing new (unfold interp/lerp)"
-    },
     {
      "statement": "Engine rows: $\\mathrm{keyLevel}(\\mathrm{svgPaintServerAttr},l)=\\mathrm{paint}$ (Chromium); $\\mathrm{rawDiff}(\\mathrm{svgResourceAttr})=(\\mathrm{layout},\\emptyset)$ (WebKit legacy SVG engine), so $W_{wk}(o).\\mathrm{passes}(\\mathrm{layout})=1$ per glint frame",
      "module": "Fw.Engine.Chromium / Fw.Engine.WebKit",
@@ -1572,7 +1542,9 @@
     "Fw.Parts.HiddenPause.pause_le",
     "Fw.Parts.HiddenPause.skipWrites_le",
     "Fw.Engine.occlusion",
-    "Fw.Engine.alpha_one_iff"
+    "Fw.Engine.alpha_one_iff",
+    "Fw.Parts.HiddenPause.pause_leE",
+    "Fw.Parts.HiddenPause.skipWrites_leE"
    ],
    "leanAgainst": [
     "Fw.Parts.HiddenPause.naive_pause_shifts"
@@ -1634,22 +1606,19 @@
    "n": 25,
    "part": "engine.scene",
    "candidate": "hysteresis and idle pre-warm for the scene/deferral gate (KD#10)",
-   "status": "not-tried",
+   "status": "partly-proved",
    "chromium": "unknown",
    "webkit": "unknown",
    "visual": "E for any pause gate g with g(s) => hidden(s) plus resync, independent of hysteresis (follows from hiddenPause_visSame); content-visibility deferral is not E unless contain-intrinsic-size equals the laid-out size",
-   "mechanism": "Deferral changes the section's size, which changes the IntersectionObserver ratio, which flips the gate again. That is a feedback loop (v1: 800 flips per 10 s). Each flip pays a subtree restyle (and WebKit container interleaves). Hysteresis wider than the size feedback removes repeated toggles. The saving lands in toggle frames at rest and in IntersectionObserverCompute/ObserverCallback counts (det in both lanes).",
+   "mechanism": "Deferral changes the section's size, which changes the IntersectionObserver ratio, which flips the gate again. That is a feedback loop (v1: 800 flips per 10 s). Each flip pays a subtree restyle (and WebKit container interleaves). Hysteresis wider than the size feedback removes repeated toggles. The saving lands in toggle frames at rest and in IntersectionObserverCompute/ObserverCallback counts (det in both lanes). Hysteresis wider than the ratio swing gives at most one gate flip (flips_le_one); equal thresholds flip every frame on an oscillating ratio (flips_oscillate).",
    "leanFor": [
-    "Fw.Parts.HiddenPause.hiddenPause_visSame"
+    "Fw.Parts.HiddenPause.hiddenPause_visSame",
+    "Fw.Parts.HiddenPause.flips_le_one"
    ],
-   "leanAgainst": [],
-   "missingWhy": [
-    {
-     "statement": "No oscillation: gate enters at ratio $\\ge a$, exits at $< b$, $b<a$; deferral moves the ratio by at most $\\delta$. If $a-b>\\delta$ then for a fixed scroll offset $\\#\\{k: g_{k+1}\\ne g_k\\}\\le1$; if $a=b$ and $\\delta>0$ there is an offset with $g_{k+1}\\ne g_k$ for all $k$",
-     "module": "Fw.Parts.HiddenPause (or a new Fw.Parts.EngineScene)",
-     "needs": "a feedback model: ratio as a function of offset and the gate's own deferral state"
-    }
+   "leanAgainst": [
+    "Fw.Parts.HiddenPause.flips_oscillate"
    ],
+   "missingWhy": [],
    "premises": [
     "Flap rate 800/10 s was measured in a v1 build with deferral, not necessarily the original: CONFIRMED (KD lesson 10 cites fixes/scroll-engine)",
     "engine.scene not ported: CONFIRMED"
@@ -1670,16 +1639,12 @@
    "leanFor": [
     "Fw.Parts.HiddenPause.skipWrites_le",
     "Fw.Parts.HiddenPause.cr_countdown_style",
-    "Fw.Parts.HiddenPause.wk_countdown_style"
+    "Fw.Parts.HiddenPause.wk_countdown_style",
+    "Fw.Parts.HiddenPause.unhide_le",
+    "Fw.Parts.HiddenPause.unhide_leE"
    ],
    "leanAgainst": [],
-   "missingWhy": [
-    {
-     "statement": "Unhide frame: $W(v,k_{unhide})\\preceq W(o,k_{unhide})$, since hsync writes $\\le 16d$ faces, the same changes the original writes every frame",
-     "module": "Fw.Parts.HiddenPause",
-     "needs": "nothing new (frame_le_of_cover)"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "hsync ordering before paint: OPEN (variant code)",
     "Rewrite morph.panel drives --morph: CONFIRMED as a dependency"
