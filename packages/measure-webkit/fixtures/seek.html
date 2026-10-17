@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>seek-overhead fixture</title>
+<style>
+  html, body { margin: 0; background: #fff; }
+  #grid { position: relative; width: 400px; height: 480px; }
+  .a { position: absolute; width: 20px; height: 20px; border-radius: 4px; background: #36c; animation: slide 2s ease-in-out infinite alternate; }
+  /* transform and opacity: the two properties WebKit can run as accelerated (threaded) animations */
+  @keyframes slide { from { transform: translateX(0); opacity: 1; } to { transform: translateX(40px); opacity: .4; } }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script>
+  // n = number of accelerated animations (query string). Layout: a 16-column grid, 24 px pitch.
+  const n = Math.max(0, Math.min(400, Number(new URLSearchParams(location.search).get('n') || 0)));
+  const g = document.getElementById('grid');
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div');
+    d.className = 'a';
+    d.style.left = (i % 16) * 24 + 'px';
+    d.style.top = Math.floor(i / 16) * 24 + 'px';
+    d.style.animationDelay = (-(i % 7) * 0.2) + 's';
+    g.appendChild(d);
+  }
+  window.__fixtureN = n;
+</script>
+</body>
+</html>

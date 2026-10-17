@@ -1,0 +1,89 @@
+// Determinism experiment: the same census, scripted scroll and seek fixture, R times, each from a fresh page load
+// in one Simulator boot; then classify every count type. Only orchestration and formatting live here; the
+// comparison itself is reduce.mjs (the one pure module, slated for a Lean spec).
+import { loadFresh, pageInfo } from './page.mjs';
+import { navigateTab, openTab } from './wip.mjs';
+import { censusAt } from './census.mjs';
+import { scrollRun } from './scrollrun.mjs';
+import { seekExperiment } from './seek.mjs';
+import { COUNT_TYPES, TOL, classify, symDiff, zones, layerKey } from './reduce.mjs';
+
+/** Resolve `max` in a state list against the page's maxY. */
+export const resolveStates = (spec, maxY) => String(spec).split(',').map((s) => (s.trim() === 'max' ? maxY : Number(s))).filter((n) => Number.isFinite(n));
+
+/** One pass of everything on one fresh load each (census states, then scroll, then optionally seek). */
+export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindowMs, step, framesPerStep, seek, seekNs, log }) {
+  // an earlier pass may have left the tab on the seek fixture: go back to the snapshot page first
+  if (new URL(await ctx.c.evaluate('location.href')).pathname !== '/') ctx.setClient(await navigateTab(ctx.c, ctx.url));
+  let c = ctx.c;
+  await loadFresh(c, { clock, settleMs });
+  const info = await pageInfo(c);
+  const ys = resolveStates(states, info.maxY);
+  const census = [];
+  for (const y of ys) { const cen = await censusAt(c, y, { holdMs, paintWindowMs }); census.push(cen); log(`  census y=${cen.scrollY}: ${cen.layerCount} layers, ${(cen.memoryBytes / 1e6).toFixed(1)} MB, paint delta ${cen.paintDeltaTotal}`); }
+  // one retry from a fresh load: a Simulator evaluate occasionally stalls right after a heavy reload (seen once in 6 passes)
+  let scroll;
+  for (let attempt = 1; ; attempt++) {
+    try { await loadFresh(c, { clock, settleMs }); scroll = await scrollRun(c, { step, framesPerStep }); break; } catch (e) {
+      if (attempt >= 2) throw e;
+      log(`  scroll attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
+      try { ctx.c.close(); } catch { /* closed */ }
+      ctx.setClient(await openTab(ctx.url));
+      c = ctx.c;
+    }
+  }
+  const t = scroll.reduced.total;
+  log(`  scroll: ${scroll.ys.length} steps, wall ${scroll.scrollWallMs} ms, style ${t.RecalculateStyles} layout ${t.Layout} paint ${t.Paint} composite ${t.Composite}`);
+  let seekRes = null;
+  if (seek) {
+    const r = await seekExperiment(c, `${ctx.base}/__fixtures/seek.html`, { ns: seekNs, log: (s) => log(`  seek ${s}`) });
+    ctx.setClient(r.conn);
+    seekRes = r.rows;
+  }
+  return { info, census, scroll, seek: seekRes };
+}
+
+/** Classification rows from R passes. */
+export function classifyPasses(passes) {
+  const rows = [];
+  const add = (family, metric, level, runs, tol) => rows.push({ family, metric, level, ...classify(runs, tol) });
+  const ys = passes[0].census.map((c) => c.requestedY);
+  const census = (f) => passes.map((p) => p.census.map(f));
+  add('census', 'layerCount', 'per state', census((c) => c.layerCount), TOL.census);
+  ys.forEach((y, s) => {
+    add('census', 'layerCount', `y=${y}`, passes.map((p) => [p.census[s].layerCount]), TOL.census);
+    add('census', 'backing memory bytes (sum)', `y=${y}`, passes.map((p) => [p.census[s].memoryBytes]), TOL.memory);
+  });
+  add('census', 'backing memory bytes (sum)', 'per state', census((c) => c.memoryBytes), TOL.memory);
+  const reasons = [...new Set(passes.flatMap((p) => p.census.flatMap((c) => Object.keys(c.reasonCounts))))].sort();
+  for (const r of reasons) add('census', `layers with reason ${r}`, 'per state', census((c) => c.reasonCounts[r] || 0), TOL.census);
+  add('census', 'paintCount (sum, cumulative)', 'per state', census((c) => c.paintCountTotal), TOL.paint);
+  add('census', `paintCount delta in a ${passes[0].census[0].paintWindowMs} ms window`, 'per state', census((c) => c.paintDeltaTotal), TOL.paint);
+  const keys = passes.map((p) => p.census.map((c) => c.layers.map(layerKey)));
+  const diffs = passes.map((_, i) => ys.map((__, s) => (i === 0 ? 0 : symDiff(keys[0][s], keys[i][s]))));
+  add('census', 'layer set (name, bounds, bytes, reasons)', 'per state, symmetric difference vs run 1', diffs, TOL.exact);
+  const red = passes.map((p) => p.scroll.reduced);
+  const types = [...COUNT_TYPES, 'paintArea'];
+  for (const t of types) add('scroll', t, 'total', red.map((r) => [r.total[t]]), TOL.total);
+  const zs = passes.map((p) => zones(p.scroll.ys, p.scroll.reduced.perStep, p.scroll.reduced.perStepPaintArea));
+  for (const [j, t] of COUNT_TYPES.entries()) add('scroll', t, 'per 500 px zone', zs.map((z) => z.map((o) => o.counts[j])), TOL.zone);
+  add('scroll', 'paintArea', 'per 500 px zone', zs.map((z) => z.map((o) => o.paintArea)), TOL.zone);
+  for (const [j, t] of COUNT_TYPES.entries()) add('scroll', t, 'per step', red.map((r) => r.perStep.map((row) => row[j])), TOL.step);
+  add('scroll', 'paintArea', 'per step', red.map((r) => r.perStepPaintArea), { absTol: 0, relTol: 0.1 });
+  if (passes.every((p) => p.seek)) {
+    passes[0].seek.forEach((row, i) => {
+      for (const arm of ['free', 'seeked']) {
+        for (const t of ['RecalculateStyles', 'Layout', 'Paint', 'Composite']) {
+          add('seek', `n=${row.n} ${arm} ${t}`, 'total', passes.map((p) => [p.seek[i][arm].reduced.total[t]]), TOL.total);
+        }
+      }
+    });
+  }
+  return rows;
+}
+
+export function markdownTable(rows) {
+  const lines = ['| family | count type | level | class | cells | differing | max spread |', '|---|---|---|---|---|---|---|'];
+  for (const r of rows) lines.push(`| ${r.family} | ${r.metric} | ${r.level} | **${r.cls}** | ${r.cells} | ${r.differingCells ?? '-'} | ${r.maxSpread ?? '-'} |`);
+  return lines.join('\n');
+}

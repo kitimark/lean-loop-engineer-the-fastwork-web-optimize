@@ -1,0 +1,17 @@
+{
+  "name": "@fw/measure-webkit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WebKit (iOS Simulator, Mobile Safari) work counts over the raw Web Inspector protocol",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "census": "node src/cli.mjs census",
+    "scroll": "node src/cli.mjs scroll",
+    "seek": "node src/cli.mjs seek",
+    "determinism": "node src/cli.mjs determinism",
+    "sim": "node src/cli.mjs sim",
+    "merge": "node src/cli.mjs merge",
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}
