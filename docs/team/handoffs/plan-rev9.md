@@ -1,0 +1,13 @@
+# Handoff: plan-rev9 / plan-rev9-1 (plan-editor, Fable)
+
+**State.** PLAN revision 9.1 in worktree branch `worktree-agent-a95817211e5a0bfe1` (commit: `git log -1 --grep 'Task: plan-rev9-1'`); it contains the rev 9 branch (`worktree-agent-a09dbbfc73afd86d3`, 5b57aa4) and `main` up to the device-lane merge. Not on `main`; the lead lands it.
+
+**Rev 9.1 (2026-10-18 ~00:15 user chat).** Q34 = c, Q35 = a (`css-decide` done, evidence in the graph); Q36 = shells first, then every section ported `faithful` in parallel behind a cheaper "swap check" (PL1 boxes + look at every breakpoint, one part, Chromium on CI); Q37 open, default a, verified by the phone sessions. C1 WebKit GO recorded (`webkit-green` f03e94b). Graph: `port-morph` is an umbrella over `port-morph-{mount,tween,panel,countdown,columns}` (deps `css-decide`, `breakpoint-lint`, `verdict-to-lean`; no shell dep); `port-{nav,hero,people,pain,commission,platform,overlays}` (deps `shells`, `part-anchors`, `css-decide`; writes = own part dirs); `vj-vt-chromium` added; `wktr-ci-lane`, `webkit-table-regen` restored; `phone-session-2` has `needs: ["device"]`. PLAN: §10.5 parallel lanes (limits, INFERRED estimate T+28h-T+32h for all ports; serial chain unchanged), §12.0 rows Q34-Q36, §12.1 Q37 only, §10.3 device-task list, A29, R35, glossary "swap check", App D rev 9.1. loop-plan.html: rev 9/9.1 section, decisions rows, milestone rows, footer; math view byte-identical (md5 checked).
+
+**Rev 9 (earlier).** The 3-day frame (report due 2026-10-20 13:15 +0700), §10 rewritten, Q36/Q37, R34/R35, A29-A31, MX milestone, cut list.
+
+**Conventions.** Edits as exact-string replacement scripts in the scratchpad (not committed); claims keep CONFIRMED / INFERRED / MEASURED; every new label has a glossary row; no personal data; commit trailer `Task: plan-rev9-1`.
+
+**Open.** (1) `gap-device`, `phone-session-1`, `q1-phone`, `calibration` graph entries were left untouched for `device-lane-lean`; the plan text asks the lead to un-cut `gap-device` (M3, runs inside session 1) and drop `port-morph` from `phone-session-1`'s deps once that lands. (2) `swipe-baseline` and `gap-light` are named in §10.3 from the lead's message only (INFERRED meaning); fix the wording when their graph entries exist. (3) PLAN is 1,357 lines (7 over the soft cap); Appendix B and §10.4 are the next trim spots. (4) `pnpm fw plan sync` not run (lead). (5) Section-port `writes` globs list each sub-part dir (`apps/site/src/parts/hero.orbit/**` …); tighten if the part ids change.
+
+**Read first.** `docs/plan/PLAN.md` §0, §10.4-10.5, §12.0-12.1, App D rev 9.1; `docs/team/work-graph.json` tasks `port-*`.
