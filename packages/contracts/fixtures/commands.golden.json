@@ -1,18 +1,169 @@
 [
-  { "type": "card.open", "key": "k1", "actor": "owner", "card": "exp-a", "owner": "agent-o", "needsDevice": false },
-  { "type": "card.approve", "key": "k2", "actor": "lead", "card": "exp-a" },
-  { "type": "card.build", "key": "k3", "actor": "git", "card": "exp-a", "sha": "abc1234", "agent": "agent-b" },
-  { "type": "card.screen", "key": "k4", "actor": "script", "card": "exp-a", "sha": "abc1234", "pass": true },
-  { "type": "card.review", "key": "k5", "actor": "reviewer", "card": "exp-a", "sha": "abc1234", "signedBy": "agent-r", "accept": true },
-  { "type": "card.swipe", "key": "k6", "actor": "script", "card": "exp-a", "sha": "abc1234", "better": true },
-  { "type": "card.land_request", "key": "k7", "actor": "lead", "card": "exp-a", "sha": "abc1234" },
-  { "type": "card.landed", "key": "k8", "actor": "git", "card": "exp-a", "sha": "abc1234" },
-  { "type": "step.post", "key": "k9", "actor": "script", "step": "s1", "card": "exp-a", "title": "Plug in the phone", "kind": "action", "options": null },
-  { "type": "step.post", "key": "k10", "actor": "script", "step": "s2", "card": null, "title": "Pick the better build", "kind": "choice", "options": ["A", "B"] },
-  { "type": "step.start", "key": "k11", "actor": "user", "step": "s1" },
-  { "type": "step.answer", "key": "k12", "actor": "user", "step": "s2", "answer": "A" },
-  { "type": "step.done", "key": "k13", "actor": "user", "step": "s1" },
-  { "type": "step.cancel", "key": "k14", "actor": "script", "step": "s1" },
-  { "type": "run.start", "key": "k15", "actor": "script", "run": "r1", "card": "exp-a", "kind": "screen" },
-  { "type": "run.finish", "key": "k16", "actor": "script", "run": "r1", "ok": true }
+  {
+    "type": "card.open",
+    "key": "k1",
+    "actor": "owner",
+    "card": "exp-a",
+    "owner": "agent-o",
+    "needsDevice": false
+  },
+  {
+    "type": "card.approve",
+    "key": "k2",
+    "actor": "lead",
+    "card": "exp-a"
+  },
+  {
+    "type": "card.build",
+    "key": "k3",
+    "actor": "git",
+    "card": "exp-a",
+    "sha": "abc1234",
+    "agent": "agent-b"
+  },
+  {
+    "type": "card.screen",
+    "key": "k4",
+    "actor": "script",
+    "card": "exp-a",
+    "sha": "abc1234",
+    "pass": true
+  },
+  {
+    "type": "card.review",
+    "key": "k5",
+    "actor": "reviewer",
+    "card": "exp-a",
+    "sha": "abc1234",
+    "signedBy": "agent-r",
+    "accept": true
+  },
+  {
+    "type": "card.swipe",
+    "key": "k6",
+    "actor": "script",
+    "card": "exp-a",
+    "sha": "abc1234",
+    "better": true
+  },
+  {
+    "type": "card.land_request",
+    "key": "k7",
+    "actor": "lead",
+    "card": "exp-a",
+    "sha": "abc1234"
+  },
+  {
+    "type": "card.landed",
+    "key": "k8",
+    "actor": "git",
+    "card": "exp-a",
+    "sha": "abc1234"
+  },
+  {
+    "type": "step.post",
+    "key": "k9",
+    "actor": "script",
+    "step": "s1",
+    "card": "exp-a",
+    "title": "Plug in the phone",
+    "kind": "action",
+    "options": null
+  },
+  {
+    "type": "step.post",
+    "key": "k10",
+    "actor": "script",
+    "step": "s2",
+    "card": null,
+    "title": "Pick the better build",
+    "kind": "choice",
+    "options": [
+      "A",
+      "B"
+    ]
+  },
+  {
+    "type": "step.start",
+    "key": "k11",
+    "actor": "user",
+    "step": "s1"
+  },
+  {
+    "type": "step.answer",
+    "key": "k12",
+    "actor": "user",
+    "step": "s2",
+    "answer": "A"
+  },
+  {
+    "type": "step.done",
+    "key": "k13",
+    "actor": "user",
+    "step": "s1"
+  },
+  {
+    "type": "step.cancel",
+    "key": "k14",
+    "actor": "script",
+    "step": "s1"
+  },
+  {
+    "type": "run.start",
+    "key": "k15",
+    "actor": "script",
+    "run": "r1",
+    "card": "exp-a",
+    "kind": "screen"
+  },
+  {
+    "type": "run.finish",
+    "key": "k16",
+    "actor": "script",
+    "run": "r1",
+    "ok": true
+  },
+  {
+    "type": "task.define",
+    "key": "d:a",
+    "actor": "lead",
+    "task": "a",
+    "title": "Task a",
+    "stream": "lean",
+    "milestone": "M0",
+    "deps": [],
+    "owner": "lean-prover",
+    "writes": [
+      "lean/**"
+    ],
+    "devices": [],
+    "evidence": null
+  },
+  {
+    "type": "task.drop",
+    "key": "x:a",
+    "actor": "lead",
+    "task": "a"
+  },
+  {
+    "type": "task.claim",
+    "key": "c:a",
+    "actor": "hook",
+    "task": "a",
+    "agent": "a"
+  },
+  {
+    "type": "task.done",
+    "key": "done:a",
+    "actor": "git",
+    "task": "a",
+    "evidence": "abc1234"
+  },
+  {
+    "type": "milestone.define",
+    "key": "m:M0",
+    "actor": "lead",
+    "milestone": "M0",
+    "title": "Start"
+  }
 ]

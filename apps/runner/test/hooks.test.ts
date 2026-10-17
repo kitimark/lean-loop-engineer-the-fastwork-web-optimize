@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -61,7 +61,7 @@ describe("emit.mjs", () => {
     run("emit.mjs", JSON.stringify({ hook_event_name: "PostToolUseFailure", tool_name: "Read", duration_ms: 5 }), d);
     run("emit.mjs", JSON.stringify({ hook_event_name: "SubagentStart", agent_id: "z" }), d);
     expect(JSON.parse(readFileSync(join(d, "spool", "main.jsonl"), "utf8"))).toMatchObject({ is_error: true, verb: null });
-    expect(JSON.parse(readFileSync(join(d, "spool", "z.jsonl"), "utf8"))).toMatchObject({ is_error: null });
+    expect(JSON.parse(readFileSync(join(d, "spool", "z.jsonl"), "utf8").split("\n")[0]!)).toMatchObject({ is_error: null });
   });
   it("no console running: still just appends (nothing to connect to)", () => {
     expect(existsSync(join(tmp(), "api.json"))).toBe(false);
@@ -154,5 +154,33 @@ describe("cap.mjs", () => {
   });
   it.each(actorCases)("identity matches Lean ops.actor: $name", (c) => {
     expect(identity(c.request.agent_id, c.request.agent_type)).toEqual(c.response);
+  });
+});
+
+describe("emit.mjs: unseen spawns and background_tasks", () => {
+  const start = { hook_event_name: "SubagentStart", agent_id: "wf1", agent_type: "explainer-rev6" };
+  const lines = (d: string, f: string) => readFileSync(join(d, "spool", f), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  it("SubagentStart with no guard marker adds a SpawnGuard observation seen_by subagent-start", () => {
+    const d = tmp();
+    run("emit.mjs", JSON.stringify(start), d);
+    const [a, b] = lines(d, "wf1.jsonl");
+    expect(a.hook_event_name).toBe("SubagentStart");
+    expect(b).toMatchObject({ hook_event_name: "SpawnGuard", agent_id: "wf1", verb: "observed", seen_by: "subagent-start", role: "explainer-rev6" });
+  });
+  it("a guard marker of the same role is claimed once: no second record, the next start is unseen", () => {
+    const d = tmp();
+    mkdirSync(join(d, "spawn-pending"), { recursive: true });
+    writeFileSync(join(d, "spawn-pending", `${Date.now()}-toolu_1.json`), JSON.stringify({ role: "explainer-rev6" }));
+    run("emit.mjs", JSON.stringify(start), d);
+    expect(lines(d, "wf1.jsonl")).toHaveLength(1);
+    run("emit.mjs", JSON.stringify({ ...start, agent_id: "wf2" }), d);
+    expect(lines(d, "wf2.jsonl")).toHaveLength(2);
+  });
+  it("SubagentStop keeps background_tasks as a count only", () => {
+    const d = tmp();
+    run("emit.mjs", JSON.stringify({ hook_event_name: "SubagentStop", agent_id: "q", background_tasks: [{ id: "t1", command: "secret cmd" }, { id: "t2" }] }), d);
+    const t = readFileSync(join(d, "spool", "q.jsonl"), "utf8");
+    expect(JSON.parse(t).background_tasks).toBe(2);
+    expect(t).not.toContain("secret");
   });
 });

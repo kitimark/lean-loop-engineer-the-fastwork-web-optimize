@@ -1,0 +1,13 @@
+Design mutant (m0-mutants, PLAN V-r): a spawn may reuse the name of an agent that is still alive (v1 name and port collisions).
+
+--- a/Fw/Ops/SpawnGuard.lean
++++ b/Fw/Ops/SpawnGuard.lean
+@@ -228,7 +228,7 @@
+ 
+ $$\mathrm{taken}(i) \iff q.\mathit{name} \ne \texttt{""} \land \exists a \in A:\ a.\mathit{name} = q.\mathit{name}$$
+ -/
+-def taken (i : Input) : Bool := i.req.name != "" && i.alive.any (·.name == i.req.name)
++def taken (i : Input) : Bool := false
+ 
+ /-- The first failing check, in order: name, name in use, role, then `roleCheck`.
+ 

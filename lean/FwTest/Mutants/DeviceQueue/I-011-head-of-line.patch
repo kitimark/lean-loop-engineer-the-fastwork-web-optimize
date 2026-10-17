@@ -1,0 +1,13 @@
+Design mutant (m0-mutants, PLAN V-r): v1 I-011 head-of-line blocking: only the top job is tried; a job that fits the window waits behind one that does not.
+
+--- a/Fw/Spec/DeviceQueue.lean
++++ b/Fw/Spec/DeviceQueue.lean
+@@ -211,6 +211,8 @@
+ $$\operatorname{dispatch}(p, t) = \begin{cases} p[\mathit{running} := (j, t),\ Q := Q \ominus j] & \text{if } \mathit{running} = \bot,\ \mathit{window} = (s, e),\ \operatorname{pick}_t\big([\, k \in Q \mid \operatorname{fits}(s, e, t, k) \,]\big) = j \\ p & \text{otherwise} \end{cases}$$
+ -/
+ def dispatch (p : Phone) (t : Nat) : Phone :=
++  dispatchHoL p t
++def dispatchOld (p : Phone) (t : Nat) : Phone :=
+   match p.running, p.window with
+   | none, some (s, e) =>
+     match pick t (p.queue.filter (fits s e t)) with

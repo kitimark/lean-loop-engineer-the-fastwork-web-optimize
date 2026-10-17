@@ -34,3 +34,8 @@ import Fw.Ops.Wire
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
 import Fw.Wire.Sched
+import Fw.Gate.Rule
+import Fw.Gate.Compare
+import Fw.Gate.Items
+import Fw.Gate.State
+import Fw.Wire.Gate

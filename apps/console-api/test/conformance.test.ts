@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { Board, Event, State } from "@fw/contracts";
+import { Board, Event, State, emptyPlan } from "@fw/contracts";
 import { selectCore } from "../src/core/index.ts";
 
 const golden = (f: string) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../../packages/contracts/golden", f), "utf8")
@@ -42,7 +42,7 @@ describe("console.board golden conformance (fwcore)", () => {
     it(`${c.name}: replay + console.query`, async () => {
       const t = await core.open(() => c.events.map((e) => JSON.stringify(e)));
       expect(t).toEqual({ accepted: c.events.length, duplicate: 0, refused: 0 });
-      expect(await core.board(c.request.now, c.request.seq)).toEqual(c.response.board);
+      expect(await core.board(c.request.now, c.request.seq)).toEqual({ ...(c.response.board as object), plan: emptyPlan() });
     });
   }
 });

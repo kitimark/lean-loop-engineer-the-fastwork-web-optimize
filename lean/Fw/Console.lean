@@ -1,3 +1,4 @@
+import Fw.Plan.Core
 /-!
 # Console reducer
 
@@ -14,6 +15,8 @@ answers the same JSON as the TypeScript stand-in it replaces.
    refused; without an accepted request for that sha the card is marked landed **and** `violation`.
 3. A review is refused when its signer owns the card or built any commit on it.
 4. Every decision is here; console-api only stamps `ts`, appends and forwards.
+5. The work graph (`task.define`, `task.drop`, `task.claim`, `task.done`, `milestone.define`) is the
+   `plan` part of the state, reduced by `Fw.Plan.check` / `Fw.Plan.exec` (`Fw/Plan/Core.lean`).
 -/
 namespace Fw.Console
 
@@ -132,7 +135,7 @@ deriving Repr, DecidableEq
 
 /-- Event bodies (one per command type of the contract).
 
-$$\begin{aligned} \mathrm{Body} = {} & \mathrm{cardOpen}(\mathit{card}, \mathit{owner}, \mathit{needsDevice}) \mid \mathrm{cardApprove}(\mathit{card}) \mid \mathrm{cardBuild}(\mathit{card}, \mathit{sha}, \mathit{agent}) \mid \mathrm{cardScreen}(\mathit{card}, \mathit{sha}, \mathit{pass}) \\ & \mid \mathrm{cardReview}(\mathit{card}, \mathit{sha}, \mathit{signedBy}, \mathit{accept}) \mid \mathrm{cardSwipe}(\mathit{card}, \mathit{sha}, \mathit{better}) \mid \mathrm{cardLandRequest}(\mathit{card}, \mathit{sha}) \mid \mathrm{cardLanded}(\mathit{card}, \mathit{sha}) \\ & \mid \mathrm{stepPost}(\mathit{step}, \mathit{card}_\bot, \mathit{title}, \mathit{kind}, \mathit{options}_\bot) \mid \mathrm{stepStart}(\mathit{step}) \mid \mathrm{stepAnswer}(\mathit{step}, \mathit{answer}) \mid \mathrm{stepDone}(\mathit{step}) \mid \mathrm{stepCancel}(\mathit{step}) \\ & \mid \mathrm{runStart}(\mathit{run}, \mathit{card}, \mathit{kind}) \mid \mathrm{runFinish}(\mathit{run}, \mathit{ok}) \end{aligned}$$
+$$\begin{aligned} \mathrm{Body} = {} & \mathrm{cardOpen}(\mathit{card}, \mathit{owner}, \mathit{needsDevice}) \mid \mathrm{cardApprove}(\mathit{card}) \mid \mathrm{cardBuild}(\mathit{card}, \mathit{sha}, \mathit{agent}) \mid \mathrm{cardScreen}(\mathit{card}, \mathit{sha}, \mathit{pass}) \\ & \mid \mathrm{cardReview}(\mathit{card}, \mathit{sha}, \mathit{signedBy}, \mathit{accept}) \mid \mathrm{cardSwipe}(\mathit{card}, \mathit{sha}, \mathit{better}) \mid \mathrm{cardLandRequest}(\mathit{card}, \mathit{sha}) \mid \mathrm{cardLanded}(\mathit{card}, \mathit{sha}) \\ & \mid \mathrm{stepPost}(\mathit{step}, \mathit{card}_\bot, \mathit{title}, \mathit{kind}, \mathit{options}_\bot) \mid \mathrm{stepStart}(\mathit{step}) \mid \mathrm{stepAnswer}(\mathit{step}, \mathit{answer}) \mid \mathrm{stepDone}(\mathit{step}) \mid \mathrm{stepCancel}(\mathit{step}) \\ & \mid \mathrm{runStart}(\mathit{run}, \mathit{card}, \mathit{kind}) \mid \mathrm{runFinish}(\mathit{run}, \mathit{ok}) \mid \mathrm{plan}(c),\ c \in \mathrm{Plan.Cmd} \end{aligned}$$
 -/
 inductive Body where
   | cardOpen        (card owner : String) (needsDevice : Bool)
@@ -151,20 +154,22 @@ inductive Body where
   | stepCancel      (step : String)
   | runStart        (run card : String) (kind : RunKind)
   | runFinish       (run : String) (ok : Bool)
+  | plan            (c : Fw.Plan.Cmd)
 deriving Repr, DecidableEq
 
-/-- The 15 event types (the `type` field on the wire).
+/-- The 15 card/step/run event types and the 5 plan command types (the `type` field on the wire).
 
-$$\mathrm{EvType} = \{\texttt{card.open}, \texttt{card.approve}, \texttt{card.build}, \texttt{card.screen}, \texttt{card.review}, \texttt{card.swipe}, \texttt{card.land\_request}, \texttt{card.landed}, \texttt{step.post}, \texttt{step.start}, \texttt{step.answer}, \texttt{step.done}, \texttt{step.cancel}, \texttt{run.start}, \texttt{run.finish}\}$$
+$$\mathrm{EvType} = \{\texttt{card.open}, \texttt{card.approve}, \texttt{card.build}, \texttt{card.screen}, \texttt{card.review}, \texttt{card.swipe}, \texttt{card.land\_request}, \texttt{card.landed}, \texttt{step.post}, \texttt{step.start}, \texttt{step.answer}, \texttt{step.done}, \texttt{step.cancel}, \texttt{run.start}, \texttt{run.finish}\} \cup \{\mathrm{plan}(\tau) : \tau \in \mathrm{Plan.CmdType}\}$$
 -/
 inductive EvType where
   | cardOpen | cardApprove | cardBuild | cardScreen | cardReview | cardSwipe | cardLandRequest
   | cardLanded | stepPost | stepStart | stepAnswer | stepDone | stepCancel | runStart | runFinish
+  | plan (t : Fw.Plan.CmdType)
 deriving Repr, DecidableEq
 
 /-- The wire name of an event type.
 
-$$\operatorname{name}(\mathrm{cardOpen}) = \texttt{"card.open"},\ \dots,\ \operatorname{name}(\mathrm{cardLandRequest}) = \texttt{"card.land\_request"},\ \dots,\ \operatorname{name}(\mathrm{runFinish}) = \texttt{"run.finish"}$$
+$$\operatorname{name}(\mathrm{cardOpen}) = \texttt{"card.open"},\ \dots,\ \operatorname{name}(\mathrm{cardLandRequest}) = \texttt{"card.land\_request"},\ \dots,\ \operatorname{name}(\mathrm{runFinish}) = \texttt{"run.finish"},\ \operatorname{name}(\mathrm{plan}(\tau)) = \operatorname{Plan.name}(\tau)$$
 -/
 def EvType.name : EvType → String
   | .cardOpen => "card.open" | .cardApprove => "card.approve" | .cardBuild => "card.build"
@@ -172,11 +177,11 @@ def EvType.name : EvType → String
   | .cardLandRequest => "card.land_request" | .cardLanded => "card.landed"
   | .stepPost => "step.post" | .stepStart => "step.start" | .stepAnswer => "step.answer"
   | .stepDone => "step.done" | .stepCancel => "step.cancel" | .runStart => "run.start"
-  | .runFinish => "run.finish"
+  | .runFinish => "run.finish" | .plan t => t.name
 
 /-- The type of a body.
 
-$$\operatorname{type}(\mathrm{cardOpen}(\dots)) = \mathrm{cardOpen},\ \dots,\ \operatorname{type}(\mathrm{runFinish}(\dots)) = \mathrm{runFinish}$$
+$$\operatorname{type}(\mathrm{cardOpen}(\dots)) = \mathrm{cardOpen},\ \dots,\ \operatorname{type}(\mathrm{runFinish}(\dots)) = \mathrm{runFinish},\ \operatorname{type}(\mathrm{plan}(c)) = \mathrm{plan}(\operatorname{Plan.type}(c))$$
 -/
 def Body.type : Body → EvType
   | .cardOpen .. => .cardOpen | .cardApprove .. => .cardApprove | .cardBuild .. => .cardBuild
@@ -184,7 +189,7 @@ def Body.type : Body → EvType
   | .cardLandRequest .. => .cardLandRequest | .cardLanded .. => .cardLanded
   | .stepPost .. => .stepPost | .stepStart .. => .stepStart | .stepAnswer .. => .stepAnswer
   | .stepDone .. => .stepDone | .stepCancel .. => .stepCancel | .runStart .. => .runStart
-  | .runFinish .. => .runFinish
+  | .runFinish .. => .runFinish | .plan c => .plan c.type
 
 /-- An event: an idempotency key, the stamp time (ms, by console-api), the actor and the body.
 
@@ -198,22 +203,23 @@ structure Event where
 deriving Repr, DecidableEq
 
 /-- The console state: the accepted keys (newest first), the cards, steps and runs (each in
-creation order).
+creation order), and the plan (the work graph, `Fw.Plan.State`).
 
-$$\sigma = (S, \mathit{cards}, \mathit{steps}, \mathit{runs}), \qquad \sigma_0 = ([\,], [\,], [\,], [\,])$$
+$$\sigma = (S, \mathit{cards}, \mathit{steps}, \mathit{runs}, \mathit{plan}), \qquad \sigma_0 = ([\,], [\,], [\,], [\,], \pi_0)$$
 -/
 structure State where
   seen  : List String := []
   cards : List Card := []
   steps : List Step := []
   runs  : List Run := []
+  plan  : Fw.Plan.State := {}
 deriving Repr, DecidableEq
 
 /-- The authority table (`MAY`): the actors allowed to cause each event type.
 
-$$\begin{aligned} &\mathrm{MAY}(\texttt{card.open}) = \{\mathrm{owner}, \mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.approve}) = \{\mathrm{lead}, \mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{card.build}) = \{\mathrm{git}\}, && \mathrm{MAY}(\texttt{card.screen}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.review}) = \{\mathrm{reviewer}\}, && \mathrm{MAY}(\texttt{card.swipe}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.land\_request}) = \{\mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.landed}) = \{\mathrm{git}\}, \\ &\mathrm{MAY}(\texttt{step.post}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{step.start}) = \{\mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{step.answer}) = \{\mathrm{user}\}, && \mathrm{MAY}(\texttt{step.done}) = \{\mathrm{user}, \mathrm{owner}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{step.cancel}) = \{\mathrm{script}, \mathrm{user}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{run.start}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, \\ &\mathrm{MAY}(\texttt{run.finish}) = \{\mathrm{script}\} \end{aligned}$$
+$$\begin{aligned} &\mathrm{MAY}(\texttt{card.open}) = \{\mathrm{owner}, \mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.approve}) = \{\mathrm{lead}, \mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{card.build}) = \{\mathrm{git}\}, && \mathrm{MAY}(\texttt{card.screen}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.review}) = \{\mathrm{reviewer}\}, && \mathrm{MAY}(\texttt{card.swipe}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{card.land\_request}) = \{\mathrm{lead}, \mathrm{user}\}, && \mathrm{MAY}(\texttt{card.landed}) = \{\mathrm{git}\}, \\ &\mathrm{MAY}(\texttt{step.post}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{step.start}) = \{\mathrm{user}\}, \\ &\mathrm{MAY}(\texttt{step.answer}) = \{\mathrm{user}\}, && \mathrm{MAY}(\texttt{step.done}) = \{\mathrm{user}, \mathrm{owner}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{step.cancel}) = \{\mathrm{script}, \mathrm{user}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{run.start}) = \{\mathrm{script}, \mathrm{owner}, \mathrm{lead}\}, \\ &\mathrm{MAY}(\texttt{run.finish}) = \{\mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.define}) = \mathrm{MAY}(\texttt{task.drop}) = \mathrm{MAY}(\texttt{milestone.define}) = \{\mathrm{lead}, \mathrm{user}, \mathrm{script}\}, \\ &\mathrm{MAY}(\texttt{task.claim}) = \{\mathrm{hook}, \mathrm{script}, \mathrm{lead}\}, && \mathrm{MAY}(\texttt{task.done}) = \{\mathrm{git}, \mathrm{lead}, \mathrm{user}\} \end{aligned}$$
 
-Edge: the actor $\mathrm{hook}$ may cause nothing.
+Edge: the actor $\mathrm{hook}$ may cause only $\texttt{task.claim}$ (an agent start observed by a hook).
 -/
 def mayList : EvType → List Actor
   | .cardOpen => [.owner, .lead, .user]
@@ -231,6 +237,9 @@ def mayList : EvType → List Actor
   | .stepCancel => [.script, .user, .lead]
   | .runStart => [.script, .owner, .lead]
   | .runFinish => [.script]
+  | .plan .define | .plan .drop | .plan .milestone => [.lead, .user, .script]
+  | .plan .claim => [.hook, .script, .lead]
+  | .plan .done => [.git, .lead, .user]
 
 /-- An actor may cause an event type iff it is in the table.
 
@@ -380,6 +389,7 @@ $$\operatorname{check}(\sigma, e) = \begin{cases}
 \texttt{"no such step"} \text{ if unknown};\ \operatorname{stepRefusal}(st, b) & b \in \{\mathrm{stepStart}, \mathrm{stepAnswer}, \mathrm{stepDone}, \mathrm{stepCancel}\} \\
 \texttt{"no such card"} \text{ if unknown};\ \texttt{"run exists"} \text{ if } \exists r:\ r.\mathit{id} = \mathit{run};\ \bot & b = \mathrm{runStart}(\mathit{run}, \mathit{card}, \cdot) \\
 \texttt{"no such run"} \text{ if unknown};\ \bot \text{ if } r.\mathit{status} = \mathrm{running};\ \texttt{"run already finished"} & b = \mathrm{runFinish}(\mathit{run}, \cdot) \\
+\operatorname{Plan.check}(\sigma.\mathit{plan}, c) & b = \mathrm{plan}(c) \\
 \texttt{"no such card"} \text{ if unknown};\ \operatorname{cardRefusal}(c, b) & \operatorname{cardOf}(b) = \mathit{id}
 \end{cases}$$
 
@@ -405,6 +415,7 @@ def check (s : State) (e : Event) : Option String :=
     match s.runs.find? (·.id == r) with
     | none => some "no such run"
     | some run => if run.status = .running then none else some "run already finished"
+  | .plan c => Fw.Plan.check s.plan c
   | b => match cardOf b with
     | none => none
     | some id => match s.cards.find? (·.id == id) with
@@ -423,6 +434,7 @@ $$\operatorname{accept}(\sigma, e) = \begin{cases}
 \sigma[\mathit{steps} := \operatorname{mapSteps}_t(\mathit{id}, \mathit{status} := \mathrm{cancelled})] & \mathrm{stepCancel}(\mathit{id}) \\
 \sigma[\mathit{cards} := \operatorname{mapCards}(\mathit{card}, \operatorname{touch}_t),\ \mathit{runs} \mathrel{{+}{+}}= [(\mathit{run}, \mathit{card}, k, \mathrm{running}, t)]] & \mathrm{runStart}(\mathit{run}, \mathit{card}, k) \\
 \sigma[\mathit{cards} := \operatorname{mapCards}(r.\mathit{card}, \operatorname{touch}_t),\ \mathit{runs} := \text{every run } \mathit{run} \text{ gets } \mathit{status} := (\mathrm{passed} \text{ if } \mathit{ok} \text{ else } \mathrm{failed})] & \mathrm{runFinish}(\mathit{run}, \mathit{ok}),\ r \text{ the first run } \mathit{run} \\
+\sigma[\mathit{plan} := \operatorname{Plan.exec}(\sigma.\mathit{plan}, c)] & \mathrm{plan}(c) \\
 \sigma[\mathit{cards} := \operatorname{mapCards}(\mathit{id}, \operatorname{cardStep}_t(b, \cdot))] & \operatorname{cardOf}(b) = \mathit{id} \\
 \sigma & \text{otherwise (an unknown run)}
 \end{cases}$$
@@ -449,6 +461,7 @@ def accept (s : State) (e : Event) : State :=
                runs := s.runs.map fun x =>
                  if x.id = r then { x with status := if ok then .passed else .failed } else x }
     | none => s
+  | .plan c => { s with plan := Fw.Plan.exec s.plan c }
   | b => match cardOf b with
     | some id => { s with cards := mapCards id (cardStep t b) s.cards }
     | none => s
@@ -788,9 +801,110 @@ $$\forall \mathit{lim}, \mathit{now}, w \in \mathbb{N},\ \forall c:\quad 0 < w \
 theorem stale_live {lim now w : Nat} {c : Card} (hw : 0 < w) : stale lim now w c = false := by
   simp [stale]; omega
 
+/-! ## The plan part of the state -/
+
+/-- A plan body that passes `check` passes the plan check.
+
+$$\forall \sigma, e, c:\quad \mathit{body}(e) = \mathrm{plan}(c) \land \operatorname{check}(\sigma, e) = \bot \Rightarrow \operatorname{Plan.check}(\sigma.\mathit{plan}, c) = \bot$$
+-/
+theorem check_plan {s : State} {e : Event} {c : Fw.Plan.Cmd} (hb : e.body = .plan c)
+    (h : check s e = none) : Fw.Plan.check s.plan c = none := by
+  unfold check at h
+  rw [hb] at h
+  split at h
+  · cases h
+  · exact h
+
+/-- `accept` changes the plan only for a plan body, and then by `Plan.exec`.
+
+$$\forall \sigma, e:\quad \operatorname{accept}(\sigma, e).\mathit{plan} = \sigma.\mathit{plan} \lor \exists c:\ \mathit{body}(e) = \mathrm{plan}(c) \land \operatorname{accept}(\sigma, e).\mathit{plan} = \operatorname{Plan.exec}(\sigma.\mathit{plan}, c)$$
+-/
+theorem accept_plan_cases (s : State) (e : Event) : (accept s e).plan = s.plan ∨
+    ∃ c, e.body = .plan c ∧ (accept s e).plan = Fw.Plan.exec s.plan c := by
+  obtain ⟨k, t, a, b⟩ := e
+  cases b with
+  | plan c => exact .inr ⟨c, rfl, rfl⟩
+  | runFinish r ok => left; simp only [accept]; split <;> rfl
+  | _ => left; rfl
+
+/-- `apply` changes the plan only by an accepted plan command.
+
+$$\forall \sigma, e:\quad \operatorname{apply}(\sigma, e).\mathit{plan} = \sigma.\mathit{plan} \lor \exists c:\ \mathit{body}(e) = \mathrm{plan}(c) \land \operatorname{Plan.check}(\sigma.\mathit{plan}, c) = \bot \land \operatorname{apply}(\sigma, e).\mathit{plan} = \operatorname{Plan.exec}(\sigma.\mathit{plan}, c)$$
+-/
+theorem apply_plan_cases (s : State) (e : Event) : (apply s e).plan = s.plan ∨
+    ∃ c, e.body = .plan c ∧ Fw.Plan.check s.plan c = none ∧
+      (apply s e).plan = Fw.Plan.exec s.plan c := by
+  unfold apply step
+  split
+  · exact .inl rfl
+  · split
+    · exact .inl rfl
+    · rename_i hc
+      rcases accept_plan_cases s e with h | ⟨c, hb, h⟩
+      · exact .inl h
+      · exact .inr ⟨c, hb, check_plan hb hc, h⟩
+
+/-- `apply` keeps the plan invariant (unique task ids, acyclic dependency graph).
+
+$$\forall \sigma, e:\quad \operatorname{Plan.Inv}(\sigma.\mathit{plan}) \Rightarrow \operatorname{Plan.Inv}(\operatorname{apply}(\sigma, e).\mathit{plan})$$
+-/
+theorem apply_plan_inv {s : State} (e : Event) (h : Fw.Plan.Inv s.plan) :
+    Fw.Plan.Inv (apply s e).plan := by
+  rcases apply_plan_cases s e with h1 | ⟨c, _, hc, h1⟩
+  · rw [h1]; exact h
+  · rw [h1]; exact Fw.Plan.exec_inv h hc
+
+/-- **The console never accepts a dependency cycle**: in every replayed state the task ids are
+unique and the dependency graph is acyclic.
+
+$$\forall L:\quad \operatorname{Nodup}(\operatorname{ids}(\operatorname{project}(L).\mathit{plan}.\mathit{tasks})) \land \operatorname{Acyclic}(\operatorname{project}(L).\mathit{plan}.\mathit{tasks})$$
+-/
+theorem project_plan_inv (l : List Event) : Fw.Plan.Inv (project l).plan := by
+  suffices ∀ s : State, Fw.Plan.Inv s.plan → Fw.Plan.Inv (l.foldl apply s).plan from
+    this _ Fw.Plan.inv_init
+  induction l with
+  | nil => intro s h; exact h
+  | cons e l ih => intro s h; exact ih _ (apply_plan_inv e h)
+
+/-- **Done is monotone over the console reducer**: once a task id is done it stays done.
+
+$$\forall \sigma, e, x:\quad \operatorname{isDone}(\sigma.\mathit{plan}.\mathit{tasks}, x) \Rightarrow \operatorname{isDone}(\operatorname{apply}(\sigma, e).\mathit{plan}.\mathit{tasks}, x)$$
+-/
+theorem apply_isDone {s : State} (e : Event) {x : String}
+    (h : Fw.Plan.isDone s.plan.tasks x = true) : Fw.Plan.isDone (apply s e).plan.tasks x = true := by
+  rcases apply_plan_cases s e with h1 | ⟨c, _, hc, h1⟩
+  · rw [h1]; exact h
+  · rw [h1]; exact Fw.Plan.exec_isDone hc h
+
+/-- Done is monotone over replay: a task done after a log stays done after any extension.
+
+$$\forall L_1, L_2, x:\quad \operatorname{isDone}(\operatorname{project}(L_1).\mathit{plan}.\mathit{tasks}, x) \Rightarrow \operatorname{isDone}(\operatorname{project}(L_1 \mathbin{+\!\!+} L_2).\mathit{plan}.\mathit{tasks}, x)$$
+-/
+theorem project_isDone (l₁ l₂ : List Event) {x : String}
+    (h : Fw.Plan.isDone (project l₁).plan.tasks x = true) :
+    Fw.Plan.isDone (project (l₁ ++ l₂)).plan.tasks x = true := by
+  rw [project_append]
+  induction l₂ generalizing l₁ with
+  | nil => exact h
+  | cons e l ih =>
+    have := ih (l₁ ++ [e]) (by rw [project_append]; exact apply_isDone e h)
+    rw [project_append] at this
+    simpa using this
+
 /-! ## Examples run at build time (the console-mvp table, abridged) -/
 
 #guard may .owner .cardOpen && !may .owner .cardApprove && !may .user .stepPost && !may .hook .cardOpen
+#guard may .hook (.plan .claim) && !may .hook (.plan .define) && may .git (.plan .done)
+  && !may .owner (.plan .define) && may .script (.plan .milestone)
+#guard
+  let ev (k : String) (a : Actor) (c : Fw.Plan.Cmd) : Event := ⟨k, 0, a, .plan c⟩
+  let s := project [ev "p1" .lead (.define (Fw.Plan.mk "a" [])),
+                    ev "p2" .lead (.define (Fw.Plan.mk "b" ["a"]))]
+  (step s (ev "p3" .lead (.define (Fw.Plan.mk "a" ["b"])))).2 == .refused "dependency cycle"
+  && (step s (ev "p3" .owner (.drop "b"))).2 == .refused "actor owner may not cause task.drop"
+  && (step s (ev "p3" .hook (.claim "a" "agent-1"))).2 == .accepted false
+  && (Fw.Plan.view (apply s (ev "p3" .git (.done "a" "abc1234"))).plan).tasks.map (·.state)
+       == [.done, .ready]
 #guard
   let ev (k : String) (t : Nat) (a : Actor) (b : Body) : Event := ⟨k, t, a, b⟩
   let base := [ev "k1" 1 .owner (.cardOpen "A" "o" false), ev "k2" 2 .lead (.cardApprove "A"),

@@ -2,7 +2,7 @@
 // the reducer (Lean) accepts, refuses or marks a violation; keys make every fact idempotent.
 import type { Command } from "@fw/contracts";
 import type { Store } from "../store.ts";
-import { branches, commitsAhead, isAncestor } from "./git.ts";
+import { branches, commitsAhead, isAncestor, taskTrailers } from "./git.ts";
 import { branchCard } from "./naming.ts";
 
 export type ReconcileStats = { submitted: number; duplicate: number; refused: number; skipped: number };
@@ -20,6 +20,8 @@ export class Reconciler {
   constructor(store: Store, repo: string, mainRef = "main") {
     this.store = store; this.repo = repo; this.mainRef = mainRef;
   }
+
+  get repoDir() { return this.repo; }
 
   /** Serialized: passes never overlap. */
   reconcile(): Promise<ReconcileStats> {
@@ -57,6 +59,24 @@ export class Reconciler {
     for (const c of (await this.store.board()).cards) { // re-read: step 1 moved heads
       if (c.landed || !c.head || !isAncestor(this.repo, c.head, this.mainRef)) continue;
       await this.send({ type: "card.landed", key: `landed:${this.mainRef}:${c.head}`, actor: "git", card: c.id, sha: c.head }, s);
+    }
+    // 3. work graph: a landed card whose id (or whose branch's agent) equals an undone task id -> task.done(evidence = head)
+    const board = await this.store.board();
+    const undone = new Set(board.plan.tasks.filter((t) => t.state !== "done").map((t) => t.id));
+    if (undone.size > 0) {
+      // 3a. explicit: a `Task: <id>` trailer on a main commit (merge done with plain git or by `fw land --task`); oldest first
+      for (const t of taskTrailers(this.repo, this.mainRef).reverse()) {
+        if (undone.has(t.task)) await this.send({ type: "task.done", key: `taskdone:${t.task}`, actor: "git", task: t.task, evidence: t.sha }, s);
+      }
+      // 3b. inferred: card id or branch agent
+      for (const c of board.cards) {
+        if (!c.landed || !c.head) continue;
+        const names = new Set([c.id]);
+        for (const r of refs) { const bc = branchCard(r.ref); if (bc?.card === c.id && bc.agent) names.add(bc.agent); }
+        for (const n of names) {
+          if (undone.has(n)) await this.send({ type: "task.done", key: `taskdone:${n}`, actor: "git", task: n, evidence: c.head }, s);
+        }
+      }
     }
     return s;
   }

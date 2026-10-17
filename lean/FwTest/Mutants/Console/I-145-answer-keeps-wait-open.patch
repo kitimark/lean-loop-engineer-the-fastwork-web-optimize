@@ -1,0 +1,13 @@
+Design mutant (m0-mutants, PLAN V-r): v1 I-145 class: the decision is recorded but the step stays open, so the board keeps "waiting on you".
+
+--- a/Fw/Console.lean
++++ b/Fw/Console.lean
+@@ -436,7 +436,7 @@
+     { s with steps := s.steps ++ [{ id, card, title, kind, options := opts, postedAt := t, lastAt := t }] }
+   | .stepStart id => { s with steps := mapSteps t id (fun x => { x with status := .started }) s.steps }
+   | .stepAnswer id a =>
+-    { s with steps := mapSteps t id (fun x => { x with status := .answered, answer := some a }) s.steps }
++    { s with steps := mapSteps t id (fun x => { x with answer := some a }) s.steps }
+   | .stepDone id => { s with steps := mapSteps t id (fun x => { x with status := .done }) s.steps }
+   | .stepCancel id => { s with steps := mapSteps t id (fun x => { x with status := .cancelled }) s.steps }
+   | .runStart r card kind =>

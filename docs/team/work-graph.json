@@ -285,7 +285,8 @@
     "lean/Fw/Console/**",
     "lean/Fw/Wire/Plan.lean",
     "packages/contracts/golden/plan/**"
-   ]
+   ],
+   "evidence": "0de2fec"
   },
   {
    "id": "con-plan",
@@ -301,7 +302,8 @@
     "apps/console-api/**",
     "apps/console-web/**",
     "apps/runner/**"
-   ]
+   ],
+   "evidence": "e920459"
   },
   {
    "id": "math-view-refresh",
@@ -327,7 +329,8 @@
     "math-fix-r5",
     "lean-ci-cache"
    ],
-   "owner": "math-reviewer"
+   "owner": "math-reviewer",
+   "evidence": "e6908db"
   },
   {
    "id": "gate-probe-scope",
@@ -336,6 +339,7 @@
    "milestone": "M2",
    "deps": [
     "gate-part-filter",
+    "gate-unreachable",
     "verdict-to-lean"
    ],
    "owner": "lean-prover",
@@ -383,7 +387,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-spk-drafts/spk-i.md"
-   ]
+   ],
+   "evidence": "13b6c98"
   },
   {
    "id": "spawn-enforce",
@@ -413,7 +418,8 @@
    "writes": [
     "lean/Fw/Gate/**",
     "packages/gate-breakpoints/src/verdict.mjs"
-   ]
+   ],
+   "evidence": "0d02aff"
   },
   {
    "id": "ops-gate",
@@ -455,7 +461,8 @@
     "lean/Fw/Measure/**",
     "packages/measure-chromium/src/classes.mjs",
     "packages/measure-chromium/src/classify.mjs"
-   ]
+   ],
+   "evidence": "baa3291"
   },
   {
    "id": "fw-ci",
@@ -652,7 +659,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-css-decisions.md"
-   ]
+   ],
+   "evidence": "115a8da"
   },
   {
    "id": "gap-research",
@@ -663,21 +671,30 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-gate-gaps-*.md"
-   ]
+   ],
+   "evidence": "115a8da"
   },
   {
    "id": "gap-harness",
-   "title": "Q33: gate lane for the unreachable cells (Simulator iPhone/iPad, page zoom), checked against Lean's expected media values; the lane must also run on CI (iPad/iPhone Simulator on macos runners) or name why not",
+   "title": "Q33 harness on main: judge through fwcore, touchArm out of check X, iOS viewport-meta rounding probes, CI lanes; results from CI artifacts only",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
     "gap-research",
-    "gate-part-filter"
+    "gate-part-filter",
+    "gate-unreachable"
    ],
    "owner": "measure-engineer",
    "writes": [
+    ".github/workflows/gate-gaps.yml",
+    "packages/gate-breakpoints/README.md",
+    "packages/gate-breakpoints/results/gaps/**",
+    "packages/gate-breakpoints/src/cli.mjs",
     "packages/gate-breakpoints/src/gaps/**",
-    "packages/gate-breakpoints/README.md"
+    "packages/gate-breakpoints/src/run.mjs",
+    "packages/gate-breakpoints/src/summary.mjs",
+    "packages/gate-breakpoints/test/**",
+    "research/notes/2026/10-17-gate-gaps-*.md"
    ],
    "devices": [
     "simulator"
@@ -784,7 +801,7 @@
   },
   {
    "id": "wktr-local",
-   "title": "WKTR spike, CI-first: prebuilt iOS-sim WKTR (r324039, iOS 26.5) on GitHub macos-26; internals.lastStyleUpdateSize with styleRecalcCount, steps bracketed by renderingUpdateCount; original twice. Local: one short debug run under the sim-lock only",
+   "title": "WKTR spike, CI-first: prebuilt iOS-sim WKTR r324039 on macos-26; lastStyleUpdateSize + styleRecalcCount per step, bracketed by renderingUpdateCount; original twice",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [
@@ -851,6 +868,7 @@
    "deps": [
     "bands-freeze",
     "breakpoint-lint",
+    "css-decide",
     "css-decisions",
     "verdict-to-lean"
    ],
@@ -890,7 +908,8 @@
     "lean/Fw/Obs/**",
     "lean/Fw/Wire/Obs.lean",
     "packages/contracts/golden/obs/**"
-   ]
+   ],
+   "evidence": "0877f7a"
   },
   {
    "id": "watch-cli",
@@ -905,7 +924,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "0877f7a"
   },
   {
    "id": "watch-web",
@@ -941,7 +961,7 @@
   },
   {
    "id": "spawn-guard-workflows",
-   "title": "Spawn-guard: Workflow spawns skip it (18 of 26); log expected vs given kind (one deny:kindMismatch unexplained); show decisions on the board; also SPK-p part 3 (wake test: emit.mjs keeps a background_tasks count)",
+   "title": "Spawn-guard sees Workflow spawns (18 of 26 skip it); log expected vs given kind; decisions on the board; SPK-p part 3 (background_tasks count in emit.mjs)",
    "stream": "parallel",
    "milestone": null,
    "deps": [
@@ -952,16 +972,19 @@
    "writes": [
     "apps/runner/hooks/emit.mjs",
     "research/notes/2026/10-17-spk-drafts/spk-p.md"
-   ]
+   ],
+   "evidence": "618c1b6"
   },
   {
    "id": "alert-steps",
-   "title": "Console alert steps from Notification hooks: say which agent, which kind (permission prompt vs needs input) and which tool; close the alert by itself when that agent's next tool call or answer arrives (rule in Lean)",
+   "title": "Alert steps name the agent, kind (permission prompt or needs input) and tool, and close themselves on that agent's next tool call or answer (rule in Lean)",
    "stream": "console",
    "milestone": null,
    "deps": [
     "cap-actor-fix",
-    "con-plan"
+    "con-plan",
+    "lean-console-gaps",
+    "spawn-guard-workflows"
    ],
    "owner": "console-builder",
    "writes": [
@@ -997,7 +1020,8 @@
    "writes": [
     "apps/runner/src/land.ts",
     "apps/console-api/src/reconcile/**"
-   ]
+   ],
+   "evidence": "af618a6"
   },
   {
    "id": "webkit-table-regen",
@@ -1013,6 +1037,212 @@
    ],
    "devices": [
     "ci"
+   ]
+  },
+  {
+   "id": "class-freeze",
+   "title": "Freeze the Chromium class table as the worst class per type over >= 3 CI workflow runs, image pinned (SPK-i lead decision)",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "spk-i-record",
+    "touch-wedge"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-chromium/classes.frozen.json",
+    ".github/workflows/chromium-counts.yml"
+   ]
+  },
+  {
+   "id": "pixel-tolerance",
+   "title": "Own tolerance rule for pixel-area census types in Fw/Measure/Classes (proved), so they leave quarantine on CI when stable",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "spk-i-record"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Measure/**",
+    "packages/measure-chromium/src/classes.mjs"
+   ]
+  },
+  {
+   "id": "plan-rev7",
+   "title": "PLAN revision 7: WKTR prebuilt route, measure on CI, Fable changes, Q1/Q31/Q33 answers, SPK-i decision (stable as totals, worst-of-3 classes), split dense tables",
+   "stream": "plan",
+   "milestone": null,
+   "deps": [
+    "spk-i-record"
+   ],
+   "owner": "plan-editor",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/plan/loop-plan.html"
+   ]
+  },
+  {
+   "id": "watch-fix",
+   "title": "fw watch review fixes: waiting state without agent_id, idle-by-design teammates and ended workflow agents not stalled, kind instead of depth, Agent waits not hangs, --until-alert baseline",
+   "stream": "team",
+   "milestone": null,
+   "deps": [
+    "watch-cli"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*.ts",
+    "docs/team/tools/watch.md"
+   ]
+  },
+  {
+   "id": "spk-p-wake",
+   "title": "SPK-p part 2: wake test (does a background task's completion wake an idle agent), recorded in spk-p.md",
+   "stream": "parallel",
+   "milestone": null,
+   "deps": [
+    "spawn-guard-workflows"
+   ],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-17-spk-drafts/spk-p.md"
+   ]
+  },
+  {
+   "id": "plan-evidence-link",
+   "title": "Plan tab: evidence links to the public commit URL from GET /api/repo",
+   "stream": "console",
+   "milestone": null,
+   "deps": [
+    "fw-land-log"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/console-web/src/Plan.tsx"
+   ]
+  },
+  {
+   "id": "math-r7",
+   "title": "Math review round 7: every pending or stale row (Fw/Plan, Fw/Gate, Fw/Obs, Fw/Measure additions, Admit.Inv fix)",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "math-r6",
+    "verdict-to-lean",
+    "watch-lean",
+    "lean-plan",
+    "measure-ts-to-lean"
+   ],
+   "owner": "math-reviewer",
+   "writes": [
+    "research/notes/2026/10-17-math-review-r7.md"
+   ]
+  },
+  {
+   "id": "gate-unreachable",
+   "title": "Lean first for Q33: 'unreachable' cell state in Fw.Gate, WebKit primary pairs per port, part rows in the rollup, fractional probes at dpr 2 with a realizability theorem",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "verdict-to-lean",
+    "gap-research"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/Fw/Site/**",
+    "apps/site/src/breakpoints.gen.json",
+    "packages/gate-breakpoints/src/verdict.mjs",
+    "packages/contracts/golden/gate/**"
+   ]
+  },
+  {
+   "id": "css-decide",
+   "title": "User decides the two M2 CSS questions in the console (css-cssvariables, css-inert-dead)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decisions"
+   ],
+   "owner": "user"
+  },
+  {
+   "id": "sim-speed",
+   "title": "Why the webkit-sim CI lane boots and connects to the Simulator slowly; faster options measured on ci/sim-speed, reviewed (user request)",
+   "stream": "ci",
+   "milestone": "M1",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/sim-speed.yml",
+    "research/notes/2026/10-17-sim-speed.md"
+   ]
+  },
+  {
+   "id": "ci-trigger-scope",
+   "title": "CI blocker: every ci/** push starts all workflows; per-workflow paths filters and concurrency cancel, verified on CI (lead slow-work watch)",
+   "stream": "ci",
+   "milestone": "M1",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/lean.yml",
+    ".github/workflows/chromium-counts.yml",
+    ".github/workflows/breakpoint-gate.yml",
+    "research/notes/2026/10-17-ci-trigger-scope.md"
+   ]
+  },
+  {
+   "id": "watch-slow",
+   "title": "Slow-work rules in Lean (obs.health): CI run, tool call, local process and load thresholds, flagged when the task is on the critical path; replaces the lead stand-in monitor",
+   "stream": "team",
+   "milestone": null,
+   "deps": [
+    "watch-fix"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*.ts",
+    "docs/team/tools/watch.md"
+   ]
+  },
+  {
+   "id": "touch-ci-verify",
+   "title": "Verify the touch-wedge fix on CI: original and rewrite, swipe-touch-v1, >= 3 chromium-counts runs on separate jobs, no wedge, classes reported",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "touch-wedge",
+    "ci-trigger-scope"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-chromium/README.md",
+    "packages/measure-chromium/profiles/**"
+   ]
+  },
+  {
+   "id": "mutants-ci",
+   "title": "Mutation pass on CI (workflow_dispatch + paths on M0 modules), not on this Mac: the local final pass took 23 min at load ~500 (lead slow-work watch)",
+   "stream": "lean",
+   "milestone": null,
+   "deps": [
+    "m0-mutants",
+    "ci-trigger-scope"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    ".github/workflows/mutants.yml",
+    "lean/scripts/mutants.sh"
    ]
   }
  ]

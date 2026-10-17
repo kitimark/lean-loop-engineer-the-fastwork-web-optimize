@@ -1,15 +1,17 @@
 import { useState } from "react";
-import type { Board, Step, StepKind } from "@fw/contracts";
+import type { LiveBoard as Board, Step, StepKind } from "@fw/contracts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PlanView } from "./Plan";
 import { age, sendAsUser, useBoard, useNow } from "@/lib/api";
 
 export function App() {
   const { board, offset, live } = useBoard();
   const now = useNow(offset);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"console" | "plan">("console");
 
   // every click is a typed command that the reducer may refuse; the reason is shown, never hidden
   const act = async (cmd: Record<string, unknown>) => {
@@ -18,17 +20,24 @@ export function App() {
   };
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
+    <main className={`mx-auto space-y-6 p-6 ${tab === "plan" ? "max-w-7xl" : "max-w-5xl"}`}>
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">fw console</h1>
+        <nav className="flex gap-1" aria-label="views">
+          <Button size="sm" variant={tab === "console" ? "default" : "outline"} onClick={() => setTab("console")}>Console</Button>
+          <Button size="sm" variant={tab === "plan" ? "default" : "outline"} onClick={() => setTab("plan")}>
+            Plan{board ? ` (${board.plan.tasks.filter((t) => t.state === "ready").length} ready)` : ""}</Button>
+        </nav>
         <Badge variant={live ? "default" : "destructive"}>{live ? "live" : "reconnecting"}</Badge>
       </header>
       {error && <p role="alert" className="rounded border border-destructive p-2 text-sm text-destructive">{error}</p>}
       {!board ? <p className="text-muted-foreground">Waiting for console-api...</p> : (
-        <>
-          <Steps board={board} act={act} now={now} />
-          <StatusBoard board={board} now={now} />
-        </>
+        tab === "plan" ? <PlanView board={board} /> : (
+          <>
+            <Steps board={board} act={act} now={now} />
+            <StatusBoard board={board} now={now} />
+          </>
+        )
       )}
     </main>
   );
