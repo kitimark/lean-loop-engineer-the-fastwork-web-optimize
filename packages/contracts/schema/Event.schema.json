@@ -1,0 +1,897 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "card.open"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "card": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "needsDevice": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "card",
+        "owner",
+        "needsDevice"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "card.approve"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "card": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "card"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "card.build"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "card": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "sha": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "agent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "card",
+        "sha",
+        "agent"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "card.screen"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "card": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "sha": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "pass": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "card",
+        "sha",
+        "pass"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "card.review"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "card": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "sha": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "signedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "accept": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "card",
+        "sha",
+        "signedBy",
+        "accept"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "card.swipe"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "card": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "sha": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "better": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "card",
+        "sha",
+        "better"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "card.land_request"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "card": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "sha": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "card",
+        "sha"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "card.landed"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "card": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "sha": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "card",
+        "sha"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "step.post"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "step": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "card": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "action",
+            "yes_no",
+            "choice",
+            "text"
+          ]
+        },
+        "options": {
+          "anyOf": [
+            {
+              "maxItems": 12,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "step",
+        "card",
+        "title",
+        "kind",
+        "options"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "step.start"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "step": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "step"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "step.answer"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "step": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "answer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "step",
+        "answer"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "step.done"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "step": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "step"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "step.cancel"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "step": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "step"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "run.start"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "run": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "card": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "screen",
+            "gate",
+            "run",
+            "device"
+          ]
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "run",
+        "card",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "type": "string",
+          "const": "run.finish"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "user",
+            "lead",
+            "owner",
+            "reviewer",
+            "script",
+            "git",
+            "hook"
+          ]
+        },
+        "run": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "seq",
+        "ts",
+        "type",
+        "key",
+        "actor",
+        "run",
+        "ok"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

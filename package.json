@@ -6,6 +6,6 @@
   "scripts": {
     "test": "pnpm -r --if-present test",
     "build": "pnpm -r --if-present build",
-    "fw": "pnpm --filter @fw/runner exec fw"
+    "fw": "node apps/runner/src/fw.ts"
   }
 }
