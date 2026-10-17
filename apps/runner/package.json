@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@fw/contracts": "workspace:*",
+    "@fw/gh-budget": "workspace:*",
     "zod": "^4.6.7"
   }
 }

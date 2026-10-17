@@ -1,0 +1,2 @@
+{"scenario":{"expect":{"counts":[{"from":1792281901,"kind":"any","max":0,"min":0,"until":1792281960},{"from":1792281960,"kind":"tick","max":1,"min":1,"until":1792281961}]},"name":"bare-429","oneoffCost":1,"oneoffEvery":45,"seconds":1800,"start":1792281600,"waiters":3}}
+{"at":1792281900,"lines":["HTTP/2.0 429 Too Many Requests"]}

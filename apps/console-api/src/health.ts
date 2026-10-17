@@ -84,3 +84,14 @@ export function readLatestHealth(dir: string): HealthView | null {
     }
   } finally { closeSync(fd); }
 }
+
+/** The names of the live agents (fwcore's health state not `gone`, not `done`) in the latest health line: the fact a
+ *  `task.define` carries as `live`. Name matching and the claim are Lean's (`Fw.Plan.upsert`); this only reads.
+ *  Names that are not contract ids are skipped; at most 64. No health line yet: none. */
+export function liveAgentNames(dir: string): string[] {
+  const h = readLatestHealth(dir);
+  if (!h) return [];
+  const names = h.agents.filter((a) => a.state !== "gone" && a.state !== "done").map((a) => a.label)
+    .filter((n) => n.length >= 1 && n.length <= 120); // the contract's Id
+  return [...new Set(names)].slice(0, 64);
+}

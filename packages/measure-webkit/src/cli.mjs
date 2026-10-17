@@ -18,6 +18,8 @@ import { seekExperiment } from './seek.mjs';
 import { probe } from './rfprobe.mjs';
 import { screenAndTicks } from './handoff.mjs';
 import { warmUpLoad, perStepPasses, classifyModes, perStepTable } from './perstep.mjs';
+import { quietPasses } from './quiet.mjs';
+import { byArm, armsTable, devCorrelation } from './quietreport.mjs';
 import { onePassRetrying, classifyPasses, reasonNames, markdownTable, resolveStates } from './determinism.mjs';
 import { COUNT_TYPES, zones, summarize } from './reduce.mjs';
 
@@ -44,6 +46,8 @@ const OPTS = {
   search: { type: 'string', default: '' },
   mode: { type: 'string', default: 'base' },
   warmup: { type: 'string', default: '1' },
+  arms: { type: 'string', default: '0,1,3' }, // quiet: busy-loop processes per arm
+  reps: { type: 'string', default: '3' }, // quiet: rounds (each round runs every arm once)
   cols: { type: 'string' }, // handoff: comma list of count types forming the vector (default all 12)
 };
 const { values: v, positionals } = parseArgs({ args: rest, options: OPTS, allowPositionals: true, allowNegative: true });
@@ -121,6 +125,22 @@ async function main() {
       console.log(markdownTable(rows));
       break;
     }
+    case 'quiet': {
+      // webkit-quiet: dose-response of per-step jitter against added host load (see quiet.mjs)
+      const arms = v.arms.split(',').map(num);
+      const passes = await withSession((ctx) => quietPasses(ctx, { arms, reps: num(v.reps), clock: v.clock, settleMs: num(v.settle), step: num(v.step), framesPerStep: num(v.frames), log, warmup: num(v.warmup), mode: v.mode }), sessionOpts);
+      save('quiet', { schema: 'fw.webkit.quiet/1', arms, reps: num(v.reps), clock: v.clock, mode: v.mode, passes });
+      break;
+    }
+    case 'quiet-report': {
+      // quiet-report <quiet.json>...: Markdown dose-response tables (jitter between passes of the same arm and file)
+      const files = positionals.map((f) => JSON.parse(readFileSync(resolve(f), 'utf8')));
+      console.log(armsTable(byArm(files)));
+      const c = devCorrelation(files), l = devCorrelation(files, 'lag');
+      console.log('\n| count type | corr(count dev, log step dur dev) | corr(count dev, log1p lag dev) |\n|---|---|---|');
+      for (const t of COUNT_TYPES) console.log(`| ${t} | ${c[t]} | ${l[t]} |`);
+      break;
+    }
     case 'perstep': {
       // per-step determinism experiment: every mode, R passes, from fresh loads; raw saved, then the class table
       const modes = v.modes.split(',');
@@ -175,6 +195,15 @@ async function main() {
       console.log('| family | count type | level | class (worst of sessions) | sessions agree |');
       console.log('|---|---|---|---|---|');
       for (const r of out) console.log(`| ${r.family} | ${r.metric} | ${r.level} | **${r.cls}** | ${r.agree ? 'yes' : r.classes.join(' / ')} |`);
+      if (v.out) { // machine-readable table for the baselines: scroll rows by level, {class, per-session classes, worst spread}
+        const level = (l) => (l === 'total' ? 'total' : l === 'per 500 px zone' ? 'zone' : l === 'per step' ? 'step' : null);
+        const byLevel = { total: {}, zone: {}, step: {} };
+        out.forEach((r, i) => {
+          const lv = r.family === 'scroll' ? level(r.level) : null;
+          if (lv) byLevel[lv][r.metric] = { class: r.cls, sessions: r.classes, maxSpread: Math.max(...sessions.map((rows) => rows[i].maxSpread ?? 0)), maxRelSpread: Math.max(...sessions.map((rows) => rows[i].maxRelSpread ?? 0)) };
+        });
+        save('classes', { schema: 'fw.webkit.classes/1', sessions: sessions.length, passesPerSession: raw.map((p) => p.length), byLevel, rows: out.map(({ family, metric, level: lv, cls, classes }) => ({ family, metric, level: lv, class: cls, sessions: classes })) });
+      }
       break;
     }
     case 'sim': {

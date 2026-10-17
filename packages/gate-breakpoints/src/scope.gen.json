@@ -943,6 +943,31 @@
      "platform rect against the visual viewport height at a scroll position, not a width edge; the part restates no CSS and the gate loads at the top",
      "id": "js.morph-arm"}],
    "conditions": {"rewrite": [], "orig": []}},
+  "morph.countdown":
+  {"sweeps": ["desktop-1512-320-1512", "touch-1024-1201", "pain-1440-600-1440"],
+   "probes":
+   ["desk-400",
+    "desk-401",
+    "desk-1000",
+    "desk-1001",
+    "desk-rm-319",
+    "desk-rm-401",
+    "desk-rm-1001",
+    "touch-1200",
+    "touch-1201"],
+   "owners": ["morph.countdown"],
+   "knees": [],
+   "key":
+   ["(prefers-reduced-motion: reduce)",
+    "(width<=400px)",
+    "(width<=1000px), (hover: none) and (pointer: coarse) and (width<=1200px)"],
+   "extra": [],
+   "dismissed":
+   [{"why": "measures the cell height that the key's conditions set (font at 400 / 1000-or-touch-1200)",
+     "id": "js.countdown-cell"}],
+   "conditions":
+   {"rewrite": ["mq.rm-reduce", "mq.w-le-400", "mq.c1000-nodw"],
+    "orig": ["mq.rm-reduce", "mq.w-le-400", "mq.c1000-nodw"]}},
   "morph.columns":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes": ["desk-640", "desk-641", "desk-rm-319", "desk-rm-641"],

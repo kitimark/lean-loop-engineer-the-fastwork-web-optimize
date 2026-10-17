@@ -38,17 +38,20 @@ def query : Json := Json.mkObj [("op", .str "console.query"), ("now", toJson (0 
 /-- The body fields of a `task.define`. -/
 def defFields (task : String) (deps : List String) (milestone : Option String := none)
     (writes devices : List String := []) (evidence : Option String := none)
-    (needs : List String := []) : List (String × Json) :=
+    (needs : List String := []) (cut : Bool := false) (live : List String := []) :
+    List (String × Json) :=
   [("task", .str task), ("title", .str s!"Task {task}"), ("stream", .str "lean"),
    ("milestone", ostr milestone), ("deps", strsJson deps), ("owner", .str "lean-prover"),
    ("writes", strsJson writes), ("devices", strsJson devices)]
   ++ (if needs.isEmpty then [] else [("needs", strsJson needs)]) ++ [("evidence", ostr evidence)]
+  ++ (if cut then [("cut", .bool true)] else []) ++ (if live.isEmpty then [] else [("live", strsJson live)])
 
 /-- A `task.define` by the lead (key `d:<task>` unless given). -/
 def define (task : String) (deps : List String) (milestone : Option String := none)
     (writes devices : List String := []) (evidence : Option String := none)
-    (key : String := s!"d:{task}") (actor : String := "lead") (needs : List String := []) : Json :=
-  apply key actor "task.define" (defFields task deps milestone writes devices evidence needs)
+    (key : String := s!"d:{task}") (actor : String := "lead") (needs : List String := [])
+    (cut : Bool := false) (live : List String := []) : Json :=
+  apply key actor "task.define" (defFields task deps milestone writes devices evidence needs cut live)
 
 /-- The synthetic cases: (name, requests). -/
 def cases : List (String × List Json) := [
@@ -140,6 +143,25 @@ def cases : List (String × List Json) := [
     define "h" [] none ["lean/Fw/Console.lean"],
     define "r" ["a"] none ["lean/R.lean"],
     apply "c:r" "hook" "task.claim" [("task", .str "r"), ("agent", .str "agent-r")],
+    query]),
+  ("late define: a live agent named like the task claims it; another live agent does not", [
+    define "a" [] (live := ["a", "x"]),
+    define "b" [] (live := ["x"]),
+    define "c" [],
+    apply "c:c" "hook" "task.claim" [("task", .str "c"), ("agent", .str "lead-1")],
+    define "c" [] (some "M1") (key := "d2:c") (live := ["z"]),
+    define "b" [] (some "M1") (key := "d2:b") (live := ["b"]),
+    query]),
+  ("cut: never ready, not grouped, not on the critical path, not counted; done still wins", [
+    apply "m:M0" "lead" "milestone.define" [("milestone", .str "M0"), ("title", .str "Zero")],
+    apply "m:MX" "lead" "milestone.define" [("milestone", .str "MX"), ("title", .str "Cut")],
+    define "a" [] (some "M0") ["x/**"],
+    define "b" ["a"] (some "M0"),
+    define "c" [] (some "MX") ["y/**"] (cut := true),
+    define "d" ["c"] (some "MX") (cut := true),
+    define "e" [] (some "MX") (evidence := some "abc1234") (cut := true),
+    define "f" [] (some "MX") ["z/**"] (needs := ["device"]) (cut := true),
+    apply "c:c" "hook" "task.claim" [("task", .str "c"), ("agent", .str "agent-c")],
     query])]
 
 /-- Run requests through `serveLine` from a fresh server; the reply lines. -/
@@ -171,6 +193,16 @@ def topo (ts : List Json) : List Json :=
       | some t => go f (idOf t :: placed) (acc ++ [t]) (rest.filter fun x => idOf x != idOf t)
   go ts.length [] [] ts
 
+/-- A title as `fw plan sync` sends it: at most 200 characters, a longer one clipped to 199 plus `…`
+(the contract's cap; the file keeps the full text). -/
+def clip : Json → Json
+  | .str s => .str (if s.length ≤ 200 then s else String.ofList (s.toList.take 199) ++ "…")
+  | j => j
+
+#guard clip (.str "ab") == .str "ab"
+#guard clip (.str (String.ofList (List.replicate 201 'x'))) ==
+  .str (String.ofList (List.replicate 199 'x') ++ "…")
+
 /-- The requests for the work graph: every milestone, every task (dependency order), a query. -/
 def workGraphRequests (wg : Json) : List Json :=
   let ms := (wg.getObjValAs? (Array Json) "milestones").toOption.getD #[]
@@ -180,9 +212,11 @@ def workGraphRequests (wg : Json) : List Json :=
   ms.toList.map (fun m => apply s!"m:{(s m "id").compress}" "lead" "milestone.define"
       [("milestone", s m "id"), ("title", s m "title")])
   ++ (topo ts.toList).map (fun t => apply s!"d:{(s t "id").compress}" "lead" "task.define"
-      [("task", s t "id"), ("title", s t "title"), ("stream", s t "stream"),
+      ([("task", s t "id"), ("title", clip (s t "title")), ("stream", s t "stream"),
        ("milestone", s t "milestone"), ("deps", l t "deps"), ("owner", s t "owner"),
-       ("writes", l t "writes"), ("devices", l t "devices"), ("needs", l t "needs"), ("evidence", s t "evidence")])
+       ("writes", l t "writes"), ("devices", l t "devices"), ("needs", l t "needs"), ("evidence", s t "evidence")]
+      ++ (match t.getObjValD "cut" with
+          | .bool true => [("cut", Json.bool true)] | _ => ([] : List (String × Json)))))
   ++ [query]
 
 /-- Check one golden file by replay: every line's requests, sent to a fresh server, give its replies.

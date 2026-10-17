@@ -28,7 +28,8 @@ install), `actions/gate-engine` (pinned Chrome Headless Shell with sha256 check,
 ## The `fw ci` flow (specified here, not built)
 
 1. Make a branch `ci/<topic>` and push it (agents may push `ci/*` only). Or `gh workflow run <file> -f key=value`.
-2. `gh run list --workflow <file> --branch ci/<topic>`, then `gh run watch <id> -i 30 --exit-status`.
+2. Wait with `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<topic> [--workflow <name>]` (exit 0 success, 1 failure, 3 timeout:
+   call it again). Never a gh loop or `gh run watch`: the shared poller makes the GitHub calls (`docs/team/tools/fw-ci.md`).
 3. `gh run download <id> -D results/ci/<id>/`. Each artifact lands in its own directory.
 4. Reduce the files in Lean (`fwcore`); the console reconciler imports the run as events under a CI platform key.
 

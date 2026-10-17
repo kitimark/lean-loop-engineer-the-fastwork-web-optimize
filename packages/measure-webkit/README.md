@@ -329,6 +329,20 @@ Facts (CONFIRMED unless marked):
   starting with a shallow/partial clone (`git clone --depth 1 --filter=blob:none`) and `build-webkit --release --ios-simulator`
   with `-j4`; the first deliverable would be `lastStyleUpdateSize` and `renderingUpdateCount` per scroll step on the fixtures.
 
+## Host load or engine on the CI runner (webkit-quiet, 2026-10-18)
+
+Full write-up: `research/notes/2026/10-18-webkit-quiet.md`. Commands: `quiet --arms 0,6,12 --reps 3` (dose-response: busy-loop
+processes during the scroll, `top` at 1 Hz and the harness timer lag recorded per pass; `src/quiet.mjs`, `src/hostmon.mjs`),
+`quiet-report <quiet.json>` (arm tables and count-vs-step-duration correlation; `src/quietreport.mjs`),
+`merge <sessions...> --out classes.json` (also writes the class table JSON). Workflow dispatch: `experiment=quiet`.
+
+- More host load (up to 12 burners) does not slow the steps or raise any type's jitter; the runner is already at 0 % idle
+  from the Simulator's own services. Only `TimerFire` follows pass wall time (r 0.93). The rest of the jitter is not load.
+- The quiet-step rule (`lean/Fw/Measure/Quiet.lean`, op `measure.quietSteps`, `src/quietsteps.mjs`) is proved and tested but
+  gives no better table on this runner.
+- Class table over 3 independent CI sessions (49 deterministic / 9 stable / 46 quarantined of 104 rows):
+  `classes/webkit-sim-v1.json`. Gateable per zone: `RenderingFrame`, `Composite`, `EventDispatch`.
+
 ## Limits
 
 - `scrollTo` is not a finger: tile counts (which depend on scroll velocity) are not measured here.

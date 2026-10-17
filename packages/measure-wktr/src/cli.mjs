@@ -10,6 +10,7 @@ import { serveOriginal } from './server.mjs';
 import { runOnce, DEFAULT_HEADER } from './wktr.mjs';
 import { buildRun, parseOutput } from './reduce.mjs';
 import * as sim from './sim.mjs';
+import { parseVariant } from './variants.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ARCHIVE = JSON.parse(readFileSync(join(HERE, 'archive.json'), 'utf8'));
@@ -22,7 +23,7 @@ const { values: v, positionals } = parseArgs({
     settle: { type: 'string', default: '6000' }, header: { type: 'string', default: DEFAULT_HEADER },
     'device-name': { type: 'string', default: 'fw-wktr' }, 'device-type': { type: 'string', default: 'iPhone 17' },
     'ios-version': { type: 'string', default: '26.5' }, label: { type: 'string', default: 'local' },
-    keep: { type: 'boolean', default: false }, warm: { type: 'boolean', default: false }, timeout: { type: 'string', default: '240000' },
+    keep: { type: 'boolean', default: false }, variants: { type: 'string', default: 'live' }, timeout: { type: 'string', default: '240000' },
   },
 });
 
@@ -35,17 +36,20 @@ async function main() {
   if (!existsSync(join(site, 'index.html'))) throw new Error(`${site}/index.html not found`);
   const out = resolve(v.out);
   mkdirSync(out, { recursive: true });
-  const passes = Number(v.passes), step = Number(v.step), frames = Number(v.frames), settleMs = Number(v.settle), warm = v.warm;
-  const tag = warm ? 'warm-' : '';
+  const passes = Number(v.passes), step = Number(v.step), frames = Number(v.frames), settleMs = Number(v.settle);
+  const variants = v.variants.split(',').map((x) => x.trim()).filter(Boolean).map(parseVariant);
 
   const dev = sim.ensureDevice({ name: v['device-name'], typeName: v['device-type'], version: v['ios-version'] });
   console.log(`device ${v['device-name']} (${v['device-type']}, iOS ${dev.runtime.version} build ${dev.runtime.buildversion}) created=${dev.created}`);
   sim.boot(dev.udid);
   sim.install(dev.udid, app);
-  const srv = await serveOriginal(site, harnessSource({ step, frames, settleMs, warm }));
-  console.log(`serving ${site} at ${srv.url}`);
   const results = [];
+  let srv = null;
   try {
+   for (const vr of variants) {
+    srv = await serveOriginal(site, harnessSource({ step, frames, settleMs, warm: vr.warm, vt: vr.vt, trace: vr.trace, still: vr.still }));
+    console.log(`variant ${vr.name}: serving ${site} at ${srv.url}`);
+    const tag = `${vr.name}-`;
     for (let p = 1; p <= passes; p++) {
       // The app's GPU process sometimes crashes at launch on a runner ("#CRASHED - com.apple.WebKit.GPU.Development", no
       // output at all): such a pass has no counts, so launch a fresh process again (up to 2 retries) and record the attempts.
@@ -64,17 +68,20 @@ async function main() {
       const run = buildRun(parsed, {
         lane: 'wktr', label: v.label, pass: p, archive: { revision: ARCHIVE.revision, commit: ARCHIVE.commit, sha256: ARCHIVE.sha256 },
         device: { name: v['device-type'], runtime: dev.runtime.version, runtimeBuild: dev.runtime.buildversion },
-        header: v.header, step, frames, settleMs, warm, attempts, wallMs: r.ms,
+        header: v.header, variant: vr.name, vt: vr.vt, warm: vr.warm, trace: vr.trace, still: vr.still, step, frames, settleMs, attempts, wallMs: r.ms,
       });
       writeFileSync(join(out, `counts-${tag}${p}.json`), JSON.stringify(run));
       const tot = {};
       for (const f of run.frames) for (const [k, n] of Object.entries(f.counts)) tot[k] = (tot[k] || 0) + n;
       results.push(tot);
-      console.log(`pass ${p}: ${run.frames.length} steps, ${r.ms} ms wall (not phone time); totals ${JSON.stringify(tot)}`);
+      console.log(`${vr.name} pass ${p}: ${run.frames.length} steps, ${r.ms} ms wall (not phone time); totals ${JSON.stringify(tot)}`);
       console.log(`viewport ${run.meta.page.innerWidth}x${run.meta.page.innerHeight}, dpr ${run.meta.page.dpr}`);
     }
-  } finally {
     await srv.close();
+    srv = null;
+   }
+  } finally {
+    if (srv) await srv.close();
     sim.terminate(dev.udid, ARCHIVE.bundleId);
     if (!v.keep) { sim.shutdown(dev.udid); sim.deleteDevice(dev.udid); }
   }

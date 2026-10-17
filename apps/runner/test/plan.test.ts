@@ -1,10 +1,11 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { Plan, PlanTask } from "@fw/contracts";
 import { record } from "../hooks/spawn-guard.mjs";
-import { renderPlan, syncCommands, topoSort, type WorkGraph } from "../src/plan.ts";
+import { lintCli, renderLint, renderPlan, syncCommands, topoSort, type WorkGraph } from "../src/plan.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const T = (id: string, deps: string[] = [], extra: object = {}) => ({ id, title: id, stream: "s", milestone: "M", deps, owner: "o", ...extra });
@@ -29,6 +30,9 @@ describe("syncCommands", () => {
     const d = syncCommands({ milestones: [], tasks: [T("p", [], { needs: ["device"] })] });
     expect(d[0]).toMatchObject({ task: "p", needs: ["device"] });
     expect(c[2]).toMatchObject({ task: "b", deps: ["a"], evidence: null });
+    expect(c[2]).not.toHaveProperty("cut");
+    const x = syncCommands({ milestones: [], tasks: [T("x", [], { cut: true })] });
+    expect(x[0]).toMatchObject({ task: "x", cut: true });
   });
   it("keys are stable for equal content and change when a task is edited", () => {
     const k = (x: WorkGraph) => syncCommands(x).map((c) => c.key);
@@ -62,10 +66,20 @@ describe("renderPlan", () => {
   };
   it("prints ready groups, running, blocked with blockers, critical path", () => {
     expect(renderPlan(p)).toBe([
-      "4 tasks: 1 done, 1 running, 1 ready, 1 blocked", "  M 1/4  mini", "READY (tasks in one group can run in parallel):", "  group 1: b",
+      "4 tasks: 1 done, 1 running, 1 ready, 1 blocked, 0 cut", "  M 1/4  mini", "READY (tasks in one group can run in parallel):", "  group 1: b",
       "DEVICE (needs you + the iPhone):", "  none",
-      "RUNNING:", "  c (agent c)", "BLOCKED (waiting on):", "  d <- b, c", "CRITICAL PATH (2): b -> d",
+      "RUNNING:", "  c (agent c)", "BLOCKED (waiting on):", "  d <- b, c", "CRITICAL PATH (2): b -> d", "CUT (0): none",
     ].join("\n"));
+  });
+  it("lists cut tasks on one CUT line at the end, nowhere else", () => {
+    const q: Plan = { ...p, tasks: [...p.tasks,
+      { id: "x", title: "CUT: X", stream: "s", milestone: "MX", owner: "o", deps: [], ...ag(), state: "cut", blockers: [], agent: null, evidence: null },
+      { id: "y", title: "CUT: Y", stream: "s", milestone: "MX", owner: "o", deps: [], ...dv(), state: "cut", blockers: [], agent: null, evidence: null },
+    ] };
+    const out = renderPlan(q).split("\n");
+    expect(out[0]).toBe("6 tasks: 1 done, 1 running, 1 ready, 1 blocked, 2 cut");
+    expect(out.at(-1)).toBe("CUT (2): x, y");
+    expect(out.slice(0, -1).filter((l) => /\b[xy]\b/.test(l))).toEqual([]);
   });
   it("prints the device lane apart: ready first, then blocked with blockers; not in BLOCKED", () => {
     const q: Plan = { ...p, tasks: [...p.tasks,
@@ -75,7 +89,7 @@ describe("renderPlan", () => {
     const out = renderPlan(q).split("\n");
     const i = out.indexOf("DEVICE (needs you + the iPhone):");
     expect(out.slice(i, i + 4)).toEqual(["DEVICE (needs you + the iPhone):", "  ready    f  Finger swipe", "  blocked  e <- d", "RUNNING:"]);
-    expect(out.slice(out.indexOf("BLOCKED (waiting on):"))).toEqual(["BLOCKED (waiting on):", "  d <- b, c", "CRITICAL PATH (2): b -> d"]);
+    expect(out.slice(out.indexOf("BLOCKED (waiting on):"))).toEqual(["BLOCKED (waiting on):", "  d <- b, c", "CRITICAL PATH (2): b -> d", "CUT (0): none"]);
   });
 });
 
@@ -84,5 +98,26 @@ describe("spawn guard record", () => {
     const r = record({ tool_name: "Agent", tool_use_id: "u", tool_input: { name: "con-plan" } }, { decision: "allow", reason: null });
     expect(r).toMatchObject({ hook_event_name: "SpawnGuard", agent_name: "con-plan" });
     expect(record({ tool_name: "Agent", tool_use_id: "u" }, null).agent_name).toBeNull();
+  });
+});
+
+describe("plan lint", () => {
+  const lf = (task: string, code: string, severity: string, detail = "") => ({ task, code, severity, detail });
+  it("renders errors and warnings, counts info", () => {
+    const text = renderLint({ ok: false, errors: 1, warnings: 1, infos: 2, findings: [lf("a", "unknownDep", "error", "zz"), lf("b", "evUser", "warn", "user: x"), lf("c", "evidenceNoTrailer", "info")] });
+    expect(text).toBe("error a unknownDep: zz\nwarn  b evUser: user: x\nplan lint: 1 errors, 1 warnings, 2 info (evidence without a Task: trailer on main)");
+  });
+  it("sends the tasks and the commits of main to fwcore and exits 1 on errors", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lint-"));
+    const f = join(dir, "g.json");
+    writeFileSync(f, JSON.stringify({ milestones: [], tasks: [T("a", ["b"]), T("b", [], { evidence: "abc1234" })] }));
+    const seen: Record<string, unknown>[] = [];
+    const bad = async (r: Record<string, unknown>) => (seen.push(r), { ok: false, errors: 1, warnings: 0, infos: 0, findings: [lf("a", "unknownDep", "error", "b")] });
+    const good = async () => ({ ok: true, errors: 0, warnings: 0, infos: 0, findings: [] });
+    const commits = [{ sha: "s1", body: "x\n\nTask: a" }];
+    expect(await lintCli([f], here, bad, commits)).toBe(1);
+    expect(seen[0]).toMatchObject({ op: "plan.lint", commits, tasks: [{ id: "a", deps: ["b"], evidence: null }, { id: "b", evidence: "abc1234" }] });
+    expect(await lintCli([f], here, good, commits)).toBe(0);
+    await expect(lintCli([], here)).rejects.toThrow(/usage/);
   });
 });

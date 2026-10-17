@@ -20,9 +20,10 @@ namespace Fw.Plan
 
 /-- A task row of the work graph: its definition (id, title, stream, milestone, deps, owner, write
 globs, exclusive devices, and needs such as `"device"` for the iPhone with the user at it) and its two
-observed facts, the evidence that it is done and the agent that claimed it.
+observed facts, the evidence that it is done and the agent that claimed it, plus the `cut` flag of the
+definition (a task cut from the plan, kept as a row for the record; default false).
 
-$$t = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{agent}_\bot)$$
+$$t = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{agent}_\bot, \mathit{cut})$$
 -/
 structure Task where
   id        : String
@@ -36,6 +37,7 @@ structure Task where
   needs     : List String
   evidence  : Option String
   agent     : Option String
+  cut       : Bool := false
 deriving Repr, DecidableEq
 
 /-- The ids of a list of rows, in order.
@@ -459,7 +461,7 @@ def tab (ts : List Task) : Nat → List (String × List String)
 
 /-- The chain recorded for `x` at fuel `k`.
 
-$$\operatorname{cpf}_{ts}(k, x) = \operatorname{look}(T_k, x)$$
+$$\operatorname{cpf}_{ts}(k, x) = \operatorname{look}(\operatorname{tab}(ts, k), x)$$
 -/
 def cpf (ts : List Task) (k : Nat) (x : String) : List String := look (tab ts k) x
 

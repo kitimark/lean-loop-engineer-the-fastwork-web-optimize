@@ -1,10 +1,11 @@
 // `fw run --target original|rewrite --fw <part:variant,...> --preset <name> --engines chromium,webkit [--dry]` (PLAN 10.1).
 // CI-first: this never measures on this machine. It asks fwcore (`store.plan`) for the jobs, prints them (--dry), or
-// dispatches each GitHub Actions workflow with `gh`, waits for the run, downloads its artifacts and files them in the
+// dispatches each GitHub Actions workflow with `gh`, waits for the run on the shared poller (`fw ci wait`), downloads its artifacts and files them in the
 // content-addressed store (`.fw-console/store/`). Every rule (which jobs, what is blocked, whether a manifest is valid,
 // the object paths, the verdict) is Lean's (lean/Fw/Store); the only TS stand-in here is sha256 and file I/O.
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { ghCharged, realEnv, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
@@ -132,12 +133,50 @@ export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, m
 }
 
 // ---- gh (CI) ---------------------------------------------------------------------------------------------------------------
-export type Gh = (args: string[]) => string;
-export const ghCli: Gh = (args) => {
-  const r = spawnSync("gh", args, { encoding: "utf8", env: { ...process.env, GH_PROMPT_DISABLED: "1" }, maxBuffer: 1 << 28 });
-  if (r.status !== 0) throw new Error(`gh ${args.slice(0, 3).join(" ")} failed: ${r.stderr.trim()}`);
-  return r.stdout;
-};
+// Every gh call goes through `ghCharged` (packages/gh-budget): fwcore's `ci.budget.reserve` decides whether it runs, and a
+// wait or stop means gh is not started. Waiting for a run is `waitFor` (the same engine as `fw ci wait`): the shared poller
+// makes the list calls, however many waiters there are.
+export type Gh = (args: string[]) => Promise<string>;
+
+/** Requests one gh command costs (research/notes/2026/10-18-gh-rate-budget.md §1; the budget arithmetic itself is fwcore's).
+ *  A download is booked at an upper bound: 1 listing plus the artifacts of one run. */
+export function ghCost(args: string[]): number {
+  const [a, b] = args;
+  if (a === "run" && b === "list") return args.includes("--workflow") ? 2 : 3;
+  if (a === "run" && b === "view") return args.some((x) => x.includes("jobs")) ? 3 : 2;
+  if (a === "run" && b === "download") return 15;
+  if (a === "workflow" && b === "run") return 2;
+  return 1;
+}
+
+/** A `Gh` that books each call with the budget and sleeps while fwcore says wait. A stop or a gh failure throws. */
+export function chargedGh(env: Env): Gh {
+  return async (args) => {
+    const what = args.slice(0, 3).join(" ");
+    const res = await ghCharged(env, args, { cost: ghCost(args), block: true });
+    if (!res.ran) throw new Error(`gh ${what} not made: the request budget says ${res.decision} (${res.reason}); see \`fw ci budget\``);
+    if (res.code !== 0) throw new Error(`gh ${what} failed: ${res.error ?? "unknown"}`);
+    return res.stdout;
+  };
+}
+
+/** One bounded wait on the shared poller (`waitFor`), `timeoutS` at most. */
+export type WaitFn = (t: Target, timeoutS: number) => Promise<Waited>;
+
+const WAIT_SLICE_S = 540; // one `fw ci wait` slice; fits a Bash tool call
+const WAIT_CAP_S = 4 * 3600;
+
+/** Wait until the target's runs are decided: repeats a timed-out slice, throws when the poller stopped or `capS` passed. */
+export async function waitDecided(wait: WaitFn, t: Target, now: () => number, capS = WAIT_CAP_S): Promise<Waited> {
+  const start = now();
+  for (;;) {
+    const t0 = now();
+    const w = await wait(t, WAIT_SLICE_S);
+    if (w.code !== 3) return w;
+    if (now() - t0 < WAIT_SLICE_S) throw new Error(w.lines.join("; ")); // returned early: the poller stopped, it was not a timeout
+    if (now() - start >= capS) throw new Error(`gave up waiting after ${capS} s: ${w.lines.join("; ")}`);
+  }
+}
 
 /** `gh workflow run` arguments of a job. */
 export const dispatchArgs = (job: PlanJob, ref: string): string[] =>
@@ -168,10 +207,20 @@ export function renderPlan(p: Planned, dry: boolean): string[] {
   return out;
 }
 
-export type RunDeps = { call: FwCall; gh: Gh; store: string; sha: string; branch: string; tmp: string; log: (l: string) => void; pollMs?: number };
+export type RunDeps = {
+  call: FwCall; gh: Gh; wait: WaitFn; store: string; sha: string; branch: string; tmp: string; log: (l: string) => void;
+  /** Epoch seconds. */
+  now: () => number;
+  /** The display name of a workflow file, when it can be read locally (used when the workflow has no earlier run). */
+  workflowName?: (file: string) => string | undefined;
+  capS?: number;
+};
+
+const epoch = (iso: string) => Math.floor(Date.parse(iso) / 1000);
+const runLine = /^run (\d+) /;
 
 /** The whole command. Returns the exit code: 0 ok, 2 refused (problems, blocked job). */
-export function runMain(args: RunArgs, d: RunDeps): number {
+export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
   const sha = args.sha ?? d.sha;
   const planned = planRun(d.call, args, sha, d.store);
   for (const l of renderPlan(planned, args.dry)) d.log(l);
@@ -184,37 +233,41 @@ export function runMain(args: RunArgs, d: RunDeps): number {
     if (j.cache === "hit") { d.log(`${j.engine}: cached at ${j.manifest}`); continue; }
     let runId = args.fromRun[j.engine];
     if (!runId) {
-      const before = latestRun(d.gh, j.workflow, ref);
-      d.gh(dispatchArgs(j, ref));
+      const before = await latestRun(d.gh, j.workflow, ref);
+      const at = d.now();
+      await d.gh(dispatchArgs(j, ref));
       d.log(`${j.engine}: dispatched ${j.workflow} on ${ref}; waiting for the run`);
-      runId = newestRun(d.gh, j.workflow, ref, before, d.pollMs ?? 5000);
+      // the dispatched run is the newest run of that workflow on the ref created after the previous newest one
+      const name = before?.workflowName || d.workflowName?.(j.workflow);
+      const w = await waitDecided(d.wait, { kind: "branch", branch: ref, ...(name ? { workflow: name } : {}), sha, since: before ? epoch(before.createdAt) + 1 : at - 60 }, d.now, d.capS);
+      runId = decided(j.engine, w);
+    } else {
+      runId = decided(j.engine, await waitDecided(d.wait, { kind: "run", runId: Number(runId) }, d.now, d.capS));
     }
-    d.gh(["run", "watch", runId, "--exit-status"]);
-    const head = (JSON.parse(d.gh(["run", "view", runId, "--json", "headSha"])) as { headSha: string }).headSha;
+    const head = (JSON.parse(await d.gh(["run", "view", runId, "--json", "headSha"])) as { headSha: string }).headSha;
     if (head !== sha) throw new UsageError(`${j.engine}: run ${runId} measured ${head.slice(0, 7)}, not ${sha.slice(0, 7)}`);
     const dir = join(d.tmp, `${j.engine}-${runId}`);
     mkdirSync(dir, { recursive: true });
-    d.gh(["run", "download", runId, "-D", dir]);
+    await d.gh(["run", "download", runId, "-D", dir]);
     const r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runId });
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);
   }
   return 0;
 }
 
-/** The id of the newest run of a workflow on a ref, or null when it has none. */
-export function latestRun(gh: Gh, workflow: string, ref: string): string | null {
-  const rows = JSON.parse(gh(["run", "list", "--workflow", workflow, "--branch", ref, "--limit", "1", "--json", "databaseId"])) as { databaseId: number }[];
-  return rows[0] ? String(rows[0].databaseId) : null;
+export type LatestRun = { id: string; createdAt: string; workflowName: string };
+
+/** The newest run of a workflow on a ref, or null when it has none. */
+export async function latestRun(gh: Gh, workflow: string, ref: string): Promise<LatestRun | null> {
+  const rows = JSON.parse(await gh(["run", "list", "--workflow", workflow, "--branch", ref, "--limit", "1", "--json", "databaseId,createdAt,workflowName"])) as { databaseId: number; createdAt?: string; workflowName?: string }[];
+  return rows[0] ? { id: String(rows[0].databaseId), createdAt: rows[0].createdAt ?? "", workflowName: rows[0].workflowName ?? "" } : null;
 }
 
-/** The run just dispatched: the newest run once it differs from `before` (polls up to 24 times, `pollMs` apart). */
-export function newestRun(gh: Gh, workflow: string, ref: string, before: string | null, pollMs: number): string {
-  for (let i = 0; i < 24; i++) {
-    const id = latestRun(gh, workflow, ref);
-    if (id && id !== before) return id;
-    if (pollMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, pollMs);
-  }
-  throw new Error(`no new run of ${workflow} on ${ref} appeared after dispatch`);
+/** The run id of a decided wait; a run that did not succeed stops the command (like `gh run watch --exit-status`). */
+function decided(engine: string, w: Waited): string {
+  const id = runLine.exec(w.lines[0] ?? "")?.[1];
+  if (w.code === 0 && id) return id;
+  throw new Error(`${engine}: ${w.code === 1 ? "the run did not succeed: " : "cannot wait for the run: "}${w.lines.join("; ")}`);
 }
 
 /** Count reduction and verdict: base and var runs per engine -> fwcore's `store.reduce`. */
@@ -226,12 +279,17 @@ export const storeDir = (consoleDir: string) => join(consoleDir, "store");
 export const isDir = (p: string) => existsSync(p) && statSync(p).isDirectory();
 
 /** `fw run ...` from the shell. Needs no console-api. */
-export function runCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env): number {
+export async function runCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env): Promise<number> {
   const vcs = (...a: string[]) => spawnSync("git", a, { cwd, encoding: "utf8" }).stdout.trim();
   const args = parseRunArgs(argv);
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(vcs("rev-parse", "--path-format=absolute", "--git-common-dir")), ".fw-console");
+  const genv = args.dry ? null : realEnv(cwd); // --dry makes no gh call and needs no budget state
+  const unused = (): never => { throw new Error("no gh call in --dry"); };
   return runMain(args, {
-    call: fwcoreCall(cwd), gh: ghCli, store: storeDir(consoleDir), sha: vcs("rev-parse", "HEAD"), branch: vcs("rev-parse", "--abbrev-ref", "HEAD"),
+    call: fwcoreCall(cwd), gh: genv ? chargedGh(genv) : unused, wait: genv ? (t, timeoutS) => waitFor(genv, t, { timeoutS }) : unused,
+    now: genv ? genv.now : () => Math.floor(Date.now() / 1000),
+    workflowName: (f) => { try { return /^name:\s*["']?([^"'\n#]+?)["']?\s*(?:#.*)?$/m.exec(readFileSync(join(cwd, ".github", "workflows", f), "utf8"))?.[1]; } catch { return undefined; } },
+    store: storeDir(consoleDir), sha: vcs("rev-parse", "HEAD"), branch: vcs("rev-parse", "--abbrev-ref", "HEAD"),
     tmp: join(consoleDir, "tmp"), log: (l) => console.log(l),
   });
 }

@@ -64,7 +64,7 @@ Sources (read-only; names, counts and times only, never payload text):
   Workflow done: `<session>/workflows/<wf>.json` has a `status` other than running/pending. The newest file with the
   agent id wins. A transcript-only agent that ended with text or a finished `StructuredOutput` call counts as stopped.
 - system: `sysctl kern.memorystatus_vm_pressure_level`, statfs, `.local/locks/sim`, `docker ps` (3 s),
-  `git worktree list`, `.fw-console/api.json`, `gh run list` (10 s; `updatedAt` of a completed run is its end),
+  `git worktree list`, `.fw-console/api.json`, `gh run list` (through the request budget, `ghCharged`: a wait or stop from the budget keeps the previous value, marked stale; `updatedAt` of a completed run is its end),
   `ps -A -o pid=,ppid=,etime=,comm=` (process trees: the shell children of this process's nearest `claude` ancestor,
   named by their first non-shell program, executable basename only; a tree keeps its first name and owner),
 `lsof -a -d 1 -Fpn -p <tree roots>` (3 s; exit 1 for a root that ended meanwhile still counts; the root shell's stdout `.../tasks/<id>.output` names the Bash task; the

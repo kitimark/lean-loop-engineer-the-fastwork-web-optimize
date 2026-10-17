@@ -127,7 +127,8 @@ $$\operatorname{act}(d, w) = \begin{cases} \mathrm{attach} & \lnot d \land w \\ 
 def action (attached want : Bool) : Action :=
   if want && !attached then .attach else if !want && attached then .detach else .none
 
-/-- Attached state after the action. $$\operatorname{after}(\mathrm{attach}) = \top,\ \operatorname{after}(\mathrm{detach}) = \bot$$ -/
+/-- Attached state after the action, given the current attached state `d`.
+$$\operatorname{after}_d(\mathrm{attach}) = \top,\ \operatorname{after}_d(\mathrm{detach}) = \bot,\ \operatorname{after}_d(\mathrm{none}) = d$$ -/
 def Action.after (d : Bool) : Action → Bool
   | .attach => true | .detach => false | .none => d
 
