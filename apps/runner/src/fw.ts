@@ -8,12 +8,15 @@ import { readFileSync } from "node:fs";
 import { watchMain } from "./watch.ts";
 import { runCli } from "./run.ts";
 import { ciCli } from "./ci.ts";
+import { ghBudgetCli } from "@fw/gh-budget";
 
 const [group, ...rest] = process.argv.slice(2);
 try {
   const base = group === "run" || group === "ci" ? "" : apiBase(process.env); // `fw run` needs no console-api
   if (group === "run") {
     process.exitCode = runCli(rest, process.cwd());
+  } else if (group === "ci" && (rest[0] === "wait" || rest[0] === "budget")) {
+    process.exitCode = await ghBudgetCli(rest, process.cwd()); // shared GitHub poller: no gh loops (packages/gh-budget)
   } else if (group === "ci") {
     process.exitCode = ciCli(rest, process.cwd());
   } else if (group === "watch") {
