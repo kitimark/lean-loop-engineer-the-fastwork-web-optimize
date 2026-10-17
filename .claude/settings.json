@@ -2,7 +2,9 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_ENABLE_TODO_TOOLS": "1"
+    "CLAUDE_CODE_ENABLE_TODO_TOOLS": "1",
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2",
+    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "6"
   },
   "teammateMode": "in-process",
   "worktree": {
@@ -17,6 +19,9 @@
       "Bash(brew list*)",
       "Bash(lake build*)",
       "Bash(lake env lean *)",
+      "Bash(lake test*)",
+      "Bash(lake exe *)",
+      "Bash(lake update*)",
       "Bash(xcrun simctl list*)",
       "mcp__serena__find_symbol",
       "mcp__serena__find_referencing_symbols",
@@ -26,7 +31,10 @@
     "ask": [
       "Bash(git remote add *)",
       "Bash(git config remote.*)",
-      "Agent(model:fable)"
+      "Agent(model:*fable*)",
+      "CronCreate",
+      "Edit(/.claude/**)",
+      "Edit(/CLAUDE.md)"
     ],
     "deny": [
       "Bash(git push*)",
@@ -34,14 +42,15 @@
       "Bash(git add -f *)",
       "Bash(git add --force*)",
       "Bash(git commit*--no-verify*)",
-      "Bash(gh pr create*)",
+      "Bash(git commit -n*)",
+      "Bash(git commit * -n *)",
+      "Bash(git -C ../fastwork-com-web-optimize *)",
+      "Bash(gh api*)",
+      "Bash(gh pr *)",
       "Bash(gh repo create*)",
       "Bash(gh release*)",
       "Bash(gh gist*)",
-      "Edit(/.local/**)",
-      "Write(/.local/**)",
-      "Edit(/../fastwork-com-web-optimize/**)",
-      "Write(/../fastwork-com-web-optimize/**)"
+      "Edit(/.local/**)"
     ]
   }
 }

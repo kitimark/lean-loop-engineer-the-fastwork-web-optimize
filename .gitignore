@@ -1,2 +1,3 @@
 # local-only: v1 chat digests (personal data), toolchain caches, Fastwork snapshot
 .local/
+.claude/settings.local.json
