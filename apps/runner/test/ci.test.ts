@@ -1,0 +1,143 @@
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { ciMain, parseCiArgs, searchConfig, selectCiRun, type CiRunInfo } from "../src/ci.ts";
+import { UsageError } from "../src/lib.ts";
+import { fwcoreCall, type FwCall, type Gh } from "../src/run.ts";
+
+const SHA = "0123456789abcdef0123456789abcdef01234567";
+const IMG = "sha256:" + "ab".repeat(32);
+const job = (name: string, conclusion = "success") => ({ name, conclusion });
+const run = (over: Partial<CiRunInfo> = {}): CiRunInfo => ({
+  runId: "42", workflowName: "chromium-counts", status: "completed", conclusion: "success", headSha: SHA,
+  jobs: [job("plan"), job("counts (original, r1)"), job("counts (original, r2)"), job("counts (rewrite, r1)"), job("counts (rewrite, r2)"), job("classify")], ...over,
+});
+const ALL = ["chromium-counts-original-r1", "chromium-counts-original-r2", "chromium-counts-rewrite-r1", "chromium-counts-rewrite-r2"];
+
+describe("selectCiRun (table)", () => {
+  const cases: [string, CiRunInfo, string[], string[], string[] | "ok"][] = [
+    ["complete run", run(), ALL, ["original", "rewrite"], "ok"],
+    ["failed run", run({ conclusion: "failure" }), ALL, ["original", "rewrite"], ["run 42 concluded failure, not success"]],
+    ["cancelled run", run({ conclusion: "cancelled" }), ALL, ["original", "rewrite"], ["run 42 concluded cancelled, not success"]],
+    ["in progress", run({ status: "in_progress", conclusion: "" }), ALL, ["original", "rewrite"], ["run 42 is in_progress, not completed"]],
+    ["other workflow", run({ workflowName: "webkit-sim" }), ALL, ["original", "rewrite"], ["run 42 is workflow webkit-sim, not chromium-counts"]],
+    ["missing shard artifact", run(), ALL.slice(0, 3), ["original", "rewrite"], ["missing shard artifact chromium-counts-rewrite-r2"]],
+    ["failed shard job", run({ jobs: [job("counts (original, r1)", "failure"), job("counts (original, r2)")] }), ALL.slice(0, 2), ["original"], ["shard chromium-counts-original-r1: job failure"]],
+    ["missing classes dir", run(), ALL, ["original"], ["missing chromium-classes/rewrite"]],
+    ["no shard jobs", run({ jobs: [job("plan")] }), [], [], ["run 42 has no counts shard jobs"]],
+  ];
+  for (const [name, r, have, dirs, want] of cases) {
+    it(name, () => {
+      const s = selectCiRun(r, have, dirs);
+      if (want === "ok") expect(s).toMatchObject({ ok: true });
+      else expect(s).toEqual({ ok: false, refusals: want });
+    });
+  }
+  it("lists shards per target, sorted", () => {
+    const s = selectCiRun(run(), ALL, ["original", "rewrite"]);
+    expect(s.ok && s.targets).toEqual([
+      { target: "original", shards: ALL.slice(0, 2), classes: "original" }, { target: "rewrite", shards: ALL.slice(2), classes: "rewrite" }]);
+  });
+});
+
+describe("searchConfig", () => {
+  it.each([
+    ["", "original", []], ["?preset=strip-demo", "strip-demo", []], ["?fw=hero.countdown:strip", "original", ["hero.countdown:strip"]],
+    ["?preset=p&fw=a:x,b:y", "p", ["a:x", "b:y"]],
+  ])("%s", (q, preset, fw) => expect(searchConfig(q)).toEqual({ preset, fw }));
+});
+
+describe("parseCiArgs", () => {
+  it("defaults and flags", () => {
+    expect(parseCiArgs([])).toEqual({ workflow: "chromium-counts", branch: "main" });
+    expect(parseCiArgs(["123", "--branch", "ci/x", "--store", "/s"])).toEqual({ runId: "123", workflow: "chromium-counts", branch: "ci/x", store: "/s" });
+    expect(() => parseCiArgs(["--nope"])).toThrow(UsageError);
+    expect(() => parseCiArgs(["--branch"])).toThrow(UsageError);
+    expect(() => parseCiArgs(["abc"])).toThrow(UsageError);
+  });
+});
+
+const hasCore = (() => { try { fwcoreCall(process.cwd()); return true; } catch { return false; } })();
+
+describe.skipIf(!hasCore)("ciMain against fwcore", () => {
+  const call: FwCall = hasCore ? fwcoreCall(process.cwd()) : () => ({});
+  const mk = () => mkdtempSync(join(tmpdir(), "fwci-"));
+  const put = (p: string, s: string) => { mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, s); };
+  /** A gh double: `run view` returns `info`, `run download` writes the artifacts of `shards`/`classes`. */
+  function fakeGh(info: object, shards: string[], classes: string[], calls: string[][] = [], search = ""): Gh {
+    return (a) => {
+      calls.push(a);
+      if (a[0] === "run" && a[1] === "view") return JSON.stringify(info);
+      if (a[0] === "run" && a[1] === "download") {
+        const dir = a[a.indexOf("-D") + 1]!;
+        for (const s of shards) {
+          const t = s.split("-")[2]!;
+          put(join(dir, s, "counts.json"), JSON.stringify({ profile: { id: "swipe-v1" }, meta: { target: t, search: t === "rewrite" ? search : "" } }));
+          put(join(dir, s, "image-id.txt"), IMG + "\n");
+        }
+        for (const c of classes) put(join(dir, "chromium-classes", c, "classes.json"), `{"t":"${c}"}`);
+        return "";
+      }
+      throw new Error(`unexpected gh ${a.join(" ")}`);
+    };
+  }
+  const info = { workflowName: "chromium-counts", status: "completed", conclusion: "success", headSha: SHA, jobs: run().jobs };
+  const deps = (gh: Gh, store: string, logs: string[]) => ({ call, gh, store, tmp: mk(), log: (l: string) => logs.push(l) });
+  const files = (d: string): string[] => (existsSync(d) ? readdirSync(d, { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).map((e) => join(e.parentPath, e.name)) : []);
+
+  it("stores one key per target, and a second pull of the same run changes nothing", () => {
+    const store = mk(), logs: string[] = [];
+    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs))).toBe(0);
+    expect(logs.filter((l) => l.includes(" stored,"))).toHaveLength(2);
+    const before = files(store).sort();
+    expect(before.filter((f) => f.endsWith("manifest.json"))).toHaveLength(2);
+    const manifests = before.filter((f) => f.endsWith("manifest.json")).map((f) => JSON.parse(readFileSync(f, "utf8")));
+    expect(manifests.map((m) => m.target).sort()).toEqual(["original", "rewrite"]);
+    expect(manifests[0]).toMatchObject({ engine: "chromium", preset: "original", fw: [], profile: "swipe-v1", gitSha: SHA, image: IMG, runId: "42" });
+    expect(manifests[0].entries.map((e: { name: string }) => e.name)).toEqual(expect.arrayContaining(["ci.json", "classes/classes.json", "r1/counts.json", "r2/image-id.txt"]));
+    const logs2: string[] = [];
+    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs2))).toBe(0);
+    expect(logs2.filter((l) => l.endsWith("(5 artifacts)") || l.includes(" unchanged "))).toHaveLength(2);
+    expect(files(store).sort()).toEqual(before);
+  });
+
+  it("takes preset and flags of the rewrite from its query", () => {
+    const store = mk();
+    const q = "?preset=strip-demo&fw=hero.countdown:strip";
+    const rw = { ...info, jobs: [job("counts (rewrite, r1)"), job("counts (rewrite, r2)")] };
+    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(rw, ALL.slice(2), ["rewrite"], [], q), store, []))).toBe(0);
+    const m = JSON.parse(readFileSync(files(store).find((f) => f.endsWith("manifest.json"))!, "utf8"));
+    expect(m).toMatchObject({ target: "rewrite", preset: "strip-demo", fw: ["hero.countdown:strip"] });
+  });
+
+  it("refuses a failed run before downloading anything", () => {
+    const calls: string[][] = [], logs: string[] = [];
+    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh({ ...info, conclusion: "failure" }, ALL, [], calls), mk(), logs))).toBe(2);
+    expect(logs).toEqual(["refused: run 42 concluded failure, not success"]);
+    expect(calls.some((c) => c[1] === "download")).toBe(false);
+  });
+
+  it("refuses a run with a missing shard and stores nothing", () => {
+    const store = mk(), logs: string[] = [];
+    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL.slice(0, 3), ["original", "rewrite"]), store, logs))).toBe(2);
+    expect(logs).toEqual(["refused: missing shard artifact chromium-counts-rewrite-r2"]);
+    expect(files(store)).toEqual([]);
+  });
+
+  it("without a run id it takes the latest run of the workflow on the branch", () => {
+    const logs: string[] = [], calls: string[][] = [];
+    const inner = fakeGh(info, ALL, ["original", "rewrite"], calls);
+    const gh: Gh = (a) => (a[0] === "run" && a[1] === "list" ? JSON.stringify([{ databaseId: 77 }]) : inner(a));
+    expect(ciMain({ workflow: "chromium-counts", branch: "main" }, deps(gh, mk(), logs))).toBe(0);
+    expect(calls.find((c) => c[1] === "view")![2]).toBe("77");
+  });
+
+  it("a different run with the same key is not overwritten", () => {
+    const store = mk();
+    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, []))).toBe(0);
+    const logs: string[] = [];
+    expect(ciMain({ runId: "43", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs))).toBe(2);
+    expect(logs[0]).toMatch(/already stored from run 42/);
+  });
+});

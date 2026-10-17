@@ -96,13 +96,13 @@ export function presentRuns(store: string): string[] {
 const walk = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
 
-export type Ingest = { manifest: RunManifest; path: string; objects: number; reused: number };
+export type Ingest = { manifest: RunManifest; path: string; objects: number; reused: number; digest: string; unchanged?: boolean };
 
 /**
  * File a downloaded CI run: hash every file, copy it to its content-addressed object (fwcore gives the path), build the
  * manifest and have fwcore validate it before it is written. Throws, naming the problems, when fwcore refuses.
  */
-export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, meta: { target: string; preset: string; fw: string[]; profile: string; gitSha: string; runId: string }): Ingest {
+export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, meta: { target: string; preset: string; fw: string[]; profile: string; gitSha: string; runId: string }, opts: { keepSameRun?: boolean } = {}): Ingest {
   const files = walk(dir).map((p) => ({ p, name: relative(dir, p).split("\\").join("/") })).sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0));
   const entries = files.map(({ p, name }) => { const b = readFileSync(p); return { name, digest: sha256(b), bytes: b.length, p }; });
   const manifest: RunManifest = {
@@ -111,6 +111,14 @@ export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, m
   };
   const checked = ManifestReply.parse(call({ op: "store.manifest", manifest }));
   if (!checked.valid) throw new UsageError(`manifest refused: ${checked.problems.join("; ")}`);
+  const digest = keyDigest(checked.key as [string, string][]);
+  const mpath = join(store, "runs", digest, "manifest.json");
+  if (opts.keepSameRun && existsSync(mpath)) {
+    // `fw ci`: the key is already filed. The same run again changes nothing; another run of the same key is not ours to overwrite.
+    const old = JSON.parse(readFileSync(mpath, "utf8")) as RunManifest;
+    if (old.runId !== manifest.runId) throw new UsageError(`key ${digest.slice(0, 12)} is already stored from run ${old.runId}; run ${manifest.runId} has the same key (not overwritten)`);
+    return { manifest: old, path: mpath, objects: 0, reused: entries.length, digest, unchanged: true };
+  }
   let reused = 0;
   entries.forEach((e, i) => {
     const dest = join(store, checked.paths![i]!);
@@ -118,11 +126,9 @@ export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, m
     mkdirSync(dirname(dest), { recursive: true });
     copyFileSync(e.p, dest);
   });
-  const digest = keyDigest(checked.key as [string, string][]);
-  const mpath = join(store, "runs", digest, "manifest.json");
   mkdirSync(dirname(mpath), { recursive: true });
   writeFileSync(mpath, JSON.stringify(manifest, null, 2) + "\n");
-  return { manifest, path: mpath, objects: entries.length - reused, reused };
+  return { manifest, path: mpath, objects: entries.length - reused, reused, digest };
 }
 
 // ---- gh (CI) ---------------------------------------------------------------------------------------------------------------
