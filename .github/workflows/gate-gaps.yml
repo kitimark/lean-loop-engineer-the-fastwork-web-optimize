@@ -43,7 +43,27 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 
 jobs:
+  # Paths guard: see wktr.yml. Gates every job of the workflow on a ci/* push; main pushes and dispatches always run.
+  guard:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/gate-gaps.yml
+
   site:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
@@ -110,8 +130,8 @@ jobs:
 
   # Dispatch only, one VM, max-parallel 1, tight timeout: the account has 5 macOS slots shared by every macOS lane.
   collect-macos:
-    needs: [site]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.macos }}
+    needs: [guard, site]
+    if: ${{ needs.guard.outputs.run == 'true' && github.event_name == 'workflow_dispatch' && inputs.macos }}
     runs-on: xcode-27
     timeout-minutes: 40
     strategy:

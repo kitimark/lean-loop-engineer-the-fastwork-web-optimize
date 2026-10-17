@@ -21,6 +21,12 @@ name: sim-speed
 on:
   push:
     branches: ['ci/sim-speed']
+    paths:
+      - 'packages/measure-webkit/**'
+      - '.github/scripts/sim-speed-*'
+      - '.github/scripts/check-simulator.sh'
+      - '.github/scripts/runner-info.sh'
+      - '.github/workflows/sim-speed.yml'
   workflow_dispatch:
     inputs:
       arms:
@@ -40,7 +46,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Paths guard: see wktr.yml. Gates every job of the workflow on a ci/* push; main pushes and dispatches always run.
+  guard:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/sim-speed.yml
+
   plan:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -61,7 +87,8 @@ jobs:
           echo "$matrix"
 
   probe:
-    needs: plan
+    needs: [guard, plan]
+    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
     strategy:

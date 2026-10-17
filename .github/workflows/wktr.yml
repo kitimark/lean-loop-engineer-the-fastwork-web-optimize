@@ -41,7 +41,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Paths guard (research: ci-paths-guard handoff). A merge of main into a ci/* branch makes GitHub's push `paths:` filter
+  # (before-sha..sha) match, so every macOS lane would start. This job re-asks the question against the merge-base with
+  # main and the workflow's own `on.push.paths` list; main pushes and workflow_dispatch always run. Fails open on error.
+  guard:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Unit-test the guard
+        run: node --test .github/scripts/changed-inputs.test.mjs
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/wktr.yml
+
   plan:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -62,7 +86,8 @@ jobs:
   # One macOS job at a time (the five macOS slots are shared by all lanes; research/notes/2026/10-17-macos-queue.md).
   # The first job finds no cached archive, downloads it and saves it when it ends; the next jobs restore it.
   wktr:
-    needs: [plan]
+    needs: [guard, plan]
+    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: macos-26
     timeout-minutes: 60
     strategy:
@@ -140,6 +165,8 @@ jobs:
 
   # fwcore decides the classes (Lean Fw.Measure.classify); it is built here and used by the classes job.
   fwcore:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
@@ -159,8 +186,8 @@ jobs:
 
   # Classes per count type over every pass of every job (policy kMax 4, tMax 24), and over the passes of each job alone.
   classes:
-    needs: [wktr, fwcore]
-    if: ${{ always() && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' }}
+    needs: [guard, wktr, fwcore]
+    if: ${{ always() && needs.guard.outputs.run == 'true' && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
