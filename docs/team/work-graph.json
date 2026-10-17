@@ -1470,6 +1470,22 @@
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
    ]
+  },
+  {
+   "id": "math-r10-fix",
+   "title": "Fix the 4 disagree rows of math review round 10 (Gate.pilotParts, ScopeGen.unionJson and hypothesisText, Arms.crossLevel_classify); lint a where-clause placed after the $$ block",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "gate-probe-scope",
+    "n1-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/Fw/Measure/Arms.lean",
+    "lean/MathViewMain.lean"
+   ]
   }
  ]
 }
