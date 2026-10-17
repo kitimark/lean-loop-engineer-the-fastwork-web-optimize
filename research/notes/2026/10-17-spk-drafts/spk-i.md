@@ -2,59 +2,98 @@
 id: 2026-10-17-spk-i
 kind: note
 title: "SPK-i: BeginFrameControl in a linux-arm64 container, fonts from snapshot only, byte-identical count vectors"
-status: draft
+status: decided
 created: 2026-10-17
-topics: [spike, decision-record, chromium, determinism, counts-lane, v-i]
+topics: [spike, decision-record, chromium, determinism, counts-lane, v-i, ci]
 ---
 
-# SPK-i (DRAFT decision record)
+# SPK-i (decision record)
+
+**Decision.** Byte-identical count vectors are **not reached** and are dropped as a goal. V-i is re-scoped to
+**per-type determinism classes**: every Chromium count type is classified by Lean `measure.classify`
+(`lean/Fw/Measure/Classes.lean`, `classify` l.158 @32c6336) under the policy **kMax = 4 frames, tMax = 24 count
+units, 3 runs**, as deterministic, stable or quarantined. The first CI evidence (run 39029423874 @ee18c6b) gives
+**33 deterministic, 20 stable, 9 quarantined** of 62 types. The other two parts of the question pass: BeginFrameControl
+works in the container, and fonts come only from `snapshot/`.
 
 **Question (PLAN Appendix B).** Does linux-arm64 headless-shell in a container accept BeginFrameControl with the three
 flags, with fonts only from `snapshot/`, and give byte-identical count vectors?
 
-**Status: PARTIAL.** Two of the three parts pass; the vectors are not byte-identical overall.
-
-**Answer.**
-1. BeginFrameControl with the three flags in the container: **yes**.
-2. Fonts only from `snapshot/`: **yes** (no font files in the image).
-3. Byte-identical count vectors: **no** over 3 runs. By count type (Lean `measure.classify`, kMax 4, tMax 24):
-   **28 deterministic, 14 stable, 8 quarantined** (50 types).
+| Part | Answer | Status |
+|---|---|---|
+| BeginFrameControl in the container | yes: 503 virtual frames per run on CI | MEASURED (run 39029423874, job `counts (r1)`: `frames=503`, host wall 87.8 s) |
+| Fonts only from `snapshot/` | yes: the image has no system fonts | MEASURED (run 39029423874, job `image`: `fc-list lines: 0`; check in `packages/measure-chromium/src/image-check.sh:5`) |
+| Byte-identical count vectors | no: all three `counts.json` and `zones.json` sha256 differ | MEASURED (run 39029423874, job `classify`, `sha256-all.txt`) |
 
 ## Evidence
+
 | Claim | Evidence | Status |
 |---|---|---|
-| Chromium refuses BeginFrameControl on macOS, hence the container | `headless/lib/browser/protocol/target_handler.cc` l.62-65 @317846d579b2 (PLAN §4.1; `packages/measure-chromium/README.md`) | CONFIRMED |
-| Flags `--enable-begin-frame-control --deterministic-mode --run-all-compositor-stages-before-draw` (+ `--disable-gpu`, `--font-render-hinting=none`, `--force-color-profile=srgb`); 503 virtual frames per run, about 85 s wall time | `packages/measure-chromium/README.md` "One virtual frame" @ddc91b2; `docs/team/handoffs/meas-chromium.md` @878032a | MEASURED |
-| Image has no fonts (`fc-list` empty, no font files); webfonts come from the snapshot only; every host except 127.0.0.1 is unresolvable | `packages/measure-chromium/src/image-check.sh` @e01f9e5; README "What is pinned" | MEASURED |
-| 3 runs are not byte-identical; classes 28/14/8 | `lean-measure.md` "Goldens and conformance" @ddc91b2; README "Determinism" | MEASURED |
-| Noise sources removed: rAF timestamp clock plus per-run origin; timer phase shifted by pre-commit frames; a 100 ms real-time barrier removed the PaintImage/RasterTask shifts | README "Determinism" | MEASURED |
-| Remaining noise: HitTest (98-119 frames by 1, hover recompute), GC-bound types, `elementCount` (38 frames) | README, `class-policy.md` | MEASURED |
-| `Network.enable` hangs beginFrame at navigation commit; in-flight requests are counted server-side | `meas-chromium.md` | MEASURED |
-| Apt library versions are not pinned (image id recorded in `meta.image`) | README "What is pinned" | INFERRED not to matter |
+| Chromium refuses BeginFrameControl on macOS, hence the container | `headless/lib/browser/protocol/target_handler.cc` l.62-65 @317846d579b2 (PLAN §4.1) | CONFIRMED |
+| As-built flags: `--enable-begin-frame-control --run-all-compositor-stages-before-draw` plus `--disable-new-content-rendering-timeout --disable-checker-imaging --disable-image-animation-resync --num-raster-threads=2 --disable-gpu`; `--deterministic-mode` was dropped at 70c3370 | `packages/measure-chromium/src/run.mjs:32-36` @32c6336; PLAN §4.2 step 1 | CONFIRMED |
+| CI classes 33 / 20 / 9 (62 types, 3 runs on separate `ubuntu-24.04-arm` runners, one image `sha256:aa5134f54884`) | `gh run view 39029423874` (headSha ee18c6b), job `classify`: `classify.mjs ... --kMax 4 --tMax 24` | MEASURED |
+| The CI classifier is the Lean one: `classify.mjs` decides nothing, it calls fwcore `measure.classify` mode `frames` | `packages/measure-chromium/src/classify.mjs:1,12`; `src/fwcore.mjs:38` @32c6336 | CONFIRMED |
+| Class meaning: deterministic = no frame differs in any run pair; stable(k, t) = k <= kMax frames differ and totals differ by t <= tMax; else quarantined. The class is the strictest that holds | `Classes.lean` l.124 (`Policy`), l.158 (`classify`), `classify_sound` l.384, `classify_strictest` l.412 @32c6336 | CONFIRMED |
+| Use: deterministic types frame by frame; stable(k, t) only as totals with margin 2t; quarantined never | `lean/Fw/Measure/Tolerance.lean` `margin_exact` l.193, `quarantined_unsound` l.234, `stable_frames_unsound` l.144 @32c6336 | CONFIRMED |
+| Quarantined on CI: census.activeTileAreaPx (k 1, t 16384), census.drawingAreaPx (k 1, t 752), metric.LayoutObjects, metric.Nodes, trace.HitTest (k 116), trace.Layer.deleted, trace.MajorGC, trace.MinorGC, trace.UpdateLayoutTree.elementCount | run 39029423874, job `classify` | MEASURED |
+| Earlier Mac container result: 28 / 14 / 8 of 50 types (before the census and raster types were added) | `docs/team/handoffs/lean-measure.md` @ddc91b2; PLAN §4.2 table | MEASURED (local, superseded by CI) |
 
-**Evidence commit:** `e01f9e5` (lane), `878032a` (handoff), `ddc91b2` (Lean classes, README); HEAD `30e3264`.
+## Classes are not stable across CI workflow runs (new finding)
+
+Same Chromium lane code in all three runs (`git diff ee18c6b da5d49e` touches only a docstring in
+`lean/Fw/Measure/WebKit.lean`; `git diff ee18c6b 12271fd` is empty for `packages/measure-chromium`, the workflow,
+`snapshot/` and `lean/Fw/Measure`; CONFIRMED). Each workflow run builds its own image.
+
+| Run id | headSha | Image id | det / stable / quar | Status |
+|---|---|---|---|---|
+| 39029423874 | ee18c6b | `sha256:aa5134f54884` | 33 / 20 / 9 | MEASURED |
+| 39031884554 | da5d49e | `sha256:2c8d323772c9` | 31 / 21 / 10 | MEASURED |
+| 39033771018 | 12271fd | `sha256:5315b7be0edc` | 27 / 25 / 10 | MEASURED |
+
+Types that change class (MEASURED, `classify` job of each run): metric.Documents and metric.Frames (det -> stable in
+the 2nd and 3rd run); trace.CullRectUpdate, trace.ImageDecodeTask, trace.PaintImage, trace.ResizeObserverNotify
+(det -> stable in the 3rd run); trace.Paint (stable k 4 -> quarantined k 5, t 4 in the 2nd and 3rd run).
+
+- The worst class per type over the three runs is 27 / 25 / 10, which equals run 39033771018 (MEASURED, by comparison
+  of the three tables). A single classification over all 9 runs can only be this strict or stricter, since adding runs
+  only demotes (`classify_mono`, `Classes.lean` l.437 @32c6336, CONFIRMED; the 9-run table itself was not computed, INFERRED).
+- Cause: runner-to-runner noise or image differences; the image ids differ but a rebuild changes the id even with equal
+  content, and apt versions are not pinned, so the two causes are confounded (INFERRED).
+
+## Contradictions with the plan and the class policy (listed, not edited)
+
+1. **V-i use of stable types.** PLAN §1.2 V-i row (l.152) says "Chromium: every type used for screening is
+   deterministic". `class-policy.md` §2 and the earlier draft of this record proposed "deterministic, or stable and used
+   only as totals with margin 2t". The lead must pick one; with CI numbers, "deterministic only" excludes trace.Layout,
+   trace.Paint, trace.RasterTask and LayoutCount from screening.
+2. **Numbers are out of date.** PLAN §4.2 and `class-policy.md` §2 report 28 / 14 / 8 of 50 types (Mac, pre-70c3370).
+   The as-built lane has 62 types; the CI tables above supersede it. `class-policy.md` also lists metric.Frames and
+   metric.Resources as stable and metric.Documents as quarantined; run 39029423874 has all three deterministic.
+3. **"Frozen" classes vs drift.** PLAN §4.2 cites only 33 / 20 / 9 (ee18c6b). Two later runs of the same code give
+   different classes (table above), so a class signed from one workflow run does not hold for the next.
+4. **tMax in pixels.** `class-policy.md` says tMax = 24 "only mattered for elementCount". On CI two pixel-area types
+   (activeTileAreaPx t 16384, drawingAreaPx t 752, both k = 1) are quarantined by tMax alone, so one tMax in "count
+   units" now governs pixel areas too (MEASURED values; the unit mismatch is INFERRED to be unintended).
+5. **Flags.** The earlier draft of this record and `packages/measure-chromium/README.md:46` still list
+   `--deterministic-mode`; `run.mjs:34` and PLAN §4.2 say it was dropped (CONFIRMED).
 
 ## Missing
-- Byte-identical vectors for the 28 deterministic types is true by definition; a signed "two identical runs" artifact
-  for those types as a vector (not just a table) is not stored (`out/` is gitignored).
-- Known gaps: software raster only (headed Mac Chrome uses GPU raster; V-a compares), programmatic `scrollTo` instead
-  of touch, no raster-invalidation rects or layer census, apt versions not pinned.
-- `meas-chromium-2` has uncommitted changes (clock shim, run loop, Dockerfile, apt manifest, fixtures); not evidence yet.
-
-## Proposed V-i re-scope (for the lead)
-PLAN V-i today: "Chromium: all used types deterministic". Proposed: **each used count type is deterministic, or stable
-under the signed policy and used only by totals with margin 2t; quarantined types are logged and never gated on**
-(`class-policy.md`; theorems `margin_exact`, `quarantined_unsound`). PLAN §4.1's own fallback ("V-i is re-scoped to the
-count types that stay deterministic without compositor stepping") is not the case here: stepping works. The re-scope
-is about *which types*, not about stepping.
+- A 9-run (or cross-run) classification artifact; a pinned image (apt pins or a cached image digest across workflow
+  runs) to separate image drift from runner noise.
+- Software raster only, programmatic `scrollTo` instead of touch for the original (touch wedges BeginFrame, PLAN §4.2).
 
 ## Next step
-1. Lead signs `class-policy.md` and this re-scope (decides whether M0's "or SPK-i failure recorded and V-i re-scoped"
-   clause is used). Owner: lead.
-2. Decide which of the 14 stable types K1-K9 need (Layout, Paint, RasterTask, ...) and, if a type must be exact, try to
-   make it deterministic (more barriers, GPU-less raster pinning, apt pin). Owner: measure-engineer (meas-chromium-2).
-3. Commit a pair of count vectors for the original as the M0 artifact. Owner: measure-engineer.
+1. Lead signs this record and `class-policy.md` after choosing contradiction 1. Owner: lead.
+2. Freeze the class table as the worst class over at least 3 workflow runs (or one 9-run classify), with the image
+   pinned. Owner: measure-engineer.
+3. Decide whether pixel-area census types get their own tolerance or stay quarantined. Owner: lean-prover (policy in
+   `Classes.lean`), lead.
 
 ## What this changes in the plan
-- §4.2 V-i row and §10.2 M0 row: use the re-scoped criterion above. §4.1: add "BeginFrameControl and snapshot-only fonts
-  verified (SPK-i), vectors deterministic per class".
+- **§1.2 V-i row:** keep per-type classes, p = (4, 24), 3 runs; add that the signed class is the worst over at least 3
+  CI workflow runs (MEASURED drift 33/20/9 -> 27/25/10) and state the chosen rule for stable types (contradiction 1).
+- **§4.2 "What the first runs showed":** replace the 28 / 14 / 8 row as the current result by the three CI rows above;
+  mark Paint as quarantined in 2 of 3 CI runs.
+- **§10.2 M0 row:** SPK-i is recorded as "byte-identical files not reachable" (this file, status decided); the
+  re-scope signature still waits on the lead.
+- **Appendix B SPK-i row:** status "decided: not byte-identical; V-i per-type classes (spk-i.md)".
