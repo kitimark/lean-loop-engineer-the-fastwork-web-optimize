@@ -30,6 +30,7 @@ import Fw.Parts.MorphMountOpt
 import Fw.Parts.HeroExitOpt
 import Fw.Parts.PainNotes
 import Fw.Parts.MorphPanelOpt
+import Fw.Parts.PeopleDeck
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Quiet

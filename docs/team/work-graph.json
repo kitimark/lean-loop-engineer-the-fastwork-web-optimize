@@ -2235,7 +2235,8 @@
    "writes": [
     "lean/Fw/Parts/PeopleDeck.lean",
     "packages/contracts/golden/engine/people-deck.jsonl"
-   ]
+   ],
+   "evidence": "0276899"
   },
   {
    "id": "proof-hero-accent",
