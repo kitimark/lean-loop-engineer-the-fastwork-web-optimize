@@ -27,6 +27,10 @@ describe('variant shift (Lean MorphMountOpt.mountV)', () => {
     expect(logic.warmStill(false, logic.WARM_QUIET_MS)).toBe(true);
     expect(logic.warmStill(true, 1e6)).toBe(false);
     expect(logic.warmStill(false, logic.WARM_QUIET_MS - 1)).toBe(false);
+    // boundary: exactly 150 ms is still
+    expect(logic.WARM_QUIET_MS).toBe(150);
+    expect(logic.warmStill(false, 150)).toBe(true);
+    expect(logic.warmStill(false, 149.999)).toBe(false);
   });
 });
 
