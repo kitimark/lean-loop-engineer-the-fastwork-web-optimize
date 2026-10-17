@@ -3,7 +3,7 @@ name: reviewer
 description: Fresh-context adversarial reviewer. Checks a plan revision, research note, page or Lean-to-math translation for wrong claims, contradictions and privacy leaks. Read-only; its verdict is its reply.
 model: claude-opus-5-5
 effort: medium
-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__serena__find_symbol, mcp__serena__find_referencing_symbols, mcp__serena__get_symbols_overview, mcp__serena__find_declaration
 disallowedTools: Edit, Write
 maxTurns: 100
 color: red

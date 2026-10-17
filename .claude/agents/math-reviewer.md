@@ -3,7 +3,7 @@ name: math-reviewer
 description: Checks that the LaTeX math attached to a Lean theorem or definition says exactly what the Lean says. Fresh context, read-only. Use for every new, changed or unsigned entry of the math view.
 model: claude-opus-5-5
 effort: high
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__serena-lean__find_symbol, mcp__serena-lean__find_referencing_symbols, mcp__serena-lean__get_symbols_overview, mcp__serena-lean__find_declaration, mcp__serena-lean__get_diagnostics_for_file, mcp__lean-lsp__lean_goal, mcp__lean-lsp__lean_hover_info
 disallowedTools: Edit, Write
 maxTurns: 100
 color: yellow

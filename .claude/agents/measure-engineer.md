@@ -3,7 +3,7 @@ name: measure-engineer
 description: Builds measurement plugins and harnesses (Chromium counts in a Linux container with BeginFrameControl, WebKit Simulator/Inspector counts, artifact store). Use for any engine-counting or measurement code under packages/measure.
 model: claude-sonnet-5-5
 effort: high
-tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch
+tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, mcp__serena__find_symbol, mcp__serena__find_referencing_symbols, mcp__serena__get_symbols_overview, mcp__serena__find_declaration
 maxTurns: 300
 color: blue
 ---

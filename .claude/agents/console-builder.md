@@ -3,7 +3,7 @@ name: console-builder
 description: Builds the console - console-api (Node 24 + Hono, single writer of the event log, fwcore as decision core) and console-web (React + shadcn/ui + Tailwind). Use for any console feature.
 model: claude-sonnet-5-5
 effort: medium
-tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch
+tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, mcp__serena__find_symbol, mcp__serena__find_referencing_symbols, mcp__serena__get_symbols_overview, mcp__serena__find_declaration
 maxTurns: 300
 color: pink
 ---

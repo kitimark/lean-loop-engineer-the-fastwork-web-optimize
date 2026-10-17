@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "serena-lean": {
+      "command": "serena",
+      "args": ["start-mcp-server", "--context=claude-code", "--project", "lean"]
+    },
+    "lean-lsp": {
+      "command": "uvx",
+      "args": [
+        "--from", "lean-lsp-mcp==0.31.0", "lean-lsp-mcp",
+        "--lean-project-path", "lean",
+        "--disable-tools", "lean_leansearch,lean_loogle,lean_leanfinder,lean_run_code"
+      ]
+    }
+  }
+}
