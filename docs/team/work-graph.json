@@ -2185,7 +2185,8 @@
    "writes": [
     "lean/Fw/Parts/HeroExitOpt.lean",
     "packages/contracts/golden/engine/hero-exit.jsonl"
-   ]
+   ],
+   "evidence": "f6544e3"
   },
   {
    "id": "proof-people-card",
