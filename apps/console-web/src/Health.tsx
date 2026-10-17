@@ -78,6 +78,20 @@ export function HealthView({ now }: { now: number }) {
         </CardContent>
       </Card>
       <Card>
+        <CardHeader><CardTitle>Timings ({health.alerts.filter((a) => a.code === "timing.slow").length} slow)</CardTitle></CardHeader>
+        <CardContent className="space-y-1">
+          {health.alerts.filter((a) => a.code === "timing.slow").length === 0 && (
+            <p className="text-sm text-muted-foreground">No slow step (verdicts: Fw.Obs.Timing via fw watch).</p>
+          )}
+          {health.alerts.filter((a) => a.code === "timing.slow").map((a) => (
+            <div key={a.subject} className="flex flex-wrap items-center gap-2 text-sm">
+              <Badge variant="destructive">slow</Badge><span className="font-medium">{a.subject}</span>
+              <span className="text-muted-foreground">NEXT investigate step={a.subject}</span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      <Card>
         <CardHeader><CardTitle>System</CardTitle></CardHeader>
         <CardContent>
           <Table>

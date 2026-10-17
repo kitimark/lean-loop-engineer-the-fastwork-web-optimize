@@ -506,6 +506,72 @@
    "leanReason": "Pure decisions: axiom-reach memo equals the per-call search (Fw.Spec.AxReach query_exact), check cache and pre-lock land (Fw.Console.LandSpeed cache_sound, preLand_commit_exact), regression budget (Fw.Obs.Timing land_budget_alert).",
    "hardening": "mathview-axreach",
    "mistakeClass": "c-late-check"
+  },
+  {
+   "id": "inc-watch-unlanded-after-land",
+   "at": "2026-10-18T05:00+07:00",
+   "title": "fw watch kept raising agent.unlanded for tasks already landed on main",
+   "symptom": "After `fw land` the watch still printed `agent.unlanded <task>` and `NEXT <task> land ...` for workflow-claim (after fba6670) and for timing-lean, although their land commits were on main.",
+   "cause": "CONFIRMED (code read, apps/runner/src/next.ts collectRaw/buildFacts, lean/Fw/Obs/Next.lean lands): landed was read only from the branch (`git merge-base --is-ancestor <branch> main`), so a branch that is deleted or not an ancestor after the land (rebased or squashed tip) left the agent's branch fact open or unknown.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Obs/Next.lean",
+     "note": "Branch.settled = landed || onMain; no_unlanded_once_on_main: a land commit for the task on main means no land/routeIntegrator action for any branch name"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/timing-alert.test.ts",
+     "note": "a land commit on main silences the alert with the branch gone from git (ahead/landed unknown) and with the branch present but not an ancestor"
+    },
+    {
+     "kind": "file",
+     "ref": "packages/contracts/golden/obs/next.jsonl",
+     "note": "case inc-watch-unlanded-after-land (Lean-generated)"
+    }
+   ],
+   "repro": "Run `fw land` for a task, delete its branch, run `fw watch`: agent.unlanded is raised for the task.",
+   "fix": {
+    "task": "timing-alert"
+   },
+   "regression": "Lean theorem no_unlanded_once_on_main (lean/Fw/Obs/Next.lean), golden case in packages/contracts/golden/obs/next.jsonl, apps/runner/test/timing-alert.test.ts (landCommitOnMain reads the `Task:` trailer from main)",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Obs.Next no_unlanded_once_on_main: landed is decided from main history, not branch existence.",
+   "hardening": "timing-alert",
+   "mistakeClass": "c-order-derived"
+  },
+  {
+   "id": "inc-watch-alert-during-land",
+   "at": "2026-10-18T05:00+07:00",
+   "title": "fw watch raised agent.unlanded for a branch while fw land was landing it",
+   "symptom": "While `fw land` held the land lock for a branch, the watch (and `fw next`) raised agent.unlanded / NEXT land for that same branch.",
+   "cause": "CONFIRMED (code read, lean/Fw/Obs/Next.lean lands, apps/runner/hooks/land-guard.mjs): the decision knew the branch was ahead and not an ancestor of main, but not that the land lock (`<git common dir>/fw-land.lock`) names it, so a land in flight looked like an abandoned branch.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Obs/Next.lean",
+     "note": "Branch.locked; alert_suppressed_iff_locked: the alert is absent iff the live lock holder is the branch; no_unlanded_while_locked"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/timing-alert.test.ts",
+     "note": "the lock naming the branch suppresses, another branch's lock or no lock does not"
+    },
+    {
+     "kind": "file",
+     "ref": "packages/contracts/golden/obs/next.jsonl",
+     "note": "cases inc-watch-alert-during-land and the other-branch lock (Lean-generated)"
+    }
+   ],
+   "repro": "Hold the land lock for a branch (fw land mid-merge) and run `fw watch`: agent.unlanded for that branch.",
+   "fix": {
+    "task": "timing-alert"
+   },
+   "regression": "Lean theorems alert_suppressed_iff_locked and no_unlanded_while_locked (lean/Fw/Obs/Next.lean), golden cases in next.jsonl, apps/runner/test/timing-alert.test.ts",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Obs.Next alert_suppressed_iff_locked, no_unlanded_while_locked: the land lock holder is suppressed.",
+   "hardening": "timing-alert",
+   "mistakeClass": "c-order-derived"
   }
  ]
 }

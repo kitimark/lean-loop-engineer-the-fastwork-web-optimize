@@ -1,5 +1,6 @@
 import Fw.Obs.Health
 import Fw.Obs.Signals
+import Fw.Obs.Timing
 /-!
 # Next action per agent: agents that look busy but are idle or held, and what fixes each
 
@@ -121,7 +122,24 @@ structure Branch where
   queued : Bool
   mergesClean : Bool := true
   deps   : List String := []
+  /-- a land commit with this task's `Task:` trailer is on `main` (read from main's history, never from the branch's
+  existence: `fw land` deletes the branch) -/
+  onMain : Bool := false
+  /-- the branch named by the live land lock (`none`: no live lock) -/
+  landLock : Option String := none
 deriving DecidableEq, Repr
+
+/-- The branch is settled: its tip is an ancestor of `main`, or a land commit for its task is on `main`.
+
+$$\operatorname{settled}(b) \iff \mathit{landed}(b) \vee \mathit{onMain}(b)$$
+-/
+def Branch.settled (b : Branch) : Bool := b.landed || b.onMain
+
+/-- A `fw land` for this very branch is running: the live land lock names it.
+
+$$\operatorname{locked}(b) \iff \ell_\bot(b) = \mathit{name}(b)$$
+-/
+def Branch.locked (b : Branch) : Bool := b.landLock == some b.name
 
 /-- The agent's worktree: the pid in its lock (`none`: not locked) and whether that pid is alive.
 
@@ -223,11 +241,11 @@ def endedS (s : State) : Bool := s == .done || s == .gone
 
 /-- Whether the branch is landed (no branch: not landed).
 
-$$\operatorname{landed}(f) \iff \exists b.\ b_\bot(f) = b \wedge \mathit{landed}(b)$$
+$$\operatorname{landed}(f) \iff \exists b.\ b_\bot(f) = b \wedge \operatorname{settled}(b)$$
 -/
 def landedB (f : AgentFacts) : Bool :=
   match f.branch with
-  | some b => b.landed
+  | some b => b.settled
   | none => false
 
 /-- Whether a child's watched file is stale: unchanged for strictly more than `fileStaleMin` (no watched file: no).
@@ -367,13 +385,13 @@ def waits (f : AgentFacts) : List Action :=
 Otherwise a branch that does not merge cleanly is `investigate conflict`, a branch with an unlanded dependency waits
 for it (`waitDeps` of the first), and only a clean branch without unlanded dependencies is `land`ed with the agent's task.
 
-$$\operatorname{lands}(f) = \begin{cases} [\mathrm{routeIntegrator}(\mathit{name}(b))] & \operatorname{hb}(f) \wedge C(f) = [\,] \wedge b_\bot(f) = b \wedge 0 < \mathit{ahead}(b) \wedge \neg\mathit{landed}(b) \wedge \mathit{queued}(b) \\ [\mathrm{investigate}(\mathrm{conflict})] & \text{same but } \neg\mathit{queued}(b) \wedge \neg\mathit{clean}(b) \\ [\mathrm{waitDeps}(d)] & \text{same but } \neg\mathit{queued}(b) \wedge \mathit{clean}(b) \wedge D(b) = d :: \_ \\ [\mathrm{land}(\mathit{name}(b), \mathit{task}(f))] & \text{same but } \neg\mathit{queued}(b) \wedge \mathit{clean}(b) \wedge D(b) = [\,] \\ [\,] & \text{otherwise} \end{cases}$$
+$$\operatorname{lands}(f) = \begin{cases} [\mathrm{routeIntegrator}(\mathit{name}(b))] & \operatorname{hb}(f) \wedge C(f) = [\,] \wedge b_\bot(f) = b \wedge 0 < \mathit{ahead}(b) \wedge \neg\operatorname{settled}(b) \wedge \neg\operatorname{locked}(b) \wedge \mathit{queued}(b) \\ [\mathrm{investigate}(\mathrm{conflict})] & \text{same but } \neg\mathit{queued}(b) \wedge \neg\mathit{clean}(b) \\ [\mathrm{waitDeps}(d)] & \text{same but } \neg\mathit{queued}(b) \wedge \mathit{clean}(b) \wedge D(b) = d :: \_ \\ [\mathrm{land}(\mathit{name}(b), \mathit{task}(f))] & \text{same but } \neg\mathit{queued}(b) \wedge \mathit{clean}(b) \wedge D(b) = [\,] \\ [\,] & \text{otherwise} \end{cases}$$
 -/
 def lands (f : AgentFacts) : List Action :=
   if handedBack f && f.children.isEmpty then
     match f.branch with
     | some b =>
-      if decide (0 < b.ahead) && !b.landed then
+      if decide (0 < b.ahead) && !b.settled && !b.locked then
         (if b.queued then [.routeIntegrator b.name]
          else if b.mergesClean then
            (match b.deps with
@@ -826,10 +844,10 @@ theorem lands_mem (p : Params) (t : Nat) (f : AgentFacts) (x : Action)
 /-- Where an action of `lands` comes from: the agent handed back, has no live child, its branch is ahead of `main` and
 not landed, and the action is one of the four cases of `lands`.
 
-$$\forall f, x:\quad x \in \operatorname{lands}(f) \Rightarrow h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge \exists \beta.\ b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta) \wedge \bigl(\mathit{queued}(\beta) \wedge x = \mathrm{routeIntegrator}(\mathit{name}(\beta)) \vee \neg\mathit{queued}(\beta) \wedge \neg\mathit{clean}(\beta) \wedge x = \mathrm{investigate}(\mathrm{conflict}) \vee \neg\mathit{queued}(\beta) \wedge \mathit{clean}(\beta) \wedge (\exists d, D'.\ D(\beta) = d :: D' \wedge x = \mathrm{waitDeps}(d)) \vee \neg\mathit{queued}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,] \wedge x = \mathrm{land}(\mathit{name}(\beta), \mathit{task}(f))\bigr)$$
+$$\forall f, x:\quad x \in \operatorname{lands}(f) \Rightarrow h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge \exists \beta.\ b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\operatorname{settled}(\beta) \wedge \neg\operatorname{locked}(\beta) \wedge \bigl(\mathit{queued}(\beta) \wedge x = \mathrm{routeIntegrator}(\mathit{name}(\beta)) \vee \neg\mathit{queued}(\beta) \wedge \neg\mathit{clean}(\beta) \wedge x = \mathrm{investigate}(\mathrm{conflict}) \vee \neg\mathit{queued}(\beta) \wedge \mathit{clean}(\beta) \wedge (\exists d, D'.\ D(\beta) = d :: D' \wedge x = \mathrm{waitDeps}(d)) \vee \neg\mathit{queued}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,] \wedge x = \mathrm{land}(\mathit{name}(\beta), \mathit{task}(f))\bigr)$$
 -/
 theorem lands_cases (f : AgentFacts) (x : Action) (h : x ∈ lands f) :
-    f.handbackAt.isSome ∧ f.children = [] ∧ ∃ br, f.branch = some br ∧ 0 < br.ahead ∧ br.landed = false ∧
+    f.handbackAt.isSome ∧ f.children = [] ∧ ∃ br, f.branch = some br ∧ 0 < br.ahead ∧ br.settled = false ∧ br.locked = false ∧
       ((br.queued = true ∧ x = .routeIntegrator br.name) ∨
        (br.queued = false ∧ br.mergesClean = false ∧ x = .investigate .conflict) ∨
        (br.queued = false ∧ br.mergesClean = true ∧ ∃ d ds, br.deps = d :: ds ∧ x = .waitDeps d) ∨
@@ -843,14 +861,14 @@ theorem lands_cases (f : AgentFacts) (x : Action) (h : x ∈ lands f) :
 /-- **Land safety.** `land` only for an agent that handed back, has no live child, and whose branch is ahead of `main`,
 not landed, not on the integrator's list, merges cleanly and has no unlanded dependency; the task is the agent's.
 
-$$\forall p, t, f, b, k:\quad \mathrm{land}(b, k) \in \operatorname{next}(p, t, f) \Rightarrow h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge k = \mathit{task}(f) \wedge \exists \beta.\ b_\bot(f) = \beta \wedge \mathit{name}(\beta) = b \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta) \wedge \neg\mathit{queued}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,]$$
+$$\forall p, t, f, b, k:\quad \mathrm{land}(b, k) \in \operatorname{next}(p, t, f) \Rightarrow h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge k = \mathit{task}(f) \wedge \exists \beta.\ b_\bot(f) = \beta \wedge \mathit{name}(\beta) = b \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\operatorname{settled}(\beta) \wedge \neg\mathit{queued}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,]$$
 -/
 theorem land_sound (p : Params) (t : Nat) (f : AgentFacts) (b k : String) (h : Action.land b k ∈ next p t f) :
     f.handbackAt.isSome ∧ f.children = [] ∧ k = f.task ∧
-      ∃ br, f.branch = some br ∧ br.name = b ∧ 0 < br.ahead ∧ br.landed = false ∧ br.queued = false ∧
+      ∃ br, f.branch = some br ∧ br.name = b ∧ 0 < br.ahead ∧ br.settled = false ∧ br.queued = false ∧
         br.mergesClean = true ∧ br.deps = [] := by
   have h2 := ((lands_mem p t f _ (.inr ⟨b, k, rfl⟩)).1 h).2
-  obtain ⟨h1, h3, br, hbr, ha, hl, hc⟩ := lands_cases f _ h2
+  obtain ⟨h1, h3, br, hbr, ha, hl, _, hc⟩ := lands_cases f _ h2
   rcases hc with ⟨_, hx⟩ | ⟨_, _, hx⟩ | ⟨_, _, _, _, _, hx⟩ | ⟨hq, hm, hd, hx⟩
   · cases hx
   · cases hx
@@ -861,14 +879,14 @@ theorem land_sound (p : Params) (t : Nat) (f : AgentFacts) (b k : String) (h : A
 /-- **Route safety.** `routeIntegrator` only for an agent that handed back, has no live child, and whose branch is
 ahead of `main`, not landed and on the integrator's list.
 
-$$\forall p, t, f, b:\quad \mathrm{routeIntegrator}(b) \in \operatorname{next}(p, t, f) \Rightarrow h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge \exists \beta.\ b_\bot(f) = \beta \wedge \mathit{name}(\beta) = b \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta) \wedge \mathit{queued}(\beta)$$
+$$\forall p, t, f, b:\quad \mathrm{routeIntegrator}(b) \in \operatorname{next}(p, t, f) \Rightarrow h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge \exists \beta.\ b_\bot(f) = \beta \wedge \mathit{name}(\beta) = b \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\operatorname{settled}(\beta) \wedge \mathit{queued}(\beta)$$
 -/
 theorem route_sound (p : Params) (t : Nat) (f : AgentFacts) (b : String)
     (h : Action.routeIntegrator b ∈ next p t f) :
     f.handbackAt.isSome ∧ f.children = [] ∧
-      ∃ br, f.branch = some br ∧ br.name = b ∧ 0 < br.ahead ∧ br.landed = false ∧ br.queued = true := by
+      ∃ br, f.branch = some br ∧ br.name = b ∧ 0 < br.ahead ∧ br.settled = false ∧ br.queued = true := by
   have h2 := ((lands_mem p t f _ (.inl ⟨_, rfl⟩)).1 h).2
-  obtain ⟨h1, h3, br, hbr, ha, hl, hc⟩ := lands_cases f _ h2
+  obtain ⟨h1, h3, br, hbr, ha, hl, _, hc⟩ := lands_cases f _ h2
   rcases hc with ⟨hq, hx⟩ | ⟨_, _, hx⟩ | ⟨_, _, _, _, _, hx⟩ | ⟨_, _, _, hx⟩
   · simp only [Action.routeIntegrator.injEq] at hx
     exact ⟨h1, h3, br, hbr, hx.symm, ha, hl, hq⟩
@@ -879,11 +897,11 @@ theorem route_sound (p : Params) (t : Nat) (f : AgentFacts) (b : String)
 /-- **Wait-deps and conflict safety.** `waitDeps d` only for a handed-back agent whose clean, unqueued, unlanded branch
 has `d` as first unlanded dependency; `investigate conflict` only when its unqueued branch does not merge cleanly.
 
-$$\forall p, t, f, d:\quad \mathrm{waitDeps}(d) \in \operatorname{next}(p, t, f) \Rightarrow \exists \beta, D'.\ b_\bot(f) = \beta \wedge D(\beta) = d :: D' \wedge \neg\mathit{landed}(\beta) \wedge \neg\mathit{queued}(\beta)$$
+$$\forall p, t, f, d:\quad \mathrm{waitDeps}(d) \in \operatorname{next}(p, t, f) \Rightarrow \exists \beta, D'.\ b_\bot(f) = \beta \wedge D(\beta) = d :: D' \wedge \neg\operatorname{settled}(\beta) \wedge \neg\mathit{queued}(\beta)$$
 -/
 theorem waitDeps_sound (p : Params) (t : Nat) (f : AgentFacts) (d : String)
     (h : Action.waitDeps d ∈ next p t f) :
-    ∃ br ds, f.branch = some br ∧ br.deps = d :: ds ∧ br.landed = false ∧ br.queued = false := by
+    ∃ br ds, f.branch = some br ∧ br.deps = d :: ds ∧ br.settled = false ∧ br.queued = false := by
   have hn : Action.waitDeps d ≠ .none := by simp
   rw [mem_next p t f _ hn] at h
   have hk : Action.waitDeps d ∉ kills p t f := by
@@ -907,7 +925,7 @@ theorem waitDeps_sound (p : Params) (t : Nat) (f : AgentFacts) (d : String)
     · exact absurd h hcl
     · exact absurd h hk
     · exact absurd h hw
-    · obtain ⟨_, _, br, hbr, _, hl, hc2⟩ := lands_cases f _ h
+    · obtain ⟨_, _, br, hbr, _, hl, _, hc2⟩ := lands_cases f _ h
       rcases hc2 with ⟨_, hx⟩ | ⟨_, _, hx⟩ | ⟨hq, _, d2, ds, hds, hx⟩ | ⟨_, _, _, hx⟩
       · cases hx
       · cases hx
@@ -954,10 +972,10 @@ theorem plain_mem (p : Params) (t : Nat) (f : AgentFacts) (y : Action)
 /-- **Cleanup safety.** `cleanupWorktree` only when the agent has a worktree, its branch is landed and it has no live
 child.
 
-$$\forall p, t, f:\quad \mathrm{cleanupWorktree} \in \operatorname{next}(p, t, f) \Rightarrow w_\bot(f) \ne \bot \wedge (\exists \beta.\ b_\bot(f) = \beta \wedge \mathit{landed}(\beta)) \wedge C(f) = [\,]$$
+$$\forall p, t, f:\quad \mathrm{cleanupWorktree} \in \operatorname{next}(p, t, f) \Rightarrow w_\bot(f) \ne \bot \wedge (\exists \beta.\ b_\bot(f) = \beta \wedge \operatorname{settled}(\beta)) \wedge C(f) = [\,]$$
 -/
 theorem cleanup_sound (p : Params) (t : Nat) (f : AgentFacts) (h : Action.cleanupWorktree ∈ next p t f) :
-    f.worktree.isSome ∧ (∃ br, f.branch = some br ∧ br.landed = true) ∧ f.children = [] := by
+    f.worktree.isSome ∧ (∃ br, f.branch = some br ∧ br.settled = true) ∧ f.children = [] := by
   obtain ⟨_, h | h⟩ := plain_mem p t f _ (.inl rfl) h
   · unfold cleans at h
     rw [mem_opt] at h
@@ -995,14 +1013,14 @@ theorem respawn_sound (p : Params) (t : Nat) (f : AgentFacts) (h : Action.respaw
 /-- **Liveness: land.** A non-active agent that handed back, has no live child, and whose branch is ahead of `main`,
 not landed, merges cleanly and has no unlanded dependency gets `land` (with its task) or `routeIntegrator`.
 
-$$\forall p, t, f, \beta:\quad s(f) \ne \mathrm{active} \wedge h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,] \Rightarrow \mathrm{land}(\mathit{name}(\beta), \mathit{task}(f)) \in \operatorname{next}(p, t, f) \vee \mathrm{routeIntegrator}(\mathit{name}(\beta)) \in \operatorname{next}(p, t, f)$$
+$$\forall p, t, f, \beta:\quad s(f) \ne \mathrm{active} \wedge h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\operatorname{settled}(\beta) \wedge \neg\operatorname{locked}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,] \Rightarrow \mathrm{land}(\mathit{name}(\beta), \mathit{task}(f)) \in \operatorname{next}(p, t, f) \vee \mathrm{routeIntegrator}(\mathit{name}(\beta)) \in \operatorname{next}(p, t, f)$$
 -/
 theorem live_land (p : Params) (t : Nat) (f : AgentFacts) (β : Branch) (ha : f.state ≠ .active)
     (hb : f.handbackAt.isSome) (hc : f.children = []) (hbr : f.branch = some β) (hah : 0 < β.ahead)
-    (hl : β.landed = false) (hm : β.mergesClean = true) (hd : β.deps = []) :
+    (hl : β.settled = false) (hlk : β.locked = false) (hm : β.mergesClean = true) (hd : β.deps = []) :
     Action.land β.name f.task ∈ next p t f ∨ Action.routeIntegrator β.name ∈ next p t f := by
   have hhh : (handedBack f && f.children.isEmpty) = true := by simp [handedBack, hb, hc]
-  have hcond : (decide (0 < β.ahead) && !β.landed) = true := by simp [hah, hl]
+  have hcond : (decide (0 < β.ahead) && !β.settled && !β.locked) = true := by simp [hah, hl, hlk]
   cases hq : β.queued
   · have hls : Action.land β.name f.task ∈ lands f := by
       simp [lands, hhh, hbr, hcond, hq, hm, hd]
@@ -1010,6 +1028,75 @@ theorem live_land (p : Params) (t : Nat) (f : AgentFacts) (β : Branch) (ha : f.
   · have hls : Action.routeIntegrator β.name ∈ lands f := by
       simp [lands, hhh, hbr, hcond, hq]
     exact .inr ((lands_mem p t f _ (.inl ⟨_, rfl⟩)).2 ⟨ha, hls⟩)
+
+/-! ## Landed from main's history, and the land lock (incidents inc-watch-unlanded-after-land, inc-watch-alert-during-land) -/
+
+/-- **No unlanded alert once the land commit is on `main`.** If a land commit for the task is on `main`
+($\mathit{onMain}(\beta)$), neither `land` nor `routeIntegrator` is proposed for any branch name, whether or not the
+branch still exists or is an ancestor of `main`.
+
+$$\forall p, t, f, \beta, b, k:\quad b_\bot(f) = \beta \wedge \mathit{onMain}(\beta) \Rightarrow \mathrm{land}(b, k) \notin \operatorname{next}(p, t, f) \wedge \mathrm{routeIntegrator}(b) \notin \operatorname{next}(p, t, f)$$
+-/
+theorem no_unlanded_once_on_main (p : Params) (t : Nat) (f : AgentFacts) (β : Branch)
+    (hbr : f.branch = some β) (hm : β.onMain = true) (b k : String) :
+    Action.land b k ∉ next p t f ∧ Action.routeIntegrator b ∉ next p t f := by
+  constructor
+  · intro h
+    obtain ⟨_, _, _, br, hbr2, _, _, hs, _⟩ := land_sound p t f b k h
+    rw [hbr] at hbr2
+    cases hbr2
+    simp [Branch.settled, hm] at hs
+  · intro h
+    obtain ⟨_, _, br, hbr2, _, _, hs, _⟩ := route_sound p t f b h
+    rw [hbr] at hbr2
+    cases hbr2
+    simp [Branch.settled, hm] at hs
+
+/-- **A land in flight is not an unlanded branch.** `land` and `routeIntegrator` are proposed only for a branch the
+live land lock does not name: if the lock holder is the branch ($\ell_\bot(\beta) = \mathit{name}(\beta)$), neither is
+proposed.
+
+$$\forall p, t, f, \beta, b, k:\quad b_\bot(f) = \beta \wedge \ell_\bot(\beta) = \mathit{name}(\beta) \Rightarrow \mathrm{land}(b, k) \notin \operatorname{next}(p, t, f) \wedge \mathrm{routeIntegrator}(b) \notin \operatorname{next}(p, t, f)$$
+-/
+theorem no_unlanded_while_locked (p : Params) (t : Nat) (f : AgentFacts) (β : Branch)
+    (hbr : f.branch = some β) (hk : β.locked = true) (b k : String) :
+    Action.land b k ∉ next p t f ∧ Action.routeIntegrator b ∉ next p t f := by
+  constructor
+  · intro h
+    have h2 := ((lands_mem p t f _ (.inr ⟨b, k, rfl⟩)).1 h).2
+    obtain ⟨_, _, br, hbr2, _, _, hl, _⟩ := lands_cases f _ h2
+    rw [hbr] at hbr2
+    cases hbr2
+    rw [hk] at hl
+    cases hl
+  · intro h
+    have h2 := ((lands_mem p t f _ (.inl ⟨b, rfl⟩)).1 h).2
+    obtain ⟨_, _, br, hbr2, _, _, hl, _⟩ := lands_cases f _ h2
+    rw [hbr] at hbr2
+    cases hbr2
+    rw [hk] at hl
+    cases hl
+
+/-- **The alert is suppressed exactly when the lock holder is the branch.** For a non-active agent that handed back with
+no live child, whose branch is ahead of `main`, not settled, merges cleanly and has no unlanded dependency, the
+unlanded alert (`land` or `routeIntegrator`) is absent if and only if the live land lock names that branch.
+
+$$\forall p, t, f, \beta:\quad s(f) \ne \mathrm{active} \wedge h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\operatorname{settled}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,] \Rightarrow \bigl(\mathrm{land}(\mathit{name}(\beta), \mathit{task}(f)) \notin \operatorname{next}(p, t, f) \wedge \mathrm{routeIntegrator}(\mathit{name}(\beta)) \notin \operatorname{next}(p, t, f) \iff \ell_\bot(\beta) = \mathit{name}(\beta)\bigr)$$
+-/
+theorem alert_suppressed_iff_locked (p : Params) (t : Nat) (f : AgentFacts) (β : Branch)
+    (ha : f.state ≠ .active) (hb : f.handbackAt.isSome) (hc : f.children = []) (hbr : f.branch = some β)
+    (hah : 0 < β.ahead) (hl : β.settled = false) (hm : β.mergesClean = true) (hd : β.deps = []) :
+    (Action.land β.name f.task ∉ next p t f ∧ Action.routeIntegrator β.name ∉ next p t f) ↔ β.locked = true := by
+  constructor
+  · intro h
+    cases hk : β.locked with
+    | true => rfl
+    | false =>
+      rcases live_land p t f β ha hb hc hbr hah hl hk hm hd with h1 | h1
+      · exact absurd h1 h.1
+      · exact absurd h1 h.2
+  · intro hk
+    exact no_unlanded_while_locked p t f β hbr hk _ _
 
 /-! ## Signals: the handback and exited producers come from the transcripts (`Fw.Obs.Signals`) -/
 
@@ -1126,11 +1213,11 @@ theorem next_withMeta (p : Params) (t : Nat) (m : List Nat) (f : AgentFacts) :
 
 /-- The branch is ahead of `main` and not landed.
 
-$$\operatorname{openBranch}(f) \iff \exists \beta.\ b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\mathit{landed}(\beta)$$
+$$\operatorname{openBranch}(f) \iff \exists \beta.\ b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\operatorname{settled}(\beta)$$
 -/
 def openBranchB (f : AgentFacts) : Bool :=
   match f.branch with
-  | some b => decide (0 < b.ahead) && !b.landed
+  | some b => decide (0 < b.ahead) && !b.settled
   | none => false
 
 /-- The agent's latest CI run is still running.
@@ -1244,7 +1331,7 @@ theorem keepHealth_of_open_action (p : Params) (t : Nat) (f : AgentFacts) (x : A
         right; right; right; left
         simp [ciRunningB, hc, h.1]
       · simp at h
-    · obtain ⟨_, _, br, hbr, ha, hl, _⟩ := lands_cases f _ h
+    · obtain ⟨_, _, br, hbr, ha, hl, _, _⟩ := lands_cases f _ h
       left
       simp [openBranchB, hbr, ha, hl]
     · unfold cleans at h
@@ -1502,5 +1589,203 @@ def loopOn (q : Nat) (v : Watch) : Child :=
     signals := some { agent := "ao", launched := [⟨"b9", ago 9⟩], ends := [⟨"b9", ago 2, .exited 0⟩] } }
   (resolveChild {} t0 [o] (loopOn 901 (.task "b9"))).producerExited &&
     !(resolveChild {} (ago 3) [o] (loopOn 901 (.task "b9"))).producerExited
+
+
+/-! ## Timing alerts: the slow steps that raise `timing.slow` (`Fw.Obs.Timing`) -/
+
+/-- The alert subject of a sample verdict: `<tool>/<step>`.
+
+$$\operatorname{name}(v) = \mathit{tool}_v \mathbin{+\!\!+} \text{"/"} \mathbin{+\!\!+} \mathit{step}_v$$
+-/
+def stepName (v : Timing.SampleVerdict) : String := v.tool ++ "/" ++ v.step
+
+/-- Two sample verdicts are of the same history (same tool, step and host).
+
+$$\operatorname{same}(v, w) \iff \mathit{tool}_v = \mathit{tool}_w \wedge \mathit{step}_v = \mathit{step}_w \wedge h_v = h_w$$
+-/
+def sameKey (v w : Timing.SampleVerdict) : Bool := v.tool == w.tool && v.step == w.step && v.host == w.host
+
+/-- The slow steps that are alerts: a sample verdict is an alert when its code is `slow` and no later sample of the same
+history exists (a newer sample of that step replaces it). Structural verdicts are never alerts. A slow sample stays
+an alert until the next sample of its step arrives; the subjects are in verdict order, with repeats.
+
+$$\operatorname{slowLatest}([\,]) = [\,],\quad \operatorname{slowLatest}(\mathsf{sample}(v) :: R) = \bigl[\operatorname{name}(v) \mid c_v = \mathsf{slow} \wedge \forall \mathsf{sample}(w) \in R.\ \neg\operatorname{same}(v, w)\bigr] \mathbin{+\!\!+} \operatorname{slowLatest}(R)$$
+-/
+def slowLatest : List Timing.Verdict → List String
+  | [] => []
+  | .sample v :: rest =>
+      (if v.code == .slow && !(rest.any (fun w => match w with
+          | .sample w => sameKey v w
+          | .structural _ => false)) then [stepName v] else []) ++ slowLatest rest
+  | .structural _ :: rest => slowLatest rest
+
+/-- Remove repeats, keeping the last occurrence of each.
+
+$$\operatorname{dedup}([\,]) = [\,],\quad \operatorname{dedup}(x :: R) = \begin{cases} \operatorname{dedup}(R) & x \in R \\ x :: \operatorname{dedup}(R) & x \notin R \end{cases}$$
+-/
+def dedupL : List String → List String
+  | [] => []
+  | x :: xs => if x ∈ xs then dedupL xs else x :: dedupL xs
+
+/-- Dedup keeps exactly the elements.
+
+$$\forall L, y:\quad y \in \operatorname{dedup}(L) \iff y \in L$$
+-/
+theorem mem_dedupL (xs : List String) (y : String) : y ∈ dedupL xs ↔ y ∈ xs := by
+  induction xs with
+  | nil => simp [dedupL]
+  | cons x xs ih =>
+    unfold dedupL
+    split
+    · rename_i hx
+      rw [ih]
+      constructor
+      · intro h; exact List.mem_cons_of_mem _ h
+      · intro h
+        rcases List.mem_cons.1 h with rfl | h
+        · exact hx
+        · exact h
+    · simp [ih]
+
+/-- Dedup has no repeats.
+
+$$\forall L:\quad \operatorname{dedup}(L) \text{ has pairwise distinct entries}$$
+-/
+theorem nodup_dedupL (xs : List String) : (dedupL xs).Nodup := by
+  induction xs with
+  | nil => simp [dedupL]
+  | cons x xs ih =>
+    unfold dedupL
+    split
+    · exact ih
+    · rename_i hx
+      rw [List.nodup_cons]
+      exact ⟨fun h => hx ((mem_dedupL xs x).1 h), ih⟩
+
+/-- The alert subjects without repeats (a step slow on both hosts alerts once; de-duplication across watch polls is the
+watch's set difference of `code|subject` keys, which equal subjects give equal keys).
+
+$$\operatorname{slowSteps}(V) = \operatorname{dedup}(\operatorname{slowLatest}(V))$$
+-/
+def slowSteps (vs : List Timing.Verdict) : List String := dedupL (slowLatest vs)
+
+/-- **Soundness: an alert is a slow verdict.** Every subject of `slowLatest` is the name of a sample verdict of the list
+whose code is `slow`.
+
+$$\forall V, s:\quad s \in \operatorname{slowLatest}(V) \Rightarrow \exists v.\ \mathsf{sample}(v) \in V \wedge c_v = \mathsf{slow} \wedge \operatorname{name}(v) = s$$
+-/
+theorem slowLatest_sound (vs : List Timing.Verdict) (s : String) (h : s ∈ slowLatest vs) :
+    ∃ v, Timing.Verdict.sample v ∈ vs ∧ v.code = .slow ∧ stepName v = s := by
+  induction vs with
+  | nil => simp [slowLatest] at h
+  | cons x rest ih =>
+    cases x with
+    | structural w =>
+      simp only [slowLatest] at h
+      obtain ⟨v, hv, hc, he⟩ := ih h
+      exact ⟨v, List.mem_cons_of_mem _ hv, hc, he⟩
+    | sample v =>
+      simp only [slowLatest, List.mem_append] at h
+      rcases h with h | h
+      · split at h
+        · rename_i hc
+          simp only [List.mem_singleton] at h
+          simp only [Bool.and_eq_true, beq_iff_eq] at hc
+          exact ⟨v, List.mem_cons_self .., hc.1, h.symm⟩
+        · simp at h
+      · obtain ⟨w, hw, hc, he⟩ := ih h
+        exact ⟨w, List.mem_cons_of_mem _ hw, hc, he⟩
+
+/-- **No alert without a slow verdict.** If no sample verdict is `slow`, there is no alert.
+
+$$\forall V:\quad (\forall v.\ \mathsf{sample}(v) \in V \Rightarrow c_v \ne \mathsf{slow}) \Rightarrow \operatorname{slowSteps}(V) = [\,]$$
+-/
+theorem slowSteps_nil_of_no_slow (vs : List Timing.Verdict)
+    (h : ∀ v, Timing.Verdict.sample v ∈ vs → v.code ≠ .slow) : slowSteps vs = [] := by
+  unfold slowSteps
+  have : slowLatest vs = [] := by
+    cases hl : slowLatest vs with
+    | nil => rfl
+    | cons s ss =>
+      obtain ⟨v, hv, hc, _⟩ := slowLatest_sound vs s (by rw [hl]; exact List.mem_cons_self ..)
+      exact absurd hc (h v hv)
+  rw [this]; rfl
+
+/-- **A newer sample replaces the alert.** A slow sample followed by a later sample of the same history is no alert.
+
+$$\forall v, R:\quad (\exists w.\ \mathsf{sample}(w) \in R \wedge \operatorname{same}(v, w)) \Rightarrow \operatorname{slowLatest}(\mathsf{sample}(v) :: R) = \operatorname{slowLatest}(R)$$
+-/
+theorem slowLatest_superseded (v : Timing.SampleVerdict) (rest : List Timing.Verdict)
+    (h : ∃ w, Timing.Verdict.sample w ∈ rest ∧ sameKey v w = true) :
+    slowLatest (.sample v :: rest) = slowLatest rest := by
+  obtain ⟨w, hw, hs⟩ := h
+  have : (rest.any (fun x => match x with
+      | .sample w => sameKey v w
+      | .structural _ => false)) = true := by
+    rw [List.any_eq_true]; exact ⟨.sample w, hw, hs⟩
+  simp [slowLatest, this]
+
+/-- **The latest slow sample is an alert.** A slow sample with no later sample of its history is an alert.
+
+$$\forall v, R:\quad c_v = \mathsf{slow} \wedge (\forall \mathsf{sample}(w) \in R.\ \neg\operatorname{same}(v, w)) \Rightarrow \operatorname{name}(v) \in \operatorname{slowSteps}(\mathsf{sample}(v) :: R)$$
+-/
+theorem slowSteps_latest (v : Timing.SampleVerdict) (rest : List Timing.Verdict) (hc : v.code = .slow)
+    (hl : ∀ w, Timing.Verdict.sample w ∈ rest → sameKey v w = false) :
+    stepName v ∈ slowSteps (.sample v :: rest) := by
+  have : (rest.any (fun x => match x with
+      | .sample w => sameKey v w
+      | .structural _ => false)) = false := by
+    rw [Bool.eq_false_iff]
+    intro hh
+    rw [List.any_eq_true] at hh
+    obtain ⟨x, hx, hxs⟩ := hh
+    cases x with
+    | structural _ => simp at hxs
+    | sample w => simp only at hxs; rw [hl w hx] at hxs; cases hxs
+  unfold slowSteps
+  rw [mem_dedupL]
+  simp [slowLatest, hc, this]
+
+/-- **The alert list has no repeats.**
+
+$$\forall V:\quad \operatorname{slowSteps}(V) \text{ has pairwise distinct entries}$$
+-/
+theorem slowSteps_nodup (vs : List Timing.Verdict) : (slowSteps vs).Nodup := by
+  exact nodup_dedupL _
+
+/-- **Every alert of the entry point is a slow sample of the history.** For `timingVerdicts`, each alert subject comes
+from a sample verdict with code `slow`.
+
+$$\forall p, H, s:\quad s \in \operatorname{slowSteps}(\operatorname{timingVerdicts}(p, H)) \Rightarrow \exists v.\ \mathsf{sample}(v) \in \operatorname{timingVerdicts}(p, H) \wedge c_v = \mathsf{slow} \wedge \operatorname{name}(v) = s$$
+-/
+theorem slowSteps_of_timing (p : Timing.Params) (ss : List Timing.Sample) (s : String)
+    (h : s ∈ slowSteps (Timing.timingVerdicts p ss)) :
+    ∃ v, Timing.Verdict.sample v ∈ Timing.timingVerdicts p ss ∧ v.code = .slow ∧ stepName v = s := by
+  unfold slowSteps at h
+  rw [mem_dedupL] at h
+  exact slowLatest_sound _ s h
+
+private def tv (tool step : String) (code : Timing.Code) : Timing.Verdict :=
+  .sample { idx := 0, tool, step, host := .ci, durMs := 1, code, n := 5, baseline := 1, budgetMs := 1 }
+
+#guard slowSteps [tv "lean" "check.sh" .slow] == ["lean/check.sh"]
+-- a later ok sample of the step replaces the slow one
+#guard slowSteps [tv "lean" "check.sh" .slow, tv "lean" "check.sh" .ok] == []
+-- other steps do not
+#guard slowSteps [tv "lean" "check.sh" .slow, tv "lean" "lake build" .ok] == ["lean/check.sh"]
+-- noisy and noBaseline are not alerts
+#guard slowSteps [tv "a" "b" .noisy, tv "a" "c" .noBaseline] == []
+-- the same step slow on two hosts alerts once
+#guard slowSteps [tv "a" "b" .slow, (match tv "a" "b" .slow with | .sample v => .sample { v with host := .«local» } | x => x)] == ["a/b"]
+
+-- landed from main's history; the land lock
+private def lbr (b : Branch) : AgentFacts :=
+  { id := "t", task := "t", state := .done, session := 1, handbackAt := some 5, branch := some b }
+#guard (lands (lbr { name := "w", ahead := 3, landed := false, queued := false })) == [.land "w" "t"]
+-- the branch is gone from git but a land commit for the task is on main
+#guard (lands (lbr { name := "w", ahead := 3, landed := false, queued := false, onMain := true })) == []
+-- the live land lock names this branch / another branch
+#guard (lands (lbr { name := "w", ahead := 3, landed := false, queued := false, landLock := some "w" })) == []
+#guard (lands (lbr { name := "w", ahead := 3, landed := false, queued := false, landLock := some "x" })) == [.land "w" "t"]
 
 end Fw.Obs.Next
