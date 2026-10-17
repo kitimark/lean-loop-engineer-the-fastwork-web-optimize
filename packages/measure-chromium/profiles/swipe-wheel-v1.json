@@ -1,0 +1,18 @@
+{
+  "id": "swipe-wheel-v1",
+  "about": "Diagnostic: native mouse-wheel input through CDP Input.dispatchMouseEvent (mouseWheel), one 10 CSS px event per virtual frame at 60 Hz, until the page end, then a short tail. Compared with swipe-touch-v1 it has no touch gesture pipeline (no touch acks, no gesture provider) and with swipe-v1 it has no programmatic scroll.",
+  "hz": 60,
+  "viewport": { "width": 430, "height": 932, "dpr": 3, "mobile": true, "touch": true },
+  "pinnedDate": "2026-10-01T00:00:00+07:00",
+  "timezone": "Asia/Bangkok",
+  "locale": "en-US",
+  "seed": 1592661556,
+  "load": { "quietFrames": 30, "maxFrames": 900, "prerollFrames": 60 },
+  "zoneHeightPx": 500,
+  "input": { "mode": "wheel", "x": 215, "y": 466, "dyPerFrame": 10, "maxFrames": 2000 },
+  "segments": [
+    { "name": "rest", "dyPerFrame": 0, "frames": 10 },
+    { "name": "swipe", "until": "end" },
+    { "name": "tail", "dyPerFrame": 0, "frames": 30 }
+  ]
+}

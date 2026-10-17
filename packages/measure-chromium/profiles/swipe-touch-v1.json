@@ -1,0 +1,18 @@
+{
+  "id": "swipe-touch-v1",
+  "about": "Touch swipe through CDP Input.dispatchTouchEvent, one touchMove of 10 CSS px per virtual frame at 60 Hz (same step as swipe-v1), in strokes from y=880 up to y=100 (78 moves, about 780 px), then the finger lifts at once (no fling is produced: scrollY stops with the last move) and a new stroke starts after 2 frames, until the page end is reached; then a short tail. The browser's gesture detector and the compositor produce the scroll; no programmatic scroll and no mouse hover recompute.",
+  "hz": 60,
+  "viewport": { "width": 430, "height": 932, "dpr": 3, "mobile": true, "touch": true },
+  "pinnedDate": "2026-10-01T00:00:00+07:00",
+  "timezone": "Asia/Bangkok",
+  "locale": "en-US",
+  "seed": 1592661556,
+  "load": { "quietFrames": 30, "maxFrames": 900, "prerollFrames": 60 },
+  "zoneHeightPx": 500,
+  "input": { "mode": "touch", "x": 215, "startY": 880, "minY": 100, "dyPerFrame": 10, "holdFrames": 0, "gapFrames": 2, "maxFrames": 2000 },
+  "segments": [
+    { "name": "rest", "dyPerFrame": 0, "frames": 10 },
+    { "name": "swipe", "until": "end" },
+    { "name": "tail", "dyPerFrame": 0, "frames": 30 }
+  ]
+}

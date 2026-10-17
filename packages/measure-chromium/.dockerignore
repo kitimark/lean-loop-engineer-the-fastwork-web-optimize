@@ -1,2 +1,5 @@
 *
 !docker/fonts.conf
+!docker/apt-manifest.txt
+!docker/driver/package.json
+!docker/driver/package-lock.json

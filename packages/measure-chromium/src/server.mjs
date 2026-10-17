@@ -19,6 +19,7 @@ export async function startServer(root, port = 0) {
   const served = new Map(); // url path -> sha256 of the bytes sent
   const missing = new Set();
   let inflight = 0, requests = 0;
+  const pages = await readFile(join(root, 'configs.json'), 'utf8').then(JSON.parse, () => null);
   const server = http.createServer(async (req, res) => {
     requests++; inflight++; res.on('close', () => { inflight--; });
     try {
@@ -26,6 +27,13 @@ export async function startServer(root, port = 0) {
       let p = normalize(decodeURIComponent(url.pathname));
       if (p.includes('..')) { res.writeHead(400).end(); return; }
       let file = join(root, p);
+      // Prerendered site build (apps/site): "/" + search is answered by the page prerendered for that exact search
+      // (dist/configs.json: bySearch -> hash -> byHash). An unknown search gets index.html, as apps/site's own server
+      // does; the page then reports mode "client-render" and the driver refuses to measure it.
+      if (p === '/' && pages) {
+        const hash = pages.bySearch[url.search];
+        file = join(root, hash ? pages.byHash[hash] : 'index.html');
+      }
       let st = await stat(file).catch(() => null);
       if (st && st.isDirectory()) { file = join(file, 'index.html'); st = await stat(file).catch(() => null); }
       if (!st) { missing.add(url.pathname); res.writeHead(404, { 'content-type': 'text/plain' }).end('not found'); return; }

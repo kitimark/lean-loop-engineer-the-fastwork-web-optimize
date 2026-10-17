@@ -1,0 +1,15 @@
+{
+  "id": "fixture-rest",
+  "about": "No input: 120 idle frames at 60 Hz (2 s) of a fixture page. Used by the V-n check that a compositor animation costs no main-thread Paint/UpdateLayoutTree.",
+  "hz": 60,
+  "viewport": { "width": 430, "height": 932, "dpr": 3, "mobile": true, "touch": true },
+  "pinnedDate": "2026-10-01T00:00:00+07:00",
+  "timezone": "Asia/Bangkok",
+  "locale": "en-US",
+  "seed": 1592661556,
+  "load": { "quietFrames": 30, "maxFrames": 900, "prerollFrames": 60 },
+  "zoneHeightPx": 500,
+  "segments": [
+    { "name": "rest", "dyPerFrame": 0, "frames": 120 }
+  ]
+}

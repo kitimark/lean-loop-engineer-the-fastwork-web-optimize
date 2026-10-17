@@ -2,7 +2,8 @@
 //   node src/host.mjs --profile swipe-v1 [--label NAME] [--rebuild] [--debug] [--dump-trace]
 // Output: out/<profile>/<label>/counts.json (gitignored). Needs Docker (Docker Desktop is fine) and the local snapshot.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { loadavg, cpus } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,31 +23,48 @@ function findSnapshot() {
   const common = resolve(PKG, sh('git', ['-C', PKG, 'rev-parse', '--git-common-dir']));
   return join(dirname(common), 'snapshot', 'site');
 }
-const snapshot = findSnapshot();
-if (!existsSync(join(snapshot, 'index.html'))) { console.error(`snapshot not found at ${snapshot} (set FW_SNAPSHOT_DIR)`); process.exit(2); }
+const target = opt('target', 'original'); // original | rewrite
+const search = opt('search', '');         // rewrite: the query the page is opened with, for example ?fw=engine.scroll:batched
 const repoRoot = sh('git', ['-C', PKG, 'rev-parse', '--show-toplevel']);
+const rewriteDir = resolve(opt('site-dir', join(repoRoot, 'apps', 'site', 'dist', 'aot')));
+if (!['original', 'rewrite', 'fixture'].includes(target)) { console.error('--target must be original, rewrite or fixture'); process.exit(2); }
+const snapshot = target === 'original' ? findSnapshot() : rewriteDir; // rewrite and fixture: --site-dir (rewrite default apps/site/dist/aot)
+if (!existsSync(join(snapshot, 'index.html'))) { console.error(`${target} not found at ${snapshot} (original: set FW_SNAPSHOT_DIR; rewrite: pnpm --filter @fw/site build, or --site-dir)`); process.exit(2); }
 let snapshotId = null;
 try { snapshotId = JSON.parse(readFileSync(join(repoRoot, 'snapshot.lock.json'), 'utf8')).snapshot; } catch { /* lock file absent */ }
 
 const have = spawnSync('docker', ['image', 'inspect', IMAGE], { stdio: 'ignore' }).status === 0;
 if (!have || flag('rebuild')) {
   console.error(`building ${IMAGE} ...`);
-  const r = spawnSync('docker', ['build', '-t', IMAGE, PKG], { stdio: 'inherit' });
-  if (r.status !== 0) process.exit(r.status ?? 1);
+  const b = spawnSync('docker', ['build', '-t', IMAGE, PKG], { stdio: 'inherit' });
+  if (b.status !== 0) process.exit(b.status ?? 1);
 }
 const imageId = sh('docker', ['image', 'inspect', '--format', '{{.Id}}', IMAGE]);
 
 const out = join(PKG, 'out', profile, label);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
-const inner = ['/driver/run.mjs', `--profile=${profile}`, ...(flag('dump-trace') ? ['--dump-trace'] : [])];
+const inner = ['/driver/run.mjs', `--profile=${profile}`, `--target=${target}`, ...(search ? [`--search=${search}`] : []), ...(flag('dump-trace') ? ['--dump-trace'] : [])];
 const t0 = Date.now();
-const r = spawnSync('docker', [
-  'run', '--rm', '--init', '--shm-size=1g',
-  ...Object.entries(process.env).filter(([k]) => /^FW_(BARRIER_MS|NOTOUCH|DEBUG)$/.test(k)).flatMap(([k, v]) => ['-e', `${k}=${v}`]), '-e', `FW_IMAGE_ID=${imageId}`, '-e', `FW_SNAPSHOT_ID=${snapshotId ?? ''}`, ...(flag('debug') ? ['-e', 'FW_DEBUG=1'] : []),
+// Host load stamp, written NEXT TO counts.json (host.json), never into it: counts are virtual-time and must not carry wall data.
+const loadStamp = () => { let idle = null; try { const m = /([\d.]+)% idle/.exec(sh('top', ['-l', '1', '-n', '0'])); idle = m ? +m[1] : null; } catch { /* top unavailable */ } return { at: new Date().toISOString(), load1: +loadavg()[0].toFixed(2), cpuIdlePct: idle, cores: cpus().length }; };
+const loadBefore = loadStamp();
+const MAX_ATTEMPTS = 5; // exit code 75 = BeginFrame hang (README, findings): run the whole container again
+let r, attempts = 0;
+while (attempts < MAX_ATTEMPTS) {
+  attempts++;
+  r = spawnSync('docker', [
+  'run', '--rm', '--init', '--shm-size=1g', ...(process.env.FW_DOCKER_CPUS ? ['--cpus', process.env.FW_DOCKER_CPUS] : []), // H2: CPU quota of the container (CI portability)
+  ...Object.entries(process.env).filter(([k]) => /^FW_(DROP_FLAGS|NO_LAYERS|BARRIER_MIN_MS|CHROME_EXTRA|EXTRA_CATEGORIES|PROBE|BF_TIMEOUT_MS|BARRIER_MS|NOTOUCH|DEBUG|TOUCH_ACK_MS|TOUCH_SETTLE_MS)$/.test(k)).flatMap(([k, v]) => ['-e', `${k}=${v}`]), '-e', `FW_IMAGE_ID=${imageId}`, '-e', `FW_SNAPSHOT_ID=${target === 'original' ? snapshotId ?? '' : ''}`, ...(flag('debug') ? ['-e', 'FW_DEBUG=1'] : []),
   '-v', `${join(PKG, 'src')}:/driver:ro`, '-v', `${join(PKG, 'profiles')}:/profiles:ro`,
   '-v', `${snapshot}:/snapshot/site:ro`, '-v', `${out}:/out`,
   '--entrypoint', 'node', IMAGE, ...inner,
 ], { stdio: ['ignore', 'inherit', 'inherit'] });
+  if (r.status !== 75) break;
+  console.error(`attempt ${attempts} hit a BeginFrame hang; running again`);
+}
+const loadAfter = loadStamp();
+writeFileSync(join(out, 'host.json'), JSON.stringify({ note: 'host-side wall facts for this run, not part of the result', attempts, loadBefore, loadAfter, hostWallS: +((Date.now() - t0) / 1000).toFixed(1) }, null, 1) + '\n');
+console.error(`attempts=${attempts} (not part of the result)`);
 console.error(`wrote ${join(out, 'counts.json')} (host wall ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 process.exit(r.status ?? 1);
