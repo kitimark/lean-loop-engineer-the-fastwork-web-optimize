@@ -8,11 +8,14 @@ import { readFileSync } from "node:fs";
 import { watchMain } from "./watch.ts";
 import { runCli } from "./run.ts";
 import { ciCli } from "./ci.ts";
+import { engineCheckCli } from "./engine-check.ts";
 
 const [group, ...rest] = process.argv.slice(2);
 try {
-  const base = group === "run" || group === "ci" ? "" : apiBase(process.env); // `fw run` needs no console-api
-  if (group === "run") {
+  const base = group === "run" || group === "ci" || group === "engine-check" ? "" : apiBase(process.env); // `fw run` needs no console-api
+  if (group === "engine-check") {
+    process.exitCode = engineCheckCli(rest, process.cwd());
+  } else if (group === "run") {
     process.exitCode = runCli(rest, process.cwd());
   } else if (group === "ci") {
     process.exitCode = ciCli(rest, process.cwd());
@@ -52,7 +55,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw land <card/branch> | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw engine-check --rows <jsonl> --run <dir> | fw land <card/branch> | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));
