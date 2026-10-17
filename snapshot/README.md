@@ -4,7 +4,7 @@
 2026-09-13; last crawl 2026-09-30). It is kept byte-for-byte unmodified: it is the frozen baseline that the
 measurements and the breakpoint gate compare the rewrite against.
 
-Fastwork approved publishing its compiled site, fonts included. <!-- APPROVAL: wording to be confirmed by the owner -->
+Fastwork has approved publishing a copy of its compiled homepage, including fonts, in this repository.
 The files remain under Fastwork's terms; the repository's MIT license does not cover this directory.
 
 ## Integrity

@@ -4,8 +4,7 @@ A personal, educational loop-engineering study of the scroll performance of the 
 It is not affiliated with Fastwork. Fastwork approved publishing its compiled site, fonts included; that copy lives
 in `snapshot/` unmodified (see `snapshot/README.md`).
 
-<!-- APPROVAL: wording to be confirmed by the owner -->
-Draft approval line (to confirm): "Fastwork has approved publishing a copy of its compiled homepage, including fonts, in this repository."
+Fastwork has approved publishing a copy of its compiled homepage, including fonts, in this repository.
 
 ## Repo map
 
