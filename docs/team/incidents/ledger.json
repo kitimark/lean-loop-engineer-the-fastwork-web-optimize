@@ -333,6 +333,59 @@
     "task": "obs-signals"
    },
    "regression": "packages/contracts/golden/obs/signals.jsonl (port-nav @ 01:24:30 and @ 03:58:00: hung bh6n4n7sw), Fw.Wire.Obs guard obs.next stdinWait -> killOrphan, apps/runner/test/signals.test.ts"
+  },
+  {
+   "id": "inc-worktree-role-as-teammate",
+   "at": "2026-10-18T01:56+07:00",
+   "title": "Worktree roles spawned by name without isolation ran as teammates in the main checkout",
+   "symptom": "The shadow spawn guard logged deny:kindMismatch (wanted worktree, got teammate) for part-builder (port-people-fix, 01:56) and measure-engineer (step-align-fix, 02:38), plus two earlier unattributed ones; the spawns went ahead because the guard only logged, so their edits would land in the lead's checkout, untracked by any branch.",
+   "cause": "CONFIRMED (code read, PLAN 8.1 and lean/Fw/Ops/SpawnGuard.lean effKind): a named Agent call from the lead without isolation is a teammate in the main checkout, whatever the role file asks for; the guard saw it and was in shadow mode.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ops/SpawnGuard.lean",
+     "note": "trap_exact: the exact verdict for this call shape"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/hooks/spawn-guard.mjs",
+     "note": "shadow mode before this fix; enforce prints a deny with the reason"
+    }
+   ],
+   "repro": "Agent call from the lead with subagent_type part-builder and a name but no isolation: fwcore ops.spawn answers deny kindMismatch.",
+   "fix": {
+    "task": "spawn-enforce"
+   },
+   "regression": "apps/runner/test/spawn-guard.test.ts 'refused with its reason: worktree role without isolation (I-272 trap)' and Lean trap_exact"
+  },
+  {
+   "id": "inc-workflow-unbound",
+   "at": "2026-10-18T04:40+07:00",
+   "title": "A task worked on by a Workflow run showed in the ready lane",
+   "symptom": "Task mistake-retro ran as Workflow run wf_b3d4e643-ace (meta.name = the task id) but the board kept it in ready, unbound; the lead claimed it by hand (task.claim with agent=wf_b3d4e643-ace, event seq 577).",
+   "cause": "CONFIRMED (code read, lean/Fw/Plan/Core.lean agentOf/cands, docs/team/tools/spawn-guard.md): the board binds an agent to a task only from agent.spawn / agent.stop of named Agent spawns. A Workflow run and its unnamed subagents never emit one (PreToolUse(Agent) does not fire for workflow agents), so nothing bound the task.",
+   "evidence": [
+    {
+     "kind": "event",
+     "ref": "577",
+     "note": "the hand claim: task.claim mistake-retro by agent wf_b3d4e643-ace (run id wf_b3d4e643-ace)"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Plan/Workflow.lean",
+     "note": "workflow_binds, workflow_ends, workflow_foreign_agentOf, define_workflow_comm"
+    },
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-transcript-signals.md",
+     "note": "run start = workflows/scripts/<meta.name>-<runId>.js, run end = workflows/<runId>.json"
+    }
+   ],
+   "repro": "Start a Workflow whose meta.name equals a ready task id: the task stays in ready while the run is alive.",
+   "fix": {
+    "task": "workflow-claim"
+   },
+   "regression": "packages/contracts/golden/plan/workflow.jsonl (Lean Fw.Plan.wfEvents) checked by apps/console-api/test/workflow-claim.test.ts, plus the Lean theorems workflow_binds and define_workflow_comm"
   }
  ]
 }

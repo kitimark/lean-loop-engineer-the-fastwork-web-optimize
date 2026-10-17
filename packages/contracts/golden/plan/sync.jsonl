@@ -1,0 +1,7 @@
+{"from":"m1","last":null,"main":"main","name":"first pass: main's head is synced","refs":[["ci/x","c1"],["main","m1"]]}
+{"from":null,"last":"m1","main":"main","name":"same head: skipped","refs":[["main","m1"]]}
+{"from":"m2","last":"m1","main":"main","name":"main moved: synced","refs":[["ci/x","c1"],["main","m2"]]}
+{"from":null,"last":"m1","main":"main","name":"no main ref: skipped","refs":[["ci/x","c1"]]}
+{"from":null,"last":null,"main":"main","name":"no refs: skipped","refs":[]}
+{"from":null,"last":null,"main":"main","name":"a worktree branch never syncs","refs":[["worktree-agent-x","w1"]]}
+{"from":"m1","last":null,"main":"main","name":"duplicate main: the first one","refs":[["main","m1"],["main","m2"]]}

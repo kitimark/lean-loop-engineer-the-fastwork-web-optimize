@@ -2,55 +2,29 @@
 // Sync only turns the file into typed commands (deps first, so the reducer's "dep must be defined" rule holds).
 // Show only prints the board's `plan`, which fwcore derived. Neither decides anything about ready/blocked/done.
 import { createHash } from "node:crypto";
-import { Command, type Actor, type Plan } from "@fw/contracts";
+import {
+  type Command, type Actor, type Plan, type ContentDigest, type GraphTask, type WorkGraph,
+  topoSort as sharedTopoSort, syncCommands as sharedSyncCommands,
+} from "@fw/contracts";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 
-type GraphTask = {
-  id: string; title: string; stream: string; milestone?: string | null; deps?: string[]; owner: string;
-  writes?: string[]; devices?: string[]; needs?: string[]; evidence?: string | null; cut?: boolean;
-};
-export type WorkGraph = { milestones: { id: string; title: string }[]; tasks: GraphTask[] };
+export type { WorkGraph } from "@fw/contracts";
 
-/** Dependencies first (Kahn, ties keep file order). Throws on a cycle or an unknown dep, naming the tasks. */
-export function topoSort(tasks: GraphTask[]): GraphTask[] {
-  const byId = new Map(tasks.map((t) => [t.id, t]));
-  for (const t of tasks) for (const d of t.deps ?? []) if (!byId.has(d)) throw new UsageError(`task ${t.id}: dep ${d} is not in the graph`);
-  const out: GraphTask[] = [];
-  const placed = new Set<string>();
-  while (out.length < tasks.length) {
-    const next = tasks.find((t) => !placed.has(t.id) && (t.deps ?? []).every((d) => placed.has(d)));
-    if (!next) throw new UsageError(`dependency cycle among: ${tasks.filter((t) => !placed.has(t.id)).map((t) => t.id).join(", ")}`);
-    out.push(next); placed.add(next.id);
-  }
-  return out;
-}
+/** sha256 of the JSON text, 10 hex characters: the content digest in every plan sync key. */
+export const digest: ContentDigest = (v) => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 10);
+const usage = (m: string) => new UsageError(m);
 
-/** The contract caps titles at 200 characters; a longer one is clipped here (the file keeps the full text). */
-const clip = (s: string) => (s.length <= 200 ? s : `${s.slice(0, 199)}…`);
-const digest = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 10);
+/** Dependencies first (Kahn, ties keep file order). Throws a UsageError on a cycle or an unknown dep, naming the tasks.
+ *  The shared implementation lives in @fw/contracts (the console reconciler syncs with the same code). */
+export const topoSort = (tasks: GraphTask[]): GraphTask[] => sharedTopoSort(tasks, usage);
 
 /** Commands for the whole file: milestones, then tasks in dependency order. The key carries a digest of the content,
  *  so re-syncing an unchanged file is a no-op (duplicate) and an edited task is a new upsert. */
-export function syncCommands(g: WorkGraph, actor: Actor = "lead"): Command[] {
-  const cmds: Command[] = [];
-  for (const m of g.milestones) {
-    cmds.push(Command.parse({ type: "milestone.define", key: `plan:m:${m.id}:${digest([m.id, m.title])}`, actor, milestone: m.id, title: clip(m.title) }));
-  }
-  for (const t of topoSort(g.tasks)) {
-    const body = { task: t.id, title: clip(t.title), stream: t.stream, milestone: t.milestone ?? null, deps: t.deps ?? [], owner: t.owner,
-      writes: t.writes ?? [], devices: t.devices ?? [],
-      // only when present, so a task without needs keeps its key (digest) from before the field existed
-      ...(t.needs?.length ? { needs: t.needs } : {}), evidence: t.evidence ?? null,
-      // likewise only when true (a task cut from the plan: fwcore derives state "cut")
-      ...(t.cut ? { cut: true } : {}) };
-    cmds.push(Command.parse({ type: "task.define", key: `plan:d:${t.id}:${digest(body)}`, actor, ...body }));
-  }
-  return cmds;
-}
+export const syncCommands = (g: WorkGraph, actor: Actor = "lead"): Command[] => sharedSyncCommands(g, actor, digest, usage);
 
 /** Text for `fw plan show`: agent-ready (by parallel-safe group), the device lane (ready, then blocked with blockers),
  *  running, agent-blocked (with blockers), critical path, cut. Lane, state, blockers and groups all come from fwcore. */

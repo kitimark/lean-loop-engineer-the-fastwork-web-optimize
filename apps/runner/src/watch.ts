@@ -1,5 +1,6 @@
 // `fw watch`: collect the team snapshot, ask fwcore `obs.health` for states and alerts, print a compact table,
 // append input+output to .fw-console/health.jsonl. No decision logic here: every state and alert code is fwcore's.
+import { begin } from "./timing.ts";
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -252,11 +253,13 @@ export async function watchMain(args: string[], cwd: string, print: (s: string) 
   let prev: Set<string> | null = last ? new Set(last.output.alerts.map(alertKey)) : null;
   let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical } : null;
   for (;;) {
+    const endPass = begin("fw", "watch pass", main); // timing-spans: one span per collection pass
     const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap);
     const h = await check(snap, call);
     const nx = await nextFor(paths, main, snap, h, call);
     if (nx) h.alerts.push(...nextAlerts(nx)); // agent.held / agent.unlanded: fwcore's proposals shown as alerts
     appendLog(paths, snap, h);
+    endPass(0);
     const fresh = newAlerts(prev, h);
     print(o.json ? JSON.stringify({ input: snap, output: h, next: nx }) : [renderTable(snap, h), ...(nx ? formatNext(nx) : [])].join("\n"));
     if (o.untilAlert && fresh.length) {

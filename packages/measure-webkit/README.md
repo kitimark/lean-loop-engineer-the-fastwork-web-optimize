@@ -212,8 +212,11 @@ Answers (MEASURED):
 
 Class W (per-step componentwise dominance) is therefore reachable on this lane only for the columns that are
 deterministic or stable (see `handoff --cols` below); a WebKit virtual frame clock (improvement #22) is the next lever and is
-not attempted here (it would be a rAF/animation replacement, which the plan forbids; WKTR's `UIHelper.renderingUpdate()`
-is the sanctioned version).
+not attempted here (it would be a rAF/animation replacement, which the plan forbids). WKTR's `UIHelper.renderingUpdate()`
+is not a frame lock either: it is one rAF callback followed by one `setTimeout(0)`
+(`LayoutTests/resources/ui-helper.js:182-191@862f17d`, CONFIRMED), so it waits for the next animation-frame callback and the
+task after it, not for exactly one rendering update. The `wktr` lane counts rendering updates with `internals`
+(`packages/measure-wktr/README.md`) and does not use it.
 
 ## RenderingFrame on iOS 27.0 (improvement #8)
 
@@ -300,6 +303,13 @@ deterministic, as before.
 
 ## Feasibility: WKTR and `window.internals` on this Mac (research only, nothing built)
 
+**Corrected 2026-10-18 (CONFIRMED):** two statements in this section were wrong and are fixed below. (1) A prebuilt
+iOS-Simulator WebKitTestRunner exists: WebKit's CI uploads a minified archive of the Release iOS-Simulator build per
+revision to a public bucket, and the `wktr` lane downloads it (see the Source bullet and
+`packages/measure-wktr/README.md`). `webkit.org/build-archives` lists macOS archives only, which is all the old text
+had looked at. (2) `UIHelper.renderingUpdate()` is not an exact one-rendering-update lock (see the last Facts bullet).
+The build-from-source estimates below stay as research history; the lane no longer needs them.
+
 Facts (CONFIRMED unless marked):
 
 - Host: MacBookPro18,3 (M1 Pro, 8 cores, 16 GB), macOS 27.0.1, Xcode 27.1 (27A9275), iOS 27.0 and 26.5 simulator runtimes
@@ -307,8 +317,17 @@ Facts (CONFIRMED unless marked):
   component reports `uninstalled` (`xcodebuild -showComponent MetalToolchain`), which WebKit's build docs require
   (`xcodebuild -downloadComponent MetalToolchain`).
 - Source: `WebKit/WebKit` is reported by GitHub as 13.2 GB (`size` 13,192,724 KB, full history). A shallow checkout was not
-  tried. There is no prebuilt: `webkit.org/build-archives` offers macOS-only release archives (Tahoe, Sequoia, Sonoma; newest
-  324037@main of 2026-10-17); nothing for the iOS Simulator or WebKitTestRunner, and no macOS 27 section yet.
+  tried. **A prebuilt exists, but not on `webkit.org/build-archives`** (that page offers macOS-only release archives:
+  Tahoe, Sequoia, Sonoma; newest 324037@main of 2026-10-17; no macOS 27 section yet). WebKit's CI builder
+  `Apple-iOS-26-Simulator-Release-Build` (`Tools/CISupport/build-webkit-org/config.json:425@862f17d`) also uploads a
+  minified archive per revision to the public bucket `minified-archives.webkit.org`
+  (`Tools/CISupport/build-webkit-org/steps.py:58-59,485-491@862f17d`), and CI testers fetch the full-size archive with an
+  unauthenticated `curl --fail` (`Tools/CISupport/download-built-product:54@862f17d`, `steps.py:681-685`). CONFIRMED.
+  The `wktr` lane takes it the same way: `packages/measure-wktr/src/archive.json` pins
+  `https://s3-us-west-2.amazonaws.com/minified-archives.webkit.org/ios-simulator-26-x86_64-arm64-release/324039%40main.zip`
+  (315 MB, size and sha256 checked), `packages/measure-wktr/scripts/fetch-archive.sh` downloads and extracts it into an
+  empty directory, and `.github/workflows/wktr.yml` caches it with `actions/cache`. It holds `WebKitTestRunnerApp.app`,
+  the `WebCore` and `WebKit` frameworks and `libWebCoreTestSupport.dylib`; nothing is built.
 - Commands: `Tools/Scripts/build-webkit --release --ios-simulator`, then `Tools/Scripts/run-webkit-tests --ios-simulator
   --release <test>`; `run-safari --ios-simulator` runs the build in the Simulator. WKTR for iOS exists on main
   (`Tools/WebKitTestRunner/ios/`: `TestControllerIOS.mm`, `PlatformWebViewIOS.mm`, `UIScriptControllerIOS.mm`, `HIDEventGenerator.mm`, ...).
@@ -320,14 +339,21 @@ Facts (CONFIRMED unless marked):
   the term the Inspector records lack), `styleRecalcCount`, `styleInvalidationTraversalCount`, `layoutUpdateCount`,
   `renderingUpdateCount` (the count `RenderingFrame` would give, missing on 27.0), `compositingUpdateCount`, `layerFlushCount`,
   `startTrackingRepaints` + `repaintRectsAsText`, `acceleratedAnimationsForElement` (`isThreaded`), `requestAnimationFrameInterval`,
-  `setLowPowerModeEnabled`. And, INFERRED from the test tooling, an in-process step lock (`UIHelper.renderingUpdate()` waits for
-  exactly one rendering update) with no inspector round trips, which is what the `lock` mode here tried to imitate and could not.
+  `setLowPowerModeEnabled`. `UIHelper.renderingUpdate()` is a test helper, not a one-update lock: it awaits a `requestAnimationFrame` callback and
+  then a `setTimeout(0)` (`LayoutTests/resources/ui-helper.js:182-191@862f17d`: `animationFrame()` is
+  `new Promise(requestAnimationFrame)`, `renderingUpdate()` awaits it, then `delayFor(0)`, which is
+  `setTimeout(resolve, 0)` at `:554-557`; CONFIRMED). It runs in the page with no inspector round trips, but it only
+  orders page work after the next rAF callback and one task; how many rendering updates ran in between is read from
+  `internals.renderingUpdateCount`, not assumed to be 1. So it is not what the `lock` mode here tried to imitate.
 - What it would not add: Mobile Safari (no toolbar, different default viewport unless set per test), the shipping iOS 27.0
   WebKit (counts come from a trunk build, so a calibration run comparing Timeline counts with `internals` counts on one
   fixture is needed before anything is mixed), phone time.
-- Recommendation: keep the Inspector lane for CI, and run the WKTR spike on a cloud Mac or after freeing >= 120 GB (PLAN Q10),
-  starting with a shallow/partial clone (`git clone --depth 1 --filter=blob:none`) and `build-webkit --release --ios-simulator`
-  with `-j4`; the first deliverable would be `lastStyleUpdateSize` and `renderingUpdateCount` per scroll step on the fixtures.
+- Recommendation (superseded, CONFIRMED by the `wktr` lane): the spike needed neither a cloud Mac nor 120 GB. The
+  prebuilt archive runs on a `macos-26` GitHub runner and the first deliverable (`lastStyleUpdateSize` and
+  `renderingUpdateCount` per scroll step) exists: `packages/measure-wktr/README.md`, workflow runs 39054209180,
+  39058900156, 39061993891, frozen in `packages/measure-wktr/classes.frozen.json`. That lane is a findings lane, not a
+  gate lane: only `renderingUpdates`, `layerFlushes` and (under `vt`) `styleInvalidations` are gateable, and the style-work
+  counts are quarantined. The Inspector lane stays this package's CI lane.
 
 ## Host load or engine on the CI runner (webkit-quiet, 2026-10-18)
 

@@ -5,7 +5,6 @@ import { dirname, join, resolve } from "node:path";
 import { Event, type LiveBoard, type Command, type CommandReply } from "@fw/contracts";
 import type { Core } from "./core/index.ts";
 import { logLines } from "./core/lean.ts";
-import { liveAgentNames } from "./health.ts";
 
 /** `.fw-console/` lives at the main checkout root, even when run from a worktree. */
 export function consoleDir(cwd = process.cwd()): string {
@@ -15,13 +14,13 @@ export function consoleDir(cwd = process.cwd()): string {
   return join(dirname(common), ".fw-console");
 }
 
-/** A `task.define` gets the live agent names as a fact (`live`, replacing any client value; omitted when none), so
- *  Lean can claim a task defined after its agent was spawned. Other commands pass unchanged. No decision here. */
-export function withLive(cmd: Command, dir: string, live: (d: string) => string[] = liveAgentNames): Command {
-  if (cmd.type !== "task.define") return cmd;
-  const { live: _client, ...rest } = cmd;
-  const names = live(dir);
-  return names.length > 0 ? { ...rest, live: names } : rest;
+/** A client's legacy `live` on a `task.define` is dropped (claim-order-lean): the board binds agents from agent.spawn /
+ *  agent.stop (Lean `Fw.Plan.agentOf`), and the console no longer adds `live`. Logged events that carry it still replay
+ *  to the same board. Other commands pass unchanged. No decision here. */
+export function withoutLive(cmd: Command): Command {
+  if (cmd.type !== "task.define" || cmd.live === undefined) return cmd;
+  const { live: _legacy, ...rest } = cmd;
+  return rest;
 }
 
 export class Store {
@@ -84,7 +83,7 @@ export class Store {
   }
 
   private async submitNow(sent: Command): Promise<CommandReply> {
-    const cmd = withLive(sent, this.dir);
+    const cmd = withoutLive(sent);
     const ts = this.clock();
     const { outcome } = await this.core.apply({ ...cmd, ts });
     if (!outcome.accepted) {
