@@ -337,9 +337,11 @@ def baseline (tb : Table) (rs : List ZRun) : Baseline :=
     detDriftTotals := ((totalRows tb rs).filter drifts).map (·.type) }
 
 /-- Why the runs are refused, if they are: fewer than 3 runs, a repeated run id, a repeated zone id
-in the first run, or a run whose zone structure differs from the first run's.
+in the first run, or a run whose zone structure differs from the first run's; the checks run in that
+order and the first failing one gives the message.
 
-$$\forall \mathcal{R}:\quad \operatorname{refusal}(\mathcal{R}) = \bot \iff |\mathcal{R}| \ge 3 \land [r.\mathrm{id}]_{r \in \mathcal{R}} \text{ distinct} \land \operatorname{ids}(\mathcal{R}) \text{ distinct} \land \forall r \in \mathcal{R}:\ [\operatorname{shape}(z)]_{z \in r.\mathrm{zones}} = [\operatorname{shape}(z)]_{z \in \mathcal{R}_1.\mathrm{zones}}$$
+$$\forall r, \mathcal{R}':\quad \operatorname{refusal}([\,]) = \texttt{"need at least three runs"},\qquad \operatorname{refusal}(r :: \mathcal{R}') = \begin{cases} \texttt{"need at least three runs"} & |\mathcal{R}'| < 2 \\ \texttt{"run ids must be distinct"} & [q.\mathrm{id}]_{q \in r :: \mathcal{R}'} \text{ not distinct} \\ \texttt{"run }r.\mathrm{id}\texttt{: a zone id occurs twice"} & [z.\mathrm{id}]_{z \in r.\mathrm{zones}} \text{ not distinct} \\ \texttt{"run }r'.\mathrm{id}\texttt{: zone structure (id, frames, scrolledPx, firstFrame, lastFrame) differs from run }r.\mathrm{id}\texttt{"} & \exists q \in \mathcal{R}':\ [\operatorname{shape}(z)]_{z \in q.\mathrm{zones}} \ne [\operatorname{shape}(z)]_{z \in r.\mathrm{zones}},\ r' = \text{the first such } q \\ \bot & \text{otherwise} \end{cases}$$
+(the first matching case, top to bottom; the run ids $r.\mathrm{id}$, $r'.\mathrm{id}$ are spliced into the message text)
 -/
 def refusal : List ZRun → Option String
   | [] => some "need at least three runs"
@@ -368,6 +370,10 @@ private def tbl : Table := [("a", ⟨.det, 0, 0, none⟩), ("b", ⟨.stable, 1, 
 #guard (refusal [⟨"1", [z "rest" []]⟩, ⟨"2", [z "rest" []]⟩, ⟨"3", [z "tail" []]⟩]).isSome
 #guard (refusal [⟨"1", [z "rest" [], z "rest" []]⟩, ⟨"2", [z "rest" [], z "rest" []]⟩, ⟨"3", [z "rest" [], z "rest" []]⟩]).isSome
 #guard (refusal [⟨"1", [z "rest" [("a", 1)]]⟩, ⟨"2", [z "rest" [("a", 2)]]⟩, ⟨"3", [z "rest" []]⟩]).isNone
+#guard refusal [] == some "need at least three runs"
+#guard refusal [⟨"1", [z "rest" []]⟩, ⟨"1", [z "rest" []]⟩, ⟨"3", [z "tail" []]⟩] == some "run ids must be distinct"
+#guard refusal [⟨"1", [z "rest" []]⟩, ⟨"2", [z "rest" []]⟩, ⟨"3", [z "tail" []]⟩, ⟨"4", []⟩] ==
+    some "run 3: zone structure (id, frames, scrolledPx, firstFrame, lastFrame) differs from run 1"
 #guard (baseline tbl [⟨"1", [z "rest" [("a", 1), ("b", 5)]]⟩, ⟨"2", [z "rest" [("a", 2), ("b", 4)]]⟩,
     ⟨"3", [z "rest" [("a", 1), ("c", 9)]]⟩]).detDrift == [("rest", "a")]
 #guard (baseline tbl [⟨"1", [z "rest" [("a", 1), ("b", 5)]]⟩, ⟨"2", [z "rest" [("a", 2), ("b", 4)]]⟩,
