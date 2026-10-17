@@ -742,7 +742,7 @@
    "extra": [],
    "dismissed":
    [{"why":
-     "the stage is at most 780 px wide (Fw.Parts.Pain.stageW_lt_split), so the 1100 px test always takes the jittered placement: no viewport width reaches the other branch",
+     "picks the placement of an ADDED note (jittered below a canvas width of 1100 px, scored from it; Fw.Parts.Pain.scored_iff). The tick needs the board visible and the gate loads at the top, so no note is ever added in a gated state; the rule is covered by Lean theorems and golden vectors. The edge 1099/1100 is not a matrix pair",
      "id": "js.pain-container-1100"}],
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.w-le-860", "mq.c860"], "orig": ["mq.rm-reduce", "mq.w-le-860", "mq.c860"]}},

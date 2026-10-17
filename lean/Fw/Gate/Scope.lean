@@ -350,7 +350,7 @@ def pilotParts : List PartUse := [
     knees := [⟨"pain note padding clamp 12 / 2.6vw / 20", 462⟩, ⟨"pain note padding clamp 12 / 2.6vw / 20", 769⟩,
               ⟨"pain note text clamp 14 / 2.2vw / 20", 636⟩, ⟨"pain note text clamp 14 / 2.2vw / 20", 909⟩],
     dismissed := [
-      ("js.pain-container-1100", "the stage is at most 780 px wide (Fw.Parts.Pain.stageW_lt_split), so the 1100 px test always takes the jittered placement: no viewport width reaches the other branch")] }
+      ("js.pain-container-1100", "picks the placement of an ADDED note (jittered below a canvas width of 1100 px, scored from it; Fw.Parts.Pain.scored_iff). The tick needs the board visible and the gate loads at the top, so no note is ever added in a gated state; the rule is covered by Lean theorems and golden vectors. The edge 1099/1100 is not a matrix pair")] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.
