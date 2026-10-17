@@ -2204,7 +2204,8 @@
    "writes": [
     "lean/Fw/Parts/PeopleCard.lean",
     "packages/contracts/golden/engine/people-card.jsonl"
-   ]
+   ],
+   "evidence": "343fcd7"
   },
   {
    "id": "proof-pain-notes",
