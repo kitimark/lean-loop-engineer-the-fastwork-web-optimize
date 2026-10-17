@@ -154,6 +154,22 @@ def isId (s : String) : Bool :=
      | [] => false) &&
     cs.all (fun c => c.isDigit || (decide ('a' ≤ c) && decide (c ≤ 'z')) || c == '.' || c == '_' || c == '-')
 
+/-- A flag part: like `isId`, but letters after the first may also be upper case, because the
+site's part ids are camelCase (`nav.hitTest`).
+
+$$\operatorname{isPart}(s) \iff 1 \le |s| \le 64 \land s_0 \in [a\text{-}z0\text{-}9] \land \forall c \in s:\ c \in [a\text{-}zA\text{-}Z0\text{-}9\_.\text{-}]$$
+-/
+def isPart (s : String) : Bool :=
+  let cs := s.toList
+  decide (0 < cs.length) && decide (cs.length ≤ 64) &&
+    (match cs with
+     | c :: _ => c.isDigit || (decide ('a' ≤ c) && decide (c ≤ 'z'))
+     | [] => false) &&
+    cs.all (fun c => c.isAlphanum || c == '.' || c == '_' || c == '-')
+
+#guard isPart "nav.hitTest" && isPart "hero.countdown" && !isId "nav.hitTest"
+#guard !isPart "Nav" && !isPart "" && !isPart "a:b" && !isPart "a,b" && !isPart "a/b"
+
 /-- An artifact name inside a run: `/`-separated segments of `A-Za-z0-9._-`, none empty, `.` or `..`,
 so a name can never leave the run's directory.
 
@@ -192,9 +208,10 @@ structure Entry where
   bytes : Nat
 deriving Repr, DecidableEq
 
-/-- What one run measured and where its bytes are.
+/-- What one run measured and where its bytes are, as read from the wire: the engine is its name (a string checked by
+`problems`), the flags are (part, variant) pairs.
 
-$$\mathrm{Manifest} = \mathrm{Engine} \times \mathrm{Preset} \times \mathrm{Flags} \times \mathrm{Profile} \times \mathrm{Sha} \times \mathrm{Image} \times \mathrm{RunId} \times \mathrm{Entry}^{*}$$
+$$\mathrm{Manifest} = (\mathit{engine}, \mathit{preset}, \mathit{fw}, \mathit{profile}, \mathit{gitSha}, \mathit{image}, \mathit{runId}, \mathit{entries}) \in \mathrm{String} \times \mathrm{String} \times (\mathrm{String} \times \mathrm{String})^{*} \times \mathrm{String}^{4} \times \mathrm{Entry}^{*}$$
 -/
 structure Manifest where
   engine : String
@@ -251,14 +268,16 @@ theorem entriesSorted_nodup {es : List Entry} (h : entriesSorted es = true) :
 
 /-- Every problem of a manifest, as a message (empty = valid).
 
-$$\operatorname{problems}(m) = [\,\text{each violated rule}\,]$$ over the rules: engine known, preset and profile ids, flags canonical with id parts and variants, 40-hex git sha, image, digits-only run id, entry names safe and strictly increasing, entry digests 64-hex.
+$$\begin{aligned} \operatorname{problems}(m) ={} & [\texttt{engine: unknown} \mid \operatorname{ofName}(m.\mathit{engine}) = \bot] \mathbin{+\!\!+} [\texttt{preset: not an id} \mid \neg\operatorname{isId}(m.\mathit{preset})] \mathbin{+\!\!+} [\texttt{profile: not an id} \mid \neg\operatorname{isId}(m.\mathit{profile})] \\ & \mathbin{+\!\!+} [\texttt{fw: parts must be strictly increasing} \mid \neg\operatorname{flagsOk}(m.\mathit{fw})] \mathbin{+\!\!+} [\texttt{fw: part and variant must be ids} \mid \exists (a, v) \in m.\mathit{fw}:\ \neg\operatorname{isPart}(a) \lor \neg\operatorname{isId}(v)] \\ & \mathbin{+\!\!+} [\texttt{gitSha: not 40 hex digits} \mid \neg\operatorname{isHex}_{40}(m.\mathit{gitSha})] \mathbin{+\!\!+} [\texttt{image: not sha256:<64 hex> or runner:<id>} \mid \neg\operatorname{imageOk}(m.\mathit{image})] \\ & \mathbin{+\!\!+} [\texttt{runId: not digits} \mid m.\mathit{runId} = \varepsilon \lor \exists c \in m.\mathit{runId}:\ c \notin \{\texttt{0}..\texttt{9}\}] \mathbin{+\!\!+} [\texttt{entries: names must be strictly increasing} \mid \neg\operatorname{entriesSorted}(m.\mathit{entries})] \\ & \mathbin{+\!\!+} [\texttt{entries: name escapes the run directory} \mid \exists e \in m.\mathit{entries}:\ \neg\operatorname{safeName}(e.\mathit{name})] \\ & \mathbin{+\!\!+} [\texttt{entries: digest not 64 hex digits} \mid \exists e \in m.\mathit{entries}:\ \neg\operatorname{isHex}_{64}(e.\mathit{digest})] \end{aligned}$$
+
+where $[x \mid c]$ is $[x]$ when $c$ holds and $[\,]$ otherwise; the messages come in this order.
 -/
 def Manifest.problems (m : Manifest) : List String :=
   (if (Engine.ofName m.engine).isSome then [] else ["engine: unknown"]) ++
   (if isId m.preset then [] else ["preset: not an id"]) ++
   (if isId m.profile then [] else ["profile: not an id"]) ++
   (if flagsOk m.fw then [] else ["fw: parts must be strictly increasing"]) ++
-  (if m.fw.all (fun p => isId p.1 && isId p.2) then [] else ["fw: part and variant must be ids"]) ++
+  (if m.fw.all (fun p => isPart p.1 && isId p.2) then [] else ["fw: part and variant must be ids"]) ++
   (if isHex 40 m.gitSha then [] else ["gitSha: not 40 hex digits"]) ++
   (if imageOk m.image then [] else ["image: not sha256:<64 hex> or runner:<id>"]) ++
   (if !m.runId.isEmpty && m.runId.toList.all Char.isDigit then [] else ["runId: not digits"]) ++
@@ -341,7 +360,7 @@ theorem flagPairs_inj : ∀ {a b : List (String × String)}, flagPairs a = flagP
 
 /-- The pairs whose canonical JSON the caller hashes to get the run key.
 
-$$\operatorname{keyPairs}(r) = [(\texttt{v}, 1), (\texttt{engine}, \cdot), (\texttt{preset}, \cdot), (\texttt{profile}, \cdot), (\texttt{sha}, \cdot), (\texttt{image}, \cdot)] \mathbin{+\!\!+} \operatorname{flagPairs}(r.\mathrm{fw})$$
+$$\operatorname{keyPairs}(r) = [(\texttt{v}, \texttt{1}), (\texttt{engine}, \operatorname{name}(r.\mathrm{engine})), (\texttt{preset}, r.\mathrm{preset}), (\texttt{profile}, r.\mathrm{profile}), (\texttt{sha}, r.\mathrm{sha}), (\texttt{image}, r.\mathrm{image})] \mathbin{+\!\!+} \operatorname{flagPairs}(r.\mathrm{fw})$$
 -/
 def keyPairs (r : Req) : List (String × String) :=
   [("v", "1"), ("engine", r.engine.name), ("preset", r.preset), ("profile", r.profile),
@@ -361,9 +380,10 @@ theorem keyPairs_inj {r r' : Req} (h : keyPairs r = keyPairs r') : r = r' := by
 
 /-! ## The plan of `fw run` -/
 
-/-- A run request as the user typed it, before validation.
+/-- A run request as the user typed it, before validation: engine names may be unknown or repeated, and the image
+pins are an association list from engine name to image (first match wins, unknown names allowed until `reqProblems`).
 
-$$\mathrm{Request} = \mathrm{Preset} \times \mathrm{Flags} \times \mathrm{Engines} \times \mathrm{Profile} \times \mathbb{N} \times \mathrm{Sha} \times (\mathrm{Engine} \rightharpoonup \mathrm{Image})$$
+$$\mathrm{Request} = (\mathit{preset}, \mathit{fw}, \mathit{engines}, \mathit{profile}, \mathit{runs}, \mathit{sha}, \mathit{images}) \in \mathrm{String} \times (\mathrm{String} \times \mathrm{String})^{*} \times \mathrm{String}^{*} \times \mathrm{String} \times \mathbb{N} \times \mathrm{String} \times (\mathrm{String} \times \mathrm{String})^{*}$$
 -/
 structure Request where
   preset : String
@@ -374,9 +394,9 @@ structure Request where
   sha : String
   images : List (String × String)
 
-/-- The default configuration: the original site (preset `original`, no flags) on the default profile.
+/-- The default preset name (with no flags and `defaultProfile` it is the default configuration).
 
-$$\mathrm{default} = (\texttt{original}, [\,], \texttt{swipe-v1})$$
+$$\mathrm{defaultPreset} = \texttt{original}$$
 -/
 def defaultPreset : String := "original"
 
@@ -409,13 +429,24 @@ def workflowOf : Engine → String
   | .chromium => "chromium-counts.yml"
   | .webkit => "webkit-sim.yml"
 
-/-- The `workflow_dispatch` inputs a workflow declares (as of its file in `.github/workflows/`).
+/-- The `workflow_dispatch` inputs a workflow declares (as of its file in `.github/workflows/`; chromium-counts.yml
+gained `target`, `preset`, `fw` and `image_run` with the rewrite lane).
 
-$$\operatorname{inputs}(\mathrm{chromium}) = \{\texttt{profile}, \texttt{runs}\},\quad \operatorname{inputs}(\mathrm{webkit}) = \{\texttt{vms}, \texttt{sessions}, \texttt{fresh\_boot}\}$$
+$$\operatorname{inputs}(\mathrm{chromium}) = [\texttt{profile}, \texttt{runs}, \texttt{target}, \texttt{preset}, \texttt{fw}, \texttt{image\_run}],\quad \operatorname{inputs}(\mathrm{webkit}) = [\texttt{vms}, \texttt{sessions}, \texttt{fresh\_boot}]$$
 -/
 def workflowInputs : Engine → List String
-  | .chromium => ["profile", "runs"]
+  | .chromium => ["profile", "runs", "target", "preset", "fw", "image_run"]
   | .webkit => ["vms", "sessions", "fresh_boot"]
+
+/-- The `fw` dispatch input: the flags as `part:variant`, joined by commas (empty for no flag).
+
+$$\operatorname{fwInput}([(a_1, v_1), \dots, (a_k, v_k)]) = a_1\texttt{:}v_1\texttt{,}\dots\texttt{,}a_k\texttt{:}v_k,\qquad \operatorname{fwInput}([\,]) = \varepsilon$$
+-/
+def fwInput (fw : List (String × String)) : String :=
+  ",".intercalate (fw.map fun p => p.1 ++ ":" ++ p.2)
+
+#guard fwInput [] == ""
+#guard fwInput [("hero.countdown", "strip"), ("nav.hitTest", "hit-skip")] == "hero.countdown:strip,nav.hitTest:hit-skip"
 
 /-- The request fields that differ from the workflow's built-in configuration, so the workflow must
 accept them as inputs.
@@ -427,14 +458,15 @@ def needs (q : Request) : List String :=
   (if q.preset == defaultPreset then [] else ["preset"]) ++
   (if q.fw.isEmpty then [] else ["fw"])
 
-/-- The dispatch inputs: the engine's own, from the request. Chromium takes the profile and the run
-count; WebKit takes none of the request (its experiment is fixed).
+/-- The dispatch inputs: the engine's own, from the request. Chromium takes the profile, the run count (in decimal),
+the preset and the flags (`target` and `image_run` keep the workflow's defaults); WebKit takes none of the request
+(its experiment is fixed).
 
-$$\operatorname{dispatch}(\mathrm{chromium}, q) = [(\texttt{profile}, q.\mathrm{profile}), (\texttt{runs}, q.\mathrm{runs})],\quad \operatorname{dispatch}(\mathrm{webkit}, q) = [\,]$$
+$$\operatorname{dispatch}(\mathrm{chromium}, q) = [(\texttt{profile}, q.\mathrm{profile}), (\texttt{runs}, q.\mathrm{runs}), (\texttt{preset}, q.\mathrm{preset}), (\texttt{fw}, \operatorname{fwInput}(q.\mathrm{fw}))],\quad \operatorname{dispatch}(\mathrm{webkit}, q) = [\,]$$
 -/
 def dispatchInputs (e : Engine) (q : Request) : List (String × String) :=
   match e with
-  | .chromium => [("profile", q.profile), ("runs", toString q.runs)]
+  | .chromium => [("profile", q.profile), ("runs", toString q.runs), ("preset", q.preset), ("fw", fwInput q.fw)]
   | .webkit => []
 
 /-- Why a job cannot run: the first needed field its workflow has no input for.
@@ -454,6 +486,27 @@ theorem blocked_none_sound {e : Engine} {q : Request} (h : blocked e q = none) :
   have := (List.find?_eq_none.mp h) x hx
   simpa using this
 
+/-- **The Chromium workflow can express every request:** a chromium job is never blocked.
+
+$$\forall q:\quad \operatorname{blocked}(\mathrm{chromium}, q) = \bot$$
+-/
+theorem blocked_chromium (q : Request) : blocked .chromium q = none := by
+  unfold blocked needs
+  apply List.find?_eq_none.mpr
+  intro x hx
+  simp only [List.mem_append] at hx
+  rcases hx with (hx | hx) | hx <;> split at hx <;> simp_all [workflowInputs]
+
+/-- **A chromium job sends what the request needs:** every needed field is a key of its dispatch inputs.
+
+$$\forall q, x:\quad x \in \operatorname{needs}(q) \Rightarrow \exists v:\ (x, v) \in \operatorname{dispatch}(\mathrm{chromium}, q)$$
+-/
+theorem needs_dispatched (q : Request) (x : String) (hx : x ∈ needs q) :
+    ∃ v, (x, v) ∈ dispatchInputs .chromium q := by
+  unfold needs at hx
+  simp only [List.mem_append] at hx
+  rcases hx with (hx | hx) | hx <;> split at hx <;> simp_all [dispatchInputs]
+
 /-- One job of a plan.
 
 $$\mathrm{Job} = \mathrm{Engine} \times \mathrm{Workflow} \times \mathrm{Inputs} \times \mathrm{Key} \times \mathrm{Blocked}?$$
@@ -467,14 +520,17 @@ structure Job where
 
 /-- Request-level problems (empty = the request is well formed).
 
-$$\operatorname{reqProblems}(q) = [\,\text{each violated rule}\,]$$ over: engines non-empty and known, preset and profile ids, flags ids and strictly increasing after sorting by part, `2 ≤ runs ≤ 10`, 40-hex git sha, images.
+$$\begin{aligned} \operatorname{reqProblems}(q) ={} & [\texttt{engines: none given} \mid q.\mathit{engines} = [\,]] \mathbin{+\!\!+} [\texttt{engines: unknown name} \mid \exists n \in q.\mathit{engines}:\ \operatorname{ofName}(n) = \bot] \\ & \mathbin{+\!\!+} [\texttt{preset: not an id} \mid \neg\operatorname{isId}(q.\mathit{preset})] \mathbin{+\!\!+} [\texttt{profile: not an id} \mid \neg\operatorname{isId}(q.\mathit{profile})] \\ & \mathbin{+\!\!+} [\texttt{fw: part and variant must be ids} \mid \exists (a, v) \in q.\mathit{fw}:\ \neg\operatorname{isPart}(a) \lor \neg\operatorname{isId}(v)] \mathbin{+\!\!+} [\texttt{fw: a part appears twice} \mid \neg\operatorname{flagsOk}(q.\mathit{fw})] \\ & \mathbin{+\!\!+} [\texttt{runs: must be 2 to 10} \mid \neg(2 \le q.\mathit{runs} \le 10)] \mathbin{+\!\!+} [\texttt{sha: not 40 hex digits} \mid \neg\operatorname{isHex}_{40}(q.\mathit{sha})] \\ & \mathbin{+\!\!+} [\texttt{images: unknown engine or bad image} \mid \exists (n, i) \in q.\mathit{images}:\ \operatorname{ofName}(n) = \bot \lor \neg\operatorname{imageOk}(i)] \end{aligned}$$
+
+where $[x \mid c]$ is $[x]$ when $c$ holds and $[\,]$ otherwise; the messages come in this order. `flagsOk` checks the
+flags in the order given (the wire layer sorts them by part first, so there a failure means a repeated part).
 -/
 def reqProblems (q : Request) : List String :=
   (if q.engines.isEmpty then ["engines: none given"] else []) ++
   (if q.engines.all (fun n => (Engine.ofName n).isSome) then [] else ["engines: unknown name"]) ++
   (if isId q.preset then [] else ["preset: not an id"]) ++
   (if isId q.profile then [] else ["profile: not an id"]) ++
-  (if q.fw.all (fun p => isId p.1 && isId p.2) then [] else ["fw: part and variant must be ids"]) ++
+  (if q.fw.all (fun p => isPart p.1 && isId p.2) then [] else ["fw: part and variant must be ids"]) ++
   (if flagsOk q.fw then [] else ["fw: a part appears twice"]) ++
   (if 2 ≤ q.runs && q.runs ≤ 10 then [] else ["runs: must be 2 to 10"]) ++
   (if isHex 40 q.sha then [] else ["sha: not 40 hex digits"]) ++
@@ -482,7 +538,10 @@ def reqProblems (q : Request) : List String :=
 
 /-- The jobs of a well-formed request: one per distinct requested engine, in canonical order.
 
-$$\operatorname{jobs}(q) = [\,\operatorname{job}(e, q) \mid e \in \operatorname{canon}(\operatorname{engines}(q))\,]$$
+$$\operatorname{jobs}(q) = [\,(e, \operatorname{workflow}(e), \operatorname{dispatch}(e, q), \operatorname{keyPairs}(e, q.\mathit{preset}, q.\mathit{fw}, q.\mathit{profile}, q.\mathit{sha}, \operatorname{imageOf}(q, e)), \operatorname{blocked}(e, q)) \mid e \in \operatorname{canon}(E_q)\,]$$
+
+where $E_q = [\,\operatorname{ofName}(n) \mid n \in q.\mathit{engines},\ \operatorname{ofName}(n) \ne \bot\,]$ (unknown names dropped) and the
+tuple is (engine, workflow, inputs, key, blocked).
 -/
 def jobsOf (q : Request) : List Job :=
   let es := canonEngines (q.engines.filterMap Engine.ofName)
@@ -564,7 +623,10 @@ def cacheOf (d : Option String) (present : List String) : String :=
 
 #guard canonEngines [.webkit, .chromium, .webkit] == [.chromium, .webkit]
 
-/-- A well-formed request for the guards: $$\mathrm{reqProblems}(\mathrm{exReq}) = [\,]$$ -/
+/-- A well-formed request for the guards (the `#guard` below checks $\operatorname{reqProblems}(\mathrm{exReq}) = [\,]$).
+
+$$\mathrm{exReq} = (\texttt{original}, [\,], [\texttt{webkit}, \texttt{chromium}, \texttt{webkit}], \texttt{swipe-v1}, 3, \texttt{0123456789abcdef0123456789abcdef01234567}, [\,])$$
+-/
 def exReq : Request :=
   { preset := "original", fw := [], engines := ["webkit", "chromium", "webkit"], profile := "swipe-v1", runs := 3,
     sha := "0123456789abcdef0123456789abcdef01234567", images := [] }
@@ -577,6 +639,10 @@ def exReq : Request :=
 #guard (plan exReq).map (·.engine) == [.chromium, .webkit]
 #guard blocked .webkit { exReq with fw := [("hero.countdown", "strip")] } == some "fw"
 #guard blocked .chromium { exReq with profile := "swipe-wheel-v1" } == none
+#guard blocked .chromium { exReq with preset := "strip-demo", fw := [("hero.countdown", "strip")] } == none
+#guard blocked .webkit { exReq with preset := "strip-demo" } == some "preset"
+#guard dispatchInputs .chromium { exReq with preset := "strip-demo", fw := [("hero.countdown", "strip")] }
+  == [("profile", "swipe-v1"), ("runs", "3"), ("preset", "strip-demo"), ("fw", "hero.countdown:strip")]
 #guard cacheOf (some "a") ["a"] == "hit"
 #guard cacheOf (some "b") ["a"] == "miss"
 #guard cacheOf none ["a"] == "unknown"

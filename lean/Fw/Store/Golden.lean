@@ -26,7 +26,7 @@ def planCases : List (String × String × Json) := [
    lit s!"\{\"engines\":[\"webkit\",\"chromium\"],\"sha\":\"{sha}\"}"),
   ("duplicate engine names collapse to one job", "store.plan",
    lit s!"\{\"engines\":[\"chromium\",\"chromium\"],\"sha\":\"{sha}\",\"runs\":4}"),
-  ("flags are sorted by part; the workflows have no fw input yet, so both jobs are blocked", "store.plan",
+  ("flags are sorted by part (a camelCase part is allowed); chromium-counts takes fw, webkit-sim does not, so only webkit is blocked", "store.plan",
    lit s!"\{\"preset\":\"original\",\"fw\":[\"nav.hitTest:hit-skip\",\"hero.countdown:strip\"],\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\"}"),
   ("another profile is an input of chromium-counts but not of webkit-sim", "store.plan",
    lit s!"\{\"profile\":\"swipe-wheel-v1\",\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\"}"),

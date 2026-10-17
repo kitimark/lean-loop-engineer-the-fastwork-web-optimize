@@ -88,7 +88,9 @@ def closer (ev : String) : Bool :=
 /-- Who a `Notification` without `agent_id` belongs to: the single agent with a tool in flight,
 and only when the lead has no tool in flight other than the `Agent` call waiting for it.
 
-$$\operatorname{attrib}(\mathit{fs}) = \begin{cases} \bot & \exists f \in \mathit{fs}:\ f.\mathit{agent} = \bot \land f.\mathit{tool} \ne \texttt{Agent} \\ f_1 & \text{the agent flights } F_a = \{f \in \mathit{fs} : f.\mathit{agent} \ne \bot\} = f_1 :: R \text{ and } \forall g \in R:\ g.\mathit{agent} = f_1.\mathit{agent} \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{attrib}(\mathit{fs}) = \begin{cases} \bot & \exists f \in \mathit{fs}:\ f.\mathit{agent} = \bot \land f.\mathit{tool} \ne \texttt{Agent} \\ f_1 & \text{else if } F_a = f_1 :: R \text{ and } \forall g \in R:\ g.\mathit{agent} = f_1.\mathit{agent} \\ \bot & \text{otherwise} \end{cases}$$
+where $F_a = [\, f \in \mathit{fs} \mid f.\mathit{agent} \ne \bot \,]$ is the list of agent flights in the order of
+$\mathit{fs}$ (cases are tried first match first).
 -/
 def attrib (fs : List Flight) : Option Flight :=
   if fs.any (fun f => f.agentId.isNone && f.tool != some "Agent") then none
@@ -146,9 +148,10 @@ theorem attrib_lead_only {fs : List Flight} (h : ∀ g ∈ fs, g.agentId = none)
 
 /-! ## Step ids -/
 
-/-- A character allowed in an agent slug: letters, digits, `_` (never `-`, the id separator).
+/-- A character allowed in an agent slug: ASCII letters, ASCII digits, `_` (never `-`, the id separator); any other
+character, including a non-ASCII letter such as `é`, becomes `_`.
 
-$$\operatorname{slugChar}(c) = c \text{ if } c \text{ is alphanumeric or } c = \texttt{\_};\ \texttt{\_} \text{ otherwise}$$
+$$\operatorname{slugChar}(c) = \begin{cases} c & c \in \{\texttt{A}..\texttt{Z}, \texttt{a}..\texttt{z}, \texttt{0}..\texttt{9}, \texttt{\_}\} \\ \texttt{\_} & \text{otherwise} \end{cases}$$
 -/
 def slugChar (c : Char) : Char := if c.isAlphanum || c == '_' then c else '_'
 
@@ -166,9 +169,9 @@ $$\operatorname{stepId}(a, t) = \texttt{alert-} \cdot \operatorname{slug}(a) \cd
 -/
 def stepId (a : Option String) (t : Nat) : String := "alert-" ++ slug a ++ "-" ++ toString t
 
-/-- The characters up to the first `-` and those after it.
+/-- The characters up to the first `-` and those after it; a list without `-` is all left part.
 
-$$\operatorname{cut}(\ell \cdot \texttt{-} \cdot r) = (\ell, r) \text{ for } \ell \text{ without } \texttt{-}$$
+$$\operatorname{cut}(\ell \cdot \texttt{-} \cdot r) = (\ell, r) \text{ for } \ell \text{ without } \texttt{-};\quad \operatorname{cut}(\ell) = (\ell, [\,]) \text{ for } \ell \text{ without } \texttt{-}$$
 -/
 def cut : List Char → List Char × List Char
   | [] => ([], [])
@@ -292,7 +295,10 @@ private def clip (n : Nat) (s : String) : String := String.ofList (s.toList.take
 
 /-- The title of an alert: names the agent (its type), the kind and the tool.
 
-$$\operatorname{title}(k, w, \mathit{tool}) = \begin{cases} \text{"Agent } w \text{ asks permission to use } \mathit{tool} \text{: \dots"} & k = \mathrm{permission} \\ \text{"Agent } w \text{ needs your input: \dots"} & k = \mathrm{needsInput} \\ \text{"Agent } w \text{ stopped on an API failure; \dots"} & k = \mathrm{stopFailure} \end{cases}$$
+$$\operatorname{title}(k, \mathit{who}, \mathit{tool}) = \begin{cases} \text{“Agent } w \text{ asks permission to use } u \text{: answer its prompt in the Claude Code terminal, then press Done”} & k = \mathrm{permission} \\ \text{“Agent } w \text{ needs your input: answer it in the Claude Code terminal, then press Done”} & k = \mathrm{needsInput} \\ \text{“Agent } w \text{ stopped on an API failure; the lead restarts it from its handoff”} & k = \mathrm{stopFailure} \end{cases}$$
+where $w = \operatorname{clip}_{60}(\mathit{who})$, $u = \operatorname{clip}_{40}(\mathit{tool})$ if $\mathit{tool} \ne \bot$ and
+$u = \operatorname{clip}_{40}(\text{“a tool”})$ if $\mathit{tool} = \bot$, and $\operatorname{clip}_n(s)$ is the first $n$
+characters of $s$ (all of $s$ if it is shorter).
 -/
 def title (k : Kind) (who : String) (tool : Option String) : String :=
   let w := clip 60 who
@@ -304,7 +310,7 @@ def title (k : Kind) (who : String) (tool : Option String) : String :=
 /-- The agent an event opens an alert for: its own `agent_id` (`StopFailure` of the lead is the
 lead's); a `Notification` without one only when attributable. Returns (agent id, agent type, tool).
 
-$$\operatorname{subject}(e, \mathit{fs}) = \begin{cases} (e.\mathit{agent}, e.\mathit{type}, e.\mathit{tool}) & e.\mathit{agent} \ne \bot \lor e.\mathit{event} = \texttt{StopFailure} \\ (f.\mathit{agent}, f.\mathit{type}, e.\mathit{tool}) & e.\mathit{agent} = \bot,\ \operatorname{attrib}(\mathit{fs}) = f \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{subject}(e, \mathit{fs}) = \begin{cases} (e.\mathit{agent}, e.\mathit{type}, e.\mathit{tool}) & e.\mathit{agent} \ne \bot \lor e.\mathit{event} = \texttt{StopFailure} \\ (f.\mathit{agent}, f.\mathit{type}, e.\mathit{tool}) & e.\mathit{agent} = \bot \land e.\mathit{event} \ne \texttt{StopFailure} \land \operatorname{attrib}(\mathit{fs}) = f \\ \bot & \text{otherwise} \end{cases}$$
 -/
 def subject (e : Ev) (fs : List Flight) : Option (Option String × Option String × Option String) :=
   if e.agentId.isSome || e.event == "StopFailure" then some (e.agentId, e.agentType, e.tool)
@@ -331,7 +337,9 @@ def closes (e : Ev) (id : String) : Bool :=
 /-- The decision for one event, given the tool calls in flight and the ids of the alert steps
 still open on the board.
 
-$$\operatorname{act}(e, \mathit{fs}, \mathit{opn}) = (\mathit{post}, \mathit{close}),\quad \mathit{close} = [\mathit{id} \in \mathit{opn} : \operatorname{closes}(e, \mathit{id})],\quad \mathit{post} = \text{the alert of } \operatorname{kindOf}(e) \text{ for } \operatorname{subject}(e, \mathit{fs}) \text{ unless that agent has an open alert}$$
+$$\operatorname{act}(e, \mathit{fs}, \mathit{opn}) = (\mathit{post}, \mathit{close}),\quad \mathit{close} = [\, \mathit{id} \in \mathit{opn} \mid \operatorname{closes}(e, \mathit{id}) \,]$$
+$$\mathit{post} = \begin{cases} (s, \texttt{alert:} \cdot s, \operatorname{title}(k, \tau, \mathit{tool}), k, \operatorname{slug}(a)) & \operatorname{kindOf}(e) = k \land \operatorname{subject}(e, \mathit{fs}) = (a, \mathit{ty}, \mathit{tool}) \land \neg \exists \mathit{id} \in \mathit{opn}:\ \operatorname{owner}(\mathit{id}) = \operatorname{slug}(a) \\ \bot & \text{otherwise} \end{cases}$$
+where $s = \operatorname{stepId}(a, e.\mathit{ts})$ and $\tau = \mathit{ty}$ if $\mathit{ty} \ne \bot$, else $\texttt{main}$.
 -/
 def act (e : Ev) (fs : List Flight) (opn : List String) : Out :=
   let close := opn.filter (closes e)
