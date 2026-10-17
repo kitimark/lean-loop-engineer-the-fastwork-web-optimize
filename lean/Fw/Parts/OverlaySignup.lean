@@ -320,7 +320,7 @@ def Form.init : Form := ⟨false, false, false⟩
 
 $$\operatorname{submit}(F, v, h) = \begin{cases} (F, \bot) & \lnot v \lor F.\mathit{submitting} \\ (F[\mathit{error} := \top], \bot) & \lnot h \\ (F[\mathit{submitting} := \top, \mathit{error} := \bot], \top) & \text{otherwise}\end{cases}$$
 
-where $v$ is the form validity and $h$ whether a handler exists. -/
+Here $v$ is the form validity and $h$ whether a handler exists. -/
 def submit (f : Form) (v h : Bool) : Form × Bool :=
   if !v || f.submitting then (f, false)
   else if !h then ({ f with error := true }, false)

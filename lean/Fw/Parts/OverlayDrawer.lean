@@ -54,7 +54,7 @@ $$\operatorname{setOpen}(S, b, now, r) = \begin{cases}
 (\mathit{mounted}, \mathit{shown}, \mathit{raf}, \bot) & b = \bot,\ \lnot \mathit{mounted}
 \end{cases}$$
 
-where $r$ is "reduced motion". Opening never resets `shown` (so a re-open during the close delay slides in again, a
+Here $r$ is "reduced motion". Opening never resets `shown` (so a re-open during the close delay slides in again, a
 re-open after a quirky unmount does not). -/
 def setOpen (s : St) (b : Bool) (now : Rat) (reduced : Bool) : St :=
   if b then ⟨true, s.shown, true, none⟩
