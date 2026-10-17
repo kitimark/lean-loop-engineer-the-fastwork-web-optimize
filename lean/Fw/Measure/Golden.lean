@@ -60,6 +60,29 @@ def oneFrameRuns (n : Nat) (vals : List Int) : Json :=
     Json.mkObj [("n", toJson i), ("phase", .str "rest"), ("scrollY", toJson (0 : Nat)),
       ("counts", Json.mkObj (if i == 0 then [("x", toJson v)] else []))]))])
 
+/-- A trace slice `{name, ph, ts, dur?}`. -/
+def slice (name ph : String) (ts : Int) (dur : Option Int := none) : Json :=
+  Json.mkObj ([("name", .str name), ("ph", .str ph), ("ts", toJson ts)] ++
+    (match dur with | some d => [("dur", toJson d)] | none => []))
+
+/-- One frame of a counts file: every required SPK-q key at 0 except the overrides; `drop` keys are left out. -/
+def spkqFrame (over : List (String × Int)) (drop : List String := []) : Json :=
+  let base := (Fw.Measure.Neutral.required.filter fun k => !(over.any (·.1 == k)) && !drop.contains k).map
+    fun k => (k, (0 : Int))
+  Json.mkObj [("counts", Json.mkObj ((base ++ over).map fun (k, v) => (k, toJson v)))]
+
+/-- A counts file for `measure.spkq`: frames and `meta.n0` (`none`: no `meta`). -/
+def spkqFile (n0 : Option (Bool × Nat × Nat × Nat)) (frames : List Json) : Json :=
+  let tot (n : Nat) := Json.mkObj [("total", toJson n)]
+  Json.mkObj ([("frames", .arr frames.toArray)] ++
+    match n0 with
+    | some (en, ld, pr, af) => [("meta", Json.mkObj [("n0", Json.mkObj
+        [("enabled", .bool en), ("load", tot ld), ("preroll", tot pr), ("after", tot af)])])]
+    | none => [])
+
+/-- A class table entry `{class, k, t}`. -/
+def cls (c : String) (k t : Nat) : Json := Json.mkObj [("class", .str c), ("k", toJson k), ("t", toJson t)]
+
 /-- Parse a literal request (a parse error becomes a visible bad case). -/
 def lit (s : String) : Json := (Json.parse s).toOption.getD (Json.mkObj [("unparsable", .str s)])
 
@@ -157,7 +180,74 @@ def cases : List (String × List (String × Json)) := [
     ("mixed image digests are refused", lit "{\"runs\":[{\"id\":\"101\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"102\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":3,\"t\":1},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":2,\"t\":400,\"tBound\":990,\"unit\":\"px\"}}},{\"id\":\"103\",\"images\":[\"sha256:aa\",\"sha256:bb\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"stable\",\"k\":1,\"t\":0},\"b\":{\"class\":\"quarantined\",\"k\":9,\"t\":40},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":0,\"tBound\":1010,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}}]}"),
     ("a repeated workflow run id is refused", lit "{\"runs\":[{\"id\":\"101\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"102\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":3,\"t\":1},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":2,\"t\":400,\"tBound\":990,\"unit\":\"px\"}}},{\"id\":\"101\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"stable\",\"k\":1,\"t\":0},\"b\":{\"class\":\"quarantined\",\"k\":9,\"t\":40},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":0,\"tBound\":1010,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}}]}"),
     ("a run without an image digest is refused", lit "{\"runs\":[{\"id\":\"101\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"102\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":3,\"t\":1},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":2,\"t\":400,\"tBound\":990,\"unit\":\"px\"}}},{\"id\":\"103\",\"images\":[],\"classes\":{\"a\":{\"class\":\"stable\",\"k\":1,\"t\":0},\"b\":{\"class\":\"quarantined\",\"k\":9,\"t\":40},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":0,\"tBound\":1010,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}}]}"),
-    ("an unknown class name is refused", lit "{\"runs\":[{\"id\":\"101\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"102\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":3,\"t\":1},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":2,\"t\":400,\"tBound\":990,\"unit\":\"px\"}}},{\"id\":\"103\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"shifting\",\"k\":1,\"t\":1}}}]}")])]
+    ("an unknown class name is refused", lit "{\"runs\":[{\"id\":\"101\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"102\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":3,\"t\":1},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":2,\"t\":400,\"tBound\":990,\"unit\":\"px\"}}},{\"id\":\"103\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"shifting\",\"k\":1,\"t\":1}}}]}"),
+    ("the overlay-ad hit-test type has role byDesign (with its reason) whatever its class; quarantined types are findings, the others gate",
+      let run (id : String) (o : String) := Json.mkObj [("id", .str id), ("images", .arr #[.str "sha256:aa"]),
+        ("classes", Json.mkObj [("trace.HitTest", cls "deterministic" 0 0),
+          ("trace.HitTest.overlayAdDetector", cls o 2 2), ("trace.Paint", cls "stable" 1 1),
+          ("trace.MinorGC", cls "quarantined" 9 9)])]
+      Json.mkObj [("runs", .arr #[run "1" "deterministic", run "2" "stable", run "3" "quarantined"])])]),
+  ("measure.splits", [
+    ("HitTest inside the detector and a style update inside an SVG host move to the split types (ends included); B and I phases, slices past the end and slices outside stay; E is not counted",
+      Json.mkObj [("slices", .arr #[
+        slice "OverlayInterstitialAdDetector::MaybeFireDetection" "X" 1000 (some 100),
+        slice "HitTest" "X" 1010 (some 20), slice "HitTest" "X" 1090 (some 10), slice "HitTest" "X" 1095 (some 10),
+        slice "HitTest" "B" 1020, slice "HitTest" "E" 1030, slice "HitTest" "X" 2000 (some 5),
+        slice "IsolatedSVGDocumentHost::IsolatedSVGDocumentHost" "X" 3000 (some 50),
+        slice "StyleEngine::updateActiveStyleSheets" "X" 3010 (some 5),
+        slice "StyleEngine::updateActiveStyleSheets" "I" 3020,
+        slice "StyleEngine::updateActiveStyleSheets" "X" 4000 (some 5)])]),
+    ("an outer slice that is not complete (B) moves nothing",
+      Json.mkObj [("slices", .arr #[
+        slice "OverlayInterstitialAdDetector::MaybeFireDetection" "B" 1000,
+        slice "HitTest" "X" 1010 (some 20),
+        slice "IsolatedSVGDocumentHost::IsolatedSVGDocumentHost" "I" 3000,
+        slice "StyleEngine::updateActiveStyleSheets" "X" 3000 (some 0)])]),
+    ("an outer slice without dur is the single instant ts; a zero-length slice at that instant is inside",
+      Json.mkObj [("slices", .arr #[
+        slice "OverlayInterstitialAdDetector::MaybeFireDetection" "X" 500,
+        slice "HitTest" "X" 500 (some 0), slice "HitTest" "X" 500 (some 1)])]),
+    ("no slices", Json.mkObj [("slices", .arr #[])]),
+    ("a non-integer ts is refused", lit "{\"slices\":[{\"name\":\"HitTest\",\"ph\":\"X\",\"ts\":1.5}]}")]),
+  ("measure.n0Windows", [
+    ("the pure.test.mjs case: load, two pre-roll events, one per frame, after",
+      lit "{\"events\":[{\"kind\":\"cssom.sheet\",\"vt\":5},{\"kind\":\"cssom.sheet\",\"vt\":20050},{\"kind\":\"cssom.sheet\",\"vt\":20090},{\"kind\":\"sheetNode.added\",\"vt\":20095},{\"kind\":\"cssom.keyframes\",\"vt\":20110},{\"kind\":\"sheetNode.text\",\"vt\":20111},{\"kind\":\"cssom.sheet\",\"vt\":20999}],\"frameVts\":[20100,20110,20120],\"startVt\":20000,\"dt\":10}"),
+    ("an event between two frames goes to the later one; within 1/1000 after a frame still counts to it; adoptedStyleSheets is CSSOM",
+      lit "{\"events\":[{\"kind\":\"adoptedStyleSheets\",\"vt\":-1},{\"kind\":\"sheetNode.removed\",\"vt\":84},{\"kind\":\"adoptedStyleSheets\",\"vt\":84.5},{\"kind\":\"cssom.insertRule\",\"vt\":100.5},{\"kind\":\"sheetNode.added\",\"vt\":116},{\"kind\":\"cssom.deleteRule\",\"vt\":132.0005},{\"kind\":\"sheetNode.text\",\"vt\":132.25}],\"frameVts\":[100,116,132],\"startVt\":0,\"dt\":16}"),
+    ("no recorded frames: before the start is load, up to the start is pre-roll, later is after",
+      lit "{\"events\":[{\"kind\":\"cssom.sheet\",\"vt\":10},{\"kind\":\"cssom.sheet\",\"vt\":50},{\"kind\":\"cssom.sheet\",\"vt\":51}],\"frameVts\":[],\"startVt\":50,\"dt\":16}"),
+    ("decreasing frame times are refused",
+      lit "{\"events\":[],\"frameVts\":[116,100],\"startVt\":0,\"dt\":16}")]),
+  ("measure.spkq", [
+    ("pass: census on, nothing in pre-roll or after, every required key 0 in every frame (the SVG-image type does not count; load does not count)",
+      spkqFile (some (true, 12, 0, 0)) [spkqFrame [], spkqFrame [("trace.N1.svgImageDocument", 3)]]),
+    ("pass: the SVG-image type need not be recorded",
+      spkqFile (some (true, 0, 0, 0)) [spkqFrame [] ["trace.N1.svgImageDocument"]]),
+    ("fail: a CSSOM write in frame 1",
+      spkqFile (some (true, 0, 0, 0)) [spkqFrame [], spkqFrame [("n0.events", 1), ("n0.cssom", 1)]]),
+    ("fail: a style-sheet update in frame 0",
+      spkqFile (some (true, 0, 0, 0)) [spkqFrame [("trace.N1.updateActiveStyleSheets", 2)], spkqFrame []]),
+    ("fail: events in the pre-roll",
+      spkqFile (some (true, 0, 2, 0)) [spkqFrame []]),
+    ("fail: events after the last frame",
+      spkqFile (some (true, 0, 0, 1)) [spkqFrame []]),
+    ("missing: a frame does not record a required key",
+      spkqFile (some (true, 0, 0, 0)) [spkqFrame [], spkqFrame [] ["trace.N1.fontUpdateInvalidation"]]),
+    ("missing: the census was off", spkqFile (some (false, 0, 0, 0)) [spkqFrame []]),
+    ("missing: no meta", spkqFile none [spkqFrame []]),
+    ("missing: no frames", spkqFile (some (true, 0, 0, 0)) []),
+    ("a census without window totals is refused",
+      lit "{\"frames\":[],\"meta\":{\"n0\":{\"enabled\":true}}}")]),
+  ("measure.arms", [
+    ("a type on one arm takes that arm's class; both arms: the worse; the overlay-ad type is byDesign; quarantined types are findings",
+      Json.mkObj [("a", Json.mkObj [("trace.HitTest", cls "deterministic" 0 0),
+          ("trace.HitTest.overlayAdDetector", cls "quarantined" 5 5), ("trace.Paint", cls "stable" 1 1),
+          ("only.a", cls "quarantined" 9 9)]),
+        ("r", Json.mkObj [("trace.HitTest", cls "stable" 2 2), ("trace.Paint", cls "deterministic" 0 0),
+          ("only.r", cls "deterministic" 0 0)])]),
+    ("both arms empty", Json.mkObj [("a", Json.mkObj []), ("r", Json.mkObj [])]),
+    ("an unknown class name is refused",
+      Json.mkObj [("a", Json.mkObj [("x", cls "shifting" 0 0)]), ("r", Json.mkObj [])])])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json

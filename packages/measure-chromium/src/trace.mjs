@@ -17,7 +17,7 @@ export const TRACE_CATEGORIES = [
 
 // spec: { key, ph?: [phases counted], b?: {argName: key} summed from the begin/complete event args (also beginData),
 //         e?: {argName: key} summed from the end event args (or the complete event's own args) }
-const MAIN = {
+export const MAIN = {
   UpdateLayoutTree: { key: 'trace.UpdateLayoutTree', e: { elementCount: 'trace.UpdateLayoutTree.elementCount' } },
   Layout: { key: 'trace.Layout', b: { dirtyObjects: 'trace.Layout.dirtyObjects', totalObjects: 'trace.Layout.totalObjects', partialLayout: 'trace.Layout.partial' } },
   InvalidateLayout: { key: 'trace.InvalidateLayout' },
@@ -63,7 +63,10 @@ const DETECTOR = 'OverlayInterstitialAdDetector::MaybeFireDetection';
 // its parse finishes (Document::FinishedParsing > UpdateLayoutTree > Document::updateActiveStyle). That is image decoding,
 // not a change to the page's sheets, so a slice inside an SVG-image host is counted as trace.N1.svgImageDocument.
 const SVG_HOST = 'IsolatedSVGDocumentHost::IsolatedSVGDocumentHost';
-const SPLITS = {
+// The split table, the containment test and the N1 net rule (svgImageDocument is not N1) are specified and proved in
+// Lean (lean/Fw/Measure/Splits.lean, fwcore measure.splits). This container has no Lean, so SPLITS, N1_KEYS and the
+// `inside` test below are a copy, checked against the measure.splits golden vectors by test/fwcore.test.mjs.
+export const SPLITS = {
   HitTest: { within: DETECTOR, spec: { key: 'trace.HitTest.overlayAdDetector' } },
   'StyleEngine::updateActiveStyleSheets': { within: SVG_HOST, spec: { key: 'trace.N1.svgImageDocument' } },
 };

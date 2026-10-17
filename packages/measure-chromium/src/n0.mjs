@@ -5,6 +5,10 @@
 // frame time itself, and a timer due between two frames fires at the start of the next one (clock-shim advanceTo).
 // Windows: load (event time < startVt), preroll (up to and including the last pre-roll frame), then one bucket per
 // recorded frame, then `after` (later than the last recorded frame).
+// The window rule and the per-frame counts are specified and proved in Lean (lean/Fw/Measure/Neutral.lean, fwcore
+// measure.n0Windows: every event lands in exactly one window). The container has no Lean, so this is a copy, checked
+// against the measure.n0Windows golden vectors by test/fwcore.test.mjs; the binary search equals Lean's first-match
+// search because frame times are non-decreasing (the Lean op refuses other input).
 export const N0_KEYS = ['n0.events', 'n0.cssom', 'n0.sheetNode'];
 const EPS = 1e-3;
 const kindKey = (kind) => (kind.startsWith('cssom.') || kind === 'adoptedStyleSheets' ? 'n0.cssom' : 'n0.sheetNode');
