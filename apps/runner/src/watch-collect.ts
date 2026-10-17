@@ -3,7 +3,7 @@
 // Scoping rules that ARE here (which agents get into the snapshot): see SCOPE below.
 // Privacy: only names, counts, ids and times are read out of the files; payload text is never kept.
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync, statfsSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg } from "node:os";
 import { basename, dirname, join } from "node:path";
 
@@ -21,6 +21,9 @@ export interface TranscriptInfo {
   finished: boolean; endedTurn: boolean; toolUses: number; toolErrors: number; firstAt: number | null; lastAt: number | null;
   lastTool: string | null; lastToolAt: number | null;
   ctxTokens: number | null; tokens: Tokens; inflight: { tool: string; verb: null; since: number } | null;
+  /** ids of the Bash tasks this agent started (`toolUseResult.backgroundTaskId`: run in the background, or moved
+   *  there after the 10-min timeout); their shells write to `<session>/tasks/<id>.output` */
+  bgTasks: string[];
 }
 export interface AgentSnap {
   id: string; name: string | null; task: string | null; type: string | null; model: string | null; kind: Kind;
@@ -31,6 +34,10 @@ export interface AgentSnap {
 }
 /** The lead session's facts (spool/main.jsonl): its last tool event and its last Notification. */
 export interface LeadSnap { lastToolAt: number | null; noteAt: number | null }
+/** A process tree this Claude session started through its Bash tool: root shell pid, the first non-shell program's
+ *  name (executable basename only, never arguments), start time, every descendant pid, and the id of the agent whose
+ *  Bash call started it (absent or null: the lead session, or not known) */
+export interface Proc { pid: number; name: string; startedAt: number; pids: number[]; agent?: string | null }
 export interface SystemSnap {
   load1: number; memPressure: "normal" | "warn" | "critical"; diskFreeGB: number;
   simLock: { holder: string | null; since: number | null };
@@ -40,9 +47,11 @@ export interface SystemSnap {
   loadFloor?: number;
   /** process trees this Claude session started through its Bash tool: root shell pid, the first non-shell program's
    *  name (executable basename only, never arguments), start time, and every descendant pid */
-  procs?: { pid: number; name: string; startedAt: number; pids: number[] }[];
+  procs?: Proc[];
   /** pids that are services, not session work: this `fw watch` process and console-api (a tree holding one is exempt) */
   services?: number[];
+  /** pids the lead declared as intended long-runners (`fw watch --keep`, .fw-console/keep.json), still running */
+  keep?: number[];
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];
@@ -135,7 +144,7 @@ export function summarizeTranscript(jsonl: string, meta: Record<string, unknown>
   const info: TranscriptInfo = {
     name: str(meta?.name), task: str(meta?.description), type: str(meta?.agentType), model: null,
     teammate: (str(meta?.taskKind) ?? "").includes("teammate"), workflowPhase: meta?.workflowPhase != null,
-    toolUseId: str(meta?.toolUseId), agentCalls: [],
+    toolUseId: str(meta?.toolUseId), agentCalls: [], bgTasks: [],
     finished: meta?.finished === true, endedTurn: false, toolUses: 0, toolErrors: 0,
     firstAt: null, lastAt: null, lastTool: null, lastToolAt: null, ctxTokens: null,
     tokens: { in: 0, out: 0, cacheRead: 0, cacheWrite: 0 }, inflight: null,
@@ -153,6 +162,8 @@ export function summarizeTranscript(jsonl: string, meta: Record<string, unknown>
     const at = typeof o.timestamp === "string" ? Date.parse(o.timestamp) : NaN;
     if (Number.isFinite(at)) { info.firstAt ??= at; info.lastAt = Math.max(info.lastAt ?? 0, at); }
     const m = o.message;
+    const bg = str(o.toolUseResult?.backgroundTaskId);
+    if (bg) info.bgTasks.push(bg);
     if (o.type === "assistant" && m) {
       if (typeof m.model === "string" && m.model !== "<synthetic>") info.model = m.model;
       if (m.usage && typeof m.usage === "object") {
@@ -257,7 +268,8 @@ export function workflowFinished(file: string, cache = new Map<string, boolean>(
   return done;
 }
 
-export function collectAgents(p: Paths, now: number): AgentSnap[] {
+/** `owners`, when given, is filled with Bash task id -> agent id for every agent kept in the snapshot. */
+export function collectAgents(p: Paths, now: number, owners?: Map<string, string>): AgentSnap[] {
   const spoolDir = join(p.consoleDir, "spool");
   const spools = new Map<string, SpoolSummary>();
   let files: string[] = [];
@@ -287,6 +299,7 @@ export function collectAgents(p: Paths, now: number): AgentSnap[] {
   // parent link: a child's meta.toolUseId is the id of the Agent call in its parent's transcript (none: the lead)
   const owner = new Map<string, string>();
   for (const k of kept) for (const c of k.tr?.agentCalls ?? []) owner.set(c, k.id);
+  if (owners) for (const k of kept) for (const t of k.tr?.bgTasks ?? []) owners.set(t, k.id);
   const wfCache = new Map<string, boolean>();
   const out: AgentSnap[] = [];
   for (const { id, sp, tf, tr } of kept) {
@@ -320,14 +333,20 @@ export function collectLead(p: Paths): LeadSnap {
 }
 
 // ---- system ----
-/** A command's stdout; `null` when it failed or timed out; `"missing"` when the program is not installed. */
+/** A command's stdout; `null` when it failed or timed out; `"missing"` when the program is not installed.
+ * `anyExit`: a nonzero exit status still gives its stdout (lsof exits 1 when one of its pids has ended). */
 export type RunOut = string | null | { missing: true };
-export type Runner = (cmd: string, args: string[], timeout: number, cwd?: string) => Promise<RunOut>;
-const run: Runner = (cmd, args, timeout, cwd) =>
+export type Runner = (cmd: string, args: string[], timeout: number, cwd?: string, anyExit?: boolean) => Promise<RunOut>;
+const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
   new Promise((resolve) => {
     try {
       execFile(cmd, args, { timeout, cwd, maxBuffer: 4_000_000, env: { ...process.env, GH_PROMPT_DISABLED: "1" } },
-        (err, stdout) => resolve(err ? ((err as NodeJS.ErrnoException).code === "ENOENT" ? { missing: true } : null) : String(stdout)));
+        (err, stdout) => {
+          if (!err) return resolve(String(stdout));
+          const code = (err as NodeJS.ErrnoException).code as unknown;
+          if (code === "ENOENT") return resolve({ missing: true });
+          resolve(anyExit && typeof code === "number" && !(err as { killed?: boolean }).killed ? String(stdout) : null);
+        });
     } catch { resolve(null); }
   });
 const text = (r: RunOut): string | null => (typeof r === "string" ? r : null);
@@ -426,19 +445,70 @@ export function collectConsolePids(p: Paths): number[] {
 }
 
 /** A tree keeps the name the previous check gave it (same root pid, start within 2 s), so a polling loop whose
- *  current program alternates (`sleep`, `gh`) keeps one alert subject `name#pid` across checks. */
-export function keepNames(now: NonNullable<SystemSnap["procs"]>, before: NonNullable<SystemSnap["procs"]>): NonNullable<SystemSnap["procs"]> {
+ *  current program alternates (`sleep`, `gh`) keeps one alert subject `name#pid` across checks; it also keeps the
+ *  previous owner when this check found none (lsof failed, or the owner's transcript dropped out of scope). */
+export function keepNames(now: Proc[], before: Proc[]): Proc[] {
   const by = new Map(before.map((q) => [q.pid, q]));
   return now.map((q) => {
     const b = by.get(q.pid);
-    return b && Math.abs(b.startedAt - q.startedAt) <= 2000 ? { ...q, name: b.name } : q;
+    if (!b || Math.abs(b.startedAt - q.startedAt) > 2000) return q;
+    const agent = q.agent ?? b.agent ?? null;
+    return agent === null ? { ...q, name: b.name } : { ...q, name: b.name, agent };
   });
+}
+
+/** `lsof -a -d 1 -Fpn -p <pids>` output -> pid -> Bash task id: Claude Code points a Bash call's stdout at
+ *  `<session>/tasks/<id>.output`, and the agent's transcript records that id (`backgroundTaskId`). */
+export function parseTaskIds(out: string | null): Map<number, string> {
+  const ids = new Map<number, string>();
+  let pid: number | null = null;
+  for (const line of (out ?? "").split("\n")) {
+    if (line.startsWith("p")) pid = Number(line.slice(1)) || null;
+    else if (line.startsWith("n") && pid !== null) {
+      const m = /\/tasks\/([A-Za-z0-9_-]+)\.output$/.exec(line.slice(1));
+      if (m) ids.set(pid, m[1]!);
+    }
+  }
+  return ids;
+}
+
+/** Each tree's owner: the agent whose transcript holds the task id of the tree's root shell (none: the lead's task,
+ *  or not known). Identity lookup only; whether the owner is live and what that means is fwcore's rule. */
+export function ownProcs(procs: Proc[], taskOf: Map<number, string>, owners: Map<string, string>): Proc[] {
+  return procs.map((q) => {
+    const t = taskOf.get(q.pid);
+    const agent = t === undefined ? undefined : owners.get(t);
+    return agent === undefined ? q : { ...q, agent };
+  });
+}
+
+/** One declared long-runner in `.fw-console/keep.json` (written by `fw watch --keep <pid>`): its pid, its start time
+ *  (ms, from ps at declaration) and the lead's note. */
+export interface KeepEntry { pid: number; startedAt: number; note: string | null }
+export function readKeep(p: Paths): KeepEntry[] {
+  try {
+    const j = JSON.parse(readFileSync(join(p.consoleDir, "keep.json"), "utf8"));
+    return (Array.isArray(j) ? j : []).filter((e): e is KeepEntry =>
+      typeof e?.pid === "number" && typeof e?.startedAt === "number").map((e) => ({ pid: e.pid, startedAt: e.startedAt, note: str(e.note) }));
+  } catch { return []; }
+}
+export function writeKeep(p: Paths, entries: KeepEntry[]): void {
+  mkdirSync(p.consoleDir, { recursive: true });
+  writeFileSync(join(p.consoleDir, "keep.json"), JSON.stringify(entries, null, 1) + "\n");
+}
+/** The declared entries that still name the same process (a ps row with that pid whose start is within 2 s of the
+ *  declared start), so a reused pid is never exempt. */
+export function liveKeep(entries: KeepEntry[], rows: PsRow[], now: number): KeepEntry[] {
+  const by = new Map(rows.map((r) => [r.pid, r]));
+  return entries.filter((e) => { const r = by.get(e.pid); return !!r && Math.abs(now - r.ageMs - e.startedAt) <= 2000; });
 }
 
 /** The previous check's system part, if it is recent enough to carry forward (SCOPE.carryMs). */
 export interface Prev { at: number; system: SystemSnap; critical?: string[] }
 
-export async function collectSystem(p: Paths, prev: Prev | null = null, now = Date.now(), exec: Runner = run): Promise<SystemSnap> {
+/** `owners`: Bash task id -> agent id (from `collectAgents`); trees whose task id is not in it have no owner. */
+export async function collectSystem(p: Paths, prev: Prev | null = null, now = Date.now(), exec: Runner = run,
+  owners: Map<string, string> = new Map()): Promise<SystemSnap> {
   const [mem, wt, dock, ci, ps] = await Promise.all([
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
@@ -454,16 +524,23 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
   if (dock === null) { stale.push("docker"); docker = old?.docker ?? []; }
   let ciRuns = parseCi(text(ci));
   if (ci === null) { stale.push("ci"); ciRuns = old?.ci ?? []; }
-  let procs = sessionProcs(parsePs(text(ps)), process.pid, now);
-  if (ps === null) { stale.push("procs"); procs = old?.procs ?? []; }
-  else procs = keepNames(procs, prev?.system.procs ?? []);
+  const rows = parsePs(text(ps));
+  let procs = sessionProcs(rows, process.pid, now);
+  let keep = liveKeep(readKeep(p), rows, now).map((e) => e.pid);
+  if (ps === null) { stale.push("procs"); procs = old?.procs ?? []; keep = old?.keep ?? []; }
+  else {
+    // lsof exits 1 when a listed pid has ended meanwhile (anyExit keeps the others); on a timeout the owners come
+    // from the previous check (keepNames)
+    const lsof = procs.length ? await exec("lsof", ["-a", "-d", "1", "-Fpn", "-p", procs.map((q) => q.pid).join(",")], 3000, undefined, true) : "";
+    procs = keepNames(ownProcs(procs, parseTaskIds(text(lsof)), owners), prev?.system.procs ?? []);
+  }
   const consolePids = collectConsolePids(p);
   let disk = 0;
   try { const s = statfsSync(p.root); disk = Math.floor((Number(s.bavail) * Number(s.bsize)) / 1e9); } catch { /* unknown -> 0 raises sys.diskLow */ }
   return {
     load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!), memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
-    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], stale,
+    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, stale,
   };
 }
 
@@ -494,7 +571,9 @@ export function carryCritical(crit: string[] | null, prev: Prev | null, now: num
 
 export async function collectSnapshot(p: Paths, now = Date.now(), params: Record<string, number> = DEFAULT_PARAMS, prev: Prev | null = null,
   get: PlanFetch = getJson): Promise<Snapshot> {
-  const [agents, system, crit] = await Promise.all([Promise.resolve(collectAgents(p, now)), collectSystem(p, prev, now), collectCritical(p, process.env, get)]);
+  const owners = new Map<string, string>();
+  const agents = collectAgents(p, now, owners);
+  const [system, crit] = await Promise.all([collectSystem(p, prev, now, run, owners), collectCritical(p, process.env, get)]);
   const { critical, stale } = carryCritical(crit, prev, now);
   if (stale) system.stale.push("plan");
   return { now, params, agents, lead: collectLead(p), system, prevAt: prev?.at ?? null, critical };

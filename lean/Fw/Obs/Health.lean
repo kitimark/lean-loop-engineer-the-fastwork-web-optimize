@@ -24,7 +24,13 @@ it gone (the previous check, `prevAt`, did not).
 Slow work (the lead's monitor): `ci.slow` (a run queued or in progress for more than `ciSlowMin`), `ci.finished` (a
 run that the previous check flagged as slow has finished: its duration and conclusion, once), `agent.toolSlow` (a tool
 call in flight for more than `toolSlowMin`, waits excepted), `proc.long` (a process tree started by the session alive
-for more than `procMaxMin`, unless it holds a service pid), `sys.loadHigh` (1-min load average at or above `loadMax`).
+for more than `procMaxMin`, see below), `sys.loadHigh` (1-min load average at or above `loadMax`).
+
+Long-running processes (`proc.long`): a tree is exempt when it is an intended long-runner (`declaredB`: its program is
+on the checked-in allowlist `keepProgs`, or one of its pids is a service pid or a pid the lead declared with
+`fw watch --keep`), and when the agent whose Bash call started it is live (`ownerLiveB`: an agent's poll loop is its own
+business while it works). A tree of the lead session, or of an agent that has stopped, is gone, or is no longer listed
+(an orphan), raises `proc.long` once it is older than `procMaxMin`; when an agent started it, the alert names that ended agent.
 
 Critical path: the observation carries `critical`, the task ids on the console's critical path (`/api/plan`
 `criticalPath`, read by `fw watch`; empty when the console is down). An agent alert whose agent is tied to such a task
@@ -44,6 +50,9 @@ Rules (proved below):
   `goneAfterMin`) never adds an alert.
 * `lockOrphan_iff`, `permissionWait_iff`, `loadHigh_iff`: when `sim.lockOrphan`, `team.permissionWait` and
   `sys.loadHigh` fire.
+* `procLong_iff`, `ownerLive_quiet`, `declared_quiet`, `procLong_sound`, `orphan_raised`: a live agent's process tree
+  and a declared long-runner never raise `proc.long`; every `proc.long` alert is an undeclared tree older than
+  `procMaxMin` whose owner is not live; an orphan of an ended agent does raise it.
 * `alerts_sorted`, `crit_first`, `mem_alerts`, `health_perm`: the alert list is strictly sorted (critical first, then
   code, subject, detail), holds exactly the raised alerts, and does not depend on the order of the agents.
 -/
@@ -181,23 +190,27 @@ structure CiRun where
   endedAt    : Option Nat := none
 deriving DecidableEq, Repr
 
-/-- A local process tree started by the observed session (one tool command): the pid of its root, the program name
-of its first command (never the command line), its start time (ms), and every pid in the tree.
+/-- A local process tree started by the observed session (one Bash tool call): the pid of its root, the program name
+of its first command (never the command line), its start time (ms), every other pid in the tree, and the id of the
+agent whose Bash call started it (`none`: the lead session, or not known).
 
-$$q = (\mathit{pid}, \mathit{name}, \mathit{start}, P) \in \mathbb N \times \mathrm{String} \times \mathbb N \times \mathbb N^*$$
+$$q = (\mathit{pid}, \mathit{name}, \mathit{start}, P, \mathit{owner}_\bot) \in \mathbb N \times \mathrm{String} \times \mathbb N \times \mathbb N^* \times \mathrm{String}_\bot$$
+where $\mathit{owner}(q) = \mathit{owner}_\bot$ is the last component.
 -/
 structure Proc where
   pid       : Nat
   name      : String
   startedAt : Nat
   pids      : List Nat := []
+  agent     : Option String := none
 deriving DecidableEq, Repr
 
 /-- The machine-level facts the rules read: free disk (GB), memory pressure, the simulator lock, running containers,
-the number of git worktrees, recent CI runs, the floor of the 1-min load average, the session's process trees, and the
-service pids (long-running on purpose: the console server, the watcher itself).
+the number of git worktrees, recent CI runs, the floor of the 1-min load average, the session's process trees, the
+service pids (long-running on purpose: the console server, the watcher itself), and the pids the lead declared as
+intended long-runners (`fw watch --keep`).
 
-$$\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$$
+$$\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
 -/
 structure System where
   diskFreeGB  : Nat := 0
@@ -209,6 +222,7 @@ structure System where
   loadFloor   : Nat := 0
   procs       : List Proc := []
   services    : List Nat := []
+  keep        : List Nat := []
 deriving DecidableEq, Repr
 
 /-- One observation: the time it was taken (ms), the agents, the lead session's facts, the system facts, the time of
@@ -1004,14 +1018,42 @@ $$\operatorname{dockerOrphan}(p, t, A, c) \iff \neg \exists a \in A.\ \operatorn
 def dockerOrphanB (p : Params) (now : Nat) (agents : List Agent) (c : Container) : Bool :=
   !agents.any fun a => live p now a && decide (a.startedAt ≤ c.startedAt)
 
-/-- Whether a process tree runs too long: none of its pids (root included) is a service pid, and it has been alive for
-strictly more than `procMaxMin` minutes.
+/-- The checked-in allowlist of programs that run for the whole session on purpose: `caffeinate` (keeps the Mac awake).
+A change to it is a reviewed edit of this file.
 
-$$\operatorname{procLong}(p, t, S, q) \iff \bigl(\neg\exists x \in \mathit{pid}(q) \mathbin{::} P(q).\ x \in S\bigr) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q)$$
+$$\mathit{Keep} = [\texttt{caffeinate}]$$
+-/
+def keepProgs : List String := ["caffeinate"]
+
+/-- Whether a process tree is an intended long-runner: its name is on the allowlist `keepProgs`, or one of its pids
+(root included) is a service pid or a pid the lead declared (`fw watch --keep`).
+
+$$\operatorname{declared}(S, D, q) \iff \mathit{name}(q) \in \mathit{Keep} \vee \exists x \in \mathit{pid}(q) \mathbin{::} P(q).\ x \in S \vee x \in D$$
 where $P(q)$ is the list of the tree's other pids.
 -/
-def procLongB (p : Params) (now : Nat) (services : List Nat) (q : Proc) : Bool :=
-  !((q.pid :: q.pids).any fun x => services.contains x) && decide (p.procMaxMin * msPerMin < now - q.startedAt)
+def declaredB (services keep : List Nat) (q : Proc) : Bool :=
+  keepProgs.contains q.name || (q.pid :: q.pids).any fun x => services.contains x || keep.contains x
+
+/-- Whether the agent whose Bash call started a process tree is live (false when the tree has no owner, i.e. the lead
+started it or the owner is not known, and when the owner is not in the agent list).
+
+$$\operatorname{ownerLive}(p, t, A, q) \iff \exists g.\ \mathit{owner}(q) = g \wedge \exists a \in A.\ \mathit{id}(a) = g \wedge \operatorname{live}(p, t, a)$$
+-/
+def ownerLiveB (p : Params) (now : Nat) (agents : List Agent) (q : Proc) : Bool :=
+  match q.agent with
+  | none => false
+  | some g => agents.any fun a => a.id == g && live p now a
+
+/-- Whether a process tree runs too long: it is not an intended long-runner, the agent that started it is not live
+(the lead's own trees, and orphans of ended or gone agents), and it has been alive for strictly more than `procMaxMin`
+minutes.
+
+$$\operatorname{procLong}(p, o, q) \iff \neg\operatorname{declared}(S, D, q) \wedge \neg\operatorname{ownerLive}(p, t, A, q) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q)$$
+where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+-/
+def procLongB (p : Params) (o : Obs) (q : Proc) : Bool :=
+  !declaredB o.system.services o.system.keep q && !ownerLiveB p o.now o.agents q &&
+    decide (p.procMaxMin * msPerMin < o.now - q.startedAt)
 
 /-- The number of live agents other than the lead session.
 
@@ -1070,7 +1112,7 @@ def sOver (p : Params) (o : Obs) : List Alert :=
 /-- `sys.diskLow`: free disk strictly below `diskMinGB`.
 
 $$\operatorname{sDisk}(p, o) = \operatorname{when}(\mathit{disk} < \mathit{diskMin},\ (\texttt{sys.diskLow}, \texttt{disk}, \text{“}\mathit{disk}\text{ GB free”}, \mathrm{false}))$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sDisk (p : Params) (o : Obs) : List Alert :=
   when (decide (o.system.diskFreeGB < p.diskMinGB)) ⟨.diskLow, "disk", s!"{o.system.diskFreeGB} GB free", false⟩
@@ -1078,7 +1120,7 @@ def sDisk (p : Params) (o : Obs) : List Alert :=
 /-- `sys.memCritical`: memory pressure critical.
 
 $$\operatorname{sMem}(o) = \operatorname{when}(m = \mathrm{critical},\ (\texttt{sys.memCritical}, \texttt{memory}, \text{“memory pressure critical”}, \mathrm{false}))$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sMem (o : Obs) : List Alert :=
   when (o.system.memPressure == .critical) ⟨.memCritical, "memory", "memory pressure critical", false⟩
@@ -1086,7 +1128,7 @@ def sMem (o : Obs) : List Alert :=
 /-- `sys.loadHigh`: the floor of the 1-min load average at or above `loadMax`.
 
 $$\operatorname{sLoad}(p, o) = \operatorname{when}(\mathit{loadMax} \le \lambda,\ (\texttt{sys.loadHigh}, \texttt{load}, \text{“load average }\lambda\text{ (1 min, floor)”}, \mathrm{false}))$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sLoad (p : Params) (o : Obs) : List Alert :=
   when (decide (p.loadMax ≤ o.system.loadFloor))
@@ -1097,7 +1139,7 @@ def sLoad (p : Params) (o : Obs) : List Alert :=
 $$\operatorname{sLockLong}(p, o) = \operatorname{when}\bigl(\mathit{holder}(L) \ne \bot \wedge \exists \sigma.\ \mathit{since}(L) = \sigma \wedge \mu\,\mathit{simMax} \le t \mathbin{\dot-} \sigma,\ (\texttt{sim.lockLong}, \texttt{sim}, \text{“held by }h\text{ for }\operatorname{mins}(t \mathbin{\dot-} \sigma_0)\text{ min”}, \mathrm{false})\bigr)$$
 where $h$ is $\mathit{holder}(L)$, or $\varepsilon$ when it is $\bot$, and $\sigma_0$ is $\mathit{since}(L)$, or $0$ when it is
 $\bot$.
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sLockLong (p : Params) (o : Obs) : List Alert :=
   when (o.system.simLock.holder.isSome &&
@@ -1109,7 +1151,7 @@ def sLockLong (p : Params) (o : Obs) : List Alert :=
 
 $$\operatorname{sOrphan}(p, o) = \operatorname{when}(\operatorname{orphanB}(p, t, A, L),\ (\texttt{sim.lockOrphan}, \texttt{sim}, \text{“held by }h\text{”}, \mathrm{false}))$$
 where $h$ is $\mathit{holder}(L)$, or $\varepsilon$ when it is $\bot$.
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sOrphan (p : Params) (o : Obs) : List Alert :=
   when (orphanB p o.now o.agents o.system.simLock)
@@ -1119,7 +1161,7 @@ def sOrphan (p : Params) (o : Obs) : List Alert :=
 
 $$\operatorname{sCiFailed}(o) = [\,(\texttt{ci.failed}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“latest run }c_\varepsilon(r)\text{”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciFailing}(r) \wedge \operatorname{ciLatest}(R, r)\,]$$
 where $c_\varepsilon(r)$ is $\mathit{concl}(r)$, or $\varepsilon$ when it is $\bot$; the order of $R$ is kept.
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sCiFailed (o : Obs) : List Alert :=
   (o.system.ci.filter fun r => ciFailing r && ciLatest o.system.ci r).map fun r =>
@@ -1128,7 +1170,7 @@ def sCiFailed (o : Obs) : List Alert :=
 /-- `ci.slow`: a run waiting or running for more than `ciSlowMin` minutes.
 
 $$\operatorname{sCiSlow}(p, o) = [\,(\texttt{ci.slow}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“}\mathit{status}(r)\text{ for }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(r))\text{ min”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciSlow}(p, t, r)\,]$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sCiSlow (p : Params) (o : Obs) : List Alert :=
   (o.system.ci.filter (ciSlowB p o.now)).map fun r =>
@@ -1139,7 +1181,7 @@ def sCiSlow (p : Params) (o : Obs) : List Alert :=
 $$\operatorname{sCiFin}(p, o) = [\,(\texttt{ci.finished}, \mathit{wf}(r)\texttt{@}\mathit{br}(r), \text{“}c_\varepsilon(r)\text{ after }\operatorname{mins}(e_0(r) \mathbin{\dot-} \mathit{start}(r))\text{ min”}, \operatorname{critR}(K, r)) \mid r \leftarrow R,\ \operatorname{ciFin}(p, \mathit{prev}, r)\,]$$
 where $c_\varepsilon(r)$ is $\mathit{concl}(r)$, or $\varepsilon$ when it is $\bot$, and $e_0(r)$ is $\mathit{end}(r)$, or
 $0$ when it is $\bot$.
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sCiFin (p : Params) (o : Obs) : List Alert :=
   (o.system.ci.filter (ciFinishedB p o.prevAt)).map fun r =>
@@ -1149,25 +1191,42 @@ def sCiFin (p : Params) (o : Obs) : List Alert :=
 /-- `docker.orphan`: an orphaned container.
 
 $$\operatorname{sDocker}(p, o) = [\,(\texttt{docker.orphan}, \mathit{name}(c), \text{“container }\mathit{id}(c)\text{”}, \mathrm{false}) \mid c \leftarrow C,\ \operatorname{dockerOrphan}(p, t, A, c)\,]$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sDocker (p : Params) (o : Obs) : List Alert :=
   (o.system.docker.filter (dockerOrphanB p o.now o.agents)).map fun c =>
     ⟨.dockerOrphan, c.name, s!"container {c.id}", false⟩
 
-/-- `proc.long`: a process tree of the session alive too long.
+/-- The `proc.long` alert of a process tree: subject `name#pid`, detail its age in whole minutes, plus the owner's
+id when an agent started it (that agent is not live, so the tree is an orphan).
 
-$$\operatorname{sProc}(p, o) = [\,(\texttt{proc.long}, \mathit{name}(q)\texttt{\#}\mathit{pid}(q), \text{“alive }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(q))\text{ min”}, \mathrm{false}) \mid q \leftarrow Q,\ \operatorname{procLong}(p, t, S, q)\,]$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+$$\operatorname{procAlert}(o, q) = \begin{cases} (\texttt{proc.long}, \mathit{name}(q)\texttt{\#}\mathit{pid}(q), \text{“alive }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(q))\text{ min”}, \mathrm{false}) & \mathit{owner}(q) = \bot \\ (\texttt{proc.long}, \mathit{name}(q)\texttt{\#}\mathit{pid}(q), \text{“alive }\operatorname{mins}(t \mathbin{\dot-} \mathit{start}(q))\text{ min, agent }g\text{ ended”}, \mathrm{false}) & \mathit{owner}(q) = g \end{cases}$$
+where $t$ is the time of $o$.
+-/
+def procAlert (o : Obs) (q : Proc) : Alert :=
+  match q.agent with
+  | none => ⟨.procLong, s!"{q.name}#{q.pid}", s!"alive {mins (o.now - q.startedAt)} min", false⟩
+  | some g => ⟨.procLong, s!"{q.name}#{q.pid}", s!"alive {mins (o.now - q.startedAt)} min, agent {g} ended", false⟩
+
+/-- Every `proc.long` alert has code `proc.long`.
+
+$$\forall o, q:\quad \mathit{code}(\operatorname{procAlert}(o, q)) = \texttt{proc.long}$$
+-/
+theorem procAlert_code (o : Obs) (q : Proc) : (procAlert o q).code = .procLong := by
+  unfold procAlert; cases q.agent <;> rfl
+
+/-- `proc.long`: a process tree of the session alive too long, not declared, and not owned by a live agent.
+
+$$\operatorname{sProc}(p, o) = [\,\operatorname{procAlert}(o, q) \mid q \leftarrow Q,\ \operatorname{procLong}(p, o, q)\,]$$
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sProc (p : Params) (o : Obs) : List Alert :=
-  (o.system.procs.filter (procLongB p o.now o.system.services)).map fun q =>
-    ⟨.procLong, s!"{q.name}#{q.pid}", s!"alive {mins (o.now - q.startedAt)} min", false⟩
+  (o.system.procs.filter (procLongB p o)).map (procAlert o)
 
 /-- `worktrees.many`: more worktrees than `worktreesMax`.
 
 $$\operatorname{sWt}(p, o) = \operatorname{when}(\mathit{wtMax} < \mathit{wt},\ (\texttt{worktrees.many}, \texttt{worktrees}, \text{“}\mathit{wt}\text{ worktrees”}, \mathrm{false}))$$
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sWt (p : Params) (o : Obs) : List Alert :=
   when (decide (p.worktreesMax < o.system.worktrees)) ⟨.worktreesMany, "worktrees", s!"{o.system.worktrees} worktrees", false⟩
@@ -1176,7 +1235,7 @@ def sWt (p : Params) (o : Obs) : List Alert :=
 
 $$\operatorname{sPerm}(o) = \operatorname{when}\bigl(\operatorname{permB}(\ell),\ (\texttt{team.permissionWait}, \texttt{lead}, \text{“notification }\operatorname{mins}(t \mathbin{\dot-} \nu_0)\text{ min ago, no lead tool call since”}, \mathrm{false})\bigr)$$
 where $\nu_0$ is $\mathit{noteAt}(\ell)$, or $0$ when it is $\bot$ (never the case when $\operatorname{permB}(\ell)$ holds).
-Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S)$.
+Here $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
 -/
 def sPerm (o : Obs) : List Alert :=
   when (permB o.lead)
@@ -1316,6 +1375,7 @@ theorem piece_code (p : Params) (o : Obs) (c : Code) (x : Alert) (h : x ∈ sysP
   all_goals first
     | (obtain ⟨_, e⟩ := (mem_when _ _ _).1 h; subst e; rfl)
     | (obtain ⟨_, _, e⟩ := List.mem_map.1 h; subst e; rfl)
+    | (obtain ⟨_, _, e⟩ := List.mem_map.1 h; subst e; exact procAlert_code _ _)
 
 /-- A team or system alert lies in the piece of its own code.
 
@@ -1463,6 +1523,90 @@ theorem ciSlow_raised (p : Params) (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci
       critCi o.critical r⟩ : Alert) ∈ sCiSlow p o :=
     List.mem_map.2 ⟨r, List.mem_filter.2 ⟨hr, h⟩, rfl⟩
   exact ⟨_, (mem_alerts p o _).2 (List.mem_append.2 (.inr ((mem_sys p o _).2 hy))), rfl, rfl⟩
+
+/-! ## Long-running processes -/
+
+/-- The report holds a `proc.long` alert exactly when it is the alert of a process tree that runs too long.
+
+$$\forall p, o, x:\quad \bigl(x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{proc.long}\bigr) \iff \exists q \in Q.\ \operatorname{procLong}(p, o, q) \wedge x = \operatorname{procAlert}(o, q)$$
+where $Q$ is the process-tree list of the system snapshot of $o$.
+-/
+theorem procLong_iff (p : Params) (o : Obs) (x : Alert) :
+    (x ∈ (health p o).alerts ∧ x.code = .procLong) ↔
+      ∃ q ∈ o.system.procs, procLongB p o q = true ∧ x = procAlert o q := by
+  constructor
+  · rintro ⟨hx, e⟩
+    have h := (mem_sys p o x).1 (mem_sys_of_notAgent p o x hx (by rw [e]; rfl))
+    rw [e] at h
+    simp only [sysPiece, sProc] at h
+    obtain ⟨q, hq, e'⟩ := List.mem_map.1 h
+    rw [List.mem_filter] at hq
+    exact ⟨q, hq.1, hq.2, e'.symm⟩
+  · rintro ⟨q, hq, hl, rfl⟩
+    have hy : procAlert o q ∈ sysPiece p o (procAlert o q).code := by
+      rw [procAlert_code]
+      exact List.mem_map.2 ⟨q, List.mem_filter.2 ⟨hq, hl⟩, rfl⟩
+    exact ⟨(mem_alerts p o _).2 (List.mem_append.2 (.inr ((mem_sys p o _).2 hy))), procAlert_code o q⟩
+
+/-- A process tree started by a live agent's Bash call never runs too long, whatever its age.
+
+$$\forall p, o, q, a:\quad a \in A \wedge \mathit{owner}(q) = \mathit{id}(a) \wedge \operatorname{live}(p, t, a) \Rightarrow \neg\operatorname{procLong}(p, o, q)$$
+where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$.
+-/
+theorem ownerLive_quiet (p : Params) (o : Obs) (q : Proc) (a : Agent) (ha : a ∈ o.agents)
+    (hg : q.agent = some a.id) (hl : live p o.now a = true) : procLongB p o q = false := by
+  have hw : ownerLiveB p o.now o.agents q = true := by
+    unfold ownerLiveB; rw [hg]; exact List.any_eq_true.2 ⟨a, ha, by simp [hl]⟩
+  simp [procLongB, hw]
+
+/-- An intended long-runner (allowlisted program, service pid, or declared pid in its tree) never runs too long.
+
+$$\forall p, o, q:\quad \operatorname{declared}(S, D, q) \Rightarrow \neg\operatorname{procLong}(p, o, q)$$
+where $S$ and $D$ are the service and declared pids of the system snapshot of $o$.
+-/
+theorem declared_quiet (p : Params) (o : Obs) (q : Proc) (h : declaredB o.system.services o.system.keep q = true) :
+    procLongB p o q = false := by
+  simp [procLongB, h]
+
+/-- Every `proc.long` alert comes from a process tree of the session that is not declared, whose owner is not a live
+agent, and that is alive for strictly more than `procMaxMin` minutes.
+
+$$\forall p, o, x:\quad x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{proc.long} \Rightarrow \exists q \in Q.\ x = \operatorname{procAlert}(o, q) \wedge \neg\operatorname{declared}(S, D, q) \wedge \neg\bigl(\exists a \in A.\ \mathit{owner}(q) = \mathit{id}(a) \wedge \operatorname{live}(p, t, a)\bigr) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q)$$
+where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+-/
+theorem procLong_sound (p : Params) (o : Obs) (x : Alert) (hx : x ∈ (health p o).alerts)
+    (hc : x.code = .procLong) :
+    ∃ q ∈ o.system.procs, x = procAlert o q ∧ declaredB o.system.services o.system.keep q = false ∧
+      ¬ (∃ a ∈ o.agents, q.agent = some a.id ∧ live p o.now a = true) ∧
+      p.procMaxMin * msPerMin < o.now - q.startedAt := by
+  obtain ⟨q, hq, hl, e⟩ := (procLong_iff p o x).1 ⟨hx, hc⟩
+  refine ⟨q, hq, e, ?_, fun ⟨a, ha, hg, hv⟩ => ?_, ?_⟩
+  · cases hd : declaredB o.system.services o.system.keep q
+    · rfl
+    · rw [declared_quiet p o q hd] at hl; cases hl
+  · rw [ownerLive_quiet p o q a ha hg hv] at hl; cases hl
+  · simp only [procLongB, Bool.and_eq_true, decide_eq_true_eq] at hl
+    exact hl.2
+
+/-- An orphan raises `proc.long`: a process tree of the session that is not declared, whose owner is an agent id
+that no live agent of the list carries (the agent ended, is gone, or dropped out), and that is alive for strictly
+more than `procMaxMin` minutes, has its alert in the report.
+
+$$\forall p, o, q, g:\quad q \in Q \wedge \neg\operatorname{declared}(S, D, q) \wedge \mathit{owner}(q) = g \wedge \bigl(\forall a \in A.\ \mathit{id}(a) = g \Rightarrow \neg\operatorname{live}(p, t, a)\bigr) \wedge \mu\,\mathit{procMax} < t \mathbin{\dot-} \mathit{start}(q) \Rightarrow \operatorname{procAlert}(o, q) \in \operatorname{health}(p, o).\mathit{alerts}$$
+where $o = (t, A, \ell, \Sigma, \mathit{prev}, K)$ and $\Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$.
+-/
+theorem orphan_raised (p : Params) (o : Obs) (q : Proc) (g : String) (hq : q ∈ o.system.procs)
+    (hd : declaredB o.system.services o.system.keep q = false) (hg : q.agent = some g)
+    (hn : ∀ a ∈ o.agents, a.id = g → live p o.now a = false)
+    (ht : p.procMaxMin * msPerMin < o.now - q.startedAt) : procAlert o q ∈ (health p o).alerts := by
+  have hw : ownerLiveB p o.now o.agents q = false := by
+    unfold ownerLiveB; rw [hg]
+    refine List.any_eq_false.2 fun a ha => ?_
+    by_cases e : a.id = g
+    · simp [e, hn a ha e]
+    · simp [e]
+  have hl : procLongB p o q = true := by simp [procLongB, hd, hw, ht]
+  exact ((procLong_iff p o _).2 ⟨q, hq, hl, rfl⟩).1
 
 /-! ## Monotonicity -/
 
@@ -1660,7 +1804,9 @@ theorem sysPiece_mono (p q : Params) (o : Obs) (hpq : Looser p q) (c : Code) (x 
     exact ⟨hr.1, Nat.lt_of_le_of_lt (Nat.mul_le_mul_right _ hpq.ciSlow) hr.2⟩
   · simp only [sysPiece, sDocker] at h ⊢; rw [← hdo]; exact h
   · refine fm_sub _ _ _ _ (fun r _ hr => ?_) x h
+    have hw : ownerLiveB q o.now o.agents r = ownerLiveB p o.now o.agents r := by simp only [ownerLiveB, hl]
     unfold procLongB at *
+    rw [hw] at hr
     simp only [Bool.and_eq_true, decide_eq_true_eq] at hr ⊢
     exact ⟨hr.1, Nat.lt_of_le_of_lt (Nat.mul_le_mul_right _ hpq.procMax) hr.2⟩
   · refine when_sub _ (fun hb => ?_) x h
@@ -1731,8 +1877,14 @@ theorem sysAlerts_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.ag
     unfold orphanB; split <;> simp [hl.any_eq]
   have hd : dockerOrphanB p o.now l = dockerOrphanB p o.now o.agents := by
     funext c; unfold dockerOrphanB; rw [hl.any_eq]
+  have hq : procLongB p { o with agents := l } = procLongB p o := by
+    funext r
+    have hw : ownerLiveB p o.now l r = ownerLiveB p o.now o.agents r := by
+      unfold ownerLiveB; cases r.agent <;> simp only [hl.any_eq]
+    simp only [procLongB, hw]
+  have ha : procAlert { o with agents := l } = procAlert o := rfl
   simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sDisk, sLoad, sMem, sOver,
-    sPerm, sWt, hn, hk, hh, ho, hd]
+    sPerm, sWt, hn, hk, hh, ho, hd, hq, ha]
 
 /-- The report's alerts, system codes and counts do not depend on the order of the agents (the rows follow it).
 
@@ -1911,11 +2063,30 @@ def ci0 : CiRun := { workflow := "ci", branch := "main", status := "completed", 
 #guard dockerOrphanB {} 0 [{ a0 with startedAt := 5 }] ⟨"c1", "pg", 4⟩ == true
 #guard dockerOrphanB {} 0 [{ a0 with startedAt := 5 }] ⟨"c1", "pg", 5⟩ == false
 -- proc.long: strictly more than procMaxMin (20) minutes, and no pid of the tree is a service
-#guard procLongB {} (20 * msPerMin + 1) [] ⟨7, "node", 0, []⟩ == true
-#guard procLongB {} (20 * msPerMin) [] ⟨7, "node", 0, []⟩ == false
-#guard procLongB {} (99 * msPerMin) [7] ⟨7, "node", 0, []⟩ == false
-#guard procLongB {} (99 * msPerMin) [9] ⟨7, "node", 0, [8, 9]⟩ == false
-#guard procLongB {} (99 * msPerMin) [10] ⟨7, "node", 0, [8, 9]⟩ == true
+#guard procLongB {} { now := 20 * msPerMin + 1 } ⟨7, "node", 0, [], none⟩ == true
+#guard procLongB {} { now := 20 * msPerMin } ⟨7, "node", 0, [], none⟩ == false
+#guard procLongB {} { now := 99 * msPerMin, system := { services := [7] } } ⟨7, "node", 0, [], none⟩ == false
+#guard procLongB {} { now := 99 * msPerMin, system := { services := [9] } } ⟨7, "node", 0, [8, 9], none⟩ == false
+#guard procLongB {} { now := 99 * msPerMin, system := { services := [10] } } ⟨7, "node", 0, [8, 9], none⟩ == true
+-- declared: allowlisted program name, or a pid the lead declared (`keep`) anywhere in the tree
+#guard procLongB {} { now := 99 * msPerMin } ⟨7, "caffeinate", 0, [8], none⟩ == false
+#guard procLongB {} { now := 99 * msPerMin } ⟨7, "Python", 0, [8], none⟩ == true
+#guard procLongB {} { now := 99 * msPerMin, system := { keep := [8] } } ⟨7, "Python", 0, [8], none⟩ == false
+#guard procLongB {} { now := 99 * msPerMin, system := { keep := [9] } } ⟨7, "Python", 0, [8], none⟩ == true
+-- owner: a live agent's tree never; an ended, gone or unknown agent's tree (orphan) after procMaxMin
+#guard procLongB {} { now := 99 * msPerMin, agents := [{ id := "a", lastAt := 98 * msPerMin }] }
+  ⟨7, "sleep", 0, [8], some "a"⟩ == false
+#guard procLongB {} { now := 99 * msPerMin, agents := [{ id := "a", lastAt := 98 * msPerMin, stoppedAt := some 1 }] }
+  ⟨7, "sleep", 0, [8], some "a"⟩ == true
+#guard procLongB {} { now := 200 * msPerMin, agents := [{ id := "a", lastAt := 79 * msPerMin }] }
+  ⟨7, "sleep", 0, [8], some "a"⟩ == true
+#guard procLongB {} { now := 99 * msPerMin, agents := [{ id := "b", lastAt := 98 * msPerMin }] }
+  ⟨7, "sleep", 0, [8], some "a"⟩ == true
+#guard procLongB {} { now := 99 * msPerMin, agents := [{ id := "a", lastAt := 98 * msPerMin }] }
+  ⟨7, "sleep", 0, [8], none⟩ == true
+#guard procAlert { now := 99 * msPerMin } ⟨7, "sleep", 0, [8], some "a"⟩
+  == ⟨.procLong, "sleep#7", "alive 99 min, agent a ended", false⟩
+#guard procAlert { now := 99 * msPerMin } ⟨7, "sleep", 0, [8], none⟩ == ⟨.procLong, "sleep#7", "alive 99 min", false⟩
 #guard nLive {} 0 [a0, { a0 with kind := .lead }, { a0 with kind := .workflow, workflowDone := true }] == 1
 #guard ((health {} { now := 0, system := { diskFreeGB := 19, memPressure := .critical } }).alerts.map (·.code))
   == [.diskLow, .memCritical]

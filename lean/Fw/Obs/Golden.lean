@@ -199,6 +199,26 @@ def typed : List Typed := [
                        { pid := 11, name := "sleep", startedAt := ago 20 - 1, pids := [12] },
                        { pid := 20, name := "node", startedAt := ago 90, pids := [21] }],
              services := [21] } } },
+  { name := "declared long-runners never raise proc.long: caffeinate (allowlist), a tree holding a pid the lead declared (keep); an undeclared Python does",
+    o := { now := t0, system := { okSys with
+             procs := [{ pid := 30, name := "caffeinate", startedAt := ago 240, pids := [31] },
+                       { pid := 40, name := "Python", startedAt := ago 90, pids := [41] },
+                       { pid := 50, name := "Python", startedAt := ago 90, pids := [51] }],
+             keep := [41] } } },
+  { name := "owner: a live agent's sleep loop is quiet; trees of a stopped, a gone and an unknown agent are orphans (proc.long naming the agent); the lead's tree is proc.long",
+    o := { now := t0,
+           agents := [ag "live" 1, { ag "done" 30 with stoppedAt := some (ago 30) }, { ag "gone" 121 with startedAt := ago 300 }],
+           system := { okSys with
+             procs := [{ pid := 60, name := "sleep", startedAt := ago 50, pids := [61], agent := some "live" },
+                       { pid := 70, name := "sleep", startedAt := ago 50, pids := [71], agent := some "done" },
+                       { pid := 80, name := "sleep", startedAt := ago 150, pids := [81], agent := some "gone" },
+                       { pid := 90, name := "gh", startedAt := ago 50, pids := [91], agent := some "lost" },
+                       { pid := 95, name := "node", startedAt := ago 50, pids := [96] }] } } },
+  { name := "owner: an orphan of a stopped agent alive exactly procMaxMin (20 min) is still fine",
+    o := { now := t0,
+           agents := [{ ag "done" 30 with stoppedAt := some (ago 30) }],
+           system := { okSys with
+             procs := [{ pid := 70, name := "sleep", startedAt := ago 20, pids := [71], agent := some "done" }] } } },
   { name := "loadMax 150: load floor 149 is fine", o := { now := t0, system := { okSys with loadFloor := 149 } } },
   { name := "loadMax 150: load floor 150 is load.high", o := { now := t0, system := { okSys with loadFloor := 150 } } },
   { name := "every code at once, with tight thresholds",
@@ -235,6 +255,10 @@ def literal : List (String × Json) := [
   ("refused: a negative threshold", lit "{\"now\":0,\"params\":{\"idleMin\":-1},\"system\":{\"diskFreeGB\":50}}"),
   ("optional watch fields: prevAt null, critical omitted, a process without pids, a run with endedAt null",
    lit "{\"now\":1760000000000,\"prevAt\":null,\"system\":{\"diskFreeGB\":50,\"loadFloor\":3,\"procs\":[{\"pid\":5,\"name\":\"sh\",\"startedAt\":0}],\"services\":[7],\"ci\":[{\"workflow\":\"w\",\"branch\":\"b\",\"status\":\"completed\",\"conclusion\":\"success\",\"startedAt\":0,\"endedAt\":null}]}}"),
+  ("watch-proc-allow fields: agent null and agent omitted are the lead's trees, keep omitted is empty, keep [9] declares a tree",
+   lit "{\"now\":1760000000000,\"system\":{\"diskFreeGB\":50,\"procs\":[{\"pid\":5,\"name\":\"sh\",\"startedAt\":0,\"agent\":null},{\"pid\":8,\"name\":\"sh\",\"startedAt\":0,\"pids\":[9]},{\"pid\":10,\"name\":\"sh\",\"startedAt\":0,\"agent\":\"x\"}],\"keep\":[9]}}"),
+  ("refused: a keep pid that is not a natural number",
+   lit "{\"now\":0,\"system\":{\"diskFreeGB\":50,\"keep\":[\"9\"]}}"),
   ("refused: a fractional loadFloor (floor it)", lit "{\"now\":0,\"system\":{\"diskFreeGB\":50,\"loadFloor\":2.5}}")]
 
 /-- Every case as (name, request body). -/

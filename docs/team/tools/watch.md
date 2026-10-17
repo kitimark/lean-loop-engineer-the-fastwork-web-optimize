@@ -10,10 +10,13 @@ the rules and their proofs are in lean/Fw/Obs/Health.lean.
 | `pnpm fw watch` | one check, table, exit 0 |
 | `--json` | print `{input, output}` instead of the table |
 | `--interval <s>` | repeat every s seconds (stay in the foreground) |
+| `--keep <pid> [--note <text>]` | declare an intended long-runner: writes `{pid, startedAt, note}` to `.fw-console/keep.json`; a missing pid is an error |
+| `--unkeep <pid>` | remove that declaration (entries whose process has ended or whose pid now names a newer process drop out on every write and every check) |
 | `--until-alert` | repeat (default 300 s) until an alert appears that the previous check did not have; print it, exit 3. The baseline is the last line of `health.jsonl`, so a relaunch after exit 3 does not re-report the alert it exited on, and alerts already open do not end the wait (no log yet: the first check is the baseline) |
 
 Lead, in the background (you are re-invoked when it exits 3): `pnpm fw watch --interval 300 --until-alert`
-(run it with `run_in_background`; do not poll it).
+(run it with `run_in_background`; do not poll it). An `--interval` run declares its own pid in `keep.json` while it runs.
+A long-running helper of the lead (a monitor script, a server): `pnpm fw watch --keep <pid> --note "<what>"`.
 
 Reading the table: one row per live agent (name or task, kind `tm`/`sub`/`wf`, type, model, state, minutes since the
 last event, tool calls, failed calls, context tokens, in-flight tool and its age), worst states first; then one system
@@ -35,7 +38,11 @@ raises it for every gone agent); `agent.toolSlow` = a tool in flight > `toolSlow
 exception as `toolHang`; `ci.slow` = a run queued, waiting or in progress > `ciSlowMin` (20) min; `ci.finished` = a run
 the previous check saw running > `ciSlowMin` has completed since then: its conclusion and duration, once;
 `proc.long` = a process tree this Claude session started through its Bash tool, alive > `procMaxMin` (20) min, unless
-it holds this `fw watch` process or console-api (`services`); `sys.loadHigh` = the floor of the 1-min load average
+it is declared or its owner is live. Declared = its root program is on the checked-in allowlist `keepProgs`
+(`caffeinate`), or the tree holds this `fw watch` process, console-api (`services`) or a pid in `keep.json` (`keep`).
+Owner = the agent whose Bash call started the tree; a tree of a live agent (not stopped, not gone) is that agent's own
+business (its `until ...; do sleep 60; done` loop), so it alerts only as an orphan after the agent ended or went gone,
+with detail `alive N min, agent <id> ended`. Trees with no owner (the lead's own) alert as before; `sys.loadHigh` = the floor of the 1-min load average
 >= `loadMax` (150).
 Critical path: the snapshot's `critical` is GET `/api/plan` `.criticalPath` (task ids). An agent is tied to task c when
 its id, name or task is c or c-<digits>; a CI run when its branch is `ci/c` or `ci/c-<digits>`. Their alerts carry
@@ -59,7 +66,11 @@ Sources (read-only; names, counts and times only, never payload text):
 - system: `sysctl kern.memorystatus_vm_pressure_level`, statfs, `.local/locks/sim`, `docker ps` (3 s),
   `git worktree list`, `.fw-console/api.json`, `gh run list` (10 s; `updatedAt` of a completed run is its end),
   `ps -A -o pid=,ppid=,etime=,comm=` (process trees: the shell children of this process's nearest `claude` ancestor,
-  named by their first non-shell program, executable basename only; a tree keeps its first name), GET `/api/plan`
+  named by their first non-shell program, executable basename only; a tree keeps its first name and owner),
+`lsof -a -d 1 -Fpn -p <tree roots>` (3 s; exit 1 for a root that ended meanwhile still counts; the root shell's stdout `.../tasks/<id>.output` names the Bash task; the
+transcript whose `toolUseResult.backgroundTaskId` is that id names the owner agent; a foreground call moves to the
+background after 10 min, so every tree old enough to alert has one), `.fw-console/keep.json` (an entry counts while
+`ps` shows its pid with a start within 2 s of the recorded one), GET `/api/plan`
   (3 s). A gh, docker, ps or plan failure or timeout carries the previous check's value forward (if <= 1 h old) and
   lists it in `system.stale` (`ci`, `docker`, `procs`, `plan`); a program that is not installed, or console-api not
   running, gives an empty value, not stale. `prevAt` is the previous check's time (the last line of `health.jsonl`).
