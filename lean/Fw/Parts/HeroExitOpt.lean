@@ -129,7 +129,7 @@ def lerp (a b p : Rat) : Rat := a + (b - a) * p
 
 /-- One animated consumer value of the hero exit, with the parameters that are constant while the user scrolls a
 settled page: the copy's entrance amount $c$ (`--copy-in`), the band $\ell$ (`width<=600px`), and a card's entrance
-state and offsets.
+state $n$ (field `entered`), entrance offset $x_e$ (field `enter`) and scatter offset $x_s$ (field `off`).
 
 $$\mathrm{Consumer} = \{\mathrm{copyOpacity}(c), \mathrm{copyTranslateY}(c, \ell), \mathrm{copyBlur}(c, \ell), \mathrm{cueBlur}, \mathrm{cueTranslateY}(\ell), \mathrm{cardOpacity}, \mathrm{cardTranslate}(n, x_e, x_s) \mid c, n, x_e, x_s \in \mathbb{Q},\ \ell \in \mathbb{B}\}$$
 -/
@@ -312,11 +312,12 @@ def crOrig (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) : FrameIn CrProp :=
 
 /-- A scroll-driven animation on a user-scrollable source, target on its own layer (`will-change`).
 
-$$\operatorname{sAnim}(x, P) = (x, P, \mathrm{own}, \mathrm{true}, \mathrm{scroll}(\mathrm{true}))$$
+$$\forall x \in \mathbb{N},\ \forall P \in \mathrm{List}(\mathrm{CrProp}):\ \operatorname{sAnim}(x, P) = (x, P, \mathrm{own}, \mathrm{true}, \mathrm{scroll}(\mathrm{true}))$$
 -/
 def sAnim (x : Nat) (ps : List CrProp) : CrAnim := ⟨x, ps, .own, true, .scroll true⟩
 
-/-- **The variant's animations**: opacity + transform on the copy; transform on the cue (phone band only); a separate
+/-- **The variant's animations** (property names stand for their `css` wrapping, e.g. opacity for
+`css(opacity)`): opacity + transform on the copy; transform on the cue (phone band only); a separate
 blur on the copy (above 600 px only) and on the cue; opacity + transform on each card.
 
 $$\operatorname{anims}(\ell, N) = [\operatorname{sAnim}(2, [\mathrm{opacity}, \mathrm{transform}])] \mathbin{+\!\!+} \begin{cases} [\operatorname{sAnim}(3, [\mathrm{transform}])] & \ell \\ [\operatorname{sAnim}(2, [\mathrm{filter}(\mathrm{blur})])] & \lnot\ell \end{cases} \mathbin{+\!\!+} [\operatorname{sAnim}(3, [\mathrm{filter}(\mathrm{blur})])] \mathbin{+\!\!+} [\operatorname{sAnim}(4 + i, [\mathrm{opacity}, \mathrm{transform}]) \mid i \in [0, N)]$$
@@ -527,8 +528,8 @@ theorem cr_var_exact (m : CrMode) (l : Bool) (N : Nat) (r : Bool) (hm : m.thread
       CrLevel.stages, CrProp.extra, scrollStages, scrollC, crCompStages, crVarPasses, crVarUnits, he] <;> omega
 
 /-- **Real Chrome: a trade.** With the main thread asleep between compositor frames, the variant's scrolled frame does
-strictly less main-thread work than the original's (no script; fewer style, property, raster and commit units), but it
-adds a compositor pass the original does not have. So the variant does not dominate; it moves work to the compositor.
+strictly less main-thread work than the original's (no script, and no more passes or units on any main-thread stage),
+but it adds a compositor pass the original does not have. So the variant does not dominate; it moves work to the compositor.
 
 $$\forall \ell, N, \lambda, r:\ V \prec_{\mathrm{main}} O \ \land\ V.\mathrm{passes}(\mathrm{comp}) = 1 > 0 = O.\mathrm{passes}(\mathrm{comp})\quad\text{where } V = \operatorname{frameWork}_{\operatorname{chromiumAt}(\mathrm{realChrome})}\big(\operatorname{crVar}(\mathrm{realChrome}, \ell, N, r)\big),\ O = \operatorname{frameWork}_{\operatorname{chromiumAt}(\mathrm{realChrome})}\big(\operatorname{crOrig}(\ell, N, \lambda, r)\big)$$
 
@@ -548,9 +549,10 @@ theorem cr_real_trade (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) :
   · left; rw [(hv .script).1, (ho .script).1]; simp [crVarPasses, crOrigPasses]
 
 /-- **CI lane: mixed.** When every BeginFrame is a main frame, the variant's scrolled frame drops the script and does no
-more passes on any main-thread stage and no more units on any main-thread stage except `props`, where the compositor
+more passes on any main-thread stage and no more units on any main-thread stage other than `props` and `comp`, where the compositor
 animations' ride-along makes it one unit more than the original; it keeps the original's style units, and it adds a
-compositor pass. So in the lane the variant neither dominates nor is dominated on the main thread.
+compositor pass. So in the lane the variant does not dominate on the main thread (props +1), and the original does
+not dominate it either (script).
 
 $$\forall \ell, N, \lambda, r:\ \big(\forall s \notin \{\mathrm{props}, \mathrm{comp}\}:\ V.\mathrm{passes}(s) \le O.\mathrm{passes}(s) \land V.\mathrm{units}(s) \le O.\mathrm{units}(s)\big) \land V.\mathrm{passes}(\mathrm{props}) = O.\mathrm{passes}(\mathrm{props}) \land V.\mathrm{units}(\mathrm{props}) = O.\mathrm{units}(\mathrm{props}) + 1 \land V.\mathrm{units}(\mathrm{style}) = O.\mathrm{units}(\mathrm{style}) \land V.\mathrm{passes}(\mathrm{script}) < O.\mathrm{passes}(\mathrm{script}) \land V.\mathrm{passes}(\mathrm{comp}) = 1 > 0 = O.\mathrm{passes}(\mathrm{comp})$$
 $$\text{where } V = \operatorname{frameWork}_{\operatorname{chromiumAt}(\mathrm{lane})}\big(\operatorname{crVar}(\mathrm{lane}, \ell, N, r)\big),\ O = \operatorname{frameWork}_{\operatorname{chromiumAt}(\mathrm{lane})}\big(\operatorname{crOrig}(\ell, N, \lambda, r)\big)$$
@@ -621,7 +623,7 @@ theorem wkAnims_mem (l : Bool) (N : Nat) (a : WkAnim) (ha : a ∈ wkAnims l N) :
     a = wkAnim [.opacity, .transform] ∨ a = wkAnim [.transform] ∨ a = wkAnim [.filter] := by
   cases l <;> simp [wkAnims] at ha <;> grind
 
-/-- **Threaded scroll-driven on: one animation of the variant is accelerated**, blur included (WebKit accelerates
+/-- **Threaded scroll-driven on: each animation of the variant (each of its three property lists) is accelerated**, blur included (WebKit accelerates
 `filter`).
 
 $$\forall m \in \mathrm{WkMode}:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall P \in \{[\mathrm{opacity}, \mathrm{transform}], [\mathrm{transform}], [\mathrm{filter}]\}:\ \operatorname{wkThread}\big(m, \operatorname{wkAnim}(P)\big) = \mathrm{comp}$$
@@ -787,7 +789,7 @@ def GRow.json (r : GRow) : String :=
 
 /-- **The prediction of one stage over a frame sequence** of (variant, original) work pairs: `<o` when the variant's
 passes and units are at most the original's in every frame and its passes are strictly fewer in some frame; `≤o` when
-only the first holds; `any` otherwise. Counts are whole-page, so the rule never predicts `=0` or `=o`.
+only the first holds; `any` otherwise. Counts are whole-page, so the rule never predicts `=0` or `=o`. An empty $F$ gives `≤o`.
 
 $$\operatorname{framePred}(F, s) = \begin{cases} \text{<o} & (\forall (v, o) \in F:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s)) \land \exists (v, o) \in F:\ v.\mathrm{passes}(s) < o.\mathrm{passes}(s) \\ \text{≤o} & (\forall (v, o) \in F:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s)) \land \lnot\exists (v, o) \in F:\ v.\mathrm{passes}(s) < o.\mathrm{passes}(s) \\ \text{any} & \text{otherwise} \end{cases}$$
 -/
