@@ -151,7 +151,13 @@ export function pickFacts(cwd: string, main: string, branch: string, task?: stri
   return { givenAhead, others: [...names].map((name) => ({ name, ahead: !inMain(name), contains: tryGit(cwd, ["merge-base", "--is-ancestor", branch, name]) })) };
 }
 
+/** One `fw land` as one span ("fw land" / "total"): its 30 s ceiling is Lean `Fw.Obs.Timing.landCeilings`. A nested land (`via`) is part of the outer span. */
 export async function land(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
+  const end = via ? () => {} : begin("fw land", "total");
+  try { const r = await landRun(branch, o, via); end(r.ok ? 0 : 1); return r; } catch (e) { end(1); throw e; }
+}
+
+async function landRun(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
   const lines: string[] = via ? [`${via} has nothing to land; landing ${branch}, which is ahead of it and contains it`] : [];
   const fail = (m: string): LandResult => { lines.push(`REFUSED: ${m}`); return { ok: false, lines }; };
   const main = o.mainRef ?? "main";
@@ -288,7 +294,8 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
     const lock = takeLock(lf, { branch, pre, dir: realpathSync(mainDir) });
     if (!lock) return fail(`another fw land took ${lf} just now; wait for it`);
     let released = false;
-    const release = () => { if (!released) { released = true; dropLock(lf, lock.token); } };
+    const endLock = begin("fw land", "lock held"); // from take to release; its 5 s ceiling is Lean `Fw.Obs.Timing.landCeilings`
+    const release = () => { if (!released) { released = true; endLock(0); dropLock(lf, lock.token); } };
     // the facts of `console.landCommit`: is the lock still ours, is MERGE_HEAD there, where is HEAD
     const facts = () => {
       let mh: string | null = null;

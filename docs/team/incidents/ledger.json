@@ -467,6 +467,45 @@
    "leanVerdict": "provable",
    "leanReason": "workflow_binds (done 21c8c42).",
    "hardening": "workflow-claim"
+  },
+  {
+   "id": "inc-slow-land",
+   "at": "2026-10-18T12:00+07:00",
+   "title": "fw land took about 2 minutes for weeks, with the land lock held the whole time, and nothing alerted",
+   "symptom": "A Lean-touching fw land took about 126 s at the median (check.sh alone: p50 152.8 s, p90 199.8 s over 5 spans of 112.5, 124.1, 152.8, 191.9 and 199.8 s) and main was blocked for all of it. Nobody noticed until timing spans existed.",
+   "cause": "MEASURED (mathview profile and land.ts read, research/notes/2026/10-18-land-speed.md): (1) the mathview lint recomputed the library helper collectAxioms from scratch for each of about 4,077 declarations, with its shared cache off because loadExts is false; about 96% of the lint (p50 118.1 s, max 211.7 s over 8 spans) was that; (2) its cache key covers the whole of Fw/**/*.lean, so every land that touches lean/ misses; (3) fw land runs all of check.sh while the land lock is held (land.ts take to release), so the miss sits on main's critical path; (4) Fw.Obs.Timing flagged slow only against a step's own recent window and needed 5 samples, so a step that is slow from its first run never alerted.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-land-speed.md",
+     "note": "span table from .fw-console/timings.jsonl (local-only): fw land / check.sh p50 152,813 ms, mathview lint (miss) p50 118,082 ms, ranked fixes P1-P5"
+    },
+    {
+     "kind": "commit",
+     "ref": "51ca579",
+     "note": "the research note: mathview collectAxioms is 96% of the lint, the lock is held over all checks"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Obs/Timing.lean",
+     "note": "slow_iff before this fix: slow needs a window of n_min samples and d > k times the p90, so the first slow land cannot alert"
+    }
+   ],
+   "repro": "On a Lean-touching branch run `pnpm fw land <branch> --task <id>`: .fw-console/timings.jsonl gets a `fw land / lock held` span of about 2 minutes (before the speed-ups land).",
+   "fix": {
+    "task": "mathview-axreach",
+    "also": [
+     "land-timing-ceiling",
+     "mathview-module-cache",
+     "check-dag",
+     "land-prelock"
+    ]
+   },
+   "regression": "Fw.Obs.Timing ceilings (landCeilings: fw land / total 30 s, fw land / lock held 5 s) with the theorem land_budget_alert (a non-noisy land over its ceiling is slow with no history), golden packages/contracts/golden/obs/timing.jsonl, and the #guard that replays the three measured check.sh spans as lock-held samples",
+   "leanVerdict": "provable",
+   "leanReason": "Pure decisions: axiom-reach memo equals the per-call search (Fw.Spec.AxReach query_exact), check cache and pre-lock land (Fw.Console.LandSpeed cache_sound, preLand_commit_exact), regression budget (Fw.Obs.Timing land_budget_alert).",
+   "hardening": "mathview-axreach",
+   "mistakeClass": "c-late-check"
   }
  ]
 }

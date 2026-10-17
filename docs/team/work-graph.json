@@ -2896,11 +2896,12 @@
     "apps/runner/src/coverage.ts",
     "apps/runner/test/**",
     "docs/team/tools/**"
-   ]
+   ],
+   "evidence": "aa205f9"
   },
   {
    "id": "fix-proofs",
-   "title": "(M) Lean proof per integration fix (nav, commission, misc, people WebKit): each fixed value is Lean-sourced (generated CSS constant or golden vector, layout formula proved at all breakpoints) so it cannot drift; why each escaped Lean recorded in the findings ledger",
+   "title": "(L) Lean coverage of the gate probes, bulk then per fix: static values generated from the snapshot-extract reference data via Lean (Fw.Site.Reference -> generated CSS per part, moves probes from uncovered to generated; lean-coverage first run: 168 of 52346 covered, 280 of 292 failing cells uncovered); dynamic fixes (commission driver phase, nav body rule, stageBg) proved per fix; the 7 golden-covered-but-failing items explained; why each escaped Lean recorded in the findings ledger",
    "stream": "site",
    "milestone": "M5",
    "deps": [
@@ -2909,7 +2910,8 @@
     "fix-misc",
     "fix-people-webkit",
     "lean-coverage",
-    "gate-settle"
+    "gate-settle",
+    "snapshot-extract"
    ],
    "owner": "lean-prover",
    "writes": [
@@ -3098,7 +3100,8 @@
     "packages/difftest/**",
     ".github/workflows/difftest.yml",
     "docs/team/tools/difftest.md"
-   ]
+   ],
+   "evidence": "7341aaa"
   },
   {
    "id": "land-speed-lean",
@@ -3113,7 +3116,8 @@
     "lean/Fw/Console/LandSpeed.lean",
     "lean/Fw.lean",
     "packages/contracts/golden/console/land-speed.jsonl"
-   ]
+   ],
+   "evidence": "e1417e1"
   },
   {
    "id": "mathview-axreach",
@@ -3128,7 +3132,8 @@
     "lean/MathView.lean",
     "lean/Fw/Spec/AxReach.lean",
     "lean/Fw.lean"
-   ]
+   ],
+   "evidence": "a59ed74"
   },
   {
    "id": "land-timing-ceiling",
@@ -3144,7 +3149,8 @@
     "packages/contracts/golden/obs/timing.jsonl",
     "apps/runner/src/land.ts",
     "docs/team/incidents/**"
-   ]
+   ],
+   "evidence": "c883cd3"
   },
   {
    "id": "checksfor-inputs",
@@ -3390,6 +3396,22 @@
     "lean/Fw/Measure/Valid.lean",
     "packages/measure-webkit/src/**",
     "packages/measure-chromium/src/**"
+   ]
+  },
+  {
+   "id": "lean-ops-gap",
+   "title": "(M) Lean-first violations found by ts-lean-diff: give each TS decision without a Lean op one (parts logic.ts wire ops, spool/workflow.ts, plan-sync syncFrom, shells/model.ts, measure-wktr reduce, parseMemLevel, gh-budget wait verdict, next.ts classifyTree, judgeDevice, spawn-guard mode mapping, emit.mjs) and add each to packages/difftest; also diff flags.resolve and measure.splits",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "ts-lean-diff"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Wire/**",
+    "lean/Fw/Ops/**",
+    "packages/difftest/**",
+    "packages/contracts/golden/**"
    ]
   }
  ],

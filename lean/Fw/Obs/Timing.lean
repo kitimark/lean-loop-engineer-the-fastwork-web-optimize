@@ -18,11 +18,15 @@ Definitions (all durations in whole ms, `Nat`):
   defined by counting (`ord`), so no sort is needed and the proofs are about counts.
 * Verdict of one sample, first match: `noBaseline` when the window has fewer than $n_{\min}$ samples; `noisy`; `slow`
   when $d > \max(B, k \cdot b)$ with $B$ the step's budget and $b$ the baseline; otherwise `ok`.
+* A **ceiling** is an absolute limit $C(\mathit{tool}, \mathit{step})$ for one step. A non-noisy sample above its
+  ceiling is `slow` at once, with no window needed: a step that is slow from its first run (the 2-minute `fw land`)
+  has no history to be slow against, so the relative rule alone never alerts for it. `landCeilings` sets 30 s for the
+  whole `fw land` and 5 s for the time its lock is held.
 * **Structural**: a stage is a list of groups (a group is the list of keys of one job, e.g. the matrix legs of
   `sweeps`); a group's baseline is the largest final baseline of its keys (defined when every key has one). A group is
   structural when its baseline exceeds twice every sibling group's baseline.
 
-Proved (main results; helper lemmas below): `slow_iff`, `no_alert_within_budget`, `no_alert_within_budget_list`, `slow_mono_dur`, `noBaseline_iff`,
+Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `land_budget_alert`, `no_alert_within_budget`, `no_alert_within_budget_list`, `slow_mono_dur`, `noBaseline_iff`,
 `noBaseline_below_nmin`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `outlier_between`, `outlier_bound`, `outlier_shift`,
 `structural_iff`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
 
@@ -90,10 +94,10 @@ deriving DecidableEq, Repr
 
 /-- The parameters: $n_{\min}$ (`nMin`), the window length $N$ (`window`), the multiplier $k = k_n / k_d$
 (`kNum`, `kDen`), the default budget $B_0$ in ms (`budgetMs`), per-tool budget overrides (`budgets`, first match
-wins), the load limit $L$ (`loadMax`, compared with the floor of the 1-min load average; the default 16 is twice the
+wins), per-step ceilings (`ceilings`, first match wins), the load limit $L$ (`loadMax`, compared with the floor of the 1-min load average; the default 16 is twice the
 8 cores of the local Mac), and the parallel stages (`stages`).
 
-$$p = (n_{\min}, N, k_n, k_d, B_0, \beta, L, \Sigma) \in \mathbb N^5 \times \mathrm{List}(\mathrm{String} \times \mathbb N) \times \mathbb N \times \mathrm{List}(\mathrm{Stage})$$
+$$p = (n_{\min}, N, k_n, k_d, B_0, \beta, \gamma, L, \Sigma) \in \mathbb N^5 \times \mathrm{List}(\mathrm{String} \times \mathbb N) \times \mathrm{List}(\mathrm{String} \times \mathrm{String} \times \mathbb N) \times \mathbb N \times \mathrm{List}(\mathrm{Stage})$$
 -/
 structure Params where
   nMin     : Nat := 5
@@ -102,6 +106,7 @@ structure Params where
   kDen     : Nat := 2
   budgetMs : Nat := 30000
   budgets  : List (String × Nat) := []
+  ceilings : List (String × String × Nat) := []
   loadMax  : Nat := 16
   stages   : List Stage := []
 deriving Repr
@@ -174,6 +179,32 @@ $$B_p(\mathit{tool}) = \begin{cases} b & (\mathit{tool}, b) \text{ is the first 
 -/
 def budgetOf (p : Params) (tool : String) : Nat := (p.budgets.lookup tool).getD p.budgetMs
 
+/-- The ceiling of a step: the limit of the first entry of `ceilings` with that tool and step, if any.
+
+$$C_p(\mathit{tool}, \mathit{step}) = \begin{cases} c & (\mathit{tool}, \mathit{step}, c) \text{ is the first triple of } \gamma \text{ with that tool and step} \\ \bot & \text{no such triple} \end{cases}$$
+-/
+def ceilingOf (p : Params) (tool step : String) : Option Nat :=
+  (p.ceilings.find? (fun c => decide (c.1 = tool) && decide (c.2.1 = step))).map (·.2.2)
+
+/-- A sample breaches its ceiling when its step has one, the sample is not noisy, and it took longer than the ceiling.
+No window is involved.
+
+$$\operatorname{breach}_p(s) \iff \exists c.\ C_p(\mathit{tool}_s, \mathit{step}_s) = c \wedge d_s > c \wedge \neg\operatorname{noisy}_p(s)$$
+-/
+def ceilingBreach (p : Params) (s : Sample) : Bool :=
+  match ceilingOf p s.tool s.step with
+  | some c => decide (c < s.durMs) && !noisy p s
+  | none => false
+
+/-- The budget a sample is held to: its tool's budget, lowered to the step's ceiling when the step has one.
+
+$$B^*_p(s) = \begin{cases} \min(B_p(\mathit{tool}_s), c) & C_p(\mathit{tool}_s, \mathit{step}_s) = c \\ B_p(\mathit{tool}_s) & \text{no ceiling} \end{cases}$$
+-/
+def budgetFor (p : Params) (s : Sample) : Nat :=
+  match ceilingOf p s.tool s.step with
+  | some c => min (budgetOf p s.tool) c
+  | none => budgetOf p s.tool
+
 /-- The slow test, exact over the rationals: $d > \max(B, k \cdot b)$ with $k = k_n / k_d$, cross-multiplied so no
 division happens (for $k_d \ge 1$ it is the same as $d > B \wedge d > k \cdot b$; for $k_d = 0$ the second half is
 false and nothing is slow).
@@ -222,14 +253,16 @@ structure SampleVerdict where
   budgetMs : Nat
 deriving DecidableEq, Repr
 
-/-- The verdict of sample `s` at index `i` with the earlier samples `hist`.
+/-- The verdict of sample `s` at index `i` with the earlier samples `hist`: `slow` when it breaches its step's ceiling
+(whatever the window), else the code against the window.
 
-$$\operatorname{judge}_p(H, i, s) = (i, \mathit{tool}_s, \mathit{step}_s, h_s, d_s, \operatorname{code}_p(w, s), |w|, \operatorname{p90}(w), B_p(\mathit{tool}_s)),\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
+$$\operatorname{judge}_p(H, i, s) = (i, \mathit{tool}_s, \mathit{step}_s, h_s, d_s, c, |w|, \operatorname{p90}(w), B^*_p(s)),\quad c = \begin{cases} \mathsf{slow} & \operatorname{breach}_p(s) \\ \operatorname{code}_p(w, s) & \text{otherwise} \end{cases},\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
 -/
 def judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
   let w := windowOf p hist s.key
-  { idx := i, tool := s.tool, step := s.step, host := s.host, durMs := s.durMs, code := codeOf p w s,
-    n := w.length, baseline := p90 w, budgetMs := budgetOf p s.tool }
+  { idx := i, tool := s.tool, step := s.step, host := s.host, durMs := s.durMs,
+    code := if ceilingBreach p s then .slow else codeOf p w s,
+    n := w.length, baseline := p90 w, budgetMs := budgetFor p s }
 
 /-- One verdict per sample, in input order; sample $i$ is judged against the samples before it.
 
@@ -353,17 +386,28 @@ private def lk : Key := { tool := "t", step := "s", host := .«local» }
 
 /-! ## Proofs: the verdict of one sample -/
 
-/-- When a sample's verdict is `slow`: the window is long enough, the sample is not noisy, and its duration exceeds
-both the budget and $k$ times the baseline.
+/-- A sample breaches its ceiling exactly when its step has a ceiling $c$, it is not noisy and it took longer than $c$.
 
-$$\forall p, H, i, s:\quad \operatorname{judge}_p(H, i, s).c = \mathsf{slow} \iff |w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge k_d \cdot d_s > k_n \cdot \operatorname{p90}(w),\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
+$$\forall p, s:\quad \operatorname{breach}_p(s) \iff \exists c.\ C_p(\mathit{tool}_s, \mathit{step}_s) = c \wedge c < d_s \wedge \neg\operatorname{noisy}_p(s)$$
 -/
-theorem slow_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
-    (judge p hist i s).code = .slow ↔
-      p.nMin ≤ (windowOf p hist s.key).length ∧ noisy p s = false ∧ budgetOf p s.tool < s.durMs ∧
-        p.kNum * p90 (windowOf p hist s.key) < p.kDen * s.durMs := by
-  unfold judge codeOf overLimit
-  simp only
+theorem ceilingBreach_iff (p : Params) (s : Sample) :
+    ceilingBreach p s = true ↔
+      ∃ c, ceilingOf p s.tool s.step = some c ∧ c < s.durMs ∧ noisy p s = false := by
+  unfold ceilingBreach
+  cases h : ceilingOf p s.tool s.step with
+  | none => simp
+  | some c => simp
+
+/-- The relative rule alone: the code against a window is `slow` exactly when the window is long enough, the sample is
+not noisy, and its duration exceeds both the budget and $k$ times the baseline.
+
+$$\forall p, w, s:\quad \operatorname{code}_p(w, s) = \mathsf{slow} \iff |w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge k_d \cdot d_s > k_n \cdot \operatorname{p90}(w)$$
+-/
+theorem codeOf_slow_iff (p : Params) (w : List Nat) (s : Sample) :
+    codeOf p w s = .slow ↔
+      p.nMin ≤ w.length ∧ noisy p s = false ∧ budgetOf p s.tool < s.durMs ∧
+        p.kNum * p90 w < p.kDen * s.durMs := by
+  unfold codeOf overLimit
   split
   · constructor
     · intro h; cases h
@@ -386,15 +430,41 @@ theorem slow_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
         · intro h; cases h
         · intro h; exact absurd ⟨h.2.2.1, h.2.2.2⟩ h3
 
-/-- No alert within budget: a sample whose duration is at most its tool's budget is never `slow`.
+/-- When a sample's verdict is `slow`: it breaches its step's ceiling (no window needed), or the window is long
+enough, the sample is not noisy, and its duration exceeds both the budget and $k$ times the baseline.
 
-$$\forall p, H, i, s:\quad d_s \le B_p(\mathit{tool}_s) \Rightarrow \operatorname{judge}_p(H, i, s).c \ne \mathsf{slow}$$
+$$\forall p, H, i, s:\quad \operatorname{judge}_p(H, i, s).c = \mathsf{slow} \iff \operatorname{breach}_p(s) \vee \bigl(|w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge k_d \cdot d_s > k_n \cdot \operatorname{p90}(w)\bigr),\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
+-/
+theorem slow_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    (judge p hist i s).code = .slow ↔
+      ceilingBreach p s = true ∨
+      (p.nMin ≤ (windowOf p hist s.key).length ∧ noisy p s = false ∧ budgetOf p s.tool < s.durMs ∧
+        p.kNum * p90 (windowOf p hist s.key) < p.kDen * s.durMs) := by
+  unfold judge
+  simp only
+  by_cases hb : ceilingBreach p s = true
+  · simp [hb]
+  · simp only [hb, Bool.false_eq_true, ite_false, false_or]
+    exact codeOf_slow_iff p _ s
+
+/-- No alert within budget: a sample whose duration is at most its budget (its tool's budget, lowered to the step's
+ceiling) is never `slow`.
+
+$$\forall p, H, i, s:\quad d_s \le B^*_p(s) \Rightarrow \operatorname{judge}_p(H, i, s).c \ne \mathsf{slow}$$
 -/
 theorem no_alert_within_budget (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (h : s.durMs ≤ budgetOf p s.tool) : (judge p hist i s).code ≠ .slow := by
+    (h : s.durMs ≤ budgetFor p s) : (judge p hist i s).code ≠ .slow := by
   intro hs
-  have := ((slow_iff p hist i s).1 hs).2.2.1
-  omega
+  unfold budgetFor at h
+  rcases (slow_iff p hist i s).1 hs with hb | hr
+  · obtain ⟨c, hc, hlt, _⟩ := (ceilingBreach_iff p s).1 hb
+    rw [hc] at h
+    simp only at h
+    omega
+  · have := hr.2.2.1
+    cases hc : ceilingOf p s.tool s.step with
+    | none => rw [hc] at h; simp only at h; omega
+    | some c => rw [hc] at h; simp only at h; omega
 
 /-- Every sample verdict of the entry point is `judge` of its sample against the samples before it.
 
@@ -423,6 +493,31 @@ theorem no_alert_within_budget_list (p : Params) (hist : List Sample) (v : Sampl
   obtain ⟨i, hi, rfl⟩ := mem_sample p hist v h
   exact no_alert_within_budget p _ i _ hb
 
+/-- The ceilings of `fw land`, from the land-speed research targets (a Lean-touching land under 20 s p50, the lock
+held under 5 s): 30 s for the whole land (step `total`) and 5 s for the time its lock is held (step `lock held`).
+
+$$\gamma_{\mathrm{land}} = [(\texttt{fw land}, \texttt{total}, 30000),\ (\texttt{fw land}, \texttt{lock held}, 5000)]$$
+-/
+def landCeilings : List (String × String × Nat) :=
+  [("fw land", "total", 30000), ("fw land", "lock held", 5000)]
+
+/-- A land over budget alerts. With the land ceilings first in `ceilings`, a non-noisy `fw land` sample over 30 s for
+its `total`, or over 5 s for its `lock held`, has the verdict `slow`, whatever its history (even none: a land that is
+slow from its first run is flagged).
+
+$$\forall p, H, i, s:\quad \gamma_{\mathrm{land}} \mathbin{+\!\!+} \gamma' = \gamma_p \wedge \neg\operatorname{noisy}_p(s) \wedge \mathit{tool}_s = \texttt{fw land} \wedge \bigl(\mathit{step}_s = \texttt{total} \wedge d_s > 30000 \vee \mathit{step}_s = \texttt{lock held} \wedge d_s > 5000\bigr) \Rightarrow \operatorname{judge}_p(H, i, s).c = \mathsf{slow}$$
+-/
+theorem land_budget_alert (p : Params) (hp : ∃ rest, p.ceilings = landCeilings ++ rest)
+    (hist : List Sample) (i : Nat) (s : Sample) (hn : noisy p s = false)
+    (hs : (s.tool = "fw land" ∧ s.step = "total" ∧ 30000 < s.durMs) ∨
+          (s.tool = "fw land" ∧ s.step = "lock held" ∧ 5000 < s.durMs)) :
+    (judge p hist i s).code = .slow := by
+  obtain ⟨rest, hr⟩ := hp
+  refine (slow_iff p hist i s).2 (Or.inl ((ceilingBreach_iff p s).2 ?_))
+  rcases hs with ⟨ht, hst, hd⟩ | ⟨ht, hst, hd⟩
+  · exact ⟨30000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
+  · exact ⟨5000, by simp [ceilingOf, hr, landCeilings, ht, hst], hd, hn⟩
+
 /-- Slow is monotone in the duration: with the same history, a sample that is `slow` stays `slow` when it takes
 longer.
 
@@ -431,23 +526,30 @@ $$\forall p, H, i, s, d':\quad \operatorname{judge}_p(H, i, s).c = \mathsf{slow}
 theorem slow_mono_dur (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (d : Nat)
     (h : (judge p hist i s).code = .slow) (hd : s.durMs ≤ d) :
     (judge p hist i { s with durMs := d }).code = .slow := by
-  obtain ⟨h1, h2, h3, h4⟩ := (slow_iff p hist i s).1 h
-  refine (slow_iff p hist i _).2 ⟨h1, h2, by simp only; omega, ?_⟩
-  exact Nat.lt_of_lt_of_le h4 (Nat.mul_le_mul_left _ hd)
+  rcases (slow_iff p hist i s).1 h with hb | ⟨h1, h2, h3, h4⟩
+  · obtain ⟨c, hc, hlt, hn⟩ := (ceilingBreach_iff p s).1 hb
+    exact (slow_iff p hist i _).2 (Or.inl ((ceilingBreach_iff p _).2 ⟨c, hc, by simp only; omega, hn⟩))
+  · refine (slow_iff p hist i _).2 (Or.inr ⟨h1, h2, by simp only; omega, ?_⟩)
+    exact Nat.lt_of_lt_of_le h4 (Nat.mul_le_mul_left _ hd)
 
-/-- The verdict is `noBaseline` exactly when the window has fewer than $n_{\min}$ samples.
+/-- The verdict is `noBaseline` exactly when the window has fewer than $n_{\min}$ samples and the sample does not
+breach a ceiling (a breach is `slow` whatever the window).
 
-$$\forall p, H, i, s:\quad \operatorname{judge}_p(H, i, s).c = \mathsf{noBaseline} \iff |\operatorname{win}_p(H, \operatorname{key}(s))| < n_{\min}$$
+$$\forall p, H, i, s:\quad \operatorname{judge}_p(H, i, s).c = \mathsf{noBaseline} \iff |\operatorname{win}_p(H, \operatorname{key}(s))| < n_{\min} \wedge \neg\operatorname{breach}_p(s)$$
 -/
 theorem noBaseline_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
-    (judge p hist i s).code = .noBaseline ↔ (windowOf p hist s.key).length < p.nMin := by
-  simp only [judge, codeOf]
-  by_cases h1 : (windowOf p hist s.key).length < p.nMin
-  · simp [h1]
-  · simp only [h1, ite_false, iff_false]
-    split
-    · intro h; cases h
-    · split <;> (intro h; cases h)
+    (judge p hist i s).code = .noBaseline ↔
+      (windowOf p hist s.key).length < p.nMin ∧ ceilingBreach p s = false := by
+  by_cases hb : ceilingBreach p s = true
+  · simp [judge, hb]
+  · have hb' : ceilingBreach p s = false := by simpa using hb
+    simp only [judge, hb', Bool.false_eq_true, ite_false, and_true, codeOf]
+    by_cases h1 : (windowOf p hist s.key).length < p.nMin
+    · simp [h1]
+    · simp only [h1, ite_false, iff_false]
+      split
+      · intro h; cases h
+      · split <;> (intro h; cases h)
 
 /-- The window is at most $N$ long and at most as long as the number of earlier samples with the same key.
 
@@ -464,15 +566,16 @@ theorem window_length (p : Params) (hist : List Sample) (k : Key) :
   omega
 
 /-- Below $n_{\min}$, no verdict: with fewer than $n_{\min}$ earlier samples of the same key, or a window shorter than
-$n_{\min}$, the verdict is `noBaseline`.
+$n_{\min}$, the verdict is `noBaseline` (unless the sample breaches a ceiling, which needs no window).
 
-$$\forall p, H, i, s:\quad \bigl(|[t \in H \mid \operatorname{key}(t) = \operatorname{key}(s)]| < n_{\min} \vee N < n_{\min}\bigr) \Rightarrow \operatorname{judge}_p(H, i, s).c = \mathsf{noBaseline}$$
+$$\forall p, H, i, s:\quad \neg\operatorname{breach}_p(s) \wedge \bigl(|[t \in H \mid \operatorname{key}(t) = \operatorname{key}(s)]| < n_{\min} \vee N < n_{\min}\bigr) \Rightarrow \operatorname{judge}_p(H, i, s).c = \mathsf{noBaseline}$$
 -/
 theorem noBaseline_below_nmin (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hb : ceilingBreach p s = false)
     (h : hist.countP (fun t => decide (t.key = s.key)) < p.nMin ∨ p.window < p.nMin) :
     (judge p hist i s).code = .noBaseline := by
   have := window_length p hist s.key
-  exact (noBaseline_iff p hist i s).2 (by omega)
+  exact (noBaseline_iff p hist i s).2 ⟨by omega, hb⟩
 
 /-- Deterministic and local: the verdict of a sample depends only on the parameters, the sample, its index and the
 earlier samples with the same key (samples of other steps or hosts, in any interleaving, change nothing).
@@ -813,6 +916,8 @@ def paramsJson (p : Params) : Json :=
   Json.mkObj [("nMin", toJson p.nMin), ("window", toJson p.window), ("kNum", toJson p.kNum),
     ("kDen", toJson p.kDen), ("budgetMs", toJson p.budgetMs),
     ("budgets", .arr (p.budgets.map (fun (t, b) => Json.mkObj [("tool", .str t), ("ms", toJson b)])).toArray),
+    ("ceilings", .arr (p.ceilings.map (fun (t, s, c) =>
+      Json.mkObj [("tool", .str t), ("step", .str s), ("ms", toJson c)])).toArray),
     ("loadMax", toJson p.loadMax),
     ("stages", .arr (p.stages.map (fun st => Json.mkObj [("id", .str st.id),
       ("groups", .arr (st.groups.map (fun g => Json.mkObj [("name", .str g.name),
@@ -863,6 +968,9 @@ def gateParams : Params :=
         groups := [{ name := "merge (chromium)", keys := [gateKey "merge (chromium)"] },
           { name := "merge (playwright-webkit)", keys := [gateKey "merge (playwright-webkit)"] }] }] }
 
+/-- The parameters with the `fw land` ceilings (30 s total, 5 s lock held). -/
+def landParams : Params := { ceilings := landCeilings }
+
 def run (tool step : String) (host : Host) (load : Nat) (ds : List Nat) : List Sample :=
   ds.map fun d => { tool, step, durMs := d, host, load }
 
@@ -892,7 +1000,20 @@ def cases : List (String × Params × List Sample) :=
    ("CI sample at load 40 is never noisy: slow",
       {}, run "ci:lean" "check" .ci 40 [60000, 60000, 60000, 60000, 60000, 300000]),
    ("window N = 5 drops the old 400 s outlier: 160 s after five 100 s runs is slow",
-      { window := 5 }, run "ci:lean" "check" .ci 0 [400000, 100000, 100000, 100000, 100000, 100000, 160000])]
+      { window := 5 }, run "ci:lean" "check" .ci 0 [400000, 100000, 100000, 100000, 100000, 100000, 160000]),
+   ("land ceilings: three real check.sh spans of 2026-10-17 (112.5, 124.1, 152.8 s at load 8-9, lower bounds of the lock-held time) as lock-held samples with no history: all slow at once (5 s ceiling); the relative rule alone gives noBaseline",
+      landParams, run "fw land" "lock held" .«local» 9 [112483, 124065, 152813]),
+   ("land ceilings: a total of exactly 30000 ms after five 12 s lands: ok",
+      landParams, run "fw land" "total" .«local» 4 [12000, 12000, 12000, 12000, 12000, 30000]),
+   ("land ceilings: a first-ever total of 30001 ms (no history) is slow",
+      landParams, run "fw land" "total" .«local» 4 [30001]),
+   ("land ceilings: a lock held of exactly 5000 ms after five 1 s locks: ok",
+      landParams, run "fw land" "lock held" .«local» 4 [1000, 1000, 1000, 1000, 1000, 5000]),
+   ("land ceilings: a first-ever lock held of 5001 ms is slow",
+      landParams, run "fw land" "lock held" .«local» 4 [5001]),
+   ("land ceilings: a lock held of 150 s at load 24 on the local Mac is noisy, not an alert",
+      landParams, run "fw land" "lock held" .«local» 4 [1000, 1000, 1000, 1000, 1000] ++
+        run "fw land" "lock held" .«local» 24 [150000])]
 
 /-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
@@ -902,7 +1023,10 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
   [("breakpoint-gate:test", "sweeps", 345000, 147000)]
 #guard (sampleVerdicts gateParams gateRun).all (·.code == .noBaseline)
 #guard (cases.drop 1).map (fun (_, p, ss) => lastCode p ss) ==
-  [some .ok, some .slow, some .noBaseline, some .ok, some .slow, some .ok, some .slow, some .ok, some .slow, some .slow]
+  [some .ok, some .slow, some .noBaseline, some .ok, some .slow, some .ok, some .slow, some .ok, some .slow, some .slow,
+   some .slow, some .ok, some .slow, some .ok, some .slow, some .noisy]
+#guard (sampleVerdicts landParams (run "fw land" "lock held" .«local» 9 [112483, 124065, 152813])).all (·.code == .slow)
+#guard (sampleVerdicts {} (run "fw land" "lock held" .«local» 9 [112483, 124065, 152813])).all (·.code == .noBaseline)
 #guard (sampleVerdicts {} (run "lean" "check.sh" .«local» 4 [60000, 60000, 60000, 60000, 60000] ++
   run "lean" "check.sh" .«local» 24 [300000] ++ run "lean" "check.sh" .«local» 4 [61000])).map (·.code) ==
   [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .noisy, .ok]
