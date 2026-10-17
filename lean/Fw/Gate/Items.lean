@@ -365,7 +365,7 @@ theorem partItems_na_iff (a : Anchors) (spec : PartSpec) (o r : Option PartRaw) 
 
 /-- A part passes exactly when it compared something and every compared item is equal.
 
-$$\forall A, \mathit{spec}, o, r, \mathit{props},\quad \operatorname{partVerdict} = \mathrm{pass} \iff (\exists it \in \mathcal I,\ it.\mathrm{cls} \ne \mathrm{info}) \wedge \forall it \in \mathcal I,\ it.\mathrm{cls} \ne \mathrm{info} \implies it.\mathrm{status} = \mathrm{equal},\quad \text{where } \mathcal I = \operatorname{partItems}(A, \mathit{spec}, o, r, \mathit{props})$$
+$$\forall A, \mathit{spec}, o, r, \mathit{props},\quad \operatorname{partVerdict}(A, \mathit{spec}, o, r, \mathit{props}) = \mathrm{pass} \iff (\exists it \in \mathcal I,\ it.\mathrm{cls} \ne \mathrm{info}) \wedge \forall it \in \mathcal I,\ it.\mathrm{cls} \ne \mathrm{info} \implies it.\mathrm{status} = \mathrm{equal},\quad \text{where } \mathcal I = \operatorname{partItems}(A, \mathit{spec}, o, r, \mathit{props})$$
 
 A part's cell passes iff all its compared items pass. -/
 theorem partVerdict_pass_iff (a : Anchors) (spec : PartSpec) (o r : Option PartRaw) (props : PartProps) :
@@ -535,7 +535,7 @@ theorem refRect_mapRole (ρ : String) (g : Item → Item) (hg : ∀ x, (g x).rec
 
 /-- Changing the elements of both arms keeps the paired statuses when it keeps each pair's.
 
-$$\forall f, h_1, h_2,\quad \bigl(\forall i, x, y,\ \operatorname{st}(f(i, h_1 x, h_2 y)) = \operatorname{st}(f(i, x, y))\bigr) \implies \forall i, xs, ys,\ \operatorname{st}(\operatorname{pairs}(f, i, h_1(xs), h_2(ys))) = \operatorname{st}(\operatorname{pairs}(f, i, xs, ys)),\quad \text{where } \operatorname{st}(L) = [\,it.\mathrm{status} \mid it \in L\,]$$
+$$\forall f, h_1, h_2,\quad \bigl(\forall i, x, y,\ \operatorname{st}(f(i, h_1 x, h_2 y)) = \operatorname{st}(f(i, x, y))\bigr) \implies \forall i, xs, ys,\ \operatorname{st}(\operatorname{pairs}(f, i, \operatorname{map}(h_1, xs), \operatorname{map}(h_2, ys))) = \operatorname{st}(\operatorname{pairs}(f, i, xs, ys)),\quad \text{where } \operatorname{st}(L) = [\,it.\mathrm{status} \mid it \in L\,],\ \operatorname{map}(h, xs) = [\,h(x) \mid x \in xs\,]$$
 
 Pairing respects element-wise invariance. -/
 theorem pairs_congr (f : Nat → Item → Item → List PItem) (h₁ h₂ : Item → Item)
