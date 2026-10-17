@@ -19,12 +19,13 @@ Head sha and run ids: in the lead report (the last pushed head is on `ci/integra
 - Tests: `test/prepare.test.mjs`, `settle.test.mjs`, `declared.test.mjs`; `scope.test.mjs` accepts height-axis knees (people.deck).
 
 ## CI
-- Run 39062347763 (bb78c5f): all jobs success, but the merged summary has failures (chromium 39, WebKit 127). Job conclusions do NOT mean pass:
-  read `gate-merged-*/summary.json` `engines.*.failures` (download with `gh run download <id> -p 'gate-merged-*'`).
-- Wait with `pnpm fw ci wait --branch ci/integrate-ports --workflow breakpoint-gate`.
+- Head 411847d on `ci/integrate-ports`. Run 39067170911 breakpoint-gate: jobs success, but the merged summary FAILS (chromium 64 items, WebKit 88). lean, gate-gaps,
+  mutants, chromium-counts, wktr success on the same sha. Earlier run 39062347763 (bb78c5f, before the collect-order change): chromium 39, WebKit 127.
+- Job conclusions do NOT mean pass: read `gate-merged-*/summary.json` `engines.*.failures` (`gh run download <id> -p 'gate-merged-*'`). Wait: `pnpm fw ci wait`.
 
-## Left (real part work, from run 39062347763; compare each cell with the port's own run)
-- nav: border colour rgb(23,23,23) vs black and missing font-family on switch/earn (all cells; already failing in the port's run); WebKit nav and people.card at touch-rm-861 / dw-arm cells.
-- commission: underline opacity/transform; section height 829 vs 777 and `--commission-shrink`; commission.typing visual scale at <=720 and avatarLarge at 319/320.
-- will-change under touch+rm 861 (orig `auto`) on hero.countdown face, hero.orbit card, hero.deck card, hero copy; hero.orbit z-index 3 vs 2.
-- overlays.signup widths 359.36 vs 360 (touch 960-1031); pain.notes note x (145 probes); people.deck shell/panel widths; people.card radius and --future-shrink in WebKit desk-861+.
+## Left (real part work; fresh agent). Cells in run 39067170911, most also failed in the port's own run
+- nav (all 196/188 cells): border colour rgb(23,23,23) vs black on nav and nav.hitTest; font-family missing on nav earn and nav.langMenu switch.
+- commission: section/track/card/sticky height 829.77 vs 777.44; runway height 0 vs 54; title display block/flex; underline opacity/transform; inner/rows inline margins;
+  commission.typing avatarLarge, message/referral transitions, visual scale at <=720, beat x/y.
+- pain.notes note x (90 probes); hero.orbit card z-index 1 vs 2; platform.stageBg stage/bg/grain heights (WebKit); overlays.signup widths 359.2 vs 360 (WebKit touch);
+  WebKit tails: people.card radius/--future-shrink, people.deck shell, people.o height, nav bar width in phone rotation.
