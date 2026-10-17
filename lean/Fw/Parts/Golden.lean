@@ -3,6 +3,7 @@ import Fw.Parts.EngineScroll
 import Fw.Parts.NavHitTest
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroExit
+import Fw.Parts.MorphTween
 /-!
 # Golden vectors for the M2 pilot parts
 
@@ -285,6 +286,50 @@ def exitSpecLines : List String :=
 
 end Exit
 
+section Tween
+open Fw.Parts.MorphTween
+
+/-- A tween state as JSON. $$s \mapsto \{r, w, \mathit{from}, \mathit{to}, o, n\}$$ The wire form of `St`. -/
+def stJson (s : St) : Json :=
+  Json.mkObj [("value", ratWire s.value), ("target", ratWire s.target), ("from", ratWire s.f), ("to", ratWire s.t),
+    ("start", ratWire s.start), ("pending", .bool s.pending)]
+
+/-- A tween state as the input of a golden line. $$s \mapsto \{r, w, \mathit{from}, \mathit{to}, o, n\}$$ -/
+def stIn (s : St) : Json :=
+  Json.mkObj [("value", rin s.value), ("target", rin s.target), ("from", rin s.f), ("to", rin s.t),
+    ("start", rin s.start), ("pending", .bool s.pending)]
+
+/-- morph.tween lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS tween. -/
+def tweenLines : List String :=
+  let xs : List Rat := [-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5]
+  let els : List Rat := [-16, 0, 16.667, 100, 340, 500, 679, 679.9, 680, 680.1, 1000]
+  let ends : List (Rat × Rat) := [(0, 1), (1, 0), (0.3, 1), (0.8, 0), (0.5, 0.5)]
+  (xs.map fun x => line "ease" [("x", rin x)] (ratWire (ease x))) ++
+  (ends.flatMap fun (f, t) => els.map fun e =>
+    let z := tween f t e
+    line "tween" [("from", rin f), ("to", rin t), ("elapsed", rin e)]
+      (Json.mkObj [("value", ratWire z.value), ("done", .bool z.done)])) ++
+  (([0, 0.5, 0.99, 1, -1, 1.5, -0.5, 120, -120, 0.0] : List Rat).map fun d =>
+    line "dir" [("delta", rin d)] (match dir d with | some g => ratWire g | none => .null)) ++
+  (([(360, 800, 800), (359.9, 800, 800), (800, 808, 800), (800, 808.5, 800), (0, 0, 800), (380.25, 844, 844),
+     (379.8, 844, 844), (900, 852, 844), (900, 852.01, 844)] : List (Rat × Rat × Rat)).map fun (h, b, v) =>
+    line "armed" [("rectHeight", rin h), ("rectBottom", rin b), ("viewportHeight", rin v)] (.bool (armed h b v))) ++
+  ([false, true].flatMap fun a => ([-5, 0, 0.5, 5] : List Rat).flatMap fun d => [false, true].map fun r =>
+    line "taken" [("active", .bool a), ("delta", rin d), ("armed", .bool r)] (.bool (taken a d r))) ++
+  (([(0, 0), (0.001, 0), (0, 0.001), (0.0011, 0), (0, 0.0011), (1, 0), (0, 1), (1, 1)] : List (Rat × Rat)).map fun (w, r) =>
+    line "active" [("target", rin w), ("value", rin r)] (.bool (active w r))) ++
+  (([0, 0.1, 0.275, 0.5, 0.5225, 0.5226, 0.55, 0.9, 1] : List Rat).flatMap fun m =>
+    [line "fade" [("m", rin m)] (ratWire (fade m)), line "pointerNone" [("m", rin m)] (.bool (pointerNone m))]) ++
+  (let states : List St := [rest, push rest 1 false 100, frame (push rest 1 false 100) 440,
+      frame (push rest 1 false 100) 780, push rest 1 true 100, frame (push (frame (push rest 1 false 100) 440) 0 false 450) 450]
+   states.flatMap fun s => ([0, 1] : List Rat).flatMap fun g => [false, true].map fun rm =>
+     line "push" [("state", stIn s), ("goal", rin g), ("reduced", .bool rm), ("now", rin 1000)] (stJson (push s g rm 1000))) ++
+  (let states : List St := [rest, push rest 1 false 100, frame (push rest 1 false 100) 440, push rest 1 true 100]
+   states.flatMap fun s => ([100, 116.667, 440, 780, 781, 90] : List Rat).map fun n =>
+     line "frame" [("state", stIn s), ("now", rin n)] (stJson (frame s n)))
+
+end Tween
+
 /-- Write the 7 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
 one `.jsonl` per pilot part, and a `.spec.jsonl` for every pilot part except `hero.countdown` (which has none).
 
@@ -298,7 +343,7 @@ def main (args : List String) : IO Unit := do
     [("engine.scroll.jsonl", engineLines), ("engine.scroll.spec.jsonl", engineSpecLines),
      ("nav.hitTest.jsonl", navLines), ("nav.hitTest.spec.jsonl", navSpecLines),
      ("hero.countdown.jsonl", countdownLines), ("hero.exit.jsonl", exitLines),
-     ("hero.exit.spec.jsonl", exitSpecLines)]
+     ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines)]
   for (name, ls) in files do
     IO.FS.writeFile (dir ++ "/" ++ name) (String.join (ls.map (· ++ "\n")))
     IO.println s!"{name}: {ls.length} lines"
