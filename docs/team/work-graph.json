@@ -1515,6 +1515,22 @@
     "apps/runner/src/ci.ts",
     "apps/runner/test/ci.test.ts"
    ]
+  },
+  {
+   "id": "zone-baseline-lean",
+   "title": "Lean op measure.zoneBaseline: per-zone lo/hi/base over >= 3 runs under the frozen classes (contract in handoffs/zone-baselines-chromium.md); zone-baseline.mjs calls it",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "zone-baselines-chromium"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Measure/**",
+    "packages/contracts/golden/measure/**",
+    "packages/measure-chromium/src/zone-baseline.mjs",
+    "packages/measure-chromium/test/**"
+   ]
   }
  ]
 }
