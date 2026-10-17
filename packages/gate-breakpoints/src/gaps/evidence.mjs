@@ -126,15 +126,26 @@ const simctl = (args) => spawnSync('xcrun', ['simctl', ...args], { encoding: 'ut
  * then one load per probe variant (cells.mjs probeVariants: fractional meta viewports, the iOS rounding path), each its own
  * token. The record kept is the last one after the page settled.
  */
-export async function simulator({ server, device, variants = [], loads = 2, hostAddr = '127.0.0.1' }) {
+export async function simulator({ server, device, variants = [], loads = 2, hostAddr = '127.0.0.1', scale = 1, attempts = 3, budgetMs = Infinity, onFail = () => {} }) {
   const out = [];
-  const one = async (tok, query, req) => {
+  const t0 = Date.now();
+  // One launch of the probe page. A GitHub runner (3 vCPU) boots Safari several times slower than a Mac: the first launch of a fresh
+  // device can run past simctl's own openurl timeout, so a failed launch is retried (the page is asked for again, same token).
+  const attempt = async (tok, query) => {
     simctl(['terminate', device.udid, 'com.apple.mobilesafari']);
-    await sleep(500);
+    await sleep(500 * scale);
     const r = simctl(['openurl', device.udid, `http://${hostAddr}:${server.port}/probe.html?tok=${tok}${query ? `&${query}` : ''}`]);
     if (r.status !== 0) throw new Error(`simctl openurl failed: ${(r.stderr || '').trim().split('\n').pop()}`);
-    await server.waitFor(tok, 1, 60000);
+    await server.waitFor(tok, 1, 60000 * scale);
     await sleep(2000); // let the trailing records arrive; the last one is the settled page
+  };
+  const one = async (tok, query, req) => {
+    if (Date.now() - t0 > budgetMs) { onFail(tok, 'arm time budget spent'); return; }
+    let last = null;
+    for (let a = 1; a <= attempts; a++) {
+      try { await attempt(tok, query); last = null; break; } catch (e) { last = `attempt ${a}/${attempts}: ${String(e.message ?? e).split('\n')[0]}`; log(`  ${tok}: ${last}`); }
+    }
+    if (last) { onFail(tok, last); return; }
     const recs = server.records(tok);
     out.push({ mech: 'ios-simulator-safari', port: 'webkit-apple', req, ...recs[recs.length - 1], later: recs.length - 1 });
   };

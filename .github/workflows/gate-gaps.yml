@@ -113,7 +113,7 @@ jobs:
     needs: [site]
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.macos }}
     runs-on: xcode-27
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       max-parallel: 1
       matrix:
@@ -144,7 +144,12 @@ jobs:
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          # The runner (3 vCPU) boots Safari several times slower than a Mac (first run: openurl timed out at 60 s, no report in
+          # 60 s): waits x3, a failed launch is retried, an arm stops adding variants after 8 minutes (recorded in skipped).
+          FW_SIM_TIMEOUT_SCALE: '3'
+          FW_SIM_ARM_BUDGET_MS: '480000'
         working-directory: packages/gate-breakpoints
+        timeout-minutes: 34
         run: node src/cli.mjs gaps collect --engines webkit --ci --out out/gaps
       - name: Shut down and delete the Simulator devices
         if: ${{ always() }}

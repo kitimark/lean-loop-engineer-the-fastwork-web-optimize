@@ -107,7 +107,9 @@ async function simulatorEvidence({ opts, server, gen, evidence }) {
     await step(sk, `sim-${d.label}`, async () => {
       booted = ensureBooted(d.udid);
       log(`  evidence: iOS Simulator ${d.label}`);
-      evidence.simulator[d.label] = await simulator({ server, device: d, variants, loads: 2 });
+      const scale = Number(process.env.FW_SIM_TIMEOUT_SCALE ?? 1);
+      const budgetMs = Number(process.env.FW_SIM_ARM_BUDGET_MS ?? Infinity);
+      evidence.simulator[d.label] = await simulator({ server, device: d, variants, loads: 2, scale, budgetMs, onFail: (tok, why) => { sk[tok] = why; } });
     }, null);
     if (booted && !d.keep) shutdown(d.udid);
     if (d.created) deleteDevice(d.udid);
