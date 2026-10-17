@@ -4,6 +4,7 @@ import Fw.Parts.NavHitTest
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
+import Fw.Parts.CommissionGolden
 /-!
 # Golden vectors for the M2 pilot parts
 
@@ -343,7 +344,9 @@ def main (args : List String) : IO Unit := do
     [("engine.scroll.jsonl", engineLines), ("engine.scroll.spec.jsonl", engineSpecLines),
      ("nav.hitTest.jsonl", navLines), ("nav.hitTest.spec.jsonl", navSpecLines),
      ("hero.countdown.jsonl", countdownLines), ("hero.exit.jsonl", exitLines),
-     ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines)]
+     ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines),
+     ("commission.jsonl", Fw.Parts.CommissionGolden.commissionLines),
+     ("commission.typing.jsonl", Fw.Parts.CommissionGolden.typingLines)]
   for (name, ls) in files do
     IO.FS.writeFile (dir ++ "/" ++ name) (String.join (ls.map (· ++ "\n")))
     IO.println s!"{name}: {ls.length} lines"
