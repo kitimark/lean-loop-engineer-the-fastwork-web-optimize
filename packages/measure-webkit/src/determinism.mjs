@@ -47,8 +47,28 @@ export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindo
   return { info, census, scroll, seek: seekRes, load };
 }
 
-/** Classification rows from R passes. */
-export function classifyPasses(passes) {
+/**
+ * onePass, retried from a fresh load after a reconnect when it throws (a Simulator reply can stall for a minute on a
+ * loaded host; each pass starts from its own fresh load, so a retried pass is the same measurement). Attempts: FW_WK_ATTEMPTS.
+ */
+export async function onePassRetrying(ctx, opts) {
+  for (let attempt = 1; ; attempt++) {
+    try { return await onePass(ctx, opts); } catch (e) {
+      if (attempt >= attempts()) throw e;
+      opts.log(`  pass attempt ${attempt} failed (${e.message}); reconnecting and repeating the pass from a fresh load`);
+      await reconnect(ctx, { log: opts.log });
+    }
+  }
+}
+
+/** Sorted layer-reason names seen in the census of any of the passes (rows `layers with reason X` exist per name). */
+export const reasonNames = (passes) => [...new Set(passes.flatMap((p) => p.census.flatMap((c) => Object.keys(c.reasonCounts))))].sort();
+
+/**
+ * Classification rows from R passes. `reasons` fixes the set of reason rows (default: the reasons seen in these passes);
+ * `merge` passes the union over all sessions so that every session yields the same rows in the same order.
+ */
+export function classifyPasses(passes, { reasons = reasonNames(passes) } = {}) {
   const rows = [];
   const add = (family, metric, level, runs, tol) => rows.push({ family, metric, level, ...classify(runs, tol) });
   const ys = passes[0].census.map((c) => c.requestedY);
@@ -59,7 +79,6 @@ export function classifyPasses(passes) {
     add('census', 'backing memory bytes (sum)', `y=${y}`, passes.map((p) => [p.census[s].memoryBytes]), TOL.memory);
   });
   add('census', 'backing memory bytes (sum)', 'per state', census((c) => c.memoryBytes), TOL.memory);
-  const reasons = [...new Set(passes.flatMap((p) => p.census.flatMap((c) => Object.keys(c.reasonCounts))))].sort();
   for (const r of reasons) add('census', `layers with reason ${r}`, 'per state', census((c) => c.reasonCounts[r] || 0), TOL.census);
   add('census', 'paintCount (sum, cumulative)', 'per state', census((c) => c.paintCountTotal), TOL.paint);
   add('census', `paintCount delta in a ${passes[0].census[0].paintWindowMs} ms window`, 'per state', census((c) => c.paintDeltaTotal), TOL.paint);

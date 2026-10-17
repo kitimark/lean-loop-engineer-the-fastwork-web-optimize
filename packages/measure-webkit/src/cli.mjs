@@ -18,7 +18,7 @@ import { seekExperiment } from './seek.mjs';
 import { probe } from './rfprobe.mjs';
 import { screenAndTicks } from './handoff.mjs';
 import { warmUpLoad, perStepPasses, classifyModes, perStepTable } from './perstep.mjs';
-import { onePass, classifyPasses, markdownTable, resolveStates } from './determinism.mjs';
+import { onePassRetrying, classifyPasses, reasonNames, markdownTable, resolveStates } from './determinism.mjs';
 import { COUNT_TYPES, zones, summarize } from './reduce.mjs';
 
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'out');
@@ -112,7 +112,7 @@ async function main() {
         for (let w = 0; w < num(v.warmup); w++) await warmUpLoad(ctx, { clock: v.clock, settleMs: num(v.settle), step: num(v.step), framesPerStep: num(v.frames), log, w, warmup: num(v.warmup) });
         for (let i = 0; i < runs; i++) {
           log(`pass ${i + 1}/${runs}`);
-          ps.push(await onePass(ctx, { states, clock: v.clock, settleMs: num(v.settle), holdMs: num(v.hold), paintWindowMs: num(v.window), step: num(v.step), framesPerStep: num(v.frames), mode: v.mode, seek: v.seek, seekNs: v.ns.split(',').map(num), log }));
+          ps.push(await onePassRetrying(ctx, { states, clock: v.clock, settleMs: num(v.settle), holdMs: num(v.hold), paintWindowMs: num(v.window), step: num(v.step), framesPerStep: num(v.frames), mode: v.mode, seek: v.seek, seekNs: v.ns.split(',').map(num), log }));
         }
         return ps;
       }, sessionOpts);
@@ -161,7 +161,13 @@ async function main() {
     case 'merge': {
       // merge: classes of independent determinism sessions (JSON files from `determinism --out`), the worse one wins
       const rank = { deterministic: 0, stable: 1, quarantined: 2 };
-      const sessions = positionals.map((f) => classifyPasses(JSON.parse(readFileSync(resolve(f), 'utf8')).passes)); // recomputed from the raw passes
+      const raw = positionals.map((f) => JSON.parse(readFileSync(resolve(f), 'utf8')).passes); // recomputed from the raw passes
+      const reasons = [...new Set(raw.flatMap(reasonNames))].sort(); // same reason rows in every session
+      const sessions = raw.map((passes) => classifyPasses(passes, { reasons }));
+      const keyOf = (r) => `${r.family}|${r.metric}|${r.level}`;
+      for (const rows of sessions) {
+        if (rows.length !== sessions[0].length || rows.some((r, i) => keyOf(r) !== keyOf(sessions[0][i]))) throw new Error('sessions do not have the same rows (different states or passes?)');
+      }
       const out = sessions[0].map((r, i) => {
         const classes = sessions.map((rows) => rows[i].cls);
         return { ...r, classes, cls: classes.reduce((w, x) => (rank[x] > rank[w] ? x : w)), agree: new Set(classes).size === 1 };
