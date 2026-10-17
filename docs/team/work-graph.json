@@ -577,7 +577,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "c719d73+f2961f0: 2 profiles x A,R; detDrift empty"
   },
   {
    "id": "zone-baselines-webkit",
