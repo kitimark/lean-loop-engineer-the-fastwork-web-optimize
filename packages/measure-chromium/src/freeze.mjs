@@ -14,7 +14,7 @@
 // This module only reads files, groups runs by the profile named in run.txt, moves JSON and checks that raw input
 // facts agree (same Dockerfile inputs, snapshot, served files and target within a profile).
 // --check compares the result with the existing --out file and exits 1 listing the differing JSON paths.
-import { readFileSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, writeFileSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -28,24 +28,30 @@ const LANE_RUNNER = 'ubuntu-24.04-arm'; // runs-on of .github/workflows/chromium
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 const readText = (p) => readFileSync(p, 'utf8').trim();
 
-/** One downloaded workflow run: run.txt facts, its jobs (counts + image id) and its classes artifact. */
+/**
+ * One downloaded workflow run: run.txt facts and, per arm (target), its jobs (counts + image id) and its classes
+ * artifact. Layout of the workflow: chromium-counts-<target>-r<N>/ and chromium-classes/<target>/classes.json.
+ */
 export function readRun(dir) {
   const c = join(dir, 'chromium-classes');
-  const runTxt = readText(join(c, 'run.txt'));
+  const runTxt = readText(join(c, 'run.txt')).split('\n')[0]; // line 2 names the rewrite search
   const m = /^profile (\S+), workflow run (\d+), attempt (\d+), sha ([0-9a-f]+)$/.exec(runTxt);
   if (!m) throw new Error(`${dir}: run.txt not understood: ${runTxt}`);
-  const jobDirs = readdirSync(dir).filter((d) => /^chromium-counts-r\d+$/.test(d))
-    .sort((a, b) => Number(a.slice(16)) - Number(b.slice(16)));
-  if (jobDirs.length === 0) throw new Error(`${dir}: no chromium-counts-r* job artifacts`);
-  const jobs = jobDirs.map((d) => {
-    const counts = readJson(join(dir, d, 'counts.json'));
-    return { name: d, counts, imageId: readText(join(dir, d, 'image-id.txt')) };
-  });
+  const arms = {};
+  for (const target of readdirSync(c).filter((d) => statSync(join(c, d)).isDirectory()).sort()) {
+    const pre = `chromium-counts-${target}-r`;
+    const jobDirs = readdirSync(dir).filter((d) => d.startsWith(pre) && /^\d+$/.test(d.slice(pre.length)))
+      .sort((a, b) => Number(a.slice(pre.length)) - Number(b.slice(pre.length)));
+    if (jobDirs.length === 0) throw new Error(`${dir}: no ${pre}* job artifacts`);
+    const jobs = jobDirs.map((d) => ({ name: d, counts: readJson(join(dir, d, 'counts.json')), imageId: readText(join(dir, d, 'image-id.txt')) }));
+    arms[target] = { jobs, classes: readJson(join(c, target, 'classes.json')) };
+  }
+  if (Object.keys(arms).length === 0) throw new Error(`${dir}: chromium-classes has no per-target directory`);
   const inputs = Object.fromEntries(readText(join(c, 'image-inputs.txt')).split('\n').map((l) => {
     const [sha, path] = l.trim().split(/\s+/);
     return [path, sha];
   }));
-  return { dir, profile: m[1], id: m[2], attempt: m[3], sha: m[4], jobs, classes: readJson(join(c, 'classes.json')), inputs };
+  return { dir, profile: m[1], id: m[2], attempt: m[3], sha: m[4], arms, inputs };
 }
 
 const classifyReq = (jobs, kMax, tMax) =>
@@ -82,50 +88,69 @@ export function freezeRuns(dirs, { kMax = 4, tMax = 24, builtBy, dockerfile = jo
   for (const r of runs) byProfile.set(r.profile, [...(byProfile.get(r.profile) ?? []), r]);
   const profiles = {};
   const metasAll = [];
+  const armImages = [];
   for (const [name, rs] of byProfile) {
-    // per-run class tables: fwcore must reproduce each run's own artifact
-    const perRun = call(rs.map((r) => classifyReq(r.jobs, kMax, tMax)));
-    rs.forEach((r, i) => {
-      if (!isDeepStrictEqual(perRun[i].classes, r.classes)) throw new Error(`${r.dir}: fwcore measure.classify differs from the run's classes.json (policy kMax ${kMax}, tMax ${tMax})`);
-    });
-    const allJobs = rs.flatMap((r) => r.jobs);
-    const [pooled] = call([classifyReq(allJobs, kMax, tMax)]);
-    // images: every job's image-id.txt and the image its counts.json names
-    const [frozenP] = call([{ op: 'measure.freeze', pooled: pooled.classes,
-      runs: rs.map((r) => ({ id: r.id, images: r.jobs.flatMap((j) => [j.imageId, j.counts.meta.image]), classes: r.classes })) }]);
-    const metas = allJobs.map((j) => j.counts.meta);
-    metasAll.push(...metas);
-    for (const k of ['snapshot', 'servedSha256', 'target']) same(metas, (m) => m[k], `${name}: meta.${k}`);
-    const types = {};
-    for (const [ty, v] of Object.entries(frozenP.types)) {
-      types[ty] = { class: v.class, k: v.k, t: v.t, perRun: v.perRun,
-        ...(v.unit !== undefined && { unit: v.unit }), ...(v.tBound !== undefined && { tBound: v.tBound }),
-        ...(v.pooledClass !== undefined && { pooledClass: v.pooledClass }) };
+    const targets = same(rs, (r) => Object.keys(r.arms), `${name}: arms (targets) per workflow run`);
+    const armsOut = {};
+    for (const target of targets) {
+      const label = `${name}/${target}`;
+      const ars = rs.map((r) => ({ ...r.arms[target], id: r.id, dir: r.dir }));
+      // per-run class tables: fwcore must reproduce each run's own artifact
+      const perRun = call(ars.map((r) => classifyReq(r.jobs, kMax, tMax)));
+      ars.forEach((r, i) => {
+        if (!isDeepStrictEqual(perRun[i].classes, r.classes)) throw new Error(`${r.dir}: fwcore measure.classify differs from the run's ${target} classes.json (policy kMax ${kMax}, tMax ${tMax})`);
+      });
+      const allJobs = ars.flatMap((r) => r.jobs);
+      const [pooled] = call([classifyReq(allJobs, kMax, tMax)]);
+      // images: every job's image-id.txt and the image its counts.json names
+      const [frozenP] = call([{ op: 'measure.freeze', pooled: pooled.classes,
+        runs: ars.map((r) => ({ id: r.id, images: r.jobs.flatMap((j) => [j.imageId, j.counts.meta.image]), classes: r.classes })) }]);
+      const metas = allJobs.map((j) => j.counts.meta);
+      metasAll.push(...metas);
+      for (const k of ['snapshot', 'servedSha256', 'target']) same(metas, (m) => m[k], `${label}: meta.${k}`);
+      if (metas[0].target !== target) throw new Error(`${label}: counts say target ${metas[0].target}`);
+      const types = {};
+      for (const [ty, v] of Object.entries(frozenP.types)) {
+        types[ty] = { class: v.class, k: v.k, t: v.t, perRun: v.perRun, role: v.role,
+          ...(v.reason !== undefined && { reason: v.reason }),
+          ...(v.unit !== undefined && { unit: v.unit }), ...(v.tBound !== undefined && { tBound: v.tBound }),
+          ...(v.pooledClass !== undefined && { pooledClass: v.pooledClass }) };
+      }
+      armImages.push(frozenP.image);
+      armsOut[target] = {
+        workflowRuns: frozenP.runs,
+        jobsPerRun: same(ars, (r) => r.jobs.length, `${label}: jobs per run`),
+        image: frozenP.image,
+        snapshot: metas[0].snapshot,
+        servedSha256: metas[0].servedSha256,
+        trajectorySha256: metas[0].trajectorySha256,
+        allImagesEqual: true, // measure.freeze refuses mixed digests
+        allTrajectoriesEqual: metas.every((m) => m.trajectorySha256 === metas[0].trajectorySha256),
+        tally: tallyOrdered(frozenP.tally),
+        roles: frozenP.roles,
+        pooledTally: tallyOrdered(frozenP.pooledTally),
+        types,
+      };
     }
-    profiles[name] = {
-      workflowRuns: frozenP.runs,
-      jobsPerRun: same(rs, (r) => r.jobs.length, `${name}: jobs per run`),
-      image: frozenP.image,
-      snapshot: metas[0].snapshot,
-      servedSha256: metas[0].servedSha256,
-      trajectorySha256: metas[0].trajectorySha256,
-      allImagesEqual: true, // measure.freeze refuses mixed digests
-      allTrajectoriesEqual: metas.every((m) => m.trajectorySha256 === metas[0].trajectorySha256),
-      tally: tallyOrdered(frozenP.tally),
-      pooledTally: tallyOrdered(frozenP.pooledTally),
-      types,
-    };
+    profiles[name] = { workflowRuns: rs.map((r) => r.id), arms: armsOut };
+    if (armsOut.original && armsOut.rewrite) {
+      // cross-arm level and role per type (Lean Fw.Measure.Arms): an arm without the type reads as deterministic there
+      const tab = (a) => Object.fromEntries(Object.entries(a.types).map(([ty, v]) =>
+        [ty, { class: v.class, k: v.k, t: v.t, ...(v.tBound !== undefined && { tBound: v.tBound }) }]));
+      const [x] = call([{ op: 'measure.arms', a: tab(armsOut.original), r: tab(armsOut.rewrite) }]);
+      profiles[name].crossArm = { types: x.types, gates: x.gates, roles: x.roles };
+    }
   }
-  const image = same(Object.values(profiles), (p) => p.image, 'image digest across profiles');
+  const image = same(armImages, (i) => i, 'image digest across profiles and arms');
   const inputs = same(runs, (r) => r.inputs, 'image inputs (Dockerfile, apt manifest, npm lock)');
-  const target = same(metasAll, (m) => m.target, 'meta.target');
-  const nJobs = runs.reduce((s, r) => s + r.jobs.length, 0);
+  const targets = [...new Set(metasAll.map((m) => m.target))].sort().join(' and ');
+  const nJobs = runs.reduce((s, r) => s + Object.values(r.arms).reduce((n, a) => n + a.jobs.length, 0), 0);
   const shas = [...new Set(runs.map((r) => r.sha))];
-  const filesPerProfile = [...new Set(Object.values(profiles).map((p) => p.workflowRuns.length * p.jobsPerRun))].join('/');
+  const filesPerProfile = [...new Set(Object.values(profiles).flatMap((p) => Object.values(p.arms).map((a) => a.workflowRuns.length * a.jobsPerRun)))].join('/');
   return {
-    schema: 'fw.classes.frozen/1',
-    lane: `chromium-counts (GitHub-hosted ${LANE_RUNNER}), target ${target}`,
-    rule: `The signed class of a type is its worst class (deterministic < stable < quarantined) over the workflow runs listed per profile; a type missing from a run counts as quarantined there; fewer than 3 workflow runs, a repeated run id or more than one image digest are refused. Each workflow run classifies its jobs (separate VMs) with fwcore measure.classify (re-derived from the run's counts files and equal to its classes artifact); the worst class, k and t (maxima over the workflow runs) and tBound (pixel types, the smallest over the workflow runs) come from fwcore measure.freeze (Lean Fw.Measure.Freeze), written by src/freeze.mjs. pooledClass is the class over all ${filesPerProfile} counts files at once (a stricter cross-check, not the signed class).`,
+    schema: 'fw.classes.frozen/2',
+    lane: `chromium-counts (GitHub-hosted ${LANE_RUNNER}), target ${targets}`,
+    rule: `The signed class of a type is its worst class (deterministic < stable < quarantined) over the workflow runs listed per profile and arm (original = A, rewrite = R); a type missing from a run counts as quarantined there; fewer than 3 workflow runs, a repeated run id or more than one image digest are refused. Each workflow run classifies its jobs (separate VMs) with fwcore measure.classify (re-derived from the run's counts files and equal to its classes artifact); the worst class, k and t (maxima over the workflow runs) and tBound (pixel types, the smallest over the workflow runs) come from fwcore measure.freeze (Lean Fw.Measure.Freeze), written by src/freeze.mjs; role (gate, finding, byDesign) and crossArm (cross-arm level, role and gate list; an arm without the type reads as deterministic) come from Lean Fw.Measure.Arms (measure.freeze rows, measure.arms). pooledClass is the class over all ${filesPerProfile} counts files at once (a stricter cross-check, not the signed class).`,
     policy: {
       kMax, tMax,
       pixelRule: {
@@ -175,6 +200,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     process.exit(1);
   }
   writeFileSync(out, text);
-  for (const [p, v] of Object.entries(frozen.profiles)) console.log(`freeze: ${p}: runs ${v.workflowRuns.join(', ')}; ${JSON.stringify(v.tally)}`);
+  for (const [p, v] of Object.entries(frozen.profiles)) for (const [t, a] of Object.entries(v.arms)) console.log(`freeze: ${p}/${t}: runs ${v.workflowRuns.join(', ')}; ${JSON.stringify(a.tally)} roles ${JSON.stringify(a.roles)}`);
   console.log(`freeze: wrote ${out}`);
 }
