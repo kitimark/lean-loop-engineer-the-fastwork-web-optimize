@@ -5,7 +5,6 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { loadavg, cpus } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { writeFileSync } from 'node:fs';
 import { zoneSums } from './fwcore.mjs';
 import { fileURLToPath } from 'node:url';
 
