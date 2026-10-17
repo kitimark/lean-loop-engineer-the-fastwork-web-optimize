@@ -59,3 +59,76 @@ jobs:
             lean-runner.json
           if-no-files-found: error
           retention-days: 14
+
+  # Module cache differential (task mathview-module-cache, premise tests of Fw.Console.LandSpeed.lint_modular): the
+  # cached lint (lean/MathViewMain.lean `cachedEntries`) must give the same exit code, lint text and export (minus
+  # `heartbeats`) as the full lint, on the tree as pushed and after three mutations, and must recompute exactly the
+  # modules whose key changed. `mathview-cached.sh --diff` runs both and compares.
+  mathview-differential:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    # the runner context is not available at job level: steps use $RUNNER_TEMP/mathview-{store,diff}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-lean
+
+      - name: lake build
+        working-directory: lean
+        run: lake build
+
+      - name: current tree, empty store then full store
+        working-directory: lean
+        run: |
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/cold"
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/warm"
+          grep -qx 'misses 0' "$RUNNER_TEMP/mathview-diff/warm/cached.stats"
+
+      # a docstring edit in a leaf (imported only by the root Fw) recomputes exactly that leaf and Fw
+      - name: mutation 1, one-module edit
+        working-directory: lean
+        run: |
+          sed -i 's/the verdict is a conjunction over modules\./the verdict is a conjunction over all modules./' Fw/Console/LandSpeed.lean
+          git diff --quiet -- Fw/Console/LandSpeed.lean && { echo "mutation 1 did not apply"; exit 1; }
+          lake build
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/m1"
+          grep -qx 'misses 2' "$RUNNER_TEMP/mathview-diff/m1/cached.stats"
+          grep -qx 'miss Fw.Console.LandSpeed' "$RUNNER_TEMP/mathview-diff/m1/cached.stats"
+          grep -qx 'miss Fw' "$RUNNER_TEMP/mathview-diff/m1/cached.stats"
+
+      # Fw/Spec/AxReach.lean is outside the cone of Fw.Console.LandSpeed but the axiom rule runs its code: a semantic
+      # change there must recompute every module, LandSpeed included (it enters every key through the tool hash)
+      - name: mutation 2, tool code outside the cone
+        working-directory: lean
+        run: |
+          cat >> Fw/Spec/AxReach.lean <<'EOF'
+
+          /-- Mutation probe. $$p = 1$$ -/
+          def mathviewMutationProbe : Nat := 1
+          EOF
+          lake build
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/m2"
+          grep -qx 'miss Fw.Console.LandSpeed' "$RUNNER_TEMP/mathview-diff/m2/cached.stats"
+          grep -qx 'hits 0' "$RUNNER_TEMP/mathview-diff/m2/cached.stats"
+
+      # findDocString? would append this suffix to LandSpeed.lintAll's docstring from a module outside its cone; the
+      # export reads the declaring module's docstring only (MathView.entries), so LandSpeed stays a hit and full = cached
+      - name: mutation 3, recommended_spelling outside the cone
+        working-directory: lean
+        run: |
+          printf '\nrecommended_spelling "zz" for "zz" in [Fw.Console.LandSpeed.lintAll]\n' >> Fw.lean
+          lake build
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/m3"
+          grep -qx 'misses 1' "$RUNNER_TEMP/mathview-diff/m3/cached.stats"
+          grep -qx 'miss Fw' "$RUNNER_TEMP/mathview-diff/m3/cached.stats"
+          ! grep -q 'Conventions for notations' "$RUNNER_TEMP/mathview-diff/m3/full.json"
+
+      - name: keep the outputs on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mathview-differential
+          path: ${{ runner.temp }}/mathview-diff
+          retention-days: 7

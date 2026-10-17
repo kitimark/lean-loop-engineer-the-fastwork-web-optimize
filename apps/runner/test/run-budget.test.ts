@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { waitFor } from "@fw/gh-budget";
-import { drive, mkWorld, type Call, type World } from "../../../packages/gh-budget/test/util.ts";
+import { drive, fastCore, mkWorld, type Call, type World } from "../../../packages/gh-budget/test/util.ts";
 import { chargedGh, fwcoreCall, parseRunArgs, runMain, type FwCall, type Gh, type RunDeps } from "../src/run.ts";
 import { chargedRunner, type Runner } from "../src/watch-collect.ts";
 
@@ -17,10 +17,11 @@ const mk = () => mkdtempSync(join(tmpdir(), "fw-runbudget-"));
 const kind = (c: Call) => (c.args[1] === "view" ? (c.args.includes("headSha") ? "head" : "created") : c.args[1] === "download" ? "download" : c.args[1] === "list" ? "list" : c.args.slice(0, 2).join(" "));
 const count = (cs: Call[]) => { const m: Record<string, number> = {}; for (const c of cs) m[kind(c)] = (m[kind(c)] ?? 0) + 1; return m; };
 
-// fwcore is spawned once per budget decision (~0.1 s, more under load): generous timeouts, because a timed-out test leaves
+// the budget decisions and `fw run`'s own calls go to one persistent fwcore (fastCore) and the fake gh answers in-process
+// (production spawns both per call, ~0.1 s each, more under load): generous timeouts anyway, because a timed-out test leaves
 // its virtual-time driver running against the next test's world
 describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_000 }, () => {
-  const call: FwCall = hasCore ? fwcoreCall(process.cwd()) : () => ({});
+  const call: FwCall = hasCore ? fastCore() : () => ({});
   const run = (extra: Record<string, unknown> = {}) => ({ databaseId: 111, createdAt: T0, completeAt: T0 + 300, conclusion: "success", headSha: SHA, headBranch: "ci/t", ...extra });
 
   /** RunDeps on the fake world; `download` writes what the real one would, after the charged call. */
@@ -41,7 +42,7 @@ describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_00
   const fromRun = parseRunArgs(["--engines", "chromium", "--target", "original", "--from-run", "chromium=111"]);
 
   async function scenario(runs: number, extraWaiters: number) {
-    const w = mkWorld(T0);
+    const w = mkWorld(T0, { fastGh: true });
     w.config({ start: T0, listCost: 2, runs: [run()] });
     const ps: Promise<unknown>[] = Array.from({ length: runs }, () => runMain(fromRun, deps(w)));
     for (let i = 0; i < extraWaiters; i++) ps.push(waitFor(w.env, { kind: "run", runId: 111 }, { timeoutS: 3600 }));
@@ -73,7 +74,7 @@ describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_00
   });
 
   it("dispatching finds and awaits the new run through the poller: no gh run watch, no run list loop", async () => {
-    const w = mkWorld(T0);
+    const w = mkWorld(T0, { fastGh: true });
     const old = run({ databaseId: 50, createdAt: T0 - 1000, completeAt: T0 - 900 });
     w.config({ start: T0, listCost: 2, runs: [old] });
     const d = deps(w, () => w.config({ start: T0, listCost: 2, runs: [old, run({ databaseId: 51, createdAt: w.sim.now() + 5, completeAt: w.sim.now() + 250 })] }));
@@ -90,7 +91,7 @@ describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_00
   });
 
   it("no gh call is made in the minute the one-off share is spent: the calls wait instead", async () => {
-    const w = mkWorld(T0);
+    const w = mkWorld(T0, { fastGh: true });
     w.config({ start: T0, listCost: 2, runs: [run()] });
     const gh = chargedGh(w.env);
     await drive(w.sim, [(async () => { for (let i = 0; i < 30; i++) await gh(["run", "view", "111", "--json", "headSha"]); })()]);
@@ -101,7 +102,7 @@ describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_00
   });
 
   it("after a refusal with retry-after the collector makes no call until the time passes", async () => {
-    const w = mkWorld(T0);
+    const w = mkWorld(T0, { fastGh: true });
     w.config({ start: T0, runs: [run()], overrides: [{ at: T0, lines: ["HTTP/2.0 403 Forbidden", "Retry-After: 120"] }] });
     const base: Runner = async () => { throw new Error("only gh is expected here"); };
     const ci = chargedRunner(base, () => w.env);
@@ -116,7 +117,7 @@ describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_00
   });
 
   it("after maxFails refusals in a row the budget says stop: fw run throws and starts no more gh", async () => {
-    const w = mkWorld(T0);
+    const w = mkWorld(T0, { fastGh: true });
     const refuse = { at: T0, lines: ["HTTP/2.0 429 Too Many Requests"] };
     w.config({ start: T0, runs: [run()], overrides: Array(20).fill(refuse) });
     const gh = chargedGh(w.env);

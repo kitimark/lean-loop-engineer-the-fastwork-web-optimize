@@ -31,6 +31,10 @@ export function fwcoreCall(cwd: string): FwCall {
   };
 }
 
+/** What the glue needs from one `gh` run. */
+export type GhOut = { status: number | null; stdout: string; stderr: string };
+export type GhExec = (args: string[]) => GhOut;
+
 /** Everything the glue touches outside itself, so tests can run it on a simulated clock with a stub `gh`. */
 export type Env = {
   /** The shared directory (state, locks, runs-status): under the git common dir, so every worktree shares it. */
@@ -38,6 +42,10 @@ export type Env = {
   core: FwCall;
   /** The gh executable (looked up on PATH when not absolute). */
   gh: string;
+  /** Run `gh` with `args` and give back its exit code and output. Default: spawn `gh` (`spawnGh`). A test may answer
+   *  in-process instead (a fake server; the spawn of a node process costs ~0.1 s and is all a replay of thousands of
+   *  calls would spend). Production never sets it. */
+  exec?: GhExec;
   /** Epoch seconds. */
   now(): number;
   /** Resolve at epoch second `t`, or earlier (callers re-check). */
