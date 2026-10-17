@@ -2,7 +2,7 @@ name: visual-diff
 
 # Pixel diff of the original snapshot against the rewrite (task visual-diff): each part's box is screenshotted in both
 # arms at the gate's breakpoints, compared with pixelmatch, and judged by the Lean rule (lean/Fw/Gate/Pixel.lean:
-# pass, fail or unsettled per part tolerance). It sees what the breakpoint gate's computed styles cannot: a fallback font
+# pass, fail, unsettled, invalid (fonts or images not loaded) or nc per part tolerance). It sees what the breakpoint gate's computed styles cannot: a fallback font
 # drawing other glyphs, stacking order, paint. Diff images are CI artifacts only; nothing here writes into git.
 # Engines: Chrome Headless Shell 156.0.8078.4 and Playwright WebKit on Linux (a WebKitGTK/WPE port, NOT Mobile Safari),
 # installed by the gate-engine action; two separate engine keys, as in the breakpoint gate.

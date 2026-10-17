@@ -11,12 +11,20 @@ import { PKG as GATE_PKG, siteDist, snapshotRoot, startServer } from '../../gate
 import { loadAnchors, loadGen, probeEnv, selectParts } from '../../gate-breakpoints/src/spec.mjs';
 import { LAUNCHERS } from './engines.mjs';
 import { compare, decode, encodePng, sameImage } from './diff.mjs';
+import { fontsLoaded, imagesLoaded } from './assets.mjs';
+import { assetsInPage, injectFontsInPage, locateInPage, settleObserveInPage } from './page.mjs';
+import { originalFontFaces, startOverlayServer } from './serve.mjs';
+import { GATE_POLICY, fontsBoth, imagesBoth, presentAny, settledBoth, waitTrace } from './settle-adapter.mjs';
 import { DEFAULT_TOL, verdict, within } from './verdict.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const SITES = ['orig', 'rewrite'];
 const CAP_MS = { orig: 20000, rewrite: 15000 };
+/** How long a crop waits for its fonts and images before the premise is judged (ms). */
+const ASSET_WAIT_MS = 5000;
+/** The one family the rewrite arm is given (the original's body font; the rewrite declares none of its own). */
+const REWRITE_FAMILY = 'Google Sans';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Parts whose first role is the document itself: nothing of their own to look at. Skipped by default. */
@@ -25,45 +33,32 @@ export const DEFAULT_SKIP = ['engine.scroll', 'morph.tween'];
 export const loadTolerances = (path = join(HERE, '..', 'tolerances.json')) => JSON.parse(readFileSync(path, 'utf8'));
 export const tolFor = (tols, pid) => ({ ...DEFAULT_TOL, ...(tols.default ?? {}), ...((tols.parts ?? {})[pid] ?? {}) });
 
-/** In the page: scroll the part's box to the top of the viewport, wait for the frame to settle, return the visible box. */
-export async function locateInPage({ selector }) {
-  const sleepP = (ms) => new Promise((r) => setTimeout(r, ms));
-  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleepP(250)]);
-  const el = document.querySelector(selector);
-  if (!el) return { absent: 'no element' };
-  const first = el.getBoundingClientRect();
-  if (first.width === 0 && first.height === 0) return { absent: 'zero box' };
-  window.scrollTo({ top: Math.max(0, first.top + window.scrollY), behavior: 'instant' });
-  for (let i = 0; i < 3; i++) await frame();
-  await sleepP(250);
-  const t0 = performance.now();
-  const pending = () => Array.from(document.images).filter((im) => {
-    const r = im.getBoundingClientRect();
-    return !im.complete && r.bottom > 0 && r.top < window.innerHeight;
-  });
-  while (pending().length > 0 && performance.now() - t0 < 4000) await sleepP(50);
-  const r = el.getBoundingClientRect();
-  const vw = document.documentElement.clientWidth;
-  const vh = window.innerHeight;
-  const x = Math.floor(Math.max(0, r.left));
-  const y = Math.floor(Math.max(0, r.top));
-  const right = Math.ceil(Math.min(vw, r.right));
-  const bottom = Math.ceil(Math.min(vh, r.bottom));
-  if (right - x <= 0 || bottom - y <= 0) return { absent: 'outside the viewport' };
-  return { clip: { x, y, width: right - x, height: bottom - y }, scrollY: window.scrollY };
-}
-
-/** Two screenshots of one box 200 ms apart: the pair is "stable" when their pixels are identical. */
+/** One arm's capture of one box: settle wait, assets, two shots 200 ms apart. Reports facts; every decision is Lean's (twins). */
 async function shoot(page, selector) {
-  const loc = await page.evaluate(locateInPage, { selector });
+  let loc = await page.evaluate(locateInPage, { selector });
   if (loc.absent) return { absent: loc.absent };
+  await page.evaluate(assetsInPage, { selector, clip: loc.clip, waitMs: ASSET_WAIT_MS });
+  loc = await page.evaluate(locateInPage, { selector });
+  if (loc.absent) return { absent: loc.absent };
+  const { trace } = await page.evaluate(settleObserveInPage, { policy: GATE_POLICY, roots: [selector], hoverCapable: false });
+  const settle = waitTrace(GATE_POLICY, trace);
   const a = await page.screenshot({ clip: loc.clip, animations: 'allow', caret: 'hide' });
   await sleep(200);
   const b = await page.screenshot({ clip: loc.clip, animations: 'allow', caret: 'hide' });
+  const post = await page.evaluate(assetsInPage, { selector, clip: loc.clip, waitMs: 0 });
   const ia = decode(a);
   const ib = decode(b);
   const same = sameImage(ia, ib);
-  return { img: ia, stable: same, self: same ? null : compare(ia, ib).stats, clip: loc.clip };
+  const last = trace[trace.length - 1];
+  return {
+    img: ia, stable: same, self: same ? null : compare(ia, ib).stats, clip: loc.clip,
+    gate: settle.startsWith('settled'), settle: { outcome: settle, frames: last.frames, stable: last.stable, running: last.running, ms: last.t },
+    fontsLoaded: fontsLoaded(post.fams, post.faces), imagesLoaded: imagesLoaded(post.images),
+    assets: {
+      fams: post.fams, faces: post.faces.filter((f) => f.status !== 'unloaded'),
+      images: post.images.length, notLoaded: post.images.filter((im) => !im.complete || im.w === 0 || im.h === 0).map((im) => im.src).slice(0, 5),
+    },
+  };
 }
 
 /** Capture every wanted part in one arm's page, in the gate's order: plain parts, then overlays one by one, then mount parts. */
@@ -92,22 +87,33 @@ async function captureArm(page, site, parts, anchors) {
   return out;
 }
 
-/** Reduce the two arms' captures of one part to a cell: counts, verdict, diff image (null when the cell is a pass or nc). */
+/** The facts Lean's arm rules take (Fw.Gate.Pixel.Arm) from one arm's capture: null when the arm had no box. `calm`: its two shots are
+ * identical or differ only within the part's tolerance (the noise floor). */
+export const armOf = (tol, x) => (x.absent ? null : {
+  gate: x.gate === true,
+  calm: x.stable === true || (x.self != null && within(tol, x.self)),
+  fonts: x.fontsLoaded === true,
+  images: x.imagesLoaded === true,
+});
+
+/** Reduce the two arms' captures of one part to a cell: counts, the Lean verdict (pass, fail, unsettled, invalid, nc), diff image
+ * (null when the cell is a pass or nc). */
 export function cellOf(pid, tol, a, b) {
   if (a.error || b.error) return { part: pid, status: 'error', error: { orig: a.error ?? null, rewrite: b.error ?? null } };
-  if (a.absent && b.absent) return { part: pid, status: 'nc', absent: { orig: a.absent, rewrite: b.absent } };
   const c = compare(a.img ?? null, b.img ?? null);
-  // An arm is settled when its own two shots are identical, or differ only within the part's tolerance (the noise floor).
-  const calm = (x) => x.absent || x.stable || (x.self != null && within(tol, x.self));
-  const stats = { ...c.stats, settled: calm(a) && calm(b) };
+  const A = armOf(tol, a);
+  const B = armOf(tol, b);
+  const stats = { ...c.stats, settled: settledBoth(A, B), present: presentAny(A, B), fontsLoaded: fontsBoth(A, B), imagesLoaded: imagesBoth(A, B) };
   const v = verdict(tol, stats);
+  const detail = (x) => (x.absent ? null : { gate: x.gate, settle: x.settle, assets: x.assets, fontsLoaded: x.fontsLoaded, imagesLoaded: x.imagesLoaded });
   return {
+    arms: { orig: detail(a), rewrite: detail(b) },
     part: pid, status: 'compared', verdict: v, stats, tol, size: c.size,
     ratioPpm: stats.total === 0 ? null : Math.round(((stats.changed + (tol.countAA ? stats.aa : 0)) * 1e6) / stats.total),
     absent: a.absent || b.absent ? { orig: a.absent ?? null, rewrite: b.absent ?? null } : undefined,
     stable: { orig: a.absent ? null : a.stable, rewrite: b.absent ? null : b.stable },
     selfPpm: { orig: a.self ? Math.round((a.self.changed * 1e6) / a.self.total) : null, rewrite: b.self ? Math.round((b.self.changed * 1e6) / b.self.total) : null },
-    images: v === 'pass' ? null : { orig: a.img ?? null, rewrite: b.img ?? null, diff: c.diff },
+    images: v === 'pass' || v === 'nc' ? null : { orig: a.img ?? null, rewrite: b.img ?? null, diff: c.diff },
   };
 }
 
@@ -130,7 +136,7 @@ export function rewritePathFor(dist, fw) {
   return { search, path: `/${cfg.byHash[hash]}` };
 }
 
-export async function runVisual({ engineName, outDir, probeIds, partFilter = null, fw = '', skip = DEFAULT_SKIP, concurrency = 2, tolerances = loadTolerances() }) {
+export async function runVisual({ engineName, outDir, probeIds, partFilter = null, fw = '', skip = DEFAULT_SKIP, concurrency = 2, assets = 'inject', tolerances = loadTolerances() }) {
   const anchors = loadAnchors();
   const all = Object.keys(anchors.parts);
   const sel = selectParts(all, partFilter);
@@ -142,13 +148,18 @@ export async function runVisual({ engineName, outDir, probeIds, partFilter = nul
   const buildInfo = JSON.parse(readFileSync(join(dist, 'build-info.json'), 'utf8'));
   const { search, path: rewritePath } = rewritePathFor(dist, fw);
   const pathOf = { orig: '/', rewrite: rewritePath };
-  const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist) };
+  // `assets: 'inject'` (default): the rewrite arm gets the snapshot's images and fonts (see serve.mjs). 'none': as built (a diagnostic).
+  const snap = snapshotRoot();
+  const servers = { orig: await startServer(snap), rewrite: assets === 'inject' ? await startOverlayServer(dist, snap) : await startServer(dist) };
+  const fontCss = assets === 'inject' ? await originalFontFaces(snap, [REWRITE_FAMILY]) : '';
+  if (assets === 'inject' && fontCss === '') throw new Error(`no @font-face for ${REWRITE_FAMILY} found in the snapshot's CSS`);
   const engine = await LAUNCHERS[engineName]();
   const imgDir = join(outDir, 'img', engineName);
 
   async function arm(env, site) {
     const s = await engine.open(env, { origin: servers[site].origin, path: pathOf[site], init: PIN_SRC });
     try {
+      if (site === 'rewrite' && assets === 'inject') await s.page.evaluate(injectFontsInPage, { css: fontCss, family: REWRITE_FAMILY });
       await s.page.evaluate(waitReady, { site, capMs: CAP_MS[site] });
       return await captureArm(s.page, site, parts, anchors);
     } finally { await s.close().catch(() => {}); }
@@ -174,6 +185,7 @@ export async function runVisual({ engineName, outDir, probeIds, partFilter = nul
     schema: 'fw.visual-diff.run/1', engine: engineName, browser: await engine.version(),
     gen: { sha256: genSha }, snapshot: lock.snapshot, site: { buildId: buildInfo.buildId, configHash: buildInfo.configHash }, fw: search,
     parts, skippedParts: all.filter((p) => !parts.includes(p)), probes: probeIds, tolerances,
+    assets: { mode: assets, family: assets === 'inject' ? REWRITE_FAMILY : null, settlePolicy: GATE_POLICY, served: servers.rewrite.report ? servers.rewrite.report() : null },
   };
   await engine.close();
   await Promise.all(SITES.map((s) => servers[s].close()));

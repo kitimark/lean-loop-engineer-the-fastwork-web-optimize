@@ -8,8 +8,10 @@ snapshot and in the rewrite, compared with pixelmatch, and judged by a Lean rule
 | Piece | Path |
 |---|---|
 | Verdict rule, theorems, golden generator | `lean/Fw/Gate/Pixel.lean` |
-| Golden vectors (22 cases) | `packages/contracts/golden/gate/pixel.jsonl` |
-| TS verdict (checked against the golden) | `packages/visual-diff/src/verdict.mjs` |
+| Golden vectors (34 verdict cases; 32 asset, image, font and settle cases) | `packages/contracts/golden/gate/pixel.jsonl`, `pixel-assets.jsonl` |
+| TS verdict and asset twins (checked against the golden) | `src/verdict.mjs`, `src/assets.mjs` |
+| Settle predicate adapter (gate-settle copy until it lands) | `src/settle-adapter.mjs` |
+| In-page functions, asset server and font injection | `src/page.mjs`, `src/serve.mjs` |
 | Pixel counts (pixelmatch 8, `threshold 0.1`, `includeAA false`) | `packages/visual-diff/src/diff.mjs` |
 | Runner, CLI, report | `src/run.mjs`, `src/cli.mjs`, `src/report.mjs`, `src/shards.mjs` |
 | Per-part tolerances | `packages/visual-diff/tolerances.json` (default `ppm 2000, delta 64, countAA false`) |
@@ -17,18 +19,33 @@ snapshot and in the rewrite, compared with pixelmatch, and judged by a Lean rule
 | CI | `.github/workflows/visual-diff.yml` |
 
 ## Verdict (Lean, `Fw.Gate.Pixel`)
-Input: `Stats` (changed, antialias-only, total, max channel delta, max delta of the AA pixels, `settled`) and a `Tol`
-(ppm, delta, countAA). Output: `pass | fail | unsettled`.
-- `unsettled` when `settled = false` (never a pass); `fail` when the canvas is empty or outside the tolerance; else `pass`.
-- Theorems: `pixel_verdict_total`, `unsettled_never_pass`, `tolerance_monotone`, `identical_pass` (statements as LaTeX in
-  the docstrings).
+Input: `Stats` (changed, antialias-only, total, max channel delta, max delta of the AA pixels, `settled`, `present`,
+`fontsLoaded`, `imagesLoaded`) and a `Tol` (ppm, delta, countAA). Output: `pass | fail | unsettled | invalid | nc`, decided in
+this order: nothing present in either arm is `nc`; fonts or images not loaded is `invalid`; not settled is `unsettled`;
+else an empty canvas or a count outside the tolerance is `fail`; else `pass`.
+- `invalid` is never `fail` and a pass or fail needs both premises: `no_verdict_without_assets`, `unloaded_is_invalid`,
+  `unloaded_never_fail` (LaTeX statements in the docstrings). Other theorems: `pixel_verdict_total`, `unsettled_never_pass`,
+  `tolerance_monotone`, `identical_pass`, `aa_mask_ignores_aa`.
+- Asset premise: `imagesLoaded` is every `img` complete with a non-zero natural size; `fontsLoaded` is no face loading or
+  in error and every used first-listed family that has a declared face has a loaded one (`document.fonts`). Computed in the
+  page (`page.mjs`), decided by the Lean twins in `assets.mjs`.
 - Size mismatch: the total is the larger canvas; the outside strip counts as changed with delta 255. One arm absent while the
-  other is present is a full change. Both arms absent gives status `nc` (a small TS rule outside Lean; a TS stand-in).
+  other is present is a full change. Both arms absent is `nc`, now a Lean outcome (the old TS rule is gone).
+
+## Assets
+Both arms must draw the snapshot's real fonts (Google Sans, Playpen Sans) and images, or the cell is `invalid`. The original
+loads them itself. The rewrite arm is served by an overlay server (`serve.mjs`): its `dist`, and for a missing media file
+(png, jpg, svg, woff2, ttf, mp4, ...) the snapshot file at the same URL, never HTML, JS or CSS. The `@font-face` rules are
+read from the snapshot CSS and injected with a `font-family` override (the port has no font-face of its own; this
+is a harness stand-in and is recorded in the report header, `assets`). `--assets none` turns it off. The page waits up to 5 s
+for faces and images before the shot.
 
 ## Settled
-Each arm is screenshotted twice 200 ms apart; the arm is settled when the two are pixel-identical or differ only within the
-part's own tolerance (run 1 required identical and 174 of 240 Chromium cells came out unsettled; the page has endless
-animations). The cell keeps `selfPpm` per arm. Animations are never
+An arm is settled when both hold: the gate's settled-sample predicate (`settled p o = running = 0 and minFrames <= frames
+and minStable <= stable and not hoverInside`, from gate-settle, `Fw.Gate.Settle`), observed by an in-page copy over a 3 s
+budget; and pixel calm, two shots 200 ms apart that are identical or differ only within the part's own tolerance. The
+gate-settle branch has not landed on main, so `settle-adapter.mjs` carries verbatim twins of its predicate and wait; when it
+lands, replace them by an import from `gate-breakpoints/src/settle.mjs` and replay its `settle.jsonl`. Animations are never
 seeked (native requestAnimationFrame): an endless animation gives `unsettled`, not a false fail or pass.
 
 ## Cropping and preparation
@@ -48,4 +65,5 @@ seeked (native requestAnimationFrame): an endless animation gives `unsettled`, n
 
 ## Caveats
 - The Linux Playwright WebKit is a WebKitGTK/WPE port, not Mobile Safari; the numbers say nothing about iOS paint.
-- Image-load timing and webfont swap can differ between arms; the settle check only guards against motion.
+- The font override makes every rewrite glyph Google Sans, so regions set in Playpen Sans or Fastwork Bold can fail for a
+  harness reason, not a port reason.

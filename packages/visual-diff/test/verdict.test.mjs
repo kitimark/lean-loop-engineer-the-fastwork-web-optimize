@@ -14,8 +14,8 @@ test('golden: every Lean case', () => {
   for (const c of cases) assert.equal(verdict(c.tol, c.stats), c.verdict, c.name);
 });
 
-test('golden: all three outcomes occur', () => {
-  assert.deepEqual([...new Set(cases.map((c) => c.verdict))].sort(), ['fail', 'pass', 'unsettled']);
+test('golden: all five outcomes occur', () => {
+  assert.deepEqual([...new Set(cases.map((c) => c.verdict))].sort(), ['fail', 'invalid', 'nc', 'pass', 'unsettled']);
 });
 
 test('the default tolerance is the Lean default', () => {

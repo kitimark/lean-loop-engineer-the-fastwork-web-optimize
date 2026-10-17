@@ -53,17 +53,22 @@ test('png round trip and sameImage', () => {
   assert.ok(!sameImage(a, back));
 });
 
-test('cellOf: pass, fail, unsettled, nc, error', () => {
+test('cellOf: pass, fail, unsettled, invalid, nc, error', () => {
   const tol = tolFor(loadTolerances(), 'any');
   assert.deepEqual(tol, DEFAULT_TOL);
-  const shot = (img, stable = true) => ({ img, stable });
+  const shot = (img, o = {}) => ({ img, stable: true, gate: true, fontsLoaded: true, imagesLoaded: true, ...o });
   const w = solid(50, 50, WHITE);
   const k = solid(50, 50, WHITE);
   for (let y = 0; y < 25; y++) for (let x = 0; x < 50; x++) paint(k, x, y, [0, 0, 0, 255]);
   assert.equal(cellOf('p', tol, shot(w), shot(solid(50, 50, WHITE))).verdict, 'pass');
   assert.equal(cellOf('p', tol, shot(w), shot(k)).verdict, 'fail');
-  assert.equal(cellOf('p', tol, shot(w), shot(k, false)).verdict, 'unsettled');
-  assert.equal(cellOf('p', tol, { absent: 'zero box' }, { absent: 'no element' }).status, 'nc');
+  assert.equal(cellOf('p', tol, shot(w), shot(k, { stable: false })).verdict, 'unsettled');
+  assert.equal(cellOf('p', tol, shot(w), shot(w, { gate: false })).verdict, 'unsettled');
+  // unloaded assets: invalid, never fail, even when the pictures differ completely
+  assert.equal(cellOf('p', tol, shot(w), shot(k, { fontsLoaded: false })).verdict, 'invalid');
+  assert.equal(cellOf('p', tol, shot(w, { imagesLoaded: false }), shot(k)).verdict, 'invalid');
+  assert.equal(cellOf('p', tol, shot(w), shot(k, { fontsLoaded: false, stable: false })).verdict, 'invalid');
+  assert.equal(cellOf('p', tol, { absent: 'zero box' }, { absent: 'no element' }).verdict, 'nc');
   assert.equal(cellOf('p', tol, shot(w), { absent: 'no element' }).verdict, 'fail');
   assert.equal(cellOf('p', tol, { error: 'x' }, shot(w)).status, 'error');
   assert.equal(cellOf('p', tol, shot(w), shot(solid(50, 50, WHITE))).images, null);

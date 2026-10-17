@@ -15,7 +15,7 @@ if (cmd === 'run') {
   const defaults = JSON.parse(readFileSync(join(HERE, '..', 'probes.default.json'), 'utf8')).probes;
   const probeIds = arg('probes', defaults.join(',')).split(',').map((x) => x.trim()).filter(Boolean);
   const partFilter = argv.includes('--parts') ? arg('parts', '').split(',').map((x) => x.trim()).filter(Boolean) : null;
-  await runVisual({ engineName: arg('engine', 'chromium'), outDir: resolve(arg('out', 'out/run')), probeIds, partFilter, fw: arg('fw', process.env.FW_FLAGS ?? ''), concurrency: Number(arg('concurrency', '2')) });
+  await runVisual({ engineName: arg('engine', 'chromium'), outDir: resolve(arg('out', 'out/run')), probeIds, partFilter, fw: arg('fw', process.env.FW_FLAGS ?? ''), concurrency: Number(arg('concurrency', '2')), assets: arg('assets', 'inject') });
   process.exit(0);
 } else if (cmd === 'report') {
   const { report } = await import('./report.mjs');
