@@ -14,7 +14,14 @@ The proved decision core of the loop (PLAN §3.2, §5). Toolchain `leanprover/le
 | `lake exe breakgen [--inventory <json>] [--check <file>]` | prints `Fw/Site/breakpoints.gen.json` to stdout; `--check` exits 1 on a byte diff, `--inventory` on any mismatch with the inventory (see `Fw/Site/README.md`) |
 | `lake exe mathview [--lint]` | JSON export of every `Fw` declaration; `--lint` fails on missing `$$` math or English, `sorryAx`, or an axiom other than `propext`, `Classical.choice`, `Quot.sound`. Each declaration is exported with its own heartbeat budget (`MathView.declBudget`; `autoTex` gets `texBudget`, else `"?"`), and an exception in one declaration becomes a lint failure naming it (`export failed`) instead of crashing the export |
 | `scripts/check-partial.sh` | grep gate: no partial ops (bang accessors, `[i]!`, panics) in `Fw/Wire.lean`/`Main.lean`; no `sorry`, `native_decide`, `implemented_by`, `unsafe` anywhere |
-| `scripts/check.sh` | all of the above, plus the real binary on `golden/wire-requests.txt` (diffed against `golden/wire-replies.txt`) |
+| `lake exe mathview [--lint] --out <file>` | also writes the JSON export to `<file>` (the same bytes as stdout), so one run serves the lint and the export |
+| `scripts/mathview-cached.sh [--build]` | the lint and the export, computed once per source state: keyed by a SHA-256 of `Fw/**`, `Fw.lean`, `MathView*.lean`, the lakefile, the manifest and `lean-toolchain`; stored in `.lake/mathview-cache/<key>.{json,lint}` (5 newest kept); prints the export path on stdout and the lint text on stderr. A hit runs no Lean. `docs/plan/tools/build-math-view.mjs` reads this export |
+| `scripts/check.sh` | all of the above (the lint through `mathview-cached.sh`), plus the real binary on `golden/wire-requests.txt` (diffed against `golden/wire-replies.txt`), `lake test` and the breakgen checks: the land gate |
+| `scripts/check-fast.sh` | the inner loop: `check-partial.sh`, incremental `lake build`, `lake test`, the fwcore golden diff, the cached lint; prints seconds per step and, on failure, one line `check-fast: FAILED at <step>` |
+
+`lakefile.toml` sets `enableArtifactCache = true` (Lake `PackageConfig.lean:289@eb6cafb`): build products are
+also stored in Lake's local, offline artifact cache for the toolchain and hard-linked back (`Build/Common.lean:489,652`),
+so a fresh worktree that is not seeded from another `.lake` rebuilds from the cache.
 
 `Fw` is built with `globs = ["Fw.*"]`, and `mathview` walks the `Fw/` directory, so a new subtree
 (for example `Fw/Site/`) is built, exported and linted without editing the lakefile.
