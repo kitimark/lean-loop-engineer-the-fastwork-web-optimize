@@ -23,6 +23,10 @@ afterAll(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })))
 
 describe.skipIf(!haveCore)("obs.timing / obs.slow against the Lean golden", () => {
   it("has the golden cases", () => expect(golden.length).toBeGreaterThanOrEqual(10));
+  it("the golden has ceiling rows and every one reaches fwcore (params decoded, not dropped)", () => {
+    const withCeil = golden.filter((g) => ((g.request.params as { ceilings?: unknown[] })?.ceilings ?? []).length > 0);
+    expect(withCeil.length).toBeGreaterThanOrEqual(2);
+  });
   for (const g of golden) {
     it(`obs.timing replays: ${g.name.slice(0, 70)}`, async () => {
       const r = await core({ op: "obs.timing", params: g.request.params, samples: g.request.samples });

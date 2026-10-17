@@ -16,3 +16,8 @@ Open / limits
 - Panel shows only slow steps (no per-step history): a per-step table needs a console-api route (outside this task).
 - Regenerate next.jsonl via Fw.Wire.Obs.NextGolden.run when the Branch codec changes.
 Read first: lean/Fw/Obs/Next.lean (timing-alert section), apps/runner/src/next.ts.
+
+Mistake (merge, land-timing-ceiling f51cf4c): two branches correct alone, wrong together, no textual conflict. Main added
+Params.ceilings; my obs.timing wire decoder (Fw.Wire.Obs.Timing.paramsOf) did not decode it, so ceilings were dropped
+(lock held 5 s read as 30 s noBaseline). Fixed: paramsOf decodes ceilings; test replays every timing.jsonl row incl. ceiling rows.
+Lesson: a wire decoder must be checked against the golden of every field of the type it decodes, after each merge.
