@@ -57,7 +57,7 @@ def CrKey.all : List CrKey :=
 /-- The CSS spelling of a plain property, as the golden rows print it (`filter(blur)` for a pixel-moving filter,
 `transform(none<->some)` for the toggle).
 
-$$\operatorname{name} : \mathrm{CrKey} \to \mathrm{String},\quad \operatorname{name}(\mathrm{bgColor}) = \texttt{"background-color"},\ \operatorname{name}(\mathrm{filter}(\mathrm{true})) = \texttt{"filter(blur)"},\ \ldots$$
+$$\operatorname{name}(k) = \text{the CSS property name of } k \text{ (e.g. } \operatorname{name}(\mathrm{bgColor}) = \texttt{"background-color"}\text{)},\ \operatorname{name}(\mathrm{filter}(\mathrm{true})) = \texttt{"filter(blur)"},\ \operatorname{name}(\mathrm{filter}(\mathrm{false})) = \texttt{"filter"},\ \operatorname{name}(\mathrm{transformToggle}) = \texttt{"transform(none<->some)"}$$
 -/
 def CrKey.name : CrKey → String
   | .transform => "transform" | .transformToggle => "transform(none<->some)" | .translate => "translate"
@@ -169,7 +169,7 @@ def keyLevel : CrKey → LayerState → CrLevel
 readers' levels, at least `styleOnly` (the write restyles the element; design note §1.2 "max over its readers"); a
 scroll-offset change has no style level (its stages come from `CrProp.extra`).
 
-$$\operatorname{lvl}(\mathrm{css}(k), l) = \operatorname{lvl}(k, l),\qquad \operatorname{lvl}(\mathrm{custom}(i, R), l) = \max\big(\mathrm{styleOnly}, \max_{k \in R} \operatorname{lvl}(k, l)\big),\qquad \operatorname{lvl}(\mathrm{scroll}(r), l) = \mathrm{none}$$
+$$\operatorname{lvl}(\mathrm{css}(k), l) = \operatorname{lvl}(k, l),\qquad \operatorname{lvl}(\mathrm{custom}(i, R), l) = \operatorname{foldl}\big(\max, \mathrm{styleOnly}, [\,\operatorname{lvl}(k, l) \mid k \in R\,]\big)\ (= \mathrm{styleOnly} \text{ for } R = [\,]),\qquad \operatorname{lvl}(\mathrm{scroll}(r), l) = \mathrm{none}$$
 (the maximum is a left fold over $R$ in list order; on a tie the later level is kept, which has the same rank).
 -/
 def crLevel : CrProp → LayerState → CrLevel
@@ -561,7 +561,7 @@ theorem jsTransform_lt_topLeft (m : CrMode) (n e e' : Nat) (l : LayerState) (k :
 
 /-! ## Scroll -/
 
-/-- The cull-rect repaint period of a scroll at `d` px per frame: $\lceil 512/d \rceil$ frames (changed-enough
+/-- The cull-rect repaint period of a scroll at `d` px per frame: $\lceil 512/d \rceil$ frames for $d > 0$ and $0$ for $d = 0$ (changed-enough
 distance 512 px at expansion ratio 1, `cull_rect.cc:48-69`, `B/../common/features.cc:627-652`; ratio 1 INFERRED).
 
 $$\operatorname{period}(d) = \left\lfloor \frac{512 + d - 1}{d} \right\rfloor \quad (\text{Lean } \mathbb{N} \text{ division: } \operatorname{period}(0) = 0)$$
@@ -679,7 +679,7 @@ def predOf (s : Stage) (v o : Nat) : Pred :=
 /-- The lane count types that observe each stage (design note §3.2); the consumer drops the types `classes.frozen.json`
 quarantines.
 
-$$\operatorname{counts}(\mathrm{script}) = [\texttt{trace.FireAnimationFrame}, \texttt{trace.FunctionCall}],\ \operatorname{counts}(\mathrm{style}) = [\texttt{trace.UpdateLayoutTree}],\ \ldots,\ \operatorname{counts}(\mathrm{comp}) = [\texttt{census.layers}]$$
+$$\begin{aligned} \operatorname{counts}(\mathrm{script}) &= [\texttt{trace.FireAnimationFrame}, \texttt{trace.FunctionCall}] & \operatorname{counts}(\mathrm{style}) &= [\texttt{trace.UpdateLayoutTree}] \\ \operatorname{counts}(\mathrm{layout}) &= [\texttt{trace.Layout}, \texttt{trace.Layout.dirtyObjects}] & \operatorname{counts}(\mathrm{props}) &= [\texttt{trace.PrePaint}] \\ \operatorname{counts}(\mathrm{paint}) &= [\texttt{trace.Paint}, \texttt{raster.invalidationAreaPx}, \texttt{raster.invalidationRects}] & \operatorname{counts}(\mathrm{raster}) &= [\texttt{raster.invalidationAreaPx}, \texttt{raster.invalidationRects}] \\ \operatorname{counts}(\mathrm{commit}) &= [\texttt{trace.cc.Commit}] & \operatorname{counts}(\mathrm{comp}) &= [\texttt{census.layers}] \end{aligned}$$
 -/
 def stageCounts : Stage → List String
   | .script => ["trace.FireAnimationFrame", "trace.FunctionCall"]
@@ -753,14 +753,14 @@ def stageRow (test x : String) (ax : List CrAnim) (y : String) (ay : List CrAnim
 
 /-- The number of animations whose failure bits contain bit `b` in the lane.
 
-$$\operatorname{nBit}(b, A) = \big|[\,a \in A \mid b \in \operatorname{bits}(\mathrm{lane}, a)\,]\big|$$
+$$\operatorname{bitCount}(b, A) = \big|[\,a \in A \mid b \in \operatorname{bits}(\mathrm{lane}, a)\,]\big|$$
 -/
 def bitCount (b : Nat) (as : List CrAnim) : Nat := (as.filter fun a => decide (b ∈ failBits lane a)).length
 
 /-- One golden F0 row: the number of the scenario's animations with bit 0 set in the lane (always 0,
 `failBits_lane_no0`).
 
-$$\operatorname{f0}(x, A) = \{\mathrm{test}{:}\,\mathrm{F0},\ \mathrm{scenario}{:}\,x,\ \mathrm{stage}{:}\,\mathrm{comp},\ v{:}\,\operatorname{nBit}(0, A),\ \mathrm{pred}{:}\,=\!0, \ldots\}$$
+$$\operatorname{f0}(x, A) = \{\mathrm{test}{:}\,\mathrm{F0},\ \mathrm{scenario}{:}\,x,\ \mathrm{stage}{:}\,\mathrm{comp},\ v{:}\,\operatorname{bitCount}(0, A),\ \mathrm{pred}{:}\,=\!0, \ldots\}$$
 -/
 def f0Row (x : String) (ax : List CrAnim) : Lean.Json :=
   Lean.Json.mkObj [("kind", "stage"), ("test", "F0"), ("scenario", .str x), ("ref", "rest"), ("mode", "lane"),
@@ -771,7 +771,7 @@ def f0Row (x : String) (ax : List CrAnim) : Lean.Json :=
 /-- One signature row per level: its rank, its stages, and every (plain property, layer state) pair `keyLevel` maps
 to it.
 
-$$\operatorname{sig}(\ell) = \{\mathrm{level}{:}\,\ell,\ \mathrm{rank}{:}\,\operatorname{rank}(\ell),\ \mathrm{stages}{:}\,\operatorname{stages}(\ell),\ \mathrm{members}{:}\,[\,(k, l) \mid k \in \mathrm{CrKey.all},\ l \in [\mathrm{none}, \mathrm{layer}, \mathrm{own}],\ \operatorname{lvl}(k, l) = \ell\,]\}$$
+$$\operatorname{sig}(\ell) = \{\mathrm{level}{:}\,\ell,\ \mathrm{rank}{:}\,\operatorname{rank}(\ell),\ \mathrm{stages}{:}\,\operatorname{stages}(\ell),\ \mathrm{members}{:}\,[\,\operatorname{name}(k) \mathbin{+\!\!+} \texttt{"@"} \mathbin{+\!\!+} \operatorname{name}(l) \mid k \in \mathrm{CrKey.all},\ l \in [\mathrm{none}, \mathrm{layer}, \mathrm{own}],\ \operatorname{lvl}(k, l) = \ell\,]\}$$
 -/
 def signatureRow (lv : CrLevel) : Lean.Json :=
   let members := CrKey.all.flatMap fun k =>
@@ -792,7 +792,7 @@ def modeRow (x : String) (m : CrMode) : Lean.Json :=
 then per stage the F1 rows (compositor fixture against rest) and the F2 rows (compositor fixture against the
 main-thread fixture).
 
-$$\mathrm{rows} = [\operatorname{sig}(\ell) \mid \ell \in \mathrm{CrLevel.all}] \mathbin{+\!\!+} [\operatorname{modeRow}(\mathrm{lane}), \operatorname{modeRow}(\mathrm{realChrome})] \mathbin{+\!\!+} [\operatorname{f0}(\ldots)]_{3} \mathbin{+\!\!+} [\operatorname{row}(\mathrm{F1}, \mathrm{animComp}, \mathrm{rest}, s) \mid s \in \mathrm{Stage.all}] \mathbin{+\!\!+} [\operatorname{row}(\mathrm{F2}, \mathrm{animComp}, \mathrm{animLayout}, s) \mid s \in \mathrm{Stage.all}]$$
+$$\mathrm{rows} = [\operatorname{sig}(\ell) \mid \ell \in \mathrm{CrLevel.all}] \mathbin{+\!\!+} [\operatorname{modeRow}(\mathrm{lane}), \operatorname{modeRow}(\mathrm{realChrome})] \mathbin{+\!\!+} [\operatorname{f0}(\mathrm{rest}, \mathrm{rest}), \operatorname{f0}(\mathrm{animComp}, \mathrm{animComp}), \operatorname{f0}(\mathrm{animLayout}, \mathrm{animLayout})] \mathbin{+\!\!+} [\operatorname{row}(\mathrm{F1}, \mathrm{animComp}, \mathrm{rest}, s) \mid s \in \mathrm{Stage.all}] \mathbin{+\!\!+} [\operatorname{row}(\mathrm{F2}, \mathrm{animComp}, \mathrm{animLayout}, s) \mid s \in \mathrm{Stage.all}]$$
 -/
 def goldenRows : List Lean.Json :=
   CrLevel.all.map signatureRow ++ [modeRow "lane" lane, modeRow "realChrome" realChrome] ++
@@ -815,7 +815,7 @@ def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" /
 /-- Write the golden file (`write`) or compare it; returns 1 when the file is stale, else 0. Run from `lean/` as
 `lake env lean --run <script>` with a script whose `main` calls `Fw.Engine.Chromium.goldenRun "." (write)`.
 
-$$\operatorname{goldenRun}(r, \mathrm{false}) = [\operatorname{read}(r / \mathrm{goldenPath}) \ne \mathrm{goldenText}]$$
+$$\operatorname{goldenRun}(r, \mathrm{true}) = 0 \text{ after writing } \mathrm{goldenText} \text{ to } r / \mathrm{goldenPath},\qquad \operatorname{goldenRun}(r, \mathrm{false}) = [\operatorname{read}(r / \mathrm{goldenPath}) \ne \mathrm{goldenText}] \text{ (a missing or unreadable file reads as the empty string)}$$
 -/
 def goldenRun (root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / goldenPath
