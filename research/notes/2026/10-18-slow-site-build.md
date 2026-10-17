@@ -28,7 +28,7 @@ it. Not a cold pnpm store, no font copy, not runner variance.
   integrate-ports-2 vs main (`git diff aa84eb6 4ef66bc`; the anchors table now lists every part).
 - CONFIRMED (.github/actions/setup-lean/action.yml:43-45@aa84eb6): key = arch + toolchain/manifest + hash of all Lean
   sources. On a miss, restore-keys takes the newest created entry with the same prefix, from this branch or main.
-  Existing keys are immutable (GitHub docs, below).
+  Keys are immutable; 10 GB limit, LRU (https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
 - INFERRED (content race): entry 7a15 lacked Scope, Console, Plan.Core etc., although none of them changed between
   fb88aa2 and 4ef66bc (that diff touches only Gate/{Merge,Mount,SweepReduce,SweepsGen}, Plan/{Golden,Workflow},
   Wire/GateDeclared, BreakgenMain, Fw.lean). With `enableArtifactCache` they would have been replayed, so a job with
@@ -39,9 +39,7 @@ it. Not a cold pnpm store, no font copy, not runner variance.
   (39075459943). Those jobs started 1-2 min later, after entry aeda… existed. Neither run is in
   .fw-console/timings.jsonl, whose sibling samples all predate 35ea874 (3aedff5..e168f25). The "2.0 s siblings" are
   time-confounded.
-- MEASURED: `gh cache list` sums to 12.1 GB, above the 10 GB repo limit. Each ci/* branch saves 380-540 MB Lake
-  entries, so LRU eviction is active and misses grow.
-
+- MEASURED: `gh cache list` sums to 12.1 GB (> 10 GB); each ci/* branch saves 380-540 MB Lake entries, so evictions.
 ## Structural or noise
 Structural. Any workflow's site build pays the cost whenever its restored entry was saved by a job that did not
 build the new breakgen closure: on every Lean-touching push to a new branch, and whenever a narrow job wins the save
@@ -73,8 +71,6 @@ runner speed.
 4. Fw.Obs.Timing: use a shift-robust baseline (p50, or p90 of the samples before the first flagged one) plus a
    `shift` verdict (the last m samples all slow against that baseline). Obligation `no_self_mask`: if fewer than half
    the window exceeds t, then p50 ≤ t. Record sibling samples with their commit.
-
-Source: https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching (newest match, branch scope, 10 GB, LRU).
 
 ## What this changes in the plan
 - §5 Lean strategy (CI Lean builds): add "one Lake cache writer per key, narrow exe closure per consumer" and a task
