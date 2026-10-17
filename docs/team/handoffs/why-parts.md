@@ -27,3 +27,16 @@ Open items for the lead:
 - Fw.Engine.Lessons are still stated over frameWork; Fw.Engine.* missingWhy were out of scope.
 
 Read first: lean/Fw/Parts/EndFlags.lean, PeopleCard.lean section EndPass, EngineScroll.lean section "Total passes".
+
+## Merge (why-parts-merge = this branch + main after why-engines)
+- Only research/findings/ledger.json conflicted. Resolved by a field-level 3-way merge per finding (keyed by list
+  position; n/part/candidate equal on all sides, since `n` repeats): a field one side changed takes that side;
+  leanFor/leanAgainst/premises = union (no name dropped); missingWhy = items kept by both sides plus each side's
+  additions (an item removed by either side counts as closed); a mechanism both extended = base + why-parts suffix +
+  why-engines suffix (`why-engines:` labelled). missingWhy 61 base -> 21 closed here, 14 by why-engines (no overlap),
+  8 new parts-level remainders from why-engines -> 34 open.
+- Both-changed findings: n=3, n=4, n=7, n=8 (cd-roll-ca), n=16, n=20, n=24. No contradiction: they differ in measure
+  (style passes vs units, layout moved vs pre-paint saved). why-parts closed none of the 8 new why-engines
+  Fw.Parts remainders (n=4, 8, 11x2, 13, 16, 19, 20); they stay open.
+- Semantic conflict: main's dangling-where lint failed on Fw.Parts.NavHitTestOpt.goldenRows (q defined after $$);
+  q_n moved into the $$ block as a cases split. check.sh green; incidents lint 0 errors.

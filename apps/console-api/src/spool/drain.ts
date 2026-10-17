@@ -2,11 +2,12 @@
 // the normal reducer path (a `step.post` / `step.cancel` caused by actor "script", i.e. console-api itself; the Lean authority table
 // still decides). A key is marked seen only after its fact is accepted, so a refused alert is retried next drain.
 import { existsSync, fsyncSync, openSync, closeSync, readFileSync, readdirSync, statSync, writeSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { ObsLine, ObsRecord, type Command, type ObsSummaryRow } from "@fw/contracts";
 import type { Core } from "../core/index.ts";
 import type { Store } from "../store.ts";
 import { agentNameOf } from "../health.ts";
+import { scanWorkflows, workflowDirs } from "./workflow.ts";
 
 export type DrainResult = { accepted: number; duplicates: number; invalid: number; retry: number; alerts: number };
 
@@ -59,8 +60,13 @@ export class Drain {
 
   private store: Store;
 
-  constructor(store: Store) {
+  private wfDirs: () => string[];
+  private wfSent = new Set<string>();
+
+  /** `wfDirs`: the session `workflows/` dirs to sweep for workflow runs (default: this checkout's sessions, see workflow.ts). */
+  constructor(store: Store, wfDirs: () => string[] = () => workflowDirs(dirname(store.dir))) {
     this.store = store;
+    this.wfDirs = wfDirs;
     this.obsPath = join(store.dir, "obs.jsonl");
     for (const l of this.obsLines()) this.seen.add(l.key);
   }
@@ -86,6 +92,7 @@ export class Drain {
 
   private async once(): Promise<DrainResult> {
     const res: DrainResult = { accepted: 0, duplicates: 0, invalid: 0, retry: 0, alerts: 0 };
+    await this.workflowSweep();
     const spool = join(this.store.dir, "spool");
     if (!existsSync(spool)) return res;
     // the alert steps still open on the board (refreshed each drain: a person may have answered or cancelled one)
@@ -108,6 +115,22 @@ export class Drain {
       this.offsets.set(path, start + consumed);
     }
     return res;
+  }
+
+  /** Workflow runs named like a task: `agent.spawn` at the start, `agent.stop` at the end (Lean `Fw.Plan.wfEvents`). The
+   *  event key carries the run id, so a repeated sweep is a duplicate; a refusal never blocks the drain. */
+  private async workflowSweep(): Promise<void> {
+    let dirs: string[];
+    try { dirs = this.wfDirs(); } catch { return; }
+    if (dirs.length === 0) return;
+    const ids = (await this.store.board()).plan.tasks.map((t) => t.id);
+    for (const d of dirs) {
+      for (const e of scanWorkflows(d, ids)) {
+        if (this.wfSent.has(e.key)) continue;
+        const reply = await this.store.submit({ type: e.type, key: e.key, actor: "hook", agent: e.agent });
+        if (reply.ok) this.wfSent.add(e.key); // refused: tried again next drain
+      }
+    }
   }
 
   private async handle(raw: string, res: DrainResult): Promise<"done" | "retry"> {

@@ -1012,9 +1012,9 @@ def reachesMorph (scenario : String) : Bool := morphScenarios.contains scenario
 faithful rewrite. The type tables give hit-skip's prediction on a scenario that opens the morph; on one that does not,
 hit-skip runs the original's frame (`hitSkip_run_eq`), so its prediction is $=o$.
 
-$$\mathrm{rows} = [\,(\mathit{eng}, \texttt{swipe-v1}, \operatorname{key}(n), s, q_n, k, \texttt{rewrite}) \mid (\mathit{eng}, T) \in [(\mathrm{chromium}, \mathrm{crTypes}), (\mathrm{webkit}, \mathrm{wkTypes})],\ n \in [\text{hit-skip}, \text{elements-skip}],\ (k, s, p_{\text{hit-skip}}, p_{\text{elements-skip}}) \in T\,]$$
+$$\mathrm{rows} = [\,(\mathit{eng}, \texttt{swipe-v1}, \operatorname{key}(n), s, q_n, k, \texttt{rewrite}) \mid (\mathit{eng}, T) \in [(\mathrm{chromium}, \mathrm{crTypes}), (\mathrm{webkit}, \mathrm{wkTypes})],\ n \in [\text{hit-skip}, \text{elements-skip}],\ (k, s, p_{\text{hit-skip}}, p_{\text{elements-skip}}) \in T\,],\quad q_n = \begin{cases} p_{\text{hit-skip}} & n = \text{hit-skip} \land \operatorname{reachesMorph}(\texttt{swipe-v1}) \\ \texttt{=o} & n = \text{hit-skip} \land \lnot \operatorname{reachesMorph}(\texttt{swipe-v1}) \\ p_{\text{elements-skip}} & n = \text{elements-skip} \end{cases}$$
 
-where $q_{\text{elements-skip}} = p_{\text{elements-skip}}$, and $q_{\text{hit-skip}} = p_{\text{hit-skip}}$ if $\operatorname{reachesMorph}(\texttt{swipe-v1})$, else $=o$.
+Hit-skip keeps its table prediction only on a scenario that opens the morph.
 -/
 def goldenRows : List Row :=
   [("chromium", crTypes), ("webkit", wkTypes)].flatMap fun (eng, ts) =>

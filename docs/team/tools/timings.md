@@ -38,3 +38,8 @@ No paths, no user names. The `fw land` total is the `fw` span with `step=land`.
 `pnpm fw timings [--tool t] [--since hours]` prints per (tool, step): n, p50, p90 (nearest rank), last, max, sorted by
 p90. Job spans contain their step spans, so compare within a level. Raw lines: `jq -c 'select(.step|test("sweeps"))'
 .fw-console/timings.jsonl`.
+
+## Slow-step alert
+`fw watch` turns the latest slow sample per `<tool>/<step>` (Lean `Fw.Obs.Next.slowSteps`, from `Fw.Obs.Timing`) into
+`timing.slow` and `NEXT investigate step=<tool/step>`; replay test: apps/runner/test/timing-alert.test.ts against
+packages/contracts/golden/obs/timing.jsonl.

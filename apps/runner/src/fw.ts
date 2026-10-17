@@ -19,7 +19,7 @@ const [group, ...rest] = process.argv.slice(2);
 const SUBS = new Set(["plan", "ci", "incidents", "step", "card"]);
 if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c)); }
 try {
-  const base = group === "run" || group === "ci" || group === "next" || group === "engine-check" || group === "incidents" ? "" : apiBase(process.env); // `fw run` needs no console-api
+  const base = group === "run" || group === "ci" || group === "next" || group === "engine-check" || group === "incidents" || group === "coverage" ? "" : apiBase(process.env); // `fw run` needs no console-api
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "engine-check") {
@@ -36,6 +36,8 @@ try {
     process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "incidents") {
     process.exitCode = await (await import("./incidents.ts")).incidentsCli(rest, process.cwd()); // incident-lint: board optional
+  } else if (group === "coverage") {
+    process.exitCode = await (await import("./coverage.ts")).coverageCli(rest, process.cwd()); // lean-coverage: warn mode
   } else if (group === "watch") {
     process.exitCode = await watchMain(rest, process.cwd());
   } else if (group === "next") {

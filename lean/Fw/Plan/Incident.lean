@@ -20,6 +20,13 @@ that exist. Per incident it reports codes:
 | `missingRegression` | error | `regression` missing or blank |
 | `noStatusPrefix` | error | `cause` does not start with `CONFIRMED`, `INFERRED` or `MEASURED` |
 | `statusField` | error | the record has a `status` field (status is derived, never stored) |
+| `missingLeanVerdict` | error | `leanVerdict` missing or blank |
+| `badLeanVerdict` | error | `leanVerdict` is not blank and not `provable`, `partly` or `no` |
+| `missingLeanReason` | error | `leanReason` missing or blank |
+| `missingHardening` | error | the verdict is `provable` or `partly` and `hardening` (a work graph task id) is missing or blank |
+| `unknownHardening` | error | `hardening` is present and not a work graph id |
+| `missingEmpiricalCheck` | error | the verdict is `no` and `empiricalCheck` (the test or CI check that covers it) is missing or blank |
+| `unknownMistakeClass` | error | `mistakeClass` is present and not a class id of `research/mistakes/ledger.json` (fact set `classes`) |
 | `dupId` | error | another incident has the same id |
 | `eventRef` | warn | an `event` ref (local-only, not reproducible from the public repo) |
 | `procRef` | warn | a `proc` ref (a process shape, not reproducible) |
@@ -29,7 +36,14 @@ fixed and one of them is claimed and not done; open otherwise.
 
 Theorems: `mem_codes`, `status_fixed_iff`, `status_fixing_iff`, `fixed_no_missingFixTask`, `holds_addEvidence`
 and `errors_addEvidence` (adding evidence never adds an error), `holds_mono_facts` (more facts never add
-a finding), `lintAll_perm` and `okAll_perm` (order independence).
+a finding), `lintAll_perm` and `okAll_perm` (order independence), `lint_ok_iff` (ok iff every entry
+is complete and every referenced task and class exists), `no_without_empiricalCheck_refused` and
+`ok_hardening_exists`.
+
+The Lean fields (task `incident-lean-fields`) link each incident to the mistake retro
+(`research/mistakes/ledger.json`): a Lean verdict with its reason, and what covers it: a work graph
+hardening task for `provable` / `partly`, the empirical check for `no` (a `no` may also name a
+hardening task, which must then exist).
 -/
 namespace Fw.Plan.Incident
 open Fw.Plan
@@ -59,47 +73,80 @@ structure Ev where
 deriving Repr, DecidableEq
 
 /-- One ledger record, as the lint reads it: id, cause, evidence, repro, the fix task and the `also`
-tasks, regression, and whether the record carries a `status` field. Missing text fields are `none`.
+tasks, regression, whether the record carries a `status` field, and the Lean fields of the mistake
+retro (verdict, reason, hardening task, empirical check, mistake class). Missing text fields are `none`.
 
-$$i = (\mathit{id}, \mathit{cause}, \mathit{evidence}, \mathit{repro}_\bot, \mathit{fix}_\bot, \mathit{also}, \mathit{regression}_\bot, \mathit{hasStatus})$$
+$$i = (\mathit{id}, \mathit{cause}, \mathit{evidence}, \mathit{repro}_\bot, \mathit{fix}_\bot, \mathit{also}, \mathit{regression}_\bot, \mathit{hasStatus}, \mathit{leanVerdict}_\bot, \mathit{leanReason}_\bot, \mathit{hardening}_\bot, \mathit{empiricalCheck}_\bot, \mathit{mistakeClass}_\bot)$$
 -/
 structure Incident where
-  id         : String
-  cause      : String
-  evidence   : List Ev
-  repro      : Option String
-  fixTask    : Option String
-  also       : List String
-  regression : Option String
-  hasStatus  : Bool
+  id             : String
+  cause          : String
+  evidence       : List Ev
+  repro          : Option String
+  fixTask        : Option String
+  also           : List String
+  regression     : Option String
+  hasStatus      : Bool
+  leanVerdict    : Option String := none
+  leanReason     : Option String := none
+  hardening      : Option String := none
+  empiricalCheck : Option String := none
+  mistakeClass   : Option String := none
 deriving Repr, DecidableEq
 
-/-- The facts the CLI collects: the work graph rows with their board state, the commit refs that are
-commits on main, and the file refs that exist.
+/-- The Lean verdict of an incident: provable, partly provable, or not provable in Lean.
 
-$$F = (\mathit{tasks}, \mathit{commits}, \mathit{files})$$
+$$\mathrm{Verdict} = \{\mathrm{provable}, \mathrm{partly}, \mathrm{no}\}$$
+-/
+inductive Verdict | provable | partly | no
+deriving DecidableEq, Repr
+
+/-- The verdict a `leanVerdict` string names, if any (exact and case-sensitive).
+
+$$\operatorname{verdictOf}(s) = \begin{cases}\mathrm{provable} & s = \texttt{"provable"}\\ \mathrm{partly} & s = \texttt{"partly"}\\ \mathrm{no} & s = \texttt{"no"}\\ \bot & \text{otherwise}\end{cases}$$
+-/
+def verdictOf : String → Option Verdict
+  | "provable" => some .provable | "partly" => some .partly | "no" => some .no | _ => none
+
+/-- The verdict of an incident: its `leanVerdict` read by `verdictOf`; none when the field is missing
+or names no verdict.
+
+$$\operatorname{verdict}(i) = \begin{cases}\operatorname{verdictOf}(s) & i.\mathit{leanVerdict} = s\\ \bot & i.\mathit{leanVerdict} = \bot\end{cases}$$
+-/
+def verdict (i : Incident) : Option Verdict := i.leanVerdict.bind verdictOf
+
+/-- The facts the CLI collects: the work graph rows with their board state, the commit refs that are
+commits on main, the file refs that exist, and the class ids of `research/mistakes/ledger.json`.
+
+$$F = (\mathit{tasks}, \mathit{commits}, \mathit{files}, \mathit{classes})$$
 -/
 structure Facts where
   tasks   : List Task
   commits : List String
   files   : List String
+  classes : List String := []
 
 /-- A lint code.
 
-$$\mathrm{Code} = \{\mathrm{noEvidence}, \mathrm{unknownKind}, \mathrm{badRef}, \mathrm{commitNotOnMain}, \mathrm{fileMissing}, \mathrm{missingFixTask}, \mathrm{missingRepro}, \mathrm{missingRegression}, \mathrm{noStatusPrefix}, \mathrm{statusField}, \mathrm{dupId}, \mathrm{eventRef}, \mathrm{procRef}\}$$
+$$\mathrm{Code} = \{\mathrm{noEvidence}, \mathrm{unknownKind}, \mathrm{badRef}, \mathrm{commitNotOnMain}, \mathrm{fileMissing}, \mathrm{missingFixTask}, \mathrm{missingRepro}, \mathrm{missingRegression}, \mathrm{noStatusPrefix}, \mathrm{statusField}, \mathrm{missingLeanVerdict}, \mathrm{badLeanVerdict}, \mathrm{missingLeanReason}, \mathrm{missingHardening}, \mathrm{unknownHardening}, \mathrm{missingEmpiricalCheck}, \mathrm{unknownMistakeClass}, \mathrm{dupId}, \mathrm{eventRef}, \mathrm{procRef}\}$$
 -/
 inductive Code
   | noEvidence | unknownKind | badRef | commitNotOnMain | fileMissing | missingFixTask
-  | missingRepro | missingRegression | noStatusPrefix | statusField | dupId | eventRef | procRef
+  | missingRepro | missingRegression | noStatusPrefix | statusField
+  | missingLeanVerdict | badLeanVerdict | missingLeanReason | missingHardening | unknownHardening
+  | missingEmpiricalCheck | unknownMistakeClass
+  | dupId | eventRef | procRef
 deriving DecidableEq, Repr
 
 /-- The codes in report order.
 
-$$\mathrm{Codes} = [\mathrm{noEvidence}, \mathrm{unknownKind}, \mathrm{badRef}, \mathrm{commitNotOnMain}, \mathrm{fileMissing}, \mathrm{missingFixTask}, \mathrm{missingRepro}, \mathrm{missingRegression}, \mathrm{noStatusPrefix}, \mathrm{statusField}, \mathrm{dupId}, \mathrm{eventRef}, \mathrm{procRef}]$$
+$$\mathrm{Codes} = [\mathrm{noEvidence}, \mathrm{unknownKind}, \mathrm{badRef}, \mathrm{commitNotOnMain}, \mathrm{fileMissing}, \mathrm{missingFixTask}, \mathrm{missingRepro}, \mathrm{missingRegression}, \mathrm{noStatusPrefix}, \mathrm{statusField}, \mathrm{missingLeanVerdict}, \mathrm{badLeanVerdict}, \mathrm{missingLeanReason}, \mathrm{missingHardening}, \mathrm{unknownHardening}, \mathrm{missingEmpiricalCheck}, \mathrm{unknownMistakeClass}, \mathrm{dupId}, \mathrm{eventRef}, \mathrm{procRef}]$$
 -/
 def Code.all : List Code :=
   [.noEvidence, .unknownKind, .badRef, .commitNotOnMain, .fileMissing, .missingFixTask,
-   .missingRepro, .missingRegression, .noStatusPrefix, .statusField, .dupId, .eventRef, .procRef]
+   .missingRepro, .missingRegression, .noStatusPrefix, .statusField,
+   .missingLeanVerdict, .badLeanVerdict, .missingLeanReason, .missingHardening, .unknownHardening,
+   .missingEmpiricalCheck, .unknownMistakeClass, .dupId, .eventRef, .procRef]
 
 /-- The wire name of a code: its constructor name.
 
@@ -110,7 +157,11 @@ def Code.name : Code → String
   | .commitNotOnMain => "commitNotOnMain" | .fileMissing => "fileMissing"
   | .missingFixTask => "missingFixTask" | .missingRepro => "missingRepro"
   | .missingRegression => "missingRegression" | .noStatusPrefix => "noStatusPrefix"
-  | .statusField => "statusField" | .dupId => "dupId" | .eventRef => "eventRef" | .procRef => "procRef"
+  | .statusField => "statusField" | .missingLeanVerdict => "missingLeanVerdict"
+  | .badLeanVerdict => "badLeanVerdict" | .missingLeanReason => "missingLeanReason"
+  | .missingHardening => "missingHardening" | .unknownHardening => "unknownHardening"
+  | .missingEmpiricalCheck => "missingEmpiricalCheck" | .unknownMistakeClass => "unknownMistakeClass"
+  | .dupId => "dupId" | .eventRef => "eventRef" | .procRef => "procRef"
 
 /-- Is the code an error (else a warning)? Only the two non-reproducible evidence kinds are warnings.
 
@@ -185,6 +236,19 @@ $$\operatorname{fixTasks}(i) = [\, x \mid i.\mathit{fix} = x \,] \mathbin{+\!\!+
 -/
 def fixTasks (i : Incident) : List String := i.fixTask.toList ++ i.also
 
+/-- The work graph ids of the facts.
+
+$$\operatorname{ids}(F.\mathit{tasks}) = [\, t.\mathit{id} : t \in F.\mathit{tasks} \,]$$
+-/
+def taskIds (F : Facts) : List String := F.tasks.map (·.id)
+
+/-- Does the verdict ask for a hardening task (provable or partly)?
+
+$$\operatorname{needsHardening}(i) \iff \operatorname{verdict}(i) \in \{\mathrm{provable}, \mathrm{partly}\}$$
+-/
+def needsHardening (i : Incident) : Bool :=
+  verdict i == some .provable || verdict i == some .partly
+
 /-- Does code `k` hold for incident `i`, given the facts and whether its id is duplicated?
 
 $$\begin{aligned}
@@ -194,6 +258,13 @@ $$\begin{aligned}
 \mathrm{missingRegression}(i) &\iff \operatorname{blank}(i.\mathit{regression})\\
 \mathrm{noStatusPrefix}(i) &\iff \neg\operatorname{hasPrefix}(i.\mathit{cause})\\
 \mathrm{statusField}(i) &\iff i.\mathit{hasStatus}\\
+\mathrm{missingLeanVerdict}(i) &\iff \operatorname{blank}(i.\mathit{leanVerdict})\\
+\mathrm{badLeanVerdict}(i) &\iff \neg\operatorname{blank}(i.\mathit{leanVerdict}) \land \operatorname{verdict}(i) = \bot\\
+\mathrm{missingLeanReason}(i) &\iff \operatorname{blank}(i.\mathit{leanReason})\\
+\mathrm{missingHardening}(i) &\iff \operatorname{verdict}(i) \in \{\mathrm{provable}, \mathrm{partly}\} \land \operatorname{blank}(i.\mathit{hardening})\\
+\mathrm{unknownHardening}(i) &\iff \exists h:\ i.\mathit{hardening} = h \land h \notin \operatorname{ids}(F.\mathit{tasks})\\
+\mathrm{missingEmpiricalCheck}(i) &\iff \operatorname{verdict}(i) = \mathrm{no} \land \operatorname{blank}(i.\mathit{empiricalCheck})\\
+\mathrm{unknownMistakeClass}(i) &\iff \exists c:\ i.\mathit{mistakeClass} = c \land c \notin F.\mathit{classes}\\
 \mathrm{dupId}(i) &\iff \mathit{dup}\\
 k(i) &\iff \exists e \in i.\mathit{evidence}:\ \operatorname{evHolds}_F(e, k) \quad \text{for } k \in \{\mathrm{unknownKind}, \mathrm{badRef}, \mathrm{commitNotOnMain}, \mathrm{fileMissing}, \mathrm{eventRef}, \mathrm{procRef}\}
 \end{aligned}$$
@@ -205,6 +276,17 @@ def holds (F : Facts) (dup : Bool) (i : Incident) : Code → Bool
   | .missingRegression => blank i.regression
   | .noStatusPrefix => !hasPrefix i.cause
   | .statusField => i.hasStatus
+  | .missingLeanVerdict => blank i.leanVerdict
+  | .badLeanVerdict => !blank i.leanVerdict && (verdict i).isNone
+  | .missingLeanReason => blank i.leanReason
+  | .missingHardening => needsHardening i && blank i.hardening
+  | .unknownHardening => match i.hardening with
+    | none => false
+    | some h => !(taskIds F).contains h
+  | .missingEmpiricalCheck => verdict i == some .no && blank i.empiricalCheck
+  | .unknownMistakeClass => match i.mistakeClass with
+    | none => false
+    | some c => !F.classes.contains c
   | .dupId => dup
   | .unknownKind => i.evidence.any fun e => evHolds F e .unknownKind
   | .badRef => i.evidence.any fun e => evHolds F e .badRef
@@ -278,12 +360,34 @@ structure Finding where
   detail : String
 deriving Repr, DecidableEq
 
+/-- The detail text of a Lean-field finding: it names the field and what it must hold, so an entry
+written after this lint learns exactly which field is missing ($\langle x \rangle$ is the field's value,
+$v$ the verdict name).
+
+$$\operatorname{leanDetail}(i, k) = \begin{cases}\texttt{"leanVerdict missing: one of provable, partly (both also need hardening), no (also needs empiricalCheck)"} & k = \mathrm{missingLeanVerdict}\\ \texttt{"leanVerdict '}\langle x \rangle\texttt{' is not one of provable, partly, no"} & k = \mathrm{badLeanVerdict}\\ \texttt{"leanReason missing: why Lean can or cannot prove it"} & k = \mathrm{missingLeanReason}\\ \texttt{"hardening missing: a work graph task id (required when leanVerdict is }v\texttt{)"} & k = \mathrm{missingHardening}\\ \texttt{"hardening '}\langle x \rangle\texttt{' is not a work graph task id"} & k = \mathrm{unknownHardening}\\ \texttt{"empiricalCheck missing: the test or CI check that covers it (required when leanVerdict is no)"} & k = \mathrm{missingEmpiricalCheck}\\ \texttt{"mistakeClass '}\langle x \rangle\texttt{' is not a class id of research/mistakes/ledger.json"} & k = \mathrm{unknownMistakeClass}\\ \varepsilon & \text{otherwise}\end{cases}$$
+
+A missing value prints as empty.
+-/
+def leanDetail (i : Incident) : Code → String
+  | .missingLeanVerdict => "leanVerdict missing: one of provable, partly (both also need hardening), no (also needs empiricalCheck)"
+  | .badLeanVerdict => s!"leanVerdict '{i.leanVerdict.getD ""}' is not one of provable, partly, no"
+  | .missingLeanReason => "leanReason missing: why Lean can or cannot prove it"
+  | .missingHardening =>
+    s!"hardening missing: a work graph task id (required when leanVerdict is {i.leanVerdict.getD ""})"
+  | .unknownHardening => s!"hardening '{i.hardening.getD ""}' is not a work graph task id"
+  | .missingEmpiricalCheck =>
+    "empiricalCheck missing: the test or CI check that covers it (required when leanVerdict is no)"
+  | .unknownMistakeClass =>
+    s!"mistakeClass '{i.mistakeClass.getD ""}' is not a class id of research/mistakes/ledger.json"
+  | _ => ""
+
 /-- The detail text of a finding: the offending refs (kinds for `unknownKind`), the missing fix task
-ids (`no fix.task` when there is none), the id for `dupId`, else empty.
+ids (`no fix.task` when there is none), the id for `dupId`, the field text of `leanDetail` for the
+Lean-field codes, else empty.
 
-$$\operatorname{detail}_F(i, k) = \begin{cases}\text{the kinds } e.\mathit{kind} \text{ with } \operatorname{evHolds}_F(e, k) & k = \mathrm{unknownKind}\\ \text{the refs } e.\mathit{ref} \text{ with } \operatorname{evHolds}_F(e, k) & \operatorname{isEv}(k) \land k \ne \mathrm{unknownKind}\\ \texttt{"no fix.task"} & k = \mathrm{missingFixTask} \land i.\mathit{fix} = \bot\\ \text{the } x \in \operatorname{fixTasks}(i) \text{ with } x \notin \operatorname{ids}(F.\mathit{tasks}) & k = \mathrm{missingFixTask} \land i.\mathit{fix} \ne \bot\\ i.\mathit{id} & k = \mathrm{dupId}\\ \varepsilon & \text{otherwise}\end{cases}$$
+$$\operatorname{detail}_F(i, k) = \begin{cases}\text{the kinds } e.\mathit{kind} \text{ with } \operatorname{evHolds}_F(e, k) & k = \mathrm{unknownKind}\\ \text{the refs } e.\mathit{ref} \text{ with } \operatorname{evHolds}_F(e, k) & \operatorname{isEv}(k) \land k \ne \mathrm{unknownKind}\\ \texttt{"no fix.task"} & k = \mathrm{missingFixTask} \land i.\mathit{fix} = \bot\\ \text{the } x \in \operatorname{fixTasks}(i) \text{ with } x \notin \operatorname{ids}(F.\mathit{tasks}) & k = \mathrm{missingFixTask} \land i.\mathit{fix} \ne \bot\\ i.\mathit{id} & k = \mathrm{dupId}\\ \operatorname{leanDetail}(i, k) & \text{otherwise}\end{cases}$$
 
-Lists are joined with `", "`.
+Lists are joined with `", "`; the cases are checked in this order.
 -/
 def detail (F : Facts) (i : Incident) (k : Code) : String :=
   if k == .unknownKind then ", ".intercalate ((i.evidence.filter (evHolds F · k)).map (·.kind))
@@ -292,7 +396,7 @@ def detail (F : Facts) (i : Incident) (k : Code) : String :=
     if i.fixTask.isNone then "no fix.task"
     else ", ".intercalate ((fixTasks i).filter fun x => !(F.tasks.map (·.id)).contains x)
   else if k == .dupId then i.id
-  else ""
+  else leanDetail i k
 
 /-- The lint result of one incident: id, derived status, findings.
 
@@ -430,14 +534,15 @@ theorem errors_addEvidence (F : Facts) (dup : Bool) (i : Incident) (es : List Ev
   · exact h
   · simp [hes e he k hk] at hek
 
-/-- **More facts never add a finding**: with at least the same main commits, existing files and work
-graph ids, every code that holds held already with the smaller facts.
+/-- **More facts never add a finding**: with at least the same main commits, existing files, work
+graph ids and mistake classes, every code that holds held already with the smaller facts.
 
-$$\forall F, F', \mathit{dup}, i, k:\quad F.\mathit{commits} \subseteq F'.\mathit{commits} \land F.\mathit{files} \subseteq F'.\mathit{files} \land \operatorname{ids}(F.\mathit{tasks}) \subseteq \operatorname{ids}(F'.\mathit{tasks}) \land \operatorname{holds}_{F'}(\mathit{dup}, i, k) \Rightarrow \operatorname{holds}_F(\mathit{dup}, i, k)$$
+$$\forall F, F', \mathit{dup}, i, k:\quad F.\mathit{commits} \subseteq F'.\mathit{commits} \land F.\mathit{files} \subseteq F'.\mathit{files} \land \operatorname{ids}(F.\mathit{tasks}) \subseteq \operatorname{ids}(F'.\mathit{tasks}) \land F.\mathit{classes} \subseteq F'.\mathit{classes} \land \operatorname{holds}_{F'}(\mathit{dup}, i, k) \Rightarrow \operatorname{holds}_F(\mathit{dup}, i, k)$$
 -/
 theorem holds_mono_facts (F F' : Facts) (dup : Bool) (i : Incident) (k : Code)
     (hc : ∀ c ∈ F.commits, c ∈ F'.commits) (hf : ∀ f ∈ F.files, f ∈ F'.files)
     (ht : ∀ x ∈ F.tasks.map (·.id), x ∈ F'.tasks.map (·.id))
+    (hcl : ∀ c ∈ F.classes, c ∈ F'.classes)
     (h : holds F' dup i k = true) : holds F dup i k = true := by
   have he : ∀ e : Ev, ∀ k, evHolds F' e k = true → evHolds F e k = true := by
     intro e k hk
@@ -452,11 +557,23 @@ theorem holds_mono_facts (F F' : Facts) (dup : Bool) (i : Incident) (k : Code)
     | exact h
     | (obtain ⟨e, he1, he2⟩ := h; exact ⟨e, he1, he _ _ he2⟩)
     | skip
-  simp only [Bool.or_eq_true, List.any_eq_true, List.contains_eq_mem, Bool.not_eq_true',
-    decide_eq_false_iff_not] at h ⊢
-  rcases h with h | ⟨x, hx, hn⟩
-  · exact .inl h
-  · exact .inr ⟨x, hx, fun hm => hn (ht _ hm)⟩
+  case missingFixTask =>
+    simp only [Bool.or_eq_true, List.any_eq_true, List.contains_eq_mem, Bool.not_eq_true',
+      decide_eq_false_iff_not] at h ⊢
+    rcases h with h | ⟨x, hx, hn⟩
+    · exact .inl h
+    · exact .inr ⟨x, hx, fun hm => hn (ht _ hm)⟩
+  case unknownHardening =>
+    simp only [taskIds] at h ⊢
+    split at h
+    · exact h
+    · simp only [Bool.not_eq_true', List.contains_eq_mem, decide_eq_false_iff_not] at h ⊢
+      exact fun hm => h (ht _ hm)
+  case unknownMistakeClass =>
+    split at h
+    · exact h
+    · simp only [Bool.not_eq_true', List.contains_eq_mem, decide_eq_false_iff_not] at h ⊢
+      exact fun hm => h (hcl _ hm)
 
 /-- **Lint is order-independent**: a permutation of the incidents gives the same results, permuted.
 
@@ -484,26 +601,204 @@ theorem okAll_perm (F : Facts) {l₁ l₂ : List Incident} (hp : l₁.Perm l₂)
     ⟨fun h r hr => h r ((lintAll_perm F hp).mem_iff.mpr hr),
      fun h r hr => h r ((lintAll_perm F hp).mem_iff.mp hr)⟩)
 
+/-! ## Completeness: what a passing lint means -/
+
+/-- The Lean fields of an entry are complete and their refs exist: the verdict is one of the three and
+is covered (an empirical check for `no`, a hardening task for `provable` / `partly`), the reason is not
+blank, a named hardening task is a work graph id, and a named mistake class is a retro class.
+
+$$\begin{aligned}\operatorname{leanComplete}_F(i) \iff{} & \exists v:\ \operatorname{verdict}(i) = v \land (v = \mathrm{no} \Rightarrow \neg\operatorname{blank}(i.\mathit{empiricalCheck})) \land (v \ne \mathrm{no} \Rightarrow \neg\operatorname{blank}(i.\mathit{hardening}))\\ & \land \neg\operatorname{blank}(i.\mathit{leanReason}) \land (\forall h:\ i.\mathit{hardening} = h \Rightarrow h \in \operatorname{ids}(F.\mathit{tasks}))\\ & \land (\forall c:\ i.\mathit{mistakeClass} = c \Rightarrow c \in F.\mathit{classes})\end{aligned}$$
+-/
+def LeanComplete (F : Facts) (i : Incident) : Prop :=
+  (∃ v, verdict i = some v ∧ (v = .no → blank i.empiricalCheck = false) ∧
+      (v ≠ .no → blank i.hardening = false)) ∧
+    blank i.leanReason = false ∧
+    (∀ h, i.hardening = some h → h ∈ taskIds F) ∧
+    (∀ c, i.mistakeClass = some c → c ∈ F.classes)
+
+/-- An entry is complete: its id is not duplicated, it has evidence, every evidence item has a known
+kind and a well-formed ref, every commit ref is on main and every file ref exists, it has a fix task
+and every fix and `also` task is a work graph id, repro and regression are not blank, the cause has a
+status prefix, it has no `status` field, and its Lean fields are complete (`LeanComplete`).
+
+$$\begin{aligned}\operatorname{complete}_F(\mathit{dup}, i) \iff{} & \neg\mathit{dup} \land i.\mathit{evidence} \ne [\,] \land \forall e \in i.\mathit{evidence}:\ \operatorname{kindOf}(e.\mathit{kind}) \ne \bot\\ & \land \forall e \in i.\mathit{evidence}:\ \neg\operatorname{evHolds}_F(e, \mathrm{badRef})\\ & \land \forall e \in i.\mathit{evidence}:\ \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{commit} \Rightarrow e.\mathit{ref} \in F.\mathit{commits}\\ & \land \forall e \in i.\mathit{evidence}:\ \operatorname{kindOf}(e.\mathit{kind}) = \mathrm{file} \Rightarrow e.\mathit{ref} \in F.\mathit{files}\\ & \land i.\mathit{fix} \ne \bot \land \forall x \in \operatorname{fixTasks}(i):\ x \in \operatorname{ids}(F.\mathit{tasks})\\ & \land \neg\operatorname{blank}(i.\mathit{repro}) \land \neg\operatorname{blank}(i.\mathit{regression}) \land \operatorname{hasPrefix}(i.\mathit{cause}) \land \neg i.\mathit{hasStatus} \land \operatorname{leanComplete}_F(i)\end{aligned}$$
+-/
+def Complete (F : Facts) (dup : Bool) (i : Incident) : Prop :=
+  dup = false ∧ i.evidence ≠ [] ∧
+    (∀ e ∈ i.evidence, kindOf e.kind ≠ none) ∧
+    (∀ e ∈ i.evidence, evHolds F e .badRef = false) ∧
+    (∀ e ∈ i.evidence, kindOf e.kind = some .commit → e.ref ∈ F.commits) ∧
+    (∀ e ∈ i.evidence, kindOf e.kind = some .file → e.ref ∈ F.files) ∧
+    i.fixTask ≠ none ∧ (∀ x ∈ fixTasks i, x ∈ taskIds F) ∧
+    blank i.repro = false ∧ blank i.regression = false ∧ hasPrefix i.cause = true ∧
+    i.hasStatus = false ∧ LeanComplete F i
+
+/-- A string that names a verdict is not blank.
+
+$$\forall s, v:\quad \operatorname{verdictOf}(s) = v \Rightarrow \neg\operatorname{blank}(\mathrm{some}\ s)$$
+-/
+theorem verdictOf_not_blank (s : String) (v : Verdict) (h : verdictOf s = some v) :
+    blank (some s) = false := by
+  unfold verdictOf at h
+  split at h <;> first | (simp at h; done) | decide | simp [blank]
+
+/-- **The four verdict codes are silent exactly when the verdict is known and covered.**
+
+$$\begin{aligned}\forall F, \mathit{dup}, i:\quad & \neg\operatorname{holds}_F(\mathit{dup}, i, \mathrm{missingLeanVerdict}) \land \neg\operatorname{holds}_F(\mathit{dup}, i, \mathrm{badLeanVerdict}) \land \neg\operatorname{holds}_F(\mathit{dup}, i, \mathrm{missingHardening}) \land \neg\operatorname{holds}_F(\mathit{dup}, i, \mathrm{missingEmpiricalCheck})\\ \iff{} & \exists v:\ \operatorname{verdict}(i) = v \land (v = \mathrm{no} \Rightarrow \neg\operatorname{blank}(i.\mathit{empiricalCheck})) \land (v \ne \mathrm{no} \Rightarrow \neg\operatorname{blank}(i.\mathit{hardening}))\end{aligned}$$
+
+(The four codes do not read the facts or $\mathit{dup}$.)
+-/
+theorem verdict_codes_iff (F : Facts) (dup : Bool) (i : Incident) :
+    (holds F dup i .missingLeanVerdict = false ∧ holds F dup i .badLeanVerdict = false ∧
+      holds F dup i .missingHardening = false ∧ holds F dup i .missingEmpiricalCheck = false) ↔
+    ∃ v, verdict i = some v ∧ (v = .no → blank i.empiricalCheck = false) ∧
+      (v ≠ .no → blank i.hardening = false) := by
+  have hb : ∀ v, verdict i = some v → blank i.leanVerdict = false := by
+    intro v hv
+    unfold verdict at hv
+    cases hl : i.leanVerdict with
+    | none => simp [hl] at hv
+    | some s => simp only [hl, Option.bind_some] at hv; exact verdictOf_not_blank s v hv
+  simp only [holds, needsHardening]
+  cases hv : verdict i with
+  | none =>
+    simp only [Option.isNone_none, Bool.and_true, Bool.not_eq_false', reduceCtorEq, false_and,
+      exists_false, iff_false]
+    intro h
+    exact absurd h.1 (by cases blank i.leanVerdict <;> simp_all)
+  | some v =>
+    have := hb v hv
+    cases v <;> simp [this]
+
+/-- **One entry passes exactly when it is complete**: no error code holds iff `complete`.
+
+$$\forall F, \mathit{dup}, i:\quad (\forall k:\ \operatorname{isError}(k) \Rightarrow \neg\operatorname{holds}_F(\mathit{dup}, i, k)) \iff \operatorname{complete}_F(\mathit{dup}, i)$$
+-/
+theorem okOne_iff (F : Facts) (dup : Bool) (i : Incident) :
+    (∀ k : Code, k.isError = true → holds F dup i k = false) ↔ Complete F dup i := by
+  have hall : (∀ k : Code, k.isError = true → holds F dup i k = false) ↔
+      (holds F dup i .dupId = false ∧ holds F dup i .noEvidence = false ∧
+        holds F dup i .unknownKind = false ∧ holds F dup i .badRef = false ∧
+        holds F dup i .commitNotOnMain = false ∧ holds F dup i .fileMissing = false ∧
+        holds F dup i .missingFixTask = false ∧ holds F dup i .missingRepro = false ∧
+        holds F dup i .missingRegression = false ∧ holds F dup i .noStatusPrefix = false ∧
+        holds F dup i .statusField = false ∧
+        (holds F dup i .missingLeanVerdict = false ∧ holds F dup i .badLeanVerdict = false ∧
+          holds F dup i .missingHardening = false ∧ holds F dup i .missingEmpiricalCheck = false) ∧
+        holds F dup i .missingLeanReason = false ∧ holds F dup i .unknownHardening = false ∧
+        holds F dup i .unknownMistakeClass = false) := by
+    constructor
+    · intro h
+      exact ⟨h _ rfl, h _ rfl, h _ rfl, h _ rfl, h _ rfl, h _ rfl, h _ rfl, h _ rfl, h _ rfl,
+        h _ rfl, h _ rfl, ⟨h _ rfl, h _ rfl, h _ rfl, h _ rfl⟩, h _ rfl, h _ rfl, h _ rfl⟩
+    · rintro ⟨h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, ⟨h12, h13, h14, h15⟩, h16, h17, h18⟩ k hk
+      cases k <;> first | assumption | exact absurd hk (by decide)
+  rw [hall, verdict_codes_iff]
+  unfold Complete LeanComplete
+  have hU : holds F dup i .unknownHardening = false ↔ ∀ h, i.hardening = some h → h ∈ taskIds F := by
+    simp only [holds]
+    cases i.hardening <;> simp
+  have hC : holds F dup i .unknownMistakeClass = false ↔
+      ∀ c, i.mistakeClass = some c → c ∈ F.classes := by
+    simp only [holds]
+    cases i.mistakeClass <;> simp
+  rw [hU, hC]
+  have hK : holds F dup i .unknownKind = false ↔ ∀ e ∈ i.evidence, kindOf e.kind ≠ none := by
+    simp [holds, evHolds]
+  have hR : holds F dup i .badRef = false ↔ ∀ e ∈ i.evidence, evHolds F e .badRef = false := by
+    simp [holds]
+  have hM : holds F dup i .commitNotOnMain = false ↔
+      ∀ e ∈ i.evidence, kindOf e.kind = some .commit → e.ref ∈ F.commits := by
+    simp [holds, evHolds]
+  have hF : holds F dup i .fileMissing = false ↔
+      ∀ e ∈ i.evidence, kindOf e.kind = some .file → e.ref ∈ F.files := by
+    simp [holds, evHolds]
+  have hX : holds F dup i .missingFixTask = false ↔
+      i.fixTask ≠ none ∧ ∀ x ∈ fixTasks i, x ∈ taskIds F := by
+    simp [holds, taskIds, Option.isSome_iff_ne_none]
+  rw [hK, hR, hM, hF, hX]
+  simp only [holds, List.isEmpty_eq_false_iff, Bool.not_eq_false', ne_eq, and_assoc]
+
+/-- **The lint passes exactly when every entry is complete and every referenced task and class
+exists** (`complete` includes: fix and `also` tasks and the hardening task are work graph ids, the
+mistake class is a retro class, and the id is not duplicated in the list).
+
+$$\forall F, l:\quad \operatorname{ok}_F(l) \iff \forall i \in l:\ \operatorname{complete}_F(\operatorname{dupIn}(l, i), i)$$
+-/
+theorem lint_ok_iff (F : Facts) (l : List Incident) :
+    okAll F l = true ↔ ∀ i ∈ l, Complete F (dupIn l i) i := by
+  unfold okAll lintAll
+  simp only [List.all_eq_true, List.mem_map, forall_exists_index, and_imp,
+    forall_apply_eq_imp_iff₂, lintOne, Bool.not_eq_true']
+  refine forall₂_congr fun i _ => ?_
+  rw [← okOne_iff]
+  constructor
+  · intro h k hk
+    cases hh : holds F (dupIn l i) i k
+    · rfl
+    · have := h k ((mem_codes _ _ _ _).mpr hh)
+      simp_all
+  · intro h k hk
+    have := (mem_codes _ _ _ _).mp hk
+    cases he : k.isError
+    · rfl
+    · simp_all
+
+/-- **A `no` verdict without an empirical check is refused**: if some entry's verdict is `no` and its
+`empiricalCheck` is missing or blank, the lint does not pass.
+
+$$\forall F, l, i:\quad i \in l \land \operatorname{verdict}(i) = \mathrm{no} \land \operatorname{blank}(i.\mathit{empiricalCheck}) \Rightarrow \neg\operatorname{ok}_F(l)$$
+-/
+theorem no_without_empiricalCheck_refused (F : Facts) (l : List Incident) (i : Incident)
+    (hi : i ∈ l) (hv : verdict i = some .no) (he : blank i.empiricalCheck = true) :
+    okAll F l = false := by
+  cases h : okAll F l
+  · rfl
+  · obtain ⟨-, -, -, -, -, -, -, -, -, -, -, -, ⟨v, hv', hno, -⟩, -⟩ := (lint_ok_iff F l).mp h i hi
+    rw [hv] at hv'
+    cases hv'
+    simp [hno rfl] at he
+
+/-- **A passing provable or partly entry names an existing hardening task.**
+
+$$\forall F, l, i:\quad \operatorname{ok}_F(l) \land i \in l \land \operatorname{verdict}(i) \in \{\mathrm{provable}, \mathrm{partly}\} \Rightarrow \exists h:\ i.\mathit{hardening} = h \land h \in \operatorname{ids}(F.\mathit{tasks})$$
+-/
+theorem ok_hardening_exists (F : Facts) (l : List Incident) (i : Incident)
+    (hok : okAll F l = true) (hi : i ∈ l)
+    (hv : verdict i = some .provable ∨ verdict i = some .partly) :
+    ∃ h, i.hardening = some h ∧ h ∈ taskIds F := by
+  obtain ⟨-, -, -, -, -, -, -, -, -, -, -, -, ⟨v, hv', -, hh⟩, -, hex, -⟩ :=
+    (lint_ok_iff F l).mp hok i hi
+  have hne : v ≠ .no := by
+    rcases hv with hv | hv <;> rw [hv] at hv' <;> cases hv' <;> decide
+  have hb := hh hne
+  cases hx : i.hardening with
+  | none => simp [blank, hx] at hb
+  | some x => exact ⟨x, rfl, hex x hx⟩
+
 /-! ## Examples -/
 
-/-- A sample fact set for the `#guard` examples: task `a` done, task `b` claimed, task `c` open; one main commit and one file.
+/-- A sample fact set for the `#guard` examples: task `a` done, task `b` claimed, task `c` open; one main commit, one file and one mistake class.
 
-$$F_0 = ([a \text{ done}, b \text{ claimed}, c \text{ open}],\ [\texttt{1c64c85}],\ [\texttt{README.md}])$$
+$$F_0 = ([a \text{ done}, b \text{ claimed}, c \text{ open}],\ [\texttt{1c64c85}],\ [\texttt{README.md}],\ [\texttt{c-quota}])$$
 -/
 def sampleFacts : Facts :=
   let row (id : String) (ev ag : Option String) : Task :=
     { id, title := "", stream := "", milestone := none, deps := [], owner := "", writes := [],
       devices := [], needs := [], evidence := ev, agent := ag }
   { tasks := [row "a" (some "1c64c85") none, row "b" none (some "b"), row "c" none none],
-    commits := ["1c64c85"], files := ["README.md"] }
+    commits := ["1c64c85"], files := ["README.md"], classes := ["c-quota"] }
 
-/-- A sample incident for the `#guard` examples: one main commit as evidence, fixed by task `a`.
+/-- A sample incident for the `#guard` examples: one main commit as evidence, fixed by task `a`,
+verdict provable with hardening task `c`, no empirical check, class `c-quota`.
 
-$$i_0 = (\texttt{inc}, \texttt{"CONFIRMED: x"}, [(\mathrm{commit}, \texttt{1c64c85})], \texttt{"r"}, a, [\,], \texttt{"g"}, \mathrm{false})$$
+$$i_0 = (\texttt{inc}, \texttt{"CONFIRMED: x"}, [(\mathrm{commit}, \texttt{1c64c85})], \texttt{"r"}, a, [\,], \texttt{"g"}, \mathrm{false}, \texttt{"provable"}, \texttt{"why"}, c, \bot, \texttt{c-quota})$$
 -/
 def sampleIncident : Incident :=
   { id := "inc", cause := "CONFIRMED: x", evidence := [⟨"commit", "1c64c85"⟩], repro := some "r",
-    fixTask := some "a", also := [], regression := some "g", hasStatus := false }
+    fixTask := some "a", also := [], regression := some "g", hasStatus := false,
+    leanVerdict := some "provable", leanReason := some "why", hardening := some "c",
+    mistakeClass := some "c-quota" }
 
 #guard codes sampleFacts false sampleIncident == []
 #guard status sampleFacts.tasks sampleIncident == .fixed
@@ -535,5 +830,28 @@ def sampleIncident : Incident :=
 #guard blank none && blank (some "") && blank (some " \n") && !blank (some "x")
 #guard relPath "docs/a.md" && !relPath "" && !relPath "/tmp/x" && !relPath "~/x"
 #guard kindOf "ci" == some .ci && kindOf "CI" == none
+-- the Lean fields
+#guard codes sampleFacts false { sampleIncident with leanVerdict := none } == [.missingLeanVerdict]
+#guard codes sampleFacts false { sampleIncident with leanVerdict := some " " } == [.missingLeanVerdict]
+#guard codes sampleFacts false { sampleIncident with leanVerdict := some "Provable" } == [.badLeanVerdict]
+#guard codes sampleFacts false { sampleIncident with leanVerdict := some "maybe", hardening := none } == [.badLeanVerdict]
+#guard codes sampleFacts false { sampleIncident with leanReason := none } == [.missingLeanReason]
+#guard codes sampleFacts false { sampleIncident with leanReason := some "" } == [.missingLeanReason]
+#guard codes sampleFacts false { sampleIncident with hardening := none } == [.missingHardening]
+#guard codes sampleFacts false { sampleIncident with leanVerdict := some "partly", hardening := none } == [.missingHardening]
+#guard codes sampleFacts false { sampleIncident with hardening := some "zz" } == [.unknownHardening]
+#guard codes sampleFacts false { sampleIncident with hardening := some "" } == [.missingHardening, .unknownHardening]
+#guard codes sampleFacts false { sampleIncident with leanVerdict := some "no", hardening := none } == [.missingEmpiricalCheck]
+#guard codes sampleFacts false { sampleIncident with leanVerdict := some "no", hardening := none, empiricalCheck := some "ci: gate" } == []
+#guard codes sampleFacts false { sampleIncident with leanVerdict := some "no", empiricalCheck := some "ci: gate" } == []
+#guard codes sampleFacts false { sampleIncident with leanVerdict := some "no", hardening := some "zz", empiricalCheck := some "t" } == [.unknownHardening]
+#guard codes sampleFacts false { sampleIncident with mistakeClass := none } == []
+#guard codes sampleFacts false { sampleIncident with mistakeClass := some "c-nope" } == [.unknownMistakeClass]
+#guard detail sampleFacts { sampleIncident with hardening := none } .missingHardening ==
+  "hardening missing: a work graph task id (required when leanVerdict is provable)"
+#guard detail sampleFacts { sampleIncident with mistakeClass := some "c-nope" } .unknownMistakeClass ==
+  "mistakeClass 'c-nope' is not a class id of research/mistakes/ledger.json"
+#guard verdictOf "no" == some .no && verdictOf "No" == none && verdictOf "" == none
+#guard !okAll sampleFacts [{ sampleIncident with leanVerdict := some "no", empiricalCheck := some "  " }]
 
 end Fw.Plan.Incident
