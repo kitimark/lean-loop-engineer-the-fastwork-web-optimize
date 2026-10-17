@@ -318,9 +318,9 @@
       line-height: 1.15;
     }
   }
-  /* the original sets the document row title back to 40px after its touch block, until the 1000 px rule (28px) */
+  /* the original sets the row titles back to 40px after its touch block, until the 1000 px rule (28px) */
   @media (width>=1001px) {
-    .row[data-fw-row='document'] .rowTitle {
+    .row .rowTitle {
       font-size: 40px;
       line-height: 1.15;
     }
