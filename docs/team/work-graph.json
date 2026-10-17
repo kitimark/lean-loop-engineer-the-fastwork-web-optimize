@@ -1,6 +1,6 @@
 {
  "schema": "fw.work-graph/1",
- "about": "The team's task graph: what is left to do, what each task needs first, which files and devices it holds. No status here: done comes from 'evidence' (a commit on main) or from console events; ready, blocked and running are derived by fwcore (Lean). Task id = agent name = console card id. Edited by the lead; synced into the console with 'fw plan sync'.",
+ "about": "The team's task graph: what is left to do, what each task needs first, which files and devices it holds. No status here: done comes from 'evidence' (a commit on main) or from console events; ready, blocked and running are derived by fwcore (Lean). Task id = agent name = console card id. Edited by the lead; synced into the console with 'fw plan sync'. Revision 9 (2026-10-17): the experiment ends with a report by 2026-10-20 13:15 +0700 (see 'deadline'); milestone MX holds tasks cut in revision 9 and is never started; tasks marked '(only on GO at C1)' are cut if the WebKit Simulator lane is NO-GO at checkpoint C1.",
  "milestones": [
   {
    "id": "M0",
@@ -8,27 +8,31 @@
   },
   {
    "id": "M1",
-   "title": "Original measured: deterministic count types, per-zone baselines, V-j, V-t"
+   "title": "Original measured: deterministic Chromium count types, per-zone sums of the original, WebKit Simulator go/no-go at C1"
   },
   {
    "id": "M2",
-   "title": "Pilots faithful: 3 of 4 pilot parts faithful through the breakpoint gate, bands frozen"
+   "title": "End-of-page region faithful: 9 parts through the probe-scoped gate, shells elsewhere, bands frozen"
   },
   {
    "id": "M3",
-   "title": "Calibrated: phone sessions, WKTR counts, model status per output"
+   "title": "Device truth: two phone sessions held, checks recorded (no calibration in v2)"
   },
   {
    "id": "M4",
-   "title": "All parts promoted through the full breakpoint gate"
+   "title": "Out of scope for v2: all parts promoted through the full breakpoint gate (not started)"
   },
   {
    "id": "M5",
-   "title": "Experiments: end-of-page decision, backlog as flag arms"
+   "title": "Experiments: end-of-page decision on Chromium counts and the phone"
   },
   {
    "id": "M6",
-   "title": "Distill: report"
+   "title": "Distill: report by 2026-10-20 13:15 +0700"
+  },
+  {
+   "id": "MX",
+   "title": "Cut in revision 9 (do not start)"
   }
  ],
  "tasks": [
@@ -392,14 +396,10 @@
   },
   {
    "id": "spawn-enforce",
-   "title": "Switch spawn-guard from shadow to enforce",
+   "title": "CUT (rev 9): Switch spawn-guard from shadow to enforce",
    "stream": "parallel",
-   "milestone": null,
-   "deps": [
-    "ab-bench",
-    "plan-rev6",
-    "spawn-guard-workflows"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "lead",
    "writes": [
     ".claude/settings.json",
@@ -513,11 +513,12 @@
   },
   {
    "id": "webkit-quiet",
-   "title": "WebKit determinism on an idle runner: is per-step jitter load or engine?",
+   "title": "WebKit determinism on an idle runner: is per-step jitter load or engine? (only on GO at C1)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
-    "webkit-green"
+    "webkit-green",
+    "webkit-gonogo"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -526,12 +527,12 @@
   },
   {
    "id": "step-align",
-   "title": "Align rewrite and original scroll steps (74 vs 107) so values compare",
+   "title": "Align rewrite and original scroll steps (74 vs 107) so values compare (only on GO at C1)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
-    "webkit-green",
-    "touch-wedge"
+    "touch-wedge",
+    "webkit-gonogo"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -566,7 +567,9 @@
    "deps": [
     "touch-wedge",
     "measure-ts-to-lean",
-    "fw-ci"
+    "fw-ci",
+    "refreeze",
+    "zone-baseline-lean"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -578,12 +581,13 @@
   },
   {
    "id": "zone-baselines-webkit",
-   "title": "Per-zone baselines for the original, WebKit Simulator, on CI (idle runner)",
+   "title": "Per-zone baselines for the original, WebKit Simulator, on CI (idle runner) (only on GO at C1)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
     "webkit-quiet",
-    "fw-ci"
+    "fw-ci",
+    "webkit-gonogo"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -610,14 +614,10 @@
   },
   {
    "id": "vj-vt",
-   "title": "V-j shown; V-t replay and stall-alarm precision (>= 90 %)",
+   "title": "CUT (rev 9): V-j shown; V-t replay and stall-alarm precision (>= 90 %)",
    "stream": "measure",
-   "milestone": "M1",
-   "deps": [
-    "zone-baselines-chromium",
-    "zone-baselines-webkit",
-    "store-and-run"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "measure-engineer",
    "devices": [
     "ci"
@@ -625,12 +625,10 @@
   },
   {
    "id": "ab-bench",
-   "title": "Parallel-work A/B bench (randomised labels, nothing else running) (local by nature: it measures this Mac's agent throughput, not the page)",
+   "title": "CUT (rev 9): Parallel-work A/B bench (randomised labels, nothing else running) (local by nature: it measures this Mac's agent throughput, not the page)",
    "stream": "parallel",
-   "milestone": null,
-   "deps": [
-    "lean-wire-sched"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "lead",
    "devices": [
     "whole-mac"
@@ -701,13 +699,10 @@
   },
   {
    "id": "gap-device",
-   "title": "Q33: prove the gap harness on the real iPhone (same probes, compare with the Simulator) (local by nature: the real phone)",
+   "title": "CUT (rev 9): Q33: prove the gap harness on the real iPhone (same probes, compare with the Simulator) (local by nature: the real phone)",
    "stream": "parts",
-   "milestone": "M2",
-   "deps": [
-    "gap-harness",
-    "q1-phone"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "measure-engineer",
    "devices": [
     "phone"
@@ -715,13 +710,12 @@
   },
   {
    "id": "faithful-checks",
-   "title": "V-g, V-h, V-o, V-q for the 4 pilot parts",
+   "title": "V-g, V-h, V-o, V-q for the 9 end-of-page parts, Chromium (WebKit Simulator only on GO at C1)",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
-    "step-align",
+    "port-morph",
     "zone-baselines-chromium",
-    "zone-baselines-webkit",
     "gate-part-filter",
     "gap-harness"
    ],
@@ -732,7 +726,7 @@
   },
   {
    "id": "bands-freeze",
-   "title": "PL5 and N3 bands re-set from pilot data and frozen",
+   "title": "PL5 and N3 bands set from the 9 end-of-page parts and frozen",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
@@ -766,11 +760,12 @@
   },
   {
    "id": "phone-session-1",
-   "title": "First phone session (on demand): original vs rewrite on iOS 27, and the Q33 gap-harness proof; the lead posts the ready step",
+   "title": "Phone session 1 (2026-10-18 13:00-23:00, 45 min): fw device check, the Q33 gap probe, original vs rewrite swipes A/A and A/R",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [
     "gap-harness",
+    "port-morph",
     "q1-phone"
    ],
    "owner": "lead",
@@ -818,12 +813,10 @@
   },
   {
    "id": "wktr-ci-lane",
-   "title": "WKTR lane: >= 3 CI runs classed per type, scheduled on demand (workflow_dispatch)",
+   "title": "CUT (rev 9): WKTR lane: >= 3 CI runs classed per type, scheduled on demand (workflow_dispatch)",
    "stream": "ci",
-   "milestone": "M3",
-   "deps": [
-    "wktr-local"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "measure-engineer",
    "writes": [
     ".github/workflows/wktr.yml",
@@ -832,13 +825,10 @@
   },
   {
    "id": "wktr-readme-fix",
-   "title": "measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update",
+   "title": "CUT (rev 9): measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update",
    "stream": "measure",
-   "milestone": "M3",
-   "deps": [
-    "webkit-green",
-    "wktr-local"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "measure-engineer",
    "writes": [
     "packages/measure-webkit/README.md"
@@ -846,15 +836,10 @@
   },
   {
    "id": "calibration",
-   "title": "iPhone K1-K10, rho_page, holdouts, validity table v0 (phone part local by nature)",
+   "title": "CUT (rev 9): iPhone K1-K10, rho_page, holdouts, validity table v0 (phone part local by nature)",
    "stream": "calibration",
-   "milestone": "M3",
-   "deps": [
-    "q1-phone",
-    "zone-baselines-chromium",
-    "zone-baselines-webkit",
-    "wktr-local"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "measure-engineer",
    "devices": [
     "phone"
@@ -862,36 +847,33 @@
   },
   {
    "id": "port-parts",
-   "title": "Port every other part through the full breakpoint gate",
+   "title": "CUT (rev 9): Port every other part through the full breakpoint gate",
    "stream": "parts",
-   "milestone": "M4",
-   "deps": [
-    "bands-freeze",
-    "breakpoint-lint",
-    "css-decide",
-    "css-decisions",
-    "verdict-to-lean"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "part-builder"
   },
   {
    "id": "experiments",
-   "title": "End-of-page decision, then the backlog as flag arms",
+   "title": "End-of-page decision: original vs morph arms, Chromium counts (screen) then the phone (session 2)",
    "stream": "experiments",
    "milestone": "M5",
    "deps": [
-    "port-parts"
+    "port-morph",
+    "faithful-checks",
+    "bands-freeze"
    ],
    "owner": "lead"
   },
   {
    "id": "write-up",
-   "title": "G4 material, transfer results, cost report",
+   "title": "Report (M6, by 2026-10-20 13:15 +0700): G4 material, the end-of-page decision, model status uncalibrated, not-done list, cost report",
    "stream": "write-up",
    "milestone": "M6",
    "deps": [
     "experiments",
-    "calibration"
+    "phone-session-2",
+    "math-final"
    ],
    "owner": "lead"
   },
@@ -1025,12 +1007,10 @@
   },
   {
    "id": "webkit-table-regen",
-   "title": "Regenerate the WebKit determinism table with --warmup 1 and load stamps, on CI, before the plan quotes it",
+   "title": "CUT (rev 9): Regenerate the WebKit determinism table with --warmup 1 and load stamps, on CI, before the plan quotes it",
    "stream": "measure",
-   "milestone": "M1",
-   "deps": [
-    "webkit-green"
-   ],
+   "milestone": "MX",
+   "deps": [],
    "owner": "measure-engineer",
    "writes": [
     "packages/measure-webkit/README.md"
@@ -1518,6 +1498,14 @@
    ]
   },
   {
+   "id": "webkit-gonogo",
+   "title": "C1 (2026-10-18 11:15 +0700): WebKit Simulator lane GO/NO-GO. GO = two consecutive webkit-sim runs completed with the determinism step <= 45 min; NO-GO cuts webkit-quiet, zone-baselines-webkit, step-align and makes the phone the only WebKit truth",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [],
+   "owner": "lead"
+  },
+  {
    "id": "zone-baseline-lean",
    "title": "Lean op measure.zoneBaseline: per-zone lo/hi/base over >= 3 runs under the frozen classes (contract in handoffs/zone-baselines-chromium.md); zone-baseline.mjs calls it",
    "stream": "measure",
@@ -1575,6 +1563,90 @@
     "refreeze"
    ],
    "owner": "lean-prover"
+  },
+  {
+   "id": "shells",
+   "title": "Static shells (Q36) for every section outside the end-of-page region: the original's box height per breakpoint and static text, no drivers; PL1 outer box only",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "breakpoint-lint",
+    "css-decide"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/**",
+    "apps/site/presets/**"
+   ]
+  },
+  {
+   "id": "port-morph",
+   "title": "Port morph.{mount,tween,panel,countdown,columns} faithful (3 h box each) through the probe-scoped gate; with the 4 pilots the 9 end-of-page parts",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "css-decide",
+    "breakpoint-lint",
+    "verdict-to-lean",
+    "shells"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph/**",
+    "apps/site/presets/**"
+   ]
+  },
+  {
+   "id": "phone-session-2",
+   "title": "Phone session 2 (2026-10-19 14:00-23:00, 45 min): blind A/B of the end-of-page arms, 4 vs 4, frames > 50 ms recorded",
+   "stream": "experiments",
+   "milestone": "M5",
+   "deps": [
+    "experiments",
+    "phone-session-1"
+   ],
+   "owner": "lead",
+   "devices": [
+    "phone"
+   ]
+  },
+  {
+   "id": "math-final",
+   "title": "Final math review of every entry changed since round 10, signed by T+52h (2026-10-20 03:15 +0700)",
+   "stream": "lean",
+   "milestone": "M6",
+   "deps": [
+    "math-r10-fix"
+   ],
+   "owner": "math-reviewer"
   }
- ]
+ ],
+ "deadline": {
+  "decided": "2026-10-17T23:13:00+07:00",
+  "firstCommit": "931aa35 at 2026-10-17T13:15:05+07:00",
+  "reportDue": "2026-10-20T13:15:00+07:00",
+  "t0": "2026-10-17T23:15:00+07:00",
+  "checkpoints": [
+   {
+    "id": "C1",
+    "at": "2026-10-18T11:15:00+07:00",
+    "what": "T+12h: Q34-Q37 answered or defaulted; WebKit Simulator lane GO/NO-GO (webkit-gonogo); refreeze, zone-baseline-lean, store-cirun finished or cut"
+   },
+   {
+    "id": "C2",
+    "at": "2026-10-18T23:15:00+07:00",
+    "what": "T+24h: shells + port-morph faithful on Chromium; phone session 1 held"
+   },
+   {
+    "id": "C3",
+    "at": "2026-10-19T23:15:00+07:00",
+    "what": "T+48h: faithful-checks, bands-freeze, experiments decided; phone session 2 held; write-up starts"
+   },
+   {
+    "id": "C4",
+    "at": "2026-10-20T13:15:00+07:00",
+    "what": "T+62h: report delivered (M6); text frozen at T+60h"
+   }
+  ]
+ }
 }
