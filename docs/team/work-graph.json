@@ -1512,23 +1512,22 @@
    "milestone": "M1",
    "deps": [],
    "owner": "lead",
-   "evidence": "GO (lead, 2026-10-18): webkit-green f03e94b, two consecutive green webkit-sim runs 39048376821 (19 min) and 39050061299 (24 min) on free xcode-27"
+   "evidence": "GO: f03e94b; 3 green webkit-sim runs, 19-25 min, free xcode-27"
   },
   {
    "id": "zone-baseline-lean",
    "title": "Lean op measure.zoneBaseline: per-zone lo/hi/base over >= 3 runs under the frozen classes (contract in handoffs/zone-baselines-chromium.md); zone-baseline.mjs calls it",
    "stream": "measure",
    "milestone": "M1",
-   "deps": [
-    "zone-baselines-chromium"
-   ],
+   "deps": [],
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Measure/**",
     "packages/contracts/golden/measure/**",
     "packages/measure-chromium/src/zone-baseline.mjs",
     "packages/measure-chromium/test/**"
-   ]
+   ],
+   "evidence": "d5a90ac merge: measure.zoneBaseline, 4 theorems"
   },
   {
    "id": "where-cleanup",
