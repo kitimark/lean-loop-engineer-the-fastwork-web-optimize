@@ -1636,7 +1636,8 @@
    "writes": [
     "apps/site/src/parts/**",
     "apps/site/presets/**"
-   ]
+   ],
+   "evidence": "7fe0cea: people, pain, commission, platform; 42/43 probes <=0.5px"
   },
   {
    "id": "port-morph",
@@ -1708,7 +1709,8 @@
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/morph.tween/**"
-   ]
+   ],
+   "evidence": "67c7afe: faithful, no timing delta; gate 39053659719 pass"
   },
   {
    "id": "port-morph-panel",
