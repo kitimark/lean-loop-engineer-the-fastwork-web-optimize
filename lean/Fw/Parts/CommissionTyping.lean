@@ -24,7 +24,9 @@ open Fw.Parts.MorphTween (ease ease_mem ease_mono)
 
 /-! ## Constants -/
 
-/-- The chat message (the English string of the original's `commission.message`, JS 1225). -/
+/-- The chat message (the English string of the original's `commission.message`, JS 1225).
+
+$$m = \text{"Hi! I found your profile from Explore."}$$ -/
 def message : String := "Hi! I found your profile from Explore."
 
 /-- Its length in characters. $$L = 38$$ How many keystrokes the bubble types. -/
@@ -129,7 +131,7 @@ def finalView : View :=
 
 $$\operatorname{ramp}(f, t, d, \tau) = f + (t - f)\,\operatorname{ease}(\tau/d)$$
 
-with $\operatorname{ease}(x) = 1 - (1 - \operatorname{clamp}(x))^3$ (the original's `T`, the clamp being its `Math.min(1, ...)`). -/
+The curve is $\operatorname{ease}(x) = 1 - (1 - \operatorname{clamp}(x))^3$ (the original's `T`, the clamp being its `Math.min(1, ...)`). -/
 def ramp (f t : Rat) (d : Nat) (τ : Rat) : Rat := f + (t - f) * ease (τ / d)
 
 /-- The number of typed characters at `τ`: the characters whose timer has fired (the $k$-th at $m_1 + k\,t_c$).
@@ -381,7 +383,9 @@ theorem progress_eq (τ : Rat) (h : ((mAvatar : Nat) : Rat) ≤ τ) :
 
 /-! ## The caret and the boiling frames (CSS, step-end) -/
 
-/-- Reduce an instant modulo a period by subtracting it `fuel` times at most. -/
+/-- Reduce an instant modulo a period by subtracting it `fuel` times at most.
+
+$$\operatorname{wrap}_p(0, \tau) = \tau,\quad \operatorname{wrap}_p(n + 1, \tau) = \begin{cases} \tau & \tau < p \\ \operatorname{wrap}_p(n, \tau - p) & \text{otherwise} \end{cases}$$ -/
 def wrap (p : Nat) : Nat → Rat → Rat
   | 0, τ => τ
   | n + 1, τ => if τ < (p : Rat) then τ else wrap p n (τ - p)
@@ -466,7 +470,9 @@ deriving Repr, BEq, DecidableEq
 /-- The state before any observation. $$S_0 = (\bot, 0, \bot, 0, \bot)$$ -/
 def trig0 : Trig := ⟨false, 0, none, 0, false⟩
 
-/-- What the observer callback asks for. -/
+/-- What the observer callback asks for.
+
+$$\mathrm{Act} = \{\mathrm{keep}, \mathrm{cancel}, \mathrm{restart}\}$$ -/
 inductive Act where
   | keep | cancel | restart
 deriving Repr, BEq, DecidableEq
@@ -476,7 +482,7 @@ cancel every timer, and on entry start a run (`O`); otherwise nothing.
 
 $$\operatorname{observe}(S, i, \mathit{now}, \mathit{rm}) = \begin{cases} (S, \mathrm{keep}) & i = S.\mathit{visible} \\ (S', \mathrm{restart}) & i \ne S.\mathit{visible},\ i \\ (S', \mathrm{cancel}) & i \ne S.\mathit{visible},\ \lnot i \end{cases}$$
 
-with $S'.\mathit{token} = S.\mathit{token} + 1$, a run starting at $\mathit{now}$ on entry and freezing at $\mathit{now} - \mathit{since}$ on exit. -/
+The new state has token $S.\mathit{token} + 1$, a run starting at $\mathit{now}$ on entry and a freeze at $\mathit{now} - \mathit{since}$ on exit. -/
 def observe (s : Trig) (i : Bool) (now : Rat) (rm : Bool) : Trig × Act :=
   if i = s.visible then (s, .keep)
   else

@@ -137,7 +137,9 @@ theorem target_mem (rm : Bool) (x : Rat) : 0 ≤ target rm x ∧ target rm x ≤
 
 /-! ## The follower -/
 
-/-- The follower pair $(n, r)$: the enter value and the exit value as last written (JS 3092: `n = 1, r = 0`). -/
+/-- The follower pair: the enter value and the exit value as last written (JS 3092: `n = 1, r = 0`).
+
+$$P = (n, r) \in \mathbb{Q}^2$$ -/
 structure Pair where
   n : Rat
   r : Rat
@@ -292,7 +294,9 @@ def titleWrapped (c : Bool) (rects : Nat) : Bool := c && decide (1 < rects)
 
 /-! ## The underline -/
 
-/-- The underline's phase (JS 3085: `x`). -/
+/-- The underline's phase (JS 3085: `x`).
+
+$$\mathrm{Ul} = \{\mathrm{hidden}, \mathrm{enter}, \mathrm{idle}\}$$ -/
 inductive Ul where
   | hidden | enter | idle
 deriving Repr, BEq, DecidableEq
