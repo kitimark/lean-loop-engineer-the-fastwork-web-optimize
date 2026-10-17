@@ -14,6 +14,14 @@ export const ObsRecord = z.object({
   verb: z.string().max(40).nullable(),
   /** SpawnGuard only: the `name` of the spawned agent (work-graph tasks are claimed by agents named like the task) */
   agent_name: z.string().max(200).nullable().optional(),
+  /** SpawnGuard only (spawn-guard-workflows): who saw the spawn, and the kind the guard expected vs was given */
+  seen_by: z.string().max(40).nullable().optional(),
+  role: z.string().max(200).nullable().optional(),
+  want_kind: z.string().max(40).nullable().optional(),
+  got_kind: z.string().max(40).nullable().optional(),
+  isolation: z.boolean().nullable().optional(),
+  depth: z.number().int().nonnegative().nullable().optional(),
+  has_name: z.boolean().nullable().optional(),
   ts: z.number().int().nonnegative(),
 }).strict();
 export type ObsRecord = z.infer<typeof ObsRecord>;

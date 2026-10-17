@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ApplyResponse, ApplyRequest, LiveBoard, Command, Plan, ReducerEvent } from "../src/index.ts";
+import { ApplyResponse, ApplyRequest, LiveBoard, Command, Plan, ReducerEvent, ObsRecord } from "../src/index.ts";
 import { allJsonSchemas } from "../src/schemas.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -61,5 +61,15 @@ describe("json schema export", () => {
     const gen = allJsonSchemas();
     expect(files).toEqual(Object.keys(gen).map((n) => `${n}.schema.json`).sort());
     for (const [n, s] of Object.entries(gen)) expect(read(`schema/${n}.schema.json`)).toEqual(s);
+  });
+});
+
+describe("obs records (spool)", () => {
+  it("a SpawnGuard record with the spawn-guard-workflows fields parses (strict schema)", () => {
+    const rec = { agent_id: "a1", agent_type: "lean-prover", hook_event_name: "SpawnGuard", tool_name: "Agent", tool_use_id: "t1",
+      duration_ms: null, is_error: false, verb: "allow", agent_name: "watch-fix", seen_by: "subagent-start", role: "lean-prover",
+      want_kind: "subagent", got_kind: "subagent", isolation: true, depth: 1, has_name: true, ts: 1 };
+    expect(ObsRecord.safeParse(rec).success).toBe(true);
+    expect(ObsRecord.safeParse({ ...rec, surprise: 1 }).success).toBe(false); // still strict
   });
 });
