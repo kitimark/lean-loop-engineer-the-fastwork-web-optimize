@@ -6,9 +6,10 @@
 // 10-17-gate-gaps-fractional.md C3 to C8). The media width is then P / (DSF x z), so at z = 2, DSF 1 and a CDP override
 // of 2N+1 CSS px the page sees N + 1/2, DPR 2 and innerHeight = override height / 2.
 //
-// env.zoom (default 1) selects the zoom; the override is width*zoom x height*zoom, DSF 1 when zoom > 1 (the page's DPR is
-// DSF x zoom, which is why realizeEnv sets dpr = zoom). One browser per (hover, pointer, zoom), each with a fresh
-// user-data-dir that only this lane removes.
+// env.zoom (default 1) selects the zoom and env.override the CDP metrics (cells.mjs realizeChromium: width*zoom x height*zoom,
+// DSF 1 when zoom > 1). The page's DPR is DSF x zoom, which is why the zoom equals Lean's DPR for the fractional cells: the
+// environment the page sees is exactly Lean's (DPR 2), nothing is rewritten. One browser per (hover, pointer, zoom), each
+// with a fresh user-data-dir that only this lane removes.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -48,10 +49,9 @@ export async function launchChromiumGaps({ chromePath = process.env.CHROME_PATH 
   };
   const metrics = (env) => {
     const z = env.zoom ?? 1;
-    const dsf = z > 1 ? 1 : env.dpr;
-    const w = env.width * z, h = env.height * z;
-    if (!Number.isInteger(w) || !Number.isInteger(h)) throw new Error(`override ${w}x${h} is not whole (zoom ${z})`);
-    return { width: w, height: h, deviceScaleFactor: dsf, mobile: false, screenWidth: Math.round(env.deviceWidth * z), screenHeight: Math.round(env.deviceHeight * z) };
+    const o = env.override ?? { width: env.width, height: env.height, deviceScaleFactor: env.dpr };
+    if (!Number.isInteger(o.width) || !Number.isInteger(o.height)) throw new Error(`override ${o.width}x${o.height} is not whole (zoom ${z})`);
+    return { ...o, mobile: false, screenWidth: Math.round(env.deviceWidth * z), screenHeight: Math.round(env.deviceHeight * z) };
   };
   const media = (env) => ({ features: [
     { name: 'prefers-reduced-motion', value: env.reducedMotion === 'reduce' ? 'reduce' : 'no-preference' },

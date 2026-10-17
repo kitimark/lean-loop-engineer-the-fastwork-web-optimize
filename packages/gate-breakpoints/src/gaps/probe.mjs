@@ -6,11 +6,24 @@ import http from 'node:http';
 import { collectInPage } from '../page.mjs';
 import { gapFacts } from './inpage.mjs';
 
-/** The page. cfg = { conditions, neutral, edges }. Query: ?tok=<token>&label=<text>. Sends on load, on resize and on tap. */
+/**
+ * The page. cfg = { conditions, neutral, edges }. Query: ?tok=<token>&label=<text>&vp=<viewport content>&aim=<css px>.
+ * `vp` replaces the meta viewport content; `aim=W` sets `width=device-width, initial-scale=<screen.width / W>` (a script in the
+ * head, run before the first layout), which asks the iOS viewport code for a layout width of about W. Both run while the head is
+ * parsed, so the first layout already has them. Sends on load, on resize and on tap.
+ */
 export function probeHtml(cfg) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" id="vp" content="width=device-width, initial-scale=1">
+<script>
+(function () {
+  var q = new URLSearchParams(location.search), m = document.getElementById('vp');
+  var vp = q.get('vp'), aim = parseFloat(q.get('aim'));
+  if (vp) m.setAttribute('content', vp);
+  else if (aim > 0) m.setAttribute('content', 'width=device-width, initial-scale=' + (window.screen.width / aim));
+})();
+</script>
 <title>fw gaps probe</title>
 <style>body{font:14px/1.4 -apple-system,sans-serif;margin:12px}pre{white-space:pre-wrap;word-break:break-all;font-size:11px}button,input{font-size:16px}</style>
 </head><body>

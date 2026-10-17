@@ -34,10 +34,16 @@ async function withRetry(label, fn, tries = 3) {
   throw last;
 }
 
+/** The engine port each launcher drives (Lean `Fw.Gate.Port`, wire names): the verdict rule needs it to name unreachable cells.
+ *  Playwright WebKit is the Apple port on macOS and the GLib port (WebKitGTK/WPE) on Linux. */
+export const portOf = (engineName, platform = process.platform) =>
+  (engineName === 'chromium' ? 'chromium' : platform === 'darwin' ? 'webkit-apple' : 'webkit-glib');
+
 /**
  * `gaps` (optional, used only by the gaps lane, src/gaps/): { launcher, mapProbe, collect, collectArg } replaces the engine
- * launcher, maps each matrix probe to the environment the lane can build, and adds one extra in-page report under
- * `raw.gap`. Null (the default) leaves every byte of the run file as before.
+ * launcher, maps each matrix probe to the environment the lane builds (Lean's environment plus the mechanism fields, for
+ * example a browser zoom), and adds one extra in-page report under `raw.gap`. The record keeps Lean's environment as `env`
+ * (what the verdict rule is asked about) and the mapped one as `realized`. Null (the default) adds no `realized` and no `raw.gap`.
  */
 export async function runEngine({ engineName, outDir, concurrency = 4, probeFilter = null, sweepFilter = null, partFilter = null, gaps = null }) {
   const { gen, sha256: genSha } = loadGen();
@@ -112,7 +118,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     return r;
   });
   const probeRecords = probes.map((p, i) => ({
-    id: p.id, block: p.block, env: gaps ? gaps.mapProbe(p) : probeEnv(p),
+    id: p.id, block: p.block, env: probeEnv(p), ...(gaps ? { realized: gaps.mapProbe(p) } : {}),
     orig: sampled[2 * i], rewrite: sampled[2 * i + 1],
   }));
 
@@ -145,6 +151,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     gen: { sha256: genSha, schema: gen.schema, probes: gen.matrix.loadsPerEngine },
     snapshot: lock.snapshot,
     site: { buildId: buildInfo.buildId, configHash: buildInfo.configHash, muiCss: buildInfo.muiCss },
+    port: portOf(engineName),
     pinnedDate: '2026-10-01T00:00:00+07:00',
     ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}),
     props,

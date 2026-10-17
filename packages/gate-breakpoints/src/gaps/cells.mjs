@@ -1,8 +1,10 @@
-// The 8 gap cells of Q33 and how each engine is asked to build them. Data shaping only; the pass/fail/unreachable rule
-// is in judge.mjs. The probes themselves come from the Lean-generated matrix (apps/site/src/breakpoints.gen.json).
+// The 8 gap cells of Q33 and how each engine is asked to build them. Data shaping only: every verdict (pass, fail,
+// not-comparable, unreachable and its reason) is Lean's, through verdict.mjs (Fw.Gate.State, Fw.Gate.Reach). The probes
+// come from the Lean-generated matrix (apps/site/src/breakpoints.gen.json).
 //
-// Cells: block `fractional-gaps` (widths 600.5, 640.5, 860.5, 1000.5) and block `hover-pointer-cross`
-// (1024x768 and 1200x900, each with (hover none, pointer fine) and (hover hover, pointer coarse)).
+// Cells: block `fractional-gaps` (widths 600.5, 640.5, 860.5, 1000.5 at DPR 2) and block `hover-pointer-cross`
+// (1024x768 and 1200x900 at DPR 2, each with (hover none, pointer fine) and (hover hover, pointer coarse)).
+import { probeEnv } from '../spec.mjs';
 
 export const GAP_BLOCKS = Object.freeze(['fractional-gaps', 'hover-pointer-cross']);
 
@@ -19,51 +21,41 @@ export const gapEdges = (gen) => gen.fractionalGaps.map((g) => g.open[0]);
 export const zoomLevel = (z) => Math.log(z) / Math.log(1.2);
 
 /**
- * STAND-IN (until the Lean probes move from dpr 5/4 to dpr 2, research note 10-17-gate-gaps-fractional.md):
- * the environment the lane can build for a matrix probe. A browser makes media width = P / (DSF x zoom) with P whole, so
- * width 600.5 at dpr 5/4 (P = 750.625) cannot occur. DPR enters no condition (Lean MQ.eval_indep_height_dpr), so the
- * expected vectors do not change. A fractional width w gets zoom 2 and dpr 2 (P = 2w whole); other probes are unchanged.
+ * The browser setup that makes Chromium load exactly Lean's environment (width, height, device width, DPR, hover, pointer,
+ * motion, scheme; nothing is rewritten). A fractional width w at DPR d is built as browser zoom d (profile preference) with
+ * a CDP metrics override of w x d (whole: Lean's `widthDpr` reach condition) and DSF 1; the page then sees media width
+ * w, window.devicePixelRatio d and innerHeight height. A whole width needs no zoom (zoom 1, DSF d). The result is Lean's
+ * environment plus the mechanism fields `zoom` and `override`; the run record keeps Lean's as `env` and this as `realized`.
  */
-export function realizeEnv(p) {
-  const env = {
-    width: p.width, height: p.height, deviceWidth: p.deviceWidth, deviceHeight: p.deviceHeight, dpr: p.dpr,
-    hover: p.hover, pointer: p.pointer, reducedMotion: p.reducedMotion, colorScheme: p.colorScheme,
-  };
-  if (Number.isInteger(p.width)) return env;
-  if (!Number.isInteger(2 * p.width)) throw new Error(`${p.id}: width ${p.width} x zoom 2 is not whole`);
-  return { ...env, dpr: 2, zoom: 2 };
+export function realizeChromium(p) {
+  const env = probeEnv(p);
+  const zoom = Number.isInteger(p.width) ? 1 : p.dpr;
+  const w = p.width * zoom, h = p.height * zoom;
+  if (!Number.isInteger(w) || !Number.isInteger(h)) throw new Error(`${p.id}: override ${w}x${h} (width x zoom ${zoom}) is not whole`);
+  return { ...env, zoom, override: { width: w, height: h, deviceScaleFactor: zoom > 1 ? 1 : p.dpr } };
 }
 
-/**
- * Mechanism per (kind, engine): what the lane does, and what the research says the engine can do.
- * `reach: 'reachable'` = the lane builds the environment and compares with Lean; `'unreachable'` = no mechanism exists
- * and the lane records the measured evidence instead (judge.mjs checks it).
- */
-export const MECHANISMS = Object.freeze({
-  'fractional/chromium': {
-    reach: 'reachable',
-    how: 'Chromium browser zoom 200% (profile Preferences partition.default_zoom_level.x = log(2)/log(1.2)) + CDP setDeviceMetricsOverride width 2N+1, DSF 1',
-    page: 'media width N + 1/2; neither (width<=N) nor (width>=N+1) matches',
-  },
-  'fractional/playwright-webkit': {
-    reach: 'unreachable',
-    how: 'none: WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d); Playwright has no zoom, fractional DPR gives whole px',
-    page: 'media width is a whole number at every DPR and zoom tried',
-  },
-  'cross/chromium': {
-    reach: 'reachable',
-    how: '--blink-settings primaryHoverType/primaryPointerType (one browser per pair)',
-    page: 'the requested (hover, pointer) pair',
-  },
-  'cross/playwright-webkit': {
-    reach: 'unreachable',
-    how: 'none: every Apple WebKit derives primary hover and pointer from one platform constant (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780@862f17d); Playwright hasTouch flips both',
-    page: 'primary pair is (hover, fine) or (none, coarse) only',
-  },
+/** WebKit: no mechanism changes the environment; the launcher is asked for Lean's environment as is and the page reports what it got. */
+export const realizeWebkit = (p) => ({ ...probeEnv(p) });
+
+/** What each (kind, engine) does, for the report. Display only: reachability is Lean's (Fw.Gate.Reach), not this table. */
+export const HOW = Object.freeze({
+  'fractional/chromium': 'Chromium browser zoom (profile Preferences partition.default_zoom_level.x = log(d)/log(1.2)) + CDP setDeviceMetricsOverride width w*d, DSF 1',
+  'fractional/playwright-webkit': 'Lean environment as is (Playwright viewport = ceil(width)); WebKit media width is an int (MediaQueryFeatures.cpp:716-728@862f17d)',
+  'cross/chromium': '--blink-settings primaryHoverType/primaryPointerType (one browser per pair)',
+  'cross/playwright-webkit': 'Lean environment as is; WebKit derives primary hover and pointer from one platform value (WebPageIOS.mm:4233-4246, WebPageMac.mm:762-780, WebPageGLib.cpp:229-258@862f17d)',
 });
 
 /**
- * STAND-IN for Lean `webkitPrimaryPairs` (research note 10-17-gate-gaps-hover-pointer.md, to be defined and proved in
- * Fw/Site first): the (hover, pointer) pairs an Apple WebKit page can see.
+ * Probe-page variants for the iOS rounding path (Simulator and phone): the meta viewport asks for a fractional layout width and
+ * WebKit rounds it (ViewportConfiguration::layoutWidth, ViewportConfiguration.cpp:598-631@862f17d). `vp=` sets the content
+ * string; `aim=W` sets `width=device-width, initial-scale=<screen.width / W>` from a script in the page head, so the same URL
+ * aims at W on any device width. The page reports the media width it got.
  */
-export const WEBKIT_PRIMARY_PAIRS = Object.freeze([['hover', 'fine'], ['none', 'coarse']]);
+export function probeVariants(gen) {
+  const targets = gen.fractionalGaps.map((g) => g.probe);
+  return [
+    ...targets.map((w) => ({ id: `vp-width-${w}`, query: `vp=${encodeURIComponent(`width=${w}`)}`, aimed: w })),
+    ...targets.map((w) => ({ id: `aim-${w}`, query: `aim=${w}`, aimed: w })),
+  ];
+}

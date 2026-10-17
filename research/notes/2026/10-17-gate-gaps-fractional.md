@@ -14,10 +14,11 @@ topics: [gate, breakpoints, media-queries, zoom, chromium, webkit, ios, lean, q3
 - **Chromium: reachable, and the harness can reach it on this Mac, headless.** Chromium's media `width` is
   `integer physical px / (DSF x page zoom)`, a double. At browser zoom 200 % and DSF 1, a viewport override of
   `2N+1` DIP gives a media width of exactly `N + 1/2` (600.5, 640.5, 860.5, 1000.5), and neither `(width<=Npx)` nor
-  `(width>=N+1px)` matches (MEASURED twice, byte-identical). Real desktop Chrome at 110 %, 125 % or 90 % (on a
-  2x screen) lands in the same gaps (MEASURED headless and headed).
+  `(width>=N+1px)` matches (MEASURED twice, byte-identical). Real desktop Chrome at 110 % or 125 % lands in the same
+  gaps (MEASURED headless and headed). 90 % does not reach these four gaps: 541 DIP / 0.9 = 601.111 is a fraction above
+  601 (C3c), a fraction but not one of the gaps.
 - **WebKit: unreachable on every platform.** WebKit's media `width` is an `int` by type (frame layout width is
-  `int`, the zoom adjustment returns `int`, iOS rounds the layout width with `std::round`). No zoom, DPR, Split View
+  `int`, the zoom adjustment returns `int`, iOS rounds the layout width with `std::round` on every path but the last, where a float converts to `int`). No zoom, DPR, Split View
   or scrollbar can put it strictly between N and N+1 (CONFIRMED by source; MEASURED with macOS WKWebView
   `pageZoom` and Playwright WebKit at fractional DPR). The real iPhone runs WebKit, so on the phone this cell is
   **physically unreachable**. The device check proves that rounding live; it cannot hit a gap.
@@ -55,7 +56,7 @@ width. It must bisect the media width with the strict form `(width > Xpx)`, whic
 | zoom adjust | `Source/WebCore/style/values/viewport/StyleZoomPrimitivesInlines.h:36-55@862f17d` | `int adjustForAbsoluteZoom(int value, ...)`: if zoom > 1 then `value++`; `return roundForImpreciseConversion<int>(value / zoomFactor)` |
 | int rounding | `Source/WebCore/style/values/primitives/StylePrimitiveNumericTypes+Rounding.h:36-48@862f17d` | integral case: `value += 0.01` then truncate |
 | compare | `Source/WebCore/css/query/GenericMediaQueryEvaluator.cpp:38-60, 129-142, 183-192@862f17d` | the query length becomes a `LayoutUnit` and is compared with the (integer) width; no epsilon |
-| iOS layout width | `Source/WebCore/page/ViewportConfiguration.cpp:578-587, 598-631@862f17d` | `m_minimumLayoutSize = m_viewLayoutSize / effectiveLayoutSizeScaleFactor()` (float), then `int layoutWidth()` returns `std::round(...)` on every path |
+| iOS layout width | `Source/WebCore/page/ViewportConfiguration.cpp:578-587, 598-631@862f17d` | `m_minimumLayoutSize = m_viewLayoutSize / effectiveLayoutSizeScaleFactor()` (float), then `int layoutWidth()` returns `std::round(...)` on every path except the final fall-through `return minimumLayoutSize.width();`, where the float converts to `int` by truncation (still whole) |
 | iOS page zoom input | `Source/WebKit/UIProcess/API/Cocoa/WKWebView.mm:6555-6587@862f17d` | `_setViewScale:` feeds `layoutSizeScaleFactor` into `setViewportConfigurationViewLayoutSize`, which is the rounded path above |
 | macOS page zoom input | `Source/WebKit/UIProcess/API/Cocoa/WKWebView.mm:1770-1781@862f17d` | `pageZoom` sets `setPageZoomFactor`; this is the `usedZoom` in the int adjustment above |
 
@@ -68,7 +69,7 @@ name and the code path fit; Safari's own code is not public). Either zoom path e
 
 | condition | Chromium (desktop, Android) | WebKit (Safari macOS, every iOS/iPadOS browser) |
 |---|---|---|
-| browser zoom 110 / 125 / 90 % | reaches the gaps: w = P/(DSF x z); 110 % at 661 DIP gives 600.909 (MEASURED) | whole px (MEASURED, WKWebView pageZoom 1.1, 1.25, 0.9, 2) |
+| browser zoom 110 / 125 % | reaches the gaps: w = P/(DSF x z); 110 % at 661 DIP gives 600.909 (MEASURED); 90 % gives 601.111, outside the gaps (C3c) | whole px (MEASURED, WKWebView pageZoom 1.1, 1.25, 0.9, 2) |
 | fractional DSF (Windows 125 %/150 %, Android 2.625) at zoom 100 % | reaches when the window's physical width / DSF is not whole; MEASURED with `--force-device-scale-factor=1.25` (601.6). INFERRED for Windows and Android | n/a (int layout width) |
 | CDP DPR override (`setDeviceMetricsOverride` deviceScaleFactor 1.25 or 1.1) | **does not** reach: media width stays the requested whole DIP width (MEASURED 601, 641, 861, 1001) | Playwright DPR 1.25 or 1.1: 601 (MEASURED) |
 | pinch zoom (`Emulation.setPageScaleFactor`) | does not change the media width; only `visualViewport.width` changes (MEASURED 601, vv 480.8) | same model, INFERRED |
