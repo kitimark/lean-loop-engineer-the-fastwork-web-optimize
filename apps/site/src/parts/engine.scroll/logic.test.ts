@@ -50,7 +50,7 @@ describe('engine.scroll logic', () => {
 // Fake clock with the real clock's Set iteration semantics, fake window.
 function rig() {
   const subs = new Set<Tick>();
-  const clock: MotionClock = { subscribe: (t) => (subs.add(t), () => void subs.delete(t)) };
+  const clock: MotionClock = { subscribe: (t) => (subs.add(t), () => void subs.delete(t)), interval: () => () => {} };
   let now = 0;
   const frame = () => {
     now += 16;

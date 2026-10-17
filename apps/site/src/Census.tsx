@@ -24,6 +24,7 @@ import Tabs from '@mui/material/Tabs';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { HeroCountdown } from './parts/hero.countdown';
+import { HeroExit } from './parts/hero.exit';
 import { parts } from './registry';
 
 /**
@@ -240,7 +241,11 @@ function PartsAll() {
     <Box>
       {parts.flatMap((p) =>
         Object.keys(p.variants).map((variant) =>
-          p.id === 'hero.countdown' ? <HeroCountdown key={`${p.id}:${variant}`} variant={variant} /> : null,
+          p.id === 'hero.countdown' ? (
+            <HeroCountdown key={`${p.id}:${variant}`} variant={variant} />
+          ) : p.id === 'hero.exit' ? (
+            <HeroExit key={`${p.id}:${variant}`} variant={variant} />
+          ) : null,
         ),
       )}
     </Box>
