@@ -24,6 +24,11 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
   ask the lead first.
 - Claims carry a status: CONFIRMED (source, doc or measurement cited), INFERRED, MEASURED. Read the source code
   (WebKit, Chromium, Lean, libraries) before guessing; cite file:line@commit.
-- **Lean:** prove as much as possible. Every theorem's docstring carries its statement as LaTeX math, because the
-  user reviews the math, not the Lean.
+- **Lean first** (console, site, measurement, tooling): every pure, reproducible piece (decisions, reducers, gates,
+  breakpoint conditions, flag rules, motion curves, count reduction, verdicts, test matrices) is specified and proved
+  in Lean *before* it is coded. Then either it runs in Lean (`fwcore`), or Lean generates it (constants, CSS media
+  strings, JSON), or the TS/React code is checked against Lean-generated golden vectors. Only I/O, rendering and
+  glue stay unproved, and they hold no decision logic. A TS stand-in is temporary and listed in your report.
+- **Lean math:** every theorem's docstring carries its statement as LaTeX math, because the user reviews the math,
+  not the Lean.
 - Answers to the user: answer first, short plain bullets, numbers in small tables.
