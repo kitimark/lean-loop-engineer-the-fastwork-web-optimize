@@ -1,6 +1,6 @@
 name = "fwcore"
 version = "0.1.0"
-defaultTargets = ["Fw", "fwcore", "mathview", "breakgen"]
+defaultTargets = ["Fw", "fwcore", "mathview", "breakgen", "partsgolden"]
 testDriver = "fwtest"
 
 # Mathlib-free on purpose (PLAN §5.2): core Lean only, no `require`.
@@ -20,6 +20,12 @@ root = "Main"
 [[lean_exe]]
 name = "breakgen"
 root = "BreakgenMain"
+
+# lean-parts' golden generator: `lake exe partsgolden [<outDir>]` (default ../packages/contracts/golden/parts).
+# Its root defines `main`, so it is not imported by Fw.lean.
+[[lean_exe]]
+name = "partsgolden"
+root = "Fw.Parts.Golden"
 
 [[lean_lib]]
 name = "MathView"

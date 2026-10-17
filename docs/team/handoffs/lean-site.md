@@ -33,6 +33,14 @@ State at ee04fc4 plus the breakgen follow-up. Read `lean/Fw/Site/README.md` firs
   - device width equals the viewport width in profile loads;
   - the inputs and DPR for the dark and height probes;
   - the fractional probes use DPR 1.25.
+- **mathview fix (at 4d179c3):** `--lint` crashed because one heartbeat budget was shared by the whole export.
+  The total was about 204k (thousand heartbeats) against a limit of 200k. The costliest single declaration
+  (`BreakpointGen.run`) cost about 3.3k, so no single declaration was the cause.
+  - Each declaration now gets a fresh budget (`declBudget`, 200k), and `autoTex` its own (`texBudget`, 50k; past it
+    the output is `"?"`).
+  - Any exception, including a timeout, becomes the lint failure `export failed` with the declaration's name.
+  - The export now records a `heartbeats` count per entry.
+  - `lake exe partsgolden` runs `Fw.Parts.Golden`, and its output equals `packages/contracts/golden/parts`.
 - **Gaps:**
   - `scripts/check.sh` does not run the `breakgen --check` line yet.
   - The 1100 container edge and the visible overlap outcomes are not modelled. They are still to be MEASURED.

@@ -161,6 +161,8 @@ structure Entry where
   axioms    : List String
   sorryFree : Bool
   line      : Nat
+  heartbeats : Nat            -- heartbeats this entry cost (each entry has its own budget)
+  error     : Option String := none  -- the export of this entry failed (lint failure)
 deriving ToJson
 
 def mathBlocks (doc : String) : List String :=
@@ -183,6 +185,50 @@ def skip (env : Environment) (n : Name) (ci : ConstantInfo) : Bool :=
   (match ci with | .ctorInfo _ | .recInfo _ => true | _ => false) ||
   (`Fw.Wire).isPrefixOf n
 
+/-- Heartbeat budget of one declaration's export, in thousands (the unit of `maxHeartbeats`). Each declaration
+gets a fresh budget, so the export's total cost grows with the number of declarations without ever hitting a
+global limit. -/
+def declBudget : Nat := 200000
+
+/-- Heartbeat budget of one `autoTex` rendering, in thousands; past it `autoTex` is `"?"` (not a lint failure:
+the reviewed statement is the docstring math). -/
+def texBudget : Nat := 50000
+
+/-- Run `x` with a fresh heartbeat budget of `k` thousand heartbeats, catching every exception, including the
+runtime ones (heartbeat timeout, max recursion) that a plain `try … catch` lets through. -/
+def bounded {α} (k : Nat) (x : MetaM α) : MetaM (Except String α) :=
+  withCurrHeartbeats <| withTheReader Core.Context (fun c => { c with maxHeartbeats := k * 1000 }) <|
+    tryCatchRuntimeEx (Except.ok <$> x) fun e => do
+      return .error (((← e.toMessageData.toString).splitOn "\n").headD "")
+
+/-- The heartbeats spent since `start`, in thousands. -/
+def spentSince (start : Nat) : CoreM Nat := do return ((← IO.getNumHeartbeats) - start) / 1000
+
+/-- The export of one declaration (`none` when it is not a math-view entry). -/
+def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc : Option String) :
+    MetaM (Option Entry) := do
+  let line := ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
+  if line == 0 || (← isInstance n) || (← isProjectionFn n) then return none
+  let start ← IO.getNumHeartbeats
+  let sig ← withOptions (fun o => o.set `format.width (1000 : Nat)) do
+    return toString (← PrettyPrinter.ppSignature n).fmt
+  -- for a def, render its unfolding equation `f.eq_def : ∀ xs, f xs = body` instead of its type
+  let auto ← match ← bounded texBudget (do
+      let eqnTy? ← match ci with
+        | .defnInfo _ => do
+          let some eq ← (try getUnfoldEqnFor? n (nonRec := true) catch _ => pure none) | pure none
+          pure (some (← getConstInfo eq).type)
+        | _ => pure none
+      latex (eqnTy?.getD ci.type)) with
+    | .ok t => pure t
+    | .error _ => pure "?"
+  let axs ← collectAxioms n
+  return some {
+    name := n.toString, kind := kindOf ci, module := mod.toString, doc,
+    english := (doc.map english).getD "", math := (doc.map mathBlocks).getD [], signature := sig, autoTex := auto,
+    stmtHash := s!"{stmtHash env ci}", axioms := axs.toList.map toString,
+    sorryFree := !axs.contains ``sorryAx, line, heartbeats := ← spentSince start }
+
 def entries : MetaM (Array Entry) := do
   let env ← getEnv
   let mut out := #[]
@@ -194,33 +240,31 @@ def entries : MetaM (Array Entry) := do
     if n.isInternal || (n.toString.splitOn ".match_").length > 1 then continue
     -- derived-instance helpers (`instReprWork.repr`, `instToJsonCmd.toJson`, ...)
     if n.components.any (fun c => c.toString.startsWith "inst") then continue
-    let sig ← withOptions (fun o => o.set `format.width (1000 : Nat)) do
-      return toString (← PrettyPrinter.ppSignature n).fmt
-    -- for a def, render its unfolding equation `f.eq_def : ∀ xs, f xs = body` instead of its type
-    let eqnTy? ← match ci with
-      | .defnInfo _ => do
-        let some eq ← (try getUnfoldEqnFor? n (nonRec := true) catch _ => pure none) | pure none
-        pure (some (← getConstInfo eq).type)
-      | _ => pure none
-    let auto ← try latex (eqnTy?.getD ci.type) catch _ => pure "?"
-    let axs ← collectAxioms n
-    let line := ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
-    if line == 0 || (← isInstance n) || (← isProjectionFn n) then continue
-    out := out.push {
-      name := n.toString, kind := kindOf ci, module := mod.toString, doc,
-      english := (doc.map english).getD "", math := (doc.map mathBlocks).getD [], signature := sig, autoTex := auto,
-      stmtHash := s!"{stmtHash env ci}", axioms := axs.toList.map toString,
-      sorryFree := !axs.contains ``sorryAx, line }
+    -- one declaration can never crash the export: its failure becomes a lint failure with its name
+    match ← bounded declBudget (entryOf env n ci mod doc) with
+    | .ok none => pure ()
+    | .ok (some e) => out := out.push e
+    | .error msg =>
+      let line := ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
+      out := out.push {
+        name := n.toString, kind := kindOf ci, module := mod.toString, doc,
+        english := (doc.map english).getD "", math := (doc.map mathBlocks).getD [], signature := "",
+        autoTex := "?", stmtHash := "", axioms := [], sorryFree := false, line, heartbeats := declBudget,
+        error := some msg }
   return out.qsort (fun a b => a.module < b.module || (a.module == b.module && a.line < b.line))
 
 /-- The axioms a finished proof may use. -/
 def standardAxioms : List String := ["propext", "Classical.choice", "Quot.sound"]
 
-/-- Lint failures of one entry: no docstring math or English, `sorryAx`, or a non-standard axiom. -/
+/-- Lint failures of one entry: a failed export, no docstring math or English, `sorryAx`, or a non-standard
+axiom. -/
 def lintEntry (e : Entry) : List String :=
+  (match e.error with
+    | some msg => [s!"{e.name} ({e.module}:{e.line}): export failed: {msg}"]
+    | none => []) ++
   (if e.math.isEmpty then [s!"{e.name} ({e.module}:{e.line}): no $$ math in its docstring"] else []) ++
   (if e.english.isEmpty then [s!"{e.name} ({e.module}:{e.line}): no English sentence before the math"] else []) ++
-  (if !e.sorryFree then [s!"{e.name} ({e.module}:{e.line}): depends on sorryAx (unfinished proof)"] else []) ++
+  (if !e.sorryFree && e.error.isNone then [s!"{e.name} ({e.module}:{e.line}): depends on sorryAx (unfinished proof)"] else []) ++
   ((e.axioms.filter (fun a => a != "sorryAx" && !standardAxioms.contains a)).map
     fun a => s!"{e.name} ({e.module}:{e.line}): non-standard axiom {a}")
 

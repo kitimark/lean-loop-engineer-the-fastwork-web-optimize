@@ -9,8 +9,9 @@ The proved decision core of the loop (PLAN §3.2, §5). Toolchain `leanprover/le
 |---|---|
 | `lake build` | all `Fw` modules (every proof and `#guard` example runs here), `fwcore`, `mathview` |
 | `lake test` | `fwtest`: 42 console-apply golden cases, 23 JSON-lines golden lines, `Rat` wire round trips, 2,000 pseudo-random lease traces, a replay timing |
+| `lake exe partsgolden [<outDir>]` | lean-parts' golden vectors (`Fw/Parts/Golden.lean`) into `<outDir>` (default `../packages/contracts/golden/parts`) |
 | `lake exe breakgen [--inventory <json>] [--check <file>]` | prints `Fw/Site/breakpoints.gen.json` to stdout; `--check` exits 1 on a byte diff, `--inventory` on any mismatch with the inventory (see `Fw/Site/README.md`) |
-| `lake exe mathview [--lint]` | JSON export of every `Fw` declaration; `--lint` fails on missing `$$` math or English, `sorryAx`, or an axiom other than `propext`, `Classical.choice`, `Quot.sound` |
+| `lake exe mathview [--lint]` | JSON export of every `Fw` declaration; `--lint` fails on missing `$$` math or English, `sorryAx`, or an axiom other than `propext`, `Classical.choice`, `Quot.sound`. Each declaration is exported with its own heartbeat budget (`MathView.declBudget`; `autoTex` gets `texBudget`, else `"?"`), and an exception in one declaration becomes a lint failure naming it (`export failed`) instead of crashing the export |
 | `scripts/check-partial.sh` | grep gate: no partial ops (bang accessors, `[i]!`, panics) in `Fw/Wire.lean`/`Main.lean`; no `sorry`, `native_decide`, `implemented_by`, `unsafe` anywhere |
 | `scripts/check.sh` | all of the above, plus the real binary on `golden/wire-requests.txt` (diffed against `golden/wire-replies.txt`) |
 
