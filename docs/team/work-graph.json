@@ -3416,6 +3416,37 @@
     "packages/difftest/**",
     "packages/contracts/golden/**"
    ]
+  },
+  {
+   "id": "wktr-p1p4",
+   "title": "(M) goldens P1 (scrollDriven RecalculateStyles = 0) and P4 (styleRecalcs = 0) contradict WebKit source (scroll timeline restyles each update, scroll_comp_ride; why-engines): WKTR scroll-timeline fixture on CI decides it; regenerate the goldens; re-check every Parts theorem that assumes P1/P4 on WebKit and restate verdicts that change; register the premise in premise-tests",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "why-engines"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-wktr/**",
+    "packages/contracts/golden/engine/**",
+    "lean/Fw/Engine/WebKit.lean",
+    "research/findings/**"
+   ]
+  },
+  {
+   "id": "ledger-merge-driver",
+   "title": "(S) git merge driver for JSON ledgers keyed by id (incidents, findings, mistakes): union by id, conflict only when one id differs on both sides; Lean model mergeById comm/assoc + conflict_iff (reuse Fw.Gate.Merge); .gitattributes entries; three ledger land conflicts on 2026-10-18",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "scripts/merge-ledger.mjs",
+    ".gitattributes",
+    "packages/contracts/golden/ops/ledger-merge.jsonl",
+    "docs/team/tools/ledger-merge.md"
+   ]
   }
  ],
  "deadline": {
