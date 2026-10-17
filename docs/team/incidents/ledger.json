@@ -1,5 +1,5 @@
 {
- "about": "Team tooling incidents, one record per root cause. Evidence kinds: commit (sha on main), event (seq in .fw-console/events.jsonl, local-only), ci (GitHub Actions run id), file (repo path), proc (process shape, no pids that matter later). Each incident names the work-graph task that fixes it; status is derived: fixed iff that task is done (Fw.Plan.Incident, task incident-lint).",
+ "about": "Team tooling incidents, one record per root cause. Evidence kinds: commit (sha on main), event (seq in .fw-console/events.jsonl, local-only), ci (GitHub Actions run id), file (repo path), proc (process shape, no pids that matter later). Each incident names the work-graph task that fixes it (fix.task, plus fix.also); status is derived, never stored: fixed iff fix.task and every also task are done, fixing iff one of them is claimed, else open (Fw.Plan.Incident; check with pnpm fw incidents lint, see README.md).",
  "incidents": [
   {
    "id": "inc-orphan-wait-loop",
@@ -23,8 +23,7 @@
    "symptom": "port-nav reported back at 01:23 with every gate job green. Its branch was queued for the integrator and nothing showed that. The user asked whether it was stuck about 1.5 h later.",
    "cause": "CONFIRMED: nothing derives 'handed back + branch ahead + not landed + not in an integrator queue' into a next action.",
    "evidence": [
-    {"kind": "ci", "ref": "39057124869", "note": "port-nav gate, all jobs success"},
-    {"kind": "file", "ref": "docs/team/handoffs/integrate-ports.md", "note": "port-nav in the integrator queue"}
+    {"kind": "ci", "ref": "39057124869", "note": "port-nav gate, all jobs success; the integrator-queue note (handoffs/integrate-ports.md) exists only on the unlanded branch ci/integrate-ports, so it is not cited as a file on main"}
    ],
    "repro": "An agent hands back with a branch that is ahead of main; fw watch shows no action for it.",
    "fix": {"task": "obs-next-lean", "also": ["obs-next-glue"]},
