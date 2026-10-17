@@ -5,6 +5,9 @@
 //   - every file has the same header (browser, gen hash, snapshot, site build, property lists);
 //   - the shard probes are exactly the ids of the gen file, each once, and are written in gen order;
 //   - the sweeps file (if given) holds no probes and exactly the sweeps of spec.mjs; shard files hold no sweeps.
+//   A run narrowed by --parts names its probe scope in header.parts.scope (the union of the parts' Lean scopes,
+//   src/scope.gen.json); it must equal spec.scopeFor for the covered parts, and then replaces the gen ids and spec
+//   sweeps above.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,8 +22,8 @@ if (!opt.out || files.length === 0) { console.error('usage: merge-gate.mjs --out
 
 const spec = await import(pathToFileURL(resolve('packages/gate-breakpoints/src/spec.mjs')).href);
 const { gen } = spec.loadGen(opt.gen ? resolve(opt.gen) : undefined);
-const wantIds = gen.matrix.probes.map((p) => p.id);
-const wantSweeps = spec.sweepDefs(gen).map((s) => s.id);
+let wantIds = gen.matrix.probes.map((p) => p.id);
+let wantSweeps = spec.sweepDefs(gen).map((s) => s.id);
 const fail = (m) => { console.error(`merge-gate: ${m}`); process.exit(1); };
 
 const load = (f) => JSON.parse(readFileSync(f, 'utf8'));
@@ -32,6 +35,13 @@ const head = JSON.stringify(all[0].run.header);
 for (const { f, run } of all) {
   if (run.header.schema !== 'fw.gate-breakpoints.run/1') fail(`${f}: unknown schema ${run.header.schema}`);
   if (JSON.stringify(run.header) !== head) fail(`${f}: header differs from ${all[0].f}`);
+}
+const hp = all[0].run.header.parts;
+if (hp) {
+  const sel = spec.selectParts(Object.keys(spec.loadAnchors().parts), hp.covered);
+  const want = spec.scopeFor(sel, gen);
+  if (JSON.stringify(hp.scope ?? null) !== JSON.stringify(want)) fail(`header.parts.scope ${JSON.stringify(hp.scope)} is not the Lean scope ${JSON.stringify(want)}`);
+  if (want) { wantIds = want.probes; wantSweeps = want.sweeps; }
 }
 const byId = new Map();
 for (const { f, run } of shardRuns) {

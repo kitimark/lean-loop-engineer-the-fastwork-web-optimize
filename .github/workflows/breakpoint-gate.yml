@@ -43,7 +43,7 @@ on:
       parts:
         description: >-
           Pilot parts to check, comma separated (engine.scroll, nav.hitTest, hero.countdown, hero.exit); empty = all.
-          A narrowed run collects and judges only those parts, and its summary names the parts covered and skipped.
+          A narrowed run loads only the probes and sweeps of those parts' Lean scope (packages/gate-breakpoints/src/scope.gen.json), collects and judges only those parts, and its summary names the parts covered and skipped.
           (Not the pnpm FILTERS of setup-pnpm, which select packages to install.)
         type: string
         default: ''
@@ -76,6 +76,7 @@ jobs:
           sparse-checkout: |
             .github/scripts
             apps/site/src/breakpoints.gen.json
+            packages/gate-breakpoints/src
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'

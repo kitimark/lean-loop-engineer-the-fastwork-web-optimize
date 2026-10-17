@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { PIN_SRC, collectInPage, waitReady, waitResize } from './page.mjs';
 import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
-import { loadAnchors, loadGen, probeEnv, selectParts, sweepDefs } from './spec.mjs';
+import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const SITES = ['orig', 'rewrite'];
@@ -40,6 +40,9 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   // Part selection (glue): only the chosen parts' elements are collected, so only their raw facts and property lists are
   // written. The header names the parts when some are skipped; a default run writes the same bytes as before the flag.
   const sel = selectParts(Object.keys(anchors.parts), partFilter);
+  // Probe scope (glue): a narrowed run loads only the union of its parts' Lean scopes (src/scope.gen.json,
+  // Fw.Gate.scope_sound); --probes/--sweeps narrow further. The header lists the scope so merge-gate knows what to expect.
+  const scope = scopeFor(sel, gen);
   const activeParts = Object.fromEntries(sel.covered.map((pid) => [pid, anchors.parts[pid]]));
   const lock = JSON.parse(readFileSync(resolve(PKG, '../../snapshot.lock.json'), 'utf8'));
   const dist = siteDist();
@@ -97,7 +100,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   }
 
   // Phase 1: the matrix.
-  const probes = gen.matrix.probes.filter((p) => !probeFilter || probeFilter.some((o) => p.id.includes(o) || p.block === o));
+  const probes = gen.matrix.probes.filter((p) => (!probeFilter || probeFilter.some((o) => p.id.includes(o) || p.block === o))
+    && (!scope || scope.probes.includes(p.id)));
   const tasks = probes.flatMap((p) => SITES.map((site) => ({ p, site })));
   let done = 0;
   const sampled = await pool(tasks, concurrency, async ({ p, site }) => {
@@ -111,7 +115,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   }));
 
   // Phase 2: live-resize sweeps. Each arm of a sweep is one page that is only resized after the first load.
-  const sweeps = sweepDefs(gen).filter((s) => !sweepFilter || sweepFilter.some((o) => s.id.includes(o)));
+  const sweeps = sweepDefs(gen).filter((s) => (!sweepFilter || sweepFilter.some((o) => s.id.includes(o)))
+    && (!scope || scope.sweeps.includes(s.id)));
   const sweepRecords = [];
   for (const sw of sweeps) {
     const perSite = await Promise.all(SITES.map(async (site) => withRetry(`sweep ${sw.id} ${site}`, async () => {
@@ -140,7 +145,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     snapshot: lock.snapshot,
     site: { buildId: buildInfo.buildId, configHash: buildInfo.configHash, muiCss: buildInfo.muiCss },
     pinnedDate: '2026-10-01T00:00:00+07:00',
-    ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}),
+    ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped, ...(scope ? { scope } : {}) } } : {}),
     props,
   };
   await engine.close();
