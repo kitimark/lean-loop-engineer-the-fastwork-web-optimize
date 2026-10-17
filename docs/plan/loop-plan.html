@@ -231,7 +231,7 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
     <span class="eyebrow">Loop engineering · experiment 2 · plan for review</span>
     <h1>Fastwork Loop v2</h1>
     <p class="thesis">Rebuild the fastwork.com homepage as MUI parts behind flags, <b>count the work the engine does</b> on every change, put <b>Lean first for everything reproducible</b> (it runs in <code>fwcore</code>, Lean generates it, or the code must pass Lean golden vectors) and show it as math, and save <i>the iPhone</i> for calibration and feel.</p>
-    <div class="meta"><span>Plan revision 7.1 + user decisions</span><span>2026-10-17</span><span>docs/plan/PLAN.md</span></div>
+    <div class="meta"><span>Plan revision 8 + user decisions</span><span>2026-10-17</span><span>docs/plan/PLAN.md</span></div>
     <figure class="ruler" aria-label="Frame budget ruler">
       <svg viewBox="0 0 900 118" role="img" aria-labelledby="rulerTitle">
         <title id="rulerTitle">Frame time thresholds used by the plan, from 0 to 60 milliseconds</title>
@@ -540,6 +540,7 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
       <h2>Byte identity was too strict, so counts are classed per type</h2>
       <p>Whole count files are never byte-identical (thread ids, GC, async work). Each count type is classed deterministic, stable or quarantined. Chromium: stable means at most 4 frames differ and run totals differ by at most 24 count units, over 3 runs; pixel-area types allow up to 1/1000 of their smallest total. WebKit: a tolerance per cell, 2 passes in each of 2 boots.</p>
       <p><b>How classes are used (decided).</b> Deterministic types are compared frame by frame. Stable types are compared only as run totals, with a proved margin of 2t. Quarantined types are never used. A type's signed class is its worst over at least 3 CI runs, because classes drifted between runs of the same code. In the frozen table <code>trace.Paint</code> is quarantined, so Chromium paint is not screened; paint terms come from WebKit counts, or from raster counts where those are stable.</p>
+      <p>The full findings table, with CI run ids, is in <span class="mono">research/notes/2026/10-17-plan-evidence.md</span> §3.3 (moved out of the plan in revision 8).</p>
     </div>
     <div class="tbl">
       <table>
@@ -11724,7 +11725,7 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
 
 <div class="wrap">
   <footer>
-    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 7), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
+    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 8; evidence and history in <span class="mono">research/notes/2026/10-17-plan-evidence.md</span>), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
     <span>A personal, educational study of the public fastwork.com homepage. Not affiliated with Fastwork.</span>
   </footer>
 </div>
