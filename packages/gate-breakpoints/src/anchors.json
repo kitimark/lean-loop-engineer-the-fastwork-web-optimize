@@ -189,9 +189,9 @@
       "roles": [
         { "role": "canvas", "orig": ".pain-sticky > .pain-canvas", "rewrite": "[data-fw=\"pain-notes\"]", "boxRel": null, "dims": ["w", "h"], "skipSets": [], "skipProps": [],
           "why": "the notes' stage: inset 0 over the sticky box (width = viewport, height = sticky box), overflow hidden on desktop, visible at <=860" },
-        { "role": "note", "orig": ".pain-notes-stage > .pain-note", "rewrite": "[data-fw=\"pain-notes\"] > [role=\"button\"]", "boxRel": {"role":"canvas","index":0}, "dims": ["x","y","w","h"], "skipSets": [], "skipProps": [],
+        { "role": "note", "orig": ".pain-canvas > .pain-note", "rewrite": "[data-fw=\"pain-notes\"] > [role=\"button\"]", "boxRel": {"role":"canvas","index":0}, "dims": ["x","y","w","h"], "skipSets": [], "skipProps": [],
           "why": "count (5 at >=861, 11 at <=860) and each note's rect inside the stage: 240 px boxes rotated by the note's angle, at the percent position of the base layout (Lean baseLayout)" },
-        { "role": "text", "orig": ".pain-note > p", "rewrite": "[data-fw=\"pain-notes\"] [role=\"button\"] > p", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+        { "role": "text", "orig": ".pain-canvas .pain-note > p", "rewrite": "[data-fw=\"pain-notes\"] [role=\"button\"] > p", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
           "why": "font size (clamp 14 / 2.2vw / 20, 16 at <=860), line-height 1.25, colour and font stack are compared; the box follows the font (Playpen Sans is not shipped in the rewrite yet)" }
       ]
     }
