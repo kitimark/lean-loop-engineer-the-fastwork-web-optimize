@@ -166,16 +166,15 @@ pre .k { color: var(--accent); }
 .rung p { font-size: 0.9375rem; }
 .rung small { color: var(--muted); }
 
-/* timeline */
-.timeline { display: flex; gap: 3px; border-radius: 8px; overflow: hidden; }
-.timeline > div { padding: 0.6rem 0.5rem; background: var(--accent-soft); min-width: 0; display: grid; gap: 0.15rem; }
-.timeline > div:nth-child(4), .timeline > div:nth-child(6) { background: var(--phone-soft); }
-.timeline b { font-family: var(--f-mono); font-size: var(--s-1); }
-.timeline span { font-size: 0.75rem; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
-@media (max-width: 40rem) {
-  .timeline { flex-direction: column; }
-  .timeline > div { flex: none !important; }
-}
+/* roadmap graph */
+svg .edge { stroke: var(--muted); stroke-width: 1.2; fill: none; }
+svg .edge-c { stroke: var(--bad); stroke-width: 2.5; fill: none; }
+svg .box-c { fill: var(--surface); stroke: var(--bad); stroke-width: 2; }
+svg .gate { fill: var(--code-bg); stroke: var(--ink); stroke-width: 1.5; }
+svg .gate-c { stroke: var(--bad); stroke-width: 2; }
+svg .gate-p { fill: var(--phone-soft); stroke: var(--phone); }
+svg .run, svg .run circle { fill: var(--good); }
+svg .head-m { fill: var(--muted); } svg .head-b { fill: var(--bad); }
 
 /* classes */
 .classes { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.75rem; }
@@ -552,7 +551,7 @@ pnpm fw run --preset original --impl hero.countdown:plain
       <div class="panel">
         <h3>MUI everywhere, static styles at scroll time</h3>
         <p>Runtime CSS-in-JS would insert styles while the page scrolls and add to the very costs being measured. So MUI's Emotion styles are rendered at build time ("Emotion AOT"): a build-only census route renders every MUI component in every state the parts declare, and the styles go into one static <code>mui.css</code> in <code>@layer mui</code>. Before hydration the client marks every style as already inserted, so Emotion inserts nothing after first paint; in measurement builds one miss fails the build.</p>
-        <p>Pigment CSS, the compiler the user remembered, is a paused alpha that no longer builds with current MUI. It stays the whole-site fallback and an optional measured arm. Rules S1–S13 (no <code>sx</code>, <code>styled</code> or <code>css</code> in parts; no per-frame value through React; care with Tabs, Avatar, transitions and ripples) are enforced by lint. Spike SPK-r checks the pipeline on Day 8–10, before any part is built with MUI.</p>
+        <p>Pigment CSS, the compiler the user remembered, is a paused alpha that no longer builds with current MUI. It stays the whole-site fallback and an optional measured arm. Rules S1–S13 (no <code>sx</code>, <code>styled</code> or <code>css</code> in parts; no per-frame value through React; care with Tabs, Avatar, transitions and ripples) are enforced by lint. Spike SPK-r checks the pipeline before any part is built with MUI.</p>
       </div>
       <div class="stack">
         <h3>Styling-neutrality gate</h3>
@@ -1167,31 +1166,126 @@ $$\operatorname{land}(C, V) = \mathrm{better}
 
   <section id="roadmap">
     <div class="stack col">
-      <span class="eyebrow">45 working days from Monday 2026-10-19</span>
+      <span class="eyebrow">A dependency graph, not a calendar</span>
       <h2>Roadmap</h2>
-      <p>Week 1 is a thin working slice, not a framework: one counts script on the original page, one Lean verdict round trip, one WebKit Simulator spike, and the console core in Lean.</p>
+      <p>There are no dates. A workstream starts as soon as its inputs exist; independent ones run in parallel, each in its own worktree. Milestones M0–M6 are gates: conditions that must hold, not days. Time is measured, not planned: git history is the timeline, and the meter reports time and cost per gate.</p>
     </div>
-    <div class="timeline" role="list" aria-label="Milestones to scale by working days">
-      <div role="listitem" style="flex:5"><b>M0</b><span>Bootstrap slice + Lean console core · Day 1–5</span></div>
-      <div role="listitem" style="flex:8"><b>M1</b><span>Measure the original · Day 6–13</span></div>
-      <div role="listitem" style="flex:5"><b>M2</b><span>Pilot parts · Day 14–18</span></div>
-      <div role="listitem" style="flex:5"><b>M3</b><span>Calibrate on iPhone · Day 19–23</span></div>
-      <div role="listitem" style="flex:10"><b>M4</b><span>Port experiment parts · Day 24–33</span></div>
-      <div role="listitem" style="flex:10"><b>M5</b><span>Experiments · Day 34–43</span></div>
-      <div role="listitem" style="flex:2"><b>M6</b><span>Write-up · 44–45</span></div>
-    </div>
-    <p style="font-size:var(--s-1);color:var(--muted)">Bar widths are proportional to working days. Orange milestones need booked phone sessions.</p>
+    <figure class="fig">
+      <svg viewBox="0 0 980 540" role="img" aria-labelledby="graphTitle">
+        <title id="graphTitle">Workstreams and what blocks them, with the critical path and the phone-calibration chain</title>
+        <defs>
+          <marker id="rm-i" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head-m"/></marker>
+          <marker id="rm-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head-b"/></marker>
+          <marker id="rm-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head-p"/></marker>
+        </defs>
+        <!-- grid: columns x = 20, 200, 380, 560, 740 (w 140); rows y = 20 + 60r (h 34); bottom row y = 460 (w 120) -->
+        <g>
+          <path class="edge" d="M160,37 H198" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M340,37 H378" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M520,37 H558" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M160,44 H180 V97 H198" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M90,20 V8 H630 V18" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M160,157 H198" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M340,157 H378" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M160,150 H188 V67 H630 V56" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M160,164 H192 V217 H198" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M160,217 H198" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M160,224 H184 V247 H450 V176" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M340,97 H370 V404 H558" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M520,157 H548 V388 H558" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M160,230 H176 V277 H378" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M340,217 H362 V270 H378" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M340,44 H354 V284 H378" marker-end="url(#rm-i)"/>
+        </g>
+        <g>
+          <path class="arr-p" d="M520,277 H558" marker-end="url(#rm-p)"/>
+          <path class="arr-p" d="M700,277 H720 V440 H560 V458" stroke-dasharray="5 4" marker-end="url(#rm-p)"/>
+          <text x="728" y="300" font-size="11" class="t-phone">class SM</text><text x="728" y="314" font-size="11" class="t-phone">landings only</text>
+        </g>
+        <g>
+          <path class="edge-c" d="M160,337 H540 V397 H558" marker-end="url(#rm-b)"/>
+          <path class="edge-c" d="M160,397 H558" marker-end="url(#rm-b)"/>
+          <path class="edge-c" d="M700,397 H738" marker-end="url(#rm-b)"/>
+          <path class="edge-c" d="M810,414 V432 H880 V458" marker-end="url(#rm-b)"/>
+          <path class="edge-c" d="M820,477 H782" marker-end="url(#rm-b)"/>
+          <path class="edge-c" d="M660,477 H622" marker-end="url(#rm-b)"/>
+          <path class="edge-c" d="M500,477 H462" marker-end="url(#rm-b)"/>
+          <path class="edge-c" d="M340,477 H302" marker-end="url(#rm-b)"/>
+          <path class="edge-c" d="M180,477 H142" marker-end="url(#rm-b)"/>
+        </g>
+        <g font-size="12" text-anchor="middle">
+          <rect class="box" x="20" y="20" width="140" height="34" rx="6"/><text x="90" y="41">lean-core</text>
+          <rect class="box" x="200" y="20" width="140" height="34" rx="6"/><text x="270" y="41">console-mvp</text>
+          <rect class="box" x="380" y="20" width="140" height="34" rx="6"/><text x="450" y="41">agent-ops</text>
+          <rect class="gate" x="560" y="20" width="140" height="34" rx="17"/><text x="630" y="41" font-weight="700">M0 bootstrap</text>
+          <rect class="box" x="200" y="80" width="140" height="34" rx="6"/><text x="270" y="101">lean-m1+</text>
+          <rect class="box" x="20" y="140" width="140" height="34" rx="6"/><text x="90" y="161">counts-chromium</text>
+          <rect class="box" x="200" y="140" width="140" height="34" rx="6"/><text x="270" y="161">store-and-run</text>
+          <rect class="gate" x="380" y="140" width="140" height="34" rx="17"/><text x="450" y="161" font-weight="700">M1 original measured</text>
+          <rect class="box" x="20" y="200" width="140" height="34" rx="6"/><text x="90" y="221">webkit-spike</text>
+          <rect class="box" x="200" y="200" width="140" height="34" rx="6"/><text x="270" y="221">rule cards</text>
+          <rect class="box-p" x="380" y="260" width="140" height="34" rx="6"/><text x="450" y="281">calibration (phone)</text>
+          <rect class="gate gate-p" x="560" y="260" width="140" height="34" rx="17"/><text x="630" y="281" font-weight="700">M3 calibrated</text>
+          <rect class="box-c" x="20" y="320" width="140" height="34" rx="6"/><text x="90" y="341">site-aot (SPK-r)</text>
+          <rect class="box-c" x="20" y="380" width="140" height="34" rx="6"/><text x="90" y="401">breakpoints</text>
+          <rect class="box-c" x="560" y="380" width="140" height="34" rx="6"/><text x="630" y="401">pilot parts</text>
+          <rect class="gate gate-c" x="740" y="380" width="140" height="34" rx="17"/><text x="810" y="401" font-weight="700">M2 pilots faithful</text>
+          <rect class="box-c" x="820" y="460" width="120" height="34" rx="6"/><text x="880" y="481">port parts</text>
+          <rect class="gate gate-c" x="660" y="460" width="120" height="34" rx="17"/><text x="720" y="481" font-weight="700">M4 promoted</text>
+          <rect class="box-c" x="500" y="460" width="120" height="34" rx="6"/><text x="560" y="481">experiments</text>
+          <rect class="gate gate-c" x="340" y="460" width="120" height="34" rx="17"/><text x="400" y="481" font-weight="700">M5</text>
+          <rect class="box-c" x="180" y="460" width="120" height="34" rx="6"/><text x="240" y="481">write-up</text>
+          <rect class="gate gate-c" x="20" y="460" width="120" height="34" rx="17"/><text x="80" y="481" font-weight="700">M6 distill</text>
+        </g>
+        <g class="run">
+          <circle cx="150" cy="29" r="4"/><circle cx="330" cy="29" r="4"/><circle cx="150" cy="149" r="4"/>
+          <circle cx="150" cy="209" r="4"/><circle cx="150" cy="329" r="4"/><circle cx="150" cy="389" r="4"/>
+        </g>
+        <g font-size="12">
+          <line class="edge-c" x1="20" y1="524" x2="50" y2="524"/><text x="58" y="528">critical path</text>
+          <line class="arr-p" x1="170" y1="524" x2="200" y2="524"/><text x="208" y="528">phone-calibration chain</text>
+          <rect class="gate" x="380" y="516" width="34" height="16" rx="8"/><text x="422" y="528">gate (a condition, not a date)</text>
+          <circle class="run" cx="626" cy="524" r="4"/><text x="636" y="528">running now</text>
+        </g>
+      </svg>
+      <p class="cap">An arrow from A to B means B waits for A. The critical path (red) runs site-aot and breakpoints → pilot parts → M2 → port parts → M4 → experiments → M5 → write-up → M6 (inferred, re-checked at every gate). Calibration (orange) is the second chain: it waits on the user's booked phone sessions and the cloud-Mac element-count spike, and only class SM landings wait for M3; class W experiments do not. The explainer page also runs now but blocks nothing.</p>
+    </figure>
     <div class="tbl">
       <table>
-        <thead><tr><th>Day</th><th>Deliverable</th></tr></thead>
+        <thead><tr><th>Workstream</th><th>Blocked by</th><th>Unblocks</th></tr></thead>
         <tbody>
-          <tr><td class="k num">1</td><td>Decisions recorded. Minimal settings and a CLAUDE.md under 300 words. A standalone script steps the original page in containerised headless Chrome and writes one count vector. <code>.fw-console/</code> gitignored.</td></tr>
-          <tr><td class="k num">2</td><td>Run it twice: byte-identical? Clock shim vs free-running run; sheet mutations on the original read 0? First per-zone counts. The silent observer hook with unit tests.</td></tr>
-          <tr><td class="k num">3</td><td><code>lean/</code> seeded from the sketch; <code>fwcore verdict</code> round trip from TypeScript. Settings with the sandbox, the first agent files (math-reviewer included) and the hooks committed; the team starts; the sandbox spike SPK-t. Two lean-provers start the console core and the phone queue.</td></tr>
-          <tr><td class="k num">4–5</td><td>Console step queue first, on <code>fwcore serve</code> with console-api as the single writer and only derived columns in console-web. WebKit Simulator spike: layer census, stepping trial, seek-overhead fixture.</td></tr>
-          <tr><td class="k num">6–10</td><td>Contracts, artifact store, <code>fw run</code>; WebKit stepped counts (time-boxed Day 7–8); M0 Lean modules complete and signed by Day 9; Emotion AOT spike Day 8–10; Day 10: baseline count report, styling decision record, first cost report, v1's status history replayed through the v2 reducer.</td></tr>
+          <tr><td class="k">lean-core</td><td>— (seeded from the sketches)</td><td><code>fwcore serve</code> with the console core, phone queue, ops, wire, Frames, Verdict; math-view lint → console-mvp, lean-m1+, M0</td></tr>
+          <tr><td class="k">counts-chromium</td><td>the local snapshot</td><td>byte-identical count vectors of the original, first V-a run → store-and-run, rule cards, M0</td></tr>
+          <tr><td class="k">webkit-spike</td><td>—</td><td>Simulator counts per type on the original (time box 2 agent-days) → M1, rule cards, calibration</td></tr>
+          <tr><td class="k">console-mvp</td><td>lean-core (a temporary TS reducer until then, checked by replay)</td><td>step queue first; console-api as single writer; derived views; <code>fw land</code> → agent-ops, every device step</td></tr>
+          <tr><td class="k">site-aot</td><td>—</td><td>site scaffold, MUI theme, census route, SPK-r and the styling decision → pilot parts</td></tr>
+          <tr><td class="k">breakpoints</td><td>the local snapshot</td><td>breakpoint inventory and generated <code>breakpoints.json</code> → lint, gate, pilot parts</td></tr>
+          <tr><td class="k">agent-ops</td><td>console-mvp (socket)</td><td>sandbox block, hooks, role files, SPK-o/p/t → worktree agents commit; <code>fw land</code> the only way to <code>main</code></td></tr>
+          <tr><td class="k">store-and-run</td><td>counts-chromium</td><td>artifact store, <code>fw run</code>, harness-neutrality fixtures → M1</td></tr>
+          <tr><td class="k">lean-m1+</td><td>lean-core</td><td>M1–M3 Lean modules, each when its consumer needs it</td></tr>
+          <tr><td class="k">rule cards</td><td>counts lanes</td><td>engine rules with table tests; K1–K10 fixture drafts → calibration</td></tr>
+          <tr><td class="k">pilot parts</td><td>site-aot, breakpoints, M1, Lean Flags + registry</td><td>four pilot parts with plain twins; N0–N5; PL0–PL6; bands frozen → M2</td></tr>
+          <tr><td class="k">calibration</td><td>WebKit counts, K fixtures, the cloud-Mac spike, booked phone sessions (Q1)</td><td>iPhone K1–K10, page factor, holdouts, validity table → M3</td></tr>
+          <tr><td class="k">port parts → experiments → write-up</td><td>M2; then M4 (and M3 for class SM); then M5</td><td>M4, M5, M6</td></tr>
         </tbody>
       </table>
+    </div>
+    <div class="stack">
+      <h3>Gates: what must hold</h3>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Gate</th><th>Reached when</th></tr></thead>
+          <tbody>
+            <tr><td class="k">M0 Bootstrap</td><td>Two byte-identical Chromium count vectors for the original (or the failure recorded); <code>fwcore serve</code> behind console-api with the M0 Lean modules signed and every M0 mutant killed; the step queue live; the M0 spikes answered as decision records.</td></tr>
+            <tr><td class="k">M1 Original measured</td><td>Chromium count types deterministic; 0 sheet mutations on the original; WebKit's stable set covers fixtures K1–K9; per-zone baselines; SPK-r passed or a fallback chosen; v1 status replay and stall-alarm precision (≥ 90%) reported.</td></tr>
+            <tr><td class="k">M2 Pilots faithful</td><td>3 parts faithful, each through the breakpoint gate; <code>breakpoints.json</code> generated and its lint green; PL5 and N3 bands frozen from pilot data.</td></tr>
+            <tr><td class="k">M3 Calibrated</td><td>Simulator-to-phone count transfer and ranking checked on the phone; model status per output recorded; <code>@layer mui</code> kept or dropped from K10; first blind feel check scheduled.</td></tr>
+            <tr><td class="k">M4 All parts promoted</td><td>Every part faithful or faithful-with-delta through the full breakpoint gate; Simulator check passed; per-module Lean evidence review.</td></tr>
+            <tr><td class="k">M5 Experiments</td><td>The end-of-page behaviour decided first; the backlog run as flag arms, each known v1 outcome also a postdiction test; G1 reached; agreement measured on ≥ 10 changes.</td></tr>
+            <tr><td class="k">M6 Distill</td><td>Write-up material complete; publishing is the user's call.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -1199,7 +1293,7 @@ $$\operatorname{land}(C, V) = \mathrm{better}
     <div class="stack col">
       <span class="eyebrow">Review</span>
       <h2>Decisions</h2>
-      <p>Everything the user decided on 2026-10-17 is applied in revision 5. One question is still open before Monday.</p>
+      <p>Everything the user decided on 2026-10-17 is applied in revision 5. One question is still open, to answer before the first phone session.</p>
     </div>
     <div class="tbl">
       <table>
@@ -1247,7 +1341,7 @@ $$\operatorname{land}(C, V) = \mathrm{better}
         <li>Q7: expect 5–10 phone sessions before the first licensed class; classes X and P always use the phone.</li>
         <li>Q8: Chromium is a development aid with no fitted coefficients.</li>
         <li>Q9: acceptance bands V-a to V-t; a licence is per change class.</li>
-        <li>Q10: no "less work" landing for style-affecting changes in WebKit until a test-runner element count exists; a 1-day spike at the start of M3.</li>
+        <li>Q10: no "less work" landing for style-affecting changes in WebKit until a test-runner element count exists; a 1-day spike on a cloud Mac before calibration.</li>
         <li>Q11: optimized variants pass a compositor gate; 60 Hz is the canonical rate.</li>
         <li>Q13: landing verdict 4 vs 4 runs with a proved 1/70 false-win rate; 5 vs 5 or sequential when more than 3 comparisons.</li>
         <li>Q14: question → build → screen → review → (device) → land, with classes W, SM, X, P.</li>
