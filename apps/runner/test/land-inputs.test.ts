@@ -6,6 +6,7 @@
 //     stays for a change outside them.
 // The scan is static, so reads built at run time (an environment variable, a `git` call, a path computed from data) are
 // invisible to it; those are listed in docs/team/handoffs/checksfor-inputs.md.
+import "./land-timeout.ts";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

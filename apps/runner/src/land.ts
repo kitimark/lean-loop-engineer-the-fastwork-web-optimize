@@ -4,8 +4,8 @@
 // lead's main checkout (plus removing a finished, clean, unlocked worktree of the landed branch).
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { availableParallelism } from "node:os";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { availableParallelism, loadavg } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
@@ -55,6 +55,12 @@ export type LandOptions = {
   base?: string;
   /** pause between the two attempts of a post-commit step (ms); default 700 */
   retryMs?: number;
+  /** check the merge in a dedicated land worktree before the lock and fast-forward under it (default true); false = the locked protocol only */
+  prelock?: boolean;
+  /** re-checks after main moved before the fallback to the locked protocol (default PRELOCK_RETRIES) */
+  retries?: number;
+  /** how long to wait for another land's (sub-second) lock before refusing (ms); default 10000 */
+  lockWaitMs?: number;
 };
 /** `ok` = main was changed (or, on a refusal, left as it was). Post-commit trouble never turns it false: it is in `warnings`
  *  (also printed as lines) with the commands that finish the job. */
@@ -244,6 +250,61 @@ export function writeEvidence(dir: string, task: string, evidence: string): "wri
   } catch { return "failed"; }
 }
 
+/** What to do after the pre-lock checks, given where `HEAD` is now. TS stand-in for Lean `Fw.Console.LandSpeed.prelockAction`
+ *  (lean/Fw/Console/LandSpeed.lean:497; `prelockAction_pre`, `prelockAction_fallback`); marked for Lean replacement (an `fwcore`
+ *  op); checked against the `landSpeed.prelock` golden (test/land-prelock.test.ts). Attempts count from 0. */
+export type PreAct = "ff" | "refuse" | "recheck" | "fallback";
+export const prelockAction = (head: string, main0: string, verdict: boolean, attempt: number, maxRetry: number): PreAct =>
+  head === main0 ? (verdict ? "ff" : "refuse") : attempt < maxRetry ? "recheck" : "fallback";
+export const PRELOCK_RETRIES = 3;
+
+/** Checks that may run at once. TS stand-in for Lean `Fw.Console.LandSpeed.poolSize` (`poolSize_pos`, `poolSize_anti_load`,
+ *  `poolSize_mono_cores`); marked for Lean replacement; `loadCeil` is the one-minute load average rounded up. */
+export const poolSize = (cores: number, loadCeil: number): number => Math.max(1, cores - loadCeil);
+/** A failure that load, not the code, can cause: a timeout (vitest "timed out in 5000ms", a killed child). */
+export const LOAD_FAILURE_RE = /timed out in \d+\s*ms|ETIMEDOUT|Hook timed out|Test timed out/;
+
+/** One slot of the land worktrees (`<main>/.claude/land-wt/<n>`, gitignored, persistent so its `.lake` and `node_modules` stay warm).
+ *  A slot is claimed by a pid file; a claim of a dead pid is taken over. One slot per concurrent land. */
+export function claimLandWt(mainDir: string): { dir: string; free: () => void } {
+  const root = join(mainDir, ".claude", "land-wt");
+  mkdirSync(root, { recursive: true });
+  for (let n = 0; ; n++) {
+    const claim = join(root, `${n}.claim`);
+    for (let again = 0; again < 2; again++) {
+      try { writeFileSync(claim, `${process.pid}\n`, { flag: "wx" }); return { dir: join(root, String(n)), free: () => { try { unlinkSync(claim); } catch { /* gone */ } } }; }
+      catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+        const pid = Number(readFileSync(claim, "utf8").trim());
+        if (alive(pid)) break;
+        try { unlinkSync(claim); } catch { /* raced */ }
+      }
+    }
+  }
+}
+
+/** Put exactly the tree of `commit` in the land worktree `dir` (created on first use): detached checkout, then every
+ *  untracked or ignored file removed except `.lake` and `node_modules` (kept warm). */
+export function checkoutLandWt(mainDir: string, dir: string, commit: string, prep?: (dir: string) => void): void {
+  const known = existsSync(dir) && worktrees(mainDir).some((w) => existsSync(w.dir) && realpathSync(w.dir) === realpathSync(dir));
+  if (!known) {
+    tryGit(mainDir, ["worktree", "prune"]);
+    rmSync(dir, { recursive: true, force: true });
+    git(mainDir, ["worktree", "add", "--detach", "--force", dir, commit]);
+    prep?.(dir);
+  } else git(dir, ["checkout", "--detach", "--force", commit]);
+  git(dir, ["clean", "-fdxq", "-e", ".lake", "-e", "node_modules"]);
+}
+
+/** First land worktree use: clone the warm Lean build and install node_modules offline (scripts/wt-prep.sh); best effort. */
+const prepLandWt = (dir: string) => {
+  if (!existsSync(join(dir, "scripts/wt-prep.sh"))) return;
+  try { execFileSync("sh", ["scripts/wt-prep.sh"], { cwd: dir, stdio: "ignore" }); } catch { /* the checks build what is missing */ }
+  if (existsSync(join(dir, "pnpm-lock.yaml"))) { try { execFileSync("pnpm", ["install", "--offline", "--frozen-lockfile"], { cwd: dir, stdio: "ignore" }); } catch { /* the install check retries online */ } }
+};
+
+type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string } | { kind: "fallback"; why: string };
+
 type PlanTask = { id: string; state: string; owner?: string; stream?: string; writes?: string[] };
 
 /** Facts for `console.landPick`: is `branch` already in main, and the branches that could hold its work (`ci/<task>` and every
@@ -374,7 +435,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const results: ({ status: number | null; out: string } | undefined)[] = list.map(() => undefined);
     const started = new Set<number>();
     let running = 0;
-    const limit = Math.max(1, o.concurrency ?? availableParallelism());
+    const limit = Math.max(1, o.concurrency ?? poolSize(availableParallelism(), Math.ceil(loadavg()[0] ?? 0)));
     await new Promise<void>((done) => {
       const pump = () => {
         for (let i = 0; i < list.length && running < limit; i++) {
@@ -390,6 +451,15 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       };
       pump();
     });
+    // A land is never refused because the machine is busy: a check that failed with a timeout is run once more, alone (pool 1),
+    // and its second result counts (the verdict is still the conjunction of the final results: `verdict_perm`).
+    for (let i = 0; i < list.length; i++) {
+      const r0 = results[i]!;
+      if (r0.status === 0 || !LOAD_FAILURE_RE.test(r0.out)) continue;
+      const argv = list[i]!;
+      const p = await span("fw land", `${argv.join(" ")} (retry alone: timed out under load)`, () => runCheck(cwd, argv), (r) => r.status);
+      results[i] = { status: p.status, out: `${r0.out}\n[timed out under load; re-run alone]\n${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
+    }
     const bad: string[] = [];
     list.forEach((argv, i) => {
       const r = results[i]!;
@@ -403,6 +473,84 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   };
   const checks = o.checks ?? checksFor(mainDir, changed);
 
+  // Pre-lock protocol (research/notes/2026/10-18-land-speed.md P3; Lean `Fw.Console.LandSpeed`: pre_eq_old_iff, preLand_commit_exact):
+  // C = commit(merge-tree(main0, tip) + evidence, parents [main0, tip]) is built and checked in a land worktree with NO lock;
+  // under the lock only `HEAD = main0` is compared and C is fast-forwarded (sub-second). Main moved: re-check (bounded), then fall
+  // back to the locked protocol below.
+  const preLock = async (): Promise<PreResult> => {
+    const maxRetry = o.retries ?? PRELOCK_RETRIES;
+    const trailer = [`Task: ${o.task}`, ...(allow.length ? [`Land-Allow: ${allow.join(", ")}`] : []), ...(o.attribution ?? ATTRIBUTION)].join("\n");
+    const slot = claimLandWt(mainDir);
+    let requested = false;
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const main0 = git(mainDir, ["rev-parse", "HEAD"]);
+        if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) return { kind: "refuse", msg: `${branch} has nothing to land (already in ${main})` };
+        let tree: string;
+        try { tree = git(mainDir, ["-c", `attr.tree=${main0}`, "merge-tree", "--write-tree", main0, sha]).split("\n")[0]!; }
+        catch { return { kind: "fallback", why: `${main} cannot merge ${branch} cleanly` }; }
+        const mk = (t: string) => git(mainDir, ["commit-tree", t, "-p", main0, "-p", sha, "-m", `land ${branch}`, "-m", trailer]);
+        let c = mk(tree);
+        checkoutLandWt(mainDir, slot.dir, c, o.checks ? undefined : prepLandWt);
+        // the task's evidence goes into the merge commit, and into the checked tree (the checked tree is the committed tree)
+        const ev = writeEvidence(slot.dir, o.task!, sha.slice(0, 7));
+        if (ev === "failed") return { kind: "refuse", msg: "could not write the evidence into docs/team/work-graph.json" };
+        if (ev === "written") { c = mk(git(slot.dir, ["write-tree"])); if (attempt === 0) lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`); }
+        let marks = "";
+        try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
+        if (marks) return { kind: "refuse", msg: `conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}` };
+        const bad = await runChecks(slot.dir, o.checks ?? checksFor(slot.dir, changed));
+        let act = prelockAction(git(mainDir, ["rev-parse", "HEAD"]), main0, bad === null, attempt, maxRetry);
+        if (act === "refuse") return { kind: "refuse", msg: bad! };
+        if (act === "ff") {
+          if (!requested) { requested = true; const e = await requestLand(); if (e) return { kind: "refuse", msg: e }; }
+          const wait = Date.now() + (o.lockWaitMs ?? 10_000);
+          const lf = lockFile(mainDir);
+          let lock: ReturnType<typeof takeLock> = null;
+          while (!lock) {
+            const lk0 = lockFacts(lf);
+            const lv = askCore("console.landLock", { held: lk0.held, alive: lk0.alive });
+            const holder = lk0.lock ? `pid ${lk0.lock.pid}, branch ${lk0.lock.branch ?? "?"}, since ${lk0.lock.at ?? "?"}` : "";
+            if (!lv) return { kind: "refuse", msg: "fwcore is not available to decide the land lock (build lean/.lake)" };
+            if (lv.verdict === "stale") return { kind: "refuse", msg: `stale land lock ${lf} (${holder}; that process is gone). It was not removed: look at \`git status\` in ${mainDir} (an open merge: git merge --abort), then delete the file` };
+            if (lv.verdict === "busy") {
+              if (Date.now() >= wait) return { kind: "refuse", msg: `another fw land holds ${lf} (${holder}); wait for it` };
+              await new Promise((r) => setTimeout(r, 100));
+              continue;
+            }
+            lock = takeLock(lf, { branch, pre: main0, dir: realpathSync(mainDir) });
+          }
+          const endLock = begin("fw land", "lock held"); // from take to release; its 5 s ceiling is Lean `Fw.Obs.Timing.landCeilings`
+          let released = false;
+          const release = () => { if (!released) { released = true; endLock(0); dropLock(lf, lock!.token); } };
+          const onSig = (code: number) => () => { release(); process.exit(code); };
+          const onInt = onSig(130), onTerm = onSig(143);
+          process.once("SIGINT", onInt); process.once("SIGTERM", onTerm);
+          try {
+            const head = git(mainDir, ["rev-parse", "HEAD"]);
+            act = prelockAction(head, main0, true, attempt, maxRetry);
+            if (act === "ff") {
+              // Lean landTip with these facts: the lock is ours, the commit to advance to is C, HEAD is still main0
+              const d = askCore("console.landCommit", { locked: readLock(lf)?.token === lock.token, mergeHead: c, head, pre: main0 });
+              if (!d?.ok) return { kind: "refuse", msg: `will not fast-forward: ${d ? d.reason : "fwcore is not available to decide"}. ${main} is at ${tryHead(mainDir)}, the land started at ${main0.slice(0, 7)}; ${main} was not changed` };
+              if (!span("fw land", "merge commit", () => tryGit(mainDir, ["merge", "--ff-only", c]), (ok) => (ok ? 0 : 1)))
+                return { kind: "refuse", msg: `${main} could not fast-forward to the checked commit ${c.slice(0, 7)} (uncommitted changes in ${mainDir} that the land touches?); ${main} was not changed` };
+              return { kind: "done", sha: c };
+            }
+          } finally { process.off("SIGINT", onInt); process.off("SIGTERM", onTerm); release(); }
+        }
+        if (act === "fallback") return { kind: "fallback", why: `${main} moved ${maxRetry + 1} times while the checks ran` };
+        lines.push(`${main} moved during the checks (attempt ${attempt + 1}); checking again against the new ${main}`);
+      }
+    } finally { slot.free(); }
+  };
+  let pre: PreResult = { kind: "fallback", why: "pre-lock off" };
+  if (o.task && o.prelock !== false) {
+    pre = await preLock();
+    if (pre.kind === "refuse") return fail(pre.msg);
+    if (pre.kind === "fallback") lines.push(`pre-lock check not possible (${pre.why}); using the locked protocol`);
+  }
+
   let mergeSha: string;
   if (!o.task) {
     // card fast-forward: the checks run in the branch's own checkout (or main) before main moves
@@ -415,6 +563,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     endMerge(ffOk ? 0 : 1);
     if (!ffOk) return fail(`${main} cannot fast-forward to ${branch}`);
     mergeSha = git(mainDir, ["rev-parse", "HEAD"]);
+  } else if (pre.kind === "done") {
+    mergeSha = pre.sha;
   } else {
     // 3. take the land lock (Lean: console.landLock), merge into the main checkout without committing, check, commit, release.
     // While the lock is held the pre-commit hook (hooks/land-guard.mjs) refuses every other commit in this checkout.

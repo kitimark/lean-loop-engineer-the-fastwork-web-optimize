@@ -1,5 +1,6 @@
 // Incident repros for `fw land` (docs/team/incidents/ledger.json): inc-commit-during-land, inc-land-scope-registrations,
 // inc-agent-on-ci-branch, inc-fw-lean-import-conflict. Decisions are Lean (Fw.Console.Land); these tests drive the real git.
+import "./land-timeout.ts";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -64,7 +65,7 @@ describe("inc-commit-during-land: the land lock", () => {
     const main0 = fx.git(fx.root, "rev-parse", "main");
     const out = join(fx.root, "..", "intruder.out");
     const intruder = `git commit --allow-empty -q -m intruder 2>${out}.err; echo $? > ${out}`;
-    const r = await land(BR, { ...opts, checks: [sh(intruder)] });
+    const r = await land(BR, { ...opts, prelock: false, checks: [sh(intruder)] });
     expect(r.ok).toBe(true);
     expect(readFileSync(out, "utf8").trim()).not.toBe("0");
     expect(readFileSync(`${out}.err`, "utf8")).toMatch(/commit refused/);
@@ -134,7 +135,7 @@ describe("inc-commit-during-land: the land lock", () => {
     const { fx, wt, opts, mainSha } = await setup();
     fx.commit(wt, "src/a.ts");
     const before = mainSha();
-    const r = await land(BR, { ...opts, checks: [sh("git merge --abort")] });
+    const r = await land(BR, { ...opts, prelock: false, checks: [sh("git merge --abort")] });
     expect(r.ok).toBe(false);
     expect(text(r)).toMatch(/merge state gone/);
     expect(text(r)).toMatch(/reset/);
@@ -146,7 +147,7 @@ describe("inc-commit-during-land: the land lock", () => {
     const { fx, wt, opts, mainSha } = await setup();
     fx.commit(wt, "src/a.ts");
     const before = mainSha();
-    const r = await land(BR, { ...opts, checks: [sh("c=$(git commit-tree 'HEAD^{tree}' -p HEAD -m other) && git update-ref refs/heads/main $c")] });
+    const r = await land(BR, { ...opts, prelock: false, checks: [sh("c=$(git commit-tree 'HEAD^{tree}' -p HEAD -m other) && git update-ref refs/heads/main $c")] });
     expect(r.ok).toBe(false);
     expect(text(r)).toMatch(/head moved/);
     expect(mainSha()).not.toBe(before);

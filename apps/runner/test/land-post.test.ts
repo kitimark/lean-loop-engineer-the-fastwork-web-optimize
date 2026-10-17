@@ -1,5 +1,6 @@
 // `fw land` after the merge commit: a dropped request never fails the landing (retry once, then the remaining steps
 // are listed with their commands, exit stays ok); evidence lands inside the merge commit; check output goes to a log.
+import "./land-timeout.ts";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -31,6 +32,8 @@ async function setup() {
   await store.submit({ type: "task.define", key: "d", actor: "lead", task: "t1", title: "t", stream: "s", milestone: null, deps: [], owner: "builder", writes: ["src/**"], devices: [], evidence: null } as never);
   mkdirSync(join(fx.root, "docs/team"), { recursive: true });
   writeFileSync(join(fx.root, "docs/team/work-graph.json"), JSON.stringify({ tasks: [{ id: "t1", owner: "builder", writes: ["src/**"], evidence: null }] }, null, 1) + "\n");
+  fx.git(fx.root, "add", "--", "docs/team/work-graph.json");
+  fx.git(fx.root, "commit", "-q", "-m", "work graph");
   const wt = fx.worktree(BR);
   const tip = fx.commit(wt, "src/a.ts");
   return { fx, real, wt, tip, base: { cwd: fx.root, checks: [["true"]], ci: false as const, task: "t1", retryMs: 1 } };
@@ -95,13 +98,14 @@ describe("fw land after the commit", () => {
     expect(fx.git(fx.root, "branch", "--list", BR)).toContain(BR); // main unchanged
   });
 
-  it("parallel checks overlap in time (pool of 3, three 1 s sleeps finish in < 2.5 s)", async () => {
-    const { real, base } = await setup();
-    const sl = [["sleep", "1"], ["sleep", "1"], ["sleep", "1"]];
-    const t0 = Date.now();
-    const r = await land(BR, { ...base, http: real, concurrency: 3, checks: sl });
-    expect(r.ok).toBe(true);
-    expect(Date.now() - t0).toBeLessThan(2500);
+  it("parallel checks overlap (pool of 3): each waits until all three have started, which a sequential run could never satisfy", async () => {
+    const { fx, real, base } = await setup();
+    const d = join(fx.root, "..", "rendezvous");
+    mkdirSync(d, { recursive: true });
+    // bounded by a count of polls, not by the clock: a sequential pool leaves it at 3 started files only after the first check gave up
+    const rv = (n: number) => ["sh", "-c", `touch ${d}/${n}; i=0; while [ $(ls ${d} | wc -l) -lt 3 ]; do i=$((i+1)); [ $i -gt 6000 ] && exit 1; sleep 0.05; done`];
+    const r = await land(BR, { ...base, http: real, concurrency: 3, checks: [rv(1), rv(2), rv(3)] });
+    expect(r.ok, r.lines.join("\n")).toBe(true);
   });
 
   it("check output goes to a log file; a failure prints one FAILED line, the log path and at most 30 lines", async () => {
