@@ -324,28 +324,170 @@ def warnOnly (mod : String) : Bool := mod.startsWith "Fw.Measure."
 
 end WhereLint
 
+/-- The value after the flag `flag`, if any.
+
+$$\forall \mathit{flag}, a = [a_1, \dots, a_n]:\quad \operatorname{optArg}(\mathit{flag}, a) = \begin{cases} \mathrm{some}(a_{j+1}) & S \ne \emptyset,\ j = \min S \\ \bot & S = \emptyset \end{cases},\qquad S = \{\, i \in \mathbb{N} \mid 1 \le i \le n - 1,\ a_i = \mathit{flag} \,\}$$
+
+(1-indexed; $\bot$ is `none`; $S = \emptyset$ when $n \le 1$). The first occurrence that has a following argument
+wins. -/
+def optArg (flag : String) : List String → Option String
+  | f :: v :: rest => if f == flag then some v else optArg flag (v :: rest)
+  | _ => none
+
+#guard optArg "--out" ["--lint", "--out", "x.json"] == some "x.json"
+#guard optArg "--out" ["--lint", "--out"] == none
+#guard optArg "--out" [] == none
+#guard optArg "--store" ["--store", "a", "--store", "b"] == some "a"
+#guard optArg "--out" ["--out", "--out", "y"] == some "--out"
+
 /-- The file named after `--out`, if any. -/
-def outFile? : List String → Option String
-  | "--out" :: f :: _ => some f
-  | _ :: rest => outFile? rest
-  | [] => none
+def outFile? (args : List String) : Option String := optArg "--out" args
+
+/-! ## Module cache (task mathview-module-cache)
+
+With `--store <dir>` the export is computed per module and kept in `<dir>/<K(m)>.json` (compact JSON of the module's
+entries), keyed by `MathView.modKey`. A run imports every module as before, reads the entries of every module whose
+key is stored, exports only the declarations of the other modules, stores those (atomically: a temporary file, then
+a rename; only when `MathView.storable`), merges, and sorts by `MathView.Entry.before`. The lint lines are then
+computed from the merged entries exactly as in a full run.
+
+Why a module's entries depend only on its import cone (the premise `ConeLocal` of
+`Fw.Console.LandSpeed.lint_modular`; the analysis is in docs/team/handoffs/mathview-module-cache.md): the environment
+is imported with `loadExts := false`, so every extension *state* keeps its initial value
+(Lean/Environment.lean:2428-2433 @ v4.35.0) and only the per-module entry arrays are set; unexpanders, delaborators,
+aliases, instances and scoped attributes added by other modules are invisible, and docstrings, declaration ranges,
+projection and auxiliary-recursor tags are read from the declaring module's own entries
+(Lean/EnvExtension.lean:118-122,163-170). The one lookup that scans every module, the docstring suffix of
+`findDocString?`, is not used (see `MathView.entries`). The lint rules are functions of one entry each. -/
+
+/-- The lint program's sources (with the axiom memo it runs), embedded when this binary is compiled: a stale binary
+hashes the sources it was built from, so it can never store its output under the key of newer sources. A change
+to any of them rebuilds this file (it imports `MathView`, which imports `Fw.Spec.AxReach`). -/
+def toolSources : List (String × String) :=
+  [("MathView.lean", include_str "MathView.lean"), ("MathViewMain.lean", include_str "MathViewMain.lean"),
+   ("Fw/Spec/AxReach.lean", include_str "Fw/Spec/AxReach.lean")]
+
+/-- The build inputs of the tool hash read at run time: the toolchain pin, the manifest and the lakefile with its
+options. -/
+def toolFiles : List String := ["lean-toolchain", "lake-manifest.json", "lakefile.toml"]
+
+/-- The tool hash $t$: a module key over the blob ids of `toolSources` and `toolFiles`, in order.
+
+$$t = \operatorname{modKey}\bigl(\texttt{(tool)},\ \operatorname{join}_{\texttt{;}}(f_1\texttt{=}\operatorname{blobId}(c_1), \dots, f_6\texttt{=}\operatorname{blobId}(c_6)),\ \texttt{""},\ [\,]\bigr)$$
+
+where $(f_i, c_i)$ are the 3 embedded sources, then the 3 files read under `root`. Throws when a file in
+`toolFiles` is missing. -/
+def toolHash (root : System.FilePath) : IO String := do
+  let mut parts : Array String := toolSources.toArray.map fun (f, s) => f ++ "=" ++ MathView.blobId s.toUTF8
+  for f in toolFiles do
+    parts := parts.push (f ++ "=" ++ MathView.blobId (← IO.FS.readBinFile (root / f)))
+  return MathView.modKey "(tool)" (";".intercalate parts.toList) "" []
+
+/-- The blob of a module: the id of each of its `.olean` parts that exists (the files `importModules` reads).
+
+$$\operatorname{oleanBlob}(o) = \operatorname{join}_{\texttt{;}}\bigl[\operatorname{blobId}(\mathrm{bytes}(p)) \mid p \in [o,\ o\texttt{.server},\ o\texttt{.private}],\ p \text{ exists}\bigr]$$
+
+The empty string when no part exists. -/
+def oleanBlob (olean : System.FilePath) : IO String := do
+  let mut ids : Array String := #[]
+  for p in [olean, olean.addExtension "server", olean.addExtension "private"] do
+    if ← p.pathExists then ids := ids.push (MathView.blobId (← IO.FS.readBinFile p))
+  return ";".intercalate ids.toList
+
+/-- The key of module `m` (`MathView.modKey`), memoised in `memo`; `none` for a module outside the package build (a
+toolchain module, covered by the toolchain pin in $t$ and entered as `ext:<name>` in the key of a module that
+imports it). Throws when `m` is not among the imported modules. -/
+partial def modKeyOf (env : Environment) (build : String) (t : String)
+    (memo : IO.Ref (Std.HashMap Name (Option String))) (m : Name) : IO (Option String) := do
+  if let some k := (← memo.get)[m]? then return k
+  let olean ← findOLean m
+  let k ← if !olean.toString.startsWith build then pure none else do
+    let some idx := env.getModuleIdx? m | throw (IO.userError s!"mathview: module {m} is not imported")
+    let imps := env.header.moduleData[idx.toNat]!.imports
+    let mut ks : Array String := #[]
+    for i in imps do
+      ks := ks.push ((← modKeyOf env build t memo i.module).getD s!"ext:{i.module}")
+    pure (some (MathView.modKey m.toString (← oleanBlob olean) t ks.toList))
+  memo.modify (·.insert m k)
+  return k
+
+/-- The stored entries under key `k`, or `none` when absent or unreadable (then the module is recomputed). -/
+def readStored (store : System.FilePath) (k : String) : IO (Option (Array MathView.Entry)) := do
+  let f := store / (k ++ ".json")
+  unless ← f.pathExists do return none
+  try
+    match (Json.parse (← IO.FS.readFile f)) >>= fromJson? with
+    | .ok es => return some es
+    | .error _ => return none
+  catch _ => return none
+
+/-- Store `es` under key `k`: write a temporary file named by key and process id, then rename it into place, so a
+reader in another worktree sees either no file or the whole file. Returns whether it was stored. -/
+def writeStored (store : System.FilePath) (k : String) (es : Array MathView.Entry) : IO Bool := do
+  try
+    let tmp := store / s!".tmp.{k}.{← IO.Process.getPID}"
+    IO.FS.writeFile tmp (toJson es).compress
+    IO.FS.rename tmp (store / (k ++ ".json"))
+    return true
+  catch _ => return false
+
+/-- The incremental export over the store `store`; also writes `stats` (counts, phase times in ms, then
+`miss <module>` lines). -/
+def cachedEntries (env : Environment) (root store : System.FilePath) (stats : Option String) :
+    IO (Array MathView.Entry) := do
+  let t0 ← IO.monoMsNow
+  IO.FS.createDirAll store
+  let t ← toolHash root
+  let build := (root / ".lake" / "build").toString ++ "/"
+  let memo ← IO.mkRef ({} : Std.HashMap Name (Option String))
+  let mut keys : Array (Name × String) := #[]
+  for m in env.header.moduleNames do
+    if let some k ← modKeyOf env build t memo m then keys := keys.push (m, k)
+  let t1 ← IO.monoMsNow
+  let mut hits : Array MathView.Entry := #[]
+  let mut hitMods : NameSet := {}
+  let mut missKeys : Array (Name × String) := #[]
+  for (m, k) in keys do
+    match ← readStored store k with
+    | some es => hits := hits ++ es; hitMods := hitMods.insert m
+    | none => missKeys := missKeys.push (m, k)
+  let t2 ← IO.monoMsNow
+  let ctx : Core.Context := { fileName := "<mathview>", fileMap := default }
+  let (fresh, _) ← ((MathView.entries (want := fun mod => !hitMods.contains mod)).run' {} {}).toIO ctx { env }
+  let t3 ← IO.monoMsNow
+  let mut stored := 0
+  for (m, k) in missKeys do
+    let es := fresh.filter (·.module == m.toString)
+    if MathView.storable es then
+      if ← writeStored store k es then stored := stored + 1
+  let t4 ← IO.monoMsNow
+  if let some f := stats then
+    let misses := missKeys.toList.map (fun (m, _) => s!"miss {m}\n")
+    IO.FS.writeFile f (s!"modules {keys.size}\nhits {hitMods.size}\nmisses {missKeys.size}\nstored {stored}\n" ++
+      s!"ms keys {t1 - t0} read {t2 - t1} export {t3 - t2} store {t4 - t3}\n" ++ String.join misses)
+  return (hits ++ fresh).qsort MathView.Entry.before
 
 /-- `lake exe mathview [--lint] [--out <file>]`: print every `Fw` declaration as JSON (name, kind, module, line,
 English, math, signature, machine LaTeX, deep statement hash, docstring hash, axioms); with `--lint`, exit 1 when
-a declaration lacks `$$` math or English, depends on `sorryAx`, or on on an axiom other than
+a declaration lacks `$$` math or English, depends on `sorryAx`, or on an axiom other than
 `propext`, `Classical.choice`, `Quot.sound`, or when its `$$` math binds a name that it also applies as a function
 and uses as a value (`ShadowLint`), or when a `where` / `with` clause after a `$$` block defines a symbol of that
 block (`WhereLint`; in `Fw.Measure.*` that clause only warns, TODO(where-cleanup)). With `--out <file>` the JSON export is also written to
 `<file>` (the same bytes as the plain export on stdout), so one run serves both the lint and the export;
-`scripts/mathview-cached.sh` keeps that file keyed by a hash of the sources. -/
+`scripts/mathview-cached.sh` keeps that file keyed by a hash of the sources. With `--store <dir>` the export is
+computed per module and reused from `<dir>` (`cachedEntries`; `--stats <file>` records hits and misses); the output is
+the same bytes as without it, except the `heartbeats` field of a reused entry. -/
 def main (args : List String) : IO UInt32 := do
   let root ← packageRoot
   initSearchPath (← findSysroot) [root / ".lake" / "build" / "lib" / "lean"]
   let mods ← fwModules root
+  -- `loadExts := false` is a premise of the module cache (see the module-cache note above)
   let env ← importModules (mods.map fun m => { module := m }) {} (loadExts := false)
   let ctx : Core.Context := { fileName := "<mathview>", fileMap := default }
   let st : Core.State := { env }
-  let (es, _) ← (MathView.entries.run' {} {}).toIO ctx st
+  let es ← match optArg "--store" args with
+    | some store => cachedEntries env root store (optArg "--stats" args)
+    | none => Prod.fst <$> (MathView.entries.run' {} {}).toIO ctx st
   let render : Unit → String := fun _ => (toJson es).pretty ++ "\n"
   if let some f := outFile? args then IO.FS.writeFile f (render ())
   if args.contains "--lint" then

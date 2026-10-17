@@ -3226,7 +3226,8 @@
     "lean/MathView.lean",
     "lean/scripts/mathview-cached.sh",
     ".github/workflows/lean.yml"
-   ]
+   ],
+   "evidence": "a4416ca"
   },
   {
    "id": "gate-exit-verdict",
