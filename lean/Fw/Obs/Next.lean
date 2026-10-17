@@ -1,4 +1,5 @@
 import Fw.Obs.Health
+import Fw.Obs.Signals
 /-!
 # Next action per agent: agents that look busy but are idle or held, and what fixes each
 
@@ -21,20 +22,25 @@ whose producer has exited (the file's last line is the exit marker) or that is u
 Rules (a gate on the Health state, then independent pieces in a fixed order; `none` exactly when no piece fires):
 * Every agent, first: `claimTask` when it is live (not done, not gone) and its name is the id of a board task that is
   not done and has no agent (the spawn-time claim ran before the task reached the board and is never retried).
-* An **active** agent gets only: `killOrphan` for an own, sole sleep loop with a dead watch (killing only wakes the
-  owner's waiting call), `waitCi` (its CI run is running), and `nudgeHandoff` (context above `ctxWarn`, or paired with
-  every such kill so the owner learns why its call returned).
-* Otherwise: `killOrphan` for each own, sole sleep loop whose owner handed back, or whose watch is dead, or which runs
+* An **active** agent gets only: `killOrphan` for an own, sole waiting child (sleep loop or stdin wait) with a dead
+  watch (killing only wakes the owner's waiting call), `waitCi` (its CI run is running), and `nudgeHandoff` (context
+  above `ctxWarn`, or paired with every such kill so the owner learns why its call returned).
+* Otherwise: `killOrphan` for each own, sole waiting child whose owner handed back, or whose watch is dead, or which runs
   for more than `loopCapMin`; `waitCi`; `land` or `routeIntegrator` (handed back, no live child, branch ahead and not
   landed; routed when the branch is on the integrator's list); `cleanupWorktree` (worktree present, branch landed, no
   live child, handed back or ended); `respawnFromHandoff` (no handback, stalled or gone, no live child);
   `nudgeHandoff`; `investigate` with a reason (held by a child that gets no kill, a CI wait past its own timeout, a
   sleep loop outside the session's tree, a dead worktree-lock pid of a live agent).
 
+Signals (`Fw.Obs.Signals`): when an agent carries its transcript signals, `resolve` takes its handback from them and
+marks a child's producer exited when the child watches a task that has ended or an agent that is finished or done;
+`next` then decides on the resolved facts. Retention (`keepB`) keeps an agent while `next` gives it an action other
+than `none` or its signal state is not quiet; `meta.finished` is read nowhere.
+
 Proved: `next_total`, `next_det`, `kill_sound`, `kill_only_loops`, `active_quiet`, `active_kill_nudge`, `land_sound`,
 `route_sound`, `cleanup_sound`, `respawn_sound`, `claim_sound`, `live_land`, `live_kill`, `live_kill_active`,
-`live_claim`, `kill_mono`. Wire op:
-`obs.next` (`Fw.Wire.Obs`).
+`live_claim`, `kill_mono`, `resolve_handback`, `resolveChild_exit`, `keep_of_open_action`, `keep_of_live`,
+`keep_withMeta`, `keepHealth_of_open_action`. Wire ops: `obs.next`, `obs.signals` (`Fw.Wire.Obs`).
 -/
 namespace Fw.Obs.Next
 open Fw.Obs.Health (State CiRun ciRunning msPerMin)
@@ -54,22 +60,42 @@ structure Params where
 deriving DecidableEq, Repr
 
 /-- What a child process of the agent's session does: a shell poll loop (`until …; do sleep …; done`), a CI wait
-(`waitrun.sh <run>` with its timeout in minutes), a build or test run, or anything else.
+(`waitrun.sh <run>` with its timeout in minutes), a build or test run, anything else, or a background command blocked
+reading a stdin that nothing feeds (port-nav's `cat > file`).
 
-$$\mathcal K = \{\mathrm{sleepLoop}\} \cup \{\mathrm{ciWait}(r, m) : r, m \in \mathbb N\} \cup \{\mathrm{build}, \mathrm{other}\}$$
+$$\mathcal K = \{\mathrm{sleepLoop}, \mathrm{stdinWait}\} \cup \{\mathrm{ciWait}(r, m) : r, m \in \mathbb N\} \cup \{\mathrm{build}, \mathrm{other}\}$$
 -/
 inductive ChildKind where
   | sleepLoop
   | ciWait (run : Nat) (timeoutMin : Nat)
   | build
   | other
+  | stdinWait
+deriving DecidableEq, Repr
+
+/-- The waiting kinds, the only ones that may be killed: a sleep loop or a stdin wait (neither does work).
+
+$$k \in \mathcal W \iff k \in \{\mathrm{sleepLoop}, \mathrm{stdinWait}\}$$
+-/
+def waitsK (k : ChildKind) : Bool := k == .sleepLoop || k == .stdinWait
+
+/-- What a loop watches, when known: the output of a background task (by task id) or an agent's transcript (by the
+agent id its signals carry).
+
+$$\mathcal V = \{\mathrm{task}(b), \mathrm{agent}(a) : a, b \in \mathrm{String}\}$$
+-/
+inductive Watch where
+  | task (id : String)
+  | agent (id : String)
 deriving DecidableEq, Repr
 
 /-- A live child process started by the agent: its pid, its parent chain (the ppid, then the ppid's ppid, … up to
 pid 1), its kind, its start time (ms), the modification time (ms) of the file it watches (`none`: it watches none),
-and whether that file's producer has exited (its last line is the exit marker `[exited with code N]`).
+whether that file's producer has exited (its last line is the exit marker `[exited with code N]` or `[killed]`), and
+what the watched file belongs to (`none`: unknown; `resolve` adds an exited producer for an ended task or a finished
+or done agent).
 
-$$c = (\mathit{pid}, P, k, s, w_\bot, \mathit{exit}) \in \mathbb N \times \mathbb N^* \times \mathcal K \times \mathbb N \times \mathbb N_\bot \times \mathbb B$$
+$$c = (\mathit{pid}, P, k, s, w_\bot, \mathit{exit}, v_\bot) \in \mathbb N \times \mathbb N^* \times \mathcal K \times \mathbb N \times \mathbb N_\bot \times \mathbb B \times \mathcal V_\bot$$
 -/
 structure Child where
   pid            : Nat
@@ -78,6 +104,7 @@ structure Child where
   startedAt      : Nat
   watchedAt      : Option Nat := none
   producerExited : Bool := false
+  watch          : Option Watch := none
 deriving DecidableEq, Repr
 
 /-- The agent's branch: name, commits ahead of `main` (`git rev-list --count main..branch`), whether its tip is an
@@ -127,10 +154,10 @@ deriving DecidableEq, Repr
 
 /-- The facts of one agent: id, task id, Health state, time of its handback (`none`: not seen), the session pid its
 processes descend from, its branch, worktree and context tokens (0 when unknown), its live child processes, the
-latest CI run of its `ci/*` branch, the board row of the task named like the agent (`none`: no such task), and
-whether its handoff note exists.
+latest CI run of its `ci/*` branch, the board row of the task named like the agent (`none`: no such task), whether its
+handoff note exists, and its transcript signals (`Fw.Obs.Signals.Facts`; `none`: not read).
 
-$$f = (\mathit{id}, \mathit{task}, s, h_\bot, \sigma, b_\bot, w_\bot, \mathit{ctx}, C, r_\bot, \tau_\bot, \mathit{ho})$$
+$$f = (\mathit{id}, \mathit{task}, s, h_\bot, \sigma, b_\bot, w_\bot, \mathit{ctx}, C, r_\bot, \tau_\bot, \mathit{ho}, g_\bot)$$
 -/
 structure AgentFacts where
   id         : String
@@ -146,6 +173,8 @@ structure AgentFacts where
   board      : Option TaskRow := none
   /-- the handoff note `docs/team/handoffs/<name>.md` exists -/
   handoff    : Bool := false
+  /-- the transcript signals (`none`: not read; then `resolve` leaves the facts as they are) -/
+  signals    : Option Fw.Obs.Signals.Facts := none
 deriving DecidableEq, Repr
 
 /-- Why an agent needs a look by the lead: held by a child that gets no kill, a CI wait past its own timeout, a sleep
@@ -228,11 +257,11 @@ $$\operatorname{old}(p, t, c) \iff \mu\,\mathit{loopCap} < t \mathbin{\dot-} s(c
 -/
 def oldB (p : Params) (now : Nat) (c : Child) : Bool := decide (p.loopCapMin * msPerMin < now - c.startedAt)
 
-/-- Whether a child's pid is unambiguous: every child of the agent with the same pid is a sleep loop.
+/-- Whether a child's pid is unambiguous: every child of the agent with the same pid is of a waiting kind (sleep loop or stdin wait).
 
-$$\operatorname{sole}(f, c) \iff \forall d \in C(f).\ \mathit{pid}(d) = \mathit{pid}(c) \Rightarrow k(d) = \mathrm{sleepLoop}$$
+$$\operatorname{sole}(f, c) \iff \forall d \in C(f).\ \mathit{pid}(d) = \mathit{pid}(c) \Rightarrow k(d) \in \mathcal W$$
 -/
-def soleB (f : AgentFacts) (c : Child) : Bool := f.children.all fun d => d.pid != c.pid || d.kind == .sleepLoop
+def soleB (f : AgentFacts) (c : Child) : Bool := f.children.all fun d => d.pid != c.pid || waitsK d.kind
 
 /-- Whether a child is in the session's tree but is neither the session nor one of its own ancestors.
 
@@ -241,13 +270,13 @@ $$\operatorname{own}(f, c) \iff \sigma(f) \in P(c) \wedge \mathit{pid}(c) \ne \s
 def ownB (f : AgentFacts) (c : Child) : Bool :=
   c.chain.contains f.session && c.pid != f.session && !c.chain.contains c.pid
 
-/-- An orphan loop: an own, sole sleep-loop child whose owner has handed back, or whose watch is dead, or which runs
+/-- An orphan loop: an own, sole child of a waiting kind whose owner has handed back, or whose watch is dead, or which runs
 past the loop cap.
 
-$$\operatorname{orphan}(p, t, f, c) \iff k(c) = \mathrm{sleepLoop} \wedge \operatorname{own}(f, c) \wedge \operatorname{sole}(f, c) \wedge (\operatorname{hb}(f) \vee \operatorname{dead}(p, t, c) \vee \operatorname{old}(p, t, c))$$
+$$\operatorname{orphan}(p, t, f, c) \iff k(c) \in \mathcal W \wedge \operatorname{own}(f, c) \wedge \operatorname{sole}(f, c) \wedge (\operatorname{hb}(f) \vee \operatorname{dead}(p, t, c) \vee \operatorname{old}(p, t, c))$$
 -/
 def orphanB (p : Params) (now : Nat) (f : AgentFacts) (c : Child) : Bool :=
-  c.kind == .sleepLoop && ownB f c && soleB f c && (handedBack f || deadB p now c || oldB p now c)
+  waitsK c.kind && ownB f c && soleB f c && (handedBack f || deadB p now c || oldB p now c)
 
 /-- Whether a child gets `killOrphan`: an orphan loop, and when the agent is active its watch must be dead.
 
@@ -640,16 +669,16 @@ theorem kill_mem (p : Params) (t : Nat) (f : AgentFacts) (q : Nat) :
       · obtain ⟨_, h⟩ := probes_kind p t f _ h; cases h
   · exact fun h => .inr (.inl h)
 
-/-- The kill test unfolded: an own, sole sleep loop whose owner handed back, or whose watch is dead, or which runs
+/-- The kill test unfolded: an own, sole waiting child whose owner handed back, or whose watch is dead, or which runs
 past the cap; for an active agent its watch must be dead.
 
-$$\forall p, t, f, c:\quad \operatorname{kill}(p, t, f, c) \iff k(c) = \mathrm{sleepLoop} \wedge \sigma(f) \in P(c) \wedge \mathit{pid}(c) \ne \sigma(f) \wedge \mathit{pid}(c) \notin P(c) \wedge \operatorname{sole}(f, c) \wedge (\operatorname{hb}(f) \vee \operatorname{dead}(p, t, c) \vee \operatorname{old}(p, t, c)) \wedge (s(f) \ne \mathrm{active} \vee \operatorname{dead}(p, t, c))$$
+$$\forall p, t, f, c:\quad \operatorname{kill}(p, t, f, c) \iff k(c) \in \mathcal W \wedge \sigma(f) \in P(c) \wedge \mathit{pid}(c) \ne \sigma(f) \wedge \mathit{pid}(c) \notin P(c) \wedge \operatorname{sole}(f, c) \wedge (\operatorname{hb}(f) \vee \operatorname{dead}(p, t, c) \vee \operatorname{old}(p, t, c)) \wedge (s(f) \ne \mathrm{active} \vee \operatorname{dead}(p, t, c))$$
 -/
 theorem killB_iff (p : Params) (t : Nat) (f : AgentFacts) (c : Child) :
-    killB p t f c = true ↔ c.kind = .sleepLoop ∧ f.session ∈ c.chain ∧ c.pid ≠ f.session ∧ c.pid ∉ c.chain ∧
+    killB p t f c = true ↔ waitsK c.kind = true ∧ f.session ∈ c.chain ∧ c.pid ≠ f.session ∧ c.pid ∉ c.chain ∧
       soleB f c = true ∧ (handedBack f = true ∨ deadB p t c = true ∨ oldB p t c = true) ∧
       (f.state ≠ .active ∨ deadB p t c = true) := by
-  simp only [killB, orphanB, ownB, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, List.contains_iff_mem,
+  simp only [killB, orphanB, ownB, Bool.and_eq_true, Bool.or_eq_true, List.contains_iff_mem,
     bne_iff_ne, ne_eq, Bool.not_eq_true', Bool.eq_false_iff]
   constructor
   · rintro ⟨⟨⟨⟨hk, ⟨hs, hne⟩, hnc⟩, hso⟩, hw⟩, ha⟩
@@ -667,14 +696,14 @@ theorem deadB_iff (p : Params) (t : Nat) (c : Child) :
   unfold deadB exitedB staleB
   cases c.watchedAt <;> simp
 
-/-- **Kill safety.** A killed pid is a sleep-loop child of the agent whose parent chain reaches the session pid, which
+/-- **Kill safety.** A killed pid is a waiting child (sleep loop or stdin wait) of the agent whose parent chain reaches the session pid, which
 is not the session nor its own ancestor; its owner handed back, or its watch is dead (producer exited or file stale),
 or it runs past the loop cap; and if the agent is active, its watch is dead.
 
-$$\forall p, t, f, q:\quad \mathrm{killOrphan}(q) \in \operatorname{next}(p, t, f) \Rightarrow \exists c \in C(f).\ \mathit{pid}(c) = q \wedge k(c) = \mathrm{sleepLoop} \wedge \sigma(f) \in P(c) \wedge q \ne \sigma(f) \wedge q \notin P(c) \wedge \Bigl(h_\bot(f) \ne \bot \vee \bigl((w_\bot(c) \ne \bot \wedge \mathit{exit}(c)) \vee (\exists m.\ w_\bot(c) = m \wedge \mu\,\mathit{fileStale} < t \mathbin{\dot-} m)\bigr) \vee \mu\,\mathit{loopCap} < t \mathbin{\dot-} s(c)\Bigr) \wedge \Bigl(s(f) = \mathrm{active} \Rightarrow (w_\bot(c) \ne \bot \wedge \mathit{exit}(c)) \vee (\exists m.\ w_\bot(c) = m \wedge \mu\,\mathit{fileStale} < t \mathbin{\dot-} m)\Bigr)$$
+$$\forall p, t, f, q:\quad \mathrm{killOrphan}(q) \in \operatorname{next}(p, t, f) \Rightarrow \exists c \in C(f).\ \mathit{pid}(c) = q \wedge k(c) \in \mathcal W \wedge \sigma(f) \in P(c) \wedge q \ne \sigma(f) \wedge q \notin P(c) \wedge \Bigl(h_\bot(f) \ne \bot \vee \bigl((w_\bot(c) \ne \bot \wedge \mathit{exit}(c)) \vee (\exists m.\ w_\bot(c) = m \wedge \mu\,\mathit{fileStale} < t \mathbin{\dot-} m)\bigr) \vee \mu\,\mathit{loopCap} < t \mathbin{\dot-} s(c)\Bigr) \wedge \Bigl(s(f) = \mathrm{active} \Rightarrow (w_\bot(c) \ne \bot \wedge \mathit{exit}(c)) \vee (\exists m.\ w_\bot(c) = m \wedge \mu\,\mathit{fileStale} < t \mathbin{\dot-} m)\Bigr)$$
 -/
 theorem kill_sound (p : Params) (t : Nat) (f : AgentFacts) (q : Nat) (h : Action.killOrphan q ∈ next p t f) :
-    ∃ c ∈ f.children, c.pid = q ∧ c.kind = .sleepLoop ∧ f.session ∈ c.chain ∧ q ≠ f.session ∧ q ∉ c.chain ∧
+    ∃ c ∈ f.children, c.pid = q ∧ waitsK c.kind = true ∧ f.session ∈ c.chain ∧ q ≠ f.session ∧ q ∉ c.chain ∧
       (f.handbackAt.isSome ∨
         ((c.watchedAt ≠ none ∧ c.producerExited = true) ∨
           ∃ m, c.watchedAt = some m ∧ p.fileStaleMin * msPerMin < t - m) ∨
@@ -699,28 +728,28 @@ theorem kill_sound (p : Params) (t : Nat) (f : AgentFacts) (q : Nat) (h : Action
 /-- **No kill but loops.** A child of another kind (CI wait, build, other) is never killed: its pid gets no
 `killOrphan`.
 
-$$\forall p, t, f, c:\quad c \in C(f) \wedge k(c) \ne \mathrm{sleepLoop} \Rightarrow \mathrm{killOrphan}(\mathit{pid}(c)) \notin \operatorname{next}(p, t, f)$$
+$$\forall p, t, f, c:\quad c \in C(f) \wedge k(c) \notin \mathcal W \Rightarrow \mathrm{killOrphan}(\mathit{pid}(c)) \notin \operatorname{next}(p, t, f)$$
 -/
 theorem kill_only_loops (p : Params) (t : Nat) (f : AgentFacts) (c : Child) (hc : c ∈ f.children)
-    (hk : c.kind ≠ .sleepLoop) : Action.killOrphan c.pid ∉ next p t f := by
+    (hk : waitsK c.kind = false) : Action.killOrphan c.pid ∉ next p t f := by
   intro h
   obtain ⟨d, _, hd, he⟩ := (mem_kills p t f _).1 ((kill_mem p t f c.pid).1 h)
   simp only [Action.killOrphan.injEq] at he
   obtain ⟨_, _, _, _, hso, _⟩ := (killB_iff p t f d).1 hd
-  simp only [soleB, List.all_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq, beq_iff_eq] at hso
+  simp only [soleB, List.all_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq] at hso
   rcases hso c hc with h1 | h1
   · exact h1 he
-  · exact hk h1
+  · simp [hk] at h1
 
 /-- **Active gate.** An active agent gets only `none`, `waitCi`, `nudgeHandoff`, `claimTask`, or `killOrphan` of a
-sleep-loop child in the session's tree whose watch is dead (its file's producer has exited or the file is stale).
+waiting child in the session's tree whose watch is dead (its file's producer has exited or the file is stale).
 
-$$\forall p, t, f, x:\quad s(f) = \mathrm{active} \wedge x \in \operatorname{next}(p, t, f) \Rightarrow x = \mathrm{none} \vee (\exists r.\ x = \mathrm{waitCi}(r)) \vee x = \mathrm{nudgeHandoff} \vee (\exists k, a.\ x = \mathrm{claimTask}(k, a)) \vee \exists c \in C(f).\ x = \mathrm{killOrphan}(\mathit{pid}(c)) \wedge k(c) = \mathrm{sleepLoop} \wedge \sigma(f) \in P(c) \wedge \bigl((w_\bot(c) \ne \bot \wedge \mathit{exit}(c)) \vee (\exists m.\ w_\bot(c) = m \wedge \mu\,\mathit{fileStale} < t \mathbin{\dot-} m)\bigr)$$
+$$\forall p, t, f, x:\quad s(f) = \mathrm{active} \wedge x \in \operatorname{next}(p, t, f) \Rightarrow x = \mathrm{none} \vee (\exists r.\ x = \mathrm{waitCi}(r)) \vee x = \mathrm{nudgeHandoff} \vee (\exists k, a.\ x = \mathrm{claimTask}(k, a)) \vee \exists c \in C(f).\ x = \mathrm{killOrphan}(\mathit{pid}(c)) \wedge k(c) \in \mathcal W \wedge \sigma(f) \in P(c) \wedge \bigl((w_\bot(c) \ne \bot \wedge \mathit{exit}(c)) \vee (\exists m.\ w_\bot(c) = m \wedge \mu\,\mathit{fileStale} < t \mathbin{\dot-} m)\bigr)$$
 -/
 theorem active_quiet (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (ha : f.state = .active)
     (hx : x ∈ next p t f) :
     x = .none ∨ (∃ r, x = .waitCi r) ∨ x = .nudgeHandoff ∨ (∃ k a, x = .claimTask k a) ∨
-      ∃ c ∈ f.children, x = .killOrphan c.pid ∧ c.kind = .sleepLoop ∧ f.session ∈ c.chain ∧
+      ∃ c ∈ f.children, x = .killOrphan c.pid ∧ waitsK c.kind = true ∧ f.session ∈ c.chain ∧
         ((c.watchedAt ≠ none ∧ c.producerExited = true) ∨
           ∃ m, c.watchedAt = some m ∧ p.fileStaleMin * msPerMin < t - m) := by
   by_cases hn : x = .none
@@ -982,6 +1011,117 @@ theorem live_land (p : Params) (t : Nat) (f : AgentFacts) (β : Branch) (ha : f.
       simp [lands, hhh, hbr, hcond, hq]
     exact .inr ((lands_mem p t f _ (.inl ⟨_, rfl⟩)).2 ⟨ha, hls⟩)
 
+/-! ## Signals: the handback and exited producers come from the transcripts (`Fw.Obs.Signals`) -/
+
+/-- The signal parameters Next uses: an id is hung after the loop cap.
+
+$$\operatorname{sp}(p) = (\mathit{hungAfter} := \mu\,\mathit{loopCap}(p))$$
+-/
+def sigParams (p : Params) : Signals.Params := { hungAfter := p.loopCapMin * msPerMin }
+
+/-- The signal state of an agent at $t$ (`none`: no signals).
+
+$$\operatorname{sig}(p, t, f) = \begin{cases} \operatorname{classify}(\operatorname{sp}(p), t, g) & g_\bot(f) = g \\ \bot & g_\bot(f) = \bot \end{cases}$$
+-/
+def sigState (p : Params) (now : Nat) (f : AgentFacts) : Option Signals.State :=
+  f.signals.map (Signals.classify (sigParams p) now)
+
+/-- Whether a watched producer is over at $t$, judged from the signals of all agents $A$: for a task, some agent's
+signals hold an end of it at or before $t$; for an agent, some agent's signals carry that agent id and classify as
+finished or done.
+
+$$\operatorname{over}(p, t, A, v) \iff \begin{cases} \exists f \in A, g.\ g_\bot(f) = g \wedge \operatorname{END}(t, g, b) & v = \mathrm{task}(b) \\ \exists f \in A, g.\ g_\bot(f) = g \wedge \mathit{agent}(g) = a \wedge \operatorname{classify}(\operatorname{sp}(p), t, g) \in \{\mathrm{finished}, \mathrm{handedBackDone}\} & v = \mathrm{agent}(a) \end{cases}$$
+-/
+def overB (p : Params) (now : Nat) (all : List AgentFacts) : Watch → Bool
+  | .task b => all.any fun f =>
+      match f.signals with
+      | some g => Signals.endedB now g b
+      | none => false
+  | .agent a => all.any fun f =>
+      match f.signals with
+      | some g => g.agent == a && Signals.producerDoneB (Signals.classify (sigParams p) now g)
+      | none => false
+
+/-- A child with its producer judged from the signals: exited if it was already, or if it has a watch that is over.
+
+$$\operatorname{rc}(p, t, A, c) = c\bigl[\mathit{exit} := \mathit{exit}(c) \vee \exists v.\ v_\bot(c) = v \wedge \operatorname{over}(p, t, A, v)\bigr]$$
+-/
+def resolveChild (p : Params) (now : Nat) (all : List AgentFacts) (c : Child) : Child :=
+  { c with producerExited := c.producerExited || match c.watch with
+      | some v => overB p now all v
+      | none => false }
+
+/-- The facts Next decides on: with signals the handback is the latest one in the transcript at or before $t$
+(`none`: none yet), without signals it stays; every child's producer is judged from the signals of all agents $A$.
+
+$$\operatorname{resolve}(p, t, A, f) = f\Bigl[h_\bot := \begin{cases} \operatorname{lastHB}(t, g) & g_\bot(f) = g \\ h_\bot(f) & g_\bot(f) = \bot \end{cases},\ C := [\operatorname{rc}(p, t, A, c) : c \in C(f)]\Bigr]$$
+-/
+def resolve (p : Params) (now : Nat) (all : List AgentFacts) (f : AgentFacts) : AgentFacts :=
+  { f with
+    handbackAt := match f.signals with
+      | some g => Signals.lastHandback now g
+      | none => f.handbackAt
+    children := f.children.map (resolveChild p now all) }
+
+/-- **The handback comes from the signals**: with signals, the resolved handback is the transcript's latest at or before
+$t$; without, it is the given one.
+
+$$\forall p, t, A, f:\quad h_\bot(\operatorname{resolve}(p, t, A, f)) = \begin{cases} \operatorname{lastHB}(t, g) & g_\bot(f) = g \\ h_\bot(f) & g_\bot(f) = \bot \end{cases}$$
+-/
+theorem resolve_handback (p : Params) (t : Nat) (all : List AgentFacts) (f : AgentFacts) :
+    (resolve p t all f).handbackAt =
+      match f.signals with
+      | some g => Signals.lastHandback t g
+      | none => f.handbackAt := rfl
+
+/-- **Resolving only adds exited producers**: a resolved child's producer has exited exactly when it had already, or its
+watch is over; every other field of the child is unchanged.
+
+$$\forall p, t, A, c:\quad \bigl(\mathit{exit}(\operatorname{rc}(p, t, A, c)) \iff \mathit{exit}(c) \vee \exists v.\ v_\bot(c) = v \wedge \operatorname{over}(p, t, A, v)\bigr) \wedge \operatorname{rc}(p, t, A, c)[\mathit{exit} := \mathit{exit}(c)] = c$$
+-/
+theorem resolveChild_exit (p : Params) (t : Nat) (all : List AgentFacts) (c : Child) :
+    ((resolveChild p t all c).producerExited = true ↔
+      c.producerExited = true ∨ ∃ v, c.watch = some v ∧ overB p t all v = true) ∧
+    { resolveChild p t all c with producerExited := c.producerExited } = c := by
+  refine ⟨?_, rfl⟩
+  unfold resolveChild
+  cases c.watch <;> simp
+
+/-- Replace the `meta.finished` times of an agent's signals by $m$.
+
+$$\operatorname{withMeta}(m, f) = f\bigl[g_\bot := g_\bot(f)[\mathit{metaFinished} := m]\bigr]$$
+-/
+def withMeta (m : List Nat) (f : AgentFacts) : AgentFacts :=
+  { f with signals := f.signals.map fun g => { g with metaFinished := m } }
+
+/-- The watch test never reads `meta.finished`: replacing it in every agent of $A$ changes no verdict.
+
+$$\forall p, t, A, m, v:\quad \operatorname{over}(p, t, [\operatorname{withMeta}(m, f) : f \in A], v) = \operatorname{over}(p, t, A, v)$$
+-/
+theorem overB_withMeta (p : Params) (t : Nat) (all : List AgentFacts) (m : List Nat) (v : Watch) :
+    overB p t (all.map (withMeta m)) v = overB p t all v := by
+  cases v <;> simp only [overB, List.any_map] <;> congr 1 <;> funext f <;>
+    rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g⟩ <;> rfl
+
+/-- **`meta.finished` is never read by the resolution**: replacing it, in the agent and in every agent of $A$, gives the
+same resolved facts up to that replacement.
+
+$$\forall p, t, A, m, f:\quad \operatorname{resolve}(p, t, [\operatorname{withMeta}(m, a) : a \in A], \operatorname{withMeta}(m, f)) = \operatorname{withMeta}(m, \operatorname{resolve}(p, t, A, f))$$
+-/
+theorem resolve_withMeta (p : Params) (t : Nat) (all : List AgentFacts) (m : List Nat) (f : AgentFacts) :
+    resolve p t (all.map (withMeta m)) (withMeta m f) = withMeta m (resolve p t all f) := by
+  have hc : resolveChild p t (all.map (withMeta m)) = resolveChild p t all := by
+    funext c; simp only [resolveChild, overB_withMeta]
+  rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g⟩ <;> simp only [resolve, withMeta, hc] <;> rfl
+
+/-- `next` never reads `meta.finished`: replacing the signals' `metaFinished` times leaves its actions unchanged.
+
+$$\forall p, t, m, f:\quad \operatorname{next}(p, t, \operatorname{withMeta}(m, f)) = \operatorname{next}(p, t, f)$$
+-/
+theorem next_withMeta (p : Params) (t : Nat) (m : List Nat) (f : AgentFacts) :
+    next p t (withMeta m f) = next p t f := by
+  rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g⟩ <;> rfl
+
 /-! ## Retention: which agents stay in the snapshot -/
 
 /-- The branch is ahead of `main` and not landed.
@@ -1002,13 +1142,33 @@ def ciRunningB (f : AgentFacts) : Bool :=
   | some c => ciRunning c.run
   | none => false
 
-/-- Retention: an agent stays in the snapshot while it has not ended, or has an open branch, a worktree, a live child, a
-running CI run, or a valid respawn. An ended agent with none of these has no open action.
+/-- The structural retention test on the Health state: the agent has not ended, or has an open branch, a worktree, a
+live child, a running CI run, or a valid respawn. An ended agent with none of these has no open action
+(`keepHealth_of_open_action`).
 
-$$\operatorname{keep}(f) \iff \neg\operatorname{ended}(s(f)) \vee \operatorname{openBranch}(f) \vee w_\bot(f) \ne \bot \vee C(f) \ne [\,] \vee \operatorname{ciRun}(f) \vee \operatorname{respawn}(f)$$
+$$\operatorname{keepH}(f) \iff \neg\operatorname{ended}(s(f)) \vee \operatorname{openBranch}(f) \vee w_\bot(f) \ne \bot \vee C(f) \ne [\,] \vee \operatorname{ciRun}(f) \vee \operatorname{respawn}(f)$$
 -/
-def keepB (f : AgentFacts) : Bool :=
+def keepHealthB (f : AgentFacts) : Bool :=
   !endedS f.state || openBranchB f || f.worktree.isSome || !f.children.isEmpty || ciRunningB f || respawnB f
+
+/-- Whether the agent is live: with signals, its signal state is not quiet (working, waiting, held or hung); without
+signals, its Health state has not ended. `meta.finished` plays no part.
+
+$$\operatorname{live}(p, t, f) \iff \begin{cases} \neg\operatorname{quiet}(\operatorname{classify}(\operatorname{sp}(p), t, g)) & g_\bot(f) = g \\ \neg\operatorname{ended}(s(f)) & g_\bot(f) = \bot \end{cases}$$
+-/
+def liveB (p : Params) (now : Nat) (f : AgentFacts) : Bool :=
+  match f.signals with
+  | some g => !Signals.quietB (Signals.classify (sigParams p) now g)
+  | none => !endedS f.state
+
+/-- Retention: an agent stays in the snapshot while `next` gives it an action other than `none`, or it is live, or it
+has an open branch, a worktree, a live child, a running CI run, or a valid respawn.
+
+$$\operatorname{keep}(p, t, f) \iff (\exists x \in \operatorname{next}(p, t, f).\ x \ne \mathrm{none}) \vee \operatorname{live}(p, t, f) \vee \operatorname{openBranch}(f) \vee w_\bot(f) \ne \bot \vee C(f) \ne [\,] \vee \operatorname{ciRun}(f) \vee \operatorname{respawn}(f)$$
+-/
+def keepB (p : Params) (now : Nat) (f : AgentFacts) : Bool :=
+  (next p now f).any (· != .none) || liveB p now f || openBranchB f || f.worktree.isSome ||
+    !f.children.isEmpty || ciRunningB f || respawnB f
 
 /-- If a predicate holds for some child, the child list is not empty.
 
@@ -1022,10 +1182,41 @@ theorem any_nonempty (l : List Child) (g : Child → Bool) (h : l.any g = true) 
 /-- **Retention is sound.** Every action other than `none` implies the agent is kept: dropping an agent that `keep`
 rejects never loses an open action.
 
-$$\forall p, t, f, x:\quad x \in \operatorname{next}(p, t, f) \wedge x \ne \mathrm{none} \Rightarrow \operatorname{keep}(f)$$
+$$\forall p, t, f, x:\quad x \in \operatorname{next}(p, t, f) \wedge x \ne \mathrm{none} \Rightarrow \operatorname{keep}(p, t, f)$$
 -/
 theorem keep_of_open_action (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (hx : x ∈ next p t f)
-    (hn : x ≠ .none) : keepB f = true := by
+    (hn : x ≠ .none) : keepB p t f = true := by
+  have h : (next p t f).any (· != .none) = true := List.any_eq_true.2 ⟨x, hx, by simpa using hn⟩
+  simp [keepB, h]
+
+/-- **Retention keeps live agents**: an agent whose signal state is not quiet (or, without signals, whose Health state
+has not ended) is kept.
+
+$$\forall p, t, f:\quad \operatorname{live}(p, t, f) \Rightarrow \operatorname{keep}(p, t, f)$$
+-/
+theorem keep_of_live (p : Params) (t : Nat) (f : AgentFacts) (h : liveB p t f = true) : keepB p t f = true := by
+  simp [keepB, h]
+
+/-- **Retention never reads `meta.finished`**: replacing the `meta.finished` times, in the agent and in every agent of
+$A$, changes neither the next actions nor retention of the resolved facts.
+
+$$\forall p, t, A, m, f:\quad \text{with } f' = \operatorname{resolve}(p, t, [\operatorname{withMeta}(m, a) : a \in A], \operatorname{withMeta}(m, f)),\ f'' = \operatorname{resolve}(p, t, A, f):\ \operatorname{next}(p, t, f') = \operatorname{next}(p, t, f'') \wedge (\operatorname{keep}(p, t, f') \iff \operatorname{keep}(p, t, f''))$$
+-/
+theorem keep_withMeta (p : Params) (t : Nat) (all : List AgentFacts) (m : List Nat) (f : AgentFacts) :
+    next p t (resolve p t (all.map (withMeta m)) (withMeta m f)) = next p t (resolve p t all f) ∧
+    keepB p t (resolve p t (all.map (withMeta m)) (withMeta m f)) = keepB p t (resolve p t all f) := by
+  rw [resolve_withMeta]
+  generalize resolve p t all f = g
+  refine ⟨next_withMeta p t m g, ?_⟩
+  rcases g with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g⟩ <;> rfl
+
+/-- **Structural retention is sound.** Every action other than `none` implies the structural test holds: an ended
+agent with an open action has an open branch, a worktree, a live child, a running CI run or a valid respawn.
+
+$$\forall p, t, f, x:\quad x \in \operatorname{next}(p, t, f) \wedge x \ne \mathrm{none} \Rightarrow \operatorname{keepH}(f)$$
+-/
+theorem keepHealth_of_open_action (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (hx : x ∈ next p t f)
+    (hn : x ≠ .none) : keepHealthB f = true := by
   by_cases he : endedS f.state = true
   · have hna : ¬ f.state = .active := by
       intro h; simp [endedS, h] at he
@@ -1033,7 +1224,7 @@ theorem keep_of_open_action (p : Params) (t : Nat) (f : AgentFacts) (x : Action)
     simp only [hna, ite_false] at hx
     suffices hs : openBranchB f = true ∨ f.worktree.isSome = true ∨ f.children.isEmpty = false ∨
         ciRunningB f = true ∨ respawnB f = true by
-      unfold keepB
+      unfold keepHealthB
       rcases hs with h | h | h | h | h <;> simp [h]
     rcases hx with h | h | h | h | h | h | h | h
     · unfold claims at h
@@ -1081,7 +1272,7 @@ theorem keep_of_open_action (p : Params) (t : Nat) (f : AgentFacts) (x : Action)
         · rename_i w hw; simp [hw]
         · simp at h1
   · have : endedS f.state = false := by simpa using he
-    simp [keepB, this]
+    simp [keepHealthB, this]
 
 /-- A child gets `killOrphan` when it gets a kill.
 
@@ -1093,37 +1284,37 @@ theorem kill_of_killB (p : Params) (t : Nat) (f : AgentFacts) (c : Child) (hc : 
 
 /-- Sole from its proposition.
 
-$$\forall f, c:\quad (\forall d \in C(f).\ \mathit{pid}(d) = \mathit{pid}(c) \Rightarrow k(d) = \mathrm{sleepLoop}) \Rightarrow \operatorname{sole}(f, c)$$
+$$\forall f, c:\quad (\forall d \in C(f).\ \mathit{pid}(d) = \mathit{pid}(c) \Rightarrow k(d) \in \mathcal W) \Rightarrow \operatorname{sole}(f, c)$$
 -/
-theorem soleB_of (f : AgentFacts) (c : Child) (h : ∀ d ∈ f.children, d.pid = c.pid → d.kind = .sleepLoop) :
+theorem soleB_of (f : AgentFacts) (c : Child) (h : ∀ d ∈ f.children, d.pid = c.pid → waitsK d.kind = true) :
     soleB f c = true := by
-  simp only [soleB, List.all_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq, beq_iff_eq]
+  simp only [soleB, List.all_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq]
   intro d hd
   by_cases e : d.pid = c.pid
   · exact .inr (h d hd e)
   · exact .inl e
 
-/-- **Liveness: kill.** A non-active agent's sleep-loop child in the session's tree (not the session nor its own
-ancestor), whose pid no child of another kind shares, and that runs past the loop cap, gets `killOrphan`.
+/-- **Liveness: kill.** A non-active agent's waiting child (sleep loop or stdin wait) in the session's tree (not the session nor its own
+ancestor), whose pid no child of a non-waiting kind shares, and that runs past the loop cap, gets `killOrphan`.
 
-$$\forall p, t, f, c:\quad s(f) \ne \mathrm{active} \wedge c \in C(f) \wedge k(c) = \mathrm{sleepLoop} \wedge \sigma(f) \in P(c) \wedge \mathit{pid}(c) \ne \sigma(f) \wedge \mathit{pid}(c) \notin P(c) \wedge (\forall d \in C(f).\ \mathit{pid}(d) = \mathit{pid}(c) \Rightarrow k(d) = \mathrm{sleepLoop}) \wedge \mu\,\mathit{loopCap} < t \mathbin{\dot-} s(c) \Rightarrow \mathrm{killOrphan}(\mathit{pid}(c)) \in \operatorname{next}(p, t, f)$$
+$$\forall p, t, f, c:\quad s(f) \ne \mathrm{active} \wedge c \in C(f) \wedge k(c) \in \mathcal W \wedge \sigma(f) \in P(c) \wedge \mathit{pid}(c) \ne \sigma(f) \wedge \mathit{pid}(c) \notin P(c) \wedge (\forall d \in C(f).\ \mathit{pid}(d) = \mathit{pid}(c) \Rightarrow k(d) \in \mathcal W) \wedge \mu\,\mathit{loopCap} < t \mathbin{\dot-} s(c) \Rightarrow \mathrm{killOrphan}(\mathit{pid}(c)) \in \operatorname{next}(p, t, f)$$
 -/
 theorem live_kill (p : Params) (t : Nat) (f : AgentFacts) (c : Child) (ha : f.state ≠ .active)
-    (hc : c ∈ f.children) (hk : c.kind = .sleepLoop) (hs : f.session ∈ c.chain) (hne : c.pid ≠ f.session)
-    (hnc : c.pid ∉ c.chain) (hsole : ∀ d ∈ f.children, d.pid = c.pid → d.kind = .sleepLoop)
+    (hc : c ∈ f.children) (hk : waitsK c.kind = true) (hs : f.session ∈ c.chain) (hne : c.pid ≠ f.session)
+    (hnc : c.pid ∉ c.chain) (hsole : ∀ d ∈ f.children, d.pid = c.pid → waitsK d.kind = true)
     (hold : p.loopCapMin * msPerMin < t - c.startedAt) : Action.killOrphan c.pid ∈ next p t f :=
   kill_of_killB p t f c hc ((killB_iff p t f c).2
     ⟨hk, hs, hne, hnc, soleB_of f c hsole, .inr (.inr (by simpa [oldB] using hold)), .inl ha⟩)
 
-/-- **Liveness: kill for an active agent.** An active agent's sleep-loop child in the session's tree (not the session
-nor its own ancestor), whose pid no child of another kind shares, and that watches a file whose producer has exited,
+/-- **Liveness: kill for an active agent.** An active agent's waiting child in the session's tree (not the session
+nor its own ancestor), whose pid no child of a non-waiting kind shares, and that watches a file whose producer has exited,
 gets `killOrphan`.
 
-$$\forall p, t, f, c:\quad s(f) = \mathrm{active} \wedge c \in C(f) \wedge k(c) = \mathrm{sleepLoop} \wedge \sigma(f) \in P(c) \wedge \mathit{pid}(c) \ne \sigma(f) \wedge \mathit{pid}(c) \notin P(c) \wedge (\forall d \in C(f).\ \mathit{pid}(d) = \mathit{pid}(c) \Rightarrow k(d) = \mathrm{sleepLoop}) \wedge w_\bot(c) \ne \bot \wedge \mathit{exit}(c) \Rightarrow \mathrm{killOrphan}(\mathit{pid}(c)) \in \operatorname{next}(p, t, f)$$
+$$\forall p, t, f, c:\quad s(f) = \mathrm{active} \wedge c \in C(f) \wedge k(c) \in \mathcal W \wedge \sigma(f) \in P(c) \wedge \mathit{pid}(c) \ne \sigma(f) \wedge \mathit{pid}(c) \notin P(c) \wedge (\forall d \in C(f).\ \mathit{pid}(d) = \mathit{pid}(c) \Rightarrow k(d) \in \mathcal W) \wedge w_\bot(c) \ne \bot \wedge \mathit{exit}(c) \Rightarrow \mathrm{killOrphan}(\mathit{pid}(c)) \in \operatorname{next}(p, t, f)$$
 -/
 theorem live_kill_active (p : Params) (t : Nat) (f : AgentFacts) (c : Child) (_ha : f.state = .active)
-    (hc : c ∈ f.children) (hk : c.kind = .sleepLoop) (hs : f.session ∈ c.chain) (hne : c.pid ≠ f.session)
-    (hnc : c.pid ∉ c.chain) (hsole : ∀ d ∈ f.children, d.pid = c.pid → d.kind = .sleepLoop)
+    (hc : c ∈ f.children) (hk : waitsK c.kind = true) (hs : f.session ∈ c.chain) (hne : c.pid ≠ f.session)
+    (hnc : c.pid ∉ c.chain) (hsole : ∀ d ∈ f.children, d.pid = c.pid → waitsK d.kind = true)
     (hw : c.watchedAt ≠ none) (hx : c.producerExited = true) : Action.killOrphan c.pid ∈ next p t f := by
   have hd : deadB p t c = true := (deadB_iff p t c).2 (.inl ⟨hw, hx⟩)
   exact kill_of_killB p t f c hc ((killB_iff p t f c).2
@@ -1246,11 +1437,70 @@ def ex (k : String) (s : State) : AgentFacts := { id := k, task := k, state := s
     { ex "f" .stalled with children := [{ pid := 800, chain := [100, 1], kind := .build, startedAt := ago 99 }] }
   == [.investigate .heldByChild]
 -- retention: an ended agent with an unlanded branch ahead of main is kept; one with nothing open is dropped
-#guard keepB { ex "port-nav" .done with handbackAt := some (ago 120), branch := some { name := "wt-port-nav", ahead := 3, landed := false, queued := true } }
-#guard !keepB { ex "old" .done with handbackAt := some (ago 120), branch := some { name := "wt-old", ahead := 0, landed := true, queued := false } }
-#guard keepB { ex "wt" .done with worktree := some {} }
-#guard !keepB { ex "g" .gone with board := some { id := "g", done := true }, handoff := true }
-#guard keepB { ex "g2" .gone with board := some { id := "g2", done := false }, handoff := true }
-#guard keepB (ex "idle" .idle)
+#guard keepB {} t0 { ex "port-nav" .done with handbackAt := some (ago 120), branch := some { name := "wt-port-nav", ahead := 3, landed := false, queued := true } }
+#guard !keepB {} t0 { ex "old" .done with handbackAt := some (ago 120), branch := some { name := "wt-old", ahead := 0, landed := true, queued := false } }
+#guard keepB {} t0 { ex "wt" .done with worktree := some {} }
+#guard !keepB {} t0 { ex "g" .gone with board := some { id := "g", done := true }, handoff := true }
+#guard keepB {} t0 { ex "g2" .gone with board := some { id := "g2", done := false }, handoff := true }
+#guard keepB {} t0 (ex "idle" .idle)
+
+/-- Example signals in the shape of port-nav (incident inc-silent-stdin-bg): turn from 120 to 60 min ago, handback 60
+min ago, background id `bh` launched $a$ min ago with no end and a live process reading stdin.
+
+$$\operatorname{pn}(a) = (\texttt{pn}, [(\texttt{bh}, \operatorname{ago}(a))], [\,], [(\operatorname{ago}(120), \top), (\operatorname{ago}(60), \bot)], [\operatorname{ago}(60)], [\,], [(\texttt{bh}, 10476, \mathrm{stdin})], [\operatorname{ago}(60)])$$
+-/
+def pnSig (a : Nat) : Signals.Facts :=
+  { agent := "pn", launched := [⟨"bh", ago a⟩], bounds := [⟨ago 120, true⟩, ⟨ago 60, false⟩], handbacks := [ago 60],
+    procs := [⟨"bh", 10476, .stdin⟩], metaFinished := [ago 60] }
+
+/-- Example port-nav agent: Health state $s$, no handback in the raw facts, the signals $\operatorname{pn}(a)$, and the
+`cat > file` child (pid 10476, stdin wait) started $a$ min ago.
+
+$$\operatorname{pnA}(a, s) = \operatorname{ex}(\texttt{port-nav}, s)[g_\bot := \operatorname{pn}(a),\ C := [(10476, [100, 1], \mathrm{stdinWait}, \operatorname{ago}(a))]]$$
+-/
+def pnAgent (a : Nat) (s : State) : AgentFacts :=
+  { ex "port-nav" s with
+    signals := some (pnSig a),
+    children := [{ pid := 10476, chain := [100, 1], kind := .stdinWait, startedAt := ago a }] }
+
+-- port-nav: the handback comes from the transcript, so the stdin wait under it is an orphan → kill
+#guard (resolve {} t0 [] (pnAgent 20 .idle)).handbackAt == some (ago 60)
+#guard next {} t0 (resolve {} t0 [] (pnAgent 20 .idle)) == [.killOrphan 10476]
+-- without the signals the handback is unseen and the 20-minute-old stdin wait is under the cap → no kill
+#guard next {} t0 { pnAgent 20 .idle with signals := none } == [.none]
+-- the signal state: held for 20 minutes, hung after the 30-minute cap
+#guard sigState {} t0 (pnAgent 20 .idle) == some (.handedBackHeld ["bh"])
+#guard sigState {} t0 (pnAgent 31 .idle) == some (.hung "bh")
+-- retention follows the signals, not the Health state: held is kept even when Health says done …
+#guard keepB {} t0 { resolve {} t0 [] (pnAgent 20 .done) with children := [] }
+
+/-- Example signals of a finished agent with signal id $a$: turn from 9 to 5 min ago, the lead's 'finished' notice 5 min
+ago.
+
+$$\operatorname{fin}(a) = (a, [\,], [\,], [(\operatorname{ago}(9), \top), (\operatorname{ago}(5), \bot)], [\,], [(\operatorname{ago}(5), \top)], [\,], [\,])$$
+-/
+def finSig (a : String) : Signals.Facts :=
+  { agent := a, bounds := [⟨ago 9, true⟩, ⟨ago 5, false⟩], notices := [⟨ago 5, true⟩] }
+
+/-- Example sleep-loop child (pid $q$, session 100) started 8 min ago on a file written 1 min ago, watching $v$.
+
+$$\operatorname{lw}(q, v) = (q, [100, 1], \mathrm{sleepLoop}, \operatorname{ago}(8), \operatorname{ago}(1), \bot, v)$$
+-/
+def loopOn (q : Nat) (v : Watch) : Child :=
+  { pid := q, chain := [100, 1], kind := .sleepLoop, startedAt := ago 8, watchedAt := some (ago 1), watch := some v }
+
+-- … and a finished agent (its 'finished' notice seen) is dropped even when Health says idle
+#guard !keepB {} t0 { ex "x" .idle with signals := some (finSig "x") }
+-- a loop watching agent ax's transcript: ax finished → its producer exited → kill (the watcher is active)
+#guard
+  let x : AgentFacts := { ex "x" .done with signals := some (finSig "ax") }
+  let w : AgentFacts := { ex "w" .active with children := [loopOn 900 (.agent "ax")] }
+  next {} t0 (resolve {} t0 [x, w] w) == [.killOrphan 900, .nudgeHandoff] && next {} t0 w == [.none]
+-- the same loop on a task id: its producer exits once some agent's signals hold an end of it
+#guard
+  let o : AgentFacts := { ex "o" .idle with
+    signals := some { agent := "ao", launched := [⟨"b9", ago 9⟩], ends := [⟨"b9", ago 2, .exited 0⟩] } }
+  (resolveChild {} t0 [o] (loopOn 901 (.task "b9"))).producerExited &&
+    !(resolveChild {} (ago 3) [o] (loopOn 901 (.task "b9"))).producerExited
 
 end Fw.Obs.Next

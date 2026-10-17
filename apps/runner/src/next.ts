@@ -8,12 +8,17 @@ import { execFile } from "node:child_process";
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
-import { exe, findTranscripts, parsePs, type Paths, type Proc, type Snapshot } from "./watch-collect.ts";
+import {
+  exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, readMeta, readsStdin, signalsOf, withLeadNotes,
+  type LeadNote, type Paths, type Proc, type SigFacts, type SigProcKind, type Snapshot, type TranscriptSignals,
+} from "./watch-collect.ts";
 
 // ---- the facts (wire shape of AgentFacts) ----
+/** What a loop watches: a background task's output file, or an agent's transcript / output file. */
+export interface WatchFact { kind: "task" | "agent"; id: string }
 export type ChildFact = {
-  pid: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean;
-} & ({ kind: "sleepLoop" | "build" | "other" } | { kind: "ciWait"; run: number; timeoutMin: number });
+  pid: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;
+} & ({ kind: "sleepLoop" | "build" | "other" | "stdinWait" } | { kind: "ciWait"; run: number; timeoutMin: number });
 export interface AgentFacts {
   id: string; task: string; state: string; session: number; handbackAt: number | null;
   branch: { name: string; ahead: number; landed: boolean; queued: boolean; mergesClean: boolean; deps: string[] } | null;
@@ -23,15 +28,21 @@ export interface AgentFacts {
   ctxTokens: number; children: ChildFact[];
   ci: { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null } | null;
   board: { id: string; done: boolean; agent: string | null } | null;
+  /** the transcript signals (Fw.Obs.Signals.Facts); fwcore resolves handbackAt and producer exits from them */
+  signals?: SigFacts;
 }
 export interface NextAction { action: string; [k: string]: unknown }
-export interface NextReply { agents?: { id: string; actions: NextAction[] }[] }
+export interface NextReply {
+  agents?: { id: string; actions: NextAction[]; signal?: { state: string; ids: string[] }; handbackAt?: number | null; keep?: boolean }[];
+}
 
 // ---- classification of one process tree (pure) ----
 /** `waitrun.sh <run> [timeoutMin]` (default 10 min) or `fw ci wait <run> [--timeout <min>]` in a command line. */
 const CI_WAIT = /waitrun\.sh\s+(\d+)(?:\s+(\d+))?|\bci\s+wait\s+(\d+)(?:.*?--timeout\s+(\d+))?/;
-/** An open poll loop: `until … ; do sleep N` or `while … ; do … sleep`. */
-const SLEEP_LOOP = /\b(?:until|while)\b[^|]*;\s*do\b[^]*\bsleep\b/;
+/** An open poll loop: `until … ; do sleep N` or `while … ; do … sleep`, as a command word (also inside a shell
+ *  wrapper's `-c` or `eval '…'`; its condition may hold pipes, as in `until grep -q x f | head -1; do`; a
+ *  `… | while read` consumer is not such a loop). */
+const SLEEP_LOOP = /(?<!\|\s*)(?<![\w.\/-])(?:until|while)\b[^]*?;\s*do\b[^]*?\bsleep\b/;
 const BUILD = /\b(?:lake|vitest|tsc|jest|cargo|xcodebuild|make)\b|\b(?:pnpm|npm|yarn|node)\b.*\b(?:test|build|run)\b/;
 export interface Classified { kind: ChildFact["kind"]; run?: number; timeoutMin?: number; watchedFile: string | null }
 /** `rootCmd`: the tree's root shell command line; `treeCmds`: the commands of its descendants. */
@@ -50,8 +61,13 @@ export function watchedFileOf(cmd: string): string | null {
   const f = toks[toks.length - 1];
   return f ? (f.startsWith("~/") ? join(homedir(), f.slice(2)) : f) : null;
 }
-/** The exit marker a finished Bash task leaves as the last line of its output file. */
-export const producerExitedLine = (lastLine: string) => /^\[exited with code -?\d+\]\s*$/.test(lastLine.trim());
+/** The end marker a finished Bash task leaves as the last line of its output file: `[exited with code N]` or
+ *  `[killed]`. */
+export const producerExitedLine = (lastLine: string) => markerOf(lastLine) !== null;
+/** What a background task's command does, for Fw.Obs.Signals: reads stdin forever, is a sleep loop, or other. */
+export function procKindOf(cmd: string): SigProcKind {
+  return readsStdin(cmd) ? "stdin" : SLEEP_LOOP.test(cmd) ? "sleepLoop" : "other";
+}
 
 // ---- worktrees (pure) ----
 export interface Worktree { path: string; branch: string | null; lockPid: number | null }
@@ -85,6 +101,10 @@ export interface RawAgent {
   /** unlanded branches of other agents that the branch contains (git ancestry), by branch name */
   branchDeps: string[];
   handoff: boolean;
+  /** the agent's branch from its meta (`worktreeBranch`); absent: the worktree list's branch */
+  branch?: string | null;
+  /** the agent's signal facts (absent: no transcript) */
+  signals?: SigFacts | null;
 }
 export interface RawCi { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null }
 export interface RawPs { pid: number; ppid: number; ageMs: number; comm: string }
@@ -109,8 +129,20 @@ export function chainOf(ps: RawPs[], pid: number): number[] {
   return chain;
 }
 
+/** What a watched file belongs to: `agent-<id>.jsonl` is an agent's transcript; `<id>.output` is the output of a
+ *  known agent or else of a background task (null: neither). */
+export function watchOf(file: string, agentIds: Set<string>): WatchFact | null {
+  const a = /(?:^|\/)agent-([A-Za-z0-9]+)\.jsonl$/.exec(file);
+  if (a) return { kind: "agent", id: a[1]! };
+  const o = /(?:^|\/)([A-Za-z0-9]+)\.output$/.exec(file);
+  return o ? { kind: agentIds.has(o[1]!) ? "agent" : "task", id: o[1]! } : null;
+}
+
 export function childrenOf(raw: Raw, agentId: string): ChildFact[] {
   const by = new Map(raw.ps.map((r) => [r.pid, r]));
+  const agentIds = new Set(raw.agents.map((a) => a.id));
+  // a Bash background process the agent's signals match to a stdin-reading command
+  const stdin = new Set((raw.agents.find((a) => a.id === agentId)?.signals?.procs ?? []).filter((q) => q.kind === "stdin").map((q) => q.pid));
   const out: ChildFact[] = [];
   for (const q of raw.procs) {
     if (q.agent !== agentId) continue;
@@ -118,11 +150,53 @@ export function childrenOf(raw: Raw, agentId: string): ChildFact[] {
     if (!root) continue; // already ended
     const cl = classifyTree(root.comm, q.pids.map((p) => by.get(p)?.comm ?? ""));
     const f = cl.watchedFile ? raw.file(cl.watchedFile) : null;
+    const w = cl.watchedFile ? watchOf(cl.watchedFile, agentIds) : null;
     const base = { pid: q.pid, chain: chainOf(raw.ps, q.pid), startedAt: Math.floor(raw.now - root.ageMs),
-      watchedAt: f ? Math.floor(f.mtimeMs) : null, producerExited: f ? producerExitedLine(f.lastLine) : false };
-    out.push(cl.kind === "ciWait" ? { ...base, kind: "ciWait", run: cl.run!, timeoutMin: cl.timeoutMin! } : { ...base, kind: cl.kind });
+      watchedAt: f ? Math.floor(f.mtimeMs) : null, producerExited: f ? producerExitedLine(f.lastLine) : false, ...(w ? { watch: w } : {}) };
+    const kind = cl.kind !== "ciWait" && stdin.has(q.pid) ? "stdinWait" : cl.kind;
+    out.push(kind === "ciWait" ? { ...base, kind: "ciWait", run: cl.run!, timeoutMin: cl.timeoutMin! } : { ...base, kind });
   }
   return out;
+}
+
+// ---- signal facts (pure given the observations) ----
+/** The text a live process's command line must contain to be the process of a Bash command: its first non-empty
+ *  line up to the first quote (the shell wrapper re-quotes the command), at least 6 characters (null: too short). */
+export function commandNeedle(cmd: string): string | null {
+  const line = cmd.split("\n").map((l) => l.trim()).find((l) => l !== "") ?? "";
+  const s = line.split(/['"]/)[0]!.trim();
+  return s.length >= 6 ? s : null;
+}
+/** The process of a Bash command under the session: the topmost process whose command line holds the command's
+ *  needle and whose ancestors include `session` (0: any) (null: none alive). */
+export function procOfCommand(ps: RawPs[], session: number, cmd: string): number | null {
+  const needle = commandNeedle(cmd);
+  if (!needle) return null;
+  const rows = ps.filter((r) => r.comm.includes(needle) && (session === 0 || chainOf(ps, r.pid).includes(session)));
+  const pids = new Set(rows.map((r) => r.pid));
+  return rows.find((r) => !pids.has(r.ppid))?.pid ?? null;
+}
+/** An agent's signal facts: its transcript's signals plus the lead's notes, the end marker of each pending id's
+ *  output file (time: the file's mtime), the live process of each pending Bash id (matched by command text) and
+ *  the meta.finished time (recorded only; the rule never reads it). */
+export function signalFactsOf(ts: TranscriptSignals, notes: LeadNote[], file: (path: string) => FileObs | null,
+  ps: RawPs[], session: number, metaFinishedAt: number | null): SigFacts {
+  const f = withLeadNotes(ts.facts, notes);
+  const ends = [...f.ends];
+  const ended = new Set(ends.map((e) => e.id));
+  for (const l of f.launched) {
+    const out = ts.outputs.get(l.id);
+    const o = !ended.has(l.id) && out ? file(out) : null;
+    const mk = o ? markerOf(o.lastLine) : null;
+    if (o && mk) { ends.push({ id: l.id, time: Math.floor(o.mtimeMs), ...mk }); ended.add(l.id); }
+  }
+  const procs: SigFacts["procs"] = [];
+  for (const l of f.launched) {
+    const cmd = ts.commands.get(l.id);
+    const pid = !ended.has(l.id) && cmd ? procOfCommand(ps, session, cmd) : null;
+    if (pid !== null && cmd) procs.push({ id: l.id, pid, kind: procKindOf(cmd) });
+  }
+  return { ...f, ends, procs, metaFinished: metaFinishedAt === null ? [] : [Math.floor(metaFinishedAt)] };
 }
 
 const rowOf = (r: { id: string; done: boolean; agent: string | null } | undefined) => r ? { id: r.id, done: r.done, agent: r.agent } : null;
@@ -132,11 +206,12 @@ export function buildFacts(raw: Raw): AgentFacts[] {
     const task = a.name ?? a.task ?? a.id;
     const w = a.worktree;
     const ci = raw.ci.filter((r) => r.branch === `ci/${task}`).sort((x, y) => y.startedAt - x.startedAt)[0] ?? null;
+    const br = a.branch ?? w?.branch ?? null;
     return {
       id: task, task, state: a.state, session: raw.session, handbackAt: a.handbackAt,
-      branch: w?.branch && a.ahead !== null && a.landed !== null
+      branch: br && a.ahead !== null && a.landed !== null
         ? {
-          name: w.branch, ahead: a.ahead, landed: a.landed, queued: hasWord(raw.queuedText, w.branch),
+          name: br, ahead: a.ahead, landed: a.landed, queued: hasWord(raw.queuedText, br),
           mergesClean: a.mergesClean ?? true,
           // observed dependencies: contained unlanded agent branches, then the task's board dependencies not done
           deps: [...a.branchDeps, ...(raw.board.get(task)?.deps ?? []).filter((d) => raw.board.get(d)?.done === false)],
@@ -146,6 +221,7 @@ export function buildFacts(raw: Raw): AgentFacts[] {
       ci: ci && { ...ci },
       board: a.name ? rowOf(raw.board.get(a.name)) : null,
       handoff: a.handoff,
+      ...(a.signals ? { signals: a.signals } : {}),
     };
   });
 }
@@ -243,31 +319,43 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
   const tfs = findTranscripts(p);
   const agents: RawAgent[] = [];
   const cache = new Map<string, [number | null, boolean | null]>();
+  const session = sessionPid(ps, process.pid, wts.flatMap((w) => (w.lockPid ? [w.lockPid] : [])));
   for (const a of snap.agents) {
     const state = states.get(a.id);
     if (!state) continue;
-    const wt = worktreeOf(wts, a.id, a.name);
+    const tf = tfs.get(a.id);
+    const meta = tf ? readMeta(tf) : null;
+    const metaBranch = typeof meta?.worktreeBranch === "string" && meta.worktreeBranch !== "" ? meta.worktreeBranch : null;
+    const wt = (metaBranch ? wts.find((w) => w.branch === metaBranch) : undefined) ?? worktreeOf(wts, a.id, a.name);
     let ahead: number | null = null, landed: boolean | null = null;
     let mergesClean: boolean | null = null;
     const branchDeps: string[] = [];
-    if (wt?.branch) {
-      [ahead, landed] = await branchState(p, wt.branch, cache);
+    const branch = metaBranch ?? wt?.branch ?? null;
+    if (branch) {
+      [ahead, landed] = await branchState(p, branch, cache);
       if (ahead !== null && ahead > 0 && landed === false) {
-        mergesClean = (await exec("git", ["merge-tree", "--write-tree", "main", wt.branch], p.root)) !== null;
+        mergesClean = (await exec("git", ["merge-tree", "--write-tree", "main", branch], p.root)) !== null;
         for (const o of wts) {
-          if (!o.branch || o.branch === wt.branch || o.branch === "main") continue;
+          if (!o.branch || o.branch === branch || o.branch === "main") continue;
           const [oa, ol] = await branchState(p, o.branch, cache);
           if (oa === null || oa === 0 || ol !== false) continue;
-          if ((await exec("git", ["merge-base", "--is-ancestor", o.branch, wt.branch], p.root)) !== null) branchDeps.push(o.branch);
+          if ((await exec("git", ["merge-base", "--is-ancestor", o.branch, branch], p.root)) !== null) branchDeps.push(o.branch);
         }
       }
     }
     const nm = a.name ?? a.task ?? a.id;
     const handoff = [p.root, main, ...(wt ? [wt.path] : [])].some((r) => existsSync(join(r, "docs/team/handoffs", `${nm}.md`)));
-    let handbackAt: number | null = null;
-    const tf = tfs.get(a.id);
-    if (tf) { try { handbackAt = handbackAtOf(readFileSync(tf, "utf8")); } catch { /* unreadable */ } }
-    agents.push({ id: a.id, name: a.name, task: a.task, state, ctxTokens: a.ctxTokens, handbackAt, worktree: wt, ahead, landed, mergesClean, branchDeps, handoff });
+    let handbackAt: number | null = null, signals: SigFacts | null = null;
+    if (tf) {
+      try {
+        const text = readFileSync(tf, "utf8");
+        handbackAt = handbackAtOf(text);
+        const mt = meta?.finished === true ? metaMtime(tf) : null;
+        signals = signalFactsOf(signalsOf(a.id, text), readLeadNotes(p, leadFileOf(tf)), statFile, ps, session, mt);
+      } catch { /* unreadable */ }
+    }
+    agents.push({ id: a.id, name: a.name, task: a.task, state, ctxTokens: a.ctxTokens, handbackAt, worktree: wt, ahead, landed, mergesClean,
+      branchDeps, handoff, branch, signals });
   }
   const board = new Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>();
   const tasks = (plan as { tasks?: unknown } | null)?.tasks;
@@ -286,7 +374,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
     .filter((r) => typeof r.id === "number")
     .map((r) => ({ id: r.id!, workflow: r.workflow, branch: r.branch, status: r.status, conclusion: r.conclusion, startedAt: r.startedAt, endedAt: r.endedAt ?? null }));
   return {
-    now: snap.now, session: sessionPid(ps, process.pid, wts.flatMap((w) => (w.lockPid ? [w.lockPid] : []))), agents,
+    now: snap.now, session, agents,
     procs: snap.system.procs ?? [], ps, alive: pidAlive, file: statFile, queuedText, ci, board,
   };
 }
