@@ -1311,6 +1311,21 @@
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
    ]
+  },
+  {
+   "id": "plan-cut",
+   "title": "PLAN revision 8: cut to at most ~1,300 lines by moving evidence tables (4.2 findings, 6.6 history, superseded rows) into research notes with links; no decision or claim lost",
+   "stream": "plan",
+   "milestone": "M0",
+   "deps": [
+    "plan-rev7-1"
+   ],
+   "owner": "plan-editor",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/plan/loop-plan.html",
+    "research/notes/2026/10-17-plan-evidence.md"
+   ]
   }
  ]
 }
