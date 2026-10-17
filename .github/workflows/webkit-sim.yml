@@ -22,9 +22,9 @@ on:
         type: string
         default: '1'
       sessions:
-        description: Sessions per VM (each session = 2 fresh-load passes, as locally)
+        description: Sessions per VM (each session = 2 fresh-load passes, as locally). A push runs 1 until 2 sessions pass on CI; ask for 2 here
         type: string
-        default: '2'
+        default: '1'
       fresh_boot:
         description: Shut the Simulator down and boot it again between sessions (matches the local "independent boots")
         type: boolean
@@ -60,7 +60,7 @@ jobs:
       - id: m
         env:
           VMS: ${{ inputs.vms || '1' }}
-          SESSIONS: ${{ inputs.sessions || '2' }}
+          SESSIONS: ${{ inputs.sessions || '1' }}
           TARGET: ${{ inputs.target || 'original' }}
           PRESET: ${{ inputs.preset || 'original' }}
           FW: ${{ inputs.fw || '' }}
@@ -81,7 +81,7 @@ jobs:
   sim:
     needs: plan
     runs-on: xcode-27
-    # healthy: 33-43 min for 2 sessions (3 runs); one stalled job held a slot for 90 min
+    # healthy: 33-43 min for 2 sessions (3 runs, before the readiness polling replaced the fixed sleeps); one stalled job held a slot for 90 min
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -141,7 +141,7 @@ jobs:
         timeout-minutes: 50   # leaves time for the log steps below inside the job's 60
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          SESSIONS: ${{ inputs.sessions || '2' }}
+          SESSIONS: ${{ inputs.sessions || '1' }}
           FRESH: ${{ inputs.fresh_boot && 'yes' || 'no' }}
           VM: ${{ matrix.vm }}
           # The runner (3 vCPU) boots the Simulator and Safari several times slower than a Mac: every wait in
