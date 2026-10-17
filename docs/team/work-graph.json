@@ -2693,6 +2693,59 @@
     "apps/site/src/registry/index.ts",
     "results/**"
    ]
+  },
+  {
+   "id": "timing-spans",
+   "title": "(M) timing spans for every automation step: fw commands, fw land phases (merge, each check, sync, cleanup), check.sh/lake build stages, package tests, fw watch passes, CI job and step durations (one gh-budget call per finished run); append to .fw-console/timings.jsonl {tool, step, startMs, durMs, exit, commit, load}; fw timings [--tool] prints p50/p90/last per step",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/timing.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "lean/scripts/check.sh",
+    "scripts/**",
+    "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "timing-lean",
+   "title": "(M) Fw.Obs.Timing: slow verdict per (tool, step) from history (baseline = p90 of the last N with N >= n_min; slow iff dur > max(budget, k * baseline)); theorems: no alert within budget, an outlier moves the baseline by a bounded amount, monotone in dur, deterministic; golden from real numbers (sweeps 312 s vs shards <= 147 s, lean check ~2 min, land checks)",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/obs/timing.jsonl"
+   ]
+  },
+  {
+   "id": "timing-alert",
+   "title": "(S) wire Fw.Obs.Timing: fw watch alert timing.slow, fw next NEXT investigate step=<tool/step> (the lead delegates an investigate+prove task), console Health timings panel; TS checked against the timing golden",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "timing-spans",
+    "timing-lean",
+    "obs-signals"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Wire/Obs.lean",
+    "lean/Fw/Obs/Next.lean",
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/next.ts",
+    "apps/runner/test/**",
+    "apps/console-web/src/**",
+    "docs/team/tools/**"
+   ]
   }
  ],
  "deadline": {
