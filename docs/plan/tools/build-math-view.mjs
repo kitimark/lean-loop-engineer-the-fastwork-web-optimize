@@ -108,9 +108,15 @@ function loadExport() {
 }
 
 // Review status per declaration, from the review records. A record row reads
-//   | `Fw.Null.pAt_le` | agree | 1234567890 | … |
-// (full name, `agree` or `disagree`, optional mathview stmtHash). A later record (by file name) wins.
-// A row whose hash differs from the current export is stale; a declaration with no row is pending.
+//   | `Fw.Null.pAt_le` | agree | 1234567890 | 9876543210 | note |
+// (full name, `agree` or `disagree`, optional mathview stmtHash, optional mathview mathHash, optional note).
+// Hash cells are recognised by being all digits, so the older rows `| name | verdict | stmtHash | note |` and
+// `| name | verdict |` keep working: a row is checked on the hashes it carries. A row is stale when its stmtHash
+// differs from the export (the Lean statement changed) or its mathHash differs (the docstring's English, $$ math
+// or notes changed); a declaration with no row is pending.
+// Precedence: each record's frontmatter carries `round: <n>`; for a declaration, the row of the highest round
+// wins (within one record, the last row). A record without `round:` ranks below every numbered round, ordered by
+// file name among such records (a warning names it when it has rows). Two records with the same round fail.
 function reviews() {
   const out = new Map();
   const files = [];
@@ -120,16 +126,38 @@ function reviews() {
       for (const f of readdirSync(dir).sort()) if (/-math-review-.*\.md$/.test(f)) files.push(join(dir, f));
     } catch { /* not a folder */ }
   }
-  for (const file of files) {
-    for (const line of readFileSync(file, 'utf8').split('\n')) {
+  const records = files.map((file) => {
+    const text = readFileSync(file, 'utf8');
+    const front = /^---\n([\s\S]*?)\n---\n/.exec(text);
+    const round = front && /^round:\s*(\d+)\s*$/m.exec(front[1]);
+    return { file, text, round: round ? Number(round[1]) : null };
+  });
+  const seen = new Map();
+  for (const r of records) {
+    if (r.round === null) continue;
+    if (seen.has(r.round)) {
+      console.error(`math review records ${relative(root, seen.get(r.round))} and ${relative(root, r.file)} both have round: ${r.round}`);
+      process.exit(1);
+    }
+    seen.set(r.round, r.file);
+  }
+  // Ascending precedence: unnumbered records (by name) first, then by round; later rows overwrite earlier ones.
+  records.sort((a, b) => (a.round ?? -1) - (b.round ?? -1) || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
+  const digits = (c) => { const h = (c || '').replace(/`/g, ''); return /^\d+$/.test(h) ? h : null; };
+  for (const { file, text, round } of records) {
+    let rows = 0;
+    for (const line of text.split('\n')) {
       const cells = line.split('|').map((c) => c.trim()).slice(1, -1);
       if (cells.length < 2) continue;
       const name = /^`(Fw\.[^`]+)`$/.exec(cells[0]);
       const verdict = /^\**(agree|disagree)\**$/i.exec(cells[1]);
       if (!name || !verdict) continue;
-      const hash = (cells[2] || '').replace(/`/g, '');
-      out.set(name[1], { verdict: verdict[1].toLowerCase(), hash: /^\d+$/.test(hash) ? hash : null, file: relative(root, file) });
+      const hash = digits(cells[2]);
+      const mathHash = hash ? digits(cells[3]) : null;
+      out.set(name[1], { verdict: verdict[1].toLowerCase(), hash, mathHash, file: relative(root, file) });
+      rows++;
     }
+    if (rows && round === null) console.error(`warning: ${relative(root, file)} has review rows but no \`round:\` in its frontmatter; it ranks below every numbered round`);
   }
   return out;
 }
@@ -137,7 +165,12 @@ function reviews() {
 function status(d, recs) {
   const r = recs.get(d.name);
   if (!r) return { key: 'pending', label: 'review pending', cls: 'mv-pend' };
-  if (r.hash && r.hash !== String(d.stmtHash)) return { key: 'stale', label: 'review stale', cls: 'open', file: r.file };
+  const stmtStale = r.hash && r.hash !== String(d.stmtHash);
+  const mathStale = r.mathHash && r.mathHash !== String(d.mathHash);
+  if (stmtStale || mathStale) {
+    const why = [stmtStale ? 'Lean statement' : null, mathStale ? 'docstring' : null].filter(Boolean).join(' and ');
+    return { key: 'stale', label: 'review stale', cls: 'open', file: `${r.file} (${why} changed since the review)` };
+  }
   return r.verdict === 'agree'
     ? { key: 'agree', label: 'agree', cls: 'ok', file: r.file }
     : { key: 'disagree', label: 'disagree', cls: 'bad', file: r.file };
@@ -240,7 +273,7 @@ function renderReview(all, commit) {
   return [
     RBEGIN,
     `<h3><a class="chip ${done ? 'ok' : 'open'}" href="#mv-review">${done ? 'reviewed' : 'review pending'}</a> ${tallyText(n)}</h3>`,
-    `<p id="mv-review">Each declaration shows its status: <i>agree</i> or <i>disagree</i> from a math-reviewer record, <i>review stale</i> when the Lean changed after the review, <i>review pending</i> when no record covers it yet. Record for <span class="mono">lean/</span>: ${record}. The protocol: write its own math from the Lean, then compare it clause by clause with the docstring (ℕ vs ℤ, every hypothesis, ≤ vs &lt;, rounding, empty lists, ties, direction of ⇒ and ⇔).</p>`,
+    `<p id="mv-review">Each declaration shows its status: <i>agree</i> or <i>disagree</i> from a math-reviewer record, <i>review stale</i> when the Lean statement or, for rows that carry a docstring hash, the docstring changed after the review, <i>review pending</i> when no record covers it yet. Record for <span class="mono">lean/</span>: ${record}. The protocol: write its own math from the Lean, then compare it clause by clause with the docstring (ℕ vs ℤ, every hypothesis, ≤ vs &lt;, rounding, empty lists, ties, direction of ⇒ and ⇔).</p>`,
     `<p>${clean
       ? `At <span class="mono">${esc(commit)}</span> all ${all.length} declarations (${nThm} theorems) are free of <code>sorry</code> and use only the standard axioms (<code>propext</code>, <code>Classical.choice</code>, <code>Quot.sound</code>), checked by <code>lake exe mathview --lint</code>.`
       : `At <span class="mono">${esc(commit)}</span> some declarations use <code>sorry</code> or a non-standard axiom.`} The kickoff sketch's 72 declarations were reviewed earlier (<a href="../../${SKETCH_RECORD}">72 agree / 0 disagree</a>); that record does not cover <span class="mono">lean/</span>.</p>`,

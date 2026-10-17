@@ -6,6 +6,7 @@ Export every `Fw.*` declaration as a math-view entry.
 
 Per declaration: kind, module, docstring, the `$$…$$` blocks found in it, the pretty-printed
 signature, a *deep* statement hash (signature + bodies of every `Fw.*` definition it reaches),
+a docstring hash (the whole docstring, whitespace-normalised, so a review goes stale when its math or English changes),
 the axioms it depends on (an unfinished proof shows as `sorryAx`), and a mechanical LaTeX rendering of the type.
 -/
 namespace MathView
@@ -146,6 +147,35 @@ def stmtHash (env : Environment) (ci : ConstantInfo) : UInt64 :=
     | some ci' => mixHash h (mixHash (hash c) (hash ci'.type))
     | none => h
 
+/-! ## Docstring hash: the reviewed text (English, `$$` blocks, notes), whitespace-normalised -/
+
+/-- The docstring with every run of whitespace collapsed to one space and the ends trimmed, so re-indenting or
+re-wrapping a docstring does not change it.
+
+$$\mathrm{normDoc}(d) = w_1 \,\texttt{" "}\, w_2 \,\texttt{" "} \cdots \texttt{" "}\, w_k$$
+
+where $w_1, \dots, w_k$ are the maximal runs of non-whitespace characters of $d$, in order. -/
+def normDoc (doc : String) : String :=
+  let (words, cur) := doc.toList.foldl (init := (([] : List String), "")) fun (ws, w) c =>
+    if c.isWhitespace then (if w.isEmpty then (ws, w) else (w :: ws, "")) else (ws, w.push c)
+  " ".intercalate (if cur.isEmpty then words else cur :: words).reverse
+
+/-- The docstring hash: Lean's `String` hash (MurmurHash64A, deterministic across runs) of the normalised
+docstring, or `0` when there is none.
+
+$$\mathrm{mathHash}(\bot) = 0, \qquad \mathrm{mathHash}(d) = \mathrm{hash}(\mathrm{normDoc}(d))$$
+
+A review row carrying this hash goes stale when any word of the docstring's English, `$$` math or notes changes. -/
+def mathHash : Option String → UInt64
+  | none => 0
+  | some doc => hash (normDoc doc)
+
+#guard normDoc "  a\n   b\t c  " == "a b c"
+#guard normDoc "" == ""
+#guard mathHash (some "x  $$a$$\n  y") == mathHash (some "x $$a$$ y")
+#guard mathHash (some "x $$a$$") != mathHash (some "x $$b$$")
+#guard mathHash none == 0
+
 /-! ## Entries -/
 
 structure Entry where
@@ -158,6 +188,7 @@ structure Entry where
   signature : String
   autoTex   : String
   stmtHash  : String
+  mathHash  : String          -- hash of the whitespace-normalised docstring (`mathHash`)
   axioms    : List String
   sorryFree : Bool
   line      : Nat
@@ -226,7 +257,7 @@ def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc
   return some {
     name := n.toString, kind := kindOf ci, module := mod.toString, doc,
     english := (doc.map english).getD "", math := (doc.map mathBlocks).getD [], signature := sig, autoTex := auto,
-    stmtHash := s!"{stmtHash env ci}", axioms := axs.toList.map toString,
+    stmtHash := s!"{stmtHash env ci}", mathHash := s!"{mathHash doc}", axioms := axs.toList.map toString,
     sorryFree := !axs.contains ``sorryAx, line, heartbeats := ← spentSince start }
 
 def entries : MetaM (Array Entry) := do
@@ -249,7 +280,7 @@ def entries : MetaM (Array Entry) := do
       out := out.push {
         name := n.toString, kind := kindOf ci, module := mod.toString, doc,
         english := (doc.map english).getD "", math := (doc.map mathBlocks).getD [], signature := "",
-        autoTex := "?", stmtHash := "", axioms := [], sorryFree := false, line, heartbeats := declBudget,
+        autoTex := "?", stmtHash := "", mathHash := s!"{mathHash doc}", axioms := [], sorryFree := false, line, heartbeats := declBudget,
         error := some msg }
   return out.qsort (fun a b => a.module < b.module || (a.module == b.module && a.line < b.line))
 

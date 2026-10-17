@@ -21,7 +21,7 @@ def fwModules (root : System.FilePath) : IO (Array Name) := do
   return mods.qsort (·.toString < ·.toString)
 
 /-- `lake exe mathview [--lint]`: print every `Fw` declaration as JSON (name, kind, module, line,
-English, math, signature, machine LaTeX, deep statement hash, axioms); with `--lint`, exit 1 when
+English, math, signature, machine LaTeX, deep statement hash, docstring hash, axioms); with `--lint`, exit 1 when
 a declaration lacks `$$` math or English, depends on `sorryAx`, or on on an axiom other than
 `propext`, `Classical.choice`, `Quot.sound`. -/
 def main (args : List String) : IO UInt32 := do

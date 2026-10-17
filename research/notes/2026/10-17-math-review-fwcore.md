@@ -2,6 +2,7 @@
 title: Math review of the fwcore declarations (math view vs Lean)
 date: 2026-10-17
 status: CONFIRMED
+round: 2
 ---
 
 # Math review of `lean/Fw` (fwcore) at 9367dea

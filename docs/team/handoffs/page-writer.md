@@ -11,10 +11,17 @@ State at 9367dea + uncommitted (Math view sourced from fwcore `lean/`; previousl
   grouped by module, order list in the script; new `Fw/` modules append by name) and `mathview-review` (the review
   panel's chip, tally, record link, axiom line). `--check` fails on drift or bad TeX. KaTeX 0.16.11 from the root
   devDependency (`FW_KATEX` overrides). Math is pre-rendered MathML, so the page loads no script.
-- Review status per declaration comes from table rows in `research/notes/*/*-math-review-*.md`:
-  `| \`Fw.Full.name\` | agree|disagree | <stmtHash, optional> |`. Later file name wins; a hash differing from the export
-  shows "review stale"; no row shows "review pending". The fw-spec record (sketch, 72 agree) has no such rows and is
-  only linked as history. After `10-17-math-review-fwcore.md` lands, re-run the generator; nothing else to edit.
+- Review status per declaration comes from table rows in `research/notes/*/*-math-review-*.md`. Row format (new rows):
+  `| \`Fw.Full.name\` | agree|disagree | <stmtHash> | <mathHash> | <note> |`, both hashes copied from
+  `lake exe mathview` (`stmtHash`: Lean statement + reached `Fw.*` bodies; `mathHash`: the whole docstring, English +
+  `$$` math + notes, whitespace-normalised). Older rows stay valid: `| name | verdict | <stmtHash> | <note> |` and
+  `| name | verdict |`. Hash cells are recognised by being all digits (mathHash only after a stmtHash). A row is
+  "review stale" when any hash it carries differs from the export, so stmt-only rows do not catch docstring edits; no
+  row shows "review pending".
+- Precedence: each record's frontmatter has `round: <n>` (fwcore = 2, r3-a65aaa7 = 3); the highest round wins, the
+  last row within a record. A record with rows but no `round:` ranks below all rounds (by file name) and the generator
+  warns; two records with the same round fail. The fw-spec record (sketch, 72 agree) has no rows and is only linked
+  as history. A new review record: next round number, then re-run the generator; nothing else to edit.
 - At 9367dea: 224 declarations, 12 modules, 93 theorems, all sorry-free with standard axioms, 224 review pending.
 - 375 px check: Chrome headless needs CDP `Emulation.setDeviceMetricsOverride` with `mobile:false` (the window
   minimum is 500 px, and `mobile:true` gives a 980 px layout viewport because the page has no viewport meta).
