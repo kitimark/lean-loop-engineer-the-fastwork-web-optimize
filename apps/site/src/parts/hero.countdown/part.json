@@ -1,0 +1,14 @@
+{
+  "id": "hero.countdown",
+  "slot": "hero",
+  "anchors": ["hero-countdown"],
+  "experiment": true,
+  "impls": ["mui", "plain"],
+  "muiStates": ["countdown-running"],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "layerBudget": 80 },
+    "strip": { "kind": "optimized", "tier": "T0", "layerBudget": 16 }
+  },
+  "requires": {},
+  "conflicts": {}
+}

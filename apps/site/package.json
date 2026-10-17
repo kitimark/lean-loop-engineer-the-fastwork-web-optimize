@@ -1,0 +1,35 @@
+{
+  "name": "@fw/site",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "build": "node scripts/build.mjs --engine aot",
+    "build:runtime": "node scripts/build.mjs --engine runtime",
+    "build:all": "node scripts/build.mjs --engine aot && node scripts/build.mjs --engine runtime",
+    "census": "node scripts/census.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/server": "11.11.0",
+    "@emotion/styled": "11.14.1",
+    "@mui/material": "9.5.0",
+    "@mui/styled-engine": "9.5.0",
+    "@mui/system": "9.5.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "puppeteer-core": "25.14.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}

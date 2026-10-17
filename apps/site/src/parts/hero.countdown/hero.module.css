@@ -1,0 +1,31 @@
+@layer parts {
+  .root {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 32px 16px;
+    text-align: center;
+  }
+  .digits {
+    display: inline-flex;
+    gap: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .digit {
+    position: relative;
+    display: inline-block;
+    min-width: 1ch;
+    font-size: 40px;
+    line-height: 1.2;
+  }
+  .face {
+    position: absolute;
+    inset: 0;
+    opacity: 0.1;
+  }
+  .face:last-child {
+    position: relative;
+    opacity: 1;
+  }
+}
