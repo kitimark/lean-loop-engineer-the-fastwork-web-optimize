@@ -3396,6 +3396,22 @@
     "packages/measure-webkit/src/**",
     "packages/measure-chromium/src/**"
    ]
+  },
+  {
+   "id": "lean-ops-gap",
+   "title": "(M) Lean-first violations found by ts-lean-diff: give each TS decision without a Lean op one (parts logic.ts wire ops, spool/workflow.ts, plan-sync syncFrom, shells/model.ts, measure-wktr reduce, parseMemLevel, gh-budget wait verdict, next.ts classifyTree, judgeDevice, spawn-guard mode mapping, emit.mjs) and add each to packages/difftest; also diff flags.resolve and measure.splits",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "ts-lean-diff"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Wire/**",
+    "lean/Fw/Ops/**",
+    "packages/difftest/**",
+    "packages/contracts/golden/**"
+   ]
   }
  ],
  "deadline": {
