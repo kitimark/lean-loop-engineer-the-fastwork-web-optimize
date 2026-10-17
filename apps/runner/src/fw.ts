@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { watchMain } from "./watch.ts";
 import { runCli } from "./run.ts";
 import { ciCli } from "./ci.ts";
+import { ghBudgetCli } from "@fw/gh-budget";
 import { engineCheckCli } from "./engine-check.ts";
 
 const [group, ...rest] = process.argv.slice(2);
@@ -18,6 +19,8 @@ try {
     process.exitCode = engineCheckCli(rest, process.cwd());
   } else if (group === "run") {
     process.exitCode = runCli(rest, process.cwd());
+  } else if (group === "ci" && (rest[0] === "wait" || rest[0] === "budget")) {
+    process.exitCode = await ghBudgetCli(rest, process.cwd()); // shared GitHub poller: no gh loops (packages/gh-budget)
   } else if (group === "ci") {
     process.exitCode = ciCli(rest, process.cwd());
   } else if (group === "watch") {

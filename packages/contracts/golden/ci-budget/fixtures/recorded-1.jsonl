@@ -1,0 +1,2 @@
+{"scenario":{"name":"recorded-1","start":1792265072,"seconds":300,"waiters":1,"expect":{"counts":[{"from":1792265072,"until":1792265073,"kind":"tick","min":1,"max":1}]}}}
+{"at":1792265072,"lines":["HTTP/2.0 200 OK","X-Ratelimit-Limit: 5000","X-Ratelimit-Remaining: 4938","X-Ratelimit-Reset: 1792266218","X-Ratelimit-Resource: core","X-Ratelimit-Used: 62","HTTP/2.0 200 OK","X-Ratelimit-Limit: 5000","X-Ratelimit-Remaining: 4981","X-Ratelimit-Reset: 1792268452","X-Ratelimit-Resource: core","X-Ratelimit-Used: 19"]}
