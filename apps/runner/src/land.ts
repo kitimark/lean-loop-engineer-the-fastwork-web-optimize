@@ -3,7 +3,8 @@
 // typed commands, and prints a digest. It merges (never rebases), never pushes, never forces, and touches only the
 // lead's main checkout (plus removing a finished, clean, unlocked worktree of the landed branch).
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
@@ -90,21 +91,117 @@ export function worktreeOf(cwd: string, ref: string): string | null {
 
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
 
-/** Checks that cover the changed files: the Lean gates for lean/, the package's own tests for apps/<n>/ and packages/<n>/. */
-export function checksFor(root: string, changed: string[]): string[][] {
-  const out: string[][] = [];
-  // a new or changed dependency must be installed before any package test runs (a new workspace package is otherwise
-  // unresolvable: TS2307 on the first landing of packages/gh-budget)
-  if (changed.some((f) => f === "pnpm-lock.yaml" || /(^|\/)package\.json$/.test(f))) out.push(["pnpm", "install", "--frozen-lockfile"]);
-  if (changed.some((f) => f.startsWith("lean/"))) out.push(["sh", "lean/scripts/check.sh"]);
-  const pkgs = new Set<string>();
-  for (const f of changed) { const m = /^(apps|packages)\/([^/]+)\//.exec(f); if (m) pkgs.add(`${m[1]}/${m[2]}`); }
-  for (const p of [...pkgs].sort()) {
-    try {
-      if (JSON.parse(readFileSync(join(root, p, "package.json"), "utf8")).scripts?.test) out.push(["pnpm", "--filter", `./${p}`, "test"]);
-    } catch { /* no package.json: nothing to run */ }
+/** A check with its declared input set: path globs in the `Fw.Ops.PathCheck` syntax (`!` excludes). The premise
+ *  `land.readsOnly` says the check's verdict depends only on the files these globs select. */
+export type Check = { id: string; argv: string[]; reads: string[] };
+
+// --- TS stand-in for Lean `Fw.Ops.PathCheck.inScope` (lean/Fw/Ops/PathCheck.lean:26-82); marked for Lean replacement
+// (an `fwcore` op); checked against the `landSpeed.select` golden (test/land-inputs.test.ts).
+const segs = (s: string) => s.split("/").filter((x) => x !== "" && x !== ".");
+const segMatch = (g: string, s: string): boolean => {
+  if (g === "") return s === "";
+  if (g[0] === "*") return segMatch(g.slice(1), s) || (s !== "" && segMatch(g, s.slice(1)));
+  return s !== "" && g[0] === s[0] && segMatch(g.slice(1), s.slice(1));
+};
+const globMatch = (g: string[], p: string[]): boolean => {
+  if (g.length === 0) return p.length === 0;
+  if (g[0] === "**") return globMatch(g.slice(1), p) || (p.length > 0 && globMatch(g, p.slice(1)));
+  return p.length > 0 && segMatch(g[0]!, p[0]!) && globMatch(g.slice(1), p.slice(1));
+};
+const matchesPath = (g: string[], p: string[]) => p.some((_, k) => globMatch(g, p.slice(0, k + 1)));
+/** `inScope(parseScope(globs), path)` */
+export function inScope(globs: string[], path: string): boolean {
+  const p = segs(path);
+  const incl = globs.filter((g) => !g.startsWith("!")).map(segs);
+  const excl = globs.filter((g) => g.startsWith("!")).map((g) => segs(g.slice(1)));
+  return p.length > 0 && !p.includes("..") && incl.some((g) => matchesPath(g, p)) && !excl.some((g) => matchesPath(g, p));
+}
+/** `selectChecks`: ids of the checks one of whose declared globs covers a changed path, in table order. */
+export const selectChecks = (ds: { id: string; reads: string[] }[], changed: string[]) =>
+  ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
+
+/** What `lean/scripts/check.sh` reads: Lean `Fw.Console.LandSpeed.checkShReads` (equal to the golden's declaration). */
+export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "scripts/span.sh"];
+export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
+/** Files a package's tests read outside their own directory and outside their `workspace:` dependencies, found by the
+ *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
+ *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
+export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
+  "apps/console-api": ["apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**"],
+  "apps/runner": ["apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
+    "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh"],
+  "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/contracts/golden/parts/**"],
+  "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
+  "packages/measure-chromium": ["packages/contracts/golden/measure/**", "results/baselines/chromium/**"],
+  "packages/gate-breakpoints": ["packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**"],
+  "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
+    "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
+  "packages/measure-webkit": ["packages/contracts/golden/measure/**"],
+};
+
+/** Directories of the `workspace:` dependencies of a package (`@fw/x` is `packages/x` or `apps/x`). */
+function workspaceDeps(root: string, pkg: any): string[] {
+  const out: string[] = [];
+  for (const [n, v] of Object.entries({ ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies } as Record<string, string>)) {
+    if (!String(v).startsWith("workspace:")) continue;
+    const base = n.replace(/^@[^/]+\//, "");
+    const d = ["packages", "apps"].map((t) => `${t}/${base}`).find((x) => existsSync(join(root, x, "package.json")));
+    if (d) out.push(d);
   }
   return out;
+}
+
+/** Every check that can run in `root`, with its declared reads, in the order they run: install, the Lean gates, then the
+ *  packages that have a `test` script (sorted). Which of them a change selects is `selectChecks` (Lean `landSpeed.select`). */
+/** Packages whose tests run the `fwcore` binary (built from lean/**): a Lean change can change their verdict. Found by the scan
+ *  in test/land-inputs.test.ts. Left out of the declared reads while `LEAN_BINARY_READS` is false, so a land selects what it selected
+ *  before (only check.sh for a Lean change); set it true to declare the dependency (a Lean change then selects all of them). */
+export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
+export const LEAN_BINARY_READS = false;
+
+export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): Check[] {
+  const out: Check[] = [
+    { id: "install", argv: ["pnpm", "install", "--frozen-lockfile"], reads: INSTALL_READS },
+    { id: "check.sh", argv: ["sh", "lean/scripts/check.sh"], reads: CHECK_SH_READS },
+  ];
+  for (const t of ["apps", "packages"]) {
+    let names: string[] = [];
+    try { names = readdirSync(join(root, t)).sort(); } catch { /* no such directory */ }
+    for (const n of names) {
+      const p = `${t}/${n}`;
+      try {
+        const pkg = JSON.parse(readFileSync(join(root, p, "package.json"), "utf8"));
+        if (pkg.scripts?.test) out.push({ id: p, argv: ["pnpm", "--filter", `./${p}`, "test"],
+          reads: [`${p}/**`, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(fwcoreReads && FWCORE_USERS.includes(p) ? ["lean/**"] : [])] });
+      } catch { /* no package.json: nothing to run */ }
+    }
+  }
+  return out;
+}
+
+/** The checks that cover the changed files, each with its declared input set. */
+export function checksWithReads(root: string, changed: string[], fwcoreReads = LEAN_BINARY_READS): Check[] {
+  const all = candidateChecks(root, fwcoreReads);
+  const ids = new Set(selectChecks(all, changed));
+  return all.filter((c) => ids.has(c.id));
+}
+
+/** Content key of a check's declared inputs: sha256 over the sorted (path, content hash) of the tracked files its globs
+ *  select. Premise: equal keys give equal verdicts (`cache_sound`). Not used for caching yet. */
+export function inputKey(root: string, reads: string[]): string {
+  const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter((f) => f && inScope(reads, f)).sort();
+  const h = createHash("sha256");
+  for (const f of files) {
+    let c: Buffer | string = "";
+    try { c = readFileSync(join(root, f)); } catch { c = "<missing>"; }
+    h.update(`${f}\0${createHash("sha256").update(c).digest("hex")}\n`);
+  }
+  return h.digest("hex");
+}
+
+/** Checks that cover the changed files (argv only). */
+export function checksFor(root: string, changed: string[]): string[][] {
+  return checksWithReads(root, changed).map((c) => c.argv);
 }
 
 /** One `gh run list` call, advisory only. */
