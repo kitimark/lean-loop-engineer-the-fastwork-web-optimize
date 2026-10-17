@@ -18,6 +18,7 @@ import { seekExperiment } from './seek.mjs';
 import { probe } from './rfprobe.mjs';
 import { screenAndTicks } from './handoff.mjs';
 import { warmUpLoad, perStepPasses, classifyModes, perStepTable } from './perstep.mjs';
+import { quietPasses } from './quiet.mjs';
 import { onePassRetrying, classifyPasses, reasonNames, markdownTable, resolveStates } from './determinism.mjs';
 import { COUNT_TYPES, zones, summarize } from './reduce.mjs';
 
@@ -44,6 +45,8 @@ const OPTS = {
   search: { type: 'string', default: '' },
   mode: { type: 'string', default: 'base' },
   warmup: { type: 'string', default: '1' },
+  arms: { type: 'string', default: '0,1,3' }, // quiet: busy-loop processes per arm
+  reps: { type: 'string', default: '3' }, // quiet: rounds (each round runs every arm once)
   cols: { type: 'string' }, // handoff: comma list of count types forming the vector (default all 12)
 };
 const { values: v, positionals } = parseArgs({ args: rest, options: OPTS, allowPositionals: true, allowNegative: true });
@@ -119,6 +122,13 @@ async function main() {
       const rows = classifyPasses(passes);
       save('determinism', { runs, clock: v.clock, states, rows, summary: summarize(rows), passes });
       console.log(markdownTable(rows));
+      break;
+    }
+    case 'quiet': {
+      // webkit-quiet: dose-response of per-step jitter against added host load (see quiet.mjs)
+      const arms = v.arms.split(',').map(num);
+      const passes = await withSession((ctx) => quietPasses(ctx, { arms, reps: num(v.reps), clock: v.clock, settleMs: num(v.settle), step: num(v.step), framesPerStep: num(v.frames), log, warmup: num(v.warmup), mode: v.mode }), sessionOpts);
+      save('quiet', { schema: 'fw.webkit.quiet/1', arms, reps: num(v.reps), clock: v.clock, mode: v.mode, passes });
       break;
     }
     case 'perstep': {

@@ -29,6 +29,19 @@ on:
         description: Shut the Simulator down and boot it again between sessions (matches the local "independent boots")
         type: boolean
         default: false
+      experiment:
+        description: determinism (the class table; default) or quiet (webkit-quiet: dose-response of per-step jitter against added host load, one Simulator session per VM)
+        type: choice
+        options: [determinism, quiet]
+        default: determinism
+      arms:
+        description: quiet only. Busy-loop processes per arm, comma list (0 = the plain pass)
+        type: string
+        default: '0,1,3'
+      reps:
+        description: quiet only. Rounds; each round runs every arm once in a rotated order
+        type: string
+        default: '3'
       target:
         description: Which page to measure. Only original (the read-only snapshot) is served by this lane; rewrite stops the plan job
         type: choice
@@ -47,7 +60,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.experiment || 'determinism' }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 
 jobs:
@@ -172,6 +185,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
+          if [ "$EXPERIMENT" = quiet ]; then
+            node src/cli.mjs quiet --arms "$ARMS" --reps "$REPS" --keep --out "out/$VM-quiet.json" 2> >(tee "out/$VM-quiet.log" >&2)
+            ls -l out
+            exit 0
+          fi
           for s in $(seq 1 "$SESSIONS"); do
             keep=--keep
             # fresh_boot: no --keep, so each session ends with the device shut down and the next one boots it again
@@ -181,6 +199,7 @@ jobs:
           ls -l out
 
       - name: Within-VM classes
+        if: ${{ (inputs.experiment || 'determinism') == 'determinism' }}
         working-directory: packages/measure-webkit
         env:
           VM: ${{ matrix.vm }}
@@ -219,6 +238,7 @@ jobs:
   # Classes over all VMs (the worse class wins, as `merge` does locally). Only needs node, so it runs on Linux.
   merge:
     needs: [plan, sim]
+    if: ${{ (inputs.experiment || 'determinism') == 'determinism' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:

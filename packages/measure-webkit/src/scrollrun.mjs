@@ -16,6 +16,7 @@ import { sleep } from './sim.mjs';
 import { startTimeline } from './timeline.mjs';
 import { markTimes, markTime, reduceSteps } from './reduce.mjs';
 import { RAF_HELPER, pageInfo } from './page.mjs';
+import { lagMonitor, lagBuckets } from './hostmon.mjs';
 
 /** The scroll schedule: y = 0, step, 2*step ... up to and including maxY. */
 export function schedule(maxY, step) {
@@ -113,6 +114,9 @@ export async function scrollRun(c, { step = 50, framesPerStep = 2, idleMs = 0, m
   const tl = await startTimeline(c);
   if (idleMs) await sleep(idleMs);
   let finalY, lockInfo = null;
+  // host record, outside the page: the harness's own timer lag over the scroll (hostmon.mjs); never read by a count
+  const lag = lagMonitor(20);
+  const wallStart = Date.now();
   if (lock) {
     lockInfo = await lockedSteps(c, tl, ys, { quiet: framesPerStep, dtMs });
     finalY = await c.evaluate('Math.round(scrollY)');
@@ -120,6 +124,8 @@ export async function scrollRun(c, { step = 50, framesPerStep = 2, idleMs = 0, m
     // a long poll interval: every poll is an inspector round trip inside the timed window
     finalY = await c.runAsync(STEP_JS(ys, framesPerStep, dtMs), { pollMs: 1000 });
   }
+  const wallEnd = Date.now();
+  const lagSamples = lag.stop();
   await sleep(300);
   const records = await tl.stop();
   const marks = markTimes(records, 'wk:s', ys.length);
@@ -139,6 +145,8 @@ export async function scrollRun(c, { step = 50, framesPerStep = 2, idleMs = 0, m
     schema: 'fw.webkit.scroll/1', mode, info, step, framesPerStep, dtMs, ys, finalY, marks, endTime, records,
     holdStats, holdAfter, parentPairs, noComposite: lockInfo?.noComposite ?? null,
     scrollWallMs: Math.round((endTime - marks[0]) * 1000), // informational: wall clock, never a gate
+    wall: { start: wallStart, end: wallEnd }, // Mac clock (ms) around the stepped scroll, to join host samples to steps
+    lag: lagBuckets(lagSamples, wallStart, wallEnd, 250), // max timer lag (ms) per 250 ms bucket from wall.start
     reduced: reduceSteps(records, marks, endTime),
   };
 }
