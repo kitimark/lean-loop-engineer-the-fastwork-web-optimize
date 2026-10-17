@@ -1,10 +1,10 @@
 // `fw watch`: collect the team snapshot, ask fwcore `obs.health` for states and alerts, print a compact table,
 // append input+output to .fw-console/health.jsonl. No decision logic here: every state and alert code is fwcore's.
 import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
-import { collectSnapshot, pathsFor, type AgentSnap, type Paths, type Snapshot } from "./watch-collect.ts";
+import { collectSnapshot, pathsFor, type AgentSnap, type Paths, type Prev, type Snapshot } from "./watch-collect.ts";
 
 export const WATCH_USAGE = "usage: fw watch [--json] [--interval <s>] [--until-alert]   (exit 3 when a new alert appears)";
 
@@ -57,7 +57,8 @@ export async function check(snap: Snapshot, core: CoreCall): Promise<Health> {
 }
 
 // ---- rendering ----
-const ORDER: Record<string, number> = { stalled: 0, waiting: 1, active: 2, idle: 3, done: 4 };
+const ORDER: Record<string, number> = { stalled: 0, active: 1, idle: 2, parked: 3, done: 4 };
+const KIND: Record<string, string> = { teammate: "tm", subagent: "sub", workflow: "wf" };
 const min = (ms: number) => Math.max(0, Math.round(ms / 60000));
 const kfmt = (n: number | null) => (n === null ? "-" : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
 const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "~" : s);
@@ -69,19 +70,20 @@ export function renderTable(snap: Snapshot, h: Health, maxRows = 24): string {
   const live = h.agents.filter((a) => a.state !== "done")
     .sort((a, b) => (ORDER[a.state]! - ORDER[b.state]!) || (byId.get(a.id)!.lastAt - byId.get(b.id)!.lastAt));
   const lines: string[] = [];
-  lines.push(`${pad("agent", 26)} ${pad("type", 15)} ${pad("model", 13)} ${pad("state", 8)} ${"idle".padStart(4)} ${"tools".padStart(5)} ${"err".padStart(3)} ${"ctx".padStart(5)}  in-flight`);
+  lines.push(`${pad("agent", 26)} ${pad("kind", 4)} ${pad("type", 15)} ${pad("model", 13)} ${pad("state", 8)} ${"idle".padStart(4)} ${"tools".padStart(5)} ${"err".padStart(3)} ${"ctx".padStart(5)}  in-flight`);
   for (const w of live.slice(0, maxRows)) {
     const a: AgentSnap = byId.get(w.id)!;
     const label = a.name ?? a.task ?? a.id;
     const inf = a.inflight ? `${a.inflight.tool} ${min(snap.now - a.inflight.since)}m` : "-";
-    lines.push(`${pad(cut(label, 26), 26)} ${pad(cut(a.type ?? "-", 15), 15)} ${pad(cut(shortModel(a.model), 13), 13)} ${pad(w.state, 8)} ${(min(snap.now - a.lastAt) + "m").padStart(4)} ${String(a.tools).padStart(5)} ${String(a.errors).padStart(3)} ${kfmt(a.ctxTokens).padStart(5)}  ${inf}`);
+    lines.push(`${pad(cut(label, 26), 26)} ${pad(KIND[a.kind] ?? "-", 4)} ${pad(cut(a.type ?? "-", 15), 15)} ${pad(cut(shortModel(a.model), 13), 13)} ${pad(w.state, 8)} ${(min(snap.now - a.lastAt) + "m").padStart(4)} ${String(a.tools).padStart(5)} ${String(a.errors).padStart(3)} ${kfmt(a.ctxTokens).padStart(5)}  ${inf}`);
   }
   if (live.length > maxRows) lines.push(`... +${live.length - maxRows} more live agents (use --json)`);
   if (live.length === 0) lines.push("(no live agents)");
   const c = h.counts, s = snap.system;
   const lock = s.simLock.holder ? `simlock ${s.simLock.holder} ${min(snap.now - (s.simLock.since ?? snap.now))}m` : "simlock free";
   const ciBad = s.ci.filter((r) => r.conclusion === "failure").length;
-  lines.push(`agents active ${c.active} idle ${c.idle} waiting ${c.waiting} stalled ${c.stalled} done ${c.done} | load ${s.load1} mem ${s.memPressure} disk ${s.diskFreeGB}GB | ${lock} | docker ${s.docker.length} wt ${s.worktrees} ci ${s.ci.length} (${ciBad} failed)`);
+  const st = (k: string) => (s.stale?.includes(k) ? " stale" : "");
+  lines.push(`agents active ${c.active} idle ${c.idle} parked ${c.parked} stalled ${c.stalled} done ${c.done} | load ${s.load1} mem ${s.memPressure} disk ${s.diskFreeGB}GB | ${lock} | docker ${s.docker.length}${st("docker")} wt ${s.worktrees} ci ${s.ci.length} (${ciBad} failed)${st("ci")}`);
   if (h.alerts.length === 0) lines.push("alerts: none");
   else {
     lines.push(`alerts (${h.alerts.length}):`);
@@ -99,6 +101,33 @@ export function newAlerts(prev: Set<string> | null, h: Health): Alert[] {
 export function appendLog(p: Paths, snap: Snapshot, h: Health): void {
   mkdirSync(p.consoleDir, { recursive: true });
   appendFileSync(join(p.consoleDir, "health.jsonl"), JSON.stringify({ at: snap.now, input: snap, output: h }) + "\n");
+}
+
+export interface LogLine { at: number; input: Snapshot; output: Health }
+/** The last complete line of .fw-console/health.jsonl, read from the end (the file only grows); null if none parses. */
+export function readLastLog(p: Paths): LogLine | null {
+  let fd: number;
+  try { fd = openSync(join(p.consoleDir, "health.jsonl"), "r"); } catch { return null; }
+  try {
+    const size = fstatSync(fd).size;
+    let tail = "";
+    for (let end = size, chunk = 1 << 16; end > 0; chunk *= 2) {
+      const start = Math.max(0, end - chunk);
+      const buf = Buffer.alloc(end - start);
+      readSync(fd, buf, 0, buf.length, start);
+      tail = buf.toString("utf8") + tail;
+      end = start;
+      const lines = tail.split("\n").filter((l) => l.trim());
+      // the first piece may be cut mid-line unless we reached the file start
+      if (lines.length >= (start === 0 ? 1 : 2)) {
+        try {
+          const o = JSON.parse(lines[lines.length - 1]!);
+          return typeof o?.at === "number" && o.input && o.output && Array.isArray(o.output.alerts) ? (o as LogLine) : null;
+        } catch { return null; }
+      }
+    }
+    return null;
+  } finally { closeSync(fd); }
 }
 
 export interface WatchOpts { json: boolean; intervalS: number | null; untilAlert: boolean }
@@ -137,9 +166,13 @@ export async function watchMain(args: string[], cwd: string, print: (s: string) 
   const { root, main } = await repoRoots(cwd);
   const paths = pathsFor(main); // the console data (.fw-console, .local) lives in the main checkout
   const call = core ?? coreCaller(coreCandidates(root, main));
-  let prev: Set<string> | null = null;
+  // the last logged check is the baseline: a relaunch after exit 3 does not re-report the alert it exited on,
+  // and a failed gh/docker collector carries that check's value forward (marked stale)
+  const last = readLastLog(paths);
+  let prev: Set<string> | null = last ? new Set(last.output.alerts.map(alertKey)) : null;
+  let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system } : null;
   for (;;) {
-    const snap = await collectSnapshot(paths);
+    const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap);
     const h = await check(snap, call);
     appendLog(paths, snap, h);
     const fresh = newAlerts(prev, h);
@@ -149,6 +182,7 @@ export async function watchMain(args: string[], cwd: string, print: (s: string) 
       return 3;
     }
     prev = new Set(h.alerts.map(alertKey));
+    prevSnap = { at: snap.now, system: snap.system };
     if (o.intervalS === null) return 0;
     await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
   }
