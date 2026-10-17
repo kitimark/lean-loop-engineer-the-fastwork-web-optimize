@@ -1,0 +1,22 @@
+{"name":"identical","stats":{"aa":0,"aaMaxDelta":0,"changed":0,"maxDelta":0,"settled":true,"total":10000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"pass"}
+{"name":"identical under the strictest tolerance","stats":{"aa":0,"aaMaxDelta":0,"changed":0,"maxDelta":0,"settled":true,"total":10000},"tol":{"countAA":false,"delta":0,"ppm":0},"verdict":"pass"}
+{"name":"ratio exactly at the limit (2000 ppm of 10000 = 20 px)","stats":{"aa":0,"aaMaxDelta":0,"changed":20,"maxDelta":10,"settled":true,"total":10000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"pass"}
+{"name":"ratio one pixel over the limit","stats":{"aa":0,"aaMaxDelta":0,"changed":21,"maxDelta":10,"settled":true,"total":10000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"fail"}
+{"name":"delta exactly at the limit","stats":{"aa":0,"aaMaxDelta":0,"changed":1,"maxDelta":64,"settled":true,"total":10000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"pass"}
+{"name":"delta one over the limit","stats":{"aa":0,"aaMaxDelta":0,"changed":1,"maxDelta":65,"settled":true,"total":10000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"fail"}
+{"name":"strict: one changed pixel fails","stats":{"aa":0,"aaMaxDelta":0,"changed":1,"maxDelta":1,"settled":true,"total":10000},"tol":{"countAA":false,"delta":0,"ppm":0},"verdict":"fail"}
+{"name":"strict: nothing counted passes","stats":{"aa":0,"aaMaxDelta":0,"changed":0,"maxDelta":0,"settled":true,"total":10000},"tol":{"countAA":false,"delta":0,"ppm":0},"verdict":"pass"}
+{"name":"antialiasing ignored: 5000 aa pixels, delta 255","stats":{"aa":5000,"aaMaxDelta":255,"changed":0,"maxDelta":0,"settled":true,"total":10000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"pass"}
+{"name":"antialiasing counted: the same pixels fail","stats":{"aa":5000,"aaMaxDelta":255,"changed":0,"maxDelta":0,"settled":true,"total":10000},"tol":{"countAA":true,"delta":64,"ppm":2000},"verdict":"fail"}
+{"name":"antialiasing counted: within the limit passes","stats":{"aa":10,"aaMaxDelta":30,"changed":10,"maxDelta":20,"settled":true,"total":10000},"tol":{"countAA":true,"delta":64,"ppm":2000},"verdict":"pass"}
+{"name":"antialiasing counted: delta over the limit fails","stats":{"aa":1,"aaMaxDelta":65,"changed":0,"maxDelta":0,"settled":true,"total":10000},"tol":{"countAA":true,"delta":64,"ppm":2000},"verdict":"fail"}
+{"name":"empty canvas fails","stats":{"aa":0,"aaMaxDelta":0,"changed":0,"maxDelta":0,"settled":true,"total":0},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"fail"}
+{"name":"empty canvas with counts still fails","stats":{"aa":0,"aaMaxDelta":0,"changed":5,"maxDelta":0,"settled":true,"total":0},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"fail"}
+{"name":"unsettled and identical","stats":{"aa":0,"aaMaxDelta":0,"changed":0,"maxDelta":0,"settled":false,"total":10000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"unsettled"}
+{"name":"unsettled and far out of tolerance","stats":{"aa":0,"aaMaxDelta":0,"changed":9000,"maxDelta":255,"settled":false,"total":10000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"unsettled"}
+{"name":"unsettled on an empty canvas","stats":{"aa":0,"aaMaxDelta":0,"changed":0,"maxDelta":0,"settled":false,"total":0},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"unsettled"}
+{"name":"loose tolerance: 10 percent allowed","stats":{"aa":0,"aaMaxDelta":0,"changed":1000,"maxDelta":255,"settled":true,"total":10000},"tol":{"countAA":false,"delta":255,"ppm":100000},"verdict":"pass"}
+{"name":"loose tolerance: one pixel over 10 percent","stats":{"aa":0,"aaMaxDelta":0,"changed":1001,"maxDelta":255,"settled":true,"total":10000},"tol":{"countAA":false,"delta":255,"ppm":100000},"verdict":"fail"}
+{"name":"large canvas: 2000 ppm of 4000000 is 8000 px","stats":{"aa":0,"aaMaxDelta":0,"changed":8000,"maxDelta":64,"settled":true,"total":4000000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"pass"}
+{"name":"large canvas: 8001 px fails","stats":{"aa":0,"aaMaxDelta":0,"changed":8001,"maxDelta":64,"settled":true,"total":4000000},"tol":{"countAA":false,"delta":64,"ppm":2000},"verdict":"fail"}
+{"name":"single pixel canvas changed","stats":{"aa":0,"aaMaxDelta":0,"changed":1,"maxDelta":255,"settled":true,"total":1},"tol":{"countAA":false,"delta":255,"ppm":1000000},"verdict":"pass"}
