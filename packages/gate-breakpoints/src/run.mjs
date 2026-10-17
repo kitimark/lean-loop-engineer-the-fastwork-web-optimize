@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { PIN_SRC, collectInPage, mountPanel, prepareInPage, waitReady, waitResize } from './page.mjs';
-import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
+import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
@@ -61,7 +61,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const lock = JSON.parse(readFileSync(resolve(PKG, '../../snapshot.lock.json'), 'utf8'));
   const dist = siteDist();
   const buildInfo = JSON.parse(readFileSync(join(dist, 'build-info.json'), 'utf8'));
-  const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist) };
+  const variantPage = rewriteFor(dist); // FW_SEARCH: a flagged config of the rewrite (default: none)
+  const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist, variantPage.rewrite) };
   const engine = await (gaps ? gaps.launcher : LAUNCHERS[engineName])();
   const cond = gen.conditions.map((c) => ({ tsId: c.tsId, css: c.css, legacyCss: c.legacyCss }));
   const neutral = gen.neutral.map((n) => ({ tsId: n.tsId, css: n.css }));
@@ -73,7 +74,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     }))]));
 
   async function load(env, site) {
-    return engine.open(env, { origin: servers[site].origin, path: '/', init: PIN_SRC });
+    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: PIN_SRC });
   }
   // anchors.json `prepare` (per part and arm): steps that bring up elements the page mounts lazily, run once after
   // the ready wait (morph.countdown); ORIG_PREPARE below is the other route (mount after the early parts are collected)
