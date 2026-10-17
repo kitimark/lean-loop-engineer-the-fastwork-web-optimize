@@ -8,8 +8,6 @@
     --platform-shrink-scale: calc(1 - 0.083333 * var(--platform-shrink, 0));
     --platform-shrink-radius: 32px;
     box-sizing: border-box;
-    /* the original inherits this from body (0.ChGpbVhU.css:515-520); the rewrite's body has none, so the section restates it */
-    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", "Adwaita Sans", Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
     color: #151a23;
     filter: blur(calc((1 - var(--morph-fade)) * 12px));
     opacity: var(--morph-fade);
@@ -268,9 +266,6 @@
     .rowFlip .stageSlot,
     .rowFlip .rowCopy {
       grid-area: auto;
-    }
-    .stageSlot {
-      align-self: start;
     }
     .rowCopy {
       width: 100%;
