@@ -286,3 +286,18 @@ flags and host. `host.mjs` already had `--target original|rewrite|fixture` and `
   `a-vs-r.txt` (class(k,t) per type, A next to R), `image-inputs.txt`, `run.txt`. Both targets go through the same `classify.mjs` (fwcore).
 - The paths filter gained `apps/site/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` and the setup-pnpm action (`lean/**` was
   already there, so the breakpoint sources are covered).
+
+## Update 2026-10-17 (hittest and spk-q: HitTest split, N0 census, N1 slices)
+
+- **HitTest cause (CONFIRMED in source, MEASURED locally).** `trace.HitTest` was quarantined because one HitTest
+  source follows real time: `OverlayInterstitialAdDetector::MaybeFireDetection` runs hit tests inside Commit and caps
+  itself with a wall-clock check (`base::Time::Now()`, 1 s), so how many frames carry its hit tests depends on the CI
+  machine, not on the virtual clock. The other sources (hover recompute in `BeginMainFrame`, page `elementFromPoint`
+  in rAF) follow frames. `src/trace.mjs` now counts a HitTest slice that lies inside a detector slice as
+  `trace.HitTest.overlayAdDetector`; `trace.HitTest` keeps the frame-driven rest. This is extraction, not a decision.
+- **N0 (`src/n0-census.js`, `src/n0.mjs`).** Page-side census of CSSOM writes and sheet-node changes, stamped with
+  virtual time and attributed to the frame after the fact. Keys `n0.events`, `n0.cssom`, `n0.sheetNode` per frame,
+  zero-filled. `FW_NO_N0=1` turns it off (harness-neutrality control). Positive control:
+  `--target fixture --site-dir fixtures/sheet-mutate --profile fixture-rest` reads 4 events in 4 frames.
+- **N1 (`src/trace.mjs`).** Needs the trace categories `blink` and `blink_style`; keys `trace.N1.updateActiveStyleSheets`,
+  `trace.N1.scheduleInvalidationsForRuleSets`, `trace.N1.fontUpdateInvalidation`, zero-filled.
