@@ -18,7 +18,11 @@ export function enumerateSearches(kinds: ('presets' | 'single')[]): string[] {
   const out = [''];
   if (kinds.includes('presets')) for (const n of Object.keys(presets)) out.push(`?preset=${n}`);
   if (kinds.includes('single'))
-    for (const p of parts) for (const v of Object.keys(p.variants)) out.push(`?fw=${p.id}:${v}`);
+    for (const p of parts)
+      for (const v of Object.keys(p.variants)) {
+        const key = `${p.id}:${v}`;
+        out.push(`?fw=${[key, ...(p.requires[key] ?? [])].join(',')}`); // a variant that requires another part's variant is requested with it
+      }
   return out;
 }
 
