@@ -236,10 +236,10 @@ private def both : List Engine := [.chromium, .webkit]
 /-- **The registry.** Every empirical browser premise a Lean theorem relies on, its theorems and its test. Sources: the
 gate-settle and fix-commission tasks, `Fw.Engine.Core` (`frameWorkE`, forced updates R4) and `Lessons`, and the
 premises of `research/findings/ledger.json` that a static page can assert (R3, R5, `Faithful`, the `inherits` premise,
-the allow-list premise AL, the write-on-change premises, IO delivery). Premises that need engine counters
+the allow-list premise AL, the write-on-change premises, IO delivery), and the grid alignment premises of `Fw.Gate.AlignEquiv` (gate-align-equiv). Premises that need engine counters
 (compositing bits, per-stage counts) stay with the engine-check lane (`fw engine-check`, tests F0-F4).
 
-$$\operatorname{registry} = [p_1, \dots, p_{15}]$$
+$$\operatorname{registry} = [p_1, \dots, p_{17}]$$
 -/
 def registry : List Premise := [
   { id := "anim.list"
@@ -316,7 +316,17 @@ def registry : List Premise := [
     statement := r"\text{an IntersectionObserver callback is never delivered inside the rAF callback that observes, and arrives within } k = 3 \text{ frames}"
     theorems := ["Fw.Parts.HeroExitOpt.sentinel_iff_pointerOff"]
     engines := both
-    testId := "prem.io.async-delivery" }
+    testId := "prem.io.async-delivery" },
+  { id := "grid.normal-aspect-ratio-no-stretch"
+    statement := r"\text{on a fresh load, a non-replaced grid item with a preferred aspect ratio, a definite width and } \texttt{height:auto} \text{ in a row taller than its ratio height has the same block size under } \texttt{align-self:normal} \text{ and } \texttt{start} \text{ (the ratio height), and fills the row under } \texttt{stretch}"
+    theorems := ["Fw.Gate.AlignEquiv.equivSpec_sound"]
+    engines := both
+    testId := "prem.grid.normal-aspect-ratio-no-stretch" },
+  { id := "grid.stretch-fill-equals-start"
+    statement := r"\text{on a fresh load, for a grid item in one auto row: the resolved } \texttt{grid-template-rows} \text{ lists the used row sizes, and when the } \texttt{start}\text{-aligned item fills its row, } \texttt{stretch} \text{ gives the same box (the measurement premise } \operatorname{agrees} \text{)}"
+    theorems := ["Fw.Gate.AlignEquiv.equivSpec_sound"]
+    engines := both
+    testId := "prem.grid.stretch-fill-equals-start" }
 ]
 
 /-- The premise ids are pairwise distinct.

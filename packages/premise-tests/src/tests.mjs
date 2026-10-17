@@ -3,6 +3,7 @@
 // A test loads its tiny page from ../pages, drives the browser, and asserts with node:assert/strict. It returns what it
 // observed; the runner stores that next to the verdict. Nothing here seeks an animation and nothing replaces rAF.
 import assert from 'node:assert/strict';
+import { collectAlignFacts, alignEquiv, modeOf, contentFill, parseTracks } from '../../gate-breakpoints/src/align-equiv.mjs';
 
 /** Wait for n animation frames in the page. */
 export const frames = (page, n) =>
@@ -293,6 +294,66 @@ export const TESTS = [
       assert.ok(o.deliveredAt >= 1, 'not delivered inside the observing rAF callback');
       assert.ok(o.deliveredAt - 1 <= K, `delivered ${o.deliveredAt - 1} frames after observing, premise k = ${K}`);
       return { ...o, K };
+    },
+  },
+  {
+    id: 'prem.grid.normal-aspect-ratio-no-stretch', premise: 'grid.normal-aspect-ratio-no-stretch', page: 'grid.normal-aspect-ratio-no-stretch.html',
+    async run({ page }) {
+      // three fresh grids, one per align-self value, each in a 300 px row taller than the ratio box
+      const read = () => page.evaluate(() => ['n', 's', 't'].map((id) => {
+        const r = document.querySelector(`#${id} > .r`).getBoundingClientRect();
+        return { w: r.width, h: r.height };
+      }));
+      const fresh = await read();
+      const [n, s, t] = fresh;
+      const ratioH = n.w * 512 / 640;
+      assert.ok(Math.abs(n.h - ratioH) <= 1 / 64, `normal: ratio height ${ratioH}, got ${n.h}`);
+      assert.equal(n.h, s.h, 'normal and start give the same block size');
+      assert.equal(t.h, 300, 'stretch fills the 300 px row');
+      // observed only (the WebKit stale-track question of fix-stagebg-webkit): a width change and back
+      const vp = page.viewportSize();
+      await page.setViewportSize({ width: vp.width - 100, height: vp.height });
+      await frames(page, 3);
+      const narrow = await read();
+      await page.setViewportSize(vp);
+      await frames(page, 3);
+      const after = await read();
+      return { fresh, narrow, after, ratioH };
+    },
+  },
+  {
+    id: 'prem.grid.stretch-fill-equals-start', premise: 'grid.stretch-fill-equals-start', page: 'grid.stretch-fill-equals-start.html',
+    async run({ page }) {
+      const arg = {
+        parts: { p: [{ role: 'a', selector: '#a > .slot' }, { role: 'b', selector: '#b > .slot' }, { role: 'c', selector: '#c > .slot' }] },
+        props: { p: { a: ['align-self'], b: ['align-self'], c: ['align-self'] } },
+      };
+      const read = async () => {
+        const f = (await page.evaluate(collectAlignFacts, arg)).p;
+        return { a: f.a[0], b: f.b[0], c: f.c[0] };
+      };
+      const { a, b, c } = await read();
+      assert.deepEqual([modeOf(a), modeOf(b), modeOf(c)], ['content', 'fill', 'fill'], 'modes: start, stretched slot, stretched ratio box');
+      const rows = parseTracks(a.rows);
+      assert.ok(rows !== null && rows.length === 2, `resolved grid-template-rows lists both rows: ${a.rows}`);
+      assert.ok(Math.abs(rows[0] - a.rectHeight) <= 1 / 64, `row 1 (${rows[0]}) is the start-aligned slot's height (${a.rectHeight})`);
+      assert.equal(contentFill(a), true, 'the start-aligned slot fills its row (Fw.Gate.AlignEquiv.contentFill)');
+      assert.equal(b.rectHeight, a.rectHeight, 'stretch places the slot as start does');
+      assert.equal(c.rectHeight, a.rectHeight, 'the stretched ratio box (original shape) has the same height');
+      assert.equal(b.rectTop - b.parentRectTop, a.rectTop - a.parentRectTop, 'same offset in the row');
+      assert.equal(alignEquiv(b, a) && alignEquiv(c, a), true, 'the rule judges both pairs equivalent');
+      // observed only: the same facts after a width change and back
+      const vp = page.viewportSize();
+      await page.setViewportSize({ width: vp.width - 100, height: vp.height });
+      await frames(page, 3);
+      await page.setViewportSize(vp);
+      await frames(page, 3);
+      const after = await read();
+      const h = (x) => ({ rows: x.rows, h: x.rectHeight, top: x.rectTop - x.parentRectTop });
+      return {
+        fresh: { a: h(a), b: h(b), c: h(c) },
+        after: { a: h(after.a), b: h(after.b), c: h(after.c), fills: contentFill(after.a), equiv: alignEquiv(after.b, after.a) && alignEquiv(after.c, after.a) },
+      };
     },
   },
 ];
