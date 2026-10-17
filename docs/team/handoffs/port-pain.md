@@ -15,6 +15,14 @@ randomness is a seeded stream (`mulberry32`, seed `NOTES_SEED`) and the shuffle 
 Also `apps/site/scripts/gen-shells.mjs`: `PORTED = {'pain'}` skips writing/checking `parts/pain/box.module.css`; the fit stays in `boxes.gen.json` and `SECTION_IDS` (other ports: add your id to PORTED, do not touch model.ts).
 Not done: `Golden.lean` does not import `PainNotesGolden` (shared; append `lines`), `Fw.lean` needs nothing (globs). Scope.lean docstring list of pilot parts not updated.
 
+## Gate (run 39060345950, full matrix, both engines)
+- `pain`: pass in every cell, chromium and playwright-webkit.
+- `pain.notes`: pass in every probe cell on chromium. Open: (1) live-resize sweeps (desktop 1512->320, phone rotation): the original does NOT relayout the notes on a plain
+  resize while the section is off-screen, because `dE(..., deferRendering)` (engine.scene, JS 2690-2713) sets `content-visibility:auto` on the section and a skipped subtree gets no
+  ResizeObserver delivery (verified locally: original `left` stays 24.7314% from 1512 to 1000; only the `(max-width:860px)` change relays out). The rewrite relays out on RO. Resolves when engine.scene is ported.
+  (2) WebKit (Linux) touch cells: note count orig 11 vs rewrite 0 at touch-319..touch-1512 (9 of 30 probes; touch-rm passes). Local Playwright WebKit mobile emulation gives equal counts, so the cause is unknown: first thing to check next.
+- Verdict: pain faithful; pain.notes faithful-with-delta (seeded RNG + the two open gate items above).
+
 ## Open
 - `is-pain-dark` is a global class (`:global`) the people port must toggle on `[data-fw="pain"]` (original JS 11324); until then at <=860 the section is white like the original at first paint.
 - The commission port must expose `[data-fw="commission-card"]` (or `.commission-card`) for the clear rule; absent now (rule inert).
