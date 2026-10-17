@@ -182,7 +182,7 @@ theorem get_of_lt (t : Table) (j : String) (h : ∀ x ∈ t, j < x.1) : get t j 
 
 /-- Every key of `ins r t` is the key of `r` or a key of `t`.
 
-$$\forall x \in \mathrm{ins}(r, t):\quad x.\mathit{id} = r.\mathit{id} \lor \exists y \in t:\ x.\mathit{id} = y.\mathit{id}$$
+$$\forall r, t,\ x \in \mathrm{ins}(r, t):\quad x.\mathit{id} = r.\mathit{id} \lor \exists y \in t:\ x.\mathit{id} = y.\mathit{id}$$
 -/
 theorem ins_keys (r : String × Usage) (t : Table) :
     ∀ x ∈ ins r t, x.1 = r.1 ∨ ∃ y ∈ t, x.1 = y.1 := by
@@ -477,16 +477,16 @@ theorem ingest_dup (l : List (String × Usage)) : ingest (l ++ l) = ingest l := 
 
 /-! ## Why not "last line wins" -/
 
-/-- The rejected rule: for each id keep the record of the last line.
+/-- The rejected rule: for each id keep the record of the last line, the survivors in line order.
 
-$$\mathrm{lastWins}(l) = \text{for each id } j \text{ in } l\text{, the last } (j, u) \in l$$
+$$\mathrm{lastWins}(l) = \big[\, l_i \;\big|\; i < |l| \text{ ascending},\ \forall i' \text{ with } i < i' < |l|:\ l_{i'}.\mathit{id} \ne l_i.\mathit{id} \,\big]$$
 -/
 def lastWins (l : List (String × Usage)) : Table :=
   l.foldl (fun t r => ((t.filter (·.1 != r.1)) ++ [r])) []
 
-/-- Two partial lines of one message (output 5, then a re-sent earlier line with output 3).
+/-- Two partial lines of one message: output 3, then output 5 (all other fields 0).
 
-$$l_0 = [(\texttt{m1}, u_{out} = 3),\ (\texttt{m1}, u_{out} = 5)]$$
+$$l_0 = [(\texttt{m1}, u_{out} = 3),\ (\texttt{m1}, u_{out} = 5)] \qquad (\text{all other fields } 0)$$
 -/
 def exLines : List (String × Usage) := [("m1", { output := 3 }), ("m1", { output := 5 })]
 
