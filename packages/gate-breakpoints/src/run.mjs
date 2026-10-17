@@ -4,7 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
-import { PIN_SRC, collectInPage, waitReady, waitResize } from './page.mjs';
+import { PIN_SRC, collectInPage, prepareInPage, waitReady, waitResize } from './page.mjs';
 import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
@@ -72,7 +72,13 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   async function load(env, site) {
     return engine.open(env, { origin: servers[site].origin, path: '/', init: PIN_SRC });
   }
-  const evalReady = (s, site) => s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
+  // anchors.json `prepare` (per part and arm): steps that bring up elements the page mounts lazily; none for the other parts
+  const prepare = Object.fromEntries(SITES.map((site) => [site, Object.values(activeParts).flatMap((p) => (p.prepare && p.prepare[site]) || [])]));
+  const evalReady = async (s, site) => {
+    const settle = await s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
+    if (prepare[site].length > 0) settle.prepared = await s.evaluate(prepareInPage, { steps: prepare[site], capMs: CAP_MS[site] });
+    return settle;
+  };
   const evalCollect = (s, site, env, props) => s.evaluate(collectInPage, {
     site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts: partsArg[site], props, filter: FILTER[site],
   });
