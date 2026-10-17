@@ -174,7 +174,7 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
               >
                 <h3 className={css.rowTitle}>
                   <span className={css.titleF}>
-                    <span className={cx(css.word, sweep)} data-fw-sweep="">Maintain</span> <span className={css.rest}>relationship with your clients</span>
+                    <span className={cx(css.word, sweep)}>Maintain</span> <span className={css.rest}>relationship with your clients</span>
                   </span>{' '}
                   <span className={css.titleI}>
                     <span className={cx(css.rest, css.restBlock)}>Keep every order</span> <span className={cx(css.word, sweep)} data-fw-sweep="">Organized</span>

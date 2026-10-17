@@ -11,7 +11,7 @@
     color: #151a23;
     filter: blur(calc((1 - var(--morph-fade)) * 12px));
     opacity: var(--morph-fade);
-    width: 100%;
+    width: max(100%, 320px);
     padding: 0;
     display: block;
     background: #131922;
@@ -159,8 +159,8 @@
     line-height: 1.15;
   }
   .word {
-    vertical-align: baseline;
-    white-space: normal;
+    vertical-align: top;
+    white-space: nowrap;
     color: #fff;
     height: auto;
     font-size: 40px;
@@ -227,6 +227,12 @@
     .restBlock {
       display: block;
     }
+    .rowTitle,
+    .word,
+    .rest {
+      font-size: 40px;
+      line-height: 1.15;
+    }
   }
   @media (width<=1000px) {
     .rowCopy {
@@ -237,6 +243,9 @@
     .rest {
       font-size: 28px;
       line-height: 1.15;
+    }
+    .word {
+      white-space: normal;
     }
     .rowTitle {
       overflow: visible;
@@ -285,6 +294,7 @@
     .card {
       border-radius: 0;
       transform: none;
+      will-change: auto;
       padding: 64px 20px;
     }
     .rows {

@@ -73,7 +73,6 @@
     height: 512px;
     transform: scale(calc(100cqw / 640px));
     transform-origin: 0 0;
-    will-change: transform;
     width: 640px;
     position: absolute;
     top: 0;
