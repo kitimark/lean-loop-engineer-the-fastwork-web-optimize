@@ -1,0 +1,23 @@
+{"id":"r-17","pNull":{"den":"70","num":"1"},"verdict":"better"}
+{"id":"r-18","pNull":{"den":"20","num":"1"},"verdict":"better"}
+{"id":3,"pNull":{"den":"1","num":"0"},"verdict":"tooFew"}
+{"error":"field var: expected an integer","id":4}
+{"id":5,"ok":true,"p":{"den":"70","num":"1"}}
+{"id":6,"ok":false,"p":{"den":"70","num":"1"}}
+{"error":"rational: den must be positive","id":7}
+{"above":[3,1],"id":8,"ticks":[0,1,4,5,7]}
+{"above":[],"id":9,"ticks":[1,2]}
+{"id":10,"screen":"dominates"}
+{"id":11,"screen":"mixed"}
+{"error":"frames or count vectors not aligned","id":12}
+{"id":13,"mainUs":10,"onTime":false}
+{"error":"invalid configuration","id":14}
+{"config":{"carousel":"orig","categories":"orig","countdown":"orig","footer":"orig","hero":"v2","nav":"v2"},"id":15}
+{"id":16,"reply":{"granted":{"l":{"expires":900,"owner":"a"}}},"state":{"holder":{"expires":900,"owner":"a"},"queue":[]}}
+{"board":{"cards":[{"head":"s1","id":"A","landed":false,"lastAt":1003,"needsYou":{"action":"Choose one: x | y","step":"S","title":"Plug in"},"next":{"command":"card.screen","who":"script"},"owner":"o","runningRuns":0,"stage":"screen","stale":false,"violation":false}],"needsYou":[{"action":"Choose one: x | y","step":"S","title":"Plug in"}],"now":1802003,"seq":3,"steps":[{"answer":null,"card":"A","id":"S","kind":"choice","lastAt":1004,"options":["x","y"],"postedAt":1004,"status":"waiting","title":"Plug in"}]},"id":17}
+{"board":{"cards":[{"head":"s1","id":"A","landed":false,"lastAt":1003,"needsYou":null,"next":{"command":"card.screen","who":"script"},"owner":"o","runningRuns":0,"stage":"screen","stale":true,"violation":false}],"needsYou":[],"now":1802003,"seq":3,"steps":[]},"id":18}
+{"error":"unknown op nope","id":19}
+{"error":"missing field dir","id":null}
+{"error":"empty request","id":null}
+{"error":"invalid JSON: offset 0: expected: null","id":null}
+{"error":"request must be a JSON object","id":null}

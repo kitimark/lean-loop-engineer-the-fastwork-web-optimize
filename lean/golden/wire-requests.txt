@@ -1,0 +1,23 @@
+{"id":"r-17","op":"verdict","dir":"lower","ctl":[21,19,23,20],"var":[4,3,5,2]}
+{"id":"r-18","op":"verdict","dir":"higher","ctl":[1,2,3],"var":[4,5,6]}
+{"id":3,"op":"verdict","dir":"lower","ctl":[5,5],"var":[4,4,4]}
+{"id":4,"op":"verdict","dir":"lower","ctl":[5,5,5],"var":[4.5,4,4]}
+{"id":5,"op":"multiplicity","k":3,"m":4,"n":4}
+{"id":6,"op":"multiplicity","k":4,"p":{"num":"1","den":"70"}}
+{"id":7,"op":"multiplicity","k":1,"p":{"num":"1","den":"0"}}
+{"id":8,"op":"ticks","hz":120,"dtNs":[4166000,4167000,37499000,37500000,54167000],"thresholdsNs":[34000000,50000000]}
+{"id":9,"op":"ticks","hz":60,"dtNs":[24999999,25000000]}
+{"id":10,"op":"screen","base":[[3,10],[2,10],[1,10]],"var":[[1,10],[2,10],[1,10]]}
+{"id":11,"op":"screen","base":[[0,0],[0,50],[0,0]],"var":[[0,50],[0,0],[0,0]]}
+{"id":12,"op":"screen","base":[[1]],"var":[[1,2]]}
+{"id":13,"op":"cost","unit":{"style":1,"layout":1,"paint":1},"budgetUs":9,"work":{"scriptUs":4,"styleElems":2,"layoutObjs":2,"paintKpx":2}}
+{"id":14,"op":"flags.resolve","registry":{"variants":{"nav":["orig"],"hero":["orig","v2"],"categories":["orig"],"carousel":["orig"],"countdown":["orig"],"footer":["orig"]},"rules":[{"kind":"requires","p":"hero","v":"v2","q":"nav","w":"v2"}]},"req":[{"part":"hero","variant":"v2"}]}
+{"id":15,"op":"flags.resolve","registry":{"variants":{"nav":["orig","v2"],"hero":["orig","v2"],"categories":["orig"],"carousel":["orig"],"countdown":["orig"],"footer":["orig"]},"rules":[{"kind":"requires","p":"hero","v":"v2","q":"nav","w":"v2"}]},"req":[{"part":"hero","variant":"v2"},{"part":"nav","variant":"v2"}]}
+{"id":16,"op":"lease.step","state":{"queue":[]},"cmd":{"acquire":{"o":"a","now":0,"ttl":900}}}
+{"id":17,"op":"console.board","now":1802003,"seq":3,"state":{"seen":["k3","k2","k1"],"cards":[{"id":"A","owner":"o","needsDevice":false,"approved":true,"head":"s1","builders":["b"],"screenAt":null,"reviewAt":null,"reviewedBy":null,"deviceAt":null,"landReq":null,"landed":false,"violation":false,"lastAt":1003}],"steps":[{"id":"S","card":"A","title":"Plug in","kind":"choice","options":["x","y"],"status":"waiting","answer":null,"postedAt":1004,"lastAt":1004}],"runs":[]}}
+{"id":18,"op":"console.board","now":1802003,"seq":3,"state":{"seen":[],"cards":[{"id":"A","owner":"o","needsDevice":false,"approved":true,"head":"s1","builders":["b"],"screenAt":null,"reviewAt":null,"reviewedBy":null,"deviceAt":null,"landReq":null,"landed":false,"violation":false,"lastAt":1003}],"steps":[],"runs":[]}}
+{"id":19,"op":"nope"}
+{"op":"verdict"}
+
+not json
+[1,2]

@@ -1,0 +1,33 @@
+name = "fwcore"
+version = "0.1.0"
+defaultTargets = ["Fw", "fwcore", "mathview"]
+testDriver = "fwtest"
+
+# Mathlib-free on purpose (PLAN §5.2): core Lean only, no `require`.
+
+[leanOptions]
+autoImplicit = false
+
+[[lean_lib]]
+name = "Fw"
+# every module under Fw/ (so new subtrees such as Fw/Site/ build without editing this file)
+globs = ["Fw.*"]
+
+[[lean_exe]]
+name = "fwcore"
+root = "Main"
+
+[[lean_lib]]
+name = "MathView"
+
+[[lean_exe]]
+name = "mathview"
+root = "MathViewMain"
+supportInterpreter = true
+
+[[lean_lib]]
+name = "FwTest"
+
+[[lean_exe]]
+name = "fwtest"
+root = "FwTestMain"
