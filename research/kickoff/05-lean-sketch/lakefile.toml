@@ -1,0 +1,26 @@
+name = "fwcore"
+version = "0.1.0"
+defaultTargets = ["fwcore"]
+testDriver = "fwtest"
+
+[leanOptions]
+autoImplicit = false
+
+[[require]]
+name = "plausible"
+git = "https://github.com/leanprover-community/plausible"
+rev = "v4.35.0"
+
+[[lean_lib]]
+name = "Fw"
+
+[[lean_exe]]
+name = "fwcore"
+root = "Main"
+
+[[lean_lib]]
+name = "FwTest"
+
+[[lean_exe]]
+name = "fwtest"
+root = "FwTest.Main"
