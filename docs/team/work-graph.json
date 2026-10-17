@@ -699,7 +699,7 @@
   },
   {
    "id": "wktr-cloud",
-   "title": "WKTR spike on a rented cloud Mac (needs your go-ahead)",
+   "title": "Fallback only: rent a cloud Mac for WKTR if the prebuilt route fails (your call)",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [],
@@ -714,6 +714,37 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-wktr-on-github-actions.md"
+   ],
+   "evidence": "591a815"
+  },
+  {
+   "id": "wktr-local",
+   "title": "WKTR spike on this Mac: prebuilt iOS-sim WebKitTestRunner + internals on the iOS 26.5 Simulator; restyled-element counts for the original, twice",
+   "stream": "calibration",
+   "milestone": "M3",
+   "deps": [
+    "wktr-ci"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-wktr/**"
+   ],
+   "devices": [
+    "simulator"
+   ]
+  },
+  {
+   "id": "wktr-ci-lane",
+   "title": "WKTR lane on GitHub macos-26 (prebuilt products, iOS 26.5 runtime)",
+   "stream": "ci",
+   "milestone": "M3",
+   "deps": [
+    "wktr-local"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/wktr.yml",
+    "packages/measure-wktr/**"
    ]
   },
   {
@@ -723,8 +754,8 @@
    "milestone": "M3",
    "deps": [
     "q1-phone",
-    "wktr-cloud",
-    "zone-baselines"
+    "zone-baselines",
+    "wktr-local"
    ],
    "owner": "measure-engineer",
    "devices": [
