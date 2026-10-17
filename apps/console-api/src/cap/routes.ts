@@ -1,0 +1,32 @@
+// Routes for agents (capability-gated) and for observations. Mounted from app.ts with one line.
+import type { Hono } from "hono";
+import { AgentRequest } from "@fw/contracts";
+import type { Store } from "../store.ts";
+import { Drain } from "../spool/drain.ts";
+import { CapStore, stamp } from "./cap.ts";
+
+export function mountAgentRoutes(app: Hono, store: Store): { drain: Drain; caps: CapStore } {
+  const caps = new CapStore(store.dir);
+  caps.ensureSecret();
+  const drain = new Drain(store);
+
+  // The only door for `pnpm fw`: no valid, unused capability -> 403, and the reducer is never asked.
+  app.post("/api/agent/commands", async (c) => {
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.json({ ok: false, reason: "body is not JSON" }, 400); }
+    const req = AgentRequest.safeParse(body);
+    if (!req.success) return c.json({ ok: false, reason: "expected {argv: string[], command}" }, 400);
+    const s = await caps.consume(req.data.argv);
+    if (!s) return c.json({ ok: false, reason: "no valid, unused capability for this command" }, 403);
+    const parsed = stamp(req.data.command, s);
+    if (!parsed.success) {
+      return c.json({ ok: false, reason: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") }, 400);
+    }
+    const reply = await store.submit(parsed.data);
+    return c.json(reply, reply.ok ? 200 : 422);
+  });
+
+  app.post("/api/spool/drain", async (c) => c.json(await drain.run()));
+  app.get("/api/obs/summary", (c) => c.json(drain.summary()));
+  return { drain, caps };
+}

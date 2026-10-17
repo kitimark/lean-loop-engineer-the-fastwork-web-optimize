@@ -25,6 +25,8 @@ const reconciler = new Reconciler(store, dirname(dir));
 reconciler.start();
 const app = createApp(store, join(here, "../../console-web/dist"), reconciler);
 
+setInterval(() => { void app.drain.run().catch((e) => console.error("spool drain failed:", e)); }, 2000).unref();
+
 // port 0 = the OS picks a free port (override with PORT); printed and written to api.json
 const server = serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 0), hostname: "127.0.0.1" }, (info) => {
   writeFileSync(join(dir, "api.json"), JSON.stringify({ port: info.port, pid: process.pid }));

@@ -175,3 +175,4 @@ export const jsonSchemas = {
   Board,
   CommandReply,
 } as const;
+export * from "./obs.ts";

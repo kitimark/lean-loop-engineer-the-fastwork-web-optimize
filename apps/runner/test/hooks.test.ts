@@ -1,0 +1,126 @@
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { tmpdir, userInfo } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import { fwArgv, tokens, cmdHash } from "../hooks/cap.mjs";
+import { capMac, sha256 } from "../hooks/lib.mjs";
+import { verbOf } from "../hooks/emit.mjs";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const hook = (n: string) => join(here, "../hooks", n);
+const run = (script: string, input: string, dir: string) =>
+  spawnSync("node", [hook(script)], { input, env: { ...process.env, FW_CONSOLE_DIR: dir }, encoding: "utf8" });
+const tmp = () => mkdtempSync(join(tmpdir(), "fw-hooks-"));
+
+const user = userInfo().username;
+const dirty = {
+  hook_event_name: "PostToolUse", agent_id: "a1b2", agent_type: "con-hooks", tool_name: "Bash",
+  tool_use_id: "toolu_1", duration_ms: 123.4, cwd: `/Users/${user}/secret/place`, transcript_path: `/Users/${user}/x.jsonl`,
+  tool_input: { command: `cat /Users/${user}/.ssh/id_rsa mail@example.com`, file_path: `/Users/${user}/a` },
+  tool_response: { stdout: `owner ${user}@host /Users/${user}` }, last_assistant_message: `ping ${user}@example.com`,
+};
+
+describe("emit.mjs", () => {
+  it("writes one line with only the allowed fields, silent, exit 0", () => {
+    const d = tmp();
+    const r = run("emit.mjs", JSON.stringify(dirty), d);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toBe("");
+    const txt = readFileSync(join(d, "spool", "a1b2.jsonl"), "utf8");
+    const rec = JSON.parse(txt);
+    expect(Object.keys(rec).sort()).toEqual(["agent_id", "agent_type", "duration_ms", "hook_event_name", "is_error", "tool_name", "tool_use_id", "ts", "verb"]);
+    expect(rec).toMatchObject({ agent_id: "a1b2", hook_event_name: "PostToolUse", duration_ms: 123, is_error: false, verb: "cat" });
+  });
+  it("privacy: output has no /Users/, no username, no @", () => {
+    const d = tmp();
+    run("emit.mjs", JSON.stringify(dirty), d);
+    run("emit.mjs", JSON.stringify({ ...dirty, hook_event_name: "PostToolUseFailure", error: `boom ${user}@x`, agent_id: undefined }), d);
+    for (const f of readdirSync(join(d, "spool"))) {
+      const t = readFileSync(join(d, "spool", f), "utf8");
+      expect(t).not.toContain("/Users/");
+      expect(t).not.toContain(user);
+      expect(t).not.toContain("@");
+    }
+  });
+  it("verb: allowlisted first token or other; never a path", () => {
+    expect(verbOf("pnpm test")).toBe("pnpm");
+    expect(verbOf("  git status")).toBe("git");
+    expect(verbOf("/Users/x/bin/node a.js")).toBe("other");
+    expect(verbOf("FOO=1 pnpm x")).toBe("other");
+    expect(verbOf(undefined)).toBeNull();
+  });
+  it("failure marks is_error; non-tool events leave it null", () => {
+    const d = tmp();
+    run("emit.mjs", JSON.stringify({ hook_event_name: "PostToolUseFailure", tool_name: "Read", duration_ms: 5 }), d);
+    run("emit.mjs", JSON.stringify({ hook_event_name: "SubagentStart", agent_id: "z" }), d);
+    expect(JSON.parse(readFileSync(join(d, "spool", "main.jsonl"), "utf8"))).toMatchObject({ is_error: true, verb: null });
+    expect(JSON.parse(readFileSync(join(d, "spool", "z.jsonl"), "utf8"))).toMatchObject({ is_error: null });
+  });
+  it("no console running: still just appends (nothing to connect to)", () => {
+    expect(existsSync(join(tmp(), "api.json"))).toBe(false);
+    expect(run("emit.mjs", JSON.stringify(dirty), tmp()).status).toBe(0);
+  });
+  it("bad payloads and unwritable spool: silent, exit 0", () => {
+    for (const bad of ["", "not json", "[]", "null", "{\"hook_event_name\":5}", "\u0000\u0001", "x".repeat(200_000)]) {
+      const d = tmp();
+      const r = run("emit.mjs", bad, d);
+      expect(r.status).toBe(0);
+      expect(r.stdout + r.stderr).toBe("");
+      expect(existsSync(join(d, "spool"))).toBe(false);
+    }
+    // "full disk" stand-in: the console dir is a file, so mkdir/append fail with ENOTDIR
+    const f = join(tmp(), "afile");
+    writeFileSync(f, "x");
+    const r = run("emit.mjs", JSON.stringify(dirty), f);
+    expect(r.status).toBe(0);
+    expect(r.stdout + r.stderr).toBe("");
+  });
+  it("timing: under 100 ms, and close to bare node startup", () => {
+    const d = tmp();
+    const time = (f: () => unknown) => { const t = performance.now(); f(); return performance.now() - t; };
+    const med = (xs: number[]) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+    const bare = med(Array.from({ length: 15 }, () => time(() => spawnSync("node", ["-e", ""]))));
+    const hookMs = Array.from({ length: 15 }, () => time(() => run("emit.mjs", JSON.stringify(dirty), d)));
+    const m = med([...hookMs]), lo = Math.min(...hookMs);
+    console.log(`emit.mjs latency ms: min ${lo.toFixed(0)} median ${m.toFixed(0)}; bare node median ${bare.toFixed(0)}`);
+    expect(lo).toBeLessThan(100); // the floor; the median depends on machine load while other tests run
+    expect(m - bare).toBeLessThan(40); // the hook adds little on top of starting node
+  });
+});
+
+describe("cap.mjs", () => {
+  it("tokenises like a shell and stops at control operators", () => {
+    expect(tokens(`pnpm fw step done 'a b' "c d" e\\ f`)).toEqual(["pnpm", "fw", "step", "done", "a b", "c d", "e f"]);
+    expect(fwArgv("pnpm fw status && rm -rf x")).toEqual(["status"]);
+    expect(fwArgv("pnpm test")).toBeNull();
+    expect(fwArgv("echo pnpm fw x")).toBeNull();
+  });
+  it("appends a capability with a valid MAC and a secret created 0600; silent", () => {
+    const d = tmp();
+    const input = JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_use_id: "toolu_9", agent_type: "owner-x",
+      agent_id: "ag1", tool_input: { command: "pnpm fw step done  s1" } });
+    const r = run("cap.mjs", input, d);
+    expect(r.status).toBe(0);
+    expect(r.stdout + r.stderr).toBe("");
+    const rec = JSON.parse(readFileSync(join(d, "caps.jsonl"), "utf8"));
+    const hash = sha256("step done s1");
+    expect(rec).toMatchObject({ agent_type: "owner-x", agent_id: "ag1", tool_use_id: "toolu_9", cmd_hash: hash });
+    expect(rec.cmd_hash).toBe(cmdHash(["step", "done", "s1"]));
+    expect(rec.mac).toBe(capMac(readFileSync(join(d, "secret"), "utf8").trim(), "owner-x", "toolu_9", hash));
+    expect(JSON.stringify(rec)).not.toContain("/Users/");
+  });
+  it("ignores other commands and bad payloads", () => {
+    const d = tmp();
+    run("cap.mjs", JSON.stringify({ tool_name: "Bash", tool_use_id: "t", tool_input: { command: "ls" } }), d);
+    run("cap.mjs", "garbage", d);
+    expect(existsSync(join(d, "caps.jsonl"))).toBe(false);
+  });
+  it("main thread has agent_type main", () => {
+    const d = tmp();
+    run("cap.mjs", JSON.stringify({ tool_name: "Bash", tool_use_id: "t1", tool_input: { command: "pnpm fw status" } }), d);
+    expect(JSON.parse(readFileSync(join(d, "caps.jsonl"), "utf8")).agent_type).toBe("main");
+  });
+});

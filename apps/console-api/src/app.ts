@@ -6,6 +6,7 @@ import { Command } from "@fw/contracts";
 import type { Store } from "./store.ts";
 import { mountReconcile } from "./reconcile/routes.ts";
 import type { Reconciler } from "./reconcile/reconciler.ts";
+import { mountAgentRoutes } from "./cap/routes.ts";
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
@@ -29,6 +30,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   });
 
   if (reconciler) mountReconcile(app, store, reconciler);
+  const { drain } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
   app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/events", (c) => {
     const since = Number(c.req.query("since") ?? 0);
@@ -59,5 +61,5 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
       return c.body(readFileSync(file), 200, { "content-type": MIME[extname(file)] ?? "application/octet-stream" });
     });
   }
-  return app;
+  return Object.assign(app, { drain });
 }
