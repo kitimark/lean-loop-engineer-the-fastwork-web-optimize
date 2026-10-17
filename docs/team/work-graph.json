@@ -2747,6 +2747,42 @@
     "apps/console-web/src/**",
     "docs/team/tools/**"
    ]
+  },
+  {
+   "id": "sweeps-lean",
+   "title": "(M) Fw.Gate.SweepReduce (mem_stopHist_iff, scopedVerdict_reduce; stutter-free desktop sweep 57 -> 35 stops emitted as generated JSON) and Fw.Gate.Merge (model of merge-gate.mjs: mergeById_eq_unsharded, sharded_verdict_eq; whole-sweep granularity only); mount idempotence; decoder invariance for role.declared; from the scratch proofs in research/notes/2026/10-18-sweeps-speed.md",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/SweepReduce.lean",
+    "lean/Fw/Gate/Merge.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Site/**",
+    "apps/site/src/sweeps.gen.json",
+    "packages/contracts/golden/gate/**"
+   ]
+  },
+  {
+   "id": "gate-speed-impl",
+   "title": "(M) breakpoint-gate faster, measured with fw timings before/after: per-stop timing first; small sweeps into probe shards (whole sweeps only); orig panel mounted once per sweep; skip the unused declared scan; parallel Phase 0 loads; engine install cache; Lean-generated reduced desktop sweep; parts narrowing for single-part variant dispatches; serialize gate runs across branches (concurrency group) to stop runner-pool contention; free runners only",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "sweeps-lean",
+    "variant-regate",
+    "timing-spans"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/**",
+    ".github/workflows/breakpoint-gate.yml",
+    ".github/actions/gate-engine/**",
+    ".github/scripts/merge-gate.mjs",
+    "docs/team/tools/**",
+    "results/**"
+   ]
   }
  ],
  "deadline": {
