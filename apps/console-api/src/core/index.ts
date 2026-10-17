@@ -16,6 +16,8 @@ export interface Core {
   board(now: number, seq: number): Promise<Board>;
   /** drop the process; the next call replays the log into a fresh one */
   restart(): void;
+  /** any other fwcore op (`ops.*`): fields in, reply fields out */
+  ops(op: string, fields?: Record<string, unknown>): Promise<Record<string, unknown>>;
   close(): void;
 }
 
@@ -26,6 +28,7 @@ export function selectCore(
   env: Record<string, string | undefined> = process.env,
   root = repoRoot,
   onIncident?: (i: Incident) => void,
+  callTimeoutMs?: number,
 ): LeanCore {
-  return new LeanCore(leanBinary(root, env), onIncident);
+  return new LeanCore(leanBinary(root, env), onIncident, callTimeoutMs);
 }

@@ -38,3 +38,14 @@ Tests (`pnpm test` at the root runs `lake build` first, or prints a loud skip me
 golden conformance (`packages/contracts/golden/console-apply.jsonl`, 42+ cases, Lean only), `samples` op vs the zod
 schemas, crash/restart, API. The golden file is now static (it was generated from the removed TS reducer).
 JSON Schemas: `pnpm --filter @fw/contracts gen` -> `packages/contracts/schema/`.
+
+## Doors and actors (who can produce which actor)
+| Door | Used by | Actor |
+|---|---|---|
+| `POST /api/agent/commands` `{argv, command}` | `pnpm fw ...` (every `fw` command) | stamped from the PreToolUse capability (`cap.mjs`): `lead` (main), `reviewer` (agent type matches `review`), else `owner`. Never `user`, `script`, `git`. The actor in the body is overwritten. No valid unused capability: 403 |
+| `POST /api/commands` | the web UI (the user's buttons) only; also tests | whatever the body says (self-declared, including `user`) |
+| reconciler, spool drain (inside console-api) | git facts, alerts | `git`, `script` |
+
+Whether the stamped actor may send that command is still decided by the Lean `may` table (422). Ops for clients:
+`POST /api/ops/path-check` forwards to Lean `ops.pathCheck`. `LeanCore` kills and restarts (with log replay) a child
+that answers with an unknown id, an unparsable line, or not within the per-call deadline (10 s; replay 120 s).

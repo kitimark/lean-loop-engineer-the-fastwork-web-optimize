@@ -4,8 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
 import { selectCore } from "../src/core/index.ts";
-import { Drain, alertFor } from "../src/spool/drain.ts";
-import { dedupe, obsKey, summarize } from "../src/spool/standin.ts";
+import { Drain, alertFor, summarize } from "../src/spool/drain.ts";
 import { Store } from "../src/store.ts";
 
 let stores: Store[] = [];
@@ -43,10 +42,11 @@ describe("spool drain", () => {
     expect((await new Drain(store).run()).accepted).toBe(0);
     expect(lines(join(dir, "obs.jsonl"))).toHaveLength(1);
   });
-  it("key uses only fields the hook and a transcript both see", () => {
-    expect(obsKey(rec() as never)).toBe("a1|PostToolUse|t1");
-    expect(obsKey(rec({ tool_use_id: null, hook_event_name: "SubagentStart", ts: 7 }) as never)).toBe("a1|SubagentStart|7");
-    expect(dedupe(new Set(["a1|PostToolUse|t1"]), rec() as never).fresh).toBe(false);
+  it("key is agent|event|tool_use_id, decoded by Lean ops.hook; hook-only events use ts", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "a1", rec(), rec({ tool_use_id: null, hook_event_name: "SubagentStart", ts: 7 }), rec({ tool_use_id: null, hook_event_name: "SubagentStart", ts: 8 }));
+    await new Drain(store).run();
+    expect(lines(join(dir, "obs.jsonl")).map((l) => l.key)).toEqual(["a1|PostToolUse|t1", "a1|SubagentStart|7", "a1|SubagentStart|8"]);
   });
   it("invalid and torn lines: invalid is counted and skipped, a torn tail waits", async () => {
     const { dir, store } = await fresh();
@@ -66,7 +66,7 @@ describe("spool drain", () => {
     const ev = lines(join(dir, "events.jsonl"));
     expect(ev).toHaveLength(1);
     expect(ev[0]).toMatchObject({ type: "step.post", actor: "script", card: null });
-    expect(store.state.steps).toHaveLength(1);
+    expect((await store.board()).steps).toHaveLength(1);
   });
   it("a refused alert is not marked seen and is retried on the next drain", async () => {
     const { dir, store } = await fresh();

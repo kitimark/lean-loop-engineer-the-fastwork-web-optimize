@@ -22,7 +22,9 @@ export type LandOptions = {
   /** any directory of the repo (main checkout or a worktree) */
   cwd: string;
   mainRef?: string;
-  actor?: "lead" | "user";
+  /** how to send the land request: default is the capability door `/api/agent/commands` with `argv` */
+  argv?: string[];
+  submit?: (cmd: Command) => Promise<{ status: number; body: any }>;
   /** fast checks as argv arrays; default: lean/scripts/check.sh and pnpm test */
   checks?: string[][];
   env?: Record<string, string | undefined>;
@@ -42,18 +44,9 @@ export function worktreeOf(cwd: string, ref: string): string | null {
   return null;
 }
 
-// ---- STAND-IN (marked for Lean replacement) -------------------------------------------------
-// PLAN 8.2 land-time path check. The Lean op `ops.pathCheck` (parallel agent lean-ops) is not here yet, so the
-// decision lives in this one function: changed paths vs a deny list (+ optional allow list).
-// Replace the body with a call to `fwcore ops.pathCheck`; the signature is the JSON contract to match.
-export type PathCheck = { ok: boolean; violations: string[] };
-export function pathCheck(changed: string[], opts: { deny?: string[]; allow?: string[] } = {}): PathCheck {
-  const deny = opts.deny ?? [".fw-console/", ".git/", ".claude/settings", "lean/.lake/"];
-  const allow = opts.allow ?? [];
-  const bad = changed.filter((f) => deny.some((d) => f.startsWith(d)) || (allow.length > 0 && !allow.some((a) => f.startsWith(a))));
-  return { ok: bad.length === 0, violations: bad };
-}
-// ---------------------------------------------------------------------------------------------
+/** Land-time path scope (PLAN 8.2): everything except console state, repo internals, settings and the Lean build.
+ *  The decision is `ops.pathCheck` in Lean (via console-api); this is only the policy data it is given. */
+export const LAND_SCOPE = ["**", "!.fw-console/", "!.git/", "!.claude/settings*", "!lean/.lake/"];
 
 const DEFAULT_CHECKS = [["sh", "lean/scripts/check.sh"], ["pnpm", "test"]];
 
@@ -94,15 +87,17 @@ export async function land(branch: string, o: LandOptions): Promise<LandResult> 
     lines.push(`check ok: ${argv.join(" ")}`);
   }
 
-  // 4. land-time path check (stand-in)
+  // 4. land-time path check (Lean: ops.pathCheck)
   const changed = git(o.cwd, ["diff", "--name-only", `${main}...${branch}`]).split("\n").filter(Boolean);
-  const pc = pathCheck(changed);
-  if (!pc.ok) return fail(`path check: ${pc.violations.join(", ")}`);
+  const pc = await o.http.post("/api/ops/path-check", { scope: LAND_SCOPE, paths: changed });
+  if (pc.status !== 200) return fail(`path check unavailable: ${pc.body.reason ?? pc.status}`);
+  if (!pc.body.ok) return fail(`path check: ${(pc.body.violations as string[]).join(", ")}`);
   lines.push(`path check ok (${changed.length} files)`);
 
   // 5. the land request: a decision the reducer may refuse (stale sha, not ready, wrong actor)
-  const cmd = Command.parse({ type: "card.land_request", key: `card.land_request:${bc.card}:${sha}`, actor: o.actor ?? "lead", card: bc.card, sha });
-  const lr = await o.http.post("/api/commands", cmd);
+  const cmd = Command.parse({ type: "card.land_request", key: `card.land_request:${bc.card}:${sha}`, actor: "lead", card: bc.card, sha });
+  // the actor in `cmd` is a placeholder: the capability door stamps the real one from the hook's capability
+  const lr = await (o.submit ?? ((c) => o.http.post("/api/agent/commands", { argv: o.argv ?? [], command: c })))(cmd);
   if (!lr.body.ok) return fail(`land_request: ${lr.body.reason}`);
 
   // 6. fast-forward main. No push, ever.
