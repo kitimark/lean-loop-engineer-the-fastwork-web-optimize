@@ -9,24 +9,21 @@ export interface TrackRect {
 
 /**
  * The faithful per-frame handler (N2:4155-4172): read the track's rect, write `--exit-opacity` and `pointer-events`
- * on the hero (a custom property on a subtree: the bad write the faithful variant keeps). Reduced motion is read
- * at each frame (`matches`), as the original does. Called once per frame by the scroll engine.
+ * on the hero (a custom property on a subtree: the bad write the faithful variant keeps). Reduced motion is read at
+ * each frame (`matches`), as the original does. `read` is the scroll callback's read phase (rect read, maths) and
+ * returns the writer, so the engine can interleave (faithful) or batch the writes.
  */
-export function createExitDriver(opts: {
-  track: TrackRect;
-  hero: ExitTarget;
-  reduced: () => boolean;
-  innerHeight: () => number;
-}) {
+export function createExitDriver(opts: { track: TrackRect; hero: ExitTarget; reduced: () => boolean }) {
   return {
-    frame() {
+    read(viewportHeight: number): () => void {
       const reduced = opts.reduced();
       // the original returns before the rect read under reduced motion
       const rect = reduced ? { top: 0, height: 0 } : opts.track.getBoundingClientRect();
-      const r = exitFrame(reduced, rect.top, rect.height, opts.innerHeight());
-      opts.hero.style.setProperty('--exit-opacity', String(r.opacity));
-      opts.hero.style.pointerEvents = r.pointerNone ? 'none' : '';
-      return r;
+      const r = exitFrame(reduced, rect.top, rect.height, viewportHeight);
+      return () => {
+        opts.hero.style.setProperty('--exit-opacity', String(r.opacity));
+        opts.hero.style.pointerEvents = r.pointerNone ? 'none' : '';
+      };
     },
   };
 }
