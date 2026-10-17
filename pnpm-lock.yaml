@@ -204,6 +204,8 @@ importers:
 
   packages/measure-webkit: {}
 
+  packages/measure-wktr: {}
+
 packages:
 
   '@babel/code-frame@7.29.7':
