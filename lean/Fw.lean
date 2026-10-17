@@ -29,6 +29,7 @@ import Fw.Parts.NavLangMenu
 import Fw.Parts.NavGolden
 import Fw.Parts.Commission
 import Fw.Parts.CommissionTyping
+import Fw.Parts.CommissionGolden
 import Fw.Parts.Bezier
 import Fw.Parts.OverlayDrawer
 import Fw.Parts.OverlaySignup
