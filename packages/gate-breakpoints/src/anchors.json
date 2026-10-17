@@ -16,14 +16,50 @@
   },
   "parts": {
     "engine.scroll": {
-      "anchors": [],
-      "roles": [],
-      "notComparable": "part.json lists no anchors: the part renders nothing and restates no CSS (its work is rAF and rect reads, PL5), so there is no element or style to compare at a breakpoint"
+      "anchors": ["engine-scroll"],
+      "cites": ["rewrite: EngineScroll marks the document element with data-fw=\"engine-scroll\" once mounted; original: the page scrolls the document and its callbacks run on the window scroll, 2.DyWL8TcE.js:2667-2782"],
+      "roles": [
+        {
+          "role": "scroller",
+          "orig": "html",
+          "rewrite": "html[data-fw=\"engine-scroll\"]",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the scroll container is the document; the part restates no CSS, so only its width is compared (height is page content). If the mark is missing the rewrite count is 0 and the count differs"
+        },
+        {
+          "role": "content",
+          "orig": "body",
+          "rewrite": "body",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the element the engine's callbacks read and write inside; its width must follow the viewport at every breakpoint (height is page content)"
+        }
+      ]
     },
     "nav.hitTest": {
-      "anchors": [],
-      "roles": [],
-      "notComparable": "part.json lists no anchors: the part renders nothing and restates no CSS; it only toggles is-on-dark on the nav element, which the nav part will own"
+      "anchors": ["nav"],
+      "cites": ["original: header.start-selling-top-nav is the element whose rect gives the probe point, 2.DyWL8TcE.js:12955-12963; rewrite: [data-fw=\"nav\"], the part's default navSelector"],
+      "excluded": [
+        { "what": "nav box x, y, w, h", "why": "placeholder AppBar versus the original pill; owned by the nav part, which does not exist yet. Measured at 1280: original 148,16 984x64; rewrite 0,0 1280x48. Probe point x (x + w/2) is 640 in both" },
+        { "what": "dark sections (.pain, .start-selling-platform*, .commission) and the is-on-dark class", "why": "the rewrite page has no such sections; the class decision is covered by the Lean golden vectors (logic.test.ts), and at scroll 0 the nav sits over the hero in both arms (never dark)" }
+      ],
+      "roles": [
+        {
+          "role": "nav",
+          "orig": "header.start-selling-top-nav",
+          "rewrite": "[data-fw=\"nav\"]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the hit-test target exists once in both arms at every breakpoint (count). The part restates no CSS, so no style is compared. Its box is owned by the nav part: the original is a floating pill (16px inset, 52 or 64 px high, 984 px max), the rewrite a placeholder full-width bar (48 px); only the probe x (the box centre) agrees today, and the gate has no centre dimension"
+        }
+      ]
     },
     "hero.countdown": {
       "anchors": ["hero-countdown"],
