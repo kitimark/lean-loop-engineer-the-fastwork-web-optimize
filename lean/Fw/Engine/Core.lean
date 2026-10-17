@@ -760,9 +760,9 @@ costs.
 
 $$\forall K, V, O,\ \forall u \in \mathbb{N}^{3}:\ \operatorname{Shift}(K, V, O) \Rightarrow \forall k \in K:\ \operatorname{mainUs}(u, \operatorname{toCost}(V[k])) \le \operatorname{mainUs}(u, \operatorname{toCost}(\operatorname{peak}(K, O)))$$
 -/
-theorem shift_peak {win : List Nat} {vs os : List Work} (h : Shift win vs os) (u : Cost.UnitCost) :
-    ∀ k ∈ win, Cost.mainUs u (toCost (frameAt vs k)) ≤ Cost.mainUs u (toCost (peak win os)) :=
-  fun k hk => mainUs_toCost_le u (Work.le_trans (le_peak vs win k hk) h.1)
+theorem shift_peak {ks : List Nat} {vs os : List Work} (h : Shift ks vs os) (u : Cost.UnitCost) :
+    ∀ k ∈ ks, Cost.mainUs u (toCost (frameAt vs k)) ≤ Cost.mainUs u (toCost (peak ks os)) :=
+  fun k hk => mainUs_toCost_le u (Work.le_trans (le_peak vs ks k hk) h.1)
 
 /-- Main-thread time is additive over work.
 
@@ -789,7 +789,7 @@ theorem mainUs_total (u : Cost.UnitCost) (ws : List Work) :
 
 $$\forall K, V, O,\ \forall u \in \mathbb{N}^{3}:\ \operatorname{Shift}(K, V, O) \Rightarrow \sum_{v \in V} \operatorname{mainUs}(u, \operatorname{toCost}(v)) = \sum_{o \in O} \operatorname{mainUs}(u, \operatorname{toCost}(o))$$
 -/
-theorem shift_total {win : List Nat} {vs os : List Work} (h : Shift win vs os) (u : Cost.UnitCost) :
+theorem shift_total {ks : List Nat} {vs os : List Work} (h : Shift ks vs os) (u : Cost.UnitCost) :
     (vs.map fun w => Cost.mainUs u (toCost w)).sum = (os.map fun w => Cost.mainUs u (toCost w)).sum := by
   rw [← mainUs_total, ← mainUs_total]
   exact Nat.le_antisymm (mainUs_toCost_le u h.2.1) (mainUs_toCost_le u h.2.2)
