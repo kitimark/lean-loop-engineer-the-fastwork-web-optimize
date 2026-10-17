@@ -274,7 +274,7 @@
    "id": "lean-plan",
    "title": "Lean spec of the work graph: task.define/task.done, ready/blocked/running, cycles refused, parallel-safe sets",
    "stream": "console",
-   "milestone": "M0",
+   "milestone": null,
    "deps": [
     "lean-serve"
    ],
@@ -291,7 +291,7 @@
    "id": "con-plan",
    "title": "Console Plan view: contracts, console-api board, web Plan tab, fw plan sync/show, task status from agent names and merges",
    "stream": "console",
-   "milestone": "M0",
+   "milestone": null,
    "deps": [
     "lean-plan"
    ],
@@ -432,7 +432,7 @@
    "id": "lean-console-gaps",
    "title": "Lean gaps: tool-call summarize, obs key join, actor script op, console.landReadiness",
    "stream": "console",
-   "milestone": "M0",
+   "milestone": null,
    "deps": [
     "lean-plan"
    ],
@@ -463,8 +463,7 @@
    "milestone": "M1",
    "deps": [
     "ci-webkit",
-    "lean-ci-cache",
-    "con-plan"
+    "lean-ci-cache"
    ],
    "owner": "console-builder",
    "writes": [
@@ -553,21 +552,53 @@
    ]
   },
   {
-   "id": "zone-baselines",
-   "title": "Per-zone baselines for the original, both engines",
+   "id": "zone-baselines-chromium",
+   "title": "Per-zone baselines for the original, Chromium, on CI runners (3 separate jobs)",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "touch-wedge",
+    "measure-ts-to-lean",
+    "fw-ci"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "research/notes/2026/10-17-zone-baselines-chromium.md"
+   ],
+   "devices": [
+    "ci"
+   ]
+  },
+  {
+   "id": "zone-baselines-webkit",
+   "title": "Per-zone baselines for the original, WebKit Simulator, on CI (idle runner)",
    "stream": "measure",
    "milestone": "M1",
    "deps": [
     "webkit-quiet",
-    "touch-wedge",
-    "measure-ts-to-lean"
+    "fw-ci"
    ],
    "owner": "measure-engineer",
    "writes": [
-    "research/notes/2026/10-17-zone-baselines.md"
+    "research/notes/2026/10-17-zone-baselines-webkit.md"
    ],
    "devices": [
     "ci"
+   ]
+  },
+  {
+   "id": "store-and-run",
+   "title": "store-and-run (PLAN 10.1): count reduction and verdicts in fwcore, the artifact store, fw run --fw --preset --engines --dry",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "measure-ts-to-lean"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/run*.ts",
+    "packages/contracts/src/artifacts.ts",
+    "lean/Fw/Store/**"
    ]
   },
   {
@@ -576,7 +607,9 @@
    "stream": "measure",
    "milestone": "M1",
    "deps": [
-    "zone-baselines"
+    "zone-baselines-chromium",
+    "zone-baselines-webkit",
+    "store-and-run"
    ],
    "owner": "measure-engineer",
    "devices": [
@@ -669,7 +702,8 @@
    "milestone": "M2",
    "deps": [
     "step-align",
-    "zone-baselines",
+    "zone-baselines-chromium",
+    "zone-baselines-webkit",
     "gate-part-filter",
     "gap-harness"
    ],
@@ -782,7 +816,8 @@
    "milestone": "M3",
    "deps": [
     "q1-phone",
-    "zone-baselines",
+    "zone-baselines-chromium",
+    "zone-baselines-webkit",
     "wktr-local"
    ],
    "owner": "measure-engineer",
@@ -828,7 +863,7 @@
    "id": "watch-lean",
    "title": "Team health in Lean: per-agent state (active/idle/waiting/stalled/done) and alert rules over observation snapshots, proved; fwcore op obs.health",
    "stream": "console",
-   "milestone": "M0",
+   "milestone": null,
    "deps": [
     "lean-serve"
    ],
@@ -843,7 +878,7 @@
    "id": "watch-cli",
    "title": "fw watch: collect spool, transcripts meta/usage, system and CI facts; fwcore obs.health; table + health.jsonl; --interval, --until-alert",
    "stream": "console",
-   "milestone": "M0",
+   "milestone": null,
    "deps": [
     "watch-lean"
    ],
@@ -858,7 +893,7 @@
    "id": "watch-web",
    "title": "Console Health tab from health.jsonl / obs.health",
    "stream": "console",
-   "milestone": "M0",
+   "milestone": null,
    "deps": [
     "watch-cli",
     "con-plan"
@@ -888,22 +923,9 @@
   },
   {
    "id": "spawn-guard-workflows",
-   "title": "Spawn-guard: Workflow spawns skip it (18 of 26); log expected vs given kind (one deny:kindMismatch unexplained); show decisions on the board",
+   "title": "Spawn-guard: Workflow spawns skip it (18 of 26); log expected vs given kind (one deny:kindMismatch unexplained); show decisions on the board; also SPK-p part 3 (wake test: emit.mjs keeps a background_tasks count)",
    "stream": "parallel",
    "milestone": null,
-   "deps": [
-    "spk-hooks"
-   ],
-   "owner": "researcher",
-   "writes": [
-    "research/notes/2026/10-17-spk-drafts/spk-p.md"
-   ]
-  },
-  {
-   "id": "spk-p-wake",
-   "title": "SPK-p part 3: the wake test (emit.mjs must keep background_tasks)",
-   "stream": "console",
-   "milestone": "M0",
    "deps": [
     "spk-hooks"
    ],
@@ -917,7 +939,7 @@
    "id": "alert-steps",
    "title": "Console alert steps from Notification hooks: say which agent, which kind (permission prompt vs needs input) and which tool; close the alert by itself when that agent's next tool call or answer arrives (rule in Lean)",
    "stream": "console",
-   "milestone": "M0",
+   "milestone": null,
    "deps": [
     "cap-actor-fix",
     "con-plan"
@@ -927,6 +949,50 @@
     "apps/runner/hooks/emit.mjs",
     "apps/console-api/src/spool/**",
     "lean/Fw/Console/**"
+   ]
+  },
+  {
+   "id": "scrub-precommit",
+   "title": "Scrub pre-commit now (repo is public): staged files checked for emails, home paths, LAN IPs, device ids; same check in fw land",
+   "stream": "tooling",
+   "milestone": "M0",
+   "deps": [],
+   "owner": "env-ops",
+   "writes": [
+    "scripts/scrub.mjs",
+    "scripts/hooks/pre-commit",
+    "lefthook.yml",
+    "package.json"
+   ]
+  },
+  {
+   "id": "fw-land-log",
+   "title": "Lead lands only through fw land; fw land writes the catch-up entry and the work-graph evidence; reconciler violations on the board",
+   "stream": "console",
+   "milestone": null,
+   "deps": [
+    "con-plan"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/console-api/src/reconcile/**"
+   ]
+  },
+  {
+   "id": "webkit-table-regen",
+   "title": "Regenerate the WebKit determinism table with --warmup 1 and load stamps, on CI, before the plan quotes it",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "ci-webkit"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-webkit/README.md"
+   ],
+   "devices": [
+    "ci"
    ]
   }
  ]
