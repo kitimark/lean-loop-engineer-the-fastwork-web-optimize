@@ -17,7 +17,7 @@ Definitions (all durations in whole ms, `Nat`):
 * The **baseline** is the nearest-rank median (p50) of the window: the $\lceil n/2 \rceil$-th smallest of its $n$
   values, defined by counting (`ord`), so no sort is needed and the proofs are about counts. It was the p90 until
   task `timing-small-n`: with $n \le 9$ the p90 is the window maximum, so a regression seen twice became its own
-  baseline (history $[2,1,2,27,26]$ s, then 40 s was `ok`). A median moves only once a shift fills half the window
+  baseline (history $[2,1,2,27,26]$ s, then 40 s was `ok`). A median moves only once a shift fills more than half the window
   (`no_self_mask`), so the counterexample is now `slow` (`site_regression_slow`).
 * Verdict of one sample, first match: `noBaseline` when the window has fewer than $n_{\min}$ samples; `noisy`; `slow`
   when $d > \max(B, k \cdot b)$ with $B$ the step's budget and $b$ the baseline; otherwise `ok`.
@@ -38,7 +38,7 @@ Definitions (all durations in whole ms, `Nat`):
 Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `land_budget_alert`,
 `no_alert_within_budget`, `no_alert_within_budget_list`, `slow_mono_dur`, `slow_mono_window`, `no_self_mask`,
 `site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `noBaseline_iff`, `noBaseline_below_nmin`,
-`ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `ord_mono_pointwise`, `p50_le_of_few_above`,
+`ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
 `le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
 `calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
 
@@ -369,7 +369,7 @@ def siblings (p : Params) (ss : List Sample) (st : Stage) (g : Group) : List (Op
 `structural` when every sibling has a baseline $c$ with $2c < b$; `noise` when every sibling has a baseline (so one
 of them has $2c \ge b$); `undecided` otherwise (a sibling without a baseline).
 
-$$\operatorname{call}_p(H, S, g) = \begin{cases} \mathsf{undecided} & \operatorname{gb}_p(H, g) = \bot \vee \operatorname{sib} = [\,] \\ \mathsf{structural} & \operatorname{gb}_p(H, g) = b \wedge \operatorname{sib} \ne [\,] \wedge \forall o \in \operatorname{sib}.\ \exists c.\ o = c \wedge 2c < b \\ \mathsf{noise} & \operatorname{gb}_p(H, g) = b \wedge \operatorname{sib} \ne [\,] \wedge (\forall o \in \operatorname{sib}.\ o \ne \bot) \wedge \exists c \in \operatorname{sib}.\ 2c \ge b \\ \mathsf{undecided} & \text{otherwise} \end{cases},\quad \operatorname{sib} = \operatorname{sib}_p(H, S, g)$$
+$$\operatorname{call}_p(H, S, g) = \begin{cases} \mathsf{undecided} & \operatorname{gb}_p(H, g) = \bot \vee \operatorname{sib} = [\,] \\ \mathsf{structural} & \operatorname{gb}_p(H, g) = b \wedge \operatorname{sib} \ne [\,] \wedge \forall o \in \operatorname{sib}.\ \exists c.\ o = \mathsf{some}(c) \wedge 2c < b \\ \mathsf{noise} & \operatorname{gb}_p(H, g) = b \wedge \operatorname{sib} \ne [\,] \wedge (\forall o \in \operatorname{sib}.\ o \ne \bot) \wedge \exists c.\ \mathsf{some}(c) \in \operatorname{sib} \wedge 2c \ge b \\ \mathsf{undecided} & \text{otherwise} \end{cases},\quad \operatorname{sib} = \operatorname{sib}_p(H, S, g)$$
 -/
 def callOf (p : Params) (ss : List Sample) (st : Stage) (g : Group) : Call :=
   match groupBaseline p ss g with
@@ -384,7 +384,7 @@ def callOf (p : Params) (ss : List Sample) (st : Stage) (g : Group) : Call :=
 /-- The structural verdict of group `g` in stage `S`: the call, the group's baseline (0 without one) and the largest
 sibling baseline (0 without one).
 
-$$\operatorname{st}_p(H, S, g) = (\mathit{id}_S, \mathit{name}_g, \operatorname{call}_p(H, S, g), \operatorname{gb}_p(H, g) \text{ or } 0, \operatorname{maxL}[c \mid c \in \operatorname{sib}_p(H, S, g),\ c \ne \bot])$$
+$$\operatorname{st}_p(H, S, g) = (\mathit{id}_S, \mathit{name}_g, \operatorname{call}_p(H, S, g), \operatorname{gb}_p(H, g) \text{ or } 0, \operatorname{maxL}[c \mid \mathsf{some}(c) \in \operatorname{sib}_p(H, S, g)])$$
 -/
 def stageVerdict (p : Params) (ss : List Sample) (st : Stage) (g : Group) : StructVerdict :=
   { stage := st.id, group := g.name, call := callOf p ss st g, baseline := (groupBaseline p ss g).getD 0,
@@ -1073,7 +1073,8 @@ $$\operatorname{site}(d) = (\texttt{breakpoint-gate}, \texttt{site}, d, \mathsf{
 def siteBuild (d : Nat) : Sample := { tool := "breakpoint-gate", step := "site", durMs := d, host := .ci }
 
 /-- The counterexample is now `slow`: after site builds of 2, 1, 2, 27 and 26 s, a 40 s build is `slow` with the
-default parameters (median 2 s; with the p90 baseline, 27 s, it was `ok` because $2 \cdot 40 \le 3 \cdot 27$).
+default parameters $p_0$ (`{}`: $n_{\min} = 5$, $N = 20$, $k = 3/2$, $B_0 = 30000$, no ceilings, no stages; median 2 s;
+with the p90 baseline, 27 s, it was `ok` because $2 \cdot 40 \le 3 \cdot 27$).
 
 $$\operatorname{judge}_{p_0}([\operatorname{site}(2000), \operatorname{site}(1000), \operatorname{site}(2000), \operatorname{site}(27000), \operatorname{site}(26000)], 5, \operatorname{site}(40000)).c = \mathsf{slow}$$
 -/
@@ -1082,7 +1083,7 @@ theorem site_regression_slow :
   decide
 
 /-- A repeated regression stays `slow`: after site builds of 2, 1, 2, 27, 26 and 50 s, another 50 s build is `slow`
-(the median is still 2 s; with the p90 baseline, 50 s, it was `ok`).
+with the default parameters $p_0$ (`{}`; the median is still 2 s; with the p90 baseline, 50 s, it was `ok`).
 
 $$\operatorname{judge}_{p_0}([\operatorname{site}(2000), \operatorname{site}(1000), \operatorname{site}(2000), \operatorname{site}(27000), \operatorname{site}(26000), \operatorname{site}(50000)], 6, \operatorname{site}(50000)).c = \mathsf{slow}$$
 -/
@@ -1435,7 +1436,7 @@ def cases : List (String × Params × List Sample) :=
       {}, run "breakpoint-gate" "site" .ci 0 [2000, 1000, 2000, 27000, 26000, 50000, 50000]),
    ("stable series (every two durations within k = 3/2): 100-140 s, never slow",
       {}, run "ci:lean" "check" .ci 0 [100000, 120000, 140000, 110000, 130000, 100000, 140000]),
-   ("a lasting shift is accepted once it fills half the window: 2 s x4 then 50 s x7, slow while the median is 2 s, ok from the 6th 50 s on (median 50 s)",
+   ("a lasting shift is accepted once it fills more than half the window: 2 s x4 then 50 s x7, slow while the median is 2 s, ok from the 6th 50 s on (median 50 s)",
       {}, run "ci:w" "build" .ci 0 [2000, 2000, 2000, 2000, 50000, 50000, 50000, 50000, 50000, 50000, 50000]),
    ("auto stages (no params.stages): workflow wf over 5 runs; job family test (matrix legs 100 s and 110 s) is structural against build (10 s) and lint (20 s), which are noise; step spans are not jobs",
       {}, autoRuns)]
