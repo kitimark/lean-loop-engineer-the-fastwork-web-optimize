@@ -17,6 +17,7 @@ import { scrollRun } from './scrollrun.mjs';
 import { seekExperiment } from './seek.mjs';
 import { probe } from './rfprobe.mjs';
 import { screenAndTicks } from './handoff.mjs';
+import { watch } from './watchdog.mjs';
 import { alignPasses, scrollsOf, zoneTable, coverageLine, classifyAligned, classTable } from './align.mjs';
 import { warmUpLoad, perStepPasses, classifyModes, perStepTable } from './perstep.mjs';
 import { quietPasses } from './quiet.mjs';
@@ -237,4 +238,7 @@ async function main() {
       process.exitCode = 2;
   }
 }
-main().catch((e) => { console.error(`error: ${e.message}`); process.exitCode = 1; });
+// Fail fast: a stall (no output for 90 s x FW_WK_TIMEOUT_SCALE, FW_WK_STALL_MS overrides) or a process that outlives its command
+// ends with a message saying why, instead of sitting until the CI step timeout (watchdog.mjs).
+const guard = watch();
+main().catch((e) => { console.error(`error: ${e.message}`); process.exitCode = 1; }).finally(() => guard.done(process.exitCode ?? 0));

@@ -282,7 +282,8 @@ jobs:
           VM: ${{ matrix.vm }}
         run: |
           mkdir -p out "$RUNNER_TEMP/result"
-          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > out/"$VM"-host.txt 2>&1 || true
+          # shellcheck disable=SC2009
+          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; ps -axo pid,ppid,etime,stat,command | grep -E "cli.mjs|ios_webkit|tee " | grep -v grep; } > out/"$VM"-host.txt 2>&1 || true
           cp out/"$VM"-* "$RUNNER_TEMP/result/" 2>/dev/null || true
 
       # Always: stop the proxy's device and delete it, even when a step failed or the job was cancelled.
