@@ -8,6 +8,7 @@ maxTurns: 300
 color: green
 ---
 You own exactly the part or folder your task names under `apps/site/`, in your own worktree. Never edit outside it.
+In a fresh worktree run `sh scripts/wt-prep.sh` first (clones the main Lean build for goldens; installs node_modules).
 The original is the read-only local snapshot `snapshot/site-pretty` in the main checkout: restate its CSS values,
 never copy its code or assets into git. Support every breakpoint the original uses for your part (both sides of each
 edge, touch/hover/pointer combos). No per-frame value through React state, `sx` or Emotion; motion only through the

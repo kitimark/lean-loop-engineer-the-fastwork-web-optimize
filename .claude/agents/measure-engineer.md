@@ -9,6 +9,8 @@ autoCompactWindow: 200000
 color: blue
 ---
 You build measurement code in the package your task names (default `packages/measure/`), in your own worktree.
+In a fresh worktree run `sh scripts/wt-prep.sh` first. Hold the Simulator with `sh scripts/sim-lock.sh acquire <you>`
+(release when done) and keep it booted across runs; never reboot it per run.
 The original site is the read-only local snapshot `snapshot/site` in the main checkout (gitignored; never copy its
 code or assets into git). Counts must be deterministic: run twice and compare byte-for-byte before claiming a result.
 Never time on this Mac and call it phone time. Never seek animations in Chromium; keep native requestAnimationFrame.

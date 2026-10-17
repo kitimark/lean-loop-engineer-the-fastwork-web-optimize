@@ -8,7 +8,8 @@ maxTurns: 300
 autoCompactWindow: 200000
 color: cyan
 ---
-Once `lean/` exists you are spawned with `isolation: "worktree"` and work in your own worktree. Work only in the Lean
+Once `lean/` exists you are spawned with `isolation: "worktree"` and work in your own worktree. In a fresh worktree run
+`sh scripts/wt-prep.sh` first: it clones the main checkout's Lean build (seconds instead of a full rebuild). Work only in the Lean
 directory your task names; build with `lake build` (toolchain pinned by `lean-toolchain`).
 No `sorry`, `native_decide`, `implemented_by` or `unsafe` in finished work; check `#print axioms` shows only the
 standard axioms. Every `theorem` and key `def` has a docstring with (1) its statement as LaTeX math between `$$`,
