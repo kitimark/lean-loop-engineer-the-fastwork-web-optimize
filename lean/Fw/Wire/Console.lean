@@ -3,6 +3,7 @@ import Fw.Console.Land
 import Fw.Console.Self
 import Fw.Console.Alert
 import Fw.Plan.Trailer
+import Fw.Plan.Lint
 /-!
 # JSON for the console's own rules (`console.landReadiness`, `console.actor`, `console.alert`, `plan.trailers`)
 
@@ -15,6 +16,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.actor` | `source`? (`alert`/`claim`/`build`/`landed`/`taskDone`; missing = all) | `sources` [{source, actor, type, allowed}] |
 | `console.alert` | `event` {hook_event_name, ts, agent_id?, agent_type?, tool_name?, notification_type?}, `flights`? [{agent_id?, agent_type?, tool_name?}] (tool calls in flight; no agent_id = the lead), `open`? [step ids] (alert steps still open on the board) | `post` (null or {step, key, title, kind, agent}: the `step.post` to send as actor script), `close` [{step, key}] (the `step.cancel`s to send as actor script) |
 | `console.landScope` | `writes` [globs], `names`? [agent/task names for handoff files], `allow`? [globs], `paths` [changed files] | `ok`, `reason` (null / `noWrites` / `outOfScope`), `violations`, `scope` (the globs used; `!` = exclude) |
+| `plan.lint` | `tasks` [{id, title?, deps?, evidence?}], `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
 namespace Fw.Wire.Console
@@ -115,10 +117,31 @@ def opLandScope (req : Json) : Except String Reply := do
   pure [("ok", .bool ok), ("reason", reason), ("violations", .arr (vs.toArray.map Json.str)),
         ("scope", .arr ((landScope writes names allow).toArray.map Json.str))]
 
+/-! ## plan.lint -/
+
+open Fw.Plan Fw.Plan.Lint in
+/-- `plan.lint`: the findings of `Fw.Plan.Lint.lint` over the work graph rows and main's trailers. -/
+def opPlanLint (req : Json) : Except String Reply := do
+  let strs (k : String) (a : List Json) : Except String (List String) := a.mapM (asStr k)
+  let ts ← (← arr req "tasks").toList.mapM fun t => do
+    let ev ← match opt t "evidence" with
+      | none | some .null => pure none
+      | some v => some <$> asStr "evidence" v
+    pure ({ id := ← str t "id", title := ← strD t "title" "", stream := "", milestone := none,
+            deps := ← strs "deps" (← arrD t "deps"), owner := "", writes := [], devices := [],
+            needs := [], evidence := ev, agent := none } : Task)
+  let cs ← (← arrD req "commits").mapM fun c => do
+    pure ({ sha := ← str c "sha", body := ← str c "body" } : Fw.Plan.Trailer.Commit)
+  let fs := lint ts cs
+  let n (s : String) := (fs.filter (·.severity == s)).length
+  pure [("ok", .bool (ok ts cs)), ("errors", .num (n "error")), ("warnings", .num (n "warn")), ("infos", .num (n "info")),
+        ("findings", .arr (fs.toArray.map fun f => Json.mkObj
+          [("task", .str f.task), ("code", .str f.code), ("severity", .str f.severity), ("detail", .str f.detail)]))]
+
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
-def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "plan.trailers"]
+def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "plan.trailers", "plan.lint"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -128,6 +151,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.alert" => some (opAlert req)
   | "console.landScope" => some (opLandScope req)
   | "plan.trailers" => some (opTrailers req)
+  | "plan.lint" => some (opPlanLint req)
   | _ => none
 
 end Fw.Wire.Console

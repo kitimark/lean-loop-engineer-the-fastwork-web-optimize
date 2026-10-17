@@ -1,10 +1,11 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { Plan, PlanTask } from "@fw/contracts";
 import { record } from "../hooks/spawn-guard.mjs";
-import { renderPlan, syncCommands, topoSort, type WorkGraph } from "../src/plan.ts";
+import { lintCli, renderLint, renderPlan, syncCommands, topoSort, type WorkGraph } from "../src/plan.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const T = (id: string, deps: string[] = [], extra: object = {}) => ({ id, title: id, stream: "s", milestone: "M", deps, owner: "o", ...extra });
@@ -97,5 +98,26 @@ describe("spawn guard record", () => {
     const r = record({ tool_name: "Agent", tool_use_id: "u", tool_input: { name: "con-plan" } }, { decision: "allow", reason: null });
     expect(r).toMatchObject({ hook_event_name: "SpawnGuard", agent_name: "con-plan" });
     expect(record({ tool_name: "Agent", tool_use_id: "u" }, null).agent_name).toBeNull();
+  });
+});
+
+describe("plan lint", () => {
+  const lf = (task: string, code: string, severity: string, detail = "") => ({ task, code, severity, detail });
+  it("renders errors and warnings, counts info", () => {
+    const text = renderLint({ ok: false, errors: 1, warnings: 1, infos: 2, findings: [lf("a", "unknownDep", "error", "zz"), lf("b", "evUser", "warn", "user: x"), lf("c", "evidenceNoTrailer", "info")] });
+    expect(text).toBe("error a unknownDep: zz\nwarn  b evUser: user: x\nplan lint: 1 errors, 1 warnings, 2 info (evidence without a Task: trailer on main)");
+  });
+  it("sends the tasks and the commits of main to fwcore and exits 1 on errors", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lint-"));
+    const f = join(dir, "g.json");
+    writeFileSync(f, JSON.stringify({ milestones: [], tasks: [T("a", ["b"]), T("b", [], { evidence: "abc1234" })] }));
+    const seen: Record<string, unknown>[] = [];
+    const bad = async (r: Record<string, unknown>) => (seen.push(r), { ok: false, errors: 1, warnings: 0, infos: 0, findings: [lf("a", "unknownDep", "error", "b")] });
+    const good = async () => ({ ok: true, errors: 0, warnings: 0, infos: 0, findings: [] });
+    const commits = [{ sha: "s1", body: "x\n\nTask: a" }];
+    expect(await lintCli([f], here, bad, commits)).toBe(1);
+    expect(seen[0]).toMatchObject({ op: "plan.lint", commits, tasks: [{ id: "a", deps: ["b"], evidence: null }, { id: "b", evidence: "abc1234" }] });
+    expect(await lintCli([f], here, good, commits)).toBe(0);
+    await expect(lintCli([], here)).rejects.toThrow(/usage/);
   });
 });
