@@ -9,7 +9,8 @@
 //     the run's own chromium-classes/classes.json artifact (else the run is refused);
 //   - the frozen class, k, t, tBound, per-run classes and tallies come from fwcore measure.freeze (Lean
 //     Fw.Measure.Freeze: worst class over >= 3 runs, a type missing from a run is quarantined, mixed image digests and
-//     repeated run ids are refused);
+//     repeated run ids are refused; so are jobs whose frame counts differ, naming the jobs; trajectories are compared
+//     and reported as allTrajectoriesEqual, not refused);
 //   - pooledClass is fwcore measure.classify over all counts files of the profile at once.
 // This module only reads files, groups runs by the profile named in run.txt, moves JSON and checks that raw input
 // facts agree (same Dockerfile inputs, snapshot, served files and target within a profile).
@@ -103,8 +104,13 @@ export function freezeRuns(dirs, { kMax = 4, tMax = 24, builtBy, dockerfile = jo
       const allJobs = ars.flatMap((r) => r.jobs);
       const [pooled] = call([classifyReq(allJobs, kMax, tMax)]);
       // images: every job's image-id.txt and the image its counts.json names
-      const [frozenP] = call([{ op: 'measure.freeze', pooled: pooled.classes,
-        runs: ars.map((r) => ({ id: r.id, images: r.jobs.flatMap((j) => [j.imageId, j.counts.meta.image]), classes: r.classes })) }]);
+      // jobs: each job's frame count and trajectory hash; measure.freeze refuses unequal frame counts (naming the jobs)
+      const freezeReq = { op: 'measure.freeze', pooled: pooled.classes,
+        runs: ars.map((r) => ({ id: r.id, images: r.jobs.flatMap((j) => [j.imageId, j.counts.meta.image]), classes: r.classes,
+          jobs: r.jobs.map((j) => ({ name: j.name, frames: j.counts.frames.length,
+            ...(j.counts.meta.trajectorySha256 !== undefined && { trajectorySha256: j.counts.meta.trajectorySha256 }) })) })) };
+      let frozenP;
+      try { [frozenP] = call([freezeReq]); } catch (e) { throw new Error(`${label}: ${e.message}`); }
       const metas = allJobs.map((j) => j.counts.meta);
       metasAll.push(...metas);
       for (const k of ['snapshot', 'servedSha256', 'target']) same(metas, (m) => m[k], `${label}: meta.${k}`);
@@ -125,7 +131,7 @@ export function freezeRuns(dirs, { kMax = 4, tMax = 24, builtBy, dockerfile = jo
         servedSha256: metas[0].servedSha256,
         trajectorySha256: metas[0].trajectorySha256,
         allImagesEqual: true, // measure.freeze refuses mixed digests
-        allTrajectoriesEqual: metas.every((m) => m.trajectorySha256 === metas[0].trajectorySha256),
+        allTrajectoriesEqual: frozenP.trajectoriesEqual, // Lean Freeze.trajectoriesEqual over every job of the arm
         tally: tallyOrdered(frozenP.tally),
         roles: frozenP.roles,
         pooledTally: tallyOrdered(frozenP.pooledTally),
