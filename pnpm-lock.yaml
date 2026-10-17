@@ -221,6 +221,8 @@ importers:
 
   packages/measure-wktr: {}
 
+  packages/snapshot-extract: {}
+
 packages:
 
   '@babel/code-frame@7.29.7':
