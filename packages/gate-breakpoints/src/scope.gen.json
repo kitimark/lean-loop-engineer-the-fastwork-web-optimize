@@ -700,6 +700,18 @@
    [{"why": "elementFromPoint at a scroll position, not a media condition: no edge; the gate loads at the top",
      "id": "js.nav-on-dark"}],
    "conditions": {"rewrite": [], "orig": []}},
+  "morph.mount":
+  {"sweeps": [],
+   "probes": ["desk-319"],
+   "owners": ["morph.mount"],
+   "knees": [],
+   "key": [],
+   "extra": [],
+   "dismissed":
+   [{"why":
+     "platform rect against the visual viewport height at a scroll position, not a width edge; the part restates no CSS and the gate loads at the top",
+     "id": "js.morph-arm"}],
+   "conditions": {"rewrite": [], "orig": []}},
   "hero.exit":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes":

@@ -1,0 +1,13 @@
+{
+  "id": "morph.mount",
+  "slot": "morph",
+  "anchors": ["morph-mount"],
+  "experiment": true,
+  "impls": ["mui", "plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:13040-13089" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}
