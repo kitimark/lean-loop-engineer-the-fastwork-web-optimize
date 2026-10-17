@@ -1503,6 +1503,23 @@
     ".github/workflows/sim-speed.yml",
     ".github/scripts/changed-inputs.mjs"
    ]
+  },
+  {
+   "id": "store-cirun",
+   "title": "Lean op store.ciRun: which CI run and artifacts fw ci accepts and how it maps them to store keys; replaces the fw ci TS stand-ins selectCiRun and searchConfig",
+   "stream": "console",
+   "milestone": "M1",
+   "deps": [
+    "fw-ci"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Store/**",
+    "lean/Fw/Wire/Store.lean",
+    "packages/contracts/golden/store/**",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci.test.ts"
+   ]
   }
  ]
 }
