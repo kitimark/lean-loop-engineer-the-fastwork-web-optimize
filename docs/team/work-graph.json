@@ -61,6 +61,7 @@
     { "id": "explainer-rev6", "title": "Explainer page updated to revision 6", "stream": "plan", "milestone": null, "deps": ["plan-rev6", "math-view-refresh"], "owner": "page-writer", "writes": ["docs/plan/loop-plan.html"] },
     { "id": "q1-phone", "title": "Q1: phone session windows, free-play phone (your answer)", "stream": "calibration", "milestone": "M3", "deps": [], "owner": "user" },
     { "id": "wktr-cloud", "title": "WKTR spike on a rented cloud Mac (needs your go-ahead)", "stream": "calibration", "milestone": "M3", "deps": [], "owner": "user" },
+    { "id": "wktr-ci", "title": "Research: can GitHub Actions (iOS-sim WKTR, or a Linux GTK/WPE proxy) replace the cloud Mac for WKTR?", "stream": "calibration", "milestone": "M3", "deps": [], "owner": "researcher", "writes": ["research/notes/2026/10-17-wktr-on-github-actions.md"] },
     { "id": "calibration", "title": "iPhone K1-K10, rho_page, holdouts, validity table v0", "stream": "calibration", "milestone": "M3", "deps": ["q1-phone", "wktr-cloud", "zone-baselines"], "owner": "measure-engineer", "devices": ["phone"] },
     { "id": "port-parts", "title": "Port every other part through the full breakpoint gate", "stream": "parts", "milestone": "M4", "deps": ["bands-freeze", "breakpoint-lint", "css-decisions", "verdict-to-lean"], "owner": "part-builder" },
     { "id": "experiments", "title": "End-of-page decision, then the backlog as flag arms", "stream": "experiments", "milestone": "M5", "deps": ["port-parts"], "owner": "lead" },
