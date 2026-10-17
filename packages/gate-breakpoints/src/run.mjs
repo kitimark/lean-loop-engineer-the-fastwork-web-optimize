@@ -146,6 +146,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const declared = {};
   for (const site of SITES) {
     const s = await load(refEnv, site);
+    await parkEarly(s, refEnv); // the declared lists are read with the pointer parked, as every sample is (nav.hitTest header flake)
     await evalReady(s, site);
     const scans = [(await evalCollect(s, site, refEnv, null)).parts];
     const timed = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !overlayOf[site][pid]));
