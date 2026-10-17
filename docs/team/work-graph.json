@@ -1199,7 +1199,7 @@
   },
   {
    "id": "watch-slow",
-   "title": "Slow-work rules in Lean (obs.health): CI run, tool call, local process and load thresholds, flagged when the task is on the critical path; replaces the lead stand-in monitor",
+   "title": "Slow-work rules in Lean (obs.health): CI run, tool call, process and load thresholds, critical-path flag; agents with no event past a limit count as ended; replaces the lead monitor",
    "stream": "team",
    "milestone": null,
    "deps": [
@@ -1325,6 +1325,23 @@
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html",
     "research/notes/2026/10-17-plan-evidence.md"
+   ]
+  },
+  {
+   "id": "store-target",
+   "title": "Store key and fw run carry the chromium target (original vs rewrite), so A and R runs no longer share one key; webkit-sim gets the fw input",
+   "stream": "console",
+   "milestone": "M1",
+   "deps": [
+    "math-r8-fix",
+    "rewrite-ci-lane"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Store/**",
+    "packages/contracts/golden/store/**",
+    "apps/runner/src/run*.ts",
+    "apps/runner/test/run*.ts"
    ]
   }
  ]
