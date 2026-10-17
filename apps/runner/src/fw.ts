@@ -18,11 +18,11 @@ try {
   if (group === "engine-check") {
     process.exitCode = engineCheckCli(rest, process.cwd());
   } else if (group === "run") {
-    process.exitCode = runCli(rest, process.cwd());
+    process.exitCode = await runCli(rest, process.cwd());
   } else if (group === "ci" && (rest[0] === "wait" || rest[0] === "budget")) {
     process.exitCode = await ghBudgetCli(rest, process.cwd()); // shared GitHub poller: no gh loops (packages/gh-budget)
   } else if (group === "ci") {
-    process.exitCode = ciCli(rest, process.cwd());
+    process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "watch") {
     process.exitCode = await watchMain(rest, process.cwd());
   } else if (group === "status") {
