@@ -4,6 +4,8 @@ import css from './morph.module.css';
 
 export interface MorphColumnsProps {
   variant: string;
+  /** The panel's scene state (original: `data-start-selling-scene`, active only while morph > 0.001). Rest is `paused`. */
+  scene?: 'active' | 'paused';
 }
 
 /**
@@ -11,9 +13,9 @@ export interface MorphColumnsProps {
  * original's CSS keyframes (no JS, no state, no per-frame write). Placeholder pictures and host stage; the panel,
  * the mount and the tween are other parts (morph.panel, morph.mount, morph.tween).
  */
-export function MorphColumns({ variant }: MorphColumnsProps) {
+export function MorphColumns({ variant, scene = 'paused' }: MorphColumnsProps) {
   return (
-    <div className={css.stage} data-fw="morph-columns" data-fw-variant={variant}>
+    <div className={css.stage} data-fw="morph-columns" data-fw-variant={variant} data-scene={scene}>
       <div className={css.backdrop} aria-hidden="true">
         {COLUMNS.map((c, i) => (
           <div key={i} className={css.col} style={{ '--col-offset': c.offset } as CSSProperties}>

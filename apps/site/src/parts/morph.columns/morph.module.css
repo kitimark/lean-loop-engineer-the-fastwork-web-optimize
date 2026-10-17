@@ -7,6 +7,15 @@
     height: 320px;
     overflow: hidden;
     background: #131922;
+    /* stand-in for the panel at morph = 0: its transform is scale(0.96 + 0.04 * var(--morph)) (css 10549), which scales
+       every box inside it; morph.panel owns the real one */
+    transform: scale(0.96);
+  }
+  /* the scene scheduler's rule (css 11754-11758): the original panel is "paused" while morph = 0, which stops the
+     marquee and drops will-change. The attribute is the panel's; morph.panel will drive it, here it is a prop. */
+  .stage[data-scene="paused"] :where(*) {
+    will-change: auto !important;
+    animation-play-state: paused !important;
   }
   .backdrop {
     opacity: 0.4;
