@@ -13,7 +13,7 @@ the loop is `Fw.Wire.Serve.loop` (one `modifyGet` per line), every decision is p
 /-- Entry point: `fwcore` or `fwcore serve` serves JSON lines (stateful); `fwcore --ops` lists the ops. -/
 def main (args : List String) : IO UInt32 := do
   if args == ["--ops"] then
-    IO.println (", ".intercalate Fw.Wire.ops)
+    IO.println (", ".intercalate (Fw.Wire.ops ++ Fw.Wire.Plan.ops))
     return 0
   Fw.Wire.Serve.main (← IO.getStdin) (← IO.getStdout)
   return 0

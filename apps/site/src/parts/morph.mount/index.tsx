@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { registerScroll } from '../../engine/scroll';
-import { action, armed, IO_ROOT_MARGIN, mountNext, MOUNT_PIN_ORDER, repin, takes, touchDelta, viewportHeight, wanted } from './logic';
+import { action, armed, IO_ROOT_MARGIN, isShift, mountNextWarm, warmStill, WARM_QUIET_MS, MOUNT_PIN_ORDER, repin, takes, touchDelta, viewportHeight, wanted } from './logic';
 
 /** Handle given to the owner (morph.tween) so it can re-evaluate the listeners when the morph goes idle or active (`I`). */
 export interface MorphMountHandle {
@@ -31,7 +31,7 @@ export interface MorphMountProps {
  * Renders a hidden sentinel that carries the breakpoint-gate anchor and stands in for the platform until that section
  * is ported (the part restates no CSS).
  */
-export function MorphMount({ targetSelector = '[data-fw="morph-mount"]', isActive = () => false, onPush, onMount, onReady }: MorphMountProps) {
+export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]', isActive = () => false, onPush, onMount, onReady }: MorphMountProps) {
   useEffect(() => {
     const target = document.querySelector<HTMLElement>(targetSelector);
     let near = false;
@@ -40,8 +40,10 @@ export function MorphMount({ targetSelector = '[data-fw="morph-mount"]', isActiv
     let pin = window.scrollY;
     let lastY = 0;
 
-    const mount = (intersecting: boolean, pushed: boolean) => {
-      const next = mountNext(mounted, intersecting, pushed);
+    const shift = isShift(variant);
+    let lastMotion = performance.now();
+    const mount = (intersecting: boolean, pushed: boolean, warm = false) => {
+      const next = mountNextWarm(mounted, intersecting, pushed, warm);
       if (next && !mounted) {
         mounted = true;
         onMount?.();
@@ -54,6 +56,7 @@ export function MorphMount({ targetSelector = '[data-fw="morph-mount"]', isActiv
       return armed({ height: r.height, bottom: r.bottom }, viewportHeight(window.visualViewport?.height ?? null, window.innerHeight));
     };
     const take = (e: Event, delta: number) => {
+      lastMotion = performance.now();
       const act = isActive();
       if (!takes(act, delta, act ? false : geom())) return;
       if (!act) pin = window.scrollY;
@@ -101,15 +104,37 @@ export function MorphMount({ targetSelector = '[data-fw="morph-mount"]', isActiv
       if (!repin(isActive(), window.scrollY, pin)) return;
       return () => window.scrollTo({ top: pin, behavior: 'instant' });
     });
+    // shift: warm the panel up at a still moment (idle callback; no scroll, push or morph in progress). Mounts once and
+    // starts no animation, timer or phase (PhaseFree), so the state at t depends only on t.
+    let warmTimer: number | undefined;
+    const onScrollMotion = () => {
+      lastMotion = performance.now();
+    };
+    const idle = (f: () => void) => (window.requestIdleCallback ? window.requestIdleCallback(f) : f());
+    const arm = () => {
+      warmTimer = window.setTimeout(() => idle(warmCheck), WARM_QUIET_MS);
+    };
+    const warmCheck = () => {
+      warmTimer = undefined;
+      if (mounted) return;
+      if (warmStill(isActive(), performance.now() - lastMotion)) mount(false, false, true);
+      else arm();
+    };
+    if (shift) {
+      window.addEventListener('scroll', onScrollMotion, { passive: true });
+      arm();
+    }
     onReady?.({ refresh });
     return () => {
+      if (shift) window.removeEventListener('scroll', onScrollMotion);
+      if (warmTimer !== undefined) window.clearTimeout(warmTimer);
       io?.disconnect();
       near = false;
       refresh();
       off();
       onReady?.(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- callbacks are owner-stable; selector changes remount
-  }, [targetSelector]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- callbacks are owner-stable; selector/variant changes remount
+  }, [targetSelector, variant]);
   return <div data-fw="morph-mount" hidden />;
 }

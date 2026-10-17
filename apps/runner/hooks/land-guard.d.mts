@@ -1,0 +1,10 @@
+export type Lock = { pid: number; token?: string; at?: string; branch?: string; pre?: string; dir?: string; unreadable?: true };
+export function coreBin(): string;
+export function askCore(op: string, req: Record<string, unknown>, bin?: string): Record<string, any> | null;
+export function lockFile(cwd: string): string;
+export function pidAlive(pid: number): boolean;
+export function readLock(file: string): Lock | null;
+export function lockFacts(file: string): { lock: Lock | null; held: boolean; alive: boolean };
+export function takeLock(file: string, info: { branch: string; pre: string; dir: string }): (Lock & { token: string }) | null;
+export function dropLock(file: string, token: string): boolean;
+export function guard(cwd: string, env?: Record<string, string | undefined>): { allow: boolean; message: string };

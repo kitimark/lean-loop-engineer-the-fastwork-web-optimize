@@ -31,6 +31,7 @@ export function App({ config }: { config: FwConfig }) {
   const [dialog, setDialog] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [panel, setPanel] = useState(false); // morph.mount: the panel's DOM insertion (once, never unmounted)
 
   useEffect(() => setHydrated(), []); // root effects run after hydration has committed
 
@@ -38,7 +39,8 @@ export function App({ config }: { config: FwConfig }) {
     <>
       <EngineScroll variant={config.variants['engine.scroll'] ?? 'faithful'} />
       <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
-      <MorphMount variant={config.variants['morph.mount'] ?? 'faithful'} />
+      <MorphMount variant={config.variants['morph.mount'] ?? 'faithful'} onMount={() => setPanel(true)} />
+      {panel && <div data-fw="morph-panel" aria-hidden style={{ position: 'fixed', inset: 0, visibility: 'hidden', pointerEvents: 'none' }} />}
       <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} />
       <AppBar position="sticky" data-fw="nav">
         <Toolbar>

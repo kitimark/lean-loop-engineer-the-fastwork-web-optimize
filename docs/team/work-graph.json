@@ -939,7 +939,10 @@
     "proof-hero-accent",
     "variant-hidden-pause",
     "variant-morph-mount-shift",
-    "variant-morph-panel-rest"
+    "variant-morph-panel-rest",
+    "why-core-lessons",
+    "why-engines",
+    "why-parts"
    ],
    "owner": "lead"
   },
@@ -1744,7 +1747,8 @@
    "milestone": "M6",
    "deps": [
     "math-r10-fix",
-    "math-pending-tool"
+    "math-pending-tool",
+    "math-r13-fix"
    ],
    "owner": "math-reviewer"
   },
@@ -2253,7 +2257,8 @@
    "writes": [
     "lean/Fw/Parts/HeroAccent.lean",
     "packages/contracts/golden/engine/hero-accent.jsonl"
-   ]
+   ],
+   "evidence": "49caf84"
   },
   {
    "id": "variant-hidden-pause",
@@ -2284,7 +2289,8 @@
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/morph.mount/**"
-   ]
+   ],
+   "evidence": "3aedff5"
   },
   {
    "id": "variant-morph-panel-rest",
@@ -2540,7 +2546,8 @@
     "apps/runner/src/plan.ts",
     "apps/runner/test/**",
     "docs/team/incidents/**"
-   ]
+   ],
+   "evidence": "67ae540"
   },
   {
    "id": "land-hardening",
@@ -2560,7 +2567,8 @@
     "packages/contracts/golden/console/**",
     ".gitattributes",
     "docs/team/tools/**"
-   ]
+   ],
+   "evidence": "0581ec6"
   },
   {
    "id": "math-pending-tool",
@@ -2572,6 +2580,72 @@
    "writes": [
     "scripts/math-pending.mjs",
     "scripts/test-math-pending.mjs"
+   ],
+   "evidence": "e38c4be"
+  },
+  {
+   "id": "math-r13-fix",
+   "title": "(M) fix the 72 disagree rows of math review r13 (research/notes/2026/10-18-math-review-r13-0cee322.md): docstring math must state the definition body / all hypotheses (PlatformEntries/Golden/Glint/Sweep/Marquee/Section, Morph*Opt/PainNotes/HeroExitOpt golden tables, Engine.WebKit/Chromium rows, Gate.pilotParts, Parts.Golden.tweenLines, Plan.Lint); Console.Land rows go to land-hardening",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "math-pending-tool"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/**",
+    "lean/Fw/Engine/Chromium.lean",
+    "lean/Fw/Engine/WebKit.lean",
+    "lean/Fw/Gate/Scope.lean",
+    "lean/Fw/Plan/Lint.lean"
+   ]
+  },
+  {
+   "id": "why-core-lessons",
+   "title": "(L) research/findings/ledger.json missingWhy for Fw.Engine.Core/Visual (incl. the frameWork style-pass overcount: passes = forced + [endDirty]) and a new Fw.Engine.Lessons proving the general lessons (compositor move is a trade never dominance; a shift never removes work; resident-only wins are invisible to pass counters; removing a stage subset of the dominant change saves no pass; pausing a compositor animation saves no main work; reader removal and batching closed form); re-check every dependent part proof",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Core.lean",
+    "lean/Fw/Engine/Visual.lean",
+    "lean/Fw/Engine/Lessons.lean",
+    "lean/Fw/Engine.lean",
+    "lean/Fw/Parts/**",
+    "research/findings/**"
+   ]
+  },
+  {
+   "id": "why-engines",
+   "title": "(M) research/findings/ledger.json missingWhy for Fw.Engine.Chromium and Fw.Engine.WebKit (16 statements), each citing engine source",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "math-r13-fix",
+    "why-core-lessons"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Chromium.lean",
+    "lean/Fw/Engine/WebKit.lean",
+    "research/findings/**"
+   ]
+  },
+  {
+   "id": "why-parts",
+   "title": "(L) research/findings/ledger.json missingWhy for the per-part modules (about 39 statements across Fw.Parts.*): why each candidate wins, trades, gives nothing or is worse",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "math-r13-fix",
+    "why-core-lessons"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/engine/**",
+    "research/findings/**"
    ]
   }
  ],

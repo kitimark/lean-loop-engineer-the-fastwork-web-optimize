@@ -1,2 +1,4 @@
-# lean/Fw.lean is only import lines; parallel proof branches each add one, so keep both sides
+# lean/Fw.lean is only import lines; parallel proof branches each add one at the end, so git would conflict on every
+# pair of them. Keep both sides. The union merge cannot tell a repeated line or an orphaned module, so
+# lean/scripts/check-imports.mjs (run by lean/scripts/check.sh) checks: no import twice, every module reachable.
 lean/Fw.lean merge=union

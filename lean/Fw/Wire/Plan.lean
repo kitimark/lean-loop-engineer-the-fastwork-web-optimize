@@ -1,5 +1,6 @@
 import Fw.Wire
 import Fw.Plan.Core
+import Fw.Plan.Incident
 /-!
 # JSON for the plan commands and the board plan
 
@@ -17,6 +18,13 @@ same flat event envelope as the other console commands (`key`, `ts`, `actor`, `t
 `eventOfJson` decodes these and hands every other type to `Fw.Wire.eventOfJson` (so the existing
 commands decode exactly as before). The board plan (`viewJson`) is the `plan` field of the stateful
 `console.query` board: `{tasks, milestones, criticalPath, parallelSafe}`.
+
+The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`), dispatched by
+`Fw.Wire.Serve.serveLine` through `handle`:
+
+| op | request | reply |
+|---|---|---|
+| `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
 -/
 namespace Fw.Wire.Plan
 open Lean Fw.Wire Fw.Plan
@@ -96,5 +104,56 @@ def viewJson (v : View) : Json := Json.mkObj [
 
 /-- A board JSON object with the `plan` field added. -/
 def withPlan (board : Json) (v : View) : Json := board.setObjVal! "plan" (viewJson v)
+
+/-! ## plan.incidentLint (task incident-lint) -/
+
+/-- An optional string field: missing or `null` is the empty string. -/
+def strE (j : Json) (k : String) : Except String String :=
+  match opt j k with
+  | none => .ok ""
+  | some v => asStr k v
+
+open Fw.Plan.Incident in
+/-- Decode one ledger record (fields the lint does not read are ignored; a `status` key, even `null`,
+sets `hasStatus`). A missing or `null` `fix` has no fix task and no `also` tasks. -/
+def incidentOfJson (j : Json) : Except String Incident := do
+  let ev ← (← (match opt j "evidence" with | none => pure #[] | some v => asArr "evidence" v)).toList.mapM
+    fun e => do pure ({ kind := ← strE e "kind", ref := ← strE e "ref" } : Ev)
+  let (fixTask, also) ← match opt j "fix" with
+    | none => pure (none, [])
+    | some f => do pure (← optStr f "task", ← strsD f "also")
+  pure { id := ← str j "id", cause := ← strE j "cause", evidence := ev, repro := ← optStr j "repro",
+         fixTask, also, regression := ← optStr j "regression",
+         hasStatus := (j.getObjVal? "status").toOption.isSome }
+
+/-- Decode a task row of `plan.incidentLint`: id, evidence and agent (string or null/missing). -/
+def incidentTaskOfJson (t : Json) : Except String Task := do
+  pure { id := ← str t "id", title := "", stream := "", milestone := none, deps := [], owner := "",
+         writes := [], devices := [], needs := [], evidence := ← optStr t "evidence",
+         agent := ← optStr t "agent" }
+
+open Fw.Plan.Incident in
+/-- `plan.incidentLint`: `Fw.Plan.Incident.lintAll` over the ledger records and the collected facts. -/
+def opIncidentLint (req : Json) : Except String Reply := do
+  let l ← (← arr req "incidents").toList.mapM incidentOfJson
+  let ts ← (← arr req "tasks").toList.mapM incidentTaskOfJson
+  let F : Facts := { tasks := ts, commits := ← strsD req "commits", files := ← strsD req "files" }
+  let rs := lintAll F l
+  let fs := rs.flatMap (·.findings)
+  pure [("ok", .bool (okAll F l)), ("errors", toJson (fs.filter (·.code.isError)).length),
+        ("warnings", toJson (fs.filter (!·.code.isError)).length),
+        ("incidents", .arr (rs.toArray.map fun r => Json.mkObj [
+          ("id", .str r.id), ("status", .str r.status.name),
+          ("findings", .arr (r.findings.toArray.map fun f => Json.mkObj [
+            ("code", .str f.code.name), ("severity", .str f.code.severity), ("detail", .str f.detail)]))]))]
+
+/-- The stateless ops of this module. -/
+def ops : List String := ["plan.incidentLint"]
+
+/-- Dispatch one of these ops (`none` when the op is not one of them). -/
+def handle (op : String) (req : Json) : Option (Except String Reply) :=
+  match op with
+  | "plan.incidentLint" => some (opIncidentLint req)
+  | _ => none
 
 end Fw.Wire.Plan
