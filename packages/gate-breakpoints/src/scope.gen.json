@@ -34,8 +34,10 @@
    "desk-rm-401",
    "desk-rm-461",
    "desk-rm-462",
+   "desk-rm-480",
    "desk-rm-481",
    "desk-rm-601",
+   "desk-rm-640",
    "desk-rm-641",
    "desk-rm-721",
    "desk-rm-860",
@@ -856,6 +858,57 @@
    "conditions":
    {"rewrite": ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-860", "mq.c860"],
     "orig": ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-860", "mq.c860"]}},
+  "pain.notes":
+  {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
+   "probes":
+   ["desk-319",
+    "desk-480",
+    "desk-640",
+    "desk-860",
+    "desk-861",
+    "desk-rm-319",
+    "desk-rm-480",
+    "desk-rm-640",
+    "desk-rm-860",
+    "desk-rm-861",
+    "desk-rm-960",
+    "touch-861",
+    "touch-1200",
+    "touch-1201",
+    "touch-rm-861",
+    "touch-rm-1000",
+    "dw-arm-isolate-1001-screen500",
+    "dw-arm-isolate-1001-screen501"],
+   "owners": ["pain.notes"],
+   "knees":
+   [{"px": 462, "expression": "pain note padding clamp 12 / 2.6vw / 20", "css": "(width<=462px)"},
+    {"px": 769, "expression": "pain note padding clamp 12 / 2.6vw / 20", "css": "(width<=769px)"},
+    {"px": 636, "expression": "pain note text clamp 14 / 2.2vw / 20", "css": "(width<=636px)"},
+    {"px": 909, "expression": "pain note text clamp 14 / 2.2vw / 20", "css": "(width<=909px)"}],
+   "key":
+   ["(prefers-reduced-motion: reduce)",
+    "(width<=860px)",
+    "(width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px)",
+    "(width<=462px)",
+    "(width<=769px)",
+    "(width<=636px)",
+    "(width<=909px)"],
+   "extra": [],
+   "dismissed":
+   [{"why":
+     "picks the placement of an ADDED note (jittered below a canvas width of 1100 px, scored from it; Fw.Parts.Pain.scored_iff). The tick needs the board visible and the gate loads at the top, so no note is ever added in a gated state; the rule is covered by Lean theorems and golden vectors. The edge 1099/1100 is not a matrix pair",
+     "id": "js.pain-container-1100"}],
+   "conditions":
+   {"rewrite": ["mq.rm-reduce", "mq.w-le-860", "mq.c860"], "orig": ["mq.rm-reduce", "mq.w-le-860", "mq.c860"]}},
+  "pain":
+  {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
+   "probes": ["desk-860", "desk-861", "desk-rm-319", "desk-rm-861"],
+   "owners": ["pain"],
+   "knees": [],
+   "key": ["(prefers-reduced-motion: reduce)", "(prefers-reduced-motion: no-preference)", "(width<=860px)"],
+   "extra": [],
+   "dismissed": [],
+   "conditions": {"rewrite": ["mq.rm-nopref", "mq.w-le-860"], "orig": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-860"]}},
   "overlays.signup":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes":

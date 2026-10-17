@@ -58,7 +58,7 @@ export function App({ config }: { config: FwConfig }) {
         </div>
 
         <People variants={config.variants} />
-        <Pain variant={config.variants['pain'] ?? 'shell'} />
+        <Pain variant={config.variants['pain'] ?? 'faithful'} notesVariant={config.variants['pain.notes'] ?? 'faithful'} />
         <Commission variant={config.variants['commission'] ?? 'faithful'} typingVariant={config.variants['commission.typing'] ?? 'faithful'} />
         <Platform variant={config.variants['platform'] ?? 'shell'} />
         <MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} />

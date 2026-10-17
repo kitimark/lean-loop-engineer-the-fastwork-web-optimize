@@ -1,0 +1,13 @@
+{
+  "id": "pain.notes",
+  "slot": "pain",
+  "anchors": ["pain-notes"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:4411-4748; assets/2.gBuqKVzi.css:2239-2298,2344-2356,1167-1172", "delta": "seeded mulberry32 stream and draw-without-replacement shuffle instead of Math.random (PLAN 4.3)" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}
