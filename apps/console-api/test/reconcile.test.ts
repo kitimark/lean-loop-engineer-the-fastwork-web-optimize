@@ -18,6 +18,7 @@ async function setup() {
   await send({ type: "card.approve", key: "a", actor: "lead", card: "A" });
   return { fx, store, rec, send };
 }
+const card = async (store: Store, id = "A") => (await store.board()).cards.find((c) => c.id === id);
 const ready = async (send: (c: object) => Promise<unknown>, sha: string) => {
   await send({ type: "card.screen", key: `s${sha}`, actor: "script", card: "A", sha, pass: true });
   await send({ type: "card.review", key: `r${sha}`, actor: "reviewer", card: "A", sha, signedBy: "rev", accept: true });
@@ -40,12 +41,13 @@ describe("git reconciler", () => {
     fx.commit(wt, "a.txt");
     const sha = fx.commit(wt, "b.txt");
     expect(await rec.reconcile()).toMatchObject({ submitted: 2, refused: 0 });
-    expect(store.state.cards[0]).toMatchObject({ head: sha, builders: ["builder1", "builder1"] });
+    expect(await card(store)).toMatchObject({ head: sha });
+    expect(store.readEvents().filter((e) => e.type === "card.build").map((e) => (e as { agent?: string }).agent)).toEqual(["builder1", "builder1"]);
     await ready(send, sha);
     await send({ type: "card.land_request", key: "lr", actor: "lead", card: "A", sha });
     fx.git(fx.root, "merge", "--ff-only", "card/A/builder1");
     expect(await rec.reconcile()).toMatchObject({ submitted: 1 });
-    expect(store.state.cards[0]).toMatchObject({ landed: true, violation: false });
+    expect(await card(store)).toMatchObject({ landed: true, violation: false });
     expect(store.readEvents().filter((e) => e.type === "card.landed")).toMatchObject([{ actor: "git", sha }]);
   });
 
@@ -56,7 +58,7 @@ describe("git reconciler", () => {
     await ready(send, sha);
     fx.git(fx.root, "merge", "--ff-only", "card/A"); // bypasses fw land
     await rec.reconcile();
-    expect(store.state.cards[0]).toMatchObject({ landed: true, violation: true });
+    expect(await card(store)).toMatchObject({ landed: true, violation: true });
   });
 
   it("a replayed fact is a duplicate, not a second event", async () => {
@@ -76,7 +78,7 @@ describe("git reconciler", () => {
     expect(await rec.reconcile()).toMatchObject({ submitted: 0 });
     await send({ type: "card.open", key: "ob", actor: "owner", card: "B", owner: "o", needsDevice: false });
     expect(await rec.reconcile()).toMatchObject({ submitted: 1 });
-    expect(store.state.cards.find((c) => c.id === "B")?.head).not.toBeNull();
+    expect((await card(store, "B"))?.head).not.toBeNull();
   });
 
   it("a land request on a stale sha is refused by the reducer", async () => {

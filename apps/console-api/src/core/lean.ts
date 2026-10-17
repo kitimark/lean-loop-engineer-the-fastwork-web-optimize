@@ -16,7 +16,7 @@ import { ApplyResponse, Board, Card, Outcome, Run, Step, type ReducerEvent, type
 import type { Core } from "./index.ts";
 
 export type LeanBin = { path: string };
-export type Incident = { at: number; kind: "exit" | "stderr" | "bad-line" | "replay"; detail: string };
+export type Incident = { at: number; kind: "exit" | "stderr" | "bad-line" | "replay" | "timeout"; detail: string };
 
 export const BUILD_HINT = "cd lean && lake build";
 
@@ -53,7 +53,11 @@ export function logLines(path: string): string[] {
   return readFileSync(path, "utf8").split("\n").filter((l) => l.length > 0);
 }
 
-type Pending = { ok: (v: Record<string, unknown>) => void; err: (e: Error) => void };
+type Pending = { ok: (v: Record<string, unknown>) => void; err: (e: Error) => void; timer: NodeJS.Timeout };
+
+/** Per-call deadline (ms). A call that exceeds it kills the child (crash-restart with replay). Replay chunks get more. */
+export const CALL_TIMEOUT_MS = 10_000;
+export const REPLAY_TIMEOUT_MS = 120_000;
 
 export class LeanCore implements Core {
   readonly name = "lean" as const;
@@ -71,10 +75,13 @@ export class LeanCore implements Core {
 
   private bin: LeanBin;
   private onIncident: (i: Incident) => void;
+  private callTimeoutMs: number;
 
-  constructor(bin: LeanBin, onIncident: (i: Incident) => void = (i) => console.error("fwcore incident:", JSON.stringify(i))) {
+  constructor(bin: LeanBin, onIncident: (i: Incident) => void = (i) => console.error("fwcore incident:", JSON.stringify(i)),
+    callTimeoutMs = CALL_TIMEOUT_MS) {
     this.bin = bin;
     this.onIncident = onIncident;
+    this.callTimeoutMs = callTimeoutMs;
   }
 
   private incident(kind: Incident["kind"], detail: string) { this.onIncident({ at: Date.now(), kind, detail }); }
@@ -92,10 +99,17 @@ export class LeanCore implements Core {
     createInterface({ input: child.stdout }).on("line", (line) => {
       if (this.child !== child) return; // a dead or poisoned child: its late lines answer nobody
       let msg: { id?: unknown; error?: string };
-      try { msg = JSON.parse(line); } catch { this.incident("bad-line", line.slice(0, 200)); return; }
+      // An unparsable line or a reply that answers no pending call means the stream is out of step with our
+      // requests: the child's answers can no longer be trusted, so kill it (the restart replays the log).
+      try { msg = JSON.parse(line); } catch { this.incident("bad-line", line.slice(0, 200)); this.poison(child, "unparsable reply line"); return; }
       const p = typeof msg.id === "number" ? this.pending.get(msg.id) : undefined;
-      if (!p) { this.incident("bad-line", `reply without a pending call: ${line.slice(0, 200)}`); return; }
+      if (!p) {
+        this.incident("bad-line", `reply without a pending call: ${line.slice(0, 200)}`);
+        this.poison(child, "reply id mismatch");
+        return;
+      }
       this.pending.delete(msg.id as number);
+      clearTimeout(p.timer);
       if (msg.error !== undefined) p.err(new Error(`fwcore: ${msg.error}`));
       else p.ok(msg as Record<string, unknown>);
     });
@@ -115,7 +129,7 @@ export class LeanCore implements Core {
     this.replays++;
     const parts: Promise<Record<string, unknown>>[] = [];
     for (let i = 0; i < lines.length; i += REPLAY_CHUNK) {
-      parts.push(this.send(child, `"op":"console.replay","events":[${lines.slice(i, i + REPLAY_CHUNK).join(",")}]`));
+      parts.push(this.send(child, `"op":"console.replay","events":[${lines.slice(i, i + REPLAY_CHUNK).join(",")}]`, REPLAY_TIMEOUT_MS));
     }
     this.replayDone = Promise.all(parts).then(
       (rs) => {
@@ -143,17 +157,22 @@ export class LeanCore implements Core {
     this.restarts++;
     this.incident("exit", detail);
     const err = new Error(`fwcore crashed (${detail}); it restarts on the next call`);
-    for (const p of this.pending.values()) p.err(err);
+    for (const p of this.pending.values()) { clearTimeout(p.timer); p.err(err); }
     this.pending.clear();
     this.exitedOf.delete(child);
     ex.done(); // after incident, restart count and rejections
   }
 
   /** Write one request (its fields as a JSON fragment) to `child`; resolves with the reply. */
-  private send(child: ChildProcessWithoutNullStreams, fields: string): Promise<Record<string, unknown>> {
+  private send(child: ChildProcessWithoutNullStreams, fields: string, timeoutMs = this.callTimeoutMs): Promise<Record<string, unknown>> {
     return new Promise((ok, err) => {
       const id = this.nextId++;
-      this.pending.set(id, { ok, err });
+      const timer = setTimeout(() => {
+        this.incident("timeout", `call ${id} unanswered after ${timeoutMs} ms`);
+        this.poison(child, `call ${id} timed out after ${timeoutMs} ms`);
+      }, timeoutMs);
+      timer.unref();
+      this.pending.set(id, { ok, err, timer });
       child.stdin.write(`{"id":${id},${fields}}\n`, (e) => { if (e) child.kill("SIGKILL"); });
     });
   }
@@ -201,11 +220,17 @@ export class LeanCore implements Core {
     return Board.parse((await this.call("console.board", { state, now, seq })).board);
   }
 
+  /** any other op (`ops.*`, stateless `console.*`): fields in, reply fields out */
+  ops(op: string, fields: Record<string, unknown> = {}) { return this.call(op, fields); }
+
   /** raw op, for the samples test */
   raw(op: string, fields: Record<string, unknown> = {}) { return this.call(op, fields); }
 
   /** test hook: freeze the child (SIGSTOP) so a call written next cannot be answered before killForTest() */
   stopForTest() { this.child?.kill("SIGSTOP"); }
+
+  /** test hook: change the per-call deadline */
+  callTimeoutForTest(ms: number) { this.callTimeoutMs = ms; }
 
   /** test hook: kill the child as a crash would; resolves once the crash is fully handled (incident logged,
    *  restarts counted, in-flight calls rejected). */
@@ -222,7 +247,7 @@ export class LeanCore implements Core {
     const c = this.child;
     this.child = null;
     c?.kill();
-    for (const p of this.pending.values()) p.err(new Error("fwcore: core closed"));
+    for (const p of this.pending.values()) { clearTimeout(p.timer); p.err(new Error("fwcore: core closed")); }
     this.pending.clear();
   }
 }

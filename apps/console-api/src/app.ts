@@ -7,6 +7,7 @@ import type { Store } from "./store.ts";
 import { mountReconcile } from "./reconcile/routes.ts";
 import type { Reconciler } from "./reconcile/reconciler.ts";
 import { mountAgentRoutes } from "./cap/routes.ts";
+import { mountOps } from "./ops/routes.ts";
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
@@ -29,6 +30,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
     return c.json(reply, reply.ok ? 200 : 422);
   });
 
+  mountOps(app, store);
   if (reconciler) mountReconcile(app, store, reconciler);
   const { drain } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
   app.get("/api/board", async (c) => c.json(await store.board()));

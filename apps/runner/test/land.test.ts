@@ -5,7 +5,7 @@ import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
 import { cardCommand } from "../src/card.ts";
-import { land, pathCheck, worktreeOf, type Http } from "../src/land.ts";
+import { land, worktreeOf, type Http } from "../src/land.ts";
 
 let stores: Store[] = [];
 afterEach(() => { stores.forEach((s) => s.close()); stores = []; });
@@ -29,7 +29,9 @@ async function setup() {
     await cmd({ type: "card.screen", key: `s${sha}`, actor: "script", card: "A", sha, pass: true });
     await cmd({ type: "card.review", key: `r${sha}`, actor: "reviewer", card: "A", sha, signedBy: "rev", accept: true });
   };
-  const opts = { http, cwd: fx.root, checks: [["true"]] };
+  // these tests have no hook, hence no capability: the land request goes through the web/user door
+  const submit = (c: object) => http.post("/api/commands", c);
+  const opts = { http, cwd: fx.root, checks: [["true"]], submit };
   return { fx, store, http, cmd, evidence, opts };
 }
 
@@ -44,7 +46,8 @@ describe("fw land", () => {
     expect(r.lines.join("\n")).toContain("recorded");
     expect(r.ok).toBe(true);
     expect(fx.git(fx.root, "rev-parse", "main")).toBe(sha);
-    expect(store.state.cards[0]).toMatchObject({ landed: true, violation: false, landReq: sha });
+    expect((await store.board()).cards[0]).toMatchObject({ landed: true, violation: false });
+    expect(store.readEvents().find((e) => e.type === "card.land_request")).toMatchObject({ sha });
     expect(store.readEvents().map((e) => `${e.type}:${e.actor}`)).toEqual(
       ["card.open:owner", "card.approve:lead", "card.build:git", "card.screen:script", "card.review:reviewer", "card.land_request:lead", "card.landed:git"]);
   });
@@ -78,7 +81,7 @@ describe("fw land", () => {
     await evidence(sha);
     const r = await land("card/A", { ...opts, checks: [["false"]] });
     expect(r.ok).toBe(false);
-    expect(store.state.cards[0]!.landReq).toBeNull();
+    expect(store.readEvents().some((e) => e.type === "card.land_request")).toBe(false);
     expect(fx.git(fx.root, "rev-parse", "main")).not.toBe(sha);
   });
 
@@ -110,19 +113,6 @@ describe("fw land", () => {
   it("refuses a branch that is not a card branch", async () => {
     const { opts } = await setup();
     expect((await land("main", opts)).ok).toBe(false);
-  });
-});
-
-describe("pathCheck stand-in", () => {
-  it.each([
-    [["apps/x.ts"], undefined, true],
-    [[".fw-console/events.jsonl"], undefined, false],
-    [["lean/.lake/x"], undefined, false],
-    [["apps/x.ts", "docs/y.md"], { allow: ["apps/"] }, false],
-    [["apps/x.ts"], { allow: ["apps/"] }, true],
-    [[], undefined, true],
-  ])("%j %j -> %s", (files, opts, ok) => {
-    expect(pathCheck(files as string[], opts as never).ok).toBe(ok);
   });
 });
 

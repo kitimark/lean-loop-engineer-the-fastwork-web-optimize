@@ -41,18 +41,20 @@ export class Reconciler {
     const s: ReconcileStats = { submitted: 0, duplicate: 0, refused: 0, skipped: 0 };
     const refs = branches(this.repo);
     if (!refs.some((r) => r.ref === this.mainRef)) return s;
+    // card facts come from the Lean board projection (console.query); there is no TS copy of the state
+    const open = new Map((await this.store.board()).cards.map((c) => [c.id, c.owner]));
     // 1. new commits on card branches -> card.build (oldest first, so the last one is the head)
     for (const r of refs) {
       const bc = branchCard(r.ref);
       if (!bc) continue;
-      const card = this.store.state.cards.find((c) => c.id === bc.card);
-      if (!card) continue; // glue: card not opened yet; retried on the next pass (not memoized)
+      const owner = open.get(bc.card);
+      if (owner === undefined) continue; // glue: card not opened yet; retried on the next pass (not memoized)
       for (const sha of commitsAhead(this.repo, this.mainRef, r.ref)) {
-        await this.send({ type: "card.build", key: `build:${r.ref}:${sha}`, actor: "git", card: bc.card, sha, agent: bc.agent ?? card.owner }, s);
+        await this.send({ type: "card.build", key: `build:${r.ref}:${sha}`, actor: "git", card: bc.card, sha, agent: bc.agent ?? owner }, s);
       }
     }
     // 2. main advanced over a card's head -> card.landed (the reducer marks a violation if no request preceded it)
-    for (const c of this.store.state.cards) {
+    for (const c of (await this.store.board()).cards) { // re-read: step 1 moved heads
       if (c.landed || !c.head || !isAncestor(this.repo, c.head, this.mainRef)) continue;
       await this.send({ type: "card.landed", key: `landed:${this.mainRef}:${c.head}`, actor: "git", card: c.id, sha: c.head }, s);
     }

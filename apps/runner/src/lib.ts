@@ -67,8 +67,11 @@ export function apiBase(env: Record<string, string | undefined>, cwd = process.c
   }
 }
 
-export async function send(base: string, cmd: Command): Promise<{ status: number; body: { ok: boolean; reason?: string; seq?: number | null; duplicate?: boolean } }> {
-  const r = await fetch(`${base}/api/commands`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cmd) });
+/** Agents' only door: `/api/agent/commands` with the argv `fw` was started with. console-api accepts it only with a
+ *  capability the PreToolUse hook (hooks/cap.mjs) wrote for exactly this command, and stamps the actor itself.
+ *  (`/api/commands`, which trusts the actor in the body, is for the web UI only.) */
+export async function send(base: string, cmd: Command, argv: string[]): Promise<{ status: number; body: { ok: boolean; reason?: string; seq?: number | null; duplicate?: boolean } }> {
+  const r = await fetch(`${base}/api/agent/commands`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ argv, command: cmd }) });
   return { status: r.status, body: (await r.json()) as never };
 }
 

@@ -1,3 +1,6 @@
+import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { selectCore } from "../src/core/index.ts";
 import { leanBinary, type Incident } from "../src/core/lean.ts";
@@ -59,5 +62,48 @@ describe("fwcore failure handling", () => {
     expect((await core.apply(approve)).outcome).toEqual({ accepted: true, duplicate: false }); // not logged
     core.restart();
     expect((await core.board(10, 1)).cards[0]).toMatchObject({ id: "A", stage: "question" }); // the approve is gone
+  });
+
+  // a fake fwcore: answers every request line with `reply(id)`, or never when reply is "null"
+  const fake = (reply: string) => {
+    const f = join(mkdtempSync(join(tmpdir(), "fw-fake-")), "fwcore");
+    writeFileSync(f, `#!/usr/bin/env node
+require("readline").createInterface({ input: process.stdin }).on("line", (l) => {
+  const id = JSON.parse(l).id; const r = (${reply})(id); if (r !== null) console.log(JSON.stringify(r));
+});
+`);
+    chmodSync(f, 0o755);
+    return { ...process.env, FW_CORE_BIN: f };
+  };
+  it("a reply whose id matches no pending call kills the child; the call fails and the next call restarts", async () => {
+    const incidents: Incident[] = [];
+    core = selectCore(fake("(id) => ({ id: id + 1000, outcome: null })"), undefined, (i) => incidents.push(i));
+    await core.open(() => []);
+    await expect(core.apply(open)).rejects.toThrow(/fwcore crashed \(reply id mismatch\)/);
+    expect(core.restarts).toBe(1);
+    expect(incidents.map((i) => i.kind)).toContain("bad-line");
+    await expect(core.apply(open)).rejects.toThrow(/reply id mismatch/); // fresh child, same fake: dies the same way
+    expect(core.restarts).toBe(2);
+  });
+  it("a call unanswered past the deadline kills the child and fails with a crash error", async () => {
+    const incidents: Incident[] = [];
+    core = selectCore(fake("() => null"), undefined, (i) => incidents.push(i), 150);
+    await core.open(() => []);
+    const t0 = Date.now();
+    await expect(core.apply(open)).rejects.toThrow(/timed out after 150 ms/);
+    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(core.restarts).toBe(1);
+    expect(incidents.map((i) => i.kind)).toContain("timeout");
+  });
+  it("a timed-out real core restarts with replay and answers the next call", async () => {
+    const log = [JSON.stringify({ ...open, seq: 1 })];
+    core = selectCore(process.env, undefined, () => undefined, 5_000);
+    await core.open(() => log);
+    core.stopForTest(); // frozen child never answers
+    core.callTimeoutForTest(100);
+    await expect(core.board(10, 1)).rejects.toThrow(/timed out/);
+    core.callTimeoutForTest(5_000);
+    expect((await core.board(10, 1)).cards[0]).toMatchObject({ id: "A" });
+    expect(core.replays).toBe(2);
   });
 });
