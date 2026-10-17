@@ -1,4 +1,5 @@
 import Fw.Serve
+import Fw.Plan.Workflow
 /-!
 # Golden vectors of the plan commands (`task.*`, `milestone.define`, the board plan)
 
@@ -18,6 +19,9 @@ cd lean && lake test                          # fail if a file is stale or a cas
   `task.define` in dependency order, then a query). Written from the JSON at generation time; the
   check replays the stored requests and compares the stored replies, so a later edit of the work
   graph does not make it stale (regenerate to refresh it).
+* `workflow.jsonl`: `Fw.Plan.wfEvents` vectors, one per line `{name, ids, scripts, runs, events}`: the
+  agent events of workflow runs from the file names of the session's `workflows/` dir (task
+  `workflow-claim`). Checked byte for byte.
 * `sync.jsonl`: `Fw.Plan.syncFrom` vectors, one per line `{name, main, refs, last, from}`, for the
   reconciler's plan sync (which commit to read the work graph from). Checked byte for byte.
 
@@ -224,6 +228,31 @@ def syncLine (c : String × String × List (String × String) × Option String) 
 /-- The text of `sync.jsonl`. -/
 def syncText : String := String.join (syncCases.map fun c => syncLine c ++ "\n")
 
+/-- The workflow vectors (`Fw.Plan.wfEvents`): name, task ids, script file names, run file names. -/
+def wfCases : List (String × List String × List String × List String) := [
+  ("a running workflow named like a task spawns it", ["mistake-retro", "x"],
+    ["mistake-retro-wf_b3d4e643-ace.js"], []),
+  ("its run file adds the stop", ["mistake-retro"],
+    ["mistake-retro-wf_b3d4e643-ace.js"], ["wf_b3d4e643-ace.json"]),
+  ("a name that is no task id gives nothing", ["x"],
+    ["agent-bottlenecks-wf_05e58d40-de0.js", "x-y-wf_05e58d40-de0.js"], []),
+  ("hyphens in the name; two runs; the run file of another run stops only that one", ["wave-next-builders", "a"],
+    ["wave-next-builders-wf_eaf1cd1e-ed1.js", "a-wf_c2b8a932-977.js"], ["wf_c2b8a932-977.json"]),
+  ("the same script twice is one run", ["a"], ["a-wf_c2b8a932-977.js", "a-wf_c2b8a932-977.js"], []),
+  ("malformed file names are ignored", ["a"],
+    ["a-wf_c2b8a932-977.json", "-wf_c2b8a932-977.js", "a-wf_C2b8a932-977.js", "a-wf_c2b8a932-97.js", "a.js", "a-wf_c2b8a932-977.js.bak"],
+    ["wf_c2b8a932-977.js", "wf_zz.json", "notes.json"])]
+
+/-- One workflow line: `{name, ids, scripts, runs, events: [{key, type, agent}]}`. -/
+def wfLine (c : String × List String × List String × List String) : String :=
+  let (n, ids, ss, rs) := c
+  (Json.mkObj [("name", .str n), ("ids", strsJson ids), ("scripts", strsJson ss), ("runs", strsJson rs),
+    ("events", .arr ((Fw.Plan.wfEvents ids ss rs).toArray.map fun (k, t, a) =>
+      Json.mkObj [("key", .str k), ("type", .str t), ("agent", .str a)]))]).compress
+
+/-- The text of `workflow.jsonl`. -/
+def wfText : String := String.join (wfCases.map fun c => wfLine c ++ "\n")
+
 /-- Run requests through `serveLine` from a fresh server; the reply lines. -/
 def replies (reqs : List Json) : List String :=
   (reqs.foldl (fun (v, out) r => let (v', o) := Fw.Wire.Serve.serveLine v r.compress; (v', out ++ [o]))
@@ -310,6 +339,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     IO.FS.createDirAll d
     IO.FS.writeFile sp serveText
     IO.FS.writeFile yp syncText
+    IO.FS.writeFile (d / "workflow.jsonl") wfText
     let wg ← IO.FS.readFile (root / ".." / "docs" / "team" / "work-graph.json")
     match Json.parse wg with
     | .error e => throw (IO.userError s!"plan golden: work-graph.json: {e}")
@@ -324,6 +354,10 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let ycur ← try IO.FS.readFile yp catch _ => pure ""
   if ycur != syncText then
     IO.println s!"plan golden: {yp} is stale (regenerate: cd lean && lake test -- --write-plan-golden)"
+    bad := bad + 1
+  let wcur ← try IO.FS.readFile (d / "workflow.jsonl") catch _ => pure ""
+  if wcur != wfText then
+    IO.println s!"plan golden: {d / "workflow.jsonl"} is stale (regenerate: cd lean && lake test -- --write-plan-golden)"
     bad := bad + 1
   bad := bad + (← replayFile sp) + (← replayFile wp)
   IO.println s!"plan golden: {cases.length} cases + work graph, {bad} failing"

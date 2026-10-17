@@ -357,6 +357,35 @@
     "task": "spawn-enforce"
    },
    "regression": "apps/runner/test/spawn-guard.test.ts 'refused with its reason: worktree role without isolation (I-272 trap)' and Lean trap_exact"
+  },
+  {
+   "id": "inc-workflow-unbound",
+   "at": "2026-10-18T04:40+07:00",
+   "title": "A task worked on by a Workflow run showed in the ready lane",
+   "symptom": "Task mistake-retro ran as Workflow run wf_b3d4e643-ace (meta.name = the task id) but the board kept it in ready, unbound; the lead claimed it by hand (task.claim with agent=wf_b3d4e643-ace, event seq 577).",
+   "cause": "CONFIRMED (code read, lean/Fw/Plan/Core.lean agentOf/cands, docs/team/tools/spawn-guard.md): the board binds an agent to a task only from agent.spawn / agent.stop of named Agent spawns. A Workflow run and its unnamed subagents never emit one (PreToolUse(Agent) does not fire for workflow agents), so nothing bound the task.",
+   "evidence": [
+    {
+     "kind": "event",
+     "ref": "577",
+     "note": "the hand claim: task.claim mistake-retro by agent wf_b3d4e643-ace (run id wf_b3d4e643-ace)"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Plan/Workflow.lean",
+     "note": "workflow_binds, workflow_ends, workflow_foreign_agentOf, define_workflow_comm"
+    },
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-transcript-signals.md",
+     "note": "run start = workflows/scripts/<meta.name>-<runId>.js, run end = workflows/<runId>.json"
+    }
+   ],
+   "repro": "Start a Workflow whose meta.name equals a ready task id: the task stays in ready while the run is alive.",
+   "fix": {
+    "task": "workflow-claim"
+   },
+   "regression": "packages/contracts/golden/plan/workflow.jsonl (Lean Fw.Plan.wfEvents) checked by apps/console-api/test/workflow-claim.test.ts, plus the Lean theorems workflow_binds and define_workflow_comm"
   }
  ]
 }

@@ -76,9 +76,11 @@ import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
 import Fw.Wire.Gate
+import Fw.Wire.GateDeclared
 import Fw.Engine
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
+import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
