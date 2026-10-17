@@ -883,7 +883,8 @@
     "apps/runner/hooks/cap.mjs",
     "apps/runner/hooks/lib.mjs",
     "apps/console-api/src/cap/**"
-   ]
+   ],
+   "evidence": "dec2d82"
   },
   {
    "id": "spawn-guard-workflows",
@@ -910,6 +911,22 @@
    "writes": [
     "apps/runner/hooks/emit.mjs",
     "research/notes/2026/10-17-spk-drafts/spk-p.md"
+   ]
+  },
+  {
+   "id": "alert-steps",
+   "title": "Console alert steps from Notification hooks: say which agent, which kind (permission prompt vs needs input) and which tool; close the alert by itself when that agent's next tool call or answer arrives (rule in Lean)",
+   "stream": "console",
+   "milestone": "M0",
+   "deps": [
+    "cap-actor-fix",
+    "con-plan"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/hooks/emit.mjs",
+    "apps/console-api/src/spool/**",
+    "lean/Fw/Console/**"
    ]
   }
  ]
