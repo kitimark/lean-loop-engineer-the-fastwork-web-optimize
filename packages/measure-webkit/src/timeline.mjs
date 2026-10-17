@@ -9,7 +9,7 @@ import { sleep } from './sim.mjs';
 import { flattenRecords } from './reduce.mjs';
 
 /** Start recording on a connected tab. `stop()` returns the raw rows (reduce.mjs schema `fw.webkit.records/1`). */
-export async function startTimeline(c) {
+export async function startTimeline(c, { instruments = ['Timeline'], depth = 1, autoCapture = null } = {}) {
   const protocolRecords = [];
   let stopped = false;
   const off = c.on((m) => {
@@ -18,9 +18,12 @@ export async function startTimeline(c) {
   });
   await c.enable('Page');
   await c.enable('Timeline');
-  await c.send('Timeline.setInstruments', { instruments: ['Timeline'] });
-  await c.send('Timeline.start', { maxCallStackDepth: 1 });
+  if (instruments) await c.send('Timeline.setInstruments', { instruments });
+  if (autoCapture !== null) await c.send('Timeline.setAutoCaptureEnabled', { enabled: autoCapture });
+  await c.send('Timeline.start', depth ? { maxCallStackDepth: depth } : {});
   return {
+    /** the top-level protocol records received so far, in arrival order (live view for step-locking) */
+    top: protocolRecords,
     async stop() {
       await c.send('Timeline.stop');
       for (let i = 0; i < 100 && !stopped; i++) await sleep(50);

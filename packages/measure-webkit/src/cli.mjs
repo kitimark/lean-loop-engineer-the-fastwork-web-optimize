@@ -15,6 +15,9 @@ import { loadFresh, pageInfo } from './page.mjs';
 import { censusAt } from './census.mjs';
 import { scrollRun } from './scrollrun.mjs';
 import { seekExperiment } from './seek.mjs';
+import { probe } from './rfprobe.mjs';
+import { screenAndTicks } from './handoff.mjs';
+import { warmUpLoad, perStepPasses, classifyModes, perStepTable } from './perstep.mjs';
 import { onePass, classifyPasses, markdownTable, resolveStates } from './determinism.mjs';
 import { COUNT_TYPES, zones, summarize } from './reduce.mjs';
 
@@ -33,11 +36,17 @@ const OPTS = {
   ns: { type: 'string', default: '0,10,50,100' },
   runs: { type: 'string', default: '2' },
   out: { type: 'string' },
-  keep: { type: 'boolean', default: false },
+  keep: { type: 'boolean', default: true }, // the Simulator stays booted between commands; --no-keep or `sim down` shuts it down
   vendors: { type: 'string', default: 'off' },
-  'no-seek': { type: 'boolean', default: false },
+  seek: { type: 'boolean', default: true }, // --no-seek skips the seek fixture
+  modes: { type: 'string', default: 'base,lock,hold,lock+hold' },
+  site: { type: 'string' },
+  search: { type: 'string', default: '' },
+  mode: { type: 'string', default: 'base' },
+  warmup: { type: 'string', default: '1' },
+  cols: { type: 'string' }, // handoff: comma list of count types forming the vector (default all 12)
 };
-const { values: v, positionals } = parseArgs({ args: rest, options: OPTS, allowPositionals: true });
+const { values: v, positionals } = parseArgs({ args: rest, options: OPTS, allowPositionals: true, allowNegative: true });
 const num = (s) => Number(s);
 const log = (s) => console.error(s);
 
@@ -48,7 +57,7 @@ function save(name, data) {
   log(`wrote ${file}`);
   return file;
 }
-const sessionOpts = { keep: v.keep, vendors: v.vendors };
+const sessionOpts = { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null };
 if (!['pinned', 'live'].includes(v.clock)) throw new Error('--clock is pinned or live');
 
 async function main() {
@@ -100,15 +109,53 @@ async function main() {
       const states = v.state === '0' ? '0,1500,3000,4500,max' : v.state;
       const passes = await withSession(async (ctx) => {
         const ps = [];
+        for (let w = 0; w < num(v.warmup); w++) await warmUpLoad(ctx, { clock: v.clock, settleMs: num(v.settle), step: num(v.step), framesPerStep: num(v.frames), log, w, warmup: num(v.warmup) });
         for (let i = 0; i < runs; i++) {
           log(`pass ${i + 1}/${runs}`);
-          ps.push(await onePass(ctx, { states, clock: v.clock, settleMs: num(v.settle), holdMs: num(v.hold), paintWindowMs: num(v.window), step: num(v.step), framesPerStep: num(v.frames), seek: !v['no-seek'], seekNs: v.ns.split(',').map(num), log }));
+          ps.push(await onePass(ctx, { states, clock: v.clock, settleMs: num(v.settle), holdMs: num(v.hold), paintWindowMs: num(v.window), step: num(v.step), framesPerStep: num(v.frames), mode: v.mode, seek: v.seek, seekNs: v.ns.split(',').map(num), log }));
         }
         return ps;
       }, sessionOpts);
       const rows = classifyPasses(passes);
       save('determinism', { runs, clock: v.clock, states, rows, summary: summarize(rows), passes });
       console.log(markdownTable(rows));
+      break;
+    }
+    case 'perstep': {
+      // per-step determinism experiment: every mode, R passes, from fresh loads; raw saved, then the class table
+      const modes = v.modes.split(',');
+      const entries = await withSession((ctx) => perStepPasses(ctx, { modes, runs: num(v.runs), clock: v.clock, settleMs: num(v.settle), step: num(v.step), framesPerStep: num(v.frames), warmup: num(v.warmup), log }), sessionOpts);
+      save('perstep', { modes, runs: num(v.runs), clock: v.clock, site: v.site ? { search: v.search } : null, entries });
+      console.log(perStepTable(classifyModes(entries)));
+      break;
+    }
+    case 'perstep-report': {
+      // classes over the passes of several perstep files (independent sessions); entries of the same mode are pooled
+      const entries = positionals.flatMap((f) => JSON.parse(readFileSync(resolve(f), 'utf8')).entries);
+      console.log(perStepTable(classifyModes(entries)));
+      break;
+    }
+    case 'rfprobe': {
+      const res = await withSession(async (ctx) => {
+        await loadFresh(ctx.c, { clock: v.clock, settleMs: num(v.settle) });
+        return probe(ctx.c, { log });
+      }, sessionOpts);
+      save('rfprobe', res);
+      break;
+    }
+    case 'handoff': {
+      // handoff <base.json> <var.json>...: fwcore `screen` (var vs base, per step) and `ticks` (hz 60) on `determinism` outputs
+      const [baseFile, ...varFiles] = positionals;
+      // a `determinism` file (passes) or a `perstep` file (entries of --mode)
+      const scrolls = (f) => { const d = JSON.parse(readFileSync(resolve(f), 'utf8')); return d.passes ? d.passes.map((p) => p.scroll) : d.entries.filter((e) => e.mode === v.mode).map((e) => e.scroll); };
+      const base = scrolls(baseFile);
+      const out = { base: baseFile, mode: v.mode, cols: v.cols ?? 'all', countTypes: COUNT_TYPES, vars: [] };
+      for (const f of varFiles) {
+        const r = await screenAndTicks(base, scrolls(f), v.cols ? v.cols.split(',') : null);
+        out.vars.push({ file: f, ...r });
+        console.log(`${f}: ${JSON.stringify(r.tally)}`);
+      }
+      save('handoff', out);
       break;
     }
     case 'merge': {

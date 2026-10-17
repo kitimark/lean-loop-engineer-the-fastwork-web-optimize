@@ -12,6 +12,10 @@
     "determinism": "node src/cli.mjs determinism",
     "sim": "node src/cli.mjs sim",
     "merge": "node src/cli.mjs merge",
+    "perstep": "node src/cli.mjs perstep",
+    "perstep-report": "node src/cli.mjs perstep-report",
+    "rfprobe": "node src/cli.mjs rfprobe",
+    "handoff": "node src/cli.mjs handoff",
     "test": "node --test \"test/*.test.mjs\""
   }
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { quadArea, flattenRecords, tally, markTimes, markTime, bucketBySteps, reduceSteps, zones, classify, symDiff, TOL, COUNT_TYPES, layerKey } from '../src/reduce.mjs';
+import { quadArea, flattenRecords, tally, markTimes, markTime, bucketBySteps, reduceSteps, zones, classify, symDiff, TOL, COUNT_TYPES, layerKey, compositeCuts, reduceWindows } from '../src/reduce.mjs';
 
 test('quadArea of a rectangle and of nothing', () => {
   assert.equal(quadArea([0, 0, 10, 0, 10, 5, 0, 5]), 50);
@@ -76,4 +76,31 @@ test('symDiff is a multiset symmetric difference', () => {
 test('layerKey leaves session ids out', () => {
   const l = { name: 'div.x', pseudo: null, bounds: '0,0,1,1', compositedBounds: '0,0,1,1', memory: 4, reasons: ['a', 'b'], layerId: '0.9', nodeId: 7 };
   assert.equal(layerKey(l), 'div.x||0,0,1,1|0,0,1,1|4|a+b');
+});
+
+test('compositeCuts: the cut is the end of the first Composite of the step; no Composite -> next mark', () => {
+  const rows = [
+    ['Layout', 0.5, 0.6, null],
+    ['Composite', 1.2, 1.3, null], ['Composite', 1.5, 1.6, null],
+    ['Layout', 2.1, 2.2, null],
+    ['Composite', 3.2, null, null],
+  ];
+  // steps: [1,2) [2,3) [3,4); step 1 has no Composite
+  assert.deepEqual(compositeCuts(rows, [1, 2, 3], 4), [1.3, 3, 3.2]);
+});
+
+test('reduceWindows counts from the first Composite on and keeps the window sum below the step sum', () => {
+  const rows = [
+    ['Layout', 1.1, 1.15, null], // before step 0's first Composite: not in its window
+    ['Composite', 1.2, 1.3, null],
+    ['Layout', 1.4, 1.5, null],
+    ['Layout', 2.1, 2.2, null], ['Composite', 2.3, 2.4, null], ['Layout', 2.5, 2.6, null],
+  ];
+  const w = reduceWindows(rows, [1, 2], 3);
+  const i = COUNT_TYPES.indexOf('Layout'), c = COUNT_TYPES.indexOf('Composite');
+  assert.deepEqual(w.perStep.map((r) => r[i]), [2, 1]);
+  assert.deepEqual(w.perStep.map((r) => r[c]), [1, 0]);
+  assert.equal(w.total.Layout, 3);
+  // the Layout at 1.1 is dropped (before cut[0]); the Composite at 2.3 lies in window 0 (window 1 starts at its end 2.4)
+  assert.equal(reduceSteps(rows, [1, 2], 3).total.Layout, 4);
 });
