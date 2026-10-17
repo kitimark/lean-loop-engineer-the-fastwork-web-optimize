@@ -128,7 +128,7 @@ const simctl = (args) => spawnSync('xcrun', ['simctl', ...args], { encoding: 'ut
  */
 export async function simulator({ server, device, variants = [], loads = 2, hostAddr = '127.0.0.1', scale = 1, attempts = 3, budgetMs = Infinity, onFail = () => {} }) {
   const out = [];
-  const t0 = Date.now();
+  let t0 = Date.now();
   // One launch of the probe page. A GitHub runner (3 vCPU) boots Safari several times slower than a Mac: the first launch of a fresh
   // device can run past simctl's own openurl timeout, so a failed launch is retried (the page is asked for again, same token).
   const attempt = async (tok, query) => {
@@ -146,9 +146,13 @@ export async function simulator({ server, device, variants = [], loads = 2, host
       try { await attempt(tok, query); last = null; break; } catch (e) { last = `attempt ${a}/${attempts}: ${String(e.message ?? e).split('\n')[0]}`; log(`  ${tok}: ${last}`); }
     }
     if (last) { onFail(tok, last); return; }
+    if (out.length === 0) t0 = Date.now(); // the arm budget counts from the first page that came back (the cold start is not charged)
     const recs = server.records(tok);
     out.push({ mech: 'ios-simulator-safari', port: 'webkit-apple', req, ...recs[recs.length - 1], later: recs.length - 1 });
   };
+  // Warm-up: start Safari once and let it settle, so the first openurl does not race the cold start.
+  simctl(['launch', device.udid, 'com.apple.mobilesafari']);
+  await sleep(10000 * scale);
   for (let i = 0; i < loads; i++) await one(`sim-${device.label}-${i}`, '', { device: device.label, load: i });
   for (const v of variants) await one(`sim-${device.label}-${v.id}`, v.query, { device: device.label, variant: v.id, aimed: v.aimed });
   return out;
