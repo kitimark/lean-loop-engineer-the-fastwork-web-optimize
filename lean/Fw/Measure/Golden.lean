@@ -86,6 +86,37 @@ def cls (c : String) (k t : Nat) : Json := Json.mkObj [("class", .str c), ("k", 
 /-- Parse a literal request (a parse error becomes a visible bad case). -/
 def lit (s : String) : Json := (Json.parse s).toOption.getD (Json.mkObj [("unparsable", .str s)])
 
+/-- A zone record `{id, frames, scrolledPx, firstFrame, lastFrame, sums}` for the `measure.zoneBaseline` cases. -/
+def zrec (id : String) (fr : Nat) (px : Int) (a b : Nat) (sums : List (String × Int)) : Json :=
+  Json.mkObj [("id", .str id), ("frames", toJson fr), ("scrolledPx", toJson px), ("firstFrame", toJson a),
+    ("lastFrame", toJson b), ("sums", Json.mkObj (sums.map fun (k, v) => (k, toJson v)))]
+
+/-- A run `{id, zones}` of two zones (`rest` 2 frames, `y00000` 3 frames, 400 px) with the given sums. -/
+def zrun (id : String) (rest y0 : List (String × Int)) : Json :=
+  Json.mkObj [("id", .str id), ("zones", .arr #[zrec "rest" 2 0 0 1 rest, zrec "y00000" 3 400 2 4 y0])]
+
+/-- The frozen table of the `measure.zoneBaseline` cases: `a` deterministic, `b` stable, `q` quarantined
+(extra fields as in `classes.frozen.json` are ignored). -/
+def zbTable : Json := Json.mkObj [("a", cls "deterministic" 0 0), ("b", cls "stable" 2 3),
+  ("q", Json.mkObj [("class", .str "quarantined"), ("k", toJson (9 : Nat)), ("t", toJson (9 : Nat)),
+    ("perRun", .arr #[.str "quarantined"]), ("pooledClass", .str "quarantined")])]
+
+/-- Three runs of the drift case: `a` (deterministic) differs in zone `y00000` of run 2, `b` varies,
+`u` is unlisted and appears in run 3 only. -/
+def zbRuns : List Json :=
+  [zrun "r1" [("a", 4), ("b", 10)] [("a", 6), ("b", 7), ("q", 1)],
+   zrun "r2" [("a", 4), ("b", 12)] [("a", 7), ("b", 5), ("q", 0)],
+   zrun "r3" [("a", 4), ("b", 11)] [("a", 6), ("b", 9), ("q", 3), ("u", 2)]]
+
+/-- A swipe-like frame list for the `measure.zoneBaseline` frames case. -/
+def zbFrames (x : Int) : Json :=
+  .arr #[Json.mkObj [("n", toJson (0 : Nat)), ("phase", .str "rest"), ("scrollY", toJson (0 : Nat)),
+           ("counts", Json.mkObj [("a", toJson (1 : Nat)), ("b", toJson x)])],
+         Json.mkObj [("n", toJson (1 : Nat)), ("phase", .str "swipe"), ("scrollY", toJson (300 : Nat)),
+           ("counts", Json.mkObj [("a", toJson (2 : Nat)), ("b", toJson (1 : Nat))])],
+         Json.mkObj [("n", toJson (2 : Nat)), ("phase", .str "swipe"), ("scrollY", toJson (700 : Nat)),
+           ("counts", Json.mkObj [("a", toJson (3 : Nat))])]]
+
 /-- The cases, per op file: (file stem, [(name, request without op)]). -/
 def cases : List (String × List (String × Json)) := [
   ("measure.zoneSums", [
@@ -238,6 +269,35 @@ def cases : List (String × List (String × Json)) := [
     ("missing: no frames", spkqFile (some (true, 0, 0, 0)) []),
     ("a census without window totals is refused",
       lit "{\"frames\":[],\"meta\":{\"n0\":{\"enabled\":true}}}")]),
+  ("measure.zoneBaseline", [
+    ("drift: a deterministic type differs in one zone; stable, quarantined and unlisted types; a missing type is 0",
+      Json.mkObj [("classes", zbTable), ("runs", .arr zbRuns.toArray)]),
+    ("the same runs reordered: lo, hi, base, classes and drift unchanged, perRun reordered",
+      Json.mkObj [("classes", zbTable), ("runs", .arr zbRuns.reverse.toArray)]),
+    ("four runs: base is the lower median (sorted index 1)",
+      Json.mkObj [("classes", zbTable), ("runs", .arr (zbRuns ++ [zrun "r4" [("a", 4), ("b", 13)] [("a", 6), ("b", 8)]]).toArray)]),
+    ("runs given as frames (zoneHeightPx 500): equal deterministic sums, no drift",
+      Json.mkObj [("classes", zbTable), ("zoneHeightPx", toJson (500 : Nat)), ("runs", .arr #[
+        Json.mkObj [("id", .str "a"), ("frames", zbFrames 5)], Json.mkObj [("id", .str "b"), ("frames", zbFrames 6)],
+        Json.mkObj [("id", .str "c"), ("frames", zbFrames 5)]])]),
+    ("an empty class table: every type is unlisted (rule quarantined)",
+      Json.mkObj [("classes", Json.mkObj []), ("runs", .arr zbRuns.toArray)]),
+    ("two runs are refused",
+      Json.mkObj [("classes", zbTable), ("runs", .arr (zbRuns.take 2).toArray)]),
+    ("a repeated run id is refused",
+      Json.mkObj [("classes", zbTable), ("runs", .arr #[zrun "r1" [] [], zrun "r2" [] [], zrun "r1" [] []])]),
+    ("a different zone structure (frames of a zone) is refused",
+      Json.mkObj [("classes", zbTable), ("runs", .arr #[zrun "r1" [] [], zrun "r2" [] [],
+        Json.mkObj [("id", .str "r3"), ("zones", .arr #[zrec "rest" 2 0 0 1 [], zrec "y00000" 4 400 2 5 []])]])]),
+    ("a repeated zone id is refused",
+      Json.mkObj [("classes", zbTable), ("runs", .arr ((List.range 3).toArray.map fun i =>
+        Json.mkObj [("id", .str s!"r{i}"), ("zones", .arr #[zrec "rest" 1 0 0 0 [], zrec "rest" 1 0 1 1 []])]))]),
+    ("frames without zoneHeightPx are refused",
+      Json.mkObj [("classes", zbTable), ("runs", .arr ((List.range 3).toArray.map fun i =>
+        Json.mkObj [("id", .str s!"r{i}"), ("frames", zbFrames 1)]))]),
+    ("a run with both frames and zones is refused",
+      Json.mkObj [("classes", zbTable), ("zoneHeightPx", toJson (500 : Nat)), ("runs", .arr #[zrun "r1" [] [], zrun "r2" [] [],
+        Json.mkObj [("id", .str "r3"), ("frames", zbFrames 1), ("zones", .arr #[])]])])]),
   ("measure.arms", [
     ("a type on one arm takes that arm's class; both arms: the worse; the overlay-ad type is byDesign; quarantined types are findings",
       Json.mkObj [("a", Json.mkObj [("trace.HitTest", cls "deterministic" 0 0),
