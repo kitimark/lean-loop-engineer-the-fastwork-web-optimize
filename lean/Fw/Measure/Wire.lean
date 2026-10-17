@@ -6,6 +6,7 @@ import Fw.Measure.Freeze
 import Fw.Measure.Neutral
 import Fw.Measure.Arms
 import Fw.Measure.ZoneBaseline
+import Fw.Measure.StepAlign
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
 
@@ -23,6 +24,7 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.webkit.tally` | `rows` (raw `fw.webkit.records/1` rows) | `counts`, `paintArea`, `other` |
 | `measure.webkit.reduceSteps` | `rows`, `marks` (non-empty, non-decreasing), `endTime` | `countTypes`, `perStep`, `perStepPaintArea`, `total`, `other`, `rowsBeforeFirstStep` |
 | `measure.webkit.zones` | `ys` (≥ 0), `perStep`, `perStepPaintArea`, `zonePx` (default 500) | `zones` [{zone, y0, steps, counts, paintArea}] |
+| `measure.webkit.align` | `a`, `b` (each `ys` strictly increasing and ≥ 0, `perStep`, `perStepPaintArea`; two scroll runs), `zonePx` (default 500) | `countTypes`, `zones` [{zone, y0, stepsA, stepsB, pairedA, pairedB, full, countsA, countsB, delta, areaA, areaB, areaDelta}], `paired` and `full` {zones, steps, countsA, countsB, delta, areaA, areaB, areaDelta} (sums over all zones, and over the full zones) |
 | `measure.symDiff` | `a`, `b` (string arrays) | `symDiff` |
 | `measure.summarize` | `rows` [{family, metric, level, cls}] | `summary` [{family, metric, levels, worst}] |
 | `measure.selfCheck` | `runs` (≥ 1; each an array of frames {phase, scrollY, counts} or an object with `frames`) | `rows` [{type, class, maxDiffFrames, spread, totals}], `frames`, `framesAligned`, `runs` |
@@ -371,6 +373,49 @@ def opWebkitZones (req : Json) : Except String Reply := do
     ("zone", toJson z.zone), ("y0", toJson z.y0), ("steps", toJson z.steps), ("counts", toJson z.counts),
     ("paintArea", toJson z.paintArea)]))]
 
+/-- Decode one scroll run `{ys, perStep, perStepPaintArea}` into steps; the offsets must be strictly increasing. -/
+def runOf (k : String) (j : Json) : Except String (List Step) := do
+  let ys ← rats j "ys"
+  let per ← (← arr j "perStep").toList.mapM fun r => do (← asArr "perStep" r).toList.mapM (asInt "perStep")
+  let pa ← ints j "perStepPaintArea"
+  if per.length != ys.length || pa.length != ys.length then
+    throw s!"{k}: ys, perStep and perStepPaintArea must have the same length"
+  if ys.any (· < 0) then throw s!"{k}.ys: negative scroll offset"
+  if per.any (·.length > countTypes.length) then throw s!"{k}.perStep: a row is longer than countTypes"
+  let rec incr : List Rat → Bool
+    | a :: b :: rest => decide (a < b) && incr (b :: rest)
+    | _ => true
+  if !incr ys then throw s!"{k}.ys: offsets must be strictly increasing"
+  pure ((ys.zip (per.zip pa)).map fun (y, r, a) => ({ y, row := r, area := a } : Step))
+
+/-- Sums of a set of aligned zones. -/
+def alignTotals (zs : List StepAlign.AZone) : Json :=
+  let w := countTypes.length
+  let named (v : List Int) : Json := objOf (countTypes.zip v |>.map fun (k, x) => (k, toJson x))
+  Json.mkObj [("zones", toJson zs.length), ("steps", toJson (zs.foldl (fun n z => n + z.pairedA) 0)),
+    ("countsA", named (StepAlign.colSum w (·.countsA) zs)), ("countsB", named (StepAlign.colSum w (·.countsB) zs)),
+    ("delta", named (StepAlign.colSum w (·.delta) zs)),
+    ("areaA", toJson (sumBy (·.areaA) zs)), ("areaB", toJson (sumBy (·.areaB) zs)),
+    ("areaDelta", toJson (sumBy (·.areaDelta) zs))]
+
+/-- `measure.webkit.align`: `{a, b, zonePx?}` → `{countTypes, zones, paired, full}`. -/
+def opWebkitAlign (req : Json) : Except String Reply := do
+  let a ← runOf "a" (← field req "a")
+  let b ← runOf "b" (← field req "b")
+  let h ← match opt req "zonePx" with
+    | none => pure 500
+    | some v => asNat "zonePx" v
+  if h = 0 then throw "zonePx must be positive"
+  let zs := StepAlign.align h countTypes.length a b
+  let named (v : List Int) : Json := objOf (countTypes.zip v |>.map fun (k, x) => (k, toJson x))
+  pure [("countTypes", toJson countTypes),
+    ("zones", .arr (zs.toArray.map fun z => Json.mkObj [
+      ("zone", toJson z.zone), ("y0", toJson z.y0), ("stepsA", toJson z.stepsA), ("stepsB", toJson z.stepsB),
+      ("pairedA", toJson z.pairedA), ("pairedB", toJson z.pairedB), ("full", toJson z.full),
+      ("countsA", named z.countsA), ("countsB", named z.countsB), ("delta", named z.delta),
+      ("areaA", toJson z.areaA), ("areaB", toJson z.areaB), ("areaDelta", toJson z.areaDelta)])),
+    ("paired", alignTotals zs), ("full", alignTotals (zs.filter (·.full)))]
+
 /-- `measure.symDiff`: `{a, b}` → `{symDiff}`. -/
 def opSymDiff (req : Json) : Except String Reply := do
   pure [("symDiff", toJson (symDiff (← strs req "a") (← strs req "b")))]
@@ -589,7 +634,7 @@ def opZoneBaseline (req : Json) : Except String Reply := do
 /-- The `measure.*` ops. -/
 def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
-   "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.symDiff", "measure.summarize",
+   "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.webkit.align", "measure.symDiff", "measure.summarize",
    "measure.selfCheck", "measure.snapshotCounts", "measure.freeze", "measure.splits", "measure.n0Windows",
    "measure.spkq", "measure.arms", "measure.zoneBaseline"]
 
@@ -602,6 +647,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.webkit.tally" => some (opTally req)
   | "measure.webkit.reduceSteps" => some (opReduceSteps req)
   | "measure.webkit.zones" => some (opWebkitZones req)
+  | "measure.webkit.align" => some (opWebkitAlign req)
   | "measure.symDiff" => some (opSymDiff req)
   | "measure.summarize" => some (opSummarize req)
   | "measure.selfCheck" => some (opSelfCheck req)

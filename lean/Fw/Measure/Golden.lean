@@ -172,6 +172,14 @@ def cases : List (String × List (String × Json)) := [
     ("no steps", lit "{\"ys\":[],\"perStep\":[],\"perStepPaintArea\":[]}"),
     ("a negative offset is refused", lit "{\"ys\":[-1],\"perStep\":[[0]],\"perStepPaintArea\":[0]}"),
     ("length mismatch is refused", lit "{\"ys\":[0,1],\"perStep\":[[0]],\"perStepPaintArea\":[0]}")]),
+  ("measure.webkit.align", [
+    ("the longer run A against the shorter B (zones of 100 px): the first zone is full, the second has one paired step, the third only A", lit "{\"a\":{\"ys\":[0,50,100,150,200,250],\"perStep\":[[1,0],[2,1],[3,0],[4,1],[5,0],[6,1]],\"perStepPaintArea\":[10,20,30,40,50,60]},\"b\":{\"ys\":[0,50,100,150],\"perStep\":[[1,0],[2,1],[2,0],[9,9]],\"perStepPaintArea\":[10,20,25,5]},\"zonePx\":100}"),
+    ("the arms exchanged give the swapped zones and negated deltas", lit "{\"a\":{\"ys\":[0,50,100,150],\"perStep\":[[1,0],[2,1],[2,0],[9,9]],\"perStepPaintArea\":[10,20,25,5]},\"b\":{\"ys\":[0,50,100,150,200,250],\"perStep\":[[1,0],[2,1],[3,0],[4,1],[5,0],[6,1]],\"perStepPaintArea\":[10,20,30,40,50,60]},\"zonePx\":100}"),
+    ("a run against itself: every zone is full, delta 0", lit "{\"a\":{\"ys\":[0,50,100,150],\"perStep\":[[1,0],[2,1],[2,0],[9,9]],\"perStepPaintArea\":[10,20,25,5]},\"b\":{\"ys\":[0,50,100,150],\"perStep\":[[1,0],[2,1],[2,0],[9,9]],\"perStepPaintArea\":[10,20,25,5]},\"zonePx\":100}"),
+    ("offsets that never coincide pair nothing", lit "{\"a\":{\"ys\":[0,30],\"perStep\":[[1],[1]],\"perStepPaintArea\":[0,0]},\"b\":{\"ys\":[10,40],\"perStep\":[[2],[2]],\"perStepPaintArea\":[0,0]}}"),
+    ("no steps in B", lit "{\"a\":{\"ys\":[0],\"perStep\":[[1]],\"perStepPaintArea\":[0]},\"b\":{\"ys\":[],\"perStep\":[],\"perStepPaintArea\":[]}}"),
+    ("offsets must increase strictly", lit "{\"a\":{\"ys\":[0,0],\"perStep\":[[1],[1]],\"perStepPaintArea\":[0,0]},\"b\":{\"ys\":[0],\"perStep\":[[1]],\"perStepPaintArea\":[0]}}"),
+    ("a negative offset is refused", lit "{\"a\":{\"ys\":[-1],\"perStep\":[[1]],\"perStepPaintArea\":[0]},\"b\":{\"ys\":[0],\"perStep\":[[1]],\"perStepPaintArea\":[0]}}")]),
   ("measure.symDiff", [
     ("same multiset", lit "{\"a\":[\"a\",\"b\"],\"b\":[\"b\",\"a\"]}"),
     ("multiplicities count", lit "{\"a\":[\"a\",\"a\",\"b\"],\"b\":[\"a\",\"c\"]}"),

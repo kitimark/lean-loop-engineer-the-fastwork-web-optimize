@@ -17,6 +17,7 @@ import { scrollRun } from './scrollrun.mjs';
 import { seekExperiment } from './seek.mjs';
 import { probe } from './rfprobe.mjs';
 import { screenAndTicks } from './handoff.mjs';
+import { alignPasses, scrollsOf, zoneTable, coverageLine } from './align.mjs';
 import { warmUpLoad, perStepPasses, classifyModes, perStepTable } from './perstep.mjs';
 import { onePassRetrying, classifyPasses, reasonNames, markdownTable, resolveStates } from './determinism.mjs';
 import { COUNT_TYPES, zones, summarize } from './reduce.mjs';
@@ -45,6 +46,8 @@ const OPTS = {
   mode: { type: 'string', default: 'base' },
   warmup: { type: 'string', default: '1' },
   cols: { type: 'string' }, // handoff: comma list of count types forming the vector (default all 12)
+  types: { type: 'string', default: 'RecalculateStyles,Layout,Paint,Composite' }, // align: count types printed as tables
+  'zone-px': { type: 'string', default: '500' }, // align: zone height
 };
 const { values: v, positionals } = parseArgs({ args: rest, options: OPTS, allowPositionals: true, allowNegative: true });
 const num = (s) => Number(s);
@@ -158,6 +161,19 @@ async function main() {
       save('handoff', out);
       break;
     }
+    case 'align': {
+      // align <a.json> <r.json>: pass i of A against pass i of R by scroll position (fwcore measure.webkit.align); a `determinism`
+      // or `perstep` file on each side. A zone is comparable as a whole when `full`.
+      const [aFile, rFile] = positionals;
+      if (!aFile || !rFile) throw new Error('usage: align <a.json> <r.json> [--types t1,t2] [--zone-px 500] [--out file] [--mode base]');
+      const read = (f) => JSON.parse(readFileSync(resolve(f), 'utf8'));
+      const aScrolls = scrollsOf(read(aFile), v.mode), rScrolls = scrollsOf(read(rFile), v.mode);
+      const res = await alignPasses(aScrolls, rScrolls, num(v['zone-px']));
+      res.pairs.forEach((p, i) => console.log(`pass ${i + 1}: ${coverageLine(p, aScrolls[i].ys.length, rScrolls[i].ys.length)}`));
+      for (const t of v.types.split(',')) console.log(`\n${zoneTable(res.pairs, t)}`);
+      if (v.out) save('align', { schema: 'fw.webkit.align/1', a: aFile, r: rFile, zonePx: num(v['zone-px']), passes: res.passes, pairs: res.pairs });
+      break;
+    }
     case 'merge': {
       // merge: classes of independent determinism sessions (JSON files from `determinism --out`), the worse one wins
       const rank = { deterministic: 0, stable: 1, quarantined: 2 };
@@ -183,7 +199,7 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: census|scroll|seek|determinism|merge <a.json> <b.json>|sim down  [--state y[,y|max]] [--clock pinned|live] [--hold ms] [--settle ms] [--window ms] [--step px] [--frames n] [--ns a,b] [--runs n] [--out file] [--keep] [--vendors off|live] [--no-seek]');
+      console.error('usage: census|scroll|seek|determinism|align <a.json> <r.json>|merge <a.json> <b.json>|sim down  [--state y[,y|max]] [--clock pinned|live] [--hold ms] [--settle ms] [--window ms] [--step px] [--frames n] [--ns a,b] [--runs n] [--out file] [--keep] [--vendors off|live] [--no-seek]');
       process.exitCode = 2;
   }
 }
