@@ -1,0 +1,14 @@
+{
+  "id": "engine.scene",
+  "slot": "engine",
+  "anchors": [],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T0" },
+    "hidden-pause": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "lean/Fw/Parts/HiddenPause.lean" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

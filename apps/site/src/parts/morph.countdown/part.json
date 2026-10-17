@@ -7,7 +7,8 @@
   "muiStates": ["countdown-running"],
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "layerBudget": 80 },
-    "strip": { "kind": "optimized", "tier": "T0", "layerBudget": 16 }
+    "strip": { "kind": "optimized", "tier": "T0", "layerBudget": 16 },
+    "hidden-pause": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "lean/Fw/Parts/HiddenPause.lean" } }
   },
   "requires": { "morph.countdown:strip": ["hero.countdown:strip"] },
   "conflicts": {}
