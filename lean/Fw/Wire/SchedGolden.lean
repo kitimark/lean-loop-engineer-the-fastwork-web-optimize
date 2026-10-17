@@ -1,8 +1,8 @@
 import Fw.Ops.Golden
 /-!
-# Golden vectors of `ops.admit` and `metrics.*`
+# Golden vectors of `ops.admit`, `ops.gate` and `metrics.*`
 
-`packages/contracts/golden/ops/admit.jsonl` and `packages/contracts/golden/ops/metrics.jsonl`: one
+`packages/contracts/golden/ops/{admit,metrics,gate}.jsonl`: one
 line per case, `{"name", "request", "response"}`, where `request` carries its `op` and `response`
 is what `fwcore` replies (without the `id`). Generated from Lean, never by hand:
 
@@ -11,7 +11,8 @@ cd lean && lake env lean --run scripts/SchedGolden.lean           # write the fi
 cd lean && lake env lean --run scripts/SchedGolden.lean --check   # fail if a file is stale
 ```
 
-`lake test` runs the same check. The first `ops.admit` cases form one scenario: each request's
+`lake test` runs the same check, and also checks that every `ops.gate` reply's `guard` is the
+`ops.spawn` reply to the same request. The first `ops.admit` cases form one scenario: each request's
 `state` is the previous reply's `state`, so a consumer can replay them in order. Consumers: the
 spawn-guard hook, `fw plan` and `fw job` (parallel plan §3.3), the bench and profile scripts
 (`metrics.*`).
@@ -93,6 +94,59 @@ def admitCases : List (String × Json) := scenarioCases ++ [
   ("a non-integer demand is refused",
    admitReq "{}" "{\"type\":\"enqueue\",\"item\":{\"id\":\"z\",\"demand\":{\"cores\":1.5}}}" "")]
 
+/-- An `ops.gate` request: an `ops.spawn` request (roles of `Fw.Wire.Ops.Golden.roles`, `now` 1000)
+with the admit budget, the given alive agents, extra top-level fields (state, item) and call. -/
+def gateReq (alive extra call : String) : Json :=
+  Fw.Wire.Ops.Golden.spawn alive (s!",\"budget\":{budget}" ++ extra) call
+
+/-- A named lean-prover worktree call from the lead (the guard allows it on an empty roster). -/
+def lp : String := "{\"name\":\"lean-x\",\"role\":\"lean-prover\",\"isolation\":\"worktree\"}"
+
+/-- A state with `r` running (3 cores, writes `lean/Fw`, the simulator) and `a` landed. -/
+def busyState : String :=
+  ",\"state\":{\"run\":[{\"id\":\"r\",\"writes\":[\"lean/Fw\"],\"demand\":{\"cores\":3},\"devices\":[\"simulator\"]}],\"done\":[\"a\"],\"t\":50,\"next\":1}"
+
+/-- The `ops.gate` cases. -/
+def gateCases : List (String × Json) := [
+  ("guard allows, no item (zero demand): allow", gateReq "[]" "" lp),
+  ("guard allows, item fits beside r: allow", gateReq "[]" (busyState ++
+     ",\"item\":{\"id\":\"lean-x\",\"writes\":[\"apps/site\"],\"demand\":{\"cores\":1},\"deps\":[\"a\"]}") lp),
+  ("guard allows, item writes under r's path: queue writeConflict", gateReq "[]" (busyState ++
+     ",\"item\":{\"id\":\"lean-x\",\"writes\":[\"lean/Fw/Wire.lean\"]}") lp),
+  ("guard allows, simulator held by r: queue deviceBusy", gateReq "[]" (busyState ++
+     ",\"item\":{\"id\":\"lean-x\",\"devices\":[\"simulator\"]}") lp),
+  ("guard allows, 2 cores wanted, 1 free: queue overBudget", gateReq "[]" (busyState ++
+     ",\"item\":{\"id\":\"lean-x\",\"demand\":{\"cores\":2}}") lp),
+  ("guard allows, 9 RAM > 8: queue neverFits", gateReq "[]" ",\"item\":{\"id\":\"lean-x\",\"demand\":{\"ram\":9}}" lp),
+  ("guard allows, dependency b not landed: queue depPending", gateReq "[]" (busyState ++
+     ",\"item\":{\"id\":\"lean-x\",\"deps\":[\"a\",\"b\"]}") lp),
+  ("guard allows, an aged queued item competes: queue behindAged",
+   gateReq "[]" (",\"state\":" ++ agedState ++ ",\"item\":{\"id\":\"lean-x\",\"demand\":{\"cores\":1}}") lp),
+  ("fable, item admitted: needsApproval",
+   gateReq "[]" "" "{\"name\":\"lean-x\",\"role\":\"lean-prover\",\"isolation\":\"worktree\",\"model\":\"fable\"}"),
+  ("fable, item queued: queue (not accepted)", gateReq "[]" ",\"item\":{\"id\":\"lean-x\",\"demand\":{\"ram\":9}}"
+     "{\"name\":\"lean-x\",\"role\":\"lean-prover\",\"isolation\":\"worktree\",\"model\":\"fable\"}"),
+  ("guard denies (unknown role), item admissible: deny, admit still reported",
+   gateReq "[]" "" "{\"name\":\"x\",\"role\":\"general-purpose\",\"isolation\":\"worktree\"}"),
+  ("guard denies (worktree trap) and the item would queue: deny wins", gateReq "[]"
+     ",\"item\":{\"id\":\"lean-x\",\"demand\":{\"ram\":9}}" "{\"name\":\"lean-x\",\"role\":\"lean-prover\"}"),
+  ("guard denies (4th lean-prover): deny capRole",
+   gateReq (Fw.Wire.Ops.Golden.aliveN "l" "lean-prover" "worktree" 3) "" lp),
+  ("state breaking the invariant: answered, inv false",
+   gateReq "[]" ",\"state\":{\"queue\":[{\"id\":\"d\"},{\"id\":\"d\",\"seq\":1}],\"next\":2}" lp),
+  ("missing budget is refused", Fw.Wire.Ops.Golden.spawn "[]" "" lp),
+  ("missing req is refused", lit s!"\{\"alive\":[],\"roles\":[],\"now\":0,\"budget\":{budget}}"),
+  ("unknown device in the item is refused",
+   gateReq "[]" ",\"item\":{\"id\":\"lean-x\",\"devices\":[\"tablet\"]}" lp)]
+
+/-- The `ops.gate` cases whose `guard` field is not the `ops.spawn` reply to the same request
+(should be none: `ops.gate` decodes the guard input as `ops.spawn` does). -/
+def gateGuardMismatches : List String :=
+  gateCases.filterMap fun (name, req) =>
+    match (respond "ops.gate" req).getObjVal? "guard" with
+    | .ok g => if g == respond "ops.spawn" req then none else some name
+    | .error _ => none
+
 /-- The `metrics.*` cases: (name, op, request without op). -/
 def metricsCases : List (String × String × Json) := [
   ("merge: sorted, fused, empty and reversed intervals dropped", "metrics.merge",
@@ -134,7 +188,8 @@ def fileText (cs : List (String × String × Json)) : String :=
 
 /-- The files: (file stem, cases). -/
 def files : List (String × List (String × String × Json)) :=
-  [("admit", admitCases.map fun (n, r) => (n, "ops.admit", r)), ("metrics", metricsCases)]
+  [("admit", admitCases.map fun (n, r) => (n, "ops.admit", r)), ("metrics", metricsCases),
+   ("gate", gateCases.map fun (n, r) => (n, "ops.gate", r))]
 
 /-- The golden directory, relative to `lean/`. -/
 def dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
@@ -154,6 +209,9 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
       if cur != text then
         IO.println s!"sched golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/SchedGolden.lean)"
         stale := stale + 1
+  for name in gateGuardMismatches do
+    IO.println s!"sched golden: ops.gate case '{name}': guard differs from the ops.spawn reply"
+    stale := stale + 1
   let n := files.foldl (fun a c => a + c.2.length) 0
   IO.println s!"sched golden: {files.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
   return stale
