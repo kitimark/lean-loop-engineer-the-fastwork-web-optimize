@@ -306,7 +306,7 @@ def floor320 : ExtraCond :=
   ⟨"css.floor-320", "root min-width 320px: below it the page stops shrinking and scrolls sideways (the scroller's size)",
    ⟨[[.widthGeSucc 319]]⟩⟩
 
-/-- The pilot parts of `anchors.json` (the four pilots and morph.columns) and what they read (inventory `research/kickoff/11-breakpoints/
+/-- The pilot parts of `anchors.json` (the four pilots, morph.columns, morph.mount, morph.tween, nav and nav.langMenu) and what they read (inventory `research/kickoff/11-breakpoints/
 breakpoints.json`: conditions and continuous entries of the owners; rewrite: `apps/site/src/parts/*/media.ts`).
 
 $$\begin{aligned} &\text{per part: } O \text{ owners},\ C_{\mathrm{orig}}, C_{\mathrm{rw}} \text{ original and rewrite catalogue ids},\ X \text{ extra width facts},\ \mathit{Kn} \text{ knees as (expression, px)},\ D \text{ dismissed ids;} \\ \mathrm{pilot} = [\ &(\texttt{engine.scroll},\ O = [\texttt{engine.scroll}],\ C_{\mathrm{orig}} = [\texttt{mq.rm-reduce}],\ C_{\mathrm{rw}} = [\,],\ X = [\texttt{css.floor-320}],\ \mathit{Kn} = [\,]), \\ &(\texttt{nav.hitTest},\ O = [\texttt{nav.hitTest}],\ C_{\mathrm{orig}} = [\,],\ C_{\mathrm{rw}} = [\,],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{hero.countdown},\ O = [\texttt{hero.countdown}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-400}, \texttt{mq.c1000-nodw}],\ X = [\,],\ \mathit{Kn} = [\,]), \\ &(\texttt{hero.exit},\ O = [\texttt{hero.exit}, \texttt{hero}, \texttt{hero.cue}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-600}, \texttt{mq.w-gt-600}],\ X = [\,], \\ &\quad \mathit{Kn} = [(e_h, 889), (e_h, 1422), (e_g, 875), (e_g, 1500)]), \\ &(\texttt{morph.columns},\ O = [\texttt{morph.columns}],\ C_{\mathrm{orig}} = C_{\mathrm{rw}} = [\texttt{mq.rm-reduce}, \texttt{mq.w-le-640}],\ X = [\,],\ \mathit{Kn} = [\,])\ ], \\ e_h = {} &\text{``hero h1 font clamp 40px / 4.5vw / 64px''},\quad e_g = \text{``hero title gap clamp 14 / 1.6vw / 24''}, \\ &\text{and the dismissed ids (each with its reason, listed in the source): } D(\texttt{engine.scroll}) = [\texttt{html.viewport-meta}, \texttt{js.preload-hover}, \texttt{js.firefox-ua}], \\ &D(\texttt{nav.hitTest}) = [\texttt{js.nav-on-dark}],\ D(\texttt{hero.countdown}) = [\texttt{js.countdown-cell}],\ D(\texttt{hero.exit}) = [\texttt{css.hover-ungated}] \end{aligned}$$
@@ -342,7 +342,18 @@ def pilotParts : List PartUse := [
   { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
     extra := [], knees := [],
     dismissed := [
-      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] }
+      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] },
+  { id := "nav", owners := ["nav"],
+    orig := ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-600", "mq.w-gt-600", "mq.w-le-640", "mq.w-gt-640", "mq.c860"],
+    rewrite := ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-600", "mq.w-gt-600", "mq.w-le-640", "mq.w-gt-640"],
+    extra := [], knees := [],
+    dismissed := [
+      ("css.hover-ungated", "plain :hover rules; the gate never hovers an element"),
+      ("js.profile-sticky-computed", "computed position of the profile sticky item at a scroll position (true only where the people section sticks); the gate loads at the top and the nav part restates no CSS for it"),
+      ("js.nav-on-dark", "elementFromPoint at a scroll position, not a media condition: no edge; the gate loads at the top (owned by nav.hitTest)")] },
+  { id := "nav.langMenu", owners := ["nav.langMenu"],
+    orig := ["mq.rm-reduce", "mq.w-le-640"], rewrite := ["mq.rm-reduce", "mq.w-le-640"],
+    extra := [], knees := [], dismissed := [] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.

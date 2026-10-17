@@ -1,4 +1,3 @@
-import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -8,7 +7,6 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Drawer from '@mui/material/Drawer';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
 import { HeroCountdown } from './parts/hero.countdown';
@@ -16,6 +14,7 @@ import { HeroExit } from './parts/hero.exit';
 import { EngineScroll } from './parts/engine.scroll';
 import { MorphTween } from './parts/morph.tween';
 import { NavHitTest } from './parts/nav.hitTest';
+import { Nav } from './parts/nav';
 import { MorphMount } from './parts/morph.mount';
 import { MorphColumns } from './parts/morph.columns';
 import { People } from './parts/people';
@@ -39,22 +38,19 @@ export function App({ config }: { config: FwConfig }) {
       <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
       <MorphMount variant={config.variants['morph.mount'] ?? 'faithful'} />
       <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} />
-      <AppBar position="sticky" data-fw="nav">
-        <Toolbar>
-          <Typography variant="h6" component="div" style={{ flexGrow: 1 }}>
-            Placeholder site
-          </Typography>
-          <Button color="inherit" id="open-menu" onClick={(e) => setAnchor(e.currentTarget)}>
-            Menu
-          </Button>
-          <Button color="inherit" id="open-drawer" onClick={() => setDrawer(true)}>
-            Drawer
-          </Button>
-          <Button color="inherit" variant="outlined" id="open-dialog" onClick={() => setDialog(true)}>
-            Sign up
-          </Button>
-        </Toolbar>
-      </AppBar>
+      <Nav variant={config.variants['nav'] ?? 'faithful'} />
+      {/* Overlay triggers of the placeholder page (the MUI census clicks them); the nav is the port above. */}
+      <Box data-fw="overlay-triggers" style={{ position: 'fixed', left: 0, bottom: 0, zIndex: 50, display: 'flex', gap: 4 }}>
+        <Button size="small" id="open-menu" onClick={(e) => setAnchor(e.currentTarget)}>
+          Menu
+        </Button>
+        <Button size="small" id="open-drawer" onClick={() => setDrawer(true)}>
+          Drawer
+        </Button>
+        <Button size="small" id="open-dialog" onClick={() => setDialog(true)}>
+          Sign up
+        </Button>
+      </Box>
 
       <main>
         <HeroCountdown variant={config.variants['hero.countdown'] ?? 'faithful'} />

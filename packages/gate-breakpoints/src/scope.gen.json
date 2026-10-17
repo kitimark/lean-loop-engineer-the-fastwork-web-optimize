@@ -697,7 +697,16 @@
  "schema": "fw.gate-breakpoints.scope/1",
  "ports": ["chromium", "webkitApple", "webkitGLib"],
  "parts":
- {"nav.hitTest":
+ {"nav.langMenu":
+  {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
+   "probes": ["desk-640", "desk-641", "desk-rm-319", "desk-rm-641"],
+   "owners": ["nav.langMenu"],
+   "knees": [],
+   "key": ["(prefers-reduced-motion: reduce)", "(width<=640px)"],
+   "extra": [],
+   "dismissed": [],
+   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-640"], "orig": ["mq.rm-reduce", "mq.w-le-640"]}},
+  "nav.hitTest":
   {"sweeps": [],
    "probes": ["desk-319"],
    "owners": ["nav.hitTest"],
@@ -708,6 +717,45 @@
    [{"why": "elementFromPoint at a scroll position, not a media condition: no edge; the gate loads at the top",
      "id": "js.nav-on-dark"}],
    "conditions": {"rewrite": [], "orig": []}},
+  "nav":
+  {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
+   "probes":
+   ["desk-600",
+    "desk-601",
+    "desk-640",
+    "desk-641",
+    "desk-860",
+    "desk-861",
+    "desk-rm-319",
+    "desk-rm-601",
+    "desk-rm-641",
+    "desk-rm-861",
+    "touch-1200",
+    "touch-1201",
+    "dw-arm-isolate-1001-screen500",
+    "dw-arm-isolate-1001-screen501"],
+   "owners": ["nav"],
+   "knees": [],
+   "key":
+   ["(prefers-reduced-motion: reduce)",
+    "(prefers-reduced-motion: no-preference)",
+    "(width<=600px)",
+    "(width>600px)",
+    "(width<=640px)",
+    "(width>640px)",
+    "(width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px)"],
+   "extra": [],
+   "dismissed":
+   [{"why": "plain :hover rules; the gate never hovers an element", "id": "css.hover-ungated"},
+    {"why":
+     "computed position of the profile sticky item at a scroll position (true only where the people section sticks); the gate loads at the top and the nav part restates no CSS for it",
+     "id": "js.profile-sticky-computed"},
+    {"why":
+     "elementFromPoint at a scroll position, not a media condition: no edge; the gate loads at the top (owned by nav.hitTest)",
+     "id": "js.nav-on-dark"}],
+   "conditions":
+   {"rewrite": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-600", "mq.w-gt-600", "mq.w-le-640", "mq.w-gt-640"],
+    "orig": ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-600", "mq.w-gt-600", "mq.w-le-640", "mq.w-gt-640", "mq.c860"]}},
   "morph.tween":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":
