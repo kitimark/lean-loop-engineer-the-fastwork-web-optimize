@@ -1199,7 +1199,7 @@
   },
   {
    "id": "watch-slow",
-   "title": "Slow-work rules in Lean (obs.health): CI run, tool call, local process and load thresholds, flagged when the task is on the critical path; replaces the lead stand-in monitor",
+   "title": "Slow-work rules in Lean (obs.health): CI run, tool call, process and load thresholds, critical-path flag; agents with no event past a limit count as ended; replaces the lead monitor",
    "stream": "team",
    "milestone": null,
    "deps": [
@@ -1273,6 +1273,105 @@
    "writes": [
     ".github/workflows/chromium-counts.yml",
     "packages/measure-chromium/src/host.mjs"
+   ]
+  },
+  {
+   "id": "math-r8-fix",
+   "title": "Fix the 49 disagree rows of math review round 8 (Obs.Health, Console, Gate, BreakpointMatrix, Store, Plan); add preset and fw to chromium workflowInputs in Fw.Store.Layout",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "math-r7"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Console.lean",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Site/BreakpointMatrix.lean",
+    "lean/Fw/Store/**",
+    "lean/Fw/Plan/**",
+    "lean/Fw/Board.lean",
+    "lean/Fw/Ops/**"
+   ]
+  },
+  {
+   "id": "plan-rev7-1",
+   "title": "PLAN revision 7.1: apply the 15 findings of the rev 7 review, add freeze-lean and rewrite-ci-lane results (A vs R classes), mark landed tasks done",
+   "stream": "plan",
+   "milestone": "M0",
+   "deps": [
+    "plan-rev7",
+    "freeze-lean",
+    "rewrite-ci-lane"
+   ],
+   "owner": "plan-editor",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/plan/loop-plan.html"
+   ]
+  },
+  {
+   "id": "plan-cut",
+   "title": "PLAN revision 8: cut to at most ~1,300 lines by moving evidence tables (4.2 findings, 6.6 history, superseded rows) into research notes with links; no decision or claim lost",
+   "stream": "plan",
+   "milestone": "M0",
+   "deps": [
+    "plan-rev7-1"
+   ],
+   "owner": "plan-editor",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/plan/loop-plan.html",
+    "research/notes/2026/10-17-plan-evidence.md"
+   ]
+  },
+  {
+   "id": "store-target",
+   "title": "Store key and fw run carry the chromium target (original vs rewrite), so A and R runs no longer share one key; webkit-sim gets the fw input",
+   "stream": "console",
+   "milestone": "M1",
+   "deps": [
+    "math-r8-fix",
+    "rewrite-ci-lane"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Store/**",
+    "packages/contracts/golden/store/**",
+    "apps/runner/src/run*.ts",
+    "apps/runner/test/run*.ts"
+   ]
+  },
+  {
+   "id": "math-r9-fix",
+   "title": "Fix the 6 Fw.Measure disagree rows of math review round 9; add a mathview lint for a bound variable that shadows a function name (the top finding of rounds 8 and 9)",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "math-r8-fix",
+    "freeze-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Measure/**",
+    "lean/MathViewMain.lean",
+    "lean/scripts/mathview*"
+   ]
+  },
+  {
+   "id": "mutant-ids-stable",
+   "title": "Mutant ids anchored to the enclosing declaration and literal ordinal, not line:col, so equivalent.tsv survives edits elsewhere in a file (two ids went stale after Wire edits)",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "mutants-ci"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/FwTest/Mutants/**",
+    "lean/scripts/mutants.sh"
    ]
   }
  ]

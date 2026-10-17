@@ -1,0 +1,181 @@
+name: mutants
+
+# M0 mutation pass (PLAN 10.2 M0 "every M0 mutant killed", V-r): lean/scripts/mutants.sh, split into shards by
+# mutant id (FNV-1a of file + id, mod the shard count; one Linux job each), merged into one summary artifact. The run
+# fails if a mutant survives or a shard's verdicts are missing. Locally only smoke runs (docs/team/handoffs/mutants-ci.md).
+on:
+  # Inputs: the M0 modules (mutant ids are line:col, so any edit there changes the list), the killers, equivalent.tsv
+  # and the design patches (lean/FwTest/Mutants/**), the driver, setup-lean. Other Lean edits run in lean.yml only.
+  push:
+    branches: ['ci/**', main]
+    paths:
+      - 'lean/Fw/Console.lean'
+      - 'lean/Fw/Serve.lean'
+      - 'lean/Fw/Ops/Meter.lean'
+      - 'lean/Fw/Ops/PathCheck.lean'
+      - 'lean/Fw/Ops/SpawnGuard.lean'
+      - 'lean/Fw/Ops/Usage.lean'
+      - 'lean/Fw/Ops/Wire.lean'
+      - 'lean/Fw/Spec/DeviceQueue.lean'
+      - 'lean/Fw/Wire.lean'
+      - 'lean/FwTest/Mutants/**'
+      - 'lean/scripts/mutants.sh'
+      - '.github/actions/setup-lean/**'
+      - '.github/workflows/mutants.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Run tag (letters, digits, . _ -); names the results dir and the artifacts
+        type: string
+        default: ci
+      jobs:
+        description: mutants.sh workers per shard job (1 to 4; a runner has 4 vCPUs)
+        type: string
+        default: '4'
+      shards:
+        description: Shard jobs (1 to 24)
+        type: string
+        default: '8'
+      limit:
+        description: At most this many mutants per shard (0 = all; a smoke run)
+        type: string
+        default: '0'
+
+# Public repo: read-only token, no secrets anywhere, no pull_request(_target) trigger.
+permissions:
+  contents: read
+
+# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      n: ${{ steps.plan.outputs.n }}
+      tag: ${{ steps.plan.outputs.tag }}
+      jobs: ${{ steps.plan.outputs.jobs }}
+      limit: ${{ steps.plan.outputs.limit }}
+    steps:
+      - name: Check the inputs, list the shards
+        id: plan
+        env:
+          TAG: ${{ inputs.tag || 'ci' }}
+          JOBS: ${{ inputs.jobs || '4' }}
+          SHARDS: ${{ inputs.shards || '8' }}
+          LIMIT: ${{ inputs.limit || '0' }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^[A-Za-z0-9._-]{1,40}$ ]] || { echo "::error::tag: $TAG"; exit 1; }
+          [[ "$JOBS" =~ ^[1-4]$ ]] || { echo "::error::jobs: $JOBS"; exit 1; }
+          [[ "$SHARDS" =~ ^[0-9]+$ ]] && [ "$SHARDS" -ge 1 ] && [ "$SHARDS" -le 24 ] || { echo "::error::shards: $SHARDS"; exit 1; }
+          [[ "$LIMIT" =~ ^[0-9]+$ ]] || { echo "::error::limit: $LIMIT"; exit 1; }
+          {
+            echo "shards=[$(seq -s, 0 $((SHARDS - 1)))]"
+            echo "n=$SHARDS"; echo "tag=$TAG"; echo "jobs=$JOBS"; echo "limit=$LIMIT"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  shard:
+    needs: plan
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    env:
+      SHARD: ${{ matrix.shard }}
+      N: ${{ needs.plan.outputs.n }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      JOBS: ${{ needs.plan.outputs.jobs }}
+      LIMIT: ${{ needs.plan.outputs.limit }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-lean
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - name: Tools mutants.sh needs
+        run: |
+          set -euo pipefail
+          command -v rsync >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q rsync; }
+          for t in rsync patch timeout node; do command -v "$t"; done
+          nproc; df -h . | tail -1
+
+      # The baseline is built from scratch with Lake's artifact cache off (as locally), so no mutant artifact reaches
+      # the restored .lake-cache that setup-lean may save.
+      - name: mutants.sh shard ${{ matrix.shard }}/${{ needs.plan.outputs.n }}
+        run: sh lean/scripts/mutants.sh -S "$SHARD/$N" -j "$JOBS" -n "$LIMIT" -r "$TAG"
+
+      - name: Collect
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/out"
+          mkdir -p "$out"
+          for f in results.tsv survivors.tsv meta.tsv summary.txt todo.tsv; do
+            if [ -f ".cache/mutants/$TAG/$f" ]; then cp ".cache/mutants/$TAG/$f" "$out/"; fi
+          done
+          if [ -f .cache/mutants/base.log ]; then tail -200 .cache/mutants/base.log > "$out/base-tail.log"; fi
+          ls -l "$out"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: mutants-${{ needs.plan.outputs.tag }}-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: warn
+          retention-days: 14
+
+  merge:
+    needs: [plan, shard]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: mutants-${{ needs.plan.outputs.tag }}-shard-*
+          path: ${{ runner.temp }}/shards
+
+      # Fails on a survivor, a missing shard or a shard with missing verdicts (meta.tsv checks).
+      - name: Merge the shards
+        run: |
+          set -euo pipefail
+          rc=0
+          sh lean/scripts/mutants.sh -m -r "$TAG" "$RUNNER_TEMP"/shards/*/ || rc=$?
+          out=".cache/mutants/$TAG"
+          {
+            echo "### mutants: M0 pass, $(find "$RUNNER_TEMP/shards" -mindepth 1 -maxdepth 1 -type d | wc -l) shard artifacts"
+            echo '```'
+            if [ -f "$out/summary.txt" ]; then cat "$out/summary.txt"; fi
+            if [ -s "$out/survivors.tsv" ]; then echo "survivors:"; cat "$out/survivors.tsv"; fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # upload-artifact skips hidden paths such as .cache/
+          mkdir -p "$RUNNER_TEMP/summary"
+          cp -R "$out"/. "$RUNNER_TEMP/summary/"
+          exit "$rc"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: mutants-${{ needs.plan.outputs.tag }}-summary
+          path: ${{ runner.temp }}/summary
+          if-no-files-found: error
+          retention-days: 30

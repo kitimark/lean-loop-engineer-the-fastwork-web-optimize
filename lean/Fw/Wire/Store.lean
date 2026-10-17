@@ -13,8 +13,8 @@ no partial operations. Flags are strings `"part:variant"`; digests are lowercase
 
 | op | request | reply |
 |---|---|---|
-| `store.plan` | `preset`? (default `original`), `fw`? [`part:variant`], `engines` [name], `profile`? (default `swipe-v1`), `runs`? (default 3), `sha`, `images`? {engine: image}, `digests`? {engine: sha256 of the job key}, `present`? [digest] (objects/runs already in the store) | `problems` [string], `fw` (sorted), `jobs` [{engine, workflow, inputs {name: value}, key [[name, value]], image, blocked (string or null), digest?, cache?, manifest?}] |
-| `store.manifest` | `manifest` {engine, preset, fw [`part:variant`], profile, gitSha, image, runId, entries [{name, digest, bytes}]} | `valid`, `problems`, `key` [[name, value]] (when the engine is known), `paths` [object path per entry] (when valid) |
+| `store.plan` | `target` (`original` or `rewrite`), `preset`? (default `original`), `fw`? [`part:variant`], `engines` [name], `profile`? (default `swipe-v1`), `runs`? (default 3), `sha`, `images`? {engine: image}, `digests`? {engine: sha256 of the job key}, `present`? [digest] (objects/runs already in the store) | `problems` [string], `fw` (sorted), `jobs` [{engine, workflow, inputs {name: value}, key [[name, value]], image, blocked (string or null), digest?, cache?, manifest?}] |
+| `store.manifest` | `manifest` {engine, target, preset, fw [`part:variant`], profile, gitSha, image, runId, entries [{name, digest, bytes}]} | `valid`, `problems`, `key` [[name, value]] (when the engine and the target are known), `paths` [object path per entry] (when valid) |
 | `store.objectPath` | `digest` (64 hex) | `path` |
 | `store.reduce` | `kMax`, `tMax`, `pxRel`? {num, den}, `arms` [{engine, base (≥ 2 runs), var (≥ 1 run)}], each run an array of frames or an object with `frames` | `noMoreWork`, `arms` [{engine, noMoreWork, failing [type], types [{type, class, ok}]}] |
 -/
@@ -68,7 +68,7 @@ def requestOf (req : Json) : Except String Request := do
   let fw ← match opt req "fw" with
     | none => pure []
     | some j => (← Fw.Wire.Ops.asArr "fw" j).toList.mapM fun x => do pure (parseFlag (← asStr "fw" x))
-  pure { preset := preset, fw := sortFlags fw, engines := ← strs req "engines", profile := profile,
+  pure { target := ← str req "target", preset := preset, fw := sortFlags fw, engines := ← strs req "engines", profile := profile,
          runs := ← natD req "runs" 3, sha := ← str req "sha", images := ← optPairs req "images" }
 
 /-- Encode a job; `digest` is the hash the caller computed from the job's key (if any). -/
@@ -100,17 +100,16 @@ def manifestOf (j : Json) : Except String Manifest := do
   let fw ← (← arr j "fw").toList.mapM fun x => do pure (parseFlag (← asStr "fw" x))
   let entries ← (← arr j "entries").toList.mapM fun e => do
     pure ({ name := ← str e "name", digest := ← str e "digest", bytes := ← nat e "bytes" } : Fw.Store.Entry)
-  pure { engine := ← str j "engine", preset := ← str j "preset", fw := fw, profile := ← str j "profile",
+  pure { engine := ← str j "engine", target := ← str j "target", preset := ← str j "preset", fw := fw, profile := ← str j "profile",
          gitSha := ← str j "gitSha", image := ← str j "image", runId := ← str j "runId", entries := entries }
 
 /-- `store.manifest`. -/
 def opManifest (req : Json) : Except String Reply := do
   let m ← manifestOf (← field req "manifest")
   let ps := m.problems
-  let key : Reply := match Engine.ofName m.engine with
+  let key : Reply := match m.req with
     | none => []
-    | some e => [("key", pairsJson (keyPairs { engine := e, preset := m.preset, fw := m.fw, profile := m.profile,
-                                               sha := m.gitSha, image := m.image }))]
+    | some r => [("key", pairsJson (keyPairs r))]
   let paths : Reply := if m.valid then [("paths", .arr (m.entries.toArray.map fun e => .str (objectPath e.digest)))] else []
   pure ([("valid", .bool m.valid), ("problems", .arr (ps.toArray.map .str))] ++ key ++ paths)
 

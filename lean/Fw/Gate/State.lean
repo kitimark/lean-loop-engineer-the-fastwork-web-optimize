@@ -82,17 +82,22 @@ def leOpt : Option Rat → Rat → Bool
 
 /-- Two widths are on the same side of every edge $n$ (of the pairs $[n, n+1]$).
 
-$$\operatorname{sameSide}(a, b, E) \iff \forall n \in E,\ (a \le n) = (b \le n)$$
+$$\operatorname{sameSide}(a, b, E) \iff \forall n \in E,\ \operatorname{le}(a, n) = (b \le n)\qquad (a \in \mathbb Q_\bot,\ b \in \mathbb Q)$$
 
-No device-width condition can tell them apart. -/
+No device-width condition can tell them apart; a missing width $a = \bot$ has $\operatorname{le}(a, n)$ false, so it matches
+only a $b$ above every edge. -/
 def sameSide (a : Option Rat) (b : Rat) (edges : List Rat) : Bool :=
   edges.all fun n => leOpt a n == decide (b ≤ n)
 
 /-- The eight environment checks, in report order, with whether each holds.
 
-$$\begin{aligned} \mathrm{width} &: \mathrm{widthExact} = \top \\ \mathrm{height} &: \mathrm{innerHeight} = q.h \\ \mathrm{deviceWidth} &: \mathrm{screenWidth} = q.\mathrm{dw} \vee \operatorname{sameSide}(\mathrm{screenWidth}, q.\mathrm{dw}, E) \\ \mathrm{dpr} &: \mathrm{dpr} = q.\mathrm{dpr} \\ \mathrm{hover} &: (\mathrm{hoverHover}, \mathrm{hoverNone}) = \begin{cases} (\top, \bot) & q.\mathrm{hover} = \texttt{hover} \\ (\bot, \top) & \text{otherwise} \end{cases} \\ \mathrm{pointer} &: (\mathrm{pointerFine}, \mathrm{pointerCoarse}) = \begin{cases} (\top, \bot) & q.\mathrm{pointer} = \texttt{fine} \\ (\bot, \top) & \text{otherwise} \end{cases} \\ \mathrm{reducedMotion} &: (q.\mathrm{rm} = \texttt{reduce}) \iff \mathrm{reducedMotion} = \top \\ \mathrm{colorScheme} &: (q.\mathrm{cs} = \texttt{dark}) \iff \mathrm{dark} = \top \end{aligned}$$
+$$\begin{aligned} \mathrm{width} &: \mathrm{widthExact} = \mathrm{true} \\ \mathrm{height} &: \mathrm{innerHeight} = q.h \\ \mathrm{deviceWidth} &: \mathrm{screenWidth} = q.\mathrm{dw} \vee \operatorname{sameSide}(\mathrm{screenWidth}, q.\mathrm{dw}, E) \\ \mathrm{dpr} &: \mathrm{dpr} = q.\mathrm{dpr} \\ \mathrm{hover} &: (\mathrm{hoverHover}, \mathrm{hoverNone}) = \begin{cases} (\mathrm{true}, \mathrm{false}) & q.\mathrm{hover} = \texttt{hover} \\ (\mathrm{false}, \mathrm{true}) & \text{otherwise} \end{cases} \\ \mathrm{pointer} &: (\mathrm{pointerFine}, \mathrm{pointerCoarse}) = \begin{cases} (\mathrm{true}, \mathrm{false}) & q.\mathrm{pointer} = \texttt{fine} \\ (\mathrm{false}, \mathrm{true}) & \text{otherwise} \end{cases} \\ \mathrm{reducedMotion} &: (q.\mathrm{rm} = \texttt{reduce}) \iff \mathrm{reducedMotion} = \mathrm{true} \\ \mathrm{colorScheme} &: (q.\mathrm{cs} = \texttt{dark}) \iff \mathrm{dark} = \mathrm{true} \end{aligned}$$
 
-(an unreported value satisfies no equation). What "achieved" means, one feature at a time. -/
+where the observed and viewport fields are those of $o$ and $v$. In the width, height, deviceWidth, dpr, hover and
+pointer rows an unreported value ($\bot$) equals neither $\mathrm{true}$ nor $\mathrm{false}$ nor any number, so it
+satisfies none of their equations (deviceWidth can still hold through sameSide); in the reducedMotion and colorScheme
+rows $\bot$ counts as false, so the row holds when the request is not reduce (not dark). What "achieved" means, one
+feature at a time. -/
 def envChecks (q : Requested) (v : Viewport) (o : Observed) (edges : List Rat) : List (String × Bool) :=
   [("width", o.widthExact == some true),
    ("height", v.innerHeight == some q.height),
@@ -451,9 +456,11 @@ def StateOut.itemFails (e : StateOut) (s : Status) : Bool := e.reach.isNone && f
 
 /-- The items of every covered part in one state.
 
-$$\operatorname{stateParts}(C, o, r) = [\,(P.\mathrm{id}, \operatorname{partItems}(A, P, o[P], r[P], \Pi_P)) \mid P \in C.\mathrm{parts}\,]$$
+$$\operatorname{stateParts}(C, o, r) = [\,(P.\mathrm{id}, \operatorname{partItems}(C.A, P, o[P.\mathrm{id}], r[P.\mathrm{id}], \Pi_P)) \mid P \in C.\mathrm{parts}\,]$$
 
-Each covered part, judged on both arms. -/
+where $x[k]$ is the value of the first entry of the association list $x$ with key $k$, or $\bot$ if there is none, and
+$\Pi_P = C.\mathit{props}[P.\mathrm{id}]$ if that entry exists, else $\Pi_P = [\,]$. Each covered part, judged on both
+arms. -/
 def stateParts (c : Ctx) (o r : List (String × PartRaw)) : List (String × List PItem) :=
   c.parts.map fun sp =>
     (sp.id, partItems c.anchors sp (o.lookup sp.id) (r.lookup sp.id) ((c.props.lookup sp.id).getD []))
@@ -473,9 +480,11 @@ def reachRows (reach : Option Reason) (rows : List (String × Verdict)) : List (
 the state's port when its reach says so), compared counts, reach, and the state verdict over all rows
 (matchMedia rows and part rows).
 
-$$\forall C, s,\quad \mathit{ach} \iff \operatorname{dev}(q, o) = [\,] \wedge \operatorname{dev}(q, r) = [\,], \qquad \mathit{rows} = \operatorname{reachRows}(\operatorname{reach}(C, s), \operatorname{rowVerdicts}(\operatorname{truthItems}(o, r, e, e^N, \mathit{ach}), \operatorname{stateParts}(C, o, r))), \qquad \mathit{verdict} = \operatorname{rollup}([\,v \mid (n, v) \in \mathit{rows}\,])$$
+$$\forall C, s,\quad \operatorname{evalState}(C, s) = (\mathit{dev}_O, \mathit{dev}_R, \mathit{ach}, T, \Pi, \mathit{rows}, \mathit{compared}, \operatorname{reach}(C, s), \mathit{verdict})$$
+$$\begin{aligned} \mathit{dev}_O &= \operatorname{dev}(q, v_O, o_O, C.\mathit{edges}), \quad \mathit{dev}_R = \operatorname{dev}(q, v_R, o_R, C.\mathit{edges}), \quad \mathit{ach} \iff \mathit{dev}_O = [\,] \wedge \mathit{dev}_R = [\,] \\ T &= \operatorname{truthItems}(T_O, T_R, E, E_N, \mathit{ach}), \quad \Pi = \operatorname{stateParts}(C, \Pi_O, \Pi_R) \\ \mathit{rows} &= \operatorname{reachRows}(\operatorname{reach}(C, s), \operatorname{rowVerdicts}(T, \Pi)), \quad \mathit{compared} = [\,(n, |[\,it \in I \mid \operatorname{compared}(it)\,]|) \mid (n, I) \in \Pi\,] \\ \mathit{verdict} &= \operatorname{rollup}([\,v \mid (n, v) \in \mathit{rows}\,]) \end{aligned}$$
 
-The whole judgement of one probe or sweep stop. -/
+where $s = (q, \alpha_O, \alpha_R, E, E_N)$, $\alpha_O = (v_O, o_O, T_O, \Pi_O)$ and $\alpha_R = (v_R, o_R, T_R, \Pi_R)$. The whole
+judgement of one probe or sweep stop. -/
 def evalState (c : Ctx) (s : StateIn) : StateOut :=
   let devO := envDeviations s.requested s.orig.viewport s.orig.observed c.edges
   let devR := envDeviations s.requested s.rewrite.viewport s.rewrite.observed c.edges
@@ -593,9 +602,10 @@ theorem evalState_unreachable_iff (c : Ctx) (s : StateIn) :
 /-- Sweep hysteresis: items compared and items differing or missing, the state after a sequence
 against a fresh load.
 
-$$\operatorname{stale}(C, a, f) = \bigl(|\{it \mid \operatorname{compared}(it)\}|,\ |\{it \mid it.\mathrm{cls} \ne \mathrm{info} \wedge it.\mathrm{status} \in \{\mathrm{differ}, \mathrm{missing}\}\}|\bigr) \quad \text{over } \textstyle\bigoplus_P \operatorname{partItems}(A, P, a[P], f[P], \Pi_P)$$
+$$\operatorname{stale}(C, a, f) = \bigl(|[\,it \in I \mid \operatorname{compared}(it)\,]|,\ |[\,it \in I \mid it.\mathrm{cls} \ne \mathrm{info} \wedge it.\mathrm{status} \in \{\mathrm{differ}, \mathrm{missing}\}\,]|\bigr)$$
 
-How much of the page a resize sequence leaves different from a fresh load. -/
+where $I = \bigoplus_{(n, J) \in \operatorname{stateParts}(C, a, f)} J$ is the concatenated item list (counts are of list
+entries, repeats included). How much of the page a resize sequence leaves different from a fresh load. -/
 def stale (c : Ctx) (after fresh : List (String × PartRaw)) : Nat × Nat :=
   let items := (stateParts c after fresh).flatMap (·.2)
   (items.countP isCompared,

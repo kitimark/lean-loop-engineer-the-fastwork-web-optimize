@@ -8,6 +8,7 @@ import { mountReconcile } from "./reconcile/routes.ts";
 import type { Reconciler } from "./reconcile/reconciler.ts";
 import { mountAgentRoutes } from "./cap/routes.ts";
 import { mountOps } from "./ops/routes.ts";
+import { readLatestHealth } from "./health.ts";
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
@@ -35,6 +36,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   const { drain } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
   app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/plan", async (c) => c.json((await store.board()).plan)); // the work graph, derived by fwcore
+  app.get("/api/health", (c) => c.json(readLatestHealth(store.dir))); // latest `fw watch` check (fwcore obs.health output) or null
   app.get("/api/events", (c) => {
     const since = Number(c.req.query("since") ?? 0);
     return c.json(store.readEvents().filter((e) => e.seq > since));

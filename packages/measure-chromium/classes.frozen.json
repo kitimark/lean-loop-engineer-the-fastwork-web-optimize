@@ -1,7 +1,7 @@
 {
  "schema": "fw.classes.frozen/1",
  "lane": "chromium-counts (GitHub-hosted ubuntu-24.04-arm), target original",
- "rule": "The signed class of a type is its worst class (deterministic < stable < quarantined) over the workflow runs listed per profile; each workflow run classifies its 3 jobs (separate VMs) with fwcore measure.classify. The worst is taken by fwcore measure.summarize. k and t are the maxima over the workflow runs; tBound (pixel types) is the smallest over the workflow runs. pooledClass is the class over all 9 counts files at once (a stricter cross-check, not the signed class).",
+ "rule": "The signed class of a type is its worst class (deterministic < stable < quarantined) over the workflow runs listed per profile; a type missing from a run counts as quarantined there; fewer than 3 workflow runs, a repeated run id or more than one image digest are refused. Each workflow run classifies its jobs (separate VMs) with fwcore measure.classify (re-derived from the run's counts files and equal to its classes artifact); the worst class, k and t (maxima over the workflow runs) and tBound (pixel types, the smallest over the workflow runs) come from fwcore measure.freeze (Lean Fw.Measure.Freeze), written by src/freeze.mjs. pooledClass is the class over all 9 counts files at once (a stricter cross-check, not the signed class).",
  "policy": {
   "kMax": 4,
   "tMax": 24,
@@ -28,8 +28,15 @@
   }
  },
  "harness": {
-  "commit": "429e22acc2c33c6472001fb5039e6561c4bfbf0c",
-  "note": "workflow runs 39038861283 (push) and the five dispatches ran this commit; fwcore was built from it by the same workflow"
+  "commitByRun": {
+   "39038861283": "fdd2b7cf217a944788d253361531edd124e9833c",
+   "39038967198": "429e22acc2c33c6472001fb5039e6561c4bfbf0c",
+   "39038970307": "429e22acc2c33c6472001fb5039e6561c4bfbf0c",
+   "39038973297": "429e22acc2c33c6472001fb5039e6561c4bfbf0c",
+   "39038976656": "429e22acc2c33c6472001fb5039e6561c4bfbf0c",
+   "39038979125": "429e22acc2c33c6472001fb5039e6561c4bfbf0c"
+  },
+  "note": "the commit of each workflow run (its run.txt); fwcore was built from it by the same workflow"
  },
  "profiles": {
   "swipe-v1": {

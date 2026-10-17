@@ -142,7 +142,7 @@ theorem matrix_length : matrix.length = 124 := by decide +kernel
 
 /-- Each block has exactly the inventory's number of loads, and there are no other blocks.
 
-$$ \forall (b, n) \in \mathrm{breakdown}.\ |\{p \in M \mid p.\mathrm{block} = b\}| = n \ \land\ \textstyle\sum n = |M| $$
+$$ \big(\forall (b, n) \in \mathrm{breakdown}.\ |[\, p \in M \mid \mathrm{blk}(p) = b \,]| = n\big) \land \textstyle\sum_{(b, n) \in \mathrm{breakdown}} n = |M| $$
 
 The matrix matches `matrix.estimate.breakdown` block by block. -/
 theorem matrix_blocks :
@@ -151,7 +151,9 @@ theorem matrix_blocks :
 
 /-- Probe ids are unique.
 
-$$ i \ne j \Rightarrow \mathrm{id}(p_i) \ne \mathrm{id}(p_j) $$
+$$ \forall i, j < |M|,\quad i \ne j \Rightarrow \mathrm{id}(M_i) \ne \mathrm{id}(M_j) $$
+
+where $M_i$ is the $i$-th probe of the list $M$ (from 0).
 
 Every load has its own name. -/
 theorem matrix_ids_nodup : (matrix.map (·.id)).Nodup := by decide +kernel

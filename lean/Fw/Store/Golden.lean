@@ -22,39 +22,57 @@ def sha : String := "0123456789abcdef0123456789abcdef01234567"
 
 /-- The `store.plan` cases. -/
 def planCases : List (String × String × Json) := [
-  ("both engines, default configuration: two jobs in canonical order, nothing blocked", "store.plan",
-   lit s!"\{\"engines\":[\"webkit\",\"chromium\"],\"sha\":\"{sha}\"}"),
+  ("both engines, the original site in the default configuration: two jobs in canonical order, target sent to chromium, nothing blocked", "store.plan",
+   lit s!"\{\"target\":\"original\",\"engines\":[\"webkit\",\"chromium\"],\"sha\":\"{sha}\"}"),
   ("duplicate engine names collapse to one job", "store.plan",
-   lit s!"\{\"engines\":[\"chromium\",\"chromium\"],\"sha\":\"{sha}\",\"runs\":4}"),
-  ("flags are sorted by part; the workflows have no fw input yet, so both jobs are blocked", "store.plan",
-   lit s!"\{\"preset\":\"original\",\"fw\":[\"nav.hitTest:hit-skip\",\"hero.countdown:strip\"],\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\"}"),
+   lit s!"\{\"target\":\"original\",\"engines\":[\"chromium\",\"chromium\"],\"sha\":\"{sha}\",\"runs\":4}"),
+  ("the rewrite with flags sorted by part (a camelCase part is allowed); chromium-counts takes target and fw, webkit-sim does not, so only webkit is blocked (on target)", "store.plan",
+   lit s!"\{\"target\":\"rewrite\",\"preset\":\"original\",\"fw\":[\"nav.hitTest:hit-skip\",\"hero.countdown:strip\"],\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\"}"),
   ("another profile is an input of chromium-counts but not of webkit-sim", "store.plan",
-   lit s!"\{\"profile\":\"swipe-wheel-v1\",\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\"}"),
+   lit s!"\{\"target\":\"original\",\"profile\":\"swipe-wheel-v1\",\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\"}"),
   ("digests and the store: one cache hit, one miss", "store.plan",
-   lit s!"\{\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\",\"digests\":\{\"chromium\":\"aa00\",\"webkit\":\"bb11\"},\"present\":[\"aa00\"]}"),
+   lit s!"\{\"target\":\"original\",\"engines\":[\"chromium\",\"webkit\"],\"sha\":\"{sha}\",\"digests\":\{\"chromium\":\"aa00\",\"webkit\":\"bb11\"},\"present\":[\"aa00\"]}"),
   ("a pinned container image for chromium", "store.plan",
-   lit s!"\{\"engines\":[\"chromium\"],\"sha\":\"{sha}\",\"images\":\{\"chromium\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\"}}"),
+   lit s!"\{\"target\":\"original\",\"engines\":[\"chromium\"],\"sha\":\"{sha}\",\"images\":\{\"chromium\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\"}}"),
   ("a part given twice is a problem and plans no job", "store.plan",
-   lit s!"\{\"fw\":[\"a:x\",\"a:y\"],\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}"),
+   lit s!"\{\"target\":\"rewrite\",\"fw\":[\"a:x\",\"a:y\"],\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}"),
   ("no engines, one run, a bad sha: three problems", "store.plan",
-   lit "{\"engines\":[],\"sha\":\"zz\",\"runs\":1}"),
+   lit "{\"target\":\"original\",\"engines\":[],\"sha\":\"zz\",\"runs\":1}"),
   ("an unknown engine is a problem", "store.plan",
-   lit s!"\{\"engines\":[\"gecko\"],\"sha\":\"{sha}\"}"),
+   lit s!"\{\"target\":\"original\",\"engines\":[\"gecko\"],\"sha\":\"{sha}\"}"),
   ("a flag without a colon is refused as an id problem", "store.plan",
-   lit s!"\{\"fw\":[\"hero\"],\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}")]
+   lit s!"\{\"target\":\"rewrite\",\"fw\":[\"hero\"],\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}"),
+  ("the rewrite in its default configuration: same as the first case but target rewrite, so a different key; webkit is blocked on target", "store.plan",
+   lit s!"\{\"target\":\"rewrite\",\"engines\":[\"webkit\",\"chromium\"],\"sha\":\"{sha}\"}"),
+  ("target both is not one target: a problem, no job", "store.plan",
+   lit s!"\{\"target\":\"both\",\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}"),
+  ("the original site takes no preset or flags: a problem, no job", "store.plan",
+   lit s!"\{\"target\":\"original\",\"preset\":\"strip-demo\",\"fw\":[\"hero.countdown:strip\"],\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}"),
+  ("a request without target is refused", "store.plan",
+   lit s!"\{\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}")]
 
-/-- A valid manifest as JSON text. -/
-def manifest (extra : String) : String :=
-  s!"\{\"engine\":\"chromium\",\"preset\":\"original\",\"fw\":[],\"profile\":\"swipe-v1\",\"gitSha\":\"{sha}\",\"image\":\"runner:ubuntu-24.04-arm\",\"runId\":\"39033771018\"{extra},\"entries\":[\{\"name\":\"counts-run1.json\",\"digest\":\"{"ab".pushn 'c' 62}\",\"bytes\":10},\{\"name\":\"trace/run1.json\",\"digest\":\"{"cd".pushn 'e' 62}\",\"bytes\":20}]}"
+/-- A manifest as JSON text (valid for `target = "\"target\":\"original\""`, `extra = ""`). -/
+def manifest (target extra : String) : String :=
+  s!"\{\"engine\":\"chromium\",{target},\"preset\":\"original\",\"fw\":[],\"profile\":\"swipe-v1\",\"gitSha\":\"{sha}\",\"image\":\"runner:ubuntu-24.04-arm\",\"runId\":\"39033771018\"{extra},\"entries\":[\{\"name\":\"counts-run1.json\",\"digest\":\"{"ab".pushn 'c' 62}\",\"bytes\":10},\{\"name\":\"trace/run1.json\",\"digest\":\"{"cd".pushn 'e' 62}\",\"bytes\":20}]}"
+
+/-- The target field of a manifest on the original site. -/
+def O : String := "\"target\":\"original\""
+
+/-- The target field of a manifest on the rewrite. -/
+def R : String := "\"target\":\"rewrite\""
 
 /-- The `store.manifest` cases. -/
 def manifestCases : List (String × String × Json) := [
   ("a valid manifest: key pairs and one object path per entry", "store.manifest",
-   lit s!"\{\"manifest\":{manifest ""}}"),
+   lit s!"\{\"manifest\":{manifest O ""}}"),
+  ("the same run on the rewrite: a different key (the target pair)", "store.manifest",
+   lit s!"\{\"manifest\":{manifest R ""}}"),
+  ("an original run with flags is a problem (only the rewrite has flags); the key is still shown", "store.manifest",
+   lit s!"\{\"manifest\":{(manifest O "").replace "\"fw\":[]" "\"fw\":[\"hero.countdown:strip\"]"}}"),
   ("unsorted entries and a name that escapes the run directory are problems", "store.manifest",
-   lit "{\"manifest\":{\"engine\":\"webkit\",\"preset\":\"original\",\"fw\":[\"hero.countdown:strip\"],\"profile\":\"swipe-v1\",\"gitSha\":\"0123456789abcdef0123456789abcdef01234567\",\"image\":\"runner:xcode-27\",\"runId\":\"1\",\"entries\":[{\"name\":\"b.json\",\"digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"bytes\":1},{\"name\":\"../a.json\",\"digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"bytes\":1}]}}"),
-  ("unknown engine, short sha, bad image, bad digest: every problem listed, no key", "store.manifest",
-   lit "{\"manifest\":{\"engine\":\"gecko\",\"preset\":\"Original\",\"fw\":[\"b:x\",\"a:y\"],\"profile\":\"swipe-v1\",\"gitSha\":\"abc\",\"image\":\"docker\",\"runId\":\"x\",\"entries\":[{\"name\":\"a.json\",\"digest\":\"ABC\",\"bytes\":1}]}}"),
+   lit "{\"manifest\":{\"engine\":\"webkit\",\"target\":\"rewrite\",\"preset\":\"original\",\"fw\":[\"hero.countdown:strip\"],\"profile\":\"swipe-v1\",\"gitSha\":\"0123456789abcdef0123456789abcdef01234567\",\"image\":\"runner:xcode-27\",\"runId\":\"1\",\"entries\":[{\"name\":\"b.json\",\"digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"bytes\":1},{\"name\":\"../a.json\",\"digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"bytes\":1}]}}"),
+  ("unknown engine, target both, short sha, bad image, bad digest: every problem listed, no key", "store.manifest",
+   lit "{\"manifest\":{\"engine\":\"gecko\",\"target\":\"both\",\"preset\":\"Original\",\"fw\":[\"b:x\",\"a:y\"],\"profile\":\"swipe-v1\",\"gitSha\":\"abc\",\"image\":\"docker\",\"runId\":\"x\",\"entries\":[{\"name\":\"a.json\",\"digest\":\"ABC\",\"bytes\":1}]}}"),
   ("missing field is refused", "store.manifest", lit "{\"manifest\":{\"engine\":\"chromium\"}}")]
 
 /-- The `store.objectPath` cases. -/

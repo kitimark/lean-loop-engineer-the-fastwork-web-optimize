@@ -199,8 +199,7 @@ theorem rectArea_nonneg : ∀ l : List Int, (∀ x ∈ l, 0 ≤ x) → 0 ≤ rec
 `L₁ ++ L₂` are the sums of the entries for `L₁` and `L₂` (shown for the drawing area, rect count
 and invalidation area; the counts are filter lengths, additive by `List.filter_append`).
 
-$$\forall L_1, L_2:\ \Sigma^{\mathrm{draw}}(L_1 \mathbin{+\!\!+} L_2) = \Sigma^{\mathrm{draw}}(L_1) + \Sigma^{\mathrm{draw}}(L_2) \ \land\ \Sigma^{\mathrm{area}}(L_1 \mathbin{+\!\!+} L_2) = \Sigma^{\mathrm{area}}(L_1) + \Sigma^{\mathrm{area}}(L_2) \ \land\ \Sigma^{\mathrm{rects}}(L_1 \mathbin{+\!\!+} L_2) = \Sigma^{\mathrm{rects}}(L_1) + \Sigma^{\mathrm{rects}}(L_2)$$
-where $\Sigma^{\mathrm{draw}}(L) = \sum_{l \in L,\ l.\mathrm{draws}} l.w \cdot l.h$, $\Sigma^{\mathrm{area}}(L) = \sum_{l \in L} \operatorname{area}(l.\mathrm{inv})$ and $\Sigma^{\mathrm{rects}}(L) = \sum_{l \in L} |\operatorname{rects}(l.\mathrm{inv})|$ (in $\mathbb{N}$), for all $L_1, L_2 \in \mathrm{Layer}^{*}$
+$$\forall L_1, L_2 \in \mathrm{Layer}^{*}:\ \Sigma^{\mathrm{draw}}(L_1 \mathbin{+\!\!+} L_2) = \Sigma^{\mathrm{draw}}(L_1) + \Sigma^{\mathrm{draw}}(L_2) \ \land\ \Sigma^{\mathrm{area}}(L_1 \mathbin{+\!\!+} L_2) = \Sigma^{\mathrm{area}}(L_1) + \Sigma^{\mathrm{area}}(L_2) \ \land\ \Sigma^{\mathrm{rects}}(L_1 \mathbin{+\!\!+} L_2) = \Sigma^{\mathrm{rects}}(L_1) + \Sigma^{\mathrm{rects}}(L_2),\quad \Sigma^{\mathrm{draw}}(L) = \sum_{l \in L,\ l.\mathrm{draws}} l.w \cdot l.h \in \mathbb{Z},\ \ \Sigma^{\mathrm{area}}(L) = \sum_{l \in L} \operatorname{area}(l.\mathrm{inv}) \in \mathbb{Z},\ \ \Sigma^{\mathrm{rects}}(L) = \sum_{l \in L} |\operatorname{rects}(l.\mathrm{inv})| \in \mathbb{N}$$
 -/
 theorem layers_additive (l₁ l₂ : List Layer) :
     sumBy (fun l => if l.draws then l.width * l.height else 0) (l₁ ++ l₂) =

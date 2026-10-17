@@ -3,8 +3,9 @@ import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
 import Fw.Measure.Wire
 import Fw.Ops.Wire
+import Fw.Wire.OpsGate
 /-!
-# JSON codecs and ops of `Fw.Sched` (`ops.admit`, `metrics.*`)
+# JSON codecs and ops of `Fw.Sched` (`ops.admit`, `ops.gate`, `metrics.*`)
 
 Glue between `fwcore`'s JSON lines and `Fw.Sched.Admit` / `Fw.Sched.ParMetrics` (namespace
 `Fw.Wire.Sched`, so the math view treats it as wire code). Total decoders only (`Except String`);
@@ -14,6 +15,7 @@ Exact fractions are `{"num":"<int>","den":"<positive int>"}` (as `Fw.Wire.ratToJ
 | op | request | reply |
 |---|---|---|
 | `ops.admit` | `budget` Vec, `state`? State, `event` Cmd, `probe`? [Item] | `state` (after `event`: the command, then admit until quiescent), `admitted` [id] (in admission order), `queued` [Decision] (every item still queued), `probes` [Decision] (each probe judged against the reply state as if enqueued now: `seq := next`, `enq := t`), `inv` (the input state satisfies `Inv`), `invAfter` |
+| `ops.gate` | the `ops.spawn` fields (`alive`, `roles`, `caps`?, `recent`?, `now`, `req`), `budget` Vec, `state`? State (absent: the empty state), `item`? Item (absent: `{id: req.name}`, zero demand) | `decision` (`allow`/`needsApproval`/`deny`/`queue`), `accepted`, `reason` (the guard's reason on `deny`, the admission reason on `queue`, else null), `guard` (the `ops.spawn` reply), `admit` (Decision for the item judged as if enqueued now, always computed), `inv` |
 | `metrics.merge` | `ivs` [[s, e]] | `ivs` |
 | `metrics.busy` | `a`, `b`, `ivs` | `busy` |
 | `metrics.speedup` | `a`, `b`, `agents` [[[s, e]]] | `speedup` (fraction) |
@@ -33,7 +35,7 @@ or `{id, decision:"queue", reason, …witness}` with reasons `neverFits {res}`, 
 Proved: the round trips `stateOf_stateJson`, `itemOf_itemJson`, `vecOf_vecJson`, `cmdOf_cmdJson`,
 `ivOf_ivJson`; `invB_iff` (the reply's `inv` flag is exactly `Inv`), `invB_event` (an event keeps
 it), `event_queued_wait` (every `queued` decision is a `queue`) and `opAdmit_state` (the reply
-state is `event`). Guards: `#guard`s at the end; golden vectors: `Fw.Wire.SchedGolden`.
+state is `event`), `gateName_accepted` (the `ops.gate` decision name is `allow`/`needsApproval` iff accepted; the gate itself is proved in `Fw.Wire.OpsGate`). Guards: `#guard`s at the end; golden vectors: `Fw.Wire.SchedGolden`.
 -/
 namespace Fw.Wire.Sched
 open Lean
@@ -366,6 +368,106 @@ $$\forall B, \sigma, c:\quad \operatorname{admitAll}(B, \operatorname{step}(B, \
 -/
 theorem opAdmit_state (B : Vec) (σ : State) (c : Cmd) : admitAll B (step B σ c) = event B σ c := rfl
 
+/-! ## ops.gate (task ops-gate) -/
+
+/-- Decode the spawn guard's input from the `ops.spawn` request fields (`alive`, `roles`, `caps`?,
+`recent`?, `now`, `req`), with the same defaults as `Fw.Wire.Ops.opSpawn`. -/
+def inputOf (req : Json) : Except String Fw.Ops.SpawnGuard.Input := do
+  let alive ← (← arr req "alive").toList.mapM fun a => do
+    pure ({ name := ← str a "name", role := ← str a "role",
+            kind := ← Fw.Wire.Ops.kindOf "alive.kind" (← str a "kind"),
+            spawner := ← Fw.Wire.Ops.strD a "spawner" "" } : Fw.Ops.SpawnGuard.Agent)
+  let roles ← (← arr req "roles").toList.mapM fun r => do
+    pure ({ name := ← str r "name", runsAs := ← Fw.Wire.Ops.kindOf "roles.runsAs" (← str r "runsAs"),
+            edits := ← Fw.Wire.Ops.boolD r "edits" false } : Fw.Ops.SpawnGuard.Role)
+  let caps ← match opt req "caps" with
+    | none => pure {}
+    | some c => Fw.Wire.Ops.capsOf c
+  let recent ← (← arrD req "recent").mapM fun r => do pure (← str r "spawner", ← nat r "at")
+  let q ← field req "req"
+  let rq : Fw.Ops.SpawnGuard.Req :=
+    { name := ← Fw.Wire.Ops.strD q "name" "", role := ← str q "role", isolation := ← Fw.Wire.Ops.isolationOf q,
+      model := ← Fw.Wire.Ops.strD q "model" "", spawner := ← Fw.Wire.Ops.strD q "spawner" "lead",
+      depth := ← natD q "depth" 0 }
+  pure ⟨alive, roles, caps, recent, ← nat req "now", rq⟩
+
+/-- The spawn guard's reply for an input, field for field as `ops.spawn` writes it. -/
+def guardReply (i : Fw.Ops.SpawnGuard.Input) : Reply :=
+  let kind := [("kind", Json.str (Fw.Wire.Ops.kindName (Fw.Ops.SpawnGuard.effKind i.req))),
+               ("wantKind", ostr ((Fw.Ops.SpawnGuard.wantKind i).map Fw.Wire.Ops.kindName))]
+  match Fw.Ops.SpawnGuard.decide i with
+  | .allow => [("decision", .str "allow"), ("reason", .null)] ++ kind
+  | .needsApproval => [("decision", .str "needsApproval"), ("reason", .null)] ++ kind
+  | .deny r => [("decision", .str "deny")] ++ Fw.Wire.Ops.reasonFields r ++ kind
+
+open Fw.Wire.OpsGate (GateDecision gate) in
+/-- The wire name of a gate decision.
+
+$$\forall r, w:\quad \operatorname{name}(\mathrm{guard}(\mathrm{allow})) = \texttt{"allow"},\ \operatorname{name}(\mathrm{guard}(\mathrm{needsApproval})) = \texttt{"needsApproval"},\ \operatorname{name}(\mathrm{guard}(\mathrm{deny}(r))) = \texttt{"deny"},\ \operatorname{name}(\mathrm{queue}(w)) = \texttt{"queue"}$$
+-/
+def gateName : GateDecision → String
+  | .guard .allow => "allow"
+  | .guard .needsApproval => "needsApproval"
+  | .guard (.deny _) => "deny"
+  | .queue _ => "queue"
+
+/-- The first value of a reply (the reason name of `reasonFields`), or `null` for an empty one. -/
+def headVal : Reply → Json
+  | (_, v) :: _ => v
+  | [] => .null
+
+open Fw.Wire.OpsGate (GateDecision) in
+/-- The reason name of a gate decision: the guard's reason for a denial, the admission reason for
+a queue, `null` otherwise. -/
+def gateReason : GateDecision → Json
+  | .guard (.deny r) => headVal (Fw.Wire.Ops.reasonFields r)
+  | .guard _ => .null
+  | .queue w => headVal (reasonFields w)
+
+open Fw.Wire.OpsGate (GateDecision) in
+/-- The wire name says `allow` or `needsApproval` exactly when the gate decision is accepted.
+
+$$\forall g:\quad \operatorname{name}(g) \in \{\texttt{"allow"}, \texttt{"needsApproval"}\} \iff \mathrm{accepted}(g)$$
+-/
+theorem gateName_accepted (g : GateDecision) :
+    (gateName g = "allow" ∨ gateName g = "needsApproval") ↔ g.accepted = true := by
+  rcases g with (_ | _ | _) | _ <;>
+    simp [gateName, GateDecision.accepted, Fw.Ops.SpawnGuard.Decision.accepted]
+
+/-- The item a spawn is judged as: the `item` field, or (absent) an item named after the request
+with no demand, writes, dependencies or devices; in both cases enqueued now, with
+$\mathit{seq} := \mathit{next}(\sigma)$ and $\mathit{enq} := t(\sigma)$ (as an `ops.admit` probe).
+
+$$\operatorname{item}(\sigma, x) = x[\mathit{seq} := \mathit{next}(\sigma),\ \mathit{enq} := t(\sigma)]$$
+-/
+def gateItem (σ : State) (x : Item) : Item := { x with seq := σ.next, enq := σ.t }
+
+/-- `ops.gate`: the spawn guard, then admission of the spawn's item (`Fw.Wire.OpsGate.gate`).
+The request is an `ops.spawn` request plus `budget`, `state`? and `item`?; the reply is the gate
+decision with the guard's full reply and the admission decision (computed even after a denial,
+for the shadow log).
+
+$$\operatorname{opGate}(i, B, \sigma, x) = \big(\operatorname{name}(g),\ \mathrm{accepted}(g),\ \operatorname{reason}(g),\ \operatorname{guard}(i),\ \operatorname{admit}(B, \sigma, x'),\ \operatorname{invB}(B, \sigma)\big), \quad x' = \operatorname{item}(\sigma, x),\ g = \operatorname{gate}(i, B, \sigma, x')$$
+
+where $i, B, \sigma, x$ are decoded from the request: $i$ from the `ops.spawn` fields (absent `caps` and
+`recent` take the `ops.spawn` defaults), $\sigma = \sigma_0$ (the empty state) when `state` is absent, and
+$x = (\mathit{id} := \mathit{name}(q_i))$ with no demand, writes, dependencies or devices when `item` is absent.
+-/
+def opGate (req : Json) : Except String Reply := do
+  let i ← inputOf req
+  let B ← vecOf (← field req "budget")
+  let σ ← match opt req "state" with
+    | none => pure {}
+    | some s => stateOf s
+  let x ← match opt req "item" with
+    | none => pure ({ id := i.req.name } : Item)
+    | some j => itemOf j
+  let x := gateItem σ x
+  let g := Fw.Wire.OpsGate.gate i B σ x
+  pure [("decision", .str (gateName g)), ("accepted", .bool g.accepted), ("reason", gateReason g),
+        ("guard", Json.mkObj (guardReply i)), ("admit", decisionJson x.id (admit B σ x)),
+        ("inv", .bool (invB B σ))]
+
 /-! ## metrics.* codecs -/
 
 /-- An exact fraction `{"num":"<int>","den":"<positive int>"}`, reduced (the form of `Fw.Wire.ratToJson`). -/
@@ -450,13 +552,14 @@ def opBenchVerdict (req : Json) : Except String Reply := do
 
 /-- The `Fw.Sched` ops. -/
 def ops : List String :=
-  ["ops.admit", "metrics.merge", "metrics.busy", "metrics.speedup", "metrics.serialShare", "metrics.stretch",
+  ["ops.admit", "ops.gate", "metrics.merge", "metrics.busy", "metrics.speedup", "metrics.serialShare", "metrics.stretch",
    "metrics.cp", "metrics.benchVerdict"]
 
 /-- Dispatch a `Fw.Sched` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ops.admit" => some (opAdmit req)
+  | "ops.gate" => some (opGate req)
   | "metrics.merge" => some (opMerge req)
   | "metrics.busy" => some (opBusy req)
   | "metrics.speedup" => some (opSpeedup req)
@@ -483,6 +586,17 @@ def run (op : String) (r : String) : String :=
   { id := "b", demand := { cores := 2 }, seq := 1 }], next := 2 })) == ["a", "b"]
 #guard run "ops.admit" "{\"budget\":{\"cores\":4},\"event\":{\"type\":\"enqueue\",\"item\":{\"id\":\"a\",\"demand\":{\"cores\":2}}}}"
   |>.startsWith "{\"admitted\":[\"a\"]"
+#guard gateName (.guard .needsApproval) == "needsApproval" && gateName (.guard (.deny .unnamed)) == "deny"
+  && gateName (.queue (.depPending "a")) == "queue"
+#guard gateReason (.guard (.deny (.capRole "r"))) == .str "capRole" && gateReason (.guard .allow) == .null
+  && gateReason (.queue (.behindAged "z")) == .str "behindAged"
+#guard (gateItem { t := 7, next := 3 } { id := "x", seq := 9, enq := 1 }) == { id := "x", seq := 3, enq := 7 }
+#guard run "ops.gate" ("{\"alive\":[],\"roles\":[{\"name\":\"w\",\"runsAs\":\"worktree\"}],\"now\":0," ++
+  "\"req\":{\"name\":\"w-1\",\"role\":\"w\",\"isolation\":\"worktree\"},\"budget\":{}}")
+  |>.startsWith "{\"accepted\":true,\"admit\":{\"decision\":\"admit\",\"id\":\"w-1\""
+#guard run "ops.gate" ("{\"alive\":[],\"roles\":[{\"name\":\"w\",\"runsAs\":\"worktree\"}],\"now\":0," ++
+  "\"req\":{\"name\":\"w-1\",\"role\":\"w\",\"isolation\":\"worktree\"},\"budget\":{},\"item\":{\"id\":\"w-1\"," ++
+  "\"demand\":{\"cores\":1}}}") |>.startsWith "{\"accepted\":false,"
 #guard run "metrics.cp" "{\"n\":2,\"w\":[1,1],\"edges\":[[0,1],[1,0]]}" == "{\"cp\":null,\"cycle\":true}"
 #guard run "metrics.speedup" "{\"a\":0,\"b\":10,\"agents\":[[[0,6]],[[4,10]]]}" == "{\"speedup\":{\"den\":\"5\",\"num\":\"6\"}}"
 #guard run "metrics.busy" "{\"a\":0,\"b\":10,\"ivs\":[[1,3.5]]}" == "error: field ivs: expected a non-negative integer"

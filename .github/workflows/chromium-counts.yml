@@ -4,19 +4,25 @@ name: chromium-counts
 # run. N runs on N fresh VMs give the cross-machine determinism check (V-i) that one Mac cannot.
 # CI results are a separate `platform` key until a local-vs-CI V-b check passes (research note ci-measurement-feasibility).
 on:
-  # Inputs: the Chromium harness and image, fwcore (lean/), the snapshot and its lock, the scripts and actions the jobs use.
+  # Inputs: the Chromium harness and image, the rewrite it measures (apps/site, built with the pnpm workspace files), fwcore and
+  # the breakpoint sources (lean/), the snapshot and its lock, the scripts and actions the jobs use.
   # A push runs this workflow only when it changes one of these paths; `workflow_dispatch` runs it on demand
   # (gh workflow run <name> --ref <branch>). Why: docs/team/handoffs/ci-trigger-scope.md.
   push:
     branches: ['ci/**', main]
     paths:
       - 'packages/measure-chromium/**'
+      - 'apps/site/**'
       - 'lean/**'
       - 'snapshot/**'
       - 'snapshot.lock.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - '.github/scripts/verify-snapshot.mjs'
       - '.github/scripts/runner-info.sh'
       - '.github/actions/setup-lean/**'
+      - '.github/actions/setup-pnpm/**'
       - '.github/workflows/chromium-counts.yml'
   workflow_dispatch:
     inputs:
@@ -28,6 +34,19 @@ on:
         description: Determinism runs, each on its own VM (1 to 10)
         type: string
         default: '3'
+      target:
+        description: Which page to measure, each on its own VMs with the same profile, image and flags (original = the snapshot, rewrite = apps/site prerendered build)
+        type: choice
+        options: [both, original, rewrite]
+        default: both
+      preset:
+        description: Rewrite preset to measure (apps/site/src/registry/presets/<name>.json); original = the default config. Applies to the rewrite jobs only (the original snapshot has no presets)
+        type: string
+        default: original
+      fw:
+        description: Rewrite flag set, comma separated part:variant (for example hero.countdown:strip), on top of the preset; empty = none. Applies to the rewrite jobs only
+        type: string
+        default: ''
       image_run:
         description: Optional run id of an earlier chromium-counts run; its chromium-image artifact is reused instead of building (class-freeze pins one image across workflow runs this way)
         type: string
@@ -51,6 +70,9 @@ jobs:
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
       profile: ${{ steps.m.outputs.profile }}
+      targets: ${{ steps.m.outputs.targets }}
+      rewrite: ${{ steps.m.outputs.rewrite }}
+      search: ${{ steps.m.outputs.search }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -60,15 +82,38 @@ jobs:
         env:
           PROFILE: ${{ inputs.profile || 'swipe-v1' }}
           RUNS: ${{ inputs.runs || '3' }}
+          TARGET: ${{ inputs.target || 'both' }}
+          PRESET: ${{ inputs.preset || 'original' }}
+          FW: ${{ inputs.fw || '' }}
         run: |
           set -euo pipefail
           case "$PROFILE" in ''|*[!a-z0-9-]*) echo "bad profile name" >&2; exit 1 ;; esac
           case "$RUNS" in ''|*[!0-9]*) echo "runs must be a number" >&2; exit 1 ;; esac
           if [ "$RUNS" -lt 1 ] || [ "$RUNS" -gt 10 ]; then echo "runs must be 1..10" >&2; exit 1; fi
           test -f "packages/measure-chromium/profiles/$PROFILE.json"
-          matrix=$(seq 1 "$RUNS" | jq -R -s -c '{run: (split("\n") | map(select(length > 0)) | map("r" + .))}')
+          # The rewrite page is chosen by its query string (apps/site: ?preset=<name>&fw=<part:variant,...>). The default
+          # config has the empty query. The site build prerenders exactly this query, so the measured page hydrates.
+          case "$PRESET" in ''|*[!a-z0-9-]*) echo "bad preset name" >&2; exit 1 ;; esac
+          case "$FW" in *[!A-Za-z0-9.:@,_-]*) echo "bad fw flag set" >&2; exit 1 ;; esac
+          search=""
+          if [ "$PRESET" != original ]; then search="?preset=$PRESET"; fi
+          if [ -n "$FW" ]; then
+            if [ -n "$search" ]; then search="$search&fw=$FW"; else search="?fw=$FW"; fi
+          fi
+          if [ -n "$search" ] && [ "$TARGET" = original ]; then echo "preset/fw apply to the rewrite: use target both or rewrite" >&2; exit 1; fi
+          echo "search=$search" >> "$GITHUB_OUTPUT"
+          case "$TARGET" in
+            both) targets='["original","rewrite"]' ;;
+            original) targets='["original"]' ;;
+            rewrite) targets='["rewrite"]' ;;
+            *) echo "bad target" >&2; exit 1 ;;
+          esac
+          # One job per (target, run): every job is its own VM, original and rewrite alike.
+          matrix=$(seq 1 "$RUNS" | jq -R -s -c --argjson t "$targets" '(split("\n") | map(select(length > 0)) | map("r" + .)) as $r | {include: [$t[] as $x | $r[] | {target: $x, run: .}]}')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          if [ "$TARGET" = original ]; then echo "rewrite=false" >> "$GITHUB_OUTPUT"; else echo "rewrite=true" >> "$GITHUB_OUTPUT"; fi
           echo "matrix: $matrix"
 
   # fwcore decides the zone sums and the classes (Lean). It is built here and passed to the jobs by artifact.
@@ -89,6 +134,35 @@ jobs:
           path: lean/.lake/build/bin/fwcore
           if-no-files-found: error
           retention-days: 1
+
+  # The rewrite, built once (prerendered default config); every rewrite counts job downloads this exact build. `pnpm build` of
+  # the site first runs `lake exe breakgen --check` (the checked-in breakpoints must equal Lean's output), hence setup-lean.
+  site:
+    needs: [plan]
+    if: ${{ needs.plan.outputs.rewrite == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/site...'
+      - name: Build the rewrite (default prerendered config)
+        env:
+          SEARCH: ${{ needs.plan.outputs.search }}
+        run: |
+          set -euo pipefail
+          # An empty search is the default config, which every build prerenders; any other query is added as a page.
+          if [ -n "$SEARCH" ]; then pnpm --filter @fw/site build --config "$SEARCH"; else pnpm --filter @fw/site build; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+          if-no-files-found: error
+          retention-days: 3
 
   # Build the image once. The matrix jobs load this exact image and check its content id (the config digest)
   # against the one printed here, so no matrix job rebuilds it (apt packages are not pinned, so a rebuild could differ).
@@ -147,7 +221,10 @@ jobs:
           retention-days: 3
 
   counts:
-    needs: [plan, fwcore, image]
+    needs: [plan, fwcore, image, site]
+    # site is skipped when only the original is measured; anything else that did not succeed stops the counts.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.fwcore.result == 'success' && needs.image.result == 'success' && (needs.site.result == 'success' || needs.site.result == 'skipped') }}
+    name: counts (${{ matrix.target }}, ${{ matrix.run }})
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     strategy:
@@ -180,6 +257,13 @@ jobs:
           name: chromium-image
           path: ${{ runner.temp }}/image
 
+      - name: Download the rewrite build
+        if: ${{ matrix.target == 'rewrite' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: ${{ github.workspace }}/apps/site/dist/aot
+
       - name: Load the image and check its digest
         env:
           WANT_ID: ${{ needs.image.outputs.image-id }}
@@ -199,11 +283,17 @@ jobs:
         env:
           PROFILE: ${{ needs.plan.outputs.profile }}
           LABEL: ${{ matrix.run }}
+          TARGET: ${{ matrix.target }}
+          SEARCH: ${{ needs.plan.outputs.search }}
           FW_SNAPSHOT_DIR: ${{ github.workspace }}/snapshot/site
           FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
           # Read by the harness once it learns it (harness change H2, see .github/README.md); a no-op until then.
           FW_DOCKER_CPUS: '4'
-        run: node packages/measure-chromium/src/host.mjs --profile "$PROFILE" --label "$LABEL"
+        run: |
+          set -euo pipefail
+          args=(--profile "$PROFILE" --label "$LABEL" --target "$TARGET")
+          if [ "$TARGET" = rewrite ] && [ -n "$SEARCH" ]; then args+=(--search "$SEARCH"); fi
+          node packages/measure-chromium/src/host.mjs "${args[@]}"
 
       - name: Collect the result
         env:
@@ -214,14 +304,14 @@ jobs:
           set -euo pipefail
           res="$RUNNER_TEMP/result"
           mkdir -p "$res"
-          cp "packages/measure-chromium/out/$PROFILE/$LABEL/counts.json" "packages/measure-chromium/out/$PROFILE/$LABEL/zones.json" "$res/"
+          cp "packages/measure-chromium/out/$PROFILE/$LABEL/counts.json" "packages/measure-chromium/out/$PROFILE/$LABEL/zones.json" "packages/measure-chromium/out/$PROFILE/$LABEL/host.json" "$res/"
           cp "$RUNNER_TEMP/runner.json" "$res/runner.json"
           printf '%s\n' "$WANT_ID" > "$res/image-id.txt"
           (cd "$res" && sha256sum counts.json zones.json | tee sha256.txt)
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: chromium-counts-${{ matrix.run }}
+          name: chromium-counts-${{ matrix.target }}-${{ matrix.run }}
           path: ${{ runner.temp }}/result
           if-no-files-found: error
           retention-days: 30
@@ -250,32 +340,50 @@ jobs:
         env:
           FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
           PROFILE: ${{ needs.plan.outputs.profile }}
+          TARGETS: ${{ needs.plan.outputs.targets }}
+          SEARCH: ${{ needs.plan.outputs.search }}
         run: |
           set -euo pipefail
           chmod +x "$FW_CORE_BIN"
+          cls="$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs"
           out="$RUNNER_TEMP/classes"
           mkdir -p "$out"
           cd "$RUNNER_TEMP/runs"
           ls
-          files=(chromium-counts-*/counts.json)
-          node "$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs" "${files[@]}" --kMax 4 --tMax 24 | tee "$out/classes.txt"
-          node "$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs" "${files[@]}" --kMax 4 --tMax 24 --json > "$out/classes.json"
-          sha256sum chromium-counts-*/counts.json chromium-counts-*/zones.json | tee "$out/sha256-all.txt"
-          cat chromium-counts-*/runner.json > "$out/runners.jsonl"
-          # The pinned inputs of the image (class-freeze records them next to the image id).
-          cat chromium-counts-*/image-id.txt | sort | uniq -c > "$out/image-ids.txt"
-          (cd "$GITHUB_WORKSPACE/packages/measure-chromium" && sha256sum Dockerfile docker/apt-manifest.txt docker/driver/package-lock.json) > "$out/image-inputs.txt"
           echo "profile $PROFILE, workflow run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT, sha $GITHUB_SHA" > "$out/run.txt"
-          {
-            echo '### chromium-counts: classes over the runs'
-            echo '```'
-            cat "$out/classes.txt"
-            echo '```'
-            echo '### sha256 of counts.json and zones.json per run'
-            echo '```'
-            cat "$out/sha256-all.txt"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "search of the rewrite: '$SEARCH'" >> "$out/run.txt"
+          # The pinned inputs of the image (class-freeze records them next to the image id).
+          (cd "$GITHUB_WORKSPACE/packages/measure-chromium" && sha256sum Dockerfile docker/apt-manifest.txt docker/driver/package-lock.json) > "$out/image-inputs.txt"
+          echo '### chromium-counts: classes over the runs' >> "$GITHUB_STEP_SUMMARY"
+          # Each target goes through the same classify path (fwcore Fw.Measure.classify, kMax 4, tMax 24).
+          for t in $(echo "$TARGETS" | jq -r '.[]'); do
+            d="$out/$t"; mkdir -p "$d"
+            files=(chromium-counts-"$t"-*/counts.json)
+            node "$cls" "${files[@]}" --kMax 4 --tMax 24 | tee "$d/classes.txt"
+            node "$cls" "${files[@]}" --kMax 4 --tMax 24 --json > "$d/classes.json"
+            sha256sum chromium-counts-"$t"-*/counts.json chromium-counts-"$t"-*/zones.json | tee "$d/sha256-all.txt"
+            cat chromium-counts-"$t"-*/runner.json > "$d/runners.jsonl"
+            cat chromium-counts-"$t"-*/image-id.txt | sort | uniq -c > "$d/image-ids.txt"
+            # Container attempts per job (host.json): more than 1 = a BeginFrame wedge that the host retried.
+            for h in chromium-counts-"$t"-*/host.json; do echo "$h $(jq -c '{attempts, hostWallS}' "$h")"; done | tee "$d/attempts.txt"
+            {
+              echo "#### $t"
+              echo '```'; cat "$d/classes.txt"; echo '```'
+              echo 'attempts per job:'; echo '```'; cat "$d/attempts.txt"; echo '```'
+              echo 'sha256 of counts.json and zones.json per run:'; echo '```'; cat "$d/sha256-all.txt"; echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+          # Original (A) next to rewrite (R), per type.
+          if [ -f "$out/original/classes.json" ] && [ -f "$out/rewrite/classes.json" ]; then
+            node -e '
+              const [a, r] = process.argv.slice(1).map((f) => JSON.parse(require("fs").readFileSync(f, "utf8")));
+              const f = (c) => c ? `${c.class}(${c.k},${c.t})` : "-";
+              const w = Math.max(...Object.keys({ ...a, ...r }).map((t) => t.length));
+              console.log(`${"type".padEnd(w)}  ${"A original".padEnd(22)} R rewrite`);
+              for (const t of Object.keys({ ...a, ...r })) console.log(`${t.padEnd(w)}  ${f(a[t]).padEnd(22)} ${f(r[t])}`);
+            ' "$out/original/classes.json" "$out/rewrite/classes.json" | tee "$out/a-vs-r.txt"
+            { echo '#### A (original) next to R (rewrite): class(k,t)'; echo '```'; cat "$out/a-vs-r.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chromium-classes

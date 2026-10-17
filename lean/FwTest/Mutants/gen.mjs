@@ -4,6 +4,7 @@
 //   node gen.mjs list [--skip d,d] [--str-cap N] <file.lean>...
 //                                              one TSV line per mutant: file id op def line from to
 //   node gen.mjs apply <file.lean> <id> <out>  write the mutated file to <out>
+//   node gen.mjs shard <i> <n> <in.tsv         the lines of shard i of n (FNV-1a of "file<TAB>id", mod n)
 //   node gen.mjs regions <file.lean>           JSON: [{kind,name,start,end}] line ranges (1-based, inclusive)
 //   node gen.mjs classify <log> <leanDir> <file>  verdict<TAB>detail of a failed build log (see mutants.sh)
 //
@@ -237,9 +238,24 @@ if (cmd === 'list') {
   const x = mutants(src).find((y) => y.id === id);
   if (!x) { console.error(`gen: no mutant ${id} in ${f}`); process.exit(2); }
   writeFileSync(out, src.slice(0, x.start) + x.to + src.slice(x.end));
+} else if (cmd === 'shard') {
+  // shard <i> <n>: the TSV lines of stdin (file id ...) whose 32-bit FNV-1a hash of "file<TAB>id" (UTF-8) is i mod n.
+  // Depends on the mutant id alone, so a mutant lands in the same shard whatever else is in the list.
+  const [i, n] = args.map(Number);
+  if (!(Number.isInteger(i) && Number.isInteger(n) && n >= 1 && i >= 0 && i < n)) {
+    console.error('gen: shard <i> <n> needs integers 0 <= i < n'); process.exit(2);
+  }
+  const fnv = (s) => { let h = 0x811c9dc5; for (const b of Buffer.from(s, 'utf8')) h = Math.imul(h ^ b, 0x01000193) >>> 0; return h; };
+  const out = [];
+  for (const l of readFileSync(0, 'utf8').split('\n')) {
+    if (l === '') continue;
+    const [f, id] = l.split('\t');
+    if (fnv(`${f}\t${id}`) % n === i) out.push(l);
+  }
+  if (out.length) console.log(out.join('\n'));
 } else if (cmd === 'regions') {
   console.log(JSON.stringify(regions(readFileSync(args[0], 'utf8'))));
 } else {
-  console.error('usage: gen.mjs list [--skip defs] <file>... | apply <file> <id> <out> | regions <file> | classify <log> <dir> <file>');
+  console.error('usage: gen.mjs list [--skip defs] <file>... | apply <file> <id> <out> | shard <i> <n> | regions <file> | classify <log> <dir> <file>');
   process.exit(2);
 }

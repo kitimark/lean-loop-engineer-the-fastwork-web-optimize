@@ -9,11 +9,13 @@ const SHA = "0123456789abcdef0123456789abcdef01234567";
 
 describe("parseRunArgs", () => {
   it("reads flags, commas and repeats", () => {
-    const a = parseRunArgs(["--fw", "a:x,b:y", "--fw", "c:z", "--preset", "p", "--engines", "chromium,webkit", "--dry", "--image", "chromium=runner:x"]);
-    expect(a).toMatchObject({ preset: "p", fw: ["a:x", "b:y", "c:z"], engines: ["chromium", "webkit"], dry: true, images: { chromium: "runner:x" } });
+    const a = parseRunArgs(["--fw", "a:x,b:y", "--fw", "c:z", "--preset", "p", "--target", "rewrite", "--engines", "chromium,webkit", "--dry", "--image", "chromium=runner:x"]);
+    expect(a).toMatchObject({ target: "rewrite", preset: "p", fw: ["a:x", "b:y", "c:z"], engines: ["chromium", "webkit"], dry: true, images: { chromium: "runner:x" } });
   });
-  it("needs engines, values and known flags", () => {
+  it("needs engines, a target, values and known flags", () => {
     expect(() => parseRunArgs([])).toThrow(UsageError);
+    expect(() => parseRunArgs(["--engines", "chromium"])).toThrow(/--target is required/);
+    expect(() => parseRunArgs(["--engines", "chromium", "--target"])).toThrow(UsageError);
     expect(() => parseRunArgs(["--engines"])).toThrow(UsageError);
     expect(() => parseRunArgs(["--engines", "chromium", "--nope"])).toThrow(UsageError);
     expect(() => parseRunArgs(["--engines", "chromium", "--runs", "x"])).toThrow(UsageError);
@@ -48,7 +50,7 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
   it("--dry plans two jobs and runs no gh", () => {
     const logs: string[] = [];
     const gh: Gh = () => { throw new Error("gh must not run in --dry"); };
-    const code = runMain(parseRunArgs(["--engines", "chromium,webkit", "--dry"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    const code = runMain(parseRunArgs(["--engines", "chromium,webkit", "--target", "original", "--dry"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
     expect(code).toBe(0);
     expect(logs.join("\n")).toMatch(/chromium/);
     expect(logs.join("\n")).toMatch(/webkit/);
@@ -57,9 +59,37 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
   it("a request the workflow cannot express is refused before any dispatch", () => {
     const logs: string[] = [];
     const gh: Gh = () => { throw new Error("no gh"); };
-    const code = runMain(parseRunArgs(["--engines", "chromium", "--fw", "hero.countdown:strip"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    // webkit-sim has no target (or fw) input: it measures the original snapshot only
+    const code = runMain(parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--fw", "hero.countdown:strip"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
     expect(code).toBe(2);
-    expect(logs.join("\n")).toMatch(/refused/);
+    expect(logs.join("\n")).toMatch(/refused: webkit \(target\)/);
+  });
+
+  it("an original run with flags is a problem (fwcore), not a dispatch", () => {
+    const logs: string[] = [];
+    const gh: Gh = () => { throw new Error("no gh"); };
+    const code = runMain(parseRunArgs(["--engines", "chromium", "--target", "original", "--fw", "hero.countdown:strip"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    expect(code).toBe(2);
+    expect(logs.join("\n")).toMatch(/problem: target: original takes no preset or flags/);
+  });
+
+  it("the target is sent to chromium-counts and is part of the key: original and rewrite never share a run key", () => {
+    const store = mk();
+    const o = planRun(call, parseRunArgs(["--engines", "chromium", "--target", "original"]), SHA, store).reply.jobs[0]!;
+    const r = planRun(call, parseRunArgs(["--engines", "chromium", "--target", "rewrite"]), SHA, store).reply.jobs[0]!;
+    expect(o.inputs.target).toBe("original");
+    expect(r.inputs.target).toBe("rewrite");
+    expect(o.key).toContainEqual(["target", "original"]);
+    expect(keyDigest(o.key as [string, string][])).not.toBe(keyDigest(r.key as [string, string][]));
+    expect(dispatchArgs(r, "ci/x")).toContain("target=rewrite");
+  });
+
+  it("chromium-counts expresses preset and fw: a dry run is not refused", () => {
+    const logs: string[] = [];
+    const gh: Gh = () => { throw new Error("no gh"); };
+    const code = runMain(parseRunArgs(["--engines", "chromium", "--target", "rewrite", "--preset", "original", "--fw", "nav.hitTest:hit-skip,hero.countdown:strip", "--dry"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) });
+    expect(logs.join("\n")).not.toMatch(/refused|BLOCKED/);
+    expect(code).toBe(0);
   });
 
   it("dispatches, downloads and files artifacts; a second run is a cache hit", () => {
@@ -78,7 +108,7 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
       }
       return "";
     };
-    const args = parseRunArgs(["--engines", "chromium", "--ref", "ci/t"]);
+    const args = parseRunArgs(["--engines", "chromium", "--target", "original", "--ref", "ci/t"]);
     const logs: string[] = [];
     expect(runMain(args, { call, gh, store, sha: SHA, branch: "main", tmp, log: (l) => logs.push(l), pollMs: 0 })).toBe(0);
     expect(calls.some((c) => c[0] === "workflow")).toBe(true);
@@ -87,6 +117,10 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     expect(existsSync(join(store, "runs", keyDigest(key), "manifest.json"))).toBe(true);
     const m = JSON.parse(readFileSync(join(store, "runs", keyDigest(key), "manifest.json"), "utf8"));
     expect(m.entries.map((e: { name: string }) => e.name)).toEqual(["counts-run1.json", "trace/run1.json"]);
+    expect(m.target).toBe("original");
+    expect(calls.find((c) => c[0] === "workflow")).toContain("target=original");
+    // the rewrite of the same configuration is not the filed run
+    expect(planRun(call, { ...args, target: "rewrite" }, SHA, store).reply.jobs[0]!.cache).toBe("miss");
     expect(existsSync(join(store, "objects", sha256("{}").slice(0, 2), sha256("{}").slice(2)))).toBe(true);
     expect(planned.reply.jobs[0]!.cache).toBe("hit");
 
@@ -99,6 +133,6 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
 
   it("a run that measured another commit is refused", () => {
     const gh: Gh = (a) => (a[1] === "list" ? JSON.stringify([{ databaseId: 9 }]) : a[1] === "view" ? JSON.stringify({ headSha: "f".repeat(40) }) : "");
-    expect(() => runMain(parseRunArgs(["--engines", "chromium", "--from-run", "chromium=9"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: () => {} })).toThrow(/measured/);
+    expect(() => runMain(parseRunArgs(["--engines", "chromium", "--target", "original", "--from-run", "chromium=9"]), { call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: () => {} })).toThrow(/measured/);
   });
 });

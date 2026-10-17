@@ -95,7 +95,7 @@ no event came for `staleMs`.
 
 $$\operatorname{row}(\sigma, \mathit{now}, c) = \big(c.\mathit{id}, c.\mathit{owner}, \operatorname{stage}(c), \operatorname{next}(c, \operatorname{stage}(c)), c.\mathit{lastAt}, \operatorname{map}(\operatorname{needs}, m), \rho, c.\mathit{head}, c.\mathit{landed}, c.\mathit{violation}, \neg c.\mathit{landed} \land \rho = 0 \land m = \bot \land \mathrm{STALE} \le \mathit{now} \mathbin{\dot{-}} c.\mathit{lastAt}\big)$$
 
-where $m$ is the first step $s$ with $\operatorname{isOpen}(s.\mathit{status}) \land s.\mathit{card} = c.\mathit{id}$ (or $\bot$), and
+where $m$ is the first $s \in \sigma.\mathit{steps}$ (in list order) with $\operatorname{isOpen}(s.\mathit{status}) \land s.\mathit{card} = c.\mathit{id}$ (a step with no card never matches), or $\bot$ if there is none, and
 $\rho = |[\, r \in \sigma.\mathit{runs} \mid r.\mathit{card} = c.\mathit{id} \land r.\mathit{status} = \mathrm{running} \,]|$ (a list count), and $\mathrm{STALE} = \mathrm{staleMs}$.
 -/
 def boardCard (s : State) (now : Nat) (c : Card) : BoardCard :=
@@ -108,9 +108,9 @@ def boardCard (s : State) (now : Nat) (c : Card) : BoardCard :=
     stale := !c.landed && running == 0 && mine.isNone && decide (staleMs ≤ now - c.lastAt) }
 
 /-- The board: the sequence number and server clock it was computed at, one row per card (in
-card order), all steps, and the needs-you list (every open step, in step order).
+card order), all steps, and the needs-you list (every open step, in step order); `board` computes it.
 
-$$\operatorname{board}(\sigma, \mathit{now}, \mathit{seq}) = \big(\mathit{seq},\ \mathit{now},\ [\operatorname{row}(\sigma, \mathit{now}, c) : c \in \sigma.\mathit{cards}],\ \sigma.\mathit{steps},\ [\operatorname{needs}(s) : s \in \sigma.\mathit{steps},\ \operatorname{isOpen}(s.\mathit{status})]\big)$$
+$$\mathrm{Board} = (\mathit{seq}, \mathit{now}, \mathit{cards}, \mathit{steps}, \mathit{needsYou}) \in \mathbb{N} \times \mathbb{N} \times \mathrm{BoardCard}^{*} \times \mathrm{Step}^{*} \times \mathrm{NeedsYou}^{*}$$
 -/
 structure Board where
   seq      : Nat
