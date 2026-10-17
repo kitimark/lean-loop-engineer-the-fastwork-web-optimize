@@ -46,6 +46,25 @@ The full per-event audit (counts, gaps, ordering, latency, spawn-guard log) is i
    Agents need their brief from `SubagentStart` (its `additionalContext`), since they never fire SessionStart.
 3. Until part 2 is answered, the stall watcher (§8.5) stays the only defence against a deaf teammate.
 
+## Update (spawn-guard-workflows): wake-test instrumentation and workflow spawns
+- `emit.mjs` now keeps `background_tasks` as a **count** (array length or number; no task text) on any event that carries
+  it (SubagentStop, TeammateIdle if present). Test: `apps/runner/test/hooks.test.ts`. The controlled wake test itself
+  (teammate starts a background command, goes idle, command ends, no message) has **not been run**: part 2 stays OPEN
+  until a spool shows `background_tasks` > 0 on an idle teammate and then whether a turn follows. Status: INSTRUMENTED.
+- Why 18 of 26 spawns had no SpawnGuard record: the guard is `PreToolUse(Agent)`; workflow-spawned agents never call the
+  Agent tool, but every spawn fires `SubagentStart` (`agent_id`, `agent_type`; docs: hooks reference, common input
+  fields). Spool snapshot: 40 SubagentStart, 12 SpawnGuard (9 allow, 2 deny:kindMismatch, 1 needsApproval); the
+  agent types without a guard record include workflow names (e.g. `explainer-rev6`, `spk-hooks`, `wktr-ci`). MEASURED.
+- Fix: the guard drops a marker `.fw-console/spawn-pending/<ts>-<tool_use_id>.json` (role only). On `SubagentStart`,
+  `emit.mjs` claims (unlinks) a marker of the same role from the last 10 min; if none, it writes a `SpawnGuard` record
+  with `verb: "observed"`, `seen_by: "subagent-start"` (guard records now carry `seen_by: "pre-tool-use"`). Nothing is
+  blocked (Q31). Matching by role + recency is a TS STAND-IN and can mis-pair two same-role spawns (count stays right).
+- The unexplained `deny:kindMismatch` (2 in the snapshot, both from the lead, `agent_id` null): the old record did not
+  log the request, so the role cannot be recovered. By `Fw.Ops.SpawnGuard.roleCheck` a mismatch means expected
+  `runsAs` of the role differs from the kind the request implies (`isolation` = worktree; else named at depth 0 =
+  teammate; else subagent), most likely a named worktree role called without `isolation: "worktree"` (the case the
+  unit test covers) . INFERRED. New records log `role`, `want_kind`, `got_kind`, `has_name`, `isolation`, `depth`.
+
 ## Missing
 - Part 2: let `emit.mjs` keep a `background_tasks` count on SubagentStop (a number, no user text),
   then run the controlled test: a teammate starts a background command, goes idle, the command ends, no message arrives.

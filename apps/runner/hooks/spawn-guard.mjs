@@ -4,7 +4,7 @@
 // `caps.unnamedReadOnly = true` (unnamed read-only subagents are allowed). The decision is made in Lean; this file only
 // builds the request and writes the log line (an ObsRecord: event `SpawnGuard`, `verb` = decision[:reason]).
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appendLine, consoleDir, readPayload, safeName } from "./lib.mjs";
@@ -50,6 +50,14 @@ export function ask(bin, req) {
   } catch { return null; }
 }
 
+/** TS STAND-IN for Lean `Fw.Ops.SpawnGuard.effKind`/`roleOf`: expected vs given kind, logged so a kindMismatch explains
+ *  itself. The decision itself still comes from fwcore; this only describes the request. Replace by a fwcore reply field. */
+export function kinds(req) {
+  const role = ROLES.find((r) => r.name === req.role);
+  const got = req.isolation ? "worktree" : req.depth === 0 && req.name ? "teammate" : "subagent";
+  return { role: req.role, want_kind: role ? role.runsAs : null, got_kind: got, has_name: !!req.name, isolation: !!req.isolation, depth: req.depth };
+}
+
 /** The spool record for a decision. */
 export function record(p, reply, now = Date.now()) {
   const verb = reply ? (reply.reason ? `${reply.decision}:${reply.reason}` : reply.decision) : "unavailable";
@@ -58,6 +66,7 @@ export function record(p, reply, now = Date.now()) {
     agent_id: str(p.agent_id), agent_type: str(p.agent_type), hook_event_name: "SpawnGuard", tool_name: "Agent",
     tool_use_id: str(p.tool_use_id), duration_ms: null, is_error: null, verb: verb.slice(0, 40), ts: now,
     agent_name: str(p.tool_input && typeof p.tool_input === "object" ? p.tool_input.name : null),
+    ...kinds(request(p).req), seen_by: "pre-tool-use",
   };
 }
 
@@ -66,7 +75,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const p = readPayload();
     if (p && p.tool_name === "Agent") {
       const dir = consoleDir(p.cwd);
-      if (dir) appendLine(join(dir, "spool", `${safeName(p.agent_id)}.jsonl`), record(p, ask(fwcorePath(dir), request(p))));
+      if (dir) {
+        appendLine(join(dir, "spool", `${safeName(p.agent_id)}.jsonl`), record(p, ask(fwcorePath(dir), request(p))));
+        // pending marker: emit.mjs claims it on SubagentStart, so only spawns this guard did not see get a second record
+        const pd = join(dir, "spawn-pending");
+        mkdirSync(pd, { recursive: true });
+        writeFileSync(join(pd, `${Date.now()}-${safeName(p.tool_use_id)}.json`), JSON.stringify({ role: request(p).req.role }));
+      }
     }
   } catch { /* shadow mode: never disturb the agent */ }
   process.exit(0);
