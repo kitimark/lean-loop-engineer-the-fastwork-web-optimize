@@ -8,6 +8,8 @@ set -eu
 here=$(git rev-parse --show-toplevel)
 main=$(cd "$(git rev-parse --git-common-dir)/.." && pwd -P)
 start=$(date +%s)
+# privacy pre-commit hook for every worktree (config is shared; the relative value resolves per worktree)
+git config core.hooksPath scripts/hooks
 if [ "$here" = "$main" ]; then
   echo "wt-prep: this is the main checkout, nothing to do"; exit 0
 fi
