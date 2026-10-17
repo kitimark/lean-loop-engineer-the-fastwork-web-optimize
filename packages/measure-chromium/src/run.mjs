@@ -21,6 +21,10 @@ const dt = 1000 / profile.hz;
 const BARRIER_MS = +(process.env.FW_BARRIER_MS ?? 100); // real-time grace after each frame for async completions
 const TOUCH_ACK_MS = +(process.env.FW_TOUCH_ACK_MS ?? 200); // real-time grace for a touch event's ack after the frame
 const TOUCH_SETTLE_MS = +(process.env.FW_TOUCH_SETTLE_MS ?? 50); // real time for gesture events to reach the compositor before the frame
+// touch-race: the CDP ack of a touch comes from the compositor thread; the browser then turns it into gesture events (GestureScrollUpdate) that reach the renderer's
+// compositor asynchronously, concurrent with the harness sending the next BeginFrame. The next frame is held back this long (real time) after the ack so that the scroll
+// state of frame n+1 does not depend on that race (a margin, not a proof).
+const TOUCH_POST_ACK_MS = +(process.env.FW_TOUCH_POST_ACK_MS ?? 100);
 const touch = { frames: 0, unacked: 0, sent: 0, stalls: 0, waiters: [], settled() { return this.unacked === 0 ? Promise.resolve() : new Promise((r) => this.waiters.push(r)); } };
 const T0 = 5_000_000; // BeginFrame tick base (ms), about 4900 s ahead of the container clock, so a deadline at frame_time never fires (see --disable-features below)
 const START_VT = 20_000; // virtual ms at which the profile begins, whatever number of frames the load took
@@ -98,6 +102,7 @@ async function networkBarrier(r0) {
 let loaded = false; // set once the page is loaded: from then on an unanswered BeginFrame is a hang, not a navigation commit
 async function frame(vtMs, pre = '', mid = null) {
   touch.frames++;
+  const sent0 = touch.sent;
   const r0 = srv.requests();
   // One virtual frame: virtual clock to vtMs (timers due fire), optional page-side step, then one BeginFrame.
   const out = await ev(`(() => { ${pre}; __fwclock.advanceTo(${vtMs}); return typeof __fwStepResult === 'undefined' ? null : __fwStepResult; })()`);
@@ -116,6 +121,7 @@ async function frame(vtMs, pre = '', mid = null) {
   // real time for the ack, then go on. The driver sends a touch event in EVERY frame while the finger is down: a frame
   // without input during an active touch scroll hangs BeginFrameControl (README, findings).
   if (touch.unacked > 0) { const t = Date.now(); await Promise.race([touch.settled(), sleep(TOUCH_ACK_MS)]); if (DEBUG) console.error('touch unacked', touch.unacked, 'after', Date.now() - t, 'ms'); }
+  if (touch.sent > sent0) await sleep(TOUCH_POST_ACK_MS);
   await networkBarrier(r0);
   return { out, hasDamage: !!bf.hasDamage };
 }
