@@ -18,9 +18,7 @@ TS stand-ins (not in Lean)
 - Both arms absent gives cell status `nc`; probe/part/engine plumbing; the 200 ms double-screenshot settle capture.
 
 Open items
-- Mathview lint of `Fw.Gate.Pixel` was started locally (`scripts/mathview-cached.sh`) and not read back; run it on CI.
 - Settled flag is a TS capture; once `Fw.Gate.Settle` lands on main, relate it to the gate's settled-sample predicate.
-- WebKit (Linux Playwright port, not Mobile Safari) and overlay/mount parts were first exercised on CI.
 - Per-part tolerances: none set yet (`tolerances.json`); set them from CI results, justified per part.
 - CI runs on `ci/visual-diff`: 39074978220 (identical-shots settle: 174 of 240 Chromium cells unsettled) and 39077035869
   (settle within tolerance; HEAD 743fe70): 0 pass, Chromium 82 fail / 150 unsettled, WebKit 78 / 153, 8 probes x 30 parts.
