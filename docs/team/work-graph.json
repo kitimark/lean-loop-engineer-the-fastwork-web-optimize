@@ -719,7 +719,7 @@
   },
   {
    "id": "wktr-local",
-   "title": "WKTR spike on this Mac: prebuilt iOS-sim WebKitTestRunner + internals on the iOS 26.5 Simulator; restyled-element counts for the original, twice",
+   "title": "WKTR spike on this Mac: prebuilt iOS-sim WKTR (r324039, iOS 26.5); internals.lastStyleUpdateSize with styleRecalcCount, steps bracketed by renderingUpdateCount; original twice",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [
@@ -745,6 +745,20 @@
    "writes": [
     ".github/workflows/wktr.yml",
     "packages/measure-wktr/**"
+   ]
+  },
+  {
+   "id": "wktr-readme-fix",
+   "title": "measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update",
+   "stream": "measure",
+   "milestone": "M3",
+   "deps": [
+    "ci-webkit",
+    "wktr-local"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-webkit/README.md"
    ]
   },
   {
