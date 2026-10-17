@@ -3,6 +3,10 @@ description: >-
   Installs the browser one breakpoint-gate engine needs on ubuntu-24.04-arm and exports the variable its launcher reads.
   chromium: the pinned Chrome Headless Shell zip (sha256 checked; the same bytes as the counts image) plus its shared
   libraries, exported as CHROME_PATH. playwright-webkit: Playwright's WebKit build for Linux with its system dependencies.
+  The downloads are cached: the .deb files apt fetches, the Playwright browser directory and the headless shell zip.
+  Each cache key is `<prefix>-<sha256 of its declared inputs>` from .github/scripts/cache-key.mjs, whose declarations are the
+  Lean golden packages/contracts/golden/ops/cache.jsonl (Fw.Ops.Cache: cache_sound, key_complete). No restore-keys fallback:
+  a partial key is not covered by those theorems.
 
 inputs:
   engine:
@@ -12,32 +16,102 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Cache keys from the declared inputs (Playwright version, runner image, architecture, engine)
+      id: keys
+      shell: bash
+      working-directory: packages/gate-breakpoints
+      env:
+        ENGINE: ${{ inputs.engine }}
+      run: |
+        set -euo pipefail
+        pw="$(pnpm exec playwright-core --version | awk '{print $NF}')"
+        image="${ImageOS:-unknown}-${ImageVersion:-unknown}"
+        arch="$(uname -m)"
+        key="$GITHUB_WORKSPACE/.github/scripts/cache-key.mjs"
+        golden="$GITHUB_WORKSPACE/packages/contracts/golden/ops/cache.jsonl"
+        {
+          echo "apt=$(node "$key" --golden "$golden" --cache apt-debs --set playwright="$pw" --set image="$image" --set arch="$arch" --set engine="$ENGINE")"
+          echo "browsers=$(node "$key" --golden "$golden" --cache browsers --set playwright="$pw" --set image="$image" --set arch="$arch" --set engine="$ENGINE")"
+          echo "hs=$(node "$key" --golden "$golden" --cache hs-zip --set hsVersion="$HS_VERSION" --set hsSha256="$HS_SHA256" --set arch="$arch")"
+        } >> "$GITHUB_OUTPUT"
+        cat "$GITHUB_OUTPUT" | grep -E '^(apt|browsers|hs)=' || true
+
+    - name: Restore the apt packages
+      id: apt
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/gate-apt
+        key: ${{ steps.keys.outputs.apt }}
+
+    - name: Restore the Playwright browsers
+      id: browsers
+      if: ${{ inputs.engine == 'playwright-webkit' }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ steps.keys.outputs.browsers }}
+
+    - name: Restore the Chrome Headless Shell zip
+      id: hs
+      if: ${{ inputs.engine == 'chromium' }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/hs-zip
+        key: ${{ steps.keys.outputs.hs }}
+
+    - name: System libraries (apt packages from the cache when it hit)
+      shell: bash
+      working-directory: packages/gate-breakpoints
+      env:
+        ENGINE: ${{ inputs.engine }}
+        APT_HIT: ${{ steps.apt.outputs.cache-hit }}
+      run: |
+        set -euo pipefail
+        debs="$RUNNER_TEMP/gate-apt"
+        mkdir -p "$debs"
+        if ls "$debs"/*.deb > /dev/null 2>&1; then
+          sudo cp -n "$debs"/*.deb /var/cache/apt/archives/
+          echo "restored $(ls "$debs"/*.deb | wc -l) packages from the cache"
+        fi
+        # Shared libraries: Playwright knows the package names of this Ubuntu release (they are the browser's deb.deps).
+        # Fonts stay as the runner has them: the gate compares two arms in the same browser, and the page's own fonts
+        # are served from the snapshot.
+        case "$ENGINE" in
+          chromium) pnpm exec playwright-core install-deps chromium-headless-shell ;;
+          playwright-webkit) pnpm exec playwright-core install-deps webkit ;;
+        esac
+        # Save for the next run only on a miss (actions/cache saves a path in its post step when the key was not found).
+        if [ "$APT_HIT" != "true" ]; then
+          cp /var/cache/apt/archives/*.deb "$debs"/ 2>/dev/null || echo "no .deb files to cache"
+          du -sh "$debs" || true
+        fi
+
     - name: Chrome Headless Shell (pinned, sha256 checked)
       if: ${{ inputs.engine == 'chromium' }}
       shell: bash
       working-directory: packages/gate-breakpoints
       run: |
         set -euo pipefail
-        # Shared libraries: Playwright knows the package names of this Ubuntu release (they are the browser's deb.deps).
-        # Fonts stay as the runner has them: the gate compares two arms in the same browser, and the page's own fonts
-        # are served from the snapshot.
-        pnpm exec playwright-core install-deps chromium-headless-shell
         # Ubuntu 24.04 restricts unprivileged user namespaces through AppArmor; the headless shell's sandbox needs them.
         sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
         dir="$RUNNER_TEMP/hs"
-        mkdir -p "$dir"
-        curl -fsSL --retry 10 --retry-all-errors --retry-delay 3 -o "$dir/hs.zip" \
-          "https://cdn.playwright.dev/builds/cft/${HS_VERSION}/linux-arm64/chrome-headless-shell-linux-arm64.zip"
-        echo "${HS_SHA256}  $dir/hs.zip" | sha256sum -c -
-        unzip -q "$dir/hs.zip" -d "$dir"
+        mkdir -p "$dir" "$RUNNER_TEMP/hs-zip"
+        zip="$RUNNER_TEMP/hs-zip/hs.zip"
+        if [ ! -f "$zip" ]; then
+          curl -fsSL --retry 10 --retry-all-errors --retry-delay 3 -o "$zip" \
+            "https://cdn.playwright.dev/builds/cft/${HS_VERSION}/linux-arm64/chrome-headless-shell-linux-arm64.zip"
+        fi
+        # A cached zip is verified like a fresh download: the key names the hash, the check stays.
+        echo "${HS_SHA256}  $zip" | sha256sum -c -
+        unzip -q "$zip" -d "$dir"
         chmod +x "$dir/chrome-headless-shell-linux-arm64/chrome-headless-shell"
         echo "CHROME_PATH=$dir/chrome-headless-shell-linux-arm64/chrome-headless-shell" >> "$GITHUB_ENV"
         "$dir/chrome-headless-shell-linux-arm64/chrome-headless-shell" --version
 
-    - name: Playwright WebKit (Linux build)
+    - name: Playwright WebKit (Linux build; the browser directory from the cache when it hit)
       if: ${{ inputs.engine == 'playwright-webkit' }}
       shell: bash
       working-directory: packages/gate-breakpoints
       run: |
         set -euo pipefail
-        pnpm exec playwright-core install --with-deps webkit
+        pnpm exec playwright-core install webkit

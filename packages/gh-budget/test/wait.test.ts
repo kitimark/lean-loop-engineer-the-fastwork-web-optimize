@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
-import test from "node:test";
+import test, { describe, it } from "node:test";
 import { waitFor } from "../src/wait.ts";
 import { drive, mkWorld, repoRoot } from "./util.ts";
 
@@ -11,7 +11,7 @@ const T0 = 1_800_000_000;
 const run = (databaseId: number, extra: Record<string, unknown> = {}) => ({ databaseId, createdAt: T0, completeAt: T0 + 100, conclusion: "success", ...extra });
 
 async function wait(N: number, runs: Record<string, unknown>[], target: Parameters<typeof waitFor>[1]) {
-  const w = mkWorld(T0);
+  const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs });
   const res = await drive(w.sim, Array.from({ length: N }, () => waitFor(w.env, target, { timeoutS: 3600 })));
   return { res, calls: w.calls(), w };
@@ -33,7 +33,7 @@ test("20 waiters on one run make exactly the gh calls of 1 waiter", async () => 
 test("20 waiters on 20 distinct runs: the ticks are those of 1 waiter (one list covers every run)", async () => {
   const runs = Array.from({ length: 20 }, (_, i) => run(200 + i));
   const one = await wait(1, runs, { kind: "run", runId: 200 });
-  const w = mkWorld(T0);
+  const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs });
   await drive(w.sim, runs.map((r) => waitFor(w.env, { kind: "run", runId: r.databaseId as number }, { timeoutS: 3600 })));
   const ticks = (cs: typeof one.calls) => cs.filter((c) => c.args[1] === "list").length;
@@ -61,7 +61,7 @@ test("a branch follows the newest run: the superseded one is cancelled, the newe
 });
 
 test("timeout is exit 3 and the state keeps no watcher behind", async () => {
-  const w = mkWorld(T0);
+  const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs: [run(7, { completeAt: 1e12 })] });
   const [res] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 7 }, { timeoutS: 300 })]);
   assert.equal(res!.code, 3);
@@ -83,23 +83,27 @@ function cli(w: ReturnType<typeof mkWorld>, args: string[]): Promise<{ code: num
   });
 }
 
-test("process: 20 `ci wait` on a finished run make 1 gh call and exit 0", { timeout: 120_000 }, async () => {
-  const w = mkWorld(Math.floor(Date.now() / 1000) - 600, { realClock: true });
-  const now = Math.floor(Date.now() / 1000);
-  w.config({ start: now - 600, listCost: 2, runs: [run(31, { createdAt: now - 300, completeAt: now - 100 })] });
-  const rs = await Promise.all(Array.from({ length: 20 }, () => cli(w, ["wait", "31"])));
-  for (const r of rs) assert.deepEqual([r.code, r.out.trim()], [0, "run 31 chromium-counts success"]);
-  assert.equal(w.calls().length, 1);
-});
+// the two real-clock tests each have their own world (own state dir, own fake gh dir, `cli` passes both in the
+// child's environment), so they run side by side: the serial sum of their real waits was the file's critical path
+describe("real processes, real clock", { concurrency: true }, () => {
+  it("process: 20 `ci wait` on a finished run make 1 gh call and exit 0", { timeout: 120_000 }, async () => {
+    const w = mkWorld(Math.floor(Date.now() / 1000) - 600, { realClock: true });
+    const now = Math.floor(Date.now() / 1000);
+    w.config({ start: now - 600, listCost: 2, runs: [run(31, { createdAt: now - 300, completeAt: now - 100 })] });
+    const rs = await Promise.all(Array.from({ length: 20 }, () => cli(w, ["wait", "31"])));
+    for (const r of rs) assert.deepEqual([r.code, r.out.trim()], [0, "run 31 chromium-counts success"]);
+    assert.equal(w.calls().length, 1);
+  });
 
-test("process: 3 `ci wait` on a running run elect one poller: 1 view + 1 tick, then exit 3 on timeout", { timeout: 120_000 }, async () => {
-  const w = mkWorld(Math.floor(Date.now() / 1000) - 600, { realClock: true });
-  const now = Math.floor(Date.now() / 1000);
-  w.config({ start: now - 600, listCost: 2, runs: [run(32, { createdAt: now - 300, completeAt: 1e12 })] });
-  const rs = await Promise.all(Array.from({ length: 3 }, () => cli(w, ["wait", "32", "--timeout", "6"])));
-  for (const r of rs) assert.equal(r.code, 3, r.out);
-  const cs = w.calls();
-  assert.deepEqual(cs.map((c) => c.args[1]), ["view", "list"]);
+  it("process: 3 `ci wait` on a running run elect one poller: 1 view + 1 tick, then exit 3 on timeout", { timeout: 120_000 }, async () => {
+    const w = mkWorld(Math.floor(Date.now() / 1000) - 600, { realClock: true });
+    const now = Math.floor(Date.now() / 1000);
+    w.config({ start: now - 600, listCost: 2, runs: [run(32, { createdAt: now - 300, completeAt: 1e12 })] });
+    const rs = await Promise.all(Array.from({ length: 3 }, () => cli(w, ["wait", "32", "--timeout", "6"])));
+    for (const r of rs) assert.equal(r.code, 3, r.out);
+    const cs = w.calls();
+    assert.deepEqual(cs.map((c) => c.args[1]), ["view", "list"]);
+  });
 });
 
 test("process: usage errors are exit 64", async () => {

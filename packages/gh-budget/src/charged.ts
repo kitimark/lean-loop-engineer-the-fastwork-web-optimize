@@ -3,7 +3,7 @@
 // headers, drop the rest of the trace at once (bodies can name accounts), and hand those lines to `ci.budget.observe`.
 // The glue never reads or prints a token and never calls `gh api`.
 import { spawnSync } from "node:child_process";
-import type { Env, Json } from "./core.ts";
+import type { Env, GhOut, Json } from "./core.ts";
 import { loadState, locked, saveState } from "./state.ts";
 
 /** Response header lines worth keeping from a GH_DEBUG=api trace (httpretty prints response headers as `< Name: value`). */
@@ -44,7 +44,8 @@ export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) =
     saveState(env.dir, r.state as Json); // the booking (or the advanced clock) is on disk before gh starts
     if (r.decision === "wait") return { ran: false, decision: "wait", until: Number(r.until), reason: String(r.reason) };
     if (r.decision !== "issue") return { ran: false, decision: "stop", reason: String(r.reason) };
-    const out = spawnSync(env.gh, buildArgs(r), {
+    const args = buildArgs(r);
+    const out: GhOut = env.exec ? env.exec(args) : spawnSync(env.gh, args, {
       env: { ...process.env, GH_DEBUG: "api", GH_PROMPT_DISABLED: "1", GH_NO_UPDATE_NOTIFIER: "1", NO_COLOR: "1", CLICOLOR: "0" },
       encoding: "utf8", maxBuffer: 1 << 28, timeout: timeoutMs,
     });

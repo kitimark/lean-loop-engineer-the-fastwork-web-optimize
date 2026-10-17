@@ -3041,7 +3041,8 @@
     ".github/workflows/breakpoint-gate.yml",
     ".github/scripts/merge-gate.mjs",
     "docs/team/tools/gate-speed.md"
-   ]
+   ],
+   "evidence": "f9d28e0"
   },
   {
    "id": "premise-tests",
@@ -3518,7 +3519,8 @@
     "packages/gh-budget/**",
     "apps/runner/test/**",
     "docs/team/handoffs/land-test-speed.md"
-   ]
+   ],
+   "evidence": "9bef00e"
   },
   {
    "id": "slow-site-build",
@@ -3529,8 +3531,7 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-18-slow-site-build.md"
-   ],
-   "evidence": "9a5c552"
+   ]
   },
   {
    "id": "site-build-cache",
@@ -3577,6 +3578,23 @@
     ".github/workflows/wktr-fixtures.yml",
     "packages/measure-wktr/fixtures/**",
     "packages/measure-wktr/src/**"
+   ]
+  },
+  {
+   "id": "hero-exit-restate",
+   "title": "(M) HeroExitOpt rebuilt on webkitX: wkVar_eq, wk_var_exact, wk_trade false as stated (WebKit restyles 1/update on scroll timelines, wktr-p1p4); restate with WktrStyleRate.Holds, regenerate hero-exit.jsonl (<o to <=o), premise wktr_scroll_timeline_restyle (lane test), downstream claims, mistake row",
+   "stream": "proofs",
+   "milestone": "M3",
+   "deps": [
+    "wktr-p1p4"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "packages/contracts/golden/parts/hero-exit.jsonl",
+    "lean/Fw/Ops/Premise.lean",
+    "research/mistakes/ledger.json",
+    "docs/team/handoffs/hero-exit-restate.md"
    ]
   }
  ],
