@@ -73,8 +73,17 @@ test("each part's conditions are its media.ts ids and its owners' inventory cond
     const accounted = [...u.conditions.orig, ...u.extra.map((x) => x.id), ...u.dismissed.map((x) => x.id)];
     assert.deepEqual([...accounted].sort(), [...used].sort(), `${pid}: every inventory condition kept, extra or dismissed`);
     for (const id of u.conditions.rewrite) assert.ok(u.conditions.orig.includes(id), `${pid}: ${id} in orig`);
-    const knees = inv.continuous.filter((c) => (c.parts ?? []).some((x) => owners.has(x))).flatMap((c) => c.knees_px);
-    assert.deepEqual(u.knees.map((k) => k.px), knees, `${pid}: knees = owners' continuous knees`);
+    const conts = inv.continuous.filter((c) => (c.parts ?? []).some((x) => owners.has(x)));
+    // a knee of a viewport-width value is the inventory's px; a knee of a container value (axis container-width) is stated
+    // in the inventory in the container's px, and the part states it in viewport px where the layout puts the container there
+    const wide = conts.filter((c) => c.axis === 'width').flatMap((c) => c.knees_px);
+    const boxed = conts.filter((c) => c.axis === 'container-width' && (c.knees_px ?? []).length > 0).map((c) => c.expression);
+    assert.deepEqual(u.knees.filter((k) => !boxed.includes(k.expression)).map((k) => k.px), wide, `${pid}: knees = owners' continuous knees`);
+    for (const e of boxed) {
+      const own = u.knees.filter((k) => k.expression === e);
+      assert.ok(own.length > 0 && own.every((k) => Number.isInteger(k.px)), `${pid}: container knee "${e}" stated in viewport px`);
+    }
+    assert.ok(u.knees.every((k) => boxed.includes(k.expression) || wide.includes(k.px)), `${pid}: no knee without an inventory entry`);
   }
 });
 

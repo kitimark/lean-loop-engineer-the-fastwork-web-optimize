@@ -342,7 +342,21 @@ def pilotParts : List PartUse := [
   { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
     extra := [], knees := [],
     dismissed := [
-      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] }
+      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] },
+  { id := "commission", owners := ["commission"],
+    orig := ["mq.rm-reduce", "mq.w-le-640", "mq.w-641-1000", "mq.w-ge-1001-nopref", "mq.c860", "mq.c1000"],
+    rewrite := ["mq.rm-reduce", "mq.w-le-640", "mq.w-641-1000", "mq.w-ge-1001-nopref", "mq.c1000"],
+    extra := [], knees := [],
+    dismissed := [
+      ("js.commission-bands", "card top and section bottom against the viewport height at a scroll position (two bands and a follower), not a width edge; the gate loads at the top, where the section is below the fold")] },
+  { id := "commission.typing", owners := ["commission.typing", "commission"],
+    orig := ["mq.rm-reduce", "mq.w-le-640", "mq.w-641-1000", "mq.w-ge-1001-nopref", "mq.c860", "mq.c1000"],
+    rewrite := ["mq.rm-reduce", "mq.c1000"],
+    extra := [],
+    knees := [⟨"commission fee visual min(0.8, parent / 432)", 385⟩, ⟨"commission fee visual min(0.8, parent / 432)", 755⟩],
+    dismissed := [
+      ("js.commission-bands", "card top and section bottom against the viewport height at a scroll position, not a width edge; the typing visual is read at the top where nothing is typed"),
+      ("js.commission-visual-scale", "the parent's width over 432, capped at 0.8: continuous in the viewport width, its knee (parent 345.6 px) sits at viewport width 385.6 where the column is the width minus 40 (compact, up to 640) and at 755.2 where it is half of the width minus 64 (641 to 1000); the integer-width knees 385 and 755 are in `knees`")] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.
