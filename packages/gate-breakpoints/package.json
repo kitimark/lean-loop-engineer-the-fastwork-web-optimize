@@ -1,0 +1,16 @@
+{
+  "name": "@fw/gate-breakpoints",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Breakpoint parity gate (PLAN 6.6): original vs rewrite, per probe, per engine. Raw comparison plus one pure verdict function.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "gate": "node src/cli.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "playwright-core": "1.64.1",
+    "puppeteer-core": "25.14.0"
+  }
+}

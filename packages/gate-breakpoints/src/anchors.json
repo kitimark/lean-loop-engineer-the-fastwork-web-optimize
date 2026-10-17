@@ -1,0 +1,76 @@
+{
+  "schema": "fw.gate-breakpoints.anchors/1",
+  "about": "Per pilot part: which elements are compared between the original (selector in the read-only snapshot) and the rewrite (prerendered default config), which box dimensions, and which properties are skipped, each with the reason. Data only; the rule that turns it into pass/fail is verdict.mjs. Original CSS lines are in snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css.",
+  "style": {
+    "rewritePropsFrom": "every longhand declared by a rewrite CSS-module rule (selector contains '-module_') that matches the element, over all @media/@layer blocks; this is the set of properties the part restates",
+    "originOnlyPropsFrom": "every longhand declared by a snapshot component rule (selector contains '.svelte-') that matches the element and is not in the rewrite set; reported as information, never in the verdict",
+    "skipPrefixes": [
+      { "prefix": "animation", "why": "the entrance (ring splash, copy-from-ring) is owned by hero.orbit and is not restated; both arms are compared in the settled state (the original waits for .is-ring-splash-done)" }
+    ],
+    "skipSets": {
+      "layoutDerived": {
+        "props": ["width", "height", "inline-size", "block-size", "transform-origin", "perspective-origin"],
+        "why": "used values of a box whose size comes from placeholder text, a font or a host that differs (shrink-to-fit width, line count, 1ch)"
+      }
+    }
+  },
+  "parts": {
+    "engine.scroll": {
+      "anchors": [],
+      "roles": [],
+      "notComparable": "part.json lists no anchors: the part renders nothing and restates no CSS (its work is rAF and rect reads, PL5), so there is no element or style to compare at a breakpoint"
+    },
+    "nav.hitTest": {
+      "anchors": [],
+      "roles": [],
+      "notComparable": "part.json lists no anchors: the part renders nothing and restates no CSS; it only toggles is-on-dark on the nav element, which the nav part will own"
+    },
+    "hero.countdown": {
+      "anchors": ["hero-countdown"],
+      "cites": ["snapshot 2.gBuqKVzi.css:1375-1495 (.countdown, .unit, .face, .label, .number, .digit)"],
+      "roles": [
+        { "role": "root", "orig": ".hero-track .countdown", "rewrite": "[data-fw=\"hero-countdown\"]", "boxRel": null, "dims": ["h"], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "x, y and w depend on the host: the original sits inside .hero-copy (shrink-to-content, centred), the rewrite is a block-level flex box that fills the main column" },
+        { "role": "unit", "orig": ".hero-track .countdown > .unit", "rewrite": "[data-fw=\"hero-countdown\"] > div", "boxRel": { "role": "unit", "index": 0 }, "dims": ["x", "y", "w", "h"], "skipSets": [], "skipProps": [],
+          "why": "fixed-size cards (width/height from CSS), compared relative to the first card, so the host offset drops out and the gap and the sizes stay" },
+        { "role": "value", "orig": ".hero-track .countdown > .unit > .face", "rewrite": "[data-fw=\"hero-countdown\"] > div > span:first-child", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "box is text-dependent (digit glyph widths and line box); font size, line height, colour and flex are compared" },
+        { "role": "label", "orig": ".hero-track .countdown > .unit > .label", "rewrite": "[data-fw=\"hero-countdown\"] > div > span:last-child", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "box is text-dependent (placeholder label text, own font)" },
+        { "role": "number", "orig": ".hero-track .countdown .face > .number", "rewrite": "[data-fw=\"hero-countdown\"] [data-value]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "box is text-dependent" },
+        { "role": "digit", "orig": ".hero-track .countdown .number > .digit", "rewrite": "[data-fw=\"hero-countdown\"] [data-digit]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "width is 1ch (font dependent), height is one text line" },
+        { "role": "spacer", "orig": ".hero-track .countdown .digit > .spacer", "rewrite": "[data-fw=\"hero-countdown\"] [data-spacer]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "box is text-dependent" },
+        { "role": "face", "orig": ".hero-track .countdown .digit > .face", "rewrite": "[data-fw=\"hero-countdown\"] [data-face]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["transform"],
+          "why": "count only plus declared styles; transform is written every frame by the digit spring (JS state, not a breakpoint)" }
+      ]
+    },
+    "hero.exit": {
+      "anchors": ["hero-exit"],
+      "cites": ["snapshot 2.gBuqKVzi.css:1523-1590 (.hero-track, .hero)", "1725-1745 (.hero-copy)", "1750-1795 (.hero-copy-main, h1, p)", "1905-1936 (.scroll-cue)", "2040-2160 (<=600 and reduced motion)"],
+      "excluded": [
+        { "what": "cards (.orbit-card, .mobile-deck)", "why": "the rewrite's four placeholder cards stand in for hero.orbit, whose geometry is set by JS in the original (10 ring cards plus a 4-card mobile deck); not restated by this part" },
+        { "what": "cta button", "why": "the rewrite's .cta is a placeholder (blue pill); the original's .hero-cta button is a different design and is not restated" },
+        { "what": "countdown inside .hero-copy", "why": "compared by hero.countdown; in the rewrite it is a sibling above the track, so hero-copy height and y are host-dependent and excluded" }
+      ],
+      "roles": [
+        { "role": "track", "orig": ".hero-track", "rewrite": "[data-fw=\"hero-exit\"]", "boxRel": null, "dims": ["w", "h"], "skipSets": [], "skipProps": [],
+          "why": "x and y are page offsets (the rewrite has a nav bar and the countdown above it); width and height (200vh, or auto under reduced motion) are the part's own" },
+        { "role": "hero", "orig": ".hero-track > .hero", "rewrite": "[data-fw=\"hero-exit\"] > div", "boxRel": { "role": "track", "index": 0 }, "dims": ["x", "y", "w", "h"], "skipSets": [], "skipProps": ["--copy-in"],
+          "why": "--copy-in is declared on .hero in the rewrite and on .hero-copy and .scroll-cue in the original; the inherited value on those two elements is compared instead" },
+        { "role": "copy", "orig": ".hero-track .hero > .hero-copy", "rewrite": "[data-fw=\"hero-exit\"] > div > header", "boxRel": { "role": "hero", "index": 0 }, "dims": ["x", "w"], "skipSets": ["layoutDerived"], "skipProps": ["bottom"],
+          "why": "y and height depend on the content inside (the original also holds the countdown and the call to action); width and x are fixed by min(92vw, 900px) and by 100% / 393px; bottom of an absolutely positioned box is a used value from the content height" },
+        { "role": "copyMain", "orig": ".hero-track .hero-copy-main", "rewrite": "[data-fw=\"hero-exit\"] header > div", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "box is text-dependent (headline and paragraph)" },
+        { "role": "title", "orig": ".hero-track .hero-copy-main > h1", "rewrite": "[data-fw=\"hero-exit\"] header h1", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "box is text-dependent (line count of the placeholder headline)" },
+        { "role": "lead", "orig": ".hero-track .hero-copy-main > p", "rewrite": "[data-fw=\"hero-exit\"] header p", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
+          "why": "box is text-dependent (line count of the placeholder paragraph)" },
+        { "role": "cue", "orig": ".hero-track .hero > button.scroll-cue", "rewrite": "[data-fw=\"hero-exit\"] > div > button", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["transform", "top", "bottom", "right"],
+          "why": "content-sized (the original has an icon, the rewrite only a label): translate(-50%) is a fraction of its own width, and the auto side of top/bottom/right is a used value from its own size"}
+      ]
+    }
+  }
+}

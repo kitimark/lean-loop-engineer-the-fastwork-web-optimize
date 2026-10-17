@@ -1,0 +1,2 @@
+# raw run output (tens of MB per engine; reproducible, byte-deterministic); summary.json/summary.md of a run are copied to docs/team when worth keeping
+out/
