@@ -2730,7 +2730,8 @@
     "lean/Fw/Obs/Timing.lean",
     "lean/Fw.lean",
     "packages/contracts/golden/obs/timing.jsonl"
-   ]
+   ],
+   "evidence": "1f808b0"
   },
   {
    "id": "timing-alert",
