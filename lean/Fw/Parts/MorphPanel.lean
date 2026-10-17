@@ -34,13 +34,25 @@ $$\operatorname{panelProgress}(m) = \operatorname{clamp01}\!\Big(\frac{m - 0.08}
 How far the panel has appeared (CSS `clamp(0, (var(--morph) - .08) / .72, 1)`). -/
 def panelProgress (m : Rat) : Rat := clamp01 ((m - 2 / 25) / (18 / 25))
 
-/-- Panel opacity: $\mathrm{opacity}(m) = \operatorname{panelProgress}(m)$. The panel fades in with its progress. -/
+/-- Panel opacity.
+
+$$\mathrm{opacity}(m) = \operatorname{panelProgress}(m)$$
+
+The panel fades in with its progress. -/
 def panelOpacity (m : Rat) : Rat := panelProgress m
 
-/-- Panel blur in px: $\mathrm{blur}(m) = 12\,(1 - \operatorname{panelProgress}(m))$. It sharpens as it appears. -/
+/-- Panel blur in px.
+
+$$\mathrm{blur}(m) = 12\,(1 - \operatorname{panelProgress}(m))$$
+
+It sharpens as it appears. -/
 def panelBlurPx (m : Rat) : Rat := (1 - panelProgress m) * 12
 
-/-- Panel scale: $\mathrm{scale}(m) = 0.96 + 0.04\,m$. It grows slightly while opening. -/
+/-- Panel scale.
+
+$$\mathrm{scale}(m) = 0.96 + 0.04\,m$$
+
+It grows slightly while opening. -/
 def panelScale (m : Rat) : Rat := 24 / 25 + m / 25
 
 #guard panelProgress 0 == 0
@@ -110,16 +122,32 @@ theorem panelBlur_eq (m : Rat) :
 
 /-! ## The three flags -/
 
-/-- The scene flag (`E`, JS 12947): $\mathit{scene}(m) \iff m > 0.001$. Whether the morph has started. -/
+/-- The scene flag (`E`, JS 12947).
+
+$$\mathit{scene}(m) \iff m > 0.001$$
+
+Whether the morph has started. -/
 def sceneActive (m : Rat) : Bool := decide (1 / 1000 < m)
 
-/-- The panel is hidden from assistive tech (JS 13197): $\mathit{hidden}(m) \iff m < 0.35$. -/
+/-- The panel is hidden from assistive tech (JS 13197).
+
+$$\mathit{hidden}(m) \iff m < 0.35$$
+
+Below 0.35 nobody is told about the panel. -/
 def ariaHidden (m : Rat) : Bool := decide (m < 7 / 20)
 
-/-- The call-to-action leaves the tab order (JS 13199): $\mathit{tabOff}(m) \iff m < 0.55$. -/
+/-- The call-to-action leaves the tab order (JS 13199).
+
+$$\mathit{tabOff}(m) \iff m < 0.55$$
+
+Below 0.55 the button cannot be tabbed to. -/
 def ctaTabOff (m : Rat) : Bool := decide (m < 11 / 20)
 
-/-- The nav counts as expanded (`qM`, JS 12684; the panel then takes pointer events): $\mathit{exp}(m) \iff m > 0.92$. -/
+/-- The nav counts as expanded (`qM`, JS 12684).
+
+$$\mathit{exp}(m) \iff m > 0.92$$
+
+The panel then takes pointer events. -/
 def expanded (m : Rat) : Bool := decide (23 / 25 < m)
 
 #guard sceneActive 0 == false
