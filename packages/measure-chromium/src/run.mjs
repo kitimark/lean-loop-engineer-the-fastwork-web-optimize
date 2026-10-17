@@ -8,6 +8,9 @@ import { readFileSync, writeFileSync, mkdirSync, openSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
+import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
+
+const N0_ON = !process.env.FW_NO_N0; // FW_NO_N0=1: no N0 census in the page (harness-neutrality control)
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const s = a.replace(/^--/, ''); const i = s.indexOf('='); return i < 0 ? [s, true] : [s.slice(0, i), s.slice(i + 1)]; }));
 const profile = JSON.parse(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`, 'utf8'));
@@ -67,6 +70,7 @@ await c.send('Emulation.setLocaleOverride', { locale: profile.locale });
 await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', acceptLanguage: profile.locale });
 const shim = readFileSync('/driver/clock-shim.js', 'utf8');
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW_CFG = ${JSON.stringify({ epochMs: EPOCH_MS, seed: profile.seed })};\n${shim}` });
+if (N0_ON) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: readFileSync('/driver/n0-census.js', 'utf8') }); // after the shim: it stamps events with the virtual clock
 
 let vt = 0;
 // Network barrier: a request started during a frame (lazy image, chunk) must finish, and its load handlers run, before
@@ -198,6 +202,7 @@ async function sendTouch(t, vtMs) {
 // ---- profile run
 const KEEP = ['LayoutCount', 'RecalcStyleCount', 'Nodes', 'LayoutObjects', 'JSEventListeners', 'Documents', 'Frames', 'Resources'];
 let prev = Object.fromEntries((await c.send('Performance.getMetrics')).metrics.map((m) => [m.name, m.value]));
+const n0Start = N0_ON ? JSON.parse(await ev('JSON.stringify(__fwN0.read())')) : null; // outside every frame, before the trace starts
 await c.send('Tracing.start', { transferMode: 'ReturnAsStream', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: [...TRACE_CATEGORIES, ...(process.env.FW_EXTRA_CATEGORIES ? process.env.FW_EXTRA_CATEGORIES.split(',') : [])], traceBufferSizeInKb: 1_000_000 } });
 const frames = [];
 const wallStart = Date.now();
@@ -271,6 +276,15 @@ const trace = JSON.parse(traceText);
 if (args['dump-trace']) writeFileSync(`${OUT}/trace.json`, traceText);
 const { perFrame, runLevel, threads } = traceToFrameCounts(trace.traceEvents ?? trace, frames.length);
 for (let n = 0; n < frames.length; n++) Object.assign(frames[n].counts, perFrame[n]);
+// N0: the page-side events, put into windows and frames by virtual time (src/n0.mjs). Zeros are recorded in every frame.
+let n0 = { enabled: false };
+if (N0_ON) {
+  const n0End = JSON.parse(await ev('JSON.stringify(__fwN0.read())'));
+  const { win, perFrame: n0Frames } = n0Windows(n0End.events, frames.map((f) => f.vt + START_VT), START_VT, dt);
+  for (let n = 0; n < frames.length; n++) Object.assign(frames[n].counts, n0FrameCounts(n0Frames[n]));
+  const total = (l) => ({ total: l.length, byKind: byKind(l) });
+  n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
+}
 
 const served = srv.served();
 const servedSha = createHash('sha256').update(JSON.stringify(served)).digest('hex');
@@ -284,7 +298,7 @@ const result = {
     servedFiles: Object.keys(served).length, servedSha256: servedSha, missing: srv.missing(),
     viewport: profile.viewport, hz: profile.hz, startVirtualMs: START_VT, pinnedDate: profile.pinnedDate, pageDateAtStart: geo.now, timezone: geo.tz,
     target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),
-    docHeightPx: geo.docH, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
+    n0, docHeightPx: geo.docH, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
   },
   frames,
   runLevel,

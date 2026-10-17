@@ -11,6 +11,7 @@
 export const TRACE_CATEGORIES = [
   'devtools.timeline', 'disabled-by-default-devtools.timeline', 'blink.animations', 'cc', 'benchmark',
   'disabled-by-default-devtools.timeline.frame', 'blink,devtools.timeline', 'blink,benchmark',
+  'blink_style', 'blink', // N1: StyleEngine::updateActiveStyleSheets and scheduleInvalidationsForRuleSets are "blink,blink_style", InvalidateStyleAndLayoutForFontUpdates is "blink" only (style_engine.cc@f842f52 :681, :2515, :1351)
   'disabled-by-default-devtools.timeline.layers', // LayerTreeHostImpl:snapshot per frame: layer census and per-layer raster invalidation regions
 ].filter((c) => !(process.env.FW_NO_LAYERS && c.endsWith('timeline.layers')));
 
@@ -32,7 +33,11 @@ const MAIN = {
   ScrollLayer: { key: 'trace.ScrollLayer' },
   'LocalFrameView::NotifyResizeObservers': { key: 'trace.ResizeObserverNotify' },
   'IntersectionObserverController::computeIntersections': { key: 'trace.IntersectionObserverCompute' },
-  HitTest: { key: 'trace.HitTest' },
+  HitTest: { key: 'trace.HitTest' }, // HitTests inside OverlayInterstitialAdDetector::MaybeFireDetection are counted under SPLITS instead
+  // N1 (PLAN 6.7): the engine-side style-sheet update slices. Zero on a page that never changes its sheets after load.
+  'StyleEngine::updateActiveStyleSheets': { key: 'trace.N1.updateActiveStyleSheets' },
+  'StyleEngine::scheduleInvalidationsForRuleSets': { key: 'trace.N1.scheduleInvalidationsForRuleSets' },
+  'StyleEngine::InvalidateStyleAndLayoutForFontUpdates': { key: 'trace.N1.fontUpdateInvalidation' },
   CullRectUpdate: { key: 'trace.CullRectUpdate' },
   FireAnimationFrame: { key: 'trace.FireAnimationFrame' },
   RequestAnimationFrame: { key: 'trace.RequestAnimationFrame' },
@@ -47,6 +52,22 @@ const MAIN = {
   Animation: { key: 'trace.Animation.begin', ph: ['b'] },
   'Animation@n': { key: 'trace.Animation.instant', ph: ['n'], b: { compositeFailed: 'trace.Animation.compositeFailedBits' } },
 };
+// Chromium's overlay-interstitial-ad detector (core/ad_tracker/overlay_interstitial_ad_detector.cc@f842f52, called from
+// LocalFrameView::RunIntersectionObserverSteps) hit-tests the viewport centre inside Commit at most once per second of
+// WALL time (base::Time::Now() against kFireInterval, line 84-90). On the 100 ms barrier lane that is one run of
+// the detector every 8-9 frames, and which of two adjacent frames gets it follows real time. It is browser-internal
+// work, not page work, so it is counted under its own type and kept out of trace.HitTest.
+const DETECTOR = 'OverlayInterstitialAdDetector::MaybeFireDetection';
+// The same containment split for N1: a page that shows SVG images makes Blink build one isolated SVG document per image
+// (IsolatedSVGDocumentHost, SVGImage), and each one runs its own first StyleEngine::updateActiveStyleSheets while
+// its parse finishes (Document::FinishedParsing > UpdateLayoutTree > Document::updateActiveStyle). That is image decoding,
+// not a change to the page's sheets, so a slice inside an SVG-image host is counted as trace.N1.svgImageDocument.
+const SVG_HOST = 'IsolatedSVGDocumentHost::IsolatedSVGDocumentHost';
+const SPLITS = {
+  HitTest: { within: DETECTOR, spec: { key: 'trace.HitTest.overlayAdDetector' } },
+  'StyleEngine::updateActiveStyleSheets': { within: SVG_HOST, spec: { key: 'trace.N1.svgImageDocument' } },
+};
+export const N1_KEYS = [...Object.values(MAIN).map((s) => s.key), 'trace.N1.svgImageDocument'].filter((k) => k.startsWith('trace.N1.'));
 const COMP = {
   'LayerTreeHostImpl::ActivateSyncTree': { key: 'trace.cc.Activate', ph: ['X'] },
   'ProxyImpl::Commit': { key: 'trace.cc.Commit', ph: ['X'] },
@@ -78,7 +99,7 @@ export function traceToFrameCounts(events, nFrames) {
   for (const e of events) if (e.ph === 'M' && e.name === 'thread_name') threadName.set(`${e.pid}:${e.tid}`, e.args?.name);
   const mainKeys = new Set(), rendererPids = new Set();
   for (const [k, n] of threadName) if (n === 'CrRendererMain') { mainKeys.add(k); rendererPids.add(+k.split(':')[0]); }
-  const perFrame = Array.from({ length: nFrames }, () => ({}));
+  const perFrame = Array.from({ length: nFrames }, () => Object.fromEntries(N1_KEYS.map((k) => [k, 0]))); // N1 zeros are recorded, not omitted
   const runLevel = {};
   const stable = (a, b) => a.ts - b.ts;
 
@@ -86,10 +107,13 @@ export function traceToFrameCounts(events, nFrames) {
   const main = events.filter((e) => mainKeys.has(`${e.pid}:${e.tid}`) && e.ph !== 'M').sort(stable);
   let cur = -1;
   const stacks = new Map();
+  const outer = new Map(Object.values(SPLITS).map((x) => [x.within, main.filter((e) => e.name === x.within && e.ph === 'X').map((e) => [e.ts, e.ts + (e.dur ?? 0)])]));
+  const inside = (e, within) => e.ph === 'X' && outer.get(within).some(([a, b]) => a <= e.ts && e.ts + (e.dur ?? 0) <= b);
   for (const e of main) {
     if (e.name === 'TimeStamp' && /^F\d+$/.test(e.args?.data?.message ?? '')) { cur = +e.args.data.message.slice(1); continue; }
     if (cur < 0 || cur >= nFrames) continue;
-    const spec = specOf(MAIN, e);
+    const split = SPLITS[e.name];
+    const spec = split && inside(e, split.within) ? split.spec : specOf(MAIN, e);
     const tid = `${e.pid}:${e.tid}`;
     if (!stacks.has(tid)) stacks.set(tid, []);
     if (e.ph === 'B') stacks.get(tid).push({ spec, frame: cur });

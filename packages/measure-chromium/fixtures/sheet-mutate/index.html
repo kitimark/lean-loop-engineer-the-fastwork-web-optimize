@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPK-q fixture: sheet mutations (positive control for the N0 census and the N1 slices)</title>
+<style>
+  body { margin: 0; }
+  #a { height: 100px; background: #36c; }
+  #b { height: 100px; background: #c63; }
+</style></head>
+<body><div id="a"></div><div id="b"></div>
+<script>
+  // Four sheet changes at fixed virtual times (rAF receives the virtual frame time). The fixture-rest profile starts its
+  // 120 recorded frames at 21000 ms virtual time, so each step lands in a different recorded frame.
+  const steps = [
+    [21200, () => document.styleSheets[0].insertRule('#a { height: 140px; }', 1)],           // CSSOM write, rule-list change
+    [21400, () => { const s = document.createElement('style'); s.textContent = '#b { height: 130px; }'; document.head.appendChild(s); }], // new sheet node
+    [21600, () => { document.styleSheets[0].cssRules[0].style.setProperty('background', '#222'); }], // write through a rule's style
+    [21800, () => { document.querySelectorAll('style')[1].textContent = '#b { height: 90px; }'; }],  // text edit of a sheet node
+  ];
+  let i = 0;
+  (function tick(ts) {
+    while (i < steps.length && ts >= steps[i][0]) steps[i++][1]();
+    requestAnimationFrame(tick);
+  })(0);
+</script></body></html>
