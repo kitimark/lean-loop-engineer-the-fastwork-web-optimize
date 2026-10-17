@@ -1743,7 +1743,8 @@
    "stream": "lean",
    "milestone": "M6",
    "deps": [
-    "math-r10-fix"
+    "math-r10-fix",
+    "math-pending-tool"
    ],
    "owner": "math-reviewer"
   },
@@ -2559,6 +2560,18 @@
     "packages/contracts/golden/console/**",
     ".gitattributes",
     "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "math-pending-tool",
+   "title": "(S) scripts/math-pending.mjs: reproducible pending/stale list from the mathview export minus signed review rows, balanced batches by module (replaces hand-scraping loop-plan.html); feeds math-final",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "general-purpose",
+   "writes": [
+    "scripts/math-pending.mjs",
+    "scripts/test-math-pending.mjs"
    ]
   }
  ],
