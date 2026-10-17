@@ -2427,7 +2427,12 @@
    "title": "Integrate finished port branches (morph.panel, nav, commission, overlays, hero, people) into one branch from main; one gate prepare mechanism + animation settle; one full gate run, then the lead lands it",
    "stream": "parts",
    "milestone": "M2",
-   "deps": [],
+   "deps": [
+    "fix-nav",
+    "fix-commission",
+    "fix-misc",
+    "fix-people-webkit"
+   ],
    "owner": "part-builder",
    "writes": [
     "packages/gate-breakpoints/src/**",
@@ -2782,6 +2787,62 @@
     ".github/scripts/merge-gate.mjs",
     "docs/team/tools/**",
     "results/**"
+   ]
+  },
+  {
+   "id": "fix-nav",
+   "title": "(M) integration fix: nav and nav.hitTest border colour rgb(23,23,23) vs black, font-family on nav earn and nav.langMenu switch, nav bar width in WebKit phone rotation (run 39067170911)",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/nav.hitTest/**",
+    "apps/site/src/parts/nav.langMenu/**"
+   ]
+  },
+  {
+   "id": "fix-commission",
+   "title": "(M) integration fix: commission section/track/card/sticky heights 829.77 vs 777.44, runway height, title display, underline, inner/row margins; commission.typing avatarLarge, transitions, scale at <=720, beat x/y (run 39067170911)",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "apps/site/src/parts/commission.typing/**"
+   ]
+  },
+  {
+   "id": "fix-misc",
+   "title": "(M) integration fix: pain.notes x (90 probes), hero.orbit card z-index, platform.stageBg heights (WebKit), overlays.signup widths 359.2 vs 360 (WebKit touch) (run 39067170911)",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/pain/**",
+    "apps/site/src/parts/pain.notes/**",
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/parts/hero.orbit/**",
+    "apps/site/src/parts/platform.stageBg/**",
+    "apps/site/src/parts/overlays/**",
+    "apps/site/src/parts/overlays.signup/**"
+   ]
+  },
+  {
+   "id": "fix-people-webkit",
+   "title": "(M) integration fix, WebKit tails: people.card radius and --future-shrink, people.deck shell, people.o height (run 39067170911)",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/people/**",
+    "apps/site/src/parts/people.card/**",
+    "apps/site/src/parts/people.deck/**",
+    "apps/site/src/parts/people.o/**"
    ]
   }
  ],
