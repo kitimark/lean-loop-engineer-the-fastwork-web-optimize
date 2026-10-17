@@ -86,6 +86,26 @@ def cls (c : String) (k t : Nat) : Json := Json.mkObj [("class", .str c), ("k", 
 /-- Parse a literal request (a parse error becomes a visible bad case). -/
 def lit (s : String) : Json := (Json.parse s).toOption.getD (Json.mkObj [("unparsable", .str s)])
 
+/-- The `jobs` of a `measure.freeze` run: job `i` is `chromium-counts-rewrite-r<i+1>` with the `i`-th frame
+count and the `i`-th trajectory hash (`tr` when the list is shorter). -/
+def jobsJ (frames : List Nat) (trs : List String := []) : Json :=
+  .arr ((frames.zip (List.range frames.length)).toArray.map fun (f, i) => Json.mkObj
+    [("name", .str s!"chromium-counts-rewrite-r{i + 1}"), ("frames", toJson f),
+     ("trajectorySha256", .str (trs.getD i "tr"))])
+
+/-- A `measure.freeze` request with three 409-frame jobs added to every run. -/
+def withJobs (j : Json) : Json :=
+  match j.getObjVal? "runs" with
+  | .ok (.arr rs) => j.mergeObj (Json.mkObj [("runs", .arr (rs.map fun r =>
+      r.mergeObj (Json.mkObj [("jobs", jobsJ [409, 409, 409])])))])
+  | _ => j
+
+/-- A `measure.freeze` run with one image digest, a two-type table and the given jobs. -/
+def frun (id : String) (frames : List Nat) (trs : List String := []) : Json :=
+  Json.mkObj [("id", .str id), ("images", .arr #[.str "sha256:aa"]),
+    ("classes", Json.mkObj [("a", cls "deterministic" 0 0), ("b", cls "stable" 2 3)]),
+    ("jobs", jobsJ frames trs)]
+
 /-- A zone record `{id, frames, scrolledPx, firstFrame, lastFrame, sums}` for the `measure.zoneBaseline` cases. -/
 def zrec (id : String) (fr : Nat) (px : Int) (a b : Nat) (sums : List (String × Int)) : Json :=
   Json.mkObj [("id", .str id), ("frames", toJson fr), ("scrolledPx", toJson px), ("firstFrame", toJson a),
@@ -202,7 +222,7 @@ def cases : List (String × List (String × Json)) := [
     ("one layer without fields", lit "{\"snapshot\":{\"active_tree\":{\"layers\":[{}]}}}"),
     ("a content_rect with fewer than 4 numbers is refused", lit "{\"snapshot\":{\"active_tiles\":[{\"content_rect\":[0,0]}]}}"),
     ("a non-boolean draws_content is refused", lit "{\"snapshot\":{\"active_tree\":{\"layers\":[{\"draws_content\":1}]}}}")]),
-  ("measure.freeze", [
+  ("measure.freeze", ([
     ("worst class per type over three runs; a type missing from a run is quarantined; k, t maxima; tBound the smallest; pooled class and tally", lit "{\"runs\":[{\"id\":\"101\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"102\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":3,\"t\":1},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":2,\"t\":400,\"tBound\":990,\"unit\":\"px\"}}},{\"id\":\"103\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"stable\",\"k\":1,\"t\":0},\"b\":{\"class\":\"quarantined\",\"k\":9,\"t\":40},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":0,\"tBound\":1010,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}}],\"pooled\":{\"a\":{\"class\":\"stable\",\"k\":1,\"t\":0},\"b\":{\"class\":\"quarantined\",\"k\":9,\"t\":40},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":2,\"t\":500,\"tBound\":990,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}}"),
     ("the same runs in another order give the same classes (perRun follows the run order)", lit "{\"runs\":[{\"id\":\"103\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"stable\",\"k\":1,\"t\":0},\"b\":{\"class\":\"quarantined\",\"k\":9,\"t\":40},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":0,\"tBound\":1010,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"101\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"102\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":3,\"t\":1},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":2,\"t\":400,\"tBound\":990,\"unit\":\"px\"}}}]}"),
     ("three copies of one table give that table", lit "{\"runs\":[{\"id\":\"101\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"201\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}},{\"id\":\"202\",\"images\":[\"sha256:aa\",\"sha256:aa\",\"sha256:aa\"],\"classes\":{\"a\":{\"class\":\"deterministic\",\"k\":0,\"t\":0},\"b\":{\"class\":\"stable\",\"k\":2,\"t\":3},\"x.drawAreaPx\":{\"class\":\"stable\",\"k\":1,\"t\":500,\"tBound\":1000,\"unit\":\"px\"},\"gone\":{\"class\":\"deterministic\",\"k\":0,\"t\":0}}}]}"),
@@ -217,7 +237,21 @@ def cases : List (String × List (String × Json)) := [
         ("classes", Json.mkObj [("trace.HitTest", cls "deterministic" 0 0),
           ("trace.HitTest.overlayAdDetector", cls o 2 2), ("trace.Paint", cls "stable" 1 1),
           ("trace.MinorGC", cls "quarantined" 9 9)])]
-      Json.mkObj [("runs", .arr #[run "1" "deterministic", run "2" "stable", run "3" "quarantined"])])]),
+      Json.mkObj [("runs", .arr #[run "1" "deterministic", run "2" "stable", run "3" "quarantined"])])]
+    : List (String × Json)).map (fun (n, j) => (n, withJobs j)) ++ [
+    ("a job with 403 frames among 409-frame jobs is refused; the refusal names that job and its run (CI run 39049478836)",
+      Json.mkObj [("runs", .arr #[frun "39049471997" [409, 409, 409], frun "39049478836" [409, 403, 409],
+        frun "39049481754" [409, 409, 409]])]),
+    ("the odd job is named when it is the first job; every job whose count is not the most frequent one is named",
+      Json.mkObj [("runs", .arr #[frun "1" [403, 409, 409], frun "2" [409, 409, 409], frun "3" [409, 409, 410]])]),
+    ("a run without jobs is refused",
+      Json.mkObj [("runs", .arr #[frun "1" [409], frun "2" [409], frun "3" []])]),
+    ("a run without the jobs field is refused",
+      Json.mkObj [("runs", .arr #[frun "1" [409], frun "2" [409],
+        Json.mkObj [("id", .str "3"), ("images", .arr #[.str "sha256:aa"]), ("classes", Json.mkObj [])]])]),
+    ("one frame count, different trajectories (touch): accepted, trajectoriesEqual false",
+      Json.mkObj [("runs", .arr #[frun "1" [531, 531, 531] ["t1", "t1", "t1"], frun "2" [531, 531, 531] ["t1", "t2", "t1"],
+        frun "3" [531, 531, 531] ["t1", "t1", "t1"]])])]),
   ("measure.splits", [
     ("HitTest inside the detector and a style update inside an SVG host move to the split types (ends included); B and I phases, slices past the end and slices outside stay; E is not counted",
       Json.mkObj [("slices", .arr #[
