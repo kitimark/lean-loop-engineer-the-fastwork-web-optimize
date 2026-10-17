@@ -16,7 +16,7 @@ open Lean Fw.Gate Fw.Site.Breakpoints Fw.Site.BreakpointGen
 
 /-- A requested environment in the run file's shape (`spec.mjs` `probeEnv`).
 
-$$\forall e,\quad \operatorname{envJson}(e) = \{w, h, d_w, d_h, r, \eta, \kappa, \mu, \sigma\} \text{ as JSON (keywords as in CSS)}$$
+$$\forall e,\quad \operatorname{envJson}(e) = \{\text{width}: \mathrm{width}(e), \text{height}: \mathrm{height}(e), \text{deviceWidth}: \mathrm{dw}(e), \text{deviceHeight}: \mathrm{dh}(e), \text{dpr}: \mathrm{dpr}(e), \text{hover}: \mathrm{kw}(\mathrm{hover}(e)), \text{pointer}: \mathrm{kw}(\mathrm{pointer}(e)), \text{reducedMotion}: \mathrm{kw}(\mathrm{motion}(e)), \text{colorScheme}: \mathrm{kw}(\mathrm{scheme}(e))\}$$
 
 One sweep stop as the package writes it. -/
 def envJson (e : Env) : Json :=
