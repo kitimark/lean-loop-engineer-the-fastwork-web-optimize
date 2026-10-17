@@ -2845,6 +2845,72 @@
     "apps/site/src/parts/people.deck/**",
     "apps/site/src/parts/people.o/**"
    ]
+  },
+  {
+   "id": "mistake-retro",
+   "title": "(M) retro of every mistake in this loop run (incidents, gate failures, agent and lead errors): root cause, Lean-provable? (yes/partly/no + reason), Lean hardening that fails the class early; research/notes/2026/10-18-mistake-retro.md + research/mistakes/ledger.json",
+   "stream": "research",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-mistake-retro.md",
+    "research/mistakes/**"
+   ]
+  },
+  {
+   "id": "incident-lean-fields",
+   "title": "(S) Fw.Plan.Incident: every incident carries leanVerdict (provable|partly|no + reason) and a hardening task id or the empirical check that covers it; fw incidents lint refuses entries without them; backfill the ledger from mistake-retro",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "mistake-retro"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Incident.lean",
+    "lean/Fw/Plan/**",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/src/incidents.ts",
+    "apps/runner/test/**",
+    "docs/team/incidents/**"
+   ]
+  },
+  {
+   "id": "lean-coverage",
+   "title": "(M) Fw.Gate.Coverage: every (part, property) the breakpoint gate probes maps to a Lean-sourced value (generated CSS/constant or golden vector) or a stated exemption; theorem coverage_lint_sound; fw lint fails on an uncovered probe; first run lists the integrate-ports cells",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/Coverage.lean",
+    "lean/Fw/Gate/**",
+    "packages/contracts/golden/gate/**",
+    "apps/runner/src/coverage.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "fix-proofs",
+   "title": "(M) Lean proof per integration fix (nav, commission, misc, people WebKit): each fixed value is Lean-sourced (generated CSS constant or golden vector, layout formula proved at all breakpoints) so it cannot drift; why each escaped Lean recorded in the findings ledger",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [
+    "fix-nav",
+    "fix-commission",
+    "fix-misc",
+    "fix-people-webkit",
+    "lean-coverage"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/parts/**",
+    "apps/site/src/parts/**",
+    "research/findings/ledger.json"
+   ]
   }
  ],
  "deadline": {
