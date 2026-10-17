@@ -12,9 +12,9 @@ encodings as `Fw/Parts/Golden.lean`: `Rat` inputs as exact JSON decimals, `Rat` 
 namespace Fw.Parts.MorphMountGolden
 open Lean Fw.Parts.MorphMount
 
-/-- A rational input as an exact JSON decimal (denominators here divide $1000$).
+/-- A rational input as a JSON decimal with mantissa $n \cdot \lfloor 1000/d \rfloor$ (natural-number division) and exponent $3$; exact only when $d \mid 1000$.
 
-$$q \mapsto q \cdot 10^3 \cdot 10^{-3}$$ -/
+$$q = \tfrac{n}{d} \mapsto \big(n \cdot \lfloor 1000/d \rfloor\big) \cdot 10^{-3}\quad (= q \iff d \mid 1000)$$ -/
 def rin (q : Rat) : Json := .num ⟨q.num * ((1000 / q.den : Nat) : Int), 3⟩
 
 /-- The `Rat` output wire form. $$q \mapsto \{\mathrm{num}, \mathrm{den}\}$$ -/
@@ -28,7 +28,8 @@ def line (fn : String) (inp : List (String × Json)) (out : Json) : String :=
 def actionName : Action → String
   | .attach => "attach" | .detach => "detach" | .none => "none"
 
-/-- Heights, bottoms and viewport heights around the 0.45 and +8 edges. $$\text{samples}$$ -/
+/-- Fourteen (height, bottom, viewport height) samples around the 0.45 and +8 edges.
+$$\mathrm{rects} = [(450,800,1000), (449,800,1000), (449.5,800,1000), (900,1008,1000), (900,1008.5,1000), (900,1009,1000), (0,0,0), (0,-5,0), (360,844,800), (359,844,800), (360,808,800), (360,809,800), (1,1,2), (0.5,0,1)]$$ -/
 def rects : List (Rat × Rat × Rat) :=
   [(450, 800, 1000), (449, 800, 1000), (449.5, 800, 1000), (900, 1008, 1000), (900, 1008.5, 1000), (900, 1009, 1000),
    (0, 0, 0), (0, -5, 0), (360, 844, 800), (359, 844, 800), (360, 808, 800), (360, 809, 800), (1, 1, 2), (0.5, 0, 1)]
@@ -36,7 +37,8 @@ def rects : List (Rat × Rat × Rat) :=
 /-- Booleans. $$\mathbb B$$ -/
 def bs : List Bool := [false, true]
 
-/-- The golden lines. $$\text{lines}$$ Vectors the TS logic must reproduce. -/
+/-- The 74 golden lines the TS logic must reproduce, concatenated in this order: `armed` over `rects` (14), `active` (8 pairs), `takes` over $\mathbb{B} \times \{-5,-0.5,0,0.5,120\} \times \mathbb{B}$ (20), `touchDelta` (4), `viewportHeight` (4), `wanted` over $\mathbb{B}^2$ (4), `action` over $\mathbb{B}^2$ (4), `mountNext` over $\mathbb{B}^3$ (8), `repin` over $\mathbb{B} \times 4$ pairs (8).
+$$\mathrm{lines} = \mathrm{armed} \mathbin{+\!\!+} \mathrm{active} \mathbin{+\!\!+} \mathrm{takes} \mathbin{+\!\!+} \mathrm{touchDelta} \mathbin{+\!\!+} \mathrm{viewportHeight} \mathbin{+\!\!+} \mathrm{wanted} \mathbin{+\!\!+} \mathrm{action} \mathbin{+\!\!+} \mathrm{mountNext} \mathbin{+\!\!+} \mathrm{repin},\quad |\mathrm{lines}| = 74$$ -/
 def lines : List String :=
   (rects.map fun (h, b, v) =>
     line "armed" [("height", rin h), ("bottom", rin b), ("vh", rin v)] (.bool (armed ⟨h, b⟩ v))) ++

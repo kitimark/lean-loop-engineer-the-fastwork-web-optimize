@@ -261,7 +261,9 @@ def unprefix (s : String) : String :=
 
 /-- The status code of a status line `HTTP/<v> <code> <text>`; `none` for any other line.
 
-$$\operatorname{statusOf}(s) = \begin{cases} n & \operatorname{unprefix}(s) = \texttt{HTTP/}v\ \texttt{␣}\ n\ \texttt{␣} \dots,\ n \in \mathbb{N} \text{ in decimal} \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{statusOf}(s) = \begin{cases} n & \operatorname{unprefix}(s) \text{ starts with } \texttt{HTTP/} \text{ and its 2nd non-empty } \texttt{␣}\text{-separated token } c \text{ has } \mathrm{toNat?}(c) = n \\ \bot & \text{otherwise (no such token, or } \mathrm{toNat?}(c) = \bot\text{)} \end{cases}$$
+
+Here toNat? is Lean's `String.toNat?`, which reads decimal digits and also accepts `_` separators (`1_000` gives 1000).
 -/
 def statusOf (s : String) : Option Nat :=
   let t := unprefix s
