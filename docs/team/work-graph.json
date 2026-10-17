@@ -1486,6 +1486,23 @@
     "lean/Fw/Measure/Arms.lean",
     "lean/MathViewMain.lean"
    ]
+  },
+  {
+   "id": "ci-paths-guard",
+   "title": "macOS workflows skip their macOS jobs unless the branch diff vs main touches their inputs (merging main into a ci/* branch starts webkit-sim and wktr: 7 stray runs cancelled today)",
+   "stream": "measure",
+   "milestone": "M1",
+   "deps": [
+    "ci-trigger-scope"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    ".github/workflows/wktr.yml",
+    ".github/workflows/gate-gaps.yml",
+    ".github/workflows/sim-speed.yml",
+    ".github/scripts/changed-inputs.mjs"
+   ]
   }
  ]
 }
