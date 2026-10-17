@@ -342,7 +342,28 @@ def pilotParts : List PartUse := [
   { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
     extra := [], knees := [],
     dismissed := [
-      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] }
+      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] },
+  { id := "platform", owners := ["platform"],
+    orig := ["mq.rm-reduce", "mq.rm-nopref", "mq.w-le-640", "mq.w-le-720", "mq.w-le-860", "mq.w-ge-861", "mq.w-861-1000",
+             "mq.w-le-960", "mq.w-le-1000", "mq.w-ge-1001", "mq.w-le-1100", "mq.c860"],
+    rewrite := ["mq.rm-reduce", "mq.rm-nopref", "mq.w-ge-1001", "mq.w-861-1000", "mq.w-ge-861", "mq.w-le-960",
+                "mq.w-le-1000", "mq.w-le-720", "mq.c860", "mq.w-le-640"],
+    extra := [],
+    knees := [⟨"future / platform / mission title clamp 36 / 4vw / 48", 900⟩, ⟨"future / platform / mission title clamp 36 / 4vw / 48", 1200⟩,
+              ⟨"platform title clamp 32 / 8vw / 40 (inside width<=640)", 400⟩, ⟨"platform title clamp 32 / 8vw / 40 (inside width<=640)", 500⟩],
+    dismissed := [("css.hover-ungated", "plain :hover rules; the gate never hovers an element")] },
+  { id := "platform.sweep", owners := ["platform.sweep"],
+    orig := ["mq.rm-nopref", "mq.w-ge-861", "mq.w-le-1000", "mq.c860"], rewrite := ["mq.rm-nopref"],
+    extra := [], knees := [], dismissed := [] },
+  { id := "platform.stageBg", owners := ["platform.stageBg"],
+    orig := ["mq.rm-reduce", "mq.w-le-640", "mq.w-le-960", "mq.c860"], rewrite := ["mq.c860"],
+    extra := [], knees := [], dismissed := [] },
+  { id := "platform.glint", owners := ["platform.glint"],
+    orig := ["mq.rm-reduce"], rewrite := ["mq.rm-reduce"], extra := [], knees := [], dismissed := [] },
+  { id := "platform.entries", owners := ["platform.entries"],
+    orig := ["mq.rm-reduce"], rewrite := ["mq.rm-reduce"], extra := [], knees := [], dismissed := [] },
+  { id := "platform.marquee", owners := ["platform.marquee"],
+    orig := ["mq.rm-reduce"], rewrite := ["mq.rm-reduce"], extra := [], knees := [], dismissed := [] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.

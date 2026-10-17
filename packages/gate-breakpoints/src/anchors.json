@@ -156,6 +156,308 @@
           "why": "the part renders nothing and restates no CSS; only the document element's width is compared. If the mark is missing the rewrite count is 0 and the count differs"
         }
       ]
+    },
+    "platform": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:5388-5400, 5528-5560, 5602-5670, 5809-5960, 6037-6130, 7752-7830, 10835-10870, 10985-11075",
+        "2.DyWL8TcE.js:12414-12661 (markup), 12434-12448 (shrink)",
+        "PL1: the section box height is the sum of the rows (stage aspect ratio), compared exactly"
+      ],
+      "excluded": [
+        {
+          "what": "text-dependent boxes (mission title width, row title and copy heights, line counts)",
+          "why": "the rewrite page has no web font yet, so wrapping and line counts differ; the boxes that do not depend on text are compared exactly"
+        },
+        {
+          "what": "stage visuals (profile, ask, secure network, invoice)",
+          "why": "owned by platform.entries, platform.glint and platform.marquee"
+        }
+      ],
+      "roles": [
+        {
+          "role": "section",
+          "orig": "section#platform",
+          "rewrite": "[data-fw=\"platform\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the section box: width and height (card padding + mission + rows), the part's own sum of stage heights"
+        },
+        {
+          "role": "card",
+          "orig": ".start-selling-platform-card",
+          "rewrite": "[data-fw=\"platform\"] > div",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the dark card (padding 96/56/80 down to 64/20 at the 860 combo)"
+        },
+        {
+          "role": "missionTitle",
+          "orig": "#built-heading",
+          "rewrite": "#built-heading",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "font size and weight per breakpoint; the box is text-dependent"
+        },
+        {
+          "role": "row",
+          "orig": ".start-selling-platform-row",
+          "rewrite": "[data-fw-row]",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "grid of two columns (one at <=640); the height follows the copy at <=640 and is text-dependent there"
+        },
+        {
+          "role": "rowCopy",
+          "orig": ".start-selling-platform-row-copy",
+          "rewrite": "[data-fw-row] > div:last-child",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "copy column; height and y depend on the title's line count"
+        },
+        {
+          "role": "rowTitle",
+          "orig": ".start-selling-platform-row-title",
+          "rewrite": "[data-fw-row] h3",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "type size and weight per breakpoint; the box is text-dependent"
+        }
+      ]
+    },
+    "platform.stageBg": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:6330-6405 (stage, mesh, grain, bg, visual, artboard), 8217-8225, 10985-10995"
+      ],
+      "excluded": [
+        {
+          "what": "image pictures (src, srcset)",
+          "why": "the assets are the original's public files, served next to the page at publish time; absent in the rewrite build"
+        }
+      ],
+      "roles": [
+        {
+          "role": "stage",
+          "orig": ".start-selling-platform-stage",
+          "rewrite": "[data-fw-row] > div:first-child",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "aspect-ratio 640/512 (361/288 at the 860 combo): both dimensions are the part's own"
+        },
+        {
+          "role": "grain",
+          "orig": ".start-selling-platform-stage-grain",
+          "rewrite": "[data-fw-row] > div:first-child > div[aria-hidden=\"true\"]:first-child",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "overlay at opacity 0.55 (0.42 on the secure mesh), tiled 128 px"
+        },
+        {
+          "role": "bg",
+          "orig": ".start-selling-platform-stage-bg",
+          "rewrite": "[data-fw-row] picture > img",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "blurred 16 px photo, opacity 0.5 (0.15 for the quote)"
+        },
+        {
+          "role": "artboard",
+          "orig": ".start-selling-platform-stage-artboard",
+          "rewrite": "[data-fw-row] > div:first-child > div > div",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "640 x 512 box scaled by 100cqw / 640px"
+        }
+      ]
+    },
+    "platform.sweep": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:5802-5805, 11081-11103",
+        "lean/Fw/Parts/PlatformSweep.lean"
+      ],
+      "excluded": [
+        {
+          "what": "background-position and the animation longhands",
+          "why": "the phase of a running animation is not pinned at load; animation-* is skipped for every part and the exact curve is the Lean spec"
+        }
+      ],
+      "roles": [
+        {
+          "role": "word",
+          "orig": ".start-selling-platform-row-title-doc,.start-selling-platform-row-title-earn,.start-selling-platform-row-title-secure,.start-selling-platform-row-title-organized",
+          "rewrite": "[data-fw-sweep]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "background-position"
+          ],
+          "why": "gradient, size 300% and text clip of the four words; the box is text-dependent"
+        }
+      ]
+    },
+    "platform.glint": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.DyWL8TcE.js:12150-12212, 12269-12275; 2.gBuqKVzi.css 7020-7060 (dash)",
+        "lean/Fw/Parts/PlatformGlint.lean"
+      ],
+      "excluded": [
+        {
+          "what": "the SMIL x1/x2 values",
+          "why": "they are attributes of an animated gradient (not computed style); the schedule is the Lean spec and golden vectors"
+        }
+      ],
+      "roles": [
+        {
+          "role": "dash",
+          "orig": ".start-selling-platform-secure-network-dash",
+          "rewrite": "[data-fw-dash]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "transform",
+            "opacity"
+          ],
+          "why": "two dashes of 94 x 3.2 px at fixed artboard positions"
+        }
+      ]
+    },
+    "platform.entries": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css keyframes (profile, cred, secure-network, invoice, orders, agents-ask)",
+        "lean/Fw/Parts/PlatformEntries.lean"
+      ],
+      "excluded": [
+        {
+          "what": "opacity, transform and filter of entering elements",
+          "why": "they depend on the time since the stage became visible; the gate loads at the top where no stage is seen, and the curves are the Lean spec"
+        }
+      ],
+      "roles": [
+        {
+          "role": "visual",
+          "orig": ".start-selling-platform-profile,.start-selling-platform-visual.is-search,.start-selling-platform-secure,.start-selling-platform-invoice",
+          "rewrite": "[data-fw-visual]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "opacity",
+            "transform",
+            "filter",
+            "position",
+            "overflow-x",
+            "overflow-y"
+          ],
+          "why": "the four stage visuals fill the artboard"
+        }
+      ]
+    },
+    "platform.marquee": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:6484-6496, 7497",
+        "lean/Fw/Parts/PlatformMarquee.lean"
+      ],
+      "excluded": [
+        {
+          "what": "transform",
+          "why": "the phase of the running marquee is not pinned at load"
+        }
+      ],
+      "roles": [
+        {
+          "role": "track",
+          "orig": ".start-selling-platform-profile-reviews-track",
+          "rewrite": "[data-marquee]",
+          "boxRel": null,
+          "dims": [
+            "h"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "transform"
+          ],
+          "why": "max-content track of two identical sets; width follows the card set"
+        }
+      ]
     }
   }
 }

@@ -16,7 +16,9 @@ const must = [...gen.matrix.probes.map((p) => Math.ceil(p.width)), ...gen.edgePa
 const model = fit(rows, 0.05, must);
 
 const files = new Map([['src/shells/boxes.gen.json', JSON.stringify(model, null, 1) + '\n']]);
-for (const id of SECTION_IDS) files.set(`src/parts/${id}/box.module.css`, sectionCss(model, id));
+// a section that has been ported to the real part no longer has a shell box file (its measured heights stay in the model)
+const PORTED = new Set(['platform']);
+for (const id of SECTION_IDS) if (!PORTED.has(id)) files.set(`src/parts/${id}/box.module.css`, sectionCss(model, id));
 
 let bad = 0;
 for (const [f, text] of files) {
