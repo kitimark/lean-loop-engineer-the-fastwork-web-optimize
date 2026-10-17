@@ -2902,7 +2902,8 @@
     "fix-commission",
     "fix-misc",
     "fix-people-webkit",
-    "lean-coverage"
+    "lean-coverage",
+    "gate-settle"
    ],
    "owner": "lean-prover",
    "writes": [
@@ -2910,6 +2911,33 @@
     "packages/contracts/golden/parts/**",
     "apps/site/src/parts/**",
     "research/findings/ledger.json"
+   ]
+  },
+  {
+   "id": "gate-settle",
+   "title": "(M) Fw.Gate.Settle: a probe sample is valid only when settled (no running animation/transition on probed nodes, >= 2 rAF after the last resize, pointer parked off hover-reactive targets); theorem sample_delay_invariant; gate waits on it; closes pain.notes, hero.orbit, overlays.signup misreads (fix-misc)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Gate/Settle.lean",
+    "lean/Fw/Gate/Golden.lean",
+    "packages/contracts/golden/gate/**",
+    "packages/gate-breakpoints/**",
+    "docs/team/handoffs/gate-settle.md"
+   ]
+  },
+  {
+   "id": "fix-stagebg-webkit",
+   "title": "(S) platform.stageBg WebKit <=640: stage h 319.6 vs 351.8 (aspect-ratio 361/288 under grid stretch); WebKit-only CI experiment (align-self:start on the slot), Lean row for h=(W-40)*288/361",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "docs/team/handoffs/fix-stagebg-webkit.md"
    ]
   }
  ],
