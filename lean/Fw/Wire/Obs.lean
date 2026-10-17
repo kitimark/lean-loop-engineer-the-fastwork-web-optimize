@@ -12,27 +12,30 @@ number is a non-negative integer (a fraction is refused, so the caller floors `d
 
 | op | request | reply |
 |---|---|---|
-| `obs.health` | `now`, `params`?, `agents`? [Agent], `lead`? Lead, `system` System | `agents` [{id, state, alerts:[code]}] (input order), `system` {alerts:[code]}, `counts` {active, idle, parked, stalled, done}, `alerts` [{code, subject, detail}] (sorted by code, subject, detail; no duplicates) |
+| `obs.health` | `now`, `params`?, `agents`? [Agent], `lead`? Lead, `system` System, `prevAt`?, `critical`? [string] | `agents` [{id, state, alerts:[code]}] (input order), `system` {alerts:[code]} (code order), `counts` {active, idle, parked, stalled, gone, done}, `alerts` [{code, subject, detail, critical}] (critical first, then by code, subject, detail; no duplicates) |
 
 Shapes. Params (every field optional, defaults in brackets): `{idleMin [10], stallMin [20], toolHangMin [30]` (minutes),
 `errStreak [3], ctxResumeMax [250000], ctxWarn [200000], diskMinGB [20], agentCap [10], simLockMaxMin [30]` (minutes),
-`worktreesMax [20], wfQuietMin [30]}`. Agent: `{id, name?, task?, kind? ["lead"|"teammate"|"subagent"|"workflow";
+`worktreesMax [20], wfQuietMin [30], goneAfterMin [120], ciSlowMin [20], toolSlowMin [15], procMaxMin [20]`
+(minutes), `loadMax [150]}`. Agent: `{id, name?, task?, kind? ["lead"|"teammate"|"subagent"|"workflow";
 "subagent"], parent?, startedAt, lastAt, stoppedAt?, errTail? [0], inflight? {tool, since}, lastTool?, lastToolAt?,
 idleAt?, workflowDone? [false], transcriptOnly? [false], ctxTokens?}` (any other field, e.g. `type`, `model`, `tools`,
 `errors`, `tokens`, `inflight.verb`, is ignored). Lead: `{lastToolAt?, noteAt?}` (absent: no events). System:
 `{diskFreeGB, memPressure? ["normal"|"warn"|"critical"], simLock? {holder?, since?}, docker? [{id, name, startedAt}],
-worktrees? [0] (a count), ci? [{workflow, branch, status, conclusion?, startedAt}]}` (any other field, e.g. `load1`,
-`consolePids`, `stale`, is ignored). `null` counts as absent.
+worktrees? [0] (a count), ci? [{workflow, branch, status, conclusion?, startedAt, endedAt?}], loadFloor? [0] (the floor
+of the 1-min load average), procs? [{pid, name, startedAt, pids? [[]]}], services? [[]] (pids)}` (any other field,
+e.g. `load1`, `consolePids`, `stale`, is ignored). `prevAt` is the time of the previous check (absent: first check);
+`critical` lists the task ids on the critical path. `null` counts as absent.
 
 Proved: the round trips `paramsOf_paramsJson`, `agentOf_agentJson`, `leadOf_leadJson`, `systemOf_systemJson`,
-`reqOf_reqJson`, and
+`procOf_procJson`, `reqOf_reqJson`, and
 `opHealth_reqJson` (the reply to an encoded request is the encoded `health` report). Guards at the end; golden vectors
 in `packages/contracts/golden/obs/health.jsonl` (`Fw.Wire.Obs.Golden`, file `Fw/Obs/Golden.lean`).
 -/
 namespace Fw.Wire.Obs
 open Lean
 open Fw.Wire.Ops (Reply field opt asStr asNat asBool asArr str nat arr natD boolD arrD ostr)
-open Fw.Wire.Sched (optS ok_bind mapM_rt arrD_arr)
+open Fw.Wire.Sched (optS ok_bind mapM_rt arrD_arr strsD strsD_rt)
 open Fw.Obs.Health
 
 /-! ## Decoders and encoders -/
@@ -53,7 +56,9 @@ def paramsFields (p : Params) : List (String × Json) :=
   [("idleMin", toJson p.idleMin), ("stallMin", toJson p.stallMin), ("toolHangMin", toJson p.toolHangMin),
     ("errStreak", toJson p.errStreak), ("ctxResumeMax", toJson p.ctxResumeMax), ("ctxWarn", toJson p.ctxWarn),
     ("diskMinGB", toJson p.diskMinGB), ("agentCap", toJson p.agentCap), ("simLockMaxMin", toJson p.simLockMaxMin),
-    ("worktreesMax", toJson p.worktreesMax), ("wfQuietMin", toJson p.wfQuietMin)]
+    ("worktreesMax", toJson p.worktreesMax), ("wfQuietMin", toJson p.wfQuietMin),
+    ("goneAfterMin", toJson p.goneAfterMin), ("ciSlowMin", toJson p.ciSlowMin), ("toolSlowMin", toJson p.toolSlowMin),
+    ("procMaxMin", toJson p.procMaxMin), ("loadMax", toJson p.loadMax)]
 
 /-- The thresholds as JSON (every field written). -/
 def paramsJson (p : Params) : Json := Json.mkObj (paramsFields p)
@@ -66,7 +71,10 @@ def paramsOf (j : Json) : Except String Params := do
          ctxResumeMax := ← natD j "ctxResumeMax" d.ctxResumeMax, ctxWarn := ← natD j "ctxWarn" d.ctxWarn,
          diskMinGB := ← natD j "diskMinGB" d.diskMinGB, agentCap := ← natD j "agentCap" d.agentCap,
          simLockMaxMin := ← natD j "simLockMaxMin" d.simLockMaxMin,
-         worktreesMax := ← natD j "worktreesMax" d.worktreesMax, wfQuietMin := ← natD j "wfQuietMin" d.wfQuietMin }
+         worktreesMax := ← natD j "worktreesMax" d.worktreesMax, wfQuietMin := ← natD j "wfQuietMin" d.wfQuietMin,
+         goneAfterMin := ← natD j "goneAfterMin" d.goneAfterMin, ciSlowMin := ← natD j "ciSlowMin" d.ciSlowMin,
+         toolSlowMin := ← natD j "toolSlowMin" d.toolSlowMin, procMaxMin := ← natD j "procMaxMin" d.procMaxMin,
+         loadMax := ← natD j "loadMax" d.loadMax }
 
 /-- A tool call in flight as JSON. -/
 def inflightJson (f : Inflight) : Json := Json.mkObj [("tool", .str f.tool), ("since", toJson f.since)]
@@ -151,18 +159,29 @@ def containerOf (j : Json) : Except String Container := do
 /-- A CI run as JSON. -/
 def ciJson (r : CiRun) : Json :=
   Json.mkObj [("workflow", .str r.workflow), ("branch", .str r.branch), ("status", .str r.status),
-    ("conclusion", ostr r.conclusion), ("startedAt", toJson r.startedAt)]
+    ("conclusion", ostr r.conclusion), ("startedAt", toJson r.startedAt), ("endedAt", onat r.endedAt)]
 
-/-- Decode a CI run (`conclusion` optional). -/
+/-- Decode a CI run (`conclusion` and `endedAt` optional). -/
 def ciOf (j : Json) : Except String CiRun := do
   pure { workflow := ← str j "workflow", branch := ← str j "branch", status := ← str j "status",
-         conclusion := ← optS j "conclusion", startedAt := ← nat j "startedAt" }
+         conclusion := ← optS j "conclusion", startedAt := ← nat j "startedAt", endedAt := ← optN j "endedAt" }
+
+/-- A process tree as JSON. -/
+def procJson (q : Proc) : Json :=
+  Json.mkObj [("pid", toJson q.pid), ("name", .str q.name), ("startedAt", toJson q.startedAt),
+    ("pids", .arr (q.pids.toArray.map toJson))]
+
+/-- Decode a process tree (`pids` optional, default empty). -/
+def procOf (j : Json) : Except String Proc := do
+  pure { pid := ← nat j "pid", name := ← str j "name", startedAt := ← nat j "startedAt",
+         pids := ← (← arrD j "pids").mapM (asNat "pids") }
 
 /-- The system facts as JSON (every field written). -/
 def systemJson (s : System) : Json :=
   Json.mkObj [("diskFreeGB", toJson s.diskFreeGB), ("memPressure", .str (memName s.memPressure)),
     ("simLock", simLockJson s.simLock), ("docker", .arr (s.docker.toArray.map containerJson)),
-    ("worktrees", toJson s.worktrees), ("ci", .arr (s.ci.toArray.map ciJson))]
+    ("worktrees", toJson s.worktrees), ("ci", .arr (s.ci.toArray.map ciJson)), ("loadFloor", toJson s.loadFloor),
+    ("procs", .arr (s.procs.toArray.map procJson)), ("services", .arr (s.services.toArray.map toJson))]
 
 /-- Decode the system facts; `diskFreeGB` is required. -/
 def systemOf (j : Json) : Except String System := do
@@ -174,14 +193,17 @@ def systemOf (j : Json) : Except String System := do
     | some v => simLockOf v
   pure { diskFreeGB := ← nat j "diskFreeGB", memPressure := mem, simLock := lock,
          docker := ← (← arrD j "docker").mapM containerOf, worktrees := ← natD j "worktrees" 0,
-         ci := ← (← arrD j "ci").mapM ciOf }
+         ci := ← (← arrD j "ci").mapM ciOf, loadFloor := ← natD j "loadFloor" 0,
+         procs := ← (← arrD j "procs").mapM procOf, services := ← (← arrD j "services").mapM (asNat "services") }
 
-/-- A request body as JSON: `now`, `params`, `agents`, `lead`, `system`. -/
+/-- A request body as JSON: `now`, `params`, `agents`, `lead`, `system`, `prevAt`, `critical`. -/
 def reqJson (p : Params) (o : Obs) : Json :=
   Json.mkObj [("now", toJson o.now), ("params", paramsJson p), ("agents", .arr (o.agents.toArray.map agentJson)),
-    ("lead", leadJson o.lead), ("system", systemJson o.system)]
+    ("lead", leadJson o.lead), ("system", systemJson o.system), ("prevAt", onat o.prevAt),
+    ("critical", .arr (o.critical.toArray.map .str))]
 
-/-- Decode a request body; `params`, `agents` and `lead` are optional (defaults, no agents, no lead events). -/
+/-- Decode a request body; `params`, `agents`, `lead`, `prevAt` and `critical` are optional (defaults, no agents, no
+lead events, first check, no critical task). -/
 def reqOf (j : Json) : Except String (Params × Obs) := do
   let p ← match opt j "params" with
     | none => pure {}
@@ -190,7 +212,8 @@ def reqOf (j : Json) : Except String (Params × Obs) := do
   let lead ← match opt j "lead" with
     | none => pure {}
     | some v => leadOf v
-  pure (p, { now := ← nat j "now", agents, lead, system := ← systemOf (← field j "system") })
+  pure (p, { now := ← nat j "now", agents, lead, system := ← systemOf (← field j "system"),
+             prevAt := ← optN j "prevAt", critical := ← strsD j "critical" })
 
 /-! ## Round trips -/
 
@@ -237,7 +260,10 @@ theorem paramsOf_paramsJson (p : Params) : paramsOf (paramsJson p) = .ok p := by
     g "errStreak" _ (by unfold paramsFields; mem_lit), g "ctxResumeMax" _ (by unfold paramsFields; mem_lit),
     g "ctxWarn" _ (by unfold paramsFields; mem_lit), g "diskMinGB" _ (by unfold paramsFields; mem_lit),
     g "agentCap" _ (by unfold paramsFields; mem_lit), g "simLockMaxMin" _ (by unfold paramsFields; mem_lit),
-    g "worktreesMax" _ (by unfold paramsFields; mem_lit), g "wfQuietMin" _ (by unfold paramsFields; mem_lit)]
+    g "worktreesMax" _ (by unfold paramsFields; mem_lit), g "wfQuietMin" _ (by unfold paramsFields; mem_lit),
+    g "goneAfterMin" _ (by unfold paramsFields; mem_lit), g "ciSlowMin" _ (by unfold paramsFields; mem_lit),
+    g "toolSlowMin" _ (by unfold paramsFields; mem_lit), g "procMaxMin" _ (by unfold paramsFields; mem_lit),
+    g "loadMax" _ (by unfold paramsFields; mem_lit)]
   rfl
 
 /-- An agent's keys are pairwise distinct.
@@ -319,26 +345,41 @@ theorem containerOf_containerJson (c : Container) : containerOf (containerJson c
 $$\forall r:\quad \operatorname{ciOf}(\operatorname{ciJson}(r)) = \mathrm{ok}(r)$$
 -/
 theorem ciOf_ciJson (r : CiRun) : ciOf (ciJson r) = .ok r := by
-  obtain ⟨w, b, s, c, t⟩ := r
-  cases c <;> rfl
+  obtain ⟨w, b, s, c, t, e⟩ := r
+  cases c <;> cases e <;> rfl
+
+/-- Process trees round-trip.
+
+$$\forall q:\quad \operatorname{procOf}(\operatorname{procJson}(q)) = \mathrm{ok}(q)$$
+
+Decoding the JSON written for a process tree gives the same tree back.
+-/
+theorem procOf_procJson (q : Proc) : procOf (procJson q) = .ok q := by
+  obtain ⟨pid, name, st, pids⟩ := q
+  have hp := arrD_arr (procJson ⟨pid, name, st, pids⟩) "pids" _ rfl
+  simp only [procOf, hp, Array.toList_map, ok_bind, mapM_rt toJson (asNat "pids") (fun _ => rfl)]
+  rfl
 
 /-- System facts round-trip.
 
 $$\forall s:\quad \operatorname{systemOf}(\operatorname{systemJson}(s)) = \mathrm{ok}(s)$$
 -/
 theorem systemOf_systemJson (s : System) : systemOf (systemJson s) = .ok s := by
-  obtain ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci⟩ := s
-  have hd := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci⟩) "docker" _ rfl
-  have hc := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci⟩) "ci" _ rfl
-  have hm : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci⟩) "memPressure" =
+  obtain ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc⟩ := s
+  have hd := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc⟩) "docker" _ rfl
+  have hc := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc⟩) "ci" _ rfl
+  have hq := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc⟩) "procs" _ rfl
+  have hv := arrD_arr (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc⟩) "services" _ rfl
+  have hm : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc⟩) "memPressure" =
       some (.str (memName mem)) := rfl
-  have hl : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci⟩) "simLock" =
+  have hl : opt (systemJson ⟨disk, mem, ⟨holder, since⟩, docker, wt, ci, lf, procs, svc⟩) "simLock" =
       some (simLockJson ⟨holder, since⟩) := rfl
   have hml : memOf (memName mem) = .ok mem := by cases mem <;> rfl
   have hsl : simLockOf (simLockJson ⟨holder, since⟩) = .ok ⟨holder, since⟩ := by
     cases holder <;> cases since <;> rfl
-  simp only [systemOf, hd, hc, hm, hl, Array.toList_map, ok_bind,
-    mapM_rt containerJson containerOf containerOf_containerJson, mapM_rt ciJson ciOf ciOf_ciJson]
+  simp only [systemOf, hd, hc, hq, hv, hm, hl, Array.toList_map, ok_bind,
+    mapM_rt containerJson containerOf containerOf_containerJson, mapM_rt ciJson ciOf ciOf_ciJson,
+    mapM_rt procJson procOf procOf_procJson, mapM_rt toJson (asNat "services") (fun _ => rfl)]
   simp only [asStr, ok_bind, hml, hsl]
   rfl
 
@@ -347,12 +388,15 @@ theorem systemOf_systemJson (s : System) : systemOf (systemJson s) = .ok s := by
 $$\forall p, o:\quad \operatorname{reqOf}(\operatorname{reqJson}(p, o)) = \mathrm{ok}(p, o)$$
 -/
 theorem reqOf_reqJson (p : Params) (o : Obs) : reqOf (reqJson p o) = .ok (p, o) := by
-  obtain ⟨now, agents, lead, sys⟩ := o
-  have ha := arrD_arr (reqJson p ⟨now, agents, lead, sys⟩) "agents" _ rfl
-  have hp : opt (reqJson p ⟨now, agents, lead, sys⟩) "params" = some (paramsJson p) := rfl
-  have hl : opt (reqJson p ⟨now, agents, lead, sys⟩) "lead" = some (leadJson lead) := rfl
-  have hs : field (reqJson p ⟨now, agents, lead, sys⟩) "system" = .ok (systemJson sys) := rfl
-  simp only [reqOf, ha, hp, hl, hs, Array.toList_map, ok_bind, paramsOf_paramsJson, leadOf_leadJson,
+  obtain ⟨now, agents, lead, sys, prev, crit⟩ := o
+  have ha := arrD_arr (reqJson p ⟨now, agents, lead, sys, prev, crit⟩) "agents" _ rfl
+  have hp : opt (reqJson p ⟨now, agents, lead, sys, prev, crit⟩) "params" = some (paramsJson p) := rfl
+  have hl : opt (reqJson p ⟨now, agents, lead, sys, prev, crit⟩) "lead" = some (leadJson lead) := rfl
+  have hs : field (reqJson p ⟨now, agents, lead, sys, prev, crit⟩) "system" = .ok (systemJson sys) := rfl
+  have hv : optN (reqJson p ⟨now, agents, lead, sys, prev, crit⟩) "prevAt" = .ok prev := by
+    cases prev <;> rfl
+  have hk := strsD_rt (reqJson p ⟨now, agents, lead, sys, prev, crit⟩) "critical" crit rfl
+  simp only [reqOf, ha, hp, hl, hs, hv, hk, Array.toList_map, ok_bind, paramsOf_paramsJson, leadOf_leadJson,
     mapM_rt agentJson agentOf agentOf_agentJson, systemOf_systemJson]
   rfl
 
@@ -360,11 +404,13 @@ theorem reqOf_reqJson (p : Params) (o : Obs) : reqOf (reqJson p o) = .ok (p, o) 
 
 /-- State wire names. -/
 def stateName : State → String
-  | .active => "active" | .idle => "idle" | .parked => "parked" | .stalled => "stalled" | .done => "done"
+  | .active => "active" | .idle => "idle" | .parked => "parked" | .stalled => "stalled" | .gone => "gone"
+  | .done => "done"
 
-/-- An alert as JSON. -/
+/-- An alert as JSON (`critical`: tied to a critical-path task). -/
 def alertJson (x : Alert) : Json :=
-  Json.mkObj [("code", .str x.code.name), ("subject", .str x.subject), ("detail", .str x.detail)]
+  Json.mkObj [("code", .str x.code.name), ("subject", .str x.subject), ("detail", .str x.detail),
+    ("critical", .bool x.crit)]
 
 /-- A list of codes as a JSON array of names. -/
 def codesJson (cs : List Code) : Json := .arr (cs.toArray.map fun c => .str c.name)
@@ -375,7 +421,8 @@ def reportFields (r : Report) : Reply :=
       Json.mkObj [("id", .str w.id), ("state", .str (stateName w.state)), ("alerts", codesJson w.alerts)])),
    ("system", Json.mkObj [("alerts", codesJson r.system)]),
    ("counts", Json.mkObj [("active", toJson r.counts.active), ("idle", toJson r.counts.idle),
-      ("parked", toJson r.counts.parked), ("stalled", toJson r.counts.stalled), ("done", toJson r.counts.done)]),
+      ("parked", toJson r.counts.parked), ("stalled", toJson r.counts.stalled), ("gone", toJson r.counts.gone),
+      ("done", toJson r.counts.done)]),
    ("alerts", .arr (r.alerts.toArray.map alertJson))]
 
 /-- `obs.health`: decode the snapshot, compute the report. -/
@@ -413,7 +460,7 @@ def run (op : String) (r : String) : String :=
   | .error e => s!"parse: {e}"
 
 #guard run "obs.health" "{\"now\":0,\"system\":{\"diskFreeGB\":50}}" ==
-  "{\"agents\":[],\"alerts\":[],\"counts\":{\"active\":0,\"done\":0,\"idle\":0,\"parked\":0,\"stalled\":0},\"system\":{\"alerts\":[]}}"
+  "{\"agents\":[],\"alerts\":[],\"counts\":{\"active\":0,\"done\":0,\"gone\":0,\"idle\":0,\"parked\":0,\"stalled\":0},\"system\":{\"alerts\":[]}}"
 #guard run "obs.health" "{\"now\":0,\"system\":{\"diskFreeGB\":5,\"memPressure\":\"critical\",\"load1\":3.25}}" |>.startsWith
   "{\"agents\":[],\"alerts\":[{\"code\":\"sys.diskLow\""
 #guard run "obs.health" "{\"now\":0,\"system\":{\"diskFreeGB\":5.5}}" == "error: field diskFreeGB: expected a non-negative integer"
@@ -421,5 +468,12 @@ def run (op : String) (r : String) : String :=
   "error: field memPressure: unknown value high"
 #guard run "obs.health" "{\"now\":1200000,\"agents\":[{\"id\":\"a\",\"startedAt\":0,\"lastAt\":0}],\"system\":{\"diskFreeGB\":50}}"
   |>.startsWith "{\"agents\":[{\"alerts\":[\"agent.stalled\"],\"id\":\"a\",\"state\":\"stalled\"}]"
+
+#guard run "obs.health" "{\"now\":7260000,\"prevAt\":7000000,\"agents\":[{\"id\":\"a\",\"startedAt\":0,\"lastAt\":0}],\"system\":{\"diskFreeGB\":50}}"
+  |>.startsWith "{\"agents\":[{\"alerts\":[\"agent.gone\"],\"id\":\"a\",\"state\":\"gone\"}]"
+#guard run "obs.health" "{\"now\":0,\"critical\":[\"x\"],\"system\":{\"diskFreeGB\":50,\"loadFloor\":150,\"ci\":[{\"workflow\":\"w\",\"branch\":\"ci/x\",\"status\":\"completed\",\"conclusion\":\"failure\",\"startedAt\":0}]}}"
+  |>.startsWith "{\"agents\":[],\"alerts\":[{\"code\":\"ci.failed\",\"critical\":true,"
+#guard run "obs.health" "{\"now\":0,\"system\":{\"diskFreeGB\":50,\"procs\":[{\"pid\":1,\"name\":\"n\",\"startedAt\":0,\"pids\":[2.5]}]}}"
+  == "error: field pids: expected a non-negative integer"
 
 end Fw.Wire.Obs

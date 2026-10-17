@@ -8,7 +8,8 @@ import { collectSnapshot, pathsFor, type AgentSnap, type Paths, type Prev, type 
 
 export const WATCH_USAGE = "usage: fw watch [--json] [--interval <s>] [--until-alert]   (exit 3 when a new alert appears)";
 
-export interface Alert { code: string; subject: string; detail: string }
+/** `critical`: tied to a critical-path task (fwcore sorts those first). */
+export interface Alert { code: string; subject: string; detail: string; critical?: boolean }
 export interface Health {
   agents: { id: string; state: string; alerts: string[] }[]; system: { alerts: string[] };
   counts: Record<string, number>; alerts: Alert[];
@@ -57,7 +58,7 @@ export async function check(snap: Snapshot, core: CoreCall): Promise<Health> {
 }
 
 // ---- rendering ----
-const ORDER: Record<string, number> = { stalled: 0, active: 1, idle: 2, parked: 3, done: 4 };
+const ORDER: Record<string, number> = { stalled: 0, active: 1, idle: 2, parked: 3, gone: 4, done: 5 };
 const KIND: Record<string, string> = { teammate: "tm", subagent: "sub", workflow: "wf" };
 const min = (ms: number) => Math.max(0, Math.round(ms / 60000));
 const kfmt = (n: number | null) => (n === null ? "-" : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
@@ -67,7 +68,7 @@ const shortModel = (m: string | null) => (m ? m.replace(/^claude-/, "").replace(
 
 export function renderTable(snap: Snapshot, h: Health, maxRows = 24): string {
   const byId = new Map(snap.agents.map((a) => [a.id, a]));
-  const live = h.agents.filter((a) => a.state !== "done")
+  const live = h.agents.filter((a) => a.state !== "done" && a.state !== "gone")
     .sort((a, b) => (ORDER[a.state]! - ORDER[b.state]!) || (byId.get(a.id)!.lastAt - byId.get(b.id)!.lastAt));
   const lines: string[] = [];
   lines.push(`${pad("agent", 26)} ${pad("kind", 4)} ${pad("type", 15)} ${pad("model", 13)} ${pad("state", 8)} ${"idle".padStart(4)} ${"tools".padStart(5)} ${"err".padStart(3)} ${"ctx".padStart(5)}  in-flight`);
@@ -83,11 +84,11 @@ export function renderTable(snap: Snapshot, h: Health, maxRows = 24): string {
   const lock = s.simLock.holder ? `simlock ${s.simLock.holder} ${min(snap.now - (s.simLock.since ?? snap.now))}m` : "simlock free";
   const ciBad = s.ci.filter((r) => r.conclusion === "failure").length;
   const st = (k: string) => (s.stale?.includes(k) ? " stale" : "");
-  lines.push(`agents active ${c.active} idle ${c.idle} parked ${c.parked} stalled ${c.stalled} done ${c.done} | load ${s.load1} mem ${s.memPressure} disk ${s.diskFreeGB}GB | ${lock} | docker ${s.docker.length}${st("docker")} wt ${s.worktrees} ci ${s.ci.length} (${ciBad} failed)${st("ci")}`);
+  lines.push(`agents active ${c.active} idle ${c.idle} parked ${c.parked} stalled ${c.stalled} gone ${c.gone ?? 0} done ${c.done} | load ${s.load1} mem ${s.memPressure} disk ${s.diskFreeGB}GB | ${lock} | docker ${s.docker.length}${st("docker")} wt ${s.worktrees} ci ${s.ci.length} (${ciBad} failed)${st("ci")}`);
   if (h.alerts.length === 0) lines.push("alerts: none");
   else {
     lines.push(`alerts (${h.alerts.length}):`);
-    for (const a of h.alerts.slice(0, 8)) { const ag = byId.get(a.subject); lines.push(`  ${a.code} ${cut(ag ? (ag.name ?? ag.task ?? a.subject) : a.subject, 30)} ${cut(a.detail, 80)}`); }
+    for (const a of h.alerts.slice(0, 8)) { const ag = byId.get(a.subject); lines.push(`  ${a.critical ? "*" : ""}${a.code} ${cut(ag ? (ag.name ?? ag.task ?? a.subject) : a.subject, 30)} ${cut(a.detail, 80)}`); }
     if (h.alerts.length > 8) lines.push(`  ... +${h.alerts.length - 8} more (use --json)`);
   }
   return lines.join("\n");
@@ -170,7 +171,7 @@ export async function watchMain(args: string[], cwd: string, print: (s: string) 
   // and a failed gh/docker collector carries that check's value forward (marked stale)
   const last = readLastLog(paths);
   let prev: Set<string> | null = last ? new Set(last.output.alerts.map(alertKey)) : null;
-  let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system } : null;
+  let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical } : null;
   for (;;) {
     const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap);
     const h = await check(snap, call);
@@ -182,7 +183,7 @@ export async function watchMain(args: string[], cwd: string, print: (s: string) 
       return 3;
     }
     prev = new Set(h.alerts.map(alertKey));
-    prevSnap = { at: snap.now, system: snap.system };
+    prevSnap = { at: snap.now, system: snap.system, critical: snap.critical };
     if (o.intervalS === null) return 0;
     await new Promise((r) => setTimeout(r, o.intervalS! * 1000));
   }

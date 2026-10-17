@@ -48,6 +48,10 @@ def badDone : Agent :=
 def trio : List Agent :=
   [{ ag "x" 25 with errTail := 4 }, ag "y" 0, { ag "z" 12 with ctxTokens := some 260000 }]
 
+/-- A CI run with no end time. -/
+def run0 (w b st : String) (c : Option String) (t : Nat) (e : Option Nat := none) : CiRun :=
+  { workflow := w, branch := b, status := st, conclusion := c, startedAt := t, endedAt := e }
+
 /-- A typed case: name, thresholds, observation. -/
 structure Typed where
   name : String
@@ -151,12 +155,12 @@ def typed : List Typed := [
     o := { now := t0, system := { okSys with simLock := { since := some (ago 90) } } } },
   { name := "ci: a failure superseded by a later success, a running run, a cancelled run: no alert",
     o := { now := t0, system := { okSys with ci := [
-      ⟨"lean", "ci/x", "completed", some "failure", ago 30⟩, ⟨"lean", "ci/x", "completed", some "success", ago 20⟩,
-      ⟨"lean", "ci/y", "in_progress", none, ago 3⟩, ⟨"site", "ci/x", "completed", some "cancelled", ago 9⟩] } } },
+      ⟨"lean", "ci/x", "completed", some "failure", ago 30, none⟩, ⟨"lean", "ci/x", "completed", some "success", ago 20, none⟩,
+      ⟨"lean", "ci/y", "in_progress", none, ago 3, none⟩, ⟨"site", "ci/x", "completed", some "cancelled", ago 9, none⟩] } } },
   { name := "ci: the latest run of lean@ci/x failed, of site@ci/x timed out: ci.failed twice",
     o := { now := t0, system := { okSys with ci := [
-      ⟨"lean", "ci/x", "completed", some "success", ago 30⟩, ⟨"lean", "ci/x", "completed", some "failure", ago 20⟩,
-      ⟨"site", "ci/x", "completed", some "timed_out", ago 9⟩] } } },
+      ⟨"lean", "ci/x", "completed", some "success", ago 30, none⟩, ⟨"lean", "ci/x", "completed", some "failure", ago 20, none⟩,
+      ⟨"site", "ci/x", "completed", some "timed_out", ago 9, none⟩] } } },
   { name := "docker: a container older than every live agent is docker.orphan; one started after a live agent is not",
     o := { now := t0, agents := [{ ag "a" 0 with startedAt := ago 50 }, { ag "b" 0 with startedAt := ago 90, stoppedAt := some (ago 1) }],
            system := { okSys with docker := [⟨"c0ffee", "pg-old", ago 80⟩, ⟨"beef01", "pg-new", ago 50⟩] } } },
@@ -166,6 +170,37 @@ def typed : List Typed := [
     o := { now := t0, system := okSys, agents := trio } },
   { name := "agent order B: the same agents reversed give the same alerts and counts (rows follow the input)",
     o := { now := t0, system := okSys, agents := trio.reverse } },
+  { name := "gone: silent exactly 120 min is stalled, 120 min 0.001 s is gone (agent.gone on the first check); a gone agent leaves the cap (agentCap 1)",
+    p := { agentCap := 1 },
+    o := { now := t0, agents := [{ ag "a" 120 with startedAt := ago 200 }, { ag "b" 0 with startedAt := ago 200, lastAt := ago 120 - 1 }],
+           system := okSys } },
+  { name := "gone since the previous check (5 min ago): agent.gone for b only; c was already gone then",
+    o := { now := t0, prevAt := some (ago 5),
+           agents := [{ ag "b" 124 with startedAt := ago 200 }, { ag "c" 130 with startedAt := ago 200 }], system := okSys } },
+  { name := "toolSlow 15: a Bash call in flight exactly 15 min is not slow, 15 min 0.001 s is agent.toolSlow",
+    o := { now := t0, agents := [{ ag "a" 0 with inflight := some ⟨"Bash", ago 15⟩ },
+                                 { ag "b" 0 with inflight := some ⟨"Bash", ago 15 - 1⟩ }], system := okSys } },
+  { name := "ciSlowMin 20: in progress exactly 20 min is not slow, queued 20 min 0.001 s is ci.slow",
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "in_progress" none (ago 20),
+                                                    run0 "site" "ci/y" "queued" none (ago 20 - 1)] } } },
+  { name := "ci.finished: the run the previous check saw running 23 min ended since (success after 25 min); runs ended before that check or not yet slow then report nothing",
+    o := { now := t0, prevAt := some (ago 2),
+           system := { okSys with ci := [run0 "lean" "ci/x" "completed" (some "success") (ago 25) (some t0),
+                                         run0 "site" "ci/x" "completed" (some "success") (ago 40) (some (ago 3)),
+                                         run0 "e2e" "ci/z" "completed" (some "success") (ago 21) (some (ago 1))] } } },
+  { name := "critical path [t1]: alerts of agent t1-2 and of a run on ci/t1 rank first (critical true)",
+    o := { now := t0, critical := ["t1"],
+           agents := [{ ag "a" 0 with errTail := 3 }, { ag "t1-2" 0 with errTail := 3 }, { ag "t10" 0 with errTail := 3 }],
+           system := { okSys with ci := [run0 "lean" "ci/t2" "completed" (some "failure") (ago 9),
+                                         run0 "lean" "ci/t1" "completed" (some "failure") (ago 9)] } } },
+  { name := "procMaxMin 20: alive exactly 20 min is fine, 20 min 0.001 s is proc.long; a tree holding a service pid never is",
+    o := { now := t0, system := { okSys with
+             procs := [{ pid := 10, name := "node", startedAt := ago 20 },
+                       { pid := 11, name := "sleep", startedAt := ago 20 - 1, pids := [12] },
+                       { pid := 20, name := "node", startedAt := ago 90, pids := [21] }],
+             services := [21] } } },
+  { name := "loadMax 150: load floor 149 is fine", o := { now := t0, system := { okSys with loadFloor := 149 } } },
+  { name := "loadMax 150: load floor 150 is load.high", o := { now := t0, system := { okSys with loadFloor := 150 } } },
   { name := "every code at once, with tight thresholds",
     p := { idleMin := 1, stallMin := 2, toolHangMin := 3, errStreak := 1, ctxResumeMax := 100, ctxWarn := 50,
            diskMinGB := 500, agentCap := 1, simLockMaxMin := 1, worktreesMax := 1 },
@@ -175,7 +210,7 @@ def typed : List Typed := [
            lead := { lastToolAt := some (ago 2), noteAt := some (ago 1) },
            system := { diskFreeGB := 100, memPressure := .critical, simLock := { holder := some "d", since := some (ago 1) },
                        docker := [⟨"c1", "orphan", ago 120⟩], worktrees := 2,
-                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3⟩] } } },
+                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none⟩] } } },
   { name := "the same snapshot with default thresholds: fewer alerts (loosening never adds one)",
     o := { now := t0,
            agents := [{ ag "a" 5 with inflight := some ⟨"Bash", ago 5⟩, errTail := 1, ctxTokens := some 101 },
@@ -183,7 +218,7 @@ def typed : List Typed := [
            lead := { lastToolAt := some (ago 2), noteAt := some (ago 1) },
            system := { diskFreeGB := 100, memPressure := .critical, simLock := { holder := some "d", since := some (ago 1) },
                        docker := [⟨"c1", "orphan", ago 120⟩], worktrees := 2,
-                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3⟩] } } }]
+                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3, none⟩] } } }]
 
 /-- Literal cases: optional and ignored fields, and refused requests. -/
 def literal : List (String × Json) := [
@@ -197,7 +232,10 @@ def literal : List (String × Json) := [
   ("lead given alone, kind and parent given: a teammate and its helper",
    lit "{\"now\":1760000000000,\"lead\":{\"lastToolAt\":1759999990000},\"agents\":[{\"id\":\"t\",\"kind\":\"teammate\",\"startedAt\":1759999000000,\"lastAt\":1759999990000,\"lastTool\":\"SendMessage\",\"lastToolAt\":1759999990000},{\"id\":\"h\",\"parent\":\"t\",\"startedAt\":1759999000000,\"lastAt\":1759999990000}],\"system\":{\"diskFreeGB\":50}}"),
   ("refused: an agent without lastAt", lit "{\"now\":0,\"agents\":[{\"id\":\"a\",\"startedAt\":0}],\"system\":{\"diskFreeGB\":50}}"),
-  ("refused: a negative threshold", lit "{\"now\":0,\"params\":{\"idleMin\":-1},\"system\":{\"diskFreeGB\":50}}")]
+  ("refused: a negative threshold", lit "{\"now\":0,\"params\":{\"idleMin\":-1},\"system\":{\"diskFreeGB\":50}}"),
+  ("optional watch fields: prevAt null, critical omitted, a process without pids, a run with endedAt null",
+   lit "{\"now\":1760000000000,\"prevAt\":null,\"system\":{\"diskFreeGB\":50,\"loadFloor\":3,\"procs\":[{\"pid\":5,\"name\":\"sh\",\"startedAt\":0}],\"services\":[7],\"ci\":[{\"workflow\":\"w\",\"branch\":\"b\",\"status\":\"completed\",\"conclusion\":\"success\",\"startedAt\":0,\"endedAt\":null}]}}"),
+  ("refused: a fractional loadFloor (floor it)", lit "{\"now\":0,\"system\":{\"diskFreeGB\":50,\"loadFloor\":2.5}}")]
 
 /-- Every case as (name, request body). -/
 def cases : List (String × Json) := typed.map (fun c => (c.name, reqJson c.p c.o)) ++ literal
@@ -207,7 +245,7 @@ def gaps : List String :=
   let reps := typed.map fun c => health c.p c.o
   let states := reps.flatMap fun r => r.agents.map (·.state)
   let codes := reps.flatMap fun r => r.alerts.map (·.code)
-  ([State.active, .idle, .parked, .stalled, .done].filter (!states.contains ·)).map (fun s => s!"state {Fw.Wire.Obs.stateName s}") ++
+  ([State.active, .idle, .parked, .stalled, .gone, .done].filter (!states.contains ·)).map (fun s => s!"state {Fw.Wire.Obs.stateName s}") ++
   (Code.all.filter (!codes.contains ·)).map (fun c => s!"code {c.name}")
 
 #guard gaps == []

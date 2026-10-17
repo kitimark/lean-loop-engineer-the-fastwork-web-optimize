@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  collectAgents, collectSystem, findTranscripts, parseCi, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
+  carryCritical, collectAgents, collectCritical, collectSystem, exe, findTranscripts, keepNames, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
   summarizeLead, summarizeSpool, summarizeTranscript, type Runner, type SystemSnap,
 } from "../src/watch-collect.ts";
 import { alertKey, appendLog, newAlerts, parseWatchArgs, readLastLog, renderTable, type Health } from "../src/watch.ts";
@@ -163,8 +163,61 @@ describe("system parsers", () => {
     expect(parseDocker("abc\tweb\t2026-10-17 10:00:00 +0700 +07\n")).toEqual([{ id: "abc", name: "web", startedAt: Date.parse("2026-10-17T10:00:00+07:00") }]);
     expect(parseDocker(null)).toEqual([]);
     expect(parseCi('[{"workflowName":"ci","headBranch":"b","status":"completed","conclusion":"failure","createdAt":"2026-10-17T10:00:00Z"}]'))
-      .toEqual([{ workflow: "ci", branch: "b", status: "completed", conclusion: "failure", startedAt: T0 }]);
+      .toEqual([{ workflow: "ci", branch: "b", status: "completed", conclusion: "failure", startedAt: T0, endedAt: null }]);
+    expect(parseCi('[{"workflowName":"ci","headBranch":"b","status":"completed","conclusion":"success","createdAt":"2026-10-17T10:00:00Z","updatedAt":"2026-10-17T10:25:00Z"},'
+      + '{"workflowName":"ci","headBranch":"c","status":"in_progress","conclusion":"","createdAt":"2026-10-17T10:00:00Z","updatedAt":"2026-10-17T10:05:00Z"}]').map((r) => r.endedAt))
+      .toEqual([T0 + 25 * 60000, null]);
     expect(parseCi("nope")).toEqual([]);
+  });
+});
+
+describe("session processes", () => {
+  it("parses ps etime and rows", () => {
+    expect(["00:07", "12:34", "01:00:00", "2-03:04:05", "x", "1:2:3:4"].map(parseEtime))
+      .toEqual([7000, 754000, 3600_000, ((2 * 24 + 3) * 60 + 4) * 60_000 + 5000, null, null]);
+    expect(parsePs("  10     1    03:41:48 claude\n 11 10 00:30 /bin/zsh\nbad line\n 12 11 00:20 npm exec x@latest\n"))
+      .toEqual([{ pid: 10, ppid: 1, ageMs: (3 * 3600 + 41 * 60 + 48) * 1000, comm: "claude" },
+        { pid: 11, ppid: 10, ageMs: 30000, comm: "/bin/zsh" }, { pid: 12, ppid: 11, ageMs: 20000, comm: "npm exec x@latest" }]);
+    expect(["/bin/zsh", "/Applications/A B.app/Contents/MacOS/A B", "npm exec x@latest", "node"].map(exe))
+      .toEqual(["zsh", "A B", "npm", "node"]);
+  });
+  it("takes the Bash shells of this process's claude ancestor, names them by their first program", () => {
+    const rows = parsePs([
+      "100 1 01:00:00 claude", "101 100 30:00 /bin/zsh", "102 101 29:00 /bin/zsh", "103 102 29:00 /opt/x/bin/node",
+      "104 103 28:00 sleep", "110 100 01:00:00 npm exec some-mcp", "120 100 05:00 /bin/zsh", "121 120 05:00 node",
+      "200 1 01:00:00 claude", "201 200 50:00 /bin/zsh",
+    ].join("\n"));
+    const now = 10_000_000;
+    expect(sessionProcs(rows, 121, now)).toEqual([
+      { pid: 101, name: "node", startedAt: now - 30 * 60000, pids: [102, 103, 104] },
+      { pid: 120, name: "node", startedAt: now - 5 * 60000, pids: [121] },
+    ]);
+    expect(sessionProcs(rows, 999, now)).toEqual([]);
+    expect(sessionProcs(parsePs("5 1 00:01 /bin/zsh\n6 5 00:01 node"), 6, now)).toEqual([]);
+  });
+  it("a tree keeps its first name while its root pid and start time stay", () => {
+    const q = (pid: number, name: string, startedAt: number) => ({ pid, name, startedAt, pids: [] });
+    expect(keepNames([q(1, "gh", 1000), q(2, "gh", 1000), q(3, "gh", 1000)], [q(1, "sleep", 2500), q(2, "sleep", 9000)]))
+      .toEqual([q(1, "sleep", 1000), q(2, "gh", 1000), q(3, "gh", 1000)]);
+  });
+});
+
+describe("critical path", () => {
+  const base = tmp();
+  const p = pathsFor("/x/r", { FW_CONSOLE_DIR: join(base, "fwc"), FW_PROJECTS_DIR: base } as never);
+  it("reads criticalPath from /api/plan; no console-api is none; a failed call is null", async () => {
+    expect(await collectCritical(p, {}, async () => { throw new Error("unused"); })).toEqual([]);
+    expect(await collectCritical(p, { FW_API: "http://h" }, async (u) => (u === "http://h/api/plan" ? { criticalPath: ["a", 3, "b"] } : {})))
+      .toEqual(["a", "b"]);
+    expect(await collectCritical(p, { FW_API: "http://h" }, async () => { throw new Error("down"); })).toBeNull();
+    expect(await collectCritical(p, { FW_API: "http://h" }, async () => ({}))).toBeNull();
+  });
+  it("a failed call carries the previous check's path for 1 h, marked stale", () => {
+    const sys = {} as SystemSnap;
+    expect(carryCritical(["x"], null, 0)).toEqual({ critical: ["x"], stale: false });
+    expect(carryCritical(null, { at: 0, system: sys, critical: ["a"] }, 3600_000)).toEqual({ critical: ["a"], stale: true });
+    expect(carryCritical(null, { at: 0, system: sys, critical: ["a"] }, 3600_001)).toEqual({ critical: [], stale: true });
+    expect(carryCritical(null, null, 0)).toEqual({ critical: [], stale: true });
   });
 });
 
@@ -213,5 +266,6 @@ describe("cli", () => {
     expect(out).toContain("agent-1 ");
     expect(out).toContain("parked 0");
     expect(out).toContain("(0 failed) stale");
+    expect(out).toContain("gone 0 done 10");
   });
 });

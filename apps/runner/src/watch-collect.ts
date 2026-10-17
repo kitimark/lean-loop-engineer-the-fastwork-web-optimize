@@ -35,11 +35,25 @@ export interface SystemSnap {
   load1: number; memPressure: "normal" | "warn" | "critical"; diskFreeGB: number;
   simLock: { holder: string | null; since: number | null };
   docker: { id: string; name: string; startedAt: number }[]; worktrees: number; consolePids: number[];
-  ci: { workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number }[];
-  /** collectors that failed this time and whose value was carried forward from the previous check ("ci", "docker") */
+  ci: { workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null }[];
+  /** floor of the 1-min load average (fwcore compares it with loadMax) */
+  loadFloor?: number;
+  /** process trees this Claude session started through its Bash tool: root shell pid, the first non-shell program's
+   *  name (executable basename only, never arguments), start time, and every descendant pid */
+  procs?: { pid: number; name: string; startedAt: number; pids: number[] }[];
+  /** pids that are services, not session work: this `fw watch` process and console-api (a tree holding one is exempt) */
+  services?: number[];
+  /** collectors that failed this time and whose value was carried forward from the previous check
+   *  ("ci", "docker", "procs", "plan") */
   stale: string[];
 }
-export interface Snapshot { now: number; params: Record<string, number>; agents: AgentSnap[]; lead: LeadSnap; system: SystemSnap }
+export interface Snapshot {
+  now: number; params: Record<string, number>; agents: AgentSnap[]; lead: LeadSnap; system: SystemSnap;
+  /** time of the previous check (null: first check); fwcore raises agent.gone and ci.finished once against it */
+  prevAt?: number | null;
+  /** task ids on the critical path (GET /api/plan .criticalPath); their agents' and ci/<task> runs' alerts rank first */
+  critical?: string[];
+}
 
 // SCOPE (collection only, not health decisions): an agent with no SubagentStop and no activity for 24 h is
 // treated as ended (its hooks never fired Stop); ended agents are dropped from the snapshot 1 h after they ended.
@@ -49,6 +63,7 @@ export const SCOPE = { ghostMs: 24 * 3600_000, keepDoneMs: 3600_000, carryMs: 36
 export const DEFAULT_PARAMS = {
   idleMin: 10, stallMin: 20, toolHangMin: 30, errStreak: 3, ctxResumeMax: 250000, ctxWarn: 200000,
   diskMinGB: 20, agentCap: 10, simLockMaxMin: 30, worktreesMax: 20, wfQuietMin: 30,
+  goneAfterMin: 120, ciSlowMin: 20, toolSlowMin: 15, procMaxMin: 20, loadMax: 150,
 };
 
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
@@ -343,8 +358,57 @@ export function parseCi(out: string | null): SystemSnap["ci"] {
     return arr.map((r) => ({
       workflow: String(r.workflowName ?? "?"), branch: String(r.headBranch ?? "?"), status: String(r.status ?? "?"),
       conclusion: str(r.conclusion), startedAt: Date.parse(String(r.createdAt)) || 0,
+      // a completed run's last update is its end (gh has no endedAt field)
+      endedAt: r.status === "completed" ? Date.parse(String(r.updatedAt)) || null : null,
     }));
   } catch { return []; }
+}
+
+/** One `ps -A -o pid=,ppid=,etime=,comm=` row: the age comes from etime, so no locale-dependent date is parsed. */
+export interface PsRow { pid: number; ppid: number; ageMs: number; comm: string }
+/** `[[dd-]hh:]mm:ss` to milliseconds; null when malformed. */
+export function parseEtime(s: string): number | null {
+  const m = /^(?:(?:(\d+)-)?(\d+):)?(\d+):(\d+)$/.exec(s.trim());
+  if (!m) return null;
+  const [d, h, mi, se] = [m[1], m[2], m[3], m[4]].map((x) => Number(x ?? 0)) as [number, number, number, number];
+  return (((d * 24 + h) * 60 + mi) * 60 + se) * 1000;
+}
+export function parsePs(out: string | null): PsRow[] {
+  const rows: PsRow[] = [];
+  for (const line of (out ?? "").split("\n")) {
+    const m = /^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.+?)\s*$/.exec(line);
+    const age = m ? parseEtime(m[3]!) : null;
+    if (m && age !== null) rows.push({ pid: Number(m[1]), ppid: Number(m[2]), ageMs: age, comm: m[4]! });
+  }
+  return rows;
+}
+const SHELLS = new Set(["zsh", "bash", "sh", "dash", "fish"]);
+/** An executable's basename: a path keeps its spaces ("/Applications/A B.app/.../A B"); a retitled process
+ *  ("npm exec x") keeps only its first word, so no argument is ever kept. */
+export const exe = (comm: string) => basename(comm.startsWith("/") ? comm : (comm.split(" ")[0] ?? comm));
+/** The process trees of this session's Bash tool: find the nearest `claude` ancestor of `self`, take its shell
+ *  children as roots, and name each tree by its first non-shell program (breadth first). Empty outside a session. */
+export function sessionProcs(rows: PsRow[], self: number, now: number): NonNullable<SystemSnap["procs"]> {
+  const by = new Map(rows.map((r) => [r.pid, r]));
+  const kids = new Map<number, PsRow[]>();
+  for (const r of rows) kids.set(r.ppid, [...(kids.get(r.ppid) ?? []), r]);
+  let cur = by.get(self);
+  for (let i = 0; cur && exe(cur.comm) !== "claude" && i < 64; i++) cur = by.get(cur.ppid);
+  if (!cur || exe(cur.comm) !== "claude") return [];
+  const out: NonNullable<SystemSnap["procs"]> = [];
+  for (const root of kids.get(cur.pid) ?? []) {
+    if (!SHELLS.has(exe(root.comm))) continue; // MCP servers and helpers the app itself started are not Bash work
+    const pids: number[] = [];
+    let name: string | null = null;
+    for (let q = [...(kids.get(root.pid) ?? [])]; q.length > 0;) {
+      const r = q.shift()!;
+      pids.push(r.pid);
+      if (name === null && !SHELLS.has(exe(r.comm))) name = exe(r.comm);
+      q.push(...(kids.get(r.pid) ?? []));
+    }
+    out.push({ pid: root.pid, name: name ?? exe(root.comm), startedAt: Math.floor(now - root.ageMs), pids });
+  }
+  return out;
 }
 
 export function collectSimLock(root: string): SystemSnap["simLock"] {
@@ -361,15 +425,26 @@ export function collectConsolePids(p: Paths): number[] {
   try { const j = JSON.parse(readFileSync(join(p.consoleDir, "api.json"), "utf8")); return typeof j.pid === "number" ? [j.pid] : []; } catch { return []; }
 }
 
+/** A tree keeps the name the previous check gave it (same root pid, start within 2 s), so a polling loop whose
+ *  current program alternates (`sleep`, `gh`) keeps one alert subject `name#pid` across checks. */
+export function keepNames(now: NonNullable<SystemSnap["procs"]>, before: NonNullable<SystemSnap["procs"]>): NonNullable<SystemSnap["procs"]> {
+  const by = new Map(before.map((q) => [q.pid, q]));
+  return now.map((q) => {
+    const b = by.get(q.pid);
+    return b && Math.abs(b.startedAt - q.startedAt) <= 2000 ? { ...q, name: b.name } : q;
+  });
+}
+
 /** The previous check's system part, if it is recent enough to carry forward (SCOPE.carryMs). */
-export interface Prev { at: number; system: SystemSnap }
+export interface Prev { at: number; system: SystemSnap; critical?: string[] }
 
 export async function collectSystem(p: Paths, prev: Prev | null = null, now = Date.now(), exec: Runner = run): Promise<SystemSnap> {
-  const [mem, wt, dock, ci] = await Promise.all([
+  const [mem, wt, dock, ci, ps] = await Promise.all([
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
     exec("docker", ["ps", "--format", "{{.ID}}\t{{.Names}}\t{{.CreatedAt}}"], 3000),
-    exec("gh", ["run", "list", "--limit", "20", "--json", "workflowName,headBranch,status,conclusion,createdAt"], 10000, p.root),
+    exec("gh", ["run", "list", "--limit", "20", "--json", "workflowName,headBranch,status,conclusion,createdAt,updatedAt"], 10000, p.root),
+    exec("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], 3000),
   ]);
   // a failed (not missing) gh or docker call keeps the previous value, marked stale, instead of reporting "none":
   // otherwise its alerts would vanish and come back as new
@@ -379,16 +454,48 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
   if (dock === null) { stale.push("docker"); docker = old?.docker ?? []; }
   let ciRuns = parseCi(text(ci));
   if (ci === null) { stale.push("ci"); ciRuns = old?.ci ?? []; }
+  let procs = sessionProcs(parsePs(text(ps)), process.pid, now);
+  if (ps === null) { stale.push("procs"); procs = old?.procs ?? []; }
+  else procs = keepNames(procs, prev?.system.procs ?? []);
+  const consolePids = collectConsolePids(p);
   let disk = 0;
   try { const s = statfsSync(p.root); disk = Math.floor((Number(s.bavail) * Number(s.bsize)) / 1e9); } catch { /* unknown -> 0 raises sys.diskLow */ }
   return {
-    load1: Math.round(loadavg()[0]! * 100) / 100, memPressure: parseMemLevel(text(mem)), diskFreeGB: disk,
-    simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
-    consolePids: collectConsolePids(p), ci: ciRuns, stale,
+    load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!), memPressure: parseMemLevel(text(mem)),
+    diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
+    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], stale,
   };
 }
 
-export async function collectSnapshot(p: Paths, now = Date.now(), params: Record<string, number> = DEFAULT_PARAMS, prev: Prev | null = null): Promise<Snapshot> {
-  const [agents, system] = await Promise.all([Promise.resolve(collectAgents(p, now)), collectSystem(p, prev, now)]);
-  return { now, params, agents, lead: collectLead(p), system };
+/** The critical path from console-api (GET /api/plan): `string[]`; `null` when the call failed; `[]` when
+ *  console-api is not running (no api.json and no FW_API), like a missing program. */
+export type PlanFetch = (url: string) => Promise<unknown>;
+const getJson: PlanFetch = async (url) => {
+  const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+};
+export async function collectCritical(p: Paths, env: NodeJS.ProcessEnv = process.env, get: PlanFetch = getJson): Promise<string[] | null> {
+  let base = env.FW_API ?? null;
+  if (!base) {
+    try { base = `http://127.0.0.1:${JSON.parse(readFileSync(join(p.consoleDir, "api.json"), "utf8")).port}`; } catch { return []; }
+  }
+  try {
+    const cp = ((await get(`${base}/api/plan`)) as { criticalPath?: unknown })?.criticalPath;
+    return Array.isArray(cp) ? cp.filter((x): x is string => typeof x === "string") : null;
+  } catch { return null; }
+}
+
+/** A failed plan call keeps the previous check's critical path (if that check is <= SCOPE.carryMs old), marked stale. */
+export function carryCritical(crit: string[] | null, prev: Prev | null, now: number): { critical: string[]; stale: boolean } {
+  if (crit !== null) return { critical: crit, stale: false };
+  return { critical: (prev && now - prev.at <= SCOPE.carryMs ? prev.critical : undefined) ?? [], stale: true };
+}
+
+export async function collectSnapshot(p: Paths, now = Date.now(), params: Record<string, number> = DEFAULT_PARAMS, prev: Prev | null = null,
+  get: PlanFetch = getJson): Promise<Snapshot> {
+  const [agents, system, crit] = await Promise.all([Promise.resolve(collectAgents(p, now)), collectSystem(p, prev, now), collectCritical(p, process.env, get)]);
+  const { critical, stale } = carryCritical(crit, prev, now);
+  if (stale) system.stale.push("plan");
+  return { now, params, agents, lead: collectLead(p), system, prevAt: prev?.at ?? null, critical };
 }
