@@ -1456,16 +1456,11 @@
   },
   {
    "id": "plan-rev9",
-   "title": "PLAN revision 9: no paid runners (user), WebKit role after webkit-green, WKTR results (counts quarantined), macOS rental note, gap harness, probe scope, critical path without WebKit",
+   "title": "PLAN revision 9 (Fable): fit the experiment into 3 days (user: done by 2026-10-20 13:15 +0700); cut or defer scope; no paid runners; WebKit role",
    "stream": "plan",
    "milestone": "M1",
-   "deps": [
-    "plan-cut",
-    "wktr-local",
-    "gap-harness",
-    "gate-probe-scope"
-   ],
-   "owner": "plan-editor",
+   "deps": [],
+   "owner": "plan-editor (fable)",
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
