@@ -3,7 +3,13 @@
 Branch `worktree-agent-afb706fb2b3e7298b` (CI ref `ci/fix-commission`), on integrate-ports 30734ae. Cell data: run 39067170911 (a = original, b = rewrite).
 Method: static comparison of snapshot CSS/JS (`snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css`, `nodes/2.DyWL8TcE.js`) with the port; the port CSS rules for commission and commission.typing match the snapshot byte for byte in value (checked blocks 1-348, 916-1166).
 
-## Root finding
+## Result (run 39071577161, parts=commission,commission.typing): chromium 64 -> 7, webkit -> 3; commission.typing 0 failures
+The run-39067170911 cells were mostly one cause: the body ran a frame late (state lag after resize/scroll), not fonts. Fixed by the driver change. Left:
+- card/sticky/track h 869.516 vs 869.000 at 1030-1101, 720/721, phone-rotation 932x430 (14 chromium, 10 webkit): 0.5 px, text line-box metric of the missing Google Sans webfont (CAUSE: original depends on a webfont the rewrite lacks; INFERRED).
+- inner/rows margin-inline 96px vs 0px at pain-1440 #0: used value of auto margin in a content-visibility-skipped subtree (gate misreads / depends on whether laid out before the skip).
+The table below was written before the run; rows for runway, title display, underline, typing are now resolved by the lag fix (the "fonts" attribution for them was wrong).
+
+## Root finding (partly superseded, see Result)
 The rewrite loads NO webfont: no `@font-face` anywhere in apps/ (theme.ts: "system font stack placeholder"), while the original loads "Google Sans" (`assets/0.ChGpbVhU.css:1-35`, woff2 files `google-sans-latin-normal.BbZhqv4U.woff2` etc.).
 Text metrics differ (pill 157 vs 153 px, message 244 vs 232), so lines wrap differently: this explains the height cells, `title-wrapped`, typing scale. Needs a SHARED change (global @font-face, built into dist from the snapshot files at build time); not done here.
 
