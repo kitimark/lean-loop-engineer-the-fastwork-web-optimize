@@ -239,3 +239,33 @@ byte identity of counts files is not reached on the original under touch; the de
 **Fallback if the flag ever regresses:** `swipe-v1` (programmatic `scrollTo`) needs no input events and is fully deterministic on the
 rewrite; it loses the browser's touch scroll path (gesture detector, touch-handler dispatch, scroll-update batching), so
 `engine.scroll`-type variants would be measured without the input pipeline. Not needed now.
+
+## Update 2026-10-17 (touch-ci-verify and class-freeze: CI runs, frozen class table)
+
+All numbers MEASURED on GitHub Actions (ubuntu-24.04-arm), original target, harness commit 429e22a, one image for every run
+(`sha256:ebefaf34...d491`, built by run 39038861283, reused by the other five through the `image_run` workflow input).
+
+| profile | workflow runs (3 jobs each, separate VMs) | wedges / attempts | completion | classes (det / stable / quarantined) per run |
+|---|---|---|---|---|
+| swipe-v1 | 39038861283, 39038967198, 39038970307 | 0 / 1 attempt in 9 of 9 jobs | 9/9 | 28/25/9, 27/26/9, 30/25/7 |
+| swipe-touch-v1 | 39038973297, 39038976656, 39038979125 | 0 / 1 attempt in 9 of 9 jobs | 9/9 | 17/31/14, 18/25/19, 18/33/11 |
+
+- Touch fix confirmed on CI: `--disable-features=WaitForLateScrollEvents` gives 0 wedges in 9 touch jobs (the control wedged 5 of 5
+  attempts locally). Attempts come from `attempts=N` in each job log (host.json is not uploaded).
+- Touch is not trajectory-deterministic on CI: 531 frames and 480 touch events in all 9 jobs, but two `trajectorySha256` values
+  (005bd6dc, 5278f464) that differ in one frame (469: scrollY 4337 vs 4327, the touchmove k/k+1 race). This is why touch has more
+  quarantined types than swipe-v1 (EventDispatch, FunctionCall, HitTest, PrePaint, UpdateLayoutTree.elementCount, ...).
+- Rewrite with touch: NOT run. The workflow has no site build step (apps/site/dist/aot is built by `pnpm --filter @fw/site build`, and
+  host.mjs gets no `--target`), so the lane cannot reach the rewrite yet. A `target` input plus a build job is the missing piece.
+- Frozen table: `classes.frozen.json` (swipe-v1 and swipe-touch-v1). Rule: worst class per type over the 3 workflow runs of a profile,
+  policy kMax 4, tMax 24, pixel rule for `*AreaPx` types (tBound = max(tMax, floor(min|total| / 1000))). Result (signed class):
+  swipe-v1 27 deterministic / 25 stable / 10 quarantined; swipe-touch-v1 16 / 27 / 19. The pooled class over all 9 files is stricter
+  (swipe-v1 27/23/12, touch 16/25/21) and is stored as `pooledClass` for reference only.
+- How it was made (no TS logic): per workflow run, `src/classify.mjs` (fwcore `measure.classify`, identical to the run's own
+  `chromium-classes` artifact, checked for all 6); then fwcore `measure.summarize` over rows {family: profile, metric: type,
+  level: "run <id>", cls} gives the worst. Only JSON was moved by a scratch script; a `src/freeze.mjs` that does this is an open item.
+- Workflow: new dispatch input `image_run` (reuse the `chromium-image` artifact of an earlier run); the classes artifact now also holds
+  `image-ids.txt`, `image-inputs.txt` (sha256 of Dockerfile, apt manifest, npm lock) and `run.txt`. Dispatches on one ref cancel each
+  other (concurrency), so the five dispatches ran from five `ci/chromium-ci-*` branches at the same commit.
+- Reproduce: `gh workflow run chromium-counts.yml --ref ci/<branch> -f profile=swipe-touch-v1 -f runs=3 -f image_run=39038861283`
+  (the image artifact lives 3 days; after that rebuild and re-freeze).
