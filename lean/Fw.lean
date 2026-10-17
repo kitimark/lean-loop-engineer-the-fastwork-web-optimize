@@ -31,6 +31,10 @@ import Fw.Parts.Bezier
 import Fw.Parts.OverlayDrawer
 import Fw.Parts.OverlaySignup
 import Fw.Parts.OverlayGolden
+import Fw.Parts.HeroOrbit
+import Fw.Parts.HeroAccent
+import Fw.Parts.HeroDeck
+import Fw.Parts.HeroGolden
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Tolerance

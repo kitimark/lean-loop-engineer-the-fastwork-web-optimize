@@ -4,8 +4,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
-import { HeroCountdown } from './parts/hero.countdown';
-import { HeroExit } from './parts/hero.exit';
+import { Hero } from './parts/hero';
 import { EngineScroll } from './parts/engine.scroll';
 import { MorphTween } from './parts/morph.tween';
 import { MorphCountdown } from './parts/morph.countdown';
@@ -52,8 +51,7 @@ export function App({ config }: { config: FwConfig }) {
       <MorphPanel variant={config.variants['morph.panel'] ?? 'faithful'} impl={config.impl['morph.panel']} />
 
       <main>
-        <HeroCountdown variant={config.variants['hero.countdown'] ?? 'faithful'} />
-        <HeroExit variant={config.variants['hero.exit'] ?? 'faithful'} />
+        <Hero variants={config.variants} />
         {/* stand-in for the morph panel at rest (scene paused); morph.panel replaces this host */}
         <div data-start-selling-scene="paused">
           <MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />
