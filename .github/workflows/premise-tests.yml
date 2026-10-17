@@ -57,7 +57,7 @@ jobs:
       - name: Run the premise tests (exit 0 even when a premise fails; the verdict job judges)
         env:
           ENGINE: ${{ matrix.engine }}
-        run: node packages/premise-tests/src/run.mjs --engine "$ENGINE" --out out
+        run: node src/run.mjs --engine "$ENGINE" --out out
         working-directory: packages/premise-tests
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
