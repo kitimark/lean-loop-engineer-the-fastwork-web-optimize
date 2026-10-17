@@ -1,29 +1,29 @@
 # gap-harness handoff
 
-State: branch `worktree-wf_beb42b80-cec-3` (commit in the report). Lane `gaps` in `packages/gate-breakpoints`
-(`src/gaps/**`; wiring in `src/cli.mjs`, `src/run.mjs`, `src/summary.mjs`; tests `test/gaps.test.mjs`, 25 pass).
-Results: `packages/gate-breakpoints/results/gaps/gaps.{json,md}` (run twice, byte-identical).
+State: branch `worktree-agent-a388a51aa92c1df58` (CI branch `ci/gap-harness`), last commits "Simulator arms on the slow CI
+runner" and the results commit after it. Lane `gaps` of `packages/gate-breakpoints` (`src/gaps/**`, wiring in `src/cli.mjs`,
+`src/run.mjs`, `src/summary.mjs`); tests `test/gaps.test.mjs` (14), whole package 32 pass (needs `FW_CORE_BIN`).
+Read first: `src/gaps/README.md`, then `.github/workflows/gate-gaps.yml`, `src/gaps/DEVICE.md` (phone session).
 
-Read first: `packages/gate-breakpoints/src/gaps/README.md`, then `src/gaps/DEVICE.md` (phone session).
+CI (MEASURED): Linux job on push (paths filter) and dispatch; macOS job dispatch only (`-f macos=true`), 1 VM,
+`max-parallel: 1`, timeout 40 (5 macOS slots shared). Runs 39040510729 (Linux), 39041179813 (Simulator arms timed out),
+39042512691 and 39044573514 (iPhone full; iPad full only in the last). Results in `results/gaps/{linux,macos}/` are copies
+of `gaps-judged` artifacts only (see its README); no local-Mac result is committed.
+Result: Chromium 156 passes all 8 cells at Lean's env (dpr 2, zoom 2 + override 2N+1). WebKit (Apple and GLib): 8
+`unreachable` (4 primary-pair, 4 whole-width), the reach model holds on every record. Simulator iPhone and iPad: meta
+viewport 600.5/640.5/860.5/1000.5 rounds to 601/641/861/1001; iPad `aim=` keeps media 1032 (vv and inner rounded).
 
-Result: all 8 cells (4 fractional widths, 4 hover x pointer crosses) pass on Chromium 155 (zoom 200% profile pref +
-CDP override 2N+1 for fractions; `--blink-settings` for crosses). On WebKit all 8 are `unreachable` with evidence
-(Playwright WebKit, macOS WKWebView page zoom, iPhone and iPad iOS 27.0 Simulator): media width always whole, primary
-pair only (hover,fine) or (none,coarse).
+Conventions: every verdict comes from fwcore (`judge.mjs` only calls ops: `gate.reach`, `gate.state`, `gate.tally`).
+Collect jobs judge nothing; the `judge` job builds fwcore. No personal data or paths in committed files.
 
-Conventions: new verdict state `unreachable` (not NC) only when the mechanism table says unreachable AND every record
-shows it. Default gate run unchanged (byte-identical to HEAD). No device ids, LAN addresses or home paths in files.
-Sim-lock pid is the caller's PPID: acquire, run, release in one shell command.
-
-Not run: the real-phone session (`gaps device-serve`, then `device-judge`; pass = W, X, S, L ok).
+TS stand-ins (no decision logic beyond these): the `touchArm` conjunction in check T (`none/coarse` and `wLe1200` of the Lean
+vector); mapping reach-model results to equal/differ/missing; record comparisons in checks S and X (`devicejudge.mjs`).
 
 Open items:
-- Lean: specify `webkitPrimaryPairs`, the WebKit whole-width fact, the `unreachable` verdict state; change the
-  fractional probes to dpr 2 (today TS `realizeEnv` maps dpr 5/4 to dpr 2 + zoom 2).
-- TS stand-ins to retire: `realizeEnv`, `WEBKIT_PRIMARY_PAIRS`, mechanism table, `judge.mjs` evidence checks,
-  `devicejudge.mjs`.
-- Chromium compares with 1/64 slack; the .5 widths are far from that edge, but note it in the Lean spec.
-- iPad Simulator width 1032 has no Lean vector (informative only).
-- aA page zoom was not driven in the Simulator (no UI automation): source plus macOS pageZoom cover it; the phone
-  session covers it for real.
-- Wire the lane into CI (it needs Chromium, Playwright WebKit, macOS host with the Simulator).
+- The real-phone session (`gaps device-serve`, then `device-judge` with the CI `evidence.json`) was NOT run; only the user's
+  booked session may run it (pass = W, X, T, S, L).
+- Lean could own T, S and X record comparisons; the iPad width 1032 has no Lean vector (informative).
+- aA page zoom is not driven in the Simulator (no UI automation); source, WKWebView pageZoom and the phone cover it.
+- Simulator cold start on the runner is slow (Safari openurl timed out at 60 s once); warm-up and retries are in, watch
+  `skipped` in `gaps.md` on later runs.
+- A push of this branch can start `webkit-sim` (paths from main); cancel it with `gh run cancel`.

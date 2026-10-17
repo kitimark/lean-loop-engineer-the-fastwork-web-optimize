@@ -38,7 +38,7 @@ A=R row (original vs rewrite in the WKWebView at page zoom 2, window 1201; never
 | `cells.mjs` | the 8 cells from the Lean gen file, `realizeChromium` / `realizeWebkit`, `probeVariants`, display-only `HOW` |
 | `engines.mjs` | Chromium launcher with browser zoom (env.zoom, env.override) |
 | `inpage.mjs`, `probe.mjs` | in-page report (media width by bisection, window sizes, gap queries, 15 pointer queries) and our probe page / POST server (`vp=`, `aim=`) |
-| `evidence.mjs`, `wkzoom.swift` | Playwright DPR, WKWebView host (page zoom, plan mode for the A=R row), Simulator driver (variants, device creation in CI) |
+| `evidence.mjs`, `wkzoom.swift` | Playwright DPR, WKWebView host (page zoom, plan mode for the A=R row), Simulator driver (variants, device creation in CI; a Safari warm-up, 3 launch attempts per page; on the slow runner `FW_SIM_TIMEOUT_SCALE=3` and `FW_SIM_ARM_BUDGET_MS=480000` scale the waits and stop an arm adding variants, each failure listed in `skipped`) |
 | `judge.mjs` | shaping only: run file / records -> fwcore requests (`judgeRun`, `modelCheck`) |
 | `devicejudge.mjs`, `device.mjs`, `DEVICE.md` | the phone session: server, records, pass rule (W via Lean reach, X, T, S, L) |
 | `cli.mjs` | collect / summary / run, `gaps.json` and `gaps.md` |

@@ -179,6 +179,27 @@ The goal is to show the WebKit rounding live on the phone, and that it holds on 
 rounded. **Fail:** any non-whole media width. Then the WebKit cell becomes reachable on the device and the 27.0
 source citation no longer covers 27.0.1.
 
+## Addendum: CI measurements of the gaps lane (MEASURED; `gate-gaps` workflow, runs 39044573514, 39042512691, 39040510729)
+
+Collected on GitHub runners, judged in Lean (`gate.state`, `gate.reach`); results in `packages/gate-breakpoints/results/gaps/`.
+- **Chromium 156.0.8078.4 (Linux full build):** all 8 cells pass at Lean's own environment. The fractional cells are built as
+  zoom 2 + override (2N+1) x 2H, DSF 1, dpr 2: media 600.5 / 640.5 / 860.5 / 1000.5, vv the same, innerWidth 600 / 640 / 860 /
+  1000, in both the original and the rewrite. Three collect jobs of two runs gave the same `gaps.json` (`cmp`).
+- **WebKit, Playwright (Apple and GLib ports):** the 8 cells are `unreachable` (4 `primary-pair`, 4 `whole-width`); the
+  reach model holds on all 36 Playwright records (16 gate-run loads, 16 DPR and 4 pair records) (width 601 / 641 / 861 / 1001 at DPR 1, 1.1, 1.25, 2; pairs only
+  hover/fine or none/coarse).
+- **macOS system WebKit (WKWebView pageZoom):** 11 records, the model holds. pageZoom 2 at window width 1201: media 601,
+  vv 600.5, innerWidth 600. A fraction exists in the visual viewport and the media width is the rounded one.
+- **Informative A=R row (pageZoom 2, width 1201, never in a count):** media 592, vv 592, innerWidth 600 for both pages (a
+  scrollbar is subtracted from the media width on this host), verdict pass, environment not achieved (width differs).
+- **iOS Simulator (iOS 27.0, CI, iPhone and an iPad Pro):** fractional meta viewports are rounded by
+  `ViewportConfiguration::layoutWidth` (`std::round`; ViewportConfiguration.cpp:598-631@862f17d). `width=600.5 / 640.5 /
+  860.5 / 1000.5` gives media, vv and innerWidth 601 / 641 / 861 / 1001 on both devices; `initial-scale = screen.width/W`
+  (`aim=`) gives the same on the iPhone. On the iPad `aim=` keeps the media width at 1032 (the device width) while vv and
+  innerWidth are 601 / 641 / 861 / 1001 (INFERRED cause: the layout viewport is rounded, the media width follows the unscaled
+  device width). Every record has the pair (none, coarse). Whole media widths in all 20 Simulator records: the four WebKit fractional cells and
+  the four cross cells stay unreachable.
+
 ## What this changes in the plan
 
 - **PLAN 6.6 (breakpoint parity gate), "fractional gaps" row:** split by engine. Chromium: run the 4 probes under
