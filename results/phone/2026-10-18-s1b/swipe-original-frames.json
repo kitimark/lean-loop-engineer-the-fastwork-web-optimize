@@ -1,0 +1,180 @@
+{
+ "target": "original",
+ "schema": "fw.phone.swipe/1",
+ "kind": "finger swipe by a person (rAF timestamps + scrollY of every frame)",
+ "arm": "frames",
+ "seconds": 100,
+ "polls": 36,
+ "pollErrors": 0,
+ "appearance": {
+  "atStart": "light",
+  "atRecord": "light"
+ },
+ "device": {
+  "model": "iPhone 15 Pro Max",
+  "os": "27.0.1",
+  "build": "24A446"
+ },
+ "readouts": [
+  {
+   "at": "2026-10-17T17:20:08.482Z",
+   "batteryPct": 80,
+   "charging": false,
+   "batteryVirtualTemp": 32,
+   "batterySkinTemp": 32,
+   "thermalState": "not exposed over USB lockdown or the inspector (no API); battery temperature is the proxy"
+  },
+  {
+   "at": "2026-10-17T17:22:01.739Z",
+   "batteryPct": 80,
+   "charging": false,
+   "batteryVirtualTemp": 32,
+   "batterySkinTemp": 32,
+   "thermalState": "not exposed over USB lockdown or the inspector (no API); battery temperature is the proxy"
+  }
+ ],
+ "maxY": 5267,
+ "reachedY": 5308,
+ "minY": -35,
+ "frames": 5554,
+ "summary": {
+  "zonePx": 500,
+  "thresholdsMs": {
+   "slow": 34,
+   "bad": 50
+  },
+  "total": {
+   "moving": 911,
+   "over34": 104,
+   "over50": 24,
+   "per100Over34": 11.42,
+   "per100Over50": 2.63,
+   "longestMs": 81,
+   "medianMs": 17
+  },
+  "zones": [
+   {
+    "zone": 0,
+    "y0": 0,
+    "moving": 109,
+    "over34": 22,
+    "over50": 3,
+    "per100Over34": 20.18,
+    "per100Over50": 2.75,
+    "longestMs": 75,
+    "medianMs": 21
+   },
+   {
+    "zone": 1,
+    "y0": 500,
+    "moving": 82,
+    "over34": 20,
+    "over50": 6,
+    "per100Over34": 24.39,
+    "per100Over50": 7.32,
+    "longestMs": 62,
+    "medianMs": 25
+   },
+   {
+    "zone": 2,
+    "y0": 1000,
+    "moving": 88,
+    "over34": 14,
+    "over50": 3,
+    "per100Over34": 15.91,
+    "per100Over50": 3.41,
+    "longestMs": 81,
+    "medianMs": 17
+   },
+   {
+    "zone": 3,
+    "y0": 1500,
+    "moving": 25,
+    "over34": 10,
+    "over50": 5,
+    "per100Over34": 40,
+    "per100Over50": 20,
+    "longestMs": 76,
+    "medianMs": 31
+   },
+   {
+    "zone": 4,
+    "y0": 2000,
+    "moving": 64,
+    "over34": 6,
+    "over50": 2,
+    "per100Over34": 9.38,
+    "per100Over50": 3.13,
+    "longestMs": 62,
+    "medianMs": 20
+   },
+   {
+    "zone": 5,
+    "y0": 2500,
+    "moving": 81,
+    "over34": 9,
+    "over50": 1,
+    "per100Over34": 11.11,
+    "per100Over50": 1.23,
+    "longestMs": 74,
+    "medianMs": 20
+   },
+   {
+    "zone": 6,
+    "y0": 3000,
+    "moving": 106,
+    "over34": 3,
+    "over50": 0,
+    "per100Over34": 2.83,
+    "per100Over50": 0,
+    "longestMs": 42,
+    "medianMs": 17
+   },
+   {
+    "zone": 7,
+    "y0": 3500,
+    "moving": 64,
+    "over34": 1,
+    "over50": 0,
+    "per100Over34": 1.56,
+    "per100Over50": 0,
+    "longestMs": 42,
+    "medianMs": 17
+   },
+   {
+    "zone": 8,
+    "y0": 4000,
+    "moving": 46,
+    "over34": 0,
+    "over50": 0,
+    "per100Over34": 0,
+    "per100Over50": 0,
+    "longestMs": 22,
+    "medianMs": 17
+   },
+   {
+    "zone": 9,
+    "y0": 4500,
+    "moving": 61,
+    "over34": 1,
+    "over50": 0,
+    "per100Over34": 1.64,
+    "per100Over50": 0,
+    "longestMs": 50,
+    "medianMs": 17
+   },
+   {
+    "zone": 10,
+    "y0": 5000,
+    "moving": 103,
+    "over34": 8,
+    "over50": 2,
+    "per100Over34": 7.77,
+    "per100Over50": 1.94,
+    "longestMs": 51,
+    "medianMs": 17
+   }
+  ]
+ },
+ "note": "raw rAF timestamps stay local"
+}
