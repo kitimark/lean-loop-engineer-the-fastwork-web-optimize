@@ -31,11 +31,11 @@ on:
       jobs:
         description: mutants.sh workers per shard job (1 to 4; a runner has 4 vCPUs)
         type: string
-        default: '3'
+        default: '4'
       shards:
         description: Shard jobs (1 to 24)
         type: string
-        default: '16'
+        default: '8'
       limit:
         description: At most this many mutants per shard (0 = all; a smoke run)
         type: string
@@ -65,8 +65,8 @@ jobs:
         id: plan
         env:
           TAG: ${{ inputs.tag || 'ci' }}
-          JOBS: ${{ inputs.jobs || '3' }}
-          SHARDS: ${{ inputs.shards || '16' }}
+          JOBS: ${{ inputs.jobs || '4' }}
+          SHARDS: ${{ inputs.shards || '8' }}
           LIMIT: ${{ inputs.limit || '0' }}
         run: |
           set -euo pipefail
