@@ -130,7 +130,7 @@ describe("fw land --task on an agent branch", () => {
     const before = mainSha();
     const r = await land(BR, { ...opts, checks: [["true"], ["false"]] });
     expect(r.ok).toBe(false);
-    expect(text(r)).toMatch(/check failed: false/);
+    expect(text(r)).toMatch(/check FAILED: false/);
     expect(text(r)).toMatch(/merge aborted/);
     expect(mainSha()).toBe(before); clean(); noMerge();
     expect(fx.git(fx.root, "branch", "--list", BR)).toContain(BR);

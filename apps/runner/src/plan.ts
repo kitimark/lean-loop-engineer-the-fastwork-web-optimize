@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { Command, type Actor, type Plan } from "@fw/contracts";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 
@@ -109,4 +109,30 @@ export async function lintCli(args: string[], cwd: string, core?: CoreCall, comm
     commits: commits ?? mainCommits(cwd) })) as unknown as LintReply;
   console.log(renderLint(r));
   return r.ok ? 0 : 1;
+}
+
+/** `fw plan sync` is the live board's only input from the file, so it runs only in the main checkout with HEAD = main:
+ *  a draft branch (or a linked worktree) can never reach the board. Returns the refusal, or null when allowed. */
+export function syncRefusal(cwd: string, main = "main"): string | null {
+  const q = (...a: string[]) => { try { return execFileSync("git", a, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim(); } catch { return null; } };
+  const top = q("rev-parse", "--show-toplevel");
+  const common = q("rev-parse", "--path-format=absolute", "--git-common-dir");
+  if (!top || !common) return "plan sync: not inside a git checkout";
+  if (resolve(common, "..") !== resolve(top)) return `plan sync refused: ${top} is a linked worktree; run it in the main checkout ${resolve(common, "..")}`;
+  const head = q("symbolic-ref", "--short", "-q", "HEAD");
+  if (head !== main) return `plan sync refused: HEAD is ${head ?? "detached"}, not ${main}; drafts never reach the live board`;
+  return null;
+}
+
+/** Plan sync through the plain command door (no capability), for `fw land`'s internal sync: the single-use capability
+ *  of the `pnpm fw land ...` call may already be spent on a card's land request, and the hook only mints one for a
+ *  command that starts with `pnpm fw`. The caller has checked `syncRefusal`. Throws when a command was refused. */
+export async function syncViaCommands(http: { post(path: string, body: unknown): Promise<{ status: number; body: any }> }, g: WorkGraph): Promise<string> {
+  let applied = 0, unchanged = 0;
+  for (const c of syncCommands(g)) {
+    const r = await http.post("/api/commands", c);
+    if (r.body?.ok) { if (r.body.duplicate) unchanged++; else applied++; }
+    else throw new Error(`plan sync refused ${c.type}: ${r.body?.reason ?? r.status}`);
+  }
+  return `plan sync: ${applied} applied, ${unchanged} unchanged`;
 }
