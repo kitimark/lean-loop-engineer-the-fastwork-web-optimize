@@ -1,0 +1,13 @@
+Design mutant (m0-mutants, PLAN V-r): the owner or a builder of a card may review it.
+
+--- a/Fw/Console.lean
++++ b/Fw/Console.lean
+@@ -278,7 +278,7 @@
+   | .cardReview _ sha r ok =>
+     if c.landed then some "card already landed"
+     else if c.head != some sha then some "stale sha: not the head commit"
+-    else if r == c.owner || c.builders.contains r then some "reviewer owns or built this card"
++    else if false then some "reviewer owns or built this card"
+     else if ok then none else some "rejected review does not advance the card"
+   | .cardSwipe _ sha better =>
+     if c.landed then some "card already landed"

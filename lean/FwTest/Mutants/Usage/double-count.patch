@@ -1,0 +1,13 @@
+Design mutant (m0-mutants, PLAN V-r): a re-ingested usage line is added instead of joined (double counting).
+
+--- a/Fw/Ops/Usage.lean
++++ b/Fw/Ops/Usage.lean
+@@ -136,7 +136,7 @@
+ -/
+ def ins (r : String × Usage) : Table → Table
+   | [] => [r]
+-  | (k, u) :: t => if r.1 < k then r :: (k, u) :: t else if r.1 = k then (k, r.2.join u) :: t else (k, u) :: ins r t
++  | (k, u) :: t => if r.1 < k then r :: (k, u) :: t else if r.1 = k then (k, r.2.add u) :: t else (k, u) :: ins r t
+ 
+ /-- Merge the records of `a` into the table `b`, one by one.
+ 
