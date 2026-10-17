@@ -26,7 +26,9 @@ Input: `Stats` (changed, antialias-only, total, max channel delta, max delta of 
   other is present is a full change. Both arms absent gives status `nc` (a small TS rule outside Lean; a TS stand-in).
 
 ## Settled
-Each arm is screenshotted twice 200 ms apart; the arm is settled when the two are pixel-identical. Animations are never
+Each arm is screenshotted twice 200 ms apart; the arm is settled when the two are pixel-identical or differ only within the
+part's own tolerance (run 1 required identical and 174 of 240 Chromium cells came out unsettled; the page has endless
+animations). The cell keeps `selfPpm` per arm. Animations are never
 seeked (native requestAnimationFrame): an endless animation gives `unsettled`, not a false fail or pass.
 
 ## Cropping and preparation
