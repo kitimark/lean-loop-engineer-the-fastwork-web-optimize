@@ -67,9 +67,7 @@ jobs:
   mathview-differential:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
-    env:
-      STORE: ${{ runner.temp }}/mathview-store
-      OUT: ${{ runner.temp }}/mathview-diff
+    # the runner context is not available at job level: steps use $RUNNER_TEMP/mathview-{store,diff}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -84,9 +82,9 @@ jobs:
       - name: current tree, empty store then full store
         working-directory: lean
         run: |
-          sh scripts/mathview-cached.sh --diff "$STORE" "$OUT/cold"
-          sh scripts/mathview-cached.sh --diff "$STORE" "$OUT/warm"
-          grep -qx 'misses 0' "$OUT/warm/cached.stats"
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/cold"
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/warm"
+          grep -qx 'misses 0' "$RUNNER_TEMP/mathview-diff/warm/cached.stats"
 
       # a docstring edit in a leaf (imported only by the root Fw) recomputes exactly that leaf and Fw
       - name: mutation 1, one-module edit
@@ -95,21 +93,25 @@ jobs:
           sed -i 's/the verdict is a conjunction over modules\./the verdict is a conjunction over all modules./' Fw/Console/LandSpeed.lean
           git diff --quiet -- Fw/Console/LandSpeed.lean && { echo "mutation 1 did not apply"; exit 1; }
           lake build
-          sh scripts/mathview-cached.sh --diff "$STORE" "$OUT/m1"
-          grep -qx 'misses 2' "$OUT/m1/cached.stats"
-          grep -qx 'miss Fw.Console.LandSpeed' "$OUT/m1/cached.stats"
-          grep -qx 'miss Fw' "$OUT/m1/cached.stats"
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/m1"
+          grep -qx 'misses 2' "$RUNNER_TEMP/mathview-diff/m1/cached.stats"
+          grep -qx 'miss Fw.Console.LandSpeed' "$RUNNER_TEMP/mathview-diff/m1/cached.stats"
+          grep -qx 'miss Fw' "$RUNNER_TEMP/mathview-diff/m1/cached.stats"
 
       # Fw/Spec/AxReach.lean is outside the cone of Fw.Console.LandSpeed but the axiom rule runs its code: a semantic
       # change there must recompute every module, LandSpeed included (it enters every key through the tool hash)
       - name: mutation 2, tool code outside the cone
         working-directory: lean
         run: |
-          printf '\n/-- Mutation probe. $$p = 1$$ -/\ndef mathviewMutationProbe : Nat := 1\n' >> Fw/Spec/AxReach.lean
+          cat >> Fw/Spec/AxReach.lean <<'EOF'
+
+          /-- Mutation probe. $$p = 1$$ -/
+          def mathviewMutationProbe : Nat := 1
+          EOF
           lake build
-          sh scripts/mathview-cached.sh --diff "$STORE" "$OUT/m2"
-          grep -qx 'miss Fw.Console.LandSpeed' "$OUT/m2/cached.stats"
-          grep -qx 'hits 0' "$OUT/m2/cached.stats"
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/m2"
+          grep -qx 'miss Fw.Console.LandSpeed' "$RUNNER_TEMP/mathview-diff/m2/cached.stats"
+          grep -qx 'hits 0' "$RUNNER_TEMP/mathview-diff/m2/cached.stats"
 
       # findDocString? would append this suffix to LandSpeed.lintAll's docstring from a module outside its cone; the
       # export reads the declaring module's docstring only (MathView.entries), so LandSpeed stays a hit and full = cached
@@ -118,10 +120,10 @@ jobs:
         run: |
           printf '\nrecommended_spelling "zz" for "zz" in [Fw.Console.LandSpeed.lintAll]\n' >> Fw.lean
           lake build
-          sh scripts/mathview-cached.sh --diff "$STORE" "$OUT/m3"
-          grep -qx 'misses 1' "$OUT/m3/cached.stats"
-          grep -qx 'miss Fw' "$OUT/m3/cached.stats"
-          ! grep -q 'Conventions for notations' "$OUT/m3/full.json"
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/m3"
+          grep -qx 'misses 1' "$RUNNER_TEMP/mathview-diff/m3/cached.stats"
+          grep -qx 'miss Fw' "$RUNNER_TEMP/mathview-diff/m3/cached.stats"
+          ! grep -q 'Conventions for notations' "$RUNNER_TEMP/mathview-diff/m3/full.json"
 
       - name: keep the outputs on failure
         if: failure()
