@@ -2710,7 +2710,8 @@
     "lean/scripts/check.sh",
     "scripts/**",
     "docs/team/tools/**"
-   ]
+   ],
+   "evidence": "2860daa"
   },
   {
    "id": "timing-lean",

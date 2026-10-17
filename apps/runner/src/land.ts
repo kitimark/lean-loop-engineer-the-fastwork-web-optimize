@@ -7,6 +7,7 @@ import { appendFileSync, mkdirSync, readFileSync, realpathSync, writeFileSync } 
 import { basename, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
+import { begin, span } from "./timing.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 
 export type Http = {
@@ -246,7 +247,7 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
   });
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
     for (const argv of list) {
-      const p = await runCheck(cwd, argv);
+      const p = await span("fw land", argv.join(" "), () => runCheck(cwd, argv), (r) => r.status); // timing-spans
       const out = `${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}`;
       mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
       if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
@@ -268,7 +269,10 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
     if (bad) return fail(bad);
     const e = await requestLand();
     if (e) return fail(e);
-    if (!tryGit(mainDir, ["merge", "--ff-only", branch])) return fail(`${main} cannot fast-forward to ${branch}`);
+    const endMerge = begin("fw land", "merge");
+    const ffOk = tryGit(mainDir, ["merge", "--ff-only", branch]);
+    endMerge(ffOk ? 0 : 1);
+    if (!ffOk) return fail(`${main} cannot fast-forward to ${branch}`);
     mergeSha = git(mainDir, ["rev-parse", "HEAD"]);
   } else {
     // 3. take the land lock (Lean: console.landLock), merge into the main checkout without committing, check, commit, release.
@@ -305,7 +309,7 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
     const onInt = onSignal("SIGINT"), onTerm = onSignal("SIGTERM");
     process.once("SIGINT", onInt); process.once("SIGTERM", onTerm);
     try {
-      if (!tryGit(mainDir, ["merge", "--no-ff", "--no-commit", branch])) return abort(`${main} cannot merge ${branch} cleanly`);
+      if (!span("fw land", "merge", () => tryGit(mainDir, ["merge", "--no-ff", "--no-commit", branch]), (ok) => (ok ? 0 : 1))) return abort(`${main} cannot merge ${branch} cleanly`);
       if (!tryGit(mainDir, ["rev-parse", "-q", "--verify", "MERGE_HEAD"])) return fail(`${branch} has nothing to land (already in ${main})`);
       let marks = "";
       try { marks = git(mainDir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
@@ -324,7 +328,7 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
       const d = facts();
       if (!d?.ok) return fail(`will not commit: ${d ? d.reason : "fwcore is not available to decide"}. ${main} is at ${tryHead(mainDir)}, the land started at ${pre.slice(0, 7)}; ${main} was not reset. Inspect \`git status\` and \`git log\` in ${mainDir}`);
       const trailer = [`Task: ${o.task}`, ...(allow.length ? [`Land-Allow: ${allow.join(", ")}`] : []), ...(o.attribution ?? ATTRIBUTION)].join("\n");
-      if (!tryGitEnv(mainDir, ["commit", "-m", `land ${branch}`, "-m", trailer], { FW_LAND_TOKEN: lock.token })) return abort("commit of the merge failed");
+      if (!span("fw land", "merge commit", () => tryGitEnv(mainDir, ["commit", "-m", `land ${branch}`, "-m", trailer], { FW_LAND_TOKEN: lock.token }), (ok) => (ok ? 0 : 1))) return abort("commit of the merge failed");
       mergeSha = git(mainDir, ["rev-parse", "HEAD"]);
     } finally {
       process.off("SIGINT", onInt); process.off("SIGTERM", onTerm);
@@ -344,7 +348,7 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
   const step = async (name: string, cmd: string, fn: () => Promise<string | void>): Promise<void> => {
     let last = "";
     for (let i = 0; i < 2; i++) {
-      try { const r = await fn(); if (!r) return; last = r; } catch (e) { last = why(e); }
+      try { const r = await span("fw land", name, fn, (x) => (x ? 1 : 0)); if (!r) return; last = r; } catch (e) { last = why(e); }
       if (i === 0) await pause();
     }
     warnings.push(`step ${name} failed twice: ${last}`);
@@ -376,6 +380,7 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
   }
 
   // 6. safe cleanup: `branch -d` only; the worktree only when clean and not locked (local, no console needed)
+  const endCleanup = begin("fw land", "worktree cleanup");
   try {
     const wt = worktrees(o.cwd).find((w) => w.branch === branch);
     let removed = true;
@@ -399,6 +404,7 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
     warnings.push(`step cleanup failed: ${why(e)}`);
     remaining.push(`  cleanup: git worktree remove <dir of ${branch}> ; git branch -d ${branch}`);
   }
+  endCleanup(0);
 
   if (o.after) await step("plan sync", "pnpm fw plan sync docs/team/work-graph.json", async () => { lines.push(...(await o.after!(mainDir))); });
 
