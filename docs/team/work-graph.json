@@ -2251,6 +2251,52 @@
    "devices": [
     "ci"
    ]
+  },
+  {
+   "id": "try-constant-glass",
+   "title": "(M) Try-it page, look change (user D2): constant glass (CM) - morph without the per-frame backdrop-blur repaint; flag variant + side-by-side page; Lean predicts work, no 'same' claim",
+   "stream": "proposals",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean",
+    "port-morph-panel"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/try/constant-glass/**"
+   ]
+  },
+  {
+   "id": "try-flip-st6",
+   "title": "(M) Try-it page, look change (user D2): FLIP / st6 - transform-based nav morph instead of layout of top/width/height; flag variant + side-by-side page; Lean predicts work, no 'same' claim",
+   "stream": "proposals",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean",
+    "port-nav",
+    "port-morph-tween"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/try/flip-st6/**"
+   ]
+  },
+  {
+   "id": "try-typing-chunks",
+   "title": "(S) Try-it page, look change (user D2): typing chunks - reveal typed text in chunks; flag variant + side-by-side page; Lean predicts work, no 'same' claim",
+   "stream": "proposals",
+   "milestone": "M5",
+   "deps": [
+    "engine-chromium-lean",
+    "engine-webkit-lean",
+    "port-hero"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/try/typing-chunks/**"
+   ]
   }
  ],
  "deadline": {
