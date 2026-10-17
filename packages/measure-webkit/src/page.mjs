@@ -1,6 +1,7 @@
 // Page-level controls shared by census, scroll and seek: the bootstrap script (clock pin, seeded Math.random),
 // a reload that keeps the inspector connection, and the rAF helpers.
 import { sleep } from './sim.mjs';
+import { T } from './timeouts.mjs';
 
 /** Pinned date from the plan (§4.2): before the countdown target 2026-11-02. */
 export const PINNED_ISO = '2026-10-01T00:00:00+07:00';
@@ -101,10 +102,10 @@ export async function loadFresh(c, { clock = 'pinned', settleMs = 6000, timers =
     else if (m.method === 'Page.loadEventFired' && navigated) loaded = true;
   });
   await c.send('Page.reload', {});
-  for (let i = 0; i < 240 && !loaded; i++) await sleep(100);
+  for (let i = 0; i < T(240) && !loaded; i++) await sleep(100);
   off();
-  if (!loaded) throw new Error('Page.loadEventFired did not arrive in 24 s');
-  for (let i = 0; i < 120; i++) { if ((await c.evaluate('document.readyState')) === 'complete') break; await sleep(100); }
+  if (!loaded) throw new Error(`Page.loadEventFired did not arrive in ${Math.round(T(240) / 10)} s`);
+  for (let i = 0; i < T(120); i++) { if ((await c.evaluate('document.readyState')) === 'complete') break; await sleep(100); }
   const mode = await c.evaluate('window.__wkBootstrap || null');
   if (mode !== clock) throw new Error(`bootstrap script did not run (got ${mode})`);
   await sleep(settleMs);

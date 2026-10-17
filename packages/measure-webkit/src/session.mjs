@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
 import { bootDevice, openUrl, shutdownDevice, startProxy, proxyCheck, findDevice, sleep } from './sim.mjs';
 import { openTab } from './wip.mjs';
+import { T, attempts } from './timeouts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const FIXTURES = resolve(HERE, '..', 'fixtures');
@@ -59,19 +60,28 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
   process.once('SIGTERM', () => onSignal('SIGTERM'));
   try {
     device = await bootDevice({ log });
-    await sleep(3000); // an openurl right after the launch is sometimes dropped
+    await sleep(T(3000)); // an openurl right after the launch is sometimes dropped
     openUrl(device.udid, server.url + startPath.slice(1));
     proxy = await startProxy({ log });
-    try { client = await openTab(server.url, { waitMs: 10000 }); } catch (e) {
-      // the proxy sometimes lists the tab late or Safari dropped the first openurl: ask once more
-      log(`${e.message}; opening the URL again`);
-      openUrl(device.udid, server.url + startPath.slice(1));
-      client = await openTab(server.url, { waitMs: 40000 });
+    // the proxy sometimes lists the tab late or Safari dropped the openurl: ask again, bounded (FW_WK_ATTEMPTS asks in all)
+    for (let ask = 1; !client; ask++) {
+      try { client = await openTab(server.url, { waitMs: T(ask === 1 ? 10000 : 40000), log }); } catch (e) {
+        if (ask >= Math.max(2, attempts())) throw e;
+        log(`${e.message}; opening the URL again (ask ${ask + 1})`);
+        openUrl(device.udid, server.url + startPath.slice(1));
+      }
     }
     await proxyCheck();
     const ctx = {
       c: client, url: server.url + startPath.slice(1), base: server.url.replace(/\/$/, ''), root, device: { name: device.name }, log,
       setClient: (c2) => { client = c2; ctx.c = c2; },
+      // the proxy can die under host load (seen on a runner: ECONNREFUSED after a 1006 close); start it again, Safari still runs
+      ensureProxy: async () => {
+        if (proxy?.alive()) { try { await proxyCheck(); return; } catch { /* answers no more */ } }
+        log('the inspector proxy is gone or not answering; starting it again');
+        try { await proxy?.stop(); } catch { /* already gone */ }
+        proxy = await startProxy({ log });
+      },
     };
     return await fn(ctx);
   } finally {
