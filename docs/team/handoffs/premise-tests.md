@@ -1,6 +1,6 @@
 # premise-tests handoff
 
-State: branch worktree-agent-ac5a2d77ab9f7910b, commit ded7be0 (CI branch `ci/premise-tests`). Read first: `docs/team/tools/premises.md`.
+State: branch worktree-agent-ac5a2d77ab9f7910b, CI branch `ci/premise-tests` at 078a59a. CI run 39076735134: 14 of 15 premises hold on Chromium 156 + WebKit (Linux); only cv.auto-margin fails (both). Read first: `docs/team/tools/premises.md`.
 
 - Lean: `lean/Fw/Ops/Premise.lean` (15 premises, `premiseLint_sound`, `flagged_*`, `registry_lint_clean`); golden
   `packages/contracts/golden/ops/premise.jsonl` from `lean/scripts/PremiseGolden.lean` (`--check` to compare).
