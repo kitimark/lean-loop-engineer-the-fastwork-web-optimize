@@ -1,0 +1,15 @@
+{"fn":"step","in":{"ev":"toggle","phase":"closed"},"out":{"phase":"open","timer":"clear"}}
+{"fn":"step","in":{"ev":"select","phase":"closed"},"out":{"phase":"closed","timer":"keep"}}
+{"fn":"step","in":{"ev":"outside","phase":"closed"},"out":{"phase":"closed","timer":"keep"}}
+{"fn":"step","in":{"ev":"timer","phase":"closed"},"out":{"phase":"closed","timer":"keep"}}
+{"fn":"step","in":{"ev":"toggle","phase":"open"},"out":{"phase":"closing","timer":"rearm"}}
+{"fn":"step","in":{"ev":"select","phase":"open"},"out":{"phase":"closing","timer":"rearm"}}
+{"fn":"step","in":{"ev":"outside","phase":"open"},"out":{"phase":"closing","timer":"rearm"}}
+{"fn":"step","in":{"ev":"timer","phase":"open"},"out":{"phase":"open","timer":"keep"}}
+{"fn":"step","in":{"ev":"toggle","phase":"closing"},"out":{"phase":"open","timer":"clear"}}
+{"fn":"step","in":{"ev":"select","phase":"closing"},"out":{"phase":"closing","timer":"keep"}}
+{"fn":"step","in":{"ev":"outside","phase":"closing"},"out":{"phase":"closing","timer":"keep"}}
+{"fn":"step","in":{"ev":"timer","phase":"closing"},"out":{"phase":"closed","timer":"keep"}}
+{"fn":"flags","in":{"phase":"closed"},"out":{"isClosing":false,"isOpen":false,"listening":false,"mounted":false,"navLocaleOpen":false}}
+{"fn":"flags","in":{"phase":"open"},"out":{"isClosing":false,"isOpen":true,"listening":true,"mounted":true,"navLocaleOpen":true}}
+{"fn":"flags","in":{"phase":"closing"},"out":{"isClosing":true,"isOpen":false,"listening":false,"mounted":true,"navLocaleOpen":true}}
