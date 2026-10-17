@@ -43,6 +43,7 @@ import Fw.Ops.SpawnGuard
 import Fw.Ops.PathCheck
 import Fw.Ops.Usage
 import Fw.Ops.Meter
+import Fw.Ops.Premise
 import Fw.Ops.Identity
 import Fw.Ops.Wire
 import Fw.Sched.Admit

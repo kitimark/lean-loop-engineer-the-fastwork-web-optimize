@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>resize.lag</title>
+<style>
+  body { margin: 0 }
+  #w { width: 100vw; height: 10px; background: #888 }
+  #q { height: 10px; background: #444 }
+  @media (max-width: 600px) { #q { width: 100px } }
+  @media (min-width: 601px) { #q { width: 200px } }
+</style>
+<div id="w"></div>
+<div id="q"></div>
