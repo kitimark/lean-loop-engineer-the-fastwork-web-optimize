@@ -4,6 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
+import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
 import { PIN_SRC, collectInPage, prepareInPage, waitReady, waitResize } from './page.mjs';
 import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
@@ -104,13 +105,21 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   }
 
   // Phase 0: the property lists. Declared names depend on the stylesheets and the elements, not on the environment,
-  // so one reference load per arm fixes them (the engine expands shorthands, so they are per engine).
+  // so one reference load per arm fixes them (the engine expands shorthands, so they are per engine). A timer-driven part
+  // matches different rules at different instants, so the names are the union of several scans across one timer period
+  // (declared.mjs): otherwise two shards could fix different lists and merge-gate would refuse their headers.
   const refEnv = { width: 1440, height: 900, deviceWidth: 1440, deviceHeight: 900, dpr: 1, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
   const declared = {};
   for (const site of SITES) {
     const s = await load(refEnv, site);
     await evalReady(s, site);
-    declared[site] = (await evalCollect(s, site, refEnv, null)).parts;
+    const scans = [(await evalCollect(s, site, refEnv, null)).parts];
+    const timed = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !overlaySteps[site][pid]));
+    for (let i = 0; i < SCAN_EXTRA; i++) {
+      await new Promise((r) => setTimeout(r, SCAN_GAP_MS));
+      scans.push((await s.evaluate(collectInPage, collectArg(site, refEnv, null, timed))).parts);
+    }
+    declared[site] = unionDeclared(scans);
     await s.close();
   }
   const props = {};
