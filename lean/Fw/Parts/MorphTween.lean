@@ -133,12 +133,12 @@ def tween (f t elapsed : Rat) : Sample :=
 #guard tween (3/10) 1 9999 == ⟨1, true⟩
 #guard tween (3/10) 1 (-5) == ⟨3/10, false⟩
 
-/-- Division by the duration is multiplication by its inverse. $$e/680 = e \cdot \tfrac{1}{680}$$ Lets the linear solver see it. -/
+/-- Division by the duration is multiplication by its inverse. $$\forall e \in \mathbb{Q}:\ e/680 = e \cdot \tfrac{1}{680}$$ Lets the linear solver see it. -/
 theorem div_dur (e : Rat) : e / duration = e * (1 / 680) := by unfold duration; grind
 
 /-- A tween is done exactly when 680 ms have passed.
 
-$$\operatorname{done}(\operatorname{tween}(f, t, e)) = \top \iff e \ge 680$$
+$$\forall f, t, e \in \mathbb{Q}:\quad \operatorname{done}(\operatorname{tween}(f, t, e)) = \top \iff e \ge 680$$
 
 The duration is the 680 ms of the original and nothing else ends it. -/
 theorem tween_done_iff (f t e : Rat) : (tween f t e).done = true ↔ 680 ≤ e := by
@@ -153,7 +153,7 @@ theorem tween_done_iff (f t e : Rat) : (tween f t e).done = true ↔ 680 ≤ e :
 
 /-- At the end of its time the tween sits on the target.
 
-$$e \ge 680 \Rightarrow \operatorname{tween}(f, t, e).\mathrm{value} = t$$
+$$\forall f, t, e:\quad e \ge 680 \Rightarrow \operatorname{tween}(f, t, e).\mathrm{value} = t$$
 
 No residue is left at the end. -/
 theorem tween_end (f t e : Rat) (h : 680 ≤ e) : (tween f t e).value = t := by
@@ -166,7 +166,7 @@ theorem tween_end (f t e : Rat) (h : 680 ≤ e) : (tween f t e).value = t := by
 
 /-- At the start the tween sits on the start value.
 
-$$e \le 0 \Rightarrow \operatorname{tween}(f, t, e).\mathrm{value} = f$$
+$$\forall f, t, e:\quad e \le 0 \Rightarrow \operatorname{tween}(f, t, e).\mathrm{value} = f$$
 
 A retarget does not jump: the new tween begins at the value the old one had reached. -/
 theorem tween_start (f t e : Rat) (h : e ≤ 0) : (tween f t e).value = f := by
@@ -182,7 +182,7 @@ theorem tween_start (f t e : Rat) (h : e ≤ 0) : (tween f t e).value = f := by
 
 /-- The value stays between the two ends.
 
-$$\min(f, t) \le \operatorname{tween}(f, t, e).\mathrm{value} \le \max(f, t)$$
+$$\forall f, t, e:\quad \min(f, t) \le \operatorname{tween}(f, t, e).\mathrm{value} \le \max(f, t)$$
 
 The morph never leaves the range of the push, so a 0..1 push stays in $[0, 1]$. -/
 theorem tween_between (f t e : Rat) :
@@ -313,7 +313,7 @@ theorem pointerNone_iff (m : Rat) : pointerNone m = true ↔ 209 / 400 < m := by
 
 /-! ## The state machine -/
 
-/-- Tween state: value $r$, target $w$, from $i$, to $a$, start time $o$ (ms), a frame requested. -/
+/-- Tween state. $$s = (r, w, i, a, o, n) \in \mathbb{Q}^5 \times \{\top, \bot\}$$ Value $r$, target $w$, from $i$, to $a$, start time $o$ (ms), a frame requested $n$. -/
 structure St where
   value : Rat
   target : Rat
