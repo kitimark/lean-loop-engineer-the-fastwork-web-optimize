@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import { HeroCountdown } from './parts/hero.countdown';
 import { HeroExit } from './parts/hero.exit';
 import { EngineScroll } from './parts/engine.scroll';
+import { MorphTween } from './parts/morph.tween';
 import { NavHitTest } from './parts/nav.hitTest';
 import type { FwConfig } from './registry/types';
 import { setHydrated } from './fw';
@@ -37,6 +38,7 @@ export function App({ config }: { config: FwConfig }) {
     <>
       <EngineScroll variant={config.variants['engine.scroll'] ?? 'faithful'} />
       <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
+      <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} />
       <AppBar position="sticky" data-fw="nav">
         <Toolbar>
           <Typography variant="h6" component="div" style={{ flexGrow: 1 }}>

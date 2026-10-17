@@ -332,7 +332,11 @@ def pilotParts : List PartUse := [
     extra := [],
     knees := [⟨"hero h1 font clamp 40px / 4.5vw / 64px", 889⟩, ⟨"hero h1 font clamp 40px / 4.5vw / 64px", 1422⟩,
               ⟨"hero title gap clamp 14 / 1.6vw / 24", 875⟩, ⟨"hero title gap clamp 14 / 1.6vw / 24", 1500⟩],
-    dismissed := [("css.hover-ungated", "plain :hover rules; the gate never hovers an element")] }
+    dismissed := [("css.hover-ungated", "plain :hover rules; the gate never hovers an element")] },
+  { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
+    extra := [], knees := [],
+    dismissed := [
+      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.
