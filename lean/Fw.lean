@@ -21,6 +21,10 @@ import Fw.Parts.NavHitTest
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
+import Fw.Parts.HeroOrbit
+import Fw.Parts.HeroAccent
+import Fw.Parts.HeroDeck
+import Fw.Parts.HeroGolden
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Tolerance

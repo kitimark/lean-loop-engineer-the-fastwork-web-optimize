@@ -96,27 +96,37 @@
     },
     "hero.exit": {
       "anchors": ["hero-exit"],
-      "cites": ["snapshot 2.gBuqKVzi.css:1523-1590 (.hero-track, .hero)", "1725-1745 (.hero-copy)", "1750-1795 (.hero-copy-main, h1, p)", "1905-1936 (.scroll-cue)", "2040-2160 (<=600 and reduced motion)"],
+      "cites": ["snapshot 2.gBuqKVzi.css:1523-1540 (.hero-track, .hero)", "2031-2034 (<=600)", "2128-2134 (reduced motion)"],
       "excluded": [
-        { "what": "cards (.orbit-card, .mobile-deck)", "why": "the rewrite's four placeholder cards stand in for hero.orbit, whose geometry is set by JS in the original (10 ring cards plus a 4-card mobile deck); not restated by this part" },
-        { "what": "cta button", "why": "the rewrite's .cta is a placeholder (blue pill); the original's .hero-cta button is a different design and is not restated" },
-        { "what": "countdown inside .hero-copy", "why": "compared by hero.countdown; in the rewrite it is a sibling above the track, so hero-copy height and y are host-dependent and excluded" }
+        {
+          "what": "everything inside the stage (ring, deck, copy, cue)",
+          "why": "compared by hero, hero.orbit, hero.deck, hero.cue and hero.accent"
+        }
       ],
       "roles": [
-        { "role": "track", "orig": ".hero-track", "rewrite": "[data-fw=\"hero-exit\"]", "boxRel": null, "dims": ["w", "h"], "skipSets": [], "skipProps": [],
-          "why": "x and y are page offsets (the rewrite has a nav bar and the countdown above it); width and height (200vh, or auto under reduced motion) are the part's own" },
-        { "role": "hero", "orig": ".hero-track > .hero", "rewrite": "[data-fw=\"hero-exit\"] > div", "boxRel": { "role": "track", "index": 0 }, "dims": ["x", "y", "w", "h"], "skipSets": [], "skipProps": ["--copy-in"],
-          "why": "--copy-in is declared on .hero in the rewrite and on .hero-copy and .scroll-cue in the original; the inherited value on those two elements is compared instead" },
-        { "role": "copy", "orig": ".hero-track .hero > .hero-copy", "rewrite": "[data-fw=\"hero-exit\"] > div > header", "boxRel": { "role": "hero", "index": 0 }, "dims": ["x", "w"], "skipSets": ["layoutDerived"], "skipProps": ["bottom"],
-          "why": "y and height depend on the content inside (the original also holds the countdown and the call to action); width and x are fixed by min(92vw, 900px) and by 100% / 393px; bottom of an absolutely positioned box is a used value from the content height" },
-        { "role": "copyMain", "orig": ".hero-track .hero-copy-main", "rewrite": "[data-fw=\"hero-exit\"] header > div", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent (headline and paragraph)" },
-        { "role": "title", "orig": ".hero-track .hero-copy-main > h1", "rewrite": "[data-fw=\"hero-exit\"] header h1", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent (line count of the placeholder headline)" },
-        { "role": "lead", "orig": ".hero-track .hero-copy-main > p", "rewrite": "[data-fw=\"hero-exit\"] header p", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent (line count of the placeholder paragraph)" },
-        { "role": "cue", "orig": ".hero-track .hero > button.scroll-cue", "rewrite": "[data-fw=\"hero-exit\"] > div > button", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["transform", "top", "bottom", "right"],
-          "why": "content-sized (the original has an icon, the rewrite only a label): translate(-50%) is a fraction of its own width, and the auto side of top/bottom/right is a used value from its own size"}
+        {
+          "role": "track",
+          "orig": ".hero-track",
+          "rewrite": "[data-fw=\"hero-exit\"]",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "x and y are page offsets (the rewrite has a nav bar and the countdown above it); width and height (200vh, or auto under reduced motion) are the part's own"
+        },
+        {
+          "role": "hero",
+          "orig": ".hero-track > .hero",
+          "rewrite": "[data-fw=\"hero-exit\"] > div",
+          "boxRel": {
+            "role": "track",
+            "index": 0
+          },
+          "dims": ["x", "y", "w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "box relative to the track; the stage's own CSS (sticky, 100svh, min-height, flex)"
+        }
       ]
     },
     "morph.columns": {
@@ -154,6 +164,320 @@
           "skipSets": [],
           "skipProps": [],
           "why": "the part renders nothing and restates no CSS; only the document element's width is compared. If the mark is missing the rewrite count is 0 and the count differs"
+        }
+      ]
+    },
+    "hero": {
+      "anchors": ["hero"],
+      "cites": ["snapshot 2.gBuqKVzi.css:1725-1900 (.hero-copy, h1, .hero-title, p, .hero-cta-stack, .hero-cta)", "2040-2160 (<=600 and reduced motion)", "index.html inline styles 57-58 (call to action stack, RSVP link, invite note)"],
+      "excluded": [
+        {
+          "what": "headline, supporting text and button labels",
+          "why": "placeholder text: boxes that depend on it are skipped (layoutDerived)"
+        },
+        {
+          "what": "the call to action's gradient border (.hero-cta:before/:after)",
+          "why": "display: none in the original (F-015); not restated"
+        },
+        {
+          "what": "icon paths",
+          "why": "the rewrite draws its own two 20x20 stroke icons"
+        }
+      ],
+      "roles": [
+        {
+          "role": "track",
+          "orig": ".hero-track",
+          "rewrite": "[data-fw=\"hero-exit\"]",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "reference box for the stage (width and height only)"
+        },
+        {
+          "role": "stage",
+          "orig": ".hero-track > .hero",
+          "rewrite": "[data-fw=\"hero-exit\"] > div",
+          "boxRel": {
+            "role": "track",
+            "index": 0
+          },
+          "dims": ["x", "y", "w", "h"],
+          "skipSets": [],
+          "skipProps": ["--copy-in"],
+          "why": "reference box for the copy, relative to the track"
+        },
+        {
+          "role": "copy",
+          "orig": ".hero-track .hero > .hero-copy",
+          "rewrite": "[data-fw=\"hero\"]",
+          "boxRel": {
+            "role": "stage",
+            "index": 0
+          },
+          "dims": ["x", "w"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": ["bottom"],
+          "why": "y and height depend on the content (text, countdown, call to action); width and x are fixed by min(92vw, 900px) and by 100% / 393px; bottom of an absolutely positioned box is a used value from the content height"
+        },
+        {
+          "role": "copyMain",
+          "orig": ".hero-track .hero-copy-main",
+          "rewrite": "[data-fw=\"hero\"] > div:first-child",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "box is text-dependent (headline and paragraph)"
+        },
+        {
+          "role": "title",
+          "orig": ".hero-track .hero-copy-main > h1",
+          "rewrite": "[data-fw=\"hero\"] h1",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "box is text-dependent (line count of the placeholder headline)"
+        },
+        {
+          "role": "words",
+          "orig": ".hero-track .hero-copy-main > h1 > .hero-title",
+          "rewrite": "[data-fw=\"hero\"] h1 > span:last-child",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "box is text-dependent (placeholder words and the accent's width)"
+        },
+        {
+          "role": "lead",
+          "orig": ".hero-track .hero-copy-main > p",
+          "rewrite": "[data-fw=\"hero\"] > div:first-child > p",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "box is text-dependent (line count of the placeholder paragraph)"
+        },
+        {
+          "role": "ctaStack",
+          "orig": ".hero-track .hero-cta-stack",
+          "rewrite": "[data-fw=\"hero\"] > div:last-child",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": ["grid-template-columns"],
+          "why": "box is content-dependent (button labels)"
+        },
+        {
+          "role": "cta",
+          "orig": ".hero-track .hero-cta",
+          "rewrite": "[data-fw=\"hero\"] > div:last-child > div",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "box is content-dependent (label)"
+        },
+        {
+          "role": "ctaButton",
+          "orig": ".hero-track .hero-cta button",
+          "rewrite": "[data-fw=\"hero\"] > div:last-child > div > button",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "box is content-dependent (label)"
+        },
+        {
+          "role": "rsvp",
+          "orig": ".hero-track .hero-cta-rsvp",
+          "rewrite": "[data-fw=\"hero\"] > div:last-child > a",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "box is content-dependent (label)"
+        },
+        {
+          "role": "note",
+          "orig": ".hero-track .hero-waitlist-note",
+          "rewrite": "[data-fw=\"hero\"] > div:last-child > p",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": ["max-width"],
+          "why": "box is text-dependent (placeholder note)"
+        }
+      ]
+    },
+    "hero.orbit": {
+      "anchors": ["hero-orbit"],
+      "cites": ["snapshot 2.gBuqKVzi.css:1541-1740 (.orbit, .orbit-stage, .orbit-card, profile)", "1966-2035 (keyframes, edge push bands)", "nodes/2.DyWL8TcE.js:4016-4229 (splash)"],
+      "excluded": [
+        {
+          "what": "card pictures, names and roles",
+          "why": "placeholders; the cover and avatar boxes are fixed by the card's own CSS"
+        },
+        {
+          "what": "the ring splash itself",
+          "why": "both arms are compared after it (the original waits for .is-ring-splash-done); its maths is in Lean HeroOrbit and the golden vectors"
+        }
+      ],
+      "roles": [
+        {
+          "role": "orbit",
+          "orig": ".hero-track .hero > .orbit",
+          "rewrite": "[data-fw=\"hero-orbit\"]",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "absolute inset box in the stage"
+        },
+        {
+          "role": "stage",
+          "orig": ".hero-track .orbit > .orbit-stage",
+          "rewrite": "[data-fw=\"hero-orbit\"] > div",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "design canvas box (1512 x 779, or 100% wide from 601 to 1511)"
+        },
+        {
+          "role": "card",
+          "orig": ".hero-track .orbit .orbit-card",
+          "rewrite": "[data-fw=\"hero-orbit\"] article",
+          "boxRel": {
+            "role": "orbit",
+            "index": 0
+          },
+          "dims": ["x", "y", "w", "h"],
+          "skipSets": [],
+          "skipProps": ["--orbit-enter-x", "--orbit-enter-y", "--orbit-start-rot", "--ring-motion-blur"],
+          "why": "ten cards: size, position and the settled transform, compared to the orbit box; the three start variables are written by the splash's last frame, so their value depends on the frame it caught (formula: Lean HeroOrbit.place and its golden vectors)"
+        },
+        {
+          "role": "cover",
+          "orig": ".hero-track .orbit .orbit-card .profile-cover",
+          "rewrite": "[data-fw=\"hero-orbit\"] [class*=\"card-module_cover_\"]",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "cover box inside each card"
+        },
+        {
+          "role": "avatar",
+          "orig": ".hero-track .orbit .orbit-card .avatar",
+          "rewrite": "[data-fw=\"hero-orbit\"] [class*=\"card-module_avatar_\"]",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "avatar circle (cqw units)"
+        }
+      ]
+    },
+    "hero.deck": {
+      "anchors": ["hero-deck"],
+      "cites": ["snapshot 2.gBuqKVzi.css:1962-1964 (.mobile-deck)", "2053-2127 (the <=600 block)"],
+      "excluded": [
+        {
+          "what": "card pictures, names and roles",
+          "why": "placeholders"
+        }
+      ],
+      "roles": [
+        {
+          "role": "deck",
+          "orig": ".hero-track .hero > .mobile-deck",
+          "rewrite": "[data-fw=\"hero-deck\"]",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "absolute inset box in the stage (display none above 600)"
+        },
+        {
+          "role": "card",
+          "orig": ".hero-track .mobile-deck .orbit-card",
+          "rewrite": "[data-fw=\"hero-deck\"] article",
+          "boxRel": {
+            "role": "deck",
+            "index": 0
+          },
+          "dims": ["x", "y", "w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "four cards: fixed size, top and side offsets, rest rotation"
+        }
+      ]
+    },
+    "hero.accent": {
+      "anchors": ["hero-accent"],
+      "cites": ["snapshot 2.gBuqKVzi.css:1221-1400 (.script-accent and its parts)", "nodes/2.DyWL8TcE.js:3672-3716 (the timer chain)"],
+      "excluded": [
+        {
+          "what": "stroke paths, the word cycle and the idle boil",
+          "why": "the strokes are stand-ins; timing is the Lean HeroAccent chain and the golden vectors, and the gate loads once, so the word on screen depends on capture time"
+        }
+      ],
+      "roles": [
+        {
+          "role": "accent",
+          "orig": ".hero-track h1 em.script-accent",
+          "rewrite": "[data-fw=\"hero-accent\"]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": ["transition", "transition-property", "transition-duration", "transition-timing-function", "transition-delay", "width", "height", "aria-label"],
+          "why": "the box follows the current word (106/64 em for the base word; the chain changes it from 3.1 s) and its transition depends on the phase; only static properties are compared"
+        }
+      ]
+    },
+    "hero.cue": {
+      "anchors": ["hero-cue"],
+      "cites": ["snapshot 2.gBuqKVzi.css:1905-1990 (.scroll-cue, .scroll-float, .scroll-label)", "2056-2060 (<=600)", "2128-2160 (reduced motion)"],
+      "excluded": [
+        {
+          "what": "the click handler's smooth scroll",
+          "why": "behaviour on click, not a box or a style"
+        }
+      ],
+      "roles": [
+        {
+          "role": "cue",
+          "orig": ".hero-track .hero > button.scroll-cue",
+          "rewrite": "[data-fw=\"hero-cue\"]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": ["transform", "top", "bottom", "right"],
+          "why": "content-sized (placeholder label): translate(-50%) is a fraction of its own width, and the auto side of top/bottom/right is a used value from its own size"
+        },
+        {
+          "role": "float",
+          "orig": ".hero-track .scroll-cue > .scroll-float",
+          "rewrite": "[data-fw=\"hero-cue\"] > span",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "content-sized wrapper"
+        },
+        {
+          "role": "icon",
+          "orig": ".hero-track .scroll-cue svg",
+          "rewrite": "[data-fw=\"hero-cue\"] svg",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "fixed 20 x 28 chevrons"
         }
       ]
     }

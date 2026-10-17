@@ -11,8 +11,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
-import { HeroCountdown } from './parts/hero.countdown';
-import { HeroExit } from './parts/hero.exit';
+import { Hero } from './parts/hero';
 import { EngineScroll } from './parts/engine.scroll';
 import { MorphTween } from './parts/morph.tween';
 import { NavHitTest } from './parts/nav.hitTest';
@@ -57,8 +56,7 @@ export function App({ config }: { config: FwConfig }) {
       </AppBar>
 
       <main>
-        <HeroCountdown variant={config.variants['hero.countdown'] ?? 'faithful'} />
-        <HeroExit variant={config.variants['hero.exit'] ?? 'faithful'} />
+        <Hero variants={config.variants} />
 
         <People variant={config.variants['people'] ?? 'shell'} />
         <Pain variant={config.variants['pain'] ?? 'shell'} />

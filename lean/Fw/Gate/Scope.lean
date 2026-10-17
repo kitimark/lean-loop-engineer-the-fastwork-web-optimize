@@ -327,12 +327,9 @@ def pilotParts : List PartUse := [
     rewrite := ["mq.rm-reduce", "mq.w-le-400", "mq.c1000-nodw"], extra := [], knees := [],
     dismissed := [
       ("js.countdown-cell", "measures the cell height that the key's conditions set (font at 400 / 1000-or-touch-1200)")] },
-  { id := "hero.exit", owners := ["hero.exit", "hero", "hero.cue"],
-    orig := ["mq.rm-reduce", "mq.w-le-600", "mq.w-gt-600"], rewrite := ["mq.rm-reduce", "mq.w-le-600", "mq.w-gt-600"],
-    extra := [],
-    knees := [⟨"hero h1 font clamp 40px / 4.5vw / 64px", 889⟩, ⟨"hero h1 font clamp 40px / 4.5vw / 64px", 1422⟩,
-              ⟨"hero title gap clamp 14 / 1.6vw / 24", 875⟩, ⟨"hero title gap clamp 14 / 1.6vw / 24", 1500⟩],
-    dismissed := [("css.hover-ungated", "plain :hover rules; the gate never hovers an element")] },
+  { id := "hero.exit", owners := ["hero.exit"],
+    orig := ["mq.rm-reduce", "mq.w-le-600"], rewrite := ["mq.rm-reduce", "mq.w-le-600"],
+    extra := [], knees := [], dismissed := [] },
   { id := "morph.mount", owners := ["morph.mount"], orig := [], rewrite := [], extra := [], knees := [],
     dismissed := [
       ("js.morph-arm", "platform rect against the visual viewport height at a scroll position, not a width edge; the part restates no CSS and the gate loads at the top")] },
@@ -342,7 +339,31 @@ def pilotParts : List PartUse := [
   { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"], rewrite := ["mq.rm-reduce"],
     extra := [], knees := [],
     dismissed := [
-      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] }
+      ("js.morph-arm", "platform rect height and bottom against the visual viewport at a scroll position, armed by wheel and touch: not a media condition and no edge; the rewrite page has no platform section and the gate loads at the top")] },
+  { id := "hero", owners := ["hero"],
+    orig := ["mq.rm-reduce", "mq.w-le-600"], rewrite := ["mq.w-le-600", "mq.rm-reduce"],
+    extra := [],
+    knees := [⟨"hero h1 font clamp 40px / 4.5vw / 64px", 889⟩, ⟨"hero h1 font clamp 40px / 4.5vw / 64px", 1422⟩,
+              ⟨"hero title gap clamp 14 / 1.6vw / 24", 875⟩, ⟨"hero title gap clamp 14 / 1.6vw / 24", 1500⟩],
+    dismissed := [("css.hover-ungated", "plain :hover rules; the gate never hovers an element")] },
+  { id := "hero.cue", owners := ["hero.cue"],
+    orig := ["mq.rm-reduce", "mq.w-le-600", "mq.w-gt-600"], rewrite := ["mq.w-gt-600", "mq.w-le-600", "mq.rm-reduce"],
+    extra := [], knees := [], dismissed := [] },
+  { id := "hero.orbit", owners := ["hero.orbit"],
+    orig := ["mq.rm-reduce", "mq.w-le-600", "mq.w-601-1279", "mq.w-601-1511"],
+    rewrite := ["mq.rm-reduce", "mq.w-le-600", "mq.w-601-1279", "mq.w-601-1511"],
+    extra := [],
+    knees := [⟨"orbit edge push max(0, (1280 - 100vw) x 0.35)", 1280⟩],
+    dismissed := [
+      ("js.hero-splash-stage-1280", "the same 1280 edge as the CSS band (mq.w-601-1279) but only while the 1.8 s splash runs; the gate compares the settled state")] },
+  { id := "hero.deck", owners := ["hero.deck", "hero.orbit"],
+    orig := ["mq.rm-reduce", "mq.w-le-600", "mq.w-601-1279", "mq.w-601-1511"], rewrite := ["mq.w-le-600", "mq.rm-reduce"],
+    extra := [],
+    knees := [⟨"orbit edge push max(0, (1280 - 100vw) x 0.35)", 1280⟩],
+    dismissed := [
+      ("js.hero-splash-stage-1280", "the ring's splash only; the deck has no script, and the cards it shares with the ring (card.module.css) are read in the settled state")] },
+  { id := "hero.accent", owners := ["hero.accent"], orig := ["mq.rm-reduce", "mq.w-le-600"], rewrite := ["mq.rm-reduce"],
+    extra := [], knees := [], dismissed := [] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.
