@@ -44,6 +44,24 @@ describe("the choice of checks equals the Lean decision", () => {
   });
 });
 
+/** The old `checksFor` (before checksfor-inputs), kept as a fixture. */
+function oldChecksFor(r: string, changed: string[]): string[][] {
+  const out: string[][] = [];
+  if (changed.some((f) => f === "pnpm-lock.yaml" || /(^|\/)package\.json$/.test(f))) out.push(["pnpm", "install", "--frozen-lockfile"]);
+  if (changed.some((f) => f.startsWith("lean/"))) out.push(["sh", "lean/scripts/check.sh"]);
+  const pkgs = new Set<string>();
+  for (const f of changed) { const m = /^(apps|packages)\/([^/]+)\//.exec(f); if (m) pkgs.add(`${m[1]}/${m[2]}`); }
+  for (const p of [...pkgs].sort()) {
+    try { if (JSON.parse(readFileSync(join(r, p, "package.json"), "utf8")).scripts?.test) out.push(["pnpm", "--filter", `./${p}`, "test"]); } catch { /* none */ }
+  }
+  return out;
+}
+/** old checks the new selection lacks, for one changed-path set */
+const superset = (changed: string[]) => {
+  const n = new Set(checksFor(root, changed).map((a) => a.join(" ")));
+  return oldChecksFor(root, changed).map((a) => a.join(" ")).filter((k) => !n.has(k));
+};
+
 // ---- the static scan -------------------------------------------------------------------------------------------------
 
 const walk = (d: string, exts: RegExp): string[] =>
@@ -101,9 +119,24 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
     // measure-wktr runs the binary through measure-chromium/src/fwcore.mjs (a declared extra read), not by itself
     expect([...users, "packages/measure-wktr"].sort()).toEqual([...FWCORE_USERS].sort());
     for (const c of candidateChecks(root, true)) expect(inScope(c.reads, "lean/.lake/build/bin/fwcore"), c.id).toBe(FWCORE_USERS.includes(c.id) || c.id === "check.sh");
-    // default: a Lean change selects only check.sh (as before this task)
-    expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id)).toEqual(["check.sh"]);
-    expect(checksWithReads(root, ["lean/Fw/A.lean"]).length).toBeLessThan(checksWithReads(root, ["lean/Fw/A.lean"], true).length);
+    // a Lean change selects check.sh and every fwcore user
+    expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id).sort()).toEqual(["check.sh", ...FWCORE_USERS].sort());
+  });
+
+  it("new selection is a superset of the old one: every tracked path alone, and the last 30 land diffs", () => {
+    const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
+    expect(tracked.length).toBeGreaterThan(100);
+    const missing = tracked.map((f) => ({ f, m: superset([f]) })).filter((x) => x.m.length > 0);
+    expect(missing).toEqual([]);
+    const git = (...a: string[]) => execFileSync("git", a, { cwd: root, encoding: "utf8" }).trim();
+    let ref = "main";
+    try { git("rev-parse", "--verify", "main"); } catch { ref = "HEAD"; }
+    const lands = git("log", ref, "--first-parent", "--merges", "-30", "--format=%H").split("\n").filter(Boolean);
+    expect(lands.length).toBeGreaterThan(0);
+    for (const h of lands) {
+      const changed = git("diff", "--name-only", `${h}^1`, h).split("\n").filter(Boolean);
+      expect(superset(changed), h.slice(0, 7)).toEqual([]);
+    }
   });
   it("every PACKAGE_EXTRA_READS entry is exercised: it matches a tracked file or is a deliberate directory", () => {
     const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);

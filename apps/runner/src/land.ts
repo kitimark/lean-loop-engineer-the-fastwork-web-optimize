@@ -154,10 +154,10 @@ function workspaceDeps(root: string, pkg: any): string[] {
 /** Every check that can run in `root`, with its declared reads, in the order they run: install, the Lean gates, then the
  *  packages that have a `test` script (sorted). Which of them a change selects is `selectChecks` (Lean `landSpeed.select`). */
 /** Packages whose tests run the `fwcore` binary (built from lean/**): a Lean change can change their verdict. Found by the scan
- *  in test/land-inputs.test.ts. Left out of the declared reads while `LEAN_BINARY_READS` is false, so a land selects what it selected
- *  before (only check.sh for a Lean change); set it true to declare the dependency (a Lean change then selects all of them). */
+ *  in test/land-inputs.test.ts. Declared as `lean/**` (it holds the toolchain files) while `LEAN_BINARY_READS` is true
+ *  (lead decision: cache_sound needs every real read declared), so a Lean change selects all of them. */
 export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
-export const LEAN_BINARY_READS = false;
+export const LEAN_BINARY_READS = true;
 
 export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): Check[] {
   const out: Check[] = [

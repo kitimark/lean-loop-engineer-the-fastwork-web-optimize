@@ -6,10 +6,12 @@
 
 **Declared inputs.** install: `pnpm-lock.yaml`, `**/package.json`. check.sh: `lean/**`, `packages/contracts/golden/**`, `apps/site/src/{breakpoints,sweeps}.gen.json`, `scripts/span.sh` (equal to Lean `checkShReads`; the test compares it with the golden). Package test `p`: `p/**`, its `workspace:` deps, and `PACKAGE_EXTRA_READS[p]` (files its tests read, found by the scan).
 
-**Behaviour change (small).** Selection now follows the declared globs: a change to a golden, a generated site file, or a file another package's tests read (for example `apps/console-api/**` selects the runner tests) now selects those checks. Before, only `lean/` selected check.sh and only the package's own directory selected its tests.
+**Superset proof.** `land-inputs.test.ts` keeps the old `checksFor` as a fixture and asserts new selection contains old for every tracked path alone and the diffs of the last 30 land commits on main (holds; no gap).
+
+**Behaviour change.** Selection now follows the declared globs: a change to a golden, a generated site file, or a file another package's tests read (for example `apps/console-api/**` selects the runner tests) now selects those checks. Before, only `lean/` selected check.sh and only the package's own directory selected its tests.
 
 **Findings (undeclared reads).**
-- 8 packages run the `fwcore` binary, built from `lean/**` (`FWCORE_USERS`). Declaring it makes every Lean change select all 8 suites, so `LEAN_BINARY_READS` is `false`. Lead decides; the premise stays open until then (`land.readsOnly` is false for them).
+- 8 packages run the `fwcore` binary, built from `lean/**` (`FWCORE_USERS`). Lead decision: `LEAN_BINARY_READS = true`, so they declare `lean/**` and every Lean change selects all 8 suites plus check.sh.
 - `lean/Fw/Plan/Golden.lean:343` reads `docs/team/work-graph.json`, but only in `--write-plan-golden` mode, which check.sh never passes (allowlisted with the reason in the test).
 - The scan is static. Not seen: paths built at run time, `git` calls (span.sh records HEAD into timings only, which never decides a verdict), network, environment variables.
 
