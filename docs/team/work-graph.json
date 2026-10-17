@@ -2432,7 +2432,9 @@
     "fix-nav",
     "fix-commission",
     "fix-misc",
-    "fix-people-webkit"
+    "fix-people-webkit",
+    "gate-settle",
+    "fix-stagebg-webkit"
    ],
    "owner": "part-builder",
    "writes": [
