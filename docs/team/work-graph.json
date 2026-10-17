@@ -416,7 +416,8 @@
    "writes": [
     "lean/Fw/Gate/**",
     "packages/gate-breakpoints/src/verdict.mjs"
-   ]
+   ],
+   "evidence": "0d02aff"
   },
   {
    "id": "ops-gate",
@@ -894,7 +895,8 @@
     "lean/Fw/Obs/**",
     "lean/Fw/Wire/Obs.lean",
     "packages/contracts/golden/obs/**"
-   ]
+   ],
+   "evidence": "0877f7a"
   },
   {
    "id": "watch-cli",
@@ -909,7 +911,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "0877f7a"
   },
   {
    "id": "watch-web",
@@ -956,7 +959,8 @@
    "writes": [
     "apps/runner/hooks/emit.mjs",
     "research/notes/2026/10-17-spk-drafts/spk-p.md"
-   ]
+   ],
+   "evidence": "618c1b6"
   },
   {
    "id": "alert-steps",
@@ -1003,7 +1007,8 @@
    "writes": [
     "apps/runner/src/land.ts",
     "apps/console-api/src/reconcile/**"
-   ]
+   ],
+   "evidence": "af618a6"
   },
   {
    "id": "webkit-table-regen",
@@ -1062,6 +1067,67 @@
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
+   ]
+  },
+  {
+   "id": "watch-fix",
+   "title": "fw watch review fixes: waiting state without agent_id, idle-by-design teammates and ended workflow agents not stalled, kind instead of depth, Agent waits not hangs, --until-alert baseline",
+   "stream": "team",
+   "milestone": null,
+   "deps": [
+    "watch-cli"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/watch*.ts",
+    "docs/team/tools/watch.md"
+   ]
+  },
+  {
+   "id": "spk-p-wake",
+   "title": "SPK-p part 2: wake test (does a background task's completion wake an idle agent), recorded in spk-p.md",
+   "stream": "parallel",
+   "milestone": null,
+   "deps": [
+    "spawn-guard-workflows"
+   ],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-17-spk-drafts/spk-p.md"
+   ]
+  },
+  {
+   "id": "plan-evidence-link",
+   "title": "Plan tab: evidence links to the public commit URL from GET /api/repo",
+   "stream": "console",
+   "milestone": null,
+   "deps": [
+    "fw-land-log"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/console-web/src/Plan.tsx"
+   ]
+  },
+  {
+   "id": "math-r7",
+   "title": "Math review round 7: every pending or stale row (Fw/Plan, Fw/Gate, Fw/Obs, Fw/Measure additions, Admit.Inv fix)",
+   "stream": "lean",
+   "milestone": "M0",
+   "deps": [
+    "math-r6",
+    "verdict-to-lean",
+    "watch-lean",
+    "lean-plan",
+    "measure-ts-to-lean"
+   ],
+   "owner": "math-reviewer",
+   "writes": [
+    "research/notes/2026/10-17-math-review-r7.md"
    ]
   }
  ]

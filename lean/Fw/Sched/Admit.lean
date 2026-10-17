@@ -559,7 +559,7 @@ inductive Reachable (B : Vec) : State → Prop where
 `next`, running items started no later than now, unrelated running items have no write conflict
 and share no device, running items are ready, and the budget holds.
 
-$$\mathrm{Inv}(B, \sigma) \iff \begin{aligned}[t] & [\, \mathit{id}(x) \mid x \in \mathit{Run} \mathbin{+\!\!+} Q \,] \text{ and } [\, \mathit{seq}(x) \mid x \in \mathit{Run} \mathbin{+\!\!+} Q \,] \text{ have no repeats},\ \\forall x \in \mathit{Run} \mathbin{+\!\!+} Q:\ \mathit{seq}(x) < \mathit{next},\ \ \forall x \in \mathit{Run}:\ \mathit{start}(x) \le t \land \mathrm{ready}(\sigma, x), \\ & \forall x, y \in \mathit{Run},\ \mathit{id}(x) \ne \mathit{id}(y),\ \lnot(x \sim y):\ \lnot(x \bowtie y) \land V(x) \cap V(y) = \emptyset,\ \ \forall r \in \mathcal R:\ \textstyle\sum_{x \in \mathit{Run}} d(x)(r) \le B(r) \end{aligned}$$
+$$\mathrm{Inv}(B, \sigma) \iff \begin{aligned}[t] & [\, \mathit{id}(x) \mid x \in \mathit{Run} \mathbin{+\!\!+} Q \,] \text{ and } [\, \mathit{seq}(x) \mid x \in \mathit{Run} \mathbin{+\!\!+} Q \,] \text{ have no repeats},\ \forall x \in \mathit{Run} \mathbin{+\!\!+} Q:\ \mathit{seq}(x) < \mathit{next},\ \ \forall x \in \mathit{Run}:\ \mathit{start}(x) \le t \land \mathrm{ready}(\sigma, x), \\ & \forall x, y \in \mathit{Run},\ \mathit{id}(x) \ne \mathit{id}(y),\ \lnot(x \sim y):\ \lnot(x \bowtie y) \land V(x) \cap V(y) = \emptyset,\ \ \forall r \in \mathcal R:\ \textstyle\sum_{x \in \mathit{Run}} d(x)(r) \le B(r) \end{aligned}$$
 -/
 structure Inv (B : Vec) (σ : State) : Prop where
   ids     : ((σ.run ++ σ.queue).map Item.id).Nodup
