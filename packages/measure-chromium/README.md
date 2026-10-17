@@ -152,6 +152,7 @@ Env knobs: `FW_BARRIER_MS`, `FW_BARRIER_MIN_MS` (conditional barrier), `FW_TOUCH
   V-n criterion "0 main-thread UpdateLayoutTree" does NOT hold; "0 Paint, 0 Layout, 0 commit/activate" does.
 - **Touch (`swipe-touch-v1`, CDP `Input.dispatchTouchEvent`, virtual-time stamps, 10 px per frame, strokes 880 -> 100):** works, no fling,
   scroll 10 px per frame after a 5 px slop. MEASURED: (1) a touch ack arrives only after the next BeginFrame, sometimes one frame later;
+  (SUPERSEDED for the cause and the fix of (2) and (3): see "touch wedge: cause and fix" at the end of this file.)
   (2) a frame without input while the finger is down in an active scroll, or a backlog of 2 unacknowledged events, wedges the renderer
   compositor (no deadline or draw after commit, BeginFrame never answers; the driver exits 75 and the host retries up to 5 times);
   (3) where it wedges depends on host speed: under load1 ~400 the original ran 3/3 to the end, at load1 ~8 it wedged at the same frame in
@@ -185,3 +186,86 @@ Env knobs: `FW_BARRIER_MS`, `FW_BARRIER_MIN_MS` (conditional barrier), `FW_TOUCH
   nav.hitTest:hit-skip W dominates (Paint 556 vs 1152, UpdateLayoutTree 94 vs 784), S equal; hero.countdown:strip W equal, S mixed
   (FunctionCall 730 vs 911, FireAnimationFrame 385 vs 566). `ticks` with the nominal 16.67 ms frame (this lane has no durations): 385
   ticks, 0 above 34/50 ms. Not judged here.
+
+## Update 2026-10-17 (touch wedge: cause and fix)
+
+**Cause (CONFIRMED by source and by a scheduler trace; steps 4-5 are INFERRED).** The touch wedge is the compositor's
+scroll-deadline mode waiting for a time that never comes. Source refs are @f842f52 (156.0.8078.4).
+
+1. `features::kWaitForLateScrollEvents` is on by default with mode `DispatchScrollEventsUntilDeadline` (cc/base/features.cc:82, :120-123).
+   `LayerTreeSettings::ToSchedulerSettings` turns it into `scroll_deadline_mode_enabled` (cc/trees/layer_tree_settings.cc:59-76).
+2. At every `WillBeginImplFrame`, `LayerTreeHostImpl` tells the scheduler "waiting for scroll event" when a scroll is active and the
+   compositor input queue is empty (cc/trees/layer_tree_host_impl.cc:3524-3528). The state machine then picks `WAIT_FOR_SCROLL`
+   (cc/scheduler/scheduler_state_machine.cc:1337-1341, :1357-1372) and `ShouldSendBeginMainFrame` returns false (:616).
+3. The wait ends at `frame_time + interval * 0.333` (cc/scheduler/scheduler.cc:861-864), a precise timer on the real clock. Here
+   `frame_time` is virtual (`T0 + vt`, `T0` = 5,000,000 ms), about 4,900 s ahead of the container's monotonic clock (viz logs
+   `Frame latency is negative: -4.93e6 ms` on every frame), so the timer never fires. Only an input event ends the wait
+   (layer_tree_host_impl.cc:4645).
+4. INFERRED: a touchmove with a main-thread handler is acknowledged by a main frame (rAF-aligned) and the scroll update follows the
+   ack, so a frame that starts with a scroll active and an empty compositor queue (previous touchmove waiting for the main thread, or
+   a frame without input) waits for a scroll event while the main frame that would deliver it is held back: a deadlock. This is the
+   "backlog of 2 unacknowledged events" and "frame without input in an active touch scroll" of the older notes. Whether the input is
+   already queued when the frame starts is a race with real time, hence the dependence on host speed.
+5. MEASURED proof: `FW_DEBUG=1 FW_EXTRA_CATEGORIES=disabled-by-default-cc.debug.scheduler,cc` on a wedging run: the only
+   `Scheduler::ScheduleBeginImplFrameDeadline` of mode `WAIT_FOR_SCROLL` has `new deadline = 5028738882` us while the trace clock is at
+   ~115,400,000 us; the other 929 are `IMMEDIATE` (`new deadline = 0`). Ending the trace let the frame go on, so that run did not hang.
+
+**Fix.** `--disable-features=WaitForLateScrollEvents` in `CHROME_ARGS` (so in `meta.browserArgs`). It removes only a real-time wait for
+late scroll events, which means nothing on a virtual clock. A smaller `T0` is not a fix: frame times must stay monotonic and in the
+past for the whole load and profile, and the container clock restarts at 0 for every container.
+
+**Measured (original, `swipe-touch-v1`; host load1 from 165 down to 6 while other agents ran).**
+
+| arm | runs | wedged runs | host attempts |
+|---|---|---|---|
+| flag off (control) | 1 (plus 1 debug) | 1 of 1 (all 5 attempts, always at vt 28733.33 = frame 556, 2 unacked) | 5 |
+| flag on, touch settle 50 ms (default) | 11 | 0 | 1 each |
+| flag on, touch settle 300 ms | 10 | 1 (vt 26516.67, 1 unacked; no trace taken; the next attempt passed) | 1 each, one 2 |
+
+So the dominant wedge is gone (0/11 at the default settle, down from 5/5 attempts), and one wedge in 21 flag-on runs remains with a
+cause I did not find (settle 300 only; a candidate is another deadline mode with a future deadline, `LATE`/`REGULAR` under
+`IsDrawThrottled`, scheduler.cc:830-852, not checked). The host's 5-attempt retry makes it irrelevant for completion
+(chance of 5 in a row is negligible), and `FW_DEBUG=1` hang traces will show it if it recurs.
+
+**Determinism of the completed runs.** Completion: 21/21 flag-on runs reached the end. Trajectory (`meta.trajectorySha256`): runs g4-g8
+(load1 165 -> 6, then 8) have the same trajectory, 521 frames, 470 touch events; g1-g3 at higher load have 531 frames with three
+different trajectories (a one-stroke difference, the "1 in 6 shift" of the older notes). Within g4-g8 `meta` and phase/scrollY are equal
+per frame; counts files are NOT byte-identical: `class table` over g4-g8 = 10 deterministic types (census.snapshots, hasDamage,
+Commit, Layerize, ScrollLayer, cc.Draw, EvaluateScript, ParseHTML, ...), 20 stable, 21 shifting (PrePaint, FunctionCall, census/raster
+types), 11 quarantined (EventDispatch, HitTest, GC, ...). The shifting/quarantined set is the same family as before: the main thread
+takes a touchmove in frame k or k+1, and image/decode completions land by real time. That race is NOT fixed by this change. Byte-for-
+byte identity of counts files is not reached on the original under touch; the deterministic and stable classes are the usable part.
+
+**Fallback if the flag ever regresses:** `swipe-v1` (programmatic `scrollTo`) needs no input events and is fully deterministic on the
+rewrite; it loses the browser's touch scroll path (gesture detector, touch-handler dispatch, scroll-update batching), so
+`engine.scroll`-type variants would be measured without the input pipeline. Not needed now.
+
+## Update 2026-10-17 (touch-ci-verify and class-freeze: CI runs, frozen class table)
+
+All numbers MEASURED on GitHub Actions (ubuntu-24.04-arm), original target, harness commit 429e22a, one image for every run
+(`sha256:ebefaf34...d491`, built by run 39038861283, reused by the other five through the `image_run` workflow input).
+
+| profile | workflow runs (3 jobs each, separate VMs) | wedges / attempts | completion | classes (det / stable / quarantined) per run |
+|---|---|---|---|---|
+| swipe-v1 | 39038861283, 39038967198, 39038970307 | 0 / 1 attempt in 9 of 9 jobs | 9/9 | 28/25/9, 27/26/9, 30/25/7 |
+| swipe-touch-v1 | 39038973297, 39038976656, 39038979125 | 0 / 1 attempt in 9 of 9 jobs | 9/9 | 17/31/14, 18/25/19, 18/33/11 |
+
+- Touch fix confirmed on CI: `--disable-features=WaitForLateScrollEvents` gives 0 wedges in 9 touch jobs (the control wedged 5 of 5
+  attempts locally). Attempts come from `attempts=N` in each job log (host.json is not uploaded).
+- Touch is not trajectory-deterministic on CI: 531 frames and 480 touch events in all 9 jobs, but two `trajectorySha256` values
+  (005bd6dc, 5278f464) that differ in one frame (469: scrollY 4337 vs 4327, the touchmove k/k+1 race). This is why touch has more
+  quarantined types than swipe-v1 (EventDispatch, FunctionCall, HitTest, PrePaint, UpdateLayoutTree.elementCount, ...).
+- Rewrite with touch: NOT run. The workflow has no site build step (apps/site/dist/aot is built by `pnpm --filter @fw/site build`, and
+  host.mjs gets no `--target`), so the lane cannot reach the rewrite yet. A `target` input plus a build job is the missing piece.
+- Frozen table: `classes.frozen.json` (swipe-v1 and swipe-touch-v1). Rule: worst class per type over the 3 workflow runs of a profile,
+  policy kMax 4, tMax 24, pixel rule for `*AreaPx` types (tBound = max(tMax, floor(min|total| / 1000))). Result (signed class):
+  swipe-v1 27 deterministic / 25 stable / 10 quarantined; swipe-touch-v1 16 / 27 / 19. The pooled class over all 9 files is stricter
+  (swipe-v1 27/23/12, touch 16/25/21) and is stored as `pooledClass` for reference only.
+- How it was made (no TS logic): per workflow run, `src/classify.mjs` (fwcore `measure.classify`, identical to the run's own
+  `chromium-classes` artifact, checked for all 6); then fwcore `measure.summarize` over rows {family: profile, metric: type,
+  level: "run <id>", cls} gives the worst. Only JSON was moved by a scratch script; a `src/freeze.mjs` that does this is an open item.
+- Workflow: new dispatch input `image_run` (reuse the `chromium-image` artifact of an earlier run); the classes artifact now also holds
+  `image-ids.txt`, `image-inputs.txt` (sha256 of Dockerfile, apt manifest, npm lock) and `run.txt`. Dispatches on one ref cancel each
+  other (concurrency), so the five dispatches ran from five `ci/chromium-ci-*` branches at the same commit.
+- Reproduce: `gh workflow run chromium-counts.yml --ref ci/<branch> -f profile=swipe-touch-v1 -f runs=3 -f image_run=39038861283`
+  (the image artifact lives 3 days; after that rebuild and re-freeze).

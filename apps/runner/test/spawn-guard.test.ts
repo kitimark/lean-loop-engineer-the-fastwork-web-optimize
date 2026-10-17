@@ -52,3 +52,24 @@ describe("spawn guard (shadow)", () => {
     expect(() => readdirSync(join(d, "spool"))).toThrow();
   });
 });
+
+describe("spawn guard: expected vs given kind is logged", () => {
+  it("a kindMismatch record says why (want/got from the Lean ops.spawn reply)", async () => {
+    const { kinds } = await import("../hooks/spawn-guard.mjs");
+    const kindsOf = (input: object) => { const q = request(call(input) as never, 1); return kinds(q.req, ask(bin, q)); };
+    expect(kindsOf({ subagent_type: "lean-prover", name: "lp" })).toMatchObject({ role: "lean-prover", want_kind: "worktree", got_kind: "teammate", has_name: true, isolation: false });
+    expect(kindsOf({ subagent_type: "scout", isolation: "worktree" })).toMatchObject({ want_kind: "subagent", got_kind: "worktree" });
+    expect(kindsOf({ subagent_type: "nope", name: "x" })).toMatchObject({ want_kind: null, got_kind: "teammate" });
+  });
+  it("fwcore unavailable: kinds are null, the request is still described", async () => {
+    const { kinds } = await import("../hooks/spawn-guard.mjs");
+    expect(kinds(request(call({ subagent_type: "lean-prover", name: "lp" }) as never, 1).req, null)).toEqual(
+      { role: "lean-prover", want_kind: null, got_kind: null, has_name: true, isolation: false, depth: 0 });
+  });
+  it("the spool record of a kindMismatch carries want/got", () => {
+    const d = mkdtempSync(join(tmpdir(), "fw-sg-"));
+    spawnSync("node", [script], { input: JSON.stringify(call({ subagent_type: "lean-prover", name: "lp" })), env: { ...process.env, FW_CONSOLE_DIR: d, FW_CORE_BIN: bin }, encoding: "utf8" });
+    const [f] = readdirSync(join(d, "spool"));
+    expect(JSON.parse(readFileSync(join(d, "spool", f!), "utf8"))).toMatchObject({ want_kind: "worktree", got_kind: "teammate" });
+  });
+});

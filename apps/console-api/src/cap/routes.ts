@@ -18,6 +18,17 @@ export function mountAgentRoutes(app: Hono, store: Store): { drain: Drain; caps:
     if (!req.success) return c.json({ ok: false, reason: "expected {argv: string[], command}" }, 400);
     const s = await caps.consume(req.data.argv);
     if (!s) return c.json({ ok: false, reason: "no valid, unused capability for this command" }, 403);
+    // one capability covers one `fw` invocation; `fw plan sync` sends its commands as one array (each stamped alike)
+    if (Array.isArray(req.data.command)) {
+      const replies = [];
+      for (const raw of req.data.command) {
+        const p = stamp(raw, s);
+        if (!p.success) { replies.push({ ok: false, reason: p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") }); continue; }
+        replies.push(await store.submit(p.data));
+      }
+      const all = replies.every((r) => r.ok);
+      return c.json({ ok: all, replies }, all ? 200 : 422);
+    }
     const parsed = stamp(req.data.command, s);
     if (!parsed.success) {
       return c.json({ ok: false, reason: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") }, 400);
@@ -27,6 +38,6 @@ export function mountAgentRoutes(app: Hono, store: Store): { drain: Drain; caps:
   });
 
   app.post("/api/spool/drain", async (c) => c.json(await drain.run()));
-  app.get("/api/obs/summary", (c) => c.json(drain.summary()));
+  app.get("/api/obs/summary", async (c) => c.json(await drain.summary()));
   return { drain, caps };
 }

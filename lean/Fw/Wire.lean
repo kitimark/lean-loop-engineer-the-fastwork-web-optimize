@@ -11,6 +11,11 @@ import Fw.Board
 import Fw.Site.BreakpointGen
 import Fw.Measure.Wire
 import Fw.Ops.Wire
+import Fw.Wire.Sched
+import Fw.Wire.Gate
+import Fw.Wire.Obs
+import Fw.Wire.Console
+import Fw.Wire.Store
 /-!
 # JSON-lines protocol (the only boundary the TypeScript shell sees)
 
@@ -436,6 +441,11 @@ def renderError (id : Json) (e : String) : String := render id [("error", .str e
 def ops : List String :=
   ["console.apply", "console.board", "verdict", "multiplicity", "ticks", "screen", "cost",
    "flags.resolve", "lease.step", "breakpoints.gen", "samples"] ++ Fw.Wire.Measure.ops ++ Fw.Wire.Ops.ops
+  ++ Fw.Wire.Sched.ops
+  ++ Fw.Wire.Gate.ops
+  ++ Fw.Wire.Obs.ops -- watch-lean: obs.health
+  ++ Fw.Wire.Console.ops -- lean-console-gaps: console.landReadiness, console.actor, plan.trailers
+  ++ Fw.Wire.Store.ops -- store-and-run: store.plan, store.manifest, store.objectPath, store.reduce
   ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
@@ -456,6 +466,21 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.Ops.handle other req with  -- lean-ops
+    | some r => r
+    | none =>
+    match Fw.Wire.Sched.handle other req with  -- lean-wire-sched: ops.admit, metrics.*
+    | some r => r
+    | none =>
+    match Fw.Wire.Gate.handle other req with  -- verdict-to-lean: gate.*
+    | some r => r
+    | none =>
+    match Fw.Wire.Obs.handle other req with  -- watch-lean: obs.health
+    | some r => r
+    | none =>
+    match Fw.Wire.Console.handle other req with  -- lean-console-gaps
+    | some r => r
+    | none =>
+    match Fw.Wire.Store.handle other req with  -- store-and-run
     | some r => r
     | none => throw s!"unknown op {other}"
 

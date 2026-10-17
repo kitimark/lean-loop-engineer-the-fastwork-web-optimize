@@ -10,14 +10,20 @@ import { CapRecord, Command, type Actor } from "@fw/contracts";
 export const CAP_TTL_MS = 10 * 60_000;
 
 export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
-/** Same formula as hooks/lib.mjs capMac (a test pins the two together). */
-export const capMac = (secret: string, agentType: string, toolUseId: string, cmdHash: string) =>
-  createHmac("sha256", secret).update(`${agentType}\0${toolUseId}\0${cmdHash}`).digest("hex");
+/** Same formula as hooks/lib.mjs capMac (a test pins the two together). agent_id is bound: it decides the lead. */
+export const capMac = (secret: string, agentId: string | null, agentType: string, toolUseId: string, cmdHash: string) =>
+  createHmac("sha256", secret).update(`${agentId ?? ""}\0${agentType}\0${toolUseId}\0${cmdHash}`).digest("hex");
 
-/** Identity of the capability holder -> actor. Never `user`, `script` or `git`: the socket cannot produce them. */
-export function actorFor(agentType: string): Actor {
-  if (agentType === "main") return "lead";
-  return /review/i.test(agentType) ? "reviewer" : "owner";
+/** Identity of the capability holder -> actor, or null (unknown identity: refuse). MIRROR of Lean `ops.actor`
+ *  (`Fw.Ops.Identity.capActor`), checked case by case against packages/contracts/golden/ops/ops.actor.jsonl
+ *  (cap.test.ts). The lead is the record with NO agent_id (its agent_type is ignored); an agent_id needs a non-empty
+ *  agent_type (a forked internal agent has ""), and then the actor is `reviewer` when the type contains "review"
+ *  (ASCII case folded), else `owner`. Never `user`, `script`, `git` or `hook`: the socket cannot produce them.
+ *  A teammate's agent_type is its NAME, not its role (SPK-c); resolving it needs a roster (open). */
+export function actorFor(agentId: string | null | undefined, agentType: string | null | undefined): Actor | null {
+  if (agentId === null || agentId === undefined) return "lead";
+  if (agentId === "" || !agentType) return null;
+  return agentType.replace(/[A-Z]/g, (c) => c.toLowerCase()).includes("review") ? "reviewer" : "owner";
 }
 
 export type Stamp = { actor: Actor; signedBy: string; toolUseId: string };
@@ -63,12 +69,14 @@ export class CapStore {
       if (!p.success) continue;
       const c = p.data;
       if (used.has(c.tool_use_id) || c.cmd_hash !== want || now - c.ts > CAP_TTL_MS || c.ts - now > 60_000) continue;
-      const exp = Buffer.from(capMac(sec, c.agent_type, c.tool_use_id, c.cmd_hash), "hex");
+      const exp = Buffer.from(capMac(sec, c.agent_id, c.agent_type, c.tool_use_id, c.cmd_hash), "hex");
       const got = Buffer.from(c.mac, "hex");
       if (exp.length !== got.length || !timingSafeEqual(exp, got)) continue;
+      const actor = actorFor(c.agent_id, c.agent_type);
+      if (!actor) continue; // unknown identity: the hook never mints one; refuse, never fall back to the lead
       const fd = openSync(join(this.dir, "caps.used.jsonl"), "a");
       try { writeSync(fd, JSON.stringify({ tool_use_id: c.tool_use_id, ts: now }) + "\n"); fsyncSync(fd); } finally { closeSync(fd); }
-      return { actor: actorFor(c.agent_type), signedBy: c.agent_id ?? c.agent_type, toolUseId: c.tool_use_id };
+      return { actor, signedBy: c.agent_id ?? c.agent_type, toolUseId: c.tool_use_id };
     }
     return null;
   }

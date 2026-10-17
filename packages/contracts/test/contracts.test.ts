@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ApplyResponse, ApplyRequest, Command } from "../src/index.ts";
+import { ApplyResponse, ApplyRequest, LiveBoard, Command, Plan, ReducerEvent, ObsRecord } from "../src/index.ts";
 import { allJsonSchemas } from "../src/schemas.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -32,11 +32,44 @@ describe("golden fixtures", () => {
   });
 });
 
+describe("plan golden (lean-plan, packages/contracts/golden/plan)", () => {
+  type Reply = { board?: { plan: unknown } };
+  for (const f of ["serve.jsonl", "work-graph.jsonl"]) {
+    it(`${f}: every request command and board plan parses`, () => {
+      const lines = readFileSync(join(root, "golden/plan", f), "utf8").trim().split("\n").map((l) => JSON.parse(l)) as
+        { requests: { op: string; event?: unknown }[]; replies: Reply[] }[];
+      let boards = 0;
+      for (const c of lines) {
+        // an event Lean accepted must parse; one it refused may be refused by zod at the door as well (length limits)
+        c.requests.forEach((r, i) => {
+          if (r.op !== "console.apply") return;
+          const out = (c.replies[i] as { outcome?: { accepted: boolean } }).outcome;
+          if (out?.accepted) expect(ReducerEvent.safeParse(r.event).success, JSON.stringify(r.event)).toBe(true);
+        });
+        for (const r of c.replies) {
+          if (r.board) { expect(Plan.safeParse(r.board.plan).success).toBe(true); expect(LiveBoard.safeParse(r.board).success).toBe(true); boards++; }
+        }
+      }
+      expect(boards).toBeGreaterThan(0);
+    });
+  }
+});
+
 describe("json schema export", () => {
   it("committed schema/*.json equals the zod export (run `pnpm --filter @fw/contracts gen`)", () => {
     const files = readdirSync(join(root, "schema")).sort();
     const gen = allJsonSchemas();
     expect(files).toEqual(Object.keys(gen).map((n) => `${n}.schema.json`).sort());
     for (const [n, s] of Object.entries(gen)) expect(read(`schema/${n}.schema.json`)).toEqual(s);
+  });
+});
+
+describe("obs records (spool)", () => {
+  it("a SpawnGuard record with the spawn-guard-workflows fields parses (strict schema)", () => {
+    const rec = { agent_id: "a1", agent_type: "lean-prover", hook_event_name: "SpawnGuard", tool_name: "Agent", tool_use_id: "t1",
+      duration_ms: null, is_error: false, verb: "allow", agent_name: "watch-fix", seen_by: "subagent-start", role: "lean-prover",
+      want_kind: "subagent", got_kind: "subagent", isolation: true, depth: 1, has_name: true, ts: 1 };
+    expect(ObsRecord.safeParse(rec).success).toBe(true);
+    expect(ObsRecord.safeParse({ ...rec, surprise: 1 }).success).toBe(false); // still strict
   });
 });

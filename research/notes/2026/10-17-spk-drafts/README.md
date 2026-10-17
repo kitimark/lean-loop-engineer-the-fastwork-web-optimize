@@ -18,15 +18,15 @@ Drafts for the lead to sign (move to `research/decisions/`, change `status` to `
 |---|---|---|---|---|---|
 | [SPK-a](spk-a.md) | `ENABLE_TODO_TOOLS` from project env | **ANSWERED** (MEASURED) | env in process, tools present, `a0b9053` | negative control (optional) | lead |
 | [SPK-b](spk-b.md) | named + worktree subagent, messageable | **ANSWERED** (MEASURED) | 28 agents, 50 sends, 0 errors | spawn-guard negative case | console-builder |
-| [SPK-c](spk-c.md) | `agent_type` in teammate hooks | PARTIAL | docs: `agent_id` yes; no payload seen; `cap.mjs:47` defaults to `main` | real hook payload; hooks not installed | console-builder, lead |
+| [SPK-c](spk-c.md) | `agent_type` in teammate hooks | ANSWERED (review) | real payloads: every `agent_id` record has `agent_type`; teammates carry their name, not role; 225 of 249 SubagentStops are internal forks with `""` | fix: cap-actor-fix (empty type never maps to the lead) | lead |
 | [SPK-d](spk-d.md) | `Agent(model:*fable*)` wildcard | PARTIAL | docs: `*` works, omitted model never matches | one observed firing; lint | lead, console-builder |
 | [SPK-e](spk-e.md) | teammate transcript location | **ANSWERED** (MEASURED) | `<session>/subagents/agent-<id>.jsonl` + meta, 13 teammates | tailer; depth-2 link | lean-prover, console-builder |
-| [SPK-i](spk-i.md) | BeginFrameControl, snapshot fonts, byte-identical vectors | PARTIAL | works, fonts only from snapshot; 28 det / 14 stable / 8 quarantined | byte-identity of whole vector fails; V-i re-scope | lead, measure-engineer |
+| [SPK-i](spk-i.md) | BeginFrameControl, snapshot fonts, byte-identical vectors | **DECIDED**: not byte-identical; V-i = per-type classes (kMax 4, tMax 24) | CI run 39029423874: 33 det / 20 stable / 9 quarantined of 62; later runs of the same code 31/21/10, 27/25/10 | lead's signature; rule for stable types (PLAN V-i says deterministic only); class drift across CI runs | lead, measure-engineer |
 | [SPK-j](spk-j.md) | harness neutrality | PARTIAL | WebKit seek: 122 style records, independent of N | Chromium shim vs free-running | measure-engineer |
 | [SPK-k](spk-k.md) | Serena `lean4` `find_symbol` | **ANSWERED** (MEASURED, outside an agent) | works from the `lean/` project only | call from an agent after restart | lean-prover |
 | [SPK-l](spk-l.md) | lean-lsp-mcp tools and disable flag | PARTIAL | `--disable-tools`, 5 local names in 0.31.0 | `lean_hammer_premise` is remote and not disabled | env-ops, lead |
 | [SPK-o](spk-o.md) | worktree agent: gate, add, commit, zero refusals | PARTIAL | 138 of 1,652 Bash calls refused (8.4 %); plain add/commit work | `fw gate` missing; clean run | console-builder |
-| [SPK-p](spk-p.md) | lead address, wake, `SessionStart` compact | PARTIAL | `team-lead` 33/33; `compact` documented | wake test; hook not installed | console-builder |
+| [SPK-p](spk-p.md) | lead address, wake, `SessionStart` compact | 2 OF 3 (review) | `team-lead` 33/33; SessionStart before PostCompact 10/10 (lead only) | wake test: `emit.mjs` drops `background_tasks` (task spk-p-wake) | console-builder |
 | [SPK-q](spk-q.md) | N0/N1 read 0 on arm A | **OPEN** | grep expectation only | lanes record no N0/N1; needs SPK-h | measure-engineer |
 | [SPK-t](spk-t.md) | strict sandbox, socket, capability | PARTIAL: (f), (g) unit-tested; (a)-(e) not testable | `sandbox` block absent; cap tests, emit < 100 ms | whole sandbox run; separate-user fallback | lead, console-builder |
 

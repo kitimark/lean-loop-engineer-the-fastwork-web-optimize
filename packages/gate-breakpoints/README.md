@@ -14,7 +14,11 @@ node --test "test/*.test.mjs"                        # the pure rule and the dat
 ```
 
 Options of `run`: `--engine chromium|playwright-webkit|both`, `--concurrency N` (default 4), `--probes id-or-block,...`,
-`--sweeps id,...|none`. Env: `CHROME_PATH`, `FW_SNAPSHOT_SITE`, `FW_SITE_DIST`.
+`--sweeps id,...|none`, `--parts id,...` (pilot part ids of `src/anchors.json`: engine.scroll, nav.hitTest,
+hero.countdown, hero.exit; default all). `--parts` collects and judges only those parts; the run header and the summary
+then name the parts covered and skipped (a default run is byte-identical to before the flag). It does not cut loads:
+every probe applies to every part, so combine it with `--probes`/`--sweeps` to shorten a run. `summary --parts` narrows
+the verdict further, to parts the run collected. In CI: the `parts` input of `breakpoint-gate` (empty = all). Env: `CHROME_PATH`, `FW_SNAPSHOT_SITE`, `FW_SITE_DIST`.
 
 | File | Role |
 |---|---|

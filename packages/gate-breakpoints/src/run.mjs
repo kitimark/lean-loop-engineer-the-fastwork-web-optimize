@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { PIN_SRC, collectInPage, waitReady, waitResize } from './page.mjs';
 import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
-import { loadAnchors, loadGen, probeEnv, sweepDefs } from './spec.mjs';
+import { loadAnchors, loadGen, probeEnv, selectParts, sweepDefs } from './spec.mjs';
 
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const SITES = ['orig', 'rewrite'];
@@ -34,9 +34,13 @@ async function withRetry(label, fn, tries = 3) {
   throw last;
 }
 
-export async function runEngine({ engineName, outDir, concurrency = 4, probeFilter = null, sweepFilter = null }) {
+export async function runEngine({ engineName, outDir, concurrency = 4, probeFilter = null, sweepFilter = null, partFilter = null }) {
   const { gen, sha256: genSha } = loadGen();
   const anchors = loadAnchors();
+  // Part selection (glue): only the chosen parts' elements are collected, so only their raw facts and property lists are
+  // written. The header names the parts when some are skipped; a default run writes the same bytes as before the flag.
+  const sel = selectParts(Object.keys(anchors.parts), partFilter);
+  const activeParts = Object.fromEntries(sel.covered.map((pid) => [pid, anchors.parts[pid]]));
   const lock = JSON.parse(readFileSync(resolve(PKG, '../../snapshot.lock.json'), 'utf8'));
   const dist = siteDist();
   const buildInfo = JSON.parse(readFileSync(join(dist, 'build-info.json'), 'utf8'));
@@ -45,7 +49,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const cond = gen.conditions.map((c) => ({ tsId: c.tsId, css: c.css, legacyCss: c.legacyCss }));
   const neutral = gen.neutral.map((n) => ({ tsId: n.tsId, css: n.css }));
   const partsArg = Object.fromEntries(['orig', 'rewrite'].map((site) => [site, Object.fromEntries(
-    Object.entries(anchors.parts).map(([pid, p]) => {
+    Object.entries(activeParts).map(([pid, p]) => {
       // a box is collected only where it is compared or used as a reference: the original's headline is animated text
       const needed = new Set(p.roles.flatMap((r) => (r.dims.length > 0 ? [r.role, ...(r.boxRel ? [r.boxRel.role] : [])] : [])));
       return [pid, p.roles.map((r) => ({ role: r.role, selector: r[site], rect: needed.has(r.role) }))];
@@ -70,7 +74,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     await s.close();
   }
   const props = {};
-  for (const [pid, p] of Object.entries(anchors.parts)) {
+  for (const [pid, p] of Object.entries(activeParts)) {
     props[pid] = {};
     for (const r of p.roles) {
       const rw = declared.rewrite[pid][r.role].declared;
@@ -136,6 +140,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     snapshot: lock.snapshot,
     site: { buildId: buildInfo.buildId, configHash: buildInfo.configHash, muiCss: buildInfo.muiCss },
     pinnedDate: '2026-10-01T00:00:00+07:00',
+    ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}),
     props,
   };
   await engine.close();

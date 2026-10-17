@@ -246,17 +246,19 @@ $$\operatorname{depAt}(\sigma, x) = \text{the first } e \in D(x) \text{ with } e
 -/
 def depAt (σ : State) (x : Item) : Option String := x.deps.find? fun e => !σ.done.contains e
 
-/-- The first unrelated running item with a write conflict, and the first conflicting prefix of `x`.
+/-- The first unrelated running item (in `Run` order) with a write conflict, and the first prefix of `x`
+that conflicts with it.
 
-$$\operatorname{wAt}(\sigma, x) = \text{the first } (p, \mathit{id}(y)) \text{ with } y \in \mathit{Run},\ \lnot(x \sim y),\ p \in W(x),\ \exists q \in W(y):\ p \bowtie q, \text{ else } \bot$$
+$$\operatorname{wAt}(\sigma, x) = \begin{cases} (p, \mathit{id}(y)) & y = \text{the first } y \in \mathit{Run} \text{ with } \lnot(x \sim y) \land \exists p' \in W(x), q \in W(y):\ p' \bowtie q, \\ & p = \text{the first } p' \in W(x) \text{ with } \exists q \in W(y):\ p' \bowtie q \\ \bot & \text{if there is no such } y \end{cases}$$
 -/
 def writeAt (σ : State) (x : Item) : Option (String × String) :=
   σ.run.findSome? fun y =>
     if related x y then none else (x.writes.find? fun p => y.writes.any fun q => pconf p q).map (·, y.id)
 
-/-- The first unrelated running item sharing a device, and the first shared device.
+/-- The first unrelated running item (in `Run` order) sharing a device, and the first device of `x` that it
+shares.
 
-$$\operatorname{vAt}(\sigma, x) = \text{the first } (v, \mathit{id}(y)) \text{ with } y \in \mathit{Run},\ \lnot(x \sim y),\ v \in V(x) \cap V(y), \text{ else } \bot$$
+$$\operatorname{vAt}(\sigma, x) = \begin{cases} (v, \mathit{id}(y)) & y = \text{the first } y \in \mathit{Run} \text{ with } \lnot(x \sim y) \land V(x) \cap V(y) \ne \emptyset, \\ & v = \text{the first } v \in V(x) \text{ with } v \in V(y) \\ \bot & \text{if there is no such } y \end{cases}$$
 -/
 def devAt (σ : State) (x : Item) : Option (Dev × String) :=
   σ.run.findSome? fun y =>
@@ -557,7 +559,7 @@ inductive Reachable (B : Vec) : State → Prop where
 `next`, running items started no later than now, unrelated running items have no write conflict
 and share no device, running items are ready, and the budget holds.
 
-$$\mathrm{Inv}(B, \sigma) \iff \begin{aligned}[t] & \mathit{id} \text{ and } \mathit{seq} \text{ injective on } \mathit{Run} \mathbin{+\!\!+} Q,\ \ \forall x \in \mathit{Run} \mathbin{+\!\!+} Q:\ \mathit{seq}(x) < \mathit{next},\ \ \forall x \in \mathit{Run}:\ \mathit{start}(x) \le t \land \mathrm{ready}(\sigma, x), \\ & \forall x, y \in \mathit{Run},\ \mathit{id}(x) \ne \mathit{id}(y),\ \lnot(x \sim y):\ \lnot(x \bowtie y) \land V(x) \cap V(y) = \emptyset,\ \ \forall r \in \mathcal R:\ \textstyle\sum_{x \in \mathit{Run}} d(x)(r) \le B(r) \end{aligned}$$
+$$\mathrm{Inv}(B, \sigma) \iff \begin{aligned}[t] & [\, \mathit{id}(x) \mid x \in \mathit{Run} \mathbin{+\!\!+} Q \,] \text{ and } [\, \mathit{seq}(x) \mid x \in \mathit{Run} \mathbin{+\!\!+} Q \,] \text{ have no repeats},\ \forall x \in \mathit{Run} \mathbin{+\!\!+} Q:\ \mathit{seq}(x) < \mathit{next},\ \ \forall x \in \mathit{Run}:\ \mathit{start}(x) \le t \land \mathrm{ready}(\sigma, x), \\ & \forall x, y \in \mathit{Run},\ \mathit{id}(x) \ne \mathit{id}(y),\ \lnot(x \sim y):\ \lnot(x \bowtie y) \land V(x) \cap V(y) = \emptyset,\ \ \forall r \in \mathcal R:\ \textstyle\sum_{x \in \mathit{Run}} d(x)(r) \le B(r) \end{aligned}$$
 -/
 structure Inv (B : Vec) (σ : State) : Prop where
   ids     : ((σ.run ++ σ.queue).map Item.id).Nodup
@@ -569,9 +571,9 @@ structure Inv (B : Vec) (σ : State) : Prop where
   deps    : ∀ x ∈ σ.run, ready σ x = true
   budget  : ∀ r, used σ.run r ≤ B.get r
 
-/-- Two members of a list with the same image under an injective-on-the-list map are equal.
+/-- If the image list of `l` under `f` has no repeats, two members of `l` with the same image are equal.
 
-$$\forall f, l, a, b:\quad f \text{ injective on } l \ \land\ a, b \in l \ \land\ f(a) = f(b) \Rightarrow a = b$$
+$$\forall f, l, a, b:\quad [\, f(c) \mid c \in l \,] \text{ has no repeats} \ \land\ a, b \in l \ \land\ f(a) = f(b) \Rightarrow a = b$$
 -/
 theorem eq_of_nodup_map {α β : Type} (f : α → β) :
     ∀ {l : List α} {a b : α}, (l.map f).Nodup → a ∈ l → b ∈ l → f a = f b → a = b
@@ -650,15 +652,15 @@ theorem admit_conserving (B : Vec) (σ : State) (x : Item) (hx : x ∈ σ.queue)
 
 /-- Nodup of an image survives taking a sublist.
 
-$$\forall f, l', l:\quad l' \text{ a sublist of } l \ \land\ f \text{ injective on } l \Rightarrow f \text{ injective on } l'$$
+$$\forall f, l', l:\quad l' \text{ a sublist of } l \ \land\ [\, f(a) \mid a \in l \,] \text{ has no repeats} \Rightarrow [\, f(a) \mid a \in l' \,] \text{ has no repeats}$$
 -/
 theorem nodup_map_sublist {α β : Type} (f : α → β) {l' l : List α} (hs : l'.Sublist l)
     (h : (l.map f).Nodup) : (l'.map f).Nodup :=
   List.Pairwise.sublist (hs.map f) h
 
-/-- Admitting `x` from `Q` keeps an injective image injective (the admitted copy keeps its image).
+/-- Admitting `x` from `Q` keeps the image list free of repeats (the admitted copy keeps its image).
 
-$$\forall f, R, Q, x, x':\quad x \in Q,\ f(x') = f(x),\ f \text{ injective on } R \mathbin{+\!\!+} Q \Rightarrow f \text{ injective on } x' :: R \mathbin{+\!\!+} [\, y \in Q \mid \mathit{id}(y) \ne \mathit{id}(x) \,]$$
+$$\forall f, R, Q, x, x':\quad x \in Q \land f(x') = f(x) \land [\, f(y) \mid y \in R \mathbin{+\!\!+} Q \,] \text{ has no repeats} \Rightarrow [\, f(y) \mid y \in x' :: R \mathbin{+\!\!+} [\, y \in Q \mid \mathit{id}(y) \ne \mathit{id}(x) \,] \,] \text{ has no repeats}$$
 -/
 theorem nodup_admit {β : Type} (f : Item → β) (run q : List Item) (x x' : Item) (hx : x ∈ q)
     (hf : f x' = f x) (h : ((run ++ q).map f).Nodup) :
@@ -1008,7 +1010,7 @@ def elig (σ : State) (o : Item) : Bool := aged σ.t o && ready σ o
 /-- The liveness measure of `z`: queued older possible competitors, counted once more while they
 are not yet eligible.
 
-$$\Psi_{B,z}(\sigma) = \big|\{\, o \in Q \mid \operatorname{oldOk}(B, z, o) \,\}\big| + \big|\{\, o \in Q \mid \operatorname{oldOk}(B, z, o) \land \lnot\operatorname{elig}(\sigma, o) \,\}\big|$$
+$$\Psi_{B,z}(\sigma) = \big|[\, o \in Q \mid \operatorname{oldOk}(B, z, o) \,]\big| + \big|[\, o \in Q \mid \operatorname{oldOk}(B, z, o) \land \lnot\operatorname{elig}(\sigma, o) \,]\big| \quad (\text{list filters, repeats counted})$$
 -/
 def psi (B : Vec) (z : Item) (σ : State) : Nat :=
   (σ.queue.filter (oldOk B z)).length + (σ.queue.filter fun o => oldOk B z o && !elig σ o).length
@@ -1215,7 +1217,7 @@ theorem gone_trace {B : Vec} {dmax : Nat} {z : Item} {σ τ : State} (h : Trace 
 /-- The frame of the liveness argument, relative to `z`, the arrival numbers `G` of the items
 running at the start, and the start time `t0`.
 
-$$\mathrm{Base}(B, z, G, t_0, \sigma) \iff \begin{aligned}[t] & \mathrm{Inv}(B, \sigma) \land \mathrm{aged}(t, z) \land \mathrm{ready}(\sigma, z) \land \mathit{seq}(z) < \mathit{next} \land \forall g \in G:\ g < \mathit{next} \\ & \land \forall y \in Q:\ \mathit{seq}(y) \notin G \land \forall y \in \mathit{Run}:\ \mathit{seq}(y) \in G \Rightarrow \mathit{start}(y) \le t_0 \\ & \land \big(z \in Q \lor \forall y \in Q:\ \mathit{seq}(y) \ne \mathit{seq}(z)\big) \end{aligned}$$
+$$\mathrm{Base}(B, z, G, t_0, \sigma) \iff \begin{aligned}[t] & \mathrm{Inv}(B, \sigma) \land \mathrm{aged}(t, z) \land \mathrm{ready}(\sigma, z) \land \mathit{seq}(z) < \mathit{next} \land \big(\forall g \in G:\ g < \mathit{next}\big) \\ & \land \big(\forall y \in Q:\ \mathit{seq}(y) \notin G\big) \land \big(\forall y \in \mathit{Run}:\ \mathit{seq}(y) \in G \Rightarrow \mathit{start}(y) \le t_0\big) \\ & \land \big(z \in Q \lor \forall y \in Q:\ \mathit{seq}(y) \ne \mathit{seq}(z)\big) \end{aligned}$$
 -/
 structure Base (B : Vec) (z : Item) (G : List Nat) (t0 : Nat) (σ : State) : Prop where
   inv    : Inv B σ
@@ -1683,7 +1685,8 @@ theorem okTrace_sound (B : Vec) (dmax : Nat) :
 
 namespace Ex
 
-/-- Budget for the examples: 4 cores, 8 GB.
+/-- Budget for the examples: cores 4, RAM 8, no clean-build token, no Docker slot (small abstract numbers,
+not the tenths-of-a-core and MB scale).
 $$B = (4, 8, 0, 0)$$ -/
 def B4 : Vec := { cores := 4, ram := 8 }
 /-- A job writing one Lean file with 2 cores.
@@ -1778,16 +1781,16 @@ def z : Item := { id := "z", writes := ["w1", "p"], seq := 1 }
 /-- A newer job that blocks `o`.
 $$W(y) = \{\texttt{q2}\}$$ -/
 def y : Item := { id := "y", writes := ["q2"] }
-/-- The start state (quiescent, all ages 0, no budget pressure).
-$$\mathit{Run} = [r_1, e],\ Q = [o, z]$$ -/
+/-- The start state (quiescent, all ages 0, no budget pressure); `next = 7` fixes the arrival number of `y`.
+$$\sigma_i = (\mathit{Run} = [r_1, e],\ \mathit{Done} = [\,],\ Q = [o, z],\ t = 0,\ \mathit{next} = 7)$$ -/
 def σi : State := { run := [r1, e], queue := [o, z], next := 7 }
-/-- The events up to `t = 25`.
-$$\mathrm{tick}(8), \mathrm{enqueue}(y), \mathrm{tick}(9), \mathrm{finish}(e), \mathrm{finish}(r_1), \mathrm{tick}(17), \mathrm{finish}(y), \mathrm{tick}(25)$$ -/
+/-- The events up to `t = 25`; every finish has landed (flag true).
+$$[\mathrm{tick}(8), \mathrm{enqueue}(y), \mathrm{tick}(9), \mathrm{finish}(e, \mathrm{true}), \mathrm{finish}(r_1, \mathrm{true}), \mathrm{tick}(17), \mathrm{finish}(y, \mathrm{true}), \mathrm{tick}(25)]$$ -/
 def cmds : List Cmd :=
   [.tick 8, .enqueue y, .tick 9, .finish "e" true, .finish "r1" true, .tick 17, .finish "y" true,
    .tick 25]
-/-- The rest of the trace.
-$$\mathrm{tick}(26), \mathrm{finish}(o)$$ -/
+/-- The rest of the trace; the finish has landed (flag true).
+$$[\mathrm{tick}(26), \mathrm{finish}(o, \mathrm{true})]$$ -/
 def rest : List Cmd := [.tick 26, .finish "o" true]
 
 end Cex

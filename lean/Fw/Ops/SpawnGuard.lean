@@ -130,21 +130,22 @@ $$\nu(q) = (q.\mathit{name},\ q.\mathit{role},\ \kappa(q),\ q.\mathit{spawner})$
 -/
 def newAgent (q : Req) : Agent := ⟨q.name, q.role, effKind q, q.spawner⟩
 
-/-- Number of agents of kind `k`.
+/-- Number of agents of kind `k` (list entries, repeats counted).
 
-$$\#_k(A) = |\{a \in A : a.\mathit{kind} = k\}|$$
+$$\#_k(A) = \big|[\, a \in A \mid a.\mathit{kind} = k \,]\big|$$
 -/
 def countKind (k : Kind) (as : List Agent) : Nat := (as.filter (·.kind == k)).length
 
-/-- Number of subagents of any kind (plain or worktree), i.e. all non-teammates.
+/-- Number of subagents of any kind (plain or worktree), i.e. all non-teammates (list entries,
+repeats counted).
 
-$$\#_{sub}(A) = |\{a \in A : a.\mathit{kind} \ne \mathrm{teammate}\}|$$
+$$\#_{sub}(A) = \big|[\, a \in A \mid a.\mathit{kind} \ne \mathrm{teammate} \,]\big|$$
 -/
 def countSub (as : List Agent) : Nat := (as.filter (·.kind != .teammate)).length
 
-/-- Number of agents with role `r`.
+/-- Number of agents with role `r` (list entries, repeats counted).
 
-$$\#^{r}(A) = |\{a \in A : a.\mathit{role} = r\}|$$
+$$\#^{r}(A) = \big|[\, a \in A \mid a.\mathit{role} = r \,]\big|$$
 -/
 def countRole (r : String) (as : List Agent) : Nat := (as.filter (·.role == r)).length
 
@@ -164,9 +165,10 @@ $$\mathrm{overRole}(R, A) = \text{the first } r \text{ with } (r, c) \in R,\ \#^
 def overRole (rs : List (String × Nat)) (as : List Agent) : Option String :=
   (rs.find? fun p => Decidable.decide (countRole p.1 as > p.2)).map (·.1)
 
-/-- Earlier spawns by the same spawner inside the window ending now.
+/-- Earlier spawns by the same spawner inside the window ending now (list entries, so equal entries
+each count).
 
-$$\mathrm{recent}(i) = |\{(s, t) \in H : s = q.\mathit{spawner},\ \mathit{now} < t + \Delta\}|$$
+$$\mathrm{recent}(i) = \big|[\, (s, t) \in H \mid s = q.\mathit{spawner} \land \mathit{now} < t + \Delta \,]\big|$$
 -/
 def recentCount (i : Input) : Nat :=
   (i.recent.filter fun p => p.1 == i.req.spawner && Decidable.decide (i.now < p.2 + i.caps.windowSec)).length
@@ -189,7 +191,7 @@ def isAsk (c : Caps) (q : Req) : Bool := c.askModels.any fun m => m != "" && has
 /-- The cap checks on the agents after the spawn, in order: teammates, worktree subagents, all
 subagents, per-role caps.
 
-$$\mathrm{capFail}(C, A') = \begin{cases} \mathrm{capTeammates} & \#_{\mathrm{teammate}}(A') > T \\ \mathrm{capWorktrees} & \#_{\mathrm{worktree}}(A') > W \\ \mathrm{capSubagents} & \#_{sub}(A') > S \\ \mathrm{capRole}(r) & \mathrm{overRole}(R, A') = r \\ \bot & \text{otherwise} \end{cases}$$
+$$\mathrm{capFail}(C, A') = \begin{cases} \mathrm{capTeammates} & \#_{\mathrm{teammate}}(A') > T \\ \mathrm{capWorktrees} & \#_{\mathrm{teammate}}(A') \le T \land \#_{\mathrm{worktree}}(A') > W \\ \mathrm{capSubagents} & \#_{\mathrm{teammate}}(A') \le T \land \#_{\mathrm{worktree}}(A') \le W \land \#_{sub}(A') > S \\ \mathrm{capRole}(r) & \#_{\mathrm{teammate}}(A') \le T \land \#_{\mathrm{worktree}}(A') \le W \land \#_{sub}(A') \le S \land \mathrm{overRole}(R, A') = r \\ \bot & \#_{\mathrm{teammate}}(A') \le T \land \#_{\mathrm{worktree}}(A') \le W \land \#_{sub}(A') \le S \land \mathrm{overRole}(R, A') = \bot \end{cases}$$
 -/
 def capFail (c : Caps) (after : List Agent) : Option Reason :=
   if countKind .teammate after > c.teammates then some .capTeammates
@@ -199,7 +201,7 @@ def capFail (c : Caps) (after : List Agent) : Option Reason :=
 
 /-- The checks once the role $\rho$ is known, in order: kind, nesting, rate, caps.
 
-$$\mathrm{roleCheck}(i, \rho) = \begin{cases} \mathrm{kindMismatch}(\rho.\mathit{runsAs}, \kappa(q)) & \kappa(q) \ne \rho.\mathit{runsAs} \\ \mathrm{nestedEditor} & q.d \ge 1 \land \rho.\mathit{edits} \\ \mathrm{rateLimited} & \mathrm{recent}(i) \ge n \\ \mathrm{capFail}(C, \nu(q) :: A) & \text{otherwise} \end{cases}$$
+$$\mathrm{roleCheck}(i, \rho) = \begin{cases} \mathrm{kindMismatch}(\rho.\mathit{runsAs}, \kappa(q)) & \kappa(q) \ne \rho.\mathit{runsAs} \\ \mathrm{nestedEditor} & \kappa(q) = \rho.\mathit{runsAs} \land q.d \ge 1 \land \rho.\mathit{edits} \\ \mathrm{rateLimited} & \kappa(q) = \rho.\mathit{runsAs} \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) \ge n \\ \mathrm{capFail}(C, \nu(q) :: A) & \kappa(q) = \rho.\mathit{runsAs} \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) < n \end{cases}$$
 -/
 def roleCheck (i : Input) (r : Role) : Option Reason :=
   if effKind i.req ≠ r.runsAs then some (.kindMismatch r.runsAs (effKind i.req))
@@ -215,7 +217,7 @@ def roleOf (i : Input) : Option Role := i.roles.find? (·.name == i.req.role)
 
 /-- An unnamed call is excused: the caps allow unnamed read-only subagents and the role is one.
 
-$$\mathrm{excused}(i) \iff u \land \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{subagent} \land \lnot \rho.\mathit{edits}$$
+$$\mathrm{excused}(i) \iff u \land \exists \rho:\ \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{subagent} \land \lnot \rho.\mathit{edits}$$
 -/
 def excused (i : Input) : Bool :=
   i.caps.unnamedReadOnly && match roleOf i with
@@ -230,7 +232,7 @@ def taken (i : Input) : Bool := i.req.name != "" && i.alive.any (·.name == i.re
 
 /-- The first failing check, in order: name, name in use, role, then `roleCheck`.
 
-$$\mathrm{check}(i) = \begin{cases} \mathrm{unnamed} & q.\mathit{name} = \texttt{""} \land \lnot\mathrm{excused}(i) \\ \mathrm{nameInUse} & \mathrm{taken}(i) \\ \mathrm{unknownRole} & \mathrm{role}(i) = \bot \\ \mathrm{roleCheck}(i, \rho) & \mathrm{role}(i) = \rho \end{cases}$$
+$$\mathrm{check}(i) = \begin{cases} \mathrm{unnamed} & U \\ \mathrm{nameInUse} & \lnot U \land \mathrm{taken}(i) \\ \mathrm{unknownRole} & \lnot U \land \lnot\mathrm{taken}(i) \land \mathrm{role}(i) = \bot \\ \mathrm{roleCheck}(i, \rho) & \lnot U \land \lnot\mathrm{taken}(i) \land \mathrm{role}(i) = \rho \end{cases}, \qquad U \iff q.\mathit{name} = \texttt{""} \land \lnot\mathrm{excused}(i)$$
 -/
 def check (i : Input) : Option Reason :=
   if i.req.name = "" ∧ excused i = false then some .unnamed
@@ -263,7 +265,7 @@ theorem accepted_iff (i : Input) : (decide i).accepted = true ↔ check i = none
 
 /-- `overRole` finds nothing exactly when every per-role cap holds.
 
-$$\mathrm{overRole}(R, A) = \bot \iff \forall (r, c) \in R:\ \#^{r}(A) \le c$$
+$$\forall R, A:\quad \mathrm{overRole}(R, A) = \bot \iff \forall (r, c) \in R:\ \#^{r}(A) \le c$$
 -/
 theorem overRole_none {rs : List (String × Nat)} {as : List Agent} :
     overRole rs as = none ↔ ∀ p ∈ rs, countRole p.1 as ≤ p.2 := by
@@ -288,7 +290,7 @@ theorem capFail_none (c : Caps) (as : List Agent) : capFail c as = none ↔ With
 $\rho$ of the right kind, no nested editor, room in the rate window, and the caps hold after the
 spawn.
 
-$$\mathrm{check}(i) = \bot \iff \big(q.\mathit{name} = \texttt{""} \Rightarrow \mathrm{excused}(i)\big) \land \lnot\mathrm{taken}(i) \land \exists \rho:\ \mathrm{role}(i) = \rho \land \kappa(q) = \rho.\mathit{runsAs} \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) < n \land \mathrm{Within}(C, \nu(q) :: A)$$
+$$\forall i:\quad \mathrm{check}(i) = \bot \iff \big(q.\mathit{name} = \texttt{""} \Rightarrow \mathrm{excused}(i)\big) \land \lnot\mathrm{taken}(i) \land \exists \rho:\ \mathrm{role}(i) = \rho \land \kappa(q) = \rho.\mathit{runsAs} \land \lnot(q.d \ge 1 \land \rho.\mathit{edits}) \land \mathrm{recent}(i) < n \land \mathrm{Within}(C, \nu(q) :: A)$$
 -/
 theorem check_none (i : Input) : check i = none ↔
     (i.req.name = "" → excused i = true) ∧ taken i = false ∧
@@ -379,10 +381,10 @@ theorem name_in_use_denied (i : Input) (hn : i.req.name ≠ "") (a : Agent) (ha 
 without `isolation` on the call, would not run in a worktree (from the lead it becomes a teammate
 in the main checkout); the guard never accepts it.
 
-$$\forall i:\quad \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{worktree} \land \lnot q.\mathit{iso} \Rightarrow \lnot\,\mathrm{accepted}(\mathrm{decide}(i))$$
+$$\forall i, \rho:\quad \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{worktree} \land \lnot q.\mathit{iso} \Rightarrow \lnot\,\mathrm{accepted}(\mathrm{decide}(i))$$
 -/
-theorem trap_worktree_role_as_teammate (i : Input) (r : Role) (hr : roleOf i = some r)
-    (hw : r.runsAs = .worktree) (hiso : i.req.isolation = false) : (decide i).accepted = false := by
+theorem trap_worktree_role_as_teammate (i : Input) (ρ : Role) (hr : roleOf i = some ρ)
+    (hw : ρ.runsAs = .worktree) (hiso : i.req.isolation = false) : (decide i).accepted = false := by
   have hk : effKind i.req ≠ .worktree := by
     unfold effKind; simp only [hiso, Bool.false_eq_true, ↓reduceIte]; split <;> simp
   cases h : (decide i).accepted
@@ -394,9 +396,9 @@ theorem trap_worktree_role_as_teammate (i : Input) (r : Role) (hr : roleOf i = s
 /-- The trap's exact verdict: a named call from the lead with a free name, for a worktree role,
 without `isolation`, is denied as a kind mismatch (wanted worktree, would get teammate).
 
-$$q.\mathit{name} \ne \texttt{""},\ \lnot\mathrm{taken}(i),\ q.d = 0,\ \lnot q.\mathit{iso},\ \mathrm{role}(i) = \rho,\ \rho.\mathit{runsAs} = \mathrm{worktree} \Rightarrow \mathrm{decide}(i) = \mathrm{deny}\big(\mathrm{kindMismatch}(\mathrm{worktree}, \mathrm{teammate})\big)$$
+$$\forall i, \rho:\quad q.\mathit{name} \ne \texttt{""} \land \lnot\mathrm{taken}(i) \land q.d = 0 \land \lnot q.\mathit{iso} \land \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{worktree} \Rightarrow \mathrm{decide}(i) = \mathrm{deny}\big(\mathrm{kindMismatch}(\mathrm{worktree}, \mathrm{teammate})\big)$$
 -/
-theorem trap_exact (i : Input) (r : Role) (hr : roleOf i = some r) (hw : r.runsAs = .worktree)
+theorem trap_exact (i : Input) (ρ : Role) (hr : roleOf i = some ρ) (hw : ρ.runsAs = .worktree)
     (hiso : i.req.isolation = false) (hn : i.req.name ≠ "") (hd : i.req.depth = 0)
     (hfree : taken i = false) : decide i = .deny (.kindMismatch .worktree .teammate) := by
   have hk : effKind i.req = .teammate := by simp [effKind, hiso, hd, hn]
@@ -405,10 +407,10 @@ theorem trap_exact (i : Input) (r : Role) (hr : roleOf i = some r) (hw : r.runsA
 /-- A teammate spawn that asks for worktree isolation is never accepted: the call would run as a
 worktree subagent, not as the teammate its role names.
 
-$$\forall i:\quad \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{teammate} \land q.\mathit{iso} \Rightarrow \lnot\,\mathrm{accepted}(\mathrm{decide}(i))$$
+$$\forall i, \rho:\quad \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{teammate} \land q.\mathit{iso} \Rightarrow \lnot\,\mathrm{accepted}(\mathrm{decide}(i))$$
 -/
-theorem teammate_with_isolation_denied (i : Input) (r : Role) (hr : roleOf i = some r)
-    (ht : r.runsAs = .teammate) (hiso : i.req.isolation = true) : (decide i).accepted = false := by
+theorem teammate_with_isolation_denied (i : Input) (ρ : Role) (hr : roleOf i = some ρ)
+    (ht : ρ.runsAs = .teammate) (hiso : i.req.isolation = true) : (decide i).accepted = false := by
   have hk : effKind i.req = .worktree := by simp [effKind, hiso]
   cases h : (decide i).accepted
   · rfl
@@ -439,15 +441,57 @@ theorem ask_needs_approval (i : Input) (h : check i = none) :
 /-- Depth-2 spawns are read-only helpers: an accepted spawn from a non-lead spawner is for a role
 that does not edit.
 
-$$\forall i:\quad \mathrm{role}(i) = \rho \land \mathrm{accepted}(\mathrm{decide}(i)) \land q.d \ge 1 \Rightarrow \lnot \rho.\mathit{edits}$$
+$$\forall i, \rho:\quad \mathrm{role}(i) = \rho \land \mathrm{accepted}(\mathrm{decide}(i)) \land q.d \ge 1 \Rightarrow \lnot \rho.\mathit{edits}$$
 -/
-theorem accepted_nested_read_only (i : Input) (r : Role) (hr : roleOf i = some r)
-    (h : (decide i).accepted = true) (hd : i.req.depth ≥ 1) : r.edits = false := by
+theorem accepted_nested_read_only (i : Input) (ρ : Role) (hr : roleOf i = some ρ)
+    (h : (decide i).accepted = true) (hd : i.req.depth ≥ 1) : ρ.edits = false := by
   obtain ⟨_, _, r', hr', _, hne, _⟩ := (check_none i).mp ((accepted_iff i).mp h)
   rw [hr] at hr'; cases hr'
-  cases he : r.edits
+  cases he : ρ.edits
   · rfl
   · exact absurd ⟨hd, he⟩ hne
+
+/-- The kind the named role is meant to run as (`none` for a role not in the table); the spawn
+hook logs it next to the kind the call produces, $\kappa(i.\mathit{req})$, so a mismatch explains itself.
+
+$$\operatorname{wantKind}(i) = \begin{cases} \mathrm{some}(\rho.\mathit{runsAs}) & \mathrm{role}(i) = \mathrm{some}(\rho) \\ \bot & \mathrm{role}(i) = \bot \end{cases}$$
+-/
+def wantKind (i : Input) : Option Kind := (roleOf i).map (·.runsAs)
+
+/-- A `kindMismatch` denial carries the wanted kind of the role and the kind the call produces.
+
+$$\forall i, w, g:\quad \operatorname{check}(i) = \mathrm{some}(\mathrm{kindMismatch}(w, g)) \implies \operatorname{wantKind}(i) = \mathrm{some}(w) \land g = \kappa(i.\mathit{req}) \land w \ne g$$
+
+A mismatch reason always names the role's kind and the call's kind, and they differ.
+-/
+theorem kindMismatch_fields (i : Input) (w g : Kind) (h : check i = some (.kindMismatch w g)) :
+    wantKind i = some w ∧ g = effKind i.req ∧ w ≠ g := by
+  unfold check at h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  rename_i r hr
+  unfold roleCheck at h
+  split at h
+  · rename_i hne
+    simp only [Option.some.injEq, Reason.kindMismatch.injEq] at h
+    obtain ⟨rfl, rfl⟩ := h
+    exact ⟨by simp [wantKind, hr], rfl, fun he => hne he.symm⟩
+  split at h
+  · cases h
+  split at h
+  · cases h
+  unfold capFail at h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  split at h
+  · cases h
+  cases ho : overRole i.caps.perRole (newAgent i.req :: i.alive) <;> simp [ho] at h
 
 /-! ## Examples -/
 
@@ -481,6 +525,8 @@ def exInput (alive : List Agent) (recent : List (String × Nat)) (q : Req) : Inp
 #guard decide (exInput [⟨"a", "reviewer", .subagent, "lead"⟩] [] ⟨"a", "lean-prover", true, "", "lead", 0⟩) ==
   .deny .nameInUse
 #guard decide (exInput [] [] ⟨"x", "nobody", true, "", "lead", 0⟩) == .deny .unknownRole
+#guard wantKind (exInput [] [] ⟨"x", "nobody", true, "", "lead", 0⟩) == none
+#guard wantKind (exInput [] [] ⟨"x", "researcher", true, "", "lead", 0⟩) == some .teammate
 #guard decide (exInput [] [] ⟨"x", "lean-prover", true, "", "eng-webkit", 1⟩) == .deny .nestedEditor
 #guard decide (exInput [] [] ⟨"x", "reviewer", false, "", "eng-webkit", 1⟩) == .allow
 -- the 4th lean-prover hits the per-role cap

@@ -1,0 +1,5 @@
+#!/bin/sh
+# pre-commit: privacy scrub of staged content (scripts/scrub.mjs). Enabled by scripts/wt-prep.sh via
+# `git config core.hooksPath scripts/hooks` (relative path, so it resolves inside each worktree).
+top=$(git rev-parse --show-toplevel) || exit 1
+exec node "$top/scripts/scrub.mjs"

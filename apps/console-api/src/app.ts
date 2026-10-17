@@ -34,6 +34,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   if (reconciler) mountReconcile(app, store, reconciler);
   const { drain } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
   app.get("/api/board", async (c) => c.json(await store.board()));
+  app.get("/api/plan", async (c) => c.json((await store.board()).plan)); // the work graph, derived by fwcore
   app.get("/api/events", (c) => {
     const since = Number(c.req.query("since") ?? 0);
     return c.json(store.readEvents().filter((e) => e.seq > since));

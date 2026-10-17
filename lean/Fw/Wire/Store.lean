@@ -1,0 +1,163 @@
+import Lean.Data.Json
+import Fw.Store.Layout
+import Fw.Store.Reduce
+import Fw.Measure.Wire
+import Fw.Ops.Wire
+/-!
+# JSON codecs and ops of `Fw.Store` (`store.*`)
+
+Glue between `fwcore`'s JSON lines and `Fw.Store.Layout` / `Fw.Store.Reduce` (namespace
+`Fw.Wire.Store`, so the math view treats it as wire code). Total decoders only (`Except String`);
+no partial operations. Flags are strings `"part:variant"`; digests are lowercase hex strings
+(sha256 is computed by the caller).
+
+| op | request | reply |
+|---|---|---|
+| `store.plan` | `preset`? (default `original`), `fw`? [`part:variant`], `engines` [name], `profile`? (default `swipe-v1`), `runs`? (default 3), `sha`, `images`? {engine: image}, `digests`? {engine: sha256 of the job key}, `present`? [digest] (objects/runs already in the store) | `problems` [string], `fw` (sorted), `jobs` [{engine, workflow, inputs {name: value}, key [[name, value]], image, blocked (string or null), digest?, cache?, manifest?}] |
+| `store.manifest` | `manifest` {engine, preset, fw [`part:variant`], profile, gitSha, image, runId, entries [{name, digest, bytes}]} | `valid`, `problems`, `key` [[name, value]] (when the engine is known), `paths` [object path per entry] (when valid) |
+| `store.objectPath` | `digest` (64 hex) | `path` |
+| `store.reduce` | `kMax`, `tMax`, `pxRel`? {num, den}, `arms` [{engine, base (≥ 2 runs), var (≥ 1 run)}], each run an array of frames or an object with `frames` | `noMoreWork`, `arms` [{engine, noMoreWork, failing [type], types [{type, class, ok}]}] |
+-/
+namespace Fw.Wire.Store
+open Lean Fw.Store
+open Fw.Wire.Measure (field opt str nat arr strs runFrames objOf)
+open Fw.Wire.Ops (asStr natD)
+open Fw.Measure
+
+/-- The fields of a reply. -/
+abbrev Reply := List (String × Json)
+
+/-- A flag `"part:variant"`; anything else becomes `("", s)`, which the id check then refuses.
+
+$$\operatorname{flag}(s) = \begin{cases} (a, b) & s = a\texttt{:}b,\ \text{no other colon} \\ (\varepsilon, s) & \text{otherwise} \end{cases}$$
+-/
+def parseFlag (s : String) : String × String :=
+  match s.splitOn ":" with
+  | [a, b] => (a, b)
+  | _ => ("", s)
+
+/-- A flag as `"part:variant"`. -/
+def flagStr (p : String × String) : String := p.1 ++ ":" ++ p.2
+
+/-- Sort flags by part (stable); duplicates stay adjacent so `flagsOk` can refuse them. -/
+def sortFlags (fw : List (String × String)) : List (String × String) :=
+  fw.mergeSort (fun a b => !decide (b.1 < a.1))
+
+/-- A string-to-string object as pairs. -/
+def pairsOf (k : String) : Json → Except String (List (String × String))
+  | .obj kvs => kvs.toArray.toList.mapM fun ⟨n, v⟩ => do pure (n, ← asStr s!"{k}.{n}" v)
+  | _ => .error s!"field {k}: expected an object"
+
+/-- Name–value pairs as a JSON array of two-element arrays. -/
+def pairsJson (ps : List (String × String)) : Json := .arr (ps.toArray.map fun p => .arr #[.str p.1, .str p.2])
+
+/-- An optional object of strings (absent = empty). -/
+def optPairs (j : Json) (k : String) : Except String (List (String × String)) :=
+  match opt j k with
+  | none => pure []
+  | some v => pairsOf k v
+
+/-- Decode a plan request. -/
+def requestOf (req : Json) : Except String Request := do
+  let preset ← match opt req "preset" with
+    | none => pure defaultPreset
+    | some j => asStr "preset" j
+  let profile ← match opt req "profile" with
+    | none => pure defaultProfile
+    | some j => asStr "profile" j
+  let fw ← match opt req "fw" with
+    | none => pure []
+    | some j => (← Fw.Wire.Ops.asArr "fw" j).toList.mapM fun x => do pure (parseFlag (← asStr "fw" x))
+  pure { preset := preset, fw := sortFlags fw, engines := ← strs req "engines", profile := profile,
+         runs := ← natD req "runs" 3, sha := ← str req "sha", images := ← optPairs req "images" }
+
+/-- Encode a job; `digest` is the hash the caller computed from the job's key (if any). -/
+def jobJson (present : List String) (digest : Option String) (j : Job) : Json :=
+  let base : Reply := [
+    ("engine", .str j.engine.name), ("workflow", .str j.workflow),
+    ("inputs", objOf (j.inputs.map fun p => (p.1, Json.str p.2))), ("key", pairsJson j.key),
+    ("image", .str ((j.key.find? (·.1 == "image")).map (·.2) |>.getD "")),
+    ("blocked", match j.blocked with | none => .null | some b => .str b)]
+  let extra : Reply := match digest with
+    | none => []
+    | some d => [("digest", .str d), ("cache", .str (cacheOf (some d) present)), ("manifest", .str (manifestPath d))]
+  Json.mkObj (base ++ extra)
+
+/-- `store.plan`. -/
+def opPlan (req : Json) : Except String Reply := do
+  let q ← requestOf req
+  let digests ← optPairs req "digests"
+  let present ← match opt req "present" with
+    | none => pure []
+    | some j => (← Fw.Wire.Ops.asArr "present" j).toList.mapM (asStr "present")
+  let jobs := plan q
+  pure [("problems", .arr ((reqProblems q).toArray.map .str)),
+        ("fw", .arr (q.fw.toArray.map fun p => .str (flagStr p))),
+        ("jobs", .arr (jobs.toArray.map fun j => jobJson present ((digests.find? (·.1 == j.engine.name)).map (·.2)) j))]
+
+/-- Decode a manifest. -/
+def manifestOf (j : Json) : Except String Manifest := do
+  let fw ← (← arr j "fw").toList.mapM fun x => do pure (parseFlag (← asStr "fw" x))
+  let entries ← (← arr j "entries").toList.mapM fun e => do
+    pure ({ name := ← str e "name", digest := ← str e "digest", bytes := ← nat e "bytes" } : Fw.Store.Entry)
+  pure { engine := ← str j "engine", preset := ← str j "preset", fw := fw, profile := ← str j "profile",
+         gitSha := ← str j "gitSha", image := ← str j "image", runId := ← str j "runId", entries := entries }
+
+/-- `store.manifest`. -/
+def opManifest (req : Json) : Except String Reply := do
+  let m ← manifestOf (← field req "manifest")
+  let ps := m.problems
+  let key : Reply := match Engine.ofName m.engine with
+    | none => []
+    | some e => [("key", pairsJson (keyPairs { engine := e, preset := m.preset, fw := m.fw, profile := m.profile,
+                                               sha := m.gitSha, image := m.image }))]
+  let paths : Reply := if m.valid then [("paths", .arr (m.entries.toArray.map fun e => .str (objectPath e.digest)))] else []
+  pure ([("valid", .bool m.valid), ("problems", .arr (ps.toArray.map .str))] ++ key ++ paths)
+
+/-- `store.objectPath`. -/
+def opObjectPath (req : Json) : Except String Reply := do
+  let d ← str req "digest"
+  if !isHex 64 d then throw "digest must be 64 lowercase hex digits"
+  pure [("path", .str (objectPath d))]
+
+/-- Encode a class. -/
+def classJ : Class → Json
+  | .deterministic => Json.mkObj [("class", .str "deterministic")]
+  | .stable k t => Json.mkObj [("class", .str "stable"), ("k", toJson k), ("t", toJson t)]
+  | .quarantined => Json.mkObj [("class", .str "quarantined")]
+
+/-- `store.reduce`. -/
+def opReduce (req : Json) : Except String Reply := do
+  let p : Policy := ⟨← nat req "kMax", ← nat req "tMax"⟩
+  let q : PxTol ← match opt req "pxRel" with
+    | none => pure pxTolDefault
+    | some j => pure ⟨← nat j "num", ← nat j "den"⟩
+  if q.den = 0 then throw "pxRel.den must be at least 1"
+  let arms ← (← arr req "arms").toList.mapM fun a => do
+    let base ← (← arr a "base").toList.mapM runFrames
+    let var ← (← arr a "var").toList.mapM runFrames
+    if base.length < 2 then throw "arm base needs at least two runs"
+    if var.isEmpty then throw "arm var needs at least one run"
+    pure (← str a "engine", base, var)
+  let rows := arms.map fun (e, base, var) =>
+    let ok := reduceOk p q base var
+    Json.mkObj [("engine", .str e), ("noMoreWork", .bool ok),
+      ("failing", .arr ((failing p q base var).toArray.map .str)),
+      ("types", .arr ((obsOf p q base var).toArray.map fun (k, o) =>
+        Json.mkObj [("type", .str k), ("class", classJ o.cls), ("ok", .bool (typeOk o.cls o.base o.var))]))]
+  let oks := arms.map fun (_, base, var) => reduceOk p q base var
+  pure [("noMoreWork", .bool (overall oks)), ("arms", .arr rows.toArray)]
+
+/-- The `store.*` ops. -/
+def ops : List String := ["store.plan", "store.manifest", "store.objectPath", "store.reduce"]
+
+/-- Dispatch a `store.*` op (`none` when the op is not one of them). -/
+def handle (op : String) (req : Json) : Option (Except String Reply) :=
+  match op with
+  | "store.plan" => some (opPlan req)
+  | "store.manifest" => some (opManifest req)
+  | "store.objectPath" => some (opObjectPath req)
+  | "store.reduce" => some (opReduce req)
+  | _ => none
+
+end Fw.Wire.Store

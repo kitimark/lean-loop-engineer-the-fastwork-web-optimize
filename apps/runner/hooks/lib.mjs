@@ -52,6 +52,8 @@ export function secret(dir) {
 }
 
 export const sha256 = (s) => createHash("sha256").update(s).digest("hex");
-/** HMAC(secret, agent_type || tool_use_id || sha256(cmd)); NUL-separated so the parts cannot run together. */
-export const capMac = (sec, agentType, toolUseId, cmdHash) =>
-  createHmac("sha256", sec).update(`${agentType}\0${toolUseId}\0${cmdHash}`).digest("hex");
+/** HMAC(secret, agent_id || agent_type || tool_use_id || sha256(cmd)); NUL-separated so the parts cannot run together.
+ *  agent_id is bound because it decides the lead (Lean `Fw.Ops.Identity.who`: no agent_id = lead); a null agent_id
+ *  is hashed as "", and an empty agent_id is an unknown identity that is never minted nor accepted. */
+export const capMac = (sec, agentId, agentType, toolUseId, cmdHash) =>
+  createHmac("sha256", sec).update(`${agentId ?? ""}\0${agentType}\0${toolUseId}\0${cmdHash}`).digest("hex");

@@ -29,6 +29,16 @@ import Fw.Ops.SpawnGuard
 import Fw.Ops.PathCheck
 import Fw.Ops.Usage
 import Fw.Ops.Meter
+import Fw.Ops.Identity
 import Fw.Ops.Wire
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
+import Fw.Wire.Sched
+import Fw.Store.Layout
+import Fw.Store.Reduce
+import Fw.Wire.Store
+import Fw.Gate.Rule
+import Fw.Gate.Compare
+import Fw.Gate.Items
+import Fw.Gate.State
+import Fw.Wire.Gate

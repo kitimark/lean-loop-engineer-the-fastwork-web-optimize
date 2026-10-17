@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Board, Command, CommandReply } from "@fw/contracts";
+import { LiveBoard, Command, CommandReply } from "@fw/contracts";
 
 /** Live board over SSE. The board is a projection; the browser never holds or sets status. */
-export function useBoard(): { board: Board | null; offset: number; live: boolean } {
-  const [board, setBoard] = useState<Board | null>(null);
+export function useBoard(): { board: LiveBoard | null; offset: number; live: boolean } {
+  const [board, setBoard] = useState<LiveBoard | null>(null);
   const [offset, setOffset] = useState(0);
   const [live, setLive] = useState(false);
   useEffect(() => {
@@ -11,7 +11,7 @@ export function useBoard(): { board: Board | null; offset: number; live: boolean
     es.onopen = () => setLive(true);
     es.onerror = () => setLive(false); // EventSource reconnects by itself
     es.addEventListener("board", (m) => {
-      const b = Board.parse(JSON.parse((m as MessageEvent<string>).data));
+      const b = LiveBoard.parse(JSON.parse((m as MessageEvent<string>).data));
       setBoard(b);
       setOffset(b.now - Date.now()); // server clock minus local clock
     });

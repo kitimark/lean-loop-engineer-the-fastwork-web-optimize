@@ -1,0 +1,242 @@
+import Fw.Ops.Golden
+import Fw.Wire.Obs
+/-!
+# Golden vectors of `obs.health`
+
+`packages/contracts/golden/obs/health.jsonl`: one line per case, `{"name", "request", "response"}`, where `request`
+carries its `op` and `response` is what `fwcore` replies (without the `id`). Generated from Lean, never by hand:
+
+```
+cd lean && lake env lean --run scripts/ObsGolden.lean           # write the file
+cd lean && lake env lean --run scripts/ObsGolden.lean --check   # fail if it is stale
+```
+
+`lake test` runs the same check and also fails when the typed cases miss a state or an alert code. The cases cover
+every state, every alert code, both sides of every threshold edge, the agent-order independence, ignored fields, and
+refused requests. Consumers: `fw watch` (`watch-cli`) and the console Health tab (`watch-web`).
+(Namespace `Fw.Wire.Obs.Golden`: wire code for the math view.)
+-/
+namespace Fw.Wire.Obs.Golden
+open Lean
+open Fw.Obs.Health
+open Fw.Wire.Ops.Golden (lit withOp respond)
+
+/-- The observation time of every typed case (ms since the epoch). -/
+def t0 : Nat := 1760000000000
+
+/-- `m` minutes before `t0`, minus `ms` milliseconds more recent (so `ago 10 1` is 9 min 59.999 s before `t0`). -/
+def ago (m : Nat) (ms : Nat := 0) : Nat := t0 - m * msPerMin + ms
+
+/-- A live subagent with its last event `m` minutes ago, started an hour before `t0`. -/
+def ag (id : String) (m : Nat) : Agent := { id, startedAt := ago 60, lastAt := ago m }
+
+/-- A live teammate with its last event `m` minutes ago, started an hour before `t0`. -/
+def tm (id : String) (m : Nat) : Agent := { ag id m with kind := .teammate }
+
+/-- A live workflow agent with its last event `m` minutes ago, started an hour before `t0`. -/
+def wf (id : String) (m : Nat) : Agent := { ag id m with kind := .workflow }
+
+/-- A healthy system: 100 GB free, normal memory, no lock, containers or CI runs, 3 worktrees. -/
+def okSys : System := { diskFreeGB := 100, worktrees := 3 }
+
+/-- A stopped agent showing every bad sign (it must raise nothing). -/
+def badDone : Agent :=
+  { ag "a" 99 with stoppedAt := some (ago 1), errTail := 9, ctxTokens := some 400000,
+                   inflight := some ⟨"Bash", ago 99⟩ }
+
+/-- Three agents for the order cases: one stalled with an error streak, one active, one idle over `ctxResumeMax`. -/
+def trio : List Agent :=
+  [{ ag "x" 25 with errTail := 4 }, ag "y" 0, { ag "z" 12 with ctxTokens := some 260000 }]
+
+/-- A typed case: name, thresholds, observation. -/
+structure Typed where
+  name : String
+  p    : Params := {}
+  o    : Obs
+
+/-- The typed cases (encoded with `reqJson`, so every field is written). -/
+def typed : List Typed := [
+  { name := "empty team, healthy system: no alerts", o := { now := t0, system := okSys } },
+  { name := "active: last event 9 min 59.999 s ago (idleMin 10)", o := { now := t0, agents := [{ ag "a" 0 with lastAt := ago 10 1 }], system := okSys } },
+  { name := "idle: last event exactly 10 min ago", o := { now := t0, agents := [ag "a" 10], system := okSys } },
+  { name := "idle: 19 min 59.999 s ago, just under stallMin 20", o := { now := t0, agents := [{ ag "a" 0 with lastAt := ago 20 1 }], system := okSys } },
+  { name := "stalled: exactly 20 min, no tool in flight", o := { now := t0, agents := [ag "a" 20], system := okSys } },
+  { name := "idle, not stalled: 20 min silent but its tool has run only 29 min 59.999 s (toolHangMin 30)",
+    o := { now := t0, agents := [{ ag "a" 20 with inflight := some ⟨"Bash", ago 30 1⟩ }], system := okSys } },
+  { name := "stalled and agent.toolHang: tool in flight exactly 30 min",
+    o := { now := t0, agents := [{ ag "a" 30 with inflight := some ⟨"Bash", ago 30⟩ }], system := okSys } },
+  { name := "active with agent.toolHang: recent event, tool in flight 45 min",
+    o := { now := t0, agents := [{ ag "a" 1 with inflight := some ⟨"Bash", ago 45⟩ }], system := okSys } },
+  { name := "parked: a teammate whose last tool was SendMessage, silent 99 min, with 400001 context tokens, raises nothing",
+    o := { now := t0, system := okSys,
+           agents := [{ tm "a" 99 with lastTool := some "SendMessage", lastToolAt := some (ago 99),
+                                       ctxTokens := some 400001, errTail := 5 }] } },
+  { name := "parked: a teammate whose TeammateIdle (50 min ago) is newer than its last tool (60 min ago)",
+    o := { now := t0, system := okSys,
+           agents := [{ tm "a" 50 with lastTool := some "Bash", lastToolAt := some (ago 60), idleAt := some (ago 50) }] } },
+  { name := "parked: a teammate with a TeammateIdle and no tool event yet",
+    o := { now := t0, system := okSys, agents := [{ tm "a" 45 with idleAt := some (ago 45) }] } },
+  { name := "stalled, not parked: a teammate whose TeammateIdle is older than its last tool, or at the same ms",
+    o := { now := t0, system := okSys,
+           agents := [{ tm "a" 25 with lastTool := some "Bash", lastToolAt := some (ago 25), idleAt := some (ago 40) },
+                      { tm "b" 25 with lastTool := some "Bash", lastToolAt := some (ago 25), idleAt := some (ago 25) }] } },
+  { name := "stalled, not parked: a subagent whose last tool was SendMessage (only teammates park)",
+    o := { now := t0, system := okSys,
+           agents := [{ ag "a" 25 with lastTool := some "SendMessage", lastToolAt := some (ago 25) }] } },
+  { name := "idle, not parked: a teammate whose last tool was SendMessage but has a tool in flight 25 min",
+    o := { now := t0, system := okSys,
+           agents := [{ tm "a" 25 with lastTool := some "SendMessage", lastToolAt := some (ago 26),
+                                       inflight := some ⟨"Bash", ago 25⟩ }] } },
+  { name := "done: a workflow agent whose workflow run finished",
+    o := { now := t0, system := okSys, agents := [{ wf "a" 0 with workflowDone := true, errTail := 9 }] } },
+  { name := "done: a transcript-only workflow agent silent exactly 30 min (wfQuietMin 30)",
+    o := { now := t0, system := okSys, agents := [{ wf "a" 30 with transcriptOnly := true }] } },
+  { name := "stalled, not done: a transcript-only workflow agent silent 29 min 59.999 s",
+    o := { now := t0, system := okSys, agents := [{ wf "a" 0 with lastAt := ago 30 1, transcriptOnly := true }] } },
+  { name := "stalled, not done: a transcript-only subagent silent 99 min (only workflow agents end by silence)",
+    o := { now := t0, system := okSys, agents := [{ ag "a" 99 with transcriptOnly := true }] } },
+  { name := "wait, not hang: an Agent call in flight 45 min with a live child; a SendMessage the same",
+    o := { now := t0, system := okSys,
+           agents := [{ tm "p" 1 with inflight := some ⟨"Agent", ago 45⟩ }, { ag "c" 0 with parent := some "p" },
+                      { tm "q" 1 with inflight := some ⟨"SendMessage", ago 45⟩ }, { ag "d" 0 with parent := some "q" }] } },
+  { name := "agent.toolHang: an Agent call in flight 45 min whose only child is done; a Bash call with a live child",
+    o := { now := t0, system := okSys,
+           agents := [{ tm "p" 1 with inflight := some ⟨"Agent", ago 45⟩ },
+                      { ag "c" 0 with parent := some "p", stoppedAt := some (ago 2) },
+                      { tm "q" 1 with inflight := some ⟨"Bash", ago 45⟩ }, { ag "d" 0 with parent := some "q" }] } },
+  { name := "team.permissionWait: a Notification (3 min ago) newer than the lead's last tool call (5 min ago)",
+    o := { now := t0, system := okSys, lead := { lastToolAt := some (ago 5), noteAt := some (ago 3) } } },
+  { name := "team.permissionWait: a Notification and no lead tool event yet",
+    o := { now := t0, system := okSys, lead := { noteAt := some (ago 7) } } },
+  { name := "no alert: the lead called a tool after the Notification, or at the same ms",
+    o := { now := t0, system := okSys, lead := { lastToolAt := some (ago 3), noteAt := some (ago 3) } } },
+  { name := "done: a stopped agent with every bad sign raises nothing",
+    o := { now := t0, system := okSys, agents := [badDone] } },
+  { name := "lastAt after now: age 0, active", o := { now := t0, agents := [{ ag "a" 0 with lastAt := t0 + 5000 }], system := okSys } },
+  { name := "errStreak 3: errTail 2 no alert, errTail 3 agent.errStreak",
+    o := { now := t0, agents := [{ ag "a" 0 with errTail := 2 }, { ag "b" 0 with errTail := 3 }], system := okSys } },
+  { name := "errStreak 0: errTail 0 still raises nothing, errTail 1 does", p := { errStreak := 0 },
+    o := { now := t0, agents := [ag "a" 0, { ag "b" 0 with errTail := 1 }], system := okSys } },
+  { name := "context edges: 200000 none, 200001 ctxWarn, 250000 ctxWarn, 250001 ctxHigh and ctxWarn, unknown none",
+    o := { now := t0, system := okSys,
+           agents := [{ ag "a" 0 with ctxTokens := some 200000 }, { ag "b" 0 with ctxTokens := some 200001 },
+                      { ag "c" 0 with ctxTokens := some 250000 }, { ag "d" 0 with ctxTokens := some 250001 },
+                      ag "e" 0] } },
+  { name := "agentCap 10: 10 live non-lead agents, plus the lead, a stopped agent and a finished workflow agent, raise nothing",
+    o := { now := t0, system := okSys,
+           agents := (List.range 10).map (fun i => ag s!"w{i}" 0) ++
+             [{ ag "lead" 0 with kind := .lead }, { ag "old" 0 with stoppedAt := some (ago 5) },
+              { wf "wf-old" 0 with workflowDone := true }] } },
+  { name := "agentCap 10: 11 live agents raise team.overCap, counted by kind and parent link",
+    o := { now := t0, system := okSys,
+           agents := (List.range 5).map (fun i => tm s!"t{i}" 0) ++
+             (List.range 4).map (fun i => { ag s!"s{i}" 0 with parent := some "t0" }) ++
+             (List.range 2).map (fun i => { wf s!"f{i}" 0 with parent := some "t1" }) } },
+  { name := "diskMinGB 20: 20 GB free none", o := { now := t0, system := { okSys with diskFreeGB := 20 } } },
+  { name := "diskMinGB 20: 19 GB free sys.diskLow", o := { now := t0, system := { okSys with diskFreeGB := 19 } } },
+  { name := "memory warn: no alert", o := { now := t0, system := { okSys with memPressure := .warn } } },
+  { name := "memory critical: sys.memCritical", o := { now := t0, system := { okSys with memPressure := .critical } } },
+  { name := "sim lock held 29 min 59.999 s by a live agent (named by task): no alert",
+    o := { now := t0, agents := [{ ag "a" 0 with task := some "wktr-local" }],
+           system := { okSys with simLock := { holder := some "wktr-local", since := some (ago 30 1) } } } },
+  { name := "sim lock held exactly 30 min by a live agent (named by id): sim.lockLong",
+    o := { now := t0, agents := [ag "a" 0],
+           system := { okSys with simLock := { holder := some "a", since := some (ago 30) } } } },
+  { name := "sim lock holder is done: sim.lockOrphan",
+    o := { now := t0, agents := [{ ag "a" 0 with name := some "sim-runner", stoppedAt := some (ago 2) }],
+           system := { okSys with simLock := { holder := some "sim-runner", since := some (ago 5) } } } },
+  { name := "sim lock holder names no agent: sim.lockOrphan",
+    o := { now := t0, agents := [ag "a" 0], system := { okSys with simLock := { holder := some "ghost" } } } },
+  { name := "sim lock with no holder: no alert",
+    o := { now := t0, system := { okSys with simLock := { since := some (ago 90) } } } },
+  { name := "ci: a failure superseded by a later success, a running run, a cancelled run: no alert",
+    o := { now := t0, system := { okSys with ci := [
+      ⟨"lean", "ci/x", "completed", some "failure", ago 30⟩, ⟨"lean", "ci/x", "completed", some "success", ago 20⟩,
+      ⟨"lean", "ci/y", "in_progress", none, ago 3⟩, ⟨"site", "ci/x", "completed", some "cancelled", ago 9⟩] } } },
+  { name := "ci: the latest run of lean@ci/x failed, of site@ci/x timed out: ci.failed twice",
+    o := { now := t0, system := { okSys with ci := [
+      ⟨"lean", "ci/x", "completed", some "success", ago 30⟩, ⟨"lean", "ci/x", "completed", some "failure", ago 20⟩,
+      ⟨"site", "ci/x", "completed", some "timed_out", ago 9⟩] } } },
+  { name := "docker: a container older than every live agent is docker.orphan; one started after a live agent is not",
+    o := { now := t0, agents := [{ ag "a" 0 with startedAt := ago 50 }, { ag "b" 0 with startedAt := ago 90, stoppedAt := some (ago 1) }],
+           system := { okSys with docker := [⟨"c0ffee", "pg-old", ago 80⟩, ⟨"beef01", "pg-new", ago 50⟩] } } },
+  { name := "worktreesMax 20: 20 worktrees none", o := { now := t0, system := { okSys with worktrees := 20 } } },
+  { name := "worktreesMax 20: 21 worktrees worktrees.many", o := { now := t0, system := { okSys with worktrees := 21 } } },
+  { name := "agent order A: three agents",
+    o := { now := t0, system := okSys, agents := trio } },
+  { name := "agent order B: the same agents reversed give the same alerts and counts (rows follow the input)",
+    o := { now := t0, system := okSys, agents := trio.reverse } },
+  { name := "every code at once, with tight thresholds",
+    p := { idleMin := 1, stallMin := 2, toolHangMin := 3, errStreak := 1, ctxResumeMax := 100, ctxWarn := 50,
+           diskMinGB := 500, agentCap := 1, simLockMaxMin := 1, worktreesMax := 1 },
+    o := { now := t0,
+           agents := [{ ag "a" 5 with inflight := some ⟨"Bash", ago 5⟩, errTail := 1, ctxTokens := some 101 },
+                      ag "b" 0, ag "c" 1, { ag "d" 0 with stoppedAt := some (ago 1) }],
+           lead := { lastToolAt := some (ago 2), noteAt := some (ago 1) },
+           system := { diskFreeGB := 100, memPressure := .critical, simLock := { holder := some "d", since := some (ago 1) },
+                       docker := [⟨"c1", "orphan", ago 120⟩], worktrees := 2,
+                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3⟩] } } },
+  { name := "the same snapshot with default thresholds: fewer alerts (loosening never adds one)",
+    o := { now := t0,
+           agents := [{ ag "a" 5 with inflight := some ⟨"Bash", ago 5⟩, errTail := 1, ctxTokens := some 101 },
+                      ag "b" 0, ag "c" 1, { ag "d" 0 with stoppedAt := some (ago 1) }],
+           lead := { lastToolAt := some (ago 2), noteAt := some (ago 1) },
+           system := { diskFreeGB := 100, memPressure := .critical, simLock := { holder := some "d", since := some (ago 1) },
+                       docker := [⟨"c1", "orphan", ago 120⟩], worktrees := 2,
+                       ci := [⟨"lean", "main", "completed", some "startup_failure", ago 3⟩] } } }]
+
+/-- Literal cases: optional and ignored fields, and refused requests. -/
+def literal : List (String × Json) := [
+  ("params and lead omitted (defaults); ignored fields accepted: load1 (fractional), consolePids, stale, type, model, tools, errors, tokens, inflight.verb, and the retired depth and waitingPermission",
+   lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"name\":null,\"task\":\"t1\",\"type\":\"lean-prover\",\"model\":\"opus\",\"depth\":1,\"startedAt\":1759999000000,\"lastAt\":1759999990000,\"stoppedAt\":null,\"tools\":12,\"errors\":1,\"errTail\":0,\"inflight\":{\"tool\":\"Bash\",\"verb\":\"lake build\",\"since\":1759999990000},\"waitingPermission\":false,\"ctxTokens\":null,\"tokens\":{\"in\":10,\"out\":20,\"cacheRead\":30,\"cacheWrite\":40}}],\"system\":{\"load1\":3.25,\"memPressure\":\"normal\",\"diskFreeGB\":120,\"simLock\":{\"holder\":null,\"since\":null},\"docker\":[],\"worktrees\":4,\"consolePids\":[123],\"stale\":[\"ci\"],\"ci\":[]}}"),
+  ("minimal: only now and system.diskFreeGB", lit "{\"now\":0,\"system\":{\"diskFreeGB\":50}}"),
+  ("refused: a fractional diskFreeGB (floor it)", lit "{\"now\":0,\"system\":{\"diskFreeGB\":20.5}}"),
+  ("refused: unknown memPressure", lit "{\"now\":0,\"system\":{\"diskFreeGB\":50,\"memPressure\":\"high\"}}"),
+  ("refused: system missing", lit "{\"now\":0,\"agents\":[]}"),
+  ("refused: an unknown agent kind", lit "{\"now\":0,\"agents\":[{\"id\":\"a\",\"kind\":\"robot\",\"startedAt\":0,\"lastAt\":0}],\"system\":{\"diskFreeGB\":50}}"),
+  ("lead given alone, kind and parent given: a teammate and its helper",
+   lit "{\"now\":1760000000000,\"lead\":{\"lastToolAt\":1759999990000},\"agents\":[{\"id\":\"t\",\"kind\":\"teammate\",\"startedAt\":1759999000000,\"lastAt\":1759999990000,\"lastTool\":\"SendMessage\",\"lastToolAt\":1759999990000},{\"id\":\"h\",\"parent\":\"t\",\"startedAt\":1759999000000,\"lastAt\":1759999990000}],\"system\":{\"diskFreeGB\":50}}"),
+  ("refused: an agent without lastAt", lit "{\"now\":0,\"agents\":[{\"id\":\"a\",\"startedAt\":0}],\"system\":{\"diskFreeGB\":50}}"),
+  ("refused: a negative threshold", lit "{\"now\":0,\"params\":{\"idleMin\":-1},\"system\":{\"diskFreeGB\":50}}")]
+
+/-- Every case as (name, request body). -/
+def cases : List (String × Json) := typed.map (fun c => (c.name, reqJson c.p c.o)) ++ literal
+
+/-- Coverage gaps of the typed cases: states and alert codes no case produces (empty when complete). -/
+def gaps : List String :=
+  let reps := typed.map fun c => health c.p c.o
+  let states := reps.flatMap fun r => r.agents.map (·.state)
+  let codes := reps.flatMap fun r => r.alerts.map (·.code)
+  ([State.active, .idle, .parked, .stalled, .done].filter (!states.contains ·)).map (fun s => s!"state {Fw.Wire.Obs.stateName s}") ++
+  (Code.all.filter (!codes.contains ·)).map (fun c => s!"code {c.name}")
+
+#guard gaps == []
+
+/-- The text of the golden file. -/
+def fileText : String :=
+  String.join (cases.map fun (name, req) =>
+    (Json.mkObj [("name", .str name), ("request", withOp "obs.health" req),
+      ("response", respond "obs.health" req)]).compress ++ "\n")
+
+/-- The golden file, relative to `lean/`. -/
+def path : System.FilePath := ".." / "packages" / "contracts" / "golden" / "obs" / "health.jsonl"
+
+/-- Compare (or write) the golden file; returns the number of failures (stale file or coverage gaps). -/
+def run (root : System.FilePath) (write : Bool) : IO Nat := do
+  let p := root / path
+  let mut bad := 0
+  if write then
+    IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / "obs")
+    IO.FS.writeFile p fileText
+  else
+    let cur ← try IO.FS.readFile p catch _ => pure ""
+    if cur != fileText then
+      IO.println s!"obs golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
+      bad := bad + 1
+  for g in gaps do
+    IO.println s!"obs golden: no case covers {g}"
+    bad := bad + 1
+  IO.println s!"obs golden: {cases.length} cases, {if write then "written" else s!"{bad} failures"}"
+  return bad
+
+end Fw.Wire.Obs.Golden

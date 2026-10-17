@@ -1,0 +1,13 @@
+Design mutant (m0-mutants, PLAN V-r): v1 I-059 class: "Done" is accepted on a step that is not started (a part the runner already ended).
+
+--- a/Fw/Console.lean
++++ b/Fw/Console.lean
+@@ -359,7 +359,7 @@
+     if st.status = .waiting then none else some s!"step is {st.status.name}, not waiting"
+   | .stepCancel _ => if st.status.isOpen then none else some s!"step already {st.status.name}"
+   | .stepDone _ =>
+-    if st.status = .started then none
++    if true then none
+     else some s!"step is {st.status.name}, only a started step can be done"
+   | .stepAnswer _ a =>
+     if !st.status.isOpen then some s!"step already {st.status.name}"

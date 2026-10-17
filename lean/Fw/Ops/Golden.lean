@@ -4,6 +4,8 @@ import Fw.Wire
 
 `packages/contracts/golden/ops/<op>.jsonl`: one line per case, `{"name", "request", "response"}`,
 where `request` carries its `op` and `response` is what `fwcore` replies (without the `id`).
+The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
+`golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors).
 Generated from Lean, never by hand:
 
 ```
@@ -12,7 +14,8 @@ cd lean && lake env lean --run scripts/OpsGolden.lean --check   # fail if a file
 ```
 
 `lake test` runs the same check. Consumers: the hooks agent (`emit.mjs`, `spawn-guard.mjs`:
-`ops.hook`, `ops.spawn`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
+`ops.hook`, `ops.spawn`; `cap.mjs`: `ops.actor`), console-api's capability door (`cap.ts`
+`actorFor`: `ops.actor`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
 meter (`ops.usage`, `ops.meter`).
 -/
 namespace Fw.Wire.Ops.Golden
@@ -88,7 +91,67 @@ def cases : List (String × List (String × Json)) := [
     ("main thread has no agent_id; failure fields", lit "{\"payloads\":[{\"session_id\":\"s1\",\"hook_event_name\":\"PostToolUseFailure\",\"tool_name\":\"Edit\",\"tool_use_id\":\"toolu_2\",\"error\":\"denied\",\"is_interrupt\":false,\"duration_ms\":3}]}"),
     ("TeammateIdle and SubagentStart", lit "{\"payloads\":[{\"session_id\":\"s1\",\"hook_event_name\":\"TeammateIdle\",\"agent_id\":\"a2\",\"teammate_name\":\"eng-webkit\",\"team_name\":\"t\"},{\"session_id\":\"s1\",\"hook_event_name\":\"SubagentStart\",\"agent_id\":\"a3\",\"agent_type\":\"reviewer\"}]}"),
     ("bad payloads are reported by index, the rest decoded", lit "{\"payloads\":[{\"hook_event_name\":\"PostToolUse\"},{\"session_id\":\"s1\",\"hook_event_name\":\"PostToolUse\",\"duration_ms\":1.5},\"x\",{\"session_id\":\"s1\",\"hook_event_name\":\"Stop\"}]}"),
-    ("missing payloads is refused", lit "{}")])]
+    ("missing payloads is refused", lit "{}"),
+    ("identity: forked internal agent (empty agent_type) is unknown, never the lead", lit "{\"payloads\":[{\"session_id\":\"s1\",\"hook_event_name\":\"SubagentStop\",\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"\"},{\"session_id\":\"s1\",\"hook_event_name\":\"Stop\"}]}")]),
+  ("ops.actor", [
+    ("lead: no agent_id, no agent_type", lit "{}"),
+    ("lead: null agent_id", lit "{\"agent_id\":null,\"agent_type\":null}"),
+    ("lead: no agent_id, agent_type set (main session started with an agent)", lit "{\"agent_type\":\"lean-prover\"}"),
+    ("lead: the caps.jsonl lead record", lit "{\"agent_id\":null,\"agent_type\":\"main\"}"),
+    ("subagent role: owner", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"lean-prover\"}"),
+    ("reviewer role", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"reviewer\"}"),
+    ("review in the type, any ASCII case", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"Math-REVIEWER\"}"),
+    ("near miss: revie is an owner", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"revie-w\"}"),
+    ("agent typed main is an owner, never the lead", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"main\"}"),
+    ("teammate: agent_type is its name (role unresolved, SPK-c open)", lit "{\"agent_id\":\"aeng-webkit-0123456789abcdef\",\"agent_type\":\"eng-webkit\"}"),
+    ("forked internal agent: empty agent_type is unknown", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":\"\"}"),
+    ("agent_id without agent_type is unknown", lit "{\"agent_id\":\"a0123456789abcdef\"}"),
+    ("agent_id with null agent_type is unknown", lit "{\"agent_id\":\"a0123456789abcdef\",\"agent_type\":null}"),
+    ("empty agent_id is unknown", lit "{\"agent_id\":\"\",\"agent_type\":\"lean-prover\"}"),
+    ("non-string agent_id is refused", lit "{\"agent_id\":7,\"agent_type\":\"lean-prover\"}"),
+    ("non-string agent_type is refused", lit "{\"agent_id\":\"a1\",\"agent_type\":true}")]),
+  ("ops.obs", [
+    ("keys: tool_use_id joins; without it the timestamp; no agent_id is main", lit "{\"records\":[{\"agent_id\":\"a1\",\"hook_event_name\":\"PostToolUse\",\"tool_use_id\":\"toolu_1\",\"ts\":5},{\"agent_id\":null,\"hook_event_name\":\"Stop\",\"tool_use_id\":null,\"ts\":7},{\"hook_event_name\":\"Notification\",\"ts\":9}]}"),
+    ("keys: an empty agent_id stays empty (only null or missing is main)", lit "{\"records\":[{\"agent_id\":\"\",\"hook_event_name\":\"X\",\"tool_use_id\":\"\",\"ts\":7}]}"),
+    ("summary: calls, errors and summed duration per (agent type, tool), first-seen order", lit "{\"lines\":[{\"key\":\"k1\",\"hook_event_name\":\"PostToolUse\",\"agent_type\":\"b\",\"tool_name\":\"Bash\",\"is_error\":false,\"duration_ms\":100,\"ts\":1},{\"hook_event_name\":\"Stop\",\"agent_type\":\"b\"},{\"hook_event_name\":\"PostToolUse\"},{\"hook_event_name\":\"PostToolUseFailure\",\"agent_type\":\"b\",\"tool_name\":\"Bash\",\"is_error\":true,\"duration_ms\":50}]}"),
+    ("summary: null fields count as main, ?, no error and 0 ms", lit "{\"lines\":[{\"hook_event_name\":\"PostToolUse\",\"agent_type\":null,\"tool_name\":null,\"is_error\":null,\"duration_ms\":null}]}"),
+    ("empty request: no keys, no rows", lit "{}"),
+    ("record without ts is refused", lit "{\"records\":[{\"hook_event_name\":\"Stop\"}]}"),
+    ("fractional duration is refused", lit "{\"lines\":[{\"hook_event_name\":\"PostToolUse\",\"duration_ms\":1.5}]}")])]
+
+/-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
+def extra : List (String × String × List (String × Json)) := [
+  ("plan", "plan.trailers", [
+    ("oldest trailer marks done; later ones are duplicates; done and unknown ids are reported", lit "{\"commits\":[{\"sha\":\"s3\",\"body\":\"merge x\\n\\nTask: a\\nTask: c\"},{\"sha\":\"s2\",\"body\":\"Task: b\"},{\"sha\":\"s1\",\"body\":\"subject\\n\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"claimed\"},{\"id\":\"b\",\"state\":\"done\"}]}"),
+    ("trailer syntax: line start, blanks around the id, id chars only, CRLF ok", lit "{\"commits\":[{\"sha\":\"s1\",\"body\":\"Task:  t-1.x_2 \\r\\nTask: t 2\\n task: t3\\nTask:\\nxTask: t4\\nTask:t5\"}],\"tasks\":[{\"id\":\"t-1.x_2\",\"state\":\"open\"},{\"id\":\"t5\",\"state\":\"open\"}]}"),
+    ("two trailers of one task in one commit: the first is done, the second a duplicate", lit "{\"commits\":[{\"sha\":\"s1\",\"body\":\"Task: a\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"open\"}]}"),
+    ("no commits", lit "{\"commits\":[],\"tasks\":[{\"id\":\"a\",\"state\":\"open\"}]}"),
+    ("missing tasks is refused", lit "{\"commits\":[]}")]),
+  ("console", "console.landReadiness", [
+    ("new card needs everything (device too)", lit "{\"card\":{\"id\":\"c\",\"needsDevice\":true},\"sha\":\"h\"}"),
+    ("ready at head", lit "{\"card\":{\"id\":\"c\",\"owner\":\"o\",\"needsDevice\":false,\"approved\":true,\"head\":\"h\",\"screenAt\":\"h\",\"reviewAt\":\"h\"},\"sha\":\"h\"}"),
+    ("ready, but the request names an older sha", lit "{\"card\":{\"id\":\"c\",\"needsDevice\":false,\"approved\":true,\"head\":\"h\",\"screenAt\":\"h\",\"reviewAt\":\"h\"},\"sha\":\"g\"}"),
+    ("review at an old head; device missing", lit "{\"card\":{\"id\":\"c\",\"needsDevice\":true,\"approved\":true,\"head\":\"h\",\"screenAt\":\"h\",\"reviewAt\":\"g\",\"deviceAt\":null},\"sha\":\"h\"}"),
+    ("landed card", lit "{\"card\":{\"id\":\"c\",\"needsDevice\":false,\"approved\":true,\"head\":\"h\",\"screenAt\":\"h\",\"reviewAt\":\"h\",\"landed\":true},\"sha\":\"h\"}"),
+    ("missing needsDevice is refused", lit "{\"card\":{\"id\":\"c\"},\"sha\":\"h\"}")]),
+  ("console", "console.alert", [
+    ("permission prompt of an agent: names agent, kind and tool", lit "{\"event\":{\"hook_event_name\":\"Notification\",\"agent_id\":\"a1\",\"agent_type\":\"builder\",\"tool_name\":\"Bash\",\"notification_type\":\"permission_prompt\",\"ts\":10}}"),
+    ("needs input", lit "{\"event\":{\"hook_event_name\":\"Notification\",\"agent_id\":\"a1\",\"agent_type\":\"builder\",\"notification_type\":\"agent_needs_input\",\"ts\":10}}"),
+    ("the lead's own Notification is no alert", lit "{\"event\":{\"hook_event_name\":\"Notification\",\"notification_type\":\"permission_prompt\",\"tool_name\":\"Bash\",\"ts\":10}}"),
+    ("no agent_id: attributed to the single agent with a tool in flight", lit "{\"event\":{\"hook_event_name\":\"Notification\",\"notification_type\":\"permission_prompt\",\"tool_name\":\"Bash\",\"ts\":10},\"flights\":[{\"agent_id\":\"a1\",\"agent_type\":\"builder\",\"tool_name\":\"Bash\"},{\"tool_name\":\"Agent\"}]}"),
+    ("no agent_id, two agents in flight: not attributable", lit "{\"event\":{\"hook_event_name\":\"Notification\",\"notification_type\":\"permission_prompt\",\"ts\":10},\"flights\":[{\"agent_id\":\"a1\"},{\"agent_id\":\"a2\"}]}"),
+    ("no agent_id, the lead has a tool of its own in flight: its prompt", lit "{\"event\":{\"hook_event_name\":\"Notification\",\"notification_type\":\"permission_prompt\",\"ts\":10},\"flights\":[{\"agent_id\":\"a1\"},{\"tool_name\":\"Bash\"}]}"),
+    ("an agent with an open alert gets no second one", lit "{\"event\":{\"hook_event_name\":\"Notification\",\"agent_id\":\"a1\",\"agent_type\":\"builder\",\"ts\":12},\"open\":[\"alert-a1-10\"]}"),
+    ("idle prompt is no alert", lit "{\"event\":{\"hook_event_name\":\"Notification\",\"agent_id\":\"a1\",\"notification_type\":\"idle_prompt\",\"ts\":10}}"),
+    ("StopFailure of an agent", lit "{\"event\":{\"hook_event_name\":\"StopFailure\",\"agent_id\":\"a1\",\"agent_type\":\"builder\",\"ts\":4}}"),
+    ("the agent's next tool result closes its earlier alerts only", lit "{\"event\":{\"hook_event_name\":\"PostToolUse\",\"agent_id\":\"a1\",\"tool_name\":\"Bash\",\"ts\":11},\"open\":[\"alert-a1-10\",\"alert-a2-10\",\"alert-a1-11\",\"alert-0123456789ab\"]}"),
+    ("the lead's next tool result closes the lead's alert", lit "{\"event\":{\"hook_event_name\":\"PostToolUse\",\"ts\":11},\"open\":[\"alert-main-10\"]}"),
+    ("SubagentStop closes", lit "{\"event\":{\"hook_event_name\":\"SubagentStop\",\"agent_id\":\"a1\",\"ts\":12},\"open\":[\"alert-a1-10\"]}"),
+    ("missing ts is refused", lit "{\"event\":{\"hook_event_name\":\"Stop\"}}")]),
+  ("console", "console.actor", [
+    ("all sources", lit "{}"),
+    ("the alert source writes as script", lit "{\"source\":\"alert\"}"),
+    ("unknown source is refused", lit "{\"source\":\"lead\"}")])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
@@ -112,11 +175,10 @@ def dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
 
 /-- Compare (or write) every golden file; returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
-  let d := root / dir
-  if write then IO.FS.createDirAll d
   let mut stale := 0
-  for (op, cs) in cases do
-    let p := d / s!"{op}.jsonl"
+  for (sub, op, cs) in cases.map (fun (op, cs) => ("ops", op, cs)) ++ extra do
+    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{op}.jsonl"
+    if write then IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / sub)
     let text := fileText op cs
     if write then
       IO.FS.writeFile p text
@@ -125,8 +187,8 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
       if cur != text then
         IO.println s!"ops golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/OpsGolden.lean)"
         stale := stale + 1
-  let n := cases.foldl (fun a c => a + c.2.length) 0
-  IO.println s!"ops golden: {cases.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
+  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0
+  IO.println s!"ops golden: {cases.length + extra.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
   return stale
 
 end Fw.Wire.Ops.Golden
