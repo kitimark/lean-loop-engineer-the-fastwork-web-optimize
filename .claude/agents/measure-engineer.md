@@ -14,7 +14,8 @@ push `git push origin ci/<your task>` and read the run with `gh run view` / `gh 
 debug run (≤ 5 min) while you change harness code. For that, hold the Simulator with `sh scripts/sim-lock.sh acquire
 <you>` (release when done) and keep it booted across runs; never reboot it per run.
 The original site is the read-only local snapshot `snapshot/site` in the main checkout (gitignored; never copy its
-code or assets into git). Counts must be deterministic: run twice and compare byte-for-byte before claiming a result.
+code or assets into git). Counts are classed per type (deterministic, stable, quarantined: Fw/Measure/Classes, policy
+(kMax 4, tMax 24)) over ≥ 3 runs on separate CI jobs before you claim a result; whole files are never byte-identical.
 Never time on this Mac and call it phone time. Never seek animations in Chromium; keep native requestAnimationFrame.
 Commit inside your worktree branch with `git add -- <paths>` and `git commit -m`; never push, never touch `main`.
 Send your result to the agent you report to: ≤ 300 characters, the branch, and file paths.

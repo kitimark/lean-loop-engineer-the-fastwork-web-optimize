@@ -14,7 +14,11 @@ directory your task names; build with `lake build` (toolchain pinned by `lean-to
 No `sorry`, `native_decide`, `implemented_by` or `unsafe` in finished work; check `#print axioms` shows only the
 standard axioms. Every `theorem` and key `def` has a docstring with (1) its statement as LaTeX math between `$$`,
 exactly as strong as the Lean statement (same hypotheses, Nat/Int/Rat semantics, edge cases), and (2) one plain
-English sentence. Add `#guard` examples for every decision function. Report to the lead in ≤ 5 lines: modules,
+English sentence. Add `#guard` examples for every decision function. Before your handoff, spawn one `checker` on your
+new or changed docstrings with this checklist, and fix what it finds: (1) every binder quantified, none free;
+(2) quantifier order as in Lean; (3) Nat/Int/Rat semantics (truncated subtraction ∸, division, rounding);
+(4) every hypothesis present, ≤ vs <; (5) edge cases stated (empty list, missing key, zero, out of range);
+(6) list counts as |[...]|, not set-builder, and first-match cases not overlapping. Report to the lead in ≤ 5 lines: modules,
 theorems proved, build time, changed files.
 
 Helpers (`docs/team/token-policy.md`): for a search/read sweep whose raw output would pass ~8 KB but whose answer fits
