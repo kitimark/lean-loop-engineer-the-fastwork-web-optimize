@@ -230,8 +230,8 @@ theorem flagged_of_missing (ps : List Premise) (rs : List Result) (p : Premise) 
 
 /-! ## The registry -/
 
-/-- Both engines. -/
-def both : List Engine := [.chromium, .webkit]
+-- Both engines.
+private def both : List Engine := [.chromium, .webkit]
 
 /-- **The registry.** Every empirical browser premise a Lean theorem relies on, its theorems and its test. Sources: the
 gate-settle and fix-commission tasks, `Fw.Engine.Core` (`frameWorkE`, forced updates R4) and `Lessons`, and the
@@ -346,8 +346,8 @@ theorem registry_lint_clean : premiseLint registry (registry.map Premise.ref) = 
 
 /-! ## Golden rows -/
 
-/-- A string list as JSON. -/
-def strs (l : List String) : Json := Json.arr (l.map Json.str).toArray
+-- A string list as JSON.
+private def strs (l : List String) : Json := Json.arr (l.map Json.str).toArray
 
 /-- A premise row.
 
@@ -357,11 +357,11 @@ def premiseRow (p : Premise) : Json :=
   Json.mkObj [("kind", "premise"), ("id", .str p.id), ("statement", .str p.statement), ("theorems", strs p.theorems),
     ("engines", strs (p.engines.map Engine.name)), ("testId", .str p.testId)]
 
-/-- A test reference as JSON. -/
-def refJson (t : TestRef) : Json := Json.mkObj [("id", .str t.id), ("premise", .str t.premise)]
+-- A test reference as JSON.
+private def refJson (t : TestRef) : Json := Json.mkObj [("id", .str t.id), ("premise", .str t.premise)]
 
-/-- The lint cases: the test lists the lint is run on. -/
-def lintCases : List (String × List TestRef) :=
+-- The lint cases: the test lists the lint is run on.
+private def lintCases : List (String × List TestRef) :=
   let full := registry.map Premise.ref
   let first : TestRef := (full.head?).getD ⟨"", ""⟩
   [("clean", full), ("empty", []), ("missing-first", full.drop 1), ("unknown-test", full ++ [⟨"prem.ghost", "ghost"⟩]),
@@ -377,12 +377,12 @@ def lintRow (name : String) (ts : List TestRef) : Json :=
   Json.mkObj [("kind", "lint"), ("name", .str name), ("tests", Json.arr (ts.map refJson).toArray),
     ("untested", strs l.untested), ("unknown", strs l.unknown)]
 
-/-- Every test of the registry passing on every engine it needs. -/
-def allPass : List Result :=
+-- Every test of the registry passing on every engine it needs.
+private def allPass : List Result :=
   registry.flatMap fun p => p.engines.map fun e => ⟨p.testId, e, true⟩
 
-/-- The flag cases: result lists the flagging is run on. -/
-def flagCases : List (String × List Result) :=
+-- The flag cases: result lists the flagging is run on.
+private def flagCases : List (String × List Result) :=
   let firstTest := (registry.head?.map (·.testId)).getD ""
   let lastTest := (registry.getLast?.map (·.testId)).getD ""
   [("all-pass", allPass), ("no-results", []),
@@ -391,8 +391,8 @@ def flagCases : List (String × List Result) :=
    ("flaky-webkit", ⟨firstTest, .webkit, false⟩ :: allPass),
    ("unknown-test-result", ⟨"prem.ghost", .chromium, false⟩ :: allPass)]
 
-/-- A result as JSON. -/
-def resultJson (r : Result) : Json :=
+-- A result as JSON.
+private def resultJson (r : Result) : Json :=
   Json.mkObj [("testId", .str r.testId), ("engine", .str r.engine.name), ("ok", .bool r.ok)]
 
 /-- A flag row.
@@ -404,17 +404,19 @@ def flagRow (name : String) (rs : List Result) : Json :=
     ("flagged", Json.arr ((flagged registry rs).map fun p =>
       Json.mkObj [("premise", .str p.id), ("theorems", strs p.theorems)]).toArray)]
 
-/-- The text of the golden file: the registry rows, the lint rows, the flag rows. -/
-def goldenText : String :=
+-- The text of the golden file: the registry rows, the lint rows, the flag rows.
+private def goldenText : String :=
   let rows : List Json := registry.map premiseRow ++ lintCases.map (fun (n, ts) => lintRow n ts) ++
     flagCases.map (fun (n, rs) => flagRow n rs)
   String.join (rows.map fun j => j.compress ++ "\n")
 
-/-- The golden file, relative to `lean/`. -/
-def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops" / "premise.jsonl"
+-- The golden file, relative to `lean/`.
+private def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops" / "premise.jsonl"
 
-/-- Compare (or write) the golden file; returns the number of failures (0 or 1). -/
-def run (root : System.FilePath) (write : Bool) : IO Nat := do
+/-- Writes the golden file, or compares it with the generated text and returns $\mathrm{fail}\in\{0,1\}$ (1 when the
+file differs):
+$$\mathrm{run}(\mathit{root}, \mathit{write}) = \begin{cases} 0 & \mathit{write} \lor \mathrm{read}(\mathit{root}/\mathit{path}) = \mathrm{goldenText} \\ 1 & \text{otherwise.}\end{cases}$$ -/
+def run(root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / goldenPath
   if write then
     IO.FS.writeFile p goldenText
