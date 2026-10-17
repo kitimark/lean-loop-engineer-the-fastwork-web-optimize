@@ -11,7 +11,7 @@
 export const TRACE_CATEGORIES = [
   'devtools.timeline', 'disabled-by-default-devtools.timeline', 'blink.animations', 'cc', 'benchmark',
   'disabled-by-default-devtools.timeline.frame', 'blink,devtools.timeline', 'blink,benchmark',
-  'blink_style', 'blink', // N1: StyleEngine::updateActiveStyleSheets and scheduleInvalidationsForRuleSets are "blink,blink_style", InvalidateStyleAndLayoutForFontUpdates is "blink" only (style_engine.cc@f842f52 :681, :2515, :1351)
+  // CONTROL: no blink, blink_style. N1: StyleEngine::updateActiveStyleSheets and scheduleInvalidationsForRuleSets are "blink,blink_style", InvalidateStyleAndLayoutForFontUpdates is "blink" only (style_engine.cc@f842f52 :681, :2515, :1351)
   'disabled-by-default-devtools.timeline.layers', // LayerTreeHostImpl:snapshot per frame: layer census and per-layer raster invalidation regions
 ].filter((c) => !(process.env.FW_NO_LAYERS && c.endsWith('timeline.layers')));
 
