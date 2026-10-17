@@ -38,9 +38,11 @@ frame and make it deterministic, but it changes browser behaviour (one extra hit
 |---|---|---|---|
 | swipe-v1, A | `trace.HitTest` | quarantined (116, 0) | **stable (2, 0)** (run 39043025881) |
 | swipe-v1, R | `trace.HitTest` | deterministic | deterministic |
+| swipe-v1, A (final harness, run 39044815926) | `trace.HitTest` | quarantined (116, 0) | **deterministic (0, 0)**; R deterministic |
 | swipe-v1, A | `trace.HitTest.overlayAdDetector` | (inside HitTest) | quarantined (114, 0): inherent, by design |
 | swipe-touch-v1, A | `trace.HitTest` | quarantined (185, 23), run 39040473427 | quarantined (81, 13), run 39042903332 |
 | swipe-touch-v1, R | `trace.HitTest` | quarantined (25, 1) | quarantined (17, 1) |
+| swipe-touch-v1, A / R (final harness, run 39044812879) | `trace.HitTest` | | quarantined (69, 7) / (27, 7); EventDispatch (68, 8) / (27, 7) |
 
 Touch stays quarantined, and it is not the detector. MEASURED: over the three jobs of run 39043999523 (a repeat), HitTest
 differs between jobs in 123 frames, EventDispatch in 117 frames, and 116 frames are in both; the per-run total of
@@ -92,7 +94,9 @@ released). Each isolated SVG document runs its own first style-sheet update. R r
 
 Harness fix (extraction by containment, as for HitTest): a slice inside an `IsolatedSVGDocumentHost` slice is counted as
 `trace.N1.svgImageDocument`; `trace.N1.updateActiveStyleSheets` is then 0 on A in W-measure. Verified offline on the
-stored trace: 0 and 17.
+stored trace (0 and 17) and on CI, final harness: run 39044815926, job original r1 reads `updateActiveStyleSheets` 0,
+`svgImageDocument` 17, `n0.events` 0; all four N1 types and the three N0 types are deterministic on A and R in both
+profiles (runs 39044815926, 39044812879).
 
 ### 2.3 Answer
 
