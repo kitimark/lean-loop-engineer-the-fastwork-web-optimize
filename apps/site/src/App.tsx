@@ -68,7 +68,16 @@ export function App({ config }: { config: FwConfig }) {
         <People variant={config.variants['people'] ?? 'shell'} />
         <Pain variant={config.variants['pain'] ?? 'shell'} />
         <Commission variant={config.variants['commission'] ?? 'shell'} />
-        <Platform variant={config.variants['platform'] ?? 'shell'} />
+        <Platform
+          variant={config.variants['platform'] ?? 'faithful'}
+          sub={{
+            sweep: config.variants['platform.sweep'],
+            glint: config.variants['platform.glint'],
+            entries: config.variants['platform.entries'],
+            stageBg: config.variants['platform.stageBg'],
+            marquee: config.variants['platform.marquee'],
+          }}
+        />
         <MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} />
       </main>
 

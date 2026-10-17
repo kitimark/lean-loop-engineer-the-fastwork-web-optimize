@@ -1,0 +1,30 @@
+/* platform.sweep (faithful): the 4 s gradient sweep over the four title words.
+   Restated from assets/2.gBuqKVzi.css:5802-5805 (keyframes) and 11081-11103 (rule, last word; reduced motion keeps the plain white word).
+   Exact reference: Lean Fw.Parts.PlatformSweep (golden platform.sweep.jsonl). */
+@layer parts {
+  /* size and clip are declared whatever the motion setting (the original keeps them with a plain white word) */
+  .sweep.sweep {
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    /* doubled class: wins over the plain white `.word` of platform.module.css whatever the import order */
+    .sweep.sweep {
+      color: #0000;
+      -webkit-text-fill-color: transparent;
+      background-image: linear-gradient(90deg, #fff 0 33.33%, #82bcff 40%, #2483ff 45%, #ff66f4 50%, #ff3029 55%, #fe7b02 60%, #fff 66.67% 100%);
+      height: auto;
+      animation: 4s linear infinite sweepDoc;
+      display: inline;
+    }
+  }
+  @keyframes sweepDoc {
+    0% {
+      background-position: 100%;
+    }
+    to {
+      background-position: 0%;
+    }
+  }
+}

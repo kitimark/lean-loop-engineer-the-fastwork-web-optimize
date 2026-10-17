@@ -1,21 +1,18 @@
 {
   "id": "platform",
   "slot": "platform",
-  "anchors": [
-    "platform"
-  ],
-  "experiment": false,
-  "impls": [
-    "mui"
-  ],
-  "muiStates": [
-    "typography-h2",
-    "typography-body1"
-  ],
+  "anchors": ["platform"],
+  "experiment": true,
+  "impls": ["mui", "plain"],
+  "muiStates": [],
   "variants": {
-    "shell": {
+    "faithful": {
       "kind": "faithful",
-      "tier": "shell"
+      "tier": "T1",
+      "provenance": {
+        "original": "_app/immutable/nodes/2.DyWL8TcE.js:12414-12661 (section), 12434-12448 (shrink); assets/2.gBuqKVzi.css:5388-5560, 5602-6130, 6330-6405",
+        "delta": "stage visuals restated at the artboard level; the logo glyph in the shield is a neutral stand-in; images are the original's public paths and are not in the repository"
+      }
     }
   },
   "requires": {},

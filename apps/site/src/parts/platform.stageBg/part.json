@@ -1,0 +1,17 @@
+{
+  "id": "platform.stageBg",
+  "slot": "platform",
+  "anchors": ["platform"],
+  "experiment": true,
+  "impls": ["mui", "plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": {
+      "kind": "faithful",
+      "tier": "T1",
+      "provenance": { "original": "assets/2.gBuqKVzi.css:6330-6405", "lean": "lean/Fw/Parts/PlatformSection.lean" }
+    }
+  },
+  "requires": {},
+  "conflicts": {}
+}

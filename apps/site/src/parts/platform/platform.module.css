@@ -1,0 +1,328 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:5388-5400, 5528-5560, 5602-5670, 5809-5960, 6037-6130, 7752-7830, 10985-11075).
+   The section is the dark card that shrinks on scroll; its box height is the sum of its rows (stage aspect ratio), not a fixed box.
+   Media texts are the generated conditions (media.test.ts checks them byte for byte). */
+@layer parts {
+  .section {
+    --morph-fade: 1;
+    --platform-shrink: 0;
+    --platform-shrink-scale: calc(1 - 0.083333 * var(--platform-shrink, 0));
+    --platform-shrink-radius: 32px;
+    box-sizing: border-box;
+    color: #151a23;
+    filter: blur(calc((1 - var(--morph-fade)) * 12px));
+    opacity: var(--morph-fade);
+    width: max(100%, 320px);
+    padding: 0;
+    display: block;
+    background: #131922;
+  }
+  .section.isShrinking {
+    background: #fff;
+  }
+  .card {
+    box-sizing: border-box;
+    background: #131922;
+    color: #fff;
+    border-radius: calc(var(--platform-shrink-radius) * var(--platform-shrink, 0));
+    transform: scale(var(--platform-shrink-scale, 1));
+    transform-origin: 50% 100%;
+    will-change: transform, border-radius;
+    width: 100%;
+    padding: 96px 56px 80px;
+    overflow: clip;
+  }
+  .layout {
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    max-width: 1328px;
+    margin-inline: auto;
+    display: flex;
+  }
+  .mission {
+    flex-direction: column;
+    align-items: center;
+    gap: 80px;
+    width: 100%;
+    display: flex;
+  }
+  .missionHeader {
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    display: flex;
+  }
+  .missionCopy {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    display: flex;
+  }
+  .missionTitle {
+    color: #fff;
+    letter-spacing: -0.02em;
+    margin: 0;
+    font-size: clamp(36px, 4vw, 48px);
+    font-weight: 500;
+    line-height: 1.15;
+  }
+  .rows {
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+    width: 100%;
+    display: flex;
+  }
+  .row {
+    box-sizing: border-box;
+    border-radius: 24px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 0;
+    width: min(1280px, 100%);
+    max-width: 100%;
+    margin: 0;
+    display: grid;
+  }
+  .rowFlip .stageSlot {
+    grid-column: 2;
+  }
+  .rowFlip .rowCopy {
+    grid-area: 1/1;
+  }
+  .rowCopy {
+    box-sizing: border-box;
+    flex-direction: column;
+    justify-content: center;
+    gap: 32px;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 48px;
+    display: flex;
+  }
+  .rowIntro {
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    display: flex;
+  }
+  .rowIntro:has(.rowChecks) {
+    gap: 32px;
+  }
+  .rowChecks {
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: none;
+  }
+  .rowCheck {
+    color: #fff;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    display: flex;
+  }
+  .rowCheckIcon {
+    color: #fff;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    line-height: 0;
+    display: inline-flex;
+  }
+  .rowCheckIcon svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+  .rowTitle {
+    color: #fff;
+    letter-spacing: 0;
+    text-wrap: pretty;
+    margin: 0;
+    font-size: 40px;
+    font-weight: 400;
+    line-height: 1.15;
+  }
+  .word {
+    vertical-align: top;
+    white-space: nowrap;
+    color: #fff;
+    height: auto;
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.15;
+    display: inline;
+  }
+  /* the original's "organized" word has no nowrap / top alignment of its own */
+  .word.wordFree {
+    vertical-align: baseline;
+    white-space: normal;
+  }
+  .rest {
+    color: #fffc;
+    opacity: 1;
+    font-size: 40px;
+    font-weight: 400;
+  }
+  .titleF {
+    display: none;
+  }
+  .titleI {
+    display: inline;
+  }
+  .titleF,
+  .titleI {
+    font-size: inherit;
+  }
+
+  @media (width>=861px) and (width<=1000px) {
+    .card {
+      padding-top: 64px;
+    }
+    .mission {
+      gap: 48px;
+    }
+    .missionTitle {
+      font-size: 24px;
+      font-weight: 400;
+    }
+  }
+  @media (width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px) {
+    .missionTitle {
+      font-size: 24px;
+      font-weight: 400;
+    }
+    .mission {
+      gap: 48px;
+    }
+    .rowTitle,
+    .rest,
+    .word {
+      font-size: 28px;
+      line-height: 1.15;
+    }
+  }
+  @media (width>=1001px) {
+    .missionTitle {
+      letter-spacing: -0.64px;
+      white-space: nowrap;
+      font-size: 32px;
+      font-weight: 400;
+    }
+  }
+  @media (width>=861px) {
+    .rows {
+      gap: 40px;
+    }
+    .restBlock {
+      display: block;
+    }
+    .rowTitle,
+    .word,
+    .rest {
+      font-size: 40px;
+      line-height: 1.15;
+    }
+  }
+  @media (width<=1000px) {
+    .rowCopy {
+      padding: 24px;
+    }
+    .rowTitle,
+    .word,
+    .rest {
+      font-size: 28px;
+      line-height: 1.15;
+    }
+    .word {
+      white-space: normal;
+    }
+    .rowTitle {
+      overflow: visible;
+    }
+  }
+  @media (width<=640px) {
+    .row,
+    .rowFlip {
+      grid-template-columns: minmax(0, 1fr);
+      align-items: stretch;
+      width: 100%;
+    }
+    .rowFlip .stageSlot,
+    .rowFlip .rowCopy {
+      grid-area: auto;
+    }
+    .rowCopy {
+      width: 100%;
+      height: auto;
+      padding: 32px 0 0;
+    }
+  }
+  @media (width<=720px) {
+    .section {
+      --platform-shrink-radius: 24px;
+    }
+    .card {
+      padding: 48px 24px 24px;
+    }
+  }
+  @media (width<=960px) {
+    .row,
+    .rowFlip {
+      align-items: stretch;
+      gap: 0;
+      width: 100%;
+      padding: 0;
+    }
+  }
+  @media (width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px) {
+    .section {
+      --platform-shrink: 0;
+      --platform-shrink-scale: 1;
+      --platform-shrink-radius: 0px;
+    }
+    .card {
+      border-radius: 0;
+      transform: none;
+      will-change: auto;
+      padding: 64px 20px;
+    }
+    .rows {
+      gap: 64px;
+    }
+    .rowCopy {
+      flex: none;
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      padding: 20px 0 0;
+    }
+    .rowTitle {
+      width: 100%;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+  }
+  /* the original sets the row titles back to 40px after its touch block, until the 1000 px rule (28px) */
+  @media (width>=1001px) {
+    .row .rowTitle {
+      font-size: 40px;
+      line-height: 1.15;
+    }
+  }
+}

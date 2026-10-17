@@ -1928,7 +1928,8 @@
     "apps/site/src/parts/platform.entries/**",
     "apps/site/src/parts/platform.stageBg/**",
     "apps/site/src/parts/platform.marquee/**"
-   ]
+   ],
+   "evidence": "86fdafc"
   },
   {
    "id": "port-overlays",
