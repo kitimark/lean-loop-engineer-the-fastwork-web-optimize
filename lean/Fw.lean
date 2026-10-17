@@ -25,6 +25,8 @@ import Fw.Parts.MorphPanel
 import Fw.Parts.Nav
 import Fw.Parts.NavLangMenu
 import Fw.Parts.NavGolden
+import Fw.Parts.Commission
+import Fw.Parts.CommissionTyping
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Tolerance

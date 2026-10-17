@@ -6,6 +6,7 @@ import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
 import Fw.Parts.MorphPanel
 import Fw.Parts.NavGolden
+import Fw.Parts.CommissionGolden
 /-!
 # Golden vectors for the M2 pilot parts
 
@@ -352,10 +353,10 @@ def morphPanelLines : List String :=
 
 end MorphPanelSec
 
-/-- Write the 11 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
+/-- Write the 13 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
 one `.jsonl` per pilot part (plus morph.panel), and a `.spec.jsonl` for every pilot part except `hero.countdown` (which has none).
 
-$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\} \cup \{\text{morph.tween.jsonl}, \text{morph.panel.jsonl}, \text{nav.jsonl}, \text{nav.langMenu.jsonl}\},\quad |\mathit{files}| = 11$$
+$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\} \cup \{\text{morph.tween.jsonl}, \text{morph.panel.jsonl}, \text{nav.jsonl}, \text{nav.langMenu.jsonl}, \text{commission.jsonl}, \text{commission.typing.jsonl}\},\quad |\mathit{files}| = 13$$
 
 Regenerates the pilot parts' golden vectors from the Lean definitions. -/
 def main (args : List String) : IO Unit := do
@@ -367,7 +368,9 @@ def main (args : List String) : IO Unit := do
      ("hero.countdown.jsonl", countdownLines), ("hero.exit.jsonl", exitLines),
      ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines),
      ("morph.panel.jsonl", morphPanelLines),
-     ("nav.jsonl", Fw.Parts.NavGolden.navLines), ("nav.langMenu.jsonl", Fw.Parts.NavGolden.menuLines)]
+     ("nav.jsonl", Fw.Parts.NavGolden.navLines), ("nav.langMenu.jsonl", Fw.Parts.NavGolden.menuLines),
+     ("commission.jsonl", Fw.Parts.CommissionGolden.commissionLines),
+     ("commission.typing.jsonl", Fw.Parts.CommissionGolden.typingLines)]
   for (name, ls) in files do
     IO.FS.writeFile (dir ++ "/" ++ name) (String.join (ls.map (· ++ "\n")))
     IO.println s!"{name}: {ls.length} lines"

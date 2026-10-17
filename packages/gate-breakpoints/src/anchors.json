@@ -314,6 +314,374 @@
           "why": "the 48px pill button (36px at <=640) with a blurred translucent fill and a 1px border"
         }
       ]
+    },
+    "commission": {
+      "anchors": ["commission"],
+      "cites": ["snapshot 2.gBuqKVzi.css:1-216, 226-348, 425-460 (section, card, header, underline, rows, copy, divider, diagram, zero mark) and 916-1210 (compact c1000, 641-1000, <=640, reduced motion)", "2.DyWL8TcE.js:3036-3345 (markup and per-frame body), 2719-2782 (scene scheduler); lean/Fw/Parts/Commission.lean"],
+      "excluded": [
+        {
+          "what": "the why-bring dialog (.why-bring)",
+          "why": "an overlay (portal) owned by the overlays; the rewrite renders the link only"
+        },
+        {
+          "what": "pictures (avatars, arrow), the hand-drawn underline and zero paths",
+          "why": "placeholder drawings of the rewrite (original assets are not copied); their boxes are CSS-sized and compared, their pixels are not"
+        },
+        {
+          "what": "the fee visual in the referral row",
+          "why": "owned by commission.typing"
+        }
+      ],
+      "roles": [
+        {
+          "role": "section",
+          "orig": "section.commission",
+          "rewrite": "[data-fw=\"commission\"]",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": ["contain-intrinsic-block-size"],
+          "why": "x and y are page offsets (the rewrite has a nav bar and the countdown above it); width and height are the part's own: 100% and the sticky card plus the runway"
+        },
+        {
+          "role": "track",
+          "orig": "section.commission > .commission-track",
+          "rewrite": "[data-fw=\"commission\"] > div",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "block box holding the sticky card and the runway"
+        },
+        {
+          "role": "sticky",
+          "orig": ".commission-sticky",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "sticky on desktop with min-height calc(100vh + 48px); relative from the compact condition on"
+        },
+        {
+          "role": "card",
+          "orig": ".commission-card",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the white card: padding, radius and the shrink transform come from the custom properties both arms drive"
+        },
+        {
+          "role": "runway",
+          "orig": ".commission-runway",
+          "rewrite": "[data-fw=\"commission\"] > div > div:last-child",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "inline height 6% of the viewport on desktop, none when compact or reduced motion"
+        },
+        {
+          "role": "inner",
+          "orig": ".commission-inner",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "header",
+          "orig": ".commission-header",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:first-child",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "title",
+          "orig": ".commission-header h2",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:first-child > h2",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "titleMuted",
+          "orig": ".commission-title-muted",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:first-child > h2 > span:first-child",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "titleAccent",
+          "orig": ".commission-title-accent",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:first-child > h2 > span:last-child",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "underline",
+          "orig": ".commission-underline",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:first-child > h2 > span:last-child > span",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "width is the accent text's, height is fixed 17 or 19 or 17px; the declared properties are compared (hidden state at load)"
+        },
+        {
+          "role": "rows",
+          "orig": ".commission-rows",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "rowDirect",
+          "orig": ".commission-row.is-direct",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1)",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "rowReferral",
+          "orig": ".commission-row.is-referral",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(3)",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "divider",
+          "orig": ".commission-divider",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(2)",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "a 1px line row: the width is the rows' width, the height is the line's"
+        },
+        {
+          "role": "visualColumn",
+          "orig": ".commission-row > .commission-visual-column",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1) > div:first-child, [data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(3) > div:first-child",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "400px wide on desktop, full width or half of it when compact; the height follows the diagram or the fee visual"
+        },
+        {
+          "role": "copy",
+          "orig": ".commission-row > .commission-copy",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1) > div:last-child, [data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(3) > div:last-child",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "copyHeading",
+          "orig": ".commission-copy h3",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1) > div:last-child > h3, [data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(3) > div:last-child > h3",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "copyBody",
+          "orig": ".commission-copy p",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1) > div:last-child > p, [data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(3) > div:last-child > p",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "whyLink",
+          "orig": ".why-link",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1) > div:last-child > button",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "the box size comes from text in a font that differs (the original loads its own web font, the rewrite uses the fallback stack), so the used width and height are not compared; the declared properties are"
+        },
+        {
+          "role": "diagram",
+          "orig": ".client-diagram",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1) > div:first-child > div",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "400 x 196 on desktop; aspect-ratio 432/224 and min(100%, 345.6px) wide when compact"
+        },
+        {
+          "role": "pill",
+          "orig": ".client-pill",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1) > div:first-child > div > div:first-child",
+          "boxRel": {
+            "role": "diagram",
+            "index": 0
+          },
+          "dims": ["x", "y"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "absolute at top 9px, left 52px (percent of the diagram when compact); the box size is text-dependent"
+        },
+        {
+          "role": "arrow",
+          "orig": ".client-arrow",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1) > div:first-child > div > img",
+          "boxRel": {
+            "role": "diagram",
+            "index": 0
+          },
+          "dims": ["x", "y", "w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "absolute, fixed size on desktop and percent of the diagram when compact"
+        },
+        {
+          "role": "zeroMark",
+          "orig": ".zero-mark",
+          "rewrite": "[data-fw=\"commission\"] > div > div:first-child > div > div > div:last-child > div:nth-child(1) > div:first-child > div > span",
+          "boxRel": {
+            "role": "diagram",
+            "index": 0
+          },
+          "dims": ["x", "y", "w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "absolute, 107 x 87 on desktop and percent of the diagram when compact"
+        }
+      ]
+    },
+    "commission.typing": {
+      "anchors": ["commission-typing"],
+      "cites": ["snapshot 2.gBuqKVzi.css:348-583 (fee visual), 1066-1071 (compact scale box), 1190-1209 (reduced motion)", "2.DyWL8TcE.js:2400-2640 (JT: timeline, markup); lean/Fw/Parts/CommissionTyping.lean"],
+      "excluded": [
+        {
+          "what": "the typed text, the caret, the counters and the bar width",
+          "why": "state of the looping timeline; nothing runs while the visual is below the fold (the gate loads at the top). The timeline is proved in Lean and checked by golden vectors (logic.test.ts)"
+        },
+        {
+          "what": "pictures (avatars)",
+          "why": "placeholder pictures; their boxes are CSS-sized and compared"
+        }
+      ],
+      "roles": [
+        {
+          "role": "scale",
+          "orig": ".fee-visual-scale",
+          "rewrite": "[data-fw=\"commission-typing\"]",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "432 x 224 times --visual-scale; width min(100%, 345.6px) with aspect-ratio when compact"
+        },
+        {
+          "role": "visual",
+          "orig": ".fee-visual",
+          "rewrite": "[data-fw=\"commission-typing\"] > div",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "432 x 224 design box; its scale transform comes from --visual-scale"
+        },
+        {
+          "role": "beat",
+          "orig": ".fee-visual-beat",
+          "rewrite": "[data-fw=\"commission-typing\"] > div > div",
+          "boxRel": {
+            "role": "visual",
+            "index": 0
+          },
+          "dims": ["x", "y"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "flex row at rest; compared relative to the visual"
+        },
+        {
+          "role": "avatarLarge",
+          "orig": ".fee-avatar.is-large",
+          "rewrite": "[data-fw=\"commission-typing\"] > div > div > span",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "40 x 40 at rest; opacity 0 and scale 0.35 until shown"
+        },
+        {
+          "role": "message",
+          "orig": ".fee-message",
+          "rewrite": "[data-fw=\"commission-typing\"] > div > div > div > div:first-child",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "305 x 48 bubble, hidden at rest"
+        },
+        {
+          "role": "referral",
+          "orig": ".referral-fee",
+          "rewrite": "[data-fw=\"commission-typing\"] > div > div > div > div:nth-child(2)",
+          "boxRel": null,
+          "dims": ["w"],
+          "skipSets": ["layoutDerived"],
+          "skipProps": [],
+          "why": "column, blurred and hidden at rest"
+        },
+        {
+          "role": "referralCard",
+          "orig": ".referral-card",
+          "rewrite": "[data-fw=\"commission-typing\"] > div > div > div > div:nth-child(2) > div",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "384 wide card; its height is the rows and the bar"
+        },
+        {
+          "role": "progress",
+          "orig": ".fee-progress",
+          "rewrite": "[data-fw=\"commission-typing\"] > div > div > div > div:nth-child(2) > div > div:last-child",
+          "boxRel": null,
+          "dims": ["w", "h"],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "12px bar track, full card width"
+        }
+      ]
     }
   }
 }
