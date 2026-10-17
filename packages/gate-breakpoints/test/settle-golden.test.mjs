@@ -4,8 +4,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { GATE_POLICY, nextStable, quiet, report, settled, waitTrace } from '../src/settle.mjs';
+import { GATE_POLICY, cell, nextStable, quiet, rendered, report, settled, waitTrace } from '../src/settle.mjs';
 import { settleInPage } from '../src/page.mjs';
+import { maskNotRendered } from '../src/summary.mjs';
 import { PKG } from '../src/serve.mjs';
 import { SETTLE_GOLDEN, settlegen } from '../scripts/settlegen.mjs';
 
@@ -69,4 +70,27 @@ test('the three misreads of run 39067170911 are unsettled in the golden file', (
   for (const n of ['pain.notes', 'hero.orbit: parked', 'overlays.signup']) assert.equal(byName(n).settled, false, n);
   assert.equal(byName('hero.orbit after parking').settled, true);
   assert.equal(of('quiet').find((l) => l.name.startsWith('people.deck')).quiet, false);
+});
+
+test('maskNotRendered: an item under a skipping ancestor in either arm is equal on both sides, and listed', () => {
+  const it = (m, skipped) => ({ rect: null, style: { 'margin-inline': m }, ...(skipped ? { skipped: true } : {}) });
+  const arm = (items) => ({ settle: {}, raw: { parts: { commission: { inner: { count: items.length, declared: [], items } } } } });
+  const state = { orig: arm([it('96px', false), it('8px', true)]), rewrite: arm([it('0px', false), it('0px', false)]) };
+  const { state: out, masked } = maskNotRendered(state);
+  assert.deepEqual(masked, [{ part: 'commission', role: 'inner', idx: 1, orig: true, rewrite: false }]);
+  const [o, r] = [out.orig.raw.parts.commission.inner.items, out.rewrite.raw.parts.commission.inner.items];
+  assert.deepEqual(o[1], r[1], 'masked item: same values both sides, so it can neither fail nor pass');
+  assert.equal(o[1].skipped, undefined);
+  assert.notDeepEqual(o[0], r[0], 'a rendered item is left alone');
+  assert.equal(maskNotRendered({ orig: arm([it('1px', false)]), rewrite: arm([it('2px', false)]) }).masked.length, 0);
+});
+
+test('rendered and cell: a node in a skipped subtree is notRendered, never pass or fail (golden)', () => {
+  assert.ok(of('rendered').length >= 4 && of('cell').length >= 6);
+  for (const l of of('rendered')) assert.equal(rendered(l.skips), l.rendered, l.name);
+  for (const l of of('cell')) assert.equal(cell(l.renderedA, l.renderedB, l.a, l.b, l.equal), l.cell, l.name);
+  for (const e of [true, false]) {
+    assert.equal(cell(false, true, 'settled@1', 'settled@1', e), 'notRendered');
+    assert.equal(cell(true, false, 'unsettled', 'settled@1', e), 'notRendered');
+  }
 });

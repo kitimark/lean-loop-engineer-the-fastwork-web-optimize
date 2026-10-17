@@ -27,6 +27,16 @@
 {"cur":[4000,-5000],"eps":5000,"kind":"quiet","name":"loose eps","next":3,"prev":[0,0],"quiet":true}
 {"cur":[],"eps":100,"kind":"quiet","name":"no values at all","next":3,"prev":[],"quiet":true}
 {"cur":[979000],"eps":100,"kind":"quiet","name":"people.deck scale mid lerp","next":0,"prev":[977000],"quiet":false}
+{"kind":"rendered","name":"no ancestors","rendered":true,"skips":[]}
+{"kind":"rendered","name":"none skips","rendered":true,"skips":[false,false,false]}
+{"kind":"rendered","name":"the middle one skips","rendered":false,"skips":[false,true,false]}
+{"kind":"rendered","name":"only the root skips","rendered":false,"skips":[true]}
+{"a":"settled@1","b":"settled@2","cell":"pass","equal":true,"kind":"cell","name":"both rendered, equal","renderedA":true,"renderedB":true}
+{"a":"settled@1","b":"settled@2","cell":"fail","equal":false,"kind":"cell","name":"both rendered, different","renderedA":true,"renderedB":true}
+{"a":"unsettled","b":"settled@2","cell":"unsettled","equal":true,"kind":"cell","name":"both rendered, one unsettled","renderedA":true,"renderedB":true}
+{"a":"settled@1","b":"settled@2","cell":"notRendered","equal":false,"kind":"cell","name":"commission inner/rows margin: original in a skipped subtree, values different","renderedA":false,"renderedB":true}
+{"a":"settled@1","b":"settled@2","cell":"notRendered","equal":true,"kind":"cell","name":"rewrite not rendered, values equal","renderedA":true,"renderedB":false}
+{"a":"unsettled","b":"unsettled","cell":"notRendered","equal":false,"kind":"cell","name":"neither rendered, both unsettled","renderedA":false,"renderedB":false}
 {"a":"settled@2","b":"settled@0","equal":true,"kind":"report","name":"both settled and equal","report":"pass"}
 {"a":"settled@2","b":"settled@5","equal":false,"kind":"report","name":"both settled and different","report":"fail"}
 {"a":"unsettled","b":"settled@1","equal":true,"kind":"report","name":"original unsettled, values equal","report":"unsettled"}

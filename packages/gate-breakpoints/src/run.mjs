@@ -105,8 +105,11 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     }
     const { trace } = await s.evaluate(settleInPage, { policy: GATE_POLICY, roots });
     const last = trace[trace.length - 1];
+    const outcome = waitTrace(GATE_POLICY, trace);
+    // stderr only (the output JSON carries the same numbers in settleWait): per-stop settle time, for gate-speed's before/after
+    log(`  settle ${engineName} ${site} ${env.width}x${env.height}${only ? ' (overlay)' : ''}: ${last.t} ms, ${last.frames} frames, ${outcome}`);
     return {
-      outcome: waitTrace(GATE_POLICY, trace), parked, hoverCapable: env.hover === 'hover',
+      outcome, parked, hoverCapable: env.hover === 'hover',
       observations: trace.length, frames: last.frames, waitedMs: last.t, running: last.running, stable: last.stable, hoverInside: last.hoverInside,
     };
   }
@@ -207,7 +210,11 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
         await parkEarly(s, sw.stops[0]);
         await evalReady(s, site);
         for (let i = 0; i < sw.stops.length; i++) {
-          if (i > 0) { await s.resize(sw.stops[i]); await s.evaluate(waitResize); }
+          if (i > 0) {
+            const t1 = Date.now();
+            await s.resize(sw.stops[i]); await s.evaluate(waitResize);
+            log(`  resize ${engineName} ${site} ${sw.stops[i].width}x${sw.stops[i].height}: ${Date.now() - t1} ms`);
+          }
           const settleWait = await settleArm(s, site, sw.stops[i]);
           const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots));
           raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;

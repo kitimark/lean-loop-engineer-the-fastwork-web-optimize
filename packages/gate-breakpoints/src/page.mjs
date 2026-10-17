@@ -87,8 +87,7 @@ export async function waitReady(arg) {
  *    been near them (the morph panel mounts when the platform section is within 200% of the viewport and stays mounted). Per
  *    step: scroll so the `scrollNear` element's top is 1.5 viewports below the fold, wait for `waitFor`, then return to the
  *    top and wait out running finite animations, so every part is collected from the top in the same state.
- *  - kind "overlay", stage "open" (overlays.drawer, overlays.signup): click `trigger`, wait for `ready`, wait out the finite
- *    animations, settle three frames and 300 ms. The caller collects that one part, then runs stage "close": click `close`,
+ *  - kind "overlay", stage "open" (overlays.drawer, overlays.signup): click `trigger`, wait for `ready` (the caller then settles and collects that one part). The caller collects that one part, then runs stage "close": click `close`,
  *    wait until `gone` no longer matches, so the next read starts from the closed page.
  */
 export async function prepareInPage(arg) {
@@ -126,9 +125,8 @@ export async function prepareInPage(arg) {
       btn.click();
       while (!document.querySelector(step.ready) && performance.now() - t0 < 5000) await sleep(50);
       found.push(!!document.querySelector(step.ready));
-      await idle(5000);
-      for (let i = 0; i < 3; i++) await frame();
-      await sleep(300);
+      // no fixed sleep: the caller's settle wait (settleInPage) ends on the dialog's enter animation being finished and quiet
+      await frame();
     }
   } else if (arg.stage === 'close') {
     for (const step of arg.steps) {
@@ -143,20 +141,13 @@ export async function prepareInPage(arg) {
   return found;
 }
 
-/** A short pause after a live resize: two frames and 600 ms (the original debounces its resize work with timers). */
+/**
+ * After a live resize: one frame, so the engine has applied it. Nothing else is waited for here: the gate's settle wait
+ * (settleInPage, Fw.Gate.Settle) follows and ends on events (two real frames, nothing running, the probed values quiet),
+ * so the fixed 600 ms sleep and the drain of every finite animation are gone (sweeps-speed note, 10-18).
+ */
 export async function waitResize() {
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
-  await frame();
-  await frame();
-  await sleep(600);
-  const running = () => document.getAnimations().filter((a) => {
-    const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
-    return t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
-  }).length;
-  const t1 = performance.now();
-  while (running() > 0 && performance.now() - t1 < 5000) await sleep(50);
-  await frame();
+  await Promise.race([new Promise((r) => requestAnimationFrame(() => r())), new Promise((r) => setTimeout(r, 250))]);
   return true;
 }
 
@@ -319,7 +310,15 @@ export function collectInPage(arg) {
         const cs = getComputedStyle(el);
         const style = {};
         for (const n of names) style[n] = cs.getPropertyValue(n);
-        return { rect, style };
+        // Fw.Gate.Settle.rendered: the node sits under an ancestor that skips its subtree (content-visibility), where the engine has
+        // no layout and an auto margin has no used value. Reported, never decided here; the summary makes the cell notRendered.
+        let skipped = false;
+        if (typeof el.checkVisibility === 'function') {
+          let under = false;
+          for (let a = el.parentElement; a && !under; a = a.parentElement) { const cv = getComputedStyle(a).contentVisibility; under = cv === 'auto' || cv === 'hidden'; }
+          skipped = under && !el.checkVisibility({ contentVisibilityAuto: true });
+        }
+        return skipped ? { rect, style, skipped: true } : { rect, style };
       });
       out.parts[pid][role] = { count: els.length, declared: Array.from(declared).sort(), items: arg.props ? items : [] };
     }

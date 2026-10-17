@@ -40,3 +40,15 @@ export function report(a, b, equal) {
   if (a.startsWith('settled') && b.startsWith('settled')) return equal ? 'pass' : 'fail';
   return 'unsettled';
 }
+
+/** Fw.Gate.Settle.rendered: no ancestor (itself included) skips its subtree. `skips` is one boolean per ancestor. */
+export const rendered = (skips) => !skips.some(Boolean);
+
+/**
+ * Fw.Gate.Settle.cell: a probe on a node that is not rendered in either arm is 'notRendered' (never pass, never fail); otherwise
+ * Lean's report. ra, rb: whether the node is rendered in the original / the rewrite.
+ */
+export function cell(ra, rb, a, b, equal) {
+  if (!(ra && rb)) return 'notRendered';
+  return report(a, b, equal);
+}

@@ -243,6 +243,116 @@ theorem report_settled (i j : Nat) (e : Bool) :
   cases e <;> rfl
 
 -- ---------------------------------------------------------------------------------------------------------------
+-- a probe on a node that is not rendered has no verdict (fix-commission: inner/rows margin-inline at pain-1440 #0)
+-- ---------------------------------------------------------------------------------------------------------------
+
+/-- A node is rendered when no element on its ancestor chain (itself included) skips its subtree, by `content-visibility`
+off screen or by being unrendered. A computed `margin: auto` is only resolved to a used value for a rendered node; inside
+a skipped subtree the engine has no layout for it, so the value read there depends on whether the subtree was laid out
+before the skip, not on the page.
+
+$$\operatorname{rendered}(s_1,\dots,s_n) \iff \forall i,\ s_i = \bot$$
+
+where `s_i` says that ancestor `i` skips its subtree. -/
+def rendered (skips : List Bool) : Bool := !skips.any id
+
+/-- The classification of one probe in one arm.
+
+$$\mathrm{Verdict} = \mathrm{notRendered} \mid \mathrm{unsettled} \mid \mathrm{ok}$$ -/
+inductive Verdict where
+  | notRendered
+  | unsettled
+  | ok
+  deriving DecidableEq, Repr
+
+/-- `sampleOk` extended with rendering: a probe on a node in a skipped or unrendered subtree is `notRendered`, whatever
+its observation says; otherwise `ok` exactly when `sampleOk` holds, else `unsettled`.
+
+$$\operatorname{classify}_\pi(r, o) = \begin{cases}\mathrm{notRendered} & \neg r\\ \mathrm{ok} & r \wedge \operatorname{sampleOk}_\pi(o)\\ \mathrm{unsettled} & r \wedge \neg\operatorname{sampleOk}_\pi(o)\end{cases}$$ -/
+def classify (p : Policy) (r : Bool) (o : Obs) : Verdict :=
+  if r then (if sampleOk p o then .ok else .unsettled) else .notRendered
+
+/-- The report of a probe cell, four outcomes and no silent one.
+
+$$\mathrm{Cell} = \mathrm{pass} \mid \mathrm{fail} \mid \mathrm{unsettled} \mid \mathrm{notRendered}$$ -/
+inductive Cell where
+  | pass
+  | fail
+  | unsettled
+  | notRendered
+  deriving DecidableEq, Repr
+
+/-- The report of a probe from the two arms' rendering, their wait outcomes and whether the values are equal. A node that
+is not rendered in either arm gives `notRendered` (before anything else); otherwise the cell is `report`.
+
+$$\operatorname{cell}(r_a, r_b, a, b, e) = \begin{cases}\mathrm{notRendered} & \neg r_a \vee \neg r_b\\ \operatorname{report}(a,b,e) & r_a \wedge r_b\end{cases}$$ -/
+def cell (ra rb : Bool) (a b : Outcome) (e : Bool) : Cell :=
+  if ra && rb then
+    match report a b e with
+    | .pass => .pass
+    | .fail => .fail
+    | .unsettled => .unsettled
+  else .notRendered
+
+/-- Whether a cell counts as a pass for an exit decision (`Fw.Gate.Exit` imports `Cell` and this): only `pass` does.
+
+$$\operatorname{passes}(c) = \top \iff c = \mathrm{pass}$$ -/
+def Cell.passes : Cell → Bool
+  | .pass => true
+  | _ => false
+
+/-- `unsettled` and `notRendered` (like `fail`) are never a passing cell.
+
+$$c \in \{\mathrm{fail}, \mathrm{unsettled}, \mathrm{notRendered}\} \;\Longrightarrow\; \operatorname{passes}(c) = \bot$$ -/
+theorem Cell.passes_iff (c : Cell) : c.passes = true ↔ c = .pass := by
+  cases c <;> simp [Cell.passes]
+
+/-- A probe on a node under a skipping ancestor is `notRendered`, whatever the observation.
+
+$$(\exists i,\ s_i = \top) \;\Longrightarrow\; \operatorname{classify}_\pi(\operatorname{rendered}(s), o) = \mathrm{notRendered}$$ -/
+theorem skipped_classified_notRendered (p : Policy) (skips : List Bool) (o : Obs) (h : true ∈ skips) :
+    classify p (rendered skips) o = .notRendered := by
+  have : (skips.any id) = true := List.any_eq_true.mpr ⟨true, h, rfl⟩
+  simp [classify, rendered, this]
+
+/-- For a rendered node the classification is exactly `sampleOk`.
+
+$$\operatorname{classify}_\pi(\top, o) = \mathrm{ok} \iff \operatorname{sampleOk}_\pi(o)$$ -/
+theorem classify_rendered_ok (p : Policy) (o : Obs) : classify p true o = .ok ↔ sampleOk p o = true := by
+  unfold classify
+  by_cases h : sampleOk p o = true <;> simp [h]
+
+/-- A node that is not rendered in either arm never gives a pass.
+
+$$\neg r_a \vee \neg r_b \;\Longrightarrow\; \operatorname{cell}(r_a, r_b, a, b, e) \ne \mathrm{pass}$$ -/
+theorem notRendered_never_pass (ra rb : Bool) (a b : Outcome) (e : Bool) (h : ra = false ∨ rb = false) :
+    cell ra rb a b e ≠ .pass := by
+  rcases h with h | h <;> simp [cell, h]
+
+/-- It never gives a fail either: the cell says `notRendered`.
+
+$$\neg r_a \vee \neg r_b \;\Longrightarrow\; \operatorname{cell}(r_a, r_b, a, b, e) = \mathrm{notRendered}$$ -/
+theorem notRendered_never_fail (ra rb : Bool) (a b : Outcome) (e : Bool) (h : ra = false ∨ rb = false) :
+    cell ra rb a b e = .notRendered := by
+  rcases h with h | h <;> simp [cell, h]
+
+/-- When both nodes are rendered, the cell is the settle report and nothing else.
+
+$$\operatorname{cell}(\top, \top, a, b, e) = \operatorname{report}(a, b, e)$$ (the three outcomes renamed) -/
+theorem cell_rendered (a b : Outcome) (e : Bool) :
+    (cell true true a b e = .pass ↔ report a b e = .pass) ∧ (cell true true a b e = .fail ↔ report a b e = .fail)
+    ∧ (cell true true a b e = .unsettled ↔ report a b e = .unsettled) := by
+  cases h : report a b e <;> simp [cell, h]
+
+/-- A pass or fail needs both nodes rendered and both arms settled.
+
+$$\operatorname{cell}(r_a, r_b, a, b, e) \in \{\mathrm{pass}, \mathrm{fail}\} \;\Longrightarrow\; r_a \wedge r_b \wedge \exists i\, j,\ a = \mathrm{settled}(i) \wedge b = \mathrm{settled}(j)$$ -/
+theorem cell_decided (ra rb : Bool) (a b : Outcome) (e : Bool) (h : cell ra rb a b e = .pass ∨ cell ra rb a b e = .fail) :
+    ra = true ∧ rb = true ∧ ∃ i j, a = .settled i ∧ b = .settled j := by
+  rcases ra with _ | _ <;> rcases rb with _ | _ <;> simp [cell] at h ⊢
+  rcases a with i | _ <;> rcases b with j | _ <;> cases e <;> simp [report] at h ⊢
+
+-- ---------------------------------------------------------------------------------------------------------------
 -- the model: a settled sample does not depend on when it was taken
 -- ---------------------------------------------------------------------------------------------------------------
 
@@ -487,38 +597,59 @@ theorem Lerp.sample_delay_invariant (L : Lerp) (eps i j : Nat)
 -- golden vectors for the TypeScript twin
 -- ---------------------------------------------------------------------------------------------------------------
 
-/-- The JSON of an observation (key order as the TypeScript twin writes it). -/
+/-- The JSON of an observation (key order as the TypeScript twin writes it).
+
+$$o \mapsto \{\mathit{running}, \mathit{frames}, \mathit{stable}, \mathit{hoverInside}, t\}$$ -/
 def obsJson (o : Obs) : Json :=
   Json.mkObj [("running", toJson o.running), ("frames", toJson o.frames), ("stable", toJson o.stable),
     ("hoverInside", toJson o.hoverInside), ("t", toJson o.t)]
 
-/-- The JSON of a policy. -/
+/-- The JSON of a policy.
+
+$$\pi \mapsto \{m_f, m_s, \varepsilon, T\}$$ -/
 def policyJson (p : Policy) : Json :=
   Json.mkObj [("minFrames", toJson p.minFrames), ("minStable", toJson p.minStable), ("eps", toJson p.eps), ("timeoutMs", toJson p.timeoutMs)]
 
-/-- An outcome as the twin writes it: `"settled@i"` or `"unsettled"`. -/
+/-- An outcome as the twin writes it: `"settled@i"` or `"unsettled"`.
+
+$$\mathrm{settled}(i) \mapsto \texttt{settled@}i,\quad \mathrm{unsettled} \mapsto \texttt{unsettled}$$ -/
 def outcomeText : Outcome → String
   | .settled i => s!"settled@{i}"
   | .unsettled => "unsettled"
 
-/-- A report as the twin writes it. -/
+/-- A report as the twin writes it.
+
+$$\mathrm{pass},\mathrm{fail},\mathrm{unsettled} \mapsto \text{their lower-case names}$$ -/
 def reportText : Report → String
   | .pass => "pass"
   | .fail => "fail"
   | .unsettled => "unsettled"
+
+/-- A cell as the twin writes it.
+
+$$\mathrm{pass},\mathrm{fail},\mathrm{unsettled},\mathrm{notRendered} \mapsto \text{their names}$$ -/
+def cellText : Cell → String
+  | .pass => "pass"
+  | .fail => "fail"
+  | .unsettled => "unsettled"
+  | .notRendered => "notRendered"
 
 /-- The observation the wait sees once a finite trace is over: late, so the budget has run out.
 
 $$o_{\mathrm{end}} = (1, 0, 0, \bot, 10^9)$$ -/
 def pastEnd : Obs := { running := 1, frames := 0, stable := 0, hoverInside := false, t := 1000000000 }
 
-/-- The wait over a finite trace (what the page returned); beyond its end the budget has run out. -/
+/-- The wait over a finite trace (what the page returned); beyond its end the budget has run out.
+
+$$\operatorname{waitList}_\pi(\mathit{tr}) = \operatorname{wait}_\pi(i \mapsto \mathit{tr}[i] \text{ or } o_{\mathrm{end}})$$ -/
 def waitList (p : Policy) (tr : List Obs) : Outcome := wait p (fun i => tr.getD i pastEnd)
 
 private def ob (running frames stable : Nat) (hov : Bool) (t : Nat) : Obs :=
   { running := running, frames := frames, stable := stable, hoverInside := hov, t := t }
 
-/-- Single observations: (name, observation). Each of the first conditions on its own, then the three misreads. -/
+/-- Single observations: (name, observation). Each of the first conditions on its own, then the three misreads.
+
+$$\text{obsCases} = [(n_k, o_k)]_k$$ -/
 def obsCases : List (String × Obs) :=
   [ ("all conditions hold", ob 0 2 3 false 100),
     ("exactly at the thresholds", ob 0 2 3 false 0),
@@ -532,7 +663,9 @@ def obsCases : List (String × Obs) :=
     ("overlays.signup: dialog enter animation running", ob 1 7 3 false 120),
     ("hero.orbit after parking", park (ob 0 9 9 true 600)) ]
 
-/-- Waits over finite traces: (name, policy, trace). -/
+/-- Waits over finite traces: (name, policy, trace).
+
+$$\text{waitCases} = [(n_k, \pi_k, \mathit{tr}_k)]_k$$ -/
 def waitCases : List (String × Policy × List Obs) :=
   [ ("settles at the third frame",
       gatePolicy, [ob 1 1 0 false 16, ob 0 2 1 false 33, ob 0 3 3 false 50, ob 0 4 4 false 66]),
@@ -552,7 +685,9 @@ def waitCases : List (String × Policy × List Obs) :=
     ("a stricter policy needs more frames",
       { minFrames := 4, minStable := 2, eps := 100, timeoutMs := 100 }, [ob 0 2 2 false 16, ob 0 3 3 false 33, ob 0 4 4 false 50]) ]
 
-/-- Cell reports: (name, arm a, arm b, equal). -/
+/-- Cell reports: (name, arm a, arm b, equal).
+
+$$\text{reportCases} = [(n_k, a_k, b_k, e_k)]_k$$ -/
 def reportCases : List (String × Outcome × Outcome × Bool) :=
   [ ("both settled and equal", .settled 2, .settled 0, true),
     ("both settled and different", .settled 2, .settled 5, false),
@@ -560,7 +695,27 @@ def reportCases : List (String × Outcome × Outcome × Bool) :=
     ("rewrite unsettled, values different", .settled 1, .unsettled, false),
     ("both unsettled", .unsettled, .unsettled, true) ]
 
-/-- Quiet frames: (name, eps, previous values, current values). Values in millionths. -/
+/-- Probe cells: (name, arm a rendered, arm b rendered, outcome a, outcome b, equal).
+
+$$\text{cellCases} = [(n_k, r_a, r_b, a_k, b_k, e_k)]_k$$ -/
+def cellCases : List (String × Bool × Bool × Outcome × Outcome × Bool) :=
+  [ ("both rendered, equal", true, true, .settled 1, .settled 2, true),
+    ("both rendered, different", true, true, .settled 1, .settled 2, false),
+    ("both rendered, one unsettled", true, true, .unsettled, .settled 2, true),
+    ("commission inner/rows margin: original in a skipped subtree, values different", false, true, .settled 1, .settled 2, false),
+    ("rewrite not rendered, values equal", true, false, .settled 1, .settled 2, true),
+    ("neither rendered, both unsettled", false, false, .unsettled, .unsettled, false) ]
+
+/-- Ancestor chains: (name, one flag per ancestor, true = it skips its subtree).
+
+$$\text{renderedCases} = [(n_k, s_k)]_k$$ -/
+def renderedCases : List (String × List Bool) :=
+  [ ("no ancestors", []), ("none skips", [false, false, false]), ("the middle one skips", [false, true, false]),
+    ("only the root skips", [true]) ]
+
+/-- Quiet frames: (name, eps, previous values, current values). Values in millionths.
+
+$$\text{quietCases} = [(n_k, \varepsilon_k, u_k, v_k)]_k$$ -/
 def quietCases : List (String × Nat × List Int × List Int) :=
   [ ("identical", 100, [1000000, 250000], [1000000, 250000]),
     ("moved exactly eps", 100, [1000000], [1000100]),
@@ -585,20 +740,31 @@ def goldenLines : List String :=
   ++ quietCases.map (fun (n, e, u, v) =>
     (Json.mkObj [("kind", "quiet"), ("name", toJson n), ("eps", toJson e), ("prev", toJson u), ("cur", toJson v),
       ("quiet", toJson (quiet e u v)), ("next", toJson (nextStable e 2 u v))]).compress)
+  ++ renderedCases.map (fun (n, sk) =>
+    (Json.mkObj [("kind", "rendered"), ("name", toJson n), ("skips", toJson sk), ("rendered", toJson (rendered sk))]).compress)
+  ++ cellCases.map (fun (n, ra, rb, a, b, e) =>
+    (Json.mkObj [("kind", "cell"), ("name", toJson n), ("renderedA", toJson ra), ("renderedB", toJson rb),
+      ("a", toJson (outcomeText a)), ("b", toJson (outcomeText b)), ("equal", toJson e),
+      ("cell", toJson (cellText (cell ra rb a b e)))]).compress)
   ++ reportCases.map (fun (n, a, b, e) =>
     (Json.mkObj [("kind", "report"), ("name", toJson n), ("a", toJson (outcomeText a)), ("b", toJson (outcomeText b)),
       ("equal", toJson e), ("report", toJson (reportText (report a b e)))]).compress)
 
-/-- The exact bytes of `packages/contracts/golden/gate/settle.jsonl`: the lines, each newline-terminated. -/
+/-- The exact bytes of `packages/contracts/golden/gate/settle.jsonl`: the lines, each newline-terminated.
+
+$$\text{goldenText} = \mathbin{+\!\!+}_{\ell \in \text{goldenLines}} (\ell \mathbin{+\!\!+} \texttt{newline})$$ -/
 def goldenText : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
-/-- The value after `flag` in an argument list. -/
+/-- The value after `flag` in an argument list.
+
+$$\operatorname{argAfter}([\dots, f, v, \dots], f) = \mathrm{some}(v)$$ -/
 def argAfter : List String → String → Option String
   | a :: b :: rest, flag => if a == flag then some b else argAfter (b :: rest) flag
   | _, _ => none
 
-/-- Command-line driver: print the golden text, or with `--check <file>` exit 0 when the file holds exactly these bytes
-and 1 otherwise. -/
+/-- Command-line driver: print the golden text, or with `--check <file>` exit 0 when the file holds exactly these bytes and 1 otherwise.
+
+$$\operatorname{run}(\mathit{args}) = 0 \iff \text{no mismatch}$$ -/
 def run (args : List String) : IO UInt32 := do
   match argAfter args "--check" with
   | some path =>
@@ -618,5 +784,8 @@ def run (args : List String) : IO UInt32 := do
 #guard waitList gatePolicy [ob 1 1 0 false 16, ob 0 2 1 false 33, ob 0 3 3 false 50] == .settled 2
 #guard waitList gatePolicy [ob 0 1 0 false 1000, ob 0 2 3 false 3001, ob 0 3 4 false 3017] == .unsettled
 #guard waitList gatePolicy [] == .unsettled
+#guard cell false true (.settled 1) (.settled 2) false == .notRendered
+#guard cell true true (.settled 1) (.settled 2) false == .fail
+#guard rendered [false, true, false] == false
 
 end Fw.Gate.Settle

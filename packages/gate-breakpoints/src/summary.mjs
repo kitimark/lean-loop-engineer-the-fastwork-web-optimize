@@ -5,7 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadAnchors, loadGen, expectFor, partJson, selectParts } from './spec.mjs';
 import { context, evaluate, tallies } from './verdict.mjs';
-import { report as settleReport } from './settle.mjs';
+import { cell as settleCell, report as settleReport } from './settle.mjs';
 
 const ENGINES = ['chromium', 'playwright-webkit'];
 /** The matchMedia rows of the table, as Lean names them (Fw.Gate.truthRows); the part rows follow. */
@@ -60,6 +60,41 @@ function settleOf(label, state) {
 /** An unsettled state has no verdict: its rows are not comparable (never pass, never fail); unreachable stays unreachable. */
 const unsettledRows = (rows) => Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, String(v).startsWith('unreachable') ? v : 'not-comparable']));
 
+/**
+ * Probes on nodes that are not rendered (Fw.Gate.Settle.cell, page.mjs collectInPage `skipped`): in either arm a node under a
+ * skipping ancestor has no layout, so its values are no evidence. Such an item gets no verdict: the other arm's item is copied
+ * over it before Lean compares (so it can neither fail nor pass), and `notRenderedParts` names the parts to report as
+ * not-comparable when they would otherwise pass. Returns the state with the copies and the list of masked items.
+ */
+export function maskNotRendered(state) {
+  const rawOf = (arm) => arm.raw ?? arm;
+  const withRaw = (arm, raw) => (arm.raw ? { ...arm, raw } : raw);
+  const o = rawOf(state.orig), r = rawOf(state.rewrite);
+  const masked = [];
+  let outO = o, outR = r;
+  for (const [pid, roles] of Object.entries(o.parts ?? {})) {
+    for (const [role, ro] of Object.entries(roles)) {
+      const rr = r.parts?.[pid]?.[role];
+      if (!rr || ro.items.length !== rr.items.length) continue;
+      const hit = ro.items.map((it, i) => i).filter((i) => ro.items[i].skipped || rr.items[i].skipped);
+      if (hit.length === 0) continue;
+      const mask = (items, other) => items.map((it, i) => (hit.includes(i) ? (({ skipped, ...rest }) => rest)(other[i]) : it));
+      const put = (raw, items) => ({ ...raw, parts: { ...raw.parts, [pid]: { ...raw.parts[pid], [role]: { ...raw.parts[pid][role], items } } } });
+      outO = put(outO, mask(ro.items, ro.items));
+      outR = put(outR, mask(rr.items, ro.items));
+      for (const i of hit) masked.push({ part: pid, role, idx: i, orig: !!ro.items[i].skipped, rewrite: !!rr.items[i].skipped });
+    }
+  }
+  if (masked.length === 0) return { state, masked };
+  return { state: { ...state, orig: withRaw(state.orig, outO), rewrite: withRaw(state.rewrite, outR) }, masked };
+}
+
+/** A part row that would pass while an item of the part was masked is not-comparable (never a silent pass). */
+const notRenderedRows = (rows, masked) => {
+  const parts = new Set(masked.map((m) => m.part));
+  return Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, parts.has(k) && v === 'pass' ? 'not-comparable' : v]));
+};
+
 export function summarize(outDir, { parts: requested = null } = {}) {
   const { gen, sha256 } = loadGen();
   const anchors = loadAnchors();
@@ -88,14 +123,20 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     // have a port only for Chromium (WebKit's would be a guess: Apple or GLib).
     const port = run.header.port ?? (engine === 'chromium' ? 'chromium' : null);
     const ctx = context({ anchors, parts: PARTS, props: run.header.props, deviceEdges, port });
+    const maskedOf = [];
+    const stateOf = (requested, orig, rewrite, expect, expectNeutral) => {
+      const m = maskNotRendered({ requested, orig, rewrite, expect, expectNeutral });
+      maskedOf.push(m.masked);
+      return m.state;
+    };
     const states = run.probes.map((rec) => {
       const g = byId.get(rec.id);
-      return { requested: rec.env, orig: rec.orig, rewrite: rec.rewrite, expect: g.expect, expectNeutral: g.expectNeutral };
+      return stateOf(rec.env, rec.orig, rec.rewrite, g.expect, g.expectNeutral);
     });
     const vectors = run.sweeps.map((sw) => sw.stops.map((env) => expectFor(gen, env)));
     run.sweeps.forEach((sw, j) => sw.stops.forEach((env, i) => {
       const v = vectors[j][i];
-      states.push({ requested: env, orig: sw.orig[i], rewrite: sw.rewrite[i], expect: v?.expect, expectNeutral: v?.expectNeutral });
+      states.push(stateOf(env, sw.orig[i], sw.rewrite[i], v?.expect, v?.expectNeutral));
     }));
     const stalePairs = run.sweeps.flatMap((sw) => ['orig', 'rewrite'].map((site) => ({ after: sw[site][sw.stops.length - 1], fresh: sw.freshFinal[site] })));
     const { states: evs, stale } = evaluate(ctx, states, stalePairs);
@@ -104,6 +145,12 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     const probeRows = [];
     const unsettledList = [];
+    const notRenderedList = [];
+    const noteMasked = (label, k, ev) => {
+      if (maskedOf[k].length === 0) return;
+      ev.rows = notRenderedRows(ev.rows, maskedOf[k]);
+      notRenderedList.push({ at: label, cell: settleCell(false, true, 'settled@0', 'settled@0', true), items: maskedOf[k] });
+    };
     const waitStats = { samples: 0, unsettled: 0, totalWaitMs: 0, maxWaitMs: 0, totalFrames: 0 };
     const countWait = (state) => {
       for (const a of ['orig', 'rewrite']) {
@@ -118,6 +165,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
       const ev = evs[k];
       countWait(rec);
       const st = settleOf(rec.id, rec);
+      noteMasked(rec.id, k, ev);
       if (st.unsettled) { unsettledList.push(st.entry); ev.rows = unsettledRows(ev.rows); } else {
         failures(fails, rec.id, ev, PARTS);
         infoDiffs(infos, rec.id, ev, PARTS);
@@ -133,6 +181,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     let next = run.probes.length;
     const sweepStops = run.sweeps.map((sw, j) => sw.stops.map((env, i) => {
+      noteMasked(`${sw.id}#${i}@${env.width}x${env.height}`, next, evs[next]);
       const ev = evs[next++];
       const label = `${sw.id}#${i}@${env.width}x${env.height}`;
       countWait({ orig: sw.orig[i], rewrite: sw.rewrite[i] });
@@ -169,8 +218,8 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     const failList = [...fails.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
     const infoList = [...infos.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
-    result.engines[engine] = { browser: run.header.browser, ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
-    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList));
+    result.engines[engine] = { browser: run.header.browser, ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, notRendered: notRenderedList, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
+    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList));
   }
 
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(result, null, 1) + '\n');
@@ -187,7 +236,7 @@ const cell = (c) => {
   return c.unreachable > 0 ? `${base} +${c.unreachable} unreachable` : base;
 };
 
-function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList) {
+function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList) {
   const cols = [...blocks, ...sweepRows.map((s) => `sweep:${s.id}`)];
   const out = [`## ${engine} (${header.browser})`, '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), \`+n unreachable\` = n such probes left out of the count / - = block not run.`, ''];
   // No silent narrowing: a narrowed verdict says which parts it covers and which it does not. matchMedia rows are
@@ -198,6 +247,8 @@ function render(engine, header, table, envRow, sweepRows, failList, infoList, bl
   for (const row of Object.keys(table)) out.push(`| ${row} | ${cols.map((c) => cell(table[row][c])).join(' | ')} |`);
   out.push('', `Settle wait (Lean Fw.Gate.Settle): ${waitStats.samples} arm samples waited ${waitStats.totalWaitMs} ms in total (max ${waitStats.maxWaitMs} ms); ${waitStats.unsettled} ended UNSETTLED. A state with an unsettled arm has no verdict (its rows are NC) and its items are not in the failing list.`);
   for (const u of unsettledList.slice(0, 40)) out.push(`- UNSETTLED ${u.at}: ${u.arms.map((a) => `${a.arm} (frames ${a.frames}, ${a.waitedMs} ms, running ${a.running}, quiet run ${a.stable}, pointer in target ${a.hoverInside}, parked ${a.parked})`).join('; ')}`);
+  for (const n of notRenderedList.slice(0, 40)) out.push(`- NOT RENDERED ${n.at}: ${n.items.map((m) => `${m.part}/${m.role}[${m.idx}] (original ${m.orig ? 'skipped' : 'rendered'}, rewrite ${m.rewrite ? 'skipped' : 'rendered'})`).join(', ')} -> ${n.cell}, never pass or fail`);
+  if (notRenderedList.length > 40) out.push(`- ... ${notRenderedList.length - 40} more in summary.json`);
   if (unsettledList.length > 40) out.push(`- ... ${unsettledList.length - 40} more in summary.json`);
   out.push('', 'Sweep hysteresis (state after the sequence vs a fresh load at the same final env, per arm; items differing / compared):', '');
   for (const s of sweepRows) out.push(`- ${s.id}: orig ${s.stale.orig.differ}/${s.stale.orig.compared}, rewrite ${s.stale.rewrite.differ}/${s.stale.rewrite.compared}`);
