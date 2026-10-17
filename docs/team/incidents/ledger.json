@@ -332,7 +332,7 @@
    "fix": {
     "task": "obs-signals"
    },
-   "regression": "golden/obs: a pending bg task with no end marker older than T and a live proc whose command reads stdin -> killOrphan"
+   "regression": "packages/contracts/golden/obs/signals.jsonl (port-nav @ 01:24:30 and @ 03:58:00: hung bh6n4n7sw), Fw.Wire.Obs guard obs.next stdinWait -> killOrphan, apps/runner/test/signals.test.ts"
   },
   {
    "id": "inc-worktree-role-as-teammate",

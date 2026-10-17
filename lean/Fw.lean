@@ -61,6 +61,7 @@ import Fw.Engine
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
+import Fw.Obs.Signals  -- obs-signals: agent state from transcript signals (obs.signals)
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
