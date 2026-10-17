@@ -3,8 +3,10 @@ name: wktr
 # WKTR lane (research/notes/2026/10-17-wktr-on-github-actions.md): WebKit's own prebuilt iOS-simulator
 # WebKitTestRunner (CI archive r324039, Xcode 26.5, iOS 26.5; nothing is built here) runs the ORIGINAL page in an iOS 26.5
 # Simulator on macos-26 and records, per scroll step, internals.lastStyleUpdateSize with styleRecalcCount, the steps
-# bracketed by renderingUpdateCount. Counts only: nothing measured here is phone time. Each job runs the original twice
-# (two fresh WebKitTestRunnerApp processes); the classes job classes all runs per count type with fwcore (kMax 4, tMax 24).
+# bracketed by renderingUpdateCount. Counts only: nothing measured here is phone time. Each job runs the original `passes`
+# times per harness variant (fresh WebKitTestRunnerApp processes); the classes job classes all passes per count type with
+# fwcore (kMax 4, tMax 24). A frozen table (>= 3 workflow runs) is built from the downloaded artifacts of three
+# dispatches: node packages/measure-wktr/src/freeze.mjs runs/* (fwcore measure.freeze).
 on:
   push:
     branches: ['ci/**']
@@ -21,13 +23,17 @@ on:
   workflow_dispatch:
     inputs:
       jobs:
-        description: Independent macOS jobs (1 to 4); each runs the original `passes` times
-        type: string
-        default: '3'
-      passes:
-        description: Fresh-process passes per job (2 to 4)
+        description: Independent macOS jobs (1 to 4); each runs every variant `passes` times
         type: string
         default: '2'
+      passes:
+        description: Fresh-process passes per variant and job (2 to 4)
+        type: string
+        default: '3'
+      variants:
+        description: 'Harness variants, comma separated: live or vt, then -warm and/or -trace (e.g. live,vt,vt-trace)'
+        type: string
+        default: 'live,vt'
       step:
         description: Scroll step in CSS px
         type: string
@@ -36,8 +42,10 @@ on:
 permissions:
   contents: read
 
+# A push to a ci/* branch replaces the older push run of that branch; every dispatch is its own group, so the three runs of
+# a frozen table never cancel each other.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -73,12 +81,14 @@ jobs:
     steps:
       - id: m
         env:
-          JOBS: ${{ inputs.jobs || '3' }}
-          PASSES: ${{ inputs.passes || '2' }}
+          JOBS: ${{ inputs.jobs || '2' }}
+          PASSES: ${{ inputs.passes || '3' }}
+          VARIANTS: ${{ inputs.variants || 'live,vt' }}
         run: |
           set -euo pipefail
           case "$JOBS" in 1|2|3|4) ;; *) echo "jobs must be 1..4" >&2; exit 1 ;; esac
           case "$PASSES" in 2|3|4) ;; *) echo "passes must be 2..4" >&2; exit 1 ;; esac
+          printf '%s' "$VARIANTS" | grep -Eq '^(live|vt)(-warm)?(-trace)?(,(live|vt)(-warm)?(-trace)?)*$' || { echo "bad variants: $VARIANTS" >&2; exit 1; }
           matrix=$(seq 1 "$JOBS" | jq -R -s -c '{job: (split("\n") | map(select(length > 0)) | map("j" + .))}')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
@@ -132,21 +142,22 @@ jobs:
             xcrun simctl list devicetypes | grep "iPhone 17"
           } | tee "$RUNNER_TEMP/result/tools.txt"
 
-      # Two variants per job, each `passes` fresh processes: cold (settle, then scroll) writes counts-<p>.json; warm (the page
-      # is first scrolled through once so lazy loads are done, then back to the top) writes counts-warm-<p>.json.
-      - name: WKTR, the original, fresh process per pass (cold, then warm)
+      # One device, one fresh WebKitTestRunnerApp process per pass, `passes` passes per harness variant:
+      #   live  the page as it is (Date and Math.random pinned, real timers and rAF timestamps)
+      #   vt    virtual time: performance.now, rAF timestamps, timers and Date move one frame at a time (src/vtime.mjs)
+      #   -warm the page is scrolled through once first (lazy loads done), -trace adds event counters (cause attribution)
+      # counts-<variant>-<pass>.json per pass.
+      - name: WKTR, fresh process per pass, per variant
         env:
-          PASSES: ${{ inputs.passes || '2' }}
+          PASSES: ${{ inputs.passes || '3' }}
           STEP: ${{ inputs.step || '50' }}
+          VARIANTS: ${{ inputs.variants || 'live,vt' }}
           JOB: ${{ matrix.job }}
         run: |
           set -euo pipefail
           node packages/measure-wktr/src/cli.mjs run --keep \
             --root "$RUNNER_TEMP/wktr-root" --site snapshot/site --out "$RUNNER_TEMP/result" \
-            --passes "$PASSES" --step "$STEP" --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
-          node packages/measure-wktr/src/cli.mjs run --warm \
-            --root "$RUNNER_TEMP/wktr-root" --site snapshot/site --out "$RUNNER_TEMP/result" \
-            --passes "$PASSES" --step "$STEP" --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run-warm.log"
+            --passes "$PASSES" --step "$STEP" --variants "$VARIANTS" --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
           ls -l "$RUNNER_TEMP/result"
 
       - name: Delete the Simulator device
@@ -208,6 +219,10 @@ jobs:
       - name: Classes
         env:
           FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          SHA: ${{ github.sha }}
+          VARIANTS: ${{ inputs.variants || 'live,vt' }}
         run: |
           set -euo pipefail
           chmod +x "$FW_CORE_BIN"
@@ -217,24 +232,25 @@ jobs:
           ls
           cls="$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs"
           cat wktr-j*/runner.json > "$out/runners.jsonl"
+          echo "workflow run $RUN_ID, attempt $RUN_ATTEMPT, sha $SHA, variants $VARIANTS" > "$out/run.txt"
           : > "$out/sha256.txt"
-          # cold: counts-<p>.json (names classes-all.*, classes-<job>.txt); warm: counts-warm-<p>.json (classes-warm-*)
-          for variant in cold warm; do
-            if [ "$variant" = cold ]; then pat='counts-[0-9]*.json'; pre=classes; else pat='counts-warm-*.json'; pre=classes-warm; fi
-            files=(wktr-j*/$pat)
+          # per variant: the class of each count type over every pass of every job (classes-<variant>-all.*) and over each
+          # job's passes alone (classes-<variant>-<job>.txt)
+          for variant in $(echo "$VARIANTS" | tr ',' ' '); do
+            files=(wktr-j*/counts-"$variant"-[0-9]*.json)
             printf '%s\n' "${files[@]}"
-            node "$cls" "${files[@]}" --kMax 4 --tMax 24 | tee "$out/$pre-all.txt"
-            node "$cls" "${files[@]}" --kMax 4 --tMax 24 --json > "$out/$pre-all.json"
+            node "$cls" "${files[@]}" --kMax 4 --tMax 24 | tee "$out/classes-$variant-all.txt"
+            node "$cls" "${files[@]}" --kMax 4 --tMax 24 --json > "$out/classes-$variant-all.json"
             for d in wktr-j*; do
-              node "$cls" "$d"/$pat --kMax 4 --tMax 24 | tee "$out/$pre-$d.txt"
+              node "$cls" "$d"/counts-"$variant"-[0-9]*.json --kMax 4 --tMax 24 | tee "$out/classes-$variant-$d.txt"
             done
             sha256sum "${files[@]}" | tee -a "$out/sha256.txt"
             {
               echo "### wktr $variant: classes over all passes of all jobs (kMax 4, tMax 24)"
               echo '```'
-              cat "$out/$pre-all.txt"
+              cat "$out/classes-$variant-all.txt"
               echo '```'
-              for d in wktr-j*; do echo "#### $variant $d (its passes alone)"; echo '```'; cat "$out/$pre-$d.txt"; echo '```'; done
+              for d in wktr-j*; do echo "#### $variant $d (its passes alone)"; echo '```'; cat "$out/classes-$variant-$d.txt"; echo '```'; done
             } >> "$GITHUB_STEP_SUMMARY"
           done
           { echo '### sha256 of counts per pass'; echo '```'; cat "$out/sha256.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
