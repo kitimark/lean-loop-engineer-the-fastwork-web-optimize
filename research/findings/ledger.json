@@ -9,19 +9,25 @@
    "chromium": "no-win",
    "webkit": "unknown",
    "visual": "open. E holds if no moved write changes a value that a later read in the same frame sees (premise NI, INFERRED true for the pilot: the hero writes --exit-opacity and pointer-events on .hero; the nav reads its own rect, the sticky profile and the track rect). Not E if batching also folds the hero-exit rAF trampoline, because the writes then land one frame earlier (v1 scroll-engine/01 note).",
-   "mechanism": "Style stage only. Total style passes per frame = [d ∧ (head is a read ∨ no write)] + #write-runs (checked exhaustively up to length 9, INFERRED). The engine merges only the hero's returned write run. The nav probe's two internal write→read pairs remain, so the pilot keeps 3 passes (1 with elements-skip): the moved pass comes back as the frame-end lifecycle update. Restyled elements are unchanged (same dirty sets, R2). Counter: trace.UpdateLayoutTree (det). A local run gave W equal, S equal (packages/measure-chromium/README.md:185). Core.frameWork counts [touched]+forced, so it over-predicts a saving.",
+   "mechanism": "Style stage only. Total style passes per frame = [d ∧ (head is a read ∨ no write)] + #write-runs (checked exhaustively up to length 9, INFERRED). The engine merges only the hero's returned write run. The nav probe's two internal write→read pairs remain, so the pilot keeps 3 passes (1 with elements-skip): the moved pass comes back as the frame-end lifecycle update. Restyled elements are unchanged (same dirty sets, R2). Counter: trace.UpdateLayoutTree (det). A local run gave W equal, S equal (packages/measure-chromium/README.md:185). Core.frameWork counts [style touched] + forced, so it over-counts by 1 whenever the frame ends clean (last style access a read): PROVED Fw.Engine.frameWork_overcount; the faithful count forced + [endDirty] is Fw.Engine.frameWorkE (CONFIRMED: Chromium document.cc:2757-2762@f842f52 returns early when no style is dirty; WebKit Document.cpp:3042-3043@862f17d). Abstract closed form PROVED as Fw.Engine.flagTotal_closed: total = [d and first non-neutral access is not a write] + #write-runs (the form [d and head = R] alone fails at d, as = []). Golden finding: the forcedCountsBatched rows of Fw.Parts.Golden (engineSpecLines) are forced-only; read as totals they under-count every batched sequence that ends in a write by 1. Style totals faithful vs batched (d=true / d=false): pilot 4/3 vs 2/1 (forced alone says 1/0, so the batching saving is over-predicted by 1: 2, not 3), nav 3/2 vs 2/1 (forced says 1/0), [wS,rL] 1/1 vs 2/1 (forced says 1/0: batching is worse by 1 at d, not equal), [rL,wL,rL] 2/1 vs 2/1 (forced says 1/0: no saving, not 1). Layout totals for the same rows move the same way for [rL,wL,rL] (2/1 vs 2/1). No golden row was edited (the rows are labelled forced counts); the Parts proofs that should move to frameWorkE are listed in docs/team/handoffs/why-core-lessons.md.",
    "leanFor": [
     "Fw.Parts.EngineScroll.batched_le_faithful",
     "Fw.Parts.EngineScroll.batched_le_one",
     "Fw.Parts.EngineScroll.framePlan_batched_le",
     "Fw.Parts.EngineScroll.framePlan_faithful_cost"
    ],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Engine.frameWork_overcount",
+    "Fw.Engine.frameWorkE_le",
+    "Fw.Engine.flagTotal_closed",
+    "Fw.Engine.flagTotal_remove_check",
+    "Fw.Engine.reader_removal"
+   ],
    "missingWhy": [
     {
      "statement": "Closed form of all style passes, forced plus frame-end: $\\forall d,\\ as \\in \\{\\mathrm{R},\\mathrm{W}\\}^*:\\ \\mathrm{total}_S(d,as) := \\mathrm{forced}_{\\rho_S}(d,as) + [\\mathrm{fin}_{\\rho_S}(d,as)] = [d \\land (\\mathrm{head}(as)=\\mathrm{R} \\lor \\mathrm{W}\\notin as)] + \\#\\mathrm{runs}_{\\mathrm{W}}(as)$",
      "module": "Fw.Parts.EngineScroll",
-     "needs": "move `fin` (end-dirty flag, now in NavHitTestOpt) into EngineScroll; add a maximal-write-run count"
+     "needs": "move `fin` (end-dirty flag, now in NavHitTestOpt) into EngineScroll; add a maximal-write-run count; the abstract FlagOp form is PROVED in Core (Fw.Engine.flagTotal_closed, Fw.Engine.flagTotal_append); remaining is the bridge forced_rho(d, as) = flagForced(d, map (toFlag . rho) as)"
     },
     {
      "statement": "Batching delta: $\\forall d, as:\\ \\mathrm{W}\\in as \\Rightarrow \\mathrm{total}_S(d, \\mathrm{filter}_R(as) \\mathbin{+\\!\\!+} \\mathrm{filter}_W(as)) = \\mathrm{total}_S(d,as) - (\\#\\mathrm{runs}_W(as) - 1) + [d \\land \\mathrm{head}(as)=\\mathrm{W} \\land \\mathrm{R}\\in as]$. So batching wins only when it merges $\\ge 2$ write runs, and it is worse by 1 when the frame starts dirty with a write (e.g. $d$, WR).",
@@ -32,11 +38,6 @@
      "statement": "Pilot no-win: $\\forall d \\in \\mathbb{B},\\ \\forall p \\in \\{\\mathit{probe}_o, \\mathit{probe}_e\\}:\\ \\mathrm{total}_S(d, \\mathit{hero} \\mathbin{+\\!\\!+} \\mathit{nav}_p) = \\mathrm{total}_S(d, \\mathrm{R}(\\mathit{hero}) \\mathbin{+\\!\\!+} \\mathit{nav}_p \\mathbin{+\\!\\!+} \\mathrm{W}(\\mathit{hero}))$, with values $3+[d]$ for the faithful probe and $1+[d]$ for elements-skip",
      "module": "Fw.Parts.EngineScroll",
      "needs": "an engine-level batch that moves only returned writers (the TS engine's rule), not filter over the whole frame"
-    },
-    {
-     "statement": "Core pass count without double counting: $\\mathrm{passes}_E(f,\\mathrm{style}) = f.\\mathrm{forcedStyle} + [f.\\mathrm{endDirtyStyle}]$ in place of $[\\mathrm{style}\\in\\mathrm{touched}] + f.\\mathrm{forcedStyle}$. Show the current definition over-counts by 1 when the last access is a read.",
-     "module": "Fw.Engine.Core",
-     "needs": "FrameIn.endDirty fields fed from EngineScroll.fin"
     }
    ],
    "premises": [
@@ -64,7 +65,10 @@
     "Fw.Parts.HeroExitOpt.sentinel_iff_pointerOff",
     "Fw.Parts.EngineScroll.forced_mono"
    ],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Engine.reader_removal",
+    "Fw.Engine.flagTotal_remove_check"
+   ],
    "missingWhy": [
     {
      "statement": "Reader removal (a corollary of the closed form in row 1): $\\mathrm{total}_S(d, as \\setminus i) < \\mathrm{total}_S(d, as)$ iff $as_i = \\mathrm{R}$ is the only read between two write runs, or $i = 0 \\land d \\land as_1 = \\mathrm{W}$. Otherwise the two totals are equal: the next reader or the frame-end pass pays the same flush (v1 scrollcb-g0).",
@@ -229,14 +233,16 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E-s at the computed-value level under RG11 (consumer_eq_s; exact at integer scroll offsets, otherwise within the progress quantum: 1/(16R) in Chromium, 1 px on WebKit's main thread). Pixels: WebKit E in the v1 Simulator except a 30 px top band (78 levels). Chromium not-equal under the pixel rule (v1: ≤ 6 levels on 15-42k px, 1 device-px copy shift from GPU blending and snapping), so Q at best: PathPremises.raster_path fails there (INFERRED).",
-   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow.",
+   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow. PROVED (toy rasters): raster_path fails for a half-pixel translate (snap 0 vs resample 128, Fw.Engine.raster_path_fails_fracXf) and for group opacity 1/2 over child 3/10 (38 vs 39, Fw.Engine.raster_path_fails_fracAlpha), so PathPremises needs C5 and C4 (Fw.Engine.PathPremises5, shown_eq5). A compositor move adds the comp stage, so it is never framewise <= (Fw.Engine.comp_move_not_le): mixed or noClaim when the original pays no comp, trade only when it already does.",
    "leanFor": [
     "Fw.Parts.HeroExit.exitOpacity_linear",
     "Fw.Parts.HeroExitOpt.progress_eq_js",
     "Fw.Parts.HeroExitOpt.consumer_eq_s",
     "Fw.Parts.HeroExitOpt.sentinel_iff_pointerOff",
     "Fw.Parts.HeroExitOpt.wk_all_comp",
-    "Fw.Parts.HeroExitOpt.wk_var_exact"
+    "Fw.Parts.HeroExitOpt.wk_var_exact",
+    "Fw.Engine.comp_move_le_off",
+    "Fw.Engine.shown_eq5"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroExitOpt.cr_real_trade",
@@ -245,14 +251,13 @@
     "Fw.Parts.HeroExitOpt.blur_main",
     "Fw.Parts.HeroExitOpt.merged_main",
     "Fw.Parts.HeroExitOpt.wk_legacy_main",
-    "Fw.Engine.claim_trade_iff"
+    "Fw.Engine.claim_trade_iff",
+    "Fw.Engine.raster_path_fails_fracXf",
+    "Fw.Engine.raster_path_fails_fracAlpha",
+    "Fw.Engine.comp_move_not_le",
+    "Fw.Engine.comp_move_ge_on"
    ],
    "missingWhy": [
-    {
-     "statement": "Path changes rasterization in Chromium: $\\exists S, i:\\ \\pi_o(i) = \\mathrm{main} \\land \\pi_v(i) = \\mathrm{comp} \\land (\\mathrm{frac}(\\mathrm{tx}_i) \\ne 0 \\lor \\alpha_i \\notin \\{0,1\\}) \\land \\mathrm{raster}(\\pi_o,S) \\ne \\mathrm{raster}(\\pi_v,S)$. So `raster_path` needs two more exceptions (fractional translate, fractional opacity), and the visual class for the Chromium arm is Q with an 8-bit level tolerance, not E.",
-     "module": "Fw.Engine.Visual",
-     "needs": "a raster model with pixel snapping of translate and 8-bit alpha in paint vs GPU blend in composite"
-    },
     {
      "statement": "The lane cannot see the style saving: in lane mode $V.\\mathrm{passes}(\\mathrm{style}) = O.\\mathrm{passes}(\\mathrm{style})$ while $V.\\mathrm{units}(\\mathrm{style}) = N_{\\mathrm{anim}} < 1 + |\\mathrm{inh}(.\\mathrm{hero})| = O.\\mathrm{units}(\\mathrm{style})$. The only count that maps to units is elementCount, which is quarantined, so `noMoreWork` cannot confirm it (`quarantined_unsound`).",
      "module": "Fw.Parts.HeroExitOpt",
@@ -299,7 +304,8 @@
     "strip_claim",
     "strip_layers_lt",
     "hero_layers",
-    "wk_normal_layers"
+    "wk_normal_layers",
+    "Fw.Engine.work_eq_of_stages"
    ],
    "leanAgainst": [
     "strip_passes_eq",
@@ -307,7 +313,8 @@
     "strip_label_fullLayer",
     "wk_conservative_same",
     "paused_same",
-    "strip_run_eq_of_still"
+    "strip_run_eq_of_still",
+    "Fw.Engine.resident_only_noClaim"
    ],
    "missingWhy": [
     {
@@ -431,18 +438,14 @@
     "scenePaused_imp_hiddenPause",
     "skipWrites_le",
     "cr_countdown_style",
-    "wk_countdown_style"
+    "wk_countdown_style",
+    "Fw.Engine.passes_absorb",
+    "Fw.Engine.passes_absorb_changes"
    ],
    "leanAgainst": [
     "naive_pause_shifts"
    ],
-   "missingWhy": [
-    {
-     "statement": "Pass absorption: $\\forall E, f, c:\\ E.\\mathrm{stagesOf}(c) \\subseteq \\bigcup_{c'\\in f.\\mathrm{changes}} E.\\mathrm{stagesOf}(c') \\land f.\\mathrm{changes}\\neq[\\,] \\Rightarrow \\operatorname{frameWork}_E(f\\oplus c).\\mathrm{passes} = \\operatorname{frameWork}_E(f).\\mathrm{passes}$. So a dropped change lowers a pass count only in frames where it alone touched that stage",
-     "module": "Fw.Engine.Core",
-     "needs": "nothing new; generalises HeroCountdownOpt.touched_congr"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "hidden <=> panel opacity 0 <=> m <= 0.08: CONFIRMED (panelOpacity_eq_zero_iff)",
     "R6, which hidden forms skip paint while animations tick: OPEN residual",
@@ -518,17 +521,23 @@
     "anim_comp_zero",
     "path_default"
    ],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Engine.rrect_rigid",
+    "Fw.Engine.rrect_no_fixed_box",
+    "Fw.Engine.comp_move_ge_on",
+    "Fw.Engine.comp_move_not_le",
+    "Fw.Engine.claim_ne_dominates_of_layers"
+   ],
    "missingWhy": [
     {
-     "statement": "Rounded-rect rigidity: for axis-aligned $R(w,h,r)$ with $0<r\\le\\min(w,h)/2$ and affine $A$, $A(R(w,h,r))=R(w',h',r') \\Rightarrow \\exists k:\\ w'=kw \\land h'=kh \\land r'=kr$. The original's box has a varying $h/w$ and $r(m)=\\min(32-12m,h/2,w/2)$, so no single transform of a fixed box equals it for every $m$: not E",
+     "statement": "Rigidity under a general affine map (rotation, shear): $A(R(w,h,r))=R(w',h',r') \\Rightarrow \\exists k:\\ w'=kw \\land h'=kh \\land r'=kr$. The axis-aligned case is PROVED (Fw.Engine.rrect_rigid, Fw.Engine.rrect_no_fixed_box: two circular-corner targets with different aspect ratios are not scales of one box).",
      "module": "Fw.Engine.Visual",
-     "needs": "rounded-rect geometry over Q (corner arcs or curvature), not in Visual today"
+     "needs": "corner arcs under rotation and shear (curvature), not in Visual today"
     },
     {
      "statement": "Style floor and trade: $\\forall\\epsilon,k\\in\\mathrm{range}:\\ W_\\epsilon(\\mathrm{CM},k).\\mathrm{passes}(\\mathrm{style})\\ge1$ and $R_{CM}.\\mathrm{layers}=R_o.\\mathrm{layers}+8$, hence $\\operatorname{claim}\\in\\{\\mathrm{trade},\\mathrm{noClaim}\\}$",
-     "module": "Fw.Engine.Core + Fw.Engine.WebKit",
-     "needs": "a WebKit scroll-driven tick/invalidate clause (anim_comp_zero currently predicts 0 style) and the clipper layers in Resident"
+     "module": "Fw.Engine.WebKit",
+     "needs": "Core part PROVED (Fw.Engine.comp_move_ge_on, Fw.Engine.claim_ne_dominates_of_layers: layer growth rules out dominates); remaining: a WebKit scroll-driven tick/invalidate clause (anim_comp_zero currently predicts 0 style) and the clipper layers in Resident"
     }
    ],
    "premises": [
@@ -598,15 +607,11 @@
    "leanAgainst": [
     "touched_congr",
     "crStages_mono",
-    "frame_le_union"
+    "frame_le_union",
+    "Fw.Engine.passes_absorb",
+    "Fw.Engine.passes_absorb_changes"
    ],
-   "missingWhy": [
-    {
-     "statement": "Pass absorption (same theorem as for hidden-skip): $E.\\mathrm{stagesOf}(\\mathrm{backdrop}) \\subseteq E.\\mathrm{stagesOf}(\\mathrm{size}) \\Rightarrow \\operatorname{frameWork}_E(f\\oplus\\mathrm{backdrop}).\\mathrm{passes} = \\operatorname{frameWork}_E(f).\\mathrm{passes}$ for both engines while the box resizes",
-     "module": "Fw.Engine.Core",
-     "needs": "passes_absorb. The GPU backdrop cost is not in Work (no stage for viz/CA filter work)"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "Chromium backdrop-filter is ppFull and stays composited (compositor_animations.cc:417-420@f842f52): CONFIRMED",
     "a WebKit resize clears the backing: CONFIRMED",
@@ -663,7 +668,9 @@
     "fade_layers_up",
     "wk_fade_props_up",
     "wk_fade_not_le",
-    "wk_not_mono"
+    "wk_not_mono",
+    "Fw.Engine.claim_ne_dominates_of_layers",
+    "Fw.Engine.comp_move_ge_on"
    ],
    "missingWhy": [
     {
@@ -705,7 +712,11 @@
     "chromium_mixed",
     "webkit_mixed",
     "chromium_not_shift",
-    "webkit_not_shift"
+    "webkit_not_shift",
+    "Fw.Engine.shift_framewise_eqv",
+    "Fw.Engine.shift_not_dominates",
+    "Fw.Engine.total_le_of_leAll",
+    "Fw.Engine.eqv_of_le_add"
    ],
    "missingWhy": [
     {
@@ -735,7 +746,9 @@
    "mechanism": "Painted pixels per roll frame are the same with or without the layer. The WebKit saving is in per-layer display: each display swaps buffers and copies the earlier painted area forward, the whole layer after a volatility mark. That cost grows with the host's backing (5.7 MB centre vs 1.2 MB wrapper), not with dirty area. INFERRED: cited at WebKit main 6d3243c9, not re-read at 862f17d. Blink re-records and re-rasters only invalidated rects, so Chromium gains nothing and pays +1 layer. Core.Work counts paint units, not backing area, so neither the model nor Timeline Paint records can see it.",
    "leanFor": [],
    "leanAgainst": [
-    "Fw.Engine.claim_trade_iff"
+    "Fw.Engine.claim_trade_iff",
+    "Fw.Engine.raster_path_fails_fracAlpha",
+    "Fw.Engine.resident_only_noClaim"
    ],
    "missingWhy": [
     {
@@ -768,22 +781,21 @@
     "Fw.Parts.HeroCountdownOpt.strip_units",
     "Fw.Parts.HeroCountdownOpt.strip_layers_lt",
     "Fw.Parts.HeroCountdownOpt.hero_layers",
-    "Fw.Parts.HeroCountdownOpt.wk_normal_layers"
+    "Fw.Parts.HeroCountdownOpt.wk_normal_layers",
+    "Fw.Engine.double_round_whole",
+    "Fw.Engine.shown_eq5"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroCountdownOpt.strip_passes_eq",
     "Fw.Parts.HeroCountdownOpt.strip_backing_gt",
     "Fw.Parts.HeroCountdownOpt.strip_label_fullLayer",
     "Fw.Parts.HeroCountdownOpt.paused_same",
-    "Fw.Parts.HeroCountdownOpt.wk_conservative_same"
+    "Fw.Parts.HeroCountdownOpt.wk_conservative_same",
+    "Fw.Engine.double_round_ne",
+    "Fw.Engine.raster_path_fails_fracAlpha",
+    "Fw.Engine.resident_only_noClaim"
    ],
-   "missingWhy": [
-    {
-     "statement": "Layer partition matters under fractional group opacity: with $\\mathrm{rnd}$ = round-half-up to 8 bits, $\\exists \\alpha,\\beta,c:\\ \\mathrm{rnd}(\\alpha\\,\\mathrm{rnd}(\\beta c)) \\ne \\mathrm{rnd}(\\alpha\\beta c)$ (e.g. $\\alpha=\\tfrac12, \\beta=\\tfrac{3}{10}, c=255$: $39 \\ne 38$). Hence a premise C4 is needed: $\\forall p,q,s:\\ (\\forall i,\\ \\mathrm{layer}_p(i) \\ne \\mathrm{layer}_q(i) \\Rightarrow \\alpha_{\\mathrm{anc}}(i) \\in \\{0,1\\}) \\Rightarrow \\mathrm{raster}(p,s)=\\mathrm{raster}(q,s)$",
-     "module": "Fw.Engine.Visual (PathPremises C4)",
-     "needs": "a layer-partition field in PathPremises.raster; a #guard rounding counterexample"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "Backing rule for small composited layers (whole border box): INFERRED",
     "Shared-loop scheduling delta of the TS strip moves roll frames: OPEN, not modelled",
@@ -815,7 +827,9 @@
     "Fw.Parts.HiddenPause.cr_realChrome_pause_eq",
     "Fw.Parts.HiddenPause.wk_pause_eq",
     "Fw.Parts.HiddenPause.wk_marquee_bands",
-    "Fw.Parts.HiddenPause.naive_pause_shifts"
+    "Fw.Parts.HiddenPause.naive_pause_shifts",
+    "Fw.Engine.pause_off_comp",
+    "Fw.Engine.pause_no_main"
    ],
    "missingWhy": [
     {
@@ -843,11 +857,14 @@
    "visual": "not-equal: a smaller source changes resampling, so pixels can differ. At best Q under a pixel tolerance, which the gate (PL1/PL2) does not cover.",
    "mechanism": "No stage in the Work model changes: same boxes, same paint invalidations, same passes and units. Per-frame raster cost scales with drawn area times per-pixel ops (grain and blend layers over the columns), not with source pixels. WebKit decodes large images at drawn size anyway (INFERRED at pin), and decode is one-time. v1's ablation (backgrounds off: 16 -> 3 slow frames) removed the blend painting, not bytes. Chromium paint counts were equal across arms. Counters count paints, not per-paint cost, so they cannot see the effect either way.",
    "leanFor": [],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Engine.work_eq_of_same_changes",
+    "Fw.Engine.work_eq_of_stages"
+   ],
    "missingWhy": [
     {
-     "statement": "Equal changes give equal work: $\\forall f:\\ \\mathrm{changes}_v(f) = \\mathrm{changes}_o(f) \\land \\mathrm{script}_v = \\mathrm{script}_o \\Rightarrow W_\\epsilon(v,f) = W_\\epsilon(o,f)$. Plus a cost lemma: if paint cost is $\\sum_{\\mathrm{box}} \\mathrm{drawnArea}\\cdot\\mathrm{ops}$ and decode happens at draw size, intrinsic resolution does not enter per-frame cost.",
-     "module": "Fw.Engine.Core (work_eq_of_same_changes) + Fw.Engine.Lessons",
+     "statement": "Cost lemma: if paint cost is $\\sum_{\\mathrm{box}} \\mathrm{drawnArea}\\cdot\\mathrm{ops}$ and decode happens at draw size, intrinsic resolution does not enter per-frame cost. (The first half, equal changes give equal work, is PROVED as Fw.Engine.work_eq_of_same_changes.)",
+     "module": "Fw.Engine.Core",
      "needs": "an area x ops weighted paint/raster cost term; the WebKit decode-at-draw-size path read at 862f17d"
     }
    ],
@@ -914,15 +931,11 @@
     "Fw.Parts.HeroAccent.cr_realChrome_step_worse",
     "Fw.Parts.HeroAccent.wk_frame_eq",
     "Fw.Parts.HeroAccent.wk_run_equal",
-    "Fw.Parts.HeroAccent.clean_chain_phase_bad"
+    "Fw.Parts.HeroAccent.clean_chain_phase_bad",
+    "Fw.Engine.new_stage_not_le",
+    "Fw.Engine.comp_move_not_le"
    ],
-   "missingWhy": [
-    {
-     "statement": "General form of cr_comp_step_not_le: $\\mathrm{crThread}(m,a)=\\mathrm{comp} \\Rightarrow \\forall$ step frames $k$ of a main-thread replacement $v$: $W(v,k).\\mathrm{passes}(\\mathrm{commit}) > W(o,k).\\mathrm{passes}(\\mathrm{commit}) = 0$, hence $\\neg(W_v \\preceq W_o)$.",
-     "module": "Fw.Engine.Lessons",
-     "needs": "none (it generalizes existing decls)"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
     "Chromium original is composited: INFERRED (compositing_reason_finder.cc:421-432,586-593@f842f52); CI compositeFailedBits decides: OPEN",
     "R5 phase (lane breaks the timeline-origin premise): CONFIRMED gap",
@@ -950,7 +963,8 @@
    ],
    "leanAgainst": [
     "Fw.Engine.claim_trade_iff",
-    "Fw.Engine.WebKit.composites"
+    "Fw.Engine.WebKit.composites",
+    "Fw.Engine.claim_ne_dominates_of_layers"
    ],
    "missingWhy": [
     {
@@ -1049,18 +1063,14 @@
    ],
    "leanAgainst": [
     "Fw.Engine.WebKit.legacy_rejects",
-    "Fw.Engine.WebKit.blur_comp"
+    "Fw.Engine.WebKit.blur_comp",
+    "Fw.Engine.tail_not_Q"
    ],
    "missingWhy": [
     {
      "statement": "Effect-stack rule: $\\exists e \\in \\mathrm{stack}(x):\\ \\neg\\,\\mathrm{canAccel}(e) \\Rightarrow \\forall e' \\in \\mathrm{stack}(x):\\ \\mathrm{wkThread}(e') = \\mathrm{main}$.",
      "module": "Fw.Engine.WebKit",
      "needs": "a per-element effect stack in WkAnim; cite KeyframeEffectStack.cpp:215-253"
-    },
-    {
-     "statement": "tail_not_Q: $\\neg\\,\\mathrm{filterQ}(\\mathrm{blur}(0.24\\,\\mathrm{px}),\\ \\mathrm{none})$, closed by decide with tolStyle = 1/1000.",
-     "module": "Fw.Engine.Visual",
-     "needs": "none"
     },
     {
      "statement": "A UI-process composite cost for a CA blur, $C_{\\mathrm{comp}}(k) \\propto \\mathrm{area}\\cdot r_{\\mathrm{blur}}$, to show that accelerating a large-area blur can raise per-frame cost (v1: Composite 55 -> 111).",
@@ -1091,7 +1101,9 @@
     "Fw.Engine.shift_total"
    ],
    "leanAgainst": [
-    "Fw.Engine.claim_trade_iff"
+    "Fw.Engine.claim_trade_iff",
+    "Fw.Engine.shift_not_dominates",
+    "Fw.Engine.shift_framewise_eqv"
    ],
    "missingWhy": [
     {
@@ -1123,13 +1135,10 @@
     "Fw.Engine.WebKit.anim_comp_zero",
     "Fw.Engine.WebKit.opacityCross1_layout"
    ],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Engine.raster_path_fails_fracXf"
+   ],
    "missingWhy": [
-    {
-     "statement": "C5, fractional translate is path-sensitive: $\\exists R$ consistent with device-pixel snapping and $\\delta \\notin \\tfrac{1}{\\mathrm{dpr}}\\mathbb{Z}$ such that $R(\\mathrm{layout\\ at}\\ x+\\delta) \\ne R(\\mathrm{raster\\ at}\\ x,\\ \\mathrm{translated}\\ \\delta)$. So PathPremises needs: no path-differing box is translated by a non-device-pixel offset.",
-     "module": "Fw.Engine.Visual",
-     "needs": "a snapping and resampling raster model (a layout snap function and a bilinear sample)"
-    },
     {
      "statement": "flip_work_lt: $\\forall \\epsilon,\\ \\forall k \\in (0, 920\\,\\mathrm{ms}):\\ W_\\epsilon(v,k) \\prec W_\\epsilon(o,k)$ (layoutFull versus comp translate). Equal at start and end, and $R_v \\succ R_o$ while animating, hence trade by Core's label.",
      "module": "Fw.Parts.PeopleO (new)",
@@ -1182,7 +1191,8 @@
    "visual": "Q under the gate: near tolStyle 0.999 1 holds exactly at the boundary (|0.001| <= 1e-3). Pixel E holds if the engine rounds once to nearest: |0.001(d-s)| <= 0.255 < 1/2, and quantizing alpha first gives rnd(0.999*255) = 255, which is also exact. It fails only if alpha is truncated (Skia/CA quantization OPEN). v1 Chrome screenshots differed by 0.00 %.",
    "mechanism": "WebKit: opacity crossing 1 and a transform appearing or disappearing force layout (opacityCross1_layout; StyleDifference.cpp:208-215). Resting just off the flip value removes them. New finding at the Chromium pin: opacity < 1 makes a stacking context (HasNonInitialOpacity, computed_style.h:2224), and a stacking flip calls SetNeedsFullLayout (computed_style.cc:779-784@f842f52). It is avoided only while a current animation holds the flag (computed_style.h:2070-2076). So KD#8's 'Blink does not relayout' and the Chromium model's opacity row are incomplete. Cost: slot layers stay composited at rest.",
    "leanFor": [
-    "Fw.Engine.WebKit.opacityCross1_layout"
+    "Fw.Engine.WebKit.opacityCross1_layout",
+    "Fw.Engine.alpha999_round"
    ],
    "leanAgainst": [],
    "missingWhy": [
@@ -1190,11 +1200,6 @@
      "statement": "Chromium table fix: a key opacityCross1 with $\\mathrm{crLevel} = \\mathrm{layoutFull}$ when $\\mathrm{isSC}(\\mathrm{old}) \\ne \\mathrm{isSC}(\\mathrm{new})$ and no current-animation flag is set, else the current opacity row. Then cr_rest999_lt: $\\forall k \\in \\mathrm{slide\\ end}:\\ W_{\\mathrm{cr}}(v,k) \\prec W_{\\mathrm{cr}}(o,k)$.",
      "module": "Fw.Engine.Chromium",
      "needs": "a stacking-context state in Change for Chromium; a CI fixture (opacity 1 -> 0.9 -> 1 with no animation) to falsify it"
-    },
-    {
-     "statement": "alpha999_round: $\\forall s,d \\in \\{0..255\\}:\\ \\mathrm{round}(0.999\\,s + 0.001\\,d) = s$ and $\\mathrm{round}(0.999 \\cdot 255) = 255$. Both quantization orders give E; only $\\lfloor\\cdot\\rfloor$ breaks it.",
-     "module": "Fw.Engine.Visual",
-     "needs": "an explicit alpha-quantization premise (Skia/CA rounding mode)"
     }
    ],
    "premises": [
@@ -1259,7 +1264,9 @@
     "Fw.Parts.PeopleDeck.deck_run_dominates"
    ],
    "leanAgainst": [
-    "Fw.Parts.PeopleDeck.swipe_eq"
+    "Fw.Parts.PeopleDeck.swipe_eq",
+    "Fw.Engine.passes_absorb",
+    "Fw.Engine.passes_absorb_changes"
    ],
    "missingWhy": [
     {
@@ -1341,15 +1348,15 @@
    "mechanism": "The saving lands only in the toggle frame (about one per crossing). The original's class swap restyles the section and repaints its layer (text + 11 notes, 3.6-4.6 Mpx, v1 10-20 ms). The variant changes opacity on its own empty layer: Chromium keyLevel(opacity, own) = direct, WebKit recomposite, so there is no paint. New cost: one more resident composited layer. Swipe-v1 crosses the flip once, so at most one frame of Paint (quarantined) or raster.invalidationAreaPx (stable). The rewrite pain part is a shell.",
    "leanFor": [
     "Fw.Engine.Chromium.keyLevel",
-    "Fw.Engine.Core.claim_trade_iff"
+    "Fw.Engine.Core.claim_trade_iff",
+    "Fw.Engine.over_eq_lerp",
+    "Fw.Engine.crossfade_close",
+    "Fw.Engine.roundQ_close"
    ],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Engine.claim_ne_dominates_of_layers"
+   ],
    "missingWhy": [
-    {
-     "statement": "$\\forall a,b\\in[0,1]^3,\\ t\\in[0,1]:\\ \\mathrm{over}(a,t;b) = (1-t)b + ta = \\mathrm{lerp}(b,a,t)$ in $\\mathbb{Q}$, and with 8-bit quantisation $q$: $|q(\\mathrm{over}(a,q_\\alpha(t);b)) - q(\\mathrm{lerp}(b,a,t))| \\le 1$ LSB",
-     "module": "Fw.Engine.Visual",
-     "needs": "an alpha/colour quantisation premise cited from Skia and CoreAnimation (shared with row 19's 0.999 premise)"
-    },
     {
      "statement": "Toggle frame: $W(v,k_{flip}).\\mathrm{units}(\\mathrm{paint}) < W(o,k_{flip}).\\mathrm{units}(\\mathrm{paint})$ and $\\mathrm{Resident}(v).\\mathrm{layers} = \\mathrm{Resident}(o).\\mathrm{layers}+1 \\Rightarrow \\mathrm{claim} = \\mathrm{trade}$",
      "module": "Fw.Parts.PainNotes",
@@ -1377,7 +1384,9 @@
    "leanFor": [
     "Fw.Parts.EngineScroll.batched_le_faithful",
     "Fw.Parts.EngineScroll.batched_le_one",
-    "Fw.Parts.HiddenPause.skipWrites_le"
+    "Fw.Parts.HiddenPause.skipWrites_le",
+    "Fw.Engine.reader_removal",
+    "Fw.Engine.flagTotal_remove_check"
    ],
    "leanAgainst": [],
    "missingWhy": [
@@ -1432,18 +1441,17 @@
    "chromium": "win",
    "webkit": "win",
    "visual": "not-equal (class L): the variant shows every other intermediate string; endpoints and total time are equal",
-   "mechanism": "A text write dirties layout and paint of its line, not element style (INFERRED; no text property in either engine table). Half the writes halve the layout passes on frames where nothing else lays out. Style passes barely move (v1 627 -> 612), because other per-frame animations already touch the style stage. Under the per-frame union, removing one change lowers passes only for stages no other change touches. WebKit may gain more when restyles cross #platform's size containers (interleave, see the next finding).",
+   "mechanism": "A text write dirties layout and paint of its line, not element style (INFERRED; no text property in either engine table). Half the writes halve the layout passes on frames where nothing else lays out. Style passes barely move (v1 627 -> 612), because other per-frame animations already touch the style stage. Under the per-frame union, removing one change lowers passes only for stages no other change touches. WebKit may gain more when restyles cross #platform's size containers (interleave, see the next finding). PROVED with a corrected hypothesis: removing a change whose stages are covered by the rest keeps every pass count only if the frame still updates without it (Fw.Engine.passes_remove_absorbed); the union lemma as first stated is false: a stage-less change on an otherwise empty frame drops the base stages (Fw.Engine.absorb_needs_updates).",
    "leanFor": [
     "Fw.Parts.HiddenPause.skipWrites_le",
-    "Fw.Engine.Core.frame_le_of_cover"
+    "Fw.Engine.Core.frame_le_of_cover",
+    "Fw.Engine.passes_remove_absorbed"
    ],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Engine.passes_absorb",
+    "Fw.Engine.absorb_needs_updates"
+   ],
    "missingWhy": [
-    {
-     "statement": "Union lemma: $\\mathrm{stages}(c)\\subseteq\\bigcup_{c'\\in f\\setminus c}\\mathrm{stages}(c') \\Rightarrow W(f\\setminus c).\\mathrm{passes}=W(f).\\mathrm{passes}$ (only units drop)",
-     "module": "Fw.Engine.Core",
-     "needs": "nothing new"
-    },
     {
      "statement": "Not-E (subsampling): $\\exists t:\\ \\mathrm{text}_v(t)\\ne\\mathrm{text}_o(t)$, and $\\{\\mathrm{text}_v(t)\\}_t = \\{\\mathrm{text}_o(t_{2k})\\}_k$ with equal first and last states",
      "module": "Fw.Parts.PlatformEntries",
@@ -1474,11 +1482,15 @@
     "Fw.Engine.WebKit.anim_comp_zero",
     "Fw.Engine.WebKit.compFrame_zero",
     "Fw.Parts.PlatformSweep.pos_periodic",
-    "Fw.Parts.PlatformSweep.phase_periodic"
+    "Fw.Parts.PlatformSweep.phase_periodic",
+    "Fw.Engine.comp_move_le_off"
    ],
    "leanAgainst": [
     "Fw.Parts.HiddenPause.cr_marquee_bands",
-    "Fw.Engine.Core.claim_trade_iff"
+    "Fw.Engine.Core.claim_trade_iff",
+    "Fw.Engine.comp_move_ge_on",
+    "Fw.Engine.comp_move_not_le",
+    "Fw.Engine.claim_ne_dominates_of_layers"
    ],
    "missingWhy": [
     {
@@ -1521,7 +1533,10 @@
     "Fw.Engine.Chromium.transformAnim_comp",
     "Fw.Engine.WebKit.anim_comp_zero"
    ],
-   "leanAgainst": [],
+   "leanAgainst": [
+    "Fw.Engine.raster_path_fails_fracAlpha",
+    "Fw.Engine.double_round_ne"
+   ],
    "missingWhy": [
     {
      "statement": "glint_translate: $\\forall s,\\ u\\in[0,1):\\ x_2(s,u)-x_1(s,u)=120$, hence $\\mathrm{grad}(s,u)=\\mathrm{shift}_{x_1(s,u)+200}\\circ\\mathrm{grad}(\\mathrm{rest}(\\mathrm{left}))$",
@@ -1532,11 +1547,6 @@
      "statement": "Engine rows: $\\mathrm{keyLevel}(\\mathrm{svgPaintServerAttr},l)=\\mathrm{paint}$ (Chromium); $\\mathrm{rawDiff}(\\mathrm{svgResourceAttr})=(\\mathrm{layout},\\emptyset)$ (WebKit legacy SVG engine), so $W_{wk}(o).\\mathrm{passes}(\\mathrm{layout})=1$ per glint frame",
      "module": "Fw.Engine.Chromium / Fw.Engine.WebKit",
      "needs": "new CrKey/WkProp constructors with the cites above"
-    },
-    {
-     "statement": "Layerization changes pixels: $\\exists b:\\ R(\\mathrm{scene}, L_v)\\ne R(\\mathrm{scene}, L_o)$ when $b$'s layer assignment differs, so E on scenes does not give E on images unless $R$ is layer-invariant",
-     "module": "Fw.Engine.Visual",
-     "needs": "a render function that takes the layer assignment as input"
     }
    ],
    "premises": [
@@ -1556,18 +1566,20 @@
    "chromium": "win",
    "webkit": "win",
    "visual": "Open: occlusion is not modelled (BoxVis.drop keeps occluded boxes). With cover alpha 0.999 the hero contributes 0.001*h <= 0.255 LSB, which can flip rounding by 1 LSB, unless alpha is quantised to 8 bits first (0.999*255 = 254.745 -> 255, opaque, then E). v1 OBSERVED max level 0. Resume 'from held time' is not E against the original (naive_pause_shifts)",
-   "mechanism": "The covered hero runs main-thread animations (stroke-dashoffset: Chromium paint, WebKit layout, strokeDashoffset_layout; scroll-float; countdown). WebKit ticks every non-accelerated animation that has a renderer, hidden or not (KeyframeEffect.cpp:2724-2745@862f17d, R6), so pausing saves style, layout and paint there. This is the real version of the lesson-18 win. CI: the Simulator lane serves only the original.",
+   "mechanism": "The covered hero runs main-thread animations (stroke-dashoffset: Chromium paint, WebKit layout, strokeDashoffset_layout; scroll-float; countdown). WebKit ticks every non-accelerated animation that has a renderer, hidden or not (KeyframeEffect.cpp:2724-2745@862f17d, R6), so pausing saves style, layout and paint there. This is the real version of the lesson-18 win. CI: the Simulator lane serves only the original. PROVED: under round-half-up the cover is exactly opaque iff epsilon <= 1/510 (Fw.Engine.alpha_one_iff); the earlier strict < holds only for round-half-even. 0.999 = 1 - 1/1000 is opaque.",
    "leanFor": [
     "Fw.Engine.WebKit.strokeDashoffset_layout",
     "Fw.Parts.HiddenPause.pause_le",
-    "Fw.Parts.HiddenPause.skipWrites_le"
+    "Fw.Parts.HiddenPause.skipWrites_le",
+    "Fw.Engine.occlusion",
+    "Fw.Engine.alpha_one_iff"
    ],
    "leanAgainst": [
     "Fw.Parts.HiddenPause.naive_pause_shifts"
    ],
    "missingWhy": [
     {
-     "statement": "Occlusion: $\\mathrm{covers}(c,b)\\land q_\\alpha(\\alpha(c))=1\\land\\mathrm{order}(c)>\\mathrm{order}(b)\\Rightarrow R(s)=R(s\\setminus b)$; and $q_\\alpha(1-\\varepsilon)=1\\iff\\varepsilon<1/510$ under round-to-nearest 8-bit alpha, else $|\\Delta|\\le\\lceil255\\varepsilon\\rceil$ LSB",
+     "statement": "Error bound for an almost-opaque cover: with $q_\\alpha$ round-half-up to 8 bits and $\\varepsilon > 1/510$, $|\\Delta| \\le \\lceil 255\\varepsilon \\rceil$ LSB. (Occlusion for an exactly opaque cover is PROVED as Fw.Engine.occlusion, and $q_\\alpha(1-\\varepsilon)=255 \\iff \\varepsilon \\le 1/510$ for $\\varepsilon \\ge 0$ as Fw.Engine.alpha_one_iff.)",
      "module": "Fw.Engine.Visual",
      "needs": "paint order, an opaque-cover predicate and the Skia/CoreAnimation alpha quantisation premise (shared with row 19)"
     }
@@ -1598,7 +1610,9 @@
    "leanAgainst": [
     "Fw.Parts.HiddenPause.cr_realChrome_pause_eq",
     "Fw.Parts.HiddenPause.wk_pause_eq",
-    "Fw.Parts.HiddenPause.wk_marquee_bands"
+    "Fw.Parts.HiddenPause.wk_marquee_bands",
+    "Fw.Engine.pause_off_comp",
+    "Fw.Engine.pause_no_main"
    ],
    "missingWhy": [
     {

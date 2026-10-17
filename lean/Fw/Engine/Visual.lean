@@ -484,4 +484,359 @@ theorem shown_eq {Img Env T : Type} {vp : Env → Rect} {o v : Env → T → Sce
   rw [P.c3o, P.c3v, h env t]
   exact P.raster_path _ _ _ fun i hi => ⟨P.c1 env t i hi, P.c2 env t i hi⟩
 
+/-! ## Why the path premises need C4 and C5 (ledger n=6, 13, 18, 24)
+
+`raster_path` says the path (main thread or compositor) matters only for LCD text and compositor scale. Two toy
+one-pixel rasters show two more cases where it matters: a fractional translate (layout snaps to device pixels, the
+compositor resamples) and a fractional group opacity over a separately rastered layer (two 8-bit roundings against
+one). `PathPremises5` adds both as exceptions (C4, C5) and keeps `shown_eq`. -/
+
+/-- Round half up to an integer.
+
+$$\operatorname{rnd}(x) = \lfloor x + \tfrac12 \rfloor$$
+
+The 8-bit quantiser used by the toy rasters. -/
+def roundQ (x : Rat) : Int := (x + 1 / 2).floor
+
+#guard roundQ (3 / 10 * 255) == 77
+#guard roundQ (1 / 2 * 77) == 39
+#guard roundQ (1 / 2 * (3 / 10) * 255) == 38
+#guard roundQ (255 / 2) == 128
+
+/-- The raster premise of `PathPremises` for a given raster function and exception sets.
+
+$$\operatorname{RasterPathOK}(\mathit{raster}, \mathit{lcd}, \mathit{cs}) \iff \forall p, q : \mathrm{BoxId} \to \mathrm{Thread},\ \forall S \in \mathrm{Scene}:\ \big(\forall i:\ p(i) \ne q(i) \Rightarrow \mathit{lcd}(i) = \bot \land \mathit{cs}(i) = \bot\big) \Rightarrow \mathit{raster}(p, S) = \mathit{raster}(q, S)$$
+
+Whether a raster function satisfies C1-C2's raster model. -/
+def RasterPathOK {Img : Type} (raster : (BoxId → Thread) → Scene → Img) (lcd cs : BoxId → Bool) : Prop :=
+  ∀ (p q : BoxId → Thread) (s : Scene), (∀ i, p i ≠ q i → lcd i = false ∧ cs i = false) → raster p s = raster q s
+
+/-- A one-pixel toy raster of a translated box (C5): the first box covers pixel 0 when unshifted. On the main thread
+layout snaps its offset `e` to the nearest device pixel; on the compositor it is rastered at 0 and resampled by `e`.
+
+$$\operatorname{snapToy}(p, S) = \begin{cases} 255\cdot[\operatorname{rnd}(b.\mathrm{xf}.e) = 0] & S = (i, b) :: S' \land p(i) = \mathrm{main} \\ \operatorname{rnd}(255\,(1 - b.\mathrm{xf}.e)) & S = (i, b) :: S' \land p(i) = \mathrm{comp} \\ 0 & S = [\,] \end{cases}$$
+
+A model of pixel snapping against bilinear resampling for offsets in [0, 1]. -/
+def snapToy (p : BoxId → Thread) : Scene → Int
+  | [] => 0
+  | (i, b) :: _ => match p i with
+    | .main => if roundQ b.xf.e = 0 then 255 else 0
+    | .comp => roundQ (255 * (1 - b.xf.e))
+
+/-- A one-pixel toy raster of a group (C4): the first box is a group with opacity `α`, the second its child with
+opacity `β` over white 255. Flattened on the main thread the pixel is one rounding of `αβ·255`; with the child on its
+own layer the child is rounded first and the group opacity applied after.
+
+$$\operatorname{alphaToy}(p, S) = \begin{cases} \operatorname{rnd}(\alpha\beta\cdot 255) & S = (g, b_g) :: (i, b_i) :: S' \land p(i) = \mathrm{main} \\ \operatorname{rnd}(\alpha\,\operatorname{rnd}(\beta\cdot 255)) & S = (g, b_g) :: (i, b_i) :: S' \land p(i) = \mathrm{comp} \\ 0 & \text{otherwise} \end{cases},\quad \alpha = b_g.\mathrm{alpha},\ \beta = b_i.\mathrm{alpha}$$
+
+A model of one 8-bit rounding against two. -/
+def alphaToy (p : BoxId → Thread) : Scene → Int
+  | (_, bg) :: (i, bi) :: _ => match p i with
+    | .main => roundQ (bg.alpha * bi.alpha * 255)
+    | .comp => roundQ (bg.alpha * roundQ (bi.alpha * 255))
+  | _ => 0
+
+/-- A box with only an alpha and a horizontal offset set.
+
+$$\operatorname{toyBox}(\alpha, e) = (\mathrm{box} = \mathrm{ink} = (0,0,1,1),\ \mathrm{paint} = [\,],\ \mathrm{xf} = (1,0,0,1,e,0),\ \mathrm{alpha} = \alpha,\ \mathrm{clip} = \bot,\ \mathrm{filter} = [\,],\ \mathrm{order} = 0)$$
+
+The toy scenes' only box shape. -/
+def toyBox (a e : Rat) : BoxVis := ⟨⟨0, 0, 1, 1⟩, ⟨0, 0, 1, 1⟩, [], ⟨1, 0, 0, 1, e, 0⟩, a, none, [], 0⟩
+
+/-- **C5 is needed (n=6, 18).** In the snapping toy, a half-pixel translate makes the path visible although the box has
+no LCD text and no compositor scale: the main thread shows 0, the compositor 128.
+
+$$\lnot \operatorname{RasterPathOK}(\operatorname{snapToy}, i \mapsto \bot, i \mapsto \bot),\ \text{witnessed by } S = [(\mathtt{b}, \operatorname{toyBox}(1, \tfrac12))]:\ \operatorname{snapToy}(\mathrm{main}, S) = 0 \ne 128 = \operatorname{snapToy}(\mathrm{comp}, S)$$
+
+Layout snaps, the compositor resamples, so a fractional translate is path-sensitive. -/
+theorem raster_path_fails_fracXf :
+    snapToy (fun _ => .main) [("b", toyBox 1 (1 / 2))] = 0 ∧
+      snapToy (fun _ => .comp) [("b", toyBox 1 (1 / 2))] = 128 ∧
+      ¬ RasterPathOK snapToy (fun _ => false) (fun _ => false) := by
+  have h1 : snapToy (fun _ => .main) [("b", toyBox 1 (1 / 2))] = 0 := by decide +kernel
+  have h2 : snapToy (fun _ => .comp) [("b", toyBox 1 (1 / 2))] = 128 := by decide +kernel
+  refine ⟨h1, h2, fun h => ?_⟩
+  have := h (fun _ => .main) (fun _ => .comp) [("b", toyBox 1 (1 / 2))] (fun _ _ => ⟨rfl, rfl⟩)
+  rw [h1, h2] at this
+  exact absurd this (by decide)
+
+/-- In the snapping toy an integral translate is path-free.
+
+$$\operatorname{snapToy}(\mathrm{main}, [(\mathtt{b}, \operatorname{toyBox}(1, 0))]) = \operatorname{snapToy}(\mathrm{comp}, [(\mathtt{b}, \operatorname{toyBox}(1, 0))]) = 255$$
+
+C5 excludes only fractional offsets. -/
+theorem snapToy_integral :
+    snapToy (fun _ => .main) [("b", toyBox 1 0)] = 255 ∧ snapToy (fun _ => .comp) [("b", toyBox 1 0)] = 255 := by
+  decide +kernel
+
+/-- **Double rounding (n=13, 24).** Rounding the child before the group opacity differs from rounding once.
+
+$$\operatorname{rnd}\big(\tfrac12\,\operatorname{rnd}(\tfrac{3}{10}\cdot 255)\big) = 39 \ne 38 = \operatorname{rnd}\big(\tfrac12\cdot\tfrac{3}{10}\cdot 255\big)$$
+
+Layer partition is visible under fractional group opacity. -/
+theorem double_round_ne : roundQ (1 / 2 * roundQ (3 / 10 * 255)) = 39 ∧ roundQ (1 / 2 * (3 / 10) * 255) = 38 := by
+  decide +kernel
+
+/-- **C4 is needed (n=13, 24).** In the group toy, moving the child to its own layer changes the pixel under group
+opacity ½ and child opacity 3/10, although no box has LCD text or compositor scale.
+
+$$\lnot \operatorname{RasterPathOK}(\operatorname{alphaToy}, i \mapsto \bot, i \mapsto \bot),\ \text{witnessed by } S = [(\mathtt{g}, \operatorname{toyBox}(\tfrac12, 0)), (\mathtt{c}, \operatorname{toyBox}(\tfrac{3}{10}, 0))]:\ 38 \ne 39$$
+
+Promoting a box can change its pixels: same scene is not same image. -/
+theorem raster_path_fails_fracAlpha :
+    alphaToy (fun _ => .main) [("g", toyBox (1 / 2) 0), ("c", toyBox (3 / 10) 0)] = 38 ∧
+      alphaToy (fun _ => .comp) [("g", toyBox (1 / 2) 0), ("c", toyBox (3 / 10) 0)] = 39 ∧
+      ¬ RasterPathOK alphaToy (fun _ => false) (fun _ => false) := by
+  have h1 : alphaToy (fun _ => .main) [("g", toyBox (1 / 2) 0), ("c", toyBox (3 / 10) 0)] = 38 := by
+    decide +kernel
+  have h2 : alphaToy (fun _ => .comp) [("g", toyBox (1 / 2) 0), ("c", toyBox (3 / 10) 0)] = 39 := by
+    decide +kernel
+  refine ⟨h1, h2, fun h => ?_⟩
+  have := h (fun _ => .main) (fun _ => .comp) [("g", toyBox (1 / 2) 0), ("c", toyBox (3 / 10) 0)]
+    (fun _ _ => ⟨rfl, rfl⟩)
+  rw [h1, h2] at this
+  exact absurd this (by decide)
+
+/-- Rounding an integer gives it back.
+
+$$\forall z \in \mathbb{Z}:\ \operatorname{rnd}(z) = z$$
+
+Quantised values are fixed points. -/
+theorem roundQ_int (z : Int) : roundQ (z : Rat) = z := by
+  unfold roundQ
+  apply Int.le_antisymm
+  · have : ((z : Rat) + 1 / 2).floor < z + 1 := Rat.floor_lt_iff.mpr (by rw [Rat.intCast_add]; grind)
+    omega
+  · exact Rat.le_floor_iff.mpr (by grind)
+
+/-- **Group opacity 0 or 1 is path-free.** In the group toy, the two roundings agree when the group opacity is 0 or
+1, for every child opacity: the exception C4 needs only fractional group opacity.
+
+$$\forall a \in \{0, 1\},\ \forall b \in \mathbb{Q}:\ \operatorname{rnd}(a\,\operatorname{rnd}(b\cdot 255)) = \operatorname{rnd}(a b\cdot 255)$$
+
+Whole opacities commute with rounding. -/
+theorem double_round_whole (a b : Rat) (ha : a = 0 ∨ a = 1) :
+    roundQ (a * roundQ (b * 255)) = roundQ (a * b * 255) := by
+  rcases ha with rfl | rfl
+  · simp
+  · simp only [Rat.one_mul]; exact roundQ_int _
+
+/-- **The path premises with C4 and C5.** As `PathPremises`, with two more raster exceptions: a box with a
+non-device-pixel translate (`fracXf`, C5) and a box under a fractional group opacity (`fracAlpha`, C4) may change
+pixels with its path, so no box whose path differs may have either.
+
+$$\mathrm{PathPremises5} = \mathrm{PathPremises} \text{ with } \mathit{fracXf}, \mathit{fracAlpha} : \mathrm{BoxId} \to \mathbb{B} \text{ and } \begin{cases} \forall p, q, S:\ \big(\forall i:\ p(i) \ne q(i) \Rightarrow \neg\mathit{lcd}(i) \land \neg\mathit{cs}(i) \land \neg\mathit{fracXf}(i) \land \neg\mathit{fracAlpha}(i)\big) \Rightarrow \mathit{raster}(p, S) = \mathit{raster}(q, S) \\ \forall \mathit{env}, t, i:\ \pi_o(\mathit{env}, t)(i) \ne \pi_v(\mathit{env}, t)(i) \Rightarrow \neg\mathit{lcd}(i) \land \neg\mathit{cs}(i) \land \neg\mathit{fracXf}(i) \land \neg\mathit{fracAlpha}(i) & \text{(C1, C2, C5, C4)} \\ \text{C3 as in PathPremises} \end{cases}$$
+
+The raster model the toy counterexamples force. -/
+structure PathPremises5 {Env T : Type} (Img : Type) (vp : Env → Rect) (o v : Env → T → Scene) where
+  raster    : (BoxId → Thread) → Scene → Img
+  lcdText   : BoxId → Bool
+  compScale : BoxId → Bool
+  fracXf    : BoxId → Bool
+  fracAlpha : BoxId → Bool
+  pathO     : Env → T → BoxId → Thread
+  pathV     : Env → T → BoxId → Thread
+  shownO    : Env → T → Img
+  shownV    : Env → T → Img
+  raster_path : ∀ (p q : BoxId → Thread) (s : Scene),
+    (∀ i, p i ≠ q i → lcdText i = false ∧ compScale i = false ∧ fracXf i = false ∧ fracAlpha i = false) →
+      raster p s = raster q s
+  c1245 : ∀ env t i, pathO env t i ≠ pathV env t i →
+    lcdText i = false ∧ compScale i = false ∧ fracXf i = false ∧ fracAlpha i = false
+  c3o : ∀ env t, shownO env t = raster (pathO env t) (visible (vp env) (o env t))
+  c3v : ∀ env t, shownV env t = raster (pathV env t) (visible (vp env) (v env t))
+
+/-- **Same scene, same pixels, under C1-C5.**
+
+$$\forall \mathit{vp}, o, v,\ \forall P \in \mathrm{PathPremises5}(\mathit{vp}, o, v):\ \operatorname{VisSame}_{\mathrm{E}}(\mathit{vp}, o, v) \Rightarrow \forall \mathit{env}, t:\ P.\mathit{shown}_o(\mathit{env}, t) = P.\mathit{shown}_v(\mathit{env}, t)$$
+
+E-equal scenes give equal pixels when no path-differing box is LCD, scaled, fractionally shifted or under a fractional
+group opacity. -/
+theorem shown_eq5 {Img Env T : Type} {vp : Env → Rect} {o v : Env → T → Scene}
+    (P : PathPremises5 Img vp o v) (h : VisSame E vp o v) : ∀ env t, P.shownO env t = P.shownV env t := by
+  intro env t
+  rw [P.c3o, P.c3v, h env t]
+  exact P.raster_path _ _ _ fun i hi => P.c1245 env t i hi
+
+/-! ## Quantisation facts (ledger n=17, 19, 21, 25) -/
+
+/-- **A 0.24 px blur tail is not Q-equal to no filter (n=17).** The lists differ in length, and even a zero-radius blur
+is out of the style tolerance.
+
+$$\operatorname{filterQ}([\mathrm{blur}(0.24)], [\,]) = \bot \land \operatorname{numsQ}_{t_{\mathrm{style}}}([0.24], [0]) = \bot$$
+
+A visible blur tail is a look change under the gate. -/
+theorem tail_not_Q :
+    filterQ [⟨"blur", [24 / 100]⟩] [] = false ∧ numsQ tolStyle [24 / 100] [0] = false := by
+  unfold tolStyle; decide +kernel
+
+/-- **0.999 opacity is invisible under round-half-up (n=19).** For 8-bit source and destination channels, blending
+at 999/1000 and rounding half up gives the source back; quantising the alpha first gives 255, i.e. opaque; only a
+floor quantiser breaks it.
+
+$$\forall s, d \in \mathbb{N}:\ s \le 255 \land d \le 255 \Rightarrow \Big\lfloor \tfrac{999 s + d + 500}{1000} \Big\rfloor = s,\qquad \Big\lfloor \tfrac{999\cdot 255 + 500}{1000} \Big\rfloor = 255,\qquad \Big\lfloor \tfrac{999\cdot 255}{1000} \Big\rfloor = 254$$
+
+The 0.999 trick is E exactly when the engine rounds to nearest. -/
+theorem alpha999_round :
+    (∀ s d : Nat, s ≤ 255 → d ≤ 255 → (999 * s + d + 500) / 1000 = s) ∧
+      (999 * 255 + 500) / 1000 = 255 ∧ (999 * 255) / 1000 = 254 := by
+  refine ⟨fun s d hs hd => by omega, by decide, by decide⟩
+
+/-- **Source-over is a lerp (n=21).** Painting colour `a` at opacity `t` over `b` is the linear interpolation.
+
+$$\forall a, b, t \in \mathbb{Q}:\ t\,a + (1 - t)\,b = b + t\,(a - b)$$
+
+A cross-fade by opacity and a colour tween are the same exact value. -/
+theorem over_eq_lerp (a b t : Rat) : t * a + (1 - t) * b = b + t * (a - b) := by grind
+
+/-- Rounding moves values at most one apart by at most one.
+
+$$\forall x, y \in \mathbb{Q}:\ |x - y| \le 1 \Rightarrow |\operatorname{rnd}(x) - \operatorname{rnd}(y)| \le 1$$
+
+Close values round to adjacent levels. -/
+theorem roundQ_close (x y : Rat) (h1 : x - y ≤ 1) (h2 : y - x ≤ 1) :
+    roundQ x - roundQ y ≤ 1 ∧ roundQ y - roundQ x ≤ 1 := by
+  unfold roundQ
+  have ax := Rat.floor_le (x + 1 / 2)
+  have bx := Rat.lt_floor_add_one (x + 1 / 2)
+  have ay := Rat.floor_le (y + 1 / 2)
+  have b_y := Rat.lt_floor_add_one (y + 1 / 2)
+  push_cast at bx b_y
+  have k1 : (((x + 1 / 2).floor - (y + 1 / 2).floor : Int) : Rat) < 2 := by push_cast; grind
+  have k2 : (((y + 1 / 2).floor - (x + 1 / 2).floor : Int) : Rat) < 2 := by push_cast; grind
+  have e1 : (x + 1 / 2).floor - (y + 1 / 2).floor < 2 := by exact_mod_cast k1
+  have e2 : (y + 1 / 2).floor - (x + 1 / 2).floor < 2 := by exact_mod_cast k2
+  omega
+
+/-- **An 8-bit opacity cross-fade is within one level of the exact tween (n=21).** If the opacity is quantised to
+within half a level and both colours are in [0, 1], the cross-fade at the quantised opacity rounds to within one
+8-bit level of the exact lerp.
+
+$$\forall a, b, t, t' \in \mathbb{Q}:\ 0 \le a, b \le 1 \land |t' - t| \le \tfrac{1}{510} \Rightarrow \big|\operatorname{rnd}\big(255\,(t' a + (1 - t') b)\big) - \operatorname{rnd}\big(255\,(b + t\,(a - b))\big)\big| \le 1$$
+
+An opacity cross-fade is Q-close to a colour tween at 8 bits. -/
+theorem crossfade_close (a b t t' : Rat) (ha0 : 0 ≤ a) (ha1 : a ≤ 1) (hb0 : 0 ≤ b) (hb1 : b ≤ 1)
+    (ht1 : t' - t ≤ 1 / 510) (ht2 : t - t' ≤ 1 / 510) :
+    roundQ (255 * (t' * a + (1 - t') * b)) - roundQ (255 * (b + t * (a - b))) ≤ 1 ∧
+      roundQ (255 * (b + t * (a - b))) - roundQ (255 * (t' * a + (1 - t') * b)) ≤ 1 := by
+  have key : 255 * (t' * a + (1 - t') * b) - 255 * (b + t * (a - b)) = 255 * ((t' - t) * (a - b)) := by grind
+  have hab1 : a - b ≤ 1 := by grind
+  have hab2 : b - a ≤ 1 := by grind
+  have hab3 : -(a - b) ≤ 1 := by grind
+  have p1 : (t' - t) * (a - b) ≤ 1 / 510 := by
+    rcases (Rat.le_total : (0 : Rat) ≤ t' - t ∨ t' - t ≤ 0) with g | g
+    · have := Rat.mul_le_mul_of_nonneg_left hab1 g; grind
+    · have := Rat.mul_le_mul_of_nonneg_left hab3 (show (0 : Rat) ≤ -(t' - t) by grind); grind
+  have p2 : -(1 / 510) ≤ (t' - t) * (a - b) := by
+    rcases (Rat.le_total : (0 : Rat) ≤ t' - t ∨ t' - t ≤ 0) with g | g
+    · have := Rat.mul_le_mul_of_nonneg_left hab3 g; grind
+    · have := Rat.mul_le_mul_of_nonneg_left hab1 (show (0 : Rat) ≤ -(t' - t) by grind); grind
+  exact roundQ_close _ _ (by grind) (by grind)
+
+/-- **An almost-opaque cover is opaque exactly up to 1/510 (n=25).** With opacity quantised by round-half-up to 8
+bits, `1 - ε` becomes 255 exactly when `ε ≤ 1/510` (for `0 ≤ ε`); the ledger's strict `<` holds only under
+round-half-even.
+
+$$\forall \varepsilon \in \mathbb{Q}:\ 0 \le \varepsilon \Rightarrow \big(\operatorname{rnd}(255\,(1 - \varepsilon)) = 255 \iff \varepsilon \le \tfrac{1}{510}\big)$$
+
+A cover hides what is under it only if its quantised alpha is 255. -/
+theorem alpha_one_iff (ε : Rat) (h0 : 0 ≤ ε) : roundQ (255 * (1 - ε)) = 255 ↔ ε ≤ 1 / 510 := by
+  unfold roundQ
+  constructor
+  · intro h
+    have := Rat.floor_le (255 * (1 - ε) + 1 / 2)
+    rw [h] at this
+    push_cast at this
+    grind
+  · intro h
+    have a : (255 : Int) ≤ (255 * (1 - ε) + 1 / 2).floor := Rat.le_floor_iff.mpr (by push_cast; grind)
+    have d : (255 * (1 - ε) + 1 / 2).floor < 256 := by
+      have := @Rat.floor_lt_iff (255 * (1 - ε) + 1 / 2) 256
+      exact this.mpr (by rw [show ((256 : Int) : Rat) = 256 from rfl]; grind)
+    omega
+
+/-- Source-over of one 8-bit layer on one 8-bit pixel, rounded half up.
+
+$$\forall d, c, a \in \mathbb{N}:\ \operatorname{over}_8(d, (c, a)) = \Big\lfloor \tfrac{2\,(a c + (255 \mathbin{\dot-} a)\, d) + 255}{510} \Big\rfloor$$
+
+One paint step of the one-pixel fold. -/
+def over8 (dst : Nat) (l : Nat × Nat) : Nat := (2 * (l.2 * l.1 + (255 - l.2) * dst) + 255) / 510
+
+/-- Paint a list of (colour, alpha) layers in order onto a start pixel.
+
+$$\operatorname{paint}(d, L) = \operatorname{foldl}(\operatorname{over}_8, d, L)$$
+
+The one-pixel compositing fold. -/
+def paint8 (d : Nat) (ls : List (Nat × Nat)) : Nat := ls.foldl over8 d
+
+#guard over8 0 (200, 255) == 200
+#guard over8 100 (200, 0) == 100
+#guard paint8 7 [(10, 128), (90, 255), (30, 0)] == 90
+
+/-- **Occlusion (n=25).** A layer painted under a later layer whose quantised alpha is 255 is invisible: dropping it
+does not change the pixel.
+
+$$\forall d \in \mathbb{N},\ \forall P, M, S \in (\mathbb{N}\times\mathbb{N})^{*},\ \forall b \in \mathbb{N}\times\mathbb{N},\ \forall c \in \mathbb{N}:\ \operatorname{paint}(d, P \mathbin{+\!\!+} b :: M \mathbin{+\!\!+} (c, 255) :: S) = \operatorname{paint}(d, P \mathbin{+\!\!+} M \mathbin{+\!\!+} (c, 255) :: S)$$
+
+An exactly opaque cover makes the pause of what it covers E. -/
+theorem occlusion (d : Nat) (pre mid post : List (Nat × Nat)) (b : Nat × Nat) (c : Nat) :
+    paint8 d (pre ++ b :: mid ++ (c, 255) :: post) = paint8 d (pre ++ mid ++ (c, 255) :: post) := by
+  have hcov : ∀ x, over8 x (c, 255) = c := by intro x; simp only [over8]; omega
+  simp only [paint8, List.foldl_append, List.foldl_cons, hcov]
+
+/-! ## Rounded-rectangle rigidity (ledger n=10) -/
+
+/-- An axis-aligned rounded rectangle: width, height and the corner radii along x and y.
+
+$$\mathrm{RRect} = \mathbb{Q}^{4},\qquad R = (w, h, r_x, r_y)$$
+
+The geometry of a `border-radius` box. -/
+structure RRect where
+  w  : Rat
+  h  : Rat
+  rx : Rat
+  ry : Rat
+deriving Repr, DecidableEq
+
+/-- Scale a rounded rectangle along the axes.
+
+$$\operatorname{scale}_{s_x, s_y}(w, h, r_x, r_y) = (s_x w, s_y h, s_x r_x, s_y r_y)$$
+
+What an axis-aligned transform does to the box. -/
+def RRect.scale (sx sy : Rat) (R : RRect) : RRect := ⟨sx * R.w, sy * R.h, sx * R.rx, sy * R.ry⟩
+
+/-- **Circular corners force a uniform scale.** If a box with circular corners of radius `r > 0` scales to a box with
+circular corners, the scale is uniform and every dimension scales by the same factor.
+
+$$\forall w, h, r, s_x, s_y, w', h', r' \in \mathbb{Q}:\ 0 < r \land \operatorname{scale}_{s_x, s_y}(w, h, r, r) = (w', h', r', r') \Rightarrow s_x = s_y \land w' = s_x w \land h' = s_x h \land r' = s_x r$$
+
+A transform of a fixed rounded box keeps its aspect ratio. -/
+theorem rrect_rigid (w h r sx sy w' h' r' : Rat) (hr : 0 < r)
+    (heq : RRect.scale sx sy ⟨w, h, r, r⟩ = ⟨w', h', r', r'⟩) :
+    sx = sy ∧ w' = sx * w ∧ h' = sx * h ∧ r' = sx * r := by
+  simp only [RRect.scale, RRect.mk.injEq] at heq
+  obtain ⟨e1, e2, e3, e4⟩ := heq
+  have hs : sx * r = sy * r := by rw [e3, e4]
+  have hsxy : sx = sy := by
+    have : (sx - sy) * r = 0 := by grind
+    rcases Rat.mul_eq_zero.mp this with h | h
+    · grind
+    · grind
+  subst hsxy
+  exact ⟨rfl, e1.symm, e2.symm, e3.symm⟩
+
+/-- **No fixed box tweens a varying aspect ratio (n=10, axis-aligned transforms).** If two frames show circular-corner
+boxes with different aspect ratios, no single fixed circular-corner box maps to both by axis-aligned scales.
+
+$$\forall w, h, r, s_x, s_y, t_x, t_y, w_1, h_1, r_1, w_2, h_2, r_2 \in \mathbb{Q}:\ 0 < r \land\operatorname{scale}_{s_x, s_y}(w, h, r, r) = (w_1, h_1, r_1, r_1) \land \operatorname{scale}_{t_x, t_y}(w, h, r, r) = (w_2, h_2, r_2, r_2) \Rightarrow w_1 h_2 = w_2 h_1$$
+
+A morph whose aspect ratio changes is not a transform of one box, so it is not E. -/
+theorem rrect_no_fixed_box (w h r sx sy tx ty w1 h1 r1 w2 h2 r2 : Rat) (hr : 0 < r)
+    (e1 : RRect.scale sx sy ⟨w, h, r, r⟩ = ⟨w1, h1, r1, r1⟩)
+    (e2 : RRect.scale tx ty ⟨w, h, r, r⟩ = ⟨w2, h2, r2, r2⟩) : w1 * h2 = w2 * h1 := by
+  obtain ⟨_, a1, b1, _⟩ := rrect_rigid w h r sx sy w1 h1 r1 hr e1
+  obtain ⟨_, a2, b2, _⟩ := rrect_rigid w h r tx ty w2 h2 r2 hr e2
+  subst a1 b1 a2 b2
+  grind
+
 end Fw.Engine
