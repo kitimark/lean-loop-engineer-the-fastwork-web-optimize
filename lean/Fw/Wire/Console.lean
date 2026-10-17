@@ -13,7 +13,7 @@ imports it, so it decodes the card fields it needs itself).
 | op | request | reply |
 |---|---|---|
 | `console.landReadiness` | `card` {id, needsDevice, owner?, approved?, head?, screenAt?, reviewAt?, deviceAt?, landed?} (a board or reducer card; other fields ignored), `sha` | `ready`, `needs` (`approve`/`build`/`screen`/`review`/`device`, in that order), `refusal` (the `card.land_request` refusal at `sha`, or null) |
-| `console.actor` | `source`? (`alert`/`claim`/`build`/`landed`/`taskDone`; missing = all) | `sources` [{source, actor, type, allowed}] |
+| `console.actor` | `source`? (`alert`/`spawn`/`stop`/`build`/`landed`/`taskDone`/`planDefine`/`planMilestone`; missing = all) | `sources` [{source, actor, type, allowed}] |
 | `console.alert` | `event` {hook_event_name, ts, agent_id?, agent_type?, tool_name?, notification_type?}, `flights`? [{agent_id?, agent_type?, tool_name?}] (tool calls in flight; no agent_id = the lead), `open`? [step ids] (alert steps still open on the board) | `post` (null or {step, key, title, kind, agent}: the `step.post` to send as actor script), `close` [{step, key}] (the `step.cancel`s to send as actor script) |
 | `console.landScope` | `writes` [globs], `names`? [agent/task names for handoff files], `allow`? [globs], `paths` [changed files] | `ok`, `reason` (null / `noWrites` / `outOfScope`), `violations`, `scope` (the globs used; `!` = exclude) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?}], `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |

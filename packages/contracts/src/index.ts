@@ -52,14 +52,19 @@ export const Command = z.discriminatedUnion("type", [
     evidence: Sha.nullable(),
     /** the task was cut from the plan (Lean `Fw.Plan` state `cut`: never ready, not counted). Missing = false */
     cut: z.boolean().optional(),
-    /** a fact the console adds on receipt (a client's value is replaced): the names of the live agents
-     *  (not gone, not done). Lean decides: a live agent named like the task claims it. Missing = [] */
+    /** LEGACY (claim-order-lean): the live agent names console-api once added on receipt. New writers omit it; an
+     *  agent is bound by agent.spawn / agent.stop (Lean `Fw.Plan.agentOf`). Still decoded so old logs replay to the
+     *  same board. Missing = [] */
     live: z.array(Id).max(64).optional(),
   }),
   cmd("task.drop", { task: Id }),
   cmd("task.claim", { task: Id, agent: Id }),
   cmd("task.done", { task: Id, evidence: Sha }),
   cmd("milestone.define", { milestone: Id, title: Text }),
+  // agent life (Lean `Fw.Plan`): an agent of this name started / stopped. The board derives the binding from the set
+  // of these facts (an agent named like a task works on it), so their order relative to task.define never matters.
+  cmd("agent.spawn", { agent: Id }),
+  cmd("agent.stop", { agent: Id }),
 ]);
 export type Command = z.infer<typeof Command>;
 export type CommandType = Command["type"];
@@ -241,3 +246,4 @@ export const jsonSchemas = {
 } as const;
 export * from "./obs.ts";
 export * from "./artifacts.ts";
+export * from "./plan-sync.ts";

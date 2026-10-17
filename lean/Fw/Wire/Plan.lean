@@ -3,7 +3,8 @@ import Fw.Plan.Core
 /-!
 # JSON for the plan commands and the board plan
 
-The wire form of `task.define`, `task.drop`, `task.claim`, `task.done` and `milestone.define`: the
+The wire form of `task.define`, `task.drop`, `task.claim`, `task.done`, `milestone.define`,
+`agent.spawn` and `agent.stop`: the
 same flat event envelope as the other console commands (`key`, `ts`, `actor`, `type`) plus
 
 | type | fields |
@@ -13,6 +14,11 @@ same flat event envelope as the other console commands (`key`, `ts`, `actor`, `t
 | `task.claim` | `task`, `agent` |
 | `task.done` | `task`, `evidence` |
 | `milestone.define` | `milestone`, `title` |
+| `agent.spawn` | `agent` |
+| `agent.stop` | `agent` |
+
+`live` on `task.define` is legacy: new writers omit it (an agent is bound by `agent.spawn` /
+`agent.stop`, `Fw.Plan.agentOf`); it is still decoded so old logs replay to the same board.
 
 `eventOfJson` decodes these and hands every other type to `Fw.Wire.eventOfJson` (so the existing
 commands decode exactly as before). The board plan (`viewJson`) is the `plan` field of the stateful
@@ -49,6 +55,8 @@ def cmdOfJson (t : String) (j : Json) : Option (Except String Cmd) :=
   | "task.claim" => some (do pure (.claim (← str j "task") (← str j "agent")))
   | "task.done" => some (do pure (.done (← str j "task") (← str j "evidence")))
   | "milestone.define" => some (do pure (.milestone (← str j "milestone") (← str j "title")))
+  | "agent.spawn" => some (do pure (.spawn (← str j "agent")))
+  | "agent.stop" => some (do pure (.stop (← str j "agent")))
   | _ => none
 
 /-- Decode an event: plan types here (same envelope order: `key`, `ts`, `actor`, then the body),
@@ -75,6 +83,7 @@ def cmdFields : Cmd → List (String × Json)
   | .claim x a => [("task", .str x), ("agent", .str a)]
   | .done x e => [("task", .str x), ("evidence", .str e)]
   | .milestone m t => [("milestone", .str m), ("title", .str t)]
+  | .spawn a | .stop a => [("agent", .str a)]
 
 /-- Encode a task of the board plan. -/
 def taskViewJson (t : TaskView) : Json := Json.mkObj [
