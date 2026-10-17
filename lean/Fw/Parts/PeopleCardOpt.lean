@@ -1,6 +1,7 @@
 import Fw.Engine
 import Fw.Site.BreakpointMatrix
 import Fw.Parts.MorphMountOpt
+import Fw.Parts.EndFlags
 /-!
 # people.card: gate the scroll-shrink lerp by the band where CSS already pins the card (PLAN rev 10)
 
@@ -782,5 +783,151 @@ def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
   ["<o", "<o", "=o", "=o", "=o", "=o", "=o", "=o"]
 #guard (wkTypes.map fun t => predict t.exact (series wkV t) (series wkO t)) == ["≤o", "=o", "=o", "≤o"]
 #guard goldenLines.all fun l => (l.splitOn "\"<o\"").length == 1
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1, 17)
+
+The original's write is followed by a rect read, which pays $f$ forced style passes and leaves the style flag clean.
+`frameWork` also charged the write's lifecycle style pass, so it saw a saving of $f + 1$ style passes (2 for the one
+read, `gate_forced_margin_old`). With the frame-end pass counted, the saving is the $f$ forced passes only
+(`gate_forced_marginE`): the margin halves. When the rest of the frame also dirties style, the variant pays that
+style pass at frame end while the original's read already covered it, so with one read the style passes tie
+(`gate_forced_tieE`) and the strict win rests on the skipped units (`gate_lt_stageE`). The `⪯` verdict holds for
+every flag assignment where the variant's end-dirty stages are end-dirty in the original too, or are the style stage
+that the original's forced read pays for (`gate_leE`). -/
+
+section EndPass
+
+open Fw.Parts.EndFlags
+
+/-- The style passes of a frame under `frameWorkE`: the end pass, if style is touched and ends dirty, plus the
+forced style passes.
+
+$$\forall E, F, e:\ \operatorname{frameWork}^{e}_E(F).\mathrm{passes}(\mathrm{style}) = [\mathrm{style} \in \operatorname{touched}_E(F) \land e(\mathrm{style})] + F.\mathrm{forcedStyle}$$
+
+The definition read at the style stage. -/
+theorem passesE_style {P M : Type} (E : Engine P M) (F : FrameIn P) (e : Stage → Bool) :
+    (frameWorkE E F e).passes .style =
+      (if Stage.style ∈ touched E F ∧ e .style = true then 1 else 0) + F.forcedStyle := rfl
+
+/-- **Gate frame under `frameWorkE`: `⪯`.** If every stage the variant touches and ends dirty also ends dirty in the
+original, or is the style stage and the original forces $f > 0$ style passes, the gated frame costs at most the
+original's.
+
+$$\forall E, X, c, r, W, f,\ \forall e_v, e_o:\ (c \Rightarrow r) \land \big(\forall s \in \operatorname{touched}_E(V):\ e_v(s) = \top \Rightarrow e_o(s) = \top \lor (s = \mathrm{style} \land f > 0)\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(V) \preceq \operatorname{frameWork}^{e_o}_E(O)$$
+$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
+
+Skipping the write and its read never leaves more to do at frame end. -/
+theorem gate_leE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (h : cv = true → ro = true)
+    (wr : List (Change P)) (fs : Nat) (ev eo : Stage → Bool)
+    (hm : ∀ s, s ∈ touched E (addF oth (lerpFrame cv [] 0)) → ev s = true →
+      eo s = true ∨ (s = .style ∧ 0 < fs)) :
+    (frameWorkE E (addF oth (lerpFrame cv [] 0)) ev).le (frameWorkE E (addF oth (lerpFrame ro wr fs)) eo) := by
+  have ht := touched_of_le_same_forced E (fun s => by cases s <;> rfl) (gate_le E oth cv ro h wr 0)
+  refine frameE_le_of_total E ev eo (fun s hs => ht s hs) (fun s => ((gate_le E oth cv ro h wr fs).1 s).2)
+    (gate_le E oth cv ro h wr fs).2 (fun s => ?_) (fun s hs => ?_)
+  · cases s <;> simp [forcedPasses, addF, lerpFrame]
+  · have := hm s hs
+    cases s <;> simp only [forcedPasses, addF, lerpFrame] <;> revert this <;> cases ev _ <;> cases eo _ <;>
+      simp <;> omega
+
+/-- **Gate frame with a forced read under `frameWorkE`: still `≺`.** If the original forces $f > 0$ style passes and
+the variant's end-dirty stages are end-dirty in the original, the gated frame is strictly cheaper on style passes.
+
+$$\forall E, X, c, r, W,\ \forall f > 0,\ \forall e_v, e_o:\ (c \Rightarrow r) \land \big(\forall s \in \operatorname{touched}_E(V):\ e_v(s) = \top \Rightarrow e_o(s) = \top\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(V) \prec \operatorname{frameWork}^{e_o}_E(O)$$
+$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
+
+The forced restyle is saved and not paid back at frame end. -/
+theorem gate_lt_forcedE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (h : cv = true → ro = true)
+    (wr : List (Change P)) (fs : Nat) (hf : 0 < fs) (ev eo : Stage → Bool)
+    (hm : ∀ s, s ∈ touched E (addF oth (lerpFrame cv [] 0)) → ev s = true → eo s = true) :
+    (frameWorkE E (addF oth (lerpFrame cv [] 0)) ev).lt (frameWorkE E (addF oth (lerpFrame ro wr fs)) eo) := by
+  refine ⟨gate_leE E oth cv ro h wr fs ev eo (fun s hs he => Or.inl (hm s hs he)), Or.inl ⟨.style, Or.inl ?_⟩⟩
+  have ht := touched_of_le_same_forced E (fun s => by cases s <;> rfl) (gate_le E oth cv ro h wr 0) .style
+  have hto : touched E (addF oth (lerpFrame ro wr fs)) = touched E (addF oth (lerpFrame ro wr 0)) := rfl
+  rw [passesE_style, passesE_style, hto]
+  show _ + (oth.forcedStyle + 0) < _ + (oth.forcedStyle + fs)
+  by_cases hv : Stage.style ∈ touched E (addF oth (lerpFrame cv [] 0))
+  · have h1 := ht hv
+    have h2 := hm .style hv
+    revert h2; cases ev .style <;> cases eo .style <;> simp [hv, h1] <;> omega
+  · simp only [hv, false_and, ↓reduceIte]
+    omega
+
+/-- **Gate frame under `frameWorkE`: strict by units.** If some change of the write dirties a stage $s$, the gated
+frame is strictly cheaper, under the flag condition of `gate_leE`.
+
+$$\forall E, X, c, r, W, f,\ \forall e_v, e_o,\ \forall s,\ \forall w \in W:\ (c \Rightarrow r) \land s \in E.\mathrm{stagesOf}(w) \land \big(\forall t \in \operatorname{touched}_E(V):\ e_v(t) = \top \Rightarrow e_o(t) = \top \lor (t = \mathrm{style} \land f > 0)\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(V) \prec \operatorname{frameWork}^{e_o}_E(O)$$
+$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
+
+The skipped write's units stay saved whatever the end flags. -/
+theorem gate_lt_stageE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool) (h : cv = true → ro = true)
+    (wr : List (Change P)) (fs : Nat) (s : Stage) (c : Change P) (hc : c ∈ wr) (hs : s ∈ E.stagesOf c)
+    (ev eo : Stage → Bool)
+    (hm : ∀ t, t ∈ touched E (addF oth (lerpFrame cv [] 0)) → ev t = true →
+      eo t = true ∨ (t = .style ∧ 0 < fs)) :
+    (frameWorkE E (addF oth (lerpFrame cv [] 0)) ev).lt (frameWorkE E (addF oth (lerpFrame ro wr fs)) eo) := by
+  refine ⟨gate_leE E oth cv ro h wr fs ev eo hm, Or.inl ⟨s, Or.inr ?_⟩⟩
+  have hpos : 0 < wr.countP (fun c => decide (s ∈ E.stagesOf c)) :=
+    List.countP_pos_iff.mpr ⟨c, hc, by simp [hs]⟩
+  show stageUnits E _ s < stageUnits E _ s
+  simp only [stageUnits, addF, lerpFrame, List.countP_append, List.countP_nil]
+  split <;> split <;> cases cv <;> cases ro <;> simp_all <;> omega
+
+/-- **The margin under `frameWorkE` (ledger n=17).** If the variant does not touch style and the original's read
+leaves the style flag clean, the original pays exactly $f$ more style passes.
+
+$$\forall E, X, c, r, W, f,\ \forall e_v, e_o:\ \mathrm{style} \notin \operatorname{touched}_E(V) \land e_o(\mathrm{style}) = \bot \Rightarrow \operatorname{frameWork}^{e_o}_E(O).\mathrm{passes}(\mathrm{style}) = \operatorname{frameWork}^{e_v}_E(V).\mathrm{passes}(\mathrm{style}) + f$$
+$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
+
+The saving is the forced passes, not one more. -/
+theorem gate_forced_marginE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool)
+    (wr : List (Change P)) (fs : Nat) (ev eo : Stage → Bool)
+    (hv : Stage.style ∉ touched E (addF oth (lerpFrame cv [] 0))) (heo : eo .style = false) :
+    (frameWorkE E (addF oth (lerpFrame ro wr fs)) eo).passes .style =
+      (frameWorkE E (addF oth (lerpFrame cv [] 0)) ev).passes .style + fs := by
+  rw [passesE_style, passesE_style]
+  show _ + (oth.forcedStyle + fs) = _ + (oth.forcedStyle + 0) + fs
+  simp only [heo, hv, false_and, and_false, Bool.false_eq_true, ↓reduceIte]
+  omega
+
+/-- **The tie under `frameWorkE`.** If the variant touches style and ends it dirty while the original's single
+forced read ($f = 1$) leaves it clean, both pay the same style passes.
+
+$$\forall E, X, c, r, W,\ \forall e_v, e_o:\ \mathrm{style} \in \operatorname{touched}_E(V) \land e_v(\mathrm{style}) = \top \land e_o(\mathrm{style}) = \bot \Rightarrow \operatorname{frameWork}^{e_o}_E(O).\mathrm{passes}(\mathrm{style}) = \operatorname{frameWork}^{e_v}_E(V).\mathrm{passes}(\mathrm{style})$$
+$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, 1)$$
+
+The read's forced restyle is the pass the variant pays at frame end. -/
+theorem gate_forced_tieE {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool)
+    (wr : List (Change P)) (ev eo : Stage → Bool)
+    (hv : Stage.style ∈ touched E (addF oth (lerpFrame cv [] 0))) (hev : ev .style = true)
+    (heo : eo .style = false) :
+    (frameWorkE E (addF oth (lerpFrame ro wr 1)) eo).passes .style =
+      (frameWorkE E (addF oth (lerpFrame cv [] 0)) ev).passes .style := by
+  rw [passesE_style, passesE_style]
+  show _ + (oth.forcedStyle + 1) = _ + (oth.forcedStyle + 0)
+  simp only [heo, hev, hv, and_false, and_true, Bool.false_eq_true, ↓reduceIte]
+  omega
+
+/-- **The old margin (`frameWork`, over-counted).** If the variant does not touch style and some change of the write
+dirties style, `frameWork` charges the original $f + 1$ more style passes.
+
+$$\forall E, X, c, r, W, f,\ \forall w \in W:\ \mathrm{style} \notin \operatorname{touched}_E(V) \land \mathrm{style} \in E.\mathrm{stagesOf}(w) \Rightarrow \operatorname{frameWork}_E(O).\mathrm{passes}(\mathrm{style}) = \operatorname{frameWork}_E(V).\mathrm{passes}(\mathrm{style}) + f + 1$$
+$$\text{where } V = X \oplus \operatorname{lerp}(c, [\,], 0),\ O = X \oplus \operatorname{lerp}(r, W, f)$$
+
+The extra one is the lifecycle pass the read already paid. -/
+theorem gate_forced_margin_old {P M : Type} (E : Engine P M) (oth : FrameIn P) (cv ro : Bool)
+    (wr : List (Change P)) (fs : Nat) (c : Change P) (hc : c ∈ wr) (hs : Stage.style ∈ E.stagesOf c)
+    (hv : Stage.style ∉ touched E (addF oth (lerpFrame cv [] 0))) :
+    (frameWork E (addF oth (lerpFrame ro wr fs))).passes .style =
+      (frameWork E (addF oth (lerpFrame cv [] 0))).passes .style + fs + 1 := by
+  have ho : Stage.style ∈ touched E (addF oth (lerpFrame ro wr fs)) := by
+    simp only [touched, List.mem_append]
+    exact Or.inl (Or.inl (Or.inl (List.mem_flatMap.mpr ⟨c, by simp [addF, lerpFrame, hc], hs⟩)))
+  show (if Stage.style ∈ touched E (addF oth (lerpFrame ro wr fs)) then 1 else 0) + (oth.forcedStyle + fs) =
+    (if Stage.style ∈ touched E (addF oth (lerpFrame cv [] 0)) then 1 else 0) + (oth.forcedStyle + 0) + fs + 1
+  simp only [ho, hv, ↓reduceIte]
+  omega
+
+end EndPass
 
 end Fw.Parts.PeopleCardOpt

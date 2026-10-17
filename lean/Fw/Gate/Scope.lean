@@ -460,7 +460,12 @@ def pilotParts : List PartUse := [
   { id := "platform.entries", owners := ["platform.entries"],
     orig := ["mq.rm-reduce"], rewrite := ["mq.rm-reduce"], extra := [], knees := [], dismissed := [] },
   { id := "platform.marquee", owners := ["platform.marquee"],
-    orig := ["mq.rm-reduce"], rewrite := ["mq.rm-reduce"], extra := [], knees := [], dismissed := [] }
+    orig := ["mq.rm-reduce"], rewrite := ["mq.rm-reduce"], extra := [], knees := [], dismissed := [] },
+  -- engine.scene (variant `hidden-pause`): an IntersectionObserver pauses a scene's CSS animations while it paints
+  -- nothing; no media condition and no width edge, so the key is empty and one load judges it (as for nav.hitTest)
+  { id := "engine.scene", owners := ["engine.scene"], orig := [], rewrite := [], extra := [], knees := [],
+    dismissed := [
+      ("js.scene-activation", "scene active when its rect is within [-innerHeight, 2 x innerHeight] (IntersectionObserver, rootMargin 100%): viewport height at a scroll position, not a width edge; the gate loads at the top")] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.

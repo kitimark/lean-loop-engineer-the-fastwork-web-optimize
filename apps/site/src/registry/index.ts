@@ -17,6 +17,7 @@ import peopleCard from '../parts/people.card/part.json';
 import peopleO from '../parts/people.o/part.json';
 import peopleDeck from '../parts/people.deck/part.json';
 import peopleCarousel from '../parts/people.carousel/part.json';
+import engineScene from '../parts/engine.scene/part.json';
 import pain from '../parts/pain/part.json';
 import painNotes from '../parts/pain.notes/part.json';
 import commission from '../parts/commission/part.json';
@@ -35,7 +36,7 @@ import stripDemo from './presets/strip-demo.json';
 import { resolve } from './resolve';
 import type { PartDef, PresetDef, ResolveResult } from './types';
 
-export const parts: PartDef[] = [heroCountdown as PartDef, heroExit as PartDef, engineScroll as PartDef, navHitTest as PartDef, morphMount as PartDef, morphCountdown as PartDef, morphColumns as PartDef, morphTween as PartDef, peopleCard as PartDef, peopleO as PartDef, peopleDeck as PartDef, peopleCarousel as PartDef, pain as PartDef, painNotes as PartDef, commission as PartDef, commissionTyping as PartDef, platform as PartDef, morphPanel as PartDef, nav as PartDef, navLangMenu as PartDef, overlaysDrawer as PartDef, overlaysSignup as PartDef, hero as PartDef, heroOrbit as PartDef, heroDeck as PartDef, heroAccent as PartDef, heroCue as PartDef, platformSweep as PartDef, platformGlint as PartDef, platformEntries as PartDef, platformStageBg as PartDef, platformMarquee as PartDef];
+export const parts: PartDef[] = [heroCountdown as PartDef, heroExit as PartDef, engineScroll as PartDef, navHitTest as PartDef, morphMount as PartDef, morphCountdown as PartDef, morphColumns as PartDef, morphTween as PartDef, peopleCard as PartDef, peopleO as PartDef, peopleDeck as PartDef, peopleCarousel as PartDef, pain as PartDef, painNotes as PartDef, commission as PartDef, commissionTyping as PartDef, platform as PartDef, morphPanel as PartDef, nav as PartDef, navLangMenu as PartDef, overlaysDrawer as PartDef, overlaysSignup as PartDef, hero as PartDef, heroOrbit as PartDef, heroDeck as PartDef, heroAccent as PartDef, heroCue as PartDef, platformSweep as PartDef, platformGlint as PartDef, platformEntries as PartDef, platformStageBg as PartDef, platformMarquee as PartDef, engineScene as PartDef];
 export const presets: Record<string, PresetDef> = {
   original: original as PresetDef,
   'strip-demo': stripDemo as PresetDef,

@@ -111,7 +111,17 @@ def engineLines : List String :=
   ([(false, 0), (false, 1), (false, 5), (true, 0), (true, 1), (true, 2)].map fun (a, n) =>
       line "listenerAction" [("attached", .bool a), ("size", jnat n)] (.str (listenerAction a n)))
 
-/-- engine.scroll Lean-only lines: forced counts, plan layouts, runs. $$\text{lines}$$ Vectors for the cost model. -/
+/-- engine.scroll Lean-only lines: forced counts, plan layouts, runs.
+
+The `forcedCounts` and `forcedCountsBatched` rows carry **forced passes only** ($\operatorname{forced}_\rho$), not the
+stage's trace total: they omit the frame-end lifecycle pass. The trace total is
+$\operatorname{total}_\rho = \operatorname{forced}_\rho + [\operatorname{fE}]$ (`EngineScroll.total_eq`). For the
+pilot frame the batched rows read style $1/0$ (dirty/clean start) while the batched total is $2/1$, against a faithful
+total of $4/3$: batching saves 2 style passes in the trace, not 3 (`pilot_batched_rows_forced_only`).
+
+$$\mathit{lines} = [\mathrm{forcedCounts}(as, d), \mathrm{forcedCountsBatched}(as, d) \mid as \in \mathit{seqs}, d \in \{\bot, \top\}] \mathbin{+\!\!+} [\mathrm{planLayouts}] \mathbin{+\!\!+} [\mathrm{engineRuns}],\quad \mathrm{forcedCounts}(as, d) = (\operatorname{forced}_{\rho_S}(d, as), \operatorname{forced}_{\rho_L}(d, as))$$
+
+Vectors for the cost model, labelled as forced counts rather than totals. -/
 def engineSpecLines : List String :=
   let seqs : List (List Access) :=
     [[], [.readLayout], [.writeStyle, .readLayout], [.readLayout, .writeLayout, .readLayout],
@@ -132,6 +142,29 @@ def engineSpecLines : List String :=
       line "engineRuns" [("pending", .bool p),
         ("events", .arr (es.map (fun e => Json.str (match e with | .scroll => "scroll" | .frame => "frame"))).toArray)]
         (jnat (runs p es)))
+
+/-- The read-first reordering the `forcedCountsBatched` rows use. $$\operatorname{bat}(as) = [a \in as \mid a \text{ is a read}] \mathbin{+\!\!+} [a \in as \mid a \text{ is a write}]$$ All reads, then all writes, each in order. -/
+def batchedOrder (as : List Access) : List Access := as.filter Access.isRead ++ as.filter (fun a => !a.isRead)
+
+#guard batchedOrder [.writeStyle, .readLayout] == [.readLayout, .writeStyle]
+#guard forced styleRole true (batchedOrder pilotFrame) == 1
+#guard total styleRole true (batchedOrder pilotFrame) == 2
+
+/-- **The batched golden rows are forced counts, not totals.** For the pilot frame and either start flag, the
+`forcedCountsBatched` style value is $[d]$ while the batched trace total is $1 + [d]$; the faithful forced count and
+total are both $3 + [d]$; layout is $[d]$ in all four.
+
+$$\forall d \in \mathbb{B}:\ \operatorname{forced}_{\rho_S}(d, \operatorname{bat}(\mathit{pilot})) = [d] \land \operatorname{total}_{\rho_S}(d, \operatorname{bat}(\mathit{pilot})) = 1 + [d] \land \operatorname{forced}_{\rho_S}(d, \mathit{pilot}) = \operatorname{total}_{\rho_S}(d, \mathit{pilot}) = 3 + [d] \land \operatorname{forced}_{\rho_L}(d, \operatorname{bat}(\mathit{pilot})) = \operatorname{total}_{\rho_L}(d, \operatorname{bat}(\mathit{pilot})) = \operatorname{forced}_{\rho_L}(d, \mathit{pilot}) = \operatorname{total}_{\rho_L}(d, \mathit{pilot}) = [d]$$
+
+Read as totals the pilot's batched row is 2/1, not 1/0, so batching saves two style passes, not three. -/
+theorem pilot_batched_rows_forced_only (d : Bool) :
+    forced styleRole d (batchedOrder pilotFrame) = d.toNat ∧
+      total styleRole d (batchedOrder pilotFrame) = 1 + d.toNat ∧
+      forced styleRole d pilotFrame = 3 + d.toNat ∧ total styleRole d pilotFrame = 3 + d.toNat ∧
+      forced layoutRole d (batchedOrder pilotFrame) = d.toNat ∧
+      total layoutRole d (batchedOrder pilotFrame) = d.toNat ∧
+      forced layoutRole d pilotFrame = d.toNat ∧ total layoutRole d pilotFrame = d.toNat := by
+  cases d <;> decide
 
 end Engine
 

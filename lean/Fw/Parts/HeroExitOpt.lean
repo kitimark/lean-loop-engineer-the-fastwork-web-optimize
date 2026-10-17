@@ -2,6 +2,7 @@ import Fw.Parts.HeroExit
 import Fw.Engine.Chromium
 import Fw.Engine.WebKit
 import Lean.Data.Json
+import Fw.Parts.EndFlags
 
 /-!
 # hero.exit, variant `hero-exit-threaded`: scroll-driven consumers (design note §4.2, row HE)
@@ -913,5 +914,51 @@ def gPred (e k : String) : String :=
 #guard gPred "webkit" "styleRecalcs" == "<o" && gPred "webkit" "layoutUpdates" == "<o"
 #guard gPred "webkit" "compositingUpdates" == "≤o" && gPred "webkit" "renderingUpdates" == "≤o"
 #guard gPred "webkit" "x" == "?"
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+Neither arm reads layout or style: the original's scroll callback only writes. So every stage either frame touches
+ends dirty, `frameWorkE` equals `frameWork` (`Fw.Parts.EndFlags.frameWorkE_eq_of_dirty`), and both trades carry over
+unchanged. -/
+
+section EndPass
+
+open Fw.Parts.EndFlags Fw.Engine.Chromium Fw.Engine.WebKit
+
+/-- **Real Chrome under `frameWorkE`: still a trade.**
+
+$$\forall \ell, N, \lambda, r,\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}(V_f):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}(O_f):\ e_o(s) = \top) \Rightarrow V \prec_{\mathrm{main}} O \land V.\mathrm{passes}(\mathrm{comp}) = 1 \land O.\mathrm{passes}(\mathrm{comp}) = 0$$
+$$\text{where } V_f = \operatorname{crVar}(\mathrm{realChrome}, \ell, N, r),\ O_f = \operatorname{crOrig}(\ell, N, \lambda, r),\ V = \operatorname{frameWork}^{e_v}_{\operatorname{chromiumAt}(\mathrm{realChrome})}(V_f),\ O = \operatorname{frameWork}^{e_o}_{\operatorname{chromiumAt}(\mathrm{realChrome})}(O_f)$$
+
+The frame-end pass changes nothing on frames without reads. -/
+theorem cr_real_tradeE (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched (chromiumAt realChrome) (crVar realChrome l N r) → ev s = true)
+    (ho : ∀ s, s ∈ touched (chromiumAt realChrome) (crOrig l N lo r) → eo s = true) :
+    mainLt (frameWorkE (chromiumAt realChrome) (crVar realChrome l N r) ev)
+      (frameWorkE (chromiumAt realChrome) (crOrig l N lo r) eo) ∧
+    (frameWorkE (chromiumAt realChrome) (crVar realChrome l N r) ev).passes .comp = 1 ∧
+    (frameWorkE (chromiumAt realChrome) (crOrig l N lo r) eo).passes .comp = 0 := by
+  rw [frameWorkE_eq_of_dirty _ _ ev hv, frameWorkE_eq_of_dirty _ _ eo ho]
+  exact cr_real_trade l N lo r
+
+/-- **WebKit under `frameWorkE`: still a trade.**
+
+$$\forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N, cs,\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}(V_f):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}(O_f):\ e_o(s) = \top) \Rightarrow V \prec_{\mathrm{main}} O \land V.\mathrm{passes}(\mathrm{comp}) = 1 \land V.\mathrm{units}(\mathrm{comp}) = N + 3 \land O.\mathrm{passes}(\mathrm{comp}) = 0 \land O.\mathrm{units}(\mathrm{comp}) = 0$$
+$$\text{where } V_f = \operatorname{wkVar}(m, \ell, N, cs),\ O_f = \operatorname{scrollStep}(\operatorname{jsFrame}(cs)),\ V = \operatorname{frameWork}^{e_v}_{\operatorname{webkitAt}(m)}(V_f),\ O = \operatorname{frameWork}^{e_o}_{\operatorname{webkitAt}(m)}(O_f)$$
+
+Safari's trade does not depend on the frame-end pass either. -/
+theorem wk_tradeE (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) (cs : List (Change WkProp))
+    (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched (webkitAt m) (wkVar m l N cs) → ev s = true)
+    (ho : ∀ s, s ∈ touched (webkitAt m) (scrollStep (jsFrame cs)) → eo s = true) :
+    mainLt (frameWorkE (webkitAt m) (wkVar m l N cs) ev) (frameWorkE (webkitAt m) (scrollStep (jsFrame cs)) eo) ∧
+    (frameWorkE (webkitAt m) (wkVar m l N cs) ev).passes .comp = 1 ∧
+    (frameWorkE (webkitAt m) (wkVar m l N cs) ev).units .comp = N + 3 ∧
+    (frameWorkE (webkitAt m) (scrollStep (jsFrame cs)) eo).passes .comp = 0 ∧
+    (frameWorkE (webkitAt m) (scrollStep (jsFrame cs)) eo).units .comp = 0 := by
+  rw [frameWorkE_eq_of_dirty _ _ ev hv, frameWorkE_eq_of_dirty _ _ eo ho]
+  exact wk_trade m hm l N cs
+
+end EndPass
 
 end Fw.Parts.HeroExitOpt

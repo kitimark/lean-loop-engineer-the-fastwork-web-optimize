@@ -114,6 +114,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   // (declared.mjs): otherwise two shards could fix different lists and merge-gate would refuse their headers.
   const refEnv = { width: 1440, height: 900, deviceWidth: 1440, deviceHeight: 900, dpr: 1, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
   const declared = {};
+  let loadedConfig = null;
   for (const site of SITES) {
     const s = await load(refEnv, site);
     await evalReady(s, site);
@@ -124,6 +125,13 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       scans.push((await s.evaluate(collectInPage, collectArg(site, refEnv, null, timed))).parts);
     }
     declared[site] = unionDeclared(scans);
+    if (site === 'rewrite') {
+      // Regression check of incident inc-variant-gate-flags-off: the page the browser actually loaded must be the config the
+      // flags name (the page's own data-fw-config), never silently the default one.
+      loadedConfig = await s.evaluate(() => document.getElementById('root')?.dataset.fwConfig ?? null);
+      const want = variantPage.hash ?? buildInfo.configHash;
+      if (loadedConfig !== want) throw new Error(`rewrite arm loaded config ${loadedConfig}, expected ${want} for flags "${variantPage.search}"`);
+    }
     await s.close();
   }
   const props = {};
@@ -195,6 +203,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     gen: { sha256: genSha, schema: gen.schema, probes: gen.matrix.loadsPerEngine },
     snapshot: lock.snapshot,
     site: { buildId: buildInfo.buildId, configHash: buildInfo.configHash, muiCss: buildInfo.muiCss },
+    // the flags the rewrite arm ran with ('' = the default config) and the config hash the browser read from the loaded page
+    flags: { search: variantPage.search, configHash: loadedConfig },
     port: portOf(engineName),
     pinnedDate: '2026-10-01T00:00:00+07:00',
     ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped, ...(scope ? { scope } : {}) } } : {}),

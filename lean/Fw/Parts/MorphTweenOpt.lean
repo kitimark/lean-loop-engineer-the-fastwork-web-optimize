@@ -1,6 +1,7 @@
 import Fw.Parts.MorphTween
 import Fw.Engine
 import Fw.Site.Breakpoints
+import Fw.Parts.EndFlags
 
 /-!
 # morph.tween, variant `waapi`: curve, value, flags, work (MT1, MT2, MT3, MT4, MT-W)
@@ -1202,5 +1203,40 @@ def goldenJsonl : String := String.join (goldenRows.map fun r => r.json ++ "\n")
 #guard (goldenRows.filter fun r => r.prediction == "<o").length == 3
 #guard goldenRows.head?.map PredRow.json ==
   some "{\"base\":\"rewrite\",\"countType\":\"trace.FireAnimationFrame\",\"engine\":\"chromium\",\"prediction\":\"<o\",\"scenario\":\"swipe-v1\",\"stage\":\"script\",\"variant\":\"rewrite+?fw=morph.tween:waapi\"}"
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+The WAAPI frame and the rAF frame only write (no layout or style read), so every stage they touch ends dirty and
+`frameWorkE` equals `frameWork` (`Fw.Parts.EndFlags.frameWorkE_eq_of_dirty`). The verdict carries over. -/
+
+section EndPass
+
+open Fw.Parts.EndFlags
+
+/-- **MT-W under `frameWorkE`.** For end flags dirty on every touched stage, the WAAPI frame still drops the script
+and keeps every other stage equal, in both engines.
+
+$$\forall A, a, C, k,\ \forall e_1, e_2, e_3, e_4:\ \text{hyp.\ of } \texttt{waapi\_work\_le} \land \big(\forall i,\ \forall s \in \operatorname{touched}(F_i):\ e_i(s) = \top\big) \Rightarrow \operatorname{drop}\big(W^{e_1}(F_1), W^{e_2}(F_2), k\big) \land \operatorname{drop}\big(W^{e_3}(F_3), W^{e_4}(F_4), k\big)$$
+$$\text{where}\ F_1 = \operatorname{animFrame}_{\mathrm{cr}}(\mathrm{lane}, A),\ F_2 = \operatorname{jsWrite}(k, C_A),\ F_3 = \operatorname{animFrame}_{\mathrm{wk}}(\mathrm{safari}, a, C),\ F_4 = (k, 0, 0, 0, C, 0)$$
+
+The frame-end pass changes nothing on frames without reads. -/
+theorem waapi_work_leE (as : List Chromium.CrAnim) (a : WebKit.WkAnim) (cs : List (Change WebKit.WkProp)) (k : Nat)
+    (hk : 0 < k) (hne : as.flatMap Chromium.CrAnim.changes ≠ [])
+    (hcu : ∀ a' ∈ as, ∃ i rs, Chromium.CrProp.custom i rs ∈ a'.props) (hcs : cs ≠ [])
+    (hc : WebKit.CssProp.custom ∈ a.props) (e1 e2 e3 e4 : Stage → Bool)
+    (h1 : ∀ s, s ∈ touched Chromium.chromium (Chromium.animFrame Chromium.lane as) → e1 s = true)
+    (h2 : ∀ s, s ∈ touched Chromium.chromium (Chromium.jsWrite k (as.flatMap Chromium.CrAnim.changes)) →
+      e2 s = true)
+    (h3 : ∀ s, s ∈ touched WebKit.webkit (WebKit.animFrame .safari a cs) → e3 s = true)
+    (h4 : ∀ s, s ∈ touched WebKit.webkit ⟨k, 0, 0, 0, cs, 0⟩ → e4 s = true) :
+    dropsScript (frameWorkE Chromium.chromium (Chromium.animFrame Chromium.lane as) e1)
+        (frameWorkE Chromium.chromium (Chromium.jsWrite k (as.flatMap Chromium.CrAnim.changes)) e2) k ∧
+      dropsScript (frameWorkE WebKit.webkit (WebKit.animFrame .safari a cs) e3)
+        (frameWorkE WebKit.webkit ⟨k, 0, 0, 0, cs, 0⟩ e4) k := by
+  rw [frameWorkE_eq_of_dirty _ _ e1 h1, frameWorkE_eq_of_dirty _ _ e2 h2, frameWorkE_eq_of_dirty _ _ e3 h3,
+    frameWorkE_eq_of_dirty _ _ e4 h4]
+  exact waapi_work_le as a cs k hk hne hcu hcs hc
+
+end EndPass
 
 end Fw.Parts.MorphTweenOpt

@@ -12,6 +12,7 @@ import { NavHitTest } from './parts/nav.hitTest';
 import { Nav } from './parts/nav';
 import { MorphMount } from './parts/morph.mount';
 import { MorphColumns } from './parts/morph.columns';
+import { EngineScene } from './parts/engine.scene';
 import { People } from './parts/people';
 import { Pain } from './parts/pain';
 import { Commission } from './parts/commission';
@@ -36,6 +37,8 @@ export function App({ config }: { config: FwConfig }) {
       <MorphMount variant={config.variants['morph.mount'] ?? 'faithful'} onMount={() => setPanel(true)} />
       {panel && <div data-fw="morph-panel" aria-hidden style={{ position: 'fixed', inset: 0, visibility: 'hidden', pointerEvents: 'none' }} />}
       <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} />
+      {/* engine.scene: the platform section is the scene it pauses while it paints nothing (hidden-pause) */}
+      <EngineScene variant={config.variants['engine.scene'] ?? 'faithful'} selector='[data-fw="platform"]' />
       <Nav variant={config.variants['nav'] ?? 'faithful'} />
       {/* Overlay triggers of the placeholder page (the MUI census clicks them); the nav is the port above. */}
       <Box data-fw="overlay-triggers" style={{ position: 'fixed', left: 0, bottom: 0, zIndex: 50, display: 'flex', gap: 4 }}>

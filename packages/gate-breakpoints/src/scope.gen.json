@@ -1467,6 +1467,18 @@
     {"why": "link preload on pointer events: network only, no visual effect", "id": "js.preload-hover"},
     {"why": "user agent, not a media feature; no visual effect", "id": "js.firefox-ua"}],
    "conditions": {"rewrite": [], "orig": ["mq.rm-reduce"]}},
+  "engine.scene":
+  {"sweeps": [],
+   "probes": ["desk-319"],
+   "owners": ["engine.scene"],
+   "knees": [],
+   "key": [],
+   "extra": [],
+   "dismissed":
+   [{"why":
+     "scene active when its rect is within [-innerHeight, 2 x innerHeight] (IntersectionObserver, rootMargin 100%): viewport height at a scroll position, not a width edge; the gate loads at the top",
+     "id": "js.scene-activation"}],
+   "conditions": {"rewrite": [], "orig": []}},
   "commission.typing":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "touch-1024-1201", "pain-1440-600-1440"],
    "probes":

@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Engine
+import Fw.Parts.EndFlags
 /-!
 # hero.accent boil, variant `steps`: E per sample on the 60 Hz grid, and work per engine
 
@@ -874,5 +875,54 @@ def goldenJsonl : String := String.join (goldenRows.map fun r => r.compress ++ "
 #guard (List.range 36).all fun i => [0, 1, 2].all fun j => !chg j i || stepAt j i
 #guard (List.range 36).all fun i => [0, 1, 2].all fun j =>
   origVal j (50 * (i : Rat) / 3) == plateau j (50 * (i : Rat) / 3)
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+Neither the original nor the variant reads layout or style, so every stage either frame touches ends dirty
+(`Fw.Parts.EndFlags.flagEnd_of_forced_zero`) and `frameWorkE` equals `frameWork`. The verdicts carry over unchanged:
+the variant dominates in the main-thread lane, and the compositor and real-Chrome rows stay not `≤`. -/
+
+section EndPass
+
+open Fw.Parts.EndFlags
+
+/-- **Chromium main-thread lane under `frameWorkE`: every frame still `≤`.** For end-flag assignments that are dirty
+on every touched stage (the read-free case), the variant is at most the original in every sample of a cycle.
+
+$$\forall \ell,\ \forall i < 36,\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}_{\mathrm{cr}}(\operatorname{crV}(\ell, i)):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_{\mathrm{cr}}(\operatorname{crO}(\mathrm{lane}, \mathrm{false}, \ell)):\ e_o(s) = \top) \Rightarrow W^{e_v}_{\mathrm{cr}}(\operatorname{crV}(\ell, i)) \preceq W^{e_o}_{\mathrm{cr}}(\operatorname{crO}(\mathrm{lane}, \mathrm{false}, \ell))$$
+
+The frame-end pass changes nothing when no read cleans a flag. -/
+theorem cr_main_leE (ℓ : LayerState) (i : Nat) (hi : i < 36) (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched Chromium.chromium (crVar ℓ i) → ev s = true)
+    (ho : ∀ s, s ∈ touched Chromium.chromium (crOrig Chromium.lane false ℓ) → eo s = true) :
+    (frameWorkE Chromium.chromium (crVar ℓ i) ev).le
+      (frameWorkE Chromium.chromium (crOrig Chromium.lane false ℓ) eo) :=
+  frameE_le_of_dirty _ ev eo hv ho (cr_main_le ℓ i hi)
+
+/-- **Quiet frames under `frameWorkE`: still strict.**
+
+$$\forall \ell, i,\ \forall e_v, e_o:\ \operatorname{quiet}(i) \land (\forall s \in \operatorname{touched}_{\mathrm{cr}}(\operatorname{crV}(\ell, i)):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_{\mathrm{cr}}(\operatorname{crO}(\mathrm{lane}, \mathrm{false}, \ell)):\ e_o(s) = \top) \Rightarrow W^{e_v}_{\mathrm{cr}}(\operatorname{crV}(\ell, i)) \prec W^{e_o}_{\mathrm{cr}}(\operatorname{crO}(\mathrm{lane}, \mathrm{false}, \ell))$$
+
+An empty frame stays cheaper than one that animates. -/
+theorem cr_main_quiet_ltE (ℓ : LayerState) (i : Nat) (hq : quiet i = true) (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched Chromium.chromium (crVar ℓ i) → ev s = true)
+    (ho : ∀ s, s ∈ touched Chromium.chromium (crOrig Chromium.lane false ℓ) → eo s = true) :
+    (frameWorkE Chromium.chromium (crVar ℓ i) ev).lt
+      (frameWorkE Chromium.chromium (crOrig Chromium.lane false ℓ) eo) :=
+  frameE_lt_of_dirty _ ev eo hv ho (cr_main_quiet_lt ℓ i hq)
+
+/-- **Compositor lane under `frameWorkE`: still not `≤`.**
+
+$$\forall e_v, e_o:\ (\forall s \in \operatorname{touched}_{\mathrm{cr}}(\operatorname{crV}(\mathrm{own}, 0)):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_{\mathrm{cr}}(\operatorname{crO}(\mathrm{lane}, \mathrm{true}, \mathrm{own})):\ e_o(s) = \top) \Rightarrow W^{e_v}_{\mathrm{cr}}(\operatorname{crV}(\mathrm{own}, 0)) \not\preceq W^{e_o}_{\mathrm{cr}}(\operatorname{crO}(\mathrm{lane}, \mathrm{true}, \mathrm{own}))$$
+
+The step frame's commit pass stays extra. -/
+theorem cr_comp_step_not_leE (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched Chromium.chromium (crVar .own 0) → ev s = true)
+    (ho : ∀ s, s ∈ touched Chromium.chromium (crOrig Chromium.lane true .own) → eo s = true) :
+    ¬ (frameWorkE Chromium.chromium (crVar .own 0) ev).le
+      (frameWorkE Chromium.chromium (crOrig Chromium.lane true .own) eo) :=
+  frameE_not_le_of_dirty _ ev eo hv ho cr_comp_step_not_le.2.2
+
+end EndPass
 
 end Fw.Parts.HeroAccentOpt
