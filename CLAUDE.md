@@ -45,6 +45,12 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
   `curl -fsSL https://raw.githubusercontent.com/<o>/<r>/<sha>/<path>`. For GitHub use the authenticated `gh` CLI
   (`gh repo clone`, `gh search code`), which has far higher rate limits; `gh api` stays denied (it can write).
   WebFetch is for docs pages only.
+- **Measure on CI, not on this Mac** (user direction 2026-10-17): Chromium counts, WebKit Simulator counts, the
+  breakpoint gate and WKTR run on GitHub Actions through a push of your `ci/<task>` branch; read results with
+  `gh run view` / `gh run download`, never by re-running locally. This Mac measures only (a) the real phone in a
+  session the user booked, (b) one short debug run (≤ 5 min, your own container or the sim-lock) while you change
+  harness code, (c) a lane CI cannot run yet, named in docs/team/work-graph.json with the reason. A local run is
+  never reported as a result.
 - **Lean first** (console, site, measurement, tooling): every pure, reproducible piece (decisions, reducers, gates,
   breakpoint conditions, flag rules, motion curves, count reduction, verdicts, test matrices) is specified and proved
   in Lean *before* it is coded. Then either it runs in Lean (`fwcore`), or Lean generates it (constants, CSS media

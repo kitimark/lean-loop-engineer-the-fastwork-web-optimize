@@ -9,8 +9,10 @@ autoCompactWindow: 200000
 color: blue
 ---
 You build measurement code in the package your task names (default `packages/measure/`), in your own worktree.
-In a fresh worktree run `sh scripts/wt-prep.sh` first. Hold the Simulator with `sh scripts/sim-lock.sh acquire <you>`
-(release when done) and keep it booted across runs; never reboot it per run.
+In a fresh worktree run `sh scripts/wt-prep.sh` first. Measurement runs on GitHub CI (CLAUDE.md "Measure on CI"):
+push `git push origin ci/<your task>` and read the run with `gh run view` / `gh run download`; locally only one short
+debug run (≤ 5 min) while you change harness code. For that, hold the Simulator with `sh scripts/sim-lock.sh acquire
+<you>` (release when done) and keep it booted across runs; never reboot it per run.
 The original site is the read-only local snapshot `snapshot/site` in the main checkout (gitignored; never copy its
 code or assets into git). Counts must be deterministic: run twice and compare byte-for-byte before claiming a result.
 Never time on this Mac and call it phone time. Never seek animations in Chromium; keep native requestAnimationFrame.

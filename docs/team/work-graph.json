@@ -502,7 +502,7 @@
     "packages/measure-chromium/**"
    ],
    "devices": [
-    "docker"
+    "ci"
    ]
   },
   {
@@ -531,6 +531,9 @@
    "writes": [
     "packages/measure-webkit/src/**",
     "packages/measure-chromium/src/**"
+   ],
+   "devices": [
+    "ci"
    ]
   },
   {
@@ -546,7 +549,7 @@
     "packages/measure-chromium/**"
    ],
    "devices": [
-    "docker"
+    "ci"
    ]
   },
   {
@@ -562,6 +565,9 @@
    "owner": "measure-engineer",
    "writes": [
     "research/notes/2026/10-17-zone-baselines.md"
+   ],
+   "devices": [
+    "ci"
    ]
   },
   {
@@ -572,11 +578,14 @@
    "deps": [
     "zone-baselines"
    ],
-   "owner": "measure-engineer"
+   "owner": "measure-engineer",
+   "devices": [
+    "ci"
+   ]
   },
   {
    "id": "ab-bench",
-   "title": "Parallel-work A/B bench (randomised labels, nothing else running)",
+   "title": "Parallel-work A/B bench (randomised labels, nothing else running) (local by nature: it measures this Mac's agent throughput, not the page)",
    "stream": "parallel",
    "milestone": null,
    "deps": [
@@ -623,7 +632,7 @@
   },
   {
    "id": "gap-harness",
-   "title": "Q33: gate lane for the unreachable cells (Simulator iPhone/iPad, page zoom), checked against Lean's expected media values",
+   "title": "Q33: gate lane for the unreachable cells (Simulator iPhone/iPad, page zoom), checked against Lean's expected media values; the lane must also run on CI (iPad/iPhone Simulator on macos runners) or name why not",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
@@ -641,7 +650,7 @@
   },
   {
    "id": "gap-device",
-   "title": "Q33: prove the gap harness on the real iPhone (same probes, compare with the Simulator)",
+   "title": "Q33: prove the gap harness on the real iPhone (same probes, compare with the Simulator) (local by nature: the real phone)",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
@@ -664,7 +673,10 @@
     "gate-part-filter",
     "gap-harness"
    ],
-   "owner": "measure-engineer"
+   "owner": "measure-engineer",
+   "devices": [
+    "ci"
+   ]
   },
   {
    "id": "bands-freeze",
@@ -765,7 +777,7 @@
   },
   {
    "id": "calibration",
-   "title": "iPhone K1-K10, rho_page, holdouts, validity table v0",
+   "title": "iPhone K1-K10, rho_page, holdouts, validity table v0 (phone part local by nature)",
    "stream": "calibration",
    "milestone": "M3",
    "deps": [
