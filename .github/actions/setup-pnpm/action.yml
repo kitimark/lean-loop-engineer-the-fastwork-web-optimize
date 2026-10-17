@@ -1,0 +1,34 @@
+name: setup-pnpm
+description: >-
+  Node 24 (actions/setup-node) and pnpm at the version pinned in package.json "packageManager" (through corepack),
+  then `pnpm install --frozen-lockfile` for the given workspace filters. Run after actions/checkout.
+
+inputs:
+  filter:
+    description: Space separated pnpm --filter selectors (for example "@fw/site..."). Required.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: '24'
+
+    - name: Install pnpm (corepack, version from package.json)
+      shell: bash
+      run: |
+        set -euo pipefail
+        corepack enable
+        pnpm --version
+
+    - name: pnpm install (frozen lockfile)
+      shell: bash
+      env:
+        FILTERS: ${{ inputs.filter }}
+      run: |
+        set -euo pipefail
+        args=()
+        for f in $FILTERS; do args+=(--filter "$f"); done
+        test "${#args[@]}" -gt 0
+        pnpm install --frozen-lockfile "${args[@]}"

@@ -1,0 +1,239 @@
+name: chromium-counts
+
+# Chromium counts lane (PLAN 4.1-4.2) on GitHub-hosted arm64 Linux: the same image and browser bytes as the local Docker
+# run. N runs on N fresh VMs give the cross-machine determinism check (V-i) that one Mac cannot.
+# CI results are a separate `platform` key until a local-vs-CI V-b check passes (research note ci-measurement-feasibility).
+on:
+  push:
+    branches: ['ci/**', main]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Profile file name in packages/measure-chromium/profiles (without .json)
+        type: string
+        default: swipe-v1
+      runs:
+        description: Determinism runs, each on its own VM (1 to 10)
+        type: string
+        default: '3'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: fw-measure-chromium:1
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+      profile: ${{ steps.m.outputs.profile }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: packages/measure-chromium/profiles
+      - id: m
+        env:
+          PROFILE: ${{ inputs.profile || 'swipe-v1' }}
+          RUNS: ${{ inputs.runs || '3' }}
+        run: |
+          set -euo pipefail
+          case "$PROFILE" in ''|*[!a-z0-9-]*) echo "bad profile name" >&2; exit 1 ;; esac
+          case "$RUNS" in ''|*[!0-9]*) echo "runs must be a number" >&2; exit 1 ;; esac
+          if [ "$RUNS" -lt 1 ] || [ "$RUNS" -gt 10 ]; then echo "runs must be 1..10" >&2; exit 1; fi
+          test -f "packages/measure-chromium/profiles/$PROFILE.json"
+          matrix=$(seq 1 "$RUNS" | jq -R -s -c '{run: (split("\n") | map(select(length > 0)) | map("r" + .))}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
+          echo "matrix: $matrix"
+
+  # fwcore decides the zone sums and the classes (Lean). It is built here and passed to the jobs by artifact.
+  fwcore:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      - name: lake build fwcore
+        working-directory: lean
+        run: lake build fwcore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fwcore
+          path: lean/.lake/build/bin/fwcore
+          if-no-files-found: error
+          retention-days: 1
+
+  # Build the image once. The matrix jobs load this exact image and check its content id (the config digest)
+  # against the one printed here, so no matrix job rebuilds it (apt packages are not pinned, so a rebuild could differ).
+  image:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    outputs:
+      image-id: ${{ steps.build.outputs.image-id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - id: build
+        run: |
+          set -euo pipefail
+          docker build -t "$IMAGE" packages/measure-chromium
+          id=$(docker image inspect --format '{{.Id}}' "$IMAGE")
+          echo "image-id=$id" >> "$GITHUB_OUTPUT"
+          echo "image id: $id"
+          docker run --rm --entrypoint sh -v "$PWD/packages/measure-chromium/src:/driver:ro" "$IMAGE" /driver/image-check.sh
+      - name: Save the image
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/image"
+          docker save "$IMAGE" | zstd -T0 -10 -q -o "$RUNNER_TEMP/image/image.tar.zst"
+          ls -l "$RUNNER_TEMP/image"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chromium-image
+          path: ${{ runner.temp }}/image/image.tar.zst
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
+
+  counts:
+    needs: [plan, fwcore, image]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      # First step that touches data: the snapshot in git must equal snapshot.lock.json.
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+
+      # The raster thread count depends on the CPU count unless it is pinned (research note, section 1). Refuse to
+      # produce counts from a harness that does not pin it.
+      - name: Harness pin check
+        run: grep -q -- '--num-raster-threads=2' packages/measure-chromium/src/run.mjs
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: fwcore
+          path: ${{ runner.temp }}/fwcore
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: chromium-image
+          path: ${{ runner.temp }}/image
+
+      - name: Load the image and check its digest
+        env:
+          WANT_ID: ${{ needs.image.outputs.image-id }}
+        run: |
+          set -euo pipefail
+          chmod +x "$RUNNER_TEMP/fwcore/fwcore"
+          zstd -dc "$RUNNER_TEMP/image/image.tar.zst" | docker load
+          got=$(docker image inspect --format '{{.Id}}' "$IMAGE")
+          echo "want $WANT_ID"
+          echo "got  $got"
+          test "$got" = "$WANT_ID"
+
+      - name: Runner facts
+        run: sh .github/scripts/runner-info.sh "$RUNNER_TEMP/runner.json"
+
+      - name: Counts run
+        env:
+          PROFILE: ${{ needs.plan.outputs.profile }}
+          LABEL: ${{ matrix.run }}
+          FW_SNAPSHOT_DIR: ${{ github.workspace }}/snapshot/site
+          FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
+          # Read by the harness once it learns it (harness change H2, see .github/README.md); a no-op until then.
+          FW_DOCKER_CPUS: '4'
+        run: node packages/measure-chromium/src/host.mjs --profile "$PROFILE" --label "$LABEL"
+
+      - name: Collect the result
+        env:
+          PROFILE: ${{ needs.plan.outputs.profile }}
+          LABEL: ${{ matrix.run }}
+          WANT_ID: ${{ needs.image.outputs.image-id }}
+        run: |
+          set -euo pipefail
+          res="$RUNNER_TEMP/result"
+          mkdir -p "$res"
+          cp "packages/measure-chromium/out/$PROFILE/$LABEL/counts.json" "packages/measure-chromium/out/$PROFILE/$LABEL/zones.json" "$res/"
+          cp "$RUNNER_TEMP/runner.json" "$res/runner.json"
+          printf '%s\n' "$WANT_ID" > "$res/image-id.txt"
+          (cd "$res" && sha256sum counts.json zones.json | tee sha256.txt)
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chromium-counts-${{ matrix.run }}
+          path: ${{ runner.temp }}/result
+          if-no-files-found: error
+          retention-days: 30
+
+  # Classes over all runs, decided by fwcore (the same classify the local lane uses), plus the byte comparison.
+  classify:
+    needs: [plan, fwcore, counts]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: fwcore
+          path: ${{ runner.temp }}/fwcore
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: chromium-counts-*
+          path: ${{ runner.temp }}/runs
+      - name: Classes and byte comparison
+        env:
+          FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
+        run: |
+          set -euo pipefail
+          chmod +x "$FW_CORE_BIN"
+          out="$RUNNER_TEMP/classes"
+          mkdir -p "$out"
+          cd "$RUNNER_TEMP/runs"
+          ls
+          files=(chromium-counts-*/counts.json)
+          node "$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs" "${files[@]}" --kMax 4 --tMax 24 | tee "$out/classes.txt"
+          node "$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs" "${files[@]}" --kMax 4 --tMax 24 --json > "$out/classes.json"
+          sha256sum chromium-counts-*/counts.json chromium-counts-*/zones.json | tee "$out/sha256-all.txt"
+          cat chromium-counts-*/runner.json > "$out/runners.jsonl"
+          {
+            echo '### chromium-counts: classes over the runs'
+            echo '```'
+            cat "$out/classes.txt"
+            echo '```'
+            echo '### sha256 of counts.json and zones.json per run'
+            echo '```'
+            cat "$out/sha256-all.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chromium-classes
+          path: ${{ runner.temp }}/classes
+          if-no-files-found: error
+          retention-days: 30

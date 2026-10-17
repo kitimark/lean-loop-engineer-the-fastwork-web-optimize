@@ -1,0 +1,43 @@
+name: gate-engine
+description: >-
+  Installs the browser one breakpoint-gate engine needs on ubuntu-24.04-arm and exports the variable its launcher reads.
+  chromium: the pinned Chrome Headless Shell zip (sha256 checked; the same bytes as the counts image) plus its shared
+  libraries, exported as CHROME_PATH. playwright-webkit: Playwright's WebKit build for Linux with its system dependencies.
+
+inputs:
+  engine:
+    description: chromium or playwright-webkit
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Chrome Headless Shell (pinned, sha256 checked)
+      if: ${{ inputs.engine == 'chromium' }}
+      shell: bash
+      working-directory: packages/gate-breakpoints
+      run: |
+        set -euo pipefail
+        # Shared libraries: Playwright knows the package names of this Ubuntu release (they are the browser's deb.deps).
+        # Fonts stay as the runner has them: the gate compares two arms in the same browser, and the page's own fonts
+        # are served from the snapshot.
+        pnpm exec playwright-core install-deps chromium-headless-shell
+        # Ubuntu 24.04 restricts unprivileged user namespaces through AppArmor; the headless shell's sandbox needs them.
+        sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+        dir="$RUNNER_TEMP/hs"
+        mkdir -p "$dir"
+        curl -fsSL --retry 10 --retry-all-errors --retry-delay 3 -o "$dir/hs.zip" \
+          "https://cdn.playwright.dev/builds/cft/${HS_VERSION}/linux-arm64/chrome-headless-shell-linux-arm64.zip"
+        echo "${HS_SHA256}  $dir/hs.zip" | sha256sum -c -
+        unzip -q "$dir/hs.zip" -d "$dir"
+        chmod +x "$dir/chrome-headless-shell-linux-arm64/chrome-headless-shell"
+        echo "CHROME_PATH=$dir/chrome-headless-shell-linux-arm64/chrome-headless-shell" >> "$GITHUB_ENV"
+        "$dir/chrome-headless-shell-linux-arm64/chrome-headless-shell" --version
+
+    - name: Playwright WebKit (Linux build)
+      if: ${{ inputs.engine == 'playwright-webkit' }}
+      shell: bash
+      working-directory: packages/gate-breakpoints
+      run: |
+        set -euo pipefail
+        pnpm exec playwright-core install --with-deps webkit

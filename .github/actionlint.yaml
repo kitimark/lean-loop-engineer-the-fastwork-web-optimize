@@ -1,0 +1,4 @@
+# actionlint config: the xcode-27 label is GitHub's hosted macOS 27 preview image (not a self-hosted runner).
+self-hosted-runner:
+  labels:
+    - xcode-27

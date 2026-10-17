@@ -1,0 +1,184 @@
+name: webkit-sim
+
+# WebKit lane (PLAN 4.1-4.2) on the GitHub-hosted xcode-27 macOS image: Mobile Safari in the iOS Simulator over the raw
+# Web Inspector protocol, the same code as the local run. Counts only: nothing measured here is phone time.
+# The runtime build is checked FIRST; a different iOS runtime build is a different WebKit, so the job stops instead of
+# producing counts under the old platform key. The Simulator is booted once and stays booted for the whole job.
+on:
+  push:
+    branches: ['ci/**', main]
+  workflow_dispatch:
+    inputs:
+      vms:
+        description: Independent macOS VMs (1 to 3); each runs the determinism experiment
+        type: string
+        default: '2'
+      sessions:
+        description: Sessions per VM (each session = 2 fresh-load passes, as locally)
+        type: string
+        default: '2'
+      fresh_boot:
+        description: Shut the Simulator down and boot it again between sessions (matches the local "independent boots")
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        env:
+          VMS: ${{ inputs.vms || '2' }}
+          SESSIONS: ${{ inputs.sessions || '2' }}
+        run: |
+          set -euo pipefail
+          case "$VMS" in 1|2|3) ;; *) echo "vms must be 1..3" >&2; exit 1 ;; esac
+          case "$SESSIONS" in 1|2|3|4) ;; *) echo "sessions must be 1..4" >&2; exit 1 ;; esac
+          matrix=$(seq 1 "$VMS" | jq -R -s -c '{vm: (split("\n") | map(select(length > 0)) | map("v" + .))}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix"
+
+  sim:
+    needs: plan
+    runs-on: xcode-27
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      FW_IOS_VERSION: '27.0'
+      FW_IOS_BUILD: 24A434
+      FW_SIM_NAME: fw-iphone-27
+    steps:
+      # Fail fast: the pin check is the first step after the checkout, before brew or anything that costs minutes.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Pinned iOS runtime build, then create the device
+        run: sh .github/scripts/check-simulator.sh --create
+
+      - name: Verify the snapshot against snapshot.lock.json
+        run: node .github/scripts/verify-snapshot.mjs
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      # Inspector bridge to the Simulator's webinspectord socket. Not pinned by brew (formula version = the tap's), so the
+      # version is recorded in the artifact.
+      - name: ios_webkit_debug_proxy
+        run: |
+          set -euo pipefail
+          brew install ios-webkit-debug-proxy
+          command -v ios_webkit_debug_proxy
+          brew list --versions ios-webkit-debug-proxy
+
+      - name: Tool and runner facts
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/result"
+          sh .github/scripts/runner-info.sh "$RUNNER_TEMP/result/runner.json"
+          {
+            sw_vers
+            xcodebuild -version
+            xcrun simctl list runtimes
+            brew list --versions ios-webkit-debug-proxy
+          } | tee "$RUNNER_TEMP/result/tools.txt"
+
+      # Boot once and keep it booted; bootDevice() is idempotent and every command below passes --keep.
+      - name: Boot the Simulator (kept booted for the whole job)
+        run: |
+          set -euo pipefail
+          xcrun simctl shutdown all || true
+          udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+
+      - name: Determinism sessions
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          SESSIONS: ${{ inputs.sessions || '2' }}
+          FRESH: ${{ inputs.fresh_boot && 'yes' || 'no' }}
+          VM: ${{ matrix.vm }}
+        working-directory: packages/measure-webkit
+        run: |
+          set -euo pipefail
+          for s in $(seq 1 "$SESSIONS"); do
+            keep=--keep
+            # fresh_boot: no --keep, so each session ends with the device shut down and the next one boots it again
+            if [ "$FRESH" = yes ]; then keep=; fi
+            node src/cli.mjs determinism --runs 2 $keep --out "out/$VM-session-$s.json" | tee "out/$VM-session-$s.md"
+          done
+          ls -l out
+
+      - name: Within-VM classes
+        working-directory: packages/measure-webkit
+        env:
+          VM: ${{ matrix.vm }}
+        run: |
+          set -euo pipefail
+          files=(out/"$VM"-session-*.json)
+          node src/cli.mjs merge "${files[@]}" | tee "out/$VM-classes.md"
+          cp out/"$VM"-* "$RUNNER_TEMP/result/"
+
+      # Always: stop the proxy's device and delete it, even when a step failed or the job was cancelled.
+      - name: Shut down and delete the Simulator
+        if: ${{ always() }}
+        run: |
+          xcrun simctl shutdown all || true
+          xcrun simctl delete "$FW_SIM_NAME" || true
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() }}
+        with:
+          name: webkit-sim-${{ matrix.vm }}
+          path: ${{ runner.temp }}/result
+          if-no-files-found: error
+          retention-days: 30
+
+  # Classes over all VMs (the worse class wins, as `merge` does locally). Only needs node, so it runs on Linux.
+  merge:
+    needs: [plan, sim]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: webkit-sim-*
+          path: ${{ runner.temp }}/vms
+      - name: Classes over all sessions of all VMs
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/classes"
+          mkdir -p "$out"
+          files=("$RUNNER_TEMP"/vms/webkit-sim-*/*-session-*.json)
+          printf "%s\n" "${files[@]}"
+          node packages/measure-webkit/src/cli.mjs merge "${files[@]}" | tee "$out/classes.md"
+          sha256sum "${files[@]}" | tee "$out/sha256.txt"
+          {
+            echo '### webkit-sim: classes over all VMs and sessions (worst wins)'
+            cat "$out/classes.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: webkit-classes
+          path: ${{ runner.temp }}/classes
+          if-no-files-found: error
+          retention-days: 30
