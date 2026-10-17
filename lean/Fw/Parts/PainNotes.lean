@@ -569,9 +569,9 @@ def pairsOf {P M : Type} (E : Engine P M) (p : P) : List (Work × Work) :=
   (fs.flatMap fun f => [0, 1].map fun a => (frameWork E f, frameWork E (withTick f 1 a a))) ++
     fs.map fun f => (frameWork E f, frameWork E f)
 
-/-- The Chromium count types of the swipe profiles (as in `morph-mount.jsonl`; `trace.Paint` quarantined).
+/-- The Chromium count types of the swipe profiles (as in `morph-mount.jsonl`; `trace.Paint` quarantined). Each entry is (name, stage, units).
 
-$$|\mathrm{crTypes}| = 8$$
+$$\begin{aligned} \mathrm{crTypes} = [\ &(\texttt{trace.FunctionCall}, \mathrm{script}, \top),\ (\texttt{trace.UpdateLayoutTree}, \mathrm{style}, \bot),\ (\texttt{trace.Layout}, \mathrm{layout}, \bot), \\ &(\texttt{trace.Layout.dirtyObjects}, \mathrm{layout}, \top),\ (\texttt{metric.LayoutCount}, \mathrm{layout}, \bot),\ (\texttt{trace.PrePaint}, \mathrm{props}, \bot), \\ &(\texttt{raster.invalidationAreaPx}, \mathrm{paint}, \top),\ (\texttt{trace.cc.Commit}, \mathrm{commit}, \bot)\ ] \end{aligned}$$
 
 Which Chromium counter reads which stage. -/
 def crTypes : List CountType :=
@@ -580,9 +580,9 @@ def crTypes : List CountType :=
    ⟨"metric.LayoutCount", .layout, false⟩, ⟨"trace.PrePaint", .props, false⟩,
    ⟨"raster.invalidationAreaPx", .paint, true⟩, ⟨"trace.cc.Commit", .commit, false⟩]
 
-/-- The WebKit count types (as in `morph-mount.jsonl`).
+/-- The WebKit count types (as in `morph-mount.jsonl`). Each entry is (name, stage, units).
 
-$$|\mathrm{wkTypes}| = 4$$
+$$\mathrm{wkTypes} = [(\texttt{RecalculateStyles}, \mathrm{style}, \bot),\ (\texttt{Layout}, \mathrm{layout}, \bot),\ (\texttt{Paint}, \mathrm{paint}, \bot),\ (\texttt{Composite}, \mathrm{commit}, \bot)]$$
 
 Which WebKit counter reads which stage. -/
 def wkTypes : List CountType :=
@@ -603,8 +603,9 @@ open Fw.Engine.Chromium Fw.Engine.WebKit in
 /-- **The golden rows**: Chromium on `swipe-v1` and `swipe-touch-v1`, WebKit on `swipe-v1`, each prediction from
 `relPred` over the engine's pairs.
 
-$$|\mathrm{goldenLines}| = 2 \cdot |\mathrm{crTypes}| + |\mathrm{wkTypes}| = 20$$
+$$\begin{aligned} \mathrm{goldenLines} = {} &[\,\operatorname{row}(\texttt{chromium}, sc, t, \operatorname{relPred}(\operatorname{pairsOf}(\mathrm{chromium}, \operatorname{css}(\mathrm{transform})), t)) \mid sc \in [\texttt{swipe-v1}, \texttt{swipe-touch-v1}],\ t \in \mathrm{crTypes}\,] \\ \mathbin{+\!\!+} {} &[\,\operatorname{row}(\texttt{webkit}, \texttt{swipe-v1}, t, \operatorname{relPred}(\operatorname{pairsOf}(\mathrm{webkit}, \mathrm{transform}), t)) \mid t \in \mathrm{wkTypes}\,] \end{aligned}$$
 
+The list comprehension runs $sc$ outer and $t$ inner, so there are $2 \cdot 8 + 4 = 20$ lines.
 The file `packages/contracts/golden/engine/pain-notes.jsonl`, line by line. -/
 def goldenLines : List String :=
   (["swipe-v1", "swipe-touch-v1"].flatMap fun sc =>

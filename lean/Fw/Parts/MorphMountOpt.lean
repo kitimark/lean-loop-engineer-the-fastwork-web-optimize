@@ -996,9 +996,9 @@ def predict (exact : Bool) (v o : List Nat) : String :=
 #guard predict false [0, 4] [3, 0] == "any"
 
 /-- The Chromium count types of the swipe profiles (classes from `classes.frozen.json`; `trace.Paint` is
-quarantined and left out).
+quarantined and left out). Each entry is (name, stage, units, exact).
 
-$$|\mathrm{crTypes}| = 8$$
+$$\begin{aligned} \mathrm{crTypes} = [\ &(\texttt{trace.FunctionCall}, \mathrm{script}, \top, \top),\ (\texttt{trace.UpdateLayoutTree}, \mathrm{style}, \bot, \top), \\ &(\texttt{trace.Layout}, \mathrm{layout}, \bot, \bot),\ (\texttt{trace.Layout.dirtyObjects}, \mathrm{layout}, \top, \bot), \\ &(\texttt{metric.LayoutCount}, \mathrm{layout}, \bot, \bot),\ (\texttt{trace.PrePaint}, \mathrm{props}, \bot, \bot), \\ &(\texttt{raster.invalidationAreaPx}, \mathrm{paint}, \top, \bot),\ (\texttt{trace.cc.Commit}, \mathrm{commit}, \bot, \top)\ ] \end{aligned}$$
 
 Which counter reads which stage. -/
 def crTypes : List CountType :=
@@ -1008,9 +1008,9 @@ def crTypes : List CountType :=
    ⟨"raster.invalidationAreaPx", .paint, true, false⟩, ⟨"trace.cc.Commit", .commit, false, true⟩]
 
 /-- The WebKit count types (no frozen classes yet; judged by totals, an assumption to revisit when WebKit classes
-freeze).
+freeze). Each entry is (name, stage, units, exact).
 
-$$|\mathrm{wkTypes}| = 4$$
+$$\mathrm{wkTypes} = [(\texttt{RecalculateStyles}, \mathrm{style}, \bot, \bot),\ (\texttt{Layout}, \mathrm{layout}, \bot, \bot),\ (\texttt{Paint}, \mathrm{paint}, \bot, \bot),\ (\texttt{Composite}, \mathrm{commit}, \bot, \bot)]$$
 
 Which counter reads which stage. -/
 def wkTypes : List CountType :=
@@ -1029,8 +1029,9 @@ def row (engine scenario : String) (t : CountType) (vs os : List Work) : String 
 
 /-- All golden rows: Chromium on `swipe-v1` and `swipe-touch-v1`, WebKit on `swipe-v1`.
 
-$$|\mathrm{goldenLines}| = 2 \cdot |\mathrm{crTypes}| + |\mathrm{wkTypes}| = 20$$
+$$\mathrm{goldenLines} = [\,\operatorname{row}(\texttt{chromium}, sc, t, \mathrm{crV}, \mathrm{crO}) \mid sc \in [\texttt{swipe-v1}, \texttt{swipe-touch-v1}],\ t \in \mathrm{crTypes}\,] \mathbin{+\!\!+} [\,\operatorname{row}(\texttt{webkit}, \texttt{swipe-v1}, t, \mathrm{wkV}, \mathrm{wkO}) \mid t \in \mathrm{wkTypes}\,]$$
 
+The list comprehension runs $sc$ outer and $t$ inner, so there are $2 \cdot 8 + 4 = 20$ lines.
 The file `packages/contracts/golden/engine/morph-mount.jsonl`, line by line. -/
 def goldenLines : List String :=
   (["swipe-v1", "swipe-touch-v1"].flatMap fun sc => crTypes.map fun t => row "chromium" sc t crV crO) ++
