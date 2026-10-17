@@ -191,7 +191,7 @@ if (engines.includes('aot')) {
   const m = await checkMedia(root, 'aot');
   console.log(`\n@media check (dist/aot): ${m.ok ? 'PASS' : 'FAIL'}`);
   console.log('   in breakpoints.gen.json:', JSON.stringify(m.fromGen));
-  console.log('   MUI feature queries (mui-internal-media.json):', JSON.stringify(m.fromInternal));
+  console.log('   MUI feature queries (breakpoints.gen.json neutral):', JSON.stringify(m.fromInternal));
   if (!m.ok) {
     console.log('   NOT ALLOWED:', JSON.stringify(m.unknown));
     exit = 1;

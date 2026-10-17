@@ -50,7 +50,7 @@ Findings while building (all CONFIRMED by running it):
   (`__fw.mode = 'client-render'`; a measured run should refuse that).
 - `window.__fw = { config, configHash (FNV-1a 64 of sorted `part:variant@impl`), buildId, mode, hydrated, hydrationErrors,
   measureStartedAt, styleMisses, markMeasureStart }`. `markMeasureStart()` marks `fw:measure-start` and fires an event; call it after `hydrated`.
-- Media conditions are read only through `src/breakpoints.ts` (placeholder `breakpoints.gen.json`, to be swapped for the Lean output).
+- Media conditions are read only through `src/breakpoints.ts` (reads the Lean-generated `breakpoints.gen.json`; `pnpm gen:breakpoints`, and every build byte-checks it).
 
 ## Census results (Mac Chrome 155 headless, 430x932, 3 runs each, zero variance)
 

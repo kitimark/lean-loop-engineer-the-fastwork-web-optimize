@@ -1,16 +1,17 @@
 // Census assertion: every @media in the built static CSS (mui.*.css and linked app CSS) must be a condition from
-// src/breakpoints.gen.json; MUI feature queries are allowed only via src/mui-internal-media.json and reported apart.
+// src/breakpoints.gen.json (`conditions`); the `neutral` set of the same file is reported apart.
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
+// The generator's strings are canonical (range syntax, single spaces). The CSS minifier drops the space after ':' and
+// after ',' (and around parens), so both sides are compared with whitespace around ':', ',' and parens removed.
 const norm = (s) =>
-  s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').replace(/\s*:\s*/g, ':');
+  s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\s*([:,()])\s*/g, '$1').replace(/\)and\(/g, ') and (');
 
 export async function checkMedia(root, engine) {
   const gen = JSON.parse(await readFile(path.join(root, 'src/breakpoints.gen.json'), 'utf8'));
-  const internal = JSON.parse(await readFile(path.join(root, 'src/mui-internal-media.json'), 'utf8'));
-  const allowed = new Set(Object.values(gen.conditions).map(norm));
-  const internalSet = new Set(internal.conditions.map(norm));
+  const allowed = new Set(gen.conditions.map((c) => norm(c.css)));
+  const internalSet = new Set(gen.neutral.map((c) => norm(c.css)));
 
   const dir = path.join(root, 'dist', engine);
   const files = [];
@@ -23,7 +24,12 @@ export async function checkMedia(root, engine) {
   for (const file of files) {
     const css = await readFile(file, 'utf8');
     for (const m of css.matchAll(/@media([^{]+)\{/g)) {
-      // "a, b" is a list of alternatives: each must be allowed
+      // a whole query list may itself be a generated condition (c860 etc. contain commas); otherwise each alternative is checked
+      const whole = norm(m[1]);
+      if (allowed.has(whole)) {
+        fromGen[whole] = (fromGen[whole] ?? 0) + 1;
+        continue;
+      }
       for (const part of m[1].split(',')) {
         const c = norm(part);
         const bucket = allowed.has(c) ? fromGen : internalSet.has(c) ? fromInternal : unknown;
