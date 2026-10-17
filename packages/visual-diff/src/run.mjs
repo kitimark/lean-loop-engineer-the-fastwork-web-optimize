@@ -11,7 +11,7 @@ import { PKG as GATE_PKG, siteDist, snapshotRoot, startServer } from '../../gate
 import { loadAnchors, loadGen, probeEnv, selectParts } from '../../gate-breakpoints/src/spec.mjs';
 import { LAUNCHERS } from './engines.mjs';
 import { compare, decode, encodePng, sameImage } from './diff.mjs';
-import { DEFAULT_TOL, verdict } from './verdict.mjs';
+import { DEFAULT_TOL, verdict, within } from './verdict.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
@@ -62,7 +62,8 @@ async function shoot(page, selector) {
   const b = await page.screenshot({ clip: loc.clip, animations: 'allow', caret: 'hide' });
   const ia = decode(a);
   const ib = decode(b);
-  return { img: ia, stable: sameImage(ia, ib), clip: loc.clip };
+  const same = sameImage(ia, ib);
+  return { img: ia, stable: same, self: same ? null : compare(ia, ib).stats, clip: loc.clip };
 }
 
 /** Capture every wanted part in one arm's page, in the gate's order: plain parts, then overlays one by one, then mount parts. */
@@ -96,13 +97,16 @@ export function cellOf(pid, tol, a, b) {
   if (a.error || b.error) return { part: pid, status: 'error', error: { orig: a.error ?? null, rewrite: b.error ?? null } };
   if (a.absent && b.absent) return { part: pid, status: 'nc', absent: { orig: a.absent, rewrite: b.absent } };
   const c = compare(a.img ?? null, b.img ?? null);
-  const stats = { ...c.stats, settled: (a.absent ? true : a.stable) && (b.absent ? true : b.stable) };
+  // An arm is settled when its own two shots are identical, or differ only within the part's tolerance (the noise floor).
+  const calm = (x) => x.absent || x.stable || (x.self != null && within(tol, x.self));
+  const stats = { ...c.stats, settled: calm(a) && calm(b) };
   const v = verdict(tol, stats);
   return {
     part: pid, status: 'compared', verdict: v, stats, tol, size: c.size,
     ratioPpm: stats.total === 0 ? null : Math.round(((stats.changed + (tol.countAA ? stats.aa : 0)) * 1e6) / stats.total),
     absent: a.absent || b.absent ? { orig: a.absent ?? null, rewrite: b.absent ?? null } : undefined,
     stable: { orig: a.absent ? null : a.stable, rewrite: b.absent ? null : b.stable },
+    selfPpm: { orig: a.self ? Math.round((a.self.changed * 1e6) / a.self.total) : null, rewrite: b.self ? Math.round((b.self.changed * 1e6) / b.self.total) : null },
     images: v === 'pass' ? null : { orig: a.img ?? null, rewrite: b.img ?? null, diff: c.diff },
   };
 }
