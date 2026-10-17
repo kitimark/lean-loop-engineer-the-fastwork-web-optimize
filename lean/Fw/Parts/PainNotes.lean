@@ -2,6 +2,7 @@ import Lean.Data.Json
 import Fw.Engine
 import Fw.Site.Breakpoints
 import Fw.Site.BreakpointFacts
+import Fw.Parts.EndFlags
 /-!
 # pain.notes: arm the notes' rotation interval only while the notes are visible (inventory #21, PLAN rev 10)
 
@@ -623,5 +624,55 @@ def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
 #guard (crTypes.map fun t => relPred (pairsOf Chromium.chromium (Chromium.CrProp.css .transform)) t) ==
   ["≤o", "≤o", "≤o", "=o", "≤o", "=o", "=o", "=o"]
 #guard (wkTypes.map fun t => relPred (pairsOf WebKit.webkit WebKit.WkProp.transform) t) == ["≤o", "≤o", "=o", "≤o"]
+
+/-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
+
+The hidden tick writes nothing; its cover test may read the rect ($a$ forced style, $b$ forced layout passes), which
+cleans the flags the rest of the frame dirtied. So the original can end a stage clean that the variant (no tick, no
+read) ends dirty and pays at frame end. That pass is the one the tick's forced read paid, so `⪯` holds whenever each
+stage the variant ends dirty is end-dirty in the original too or carries one of the tick's forced passes, and the
+win stays strict on the tick's script units (`hiddenTick_ltE`). Verdict unchanged: dominance in every engine; the
+forced passes of the tick are no longer a saving of their own when the frame dirtied the stage before. -/
+
+section EndPass
+
+open Fw.Parts.EndFlags
+
+/-- **A skipped tick under `frameWorkE`: `⪯`.** If every stage the variant touches and ends dirty is end-dirty in the
+original, or is style with $a > 0$, or is layout with $b > 0$, the variant's frame costs at most the original's.
+
+$$\forall E, f, n, a, b,\ \forall e_v, e_o:\ \big(\forall s \in \operatorname{touched}_E(f):\ e_v(s) = \top \Rightarrow e_o(s) = \top \lor (s = \mathrm{style} \land a > 0) \lor (s = \mathrm{layout} \land b > 0)\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(f) \preceq \operatorname{frameWork}^{e_o}_E(\operatorname{withTick}(f, n, a, b))$$
+
+The tick's read pays for any pass the variant leaves to the frame end. -/
+theorem hiddenTick_leE {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat) (ev eo : Stage → Bool)
+    (hm : ∀ s, s ∈ touched E f → ev s = true →
+      eo s = true ∨ (s = .style ∧ 0 < a) ∨ (s = .layout ∧ 0 < b)) :
+    (frameWorkE E f ev).le (frameWorkE E (withTick f n a b) eo) := by
+  have ht := touched_of_le_same_forced E (fun s => by cases s <;> rfl) (hiddenTick_le E f n 0 0)
+  refine frameE_le_of_total E ev eo (fun s hs => ht s hs) (fun s => ((hiddenTick_le E f n a b).1 s).2)
+    (hiddenTick_le E f n a b).2 (fun s => ?_) (fun s hs => ?_)
+  · cases s <;> simp [forcedPasses, withTick]
+  · have := hm s hs
+    cases s <;> simp only [forcedPasses, withTick] <;> revert this <;> cases ev _ <;> cases eo _ <;>
+      simp <;> omega
+
+/-- **And strictly less under `frameWorkE`** when $n > 0$, under the same flag condition: the script units drop by
+$n$.
+
+$$\forall E, f,\ \forall n > 0,\ \forall a, b, e_v, e_o:\ \big(\forall s \in \operatorname{touched}_E(f):\ e_v(s) = \top \Rightarrow e_o(s) = \top \lor (s = \mathrm{style} \land a > 0) \lor (s = \mathrm{layout} \land b > 0)\big) \Rightarrow \operatorname{frameWork}^{e_v}_E(f) \prec \operatorname{frameWork}^{e_o}_E(\operatorname{withTick}(f, n, a, b))$$
+
+The skipped callback is saved whatever the end flags. -/
+theorem hiddenTick_ltE {P M : Type} (E : Engine P M) (f : FrameIn P) (n a b : Nat) (hn : 0 < n)
+    (ev eo : Stage → Bool)
+    (hm : ∀ s, s ∈ touched E f → ev s = true →
+      eo s = true ∨ (s = .style ∧ 0 < a) ∨ (s = .layout ∧ 0 < b)) :
+    (frameWorkE E f ev).lt (frameWorkE E (withTick f n a b) eo) :=
+  ⟨hiddenTick_leE E f n a b ev eo hm, Or.inl ⟨.script, Or.inr (by
+    have := (hiddenTick_lt E f n a b hn).2
+    simp only [frameWork] at this
+    show stageUnits E f .script < stageUnits E (withTick f n a b) .script
+    omega)⟩⟩
+
+end EndPass
 
 end Fw.Parts.PainNotes
