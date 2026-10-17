@@ -61,6 +61,17 @@
         }
       ]
     },
+    "morph.mount": {
+      "anchors": ["morph-mount"],
+      "cites": ["original: .start-selling-platform is the element the IntersectionObserver watches (rootMargin 200% 0px) and whose rect arms the push, 2.DyWL8TcE.js:13040-13047, 13076-13086; rewrite: [data-fw=\"morph-mount\"], the hidden sentinel the part renders until the platform section is ported"],
+      "excluded": [
+        { "what": "platform box (x, y, w, h) and style", "why": "the original is the full platform section (page-height, owned by the platform part); the rewrite sentinel is hidden and zero-sized. The part restates no CSS, so nothing is compared but existence; the decision logic (arm geometry, push rule, listener guard) is covered by the Lean golden vectors (logic.test.ts)" }
+      ],
+      "roles": [
+        { "role": "target", "orig": ".start-selling-platform", "rewrite": "[data-fw=\"morph-mount\"]", "boxRel": null, "dims": [], "skipSets": [], "skipProps": [],
+          "why": "the observed element exists once in both arms at every breakpoint (count). No width gate in the original: the arm is viewport-height relative at a scroll position, not a media edge" }
+      ]
+    },
     "hero.countdown": {
       "anchors": ["hero-countdown"],
       "cites": ["snapshot 2.gBuqKVzi.css:1375-1495 (.countdown, .unit, .face, .label, .number, .digit)"],

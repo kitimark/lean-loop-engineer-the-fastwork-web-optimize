@@ -332,7 +332,10 @@ def pilotParts : List PartUse := [
     extra := [],
     knees := [⟨"hero h1 font clamp 40px / 4.5vw / 64px", 889⟩, ⟨"hero h1 font clamp 40px / 4.5vw / 64px", 1422⟩,
               ⟨"hero title gap clamp 14 / 1.6vw / 24", 875⟩, ⟨"hero title gap clamp 14 / 1.6vw / 24", 1500⟩],
-    dismissed := [("css.hover-ungated", "plain :hover rules; the gate never hovers an element")] }
+    dismissed := [("css.hover-ungated", "plain :hover rules; the gate never hovers an element")] },
+  { id := "morph.mount", owners := ["morph.mount"], orig := [], rewrite := [], extra := [], knees := [],
+    dismissed := [
+      ("js.morph-arm", "platform rect against the visual viewport height at a scroll position, not a width edge; the part restates no CSS and the gate loads at the top")] }
 ]
 
 /-- Every catalogue id a pilot part names exists in the catalogue.
