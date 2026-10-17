@@ -3,6 +3,8 @@
 // Checks, per tree (site, site-pretty): the file count and the git tree id (v1Pin.trees; computed here in pure
 // Node, no git needed, same algorithm as git write-tree over the files: blob/tree objects, sorted entries).
 // Also: the lock's own contentHash = sha256("site <tree>\nsite-pretty <tree>\n") and the id suffix.
+// site-pretty is gitignored (a local, pretty-printed copy for reading), so a CI checkout has only site: then the
+// site-pretty tree and the contentHash (which covers both trees) are skipped and the site tree id is the check.
 // Glue only: it holds no measurement decision. Exit 0 = all equal, 1 = mismatch, 2 = missing file.
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, lstatSync, readlinkSync, existsSync } from 'node:fs';
@@ -41,7 +43,10 @@ let bad = 0;
 const got = {};
 for (const t of ['site', 'site-pretty']) {
   const dir = join(root, 'snapshot', t);
-  if (!existsSync(dir)) { console.error(`missing ${dir}`); process.exit(2); }
+  if (!existsSync(dir)) {
+    if (t === 'site-pretty') { console.log(`skip ${t}: not in this checkout (gitignored)`); continue; }
+    console.error(`missing ${dir}`); process.exit(2);
+  }
   files = 0;
   treeRoot = dir;
   const id = treeId(dir).toString('hex');
@@ -55,10 +60,14 @@ for (const t of ['site', 'site-pretty']) {
   // with git ls-tree in the v1 repo), so a count difference is only a warning.
   if (files !== wantFiles) console.log(`warn ${t}: ${files} files, lock says ${wantFiles}`);
 }
-const contentHash = createHash('sha256').update(`site ${got.site}\nsite-pretty ${got['site-pretty']}\n`).digest('hex');
-const idOk = contentHash === lock.v1Pin.contentHash && lock.snapshot === `b${lock.build}-${contentHash.slice(0, 8)}`;
-if (!idOk) bad++;
-console.log(`${idOk ? 'ok  ' : 'FAIL'} contentHash ${contentHash} snapshot id ${lock.snapshot}`);
+const contentHash = got['site-pretty'] === undefined ? undefined
+  : createHash('sha256').update(`site ${got.site}\nsite-pretty ${got['site-pretty']}\n`).digest('hex');
+if (contentHash === undefined) console.log('skip contentHash: needs site-pretty');
+else {
+  const idOk = contentHash === lock.v1Pin.contentHash && lock.snapshot === `b${lock.build}-${contentHash.slice(0, 8)}`;
+  if (!idOk) bad++;
+  console.log(`${idOk ? 'ok  ' : 'FAIL'} contentHash ${contentHash} snapshot id ${lock.snapshot}`);
+}
 if (print) console.log(JSON.stringify({ trees: got, contentHash }));
 if (bad) { console.error(`snapshot does not match snapshot.lock.json (${bad} mismatch)`); process.exit(1); }
 console.log(`snapshot verified: ${lock.snapshot}`);
