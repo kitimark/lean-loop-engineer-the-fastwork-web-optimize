@@ -22,4 +22,11 @@ Open items
 - Settled flag is a TS capture; once `Fw.Gate.Settle` lands on main, relate it to the gate's settled-sample predicate.
 - WebKit (Linux Playwright port, not Mobile Safari) and overlay/mount parts were first exercised on CI.
 - Per-part tolerances: none set yet (`tolerances.json`); set them from CI results, justified per part.
-- CI run results: see the lead's report from this task (run id in it); download `visual-diff-report`.
+- CI runs on `ci/visual-diff`: 39074978220 (identical-shots settle: 174 of 240 Chromium cells unsettled) and 39077035869
+  (settle within tolerance; HEAD 743fe70): 0 pass, Chromium 82 fail / 150 unsettled, WebKit 78 / 153, 8 probes x 30 parts.
+  Fails (both engines): nav, nav.hitTest, nav.langMenu, morph.columns, morph.panel, commission.typing, overlays.signup,
+  people.card, people.o, hero.countdown, hero.cue, hero.accent, platform.glint (+ overlays.drawer on Chromium run 2).
+  Seen in the PNGs: serif fallback glyphs in the rewrite (nav "Join waitlist", chips, stats), grey placeholder boxes for images
+  and logo, a stray MENU/DRAWER/SIGN UP button strip. Chromium counts repeat across the two runs (nav.hitTest 228716 ppm both).
+  Still unsettled (endless animation in a crop): pain, platform*, hero, hero.orbit, people.carousel/deck, commission.
+  Next: a frozen-frame mode for those (needs a flag in the rewrite or a lead decision on pausing animations); a third run is unused.
