@@ -267,7 +267,8 @@
    "owner": "plan-editor",
    "writes": [
     "docs/plan/PLAN.md"
-   ]
+   ],
+   "evidence": "a48aa54"
   },
   {
    "id": "lean-plan",
