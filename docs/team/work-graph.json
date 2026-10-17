@@ -3091,6 +3091,118 @@
     ".github/workflows/difftest.yml",
     "docs/team/tools/difftest.md"
    ]
+  },
+  {
+   "id": "land-speed-lean",
+   "title": "(S) Fw.Console.LandSpeed: cache_sound for check results, lint_modular, pre-lock check equivalence extending land_commit_exact, check verdict order-independence (from the proved scratch draft); golden console/land-speed.jsonl (research/notes/2026/10-18-land-speed.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-speed-research"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/land-speed.jsonl"
+   ]
+  },
+  {
+   "id": "mathview-axreach",
+   "title": "(S) mathview lint 110 s -> ~10 s: shared axiom-reachability memo in MathView (collectAxioms is 96% of lint time), total function with fuel; Fw.Spec.AxReach reach fixpoint, memo invariant, fresh-search equality (new = old per-call result)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-speed-research"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/MathView.lean",
+    "lean/Fw/Spec/AxReach.lean",
+    "lean/Fw.lean"
+   ]
+  },
+  {
+   "id": "land-timing-ceiling",
+   "title": "(S) Fw.Obs.Timing budget for fw land (and lock-held span) so a land-time regression alerts; land.ts emits the lock-held span; the slow land recorded as an incident",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-speed-research"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/timing.jsonl",
+    "apps/runner/src/land.ts",
+    "docs/team/incidents/**"
+   ]
+  },
+  {
+   "id": "checksfor-inputs",
+   "title": "(S) checksFor declares each check input set (soundness premise of the result cache); tests that an undeclared input change is caught",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-speed-lean",
+    "land-timing-ceiling"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "check-dag",
+   "title": "(S) run independent checks as a DAG in parallel (lake binaries directly, all failures reported); order-independence from land-speed-lean",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "mathview-axreach",
+    "checksfor-inputs"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/scripts/check.sh",
+    "lean/scripts/check-partial.sh",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "land-prelock",
+   "title": "(M) check before the lock on merge-tree commit C in a warm land worktree; under the lock only compare-and-ff (Lean landTip); lock held < 1 s; bounded retry then fallback",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "check-dag",
+    "land-speed-lean"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/Land.lean",
+    "apps/runner/hooks/land-guard.mjs",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "mathview-module-cache",
+   "title": "(S) per-module mathview cache keyed by module + import cone + tool hash, shared across worktrees; lint_modular makes it sound; differential CI job vs full lint",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "mathview-axreach",
+    "check-dag"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/MathViewMain.lean",
+    "lean/MathView.lean",
+    "lean/scripts/mathview-cached.sh",
+    ".github/workflows/lean.yml"
+   ]
   }
  ],
  "deadline": {
