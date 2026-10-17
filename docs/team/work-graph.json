@@ -2772,24 +2772,24 @@
     "lean/Fw/Site/**",
     "apps/site/src/sweeps.gen.json",
     "packages/contracts/golden/gate/**"
-   ]
+   ],
+   "evidence": "35ea874"
   },
   {
    "id": "gate-speed-impl",
-   "title": "(M) breakpoint-gate faster, measured with fw timings before/after: per-stop timing first; small sweeps into probe shards (whole sweeps only); orig panel mounted once per sweep; skip the unused declared scan; parallel Phase 0 loads; engine install cache; Lean-generated reduced desktop sweep; parts narrowing for single-part variant dispatches; serialize gate runs across branches (concurrency group) to stop runner-pool contention; free runners only",
+   "title": "(M) breakpoint-gate in-page speed (CI structure moved to gate-speed-ci): per-stop timing; event-driven settle on Fw.Gate.Settle instead of fixed sleeps; orig panel mounted once per sweep (mount idempotence); skip the unused declared scan; parallel Phase 0 loads; Lean-generated reduced desktop sweep (scopedVerdict_reduce); parts narrowing; before/after with fw timings",
    "stream": "measure",
    "milestone": "M5",
    "deps": [
     "sweeps-lean",
     "variant-regate",
-    "timing-spans"
+    "timing-spans",
+    "gate-settle",
+    "gate-speed-ci"
    ],
    "owner": "measure-engineer",
    "writes": [
     "packages/gate-breakpoints/**",
-    ".github/workflows/breakpoint-gate.yml",
-    ".github/actions/gate-engine/**",
-    ".github/scripts/merge-gate.mjs",
     "docs/team/tools/**",
     "results/**"
    ]
@@ -2995,6 +2995,100 @@
     "packages/contracts/golden/measure/**",
     "packages/measure-webkit/src/**",
     ".github/workflows/webkit-sim.yml"
+   ]
+  },
+  {
+   "id": "land-speed-research",
+   "title": "(S) why fw land takes ~126 s p50 (mathview lint ~110 s of it, under the land lock): profile, incremental/scoped/pre-lock checks, Lean soundness (cache_sound, lint_modular, pre-lock equivalence extending land_commit_exact); research/notes/2026/10-18-land-speed.md + implementation tasks",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-land-speed.md"
+   ]
+  },
+  {
+   "id": "gate-speed-ci",
+   "title": "(M) breakpoint-gate CI structure faster with proofs: Fw.Ops.Cache (cache_sound, key_complete; engine install cache), Fw.Gate.Schedule (Graham list-scheduling bound on the 20-runner free pool; Lean-chosen whole-sweep shards; uses mergeById_eq_unsharded), concurrency group; before/after timings, identical failures",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Ops/Cache.lean",
+    "lean/Fw/Gate/Schedule.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/schedule.jsonl",
+    "packages/contracts/golden/ops/cache.jsonl",
+    ".github/actions/gate-engine/**",
+    ".github/workflows/breakpoint-gate.yml",
+    ".github/scripts/merge-gate.mjs",
+    "docs/team/tools/gate-speed.md"
+   ]
+  },
+  {
+   "id": "premise-tests",
+   "title": "(M) every empirical premise of a Lean theorem gets a named Playwright test on Chromium + WebKit (CI); Fw.Ops.Premise registry + premiseLint_sound; fw premises lint; failing premise flags its theorems",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/premise-tests/**",
+    ".github/workflows/premise-tests.yml",
+    "apps/runner/src/premises.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/premises.md"
+   ]
+  },
+  {
+   "id": "snapshot-extract",
+   "title": "(M) browser-extracted reference values of the original (computed + inherited source) per part x breakpoint x engine, consumed by Lean (Fw.Site.Reference); port-vs-reference diff and missing-font report; replaces hand transcription",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/snapshot-extract/**",
+    ".github/workflows/snapshot-extract.yml",
+    "lean/Fw/Site/Reference.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/site/**",
+    "docs/team/tools/snapshot-extract.md"
+   ]
+  },
+  {
+   "id": "visual-diff",
+   "title": "(M) per-part screenshot diff original vs rewrite on both engines at gate breakpoints (CI artifacts only); verdict in Lean Fw.Gate.Pixel (unsettled_never_pass, tolerance_monotone)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Gate/Pixel.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/pixel.jsonl",
+    "packages/visual-diff/**",
+    ".github/workflows/visual-diff.yml",
+    "docs/team/tools/visual-diff.md"
+   ]
+  },
+  {
+   "id": "ts-lean-diff",
+   "title": "(M) randomized differential tests TS vs fwcore (fast-check, shrinking) for every wire op with a TS mirror; inventory of TS decision logic without a Lean op",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "packages/difftest/**",
+    ".github/workflows/difftest.yml",
+    "docs/team/tools/difftest.md"
    ]
   }
  ],

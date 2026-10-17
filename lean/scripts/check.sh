@@ -14,4 +14,7 @@ span lean/check "golden wire replay" sh -c 'LEAN_ABORT_ON_PANIC=1 .lake/build/bi
 echo "check: fwcore binary reproduces golden/wire-replies.txt"
 span lean/check "breakgen check lean" lake exe breakgen --check Fw/Site/breakpoints.gen.json
 span lean/check "breakgen check site" lake exe breakgen --check ../apps/site/src/breakpoints.gen.json || echo "check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet"
+span lean/check "breakgen sweeps lean" lake exe breakgen --sweeps --check Fw/Site/sweeps.gen.json
+span lean/check "breakgen sweeps site" lake exe breakgen --sweeps --check ../apps/site/src/sweeps.gen.json
+span lean/check "breakgen sweeps golden" lake exe breakgen --sweeps-golden --check ../packages/contracts/golden/gate/sweeps.jsonl
 echo "check: all lean/ gates green"

@@ -1,0 +1,128 @@
+import Lean.Data.Json
+import Fw.Gate.SweepReduce
+import Fw.Gate.Merge
+import Fw.Gate.Mount
+import Fw.Gate.ScopeGen
+import Fw.Wire.Gate
+/-!
+# `sweeps.gen.json` and `golden/gate/sweeps.jsonl`: the reduced sweeps and the merge cases
+
+`sweepsJson` is the document the gate package can run its sweeps from: for each sweep of `Fw.Gate.sweeps` its full
+and reduced stop counts and the reduced stops (`reduceSweep`, proved sound in `Fw.Gate.SweepReduce`), and the
+desktop sweep's full and reduced widths. `goldenLines` are golden vectors for a TS port: the reduced widths, the
+by-id merge outcomes (`mergeById`, `null` = the script fails), the split-sweep counterexample and mount traces.
+`run` prints either text or, with `--check <file>`, compares bytes; `lake exe breakgen --sweeps` and
+`lake exe breakgen --sweeps-golden` reach it (`BreakgenMain.lean`). The module defines no `main`.
+-/
+namespace Fw.Gate.SweepsGen
+open Lean Fw.Gate Fw.Site.Breakpoints Fw.Site.BreakpointGen
+
+/-- The theorems the generated file rests on (listed in the file).
+
+$$\Theta = (\texttt{reduced\_scopedVerdict}, \dots)$$
+
+Names for a reader of the JSON. -/
+def theoremNames : List String :=
+  ["Fw.Gate.reduceSweep_part_history", "Fw.Gate.reduced_scopedVerdict", "Fw.Gate.reduced_scope_sound",
+   "Fw.Gate.sweepCell_verdict_reduce", "Fw.Gate.reducedDeskWidths_eq", "Fw.Gate.reduced_desk_tally_ne",
+   "Fw.Gate.mergeGateById_eq_unsharded", "Fw.Gate.sharded_verdict_eq", "Fw.Gate.split_sweep_changes_verdict",
+   "Fw.Gate.mountOnce_eq_mountEvery", "Fw.Wire.Gate.partRawOf_setPartDeclared"]
+
+/-- One sweep, full and reduced.
+
+$$\forall w,\quad \operatorname{sweepJson}(w) = \{\text{id}: \mathit{id}(w), \text{blurb}, \text{stops}: |\mathrm{stops}(w)|, \text{reducedStops}: |\mathrm{stops}(r(w))|, \text{reduced}: [\operatorname{envJson}(e) \mid e \in \mathrm{stops}(r(w))]\}$$
+
+A reduced sweep as the package would run it. -/
+def sweepJson (w : Sweep) : Json :=
+  let r := reduceSweep w
+  Json.mkObj [("id", toJson w.id), ("blurb", toJson w.blurb), ("stops", toJson w.stops.length),
+    ("reducedStops", toJson r.stops.length), ("reduced", Json.arr (r.stops.map ScopeGen.envJson).toArray)]
+
+/-- The whole `sweeps.gen.json` document.
+
+$$\operatorname{sweepsJson} = \{\text{schema}, \text{theorems}: \Theta, \text{desktop}: \{\text{fullWidths}: D_{\mathrm{full}}, \text{reducedWidths}: R, \text{stops}: |D_{\mathrm{full}}|, \text{reducedStops}: |R|\}, \text{caveat}, \text{sweeps}: [\operatorname{sweepJson}(w) \mid w \in W]\}$$
+
+Generated, never edited by hand. -/
+def sweepsJson : Json :=
+  Json.mkObj [
+    ("schema", "fw.gate-breakpoints.sweeps/1"),
+    ("generatedBy", "lake exe breakgen --sweeps (lean/Fw/Gate/SweepsGen.lean)"),
+    ("theorems", toJson theoremNames),
+    ("desktop", Json.mkObj [("fullWidths", toJson deskSweepFull), ("reducedWidths", toJson reducedDeskWidths),
+      ("stops", toJson deskSweepFull.length), ("reducedStops", toJson reducedDeskWidths.length)]),
+    ("caveat", "verdict cells are unchanged; sweep tally counts change (a desktop cell's FAIL k/n counts reduced stops, e.g. FAIL 57/57 becomes FAIL 35/35)"),
+    ("sweeps", Json.arr (sweeps.map sweepJson).toArray)]
+
+/-- The bytes of `sweeps.gen.json`.
+
+$$\operatorname{sweepsText} = \mathrm{pretty}_{120}(\operatorname{sweepsJson}) \mathbin{+\!\!+} \text{newline}$$
+
+What `--sweeps` prints and checks. -/
+def sweepsText : String := sweepsJson.pretty 120 ++ "\n"
+
+/-- One by-id merge case: wanted ids, the records' ids in shard order, and the outcome (`null` when the script
+fails).
+
+$$\forall n, W, Q,\quad \operatorname{mergeCase}(n, W, Q) = \{\text{case}: n, \text{want}: W, \text{records}: Q, \text{out}: \operatorname{merge}_{\mathrm{id}}(W, Q)\}$$
+
+A golden vector for `merge-gate.mjs`. -/
+def mergeCase (name : String) (want recs : List String) : Json :=
+  Json.mkObj [("case", toJson name), ("want", toJson want), ("records", toJson recs),
+    ("out", toJson (mergeById id want recs))]
+
+/-- The golden lines.
+
+$$\operatorname{goldenLines} = [\text{reduced widths}, \text{merge cases}, \text{split counterexample}, \text{mount traces}]$$
+
+`packages/contracts/golden/gate/sweeps.jsonl`, one compact JSON object per line. -/
+def goldenLines : List Json :=
+  [Json.mkObj [("case", "reduced-desktop-widths"), ("full", toJson deskSweepFull),
+      ("reduced", toJson reducedDeskWidths), ("count", toJson reducedDeskWidths.length)]] ++
+  (sweeps.map fun w => Json.mkObj [("case", toJson s!"reduced-stops:{w.id}"),
+      ("stops", toJson w.stops.length), ("reducedStops", toJson (reduceSweep w).stops.length)]) ++
+  [mergeCase "merge-ok" ["desk-600", "desk-601", "phone-430"] ["phone-430", "desk-600", "desk-601"],
+   mergeCase "merge-sweeps-by-id" (sweeps.map (·.id)) ((sweeps.map (·.id)).reverse),
+   mergeCase "merge-duplicate" ["desk-600", "desk-601"] ["desk-600", "desk-601", "desk-600"],
+   mergeCase "merge-missing" ["desk-600", "desk-601"] ["desk-600"],
+   mergeCase "merge-extra" ["desk-600"] ["desk-600", "desk-601"],
+   mergeCase "merge-empty" [] [],
+   Json.mkObj [("case", "split-sweep"), ("key", "width <= 600"), ("hv", "fail iff |collapsed history| >= 3"),
+     ("whole", toJson ([700, 600, 700] : List Nat)), ("pieces", toJson ([[700, 600], [700]] : List (List Nat))),
+     ("wholeVerdict", toJson (Fw.Wire.Gate.verdictName
+       (scopedVerdict (fun _ => none) splitKey roundTripHv [] [⟨"w", "", [700, 600, 700].map deskStop⟩]))),
+     ("splitVerdict", toJson (Fw.Wire.Gate.verdictName
+       (scopedVerdict (fun _ => none) splitKey roundTripHv []
+         [⟨"w1", "", [700, 600].map deskStop⟩, ⟨"w2", "", [700].map deskStop⟩])))],
+   Json.mkObj [("case", "mount-once-vs-every"), ("near", true), ("start", false), ("resizes", "identity x 3"),
+     ("every", toJson ((mountEvery true false [id, id, id]).map fun (a, b) => [a, b])),
+     ("once", toJson ((mountOnce true false [id, id, id]).map fun (a, b) => [a, b]))]]
+
+/-- The bytes of `sweeps.jsonl`.
+
+$$\operatorname{goldenText} = \textstyle\bigoplus_{j \in \operatorname{goldenLines}} (\mathrm{compress}(j) \mathbin{+\!\!+} \text{newline})$$
+
+What `--sweeps-golden` prints and checks. -/
+def goldenText : String := String.join (goldenLines.map fun j => j.compress ++ "\n")
+
+/-- Command-line driver: `--sweeps` selects `sweepsText`, `--sweeps-golden` selects `goldenText`; with
+`--check <file>` it fails (1) when the file's bytes differ, else it prints the text.
+
+$$\operatorname{run}(\mathit{args}) = \begin{cases} 0 & \texttt{--check } f \text{ given} \wedge \mathrm{bytes}(f) = \mathrm{utf8}(T) \\ 1 & \texttt{--check } f \text{ given, otherwise} \\ 0,\ \text{stdout} := T & \text{no } \texttt{--check} \end{cases} \qquad T = \begin{cases} \operatorname{goldenText} & \texttt{--sweeps-golden} \in \mathit{args} \\ \operatorname{sweepsText} & \text{otherwise} \end{cases}$$
+
+(An unreadable file raises an IO error.) -/
+def run (args : List String) : IO UInt32 := do
+  let (text, name) := if args.contains "--sweeps-golden" then (goldenText, "--sweeps-golden")
+    else (sweepsText, "--sweeps")
+  match argOf args "--check" with
+  | some path =>
+    let cur ← IO.FS.readBinFile path
+    if cur.data == text.toUTF8.data then
+      IO.eprintln s!"breakgen {name}: {path} is up to date ({reducedDeskWidths.length} reduced desktop stops)"
+      return 0
+    IO.eprintln s!"breakgen {name}: {path} differs; regenerate with `lake exe breakgen {name} > {path}`"
+    return 1
+  | none =>
+    IO.print text
+    return 0
+
+end Fw.Gate.SweepsGen
