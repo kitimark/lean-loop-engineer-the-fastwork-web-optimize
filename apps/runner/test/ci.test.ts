@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFil
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ciMain, parseCiArgs, searchConfig, selectCiRun, type CiRunInfo } from "../src/ci.ts";
+import { ciMain, ciRun, parseCiArgs, type CiFacts, type CiRunInfo } from "../src/ci.ts";
 import { UsageError } from "../src/lib.ts";
 import { fwcoreCall, type FwCall, type Gh } from "../src/run.ts";
 
@@ -15,7 +15,22 @@ const run = (over: Partial<CiRunInfo> = {}): CiRunInfo => ({
 });
 const ALL = ["chromium-counts-original-r1", "chromium-counts-original-r2", "chromium-counts-rewrite-r1", "chromium-counts-rewrite-r2"];
 
-describe("selectCiRun (table)", () => {
+describe("parseCiArgs", () => {
+  it("defaults and flags", () => {
+    expect(parseCiArgs([])).toEqual({ workflow: "chromium-counts", branch: "main" });
+    expect(parseCiArgs(["123", "--branch", "ci/x", "--store", "/s"])).toEqual({ runId: "123", workflow: "chromium-counts", branch: "ci/x", store: "/s" });
+    expect(() => parseCiArgs(["--nope"])).toThrow(UsageError);
+    expect(() => parseCiArgs(["--branch"])).toThrow(UsageError);
+    expect(() => parseCiArgs(["abc"])).toThrow(UsageError);
+  });
+});
+
+const hasCore = (() => { try { fwcoreCall(process.cwd()); return true; } catch { return false; } })();
+
+// The selection rule is fwcore's `store.ciRun` (lean/Fw/Store/Ci.lean; golden cases in packages/contracts/golden/store/ciRun.jsonl).
+describe.skipIf(!hasCore)("store.ciRun through fwcore (table)", () => {
+  const call: FwCall = hasCore ? fwcoreCall(process.cwd()) : () => ({});
+  const facts = (names: string[], search = ""): CiFacts[] => names.map((name) => ({ name, profile: "swipe-v1", image: IMG, search: name.includes("rewrite") ? search : "" }));
   const cases: [string, CiRunInfo, string[], string[], string[] | "ok"][] = [
     ["complete run", run(), ALL, ["original", "rewrite"], "ok"],
     ["failed run", run({ conclusion: "failure" }), ALL, ["original", "rewrite"], ["run 42 concluded failure, not success"]],
@@ -29,36 +44,32 @@ describe("selectCiRun (table)", () => {
   ];
   for (const [name, r, have, dirs, want] of cases) {
     it(name, () => {
-      const s = selectCiRun(r, have, dirs);
-      if (want === "ok") expect(s).toMatchObject({ ok: true });
-      else expect(s).toEqual({ ok: false, refusals: want });
+      const s = ciRun(call, r, { artifacts: facts(have), classes: dirs });
+      if (want === "ok") expect(s).toMatchObject({ accept: true, refusals: [] });
+      else expect(s).toEqual({ accept: false, refusals: want, targets: [] });
     });
   }
-  it("lists shards per target, sorted", () => {
-    const s = selectCiRun(run(), ALL, ["original", "rewrite"]);
-    expect(s.ok && s.targets).toEqual([
-      { target: "original", shards: ALL.slice(0, 2), classes: "original" }, { target: "rewrite", shards: ALL.slice(2), classes: "rewrite" }]);
+  it("before the download: shards per target, sorted, with their entry dirs, no key inputs", () => {
+    const s = ciRun(call, run());
+    expect(s.accept).toBe(true);
+    expect(s.targets.map((t) => [t.target, t.classes, t.shards, t.meta])).toEqual([
+      ["original", "original", [{ artifact: ALL[0], dir: "r1" }, { artifact: ALL[1], dir: "r2" }], undefined],
+      ["rewrite", "rewrite", [{ artifact: ALL[2], dir: "r1" }, { artifact: ALL[3], dir: "r2" }], undefined]]);
   });
-});
-
-describe("searchConfig", () => {
   it.each([
     ["", "original", []], ["?preset=strip-demo", "strip-demo", []], ["?fw=hero.countdown:strip", "original", ["hero.countdown:strip"]],
-    ["?preset=p&fw=a:x,b:y", "p", ["a:x", "b:y"]],
-  ])("%s", (q, preset, fw) => expect(searchConfig(q)).toEqual({ preset, fw }));
-});
-
-describe("parseCiArgs", () => {
-  it("defaults and flags", () => {
-    expect(parseCiArgs([])).toEqual({ workflow: "chromium-counts", branch: "main" });
-    expect(parseCiArgs(["123", "--branch", "ci/x", "--store", "/s"])).toEqual({ runId: "123", workflow: "chromium-counts", branch: "ci/x", store: "/s" });
-    expect(() => parseCiArgs(["--nope"])).toThrow(UsageError);
-    expect(() => parseCiArgs(["--branch"])).toThrow(UsageError);
-    expect(() => parseCiArgs(["abc"])).toThrow(UsageError);
+    ["?preset=p&fw=b:y,a:x", "p", ["a:x", "b:y"]],
+  ])("rewrite query %s gives preset and flags; the original keeps the default", (q, preset, fw) => {
+    const s = ciRun(call, run(), { artifacts: facts(ALL, q), classes: ["original", "rewrite"] });
+    expect(s.targets.map((t) => t.meta && [t.meta.target, t.meta.preset, t.meta.fw])).toEqual([["original", "original", []], ["rewrite", preset, fw]]);
+    expect(s.targets[0]!.key).not.toEqual(s.targets[1]!.key);
+  });
+  it("shards that disagree are refused", () => {
+    const fs = facts(ALL);
+    fs[1] = { ...fs[1]!, profile: "swipe-wheel-v1" };
+    expect(ciRun(call, run(), { artifacts: fs, classes: ["original", "rewrite"] }).refusals).toEqual(["original shards disagree on profile, query, target or image"]);
   });
 });
-
-const hasCore = (() => { try { fwcoreCall(process.cwd()); return true; } catch { return false; } })();
 
 describe.skipIf(!hasCore)("ciMain against fwcore", () => {
   const call: FwCall = hasCore ? fwcoreCall(process.cwd()) : () => ({});
