@@ -46,6 +46,13 @@ test('the harness has a single preparation route', () => {
   assert.equal(typeof page.prepareInPage, 'function');
   for (const f of ['mountPanel', 'primeOrig', 'openOverlay', 'closeOverlay']) assert.equal(page[f], undefined, f);
   assert.equal((run.match(/import \{[^}]*prepareInPage/g) ?? []).length, 1);
-  // the mount steps run once right after waitReady, before any collection
   assert.ok(run.indexOf('waitReady, {') < run.indexOf("stage: 'ready'"));
+});
+
+test('parts without a prepare step are collected before any mount runs (fresh-load state)', () => {
+  const run = src('run.mjs');
+  const early = run.indexOf('pick([...mountIds, ...overlayIds], false)');
+  assert.ok(early > 0);
+  assert.ok(early < run.indexOf("stage: 'ready'"), 'early parts first, mounts after');
+  assert.ok(early < run.indexOf("stage: 'open'"), 'early parts before overlays too');
 });

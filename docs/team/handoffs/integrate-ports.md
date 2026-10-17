@@ -1,34 +1,30 @@
 # Handoff: integrate-ports
 
-Branch `worktree-agent-afe5e7954b26806f5` (CI ref `ci/integrate-ports`). Built from main 6626359; merged in order: port-morph-panel,
-port-nav, port-commission, port-overlays. One merge commit each. CI run ids are in the report to the lead.
+Branch `worktree-agent-afe5e7954b26806f5` (CI ref `ci/integrate-ports`), from main 6626359. Merged, one merge commit each, in order:
+port-morph-panel, port-nav, port-commission, port-overlays, port-hero, port-people, port-pain. NOT merged: port-platform (lands separately).
+Head sha and run ids: in the lead report (the last pushed head is on `ci/integrate-ports`).
 
 ## Conventions
-- Union of every shared file (registry parts, App.tsx, Census.tsx, Fw.lean, Golden.lean, Scope.lean PartUse, anchors.json).
-  App.tsx: Nav, MorphPanel outside `<main>`, then hero, exit, countdown stand-in, people, pain, commission, platform, columns;
-  placeholder trigger tray (`overlay-triggers`) now calls `openDrawer` / `openSignup`.
-- `Scope.lean` docstring math lists every part (mount, tween, panel, nav, nav.langMenu, commission, commission.typing, overlays.*)
-  with the same tuples as the Lean entries. `Golden.lean` writes 15 files (docstring says 15).
-- `scope.gen.json` is regenerated (`lake build`, then `node packages/gate-breakpoints/scripts/scopegen.mjs`), never hand-merged.
+- Union of every shared file. App.tsx: Nav, MorphPanel outside `<main>`; main = Hero, morph.countdown stand-in, People, Pain, Commission, Platform, MorphColumns.
+- Scope.lean docstring math lists every part with the same tuples as the Lean entries; Golden.lean writes 22 files.
+- `scope.gen.json` regenerated (`lake build`, `node packages/gate-breakpoints/scripts/scopegen.mjs`), never hand-merged. mathview: 0 errors (`lake exe mathview`).
 
-## Gate harness: ONE preparation mechanism
-- anchors.json per-part `prepare.<arm>` = list of steps with a `kind`:
-  - `mount` (`scrollNear`, `waitFor`, `why`): run once after `waitReady`, page back at the top (morph.countdown, morph.columns, morph.panel);
-  - `overlay` (`trigger`, `ready`, `close`, `gone`, `why`): the part is collected alone between stage open and stage close (overlays.*).
-- `page.mjs prepareInPage({stage: ready|open|close, steps, capMs})` is the only page function; `run.mjs` calls it from `evalReady`/`evalCollect`.
-  Removed: `ORIG_PREPARE`, `mountPanel`, `primeOrig`, `PREPARE`, `openOverlay`, `closeOverlay`. Tests: `test/prepare.test.mjs`.
-- Behaviour change to watch: morph.columns used to be collected after the early parts (late pass); it now mounts the panel before every part
-  is collected (like morph.countdown). If a CI cell for another part changes because the panel is mounted, add a `phase` option here.
+## Gate harness: ONE preparation mechanism (anchors.json `prepare.<arm>`, `page.mjs prepareInPage({stage, steps, capMs})`)
+- step `kind: "mount"` (scrollNear, waitFor, why): morph.countdown, morph.columns, morph.panel. `kind: "overlay"` (trigger, ready, close, gone, why): overlays.*.
+- `run.mjs evalCollect`: parts WITHOUT a prepare step are collected first (fresh load); then overlay parts one at a time (open, collect, close); then the
+  mount steps run once and the mount parts are collected. (Mounting scrolls the original there and back and its scroll-driven values lag: this failed
+  hero/nav cells in run 39062347763 when everything was prepared up front.)
+- `waitReady` awaits every finite animation/transition (repeated until a quiet pass); result has `animations: {waitedMs, awaited, passes, left}`; no tolerance.
+- Phase 0 property lists = union of 9 scans over one 3050 ms period (`declared.mjs`): fixed merge-gate "header differs" (hero.accent, WebKit).
+- Tests: `test/prepare.test.mjs`, `settle.test.mjs`, `declared.test.mjs`; `scope.test.mjs` accepts height-axis knees (people.deck).
 
-## Open
-- Not kept: nothing dropped. `scripts/mathview-cached.sh` does not exist in this tree; used `lake exe mathview` (0 errors, all `sorryFree`).
-- Read first: `page.mjs prepareInPage`, then the `prepare` keys in anchors.json.
-- CI: the first push of ci/integrate-ports raised a ref-lock error and started no run; a second push triggered it.
+## CI
+- Run 39062347763 (bb78c5f): all jobs success, but the merged summary has failures (chromium 39, WebKit 127). Job conclusions do NOT mean pass:
+  read `gate-merged-*/summary.json` `engines.*.failures` (download with `gh run download <id> -p 'gate-merged-*'`).
+- Wait with `pnpm fw ci wait --branch ci/integrate-ports --workflow breakpoint-gate`.
 
-## Later merges and gate fixes
-- Also merged: port-commission, port-overlays, port-hero, port-people. App.tsx keeps `<Hero/>` then the morph.countdown stand-in, `<People variants/>`.
-- Gate fix 1 (`src/declared.mjs`): phase 0 takes the UNION of property scans across one 3050 ms timer period; merge-gate "header differs"
-  (WebKit run 39057342983) was hero.accent's declared set depending on the scan instant. Test: `test/declared.test.mjs`.
-- Gate fix 2 (`page.mjs waitReady`): awaits every finite animation/transition, repeated until a quiet pass, on both arms; the settle result
-  has `animations: {waitedMs, awaited, passes, left}`. No tolerance. Test: `test/settle.test.mjs`.
-- `scope.test.mjs` now accepts height-axis knees (people.deck 823/900).
+## Left (real part work, from run 39062347763; compare each cell with the port's own run)
+- nav: border colour rgb(23,23,23) vs black and missing font-family on switch/earn (all cells; already failing in the port's run); WebKit nav and people.card at touch-rm-861 / dw-arm cells.
+- commission: underline opacity/transform; section height 829 vs 777 and `--commission-shrink`; commission.typing visual scale at <=720 and avatarLarge at 319/320.
+- will-change under touch+rm 861 (orig `auto`) on hero.countdown face, hero.orbit card, hero.deck card, hero copy; hero.orbit z-index 3 vs 2.
+- overlays.signup widths 359.36 vs 360 (touch 960-1031); pain.notes note x (145 probes); people.deck shell/panel widths; people.card radius and --future-shrink in WebKit desk-861+.

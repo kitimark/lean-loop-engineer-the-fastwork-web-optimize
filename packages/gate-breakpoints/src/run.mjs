@@ -73,33 +73,36 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     return engine.open(env, { origin: servers[site].origin, path: '/', init: PIN_SRC });
   }
   // anchors.json `prepare` (per part and arm) is the one route for page states that exist only after an action, all run by
-  // page.mjs prepareInPage. kind "mount" (morph.countdown, morph.columns, morph.panel): the steps run once after the ready
-  // wait and the page is back at the top before anything is collected. kind "overlay" (overlays.*): the part is collected
-  // alone between its open stage and its close stage, so every other part is read in the closed page.
+  // page.mjs prepareInPage. A part with a prepare step is collected AFTER the rest, so every other part is read in the state a
+  // fresh load has (mounting the morph panel scrolls the original there and back, and its scroll-driven values lag): early
+  // parts first, then overlay parts one at a time (open, collect, close), then the mount parts once the mounts have run.
+  //  kind "mount" (morph.countdown, morph.columns, morph.panel): scroll near `scrollNear`, wait for `waitFor`, back to the top.
+  //  kind "overlay" (overlays.*): click `trigger`, wait for `ready`; click `close`, wait until `gone` is gone.
   const stepsOf = (site, kind) => Object.fromEntries(Object.entries(activeParts)
     .map(([pid, p]) => [pid, ((p.prepare && p.prepare[site]) || []).filter((st) => st.kind === kind)])
     .filter(([, steps]) => steps.length > 0));
-  const mountSteps = Object.fromEntries(SITES.map((site) => [site, Object.values(stepsOf(site, 'mount')).flat()]));
-  const overlaySteps = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'overlay')]));
-  const evalReady = async (s, site) => {
-    const settle = await s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
-    if (mountSteps[site].length > 0) settle.prepared = await s.evaluate(prepareInPage, { stage: 'ready', steps: mountSteps[site], capMs: CAP_MS[site] });
-    return settle;
-  };
+  const mountOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'mount')]));
+  const overlayOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'overlay')]));
+  const evalReady = (s, site) => s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
   const collectArg = (site, env, props, parts) => ({
     site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, filter: FILTER[site],
   });
   async function evalCollect(s, site, env, props) {
-    const late = Object.keys(overlaySteps[site]);
-    if (late.length === 0) return s.evaluate(collectInPage, collectArg(site, env, props, partsArg[site]));
-    const early = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !late.includes(pid)));
-    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, early));
-    for (const pid of late) {
-      const steps = overlaySteps[site][pid];
+    const mountIds = Object.keys(mountOf[site]);
+    const overlayIds = Object.keys(overlayOf[site]);
+    const pick = (ids, inside) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid) === inside));
+    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false)));
+    for (const pid of overlayIds) {
+      const steps = overlayOf[site][pid];
       await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
       const one = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
       raw.parts = { ...raw.parts, ...one.parts };
       await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
+    }
+    if (mountIds.length > 0) {
+      raw.prepared = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site] });
+      const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(mountIds, true)));
+      raw.parts = { ...raw.parts, ...late.parts };
     }
     return raw;
   }
@@ -114,7 +117,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     const s = await load(refEnv, site);
     await evalReady(s, site);
     const scans = [(await evalCollect(s, site, refEnv, null)).parts];
-    const timed = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !overlaySteps[site][pid]));
+    const timed = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !overlayOf[site][pid]));
     for (let i = 0; i < SCAN_EXTRA; i++) {
       await new Promise((r) => setTimeout(r, SCAN_GAP_MS));
       scans.push((await s.evaluate(collectInPage, collectArg(site, refEnv, null, timed))).parts);
