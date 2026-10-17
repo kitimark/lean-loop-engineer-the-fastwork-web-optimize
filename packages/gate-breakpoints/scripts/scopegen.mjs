@@ -1,6 +1,7 @@
 // Generates or checks src/scope.gen.json from Lean (Fw.Gate.ScopeGen.scopeText). Glue only: every scope decision and
 // its proof is in lean/Fw/Gate/Scope.lean. Lean modules under Fw/ may not define a root `main` (the math view imports
-// all of them), so this script writes a two-line driver to a temp dir and runs it with `lake env lean --run`.
+// all of them), so the compiled `breakgen --scope` (lean/BreakgenMain.lean) runs it; `scopegenInterpreted` is the old
+// two-line `lake env lean --run` driver (about 100 s: the interpreter).
 //   node scripts/scopegen.mjs            regenerate src/scope.gen.json
 //   node scripts/scopegen.mjs --check    exit 1 when src/scope.gen.json differs from the Lean bytes
 // Needs a built lean/ (`cd lean && lake build`).
@@ -14,8 +15,20 @@ const PKG = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LEAN = resolve(PKG, '../../lean');
 export const SCOPE_GEN = join(PKG, 'src/scope.gen.json');
 
-/** Run Fw.Gate.ScopeGen.run with `args`; returns { status, stdout, stderr }. */
+/** Run Fw.Gate.ScopeGen.run with `args`; returns { status, stdout, stderr }. `lake build breakgen` first (a no-op when the
+ *  binary is current, so a stale binary cannot vouch for new Lean sources), then the compiled `breakgen --scope`. */
 export function scopegen(args) {
+  const b = spawnSync('lake', ['build', 'breakgen'], { cwd: LEAN, encoding: 'utf8', maxBuffer: 1 << 26 });
+  if (b.error) throw b.error;
+  if (b.status !== 0) return { status: b.status, stdout: b.stdout, stderr: `lake build breakgen failed:\n${b.stdout}${b.stderr}` };
+  const r = spawnSync(join(LEAN, '.lake/build/bin/breakgen'), ['--scope', ...args], { cwd: LEAN, encoding: 'utf8', maxBuffer: 1 << 26 });
+  if (r.error) throw r.error;
+  return { status: r.status, stdout: r.stdout, stderr: r.stderr };
+}
+
+/** The interpreted route (`lean --run` over a two-line driver): the same `run`, about 100 s under load. Kept for a tree
+ *  where the binary cannot be built; the test never uses it. */
+export function scopegenInterpreted(args) {
   const dir = mkdtempSync(join(tmpdir(), 'scopegen-'));
   try {
     const driver = join(dir, 'ScopeGenDriver.lean');
