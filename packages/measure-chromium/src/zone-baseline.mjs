@@ -95,8 +95,8 @@ function baselineMode() {
   const zonesText = readFileSync(zonesPath);
   const zf = JSON.parse(zonesText);
   const classesText = readFileSync(classesPath);
-  const frozen = JSON.parse(classesText).profiles?.[profile];
-  if (!frozen) { console.error(`${classesPath} has no profile ${profile}`); process.exit(2); }
+  const frozen = JSON.parse(classesText).profiles?.[profile]?.arms?.[tgt]; // fw.classes.frozen/2: one class table per arm
+  if (!frozen) { console.error(`${classesPath} has no profile ${profile} arm ${tgt}`); process.exit(2); }
   const sha = (b) => createHash('sha256').update(b).digest('hex');
   const shardIds = Object.keys(zf.shards).sort();
   const [b] = call([{ op: 'measure.zoneBaseline', classes: frozen.types,
