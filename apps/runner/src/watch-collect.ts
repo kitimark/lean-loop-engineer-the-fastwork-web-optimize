@@ -3,6 +3,7 @@
 // Scoping rules that ARE here (which agents get into the snapshot): see SCOPE below.
 // Privacy: only names, counts, ids and times are read out of the files; payload text is never kept.
 import { execFile } from "node:child_process";
+import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -351,6 +352,21 @@ const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
   });
 const text = (r: RunOut): string | null => (typeof r === "string" ? r : null);
 
+/** Wraps a Runner so every `gh` call is booked with the request budget (`ghCharged`, fwcore decides). Other programs pass
+ *  through. A wait or stop from the budget, a gh failure, or an unavailable budget (no fwcore) is a failed call (`null`):
+ *  the caller carries the previous value forward. The collector never blocks on the budget. `getEnv` is lazy and cached. */
+export function chargedRunner(base: Runner, getEnv: () => Env): Runner {
+  return async (cmd, args, timeout, cwd, anyExit) => {
+    if (cmd !== "gh") return base(cmd, args, timeout, cwd, anyExit);
+    try {
+      const res = await ghCharged(getEnv(), args, { cost: args.includes("--workflow") ? 2 : 3 });
+      return res.ran && res.code === 0 ? res.stdout : null;
+    } catch { return null; }
+  };
+}
+let sysEnv: { cwd: string; env: Env } | null = null;
+const systemEnv = (cwd: string): Env => (sysEnv?.cwd === cwd ? sysEnv.env : (sysEnv = { cwd, env: realEnv(cwd) }).env);
+
 export function parseMemLevel(out: string | null): "normal" | "warn" | "critical" {
   // kern.memorystatus_vm_pressure_level: 1 normal, 2 warn, 4 critical (xnu sys/kern_memorystatus.h)
   const n = Number((out ?? "").trim());
@@ -507,7 +523,7 @@ export function liveKeep(entries: KeepEntry[], rows: PsRow[], now: number): Keep
 export interface Prev { at: number; system: SystemSnap; critical?: string[] }
 
 /** `owners`: Bash task id -> agent id (from `collectAgents`); trees whose task id is not in it have no owner. */
-export async function collectSystem(p: Paths, prev: Prev | null = null, now = Date.now(), exec: Runner = run,
+export async function collectSystem(p: Paths, prev: Prev | null = null, now = Date.now(), exec: Runner = chargedRunner(run, () => systemEnv(p.root)),
   owners: Map<string, string> = new Map()): Promise<SystemSnap> {
   const [mem, wt, dock, ci, ps] = await Promise.all([
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
@@ -573,7 +589,7 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
   get: PlanFetch = getJson): Promise<Snapshot> {
   const owners = new Map<string, string>();
   const agents = collectAgents(p, now, owners);
-  const [system, crit] = await Promise.all([collectSystem(p, prev, now, run, owners), collectCritical(p, process.env, get)]);
+  const [system, crit] = await Promise.all([collectSystem(p, prev, now, undefined, owners), collectCritical(p, process.env, get)]);
   const { critical, stale } = carryCritical(crit, prev, now);
   if (stale) system.stale.push("plan");
   return { now, params, agents, lead: collectLead(p), system, prevAt: prev?.at ?? null, critical };

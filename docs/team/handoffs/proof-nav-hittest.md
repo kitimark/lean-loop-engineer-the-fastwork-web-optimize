@@ -1,0 +1,11 @@
+# proof-nav-hittest (NH-W): handoff
+
+- **State:** `lean/Fw/Parts/NavHitTestOpt.lean` (imported in `lean/Fw.lean`), golden `packages/contracts/golden/engine/nav-hittest.jsonl` (28 rows). `lake build` green, mathview lint 0 failing, axioms only propext/Classical.choice/Quot.sound. Commit: see `git log -- lean/Fw/Parts/NavHitTestOpt.lean`.
+- **Theorems:** `hitSkip_work_lt`, `elementsSkip_work_lt` (Chromium ∧ WebKit, per frame, every `NavCtx`), `hitSkip_run_dominates`, `elementsSkip_run_dominates` (via `run_dominates`), `hitSkip_visSame`, `elementsSkip_visSame(_port)` (`VisSame E`), `writeOnChange_le`; engine-generic `*_any`; style deltas `hitSkip_style_two`, `elements_style_two`.
+- **Model:** frame = `pre ++ probe ++ post` through `EngineScroll.forced` (premise R4, INFERRED); `pre`/`post`/flags/changes are arbitrary, so every width band is covered (width only changes the context). The toggle's changes `pes` are a free parameter (orig only).
+- **Finding:** the graph says forced style −1; the model gives −2 per skipped frame (the hero-track read pays the restore write), for hit-skip and elements-skip alike.
+- **Source:** pointer-events toggle invalidates paint for hit test (Chromium `layout_object.cc:3476-3480`@f842f52), RecompositeLayer and event region (WebKit `StyleDifference.cpp:921-922`, `RenderElement.cpp:970-971`@862f17d): Paint/raster/commit rows are `≤o`, not `=o`.
+- **Premises for `<o` rows:** swipe-v1 reaches morph > 0.2 (hit-skip); the nav callback runs every scroll frame; `elementsFromPoint` is one HitTest.
+- **Open:** (1) `engine-check` `variantKeys` gives a `+search` run both keys, so base `rewrite` also collects the variant runs; base should become an explicit faithful key or the CLI should not alias. (2) `trace.Layout` is missing from the rewrite arm of `classes.frozen.json` (rows come back unusable). (3) WebKit rows return `unusable` (no lane).
+- **Regenerate golden:** from `lean/`, `lake env lean --run <script>` with `import Fw.Parts.NavHitTestOpt` and `def main : IO Unit := IO.FS.writeFile "../packages/contracts/golden/engine/nav-hittest.jsonl" Fw.Parts.NavHitTestOpt.goldenJsonl`.
+- **Read first:** module doc of NavHitTestOpt.lean, then design note §4.2 row NH-W.

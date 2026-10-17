@@ -260,7 +260,8 @@
    ],
    "devices": [
     "simulator"
-   ]
+   ],
+   "evidence": "7818dbb"
   },
   {
    "id": "plan-rev6",
@@ -350,7 +351,8 @@
    "writes": [
     "packages/gate-breakpoints/src/anchors.json",
     "lean/Fw/Gate/**"
-   ]
+   ],
+   "evidence": "78b850a"
   },
   {
    "id": "m0-mutants",
@@ -363,7 +365,8 @@
     "lean/FwTest/Mutants/**",
     "lean/scripts/mutants.sh",
     "research/notes/2026/10-17-mutants.md"
-   ]
+   ],
+   "evidence": "8074907"
   },
   {
    "id": "spk-hooks",
@@ -434,7 +437,8 @@
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Wire/**"
-   ]
+   ],
+   "evidence": "bf4d660"
   },
   {
    "id": "lean-console-gaps",
@@ -449,7 +453,8 @@
     "lean/Fw/Console*.lean",
     "lean/Fw/Console/**",
     "lean/Fw/Ops/**"
-   ]
+   ],
+   "evidence": "acc5d83"
   },
   {
    "id": "measure-ts-to-lean",
@@ -476,7 +481,8 @@
    "owner": "console-builder",
    "writes": [
     "apps/runner/**"
-   ]
+   ],
+   "evidence": "ba20c0e"
   },
   {
    "id": "touch-wedge",
@@ -494,7 +500,8 @@
    ],
    "devices": [
     "docker"
-   ]
+   ],
+   "evidence": "25bd9f4"
   },
   {
    "id": "hittest",
@@ -510,7 +517,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "f90c08f"
   },
   {
    "id": "webkit-quiet",
@@ -559,7 +567,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "f90c08f"
   },
   {
    "id": "zone-baselines-chromium",
@@ -613,7 +622,8 @@
     "apps/runner/src/run*.ts",
     "packages/contracts/src/artifacts.ts",
     "lean/Fw/Store/**"
-   ]
+   ],
+   "evidence": "da3632e"
   },
   {
    "id": "vj-vt",
@@ -700,7 +710,8 @@
    ],
    "devices": [
     "simulator"
-   ]
+   ],
+   "evidence": "0d561fa"
   },
   {
    "id": "gap-device",
@@ -825,7 +836,8 @@
    ],
    "devices": [
     "simulator"
-   ]
+   ],
+   "evidence": "2357452"
   },
   {
    "id": "wktr-ci-lane",
@@ -985,7 +997,8 @@
    "writes": [
     "apps/console-web/**",
     "apps/console-api/**"
-   ]
+   ],
+   "evidence": "fa032f4"
   },
   {
    "id": "cap-actor-fix",
@@ -1036,7 +1049,8 @@
     "apps/runner/hooks/emit.mjs",
     "apps/console-api/src/spool/**",
     "lean/Fw/Console/**"
-   ]
+   ],
+   "evidence": "c92c310"
   },
   {
    "id": "scrub-precommit",
@@ -1098,7 +1112,8 @@
    "writes": [
     "packages/measure-chromium/classes.frozen.json",
     ".github/workflows/chromium-counts.yml"
-   ]
+   ],
+   "evidence": "da287ff"
   },
   {
    "id": "pixel-tolerance",
@@ -1112,7 +1127,8 @@
    "writes": [
     "lean/Fw/Measure/**",
     "packages/measure-chromium/src/classes.mjs"
-   ]
+   ],
+   "evidence": "5879861"
   },
   {
    "id": "plan-rev7",
@@ -1126,7 +1142,8 @@
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
-   ]
+   ],
+   "evidence": "9ffa4fe"
   },
   {
    "id": "watch-fix",
@@ -1144,7 +1161,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "1a4a062"
   },
   {
    "id": "spk-p-wake",
@@ -1157,7 +1175,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-spk-drafts/spk-p.md"
-   ]
+   ],
+   "evidence": "548f99c"
   },
   {
    "id": "plan-evidence-link",
@@ -1170,7 +1189,8 @@
    "owner": "console-builder",
    "writes": [
     "apps/console-web/src/Plan.tsx"
-   ]
+   ],
+   "evidence": "630110e"
   },
   {
    "id": "math-r7",
@@ -1187,7 +1207,8 @@
    "owner": "math-reviewer",
    "writes": [
     "research/notes/2026/10-17-math-review-r7.md"
-   ]
+   ],
+   "evidence": "7d564e2"
   },
   {
    "id": "gate-unreachable",
@@ -1205,7 +1226,8 @@
     "apps/site/src/breakpoints.gen.json",
     "packages/gate-breakpoints/src/verdict.mjs",
     "packages/contracts/golden/gate/**"
-   ]
+   ],
+   "evidence": "3a8c263"
   },
   {
    "id": "css-decide",
@@ -1228,7 +1250,8 @@
    "writes": [
     ".github/workflows/sim-speed.yml",
     "research/notes/2026/10-17-sim-speed.md"
-   ]
+   ],
+   "evidence": "7563f79"
   },
   {
    "id": "ci-trigger-scope",
@@ -1242,7 +1265,8 @@
     ".github/workflows/chromium-counts.yml",
     ".github/workflows/breakpoint-gate.yml",
     "research/notes/2026/10-17-ci-trigger-scope.md"
-   ]
+   ],
+   "evidence": "6723de2"
   },
   {
    "id": "watch-slow",
@@ -1260,7 +1284,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "8a430c3"
   },
   {
    "id": "touch-ci-verify",
@@ -1275,7 +1300,8 @@
    "writes": [
     "packages/measure-chromium/README.md",
     "packages/measure-chromium/profiles/**"
-   ]
+   ],
+   "evidence": "da287ff"
   },
   {
    "id": "mutants-ci",
@@ -1290,7 +1316,8 @@
    "writes": [
     ".github/workflows/mutants.yml",
     "lean/scripts/mutants.sh"
-   ]
+   ],
+   "evidence": "cd49282"
   },
   {
    "id": "freeze-lean",
@@ -1306,7 +1333,8 @@
     "packages/measure-chromium/src/freeze.mjs",
     "packages/measure-chromium/classes.frozen.json",
     "packages/contracts/golden/measure/**"
-   ]
+   ],
+   "evidence": "bc2e28a"
   },
   {
    "id": "rewrite-ci-lane",
@@ -1320,7 +1348,8 @@
    "writes": [
     ".github/workflows/chromium-counts.yml",
     "packages/measure-chromium/src/host.mjs"
-   ]
+   ],
+   "evidence": "fee88b2"
   },
   {
    "id": "math-r8-fix",
@@ -1341,7 +1370,8 @@
     "lean/Fw/Plan/**",
     "lean/Fw/Board.lean",
     "lean/Fw/Ops/**"
-   ]
+   ],
+   "evidence": "a82e4a4"
   },
   {
    "id": "plan-rev7-1",
@@ -1357,7 +1387,8 @@
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
-   ]
+   ],
+   "evidence": "5cdeab5"
   },
   {
    "id": "plan-cut",
@@ -1372,7 +1403,8 @@
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html",
     "research/notes/2026/10-17-plan-evidence.md"
-   ]
+   ],
+   "evidence": "7cf9d44"
   },
   {
    "id": "store-target",
@@ -1389,7 +1421,8 @@
     "packages/contracts/golden/store/**",
     "apps/runner/src/run*.ts",
     "apps/runner/test/run*.ts"
-   ]
+   ],
+   "evidence": "cb29d1c"
   },
   {
    "id": "math-r9-fix",
@@ -1405,7 +1438,8 @@
     "lean/Fw/Measure/**",
     "lean/MathViewMain.lean",
     "lean/scripts/mathview*"
-   ]
+   ],
+   "evidence": "19e980e"
   },
   {
    "id": "mutant-ids-stable",
@@ -1419,7 +1453,8 @@
    "writes": [
     "lean/FwTest/Mutants/**",
     "lean/scripts/mutants.sh"
-   ]
+   ],
+   "evidence": "df861a7"
   },
   {
    "id": "webkit-green",
@@ -1454,7 +1489,8 @@
     "packages/measure-chromium/src/trace.mjs",
     "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/test/**"
-   ]
+   ],
+   "evidence": "33fdcfe"
   },
   {
    "id": "refreeze",
@@ -1483,7 +1519,8 @@
    "writes": [
     "packages/measure-chromium/src/input*.mjs",
     "packages/measure-chromium/src/run.mjs"
-   ]
+   ],
+   "evidence": "c38088e"
   },
   {
    "id": "watch-proc-allow",
@@ -1501,7 +1538,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "15ea817"
   },
   {
    "id": "plan-rev9",
@@ -1530,7 +1568,8 @@
     "lean/Fw/Gate/**",
     "lean/Fw/Measure/Arms.lean",
     "lean/MathViewMain.lean"
-   ]
+   ],
+   "evidence": "25b68d2"
   },
   {
    "id": "ci-paths-guard",
@@ -1547,7 +1586,8 @@
     ".github/workflows/gate-gaps.yml",
     ".github/workflows/sim-speed.yml",
     ".github/scripts/changed-inputs.mjs"
-   ]
+   ],
+   "evidence": "df77488"
   },
   {
    "id": "store-cirun",
@@ -1564,7 +1604,8 @@
     "packages/contracts/golden/store/**",
     "apps/runner/src/ci.ts",
     "apps/runner/test/ci.test.ts"
-   ]
+   ],
+   "evidence": "73ae012"
   },
   {
    "id": "webkit-gonogo",
@@ -1622,7 +1663,8 @@
    "owner": "researcher",
    "writes": [
     "docs/report/v2-report.md"
-   ]
+   ],
+   "evidence": "aceb354"
   },
   {
    "id": "freeze-refuse",
@@ -1986,7 +2028,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-18-engine-gaps.md"
-   ]
+   ],
+   "evidence": "affa1bb"
   },
   {
    "id": "webkit-sim-rewrite",
@@ -2333,7 +2376,8 @@
    "owner": "measure-engineer",
    "writes": [
     "packages/gh-budget/**"
-   ]
+   ],
+   "evidence": "bd2ffac"
   },
   {
    "id": "ghb-runner",
@@ -2378,7 +2422,8 @@
     "apps/runner/src/land.ts",
     "apps/runner/test/land*.ts",
     "lean/Fw/Console/Land.lean"
-   ]
+   ],
+   "evidence": "bd8e20b"
   },
   {
    "id": "pa-evidence-lint",
