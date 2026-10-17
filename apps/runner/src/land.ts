@@ -146,6 +146,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
   "packages/measure-webkit": ["packages/contracts/golden/measure/**"],
+  "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
 };
 
 /** Directories of the `workspace:` dependencies of a package (`@fw/x` is `packages/x` or `apps/x`). */

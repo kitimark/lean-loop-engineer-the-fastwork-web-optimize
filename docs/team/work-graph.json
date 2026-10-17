@@ -3077,7 +3077,8 @@
     "lean/Fw.lean",
     "packages/contracts/golden/site/**",
     "docs/team/tools/snapshot-extract.md"
-   ]
+   ],
+   "evidence": "152846b"
   },
   {
    "id": "visual-diff",

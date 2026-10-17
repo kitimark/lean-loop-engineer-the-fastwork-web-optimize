@@ -1,0 +1,12 @@
+{
+  "name": "@fw/snapshot-extract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reference extractor: the computed values of the unmodified original (and our port) at the gate's environments, with the declared source of each value. Reuses the engines, servers and probe definitions of @fw/gate-breakpoints (read only).",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "extract": "node src/cli.mjs extract",
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}
