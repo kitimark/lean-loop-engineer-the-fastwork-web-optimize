@@ -82,7 +82,7 @@ run in this repo, with its commit. Targets and thresholds are proposals until yo
 | Label | Means | Where |
 |---|---|---|
 | **Q1 … Q37** | questions and defaults for you (answered ones in §12.0); Q34-Q35 added in rev 7, Q36-Q37 in rev 9; Q37 resolved in rev 10 | §12 |
-| **D1 … D2** | decisions rev 10 asks of you (phone session 2; the look-changing proposals) | §12.1 |
+| **D1 … D2** | your rev 10 decisions, answered 2026-10-18 (phone session 2 stays an optional spot check; three look-changing proposals get Try-it pages) | §12.1 |
 | **M0 … M6** | milestone gates (exit states); M4 is out of scope for v2 since rev 9; M3 = optional phone spot checks and M5 = proofs + decision since rev 10 | §10.2 |
 | **MX** | the work-graph milestone that holds the tasks cut in revisions 9 and 10; nothing in it is started | §10.4 |
 | **(vis) / (work)** | the theorem pair proved per part × optimization: same visible scene for all t and all widths; per-frame work ≤ componentwise, < somewhere | §4.7, §5.1 |
@@ -154,8 +154,8 @@ generated page (§5.3).
   as Lean predicts (Q33). Phone session 1 held (0c901f2): gap probe 8 of 8 agree; swipes recorded.
 - **Research (a8c05f4):** both engine pipelines read at the pins, 25 optimization candidates classed, the proof
   design written; the engine models are not yet in Lean (`engine-core-lean` is the first task of §10.6).
-- **Waiting on you (rev 10):** D1 and D2 in §12.1 (keep phone session 2 optional; which look-changing proposals
-  you want as Try-it pages). Defaults apply at C2 (2026-10-18 23:15).
+- **Answered by you (2026-10-18, about 01:50):** D1 and D2 in §12.1 (phone session 2 stays optional; Try-it pages for
+  constant glass, FLIP / st6 and typing chunks). Nothing is waiting on you now.
 
 **The 3-day frame (rev 9; the full argument is §10).** The minimum experiment that still answers the study's question
 is the **end-of-page region**: the 4 pilot parts already built plus the 5 `morph.*` parts, ported `faithful` through
@@ -705,7 +705,7 @@ Each part has a static `part.json`, the single source of truth; TS imports it an
 | `shell` (rev 9, Q36) | a static section with the original's box height per breakpoint and static text; no drivers | PL1 outer box only; no breakpoint gate |
 | `ablation` | generated per part: `frozen`, `static`, `nopaint`, `box` | v1 fairness check: boxes equal, script and layout counts equal, only paint/raster lower |
 | `optimized` | v1 fixes re-implemented from their READMEs (never copied from patches), and new ideas | **rev 10: lands only with its Lean pair** (§4.7): (vis) of class E, E-s or Q with the gate's tolerances, (work) over `Fw.Engine` for both engines and all bands, TS checked against the Lean golden vectors; plus layers ≤ `layerBudget` and no falsified F3/F4 prediction. Compositor eligibility is read from the counts lane itself (`compositeFailedBits`), which is threaded (F0); no separate free-running census. A class L change cannot be `optimized` |
-| `proposal` | look changes: CM / compositor-morph, constant glass, FLIP on `people.o`, carousel st6, typing chunks, PR-040/041, finger-following end, instant People card | your decision via Try-it + blind A/B (D2, §12.1); the model may still state their *work*, labelled "look changed" |
+| `proposal` | look changes: CM / compositor-morph, constant glass, FLIP on `people.o`, carousel st6, typing chunks, PR-040/041, finger-following end, instant People card | your decision via Try-it + blind A/B (D2, §12.1: you chose constant glass, FLIP / st6 and typing chunks; the others stay unbuilt); the model may still state their *work*, labelled "look changed" |
 | `impl: plain` (an axis) | the same variant with plain elements in place of MUI, sharing CSS Module and drivers; experiment parts only | a measurement control for N3 (§6.7), never shipped |
 
 **Presets** (`presets/*.json`, with `extends`): `original` (all `faithful`; the parity reference), `v1-best` (g0.0m
@@ -1102,7 +1102,7 @@ path.
 |---|---|---|
 | done 2026-10-18 00:15 | you answered **Q34 (c), Q35 (a), Q36 (shells, then parallel ports)** | they fix the CSS and the scope every part is built against |
 | done (0c901f2) | **session 1**: `fw device check`, the Q33 gap probe (8 of 8 cells agree with Lean and the Simulator), original vs rewrite swipes (frames > 50 ms per 100: 22.9 vs 0) | the one phone session the plan used as a check; it is reported as a spot check, not as evidence (rev 10) |
-| **now (rev 10)** | **D1, D2** (§12.1): keep session 2 optional or cut it; which look-changing proposals you want as Try-it pages | they set what the phone is for and what the report may show you |
+| **done 2026-10-18 about 01:50** | you answered **D1** (keep session 2 as an optional spot check) and **D2** (Try-it pages for constant glass, FLIP / st6 and typing chunks); rev 10 itself was approved and landed | they set what the phone is for and what the report may show you |
 | **optional**: session 2, 30 min, any time after `variant-morph-tween-waapi` lands | swipe `v2-proved` against `original`; what neither proof nor CI covers (§4.7) | your choice; nothing waits for it |
 | at T+62h | read the report; it is yours to publish or not (M6) | your study |
 
@@ -1266,17 +1266,17 @@ optimization is reported as "modelled, not proved" and stays out of `v2-proved`.
 | — | **Proofs, not phone measurement** (chat, 2026-10-18; rev 10) | **Every part's animation is computed by math, so prove it:** for every part the optimized variant (1) shows the same picture as the original and (2) does less rendering work, in both Chromium and WebKit, at every breakpoint; the phone is at most an optional spot check, never evidence, never a gate | §0, §4.7, §5.1, §6.2, §9.2, §10, A32-A34 |
 | Q37 | No calibrated WebKit model in the report (open since rev 9) | **Resolved by the principle, as (c): no cost model at all.** Neither (a) "accept `uncalibrated`" nor (b) "spend session 2 on fixtures": the (work) theorem is componentwise per stage, so `Cost.mainUs_mono` already gives "no frame costs more under any non-negative unit costs"; a fitted coefficient would add nothing to the claim. WebKit is covered by `Fw.Engine.WebKit` (cited rows) and by F5 when the Simulator lane serves the rewrite, else labelled model-only. The validity table (§4.5) records prediction vs CI counts (F0-F5), not prediction vs phone | §4.3-§4.5, §10.1, A30 |
 
-### 12.1 Open for you (rev 10; a default applies at C2 = 2026-10-18 23:15 unless you say otherwise)
+### 12.1 Decided by you (rev 10; you answered D1 and D2 on 2026-10-18, about 01:50 +0700)
 
-- **D1. Phone session 2.** The principle makes the phone optional. **Recommended (default): keep `phone-session-2`
-  as an optional spot check with no dependents** (it is in the graph that way now: after session 1 only; `write-up`
-  no longer waits for it), swiping `v2-proved` against `original` once the `waapi` variant lands, 30 min, your
-  choice of time. The alternative is to cut it; nothing else changes either way. The report would then say "no phone
-  spot check".
-- **D2. Look-changing proposals.** CM / compositor-morph, constant glass, FLIP on the People card, carousel st6,
-  typing chunks and PR-040/041 cannot be proved look-identical (class L), so they are not built as `optimized` and
-  not in `v2-proved`. The model can still state their *work* ("look changed") for the report. **Default: none is built
-  in the 2 days**; name any you want as a Try-it page and it becomes a `proposal` task after C3.
+- **D1. Phone session 2: keep it as an OPTIONAL spot check** (your answer). It is never evidence and has no
+  dependents (after session 1 only; `write-up` does not wait for it): swipe `v2-proved` against `original` once the
+  `waapi` variant lands, 30 min, your choice of time. If it never happens, the report says "no phone spot check".
+- **D2. Look-changing proposals: build three Try-it pages** (your answer): **constant glass (CM)**, **FLIP / st6**
+  and **typing chunks**. They are look changes (class L), so Lean may predict their *work* ("look changed") but
+  there is no "same" claim, they are not `optimized` and not in `v2-proved`, and they are not on the write-up's
+  critical path. Work graph tasks `try-constant-glass`, `try-flip-st6` and `try-typing-chunks`, each after
+  `engine-chromium-lean` and `engine-webkit-lean`. The other class L candidates (FLIP on the People card, PR-040/041,
+  and the rest of the CM family) stay unbuilt.
 
 **Q32 (deferred past v2).** The A/B bench needs a 96-minute no-agent window; Q31's blocking waits with it.
 
@@ -1379,6 +1379,8 @@ said the evidence must be a proof. The plan follows you: the phone keeps a seat 
 loses every dependent; where a proof needs a premise CI cannot test (H1-H3, open RG items) the report names it
 rather than reaching for the phone. Where the design note and the plan's labels clashed, the plan renamed (A33);
 where the note's order would have lengthened the path, the graph parallelises (A34).
+
+**Decision log (2026-10-18, about 01:50):** you answered D1 (phone session 2 stays an optional spot check) and D2 (Try-it pages for constant glass, FLIP / st6 and typing chunks: tasks `try-constant-glass`, `try-flip-st6`, `try-typing-chunks`); rev 10 was approved and landed.
 
 ### Revision 9 and 9.1 (the 3-day frame; ad5eeea → 5b57aa4 → a0b5a1d; rev 8 was 54aa9d7)
 
