@@ -4,6 +4,7 @@ import { execFile, spawn } from "node:child_process";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
+import { collectFacts, formatNext, nextAlerts, type NextReply } from "./next.ts";
 import {
   collectSnapshot, exe, liveKeep, parsePs, pathsFor, readKeep, writeKeep, type AgentSnap, type Paths, type Prev, type PsRow, type Snapshot,
 } from "./watch-collect.ts";
@@ -57,6 +58,32 @@ export function coreCaller(bins: string[]): CoreCall {
 export async function check(snap: Snapshot, core: CoreCall): Promise<Health> {
   const r = await core({ op: "obs.health", ...snap });
   return r as unknown as Health;
+}
+
+/** `obs.next` for the same snapshot: the facts are observed in next.ts, every action is fwcore's. Null when the op or
+ *  a collector is unavailable (the watch then runs without NEXT lines). */
+export async function nextFor(paths: Paths, main: string, snap: Snapshot, h: Health, core: CoreCall): Promise<NextReply | null> {
+  try {
+    const facts = await collectFacts(paths, main, snap, h);
+    return (await core({ op: "obs.next", now: snap.now, agents: facts })) as NextReply;
+  } catch { return null; }
+}
+
+/** `fw next`: print the current NEXT list once. Read-only: no log line, no action. Returns the exit code. */
+export async function nextMain(args: string[], cwd: string, print: (s: string) => void = console.log, core?: CoreCall): Promise<number> {
+  if (args.length) throw new UsageError("usage: fw next   (prints `NEXT <agent> <action> <args>` once; read-only)");
+  const { root, main } = await repoRoots(cwd);
+  const paths = pathsFor(main);
+  const call = core ?? coreCaller(coreCandidates(root, main));
+  const last = readLastLog(paths);
+  const prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical } : null;
+  const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap);
+  const h = await check(snap, call);
+  const reply = await nextFor(paths, main, snap, h, call);
+  if (!reply) { print("fw next: fwcore obs.next unavailable (cd lean && lake build)"); return 0; }
+  const lines = formatNext(reply);
+  print(lines.length ? lines.join("\n") : "NEXT: none");
+  return 0;
 }
 
 // ---- rendering ----
@@ -227,9 +254,11 @@ export async function watchMain(args: string[], cwd: string, print: (s: string) 
   for (;;) {
     const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap);
     const h = await check(snap, call);
+    const nx = await nextFor(paths, main, snap, h, call);
+    if (nx) h.alerts.push(...nextAlerts(nx)); // agent.held / agent.unlanded: fwcore's proposals shown as alerts
     appendLog(paths, snap, h);
     const fresh = newAlerts(prev, h);
-    print(o.json ? JSON.stringify({ input: snap, output: h }) : renderTable(snap, h));
+    print(o.json ? JSON.stringify({ input: snap, output: h, next: nx }) : [renderTable(snap, h), ...(nx ? formatNext(nx) : [])].join("\n"));
     if (o.untilAlert && fresh.length) {
       if (!o.json) print(`NEW ALERT: ${fresh.map((a) => `${a.code} ${a.subject}`).join("; ")}`);
       return 3;
