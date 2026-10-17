@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V-n fixture: compositor animation</title>
+<style>
+  body { margin: 0; }
+  #a { width: 100px; height: 100px; background: #36c; will-change: transform; animation: slide 2s linear infinite; }
+  #b { width: 100px; height: 100px; background: #c63; animation: fade 3s linear infinite; }
+  @keyframes slide { from { transform: translateX(0); } to { transform: translateX(300px); } }
+  @keyframes fade { from { opacity: 1; } to { opacity: .2; } }
+</style></head>
+<body><div id="a"></div><div id="b"></div></body></html>

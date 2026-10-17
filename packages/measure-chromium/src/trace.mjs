@@ -11,7 +11,8 @@
 export const TRACE_CATEGORIES = [
   'devtools.timeline', 'disabled-by-default-devtools.timeline', 'blink.animations', 'cc', 'benchmark',
   'disabled-by-default-devtools.timeline.frame', 'blink,devtools.timeline', 'blink,benchmark',
-];
+  'disabled-by-default-devtools.timeline.layers', // LayerTreeHostImpl:snapshot per frame: layer census and per-layer raster invalidation regions
+].filter((c) => !(process.env.FW_NO_LAYERS && c.endsWith('timeline.layers')));
 
 // spec: { key, ph?: [phases counted], b?: {argName: key} summed from the begin/complete event args (also beginData),
 //         e?: {argName: key} summed from the end event args (or the complete event's own args) }
@@ -107,6 +108,14 @@ export function traceToFrameCounts(events, nFrames) {
   runLevel['trace.cc.BeginImplFrame'] = bounds.length;
   for (const e of comp) { const spec = COMP[e.name]; if (!spec) continue; const f = frameAt(e.ts); if (f >= 0 && f < nFrames) addCounts(perFrame[f], spec, e); }
 
+  // ---- layer census (one LayerTreeHostImpl:snapshot per BeginImplFrame)
+  for (const e of comp) {
+    if (e.name !== 'LayerTreeHostImpl:snapshot' || e.ph !== 'I' || !e.args?.snapshot) continue;
+    const f = frameAt(e.ts);
+    if (f < 0 || f >= nFrames) continue;
+    for (const [k, v] of Object.entries(snapshotCounts(e.args.snapshot))) bump(perFrame[f], k, v);
+  }
+
   // ---- workers: attributed to the compositor window of their start
   for (const e of events) {
     if (!rendererPids.has(e.pid) || e.ph === 'M') continue;
@@ -120,6 +129,30 @@ export function traceToFrameCounts(events, nFrames) {
   for (const n of threadName.values()) bump(threads, n);
   const sortObj = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => (a < b ? -1 : 1)));
   return { perFrame: perFrame.map(sortObj), runLevel: sortObj(runLevel), threads: sortObj(threads) };
+}
+
+// Layer census and raster invalidation of one LayerTreeHostImpl:snapshot (args.snapshot). Pure. All values are counts or
+// pixel areas in layer space; nothing about tile resources or memory (those depend on raster timing).
+// invalidation is cc::Region::AsValueInto: four integers x, y, width, height per rect (cc/base/region.cc@156.0.8078.4).
+export function snapshotCounts(snap) {
+  const out = { 'census.snapshots': 1, 'census.layers': 0, 'census.drawingLayers': 0, 'census.drawingAreaPx': 0, 'census.tilings': 0, 'census.tiles': snap?.tile_manager_basic_state?.tile_count ?? 0, 'census.activeTiles': 0, 'census.solidTiles': 0, 'census.activeTileAreaPx': 0, 'raster.invalidatedLayers': 0, 'raster.invalidationRects': 0, 'raster.invalidationAreaPx': 0 };
+  for (const l of snap?.active_tree?.layers ?? []) {
+    out['census.layers']++;
+    if (l.draws_content) { out['census.drawingLayers']++; out['census.drawingAreaPx'] += (l.bounds?.width ?? 0) * (l.bounds?.height ?? 0); }
+    out['census.tilings'] += (l.tilings ?? []).length;
+    const inv = l.invalidation ?? [];
+    if (inv.length) {
+      out['raster.invalidatedLayers']++;
+      for (let i = 0; i + 3 < inv.length; i += 4) { out['raster.invalidationRects']++; out['raster.invalidationAreaPx'] += inv[i + 2] * inv[i + 3]; }
+    }
+  }
+  for (const t of snap?.active_tiles ?? []) {
+    out['census.activeTiles']++;
+    if (t.draw_info?.is_solid_color) out['census.solidTiles']++;
+    const r = t.content_rect ?? [0, 0, 0, 0];
+    out['census.activeTileAreaPx'] += r[2] * r[3];
+  }
+  return out;
 }
 
 // Exploration helper: histogram of event names by thread name.

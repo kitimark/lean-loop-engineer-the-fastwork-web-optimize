@@ -39,7 +39,7 @@ stderr only and never enters `counts.json`.
 | Driver library | `puppeteer-core@25.14.0` over CDP |
 | Fonts | none in the image (`src/image-check.sh`: `fc-list` is empty, no font files). Webfonts come from the snapshot only (Google Sans latin/thai, Fastwork, Playpen) |
 | Network | every host except 127.0.0.1 is unresolvable (`--host-resolver-rules`); the page is served by `src/server.mjs`, which records the sha256 of every file it sent (`meta.servedSha256`) |
-| Apt libraries | Debian bookworm at build time, NOT pinned (INFERRED to not change counts; the image id is in `meta.image`) |
+| Apt libraries | all 211 packages pinned: dated snapshot.debian.org mirror (SNAP=20261016T000000Z) + `docker/apt-manifest.txt`; the build fails if dpkg differs from the manifest (`node src/pin-apt.mjs`). npm: `docker/driver/package-lock.json` (`npm ci`) |
 
 ## One virtual frame (src/run.mjs)
 
@@ -129,6 +129,59 @@ the screen (deterministic frame by frame, stable by totals with margin 2t, quara
 ## Known gaps
 
 - Software raster in the container; headed Mac Chrome uses GPU raster with different tile geometry (V-a compares).
-- Programmatic scroll, not touch input: no touch events, hover recompute present.
+- Input: see "Touch input" below (swipe-v1 is still programmatic scrollTo).
 - `Network.enable` makes BeginFrame hang at navigation commit (observed), so in-flight requests are counted by the
   server instead of through CDP.
+
+## Update 2026-10-17 (flags, touch, census, rewrite, pins)
+
+Commands: `--target original|rewrite|fixture` (rewrite: `apps/site/dist/aot`, `--site-dir`; `--search '?fw=part:variant'`),
+`node src/classes.mjs a b c [--md]` (class table over N runs), `node src/fwcore-screen.mjs` (hands counts to fwcore `screen`/`ticks`
+and records the replies), `host.json` next to every `counts.json` (attempts, host load1 and CPU idle before/after; never in counts.json).
+Env knobs: `FW_BARRIER_MS`, `FW_BARRIER_MIN_MS` (conditional barrier), `FW_TOUCH_SETTLE_MS`, `FW_TOUCH_ACK_MS`, `FW_BF_TIMEOUT_MS`,
+`FW_CHROME_EXTRA`, `FW_DROP_FLAGS`, `FW_NO_LAYERS`, `FW_DOCKER_CPUS` (host: `docker run --cpus`).
+
+- **Chrome flags (CONFIRMED in run.mjs, recorded in meta.browserArgs):** `--deterministic-mode` is gone; kept
+  `--enable-begin-frame-control --run-all-compositor-stages-before-draw --disable-new-content-rendering-timeout
+  --disable-checker-imaging --disable-image-animation-resync`; `--disable-threaded-animation` is NOT passed; `--num-raster-threads=2`
+  (CI portability). INFERRED: `AddSwitchesForVirtualTime` in headless_content_main_delegate.cc @156.0.8078.4 lists exactly those four
+  switches plus threaded-animation; I did not find the code that maps `--deterministic-mode` to them. Fixture check (`fixtures/anim-*`,
+  profile `fixture-rest`, 120 frames), MEASURED: compositor animation (transform/opacity): Paint 0, Layout 0, cc.Commit 0, cc.Activate 0,
+  but UpdateLayoutTree 120 (2 elements per frame: a main-thread style update per BeginFrame remains); with `--disable-threaded-animation`:
+  Paint 0, cc.Commit/Activate 120; main-thread animation (width, background-color): Paint 240, Layout 162, UpdateLayoutTree 162. So the
+  V-n criterion "0 main-thread UpdateLayoutTree" does NOT hold; "0 Paint, 0 Layout, 0 commit/activate" does.
+- **Touch (`swipe-touch-v1`, CDP `Input.dispatchTouchEvent`, virtual-time stamps, 10 px per frame, strokes 880 -> 100):** works, no fling,
+  scroll 10 px per frame after a 5 px slop. MEASURED: (1) a touch ack arrives only after the next BeginFrame, sometimes one frame later;
+  (2) a frame without input while the finger is down in an active scroll, or a backlog of 2 unacknowledged events, wedges the renderer
+  compositor (no deadline or draw after commit, BeginFrame never answers; the driver exits 75 and the host retries up to 5 times);
+  (3) where it wedges depends on host speed: under load1 ~400 the original ran 3/3 to the end, at load1 ~8 it wedged at the same frame in
+  5/5 attempts; (4) a touchmove is handled by the main thread in frame k or k+1 (a race inside the compositor), so EventDispatch,
+  FunctionCall, HitTest, PrePaint move by one frame in ~150 of 409/531 frames and on the rewrite their run totals differ by up to 6%; about
+  1 run in 6 the whole trajectory shifts by one frame (`meta.trajectorySha256`). HitTest is therefore NOT out of quarantine with touch:
+  hover recompute was not the cause (touch has none), touch-event delivery is. With programmatic scrollTo the rewrite is fully
+  deterministic (below). `swipe-wheel-v1` (native mouse wheel) was started as a diagnostic and not finished.
+- **Class tables.** Original, touch, 3 runs (taken BEFORE the flag change and the pins; not repeated, see open items), under load1 360-450 (the earlier runs too: 15-minute load average 457 at 09:49Z):
+  deterministic 24 types (hasDamage, LayoutCount, Layout and its sums, Commit, Layerize, ScrollLayer, FireAnimationFrame,
+  RequestAnimationFrame, EvaluateScript, Layer.created, cc.Activate/Commit/Draw/SynchronizeTrees, ParseHTML, ResourceSendRequest,
+  IntersectionObserverCompute, Animation.*), stable 13 (Paint, PaintImage, RasterTask, UpdateLayer, ...: 1-6 frames shift), shifting 5
+  (EventDispatch, FunctionCall, HitTest, PrePaint, elementCount, ...), quarantined 8 (GC-bound). Rewrite, scrollTo (swipe-v1, barrier-min
+  10 ms), 3 runs: all 43 count types deterministic (HitTest, census and raster invalidation included) except MinorGC; the files differ only in
+  `meta.threads` (worker thread count). Run-to-run identity of the deterministic classes held under that load; whole-file byte identity never
+  held (meta.threads, GC, async completions). `classes.mjs` thresholds are in its header comment.
+- **Layer census and raster invalidation (done, `trace.mjs snapshotCounts`):** category `disabled-by-default-devtools.timeline.layers`
+  gives one `LayerTreeHostImpl:snapshot` per BeginImplFrame (active-tree layers, tilings, active tiles) with each PictureLayerImpl's
+  `invalidation` region (4 ints per rect: x y w h, cc/base/region.cc). New types: `census.{snapshots,layers,drawingLayers,drawingAreaPx,
+  tilings,tiles,activeTiles,solidTiles,activeTileAreaPx}`, `raster.{invalidatedLayers,invalidationRects,invalidationAreaPx}`. Deterministic
+  on the rewrite; on the CSS-animated layout fixture all but solidTiles and invalidationAreaPx (animation phase follows the per-run
+  navigation start, INFERRED; not fixable without seeking animations). Not yet run on the original (trace size unchecked).
+- **Apt/npm pins (done):** the build fails unless dpkg equals `docker/apt-manifest.txt`; a `--no-cache` rebuild passed (SNAP=20261016).
+- **Conditional barrier (#18, partial):** `FW_BARRIER_MIN_MS=10`: a rewrite run takes 7 s instead of 45 s with identical classes (3 runs).
+  Not validated on the original (lazy images keep the full barrier when a request starts); no sweep done.
+- **Rewrite comparison (swipe-v1, scrollTo, one run per config; replies in `out/fwcore/swipe-v1-rewrite.json`, gitignored):** the rewrite
+  has placeholder content only (24 cards, no images, document 4376 px vs the original's 4626+), so totals differ from the original by
+  design and nothing is compared with the original; only variant vs default of the rewrite. Per-part attribution works through the config
+  diff only (the trace has no per-part marks). fwcore `screen` (W = elementCount, dirtyObjects, Paint, UpdateLayer, RasterTask; S =
+  FunctionCall, EventDispatch, FireAnimationFrame, HitTest; per 500 px zone and per frame): engine.scroll:batched W equal, S equal;
+  nav.hitTest:hit-skip W dominates (Paint 556 vs 1152, UpdateLayoutTree 94 vs 784), S equal; hero.countdown:strip W equal, S mixed
+  (FunctionCall 730 vs 911, FireAnimationFrame 385 vs 566). `ticks` with the nominal 16.67 ms frame (this lane has no durations): 385
+  ticks, 0 above 34/50 ms. Not judged here.

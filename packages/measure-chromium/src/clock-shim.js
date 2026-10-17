@@ -5,7 +5,7 @@
 // rendering steps as in real life. Math.random is seeded (mulberry32). The date is pinned to 2026-10-01T00:00:00+07:00.
 // Written for this experiment from the public specs; contains no site code.
 (() => {
-  if (globalThis.__fw) return;
+  if (globalThis.__fwclock) return;
   const cfg = globalThis.__FW_CFG || { epochMs: Date.UTC(2026, 8, 30, 17, 0, 0), seed: 0x5eed1234 };
   const NativeDate = Date;
   const EPOCH = cfg.epochMs; // 2026-09-30T17:00:00Z = 2026-10-01T00:00:00+07:00
@@ -67,5 +67,5 @@
   // time origin, and that origin differs from run to run, which would leak into any page code that uses it.
   const nativeRaf = globalThis.requestAnimationFrame.bind(globalThis);
   globalThis.requestAnimationFrame = (cb) => nativeRaf(() => cb(vnow));
-  globalThis.__fw = { advanceTo, now: () => vnow, pending: () => timers.size, epochMs: EPOCH };
+  globalThis.__fwclock = { advanceTo, now: () => vnow, pending: () => timers.size, epochMs: EPOCH };
 })();
