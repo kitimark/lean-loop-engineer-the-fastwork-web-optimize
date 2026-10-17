@@ -3226,7 +3226,8 @@
     "lean/MathView.lean",
     "lean/scripts/mathview-cached.sh",
     ".github/workflows/lean.yml"
-   ]
+   ],
+   "evidence": "a4416ca"
   },
   {
    "id": "gate-exit-verdict",
@@ -3502,7 +3503,8 @@
     "lean/scripts/TimingGolden.lean",
     "packages/contracts/golden/obs/timing.jsonl",
     "docs/team/handoffs/timing-small-n.md"
-   ]
+   ],
+   "evidence": "03f90ab"
   },
   {
    "id": "land-test-speed",
