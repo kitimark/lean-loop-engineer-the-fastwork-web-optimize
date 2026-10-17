@@ -231,7 +231,7 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
     <span class="eyebrow">Loop engineering · experiment 2 · plan for review</span>
     <h1>Fastwork Loop v2</h1>
     <p class="thesis">Rebuild the fastwork.com homepage as MUI parts behind flags, <b>count the work the engine does</b> on every change, put <b>Lean first for everything reproducible</b> (it runs in <code>fwcore</code>, Lean generates it, or the code must pass Lean golden vectors) and show it as math, and save <i>the iPhone</i> for calibration and feel.</p>
-    <div class="meta"><span>Plan revision 6 + user decisions</span><span>2026-10-17</span><span>docs/plan/PLAN.md</span></div>
+    <div class="meta"><span>Plan revision 7 + user decisions</span><span>2026-10-17</span><span>docs/plan/PLAN.md</span></div>
     <figure class="ruler" aria-label="Frame budget ruler">
       <svg viewBox="0 0 900 118" role="img" aria-labelledby="rulerTitle">
         <title id="rulerTitle">Frame time thresholds used by the plan, from 0 to 60 milliseconds</title>
@@ -265,7 +265,7 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
 
 <nav class="toc" aria-label="Sections">
   <div class="scroller">
-    <a href="#rev6">Revision 6</a>
+    <a href="#rev7">Revision 7</a>
     <a href="#why">Why v2</a>
     <a href="#chat">What the chats showed</a>
     <a href="#loop">The two-speed loop</a>
@@ -282,28 +282,27 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
 
 <main class="wrap">
 
-  <section id="rev6">
+  <section id="rev7">
     <div class="stack col">
       <span class="eyebrow">What changed</span>
-      <h2>What changed in revision 6</h2>
-      <p class="lede">Revision 6 catches the plan up with the repository: what was built since revision 5, what the first measurements showed, and four questions for the user.</p>
+      <h2>What changed in revision 7</h2>
+      <p class="lede">Revision 7 catches the plan up to commit d41aef0: measurement moved to CI, the count-class rule was decided, WKTR no longer needs a rented Mac, and the user answered three questions.</p>
     </div>
     <div class="tbl">
       <table>
         <thead><tr><th>Area</th><th>Change</th></tr></thead>
         <tbody>
-          <tr><td class="k">Repository</td><td>Public with history, MIT for our own code; the Fastwork snapshot is tracked unmodified, fonts included (Fastwork approved). Agents may push only <code>ci/*</code> branches; the user pushes <code>main</code>.</td></tr>
-          <tr><td class="k">Public CI</td><td>Four GitHub Actions workflows (<code>lean</code>, <code>chromium-counts</code>, <code>breakpoint-gate</code>, <code>webkit-sim</code>) on <code>ci/**</code> and <code>main</code>. They supplement the local gate.</td></tr>
-          <tr><td class="k">Console</td><td>The console core runs on the Lean reducer through <code>fwcore serve</code> (40 µs p50 per apply; 100k events in 0.4 s, measured), with hooks, <code>fw land</code> and a git reconciler. Four TypeScript stand-ins are left.</td></tr>
-          <tr><td class="k">Work graph</td><td><code>docs/team/work-graph.json</code> is the live task list; the console and the graph hold status, not the plan.</td></tr>
-          <tr><td class="k">Agent operations</td><td>Helper roles scout, runner, checker and patcher with output caps. Every agent's cache lasts 5 minutes (measured), so a long-idle agent is stopped and respawned from its handoff note. The spawn-guard runs in shadow mode.</td></tr>
-          <tr><td class="k">Measurement</td><td>Byte-identical count files were not reachable, so counts are classed per type and the M0 gate is re-worded (see Measuring below). WebKit element counts need WKTR, which needs about 120 GB free; this Mac had 38 GB.</td></tr>
-          <tr><td class="k">Breakpoints</td><td>The 4 pilot parts pass the 14 PL0–PL2 cells in both engines; PL2b, PL3, the Simulator check and live flips are still to build.</td></tr>
-          <tr><td class="k">Lean and math</td><td><code>Fw/Measure</code> and <code>Fw/Sched</code> run in <code>fwcore</code>; <code>land_null_prob</code> is proved. The 62 round-5 fixes landed and the math view was regenerated; the re-review (math-r6) is open.</td></tr>
+          <tr><td class="k">Measure on CI</td><td>Chromium counts, WebKit Simulator counts, the breakpoint gate and WKTR run on GitHub Actions, not on this Mac (user direction, 417d90d). The Mac keeps phone sessions and one short debug run.</td></tr>
+          <tr><td class="k">CI trigger scope</td><td>21 of 28 runs touched no input of their workflow; 248 of 414 job-minutes were wasted. Workflows now run only when their inputs change, and a newer push cancels a stale run (6723de2).</td></tr>
+          <tr><td class="k">Count classes</td><td>Decided (6b4237e): stable types count only as totals with margin 2t; a type's signed class is its worst over at least 3 CI runs; pixel-area types get a relative bound (see Measuring below).</td></tr>
+          <tr><td class="k">WKTR</td><td>WebKit's own prebuilt iOS-simulator build (315 MB) runs on GitHub <code>macos-26</code> (591a815). No WebKit build and no rented Mac; the cloud Mac is a fallback only.</td></tr>
+          <tr><td class="k">User answers</td><td>Q1: phone sessions on demand; the second iPhone stays free-play. Q31: spawn-guard blocks after a liveness feed, one clean day of logs and the A/B bench. Q33: a Simulator or device check for every cell the harness cannot reach.</td></tr>
+          <tr><td class="k">Lean</td><td>The gate verdict, the work graph, a team health watch (<code>fw watch</code>), agent identity and the last console TypeScript stand-ins now run in <code>fwcore</code>. Of 625 M0 mutants, 621 were caught; the other 4 do not compile or do not change behaviour, so 0 survived.</td></tr>
+          <tr><td class="k">Team</td><td>Changes from the Fable review: a <code>Task:</code> trailer on each landing marks the task done; the lead watches for slow work; <code>pkill</code> and <code>killall</code> are denied; a pre-commit scrub checks every commit for personal data.</td></tr>
+          <tr><td class="k">Still open</td><td>Two CSS questions for the M2 gate: Q34 (MUI <code>cssVariables</code>) and Q35 (add the original's dead CSS back as an inert sheet). Plus Q32, a window for the A/B bench.</td></tr>
         </tbody>
       </table>
     </div>
-    <p>Questions for the user: <b>Q1</b> (phone session windows, still open), <b>Q31</b> (spawn-guard from shadow to blocking), <b>Q32</b> (a window for the A/B bench), <b>Q33</b> (breakpoint cells the harness cannot reach). Details are in the Decisions section.</p>
   </section>
 
   <section id="why">
@@ -423,7 +422,7 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
     <div class="stack col">
       <span class="eyebrow">The core idea</span>
       <h2>A two-speed loop</h2>
-      <p>The inner loop runs on every change and never touches the phone: it counts the engine's work in Chromium and WebKit and screens the result with a proved rule. The outer loop runs in phone sessions the user books. It calibrates the cost model and licenses kinds of change to land without the device.</p>
+      <p>The inner loop runs on every change and never touches the phone: it counts the engine's work in Chromium and WebKit on GitHub Actions (not on the Mac, where agents and sleep disturb runs) and screens the result with a proved rule. The outer loop runs in phone sessions the user starts on demand. It calibrates the cost model and licenses kinds of change to land without the device.</p>
       <p>No one moves a card from stage to stage. Each stage is derived from evidence events keyed by the build commit, so a new build sends the card back to screen and voids older screen, review and device evidence.</p>
     </div>
     <figure class="fig">
@@ -457,7 +456,7 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
           <line class="arr-a" x1="818" y1="87" x2="840" y2="87" marker-end="url(#ha)"/>
         </g>
         <rect class="lane-p" x="8" y="186" width="984" height="132" rx="10"/>
-        <text x="22" y="306" font-size="12" class="t-phone t-mono">OUTER LOOP · booked iPhone sessions · calibration every 14 days or on a version change</text>
+        <text x="22" y="306" font-size="12" class="t-phone t-mono">OUTER LOOP · iPhone sessions on demand · calibration every 14 days or on a version change</text>
         <g font-size="12">
           <rect class="box-p" x="186" y="206" width="140" height="70" rx="8"/>
           <text x="256" y="234" text-anchor="middle" font-weight="600">Calibrate</text><text x="256" y="252" text-anchor="middle" class="t-muted" font-size="11">fixture pages K1–K10</text>
@@ -490,12 +489,12 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
     <div class="two">
       <div class="panel a">
         <h3>Chromium · development aid</h3>
-        <p>Headless Chrome in a Linux container, because frame stepping (BeginFrameControl) is refused on macOS. The page's own clock advances; animations are never seeked, so compositor animations stay on the compositor. There is no Android phone, so no Chromium coefficients are fitted.</p>
+        <p>Headless Chrome in a Linux container on GitHub's arm64 runners, because frame stepping (BeginFrameControl) is refused on macOS. The page's own clock advances; animations are never seeked, so compositor animations stay on the compositor. There is no Android phone, so no Chromium coefficients are fitted.</p>
         <p class="mono" style="font-size:var(--s-1);color:var(--muted)">sheet mutations · style passes · elements · layouts · paint · raster rects · layers · compositeFailed</p>
       </div>
       <div class="panel p">
         <h3>WebKit · the target</h3>
-        <p>Mobile Safari on the iOS 27.0 Simulator through the Web Inspector protocol. The model is calibrated on the real iPhone, because only the phone shows render-server, GPU and finger-only costs.</p>
+        <p>Mobile Safari on the iOS Simulator (GitHub <code>macos-26</code> runners) through the Web Inspector protocol, plus WebKitTestRunner for restyled-element counts. The model is calibrated on the real iPhone, because only the phone shows render-server, GPU and finger-only costs.</p>
         <p class="mono" style="font-size:var(--s-1);color:var(--muted)">sheet mutations · recalc styles · layouts · paint area · layer census · backing bytes · accelerated animations</p>
       </div>
     </div>
@@ -503,9 +502,10 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
       <table>
         <thead><tr><th>Device</th><th>Version</th><th>Used for</th></tr></thead>
         <tbody>
-          <tr><td class="k">iPhone 15 Pro Max</td><td>iOS 27.0.1, Safari 27; Developer Mode allowed</td><td>The target: calibration, licences, spot-checks, classes X and P, feel.</td></tr>
-          <tr><td class="k">iOS Simulator <code>fw-iphone-27</code></td><td>iOS 27.0 runtime, Xcode 27.1 (iOS 26.5 kept)</td><td>WebKit counts on every change. 27.0 vs 27.0.1 is a point-release gap, so V-b checks counts against the phone per count type.</td></tr>
-          <tr><td class="k">Linux container</td><td>headless-shell, BeginFrameControl</td><td>Chromium counts on every change.</td></tr>
+          <tr><td class="k">iPhone 15 Pro Max</td><td>iOS 27.0.1, Safari 27; Developer Mode allowed</td><td>The target: calibration, licences, spot-checks, classes X and P, feel. Sessions on demand; a second iPhone stays free-play and is never measured.</td></tr>
+          <tr><td class="k">iOS Simulator on CI</td><td>GitHub <code>macos-26</code>, iOS 26.5 runtime</td><td>WebKit counts on every change. The Mac's iOS 27.0 Simulator is for short debug runs; V-b checks counts against the phone per count type.</td></tr>
+          <tr><td class="k">WebKitTestRunner</td><td>WebKit's prebuilt iOS-simulator build (trunk), on <code>macos-26</code></td><td>Restyled-element counts, which the Simulator cannot give. A rented cloud Mac is the fallback only.</td></tr>
+          <tr><td class="k">Linux container on CI</td><td>headless-shell, BeginFrameControl, <code>ubuntu-24.04-arm</code></td><td>Chromium counts on every change.</td></tr>
           <tr><td class="k">Android emulator <code>fw-pixel</code></td><td>Chrome 133</td><td>Chrome-for-Android counts only, never timing.</td></tr>
           <tr><td class="k">Android phone</td><td>none (decided)</td><td>So Chromium stays a development aid with no fitted coefficients.</td></tr>
         </tbody>
@@ -532,23 +532,26 @@ math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; 
 
   <section id="findings">
     <div class="stack col">
-      <span class="eyebrow">Measurement · what the first runs showed (revision 6)</span>
+      <span class="eyebrow">Measurement · what the runs showed (revision 7)</span>
       <h2>Byte identity was too strict, so counts are classed per type</h2>
-      <p>Whole count files are never byte-identical (thread ids, GC, async work). Each count type is classed deterministic, stable or quarantined. Chromium: stable means at most 4 frames differ and run totals differ by at most 24 count units, over 3 runs. WebKit: a tolerance per cell, 2 passes in each of 2 boots. The M0 gate asks for these classes instead of byte-identical vectors.</p>
+      <p>Whole count files are never byte-identical (thread ids, GC, async work). Each count type is classed deterministic, stable or quarantined. Chromium: stable means at most 4 frames differ and run totals differ by at most 24 count units, over 3 runs; pixel-area types allow up to 1/1000 of their smallest total. WebKit: a tolerance per cell, 2 passes in each of 2 boots.</p>
+      <p><b>How classes are used (decided).</b> Deterministic types are compared frame by frame. Stable types are compared only as run totals, with a proved margin of 2t. Quarantined types are never used. A type's signed class is its worst over at least 3 CI runs, because classes drifted between runs of the same code.</p>
     </div>
     <div class="tbl">
       <table>
         <thead><tr><th>Finding</th><th>Engine</th><th>Source</th></tr></thead>
         <tbody>
           <tr><td>Whole count files are never byte-identical; the deterministic types held under host load1 360–450</td><td>Chromium</td><td>70c3370</td></tr>
-          <tr><td>Real runs: 28 deterministic, 14 stable, 8 quarantined types; the rewrite under <code>scrollTo</code>: all 43 types deterministic except MinorGC</td><td>Chromium</td><td>ddc91b2, 70c3370</td></tr>
-          <tr><td><code>HitTest</code> quarantined (touch-event race); the original under touch wedges BeginFrame at the same frame 5 of 5 at low load; deferred</td><td>Chromium</td><td>70c3370</td></tr>
-          <tr><td>A 10 ms barrier floor cuts a rewrite run from 45 s to 7 s with identical classes (3 runs)</td><td>Chromium</td><td>70c3370</td></tr>
-          <tr><td>GitHub Linux runners: 33 deterministic, 20 stable, 9 quarantined; files differ byte-wise, as on the Mac</td><td>Chromium</td><td>ee18c6b</td></tr>
+          <tr><td>The rewrite under <code>scrollTo</code>: all 43 types deterministic except MinorGC (local run)</td><td>Chromium</td><td>70c3370</td></tr>
+          <tr><td>Three CI workflow runs (deterministic / stable / quarantined): 33/22/7, 31/23/8, 27/27/8 with the pixel-area bound (33/20/9, 31/21/10, 27/25/10 without). The local 28/14/8 is superseded</td><td>Chromium</td><td>13b6c98, 5879861</td></tr>
+          <tr><td>Classes drift between runs of the same code: 6 types deterministic → stable, <code>trace.Paint</code> stable → quarantined; cause runner noise or an unpinned image (inferred)</td><td>Chromium</td><td>spk-i.md</td></tr>
+          <tr><td>Touch wedged BeginFrame: a scroll feature set a timer about 4,900 s ahead of the container clock. With it off, 21 local runs passed; a CI check follows</td><td>Chromium</td><td>25bd9f4</td></tr>
+          <tr><td><code>HitTest</code> stays quarantined (a touch move lands in frame k or k+1)</td><td>Chromium</td><td>25bd9f4</td></tr>
           <tr><td>Per-step Layout, Paint, InvalidateLayout, ObserverCallback quarantined; RecalculateStyles within 1; totals within 3–5 %</td><td>WebKit</td><td>367fec2</td></tr>
           <tr><td>The first load after a Simulator boot differs (FireAnimationFrame 703–709 vs 729–739), so one warm-up run is the default</td><td>WebKit</td><td>367fec2</td></tr>
           <tr><td><code>RenderingFrame</code> reads 0 on iOS 27.0 (24A434) and about 60/s on 26.5; to compare with the CI xcode-27 image</td><td>WebKit</td><td>367fec2</td></tr>
           <tr><td>The rewrite's hit-skip cuts RecalculateStyles 164 → 19, but its steps do not align with the original's (74 vs 107), so no delta is claimed yet</td><td>WebKit</td><td>367fec2</td></tr>
+          <tr><td>Simulator runs on CI take 10–38 min and fail at warm-up; a speed-up task comes first</td><td>WebKit</td><td>10-17-ci-trigger-scope.md</td></tr>
         </tbody>
       </table>
     </div>
@@ -622,7 +625,7 @@ pnpm fw run --preset original --impl hero.countdown:plain
             </tbody>
           </table>
         </div>
-        <p style="font-size:var(--s-1);color:var(--muted)">It cannot see Emotion's JS time or the cost of a differently shaped sheet; those go to N4 and timing parity (PL6). A failed N0, N1 or N5 is an incident against the part; the per-part fallback is Base UI 1.9.0 with CSS Modules.</p>
+        <p style="font-size:var(--s-1);color:var(--muted)">It cannot see Emotion's JS time or the cost of a differently shaped sheet; those go to N4 and timing parity (PL6). A failed N0, N1 or N5 is an incident against the part; the per-part fallback is Base UI 1.9.0 with CSS Modules. Open for the user before M2: Q34, MUI <code>cssVariables</code> (recommended: off, so N4 stays within ±10 %), and Q35, add the original's dead CSS back as an inert sheet (recommended: no; the difference becomes a fixture parameter).</p>
       </div>
     </div>
     <div class="panel col">
@@ -633,6 +636,8 @@ pnpm fw run --preset original --impl hero.countdown:plain
         <li><b>Breakpoint lint</b> in <code>fw gate</code>: fails when a part uses a breakpoint the original does not, or misses one the original uses for that part.</li>
         <li><b>Breakpoint gate</b> before any part is promoted: PL0–PL3, original vs rewrite, at both sides of every edge, in every touch, hover and pointer combination the original distinguishes: <b>124 loads per engine</b> (an estimate) in Chromium and Playwright WebKit, plus live-resize sweeps across every edge.</li>
         <li><code>faithful-with-delta</code> never covers a missing or shifted breakpoint. Each PR runs a fast core set of viewports; one Simulator check closes promotion.</li>
+        <li><b>Cells the harness cannot reach (decided, Q33).</b> Chromium reaches the fractional gaps (zoom 200 %, odd widths) and the hover × pointer cross; WebKit cannot, because its media width is a whole number and hover and pointer come from one constant. Such a cell gets the state <code>unreachable</code> in the Lean gate, and a Simulator or device check settles it.</li>
+        <li><b>Status.</b> The 4 pilot parts pass the 14 PL0–PL2 cells in both engines; the gate's verdict now runs in Lean (0d02aff).</li>
       </ul>
     </div>
   </section>
@@ -660,7 +665,7 @@ pnpm fw run --preset original --impl hero.countdown:plain
         <table>
           <thead><tr><th>Milestone</th><th>Lean modules</th></tr></thead>
           <tbody>
-            <tr><td class="k">M0</td><td>Console core (reducer, authority, steps, needs-you, landing rule), phone queue, ops (spawn-guard, path check, usage dedupe), wire, Frames, Verdict, the math-view lint</td></tr>
+            <tr><td class="k">M0</td><td>Console core (reducer, authority, steps, needs-you, landing rule), phone queue, ops (spawn-guard, path check, usage dedupe, agent identity, team health), the work graph, the breakpoint-gate verdict, wire, Frames, Verdict, the math-view lint</td></tr>
             <tr><td class="k">M1</td><td>Artifact keys, plan and store; rows, threads, digests; run queue, sessions, device lease; stage lifecycle</td></tr>
             <tr><td class="k">M2</td><td>Flags and the generated registry; parity bands; Cost and <code>screen</code>; landing classifier</td></tr>
             <tr><td class="k">M3</td><td>Model ladder, fit-certificate checker, licences, spot-check schedule</td></tr>
@@ -690,11 +695,11 @@ $$\Pr_{\text{null}}[\mathrm{better}] \le 1/\binom{8}{4}$$ -/</span>
     <div class="two">
       <div class="panel">
         <h3>Evidence, not a go/no-go</h3>
-        <p>Each L1 module ships with <b>mutants</b>: v1 bugs put back on purpose, each of which must break the build. A bug ledger records, per module, what caught each bug. A module whose proofs cost more than one agent-day on two consecutive changes while catching nothing moves to L2 by a decision record. Lean as a whole is not on trial at M4.</p>
+        <p>Each L1 module ships with <b>mutants</b>: v1 bugs put back on purpose, each of which must break the build. A bug ledger records, per module, what caught each bug. A module whose proofs cost more than one agent-day on two consecutive changes while catching nothing moves to L2 by a decision record. Lean as a whole is not on trial at M4. The M0 pass: 625 mutants, 621 caught, 4 that do not compile or do not change behaviour, 0 survived (8074907).</p>
       </div>
       <div class="panel">
         <h3>Cost and packaging</h3>
-        <p>About 20 modules instead of 4, and roughly $700–1,100 of Lean work instead of $280 (an estimate). The core needs no Mathlib; a proof that does goes in a separate <code>FwMath</code> package that <code>Fw</code> never imports. The browser's flag resolver is checked against Lean on every single-part override of every preset, plus 2,000 generated multi-part cases.</p>
+        <p>The estimate was about 20 modules and roughly $700–1,100 of Lean work; by commit d41aef0 the core has 42 modules and 1,643 declarations (see the math view). The core needs no Mathlib; a proof that does goes in a separate <code>FwMath</code> package that <code>Fw</code> never imports. The browser's flag resolver is checked against Lean on every single-part override of every preset, plus 2,000 generated multi-part cases.</p>
       </div>
     </div>
   </section>
@@ -9763,25 +9768,23 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
         <thead><tr><th>Role</th><th>Model · effort</th><th>Runs as</th><th>Writes</th></tr></thead>
         <tbody>
           <tr><td class="k">lead</td><td><span class="chip opus">opus · medium</span></td><td>main session</td><td>lands on main with <code>fw land</code>; decision records; commits</td></tr>
-          <tr><td class="k">engine-researcher</td><td><span class="chip opus">opus · high</span></td><td>teammate</td><td>research notes, refs, fixtures</td></tr>
-          <tr><td class="k">source-locator</td><td><span class="chip sonnet">sonnet · low</span></td><td>subagent</td><td>nothing</td></tr>
-          <tr><td class="k">ref-librarian, Explore</td><td><span class="chip haiku">haiku · low</span></td><td>subagent</td><td>refs (librarian); nothing (Explore)</td></tr>
           <tr><td class="k">part-builder</td><td><span class="chip sonnet">sonnet · medium</span></td><td>named worktree subagent</td><td>one part; Opus per call for engine, morph, the MUI theme and AOT census</td></tr>
           <tr><td class="k">console-builder</td><td><span class="chip sonnet">sonnet · medium</span></td><td>named worktree subagent</td><td>console apps, paired with the lean-prover that owns the behaviour</td></tr>
           <tr><td class="k">measure-engineer</td><td><span class="chip sonnet">sonnet · high</span></td><td>named worktree subagent</td><td>measurement and model packages; Opus per call for the fit and N0–N5</td></tr>
           <tr><td class="k">lean-prover</td><td><span class="chip opus">opus · high</span></td><td>named worktree subagent, up to 3 in M0–M2</td><td><code>lean/**</code> except the math lock</td></tr>
-          <tr><td class="k">experiment-owner</td><td><span class="chip sonnet">sonnet · medium</span></td><td>teammate, ≤ 5 in M5</td><td>experiment cards, presets</td></tr>
           <tr><td class="k">reviewer</td><td><span class="chip opus">opus · medium</span></td><td>fresh subagent, read-only</td><td>nothing; its verdict is its reply</td></tr>
           <tr><td class="k">math-reviewer</td><td><span class="chip opus">opus · high</span></td><td>fresh subagent, read-only</td><td>nothing; its only output is <code>fw math:sign</code> or a disagreement report</td></tr>
           <tr><td class="k">researcher</td><td><span class="chip opus">opus · high</span></td><td>teammate</td><td>research notes</td></tr>
           <tr><td class="k">env-ops</td><td><span class="chip sonnet">sonnet · medium</span></td><td>teammate</td><td>this Mac's toolchain, Homebrew first</td></tr>
           <tr><td class="k">plan-editor</td><td><span class="chip opus">opus · high</span></td><td>teammate</td><td>the plan, its only writer</td></tr>
-          <tr><td class="k">page-writer</td><td><span class="chip opus">opus · medium</span></td><td>teammate</td><td>explainer pages, never the generated math view</td></tr>
+          <tr><td class="k">page-writer</td><td><span class="chip sonnet">sonnet · medium</span></td><td>teammate</td><td>explainer pages, never the generated math view</td></tr>
+          <tr><td class="k">scout, runner</td><td><span class="chip haiku">haiku · low</span></td><td>helper subagent, read-only</td><td>nothing; a search sweep or a build/test run, ≤ 1k tokens back to its spawner</td></tr>
+          <tr><td class="k">checker, patcher</td><td><span class="chip sonnet">sonnet · medium / low</span></td><td>helper subagent</td><td>nothing (checker: checklist judgement); the named files (patcher, lead-spawned only)</td></tr>
           <tr><td class="k">no agent</td><td>—</td><td>scripts + hooks</td><td>gates, usage meter, device runs, watchers, queue order, land queue</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="col" style="font-size:var(--s-1);color:var(--muted)">At most 5 teammates and 8 worktree subagents alive at once (up to 3 of them lean-provers in M0–M2), with 10 subagents as a backstop. The real limit is this Mac's 16 GB of RAM. Fable is used per call only, behind an ask rule.</p>
+    <p class="col" style="font-size:var(--s-1);color:var(--muted)">Not written so far: engine-researcher, source-locator, ref-librarian, and experiment-owner (it arrives with M5). At most 10 subagents at once; spawn-guard will cap teammates at 5 (it logs only until the user's three conditions hold, Q31). The real limit is this Mac's 16 GB of RAM, and counts now run on CI. Fable is used per call only, behind an ask rule; the lead asks it when it cannot decide a team problem.</p>
     <div class="stack">
       <h3>The only inputs agents have: typed, refusable commands</h3>
       <div class="tbl">
@@ -9802,11 +9805,14 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
       <div class="panel">
         <h3>Coordination rules from the chat history</h3>
         <ul class="tight">
-          <li>No recurring AI check prompts: console-api's watchers (device, stall, repeated notices) wake an agent only when something changes.</li>
+          <li>No recurring AI check prompts: scripts watch instead. <code>fw watch</code> computes team health in Lean (5 agent states, 14 alert codes) and wakes the lead only on an alert; the device watcher and a notice coalescer do the rest.</li>
+          <li>Nobody writes status: <code>fw land --task &lt;id&gt;</code> writes a <code>Task:</code> trailer, and the trailer marks the work-graph task done.</li>
+          <li>The lead watches for work that runs long against its estimate, and moves load-heavy work to CI (the mutation pass drove the Mac's load to about 500).</li>
+          <li>Kill only processes your own run started; <code>pkill</code> and <code>killall</code> are denied after an agent closed the user's browser.</li>
           <li>Workers send results to their consumer; the lead gets ≤ 300 characters and a file path.</li>
           <li>Agents cannot write console state: a strict sandbox and deny rules guard the gitignored <code>.fw-console/</code>, and console-api is its only writer.</li>
-          <li>A wait of an hour or more ends the agent with a handoff note; a script spawns a fresh one.</li>
-          <li>After every compaction a hook re-injects the roster, names and the lead's address.</li>
+          <li>Agent caches last 5 minutes (measured), so an agent idle longer with over 30k tokens of context is stopped and a fresh one starts from its handoff note.</li>
+          <li>After every compaction a hook will re-inject the roster, names and the lead's address (planned).</li>
           <li>One plain command per Bash call; multi-step work is a committed <code>pnpm fw</code> command.</li>
           <li><code>main</code> moves only through the lead's <code>fw land</code> (ff-only); any other move shows up as a violation on the user's needs-you list.</li>
         </ul>
@@ -9842,14 +9848,15 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
           <path class="edge" d="M160,44 H180 V97 H198" marker-end="url(#rm-i)"/>
           <path class="edge" d="M160,50 H174 V145 H198" marker-end="url(#rm-i)"/>
           <path class="edge" d="M90,20 V8 H630 V18" marker-end="url(#rm-i)"/>
-          <path class="edge" d="M160,157 H198" marker-end="url(#rm-i)"/>
-          <path class="edge" d="M340,157 H378" marker-end="url(#rm-i)"/>
+          <path class="edge-c" d="M160,157 H198" marker-end="url(#rm-b)"/>
+          <path class="edge-c" d="M340,157 H378" marker-end="url(#rm-b)"/>
           <path class="edge" d="M160,150 H188 V67 H630 V56" marker-end="url(#rm-i)"/>
           <path class="edge" d="M160,164 H192 V217 H198" marker-end="url(#rm-i)"/>
           <path class="edge" d="M160,217 H198" marker-end="url(#rm-i)"/>
           <path class="edge" d="M160,224 H184 V247 H450 V176" marker-end="url(#rm-i)"/>
           <path class="edge" d="M340,97 H370 V404 H558" marker-end="url(#rm-i)"/>
-          <path class="edge" d="M520,157 H548 V386 H558" marker-end="url(#rm-i)"/>
+          <path class="edge-c" d="M520,157 H548 V386 H558" marker-end="url(#rm-b)"/>
+          <path class="edge" d="M630,234 V247 H500 V258" marker-end="url(#rm-i)"/>
           <path class="edge" d="M630,354 V378" marker-end="url(#rm-i)"/>
           <path class="edge" d="M160,230 H176 V277 H378" marker-end="url(#rm-i)"/>
           <path class="edge" d="M340,217 H362 V270 H378" marker-end="url(#rm-i)"/>
@@ -9861,9 +9868,9 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
           <text x="728" y="300" font-size="11" class="t-phone">class SM</text><text x="728" y="314" font-size="11" class="t-phone">landings only</text>
         </g>
         <g>
-          <path class="edge-c" d="M160,337 H540 V390 H558" marker-end="url(#rm-b)"/>
-          <path class="edge-c" d="M160,397 H198" marker-end="url(#rm-b)"/>
-          <path class="edge-c" d="M340,397 H558" marker-end="url(#rm-b)"/>
+          <path class="edge" d="M160,337 H540 V390 H558" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M160,397 H198" marker-end="url(#rm-i)"/>
+          <path class="edge" d="M340,397 H558" marker-end="url(#rm-i)"/>
           <path class="edge-c" d="M700,397 H738" marker-end="url(#rm-b)"/>
           <path class="edge-c" d="M810,414 V432 H880 V458" marker-end="url(#rm-b)"/>
           <path class="edge-c" d="M820,477 H782" marker-end="url(#rm-b)"/>
@@ -9874,7 +9881,7 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
         </g>
         <g font-size="12" text-anchor="middle">
           <rect class="box" x="20" y="20" width="140" height="34" rx="6"/><text x="90" y="41">lean-core</text>
-          <rect class="box-l" x="200" y="20" width="140" height="34" rx="6"/><text x="270" y="34">console-mvp</text><text x="270" y="48" font-size="10" class="t-good">landed 8bec088</text>
+          <rect class="box-l" x="200" y="20" width="140" height="34" rx="6"/><text x="270" y="34">console</text><text x="270" y="48" font-size="10" class="t-good">landed 8bec088</text>
           <rect class="box" x="380" y="20" width="140" height="34" rx="6"/><text x="450" y="41">agent-ops</text>
           <rect class="gate" x="560" y="20" width="140" height="34" rx="17"/><text x="630" y="41" font-weight="700">M0 bootstrap</text>
           <rect class="box" x="740" y="20" width="140" height="34" rx="6"/><text x="810" y="34">explainer page</text><text x="810" y="48" font-size="10" class="t-muted">blocks nothing</text>
@@ -9883,8 +9890,9 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
           <rect class="box" x="20" y="140" width="140" height="34" rx="6"/><text x="90" y="161">counts-chromium</text>
           <rect class="box" x="200" y="140" width="140" height="34" rx="6"/><text x="270" y="161">store-and-run</text>
           <rect class="gate" x="380" y="140" width="140" height="34" rx="17"/><text x="450" y="161" font-weight="700">M1 original measured</text>
-          <rect class="box" x="20" y="200" width="140" height="34" rx="6"/><text x="90" y="221">webkit-spike</text>
+          <rect class="box" x="20" y="200" width="140" height="34" rx="6"/><text x="90" y="221">counts-webkit</text>
           <rect class="box" x="200" y="200" width="140" height="34" rx="6"/><text x="270" y="221">rule cards</text>
+          <rect class="box" x="560" y="200" width="140" height="34" rx="6"/><text x="630" y="214">WKTR on CI</text><text x="630" y="228" font-size="10" class="t-muted">prebuilt, macos-26</text>
           <rect class="box-p" x="380" y="260" width="140" height="34" rx="6"/><text x="450" y="281">calibration (phone)</text>
           <rect class="gate gate-p" x="560" y="260" width="140" height="34" rx="17"/><text x="630" y="281" font-weight="700">M3 calibrated</text>
           <rect class="box-l" x="20" y="320" width="140" height="34" rx="6"/><text x="90" y="334">site-aot (SPK-r)</text><text x="90" y="348" font-size="10" class="t-good">landed d380999</text>
@@ -9907,48 +9915,44 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
           <rect class="box-l" x="626" y="516" width="34" height="16" rx="4"/><text x="668" y="528">landed (a commit in git)</text>
         </g>
       </svg>
-      <p class="cap">An arrow from A to B means B waits for A. The critical path (red) runs breakpoints → lean-site → pilot parts → M2 → port parts → M4 → experiments → M5 → write-up → M6, with site-aot also feeding the pilot parts (inferred, re-checked at every gate). Four pilot parts are started (part-engine, part-hero, with lean-parts writing their Lean golden vectors); three must pass for M2. Calibration (orange) is the second chain: it waits on the user's booked phone sessions and the cloud-Mac element-count spike, and only class SM landings wait for M3; class W experiments do not. "Landed" is read from git; nothing on this graph is hand-written status.</p>
+      <p class="cap">An arrow from A to B means B waits for A. The critical path (red, re-checked for revision 7, inferred) runs counts-chromium → store-and-run → M1 → pilot parts → M2 → port parts → M4 → experiments → M5 → write-up → M6: the per-engine baselines on CI are the long pole, and slow WebKit Simulator runs on CI are its main risk. Breakpoints, lean-site and site-aot feed the pilot parts in parallel. Four pilot parts are started; three must pass for M2. Calibration (orange) is the second chain: it waits on WKTR counts on CI and on phone sessions, which the user starts on demand; only class SM landings wait for M3, class W experiments do not. All counts run on GitHub Actions (not drawn). "Landed" is read from git; nothing on this graph is hand-written status.</p>
     </figure>
     <div class="tbl">
       <table>
-        <thead><tr><th>Workstream</th><th>Blocked by</th><th>Unblocks</th></tr></thead>
+        <thead><tr><th>Workstream</th><th>Blocked by</th><th>Landed, and what is left</th></tr></thead>
         <tbody>
-          <tr><td class="k">lean-core</td><td>— (seeded from the sketches)</td><td><code>fwcore serve</code> with the console core, phone queue, ops, wire, Frames, Verdict; math-view lint → console-mvp, lean-m1+, store-and-run, M0</td></tr>
-          <tr><td class="k">counts-chromium</td><td>the local snapshot</td><td>per-type count classes of the original, first V-a run → store-and-run, rule cards, M0</td></tr>
-          <tr><td class="k">webkit-spike</td><td>—</td><td>Simulator counts per type on the original (time box 2 agent-days) → M1, rule cards, calibration</td></tr>
-          <tr><td class="k">console-mvp <span class="chip ok">landed 8bec088</span></td><td>lean-core (a temporary TS reducer until then, checked by replay)</td><td>step queue first; console-api as single writer; derived views; <code>fw land</code> → agent-ops, every device step</td></tr>
-          <tr><td class="k">site-aot <span class="chip ok">landed d380999</span></td><td>—</td><td>site scaffold, MUI theme, census route; SPK-r Chromium half passed → pilot parts</td></tr>
-          <tr><td class="k">breakpoints <span class="chip ok">landed a3e1e9c</span></td><td>the local snapshot</td><td>the inventory and the extracted <code>breakpoints.json</code> → lean-site</td></tr>
-          <tr><td class="k">lean-site</td><td>breakpoints (the extracted file as golden)</td><td>the Lean breakpoint model; generates <code>breakpoints.gen.json</code>, media strings and the gate matrix → breakpoint lint and gate, pilot parts</td></tr>
-          <tr><td class="k">agent-ops</td><td>console-mvp (socket)</td><td>sandbox block, hooks, role files, SPK-o/p/t → worktree agents commit; <code>fw land</code> the only way to <code>main</code></td></tr>
-          <tr><td class="k">store-and-run</td><td>counts-chromium, lean-core</td><td>count reduction and verdicts in <code>fwcore</code>; artifact store, <code>fw run</code>, harness-neutrality fixtures → M1</td></tr>
-          <tr><td class="k">lean-m1+</td><td>lean-core</td><td>M1–M3 Lean modules, each when its consumer needs it</td></tr>
-          <tr><td class="k">rule cards</td><td>counts lanes</td><td>engine rules with table tests; K1–K10 fixture drafts → calibration</td></tr>
-          <tr><td class="k">lean-parts</td><td>— (in parallel with the part builders)</td><td>Lean spec and golden vectors the pilot parts' code must pass → pilot parts</td></tr>
-          <tr><td class="k">pilot parts (part-engine, part-hero)</td><td>site-aot, lean-site, M1, lean-m1+ (Flags and registry), lean-parts</td><td><code>engine.scroll</code>, <code>nav.hitTest</code>, <code>hero.countdown</code>, <code>hero.exit</code> with plain twins; N0–N5; PL0–PL6; 4 started, 3 must pass → M2</td></tr>
-          <tr><td class="k">calibration</td><td>WebKit counts, K fixtures, the cloud-Mac spike, booked phone sessions (Q1)</td><td>iPhone K1–K10, page factor, holdouts, validity table → M3</td></tr>
+          <tr><td class="k">lean-core</td><td>—</td><td>Landed: the console core, <code>Fw/Serve</code>, <code>Fw/Ops</code>, the M0 mutation pass (0 of 625 survived). Left: math review r7, signing the math, mutants on CI → M0</td></tr>
+          <tr><td class="k">console <span class="chip ok">landed</span></td><td>lean-core</td><td>Landed: <code>fw land</code> with <code>Task:</code> trailers, the Plan tab over the work graph, the last TypeScript stand-ins moved to Lean (acc5d83). Left: the step queue before any device step; a web view of <code>fw watch</code> → M0</td></tr>
+          <tr><td class="k">agent-ops</td><td>console</td><td>Landed: hooks, the scrub, agent identity, <code>fw watch</code>, the <code>pkill</code> deny. Left: the sandbox (SPK-t), spawn-guard blocking (Q31), the slow-work watch, the wake test (SPK-p) → M0</td></tr>
+          <tr><td class="k">counts-chromium</td><td>the snapshot</td><td>Landed: the lane, the SPK-i decision, the touch fix, the pixel-area bound. Left: the touch check on CI, freezing the classes, HitTest, SPK-q, per-zone baselines → M1</td></tr>
+          <tr><td class="k">counts-webkit</td><td>—</td><td>Landed: the Simulator lane. Left: faster CI runs, step alignment, per-zone baselines → M1</td></tr>
+          <tr><td class="k">store-and-run</td><td>lean-measure</td><td>Left: the artifact store and <code>fw run</code>, then V-j and V-t → M1</td></tr>
+          <tr><td class="k">CI <span class="chip ok">landed d70619d</span></td><td>publishing</td><td>Landed: four workflows, trigger scope (6723de2). Left: the WebKit lane on the GitHub macOS image, a remote check on every <code>ci/*</code> push → M1</td></tr>
+          <tr><td class="k">WKTR</td><td>CI</td><td>Landed: the research (591a815). Left: one local debug run, then a CI lane; the cloud Mac only as a fallback → calibration</td></tr>
+          <tr><td class="k">site-aot <span class="chip ok">landed d380999</span></td><td>—</td><td>Left: SPK-r in WebKit; the user's answers to Q34 and Q35 → port parts</td></tr>
+          <tr><td class="k">breakpoints, lean-site <span class="chip ok">landed</span></td><td>the snapshot</td><td>The inventory, the Lean breakpoint model and the generated <code>breakpoints.gen.json</code> → breakpoint gate</td></tr>
+          <tr><td class="k">breakpoint gate</td><td>lean-site, pilot parts</td><td>Landed: PL0–PL2 for the 4 pilots; the verdict in Lean (0d02aff). Left: the <code>unreachable</code> state, then the gap harness and the device check (Q33); PL2b, PL3, live flips → M2</td></tr>
+          <tr><td class="k">pilot parts</td><td>site-aot, M1 baselines</td><td>4 started, 3 must pass: PL3–PL6 and N0–N5, then the PL5 bands frozen → M2</td></tr>
+          <tr><td class="k">parallel work</td><td><code>Fw/Ops</code></td><td>Landed: <code>Fw/Sched</code>, wt-prep, the Lake artifact cache, <code>ops.admit</code>. Left: the A/B bench (Q32) → admission in console-api</td></tr>
+          <tr><td class="k">math review</td><td>each Lean module</td><td>Rounds r4 to r7a done (r7a: 214 of 234 agree). Left: r7 → M0</td></tr>
+          <tr><td class="k">calibration</td><td>WebKit counts, WKTR, phone sessions</td><td>The first phone session; K1–K10, page factor, holdouts, validity table → M3</td></tr>
           <tr><td class="k">port parts → experiments → write-up</td><td>M2; then M4 (and M3 for class SM); then M5</td><td>M4, M5, M6</td></tr>
-          <tr><td class="k">console M0 hardening <span class="chip ok">core landed</span></td><td>lean-core, console-mvp</td><td>Stateful <code>Fw/Serve</code> (40 µs p50 per apply, 0.4 s for 100k events, measured), capability door, <code>fw land</code> and a git reconciler landed (14152f1, eacb660, 840f7d6); four TypeScript stand-ins remain → agent-ops, M0</td></tr>
-          <tr><td class="k">lean-measure <span class="chip ok">landed ddc91b2</span></td><td>counts lanes</td><td><code>Fw/Measure</code>: zone sums, classes and tolerances run in <code>fwcore</code> → store-and-run</td></tr>
-          <tr><td class="k">breakpoint gate <span class="chip ok">PL0–PL2 landed</span></td><td>lean-site, pilot parts</td><td>The 4 pilot parts pass the 14 PL0–PL2 cells in both engines (e7fb102, 95693f4); PL2b, PL3, the Simulator check and live flips remain, as a parallel input to M2; the verdict rule moves into Lean or golden vectors → M2</td></tr>
-          <tr><td class="k">public CI <span class="chip ok">landed d70619d</span></td><td>publishing</td><td>Four workflows (below); two green <code>lean</code> runs to prove the Lake cache fix 67192ef; <code>webkit-sim</code> on the GitHub macOS image</td></tr>
-          <tr><td class="k">parallel work <span class="chip ok">partly landed</span></td><td><code>Fw/Ops</code></td><td><code>Fw/Sched</code>, wt-prep, the Lake artifact cache, <code>ops.admit</code> landed; the A/B bench (Q32) → admission in console-api</td></tr>
-          <tr><td class="k">math review</td><td>each Lean module</td><td>Rounds r4 and r5 done; the 62 r5 fixes landed and the view regenerated; the re-review (math-r6) of the 62 stale entries → M0</td></tr>
-          <tr><td class="k">explainer page, math-to-lean study page</td><td>the plan; the <code>Fw/Spec</code> theorems</td><td>nothing (reading material for the user)</td></tr>
+          <tr><td class="k">explainer page, math-to-lean study page</td><td>the plan; the Lean theorems</td><td>nothing (reading material for the user)</td></tr>
         </tbody>
       </table>
     </div>
     <div class="stack">
-      <h3>Public CI: four workflows</h3>
-      <p>They run on pushes to <code>ci/**</code> branches and to <code>main</code>, with read-only contents, actions pinned by SHA and inputs passed through env. Timing and device lanes stay local, because shared runners give no stable time. CI supplements the local gate; it never replaces <code>fw land</code>. Agents may push only <code>ci/*</code> branches; the user pushes <code>main</code>.</p>
+      <h3>Public CI: where counts are measured</h3>
+      <p>Chromium counts, WebKit Simulator counts, the breakpoint gate and WKTR run on GitHub Actions (the user's direction, 417d90d), with read-only contents, actions pinned by SHA and inputs passed through env. A workflow runs only when its inputs change, and a newer push cancels a stale run: before that, 21 of 28 runs touched no input and 248 of 414 job-minutes were wasted. The free plan allows 20 jobs at once, 5 of them macOS. This Mac keeps the phone sessions and one short debug run per harness change; a local run is never reported as a result. Agents may push only <code>ci/*</code> branches.</p>
       <div class="tbl">
         <table>
-          <thead><tr><th>Workflow</th><th>First results (measured)</th></tr></thead>
+          <thead><tr><th>Workflow</th><th>Results so far (measured)</th></tr></thead>
           <tbody>
-            <tr><td class="k">lean</td><td>Passed once, then failed on a Lake cache gap (a missing <code>.olean</code>); fixed by <code>restoreAllArtifacts = true</code> (67192ef); the CI proof needs two green runs.</td></tr>
-            <tr><td class="k">chromium-counts</td><td>Passed after ee18c6b. On 3 separate GitHub Linux runners (4 vCPU): 33 deterministic, 20 stable, 9 quarantined types.</td></tr>
-            <tr><td class="k">breakpoint-gate</td><td>8 shards; 4 min 40 s on the first pass, 5 min 06 s on the third, with no hang at 1000 px and wider on real runners.</td></tr>
-            <tr><td class="k">webkit-sim</td><td>xcode-27 image; being fixed for the GitHub macOS image.</td></tr>
+            <tr><td class="k">lean</td><td>Green after the Lake cache fix (67192ef). The mutation pass moves here, because it drove the Mac's load to about 500.</td></tr>
+            <tr><td class="k">chromium-counts</td><td>Three workflow runs, 3 runs each, on GitHub's arm64 Linux runners: 33/22/7, 31/23/8, 27/27/8 (deterministic / stable / quarantined, with the pixel-area bound).</td></tr>
+            <tr><td class="k">breakpoint-gate</td><td>8 shards; 4 min 40 s on the first pass, 5 min 06 s on the third.</td></tr>
+            <tr><td class="k">webkit-sim</td><td>Runs take 10–38 min and fail at warm-up; speeding it up comes first.</td></tr>
+            <tr><td class="k">WKTR</td><td>Planned: WebKit's prebuilt iOS-simulator build on <code>macos-26</code>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -9959,10 +9963,10 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
         <table>
           <thead><tr><th>Gate</th><th>Reached when</th></tr></thead>
           <tbody>
-            <tr><td class="k">M0 Bootstrap</td><td>Every Chromium count type of the original classified deterministic, stable or quarantined over repeated runs (byte-identical files were not reachable, SPK-i, so the gate was re-worded); a pre-commit scrub check; <code>fwcore serve</code> behind console-api with the M0 Lean modules agreed in the math view (0 disagree, 0 stale) and every M0 mutant killed; the step queue live; the M0 spikes answered as decision records.</td></tr>
-            <tr><td class="k">M1 Original measured</td><td>Chromium count types deterministic; 0 sheet mutations on the original; WebKit's stable set covers fixtures K1–K9; per-zone baselines; SPK-r passed or a fallback chosen; v1 status replay and stall-alarm precision (≥ 90%) reported.</td></tr>
-            <tr><td class="k">M2 Pilots faithful</td><td>3 parts faithful, each through the breakpoint gate; <code>breakpoints.json</code> generated and its lint green; PL5 and N3 bands frozen from pilot data.</td></tr>
-            <tr><td class="k">M3 Calibrated</td><td>Simulator-to-phone count transfer and ranking checked on the phone; model status per output recorded; <code>@layer mui</code> kept or dropped from K10; first blind feel check scheduled.</td></tr>
+            <tr><td class="k">M0 Bootstrap</td><td><code>fwcore serve</code> behind console-api; the M0 Lean modules agreed in the math view (0 disagree, 0 stale) and every M0 mutant killed (done); the step queue live; the M0 spikes decided.</td></tr>
+            <tr><td class="k">M1 Original measured</td><td>Every used Chromium count type signed deterministic or stable (worst class over at least 3 CI runs), with the touch fix checked on CI; 0 sheet mutations on the original; WebKit's deterministic and stable types cover fixtures K1–K9; per-zone baselines per engine on CI; SPK-r passed or a fallback chosen; status replay and stall-alarm precision (≥ 90%) reported.</td></tr>
+            <tr><td class="k">M2 Pilots faithful</td><td>3 parts faithful, each through the breakpoint gate with its unreachable cells checked on a Simulator or device; the breakpoint lint green; PL5 and N3 bands frozen; the user's answers to Q34 and Q35 applied.</td></tr>
+            <tr><td class="k">M3 Calibrated</td><td>Simulator-to-phone count transfer and ranking checked on the phone; WKTR counts on CI; model status per output recorded; <code>@layer mui</code> kept or dropped from K10; first blind feel check scheduled.</td></tr>
             <tr><td class="k">M4 All parts promoted</td><td>Every part faithful or faithful-with-delta through the full breakpoint gate; Simulator check passed; per-module Lean evidence review.</td></tr>
             <tr><td class="k">M5 Experiments</td><td>The end-of-page behaviour decided first; the backlog run as flag arms, each known v1 outcome also a postdiction test; G1 reached; agreement measured on ≥ 10 changes.</td></tr>
             <tr><td class="k">M6 Distill</td><td>Write-up material complete; publishing is the user's call.</td></tr>
@@ -9976,16 +9980,22 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
     <div class="stack col">
       <span class="eyebrow">Review</span>
       <h2>Decisions</h2>
-      <p>Everything the user decided on 2026-10-17 is applied. Revision 6 adds four questions for the user: Q1 (phone sessions) is still open, and Q31, Q32 and Q33 are new.</p>
+      <p>Everything the user decided on 2026-10-17 is applied. Revision 7 records the answers to Q1 (sessions), Q31 and Q33. Still open: Q32 from revision 6, and Q34 and Q35, two CSS questions for M2. Each open question shows the plan's recommendation; nothing is decided until the user answers.</p>
     </div>
     <div class="tbl">
       <table>
         <thead><tr><th>Question</th><th>Status</th><th>Answer</th></tr></thead>
         <tbody>
-          <tr><td class="k">Q1 Phone sessions</td><td><span class="chip open">open</span></td><td>Which times of day, and how long a session? May the second iPhone stay a free-play device, kept out of measurement? Recommended: a few fixed windows a week; yes.</td></tr>
-          <tr><td class="k">Q31 Spawn-guard</td><td><span class="chip open">open</span></td><td>Switch the spawn-guard from shadow mode (it only logs what it would refuse) to blocking? This changes <code>.claude/settings.json</code>, so it asks you. Recommended: yes, after a liveness feed fills its <code>alive</code>/<code>recent</code> lists, one day of logs shows no wrong refusal, and the A/B bench has run (work-graph task <code>spawn-enforce</code>).</td></tr>
-          <tr><td class="k">Q32 A/B bench window</td><td><span class="chip open">open</span></td><td>The parallel-work bench (8 blocks, a random labeling out of 70) must run with no agent alive: about 96 minutes plus baselines. Recommended: one evening slot after M0, when no device session is booked.</td></tr>
-          <tr><td class="k">Q33 Unreachable breakpoint cells</td><td><span class="chip open">open</span></td><td>The breakpoint gate cannot reach the fractional gaps in either engine, nor WebKit's hover × pointer cross. Accept "not reachable in the harness", or require a Simulator or device check? Recommended: a Simulator check for the hover × pointer cross, and accept the fractional gaps as a recorded known gap.</td></tr>
+          <tr><td class="k">Q32 A/B bench window</td><td><span class="chip open">open</span></td><td>The parallel-work bench (8 blocks, a random labeling out of 70) must run with no agent alive: about 96 minutes plus baselines. Recommended: one evening slot after M0, when no phone session is running.</td></tr>
+          <tr><td class="k">Q34 MUI <code>cssVariables</code></td><td><span class="chip open">open</span></td><td>Turn on MUI's CSS-variables theme for the ported parts? It adds custom properties the original does not have. Recommended: off, so the style-work bound N4 stays within ±10 %.</td></tr>
+          <tr><td class="k">Q35 Dead CSS</td><td><span class="chip open">open</span></td><td>Add the original's unused CSS back as an inert sheet, so the rule count matches? Recommended: no; record the difference as a fixture parameter instead.</td></tr>
+          <tr><td class="k">Q1 Phone sessions</td><td><span class="chip ok">decided</span></td><td>On demand: the user starts a session when an agent asks for one; no fixed windows. The second iPhone stays a free-play device, kept out of measurement.</td></tr>
+          <tr><td class="k">Q31 Spawn-guard</td><td><span class="chip ok">decided</span></td><td>Yes, switch to blocking, after three conditions: a liveness feed fills its <code>alive</code>/<code>recent</code> lists, one day of logs shows no wrong refusal, and the A/B bench has run (task <code>spawn-enforce</code>).</td></tr>
+          <tr><td class="k">Q33 Unreachable breakpoint cells</td><td><span class="chip ok">decided</span></td><td>A Simulator or device check for both the fractional gaps and the hover × pointer cross. The Lean gate gets an <code>unreachable</code> state, so such a cell can never pass silently.</td></tr>
+          <tr><td class="k">Measure on CI</td><td><span class="chip ok">decided</span></td><td>Chromium counts, WebKit Simulator counts, the breakpoint gate and WKTR run on GitHub Actions; this Mac keeps the phone sessions and short debug runs (417d90d).</td></tr>
+          <tr><td class="k">Count classes (SPK-i)</td><td><span class="chip ok">decided</span></td><td>Deterministic types compare frame by frame; stable types only as totals with margin 2t; quarantined types are never used. A type's class is the worst over at least 3 CI runs (6b4237e).</td></tr>
+          <tr><td class="k">WKTR</td><td><span class="chip ok">decided</span></td><td>WebKit's prebuilt iOS-simulator build on GitHub's <code>macos-26</code> runners first; a rented cloud Mac only if that fails (591a815).</td></tr>
+          <tr><td class="k">Kill by name</td><td><span class="chip ok">decided</span></td><td><code>pkill</code> and <code>killall</code> are denied for agents after one closed the user's browser; kill only your own PIDs (b205acc).</td></tr>
           <tr><td class="k">Q1 Devices</td><td><span class="chip ok">decided</span></td><td>iPhone 15 Pro Max on iOS 27.0.1 with Safari 27; Developer Mode allowed; no Android phone. The iOS 27.0 Simulator is installed to match; the Android emulator gives counts only.</td></tr>
           <tr><td class="k">Q2 Install Lean</td><td><span class="chip ok">decided</span></td><td>Yes. elan 4.2.4 from Homebrew's <code>elan-init</code>, Lean 4.35.0.</td></tr>
           <tr><td class="k">Q3 Repo visibility</td><td><span class="chip ok">decided</span></td><td>Public, MIT for our own code (changed from Private on 2026-10-17). Fastwork approved publishing its compiled site, fonts included; it enters git only as the unmodified snapshot. The no-copy rules still apply to our code.</td></tr>
@@ -10024,10 +10034,10 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
       <ul class="tight">
         <li>Q5: look and work parity for experiment parts, look parity for the rest, every breakpoint for all parts; a time box per part.</li>
         <li>Q6: the parity reference is snapshot b1789284481295-a455e793; v1's best build becomes the <code>v1-best</code> preset.</li>
-        <li>Q7: expect 5–10 phone sessions before the first licensed class; classes X and P always use the phone.</li>
+        <li>Q7: expect 5–10 phone sessions before the first licensed class, started on demand; classes X and P always use the phone.</li>
         <li>Q8: Chromium is a development aid with no fitted coefficients.</li>
         <li>Q9: acceptance bands V-a to V-t; a licence is per change class.</li>
-        <li>Q10: no "less work" landing for style-affecting changes in WebKit until a test-runner element count (WKTR) exists; a 1-day spike on a rented cloud Mac at the start of M3 (about 120 GB free needed; this Mac had 38 GB). Work-graph task <code>wktr-ci</code> is checking whether GitHub macOS runners can replace the rental.</li>
+        <li>Q10: no "less work" landing for style-affecting changes in WebKit until a test-runner element count (WKTR) exists. WKTR runs from WebKit's prebuilt products (about 315 MB) on GitHub's <code>macos-26</code> runners; the rented cloud Mac is a fallback only.</li>
         <li>Q11: optimized variants pass a compositor gate; 60 Hz is the canonical rate.</li>
         <li>Q13: landing verdict 4 vs 4 runs, false-win rate at most 1/70 (proved in rev 6); 5 vs 5 (at most 1/252) or sequential when more than 3 comparisons.</li>
         <li>Q14: question → build → screen → review → (device) → land, with classes W, SM, X, P.</li>
@@ -10042,7 +10052,7 @@ w \ge 1001 \land \mu = \text{no-preference} \land (d_w \le 500 \lor (\mathrm{tou
 
 <div class="wrap">
   <footer>
-    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 6), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
+    <span>Source: <span class="mono">docs/plan/PLAN.md</span> (revision 7), <span class="mono">research/kickoff/01–11</span> and the Lean sketch <span class="mono">research/kickoff/05-lean-sketch/Fw/Spec</span>, plus the user's decisions of 2026-10-17.</span>
     <span>A personal, educational study of the public fastwork.com homepage. Not affiliated with Fastwork.</span>
   </footer>
 </div>
