@@ -1,7 +1,7 @@
 {
   "id": "nav.hitTest",
   "slot": "nav",
-  "anchors": [],
+  "anchors": ["nav"],
   "experiment": true,
   "impls": ["mui", "plain"],
   "muiStates": [],

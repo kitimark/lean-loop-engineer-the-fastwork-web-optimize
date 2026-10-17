@@ -1,7 +1,7 @@
 {
   "id": "engine.scroll",
   "slot": "engine",
-  "anchors": [],
+  "anchors": ["engine-scroll"],
   "experiment": true,
   "impls": ["mui", "plain"],
   "muiStates": [],
