@@ -2,10 +2,15 @@
   "name": "fastwork-loop-v2",
   "private": true,
   "packageManager": "pnpm@10.34.5",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "test": "pnpm -r --if-present test",
     "build": "pnpm -r --if-present build",
     "fw": "node apps/runner/src/fw.ts"
+  },
+  "devDependencies": {
+    "katex": "0.16.11"
   }
 }
