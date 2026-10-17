@@ -2317,7 +2317,8 @@
     "lean/Fw/Ci/Golden.lean",
     "lean/FwTest/CiBudget.lean",
     "packages/contracts/golden/ci-budget/**"
-   ]
+   ],
+   "evidence": "84fb01c"
   },
   {
    "id": "ghb-glue",
