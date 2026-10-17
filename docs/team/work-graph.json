@@ -2106,7 +2106,8 @@
    "writes": [
     "lean/Fw/Parts/NavHitTestOpt.lean",
     "packages/contracts/golden/engine/nav-hittest.jsonl"
-   ]
+   ],
+   "evidence": "fe92907"
   },
   {
    "id": "proof-countdown-strip",
@@ -2137,7 +2138,8 @@
    "writes": [
     "lean/Fw/Parts/HiddenPause.lean",
     "packages/contracts/golden/engine/hidden-pause.jsonl"
-   ]
+   ],
+   "evidence": "63478da"
   },
   {
    "id": "proof-morph-mount",
@@ -2152,7 +2154,8 @@
    "writes": [
     "lean/Fw/Parts/MorphMountOpt.lean",
     "packages/contracts/golden/engine/morph-mount.jsonl"
-   ]
+   ],
+   "evidence": "21c37a2"
   },
   {
    "id": "proof-morph-panel",
@@ -2398,7 +2401,8 @@
     "apps/runner/src/fw.ts",
     ".claude/agents/measure-engineer.md",
     "docs/team/tools/**"
-   ]
+   ],
+   "evidence": "1c64c85"
   },
   {
    "id": "integrate-ports",
@@ -2455,6 +2459,39 @@
    "owner": "console-builder",
    "writes": [
     "apps/runner/src/plan.ts"
+   ],
+   "evidence": "ca48604"
+  },
+  {
+   "id": "obs-next-lean",
+   "title": "(M) Fw.Obs.Next: per-agent next action from observed facts (handback seen, branch ahead/landed, worktree lock, child procs with kind/age/watched-file staleness, CI run state) -> {none, land, routeIntegrator, killOrphan pid, respawnFromHandoff, nudge, waitCi}; proofs: total + unique, never acts on an active agent, kill only own non-ancestor sleep-loop children of a handed-back or stale owner, land only when report seen and branch ahead with no live child; golden vectors",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Obs/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/obs/**"
+   ]
+  },
+  {
+   "id": "obs-next-glue",
+   "title": "(S) fw watch: collect the Fw.Obs.Next facts (transcript handback, ps tree under the session, git main..branch, worktree locks, fw ci state) and print NEXT lines; fw next lists them; alert agent.held / agent.unlanded; TS checked against the Lean golden",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "obs-next-lean"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/next.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/**"
    ]
   }
  ],
