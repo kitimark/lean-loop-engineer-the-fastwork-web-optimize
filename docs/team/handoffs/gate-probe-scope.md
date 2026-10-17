@@ -23,6 +23,10 @@ Branch worktree-agent-aa83b01fcad24da97 on main a7a544f; commits 74ba652 (scope)
 - Adding a part: add a `PartUse` to `pilotParts` (owners from the inventory, every inventory condition kept, extra or
   dismissed with a reason), rebuild, regenerate; `scope_covers` etc. re-decide by kernel.
 
+- `gate-shards.mjs`: a scoped run keeps the full run's shard size (ceil(124/8) = 16), so <= 16 scope probes = 1 shard.
+- CI (MEASURED): full push run 39045358365 34.6 job-min, 5.7 min from plan start; `parts=hero.exit` run 39046459646
+  10.8 job-min (-69 %), 5.4 min, hero.exit pass on both engines. Wall clock is bounded by the sweeps job.
+
 ## Open items
 - Ask the lead to add `node packages/gate-breakpoints/scripts/scopegen.mjs --check` to `lean/scripts/check.sh` (not in my
   write list); package tests are not in CI.
