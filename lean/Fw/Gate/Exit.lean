@@ -972,7 +972,7 @@ def narrowedLine : String :=
 /-- The excuses of a cell, one per excused reading: (excuse id, `row|col` of the cell, reading id). A not-run cell of a narrowed run has one,
 under `narrowed-run` with an empty reading id.
 
-$$\forall e, N, c,\quad X(e, N, c) = \begin{cases} [(\texttt{narrowed-run}, \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, \varepsilon)] & c.\mathit{readings} = [\,] \wedge N \\ [\,] & c.\mathit{readings} = [\,] \wedge \neg N \\ [(\operatorname{excuse}(e, \rho, \kappa, r), \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, r.\mathit{id}) \mid r \in c.\mathit{readings},\ \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot] & \text{otherwise} \end{cases}$$
+$$\forall e, N, c,\ \text{with } \rho = c.\mathit{row},\ \kappa = c.\mathit{col}:\quad X(e, N, c) = \begin{cases} [(\texttt{narrowed-run}, \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, \varepsilon)] & c.\mathit{readings} = [\,] \wedge N \\ [\,] & c.\mathit{readings} = [\,] \wedge \neg N \\ [(\operatorname{excuse}(e, \rho, \kappa, r), \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, r.\mathit{id}) \mid r \in c.\mathit{readings},\ \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot] & \text{otherwise} \end{cases}$$
 
 -/
 def cellExcuses (e : String) (narrowed : Bool) (c : TableCell) : List (List String) :=
