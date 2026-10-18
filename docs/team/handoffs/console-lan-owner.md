@@ -1,26 +1,29 @@
-# console-lan-owner handoff (round 2)
+# console-lan-owner handoff (round 3, final design)
 
-State: branch `worktree-wf_70b094c0-cb0-1` (round 1 + main merged); Lean, TS, tests done; see the final commit.
+State: branch `worktree-wf_b4b76cde-a4b-1` (round 2 branch + main merged); Lean, TS, web, tests done; see the final commit.
 
-## What exists
-- Lean `lean/Fw/Console/PreviewOwner.lean`: login limiter per address and global (`attempt`, `no_unbounded_tries`,
-  `global_bound`, `locked_refuses`, `ok_only_if`), `lanStart` (`lan_start_requires_long`, passphrase >= 12 chars), console gate
-  (`allow`, `lan_requires_owner`, `console_never_serves_preview`, `loopback_unchanged`), preview gate (`allowPreview`,
-  `preview_requires_cookie`), origins (`preview_origin_ne_console`, `owner_action_requires_console_origin`,
-  `preview_origin_refused`, `preview_cookie_no_owner`), idle sweep.
-- Wire ops `console.ownerLogin|ownerGate|ownerAction|lanStart|previewSweep` (`lean/Fw/Wire/Console.lean`); goldens in
-  `packages/contracts/golden/console/`. These files are outside the task `writes` globs: `fw land` needs `--allow`.
-- TS in `apps/console-api/src/preview/`: `gate.ts` (console port, login body cap 1 KiB, Origin check), `preview-app.ts`
-  (preview port: only `fw_preview` cookie, nothing else served), `owner.ts` (sessions with two cookies, `actionOk`),
-  `login.ts` (global record), `proxy.ts` (forwards no cookie), `main.ts` (preview listener = console port + 1).
-- Web: `TaskDetail.tsx` `previewBase(port)` builds links on the preview port.
+## Design (closed)
+- No ambient owner credential. Login (`POST /owner/login`, JSON only) returns an owner token; console-web keeps it in
+  localStorage of the console origin (origin includes the port, so preview JS cannot read it) and sends `Authorization: Bearer`.
+  Owner rights come from that header alone (Lean `owner_requires_bearer`, `cookie_never_owner`). No `fw_owner` cookie exists.
+- `fw_preview` cookie stays: it opens the preview port only (viewing).
+- Every console response sets `X-Frame-Options: DENY` and `CSP frame-ancestors 'none'`.
+- All non-GET routes except `/owner/login` pass one Origin gate; the trusted origins come from Lean (`trustedOrigins`, in the
+  `console.ownerAction` op, not `ownerGate`: small deviation), empty when the preview port is unset, never the preview port.
+- New Lean class `shell` (static web, no data): a LAN browser loads it without a header; data lives under `/api`, `/owner`.
+- One-time link `/owner?t=` redirects to `/#owner=<token>`; `auth.ts` stores it and clears the fragment. SSE is fetch-based.
+- `Proof.cookie` in `routes.ts` is a legacy field name: it now means "valid bearer".
 
-## Conventions
-- Passphrase only in memory; tests inject a fake; `FW_CONSOLE_KEYCHAIN=off` skips the keychain; never print its length.
-- Cookies ignore ports, so the Origin check (Lean) is what refuses preview JS; `/api/commands` allows no Origin (CLI tools).
+## User steps
+- Log in at `/owner/login` (passphrase from the keychain), or open the tty one-time link; both end at the console with the token stored.
 
-## Open / stated limits
-- Plain HTTP on the LAN (sniffable); same-UID access; preview servers on loopback ports reachable by local processes.
-- An attacker can lock the owner out for 10 min by 20 wrong tries (global limit); JS bodies are not rewritten.
-- Flaky under load: `preview.test.ts` idle tick/reap (timing, real servers).
-- Read first: `PreviewOwner.lean` header, then `preview-app.ts`, `gate.ts`.
+## Verified
+- Reviewer probes (`probe.ts`, `probe2.ts`, Chrome): preview page sees only `fw_preview`; its cross-port POSTs get 403/415; stolen
+  cookie plus forged console Origin replayed outside the browser: 403, `cookie:false`; 0 owner calls.
+- Goldens `console.ownerGate|ownerAction.jsonl` are outside the task globs: `fw land` needs `--allow`.
+
+## Stated limits
+- Plain HTTP on the LAN; same-UID local processes; preview loopback ports reachable locally.
+- 10-minute lockout DoS (20 wrong tries); preview-cookie leakage (grants preview viewing only; shadowing can only deny viewing).
+- Unauthenticated LAN device can fetch the static web shell (no data).
+- Read first: `PreviewOwner.lean` header, then `owner.ts`, `gate.ts`, `app.ts` middleware.
