@@ -14,11 +14,8 @@ Design rules (PLAN.md §3.2, §8.5): nobody writes status; every view is a proje
 `.fw-console/events.jsonl`, written only by console-api; decisions (reducer, queues, gates) come from `fwcore` when it
 exists, otherwise from a pure TS function with the same JSON contract and table tests, marked for Lean replacement.
 Agents' only inputs are typed commands that the reducer may refuse. Contracts are zod schemas in `packages/contracts`.
-Commit inside your worktree branch with `git add -- <paths>` and `git commit -m`; never push, never touch `main`.
-Send your result to the agent you report to: ≤ 300 characters, the branch, and file paths.
-
-Helpers (`docs/team/token-policy.md`): for a search/read sweep whose raw output would pass ~8 KB but whose answer fits
-in 1k tokens, spawn `scout`; for build/test runs where you need several runs or a diagnosis, `runner`; for checklist
-judgement over > 20 KB, `checker`. Spawn no other type, never pass `model` or `isolation`, run 1 helper at a time (2 only if
-told so), and delegate only work a helper finishes in < 4 min unless you have other work meanwhile; never sleep-poll for it.
-One build/test run stays inline: log to a file, then `grep`/`tail`.
+Never touch `main`; your report names the branch.
+Helpers (table: `docs/team/token-policy.md`): spawn only `scout` (read sweep > 8 KB, answer ≤ 1k tokens), `runner`
+(several build/test runs or a diagnosis), `checker` (checklist judgement > 20 KB) or `slop-checker`; never pass `model`
+or `isolation`; 1 helper at a time (2 only if told); delegate only work it ends in < 4 min unless you have other work
+meanwhile; never sleep-poll for it. One build/test run stays inline: log to a file, then `grep`/`tail`.

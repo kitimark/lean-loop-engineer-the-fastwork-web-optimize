@@ -13,7 +13,8 @@ State: branch worktree-wf_0aa6342c-fa1-1 on main 074c13b, head = the "wait-guard
   0 newly denied, 0 newly allowed. Synthetic 80: 1 mismatch by design (`$SECONDS -ge $end`).
 - Hook deny text (apps/runner/hooks/wait-guard.mjs) now asks for `i=0; ...` and `SECONDS` N ≤ 86400; vitest rows added.
 - Docs: docs/team/tools/wait-guard.md grammar paragraph (closed rule), zsh/bash 3.2 note (EPOCHSECONDS unset in
-  bash < 5.0 incl. macOS /bin/bash 3.2.57; BASH_MONOSECONDS only bash ≥ 5.3), Round 6 eval, blind spots.
+  bash < 5.0 incl. macOS /bin/bash 3.2.57; BASH_MONOSECONDS only bash ≥ 5.3), blind spots; the Round 6 eval is in
+  research/notes/2026/10-18-wait-guard-shadow-review.md (main moved rounds 1-5 there).
 Earlier rounds (4-5): grammar B (`atomParse`: `[ V OP N ]`, `[[ ]]`, `(( v OP N ))`), `isDec` 1..18 digits,
   read-loop producer allowlist, `timeout N` only as a wrapper; details in the doc and git history.
 Conventions: Lean first, every theorem docstring has an exact $$ statement + one sentence; every reviewer probe is a
