@@ -295,7 +295,7 @@ of the addresses are an arbitrary function from address to record, updated as `a
 
 $$\operatorname{runSys}(g, \rho, [\,]) = (0, g),\quad
 \operatorname{runSys}(g, \rho, (a,t){::}as) = (\,[v = \mathrm{wrong}] + n,\ g''\,)$$
-where $(v, r', g') = \operatorname{attempt}(\rho(a), g, t, \mathrm{true}, \mathrm{false})$ and
+In the second line, $(v, r', g') = \operatorname{attempt}(\rho(a), g, t, \mathrm{true}, \mathrm{false})$ and
 $(n, g'') = \operatorname{runSys}(g', \rho[a \mapsto r'], as)$. -/
 def runSys : Rec → (Nat → Rec) → List (Nat × Nat) → Nat × Rec
   | g, _, [] => (0, g)
@@ -307,8 +307,8 @@ def runSys : Rec → (Nat → Rec) → List (Nat × Nat) → Nat × Rec
 /-- The induction behind `global_bound`: checks let through plus global tries used up never exceed `globMax`.
 
 $$\mathrm{Inv}_{t_0}(g) \wedge (\forall (a,t) \in as: t_0 \le t < t_0 + \mathit{globWindow}) \Rightarrow
-n(g, \rho, as) + \varphi_{t_0}(g) \le \mathit{globMax}$$ with $n = \operatorname{runSys}(g,\rho,as).1$ and the invariant
-and $\varphi$ taken with $m = \mathit{globMax}$, $w = \mathit{globWindow}$. -/
+n(g, \rho, as) + \varphi_{t_0}(g) \le \mathit{globMax}$$ Here $n = \operatorname{runSys}(g,\rho,as).1$, and the invariant
+and $\varphi$ are taken at $m = \mathit{globMax}$, $w = \mathit{globWindow}$. -/
 theorem runSys_le (t0 : Nat) : ∀ (ts : List (Nat × Nat)) (g : Rec) (rs : Nat → Rec), InvP globMax globWindow t0 g →
     (∀ p ∈ ts, t0 ≤ p.2 ∧ p.2 < t0 + globWindow) → (runSys g rs ts).1 + usedP globMax globWindow t0 g ≤ globMax := by
   intro ts
@@ -511,7 +511,9 @@ def previewPort (p : Nat) : Nat := p + 1
 $$\mathit{consoleOrigin}(h, p) = (h, p),\quad \mathit{previewOrigin}(h, p) = (h, \mathit{previewPort}(p))$$ -/
 def consoleOrigin (host : String) (p : Nat) : Origin := ⟨host, p⟩
 
-/-- The origin of the previews (see `consoleOrigin`). -/
+/-- The origin of the previews.
+
+$$\mathit{previewOrigin}(h, p) = (h, p + 1)$$ -/
 def previewOrigin (host : String) (p : Nat) : Origin := ⟨host, previewPort p⟩
 
 /-- **Previews never share the console origin.** The preview port differs from the console port, so the origins differ,
@@ -536,7 +538,9 @@ structure Jar where
 $$\texttt{fw\_owner} \ne \texttt{fw\_preview}$$ -/
 def ownerCookieName : String := "fw_owner"
 
-/-- The name of the preview-access cookie (see `ownerCookieName`). -/
+/-- The name of the preview-access cookie.
+
+$$\mathit{previewCookieName} = \texttt{fw\_preview}$$ -/
 def previewCookieName : String := "fw_preview"
 
 /-- The names differ.
