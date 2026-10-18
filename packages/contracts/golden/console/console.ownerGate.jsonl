@@ -1,11 +1,15 @@
 {"name":"LAN, no session: the login page","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/owner/login","session":false},"response":{"allow":true,"class":"login"}}
-{"name":"LAN, no session: the console web is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/","session":false},"response":{"allow":false,"class":"other"}}
+{"name":"LAN, no token: the shell (the built console web) is served","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/","session":false},"response":{"allow":true,"class":"shell"}}
+{"name":"LAN, no token: a static asset is shell","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/assets/index.js","session":false},"response":{"allow":true,"class":"shell"}}
+{"name":"LAN, no token: the owner link route is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/owner","session":false},"response":{"allow":false,"class":"other"}}
+{"name":"LAN, no token: logout is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/owner/logout","session":false},"response":{"allow":false,"class":"other"}}
+{"name":"LAN, no token, foreign Host: the shell is refused","request":{"hostOk":false,"lan":true,"op":"console.ownerGate","path":"/","session":false},"response":{"allow":false,"class":"shell"}}
 {"name":"LAN, no session: the API is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/api/board","session":false},"response":{"allow":false,"class":"other"}}
 {"name":"LAN, no session: a preview path is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/preview/a/r/","session":false},"response":{"allow":false,"class":"preview"}}
 {"name":"LAN, no session: another spelling of the login path is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/owner/login/","session":false},"response":{"allow":false,"class":"other"}}
-{"name":"LAN with a session: the console web","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/","session":true},"response":{"allow":true,"class":"other"}}
+{"name":"LAN with a session: the console web","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/","session":true},"response":{"allow":true,"class":"shell"}}
 {"name":"LAN with a session: the console port never serves a preview path","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/preview/a/r/","session":true},"response":{"allow":false,"class":"preview"}}
-{"name":"LAN with a session but a foreign Host is refused","request":{"hostOk":false,"lan":true,"op":"console.ownerGate","path":"/","session":true},"response":{"allow":false,"class":"other"}}
+{"name":"LAN with a session but a foreign Host is refused","request":{"hostOk":false,"lan":true,"op":"console.ownerGate","path":"/","session":true},"response":{"allow":false,"class":"shell"}}
 {"name":"loopback keeps today's rules: no session needed","request":{"hostOk":false,"lan":false,"op":"console.ownerGate","path":"/api/board","session":false},"response":{"allow":true,"class":"other"}}
 {"name":"loopback: the console port never serves a preview path","request":{"hostOk":true,"lan":false,"op":"console.ownerGate","path":"/preview/a/o/","session":true},"response":{"allow":false,"class":"preview"}}
 {"name":"preview port, no preview cookie: refused","request":{"hostOk":true,"lan":false,"op":"console.ownerGate","path":"/preview/a/r/","port":"preview","session":false},"response":{"allow":false,"class":"preview"}}

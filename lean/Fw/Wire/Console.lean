@@ -33,8 +33,8 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewReap` | `live` | `kill` [ids] (all of the table, `reap`) |
 | `console.previewLink` | `hasTty`, `now`? (ms), `last`? (ms of the last link) | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`), `reissue`? (with `now`: may a new link be issued, `mayReissue`: one per minute) |
 | `console.ownerLogin` | `enabled` (the console has an owner passphrase), `correct` (the constant-time compare matched), `now` (ms), `fails`? [ms] and `lockUntil`? (the client address's record; missing = fresh), `gFails`? [ms] and `gLockUntil`? (the global record across all addresses; missing = fresh) | `verdict` (`disabled`/`locked`/`wrong`/`ok`), `fails`, `lockUntil` (the new address record), `gFails`, `gLockUntil` (the new global record), `retryAt` (the end of the longest active lock, else null), `maxTries`, `window`, `lock`, `globMax`, `globWindow`, `globLock` (`Fw.Console.Preview.Owner.attempt`) |
-| `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (valid owner session; on the preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`) | `allow`, `class` (`login`/`preview`/`other`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
-| `console.ownerAction` | `kind` (`owner`: an owner action, needs the owner cookie and an Origin; `command`: `/api/commands`, an Origin if present; `login`: an Origin, no cookie), `ownerCookie`, `origin`? ({host, port} or null: none sent), `trusted` [{host, port}] (the console origins) | `allow` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`) |
+| `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (console port: a valid owner bearer token in the Authorization header, never a cookie; preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`) | `allow`, `class` (`login`/`preview`/`other`/`shell`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
+| `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
@@ -376,19 +376,26 @@ def opOwnerGate (req : Json) : Except String Reply := do
   pure [("allow", .bool ok), ("class", .str c.name)]
 
 open Fw.Console.Preview.Owner in
-/-- `console.ownerAction` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`): may this request act as the owner. -/
+/-- `console.ownerAction` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`): may this request
+act as the owner. The trusted origin list is computed here from the Host's own origin, the configured extra origins and the
+preview port; a missing preview port trusts nothing. -/
 def opOwnerAction (req : Json) : Except String Reply := do
   let originOf (j : Json) : Except String Origin := do pure { host := ← str j "host", port := ← nat j "port" }
-  let trusted ← (← arrD req "trusted").mapM originOf
-  let origin ← match opt req "origin" with
+  let optOrigin (k : String) : Except String (Option Origin) := match opt req k with
     | none | some .null => pure none
     | some j => do pure (some (← originOf j))
+  let extra ← (← arrD req "extra").mapM originOf
+  let pp ← match opt req "previewPort" with
+    | none | some .null => pure none
+    | some _ => do pure (some (← nat req "previewPort"))
+  let trusted := trustedOrigins pp (← optOrigin "host") extra
+  let origin ← optOrigin "origin"
   let ok ← match ← str req "kind" with
-    | "owner" => pure (ownerAction trusted ⟨← asBool "ownerCookie" (← field req "ownerCookie"), false⟩ origin)
+    | "owner" => pure (ownerAction trusted ⟨← asBool "bearer" (← field req "bearer"), false⟩ origin)
     | "command" => pure (commandOk trusted origin)
     | "login" => pure (loginOk trusted origin)
     | _ => throw "field kind: expected owner, command or login"
-  pure [("allow", .bool ok)]
+  pure [("allow", .bool ok), ("trusted", .arr (trusted.toArray.map fun o => Json.mkObj [("host", .str o.host), ("port", .num o.port)]))]
 
 open Fw.Console.Preview.Owner in
 /-- `console.lanStart` (`Fw.Console.Preview.Owner.lanStart`): whether LAN mode starts, and if not, why. -/

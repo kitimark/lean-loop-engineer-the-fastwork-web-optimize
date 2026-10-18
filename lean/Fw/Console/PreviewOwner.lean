@@ -6,7 +6,7 @@ import Fw.Console.Preview
 Pure rules behind the I/O pieces of `apps/console-api`. The console reads an owner passphrase from the macOS
 keychain and offers `POST /owner/login`; this module decides (1) whether a login attempt may be tried at all (a
 rate limit per client address and one across all addresses), (2) which requests a LAN device may make and which need
-an owner session, (3) which origin may act as the owner (the previews run on their own port, hence their own origin,
+the owner token, (3) which origin may act as the owner (the previews run on their own port, hence their own origin,
 and never share the console's), and (4) which previews the just-in-time rule stops (idle for 15 minutes, or past the
 60 minute TTL).
 
@@ -380,99 +380,126 @@ theorem lan_start_requires_long (want hasAddr hasPass : Bool) (len : Nat)
 /-! ## 2. Which requests a LAN device may make (console port) -/
 
 /-- The class of a request path on the console port: the login page (`/owner/login`, GET and POST), a preview path
-(`/preview/…`, which the console port never serves: previews have their own port), or the rest (the console web,
-`/api/…`, `/owner` with the tty link).
+(`/preview/…`, which the console port never serves: previews have their own port), the data and action paths (`/api/…`,
+`/owner…`, which carry the owner's data), or the shell (every other path: the built console web, static files that hold no
+data and make no request by themselves).
 
-$$\operatorname{cls}(p) = \begin{cases}\mathrm{login} & p = \texttt{/owner/login}\\ \mathrm{preview} & p \text{ starts with } \texttt{/preview/}\\ \mathrm{other} & \text{else}\end{cases}$$ -/
+$$\operatorname{cls}(p) = \begin{cases}\mathrm{login} & p = \texttt{/owner/login}\\ \mathrm{preview} & p \text{ starts with } \texttt{/preview/}\\ \mathrm{other} & p \in \{\texttt{/api}, \texttt{/owner}\} \text{ or starts with } \texttt{/api/}, \texttt{/owner/}\\ \mathrm{shell} & \text{else}\end{cases}$$ -/
 inductive Cls where
-  | login | preview | other
+  | login | preview | other | shell
 deriving Repr, DecidableEq
 
 /-- Its wire name.
 
-$$\mathrm{name}(\mathrm{login}) = \texttt{login},\ \mathrm{name}(\mathrm{preview}) = \texttt{preview},\ \mathrm{name}(\mathrm{other}) = \texttt{other}$$ -/
+$$\mathrm{name}(c) = \text{the lower-case name of } c$$ -/
 def Cls.name : Cls → String
-  | .login => "login" | .preview => "preview" | .other => "other"
+  | .login => "login" | .preview => "preview" | .other => "other" | .shell => "shell"
 
-/-- The class of a path (exact match for the login page: any other spelling is `other`, hence gated).
+/-- The class of a path (exact match for the login page: any other spelling under `/owner` is `other`, hence gated).
 
 $$\operatorname{classify}(p) = \operatorname{cls}(p)$$ -/
 def classify (path : String) : Cls :=
-  if path == "/owner/login" then .login else if path.startsWith "/preview/" then .preview else .other
+  if path == "/owner/login" then .login
+  else if path.startsWith "/preview/" then .preview
+  else if path == "/api" || path.startsWith "/api/" || path == "/owner" || path.startsWith "/owner/" then .other
+  else .shell
 
 /-- **The login page is exactly one path.**
 
 $$\operatorname{cls}(p) = \mathrm{login} \iff p = \texttt{/owner/login}$$ -/
 theorem classify_login_iff (p : String) : classify p = .login ↔ p = "/owner/login" := by
-  unfold classify
-  by_cases h : p = "/owner/login"
-  · simp [h]
-  · have : (p == "/owner/login") = false := by simpa using h
-    simp [this, h]
-    split <;> simp
+  constructor
+  · intro hc
+    refine Classical.byContradiction fun hne => ?_
+    have hb : (p == "/owner/login") = false := by simpa using hne
+    unfold classify at hc
+    simp only [hb, Bool.false_eq_true, ↓reduceIte] at hc
+    split at hc <;> (try split at hc) <;> simp at hc
+  · intro h
+    subst h
+    simp [classify]
 
 /-- Whether the console port serves a request. `lan`: it arrived from a non-loopback address (or an unknown one).
-`session`: it carries a valid owner session. `hostOk`: its Host header names this console. A LAN request with another
-Host is refused; the login page is open to LAN; the console never serves a preview path (previews live on their own
-port, hence their own origin); everything else on LAN needs a session and on loopback keeps today's rules.
+`bearer`: it carries a valid owner token in its `Authorization` header (never a cookie). `hostOk`: its Host header names
+this console. A LAN request with another Host is refused; the login page and the shell are open to LAN (a browser
+cannot attach a header to a page load; the shell holds no data); the console never serves a preview path (previews live
+on their own port, hence their own origin); every data or action path on LAN needs the bearer token, and on loopback keeps
+today's rules.
 
-$$\operatorname{allow}(\ell, s, h, c) = \neg(\ell \wedge \neg h) \wedge \begin{cases}\mathrm{true} & c = \mathrm{login}\\ \mathrm{false} & c = \mathrm{preview}\\ \neg\ell \vee s & c = \mathrm{other}\end{cases}$$ -/
-def allow (lan session hostOk : Bool) (c : Cls) : Bool :=
-  (!lan || hostOk) && (match c with | .login => true | .preview => false | .other => !lan || session)
+$$\operatorname{allow}(\ell, b, h, c) = \neg(\ell \wedge \neg h) \wedge \begin{cases}\mathrm{true} & c \in \{\mathrm{login}, \mathrm{shell}\}\\ \mathrm{false} & c = \mathrm{preview}\\ \neg\ell \vee b & c = \mathrm{other}\end{cases}$$ -/
+def allow (lan bearer hostOk : Bool) (c : Cls) : Bool :=
+  (!lan || hostOk) && (match c with | .login => true | .shell => true | .preview => false | .other => !lan || bearer)
 
-/-- **A LAN request without an owner session reaches the login page and nothing else.** What Lean proves is the
-implication (not an equivalence: with a foreign Host nothing is served, see `lan_wrong_host`).
+/-- **A LAN request without the owner token reaches the login page and the shell and nothing else.** What Lean proves is
+the implication (not an equivalence: with a foreign Host nothing is served, see `lan_wrong_host`).
 
-$$\ell \wedge \operatorname{allow}(\ell, s, h, c) \Rightarrow c = \mathrm{login} \vee s$$ -/
-theorem lan_requires_owner (session hostOk : Bool) (c : Cls) (h : allow true session hostOk c = true) :
-    c = .login ∨ session = true := by
+$$\ell \wedge \operatorname{allow}(\ell, b, h, c) \Rightarrow c \in \{\mathrm{login}, \mathrm{shell}\} \vee b$$ -/
+theorem lan_requires_owner (bearer hostOk : Bool) (c : Cls) (h : allow true bearer hostOk c = true) :
+    c = .login ∨ c = .shell ∨ bearer = true := by
   cases c <;> simp_all [allow]
 
 /-- With the right Host the LAN rule is exact.
 
-$$\operatorname{allow}(\mathrm{true}, s, \mathrm{true}, c) \iff c = \mathrm{login} \vee (c = \mathrm{other} \wedge s)$$ -/
-theorem lan_allow_iff (session : Bool) (c : Cls) :
-    allow true session true c = true ↔ c = .login ∨ (c = .other ∧ session = true) := by
+$$\operatorname{allow}(\mathrm{true}, b, \mathrm{true}, c) \iff c \in \{\mathrm{login}, \mathrm{shell}\} \vee (c = \mathrm{other} \wedge b)$$ -/
+theorem lan_allow_iff (bearer : Bool) (c : Cls) :
+    allow true bearer true c = true ↔ c = .login ∨ c = .shell ∨ (c = .other ∧ bearer = true) := by
   cases c <;> simp [allow]
 
-/-- The same, from the path.
+/-- The same, from the path: with no token, an allowed LAN request is the login page or a shell path.
 
-$$\ell \wedge \neg s \wedge \operatorname{allow}(\ell, s, h, \operatorname{cls}(p)) \Rightarrow p = \texttt{/owner/login}$$ -/
+$$\ell \wedge \neg b \wedge \operatorname{allow}(\ell, b, h, \operatorname{cls}(p)) \Rightarrow \operatorname{cls}(p) \in \{\mathrm{login}, \mathrm{shell}\}$$ -/
 theorem lan_path_requires_owner (hostOk : Bool) (p : String) (h : allow true false hostOk (classify p) = true) :
-    p = "/owner/login" := by
-  rcases lan_requires_owner false hostOk _ h with h1 | h1
-  · exact (classify_login_iff p).1 h1
+    classify p = .login ∨ classify p = .shell := by
+  rcases lan_requires_owner false hostOk _ h with h1 | h1 | h1
+  · exact Or.inl h1
+  · exact Or.inr h1
   · contradiction
 
-/-- **The console port never serves a preview path**, from loopback or from the LAN, with or without a session.
+/-- **No data path is a shell path**: a path under `/api/` or `/owner/` is never the open shell.
 
-$$\operatorname{allow}(\ell, s, h, \mathrm{preview}) = \mathrm{false}$$ -/
-theorem console_never_serves_preview (lan session hostOk : Bool) : allow lan session hostOk .preview = false := by
+$$p \text{ starts with } \texttt{/api/} \vee p \text{ starts with } \texttt{/owner/} \Rightarrow \operatorname{cls}(p) \ne \mathrm{shell}$$ -/
+theorem data_paths_not_shell (p : String) (h : p.startsWith "/api/" = true ∨ p.startsWith "/owner/" = true) :
+    classify p ≠ .shell := by
+  unfold classify
+  intro hc
+  split at hc
+  · simp at hc
+  split at hc
+  · simp at hc
+  split at hc
+  · simp at hc
+  rename_i h1 h2 h3
+  rcases h with h | h <;> simp_all
+
+/-- **The console port never serves a preview path**, from loopback or from the LAN, with or without a token.
+
+$$\operatorname{allow}(\ell, b, h, \mathrm{preview}) = \mathrm{false}$$ -/
+theorem console_never_serves_preview (lan bearer hostOk : Bool) : allow lan bearer hostOk .preview = false := by
   simp [allow]
 
 /-- **Loopback keeps today's rules** for everything but preview paths.
 
-$$\neg\ell \wedge c \ne \mathrm{preview} \Rightarrow \operatorname{allow}(\ell, s, h, c)$$ -/
-theorem loopback_unchanged (session hostOk : Bool) (c : Cls) (hc : c ≠ .preview) :
-    allow false session hostOk c = true := by
+$$\neg\ell \wedge c \ne \mathrm{preview} \Rightarrow \operatorname{allow}(\ell, b, h, c)$$ -/
+theorem loopback_unchanged (bearer hostOk : Bool) (c : Cls) (hc : c ≠ .preview) :
+    allow false bearer hostOk c = true := by
   cases c <;> simp_all [allow]
 
-/-- **The owner's phone can reach the login page** (right Host, any session state).
+/-- **The owner's phone can reach the login page** (right Host, any token state).
 
-$$\operatorname{allow}(\ell, s, \mathrm{true}, \mathrm{login})$$ -/
-theorem login_reachable (lan session : Bool) : allow lan session true .login = true := by
+$$\operatorname{allow}(\ell, b, \mathrm{true}, \mathrm{login})$$ -/
+theorem login_reachable (lan bearer : Bool) : allow lan bearer true .login = true := by
   simp [allow]
 
 /-- A LAN request whose Host is not this console is refused whatever it carries (DNS rebinding).
 
-$$\operatorname{allow}(\mathrm{true}, s, \mathrm{false}, c) = \mathrm{false}$$ -/
-theorem lan_wrong_host (session : Bool) (c : Cls) : allow true session false c = false := by
+$$\operatorname{allow}(\mathrm{true}, b, \mathrm{false}, c) = \mathrm{false}$$ -/
+theorem lan_wrong_host (bearer : Bool) (c : Cls) : allow true bearer false c = false := by
   cases c <;> simp [allow]
 
 /-! ## 2b. The preview port: its own origin, its own cookie -/
 
 /-- Whether the preview port serves a request. `previewCookie`: the request carries a live preview-access cookie (a
-cookie of its own, distinct from the owner cookie, issued to an owner session). `hostOk`: its Host names the preview
+cookie of its own, it is never an owner proof, see `cookie_never_owner`). `hostOk`: its Host names the preview
 port. Everything on the preview port needs the preview cookie, from loopback as from the LAN.
 
 $$\operatorname{allowPreview}(\ell, k, h) = \neg(\ell \wedge \neg h) \wedge k$$ -/
@@ -501,52 +528,74 @@ structure Origin where
   port : Nat
 deriving Repr, DecidableEq
 
-/-- The preview port belongs to the console port.
+/-- The origin of the console on a host and its console port.
 
-$$\mathit{previewPort}(p) = p + 1$$ -/
-def previewPort (p : Nat) : Nat := p + 1
-
-/-- The origin of the console, and of its previews, on a host and a console port.
-
-$$\mathit{consoleOrigin}(h, p) = (h, p),\quad \mathit{previewOrigin}(h, p) = (h, \mathit{previewPort}(p))$$ -/
+$$\mathit{consoleOrigin}(h, p) = (h, p)$$ -/
 def consoleOrigin (host : String) (p : Nat) : Origin := ⟨host, p⟩
 
-/-- The origin of the previews.
+/-- The origin of the previews on a host and the preview port (the port the preview listener actually got, which is
+not always the console port plus one).
 
-$$\mathit{previewOrigin}(h, p) = (h, p + 1)$$ -/
-def previewOrigin (host : String) (p : Nat) : Origin := ⟨host, previewPort p⟩
+$$\mathit{previewOrigin}(h, q) = (h, q)$$ -/
+def previewOrigin (host : String) (q : Nat) : Origin := ⟨host, q⟩
 
-/-- **Previews never share the console origin.** The preview port differs from the console port, so the origins differ,
-whatever the host. A page served by the preview port therefore runs in another origin than the console web.
+/-- **Previews never share the console origin.** When the two ports differ, so do the origins, whatever the host. A page
+served by the preview port therefore runs in another origin than the console web.
 
-$$\forall h, p:\ \mathit{previewOrigin}(h, p) \ne \mathit{consoleOrigin}(h, p)$$ -/
-theorem preview_origin_ne_console (host : String) (p : Nat) : previewOrigin host p ≠ consoleOrigin host p := by
+$$q \ne p \Rightarrow \mathit{previewOrigin}(h, q) \ne \mathit{consoleOrigin}(h, p)$$ -/
+theorem preview_origin_ne_console (host : String) (p q : Nat) (hq : q ≠ p) : previewOrigin host q ≠ consoleOrigin host p := by
   intro h
-  have := congrArg Origin.port h
-  simp [previewOrigin, consoleOrigin, previewPort] at this
+  exact hq (congrArg Origin.port h)
 
-/-- The two cookies a browser holds for the console host (cookies are not isolated by port): the owner session
-cookie and the preview-access cookie.
+/-- What a request presents as proof. `bearer`: a valid owner token in the `Authorization` header (the only credential
+that can be an owner proof). `preview`: a valid preview-access cookie (the only cookie there is; it opens the preview port
+and nothing else).
 
-$$j = (\mathit{owner}, \mathit{preview}) \in \{0,1\}^2$$ -/
-structure Jar where
-  owner : Bool
+$$c = (\mathit{bearer}, \mathit{preview}) \in \{0,1\}^2$$ -/
+structure Cred where
+  bearer : Bool
   preview : Bool
 
-/-- The two cookies have different names (so the preview-access cookie cannot stand for the owner one).
+/-- The trusted (console) origins for one request, computed from the origin of its Host header (when that names this
+console), the configured extra web origins, and the preview port. No origin of the preview port is ever trusted, and
+nothing is trusted while the preview port is unknown.
 
-$$\texttt{fw\_owner} \ne \texttt{fw\_preview}$$ -/
-def ownerCookieName : String := "fw_owner"
+$$T(q, h, E) = \begin{cases}\emptyset & q \text{ unset}\\ \{o \in h \cup E \mid o.\mathit{port} \ne q\} & q \text{ set}\end{cases}$$ -/
+def trustedOrigins (previewPort : Option Nat) (own : Option Origin) (extra : List Origin) : List Origin :=
+  match previewPort with
+  | none => []
+  | some q => (own.toList ++ extra).filter fun o => o.port != q
 
-/-- The name of the preview-access cookie.
+/-- **Nothing is trusted while the preview port is unset.**
+
+$$T(\bot, h, E) = \emptyset$$ -/
+theorem trusted_unset (own : Option Origin) (extra : List Origin) : trustedOrigins none own extra = [] := rfl
+
+/-- **No trusted origin is on the preview port.**
+
+$$o \in T(q, h, E) \Rightarrow o.\mathit{port} \ne q$$ -/
+theorem trusted_not_preview (q : Nat) (own : Option Origin) (extra : List Origin) (o : Origin)
+    (h : o ∈ trustedOrigins (some q) own extra) : o.port ≠ q := by
+  simp [trustedOrigins] at h
+  rcases h with h | h <;> exact h.2
+
+/-- Every trusted origin was offered (the Host's own origin or a configured one).
+
+$$o \in T(q, h, E) \Rightarrow o \in h \cup E$$ -/
+theorem trusted_offered (q : Option Nat) (own : Option Origin) (extra : List Origin) (o : Origin)
+    (h : o ∈ trustedOrigins q own extra) : o ∈ own.toList ++ extra := by
+  cases q with
+  | none => simp [trustedOrigins] at h
+  | some q =>
+    simp [trustedOrigins] at h ⊢
+    rcases h with h | h
+    · exact Or.inl h.1
+    · exact Or.inr h.1
+
+/-- The name of the preview-access cookie (the only cookie the console sets).
 
 $$\mathit{previewCookieName} = \texttt{fw\_preview}$$ -/
 def previewCookieName : String := "fw_preview"
-
-/-- The names differ.
-
-$$\texttt{fw\_owner} \ne \texttt{fw\_preview}$$ -/
-theorem cookie_names_ne : ownerCookieName ≠ previewCookieName := by decide
 
 /-- An `Origin` header is acceptable among the trusted origins. A request with no `Origin` header is acceptable only
 when `strict` is false (command-line tools send none; a browser always sends one on a POST).
@@ -556,62 +605,96 @@ def originOk (strict : Bool) (trusted : List Origin) : Option Origin → Bool
   | none => !strict
   | some o => decide (o ∈ trusted)
 
-/-- An owner action on the console (start or stop a preview, log out, log in): it needs the owner cookie and an
-`Origin` header that is a trusted (console) origin. The preview-access cookie plays no part.
+/-- An owner action on the console (start or stop a preview, log out): it needs the bearer token and an `Origin` header
+that is a trusted (console) origin. The preview-access cookie plays no part.
 
-$$\operatorname{ownerAction}(T, j, o) = j.\mathit{owner} \wedge \operatorname{originOk}(\mathrm{true}, T, o)$$ -/
-def ownerAction (trusted : List Origin) (jar : Jar) (origin : Option Origin) : Bool :=
-  jar.owner && originOk true trusted origin
+$$\operatorname{ownerAction}(T, c, o) = c.\mathit{bearer} \wedge \operatorname{originOk}(\mathrm{true}, T, o)$$ -/
+def ownerAction (trusted : List Origin) (c : Cred) (origin : Option Origin) : Bool :=
+  c.bearer && originOk true trusted origin
 
-/-- A typed command posted to `/api/commands`: an `Origin` header, when there is one, must be a trusted origin.
+/-- A request that may change state without being an owner action (every non-GET route, e.g. `/api/commands`, which
+command-line tools call): an `Origin` header, when there is one, must be a trusted origin.
 
 $$\operatorname{commandOk}(T, o) = \operatorname{originOk}(\mathrm{false}, T, o)$$ -/
 def commandOk (trusted : List Origin) (origin : Option Origin) : Bool := originOk false trusted origin
 
-/-- A login (`POST /owner/login`): no cookie yet, but the `Origin` header must be there and be a trusted origin, so a
+/-- A login (`POST /owner/login`): no token yet, but the `Origin` header must be there and be a trusted origin, so a
 page on another origin (a preview) cannot post to the login.
 
 $$\operatorname{loginOk}(T, o) = \operatorname{originOk}(\mathrm{true}, T, o)$$ -/
 def loginOk (trusted : List Origin) (origin : Option Origin) : Bool := originOk true trusted origin
 
 /-- **An owner action requires the console origin.** If it is allowed, the request had an `Origin` header and it is one
-of the trusted origins; and with the trusted list holding the console origin but not the preview origin, a request
-from a preview page (its `Origin` is the preview origin) is refused, whatever cookies it carries.
+of the trusted origins.
 
-$$\operatorname{ownerAction}(T, j, o) \Rightarrow \exists o' \in T:\ o = \mathrm{some}(o'),\qquad
-\mathit{previewOrigin}(h,p) \notin T \Rightarrow \operatorname{ownerAction}(T, j, \mathrm{some}(\mathit{previewOrigin}(h,p))) = \mathrm{false}$$ -/
-theorem owner_action_requires_console_origin (trusted : List Origin) (jar : Jar) (origin : Option Origin)
-    (h : ownerAction trusted jar origin = true) : ∃ o' ∈ trusted, origin = some o' := by
+$$\operatorname{ownerAction}(T, c, o) \Rightarrow \exists o' \in T:\ o = \mathrm{some}(o')$$ -/
+theorem owner_action_requires_console_origin (trusted : List Origin) (c : Cred) (origin : Option Origin)
+    (h : ownerAction trusted c origin = true) : ∃ o' ∈ trusted, origin = some o' := by
   cases origin with
   | none => simp [ownerAction, originOk] at h
   | some o => simp [ownerAction, originOk] at h; exact ⟨o, h.2, rfl⟩
 
-/-- A request from a preview page is refused for every owner action and every command.
+/-- **Owner rights require the bearer token.** If an owner action is allowed, the request presented a valid bearer token.
+The only cookie in the credential (`preview`) is not consulted.
 
-$$\mathit{previewOrigin}(h,p) \notin T \Rightarrow \operatorname{ownerAction}(T, j, \mathrm{some}(\mathit{previewOrigin}(h,p))) = \mathrm{false}
-\wedge \operatorname{commandOk}(T, \mathrm{some}(\mathit{previewOrigin}(h,p))) = \mathrm{false}
-\wedge \operatorname{loginOk}(T, \mathrm{some}(\mathit{previewOrigin}(h,p))) = \mathrm{false}$$ -/
-theorem preview_origin_refused (trusted : List Origin) (jar : Jar) (host : String) (p : Nat)
-    (hn : previewOrigin host p ∉ trusted) :
-    ownerAction trusted jar (some (previewOrigin host p)) = false ∧ commandOk trusted (some (previewOrigin host p)) = false ∧
-      loginOk trusted (some (previewOrigin host p)) = false := by
-  simp [ownerAction, commandOk, loginOk, originOk, hn]
+$$\operatorname{ownerAction}(T, c, o) \Rightarrow c.\mathit{bearer}$$ -/
+theorem owner_requires_bearer (trusted : List Origin) (c : Cred) (origin : Option Origin)
+    (h : ownerAction trusted c origin = true) : c.bearer = true := by
+  simp_all [ownerAction]
 
-/-- The console's own origin is accepted when the owner cookie is there.
+/-- **No cookie input can yield owner rights.** The verdict is the same for either value of the preview-access cookie, so
+no cookie can change it.
 
-$$\mathit{consoleOrigin}(h,p) \in T \Rightarrow \operatorname{ownerAction}(T, (\mathrm{true}, k), \mathrm{some}(\mathit{consoleOrigin}(h,p)))$$ -/
-theorem console_origin_accepted (trusted : List Origin) (preview : Bool) (host : String) (p : Nat)
-    (hc : consoleOrigin host p ∈ trusted) :
-    ownerAction trusted ⟨true, preview⟩ (some (consoleOrigin host p)) = true := by
-  simp [ownerAction, originOk, hc]
+$$\operatorname{ownerAction}(T, (b, k), o) = \operatorname{ownerAction}(T, (b, k'), o)$$ -/
+theorem owner_independent_of_cookie (trusted : List Origin) (b k k' : Bool) (origin : Option Origin) :
+    ownerAction trusted ⟨b, k⟩ origin = ownerAction trusted ⟨b, k'⟩ origin := rfl
 
-/-- **The preview-access cookie grants no owner action.** Without the owner cookie nothing is allowed, whatever the
-preview-access cookie and the `Origin`.
+/-- **A cookie alone is never the owner.** Without the bearer token nothing is allowed, whatever the cookie and the
+`Origin`.
 
 $$\operatorname{ownerAction}(T, (\mathrm{false}, k), o) = \mathrm{false}$$ -/
-theorem preview_cookie_no_owner (trusted : List Origin) (preview : Bool) (origin : Option Origin) :
+theorem cookie_never_owner (trusted : List Origin) (preview : Bool) (origin : Option Origin) :
     ownerAction trusted ⟨false, preview⟩ origin = false := by
   simp [ownerAction]
+
+/-- A request from a preview page is refused for every owner action, command and login, whenever the preview origin is
+not trusted.
+
+$$\mathit{previewOrigin}(h,q) \notin T \Rightarrow \operatorname{ownerAction}(T, c, \mathrm{some}(\mathit{previewOrigin}(h,q))) = \mathrm{false}
+\wedge \operatorname{commandOk}(T, \mathrm{some}(\mathit{previewOrigin}(h,q))) = \mathrm{false}
+\wedge \operatorname{loginOk}(T, \mathrm{some}(\mathit{previewOrigin}(h,q))) = \mathrm{false}$$ -/
+theorem preview_origin_refused (trusted : List Origin) (c : Cred) (host : String) (q : Nat)
+    (hn : previewOrigin host q ∉ trusted) :
+    ownerAction trusted c (some (previewOrigin host q)) = false ∧ commandOk trusted (some (previewOrigin host q)) = false ∧
+      loginOk trusted (some (previewOrigin host q)) = false := by
+  simp [ownerAction, commandOk, loginOk, originOk, hn]
+
+/-- **With the computed trusted list, every origin on the preview port is refused**, for any host and any credential:
+the hypothesis of `preview_origin_refused` is established here, not assumed.
+
+$$\operatorname{ownerAction}(T(q,h,E), c, \mathrm{some}(\mathit{previewOrigin}(h',q))) = \mathrm{false} \wedge \operatorname{commandOk}(\ldots) = \mathrm{false} \wedge \operatorname{loginOk}(\ldots) = \mathrm{false}$$ -/
+theorem computed_trusted_refuses_preview (q : Nat) (own : Option Origin) (extra : List Origin) (c : Cred) (host : String) :
+    ownerAction (trustedOrigins (some q) own extra) c (some (previewOrigin host q)) = false ∧
+      commandOk (trustedOrigins (some q) own extra) (some (previewOrigin host q)) = false ∧
+      loginOk (trustedOrigins (some q) own extra) (some (previewOrigin host q)) = false := by
+  apply preview_origin_refused
+  intro hm
+  exact trusted_not_preview q own extra _ hm rfl
+
+/-- **While the preview port is unset, every owner action, command with an Origin, and login is refused.**
+
+$$\operatorname{ownerAction}(T(\bot,h,E), c, \mathrm{some}(o)) = \mathrm{false}$$ -/
+theorem unset_refuses (own : Option Origin) (extra : List Origin) (c : Cred) (o : Origin) :
+    ownerAction (trustedOrigins none own extra) c (some o) = false ∧ loginOk (trustedOrigins none own extra) (some o) = false := by
+  simp [ownerAction, loginOk, originOk, trustedOrigins]
+
+/-- The console's own origin is accepted when the bearer token is there and the origin is trusted.
+
+$$o \in T \Rightarrow \operatorname{ownerAction}(T, (\mathrm{true}, k), \mathrm{some}(o))$$ -/
+theorem console_origin_accepted (trusted : List Origin) (preview : Bool) (o : Origin)
+    (hc : o ∈ trusted) :
+    ownerAction trusted ⟨true, preview⟩ (some o) = true := by
+  simp [ownerAction, originOk, hc]
 
 /-! ## 3. Just-in-time previews: idle stop and TTL -/
 
@@ -649,7 +732,7 @@ def why (l : Live) (now : Nat) : String := if l.pv.deadline ≤ now then "ttl" e
 
 /-- **TTL stops.** A preview at or past its 60 minute deadline is reaped and does not stay, however recently it was used.
 
-$$l.p.t_0 + \mathit{ttl} \le t \Rightarrow l \in \operatorname{reaped}(L, t) \wedge l \notin \operatorname{sweep}(L, t)$$ -/
+$$l \in L \wedge l.p.t_0 + \mathit{ttl} \le t \Rightarrow l \in \operatorname{reaped}(L, t) \wedge l \notin \operatorname{sweep}(L, t)$$ -/
 theorem ttl_stops (s : List Live) (now : Nat) (l : Live) (hl : l ∈ s) (h : l.pv.started + ttl ≤ now) :
     l ∈ reaped s now ∧ l ∉ sweep s now := by
   have hn : l.alive now = false := by
@@ -661,7 +744,7 @@ theorem ttl_stops (s : List Live) (now : Nat) (l : Live) (hl : l ∈ s) (h : l.p
 
 /-- **Idle stops.** A preview with no proxied request for 15 minutes is reaped and does not stay.
 
-$$l.\mathit{seen} + \mathit{idle} \le t \Rightarrow l \in \operatorname{reaped}(L, t) \wedge l \notin \operatorname{sweep}(L, t)$$ -/
+$$l \in L \wedge l.\mathit{seen} + \mathit{idle} \le t \Rightarrow l \in \operatorname{reaped}(L, t) \wedge l \notin \operatorname{sweep}(L, t)$$ -/
 theorem idle_stops (s : List Live) (now : Nat) (l : Live) (hl : l ∈ s) (h : l.seen + idleLimit ≤ now) :
     l ∈ reaped s now ∧ l ∉ sweep s now := by
   have hn : l.alive now = false := by
