@@ -219,9 +219,9 @@ def problems (r : Req) : List String :=
 
 /-- The plan of a request: its problems, the query of the rewrite arm, and the matrix (empty when refused).
 
-$$\operatorname{plan}(r) = (\operatorname{problems}(r),\ \operatorname{search}(r.\mathit{preset}, r.\mathit{fw}),\ M)$$
+$$\mathrm{Plan} = \mathit{problems} : \mathrm{List\,String} \times \mathit{search} : \mathrm{String} \times \mathit{matrix} : \mathrm{List\,Cell}$$
 
-with $M = M(t, n, r.\mathit{sha}, \operatorname{search}(r.\mathit{preset}, r.\mathit{fw}))$ when $\operatorname{problems}(r) = [\,]$ ($t$ the target, $n$ the number of VMs) and $M = [\,]$ otherwise.
+`problems` lists why the request is refused, `search` is the query of the rewrite arm, and `matrix` holds the cells to run (empty when refused).
 -/
 structure Plan where
   problems : List String
@@ -230,7 +230,7 @@ structure Plan where
 
 /-- The plan.
 
-$$\operatorname{plan}(r) = \big(\operatorname{problems}(r),\ q,\ [M(t, n, r.\mathit{sha}, q) \text{ if accepted else } [\,]]\big),\quad q = \operatorname{search}(r.\mathit{preset}, r.\mathit{fw})$$
+$$\operatorname{plan}(r) = \begin{cases} ([\,],\ q,\ M(t, n, r.\mathit{sha}, q)) & \operatorname{problems}(r) = [\,] \land \operatorname{ofName}(r.\mathit{target}) = t \land \operatorname{count}_{[1,3]}(r.\mathit{vms}) = n \\ (\operatorname{problems}(r),\ q,\ [\,]) & \text{otherwise} \end{cases},\quad q = \operatorname{search}(r.\mathit{preset}, r.\mathit{fw})$$
 -/
 def plan (r : Req) : Plan :=
   let q := searchOf r.preset r.fw
