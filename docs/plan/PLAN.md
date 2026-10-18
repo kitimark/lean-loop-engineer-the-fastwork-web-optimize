@@ -4,49 +4,16 @@ kind: decision
 title: "v2 loop-engineering experiment: design and plan (for user review)"
 status: review
 created: 2026-10-17
-updated: 2026-10-18
-revision: 10 (the proof model: per part a Lean theorem pair, same visual and no more work, under engine models of Chromium and WebKit, for all t and all widths; CI counts falsify the models; the phone is an optional spot check; Q37 resolved; 23 proof tasks in M5; state at a8c05f4; rev 9.1 was a0b5a1d, rev 9 was 5b57aa4)
+updated: 2026-10-19
+revision: 11 (Lego parts: units compose and passes do not (Fw.Engine.Compose, §4.8); the part contract with coupled groups CG1-CG5 (Fw.Parts.Contract, §6.8); waves 1 and 2 to C3 with the CI and speed reviews (§10.7); state at 16207afb; rev 10 was a8c05f4)
 authors: [agent:plan-architect]
 topics: [plan, architecture, measurement, lean, parts, agent-teams, styling]
 links:
-  notes:
-    - research/kickoff/01-prior-loop-lessons.md
-    - research/kickoff/02-site-anatomy-and-rewrite.md
-    - research/kickoff/03-chromium-rendering-math.md
-    - research/kickoff/04-webkit-rendering-math.md
-    - research/kickoff/05-lean-proofs-and-backend.md
-    - research/kickoff/06-architecture-and-tooling.md
-    - research/kickoff/07-claude-code-agent-teams.md
-    - research/kickoff/08-chat-forensics/README.md
-    - research/kickoff/09-mui-zero-runtime/README.md
-    - research/kickoff/10-automation-and-proof/README.md
-    - research/kickoff/11-breakpoints/README.md
-    - research/notes/2026/10-17-v2-plan-feasibility-review.md
-    - research/notes/env-setup.md
-    - research/notes/2026/10-17-spk-drafts/
-    - research/notes/2026/10-17-ci-trigger-scope.md
-    - research/notes/2026/10-17-wktr-on-github-actions.md
-    - research/notes/2026/10-17-gate-gaps-fractional.md
-    - research/notes/2026/10-17-gate-gaps-hover-pointer.md
-    - research/notes/2026/10-17-team-review-fable.md
-    - research/notes/2026/10-17-css-decisions.md
-    - research/notes/2026/10-17-macos-queue.md
-    - research/notes/2026/10-17-plan-rev7-review.md
-    - research/notes/2026/10-17-math-review-r8-fee88b2.md
-    - research/notes/2026/10-17-plan-evidence.md
-    - research/notes/2026/10-18-engine-chromium-pipeline.md
-    - research/notes/2026/10-18-engine-webkit-pipeline.md
-    - research/notes/2026/10-18-optimization-inventory.md
-    - research/notes/2026/10-18-engine-proof-design.md
-  team:
-    - docs/team/improvements/2026-10-17.md
-    - docs/team/token-policy.md
-    - docs/team/parallel-plan.md
-    - docs/team/work-graph.json
-    - docs/team/public-ci-brief.md
-    - research/notes/2026/10-17-plan-evidence.md
-    - research/notes/2026/10-17-sim-speed.md
-    - research/notes/2026/10-17-macos-rent.md
+  kickoff: "research/kickoff/: 01-prior-loop-lessons, 02-site-anatomy-and-rewrite, 03-chromium-rendering-math, 04-webkit-rendering-math, 05-lean-proofs-and-backend, 06-architecture-and-tooling, 07-claude-code-agent-teams, 08-chat-forensics/, 09-mui-zero-runtime/, 10-automation-and-proof/, 11-breakpoints/"
+  notes_10_17: "research/notes/2026/10-17-*: v2-plan-feasibility-review, spk-drafts/, ci-trigger-scope, wktr-on-github-actions, gate-gaps-fractional, gate-gaps-hover-pointer, team-review-fable, css-decisions, macos-queue, plan-rev7-review, math-review-r8-fee88b2, plan-evidence, sim-speed, macos-rent; research/notes/env-setup.md"
+  notes_10_18: "research/notes/2026/10-18-*: engine-chromium-pipeline, engine-webkit-pipeline, optimization-inventory, engine-proof-design"
+  notes_10_19: "research/notes/2026/10-19-*: lego-parts-plan, lego-ci-review, speed-review, model-checks"
+  team: [docs/team/improvements/2026-10-17.md, docs/team/token-policy.md, docs/team/parallel-plan.md, docs/team/work-graph.json, docs/team/public-ci-brief.md]
   v1_repo: ../fastwork-com-web-optimize (read-only)
 ---
 
@@ -60,18 +27,14 @@ and proof with `[10.01]`-`[10.04]`, `[11]` the breakpoint inventory), the feasib
 examples that left the plan in revision 8. Appendix A says which way the plan goes where the notes disagree;
 Appendix D logs every change.
 
-**Revision 9 is the 3-day revision.** You decided (2026-10-17, 23:13 +0700; recorded in ad5eeea) that the whole
-experiment may take no more than 3 days, counted from the first commit (931aa35, 2026-10-17 13:15 +0700, MEASURED
-`git log`), so it ends with a report by **2026-10-20 13:15 +0700**. §10 holds the frame: the minimum experiment, the
-engines, four checkpoints with fallbacks, the cut list and what you do when. **Revision 9.1** (2026-10-18 00:15)
-records your answers (Q34 c, Q35 a, Q36 shells first, then every section ported in parallel; Q37 open with default
-a), the C1 WebKit GO, and restructures the graph so independent work runs at once (§10.5). **Revision 10**
-(2026-10-18 01:00) applies your principle of 2026-10-18: every part's animation is computed by math, so the evidence
-for an optimization is a **Lean proof**, not a phone measurement. For every part the plan now proves two things,
-(1) the optimized part shows the same picture as the original and (2) the engine does less work, in both Chromium
-and WebKit, at every width between the breakpoints (§4.7, §5.1). CI counts check the engine models, the phone is an
-optional spot check, Q37 is resolved by the principle (§12.0), and M5 holds 23 proof tasks (§10.6). Work still
-runs as a dependency graph; the checkpoints are the only dates, and each exists because the deadline does.
+**Revisions in one line each.** **Rev 9** (your decision of 2026-10-17 23:13 +0700, ad5eeea): the experiment
+takes at most 3 days from the first commit (931aa35, 13:15), so the report is due **2026-10-20 13:15 +0700** (§10).
+**Rev 9.1**: your answers Q34-Q36 and the C1 WebKit GO. **Rev 10** (2026-10-18): your principle that every part's
+animation is math, so the evidence for an optimization is a **Lean proof** (same picture, less engine work, in
+Chromium and WebKit, at every width; §4.7, §5.1), CI counts check the engine models and the phone is an optional spot
+check. **Rev 11** (2026-10-19 01:00): **Lego parts**: unit savings add up and pass savings do not (§4.8), a part
+contract decides which parts are coupled (§6.8), and two integration waves with one whole-page gate each reach C3
+(§10.7). Work runs as a dependency graph; the checkpoints are the only dates.
 
 **Status words.** CONFIRMED = a note cites a source, doc or v1 record for it, or it was checked on this Mac today.
 INFERRED = a design choice or expectation that a spike or measurement must still check. MEASURED = a number from a
@@ -88,11 +51,14 @@ run in this repo, with its commit. Targets and thresholds are proposals until yo
 | **(vis) / (work)** | the theorem pair proved per part × optimization: same visible scene for all t and all widths; per-frame work ≤ componentwise, < somewhere | §4.7, §5.1 |
 | **class E / E-s / Q / L** | how "same visual" is proved: exact; exact at every sample; within the gate's PL1/PL2 tolerances; a look change (not proved, goes to `proposal`) | §4.7, §6.2 |
 | **H1 … H3** | path premises of the visual theorems (text antialiasing, raster scale, sample phase), carried as hypotheses; the design note calls them C1-C3, renamed here because C1-C4 are checkpoints | §4.7 |
-| **F0 … F5** | falsification checks: predictions the engine models make about CI counts; a mismatch is a model bug | §4.7, §6.6 |
+| **F0 … F6** | falsification checks: predictions the engine models make about CI counts; a mismatch is a model bug; F6 (rev 11) checks that part deltas add up in a combined run | §4.7, §4.8, §6.6 |
 | **RG1 … RG11** | research gaps in the engine models (`engine-gaps`); the design note calls them R1-R11, renamed here because R1-R35 are risks | §10.6 |
 | **`v2-proved`** | the flag arm made of every optimization with a proved pair and no falsified prediction | §6.2, §10.1 |
 | **T+Nh** | hours after the 3-day decision (T0 = 2026-10-17 23:15 +0700); the report is due at T+62h | §10 |
 | **G1 … G4** | outcome goals | §1.1 |
+| **CG1 … CG5**, solo | coupled groups of the part contract: parts that read each other's output and must be built and measured together (Lean `Group.g1…g5`; the Lego note calls them G1-G5, renamed here because G1-G4 are goals); solo = coupled to nothing | §6.8 |
+| **I1 … I5** | independence premises between two parts (I1-I4 decided in Lean, I5 layerization a recorded premise) | §6.8 |
+| **wave 1 / wave 2** | the two integration rounds to C3, each ending in one whole-page gate | §10.7 |
 | **V-a … V-t** | method (validation) criteria | §1.2 |
 | **TL0 … TL5** | test layers | §5.4 |
 | **PL0 … PL6** | parity levels (rewrite vs original) | §6.6 |
@@ -102,8 +68,8 @@ run in this repo, with its commit. Targets and thresholds are proposals until yo
 | **SPK-a … SPK-u** | spikes (short experiments that answer one question) | Appendix B |
 | **L1 / L1-cond / L2 / L3** | proof levels: proved in Lean; proved but with a named unprovable premise; Lean spec with Lean-generated code or golden vectors for TS; not provable | §5.1 |
 | **tier T0 … T3** | v1's pixel-difference tiers | §6.6 |
-| **K1 … K10** | calibration fixture pages: K1-K9 WebKit [04 §9]; K10 sheet mutation, both engines [09.03 §5.2] | §4.4 |
-| **R1 … R35** | risks | §11 |
+| **K1 … K10** | calibration fixture pages: K1-K9 WebKit [04 §9]; K10 sheet mutation, both engines [09.03 §5.2] | §4.3 |
+| **R1 … R40** | risks | §11 |
 | swap check | the check a section port passes to replace its shell: PL1 boxes + look tier at every breakpoint, one part, Chromium on CI; cheaper than the full gate | §10.5 |
 | task ids (`class-freeze`, `port-morph` …) | tasks in `docs/team/work-graph.json`; a task id is also the agent name and the console card id | §10.4 |
 | stages | question → build → screen → review → (device) → land, always written as words; derived from evidence events, never set by hand (§9.2) | §9 |
@@ -129,43 +95,35 @@ Lean** (rev 5): everything reproducible is proved before it is coded (§3.3), an
 generated page (§5.3).
 
 **What to expect, plainly:**
-- **The evidence is a proof, not a phone run (rev 10, your principle of 2026-10-18).** For every part × optimization
-  Lean proves (vis) the original and the optimized part show the same picture for every t and every width, and
-  (work) the engine does no more work per frame, less somewhere; both under engine models of Chromium and WebKit
-  (§4.7). CI counts check the models (F0-F5). The phone is an optional spot check with no dependents (§10.3); no
-  cost model is fitted and none is needed (Q37, §12.0).
-- **MUI everywhere, styles compiled ahead of time** (decided 2026-10-17): Material UI 9.5's Emotion styles are
-  rendered at build time into one static CSS file ("Emotion AOT", §6.5); a neutrality gate (§6.7) checks that MUI
-  adds no sheet mutations, DOM writes, React commits or work counts against a plain twin.
-- **Chromium counts validate the Chromium model; the WebKit model is validated by the Simulator lane only if
-  `webkit-sim-rewrite` is green, otherwise it is reported as model-only.** Chromium counts are classed per type (V-i)
-  and never predict iPhone Safari by themselves. There is no Android phone (decided 2026-10-17).
-- **Lean:** the generated math view at ad5eeea lists 2,171 reviewed entries in 51 modules; the 4 disagreements of
-  review round 10 were fixed in 25b68d2 (MEASURED, generated page). A module that costs much and catches nothing
-  moves back to TypeScript (§5.1).
+- **The evidence is a proof, not a phone run (rev 10).** For every part × optimization Lean proves (vis) the same
+  picture for every t and width and (work) no more engine work per frame, less somewhere, under models of Chromium
+  and WebKit (§4.7). CI counts check the models (F0-F6); the phone is an optional spot check; no cost model (Q37).
+- **Parts as Lego (rev 11).** Unit savings of independent parts add up on the page; pass savings are part-local
+  unless §4.8's condition holds. The contract (§6.8) says which parts are independent; one combined run per profile
+  replaces one run per flag, and the gate stays whole-page because the original is one page.
+- **MUI everywhere, styles compiled ahead of time** (2026-10-17): Emotion styles rendered at build time into one
+  static CSS file (§6.5); a neutrality gate (§6.7) checks MUI adds no sheet mutations, DOM writes or commits.
+- **Chromium counts validate the Chromium model; WebKit is validated on the Simulator lane where it ran, else
+  model-only.** Chromium counts never predict iPhone Safari by themselves; there is no Android phone.
 
-**State at a8c05f4 (T0 + 2 h; MEASURED unless marked).**
-- **Chromium:** counts run on CI, A and R side by side (R far quieter, §4.2); touch race fixed (c38088e); zone sums of
-  the original stored (c719d73); counts exist per virtual frame and per scroll zone (12 zones), not per part (§4.1).
-- **WebKit:** C1 was **GO** (`webkit-green` f03e94b); `webkit-quiet`, `step-align`, `wktr-ci-lane` running; paid
-  runners and rented Macs are out (your decision). WKTR: only its two cadence counts are deterministic.
-- **Site:** `shells` done; `port-morph-{mount, tween, columns}` done; `port-morph-{panel, countdown}` and the seven
-  section ports running (§10.5). Breakpoint gate green; the gaps lane 8 of 8 in Chromium, WebKit cells `unreachable`
-  as Lean predicts (Q33). Phone session 1 held (0c901f2): gap probe 8 of 8 agree; swipes recorded.
-- **Research (a8c05f4):** both engine pipelines read at the pins, 25 optimization candidates classed, the proof
-  design written; the engine models are not yet in Lean (`engine-core-lean` is the first task of §10.6).
-- **Answered by you (2026-10-18, about 01:50):** D1 and D2 in §12.1 (phone session 2 stays optional; Try-it pages for
-  constant glass, FLIP / st6 and typing chunks). Nothing is waiting on you now.
+**State at 16207afb (2026-10-19 00:50, T+25.5h; MEASURED from commit trailers and run ids unless marked).**
+- **Proofs:** the engine models (`engine-core-lean`, Chromium and WebKit models) and all 10 proof tasks landed; the
+  `v2-proved` arm holds 8 optimizations (9156d536, §10.6). Math view after `math-final`: 5,109 agree, 0 disagree,
+  517 stale, 1,373 pending. `model-checks` (268d8124) found 4 refuted predictions, each a model or harness finding
+  (§4.7); the touch lane does not finish its swipe (`run.mjs:276`).
+- **Site:** every section ported; `integrate-ports-4` (c4b57a22) passed the gate in Chromium (run 39142015714: 0 bad,
+  57 commission-resize readings excused); `page-root-clip` landed (3600b283); the WebKit Simulator rewrite lane landed
+  (c2410d2d).
+- **Composition and contract (rev 11):** `Fw.Engine.Compose` (a8678ca0) proves units compose and passes do not
+  (§4.8); `Fw.Parts.Contract` (cf3eebf3) holds 34 part rows and their coupled groups (§6.8).
+- **Running (wave 1, §10.7):** `site-assets`, `content-hero`, `content-people-pain-commission`,
+  `morph-group-integrate`, `faithful-checks-rerun`. Report draft 2 is in (eebcc491). Nothing is waiting on you.
 
-**The 3-day frame (rev 9; the full argument is §10).** The minimum experiment that still answers the study's question
-is the **end-of-page region**: the 4 pilot parts already built plus the 5 `morph.*` parts, ported `faithful` through
-the breakpoint gate; every other section ships first as a static **shell** of the original's height, then is ported
-`faithful` in parallel and replaces its shell once a cheaper swap check passes (Q36, §10.5). **Rev 10:** the
-experiment is the set of optimizations with a proved pair (§10.6), shipped as the `v2-proved` arm beside `faithful`
-and `v1-best`; the dominance rule (§4.3) is a theorem per part under the engine models, Chromium counts on CI falsify
-the models, and the WebKit truth is the cited model checked on the Simulator lane where it serves the rewrite (rev 9
-had said "the iPhone in two sessions"). Checkpoints: T+12h WebKit go/no-go (GO), T+24h region faithful and engine
-models landed, T+48h proof ledger closed, T+62h report. Everything else is cut or deferred with a reason (§10.4).
+**The 3-day frame (§10).** The experiment is the set of optimizations with a proved pair, shipped as the
+`v2-proved` arm beside `faithful` and `v1-best`, on a fully ported page (every section passed the gate in
+`integrate-ports-4`). Chromium counts on CI falsify the engine models; WebKit is the cited model, checked on the
+Simulator lane where it ran. Checkpoints: C1 WebKit go/no-go (GO), C2 engine models and region (met except the
+faithful check), **C3 decision 2026-10-19 23:15** after two Lego waves, C4 report 2026-10-20 13:15.
 
 **Headline goal, as v2 answers it.** Rebuild the end-of-page region and reproduce v1's outcome there as flag arms whose
 "same look, less work" is **proved** for both engines at every width, with a fraction of v1's device time, tool bugs
@@ -189,10 +147,8 @@ Each criterion has a measurement and an owner. "Proposal" thresholds become bind
 | # | Goal | Metric | Target (proposal) | Source |
 |---|---|---|---|---|
 | V-a | **Count transfer: Chromium** | container counts vs a traced, non-timed headed Mac Chrome run, per family | equal per family, or the family is "container-only" and never feeds a coefficient | [FR §1.6] |
-| V-b | **Count transfer: WebKit** | Simulator count equals phone count at the same held state | ≥ 95 % of states per type; failing types "not transferable". Not reached in v2 (no Simulator lane unless C1 is GO) | [04 §9] |
-| V-c | **Ranking** | Spearman ρ, predicted vs measured cost per variant (holdout) | ρ ≥ 0.8 on the iPhone; Chromium not scored. Not reached in v2: no cost model (Q37 resolved, rev 10); the per-stage prediction is checked by V-h instead | [03 §9.3, 04 §9] |
+| V-b, V-c, V-e | **Count transfer (WebKit), ranking, magnitude** | Simulator vs phone counts; Spearman ρ; median abs(log(pred/meas)) | ≥ 95 % of states; ρ ≥ 0.8 on the iPhone; ≤ 0.3. **Not reached in v2:** no cost model (Q37) and no phone counts; the per-stage prediction is checked by V-h | [04 §9, 03 §9.3] |
 | V-d | **Decision agreement** | sign of predicted Δ vs measured Δ above the noise band | ≥ 90 %, 0 sign errors among large predictions. In v2: reported for the one decision | [03 §9.3, 04 §9] |
-| V-e | **Magnitude** | median abs(log(pred/meas)) | ≤ 0.3, else "ranks only". Not reached in v2 | [04 §9] |
 | V-f | **Feel agreement** | blind verdicts with predictions frozen first | 5 of 5 before a stand-in licence; in v2 optional only (D1): a spot check of `v2-proved` vs `original`, reported, never a gate | v1 `stats-vs-finger.md` via [03 §9.3] |
 | V-g | **Visual parity** of each `faithful` part | v1 tiers against a same-run A/A baseline | tier **T1** at PL0-PL3 and PL4 in Chromium and Playwright WebKit **at every breakpoint edge** (§6.6; shells excepted, Q36); boxes ≤ 0.5 CSS px | [02 §4]; your requirement |
 | V-h | **Work parity** of each experiment part | PL5 bands per count family (§6.6) | within band for every family; layers ±0; same compositor/main split | [02 §4.6, FR §2] |
@@ -324,13 +280,11 @@ integer ns, rationals as `{"num","den"}`, never `Float`.
 
 ### 3.3 Where each decision runs (one place only)
 
-- **Lean first for everything reproducible (your direction, 2026-10-17; `CLAUDE.md`).** Every pure piece of the
-  console, the site, measurement and tooling (decisions, reducers, gates, breakpoint conditions, flag rules, motion
-  curves, count reduction, verdicts, test matrices) is specified and proved in Lean **before** it is coded. Then it
-  runs in `fwcore`, or Lean generates it (constants, CSS media strings, `breakpoints.gen.json`, test matrices), or the
-  TS/React code passes Lean-generated golden vectors. Only I/O, rendering and glue stay unproved, and they hold no
-  decision. A TS stand-in is temporary and listed in the report (`selectCiRun` and `searchConfig` are the two open
-  ones at ad5eeea, task `store-cirun`).
+- **Lean first for everything reproducible (2026-10-17; `CLAUDE.md`).** Every pure piece of the console, the site,
+  measurement and tooling is specified and proved in Lean **before** it is coded; then it runs in `fwcore`, Lean
+  generates it (constants, media strings, `breakpoints.gen.json`, test matrices), or the TS/React code passes
+  Lean-generated golden vectors. I/O, rendering and glue hold no decision. A TS stand-in is temporary and listed in the
+  report; the open ones are in R32 (`store-cirun` landed, 73ae012).
 - **Browser-side code** (L2): media strings, motion curves, part logic and the flag resolver are generated by Lean or
   checked against golden vectors; the resolver's TL2 test covers every single-part override of every preset
   (`fwcore flags.enumerate`, a finite domain) plus 2,000 fast-check multi-part cases [10.03 §2.10].
@@ -391,15 +345,10 @@ animations in Chromium and invalidates style per animation per step in WebKit ([
   free-running `LayerTree` censuses.
 - `Math.random` is seeded (mulberry32); `t0` and the seed are part of the artifact key.
 
-**What the runs showed** (classes and their use: the V-i rules, §1.2; all rows, run ids and superseded results in
-[EV §3.3]).
-
-| Result | Engine | Status, source |
-|---|---|---|
-| **Frozen table** (worst class over 3 workflow runs, 62 types; `trace.Paint` quarantined); the freeze rule runs in Lean (`measure.freeze`: order-independent, monotone, idempotent) | Chromium | MEASURED da287ff; CONFIRMED `Fw/Measure/Freeze.lean` bc2e28a; `refreeze` regenerates for A and R |
-| **Touch race fixed**: 0 wedges in 3 CI runs; original vs rewrite det/stable/quar per run: swipe-v1 A 27/25/10, R 37/6/1 (62 vs 44 types: reported, not compared) | Chromium | MEASURED c38088e, fee88b2 |
-| **Zone sums of the original stored** from CI run 39048702153 (12 zones); the cross-run baseline waits on `refreeze` + `measure.zoneBaseline` | Chromium | MEASURED c719d73 |
-| Per-step Layout, Paint, InvalidateLayout, ObserverCallback quarantined, totals within 3-5 %; `step-align` running; CI Simulator runs 10-38 min, warm-up fails under host load; **C1 was GO** | WebKit | MEASURED 367fec2, `10-17-sim-speed.md`, f03e94b |
+**What the runs showed** ([EV §3.3] holds every row and run id): the Chromium frozen table (worst class over 3 runs,
+62 types, `trace.Paint` quarantined; MEASURED da287ff, rule proved in `Fw/Measure/Freeze.lean`); the touch race fixed
+(c38088e); zone sums of the original stored (c719d73); WebKit per-step Layout and Paint quarantined, totals within
+3-5 % (367fec2).
 
 **What gets counted** (full catalogues in [03 §7.2] and [04 §4.1]):
 
@@ -426,51 +375,20 @@ cite `Style::TreeResolver` at the pin, so a style-touching diff needs no WebKit 
 model where the Simulator serves the rewrite. WKTR (`wktr-ci-lane`) reports its two deterministic cadence counts and
 is not modelled (trunk 324039, not shipped iOS 27; A26).
 
-### 4.3 Step 2: the cost models
+### 4.3 Steps 2-4: cost models, calibration and validation (kept for a later study)
 
-Both models are **monotone in counts with non-negative coefficients**, so removing work can never raise a
-prediction; Lean proves that for the model as deployed (§5). **In v2 no coefficient is fitted and none is needed
-(Q37 resolved, rev 10):** the (work) theorem of §4.7 is componentwise per stage, so `Cost.mainUs_mono` already says
-"no frame costs more under any non-negative unit costs"; the screen below is the CI check of that theorem.
-
-The model shapes (kept for a later study; details [04 §7], [03 §9]): WebKit `dt ≈ max(T_req, W + F + U + δ)` with
-`W = J + Σ c·counts`, `F = max(s²·Ap/R_cg, Bn/R_alloc)`, `T_req` = 16.67 ms; Chromium `T_s(f) = κ_s + Σ c·x` per stage
-against the scheduler budgets B1-B4, `k = max(1, ⌈T/I⌉)`; a page factor `ρ_page` (v1 saw 2.2× on custom-property
-restyle, CONFIRMED). Fits, when they happen, are constrained to `c ≥ 0` and checked by the L1 certificate (§3.3).
+**In v2 no coefficient is fitted and none is needed (Q37 resolved, rev 10).** The model shapes ([04 §7], [03 §9]),
+the fixtures K1-K10 (our own pages in `fixtures/calibration/`) and the NNLS calibration ([04 §9, 09.03 §5.2]) stay
+designed but unrun; holdouts (V-c to V-e) and the blind feel check (V-f) likewise.
 
 **Screening without coefficients (class W).** If a variant's count vector is ≤ the baseline's **in every component
-and in every frame**, and strictly lower somewhere, the predicted cost of every frame is no higher under **any**
-non-negative coefficients (`Fw/Spec/Screen`, proved for the deployed model with `κ`, indicator terms, `⌈T/I⌉`,
-`max` and the p90 predictor), so "dominates" needs no calibration. Three conditions make it meaningful:
-1. **Per frame, not per zone total.** Batching can lower a zone's total while raising one frame's peak; zones
-   (12 per run, §4.1) group frames for reporting and for the faithful check.
-2. **Frames aligned by content anchor**, not by scroll y, so a variant that changes layout height compares the same
-   content.
-3. **The vector is declared complete for the mechanism class**, and a lint confirms the diff touches no family the
-   vector does not count (images, `filter`/`backdrop-filter`, new animations, fonts); otherwise class SM. A diff that
-   changes the styling-engine configuration is class SM until priced (S11).
-
-**Golden fixtures from v1.** `fwcore screen` is tested on two v1 hand rulings: case A (layout passes per frame
-dominate → class W) and case B (paint moved 1-3 frames earlier, total equal, more memory → not W) [08]. Steps run at
-60 Hz; Chromium budgets are also reported at 120 Hz (Q11).
-
-### 4.4 Step 3: calibration
-
-**Not run in v2 (Q37 resolved, rev 10: no cost model is claimed).** The design stays for a later study: the
-fixture suite K1 restyle … K9 presence flip plus K10 sheet mutation [04 §9, 09.03 §5.2], with the original's rule and
-custom-property counts as parameters (never copied CSS); timing truth from Timeline segments and Instruments on the
-phone, `PipelineReporter` on Mac Chrome (PL6 only); NNLS fits with the thermal class recorded and ABBA order;
-re-calibration on an iOS change, after 14 days, or when 2 spot checks leave the band.
-
-All fixtures are our own pages in `fixtures/calibration/`. No Fastwork code goes in them.
-
-### 4.5 Step 4: validation and the validity table
-
-Every candidate carries its **pre-registered Δ** by stage and zone before any device data (an L1 check). The
-**validity table** (`results/validity/*.jsonl`) has one row per (model output, mechanism class, engine build); an
-output that disagrees with the device twice is retired [01 §A.4]. Holdout scenarios (V-c to V-e), the blind feel
-check (V-f, 5 of 5) and the 1-in-5 spot-check are the design for a calibrated model; **in v2 the table records the
-engine models' predictions vs CI counts (F0-F5, V-h) per proved flag; there is no cost model (Q37 resolved)**.
+and in every frame**, and strictly lower somewhere, every frame costs no more under **any** non-negative unit costs
+(`Fw/Spec/Screen`, `Cost.mainUs_mono`). It needs (1) **per frame, not per zone total** (batching can lower a total
+while raising one frame's peak); (2) **frames aligned by content anchor**, not by scroll y; (3) **a vector declared
+complete for the mechanism class**, with a lint that the diff touches no family it does not count (images,
+`filter`/`backdrop-filter`, new animations, fonts, styling-engine configuration), else class SM (S11). `fwcore screen`
+is tested on two v1 hand rulings (case A → W, case B → not W) [08]. The **validity table**
+(`results/validity/*.jsonl`) records the engine models' predictions against CI counts (F0-F6, V-h) per proved flag.
 
 ### 4.6 What only the phone can tell us (honest limits)
 
@@ -527,11 +445,46 @@ tolerance.
 | F2 | main-thread width/background-color: layout > 0 and paint > 0 per frame | fixture-rest | MEASURED (README:148-149) |
 | F3 | for each landed variant, every stage the model says is 0 reads 0 in its zone | swipe-v1, rewrite arm per flag | new |
 | F4 | `=o` stages within 2t; `<o` stages strictly lower on deterministic types | same | new |
-| F5 | the WebKit predictions P1-P5 of the WebKit pipeline note | `webkit-sim` on the rewrite | blocked on `webkit-sim-rewrite`; until then WebKit is model-only |
+| F5 | the WebKit predictions P1-P5 of the WebKit pipeline note | `webkit-sim` on the rewrite | lane landed (`webkit-sim-rewrite`, c2410d2d); WebKit stays model-only for any row it has not run |
+| F6 | a combined run's delta per (part, stage, zone) equals the sum of the part deltas within the class margin, on units only (§4.8) | combined counts per profile | new, `compose-check`, after C3 |
+
+**F3/F4 so far (`model-checks`, 268d8124; MEASURED):** 4 predictions refuted, each a model or harness bug for
+`model-bug-fixes`: morph.tween waapi FireAnimationFrame 1,748 = 1,748 (swipe-v1 never pushes the morph); scene
+hidden-pause UpdateLayoutTree 1,851 > 1,850 (INFERRED to be the `passes_not_compositional` shape, §4.8); morph.mount
+LayoutCount one frame late; nav.hitTest FunctionCall frames differ (stale frozen class).
 
 **What the phone is now.** An optional spot check of what neither proof nor CI covers: UIKit's `setContentOffset`
-behaviour under `scrollTo`, H1-H3 on WebKit while F5 is blocked, and felt smoothness. It has no dependents in the
+behaviour under `scrollTo`, H1-H3 on WebKit, and felt smoothness. It has no dependents in the
 graph, it is never evidence, and it is never a gate (§10.3).
+
+### 4.8 Composition (rev 11): units add up, passes do not
+
+The Lego plan builds and proves each part alone, then needs the page. `Fw.Engine.Compose` (a8678ca0, task
+`compose-lean`) says what carries over when two parts' frames are put side by side (`FrameIn.append`, `++`). All rows
+CONFIRMED by the Lean file; line numbers at a8678ca0.
+
+| Result | Says | Consequence |
+|---|---|---|
+| `frameWork_append_units`, `_hits` | work units and hit tests per stage are additive | unit savings add up |
+| `frame_le_append_units` | per-part ≼ on units and hits gives page ≼ on units and hits | F6 checks units only |
+| `someLt_append_units` | part 1 strictly lower on a stage's units **and part 2 no larger on units in every stage** gives a strictly lower page | the extra premise is part of the claim |
+| `passes_not_compositional` (+ `_chromium`, `_webkit`) | a pass one part triggers can be absorbed by another part's pass in the same frame | a pass saving is part-local |
+| `frame_le_append_passes_fails` (194) | for any change that dirties style there are parts with $v_1 \preceq o_1$, $v_2 \preceq o_2$ and $v_1 \mathbin{+\!\!+} v_2 \not\preceq o_1 \mathbin{+\!\!+} o_2$ | per-part ≼ does **not** give page ≼ |
+| `unionLe_append`, `frame_le_append`, `frame_lt_append` | per-part `unionLe` (stage-set union check, `Core.lean:425`) gives page ≼, strict if part 1 is strictly lower | the page condition |
+| `frame_le_append_cover` | per-part covers (a sub-multiset of the original's changes, no more callbacks, forced passes, hits or compositor animations) give page ≼ | the other page condition |
+| `lego_swap_sound`, `_units`, `_visible` | swapping one part's variant changes only what that part's frame and scene read, given `ReadsOnly Indep` | the Lego swap, under an abstract `Indep` |
+| `visible_scene_append`, `Q_append`, `visible_append_of_boxes_eq` (Visual.lean:866-888) | parts stacked vertically (`stackScene`) show the same page if each part shows the same scene at **exactly** equal heights | PL1's ½ px does not compose |
+
+**Which way the plan goes.** The Lego note's `frame_le_append` over ≼ alone is false (`frame_le_append_passes_fails`);
+the plan uses the true forms: the combined-run condition is per-part **`unionLe` or cover**, not per-part ≼. A
+passes-type win (hidden-pause, scene pausing, panel blur → none) is claimed for the page only when no other part
+touches that stage in the same frame; otherwise it is reported as part-local.
+
+**Limits, stated in the report.** (1) The visual premise is "every visible y equal"; the gate's finite probes do not
+discharge a ∀y, only the per-part band theorems do. (2) Fixed and overlay parts (nav, drawer, signup) are outside the
+vertical `stackScene` model; their visual composition is the gate's evidence, not a theorem. (3) `Indep` is abstract
+until a bridge proof `Independent P Q → Indep` ties it to §6.8 (open item, not yet a work-graph task). (4) Results are per frame; run-level
+(per-frame list) composition is not stated.
 
 ## 5. Lean strategy
 
@@ -561,29 +514,22 @@ gate matrix), motion curves, count reduction and verdicts.
 | M1 | `Fw/Site`; `Fw/Spec/{ArtifactKey, Store}`; `Fw/Measure` (classes, tolerances, zones, the freeze rule, **`measure.zoneBaseline`**, `store.ciRun`); run queue, sessions, lease (Q26); stage lifecycle, land queue | stale reuse, cherry-picking, lease mid-step, a lost queue place |
 | M2 | `Fw/Parts` (part specs and golden vectors for the 9 end-of-page parts); `Fw/Spec/Flags` + `Fw/Gen/Registry` (P), presets; parity bands; `Fw/Spec/Screen` (dominance, proved sound for class W), uncounted families, landing classifier, `land_requires` | arms that changed more than the named thing; over-trusting proxies |
 | M3 (rev 10: optional spot checks) | block validity and the thermal-class refusal for phone blocks; **no model ladder, fit checker or licence** (Q37 resolved, §12.0) | a device block used beyond its validity |
-| **M5 (rev 10: proofs)** | **`Fw/Engine/{Core, Visual, Chromium, WebKit}`** (stage model, scene, engine tables with cites, `frame_le_of_cover`, `frame_le_union`, `run_dominates` → `Screen.screen_sound`, `toCost` → `Cost.mainUs_mono`); **one `Fw/Parts/<Part>Opt` module per part × optimization** with the (vis) and (work) pair (§4.7, §10.6); `Fw/Measure/EngineCheck` (F0-F5 rows and the match rule) | a "same look" claim that was only eyeballed; a "less work" claim that rested on one device run; a model that drifts from engine source without anyone noticing |
+| **M5 (rev 10: proofs)** | **`Fw/Engine/{Core, Visual, Chromium, WebKit}`** (stage model, scene, engine tables with cites, `frame_le_of_cover`, `frame_le_union`, `run_dominates` → `Screen.screen_sound`, `toCost` → `Cost.mainUs_mono`); **one `Fw/Parts/<Part>Opt` module per part × optimization** with the (vis) and (work) pair (§4.7, §10.6); `Fw/Measure/EngineCheck` (F0-F5 rows and the match rule); **rev 11:** `Fw/Engine/Compose` (§4.8) and `Fw/Parts/Contract` (§6.8) | a "same look" claim that was only eyeballed; a "less work" claim that rested on one device run; a model that drifts from engine source without anyone noticing |
 | M6 | the per-module evidence table and the per-part theorem table for the report; `FwMath` only if a verdict needs it | — |
 
-**Built by ad5eeea** ([EV §4]): 51 modules on the math view (`Fw/{Board, Console, Serve, Wire, Spec, Site, Parts,
-Sched, Measure, Gate, Store, Plan, Obs, Ops}`). **Mutants (V-r) for M0:** 625 mutants, 621 killed, 3 equivalent, 0
-survived (MEASURED 8074907); the killers run in `lake test`.
-
-**Evidence, not a go/no-go.** Each L1 module ships with mutants (V-r) and is counted in the per-module bug ledger
-(V-l). **Demotion rule:** a module moves from L1 to L2 by a decision record when its proofs cost more than 1
-agent-day on two consecutive changes while the ledger shows 0 bugs caught, or when it blocks a console feature for
-more than a working day; the Lean spec then stays the oracle for a TS implementation. The per-module table is
-reviewed for the report (M6; was M4). **Changed in rev 10 (A32):** engine rules *are* Lean data now
-(`Fw/Engine/{Chromium, WebKit}`), because the proofs need them. The old objection stands, a proof about our
-transcription cannot catch a transcription error, and is answered differently: every table row cites its engine line
-at the pin, and the CI falsification checks F0-F5 (§4.7) test the transcription against counts. Part geometry claims
-are the `faithful` Lean specs, tied to the TS parts by golden vectors and to the original by the gate (§6.6).
+**Built by ad5eeea** ([EV §4]): 51 modules on the math view; M0 mutants (V-r): 625, 621 killed, 3 equivalent, 0
+survived (MEASURED 8074907). **Demotion rule:** a module moves from L1 to L2 by a decision record when its proofs cost
+more than 1 agent-day on two consecutive changes while its bug ledger (V-l) shows 0 bugs caught; the Lean spec stays
+the oracle. **Engine rules are Lean data (rev 10, A32):** a proof about our transcription cannot catch a transcription
+error, so every table row cites its engine line at the pin and F0-F6 (§4.7) test it against counts. Part geometry is
+the `faithful` Lean specs, tied to the TS parts by golden vectors and to the original by the gate (§6.6).
 
 **Not proved (L3), each with its check:** that the engine tables match the shipped engines (cited rows + F0-F5;
 rev 10, was "table tests"); work counts (V-a, V-b, V-i, V-n); run independence (A/A, ABBA); sha256 collisions;
 pixels (tiers vs A/A; `pixel-spot` for H1-H3); the React parts (PL0-PL6, golden vectors); IO (contract suites,
 `fwcore replay`); YAML and CSS parsing (golden files); human and LLM judgement (blind protocol, typed commands); the
-UI (Playwright); `fwcore` speed; the clock; completeness of observation (reconcilers) and of declared dependencies
-(SPK-u); actor identity (SPK-t); "answered / complete" (your click).
+UI (Playwright); `fwcore` speed; the clock; completeness of observation (reconcilers), of declared dependencies
+(SPK-u) and of the part contract rows (`contract-rows-from-code`, §6.8); actor identity (SPK-t); "answered / complete" (your click).
 
 **Multiplicity.** A landing by verdict needs `k · p_null ≤ 0.05`; under the null Pr[better] ≤ 1/70 for 4v4
 (`land_null_prob`, 9367dea; `falseBetterProb_eq_pNull` for any m, n, 74ffd03; k ≤ 3 by `multOk`). Rev 10: a proved
@@ -591,21 +537,14 @@ pair makes no statistical comparison, so k counts only proposals and the optiona
 
 ### 5.2 How TypeScript and Lean connect
 
-- **Lean decides and holds the console state; TypeScript moves data** (architecture (B) of [10.03 §4]). `lean/`
-  builds the native executable `fwcore`; `fwcore serve` is one long-lived, single-threaded process (JSON-lines,
-  hardened as in §3.2). console-api stamps each event with an id and the time, appends and fsyncs it, sends it to
-  `fwcore`, and publishes the changed rows over SSE; a refused event is logged with its reason. Nightly,
-  `fwcore replay events.jsonl` must reproduce the live state hash.
-- **One reducer, one data layout.** `Fw/Console` merges [10.02]'s semantics (actors, cards, authority, landing with
-  violations, review independence, seen-on-accept) with [10.03]'s data structures (`Std.HashMap`/`HashSet`,
-  `modifyGet`); the 100k-event speed test runs in `lake test` (budget < 1 s).
-- **Mathlib-free core, optional `FwMath` (decided 2026-10-17).** Core Lean (`omega`, `decide`, `simp`, `grind`,
-  `Rat`, `Lean.Json`) covered every kickoff sketch. A proof that needs Mathlib (Hodges–Lehmann, exact p-values beyond
-  enumeration) goes in a separate `FwMath` package that `Fw` never imports, so Mathlib's several-GB cache stays
-  optional [05 §0]; it follows the same math and sign-off rules.
-- Types: zod is the source of truth (`packages/contracts`). Lean types derive `ToJson`/`FromJson`. `fwcore samples`
-  emits golden JSON that zod must parse byte-for-byte, so the Lean JSON shape cannot drift [05 §2, 06 §2.5].
-- TS copies: only L2 items (§3.3), each generated by Lean or held to Lean golden vectors in TL2.
+- **Lean decides and holds the console state; TypeScript moves data** ([10.03 §4] (B)). `fwcore serve` is one
+  long-lived JSON-lines process (hardened as in §3.2); console-api stamps, fsyncs and forwards each event and publishes
+  changed rows over SSE; a refused event is logged with its reason; nightly `fwcore replay` must reproduce the live
+  state hash. One reducer, `Fw/Console` ([10.02] semantics, [10.03] data structures); 100k events < 1 s in `lake test`.
+- **Mathlib-free core, optional `FwMath`** (2026-10-17): core Lean covered every kickoff sketch; a proof that needs
+  Mathlib goes in `FwMath`, which `Fw` never imports, so Mathlib's cache stays optional [05 §0].
+- **Types:** zod is the truth (`packages/contracts`); `fwcore samples` emits golden JSON that zod must parse
+  byte-for-byte [05 §2, 06 §2.5]. TS copies: only L2 items (§3.3), generated by Lean or held to Lean golden vectors.
 
 ### 5.3 How you read a theorem, and a worked example
 
@@ -622,9 +561,9 @@ Lean collapsed). Sign-off records are keyed by statement and math hash; the lint
 outside an allowlist, a hash changed since signing, a KaTeX error or a non-standard axiom. The math-reviewer writes its
 own math from the signature and compares clause by clause (ℕ vs ℤ, ≤ vs <, truncated subtraction, ties, ⇔ vs ⇒);
 disagreement goes to a second reviewer, then you (Q28); a toolchain bump re-signs only unchanged entries (R24).
-**Status (MEASURED):** rounds r4-r10 found no wrong proof, every disagreement was a docstring fix; 2,171 entries in 51
-modules at ad5eeea. The last round is `math-final` by T+52h; a theorem added after that is unsigned in the report
-and says so. Rev 10 adds the `Fw.Engine.*` and `Fw/Parts/*Opt` modules to the review queue (R37).
+**Status (MEASURED):** no review round found a wrong proof; every disagreement was a docstring fix. After
+`math-final` (d159442a): 5,109 agree, 0 disagree, 517 stale, 1,373 pending; a theorem added later is unsigned in the
+report and says so.
 
 **Short example** (`lean/Fw/Spec/Verdict.lean`, 9367dea; proof elided; the full worked example in [EV §5.2]):
 
@@ -659,29 +598,22 @@ replaces `fw land`. `webkit-sim` takes 10-38 min and fails under host load (R33)
 
 ### 6.1 Parts
 
-The parts follow the page anatomy in [02 §2]: `nav`, `nav.hitTest`, `nav.langMenu`; `hero.{orbit, deck, exit,
-accent, countdown, cue}`; `people.{card, o, deck, carousel}`; `pain`, `pain.notes`; `commission`,
-`commission.typing`; `platform.{sweep, glint, entries, stageBg, marquee}`; `morph.{mount, tween, panel, countdown,
-columns}`; `overlays.{signup, drawer}`; the cross-cutting parts `engine.scroll`, `engine.scene` and `images`; and,
-added from the breakpoint inventory [11], the section shells `hero` and `platform`, the shared buttons `ui.shared`
-(`sb-*`) and the root `theme.tokens` (with the 320 px floor) (about 36 in all).
+The parts follow the page anatomy in [02 §2]; **34 part ids** live under `apps/site/src/parts` and each has one
+row in the part contract (§6.8): the sections `nav`, `hero`, `people`, `pain`, `commission`, `platform` and their
+children, `morph.{mount, tween, panel, countdown, columns}`, `overlays.{signup, drawer}` and the cross-cutting
+`engine.scroll` and `engine.scene`. Shared buttons and the root theme tokens (with the 320 px floor, [11]) are
+styling, not parts.
 
 **Every part with markup is built from Material UI components** (decided 2026-10-17: `Box`, `Stack`, `Typography`,
 `Button`, `Link`, `AppBar`, `Card`, `Avatar`, `Dialog`, `Drawer`, `Menu`, `Tab` …). Looks come from CSS Modules that
 restate the original's values; motion comes from our drivers (§6.5). MUI's wrapper elements (Paper, Backdrop, Portal
 roots) are listed in each part's `parity.json` wrapper map, which PL0/PL1 and N3 use.
 
-**Experiment parts** (the full backlog): `morph.*`, `people.*` (reveal and deck), avatars, `engine.scroll` and
-`nav.hitTest` (scroll-engine reads), `hero.countdown`; only these need full work parity (PL5-PL6). **Rev 9 scope
-(§10.1):** the 9 end-of-page parts (`engine.scroll`, `hero.countdown`, `hero.exit`, `nav.hitTest`, `morph.{mount,
-tween, panel, countdown, columns}`) are ported `faithful` through the gate; every other section is a shell first,
-then ported `faithful` in parallel behind the swap check (Q36, §10.5); the `people.*` reveal experiments, avatars
-and the rest of the experiment backlog are out of scope for v2.
-
-Dead CSS (about half of the Platform section's animation CSS never runs [02 §2.6]) is not ported as live rules.
-Whether `faithful` adds it back as an **inert stylesheet** with the same rule count is **open (Q35)**. The
-recommendation is no: MUI's static CSS already puts the rewrite above the original's rule count, so N4's difference
-becomes a K-fixture parameter instead (`10-17-css-decisions.md`).
+**Experiment parts** need full work parity (PL5-PL6): the 9 end-of-page parts (`engine.scroll`, `hero.countdown`,
+`hero.exit`, `nav.hitTest`, `morph.*`); every other part is ported `faithful` with look parity, and the rest of the
+v1 backlog (the `people.*` reveal, avatars) is out of scope for v2. Dead CSS (about half of the Platform section's
+animation CSS never runs [02 §2.6]) is not ported, and no inert sheet is added (Q35 = a; N4's rule-count difference
+stays a fixture parameter, `10-17-css-decisions.md`).
 
 ### 6.2 Registry and variants
 
@@ -702,7 +634,7 @@ Each part has a static `part.json`, the single source of truth; TS imports it an
 | Kind | Meaning | Gate |
 |---|---|---|
 | `faithful` | same DOM shape, the original's CSS values restated; for experiment parts also the **same per-frame reads and writes**, bad ones included (rect reads in rAF, the hit test, the scroll-jack) | PL0-PL6 (§6.6); time box 3 h in v2, then `faithful-with-delta` with the delta named |
-| `shell` (rev 9, Q36) | a static section with the original's box height per breakpoint and static text; no drivers | PL1 outer box only; no breakpoint gate |
+| `shell` (rev 9, Q36; none left) | a static section with the original's box height per breakpoint; no drivers | PL1 outer box only |
 | `ablation` | generated per part: `frozen`, `static`, `nopaint`, `box` | v1 fairness check: boxes equal, script and layout counts equal, only paint/raster lower |
 | `optimized` | v1 fixes re-implemented from their READMEs (never copied from patches), and new ideas | **rev 10: lands only with its Lean pair** (§4.7): (vis) of class E, E-s or Q with the gate's tolerances, (work) over `Fw.Engine` for both engines and all bands, TS checked against the Lean golden vectors; plus layers ≤ `layerBudget` and no falsified F3/F4 prediction. Compositor eligibility is read from the counts lane itself (`compositeFailedBits`), which is threaded (F0); no separate free-running census. A class L change cannot be `optimized` |
 | `proposal` | look changes: CM / compositor-morph, constant glass, FLIP on `people.o`, carousel st6, typing chunks, PR-040/041, finger-following end, instant People card | your decision via Try-it + blind A/B (D2, §12.1: you chose constant glass, FLIP / st6 and typing chunks; the others stay unbuilt); the model may still state their *work*, labelled "look changed" |
@@ -782,7 +714,7 @@ rewrite at preset `original`. Both arms load the same image and font bytes from 
 | Level | Check | Gate | Applies to |
 |---|---|---|---|
 | PL0 | structure: the anchor set exists and counts match (`parity.json` maps `data-fw` ids to original selectors and lists MUI wrapper elements) | exact, wrappers excluded | ported parts |
-| PL1 | element boxes at each stop | ≤ 0.5 CSS px | ported parts; **shells: the outer box only** (Q36) |
+| PL1 | element boxes at each stop | ≤ 0.5 CSS px | ported parts |
 | PL2 | computed styles (a property list per anchor); N4, the static style-shape census, once per build | exact after normalisation; numeric ≤ 1e-3; N4 as in §6.7 | ported parts |
 | PL2b | accessibility tree and tab order at each stop | equal to the original's, also when content hides by opacity | ported parts |
 | PL3 | still pixels at fixed stops, animations frozen | v1 tiers against A/A | ported parts |
@@ -790,15 +722,15 @@ rewrite at preset `original`. Both arms load the same image and font bytes from 
 | PL5 | work counts per scenario (rest 6 s, scripted scroll, the part's trigger), per family; N0/N1 sheet mutations, N2 DOM writes; N3 against the `impl: plain` twin | bands below | experiment parts (N0 on all) |
 | PL6 | timing parity: Mac Chrome timing lane, per stage, R within A's A/A band (ABBA, n ≥ 4) | within band | experiment parts |
 
-In rev 9 "ported parts" = the 9 end-of-page parts, all of which are experiment parts (§10.1); the whole-page
-Simulator and phone check of rev 8's M4 is replaced by the engine models plus F0-F5 (rev 10, §4.7).
+Every part is ported (`integrate-ports-4`); the 9 end-of-page parts are the experiment parts. Rev 8's whole-page
+Simulator and phone check is replaced by the engine models plus F0-F6 (§4.7, §4.8).
 
 **PL5 bands** (proposals; rev 10: computed and **reported** by `faithful-checks`, no separate freeze, `bands-freeze`
 cut): rAF callbacks and forced layouts **exact**; style and layout passes and elements `|R−A| ≤ max(2, 5 %)`;
 paint/raster `|R−A| ≤ max(2, 10 %)`; layers ±0; compositor/main split exact; sheet mutations 0; N2 equal to the plain
 twin. Only deterministic and stable count types take part, stable ones as totals with margin 2t (V-i). **Counts are
 per frame and per scroll zone, not per part** (A31), so the faithful check for the region compares zones y04000,
-y04500 and tail of R against A; the shells' zones are reported and not gated. **Predicted vs counted (rev 10, V-h):**
+y04500 and tail of R against A; other zones are reported. **Predicted vs counted (rev 10, V-h):**
 for every `optimized` flag the engine model's rows are checked by F3/F4 (§4.7): predicted-zero stages read 0
 (deterministic) or stay within 2t (stable); `Paint` and `UpdateLayoutTree.elementCount` are quarantined, so paint
 predictions use `raster.invalidationAreaPx` / `invalidationRects`. A mismatch is a model bug, never a tolerance change.
@@ -807,21 +739,18 @@ predictions use `raster.invalidationAreaPx` / `invalidationRects`. A mismatch is
 arm A in the counts lane and requires the **same sign of Δ per stage** as on the rewrite; otherwise it is "transfer
 unchecked" and cannot land as class W.
 
-**Every breakpoint, identically, for every part (your requirement of 2026-10-17; rev 9 waiver for shells, Q36).**
-The inventory [11] found 30 media conditions and **18 edges** (CONFIRMED [11 §1]): CSS-only at 319→320, 400, 461,
-480, 640, 720, 960, 1030, 1100, 1200, 1511; CSS-and-JS at 600, 860, 1000, 1279; device-width 500 and the touch arm
-`(hover: none) and (pointer: coarse) and (width <= 1200px)` through the OR-combos C860, C1000, C1030; the pain-notes
-container width < 1100 (JS). The Lean model `Fw/Site/Breakpoints` generates `breakpoints.gen.json`, the media strings
-and the gate matrix; the build fails unless the snapshot extractor agrees. Rules: **pure 860 is not C860** (tested at
-1024 touch and 932×430); **overlaps** keep the original's winner; **fractional gaps** (600.5, 640.5, 860.5, 1000.5)
-need exactly restated bounds; **JS gates** run the identical query. Rev 10's (vis) theorems quantify over the same
-width bands, so a proof and the gate speak about the same intervals (§4.7).
+**Every breakpoint, identically, for every part (2026-10-17).** The inventory [11] found 30 media conditions and
+**18 edges** (CONFIRMED [11 §1]), including the touch arm `(hover: none) and (pointer: coarse) and (width <= 1200px)`
+through C860, C1000 and C1030, and the pain-notes container width < 1100 (JS). `Fw/Site/Breakpoints` generates
+`breakpoints.gen.json`, the media strings and the gate matrix; the build fails unless the snapshot extractor agrees.
+Rules: pure 860 is not C860; overlaps keep the original's winner; fractional gaps (600.5, 640.5, 860.5, 1000.5) need
+exactly restated bounds; JS gates run the identical query. The (vis) theorems quantify over the same width bands.
 
 **Breakpoint lint and gate.** Per part and kind the normalised conditions must equal the inventory's set (an L1
 decision). The gate, required before any ported part is promoted: PL0-PL3, original vs rewrite with a per-config A/A,
 Chromium and Playwright WebKit, 124 loads per engine plus one width inside each band and live-resize sweeps; a part's
-probe scope cuts this to 10.8 job-minutes (MEASURED). **Status:** all 4 pilots pass all 14 cells in both engines
-(byte-identical across two runs); the verdict runs in Lean (`verdict-to-lean`); PL2b, PL3 pixels and live flips are
+probe scope cuts this to 10.8 job-minutes (MEASURED). **Status:** `integrate-ports-4` passed in Chromium (run 39142015714: 0 bad, 57
+commission-resize readings excused); the verdict runs in Lean (`verdict-to-lean`); PL2b, PL3 pixels and live flips are
 reported, not gated, in v2. **Cells no engine can reach (Q33):** WebKit cannot produce the fractional gaps or the
 hover × pointer cross; the gate marks them `unreachable` (3a8c263); the gaps lane reaches 8 of 8 Chromium cells, and
 the phone probe in session 1 agreed 8 of 8 with Lean (0c901f2).
@@ -848,6 +777,51 @@ moves to the Base UI fallback. A failed N2 or N3 makes the part `faithful-with-d
 table. N0 runs in the counts lane; on the phone only the end-of-run hash runs. **In v2 N2-N4 run for the 9 ported
 parts only; shells (Q36) have no twin.**
 
+### 6.8 The part contract (rev 11): who reads whom
+
+`Fw.Parts.Contract` (cf3eebf3, task `contract-lean`) holds one row per part id under `apps/site/src/parts`: 34 rows
+(`parts_ids`), each with the signals it reads and writes (scroll y, viewport width and height, clock, pointer, morph
+phase, CSS variables, class names, element boxes, scene pause), the elements it targets, the parts whose boxes its
+frame writes move, and whether it reschedules the scroll list. All theorems are by `decide` (CONFIRMED, Lean file).
+
+| Premise | Two parts P, Q are independent when … | Decided |
+|---|---|---|
+| I1 | neither writes an element the other owns or writes | Lean |
+| I2 | neither part's frame writes move the other's box | Lean |
+| I3 | no frame-time output of one **affects** an input of the other: the same signal, or a scroll-y write and any box read | Lean |
+| I4 | no forced-update chain in the ordered scroll list and no shared schedule | Lean |
+| I5 | compositing of overlapping layers does not couple them | recorded premise |
+
+**Page-level parts** are derived, not declared: `pageLevel P := P.schedules || scrollY ∈ P.outputs`. Two parts are
+page-level: `engine.scroll` (reschedules every scroll-list callback; `g4_iff`, `g4_couples`) and `morph.tween` (the
+only frame-time scroll writer, `scroll_writers`; it couples to every part that reads a box, `scroll_writer_couples`).
+Page-level parts read only the environment (`pagelevel_env_only`), so they are measured on whole-page runs only.
+**`groups_partition`:** two parts that are not page-level and sit in different groups are independent.
+
+| Group | Members (decided by the code rows) |
+|---|---|
+| CG1 | hero, hero.accent, hero.cue, hero.deck, hero.exit, hero.orbit, pain, pain.notes, people.card, people.o |
+| CG2 | commission, commission.typing, engine.scene, morph.mount, morph.tween (page-level), nav, nav.hitTest, nav.langMenu, platform and its 5 children (entries, glint, marquee, stageBg, sweep) |
+| CG4 | engine.scroll (page-level) |
+| solo | hero.countdown, morph.columns, morph.countdown, morph.panel, overlays.drawer, overlays.signup, people, people.carousel, people.deck |
+
+CG3 and CG5 are empty in the code rows; the ids are kept so `Group.g1…g5` and CG1-CG5 stay one to one.
+
+**Which way the plan goes.** The Lego note grouped by feature (its five groups); the code rows moved 21 parts, so **the Lean
+table wins** (A36). For example `people.o` reads the clock and `people.card`'s box and writes `data-o-stack`, which
+`people.card` reads (`card.module.css:170`, width ≤ 860 px), so it is in CG1, not solo.
+
+**The rows are declared by hand: premise `declared-rows-unverified`.** The golden
+`packages/contracts/golden/parts/contracts.gen.json` carries it at top level, and every stage result and proved flag
+that relies on the table (`part-stage`, `proved-flags-ts`) carries it too, until `contract-rows-from-code` lands: a
+static extractor over each part's TS and CSS that emits a footprint JSON from which the Lean table is generated (the
+hand rows become the diff baseline). Accepted limits (the `groups_partition` docstring): outputs list only signals
+another part can read; I4 is pairwise with no clock-subscriber order; event-only writes are excluded; `moves` is
+hand-listed; viewport width and height have no writer. Two selectors match no element under CSS-module renaming
+(`pain.notes/index.tsx:40`, `nav.hitTest/logic.ts:19`; `build.mjs:41`): faithfulness findings for those two parts.
+`scenariosFor` generates `packages/measure-chromium/scenarios.gen.json`; every scenario it names is one of the 5
+profiles that exist (`scenarios_known`); there is no push profile yet.
+
 ## 7. Repo layout and the knowledge store
 
 ### 7.1 Layout (MVP; "later" items are added only when needed, §3.4)
@@ -867,21 +841,13 @@ parts only; shells (Q36) have no twin.**
 | `snapshot/site/` | the Fastwork original, tracked unmodified (269 files, 30.1 MB; tree id = lock), read-only |
 | `.fw-console/`, `.cache/`, `.local/`, `snapshot/site-pretty/` | GITIGNORED: live console state (console-api only), upstream clones and raw traces, v1 digests, pretty-printed snapshot |
 
-### 7.2 Frontmatter (one zod schema in `packages/kb`, checked by `pnpm kb lint`)
+### 7.2 Frontmatter
 
-```yaml
-id: 2026-10-17-webkit-presence-flip       # date-slug: no collisions across worktrees
-kind: note | decision | ref | rule          status: draft | review | accepted | superseded
-title: "..."   created: 2026-10-17   updated: 2026-10-17   authors: [agent:<role>-<topic>, user]
-topics: [measurement, webkit]   engines: [webkit]   parts: [people.carousel]   # parts must exist in the registry
-builds: ["webkit:7624/ios", "chromium:155.0.8059.80"]   # where the claims apply
-links: { refs: [], sources: [], experiments: [], v1: [] }
-claims: [{ text: "...", status: CONFIRMED | OBSERVED | INFERRED | WEAKENED | REFUTED, cite: "<id|url>" }]
-```
-
-A **rule card** (`kind: rule`) adds `statement`, `source {repo, commit, path, lines}`, `counts`, `test` (its table
-test) and `mechanism`; `kb lint` fails when two live cards share a mechanism with opposite statuses [08], and
-`fw refs:drift` flags changed cited lines at a new engine tag (it would have caught 7624 → 7625 [04 §11]).
+One zod schema in `packages/kb` (the truth; `pnpm kb lint` checks it): a date-slug `id`, `kind` (note, decision,
+ref, rule), `status`, dates, authors, topics, engines, parts (must exist in the registry), builds, links, and
+`claims` each with a status and a cite. A **rule card** adds `statement`, `source {repo, commit, path, lines}`,
+`counts`, `test` and `mechanism`; `kb lint` fails when two live cards share a mechanism with opposite statuses [08],
+and `fw refs:drift` flags changed cited lines at a new engine tag [04 §11].
 
 ### 7.3 Public repo: what enters git and what never does
 
@@ -974,18 +940,13 @@ Never kill by name (R31).
 
 ### 8.4 Cost reporting (speed first, no hard caps)
 
-**Decision of 2026-10-17: speed over token savings.** No project, milestone or daily caps, no stop rules, no Opus
-share limit. Kept: reporting, a forecast to report against, soft alerts, and the rules that make work faster: no
-idling past the 5-minute cache (§8.2), no LLM polling, short agents with `maxTurns`, scripts for routing and the
-device, Haiku helpers for searches and test runs, Bash and Read output caps (§8.3), measurement on CI (§4.1).
-v1's bill was context and idling, not thinking (MEASURED [08 §3]: cache reads 44 %, cache writes 41 %, output 14 %;
-cold rewrites after idling 24 %).
-
-| | |
-|---|---|
-| Forecast (rev 3, list-price USD) | M0 370 · M1 1,165 · M2 775 · M3 785 · M5 1,070 · M6 115 (M4 out of scope); plus 20-40 % for Opus use and Lean work (INFERRED [10.03 §7.1]) |
-| Soft alerts, no stops | a gate above 1.5× its forecast; cold wakes above 10 %; the provider's weekly limit is the one real stop (v1 hit it three times [08]): alerts at 60 % and 80 % |
-| Reporting | `pnpm fw usage` (transcript tailer, deduped by `message.id`, L1): tokens and dollars per gate, role and day; cache-read and cold-wake shares; compactions, refusals and resumes per role |
+**Decision of 2026-10-17: speed over token savings.** No caps or stop rules. Kept: reporting (`pnpm fw usage`,
+transcript tailer deduped by `message.id`, L1: tokens and dollars per gate, role and day, cache and cold-wake shares),
+the rev 3 forecast to report against (M0 370 · M1 1,165 · M2 775 · M3 785 · M5 1,070 · M6 115 USD, plus 20-40 %,
+INFERRED [10.03 §7.1]), and soft alerts (a gate above 1.5× forecast; cold wakes above 10 %; the weekly limit at 60 %
+and 80 %). What makes work faster: no idling past the 5-minute cache, no LLM polling, short agents, Haiku helpers,
+output caps, measurement on CI. v1's bill was context and idling, not thinking ([08 §3]: cache reads 44 %, writes
+41 %, output 14 %).
 
 ### 8.5 Coordination rules (from the v1 chat history)
 
@@ -1015,8 +976,7 @@ card). **Any agent:** `fw screen | gate | run | device` job requests, kb and bug
 | Track | Purpose | Stages |
 |---|---|---|
 | **fidelity** | make a part `faithful` | port → PL0-PL3 → PL4-PL6 → promoted, or `faithful-with-delta` after the time box (3 h per part in v2; the end-of-page region as a whole has one 12 h box) |
-| **calibration** | keep the model honest | fixtures on device → fit → holdout → validity table; **not run in v2** (Q37) |
-| **experiment** | change a part and land it | **question → build → screen → review → (device) → land**, below |
+| **experiment** | change a part and land it (calibration track: not run in v2, Q37) | **question → build → screen → review → (device) → land**, below |
 
 ### 9.2 Experiment stages, gates and signatures
 
@@ -1033,7 +993,7 @@ card). **Any agent:** `fw screen | gate | run | device` job requests, kb and bug
 
 | Class | When | Device needed? |
 |---|---|---|
-| **W** less work | the W conditions below all hold; **rev 10: the (vis) and (work) pair is proved for both engines and all bands, and F3/F4 found no mismatch** | No. The phone is an optional spot check with no dependents (§4.7, §10.3) |
+| **W** less work | the W conditions below all hold; **rev 10: the (vis) and (work) pair is proved for both engines and all bands, and F3/F4 found no mismatch; rev 11: a page claim for a passes-type win also needs §4.8's `unionLe` or cover** | No. The phone is an optional spot check with no dependents (§4.7, §10.3) |
 | **SM** smoothness claim or mixed counts | trades one cost for another, claims a feel improvement, or fails a W condition | yes in v2 (no licensed model exists) |
 | **X** device-only mechanism | `filter`, `backdrop-filter`, `mix-blend-mode`, group opacity; toolbar or first-interaction effects; heat | always |
 | **P** proposal | changes the look | your decision on a Try-it page + blind A/B |
@@ -1061,25 +1021,25 @@ T+62h is the deadline. The live task state is the console Plan tab; the graph is
 ### 10.1 The minimum experiment that still answers the question
 
 The study asks whether a measurable, provable loop can reproduce v1's end-of-page outcome with a fraction of v1's
-device time, tool bugs and elapsed time (§1). Every item below is the smallest thing that keeps that answer honest.
+device time, tool bugs and elapsed time (§1). Rev 9 cut rev 8's design to the smallest honest version, and revs 10
+and 11 changed what counts as evidence:
 
-| Piece | Rev 8 design | Rev 9 (3 days) | Why this is enough |
-|---|---|---|---|
-| Parts ported `faithful` | all ~36, each through the full breakpoint gate (M4) | **the end-of-page region**: the 4 pilots (`engine.scroll`, `hero.countdown`, `hero.exit`, `nav.hitTest`) plus `morph.{mount, tween, panel, countdown, columns}`, 9 parts through the probe-scoped gate (10.8 job-min each, MEASURED `gate-probe-scope`) | v1's decision and all of its measured effect sit in the end-of-page zones; the pilots are built and the scroll engine is shared |
-| Every other section | ported, look parity PL0-PL3 | **shells first** (the original's box height per breakpoint, static text, no gate), **then ported `faithful` in parallel** off the critical path; a port replaces its shell when the swap check passes (Q36, §10.5) | the shells make the page complete by C2, so zone sums compare; the ports give you the whole homepage rewritten and identical-looking with faster animations, which is your stated goal; any section still a shell at C3 is listed in the report |
-| Inner loop | Chromium + WebKit Simulator counts on CI | **Chromium counts on CI** (green, A and R side by side); the Simulator lane only if it passes the T+12h go/no-go (§10.2) | Chromium is deterministic per type and already stores zone sums; the Simulator lane has failed every run under host load 401-836 (MEASURED `10-17-sim-speed.md`) and paid runners are out |
-| WebKit truth | Simulator counts + WKTR counts + a calibrated phone model (M3) | **rev 10: the WebKit engine model `Fw.Engine.WebKit`**, every row cited at `WebKit@862f17d`, checked by F5 on the Simulator if `webkit-sim-rewrite` is green, else reported model-only; WKTR not modelled; the phone an optional spot check | the theorems hold under the model for every width; what CI cannot check is named as a hypothesis, not hidden |
-| Cost model | K1-K10 fits, licence per change class | **none, and none needed** (Q37 resolved): (work) is componentwise per stage, so `Cost.mainUs_mono` gives "no frame costs more under any non-negative unit costs" | class W needs no coefficients (§9.2); it needs a proof that the comparison is sound, which exists |
-| Experiments | the end-of-page decision plus the backlog as flag arms, ≥ 10 changes | **rev 10: one proof task per part × optimization** (§10.6, about 12 with a provable pair in 2 days); the decision is the **proof ledger**: `v2-proved` (proved pair, no falsified prediction) beside `faithful` and `v1-best` (a look change); class L candidates are proposals (D2) | a theorem per part replaces a pre-registered comparison; counts falsify the model instead of deciding |
-| Report | distilled write-up after M5 | the same, written from T+48h, text frozen at T+60h; per part: theorem pair, premises, F0-F5 result | G4 needs every landed card summarised; there will be one |
+| Piece | v2 form | Why this is enough |
+|---|---|---|
+| Parts | every section ported `faithful` and gated (`integrate-ports-4`); the 9 end-of-page parts carry work parity too | v1's decision and measured effect sit in the end-of-page zones |
+| Inner loop | Chromium counts on CI (A and R side by side); WebKit Simulator on the rewrite where it ran | Chromium is deterministic per type; paid runners are out |
+| WebKit truth | the cited model `Fw.Engine.WebKit`, checked by F5 where the Simulator ran, else model-only; WKTR not modelled | what CI cannot check is named as a hypothesis |
+| Cost model | none, and none needed (Q37): (work) is componentwise, so `Cost.mainUs_mono` covers any non-negative unit costs | class W needs no coefficients |
+| Experiments | the **proof ledger**: `v2-proved` beside `faithful` and `v1-best`; one combined run per profile (§10.7); class L stays a proposal (D2) | a theorem per part replaces a pre-registered comparison; counts falsify the model |
+| Report | written from T+48h, text frozen 2026-10-20 11:15; per part: theorem pair, premises, F0-F6 result, contract row | G4 needs every landed card summarised |
 
 ### 10.2 Checkpoints (each a gate with a "must be true" and a fallback)
 
 | Checkpoint | Local time | Must be true | Fallback if not |
 |---|---|---|---|
 | **C1 WebKit go/no-go** | **T+12h = 2026-10-18 11:15** | **GO** only if two consecutive `webkit-sim` runs on `ci/webkit-green` completed with their determinism step in ≤ 45 min each (healthy job 33-43 min, CONFIRMED `handoffs/ci-webkit.md`). Also: the cross-run Chromium zone baseline exists (`measure.zoneBaseline` + `refreeze`); `shells` and the morph ports started; Q34-Q37 answered or their defaults applied. **Outcome: GO** (lead, 2026-10-18; `webkit-green` f03e94b: runs 39048376821 in 19 min and 39050061299 in 24 min, MEASURED); `webkit-quiet`, `step-align` and `zone-baselines-webkit` run as parallel lanes | **NO-GO** (not taken): `webkit-quiet`, `zone-baselines-webkit` and `step-align` move to MX; WebKit truth is the phone only; no further agent time on the Simulator lane |
-| **C2 Region faithful + engine models** | **T+24h = 2026-10-18 23:15** | M1 closed; M2: shells landed (done) and the 9 parts `faithful` through the gate, `faithful-checks` green on zones y04000/y04500/tail in Chromium, PL5 bands reported; section ports running (§10.5). **Rev 10:** `engine-core-lean`, `engine-chromium-lean`, `engine-webkit-lean` landed, `engine-ci-check` green on F0-F2 (fixture-rest), `morph-tween-curve` landed; the proof wave started | a part past its 3 h time box lands `faithful-with-delta` with the delta named; an engine table row without a cite stays INFERRED and is listed |
-| **C3 Decision** | **T+48h = 2026-10-19 23:15** | M5: the **proof ledger closed**: every `proof-*` and `variant-*` task landed or cut (its edge removed, §10.6); F3/F4 run on the rewrite arm per proved flag with 0 mismatches, or each mismatch filed as a model bug; `experiments` decided (`v2-proved` named); every section port landed or listed as still a shell. Phone session 2 is optional and not a condition | a proof task still open is cut and its optimization goes to the report as "modelled, not proved"; a falsified prediction that cannot be fixed by C3 drops that flag from `v2-proved` |
+| **C2 Region faithful + engine models** | **T+24h = 2026-10-18 23:15** | M1 closed; M2: shells landed (done) and the 9 parts `faithful` through the gate, `faithful-checks` green on zones y04000/y04500/tail in Chromium, PL5 bands reported; section ports running (§10.5). **Rev 10:** `engine-core-lean`, `engine-chromium-lean`, `engine-webkit-lean` landed, `engine-ci-check` green on F0-F2 (fixture-rest), `morph-tween-curve` landed; the proof wave started. **Outcome (MEASURED, trailers): met except the faithful check.** Engine models and all 10 proof tasks landed; `integrate-ports-4` passed the gate at 23:28 (Chromium 0 bad, 57 excused); `faithful-checks` found the rewrite had no page-root `overflow-x` clip, fixed by `page-root-clip` (3600b283) and re-run as `faithful-checks-rerun` in wave 1 | a part past its 3 h time box lands `faithful-with-delta` with the delta named; an engine table row without a cite stays INFERRED and is listed |
+| **C3 Decision** | **T+48h = 2026-10-19 23:15** | M5: the **proof ledger closed** (every `proof-*` and `variant-*` task landed or cut, §10.6); **rev 11:** two whole-page gates passed, one per wave (§10.7); combined counts per profile on the wave-2 base with F3/F4 per part zone, 0 mismatches or each filed as a model bug; `v2-proved` named (extended by the six TS flags only if `proved-flags-ts` lands in wave 2); passes-type wins reclassified as part-local where §4.8 requires; F6 reported as a pilot or as "statement landed, run after C3". Phone session 2 is optional | a proof task still open is cut and its optimization goes to the report as "modelled, not proved"; a falsified prediction that cannot be fixed by C3 drops that flag from `v2-proved` |
 | **C4 Report** | **T+62h = 2026-10-20 13:15** | M6: report published; math view 0 disagree, 0 stale (`math-final` by T+52h); `fw usage` totals per milestone; per part the theorem pair, its premises H1-H3 and RG status, and the F0-F5 result | nothing: the deadline is yours; what is not in the text at T+60h is listed as "not done" |
 
 **Gates, retargeted.** M0 closes with `mutant-ids-stable` (non-blocking after C1). **M1** = Chromium zone baselines
@@ -1089,120 +1049,112 @@ pilots, then all parts at M4). **M3** = *optional phone spot checks* (rev 10; wa
 decision* (rev 10): the engine models, one theorem pair per part × optimization, F0-F5, the proof ledger. **M6** =
 report by the deadline. The `faithful` rule per part is unchanged (§6.6); shells need no gate (Q36).
 
-**Critical path (MEASURED by `fw plan show` after rev 10; 6 tasks).** `engine-core-lean` → `engine-chromium-lean` →
-`morph-tween-waapi` → `variant-morph-tween-waapi` → `experiments` → `write-up`. The old chain `port-morph-panel` →
-`port-morph` → `faithful-checks` → `experiments` is one shorter and runs beside it. Hours (INFERRED, §10.6): about
-6 + 6 + 6 + 6 + 3 = 27 h from T+2h, so the decision inputs exist by about **T+29h** (2026-10-19 04:15), 19 h before
-C3; the write-up starts at T+48h as before. `shells`, the section ports, the WebKit lane and the phone are off the
-path.
+**Critical path (rev 11; INFERRED from the work-graph edges at 16207afb).** `site-assets` → `content-hero` ‖
+`content-people-pain-commission` → `integrate-wave-1` (refrozen base) → `model-bug-fixes` → `integrate-wave-2` → C3
+→ `report-draft-3`. `morph-group-integrate` → `part-stage` → `counts-only` runs beside it and joins at wave 2; the
+pilot stays on the C3 path only if `part-stage` lands by 18:00 (§10.7). The rev 10 path (engine models → proofs →
+`experiments`) is done.
 
 ### 10.3 What you do, and when
 
-| When (local) | What | Why it is you |
-|---|---|---|
-| done 2026-10-18 00:15 | you answered **Q34 (c), Q35 (a), Q36 (shells, then parallel ports)** | they fix the CSS and the scope every part is built against |
-| done (0c901f2) | **session 1**: `fw device check`, the Q33 gap probe (8 of 8 cells agree with Lean and the Simulator), original vs rewrite swipes (frames > 50 ms per 100: 22.9 vs 0) | the one phone session the plan used as a check; it is reported as a spot check, not as evidence (rev 10) |
-| **done 2026-10-18 about 01:50** | you answered **D1** (keep session 2 as an optional spot check) and **D2** (Try-it pages for constant glass, FLIP / st6 and typing chunks); rev 10 itself was approved and landed | they set what the phone is for and what the report may show you |
-| **optional**: session 2, 30 min, any time after `variant-morph-tween-waapi` lands | swipe `v2-proved` against `original`; what neither proof nor CI covers (§4.7) | your choice; nothing waits for it |
-| at T+62h | read the report; it is yours to publish or not (M6) | your study |
+**Done:** Q34-Q36 (2026-10-18 00:15); phone session 1 (0c901f2: gap probe 8 of 8 agree; swipes, 5ced4f6); D1 and D2
+(about 01:50). **Optional:** session 2, 30 min, swipe `v2-proved` against `original`; nothing waits for it. The Lego
+plan schedules no phone session before the report; D1 is your decision, so session 2 stays yours to call and is never
+evidence. **At C4 (2026-10-20 13:15):** read the report; it is yours to publish or not (M6). `calibration` is cut
+(Q37); keep the second iPhone for free play.
 
-**Device tasks (`needs: ["device"]`).** `q1-phone`: decided. `gap-device`: done inside session 1. `phone-session-1`:
-done. `swipe-baseline`, `gap-light`: done in session 1 (5ced4f6). `phone-session-2`: optional, after
-`phone-session-1` only, **no dependents**. `calibration`: cut (Q37). A session is booked by a console step (Q1). Keep
-the second iPhone for free play.
+### 10.4 The work graph after revisions 9 to 11
 
-### 10.4 The work graph after revisions 9 and 10
-
-**Cut (milestone MX, deps cleared, never started).** Rev 9: `port-parts` (replaced by `shells` + per-section ports),
-`calibration` (Q37), `wktr-readme-fix`, `vj-vt` (its Chromium half lives on as `vj-vt-chromium`), `ab-bench` and
-`spawn-enforce` (Q31/Q32 deferred). **Rev 10:** `bands-freeze` (the F4 margin is the frozen class margin 2t, proved
-`margin_sound`; PL5 bands are reported by `faithful-checks`). `swipe-baseline` and `gap-light` were already done in
-session 1 (5ced4f6: finger 2.6 vs scripted 22.9 frames > 50 ms per 100; Light mode 8 of 8 agree) and stay done,
-reported as spot checks, never as evidence. A cut task is **not** done in
-`Fw/Plan` (`tstate_cut_iff`), so a dependent of a cut task stays blocked until its edge is removed; rev 10 removed the
-`bands-freeze` edge from `experiments`, and the C3 rule below does the same for a cut proof task.
-
-**Kept:** `wktr-ci-lane`, `webkit-quiet`, `step-align` (running; not touched by rev 10 except as dependencies),
-`zone-baselines-webkit`, `mutant-ids-stable`, `store-cirun`, `vj-vt-chromium`. **Added (rev 9 / 9.1):**
-`webkit-gonogo`, `zone-baseline-lean`, `shells`, `phone-session-2`, `math-final`, the five `port-morph-*` tasks (no
-shell dependency; `port-morph` an umbrella), the seven `port-<section>` tasks (after `shells`, `part-anchors`,
-`css-decide`), `vj-vt-chromium`. **Added (rev 10):** the 23 tasks of §10.6. **Re-wired (rev 10):** `experiments`
-is the proof ledger and waits for `port-morph`, `faithful-checks`, `engine-ci-check`, `engine-gaps` and every
-`proof-*`, `morph-tween-*` and `variant-*` task; `write-up` waits for `experiments` and `math-final` only;
-`phone-session-2` waits for `phone-session-1` only and has **no dependents**. Lean-first holds for everything that
+**Cut (milestone MX, deps cleared, never started).** Rev 9: `port-parts`, `calibration` (Q37), `wktr-readme-fix`,
+`vj-vt` (its Chromium half lives on as `vj-vt-chromium`), `ab-bench`, `spawn-enforce`. Rev 10: `bands-freeze` (the F4
+margin is the frozen class margin 2t, `margin_sound`). Rev 11: `commission-resize` (57 readings stay excused),
+`part-stage-webkit`, `part-io-lint` (superseded by `contract-rows-from-code`). A cut task is **not** done in `Fw/Plan`
+(`tstate_cut_iff`), so a dependent stays blocked until its edge is removed. `swipe-baseline` and `gap-light` were done
+in phone session 1 (5ced4f6) and are reported as spot checks, never as evidence. Lean-first holds for everything that
 remains; a TS stand-in is listed in the task's report (R32).
 
-### 10.5 Parallel lanes: what runs at once
+### 10.5 Lanes before rev 11 (history)
 
-**Each task writes only its own files** (the `writes` field; the registry, presets and shared styles are merged by the
-lead). A section port **replaces its shell when the swap check passes**: `gate-breakpoints --parts <id>` restricted
-to PL1 boxes at every breakpoint plus the V-g look tier (T1 screenshots), Chromium on CI, verdict from `Fw/Gate`; the
-9 end-of-page parts still take the full probe-scoped gate. Sections [02 §2]: P0 nav, P1 hero, P2 people, P3 pain, P4
-commission, P5 platform, P6 morph, plus the overlays.
+Rev 9.1 ran the section ports in parallel behind static shells, each replacing its shell after a swap check (PL1
+boxes at every breakpoint plus the look tier, Chromium on CI); rev 10 added the engine-model lane and a proof wave at
+lean-prover concurrency 6. All of it landed by C2 (§0, §10.2); the lanes to C3 are §10.7.
 
-| Lane | Tasks (at once) | State at a8c05f4 | Limit that binds |
-|---|---|---|---|
-| morph ports | `port-morph-panel`, `-countdown` (mount, tween, columns done) | running | the slowest port (3 h box) |
-| section ports (off path) | `port-nav`, `-hero`, `-people`, `-pain`, `-commission`, `-platform`, `-overlays` | running (`shells` done) | lead review rate (~3-4 landings per hour) and Mac load (6-8 build agents, R30) |
-| **engine models (rev 10, critical path)** | `engine-core-lean`, then `engine-chromium-lean` ‖ `engine-webkit-lean` ‖ `engine-ci-check`; `morph-tween-curve` and `engine-gaps` from now | ready | one prover on Core first (types in ~2 h let the tables start); Mac load from `lake build` |
-| **proof wave (rev 10)** | the ten `proof-*` tasks and `morph-tween-waapi`, all at once after the two engine tables | blocked on the tables | **lean-prover concurrency raised from 3 to 6 for this wave** (§8.2); the math-reviewer pass per module; two waves of ~6 h |
-| **variants (rev 10)** | `variant-morph-tween-waapi`, `-hidden-pause`, `-morph-mount-shift`, `-morph-panel-rest`, each after its proof | blocked | part-builder slots shared with the section ports |
-| WebKit (GO) | `webkit-quiet` + `webkit-table-regen`, `step-align`, then `zone-baselines-webkit`, `webkit-sim-rewrite` | running | **5 macOS CI slots** shared with `wktr-ci-lane` and the gate's WebKit half |
-| Chromium / Lean / math | `vj-vt-chromium`, `store-cirun`, `mutant-ids-stable`, `math-final` later | running or blocked | ~20 Linux CI jobs; not binding |
+### 10.6 The proof tasks (rev 10): what landed
 
-**Estimate (INFERRED).** Section ports land by about T+28h to T+32h (two waves of 3 h boxes plus swap checks). The
-engine tables land by about T+14h, the proof wave by T+26h to T+32h, the four variants by T+32h to T+36h; all before
-C3 (T+48h). The only serial chain that matters is §10.2's critical path, 27 h long from now.
+Every proof task covers **both engines and every width band**; its theorem pair is the (vis) and (work) of §4.7.
+**State at 16207afb (MEASURED, trailers):** all landed except `variant-morph-panel-rest` (parked)
+and the optional `pixel-spot`; `experiments` and `write-up` close at C3 and C4.
 
-### 10.6 The proof tasks (rev 10): sizes, order, and what to drop
+| Task | Proves / builds | State |
+|---|---|---|
+| `engine-core-lean`, `engine-chromium-lean`, `engine-webkit-lean`, `engine-ci-check` | the models of §4.7 with cites; `fw engine-check` matches golden rows against CI runs (F0-F4) | landed |
+| `engine-gaps`, `morph-tween-curve` | RG1-RG11 closed or left open at the pins; $1-(1-t)^3 =$ `cubic-bezier(1/3, 1, 2/3, 1)` | landed |
+| `morph-tween-waapi` + variant | rAF tween = one WAAPI animation at every frame time and push (E-s); script strict | landed (`v2-proved`) |
+| `proof-nav-hittest`, `proof-countdown-strip`, `proof-hidden-pause`, `proof-morph-mount` + variant | hit/elements skip; strip (layers 80 → 16); pause when not visible (E); mount shift | landed (`v2-proved`: elements-skip, strip, hidden-pause ×3, shift) |
+| `proof-morph-panel`, `proof-hero-exit`, `proof-people-card`, `proof-pain-notes`, `proof-people-deck`, `proof-hero-accent` | panel rest; threaded exit; MQ-gated shrink; notes armed when visible; `cqi` deck; accent boil | landed; four of their flags (n11, n16, n21, n15) become TS in `proved-flags-ts` |
+| `variant-hidden-pause` | TS variant against Lean golden vectors | landed (726cc17b) |
+| `variant-morph-panel-rest`, `pixel-spot` | panel-rest TS variant (now in `proved-flags-ts` as n11); BeginFrame screenshots | parked; optional |
+| `webkit-sim-rewrite`, `math-final`, `model-checks`, `preset-v2-proved` | Simulator on the rewrite; math view; F3/F4 per flag; the `v2-proved` preset | landed |
 
-Sizes: **S** ≤ 4 h, **M** 4-10 h, **L** > 10 h, one agent each. Every proof task covers **both engines and every width
-band**; a task's theorem pair is the (vis) and (work) of §4.7. Owners: lean-prover unless noted.
-
-| Task | Size | After | Proves / builds |
-|---|---|---|---|
-| `engine-core-lean` | M | — | `Fw.Engine.Core` + `Visual`: stages, work vector, `frame_le_of_cover`, `frame_le_union`, `run_dominates` → `screen_sound`, `toCost` → `mainUs_mono`; scene, `visible`, E/Q relations, H1-H3 as `PathPremises` |
-| `engine-chromium-lean` | M | core | the `CrLevel` chain with cites, thread rule (bits 0, 5, 12, 13, 16), scroll rule, lane mode; golden rows F0-F2 |
-| `engine-webkit-lean` | M | core | `Diff` adjusted by layer state, stage sets with cites, the `wk_not_mono` counterexample (C-2 of the design note), thread rule, per-update baseline; rows P1-P5 |
-| `engine-ci-check` (measure-engineer) | M | core | `fw engine-check`: Lean op `measure.engineCheck` matches golden rows against `chromium-counts` runs (F0-F4); a mismatch opens a model-bug item |
-| `engine-gaps` (researcher) | M | — | RG1-RG11 closed at the pins or left explicitly open (lane main-frame rule, custom-property fan-out, registered `<number>` interpolation, forced-update sites, timeline zero, hidden states, WebKit O2/O3, fp tie, LCD text at DPR 3, filter as containing block, scroll-timeline progress) |
-| `webkit-sim-rewrite` (measure-engineer) | M | `step-align` | `webkit-sim.yml` serves `?fw=` so F5 gets Simulator counts on the rewrite; if not green by C3, WebKit is model-only in the report |
-| `morph-tween-curve` | S | — | $1-(1-t)^3 =$ `cubic-bezier(1/3, 1, 2/3, 1)` exactly (`ring`); solver error ≤ 3ε; the fp-tie check (RG8) as a Node golden test |
-| `morph-tween-waapi` | M | curve, both tables | the rAF tween equals one WAAPI animation at every frame time and every push (E-s), flags flip on the same frame, script strict and style/layout/paint equal (work); the reversal lemma |
-| `variant-morph-tween-waapi` (part-builder) | M | waapi | the TS `waapi` variant against the Lean golden vectors; flag on R |
-| `proof-nav-hittest` | S | both tables | hit-skip, elements-skip, write-on-change: work theorems (vis already proved) |
-| `proof-countdown-strip` | S | both tables | strip on `hero.countdown` and `morph.countdown`: layers 80 → 16 per clock, per-frame work equal (a resident win; vis already proved) |
-| `proof-hidden-pause` | M | both tables | `morph.columns`, `morph.countdown`, `engine.scene`: an animation whose box `visible` drops may pause (E); style 1 → 0 per frame on Chromium, 0 delta on WebKit (falsifiable) |
-| `proof-morph-mount` | M | both tables | mount at a still moment: E after mount; **shift** theorem (max motion-frame work <, total =) |
-| `proof-morph-panel` | M | both tables | `blur(0)` → `none` at rest (E under RG10); own layer during the fade (Q, a trade) |
-| `proof-hero-exit` | M-L | both tables | threaded exit: E-s from `exitOpacity_linear` + scroll-timeline progress (RG11); consumers off main except blur. **Dropped first if the path slips** |
-| `proof-people-card`, `proof-pain-notes` | M, S | both tables | MQ-gated shrink (E, CSS overrides the written value); notes armed only when visible (E) |
-| `proof-people-deck`, `proof-hero-accent` | M, M | both tables | `cqi` sizing by algebra (E); boil on the 60 Hz sample grid (E per sample). **Second wave** |
-| `variant-hidden-pause`, `variant-morph-mount-shift`, `variant-morph-panel-rest` (part-builder) | M, S, S | their proofs + the running morph ports | TS variants against Lean golden vectors; flag on R |
-| `pixel-spot` (measure-engineer, optional) | S | `engine-ci-check`, waapi variant | BeginFrame screenshots at sampled t, byte-compare original vs each proved flag; covers H1-H3 in Chromium only |
-| `experiments` (lead) | S | all of the above + `port-morph`, `faithful-checks` | the proof ledger and the `v2-proved` arm (§10.1); closes at C3 |
-
-**Not in the 2 days (kept as questions, not tasks):** carousel 0.999 (Q; needs the alpha-quantisation cite in Skia
-and Core Animation), platform sweep and glint (`background-clip: text`), `engine.scroll` `batched`/`observers`
-(reads may see pre-write values), `hero.countdown` WAAPI roll. **Proposals, never proved equal (class L, D2):** CM,
+**Not proved (questions, not tasks):** carousel 0.999, platform sweep and glint, `engine.scroll` `observers`,
+`hero.countdown` WAAPI roll; partly proved parts get no new variant before the report (hero.exit threaded,
+people.deck `cqi`, accent wipe, typing container, sweep/glint). **Proposals, never proved equal (class L, D2):** CM,
 constant glass, FLIP, st6, typing chunks, PR-040/041.
 
-**Does it fit?** Critical path 27 h from T+2h against 46 h to C3 (§10.2). The proof wave needs ~11 × 6 h = 66
-agent-hours; at 6 provers that is two waves, ~12 h wall clock, inside the slack. **If it slips**, drop in this order:
-`proof-hero-exit`, `proof-hero-accent`, `proof-people-deck`, `pixel-spot`, then `webkit-sim-rewrite` (WebKit becomes
-model-only); the morph tween pair, nav, strip, hidden pause and mount are never dropped, because they are the
-end-of-page decision. **C3 rule:** an open proof task at T+48h is cut and its edge into `experiments` removed; its
-optimization is reported as "modelled, not proved" and stays out of `v2-proved`.
+### 10.7 Lego lanes and the C3 slice (rev 11)
+
+**The idea** (`10-19-lego-parts-plan.md`, CONFIRMED by §4.8 and §6.8 where Lean decides it). A part cannot be
+measured alone against the original, because the original is one page; the gate and the faithful check stay
+whole-page. What Lean removes is repetition: one **combined** counts run per profile replaces one whole-page run per
+flag, sibling parts are not re-gated after one part changes (`scope_sound`, `lego_swap_sound`), and untouched parts are
+not visually re-checked (`visible_append_of_boxes_eq`, at exactly equal PL1 boxes). Content lanes change no
+mechanism and need no theorem. Every part carries a contract row and a units-or-passes tag for its win.
+
+| Wave | Lanes (one worktree each) | Ends with |
+|---|---|---|
+| 1 (lead integrates about 07:00-10:00) | `site-assets` (one manifest of every snapshot file the site serves; build copies byte for byte, fails on a missing one), `content-hero`, `content-people-pain-commission`, `faithful-checks-rerun` | one whole-page gate, both engines; base counts refreeze per profile (≤ 3 at once) |
+| 2 (about 17:00-19:30) | `morph-group-integrate` (CG2: panel hosted in the nav, CTAs open the overlays), `proved-flags-ts` (n5, n8, n16, n21, n15, n11), `model-bug-fixes` (the 4 refuted rows, §4.7), `part-stage` (`?only=<id>&stage=…`, neighbour stubs), `counts-only`, `contract-rows-from-code` | one gate; combined counts per profile plus one CG2 run; `engine-check` per part zone; F6 pilot |
+| after C3 | `compose-check` (F6 verdict per part, stage, zone), `speed-after-c3`, `svg-extract`, `snapshot-paths-cleanup` | report-only |
+
+**Still measured to C3:** 2 whole-page gates; the faithful re-run (after `page-root-clip` and after wave-1 content,
+which moves images); combined counts per profile plus a CG2 run plus page-level flags; the base refreeze after
+content (PaintImage, DecodeImage); F3/F4 on every proved flag (proofs are about the model, and 4 refutations show the
+model needs checking). **No longer measured:** per-flag whole-page counts runs, sibling gate re-runs, visual re-checks
+of untouched parts, phone sessions before the report.
+
+**CI (`10-19-lego-ci-review.md`, with its adversarial check).** No workflow change for the whole-page lanes: every
+wave-1 and wave-2 lane is a plain dispatch of a workflow that exists. **`counts-only` is rescoped** to one optional
+`only`/`search` input on `chromium-counts.yml` (rewrite target only; the charset check at line 129 blocks `?only=`
+today) plus one part-page run in `Fw.Engine.Keys.goldenRuns`. Dropped: `RunMeta.only` and a `runKey_inj` re-proof
+(`runKey` appends any search, Keys.lean:37-38; `runKey_inj` needs only `NoPlus target`, 96-97) and the matrix cap 6
+(the 39-50 min was queue time; an idle pool runs a counts dispatch in 7.5 min wall). **Premise:** a part page under a
+whole-page profile borrows that profile's frozen classes (`engine-check.ts:87,110-112`); it is stated per result or
+part-page classes are frozen. Land checks are already glob-based and Lean-decided (`land.ts:143-148`); a finer
+`check.sh` read set waits until after C3.
+
+**Budget (free runners only).** ≤ 3 counts dispatches at once, none overlapping a gate (a gate holds ~10 jobs). Idle
+pool: counts 7.5 min wall, gate 16 min wall, `lean` lane 4.9 min median (p90 15.2). **Speed
+(`10-19-speed-review.md`):** class A landed as `test-batch` (44d9ebaa: batched fwcore test calls, the 30 s `ask`
+timeout); the per-job `mathview-differential` trigger moves to `speed-after-c3` (it saves time only when `lean` is the
+slowest lane). Process rules from now: `mathview lint` before a ci push; narrowed gate runs to iterate, one whole-page
+run per branch as the record; one land at a time while lanes build.
+
+**Cuts and rules.** Anything that misses wave 2 by 17:00 keeps its wave-1 state and is listed; there is no third
+gate. The part-page pilot (hero.countdown, nav.hitTest) stays on the C3 path only if `part-stage` lands by 18:00;
+otherwise it is reported after C3. Cut before the report: `commission-resize`, the WebKit part lane, the Thai locale,
+new variants for partly proved parts, class L proposals, `pixel-spot`, phone sessions.
+
+**Where the sources disagree** (the Lego note against the repo and the CI review: 33 vs 34 parts, the
+`webkit-sim-rewrite` cut, 528 vs 517 s against 10.8 vs 34.6 job-minutes, CI minutes), A37-A40 say which way the plan
+goes and why.
 
 ## 11. Risks and mitigations
 
 | # | Risk | Likelihood / impact | Mitigation |
 |---|---|---|---|
 | R1 | The React port looks right but does different engine work (reconciliation, effect order, DOM depth, hydration), so findings do not transfer | medium / high | PL5 bands + PL6 timing parity for experiment parts; the transfer check on arm A at every landing; prerender; DOM shape kept close |
-| R2 | The model looks precise and steers wrong (v1: right about work, wrong about feel; one 4-5x over-prediction) | medium / high | Decision and feel agreement before any stand-in; "ranks-only" status; class X always on device; spot-checks; retire outputs after 2 misses |
 | R3 | WebKit-only and render-server costs are invisible off the device | certain / high | Separate WebKit counts; CA-rate component; `RS` priced by Instruments; class X |
 | R4 | Experimental interfaces break (`HeadlessExperimental`, Playwright webview backend, agent-team fields) | medium / medium | Pin versions and the container digest; re-verify fields on each Claude Code upgrade |
-| R5 | Coefficients are unidentifiable (collinear flag designs) or drift (heat, LPM, versions) | medium / medium | Micro-fixtures; fractional factorial designs; θ per run; `ρ_page`; re-calibration triggers |
 | R6 | Wrong spec, correct proof | medium / high | Math-reviewer back-translation without the docstring (§5.3); deep statement hashes; `#guard` examples from v1 data; mutants (V-r: 0 of 625 survived in M0); no proofs about transcribed engine rules. The kickoff check found 8 translation errors that compiled fine [10] |
 | R7 | Over-engineering before the first measurement (v1 day 1 was 38 % process) | high / medium | M0 is a vertical slice; MVP tier (§3.4); every new tool names the incident class it prevents; a new agent rule must cite an agent-mistake incident, otherwise fix the tool |
 | R8 | Port size: ~11.8k lines of CSS, half dead; Platform visual mapping only inferred; every breakpoint of every part must match (your requirement), which multiplies PL0-PL3 runs | high / medium | Full work parity only for experiment parts; time box per part; `faithful-with-delta` never for breakpoints; a generated breakpoint inventory and lint; the core matrix per PR, the full gate before promotion |
@@ -1214,7 +1166,6 @@ optimization is reported as "modelled, not proved" and stays out of `v2-proved`.
 | R14 | Spend surprises or hitting the weekly usage limit (more likely now that caps are gone) | medium / medium | Daily cost reporting; soft alerts; 60 % / 80 % weekly-limit alerts; agents on 5-minute cache, stopped and respawned from handoff notes (§8.2); `maxTurns` (§8.4) |
 | R15 | The harness changes the mechanism it measures | CONFIRMED / high | No seeking in Chromium; native rAF; seek overhead measured in WebKit; V-n per family |
 | R16 | Container counts differ from Mac Chrome (fonts, software raster) | medium / medium | Fonts from `snapshot/` only; V-a per family; Chromium as a development aid |
-| R17 | Device link instability: v1 had 36 USB, WDA and Wi-Fi incidents, never root-caused, and a toolchain update broke its compiled link shim [08] | high / high | Device watcher logs every attach and detach from the first device step; preflight before each session; SPK-n link soak with a cable and port swap; no compiled native shims, or a pinned toolchain |
 | R18 | Agents stall or go deaf: a background notice does not wake an idle teammate; long foreground commands block messages [08] | medium / medium | Stall watcher in console-api; bounded foreground waits; re-checked by SPK-p on each Claude Code upgrade |
 | R19 | The lead becomes the hub again (polls, relays, first responder) [08] | medium / high | §8.5: no LLM polling, no routing agents, results peer-first, span alarms at 10 counterparts and 60 messages an hour |
 | R20 | You become the device technician and status bus again [08] | medium / high | G2 chore target; booked sessions with one get-ready step; "needs you" set only by events; status questions answered by script |
@@ -1232,9 +1183,13 @@ optimization is reported as "modelled, not proved" and stays out of `v2-proved`.
 | R32 | Lean-first debt grows: TS stand-ins outlive their Lean spec | medium / low | console stand-ins are gone (acc5d83); left: `compositeCuts`, `reduceWindows` in the WebKit harness; agents list stand-ins in every report |
 | R33 | CI capacity: WebKit Simulator runs take 10-38 min and fail under host load 401-836 on the free `xcode-27` runner (MEASURED `10-17-sim-speed.md`); 5 concurrent macOS jobs shared by `xcode-27` and `macos-26` and filled by our own jobs (MEASURED, 56fe6c9); paid runners are out | high / medium | `paths:` filters, stale-run cancel (6723de2) and `ci-paths-guard`; the C1 go/no-go (§10.2) caps the agent time the lane may cost; WebKit truth from the phone; one short local debug run allowed (§4.1) |
 | **R34** | **The 3-day deadline is missed**: a part overruns its box, a phone session is not held, or the write-up starts late | medium / high | checkpoints with named fallbacks (§10.2); a task past its checkpoint is cut, not extended; writing starts at T+48h and the text freezes at T+60h; a missed item is listed as not done, never hidden |
-| **R35** | **Shells hide work the original does** outside the region, so a whole-page comparison of R against A is not like for like | certain / medium | the faithful check and the decision use the end-of-page zones only (§6.6, §10.1); shell zones are reported as such; section ports replace shells as their swap check passes (§10.5), and the report lists what was still a shell at C3 (Q36) |
 | **R36** | **The engine model is wrong** (a mis-read engine line, a rule that changed between the pin and the shipped browser, a WebKit premise that only the Simulator could test) so a proved "less work" is false in the real engine | medium / high | every table row cites its line at the pin; F0-F5 falsify the model on CI and a mismatch is a model bug (§4.7); H1-H3 and open RG items are named per theorem in the report; WebKit is labelled model-only unless F5 ran; no tolerance is ever widened to make a prediction fit |
-| **R37** | **The proof wave starves on review**: 11 Lean modules land in two waves, each needing a math-reviewer pass and the lead's landing, while 9 ports are also landing | high / medium | lean-prover concurrency 6 with the 6-item checker pass before math review (§8.2); the drop order of §10.6; the C3 cut rule; the report lists "modelled, not proved" items instead of waiting |
+| **R38** | **A pass saving is claimed for the page** but another part's pass in the same frame absorbs it | high for passes-type wins / medium | §4.8: the page claim needs per-part `unionLe` or cover, never per-part ≼ (`frame_le_append_passes_fails`); passes-type wins are tagged and reported as part-local unless no other part touches the stage |
+| **R39** | **The contract rows are wrong** (an undeclared read or write puts two coupled parts in different groups) | medium / medium | premise `declared-rows-unverified` carried by every result that uses the table until `contract-rows-from-code` generates the rows from TS and CSS; whole-page gates and combined runs still catch a coupling the rows miss |
+| **R40** | **A part page measures under the wrong frozen classes** (it borrows the whole-page profile's classes) | medium / low | state the premise per part-page result or freeze part-page classes (`counts-only`); part pages are evidence for the method, never the gate of record |
+
+Retired in rev 11 (moot): R2 and R5 (no cost model is fitted, Q37), R17 (no phone session before the report), R35
+(every section is ported; no shells remain), R37 (the proof wave landed).
 
 ## 12. Decisions
 
@@ -1268,15 +1223,11 @@ optimization is reported as "modelled, not proved" and stays out of `v2-proved`.
 
 ### 12.1 Decided by you (rev 10; you answered D1 and D2 on 2026-10-18, about 01:50 +0700)
 
-- **D1. Phone session 2: keep it as an OPTIONAL spot check** (your answer). It is never evidence and has no
-  dependents (after session 1 only; `write-up` does not wait for it): swipe `v2-proved` against `original` once the
-  `waapi` variant lands, 30 min, your choice of time. If it never happens, the report says "no phone spot check".
-- **D2. Look-changing proposals: build three Try-it pages** (your answer): **constant glass (CM)**, **FLIP / st6**
-  and **typing chunks**. They are look changes (class L), so Lean may predict their *work* ("look changed") but
-  there is no "same" claim, they are not `optimized` and not in `v2-proved`, and they are not on the write-up's
-  critical path. Work graph tasks `try-constant-glass`, `try-flip-st6` and `try-typing-chunks`, each after
-  `engine-chromium-lean` and `engine-webkit-lean`. The other class L candidates (FLIP on the People card, PR-040/041,
-  and the rest of the CM family) stay unbuilt.
+- **D1. Phone session 2 is an OPTIONAL spot check:** never evidence, no dependents; swipe `v2-proved` against
+  `original`, 30 min, your choice of time. If it never happens, the report says "no phone spot check".
+- **D2. Three Try-it pages for look-changing proposals (class L):** `try-constant-glass` (CM), `try-flip-st6` (FLIP /
+  st6) and `try-typing-chunks`. Lean may predict their work but there is no "same" claim, so they are not `optimized`,
+  not in `v2-proved` and not on the write-up's critical path. Other class L candidates stay unbuilt.
 
 **Q32 (deferred past v2).** The A/B bench needs a 96-minute no-agent window; Q31's blocking waits with it.
 
@@ -1304,94 +1255,77 @@ optimization is reported as "modelled, not proved" and stays out of `v2-proved`.
 
 ## Appendix A. Conflicts between the sources, and how this plan resolves them
 
+**A1-A28 (rev 2-8, settled; full wording in [EV] and the commit log).** A1 decisions and bookkeeping run in
+`fwcore`, a TS mirror only in the browser flag resolver. A2 the event log is the truth (SQLite later, disposable). A3
+MUI everywhere with Emotion AOT; Base UI and Pigment as fallbacks. A4 own class names; values restated, code and
+assets never copied. A5 Serena rename is `ask`. A6 teammate `effort` is honoured [07, FR §5]. A7 thresholds merged
+into V-a … V-t. A8 the compositor gate applies to `optimized` variants only. A9 the stages of §9, derived from
+evidence. A10 `refs/upstream/` for pins, `refs/rules/` for rule cards. A11 reviewers Opus medium, `high` per call for
+statements. A12 no `ask` on measurement-code edits; golden semantics guard them. A13 `snapshot/site/`, tracked
+unmodified. A14 screening theorem in Lean, fitting in TS (no fit in v2). A15 counts on the original first. A16 lead
+1h cache, agents 5m. A17 [10.02]'s evidence-derived `Stage`. A18 one manual-input catalogue (§8.5). A19 one canonical
+value per number (`rev5-delta.md`). A20 deep hash + lock + reviewer for math sync. A21 the lead lands on `main` with
+`fw land`. A22 `Edit(...)` rules only. A23 unnamed read-only spawns allowed. A24-A25 per-type classes, stable types
+as totals with margin 2t. A26 WKTR prebuilt on `macos-26`, not modelled in v2. A27 an `unreachable` cell state (Q33).
+A28 counts on CI.
+
 | # | Conflict | Resolution (why) |
 |---|---|---|
-| A1 | Where decisions run: [05] Lean at runtime; [06] TS `core` | Decisions **and** bookkeeping in `fwcore` (Lean-first); a TS mirror only in the browser flag resolver (one implementation; v1's failures were in the bookkeeping) |
-| A2 | Console storage: [05] event log; [06] SQLite | The event log is the truth; SQLite only later as a disposable read model |
-| A3 | MUI: [06]/[07] yes; [02] limited; [09.04] Pigment first | MUI everywhere with Emotion AOT (your decision); Base UI per part and Pigment as fallbacks |
-| A4 | Copying the original: [07] never; [02] restate values | Own class names; `parity.json` may name original selectors as locators; values restated, code and assets never copied |
-| A5 | Serena `rename_symbol`: [06] on; [07] denied | `ask` (Q17) |
-| A6 | Teammate `effort`: [01] ignored; [07] honoured | [07], CONFIRMED again by [FR §5] (newer docs) |
-| A7 | Acceptance thresholds: [03] vs [04] | Merged into V-a … V-p (§1.2); the Chromium fit optional |
-| A8 | Compositor gate vs faithful variants | The gate applies to `optimized` variants only; faithful ones reproduce costs |
-| A9 | Lifecycle: [05]'s R→I→D→F→V→L | v2's question → … → land (§9), derived from evidence and proved (`Fw/Console`) |
-| A10 | Reference store paths: [01], [04], [06] differ | `refs/upstream/` for pins and excerpts; `refs/rules/<engine>/<family>/` for rule cards |
-| A11 | Spec-reviewer model: [05] mid-tier; [07] Opus high | Opus medium; `high`/`xhigh` per call for theorem statements and neutrality rulings (R6) |
-| A12 | An `ask` on every measurement-code edit ([07]) | Dropped; the golden-semantics gate and review stage guard it |
-| A13 | Snapshot location: [02] env var; [06] gitignored | `snapshot/site/`, tracked unmodified since the repo went public, verified against `snapshot.lock.json` |
-| A14 | Where the cost model lives: [05] Lean; [06]/[03] TS | Fitting in TS (`packages/model`); the screening theorem in Lean (`Fw/Spec/Screen`); an L1 checker accepts coefficients. In v2 no fit happens (Q37) |
-| A15 | Bootstrap order: [06] site first; [03]/[04] counts first | Counts on the original first, in parallel with the rest (R7) |
-| A16 | Cache TTL: 1h vs 5m | The lead 1h, every agent 5m (MEASURED: agents only write 5-minute cache) |
-| A17 | Three stage models [10.01-10.03] | [10.02]'s evidence-derived `Stage` for every module |
-| A18 | Three manual-input catalogues | One (§8.5, from [10.01 §5]) |
-| A19 | Numbers that differ across [10.01-10.03] | One canonical value each in `docs/plan/rev5-delta.md` |
-| A20 | Math sync: three schemes | [10.04]: deep hash + lock + reviewer, sign-off as an event (§5.3) |
-| A21 | Who lands: rev 4 ff-only merge; [10.02] console-api's bare repo | The lead lands on the normal `main` with `fw land` (Q23); other moves flagged (R28) |
-| A22 | `Write(path)` rules | `Edit(...)` rules only: Claude Code never consults `Write` rules |
-| A23 | Unnamed spawns | Unnamed read-only allowed (`caps.unnamedReadOnly`), shadow mode first |
-| A24 | M0 determinism: byte-identical vectors vs SPK-i | Per-type classes (V-i): deterministic types match; byte identity fails on thread ids, GC, async work |
-| A25 | Which classes M1 accepts | Stable types too, as totals with margin 2t (6b4237e); "deterministic only" would drop Layout, RasterTask, LayoutCount |
-| A26 | Where WKTR runs: cloud Mac vs prebuilt on CI | Prebuilt on `macos-26` (`wktr-local`); the cloud Mac out (your decision); in v2 WKTR is not modelled (§10.1) |
-| A27 | Unreachable breakpoint cells | Your Q33: an `unreachable` state, then a Simulator or device check per cell; in v2 the device check is in session 1 |
-| A28 | Where counts are measured: local vs CI | CI (§4.1); local runs are debug only |
 | **A29** | **Every breakpoint for every part (your rule) vs the 3-day frame (your decision)** | **Rev 9.1: shells first, then every section ported in parallel; a port replaces its shell only after a check at every breakpoint (PL1 boxes + look), cheaper than the full gate (§10.5).** The 9 end-of-page parts pass the full probe-scoped gate. The waiver is now only that the other sections skip the work-parity probes, not the breakpoints; the deadline decides the depth, your rule decides the breadth |
 | **A30** | **Rev 8 M3 "calibrated" vs two phone sessions** | **Rev 9: M3 becomes device truth; rev 10 supersedes this: M3 is optional spot checks, no model is claimed (Q37 resolved, A32).** 5-10 sessions were needed for a licence (INFERRED [FR §1.8]); the report claims only what the phone verified |
 | **A31** | **The §3.2 "count vector per (frame, part, zone)" vs what Chromium records** | **Counts exist per frame and per scroll zone only (12 zones); no per-part counts (MEASURED, lead 2026-10-17).** The plan now says so (§3.2, §4.1); per-part attribution would need a probe harness that is out of scope for v2 |
 | **A32** | **Rev 5-9 "engine decision rules stay out of Lean" (transcription-error risk, table tests instead) vs rev 10's engine tables in `Fw.Engine.*`** | **The tables go into Lean (rev 10).** The objection was that a mis-typed rule proves a false theorem; the answer is every row cited at its pin (`chromium@f842f52`, `WebKit@862f17d`) plus F0-F5 on CI, which falsify a wrong row. Without the tables there is no (work) theorem, and the user asked for proofs |
 | **A33** | **The design note's labels C1-C3 (premises) and R1-R11 (gaps) vs the plan's C1-C4 (checkpoints) and R1-R35 (risks)** | **The plan renames: premises H1-H3, research gaps RG1-RG11** (glossary); the note keeps its own labels and the mapping is one-to-one in order |
 | **A34** | **Design note: `engine-ci-check` after `engine-chromium-lean`** vs the graph's `engine-ci-check` after `engine-core-lean` only | **After core only (rev 10):** the checker matches golden rows whose *schema* is fixed by Core; the Chromium rows arrive as data, so the two tasks run in parallel and the critical path is one task shorter |
+| **A35** | **Lego note: `frame_le_append` from per-part ≼** vs `Fw.Engine.Compose` | **Lean wins:** per-part ≼ does not give page ≼ (`frame_le_append_passes_fails`); the plan uses per-part `unionLe` or cover, and units-only composition for F6 (§4.8) |
+| **A36** | **Lego note's feature groups G1-G5** vs the code-derived contract groups | **The Lean table wins** (21 parts moved); groups renamed CG1-CG5 because G1-G4 are goals (§6.8) |
+| **A37** | **Lego note: 33 parts, `webkit-sim-rewrite` cut** vs the repo: 34 part rows, lane landed (c2410d2d) | **The repo wins:** 34 rows; WebKit model-only only where no Simulator row ran (§10.7) |
+| **A38** | **"Per-part gate saves nothing (528 vs 517 s)"** vs "narrowed gate 10.8 vs 34.6 job-min" (78b850a2) | **Both stand:** wall time vs CI cost; two whole-page gates stay because the original is one page (`narrowed_never_zero`) (§10.7) |
+| **A39** | **`counts-only` with `RunMeta.only`, a `runKey_inj` re-proof and matrix cap 6** vs the CI review | **Dropped:** `runKey_inj` already covers any search; the 39-50 min was queue; one `only`/`search` input plus a `goldenRuns` vector (§10.7) |
+| **A40** | **Lego note: lean CI 14 min per landing, part shard ~2 min** vs CI review: lean median 4.9 min (p90 15.2), counts 7.5 min wall | **CI review numbers** (later, measured on an idle pool); budget ≤ 3 counts dispatches at once (§10.7) |
 
 ## Appendix B. Spikes (each answer becomes a decision record)
 
-Statuses at ad5eeea; full rows, evidence and the SPK-r and SPK-t details in [EV §11]. **Answered or decided:** SPK-a,
-SPK-b, SPK-c, SPK-e, SPK-k, SPK-l (MEASURED, 2d33185 and later), SPK-i (DECIDED, 6b4237e; V-i rules in §1.2), SPK-m (367fec2: per-step
-Layout/Paint quarantined, totals within 3-5 %), SPK-r Chromium half (d380999: `aot` 0 insertions, the `runtime`
-control caught). **Partial:** SPK-d (wildcard matching; one firing missing), SPK-j (WebKit seek adds 122 style
-records; Chromium shim open), SPK-o (8.4 % worktree Bash refusals; plain add and commit work), SPK-p (lead address
-`team-lead` 33 of 33; wake test `spk-p-wake`), SPK-t (checks (f), (g) unit-tested; no sandbox block yet).
-**Open, in scope for v2 only where named:** SPK-h (Chromium trace paths and N1 slices; before SPK-q), SPK-q (N0/N1
-read 0 on arm A; Chromium only in v2), SPK-n (device link soak; session 1 start). **Out of scope for v2 (rev 9):**
-SPK-f (per-package `CLAUDE.md`), SPK-g (`xctrace` kdebug), SPK-r's WebKit half, N5 and timing arms, SPK-s (the
-Pigment A/B), SPK-u (hermetic dependency recording). An out-of-scope spike keeps its id and question for a later
-study; nothing in the 3-day path waits on it.
+Statuses at ad5eeea; rows and evidence in [EV §11]. **Answered or decided:** SPK-a, -b, -c, -e, -i (V-i rules,
+§1.2), -k, -l, -m, SPK-r Chromium half. **Partial:** SPK-d, -j, -o, -p, -t. **Open, Chromium-only in v2:** SPK-h,
+SPK-q; SPK-n (device link) moot without phone sessions. **Out of scope for v2:** SPK-f, -g, SPK-r WebKit half, -s,
+-u; each keeps its id and question for a later study.
 
 ## Appendix C. (folded into Q17, §12.2, in revision 9)
 
 ## Appendix D. Review log
 
-### Revision 10 (the proof model; state at a8c05f4; rev 9.1 was a0b5a1d)
+### Revision 11 (Lego parts; state at 16207afb; rev 10 was a8c05f4)
 
-Task `plan-rev10`, by Fable. Your principle in chat (2026-10-18): every part's animation is computed by math, so
-prove it; no manual device measurement. Inputs: the two engine-pipeline notes, the optimization inventory and the
-engine-proof design note (a8c05f4).
+Task `plan-rev11`, plan-editor. Inputs: `10-19-lego-parts-plan.md`, `10-19-lego-ci-review.md`,
+`10-19-speed-review.md`, `10-19-model-checks.md`, `Fw.Engine.Compose` (a8678ca0), `Fw.Parts.Contract` (cf3eebf3).
 
 | Change | Where |
 |---|---|
-| The evidence model: a theorem pair (vis)/(work) per part × optimization under `Fw.Engine.{Core, Visual, Chromium, WebKit}`, for all t and every width band; H1-H3 as hypotheses; the four-link check chain; F0-F5 on CI; what the phone is now | **new §4.7**, §0, §1.2 (G1, V-c, V-f), §4.3, §4.5, §4.6 |
-| Lean-first: M5 = proofs (`Fw/Engine/*`, `Fw/Parts/<Part>Opt`, `Fw/Measure/EngineCheck`); engine rules *are* Lean data now (A32, reverses the rev 5-9 "still dropped" line); `optimized` lands only with its pair; `v2-proved` preset and arm; class L stays `proposal` | §5.1, §6.2, §6.6, §9.2 |
-| The graph: 23 tasks added (§10.6, sizes S/M/L), `experiments` = the proof ledger, `write-up` after `experiments` + `math-final` only; `phone-session-2` optional after session 1 with no dependents; `bands-freeze` cut (`swipe-baseline`, `gap-light` were done in session 1 and stay done); the 12 running tasks untouched except as dependencies; critical path now the Lean chain (27 h, fits C3 with 19 h slack); drop order and the C3 cut rule | §10.1-§10.6, work graph |
-| Q37 resolved as (c) "no cost model" by the principle; D1 (session 2 optional, recommended) and D2 (look-changing proposals) open for you with defaults at C2; Q7, Q10, Q11, Q13 restated | §12.0-§12.2 |
-| Risks R36 (model wrong → F0-F5) and R37 (proof wave starves on review → 6 provers); A32-A34; glossary rows for D, M5, (vis)/(work), classes, H, F, RG, `v2-proved`; lean-prover concurrency 3 → 6 for the wave | §11, App A, glossary, §8.2 |
-| Length: §10.3-§10.5 and the rev 9/9.1 log entries compressed; Appendix B shortened; nothing decided or open was dropped | throughout |
+| Composition: units add up, passes do not; the page condition is per-part `unionLe` or cover; finite gate probes do not discharge ∀y; fixed and overlay parts outside `stackScene`; F6 | **new §4.8**, F table in §4.7 |
+| The part contract: 34 rows, I1-I5, `affects`, derived `pageLevel` (engine.scroll, morph.tween), groups CG1-CG5 from code (people.o in CG1), premise `declared-rows-unverified` until `contract-rows-from-code` | **new §6.8** |
+| Lego lanes: waves 1 and 2, `site-assets`, what stops being measured, CI review (no workflow change for whole-page lanes; `counts-only` rescoped), speed review (test-batch landed; mathview trigger after C3), budget, cuts, the 18:00 pilot rule | **new §10.7**, §10.2 (C2 outcome, C3 conditions, critical path) |
+| State at 16207afb; rev 11 paragraph; `model-checks` refutations; F5 unblocked | §0, §4.7 |
+| Glossary CG1-CG5, I1-I5, F6, wave 1 / wave 2; risks R38-R40, R2/R5/R17/R35/R37 retired as moot; A35-A40 | glossary, §11, App A |
+| Stale facts fixed: §3.3 stand-ins (`store-cirun` landed, 73ae012; the open ones are R32's); §4.7 phone check (F5 no longer blocked); §6.1 Q35 decided (a), not open; §6.6 gate status (`integrate-ports-4`) and shell wording (every section is ported); §9.1 calibration track folded into a note | §3.3, §4.7, §6.1, §6.6, §9.1 |
+| Length (about 1,340 lines with the three new sections): frontmatter links one line per folder; §4.3-§4.5 merged; §10.4-§10.6 cut to the landed state; V-b/V-c/V-e one row; A1-A28 one paragraph; §0, §5.1, §5.2, §6.1, §6.6 breakpoints, §7.2, §8.4, §10.1, §12.1 compressed; rev 9 and 10 logs compressed | throughout |
 
-**Which way the plan goes.** Rev 9 made the phone the WebKit truth and the end-of-page A/B the experiment; you
-said the evidence must be a proof. The plan follows you: the phone keeps a seat as an optional spot check (D1) and
-loses every dependent; where a proof needs a premise CI cannot test (H1-H3, open RG items) the report names it
-rather than reaching for the phone. Where the design note and the plan's labels clashed, the plan renamed (A33);
-where the note's order would have lengthened the path, the graph parallelises (A34).
+**Review-loop record, `contract-lean` (CLAUDE.md review-loop rule).** Round 1 (47e8ca98: 34 rows, I1-I4,
+`groups_partition`) was refused; round 2 (9f32c2cd: `affects`, derived `pageLevel`) was refused, the 2nd refusal of the
+same kind, each round having patched the newest probe (an undeclared coupling the code shows; INFERRED from what the
+next round fixed). The lead stopped patching; after a Fable retro the closed design was **identity over inference**:
+rows generated from the code, not declared. The task split (c2cadc63): `contract-rows-from-code` takes row
+completeness, and `contract-lean` ran one **final design round** (ed18ccb9: premise field, people.o regrouped, `g4_iff`)
+judged against its listed accepted limits; it landed (cf3eebf3). `part-io-lint` was cut as superseded (16207afb).
 
-**Decision log (2026-10-18, about 01:50):** you answered D1 (phone session 2 stays an optional spot check) and D2 (Try-it pages for constant glass, FLIP / st6 and typing chunks: tasks `try-constant-glass`, `try-flip-st6`, `try-typing-chunks`); rev 10 was approved and landed.
+### Revisions 9 to 10 (ad5eeea → 5b57aa4 → a0b5a1d → a8c05f4)
 
-### Revision 9 and 9.1 (the 3-day frame; ad5eeea → 5b57aa4 → a0b5a1d; rev 8 was 54aa9d7)
-
-Your decision (2026-10-17 23:13 +0700): the whole experiment takes at most 3 days, report due 2026-10-20 13:15. Rev 9
-rewrote §10 around that (minimum experiment = the 9 end-of-page parts; four checkpoints with fallbacks; a cut list
-with reasons; M2-M6 retargeted; Q36, Q37, R34, R35, A29-A31; 1,537 → 1,313 lines; every Q, R, A, SPK id kept).
-Rev 9.1 applied your answers Q34 = c, Q35 = a, Q36 = shells then parallel ports, and the C1 **GO** (`webkit-green`
-f03e94b): `port-morph` split into five tasks, one `port-<section>` task per section behind the swap check, the lanes
-of §10.5 with their limits. Which way it went: your breadth rule against your deadline → shells then ports (A29);
-calibrated model against two sessions → device truth (A30, superseded by rev 10); per-part vector against the
-measured harness → the harness wins (A31).
+**Rev 10** (`plan-rev10`, your principle of 2026-10-18): a theorem pair (vis)/(work) per part × optimization under the
+engine models, for all t and every width band; H1-H3; F0-F5; the phone an optional spot check; Q37 resolved as "no
+cost model"; 23 proof tasks; R36, R37, A32-A34. You answered D1 (session 2 optional) and D2 (Try-it pages:
+`try-constant-glass`, `try-flip-st6`, `try-typing-chunks`) at about 01:50. **Rev 9 / 9.1** (your decision of
+2026-10-17 23:13): the 3-day frame, the 9 end-of-page parts, four checkpoints with fallbacks, a cut list; Q34 = c,
+Q35 = a, Q36 = shells then parallel ports; C1 GO (f03e94b); A29-A31.
 
 ### Revisions 2 to 8 (item tables in [EV §12] and git history)
 
