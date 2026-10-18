@@ -1,0 +1,11 @@
+{
+  "name": "@fw/engine-check",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Stages CI counts runs under the row variant their faithful key answers (Lean Fw.Engine.Keys), then runs `fw engine-check` per flag.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}
