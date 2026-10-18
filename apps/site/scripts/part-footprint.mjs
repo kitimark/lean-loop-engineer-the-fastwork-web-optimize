@@ -452,6 +452,7 @@ function valueOf(n, scope) {
       const c = strip(n.callee);
       if (c.type === 'Identifier' && (c.name === 'useRef' || c.name === 'createRef')) return { k: 'ref', target: refTarget(n, scope) };
       if (c.type === 'Identifier' && c.name === 'useState') return { k: 'state' };
+      if (c.type === 'Identifier' && c.name === 'getClock') return { k: 'clock' };
       if (c.type === 'Identifier' && (c.name === 'matchList' || c.name === 'matchMedia')) return { k: 'mql' };
       if (c.type === 'Identifier' && c.name === 'getComputedStyle') return UNKNOWN;
       if (c.type === 'MemberExpression') {
@@ -771,7 +772,8 @@ function walkCall(n, scope, ctxTag, fnVal) {
   // receivers and arguments first
   if (c.type === 'MemberExpression') walk(c.object, scope, ctxTag, fnVal);
   // clock and scheduling reads
-  if (c.type === 'Identifier' && ['getClock', 'requestAnimationFrame', 'setInterval', 'setTimeout'].includes(name)) emit(n, 'clock', name, '', ctxTag);
+  if (c.type === 'Identifier' && ['requestAnimationFrame', 'setInterval', 'setTimeout', 'after'].includes(name)) emit(n, 'clock', name, '', ctxTag);
+  if (c.type === 'MemberExpression' && ['subscribe', 'interval', 'every'].includes(name) && (recv.k === 'clock' || /clock/i.test(c.object.type === 'Identifier' ? c.object.name : c.object.type === 'MemberExpression' ? propName(c.object) ?? '' : ''))) emit(n, 'clock', name, '', ctxTag);
   if (c.type === 'MemberExpression' && ['now'].includes(name) && c.object.type === 'Identifier' && ['Date', 'performance'].includes(c.object.name)) emit(n, 'clock', `${c.object.name}.now`, '', ctxTag);
   if (name === 'matchList' || name === 'matchMedia') {
     const a = valueOf(n.arguments[0], scope);
@@ -1058,7 +1060,7 @@ function extractPass() {
     cur = { part, file: null };
     for (const f of all) {
       if (f.endsWith('.css')) {
-        for (const r of cssReads(f, part)) accesses.set(`${r.part}\u0000${r.file}\u0000${String(r.line).padStart(5, '0')}\u0000${r.op}\u0000${r.name}\u0000${r.owner}\u0000${r.ctx}`, r);
+        for (const r of cssReads(f, DRIVERS.has(folderOf(f)) ? folderOf(f) : part)) accesses.set(`${r.part}\u0000${r.file}\u0000${String(r.line).padStart(5, '0')}\u0000${r.op}\u0000${r.name}\u0000${r.owner}\u0000${r.ctx}`, r);
         continue;
       }
       if (!own.includes(f)) continue;
