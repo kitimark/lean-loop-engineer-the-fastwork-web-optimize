@@ -9,10 +9,12 @@ topics: [context, slop, comments, skills, agents, lint]
 
 # Context slop
 
-Answer: the always-loaded text shrank by 1,336 B in CLAUDE.md and 3,868 B over the 14 role files; a spawn of
-lean-prover now loads 6,497 B instead of 8,901 B (-27%), and a read of the token policy costs 5,793 B instead of
-35,917 B (-84%). All sizes MEASURED with `git ls-tree -l` at base `dec6ee5` and this branch; tokens are bytes / 4
-(INFERRED). Rules now live in two skills (`no-slop`, `no-comments`), one read-only agent (`slop-checker`), a shared
+Answer: the always-loaded text shrank by 731 B in CLAUDE.md and 1,233 B over the 14 role files; a spawn of
+lean-prover now loads 8,004 B instead of 8,901 B (-10%), and a read of the token policy costs 5,834 B instead of
+35,917 B (-84%). Round 2 put back every rule a reader still needs in its loaded place (the lead's review-loop rule,
+lean-prover's docstring checklist, the helper-spawn rules of the 5 spawning roles), so round 1's larger cut (-27% per
+lean-prover spawn) is not the result. All sizes MEASURED with `wc -c` at base `dec6ee5` (= main for these files) and
+this branch; tokens are bytes / 4 (INFERRED). Rules now live in two skills (`no-slop`, `no-comments`), one read-only agent (`slop-checker`), a shared
 prompt block (`docs/team/tools/prompt-rules.md`) and a Lean lint (`Fw.Lint.Context`, `node scripts/context-lint.mjs`).
 
 Source of the distilled rules: cursor/plugins@0b8e952, folder `pstack/` (MIT). Paths below are relative to `pstack/`.
@@ -23,24 +25,27 @@ Rules are restated in our words; no pstack text is copied beyond the short attri
 
 | What | Before | After | Change | When paid |
 |---|---|---|---|---|
-| CLAUDE.md | 6,326 | 4,990 | -1,336 (~-334 tok) | every session and every spawn of the 10 roles that load it |
-| 14 role bodies, sum | 19,986 | 16,118 | -3,868 (~-967 tok) | per spawn of that role |
-| lean-prover spawn (CLAUDE.md + body) | 8,901 | 6,497 | -2,404 (~-601 tok) | per spawn |
-| measure-engineer spawn | 8,834 | 6,681 | -2,153 (~-538 tok) | per spawn |
-| console-builder / plan-editor / researcher spawn | 8,298 / 7,921 / 7,881 | 6,288 / 6,068 / 6,038 | -2,010 / -1,853 / -1,843 | per spawn |
-| docs/team/token-policy.md | 35,917 | 5,793 | -30,124 (~-7.5k tok) | per read (5 roles, 13 workflow scripts cite it) |
+| CLAUDE.md | 6,326 | 5,595 | -731 (~-183 tok) | every session and every spawn of the 10 roles that load it |
+| 14 role bodies, sum | 19,986 | 18,753 | -1,233 (~-308 tok) | per spawn of that role |
+| lean-prover spawn (CLAUDE.md + body) | 8,901 | 8,004 | -897 (~-224 tok) | per spawn |
+| measure-engineer spawn | 8,834 | 7,738 | -1,096 (~-274 tok) | per spawn |
+| console-builder / plan-editor / researcher spawn | 8,298 / 7,921 / 7,881 | 7,314 / 7,094 / 7,082 | -984 / -827 / -799 | per spawn |
+| docs/team/token-policy.md | 35,917 | 5,834 | -30,083 (~-7.5k tok) | per read (5 roles, 13 workflow scripts cite it) |
 | docs/team/tools/watch.md (usage) | 12,321 | 3,612 | -8,709 (~-2.2k tok) | per read for usage; rules and sources split into `watch-rules.md`, `watch-sources.md` |
 | docs/team/tools/land.md | 6,257 | 5,098 | -1,159 | per read; `--queue` split into `land-queue.md` (1,703) |
-| docs/team/tools/wait-guard.md | 6,646 | 5,821 | -825 | per read |
+| docs/team/tools/wait-guard.md (main 0cc1dfa) | 14,635 | 10,761 | -3,874 | per read; shadow review rounds 1-5 moved to a note |
 | Added, always listed: 2 skill descriptions + slop-checker description | 0 | ~620 | +620 (~+155 tok) | every session (lead's skill and agent lists) |
 | Added, on demand: 2 skills, slop-checker body, prompt-rules, context-lint doc | 0 | 11,922 | on demand | only when used |
 
-Net for a lean-prover spawn: about -600 tok of the always-loaded part; for the lead about -330 tok per session minus
+Net for a lean-prover spawn: about -220 tok of the always-loaded part; for the lead about -180 tok per session minus
 ~155 tok of new descriptions (INFERRED: the descriptions are listed every session). The tools-doc family grew in total
 (73,640 to 78,250 B) because of two new docs and the splits, but each use reads one smaller file.
 
-Lint verdicts (`node scripts/context-lint.mjs`, MEASURED): before 224 files, 170 ok, 53 over budget, 1 slop; after 232
-files, 186 ok, 46 over budget (all handoffs over 30 lines, not this task's files), 0 slop.
+Lint verdicts (`node scripts/context-lint.mjs --all`, MEASURED): before 224 files, 170 ok, 53 over budget, 1 slop;
+after round 2, 237 files, 189 ok, 48 over budget, 0 slop. The 48: 46 handoffs over 30 lines, plus two team docs over
+6,000 B, `docs/team/tools/lean-first.md` (13,558 B) and `docs/team/tools/wait-guard.md` (10,761 B, grown on main by its
+rounds 3-5 rules). Round 1 reported "46, all handoffs"; it was 47 (lean-first.md was over too). Budgets raised in round
+2 so the restored rules fit: CLAUDE.md 5,000 to 5,600 B, agent file 2,000 to 2,500 B (lead may revert).
 
 ## Measured offenders (audit at 5b3d632, MEASURED by wc/grep)
 
@@ -127,19 +132,26 @@ is now allowed (`leadEditHelpers`; before it was refused as `unnamed`), nested p
 
 ## Where each moved or removed rule lives now
 
+Loaded = in a file the same agents load at spawn (CLAUDE.md for every role without `omitClaudeMd`; the role body).
+
 | Rule (old place) | Now |
 |---|---|
-| Helper block (5 role files) | `docs/team/token-policy.md` "When to delegate" and "Nested spawning"; roles keep a one-line pointer |
-| "1 helper at a time, 2 only if told", "< 4 min unless other work", "never sleep-poll for it" (role helper block) | token-policy "Nested spawning" |
+| Helper block (5 spawning role files) | same 5 role bodies, 4-line short form (types, never `model`/`isolation`, 1 at a time, < 4 min, no sleep-poll, one run inline); thresholds table in token-policy. Loaded |
+| "Review loops (lead)" (CLAUDE.md Team) | CLAUDE.md Team, reworded only (round 1 dropped it in a merge; restored in round 2). Loaded |
+| Docstring `$$` "exactly as strong as the Lean statement" and the 6-point checklist (lean-prover) | lean-prover body, short form, plus the path `.claude/skills/no-comments/SKILL.md`. Loaded |
 | Commit with `git add --`, report ≤ 300 chars (console-builder, measure-engineer, part-builder) | CLAUDE.md Team; roles keep "never touch main; report names the branch" |
 | "never push" (console-builder, measure-engineer, part-builder) | removed as a contradiction; CLAUDE.md "Public repo" allows `ci/*` pushes only |
 | "Nobody runs git push" (CLAUDE.md Team) | merged into CLAUDE.md "Public repo" (push rule stated once) |
 | "In the planning phase only the lead commits" (CLAUDE.md) | removed as stale: the build has started (INFERRED from the work graph) |
 | Fastwork restate-never-copy (part-builder, measure-engineer) | CLAUDE.md "Fastwork material"; part-builder points to it |
-| Lean docstring 6-point checklist (lean-prover) | skill `no-comments`, Lean section |
-| "Read with offset/limit; grep before reading" (reviewer, math-reviewer) | CLAUDE.md "Context" (both load CLAUDE.md) |
+| "Read with offset/limit; grep before reading" (reviewer, math-reviewer) | CLAUDE.md "Context" (both load CLAUDE.md). Loaded |
+| "never by re-running locally" (CLAUDE.md Measure), "never `main`" (CLAUDE.md push) | kept in CLAUDE.md (round 1 had cut them). Loaded |
+| "never copy its code or assets into git" (measure-engineer, part-builder) | CLAUDE.md "Fastwork material"; both bodies point to it. Loaded |
+| Pointers "skill `no-slop`/`no-comments`" (CLAUDE.md, researcher, lean-prover, prompt-rules, token-policy, context-lint doc) | repo paths `.claude/skills/<name>/SKILL.md` (agents have no Skill tool; they Read the file) |
 | CONFIRMED/INFERRED/MEASURED (researcher) | CLAUDE.md "Claims" |
 | Dated narration, pkill anecdote, "MEASURED: ephemeral_5m" (CLAUDE.md) | removed; the rules stay (git history keeps the story) |
+| Explanations without a rule (CLAUDE.md): "(Haiku)"/"(Sonnet)" tiers, "`TaskStop`, no model turn", brew command forms, "(v1 chat digests)", "added by the publish-prep step", "far higher rate limits", "(gitignored)" on `.cache/upstream` | removed; tiers are in the helper frontmatter `model:`, the rest is rationale, `.gitignore` holds the ignore |
+| "GitHub via the logged-in `gh` CLI, read-only" (researcher) | researcher body points to CLAUDE.md "Upstream source" and keeps "`gh` read-only". Loaded |
 | Token policy cost model, D1-D7, change list, review log | `research/notes/2026/10-18-token-policy-rationale.md` (verbatim) |
 | Token policy "CI pushes" section | `docs/team/tools/fw-ci.md` (already there) |
 | Token policy "Hand-back rule" | `docs/team/tools/land.md` "--dry"; prompt-rules R5 |
@@ -154,6 +166,7 @@ is now allowed (`leadEditHelpers`; before it was refused as `unnamed`), nested p
 | Followup | Measured size |
 |---|---|
 | Trim the 46 handoffs over 30 lines, then the lead can make the lint `--strict` | 46 files, max 134 lines |
+| Split `docs/team/tools/lean-first.md` (13,558 B) and `wait-guard.md` (10,761 B) by use, like watch.md | 2 team docs over 6,000 B |
 | Move work-graph titles over 200 chars into a spec field | 87 titles; ~38k tok per whole-file read |
 | Drop "Set FW_*_GUARD=shadow" from deny messages (spawn-guard.mjs:78, wait-guard.mjs:37,45) | ~60 B per deny; removes a bypass hint |
 | Shared prelude in workflow scripts (ROOT, VERDICT, BUILD) and cite prompt-rules ids | VERDICT schema in 30 scripts, path constants in 27 |

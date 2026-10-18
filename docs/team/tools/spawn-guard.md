@@ -33,6 +33,12 @@ It is already the shadow hook there today; with this change the same line enforc
   agent.
 - C: an unnamed `patcher` from the lead (depth 0, `leadEditHelpers`); nested it stays refused. Every role in the table
   has an accepted spawn shape (`every_role_spawnable`, `helpers_from_lead`, `helpers_nested`, `patcher_nested_refused`).
+  Depth 0 means the lead because a teammate's tool calls carry `agent_id`: CONFIRMED by the Claude Code hooks reference
+  (code.claude.com/docs/en/hooks, common input fields: `agent_id` identifies "the subagent or in-process teammate the
+  hook fires in") with `teammateMode: "in-process"` in `.claude/settings.json`; MEASURED in the spool, where the
+  teammate `plan-d1d2` logged its 6 `PostToolUse` records under its own `agent_id` (file `aplan-d1d2-*.jsonl`).
+  Accepted limit: a split-pane teammate (`teammateMode` tmux or iTerm2) is, INFERRED, a separate session with no
+  `agent_id`, so its unnamed `patcher` call would read as the lead's.
 - A task defined after the spawn: the guard reads no task, so nothing to refuse.
 
 Shadow-log counts (spawns the guard saw, 2026-10-17 18:49 to 10-18 03:30): 14 refusals. Class A 9 (plan-editor 6,

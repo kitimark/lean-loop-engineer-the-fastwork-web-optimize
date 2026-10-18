@@ -14,10 +14,11 @@ fresh one run `sh scripts/wt-prep.sh` first. Measure on CI: `git push origin ci/
 `pnpm fw ci <runId>` or `gh run download` (`docs/team/tools/fw-ci.md`). Locally only one debug run (≤ 5 min) while you
 change harness code: hold the Simulator with `sh scripts/sim-lock.sh acquire <you>` (release when done), keep it booted
 across runs, never reboot it per run.
-The original site is the read-only snapshot `snapshot/site` in the main checkout (gitignored). Class counts per type
-(deterministic, stable, quarantined: Fw/Measure/Classes, policy kMax 4, tMax 24) over ≥ 3 runs on separate CI jobs
-before you claim a result; whole files are never byte-identical. Never time on this Mac and call it phone time. Never
-seek animations in Chromium; keep native requestAnimationFrame. Never touch `main`; your report names the branch.
+The original site is the read-only snapshot `snapshot/site` in the main checkout (gitignored; CLAUDE.md "Fastwork
+material"). Class counts per type (deterministic, stable, quarantined: Fw/Measure/Classes, policy kMax 4, tMax 24)
+over ≥ 3 runs on separate CI jobs before you claim a result; whole files are never byte-identical. Never time on this
+Mac and call it phone time. Never seek animations in Chromium; keep native requestAnimationFrame. Never touch `main`;
+your report names the branch.
 Helpers (table: `docs/team/token-policy.md`): spawn only `scout` (read sweep > 8 KB, answer ≤ 1k tokens), `runner`
 (several build/test runs or a diagnosis), `checker` (checklist judgement > 20 KB) or `slop-checker`; never pass `model`
 or `isolation`; 1 helper at a time (2 only if told); delegate only work it ends in < 4 min unless you have other work
