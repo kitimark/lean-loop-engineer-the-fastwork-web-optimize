@@ -1,7 +1,7 @@
 # task-state-truth (handoff)
 
 State: branch `worktree-wf_aadbf6f9-218-1`, round 6 (fix round on the round-5 closed design), on round 5 head c0bb618e
-and main db41542a. check.sh green; vitest console-api 323, runner 1018, console-web 11.
+and main db41542a; Lean last changed at 4a2b2907. check.sh green; vitest console-api 323, runner 1018, console-web 11.
 Root cause (MEASURED, round 1): strict zod `ObsRecord` refused every SubagentStop carrying `background_tasks`.
 
 ## Design (round 5, kept)
@@ -18,7 +18,8 @@ Root cause (MEASURED, round 1): strict zod `ObsRecord` refused every SubagentSto
   mtime), agent stop = max(journal mtime, run file mtime), run spawn/stop = script/run file mtime. Journal lines carry
   no time. Test: workflow-claim "journal first read after the SubagentStop".
 - Prose fixed: Cmd docstring, binding section header, `event_revives` gloss.
-- Replay note re-run at main db41542a and this head: `research/notes/2026/10-18-task-state-truth.md`.
+- Replay note re-run at main db41542a and this head (1331 events, copy 4.3 s): all 17 `port-*`/`fix-*` rows
+  show their mark; 5 running, 5 quiet: `research/notes/2026/10-18-task-state-truth.md`.
 
 ## Lead steps
 1. Land; restart console-api; let one drain run.
