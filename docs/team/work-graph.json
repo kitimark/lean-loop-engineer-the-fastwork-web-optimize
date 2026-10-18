@@ -4638,6 +4638,30 @@
     "docs/team/handoffs/jev-eval.md",
     "research/notes/2026/10-18-jev-eval.md"
    ]
+  },
+  {
+   "id": "engine-model-fix-2",
+   "title": "(S) engine-model-fix follow-ups from review: wk_cross_claim (run-level WebKit dominance across rest/fade toggle for morph.panel n=11; until then ledger says win on rest frames only), timer-only step in the engine-premises fixture (cr.props base rule INFERRED for timer frames), multi-change frames measured (CrLevel.max joins, WebKit unions), check.sh stage comparing golden/engine/*.jsonl with Lean generators (drift is silent today)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-model-fix"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/**",
+    "lean/Fw/Ops/Premise.lean",
+    "lean/Fw/Ops/EnginePremise.lean",
+    "packages/contracts/golden/engine/**",
+    "packages/contracts/golden/ops/**",
+    "research/findings/ledger.json",
+    "research/notes/**",
+    "docs/team/handoffs/engine-model-fix.md",
+    "lean/Fw/Parts/**",
+    "lean/scripts/check.sh",
+    "lean/scripts/EngineGoldens.lean",
+    "docs/team/handoffs/engine-model-fix-2.md"
+   ]
   }
  ],
  "deadline": {
