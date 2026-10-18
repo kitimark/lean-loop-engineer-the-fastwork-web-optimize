@@ -803,12 +803,20 @@ theorem imbWitness_spec (p : Params) (rows : List Row) (g : String) (h : imbWitn
 
 /-! ## Examples -/
 
-/-- A gate run with the given job durations (s), one group per engine, timeouts 60 min. -/
+/-- Example row: job `job` of run `run` (workflow `breakpoint-gate`), created at `created`, lasting `d` s.
+
+$$\mathrm{gateRow}(r, c, j, d) = \{\mathit{run}=r,\ \mathit{createdS}=\mathit{startedS}=c,\ \mathit{job}=j,\ \mathit{startS}=c+60,\ \mathit{endS}=c+60+d,\ \mathit{timeoutS}=3600\}$$
+
+A test row that started one minute after its run was created and has a 60 min timeout. -/
 def gateRow (run created : Nat) (job : String) (d : Nat) : Row :=
   { run, workflow := "breakpoint-gate", createdS := created, startedS := created, job,
     startS := created + 60, endS := created + 60 + d, timeoutS := 3600 }
 
-/-- Run 39101532038 (b35b541, integrate-ports-3): the gate shards in s. -/
+/-- Example: run 39101532038 (b35b541, integrate-ports-3) as the rows of run 3, created at 0.
+
+$$\mathrm{run3} = [\mathrm{gateRow}(3, 0, \texttt{gate chromium j}i, c_i)]_{i<3} \mathbin{+\!\!+} [\mathrm{gateRow}(3, 0, \texttt{gate playwright-webkit j}i, w_i)]_{i<4},\quad c = (1756, 1444, 2749),\ w = (1249, 1270, 1295, 2986)$$
+
+The measured shard durations of the run that showed the webkit j3 imbalance. -/
 def run3 : List Row :=
   [gateRow 3 0 "gate chromium j0" 1756, gateRow 3 0 "gate chromium j1" 1444, gateRow 3 0 "gate chromium j2" 2749,
    gateRow 3 0 "gate playwright-webkit j0" 1249, gateRow 3 0 "gate playwright-webkit j1" 1270,
@@ -841,7 +849,11 @@ def run3 : List Row :=
 #guard (alertOf {} run3 [] .nearTimeout).subject == "gate chromium j2" && (alertOf {} run3 [] .queue).value == 0
 #guard (alertOf {} [] [] .growth).workflow == "" && (alertOf {} [] [] .growth).bound == 0
 
-/-- Three runs of one workflow, rows out of order: imbalanced (created 300), balanced (200), imbalanced (100). -/
+/-- Example: three runs of one workflow, listed newest first.
+
+$$\mathrm{seq3} = [g(30, 300, \texttt{t (s0)}, 100),\ g(30, 300, \texttt{t (s1)}, 400),\ g(20, 200, \texttt{t (s0)}, 300),\ g(20, 200, \texttt{t (s1)}, 300),\ g(10, 100, \texttt{t (s0)}, 100),\ g(10, 100, \texttt{t (s1)}, 400)],\quad g = \mathrm{gateRow}$$
+
+Runs 10 and 30 are imbalanced (400 vs 100) and run 20 is balanced, so ordering and dedup can be checked. -/
 def seq3 : List Row :=
   [gateRow 30 300 "t (s0)" 100, gateRow 30 300 "t (s1)" 400, gateRow 20 200 "t (s0)" 300, gateRow 20 200 "t (s1)" 300,
    gateRow 10 100 "t (s0)" 100, gateRow 10 100 "t (s1)" 400]
