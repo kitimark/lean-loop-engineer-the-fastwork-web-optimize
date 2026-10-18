@@ -120,6 +120,9 @@ def lines : List String :=
     [0, 0.2, 0.5, 0.99].map fun r =>
     line "pickText" [("used", Json.arr (used.map fun (x : Nat) => (Json.num ⟨x, 0⟩)).toArray), ("r", rin r)]
       (.num ⟨pickText used r, 0⟩)) ++
+  (([(0, 900, 900), (4085, 4985, 900), (1801, 2701, 900), (1800, 2700, 900), (-1800, -901, 900), (-1801, -901, 900), (-1800, -900, 900)] : List (Rat × Rat × Rat)).map
+    fun (t, b, h) => line "sceneActive" [("top", rin t), ("bottom", rin b), ("h", rin h)] (.bool (sceneActive t b h))) ++
+  (bs.map fun a => line "renderObserves" [("active", .bool a)] (.bool (Render.after a).observes)) ++
   ((List.range 20).map fun (j : Nat) => line "rotation" [("j", .num ⟨j, 0⟩)] (.num ⟨rotation j, 0⟩)) ++
   (bs.flatMap fun c => ([0, 1] : List Nat).flatMap fun (b : Nat) => bs.map fun m =>
     line "dragAllowed" [("c860", .bool c), ("button", .num ⟨b, 0⟩), ("mouse", .bool m)] (.bool (dragAllowed c b m))) ++

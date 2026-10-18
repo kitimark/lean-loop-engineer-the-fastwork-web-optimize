@@ -367,6 +367,15 @@
 {"fn":"pickText","in":{"r":0.2,"used":[15,21,16,12,17,13,22,14,18,20,19,23]},"out":16}
 {"fn":"pickText","in":{"r":0.5,"used":[15,21,16,12,17,13,22,14,18,20,19,23]},"out":22}
 {"fn":"pickText","in":{"r":0.99,"used":[15,21,16,12,17,13,22,14,18,20,19,23]},"out":23}
+{"fn":"sceneActive","in":{"bottom":900,"h":900,"top":0},"out":true}
+{"fn":"sceneActive","in":{"bottom":4985,"h":900,"top":4085},"out":false}
+{"fn":"sceneActive","in":{"bottom":2701,"h":900,"top":1801},"out":false}
+{"fn":"sceneActive","in":{"bottom":2700,"h":900,"top":1800},"out":true}
+{"fn":"sceneActive","in":{"bottom":-901,"h":900,"top":-1800},"out":false}
+{"fn":"sceneActive","in":{"bottom":-901,"h":900,"top":-1801},"out":false}
+{"fn":"sceneActive","in":{"bottom":-900,"h":900,"top":-1800},"out":true}
+{"fn":"renderObserves","in":{"active":false},"out":false}
+{"fn":"renderObserves","in":{"active":true},"out":true}
 {"fn":"rotation","in":{"j":0},"out":-9}
 {"fn":"rotation","in":{"j":1},"out":-7}
 {"fn":"rotation","in":{"j":2},"out":-5}

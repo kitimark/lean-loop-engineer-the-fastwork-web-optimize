@@ -4,7 +4,9 @@ import { registerScroll } from "../../engine/scroll";
 import { dragNoteLabel, NOTE_TEXT } from "./data";
 import { createNotesDriver } from "./driver";
 import type { Note } from "./logic";
+import { SCENE_MARGIN } from "./logic";
 import { matchList } from "./media";
+import { createScene } from "./scene";
 import css from "./notes.module.css";
 
 /** The seed of the notes' random stream (PLAN section 4.3: a fixed seed so two captures match). */
@@ -48,6 +50,24 @@ export function PainNotes({
     const narrow = matchList("mq.w-le-860");
     const reduce = matchList("mq.rm-reduce");
     const c860 = matchList("mq.c860");
+    const frame = (cb: () => void) => {
+      let done = false;
+      let off: () => void = () => {};
+      off = clock.subscribe(
+        () => {
+          if (done) return;
+          done = true;
+          off();
+          cb();
+        },
+        { own: true },
+      );
+      return () => {
+        done = true;
+        off();
+      };
+    };
+    const section = stage.closest<HTMLElement>('[data-fw="pain"]');
     const card = () => document.querySelector<HTMLElement>(cardSelector);
     const driver = createNotesDriver(
       {
@@ -63,23 +83,7 @@ export function PainNotes({
         reduced: () => reduce?.matches ?? false,
         c860: () => c860?.matches ?? false,
         interval: (ms, cb) => clock.interval(ms, cb),
-        frame: (cb) => {
-          let done = false;
-          let off: () => void = () => {};
-          off = clock.subscribe(
-            () => {
-              if (done) return;
-              done = true;
-              off();
-              cb();
-            },
-            { own: true },
-          );
-          return () => {
-            done = true;
-            off();
-          };
-        },
+        frame,
         commit: setView,
         writeNote: (id, left, top, z) => {
           const el = stage.querySelector<HTMLElement>(`[data-fw-note="${id}"]`);
@@ -93,6 +97,26 @@ export function PainNotes({
     );
     driverRef.current = driver;
     driver.start();
+    const scene = createScene({
+      sectionRect: () => section?.getBoundingClientRect() ?? null,
+      innerHeight: () => window.innerHeight,
+      frame,
+      setScene: (st) => section?.setAttribute("data-scene", st),
+      getRender: () => section?.getAttribute("data-render") as "active" | "deferred" | null,
+      setRender: (st) => section?.setAttribute("data-render", st),
+      setIntrinsic: (px) => section?.style.setProperty("--start-selling-intrinsic-block-size", `${px}px`),
+      onActivate: () => {},
+    });
+    scene.start();
+    const sceneIo = section
+      ? new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) scene.intersect(e.isIntersecting);
+          },
+          { rootMargin: SCENE_MARGIN },
+        )
+      : null;
+    if (section) sceneIo?.observe(section);
 
     const io = new IntersectionObserver(
       ([e]) => driver.intersect(!!e?.isIntersecting, e?.intersectionRatio ?? 0),
@@ -108,12 +132,17 @@ export function PainNotes({
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end);
-    const offScroll = registerScroll("pain.notes", NOTES_SCROLL_ORDER, () =>
-      driver.onScroll(),
-    );
+    const offScroll = registerScroll("pain.notes", NOTES_SCROLL_ORDER, () => {
+      if (scene.active()) driver.onScroll();
+    });
     return () => {
       offScroll();
       io.disconnect();
+      sceneIo?.disconnect();
+      scene.dispose();
+      section?.removeAttribute("data-scene");
+      section?.removeAttribute("data-render");
+      section?.style.removeProperty("--start-selling-intrinsic-block-size");
       ro.disconnect();
       narrow?.removeEventListener("change", onNarrow);
       window.removeEventListener("pointermove", move);
