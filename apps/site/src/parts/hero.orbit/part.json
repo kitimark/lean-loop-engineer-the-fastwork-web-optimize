@@ -1,0 +1,13 @@
+{
+  "id": "hero.orbit",
+  "slot": "hero",
+  "anchors": ["hero-orbit"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:4016-4229,4252-4290; assets/2.gBuqKVzi.css:1507-1512,1541-1740,1966-2035" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

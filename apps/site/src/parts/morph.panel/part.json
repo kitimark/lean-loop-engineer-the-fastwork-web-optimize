@@ -1,0 +1,13 @@
+{
+  "id": "morph.panel",
+  "slot": "morph",
+  "anchors": ["morph-panel"],
+  "experiment": true,
+  "impls": ["mui", "plain"],
+  "muiStates": ["typography-body1", "buttonbase"],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12879 (markup), 13196-13199 (flags)" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

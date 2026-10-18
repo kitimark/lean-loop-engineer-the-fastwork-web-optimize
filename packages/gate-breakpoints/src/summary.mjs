@@ -5,6 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadAnchors, loadGen, expectFor, partJson, selectParts } from './spec.mjs';
 import { context, evaluate, tallies } from './verdict.mjs';
+import { cell as settleCell, report as settleReport } from './settle.mjs';
 
 const ENGINES = ['chromium', 'playwright-webkit'];
 /** The matchMedia rows of the table, as Lean names them (Fw.Gate.truthRows); the part rows follow. */
@@ -39,6 +40,64 @@ function infoDiffs(acc, label, ev, partIds) {
   }
 }
 
+/** The settle wait of an arm record (probe arm {settle, raw} or sweep stop raw), or null for a run made before the wait. */
+const waitOf = (arm) => (arm.raw ?? arm).settleWait ?? null;
+
+/**
+ * Lean's report (Fw.Gate.Settle.report, settle.mjs) for one state: 'unsettled' when either arm's wait ended unsettled. The
+ * values' equality is not needed for that case, so true is passed; the entries name the arms that did not settle.
+ */
+function settleOf(label, state) {
+  const w = { orig: waitOf(state.orig), rewrite: waitOf(state.rewrite) };
+  if (!w.orig || !w.rewrite) return { unsettled: false, entry: null };
+  const r = settleReport(w.orig.outcome, w.rewrite.outcome, true);
+  if (r !== 'unsettled') return { unsettled: false, entry: null };
+  const arms = ['orig', 'rewrite'].filter((a) => w[a].outcome === 'unsettled')
+    .map((a) => ({ arm: a, frames: w[a].frames, waitedMs: w[a].waitedMs, running: w[a].running, stable: w[a].stable, hoverInside: w[a].hoverInside, parked: w[a].parked }));
+  return { unsettled: true, entry: { at: label, arms } };
+}
+
+/** An unsettled state has no verdict: its rows are not comparable (never pass, never fail); unreachable stays unreachable. */
+const unsettledRows = (rows) => Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, String(v).startsWith('unreachable') ? v : 'not-comparable']));
+
+/**
+ * Probes the collector flagged unrendered (Fw.Gate.Settle.cell; an item carrying `skipped: true`). collectInPage flags a node whose
+ * subtree the engine has skipped (premise cv.skip-flag: checkVisibility() true, checkVisibility({contentVisibilityAuto:true}) false),
+ * (probes only, which load fresh; sweeps read as before; only with FW_GATE_VIEW=1, off by default) and run.mjs bringSkipped then scrolls the part into view, settles and reads again (Fw.Gate.Settle.viewCell: the second reading
+ * replaces the first), so only a node still skipped after that reaches here. A skipped subtree's used auto margins can be stale
+ * after a resize and are fresh once it is visible (premise cv.fresh-after-resize), so the first reading is not a verdict. A flagged item gets no verdict: the other arm's item is
+ * copied over it before Lean compares (so it can neither fail nor pass), and a part row that would pass is not-comparable.
+ * Returns the state with the copies and the list of masked items.
+ */
+export function maskNotRendered(state) {
+  const rawOf = (arm) => arm.raw ?? arm;
+  const withRaw = (arm, raw) => (arm.raw ? { ...arm, raw } : raw);
+  const o = rawOf(state.orig), r = rawOf(state.rewrite);
+  const masked = [];
+  let outO = o, outR = r;
+  for (const [pid, roles] of Object.entries(o.parts ?? {})) {
+    for (const [role, ro] of Object.entries(roles)) {
+      const rr = r.parts?.[pid]?.[role];
+      if (!rr || ro.items.length !== rr.items.length) continue;
+      const hit = ro.items.map((it, i) => i).filter((i) => ro.items[i].skipped || rr.items[i].skipped);
+      if (hit.length === 0) continue;
+      const mask = (items, other) => items.map((it, i) => (hit.includes(i) ? (({ skipped, ...rest }) => rest)(other[i]) : it));
+      const put = (raw, items) => ({ ...raw, parts: { ...raw.parts, [pid]: { ...raw.parts[pid], [role]: { ...raw.parts[pid][role], items } } } });
+      outO = put(outO, mask(ro.items, ro.items));
+      outR = put(outR, mask(rr.items, ro.items));
+      for (const i of hit) masked.push({ part: pid, role, idx: i, orig: !!ro.items[i].skipped, rewrite: !!rr.items[i].skipped });
+    }
+  }
+  if (masked.length === 0) return { state, masked };
+  return { state: { ...state, orig: withRaw(state.orig, outO), rewrite: withRaw(state.rewrite, outR) }, masked };
+}
+
+/** A part row that would pass while an item of the part was masked is not-comparable (never a silent pass). */
+const notRenderedRows = (rows, masked) => {
+  const parts = new Set(masked.map((m) => m.part));
+  return Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, parts.has(k) && v === 'pass' ? 'not-comparable' : v]));
+};
+
 export function summarize(outDir, { parts: requested = null } = {}) {
   const { gen, sha256 } = loadGen();
   const anchors = loadAnchors();
@@ -67,14 +126,20 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     // have a port only for Chromium (WebKit's would be a guess: Apple or GLib).
     const port = run.header.port ?? (engine === 'chromium' ? 'chromium' : null);
     const ctx = context({ anchors, parts: PARTS, props: run.header.props, deviceEdges, port });
+    const maskedOf = [];
+    const stateOf = (requested, orig, rewrite, expect, expectNeutral) => {
+      const m = maskNotRendered({ requested, orig, rewrite, expect, expectNeutral });
+      maskedOf.push(m.masked);
+      return m.state;
+    };
     const states = run.probes.map((rec) => {
       const g = byId.get(rec.id);
-      return { requested: rec.env, orig: rec.orig, rewrite: rec.rewrite, expect: g.expect, expectNeutral: g.expectNeutral };
+      return stateOf(rec.env, rec.orig, rec.rewrite, g.expect, g.expectNeutral);
     });
     const vectors = run.sweeps.map((sw) => sw.stops.map((env) => expectFor(gen, env)));
     run.sweeps.forEach((sw, j) => sw.stops.forEach((env, i) => {
       const v = vectors[j][i];
-      states.push({ requested: env, orig: sw.orig[i], rewrite: sw.rewrite[i], expect: v?.expect, expectNeutral: v?.expectNeutral });
+      states.push(stateOf(env, sw.orig[i], sw.rewrite[i], v?.expect, v?.expectNeutral));
     }));
     const stalePairs = run.sweeps.flatMap((sw) => ['orig', 'rewrite'].map((site) => ({ after: sw[site][sw.stops.length - 1], fresh: sw.freshFinal[site] })));
     const { states: evs, stale } = evaluate(ctx, states, stalePairs);
@@ -82,14 +147,36 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     if (evs.length > 0 && Object.keys(evs[0].rows).join('\n') !== ROWS.join('\n')) throw new Error(`fwcore rows ${Object.keys(evs[0].rows)} are not ${ROWS}`);
 
     const probeRows = [];
+    const unsettledList = [];
+    const notRenderedList = [];
+    const noteMasked = (label, k, ev) => {
+      if (maskedOf[k].length === 0) return;
+      ev.rows = notRenderedRows(ev.rows, maskedOf[k]);
+      notRenderedList.push({ at: label, cell: settleCell(false, true, 'settled@0', 'settled@0', true), items: maskedOf[k] });
+    };
+    const waitStats = { samples: 0, unsettled: 0, totalWaitMs: 0, maxWaitMs: 0, totalFrames: 0 };
+    const countWait = (state) => {
+      for (const a of ['orig', 'rewrite']) {
+        const w = waitOf(state[a]);
+        if (!w) continue;
+        waitStats.samples++; waitStats.totalWaitMs += w.waitedMs; waitStats.totalFrames += w.frames;
+        waitStats.maxWaitMs = Math.max(waitStats.maxWaitMs, w.waitedMs);
+        if (w.outcome === 'unsettled') waitStats.unsettled++;
+      }
+    };
     run.probes.forEach((rec, k) => {
       const ev = evs[k];
-      failures(fails, rec.id, ev, PARTS);
-      infoDiffs(infos, rec.id, ev, PARTS);
+      countWait(rec);
+      const st = settleOf(rec.id, rec);
+      noteMasked(rec.id, k, ev);
+      if (st.unsettled) { unsettledList.push(st.entry); ev.rows = unsettledRows(ev.rows); } else {
+        failures(fails, rec.id, ev, PARTS);
+        infoDiffs(infos, rec.id, ev, PARTS);
+      }
       probeRows.push({
-        id: rec.id, block: rec.block, achieved: ev.achieved, deviations: ev.dev,
+        id: rec.id, block: rec.block, achieved: ev.achieved, deviations: ev.dev, ...(st.unsettled ? { unsettled: true } : {}),
         settled: { orig: rec.orig.settle.splash ?? rec.orig.settle.ready, rewrite: rec.rewrite.settle.ready },
-        verdicts: ev.rows, verdict: ev.verdict, reach: ev.reach,
+        verdicts: ev.rows, verdict: st.unsettled ? 'not-comparable' : ev.verdict, reach: ev.reach,
         truthCounts: ev.truthCounts,
         compared: ev.compared,
       });
@@ -97,11 +184,17 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     let next = run.probes.length;
     const sweepStops = run.sweeps.map((sw, j) => sw.stops.map((env, i) => {
+      noteMasked(`${sw.id}#${i}@${env.width}x${env.height}`, next, evs[next]);
       const ev = evs[next++];
-      failures(fails, `${sw.id}#${i}@${env.width}x${env.height}`, ev, PARTS);
-      infoDiffs(infos, `${sw.id}#${i}`, ev, PARTS);
+      const label = `${sw.id}#${i}@${env.width}x${env.height}`;
+      countWait({ orig: sw.orig[i], rewrite: sw.rewrite[i] });
+      const st = settleOf(label, { orig: sw.orig[i], rewrite: sw.rewrite[i] });
+      if (st.unsettled) { unsettledList.push(st.entry); ev.rows = unsettledRows(ev.rows); } else {
+        failures(fails, label, ev, PARTS);
+        infoDiffs(infos, `${sw.id}#${i}`, ev, PARTS);
+      }
       const v = vectors[j][i];
-      return { i, width: env.width, height: env.height, achieved: ev.achieved, vector: v ? v.from : null, verdicts: ev.rows };
+      return { i, width: env.width, height: env.height, achieved: ev.achieved, ...(st.unsettled ? { unsettled: true } : {}), vector: v ? v.from : null, verdicts: ev.rows };
     }));
 
     // table: rows = truth + parts, columns = blocks + sweeps; every cell is a Lean tally
@@ -128,8 +221,8 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     const failList = [...fails.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
     const infoList = [...infos.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
-    result.engines[engine] = { browser: run.header.browser, flags: flagsOf(run.header), ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
-    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel));
+    result.engines[engine] = { browser: run.header.browser, flags: flagsOf(run.header), ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, notRendered: notRenderedList, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
+    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList));
   }
 
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(result, null, 1) + '\n');
@@ -155,7 +248,7 @@ const cell = (c) => {
   return c.unreachable > 0 ? `${base} +${c.unreachable} unreachable` : base;
 };
 
-function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel) {
+function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList) {
   const cols = [...blocks, ...sweepRows.map((s) => `sweep:${s.id}`)];
   const out = [`## ${engine} (${header.browser})`, '', flagsLine(header), '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), \`+n unreachable\` = n such probes left out of the count / - = block not run.`, ''];
   // No silent narrowing: a narrowed verdict says which parts it covers and which it does not. matchMedia rows are
@@ -164,6 +257,11 @@ function render(engine, header, table, envRow, sweepRows, failList, infoList, bl
   out.push(`| row | ${cols.join(' | ')} |`, `|---|${cols.map(() => '---').join('|')}|`);
   out.push(`| env achieved | ${blocks.map((b) => `${envRow[b].achieved}/${envRow[b].total}`).join(' | ')} | ${sweepRows.map(() => '').join(' | ')} |`);
   for (const row of Object.keys(table)) out.push(`| ${row} | ${cols.map((c) => cell(table[row][c])).join(' | ')} |`);
+  out.push('', `Settle wait (Lean Fw.Gate.Settle): ${waitStats.samples} arm samples waited ${waitStats.totalWaitMs} ms in total (max ${waitStats.maxWaitMs} ms); ${waitStats.unsettled} ended UNSETTLED. A state with an unsettled arm has no verdict (its rows are NC) and its items are not in the failing list.`);
+  for (const u of unsettledList.slice(0, 40)) out.push(`- UNSETTLED ${u.at}: ${u.arms.map((a) => `${a.arm} (frames ${a.frames}, ${a.waitedMs} ms, running ${a.running}, quiet run ${a.stable}, pointer in target ${a.hoverInside}, parked ${a.parked})`).join('; ')}`);
+  for (const n of notRenderedList.slice(0, 40)) out.push(`- NOT RENDERED ${n.at}: ${n.items.map((m) => `${m.part}/${m.role}[${m.idx}] (original ${m.orig ? 'skipped' : 'rendered'}, rewrite ${m.rewrite ? 'skipped' : 'rendered'})`).join(', ')} -> ${n.cell}, never pass or fail`);
+  if (notRenderedList.length > 40) out.push(`- ... ${notRenderedList.length - 40} more in summary.json`);
+  if (unsettledList.length > 40) out.push(`- ... ${unsettledList.length - 40} more in summary.json`);
   out.push('', 'Sweep hysteresis (state after the sequence vs a fresh load at the same final env, per arm; items differing / compared):', '');
   for (const s of sweepRows) out.push(`- ${s.id}: orig ${s.stale.orig.differ}/${s.stale.orig.compared}, rewrite ${s.stale.rewrite.differ}/${s.stale.rewrite.compared}`);
   out.push('', 'Failing items (count = probes or stops where the item differed; first example):', '', '| part | kind | role | key | count | first at | orig | rewrite | lean |', '|---|---|---|---|---|---|---|---|---|');

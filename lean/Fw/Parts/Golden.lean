@@ -4,6 +4,13 @@ import Fw.Parts.NavHitTest
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
+import Fw.Parts.MorphPanel
+import Fw.Parts.NavGolden
+import Fw.Parts.CommissionGolden
+import Fw.Parts.OverlayGolden
+import Fw.Parts.HeroGolden
+import Fw.Parts.PeopleGolden
+import Fw.Parts.PainNotesGolden
 import Fw.Parts.PlatformGolden
 /-!
 # Golden vectors for the M2 pilot parts
@@ -367,10 +374,30 @@ def tweenLines : List String :=
 
 end Tween
 
-/-- Write the 7 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
-one `.jsonl` per pilot part, and a `.spec.jsonl` for every pilot part except `hero.countdown` (which has none).
+/-! ## morph.panel -/
 
-$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\},\quad |\mathit{files}| = 7$$
+section MorphPanelSec
+open Fw.Parts.MorphPanel
+
+/-- morph.panel lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS morph panel. -/
+def morphPanelLines : List String :=
+  let ms : List Rat := [0, 0.001, 0.0011, 0.08, 0.2, 0.35, 0.3499, 0.44, 0.55, 0.5499, 0.8, 0.92, 0.9201, 1]
+  (ms.flatMap fun m =>
+    [line "panelProgress" [("morph", rin m)] (ratWire (panelProgress m)),
+     line "panelOpacity" [("morph", rin m)] (ratWire (panelOpacity m)),
+     line "panelBlurPx" [("morph", rin m)] (ratWire (panelBlurPx m)),
+     line "panelScale" [("morph", rin m)] (ratWire (panelScale m)),
+     line "sceneActive" [("morph", rin m)] (.bool (sceneActive m)),
+     line "ariaHidden" [("morph", rin m)] (.bool (ariaHidden m)),
+     line "ctaTabOff" [("morph", rin m)] (.bool (ctaTabOff m)),
+     line "expanded" [("morph", rin m)] (.bool (expanded m))])
+
+end MorphPanelSec
+
+/-- Write the 22 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
+one `.jsonl` per pilot part (plus morph.panel), and a `.spec.jsonl` for every pilot part except `hero.countdown` (which has none).
+
+$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\} \cup \{\text{morph.tween.jsonl}, \text{morph.panel.jsonl}, \text{nav.jsonl}, \text{nav.langMenu.jsonl}, \text{commission.jsonl}, \text{commission.typing.jsonl}, \text{overlays.drawer.jsonl}, \text{overlays.signup.jsonl}, \text{hero.orbit.jsonl}, \text{hero.accent.jsonl}, \text{people.card.jsonl}, \text{people.o.jsonl}, \text{people.deck.jsonl}, \text{people.carousel.jsonl}, \text{pain.notes.jsonl}\},\quad |\mathit{files}| = 22$$
 
 Regenerates the pilot parts' golden vectors from the Lean definitions. -/
 def main (args : List String) : IO Unit := do
@@ -380,7 +407,13 @@ def main (args : List String) : IO Unit := do
     [("engine.scroll.jsonl", engineLines), ("engine.scroll.spec.jsonl", engineSpecLines),
      ("nav.hitTest.jsonl", navLines), ("nav.hitTest.spec.jsonl", navSpecLines),
      ("hero.countdown.jsonl", countdownLines), ("hero.exit.jsonl", exitLines),
-     ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines)] ++ PlatformGolden.files
+     ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines),
+     ("morph.panel.jsonl", morphPanelLines),
+     ("nav.jsonl", Fw.Parts.NavGolden.navLines), ("nav.langMenu.jsonl", Fw.Parts.NavGolden.menuLines),
+     ("commission.jsonl", Fw.Parts.CommissionGolden.commissionLines),
+     ("commission.typing.jsonl", Fw.Parts.CommissionGolden.typingLines),
+     ("overlays.drawer.jsonl", OverlayGolden.drawerLines), ("overlays.signup.jsonl", OverlayGolden.signupLines),
+     ("hero.orbit.jsonl", Fw.Parts.HeroGolden.orbitLines), ("hero.accent.jsonl", Fw.Parts.HeroGolden.accentLines)] ++ Fw.Parts.PeopleGolden.files ++ [("pain.notes.jsonl", Fw.Parts.PainNotesGolden.lines)] ++ PlatformGolden.files
   for (name, ls) in files do
     IO.FS.writeFile (dir ++ "/" ++ name) (String.join (ls.map (· ++ "\n")))
     IO.println s!"{name}: {ls.length} lines"

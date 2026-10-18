@@ -6,6 +6,7 @@
 #            | engine golden cite lint (every golden/engine row cites a premise, Fw.Ops.Premise.citeLint; m175)
 #            | premise goldens check (golden/ops/premise.jsonl and wktr-lane.jsonl equal the Lean output)
 #            | checkmap golden check (golden/ops/checkmap.jsonl equals the Lean output; Fw.Ops.CheckMap)
+#            | shard golden check (golden/gate/shards.jsonl equals Fw.Wire.Shard.Golden)
 # The parallel jobs call the built binaries directly (.lake/build/bin/...), not `lake exe`, so none of them takes Lake's lock.
 # Every failing stage is reported (not just the first); exit non-zero if any failed. The verdict is the conjunction of the
 # stage verdicts, independent of order and completion: Lean Fw.Console.LandSpeed.verdict_perm.
@@ -55,6 +56,7 @@ run_group() {
   job "premise goldens check" lake env lean --run scripts/PremiseGolden.lean --check
   job "engine premise golden check" lake env lean --run scripts/EnginePremiseGolden.lean --check
   job "checkmap golden check" lake env lean --run scripts/CheckMapGolden.lean --check  # golden/ops/checkmap.jsonl (Fw.Ops.CheckMap)
+  job "shard golden check" lake env lean --run scripts/ShardGolden.lean --check
   i=0
   for p in $pids; do
     wait "$p" || echo "$i" >> "$tmp/failed"

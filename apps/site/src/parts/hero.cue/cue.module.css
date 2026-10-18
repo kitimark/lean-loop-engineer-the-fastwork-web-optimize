@@ -1,0 +1,112 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:1905-1990 `.scroll-cue`, `.scroll-float`, 2056-2060 and
+   2128-2160). `--copy-in` is registered in hero's module (@property). The ring-splash state is the stage's data-splash. */
+@layer parts {
+  .cue {
+    --copy-in: 0;
+    z-index: 3;
+    color: #2b313b;
+    opacity: calc(var(--copy-in) * var(--exit-opacity));
+    filter: blur(calc(var(--exit-scatter) * 18px));
+    cursor: pointer;
+    transform: translate(-50%, calc((1 - var(--copy-in)) * 12px + var(--exit-scatter) * -10px));
+    background: 0 0;
+    border: 0;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+    animation: 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards copyIn;
+    display: flex;
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+  }
+  [data-splash='prep'] .cue {
+    animation: none;
+  }
+  .cue:focus-visible {
+    outline-offset: 3px;
+    outline: 2px solid #0569ff;
+  }
+  .float {
+    flex-direction: column;
+    align-items: center;
+    animation: 2.2s ease-in-out infinite scrollFloat;
+    display: flex;
+  }
+  .label {
+    color: #8d9197;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 17px;
+  }
+  .cue svg {
+    fill: none;
+    stroke: #8d9197;
+    stroke-width: 1.4px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    width: 20px;
+    height: 28px;
+    display: block;
+  }
+
+  @keyframes copyIn {
+    to {
+      --copy-in: 1;
+    }
+  }
+  @keyframes copyFromRing {
+    0% {
+      --copy-in: 0;
+    }
+    to {
+      --copy-in: 1;
+    }
+  }
+  @keyframes scrollFloat {
+    0%,
+    to {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @media (width>600px) {
+    .cue {
+      filter: blur(calc((1 - var(--copy-in)) * 16px + var(--exit-scatter) * 18px));
+      animation: 0.7s cubic-bezier(0.16, 1, 0.3, 1) 1.14s forwards copyFromRing;
+    }
+    [data-splash='prep'] .cue {
+      animation: none;
+    }
+    [data-splash='done'] .cue {
+      --copy-in: 1;
+      opacity: var(--exit-opacity);
+      filter: blur(calc(var(--exit-scatter) * 18px));
+      animation: none;
+      transform: translate(-50%);
+    }
+  }
+
+  @media (width<=600px) {
+    .cue {
+      z-index: 4;
+      top: 90.3756%;
+      bottom: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cue {
+      --copy-in: 1;
+      filter: none;
+      animation: none;
+    }
+    .float {
+      animation: none;
+    }
+  }
+}

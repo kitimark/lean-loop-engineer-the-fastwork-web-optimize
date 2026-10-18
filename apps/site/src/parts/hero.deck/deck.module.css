@@ -1,0 +1,64 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:1962-1964 `.mobile-deck`, 2053-2127 the <=600 block). The card
+   itself is hero.orbit's card.module.css; the deck overrides its animation state and places four of them. */
+@layer parts {
+  .deck {
+    display: none;
+  }
+
+  @media (width<=600px) {
+    .deck {
+      z-index: 2;
+      pointer-events: none;
+      display: block;
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+    }
+    .deck > article {
+      --entered: 1;
+      --profile-reveal: 1;
+      filter: none;
+      transform: rotate(var(--orbit-rot));
+      animation: none;
+      scale: 1;
+    }
+    .deck > .a {
+      z-index: 1;
+      --scatter-x: -42vw;
+      --scatter-y: -12vh;
+      width: 120px;
+      height: 149.416px;
+      top: 69.2488%;
+      left: -69px;
+    }
+    .deck > .b {
+      z-index: 2;
+      --scatter-x: -48vw;
+      --scatter-y: 22vh;
+      width: 160.92px;
+      height: 200px;
+      top: 83.3333%;
+      left: -48px;
+    }
+    .deck > .d {
+      z-index: 1;
+      --scatter-x: 42vw;
+      --scatter-y: -12vh;
+      width: 120px;
+      height: 149.416px;
+      top: 69.2488%;
+      left: auto;
+      right: -68px;
+    }
+    .deck > .e {
+      z-index: 2;
+      --scatter-x: 48vw;
+      --scatter-y: 22vh;
+      width: 160.625px;
+      height: 200px;
+      top: 83.3333%;
+      left: auto;
+      right: -45px;
+    }
+  }
+}

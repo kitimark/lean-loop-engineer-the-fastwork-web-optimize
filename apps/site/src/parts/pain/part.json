@@ -1,22 +1,12 @@
 {
   "id": "pain",
   "slot": "pain",
-  "anchors": [
-    "pain"
-  ],
+  "anchors": ["pain"],
   "experiment": false,
-  "impls": [
-    "mui"
-  ],
-  "muiStates": [
-    "typography-h2",
-    "typography-body1"
-  ],
+  "impls": ["plain"],
+  "muiStates": [],
   "variants": {
-    "shell": {
-      "kind": "faithful",
-      "tier": "shell"
-    }
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/assets/2.gBuqKVzi.css:2166-2250,2299-2357; nodes/2.DyWL8TcE.js:4407-4410,4749-4825" } }
   },
   "requires": {},
   "conflicts": {}
