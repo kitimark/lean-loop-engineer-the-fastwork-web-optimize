@@ -39,6 +39,8 @@ One line per non-ok file, `context-lint: <verdict> <path> (<measure> <value> > <
 
 ## Gate
 
-Warn-only: `lean/scripts/check.sh` runs it and it exits 0 on findings. Making it fail (`--strict`, exit 1) is a lead
-decision, taken once the handoffs over 30 lines are trimmed. Proofs: `verdict_cases`, `over_mono`, `overBudget_mono`,
-`rank_mono`, `verdict_of_facts`; goldens `lean/golden/lint.context.jsonl` (`scripts/ContextLintGolden.lean --check`).
+Warn-only and standalone: it exits 0 on findings and no gate runs it yet. It is not a `lean/scripts/check.sh` job,
+because it reads `CLAUDE.md`, `.claude/**` and `docs/**`, outside `CHECK_SH_READS` (`apps/runner/src/land.ts`), so
+the dry land refuses it as `reads`; a separate land check with those reads is a lead decision, like `--strict` (exit
+1) once the handoffs over 30 lines are trimmed. Proofs: `verdict_cases`, `over_mono`, `overBudget_mono`, `rank_mono`,
+`verdict_of_facts`; golden `packages/contracts/golden/lint/lint.context.jsonl` (`Fw.Ops.Golden`, checked by `fwtest`).

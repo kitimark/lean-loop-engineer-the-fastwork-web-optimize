@@ -118,8 +118,8 @@ Agents, skills and prompts:
 `historyHeading`, `aiTell` per kind; verdict ok, overBudget or slop (first match: bytes, lines, description, then the
 first slop hit). Theorems: `verdict_cases`, `over_mono`, `overBudget_mono`, `rank_mono` (a bigger file never gets a
 better verdict), `verdict_of_facts`. fwcore op `lint.context`; goldens `packages/contracts/golden/lint/lint.context.jsonl`
-(from `Fw.Ops.Golden`). Glue `scripts/context-lint.mjs` sends only paths, sizes and lines. Wired warn-only into
-`lean/scripts/check.sh`; making it fail (`--strict`) is a lead decision.
+(from `Fw.Ops.Golden`). Glue `scripts/context-lint.mjs` sends only paths, sizes and lines. Warn-only and standalone: not a
+`check.sh` job (it reads `CLAUDE.md`, `.claude/**`, `docs/**`, outside `CHECK_SH_READS`: dry land `reads`, MEASURED).
 
 Spawn guard (`Fw.Ops.SpawnGuard`): `slop-checker` registered as a read-only subagent; the lead's unnamed `patcher` call
 is now allowed (`leadEditHelpers`; before it was refused as `unnamed`), nested patcher still refused. Theorems
@@ -164,4 +164,4 @@ is now allowed (`leadEditHelpers`; before it was refused as `unnamed`), nested p
 ## What this changes in the plan
 
 - PLAN §8.3 token policy: the rules file is `docs/team/token-policy.md` (slim); D1-D7 now cite the rationale note.
-- Add a context lint row to the check gates: warn-only now, `--strict` after the handoff trim (lead decision).
+- Add a context lint land check with its own reads (`apps/runner/src/land.ts`, `Fw.Console.LandSpeed`): warn-only, `--strict` after the handoff trim (lead decision).
