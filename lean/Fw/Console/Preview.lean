@@ -824,6 +824,8 @@ inductive Sink where
 deriving Repr, DecidableEq
 
 /-- The link may go to a sink iff it is the controlling terminal (a process's stdout can be a file any agent reads).
+Stated limit (INFERRED): `tty` means a terminal exists, not that it is the user's; a same-UID process can allocate a
+pseudo-terminal and read the link there.
 
 $$\operatorname{linkSink}(s) \iff s = \mathrm{tty}$$ -/
 def linkSink (s : Sink) : Bool := s == .tty

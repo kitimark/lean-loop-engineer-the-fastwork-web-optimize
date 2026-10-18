@@ -1,6 +1,6 @@
 # task-preview-2 handoff (round 2)
 
-State: branch worktree-wf_06917030-a64-1; lean check.sh green; console-api 18 files / 268 tests green.
+State: branch worktree-wf_06917030-a64-1; lean check.sh green; console-api 19 files / 277 tests green. The preview-facts --check test runs only in a clone with the local branches the pin names; elsewhere it reports skipped.
 
 Read first: `lean/Fw/Console/Preview.lean` (rules + theorems), `PreviewFacts.lean` (GENERATED), `PreviewTable.lean`
 (typed expectations), `apps/console-api/src/preview/{facts,link,owner}.ts`, `scripts/gen-preview-facts.ts`.

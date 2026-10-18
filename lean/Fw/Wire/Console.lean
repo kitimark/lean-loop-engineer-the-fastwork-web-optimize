@@ -250,7 +250,7 @@ def factOf (j : Json) : Except String Fact := do
          fpLine := ← boolD j "fpLine" false,
          path := ← (← arrD j "path").mapM fun c => do
            pure ({ sha := ← str c "sha", p2Has := ← asBool "p2Has" (← field c "p2Has") } : PathC),
-         ownWork := ← boolD j "ownWork" true, behind := ← boolD j "behind" false }
+         ownWork := ← boolD j "ownWork" false, behind := ← boolD j "behind" false }
 
 open Fw.Console.Preview in
 /-- `console.previewTarget` (`Fw.Console.Preview.headOf`). -/

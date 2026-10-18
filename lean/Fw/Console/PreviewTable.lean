@@ -119,7 +119,7 @@ theorem main_merge_not_head :
 
 /-- A candidate as the wire JSON.
 
-$$\operatorname{factJson}(f) = \{\mathit{src}, \mathit{sha}, \mathit{onMain}, \mathit{noCode}, \mathit{cands}\}$$ -/
+$$\operatorname{factJson}(f) = \{\mathit{src}, \mathit{sha}, \mathit{onMain}, \mathit{noCode}, \mathit{fpLine}, \mathit{ownWork}, \mathit{behind}, \mathit{path}, \mathit{cands}\}$ -/
 def factJson (f : Fact) : Json :=
   Json.mkObj [("src", .str f.src), ("sha", .str f.sha), ("onMain", .bool f.onMain), ("noCode", .bool f.noCode),
     ("fpLine", .bool f.fpLine), ("ownWork", .bool f.ownWork), ("behind", .bool f.behind),

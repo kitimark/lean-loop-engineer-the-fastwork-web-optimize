@@ -2,6 +2,9 @@
 // theorems `no_file_sink`, `no_nontty_sink`, `linkPlan_ok`): only the controlling terminal. This file is I/O: open
 // /dev/tty, write the link, close. The token never goes to stdout, stderr, a log, the event store or a file: a console
 // started as a background task has its stdout in a file any agent can read, but no controlling terminal.
+// Stated limit (MEASURED in review): /dev/tty proves only that some terminal exists, not that it is the user's. A
+// same-UID process can start the console under a pseudo-terminal it allocates (script, python pty, expect) and read
+// the link. This stops accidental capture from background output, not a deliberate same-UID process.
 import { closeSync, openSync, writeSync } from "node:fs";
 import type { Core } from "../core/index.ts";
 
