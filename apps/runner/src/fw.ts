@@ -3,6 +3,7 @@ import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land } from "./land.ts";
+import { exitCode, verdictLine } from "./land-verdict.ts";
 import { lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -64,13 +65,13 @@ try {
       process.exitCode = await lintCli(rest.slice(1), process.cwd());
     } else throw new UsageError("usage: fw plan sync <work-graph.json> | fw plan show | fw plan lint <work-graph.json>");
   } else if (group === "land") {
-    const LAND_USAGE = "usage: fw land <branch> [--task <task-id>] [--allow <glob>]...";
+    const LAND_USAGE = "usage: fw land <branch> [--task <task-id>] [--allow <glob>]... [--dry]";
     if (!rest[0]) throw new UsageError(LAND_USAGE);
     const ti = rest.indexOf("--task");
     if (ti >= 0 && !rest[ti + 1]) throw new UsageError(LAND_USAGE);
     const allow = rest.flatMap((a, i) => (a === "--allow" ? [rest[i + 1] ?? ""] : []));
     if (allow.some((a) => !a)) throw new UsageError(LAND_USAGE);
-    const res = await land(rest[0], { http: httpFor(base), cwd: process.cwd(), argv: process.argv.slice(2), task: ti >= 0 ? rest[ti + 1] : undefined, allow,
+    const res = await land(rest[0], { http: httpFor(base), cwd: process.cwd(), argv: process.argv.slice(2), task: ti >= 0 ? rest[ti + 1] : undefined, allow, dry: rest.includes("--dry"),
       // after a landing, sync the board from the work graph of the main checkout, through the plain command door: the
       // capability of this `pnpm fw land` call may be spent, and the hook mints one only for `pnpm fw ...` commands
       base,
@@ -84,7 +85,10 @@ try {
       // FW_LAND_CHECKS='[["cmd","arg"]]' replaces the default checks (used by the e2e script on a temp repo)
       checks: process.env.FW_LAND_CHECKS ? JSON.parse(process.env.FW_LAND_CHECKS) : undefined });
     for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
-    if (!res.ok) process.exitCode = 2;
+    // one machine-readable line and a distinct exit code per kind (Lean Fw.Console.LandVerdict); scripts never grep prose
+    const kind = res.kind ?? (res.ok ? "done" : "unknown");
+    console.log(verdictLine(kind, ti >= 0 ? rest[ti + 1]! : rest[0]));
+    process.exitCode = exitCode(kind);
   } else if (group === "step" || group === "card" || group === "send") {
     // `fw send '<json command>'` is the escape hatch for run.* commands
     const cmd = group === "step" ? stepCommand(rest, process.env)
@@ -94,7 +98,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] | fw incidents lint [ledger.json] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw incidents lint [ledger.json] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

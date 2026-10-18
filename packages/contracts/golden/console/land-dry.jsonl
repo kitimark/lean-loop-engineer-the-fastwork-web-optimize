@@ -1,0 +1,32 @@
+{"name":"kind busy","request":{"kind":"busy","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":10,"line":"VERDICT busy land-dry","ok":false,"retry":true}}
+{"name":"kind dirty","request":{"kind":"dirty","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":11,"line":"VERDICT dirty land-dry","ok":false,"retry":true}}
+{"name":"kind scope","request":{"kind":"scope","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":12,"line":"VERDICT scope land-dry","ok":false,"retry":false}}
+{"name":"kind reads","request":{"kind":"reads","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":13,"line":"VERDICT reads land-dry","ok":false,"retry":false}}
+{"name":"kind conflict","request":{"kind":"conflict","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":14,"line":"VERDICT conflict land-dry","ok":false,"retry":false}}
+{"name":"kind checks","request":{"kind":"checks","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":15,"line":"VERDICT checks land-dry","ok":false,"retry":false}}
+{"name":"kind stale","request":{"kind":"stale","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":16,"line":"VERDICT stale land-dry","ok":false,"retry":false}}
+{"name":"kind unknown","request":{"kind":"unknown","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":2,"line":"VERDICT unknown land-dry","ok":false,"retry":false}}
+{"name":"kind done","request":{"kind":"done","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":0,"line":"VERDICT done land-dry","ok":true,"retry":false}}
+{"name":"kind dry","request":{"kind":"dry","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":0,"line":"VERDICT dry land-dry","ok":true,"retry":false}}
+{"name":"kind queued","request":{"kind":"queued","op":"landVerdict.kind","task":"land-dry"},"response":{"exit":0,"line":"VERDICT queued land-dry","ok":true,"retry":false}}
+{"name":"kind dry","request":{"kind":"dry","op":"landVerdict.kind","task":""},"response":{"exit":0,"line":"VERDICT dry -","ok":true,"retry":false}}
+{"name":"all pass","request":{"containsMain":true,"merges":true,"op":"landDry.verdict","readsSelected":true,"readsTest":true,"scope":true},"response":{"kind":"dry"}}
+{"name":"all pass, reads not selected (test not run)","request":{"containsMain":true,"merges":true,"op":"landDry.verdict","readsSelected":false,"readsTest":true,"scope":true},"response":{"kind":"dry"}}
+{"name":"scope refuses first","request":{"containsMain":true,"merges":false,"op":"landDry.verdict","readsSelected":true,"readsTest":false,"scope":false},"response":{"kind":"scope"}}
+{"name":"conflict refuses before reads","request":{"containsMain":true,"merges":false,"op":"landDry.verdict","readsSelected":true,"readsTest":false,"scope":true},"response":{"kind":"conflict"}}
+{"name":"reads refuses","request":{"containsMain":true,"merges":true,"op":"landDry.verdict","readsSelected":true,"readsTest":false,"scope":true},"response":{"kind":"reads"}}
+{"name":"reads failing but not selected passes","request":{"containsMain":true,"merges":true,"op":"landDry.verdict","readsSelected":false,"readsTest":false,"scope":true},"response":{"kind":"dry"}}
+{"name":"stale beats scope","request":{"containsMain":false,"merges":true,"op":"landDry.verdict","readsSelected":true,"readsTest":true,"scope":false},"response":{"kind":"stale"}}
+{"name":"stale though all stages pass","request":{"containsMain":false,"merges":true,"op":"landDry.verdict","readsSelected":true,"readsTest":true,"scope":true},"response":{"kind":"stale"}}
+{"name":"scope and reads both fail: scope first","request":{"containsMain":true,"merges":true,"op":"landDry.verdict","readsSelected":true,"readsTest":false,"scope":false},"response":{"kind":"scope"}}
+{"name":"handback busy","request":{"kind":"busy","op":"landDry.handback"},"response":{"allowed":false}}
+{"name":"handback dirty","request":{"kind":"dirty","op":"landDry.handback"},"response":{"allowed":false}}
+{"name":"handback scope","request":{"kind":"scope","op":"landDry.handback"},"response":{"allowed":false}}
+{"name":"handback reads","request":{"kind":"reads","op":"landDry.handback"},"response":{"allowed":false}}
+{"name":"handback conflict","request":{"kind":"conflict","op":"landDry.handback"},"response":{"allowed":false}}
+{"name":"handback checks","request":{"kind":"checks","op":"landDry.handback"},"response":{"allowed":false}}
+{"name":"handback stale","request":{"kind":"stale","op":"landDry.handback"},"response":{"allowed":false}}
+{"name":"handback unknown","request":{"kind":"unknown","op":"landDry.handback"},"response":{"allowed":false}}
+{"name":"handback done","request":{"kind":"done","op":"landDry.handback"},"response":{"allowed":false}}
+{"name":"handback dry","request":{"kind":"dry","op":"landDry.handback"},"response":{"allowed":true}}
+{"name":"handback queued","request":{"kind":"queued","op":"landDry.handback"},"response":{"allowed":false}}

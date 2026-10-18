@@ -16,3 +16,18 @@
 4. `prelock: false` (option) = the old protocol only. The card fast-forward path (no `--task`) is unchanged.
 
 TS stand-in, marked for Lean replacement: `prelockAction` (no fwcore op yet); checked against the `landSpeed.prelock` golden.
+
+## `--dry` and verdict lines (task `land-dry`)
+
+`pnpm fw land <branch> --task <id> --dry` runs the real land's cheap stages on the same merge-tree commit: stale base (the branch must contain main), scope, merge and conflict markers, and the static reads test (`land-inputs.test.ts`) when the change selects `apps/runner`. It takes no lock, writes no queue entry and never moves main; the checks run in a land worktree slot (a pid claim). Lean: `Fw.Console.LandDry` (`dry_pass_land_pass`, `dry_refusal_is_land_refusal`, `handback_pass_land_pass`).
+
+Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code per kind (Lean `Fw.Console.LandVerdict`):
+
+| kind | exit | meaning |
+|---|---|---|
+| done, dry, queued | 0 | landed, dry land passes, queued |
+| busy 10, dirty 11 | 10, 11 | retryable: the lock or the main checkout is in the way |
+| scope 12, reads 13, conflict 14, checks 15, stale 16 | 12-16 | fix the branch |
+| unknown | 2 | anything else |
+
+Scripts read the word after `VERDICT` or the exit code, never prose. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
