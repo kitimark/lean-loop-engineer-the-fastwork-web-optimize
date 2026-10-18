@@ -4360,7 +4360,8 @@
     "packages/contracts/golden/gate/exit.jsonl",
     "docs/team/handoffs/gate-no-skip.md",
     "research/notes/2026/10-18-gate-no-skip.md"
-   ]
+   ],
+   "evidence": "369e2b6"
   },
   {
    "id": "gate-run-identity",
