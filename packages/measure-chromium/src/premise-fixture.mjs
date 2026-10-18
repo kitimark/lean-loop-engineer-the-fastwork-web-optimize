@@ -3,8 +3,9 @@
 //
 //   node src/premise-fixture.mjs --engine chromium --out <dir>     writes <dir>/index.html
 //
-// The page does exactly what the step says, once per frame: set one inline property (`set`), register one rAF callback
-// (`raf`), call document.elementFromPoint (`hit`), or nothing (`idle`). Chromium: the driver calls window.__fwStep(n) inside
+// The page does exactly what the step says, once per frame: set one inline property (`set`; a step with `more` also sets
+// one property on each extra box `e<step>_<j>`), register one rAF callback (`raf`), post one empty setTimeout(0) callback
+// (`timer`), call document.elementFromPoint (`hit`), or nothing (`idle`). Chromium: the driver calls window.__fwStep(n) inside
 // frame n's mark window (run.mjs input mode "page"). WebKit: the WKTR harness calls it from its rAF (packages/measure-wktr).
 // Pure apart from the CLI; no site code, no decisions (what to do and what to expect are the golden's).
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -16,14 +17,21 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').repl
 
 /** The step table the page runs: one entry per golden step, `id` is the box of a `set` step. */
 export function stepTable(golden, engine) {
-  return golden.steps[engine].map((s) => (s.act === 'set' ? { a: 'set', id: `e${s.step}`, p: s.prop, v: s.to } : { a: s.act }));
+  return golden.steps[engine].map((s) => {
+    if (s.act !== 'set') return { a: s.act };
+    const t = { a: 'set', id: `e${s.step}`, p: s.prop, v: s.to };
+    if (s.more) t.m = s.more.map((x, j) => ({ id: `e${s.step}_${j}`, p: x.prop, v: x.to }));
+    return t;
+  });
 }
 
 /** The page's HTML. */
 export function pageHtml(golden, engine) {
   const steps = golden.steps[engine];
   const boxes = steps.filter((s) => s.act === 'set')
-    .map((s) => `<div class="c"><div id="e${s.step}" style="${esc(golden.page.baseStyle + s.style)}">A</div></div>`).join('\n');
+    .flatMap((s) => [`<div class="c"><div id="e${s.step}" style="${esc(golden.page.baseStyle + s.style)}">A</div></div>`,
+      ...(s.more ?? []).map((x, j) => `<div class="c"><div id="e${s.step}_${j}" style="${esc(golden.page.baseStyle + x.style)}">A</div></div>`)])
+    .join('\n');
   const table = JSON.stringify(stepTable(golden, engine));
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -41,8 +49,12 @@ ${boxes}
   window.__fwStep = function (n) {
     const s = window.__fwSteps[n];
     if (!s) return 'no step ' + n;
-    if (s.a === 'set') document.getElementById(s.id).style.setProperty(s.p, s.v);
+    if (s.a === 'set') {
+      document.getElementById(s.id).style.setProperty(s.p, s.v);
+      for (const x of s.m || []) document.getElementById(x.id).style.setProperty(x.p, x.v);
+    }
     else if (s.a === 'raf') requestAnimationFrame(function () {});
+    else if (s.a === 'timer') setTimeout(function () {}, 0);
     else if (s.a === 'hit') document.elementFromPoint(10, 10);
     return s.a;
   };
