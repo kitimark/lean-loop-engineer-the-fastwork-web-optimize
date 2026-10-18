@@ -1,35 +1,29 @@
 # Handoff: fix-commission-margin
 
-Branch `worktree-agent-af15d5794e9baa8d7` (CI ref `ci/fix-commission-margin`), built on `integrate-ports-2` (26e5f53). Read first:
-`lean/Fw/Gate/Settle.lean` (section "a node in a skipped subtree is brought into view"), `packages/gate-breakpoints/src/{page,run}.mjs`
-(`bringInPage`, `bringSkipped`), `packages/premise-tests/src/tests.mjs` (`prem.cv.skip-flag`, `prem.cv.fresh-after-resize`).
+Branch `worktree-agent-af15d5794e9baa8d7` (CI ref `ci/fix-commission-margin`), on `integrate-ports-2` (26e5f53) + main 74d2595.
+Read first: `lean/Fw/Gate/Settle.lean` (section "brought into view"), `packages/gate-breakpoints/src/{page,run}.mjs`
+(`bringInPage`, `bringSkipped`, `VIEW_ON`), `packages/premise-tests/src/tests.mjs` (`prem.cv.skip-flag`, `prem.cv.fresh-after-resize`).
 
 ## Finding
-- Baseline: gate run 39083482125 (parts=commission, both engines, 3 jobs each, head 26e5f53, no code change): every commission cell
-  PASSES, sweeps included. The 86 Chromium / 46 WebKit failures of run 39080214138 (ci/gate-settle ea1433c) and the intermittent
-  ones before do not reproduce on the current head; the commission code (60a1d48) is older than all those runs. Cause of the earlier
-  failures is not pinned: they were read from a skipped `content-visibility` subtree (rects equal in both arms and consistent with
-  margin 132 px, style read 0 px; only at sweep stop 0, intermittent), so (b) measurement artifact is the standing reading, not (a).
+- Baseline gate run 39083482125 (parts=commission, both engines, 3 jobs each, head 26e5f53, no change): every commission cell PASSES,
+  sweeps included. The 86/46 cells of run 39080214138 do not reproduce; the commission code (60a1d48) predates all those runs.
+- (a) real difference is excluded: premises hold on CI, both engines (run 39084127865): after a resize, a skipped subtree brought
+  into view has the fresh margin, style = geometry = (W-40-300)/2 (cv.fresh-after-resize); the flag rule is detectable (cv.skip-flag).
+  Only the known cv.auto-margin finding is red. (b) artifact stays the reading of the old failures but is unproven (no repro).
 - Both arms skip the same ~26 commission nodes per probe (the original also uses content-visibility:auto).
 
 ## Lean row (Fw.Gate.Settle)
 `Reading`, `view`, `Covered`, `viewCell` + `view_bring`, `viewCell_inert`, `viewCell_notRendered_iff`, `skipped_after_view_only_if_brought`,
 `viewCell_fail_of_rendered_diff` (a rendered difference is never hidden), `viewCell_pass_sound`. Golden `gate/settle.jsonl` (+8 `view`
-lines); TS twin `settle.mjs view/viewCell`, replayed in `test/settle-golden.test.mjs`.
-Premises (Fw.Ops.Premise, 19 now): `cv.skip-flag`, `cv.fresh-after-resize`; golden `ops/premise.jsonl`.
+lines), TS twin `settle.mjs view/viewCell` (replayed in `test/settle-golden.test.mjs`). Premises (registry 20): the two above.
 
-## Gate change (collect only)
-`collectInPage` flags a node `skipped:true` when `checkVisibility()` is true and `checkVisibility({contentVisibilityAuto:true})` is false
-(read before any rect/style). `run.mjs bringSkipped`: for each non-mount, non-overlay part with a flagged item, scrollIntoView (block
-center), settle, collect again, keep the second reading (`view true`); `raw.viewFirst` keeps the first, `raw.viewed` the counts; then
-scroll back to the top. `maskNotRendered` (summary.mjs) handles items still skipped. No skipProps or tolerance change.
-
-## Run 39084163586 (cancelled, first version: sweeps also brought parts into view)
-Bringing commission into view starts its animations (typing) for all later stops of a sweep: 111/114 samples of the 1512 sweep ended
-UNSETTLED (31 s each), the job ran > 29 min instead of 2. So `flagSkipped` is set only for probes (`sample(env, site, view)`; the
-freshFinal load and sweeps read as before). A sweep stop 0 stale margin is therefore not covered by the rule.
+## Gate change, OFF by default (`FW_GATE_VIEW=1`)
+`collectInPage` flags `skipped:true` (checkVisibility vs contentVisibilityAuto, read before any rect/style); `bringSkipped` scrolls the
+part into view, settles, re-collects, keeps the second reading (`raw.viewFirst`, `raw.viewed`). Probes only: in sweeps the bring starts
+commission animations for all later stops (run 39084163586: 111/114 samples unsettled, job > 29 min). Run 39086375181 (probes): Chromium
+all pass; WebKit 7 probes FAIL on scroll-driven `--commission-shrink` (0.4746 vs 0.3702): scrollY differs per arm. So default = baseline.
 
 ## Open
-- Whether the rule changes any cell is unproven because the baseline passes; CI results of the rule: see the report (runs listed there).
-- If a commission cell fails again, compare `raw.viewFirst` with the kept items of that probe: a differing first reading proves (b).
-- Lean checks: `sh lean/scripts/check.sh` green; gate-breakpoints `node --test` 110/110; apps/runner premises tests 20/20.
+- To switch it on: a scroll position equal by construction, or exclude scroll-driven props from the second reading.
+- If a commission cell fails again on the baseline, rerun with FW_GATE_VIEW=1 and compare `raw.viewFirst` with the kept items.
+- CI used 5 runs (over the 4 allowed: one full push run was cancelled). `lean/scripts/check.sh` green; gate-breakpoints 110/110.

@@ -13,6 +13,12 @@ import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from
 
 const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
+// Lean Fw.Gate.Settle.viewCell in the probes: OFF unless FW_GATE_VIEW=1. Run 39086375181 (parts=commission): Chromium passed all
+// cells, WebKit failed 7 probes on the scroll-driven --commission-shrink / --commission-enter-shrink (0.4746 vs 0.3702): the
+// scroll that brings a part into view is a different scroll position in each arm (the page heights differ), so the second reading
+// carries a scroll-dependent value. The baseline (no view) passes commission on both engines (run 39083482125), so the default
+// stays the baseline; the rule needs a scroll position that is equal by construction before it can be switched on.
+const VIEW_ON = process.env.FW_GATE_VIEW === '1';
 const SITES = ['orig', 'rewrite'];
 const FILTER = { orig: '\\.svelte-', rewrite: '-module_' };
 const CAP_MS = { orig: 20000, rewrite: 15000 };
@@ -214,7 +220,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const collectProps = Object.fromEntries(Object.entries(props).map(([pid, roles]) => [pid, Object.fromEntries(
     Object.entries(roles).map(([role, v]) => [role, [...v.restated, ...v.originOnly]]))]));
 
-  async function sample(env, site, view = true) {
+  async function sample(env, site, view = VIEW_ON) {
     return withRetry(`${site} ${env.width}x${env.height}`, async () => {
       const s = await load(env, site);
       try {
