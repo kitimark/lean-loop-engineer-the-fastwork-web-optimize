@@ -3938,7 +3938,8 @@
    "writes": [
     "docs/team/incidents/ledger.json",
     "research/notes/2026/10-18-mistake-retro.md"
-   ]
+   ],
+   "evidence": "e934534"
   },
   {
    "id": "wait-guard-enforce",
@@ -4024,6 +4025,21 @@
     "research/notes/**",
     "research/findings/ledger.json"
    ]
+  },
+  {
+   "id": "land-test-flake",
+   "title": "(S) land-hardening SIGTERM test flakes under the 4-wide land pool (passes alone); wait on events, not deadlines; assert the land-prelock lock semantics",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-pool-fair"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/test/**",
+    "apps/runner/src/land.ts"
+   ],
+   "evidence": "650e494"
   }
  ],
  "deadline": {

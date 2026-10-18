@@ -609,9 +609,9 @@
   {
    "id": "inc-watch-bg-ampersand",
    "at": "2026-10-18T13:00+07:00",
-   "title": "The lead started fw watch with a trailing & inside a foreground shell call, twice; the watcher outlived the call as an orphan",
-   "symptom": "A `pnpm fw watch ... &` launched inside a foreground Bash call kept running after the call returned, with no owner the harness tracks and no end notification; the lead found it later and killed it by its own PID. It was the second launch in the same form.",
-   "cause": "INFERRED (lead's mistake list; harness behaviour of `&` in a foreground call): a trailing `&` detaches the child from the tool call, so nothing holds a handle, a bound or an end signal for it. The sanctioned forms (run_in_background, or a monitor with an until predicate) are prose rules; nothing refuses a long-runner launched with `&`.",
+   "title": "The lead started fw watch with a trailing & inside a foreground shell call, four times; the watcher outlived the call as an orphan",
+   "symptom": "A `pnpm fw watch ... &` launched inside a foreground Bash call kept running after the call returned, with no owner the harness tracks and no end notification; the lead found it later and killed it by its own PID. It was the second launch in the same form. It came back a third time (fw watch --until-alert &) and a fourth time within the hour (`pnpm fw watch ... & disown` chained onto a work-graph commit command), both after wait-guard had landed in shadow mode; each orphan was killed by its own PID.",
+   "cause": "INFERRED (lead's mistake list; harness behaviour of `&` in a foreground call): a trailing `&` detaches the child from the tool call, so nothing holds a handle, a bound or an end signal for it. The sanctioned forms (run_in_background, or a monitor with an until predicate) are prose rules; nothing refuses a long-runner launched with `&`. The third and fourth launches show the habit of chaining the relaunch onto the previous command; memory and a logged incident did not stop it, and wait-guard in shadow mode (b42769d) only logs.",
    "evidence": [
     {
      "kind": "proc",
@@ -622,20 +622,35 @@
      "kind": "file",
      "ref": "apps/runner/src/watch.ts",
      "note": "fw watch is a long-running watcher with no self-bound unless --until-alert ends it"
+    },
+    {
+     "kind": "commit",
+     "ref": "ddaf278",
+     "note": "wait-guard landed: hook and Fw.Ops.Wait"
+    },
+    {
+     "kind": "commit",
+     "ref": "b42769d",
+     "note": "wait-guard switched on in shadow mode: logs, does not refuse"
     }
    ],
    "repro": "In a foreground Bash call run `pnpm fw watch --until-alert &` and let the call return: the watcher keeps running with no owner and no end notification.",
    "fix": {
-    "task": "wait-guard"
+    "task": "wait-guard",
+    "also": [
+     "policy-from-lean"
+    ]
    },
-   "regression": "none yet: wait-guard adds a hook test that refuses a long-runner (fw watch, a shell wait loop) launched with a trailing & in a foreground call, and Fw.Ops.Wait golden cases",
+   "regression": "wait-guard (ddaf278) refuses the form only in enforce mode; it runs in shadow (b42769d). Proposed wait-guard-enforce: fix the while-read false positive (inc-wait-guard-while-read-fp), then switch the hook to enforce; policy-from-lean holds the open status until then",
    "leanVerdict": "provable",
    "leanReason": "Fw.Ops.Wait (wait-guard): a launch is admitted iff it has an owner (run_in_background or a tracked monitor) and a bound; the command text is an exact fact the hook sees, so the refusal is a pure decision.",
    "hardening": "wait-guard",
    "mistakeClass": "c-orphan-wait",
    "occurrences": [
     "first fw watch & launch by the lead",
-    "second fw watch & launch; orphan killed by its own PID"
+    "second fw watch & launch; orphan killed by its own PID",
+    "third: fw watch --until-alert & in a foreground call, after wait-guard landed in shadow mode",
+    "fourth, within the hour: pnpm fw watch ... & disown chained onto a work-graph commit command"
    ]
   },
   {
@@ -1054,6 +1069,433 @@
     "212c919 (wktr-p1p4)",
     "dc1fee1 (hero-exit-restate)"
    ]
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-ci-rerun-partial-arms",
+   "title": "A step-align verdict was merged from a rerun-failed attempt that held the artifact of one Simulator VM only",
+   "symptom": "`gh run rerun --failed` re-ran only the failed job; the merge step then took the partial webkit-sim-v1 artifact left by the failed attempt, so the step-align result was computed from 1 VM instead of every arm. A verdict needed a fresh dispatch.",
+   "cause": "INFERRED (lead's mistake list; Actions rerun semantics: a failed-jobs rerun keeps the artifacts uploaded by the earlier attempt): the merge collects artifacts by name across attempts, and neither fw ci nor the merge ties a verdict to the arms of one attempt.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": ".github/workflows/webkit-sim.yml",
+     "note": "the lane whose merge read the partial webkit-sim-v1 artifact"
+    },
+    {
+     "kind": "commit",
+     "ref": "30eb037",
+     "note": "step-align, the task whose verdict lane was rerun"
+    }
+   ],
+   "repro": "Let one webkit-sim arm fail, run `gh run rerun <id> --failed`, let the merge step run: it merges arms from two attempts (or one arm only) and still prints a verdict.",
+   "fix": {
+    "task": "measure-valid"
+   },
+   "regression": "none yet: proposed fw ci rule refuses rerun-failed on verdict lanes; a Fw.Measure.Valid golden marks a verdict over arms of two attempts invalid",
+   "leanVerdict": "provable",
+   "leanReason": "A pure rule over run metadata (attempt number per artifact): $$\\mathrm{valid}(v_r) \\implies |\\mathrm{arms}(r)| = n_{\\mathrm{lane}} \\wedge \\forall a \\in \\mathrm{arms}(r),\\ \\mathrm{attempt}(a) = \\mathrm{attempt}(r)$$ Hosted by measure-valid (a verdict implies one clock and aligned keys) until it has a task of its own.",
+   "hardening": "measure-valid",
+   "mistakeClass": "c-sample-validity"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-land-inputs-untracked-exists",
+   "title": "The land-inputs test result depended on an ignored build dir (apps/site/dist/aot) existing in the worktree",
+   "symptom": "step-align-fix saw land-inputs.test.ts fail in its worktree until it moved apps/site/dist/aot aside; a fresh worktree with the same HEAD passed.",
+   "cause": "CONFIRMED (code read, apps/runner/test/land-inputs.test.ts:73-89@b50332c): escapes() walks the directory with readdirSync and keeps a ../ candidate only when existsSync(t) holds on disk, so an ignored build output that exists in one worktree and not in another changes the reads the test finds. The scan's domain is the file system, not the tracked tree.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/land-inputs.test.ts",
+     "note": "escapes(): readdirSync walk and the existsSync filter on candidates"
+    }
+   ],
+   "repro": "Build apps/site so apps/site/dist/aot exists, run the land-inputs test there and in a fresh worktree at the same HEAD: the results differ.",
+   "fix": {
+    "task": "land-dry"
+   },
+   "regression": "none yet: the candidate filter tests membership in `git ls-files` instead of existsSync; a test case adds an ignored file and expects the same result",
+   "leanVerdict": "partly",
+   "leanReason": "Lean states the input rule, a check result is a function of the tracked tree only: $$\\mathrm{tracked}(w_1) = \\mathrm{tracked}(w_2) \\implies \\mathrm{scan}(w_1) = \\mathrm{scan}(w_2)$$ That the TS walk reads only tracked paths is glue, held by the ignored-file test case.",
+   "hardening": "land-dry",
+   "empiricalCheck": "apps/runner/test/land-inputs.test.ts case with an ignored file present (to add)",
+   "mistakeClass": "c-env-assume"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-worktree-force-untracked",
+   "title": "The lead force-removed 4 finished worktrees after a clean check that ignored untracked files",
+   "symptom": "`git worktree remove --force` ran on four finished worktrees after `git status --untracked-files=no` showed them clean; untracked files in them (scratch output, unadded notes) would have been deleted. No loss is known.",
+   "cause": "INFERRED (lead's mistake list; git-worktree docs: --force removes a worktree with modified or untracked files): the precondition was checked on a weaker fact (tracked changes) than the one --force overrides (tracked and untracked).",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "git status --untracked-files=no, then git worktree remove --force <wt>, four times",
+     "note": "command shape used by the lead"
+    }
+   ],
+   "repro": "Create an untracked file in a landed worktree, check it with --untracked-files=no, remove it with --force: the file is gone.",
+   "fix": {
+    "task": "policy-from-lean"
+   },
+   "regression": "none yet: proposed wt-reap removes a landed worktree only when `git status --porcelain` (untracked included) is empty",
+   "leanVerdict": "provable",
+   "leanReason": "A pure decision over the porcelain lines: $$\\mathrm{remove}(w)\\ \\text{admitted} \\iff \\mathrm{landed}(w) \\wedge \\mathrm{porcelain}_{\\mathrm{all}}(w) = \\varnothing$$ Fw.Ops.Policy (policy-from-lean) hosts it as a forbidden form: worktree remove --force without that fact.",
+   "hardening": "policy-from-lean",
+   "mistakeClass": "c-late-check"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-zsh-colon-modifier",
+   "title": "zsh read $B:apps/... as the :a modifier of $B and turned the git show argument into an absolute path",
+   "symptom": "A `git show $B:apps/...` command printed the wrong object: zsh expanded `$B:a` as the :a history modifier (make absolute) and appended the rest.",
+   "cause": "CONFIRMED (zsh manual, Expansion / Modifiers, https://zsh.sourceforge.io/Doc/Release/Expansion.html#Modifiers): modifiers such as :a, :h, :t apply to an unbraced parameter expansion in zsh, so `$B:apps` is `${B:a}` followed by `pps`. The command was written with bash expansion rules in mind.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "zsh -c 'git show $B:apps/...': the argument became an absolute path plus 'pps/...'",
+     "note": "command shape seen by the lead"
+    }
+   ],
+   "repro": "In zsh: B=HEAD; echo $B:apps/x prints an absolute path ending in pps/x instead of HEAD:apps/x.",
+   "fix": {
+    "task": "check-map-lean"
+   },
+   "regression": "convention: brace every parameter before a colon (${B}:path); tracked shell scripts are covered by the check-map-lean shell check",
+   "leanVerdict": "no",
+   "leanReason": "Shell quoting of an interactive command is not a decision with facts Lean sees; a wait-guard style lint for it is overkill (lead decision).",
+   "empiricalCheck": "check-map-lean shell check for tracked scripts (zsh -n; unbraced `$NAME:` before a letter flagged)",
+   "mistakeClass": "c-env-assume"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-handback-without-check",
+   "title": "Agents handed back without running lean/scripts/check.sh; the mathview lint failed first at land",
+   "symptom": "wait-guard handed back without running check.sh, and the mathview lint failed under the land lock. It is the second time after gate-exit-verdict did the same.",
+   "cause": "INFERRED (lead's mistake list; lean/scripts/check.sh runs the mathview lint): hand-back has no precondition that check.sh passed at the branch head, and fw land --dry did not run the mathview lint, so its first run on the branch was the land.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "ddaf278",
+     "note": "wait-guard land, refused once by the mathview lint before it landed"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/scripts/check.sh",
+     "note": "the check that runs the mathview lint"
+    }
+   ],
+   "repro": "Change a Lean docstring so the math does not match the binders, hand back without check.sh: fw land refuses on the mathview lint.",
+   "fix": {
+    "task": "land-dry"
+   },
+   "regression": "none yet: proposed land-dry-full runs the mathview lint (cached per module, mathview-module-cache) in fw land --dry",
+   "leanVerdict": "provable",
+   "leanReason": "The hand-back rule of land-dry extended by one check: $$\\mathrm{handback}(b)\\ \\text{ok} \\implies \\mathrm{dry}(\\mathrm{head}(b)) = \\mathrm{ok} \\wedge \\mathrm{mathview}(\\mathrm{head}(b)) = \\mathrm{ok}$$",
+   "hardening": "land-dry",
+   "mistakeClass": "c-late-check",
+   "occurrences": [
+    "gate-exit-verdict: handed back without check.sh",
+    "wait-guard: handed back without check.sh (ddaf278)"
+   ]
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-land-dry-no-verdict",
+   "title": "fw land --dry printed no VERDICT line for a branch with no commits of its own",
+   "symptom": "In fix-orbit, `fw land --dry` on a branch with no own commits printed only a path and no VERDICT line, so a script reading the verdict found none.",
+   "cause": "INFERRED (fix-orbit report; apps/runner/src/land-verdict.ts:1-23@b50332c promises one VERDICT line per land): the empty-branch path returns before the verdict is printed, so the verdict is not a total function of the branch state.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/land-verdict.ts",
+     "note": "verdictLine and the one-line contract"
+    },
+    {
+     "kind": "commit",
+     "ref": "809fcd4",
+     "note": "land-queue and --dry landed"
+    }
+   ],
+   "repro": "Create a branch at main with no commits and run `pnpm -s fw land --dry <branch> --task x`: no VERDICT line.",
+   "fix": {
+    "task": "land-dry"
+   },
+   "regression": "none yet: proposed land-dry-full adds a VERDICT empty kind and a test that every exit path prints exactly one VERDICT line",
+   "leanVerdict": "provable",
+   "leanReason": "The verdict is a total function of the branch state, empty included: $$\\forall b,\\ \\mathrm{dry}(b) \\in \\{\\mathrm{ok}, \\mathrm{refused}_k, \\mathrm{empty}\\} \\wedge |\\mathrm{lines}_{\\mathrm{VERDICT}}(b)| = 1$$",
+   "hardening": "land-dry",
+   "mistakeClass": "c-spec-gap"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-part-scope-breakpoint-gap",
+   "title": "hero.orbit's part scope has no 860 probes, so a parts=orbit pass did not cover the full-matrix cells desk-rm-860/861",
+   "symptom": "The full-matrix gate failed hero.orbit at desk-rm-860 and desk-rm-861 (run 39080214138) while the Lean scope of hero.orbit has no probes at 860; a scoped run could not see the failure.",
+   "cause": "INFERRED (fix-orbit report): the part scope is generated from the part's probe list, not from the breakpoints the part renders at, so a scoped green is a proxy that does not entail the full-matrix cells of the part.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39080214138",
+     "note": "full-matrix run with desk-rm-860/861 failing for hero.orbit"
+    }
+   ],
+   "repro": "Run the gate with parts=hero.orbit and with the full matrix on the same head: the scoped run has no 860/861 cells.",
+   "fix": {
+    "task": "fix-orbit"
+   },
+   "regression": "none yet: a scopegen check that every breakpoint a part renders at has a cell in the part's scope",
+   "leanVerdict": "provable",
+   "leanReason": "Coverage of the scope over the part's render set: $$\\forall p,\\ \\mathrm{renders}(p) \\subseteq \\mathrm{bps}(\\mathrm{scope}(p))$$ then a scoped pass entails the full-matrix cells of $p$. Hosted by fix-proofs (Lean coverage of the gate probes).",
+   "hardening": "fix-proofs",
+   "mistakeClass": "c-proxy-verdict"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-ci-run-cap-prompt",
+   "title": "fix-commission-margin used 5 CI runs where its prompt allowed 4; the cap lived only in the prompt",
+   "symptom": "fix-commission-margin pushed 5 CI runs (one full push run cancelled) against a cap of 4 in its spawn prompt.",
+   "cause": "INFERRED (lead's mistake list; apps/runner/src/ci.ts has no per-task run counter): the run cap is prose; gh-budget charges API requests per hour, not CI runs per task, so nothing refuses the fifth push.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/ci.ts",
+     "note": "fw ci: dispatch and run lookup, no per-task run count"
+    }
+   ],
+   "repro": "Give a task a cap of 4 runs in its prompt and let it push a ci/* branch 5 times: every push starts a run.",
+   "fix": {
+    "task": "ci-runner-lint"
+   },
+   "regression": "none yet: proposed push-side counter per ci/<task> branch, refused at cap",
+   "leanVerdict": "provable",
+   "leanReason": "The runs of a task are a fact (runs listed for its ci/* branch): $$\\mathrm{push}(t)\\ \\text{admitted} \\iff \\mathrm{runs}(t) < \\mathrm{cap}(t)$$ Hosted by ci-runner-lint (jobs_le_cap) until it has a task of its own.",
+   "hardening": "ci-runner-lint",
+   "mistakeClass": "c-quota"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-obs-matrix-context-commission",
+   "title": "Observation (open question, not a mistake): commission margin-inline at desk-rm-1280 fails in the full matrix and passes in a parts=commission run at the same head",
+   "symptom": "At head 26e5f53 the full-matrix run 39083505918 (fix-orbit) fails commission margin-inline at desk-rm-1280, while the parts=commission run 39083482125 passes it.",
+   "cause": "INFERRED (two CI runs, same head): suspected that the content-visibility skip of the commission subtree depends on the matrix context (scroll position, cell order). Not decided; fix-commission-margin built FW_GATE_VIEW=1 (off by default) to diagnose.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39083505918",
+     "note": "full matrix: commission margin-inline desk-rm-1280 fails"
+    },
+    {
+     "kind": "ci",
+     "ref": "39083482125",
+     "note": "parts=commission: the same cell passes"
+    }
+   ],
+   "repro": "Run the gate at 26e5f53 with the full matrix and with parts=commission; compare the desk-rm-1280 commission margin-inline cell.",
+   "fix": {
+    "task": "integrate-ports",
+    "also": [
+     "fix-commission-margin"
+    ]
+   },
+   "regression": "open: FW_GATE_VIEW=1 runs of the cell in both contexts at one head decide it",
+   "leanVerdict": "partly",
+   "leanReason": "Lean can state the validity premise that a cell verdict does not depend on the matrix it runs in, $$\\forall c \\in M,\\ \\mathrm{verdict}(c, M) = \\mathrm{verdict}(c, \\{c\\})$$ and refuse a verdict whose sample lacks it (measure-valid); whether Chromium skips the subtree in one context is an engine fact to measure.",
+   "hardening": "measure-valid",
+   "empiricalCheck": "FW_GATE_VIEW=1 gate run of commission desk-rm-1280 in the full matrix and in parts=commission at one head",
+   "mistakeClass": "c-sample-validity"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-handoff-write-refused",
+   "title": "A subagent's Write of its handoff .md was refused by the harness while CLAUDE.md requires docs/team/handoffs/<name>.md",
+   "symptom": "In findings-subentries the Write tool refused a .md handoff from a subagent (harness rule against report files); other agents wrote theirs, so outcomes depended on the agent and tool path.",
+   "cause": "INFERRED (agent report in findings-subentries, dfc1d70): two rules conflict, the harness refuses report-like .md writes from subagents and CLAUDE.md requires a handoff file, and the spawn template does not name the tool path that works.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "dfc1d70",
+     "note": "findings-subentries land; the agent reported the refused handoff"
+    },
+    {
+     "kind": "file",
+     "ref": "CLAUDE.md",
+     "note": "Handoff before you finish: docs/team/handoffs/<your-name>.md"
+    }
+   ],
+   "repro": "Spawn a subagent with a prompt that requires docs/team/handoffs/<name>.md and let it use Write for a new .md file.",
+   "fix": {
+    "task": "task-spec-lint"
+   },
+   "regression": "none yet: the spawn template states the working path (Edit of an existing file or a shell heredoc) and task-spec-lint checks each required write against the role's tools",
+   "leanVerdict": "partly",
+   "leanReason": "Lean checks the spawn spec: $$\\forall f \\in \\mathrm{required}(r),\\ \\mathrm{writable}(r, f)$$ over the role's declared tools; the harness refusal enters only as a premise (which tool may write which path), measured once.",
+   "hardening": "task-spec-lint",
+   "mistakeClass": "c-spec-gap"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-wt-prep-lsp-as-build",
+   "title": "scripts/wt-prep.sh counted an idle lean --server (the LSP) as a running build and skipped the .lake clone",
+   "symptom": "wt-prep skipped the lean/.lake clone because a 12-hour-old idle `lean --server` matched its build detector; the worktree then did a clean Lean build.",
+   "cause": "MEASURED (mistake-retro-2 run of scripts/wt-prep.sh): the detector matched a process name, not the argv of a lake build, so a long-lived LSP worker counted as a build.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "d5b9d00",
+     "note": "cap-diagnose land: build_pids matches argv (lake + build subcommand)"
+    },
+    {
+     "kind": "file",
+     "ref": "scripts/wt-prep.sh",
+     "note": "build_pids: only lake with first subcommand build counts"
+    }
+   ],
+   "repro": "Before d5b9d00: keep the Lean LSP running in lean/ and run scripts/wt-prep.sh in a fresh worktree: the clone is skipped.",
+   "fix": {
+    "task": "cap-diagnose"
+   },
+   "regression": "scripts/wt-prep.sh build_pids reads ps lines on stdin and matches argv; landed in d5b9d00",
+   "leanVerdict": "provable",
+   "leanReason": "A pure decision over ps lines: $$\\mathrm{build}(\\ell) \\iff \\mathrm{basename}(\\mathrm{argv}_0(\\ell)) = \\texttt{lake} \\wedge \\mathrm{sub}(\\ell) = \\texttt{build}$$",
+   "hardening": "cap-diagnose",
+   "mistakeClass": "c-identity-heuristic"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-settings-edit-commit",
+   "title": "The lead edited .claude/settings.json, the commit and the revert were denied, and the dirty main checkout blocked every fw land",
+   "symptom": "Committing the wait-guard shadow change in .claude/settings.json was denied by the auto-mode classifier (self-modification), and so was the revert; the main checkout stayed dirty and fw land refused until the user acted.",
+   "cause": "INFERRED (lead's mistake list): the lead assumed an agent may edit and commit its own settings; the classifier denies agent self-modification, so edit-then-commit leaves a half state that only the user can clear. Settings edits belong to the user as a ready command.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "b42769d",
+     "note": "the settings change as it finally landed (wait-guard hook, shadow mode)"
+    },
+    {
+     "kind": "file",
+     "ref": ".claude/settings.json",
+     "note": "the protected file"
+    }
+   ],
+   "repro": "As an agent, edit .claude/settings.json in the main checkout and try to commit or revert it under auto mode: both are denied and the checkout stays dirty.",
+   "fix": {
+    "task": "policy-from-lean"
+   },
+   "regression": "none yet: settings paths in the generated deny list (policy-from-lean); the lead hands settings changes to the user as one command",
+   "leanVerdict": "partly",
+   "leanReason": "Lean refuses the edit before it happens: $$f \\in \\mathrm{Protected} \\implies f \\notin \\mathrm{writes}(a)\\ \\text{for every agent } a$$ The classifier itself is outside Lean.",
+   "hardening": "policy-from-lean",
+   "mistakeClass": "c-env-assume"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-wait-guard-while-read-fp",
+   "title": "wait-guard (shadow) logged deny:unboundedLoop for a while-read loop over a file",
+   "symptom": "The shadow log recorded deny:unboundedLoop for `while IFS= read -r line; do ...; done < file`, a loop bounded by the length of the file. In enforce mode it would have refused a safe command.",
+   "cause": "MEASURED (wait-guard shadow log, local spool): the loop rule in apps/runner/hooks/wait-guard.mjs treats every while loop without a deadline as unbounded; the spec in Fw.Ops.Wait has no case for a read condition fed by a file redirect.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/hooks/wait-guard.mjs",
+     "note": "the until/while loop rule"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ops/Wait.lean",
+     "note": "wait_bounded: no read-from-file case"
+    }
+   ],
+   "repro": "With FW_WAIT_GUARD=enforce run `while IFS= read -r l; do echo $l; done < some-file` in a foreground call: refused.",
+   "fix": {
+    "task": "policy-from-lean"
+   },
+   "regression": "none yet: proposed wait-guard-enforce adds the case to Fw.Ops.Wait with a golden for while-read < file, then switches the hook to enforce",
+   "leanVerdict": "provable",
+   "leanReason": "Each iteration consumes one line of a finite file: $$\\mathrm{cond}(\\ell) = \\texttt{read} \\wedge \\mathrm{stdin}(\\ell) = \\mathrm{file}(f) \\implies \\mathrm{bounded}(\\ell)$$ Hosted by policy-from-lean until wait-guard-enforce exists.",
+   "hardening": "policy-from-lean",
+   "mistakeClass": "c-spec-gap"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-parallel-write-overlap",
+   "title": "wktr-fixture-speed and engine-premise-measure ran in parallel with overlapping write globs and both edited packages/measure-wktr/src/cli.mjs",
+   "symptom": "Both tasks declared packages/measure-wktr/** and both edited cli.mjs; the second land hit a merge conflict.",
+   "cause": "CONFIRMED (code read, lean/Fw/Sched/Admit.lean:117@b50332c, wconf): the admission rule refuses two concurrent items whose write globs conflict; INFERRED: the lead spawned both without asking admission, and the spawn guard checks identity only, so the rule never ran.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Sched/Admit.lean",
+     "note": "wconf: write-glob conflict between two items"
+    },
+    {
+     "kind": "file",
+     "ref": "packages/measure-wktr/src/cli.mjs",
+     "note": "the file both tasks edited"
+    }
+   ],
+   "repro": "Spawn two tasks whose work-graph writes both include packages/measure-wktr/** and let both edit cli.mjs: the second land conflicts.",
+   "fix": {
+    "task": "admit-reads"
+   },
+   "regression": "none yet: the spawn guard asks ops.admit and refuses a spawn whose writes conflict with a running task",
+   "leanVerdict": "provable",
+   "leanReason": "The admission rule already in Fw.Sched.Admit: $$\\mathrm{running}(s) \\wedge \\mathrm{running}(t) \\wedge s \\ne t \\implies \\neg\\,\\mathrm{wconf}(s, t)$$ what is missing is its call at spawn.",
+   "hardening": "admit-reads",
+   "mistakeClass": "c-shared-no-lock"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-disk-scratch-growth",
+   "title": "Free disk fell to 0.9 GB: scratch dirs of finished tasks and worktrees were never cleaned up",
+   "symptom": "About 12 GB sat in scratch dirs of finished tasks plus about 1 GB per worktree; free space fell to 0.9 GB, and the classifier blocked the lead's sweep.",
+   "cause": "MEASURED (df and du by the lead): nothing deletes an agent's downloads at hand-back or a worktree at land, and no watch alert fires on size; disk is shared capacity with no admission budget.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "df: 0.9 GB free; du: about 12 GB in scratch dirs of finished tasks, about 1 GB per worktree",
+     "note": "sizes seen by the lead"
+    }
+   ],
+   "repro": "Run several CI-download tasks to completion without cleanup and watch free space.",
+   "fix": {
+    "task": "admit-reads"
+   },
+   "regression": "none yet: proposed scratch quota (watch alert at a size; each agent deletes scratchpad/<name>/ downloads on hand-back) and worktree removal on land (wt-reap)",
+   "leanVerdict": "partly",
+   "leanReason": "The quota rule is pure, the sizes are I/O facts: $$\\sum_a \\mathrm{size}(\\mathrm{scratch}_a) + \\sum_w \\mathrm{size}(w) > Q \\implies \\mathrm{alert}$$ and a hand-back is ok only when the agent's scratch downloads are gone.",
+   "hardening": "admit-reads",
+   "mistakeClass": "c-quota"
+  },
+  {
+   "at": "2026-10-18T12:46+07:00",
+   "id": "inc-ci-shared-job-red",
+   "title": "The lean job mathview-differential was red on every ci/* branch since 8bcc503 while agents reported CI green",
+   "symptom": "mathview-differential failed on every ci/* push since mathview-module-cache landed (5+ runs); agents reported their own lanes green, and the lead treated each ci.failed alert as owned by that agent.",
+   "cause": "INFERRED (lead's mistake list; workflow lean.yml job mathview-differential): fw watch raises ci.failed per branch, so one shared defect looked like many agent-owned failures, and a 'CI green' claim named only the agent's lane, not every job of the run.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "8bcc503",
+     "note": "mathview-module-cache land, after which the job stayed red"
+    },
+    {
+     "kind": "file",
+     "ref": ".github/workflows/lean.yml",
+     "note": "the mathview-differential job"
+    }
+   ],
+   "repro": "Break a job that every ci/* push runs and push two task branches: watch shows two agent-owned ci.failed alerts and no shared alert.",
+   "fix": {
+    "task": "claim-lint"
+   },
+   "regression": "none yet: proposed ci-shared-failure groups ci.failed by job across branches and alerts the lead once",
+   "leanVerdict": "provable",
+   "leanReason": "A pure rule over the run list: $$|\\{b : \\mathrm{red}(j, b)\\}| \\ge 2 \\implies \\mathrm{alert}_{\\mathrm{lead}}(j)$$ and a claim 'CI green' for run $r$ needs $\\forall j \\in \\mathrm{jobs}(r),\\ \\neg\\,\\mathrm{red}(j, r)$. Hosted by claim-lint until ci-shared-failure exists.",
+   "hardening": "claim-lint",
+   "mistakeClass": "c-late-check"
   }
  ]
 }
