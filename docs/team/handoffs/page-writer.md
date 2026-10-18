@@ -2,14 +2,16 @@
 
 State at 9367dea + uncommitted (Math view sourced from fwcore `lean/`; previously f2988c0, rev 5 published).
 
-- `docs/plan/loop-plan.html` is the published artifact. The lead publishes it from this same file path.
+- `docs/plan/loop-plan.html` is the published page; `docs/plan/math-view.html` (the generated math view, about 10.5 MB) is a
+  supporting file published at the same relative path, so the page's `math-view.html` links resolve. The lead publishes both.
 - Page contract: no doctype/html/head/body; `<title>` first; colors as tokens with both dark-mode blocks; the side
   gutter uses `max(16px, env(safe-area-inset-*))`; no horizontal scroll at 375 px; check light and dark.
 - `<meta charset="utf-8">` is at the top, because pre-rendered MathML garbles over file:// without it.
 - Math view: `node docs/plan/tools/build-math-view.mjs` runs `lake build`, `lake exe mathview --lint` and
-  `lake exe mathview` in `lean/` (or takes `--json <export>`), then rewrites two generated blocks: `mathview` (the view,
-  grouped by module, order list in the script; new `Fw/` modules append by name) and `mathview-review` (the review
-  panel's chip, tally, record link, axiom line). `--check` fails on drift or bad TeX. KaTeX 0.16.11 from the root
+  `lake exe mathview` in `lean/` (or takes `--json <export>`), then rewrites three generated blocks: `mathview` in math-view.html (the view,
+  grouped by module, order list in the script; new `Fw/` modules append by name), `tokens` in math-view.html's style (a
+  copy of loop-plan.html's style block) and `mathview-review` in loop-plan.html (the review panel's chip, tally, record
+  link, axiom line). `--check` fails on drift or bad TeX. KaTeX 0.16.11 from the root
   devDependency (`FW_KATEX` overrides). Math is pre-rendered MathML, so the page loads no script.
 - Review status per declaration comes from table rows in `research/notes/*/*-math-review-*.md`. Row format (new rows):
   `| \`Fw.Full.name\` | agree|disagree | <stmtHash> | <mathHash> | <note> |`, both hashes copied from

@@ -1,6 +1,6 @@
 # Handoff: plan-page-readability
 
-State: branch worktree-wf_33987ed2-d9d-2, one commit.
+State: branch worktree-wf_33987ed2-d9d-2, round 2 on top of the round-1 commit (main a3196a4 merged).
 
 - Math view moved to its own page `docs/plan/math-view.html` (head and tokens copied from loop-plan; generated block
   between `mathview:begin/end`). `loop-plan.html` keeps only the `mathview-review` panel (chip by priority
@@ -14,5 +14,13 @@ State: branch worktree-wf_33987ed2-d9d-2, one commit.
 - loop-plan: new "Now" section first (static text from PLAN rev 10, not generated: TODO generate from work-graph),
   rev 9 log folded into a details, sections reordered (Now, Roadmap, Decisions, Why ... Team, Math), nav 7 wrapping
   links, hero ruler moved into Measuring, rev 7 dependency SVG folded under a details (superseded; not redrawn).
-- Open: Now panel statuses are as of PLAN rev 10; Measuring/Findings/Parts text still rev 7-9; the Why/Chat merge
-  and the "Review stale 517" list were not done.
+- Round 2: Now table stacks below 600 px (data-label per cell), nav static below 600 px, hero meta carries the deadline
+  and C2, `min-width:0` on details and section children; no page scroll at 390/375, light/dark, all details open.
+  Now panel is hand-written with an "as of main a3196a4, 2026-10-18 20:16 +0700" stamp; refresh it from
+  work-graph.json when it matters. Rev-10-reversed sentences (cost model, calibration, 5 of 5 swipes, phone as a
+  condition) rewritten, including the outer-loop SVG labels. Deadline and critical path only in Now (Roadmap links).
+- math-view.html is 10.5 MB (limit 12 MB): generator drops KaTeX annotation/semantics, span, xmlns, separator, merges
+  upright single-letter `<mi>` runs; `.mv-entry` has content-visibility:auto. Its style token block is a generator copy
+  of loop-plan's style between `tokens:begin/end`. Generator maps U+2238 to `\dot-` (new on main in Fw.Gate.Shard).
+- Open: generating the Now panel from the work graph; Measuring/Findings/Parts prose beyond F5 is rev 7-9 wording;
+  Why/Chat not merged; no viewport meta (host skeleton). Publish loop-plan.html plus math-view.html at the same path.
