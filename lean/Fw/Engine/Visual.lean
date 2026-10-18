@@ -839,4 +839,88 @@ theorem rrect_no_fixed_box (w h r sx sy tx ty w1 h1 r1 w2 h2 r2 : Rat) (hr : 0 <
   subst a1 b1 a2 b2
   grind
 
+/-! ## Composing parts: the page scene is the stacked part scenes -/
+
+/-- One part's arm on the page: its band height (the PL1 box the part occupies) and its scene as a function of the
+page offset `y` of its band's top edge.
+
+$$\mathrm{PartArm} = \underbrace{\mathbb{Q}}_{\mathrm{height}} \times \underbrace{(\mathbb{Q} \to \mathrm{Scene})}_{\mathrm{scene}}$$
+-/
+structure PartArm where
+  height : Rat
+  scene  : Rat → Scene
+
+/-- The page scene of parts stacked from offset `y`: each part's scene at its own offset, the next part starting at
+the previous offset plus the previous height.
+
+$$\operatorname{stackScene}(y, [\,]) = [\,],\qquad \operatorname{stackScene}(y, p :: ps) = p.\mathrm{scene}(y) \mathbin{+\!\!+} \operatorname{stackScene}(y + p.\mathrm{height}, ps)$$
+-/
+def stackScene : Rat → List PartArm → Scene
+  | _, [] => []
+  | y, p :: ps => p.scene y ++ stackScene (y + p.height) ps
+
+/-- `visible` splits over concatenated scenes.
+
+$$\forall \mathit{vp} \in \mathrm{Rect},\ \forall S, U \in \mathrm{Scene}:\ \operatorname{visible}_{\mathit{vp}}(S \mathbin{+\!\!+} U) = \operatorname{visible}_{\mathit{vp}}(S) \mathbin{+\!\!+} \operatorname{visible}_{\mathit{vp}}(U)$$
+-/
+theorem visible_scene_append (vp : Rect) (s u : Scene) : visible vp (s ++ u) = visible vp s ++ visible vp u :=
+  List.filter_append ..
+
+/-- Q on two scenes and Q on two more scenes give Q on the concatenations.
+
+$$\forall S_1, U_1, S_2, U_2 \in \mathrm{Scene}:\ \mathrm{Q}(S_1, U_1) \land \mathrm{Q}(S_2, U_2) \Rightarrow \mathrm{Q}(S_1 \mathbin{+\!\!+} S_2,\ U_1 \mathbin{+\!\!+} U_2)$$
+-/
+theorem Q_append : ∀ {s₁ u₁ s₂ u₂ : Scene}, Q s₁ u₁ → Q s₂ u₂ → Q (s₁ ++ s₂) (u₁ ++ u₂)
+  | [], [], _, _, _, h₂ => h₂
+  | [], _ :: _, _, _, h, _ => by simp [Q, sceneQ] at h
+  | _ :: _, [], _, _, h, _ => by simp [Q, sceneQ] at h
+  | _ :: _, _ :: _, _, _, h, h₂ => by
+    simp only [Q, sceneQ, List.cons_append, Bool.and_eq_true] at h h₂ ⊢
+    exact ⟨h.1, Q_append h.2 h₂⟩
+
+/-- **Visible page from visible parts (E).** If the two page arms have the same number of parts and, part by part,
+equal band heights and equal visible scenes at every offset, the visible page scenes are equal, from every start
+offset.
+
+$$\forall \mathit{vp} \in \mathrm{Rect},\ \forall O, V \in \mathrm{PartArm}^{*},\ \forall y \in \mathbb{Q}:\ |O| = |V| \land \Big(\forall (o, v) \in \operatorname{zip}(O, V):\ o.\mathrm{height} = v.\mathrm{height} \land \forall y' \in \mathbb{Q}:\ \operatorname{visible}_{\mathit{vp}}(o.\mathrm{scene}(y')) = \operatorname{visible}_{\mathit{vp}}(v.\mathrm{scene}(y'))\Big) \Rightarrow \operatorname{visible}_{\mathit{vp}}(\operatorname{stackScene}(y, O)) = \operatorname{visible}_{\mathit{vp}}(\operatorname{stackScene}(y, V))$$
+
+Equal boxes keep every later part at the same offset, so per-part E rows compose to the page. -/
+theorem visible_append_of_boxes_eq (vp : Rect) :
+    ∀ {os vs : List PartArm} (y : Rat), os.length = vs.length →
+      (∀ p ∈ os.zip vs, p.1.height = p.2.height ∧
+        ∀ y', visible vp (p.1.scene y') = visible vp (p.2.scene y')) →
+      visible vp (stackScene y os) = visible vp (stackScene y vs)
+  | [], [], _, _, _ => rfl
+  | [], _ :: _, _, hl, _ => by simp at hl
+  | _ :: _, [], _, hl, _ => by simp at hl
+  | o :: os, v :: vs, y, hl, h => by
+    have ⟨hh, hs⟩ : o.height = v.height ∧ ∀ y', visible vp (o.scene y') = visible vp (v.scene y') :=
+      h (o, v) (by simp)
+    have hr := visible_append_of_boxes_eq vp (os := os) (vs := vs) (y + o.height) (by simpa using hl)
+      (fun p hp => h p (by simp [hp]))
+    rw [stackScene, stackScene, visible_scene_append, visible_scene_append, hs y, hr, hh]
+
+/-- **Visible page from visible parts (Q).** The same with the gate's relation Q in place of equality; band heights
+must still be equal exactly.
+
+$$\forall \mathit{vp} \in \mathrm{Rect},\ \forall O, V \in \mathrm{PartArm}^{*},\ \forall y \in \mathbb{Q}:\ |O| = |V| \land \Big(\forall (o, v) \in \operatorname{zip}(O, V):\ o.\mathrm{height} = v.\mathrm{height} \land \forall y' \in \mathbb{Q}:\ \mathrm{Q}\big(\operatorname{visible}_{\mathit{vp}}(o.\mathrm{scene}(y')),\ \operatorname{visible}_{\mathit{vp}}(v.\mathrm{scene}(y'))\big)\Big) \Rightarrow \mathrm{Q}\big(\operatorname{visible}_{\mathit{vp}}(\operatorname{stackScene}(y, O)),\ \operatorname{visible}_{\mathit{vp}}(\operatorname{stackScene}(y, V))\big)$$
+
+Per-part Q rows compose to the page when no part's height moves. -/
+theorem visible_append_of_boxes_Q (vp : Rect) :
+    ∀ {os vs : List PartArm} (y : Rat), os.length = vs.length →
+      (∀ p ∈ os.zip vs, p.1.height = p.2.height ∧
+        ∀ y', Q (visible vp (p.1.scene y')) (visible vp (p.2.scene y'))) →
+      Q (visible vp (stackScene y os)) (visible vp (stackScene y vs))
+  | [], [], _, _, _ => Q_refl []
+  | [], _ :: _, _, hl, _ => by simp at hl
+  | _ :: _, [], _, hl, _ => by simp at hl
+  | o :: os, v :: vs, y, hl, h => by
+    have ⟨hh, hs⟩ : o.height = v.height ∧ ∀ y', Q (visible vp (o.scene y')) (visible vp (v.scene y')) :=
+      h (o, v) (by simp)
+    have hr := visible_append_of_boxes_Q vp (os := os) (vs := vs) (y + o.height) (by simpa using hl)
+      (fun p hp => h p (by simp [hp]))
+    simp only [stackScene, visible_scene_append]
+    rw [← hh] at *
+    exact Q_append (hs y) hr
+
 end Fw.Engine
