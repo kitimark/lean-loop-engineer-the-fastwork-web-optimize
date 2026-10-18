@@ -75,3 +75,4 @@ import Fw.Console.LandPool  -- land-test-speed: proposal, a fair-share floor und
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
+import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions

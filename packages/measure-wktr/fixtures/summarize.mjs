@@ -27,14 +27,18 @@ export function rowOf(run) {
 }
 
 const rows = [];
+// a job dir holds <tag>/<arm>/ (tag auto or k<w>, lanes.mjs) or, as before, <arm>/ directly; the arm column then reads tag/arm
+const scopes = (d) => readdirSync(d).sort().flatMap((n) => (/^(auto|k\d+)$/.test(n) ? [[join(d, n), `${n}/`]] : []));
 for (const d of dirs) {
-  for (const arm of readdirSync(d).sort()) {
-    const dir = join(d, arm);
-    if (!existsSync(dir) || !/-f\d+$/.test(arm)) continue;
-    for (const f of readdirSync(dir).sort()) {
-      const m = /^counts-(.+)-(\d+)\.json$/.exec(f);
-      if (!m) continue;
-      rows.push({ job: d, arm, variant: m[1], pass: Number(m[2]), ...rowOf(JSON.parse(readFileSync(join(dir, f), 'utf8'))) });
+  for (const [base, prefix] of [[d, ''], ...scopes(d)]) {
+    for (const arm of readdirSync(base).sort()) {
+      const dir = join(base, arm);
+      if (!existsSync(dir) || !/-f\d+$/.test(arm)) continue;
+      for (const f of readdirSync(dir).sort()) {
+        const m = /^counts-(.+)-(\d+)\.json$/.exec(f);
+        if (!m) continue;
+        rows.push({ job: d, arm: prefix + arm, variant: m[1], pass: Number(m[2]), ...rowOf(JSON.parse(readFileSync(join(dir, f), 'utf8'))) });
+      }
     }
   }
 }

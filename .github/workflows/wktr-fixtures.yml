@@ -4,8 +4,12 @@ name: wktr-fixtures
 # (packages/measure-wktr/fixtures/*: control, scroll-timeline, scroll-js-transform, scroll-js-bg, time-accel) run in WebKit's
 # prebuilt iOS-simulator WebKitTestRunner (same archive, Xcode and runtime as wktr.yml; nothing is built here). Per scroll
 # step the harness records internals.styleRecalcCount / renderingUpdateCount deltas. Counts only; nothing is phone time.
-# `jobs` independent macOS jobs (separate VMs, one at a time) x `passes` fresh processes per arm; the classes job classes
-# every count type per arm with fwcore (kMax 4, tMax 24) and prints the per-pass summary table.
+# `jobs` independent macOS jobs (separate VMs; `max-parallel` is Lean's: the slots webkit-sim and gate-gaps leave free, Fw.Measure.
+# WktrLayout.maxParallel) x `passes` fresh processes per cell. Inside a job the cells run in the Lean layout (lanes.mjs): mode `auto`
+# deals the cells of a variant over as many Simulator devices as the premise table allows (nothing proved yet: one), mode `probe` is
+# the premise test: the same cells serial (k1), two (k2) and three (k3) processes at once on one VM. premise.mjs asserts the measured
+# classes of the fixtures (Fw.Measure.WktrLayout.expects; this lane is the test of premise wktr_scroll_timeline_restyle), and in
+# probe mode compares the class kinds of k2 and k3 with k1. Timing spans per pass, arm and layout are in the artifacts.
 on:
   push:
     branches: ['ci/**']
@@ -19,9 +23,18 @@ on:
         type: string
         default: '3'
       passes:
-        description: Fresh-process passes per arm and job (2 to 4)
+        description: Fresh-process passes per cell and job (2 to 4)
         type: string
         default: '3'
+      mode:
+        description: auto (the Lean layout) or probe (the premise test, k1 k2 k3)
+        type: choice
+        options: [auto, probe]
+        default: auto
+      req:
+        description: probe only, widths to test (comma list of 1 to 3)
+        type: string
+        default: '1,2,3'
 
 permissions:
   contents: read
@@ -36,22 +49,34 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
+      maxp: ${{ steps.m.outputs.maxp }}
     steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: packages/contracts/golden/measure
       - id: m
         env:
           JOBS: ${{ inputs.jobs || '3' }}
+          REQ: ${{ inputs.req || '1,2,3' }}
         run: |
           set -euo pipefail
           case "$JOBS" in 1|2|3|4) ;; *) echo "jobs must be 1..4" >&2; exit 1 ;; esac
+          case "$REQ" in *[!1-3,]*|'') echo "req must be a comma list of 1..3" >&2; exit 1 ;; esac
           matrix=$(seq 1 "$JOBS" | jq -R -s -c '{job: (split("\n") | map(select(length > 0)) | map("j" + .))}')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          # max-parallel of the fixture job: Lean's (Fw.Measure.WktrLayout.maxParallel, golden kind maxParallel)
+          maxp=$(jq -s -r --argjson n "$JOBS" '[.[] | select(.kind == "maxParallel" and .jobs == $n)] | .[0].maxParallel' packages/contracts/golden/measure/wktr.fixtures.jsonl)
+          case "$maxp" in 1|2|3|4|5) ;; *) echo "no maxParallel line for $JOBS jobs" >&2; exit 1 ;; esac
+          echo "maxp=$maxp" >> "$GITHUB_OUTPUT"
+          echo "jobs $JOBS, max-parallel $maxp"
 
   fixtures:
     needs: [plan]
     runs-on: macos-26
     timeout-minutes: 60
     strategy:
-      max-parallel: 1
+      max-parallel: ${{ fromJSON(needs.plan.outputs.maxp) }}
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
@@ -80,20 +105,22 @@ jobs:
             xcodebuild -version
             xcrun simctl list runtimes
           } | tee "$RUNNER_TEMP/result/tools.txt"
-      - name: WKTR fixtures, fresh process per pass and arm
+      - name: WKTR fixtures, fresh process per pass and cell
         env:
           PASSES: ${{ inputs.passes || '3' }}
+          MODE: ${{ inputs.mode || 'auto' }}
+          REQ: ${{ inputs.req || '1,2,3' }}
         run: |
           set -euo pipefail
-          sh packages/measure-wktr/fixtures/run.sh "$RUNNER_TEMP/wktr-root" "$RUNNER_TEMP/result" "$PASSES" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
+          sh packages/measure-wktr/fixtures/run.sh "$RUNNER_TEMP/wktr-root" "$RUNNER_TEMP/result" "$PASSES" "$MODE" "$REQ" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
           node packages/measure-wktr/fixtures/summarize.mjs "$RUNNER_TEMP/result" | tee "$RUNNER_TEMP/result/summary.md"
           node packages/measure-wktr/fixtures/summarize.mjs "$RUNNER_TEMP/result" --json > "$RUNNER_TEMP/result/summary.json"
           ls -l "$RUNNER_TEMP/result"
-      - name: Delete the Simulator device
+      - name: Delete the Simulator devices
         if: ${{ always() }}
         run: |
+          node packages/measure-wktr/fixtures/lanes.mjs cleanup || true
           xcrun simctl shutdown all || true
-          xcrun simctl delete fw-wktr || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ always() }}
         with:
@@ -153,21 +180,21 @@ jobs:
           mkdir -p "$out"
           cd "$RUNNER_TEMP/runs"
           if ! ls -d wktr-fix-j* > /dev/null 2>&1; then mkdir wktr-fix-j1; find . -maxdepth 1 -mindepth 1 ! -name wktr-fix-j1 -exec mv {} wktr-fix-j1/ \;; fi
-          cls="$GITHUB_WORKSPACE/packages/measure-chromium/src/classify.mjs"
           echo "workflow run $RUN_ID, sha $SHA" > "$out/run.txt"
           node "$GITHUB_WORKSPACE/packages/measure-wktr/fixtures/summarize.mjs" wktr-fix-j* | tee "$out/summary.md"
           node "$GITHUB_WORKSPACE/packages/measure-wktr/fixtures/summarize.mjs" wktr-fix-j* --json > "$out/summary.json"
           { echo '### per pass'; cat "$out/summary.md"; } >> "$GITHUB_STEP_SUMMARY"
-          for armdir in wktr-fix-j1/*-f[0-9]*/; do
-            arm=$(basename "$armdir")
-            for first in "$armdir"counts-*-1.json; do
-              variant=$(basename "$first" -1.json); variant=${variant#counts-}
-              files=(wktr-fix-j*/"$arm"/counts-"$variant"-[0-9]*.json)
-              node "$cls" "${files[@]}" --kMax 4 --tMax 24 | tee "$out/classes-$arm-$variant.txt"
-              { echo "### $arm $variant: classes over ${#files[@]} passes"; echo '```'; cat "$out/classes-$arm-$variant.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-            done
-          done
+          # the assertions (Lean: Fw.Measure.WktrLayout.expects) and, for probe runs, the premise table; fails when an assertion
+          # fails in the serial tag k1 or in auto
+          set +e
+          node "$GITHUB_WORKSPACE/packages/measure-wktr/fixtures/premise.mjs" wktr-fix-j* --out "$out" > "$out/premise.md" 2> "$out/premise.err"
+          rc=$?
+          set -e
+          cat "$out/premise.err" || true
+          { echo '### premise and assertions'; cat "$out/premise.md"; } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() }}
         with:
           name: wktr-fix-classes
           path: ${{ runner.temp }}/classes
