@@ -31,13 +31,16 @@ open Fw.Console.LandVerdict
 
 /-- The pure stage functions of a land, of the main commit $m$ and the branch tip $b$: the scope check of the diff, the
 clean merge, whether `apps/runner` is selected by the change (so the static reads test is part of the real checks), and
-that test's verdict on the merge tree.
-$$W = (\mathit{scope}, \mathit{merges}, \mathit{sel}, \mathit{test}) : (M \times B \to \mathbb B)^4$$ -/
+that test's verdict on the merge tree, whether the branch has commits of its own, and the fast lints (the math-view lint and
+`ci-paths --check`, run on the merge tree) that refused real lands (task `land-dry-full`).
+$$W = (\mathit{scope}, \mathit{merges}, \mathit{sel}, \mathit{test}, \mathit{own}, \mathit{lints}) : (M \times B \to \mathbb B)^6$$ -/
 structure Stages where
   scope : String → String → Bool
   merges : String → String → Bool
   readsSelected : String → String → Bool
   readsTest : String → String → Bool
+  own : String → String → Bool
+  lints : String → String → Bool
 
 /-- The reads stage: a check that the change does not select cannot refuse.
 $$\operatorname{rd}(m, b) = \lnot\mathit{sel}(m, b) \vee \mathit{test}(m, b)$$ -/
@@ -63,13 +66,15 @@ def firstRefusal (s g r : Bool) : Option Stage :=
 $$\operatorname{land}_W(h, b) = \operatorname{first}(\mathit{scope}(h,b), \mathit{merges}(h,b), \operatorname{rd}(h,b))$$ -/
 def landStages (w : Stages) (h b : String) : Option Stage := firstRefusal (w.scope h b) (w.merges h b) (w.reads h b)
 
-/-- The kind of a dry land at main $m_0$: `stale` when the branch does not contain `main`, else the first refusal, else `dry`.
-$$\operatorname{dry}_W(c, m_0, b) = \begin{cases} \mathrm{stale} & \lnot c \\ k & c \wedge \operatorname{land}_W(m_0, b) = \mathrm{some}(k) \\ \mathrm{dry} & c \wedge \operatorname{land}_W(m_0, b) = \bot \end{cases}$$ -/
+/-- The kind of a dry land at main $m_0$: `stale` when the branch does not contain `main`, `empty` when it has no commit of its
+own (nothing to land, a success), else the first refusal of the three stages, else `lint` when a fast lint fails, else `dry`.
+$$\operatorname{dry}_W(c, m_0, b) = \begin{cases} \mathrm{stale} & \lnot c \\ \mathrm{empty} & c \wedge \lnot\mathit{own}(m_0,b) \\ k & c \wedge \mathit{own} \wedge \operatorname{land}_W(m_0, b) = \mathrm{some}(k) \\ \mathrm{lint} & c \wedge \mathit{own} \wedge \operatorname{land}_W = \bot \wedge \lnot\mathit{lints}(m_0,b) \\ \mathrm{dry} & \text{otherwise} \end{cases}$$ -/
 def dryKind (w : Stages) (contains : Bool) (m0 b : String) : Kind :=
   if !contains then .stale else
+  if !(w.own m0 b) then .empty else
   match landStages w m0 b with
   | some s => s.kind
-  | none => .dry
+  | none => if w.lints m0 b then .dry else .lint
 
 /-- The three stages pass iff each passes.
 $$\operatorname{first}(s, g, r) = \bot \iff s \wedge g \wedge r$$ -/
@@ -82,9 +87,9 @@ $$\forall W, c, m_0, h, b:\ \operatorname{dry}_W(c, m_0, b) = \mathrm{dry} \wedg
 theorem dry_pass_land_pass (w : Stages) (c : Bool) (m0 h b : String) (hd : dryKind w c m0 b = .dry) (hh : h = m0) :
     landStages w h b = none := by
   subst hh
-  cases c <;> cases hl : landStages w h b <;> simp [dryKind, hl] at hd ⊢
-  rename_i s
-  cases s <;> simp [Stage.kind] at hd
+  cases c <;> cases ho : w.own h b <;> cases hl : landStages w h b <;> cases hn : w.lints h b <;>
+    simp [dryKind, hl, ho, hn] at hd ⊢
+  all_goals (rename_i s; cases s <;> simp [Stage.kind] at hd)
 
 /-- **A dry refusal is the land's refusal.** If the dry land refuses with the kind of a stage and main has not moved, the
 real land refuses at that stage.
@@ -94,28 +99,39 @@ theorem dry_refusal_is_land_refusal (w : Stages) (c : Bool) (m0 h b : String) (s
   subst hh
   cases c
   · cases s <;> simp [dryKind, Stage.kind] at hd
-  · cases hl : landStages w h b with
-    | none => cases s <;> simp [dryKind, hl, Stage.kind] at hd
-    | some s2 =>
-      rw [Option.some.injEq]
-      cases s <;> cases s2 <;> simp_all [dryKind, Stage.kind]
+  · cases ho : w.own h b
+    · cases s <;> simp [dryKind, ho, Stage.kind] at hd
+    · cases hl : landStages w h b with
+      | none => cases hn : w.lints h b <;> cases s <;> simp [dryKind, hl, ho, hn, Stage.kind] at hd
+      | some s2 =>
+        rw [Option.some.injEq]
+        cases s <;> cases s2 <;> simp_all [dryKind, Stage.kind]
 
 /-- **No false alarm from the dry land.** When the branch contains `main` and main has not moved, the dry land passes exactly
-when the real land's stages pass.
-$$\forall W, m_0, h, b:\ h = m_0 \Rightarrow (\operatorname{dry}_W(\mathrm{true}, m_0, b) = \mathrm{dry} \iff \operatorname{land}_W(h, b) = \bot)$$ -/
+when the branch has its own commits, the real land's stages pass and the fast lints pass.
+$$\forall W, m_0, h, b:\ h = m_0 \Rightarrow (\operatorname{dry}_W(\mathrm{true}, m_0, b) = \mathrm{dry} \iff \mathit{own} \wedge \operatorname{land}_W(h, b) = \bot \wedge \mathit{lints})$$ -/
 theorem dry_iff_land_pass (w : Stages) (m0 h b : String) (hh : h = m0) :
-    dryKind w true m0 b = .dry ↔ landStages w h b = none := by
+    dryKind w true m0 b = .dry ↔ (w.own m0 b = true ∧ landStages w h b = none ∧ w.lints m0 b = true) := by
   subst hh
-  cases hl : landStages w h b <;> simp [dryKind, hl]
-  rename_i s
-  cases s <;> simp [Stage.kind]
+  cases ho : w.own h b <;> cases hl : landStages w h b <;> cases hn : w.lints h b <;> simp [dryKind, hl, ho, hn]
+  all_goals (rename_i s; cases s <;> simp [Stage.kind])
+
+/-- **The dry land passes only if scope, merge, reads and the fast lints pass** (and the branch has commits and contains main).
+$$\forall W, c, m_0, b:\ \operatorname{dry}_W(c, m_0, b) = \mathrm{dry} \Rightarrow c \wedge \mathit{own}(m_0,b) \wedge \mathit{scope} \wedge \mathit{merges} \wedge \operatorname{rd} \wedge \mathit{lints}(m_0,b)$$ -/
+theorem dry_pass_all (w : Stages) (c : Bool) (m0 b : String) (hd : dryKind w c m0 b = .dry) :
+    c = true ∧ w.own m0 b = true ∧ w.scope m0 b = true ∧ w.merges m0 b = true ∧ w.reads m0 b = true ∧ w.lints m0 b = true := by
+  have hl := dry_pass_land_pass w c m0 m0 b hd rfl
+  have hf := (firstRefusal_none_iff _ _ _).mp (by simpa [landStages] using hl)
+  cases c <;> cases ho : w.own m0 b <;> cases hn : w.lints m0 b <;> simp [dryKind, ho, hn] at hd ⊢
+  all_goals (try cases hl2 : landStages w m0 b <;> simp [hl2] at hd)
+  all_goals (try (rename_i s; cases s <;> simp [Stage.kind] at hd))
+  all_goals simp_all
 
 /-- A `stale` verdict is given exactly when the branch lacks `main`.
 $$\forall W, c, m_0, b:\ \operatorname{dry}_W(c, m_0, b) = \mathrm{stale} \iff \lnot c$$ -/
 theorem stale_iff (w : Stages) (c : Bool) (m0 b : String) : dryKind w c m0 b = .stale ↔ c = false := by
-  cases c <;> cases hl : landStages w m0 b <;> simp [dryKind, hl]
-  rename_i s
-  cases s <;> simp [Stage.kind]
+  cases c <;> cases ho : w.own m0 b <;> cases hl : landStages w m0 b <;> cases hn : w.lints m0 b <;> simp [dryKind, hl, ho, hn]
+  all_goals (rename_i s; cases s <;> simp [Stage.kind])
 
 /-- The hand-back rule: an agent may hand back only on a `dry` verdict.
 $$\operatorname{hb}(k) \iff k = \mathrm{dry}$$ -/
@@ -136,17 +152,34 @@ ran against).
 $$\exists W, m_0, h, b:\ \operatorname{dry}_W(\mathrm{true}, m_0, b) = \mathrm{dry} \wedge h \ne m_0 \wedge \operatorname{land}_W(h, b) \ne \bot$$ -/
 theorem moved_no_guarantee :
     ∃ (w : Stages) (m0 h b : String), dryKind w true m0 b = .dry ∧ h ≠ m0 ∧ landStages w h b ≠ none :=
-  ⟨⟨fun m _ => m == "a", fun _ _ => true, fun _ _ => false, fun _ _ => true⟩, "a", "b", "t", by decide, by decide, by decide⟩
+  ⟨⟨fun m _ => m == "a", fun _ _ => true, fun _ _ => false, fun _ _ => true, fun _ _ => true, fun _ _ => true⟩, "a", "b", "t", by decide, by decide, by decide⟩
 
-/-- **Only stage kinds, stale and dry come out of a dry land**: never `busy`, `dirty`, `checks`, `done`, `queued` or
+/-- **Only stage kinds, stale, empty, lint and dry come out of a dry land**: never `busy`, `dirty`, `checks`, `done`, `queued` or
 `unknown` (it takes no lock, runs no full check and does not touch the main checkout).
-$$\forall W, c, m_0, b:\ \operatorname{dry}_W(c, m_0, b) \in \{\mathrm{stale}, \mathrm{scope}, \mathrm{conflict}, \mathrm{reads}, \mathrm{dry}\}$$ -/
+$$\forall W, c, m_0, b:\ \operatorname{dry}_W(c, m_0, b) \in \{\mathrm{stale}, \mathrm{empty}, \mathrm{scope}, \mathrm{conflict}, \mathrm{reads}, \mathrm{lint}, \mathrm{dry}\}$$ -/
 theorem dryKind_cases (w : Stages) (c : Bool) (m0 b : String) :
-    dryKind w c m0 b = .stale ∨ dryKind w c m0 b = .scope ∨ dryKind w c m0 b = .conflict ∨ dryKind w c m0 b = .reads ∨
-      dryKind w c m0 b = .dry := by
-  cases c <;> cases hl : landStages w m0 b <;> simp [dryKind, hl]
-  rename_i s
-  cases s <;> simp [Stage.kind]
+    dryKind w c m0 b = .stale ∨ dryKind w c m0 b = .empty ∨ dryKind w c m0 b = .scope ∨ dryKind w c m0 b = .conflict ∨
+      dryKind w c m0 b = .reads ∨ dryKind w c m0 b = .lint ∨ dryKind w c m0 b = .dry := by
+  cases c <;> cases ho : w.own m0 b <;> cases hl : landStages w m0 b <;> cases hn : w.lints m0 b <;> simp [dryKind, hl, ho, hn]
+  all_goals (rename_i s; cases s <;> simp [Stage.kind])
+
+/-- The lines a dry land prints on stdout: exactly the verdict line (prose goes to the log lines, which never start with
+`VERDICT `).
+$$\operatorname{out}(k, t) = [\operatorname{line}(k, t)]$$ -/
+def dryOutput (k : Kind) (task : String) : List String := [verdictLine k task]
+
+/-- **Every dry run prints exactly one VERDICT line**, whatever the stages say (a refusal, an empty branch, a pass): the number of
+printed lines that start with `VERDICT ` is one.
+$$\forall W, c, m_0, b, t:\ \left|\{\ell \in \operatorname{out}(\operatorname{dry}_W(c, m_0, b), t) : \ell \text{ starts with } \texttt{VERDICT }\}\right| = 1$$ -/
+theorem dry_prints_one_verdict (w : Stages) (c : Bool) (m0 b t : String) :
+    ((dryOutput (dryKind w c m0 b) t).filter (·.startsWith "VERDICT ")).length = 1 := by
+  simp [dryOutput, verdictLine]
+
+/-- An empty branch (contains main, no own commits) is a success with exit 0 and prints `VERDICT empty`.
+$$\forall W, m_0, b:\ \lnot\mathit{own}(m_0,b) \Rightarrow \operatorname{dry}_W(\mathrm{true}, m_0, b) = \mathrm{empty} \wedge \operatorname{code}(\mathrm{empty}) = 0$$ -/
+theorem empty_ok (w : Stages) (m0 b : String) (h : w.own m0 b = false) :
+    dryKind w true m0 b = .empty ∧ Kind.exitCode .empty = 0 := by
+  simp [dryKind, h, Kind.exitCode]
 
 /-- A premise row: id, statement, the theorems that assume it, and the test that asserts it.
 $$p = (\mathit{id},\ \mathit{statement},\ \mathit{theorems},\ \mathit{test})$$ -/
@@ -186,10 +219,10 @@ def kindCase (k : Kind) (t : String) : Json :=
 
 /-- A `landDry.verdict` case over given stage verdicts: the reply is `dryKind` for a stage table that returns exactly these.
 $$\operatorname{dryCase}(n, c, s, g, t, r) = \operatorname{line}(n, \{c, s, g, \mathit{sel}, \mathit{test}\}, \{\operatorname{dry}_W\})$$ -/
-def dryCase (name : String) (contains scope merges sel test : Bool) : Json :=
-  let w : Stages := ⟨fun _ _ => scope, fun _ _ => merges, fun _ _ => sel, fun _ _ => test⟩
+def dryCase (name : String) (contains scope merges sel test : Bool) (own lints : Bool := true) : Json :=
+  let w : Stages := ⟨fun _ _ => scope, fun _ _ => merges, fun _ _ => sel, fun _ _ => test, fun _ _ => own, fun _ _ => lints⟩
   line name [("op", "landDry.verdict"), ("containsMain", .bool contains), ("scope", .bool scope), ("merges", .bool merges),
-      ("readsSelected", .bool sel), ("readsTest", .bool test)]
+      ("readsSelected", .bool sel), ("readsTest", .bool test), ("own", .bool own), ("lints", .bool lints)]
     [("kind", .str (dryKind w contains "m" "b").name)]
 
 /-- A `landDry.handback` case: the reply is `handbackAllowed`.
@@ -197,8 +230,8 @@ $$\operatorname{hbCase}(k) = \operatorname{line}(\ldots, \{k\}, \{\operatorname{
 def handbackCase (k : Kind) : Json :=
   line s!"handback {k.name}" [("op", "landDry.handback"), ("kind", k.name)] [("allowed", .bool (handbackAllowed k))]
 
-/-- Every golden case: 11 kinds, one kind without a task, 9 dry-verdict cases, 11 hand-back cases.
-$$\mathrm{cases} = \mathrm{kind}_{1..12} \mathbin{+\!\!+} \mathrm{dry}_{1..9} \mathbin{+\!\!+} \mathrm{hb}_{1..11}$$ -/
+/-- Every golden case: 13 kinds, one kind without a task, 15 dry-verdict cases, 13 hand-back cases.
+$$\mathrm{cases} = \mathrm{kind}_{1..14} \mathbin{+\!\!+} \mathrm{dry}_{1..15} \mathbin{+\!\!+} \mathrm{hb}_{1..13}$$ -/
 def cases : List Json :=
   Kind.all.map (kindCase · "land-dry") ++
   [kindCase .dry "",
@@ -210,10 +243,16 @@ def cases : List Json :=
    dryCase "reads failing but not selected passes" true true true false false,
    dryCase "stale beats scope" false false true true true,
    dryCase "stale though all stages pass" false true true true true,
-   dryCase "scope and reads both fail: scope first" true false true true false] ++
+   dryCase "scope and reads both fail: scope first" true false true true false,
+   dryCase "no own commits: empty" true true true true true (own := false),
+   dryCase "no own commits beats a failing scope" true false false true false (own := false),
+   dryCase "stale beats empty" false true true true true (own := false),
+   dryCase "fast lint fails after all stages pass" true true true true true (lints := false),
+   dryCase "reads refuses before lint" true true true true false (lints := false),
+   dryCase "lint fails though reads not selected" true true true false false (lints := false)] ++
   Kind.all.map handbackCase
 
-#guard cases.length == 32
+#guard cases.length == 42
 
 /-- The golden file text: one compressed JSON line per case.
 $$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/

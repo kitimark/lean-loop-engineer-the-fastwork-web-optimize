@@ -10,14 +10,14 @@ type G = { name: string; request: Record<string, unknown> & { op: string }; resp
 const rows: G[] = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l));
 
 describe("land verdict vs Lean golden", () => {
-  it("has rows", () => expect(rows.length).toBeGreaterThanOrEqual(30));
+  it("has rows", () => expect(rows.length).toBeGreaterThanOrEqual(40));
   for (const g of rows) it(g.name, () => {
     const q = g.request;
     if (q.op === "landVerdict.kind") {
       const k = q.kind as Kind;
       expect(g.response).toEqual({ exit: exitCode(k), line: verdictLine(k, q.task as string), ok: isOk(k), retry: retryable(k) });
     } else if (q.op === "landDry.verdict") {
-      expect(g.response).toEqual({ kind: dryKind({ containsMain: q.containsMain as boolean, scope: q.scope as boolean, merges: q.merges as boolean, readsSelected: q.readsSelected as boolean, readsTest: q.readsTest as boolean }) });
+      expect(g.response).toEqual({ kind: dryKind({ containsMain: q.containsMain as boolean, scope: q.scope as boolean, merges: q.merges as boolean, readsSelected: q.readsSelected as boolean, readsTest: q.readsTest as boolean, own: q.own as boolean, lints: q.lints as boolean }) });
     } else if (q.op === "landDry.handback") {
       expect(g.response).toEqual({ allowed: handbackAllowed(q.kind as Kind) });
     } else throw new Error(`unknown op ${q.op}`);
