@@ -10,6 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { quietReply } from '../src/quietsteps.mjs';
+import { retryReply, retryPlanReply } from '../src/simretry.mjs';
 import { tally, reduceSteps, zones, classify, symDiff, summarize } from '../src/reduce.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -34,6 +35,8 @@ const TS = {
   'measure.symDiff': (q) => ({ symDiff: symDiff(q.a, q.b) }),
   'measure.summarize': (q) => ({ summary: summarize(q.rows.map((r) => ({ ...r }))).map(({ family, metric, levels, worst }) => ({ family, metric, levels, worst })) }),
   'measure.quietSteps': (q) => quietReply(q),
+  'measure.retry': (q) => (q.attempt >= 1 ? retryReply(q) : undefined),
+  'measure.retryPlan': (q) => retryPlanReply(q),
   'measure.classify': (q) => (q.mode === 'cells' ? classify(q.runs, q.tol) : undefined),
 };
 

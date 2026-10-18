@@ -9,6 +9,7 @@ import Fw.Measure.ZoneBaseline
 import Fw.Measure.StepAlign
 import Fw.Measure.Quiet
 import Fw.Measure.EngineCheck
+import Fw.Measure.Retry
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
 
@@ -39,6 +40,8 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.arms` | `a`, `r` (class tables {type: {class, k, t, tBound?}} of the original and the rewrite) | `types` {type: {a, r (class or `absent`), class (cross-arm), role, reason?}}, `gates`, `roles` |
 | `measure.engineCheck` | `rows`, `classes`, `observed` (see `Fw.Wire.Measure.EngineCheck`) | `verdicts` [row + `verdict`, `reason`, `class`, `runs`, `totals`], `tally` |
 | `measure.zoneBaseline` | `runs` (≥ 3, distinct `id`s) [{id, frames \| zones}] (frames as for `measure.zoneSums`, or that op's `zones`), `zoneHeightPx` (≥ 1, needed when a run gives `frames`), `classes` (the frozen table {type: {class, k, t, tBound?}}) | `runs` (ids), `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, types {type: cell}}], `totals` {type: cell}, `detDrift` [{zone, type}], `detDriftTotals` [type], `tally`; cell = {class (or `unlisted`), rule (`unlisted` reads `quarantined`), perRun, lo, hi, base} |
+| `measure.retry` | `error` (a simctl failure text), `attempt` (≥ 1, attempts made so far), `max` (limit, naturals) | `class` (`transient`, `permanent`), `retry`, `delayMs` (the wait before the next attempt, 0 when not retrying) |
+| `measure.retryPlan` | `errors` (strings: the error of attempt 1, 2, …; the attempt after the last works), `max` | `classes`, `delays` (ms, one per retry), `retries`, `outcome` (`succeeded`, `exhausted`, `permanent`) |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
 namespace Fw.Wire.Measure
@@ -682,12 +685,41 @@ def opQuietSteps (req : Json) : Except String Reply := do
       pure (← str e "type", statusName (Fw.Measure.Quiet.classifyQuiet tol limit durs runs))
     pure (base ++ [("classes", objOf (rows.map fun (t, c) => (t, Json.str c)))])
 
+/-- The wire name of an error class. -/
+def clsName : Fw.Measure.Retry.ErrClass → String
+  | .transient => "transient"
+  | .permanent => "permanent"
+
+/-- `measure.retry`: `{error, attempt, max}` → the class of the message and whether to ask again, with the wait
+(rule: `Fw.Measure.Retry`). -/
+def opRetry (req : Json) : Except String Reply := do
+  let e ← str req "error"
+  let a ← nat req "attempt"
+  let n ← nat req "max"
+  if a < 1 then throw "field attempt: expected at least 1"
+  let c := Fw.Measure.Retry.classify e
+  let r := Fw.Measure.Retry.shouldRetry c a n
+  pure [("class", .str (clsName c)), ("retry", .bool r),
+        ("delayMs", toJson (if r then Fw.Measure.Retry.wait a else 0))]
+
+/-- `measure.retryPlan`: `{errors, max}` → the waits and the end of the plan when attempts 1, 2, … fail with the
+given messages. -/
+def opRetryPlan (req : Json) : Except String Reply := do
+  let es ← strs req "errors"
+  let n ← nat req "max"
+  let cs := es.map Fw.Measure.Retry.classify
+  let ds := Fw.Measure.Retry.plan n cs 1
+  let o := match Fw.Measure.Retry.outcome n cs 1 with
+    | .succeeded => "succeeded" | .exhausted => "exhausted" | .permanent => "permanent"
+  pure [("classes", .arr (cs.toArray.map fun c => .str (clsName c))), ("delays", toJson ds),
+        ("retries", toJson ds.length), ("outcome", .str o)]
+
 /-- The `measure.*` ops. -/
 def ops : List String :=
   ["measure.zoneSums", "measure.classify", "measure.noMoreWork", "measure.webkit.tally",
    "measure.webkit.reduceSteps", "measure.webkit.zones", "measure.webkit.align", "measure.webkit.pairRows", "measure.symDiff", "measure.summarize",
    "measure.selfCheck", "measure.snapshotCounts", "measure.freeze", "measure.splits", "measure.n0Windows",
-   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps", "measure.engineCheck"]
+   "measure.spkq", "measure.arms", "measure.zoneBaseline", "measure.quietSteps", "measure.engineCheck", "measure.retry", "measure.retryPlan"]
 
 /-- Dispatch a `measure.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -711,6 +743,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.arms" => some (opArms req)
   | "measure.zoneBaseline" => some (opZoneBaseline req)
   | "measure.quietSteps" => some (opQuietSteps req)
+  | "measure.retry" => some (opRetry req)
+  | "measure.retryPlan" => some (opRetryPlan req)
   | "measure.engineCheck" => some (Fw.Wire.Measure.EngineCheck.op req)
   | _ => none
 
