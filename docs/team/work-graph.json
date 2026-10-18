@@ -4755,7 +4755,8 @@
     "lean/scripts/check.sh",
     "lean/scripts/EngineGoldens.lean",
     "docs/team/handoffs/engine-model-fix-2.md"
-   ]
+   ],
+   "evidence": "6430263"
   },
   {
    "id": "mistake-record-4",
