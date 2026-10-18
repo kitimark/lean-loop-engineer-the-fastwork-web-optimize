@@ -12,7 +12,10 @@ golden vectors of `measure.viewport`.
 -/
 namespace Fw.Measure.Viewport
 
-/-- The width and height in CSS pixels of a viewport. -/
+/-- The width and height in CSS pixels of a viewport.
+
+$$s = (s_w, s_h) \in \mathbb{N} \times \mathbb{N}$$
+-/
 structure Size where
   w : Nat
   h : Nat
