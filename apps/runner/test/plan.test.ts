@@ -42,6 +42,19 @@ describe("syncCommands", () => {
     expect(of(edited, "b")).not.toBe(of(g, "b"));
     expect(of(edited, "a")).toBe(of(g, "a"));
   });
+  it("the ancestry fact: evidenceOnMain false only for a sha-like evidence off main, with its own key", () => {
+    const asked: string[] = [];
+    const off = (sha: string) => { asked.push(sha); return false; };
+    const tasks = [T("a", [], { evidence: "abc1234" }), T("r", [], { evidence: "39053169745" }), T("u", [], { evidence: "user: ok" }), T("n")];
+    const c = syncCommands({ milestones: [], tasks }, "lead", off);
+    expect(c[0]).toMatchObject({ task: "a", evidenceOnMain: false });
+    for (const x of c.slice(1)) expect(x).not.toHaveProperty("evidenceOnMain");
+    expect(asked).toEqual(["abc1234"]);
+    const on = syncCommands({ milestones: [], tasks }, "lead", () => true);
+    expect(on[0]).not.toHaveProperty("evidenceOnMain");
+    expect(on[0]!.key).toBe(syncCommands({ milestones: [], tasks })[0]!.key);
+    expect(c[0]!.key).not.toBe(on[0]!.key);
+  });
   it("clips an over-long title to the contract's 200", () => {
     const c = syncCommands({ milestones: [], tasks: [T("a", [], { title: "x".repeat(300) })] })[0] as { title: string };
     expect(c.title).toHaveLength(200);
@@ -118,6 +131,12 @@ describe("plan lint", () => {
     expect(await lintCli([f], here, bad, commits)).toBe(1);
     expect(seen[0]).toMatchObject({ op: "plan.lint", commits, tasks: [{ id: "a", deps: ["b"], evidence: null }, { id: "b", evidence: "abc1234" }] });
     expect(await lintCli([f], here, good, commits)).toBe(0);
+    seen.length = 0;
+    await lintCli([f], here, bad, commits, () => false);
+    expect((seen[0]!.tasks as object[])[1]).toMatchObject({ id: "b", evidenceOnMain: false });
+    seen.length = 0;
+    await lintCli([f], here, bad, commits, () => true);
+    expect((seen[0]!.tasks as object[])[1]).not.toHaveProperty("evidenceOnMain");
     await expect(lintCli([], here)).rejects.toThrow(/usage/);
   });
 });

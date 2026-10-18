@@ -139,7 +139,7 @@ export const selectChecks = (ds: { id: string; reads: string[] }[], changed: str
   ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
 
 /** What `lean/scripts/check.sh` reads: Lean `Fw.Console.LandSpeed.checkShReads` (equal to the golden's declaration). */
-export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "scripts/span.sh"];
+export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh"];
 export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
 /** Files a package's tests read outside their own directory and outside their `workspace:` dependencies, found by the
  *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
@@ -149,7 +149,10 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "apps/runner": ["apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
-    ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs"],
+    ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
+    // site-build-cache: ci-paths reads each setup-lean job's Lake targets (lakefile, the scripts its run: blocks call) into
+    // the generated lean/Fw/Ops/LakeJobsGen.lean and compares
+    "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
   "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/contracts/golden/parts/**"],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["packages/contracts/golden/measure/**", "results/baselines/chromium/**"],
@@ -273,9 +276,17 @@ export const prelockAction = (head: string, main0: string, verdict: boolean, att
   head === main0 ? (verdict ? "ff" : "refuse") : attempt < maxRetry ? "recheck" : "fallback";
 export const PRELOCK_RETRIES = 3;
 
-/** Checks that may run at once. TS stand-in for Lean `Fw.Console.LandSpeed.poolSize` (`poolSize_pos`, `poolSize_anti_load`,
- *  `poolSize_mono_cores`); marked for Lean replacement; `loadCeil` is the one-minute load average rounded up. */
-export const poolSize = (cores: number, loadCeil: number): number => Math.max(1, cores - loadCeil);
+/** Checks that may run at once: Lean `Fw.Console.LandPool.poolFair` (an `fwcore` op, `console.landPool`; golden
+ *  `console.landPool.jsonl`): the cores not taken by other work, never fewer than half the cores. `loadCeil` is the one-minute
+ *  load average rounded up. Without fwcore: 1 (serial; the verdict is the same, `verdict_perm`). */
+export const poolFor = (cores: number, loadCeil: number): number => {
+  const r = askCore("console.landPool", { cores, load: loadCeil });
+  return r && Number.isInteger(r.pool) && r.pool >= 1 ? r.pool : 1;
+};
+/** Does a failed check re-run alone? Lean `Fw.Console.LandPool.rerunAlone` (`console.landRetry`); `loadFailure` is the fact that
+ *  the output shows a timeout. Without fwcore: no (the failure stands). */
+export const rerunAlone = (passed: boolean, loadFailure: boolean): boolean =>
+  askCore("console.landRetry", { passed, loadFailure })?.rerun === true;
 /** A failure that load, not the code, can cause: a timeout (vitest "timed out in 5000ms", a killed child). */
 export const LOAD_FAILURE_RE = /timed out in \d+\s*ms|ETIMEDOUT|Hook timed out|Test timed out/;
 
@@ -456,7 +467,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const results: ({ status: number | null; out: string } | undefined)[] = list.map(() => undefined);
     const started = new Set<number>();
     let running = 0;
-    const limit = Math.max(1, o.concurrency ?? poolSize(availableParallelism(), Math.ceil(loadavg()[0] ?? 0)));
+    const limit = Math.max(1, o.concurrency ?? poolFor(availableParallelism(), Math.ceil(loadavg()[0] ?? 0)));
     await new Promise<void>((done) => {
       const pump = () => {
         for (let i = 0; i < list.length && running < limit; i++) {
@@ -476,7 +487,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     // and its second result counts (the verdict is still the conjunction of the final results: `verdict_perm`).
     for (let i = 0; i < list.length; i++) {
       const r0 = results[i]!;
-      if (r0.status === 0 || !LOAD_FAILURE_RE.test(r0.out)) continue;
+      if (!rerunAlone(r0.status === 0, LOAD_FAILURE_RE.test(r0.out))) continue;
       const argv = list[i]!;
       const p = await span("fw land", `${argv.join(" ")} (retry alone: timed out under load)`, () => runCheck(cwd, argv), (r) => r.status);
       results[i] = { status: p.status, out: `${r0.out}\n[timed out under load; re-run alone]\n${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };

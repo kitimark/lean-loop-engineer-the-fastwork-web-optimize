@@ -12,7 +12,7 @@ import { selectCore } from "../../console-api/src/core/index.ts";
 import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
-import { land, poolSize, prelockAction, type Http } from "../src/land.ts";
+import { land, poolFor, prelockAction, rerunAlone, type Http } from "../src/land.ts";
 import { lockFile } from "../hooks/land-guard.mjs";
 
 let stores: Store[] = [];
@@ -159,13 +159,15 @@ describe("prelockAction: the Lean decision (golden landSpeed.prelock)", () => {
 });
 
 describe("load: the pool shrinks and a timeout is re-run alone", () => {
-  it("poolSize = max 1 (cores - ceil load): Lean table (#guard poolSize) and monotone", () => {
-    expect([poolSize(10, 0), poolSize(10, 3), poolSize(10, 23), poolSize(0, 0)]).toEqual([10, 7, 1, 1]);
-    for (let c = 0; c < 12; c++) for (let l = 0; l < 30; l++) {
-      expect(poolSize(c, l)).toBeGreaterThanOrEqual(1);
-      expect(poolSize(c, l + 1)).toBeLessThanOrEqual(poolSize(c, l));
-      expect(poolSize(c + 1, l)).toBeGreaterThanOrEqual(poolSize(c, l));
-    }
+  it("poolFor is Lean poolFair: golden console.landPool rows, never below half the cores, anti-monotone in load", () => {
+    const rows = readFileSync(join(here, "../../../packages/contracts/golden/console/console.landPool.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)).filter((c) => !c.response.error);
+    expect(rows.length).toBeGreaterThan(5);
+    for (const r of rows) expect(poolFor(r.request.cores, r.request.load), r.name).toBe(r.response.pool);
+    for (const l of [0, 5, 9, 20]) expect(poolFor(8, l + 1)).toBeLessThanOrEqual(poolFor(8, l));
+    expect(poolFor(8, 40)).toBeGreaterThanOrEqual(4);
+  });
+  it("rerunAlone is Lean rerunAlone: only a failed check with a load signature re-runs", () => {
+    expect([rerunAlone(true, true), rerunAlone(true, false), rerunAlone(false, false), rerunAlone(false, true)]).toEqual([false, false, false, true]);
   });
   it("a check that timed out is run once more alone and its second result counts; a plain failure is not re-run", async () => {
     const { fx, opts } = await setup();

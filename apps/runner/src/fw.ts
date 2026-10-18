@@ -4,7 +4,7 @@ import { NO_API_GROUPS, UsageError, apiBase, renderBoard, send, stepCommand } fr
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land } from "./land.ts";
 import { exitCode, verdictLine } from "./land-verdict.ts";
-import { lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
+import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { nextMain, watchMain } from "./watch.ts";
@@ -54,7 +54,7 @@ try {
     } else if (rest[0] === "sync" && rest[1]) {
       const refusal = syncRefusal(process.cwd());
       if (refusal) throw new Error(refusal);
-      const cmds = syncCommands(JSON.parse(readFileSync(rest[1], "utf8")) as WorkGraph);
+      const cmds = syncCommands(JSON.parse(readFileSync(rest[1], "utf8")) as WorkGraph, "lead", gitOnMain(process.cwd()));
       const { body } = await send(base, cmds, process.argv.slice(2)); // one capability, one array
       const rs = body.replies ?? [];
       const n = (f: (r: { ok: boolean; duplicate?: boolean }) => boolean) => rs.filter(f).length;
@@ -85,7 +85,7 @@ try {
         if (!existsSync(f)) return [];
         const refusal = syncRefusal(mainDir);
         if (refusal) throw new Error(refusal);
-        return [await syncViaCommands(httpFor(base), JSON.parse(readFileSync(f, "utf8")) as WorkGraph)];
+        return [await syncViaCommands(httpFor(base), JSON.parse(readFileSync(f, "utf8")) as WorkGraph, gitOnMain(mainDir))];
       },
       // FW_LAND_CHECKS='[["cmd","arg"]]' replaces the default checks (used by the e2e script on a temp repo)
       checks: process.env.FW_LAND_CHECKS ? JSON.parse(process.env.FW_LAND_CHECKS) : undefined });

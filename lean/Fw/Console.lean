@@ -867,28 +867,35 @@ theorem project_plan_inv (l : List Event) : Fw.Plan.Inv (project l).plan := by
   | nil => intro s h; exact h
   | cons e l ih => intro s h; exact ih _ (apply_plan_inv e h)
 
-/-- **Done is monotone over the console reducer**: once a task id is done it stays done.
+/-- **A land is never undone over the console reducer**: once a task id holds evidence from a land
+event (`task.done`), every event keeps it landed (and so done). Done from define evidence alone is
+not monotone: a later define without evidence takes it back (`Fw.Plan.define_removes_unlanded_evidence`).
 
-$$\forall \sigma, e, x:\quad \operatorname{isDone}(\sigma.\mathit{plan}.\mathit{tasks}, x) \Rightarrow \operatorname{isDone}(\operatorname{apply}(\sigma, e).\mathit{plan}.\mathit{tasks}, x)$$
+$$\forall \sigma, e, x:\quad \operatorname{isLanded}(\sigma.\mathit{plan}.\mathit{tasks}, x) \Rightarrow \operatorname{isLanded}(\operatorname{apply}(\sigma, e).\mathit{plan}.\mathit{tasks}, x)$$
 -/
-theorem apply_isDone {s : State} (e : Event) {x : String}
-    (h : Fw.Plan.isDone s.plan.tasks x = true) : Fw.Plan.isDone (apply s e).plan.tasks x = true := by
+theorem apply_isLanded {s : State} (e : Event) {x : String}
+    (h : Fw.Plan.isLanded s.plan.tasks x = true) :
+    Fw.Plan.isLanded (apply s e).plan.tasks x = true := by
   rcases apply_plan_cases s e with h1 | ⟨c, _, hc, h1⟩
   · rw [h1]; exact h
-  · rw [h1]; exact Fw.Plan.exec_isDone hc h
+  · rw [h1]; exact Fw.Plan.exec_isLanded hc h
 
-/-- Done is monotone over replay: a task done after a log stays done after any extension.
+/-- A land is never undone over replay: a task landed after a log stays landed, and so done, after
+any extension.
 
-$$\forall L_1, L_2, x:\quad \operatorname{isDone}(\operatorname{project}(L_1).\mathit{plan}.\mathit{tasks}, x) \Rightarrow \operatorname{isDone}(\operatorname{project}(L_1 \mathbin{+\!\!+} L_2).\mathit{plan}.\mathit{tasks}, x)$$
+$$\forall L_1, L_2, x:\quad \operatorname{isLanded}(\operatorname{project}(L_1).\mathit{plan}.\mathit{tasks}, x) \Rightarrow \operatorname{isLanded}(\operatorname{project}(L_1 \mathbin{+\!\!+} L_2).\mathit{plan}.\mathit{tasks}, x) \land \operatorname{isDone}(\operatorname{project}(L_1 \mathbin{+\!\!+} L_2).\mathit{plan}.\mathit{tasks}, x)$$
 -/
-theorem project_isDone (l₁ l₂ : List Event) {x : String}
-    (h : Fw.Plan.isDone (project l₁).plan.tasks x = true) :
-    Fw.Plan.isDone (project (l₁ ++ l₂)).plan.tasks x = true := by
+theorem project_isLanded (l₁ l₂ : List Event) {x : String}
+    (h : Fw.Plan.isLanded (project l₁).plan.tasks x = true) :
+    Fw.Plan.isLanded (project (l₁ ++ l₂)).plan.tasks x = true ∧
+      Fw.Plan.isDone (project (l₁ ++ l₂)).plan.tasks x = true := by
+  suffices hl : Fw.Plan.isLanded (project (l₁ ++ l₂)).plan.tasks x = true from
+    ⟨hl, Fw.Plan.isLanded_isDone hl⟩
   rw [project_append]
   induction l₂ generalizing l₁ with
   | nil => exact h
   | cons e l ih =>
-    have := ih (l₁ ++ [e]) (by rw [project_append]; exact apply_isDone e h)
+    have := ih (l₁ ++ [e]) (by rw [project_append]; exact apply_isLanded e h)
     rw [project_append] at this
     simpa using this
 
