@@ -120,8 +120,23 @@ Unchanged:
 
 ## Measured on CI (branch `ci/ci-own-trigger`, 3 pushes)
 
-See the run ids in `docs/team/handoffs/ci-own-trigger.md`. Push 1 asked for one macOS lane (`[ci:engine-premises]`). Push 2
-carried no token, and push 3 superseded it at once.
+Two pushes covered all three checks (MEASURED, `gh run list` / `gh run view`); a third was not needed.
+
+| push | head message | runs created | runs started (≥ 1 runner job) | macOS min |
+|---|---|---:|---|---:|
+| 1 `3da2c3d` (via `fw ci push --lanes engine-premises`) | `ci: request [ci:engine-premises]` | 13 | 1: engine-premises 39106170371 (guard `run=true`, "2 of 56 changed files match") | 3.3 (webkit j1, then cancelled by push 2) |
+| 2 `74ea297` (via `fw ci push --lanes lean`, no token needed) | no `[ci:` | 13 | 1: lean 39106360843, success (guard 6 s, lean 1.7 min, mathview 3.4 min) | 0 |
+
+- In both pushes the other 12 runs ended `skipped` at the guard `if:`, so no runner started (for example lean 39106170390
+  on push 1, and wktr 39106360904 and engine-premises 39106360862 on push 2).
+- **Supersede.** Push 2 came 3 min after push 1 and changed `.github/scripts/changed-inputs.mjs`, an input of
+  engine-premises.
+  - Run 39106170371 was cancelled at 07:05:16Z, 2 s after the push, through workflow concurrency.
+  - Its queued macOS jobs webkit j2 and j3 never ran. Only j1, already running, lost 3.3 macOS minutes.
+  - Push 2's own engine-premises run was skipped because push 2 did not request it.
+- Before, the same push touched all 13 workflows' inputs (as ci-trigger-lean did), so it would have started 13 runs,
+  4 of them with macOS jobs. After, 1 run per push and 0 macOS minutes for the no-token push.
+- The local preview of `fw ci push` ("2 of 56") matched the guard on CI exactly.
 
 ## Limits and open items
 
