@@ -3272,7 +3272,8 @@
     "scripts/check.sh",
     "apps/site/scripts/shell-measure.mjs",
     "packages/contracts/golden/ops/checkmap.jsonl"
-   ]
+   ],
+   "evidence": "7efeb69"
   },
   {
    "id": "wait-guard",
