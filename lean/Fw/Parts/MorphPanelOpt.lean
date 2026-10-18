@@ -3,6 +3,7 @@ import Fw.Engine.Chromium
 import Fw.Engine.WebKit
 import Fw.Engine.Visual
 import Fw.Parts.EndFlags
+import Fw.Engine.Lessons
 /-!
 # morph.panel: `blur(0)` → `none` at rest, and an own layer during the fade (MP)
 
@@ -37,11 +38,15 @@ frame, so the fade is `φ = 1 - min(1, r / 0.55)`. At rest (`r ≤ 0`) the panel
 * (work) at rest: `cr_rest_le`/`cr_rest_lt` and `wk_rest_le`/`wk_rest_lt` per frame, `cr_rest_claim` and
   `wk_rest_claim` per run (both `dominates`). WebKit gains only the compositor draw of the indirect layer and one
   resident layer (`wk_rest_layers`); `wk_rest_panel_not_mono` shows why a panel-level change at rest would break it.
-* (work) at the rest↔fade toggle frames the `none`↔`blur` flip costs more: `cr_toggle_not_le` (stacking-context flip,
-  full layout) and `wk_toggle_not_le` (`filterToggle` is a layout change). The rest win is not per-frame everywhere.
-* (work) during the fade, a **trade**: `cr_fade_le`, `cr_fade_raster_drop` (raster units −1 per frame),
-  `fade_layers_up` (resident layers +1), `cr_fade_trade` (`claim = trade`). WebKit: `wk_fade_paint_drop` (paint −2),
-  `wk_fade_props_up` (props +2), `wk_fade_not_le` (no per-frame order: `wk_not_mono`).
+* (work) at the rest↔fade toggle frames: in Chromium the `none`↔`blur` flip costs more, `cr_toggle_not_le`
+  (stacking-context flip, full layout); in WebKit the toggle frames are equal, `wk_toggle_eqv` (the original's
+  `blur(0)`↔`blur(x)` change also lays out). The rest win is not per-frame in Chromium.
+* (work) during the fade. Chromium: **no claim**, `cr_fade_stages` (the blur write is `raster` on every layer
+  state), `cr_fade_eq`, `cr_fade_noClaim`. WebKit: a **trade**, `wk_fade_le`, `wk_fade_paint_drop` (paint −1),
+  `wk_fade_props_drop` (props −1), `fade_layers_up` (resident layers +1), `wk_fade_trade` (`claim = trade`).
+* Changed since CI run 39088367495 (engine-model-fix): the Chromium fade was a trade (raster −1, by the refuted
+  `ppFull` rule for a blur on an own layer) and the WebKit fade had no per-frame order (paint −2, props +2); the
+  WebKit toggle frame was not dominated (one more layout unit).
 * Golden rows for `rewrite+?fw=morph.panel:rest` against `rewrite`.
 
 Premises are hypotheses. Exact arithmetic: `Rat` for progress, fade and radius; `Nat` for counts.
@@ -469,7 +474,7 @@ theorem wk_rest_panel_not_mono :
       (frameWork webkit (jsFrame [⟨panel, .opacity, .own⟩])) := by
   decide
 
-/-! ## The rest↔fade toggle frames: not dominated -/
+/-! ## The rest↔fade toggle frames: not dominated in Chromium, equal in WebKit -/
 
 open Fw.Engine.Chromium in
 /-- **Chromium toggle frame**: the variant's `none`↔`blur` flip turns the panel's stacking context on or off, which
@@ -536,14 +541,18 @@ $$\forall \ell:\ \operatorname{wkEdge}_v(\ell) = \operatorname{jsFrame}[(\mathrm
 def wkEdgeV (ℓ : LayerState) : FrameIn WkProp := jsFrame [⟨panel, .opacityCross1, ℓ⟩, ⟨panel, .filterToggle, ℓ⟩]
 
 open Fw.Engine.WebKit in
-/-- **WebKit toggle frame, layout units**: the flip is a second layout change (`filterToggle` has raw level Layout,
-`WC/style/StyleDifference.cpp:217`), so the variant lays out 2 changes where the original lays out 1.
+/-- **WebKit toggle frame, layout units**: the flip is a layout change (`filterToggle` has raw level Layout,
+`WC/style/StyleDifference.cpp:217`), and so is the original's `blur(0)` ↔ `blur(x)` value change, because it changes
+the filter outsets (`WC/style/StyleDifference.cpp:68-83`@862f17d, CONFIRMED; MEASURED by the engine-premises lane).
+Both arms lay out 2 changes.
 
-$$\forall \ell:\ \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_v(\ell)).\mathrm{units}(\mathrm{layout}) = 2 \land \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_o(\ell)).\mathrm{units}(\mathrm{layout}) = 1$$
+Changed since CI run 39088367495: the original's filter change was modelled as no layout (1 unit against 2).
 
-One more layout unit on each toggle frame. -/
+$$\forall \ell:\ \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_v(\ell)).\mathrm{units}(\mathrm{layout}) = 2 \land \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_o(\ell)).\mathrm{units}(\mathrm{layout}) = 2$$
+
+Both toggle frames lay out the panel twice. -/
 theorem wk_toggle_layout_units (ℓ : LayerState) :
-    (frameWork webkit (wkEdgeV ℓ)).units .layout = 2 ∧ (frameWork webkit (wkEdgeO ℓ)).units .layout = 1 := by
+    (frameWork webkit (wkEdgeV ℓ)).units .layout = 2 ∧ (frameWork webkit (wkEdgeO ℓ)).units .layout = 2 := by
   cases ℓ <;> decide
 
 open Fw.Engine.WebKit in
@@ -551,24 +560,24 @@ open Fw.Engine.WebKit in
 
 $$\forall \ell,\ \forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_v(\ell)).\mathrm{passes}(s) = \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_o(\ell)).\mathrm{passes}(s)$$
 
-Same stages run, one more unit. -/
+Same stages run in both arms. -/
 theorem wk_toggle_passes (ℓ : LayerState) (s : Stage) :
     (frameWork webkit (wkEdgeV ℓ)).passes s = (frameWork webkit (wkEdgeO ℓ)).passes s := by
   cases ℓ <;> cases s <;> decide
 
 open Fw.Engine.WebKit in
-/-- **WebKit toggle frame: not dominated**, whatever effect stages `S` (without `layout`) the original adds.
+/-- **WebKit toggle frame: equal work.** The variant's toggle frame and the original's have the same work in both
+directions of `≼`: each change in either arm is a Layout-level difference.
 
-$$\forall \ell, S:\ \mathrm{layout} \notin S \Rightarrow \neg\Big(\operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_v(\ell)) \preceq \operatorname{bump}(\operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_o(\ell)), S)\Big)$$
+Changed since CI run 39088367495: this replaces `wk_toggle_not_le` (the variant's frame was not below the
+original's, by one layout unit), which the corrected filter rule refutes.
 
-The flip frame costs one more layout unit. -/
-theorem wk_toggle_not_le (ℓ : LayerState) (ss : List Stage) (hs : Stage.layout ∉ ss) :
-    ¬ (frameWork webkit (wkEdgeV ℓ)).le (bump (frameWork webkit (wkEdgeO ℓ)) ss) := by
-  intro h
-  have h1 := (h.1 .layout).2
-  have h2 := wk_toggle_layout_units ℓ
-  simp only [bump, hs, ite_false, Nat.add_zero] at h1
-  omega
+$$\forall \ell:\ \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_v(\ell)) \preceq \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_o(\ell)) \land \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_o(\ell)) \preceq \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_v(\ell))$$
+
+On WebKit the `none` ↔ `blur` flip costs nothing over the original's toggle. -/
+theorem wk_toggle_eqv (ℓ : LayerState) :
+    (frameWork webkit (wkEdgeV ℓ)).eqv (frameWork webkit (wkEdgeO ℓ)) := by
+  cases ℓ <;> exact ⟨frame_le_union webkit (by decide), frame_le_union webkit (by decide)⟩
 
 /-! ## (work) during the fade: an own layer is a trade -/
 
@@ -582,8 +591,11 @@ theorem coverB_self {P M : Type} (E : Engine P M) : ∀ cs : List (Change P), co
   | c :: cs => by simp [coverB, coverB_self E cs]
 
 open Fw.Engine.Chromium in
-/-- **Chromium fade frame, per frame `≤`**: on its own layer the fade write is a property-tree update (`ppFull`);
-on a non-composited panel it re-rasters (`raster`), and `ppFull ≤ raster`.
+/-- **Chromium fade frame, per frame `≤`**: the fade write re-rasters (`raster`) on every layer state, so the own
+layer adds no work in a fade frame (the frames are in fact equal, `cr_fade_eq`).
+
+Changed since CI run 39088367495: on its own layer the blur write was modelled as a property-tree update (`ppFull`,
+below `raster`); the engine-premises lane MEASURED a raster for a blur value change on an own layer.
 
 $$\forall \ell_o \ne \mathrm{own},\ \forall C:\ \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\mathrm{own}, C)) \preceq \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\ell_o, C))$$
 
@@ -599,21 +611,30 @@ theorem cr_fade_le (ℓo : LayerState) (h : ℓo ≠ .own) (cs : List (Change Cr
   · exact absurd rfl h
 
 open Fw.Engine.Chromium in
-/-- **The raster drop**: per fade frame, one raster unit fewer on the own layer.
+/-- **The fade write re-rasters on every layer state**: the `--morph-fade` write's stages are the `raster` level's,
+whether the panel is unlayered, on a shared layer or on its own layer (a blur value change on an own layer is
+`raster`, `keyLevel`).
 
-$$\forall \ell_o \ne \mathrm{own},\ \forall C:\ \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\mathrm{own}, C)).\mathrm{units}(\mathrm{raster}) + 1 = \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\ell_o, C)).\mathrm{units}(\mathrm{raster})$$
+Changed since CI run 39088367495: this replaces `cr_fade_raster_drop` (one raster unit fewer per fade frame on the
+own layer), which the engine-premises lane refuted (MEASURED: raster on `filter(blur)` at `own`).
 
-The fade stops re-rastering the panel. -/
-theorem cr_fade_raster_drop (ℓo : LayerState) (h : ℓo ≠ .own) (cs : List (Change CrProp)) :
-    (frameWork chromium (crFade .own cs)).units .raster + 1 = (frameWork chromium (crFade ℓo cs)).units .raster := by
-  have hv : decide (Stage.raster ∈ chromium.stagesOf ⟨panel, fadeProp, .own⟩) = false := by decide
-  have ho : decide (Stage.raster ∈ chromium.stagesOf ⟨panel, fadeProp, ℓo⟩) = true := by
-    cases ℓo
-    · decide
-    · decide
-    · exact absurd rfl h
-  simp only [frameWork, stageUnits, crFade, jsWrite, List.countP_cons, hv, ho]
-  simp
+$$\forall \ell:\ \operatorname{chromium.stagesOf}(\mathrm{panel}, \mathrm{fadeProp}, \ell) = \operatorname{stages}(\mathrm{raster})$$
+
+The own layer does not take the blur off the raster path. -/
+theorem cr_fade_stages (ℓ : LayerState) :
+    chromium.stagesOf ⟨panel, fadeProp, ℓ⟩ = CrLevel.raster.stages := by
+  cases ℓ <;> decide
+
+open Fw.Engine.Chromium in
+/-- **Chromium fade frames are equal** in both arms: the fade frame on the own layer has the same work as on any
+other layer state.
+
+$$\forall \ell_o,\ \forall C:\ \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\mathrm{own}, C)) = \operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\ell_o, C))$$
+
+An own layer changes no counted work in a Chromium fade frame. -/
+theorem cr_fade_eq (ℓo : LayerState) (cs : List (Change CrProp)) :
+    frameWork chromium (crFade .own cs) = frameWork chromium (crFade ℓo cs) := by
+  cases ℓo <;> rfl
 
 /-- **Resident state with or without the panel's own layer**: one more composited layer and its backing `kpx`.
 
@@ -632,37 +653,37 @@ theorem fade_layers_up (res : Resident) (kpx : Nat) :
     (ownResident true res kpx).layers = (ownResident false res kpx).layers + 1 := rfl
 
 open Fw.Engine.Chromium in
-/-- **(work) during the fade, Chromium: a trade.** Over any non-empty run of fade frames, the variant dominates
-frame by frame (`cr_fade_le`, strict by `cr_fade_raster_drop`) but holds one more layer (`fade_layers_up`), so the
-claim is "trade", never "dominates".
+/-- **(work) during the fade, Chromium: no claim.** Over any run of fade frames the two arms have equal counted work
+(`cr_fade_eq`), so the claim is "noClaim" whatever the resident states (`resident_only_noClaim`); the own layer only
+adds a resident layer (`fade_layers_up`).
 
-$$\forall \ell_o \ne \mathrm{own},\ \forall \mathcal{C} \ne [\,],\ \forall \rho, k:\ \operatorname{claim}\Big(\operatorname{screen}\big(\operatorname{toRun}[\operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\ell_o, C))]_{C \in \mathcal{C}}, \operatorname{toRun}[\operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\mathrm{own}, C))]_{C \in \mathcal{C}}\big), \operatorname{res}(\mathrm{true}, \rho, k), \operatorname{res}(\mathrm{false}, \rho, k)\Big) = \mathrm{trade}$$
+Changed since CI run 39088367495: this replaces `cr_fade_trade` (claim "trade": raster down, layers up), which rested
+on the refuted `ppFull` rule for a blur on an own layer. The sign of the Chromium half changed from trade to no-win.
 
-Raster down, layers up. -/
-theorem cr_fade_trade (ℓo : LayerState) (h : ℓo ≠ .own) (css : List (List (Change CrProp))) (hne : css ≠ [])
-    (res : Resident) (kpx : Nat) :
+$$\forall \ell_o,\ \forall \mathcal{C},\ \forall \rho, k:\ \operatorname{claim}\Big(\operatorname{screen}\big(\operatorname{toRun}[\operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\ell_o, C))]_{C \in \mathcal{C}}, \operatorname{toRun}[\operatorname{frameWork}_{\mathrm{chromium}}(\operatorname{crFade}(\mathrm{own}, C))]_{C \in \mathcal{C}}\big), \operatorname{res}(\mathrm{true}, \rho, k), \operatorname{res}(\mathrm{false}, \rho, k)\Big) = \mathrm{noClaim}$$
+
+Same raster, one more layer. -/
+theorem cr_fade_noClaim (ℓo : LayerState) (css : List (List (Change CrProp))) (res : Resident) (kpx : Nat) :
     claim (Screen.screen (toRun (css.map fun cs => frameWork chromium (crFade ℓo cs)))
         (toRun (css.map fun cs => frameWork chromium (crFade .own cs))))
-      (ownResident true res kpx) (ownResident false res kpx) = .trade := by
-  have hlt : ∀ cs, (frameWork chromium (crFade .own cs)).lt (frameWork chromium (crFade ℓo cs)) := fun cs =>
-    ⟨cr_fade_le ℓo h cs, Or.inl ⟨.raster, Or.inr (by have := cr_fade_raster_drop ℓo h cs; omega)⟩⟩
-  obtain ⟨c, cs', rfl⟩ : ∃ c cs', css = c :: cs' := by
-    cases css with
-    | nil => exact absurd rfl hne
-    | cons c cs' => exact ⟨c, cs', rfl⟩
-  rw [run_claim _ _ (leAll_map _ _ (fun cs => cr_fade_le ℓo h cs) _)
-    (someLt_map _ _ _ ⟨c, List.mem_cons_self, hlt c⟩)]
-  simp [ownResident, Resident.le]
-  intro h; omega
+      (ownResident true res kpx) (ownResident false res kpx) = .noClaim := by
+  apply resident_only_noClaim
+  rw [show (fun cs => frameWork chromium (crFade .own cs)) = (fun cs => frameWork chromium (crFade ℓo cs)) from
+    funext fun cs => cr_fade_eq ℓo cs]
 
 open Fw.Engine.WebKit in
-/-- **The original's WebKit fade frame** on a non-composited panel: the painted filter and the opacity change.
+/-- **The original's WebKit fade frame** on a non-composited panel: the blur value change and the opacity change.
+The blur radius changes every fade frame, so the filter outsets change: the change is `filter`, not
+`filterPainted` (same outsets).
 
-$$\forall C:\ \operatorname{wkFade}_o(C) = \operatorname{jsFrame}\big((\mathrm{panel}, \mathrm{filterPainted}, \mathrm{layer}) :: (\mathrm{panel}, \mathrm{opacity}, \mathrm{layer}) :: C\big)$$
+Changed since CI run 39088367495: the first change was `filterPainted`, which since that run means a same-outset
+filter change; the fade's radius change is the outset-changing `filter`.
+
+$$\forall C:\ \operatorname{wkFade}_o(C) = \operatorname{jsFrame}\big((\mathrm{panel}, \mathrm{filter}, \mathrm{layer}) :: (\mathrm{panel}, \mathrm{opacity}, \mathrm{layer}) :: C\big)$$
 
 One fade step, painted. -/
 def wkFadeO (cs : List (Change WkProp)) : FrameIn WkProp :=
-  jsFrame (⟨panel, .filterPainted, .layer⟩ :: ⟨panel, .opacity, .layer⟩ :: cs)
+  jsFrame (⟨panel, .filter, .layer⟩ :: ⟨panel, .opacity, .layer⟩ :: cs)
 
 open Fw.Engine.WebKit in
 /-- **The variant's WebKit fade frame** on the own layer: the composited filter and the opacity change.
@@ -674,56 +695,89 @@ def wkFadeV (cs : List (Change WkProp)) : FrameIn WkProp :=
   jsFrame (⟨panel, .filter, .own⟩ :: ⟨panel, .opacity, .own⟩ :: cs)
 
 open Fw.Engine.WebKit in
-/-- **WebKit fade: the paint drop.** Both panel changes leave `paint` on the own layer.
+/-- **WebKit fade: the paint drop.** The opacity change leaves `paint` on the own layer; the blur change paints in
+both arms (it is a Layout-level change).
 
-$$\forall C:\ \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_v(C)).\mathrm{units}(\mathrm{paint}) + 2 = \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_o(C)).\mathrm{units}(\mathrm{paint})$$
+Changed since CI run 39088367495: the drop was 2 units (the filter change also left paint); the corrected filter
+rule makes the blur change Layout on every layer state.
 
-Two paint units fewer per fade frame. -/
+$$\forall C:\ \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_v(C)).\mathrm{units}(\mathrm{paint}) + 1 = \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_o(C)).\mathrm{units}(\mathrm{paint})$$
+
+One paint unit fewer per fade frame. -/
 theorem wk_fade_paint_drop (cs : List (Change WkProp)) :
-    (frameWork webkit (wkFadeV cs)).units .paint + 2 = (frameWork webkit (wkFadeO cs)).units .paint := by
-  have h1 : decide (Stage.paint ∈ webkit.stagesOf ⟨panel, .filter, .own⟩) = false := by decide
+    (frameWork webkit (wkFadeV cs)).units .paint + 1 = (frameWork webkit (wkFadeO cs)).units .paint := by
+  have h1 : decide (Stage.paint ∈ webkit.stagesOf ⟨panel, .filter, .own⟩) = true := by decide
   have h2 : decide (Stage.paint ∈ webkit.stagesOf ⟨panel, .opacity, .own⟩) = false := by decide
-  have h3 : decide (Stage.paint ∈ webkit.stagesOf ⟨panel, .filterPainted, .layer⟩) = true := by decide
+  have h3 : decide (Stage.paint ∈ webkit.stagesOf ⟨panel, .filter, .layer⟩) = true := by decide
   have h4 : decide (Stage.paint ∈ webkit.stagesOf ⟨panel, .opacity, .layer⟩) = true := by decide
   simp only [frameWork, stageUnits, wkFadeV, wkFadeO, jsFrame, List.countP_cons, h1, h2, h3, h4]
   simp
 
 open Fw.Engine.WebKit in
-/-- **WebKit fade: the props rise** (`wk_not_mono`): both panel changes become recomposites, which run the
-compositing update.
+/-- **WebKit fade: the props drop.** By the compositing table (`wkCompUpdate`) an opacity change on an own layer
+runs no compositing update, while on a shared layer it does; the blur change runs one in both arms.
 
-$$\forall C:\ \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_v(C)).\mathrm{units}(\mathrm{props}) = \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_o(C)).\mathrm{units}(\mathrm{props}) + 2$$
+Changed since CI run 39088367495: this replaces `wk_fade_props_up` (props +2 per fade frame), which the
+engine-premises lane refuted (MEASURED: opacity at `own` runs no compositing update, at `layer` it runs one).
 
-Two props units more per fade frame. -/
-theorem wk_fade_props_up (cs : List (Change WkProp)) :
-    (frameWork webkit (wkFadeV cs)).units .props = (frameWork webkit (wkFadeO cs)).units .props + 2 := by
+$$\forall C:\ \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_v(C)).\mathrm{units}(\mathrm{props}) + 1 = \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_o(C)).\mathrm{units}(\mathrm{props})$$
+
+One props unit fewer per fade frame. -/
+theorem wk_fade_props_drop (cs : List (Change WkProp)) :
+    (frameWork webkit (wkFadeV cs)).units .props + 1 = (frameWork webkit (wkFadeO cs)).units .props := by
   have h1 : decide (Stage.props ∈ webkit.stagesOf ⟨panel, .filter, .own⟩) = true := by decide
-  have h2 : decide (Stage.props ∈ webkit.stagesOf ⟨panel, .opacity, .own⟩) = true := by decide
-  have h3 : decide (Stage.props ∈ webkit.stagesOf ⟨panel, .filterPainted, .layer⟩) = false := by decide
-  have h4 : decide (Stage.props ∈ webkit.stagesOf ⟨panel, .opacity, .layer⟩) = false := by decide
+  have h2 : decide (Stage.props ∈ webkit.stagesOf ⟨panel, .opacity, .own⟩) = false := by decide
+  have h3 : decide (Stage.props ∈ webkit.stagesOf ⟨panel, .filter, .layer⟩) = true := by decide
+  have h4 : decide (Stage.props ∈ webkit.stagesOf ⟨panel, .opacity, .layer⟩) = true := by decide
   simp only [frameWork, stageUnits, wkFadeV, wkFadeO, jsFrame, List.countP_cons, h1, h2, h3, h4]
   simp
 
 open Fw.Engine.WebKit in
-/-- **WebKit fade: no per-frame order.** The own layer trades paint for the compositing update, so the variant's
-fade frame is not below the original's; the WebKit fade claim is a trade of stages, not a dominance.
+/-- **WebKit fade frame, per frame `≤`**: each of the variant's panel changes is covered by the original's change of
+the same property, so the own layer adds no work in a fade frame.
 
-$$\forall C:\ \neg\Big(\operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_v(C)) \preceq \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_o(C))\Big)$$
+Changed since CI run 39088367495: this replaces `wk_fade_not_le` (no per-frame order, paint down and props up).
 
-Paint goes down, props go up. -/
-theorem wk_fade_not_le (cs : List (Change WkProp)) :
-    ¬ (frameWork webkit (wkFadeV cs)).le (frameWork webkit (wkFadeO cs)) := by
-  intro h
-  have := (h.1 .props).2
-  have := wk_fade_props_up cs
-  omega
+$$\forall C:\ \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_v(C)) \preceq \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_o(C))$$
 
+On WebKit the own layer never adds work in a fade frame. -/
+theorem wk_fade_le (cs : List (Change WkProp)) :
+    (frameWork webkit (wkFadeV cs)).le (frameWork webkit (wkFadeO cs)) := by
+  refine frame_le_of_cover webkit (wkFadeO cs).changes [] (by simp) ?_ (Nat.le_refl _) (Nat.le_refl _)
+    (Nat.le_refl _) (Nat.le_refl _) (Nat.le_refl _)
+  simp only [wkFadeV, wkFadeO, jsFrame, coverB, coverB_self, Bool.and_true]
+  decide
+
+open Fw.Engine.WebKit in
+/-- **(work) during the fade, WebKit: a trade.** Over any non-empty run of fade frames, the variant is below the
+original frame by frame (`wk_fade_le`, strict by `wk_fade_paint_drop`) but holds one more layer
+(`fade_layers_up`), so the claim is "trade", never "dominates".
+
+New since CI run 39088367495 (the WebKit half was "no per-frame order" before).
+
+$$\forall \mathcal{C} \ne [\,],\ \forall \rho, k:\ \operatorname{claim}\Big(\operatorname{screen}\big(\operatorname{toRun}[\operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_o(C))]_{C \in \mathcal{C}}, \operatorname{toRun}[\operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkFade}_v(C))]_{C \in \mathcal{C}}\big), \operatorname{res}(\mathrm{true}, \rho, k), \operatorname{res}(\mathrm{false}, \rho, k)\Big) = \mathrm{trade}$$
+
+Paint and props down, layers up. -/
+theorem wk_fade_trade (css : List (List (Change WkProp))) (hne : css ≠ []) (res : Resident) (kpx : Nat) :
+    claim (Screen.screen (toRun (css.map fun cs => frameWork webkit (wkFadeO cs)))
+        (toRun (css.map fun cs => frameWork webkit (wkFadeV cs))))
+      (ownResident true res kpx) (ownResident false res kpx) = .trade := by
+  have hlt : ∀ cs, (frameWork webkit (wkFadeV cs)).lt (frameWork webkit (wkFadeO cs)) := fun cs =>
+    ⟨wk_fade_le cs, Or.inl ⟨.paint, Or.inr (by have := wk_fade_paint_drop cs; omega)⟩⟩
+  obtain ⟨c, cs', rfl⟩ : ∃ c cs', css = c :: cs' := by
+    cases css with
+    | nil => exact absurd rfl hne
+    | cons c cs' => exact ⟨c, cs', rfl⟩
+  rw [run_claim _ _ (leAll_map _ _ (fun cs => wk_fade_le cs) _)
+    (someLt_map _ _ _ ⟨c, List.mem_cons_self, hlt c⟩)]
+  simp [ownResident, Resident.le]
+  intro h; omega
 
 /-! ## Golden rows for `engine-check`
 
 The golden variant is `rewrite+?fw=morph.panel:rest` against base `rewrite`: only sub-claim 1 (`blur(0)` → `none`
-at rest). Sub-claim 2 (own layer during the fade) is a trade and gets no golden row. The swipe is modelled as eight
-frames `[rest, rest, enter, fade, fade, leave, rest, rest]`; the lane is one width band (430 px), so one schedule
+at rest). Sub-claim 2 (own layer during the fade) is a trade (WebKit) or no claim (Chromium) and gets no golden
+row. The swipe is modelled as eight frames `[rest, rest, enter, fade, fade, leave, rest, rest]`; the lane is one width band (430 px), so one schedule
 covers all bands the profiles run. -/
 
 /-- The rest frame of the swipe: one script callback with no style change on the panel, and the compositor draws

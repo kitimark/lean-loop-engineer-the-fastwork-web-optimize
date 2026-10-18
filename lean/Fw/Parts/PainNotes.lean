@@ -39,8 +39,8 @@ notes, and re-arming on its flip would need a new listener, one extra callback i
 * Phase: `resumeAt_on_grid`, `resumeAt_ge`, `resumeAt_least`, `resume_grid`; a naive re-arm is not E
   (`naive_rearm_shifts`).
 * Work, both engines: `hiddenTick_le` (every engine, every frame), `hiddenTick_lt` (strict),
-  `cr_idle_tick` / `wk_idle_tick` (an idle hidden-tick frame costs the original a script callback, WebKit also a
-  commit; the variant's frame is all zero, `idle_zero`), `frames_le` (every frame of a run).
+  `cr_idle_tick` / `wk_idle_tick` (an idle hidden-tick frame costs the original a script callback, Chromium also a
+  PrePaint pass and WebKit a commit; the variant's frame is all zero, `idle_zero`), `frames_le` (every frame of a run).
 * Golden rows for `pnpm fw engine-check` (`goldenText`, `packages/contracts/golden/engine/pain-notes.jsonl`).
 
 **Premises** (hypotheses, never axioms): `CovOk` (the original's `T` is empty at every tick that would clear it:
@@ -480,14 +480,19 @@ theorem idle_zero {P M : Type} (E : Engine P M) (s : Stage) :
   cases s <;> simp [frameWork, touched, stageUnits, forcedPasses, idle, FrameIn.updates]
 
 open Fw.Engine.Chromium in
-/-- **Chromium lane: an idle hidden tick costs one script pass and unit, nothing else; the variant's frame is zero.**
+/-- **Chromium lane: an idle hidden tick costs one script pass and unit plus the update's PrePaint (`props`) pass
+(the model's `base`); the variant's frame is zero.**
 
-$$\forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{passes}(s) = [s = \mathrm{script}] \land \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{units}(s) = [s = \mathrm{script}]$$
+Changed since CI run 39088367495: the tick paid only `script`; the engine-premises lane MEASURED a PrePaint pass on
+every script-only frame (`chromiumAt.base = [props]`).
+
+$$\forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{passes}(s) = [s \in \{\mathrm{script}, \mathrm{props}\}] \land \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{units}(s) = [s = \mathrm{script}]$$
 $$\land\ \operatorname{frameWork}_{\mathrm{cr}}(\mathrm{idle}) \prec \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0))$$
 
-On Chromium, each hidden 3 s tick is one timer callback the variant no longer runs. -/
+On Chromium, each hidden 3 s tick is one timer callback and one PrePaint pass the variant no longer runs. -/
 theorem cr_idle_tick :
-    (∀ s : Stage, (frameWork chromium (withTick idle 1 0 0)).passes s = (if s = .script then 1 else 0) ∧
+    (∀ s : Stage, (frameWork chromium (withTick idle 1 0 0)).passes s =
+        (if s = .script ∨ s = .props then 1 else 0) ∧
       (frameWork chromium (withTick idle 1 0 0)).units s = (if s = .script then 1 else 0)) ∧
     (frameWork chromium idle).lt (frameWork chromium (withTick idle 1 0 0)) := by
   refine ⟨fun s => ?_, (hiddenTick_lt chromium idle 1 0 0 (by decide)).1⟩
@@ -621,8 +626,9 @@ What the driver writes. -/
 def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
 
 #guard goldenLines.length == 20
+-- props is `≤o` since CI run 39088367495: the hidden tick pays the base PrePaint pass the variant drops.
 #guard (crTypes.map fun t => relPred (pairsOf Chromium.chromium (Chromium.CrProp.css .transform)) t) ==
-  ["≤o", "≤o", "≤o", "=o", "≤o", "=o", "=o", "=o"]
+  ["≤o", "≤o", "≤o", "=o", "≤o", "≤o", "=o", "=o"]
 #guard (wkTypes.map fun t => relPred (pairsOf WebKit.webkit WebKit.WkProp.transform) t) == ["≤o", "≤o", "=o", "≤o"]
 
 /-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)
