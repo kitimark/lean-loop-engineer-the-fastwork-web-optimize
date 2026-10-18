@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "@fw/contracts";
-import { NO_API_GROUPS, UsageError, apiBase, renderBoard, send, stepCommand, taskCommand } from "./lib.ts";
+import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, stepCommand, taskCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land } from "./land.ts";
 import { exitCode, verdictLine } from "./land-verdict.ts";
@@ -126,7 +126,7 @@ try {
     // `fw send '<json command>'` is the escape hatch for run.* commands
     const cmd = group === "step" ? stepCommand(rest, process.env)
       : group === "card" ? cardCommand(rest, process.env)
-      : group === "task" ? taskCommand(rest, process.env)
+      : group === "task" ? taskCommand(rest, process.env, Date.now(), (b) => gitFullRef(b))
       : Command.parse(JSON.parse(rest[0] ?? "{}"));
     const { body } = await send(base, cmd, process.argv.slice(2));
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);

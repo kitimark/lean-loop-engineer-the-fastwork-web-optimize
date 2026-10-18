@@ -64,12 +64,15 @@ export const Command = z.discriminatedUnion("type", [
   cmd("task.claim", { task: Id, agent: Id }),
   cmd("task.done", { task: Id, evidence: Sha }),
   cmd("milestone.define", { milestone: Id, title: Text }),
-  // agent life (Lean `Fw.Plan`): an agent of this name started / stopped. The board derives the binding from the set
-  // of these facts (an agent named like a task works on it), so their order relative to task.define never matters.
-  cmd("agent.spawn", { agent: Id }),
-  cmd("agent.stop", { agent: Id }),
+  // agent life (Lean `Fw.Plan`): an agent of this name was seen / ended at `at` (ms; missing or null = the event's ts).
+  // The board derives the binding from the set of these facts (an agent named like a task works on it): an agent is
+  // live when some spawn is later than every stop of its name, so neither log order nor the order relative to
+  // task.define matters (task task-state-truth). A tool event of a named agent is a spawn too (a heartbeat).
+  cmd("agent.spawn", { agent: Id, at: z.number().int().nonnegative().nullable().optional() }),
+  cmd("agent.stop", { agent: Id, at: z.number().int().nonnegative().nullable().optional() }),
   // task outcomes (Lean `Fw.Plan`, task task-state-truth): where an ended agent's work went. The last mark of a task
-  // wins; task.unpark clears it. A live agent shows running over any mark; landed evidence (task.done) wins over all.
+  // wins; task.unpark clears it. Landed evidence (task.done) wins over all; then a live agent decides: blocked while
+  // the task has open blockers (open blockers win over marks), else running; a mark shows only when no agent is live.
   /** the agent handed its work back (tip = its branch head, null when it left no commit) */
   cmd("task.handback", { task: Id, agent: Id, tip: Sha.nullable().optional() }),
   /** the work was merged into an integration branch (never "main": Lean refuses it; main is task.done) */
@@ -211,6 +214,9 @@ export const PlanTask = z.object({
   /** undone deps */
   blockers: z.array(Id),
   agent: Id.nullable(),
+  /** when the bound agent was last seen (its latest agent.spawn `at`, ms; Lean `Fw.Plan.seenAt`); null for a bare
+   *  claim or no agent; missing in boards from before task-state-truth. The quiet timeout reads it. */
+  since: z.number().int().nonnegative().nullable().optional(),
   evidence: z.string().nullable(),
   /** where an ended agent's work went; missing in boards from before task-state-truth */
   outcome: TaskOutcome.nullable().optional(),

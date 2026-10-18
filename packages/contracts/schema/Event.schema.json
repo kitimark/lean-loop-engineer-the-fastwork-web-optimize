@@ -1297,6 +1297,18 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 120
+        },
+        "at": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -1347,6 +1359,18 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 120
+        },
+        "at": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

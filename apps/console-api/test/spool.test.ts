@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
 import { selectCore } from "../src/core/index.ts";
-import { Drain, summarize } from "../src/spool/drain.ts";
+import { ObsRecord } from "@fw/contracts";
+import { admitLines, Drain, summarize } from "../src/spool/drain.ts";
 import { Store } from "../src/store.ts";
 
 let stores: Store[] = [];
@@ -50,10 +51,11 @@ describe("spool drain", () => {
   });
   it("invalid and torn lines: invalid is counted and skipped, a torn tail waits", async () => {
     const { dir, store } = await fresh();
-    spool(dir, "a1", "not json", { ...rec(), extra: "field" }, rec());
+    spool(dir, "a1", "not json", { ...rec(), ts: -1 }, rec());
     appendFileSync(join(dir, "spool", "a1.jsonl"), '{"agent_id":"a1","hook_ev'); // no newline yet
     const d = new Drain(store);
     expect(await d.run()).toMatchObject({ accepted: 1, invalid: 2 });
+    expect(lines(join(dir, "spool-rejects.jsonl")).map((l) => l.why)).toEqual([["json"], ["ts:invalid"]]);
     appendFileSync(join(dir, "spool", "a1.jsonl"), 'ent_name":"SubagentStop","agent_type":null,"tool_name":null,"tool_use_id":null,"duration_ms":null,"is_error":null,"verb":null,"ts":5}\n');
     expect(await d.run()).toMatchObject({ accepted: 1, invalid: 0 });
   });
@@ -126,6 +128,66 @@ describe("spool drain", () => {
     spool(dir, "a1", rec({ hook_event_name: "StopFailure", tool_use_id: null, tool_name: null, ts: 4 }));
     await new Drain(store).run();
     expect((await store.board()).steps[0]!.title).toContain("builder stopped on an API failure");
+  });
+  // task task-state-truth regression: a real SubagentStop line (2026-10-18 spool) with background_tasks. The strict zod
+  // schema refused 6376 of these, so no agent.stop reached the plan.
+  const realStop = '{"agent_id":"a0e52ab0600cc97da","agent_type":"","hook_event_name":"SubagentStop","tool_name":null,"tool_use_id":null,"duration_ms":null,"is_error":null,"verb":null,"ts":1792269356759,"background_tasks":20}';
+  const health = (dir: string, agents: { id: string; name: string }[]) => appendFileSync(join(dir, "health.jsonl"), JSON.stringify({ at: 1,
+    input: { now: 1, agents, system: { diskFreeGB: 1 } },
+    output: { agents: [], system: { alerts: [] }, counts: { active: 0, idle: 0, parked: 0, stalled: 0, done: 0 }, alerts: [] } }) + "\n");
+  const define = (store: Store, task: string) => store.submit({ type: "task.define", key: `d:${task}`, actor: "lead", task, title: task, stream: "lean",
+    milestone: null, deps: [], owner: "lean-prover", writes: [], devices: [], evidence: null });
+  it("a real SubagentStop with background_tasks is accepted and stops its named agent at the record time", async () => {
+    const { dir, store } = await fresh();
+    await define(store, "fix-nav");
+    health(dir, [{ id: "a0e52ab0600cc97da", name: "fix-nav" }]);
+    spool(dir, "a0", rec({ agent_id: "a0e52ab0600cc97da", hook_event_name: "PostToolUse", tool_use_id: "t9", ts: 1792269000000 }));
+    const d = new Drain(store);
+    expect(await d.run()).toMatchObject({ accepted: 1, invalid: 0 });
+    expect((await store.board()).plan.tasks[0]).toMatchObject({ id: "fix-nav", state: "running", agent: "fix-nav", since: 1792269000000 });
+    spool(dir, "a0", realStop);
+    expect(await d.run()).toMatchObject({ accepted: 1, invalid: 0, stops: 1, unknown: 0 });
+    expect(lines(join(dir, "obs.jsonl"))[1]).toMatchObject({ key: "a0e52ab0600cc97da|SubagentStop|1792269356759", background_tasks: 20 });
+    expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "parked", agent: null });
+  });
+  it("a stop without a name in the health index is counted as unnamed", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "a0", realStop);
+    expect(await new Drain(store).run()).toMatchObject({ accepted: 1, stops: 0, unnamed: 1 });
+  });
+  it("an unknown field is accepted, counted and raised once as a spool alert", async () => {
+    const { dir, store } = await fresh();
+    spool(dir, "a1", { ...rec(), extra: "field" }, { ...rec({ tool_use_id: "t2" }), extra: 1 });
+    const d = new Drain(store);
+    expect(await d.run()).toMatchObject({ accepted: 2, invalid: 0, unknown: 2, alerts: 1 });
+    expect(lines(join(dir, "obs.jsonl")).every((l) => !("extra" in l))).toBe(true);
+    const steps = (await store.board()).steps;
+    expect(steps.map((s) => s.id)).toEqual(["alert-spool-1700000000000"]);
+    expect(steps[0]!.title).toContain("extra x2");
+    spool(dir, "a1", { ...rec({ tool_use_id: "t3" }), extra: 2 });
+    expect(await d.run()).toMatchObject({ accepted: 1, unknown: 1, alerts: 0 }); // one open: no second alert
+  });
+  it("quiet timeout: an agent not seen for quietMs gets agent.stop at now", async () => {
+    const { dir, store } = await fresh();
+    await define(store, "fix-nav");
+    health(dir, [{ id: "a1", name: "fix-nav" }]);
+    spool(dir, "a1", rec({ ts: 1_700_000_000_000 - 2 * 3600_000 - 1 }));
+    expect(await new Drain(store).run()).toMatchObject({ accepted: 1, timeouts: 1 });
+    expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "parked", agent: null });
+  });
+  it("golden: zod ObsRecord accepts every record Lean keeps, and refuses what Lean rejects", async () => {
+    const { store } = await fresh();
+    const spawn = '{"agent_id":"affbc82ef59f14f9a","agent_type":"lean-prover","hook_event_name":"SpawnGuard","tool_name":"Agent","tool_use_id":"toolu_x","duration_ms":null,"is_error":null,"verb":"allow","ts":1792275587015,"agent_name":null,"role":"checker","want_kind":"subagent","got_kind":"subagent","has_name":false,"isolation":false,"depth":1,"seen_by":"pre-tool-use"}';
+    const note = JSON.stringify({ ...rec({ hook_event_name: "Notification", tool_use_id: null }), notification_type: "permission_prompt", message_len: 12 });
+    const ok = [realStop, spawn, note, JSON.stringify(rec()), JSON.stringify({ ...rec(), future: [1] }), JSON.stringify(rec({ verb: "v".repeat(40) }))];
+    const bad = ["[]", "1", JSON.stringify(rec({ verb: "v".repeat(41) })), JSON.stringify(rec({ duration_ms: 1.5 })), JSON.stringify(rec({ hook_event_name: "" })),
+      JSON.stringify({ ...rec(), ts: undefined }), JSON.stringify(rec({ is_error: "no" }))];
+    const vs = await admitLines(store.core, [...ok, ...bad]);
+    expect(vs.map((v) => v.ok)).toEqual([...ok.map(() => true), ...bad.map(() => false)]);
+    for (const v of vs) if (v.ok) expect(ObsRecord.safeParse(v.rec).success).toBe(true);
+    for (const b of bad.slice(2)) expect(ObsRecord.safeParse(JSON.parse(b)).success).toBe(false);
+    expect(vs.slice(ok.length).map((v) => (v.ok ? "" : v.why))).toEqual(["json", "json", "verb:invalid", "duration_ms:invalid",
+      "hook_event_name:invalid", "ts:missing", "is_error:invalid"]);
   });
   it("summarize ignores non-tool events", async () => {
     const { store } = await fresh();

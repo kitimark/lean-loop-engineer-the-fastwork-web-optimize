@@ -58,10 +58,22 @@ export function stepCommand(argv: string[], env: Record<string, string | undefin
 export const TASK_USAGE = "usage: fw task handback <task> [--agent a] [--tip sha] | fw task integrate <task> --into <branch> --tip <sha>\n" +
   "       fw task park <task> --reason <text> | fw task unpark <task>   (--as <actor>, --key <k>; default actor lead)";
 
+/** The full ref name git resolves `name` to (`git rev-parse --symbolic-full-name`, e.g. `HEAD` on main ->
+ *  `refs/heads/main`), or null when it is not a ref. I/O only. */
+export function gitFullRef(name: string, cwd = process.cwd()): string | null {
+  try {
+    const out = execFileSync("git", ["rev-parse", "--symbolic-full-name", "--end-of-options", name], { cwd, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return out.startsWith("refs/") ? out : null;
+  } catch { return null; }
+}
+
 /** `fw task handback|integrate|park|unpark`: an outcome mark of a task (Lean `Fw.Plan`, task task-state-truth). Only
- *  argument mapping: fwcore decides what the mark means (`tstate`) and refuses unknown/done tasks and `--into main`.
- *  The default key names the content (a repeat is a duplicate); park/unpark add the time, since they may alternate. */
-export function taskCommand(argv: string[], env: Record<string, string | undefined>, now = Date.now()): Command {
+ *  argument mapping: fwcore decides what the mark means (`tstate`) and refuses unknown/done tasks and every name of main
+ *  (`Fw.Plan.isMainRef`). `--into` is sent as the full ref it resolves to (`resolveRef`, git in `fw`), so a name that
+ *  resolves to main (`HEAD` on main, a local alias) reaches Lean as `refs/heads/main` and is refused; an unresolved name
+ *  is sent as given. The default key names the content (a repeat is a duplicate); park/unpark add the time. */
+export function taskCommand(argv: string[], env: Record<string, string | undefined>, now = Date.now(),
+  resolveRef: (name: string) => string | null = () => null): Command {
   const [verb, ...rest] = argv;
   const { pos, flags } = parseFlags(rest);
   const actor = Actor.parse(flags.as ?? env.FW_ACTOR ?? "lead");
@@ -72,7 +84,8 @@ export function taskCommand(argv: string[], env: Record<string, string | undefin
       return Command.parse({ type: "task.handback", key: flags.key ?? `task.handback:${task}:${agent}:${tip ?? "none"}`, actor, task, agent, tip });
     }
     case "integrate": {
-      const branch = need(flags.into, "--into <branch>"), tip = need(flags.tip, "--tip <sha>");
+      const into = need(flags.into, "--into <branch>"), tip = need(flags.tip, "--tip <sha>");
+      const branch = resolveRef(into) ?? into;
       return Command.parse({ type: "task.integrate", key: flags.key ?? `task.integrate:${task}:${branch}:${tip}`, actor, task, branch, tip });
     }
     case "park":

@@ -92,15 +92,49 @@ function readLatestLine(dir: string, keep: (l: z.infer<typeof Line>) => boolean 
   } finally { closeSync(fd); }
 }
 
-/** How far back `agentNameOf` looks for an agent id (bytes from the end of health.jsonl). */
-export const NAME_SCAN_BYTES = 64 << 20;
+/** Agent id -> the name `fw watch` last recorded for it (input.agents[].name of health.jsonl): what an `agent.stop`
+ *  carries, since a SubagentStop hook record has the agent's id but not its name. Task task-state-truth: the old
+ *  lookup re-read up to 64 MB of health.jsonl backwards for every stop; this index reads the file once and then only
+ *  the bytes appended since (a shorter file, i.e. a rotation, starts over). Empty names are skipped; Lean
+ *  `Fw.Ops.Obs.lifeOf` decides whether a name is usable. Reads only. */
+export class NameIndex {
+  private names = new Map<string, string>();
+  private offset = 0;
+  private readonly path: string;
+  constructor(dir: string) { this.path = join(dir, "health.jsonl"); }
 
-/** The name `fw watch` recorded for agent id `id` (input.agents[].name) in the newest health line that lists the id:
- *  what an `agent.stop` carries, since a SubagentStop hook record has the agent's id but not its name. Task
- *  task-state-truth: it read only the latest line before, so an agent already gone from the newest snapshot got no
- *  stop. Null when no line of the last NAME_SCAN_BYTES lists the id (an agent that stopped before its first
- *  snapshot), or its name is not a contract id. Reads only. */
-export function agentNameOf(dir: string, id: string, cap = NAME_SCAN_BYTES): string | null {
-  const n = readLatestLine(dir, (l) => l.input.agents.some((a) => a.id === id), cap)?.input.agents.find((a) => a.id === id)?.name;
-  return n && n.length <= 120 ? n : null;
+  /** Read the complete lines appended since the last call, in 4 MB chunks (a torn last line waits). */
+  refresh(): void {
+    let fd: number;
+    try { fd = openSync(this.path, "r"); } catch { return; }
+    try {
+      const size = fstatSync(fd).size;
+      if (size < this.offset) { this.offset = 0; this.names.clear(); }
+      let carry = Buffer.alloc(0);
+      while (this.offset + carry.length < size) {
+        const len = Math.min(4 << 20, size - this.offset - carry.length);
+        const buf = Buffer.alloc(len);
+        readSync(fd, buf, 0, len, this.offset + carry.length);
+        const all = carry.length ? Buffer.concat([carry, buf]) : buf;
+        const end = all.lastIndexOf(10) + 1;
+        if (end > 0) this.scan(all.subarray(0, end).toString("utf8"));
+        this.offset += end;
+        carry = all.subarray(end);
+      }
+    } finally { closeSync(fd); }
+  }
+
+  private scan(text: string): void {
+    for (const l of text.split("\n")) {
+      if (!l.includes('"agents"')) continue;
+      try {
+        const agents = (JSON.parse(l) as { input?: { agents?: { id?: unknown; name?: unknown }[] } }).input?.agents ?? [];
+        for (const a of agents) if (typeof a.id === "string" && typeof a.name === "string" && a.name) this.names.set(a.id, a.name);
+      } catch { /* torn or foreign line: skip */ }
+    }
+  }
+
+  /** The newest indexed name of agent id `id`, or null (call `refresh` first). */
+  get(id: string): string | null { return this.names.get(id) ?? null; }
+  get size(): number { return this.names.size; }
 }

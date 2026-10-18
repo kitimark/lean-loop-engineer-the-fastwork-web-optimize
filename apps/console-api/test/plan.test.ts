@@ -97,10 +97,12 @@ describe("agent door", () => {
 });
 
 describe("automation", () => {
+  // record times just before the store clock (the quiet timeout ends agents not seen for Fw.Plan.quietMs)
+  const T0 = 1_700_000_000_000 - 10;
   const spawnRec = (name: string, id: string) => JSON.stringify({ agent_id: null, agent_type: null, hook_event_name: "SpawnGuard",
-    tool_name: "Agent", tool_use_id: id, duration_ms: null, is_error: null, verb: "allow", agent_name: name, ts: 5 }) + "\n";
+    tool_name: "Agent", tool_use_id: id, duration_ms: null, is_error: null, verb: "allow", agent_name: name, ts: T0 }) + "\n";
   const stopRec = (agentId: string) => JSON.stringify({ agent_id: agentId, agent_type: "lean-prover", hook_event_name: "SubagentStop",
-    tool_name: null, tool_use_id: null, duration_ms: null, is_error: null, verb: null, ts: 9 }) + "\n";
+    tool_name: null, tool_use_id: null, duration_ms: null, is_error: null, verb: null, ts: T0 + 4 }) + "\n";
   const health = (dir: string, agents: [string, string][]) => appendFileSync(join(dir, "health.jsonl"), JSON.stringify({
     at: 1, input: { now: 1, agents: agents.map(([id, name]) => ({ id, name })), system: { diskFreeGB: 100 } },
     output: { agents: agents.map(([id]) => ({ id, state: "active", alerts: [] })), system: { alerts: [] },
@@ -134,30 +136,31 @@ describe("automation", () => {
     await new Drain(store).run();
     for (const c of syncCommands(mini())) await store.submit(c);
     expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "parked", null]]);
-    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([{ actor: "hook", agent: "c", key: "stop:id-c" }]);
+    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([{ actor: "hook", agent: "c", key: `stop:id-c|SubagentStop|${T0 + 4}`, at: T0 + 4 }]);
     appendFileSync(join(dir, "spool", "s.jsonl"), stopRec("id-a"));
     await new Drain(store).run();
     expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "parked", null]]);
     expect((await planOf(store)).tasks[0]!.outcome).toEqual({ kind: "parked", reason: "agent ended without a handback" });
   });
 
-  // task-state-truth: the hook adds background_tasks to SubagentStop; ObsRecord lacked it, so .strict() dropped every
-  // stop record silently (0 agent.stop among 765 events) and the board kept ended agents running
-  it("a SubagentStop with background_tasks is accepted; a count > 0 ends a turn, not the agent; a rejected line is logged", async () => {
+  // task-state-truth: the hook adds background_tasks to SubagentStop; the strict schema refused it, so no stop reached
+  // the board. Measured, the count is session-wide (6 to 31, never 0), so it never decides: every named stop ends its
+  // agent at the record time (Lean `Fw.Ops.Obs.lifeOf`); a later tool event of the agent revives it.
+  it("a SubagentStop with background_tasks is accepted and ends its agent whatever the count; a rejected line is logged", async () => {
     const { dir, store } = await open();
     mkdirSync(join(dir, "spool"));
     for (const c of syncCommands(mini())) await store.submit(c);
     health(dir, [["id-a", "a"], ["id-c", "c"]]);
     health(dir, [["id-a", "a"]]); // c is gone from the newest snapshot: its name comes from an older line
-    const bg = (agentId: string, n: number) => stopRec(agentId).replace(`"ts":9`, `"background_tasks":${n},"ts":9`);
+    const bg = (agentId: string, n: number) => stopRec(agentId).replace(`"ts":${T0 + 4}`, `"background_tasks":${n},"ts":${T0 + 4}`);
     appendFileSync(join(dir, "spool", "s.jsonl"), spawnRec("a", "u1") + spawnRec("c", "u2") + bg("id-a", 2) + bg("id-c", 0) + "{\"nope\":1}\n");
     const res = await new Drain(store).run();
     expect(res.invalid).toBe(1);
-    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "parked", null]]);
-    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([{ agent: "c", key: "stop:id-c" }]);
+    expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "parked", null]]);
+    expect(store.readEvents().filter((e) => e.type === "agent.stop").map((e) => (e as { agent: string }).agent)).toEqual(["a", "c"]);
     const rej = readFileSync(join(dir, "spool-rejects.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
     expect(rej).toHaveLength(1);
-    expect(rej[0].why).toContain("hook_event_name:invalid_type");
+    expect(rej[0].why).toEqual(["agent_id:missing"]);
   });
 
   it("outcome marks: handback, integrate, park and unpark show distinct states; integrate into main is refused", async () => {

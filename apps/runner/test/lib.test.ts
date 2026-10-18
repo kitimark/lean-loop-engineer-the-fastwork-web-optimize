@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NO_API_GROUPS, UsageError, renderBoard, stepCommand, taskCommand } from "../src/lib.ts";
+import { NO_API_GROUPS, UsageError, gitFullRef, renderBoard, stepCommand, taskCommand } from "../src/lib.ts";
 
 describe("fw step", () => {
   it("post builds a typed command with a derived idempotency key", () => {
@@ -26,6 +26,11 @@ describe("fw task (task-state-truth)", () => {
     expect(taskCommand(["handback", "a", "--agent", "x"], { FW_ACTOR: "script" })).toMatchObject({ actor: "script", agent: "x", tip: null });
     expect(taskCommand(["integrate", "a", "--into", "ci/i-3", "--tip", "b00ef68"], {})).toMatchObject({
       type: "task.integrate", key: "task.integrate:a:ci/i-3:b00ef68", branch: "ci/i-3", tip: "b00ef68" });
+    // a name that resolves to main is sent as its full ref, which Lean refuses (Fw.Plan.isMainRef); unresolved: as given
+    const refs: Record<string, string> = { HEAD: "refs/heads/main", "ci/i-3": "refs/heads/ci/i-3" };
+    expect(taskCommand(["integrate", "a", "--into", "HEAD", "--tip", "t"], {}, 1, (b) => refs[b] ?? null)).toMatchObject({ branch: "refs/heads/main" });
+    expect(taskCommand(["integrate", "a", "--into", "ci/i-9", "--tip", "t"], {}, 1, (b) => refs[b] ?? null)).toMatchObject({ branch: "ci/i-9" });
+    expect(gitFullRef("--not-a-ref-xyz")).toBeNull();
     expect(taskCommand(["park", "a", "--reason", "folded"], {}, 7)).toEqual({ type: "task.park", key: "task.park:a:7", actor: "lead", task: "a", reason: "folded" });
     expect(taskCommand(["unpark", "a", "--as", "user"], {}, 8)).toEqual({ type: "task.unpark", key: "task.unpark:a:8", actor: "user", task: "a" });
   });
