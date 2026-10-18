@@ -18,14 +18,30 @@ The pure graph layer under `Fw.Plan.Core` (the console's `task.*` commands).
 -/
 namespace Fw.Plan
 
+/-- The outcome mark of a task whose agent's work came back without landing on main (task
+`task-state-truth`): the agent handed back (with the tip it left, if known), the work was merged into
+the integration branch `branch` at commit `tip` (a branch other than main), or the lead parked the
+task with a reason.
+
+$$\mathrm{Mark} = \mathrm{handedBack}(\mathit{agent}, \mathit{tip}_\bot) \mid \mathrm{integrated}(\mathit{branch}, \mathit{tip}) \mid \mathrm{parked}(\mathit{reason})$$
+-/
+inductive Mark where
+  | handedBack (agent : String) (tip : Option String)
+  | integrated (branch tip : String)
+  | parked (reason : String)
+deriving Repr, DecidableEq
+
 /-- A task row of the work graph: its definition (id, title, stream, milestone, deps, owner, write
 globs, exclusive devices, and needs such as `"device"` for the iPhone with the user at it) and its two
 observed facts, the evidence that it is done and the agent that claimed it, plus the `cut` flag of the
 definition (a task cut from the plan, kept as a row for the record; default false), and `landed`, the
 provenance of the evidence: true when it came from a land event (`task.done`), false when it came from
-a definition or there is none (default false).
+a definition or there is none (default false). `mark` is the derived outcome mark the board puts on a
+row (`Fw.Plan.bound`); the stored rows never set it (default none). `quiet` is the derived last-seen
+time the board puts on a row whose agent is quiet (`Fw.Plan.quietOf`); the stored rows never set it
+(default none).
 
-$$t = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{agent}_\bot, \mathit{cut}, \mathit{landed})$$
+$$t = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{agent}_\bot, \mathit{cut}, \mathit{landed}, \mathit{mark}_\bot, \mathit{quiet}_\bot)$$
 -/
 structure Task where
   id        : String
@@ -41,6 +57,8 @@ structure Task where
   agent     : Option String
   cut       : Bool := false
   landed    : Bool := false
+  mark      : Option Mark := none
+  quiet     : Option Nat := none
 deriving Repr, DecidableEq
 
 /-- The ids of a list of rows, in order.

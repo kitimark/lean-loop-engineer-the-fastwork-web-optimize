@@ -823,12 +823,12 @@ inductive Resp where
 /-- One serve command: apply reports the outcome and the changed rows, replay the tally, query the
 board and the board plan of the current console state; reset returns to the initial state.
 
-$$\operatorname{exec}(v, c) = \begin{cases} \big(v',\ \mathrm{applied}(o, \operatorname{changed}(v', e, o))\big),\ (v', o) = \operatorname{fstep}(v, e) & c = \mathrm{apply}(e) \\ \big(v',\ \mathrm{replayed}(t)\big),\ (v', t) = \operatorname{replay}(v, (0,0,0), es) & c = \mathrm{replay}(es) \\ \big(v,\ \mathrm{board}(\operatorname{fastBoard}(\operatorname{st}(v), \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{st}(v).\mathit{plan}))\big) & c = \mathrm{query}(\mathit{now}, \mathit{seq}) \\ (v_0,\ \mathrm{reset}) & c = \mathrm{reset} \end{cases}$$
+$$\operatorname{exec}(v, c) = \begin{cases} \big(v',\ \mathrm{applied}(o, \operatorname{changed}(v', e, o))\big),\ (v', o) = \operatorname{fstep}(v, e) & c = \mathrm{apply}(e) \\ \big(v',\ \mathrm{replayed}(t)\big),\ (v', t) = \operatorname{replay}(v, (0,0,0), es) & c = \mathrm{replay}(es) \\ \big(v,\ \mathrm{board}(\operatorname{fastBoard}(\operatorname{st}(v), \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{quietMs}, \mathit{now}, \operatorname{st}(v).\mathit{plan}))\big) & c = \mathrm{query}(\mathit{now}, \mathit{seq}) \\ (v_0,\ \mathrm{reset}) & c = \mathrm{reset} \end{cases}$$
 -/
 def exec (v : Srv) : Cmd → Srv × Resp
   | .apply e => let r := fstep v e; (r.1, .applied r.2 (changed r.1 e r.2))
   | .replay es => let r := replayFrom v {} es; (r.1, .replayed r.2)
-  | .query now seq => (v, .board (fastBoard v.st now seq) (Fw.Plan.view v.st.plan))
+  | .query now seq => (v, .board (fastBoard v.st now seq) (Fw.Plan.view Fw.Plan.quietMs now v.st.plan))
   | .reset => (init, .reset)
 
 /-- Run a sequence of serve commands, keeping only the final server state.
@@ -954,10 +954,10 @@ theorem accepted_changed {v : Srv} (hv : Indexed v) {e : Event} {d : Delta}
 
 /-- A query changes nothing and answers the board and the board plan of the current console state.
 
-$$\forall v, \mathit{now}, \mathit{seq}:\quad \operatorname{exec}(v, \mathrm{query}(\mathit{now}, \mathit{seq})) = \big(v,\ \mathrm{board}(\operatorname{board}(\operatorname{st}(v), \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{st}(v).\mathit{plan}))\big)$$
+$$\forall v, \mathit{now}, \mathit{seq}:\quad \operatorname{exec}(v, \mathrm{query}(\mathit{now}, \mathit{seq})) = \big(v,\ \mathrm{board}(\operatorname{board}(\operatorname{st}(v), \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{quietMs}, \mathit{now}, \operatorname{st}(v).\mathit{plan}))\big)$$
 -/
 theorem query_keeps (v : Srv) (now seq : Nat) :
-    exec v (.query now seq) = (v, .board (board v.st now seq) (Fw.Plan.view v.st.plan)) := by
+    exec v (.query now seq) = (v, .board (board v.st now seq) (Fw.Plan.view Fw.Plan.quietMs now v.st.plan)) := by
   simp [exec, fastBoard_eq]
 
 /-- The query reply is a function of the console state alone (not of the indexes or of how the state
@@ -972,11 +972,11 @@ theorem query_eq_of_st {v w : Srv} (h : v.st = w.st) (now seq : Nat) :
 /-- After serve calls without a reset from a fresh server, the query reply is the board and the board
 plan of the projection of their events.
 
-$$\forall cs = [c_1, \dots, c_n], \mathit{now}, \mathit{seq}:\quad (\forall c \in cs,\ c \ne \mathrm{reset}) \;\Rightarrow\; \operatorname{exec}(\operatorname{run}(v_0, cs), \mathrm{query}(\mathit{now}, \mathit{seq}))_2 = \mathrm{board}\big(\operatorname{board}(\sigma, \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\sigma.\mathit{plan})\big),\ \sigma = \operatorname{project}(\operatorname{ev}(c_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{ev}(c_n))$$
+$$\forall cs = [c_1, \dots, c_n], \mathit{now}, \mathit{seq}:\quad (\forall c \in cs,\ c \ne \mathrm{reset}) \;\Rightarrow\; \operatorname{exec}(\operatorname{run}(v_0, cs), \mathrm{query}(\mathit{now}, \mathit{seq}))_2 = \mathrm{board}\big(\operatorname{board}(\sigma, \mathit{now}, \mathit{seq}),\ \operatorname{Plan.view}(\operatorname{quietMs}, \mathit{now}, \sigma.\mathit{plan})\big),\ \sigma = \operatorname{project}(\operatorname{ev}(c_1) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{ev}(c_n))$$
 -/
 theorem query_after_run (cs : List Cmd) (hr : ∀ c ∈ cs, c.isReset = false) (now seq : Nat) :
     (exec (run init cs) (.query now seq)).2 = .board (board (project (cs.flatMap Cmd.events)) now seq)
-      (Fw.Plan.view (project (cs.flatMap Cmd.events)).plan) := by
+      (Fw.Plan.view Fw.Plan.quietMs now (project (cs.flatMap Cmd.events)).plan) := by
   simp [exec, run_init_eq_project cs hr, fastBoard_eq]
 
 #guard

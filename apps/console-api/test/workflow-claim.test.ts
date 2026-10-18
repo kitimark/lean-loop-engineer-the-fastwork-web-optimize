@@ -1,5 +1,5 @@
 // Workflow runs as agent events (task workflow-claim): the TS stand-in against the Lean golden, and the drain sweep.
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -91,5 +91,27 @@ describe("drain sweeps workflow runs", () => {
       + line({ type: "started", agentId: "a2", label: "build:integrate-ports" }) + line({ type: "result", agentId: "a1", result: "ok" }));
     await drain.run();
     expect([await agentOf("engine-model-fix"), await agentOf("integrate-ports")]).toEqual([null, "integrate-ports"]);
+  });
+
+  it("a journal first read after the SubagentStop of its agent leaves the agent ended (spawn at the meta file time)", async () => {
+    const now = 1_700_000_000_000;
+    const dir = mkdtempSync(join(tmpdir(), "fw-wf-"));
+    const store = await Store.open(dir, selectCore(), () => now);
+    stores.push(store);
+    const wf = join(dir, "sess", "workflows");
+    const run = "wf_c1d2e3f4-a5b";
+    const rdir = join(dir, "sess", "subagents", "workflows", run);
+    mkdirSync(join(wf, "scripts"), { recursive: true });
+    mkdirSync(rdir, { recursive: true });
+    expect((await store.submit({ type: "task.define", key: "d:fix-nav", actor: "lead", task: "fix-nav", title: "T", stream: "s",
+      milestone: null, deps: [], owner: "o", writes: [], devices: [], needs: [], evidence: null } as never)).ok).toBe(true);
+    expect((await store.submit({ type: "agent.stop", key: "stop:a9", actor: "hook", agent: "a9", at: now - 30_000 } as never)).ok).toBe(true);
+    writeFileSync(join(wf, "scripts", `builders-${run}.js`), "");
+    writeFileSync(join(rdir, "agent-a9.meta.json"), "{}");
+    utimesSync(join(rdir, "agent-a9.meta.json"), (now - 60_000) / 1000, (now - 60_000) / 1000);
+    writeFileSync(join(rdir, "journal.jsonl"), JSON.stringify({ type: "started", agentId: "a9", label: "fix:fix-nav" }) + "\n");
+    utimesSync(join(rdir, "journal.jsonl"), (now - 10_000) / 1000, (now - 10_000) / 1000);
+    await new Drain(store, () => [wf]).run();
+    expect((await store.board()).plan.tasks[0]).toMatchObject({ id: "fix-nav", agent: null, state: "parked" });
   });
 });

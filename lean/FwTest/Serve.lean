@@ -67,7 +67,7 @@ def boardGolden : IO Nat := do
       let ok := (Json.parse stateless).toOption.map (·.getObjValD "board") == some wantB &&
         -- the stateful board also carries the board plan (empty: these logs have no plan events)
         (Json.parse q).toOption.map (·.getObjValD "board") ==
-          some (Fw.Wire.Plan.withPlan wantB (Fw.Plan.view {})) &&
+          some (Fw.Wire.Plan.withPlan wantB (Fw.Plan.view 0 0 {})) &&
         (Json.parse rep).toOption.map (fun j => (j.getObjValD "replayed").getObjValD "refused") == some (toJson 0) &&
         Fw.Wire.stateJson v2.st == req.getObjValD "state"
       unless ok do

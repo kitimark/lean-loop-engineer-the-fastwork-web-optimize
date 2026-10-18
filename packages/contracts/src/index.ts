@@ -61,13 +61,29 @@ export const Command = z.discriminatedUnion("type", [
     live: z.array(Id).max(64).optional(),
   }),
   cmd("task.drop", { task: Id }),
-  cmd("task.claim", { task: Id, agent: Id }),
+  /** a claim is a sighting of `agent` at `at` (ms; missing or null = the event's ts): with no later sighting it expires
+   *  by the quiet timeout and the task is parked (expired). Task task-state-truth (claim TTL). */
+  cmd("task.claim", { task: Id, agent: Id, at: z.number().int().nonnegative().nullable().optional() }),
   cmd("task.done", { task: Id, evidence: Sha }),
   cmd("milestone.define", { milestone: Id, title: Text }),
-  // agent life (Lean `Fw.Plan`): an agent of this name started / stopped. The board derives the binding from the set
-  // of these facts (an agent named like a task works on it), so their order relative to task.define never matters.
-  cmd("agent.spawn", { agent: Id }),
-  cmd("agent.stop", { agent: Id }),
+  // agent life (Lean `Fw.Plan`): life key `agent` (an agent id, or a name from a spawn guard) was seen / ended at `at`
+  // (ms; missing or null = the event's ts). A key is live when some sighting is later than every stop of it, so neither
+  // log order nor the order relative to task.define matters. A name is live while any of its keys is: the name itself
+  // and every id labelled with it (agent.label). Any event of an id is a spawn of it (a heartbeat). Task
+  // task-state-truth: liveness by id.
+  cmd("agent.spawn", { agent: Id, at: z.number().int().nonnegative().nullable().optional() }),
+  cmd("agent.stop", { agent: Id, at: z.number().int().nonnegative().nullable().optional() }),
+  /** the health index names agent id `agent` as `name`: the id's life counts for that name (Lean `Fw.Plan.keysOf`) */
+  cmd("agent.label", { agent: Id, name: Id }),
+  // task outcomes (Lean `Fw.Plan`, task task-state-truth): where an ended agent's work went. The last mark of a task
+  // wins; task.unpark clears it. Landed evidence (task.done) wins over all; then a live agent decides: blocked while
+  // the task has open blockers (open blockers win over marks), else running; a mark shows only when no agent is live.
+  /** the agent handed its work back (tip = its branch head, null when it left no commit) */
+  cmd("task.handback", { task: Id, agent: Id, tip: Sha.nullable().optional() }),
+  /** the work was merged into an integration branch (never "main": Lean refuses it; main is task.done) */
+  cmd("task.integrate", { task: Id, branch: Id, tip: Sha }),
+  cmd("task.park", { task: Id, reason: Text }),
+  cmd("task.unpark", { task: Id }),
 ]);
 export type Command = z.infer<typeof Command>;
 export type CommandType = Command["type"];
@@ -174,9 +190,18 @@ export type BoardCard = z.infer<typeof BoardCard>;
 
 // ---- board.plan: derived by fwcore (Fw.Plan), never stored as status ---------------------
 /** "cut": the task was cut from the plan (never ready, off the critical path, not in milestone totals) */
-export const TaskState = z.enum(["done", "cut", "running", "ready", "blocked"]);
+/** "handedBack" / "integrated" / "parked": the task's agents ended and its last outcome mark says where the work
+ *  went (Lean `Fw.Plan.tstate`, task task-state-truth); an agent that ended with no mark shows "parked". */
+export const TaskState = z.enum(["done", "cut", "running", "quiet", "handedBack", "integrated", "parked", "ready", "blocked"]);
 export type TaskState = z.infer<typeof TaskState>;
 export const TaskLane = z.enum(["agent", "device"]);
+/** A task's derived outcome mark (Lean `Fw.Plan.outcomeOf`), null when none. */
+export const TaskOutcome = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("handedBack"), agent: Id, tip: z.string().nullable() }),
+  z.object({ kind: z.literal("integrated"), branch: Id, tip: z.string() }),
+  z.object({ kind: z.literal("parked"), reason: z.string() }),
+]);
+export type TaskOutcome = z.infer<typeof TaskOutcome>;
 export type TaskLane = z.infer<typeof TaskLane>;
 
 export const PlanTask = z.object({
@@ -194,7 +219,15 @@ export const PlanTask = z.object({
   /** undone deps */
   blockers: z.array(Id),
   agent: Id.nullable(),
+  /** when the running agent was last seen (its latest sighting `at`, ms; Lean `Fw.Plan.seenAt`); for a quiet task the
+   *  last sighting of its live keys (Lean `Fw.Plan.quietOf`); else null; missing in boards from before task-state-truth. */
+  since: z.number().int().nonnegative().nullable().optional(),
+  /** the live life keys of the bound agent with their last sighting (Lean `Fw.Plan.liveKeys`). Missing in boards from
+   *  before task-state-truth round 3. */
+  keys: z.array(z.object({ key: z.string(), at: z.number().int().nonnegative() })).optional(),
   evidence: z.string().nullable(),
+  /** where an ended agent's work went; missing in boards from before task-state-truth */
+  outcome: TaskOutcome.nullable().optional(),
 });
 export type PlanTask = z.infer<typeof PlanTask>;
 

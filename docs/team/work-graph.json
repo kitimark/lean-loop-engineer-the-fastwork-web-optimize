@@ -4091,7 +4091,8 @@
     "docs/team/backfill/**",
     "docs/team/tools/**",
     "docs/team/handoffs/task-state-truth.md"
-   ]
+   ],
+   "evidence": "dcbe320"
   },
   {
    "id": "task-preview",
