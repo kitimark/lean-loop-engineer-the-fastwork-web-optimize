@@ -5586,7 +5586,8 @@
     "apps/runner/test/wait-guard.test.ts",
     "packages/gate-breakpoints/test/verdict.test.mjs",
     "docs/team/handoffs/test-batch.md"
-   ]
+   ],
+   "evidence": "0bb55e0"
   },
   {
    "devices": [
