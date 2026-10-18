@@ -3245,7 +3245,8 @@
     "packages/gate-breakpoints/src/cli.mjs",
     "packages/gate-breakpoints/test/exit*.test.mjs",
     "packages/contracts/golden/gate/exit.jsonl"
-   ]
+   ],
+   "evidence": "01937d3"
   },
   {
    "id": "check-map-lean",
@@ -3476,7 +3477,8 @@
     "packages/contracts/golden/ci/**",
     "scripts/ci-paths.mjs",
     ".github/workflows/**"
-   ]
+   ],
+   "evidence": "00dddfd"
   },
   {
    "id": "gate-align-equiv",
