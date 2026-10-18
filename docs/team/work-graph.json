@@ -4678,7 +4678,7 @@
   },
   {
    "id": "context-slop",
-   "title": "(M) distill cursor/plugins pstack (no-comments, comment-sicko, unslop, guard-the-context-window, minimize-reader-load, technical-writing) and apply: measured context cost of always-loaded files (CLAUDE.md, agent defs, tool docs, handoffs), fw/hook output, docstrings and code comments; Lean-decided context budget lint; trim low-conflict files; follow-ups for code and outputs",
+   "title": "(M) distill cursor/plugins pstack (no-comments, comment-sicko, unslop, guard-the-context-window, minimize-reader-load, technical-writing) and apply: measured context cost of always-loaded files (CLAUDE.md, agent defs, tool docs, handoffs), fw/hook output, docstrings and code comments; Lean-decided context budget lint; convert the rules into skills (.claude/skills/no-slop, no-comments) and a read-only slop-checker agent registered in SpawnGuard; trim always-loaded files; follow-ups for code and outputs",
    "stream": "tooling",
    "milestone": "M5",
    "deps": [],
@@ -4699,7 +4699,11 @@
     "scripts/context-lint.mjs",
     "scripts/context-lint.test.mjs",
     "packages/contracts/golden/lint/**",
-    "lean/scripts/check.sh"
+    "lean/scripts/check.sh",
+    ".claude/skills/**",
+    "lean/Fw/Ops/SpawnGuard.lean",
+    "apps/runner/hooks/spawn-guard.mjs",
+    "packages/contracts/golden/ops/**"
    ]
   }
  ],
