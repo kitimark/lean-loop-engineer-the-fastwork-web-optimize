@@ -96,7 +96,7 @@ the two results that close at C3 (2026-10-19 23:15 +0700).
 | Measure | Value | Status, source |
 |---|---|---|
 | Declarations in the math view | 2,171 (1,005 theorems, 1,166 definitions) in 56 modules | MEASURED, `docs/plan/loop-plan.html` at `e653a14` (module rows summed) |
-| Review state of the math view | 2,167 agree, 4 disagree, 0 pending; the 4 were fixed in `25b68d2` and wait for re-review | MEASURED, same file; fix CONFIRMED (`25b68d2`) |
+| Review state of the math view | 2,167 agree, 4 disagree, 0 pending; the 4 were fixed in `25b68d2` and wait for re-review; superseded by §4.5 (r14) | MEASURED, same file; fix CONFIRMED (`25b68d2`) |
 | Growth since revision 8 of the plan | 1,947 declarations (910 theorems) in 51 modules at `7d564e2` | MEASURED [PLAN:120-123] |
 | Lean source | 87 files, 34,930 lines in `lean/Fw` and `lean/FwTest` | MEASURED (`find`/`wc` at `e5bf4e4`) |
 | Plan's up-front estimate | about 20 modules, $700-1,100 of Lean work | INFERRED in the plan [PLAN:120] |
@@ -293,7 +293,7 @@ More facts that bound what WebKit can say:
 | C1 WebKit go/no-go | GO: two consecutive `webkit-sim` runs on `ci/webkit-green` took 19 and 24 min | MEASURED, runs 39048376821, 39050061299; `f03e94b` [P10:1080] |
 | Host load | 0-12 CPU burners change neither step time nor jitter; classes over 3 sessions: 49 det / 9 stable / 46 quarantined of 104 | MEASURED, runs 39053364004, 39055950094; `80676e0` |
 | Step alignment | Original and rewrite steps are aligned by scroll position in Lean (`StepAlign`); rows pair by key (`pairRows`) | CONFIRMED, `e0fa48c`, `b865f47`; CI run 39081148105 (`670099a`) |
-| Zone baselines of the original | Gateable per zone: RenderingFrame, Composite, EventDispatch | MEASURED, run 39061324429; `6b5933d` |
+| Zone baselines of the original | Gateable per zone: RenderingFrame, Composite, EventDispatch | MEASURED, run 39061324429; run concluded failure (v1 step timeout after its session JSON was written; data used, per handoff `docs/team/handoffs/zone-baselines-webkit.md:3-4`); `6b5933d` |
 | Rewrite arm, `hero.countdown:strip` | 3 green runs; 86 of 95 class rows agree across them | MEASURED, runs 39104964068, 39123585294, 39123621097; `319e5f8` |
 | WebKit role (rev 10) | The model `Fw.Engine.WebKit` carries the WebKit claim; Simulator counts can only falsify it (F5) | CONFIRMED [P10:1071, 515-530] |
 
@@ -474,8 +474,8 @@ held-back entries is the open step. INFERRED from the counts above.
 
 | Result | Value | Status, source |
 |---|---|---|
-| Chromium zone baselines, 4 (profile, arm) pairs, 3 shards each | det/stable/quarantined: swipe-v1 A 32/28/10, R 44/7/0; touch A 23/32/15, R 50/1/0; 0 unlisted, detDrift empty | MEASURED, `f4c6ea5`, runs 39048702153, 39050423094 [BL] |
-| WebKit zone baselines of the original | gateable per zone: RenderingFrame, Composite, EventDispatch | MEASURED, `6b5933d`, run 39061324429 |
+| Chromium zone baselines, 4 (profile, arm) pairs, 3 shards each (zone-baseline table, 51 rewrite types; differs from the frozen table in §3.1, which lists swipe-v1 R as 44/7/1 of 52) | det/stable/quarantined: swipe-v1 A 32/28/10, R 44/7/0; touch A 23/32/15, R 50/1/0; 0 unlisted, detDrift empty | MEASURED, `f4c6ea5`, runs 39048702153, 39050423094 [BL] |
+| WebKit zone baselines of the original | gateable per zone: RenderingFrame, Composite, EventDispatch | MEASURED, `6b5933d`, run 39061324429; run concluded failure (v1 step timeout after its session JSON was written; data used, per handoff `docs/team/handoffs/zone-baselines-webkit.md:3-4`) |
 | Touch race | R deterministic in 4 touch types; A stable; 0 wedges | MEASURED, `c38088e` |
 | N0 / N1 neutrality reads on A (Chromium) | 0 and 0 after the SVG-document split | MEASURED, `f90c08f` |
 | Engine premises in the lane (17 untested) | 5 held, 7 refuted, 5 not measurable | MEASURED, run 39088367495; `docs/team/handoffs/engine-premise-measure.md` |
@@ -511,8 +511,8 @@ open at C3 moves to §6 with its reason [P10:1082].
 ### 5.1 CI minutes
 
 GitHub billing for this repo in October (the repo's first CI run was 2026-10-17 11:19 UTC, so this is one day).
-Source: GitHub billing usage read by the user with `gh api` on 2026-10-17, relayed in the report-draft brief; no repo
-file holds it yet. MEASURED (by the user).
+Source: GitHub billing usage read by the user with `gh api` on 2026-10-17, relayed in the report-draft brief; recorded in
+`docs/team/improvements/2026-10-17.md:552-553` (`d0a15bd`). MEASURED (by the user).
 
 | Runner | Minutes | Charge |
 |---|---|---|
@@ -525,7 +525,7 @@ for runners (`2a29286`). INFERRED (the only workflow that used `xcode-27-xlarge`
 CONFIRMED `research/notes/2026/10-17-macos-rent.md:9`; 19.6 × 0.102 = $2.00.
 
 Agents cannot read billing: `gh api` stays denied (CLAUDE.md, Upstream source). This table is the only billing
-read until the user reads it again. CONFIRMED.
+read until the user reads it again. CONFIRMED (`d0a15bd`).
 
 ### 5.2 Runs, failures and stray runs
 
@@ -577,7 +577,8 @@ Why runs failed or were wasted:
 
 There is no list-price dollar figure per milestone or role. `main` at `a3196a4` has no `fw usage` command (the
 `fw` usage text lists none), so G3's comparison with v1's $11.4k [P10:115] has no v2 number. MEASURED (`pnpm -s fw`
-usage text, 2026-10-18).
+usage text, 2026-10-18). The Lean op `ops.usage` exists (`Fw.Ops.Usage`, wired in `lean/Fw/Ops/Wire.lean:21`); only
+the CLI glue and the price table are missing. CONFIRMED.
 
 ---
 
@@ -607,7 +608,7 @@ Each lesson is a judgement (INFERRED) resting on the evidence named.
 |---|---|---|
 | 1 | Budget macOS CI jobs per lane before the first push. The free account runs 5 macOS jobs at once, shared across every macOS label, and our own jobs filled them | MEASURED, macos-queue note:17-24 |
 | 2 | Push main early and guard paths, or every new `ci/*` branch starts every lane. Most early runs (21 of 28) touched none of their inputs | MEASURED [CU:497-499, 516-518]; `df77488` |
-| 3 | Free macOS runners are too loaded for Simulator counts; check one CI Simulator run is green before building a WebKit plan on it | MEASURED: webkit-sim 1 of 35 runs green; boot 120 s median |
+| 3 | Free macOS runners are too loaded for Simulator counts; check one CI Simulator run is green before building a WebKit plan on it | MEASURED at `e5bf4e4`: webkit-sim 1 of 35 runs green; boot 120 s median. Then GO at C1 after hardening (`f03e94b`): the lane needs fail-fast and hardening, not paid runners |
 | 4 | Before calling a count "engine noise", look for browser work tied to wall clock or to side documents, and split it by containment | MEASURED: HitTest 116 → 0 differing frames; N1 17 → 0 (`f90c08f`) |
 | 5 | Read the engine source for every quarantined input type; the touch race and the touch wedge both had one-line causes in Chromium | CONFIRMED in source: `c38088e`, `25bd9f4` |
 | 6 | Turn each recurring math-review finding into a lint; the disagree rate fell from 27.5 % (r4) to 1.2 % (r10) | MEASURED, review records; ShadowLint `19e980e` |
@@ -617,7 +618,6 @@ Each lesson is a judgement (INFERRED) resting on the evidence named.
 | 10 | Run CI waits in background subagents; an idle in-process teammate is not woken when its background task ends (54 min until the next message) | MEASURED, `548f99c` |
 | 11 | Heavy local passes (mutation, Simulator re-boots) slow every agent; run them on CI from the start | MEASURED [CU:482-484, 535-536] |
 | 12 | Validate the observation layer itself: a strict schema silently dropped every spawn record, and empty agent types were read as the lead | MEASURED, `6228fcf`, `2e0d21b` |
-
 | 13 | A shimmed API measures the shim. Check that a probe runs the engine path it names: the timer step ran the clock shim's callback inside `Runtime.evaluate`, so the Chromium timer rule stays OPEN | MEASURED, run 39124427211 [LG N21] |
 | 14 | Measure an engine premise before proving on it. One premise run changed two signs: the blur on its own layer still re-rasters in Chromium (trade → no-win), and the original's `blur(0)` ↔ `blur(x)` change already lays out in WebKit (trade → win) | MEASURED, run 39088367495 [LG N18, N19] |
 | 15 | Declare the variance rule before reading the diff. Under a rule fixed first, 3 of 12 WKTR class changes never occur among 8 rival runs, so "run-to-run variance" does not explain them | MEASURED [LG N22]; Lean `Fw.Measure.WktrVariance` |
