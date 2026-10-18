@@ -236,6 +236,7 @@ theorem proj_run_cons (s : List Key) (now : List Alert) (ts : List (List Alert))
 the initial open set: no key is printed open twice without a close between, nor closed twice without an open between.
 
 $$\forall S,\ \forall T,\ \forall k:\ \operatorname{alt}\big([k \in S],\ \pi_k(\operatorname{run}(S, T).1)\big)$$
+where $[k \in S]$ is $\top$ when $k \in S$ and $\bot$ otherwise.
 -/
 theorem opened_once (s : List Key) (ts : List (List Alert)) (k : Key) :
     Alternates (decide (k ∈ s)) (proj k (run s ts).1) := by
@@ -252,6 +253,7 @@ theorem opened_once (s : List Key) (ts : List (List Alert)) (k : Key) :
 it, when the initial open set held it).
 
 $$\forall S,\ \forall T,\ \forall k:\ k \in \operatorname{run}(S,T).2 \iff \operatorname{openAfter}\big([k \in S],\ \pi_k(\operatorname{run}(S,T).1)\big) = \top$$
+where $[k \in S]$ is $\top$ when $k \in S$ and $\bot$ otherwise.
 -/
 theorem run_state_iff (s : List Key) (ts : List (List Alert)) (k : Key) :
     k ∈ (run s ts).2 ↔ openAfter (decide (k ∈ s)) (proj k (run s ts).1) = true := by
