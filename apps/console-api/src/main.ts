@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 import { buildBase } from "./core/build-base.ts";
 import { PreviewManager } from "./preview/manager.ts";
 import { OwnerAuth } from "./preview/owner.ts";
+import { announceLink, reissueLink, type LinkClock } from "./preview/link.ts";
 
 /** HEAD of the checkout the code runs from (null when git is unavailable). */
 function codeCommit(root: string): string | null {
@@ -65,8 +66,13 @@ const server = serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 0), ho
   if (!coreInfo.coreCommit && !coreInfo.coreUnknown) core.onSpawn?.(core.binPath); // no child spawned yet: the binary it will spawn from
   writeApi();
   console.log(`console-api listening on http://127.0.0.1:${info.port}  (core: ${core.name}, log: ${join(dir, "events.jsonl")}, ${store.seq} events)`);
-  // the one-time owner link: stdout only, never a file. Open it in your browser once to be allowed to start/stop previews.
-  console.log(`owner link (open once, in your browser): http://127.0.0.1:${info.port}/owner?t=${owner.token()}`);
+  // the one-time owner link goes to the controlling terminal only (Lean console.previewLink); with no terminal it is not printed
+  const link = (t: string | null) => `http://127.0.0.1:${info.port}/owner?t=${t}`;
+  const clock: LinkClock = { last: null };
+  void announceLink(core, () => link(owner.token()), (m) => console.error(`console-api: ${m}`)).then((w) => { if (w === "tty") clock.last = Date.now(); }).catch((e) => console.error("owner link failed:", (e as Error).message));
+  // `owner-link` (apps/console-api/src/owner-link.ts) sends SIGUSR2: a fresh link, again to this console's own terminal
+  // (at most one a minute, Lean mayReissue; a refused request changes nothing, the old link stays valid)
+  process.on("SIGUSR2", () => { void reissueLink(core, clock, Date.now(), () => link(owner.reissue()), (m) => console.error(`console-api: ${m}`)).catch(() => undefined); });
 });
 
 const stop = async () => {
