@@ -203,7 +203,11 @@ importers:
         specifier: ^4.3.0
         version: 4.10.2
 
-  packages/engine-check: {}
+  packages/engine-check:
+    devDependencies:
+      '@fw/runner':
+        specifier: workspace:*
+        version: link:../../apps/runner
 
   packages/gate-breakpoints:
     dependencies:
