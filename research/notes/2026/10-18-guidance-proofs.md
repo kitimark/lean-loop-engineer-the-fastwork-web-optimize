@@ -1,7 +1,7 @@
 ---
 id: 2026-10-18-guidance-proofs
 kind: note
-title: "Chrome Modern Web Guidance rules under our engine models: 2 proved, 0 refuted, 27 conditional, 9 out of model (19 rules × 2 engines)"
+title: "Chrome Modern Web Guidance rules under our engine models: 0 proved, 0 refuted, 29 conditional, 9 out of model (19 rules × 2 engines)"
 status: review
 created: 2026-10-18
 topics: [lean, modern-web-guidance, chromium, webkit, engine-model]
@@ -32,7 +32,7 @@ out-of-model. Counterexamples to claims the guide does not make are side finding
 | sticky.scroll-state-over-listener | out-of-model | out-of-model | none (`Scroll.listener_lt` is a side note) | Missing: a scroll-state container query term. `listener_lt` only shows that extra script callbacks on top of the same frame are more work. |
 | perf.inp.layout-thrashing | conditional | conditional | `Style.batched_clean_le_one`, `batched_dirty_two`, `interleaved_total` | "At most one pass" needs a clean frame start; from a dirty start batching costs 2. Shared Core flag model. |
 | css.no-js-size-measurement | conditional | conditional | `Style.measure_ge_two`, `native_le_one` | Only write-read-write sequences: a size write precedes the measuring read in the same frame and another write follows (≥ 2 passes; writes alone ≤ 1). A plain measure-then-write from a clean frame is not covered. Shared Core flag model. |
-| css.box-size-animation-triggers-layout | proved | proved | `Motion.cr_size_anim`; `wk_size_anim` | Main thread, layout and paint pass, every mode and layer state. |
+| css.box-size-animation-triggers-layout | conditional | conditional | `Motion.cr_size_anim`; `wk_size_anim` | Main thread, layout and paint pass, every mode and layer state. Chromium: only width and height; margin and padding are in the model but not stated. WebKit: encoding, the animation's frame carries a size change (hc); WkProp.size stands for width/height. |
 | transitions.transform-over-inset | conditional | conditional | `Motion.cr_transform_lt_inset`; `wk_transform_lt_inset_own` | Only per-frame JS style writes, not the guide's `@keyframes` animation (for an animation the model gives thread placement only: `cr_guide_comp`, `cr_noneligible_main`, `wk_guide_comp`, `wk_unaccel_main`). WK: only a box with its own layer. Side finding: for a script write on a WK box without its own layer the absolute-inset write is less work (`wk_inset_lt_transform`). |
 | perf.will-change-overuse | out-of-model | conditional | `Motion.cr_own_moving`; `wk_willChange_memory`, `wk_own_moving`, `willChange_not_dominates` | Cr: no will-change compositing reason and no backing-store term. WK: a layer only under the normal policy; a backing store only when the layer draws content. |
 | perf.inp.break-long-tasks | out-of-model | out-of-model | none (`Tasks.split_slices`, `cr_split_total`, `wk_split_total` are side notes) | Guide: "Any JavaScript execution exceeding 50ms should be split. Yield to the main thread frequently so the browser can process pending user inputs." Missing: task duration in ms, pending input and input delay. Side notes: each slice is ≤ the whole (`split_slices`, ≤ only); the split run pays one more props (Cr) or commit (WK) pass. |
@@ -47,7 +47,7 @@ out-of-model. Counterexamples to claims the guide does not make are side finding
 | fonts.size-adjust-fallback | out-of-model | out-of-model | none | Missing: font metrics, font swap and line-box size, layout-shift score. |
 | layout.scrollbar-gutter | conditional | conditional | `Stability.cr_gutter_lt`; `wk_gutter_lt` | Encoding: a scrollbar appearing without a gutter is a width (Cr) or size (WK) change of the content. |
 
-Counts over 38 cells: 2 proved, 0 refuted, 27 conditional, 9 out-of-model.
+Counts over 38 cells: 0 proved, 0 refuted, 29 conditional, 9 out-of-model.
 
 The 18 rules marked "no" have no term in either model and get no theorem: swipe.no-main-thread-gesture-interception,
 perf.inp.scheduler-yield-front-of-queue, perf.css.content-visibility-offscreen, perf.css.no-content-visibility-above-fold,
@@ -59,7 +59,7 @@ perf.html.ooo-streaming-fragmentation, perf.spa.view-cache-memory.
 ## What the guidance gets right
 
 - Size animation (`width`, `height`) runs on the main thread and lays out and paints every frame on both engines, in
-  every mode and layer state (`cr_size_anim`, `wk_size_anim`). Proved.
+  every mode and layer state (`cr_size_anim`, `wk_size_anim`). Conditional: Chromium only for width and height, WebKit under the encoding premise that the frame carries the size change.
 - JS size measurement, write-read-write case only (conditional): a write, then a read, then a write costs at least
   two passes, whatever comes before, between and after (`measure_ge_two`). Writes alone cost at most one
   (`native_le_one`). A read then a write from a clean frame is not covered. Core flag machine, used by both engines.

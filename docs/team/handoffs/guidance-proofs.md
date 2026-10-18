@@ -5,7 +5,7 @@ note `research/notes/2026/10-18-guidance-proofs.md`. Round 2 (final design round
 theorem, model term or mechanism.
 
 Verified:
-- 38 cells (19 "yes/partly" rules × Chromium, WebKit): 2 proved, 0 refuted, 27 conditional, 9 out-of-model.
+- 38 cells (19 "yes/partly" rules × Chromium, WebKit): 0 proved, 0 refuted, 29 conditional, 9 out-of-model (round 3: box-size cells conditional, label only).
 - Label rule: decided by the theorem as stated. proved = every case the quote covers; conditional = named special case
   or premise (note says "encoding" when the premise is the choice of frames); refuted = counterexample to the quoted
   claim; out-of-model = no term for the claim.
