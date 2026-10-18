@@ -44,7 +44,13 @@ requests its own frame). `onEvent`: outputs written only by click/key handlers. 
 $$P = (\mathrm{id}, g, g_{\mathrm{plan}}, o, \mathrm{in}, \mathrm{out}, \mathrm{ev}, T, M, A, \ell, s),\quad
 o \in \mathbb{N} \cup \{\bot\}$$
 
-The declared inputs, outputs and write footprint the independence premises are decided on. -/
+The declared inputs, outputs and write footprint the independence premises are decided on. Accepted limits (judge
+against these, do not reopen them): `outputs` list only signals another part can read (own-element aria, viewBox and
+tabIndex writes are excluded); I4 is pairwise with no clock-subscriber order; event-only writes are excluded
+(overlays' body overflow); a box move is hand-listed in `moves` (gate PL1 witnesses it; part-io-lint checks code
+against declared writes, not which boxes a write moves); `vw` and `vh` have no writer; I5 layerization is a recorded
+premise; row completeness (each row listing every read and write in its code) is part-io-lint's job, below the unit of
+this table's review; dead selectors under hashed CSS-module names are recorded in the row docstrings. -/
 structure PartSpec where
   id : String
   group : Group
@@ -65,16 +71,20 @@ open Signal Fw.Parts.EngineScroll.Access
 /-- Contract row of `commission`.
 
 $$g = G_2,\ g_{\mathrm{plan}} = G_5,\ o = 50,\ \ell = \top,\ s = \bot,
-\mathrm{in} = [\texttt{rect:commission}, \texttt{vh}],\ \mathrm{out} = [\texttt{cssVar:--commission-enter-shrink/commission}, \texttt{cssVar:--commission-shrink/commission}, \texttt{className:data-scene/commission}, \texttt{className:data-render/commission}, \texttt{cssVar:--start-selling-intrinsic-block-size/commission}],\ \mathrm{ev} = [\,],
+\mathrm{in} = [\texttt{rect:commission}, \texttt{vh}, \texttt{vw}, \texttt{clock}],\ \mathrm{out} = [\texttt{cssVar:--commission-enter-shrink/commission}, \texttt{cssVar:--commission-shrink/commission}, \texttt{className:entering/commission}, \texttt{className:shrinking/commission}, \texttt{cssVar:height/commission}, \texttt{className:titleWrapped/commission}, \texttt{className:enter/commission}, \texttt{className:idle/commission}, \texttt{className:data-scene/commission}, \texttt{className:data-render/commission}, \texttt{cssVar:--start-selling-intrinsic-block-size/commission}],\ \mathrm{ev} = [\,],
 T = [\texttt{commission}],\ M = [\,],\ A = [\texttt{RL}, \texttt{RL}, \texttt{WS}, \texttt{WS}, \texttt{WS}, \texttt{WS}, \texttt{WL}, \texttt{RL}, \texttt{WS}]$$
 
-commission/driver.ts:4,199-206 order 50, inline body 123-138 (rect reads 127-128, shrink vars and classes 131-134,
-runway height 135, line-box read and title class 118-121); data-scene 196, intrinsic size 155. Joins G2 by I4: its
-callback ends with a style write and platform (95) starts with a rect read. -/
+commission/driver.ts:4,199-206 order 50, inline body 123-138 (rect reads 127-128, shrink vars and the entering and
+shrinking classes 131-134, runway height 135, line-box read and title class 118-121); underline classes 171-172 on the
+clock interval, own frame 110; data-scene 161,196, intrinsic size 155; vw is the `mq.c1000` match (index.tsx:44,53). The
+runway is `RUNWAY * vh` (logic.ts:71), fixed for a fixed viewport, so `moves` is empty. Joins G2 by I4: its callback
+ends with a style write and platform (95) starts with a rect read. -/
 def commission : PartSpec :=
   { id := "commission", group := .g2, plan := .g5, order := some 50,
-    inputs := [rect "commission", vh],
+    inputs := [rect "commission", vh, vw, clock],
     outputs := [cssVar "--commission-enter-shrink/commission", cssVar "--commission-shrink/commission",
+      className "entering/commission", className "shrinking/commission", cssVar "height/commission",
+      className "titleWrapped/commission", className "enter/commission", className "idle/commission",
       className "data-scene/commission", className "data-render/commission",
       cssVar "--start-selling-intrinsic-block-size/commission"],
     targets := ["commission"],
@@ -222,28 +232,30 @@ def morphColumns : PartSpec :=
 /-- Contract row of `morph.countdown`.
 
 $$g = \mathrm{solo},\ g_{\mathrm{plan}} = G_2,\ o = \bot,\ \ell = \top,\ s = \bot,
-\mathrm{in} = [\texttt{clock}, \texttt{rect:morph.countdown}],\ \mathrm{out} = [\texttt{cssVar:transform/morph.countdown}],\ \mathrm{ev} = [\,],
+\mathrm{in} = [\texttt{clock}, \texttt{rect:morph.countdown}, \texttt{className:data-start-selling-scene/morph.panel}],\ \mathrm{out} = [\texttt{cssVar:transform/morph.countdown}],\ \mathrm{ev} = [\,],
 T = [\texttt{morph.countdown}],\ M = [\,],\ A = [\,]$$
 
 morph.countdown/index.tsx:23-34 write gate on its own HeroCountdown transforms, 38 own observer; rendered inside
-morph.panel (App.tsx:56-60). -/
+morph.panel (App.tsx:56-60); morph.module.css:14-15 pauses on the panel's `data-start-selling-scene`. -/
 def morphCountdown : PartSpec :=
   { id := "morph.countdown", group := .solo, plan := .g2,
-    inputs := [clock, rect "morph.countdown"], outputs := [cssVar "transform/morph.countdown"],
+    inputs := [clock, rect "morph.countdown", className "data-start-selling-scene/morph.panel"],
+    outputs := [cssVar "transform/morph.countdown"],
     targets := ["morph.countdown"] }
 
 /-- Contract row of `morph.mount`.
 
 $$g = G_2,\ g_{\mathrm{plan}} = \mathrm{solo},\ o = 101,\ \ell = \top,\ s = \bot,
-\mathrm{in} = [\texttt{scrollY}, \texttt{pointer}, \texttt{rect:morph.mount}],\ \mathrm{out} = [\,],\ \mathrm{ev} = [\,],
+\mathrm{in} = [\texttt{scrollY}, \texttt{vh}, \texttt{pointer}, \texttt{rect:morph.mount}],\ \mathrm{out} = [\,],\ \mathrm{ev} = [\,],
 T = [\texttt{morph.mount}],\ M = [\,],\ A = [\texttt{RL}]$$
 
 morph.mount/index.tsx:103-106 order 101 (logic.ts:72) reads `window.scrollY` on every call, which updates style
 and layout (chromium third_party/blink/renderer/core/frame/local_dom_window.cc:1877@f842f52); the repin writer needs
-`isActive`, false by default (index.tsx:34, App.tsx:37); 81-83 wheel/touch, 93 observer on its own div (139). -/
+`isActive`, false by default (index.tsx:34, App.tsx:37); 55-56 visual viewport height, 81-83 wheel/touch, 93 observer
+on its own div (139). -/
 def morphMount : PartSpec :=
   { id := "morph.mount", group := .g2, plan := .solo, order := some 101,
-    inputs := [scrollY, pointer, rect "morph.mount"], targets := ["morph.mount"], listAccess := [readLayout] }
+    inputs := [scrollY, vh, pointer, rect "morph.mount"], targets := ["morph.mount"], listAccess := [readLayout] }
 
 /-- Contract row of `morph.panel`.
 
@@ -252,7 +264,9 @@ $$g = \mathrm{solo},\ g_{\mathrm{plan}} = G_2,\ o = \bot,\ \ell = \top,\ s = \bo
 T = [\texttt{morph.panel}],\ M = [\,],\ A = [\,]$$
 
 morph.panel/index.tsx:33-44 own writer, App.tsx:56-60 passes no `writerRef`; its host sets `--morph: 0` itself
-(morph.module.css:8-9) and sits outside the nav, so nav's `--morph` does not reach it. -/
+(morph.module.css:8-9) and sits outside the nav, so nav's `--morph` does not reach it. Its `data-start-selling-scene`
+(driver.ts:24, index.tsx:37,54) is mount-only today; once a `writerRef` drives it per frame (morph-group-integrate)
+the attribute becomes an output that morph.countdown reads. -/
 def morphPanel : PartSpec :=
   { id := "morph.panel", group := .solo, plan := .g2,
     inputs := [cssVar "--morph/morph.panel"], targets := ["morph.panel"] }
@@ -265,7 +279,9 @@ T = [\texttt{nav}, \texttt{platform}],\ M = [\,],\ A = [\texttt{RL}]$$
 
 morph.tween/index.tsx:55 order 110, `pin` (driver.ts:141-142) reads `scrollY` and `scrollTo`s while active;
 index.tsx:44-49 `--morph` and `data-fw-morph` on the nav; driver.ts:56-57,62 `--morph-fade`, pointer-events and the
-platform rect; 89-91 wheel/touch, 130 clock. -/
+platform rect; 89-91 wheel/touch, 130 clock. Its `scrollY` output makes it page-level (`pageLevel`): the pin moves
+every rect, so it couples to every rect reader (`scroll_writer_couples`) and its own variants are measured only on
+whole-page runs. -/
 def morphTween : PartSpec :=
   { id := "morph.tween", group := .g2, plan := .g2, order := some 110,
     inputs := [scrollY, vh, clock, pointer, rect "platform"],
@@ -276,15 +292,19 @@ def morphTween : PartSpec :=
 /-- Contract row of `nav`.
 
 $$g = G_2,\ g_{\mathrm{plan}} = G_1,\ o = 99,\ \ell = \top,\ s = \bot,
-\mathrm{in} = [\texttt{rect:hero.exit}, \texttt{vh}, \texttt{morphPhase}, \texttt{cssVar:--morph/nav}, \texttt{className:is-on-dark/nav}],\ \mathrm{out} = [\texttt{className:is-hero-pill/nav}, \texttt{className:is-hero-chrome-ready/nav}, \texttt{className:is-morphing/nav}, \texttt{className:is-scroll-hidden/nav}],\ \mathrm{ev} = [\texttt{className:is-locale-open/nav}, \texttt{className:is-expanded/nav}],
+\mathrm{in} = [\texttt{rect:hero.exit}, \texttt{rect:people.deck}, \texttt{vh}, \texttt{morphPhase}, \texttt{cssVar:--morph/nav}, \texttt{className:is-on-dark/nav}],\ \mathrm{out} = [\texttt{className:is-hero-pill/nav}, \texttt{className:is-hero-chrome-ready/nav}, \texttt{className:is-morphing/nav}, \texttt{className:is-scroll-hidden/nav}],\ \mathrm{ev} = [\texttt{className:is-locale-open/nav}, \texttt{className:is-expanded/nav}],
 T = [\texttt{nav}],\ M = [\,],\ A = [\texttt{RL}, \texttt{WS}]$$
 
 nav/index.tsx:11,106 order 99, `measure` reads first and returns a writer (driver.ts:27,76-79); hero-exit rect
 index.tsx:55,75-77, morph phase 84, classes 88 (logic.ts:88-95); nav.module.css reads `--morph`, `is-on-dark`
-(56,59); locale and expand classes are click-driven (driver.ts:94-95). -/
+(56,59); locale and expand classes are click-driven (driver.ts:94-95). `measureSticky` (index.tsx:28-39) reads the
+rect of `#profile-showcase`, people.deck's section (people.deck/index.tsx:108), listed as a may-read. Dead selectors:
+`.start-selling-profile-sticky` and `.hero.is-ring-splash-done` (index.tsx:56-57) match no element in apps/site,
+whose CSS-module names are hashed (apps/site/scripts/build.mjs:41); a content lane that restores a global class name
+adds the matching `className`/`rect` inputs. -/
 def nav : PartSpec :=
   { id := "nav", group := .g2, plan := .g1, order := some 99,
-    inputs := [rect "hero.exit", vh, morphPhase, cssVar "--morph/nav", className "is-on-dark/nav"],
+    inputs := [rect "hero.exit", rect "people.deck", vh, morphPhase, cssVar "--morph/nav", className "is-on-dark/nav"],
     outputs := [className "is-hero-pill/nav", className "is-hero-chrome-ready/nav", className "is-morphing/nav",
       className "is-scroll-hidden/nav"],
     onEvent := [className "is-locale-open/nav", className "is-expanded/nav"],
@@ -297,7 +317,11 @@ $$g = G_2,\ g_{\mathrm{plan}} = \mathrm{solo},\ o = 100,\ \ell = \top,\ s = \bot
 T = [\texttt{nav}],\ M = [\,],\ A = [\texttt{RL}, \texttt{WS}, \texttt{RL}, \texttt{WS}, \texttt{RL}, \texttt{WS}]$$
 
 nav.hitTest/index.tsx:36 order 100 (logic.ts:94), 15 morph phase, 42-45 `is-on-dark` writer; faithful probe
-probe.ts:60-66 (rect read, pointer-events write, elementFromPoint, restore) and hero rect 84-87. -/
+probe.ts:60-66 (rect read, pointer-events write, elementFromPoint, restore) and hero rect 84-87. Dead selectors:
+the `closest` selectors (logic.ts:19-21: commission card, future card, hero, pain, platform, `.commission.shrinking`)
+and `.start-selling-profile-sticky` (probe.ts:47) match no element in apps/site, whose CSS-module names are hashed
+(apps/site/scripts/build.mjs:41); a content lane that restores a global class name adds the `className`/`rect` inputs
+for hero, people.card, pain, commission and platform. -/
 def navHitTest : PartSpec :=
   { id := "nav.hitTest", group := .g2, plan := .solo, order := some 100,
     inputs := [morphPhase, vh, rect "nav", rect "hero.exit"],
@@ -380,16 +404,17 @@ def people : PartSpec := { id := "people", group := .solo, plan := .solo }
 /-- Contract row of `people.card`.
 
 $$g = G_1,\ g_{\mathrm{plan}} = G_1,\ o = 40,\ \ell = \top,\ s = \bot,
-\mathrm{in} = [\texttt{vh}, \texttt{clock}, \texttt{rect:hero.exit}, \texttt{rect:people.card}],\ \mathrm{out} = [\texttt{cssVar:--future-shrink/people.card}, \texttt{className:is-visible/people.card}, \texttt{className:is-shrinking/people.card}, \texttt{className:data-fw-scene/people.card}, \texttt{className:is-pain-dark/pain}],\ \mathrm{ev} = [\,],
+\mathrm{in} = [\texttt{vh}, \texttt{clock}, \texttt{rect:hero.exit}, \texttt{rect:people.card}],\ \mathrm{out} = [\texttt{cssVar:--future-shrink/people.card}, \texttt{className:is-visible/people.card}, \texttt{className:is-shrinking/people.card}, \texttt{className:data-fw-scene/people.card}, \texttt{className:is-pain-dark/pain}, \texttt{className:data-fw-pain-dark/pain}],\ \mathrm{ev} = [\,],
 T = [\texttt{people.card}, \texttt{pain}],\ M = [\,],\ A = [\,]$$
 
 people.card/index.tsx:68 order 40 (people/shared.ts:41), callback requests its own frame (driver.ts:35,63);
-reads 44-52, writes on its section (95) 55-57,73 and `is-pain-dark` on pain 61-62. -/
+reads 44-52, writes on its section (95) 55-57,73 and `is-pain-dark` and `data-fw-pain-dark` on pain 61-62. -/
 def peopleCard : PartSpec :=
   { id := "people.card", group := .g1, plan := .g1, order := some 40,
     inputs := [vh, clock, rect "hero.exit", rect "people.card"],
     outputs := [cssVar "--future-shrink/people.card", className "is-visible/people.card",
-      className "is-shrinking/people.card", className "data-fw-scene/people.card", className "is-pain-dark/pain"],
+      className "is-shrinking/people.card", className "data-fw-scene/people.card", className "is-pain-dark/pain",
+      className "data-fw-pain-dark/pain"],
     targets := ["people.card", "pain"] }
 
 /-- Contract row of `people.carousel`.
@@ -421,13 +446,15 @@ def peopleDeck : PartSpec :=
 /-- Contract row of `people.o`.
 
 $$g = \mathrm{solo},\ g_{\mathrm{plan}} = \mathrm{solo},\ o = 20,\ \ell = \top,\ s = \bot,
-\mathrm{in} = [\texttt{pointer}, \texttt{rect:people.o}],\ \mathrm{out} = [\,],\ \mathrm{ev} = [\,],
+\mathrm{in} = [\texttt{pointer}, \texttt{vw}, \texttt{vh}, \texttt{rect:people.o}],\ \mathrm{out} = [\,],\ \mathrm{ev} = [\,],
 T = [\texttt{people.o}],\ M = [\,],\ A = [\,]$$
 
-people.o/index.tsx:67 order 20, `place` (37-45) returns at once unless the hover preview is open; 64 observer. -/
+people.o/index.tsx:67 order 20, `place` (37-45) returns at once unless the hover preview is open; 64 observer. When
+open it reads innerWidth and innerHeight (42-44) and writes the preview's left, top and width; that hover-gated write
+is excluded from `outputs` because no profile hovers. -/
 def peopleO : PartSpec :=
   { id := "people.o", group := .solo, plan := .solo, order := some 20,
-    inputs := [pointer, rect "people.o"], targets := ["people.o"] }
+    inputs := [pointer, vw, vh, rect "people.o"], targets := ["people.o"] }
 
 /-- Contract row of `platform`.
 
@@ -530,14 +557,29 @@ $$\mathrm{I2}(P,Q) \iff Q.\mathrm{id} \notin M_P \ \land\ P.\mathrm{id} \notin M
 Boxes are judged under a fixed viewport. -/
 def i2 (P Q : PartSpec) : Bool := !(P.moves.contains Q.id) && !(Q.moves.contains P.id)
 
-/-- I3, no signal flow: no frame-time output of one part is an input of the other (literal signal equality;
-`onEvent` outputs are not outputs here).
+/-- A written signal changes a read one: the same signal, or a scroll write and any box read.
 
-$$\mathrm{I3}(P,Q) \iff \mathrm{out}_P \cap \mathrm{in}_Q = \emptyset \ \land\ \mathrm{out}_Q \cap \mathrm{in}_P = \emptyset$$
+$$\operatorname{affects}(o,i) \iff o = i \lor (o = \mathrm{scrollY} \land \exists n:\ i = \mathrm{rect}(n))$$
 
-What one part writes per frame, the other never reads. -/
+A scroll write moves every viewport rect; no other signal reaches a different one. -/
+def affects (o i : Signal) : Bool :=
+  o == i || (o == .scrollY && match i with | .rect _ => true | _ => false)
+
+/-- Effective frame-time outputs: the declared outputs, then a box read of every part the frame writes move.
+
+$$\operatorname{effOut}(P) = \mathrm{out}_P \mathbin{+\!\!+} [\mathrm{rect}(m) \mid m \in M_P]$$
+
+`onEvent` signals are not part of it. -/
+def effOut (P : PartSpec) : List Signal := P.outputs ++ P.moves.map Signal.rect
+
+/-- I3, no signal flow: no effective frame-time output of one part affects an input of the other.
+
+$$\mathrm{I3}(P,Q) \iff \bigl(\forall o \in \operatorname{effOut}(P),\ \forall i \in \mathrm{in}_Q:\ \lnot\operatorname{affects}(o,i)\bigr)
+\land \bigl(\forall o \in \operatorname{effOut}(Q),\ \forall i \in \mathrm{in}_P:\ \lnot\operatorname{affects}(o,i)\bigr)$$
+
+What one part writes per frame, the other never reads, directly or through a scroll-moved box. -/
 def i3 (P Q : PartSpec) : Bool :=
-  !(P.outputs.any Q.inputs.contains) && !(Q.outputs.any P.inputs.contains)
+  !((effOut P).any fun o => Q.inputs.any (affects o)) && !((effOut Q).any fun o => P.inputs.any (affects o))
 
 /-- Running two inline access lists back to back forces exactly as many style and layout updates as running each from
 a clean state.
@@ -585,14 +627,28 @@ def groupKey (P : PartSpec) : String :=
   | .solo => P.id
   | g => g.name
 
-/-- Parts with different group keys are independent, except page-level (G4) parts.
+/-- A part is page-level when its variant reschedules the scroll list or it writes the scroll position. Derived from
+the row, never set by hand.
 
-$$\forall P \in \mathrm{parts},\ \forall Q \in \mathrm{parts}:\ g_P \ne G_4 \to g_Q \ne G_4 \to \kappa(P) \ne \kappa(Q) \to
-\operatorname{Independent}(P,Q)$$
+$$\operatorname{page}(P) \iff s_P \lor \mathrm{scrollY} \in \mathrm{out}_P$$
 
-Each group can be built, optimized and measured on its own. -/
+Its variants are measured only on whole-page runs. -/
+def pageLevel (P : PartSpec) : Bool := P.schedules || P.outputs.contains .scrollY
+
+/-- Parts that are not page-level and have different group keys are independent.
+
+$$\forall P \in \mathrm{parts},\ \forall Q \in \mathrm{parts}:\ \lnot\operatorname{page}(P) \to \lnot\operatorname{page}(Q) \to
+\kappa(P) \ne \kappa(Q) \to \operatorname{Independent}(P,Q)$$
+
+Each group can be built, optimized and measured on its own. Accepted limits (judge against these, do not reopen
+them): `outputs` list only signals another part can read (own-element aria, viewBox and tabIndex writes excluded); I4
+is pairwise with no clock-subscriber order; event-only writes are excluded (overlays' body overflow); a box move is
+hand-listed in `moves` (gate PL1 witnesses it; part-io-lint checks code against declared writes, not which boxes a
+write moves); `vw` and `vh` have no writer; I5 layerization is a recorded premise; row completeness (each row listing
+every read and write in its code) is part-io-lint's job, below the unit of this review; dead selectors under hashed
+CSS-module names are recorded in the row docstrings. -/
 theorem groups_partition :
-    ∀ P ∈ parts, ∀ Q ∈ parts, P.group ≠ .g4 → Q.group ≠ .g4 → groupKey P ≠ groupKey Q → Independent P Q := by
+    ∀ P ∈ parts, ∀ Q ∈ parts, ¬ pageLevel P → ¬ pageLevel Q → groupKey P ≠ groupKey Q → Independent P Q := by
   decide
 
 /-- A G4 part is coupled to every registered part, so it is measured only on whole-page runs.
@@ -601,6 +657,33 @@ $$\forall P \in \mathrm{parts},\ \forall Q \in \mathrm{parts}:\ g_P = G_4 \to o_
 
 engine.scroll's variant reschedules every scroll-list callback. -/
 theorem g4_couples : ∀ P ∈ parts, ∀ Q ∈ parts, P.group = .g4 → Q.order.isSome → ¬ Independent P Q := by decide
+
+/-- A part that writes the scroll position is coupled to every part that reads it or a box.
+
+$$\forall P \in \mathrm{parts}:\ \mathrm{scrollY} \in \mathrm{out}_P \to \forall Q \in \mathrm{parts}:\
+(\exists i \in \mathrm{in}_Q:\ \operatorname{affects}(\mathrm{scrollY}, i)) \to \lnot\operatorname{Independent}(P,Q)$$
+
+morph.tween's pin moves every rect any other part reads. -/
+theorem scroll_writer_couples :
+    ∀ P ∈ parts, .scrollY ∈ P.outputs → ∀ Q ∈ parts, Q.inputs.any (affects .scrollY) → ¬ Independent P Q := by
+  decide
+
+/-- morph.tween is the only part that writes the scroll position at frame time.
+
+$$[P.\mathrm{id} \mid P \in \mathrm{parts},\ \mathrm{scrollY} \in \mathrm{out}_P] = [\texttt{morph.tween}]$$
+
+The click `scrollTo`s of hero.cue and people.deck are event-only. -/
+theorem scroll_writers : (parts.filter (·.outputs.contains .scrollY)).map (·.id) = ["morph.tween"] := by decide
+
+/-- No part outside the page level writes a signal that affects a page-level part's input.
+
+$$\forall P \in \mathrm{parts}:\ \operatorname{page}(P) \to \forall Q \in \mathrm{parts}:\ \lnot\operatorname{page}(Q) \to
+\lnot\exists o \in \operatorname{effOut}(Q),\ \exists i \in \mathrm{in}_P:\ \operatorname{affects}(o,i)$$
+
+Page-level parts read only the environment, so a group's variant cannot change them. -/
+theorem pagelevel_env_only :
+    ∀ P ∈ parts, pageLevel P → ∀ Q ∈ parts, ¬ pageLevel Q → ¬ ∃ o ∈ effOut Q, ∃ i ∈ P.inputs, affects o i := by
+  decide
 
 /-- The `layoutLocal` flag is exactly "moves no other part".
 
@@ -699,7 +782,7 @@ def accessWire : Access → String
 
 /-- One contract row as a JSON object on one line, with its group key and profiles.
 
-$$\operatorname{row}(P) = \{\mathrm{id}, g, g_{\mathrm{plan}}, \kappa(P), o, \mathrm{in}, \mathrm{out}, \mathrm{ev}, T, M, A, \ell, s, S(P)\}$$
+$$\operatorname{row}(P) = \{\mathrm{id}, g, g_{\mathrm{plan}}, \kappa(P), o, \mathrm{in}, \mathrm{out}, \mathrm{ev}, T, M, A, \ell, s, \operatorname{page}(P), S(P)\}$$
 
 `order` is `null` for a part outside the scroll list. -/
 def rowJson (P : PartSpec) : String :=
@@ -712,6 +795,7 @@ def rowJson (P : PartSpec) : String :=
     ",\"targets\":" ++ jarr (P.targets.map jstr) ++ ",\"moves\":" ++ jarr (P.moves.map jstr) ++
     ",\"listAccess\":" ++ jarr (P.listAccess.map (jstr ∘ accessWire)) ++
     ",\"layoutLocal\":" ++ toString P.layoutLocal ++ ",\"schedules\":" ++ toString P.schedules ++
+    ",\"pageLevel\":" ++ toString (pageLevel P) ++
     ",\"profiles\":" ++ jarr ((scenariosFor P).map jstr) ++ "}"
 
 /-- Groups in wire order. $$[G_1, G_2, G_3, G_4, G_5, \mathrm{solo}]$$ Every constructor once. -/
@@ -785,6 +869,11 @@ def run (args : List String) : IO UInt32 := do
 #guard !independent commission platform
 #guard independent heroExit nav
 #guard !independent engineScroll heroExit
+#guard !independent morphTween heroExit
+#guard affects .scrollY (.rect "pain") && !affects (.rect "pain") .scrollY && !affects .vh (.rect "pain")
+#guard i3 heroAccent heroExit && !i3 heroAccent { hero with inputs := [.rect "hero"] }
+#guard pageLevel morphTween && pageLevel engineScroll && !pageLevel nav
+#guard parts.all fun P => !(effOut P).any fun o => o == .vw || o == .vh
 #guard !i3 navHitTest navLangMenu
 #guard !i2 heroAccent hero
 #guard additive [readLayout, writeStyle] [] && !additive [writeStyle] [readLayout]

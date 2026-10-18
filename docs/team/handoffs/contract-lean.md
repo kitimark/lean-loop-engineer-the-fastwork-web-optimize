@@ -1,29 +1,32 @@
 # contract-lean handoff
 
-State: branch `worktree-wf_ed01bde3-026-2` (page-root-clip merged in), commit "contract-lean: Fw.Parts.Contract".
+State: branch `worktree-wf_ed01bde3-026-2` (main merged in, with Fw.Engine.Compose), round 2 commit
+"contract-lean r2: affects relation, derived pageLevel".
 
 Delivered
-- `lean/Fw/Parts/Contract.lean`: `Signal`, `Group` (g1-g5, solo), `PartSpec` (34 rows, one per dir under
-  `apps/site/src/parts`, cites in each row docstring), `i1`-`i4`, `independent`/`Independent`, `groupKey`,
-  `scenariosFor`, JSON render, `run`. Theorems by `decide`: `parts_ids`, `groups_partition` (G4 excluded),
-  `g4_couples`, `layoutLocal_iff`, `moved_eq`, `scenarios_known`. Axioms: propext only.
-- `lean/scripts/ContractsGolden.lean` (`--contracts`, `--scenarios`, `--check <c> <s>`; the check also needs
-  `profiles/<id>.json` next to the scenarios file). Goldens: `packages/contracts/golden/parts/contracts.gen.json`,
-  `packages/measure-chromium/scenarios.gen.json`. Job "contracts golden check" in `lean/scripts/check.sh`.
+- `lean/Fw/Parts/Contract.lean`: 34 `PartSpec` rows, `affects`, `effOut` (outputs ++ moves as rects), `i1`-`i4`,
+  `independent`, derived `pageLevel` (schedules or writes scrollY), `groupKey`, `scenariosFor`, JSON render, `run`.
+  Theorems by `decide`: `parts_ids`, `groups_partition` (over non-page-level parts), `g4_couples`,
+  `scroll_writer_couples`, `scroll_writers` (= morph.tween), `pagelevel_env_only`, `layoutLocal_iff`, `moved_eq`
+  (unchanged), `scenarios_known`. Axioms: propext only.
+- `lean/scripts/ContractsGolden.lean`; goldens `packages/contracts/golden/parts/contracts.gen.json` (rows gain
+  `pageLevel`) and `packages/measure-chromium/scenarios.gen.json` (unchanged bytes). Job in `lean/scripts/check.sh`.
+- Round-2 row edits: commission (entering/shrinking/titleWrapped/underline classes, runway height, vw, clock), nav
+  (rect people.deck, dead selectors noted), nav.hitTest (dead selectors noted), people.card (data-fw-pain-dark),
+  morph.countdown (data-start-selling-scene input), morph.mount (vh), people.o (vw, vh, hover note), morph.panel note.
 
-Verified: `lake build` ok, mathview lint ok, check-partial and check-imports ok, golden check exit 0.
+Verified: `lake build Fw.Parts.Contract` ok, golden `--check` exit 0, `sh lean/scripts/check.sh` green (30 s),
+row LaTeX equals the golden rows (script cross-check, 34/34).
 
-Code-wins findings (`moved_eq`): 20 rows differ from the plan. G4 and G5 merge into G2, except engine.scroll: its
-variant reschedules every registered callback, so it couples to all of them (`g4_couples`) and stays page-level.
-commission joins G2 by I4: its callback ends with a style write and platform starts with a rect read. morph.panel,
-morph.columns and morph.countdown are solo: the panel host sets `--morph: 0` itself and gets no `writerRef`.
-nav.langMenu joins G2 because it reads `is-on-dark`. pain.notes joins G1 because it writes the pain section. G3 and
-G5 are empty. There is no `push` profile, so G2 maps to swipe-wheel-v1 and swipe-touch-v1.
+Finding: morph.tween's pin writes scrollY, which moves every rect, so it couples to every rect reader
+(`scroll_writer_couples`) and is page-level like engine.scroll. No regrouping: G1 9, G2 14, 10 solos. Its own variants
+are measured only on whole-page swipe runs; a G2 stage runs it faithful.
 
-Conventions: `cssVar`/`className` names are `<name>/<owner part>`. `targets`, `outputs` and `listAccess` are
-frame-time may-traces under the faithful engine. Mount, resize and click writes are excluded (click/key writes go in
-`onEvent`). Hover-gated people.o `place` is excluded because no profile hovers.
+Conventions: `cssVar`/`className` names are `<name>/<owner part>`; rows are frame-time may-traces under the faithful
+engine; accepted limits are listed in the `PartSpec` and `groups_partition` docstrings.
 
-Open: I5 is recorded, not proved. I4 checks pairs only and does not model clock-subscriber order. When
-morph-group-integrate hosts the panel in nav, the morph.panel/countdown rows must change, which regenerates the goldens.
-Read first: the `i4` and `groups_partition` docstrings, then `moved_eq`.
+Open: part-io-lint (code ⊆ row drift check); morph-group-integrate edits the morph.panel/countdown rows (panel's
+`data-start-selling-scene` becomes an output) and regenerates the goldens; contract-compose-bridge
+(`Independent P Q → Indep`); a content lane restoring global class names adds className/rect inputs for hero,
+people.card, pain, commission, platform to nav/nav.hitTest. plan-rev11 uses 34 parts.
+Read first: `affects`, `i3`, `pageLevel`, the `groups_partition` docstring, then `moved_eq`.
