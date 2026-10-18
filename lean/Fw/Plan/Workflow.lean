@@ -15,8 +15,9 @@ ready lane (incident `inc-workflow-unbound`). This module maps a run to plan com
   key `wf:<runId>` with the name, spawns the run key, and stops the run key once its run file exists
   (event keys `wfr-label:<runId>`, `wfr:<runId>`, `wfr-end:<runId>`). Each journal agent of a run
   labels its agent id with the run's name when that is a task id, whatever its label, and with its
-  label's task when that is a task id; spawns its id; and stops its id at its `result` or `failed`
-  line or at the run's end (event keys `wfid-label:<runId>:<id>:<task>`, `wfid:`, `wfid-end:` +
+  label's task when that is a task id; when it works on at least one task, it spawns its id and stops
+  it at its `result` or `failed` line or at the run's end; an agent that works on no task gives no
+  command (event keys `wfid-label:<runId>:<id>:<task>`, `wfid:`, `wfid-end:` +
   `<runId>:<id>`). A task name is never a life key, only a label, so the stop of one agent never ends
   a task another agent of the same task still works on (`concurrent_keep`, `workflow_concurrent`). A
   run whose name is not a task id gives no command for its run key.
@@ -262,8 +263,7 @@ theorem concurrent_keep (π : State) {k k₂ a : String} (m : Nat) (hne : k ≠ 
 
 /-- **A key that labels and spawns keeps its tasks unended until its own stop**: after labelling
 $k$ with every task of $ts$ and $\mathrm{spawn}(k, n)$, with $n$ later than every stop of $k$, any
-commands without a stop of $k$ leave every $t \in ts$ not ended (it shows running or quiet, never
-parked by $k$).
+commands without a stop of $k$ leave every $t \in ts$ not ended (a bound key stays live, so the row has an agent or a quiet time and k never parks it).
 
 $$\forall \pi, k, ts, t, n, cs:\quad t \in ts \land (\forall (b, m) \in \pi.\mathit{stops}:\ b = k \Rightarrow m < n) \land (\forall c \in cs, m:\ c \ne \mathrm{stop}(k, m)) \Rightarrow \operatorname{ended}(\operatorname{foldl}(\operatorname{step}, \pi, [\, \mathrm{label}(k, u) : u \in ts \,] \mathbin{+\!\!+} \mathrm{spawn}(k, n) :: cs), t) = \mathrm{false}$$
 -/

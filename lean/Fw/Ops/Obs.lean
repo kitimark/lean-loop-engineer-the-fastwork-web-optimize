@@ -253,7 +253,7 @@ those records as an unknown key, counted it only as `invalid`, and so 6376 stops
 is the list of its JSON fields. Only the **decision fields** are strict (`strict`): the event name,
 the agent id, the time and the spawn guard's agent name (the task binding); a record whose decision
 field is missing or does not fit is rejected with its reason. Every other known field is soft: a
-missing or ill-typed value is kept as null (or left out when optional) and noted, never a rejection;
+missing required or ill-typed value is kept as null (an ill-typed optional one is left out) and noted; a missing optional one is left out; never a rejection;
 an unknown field is kept out and named. Rejections, notes and unknown fields are all counted and
 raised as one spool alert (`issuesOf`, `fieldAlert`). Proved: only decision fields decide a
 rejection (`soft_never_rejects`), an extra unknown field never turns an accepted record into a
@@ -1036,7 +1036,7 @@ than $t$, it makes $i$ live and $a$ not ended.
 
 $$\forall \pi, e, i, a, g, k, t, p:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
 
-An agent that does anything after its stop is shown running again.
+An agent that does anything after its stop is live again (running while that event is within the quiet limit).
 -/
 theorem event_revives (π : Fw.Plan.State) {e i a : String} (g : Option String) (k : String)
     (t p : Nat) (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop")

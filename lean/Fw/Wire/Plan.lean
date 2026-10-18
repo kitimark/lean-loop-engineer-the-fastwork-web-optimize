@@ -18,7 +18,7 @@ same flat event envelope as the other console commands (`key`, `ts`, `actor`, `t
 | `milestone.define` | `milestone`, `title` |
 | `agent.spawn` | `agent`; `at` (when the agent was seen, ms; missing or null = the event's `ts`) |
 | `agent.stop` | `agent`; `at` (when the agent ended, ms; missing or null = the event's `ts`) |
-| `agent.label` | `agent` (a life key, the agent id), `name` (the name it is shown and bound under) |
+| `agent.label` | `agent` (a life key: an agent id, a run key `wf:<run>` or a spawn guard's obs key), `name` (the name it is shown and bound under) |
 | `task.handback` | `task`, `agent`; `tip` (string or null/missing) |
 | `task.integrate` | `task`, `branch`, `tip` |
 | `task.park` | `task`, `reason` |

@@ -23,10 +23,10 @@ the critical path and the parallel-safe groups are derived (`view`), never store
   added); a live agent named like the task claims it (`upsert_live`, `step_define_live`). Kept only so
   that old logs replay to the same board.
 * Agent binding (`agentOf`, `quietOf`, `bound`, `boundTo`): `agent.spawn` / `agent.stop` of life
-  keys are recorded as multisets; a key is bound to a task only by a label with its claim name or
+  keys are recorded in log order and read only as multisets (`view_perm`); a key is bound to a task only by a label with its claim name or
   its id (`tkeys`), and names never sight or stop (`names_never_sight`, `claim_never_sights`). At
-  time `now` a task runs when a bound key was seen within the quiet limit
-  (`running_needs_recent_sighting`), is quiet when a bound key is live but not seen within it, and
+  time `now` a task runs only when a live bound key was seen within the quiet limit
+  (`running_needs_recent_sighting`), is quiet when some bound key is live but no live bound key was seen within it, and
   is parked only after a stop of every seen bound key or a mark (`ended_needs_identity_stops`); a
   lead or user mark ends a quiet task (`mark_ends_quiet`); the time never ends an unmarked task
   (`timeout_never_ends`) and ends a task only by showing its recorded mark
@@ -78,11 +78,12 @@ The last four (task `task-state-truth`) record what became of a task's work when
 without a land: handed back, merged into a non-main integration branch, or parked by the lead
 (`unpark` removes the mark). A spawn or a stop carries a time $\mathit{ts} \in \mathbb{N}$ (ms): when
 the agent was seen starting or working (spawn) or ending (stop), so the board can tell whether a stop
-came after the agent's last sign of life, whatever order the commands reach the log in. The
+came at or after the agent's last sign of life, whatever order the commands reach the log in. The
 `agent` of a spawn or stop is a life key: an agent id, a run key `wf:<run>`, or a SpawnGuard obs
-key. A `label` gives the life key `agent` the display name `name` (from the console's health
-index), which binds it to tasks. A claim's $\mathit{ts}$ is decoded and ignored; a claim only stores
-its agent name on the row, which binds the keys labelled with that name (`claim_never_sights`).
+key. A `label` gives the life key `agent` the name `name` (from the health index, a spawn guard or a
+workflow), which binds it to tasks (`tkeys`). A claim's ts is decoded and ignored; a claim only stores
+its agent name on the row and is no sighting and no stop (`claim_never_sights`); that name binds the
+keys labelled with it (`tkeys`).
 -/
 inductive Cmd where
   | define (d : Def)
@@ -141,7 +142,7 @@ key, time) pairs of the accepted `agent.spawn` and `agent.stop` commands, one en
 log order (the board reads them only as multisets: `view_perm`), and the outcome marks of the accepted
 `task.handback` / `task.integrate` / `task.park` / `task.unpark` commands, one pair (task id, mark)
 per command in log order (`unpark` records no mark; the board reads the last pair of a task), and the
-(life key, name) pairs of the accepted `agent.label` commands (read as a multiset). A `task.claim`
+(life key, name) pairs of the accepted `agent.label` commands (the (life key, name) pairs of the accepted `agent.label` commands, in log order). A `task.claim`
 only stores its agent name on the row: it is no sighting and no stop.
 
 $$\pi = (\mathit{tasks}, \mathit{milestones}, \mathit{spawns}, \mathit{stops}, \mathit{marks}, \mathit{labels}), \qquad \pi_0 = ([\,], [\,], [\,], [\,], [\,], [\,])$$
@@ -407,8 +408,8 @@ $$\operatorname{mstate}(\mathrm{handedBack}(\cdot,\cdot)) = \mathrm{handedBack},
 def Mark.state : Mark → TState
   | .handedBack .. => .handedBack | .integrated .. => .integrated | .parked _ => .parked
 
-/-- The state of a task is computed, never written (first match wins). A task with an agent is
-running when it has no blockers and blocked otherwise (task `task-state-truth`: a task with open
+/-- The state of a task is computed, never written (first match wins). A task with evidence is done;
+otherwise a cut task is cut; otherwise a task with an agent is running when it has no blockers and blocked otherwise (task `task-state-truth`: a task with open
 blockers is never shown running, and for a live agent the blockers win over any outcome mark); a
 task with no agent but an outcome mark shows that mark (a lead or user mark ends a quiet task); a
 task with no agent and no mark but a quiet time (a live key not seen within the quiet limit) is
@@ -1277,7 +1278,7 @@ Task `task-state-truth`: liveness is decided per life key. A key is an agent id 
 records, a run key `wf:<run>` or a SpawnGuard obs key. A key is live when it was seen by a spawn
 (its start or any later event of it) and no stop came at or after its last sighting. A name (a
 task's claim or id) is live when one of its keys, labelled with it (`label`, from the console's
-health index), is live; a name is never a key of its own (`names_never_sight`). The times make
+health index), is live; a name gets no key of its own: only a label binds a key to it, and a spawn or stop of a key not bound to a row leaves the row unchanged (`names_never_sight`). The times make
 this independent of the order in which the spawn and stop commands reach the log (`view_perm`), so a
 drain that reads the hook spool file by file still gives the board of the real timeline.
 -/
@@ -1344,8 +1345,7 @@ $$\operatorname{lastAt}(\pi, k) = \max\big(\{0\} \cup \{\, n : (k, n) \in \opera
 def lastAt (s : State) (k : String) : Nat :=
   ((sights s).filter (·.1 == k)).foldr (fun p m => max p.2 m) 0
 
-/-- The life keys of a name: every key labelled with it, in label order. The name itself is no key
-(a name never sights or stops: `names_never_sight`).
+/-- The life keys of a name: every key labelled with it, in label order. The name itself is not added as a key: it is a key only if a label (a, a) makes it one, so a spawn or stop keyed by an unlabelled name changes no row (`names_never_sight`).
 
 $$\operatorname{keysOf}(\pi, a) = [\, k : (k, b) \in \pi.\mathit{labels},\ b = a \,]$$
 -/
@@ -1421,7 +1421,7 @@ def liveSeen (s : State) (t : Task) : Nat :=
 
 /-- **The quiet time of a task at time `now`, derived (never stored)**: when no name runs but some
 bound key is live (not stopped, only not seen within `q`), the last-seen time of its live keys;
-otherwise none. A quiet task is never ended: only a stop ends a key.
+otherwise none. A quiet time never ends a task by itself: only an identity stop of the key or a lead or user mark (`mark_ends_quiet`) does.
 
 $$\operatorname{quietOf}(q, \mathit{now}, \pi, t) = \begin{cases} \operatorname{liveSeen}(\pi, t) & \operatorname{agentOf}(q, \mathit{now}, \pi, t) = \bot \land \exists k \in \operatorname{tkeys}(\pi, t):\ \operatorname{liveK}(\pi, k) = \mathrm{true} \\ \bot & \text{otherwise} \end{cases}$$
 -/
@@ -1436,7 +1436,7 @@ $$\operatorname{markOf}(\pi, x) = \begin{cases} m_\bot & (x, m_\bot) \text{ is t
 def markOf (s : State) (x : String) : Option Mark :=
   ((s.marks.filter (·.1 == x)).getLast?).bind (·.2)
 
-/-- The reason the board gives a task whose every bound key was stopped, with no mark recorded.
+/-- The reason the board gives a task with a seen bound key whose every seen bound key was stopped at or after its last sighting, with no mark recorded.
 
 $$\operatorname{noHandback} = \texttt{"agent ended without a handback"}$$
 -/
