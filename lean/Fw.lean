@@ -70,6 +70,7 @@ import Fw.Gate.Pixel
 import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
+import Fw.Engine.Compose  -- compose-lean: units compose over parts, passes do not; Lego swap
 import Fw.Guidance.Basic
 import Fw.Guidance.Motion
 import Fw.Guidance.Scroll
