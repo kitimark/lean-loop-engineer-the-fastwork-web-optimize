@@ -5178,6 +5178,25 @@
     "research/notes/2026/10-19-page-root-clip.md",
     "docs/team/handoffs/page-root-clip.md"
    ]
+  },
+  {
+   "id": "commission-resize",
+   "title": "commission and commission.typing faithful under live resize: gate run 39139490674 (integrate-ports-4 at c55826ac) has 57 bad Chromium readings, all in these two parts in the resize columns (desktop sweep 45/57 and 7/57, phone-rotation 2/5, touch-1024 3/5, pain-1440 margins): e.g. --visual-scale 0.762 vs 0.8 at 720x900 mid-sweep; split out of integrate-ports-4 (3rd round), which lands with these readings enumerated as exemptions",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "integrate-ports-4"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "apps/site/src/parts/commission.typing/**",
+    "lean/Fw/Parts/Commission.lean",
+    "lean/Fw/Parts/CommissionTyping.lean",
+    "lean/Fw/Gate/Exit.lean",
+    "packages/contracts/golden/gate/exit.jsonl",
+    "docs/team/handoffs/commission-resize.md"
+   ]
   }
  ],
  "deadline": {
