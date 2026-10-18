@@ -1,6 +1,6 @@
 # console-stale handoff
 
-State: round 4 on branch worktree-wf_78d166a4-1a6-1 (head: see `git log -1`; merged round-3 head bc83b8a and main).
+State: round 4 on branch worktree-wf_78d166a4-1a6-1 (code head 6085e89 after merging round-3 head bc83b8a and main; a handoff commit follows).
 
 Read first: docs/team/tools/console-stale.md, lean/Fw/Obs/Stale.lean.
 
