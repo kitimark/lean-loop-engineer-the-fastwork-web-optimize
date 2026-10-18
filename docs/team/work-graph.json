@@ -4034,7 +4034,8 @@
     "packages/measure-wktr/**",
     "research/notes/**",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "5c815079"
   },
   {
    "id": "preview-test-ports",
