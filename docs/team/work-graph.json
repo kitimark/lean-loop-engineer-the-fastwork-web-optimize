@@ -4662,6 +4662,19 @@
     "lean/scripts/EngineGoldens.lean",
     "docs/team/handoffs/engine-model-fix-2.md"
    ]
+  },
+  {
+   "id": "mistake-record-4",
+   "title": "(S) record lead mistake batch 4 (13 items, incl. inc-review-loop) in docs/team/incidents/ledger.json + batch-4 section of the mistake retro; each with class, Lean-provable verdict and hardening task id",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-18-mistake-retro.md",
+    "docs/team/handoffs/mistake-record-4.md"
+   ]
   }
  ],
  "deadline": {
