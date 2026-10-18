@@ -1,4 +1,4 @@
-import Fw.Ops.LeanFirstProps
+import Fw.Ops.LeanFirstDecision
 
 /-!
 # Proofs of the lean-first gate properties
@@ -64,12 +64,31 @@ theorem untestedOk_iff (F : Facts) (t : ThmFact) (P : PropFact) :
 $$\forall F\, t\, P,\ \operatorname{dis}(F, t, P) = \mathrm{true} \iff \operatorname{Dis}(F, t, P)$$ -/
 theorem discharges_iff (F : Facts) (t : ThmFact) (P : PropFact) : discharges F t P = true ↔ Discharges F t P := by
   simp only [discharges, Discharges, Bool.and_eq_true, beq_iff_eq, Bool.not_eq_true', untestedOk_iff, ← exempt_iff]
-  simp only [Bool.not_eq_true, and_assoc]
+  simp only [Bool.not_eq_true, and_assoc, Option.isSome_iff_ne_none]
 
 /-- `proved` decides "some theorem discharges the property".
 $$\forall F\, P,\ \operatorname{proved}(F, P) = \mathrm{true} \iff \exists t \in \mathit{thms},\ \operatorname{Dis}(F, t, P)$$ -/
 theorem proved_iff (F : Facts) (P : PropFact) : proved F P = true ↔ ∃ t ∈ F.thms, Discharges F t P := by
   simp only [proved, List.any_eq_true, discharges_iff]
+
+/-- `provedReached` decides "a discharging theorem's own implementation is reached from the wire".
+$$\forall F\, P,\ \operatorname{provedReached}(F, P) = \mathrm{true} \iff \exists t \in \mathit{thms},\ \operatorname{Dis}(F, t, P) \land t.\mathit{rw} = \mathrm{some}(\mathrm{true})$$ -/
+theorem provedReached_iff (F : Facts) (P : PropFact) :
+    provedReached F P = true ↔ ∃ t ∈ F.thms, Discharges F t P ∧ t.reachFromWire = some true := by
+  simp only [provedReached, List.any_eq_true, Bool.and_eq_true, discharges_iff, beq_iff_eq]
+
+/-- `reachUnknown` decides the negation of `ReachKnown`.
+$$\forall F,\ \operatorname{reachUnknown}(F) = \mathrm{true} \iff \lnot\operatorname{ReachKnown}(F)$$ -/
+theorem reachUnknown_iff (F : Facts) : reachUnknown F = true ↔ ¬ ReachKnown F := by
+  simp only [reachUnknown, ReachKnown, List.any_eq_true, Bool.and_eq_true, Option.isNone_iff_eq_none,
+    Option.isSome_iff_ne_none, beq_iff_eq]
+  constructor
+  · rintro ⟨t, ht, ⟨hr, hi⟩, Q, hQ, hq⟩ hk
+    exact hk t ht hi ⟨Q, hQ, hq⟩ hr
+  · intro hk
+    apply Classical.byContradiction
+    intro hn
+    exact hk fun t ht hi hq hr => hn ⟨t, ht, ⟨hr, hi⟩, hq⟩
 
 /-- `Signoff.matches` decides `At`.
 $$\forall \sigma\, P\, r,\ \operatorname{at}(\sigma, P, r) = \mathrm{true} \iff \operatorname{At}(\sigma, P, r)$$ -/
@@ -106,7 +125,7 @@ theorem searchFirst_iff (F : Facts) (P : PropFact) : searchFirst F P = true ↔ 
 /-- `decides` decides `Decides`.
 $$\forall F,\ \operatorname{dec}(F) = \mathrm{true} \iff \operatorname{Dec}(F)$$ -/
 theorem decides_iff (F : Facts) : decides F = true ↔ Decides F := by
-  simp [decides, Decides]
+  simp [decides, Decides, isDecisionWrite_iff]
 
 /-- `registered` decides "some registry row has the id".
 $$\forall F\, p,\ \operatorname{reg}(F, p) = \mathrm{true} \iff \exists \rho \in \mathit{reg},\ \rho.\mathit{id} = p$$ -/
@@ -129,9 +148,13 @@ theorem mem_carriersOf (F : Facts) (t : ThmFact) (p : String) :
 /-- The reasons of one property are empty exactly when the property is done.
 $$\forall F\, P,\ \operatorname{reasons}_1(F, P) = [\,] \iff \operatorname{PropOk}(F, P)$$ -/
 theorem propReasons_nil_iff (F : Facts) (P : PropFact) : propReasons F P = [] ↔ PropOk F P := by
-  rw [PropOk, ← proved_iff, ← signed_iff, ← signed_iff, ← propKilled_iff]
+  have himp : provedReached F P = true → proved F P = true := fun h => by
+    obtain ⟨t, ht, hd, -⟩ := (provedReached_iff F P).1 h
+    exact (proved_iff F P).2 ⟨t, ht, hd⟩
+  rw [PropOk, ← provedReached_iff, ← signed_iff, ← signed_iff, ← propKilled_iff]
   unfold propReasons
-  cases proved F P <;> cases P.reached <;> cases signed F P .math <;> cases signed F P .adversary <;>
+  revert himp
+  cases proved F P <;> cases provedReached F P <;> cases signed F P .math <;> cases signed F P .adversary <;>
     cases propKilled F P <;> simp
 
 /-- The reason of one theorem under rule 2 is empty exactly when the theorem is old, killed or exempt.
@@ -206,7 +229,7 @@ theorem rule_of_mem_reasonsOf (F : Facts) (r : Rule) (ρ : Reason) (h : ρ ∈ r
     · unfold propReasons at h
       simp only [List.mem_append] at h
       repeat' rcases h with h | h
-      all_goals (split at h <;> simp at h; subst h; rfl)
+      all_goals (split at h <;> simp at h <;> first | (subst h; rfl) | (obtain ⟨-, rfl⟩ := h; rfl))
   · obtain ⟨t, _, h⟩ := h
     unfold killReasons at h; split at h <;> simp at h; subst h; rfl
   · obtain ⟨b, _, h⟩ := h
@@ -244,11 +267,16 @@ theorem reasons_filter_nil_iff (s : Stage) (F : Facts) :
     rw [(reasonsOf_nil_iff F r).2 (h r hr he)] at hρ'
     simp at hρ'
 
-/-- No source is missing exactly when all are present.
-$$\forall F,\ \operatorname{missing}(F) = [\,] \iff \operatorname{AllPresent}(F)$$ -/
+/-- No fact is missing exactly when every fact is present.
+$$\forall F,\ \operatorname{missing}(F) = [\,] \iff \operatorname{Present}(F)$$ -/
 theorem missing_nil_iff (F : Facts) : missing F = [] ↔ AllPresent F := by
+  have hr : ReachKnown F ↔ reachUnknown F = false := by
+    rw [← Bool.not_eq_true, reachUnknown_iff, Classical.not_not]
+  have he : F.exemptAt = some F.mainAt ↔ (F.exemptAt == some F.mainAt) = true := by simp
   unfold missing AllPresent
-  cases F.present.mathview <;> cases F.present.kills <;> cases F.present.tsLint <;> simp
+  rw [hr, he]
+  cases F.present.mathview <;> cases F.present.kills <;> cases F.present.tsLint <;> cases reachUnknown F <;>
+    cases (F.exemptAt == some F.mainAt) <;> simp
 
 /-- Some rule is enforced exactly when `anyEnforced` says so.
 $$\forall s\, \mathit{lf},\ \operatorname{anyEnforced}(s, \mathit{lf}) = \mathrm{true} \iff \exists r \in \mathrm{Rule.all},\ \operatorname{enf}(s, \mathit{lf}, r)$$ -/
@@ -340,16 +368,30 @@ theorem StaleReviewRefuses_impl : StaleReviewRefuses gate := by
   simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
   rcases hr with rfl | rfl <;> simp [propReasons, h]
 
+/-- **`land_refuses_unreached` holds of the gate.**
+$$\forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{props}) \land \operatorname{Present}(F) \Rightarrow \forall P \in F.\mathit{props},\ (\exists t \in F.\mathit{thms},\ \operatorname{Dis}(F, t, P)) \land (\forall t \in F.\mathit{thms},\ \operatorname{Dis}(F, t, P) \Rightarrow t.\mathit{rw} \ne \mathrm{some}(\mathrm{true})) \Rightarrow \mathrm{unreached}(P.\mathit{name}) \in \operatorname{refusals}(\operatorname{gate}(s, F))$$
+A property proved only of a stub refuses the land. -/
+theorem RefusesUnreached_impl : RefusesUnreached gate := by
+  intro s F he hp P hP hd hn
+  have h1 : proved F P = true := (proved_iff F P).2 hd
+  have h2 : provedReached F P = false := Bool.eq_false_iff.2 fun h' => by
+    obtain ⟨t, ht, hdt, hr⟩ := (provedReached_iff F P).1 h'
+    exact hn t ht hdt hr
+  refine mem_refusals s F .props _ hp ?_ he
+  exact List.mem_append_right _ (List.mem_flatMap.2 ⟨P, hP, by simp [propReasons, h1, h2]⟩)
+
 /-- **`no_props_refuses` holds of the gate.**
-$$\forall s\, F,\ \operatorname{enf}(s, F.\mathit{lf}, \mathrm{props}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \operatorname{Decides}(F) \Rightarrow F.\mathit{props} = [\,] \Rightarrow \exists w \in F.\mathit{writes},\ \operatorname{isDecisionPath}(w) \land \mathrm{noProps}(w) \in \operatorname{refusals}(\operatorname{gate}(s, F))$$
+$$\forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{props}) \land \operatorname{Present}(F) \land \operatorname{Dec}(F) \land F.\mathit{props} = [\,] \Rightarrow \exists w \in F.\mathit{writes},\ \operatorname{DecW}(w) \land \mathrm{noProps}(w) \in \operatorname{refusals}(\operatorname{gate}(s, F))$$
 Writing decision code without stating a property refuses the land. -/
 theorem NoPropsRefuses_impl : NoPropsRefuses gate := by
   intro s F he hp hd hnil
   obtain ⟨w, hw, hdw⟩ := hd
-  cases hf : F.writes.find? isDecisionPath with
-  | none => exact absurd hdw (by simpa using List.find?_eq_none.1 hf w hw)
+  cases hf : F.writes.find? isDecisionWrite with
+  | none =>
+    have := List.find?_eq_none.1 hf w hw
+    exact absurd ((isDecisionWrite_iff w).2 hdw) (by simpa using this)
   | some v =>
-    refine ⟨v, List.mem_of_find?_eq_some hf, List.find?_some hf, ?_⟩
+    refine ⟨v, List.mem_of_find?_eq_some hf, (isDecisionWrite_iff v).1 (List.find?_some hf), ?_⟩
     refine mem_refusals s F .props _ hp ?_ he
     have hdec : decides F = true := (decides_iff F).2 ⟨w, hw, hdw⟩
     have hv : firstDecision F = v := by simp [firstDecision, hf]
@@ -372,7 +414,7 @@ $$\forall F\, t\, P,\ \operatorname{Exempt}(F, t) \Rightarrow \operatorname{dis}
 A lemma, data lint or kill witness can never be the proof of a property. -/
 theorem ExemptNotDischarge_impl : ExemptNotDischarge discharges := by
   intro F t P hx
-  exact Bool.eq_false_iff.2 fun h => ((discharges_iff F t P).1 h).2.2.1 hx
+  exact Bool.eq_false_iff.2 fun h => ((discharges_iff F t P).1 h).2.2.2.1 hx
 
 /-- **`hidden_premise_refuses` holds of the gate.**
 $$\forall s\, F,\ \operatorname{enf}(s, F.\mathit{lf}, \mathrm{premises}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall \rho \in F.\mathit{reg},\ (\exists c \in \rho.\mathit{carriers},\ c \in t.\mathit{reach}) \Rightarrow \rho.\mathit{id} \notin t.\mathit{assumes} \Rightarrow \mathrm{hidden}(t.\mathit{name}, \rho.\mathit{id}) \in \operatorname{refusals}(\operatorname{gate}(s, F))$$
@@ -433,14 +475,17 @@ theorem RatchetRefusesGrowth_impl : RatchetRefusesGrowth gate := by
   simp [reasonsOf, Nat.not_le.2 hlt]
 
 /-- **`missing_fact_pending` holds of the gate.**
-$$\forall s\, F,\ (\exists r \in \mathrm{Rule.all},\ \operatorname{enf}(s, F.\mathit{lf}, r)) \Rightarrow \lnot\operatorname{AllPresent}(F) \Rightarrow \operatorname{isPending}(\operatorname{gate}(s, F)) \land \bigwedge_{x \in \{\mathrm{mathview}, \mathrm{kills}, \mathrm{tsLint}\}} \bigl(F.\mathit{present}.x = \mathrm{false} \iff x \in \operatorname{pendingOn}(\operatorname{gate}(s, F))\bigr)$$
-A missing fact source fails closed as pending, never as a vacuous pass. -/
+$$\forall s\, F,\ (\exists r \in \mathrm{rules},\ \operatorname{en}(s, F.\mathit{lf}, r)) \land \lnot\operatorname{Present}(F) \Rightarrow \operatorname{isPending}(\operatorname{gate}(s, F)) \land \bigwedge_{x \in \{\mathit{mathview}, \mathit{kills}, \mathit{tsLint}\}} (F.\mathit{present}.x = \mathrm{false} \iff x \in \operatorname{pendingOn}(\operatorname{gate}(s, F))) \land (\lnot\operatorname{ReachKnown}(F) \iff \mathrm{reach} \in \operatorname{pendingOn}(\operatorname{gate}(s, F))) \land (F.\mathit{exemptAt} \ne \mathrm{some}(F.\mathit{mainAt}) \iff \mathrm{exempt} \in \operatorname{pendingOn}(\operatorname{gate}(s, F)))$$
+A missing fact fails closed as pending, never as a vacuous pass. -/
 theorem MissingFactPending_impl : MissingFactPending gate := by
   intro s F he hp
   have hg : gate s F = .pending (missing F) := judge_pending reasons s F hp he
-  rw [hg]
+  have hr : ¬ ReachKnown F ↔ reachUnknown F = true := (reachUnknown_iff F).symm
+  have hx : F.exemptAt ≠ some F.mainAt ↔ (F.exemptAt == some F.mainAt) = false := by simp
+  rw [hg, hr, hx]
   simp only [Verdict.isPending, Verdict.pendingOn, missing, true_and]
-  cases F.present.mathview <;> cases F.present.kills <;> cases F.present.tsLint <;> simp
+  cases F.present.mathview <;> cases F.present.kills <;> cases F.present.tsLint <;> cases reachUnknown F <;>
+    cases (F.exemptAt == some F.mainAt) <;> simp
 
 /-- **`shadow_passes` holds of the gate.**
 $$\forall F,\ \operatorname{gate}(\mathrm{shadow}, F) = \mathrm{pass}$$
@@ -604,8 +649,8 @@ theorem killOrExempt_add (F : Facts) (e : Evidence) (t : ThmFact)
 $$\forall F\, e\, t\, P,\ \operatorname{KillsOk}(F) \Rightarrow t \in F.\mathit{thms} \Rightarrow \operatorname{Dis}(F, t, P) \Rightarrow \operatorname{Dis}(F + e, t, P)$$ -/
 theorem discharges_add (F : Facts) (e : Evidence) (t : ThmFact) (P : PropFact) (hK : KillsOk F)
     (ht : t ∈ F.thms) (h : Discharges F t P) : Discharges (F.add e) t P := by
-  obtain ⟨h1, h2, hx, h4⟩ := h
-  refine ⟨h1, h2, fun hx' => ?_, h4⟩
+  obtain ⟨h1, hi, h2, hx, h4⟩ := h
+  refine ⟨h1, hi, h2, fun hx' => ?_, h4⟩
   rcases hx' with hg | ⟨hn, hnk, _⟩
   · exact hx (Or.inl hg)
   · rcases hK t ht hn with hk | hk
@@ -643,8 +688,8 @@ theorem ruleOk_add (F : Facts) (e : Evidence) (r : Rule) (hK : r = .props → Ki
   cases r
   · obtain ⟨h1, h2⟩ := h
     refine ⟨h1, fun P hP => ?_⟩
-    obtain ⟨⟨t, ht, hd⟩, hr, hm, ha, hk⟩ := h2 P hP
-    exact ⟨⟨t, ht, discharges_add F e t P (hK rfl) ht hd⟩, hr, signed_add F e P _ hm, signed_add F e P _ ha,
+    obtain ⟨⟨t, ht, hd, hrw⟩, hm, ha, hk⟩ := h2 P hP
+    exact ⟨⟨t, ht, discharges_add F e t P (hK rfl) ht hd, hrw⟩, signed_add F e P _ hm, signed_add F e P _ ha,
       killAt_add F e _ _ hk⟩
   · exact fun t ht hn => killOrExempt_add F e t (h t ht hn)
   · show ∀ b ∈ fillMarks F.branches e.marks, _
@@ -663,7 +708,7 @@ theorem GateMono_impl : GateMono gate := by
   obtain ⟨h1, h2⟩ := h
   refine ⟨?_, fun r hr he => ruleOk_add F e r (fun hr' => ?_) (h2 r hr he)⟩
   · rcases h1 with ⟨a, b, c⟩ | h1
-    · exact Or.inl ⟨by simp [Facts.add, a], by simp [Facts.add, b], by simp [Facts.add, c]⟩
+    · exact Or.inl ⟨by simp [Facts.add, a], by simp [Facts.add, b], by simp [Facts.add, c.1], c.2.1, c.2.2⟩
     · exact Or.inr h1
   · subst hr'
     exact h2 .kills (mem_all _) (kills_of_props s F.leanFirst he)

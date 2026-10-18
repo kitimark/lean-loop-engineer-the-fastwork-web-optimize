@@ -16,8 +16,13 @@ open Fw.Search Fw.Ops.LeanFirst
 $$g_c = \operatorname{judge}_{F \mapsto [\rho \in \operatorname{reasons}(F) : \operatorname{code}(\rho) \ne c]}$$ -/
 def dropCode (c : String) : Gate := judge (fun F => (reasons F).filter (·.code != c))
 
-/-- Forgets rule 1d (an unreached implementation passes). $$g = g_{\texttt{unreached}}$$ -/
+/-- Forgets rule 1d (a property whose implementation is not reached from the wire passes). $$g = g_{\texttt{unreached}}$$ -/
 def gIgnoreUnreached : Gate := dropCode "unreached"
+/-- Binds reachability to any theorem, not the property's own implementation: an `unreached` reason is dropped when
+some theorem of the land is reached from the wire.
+$$g(s, F) = \operatorname{judge}_{F \mapsto [\rho \in \operatorname{reasons}(F) : \lnot(\operatorname{code}(\rho) = \texttt{unreached} \land \exists t \in F.\mathit{thms},\ t.\mathit{rw} = \mathrm{some}\ \mathrm{true})]}(s, F)$$ -/
+def gAnyReached : Gate := judge fun F =>
+  (reasons F).filter fun r => !(r.code == "unreached" && F.thms.any (·.reachFromWire == some true))
 /-- Forgets rule 1c (an unproved property passes). $$g = g_{\texttt{unproved}}$$ -/
 def gNoUnproved : Gate := dropCode "unproved"
 /-- Reads only the math review. $$g = g_{\texttt{unsigned-adversary}}$$ -/
@@ -61,6 +66,8 @@ $$g(s, F) = \operatorname{gate}(s', F),\quad s' = \begin{cases} 3 & s = 0 \\ s &
 def gShadowEnforces : Gate := fun s F => gate (if s = .shadow then .ratchet else s) F
 
 #guard (searchUpTo 0 (qPassIff gIgnoreUnreached)).isSome
+#guard (searchUpTo 0 (qRefusesUnreached gIgnoreUnreached)).isSome
+#guard (searchUpTo 0 (qRefusesUnreached gAnyReached)).isSome
 #guard (searchUpTo 0 (qRefusesUnproved gNoUnproved)).isSome
 #guard (searchUpTo 0 (qStaleReviewRefuses gIgnoreAdversary)).isSome
 #guard (searchUpTo 0 (qNoPropsRefuses gNoProps)).isSome
@@ -80,7 +87,14 @@ def gShadowEnforces : Gate := fun s F => gate (if s = .shadow then .ratchet else
 $$\lnot\operatorname{PassIff}(g_{\texttt{unreached}})$$
 Dropping the reachability check is caught (an unreached property passes). -/
 theorem PassIff_rejects_gIgnoreUnreached : ¬ PassIff gIgnoreUnreached :=
-  refutes_of_search _ _ _ [(.ratchet, factsOf [.unreached])] (fun h => (qPassIff_iff _).mp h) (by decide +kernel)
+  refutes_of_search _ _ _ [(.ratchet, factsOf [.stub])] (fun h => (qPassIff_iff _).mp h) (by decide +kernel)
+
+/-- **Kill of `refuses_unreached`** (the stub case).
+$$\lnot\operatorname{RefusesUnreached}(g_{\texttt{any-reached}})$$
+A gate that counts a reached lemma for a property whose own implementation is a stub is caught. -/
+theorem RefusesUnreached_rejects_gAnyReached : ¬ RefusesUnreached gAnyReached :=
+  refutes_of_search _ _ _ [(.ratchet, factsOf [.stub])] (fun h => (qRefusesUnreached_iff _).mp h)
+    (by decide +kernel)
 
 /-- **Kill of `land_refuses_unproved`**.
 $$\lnot\operatorname{RefusesUnproved}(g_{\texttt{unproved}})$$

@@ -9,7 +9,7 @@ where `request` carries its `op` and `response` is what `fwcore` replies (withou
 The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
 `golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors), `golden/lint/lint.context.jsonl`
 (`scripts/context-lint.mjs`). From `named` (file stem not the op): `golden/ops/lean-first.jsonl` (`ops.leanFirst`,
-the lean-first land gate over the fault grid of `Fw.Ops.LeanFirstSearch`).
+the lean-first land gate over the single faults of the grid of `Fw.Ops.LeanFirstSearch`, at the deployed stage).
 Generated from Lean, never by hand:
 
 ```
@@ -480,40 +480,47 @@ def extra : List (String × String × List (String × Json)) := [
     ("unknown source is refused", lit "{\"source\":\"lead\"}")])]
 
 open Fw.Ops.LeanFirst in
-/-- An `ops.leanFirst` request: the facts, with a `stage` field when one is given. -/
-def leanFirstReq (s : Option Stage) (F : Facts) : Json :=
-  match s, lfFactsJson F with
-  | some s, .obj kvs => .obj (kvs.insert "stage" (.str s.name))
-  | _, j => j
+/-- An `ops.leanFirst` request: the encoded facts. -/
+def leanFirstReq (F : Facts) : Json := lfFactsJson F
+
+/-- A JSON object with one more field (other JSON unchanged). -/
+def withField (k : String) (v : Json) : Json → Json
+  | .obj kvs => .obj (kvs.insert k v)
+  | j => j
 
 open Fw.Ops.LeanFirst in
 /-- The constructor name of a fault of the lean-first grid. -/
 def faultName (f : Fault) : String := ((reprStr f).splitOn ".").getLastD ""
 
 open Fw.Ops.LeanFirst in
-/-- The `ops.leanFirst` cases: the base facts (all rules met), each single fault of the grid at stage `ratchet` (one
-row per refusal kind, plus the faults that must pass), and the stage, shadow-line, pending and decoder edge cases. -/
+/-- The `ops.leanFirst` cases, all judged at the deployed constant `stage` (a request cannot choose it): the base
+facts (all rules met), each single fault of the grid, the binding, decision-path and read-at-main cases, a request
+`stage` field (ignored), and the decoder edge cases. -/
 def leanFirstCases : List (String × Json) :=
-  [("all rules met at stage ratchet: pass", leanFirstReq (some .ratchet) base),
-   ("all rules met, no stage field (the live stage): pass", leanFirstReq none base)] ++
-  Fault.all.map (fun f => (s!"fault {faultName f} at stage ratchet", leanFirstReq (some .ratchet) (factsOf [f]))) ++
-  [("unproved at stage shadow: pass with a LEANFIRST would-refuse line", leanFirstReq (some .shadow) (factsOf [.unproved])),
-   ("kills source missing at stage shadow: pass with a LEANFIRST missing line",
-     leanFirstReq (some .shadow) (factsOf [.missingKills])),
-   ("unproved at stage newTasks: refused", leanFirstReq (some .newTasks) (factsOf [.unproved])),
-   ("unproved, not a lean-first task, at stage newTasks: nothing enforced, pass",
-     leanFirstReq (some .newTasks) (factsOf [.notLeanFirst, .unproved])),
-   ("unproved, not a lean-first task, at stage allNew: props not enforced, pass",
-     leanFirstReq (some .allNew) (factsOf [.notLeanFirst, .unproved])),
-   ("no kill, not a lean-first task, at stage allNew: refused", leanFirstReq (some .allNew) (factsOf [.notLeanFirst, .noKill])),
-   ("legacy growth at stage allNew: ratchet not enforced, pass", leanFirstReq (some .allNew) (factsOf [.ratchet])),
-   ("two faults: both reasons, the verdict names the first", leanFirstReq (some .ratchet) (factsOf [.unproved, .noKill])),
-   ("untested premise shared with the property: pass with a WARN line",
-     leanFirstReq (some .ratchet) (factsOf [.untestedShared])),
-   ("a line break in a theorem name is printed as a space", leanFirstReq (some .ratchet) (factsOf [.newlineName, .noKill])),
-   ("empty request at stage ratchet: pending on all three sources", lit "{\"stage\":\"ratchet\"}"),
-   ("empty request at stage shadow: pass", lit "{\"stage\":\"shadow\"}"),
-   ("unknown stage is refused", lit "{\"stage\":\"strict\"}"),
+  let at_ := s!"at the deployed stage {stage.name}"
+  [(s!"all rules met {at_}", leanFirstReq base)] ++
+  Fault.all.map (fun f => (s!"fault {faultName f} {at_}", leanFirstReq (factsOf [f]))) ++
+  [(s!"two reason faults (stub implementation, no kill): both reasons, the verdict names the first {at_}",
+     leanFirstReq (factsOf [.stub, .noKill])),
+   (s!"stub: the property's own implementation is unreached though a lemma of the land is reached {at_}",
+     leanFirstReq (factsOf [.stub])),
+   (s!"directory glob apps/runner/** over decision code with no property: no-props {at_}",
+     leanFirstReq (factsOf [.dirGlob])),
+   (s!"globs only under docs/ and research/ with no property: not decision code {at_}",
+     leanFirstReq (factsOf [.docsGlob])),
+   (s!"a candidate theorem without reachFromWire: missing reach {at_}", leanFirstReq (factsOf [.reachUnknown])),
+   (s!"exempt.tsv and killOf read at branch commit b, not main m: missing exempt-main {at_}",
+     leanFirstReq (factsOf [.exemptBranch])),
+   (s!"exempt.tsv and killOf never read (no exemptAt): missing exempt-main {at_}",
+     withField "exemptAt" .null (leanFirstReq base)),
+   (s!"request stage field ratchet is ignored: same reply as all rules met {at_}",
+     withField "stage" (.str "ratchet") (leanFirstReq base)),
+   (s!"request stage field ratchet is ignored on a stub {at_}",
+     withField "stage" (.str "ratchet") (leanFirstReq (factsOf [.stub]))),
+   (s!"unknown stage name is ignored, not refused {at_}", lit "{\"stage\":\"strict\"}"),
+   (s!"untested premise shared with the property: WARN line {at_}", leanFirstReq (factsOf [.untestedShared])),
+   (s!"a line break in a theorem name is printed as a space {at_}", leanFirstReq (factsOf [.newlineName, .noKill])),
+   (s!"empty request: every source missing {at_}", lit "{}"),
    ("unknown sign-off role is refused",
      lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"docHash\":\"d\",\"role\":\"lead\",\"agree\":true}]}"),
    ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]

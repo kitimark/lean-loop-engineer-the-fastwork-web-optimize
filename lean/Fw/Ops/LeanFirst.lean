@@ -7,15 +7,17 @@ run one check, `lean-first` (wired by `lfg-land-wire`, not here): the TS gathers
 work-graph.json), calls the fwcore op `ops.leanFirst`, prints `Out.lines` verbatim and exits with `Out.exit`. Every
 decision is here; the TS has no printing branch.
 
-* **Rules** (`Rule`): `props` (rule 1: every property of the task's Props module is proved of a reachable
-  implementation, signed by both reviewers at its current hashes, and killed), `kills` (rule 2: every new theorem has a
+* **Rules** (`Rule`): `props` (rule 1: a task whose writes may cover decision code, i.e. anything outside the
+  allowlist `docs/**`, `research/**`, has properties; every property is proved by one theorem whose own implementation
+  argument is reached from the wire, signed by both reviewers at its current hashes, and killed), `kills` (rule 2: every new theorem has a
   kill or is exempt), `twins` (rule 3: every new TS/YAML data branch is marked), `premises` (rule 4: carriers are
   assumed, assumed ids are registered and not refuted), `search` (rule 5: the search guards come before the proof in
   git) and `ratchet` (stage 3: the legacy count does not grow).
 * **Reasons** (`reasons`): every failure of every rule, one `Reason` each, in the rule order above.
 * **Stages** (`Stage`, `enforced`): which rules refuse, for a task with or without `leanFirst`. The deployed stage is
   the constant `stage` (shadow: nothing refuses; the would-refuse reasons are printed on `LEANFIRST` lines).
-* **Verdict** (`gate`): missing facts with any rule enforced give `pending` (fail closed, exit 75); otherwise the
+* **Verdict** (`gate`): missing facts (a source, the reach of a candidate theorem, or exemption classes not read at
+  main) with any rule enforced give `pending` (fail closed, exit 75); otherwise the
   enforced reasons, if any, give `refuse`, else `pass`.
 * **Output** (`out`): `REASON`, `LEANFIRST` and `WARN` lines, then exactly one `VERDICT` line, last. Every piece of
   fact text is cleaned of line breaks, so a fact cannot forge a second line on stdout.
@@ -61,14 +63,20 @@ inductive ThmKind where
 deriving DecidableEq, Repr
 
 /-- What MathView reports about one theorem: name, deep statement hash, class, the property `P` when its type is
-`P impl` (head constant and implementation argument), whether it uses only the standard axioms, the theorems whose
-proofs reach it, the definitions it reaches, and its `Assume` premise ids.
-$$t = (\mathit{name}, \mathit{hash}, \mathit{kind}, \mathit{proves} \in \mathrm{Option}(\mathrm{String}), \mathit{ax} \in \mathbb B, \mathit{usedBy}, \mathit{reach}, \mathit{assumes} \in \mathrm{List}(\mathrm{String}))$$ -/
+`P impl` (`proves`, the head constant), the implementation it is about (`implArg`, the argument of `P`; none when the
+type is not `P impl` of one definition), whether that implementation is reachable from `Fw.Wire.handle` or a golden
+generator (`reachFromWire`: some true, some false, or none when MathView could not decide), whether it uses only the
+standard axioms, the theorems whose proofs reach it, the definitions it reaches, and its `Assume` premise ids. The
+triple $(\mathit{name}, \mathit{implArg}, \mathit{reachFromWire})$ is one MathView record (`lfg-mathview-facts`), so
+the reach of a theorem is always the reach of its own implementation.
+$$t = (\mathit{name}, \mathit{hash}, \mathit{kind}, \mathit{proves}, \mathit{implArg} \in \mathrm{Option}(\mathrm{String}), \mathit{rw} \in \mathrm{Option}(\mathbb B), \mathit{ax} \in \mathbb B, \mathit{usedBy}, \mathit{reach}, \mathit{assumes} \in \mathrm{List}(\mathrm{String}))$$ -/
 structure ThmFact where
   name : String
   hash : String
   kind : ThmKind
   proves : Option String
+  implArg : Option String
+  reachFromWire : Option Bool
   axiomsOk : Bool
   usedBy : List String
   reach : List String
@@ -76,14 +84,13 @@ structure ThmFact where
 deriving DecidableEq, Repr
 
 /-- What MathView and git report about one property of the task's Props module: name, statement and docstring hashes,
-whether its implementation argument is reachable from `Fw.Wire.handle` or a golden generator, the premise ids the
-property itself assumes, and the commits that first added its search guards and its proof.
-$$P = (\mathit{name}, \mathit{stmt}, \mathit{doc}, \mathit{reached} \in \mathbb B, \mathit{assumes}, \mathit{searchAt}, \mathit{proofAt} \in \mathrm{Option}(\mathrm{String}))$$ -/
+the premise ids the property itself assumes, and the commits that first added its search guards and its proof. Reach
+is not a property fact: it comes with each theorem's own `implArg`.
+$$P = (\mathit{name}, \mathit{stmt}, \mathit{doc} \in \mathrm{String}, \mathit{assumes} \in \mathrm{List}(\mathrm{String}), \mathit{searchAt}, \mathit{proofAt} \in \mathrm{Option}(\mathrm{String}))$$ -/
 structure PropFact where
   name : String
   stmtHash : String
   docHash : String
-  reached : Bool
   assumes : List String
   searchAt : Option String
   proofAt : Option String
@@ -133,10 +140,14 @@ structure Present where
   tsLint : Bool
 deriving DecidableEq, Repr
 
-/-- **The facts of one land**, all structured: the task's `leanFirst` flag and `writes` globs, its properties, the
-theorems, kills, signoffs, data branches, premise registry, the baseline `(name, hash)` pairs of the cutover commit,
-the strict-ancestor pairs of commits, the legacy gap counts on main and at the head, and which sources were present.
-$$F = (\mathit{lf}, W, \mathit{props}, \mathit{thms}, K, \Sigma, \mathit{branches}, \mathit{reg}, B, A, \ell_{main}, \ell_{head}, \pi)$$ -/
+/-- **The facts of one land**, all structured: the task's `leanFirst` flag, its `writes` globs together with the
+paths the land changes (a path is a glob without `*`), its properties, the theorems, kills, signoffs, data branches,
+premise registry, the baseline `(name, hash)` pairs of the cutover commit, the strict-ancestor pairs of commits, the
+legacy gap counts on main and at the head, which sources were present, the main commit the land merges onto, and the
+commit at which `FwTest/Mutants/exempt.tsv` and the MathView `killOf` classifier were read (none when not read). The
+gate uses the kinds `data` and `kill` only when that commit is main (else `Missing.exempt`), so a branch cannot exempt
+its own theorems by editing `exempt.tsv`.
+$$F = (\mathit{lf}, W, \mathit{props}, \mathit{thms}, K, \Sigma, \mathit{branches}, \mathit{reg}, B, A, \ell_{main}, \ell_{head}, \pi, m, x),\quad m \in \mathrm{String},\ x \in \mathrm{Option}(\mathrm{String})$$ -/
 structure Facts where
   leanFirst : Bool
   writes : List String
@@ -151,52 +162,46 @@ structure Facts where
   legacyMain : Nat
   legacyHead : Nat
   present : Present
+  mainAt : String
+  exemptAt : Option String
 deriving DecidableEq, Repr
 
 /-! ## Decision code paths (rule 1a) -/
 
-/-- Split a path into its `/`-separated segments (structural, so the kernel evaluates it).
-$$\operatorname{segs}(c_1 \dots c_n) = \text{the maximal runs of non-}\texttt{/}\text{ characters, empty runs kept}$$ -/
-def splitSlash : List Char → List (List Char)
-  | [] => [[]]
-  | c :: cs =>
-    match splitSlash cs with
-    | [] => [[c]]
-    | s :: ss => if c = '/' then [] :: s :: ss else (c :: s) :: ss
+/-- The allowlisted roots of non-decision code (`docs/**` holds the handoffs and the work graph).
+$$\mathrm{roots} = [\texttt{docs}, \texttt{research}]$$ -/
+def allowRoots : List String := ["docs", "research"]
 
-#guard splitSlash "a/bc/d".toList == ["a".toList, "bc".toList, "d".toList]
-#guard splitSlash "".toList == [[]]
-#guard splitSlash "/a/".toList == [[], "a".toList, []]
+/-- **Is a write glob (or a changed path) decision code?** Yes, unless it equals an allowlisted root or starts with
+a root followed by `/`. Fail closed: every other glob, `*`-globs and `.md` globs included, may cover decision code
+(`Fw.Ops.LeanFirstProps.DecisionWrite` is the rule this decides).
+$$\operatorname{dec}(w) \iff \lnot\exists d \in \mathrm{roots},\ w = d \lor \exists r,\ w = d \mathbin{+\!\!+} \texttt{/} \mathbin{+\!\!+} r$$ -/
+def isDecisionWrite (w : String) : Bool :=
+  !allowRoots.any fun d => w.toList == d.toList || (d.toList ++ ['/']).isPrefixOf w.toList
 
-/-- Is a path (or a write glob) decision code: `lean/Fw/<x>/…` or `lean/Fw/<x>` with `x ≠ Props`, `apps/<a>/src/…`,
-`packages/<p>/src/…`, or `.github/workflows/…`? The first three segments decide.
-$$\operatorname{dec}(p) \iff s = [\texttt{lean}, \texttt{Fw}, x, \dots],\ x \ne \texttt{Props} \ \lor\ s = [a, \_, \texttt{src}, \dots],\ a \in \{\texttt{apps}, \texttt{packages}\} \ \lor\ s = [\texttt{.github}, \texttt{workflows}, \_, \dots]\quad (s = \operatorname{segs}(p))$$ -/
-def isDecisionPath (p : String) : Bool :=
-  match splitSlash p.toList with
-  | a :: b :: c :: _ =>
-    (a == "lean".toList && b == "Fw".toList && c != "Props".toList) ||
-    ((a == "apps".toList || a == "packages".toList) && c == "src".toList) ||
-    (a == ".github".toList && b == "workflows".toList)
-  | _ => false
-
-#guard isDecisionPath "lean/Fw/Ops/LeanFirst*.lean"
-#guard isDecisionPath "lean/Fw/Search.lean"
-#guard !isDecisionPath "lean/Fw/Props/LandDry.lean"
-#guard !isDecisionPath "lean/Fw.lean"
-#guard isDecisionPath "apps/runner/src/land.ts"
-#guard isDecisionPath "packages/difftest/src/**"
-#guard !isDecisionPath "apps/runner/test/land.test.ts"
-#guard isDecisionPath ".github/workflows/mutants.yml"
-#guard !isDecisionPath "docs/team/tools/lean-first.md"
-#guard !isDecisionPath ""
+#guard isDecisionWrite "lean/Fw/Ops/LeanFirst*.lean"
+#guard isDecisionWrite "lean/**"
+#guard isDecisionWrite "apps/runner/**"
+#guard isDecisionWrite "lean/Fw/Props/LandDry.lean"
+#guard isDecisionWrite "apps/runner/test/land.test.ts"
+#guard isDecisionWrite "README.md"
+#guard isDecisionWrite "doc*/x.md"
+#guard isDecisionWrite "docsx/a"
+#guard isDecisionWrite "*"
+#guard isDecisionWrite ""
+#guard !isDecisionWrite "docs/team/tools/lean-first.md"
+#guard !isDecisionWrite "docs/team/handoffs/lfg-spec.md"
+#guard !isDecisionWrite "docs/team/work-graph.json"
+#guard !isDecisionWrite "research/**"
+#guard !isDecisionWrite "docs"
 
 /-- Does the task write decision code (rule 1a)?
 $$\operatorname{dec}(F) \iff \exists w \in W,\ \operatorname{dec}(w)$$ -/
-def decides (F : Facts) : Bool := F.writes.any isDecisionPath
+def decides (F : Facts) : Bool := F.writes.any isDecisionWrite
 
 /-- The first decision write, the subject of a `noProps` refusal (`""` when there is none).
 $$\operatorname{firstDec}(F) = \text{the first } w \in W \text{ with } \operatorname{dec}(w), \text{ else } \texttt{""}$$ -/
-def firstDecision (F : Facts) : String := (F.writes.find? isDecisionPath).getD ""
+def firstDecision (F : Facts) : String := (F.writes.find? isDecisionWrite).getD ""
 
 /-! ## The rule predicates, as Boolean functions of the facts -/
 
@@ -228,15 +233,28 @@ $$\operatorname{untestedOk}(F, t, P) \iff \forall p \in t.\mathit{assumes},\ \op
 def untestedOk (F : Facts) (t : ThmFact) (P : PropFact) : Bool :=
   t.assumes.all fun p => statusOf F p != some .untested || P.assumes.contains p
 
-/-- **The theorem discharges the property** (rule 1c): its type is `P impl`, it uses only standard axioms, it is not
-exempt, and its untested premises are the property's.
-$$\operatorname{dis}(F, t, P) \iff t.\mathit{proves} = \mathrm{some}(P.\mathit{name}) \land t.\mathit{ax} \land \lnot\operatorname{exempt}(F, t) \land \operatorname{untestedOk}(F, t, P)$$ -/
+/-- **The theorem discharges the property** (rule 1c): its type is `P impl` for a named implementation, it uses only
+standard axioms, it is not exempt, and its untested premises are the property's.
+$$\operatorname{dis}(F, t, P) \iff t.\mathit{proves} = \mathrm{some}(P.\mathit{name}) \land t.\mathit{implArg} \ne \mathrm{none} \land t.\mathit{ax} \land \lnot\operatorname{exempt}(F, t) \land \operatorname{untestedOk}(F, t, P)$$ -/
 def discharges (F : Facts) (t : ThmFact) (P : PropFact) : Bool :=
-  t.proves == some P.name && t.axiomsOk && !exempt F t && untestedOk F t P
+  t.proves == some P.name && t.implArg.isSome && t.axiomsOk && !exempt F t && untestedOk F t P
 
 /-- Is the property proved: some theorem discharges it?
 $$\operatorname{proved}(F, P) \iff \exists t \in \mathit{thms},\ \operatorname{dis}(F, t, P)$$ -/
 def proved (F : Facts) (P : PropFact) : Bool := F.thms.any fun t => discharges F t P
+
+/-- **Proved of a reached implementation** (rules 1c and 1d together): one theorem discharges the property, and the
+implementation named by that theorem's own `implArg` is reached from the wire. A reached definition elsewhere does
+not count.
+$$\operatorname{provedReached}(F, P) \iff \exists t \in \mathit{thms},\ \operatorname{dis}(F, t, P) \land t.\mathit{rw} = \mathrm{some}(\mathrm{true})$$ -/
+def provedReached (F : Facts) (P : PropFact) : Bool :=
+  F.thms.any fun t => discharges F t P && t.reachFromWire == some true
+
+/-- Is the reach of some candidate theorem unknown: it is `Q impl` for a property `Q` of the task, with a named
+implementation, and MathView reports no `reachFromWire`?
+$$\operatorname{reachUnknown}(F) \iff \exists t \in \mathit{thms},\ t.\mathit{rw} = \mathrm{none} \land t.\mathit{implArg} \ne \mathrm{none} \land \exists Q \in \mathit{props},\ t.\mathit{proves} = \mathrm{some}(Q.\mathit{name})$$ -/
+def reachUnknown (F : Facts) : Bool :=
+  F.thms.any fun t => t.reachFromWire.isNone && t.implArg.isSome && F.props.any fun Q => t.proves == some Q.name
 
 /-- Does a signoff row match the property's current hashes and the role?
 $$\operatorname{at}(\sigma, P, r) \iff \sigma.\mathit{decl} = P.\mathit{name} \land \sigma.\mathit{stmt} = P.\mathit{stmt} \land \sigma.\mathit{doc} = P.\mathit{doc} \land \sigma.\mathit{role} = r$$ -/
@@ -319,7 +337,7 @@ def Reason.rule : Reason → Rule
   | .growth _ _ => .ratchet
 
 /-- The reason code printed on `REASON` lines (and used by the mutants to drop one kind).
-$$\operatorname{code}(\mathrm{noProps}) = \texttt{no-props}, \operatorname{code}(\mathrm{unsigned}(P, \mathrm{math})) = \texttt{unsigned-math}, \dots$$ -/
+$$\operatorname{code}(\mathrm{noProps}) = \texttt{no-props},\ \operatorname{code}(\mathrm{unproved}) = \texttt{unproved},\ \operatorname{code}(\mathrm{unreached}) = \texttt{unreached},\ \operatorname{code}(\mathrm{unsigned}(P, \mathrm{math})) = \texttt{unsigned-math},\ \operatorname{code}(\mathrm{unsigned}(P, \mathrm{adversary})) = \texttt{unsigned-adversary},\ \operatorname{code}(\mathrm{unkilled}) = \texttt{unkilled},\ \operatorname{code}(\mathrm{noKill}) = \texttt{no-kill},\ \operatorname{code}(\mathrm{branch}(f, n, m)) = \begin{cases} \texttt{unmarked} & m = \bot \\ \texttt{glue-refused} & m \ne \bot \end{cases},\ \operatorname{code}(\mathrm{hidden}) = \texttt{hidden},\ \operatorname{code}(\mathrm{unregistered}) = \texttt{unregistered},\ \operatorname{code}(\mathrm{refuted}) = \texttt{refuted},\ \operatorname{code}(\mathrm{searchOrder}) = \texttt{proof-before-search},\ \operatorname{code}(\mathrm{growth}) = \texttt{growth}$$ -/
 def Reason.code : Reason → String
   | .noProps _ => "no-props" | .unproved _ => "unproved" | .unreached _ => "unreached"
   | .unsigned _ .math => "unsigned-math" | .unsigned _ .adversary => "unsigned-adversary"
@@ -337,11 +355,11 @@ def Reason.subject : Reason → String
   | .hidden t p | .unregistered t p | .refuted t p => t ++ " " ++ p
   | .growth a b => toString a ++ "->" ++ toString b
 
-/-- The reasons of rule 1 for one property.
-$$\operatorname{R}_{P}(F, P) = [\mathrm{unproved}(P) \mid \lnot\operatorname{proved}] \mathbin{+\!\!+} [\mathrm{unreached}(P) \mid \lnot P.\mathit{reached}] \mathbin{+\!\!+} [\mathrm{unsigned}(P, r) \mid r \in [\mathrm{math}, \mathrm{adversary}],\ \lnot\operatorname{signed}(F, P, r)] \mathbin{+\!\!+} [\mathrm{unkilled}(P) \mid \lnot\operatorname{pKilled}]$$ -/
+/-- The reasons of rule 1 for one property: unproved when no theorem discharges it, else unreached when no
+discharging theorem's own implementation is reached; then each missing signoff and a missing kill.
+$$\operatorname{R}_{P}(F, P) = [\mathrm{unproved}(P) \mid \lnot\operatorname{proved}(F, P)] \mathbin{+\!\!+} [\mathrm{unreached}(P) \mid \operatorname{proved}(F, P) \land \lnot\operatorname{provedReached}(F, P)] \mathbin{+\!\!+} [\mathrm{unsigned}(P, r) \mid r \in [\mathrm{math}, \mathrm{adversary}],\ \lnot\operatorname{signed}(F, P, r)] \mathbin{+\!\!+} [\mathrm{unkilled}(P) \mid \lnot\operatorname{pKilled}(F, P)]$$ -/
 def propReasons (F : Facts) (P : PropFact) : List Reason :=
-  (if proved F P then [] else [.unproved P.name]) ++
-  (if P.reached then [] else [.unreached P.name]) ++
+  (if proved F P then (if provedReached F P then [] else [.unreached P.name]) else [.unproved P.name]) ++
   (if signed F P .math then [] else [.unsigned P.name .math]) ++
   (if signed F P .adversary then [] else [.unsigned P.name .adversary]) ++
   (if propKilled F P then [] else [.unkilled P.name])
@@ -388,22 +406,25 @@ def reasonsOf (F : Facts) : Rule → List Reason
 $$\operatorname{reasons}(F) = \operatorname{R}(\mathrm{props}, F) \mathbin{+\!\!+} \dots \mathbin{+\!\!+} \operatorname{R}(\mathrm{ratchet}, F)$$ -/
 def reasons (F : Facts) : List Reason := Rule.all.flatMap (reasonsOf F)
 
-/-- The missing fact sources.
-$$\operatorname{missing}(F) = [\mathrm{mathview} \mid \lnot\pi.\mathit{mathview}] \mathbin{+\!\!+} [\mathrm{kills} \mid \lnot\pi.\mathit{kills}] \mathbin{+\!\!+} [\mathrm{tsLint} \mid \lnot\pi.\mathit{tsLint}]$$ -/
+/-- The facts that can be missing: the three sources, the reach of a candidate theorem (`reachUnknown`), and the
+exemption classes read from main.
+$$\mathrm{Missing} = \{\mathrm{mathview}, \mathrm{kills}, \mathrm{tsLint}, \mathrm{reach}, \mathrm{exempt}\}$$ -/
 inductive Missing where
-  | mathview | kills | tsLint
+  | mathview | kills | tsLint | reach | exempt
 deriving DecidableEq, Repr
 
-/-- The wire name of a missing source.
-$$\operatorname{name}(\mathrm{mathview}) = \texttt{mathview},\ \operatorname{name}(\mathrm{kills}) = \texttt{kills},\ \operatorname{name}(\mathrm{tsLint}) = \texttt{ts-lint}$$ -/
+/-- The wire name of a missing fact.
+$$\operatorname{name}(\mathrm{mathview}) = \texttt{mathview},\ \operatorname{name}(\mathrm{kills}) = \texttt{kills},\ \operatorname{name}(\mathrm{tsLint}) = \texttt{ts-lint},\ \operatorname{name}(\mathrm{reach}) = \texttt{reach},\ \operatorname{name}(\mathrm{exempt}) = \texttt{exempt-main}$$ -/
 def Missing.name : Missing → String
-  | .mathview => "mathview" | .kills => "kills" | .tsLint => "ts-lint"
+  | .mathview => "mathview" | .kills => "kills" | .tsLint => "ts-lint" | .reach => "reach" | .exempt => "exempt-main"
 
-/-- The missing fact sources, in a fixed order.
-$$\operatorname{missing}(F) = [\mathrm{mathview} \mid \lnot\pi.\mathit{mathview}] \mathbin{+\!\!+} [\mathrm{kills} \mid \lnot\pi.\mathit{kills}] \mathbin{+\!\!+} [\mathrm{tsLint} \mid \lnot\pi.\mathit{tsLint}]$$ -/
+/-- The missing facts, in a fixed order: each absent source, an unknown reach, and exemption classes not read at
+the main commit $m$.
+$$\operatorname{missing}(F) = [\mathrm{mathview} \mid \lnot\pi.\mathit{mathview}] \mathbin{+\!\!+} [\mathrm{kills} \mid \lnot\pi.\mathit{kills}] \mathbin{+\!\!+} [\mathrm{tsLint} \mid \lnot\pi.\mathit{tsLint}] \mathbin{+\!\!+} [\mathrm{reach} \mid \operatorname{reachUnknown}(F)] \mathbin{+\!\!+} [\mathrm{exempt} \mid x \ne \mathrm{some}(m)]$$ -/
 def missing (F : Facts) : List Missing :=
   (if F.present.mathview then [] else [.mathview]) ++ (if F.present.kills then [] else [.kills]) ++
-  (if F.present.tsLint then [] else [.tsLint])
+  (if F.present.tsLint then [] else [.tsLint]) ++ (if reachUnknown F then [.reach] else []) ++
+  (if F.exemptAt == some F.mainAt then [] else [.exempt])
 
 /-! ## Stages (section 8) -/
 
@@ -463,7 +484,7 @@ abbrev Gate := Stage → Facts → Verdict
 
 /-- **The verdict for a reason function** $R$: pending when a source is missing and some rule is enforced; otherwise
 the reasons whose rule is enforced, if any, refuse, else pass.
-$$\operatorname{judge}_R(s, F) = \begin{cases} \mathrm{pending}(\operatorname{missing}(F)) & \operatorname{missing}(F) \ne [\,] \land \operatorname{any}(s, \mathit{lf}) \\ \mathrm{pass} & [\rho \in R(F) : \operatorname{en}(s, \mathit{lf}, \operatorname{rule}(\rho))] = [\,] \\ \mathrm{refuse}([\rho \in R(F) : \operatorname{en}(s, \mathit{lf}, \operatorname{rule}(\rho))]) & \text{otherwise} \end{cases}$$ -/
+$$\operatorname{judge}_R(s, F) = \begin{cases} \mathrm{pending}(\operatorname{missing}(F)) & \operatorname{missing}(F) \ne [\,] \land \operatorname{any}(s, \mathit{lf}) \\ \mathrm{pass} & \lnot(\operatorname{missing}(F) \ne [\,] \land \operatorname{any}(s, \mathit{lf})) \land E = [\,] \\ \mathrm{refuse}(E) & \lnot(\operatorname{missing}(F) \ne [\,] \land \operatorname{any}(s, \mathit{lf})) \land E \ne [\,] \end{cases}\quad E = [\rho \in R(F) : \operatorname{en}(s, \mathit{lf}, \operatorname{rule}(\rho))]$$ -/
 def judge (R : Facts → List Reason) (s : Stage) (F : Facts) : Verdict :=
   if !(missing F).isEmpty && anyEnforced s F.leanFirst then .pending (missing F)
   else match (R F).filter (fun r => enforced s F.leanFirst r.rule) with
@@ -571,7 +592,7 @@ def run (F : Facts) : Out := out stage F
 
 /-- Extra evidence: kill rows, signoff rows (added as agreeing), marks for the unmarked branches (positionally), and
 sources that became present.
-$$e = (K_e, \Sigma_e, M_e, \pi_e)$$ -/
+$$e = (K_e, \Sigma_e, M_e, \pi_e) \in \mathrm{List}(\mathrm{KillRow}) \times \mathrm{List}(\mathrm{Signoff}) \times \mathrm{List}(\mathrm{Mark}) \times \mathbb B^3$$ -/
 structure Evidence where
   kills : List KillRow
   signoffs : List Signoff
@@ -599,11 +620,24 @@ def Facts.add (F : Facts) (e : Evidence) : Facts :=
 
 /-! ## Examples of the decision functions (the fault grid is in `Fw.Ops.LeanFirstSearch`) -/
 
-/-- Facts with nothing in them, all sources present, of a lean-first task (for the examples).
-$$F_\emptyset = (\mathrm{true}, [\,], [\,], [\,], [\,], [\,], [\,], [\,], [\,], [\,], 0, 0, (\mathrm{true}, \mathrm{true}, \mathrm{true}))$$ -/
+/-- Facts with nothing in them, all sources present and the exemptions read at main, of a lean-first task (for the
+examples).
+$$F_\emptyset = (\mathrm{true}, [\,], [\,], [\,], [\,], [\,], [\,], [\,], [\,], [\,], 0, 0, (\mathrm{true}, \mathrm{true}, \mathrm{true}), \texttt{m}, \mathrm{some}(\texttt{m}))$$ -/
 def emptyFacts : Facts :=
   { leanFirst := true, writes := [], props := [], thms := [], kills := [], signoffs := [], branches := [],
-    registry := [], baseline := [], ancestry := [], legacyMain := 0, legacyHead := 0, present := ⟨true, true, true⟩ }
+    registry := [], baseline := [], ancestry := [], legacyMain := 0, legacyHead := 0, present := ⟨true, true, true⟩,
+    mainAt := "m", exemptAt := some "m" }
+
+/-- The stub case: property `P` is proved only of `stub`, which the wire does not reach, while another theorem `L`
+about a reached definition exists (for the examples).
+$$F_{stub} = F_\emptyset[\mathit{props} := [P],\ \mathit{thms} := [(\texttt{P\_stub}, \dots, \mathrm{some}(\texttt{P}), \mathrm{some}(\texttt{stub}), \mathrm{some}(\mathrm{false}), \dots),\ (\texttt{L}, \dots, \mathrm{none}, \mathrm{some}(\texttt{impl}), \mathrm{some}(\mathrm{true}), \dots)]]$$ -/
+def stubFacts : Facts :=
+  { emptyFacts with
+    props := [{ name := "P", stmtHash := "hP", docHash := "dP", assumes := [], searchAt := none, proofAt := none }],
+    thms := [{ name := "P_stub", hash := "h1", kind := .general, proves := some "P", implArg := some "stub",
+               reachFromWire := some false, axiomsOk := true, usedBy := [], reach := [], assumes := [] },
+             { name := "L", hash := "h2", kind := .general, proves := none, implArg := some "impl",
+               reachFromWire := some true, axiomsOk := true, usedBy := [], reach := [], assumes := [] }] }
 
 -- the stage table
 #guard Rule.all.all fun r => !enforced .shadow true r
@@ -613,10 +647,13 @@ def emptyFacts : Facts :=
 #guard Rule.all.filter (enforced .ratchet false) == [.kills, .twins, .premises, .ratchet]
 #guard Rule.all.filter (enforced .ratchet true) == Rule.all
 #guard !anyEnforced .newTasks false && anyEnforced .allNew false
--- marks, missing sources, newline cleaning, verdict lines
+-- marks, missing facts, newline cleaning, verdict lines
 #guard [Mark.none, .op, .twin, .glueOk, .glueBad].map Mark.ok == [false, true, true, true, false]
 #guard missing { emptyFacts with present := ⟨false, true, false⟩ } == [.mathview, .tsLint]
 #guard missing emptyFacts == []
+#guard missing { emptyFacts with exemptAt := some "branch" } == [.exempt]
+#guard missing { emptyFacts with exemptAt := none } == [.exempt]
+#guard missing { stubFacts with thms := stubFacts.thms.map fun t => { t with reachFromWire := none } } == [.reach]
 #guard clean "a\nb\rc" == "a b c" && clean "" == ""
 #guard isVerdict (mkLine .verdict "pass lean-first") && !isVerdict (mkLine .reason "VERDICT pass")
 #guard verdictCount ["VERDICT a", "REASON b", "VERDICT c"] == 2
@@ -625,12 +662,22 @@ def emptyFacts : Facts :=
 -- the gate and its output on empty facts: pass, pending without sources, nothing enforced at shadow
 #guard gate .ratchet emptyFacts == .pass
 #guard gate .ratchet { emptyFacts with present := ⟨true, false, true⟩ } == .pending [.kills]
+#guard gate .ratchet { emptyFacts with exemptAt := some "branch" } == .pending [.exempt]
 #guard gate .shadow { emptyFacts with present := ⟨false, false, false⟩ } == .pass
 #guard gate .newTasks { emptyFacts with leanFirst := false, present := ⟨false, false, false⟩ } == .pass
 #guard gate .ratchet { emptyFacts with legacyMain := 2, legacyHead := 3 } == .refuse [.growth 2 3]
 #guard gate .allNew { emptyFacts with legacyMain := 2, legacyHead := 3 } == .pass
 #guard gate .ratchet { emptyFacts with writes := ["apps/runner/src/land.ts"] } ==
   .refuse [.noProps "apps/runner/src/land.ts"]
+#guard gate .ratchet { emptyFacts with writes := ["docs/x.md", "apps/runner/**"] } == .refuse [.noProps "apps/runner/**"]
+#guard gate .ratchet { emptyFacts with writes := ["docs/x.md", "research/**"] } == .pass
+-- the stub case: `P` proved of an unreached stub, another reached theorem does not help
+#guard reasonsOf stubFacts .props ==
+  [.unreached "P", .unsigned "P" .math, .unsigned "P" .adversary, .unkilled "P"]
+#guard (reasonsOf { stubFacts with thms := stubFacts.thms.map fun t => { t with reachFromWire := some true } } .props).take 1 ==
+  [.unsigned "P" .math]
+#guard (reasonsOf { stubFacts with thms := stubFacts.thms.map fun t => { t with implArg := none } } .props).take 1 ==
+  [.unproved "P"]
 #guard (out .ratchet { emptyFacts with present := ⟨true, false, true⟩ }) ==
   ⟨.pending, 75, ["REASON lean-first:missing kills", "VERDICT pending lean-first:missing kills"]⟩
 #guard (out .ratchet { emptyFacts with legacyMain := 2, legacyHead := 3 }) ==

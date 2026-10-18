@@ -99,5 +99,6 @@ import Fw.Spec.Incidents  -- lfg-props-shape: the one incident registry (rows, S
 import Fw.Spec.Props.LandDryDemo  -- lfg-props-shape: worked example (inc-land-dry-no-verdict)
 import Fw.Ops.LeanFirst  -- lfg-spec: the lean-first land gate (Facts, reasons, stages, gate, out)
 import Fw.Ops.LeanFirstProps  -- lfg-spec: the gate properties of section 7 over Gate/Render
+import Fw.Ops.LeanFirstDecision  -- lfg-spec: the gate's decision-code test equals the allowlist rule
 import Fw.Ops.LeanFirstSearch  -- lfg-spec: Enum Facts, fault grid, pointwise checks, search guards
 import Fw.Ops.LeanFirstProofs  -- lfg-spec: proofs of every lean-first gate property (`<P>_impl`)
