@@ -4224,6 +4224,33 @@
     "research/notes/**",
     "docs/team/handoffs/gate-shard-balance.md"
    ]
+  },
+  {
+   "id": "ci-shape-obs",
+   "title": "(M) observe CI shape over time: per workflow/job/shard durations, queue time, growth per commit and imbalance (max/mean of sibling shards) recorded from the cached gh poller; Lean decides drift (growth beyond a bound, imbalance above a ratio, a job near its timeout) and raises ci.shape alerts with the cause class, so shard drift is caught before a job runs 50 min; feeds the gate-shard-balance cost table",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "gh-poller",
+    "gate-shard-balance"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/obs/**",
+    "packages/contracts/golden/ops/**",
+    "packages/gh-budget/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "apps/console-api/**",
+    "apps/console-web/**",
+    "docs/team/tools/**",
+    "research/notes/**",
+    "docs/team/handoffs/ci-shape-obs.md"
+   ]
   }
  ],
  "deadline": {
