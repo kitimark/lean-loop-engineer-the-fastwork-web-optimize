@@ -1,31 +1,55 @@
-{"cells":["pass","pass","not-run"],"kind":"engine","unsettled":0,"verdict":"pass"}
-{"cells":["pass","not-comparable","not-run","unreachable:whole-width"],"kind":"engine","unsettled":0,"verdict":"pass"}
-{"cells":["pass","fail","pass"],"kind":"engine","unsettled":0,"verdict":"fail"}
-{"cells":["pass","fail"],"kind":"engine","unsettled":3,"verdict":"fail"}
-{"cells":["pass","pass"],"kind":"engine","unsettled":2,"verdict":"unsettled"}
-{"cells":["not-comparable","not-run"],"kind":"engine","unsettled":0,"verdict":"notRendered"}
-{"cells":["unreachable:primary-pair","unreachable:whole-width"],"kind":"engine","unsettled":0,"verdict":"notRendered"}
-{"cells":[],"kind":"engine","unsettled":0,"verdict":"notRendered"}
-{"cells":["pass","bogus"],"error":"unknown verdict bogus","kind":"engine","unsettled":0}
+{"col":"hover-pointer-cross","engine":"playwright-webkit","id":"webkit-cross-primary-pair","kind":"exemption","premise":"Fw.Gate.matrix_cross_webkit","reason":"WebKit derives hover and pointer from one value, so a cross probe (hover without a fine pointer, or the reverse) cannot be delivered","row":null,"verdict":"unreachable:primary-pair"}
+{"col":"fractional-gaps","engine":"playwright-webkit","id":"webkit-fractional-whole-width","kind":"exemption","premise":"Fw.Gate.matrix_fractional_webkit","reason":"WebKit's media width is a whole number, so a width strictly between two whole widths cannot be delivered","row":null,"verdict":"unreachable:whole-width"}
+{"col":"fractional-gaps","engine":"chromium","id":"chromium-matchmedia-lean-fractional","kind":"exemption","premise":"Fw.Gate.truthItems_lean_na","reason":"a fractional width is loaded at its ceiling, so the requested environment is not achieved and every check against Lean's value is not applicable","row":"matchMedia =Lean","verdict":"not-comparable"}
+{"id":"narrowed-run","kind":"narrowed","reason":"a run narrowed to parts (header.parts) does not load the others; its cells for them carry no verdict and the summary names the skipped parts"}
+{"cells":[["engine.scroll","desk","pass"],["matchMedia =Lean","fractional-gaps","not-comparable"]],"engine":"chromium","exempt":[["chromium-matchmedia-lean-fractional","matchMedia =Lean|fractional-gaps"]],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"pass","waits":[["settled@3","settled@5"]]}
+{"cells":[["engine.scroll","desk","pass"],["nav.hitTest","fractional-gaps","not-comparable"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["matchMedia =Lean","desk","not-comparable"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["matchMedia =Lean","fractional-gaps","unreachable:whole-width"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["matchMedia =Lean","fractional-gaps","not-comparable"]],"engine":"playwright-webkit","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","hover-pointer-cross","unreachable:primary-pair"],["hero.exit","fractional-gaps","unreachable:whole-width"],["matchMedia =Lean","hover-pointer-cross","unreachable:primary-pair"]],"engine":"playwright-webkit","exempt":[["webkit-cross-primary-pair","hero.exit|hover-pointer-cross"],["webkit-fractional-whole-width","hero.exit|fractional-gaps"],["webkit-cross-primary-pair","matchMedia =Lean|hover-pointer-cross"]],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"pass","waits":[["settled@0","settled@0"]]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","hover-pointer-cross","unreachable:whole-width"]],"engine":"playwright-webkit","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","desk","unreachable:primary-pair"]],"engine":"playwright-webkit","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","hover-pointer-cross","not-comparable"]],"engine":"playwright-webkit","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","hover-pointer-cross","unreachable:primary-pair"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","hover-pointer-cross","unreachable:primary-pair"]],"engine":"firefox","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","hover-pointer-cross","unreachable:primary-pair"],["platform.stageBg","sweep:desktop-1512-320-1512","fail"]],"engine":"playwright-webkit","exempt":[["webkit-cross-primary-pair","hero.exit|hover-pointer-cross"]],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"fail","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","desk","unreachable:width-dpr"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["morph.panel","desk","not-run"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["morph.panel","desk","not-run"]],"engine":"chromium","exempt":[["narrowed-run","morph.panel|desk"]],"kind":"engine","narrowed":true,"unsettled":0,"verdict":"pass","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["morph.panel","desk","not-run"],["matchMedia =Lean","fractional-gaps","not-comparable"]],"engine":"chromium","exempt":[["narrowed-run","morph.panel|desk"],["chromium-matchmedia-lean-fractional","matchMedia =Lean|fractional-gaps"]],"kind":"engine","narrowed":true,"unsettled":0,"verdict":"pass","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","desk","not-comparable"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":true,"unsettled":0,"verdict":"incomplete","waits":[]}
+{"cells":[["morph.panel","desk","not-run"]],"engine":"chromium","exempt":[["narrowed-run","morph.panel|desk"]],"kind":"engine","narrowed":true,"unsettled":0,"verdict":"notRendered","waits":[]}
+{"cells":[["matchMedia =Lean","fractional-gaps","not-comparable"]],"engine":"chromium","exempt":[["chromium-matchmedia-lean-fractional","matchMedia =Lean|fractional-gaps"]],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"notRendered","waits":[]}
+{"cells":[],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"notRendered","waits":[]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","desk","fail"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":1,"verdict":"fail","waits":[["unsettled","settled@1"]]}
+{"cells":[["engine.scroll","desk","pass"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"pass","waits":[["settled@3","settled@5"],["settled@2","settled@2"]]}
+{"cells":[["engine.scroll","desk","pass"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":1,"verdict":"unsettled","waits":[["settled@3","settled@5"],["settled@2","unsettled"]]}
+{"cells":[["engine.scroll","desk","pass"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":1,"verdict":"unsettled","waits":[["unsettled","settled@1"]]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","desk","not-comparable"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":1,"verdict":"unsettled","waits":[["settled@3","missing"]]}
+{"cells":[["engine.scroll","desk","pass"]],"engine":"chromium","error":"unknown outcome late","kind":"engine","narrowed":false,"waits":[["settled@3","late"]]}
+{"cells":[["engine.scroll","desk","pass"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"pass","waits":[["settled@007","settled@0"]]}
+{"cells":[["engine.scroll","desk","pass"]],"engine":"chromium","error":"unknown outcome settled@1_0","kind":"engine","narrowed":false,"waits":[["settled@1_0","settled@0"]]}
+{"cells":[["engine.scroll","desk","pass"]],"engine":"chromium","error":"unknown outcome settled@","kind":"engine","narrowed":false,"waits":[["settled@","settled@0"]]}
+{"cells":[["engine.scroll","desk","pass"]],"engine":"chromium","error":"unknown outcome settled@+1","kind":"engine","narrowed":false,"waits":[["settled@+1","settled@0"]]}
+{"cells":[["engine.scroll","desk","pass"],["hero.exit","desk","bogus"]],"engine":"chromium","error":"unknown verdict bogus","kind":"engine","narrowed":false,"waits":[["late","settled@0"]]}
+{"cells":[["engine.scroll","desk","pass"]],"engine":"chromium","error":"unknown outcome late","kind":"engine","narrowed":false,"waits":[["late","settled@0"],["also-late","settled@0"]]}
+{"cells":[["hero.exit","desk","not-run"]],"engine":"chromium","exempt":[],"kind":"engine","narrowed":false,"unsettled":0,"verdict":"incomplete","waits":[]}
 {"engines":["pass"],"exit":0,"kind":"exit"}
 {"engines":["pass","pass"],"exit":0,"kind":"exit"}
 {"engines":["pass","fail"],"exit":1,"kind":"exit"}
 {"engines":["fail"],"exit":1,"kind":"exit"}
 {"engines":["unsettled"],"exit":1,"kind":"exit"}
 {"engines":["pass","unsettled"],"exit":1,"kind":"exit"}
-{"engines":["notRendered"],"exit":1,"kind":"exit"}
+{"engines":["incomplete"],"exit":1,"kind":"exit"}
+{"engines":["pass","incomplete"],"exit":1,"kind":"exit"}
 {"engines":["pass","notRendered"],"exit":1,"kind":"exit"}
 {"engines":[],"exit":1,"kind":"exit"}
-{"cells":["pass","pass"],"kind":"engineWait","unsettled":0,"verdict":"pass","waits":[["settled@3","settled@5"],["settled@2","settled@2"]]}
-{"cells":["pass","pass"],"kind":"engineWait","unsettled":1,"verdict":"unsettled","waits":[["settled@3","settled@5"],["settled@2","unsettled"]]}
-{"cells":["pass","pass"],"kind":"engineWait","unsettled":1,"verdict":"unsettled","waits":[["unsettled","settled@1"]]}
-{"cells":["pass","pass"],"kind":"engineWait","unsettled":1,"verdict":"unsettled","waits":[["settled@3","missing"]]}
-{"cells":["pass","fail"],"kind":"engineWait","unsettled":1,"verdict":"fail","waits":[["unsettled","unsettled"]]}
-{"cells":["pass","not-run"],"kind":"engineWait","unsettled":0,"verdict":"pass","waits":[]}
-{"cells":["not-comparable","not-run"],"kind":"engineWait","unsettled":1,"verdict":"unsettled","waits":[["unsettled","settled@0"]]}
-{"cells":["not-comparable","not-run"],"kind":"engineWait","unsettled":0,"verdict":"notRendered","waits":[["settled@0","settled@0"]]}
-{"cells":["pass"],"error":"unknown outcome late","kind":"engineWait","waits":[["settled@3","late"]]}
 {"after":"settled@4","comparable":true,"fresh":"settled@9","kind":"stale"}
 {"after":"unsettled","comparable":false,"fresh":"settled@9","kind":"stale"}
 {"after":"settled@4","comparable":false,"fresh":"unsettled","kind":"stale"}
 {"after":"missing","comparable":false,"fresh":"missing","kind":"stale"}
+{"after":"settled@007","comparable":true,"fresh":"settled@1","kind":"stale"}
+{"after":"settled@1_0","error":"unknown outcome","fresh":"settled@1","kind":"stale"}
+{"after":"settled@4","error":"unknown outcome","fresh":"late","kind":"stale"}
+{"after":"settled@","error":"unknown outcome","fresh":"settled@1","kind":"stale"}
