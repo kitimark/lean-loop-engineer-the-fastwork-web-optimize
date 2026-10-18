@@ -25,11 +25,30 @@ export function engineVerdict(cells, unsettled) {
 export function exitCode(verdicts) {
   return verdicts.length > 0 && verdicts.every((v) => v === 'pass') ? 0 : 1;
 }
-/** Verdict of one engine of summary.json: its table cells, and its probes that did not settle on an arm (unreachable probes excluded). */
+/** Lean Fw.Gate.Exit.outcomeOfWire: a wait outcome is unsettled when it is 'unsettled' or 'missing' (no wait was recorded). */
+export function waitUnsettled(o) {
+  if (o === 'unsettled' || o === 'missing') return true;
+  if (/^settled@\d+$/.test(o)) return false;
+  throw new Error(`unknown outcome ${o}`);
+}
+/**
+ * Lean Fw.Gate.Exit.engineVerdictWW: the verdict of one engine from the wire names of its table cells and of its samples' wait
+ * outcomes (one [orig, rewrite] pair per probe or sweep stop). Unsettled samples are counted from the waits themselves
+ * (Fw.Gate.Exit.unsettledStates), never from a flag the page set.
+ */
+export function engineVerdictWaits(cells, waits) {
+  return engineVerdict(cells, waits.filter(([a, b]) => waitUnsettled(a) || waitUnsettled(b)).length);
+}
+/**
+ * Verdict of one engine of summary.json: its table cells, and its samples (probes and sweep stops) whose settle wait ended
+ * unsettled on an arm or was not recorded. A row without `wait` (a summary from before the wait) is read as missing, so as unsettled.
+ */
 export function engineOfSummary(e) {
   const cells = Object.values(e.table).flatMap((row) => Object.values(row).map((t) => t.verdict));
-  const unsettled = e.probes.filter((p) => !p.verdict.startsWith('unreachable') && !(p.settled.orig === true && p.settled.rewrite === true)).length;
-  return { verdict: engineVerdict(cells, unsettled), cells, unsettled };
+  const pair = (x) => [x.wait?.orig ?? 'missing', x.wait?.rewrite ?? 'missing'];
+  const waits = [...e.probes.map(pair), ...(e.sweeps ?? []).flatMap((sw) => sw.stops.map(pair))];
+  const unsettled = waits.filter(([a, b]) => waitUnsettled(a) || waitUnsettled(b)).length;
+  return { verdict: engineVerdictWaits(cells, waits), cells, unsettled };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

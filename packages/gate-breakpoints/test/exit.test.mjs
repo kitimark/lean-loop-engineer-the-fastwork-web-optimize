@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { engineVerdict, exitCode, engineOfSummary } from '../src/cli.mjs';
+import { engineVerdict, engineVerdictWaits, exitCode, engineOfSummary } from '../src/cli.mjs';
+import { staleComparable } from '../src/settle.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const golden = readFileSync(resolve(here, '../../contracts/golden/gate/exit.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -24,6 +25,22 @@ test('golden: engine verdicts from table cells and the unsettled count match Lea
   }
 });
 
+test('golden: the engine verdict from the samples\' wait outcomes matches Lean (unsettled is counted from the wait, missing is unsettled)', () => {
+  const gs = golden.filter((x) => x.kind === 'engineWait');
+  assert.ok(gs.length >= 8);
+  assert.ok(gs.some((g) => g.verdict === 'unsettled' && g.cells.every((c) => c === 'pass')), 'a pass table with unsettled waits');
+  for (const g of gs) {
+    if (g.error !== undefined) assert.throws(() => engineVerdictWaits(g.cells, g.waits), /unknown (outcome|verdict)/, JSON.stringify(g));
+    else assert.equal(engineVerdictWaits(g.cells, g.waits), g.verdict, JSON.stringify(g));
+  }
+});
+
+test('golden: a hysteresis pair is compared only when both waits settled (Lean staleComparable)', () => {
+  const gs = golden.filter((x) => x.kind === 'stale');
+  assert.ok(gs.length >= 4);
+  for (const g of gs) assert.equal(staleComparable(g.after, g.fresh), g.comparable, JSON.stringify(g));
+});
+
 test('golden: the exit code from the engine verdicts matches Lean', () => {
   for (const g of golden.filter((x) => x.kind === 'exit')) assert.equal(exitCode(g.engines), g.exit, JSON.stringify(g));
 });
@@ -36,14 +53,31 @@ test('exit 0 exactly when every engine verdict is pass (exit_zero_iff), checked 
   for (const l of lists) if (l.includes('unsettled') || l.includes('notRendered')) assert.notEqual(exitCode(l), 0);
 });
 
-test('a summary.json engine with a failing cell, or a probe that did not settle, is not a pass', () => {
-  const ok = { table: { 'matchMedia orig=rewrite': { a: { verdict: 'pass' }, b: { verdict: 'not-run' } } }, probes: [{ verdict: 'pass', settled: { orig: true, rewrite: true } }] };
+test('a summary.json engine with a failing cell, or a sample whose Lean wait did not settle, is not a pass', () => {
+  const w = (orig, rewrite) => ({ orig, rewrite });
+  const ok = {
+    table: { 'matchMedia orig=rewrite': { a: { verdict: 'pass' }, b: { verdict: 'not-run' } } },
+    probes: [{ verdict: 'pass', wait: w('settled@3', 'settled@4') }],
+    sweeps: [{ id: 's', stops: [{ wait: w('settled@2', 'settled@2') }] }],
+  };
   assert.equal(engineOfSummary(ok).verdict, 'pass');
   const failing = { ...ok, table: { ...ok.table, 'platform.stageBg': { a: { verdict: 'fail' } } } };
   assert.equal(engineOfSummary(failing).verdict, 'fail');
-  const unsettled = { ...ok, probes: [{ verdict: 'pass', settled: { orig: true, rewrite: false } }] };
+  // a pass table with a probe whose wait ended unsettled on one arm
+  const unsettled = { ...ok, probes: [{ verdict: 'pass', wait: w('settled@3', 'unsettled') }] };
   assert.equal(engineOfSummary(unsettled).verdict, 'unsettled');
-  const unreach = { ...ok, probes: [...ok.probes, { verdict: 'unreachable:whole-width', settled: { orig: false, rewrite: false } }] };
+  assert.equal(engineOfSummary(unsettled).unsettled, 1);
+  // a pass table with a sweep stop whose wait ended unsettled (the old ready-flag count never saw sweep stops)
+  const stopUnsettled = { ...ok, sweeps: [{ id: 's', stops: [{ wait: w('settled@2', 'settled@2') }, { wait: w('unsettled', 'settled@1') }] }] };
+  assert.equal(engineOfSummary(stopUnsettled).verdict, 'unsettled');
+  assert.notEqual(exitCode([engineOfSummary(stopUnsettled).verdict]), 0);
+  // the old ready flag says settled, the wait says unsettled: the wait decides
+  const flagLies = { ...ok, probes: [{ verdict: 'pass', settled: { orig: true, rewrite: true }, wait: w('unsettled', 'unsettled') }] };
+  assert.equal(engineOfSummary(flagLies).verdict, 'unsettled');
+  // a row with no wait recorded is not a pass
+  const noWait = { ...ok, probes: [{ verdict: 'pass', settled: { orig: true, rewrite: true } }] };
+  assert.equal(engineOfSummary(noWait).verdict, 'unsettled');
+  const unreach = { ...ok, probes: [...ok.probes, { verdict: 'unreachable:whole-width', wait: w('settled@0', 'settled@0') }] };
   assert.equal(engineOfSummary(unreach).verdict, 'pass');
 });
 

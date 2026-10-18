@@ -16,3 +16,16 @@
 {"engines":["notRendered"],"exit":1,"kind":"exit"}
 {"engines":["pass","notRendered"],"exit":1,"kind":"exit"}
 {"engines":[],"exit":1,"kind":"exit"}
+{"cells":["pass","pass"],"kind":"engineWait","unsettled":0,"verdict":"pass","waits":[["settled@3","settled@5"],["settled@2","settled@2"]]}
+{"cells":["pass","pass"],"kind":"engineWait","unsettled":1,"verdict":"unsettled","waits":[["settled@3","settled@5"],["settled@2","unsettled"]]}
+{"cells":["pass","pass"],"kind":"engineWait","unsettled":1,"verdict":"unsettled","waits":[["unsettled","settled@1"]]}
+{"cells":["pass","pass"],"kind":"engineWait","unsettled":1,"verdict":"unsettled","waits":[["settled@3","missing"]]}
+{"cells":["pass","fail"],"kind":"engineWait","unsettled":1,"verdict":"fail","waits":[["unsettled","unsettled"]]}
+{"cells":["pass","not-run"],"kind":"engineWait","unsettled":0,"verdict":"pass","waits":[]}
+{"cells":["not-comparable","not-run"],"kind":"engineWait","unsettled":1,"verdict":"unsettled","waits":[["unsettled","settled@0"]]}
+{"cells":["not-comparable","not-run"],"kind":"engineWait","unsettled":0,"verdict":"notRendered","waits":[["settled@0","settled@0"]]}
+{"cells":["pass"],"error":"unknown outcome late","kind":"engineWait","waits":[["settled@3","late"]]}
+{"after":"settled@4","comparable":true,"fresh":"settled@9","kind":"stale"}
+{"after":"unsettled","comparable":false,"fresh":"settled@9","kind":"stale"}
+{"after":"settled@4","comparable":false,"fresh":"unsettled","kind":"stale"}
+{"after":"missing","comparable":false,"fresh":"missing","kind":"stale"}
