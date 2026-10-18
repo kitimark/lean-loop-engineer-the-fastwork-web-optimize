@@ -2482,8 +2482,9 @@ theorem bindRow_step_other {π : State} {c : Cmd} {t : Task} (hm : c.isMark = tr
   simp only [bindRow, outcomeOf, ha, hc, hr, markOf_step_other h]
 
 /-- **Running means a live agent**: on the board, a running task's agent is one of its candidates
-(its claim, or an agent named like it) that has not ended: no stop of it is at or after its last
-spawn.
+(its claim, or an agent named like it) that has not ended: some key of it (the name itself, or a life
+key labelled with the name) is live, that is, seen, with no stop at or after its last sighting (a
+spawn or a claim).
 
 $$\forall \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(\pi), \operatorname{bindRow}(\pi, t)) = \mathrm{running} \Rightarrow \exists a:\ \operatorname{agentOf}(\pi, t) = a \land a \in \operatorname{cands}(\pi, t) \land \neg\operatorname{ended}(\pi, a)$$
 -/
