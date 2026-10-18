@@ -330,3 +330,10 @@ Numbers were re-checked against `profile.json` [pj] and the notes before changin
 A push to a `ci/*` branch starts only the workflows whose declared inputs this push changed (Lean `Fw.Ci.Trigger`); a run you
 intend to read is started with `gh workflow run <file> --ref ci/<task>` and waited for with `pnpm fw ci wait`, never with an extra
 push. Details and the commands: `docs/team/tools/fw-ci.md`, section "Which workflows a ci/* push starts".
+
+## Hand-back rule (task `land-dry`)
+
+Before an agent hands a branch back it merges `main` into it and runs `pnpm fw land <branch> --task <id> [--allow <glob>]... --dry`.
+It hands back only when the last line is `VERDICT dry <id>` (exit 0). Any other kind is fixed first: `stale` = merge main again,
+`scope` = declare the write or pass `--allow`, `reads` = declare the read in the premise, `conflict` = resolve. Lean: `Fw.Console.LandDry`
+(`handback_pass_land_pass`: if the dry land passes and main has not moved, the real land's scope, merge and reads stages pass). Details: `docs/team/tools/land.md`.

@@ -3,6 +3,7 @@ import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land } from "./land.ts";
+import { exitCode, verdictLine } from "./land-verdict.ts";
 import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -64,17 +65,22 @@ try {
       process.exitCode = await lintCli(rest.slice(1), process.cwd());
     } else throw new UsageError("usage: fw plan sync <work-graph.json> | fw plan show | fw plan lint <work-graph.json>");
   } else if (group === "land") {
-    const LAND_USAGE = "usage: fw land <branch> [--task <task-id>] [--allow <glob>]...";
-    if (!rest[0]) throw new UsageError(LAND_USAGE);
-    const ti = rest.indexOf("--task");
-    if (ti >= 0 && !rest[ti + 1]) throw new UsageError(LAND_USAGE);
-    const allow = rest.flatMap((a, i) => (a === "--allow" ? [rest[i + 1] ?? ""] : []));
+    const LAND_USAGE = "usage: fw land <branch> [--task <task-id>] [--allow <glob>]... [--dry]\n       fw land --queue <branch> --task <task-id> [--allow <glob>]... [--no-run]\n       fw land --queue-status";
+    const flags = new Set(["--queue", "--queue-status", "--no-run", "--dry"]);
+    const args = rest.filter((a) => !flags.has(a));
+    const queue = rest.includes("--queue"), qstatus = rest.includes("--queue-status");
+    if (!qstatus && !args[0]) throw new UsageError(LAND_USAGE);
+    const ti = args.indexOf("--task");
+    if (ti >= 0 && !args[ti + 1]) throw new UsageError(LAND_USAGE);
+    if (queue && ti < 0) throw new UsageError(LAND_USAGE);
+    const allow = args.flatMap((a, i) => (a === "--allow" ? [args[i + 1] ?? ""] : []));
     if (allow.some((a) => !a)) throw new UsageError(LAND_USAGE);
-    const res = await land(rest[0], { http: httpFor(base), cwd: process.cwd(), argv: process.argv.slice(2), task: ti >= 0 ? rest[ti + 1] : undefined, allow,
+    const task = ti >= 0 ? args[ti + 1] : undefined;
+    const landOpts = (task: string | undefined, allow: string[]) => ({ http: httpFor(base), cwd: process.cwd(), argv: process.argv.slice(2), task, allow, dry: !queue && rest.includes("--dry"),
       // after a landing, sync the board from the work graph of the main checkout, through the plain command door: the
       // capability of this `pnpm fw land` call may be spent, and the hook mints one only for `pnpm fw ...` commands
       base,
-      after: async (mainDir) => {
+      after: async (mainDir: string) => {
         const f = join(mainDir, "docs/team/work-graph.json");
         if (!existsSync(f)) return [];
         const refusal = syncRefusal(mainDir);
@@ -83,8 +89,39 @@ try {
       },
       // FW_LAND_CHECKS='[["cmd","arg"]]' replaces the default checks (used by the e2e script on a temp repo)
       checks: process.env.FW_LAND_CHECKS ? JSON.parse(process.env.FW_LAND_CHECKS) : undefined });
-    for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
-    if (!res.ok) process.exitCode = 2;
+    if (queue || qstatus) {
+      const { runQueue, enqueue, readLog, pending, results } = await import("./land-queue.ts");
+      const { worktreeOf } = await import("./land.ts");
+      const mainDir = worktreeOf(process.cwd(), "main");
+      if (!mainDir) throw new Error("no main checkout found");
+      const consoleDir = join(mainDir, ".fw-console");
+      if (qstatus) {
+        // one VERDICT line per task: queued for pending entries, the recorded kind otherwise; exit 0
+        const log = readLog(consoleDir);
+        for (const e of pending(log)) console.log(verdictLine("queued", e.task));
+        for (const r of results(log)) if (!pending(log).some((e) => e.task === r.task)) console.log(verdictLine(r.kind, r.task));
+      } else {
+        const branch = args[0]!, t = task!;
+        enqueue(consoleDir, { task: t, branch, allow });
+        const run = rest.includes("--no-run") ? { ran: false, results: [] } : await runQueue({ consoleDir,
+          attempt: async (e) => {
+            const res = await land(e.branch, landOpts(e.task, e.allow));
+            for (const l of res.lines) console.error(l);
+            return res.kind ?? (res.ok ? "done" : "unknown");
+          } });
+        for (const r of run.results) console.log(verdictLine(r.kind, r.task));
+        const own = run.results.find((r) => r.task === t);
+        if (!own) console.log(verdictLine("queued", t)); // another runner (or --no-run) will land it
+        process.exitCode = exitCode(own?.kind ?? "queued");
+      }
+    } else {
+      const res = await land(args[0]!, landOpts(task, allow));
+      for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
+      // one machine-readable line and a distinct exit code per kind (Lean Fw.Console.LandVerdict); scripts never grep prose
+      const kind = res.kind ?? (res.ok ? "done" : "unknown");
+      console.log(verdictLine(kind, task ?? args[0]!));
+      process.exitCode = exitCode(kind);
+    }
   } else if (group === "step" || group === "card" || group === "send") {
     // `fw send '<json command>'` is the escape hatch for run.* commands
     const cmd = group === "step" ? stepCommand(rest, process.env)
@@ -94,7 +131,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] | fw incidents lint [ledger.json] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

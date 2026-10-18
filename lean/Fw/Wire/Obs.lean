@@ -542,14 +542,14 @@ def childOf (j : Json) : Except String Child := do
 def branchJson (b : Branch) : Json :=
   Json.mkObj [("name", .str b.name), ("ahead", toJson b.ahead), ("landed", .bool b.landed), ("queued", .bool b.queued),
     ("mergesClean", .bool b.mergesClean), ("deps", .arr (b.deps.toArray.map .str)),
-    ("onMain", .bool b.onMain), ("landLock", ostr b.landLock)]
+    ("onMain", .bool b.onMain), ("landLock", ostr b.landLock), ("landQueued", .bool b.inLandQueue)]
 
 /-- Decode a branch (`name`, `ahead`, `landed` required; `queued` default false). -/
 def branchOf (j : Json) : Except String Branch := do
   pure { name := ← str j "name", ahead := ← nat j "ahead", landed := ← asBool "landed" (← field j "landed"),
          queued := ← boolD j "queued" false, mergesClean := ← boolD j "mergesClean" true,
          deps := ← (← arrD j "deps").mapM (fun v => match v with | .str x => pure x | _ => throw "deps: string expected"),
-         onMain := ← boolD j "onMain" false,
+         onMain := ← boolD j "onMain" false, inLandQueue := ← boolD j "landQueued" false,
          landLock := ← match opt j "landLock" with
            | none => pure none
            | some v => some <$> asStr "landLock" v }
@@ -876,6 +876,7 @@ def run (op : String) (r : String) : String :=
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"onMain\":true}}]}").splitOn "\"land\"").length == 1
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"w\"}}]}").splitOn "\"land\"").length == 1
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"x\"}}]}").splitOn "\"land\"").length == 2
+#guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landQueued\":true}}]}").splitOn "\"land\"").length == 1
 -- obs.next with signals: the hung stdin child of an idle, handed-back agent is killed and the agent kept; a loop
 -- watching task `b` sees its producer exited once another agent's signals end `b` (`killed`).
 #guard run "obs.next" "{\"now\":1800005,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":9,\"chain\":[1],\"kind\":\"stdinWait\",\"startedAt\":1}],\"signals\":{\"agent\":\"a\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"bounds\":[{\"time\":0,\"start\":true},{\"time\":2,\"start\":false}],\"handbacks\":[2],\"procs\":[{\"id\":\"b\",\"pid\":9,\"kind\":\"stdin\"}]}}]}" ==
@@ -1006,6 +1007,8 @@ def typed : List Typed := [
     fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 3, landed := false, queued := false, landLock := some "wt-z" } }] },
   { name := "a land lock held for another branch does not suppress: branch 3 ahead and unlanded -> land"
     fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 3, landed := false, queued := false, landLock := some "wt-other" } }] },
+  { name := "land-queue: branch 3 ahead and unlanded, but a pending entry of the land queue -> none"
+    fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 3, landed := false, queued := false, inLandQueue := true } }] },
   { name := "handed back, no branch, worktree present -> none"
     fs := [{ ex "z" .done with handbackAt := some (ago 5), worktree := some {} }] },
   { name := "parked with context 210000 -> nudgeHandoff"
