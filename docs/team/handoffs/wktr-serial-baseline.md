@@ -29,4 +29,5 @@ runs 39121950231 and 39121958562 (dispatched, green, assertions 15/15). No new C
 - Lean spec of the run-set rule (path predicate, lane diff) is missing; runset.mjs is the stand-in.
 - c's 3 keys: chance (1 run in 10) or the speed code is not decided; more c-vintage runs would tell.
 - The golden check is not in lean/scripts/check.sh (same as WktrFixturesGolden); `--check` is manual.
+- Limit: one run id with two tables is refused by variance.mjs only, not by the Lean claim.
 - Work-graph entry not edited (lead): add the paths above to `writes` if it should match.

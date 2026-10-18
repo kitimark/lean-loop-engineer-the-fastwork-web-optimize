@@ -12,6 +12,8 @@ import { fileURLToPath } from 'node:url';
 export function isMeasurement(p) {
   return (/^packages\/measure-wktr\//.test(p) && !/^packages\/measure-wktr\/(test\/|README\.md|fixtures\/variance\.mjs|fixtures\/runset\.mjs)/.test(p)) ||
     /^lean\/Fw\/Measure\/(Classes|WktrLayout)\.lean$/.test(p) ||
+    p === 'packages/contracts/golden/measure/wktr.fixtures.jsonl' ||
+    p === 'lean/Fw/Wire/WktrFixturesGolden.lean' ||
     p === '.github/workflows/wktr-fixtures.yml';
 }
 

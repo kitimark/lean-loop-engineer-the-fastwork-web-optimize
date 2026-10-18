@@ -28,13 +28,13 @@ Lean specifies and proves; the tables are CI measurements and the kinds are `Fw.
 namespace Fw.Measure.WktrVariance
 open Fw.Measure.WktrLayout
 
-/-- A table: the kind of class per key (arm, variant, type joined by `/`), keys unique.
+/-- A table: the kind of class per key (arm, variant, type joined by `/`). It is a list of pairs, keys unique by convention only; lookup takes the first match.
 
-$$\mathrm{Table} = \mathrm{Key} \rightharpoonup \mathrm{Kind}$$
+$$\mathrm{Table} = (\mathrm{Key} \times \mathrm{Kind})^{*}, \qquad t[k] = \text{the first } v \text{ with } (k, v) \in t, \text{ else } \bot$$
 -/
 abbrev Table := List (String × Kind)
 
-/-- The keys of two tables, each once (`b`'s keys not already in `a`).
+/-- The keys of two tables, each once when the tables' keys are unique (`b`'s keys not already in `a`).
 
 $$\operatorname{keys}(a, b) = \operatorname{dom}(a) \cup \operatorname{dom}(b)$$
 -/
@@ -231,7 +231,7 @@ $$\operatorname{verdict}(n, F) = \begin{cases} \mathrm{noBaseline} & n < 2 \\ \m
 def verdict (n : Nat) (fs : List String) : Verdict :=
   if n < 2 then .noBaseline else if fs.isEmpty then .measured else .unexplained
 
-/-- A run: its id (the workflow run id) and its table. A run id names one table; the same id twice is one run.
+/-- A run: its id (the workflow run id) and its table. A run id names one table; the same id twice is one run. Lean does not enforce this: two tables under one id count as one baseline but both feed `varying`; variance.mjs checkIds refuses that input.
 
 $$\mathrm{Run} = \mathbb{N} \times \mathrm{Table}$$
 -/
@@ -306,9 +306,9 @@ theorem claim_repeat_not_measured (b c x : Run) : claim b c [x, x] ≠ .measured
   simp only [List.filter_cons, List.filter_nil]
   split <;> simp [eraseDups_pair]
 
-/-- **The baseline never explains its own diff.** Adding the baseline run to the set changes nothing.
+/-- **The baseline never explains its own diff.** Putting the baseline run `b` at the head of the list changes nothing.
 
-$$\operatorname{claim}(b, c, \{b\} \cup R) = \operatorname{claim}(b, c, R)$$
+$$\operatorname{claim}(b, c, b :: R) = \operatorname{claim}(b, c, R)$$
 -/
 theorem claim_baseline_free (b c : Run) (rs : List Run) : claim b c (b :: rs) = claim b c rs := by
   simp [claim, rivals]

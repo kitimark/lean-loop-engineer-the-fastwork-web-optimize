@@ -7,7 +7,11 @@ Question: `wktr-fixture-speed` reported 12 of 144 class kinds that differed from
 (`time-accel-f1` `live-trace/layoutUpdates`, `live/compositingUpdates`, `live/layoutUpdates`). The earlier "variance is MEASURED per
 count type" of round 1 is withdrawn: it explained a key by another key of the same count type, which the rule below forbids.
 
-## Rule, declared before any count was computed
+## Rule
+
+Declared before the round-2 counts (round 1 had already computed counts). The any `ci/*` reading was chosen in round 2;
+the lead's strict `ci/wktr-*` reading gives 10 of 12 unexplained, also UNEXPLAINED.
+
 - Unit: a key is arm/variant/count type (144 of them). Its value is the class kind (deterministic, stable, quarantined) from the 9
   passes of one run pooled over its 3 jobs (policy kMax 4, tMax 24). A diff key between base b and candidate c is **explained**
   only when that same key has different kinds among the rival runs. No other key, count type or pooled count explains it.
@@ -55,7 +59,7 @@ Sensitivity, same rule, rivals = only the two runs of this task (the strict `ci/
 Rivals without 39087202079 (7 runs): the same 3 unexplained keys. Whether c's 3 keys are chance (1 run in 10) or an effect of the
 `wktr-fixture-speed` code is not decided here. 7 of the 8 rivals ran c's measurement code up to `cli.mjs` and `harness.mjs` (the
 harness `cases` parameter, default 0, and the unused `premises.sh`; db41542 also differs in the workflow); that this moves no count
-is INFERRED, not isolated. 39087202079 ran b's code (the lane before `wktr-fixture-speed`).
+is INFERRED, not isolated. 39087202079 ran b's vintage, with a different workflow and summarize.mjs (lane state of main at 9dcc516).
 
 ## Descriptive only, not a verdict
 Count types of the 144 keys: 15 (`layoutUpdates` and `compositingUpdates` 13 keys each, 13 other types with 118 keys). Keys that
@@ -78,6 +82,7 @@ detectable", not a measured equality. Wall time of a run with max-parallel 2: 25
 serial-job run took 54 min (API started to updated, including the classes job), not the 45 min of the old handoff.
 
 ## Limits
+- One run id with two tables is refused by variance.mjs only, not by the Lean claim.
 - Pairs share runs and are not independent; no confidence interval is claimed.
 - Rivals ran at 7 shas (two runs share db41542), of two code vintages (above). Only the lane-diff rule, not a tree identity, defines
   "same code".
