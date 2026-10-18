@@ -1,10 +1,12 @@
 // Workflow runs as agent events (task workflow-claim; Lean `Fw.Plan.Workflow`). Claude Code writes
 // `<session>/workflows/scripts/<meta.name>-<runId>.js` when a Workflow run starts and `<session>/workflows/<runId>.json`
 // when it ends. A run named like a task gives `agent.spawn` (then `agent.stop` once the run file exists), keyed by the run
-// id. Only file names are read, never script text.
+// id. Task workflow-multi-claim: an agent labelled `<phase>:<task>` in `<session>/subagents/workflows/<runId>/journal.jsonl`
+// binds `<task>` too, until its `result` line. Only file names and the journal fields type/agentId/label are read, never
+// script, result or transcript text.
 // TS STAND-IN: `runsOf`/`wfEvents` mirror Lean `scriptRun`/`runFileId`/`wfEvents`; checked against
 // packages/contracts/golden/plan/workflow.jsonl (test/workflow-claim.test.ts). Replace by an fwcore op when one exists.
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -21,10 +23,56 @@ export function runFileId(f: string): string | null {
   return f.endsWith(".json") && RUN_ID.test(f.slice(0, -5)) ? f.slice(0, -5) : null;
 }
 
+/** Lean `JLine`: one journal line (`started` carries the label; a `result` line ends the agent). */
+export type JLine = { run: string; id: string; started: boolean; label: string };
+
+/** The `JLine`s of one `journal.jsonl` text; lines that are not JSON or lack the fields are skipped. */
+export function parseJournal(run: string, text: string): JLine[] {
+  const out: JLine[] = [];
+  for (const l of text.split("\n")) {
+    let j: unknown;
+    try { j = JSON.parse(l); } catch { continue; }
+    if (typeof j !== "object" || j === null) continue;
+    const o = j as Record<string, unknown>;
+    if (typeof o.agentId !== "string" || (o.type !== "started" && o.type !== "result")) continue;
+    out.push({ run, id: o.agentId, started: o.type === "started", label: o.type === "started" && typeof o.label === "string" ? o.label : "" });
+  }
+  return out;
+}
+
 export type WfEvent = { key: string; type: "agent.spawn" | "agent.stop"; agent: string };
 
 /** Lean `wfEvents`: events of the runs in `scripts` named like a task in `ids`; each (run, name) pair once. */
 export function wfEvents(ids: readonly string[], scripts: readonly string[], runFiles: readonly string[]): WfEvent[] {
+  return [...nameEvents(ids, scripts, runFiles)];
+}
+
+/** Lean `labelTask`: the non-empty text after the first `:`. */
+export function labelTask(l: string): string | null {
+  const i = l.indexOf(":");
+  return i >= 0 && i + 1 < l.length ? l.slice(i + 1) : null;
+}
+
+/** Lean `wfAllEvents`: `wfEvents` then the events of the labelled agents (`wfAgents`, `WfAgent.cmds`, `agentEvents`). */
+export function wfAllEvents(ids: readonly string[], scripts: readonly string[], runFiles: readonly string[], journal: readonly JLine[]): WfEvent[] {
+  const ended = new Set(runFiles.map(runFileId).filter((r): r is string => r !== null));
+  const out = nameEvents(ids, scripts, runFiles);
+  const seen = new Set<string>();
+  for (const j of journal) {
+    if (!j.started || !RUN_ID.test(j.run)) continue;
+    const k = `${j.run}\u0000${j.id}\u0000${j.label}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const t = labelTask(j.label);
+    if (t === null || !ids.includes(t)) continue;
+    out.push({ key: `wfa:${j.run}:${j.id}`, type: "agent.spawn", agent: t });
+    if (ended.has(j.run) || journal.some((r) => !r.started && r.run === j.run && r.id === j.id))
+      out.push({ key: `wfa-end:${j.run}:${j.id}`, type: "agent.stop", agent: t });
+  }
+  return out;
+}
+
+function nameEvents(ids: readonly string[], scripts: readonly string[], runFiles: readonly string[]): WfEvent[] {
   const ended = new Set(runFiles.map(runFileId).filter((r): r is string => r !== null));
   const seen = new Set<string>();
   const out: WfEvent[] = [];
@@ -53,5 +101,9 @@ export function workflowDirs(root: string, env: NodeJS.ProcessEnv = process.env,
 /** The events of one `workflows/` dir (an unreadable dir gives none). */
 export function scanWorkflows(dir: string, ids: readonly string[]): WfEvent[] {
   const ls = (d: string): string[] => { try { return readdirSync(d); } catch { return []; } };
-  return wfEvents(ids, ls(join(dir, "scripts")), ls(dir));
+  const jdir = join(dir, "..", "subagents", "workflows");
+  const journal = ls(jdir).filter((r) => RUN_ID.test(r)).flatMap((r) => {
+    try { return parseJournal(r, readFileSync(join(jdir, r, "journal.jsonl"), "utf8")); } catch { return []; }
+  });
+  return wfAllEvents(ids, ls(join(dir, "scripts")), ls(dir), journal);
 }
