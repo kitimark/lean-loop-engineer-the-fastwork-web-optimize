@@ -10,7 +10,11 @@ Verified: lean/scripts/check.sh green, measure-webkit 88 tests pass, ci-paths --
 
 Runs (target=both, fw=hero.countdown:strip, 430 px, 1 VM, 1 session; the session JSON carries site.search + configHash):
 - 39104964068 (head 96dcee05, earlier builder): green, settled, 23m
-- 39123585294, 39123621097 (head 40a8d4c1, dispatched 18:31 +07, separate jobs): see the report; results in the run artifacts.
+- 39123585294, 39123621097 (head 40a8d4c1, dispatched 18:31 +07, separate jobs): both green, settled (~25 min).
+- All 3: site.search = ?fw=hero.countdown:strip, configHash 7d81120ee5a22b80, 2 passes, clock pinned. Class tables (95 rows,
+  1 session per run): 86 rows same class in all 3 runs; 9 rows differ, all in scroll (RecalculateStyles total, Layout total,
+  TimerFire, EventDispatch, InvalidateLayout, paintArea, RecalculateStyles per zone/step) and seek 'n=100 seeked Paint'.
+  Per-run counts det/stable/quarantined: A 67/11/17, B 66/13/16, C 64/10/21. Stability across runs is the open question.
 
 Open
 - Class counts need >= 3 runs on separate jobs and the agreement across them; one run is not a result. P1-P5 flags other
