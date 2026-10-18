@@ -24,13 +24,13 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landPick` | `givenAhead`, `others`? [{name, ahead, contains}] | `pick` (`given`/`other`/`nothing`/`ambiguous`), `branch`, `names` |
 | `console.landPool` | `cores`, `load` (one-minute load average rounded up) | `pool` (`Fw.Console.LandPool.poolFair`) |
 | `console.landRetry` | `passed`, `loadFailure` | `rerun` (`Fw.Console.LandPool.rerunAlone`), `pool` (the re-run's pool, 1) |
-| `console.previewTarget` | `main` (main's sha), `facts` [{src, sha, onMain, noCode, land (optional: the land commit on main), cands [{ref, sha, contains}]}] (head candidates in priority order), `children` [{facts}] (the candidate lists of the sub-tasks of an umbrella) | `kind` (`main`/`integration`/`own`/`none`), `ref`, `sha`, `head` (sha or null), `headSrc` (`Fw.Console.Preview.headOf`) |
+| `console.previewTarget` | `main` (main's sha), `facts` [{src, sha, onMain, noCode, fpLine? (the head is on main's first-parent line), path? [{sha, p2Has}] (first-parent ancestry path from the head to main, oldest first), ownWork? (a merge's second parent contains the task's own work; default true), behind? (another candidate holds code this one lacks), cands [{ref, sha, contains}]}] (head candidates in priority order), `children` [{facts}] (the candidate lists of the sub-tasks of an umbrella) | `kind` (`main`/`integration`/`own`/`none`), `ref`, `sha`, `head` (sha or null), `headSrc` (`Fw.Console.Preview.headOf`) |
 | `console.previewAdmit` | `secret`, `cookie`, `origin` (the proofs the route checked: `Fw.Console.Preview.Proof`), `preview` (the new preview's id), `task`, `now` (ms), `diskMb`, `hasTarget`, `live` [{id, task, rp, op, started}] | `ok`, `reason` (`notOwner`/`taskBusy`/`tooMany`/`lowDisk`/`noTarget`/`noPorts`), `actor`, `rp`, `op` (the ports), `deadline`, `ttl`, `k` (`Fw.Console.Preview.admit`) |
 | `console.previewTick` | `now`, `live` | `keep` [ids], `kill` [ids] (`tick`, `expired`) |
 | `console.previewStop` | `secret`, `cookie`, `origin`, `preview` (id), `live` | `ok`, `reason` (`notOwner`/`unknown`), `actor`, `kill` [ids] (`stop`, `own`) |
 | `console.previewFail` | `preview` (id), `live` | `keep` [ids], `kill` [ids] (a failed build's teardown: `fail`, `own`) |
 | `console.previewReap` | `live` | `kill` [ids] (all of the table, `reap`) |
-| `console.previewLink` | `hasTty` | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`) |
+| `console.previewLink` | `hasTty`, `now`? (ms), `last`? (ms of the last link) | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`), `reissue`? (with `now`: may a new link be issued, `mayReissue`: one per minute) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
@@ -247,7 +247,10 @@ def factOf (j : Json) : Except String Fact := do
     pure ({ ref := ← str c "ref", sha := ← str c "sha", contains := ← asBool "contains" (← field c "contains") } : Cand)
   pure { src := ← str j "src", sha := ← str j "sha", onMain := ← asBool "onMain" (← field j "onMain"),
          noCode := ← asBool "noCode" (← field j "noCode"), cands := cs,
-         land := (← optStr j "land").getD "" }
+         fpLine := ← boolD j "fpLine" false,
+         path := ← (← arrD j "path").mapM fun c => do
+           pure ({ sha := ← str c "sha", p2Has := ← asBool "p2Has" (← field c "p2Has") } : PathC),
+         ownWork := ← boolD j "ownWork" true, behind := ← boolD j "behind" false }
 
 open Fw.Console.Preview in
 /-- `console.previewTarget` (`Fw.Console.Preview.headOf`). -/
@@ -319,8 +322,15 @@ def opPreviewLink (req : Json) : Except String Reply := do
   let all : List (String × Sink) := [("tty", .tty), ("stdout", .stdout), ("stderr", .stderr), ("file", .file), ("log", .log), ("eventStore", .eventStore)]
   let name (s : Sink) : String := (all.find? fun p => p.2 == s).map (·.1) |>.getD "?"
   let plan := linkPlan (← asBool "hasTty" (← field req "hasTty"))
-  pure [("sink", match plan with | some s => Json.str (name s) | none => Json.null),
+  let last : Option Nat ← match opt req "last" with
+    | none => pure none
+    | some _ => do pure (some (← nat req "last"))
+  let re : Reply ← match opt req "now" with
+    | none => pure []
+    | some _ => do pure [("reissue", Json.bool (mayReissue last (← nat req "now")))]
+  let base : Reply := [("sink", match plan with | some s => Json.str (name s) | none => Json.null),
         ("allowed", Json.arr ((all.filter fun p => linkSink p.2).map fun p => Json.str p.1).toArray)]
+  pure (base ++ re)
 
 /-! ## Dispatch -/
 

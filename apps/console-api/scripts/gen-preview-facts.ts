@@ -1,0 +1,160 @@
+// Generates lean/Fw/Console/PreviewFacts.lean: the repository facts of the 25 `port-` / `fix-` tasks at a pinned state,
+// extracted from git by the same glue the console runs (src/preview/facts.ts). Facts only: no decision and no expectation is
+// written here (the expected heads and targets are typed by hand in lean/Fw/Console/PreviewTable.lean and Lean proves that
+// `Fw.Console.Preview.headOf` returns them over THESE facts).
+//
+//   node apps/console-api/scripts/gen-preview-facts.ts --pin     # re-resolve the refs now into the pin file, then write
+//   node apps/console-api/scripts/gen-preview-facts.ts           # write from the pin (reproducible: the pin holds full shas)
+//   node apps/console-api/scripts/gen-preview-facts.ts --check   # exit 1 when the committed Lean file differs from git
+//
+// The pin (apps/console-api/golden/preview-facts.pin.json): the main commit and the full sha of every ref the glue resolved
+// (candidate refs, integration refs) and the tips of every ref (what `--all` meant). Every git call of the glue is rewritten to those shas (`main`, ref names, `--all`), so
+// the output depends on commit objects only.
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { taskFacts, type Fact, type Git, type TaskFacts } from "../src/preview/facts.ts";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = join(here, "../../..");
+const PIN = join(here, "../golden/preview-facts.pin.json");
+const OUT = join(root, "lean/Fw/Console/PreviewFacts.lean");
+const PIN_MAIN = "25d9402"; // the main commit of the investigation (2026-10-18)
+
+export type Pin = { main: string; integ: string[]; tasks: string[]; refs: Record<string, string>; tips: string[] };
+
+const real = (args: string[]): string | null => {
+  try { return execFileSync("git", args, { cwd: root, stdio: ["ignore", "pipe", "ignore"], maxBuffer: 64 << 20 }).toString(); } catch { return null; }
+};
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The glue's git, rewritten onto the pin. In `record` mode an unpinned name is resolved from the repository and added to the pin. */
+export function pinnedGit(pin: Pin, record: boolean): Git {
+  const resolve = (name: string): string | null => {
+    if (name === "main") return pin.main;
+    if (pin.refs[name]) return pin.refs[name];
+    if (!record) return null;
+    const o = real(["rev-parse", "--verify", "--quiet", `${name}^{commit}`])?.trim();
+    if (o) pin.refs[name] = o;
+    return o ?? null;
+  };
+  const tips = () => [pin.main, ...pin.tips];
+  return (args) => {
+    // refs the glue lists itself: the integration refs, in the pinned order
+    if (args[0] === "for-each-ref") return pin.integ.map((n) => `${n} ${resolve(n)}`).join("\n") + "\n";
+    if (args[0] === "rev-parse" && args[1] === "--verify") {
+      const m = /^(.*)\^\{commit\}$/.exec(args[3] ?? "");
+      const sha = m ? resolve(m[1]!) : null;
+      return sha ? sha + "\n" : null;
+    }
+    if (args[0] === "rev-parse" && args[1] === "main") return pin.main + "\n";
+    if (args[0] === "show") {
+      const m = /^([^:]+):(.*)$/.exec(args[1] ?? "");
+      const sha = m ? resolve(m[1]!) : null;
+      return sha ? real(["show", `${sha}:${m![2]}`]) : null;
+    }
+    const names = ["main", ...Object.keys(pin.refs)].sort((a, b) => b.length - a.length);
+    const out: string[] = [];
+    for (const a of args) {
+      if (a === "--all") { out.push(...tips()); continue; }
+      let r = a;
+      for (const n of names) {
+        const sha = n === "main" ? pin.main : pin.refs[n]!;
+        r = r.replace(new RegExp(`(?<![\\w/=-])${esc(n)}(?![\\w/-])`, "g"), sha);
+      }
+      out.push(r);
+    }
+    return real(out);
+  };
+}
+
+const lstr = (s: string) => JSON.stringify(s);
+const lbool = (b: boolean) => (b ? "true" : "false");
+
+function lfact(f: Fact, integ: string[]): string {
+  const holders = f.cands.map((c, i) => (c.contains ? i : -1)).filter((i) => i >= 0);
+  if (f.cands.length !== integ.length) throw new Error("integration refs differ in length");
+  const path = f.path.map((p) => `(${lstr(p.sha)}, ${lbool(p.p2Has)})`).join(", ");
+  return `F ${lstr(f.src)} ${lstr(f.sha)} ${lbool(f.onMain)} ${lbool(f.noCode)} ${lbool(f.fpLine)} ${lbool(f.ownWork)} ${lbool(f.behind)} [${holders.join(", ")}] [${path}]`;
+}
+
+export function render(pin: Pin, all: TaskFacts[]): string {
+  const integ = pin.integ.map((n) => `(${lstr(n)}, ${lstr(pin.refs[n]!.slice(0, 7))})`);
+  const rows = all.map((t) => {
+    const fs = t.facts.map((f) => lfact(f, pin.integ));
+    const ks = t.children.map((c) => `[${c.facts.map((f) => lfact(f, pin.integ)).join(", ")}]`);
+    return `  (${lstr(t.task)}, [${fs.join(",\n    ")}],\n    [${ks.join(",\n     ")}])`;
+  });
+  return `import Fw.Console.Preview
+/-!
+# GENERATED by apps/console-api/scripts/gen-preview-facts.ts: do not edit by hand
+
+The repository facts of the 25 \`port-\` / \`fix-\` tasks at the pin \`apps/console-api/golden/preview-facts.pin.json\`
+(main \`${pin.main.slice(0, 7)}\`), extracted from git by the console's own glue (\`src/preview/facts.ts\`): head candidates,
+\`onMain\`, \`noCode\`, which integration refs contain each, whether it is on main's first-parent line, the first-parent
+ancestry path to main (cut after the first commit whose second parent holds the head), and for a merge's second parent
+whether it contains the task's own work. Facts only: the expectations are in \`PreviewTable.lean\`.
+\`node apps/console-api/scripts/gen-preview-facts.ts --check\` fails when this file is stale.
+-/
+namespace Fw.Console.PreviewFacts
+open Fw.Console.Preview
+
+/-- The pinned main commit.
+
+$$m = \\mathtt{${pin.main.slice(0, 7)}}$$ -/
+def mainSha : String := ${lstr(pin.main.slice(0, 7))}
+
+/-- The integration refs (name, tip), newest first.
+
+$$I = [(\\mathit{ref}_1, t_1), \\dots, (\\mathit{ref}_4, t_4)]$$ -/
+def integ : List (String × String) := [${integ.join(", ")}]
+
+/-- A fact: \`holders\` index the integration refs that contain the head; \`path\` is (sha, p2Has).
+
+$$F(\\mathit{src}, s, \\mathit{onMain}, \\mathit{noCode}, \\mathit{fp}, \\mathit{own}, \\mathit{behind}, h, p)$$ -/
+def F (src sha : String) (onMain noCode fpLine ownWork behind : Bool) (holders : List Nat) (path : List (String × Bool)) : Fact :=
+  { src, sha, onMain, noCode, fpLine, ownWork, behind, path := path.map fun (s, b) => { sha := s, p2Has := b },
+    cands := (integ.zipIdx).map fun ((r, s), i) => { ref := r, sha := s, contains := holders.contains i } }
+
+/-- The facts of each task: (task, its candidate facts, the candidate facts of its sub-tasks).
+
+$$\\mathrm{factRows} : (\\mathit{task}, \\mathit{facts}, \\mathit{kids})^{*}$$ -/
+def factRows : List (String × List Fact × List (List Fact)) := [
+${rows.join(",\n")}]
+
+end Fw.Console.PreviewFacts
+`;
+}
+
+export function generate(pin: Pin): { text: string; json: TaskFacts[] } {
+  const git = pinnedGit(pin, false);
+  const all = pin.tasks.map((t) => taskFacts(root, t, git));
+  return { text: render(pin, all), json: all };
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const args = process.argv.slice(2);
+  const prev: Partial<Pin> = existsSync(PIN) ? JSON.parse(readFileSync(PIN, "utf8")) : {};
+  if (args.includes("--pin")) {
+    const mainFull = real(["rev-parse", prev.main ?? PIN_MAIN])?.trim();
+    if (!mainFull) throw new Error("pinned main commit missing");
+    const pin: Pin = { main: mainFull, integ: prev.integ ?? [], tasks: prev.tasks ?? [], refs: {}, tips: (real(["for-each-ref", "--format=%(objectname)", "refs/heads", "refs/remotes"]) ?? "").split("\n").filter(Boolean).sort().filter((x, i, a) => a.indexOf(x) === i) };
+    // pass 1 records every ref the glue resolves (record mode), pass 2 is the reproducible run
+    const rec = pinnedGit(pin, true);
+    for (const t of pin.tasks) taskFacts(root, t, rec);
+    for (const n of pin.integ) { const o = real(["rev-parse", "--verify", "--quiet", `${n}^{commit}`])?.trim(); if (o) pin.refs[n] = o; }
+    writeFileSync(PIN, JSON.stringify({ ...pin, refs: Object.fromEntries(Object.entries(pin.refs).sort()) }, null, 1) + "\n");
+  }
+  const pin = JSON.parse(readFileSync(PIN, "utf8")) as Pin;
+  if (!real(["cat-file", "-e", `${pin.main}^{commit}`]) && real(["cat-file", "-t", pin.main]) === null) {
+    console.log("gen-preview-facts: the pinned commit is not in this clone: skipped");
+    process.exit(args.includes("--check") ? 2 : 0);
+  }
+  const { text } = generate(pin);
+  if (args.includes("--check")) {
+    const cur = existsSync(OUT) ? readFileSync(OUT, "utf8") : "";
+    if (cur !== text) { console.error("gen-preview-facts: lean/Fw/Console/PreviewFacts.lean is stale (rerun without --check)"); process.exit(1); }
+    console.log("gen-preview-facts: PreviewFacts.lean matches git at the pin");
+  } else { writeFileSync(OUT, text); console.log(`gen-preview-facts: wrote ${OUT}`); }
+}
