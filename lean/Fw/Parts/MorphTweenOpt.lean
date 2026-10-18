@@ -1054,7 +1054,9 @@ theorem waapi_work_le_webkit (a : WebKit.WkAnim) (cs : List (Change WebKit.WkPro
   have hv : WebKit.animFrame .safari a cs = ⟨0, 0, 0, 0, cs, 0⟩ := by
     simp [WebKit.animFrame, WebKit.custom_main _ a hc]
   rw [hv]
-  exact script_drop _ _ k 0 hk hne (fun c _ => wk_no_script _) (by decide) (by decide)
+  exact script_drop _ _ k 0 hk hne (fun c _ h => by
+    simp only [WebKit.webkit, WebKit.webkitAt] at h
+    exact wk_no_script _ ((WebKit.mem_wkStages_of_ne c (s := .script) (by decide)).1 h)) (by decide) (by decide)
 
 /-- **MT-W `waapi_work_le`**: both engine instances at once (the custom-property rule puts the animation on the main
 thread in both, so the WAAPI frame is the rAF frame without its script).

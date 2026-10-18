@@ -1,0 +1,3 @@
+{"name":"a failed build leaves the table","request":{"live":[{"id":"a","op":47101,"rp":47100,"started":0,"task":"port-nav"},{"id":"b","op":47103,"rp":47102,"started":1000,"task":"fix-nav"}],"op":"console.previewFail","preview":"a"},"response":{"keep":["b"],"kill":["a"]}}
+{"name":"an id that is not in the table changes nothing","request":{"live":[{"id":"a","op":47101,"rp":47100,"started":0,"task":"port-nav"}],"op":"console.previewFail","preview":"zzz"},"response":{"keep":["a"],"kill":[]}}
+{"name":"missing live is fine: empty table","request":{"op":"console.previewFail","preview":"a"},"response":{"keep":[],"kill":[]}}

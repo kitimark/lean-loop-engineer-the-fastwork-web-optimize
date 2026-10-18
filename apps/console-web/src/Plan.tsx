@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { LiveBoard, Plan, PlanTask } from "@fw/contracts";
 import { Smartphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { TaskDetail, wantsDetail } from "./TaskDetail";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** Plan tab. Every number and column is the board's `plan` (derived by fwcore); this file only lays it out. */
@@ -50,6 +51,7 @@ const Task = ({ t, extra }: { t: PlanTask; extra?: React.ReactNode }) => (
       {t.lane === "device" && <DeviceBadge />}
       {extra}
     </div>
+    {wantsDetail(t.id) && <TaskDetail id={t.id} />}
   </li>
 );
 
