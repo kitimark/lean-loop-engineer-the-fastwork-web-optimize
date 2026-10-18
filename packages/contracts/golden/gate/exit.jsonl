@@ -1,0 +1,18 @@
+{"cells":["pass","pass","not-run"],"kind":"engine","unsettled":0,"verdict":"pass"}
+{"cells":["pass","not-comparable","not-run","unreachable:whole-width"],"kind":"engine","unsettled":0,"verdict":"pass"}
+{"cells":["pass","fail","pass"],"kind":"engine","unsettled":0,"verdict":"fail"}
+{"cells":["pass","fail"],"kind":"engine","unsettled":3,"verdict":"fail"}
+{"cells":["pass","pass"],"kind":"engine","unsettled":2,"verdict":"unsettled"}
+{"cells":["not-comparable","not-run"],"kind":"engine","unsettled":0,"verdict":"notRendered"}
+{"cells":["unreachable:primary-pair","unreachable:whole-width"],"kind":"engine","unsettled":0,"verdict":"notRendered"}
+{"cells":[],"kind":"engine","unsettled":0,"verdict":"notRendered"}
+{"cells":["pass","bogus"],"error":"unknown verdict bogus","kind":"engine","unsettled":0}
+{"engines":["pass"],"exit":0,"kind":"exit"}
+{"engines":["pass","pass"],"exit":0,"kind":"exit"}
+{"engines":["pass","fail"],"exit":1,"kind":"exit"}
+{"engines":["fail"],"exit":1,"kind":"exit"}
+{"engines":["unsettled"],"exit":1,"kind":"exit"}
+{"engines":["pass","unsettled"],"exit":1,"kind":"exit"}
+{"engines":["notRendered"],"exit":1,"kind":"exit"}
+{"engines":["pass","notRendered"],"exit":1,"kind":"exit"}
+{"engines":[],"exit":1,"kind":"exit"}
