@@ -30,6 +30,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewStop` | `secret`, `cookie`, `origin`, `preview` (id), `live` | `ok`, `reason` (`notOwner`/`unknown`), `actor`, `kill` [ids] (`stop`, `own`) |
 | `console.previewFail` | `preview` (id), `live` | `keep` [ids], `kill` [ids] (a failed build's teardown: `fail`, `own`) |
 | `console.previewReap` | `live` | `kill` [ids] (all of the table, `reap`) |
+| `console.previewLink` | `hasTty` | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
@@ -312,12 +313,21 @@ open Fw.Console.Preview in
 def opPreviewReap (req : Json) : Except String Reply := do
   pure [("kill", idsJson (reap (← liveOf req)).2)]
 
+open Fw.Console.Preview in
+/-- `console.previewLink` (`Fw.Console.Preview.linkPlan`, `linkSink`): where the owner link goes. -/
+def opPreviewLink (req : Json) : Except String Reply := do
+  let all : List (String × Sink) := [("tty", .tty), ("stdout", .stdout), ("stderr", .stderr), ("file", .file), ("log", .log), ("eventStore", .eventStore)]
+  let name (s : Sink) : String := (all.find? fun p => p.2 == s).map (·.1) |>.getD "?"
+  let plan := linkPlan (← asBool "hasTty" (← field req "hasTty"))
+  pure [("sink", match plan with | some s => Json.str (name s) | none => Json.null),
+        ("allowed", Json.arr ((all.filter fun p => linkSink p.2).map fun p => Json.str p.1).toArray)]
+
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "plan.trailers", "plan.lint",
-  "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap"]
+  "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -340,6 +350,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.previewStop" => some (opPreviewStop req)
   | "console.previewFail" => some (opPreviewFail req)
   | "console.previewReap" => some (opPreviewReap req)
+  | "console.previewLink" => some (opPreviewLink req)
   | _ => none
 
 end Fw.Wire.Console
