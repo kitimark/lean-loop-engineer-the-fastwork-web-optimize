@@ -271,7 +271,10 @@ def State.ids : State → List String
 
 /-- The wire name of a state.
 
-$$\operatorname{name} : \mathcal S \to \mathrm{String}$$
+$$\begin{aligned}
+&\operatorname{name}(\mathrm{working}) = \texttt{working},\ \operatorname{name}(\mathrm{waiting}(P)) = \texttt{waitingOwnBg},\ \operatorname{name}(\mathrm{held}(P)) = \texttt{handedBackHeld},\ \operatorname{name}(\mathrm{done}) = \texttt{handedBackDone}, \\
+&\operatorname{name}(\mathrm{finished}) = \texttt{finished},\ \operatorname{name}(\mathrm{idle}) = \texttt{idle},\ \operatorname{name}(\mathrm{hung}(b)) = \texttt{hung}
+\end{aligned}$$
 -/
 def State.name : State → String
   | .working => "working" | .waitingOwnBg _ => "waitingOwnBg" | .handedBackHeld _ => "handedBackHeld"
@@ -474,7 +477,7 @@ theorem classify_quiet_addEnd (p : Params) (t : Nat) (f : Facts) (e : EndEv)
 
 /-- **`meta.finished` is never read**: changing the recorded `meta.finished` times changes no state.
 
-$$\forall p, t, f, M:\quad \operatorname{classify}(p, t, f[M := M]) = \operatorname{classify}(p, t, f)$$
+$$\forall p, t, f,\ \forall m \in \mathbb{N}^{*}:\quad \operatorname{classify}(p, t, f[M := m]) = \operatorname{classify}(p, t, f)$$
 -/
 theorem classify_metaFinished (p : Params) (t : Nat) (f : Facts) (m : List Nat) :
     classify p t { f with metaFinished := m } = classify p t f := rfl
@@ -548,7 +551,23 @@ deriving DecidableEq, Repr
 
 /-- Golden timeline `port-nav` (research note part B): its facts and checkpoints.
 
-$$\tau_{\mathrm{portNav}} = (\texttt{port-nav}, f, C)$$
+$$\begin{aligned}
+\tau_{\mathrm{portNav}} &= (\texttt{port-nav}, f, C),\quad f = (\texttt{port-nav}, L, E, B, H, N, Q, M) \\
+L &= [(\texttt{bh6n4n7sw}, 0{:}54{:}21), (\texttt{btxvry2hv}, 1{:}15{:}00)] \\
+E &= [(\texttt{btxvry2hv}, 1{:}21{:}05, \mathrm{notified}), (\texttt{btxvry2hv}, 1{:}21{:}05, \mathrm{exited}(0)), (\texttt{bh6n4n7sw}, 4{:}02{:}37, \mathrm{notified}), \\
+&\quad (\texttt{bh6n4n7sw}, 4{:}02{:}37, \mathrm{exited}(144))] \\
+B &= [(0{:}48{:}01, \top), (1{:}23{:}27, \bot)] \\
+H &= [1{:}23{:}27] \\
+N &= [(1{:}23{:}27, \bot)] \\
+Q &= [(\texttt{bh6n4n7sw}, 10476, \mathrm{stdin})] \\
+M &= [1{:}23{:}27] \\
+C &= [(0{:}50{:}00, \mathrm{working}, \mathrm{working}), (1{:}00{:}00, \mathrm{working}, \mathrm{working}), \\
+&\quad (1{:}23{:}00, \mathrm{working}, \mathrm{working}), (1{:}23{:}30, \mathrm{held}([\texttt{bh6n4n7sw}]), \mathrm{held}([\texttt{bh6n4n7sw}])), \\
+&\quad (1{:}24{:}30, \mathrm{held}([\texttt{bh6n4n7sw}]), \mathrm{hung}(\texttt{bh6n4n7sw})), (3{:}58{:}00, \mathrm{held}([\texttt{bh6n4n7sw}]), \mathrm{hung}(\texttt{bh6n4n7sw})), \\
+&\quad (4{:}05{:}00, \mathrm{done}, \mathrm{done})]
+\end{aligned}$$
+
+A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
 -/
 def portNav : Timeline where
   name := "port-nav"
@@ -572,7 +591,21 @@ def portNav : Timeline where
 
 /-- Golden timeline `ghb-runner` (research note part B): its facts and checkpoints.
 
-$$\tau_{\mathrm{ghbRunner}} = (\texttt{ghb-runner}, f, C)$$
+$$\begin{aligned}
+\tau_{\mathrm{ghbRunner}} &= (\texttt{ghb-runner}, f, C),\quad f = (\texttt{ghb-runner}, L, E, B, H, N, Q, M) \\
+L &= [(\texttt{boknfh6jg}, 2{:}39{:}31), (\texttt{bxy829o5c}, 2{:}45{:}17)] \\
+E &= [(\texttt{boknfh6jg}, 2{:}40{:}46, \mathrm{notified}), (\texttt{boknfh6jg}, 2{:}40{:}46, \mathrm{exited}(0)), (\texttt{bxy829o5c}, 3{:}02{:}27, \mathrm{notified}), \\
+&\quad (\texttt{bxy829o5c}, 3{:}02{:}27, \mathrm{exited}(144))] \\
+B &= [(2{:}31{:}49, \top), (2{:}45{:}38, \bot)] \\
+H &= [2{:}45{:}38] \\
+N &= [(2{:}45{:}39, \bot)] \\
+Q &= [(\texttt{bxy829o5c}, 11343, \mathrm{sleepLoop})] \\
+M &= [2{:}45{:}38] \\
+C &= [(2{:}35{:}00, \mathrm{working}, \mathrm{working}), (2{:}46{:}00, \mathrm{held}([\texttt{bxy829o5c}]), \mathrm{held}([\texttt{bxy829o5c}])), \\
+&\quad (3{:}00{:}00, \mathrm{held}([\texttt{bxy829o5c}]), \mathrm{held}([\texttt{bxy829o5c}])), (3{:}05{:}00, \mathrm{done}, \mathrm{done})]
+\end{aligned}$$
+
+A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
 -/
 def ghbRunner : Timeline where
   name := "ghb-runner"
@@ -593,7 +626,33 @@ def ghbRunner : Timeline where
 
 /-- Golden timeline `wktr-ci-lane` (research note part B): its facts and checkpoints.
 
-$$\tau_{\mathrm{wktrCiLane}} = (\texttt{wktr-ci-lane}, f, C)$$
+$$\begin{aligned}
+\tau_{\mathrm{wktrCiLane}} &= (\texttt{wktr-ci-lane}, f, C),\quad f = (\texttt{wktr-ci-lane}, L, E, B, H, N, Q, M) \\
+L &= [(\texttt{bo3l3w42q}, 23{:}46{:}06), (\texttt{bnk9xvb62}, 0{:}02{:}17), (\texttt{b37xkdhwk}, 0{:}12{:}35), (\texttt{bcnhpjdld}, 0{:}28{:}01), \\
+&\quad (\texttt{bsla5ik1n}, 1{:}22{:}19), (\texttt{bgkff8phc}, 1{:}22{:}41), (\texttt{brr7ydi4e}, 1{:}32{:}35), (\texttt{bfx3xiqre}, 1{:}37{:}40), \\
+&\quad (\texttt{b91tnu6nf}, 1{:}47{:}38), (\texttt{b7rt996kn}, 1{:}58{:}08), (\texttt{biyz06cmr}, 1{:}58{:}47), (\texttt{busaq7jf8}, 2{:}08{:}42), \\
+&\quad (\texttt{bodiephr3}, 2{:}19{:}12), (\texttt{bmi65i9id}, 2{:}20{:}14), (\texttt{b301x7muk}, 2{:}30{:}09), (\texttt{betbu6rpd}, 2{:}40{:}43)] \\
+E &= [(\texttt{bo3l3w42q}, 23{:}58{:}38, \mathrm{notified}), (\texttt{bo3l3w42q}, 23{:}58{:}38, \mathrm{exited}(1)), (\texttt{bnk9xvb62}, 0{:}17{:}02, \mathrm{notified}), \\
+&\quad (\texttt{bnk9xvb62}, 0{:}17{:}02, \mathrm{exited}(0)), (\texttt{bcnhpjdld}, 0{:}31{:}43, \mathrm{notified}), (\texttt{bcnhpjdld}, 0{:}31{:}43, \mathrm{exited}(0)), \\
+&\quad (\texttt{bsla5ik1n}, 1{:}22{:}36, \mathrm{notified}), (\texttt{bsla5ik1n}, 1{:}22{:}36, \mathrm{exited}(0)), (\texttt{bgkff8phc}, 1{:}32{:}51, \mathrm{notified}), \\
+&\quad (\texttt{bgkff8phc}, 1{:}32{:}51, \mathrm{exited}(0)), (\texttt{brr7ydi4e}, 1{:}33{:}05, \mathrm{notified}), (\texttt{brr7ydi4e}, 1{:}33{:}05, \mathrm{exited}(0)), \\
+&\quad (\texttt{bfx3xiqre}, 1{:}47{:}50, \mathrm{notified}), (\texttt{bfx3xiqre}, 1{:}47{:}50, \mathrm{exited}(0)), (\texttt{b91tnu6nf}, 1{:}48{:}18, \mathrm{notified}), \\
+&\quad (\texttt{b91tnu6nf}, 1{:}48{:}18, \mathrm{exited}(0)), (\texttt{b7rt996kn}, 1{:}58{:}26, \mathrm{notified}), (\texttt{b7rt996kn}, 1{:}58{:}26, \mathrm{exited}(0)), \\
+&\quad (\texttt{biyz06cmr}, 2{:}08{:}56, \mathrm{notified}), (\texttt{biyz06cmr}, 2{:}08{:}56, \mathrm{exited}(0)), (\texttt{busaq7jf8}, 2{:}09{:}21, \mathrm{notified}), \\
+&\quad (\texttt{busaq7jf8}, 2{:}09{:}21, \mathrm{exited}(0)), (\texttt{bodiephr3}, 2{:}19{:}32, \mathrm{notified}), (\texttt{bodiephr3}, 2{:}19{:}32, \mathrm{exited}(0)), \\
+&\quad (\texttt{bmi65i9id}, 2{:}30{:}23, \mathrm{notified}), (\texttt{bmi65i9id}, 2{:}30{:}23, \mathrm{exited}(0)), (\texttt{b301x7muk}, 2{:}30{:}49, \mathrm{notified}), \\
+&\quad (\texttt{b301x7muk}, 2{:}30{:}49, \mathrm{exited}(0)), (\texttt{betbu6rpd}, 2{:}41{:}01, \mathrm{notified}), (\texttt{betbu6rpd}, 2{:}41{:}01, \mathrm{exited}(0)), \\
+&\quad (\texttt{b37xkdhwk}, 2{:}57{:}19, \mathrm{notified}), (\texttt{b37xkdhwk}, 2{:}57{:}19, \mathrm{exited}(144))] \\
+B &= [(23{:}34{:}56, \top), (2{:}50{:}37, \bot), (2{:}57{:}19, \top), (2{:}57{:}23, \bot)] \\
+H &= [2{:}50{:}37] \\
+N &= [(2{:}50{:}37, \bot), (2{:}57{:}23, \top)] \\
+Q &= [(\texttt{b37xkdhwk}, 14919, \mathrm{sleepLoop})] \\
+M &= [2{:}50{:}37, 2{:}57{:}23] \\
+C &= [(1{:}00{:}00, \mathrm{working}, \mathrm{working}), (2{:}51{:}00, \mathrm{held}([\texttt{b37xkdhwk}]), \mathrm{hung}(\texttt{b37xkdhwk})), \\
+&\quad (2{:}57{:}20, \mathrm{working}, \mathrm{working}), (2{:}58{:}00, \mathrm{finished}, \mathrm{finished})]
+\end{aligned}$$
+
+A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
 -/
 def wktrCiLane : Timeline where
   name := "wktr-ci-lane"
@@ -614,7 +673,30 @@ def wktrCiLane : Timeline where
 
 /-- Golden timeline `port-platform` (research note part B): its facts and checkpoints.
 
-$$\tau_{\mathrm{portPlatform}} = (\texttt{port-platform}, f, C)$$
+$$\begin{aligned}
+\tau_{\mathrm{portPlatform}} &= (\texttt{port-platform}, f, C),\quad f = (\texttt{port-platform}, L, E, B, H, N, Q, M) \\
+L &= [(\texttt{biu3n8870}, 1{:}24{:}22), (\texttt{bllt3toag}, 1{:}30{:}09), (\texttt{ba3831u4g}, 1{:}42{:}37), (\texttt{bacokdv9j}, 1{:}52{:}45), \\
+&\quad (\texttt{bj5eod011}, 2{:}15{:}24), (\texttt{bo3ksfboe}, 2{:}37{:}49), (\texttt{bsyg2ztsj}, 2{:}47{:}50), (\texttt{bchejj937}, 2{:}58{:}27), \\
+&\quad (\texttt{b1hwqtb0u}, 3{:}08{:}23)] \\
+E &= [(\texttt{biu3n8870}, 1{:}25{:}45, \mathrm{notified}), (\texttt{biu3n8870}, 1{:}25{:}45, \mathrm{exited}(0)), (\texttt{bllt3toag}, 1{:}31{:}08, \mathrm{notified}), \\
+&\quad (\texttt{bllt3toag}, 1{:}31{:}08, \mathrm{exited}(0)), (\texttt{ba3831u4g}, 1{:}52{:}46, \mathrm{notified}), (\texttt{ba3831u4g}, 1{:}52{:}46, \mathrm{exited}(0)), \\
+&\quad (\texttt{bacokdv9j}, 1{:}52{:}55, \mathrm{notified}), (\texttt{bacokdv9j}, 1{:}52{:}55, \mathrm{exited}(0)), (\texttt{bj5eod011}, 2{:}17{:}13, \mathrm{notified}), \\
+&\quad (\texttt{bj5eod011}, 2{:}17{:}13, \mathrm{exited}(0)), (\texttt{bo3ksfboe}, 2{:}37{:}59, \mathrm{notified}), (\texttt{bo3ksfboe}, 2{:}37{:}59, \mathrm{exited}(0)), \\
+&\quad (\texttt{bchejj937}, 2{:}58{:}46, \mathrm{notified}), (\texttt{bchejj937}, 2{:}58{:}46, \mathrm{exited}(0)), (\texttt{bsyg2ztsj}, 3{:}13{:}25, \mathrm{notified}), \\
+&\quad (\texttt{bsyg2ztsj}, 3{:}13{:}25, \mathrm{exited}(144)), (\texttt{b1hwqtb0u}, 3{:}45{:}21, \mathrm{notified}), (\texttt{b1hwqtb0u}, 3{:}45{:}21, \mathrm{exited}(144))] \\
+B &= [(0{:}48{:}01, \top), (3{:}08{:}43, \bot), (3{:}13{:}25, \top), (3{:}13{:}33, \bot), \\
+&\quad (3{:}45{:}21, \top), (3{:}45{:}25, \bot)] \\
+H &= [3{:}08{:}43] \\
+N &= [(3{:}08{:}43, \bot), (3{:}13{:}33, \bot), (3{:}45{:}25, \top)] \\
+Q &= [(\texttt{bsyg2ztsj}, 65901, \mathrm{sleepLoop}), (\texttt{b1hwqtb0u}, 71852, \mathrm{sleepLoop})] \\
+M &= [3{:}08{:}43, 3{:}13{:}33, 3{:}45{:}25] \\
+C &= [(3{:}00{:}00, \mathrm{working}, \mathrm{working}), (3{:}09{:}00, \mathrm{held}([\texttt{bsyg2ztsj}, \texttt{b1hwqtb0u}]), \mathrm{held}([\texttt{bsyg2ztsj}, \texttt{b1hwqtb0u}])), \\
+&\quad (3{:}13{:}30, \mathrm{working}, \mathrm{working}), (3{:}14{:}00, \mathrm{held}([\texttt{b1hwqtb0u}]), \mathrm{held}([\texttt{b1hwqtb0u}])), \\
+&\quad (3{:}39{:}00, \mathrm{held}([\texttt{b1hwqtb0u}]), \mathrm{hung}(\texttt{b1hwqtb0u})), (3{:}45{:}23, \mathrm{working}, \mathrm{working}), \\
+&\quad (3{:}46{:}00, \mathrm{finished}, \mathrm{finished})]
+\end{aligned}$$
+
+A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
 -/
 def portPlatform : Timeline where
   name := "port-platform"
@@ -638,7 +720,25 @@ def portPlatform : Timeline where
 
 /-- Golden timeline `integrate-ports` (research note part B): its facts and checkpoints.
 
-$$\tau_{\mathrm{integratePorts}} = (\texttt{integrate-ports}, f, C)$$
+$$\begin{aligned}
+\tau_{\mathrm{integratePorts}} &= (\texttt{integrate-ports}, f, C),\quad f = (\texttt{integrate-ports}, L, E, B, H, N, Q, M) \\
+L &= [(\texttt{brrnark6l}, 2{:}11{:}16), (\texttt{bwijlczj7}, 2{:}36{:}32), (\texttt{bt1wbtdzw}, 2{:}58{:}38), (\texttt{bs7nps5z8}, 3{:}08{:}48), \\
+&\quad (\texttt{b3li7m67k}, 3{:}18{:}53), (\texttt{b1lq5ond0}, 3{:}22{:}01), (\texttt{b2vhxaiq7}, 3{:}23{:}19)] \\
+E &= [(\texttt{brrnark6l}, 2{:}11{:}37, \mathrm{notified}), (\texttt{brrnark6l}, 2{:}11{:}37, \mathrm{exited}(0)), (\texttt{bwijlczj7}, 2{:}36{:}41, \mathrm{notified}), \\
+&\quad (\texttt{bwijlczj7}, 2{:}36{:}41, \mathrm{exited}(0)), (\texttt{bt1wbtdzw}, 2{:}58{:}48, \mathrm{notified}), (\texttt{bt1wbtdzw}, 2{:}58{:}48, \mathrm{exited}(0)), \\
+&\quad (\texttt{bs7nps5z8}, 3{:}08{:}57, \mathrm{notified}), (\texttt{bs7nps5z8}, 3{:}08{:}57, \mathrm{exited}(0)), (\texttt{b3li7m67k}, 3{:}19{:}12, \mathrm{notified}), \\
+&\quad (\texttt{b3li7m67k}, 3{:}19{:}12, \mathrm{exited}(0)), (\texttt{b1lq5ond0}, 3{:}24{:}22, \mathrm{notified}), (\texttt{b1lq5ond0}, 3{:}24{:}22, \mathrm{exited}(0)), \\
+&\quad (\texttt{b2vhxaiq7}, 3{:}24{:}25, \mathrm{notified}), (\texttt{b2vhxaiq7}, 3{:}24{:}25, \mathrm{exited}(0))] \\
+B &= [(1{:}26{:}48, \top)] \\
+H &= [\,] \\
+N &= [\,] \\
+Q &= [\,] \\
+M &= [\,] \\
+C &= [(2{:}00{:}00, \mathrm{working}, \mathrm{working}), (3{:}30{:}00, \mathrm{working}, \mathrm{working}), \\
+&\quad (3{:}51{:}00, \mathrm{working}, \mathrm{working})]
+\end{aligned}$$
+
+A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
 -/
 def integratePorts : Timeline where
   name := "integrate-ports"
@@ -658,7 +758,19 @@ def integratePorts : Timeline where
 
 /-- Golden timeline `obs-next-lean` (research note part B): its facts and checkpoints.
 
-$$\tau_{\mathrm{obsNextLean}} = (\texttt{obs-next-lean}, f, C)$$
+$$\begin{aligned}
+\tau_{\mathrm{obsNextLean}} &= (\texttt{obs-next-lean}, f, C),\quad f = (\texttt{obs-next-lean}, L, E, B, H, N, Q, M) \\
+L &= [(\texttt{a8526f8}, 3{:}29{:}50)] \\
+E &= [(\texttt{a8526f8}, 3{:}30{:}31, \mathrm{notified})] \\
+B &= [(3{:}03{:}23, \top), (3{:}32{:}56, \bot)] \\
+H &= [3{:}32{:}56] \\
+N &= [(3{:}32{:}56, \top)] \\
+Q &= [\,] \\
+M &= [3{:}32{:}56] \\
+C &= [(3{:}10{:}00, \mathrm{working}, \mathrm{working}), (3{:}33{:}00, \mathrm{finished}, \mathrm{finished})]
+\end{aligned}$$
+
+A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
 -/
 def obsNextLean : Timeline where
   name := "obs-next-lean"
@@ -677,7 +789,24 @@ def obsNextLean : Timeline where
 
 /-- Golden timeline `variant-morph-mount-shift` (research note part B): its facts and checkpoints.
 
-$$\tau_{\mathrm{variantMorphMountShift}} = (\texttt{variant-morph-mount-shift}, f, C)$$
+$$\begin{aligned}
+\tau_{\mathrm{variantMorphMountShift}} &= (\texttt{variant-morph-mount-shift}, f, C),\quad f = (\texttt{variant-morph-mount-shift}, L, E, B, H, N, Q, M) \\
+L &= [(\texttt{bmxas8ezt}, 3{:}32{:}48), (\texttt{bxu1oyp6p}, 3{:}42{:}27), (\texttt{bbl4re6pg}, 3{:}51{:}37)] \\
+E &= [(\texttt{bmxas8ezt}, 3{:}41{:}49, \mathrm{notified}), (\texttt{bmxas8ezt}, 3{:}41{:}49, \mathrm{exited}(0)), (\texttt{bxu1oyp6p}, 3{:}51{:}29, \mathrm{notified}), \\
+&\quad (\texttt{bxu1oyp6p}, 3{:}51{:}29, \mathrm{exited}(0)), (\texttt{bbl4re6pg}, 3{:}57{:}33, \mathrm{notified}), (\texttt{bbl4re6pg}, 3{:}57{:}33, \mathrm{exited}(0))] \\
+B &= [(3{:}30{:}51, \top), (3{:}32{:}52, \bot), (3{:}32{:}59, \top), (3{:}42{:}35, \bot), \\
+&\quad (3{:}51{:}29, \top), (3{:}51{:}40, \bot), (3{:}57{:}33, \top), (3{:}57{:}41, \bot)] \\
+H &= [3{:}32{:}52] \\
+N &= [(3{:}32{:}52, \bot), (3{:}42{:}35, \bot), (3{:}51{:}40, \bot), (3{:}57{:}41, \top)] \\
+Q &= [\,] \\
+M &= [3{:}32{:}52, 3{:}42{:}35, 3{:}51{:}40, 3{:}57{:}41] \\
+C &= [(3{:}31{:}00, \mathrm{working}, \mathrm{working}), (3{:}32{:}55, \mathrm{held}([\texttt{bmxas8ezt}]), \mathrm{held}([\texttt{bmxas8ezt}])), \\
+&\quad (3{:}35{:}00, \mathrm{working}, \mathrm{working}), (3{:}45{:}00, \mathrm{held}([\texttt{bxu1oyp6p}]), \mathrm{held}([\texttt{bxu1oyp6p}])), \\
+&\quad (3{:}51{:}35, \mathrm{working}, \mathrm{working}), (3{:}52{:}00, \mathrm{held}([\texttt{bbl4re6pg}]), \mathrm{held}([\texttt{bbl4re6pg}])), \\
+&\quad (3{:}57{:}35, \mathrm{working}, \mathrm{working}), (3{:}58{:}00, \mathrm{finished}, \mathrm{finished})]
+\end{aligned}$$
+
+A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
 -/
 def variantMorphMountShift : Timeline where
   name := "variant-morph-mount-shift"
@@ -702,7 +831,20 @@ def variantMorphMountShift : Timeline where
 
 /-- Golden timeline `proof-morph-panel` (research note part B): its facts and checkpoints.
 
-$$\tau_{\mathrm{proofMorphPanel}} = (\texttt{proof-morph-panel}, f, C)$$
+$$\begin{aligned}
+\tau_{\mathrm{proofMorphPanel}} &= (\texttt{proof-morph-panel}, f, C),\quad f = (\texttt{proof-morph-panel}, L, E, B, H, N, Q, M) \\
+L &= [(\texttt{bn2yh3tk6}, 3{:}23{:}19), (\texttt{a0481ef}, 3{:}23{:}27)] \\
+E &= [(\texttt{a0481ef}, 3{:}24{:}05, \mathrm{notified}), (\texttt{bn2yh3tk6}, 3{:}24{:}23, \mathrm{notified}), (\texttt{bn2yh3tk6}, 3{:}24{:}23, \mathrm{exited}(0))] \\
+B &= [(2{:}54{:}21, \top), (3{:}24{:}00, \bot), (3{:}24{:}05, \top), (3{:}24{:}48, \bot)] \\
+H &= [3{:}24{:}48] \\
+N &= [(3{:}24{:}48, \top)] \\
+Q &= [\,] \\
+M &= [3{:}24{:}00, 3{:}24{:}48] \\
+C &= [(3{:}00{:}00, \mathrm{working}, \mathrm{working}), (3{:}24{:}02, \mathrm{waiting}([\texttt{bn2yh3tk6}, \texttt{a0481ef}]), \mathrm{waiting}([\texttt{bn2yh3tk6}, \texttt{a0481ef}])), \\
+&\quad (3{:}24{:}10, \mathrm{working}, \mathrm{working}), (3{:}25{:}00, \mathrm{finished}, \mathrm{finished})]
+\end{aligned}$$
+
+A time $h{:}mm{:}ss$ stands for $\operatorname{hms}(h, mm, ss)$; each checkpoint is $(t, s_{\mathrm{rule}}, s)$.
 -/
 def proofMorphPanel : Timeline where
   name := "proof-morph-panel"

@@ -42,7 +42,7 @@ deriving Repr, DecidableEq
 
 /-- A prediction by its name in the rows; `none` for any other name.
 
-$$\operatorname{pred}(s) = \begin{cases} =0 & s = \text{"=0"} \\ =o & s = \text{"=o"} \\ \le o & s \in \{\text{"≤o"}, \text{"<=o"}\} \\ <o & s = \text{"<o"} \\ \mathrm{any} & s = \text{"any"} \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{pred}(s) = \begin{cases} =0 & s = \text{"=0"} \\ =o & s = \text{"=o"} \\ \le o & s \in \{\text{"\char"2264o"}, \text{"<=o"}\} \\ <o & s = \text{"<o"} \\ \mathrm{any} & s = \text{"any"} \\ \bot & \text{otherwise} \end{cases}$$
 -/
 def Pred.ofName : String → Option Pred
   | "=0" => some .zero

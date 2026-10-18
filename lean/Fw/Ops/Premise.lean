@@ -348,15 +348,23 @@ premises of `research/findings/ledger.json` that a static page can assert (R3, R
 the allow-list premise AL, the write-on-change premises, IO delivery), and the grid alignment premises of
 `Fw.Gate.AlignEquiv` (gate-align-equiv, $p_{16}$ and $p_{17}$, page tests). Premises that need engine counters
 (compositing bits, per-stage counts) stay with the engine-check lane (`fw engine-check`, tests F0-F4), except those a
-CI lane of their own asserts (kind `lane`): $p_{18}$, the WKTR style-rate premise (task wktr-p1p4), whose counter
-`internals.styleRecalcCount` only WebKitTestRunner exposes; and $p_{19}$-$p_{23}$, the five engine stage rules that
-the `engine-premises.yml` lane measured and found to hold (`cr.script`, `cr.style`, `cr.commit`, `wk.style`,
-`wk.commit`; task engine-premise-measure); and $p_{24}$-$p_{30}$, the seven stage rules that lane refuted in run
-39088367495 and that hold on its recorded cells after the model fix (`cr.layout`, `cr.props`, `cr.paint`,
-`cr.raster`, `cr.hits`, `wk.layout`, `wk.props`; task engine-model-fix, `Fw.Ops.EnginePremise.cr_recorded_holds`,
-`wk_recorded_holds`).
+CI lane of their own asserts (kind `lane`): $p_{18}$-$p_{22}$, the five engine stage rules that the
+`engine-premises.yml` lane measured and found to hold (`cr.script`, `cr.style`, `cr.commit`, `wk.style`, `wk.commit`;
+task engine-premise-measure); $p_{23}$-$p_{29}$, the seven stage rules that lane refuted in run 39088367495 and that
+hold on its recorded cells after the model fix (`cr.layout`, `cr.props`, `cr.paint`, `cr.raster`, `cr.hits`,
+`wk.layout`, `wk.props`; task engine-model-fix, `Fw.Ops.EnginePremise.cr_recorded_holds`, `wk_recorded_holds`); and
+$p_{30}$, the WKTR style-rate premise (task wktr-p1p4), whose counter `internals.styleRecalcCount` only
+WebKitTestRunner exposes.
 
 $$\operatorname{registry} = [p_1, \dots, p_{30}]$$
+$$\begin{aligned}
+\mathrm{id}(p_1..p_{17}) &= [\texttt{anim.list}, \texttt{cv.auto-margin}, \texttt{cv.read-forces-lock}, \texttt{frame.raf-order}, \texttt{frame.ro-same-frame}, \texttt{resize.lag}, \texttt{clock.raf-timeline}, \texttt{css.number-linear}, \texttt{css.inherits-false}, \\
+&\qquad \texttt{dom.token-toggle-noop}, \texttt{dom.inline-same-value}, \texttt{read.forced-update}, \texttt{hit.pointer-events}, \texttt{layout.unit-truncation}, \texttt{io.async-delivery}, \\
+&\qquad \texttt{grid.normal-aspect-ratio-no-stretch}, \texttt{grid.stretch-fill-equals-start}] \quad (\text{page}) \\
+\mathrm{id}(p_{18}..p_{22}) &= [\texttt{cr.script}, \texttt{cr.style}, \texttt{cr.commit}, \texttt{wk.style}, \texttt{wk.commit}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
+\mathrm{id}(p_{23}..p_{29}) &= [\texttt{cr.layout}, \texttt{cr.props}, \texttt{cr.paint}, \texttt{cr.raster}, \texttt{cr.hits}, \texttt{wk.layout}, \texttt{wk.props}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
+\mathrm{id}(p_{30}) &= \texttt{wktr\_scroll\_timeline\_restyle} \quad (\text{lane}, \texttt{wktr-fixtures.yml})
+\end{aligned}$$
 -/
 def registry : List Premise := [
   { id := "anim.list"
@@ -543,7 +551,7 @@ are per golden file (a new golden file cites nothing until it is listed, so all 
 and stage: a row's value is the engine model's per-frame work of that stage (`frameWork` with `chromium`/`chromiumAt`,
 `webkitAt`/`webkitX`), so it rests on that stage rule of that engine. The WebKit style rows whose variant runs a
 transform animation on a scroll timeline (P1, P4 `scrollDriven`; hero-exit's variant) also cite the measured WKTR
-premise $p_{18}$. No page premise is cited: no golden value is computed from a theorem that assumes one (scout sweep of
+premise $p_{30}$. No page premise is cited: no golden value is computed from a theorem that assumes one (scout sweep of
 the generators, 2026-10-18: `frameWorkE`, forced reads, observers and the part theorems of $p_1$-$p_{17}$ are only in
 theorem sections). -/
 
@@ -592,6 +600,17 @@ every one of these cells is predicted (`Fw.Ops.EnginePremise.cr_recorded_holds`,
 seven rules into `registry`.
 
 $$\mathrm{refuted} = [(i, C_i)],\quad C_i = [\,\text{case } c \text{ in fixture order} \mid \text{presence of the counters of stage}(i) \text{ in } c \ne [\![\mathrm{stage}(i) \in \operatorname{touched}_{\text{old}}(c)]\!]\,] \text{ (as strings, with the observed direction)}$$
+$$\begin{aligned}
+\mathrm{refuted} = [\,&(\texttt{cr.layout}, [\texttt{transform(none<->some)@own: set (Layout absent, model runs)}]), \\
+&(\texttt{cr.props}, [\texttt{rAF-only frame after padding@own (PrePaint runs, model absent)}]), \\
+&(\texttt{cr.paint}, [\texttt{transform(none<->some)@own}, \texttt{top@own}, \texttt{left@own}, \texttt{margin@own (Paint absent, model runs)}]), \\
+&(\texttt{cr.raster}, [\texttt{scale@own}, \texttt{filter(blur)@own (RasterTask runs, model absent)}, \texttt{top@own}, \texttt{left@own}, \texttt{margin@own (RasterTask absent, model runs)}]), \\
+&(\texttt{cr.hits}, [\texttt{transform(none<->some)@none/@layer}, \texttt{top@layer/@own}, \texttt{left@layer/@own}, \texttt{width@none/@layer/@own}, \\
+&\qquad \texttt{height@none/@layer/@own}, \texttt{margin@none/@layer/@own}, \texttt{padding@none/@layer/@own (HitTest runs, model absent)}]), \\
+&(\texttt{wk.layout}, [\texttt{filter@layer}, \texttt{filter@own (layoutUpdates runs, model absent)}]), \\
+&(\texttt{wk.props}, [\texttt{transform@layer}, \texttt{opacity@layer}, \texttt{filter@layer}, \texttt{background@own}, \texttt{color@own}, \texttt{mask@layer}, \\
+&\qquad \texttt{mask@own}, \texttt{insetAbs@layer}, \texttt{insetAbs@own (compositingUpdates runs, model absent)}, \texttt{opacity@own (compositingUpdates absent, model runs)}])\,]
+\end{aligned}$$
 
 The counterexamples that drove the engine-model-fix change. -/
 def refutedPremises : List (String × List String) := [
@@ -756,29 +775,33 @@ private def wktrId : String := "wktr_scroll_timeline_restyle"
 
 /-- The engine golden files the rules know (paths below `golden/engine/`), besides `chromium.jsonl`.
 
-$$\mathrm{engineFiles} = [\texttt{countdown-strip.jsonl}, \dots, \texttt{webkit.jsonl}]\ (11 \text{ files})$$
+$$\mathrm{engineFiles} = [\,f \mathbin{+\!\!+} \texttt{.jsonl} \mid f \in [\texttt{countdown-strip}, \texttt{hero-accent}, \texttt{hero-exit}, \texttt{hidden-pause}, \texttt{morph-mount}, \texttt{morph-panel}, \texttt{nav-hittest}, \texttt{pain-notes}, \texttt{people-card}, \texttt{people-deck}, \texttt{webkit}]\,]$$
 -/
 def engineFiles : List String :=
   ["countdown-strip.jsonl", "hero-accent.jsonl", "hero-exit.jsonl", "hidden-pause.jsonl", "morph-mount.jsonl",
    "morph-panel.jsonl", "nav-hittest.jsonl", "pain-notes.jsonl", "people-card.jsonl", "people-deck.jsonl",
    "webkit.jsonl"]
 
-/-- The counted stages per engine with their untested stage rule.
+/-- The counted Chromium stages, each with the id of its stage rule (a registry lane premise or an untested premise).
 
-$$\mathrm{crStages} = [(\texttt{script}, \texttt{cr.script}), \dots, (\texttt{hits}, \texttt{cr.hits})],\quad \mathrm{wkStages} = [(\texttt{script}, \texttt{wk.script}), \dots, (\texttt{commit}, \texttt{wk.commit})]$$
+$$\mathrm{crStages} = [\,(s, \texttt{cr.}s) \mid s \in [\texttt{script}, \texttt{style}, \texttt{layout}, \texttt{props}, \texttt{paint}, \texttt{raster}, \texttt{commit}, \texttt{comp}, \texttt{hits}]\,]$$
 -/
 def crStages : List (String × String) :=
   ["script", "style", "layout", "props", "paint", "raster", "commit", "comp", "hits"].map fun s => (s, "cr." ++ s)
 
-@[inherit_doc crStages]
+/-- The counted WebKit stages, each with the id of its stage rule (a registry lane premise or an untested premise).
+
+$$\mathrm{wkStages} = [\,(s, \texttt{wk.}s) \mid s \in [\texttt{script}, \texttt{style}, \texttt{layout}, \texttt{props}, \texttt{paint}, \texttt{commit}]\,]$$
+-/
 def wkStages : List (String × String) :=
   ["script", "style", "layout", "props", "paint", "commit"].map fun s => (s, "wk." ++ s)
 
 /-- **The citation rules of the engine goldens**: per listed file and engine stage the engine's stage rule, the
-`chromium.jsonl` stage, signature and mode rules, and $p_{18}$ for the WebKit style rows of the scroll-timeline
-variants.
+`chromium.jsonl` stage, signature and mode rules, and $p_{30}$ (`wktr_scroll_timeline_restyle`) for the WebKit style
+rows of the scroll-timeline variants. The per-file rules come file by file: the Chromium rules of a file, then its
+WebKit rules, then the next file. A pattern $\{k_1{=}v_1, \dots\}$ is the list of pairs in that order.
 
-$$\begin{aligned} \mathrm{engineCites} = {} &[\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{chromium}, \mathrm{stage}{=}s\}, [\texttt{cr.}s]) \mid f \in \mathrm{engineFiles}, (s, \_) \in \mathrm{crStages}\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}s\}, [\texttt{wk.}s]) \mid f \in \mathrm{engineFiles}, (s, \_) \in \mathrm{wkStages}\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{stage}, \mathrm{stage}{=}s\}, [\texttt{cr.}s]) \mid (s, \_) \in \mathrm{crStages}\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{signature}\}, [\texttt{cr.signature}]),\ (\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{mode}\}, [\texttt{cr.mode}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{webkit.jsonl}, \mathrm{scenario}{=}\texttt{P1}, \mathrm{variant}{=}\texttt{scrollDriven}, \mathrm{stage}{=}\texttt{style}\}, [p_{18}]),\ (\{\dots \mathrm{scenario}{=}\texttt{P4} \dots\}, [p_{18}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{hero-exit.jsonl}, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}\texttt{style}\}, [p_{18}])\,] \end{aligned}$$
+$$\begin{aligned} \mathrm{engineCites} = {} &[\,c \mid f \in \mathrm{engineFiles},\ c \in [\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{chromium}, \mathrm{stage}{=}s\}, [i]) \mid (s, i) \in \mathrm{crStages}\,] \mathbin{+\!\!+} [\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}s\}, [i]) \mid (s, i) \in \mathrm{wkStages}\,]\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{stage}, \mathrm{stage}{=}s\}, [\texttt{cr.}s]) \mid (s, \_) \in \mathrm{crStages}\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{signature}\}, [\texttt{cr.signature}]),\ (\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{mode}\}, [\texttt{cr.mode}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{webkit.jsonl}, \mathrm{scenario}{=}\texttt{P1}, \mathrm{variant}{=}\texttt{scrollDriven}, \mathrm{stage}{=}\texttt{style}\}, [p_{30}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{webkit.jsonl}, \mathrm{scenario}{=}\texttt{P4}, \mathrm{variant}{=}\texttt{scrollDriven}, \mathrm{stage}{=}\texttt{style}\}, [p_{30}]),\ (\{\mathrm{file}{=}\texttt{hero-exit.jsonl}, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}\texttt{style}\}, [p_{30}])\,] \end{aligned}$$
 -/
 def engineCites : List Cite :=
   engineFiles.flatMap (fun f =>
@@ -867,7 +890,7 @@ theorem engineCite_ok_iff (files : List String) (hf : ∀ f ∈ laneFiles regist
 
 /-! ## The WKTR lane assertion (`wktr-fixtures.yml`)
 
-The lane premise $p_{18}$ is only as good as its workflow: it must fail when the fixtures measure anything else. The
+The lane premise $p_{30}$ is only as good as its workflow: it must fail when the fixtures measure anything else. The
 decision is here; `packages/measure-wktr/fixtures/summarize.mjs --assert` ports it and is checked against the golden
 `packages/contracts/golden/ops/wktr-lane.jsonl`. -/
 
@@ -1279,7 +1302,7 @@ private def lintCases : List (String × List TestRef × List String) :=
 
 /-- A lint row.
 
-$$\operatorname{row}(ts, F) = \{\mathrm{kind}{:}\,\texttt{lint},\ \mathrm{tests} = ts,\ \mathrm{files} = F,\ \mathrm{untested},\ \mathrm{unknown}\}$$
+$$\operatorname{row}(n, ts, F) = \{\mathrm{kind}{:}\,\texttt{lint},\ \mathrm{name} = n,\ \mathrm{tests} = ts,\ \mathrm{files} = F,\ \mathrm{untested},\ \mathrm{unknown} \text{ of } \operatorname{lint}(\mathrm{registry}, ts, F)\}$$
 -/
 def lintRow (name : String) (ts : List TestRef) (files : List String) : Json :=
   let l := premiseLint registry ts files
@@ -1321,7 +1344,7 @@ def ackRow (a : Ack) : Json :=
 
 /-- An ack-case row: the results, the findings, and the verdict under the registry and `acks`.
 
-$$\operatorname{row}(rs) = \{\mathrm{kind}{:}\,\texttt{ackcase},\ \mathrm{results} = rs,\ \mathrm{findings} = F,\ \mathrm{acked}, \mathrm{unacked}, \mathrm{stale} \text{ of } \operatorname{ackVerdict}(\mathrm{acks}, F),\ \mathrm{red}\},\quad F = \operatorname{findings}(\mathrm{registry}, rs)$$
+$$\operatorname{row}(n, rs) = \{\mathrm{kind}{:}\,\texttt{ackcase},\ \mathrm{name} = n,\ \mathrm{results} = rs,\ \mathrm{findings} = F,\ \mathrm{acked}, \mathrm{unacked}, \mathrm{stale} \text{ of } \operatorname{ackVerdict}(\mathrm{acks}, F),\ \mathrm{red}\},\quad F = \operatorname{findings}(\mathrm{registry}, rs)$$
 -/
 def ackCaseRow (name : String) (rs : List Result) : Json :=
   let fs := findings registry rs
@@ -1339,7 +1362,7 @@ private def ackLintCases : List (String × List String × List Ack) :=
 
 /-- An ack-lint row.
 
-$$\operatorname{row}(ids, ks) = \{\mathrm{kind}{:}\,\texttt{acklint},\ \mathrm{ids},\ \mathrm{acks} = ks,\ \mathrm{bad} = \operatorname{ackLint}(\mathrm{registry}, ids, ks)\}$$
+$$\operatorname{row}(n, ids, ks) = \{\mathrm{kind}{:}\,\texttt{acklint},\ \mathrm{name} = n,\ \mathrm{ids} = ids,\ \mathrm{acks} = ks,\ \mathrm{bad} = \operatorname{ackLint}(\mathrm{registry}, ids, ks)\}$$
 -/
 def ackLintRow (name : String) (ids : List String) (ks : List Ack) : Json :=
   Json.mkObj [("kind", "acklint"), ("name", .str name), ("ids", strs ids), ("acks", Json.arr (ks.map ackJson).toArray),
@@ -1358,7 +1381,7 @@ def errorClassRow (s : String) : Json :=
 
 /-- A flag row.
 
-$$\operatorname{row}(rs) = \{\mathrm{kind}{:}\,\texttt{flag},\ \mathrm{results} = rs,\ \mathrm{flagged} = [(p.\mathrm{id}, p.\mathrm{theorems}) \mid p \in \operatorname{flagged}(\mathrm{registry}, rs)]\}$$
+$$\operatorname{row}(n, rs) = \{\mathrm{kind}{:}\,\texttt{flag},\ \mathrm{name} = n,\ \mathrm{results} = rs,\ \mathrm{flagged} = [\{\mathrm{premise} = p.\mathrm{id},\ \mathrm{theorems} = p.\mathrm{theorems}\} \mid p \in \operatorname{flagged}(\mathrm{registry}, rs)]\}$$
 -/
 def flagRow (name : String) (rs : List Result) : Json :=
   Json.mkObj [("kind", "flag"), ("name", .str name), ("results", Json.arr (rs.map resultJson).toArray),

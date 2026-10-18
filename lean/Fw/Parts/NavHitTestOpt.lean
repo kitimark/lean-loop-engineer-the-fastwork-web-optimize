@@ -1057,7 +1057,7 @@ def readStage (st : String) (w : Work) : Nat :=
 
 /-- Whether a prediction holds for a variant value `v` and base value `o`.
 
-$$\operatorname{holds}(p, v, o) = \begin{cases} v = o & p = \text{"=o"} \\ v < o & p = \text{"<o"} \\ v \le o & p = \text{"≤o"} \\ v = 0 & p = \text{"=0"} \\ \mathrm{true} & p = \text{"any"} \\ \mathrm{false} & \text{otherwise} \end{cases}$$
+$$\operatorname{holds}(p, v, o) = \begin{cases} v = o & p = \text{"=o"} \\ v < o & p = \text{"<o"} \\ v \le o & p = \text{"\char"2264o"} \\ v = 0 & p = \text{"=0"} \\ \mathrm{true} & p = \text{"any"} \\ \mathrm{false} & \text{otherwise} \end{cases}$$
 -/
 def holds (p : String) (v o : Nat) : Bool :=
   match p with

@@ -347,7 +347,12 @@ def Reason.code : Reason → String
   | .searchOrder _ => "proof-before-search" | .growth _ _ => "growth"
 
 /-- The subject of a reason: a declaration, `file:line`, `theorem premise`, or `main->head` counts.
-$$\operatorname{subj}(\mathrm{branch}(f, n, m)) = f \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} n,\ \operatorname{subj}(\mathrm{hidden}(t, p)) = t \mathbin{+\!\!+} \texttt{ } \mathbin{+\!\!+} p,\ \operatorname{subj}(\mathrm{growth}(a, b)) = a \mathbin{+\!\!+} \texttt{->} \mathbin{+\!\!+} b, \dots$$ -/
+$$\begin{aligned}
+&\operatorname{subj}(\mathrm{noProps}(w)) = w,\quad \operatorname{subj}(\mathrm{unproved}(P)) = \operatorname{subj}(\mathrm{unreached}(P)) = \operatorname{subj}(\mathrm{unsigned}(P, r)) = \operatorname{subj}(\mathrm{unkilled}(P)) = \operatorname{subj}(\mathrm{searchOrder}(P)) = P,\quad \operatorname{subj}(\mathrm{noKill}(t)) = t, \\
+&\operatorname{subj}(\mathrm{branch}(f, n, m)) = f \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} \operatorname{dec}(n),\quad \operatorname{subj}(\mathrm{hidden}(t, p)) = \operatorname{subj}(\mathrm{unregistered}(t, p)) = \operatorname{subj}(\mathrm{refuted}(t, p)) = t \mathbin{+\!\!+} \texttt{"\ "} \mathbin{+\!\!+} p, \\
+&\operatorname{subj}(\mathrm{growth}(a, b)) = \operatorname{dec}(a) \mathbin{+\!\!+} \texttt{->} \mathbin{+\!\!+} \operatorname{dec}(b)
+\end{aligned}$$
+Here $\operatorname{dec}$ writes a natural number in decimal and $\texttt{"\ "}$ is one space. -/
 def Reason.subject : Reason → String
   | .noProps w => w | .unproved p | .unreached p | .unsigned p _ | .unkilled p | .searchOrder p => p
   | .noKill t => t
@@ -440,7 +445,7 @@ def Stage.rank : Stage → Nat
   | .shadow => 0 | .newTasks => 1 | .allNew => 2 | .ratchet => 3
 
 /-- The wire name of a stage.
-$$\operatorname{name}(s) \in \{\texttt{shadow}, \texttt{newTasks}, \texttt{allNew}, \texttt{ratchet}\}$$ -/
+$$\operatorname{name}(\mathrm{shadow}) = \texttt{shadow},\ \operatorname{name}(\mathrm{newTasks}) = \texttt{newTasks},\ \operatorname{name}(\mathrm{allNew}) = \texttt{allNew},\ \operatorname{name}(\mathrm{ratchet}) = \texttt{ratchet}$$ -/
 def Stage.name : Stage → String
   | .shadow => "shadow" | .newTasks => "newTasks" | .allNew => "allNew" | .ratchet => "ratchet"
 
@@ -508,7 +513,7 @@ inductive Tag where
 deriving DecidableEq, Repr
 
 /-- The prefix of each kind of line.
-$$\operatorname{pre}(\mathrm{verdict}) = \texttt{VERDICT␣},\ \operatorname{pre}(\mathrm{reason}) = \texttt{REASON␣},\ \operatorname{pre}(\mathrm{shadow}) = \texttt{LEANFIRST␣},\ \operatorname{pre}(\mathrm{warn}) = \texttt{WARN␣}$$ -/
+$$\operatorname{pre}(\mathrm{verdict}) = \texttt{VERDICT\char"2423},\ \operatorname{pre}(\mathrm{reason}) = \texttt{REASON\char"2423},\ \operatorname{pre}(\mathrm{shadow}) = \texttt{LEANFIRST\char"2423},\ \operatorname{pre}(\mathrm{warn}) = \texttt{WARN\char"2423}$$ -/
 def Tag.text : Tag → String
   | .verdict => "VERDICT " | .reason => "REASON " | .shadow => "LEANFIRST " | .warn => "WARN "
 
@@ -517,7 +522,7 @@ $$\operatorname{line}(\tau, b) = \operatorname{pre}(\tau) \mathbin{+\!\!+} \oper
 def mkLine (t : Tag) (body : String) : String := t.text ++ clean body
 
 /-- Is a line a verdict line? It starts with `VERDICT ` (with the space).
-$$\operatorname{isV}(\ell) \iff \ell \text{ starts with } \texttt{VERDICT␣}$$ -/
+$$\operatorname{isV}(\ell) \iff \ell \text{ starts with } \texttt{VERDICT\char"2423}$$ -/
 def isVerdict (l : String) : Bool := l.startsWith "VERDICT "
 
 /-- The number of verdict lines.
@@ -525,12 +530,12 @@ $$\operatorname{nV}(L) = |[\ell \in L : \operatorname{isV}(\ell)]|$$ -/
 def verdictCount (ls : List String) : Nat := (ls.filter isVerdict).length
 
 /-- The text of a reason after `lean-first:`: rule, code, subject.
-$$\operatorname{text}(\rho) = \operatorname{name}(\operatorname{rule}(\rho)) \mathbin{+\!\!+} \texttt{␣} \mathbin{+\!\!+} \operatorname{code}(\rho) \mathbin{+\!\!+} \texttt{␣} \mathbin{+\!\!+} \operatorname{subj}(\rho)$$ -/
+$$\operatorname{text}(\rho) = \operatorname{name}(\operatorname{rule}(\rho)) \mathbin{+\!\!+} \texttt{\char"2423} \mathbin{+\!\!+} \operatorname{code}(\rho) \mathbin{+\!\!+} \texttt{\char"2423} \mathbin{+\!\!+} \operatorname{subj}(\rho)$$ -/
 def Reason.text (r : Reason) : String := r.rule.name ++ " " ++ r.code ++ " " ++ r.subject
 
 /-- The `LEANFIRST` lines: with every source present, one `would-refuse` line per reason whose rule is not enforced;
 otherwise one `missing` line per missing source.
-$$\operatorname{sh}(s, F) = \begin{cases} [\operatorname{line}(\mathrm{shadow}, \texttt{shadow would-refuse␣} \mathbin{+\!\!+} \operatorname{text}(\rho)) \mid \rho \in \operatorname{reasons}(F),\ \lnot\operatorname{en}(s, \mathit{lf}, \operatorname{rule}(\rho))] & \operatorname{missing}(F) = [\,] \\ [\operatorname{line}(\mathrm{shadow}, \texttt{shadow missing␣} \mathbin{+\!\!+} \operatorname{name}(m)) \mid m \in \operatorname{missing}(F)] & \text{otherwise} \end{cases}$$ -/
+$$\operatorname{sh}(s, F) = \begin{cases} [\operatorname{line}(\mathrm{shadow}, \texttt{shadow would-refuse\char"2423} \mathbin{+\!\!+} \operatorname{text}(\rho)) \mid \rho \in \operatorname{reasons}(F),\ \lnot\operatorname{en}(s, \mathit{lf}, \operatorname{rule}(\rho))] & \operatorname{missing}(F) = [\,] \\ [\operatorname{line}(\mathrm{shadow}, \texttt{shadow missing\char"2423} \mathbin{+\!\!+} \operatorname{name}(m)) \mid m \in \operatorname{missing}(F)] & \text{otherwise} \end{cases}$$ -/
 def shadowLines (s : Stage) (F : Facts) : List String :=
   if (missing F).isEmpty then
     ((reasons F).filter fun r => !enforced s F.leanFirst r.rule).map fun r =>
@@ -538,7 +543,7 @@ def shadowLines (s : Stage) (F : Facts) : List String :=
   else (missing F).map fun m => mkLine .shadow ("shadow missing " ++ m.name)
 
 /-- The `WARN` lines: one per new theorem and untested premise it assumes (rule 4d).
-$$\operatorname{warn}(F) = [\operatorname{line}(\mathrm{warn}, \texttt{lean-first:premises untested␣} \mathbin{+\!\!+} t \mathbin{+\!\!+} \texttt{␣} \mathbin{+\!\!+} p) \mid t \in F.\mathit{thms},\ \operatorname{new}(F, t),\ p \in t.\mathit{assumes},\ \operatorname{status}(F, p) = \mathrm{some}(\mathrm{untested})]$$ -/
+$$\operatorname{warn}(F) = [\operatorname{line}(\mathrm{warn}, \texttt{lean-first:premises untested\char"2423} \mathbin{+\!\!+} t \mathbin{+\!\!+} \texttt{\char"2423} \mathbin{+\!\!+} p) \mid t \in F.\mathit{thms},\ \operatorname{new}(F, t),\ p \in t.\mathit{assumes},\ \operatorname{status}(F, p) = \mathrm{some}(\mathrm{untested})]$$ -/
 def warnLines (F : Facts) : List String :=
   (F.thms.filter (isNew F)).flatMap fun t =>
     (t.assumes.filter fun p => statusOf F p == some .untested).map fun p =>
@@ -551,7 +556,7 @@ inductive Kind where
 deriving DecidableEq, Repr
 
 /-- The wire name of a kind.
-$$\operatorname{name}(k) \in \{\texttt{pass}, \texttt{pending}, \texttt{refused}\}$$ -/
+$$\operatorname{name}(\mathrm{pass}) = \texttt{pass},\ \operatorname{name}(\mathrm{pending}) = \texttt{pending},\ \operatorname{name}(\mathrm{refused}) = \texttt{refused}$$ -/
 def Kind.name : Kind → String
   | .pass => "pass" | .pending => "pending" | .refused => "refused"
 
@@ -571,7 +576,7 @@ abbrev Render := Stage → Facts → Out
 Pending: one `REASON` line per missing source, then `VERDICT pending lean-first:missing <names>`, exit 75. Refused: one
 `REASON` line per enforced reason, the `LEANFIRST` and `WARN` lines, then `VERDICT refused lean-first:<rule> <subject>`
 of the first reason, exit 1.
-$$\operatorname{out}(s, F) = \begin{cases} (\mathrm{pass}, 0, \operatorname{sh}(s, F) \mathbin{+\!\!+} \operatorname{warn}(F) \mathbin{+\!\!+} [\operatorname{line}(\mathrm{verdict}, \texttt{pass lean-first})]) & g(s, F) = \mathrm{pass} \\ (\mathrm{pending}, 75, [\operatorname{line}(\mathrm{reason}, \texttt{lean-first:missing␣} \mathbin{+\!\!+} \operatorname{name}(m)) \mid m \in M] \mathbin{+\!\!+} [\operatorname{line}(\mathrm{verdict}, \texttt{pending lean-first:missing␣} \mathbin{+\!\!+} \operatorname{join}_{,}(M))]) & g(s, F) = \mathrm{pending}(M) \\ (\mathrm{refused}, 1, [\operatorname{line}(\mathrm{reason}, \texttt{lean-first:} \mathbin{+\!\!+} \operatorname{text}(\rho)) \mid \rho \in \rho_0 :: \rho s] \mathbin{+\!\!+} \operatorname{sh}(s, F) \mathbin{+\!\!+} \operatorname{warn}(F) \mathbin{+\!\!+} [\operatorname{line}(\mathrm{verdict}, \texttt{refused lean-first:} \mathbin{+\!\!+} \operatorname{name}(\operatorname{rule}(\rho_0)) \mathbin{+\!\!+} \texttt{␣} \mathbin{+\!\!+} \operatorname{subj}(\rho_0))]) & g(s, F) = \mathrm{refuse}(\rho_0 :: \rho s) \end{cases}$$
+$$\operatorname{out}(s, F) = \begin{cases} (\mathrm{pass}, 0, \operatorname{sh}(s, F) \mathbin{+\!\!+} \operatorname{warn}(F) \mathbin{+\!\!+} [\operatorname{line}(\mathrm{verdict}, \texttt{pass lean-first})]) & g(s, F) = \mathrm{pass} \\ (\mathrm{pending}, 75, [\operatorname{line}(\mathrm{reason}, \texttt{lean-first:missing\char"2423} \mathbin{+\!\!+} \operatorname{name}(m)) \mid m \in M] \mathbin{+\!\!+} [\operatorname{line}(\mathrm{verdict}, \texttt{pending lean-first:missing\char"2423} \mathbin{+\!\!+} \operatorname{join}_{,}(M))]) & g(s, F) = \mathrm{pending}(M) \\ (\mathrm{refused}, 1, [\operatorname{line}(\mathrm{reason}, \texttt{lean-first:} \mathbin{+\!\!+} \operatorname{text}(\rho)) \mid \rho \in \rho_0 :: \rho s] \mathbin{+\!\!+} \operatorname{sh}(s, F) \mathbin{+\!\!+} \operatorname{warn}(F) \mathbin{+\!\!+} [\operatorname{line}(\mathrm{verdict}, \texttt{refused lean-first:} \mathbin{+\!\!+} \operatorname{name}(\operatorname{rule}(\rho_0)) \mathbin{+\!\!+} \texttt{\char"2423} \mathbin{+\!\!+} \operatorname{subj}(\rho_0))]) & g(s, F) = \mathrm{refuse}(\rho_0 :: \rho s) \end{cases}$$
 (`refuse []` never comes out of `gate`; it would print `VERDICT refused lean-first:` with exit 1.) -/
 def out : Render := fun s F =>
   match gate s F with

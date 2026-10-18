@@ -106,9 +106,10 @@ inductive Ev where
   | stop  (id : String)
 deriving DecidableEq, Repr
 
-/-- The ids started and not ended: the agent's open background work.
+/-- The ids started and not ended: the agent's open background work, as a list in the order of $E$ (an id started
+twice and never ended appears twice).
 
-$$\mathrm{open}(E) = \{\, id \mid \mathrm{start}(id) \in E \ \land\ \mathrm{end}(id) \notin E \,\}$$
+$$\mathrm{open}(E) = [\, i \in [\, i \mid \mathrm{start}(i) \in E \,] \mid \mathrm{end}(i) \notin E \,]\quad \text{(order of } E\text{, repeats kept)}$$
 -/
 def openBg (es : List Ev) : List String :=
   (es.filterMap fun | .start i => some i | .stop _ => none).filter fun i => !(es.contains (.stop i))
@@ -291,7 +292,7 @@ def mark (a : Acc) : Acc :=
 /-- Process one character that is not a pending `&` resolver (the first matching row applies; ⏎ is newline). A
 backslash-newline outside single quotes is removed, as in bash (`whi\⏎le` is `while`).
 
-$$\mathrm{stepPlain}(a, c) = \begin{cases} \mathrm{newline}(a[\mathit{comment} := \bot]) & a.\mathit{comment},\ c = \text{⏎} \\ a & a.\mathit{comment},\ c \ne \text{⏎} \\ a[\mathit{esc} := \bot] & a.\mathit{esc},\ c = \text{⏎} \\ \mathrm{push}(a[\mathit{esc} := \bot], c) & a.\mathit{esc} \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 1,\ c = \texttt{'} \\ \mathrm{push}(a, c) & a.\mathit{quote} = 1 \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 2,\ c = \texttt{"} \\ a[\mathit{esc} := \top] & a.\mathit{quote} = 2,\ c = \backslash \\ \mathrm{push}(a, c) & a.\mathit{quote} = 2 \\ \mathrm{mark}(a)[\mathit{quote} := 1] & c = \texttt{'} \\ \mathrm{mark}(a)[\mathit{quote} := 2] & c = \texttt{"} \\ \mathrm{mark}(a)[\mathit{esc} := \top] & c = \backslash \\ \mathrm{flushWord}(a) & c \in \{\text{space}, \text{tab}, \text{CR}\} \\ \mathrm{newline}(a) & c = \text{⏎} \\ \mathrm{endSeg}(a, \mathrm{seq}) & c = \texttt{;} \\ \mathrm{unpipe}(a) & c = \texttt{|},\ a.\mathit{prev} = \texttt{|} \\ \mathrm{endSeg}(a, \mathrm{pipe}) & c = \texttt{|} \\ a[\mathit{comment} := \top] & c = \texttt{\#},\ a.\mathit{word} = [\,] \\ \mathrm{push}(a, c) & c = \texttt{\&},\ a.\mathit{prev} \in \{\texttt{>}, \texttt{<}\} \\ a[\mathit{pend} := \top] & c = \texttt{\&} \\ \mathrm{push}(a, c) & \text{otherwise} \end{cases}$$
+$$\mathrm{stepPlain}(a, c) = \begin{cases} \mathrm{newline}(a[\mathit{comment} := \bot]) & a.\mathit{comment},\ c = \text{\char"23CE} \\ a & a.\mathit{comment},\ c \ne \text{\char"23CE} \\ a[\mathit{esc} := \bot] & a.\mathit{esc},\ c = \text{\char"23CE} \\ \mathrm{push}(a[\mathit{esc} := \bot], c) & a.\mathit{esc} \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 1,\ c = \texttt{'} \\ \mathrm{push}(a, c) & a.\mathit{quote} = 1 \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 2,\ c = \texttt{"} \\ a[\mathit{esc} := \top] & a.\mathit{quote} = 2,\ c = \backslash \\ \mathrm{push}(a, c) & a.\mathit{quote} = 2 \\ \mathrm{mark}(a)[\mathit{quote} := 1] & c = \texttt{'} \\ \mathrm{mark}(a)[\mathit{quote} := 2] & c = \texttt{"} \\ \mathrm{mark}(a)[\mathit{esc} := \top] & c = \backslash \\ \mathrm{flushWord}(a) & c \in \{\text{space}, \text{tab}, \text{CR}\} \\ \mathrm{newline}(a) & c = \text{\char"23CE} \\ \mathrm{endSeg}(a, \mathrm{seq}) & c = \texttt{;} \\ \mathrm{unpipe}(a) & c = \texttt{|},\ a.\mathit{prev} = \texttt{|} \\ \mathrm{endSeg}(a, \mathrm{pipe}) & c = \texttt{|} \\ a[\mathit{comment} := \top] & c = \texttt{\#},\ a.\mathit{word} = [\,] \\ \mathrm{push}(a, c) & c = \texttt{\&},\ a.\mathit{prev} \in \{\texttt{>}, \texttt{<}\} \\ a[\mathit{pend} := \top] & c = \texttt{\&} \\ \mathrm{push}(a, c) & \text{otherwise} \end{cases}$$
 -/
 def stepPlain (a : Acc) (c : Char) : Acc :=
   if a.comment then
@@ -322,7 +323,7 @@ first queued delimiter (after removing leading tabs for `<<-`), and a match ends
 delimiter is left). Here $(d, t)$ is the head of $a.\mathit{hd}$, $r$ its tail, and
 $\ell = \mathrm{rev}(a.\mathit{line})$ with leading tabs removed when $t$.
 
-$$\mathrm{bodyStep}(a, c) = \begin{cases} a[\mathit{line} := c :: a.\mathit{line}] & c \ne \text{⏎} \\ a[\mathit{body} := \bot,\ \mathit{line} := [\,]] & c = \text{⏎},\ a.\mathit{hd} = [\,] \\ a[\mathit{hd} := r,\ \mathit{body} := (r \ne [\,]),\ \mathit{line} := [\,]] & c = \text{⏎},\ a.\mathit{hd} = (d, t) :: r,\ \ell = d \\ a[\mathit{line} := [\,]] & c = \text{⏎},\ a.\mathit{hd} = (d, t) :: r,\ \ell \ne d \end{cases}$$
+$$\mathrm{bodyStep}(a, c) = \begin{cases} a[\mathit{line} := c :: a.\mathit{line}] & c \ne \text{\char"23CE} \\ a[\mathit{body} := \bot,\ \mathit{line} := [\,]] & c = \text{\char"23CE},\ a.\mathit{hd} = [\,] \\ a[\mathit{hd} := r,\ \mathit{body} := (r \ne [\,]),\ \mathit{line} := [\,]] & c = \text{\char"23CE},\ a.\mathit{hd} = (d, t) :: r,\ \ell = d \\ a[\mathit{line} := [\,]] & c = \text{\char"23CE},\ a.\mathit{hd} = (d, t) :: r,\ \ell \ne d \end{cases}$$
 -/
 def bodyStep (a : Acc) (c : Char) : Acc :=
   if c == '\n' then
@@ -369,7 +370,7 @@ theorem heredoc_body_inert (a : Acc) (c : Char) (h : a.body = true) :
 /-- A here-document body line (no newline in it) leaves the parsed segments as they were, whatever it holds
 (`while true`, `&`, quotes): the scanner stays in the body.
 
-$$\forall \mathit{cs}, a.\ a.\mathit{body} \land \text{⏎} \notin \mathit{cs} \ \Rightarrow\ (\mathrm{foldl}\ \mathrm{step}\ a\ \mathit{cs}).\mathit{segs} = a.\mathit{segs} \land (\mathrm{foldl}\ \mathrm{step}\ a\ \mathit{cs}).\mathit{body}$$
+$$\forall \mathit{cs}, a.\ a.\mathit{body} \land \text{\char"23CE} \notin \mathit{cs} \ \Rightarrow\ (\mathrm{foldl}\ \mathrm{step}\ a\ \mathit{cs}).\mathit{segs} = a.\mathit{segs} \land (\mathrm{foldl}\ \mathrm{step}\ a\ \mathit{cs}).\mathit{body}$$
 -/
 theorem heredoc_line_inert (cs : List Char) (a : Acc) (h : a.body = true) (hn : '\n' ∉ cs) :
     (cs.foldl step a).segs = a.segs ∧ (cs.foldl step a).body = true := by
@@ -384,9 +385,10 @@ theorem heredoc_line_inert (cs : List Char) (a : Acc) (h : a.body = true) (hn : 
     simp only [List.foldl_cons]
     exact ⟨this.1.trans (heredoc_body_inert a c h).1, this.2⟩
 
-/-- Split a command into segments.
+/-- Split a command into segments: run the character scanner over the string, close a pending segment as background,
+close the last one as final, and return the segments in source order.
 
-$$\mathrm{parse}: \mathrm{String} \to \mathrm{Seg}^{*}$$
+$$\mathrm{parse}(s) = \mathrm{rev}(\mathrm{endSeg}(a', \mathrm{fin}).\mathit{segs}),\quad a = \mathrm{foldl}(\mathrm{step}, \{\}, s),\quad a' = \begin{cases} \mathrm{endSeg}(a[\mathit{pend} := \bot], \mathrm{bg}) & a.\mathit{pend} \\ a & \text{otherwise} \end{cases}$$
 -/
 def parse (s : String) : List Seg :=
   let a := s.toList.foldl step {}
@@ -539,7 +541,7 @@ def opdChar (c : Char) : Bool := nameChar c || c == '$' || c == '{' || c == '}'
 /-- Read an operand word (quotes already removed, so `"$i"` is `$i`). $b$: the word is inside `(( ))`, where a bare name
 is a variable. Every character must be an `opdChar`; then `${n}` or `$n` with `isName(n)` is the variable $n$, a decimal
 literal (`isDec`, at most 18 digits) is a number, and when $b$ a name alone is a variable. Anything else is not an
-operand: `$$`, `$#`, `$?`, `$1`, `$(..)`, `$((..))`, `${x:-0}`, a backquote, `0x1`, `010`, `-1`, a 19-digit number.
+operand: the pid word (`$` twice), `$#`, `$?`, `$1`, `$(..)`, `$((..))`, `${x:-0}`, a backquote, `0x1`, `010`, `-1`, a 19-digit number.
 
 $$\mathrm{opd}_b(w) = \begin{cases} \mathrm{none} & \exists x \in w.\ \lnot\mathrm{opdChar}(x) \\ \mathrm{some}(\mathrm{var}(n)) & w = \texttt{\$\{}\,n\,\texttt{\}} \land \mathrm{isName}(n) \\ \mathrm{some}(\mathrm{var}(n)) & w = \texttt{\$}\,n \land \mathrm{isName}(n) \\ \mathrm{some}(\mathrm{num}(k)) & w \text{ does not start with } \texttt{\$} \land \mathrm{isDec}(w),\ k \text{ the decimal value of } w \\ \mathrm{some}(\mathrm{var}(w)) & w \text{ does not start with } \texttt{\$} \land b \land \mathrm{isName}(w) \\ \mathrm{none} & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
 -/
@@ -1304,7 +1306,7 @@ def jqLoopWords : List String := ["repeat", "recurse", "until", "while", "range"
 /-- A sed word that may loop or hide its script: a label (`:a` at the start of a word or after `;`, `; ` or a newline;
 a branch back to it can loop), or a short option cluster holding `f` or a `--file` option (script in a file).
 
-$$\mathrm{sedLoop}(w) \iff w \text{ starts with } \texttt{:} \lor \mathrm{has}(w, \texttt{;:}) \lor \mathrm{has}(w, \texttt{; :}) \lor \mathrm{has}(w, \text{⏎}\texttt{:}) \lor (w \text{ starts with } \texttt{-} \land w \text{ does not start with } \texttt{-{}-} \land \texttt{f} \in w) \lor w \text{ starts with } \texttt{-{}-file}$$
+$$\mathrm{sedLoop}(w) \iff w \text{ starts with } \texttt{:} \lor \mathrm{has}(w, \texttt{;:}) \lor \mathrm{has}(w, \texttt{; :}) \lor \mathrm{has}(w, \text{\char"23CE}\texttt{:}) \lor (w \text{ starts with } \texttt{-} \land w \text{ does not start with } \texttt{-{}-} \land \texttt{f} \in w) \lor w \text{ starts with } \texttt{-{}-file}$$
 -/
 def sedLoop (w : String) : Bool :=
   w.startsWith ":" || has w ";:" || has w "; :" || has w "\n:" ||
@@ -1525,7 +1527,7 @@ def subFin (c : Caps) (ws : List String) : Bool := producerOut c true (ws.filter
 exactly one substitution `$(v)` whose text $v$ holds none of `| ; & < > ( )`, a backquote or a newline, and whose words
 ($v$ split at spaces) are a finite producer (`subFin`). So `<<< "$(gh run list)"` is finite and `<<< "$(yes)"` is not.
 
-$$\mathrm{hereOk}_c(w) = \begin{cases} \top & \lnot\mathrm{has}(w, \texttt{\$(}) \land \lnot\mathrm{has}(w, \texttt{`}) \\ (\forall ch \in v.\ ch \notin \{\texttt{|}, \texttt{;}, \texttt{\&}, \texttt{<}, \texttt{>}, \texttt{(}, \texttt{)}, \texttt{`}, \text{⏎}\}) \land \mathrm{subFin}_c(\mathrm{split}(v, \text{␣})) & w = \texttt{\$(}\,v\,\texttt{)} \\ \bot & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+$$\mathrm{hereOk}_c(w) = \begin{cases} \top & \lnot\mathrm{has}(w, \texttt{\$(}) \land \lnot\mathrm{has}(w, \texttt{`}) \\ (\forall ch \in v.\ ch \notin \{\texttt{|}, \texttt{;}, \texttt{\&}, \texttt{<}, \texttt{>}, \texttt{(}, \texttt{)}, \texttt{`}, \text{\char"23CE}\}) \land \mathrm{subFin}_c(\mathrm{split}(v, \text{\char"2423})) & w = \texttt{\$(}\,v\,\texttt{)} \\ \bot & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
 -/
 def hereOk (c : Caps) (w : String) : Bool :=
   if !has w "$(" && !has w "`" then true

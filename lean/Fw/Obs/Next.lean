@@ -111,9 +111,13 @@ deriving DecidableEq, Repr
 /-- The agent's branch: name, commits ahead of `main` (`git rev-list --count main..branch`), whether its tip is an
 ancestor of `main` (landed), whether it is on the integrator's list (queued), whether it merges into `main` without
 conflict (`git merge-tree --write-tree main <branch>` exits 0; default true), and its unlanded dependencies (branches of
-other agents it contains that are not on `main`, or tasks of its own dependencies that are not done; default none).
+other agents it contains that are not on `main`, or tasks of its own dependencies that are not done; default none),
+whether a land commit of its task is on `main` (default false), the branch named by the live land lock (default none)
+and whether it is in the land queue (default false).
 
-$$b = (\mathit{name}, \mathit{ahead}, \mathit{landed}, \mathit{queued}, \mathit{clean}, D) \in \mathrm{String} \times \mathbb N \times \mathbb B^2 \times \mathbb B \times \mathrm{String}^*$$
+$$b = (\mathit{name}, \mathit{ahead}, \mathit{landed}, \mathit{queued}, \mathit{clean}, D, \mathit{onMain}, \ell, \mathit{inQueue}) \in \mathrm{String} \times \mathbb N \times \mathbb B^3 \times \mathrm{String}^* \times \mathbb B \times (\mathrm{String} \cup \{\bot\}) \times \mathbb B,\qquad \text{defaults: } \mathit{clean} = \mathrm{true},\ D = [\,],\ \mathit{onMain} = \mathrm{false},\ \ell = \bot,\ \mathit{inQueue} = \mathrm{false}$$
+
+A field left out takes its default; $\ell = \bot$ means no land lock is held.
 -/
 structure Branch where
   name   : String
@@ -1467,7 +1471,9 @@ def ago (m : Nat) : Nat := t0 - m * msPerMin
 
 /-- An example agent for the guards: id and task `k`, state `s`, session pid 100, nothing else observed.
 
-$$\operatorname{ex}(k, s) = (k, k, s, \bot, 100, \bot, \bot, 0, [\,], \bot)$$
+$$\operatorname{ex}(k, s) = (k, k, s, \bot, 100, \bot, \bot, 0, [\,], \bot, \bot, \mathrm{false}, \bot)$$
+
+in the field order $(\mathit{id}, \mathit{task}, s, h_\bot, \sigma, b_\bot, w_\bot, \mathit{ctx}, C, r_\bot, \tau_\bot, \mathit{ho}, g_\bot)$ of the agent facts.
 -/
 def ex (k : String) (s : State) : AgentFacts := { id := k, task := k, state := s, session := 100 }
 
@@ -1556,7 +1562,9 @@ def pnSig (a : Nat) : Signals.Facts :=
 /-- Example port-nav agent: Health state $s$, no handback in the raw facts, the signals $\operatorname{pn}(a)$, and the
 `cat > file` child (pid 10476, stdin wait) started $a$ min ago.
 
-$$\operatorname{pnA}(a, s) = \operatorname{ex}(\texttt{port-nav}, s)[g_\bot := \operatorname{pn}(a),\ C := [(10476, [100, 1], \mathrm{stdinWait}, \operatorname{ago}(a))]]$$
+$$\operatorname{pnA}(a, s) = \operatorname{ex}(\texttt{port-nav}, s)[g_\bot := \operatorname{pn}(a),\ C := [(10476, [100, 1], \mathrm{stdinWait}, \operatorname{ago}(a), \bot, \mathrm{false}, \bot)]]$$
+
+where a child is $(\mathit{pid}, \mathit{chain}, \mathit{kind}, \mathit{startedAt}, \mathit{watchedAt}_\bot, \mathit{producerExited}, \mathit{watch}_\bot)$.
 -/
 def pnAgent (a : Nat) (s : State) : AgentFacts :=
   { ex "port-nav" s with
@@ -1622,7 +1630,7 @@ def sameKey (v w : Timing.SampleVerdict) : Bool := v.tool == w.tool && v.step ==
 history exists (a newer sample of that step replaces it). Structural verdicts are never alerts. A slow sample stays
 an alert until the next sample of its step arrives; the subjects are in verdict order, with repeats.
 
-$$\operatorname{slowLatest}([\,]) = [\,],\quad \operatorname{slowLatest}(\mathsf{sample}(v) :: R) = \bigl[\operatorname{name}(v) \mid c_v = \mathsf{slow} \wedge \forall \mathsf{sample}(w) \in R.\ \neg\operatorname{same}(v, w)\bigr] \mathbin{+\!\!+} \operatorname{slowLatest}(R)$$
+$$\operatorname{slowLatest}([\,]) = [\,],\quad \operatorname{slowLatest}(\mathsf{sample}(v) :: R) = \bigl[\operatorname{name}(v) \mid c_v = \mathsf{slow} \wedge \forall \mathsf{sample}(w) \in R.\ \neg\operatorname{same}(v, w)\bigr] \mathbin{+\!\!+} \operatorname{slowLatest}(R),\quad \operatorname{slowLatest}(\mathsf{structural}(x) :: R) = \operatorname{slowLatest}(R)$$
 -/
 def slowLatest : List Timing.Verdict → List String
   | [] => []

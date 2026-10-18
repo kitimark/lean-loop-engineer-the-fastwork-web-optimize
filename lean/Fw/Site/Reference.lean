@@ -62,7 +62,7 @@ structure Cell where
 
 /-- The count row of a role: how many elements the selector matched in each environment.
 
-$$ n_i = |\{\text{elements matching the role's selector in environment } i\}| $$
+$$ \mathrm{RoleRow} = (p, r, [n_0, \dots, n_{m-1}]) \in \mathrm{String} \times \mathrm{String} \times (\mathbb{N} \cup \{\bot\})^{*},\quad n_i = |\{\text{elements matching the role's selector in environment } i\}| \text{ or } \bot $$
 
 `none` means the role was not measured in that environment. -/
 structure RoleRow where
@@ -281,7 +281,9 @@ def disagreements (a b : Dataset) : List ((String × String × String) × Split)
 
 /-- The parts that contain a disagreement of a given class.
 
-$$ \mathrm{partsWith}(A, B, c) = \{ p : \exists (p, r, q).\ \mathrm{splitOf}(A,B,(p,r,q)) = c \} $$
+$$ \mathrm{partsWith}(A, B, c) = \operatorname{eraseDups}[\, p \mid ((p, r, q), c') \in \mathrm{disagreements}(A, B),\ c' = c \,] $$
+
+The list keeps the first occurrence of each part, in disagreement order; for $c = \mathrm{agree}$ it is $[\,]$.
 
 The part-level view used in the findings (for example `platform.stageBg`). -/
 def partsWith (a b : Dataset) (c : Split) : List String :=
@@ -360,7 +362,10 @@ environment indices). -/
 
 /-- Read one source object.
 
-$$ \mathrm{src}(\{k: \text{rule}, \dots\}) = \mathrm{rule}(\dots),\ \mathrm{src}(\{k: \text{inherited}, \mathrm{from}: a, \mathrm{up}: u\}) = \mathrm{inherited}(a, u),\ \dots $$
+$$ \mathrm{src}(j) = \begin{cases} \mathrm{rule}(j.\mathrm{sheet},\ j.\mathrm{media} \text{ or } \bot,\ j.\mathrm{imp} \text{ or } \bot) & j.k = \texttt{rule} \\ \mathrm{inline} & j.k = \texttt{inline} \\ \mathrm{inherited}(j.\mathrm{from}, j.\mathrm{up}) & j.k = \texttt{inherited} \\ \mathrm{initial} & j.k = \texttt{initial} \\ \mathrm{error} & j.k \text{ missing, not a string or another string, or a required field missing or ill-typed} \end{cases} $$
+
+Here $j.\mathrm{media} \text{ or } \bot$ is the boolean field when present and a boolean, else false (the same for
+$\mathrm{imp}$); $\mathrm{sheet}$ must be a string and $\mathrm{up}$ a natural number.
 
 A parse of the four source kinds of the dataset. -/
 def parseSource (j : Json) : Except String Source := do
@@ -375,7 +380,11 @@ def parseSource (j : Json) : Except String Source := do
 
 /-- Expand grouped values to one entry per environment.
 
-$$ \mathrm{expand}([(x_g, e_g)]_g, n)_i = x_g \text{ for the group } g \text{ with } i \in e_g \text{ (or all } i \text{)} $$
+$$ \forall n \in \mathbb{N},\ \forall G = [(x_g, e_g)]_g,\ \forall i < n:\ \mathrm{expand}_{\operatorname{dec}}(G, n)_i = \begin{cases} \operatorname{dec}(x_g) & g \text{ the last group with } e_g = \texttt{all} \lor i \in e_g \\ \bot & \text{no such group} \end{cases},\qquad |\mathrm{expand}_{\operatorname{dec}}(G, n)| = n $$
+
+The groups are applied in order, so a later group overrides an earlier one and `all` overwrites every index; an
+index $\ge n$ in some $e_g$ is ignored. The result is an error when the input is not an array, a group lacks `x` or
+`e`, $\operatorname{dec}(x_g)$ fails, or $e_g$ is neither `"all"` nor an array of natural numbers.
 
 The inverse of the extractor's grouping; `none` also stands for an absent element. -/
 def expandGroups {α : Type} (n : Nat) (dec : Json → Except String (Option α)) (j : Json) :
@@ -425,7 +434,11 @@ def decNat (j : Json) : Except String (Option Nat) :=
 
 /-- Parse a dataset from the text of a `reference-<engine>.jsonl` file.
 
-$$ \mathrm{parse}(e, \mathrm{text}) = D \text{ or an error message} $$
+$$ \begin{aligned} \mathrm{parse}(e, \mathrm{text}) &= (e,\ w,\ [\,(j.\mathrm{part}, j.\mathrm{role}, \mathrm{expand}_{\mathrm{decNat}}(j.n, |w|)) \mid j \in L,\ j.t = \texttt{role}\,],\\ &\qquad [\,(j.\mathrm{part}, j.\mathrm{role}, j.\mathrm{prop}, \mathrm{expand}_{\mathrm{decStr}}(j.v, |w|), \mathrm{expand}_{\mathrm{decSrc}}(j.s, |w|)) \mid j \in L,\ j.t = \texttt{cell}\,])\\ w &= [\,x.\mathrm{width} \mid x \in h.\mathrm{envs}\,],\quad h :: L = [\,\ell \in \operatorname{split}_{\texttt{\textbackslash n}}(\mathrm{text}) \mid |\ell| > 0\,] \text{ (each line parsed as JSON)} \end{aligned} $$
+
+The result is an error when there is no non-empty line, a line is not JSON, the header has no `envs` array of objects
+with a natural `width`, a row lacks a string `part`, `role` or `t`, a row field fails to decode, or `t` is neither
+`role` nor `cell`. Rows keep their file order within each list.
 
 The first line is the header (its `envs` give the widths); the others are role and cell rows. -/
 def parseDataset (engine : Engine) (text : String) : Except String Dataset := do

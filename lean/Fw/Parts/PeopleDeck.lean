@@ -625,7 +625,10 @@ def row (engine scenario : String) (t : MorphMountOpt.CountType) : String :=
 
 /-- All golden rows: Chromium on `swipe-v1` and `swipe-touch-v1`, WebKit on `swipe-v1`.
 
-$$|\mathrm{goldenLines}| = 2 \cdot |\mathrm{crTypes}| + |\mathrm{wkTypes}| = 20$$
+$$\mathrm{goldenLines} = [\,\operatorname{row}(\texttt{chromium}, sc, t) \mid sc \in [\texttt{swipe-v1}, \texttt{swipe-touch-v1}],\ t \in \mathrm{crTypes}\,] \mathbin{+\!\!+} [\,\operatorname{row}(\texttt{webkit}, \texttt{swipe-v1}, t) \mid t \in \mathrm{wkTypes}\,],\qquad |\mathrm{goldenLines}| = 2 \cdot 8 + 4 = 20$$
+
+The scenario $sc$ is the outer loop and $t$ the inner one; $\mathrm{crTypes}$ and $\mathrm{wkTypes}$ are those of
+MorphMountOpt.
 
 The file `packages/contracts/golden/engine/people-deck.jsonl`, line by line. -/
 def goldenLines : List String :=

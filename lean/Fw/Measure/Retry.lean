@@ -41,7 +41,7 @@ deadline passed (`ETIMEDOUT`, `timed out`), a device that is not ready yet (`una
 busy`, `resource temporarily unavailable`, `eagain`, `ebusy`), and a lost CoreSimulator connection
 (`connection invalid`, `connection interrupted`, `coresimulatorservice`).
 
-$$M = \{\texttt{etimedout},\ \texttt{timed out},\ \texttt{unable to boot},\ \dots\}$$
+$$M = [\texttt{etimedout},\ \texttt{timed out},\ \texttt{unable to boot},\ \texttt{device busy},\ \texttt{device is busy},\ \texttt{temporarily unavailable},\ \texttt{eagain},\ \texttt{ebusy},\ \texttt{connection invalid},\ \texttt{connection interrupted},\ \texttt{coresimulatorservice}]$$
 -/
 def transientMarkers : List String :=
   ["etimedout", "timed out", "unable to boot", "device busy", "device is busy",
@@ -117,7 +117,7 @@ inductive Outcome where
 /-- The waits taken, one per retry, when attempt `a, a+1, …` fail with the errors `cs` (the attempt
 after the last error succeeds). Structural in `cs`, hence total.
 
-$$\mathrm{plan}(n, c_a \ldots c_k, a) = \begin{cases} \mathrm{wait}(a) :: \mathrm{plan}(n, c_{a+1} \ldots, a+1) & \mathrm{shouldRetry}(c_a, a, n) \\ [\,] & \text{otherwise} \end{cases}$$
+$$\mathrm{plan}(n, [\,], a) = [\,],\qquad \mathrm{plan}(n, c :: cs, a) = \begin{cases} \mathrm{wait}(a) :: \mathrm{plan}(n, cs, a+1) & \mathrm{shouldRetry}(c, a, n) \\ [\,] & \text{otherwise} \end{cases}$$
 -/
 def plan (n : Nat) : List ErrClass → Nat → List Nat
   | [], _ => []
@@ -126,7 +126,7 @@ def plan (n : Nat) : List ErrClass → Nat → List Nat
 /-- How the plan ends: `succeeded` when the errors ran out while being retried, else the reason the
 policy stopped.
 
-$$\mathrm{outcome}(n, c_a \ldots, a)\ \text{follows the same recursion as } \mathrm{plan}$$
+$$\mathrm{outcome}(n, [\,], a) = \mathrm{succeeded},\qquad \mathrm{outcome}(n, c :: cs, a) = \begin{cases} \mathrm{outcome}(n, cs, a+1) & \mathrm{shouldRetry}(c, a, n) \\ \mathrm{exhausted} & \neg\mathrm{shouldRetry}(c, a, n) \wedge c = \mathrm{transient} \\ \mathrm{permanent} & \text{otherwise} \end{cases}$$
 -/
 def outcome (n : Nat) : List ErrClass → Nat → Outcome
   | [], _ => .succeeded
@@ -168,7 +168,7 @@ theorem shouldRetry_iff (c : ErrClass) (a n : Nat) :
 retries is at most `n - a` (zero when `a ≥ n`), so the total number of attempts is at most
 `max(a, n)`.
 
-$$\forall n, a, cs:\ |\mathrm{plan}(n, cs, a)| \le n - a \ \land\ a + |\mathrm{plan}(n, cs, a)| \le \max(a, n)$$
+$$\forall n, a \in \mathbb{N},\ cs:\ |\mathrm{plan}(n, cs, a)| \le n \mathbin{\dot-} a \ \land\ a + |\mathrm{plan}(n, cs, a)| \le \max(a, n)$$
 -/
 theorem retry_terminates (n : Nat) (cs : List ErrClass) (a : Nat) :
     (plan n cs a).length ≤ n - a ∧ a + (plan n cs a).length ≤ max a n := by
@@ -187,7 +187,7 @@ theorem retry_terminates (n : Nat) (cs : List ErrClass) (a : Nat) :
 /-- A run of transient errors uses the whole budget and no more: `k` transient errors from attempt `a`
 give `min(k, n - a)` retries.
 
-$$\forall n, a, k:\ |\mathrm{plan}(n, \mathrm{transient}^k, a)| = \min(k,\ n - a)$$
+$$\forall n, a, k \in \mathbb{N}:\ |\mathrm{plan}(n, \mathrm{transient}^k, a)| = \min(k,\ n \mathbin{\dot-} a)$$
 -/
 theorem plan_transient_exact (n a k : Nat) :
     (plan n (List.replicate k .transient) a).length = min k (n - a) := by
@@ -232,7 +232,7 @@ theorem delay_mono (base cap : Nat) {a b : Nat} (h : a ≤ b) : delay base cap a
 
 /-- Each wait of a plan is at most the shipped cap, so the total wait is below `n · 30,000` ms.
 
-$$\forall n, a, cs:\ \sum \mathrm{plan}(n, cs, a) \le 30000 \cdot (n - a)$$
+$$\forall n, a \in \mathbb{N},\ cs:\ \sum \mathrm{plan}(n, cs, a) \le 30000 \cdot (n \mathbin{\dot-} a)$$
 -/
 theorem plan_wait_le (n : Nat) (cs : List ErrClass) (a : Nat) :
     (plan n cs a).sum ≤ 30000 * (n - a) := by

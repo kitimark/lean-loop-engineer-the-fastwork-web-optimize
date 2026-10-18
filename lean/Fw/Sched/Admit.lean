@@ -2347,7 +2347,7 @@ theorem scratch_disjoint (a b : String) (x : List String) (ha : '*' ∉ a.toList
 
 /-- The incident pair of 2026-10-18, first task (write globs abridged to three).
 
-$$W(\mathit{wf}) = [\texttt{packages/measure-wktr/fixtures/**},\ \texttt{packages/measure-wktr/src/**},\ \texttt{lean/Fw/Measure/WktrLayout.lean}]$$
+$$\mathit{wf} = (\texttt{wktr-fixture-speed},\ [\texttt{packages/measure-wktr/fixtures/**},\ \texttt{packages/measure-wktr/src/**},\ \texttt{lean/Fw/Measure/WktrLayout.lean}],\ [\,])$$
 -/
 def wf : Task :=
   { id := "wktr-fixture-speed"
@@ -2355,7 +2355,7 @@ def wf : Task :=
 
 /-- The incident pair of 2026-10-18, second task (write globs abridged to three).
 
-$$W(\mathit{ep}) = [\texttt{lean/Fw/Ops/Premise.lean},\ \texttt{packages/measure-*/**},\ \texttt{packages/premise-tests/**}]$$
+$$\mathit{ep} = (\texttt{engine-premise-measure},\ [\texttt{lean/Fw/Ops/Premise.lean},\ \texttt{packages/measure-*/**},\ \texttt{packages/premise-tests/**}],\ [\,])$$
 -/
 def ep : Task :=
   { id := "engine-premise-measure"
@@ -2363,7 +2363,7 @@ def ep : Task :=
 
 /-- A reader of the WKTR CLI.
 
-$$W(\mathit{rd}) = [\texttt{docs/x.md}], \quad R(\mathit{rd}) = [\texttt{packages/measure-wktr/src/cli.mjs}]$$
+$$\mathit{rd} = (\texttt{rd},\ [\texttt{docs/x.md}],\ [\texttt{packages/measure-wktr/src/cli.mjs}])$$
 -/
 def rd : Task := { id := "rd", writes := ["docs/x.md"], reads := ["packages/measure-wktr/src/cli.mjs"] }
 
