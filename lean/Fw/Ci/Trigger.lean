@@ -17,7 +17,9 @@ every set map.
 
 Generated from this file, never by hand: `packages/contracts/golden/ci/triggers.jsonl` (the table and the replay cases).
 `scripts/ci-paths.mjs` expands it into `on.push.paths` of `.github/workflows/*.yml` (`--write`) or fails when they differ
-(`--check`, wired into the land checks of `apps/runner`).
+(`--check`, wired into the land checks of `apps/runner`). The static paths write every cone as the fixed `coneGlobs`
+(`pushPaths`), so a new module changes no workflow file; the guard job (`.github/scripts/changed-inputs.mjs`) expands the
+cones from the checkout and decides `starts` exactly (section "Coarse push filter, precise guard").
 -/
 namespace Fw.Ci.Trigger
 open Lean Fw.Ops.PathCheck
@@ -247,18 +249,171 @@ def run (diff merged : List String) : List String :=
 #guard run ["packages/measure-wktr/fixtures/control/index.html"] [] == ["wktr-fixtures.yml", "wktr.yml"]
 #guard run [".github/workflows/wktr-fixtures.yml"] [] == ["wktr-fixtures.yml"]
 
+/-! ## Coarse push filter, precise guard (task `ci-cone-glob`)
+
+The generated `on.push.paths` used to list every file of the cones, so each new module imported by `Main.lean` rewrote
+7–8 workflow files and every parallel branch that added a module conflicted there. Now the static filter replaces each
+cone by the fixed globs `coneGlobs` (`pushPaths`, which takes no cone at all), and the guard job computes the precise
+cone from the checkout at run time and decides `starts` exactly (`starts_iff`). `coarse_sound` shows the static filter
+never drops a path the precise inputs hold, as long as the cones stay inside `coneGlobs` (`ConeWithin`, checked by
+`scripts/ci-paths.mjs`); `paths_stable_under_new_module` shows a new module under `lean/Fw` keeps that. -/
+
+/-- The fixed globs that stand in for every import cone in `on.push.paths`.
+$$C = [\texttt{lean/Fw/**},\ \texttt{lean/*.lean}]$$ -/
+def coneGlobs : List String := ["lean/Fw/**", "lean/*.lean"]
+
+/-- A path is literal: none of its segments holds a `*`.
+$$\forall f:\ \operatorname{lit}(f) \iff \forall s \in \mathrm{segs}(f):\ \texttt{*} \notin s$$ -/
+def Literal (f : String) : Prop := ∀ s ∈ segs f, '*' ∉ s.toList
+
+/-- The cones stay inside the coarse globs: every file of every cone is literal and in the scope of $C$.
+$$\forall c:\ \operatorname{within}(c) \iff \forall r,\ \forall f \in c(r):\ \operatorname{lit}(f) \land \mathrm{in}(\mathrm{parse}(C), f)$$ -/
+def ConeWithin (cone : String → List String) : Prop :=
+  ∀ r, ∀ f ∈ cone r, Literal f ∧ inScope (parseScope coneGlobs) f = true
+
+/-- The workflow's generated `on.push.paths`: its inputs with every cone replaced by $C$. It takes no cone, so no
+change of the import graph can change it.
+$$\forall w:\ \operatorname{push}(w) = \operatorname{expand}(S_C, w.G),\qquad S_C = \operatorname{setMap}(\lambda r.\ C)$$ -/
+def pushPaths (w : Wf) : List String := expand (setMap fun _ => coneGlobs) w.inputs
+
+/-- Add one file to the cone of one root (a new module that the root now imports).
+$$\forall c, r_0, f, r:\ \operatorname{add}(c, r_0, f)(r) = \begin{cases} f :: c(r) & r = r_0 \\ c(r) & r \ne r_0 \end{cases}$$ -/
+def addModule (cone : String → List String) (root f : String) : String → List String :=
+  fun r => if r = root then f :: cone r else cone r
+
+/-- An expanded input under one cone map is an expanded input under the other map, unless it is a cone file of a root
+whose whole cone the other map expands.
+$$\forall c, c', G, g:\ g \in \operatorname{expand}(\operatorname{setMap}(c), G) \Rightarrow g \in \operatorname{expand}(\operatorname{setMap}(c'), G) \lor \exists r:\ g \in c(r) \land c'(r) \subseteq \operatorname{expand}(\operatorname{setMap}(c'), G)$$ -/
+theorem mem_expand_setMap (c c' : String → List String) (gs : List String) (g : String)
+    (h : g ∈ expand (setMap c) gs) :
+    g ∈ expand (setMap c') gs ∨ ∃ r, g ∈ c r ∧ ∀ y ∈ c' r, y ∈ expand (setMap c') gs := by
+  simp only [expand, List.mem_flatMap] at h ⊢
+  obtain ⟨i, hi, hg⟩ := h
+  by_cases ha : i.startsWith "@" = true
+  · rw [ite_eq_left ha] at hg
+    unfold setMap at hg
+    cases hl : sets.lookup i with
+    | none =>
+      rw [hl] at hg
+      left
+      exact ⟨i, hi, by rw [ite_eq_left ha]; unfold setMap; rw [hl]; exact hg⟩
+    | some xs =>
+      rw [hl] at hg
+      simp only [List.mem_flatMap] at hg
+      obtain ⟨h0, hh0, hg0⟩ := hg
+      by_cases hc : h0.startsWith "@cone:" = true
+      · rw [ite_eq_left hc] at hg0
+        right
+        refine ⟨_, hg0, fun y hy => ⟨i, hi, ?_⟩⟩
+        rw [ite_eq_left ha]; unfold setMap; rw [hl]
+        simp only [List.mem_flatMap]
+        exact ⟨h0, hh0, by rw [ite_eq_left hc]; exact hy⟩
+      · rw [ite_eq_right hc] at hg0
+        left
+        refine ⟨i, hi, ?_⟩
+        rw [ite_eq_left ha]; unfold setMap; rw [hl]
+        simp only [List.mem_flatMap]
+        exact ⟨h0, hh0, by rw [ite_eq_right hc]; exact hg0⟩
+  · rw [ite_eq_right ha] at hg
+    left
+    exact ⟨i, hi, by rw [ite_eq_right ha]; exact hg⟩
+
+/-- A literal glob matches only its own path and the paths below it.
+$$\forall f, p:\ \operatorname{lit}(f) \land \mathrm{mp}(\mathrm{segs}(f), p) \Rightarrow \exists u:\ p = \mathrm{segs}(f) \mathbin{+\!\!+} u$$ -/
+theorem literal_prefix (f : String) (p : List String) (hl : Literal f) (h : matchesPath (segs f) p = true) :
+    ∃ u, p = segs f ++ u := by
+  simp only [matchesPath, List.any_eq_true, List.mem_range] at h
+  obtain ⟨k, _, hm⟩ := h
+  have hlit : ∀ g ∈ segs f, g ≠ "**" ∧ '*' ∉ g.toList := fun g hg =>
+    ⟨fun he => hl g hg (by rw [he]; decide), hl g hg⟩
+  have he := (globMatch_lit _ _ hlit).mp hm
+  exact ⟨p.drop (k + 1), by rw [he, List.take_append_drop]⟩
+
+/-- **The coarse filter is sound.** If the cones stay inside $C$, every path in the scope of the precise inputs (cones
+expanded from the checkout) is in the scope of the generated push paths.
+$$\forall c, G, x:\ \operatorname{within}(c) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(\operatorname{setMap}(c), G)), x) \Rightarrow \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S_C, G)), x)$$ -/
+theorem coarse_sound (c : String → List String) (hc : ConeWithin c) (gs : List String) (x : String)
+    (h : inScope (parseScope (expand (setMap c) gs)) x = true) :
+    inScope (parseScope (expand (setMap fun _ => coneGlobs) gs)) x = true := by
+  rw [inScope_iff] at h ⊢
+  obtain ⟨hne, hdd, ⟨g, hg, hm⟩, hex⟩ := h
+  refine ⟨hne, hdd, ?_, ?_⟩
+  · simp only [parseScope, List.mem_map, List.mem_filter] at hg
+    obtain ⟨g0, ⟨hg0, hn⟩, rfl⟩ := hg
+    rcases mem_expand_setMap c (fun _ => coneGlobs) gs g0 hg0 with hq | ⟨r, hr, hall⟩
+    · exact ⟨segs g0, by simp only [parseScope, List.mem_map, List.mem_filter]; exact ⟨g0, ⟨hq, hn⟩, rfl⟩, hm⟩
+    · obtain ⟨hlit, hin⟩ := hc r g0 hr
+      obtain ⟨u, hu⟩ := literal_prefix g0 _ hlit hm
+      rw [inScope_iff] at hin
+      obtain ⟨_, _, ⟨g1, hg1, hm1⟩, _⟩ := hin
+      simp only [parseScope, List.mem_map, List.mem_filter] at hg1
+      obtain ⟨g2, ⟨hg2, hn2⟩, rfl⟩ := hg1
+      refine ⟨segs g2, ?_, by rw [hu]; exact matchesPath_append _ _ _ hm1⟩
+      simp only [parseScope, List.mem_map, List.mem_filter]
+      exact ⟨g2, ⟨hall g2 hg2, hn2⟩, rfl⟩
+  · intro g hg
+    simp only [parseScope, List.mem_map, List.mem_filter] at hg
+    obtain ⟨g0, ⟨hg0, hb⟩, rfl⟩ := hg
+    rcases mem_expand_setMap (fun _ => coneGlobs) c gs g0 hg0 with hp | ⟨r, hr, _⟩
+    · exact hex _ (by simp only [parseScope, List.mem_map, List.mem_filter]; exact ⟨g0, ⟨hp, hb⟩, rfl⟩)
+    · exfalso
+      simp only [coneGlobs, List.mem_cons, List.not_mem_nil, or_false] at hr
+      rcases hr with rfl | rfl <;> exact absurd hb (by simp)
+
+/-- **The generated push filter never drops a needed start.** If the cones stay inside $C$ and the guard's precise
+decision starts the workflow, GitHub's static `paths` filter passes the push's diff.
+$$\forall c, w, D, m:\ \operatorname{within}(c) \land \operatorname{starts}(w, \operatorname{setMap}(c), \operatorname{eff}(D, m)) \Rightarrow \operatorname{sel}(\operatorname{push}(w), D)$$ -/
+theorem push_filter_passes (c : String → List String) (hc : ConeWithin c) (w : Wf) (diff : List String)
+    (differs : String → Bool) (h : w.starts (setMap c) (effective diff differs) = true) :
+    selected (pushPaths w) diff = true := by
+  obtain ⟨x, hx, _, hi⟩ := (starts_iff (setMap c) w diff differs).mp h
+  exact selected_of_mem _ _ x hx (coarse_sound c hc w.inputs x hi)
+
+/-- **A new module under `lean/Fw` changes no workflow file.** The push paths take no cone, so they are the same
+before and after; and if the new file is literal and inside $C$, the grown cones still stay inside $C$, so the same
+push paths still pass every push the guard starts.
+$$\forall c, r_0, f:\ \bigl(\operatorname{within}(c) \land \operatorname{lit}(f) \land \mathrm{in}(\mathrm{parse}(C), f)\bigr) \Rightarrow \Bigl(\operatorname{within}(\operatorname{add}(c, r_0, f)) \land \forall w, D, m:\ \bigl(\operatorname{starts}(w, \operatorname{setMap}(\operatorname{add}(c, r_0, f)), \operatorname{eff}(D, m)) \Rightarrow \operatorname{sel}(\operatorname{push}(w), D)\bigr)\Bigr)$$ -/
+theorem paths_stable_under_new_module (c : String → List String) (root f : String) (hc : ConeWithin c)
+    (hl : Literal f) (hf : inScope (parseScope coneGlobs) f = true) :
+    ConeWithin (addModule c root f) ∧ ∀ (w : Wf) (diff : List String) (differs : String → Bool),
+      w.starts (setMap (addModule c root f)) (effective diff differs) = true → selected (pushPaths w) diff = true := by
+  have hc' : ConeWithin (addModule c root f) := by
+    intro r y hy
+    unfold addModule at hy
+    split at hy
+    · rcases List.mem_cons.mp hy with rfl | hy
+      · exact ⟨hl, hf⟩
+      · exact hc r y hy
+    · exact hc r y hy
+  exact ⟨hc', fun w diff differs h => push_filter_passes _ hc' w diff differs h⟩
+
+/-- The workflows whose generated push filter passes a diff (GitHub's static step, before the guard).
+$$\forall D:\ \operatorname{filtered}(D) = [\, w.\mathit{file} : w \in W,\ \operatorname{sel}(\operatorname{push}(w), D) \,]$$ -/
+def filtered (diff : List String) : List String :=
+  (table.filter fun w => selected (pushPaths w) diff).map (·.file)
+
+-- the coarse filter passes a new module under lean/Fw for every fwcore user; the guard then starts only lean.yml
+#guard filtered ["lean/Fw/New.lean"] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "lean.yml", "visual-diff.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run ["lean/Fw/New.lean"] [] == ["lean.yml"]
+-- a test module is outside every coarse fwcore glob
+#guard filtered ["lean/FwTest/Lease.lean"] == ["lean.yml"]
+-- the sample cones stay inside the coarse globs
+#guard (["Main", "BreakgenMain"].flatMap sampleCone).all (inScope (parseScope coneGlobs))
+-- the old precise paths moved with a new module; the push paths do not depend on the cone
+#guard expand (setMap sampleCone) ["@fwcore"] != expand (setMap (addModule sampleCone "Main" "lean/Fw/New.lean")) ["@fwcore"]
+
 /-! ## Golden (`packages/contracts/golden/ci/triggers.jsonl`) -/
 
 /-- A JSON array of strings. $$\operatorname{strs}(xs) = [\, \mathrm{str}(x) : x \in xs \,]$$ -/
 def strs (xs : List String) : Json := .arr (xs.map Json.str).toArray
 
 /-- The table line: workflows with branches and symbolic inputs, and the named sets.
-$$\operatorname{tableLine} = \{\texttt{kind}: \texttt{table},\ \texttt{workflows}: W,\ \texttt{sets}: \mathrm{sets}\}$$ -/
+$$\operatorname{tableLine} = \{\texttt{kind}: \texttt{table},\ \texttt{workflows}: [\,\{\texttt{file}: w.\mathit{file},\ \texttt{branches}: w.B,\ \texttt{inputs}: w.G\} : w \in W\,],\ \texttt{sets}: \mathrm{sets},\ \texttt{coneGlobs}: C\}$$ -/
 def tableLine : Json :=
   Json.mkObj [("kind", "table"),
     ("workflows", .arr (table.map fun w => Json.mkObj [("file", .str w.file), ("branches", strs w.branches),
       ("inputs", strs w.inputs)]).toArray),
-    ("sets", Json.mkObj (sets.map fun (n, xs) => (n, strs xs)))]
+    ("sets", Json.mkObj (sets.map fun (n, xs) => (n, strs xs))), ("coneGlobs", strs coneGlobs)]
 
 /-- The replay cases: a push (its diff, the paths that already equal `main`); the workflows it starts under the
 sample cones are added by `caseLine`.
@@ -269,6 +424,7 @@ def cases : List (String × List String × List String) := [
   ("lean script", ["lean/scripts/check.sh"], []),
   ("a part module outside the fwcore cone", ["lean/Fw/Parts/HeroExit.lean"], []),
   ("a module in the fwcore cone", ["lean/Fw/Wire.lean"], []),
+  ("a new module under lean/Fw, not yet imported", ["lean/Fw/New.lean"], []),
   ("the breakgen cone", ["lean/Fw/Site/Breakpoints.lean"], []),
   ("lake manifest", ["lean/lake-manifest.json"], []),
   ("wktr package", ["packages/measure-wktr/src/a.mjs"], []),
@@ -281,12 +437,13 @@ def cases : List (String × List String × List String) := [
   ("a wktr fixture page", ["packages/measure-wktr/fixtures/control/index.html"], []),
   ("nothing changed", [], [])]
 
-/-- One replay line: the diff, the merged paths, the sample cones and the started workflows.
-$$\operatorname{caseLine}(n, D, M) = \{n, D, M, \operatorname{run}(D, M)\}$$ -/
+/-- One replay line: the diff, the merged paths, the sample cones, the started workflows and the workflows whose
+static push filter passes the diff.
+$$\operatorname{caseLine}(n, D, M) = \{\texttt{kind}: \texttt{case},\ \texttt{name}: n,\ \texttt{diff}: D,\ \texttt{merged}: M,\ \texttt{cones}: \{\texttt{Main}: \mathrm{cone}(\mathrm{Main}),\ \texttt{BreakgenMain}: \mathrm{cone}(\mathrm{BreakgenMain})\},\ \texttt{started}: \operatorname{run}(D, M),\ \texttt{filtered}: \operatorname{filtered}(D)\}$$ -/
 def caseLine (c : String × List String × List String) : Json :=
   Json.mkObj [("kind", "case"), ("name", .str c.1), ("diff", strs c.2.1), ("merged", strs c.2.2),
     ("cones", Json.mkObj [("Main", strs (sampleCone "Main")), ("BreakgenMain", strs (sampleCone "BreakgenMain"))]),
-    ("started", strs (run c.2.1 c.2.2))]
+    ("started", strs (run c.2.1 c.2.2)), ("filtered", strs (filtered c.2.1))]
 
 /-- The text of the golden file. $$\text{one JSON object per line: the table, then the cases}$$ -/
 def goldenText : String := String.join ((tableLine :: cases.map caseLine).map fun j => j.compress ++ "\n")

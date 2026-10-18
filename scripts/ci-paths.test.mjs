@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { matches } from '../.github/scripts/changed-inputs.mjs';
-import { coneOf, expand, loadGolden, portableGlob, readJobs, reconcile, renderPush, run, setMapFor, unguarded } from './ci-paths.mjs';
+import { matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
+import { coarseMap, coneOf, coneProblems, expand, loadGolden, portableGlob, readJobs, reconcile, renderPush, run, setMapFor, unguarded } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -45,10 +45,31 @@ test('the fwcore cone is smaller than lean/** and holds the entry module and the
   assert.equal(matches(expand(S, wktr.inputs), 'lean/Main.lean'), true);
 });
 
+test('Lean replay cases: the static push filter (coarse cone globs) passes exactly `filtered`, a superset of `started`', () => {
+  const S = coarseMap(table);
+  for (const c of cases) {
+    const passed = table.workflows.filter((w) => c.diff.some((f) => matches(expand(S, w.inputs), f))).map((w) => w.file);
+    assert.deepEqual(passed, c.filtered, c.name);
+    for (const f of c.started) assert.ok(c.filtered.includes(f), `${c.name}: ${f} started but filtered out`);
+  }
+});
+
+test('coarse push paths: every cone of the checkout stays inside coneGlobs (Lean ConeWithin) and no path lists a cone file', () => {
+  assert.deepEqual(coneProblems(root, table), []);
+  assert.deepEqual(table.coneGlobs, ['lean/Fw/**', 'lean/*.lean']);
+  const S = coarseMap(table);
+  for (const w of table.workflows) {
+    const coarse = expand(S, w.inputs);
+    // a cone module is covered without being listed: the only modules listed are the row's own literal inputs
+    for (const g of coarse) if (/^lean\/Fw\/.+\.lean$/.test(g)) assert.ok(w.inputs.includes(g), `${w.file} lists cone module ${g}`);
+    // every precise input of the checkout passes the coarse filter (Lean coarse_sound)
+    for (const g of preciseInputs(root, w.file)) if (!g.includes('*')) assert.ok(matches(coarse, g), `${w.file}: ${g}`);
+  }
+});
+
 const sample = readFileSync(join(root, WF, 'gate-gaps.yml'), 'utf8');
 const row = table.workflows.find((w) => w.file === 'gate-gaps.yml');
-const S = setMapFor(root, table);
-const paths = expand(S, row.inputs);
+const paths = expand(coarseMap(table), row.inputs);
 
 test('lint: a changed paths list is reported', () => {
   const bad = sample.replace(/^( {6}- 'snapshot\/\*\*')$/m, "$1\n      - 'extra/**'");

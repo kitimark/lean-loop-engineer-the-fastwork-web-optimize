@@ -4,67 +4,36 @@
 //   --check (default)  fails when a workflow's `on.push` (branches, paths) differs from the Lean decision, when a workflow
 //                      lacks the `guard` job, or when a job does not (transitively) wait for it;
 //   --write            rewrites those parts of the workflow files.
-// `@fwcore` / `@breakgen` expand to the build files plus the import cone of Main.lean / BreakgenMain.lean (the files that
-// can change the built binary), found by scanning `import Fw...` and `include_str` in lean/. A new import in a cone moves
-// the paths, so the check fails until `--write` is run: the list cannot go stale silently.
+// `@fwcore` / `@breakgen` name the build files plus the import cone of Main.lean / BreakgenMain.lean. In `on.push.paths`
+// every cone is the fixed `coneGlobs` of the golden (`lean/Fw/**`, `lean/*.lean`; Lean `pushPaths`), so a new module
+// changes no workflow file (task ci-cone-glob, `paths_stable_under_new_module`). The guard job computes the precise cone
+// at run time (.github/scripts/changed-inputs.mjs). This check fails when a cone file falls outside `coneGlobs`
+// (Lean `ConeWithin`, the hypothesis of `coarse_sound`).
 // Run:  node scripts/ci-paths.mjs [--write | --check] [--root <dir>]
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, normalize, relative } from 'node:path';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { coneOf, loadGolden, matches, setMapWith, expand } from '../.github/scripts/changed-inputs.mjs';
 
 const WF_DIR = ['.git', 'hub/workflows'].join('');
 export const GUARD_SCRIPT = ['.git', 'hub/scripts/changed-inputs.mjs'].join('');
 
-/** The Lean golden: the table line and the replay cases. */
-export function loadGolden(root) {
-  const lines = readFileSync(join(root, 'packages/contracts/golden/ci/triggers.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-  return { table: lines.find((l) => l.kind === 'table'), cases: lines.filter((l) => l.kind === 'case') };
-}
+// The cone reader and the Lean `setMap` / `expand` live in the guard script, which runs them at run time on CI.
+export { coneOf, expand, loadGolden, setMapFor, setMapWith } from '../.github/scripts/changed-inputs.mjs';
 
-/** Repo paths (under lean/) of the import cone of a root module: its file, every `import Fw...` module file, and the files
- *  they `include_str`. */
-export function coneOf(root, rootModule) {
-  const leanDir = join(root, 'lean');
-  const modFile = (m) => (m === 'Main' || m === 'BreakgenMain' ? `${m}.lean` : `${m.replace(/\./g, '/')}.lean`);
-  const seen = new Set();
-  const files = new Set();
-  const queue = [rootModule];
-  while (queue.length) {
-    const m = queue.pop();
-    if (seen.has(m)) continue;
-    seen.add(m);
-    const f = modFile(m);
-    const abs = join(leanDir, f);
-    if (!existsSync(abs)) continue;
-    files.add(`lean/${f}`);
-    const text = readFileSync(abs, 'utf8');
-    for (const l of text.split('\n')) {
-      const r = /^import\s+(\S+)/.exec(l);
-      if (r && (r[1] === 'Fw' || r[1].startsWith('Fw.'))) queue.push(r[1]);
-    }
-    for (const r of text.matchAll(/include_str\s+"([^"]+)"/g)) {
-      const inc = normalize(join(dirname(abs), r[1]));
-      files.add(relative(root, inc));
+/** The set map of the generated push paths (Lean `pushPaths`): every cone replaced by the fixed `coneGlobs`. */
+export const coarseMap = (table) => setMapWith(table, () => table.coneGlobs);
+
+/** Lean `ConeWithin`, checked on the checkout: every file of every cone a set names is literal (no `*`) and in the
+ *  scope of `coneGlobs`, so the coarse push paths stay sound (`coarse_sound`). Returns the problems. */
+export function coneProblems(root, table) {
+  const roots = [...new Set(Object.values(table.sets).flat().filter((h) => h.startsWith('@cone:')).map((h) => h.slice(6)))];
+  const out = [];
+  for (const r of roots) {
+    for (const f of coneOf(root, r)) {
+      if (f.includes('*') || !matches(table.coneGlobs, f)) out.push(`cone ${r}: ${f} is outside coneGlobs ${table.coneGlobs.join(', ')} (lean/Fw/Ci/Trigger.lean)`);
     }
   }
-  return [...files].sort();
-}
-
-/** The Lean `setMap` for the real checkout. */
-export function setMapFor(root, table) {
-  const cones = new Map();
-  const cone = (m) => { if (!cones.has(m)) cones.set(m, coneOf(root, m)); return cones.get(m); };
-  return (g) => {
-    const xs = table.sets[g];
-    if (!xs) return [g];
-    return xs.flatMap((h) => (h.startsWith('@cone:') ? cone(h.slice(6)) : [h]));
-  };
-}
-
-/** Lean `expand`: `@set` globs replaced by the set's contents (deduplicated, first occurrence wins). */
-export function expand(S, inputs) {
-  const out = [];
-  for (const g of inputs.flatMap((x) => (x.startsWith('@') ? S(x) : [x]))) if (!out.includes(g)) out.push(g);
   return out;
 }
 
@@ -207,10 +176,10 @@ export function portableGlob(g) {
 /** Check (or write) every workflow. Returns { problems, wrote }. */
 export function run(root, write) {
   const { table } = loadGolden(root);
-  const S = setMapFor(root, table);
+  const S = coarseMap(table);
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
-  const problems = [];
+  const problems = coneProblems(root, table);
   let wrote = 0;
   const rows = new Map(table.workflows.map((w) => [w.file, w]));
   for (const w of table.workflows) if (!files.includes(w.file)) problems.push(`${w.file}: in the Lean table but no such workflow file`);
@@ -235,7 +204,7 @@ function main() {
   const { problems, wrote } = run(root, write);
   if (write) {
     console.log(`ci-paths: wrote ${wrote} workflow file(s)`);
-    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same/.test(p));
+    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs/.test(p));
     for (const p of left) console.log(`  ${p}`);
     process.exit(left.length ? 1 : 0);
   }
