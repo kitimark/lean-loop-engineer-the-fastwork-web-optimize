@@ -20,4 +20,6 @@ Open items:
 - Land step should push main's tip to ci/landed so `landed` is fresh.
 - `leanInputProblems` is hygiene for the main-push paths rule only now.
 - The docstring checker pass was a self-review (no helper-spawn tool in this session).
+- Dry land: `VERDICT scope`; scripts/ci-paths.test.mjs, scripts/ci-push.mjs, scripts/ci-push.test.mjs (rounds 3-4)
+  lie outside the task globs: widen them or land with `--allow`.
 - Read first: the research note "Round 5", then lean/Fw/Ci/{Intent,Verdict}.lean.
