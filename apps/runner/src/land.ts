@@ -144,10 +144,12 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/measure-chromium": ["packages/contracts/golden/measure/**", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**"],
+  "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
   "packages/measure-webkit": ["packages/contracts/golden/measure/**"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
+  "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**"],
 };
 
 /** Directories of the `workspace:` dependencies of a package (`@fw/x` is `packages/x` or `apps/x`). */

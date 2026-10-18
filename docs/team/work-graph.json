@@ -3491,7 +3491,8 @@
     "packages/gate-breakpoints/src/align-equiv.mjs",
     "packages/gate-breakpoints/test/align-equiv.test.mjs",
     "docs/team/handoffs/gate-align-equiv.md"
-   ]
+   ],
+   "evidence": "2cc5faa"
   },
   {
    "id": "timing-small-n",
@@ -3564,7 +3565,8 @@
     "packages/visual-diff/**",
     "lean/Fw/Gate/Pixel.lean",
     "docs/team/handoffs/visual-diff-2.md"
-   ]
+   ],
+   "evidence": "371d1f4"
   },
   {
    "id": "wktr-fixture-speed",

@@ -1,0 +1,5 @@
+{
+  "schema": "fw.visual-diff.probes/1",
+  "about": "Probe ids (apps/site/src/breakpoints.gen.json, Lean-generated) the visual diff runs by default: one probe on each side of the main width breakpoints, desktop (hover, fine pointer) and touch/phone (no hover, coarse pointer, DPR 2 to 3). A probe id outside the Lean matrix is refused.",
+  "probes": ["desk-1512", "desk-1100", "desk-861", "desk-641", "touch-1031", "touch-601", "touch-401", "touch-320"]
+}
