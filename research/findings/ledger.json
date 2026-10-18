@@ -1895,6 +1895,54 @@
    "task": "engine-model-fix-2",
    "field": "chromium",
    "text": "engine-model-fix-2: the per-tick Chromium saving of cr_idle_tick (one timer callback and one PrePaint) is PROVED in the model only; no measurement bears on it. The step of engine-premises run 39124427211 meant to test it ran no Chromium timer task: in that lane setTimeout is the virtual clock shim's, whose advanceTo runs the callback as a plain call inside the driver's Runtime.evaluate (clock-shim.js:38,59; run.mjs:108), so the frame matched an idle frame (Fw.Ops.EnginePremise.Act, step shimTimer). Whether an empty timer task runs PrePaint is OPEN; it needs a step that posts a native timer task. General lesson: before reading a counter as an engine fact, trace the harness path that produced the work; a shimmed API measures the shim."
+  },
+  {
+   "entry": "g0.0b: the rAF tween replaced by one WAAPI animation on a registered --morph with cubic-bezier(1/3,1,2/3,1)",
+   "task": "model-checks",
+   "field": "chromium",
+   "text": "F3/F4 engine-check, ?fw=morph.tween:waapi, chromium swipe-v1, run 39131146372 vs base run 39130874266 (rewrite, no query, swipe-v1, 3 runs): 3 pass, 1 model-bug, 2 unusable (quarantined trace.Layout =o and trace.Animation.compositeFailedBits <o). The model-bug is trace.FireAnimationFrame <o (variant 1748 = base 1748 in every run): the golden predicts fewer rAF callbacks, the arm made none fewer. Cause INFERRED: swipe-v1 scrolls with scrollTo and never pushes the morph, so the tween never starts and the arm has nothing to replace. Not patched in the model. Verdicts by packages/engine-check on the frozen classes (3 runs per arm, one run key each, so no +search run fed the base series). MEASURED."
+  },
+  {
+   "entry": "hidden pause of compositor marquees (morph.columns at m <= 0.08, scene off-screen), HiddenPause.lean",
+   "task": "model-checks",
+   "field": "chromium",
+   "text": "F3/F4 engine-check of the hidden-pause alias, chromium swipe-v1: engine.scene:hidden-pause run 39131168588 gives 2 pass, 1 model-bug, 1 unusable; morph.columns:hidden-pause run 39131207849 gives 3 pass, 0 model-bug, 1 unusable; all three arms together run 39131249517 gives 2 pass, 1 model-bug, 1 unusable; base run 39130874266. The model-bug (scene arm and combined) is trace.UpdateLayoutTree <=o: variant 1851 against base 1850 in every run, one more style recalc than the original, not fewer. Unusable: quarantined trace.Layout =o. Not patched in the model. Verdicts by packages/engine-check on the frozen classes (3 runs per arm, one run key each, so no +search run fed the base series). MEASURED."
+  },
+  {
+   "entry": "morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)",
+   "task": "model-checks",
+   "field": "chromium",
+   "text": "F3/F4 engine-check, ?fw=morph.countdown:hidden-pause, chromium swipe-v1, run 39131217951 vs base run 39130874266 (rewrite, no query, swipe-v1, 3 runs): 3 pass, 0 model-bug, 1 unusable (quarantined trace.Layout =o). The combined three-arm run 39131249517 has 1 model-bug, the same as the scene arm alone (trace.UpdateLayoutTree <=o, 1851 vs 1850); none comes from this arm alone. Verdicts by packages/engine-check on the frozen classes (3 runs per arm, one run key each, so no +search run fed the base series). MEASURED."
+  },
+  {
+   "entry": "warm-up: mount the panel at a still moment near the end (v14, D1 always-built card)",
+   "task": "model-checks",
+   "field": "chromium",
+   "text": "F3/F4 engine-check, ?fw=morph.mount:shift, chromium swipe-v1, run 39131302530 vs base run 39130874266 (rewrite, no query, swipe-v1, 3 runs): 5 pass, 1 model-bug, 2 unusable (quarantined trace.Layout and trace.Layout.dirtyObjects). The model-bug is metric.LayoutCount =o (deterministic class, frame-exact): sums equal (94 each), but in variant run r2 one layout sits one frame later (frame 524 gets 1, frame 525 loses it) while r1 and r3 equal the base frame for frame. The verdict is the tool's: the frozen class has no slack for a one-frame move. The swipe-touch-v1 rows are not run: the touch lane fails on the current base (runs 39131406685 and 39135255809, \"touch swipe did not finish within maxFrames\", no flag set). Verdicts by packages/engine-check on the frozen classes (3 runs per arm, one run key each, so no +search run fed the base series). MEASURED."
+  },
+  {
+   "entry": "strip (cd-strip, KD#12): 10 will-change faces per digit -> one 12-entry strip",
+   "task": "model-checks",
+   "field": "chromium",
+   "text": "F3/F4 engine-check, ?fw=hero.countdown:strip,morph.countdown:strip, chromium swipe-v1, run 39131314391 vs base run 39130874266 (rewrite, no query, swipe-v1, 3 runs): 1 pass, 0 model-bug (census.layers <o: 17972 -> 17970 per run). The swipe-touch-v1 rows are not run: the touch lane fails on the current base (runs 39131406685 and 39135255809, \"touch swipe did not finish within maxFrames\", no flag set). Verdicts by packages/engine-check on the frozen classes (3 runs per arm, one run key each, so no +search run fed the base series). MEASURED."
+  },
+  {
+   "entry": "strip (10 will-change faces per digit -> one 12-entry strip), reused from hero.countdown (KD#12, cd-strip)",
+   "task": "model-checks",
+   "field": "chromium",
+   "text": "F3/F4 engine-check of the same two-flag strip run (hero.countdown:strip,morph.countdown:strip), run 39131314391, chromium swipe-v1: 1 pass, 0 model-bug (census.layers <o: 17972 -> 17970 per run). The swipe-touch-v1 rows are not run: the touch lane fails on the current base (runs 39131406685 and 39135255809, \"touch swipe did not finish within maxFrames\", no flag set). Verdicts by packages/engine-check on the frozen classes (3 runs per arm, one run key each, so no +search run fed the base series). MEASURED."
+  },
+  {
+   "entry": "hit-skip (skip the probe while morph > 0.2)",
+   "task": "model-checks",
+   "field": "chromium",
+   "text": "F3/F4 engine-check, ?fw=nav.hitTest:hit-skip, chromium swipe-v1, run 39131343835 vs base run 39130874266 (rewrite, no query, swipe-v1, 3 runs): 7 pass, 1 model-bug, 1 unusable (quarantined trace.Layout =o). The model-bug is trace.FunctionCall =o (deterministic, frame-exact): sums equal (2552 each) but FunctionCall moves between adjacent frames (variant runs differ from base run r1 in 2, 8 and 10 frames, e.g. frames 500/501: 5,11 against 9,7). The base itself is not frame-exact for this type: base runs r2 and r3 differ from r1 in 6 frames each, so the frozen class (deterministic, classes.frozen.json) is stale for this base and the verdict is class staleness, not an arm effect (INFERRED). trace.HitTest =o passes (1084 = 1084). Verdicts by packages/engine-check on the frozen classes (3 runs per arm, one run key each, so no +search run fed the base series). MEASURED."
+  },
+  {
+   "entry": "elements-skip (elementsFromPoint with an allow-list, no pointer-events write)",
+   "task": "model-checks",
+   "field": "chromium",
+   "text": "F3/F4 engine-check, ?fw=nav.hitTest:elements-skip, chromium swipe-v1, run 39131395370 vs base run 39130874266 (rewrite, no query, swipe-v1, 3 runs): 7 pass, 1 model-bug, 1 unusable (quarantined trace.Layout <=o). The model-bug is trace.FunctionCall =o, as for hit-skip: sums equal (2552 each), frame placement differs from base run r1 in 0, 14 and 4 frames, and the base runs themselves differ in 0, 6 and 6 (stale frozen class, INFERRED). trace.UpdateLayoutTree <o passes. Verdicts by packages/engine-check on the frozen classes (3 runs per arm, one run key each, so no +search run fed the base series). MEASURED."
   }
  ]
 }

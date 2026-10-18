@@ -7,6 +7,7 @@
 #            | engine goldens check (every golden/engine/*.jsonl equals its Lean generator; scripts/EngineGoldens.lean)
 #            | premise goldens check (golden/ops/premise.jsonl and wktr-lane.jsonl equal the Lean output)
 #            | checkmap golden check (golden/ops/checkmap.jsonl equals the Lean output; Fw.Ops.CheckMap)
+#            | preset v2-proved check (golden/preset/* and the site preset equal Fw.Preset.Gen.run on the findings ledger)
 # The parallel jobs call the built binaries directly (.lake/build/bin/...), not `lake exe`, so none of them takes Lake's lock.
 # Every failing stage is reported (not just the first); exit non-zero if any failed. The verdict is the conjunction of the
 # stage verdicts, independent of order and completion: Lean Fw.Console.LandSpeed.verdict_perm.
@@ -60,6 +61,8 @@ run_group() {
   job "shard golden check" lake env lean --run scripts/ShardGolden.lean --check
   job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl  # the exit verdict vectors cli.mjs is checked against (Fw.Gate.Exit)
   job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check  # golden/ops/lakegc.jsonl (Fw.Ops.LakeGc)
+  job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"  # regenerates the v2-proved preset files from the findings ledger and the parts; any byte difference fails (Fw.Preset.Gen.run)
+  job "salvage golden check" lake env lean --run scripts/SalvageGolden.lean --check  # golden/ops/salvage.jsonl (Fw.Ops.Salvage)
   # props lint (one registry in Fw.Spec.Incidents, rows match the ledger, properties do not name the impl), run once over
   # every lean_lib plus the test cases scripts/props-lint-cases/Adv.lean: the findings must be exactly Adv.expected.txt
   job "props lint" sh -c 'mkdir -p "$1" && cp scripts/props-lint-cases/Adv.lean "$1/" &&
