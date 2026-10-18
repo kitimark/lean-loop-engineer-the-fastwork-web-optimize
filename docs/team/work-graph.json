@@ -4675,6 +4675,32 @@
     "research/notes/2026/10-18-mistake-retro.md",
     "docs/team/handoffs/mistake-record-4.md"
    ]
+  },
+  {
+   "id": "context-slop",
+   "title": "(M) distill cursor/plugins pstack (no-comments, comment-sicko, unslop, guard-the-context-window, minimize-reader-load, technical-writing) and apply: measured context cost of always-loaded files (CLAUDE.md, agent defs, tool docs, handoffs), fw/hook output, docstrings and code comments; Lean-decided context budget lint; trim low-conflict files; follow-ups for code and outputs",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-context-slop.md",
+    "CLAUDE.md",
+    ".claude/agents/**",
+    "docs/team/token-policy.md",
+    "docs/team/tools/**",
+    "docs/team/handoffs/context-slop.md",
+    "lean/Fw/Lint/Context.lean",
+    "lean/Fw/Lint/Context/**",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "lean/FwTestMain.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "scripts/context-lint.mjs",
+    "scripts/context-lint.test.mjs",
+    "packages/contracts/golden/lint/**",
+    "lean/scripts/check.sh"
+   ]
   }
  ],
  "deadline": {
