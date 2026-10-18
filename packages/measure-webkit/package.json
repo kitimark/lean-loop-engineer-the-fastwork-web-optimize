@@ -16,6 +16,7 @@
     "perstep-report": "node src/cli.mjs perstep-report",
     "rfprobe": "node src/cli.mjs rfprobe",
     "handoff": "node src/cli.mjs handoff",
+    "align": "node src/cli.mjs align",
     "test": "node --test \"test/*.test.mjs\""
   }
 }
