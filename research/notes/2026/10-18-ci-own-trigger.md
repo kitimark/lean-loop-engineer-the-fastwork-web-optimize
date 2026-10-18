@@ -70,6 +70,8 @@ A main push, a dispatch or a schedule always runs, because a run there is a reco
 
 ## Lean (lean/Fw/Ci/Intent.lean, all proved, standard axioms)
 
+Round-1 names; round 3 removed supersede and renamed the guard theorems (see "Round 3" below).
+
 | theorem | statement (short) |
 |---|---|
 | `no_unrequested_start` | ci push ∧ start ⇒ (intent ∧ requested) ∨ (¬intent ∧ default lane) |
@@ -164,19 +166,52 @@ Two pushes covered all three checks (MEASURED, `gh run list` / `gh run view`); a
   - The probe commits net to zero (B reverts A's line, C reverts B's; B2 reverts A2's).
 - **Lean always**: push A started lean 39109453769 with `[ci:difftest]` only (its inputs changed), `success`.
 
+## Round 3: the tip decides on the whole branch, nothing is cancelled (MEASURED on `ci/ci-own-trigger`, Linux lanes)
+
+Threat model: on `ci/*` the tip push must run every lane its head commit requests, plus lean whenever lean inputs
+differ from `main`; a wait must never pass when a requested lane did not run; older pushes may waste runner minutes.
+- **No `on.push.paths`, no supersede, no cancel on `ci/*`.** Every push creates a run of each workflow; the guard
+  (Lean `Fw.Ci.Intent.decision`) skips in order `unwanted`, `stale` (sha is not the `ls-remote` tip), `landed`,
+  `unchanged` (no file of merge-base..HEAD that differs from `main` is an input). Proved: `tip_starts`,
+  `tip_lean_always`, `tip_history_free` (the decision depends only on the branch's effective files, never on earlier
+  pushes), `stale_guard_never_starts`. `main` pushes keep the coarse paths rule on their own diff
+  (`main_keeps_paths_rule`); dispatch and schedule always run (`record_always_runs`).
+- **Job re-check.** The first steps of every heavy job are `tip re-check` and `stale: a newer push is the branch tip`;
+  every later status-function step carries `steps.stale.outcome == 'skipped'` (`stale_never_works`,
+  `tip_job_unchanged`). Groups hold the run id on `ci/*` (`ci_never_cancelled`), so no job waits on or cancels another.
+- **Branch wait.** `fw ci wait --branch` passes only if every requested lane (plus lean unless it was skipped
+  `unchanged`) has a pass run for that exact sha (`combine_requested_never_pass`, `missing_never_pass`).
+- Measured (run ids; GitHub conclusions vs `fw ci wait`):
+  - Revert sequence: A 9ab8509 adds lean input X `lean/probe-x.txt` and premise-tests input Y; B d024a81 removes X;
+    C 3eeb0c5 removes Y (net zero). B's lean 39113394772 started (its check.sh then failed on a docstring lint of
+    this task, fixed in 567cc31); B's premise-tests 39113394803 → `pass`. On this branch every lane already differs
+    from `main` (it edits all 14 workflows and lean), so B runs lean regardless; isolation is shown by the temp-git test
+    in `.github/scripts/changed-inputs.test.mjs` (B: X reverted, Y left → runs; C: Y removed → `unchanged`).
+  - Two quick pushes: A's request commit 84e8d32, premise-tests 39113339224 (created 08:55:42Z): guard `run`, both engine legs
+    passed the re-check (08:55:58Z) and succeeded; B a84fead pushed 08:56:36Z; A's `verdict` job started 08:56:52Z
+    and stopped at `stale:` (5 s). `fw ci wait --sha 84e8d32` → `not-run (stale: …)` for premise-tests, while GitHub
+    says `failure`. B's premise-tests → `pass`.
+  - ROUND3_C_PLACEHOLDER
+
 ## Limits and open items
 
 - ~~Workflow-level concurrency cancels in-flight runs on any newer push whose paths match~~ (cause d): fixed in round 2
   by job-level groups (see below).
-- Supersede reads the newest tip's own push diff and message. If the tip wants lane X but an intermediate push (not
-  wanting X) changed X's inputs and the tip's push did not, the older run is not superseded by the guard; its job group
-  is then cancelled only when the tip's X job starts (INFERRED, by the Lean model `cancel_needs_newer_start`).
-- A newer push that GitHub has not yet turned into runs is caught by the guard's ls-remote check. The concurrency cancel
-  covers the rest. `superseded_never_runs_heavy` speaks about the guard.
+- ~~Supersede reads the newest tip's own push diff~~: removed in round 3; the tip decides on the whole branch.
+- Round 3: an older push may hold a runner until its heavy job's first step (seconds) or, for a job that already
+  passed its re-check, to the job's end (A's engine legs above). The re-check fails open (an unreadable `ls-remote`
+  counts as the tip). The bash re-check is glue that mirrors Lean `isTip`; it holds no other decision.
+- Round 3: a requested lane whose inputs equal `main` on the branch is skipped `unchanged`, so its wait is not a pass;
+  dispatch it to re-run. Each `main` push now creates a guard run of all 14 workflows (seconds each).
+- Round 3 (INFERRED): a `main` group (`refs/heads/main`) never equals a `ci/*` group (a run id); the 300 s grace for a
+  requested lane with no run is a guess at GitHub's run-creation delay.
+- A newer push that GitHub has not yet turned into runs is caught by the guard's ls-remote check and by each heavy
+  job's re-check.
 - `landed` is only as fresh as `origin/main` or `origin/ci/landed`. Until the land step pushes `ci/landed`, a run whose
   guard ran before the user pushed main is not stopped (cause c, in part).
-- Empty-commit pushes: GitHub's `on.push.paths` filter sees no changed file, so no run is created. `fw ci push` previews
-  this and refuses. Re-running an unchanged lane is a dispatch.
+- ~~Empty-commit pushes create no run~~ (round 1–2, `on.push.paths`): in round 3 every push creates runs and an empty
+  request commit at the tip runs its lanes when the branch differs from `main` (measured: C1/C2 above). `fw ci push`
+  refuses only when HEAD is already the tip or no requested lane would start. Re-running an unchanged lane is a dispatch.
 - Case folding: Lean lowers ASCII only. GitHub's `contains` folds case more broadly. The tokens are ASCII
   (`lanes.all validName`), so the two can differ only on non-ASCII look-alikes in a message (INFERRED, harmless: it can
   only add a gate pass, and the guard script then decides by Lean's rule).
