@@ -1789,7 +1789,8 @@
     "port-morph-countdown",
     "port-morph-mount",
     "port-morph-panel",
-    "port-morph-tween"
+    "port-morph-tween",
+    "morph-group-integrate"
    ],
    "owner": "lead"
   },
@@ -1867,7 +1868,8 @@
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/morph.panel/**"
-   ]
+   ],
+   "evidence": "64857cb: on main via c4b57a2; nav hosting: morph-group-integrate"
   },
   {
    "id": "port-morph-countdown",
@@ -1915,7 +1917,8 @@
    "writes": [
     "apps/site/src/parts/nav/**",
     "apps/site/src/parts/nav.langMenu/**"
-   ]
+   ],
+   "evidence": "5e277bd: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "port-hero",
@@ -1934,7 +1937,8 @@
     "apps/site/src/parts/hero.deck/**",
     "apps/site/src/parts/hero.accent/**",
     "apps/site/src/parts/hero.cue/**"
-   ]
+   ],
+   "evidence": "4d26f44: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "port-people",
@@ -1952,7 +1956,8 @@
     "apps/site/src/parts/people.o/**",
     "apps/site/src/parts/people.deck/**",
     "apps/site/src/parts/people.carousel/**"
-   ]
+   ],
+   "evidence": "103f4c0: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "port-pain",
@@ -1968,7 +1973,8 @@
    "writes": [
     "apps/site/src/parts/pain/**",
     "apps/site/src/parts/pain.notes/**"
-   ]
+   ],
+   "evidence": "5d7f00b: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "port-commission",
@@ -1984,7 +1990,8 @@
    "writes": [
     "apps/site/src/parts/commission/**",
     "apps/site/src/parts/commission.typing/**"
-   ]
+   ],
+   "evidence": "66debaa: on main via c4b57a2; resize readings excused"
   },
   {
    "id": "port-platform",
@@ -2021,7 +2028,8 @@
    "writes": [
     "apps/site/src/parts/overlays.signup/**",
     "apps/site/src/parts/overlays.drawer/**"
-   ]
+   ],
+   "evidence": "7aad851: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "vj-vt-chromium",
@@ -2515,7 +2523,8 @@
     "apps/site/src/App.tsx",
     "apps/site/src/registry/index.ts",
     "lean/Fw/Gate/Scope.lean"
-   ]
+   ],
+   "evidence": "c4b57a2: superseded by integrate-ports-4, landed"
   },
   {
    "id": "pa-land",
@@ -2883,7 +2892,8 @@
     "apps/site/src/parts/nav/**",
     "apps/site/src/parts/nav.hitTest/**",
     "apps/site/src/parts/nav.langMenu/**"
-   ]
+   ],
+   "evidence": "b00ef68: on main via c4b57a2"
   },
   {
    "id": "fix-commission",
@@ -2895,7 +2905,8 @@
    "writes": [
     "apps/site/src/parts/commission/**",
     "apps/site/src/parts/commission.typing/**"
-   ]
+   ],
+   "evidence": "3ed01af: on main via c4b57a2"
   },
   {
    "id": "fix-misc",
@@ -2912,7 +2923,8 @@
     "apps/site/src/parts/platform.stageBg/**",
     "apps/site/src/parts/overlays/**",
     "apps/site/src/parts/overlays.signup/**"
-   ]
+   ],
+   "evidence": "ef1774f: on main via c4b57a2"
   },
   {
    "id": "fix-people-webkit",
@@ -2926,7 +2938,8 @@
     "apps/site/src/parts/people.card/**",
     "apps/site/src/parts/people.deck/**",
     "apps/site/src/parts/people.o/**"
-   ]
+   ],
+   "evidence": "0f5cdb7: finding, no code change (gate misreads)"
   },
   {
    "id": "mistake-retro",
@@ -3012,7 +3025,8 @@
     "packages/contracts/golden/gate/**",
     "packages/gate-breakpoints/**",
     "docs/team/handoffs/gate-settle.md"
-   ]
+   ],
+   "evidence": "ee57e36: Fw.Gate.Settle merged; on main"
   },
   {
    "id": "fix-stagebg-webkit",
@@ -3024,7 +3038,8 @@
    "writes": [
     "apps/site/src/parts/platform/**",
     "docs/team/handoffs/fix-stagebg-webkit.md"
-   ]
+   ],
+   "evidence": "f007b85: on main via c4b57a2"
   },
   {
    "id": "workflow-claim",
@@ -3874,7 +3889,8 @@
     "lean/Fw/Parts/**",
     "packages/contracts/golden/parts/**",
     "docs/team/handoffs/fix-orbit.md"
-   ]
+   ],
+   "evidence": "bf7b417: orbit z-index cell skipped (original hover raise)"
   },
   {
    "id": "fix-pain-notes",
@@ -3890,7 +3906,8 @@
     "lean/Fw/Parts/**",
     "packages/contracts/golden/parts/**",
     "docs/team/handoffs/fix-pain-notes.md"
-   ]
+   ],
+   "evidence": "3bcfa3a: on main via c4b57a2"
   },
   {
    "id": "fix-nav-hittest",
@@ -3903,7 +3920,8 @@
    "owner": "part-builder",
    "writes": [
     "docs/team/handoffs/fix-nav-hittest.md"
-   ]
+   ],
+   "evidence": "ad919a4: finding, no code change (body colour rule fixed it)"
   },
   {
    "id": "fix-commission-margin",
@@ -3922,7 +3940,8 @@
     "packages/premise-tests/**",
     "packages/contracts/golden/**",
     "docs/team/handoffs/fix-commission-margin.md"
-   ]
+   ],
+   "evidence": "3301169: on main via c4b57a2"
   },
   {
    "id": "fix-page-offset",
@@ -3939,7 +3958,8 @@
     "lean/Fw/Gate/**",
     "packages/contracts/golden/parts/**",
     "docs/team/handoffs/fix-page-offset.md"
-   ]
+   ],
+   "evidence": "23c0821: on main via c4b57a2"
   },
   {
    "id": "engine-premise-measure",
@@ -5103,7 +5123,7 @@
     "lean/Fw/Gate/**",
     "docs/team/handoffs/integrate-ports.md"
    ],
-   "evidence": "efd57a8"
+   "evidence": "c4b57a2: landed (Chromium gate 39142015714 pass, 0 bad)"
   },
   {
    "id": "plan-page-readability",
