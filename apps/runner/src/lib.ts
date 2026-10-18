@@ -58,20 +58,26 @@ export function stepCommand(argv: string[], env: Record<string, string | undefin
 export const TASK_USAGE = "usage: fw task handback <task> [--agent a] [--tip sha] | fw task integrate <task> --into <branch> --tip <sha>\n" +
   "       fw task park <task> --reason <text> | fw task unpark <task>   (--as <actor>, --key <k>; default actor lead)";
 
-/** The full ref name git resolves `name` to (`git rev-parse --symbolic-full-name`, e.g. `HEAD` on main ->
- *  `refs/heads/main`), or null when it is not a ref. I/O only. */
+/** The full ref name git resolves `name` to (`git rev-parse --verify --symbolic-full-name`, e.g. `HEAD` on main ->
+ *  `refs/heads/main`, `ci/x` -> `refs/heads/ci/x`), or null when git does not resolve it to one ref (`main~0`, a sha,
+ *  an unknown name, an option-like `-x`). I/O only: whether the ref may be integrated into is Lean's
+ *  (`Fw.Plan.integrate_allowlist`). */
 export function gitFullRef(name: string, cwd = process.cwd()): string | null {
+  if (name === "" || name.startsWith("-")) return null;
   try {
-    const out = execFileSync("git", ["rev-parse", "--symbolic-full-name", "--end-of-options", name], { cwd, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
-    return out.startsWith("refs/") ? out : null;
+    const out = execFileSync("git", ["rev-parse", "--verify", "--quiet", "--symbolic-full-name", "--end-of-options", name],
+      { cwd, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return out.startsWith("refs/") && !out.includes("\n") ? out : null;
   } catch { return null; }
 }
 
 /** `fw task handback|integrate|park|unpark`: an outcome mark of a task (Lean `Fw.Plan`, task task-state-truth). Only
- *  argument mapping: fwcore decides what the mark means (`tstate`) and refuses unknown/done tasks and every name of main
- *  (`Fw.Plan.isMainRef`). `--into` is sent as the full ref it resolves to (`resolveRef`, git in `fw`), so a name that
- *  resolves to main (`HEAD` on main, a local alias) reaches Lean as `refs/heads/main` and is refused; an unresolved name
- *  is sent as given. The default key names the content (a repeat is a duplicate); park/unpark add the time. */
+ *  argument mapping: fwcore decides what the mark means (`tstate`) and refuses unknown/done tasks and every branch outside
+ *  refs/heads/ci/*, refs/heads/worktree-*, refs/heads/integrate-* (`Fw.Plan.integrate_allowlist`). `--into` is sent as
+ *  the full ref git resolves it to (`resolveRef`, `gitFullRef` in `fw`), so `HEAD` on main reaches Lean as
+ *  `refs/heads/main` and is refused; a name git does not resolve is sent only when it is already a full ref
+ *  (`refs/heads/...`, e.g. a branch not fetched yet), else the CLI refuses it. The default key names the content (a
+ *  repeat is a duplicate); park/unpark add the time. */
 export function taskCommand(argv: string[], env: Record<string, string | undefined>, now = Date.now(),
   resolveRef: (name: string) => string | null = () => null): Command {
   const [verb, ...rest] = argv;
@@ -85,7 +91,8 @@ export function taskCommand(argv: string[], env: Record<string, string | undefin
     }
     case "integrate": {
       const into = need(flags.into, "--into <branch>"), tip = need(flags.tip, "--tip <sha>");
-      const branch = resolveRef(into) ?? into;
+      const branch = resolveRef(into) ?? (into.startsWith("refs/heads/") ? into : null);
+      if (branch === null) throw new UsageError(`--into ${into}: git does not resolve it to a branch; give a full ref (refs/heads/ci/...)`);
       return Command.parse({ type: "task.integrate", key: flags.key ?? `task.integrate:${task}:${branch}:${tip}`, actor, task, branch, tip });
     }
     case "park":
