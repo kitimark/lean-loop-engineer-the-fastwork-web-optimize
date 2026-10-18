@@ -17,7 +17,7 @@ State: committed on the worktree branch (task `evidence-on-main`; incidents `inc
 - Glue: `syncCommands(..., onMain)` in packages/contracts/src/plan-sync.ts adds `evidenceOnMain: false` only when
   off main (keys of on-main rows unchanged; the off-main key differs, so the row is re-sent after the land).
   Facts come from `git merge-base --is-ancestor` (runner `gitOnMain`, reconciler `isAncestor`).
-- On main now: 0 of 160 commit evidences are off main.
+- On main now: 0 of 161 commit evidences are off main.
 
 ## Open items
 - A task done by define evidence never gets `landed` (task.done is refused for a done task); harmless.
