@@ -226,13 +226,21 @@ $$\mathrm{role}(i) = \text{the first } \rho \in P \text{ with } \rho.\mathit{nam
 -/
 def roleOf (i : Input) : Option Role := i.roles.find? (·.name == i.req.role)
 
-/-- An unnamed call is excused: the caps allow unnamed read-only subagents and the role is one.
+/-- The editing helper roles the lead spawns unnamed, like a read-only helper (`patcher`: lead only, per
+docs/team/token-policy.md). A nested call of one is still refused (`nestedEditor`).
 
-$$\mathrm{excused}(i) \iff u \land \exists \rho:\ \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{subagent} \land \lnot \rho.\mathit{edits}$$
+$$E = \{\texttt{patcher}\}$$
+-/
+def leadEditHelpers : List String := ["patcher"]
+
+/-- An unnamed call is excused: the caps allow unnamed subagents, and the role is a read-only subagent, or a subagent
+of $E$ called by the lead (depth 0).
+
+$$\mathrm{excused}(i) \iff u \land \exists \rho:\ \mathrm{role}(i) = \rho \land \rho.\mathit{runsAs} = \mathrm{subagent} \land \big(\lnot \rho.\mathit{edits} \lor (q.d = 0 \land \rho.\mathit{name} \in E)\big)$$
 -/
 def excused (i : Input) : Bool :=
   i.caps.unnamedReadOnly && match roleOf i with
-    | some r => r.runsAs == .subagent && !r.edits
+    | some r => r.runsAs == .subagent && (!r.edits || (i.req.depth == 0 && leadEditHelpers.contains r.name))
     | none => false
 
 /-- The name is taken: some alive agent has the requested (non-empty) name.
@@ -511,16 +519,17 @@ theorem isolation_not_mismatch (i : Input) (hiso : i.req.isolation = true) (w g 
 
 /-- The production roster the hook sends (`ROLES` in `apps/runner/hooks/spawn-guard.mjs`, INFERRED from
 `.claude/agents`), plus two helper roles the shadow log showed without a row: the built-in `fork`
-and `workflow-subagent`, both read-only subagents.
+and `workflow-subagent`, both read-only subagents. `slop-checker` is a read-only helper row like `checker`.
 
-$$P = [(\texttt{lean-prover}, \mathrm{worktree}, \top), \dots, (\texttt{fork}, \mathrm{subagent}, \bot), (\texttt{workflow-subagent}, \mathrm{subagent}, \bot)]$$
+$$P = [\,(\texttt{lean-prover}, \mathrm{wt}, \top),\ (\texttt{console-builder}, \mathrm{wt}, \top),\ (\texttt{measure-engineer}, \mathrm{wt}, \top),\ (\texttt{part-builder}, \mathrm{wt}, \top),\ (\texttt{env-ops}, \mathrm{wt}, \top),\ (\texttt{page-writer}, \mathrm{wt}, \top),\ (\texttt{researcher}, \mathrm{tm}, \top),\ (\texttt{plan-editor}, \mathrm{tm}, \top),\ (\texttt{reviewer}, \mathrm{sub}, \bot),\ (\texttt{math-reviewer}, \mathrm{sub}, \bot),\ (\texttt{checker}, \mathrm{sub}, \bot),\ (\texttt{slop-checker}, \mathrm{sub}, \bot),\ (\texttt{scout}, \mathrm{sub}, \bot),\ (\texttt{runner}, \mathrm{sub}, \bot),\ (\texttt{patcher}, \mathrm{sub}, \top),\ (\texttt{Explore}, \mathrm{sub}, \bot),\ (\texttt{Plan}, \mathrm{sub}, \bot),\ (\texttt{general-purpose}, \mathrm{sub}, \top),\ (\texttt{fork}, \mathrm{sub}, \bot),\ (\texttt{workflow-subagent}, \mathrm{sub}, \bot)\,]$$
+with $\mathrm{wt} = \mathrm{worktree}$, $\mathrm{tm} = \mathrm{teammate}$, $\mathrm{sub} = \mathrm{subagent}$.
 -/
 def prodRoles : List Role :=
   [⟨"lean-prover", .worktree, true⟩, ⟨"console-builder", .worktree, true⟩, ⟨"measure-engineer", .worktree, true⟩,
    ⟨"part-builder", .worktree, true⟩, ⟨"env-ops", .worktree, true⟩, ⟨"page-writer", .worktree, true⟩,
    ⟨"researcher", .teammate, true⟩, ⟨"plan-editor", .teammate, true⟩,
    ⟨"reviewer", .subagent, false⟩, ⟨"math-reviewer", .subagent, false⟩, ⟨"checker", .subagent, false⟩,
-   ⟨"scout", .subagent, false⟩, ⟨"runner", .subagent, false⟩, ⟨"patcher", .subagent, true⟩,
+   ⟨"slop-checker", .subagent, false⟩, ⟨"scout", .subagent, false⟩, ⟨"runner", .subagent, false⟩, ⟨"patcher", .subagent, true⟩,
    ⟨"Explore", .subagent, false⟩, ⟨"Plan", .subagent, false⟩, ⟨"general-purpose", .subagent, true⟩,
    ⟨"fork", .subagent, false⟩, ⟨"workflow-subagent", .subagent, false⟩]
 
@@ -534,10 +543,11 @@ def isoRoles : List String := ["plan-editor", "researcher", "general-purpose"]
 /-- Read-only helper roles that are spawned unnamed, or nested under another agent (class B: the
 shadow log's `unnamed` refusal of a `fork`; also workflow agents and lead helpers without a task).
 
-$$H = \{\texttt{fork}, \texttt{workflow-subagent}, \texttt{checker}, \texttt{scout}, \texttt{runner}, \texttt{reviewer}, \texttt{math-reviewer}, \texttt{Explore}, \texttt{Plan}\}$$
+$$H = \{\texttt{fork}, \texttt{workflow-subagent}, \texttt{checker}, \texttt{slop-checker}, \texttt{scout}, \texttt{runner}, \texttt{reviewer}, \texttt{math-reviewer}, \texttt{Explore}, \texttt{Plan}\}$$
 -/
 def helperRoles : List String :=
-  ["fork", "workflow-subagent", "checker", "scout", "runner", "reviewer", "math-reviewer", "Explore", "Plan"]
+  ["fork", "workflow-subagent", "checker", "slop-checker", "scout", "runner", "reviewer", "math-reviewer", "Explore",
+   "Plan"]
 
 /-- Class A: a named lead call with worktree isolation for a role not meant for a worktree.
 
@@ -623,6 +633,67 @@ theorem deny_names_reason (i : Input) (r : Reason) (h : decide i = .deny r) :
     subst h
     refine ⟨rfl, ?_⟩
     cases r' <;> simp [Reason.code]
+
+/-! ## Every role is reachable (the hook's input) -/
+
+/-- The input the hook sends for one call (`request` in `apps/runner/hooks/spawn-guard.mjs`): no alive agents, the
+production roster, the default caps with unnamed helpers allowed, no recent spawns, time 0.
+
+$$\mathrm{hook}(q) = ([\,],\ P,\ C_{default}[u := \mathrm{true}],\ [\,],\ 0,\ q)$$
+-/
+def hookInput (q : Req) : Input := ⟨[], prodRoles, { unnamedReadOnly := true }, [], 0, q⟩
+
+/-- The documented spawn shape of a role, always from the lead: a worktree role is named with worktree isolation; a
+teammate role is named without isolation; a subagent role that edits and is not in $E$ is named with worktree
+isolation (class A); any other subagent role is unnamed without isolation.
+
+$$\mathrm{shape}(\rho) = \begin{cases} (\rho.\mathit{name}, \rho.\mathit{name}, \top, \texttt{""}, \texttt{lead}, 0) & \rho.\mathit{runsAs} = \mathrm{worktree} \\ (\rho.\mathit{name}, \rho.\mathit{name}, \bot, \texttt{""}, \texttt{lead}, 0) & \rho.\mathit{runsAs} = \mathrm{teammate} \\ (\rho.\mathit{name}, \rho.\mathit{name}, \top, \texttt{""}, \texttt{lead}, 0) & \rho.\mathit{runsAs} = \mathrm{subagent} \land \rho.\mathit{edits} \land \rho.\mathit{name} \notin E \\ (\texttt{""}, \rho.\mathit{name}, \bot, \texttt{""}, \texttt{lead}, 0) & \rho.\mathit{runsAs} = \mathrm{subagent} \land (\lnot\rho.\mathit{edits} \lor \rho.\mathit{name} \in E) \end{cases}$$
+-/
+def shapeOf (r : Role) : Req :=
+  match r.runsAs with
+  | .worktree => ⟨r.name, r.name, true, "", "lead", 0⟩
+  | .teammate => ⟨r.name, r.name, false, "", "lead", 0⟩
+  | .subagent =>
+    if r.edits && !leadEditHelpers.contains r.name then ⟨r.name, r.name, true, "", "lead", 0⟩
+    else ⟨"", r.name, false, "", "lead", 0⟩
+
+/-- Every role of the roster has an accepted spawn shape: its documented shape names the role and the guard accepts it
+on the hook's input (no role is a dead end; before $E$ the lead's unnamed `patcher` call was refused as `unnamed`).
+
+$$\forall \rho \in P:\quad \mathrm{shape}(\rho).\mathit{role} = \rho.\mathit{name} \land \mathrm{accepted}(\mathrm{decide}(\mathrm{hook}(\mathrm{shape}(\rho))))$$
+-/
+theorem every_role_spawnable : ∀ r ∈ prodRoles,
+    (shapeOf r).role = r.name ∧ (decide (hookInput (shapeOf r))).accepted = true := by decide +kernel
+
+/-- The agents that may spawn the read-only helpers at depth 1 (CLAUDE.md, Helpers).
+
+$$G = \{\texttt{lean-prover}, \texttt{researcher}, \texttt{plan-editor}, \texttt{measure-engineer}, \texttt{console-builder}\}$$
+-/
+def helperSpawners : List String := ["lean-prover", "researcher", "plan-editor", "measure-engineer", "console-builder"]
+
+/-- Every helper role of $H$ (`checker` and `slop-checker` among them) and of $E$ (`patcher`) is allowed unnamed and
+without isolation from the lead.
+
+$$\forall n \in H \cup E:\quad \mathrm{decide}(\mathrm{hook}((\texttt{""}, n, \bot, \texttt{""}, \texttt{lead}, 0))) = \mathrm{allow}$$
+-/
+theorem helpers_from_lead : ∀ n ∈ helperRoles ++ leadEditHelpers,
+    decide (hookInput ⟨"", n, false, "", "lead", 0⟩) = .allow := by decide +kernel
+
+/-- Every read-only helper role of $H$ (`checker` and `slop-checker` among them) is allowed unnamed and without
+isolation at depth 1 from every spawner of $G$.
+
+$$\forall s \in G,\ \forall n \in H:\quad \mathrm{decide}(\mathrm{hook}((\texttt{""}, n, \bot, \texttt{""}, s, 1))) = \mathrm{allow}$$
+-/
+theorem helpers_nested : ∀ s ∈ helperSpawners, ∀ n ∈ helperRoles,
+    decide (hookInput ⟨"", n, false, "", s, 1⟩) = .allow := by decide +kernel
+
+/-- `patcher` stays lead-only: from every spawner of $G$ at depth 1, named or not, with or without isolation, the call
+is refused.
+
+$$\forall s \in G,\ \forall m \in \{\texttt{""}, \texttt{p1}\},\ \forall b \in \{\bot, \top\}:\quad \lnot\mathrm{accepted}(\mathrm{decide}(\mathrm{hook}((m, \texttt{patcher}, b, \texttt{""}, s, 1))))$$
+-/
+theorem patcher_nested_refused : ∀ s ∈ helperSpawners, ∀ m ∈ ["", "p1"], ∀ b ∈ [false, true],
+    (decide (hookInput ⟨m, "patcher", b, "", s, 1⟩)).accepted = false := by decide +kernel
 
 /-! ## Examples -/
 
