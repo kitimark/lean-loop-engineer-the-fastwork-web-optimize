@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>grid.stretch-fill-equals-start</title>
+<style>
+  body { margin: 0 }
+  .g { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; width: 60vw; margin-bottom: 8px }
+  .copy { height: 52.1875px; background: #ccc }
+  .ratio { aspect-ratio: 640 / 512; width: 100%; height: auto; background: #888 }
+  #a > .slot { align-self: start }
+</style>
+<!-- a: the port's shape (slot start-aligned around a ratio box); b: the same slot under the container's stretch;
+     c: the original's shape (the ratio box itself is the grid item, stretched) -->
+<div class="g" id="a"><div class="slot"><div class="ratio"></div></div><div class="copy"></div></div>
+<div class="g" id="b"><div class="slot"><div class="ratio"></div></div><div class="copy"></div></div>
+<div class="g" id="c"><div class="ratio slot"></div><div class="copy"></div></div>
