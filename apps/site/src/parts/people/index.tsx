@@ -1,16 +1,20 @@
-import Typography from '@mui/material/Typography';
-import css from './box.module.css';
+import { PeopleCard } from '../people.card';
+import { PeopleCarousel } from '../people.carousel';
+import { PeopleDeck } from '../people.deck';
+import { PeopleO } from '../people.o';
 
 /**
- * Static shell (PLAN Q36) of the original's `people` section. The outer box height per viewport comes from the generated
- * `box.module.css` (scripts/gen-shells.mjs); the content is placeholder text. No driver, no per-frame work.
- * A port replaces this folder as a whole.
+ * The People section (P2): the four parts people.card, people.o, people.deck and people.carousel composed. Each part has its
+ * own variant in the config; all are `faithful`.
  */
-export function People({ variant }: { variant: string }) {
+export function People({ variants }: { variants: Record<string, string> }) {
+  const v = (id: string) => variants[id] ?? 'faithful';
   return (
-    <section className={css.box} data-fw="people" data-fw-variant={variant}>
-      <Typography variant="h2">People</Typography>
-      <Typography variant="body1">Placeholder section (static shell).</Typography>
-    </section>
+    <PeopleCard
+      variant={v('people.card')}
+      o={<PeopleO variant={v('people.o')} />}
+      deck={<PeopleDeck variant={v('people.deck')} />}
+      pill={<PeopleCarousel variant={v('people.carousel')} />}
+    />
   );
 }

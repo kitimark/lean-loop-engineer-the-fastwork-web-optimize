@@ -1,0 +1,300 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:11296-11640: the pill, bar, logo, actions, earn button, phone
+   band and reduced motion; the `.start-selling-morph-*` panel inside the nav is morph.panel's). State classes are the
+   original's own names (`is-hero-pill` ...), toggled by the driver and by nav.hitTest (`is-on-dark`), hence :global.
+   Spec: lean/Fw/Parts/Nav.lean (geometry as functions of --morph). */
+@layer parts {
+  .nav {
+    --morph: 0;
+    --nav-expand: 1;
+    --hero-pill-w: min(984px, calc(100vw - 48px));
+    --pill-w: min(984px, calc(100vw - 48px));
+    --pill-h: 64px;
+    --panel-w: min(1398px, calc(100vw - 40px));
+    --panel-h: min(820px, calc(100vh - 40px));
+    top: calc(16px + (20px - 16px) * var(--morph));
+    z-index: 40;
+    box-sizing: border-box;
+    width: calc(
+      var(--hero-pill-w) + (var(--pill-w) - var(--hero-pill-w)) * var(--nav-expand) +
+        (var(--panel-w) - var(--pill-w)) * var(--morph)
+    );
+    height: calc(var(--pill-h) + (var(--panel-h) - var(--pill-h)) * var(--morph));
+    background: color-mix(
+      in srgb,
+      #ffffff1a calc((1 - var(--morph)) * 100%),
+      #131922 calc(var(--morph) * 100%)
+    );
+    border-radius: calc(32px - 12px * var(--morph));
+    -webkit-backdrop-filter: blur(calc(20px * (1 - var(--morph))));
+    backdrop-filter: blur(calc(20px * (1 - var(--morph))));
+    will-change: width, height, border-radius, background;
+    border: 0;
+    transition:
+      opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 0.32s;
+    position: fixed;
+    left: 50%;
+    overflow: hidden;
+    transform: translate(-50%);
+  }
+  .nav:not(:global(.is-morphing)) {
+    transition:
+      background 0.7s cubic-bezier(0.33, 0, 0.2, 1),
+      opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 0.32s,
+      width 0.68s cubic-bezier(0.33, 0, 0.2, 1);
+  }
+  .nav:global(.is-locale-open) {
+    overflow: visible;
+  }
+  .nav:global(.is-hero-pill) {
+    --nav-expand: 0;
+  }
+  @media (width>640px) {
+    .nav:not(:global(.is-on-dark), :global(.is-morphing)) {
+      background: #ffffff7a;
+    }
+    .nav:global(.is-hero-pill):not(:global(.is-on-dark), :global(.is-morphing)) {
+      background: #ffffff38;
+    }
+  }
+  .nav:global(.is-scroll-hidden) {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 0.32s;
+    transform: translate(-50%) translateY(calc(-100% - 24px));
+  }
+  .nav:not(:global(.is-scroll-hidden)) {
+    visibility: visible;
+    transition-delay: 0s;
+  }
+  @media (width>600px) {
+    .nav:global(.is-hero-pill):not(:global(.is-hero-chrome-ready)) {
+      opacity: 0;
+      pointer-events: none;
+      transition: none;
+    }
+    .nav:global(.is-hero-pill):global(.is-hero-chrome-ready) {
+      opacity: 1;
+      transition:
+        background 0.7s cubic-bezier(0.33, 0, 0.2, 1),
+        opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+        width 0.68s cubic-bezier(0.33, 0, 0.2, 1);
+    }
+  }
+  .bar {
+    --nav-bar-inset-x: 24px;
+    z-index: 3;
+    box-sizing: border-box;
+    height: var(--pill-h);
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 8px 8px 24px;
+    display: flex;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+  .logo {
+    color: #2b313b;
+    flex: none;
+    align-items: center;
+    line-height: 0;
+    text-decoration: none;
+    transition: color 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+  }
+  .logo svg {
+    height: auto;
+    display: inline-block;
+  }
+  .nav:global(.is-on-dark) .logo {
+    color: #fff;
+  }
+  .nav:global(.is-morphing) .logo {
+    left: calc(var(--nav-bar-inset-x) + (50% - var(--nav-bar-inset-x)) * var(--morph));
+    translate: calc(-50% * var(--morph)) 0;
+    transform-origin: 50%;
+    position: absolute;
+  }
+  .actions {
+    align-items: center;
+    gap: calc(var(--nav-expand) * (1 - clamp(0, calc(var(--morph) / 0.2), 1)) * 8px);
+    opacity: 1;
+    pointer-events: auto;
+    flex: none;
+    transition: gap 0.68s cubic-bezier(0.33, 0, 0.2, 1);
+    display: flex;
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    translate: 0 -50%;
+  }
+  .nav:global(.is-morphing) .actions {
+    transition: none;
+  }
+  .btn {
+    box-sizing: border-box;
+    color: #fff;
+    height: 48px;
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+    appearance: none;
+    background: #131922;
+    border: 0;
+    border-radius: 999px;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 24px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    display: inline-flex;
+  }
+  .btn:focus-visible {
+    outline-offset: 2px;
+    outline: 2px solid #0569ff;
+  }
+  .btn.earn {
+    --earn-out: clamp(0, calc(var(--morph) / 0.2), 1);
+    --nav-earn-mask: linear-gradient(90deg, #000 0 46%, transparent 58%);
+    --earn-layout: calc(var(--nav-expand) * (1 - var(--earn-out)));
+    isolation: isolate;
+    min-width: 0;
+    max-width: calc(var(--earn-layout) * 11rem);
+    padding-inline: calc(var(--earn-layout) * 24px);
+    opacity: calc((1 - var(--earn-out)) * var(--nav-expand));
+    filter: blur(calc(var(--earn-out) * 10px));
+    pointer-events: none;
+    transform: translateY(calc(var(--earn-out) * -8px));
+    transition:
+      max-width 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+      opacity 0.32s cubic-bezier(0.33, 0, 0.2, 1) 0.12s,
+      padding-inline 0.68s cubic-bezier(0.33, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .nav:not(:global(.is-hero-pill), :global(.is-morphing)) .btn.earn {
+    pointer-events: auto;
+  }
+  .nav:global(.is-hero-pill) .btn.earn {
+    pointer-events: none;
+    transition:
+      max-width 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+      opacity 0.2s cubic-bezier(0.33, 0, 0.2, 1),
+      padding-inline 0.68s cubic-bezier(0.33, 0, 0.2, 1);
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .nav:global(.is-expanded) .btn.earn {
+    pointer-events: none;
+  }
+  .btn.earn::after {
+    mix-blend-mode: screen;
+    pointer-events: none;
+    content: "";
+    background: linear-gradient(
+      105deg,
+      #0000 28%,
+      #82bcff 40%,
+      #2483ff 45%,
+      #ff66f4 50%,
+      #ff3029 55%,
+      #fe7b02 60%,
+      #0000 72%
+    );
+    position: absolute;
+    inset: 0;
+    transform: translate(-130%);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .nav:not(:global(.is-hero-pill)) .btn.earn {
+      -webkit-mask-image: var(--nav-earn-mask);
+      mask-image: var(--nav-earn-mask);
+      animation: 0.98s cubic-bezier(0.33, 0, 0.2, 1) 0.52s both earn-unmask;
+      -webkit-mask-size: 240% 100%;
+      mask-size: 240% 100%;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+    }
+    .nav:not(:global(.is-hero-pill)) .btn.earn::after {
+      animation: 0.98s cubic-bezier(0.33, 0, 0.2, 1) 0.52s both earn-sheen;
+    }
+  }
+  @keyframes earn-unmask {
+    0% {
+      -webkit-mask-position: 100% 0;
+      mask-position: 100% 0;
+    }
+    to {
+      -webkit-mask-position: 0 0;
+      mask-position: 0 0;
+    }
+  }
+  @keyframes earn-sheen {
+    0% {
+      transform: translate(-130%);
+    }
+    to {
+      transform: translate(130%);
+    }
+  }
+  @media (width<=640px) {
+    .nav {
+      --hero-pill-w: min(984px, calc(100vw - 32px));
+      --pill-w: min(984px, calc(100vw - 32px));
+      --pill-h: 52px;
+      --panel-w: calc(100vw - 24px);
+      --panel-h: calc(100vh - 24px);
+      top: calc(16px + (12px - 16px) * var(--morph));
+    }
+    .bar {
+      --nav-bar-inset-x: 16px;
+      padding: 8px 8px 8px 16px;
+    }
+    .logo {
+      transform-origin: 0;
+      scale: 0.75;
+    }
+    .nav:global(.is-morphing) .logo {
+      transform-origin: 50%;
+    }
+    .actions {
+      gap: calc(var(--nav-expand) * (1 - clamp(0, calc(var(--morph) / 0.2), 1)) * 4px);
+    }
+    .btn {
+      height: 36px;
+      min-height: 36px;
+      padding: 8px 16px;
+      font-size: 14px;
+      line-height: 20px;
+    }
+    .btn.earn {
+      max-width: calc(var(--earn-layout) * 9.5rem);
+      padding-inline: calc(var(--earn-layout) * 16px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nav:not(:global(.is-morphing)) {
+      transition:
+        background 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+        visibility 0s linear 0.32s;
+    }
+    .nav:global(.is-morphing),
+    .btn.earn {
+      filter: none;
+      transition: none;
+    }
+  }
+}
