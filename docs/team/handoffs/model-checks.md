@@ -10,5 +10,6 @@ mount LayoutCount `=o`, hit-skip/elements-skip FunctionCall `=o` refuted per fra
 **Not run:** people.card:shrink and pain.notes:arm (not on main); swipe-touch-v1 rows (touch lane fails on the current base: runs 39131406685, 39135255809, "touch swipe did not finish within maxFrames", no flag);
 WebKit (engine-check has no lane, `laneRes_webkit`); F1/F2.
 **Open:** investigate the touch lane failure at 698b7755; refreeze `classes.frozen.json` rewrite arm; rerun the touch rows of mount and strip after that.
+**Review follow-ups (outside this task's writes):** a `keys golden check` job in lean/scripts/check.sh (keys.jsonl vs `goldenJsonl`); `variantKeys` in apps/runner/src/engine-check.ts to return the single runKey; note file is dated 10-19 because work-graph writes names it.
 **Land:** needs `--allow pnpm-lock.yaml` (importer line for the new package).
 **Read first:** research/notes/2026/10-19-model-checks.md, then lean/Fw/Engine/Keys.lean.

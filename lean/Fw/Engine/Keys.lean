@@ -165,7 +165,7 @@ theorem answers_exact (m : RunMeta) (v : String) (hv : v ≠ "hidden-pause") :
 
 /-- The runs of the golden vectors: the default rewrite, the flag runs of task model-checks, a mixed flag set and the original.
 
-$$\mathrm{goldenRuns} = [(\texttt{rewrite}, \varepsilon), (\texttt{rewrite}, \texttt{?fw=}F), \dots, (\texttt{original}, \varepsilon)]$$ -/
+$$\mathrm{goldenRuns} = [(\texttt{rewrite}, \varepsilon), (\texttt{rewrite}, \texttt{?fw=morph.tween:waapi}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.columns:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.countdown:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause,morph.columns:hidden-pause,morph.countdown:hidden-pause}), (\texttt{rewrite}, \texttt{?fw=morph.mount:shift}), (\texttt{rewrite}, \texttt{?fw=hero.countdown:strip,morph.countdown:strip}), (\texttt{rewrite}, \texttt{?fw=nav.hitTest:hit-skip}), (\texttt{rewrite}, \texttt{?fw=nav.hitTest:elements-skip}), (\texttt{rewrite}, \texttt{?fw=engine.scene:hidden-pause,nav.hitTest:hit-skip}), (\texttt{original}, \varepsilon)]$$ -/
 def goldenRuns : List RunMeta :=
   [⟨"rewrite", ""⟩, ⟨"rewrite", "?fw=morph.tween:waapi"⟩, ⟨"rewrite", "?fw=engine.scene:hidden-pause"⟩,
    ⟨"rewrite", "?fw=morph.columns:hidden-pause"⟩, ⟨"rewrite", "?fw=morph.countdown:hidden-pause"⟩,
@@ -176,14 +176,14 @@ def goldenRuns : List RunMeta :=
 
 /-- The row variants of the golden vectors: the base, an exact flag key, the alias, the original.
 
-$$\mathrm{goldenVariants} = [\texttt{rewrite}, \texttt{rewrite+?fw=morph.tween:waapi}, \texttt{rewrite+?fw=nav.hitTest:hit-skip}, \dots, \texttt{hidden-pause}, \texttt{original}]$$ -/
+$$\mathrm{goldenVariants} = [\texttt{rewrite}, \texttt{rewrite+?fw=morph.tween:waapi}, \texttt{rewrite+?fw=nav.hitTest:hit-skip}, \texttt{rewrite+?fw=hero.countdown:strip,morph.countdown:strip}, \texttt{hidden-pause}, \texttt{original}]$$ -/
 def goldenVariants : List String :=
   ["rewrite", "rewrite+?fw=morph.tween:waapi", "rewrite+?fw=nav.hitTest:hit-skip",
    "rewrite+?fw=hero.countdown:strip,morph.countdown:strip", "hidden-pause", "original"]
 
 /-- One vector as compact JSON.
 
-$$\operatorname{row}(m, v) = \{\mathrm{answers}: [\![\operatorname{answers}(m, v)]\!],\ \mathrm{key}: \operatorname{runKey}(m),\ \mathrm{search}: m.\mathrm{search},\ \mathrm{target}: m.\mathrm{target},\ \mathrm{variant}: v\}$$ -/
+$$\operatorname{row}(m, v) = \{\mathrm{answers}: \operatorname{answers}(m, v) \in \{\mathtt{true}, \mathtt{false}\},\ \mathrm{key}: \operatorname{runKey}(m),\ \mathrm{search}: m.\mathrm{search},\ \mathrm{target}: m.\mathrm{target},\ \mathrm{variant}: v\}$$ -/
 def goldenRow (m : RunMeta) (v : String) : String :=
   (Lean.Json.mkObj [("target", .str m.target), ("search", .str m.search), ("variant", .str v),
     ("key", .str (runKey m)), ("answers", .bool (answers m v))]).compress
