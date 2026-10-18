@@ -211,21 +211,31 @@ export function summarize(outDir, { parts: requested = null } = {}) {
       return { i, width: env.width, height: env.height, achieved: ev.achieved, wait: st.wait, ...(st.unsettled ? { unsettled: true } : {}), vector: v ? v.from : null, verdicts: ev.rows };
     }));
 
-    // table: rows = truth + parts, columns = blocks + sweeps; every cell is a Lean tally
+    // table: rows = truth + parts, columns = blocks + sweeps; every cell is a Lean tally (the display) and its readings, one per probe
+    // or sweep stop, which the exit verdict judges one by one (Fw.Gate.Exit.rollup_pass_iff_all_readings)
     const blocks = gen.matrix.blocks.map((b) => b.id);
     const cells = [];
+    const readingIds = [];
     for (const row of ROWS) {
-      for (const b of blocks) cells.push({ verdicts: probeRows.filter((p) => p.block === b).map((p) => p.verdicts[row]), block: true });
-      for (const stops of sweepStops) cells.push({ verdicts: stops.map((x) => x.verdicts[row]), block: false });
+      for (const b of blocks) {
+        const ps = probeRows.filter((p) => p.block === b);
+        cells.push({ verdicts: ps.map((p) => p.verdicts[row]), block: true });
+        readingIds.push(ps.map((p) => p.id));
+      }
+      run.sweeps.forEach((sw, j) => {
+        cells.push({ verdicts: sweepStops[j].map((x) => x.verdicts[row]), block: false });
+        readingIds.push(sweepStops[j].map((x) => `${sw.id}#${x.i}`));
+      });
     }
     const tallied = tallies(cells);
     let c = 0;
     const table = {};
     const sweepVerdicts = run.sweeps.map(() => ({}));
+    const withReadings = (k) => ({ ...tallied[k], readings: readingIds[k].map((id, n) => ({ id, verdict: cells[k].verdicts[n] })) });
     for (const row of ROWS) {
       table[row] = {};
-      for (const b of blocks) table[row][b] = tallied[c++];
-      run.sweeps.forEach((sw, j) => { const t = tallied[c++]; table[row][`sweep:${sw.id}`] = t; sweepVerdicts[j][row] = t.verdict; });
+      for (const b of blocks) { table[row][b] = withReadings(c); c++; }
+      run.sweeps.forEach((sw, j) => { const t = withReadings(c); c++; table[row][`sweep:${sw.id}`] = t; sweepVerdicts[j][row] = t.verdict; });
     }
     // hysteresis: the state after the sequence against a fresh load at the same final environment, per arm
     const sweepRows = run.sweeps.map((sw, j) => ({ id: sw.id, blurb: sw.blurb, stops: sweepStops[j], stale: { orig: stale[2 * j], rewrite: stale[2 * j + 1] }, verdicts: sweepVerdicts[j] }));
@@ -258,7 +268,8 @@ export const flagsLine = (header) => {
  *  of the cell is unreachable on this engine port (proved in Fw.Gate.Reach); mixed cells show the unreachable count after. */
 const cell = (c) => {
   if (c.verdict.startsWith('unreachable')) return `UNREACHABLE ${c.unreachable} (${c.verdict.slice('unreachable:'.length)})`;
-  const base = c.verdict === 'pass' ? 'pass' : c.verdict === 'fail' ? `FAIL ${c.failing}/${c.total}` : c.verdict === 'not-comparable' ? 'NC' : '-';
+  const nc = (c.readings ?? []).filter((r) => r.verdict === 'not-comparable').length;
+  const base = c.verdict === 'pass' ? (nc > 0 ? `pass +${nc} NC` : 'pass') : c.verdict === 'fail' ? `FAIL ${c.failing}/${c.total}` : c.verdict === 'not-comparable' ? 'NC' : '-';
   return c.unreachable > 0 ? `${base} +${c.unreachable} unreachable` : base;
 };
 

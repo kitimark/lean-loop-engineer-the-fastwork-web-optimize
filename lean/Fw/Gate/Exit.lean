@@ -2,6 +2,7 @@ import Lean.Data.Json
 import Fw.Wire.Gate
 import Fw.Gate.Settle
 import Fw.Gate.State
+import Fw.Gate.Scope
 /-!
 # The exit code of the gate's `summary` step (`packages/gate-breakpoints/src/cli.mjs summary`)
 
@@ -45,66 +46,97 @@ inductive EngineVerdict where
   | notRendered
   deriving DecidableEq, Repr, Inhabited
 
-/-- One cell of an engine's table: its row, its column (a probe block or `sweep:<id>`) and its verdict; `none` is a block
-with no verdicts at all (`not-run`).
+/-- One reading of a cell: the verdict of one probe, or of one stop of a sweep, in one (row, column) cell. Its id is the probe id, or
+`<sweep id>#<stop index>` for a sweep stop.
 
-$$\mathrm{Cell} = \mathrm{Row} \times \mathrm{Col} \times (\mathcal V \cup \{\mathrm{notRun}\})$$ -/
+$$\mathrm{Reading} = \mathrm{Id} \times \mathcal V$$
+
+A reading is judged on its own; no other reading of the cell can absorb it. -/
+structure Reading where
+  id : String
+  v : Verdict
+  deriving DecidableEq, Repr
+
+/-- One cell of an engine's table: its row, its column (a probe block or `sweep:<id>`) and the readings the cell is made of; no
+reading at all is a block that was not run (`not-run`).
+
+$$\mathrm{Cell} = \mathrm{Row} \times \mathrm{Col} \times \mathrm{Reading}^{*}$$ -/
 structure TableCell where
   row : String
   col : String
-  v : Option Verdict
+  readings : List Reading
   deriving DecidableEq, Repr
 
-/-- The cell passed.
+/-- Some reading of the cell passed.
 
-$$\operatorname{isPass}(r, c, v) \iff v = \mathrm{pass}$$ -/
-def TableCell.isPass (c : TableCell) : Bool := c.v == some .pass
+$$\operatorname{isPass}(c) \iff \exists r \in c.\mathit{readings},\ r.v = \mathrm{pass}$$ -/
+def TableCell.isPass (c : TableCell) : Bool := c.readings.any (·.v == .pass)
 
-/-- The cell failed.
+/-- Some reading of the cell failed.
 
-$$\operatorname{isFail}(r, c, v) \iff v = \mathrm{fail}$$ -/
-def TableCell.isFail (c : TableCell) : Bool := c.v == some .fail
+$$\operatorname{isFail}(c) \iff \exists r \in c.\mathit{readings},\ r.v = \mathrm{fail}$$ -/
+def TableCell.isFail (c : TableCell) : Bool := c.readings.any (·.v == .fail)
 
-/-- One entry of the allowlist of excused cells: which engine, which row (`none`: any row) and column, which verdict it
-excuses, why, and the Lean fact or incident that is the premise (a name that must resolve: a renamed theorem breaks the build).
+/-- One entry of the allowlist of excused readings: which engine, which row (`none`: any row) and column, which readings of the
+cell (`none`: any reading of it, `some ids`: only those reading ids), which verdict it excuses, why, and the Lean fact that is the
+premise (a name that must resolve: a renamed theorem breaks the build).
 
-$$\mathrm{Ex} = \mathrm{Id} \times \mathrm{Engine} \times (\mathrm{Row} \cup \{*\}) \times \mathrm{Col} \times \mathcal V \times \mathrm{Reason} \times \mathrm{Premise}$$ -/
+$$\mathrm{Ex} = \mathrm{Id} \times \mathrm{Engine} \times (\mathrm{Row} \cup \{*\}) \times \mathrm{Col} \times (\mathrm{Id}^{*} \cup \{*\}) \times \mathcal V \times \mathrm{Reason} \times \mathrm{Premise}$$ -/
 structure Exemption where
   id : String
   engine : String
   row : Option String
   col : String
+  ids : Option (List String)
   verdict : Verdict
   reason : String
   premise : Lean.Name
 
-/-- An exemption names a cell of an engine: the same engine, the same column, the same verdict and the same row (or any row).
+/-- An exemption names a reading: the same engine, column and verdict, the same row (or any row) and the same reading id (or any).
 
-$$\operatorname{matches}(x, e, c) \iff x.\mathit{engine} = e \wedge x.\mathit{col} = c.\mathit{col} \wedge c.v = x.\mathit{verdict} \wedge (x.\mathit{row} = * \vee x.\mathit{row} = c.\mathit{row})$$ -/
-def Exemption.matches (x : Exemption) (engine : String) (c : TableCell) : Bool :=
-  x.engine == engine && x.col == c.col && c.v == some x.verdict && (x.row.map (· == c.row)).getD true
+$$\operatorname{matches}(x, e, \rho, \kappa, r) \iff x.\mathit{engine} = e \wedge x.\mathit{col} = \kappa \wedge r.v = x.\mathit{verdict} \wedge (x.\mathit{row} = * \vee x.\mathit{row} = \rho) \wedge (x.\mathit{ids} = * \vee r.\mathit{id} \in x.\mathit{ids})$$ -/
+def Exemption.matches (x : Exemption) (engine row col : String) (r : Reading) : Bool :=
+  x.engine == engine && x.col == col && r.v == x.verdict && (x.row.map (· == row)).getD true &&
+    (x.ids.map (·.contains r.id)).getD true
 
-/-- **The allowlist of excused cells** (an exemption is a cell id, an engine, a verdict, a reason and a premise; nothing outside
-this list is ever excused, and the list excuses only `not-comparable` and `unreachable` verdicts, `exemptions_verdict`).
+/-- The reading ids of the 1024 stops of the tablet sweep (stops 0, 2 and 4 of `touch-1024-1201`, `touch1024_lean_na`).
 
-$$\mathrm{exemptions} = [x_{\mathrm{cross}},\ x_{\mathrm{frac}},\ x_{\mathrm{mm}}]$$
+$$\mathrm{touch1024Ids} = [\texttt{touch-1024-1201\#}i]_{i \in \{0, 2, 4\}}$$ -/
+def touch1024Ids : List String := [0, 2, 4].map fun i => s!"touch-1024-1201#{i}"
+
+/-- **The allowlist of excused readings** (an exemption is an engine, a cell, an optional list of reading ids, a verdict, a reason
+and a premise; nothing outside this list is ever excused, and the list excuses only `not-comparable` and `unreachable`
+verdicts, `exemptions_verdict`).
+
+$$\mathrm{exemptions} = [x_{\mathrm{cross}},\ x_{\mathrm{frac}},\ x_{\mathrm{mm}},\ x_{\mathrm{touch}}^{\mathrm{chromium}},\ x_{\mathrm{touch}}^{\mathrm{webkit}}]$$
 
 * $x_{\mathrm{cross}}$: WebKit, any row, column `hover-pointer-cross`, `unreachable:primary-pair`, premise `matrix_cross_webkit`.
 * $x_{\mathrm{frac}}$: WebKit, any row, column `fractional-gaps`, `unreachable:whole-width`, premise `matrix_fractional_webkit`.
-* $x_{\mathrm{mm}}$: Chromium, row `matchMedia =Lean`, column `fractional-gaps`, `not-comparable`, premise `truthItems_lean_na`. -/
+* $x_{\mathrm{mm}}$: Chromium, row `matchMedia =Lean`, column `fractional-gaps`, `not-comparable`, premise `truthItems_lean_na`.
+* $x_{\mathrm{touch}}$: each engine, row `matchMedia =Lean`, column `sweep:touch-1024-1201`, readings `touch-1024-1201#0`, `#2`, `#4` only,
+  `not-comparable`, premise `touch1024_lean_na`. The other two stops (1201) and the phone-rotation sweep have no entry: a
+  not-comparable reading there is a finding, not an excuse. -/
 def exemptions : List Exemption :=
-  [ { id := "webkit-cross-primary-pair", engine := "playwright-webkit", row := none, col := "hover-pointer-cross",
+  [ { id := "webkit-cross-primary-pair", engine := "playwright-webkit", row := none, col := "hover-pointer-cross", ids := none,
       verdict := .unreachable .primaryPair,
       reason := "WebKit derives hover and pointer from one value, so a cross probe (hover without a fine pointer, or the reverse) cannot be delivered",
       premise := ``Fw.Gate.matrix_cross_webkit },
-    { id := "webkit-fractional-whole-width", engine := "playwright-webkit", row := none, col := "fractional-gaps",
+    { id := "webkit-fractional-whole-width", engine := "playwright-webkit", row := none, col := "fractional-gaps", ids := none,
       verdict := .unreachable .wholeWidth,
       reason := "WebKit's media width is a whole number, so a width strictly between two whole widths cannot be delivered",
       premise := ``Fw.Gate.matrix_fractional_webkit },
     { id := "chromium-matchmedia-lean-fractional", engine := "chromium", row := some "matchMedia =Lean", col := "fractional-gaps",
-      verdict := .nc,
+      ids := none, verdict := .nc,
       reason := "a fractional width is loaded at its ceiling, so the requested environment is not achieved and every check against Lean's value is not applicable",
-      premise := ``Fw.Gate.truthItems_lean_na } ]
+      premise := ``Fw.Gate.truthItems_lean_na },
+    { id := "chromium-touch-1024-no-vector", engine := "chromium", row := some "matchMedia =Lean", col := "sweep:touch-1024-1201",
+      ids := some touch1024Ids, verdict := .nc,
+      reason := "the 1024 stops of the tablet sweep have no Lean vector (no matrix probe has that environment), so every check against Lean's value there is not applicable",
+      premise := ``Fw.Gate.touch1024_lean_na },
+    { id := "webkit-touch-1024-no-vector", engine := "playwright-webkit", row := some "matchMedia =Lean", col := "sweep:touch-1024-1201",
+      ids := some touch1024Ids, verdict := .nc,
+      reason := "the 1024 stops of the tablet sweep have no Lean vector (no matrix probe has that environment), so every check against Lean's value there is not applicable",
+      premise := ``Fw.Gate.touch1024_lean_na } ]
 
 /-- The id under which a not-run cell of a narrowed run is excused.
 
@@ -117,48 +149,106 @@ $$\mathrm{narrowedReason} \in \mathrm{String}$$ -/
 def narrowedReason : String :=
   "a run narrowed to parts (header.parts) does not load the others; its cells for them carry no verdict and the summary names the skipped parts"
 
-/-- **The excuse of a cell**, or none. A not-run cell is excused only when the run is narrowed; any other cell only by a
-registered exemption.
+/-- **The excuse of a reading**, or none: the id of the first exemption that names it. Only a registered exemption excuses.
 
-$$\operatorname{excuse}(e, N, c) = \begin{cases} (N ? \texttt{narrowed-run} : \bot) & c.v = \mathrm{notRun} \\ \operatorname{id}(\text{first } x \in \mathrm{exemptions} \text{ with } \operatorname{matches}(x, e, c)) & \text{otherwise} \end{cases}$$ -/
-def excuse (engine : String) (narrowed : Bool) (c : TableCell) : Option String :=
-  if c.v.isNone then (if narrowed then some narrowedId else none)
-  else (exemptions.find? (·.matches engine c)).map (·.id)
+$$\operatorname{excuse}(e, \rho, \kappa, r) = \operatorname{id}(\text{first } x \in \mathrm{exemptions} \text{ with } \operatorname{matches}(x, e, \rho, \kappa, r))$$ -/
+def excuseReading (engine row col : String) (r : Reading) : Option String :=
+  (exemptions.find? (·.matches engine row col r)).map (·.id)
 
-/-- A cell is `ok` when it passed or is excused.
+/-- A reading is `ok` when it passed or is excused.
 
-$$\operatorname{ok}(e, N, c) \iff c.v = \mathrm{pass} \vee \operatorname{excuse}(e, N, c) \ne \bot$$ -/
-def TableCell.ok (e : String) (narrowed : Bool) (c : TableCell) : Bool := c.isPass || (excuse e narrowed c).isSome
+$$\operatorname{ok}(e, \rho, \kappa, r) \iff r.v = \mathrm{pass} \vee \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot$$ -/
+def Reading.ok (r : Reading) (e row col : String) : Bool := r.v == .pass || (excuseReading e row col r).isSome
+
+/-- **A cell is `ok` when every one of its readings is ok** (a cell with no reading is `ok` only in a run narrowed to parts).
+
+$$\operatorname{ok}(e, N, c) \iff \begin{cases} N & c.\mathit{readings} = [\,] \\ \forall r \in c.\mathit{readings},\ \operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r) & \text{otherwise} \end{cases}$$
+
+There is no tolerance: one reading that is neither a pass nor excused makes the cell not ok, whatever its other readings say. -/
+def TableCell.ok (e : String) (narrowed : Bool) (c : TableCell) : Bool :=
+  if c.readings.isEmpty then narrowed else c.readings.all (·.ok e c.row c.col)
 
 /-- The registry excuses neither a pass nor a fail.
 
 $$\forall x \in \mathrm{exemptions},\ x.\mathit{verdict} \ne \mathrm{pass} \wedge x.\mathit{verdict} \ne \mathrm{fail}$$
 
-A failing cell is never excusable; only not-comparable and unreachable cells can be. -/
+A failing reading is never excusable; only not-comparable and unreachable readings can be. -/
 theorem exemptions_verdict : ∀ x ∈ exemptions, x.verdict ≠ .pass ∧ x.verdict ≠ .fail := by
   decide
 
-/-- A cell with an excuse neither passed nor failed.
+/-- A reading with an excuse neither passed nor failed.
 
-$$\operatorname{excuse}(e, N, c) \ne \bot \implies c.v \ne \mathrm{pass} \wedge c.v \ne \mathrm{fail}$$
+$$\operatorname{excuse}(e, \rho, \kappa, r) \ne \bot \implies r.v \ne \mathrm{pass} \wedge r.v \ne \mathrm{fail}$$
 
-Excusing a cell never turns a failure into a pass. -/
-theorem excuse_not_pass_fail (e : String) (N : Bool) (c : TableCell) (h : (excuse e N c).isSome = true) :
-    c.v ≠ some .pass ∧ c.v ≠ some .fail := by
-  unfold excuse at h
-  by_cases hn : c.v.isNone = true
-  · have : c.v = none := Option.isNone_iff_eq_none.1 hn
-    simp [this]
-  · simp only [hn, Bool.false_eq_true, ↓reduceIte] at h
-    cases hf : exemptions.find? (·.matches e c) with
-    | none => simp [hf] at h
-    | some x =>
-      have hm := List.find?_some hf
-      have hmem := List.mem_of_find?_eq_some hf
-      simp only [Exemption.matches, Bool.and_eq_true, beq_iff_eq] at hm
-      have hv := exemptions_verdict x hmem
-      rw [hm.1.2]
-      exact ⟨fun e => hv.1 (Option.some.inj e), fun e => hv.2 (Option.some.inj e)⟩
+Excusing a reading never turns a failure into a pass. -/
+theorem excuseReading_not_pass_fail (e row col : String) (r : Reading) (h : (excuseReading e row col r).isSome = true) :
+    r.v ≠ .pass ∧ r.v ≠ .fail := by
+  unfold excuseReading at h
+  cases hf : exemptions.find? (·.matches e row col r) with
+  | none => simp [hf] at h
+  | some x =>
+    have hm := List.find?_some hf
+    have hmem := List.mem_of_find?_eq_some hf
+    simp only [Exemption.matches, Bool.and_eq_true, beq_iff_eq] at hm
+    have hv := exemptions_verdict x hmem
+    have hr : r.v = x.verdict := hm.1.1.2
+    rw [hr]
+    exact hv
+
+/-- An ok reading did not fail.
+
+$$\operatorname{ok}(e, \rho, \kappa, r) \implies r.v \ne \mathrm{fail}$$
+
+A failing reading is never ok. -/
+theorem Reading.ok_not_fail (e row col : String) (r : Reading) (h : r.ok e row col = true) : r.v ≠ .fail := by
+  simp only [Reading.ok, Bool.or_eq_true, beq_iff_eq] at h
+  rcases h with h | h
+  · rw [h]; intro e; cases e
+  · exact (excuseReading_not_pass_fail e row col r h).2
+
+/-- **A cell is ok exactly when every one of its readings is ok.**
+
+$$\operatorname{ok}(e, N, c) \iff (c.\mathit{readings} = [\,] \wedge N) \vee \bigl(c.\mathit{readings} \ne [\,] \wedge \forall r \in c.\mathit{readings},\ \operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r)\bigr)$$
+
+The rollup of a cell passes iff every reading passes or is excused by a registry entry. The old rollup of `Fw.Gate.Rule.rollup` (some
+pass and no fail) is no longer what decides: a not-comparable reading next to a pass is not absorbed. -/
+theorem rollup_pass_iff_all_readings (e : String) (N : Bool) (c : TableCell) :
+    c.ok e N = true ↔
+      (c.readings = [] ∧ N = true) ∨ (c.readings ≠ [] ∧ ∀ r ∈ c.readings, r.ok e c.row c.col = true) := by
+  unfold TableCell.ok
+  by_cases h : c.readings = []
+  · simp [h]
+  · have : c.readings.isEmpty = false := by simpa [List.isEmpty_iff] using h
+    simp [this, h]
+
+/-- An ok cell has no failing reading.
+
+$$\operatorname{ok}(e, N, c) \implies \neg\operatorname{isFail}(c)$$
+
+-/
+theorem TableCell.ok_not_fail (e : String) (N : Bool) (c : TableCell) (h : c.ok e N = true) : c.isFail = false := by
+  cases hf : c.isFail with
+  | false => rfl
+  | true =>
+    obtain ⟨r, hr, hv⟩ := List.any_eq_true.1 hf
+    have hv' : r.v = .fail := by simpa using hv
+    rcases (rollup_pass_iff_all_readings e N c).1 h with ⟨hnil, _⟩ | ⟨_, hall⟩
+    · rw [hnil] at hr; cases hr
+    · exact absurd hv' (Reading.ok_not_fail e c.row c.col r (hall r hr))
+
+/-- A reading that is not ok makes its cell not ok.
+
+$$r \in c.\mathit{readings} \wedge \neg\operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r) \implies \neg\operatorname{ok}(e, N, c)$$
+
+-/
+theorem TableCell.not_ok_of_reading (e : String) (N : Bool) (c : TableCell) (r : Reading) (hr : r ∈ c.readings)
+    (h : r.ok e c.row c.col = false) : c.ok e N = false := by
+  cases hk : c.ok e N with
+  | false => rfl
+  | true =>
+    rcases (rollup_pass_iff_all_readings e N c).1 hk with ⟨hnil, _⟩ | ⟨_, hall⟩
+    · rw [hnil] at hr; cases hr
+    · rw [hall r hr] at h; cases h
 
 /-- The verdict of one engine from the cells of its table, whether the run was narrowed to parts, and the number of unsettled
 samples.
@@ -248,22 +338,14 @@ theorem exit_ne_zero_of_notRendered (vs : List EngineVerdict) (h : EngineVerdict
 
 /-- **An engine passes exactly when every one of its cells is ok, no sample is unsettled and some cell passed.**
 
-$$\forall e, N, cs, u,\quad \operatorname{ev}_C(e, N, cs, u) = \mathrm{pass} \iff u = 0 \wedge \bigl(\forall c \in cs,\ \operatorname{ok}(e, N, c)\bigr) \wedge \exists c \in cs,\ c.v = \mathrm{pass}$$
+$$\forall e, N, cs, u,\quad \operatorname{ev}_C(e, N, cs, u) = \mathrm{pass} \iff u = 0 \wedge \bigl(\forall c \in cs,\ \operatorname{ok}(e, N, c)\bigr) \wedge \exists c \in cs,\ \operatorname{isPass}(c)$$
 
-There is no aggregate: a single cell that is neither a pass nor excused keeps the engine from passing. -/
+There is no aggregate: a single cell that is neither a pass nor excused keeps the engine from passing, and a cell is ok only when
+each of its readings is (`rollup_pass_iff_all_readings`). -/
 theorem engine_pass_iff_all_cells (e : String) (N : Bool) (cs : List TableCell) (u : Nat) :
     engineVerdictC e N cs u = .pass ↔
       u = 0 ∧ (∀ c ∈ cs, c.ok e N = true) ∧ ∃ c ∈ cs, c.isPass = true := by
-  have hfail : ∀ c ∈ cs, c.ok e N = true → c.isFail = false := by
-    intro c _ hok
-    cases hf : c.isFail with
-    | false => rfl
-    | true =>
-      have hv : c.v = some .fail := by simpa [TableCell.isFail] using hf
-      simp only [TableCell.ok, TableCell.isPass, hv, Bool.or_eq_true, beq_iff_eq] at hok
-      rcases hok with h | h
-      · cases h
-      · exact absurd hv (excuse_not_pass_fail e N c h).2
+  have hfail : ∀ c ∈ cs, c.ok e N = true → c.isFail = false := fun c _ hok => TableCell.ok_not_fail e N c hok
   unfold engineVerdictC
   constructor
   · intro h
@@ -296,6 +378,34 @@ theorem engine_pass_iff_all_cells (e : String) (N : Bool) (cs : List TableCell) 
       exact List.any_eq_true.2 ⟨c, hc, hp⟩
     simp [h1, h2, h3, h4]
 
+/-- **An engine passes exactly when every reading of every cell is ok, no sample is unsettled, no cell is missing and some reading passed.**
+
+$$\operatorname{ev}_C(e, N, cs, u) = \mathrm{pass} \iff u = 0 \wedge \bigl(\forall c \in cs,\ c.\mathit{readings} = [\,] \implies N\bigr) \wedge \bigl(\forall c \in cs,\ \forall r \in c.\mathit{readings},\ \operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r)\bigr) \wedge \exists c \in cs,\ \exists r \in c.\mathit{readings},\ r.v = \mathrm{pass}$$
+
+Each reading is judged on its own: a pass in a cell does not cover a not-comparable, not-run or unfit reading of the same cell. -/
+theorem engine_pass_iff_all_readings (e : String) (N : Bool) (cs : List TableCell) (u : Nat) :
+    engineVerdictC e N cs u = .pass ↔
+      u = 0 ∧ (∀ c ∈ cs, c.readings = [] → N = true) ∧
+        (∀ c ∈ cs, ∀ r ∈ c.readings, r.ok e c.row c.col = true) ∧ ∃ c ∈ cs, ∃ r ∈ c.readings, r.v = .pass := by
+  rw [engine_pass_iff_all_cells]
+  constructor
+  · rintro ⟨hu, hall, c, hc, hp⟩
+    refine ⟨hu, fun c hc hn => ?_, fun c hc r hr => ?_, ?_⟩
+    · rcases (rollup_pass_iff_all_readings e N c).1 (hall c hc) with ⟨_, h⟩ | ⟨h, _⟩
+      · exact h
+      · exact absurd hn h
+    · rcases (rollup_pass_iff_all_readings e N c).1 (hall c hc) with ⟨h, _⟩ | ⟨_, h⟩
+      · rw [h] at hr; cases hr
+      · exact h r hr
+    · obtain ⟨r, hr, hv⟩ := List.any_eq_true.1 hp
+      exact ⟨c, hc, r, hr, by simpa using hv⟩
+  · rintro ⟨hu, hn, hr, c, hc, r, hrc, hv⟩
+    refine ⟨hu, fun c hc => ?_, c, hc, List.any_eq_true.2 ⟨r, hrc, by simp [hv]⟩⟩
+    rw [rollup_pass_iff_all_readings]
+    by_cases h : c.readings = []
+    · exact Or.inl ⟨h, hn c hc h⟩
+    · exact Or.inr ⟨h, hr c hc⟩
+
 /-- A cell that is neither a pass nor excused keeps its engine from passing.
 
 $$c \in cs \wedge \neg\operatorname{ok}(e, N, c) \implies \operatorname{ev}_C(e, N, cs, u) \ne \mathrm{pass}$$
@@ -308,35 +418,46 @@ theorem engineVerdictC_ne_pass_of_cell (e : String) (N : Bool) (cs : List TableC
   rw [h] at this
   cases this
 
-/-- A not-comparable cell that no exemption names keeps its engine from passing.
+/-- A reading that is neither a pass nor excused keeps its engine from passing, whatever the other readings of its cell say.
 
-$$c \in cs \wedge c.v = \mathrm{nc} \wedge \operatorname{excuse}(e, N, c) = \bot \implies \operatorname{ev}_C(e, N, cs, u) \ne \mathrm{pass}$$
+$$c \in cs \wedge r \in c.\mathit{readings} \wedge \neg\operatorname{ok}(e, c.\mathit{row}, c.\mathit{col}, r) \implies \operatorname{ev}_C(e, N, cs, u) \ne \mathrm{pass}$$
+
+A cell with a pass and one unexcused reading is not a pass. -/
+theorem engineVerdictC_ne_pass_of_reading (e : String) (N : Bool) (cs : List TableCell) (u : Nat) (c : TableCell)
+    (hc : c ∈ cs) (r : Reading) (hr : r ∈ c.readings) (h : r.ok e c.row c.col = false) : engineVerdictC e N cs u ≠ .pass :=
+  engineVerdictC_ne_pass_of_cell e N cs u c hc (TableCell.not_ok_of_reading e N c r hr h)
+
+/-- A not-comparable reading that no exemption names keeps its engine from passing, even beside passing readings of the same cell.
+
+$$c \in cs \wedge r \in c.\mathit{readings} \wedge r.v = \mathrm{nc} \wedge \operatorname{excuse}(e, c.\mathit{row}, c.\mathit{col}, r) = \bot \implies \operatorname{ev}_C(e, N, cs, u) \ne \mathrm{pass}$$
 
 Not comparable is never a pass. -/
 theorem engineVerdictC_nc_ne_pass (e : String) (N : Bool) (cs : List TableCell) (u : Nat) (c : TableCell)
-    (hc : c ∈ cs) (hv : c.v = some .nc) (hx : excuse e N c = none) : engineVerdictC e N cs u ≠ .pass := by
-  apply engineVerdictC_ne_pass_of_cell e N cs u c hc
-  simp [TableCell.ok, TableCell.isPass, hv, hx]
+    (hc : c ∈ cs) (r : Reading) (hr : r ∈ c.readings) (hv : r.v = .nc) (hx : excuseReading e c.row c.col r = none) :
+    engineVerdictC e N cs u ≠ .pass := by
+  apply engineVerdictC_ne_pass_of_reading e N cs u c hc r hr
+  simp [Reading.ok, hv, hx]
 
 /-- In a run that was not narrowed, a not-run cell keeps its engine from passing.
 
-$$c \in cs \wedge c.v = \mathrm{notRun} \implies \operatorname{ev}_C(e, \bot, cs, u) \ne \mathrm{pass}$$
+$$c \in cs \wedge c.\mathit{readings} = [\,] \implies \operatorname{ev}_C(e, \bot, cs, u) \ne \mathrm{pass}$$
 
 A full run has no missing cell. -/
 theorem engineVerdictC_notRun_ne_pass (e : String) (cs : List TableCell) (u : Nat) (c : TableCell)
-    (hc : c ∈ cs) (hv : c.v = none) : engineVerdictC e false cs u ≠ .pass := by
+    (hc : c ∈ cs) (hv : c.readings = []) : engineVerdictC e false cs u ≠ .pass := by
   apply engineVerdictC_ne_pass_of_cell e false cs u c hc
-  simp [TableCell.ok, TableCell.isPass, excuse, hv]
+  simp [TableCell.ok, hv]
 
-/-- A failing cell fails its engine.
+/-- A failing reading fails its engine.
 
-$$\exists c \in cs,\ c.v = \mathrm{fail} \implies \operatorname{ev}_C(e, N, cs, u) = \mathrm{fail}$$
+$$c \in cs \wedge r \in c.\mathit{readings} \wedge r.v = \mathrm{fail} \implies \operatorname{ev}_C(e, N, cs, u) = \mathrm{fail}$$
 
 Unsettled samples do not hide a failure. -/
 theorem engineVerdictC_fail (e : String) (N : Bool) (cs : List TableCell) (u : Nat) (c : TableCell)
-    (hc : c ∈ cs) (hv : c.v = some .fail) : engineVerdictC e N cs u = .fail := by
+    (hc : c ∈ cs) (r : Reading) (hr : r ∈ c.readings) (hv : r.v = .fail) : engineVerdictC e N cs u = .fail := by
   unfold engineVerdictC
-  have : cs.any TableCell.isFail = true := List.any_eq_true.2 ⟨c, hc, by simp [TableCell.isFail, hv]⟩
+  have : cs.any TableCell.isFail = true :=
+    List.any_eq_true.2 ⟨c, hc, List.any_eq_true.2 ⟨r, hr, by simp [hv]⟩⟩
   simp [this]
 
 /-- Unsettled samples keep an engine from passing.
@@ -349,6 +470,7 @@ theorem engineVerdictC_unsettled_ne_pass (e : String) (N : Bool) (cs : List Tabl
   intro hp
   have := ((engine_pass_iff_all_cells e N cs u).1 hp).1
   omega
+
 
 /-! ## The unsettled count from the settle wait
 
@@ -570,27 +692,30 @@ $$\operatorname{ow}(\texttt{missing}) = \mathrm{unsettled}$$
 -/
 theorem outcomeOfWire_missing : outcomeOfWire "missing" = .ok .unsettled := by simp [outcomeOfWire]
 
-/-- One table cell from its wire names: the row, the column and the verdict name (`pass`, `fail`, `not-comparable`,
-`unreachable:<reason>`, or `not-run` for a block with no verdicts).
+/-- One table cell from its wire form: the row, the column and the readings (reading id, verdict name), each name `pass`, `fail`,
+`not-comparable` or `unreachable:<reason>`; no reading at all is a block that was not run.
 
-$$\operatorname{cell}(r, c, n) = \begin{cases} \operatorname{ok}((r, c, \mathrm{notRun})) & n = \texttt{not-run} \\ \operatorname{ok}((r, c, v(n))) & v(n) \text{ known} \\ \operatorname{error}(\texttt{unknown verdict } n) & \text{otherwise} \end{cases}$$
+$$\operatorname{cell}(\rho, \kappa, [(i_k, n_k)]_k) = \begin{cases} \operatorname{ok}\bigl((\rho, \kappa, [(i_k, v(n_k))]_k)\bigr) & \text{every } v(n_k) \text{ known} \\ \operatorname{error}(\texttt{unknown verdict } n_k) & n_k \text{ the first unknown name} \end{cases}$$
 
-An unknown name is an error, never a pass. -/
-def tableCellOfWire (row col name : String) : Except String TableCell :=
-  if name = "not-run" then .ok ⟨row, col, none⟩
-  else do return ⟨row, col, some (← Fw.Wire.Gate.verdictOf name)⟩
+An unknown name is an error, never a pass; there is no `not-run` reading name, only the empty list. -/
+def tableCellOfWire (row col : String) (readings : List (String × String)) : Except String TableCell := do
+  let rs ← readings.mapM fun p => do
+    let v ← Fw.Wire.Gate.verdictOf p.2
+    return (⟨p.1, v⟩ : Reading)
+  return ⟨row, col, rs⟩
 
-/-- The verdict of one engine from the wire names of its cells (row, column, verdict) and of its samples' wait outcomes (one
-pair per probe or sweep stop).
+/-- The verdict of one engine from the wire form of its cells (row, column, readings) and of its samples' wait outcomes (one pair per
+probe or sweep stop).
 
-$$\operatorname{ev}_{WW}(e, N, ns, ws) = \begin{cases} \operatorname{ok}\bigl(\operatorname{ev}_S(e, N, [\operatorname{cell}(r, c, n)]_{(r, c, n) \in ns},\ [(\operatorname{ow}(a), \operatorname{ow}(b))]_{(a, b) \in ws})\bigr) & \text{every name is known} \\ \operatorname{error}(m) & m \text{ the first error: the cells are read first, in order, then the waits} \end{cases}$$
+$$\operatorname{ev}_{WW}(e, N, ns, ws) = \begin{cases} \operatorname{ok}\bigl(\operatorname{ev}_S(e, N, [\operatorname{cell}(\rho, \kappa, rs)]_{(\rho, \kappa, rs) \in ns},\ [(\operatorname{ow}(a), \operatorname{ow}(b))]_{(a, b) \in ws})\bigr) & \text{every name is known} \\ \operatorname{error}(m) & m \text{ the first error: the cells are read first, in order, then the waits} \end{cases}$$
 
 -/
-def engineVerdictCW (engine : String) (narrowed : Bool) (cells : List (String × String × String))
+def engineVerdictCW (engine : String) (narrowed : Bool) (cells : List (String × String × List (String × String)))
     (waits : List (String × String)) : Except String EngineVerdict := do
   let cs ← cells.mapM fun c => tableCellOfWire c.1 c.2.1 c.2.2
   let ws ← waits.mapM fun w => do return ((← outcomeOfWire w.1), (← outcomeOfWire w.2))
   return engineVerdictCS engine narrowed cs ws
+
 
 /-! ## The wire form (what `cli.mjs` reads) -/
 
@@ -605,12 +730,13 @@ def verdictWire : EngineVerdict → String
 /-! ## Golden vectors -/
 
 open Lean in
-/-- The JSON of one exemption: id, engine, row (`null`: any), column, verdict wire name, reason and premise.
+/-- The JSON of one exemption: id, engine, row (`null`: any), column, reading ids (`null`: any), verdict wire name, reason and premise.
 
-$$x \mapsto \{\mathrm{col}, \mathrm{engine}, \mathrm{id}, \mathrm{kind} = \texttt{exemption}, \mathrm{premise}, \mathrm{reason}, \mathrm{row}, \mathrm{verdict}\}$$ -/
+$$x \mapsto \{\mathrm{col}, \mathrm{engine}, \mathrm{id}, \mathrm{ids}, \mathrm{kind} = \texttt{exemption}, \mathrm{premise}, \mathrm{reason}, \mathrm{row}, \mathrm{verdict}\}$$ -/
 def exemptionLine (x : Exemption) : String :=
   (Json.mkObj [("kind", "exemption"), ("id", x.id), ("engine", x.engine),
     ("row", match x.row with | some r => Json.str r | none => Json.null), ("col", x.col),
+    ("ids", match x.ids with | some l => toJson l | none => Json.null),
     ("verdict", Fw.Wire.Gate.verdictName x.verdict), ("reason", x.reason), ("premise", x.premise.toString)]).compress
 
 open Lean in
@@ -620,25 +746,36 @@ $$\{\mathrm{id} = \texttt{narrowed-run},\ \mathrm{kind} = \texttt{narrowed},\ \m
 def narrowedLine : String :=
   (Json.mkObj [("kind", "narrowed"), ("id", narrowedId), ("reason", narrowedReason)]).compress
 
+/-- The excuses of a cell, one per excused reading: (excuse id, cell id `row|col`, reading id). A not-run cell of a narrowed run has one,
+under `narrowed-run` with an empty reading id.
+
+$$X(e, N, c) = \begin{cases} [(\texttt{narrowed-run}, \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, \varepsilon)] & c.\mathit{readings} = [\,] \wedge N \\ [\,] & c.\mathit{readings} = [\,] \wedge \neg N \\ [(\operatorname{excuse}(e, \rho, \kappa, r), \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, r.\mathit{id}) \mid r \in c.\mathit{readings},\ \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot] & \text{otherwise} \end{cases}$$
+
+-/
+def cellExcuses (e : String) (narrowed : Bool) (c : TableCell) : List (List String) :=
+  if c.readings.isEmpty then (if narrowed then [[narrowedId, c.row ++ "|" ++ c.col, ""]] else [])
+  else c.readings.filterMap fun r => (excuseReading e c.row c.col r).map fun id => [id, c.row ++ "|" ++ c.col, r.id]
+
 open Lean in
-/-- One engine case: the engine, whether the run was narrowed, the wire names of its cells (row, column, verdict) and of its
-samples' waits; the verdict, the unsettled count and the excused cells (excuse id, cell id `row|col`), or the first error.
+/-- One engine case: the engine, whether the run was narrowed, the wire form of its cells (row, column, readings) and of its
+samples' waits; the verdict, the unsettled count and the excused readings, or the first error.
 
 $$\operatorname{engineCase}(e, N, ns, ws) = \begin{cases} \{\mathrm{cells} = ns,\ \mathrm{engine} = e,\ \mathrm{exempt} = X,\ \mathrm{kind} = \texttt{engine},\ \mathrm{narrowed} = N,\ \mathrm{unsettled} = \operatorname{u}(ws'),\ \mathrm{verdict} = \operatorname{wire}(v),\ \mathrm{waits} = ws\} & \operatorname{ev}_{WW}(e, N, ns, ws) = \operatorname{ok}(v) \\ \{\mathrm{cells} = ns,\ \mathrm{engine} = e,\ \mathrm{error} = m,\ \mathrm{kind} = \texttt{engine},\ \mathrm{narrowed} = N,\ \mathrm{waits} = ws\} & \operatorname{ev}_{WW}(e, N, ns, ws) = \operatorname{error}(m) \end{cases}$$
 
-Here $X = [[\operatorname{excuse}(e, N, c), r \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} c] \mid (r, c, \cdot) \in ns,\ \operatorname{excuse}(e, N, \cdot) \ne \bot]$.
+Here $X = \bigoplus_{c} X(e, N, c)$ over the cells $c$ read from $ns$, in order.
 One compact JSON object with keys in sorted order. -/
-def engineCase (engine : String) (narrowed : Bool) (cells : List (String × String × String))
+def engineCase (engine : String) (narrowed : Bool) (cells : List (String × String × List (String × String)))
     (waits : List (String × String)) : String :=
   let head := [("kind", Json.str "engine"), ("engine", Json.str engine), ("narrowed", toJson narrowed),
-    ("cells", toJson (cells.map fun c => [c.1, c.2.1, c.2.2])), ("waits", toJson (waits.map fun w => [w.1, w.2]))]
+    ("cells", Json.arr (cells.map fun c => Json.arr #[Json.str c.1, Json.str c.2.1, toJson (c.2.2.map fun p => [p.1, p.2])]).toArray),
+    ("waits", toJson (waits.map fun w => [w.1, w.2]))]
   match engineVerdictCW engine narrowed cells waits with
   | .ok v =>
     let cs := cells.filterMap fun c => (tableCellOfWire c.1 c.2.1 c.2.2).toOption
     let ws := waits.filterMap fun w => match outcomeOfWire w.1, outcomeOfWire w.2 with
       | .ok a, .ok b => some (a, b)
       | _, _ => none
-    let ex := cs.filterMap fun c => (excuse engine narrowed c).map fun id => [id, c.row ++ "|" ++ c.col]
+    let ex := cs.flatMap (cellExcuses engine narrowed)
     (Json.mkObj (head ++ [("unsettled", toJson (unsettledStates ws)), ("verdict", Json.str (verdictWire v)), ("exempt", toJson ex)])).compress
   | .error e => (Json.mkObj (head ++ [("error", Json.str e)])).compress
 
@@ -662,6 +799,42 @@ $$\operatorname{exitCase}(vs) = \{\mathrm{engines} = [\,\operatorname{wire}(v) \
 One compact JSON object with keys in sorted order: the wire names of the verdicts, in order, and the exit code. -/
 def exitCase (vs : List EngineVerdict) : String :=
   (Json.mkObj [("kind", "exit"), ("engines", toJson (vs.map verdictWire)), ("exit", toJson (exitCode vs))]).compress
+
+/-- A single-reading wire cell from a (row, column, verdict name) triple; the name `not-run` is a cell with no reading. The reading is
+called `probe`.
+
+$$\operatorname{cell}_1(\rho, \kappa, n) = \begin{cases} (\rho, \kappa, [\,]) & n = \texttt{not-run} \\ (\rho, \kappa, [(\texttt{probe}, n)]) & \text{otherwise} \end{cases}$$ -/
+def cell1 (c : String × String × String) : String × String × List (String × String) :=
+  (c.1, c.2.1, if c.2.2 == "not-run" then [] else [("probe", c.2.2)])
+
+/-- One engine case whose cells each have one reading, from (row, column, verdict name) triples; the name `not-run` is a cell with no
+reading. The reading is called `probe`.
+
+$$\operatorname{engineCase}_1(e, N, ns, ws) = \operatorname{engineCase}(e, N, [(\rho, \kappa, rs(n))]_{(\rho, \kappa, n) \in ns}, ws),\quad rs(n) = \begin{cases} [\,] & n = \texttt{not-run} \\ [(\texttt{probe}, n)] & \text{otherwise} \end{cases}$$
+
+The single-reading cases of the golden file. -/
+def engineCase1 (engine : String) (narrowed : Bool) (cells : List (String × String × String))
+    (waits : List (String × String)) : String :=
+  engineCase engine narrowed (cells.map cell1) waits
+
+/-- The verdict of the single-reading wire cells, for the `#guard`s below.
+
+$$\operatorname{ev}_1(e, N, ns, ws) = \operatorname{ev}_{WW}(e, N, [rs(n)]_{(\rho, \kappa, n) \in ns}, ws)$$ -/
+def verdict1 (engine : String) (narrowed : Bool) (cells : List (String × String × String))
+    (waits : List (String × String)) : Option EngineVerdict :=
+  (engineVerdictCW engine narrowed (cells.map cell1) waits).toOption
+
+/-- The cells of a sweep from the verdict names of its stops, the stop `i` being the reading `<sweep>#i`.
+
+$$\operatorname{sweepCell}(\rho, s, [n_i]_i) = (\rho, \texttt{sweep:}s, [(s \mathbin{+\!\!+} \texttt{"\#"} \mathbin{+\!\!+} i, n_i)]_i)$$ -/
+def sweepCell (row sweep : String) (names : List String) : String × String × List (String × String) :=
+  (row, "sweep:" ++ sweep, ((List.range names.length).zip names).map fun p => (s!"{sweep}#{p.1}", p.2))
+
+/-- The Lean row of the tablet sweep from the verdict names of its five stops.
+
+$$\operatorname{touch}([n_i]_i) = \operatorname{sweepCell}(\texttt{matchMedia =Lean}, \texttt{touch-1024-1201}, [n_i]_i)$$ -/
+def touchMm (names : List String) : String × String × List (String × String) :=
+  sweepCell "matchMedia =Lean" "touch-1024-1201" names
 
 /-- A passing cell in the original's `desk` column, for the cases below.
 
@@ -694,39 +867,53 @@ exemption, a not-run cell in a full and in a narrowed run, the order fail over u
 wait outcomes (plain digits only, a missing wait, an unknown name, the first error). -/
 def goldenLines : List String :=
   exemptions.map exemptionLine ++ [narrowedLine] ++
-  [ engineCase "chromium" false [okCell, ncMm] [("settled@3", "settled@5")],
-    engineCase "chromium" false [okCell, ("nav.hitTest", "fractional-gaps", "not-comparable")] [],
-    engineCase "chromium" false [okCell, ("matchMedia =Lean", "desk", "not-comparable")] [],
-    engineCase "chromium" false [okCell, ("matchMedia =Lean", "fractional-gaps", "unreachable:whole-width")] [],
-    engineCase "playwright-webkit" false [okCell, ncMm] [],
-    engineCase "playwright-webkit" false [okCell, crossCell, fracCell, ("matchMedia =Lean", "hover-pointer-cross", "unreachable:primary-pair")] [("settled@0", "settled@0")],
-    engineCase "playwright-webkit" false [okCell, ("hero.exit", "hover-pointer-cross", "unreachable:whole-width")] [],
-    engineCase "playwright-webkit" false [okCell, ("hero.exit", "desk", "unreachable:primary-pair")] [],
-    engineCase "playwright-webkit" false [okCell, ("hero.exit", "hover-pointer-cross", "not-comparable")] [],
-    engineCase "chromium" false [okCell, crossCell] [],
-    engineCase "firefox" false [okCell, crossCell] [],
-    engineCase "playwright-webkit" false [okCell, crossCell, ("platform.stageBg", "sweep:desktop-1512-320-1512", "fail")] [],
-    engineCase "chromium" false [okCell, ("hero.exit", "desk", "unreachable:width-dpr")] [],
-    engineCase "chromium" false [okCell, ("morph.panel", "desk", "not-run")] [],
-    engineCase "chromium" true [okCell, ("morph.panel", "desk", "not-run")] [],
-    engineCase "chromium" true [okCell, ("morph.panel", "desk", "not-run"), ncMm] [],
-    engineCase "chromium" true [okCell, ("hero.exit", "desk", "not-comparable")] [],
-    engineCase "chromium" true [("morph.panel", "desk", "not-run")] [],
-    engineCase "chromium" false [ncMm] [],
-    engineCase "chromium" false [] [],
-    engineCase "chromium" false [okCell, ("hero.exit", "desk", "fail")] [("unsettled", "settled@1")],
-    engineCase "chromium" false [okCell] [("settled@3", "settled@5"), ("settled@2", "settled@2")],
-    engineCase "chromium" false [okCell] [("settled@3", "settled@5"), ("settled@2", "unsettled")],
-    engineCase "chromium" false [okCell] [("unsettled", "settled@1")],
-    engineCase "chromium" false [okCell, ("hero.exit", "desk", "not-comparable")] [("settled@3", "missing")],
-    engineCase "chromium" false [okCell] [("settled@3", "late")],
-    engineCase "chromium" false [okCell] [("settled@007", "settled@0")],
-    engineCase "chromium" false [okCell] [("settled@1_0", "settled@0")],
-    engineCase "chromium" false [okCell] [("settled@", "settled@0")],
-    engineCase "chromium" false [okCell] [("settled@+1", "settled@0")],
-    engineCase "chromium" false [okCell, ("hero.exit", "desk", "bogus")] [("late", "settled@0")],
-    engineCase "chromium" false [okCell] [("late", "settled@0"), ("also-late", "settled@0")],
-    engineCase "chromium" false [("hero.exit", "desk", "not-run")] [],
+  [ engineCase1 "chromium" false [okCell, ncMm] [("settled@3", "settled@5")],
+    engineCase1 "chromium" false [okCell, ("nav.hitTest", "fractional-gaps", "not-comparable")] [],
+    engineCase1 "chromium" false [okCell, ("matchMedia =Lean", "desk", "not-comparable")] [],
+    engineCase1 "chromium" false [okCell, ("matchMedia =Lean", "fractional-gaps", "unreachable:whole-width")] [],
+    engineCase1 "playwright-webkit" false [okCell, ncMm] [],
+    engineCase1 "playwright-webkit" false [okCell, crossCell, fracCell, ("matchMedia =Lean", "hover-pointer-cross", "unreachable:primary-pair")] [("settled@0", "settled@0")],
+    engineCase1 "playwright-webkit" false [okCell, ("hero.exit", "hover-pointer-cross", "unreachable:whole-width")] [],
+    engineCase1 "playwright-webkit" false [okCell, ("hero.exit", "desk", "unreachable:primary-pair")] [],
+    engineCase1 "playwright-webkit" false [okCell, ("hero.exit", "hover-pointer-cross", "not-comparable")] [],
+    engineCase1 "chromium" false [okCell, crossCell] [],
+    engineCase1 "firefox" false [okCell, crossCell] [],
+    engineCase1 "playwright-webkit" false [okCell, crossCell, ("platform.stageBg", "sweep:desktop-1512-320-1512", "fail")] [],
+    engineCase1 "chromium" false [okCell, ("hero.exit", "desk", "unreachable:width-dpr")] [],
+    engineCase1 "chromium" false [okCell, ("morph.panel", "desk", "not-run")] [],
+    engineCase1 "chromium" true [okCell, ("morph.panel", "desk", "not-run")] [],
+    engineCase1 "chromium" true [okCell, ("morph.panel", "desk", "not-run"), ncMm] [],
+    engineCase1 "chromium" true [okCell, ("hero.exit", "desk", "not-comparable")] [],
+    engineCase1 "chromium" true [("morph.panel", "desk", "not-run")] [],
+    engineCase1 "chromium" false [ncMm] [],
+    engineCase1 "chromium" false [] [],
+    engineCase1 "chromium" false [okCell, ("hero.exit", "desk", "fail")] [("unsettled", "settled@1")],
+    engineCase1 "chromium" false [okCell] [("settled@3", "settled@5"), ("settled@2", "settled@2")],
+    engineCase1 "chromium" false [okCell] [("settled@3", "settled@5"), ("settled@2", "unsettled")],
+    engineCase1 "chromium" false [okCell] [("unsettled", "settled@1")],
+    engineCase1 "chromium" false [okCell, ("hero.exit", "desk", "not-comparable")] [("settled@3", "missing")],
+    engineCase1 "chromium" false [okCell] [("settled@3", "late")],
+    engineCase1 "chromium" false [okCell] [("settled@007", "settled@0")],
+    engineCase1 "chromium" false [okCell] [("settled@1_0", "settled@0")],
+    engineCase1 "chromium" false [okCell] [("settled@", "settled@0")],
+    engineCase1 "chromium" false [okCell] [("settled@+1", "settled@0")],
+    engineCase1 "chromium" false [okCell, ("hero.exit", "desk", "bogus")] [("late", "settled@0")],
+    engineCase1 "chromium" false [okCell] [("late", "settled@0"), ("also-late", "settled@0")],
+    engineCase1 "chromium" false [("hero.exit", "desk", "not-run")] [],
+    engineCase "chromium" false [cell1 okCell, touchMm ["not-comparable", "pass", "not-comparable", "pass", "not-comparable"]] [],
+    engineCase "playwright-webkit" false [cell1 okCell, touchMm ["not-comparable", "pass", "not-comparable", "pass", "not-comparable"]] [],
+    engineCase "chromium" false [cell1 okCell, touchMm ["not-comparable", "not-comparable", "not-comparable", "pass", "not-comparable"]] [],
+    engineCase "chromium" true [cell1 okCell, touchMm ["not-comparable", "pass", "pass", "pass", "not-comparable"]] [],
+    engineCase "chromium" false [cell1 okCell, touchMm ["not-comparable", "pass", "fail", "pass", "not-comparable"]] [],
+    engineCase "chromium" false [cell1 okCell, sweepCell "hero.exit" "touch-1024-1201" ["not-comparable", "pass", "not-comparable", "pass", "not-comparable"]] [],
+    engineCase "chromium" false [cell1 okCell, ("matchMedia =Lean", "sweep:touch-1024-1201", [("other#0", "not-comparable"), ("touch-1024-1201#1", "pass")])] [],
+    engineCase "playwright-webkit" false [cell1 okCell, sweepCell "matchMedia =Lean" "phone-rotation" ["pass", "not-comparable", "pass", "not-comparable", "pass"]] [],
+    engineCase "chromium" false [cell1 okCell, sweepCell "nav.hitTest" "s" ["pass", "not-comparable"]] [],
+    engineCase "chromium" false [cell1 okCell, ("hero.exit", "desk", [("a", "pass"), ("b", "unreachable:primary-pair")])] [],
+    engineCase "playwright-webkit" false [cell1 okCell, ("hero.exit", "hover-pointer-cross", [("a", "unreachable:primary-pair"), ("b", "pass")])] [],
+    engineCase "chromium" false [("hero.exit", "desk", [("a", "pass"), ("b", "pass")]), sweepCell "nav.hitTest" "s" ["pass", "pass", "pass"]] [("settled@1", "settled@2")],
+    engineCase "chromium" false [("hero.exit", "desk", [("a", "fail"), ("b", "pass")])] [("unsettled", "settled@1")],
+    engineCase "chromium" false [("hero.exit", "desk", [("a", "pass"), ("b", "bogus")])] [],
     exitCase [.pass],
     exitCase [.pass, .pass],
     exitCase [.pass, .fail],
@@ -746,7 +933,8 @@ def goldenLines : List String :=
     staleCase "settled@4" "late",
     staleCase "settled@" "settled@1" ]
 
-#guard goldenLines.length == 55
+#guard goldenLines.length == 5 + 1 + 47 + 10 + 8
+#guard touch1024Ids == ["touch-1024-1201#0", "touch-1024-1201#2", "touch-1024-1201#4"]
 #guard exitCode [] == 1
 #guard exitCode [.pass, .pass] == 0
 #guard exitCode [.pass, .fail] == 1
@@ -758,13 +946,40 @@ def goldenLines : List String :=
 #guard plainNat? "٣" == none
 #guard staleComparable (.settled 1) .unsettled == false
 -- the wire cells below are decided by Lean; the cases above pin the golden bytes
-#guard (engineVerdictCW "chromium" false [okCell, ncMm] []).toOption == some .pass
-#guard (engineVerdictCW "chromium" false [okCell, ("nav.hitTest", "fractional-gaps", "not-comparable")] []).toOption == some .incomplete
-#guard (engineVerdictCW "playwright-webkit" false [okCell, crossCell, fracCell] []).toOption == some .pass
-#guard (engineVerdictCW "playwright-webkit" false [okCell, ("hero.exit", "desk", "unreachable:primary-pair")] []).toOption == some .incomplete
-#guard (engineVerdictCW "chromium" false [okCell, ("morph.panel", "desk", "not-run")] []).toOption == some .incomplete
-#guard (engineVerdictCW "chromium" true [okCell, ("morph.panel", "desk", "not-run")] []).toOption == some .pass
-#guard (engineVerdictCW "chromium" false [okCell, ("hero.exit", "desk", "fail")] [("unsettled", "settled@1")]).toOption == some .fail
-#guard (engineVerdictCW "chromium" false [okCell] [("settled@1_0", "settled@0")]).toOption == none
+#guard verdict1 "chromium" false [okCell, ncMm] [] == some .pass
+#guard verdict1 "chromium" false [okCell, ("nav.hitTest", "fractional-gaps", "not-comparable")] [] == some .incomplete
+#guard verdict1 "playwright-webkit" false [okCell, crossCell, fracCell] [] == some .pass
+#guard verdict1 "playwright-webkit" false [okCell, ("hero.exit", "desk", "unreachable:primary-pair")] [] == some .incomplete
+#guard verdict1 "chromium" false [okCell, ("morph.panel", "desk", "not-run")] [] == some .incomplete
+#guard verdict1 "chromium" true [okCell, ("morph.panel", "desk", "not-run")] [] == some .pass
+#guard verdict1 "chromium" false [okCell, ("hero.exit", "desk", "fail")] [("unsettled", "settled@1")] == some .fail
+#guard verdict1 "chromium" false [okCell] [("settled@1_0", "settled@0")] == none
+/-- The exact bytes of `packages/contracts/golden/gate/exit.jsonl`: the lines, each newline-terminated.
+
+$$\text{goldenText} = \mathbin{+\!\!+}_{\ell \in \text{goldenLines}} (\ell \mathbin{+\!\!+} \texttt{newline})$$ -/
+def goldenText : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
+
+/-- Command-line driver (`lean/scripts/ExitGolden.lean`): print the golden text, or with `--check <file>` exit 0 when the file holds
+exactly these bytes and 1 otherwise.
+
+$$\operatorname{run}(\mathit{args}) = 0 \iff \text{no mismatch}$$ -/
+def run (args : List String) : IO UInt32 := do
+  match Fw.Gate.Settle.argAfter args "--check" with
+  | some path =>
+    let cur ← IO.FS.readBinFile path
+    if cur.data == goldenText.toUTF8.data then
+      IO.eprintln s!"exit golden: {path} is up to date ({goldenLines.length} lines)"
+      return 0
+    IO.eprintln s!"exit golden: {path} differs from the generated bytes"
+    return 1
+  | none =>
+    IO.print goldenText
+    return 0
+
+-- a pass beside an unexcused not-comparable reading of the same cell is not a pass (the old rollup said pass)
+#guard (engineVerdictCW "chromium" false [cell1 okCell, sweepCell "nav.hitTest" "s" ["pass", "not-comparable"]] []).toOption == some .incomplete
+#guard (engineVerdictCW "chromium" false [cell1 okCell, touchMm ["not-comparable", "pass", "not-comparable", "pass", "not-comparable"]] []).toOption == some .pass
+#guard (engineVerdictCW "chromium" false [cell1 okCell, touchMm ["not-comparable", "not-comparable", "not-comparable", "pass", "not-comparable"]] []).toOption == some .incomplete
+#guard (engineVerdictCW "playwright-webkit" false [cell1 okCell, sweepCell "matchMedia =Lean" "phone-rotation" ["pass", "not-comparable", "pass", "not-comparable", "pass"]] []).toOption == some .incomplete
 
 end Fw.Gate.Exit
