@@ -5557,6 +5557,36 @@
    ],
    "owner": "measure-engineer",
    "writes": []
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "test-batch",
+   "title": "Speed review A1/A2/A4: wait-guard.test.ts and verdict.test.mjs literal cases batched into one fwcore process per describe (land wall ~240 s -> ~100 s); a second test keeps the per-call ask spawn path covered; wait-guard.test.ts:68 gets the 30 s timeout",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/test/wait-guard.test.ts",
+    "packages/gate-breakpoints/test/verdict.test.mjs",
+    "docs/team/handoffs/test-batch.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "speed-after-c3",
+   "title": "Speed review class B, after C3 (research/notes/2026/10-19-speed-review.md): mathview-differential per-job trigger in Fw.Ci.Trigger (saving only when lean is the slowest lane), 5x mathview lint slowdown, check.sh parallel cap and one sweepsgen, long-lived fwcore for the wait-guard hook or a proved pre-filter, land check-result cache by inputKey (cache_sound), props lint compiled, Wire.Obs rfl proofs, counts matrix sharing setup jobs, main-push heavy lanes",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "integrate-wave-2"
+   ],
+   "owner": "lead",
+   "writes": []
   }
  ],
  "deadline": {
