@@ -129,7 +129,7 @@ theorem skipped_replays {R} (S : String → List String) (w : Wf) (eff : List St
 /-- The path of a workflow file. $$\operatorname{own}(f) = \texttt{.github/workflows/}f$$ -/
 def own (f : String) : String := s!".github/workflows/{f}"
 
-/-- Branches of a `ci/*` lane that also runs on `main`. $$B = \{\texttt{ci/**},\ \texttt{main}\}$$ -/
+/-- Branches of a `ci/*` lane that also runs on `main`. $$B = [\texttt{ci/**},\ \texttt{main}]$$ -/
 def ciMain : List String := ["ci/**", "main"]
 
 /-- The files `lake build fwcore` reads besides the import cone of `Main`: the build files. `@fwcore.cone` is the cone.
@@ -148,15 +148,83 @@ $$S(@\mathrm{fwcore}) = F_{\mathrm{core}},\quad S(@\mathrm{breakgen}) = F_{\math
 def sets : List (String × List String) := [("@fwcore", fwcoreFiles), ("@breakgen", breakgenFiles)]
 
 /-- The set map with the given cones (`cone root` is the file list of the import cone of `root`).
-$$S_{\mathrm{cone}}(g) = \text{the entry of } g \text{ in } \mathrm{sets}\ \text{(or the cone of } g)$$ -/
+$$S_{\mathrm{cone}}(g) = \begin{cases} \operatorname{flatMap}\big(h \mapsto \mathrm{cone}(R) \text{ if } h = \texttt{@cone:}R \text{ else } [h],\ xs\big) & (g, xs) \text{ is the first pair of } \mathrm{sets} \text{ with key } g \\ [g] & \text{no pair of } \mathrm{sets} \text{ has key } g \end{cases}$$
+
+A plain glob maps to itself; a named set expands its cone markers. -/
 def setMap (cone : String → List String) (g : String) : List String :=
   match sets.lookup g with
   | some xs => xs.flatMap fun h => if h.startsWith "@cone:" then cone (h.drop 6).toString else [h]
   | none => [g]
 
 /-- The workflow table: the single place where a push trigger is decided.
-$$W = [\,(\mathit{file}, B, G)\,]$$ with `lean/**` replaced by the binary's own inputs where the workflow only builds
-`fwcore` or `breakgen`; `lean.yml` and the lean checks keep `lean/**`. -/
+$$\begin{aligned}
+W &= [w_1, \dots, w_{14}],\quad B = \mathrm{ciMain} \\
+w_{1} &= (\texttt{breakpoint-gate.yml}, B, G_{1}) \\
+G_{1} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{@}\mathrm{fwcore}, \texttt{@}\mathrm{breakgen}, \\
+&\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \\
+&\quad \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/gate-shards.mjs}, \texttt{.github/scripts/gate-jobs.mjs}, \texttt{.github/scripts/cache-key.mjs}, \\
+&\quad \texttt{packages/contracts/golden/gate/schedule.jsonl}, \texttt{packages/contracts/golden/ops/cache.jsonl}, \texttt{.github/scripts/gate-smoke.mjs}, \texttt{.github/scripts/merge-gate.mjs}, \\
+&\quad \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \\
+&\quad \texttt{.github/actions/gate-engine/**}, \operatorname{own}(\texttt{breakpoint-gate.yml})] \\
+w_{2} &= (\texttt{chromium-counts.yml}, B, G_{2}) \\
+G_{2} &= [\texttt{packages/measure-chromium/**}, \texttt{apps/site/**}, \texttt{@}\mathrm{fwcore}, \texttt{@}\mathrm{breakgen}, \\
+&\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \\
+&\quad \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/runner-info.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \\
+&\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \operatorname{own}(\texttt{chromium-counts.yml})] \\
+w_{3} &= (\texttt{difftest.yml}, B, G_{3}) \\
+G_{3} &= [\texttt{packages/difftest/**}, \texttt{packages/measure-webkit/src/**}, \texttt{packages/measure-chromium/src/**}, \texttt{apps/runner/hooks/cap.mjs}, \\
+&\quad \texttt{apps/console-api/src/cap/**}, \texttt{@}\mathrm{fwcore}, \texttt{pnpm-lock.yaml}, \texttt{.github/scripts/changed-inputs.mjs}, \\
+&\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \operatorname{own}(\texttt{difftest.yml})] \\
+w_{4} &= (\texttt{engine-premises.yml}, [\texttt{ci/**}], G_{4}) \\
+G_{4} &= [\texttt{packages/measure-chromium/**}, \texttt{packages/measure-wktr/**}, \texttt{packages/contracts/golden/ops/engine-premises.jsonl}, \texttt{.github/scripts/runner-info.sh}, \\
+&\quad \texttt{.github/scripts/changed-inputs.mjs}, \operatorname{own}(\texttt{engine-premises.yml})] \\
+w_{5} &= (\texttt{gate-gaps.yml}, B, G_{5}) \\
+G_{5} &= [\texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{@}\mathrm{fwcore}, \texttt{@}\mathrm{breakgen}, \\
+&\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \\
+&\quad \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/check-simulator.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \\
+&\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \operatorname{own}(\texttt{gate-gaps.yml})] \\
+w_{6} &= (\texttt{lean.yml}, B, G_{6}) \\
+G_{6} &= [\texttt{lean/**}, \texttt{apps/site/src/breakpoints.gen.json}, \texttt{apps/site/src/sweeps.gen.json}, \texttt{scripts/span.sh}, \\
+&\quad \texttt{scripts/fwcore-build.sh}, \texttt{packages/contracts/golden/gate/sweeps.jsonl}, \texttt{packages/gate-breakpoints/src/scope.gen.json}, \texttt{.github/scripts/changed-inputs.mjs}, \\
+&\quad \texttt{.github/actions/setup-lean/**}, \texttt{.github/scripts/runner-info.sh}, \operatorname{own}(\texttt{lean.yml})] \\
+w_{7} &= (\texttt{mutants.yml}, B, G_{7}) \\
+G_{7} &= [\texttt{lean/Fw/Console.lean}, \texttt{lean/Fw/Serve.lean}, \texttt{lean/Fw/Ops/Meter.lean}, \texttt{lean/Fw/Ops/PathCheck.lean}, \\
+&\quad \texttt{lean/Fw/Ops/SpawnGuard.lean}, \texttt{lean/Fw/Ops/Usage.lean}, \texttt{lean/Fw/Ops/Wire.lean}, \texttt{lean/Fw/Spec/DeviceQueue.lean}, \\
+&\quad \texttt{lean/Fw/Wire.lean}, \texttt{lean/FwTest/Mutants/**}, \texttt{lean/scripts/mutants.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \\
+&\quad \texttt{.github/actions/setup-lean/**}, \operatorname{own}(\texttt{mutants.yml})] \\
+w_{8} &= (\texttt{premise-tests.yml}, B, G_{8}) \\
+G_{8} &= [\texttt{packages/premise-tests/**}, \texttt{packages/contracts/golden/ops/premise.jsonl}, \texttt{lean/Fw/Ops/Premise.lean}, \texttt{apps/runner/src/premises.ts}, \\
+&\quad \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/changed-inputs.mjs}, \\
+&\quad \texttt{.github/actions/setup-pnpm/**}, \texttt{.github/actions/gate-engine/**}, \operatorname{own}(\texttt{premise-tests.yml})] \\
+w_{9} &= (\texttt{sim-speed.yml}, [\texttt{ci/sim-speed}], G_{9}) \\
+G_{9} &= [\texttt{packages/measure-webkit/**}, \texttt{.github/scripts/sim-speed-*}, \texttt{.github/scripts/check-simulator.sh}, \texttt{.github/scripts/runner-info.sh}, \\
+&\quad \texttt{.github/scripts/changed-inputs.mjs}, \operatorname{own}(\texttt{sim-speed.yml})] \\
+w_{10} &= (\texttt{snapshot-extract.yml}, B, G_{10}) \\
+G_{10} &= [\texttt{packages/snapshot-extract/**}, \texttt{packages/gate-breakpoints/**}, \texttt{apps/site/**}, \texttt{snapshot/**}, \\
+&\quad \texttt{snapshot.lock.json}, \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \\
+&\quad \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \\
+&\quad \texttt{.github/actions/gate-engine/**}, \operatorname{own}(\texttt{snapshot-extract.yml})] \\
+w_{11} &= (\texttt{visual-diff.yml}, B, G_{11}) \\
+G_{11} &= [\texttt{packages/visual-diff/**}, \texttt{packages/gate-breakpoints/src/**}, \texttt{packages/gate-breakpoints/package.json}, \texttt{packages/contracts/golden/gate/**}, \\
+&\quad \texttt{apps/site/**}, \texttt{@}\mathrm{breakgen}, \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \\
+&\quad \texttt{package.json}, \texttt{pnpm-lock.yaml}, \texttt{pnpm-workspace.yaml}, \texttt{.github/scripts/verify-snapshot.mjs}, \\
+&\quad \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \texttt{.github/actions/setup-pnpm/**}, \texttt{.github/actions/gate-engine/**}, \\
+&\quad \operatorname{own}(\texttt{visual-diff.yml})] \\
+w_{12} &= (\texttt{webkit-sim.yml}, B, G_{12}) \\
+G_{12} &= [\texttt{packages/measure-webkit/**}, \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{.github/scripts/check-simulator.sh}, \\
+&\quad \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/runner-info.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \operatorname{own}(\texttt{webkit-sim.yml})] \\
+w_{13} &= (\texttt{wktr-fixtures.yml}, [\texttt{ci/**}], G_{13}) \\
+G_{13} &= [\texttt{packages/measure-wktr/**}, \texttt{packages/measure-chromium/src/classify.mjs}, \texttt{packages/measure-chromium/src/fwcore.mjs}, \texttt{@}\mathrm{fwcore}, \\
+&\quad \texttt{packages/contracts/golden/measure/wktr.fixtures.jsonl}, \texttt{.github/scripts/runner-info.sh}, \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \\
+&\quad \operatorname{own}(\texttt{wktr-fixtures.yml})] \\
+w_{14} &= (\texttt{wktr.yml}, [\texttt{ci/**}], G_{14}) \\
+G_{14} &= [\texttt{packages/measure-wktr/**}, \texttt{packages/measure-chromium/src/classify.mjs}, \texttt{packages/measure-chromium/src/fwcore.mjs}, \texttt{@}\mathrm{fwcore}, \\
+&\quad \texttt{snapshot/**}, \texttt{snapshot.lock.json}, \texttt{.github/scripts/verify-snapshot.mjs}, \texttt{.github/scripts/runner-info.sh}, \\
+&\quad \texttt{.github/scripts/changed-inputs.mjs}, \texttt{.github/actions/setup-lean/**}, \operatorname{own}(\texttt{wktr.yml})]
+\end{aligned}$$
+
+Each row is (workflow file, branches, input globs); `lean/**` is replaced by the binary's own inputs where the
+workflow only builds `fwcore` or `breakgen`, while `lean.yml` and the lean checks keep `lean/**`. -/
 def table : List Wf := [
   ⟨"breakpoint-gate.yml", ciMain, [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
@@ -228,7 +296,7 @@ def table : List Wf := [
 #guard (table.map (·.file)).eraseDups.length == table.length
 
 /-- A small stand-in for the cones, for the replay cases (the real cones come from the checkout).
-$$\mathrm{cone}(\mathrm{Main}) = [\texttt{lean/Fw/Wire.lean},\ \texttt{lean/Fw/Ops/Wire.lean}]$$ -/
+$$\mathrm{cone}(r) = \begin{cases} [\texttt{lean/Fw/Wire.lean},\ \texttt{lean/Fw/Ops/Wire.lean}] & r = \texttt{Main} \\ [\texttt{lean/Fw/Site/Breakpoints.lean}] & r = \texttt{BreakgenMain} \\ [\,] & \text{otherwise} \end{cases}$$ -/
 def sampleCone : String → List String
   | "Main" => ["lean/Fw/Wire.lean", "lean/Fw/Ops/Wire.lean"]
   | "BreakgenMain" => ["lean/Fw/Site/Breakpoints.lean"]
@@ -422,7 +490,27 @@ def tableLine : Json :=
 
 /-- The replay cases: a push (its diff, the paths that already equal `main`); the workflows it starts under the
 sample cones are added by `caseLine`.
-$$\mathrm{cases} = [\, (n, D, M) \,]$$ -/
+$$\begin{aligned}
+\mathrm{cases} = [\, &(\text{docs only}, [\texttt{docs/team/handoffs/x.md}], [\,]), \\
+&(\text{lean test file}, [\texttt{lean/FwTest/Lease.lean}], [\,]), \\
+&(\text{lean script}, [\texttt{lean/scripts/check.sh}], [\,]), \\
+&(\text{a part module outside the fwcore cone}, [\texttt{lean/Fw/Parts/HeroExit.lean}], [\,]), \\
+&(\text{a module in the fwcore cone}, [\texttt{lean/Fw/Wire.lean}], [\,]), \\
+&(\text{a new module under lean/Fw, not yet imported}, [\texttt{lean/Fw/New.lean}], [\,]), \\
+&(\text{the breakgen cone}, [\texttt{lean/Fw/Site/Breakpoints.lean}], [\,]), \\
+&(\text{lake manifest}, [\texttt{lean/lake-manifest.json}], [\,]), \\
+&(\text{wktr package}, [\texttt{packages/measure-wktr/src/a.mjs}], [\,]), \\
+&(\text{site source}, [\texttt{apps/site/src/a.tsx}], [\,]), \\
+&(\text{the guard script}, [\texttt{.github/scripts/changed-inputs.mjs}], [\,]), \\
+&(\text{a merge of main only}, X, X), \\
+&(\text{a merge of main plus one own file}, [\texttt{lean/Fw/Wire.lean}, \texttt{packages/measure-wktr/src/a.mjs}], [\texttt{lean/Fw/Wire.lean}]), \\
+&(\text{the workflow file itself}, [\texttt{.github/workflows/wktr.yml}], [\,]), \\
+&(\text{a wktr fixture page}, [\texttt{packages/measure-wktr/fixtures/control/index.html}], [\,]), \\
+&(\text{nothing changed}, [\,], [\,])\,] \\
+X = [\, &\texttt{lean/Fw/Wire.lean}, \texttt{apps/site/src/a.tsx}, \texttt{packages/measure-wktr/src/a.mjs}\,]
+\end{aligned}$$
+
+Each case is (name $n$, diff $D$, merged paths $M$). -/
 def cases : List (String × List String × List String) := [
   ("docs only", ["docs/team/handoffs/x.md"], []),
   ("lean test file", ["lean/FwTest/Lease.lean"], []),

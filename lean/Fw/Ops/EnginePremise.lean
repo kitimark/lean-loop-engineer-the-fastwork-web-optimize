@@ -52,7 +52,7 @@ structure Observer where
 /-- **Chromium's observers**: one per counted stage the lane can observe per frame (the compositor stage `comp` is
 not observed: `census.layers` is positive in every frame).
 
-$$\begin{aligned} &\mathrm{script}: \texttt{FireAnimationFrame}, \texttt{FunctionCall};\ \mathrm{style}: \texttt{UpdateLayoutTree};\ \mathrm{layout}: \texttt{Layout};\ \mathrm{props}: \texttt{PrePaint}; \\ &\mathrm{paint}: \texttt{Paint};\ \mathrm{raster}: \texttt{RasterTask};\ \mathrm{commit}: \texttt{cc.Commit};\ \mathrm{hits}: \texttt{HitTest} \end{aligned}$$
+$$\begin{aligned} [&(\texttt{script}, \mathrm{script}, [\texttt{trace.FireAnimationFrame}, \texttt{trace.FunctionCall}]),\ (\texttt{style}, \mathrm{style}, [\texttt{trace.UpdateLayoutTree}]),\ (\texttt{layout}, \mathrm{layout}, [\texttt{trace.Layout}]), \\ &(\texttt{props}, \mathrm{props}, [\texttt{trace.PrePaint}]),\ (\texttt{paint}, \mathrm{paint}, [\texttt{trace.Paint}]),\ (\texttt{raster}, \mathrm{raster}, [\texttt{trace.RasterTask}]), \\ &(\texttt{commit}, \mathrm{commit}, [\texttt{trace.cc.Commit}]),\ (\texttt{hits}, \bot, [\texttt{trace.HitTest}])] \end{aligned}$$
 -/
 def crObservers : List Observer :=
   [⟨"script", some .script, ["trace.FireAnimationFrame", "trace.FunctionCall"]⟩,
@@ -161,7 +161,9 @@ def idleFrame {P : Type} : FrameIn P := ⟨0, 0, 0, 0, [], 0⟩
 /-- The steps of the page: every case, each followed by an idle frame (so a late async stage lands in a frame that
 expects nothing, and a mismatch there is visible).
 
-$$\operatorname{steps}(cs, o) = \mathop{+\!\!+}_{c \in cs}\ [c,\ (c.\mathrm{id} \mathbin{+\!\!+} \texttt{"+idle"},\ \mathrm{idle},\ \operatorname{expect}(\mathrm{idle}))]$$
+$$\operatorname{steps}(e, cs) = \mathop{+\!\!+}_{c \in cs}\ [c,\ (c.\mathrm{id} \mathbin{+\!\!+} \texttt{"+idle"},\ \mathrm{idle},\ \texttt{""},\ \texttt{""},\ \texttt{""},\ e)]$$
+
+Here $e$ is the idle frame's expectation list, passed in by the caller.
 -/
 def steps (idle : List (String × Bool)) (cs : List Case) : List Case :=
   cs.flatMap fun c => [c, { id := c.id ++ "+idle", act := .idle, expect := idle }]
@@ -177,7 +179,7 @@ def layers : List LayerState := [.none, .layer, .own]
 /-- **How each Chromium property is changed.** `strokeDashoffset` has no entry: it is an SVG-only property, and an SVG
 element's layer states are not those of the page's boxes, so it is not measured.
 
-$$\operatorname{crCss}(k) = (\text{css name},\ v_0,\ v_1)\ \text{for } k \ne \mathrm{strokeDashoffset},\quad \operatorname{crCss}(\mathrm{strokeDashoffset}) = \bot$$
+$$\operatorname{crCss}(k) = \begin{cases} (\texttt{transform}, \texttt{translateX(10px)}, \texttt{translateX(20px)}) & k = \mathrm{transform} \\ (\texttt{transform}, \texttt{none}, \texttt{translateX(10px)}) & k = \mathrm{transformToggle} \\ (\texttt{translate}, \texttt{10px 0px}, \texttt{20px 0px}) & k = \mathrm{translate} \\ (\texttt{scale}, \texttt{1.1}, \texttt{1.2}) & k = \mathrm{scale} \\ (\texttt{rotate}, \texttt{5deg}, \texttt{10deg}) & k = \mathrm{rotate} \\ (\texttt{opacity}, \texttt{0.5}, \texttt{0.6}) & k = \mathrm{opacity} \\ (\texttt{filter}, \texttt{brightness(0.9)}, \texttt{brightness(0.8)}) & k = \mathrm{filter}(\bot) \\ (\texttt{filter}, \texttt{blur(2px)}, \texttt{blur(4px)}) & k = \mathrm{filter}(\top) \\ (\texttt{backdrop-filter}, \texttt{blur(2px)}, \texttt{blur(4px)}) & k = \mathrm{backdropFilter} \\ (\texttt{background-position}, \texttt{0px 0px}, \texttt{5px 5px}) & k = \mathrm{backgroundPosition} \\ (\texttt{background-image}, \texttt{linear-gradient(\#f00,\#00f)}, \texttt{linear-gradient(\#00f,\#f00)}) & k = \mathrm{backgroundImage} \\ (\texttt{background-color}, \texttt{\#ccc}, \texttt{\#bbb}) & k = \mathrm{backgroundColor} \\ (\texttt{color}, \texttt{\#000}, \texttt{\#111}) & k = \mathrm{color} \\ (\texttt{clip-path}, \texttt{inset(0px)}, \texttt{inset(2px)}) & k = \mathrm{clipPath} \\ \bot & k = \mathrm{strokeDashoffset} \\ (\texttt{visibility}, \texttt{visible}, \texttt{hidden}) & k = \mathrm{visibility} \\ (\texttt{z-index}, \texttt{0}, \texttt{1}) & k = \mathrm{zIndex} \\ (\texttt{top}, \texttt{0px}, \texttt{2px}) & k = \mathrm{top} \\ (\texttt{left}, \texttt{0px}, \texttt{2px}) & k = \mathrm{left} \\ (\texttt{width}, \texttt{20px}, \texttt{24px}) & k = \mathrm{width} \\ (\texttt{height}, \texttt{20px}, \texttt{24px}) & k = \mathrm{height} \\ (\texttt{margin}, \texttt{0px}, \texttt{2px}) & k = \mathrm{margin} \\ (\texttt{padding}, \texttt{0px}, \texttt{2px}) & k = \mathrm{padding} \end{cases}$$
 -/
 def crCss : CrKey → Option Css
   | .transform => some ⟨"transform", "translateX(10px)", "translateX(20px)"⟩
@@ -257,7 +259,9 @@ def crFrame (k : CrKey) (l : LayerState) : FrameIn CrProp := ⟨0, 0, 0, 0, [⟨
 /-- **The Chromium cases**: every realizable member as a `set`, a script-only frame (one rAF callback) and a hit-test
 frame.
 
-$$\mathrm{crCases} = [\,\mathrm{set}(k, \ell) \mid (k, \ell) \in \mathrm{crMembers},\ \operatorname{real}_{\mathrm{cr}}(k, \ell)\,] \mathbin{+\!\!+} [\mathrm{script},\ \mathrm{hit}]$$
+$$\mathrm{crCases} = [\,\mathrm{set}(k, \ell) \mid (k, \ell) \in \mathrm{crMembers},\ \operatorname{crCss}(k) \ne \bot,\ \operatorname{real}_{\mathrm{cr}}(k, \ell)\,] \mathbin{+\!\!+} [\mathrm{script},\ \mathrm{hit}]$$
+
+$$\begin{aligned} \mathrm{set}(k, \ell) &= (\operatorname{id}(k, \ell),\ \mathrm{set},\ \operatorname{layerStyle}(\ell, \operatorname{hint}(k)) \mathbin{+\!\!+} q \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} v_0 \mathbin{+\!\!+} \texttt{;},\ q,\ v_1,\ \operatorname{expectAll}(\mathrm{crObservers}, W_{\mathrm{cr}}(\operatorname{crFrame}(k, \ell))))\ \text{ where } \operatorname{crCss}(k) = (q, v_0, v_1) \\ \mathrm{script} &= (\texttt{script},\ \mathrm{raf},\ \texttt{""},\ \texttt{""},\ \texttt{""},\ \operatorname{expectAll}(\mathrm{crObservers}, W_{\mathrm{cr}}(1, 0, 0, 0, [\,], 0))) \\ \mathrm{hit} &= (\texttt{hit},\ \mathrm{hit},\ \texttt{""},\ \texttt{""},\ \texttt{""},\ \operatorname{expectAll}(\mathrm{crObservers}, W_{\mathrm{cr}}(0, 0, 0, 1, [\,], 0))) \end{aligned}$$
 -/
 def crCases : List Case :=
   (crMembers.filterMap fun (k, l) =>
@@ -279,7 +283,9 @@ def crSteps : List Case := steps (expectAll crObservers (crWork idleFrame)) crCa
 
 /-- The members the Chromium page does not realize, with the reason.
 
-$$\mathrm{crExcluded} = [(\operatorname{id}(k, \ell), \mathrm{reason}) \mid \lnot \operatorname{real}_{\mathrm{cr}}(k, \ell)]$$
+$$\mathrm{crExcluded} = [(\operatorname{id}(k, \ell), \operatorname{reason}(k)) \mid (k, \ell) \in \mathrm{crMembers},\ \lnot \operatorname{real}_{\mathrm{cr}}(k, \ell)]$$
+
+$$\operatorname{reason}(k) = \begin{cases} \texttt{SVG-only property: not a box of the page} & \operatorname{crCss}(k) = \bot \\ \texttt{acts only on a positioned box, which always has a paint layer} & \text{otherwise} \end{cases}$$
 -/
 def crExcluded : List (String × String) :=
   crMembers.filterMap fun (k, l) =>
@@ -294,7 +300,7 @@ def crExcluded : List (String × String) :=
 (the change moves the layer state itself), `colorCurrent`, `strokeDashoffset` (SVG-only) and `scrollPos` (the scroll
 step has its own table, `scrollStep`).
 
-$$\operatorname{wkCss}(p) = (\text{css name},\ v_0,\ v_1)\ \text{for the twelve measured properties},\quad \bot\ \text{otherwise}$$
+$$\operatorname{wkCss}(p) = \begin{cases} (\texttt{transform}, \texttt{translateX(10px)}, \texttt{translateX(20px)}) & p = \mathrm{transform} \\ (\texttt{transform}, \texttt{none}, \texttt{translateX(10px)}) & p = \mathrm{transformToggle} \\ (\texttt{opacity}, \texttt{0.5}, \texttt{0.6}) & p = \mathrm{opacity} \\ (\texttt{opacity}, \texttt{1}, \texttt{0.5}) & p = \mathrm{opacityCross1} \\ (\texttt{filter}, \texttt{blur(2px)}, \texttt{blur(4px)}) & p = \mathrm{filter} \\ (\texttt{filter}, \texttt{none}, \texttt{blur(2px)}) & p = \mathrm{filterToggle} \\ (\texttt{background-color}, \texttt{\#ccc}, \texttt{\#bbb}) & p = \mathrm{background} \\ (\texttt{color}, \texttt{\#000}, \texttt{\#111}) & p = \mathrm{color} \\ (\texttt{mask-image}, \texttt{linear-gradient(\#000,transparent)}, \texttt{linear-gradient(transparent,\#000)}) & p = \mathrm{mask} \\ (\texttt{top}, \texttt{0px}, \texttt{2px}) & p \in \{\mathrm{insetAbs}, \mathrm{inset}\} \\ (\texttt{width}, \texttt{20px}, \texttt{24px}) & p = \mathrm{size} \\ \bot & \text{otherwise} \end{cases}$$
 -/
 def wkCss : WkProp → Option Css
   | .transform => some ⟨"transform", "translateX(10px)", "translateX(20px)"⟩
@@ -325,7 +331,7 @@ def wkName : WkProp → String
 
 /-- All WebKit properties once.
 
-$$\mathrm{WkProp.all} = [\mathrm{transform}, \dots, \mathrm{scrollPos}]\ (19)$$
+$$\mathrm{wkAll} = [\mathrm{transform}, \mathrm{transformToggle}, \mathrm{opacity}, \mathrm{opacityCross1}, \mathrm{filter}, \mathrm{filterPainted}, \mathrm{filterToggle}, \mathrm{clipPath}, \mathrm{clipPathShape}, \mathrm{willChange}, \mathrm{background}, \mathrm{color}, \mathrm{colorCurrent}, \mathrm{mask}, \mathrm{insetAbs}, \mathrm{inset}, \mathrm{size}, \mathrm{strokeDashoffset}, \mathrm{scrollPos}]$$
 -/
 def wkAll : List WkProp :=
   [.transform, .transformToggle, .opacity, .opacityCross1, .filter, .filterPainted, .filterToggle, .clipPath,
@@ -359,9 +365,10 @@ def wkPositioned : WkProp → Bool
   | .insetAbs | .inset => true
   | _ => false
 
-/-- The positioning an inset change needs: an absolute box for `insetAbs`, a relative one for `inset`, none otherwise.
+/-- The inline layer style of a WebKit member: `insetAbs` uses an absolute box (with the transform hint for an own
+layer), every other property the shared `layerStyle` with its own hint.
 
-$$\operatorname{pos}(p) = \begin{cases} \texttt{position:absolute;} & p = \mathrm{insetAbs} \\ \texttt{""} & \text{otherwise} \end{cases}$$
+$$\operatorname{wkLayerStyle}(p, \ell) = \begin{cases} \texttt{""} & p = \mathrm{insetAbs},\ \ell = \mathrm{none} \\ \texttt{position:absolute;} & p = \mathrm{insetAbs},\ \ell = \mathrm{layer} \\ \texttt{position:absolute;will-change:transform;} & p = \mathrm{insetAbs},\ \ell = \mathrm{own} \\ \operatorname{layerStyle}(\ell, \operatorname{hint}(p)) & p \ne \mathrm{insetAbs} \end{cases}$$
 -/
 def wkLayerStyle (p : WkProp) (l : LayerState) : String :=
   match p, l with
@@ -400,6 +407,8 @@ def wkWork (cs : List (Change WkProp)) : Work :=
 /-- **The WebKit cases**: every realizable member as a `set`.
 
 $$\mathrm{wkCases} = [\,\mathrm{set}(p, \ell) \mid (p, \ell) \in \mathrm{wkMembers},\ \operatorname{real}_{\mathrm{wk}}(p, \ell)\,]$$
+
+$$\mathrm{set}(p, \ell) = (\operatorname{id}(p, \ell),\ \mathrm{set},\ \operatorname{wkLayerStyle}(p, \ell) \mathbin{+\!\!+} q \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} v_0 \mathbin{+\!\!+} \texttt{;},\ q,\ v_1,\ \operatorname{expectAll}(\mathrm{wkObservers}, W_{\mathrm{wk}}([(0, p, \ell)])))\ \text{ where } \operatorname{wkCss}(p) = (q, v_0, v_1)$$
 -/
 def wkCases : List Case :=
   wkMembers.filterMap fun (p, l) =>
@@ -419,7 +428,9 @@ def wkSteps : List Case := steps (expectAll wkObservers (wkWork [])) wkCases
 
 /-- The WebKit members the page does not realize, with the reason.
 
-$$\mathrm{wkExcluded} = [(\operatorname{id}(p, \ell), \mathrm{reason}) \mid \lnot \operatorname{real}_{\mathrm{wk}}(p, \ell)]$$
+$$\mathrm{wkExcluded} = [(\operatorname{id}(p, \ell), \operatorname{reason}(p)) \mid (p, \ell) \in \mathrm{wkMembers},\ \lnot \operatorname{real}_{\mathrm{wk}}(p, \ell)]$$
+
+$$\operatorname{reason}(p) = \begin{cases} \texttt{not measured: the change depends on more than the property and the layer state} & \operatorname{wkCss}(p) = \bot \\ \texttt{the state does not exist for this property (it gives the box a layer, or needs a positioned box)} & \text{otherwise} \end{cases}$$
 -/
 def wkExcluded : List (String × String) :=
   wkMembers.filterMap fun (p, l) =>
@@ -451,7 +462,7 @@ def Cell.name : Cell → String
 
 /-- The cell of an expectation against the observations of all passes.
 
-$$\operatorname{cell}(e, os)\ \text{as above}$$
+$$\operatorname{cell}(e, os) = \begin{cases} \mathrm{missing} & os = [\,] \\ \mathrm{agree} & os \ne [\,] \land \forall o \in os: o = e \\ \mathrm{mismatch} & os \ne [\,] \land \forall o \in os: o \ne e \\ \mathrm{unstable} & \text{otherwise} \end{cases}$$
 -/
 def cell (e : Bool) (os : List Bool) : Cell :=
   if os.isEmpty then .missing else if os.all (· == e) then .agree else if os.all (· != e) then .mismatch else .unstable
@@ -613,7 +624,14 @@ from these records against the current model: every stage rule of both engines h
 
 /-- **The Chromium record** of CI run 39088367495: per case id, the observed stages (MEASURED, 3 passes, all equal).
 
-$$\mathrm{crRecorded} = [(\mathrm{id}_j,\ \mathrm{observed}_j)]_{j}\ \text{for the 65 non-idle Chromium steps, in step order}$$
+The 65 rows, in step order. Below, $k@(x, y, z)$ stands for the three rows $(k@\texttt{none}, x), (k@\texttt{layer}, y), (k@\texttt{own}, z)$
+and $k@(\cdot, y, z)$ for the last two only, with the stage lists
+$a = [\mathrm{style}, \mathrm{props}, \mathrm{raster}, \mathrm{commit}]$, $b = [\mathrm{style}, \mathrm{props}, \mathrm{commit}]$,
+$g = [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}]$,
+$L = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}, \mathrm{hits}]$,
+$L' = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}, \mathrm{hits}]$.
+
+$$\begin{aligned} \mathrm{crRecorded} = [\,&\texttt{transform}@(a, a, b),\ \texttt{transform(none<->some)}@(L, L, a),\ \texttt{translate}@(a, a, b),\ \texttt{scale}@(a, a, a),\ \texttt{rotate}@(a, a, b),\ \texttt{opacity}@(a, a, b), \\ &\texttt{filter}@(a, a, b),\ \texttt{filter(blur)}@(a, a, a),\ \texttt{backdrop-filter}@(b, b, b),\ \texttt{background-position}@(g, g, g),\ \texttt{background-image}@(g, g, g), \\ &\texttt{background-color}@(g, g, g),\ \texttt{color}@(g, g, g),\ \texttt{clip-path}@(g, g, g),\ \texttt{visibility}@(g, g, g),\ \texttt{z-index}@(\cdot, g, g), \\ &\texttt{top}@(\cdot, L, L'),\ \texttt{left}@(\cdot, L, L'),\ \texttt{width}@(L, L, L),\ \texttt{height}@(L, L, L),\ \texttt{margin}@(L, L, L'),\ \texttt{padding}@(L, L, L), \\ &(\texttt{script}, [\mathrm{script}, \mathrm{props}]),\ (\texttt{hit}, [\mathrm{props}, \mathrm{hits}])\,] \end{aligned}$$
 
 What the Chromium lane saw in each non-idle frame. -/
 def crRecorded : List (String × List String) :=
@@ -677,7 +695,11 @@ def crRecorded : List (String × List String) :=
 
 /-- **The WebKit record** of CI run 39088367495: per case id, the observed stages (MEASURED, 6 passes, all equal).
 
-$$\mathrm{wkRecorded} = [(\mathrm{id}_j,\ \mathrm{observed}_j)]_{j}\ \text{for the 30 non-idle WebKit steps, in step order}$$
+The 30 rows, in step order, written as in `crRecorded` ($p@(x, y, z)$ for the rows at none, layer, own; $p@(\cdot, y, z)$
+for layer and own only), with $T = [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}]$,
+$b = [\mathrm{style}, \mathrm{props}, \mathrm{commit}]$, $c = [\mathrm{style}, \mathrm{commit}]$.
+
+$$\begin{aligned} \mathrm{wkRecorded} = [\,&\texttt{transform}@(\cdot, T, b),\ \texttt{transformToggle}@(T, T, T),\ \texttt{opacity}@(\cdot, b, c),\ \texttt{opacityCross1}@(T, T, T),\ \texttt{filter}@(\cdot, T, T), \\ &\texttt{filterToggle}@(T, T, T),\ \texttt{background}@(c, c, b),\ \texttt{color}@(c, c, b),\ \texttt{mask}@(\cdot, b, b),\ \texttt{insetAbs}@(\cdot, T, T), \\ &\texttt{inset}@(\cdot, T, T),\ \texttt{size}@(T, T, T)\,] \end{aligned}$$
 
 What the WKTR lane saw in each non-idle rendering update. -/
 def wkRecorded : List (String × List String) :=
@@ -872,7 +894,11 @@ private def verdictVectors : List (String × List Cell) :=
 /-- The golden rows: the page's base style, observers, steps and excluded members per engine, then the cell and
 verdict vectors.
 
-$$\mathrm{rows} = [\mathrm{page}] \mathbin{+\!\!+} \mathrm{observers} \mathbin{+\!\!+} \mathrm{steps} \mathbin{+\!\!+} \mathrm{excluded} \mathbin{+\!\!+} \mathrm{cellVectors} \mathbin{+\!\!+} \mathrm{verdictVectors}$$
+$$\begin{aligned} \mathrm{rows} = {} & [\{\texttt{kind}: \texttt{page}, \texttt{baseStyle}: \mathrm{baseStyle}\}] \\ \mathbin{+\!\!+} {} & [\{\texttt{kind}: \texttt{observer}, \texttt{engine}: \texttt{chromium}, \texttt{stage}: o.\mathrm{stage}, \texttt{counters}: o.\mathrm{counters}\} \mid o \in \mathrm{crObservers}] \mathbin{+\!\!+} [\text{the same with } \texttt{webkit} \mid o \in \mathrm{wkObservers}] \\ \mathbin{+\!\!+} {} & [\operatorname{step}(\texttt{chromium}, j, c) \mid (c, j) \in \operatorname{zipIdx}(\mathrm{crSteps})] \mathbin{+\!\!+} [\operatorname{step}(\texttt{webkit}, j, c) \mid (c, j) \in \operatorname{zipIdx}(\mathrm{wkSteps})] \\ \mathbin{+\!\!+} {} & [\{\texttt{kind}: \texttt{excluded}, \texttt{engine}: \texttt{chromium}, \texttt{member}: m, \texttt{reason}: r\} \mid (m, r) \in \mathrm{crExcluded}] \mathbin{+\!\!+} [\text{the same with } \texttt{webkit} \mid (m, r) \in \mathrm{wkExcluded}] \\ \mathbin{+\!\!+} {} & [\{\texttt{kind}: \texttt{cell}, \texttt{expect}: e, \texttt{observed}: os, \texttt{cell}: \operatorname{name}(\operatorname{cell}(e, os))\} \mid (e, os) \in [(\top, [\,]), (\top, [\top]), (\bot, [\bot, \bot, \bot]), (\top, [\bot]), (\bot, [\top, \top]), (\top, [\top, \bot]), (\bot, [\bot, \top, \bot]), (\top, [\bot, \bot, \top])]] \\ \mathbin{+\!\!+} {} & [\{\texttt{kind}: \texttt{verdict}, \texttt{name}: n, \texttt{cells}: \operatorname{names}(cs), \texttt{verdict}: \operatorname{name}(\operatorname{verdict}(cs))\} \mid (n, cs) \in V] \end{aligned}$$
+
+$$\begin{aligned} \operatorname{step}(\mathit{eng}, j, c) &= \{\texttt{kind}: \texttt{step}, \texttt{engine}: \mathit{eng}, \texttt{step}: j, \texttt{case}: c.\mathrm{id}, \texttt{act}: \operatorname{name}(c.\mathrm{act}), \texttt{style}: c.\mathrm{style}, \texttt{prop}: c.\mathrm{prop}, \texttt{to}: c.\mathrm{to}, \texttt{expect}: \{s: b \mid (s, b) \in c.\mathrm{expect}\}\} \\ V &= [(\texttt{empty}, [\,]), (\texttt{agree}, [\mathrm{agree}, \mathrm{agree}]), (\texttt{one-mismatch}, [\mathrm{agree}, \mathrm{mismatch}, \mathrm{agree}]), (\texttt{unstable}, [\mathrm{agree}, \mathrm{unstable}]), \\ &\phantom{= [} (\texttt{missing}, [\mathrm{missing}, \mathrm{agree}]), (\texttt{mismatch-and-unstable}, [\mathrm{unstable}, \mathrm{mismatch}]), (\texttt{only-mismatch}, [\mathrm{mismatch}])] \end{aligned}$$
+
+The step index $j$ counts from 0 within each engine's steps.
 -/
 def goldenRows : List Json :=
   [Json.mkObj [("kind", "page"), ("baseStyle", .str baseStyle)]] ++

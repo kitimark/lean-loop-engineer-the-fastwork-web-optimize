@@ -649,8 +649,34 @@ def Ev.tag : Ev → String
   | .mainPush => "main"
   | .record => "record"
 
-/-- A replay case: name, event, head message, branch diff, paths that equal `main`, tip, landed.
-$$\mathrm{cases} = [\, (n, e, m, D, M, t, \mathit{land}) \,]$$ -/
+/-- The 20 replay cases, in this order: name, event, head message, branch diff, paths that equal `main`, tip, landed.
+$$\mathrm{cases} = [\, (n_i, e_i, m_i, D_i, M_i, t_i, \mathit{land}_i) \,]_{i = 1}^{20}$$
+$$\begin{array}{rllllllll}
+i & n_i & e_i & m_i & D_i & M_i & t_i & \mathit{land}_i \\
+1 & \text{no intent, a fwcore module: only the default lane} & \mathrm{ci} & \texttt{fix x} & [W] & [\,] & \top & \bot \\
+2 & \text{no intent, a wktr file: nothing (wktr is not a default lane)} & \mathrm{ci} & \texttt{fix x} & [K] & [\,] & \top & \bot \\
+3 & \text{intent for one macOS lane: it and lean (lean inputs differ)} & \mathrm{ci} & m_3 & [W, K] & [\,] & \top & \bot \\
+4 & \text{a longer name is not the shorter lane} & \mathrm{ci} & \texttt{[ci:wktr-fixtures]} & [W] & [\,] & \top & \bot \\
+5 & \text{two lanes, upper case} & \mathrm{ci} & \texttt{[CI:Lean] [ci:breakpoint-gate]} & [W] & [\,] & \top & \bot \\
+6 & \text{intent for nothing: lean still checks its inputs} & \mathrm{ci} & \texttt{handoff [ci:none]} & [W] & [\,] & \top & \bot \\
+7 & \text{intent for nothing, no lean input differs: lean still runs} & \mathrm{ci} & \texttt{handoff [ci:none]} & [X] & [\,] & \top & \bot \\
+8 & \text{requested lane whose inputs equal main: skipped unchanged, lean runs} & \mathrm{ci} & \texttt{[ci:wktr]} & [X] & [\,] & \top & \bot \\
+9 & \text{a merge of main with intent: the merged file equals main} & \mathrm{ci} & \texttt{[ci:lean]} & [W] & [W] & \top & \bot \\
+10 & \text{revert sequence, push A (changes X and Y) at the tip} & \mathrm{ci} & \texttt{A} & [W, O] & [\,] & \top & \bot \\
+11 & \text{revert sequence, push A after B moved the tip: stale} & \mathrm{ci} & \texttt{A} & [W, O] & [\,] & \bot & \bot \\
+12 & \text{revert sequence, push B (reverts X): Y still differs, lean runs} & \mathrm{ci} & \texttt{B} & [O] & [\,] & \top & \bot \\
+13 & \text{revert sequence, push B with main's X merged: lean runs} & \mathrm{ci} & \texttt{B} & [W, O] & [W] & \top & \bot \\
+14 & \text{revert sequence, push C reverts Y too: nothing differs, lean still runs} & \mathrm{ci} & \texttt{C} & [\,] & [\,] & \top & \bot \\
+15 & \text{a docs-only tip on a branch whose Lean differs: lean runs} & \mathrm{ci} & \texttt{docs} & [X, W] & [\,] & \top & \bot \\
+16 & \text{a requested lane on a stale commit: stale} & \mathrm{ci} & \texttt{[ci:wktr]} & [K] & [\,] & \bot & \bot \\
+17 & \text{landed} & \mathrm{ci} & \texttt{[ci:lean]} & [W] & [\,] & \top & \top \\
+18 & \text{a main push of a Lean file: the coarse paths rule} & \mathrm{main} & \texttt{""} & [W] & [\,] & \top & \bot \\
+19 & \text{a main push of docs only: nothing} & \mathrm{main} & \texttt{""} & [X] & [\,] & \top & \bot \\
+20 & \text{a record (dispatch, schedule) runs every lane} & \mathrm{rec} & \texttt{""} & [\,] & [\,] & \top & \bot
+\end{array}$$
+Here $W = \texttt{lean/Fw/Wire.lean}$, $O = \texttt{lean/Fw/Ops/Wire.lean}$, $K = \texttt{packages/measure-wktr/src/a.mjs}$,
+$X = \texttt{docs/x.md}$, $m_3$ is $\texttt{fix x}$, two line feeds, then $\texttt{[ci:wktr]}$, and $\texttt{""}$ is
+the empty message. -/
 def cases : List (String × Ev × String × List String × List String × Bool × Bool) := [
   ("no intent, a fwcore module: only the default lane", .ciPush, "fix x", ["lean/Fw/Wire.lean"], [], true, false),
   ("no intent, a wktr file: nothing (wktr is not a default lane)", .ciPush, "fix x",
@@ -706,7 +732,13 @@ def gateVectors (l : Lane) : List (String × String × String × Bool) :=
 /-- The lanes line: every lane with its name, token, macOS flag, default flag, the guard `if:` text and the
 concurrency group of its heavy jobs (`<job>` stands for the job id); also the guard's decision step names
 (`Fw.Ci.Verdict.decisionStep`), the skip tags, and the re-check steps every heavy job starts with.
-$$\operatorname{lanesLine} = \{\texttt{kind}: \texttt{lanes},\ \texttt{prefix}: \mathrm{pre},\ \texttt{decision}: \{\texttt{run}, \texttt{skip}\},\ \texttt{skips}: [\operatorname{tag}(k) : k \in K],\ \texttt{recheck}: \{\mathrm{tipName}, \mathrm{tipIf}, \mathrm{staleName}, \mathrm{staleIf}, \mathrm{conj}\},\ \texttt{lanes}: [\,\{\texttt{file}, \texttt{name}, \texttt{token}, \texttt{macos}, \texttt{byDefault}, \texttt{if}, \texttt{group}\} : \ell \in L\,]\}$$ -/
+$$\begin{aligned}
+\operatorname{lanesLine} = \{&\texttt{kind}: \texttt{lanes},\ \texttt{prefix}: \mathrm{pre},\ \texttt{decision}: \{\texttt{run}: \operatorname{step}(\top),\ \texttt{skip}: \operatorname{step}(\bot)\},\ \texttt{skips}: [\operatorname{tag}(k) : k \in K],\\
+&\texttt{recheck}: \{\texttt{tipName}: \mathrm{tipName},\ \texttt{tipIf}: \mathrm{tipIf},\ \texttt{staleName}: \mathrm{staleName},\ \texttt{staleIf}: \mathrm{staleIf},\ \texttt{conj}: \mathrm{conj}\},\\
+&\texttt{lanes}: [\,\{\texttt{file}: \ell.w.\mathit{file},\ \texttt{name}: \ell.n,\ \texttt{token}: \operatorname{tok}(\ell.n),\ \texttt{macos}: \ell.\mathit{mac},\ \texttt{byDefault}: \ell.\mathit{dflt},\ \texttt{if}: \operatorname{ifExpr}(\ell),\ \texttt{group}: \operatorname{grp}(\ell, \texttt{<job>})\} : \ell \in L\,]\}
+\end{aligned}$$
+Here $\operatorname{step}$ is the decision step name of `Fw.Ci.Verdict.decisionStep`, $K$ the skip kinds in their
+listed order, and $L$ the lanes in their listed order. -/
 def lanesLine : Json :=
   Json.mkObj [("kind", "lanes"), ("prefix", .str (String.ofList tokPrefix)),
     ("decision", Json.mkObj [("run", .str (Fw.Ci.Verdict.decisionStep true)),
@@ -725,7 +757,13 @@ def gateLine (l : Lane) : Json :=
     ("rows", .arr ((gateVectors l).map fun (e, r, m, g) => Json.arr #[.str e, .str r, .str m, .bool g]).toArray)]
 
 /-- One replay line with every lane's decision tag, the started and the gated lanes.
-$$\operatorname{caseLine}(n, e, m, D, M, t, \mathit{land}) = \{\dots,\ \texttt{decisions}: \operatorname{decI}(e, m, D, M, t, \mathit{land}),\ \texttt{started}: \operatorname{runI}(e, m, D, M, t, \mathit{land}),\ \texttt{gated}: \operatorname{gated}(e = \mathrm{ci}, m)\}$$ -/
+$$\begin{aligned}
+\operatorname{caseLine}(n, e, m, D, M, t, \mathit{land}) = \{&\texttt{kind}: \texttt{case},\ \texttt{name}: n,\ \texttt{event}: \operatorname{tag}(e),\ \texttt{msg}: m,\ \texttt{diff}: D,\ \texttt{merged}: M,\ \texttt{tip}: t,\ \texttt{landed}: \mathit{land},\\
+&\texttt{cones}: \{\texttt{Main}: \operatorname{cone}(\texttt{Main}),\ \texttt{BreakgenMain}: \operatorname{cone}(\texttt{BreakgenMain})\},\\
+&\texttt{decisions}: \{f: \tau \mid (f, \tau) \in \operatorname{decI}(e, m, D, M, t, \mathit{land})\},\ \texttt{started}: \operatorname{runI}(e, m, D, M, t, \mathit{land}),\ \texttt{gated}: \operatorname{gated}(e = \mathrm{ci}, m)\}
+\end{aligned}$$
+Here $\operatorname{cone}$ is `Fw.Ci.Trigger.sampleCone` and the decisions object keeps the order of
+$\operatorname{decI}$. -/
 def caseLine (k : String × Ev × String × List String × List String × Bool × Bool) : Json :=
   let (n, ev, msg, diff, merged, tip, landed) := k
   Json.mkObj [("kind", "case"), ("name", .str n), ("event", .str ev.tag), ("msg", .str msg), ("diff", strs diff),

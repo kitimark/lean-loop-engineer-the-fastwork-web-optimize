@@ -371,7 +371,9 @@ theorem diffVs_le_maxDiff {r₀ r : Series} {rs : List Series} (h : r ∈ r₀ :
 
 /-- `maxDiff` is zero exactly when every run equals the first run on the first run's frames.
 
-$$\forall r_0 \in \mathbb{Z}^{*},\ R \in (\mathbb{Z}^{*})^{*}:\ \delta(r_0 :: R) = 0 \iff \forall r \in r_0 :: R,\ \forall i < |r_0|:\ r_0[i] = r[i]$$ (with $r[i] = 0$ for $i \ge |r|$, as in `diffVs`)
+$$\forall r_0 \in \mathbb{Z}^{*},\ R \in (\mathbb{Z}^{*})^{*}:\ \delta(r_0 :: R) = 0 \iff \forall r \in r_0 :: R,\ \forall i < |r_0|:\ r_0[i] = r[i],\qquad r[i] = 0 \text{ for } i \ge |r|$$
+
+A run shorter than the first counts as zero on its missing frames, as in `diffVs`.
 -/
 theorem maxDiff_zero_iff (r₀ : Series) (rs : List Series) :
     maxDiff (r₀ :: rs) = 0 ↔ ∀ r ∈ r₀ :: rs, ∀ i < r₀.length, valAt r₀ i = valAt r i := by

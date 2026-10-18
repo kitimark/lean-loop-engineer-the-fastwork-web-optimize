@@ -121,7 +121,7 @@ def registryFor : (s : Sig) → Registry s.Dom s.Cod
 /-- **The spec vocabulary of each signature**: the full names a property over the signature may mention although the
 real implementation unfolds to them. For the dry run: the kind of an outcome, the exit code of a kind and the verdict
 line (the module doc of `Fw.Console.LandVerdict` specifies them; `Fw.Console.LandDry.kind_spec` specifies the kind).
-$$\operatorname{vocab}(\mathrm{landDry}) = [\texttt{Outcome.kind},\ \texttt{Kind.exitCode},\ \texttt{verdictLine}]$$ -/
+$$\operatorname{vocab}(\mathrm{landDry}) = [\texttt{Fw.Console.LandDry.Outcome.kind},\ \texttt{Fw.Console.LandVerdict.Kind.exitCode},\ \texttt{Fw.Console.LandVerdict.verdictLine}]$$ -/
 def vocab : Sig → List String
   | .landDry => ["Fw.Console.LandDry.Outcome.kind", "Fw.Console.LandVerdict.Kind.exitCode",
       "Fw.Console.LandVerdict.verdictLine"]

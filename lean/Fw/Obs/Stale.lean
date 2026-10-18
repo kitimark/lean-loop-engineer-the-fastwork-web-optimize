@@ -316,7 +316,9 @@ theorem restartApi_without_rebuild_stale (hist : List (List String)) (apiOwn cor
 
 /-- A child respawn picks up the disk: it clears console-api's core inputs exactly when the disk is current.
 
-$$\operatorname{respawn}(\Theta) = (a, d, d)$$
+$$\forall \Theta = (a, k, d):\ k(\operatorname{respawn}(\Theta)) = d$$
+
+Here $k(\Theta')$ is the core base of the stack $\Theta'$.
 -/
 theorem respawn_coreBase (t : Stack) : t.respawn.coreBase = t.diskBase := rfl
 
@@ -341,7 +343,7 @@ deriving DecidableEq, Repr
 
 /-- The base commit of a binary whose sha256 is `h_b`, given its build record `(s, h)` (if any).
 
-$$\operatorname{base}(h_b, r) = \begin{cases} \operatorname{at}(s) & r = (s, h),\ h = h_b \\ \operatorname{unknown} & \text{otherwise (no record, or } h \ne h_b)\end{cases}$$
+$$\operatorname{base}(h_b, r) = \begin{cases} \operatorname{at}(s) & r = (s, h),\ h = h_b \\ \operatorname{unknown}(\texttt{the build record does not match the binary (rebuilt without scripts/fwcore-build.sh)}) & r = (s, h),\ h \ne h_b \\ \operatorname{unknown}(\texttt{no build record: build with scripts/fwcore-build.sh}) & r = \bot \end{cases}$$
 -/
 def chooseBase (binHash : String) (rec : Option (String × String)) : Base :=
   match rec with

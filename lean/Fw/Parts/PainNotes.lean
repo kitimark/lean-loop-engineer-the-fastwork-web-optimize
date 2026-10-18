@@ -551,7 +551,7 @@ equal in every pair gives `=o`; at most the original's in every pair gives `≤o
 a hidden tick is not modelled); else `any`. Here $x_t(w)$ is $w.\mathrm{units}(t.\mathrm{stage})$ when
 $t.\mathrm{units}$, else $w.\mathrm{passes}(t.\mathrm{stage})$.
 
-$$\forall \mathit{pairs} \in (\mathrm{Work} \times \mathrm{Work})^{*},\ \forall t:\ \operatorname{relPred}(\mathit{pairs}, t) = \begin{cases} \texttt{=o} & \forall (v, o) \in \mathit{pairs}:\ x_t(v) = x_t(o) \quad (\text{also } \mathit{pairs} = [\,]) \\ \texttt{≤o} & \text{not the above} \land \forall (v, o) \in \mathit{pairs}:\ x_t(v) \le x_t(o) \\ \texttt{any} & \text{otherwise} \end{cases}$$
+$$\forall \mathit{pairs} \in (\mathrm{Work} \times \mathrm{Work})^{*},\ \forall t:\ \operatorname{relPred}(\mathit{pairs}, t) = \begin{cases} \texttt{=o} & \forall (v, o) \in \mathit{pairs}:\ x_t(v) = x_t(o) \quad (\text{also } \mathit{pairs} = [\,]) \\ \texttt{\char"2264o} & \text{not the above} \land \forall (v, o) \in \mathit{pairs}:\ x_t(v) \le x_t(o) \\ \texttt{any} & \text{otherwise} \end{cases}$$
 
 Equal when no modelled hidden tick changes the count, at most when some lowers it. -/
 def relPred (pairs : List (Work × Work)) (t : CountType) : String :=
