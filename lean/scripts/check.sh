@@ -52,6 +52,7 @@ run_group() {
   job "sweepsgen scope" $bin/sweepsgen --scope --check ../packages/gate-breakpoints/src/scope.gen.json
   job "engine golden cite lint" lake env lean --run scripts/EngineCiteLint.lean  # `lake env` builds nothing and takes no lock
   job "premise goldens check" lake env lean --run scripts/PremiseGolden.lean --check
+  job "engine premise golden check" lake env lean --run scripts/EnginePremiseGolden.lean --check
   i=0
   for p in $pids; do
     wait "$p" || echo "$i" >> "$tmp/failed"

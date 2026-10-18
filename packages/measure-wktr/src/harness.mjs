@@ -88,14 +88,16 @@ const RUN_SRC = `(() => {
     // Layout facts, read once before the run (these reads may force layout; the trackers are started after them).
     const docH = document.documentElement.scrollHeight;
     const maxY = Math.max(0, docH - innerHeight);
-    const ys = schedule(maxY, P.step);
+    // cases (engine premise fixtures): P.cases steps, each one call of the page's own window.__fwStep(k) at the end of the sample callback
+    // (same window as the scroll: S(k) .. S(k+1)); there is no scroll position, ys is a list of zeros.
+    const ys = P.cases ? new Array(P.cases).fill(0) : schedule(maxY, P.step);
     const missing = TRACK.filter((n) => typeof I[n] !== 'function');
     for (const n of TRACK) if (typeof I[n] === 'function') I[n]();
     // two idle frames so the trackers' first reads start from a rendering update that already ran
     await raf(() => 0); await raf(() => 0);
     const bounds = [], mids = [];
     for (let k = 0; k < ys.length; k++) {
-      bounds.push(await raf(() => { const s = snap(); scrollTo({ top: ys[k], behavior: 'instant' }); return s; }));
+      bounds.push(await raf(() => { const s = snap(); if (P.cases) window.__fwStep(k); else scrollTo({ top: ys[k], behavior: 'instant' }); return s; }));
       const m = [];
       for (let f = 1; f < P.frames; f++) m.push(await raf(() => snap()));
       mids.push(m);
@@ -122,11 +124,12 @@ const RUN_SRC = `(() => {
  * The harness: the same bootstrap as the Inspector lane (pinned Date, seeded Math.random; measure-webkit/src/page.mjs),
  * then the run. `params`: { step, frames, settleMs }.
  */
-export function harnessSource({ step = 50, frames = 2, settleMs = 6000, clock = 'pinned', warm = false, vt = false, trace = false, still = false } = {}) {
+export function harnessSource({ step = 50, frames = 2, settleMs = 6000, clock = 'pinned', warm = false, vt = false, trace = false, still = false, cases = 0 } = {}) {
   if (!Number.isInteger(frames) || frames < 1) throw new Error('frames must be an integer >= 1');
   if (!Number.isInteger(step) || step < 1) throw new Error('step must be an integer >= 1');
+  if (!Number.isInteger(cases) || cases < 0) throw new Error('cases must be an integer >= 0');
   // `vt` (virtual time, vtime.mjs) replaces the pinned Date with its own clock; Math.random stays seeded either way
   const pre = 'window.__fwN = { st: window.setTimeout.bind(window) };\n';
   return pre + bootstrapSource({ clock: vt ? 'live' : clock }) + '\n' + (vt ? VT_SRC + '\n' : '') + (trace ? TRACE_SRC + '\n' : '') +
-    RUN_SRC.replace('__PARAMS__', JSON.stringify({ step, frames, settleMs, clock: vt ? 'vt' : clock, warm: !!warm, trace: !!trace, still: !!still }));
+    RUN_SRC.replace('__PARAMS__', JSON.stringify({ step, frames, settleMs, clock: vt ? 'vt' : clock, warm: !!warm, trace: !!trace, still: !!still, cases }));
 }
