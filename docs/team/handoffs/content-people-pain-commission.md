@@ -25,3 +25,8 @@ Open
 - claim.svg/pin.svg icons and the o.svg glyph are still drawn with CSS shapes.
 - apps/runner/src/fw.ts shows a mode-only change from pnpm install; not committed.
 Read first: apps/site/src/parts/people/assets.ts.
+- Gate run 1 (39151365545): people.carousel failed all rows (original avatar is an img, ours a span with background-image);
+  fixed r2b: slots are img, anchors.json rewrite selector `> img:nth-child(2)` (outside the declared writes, forced by the DOM).
+  commission sweep desktop-1512#0 failed once in run 1 (margin 0 vs 132, resize flake), passed in run 2.
+- Gate run 2 (39152731220, ci/content-people-pain-commission, both engines): every pinned row (commission, commission.typing,
+  people*, pain) passes; only failing row is `matchMedia =Lean|sweep:phone-rotation` (not-comparable #1/#3), not this lane's part.
