@@ -4731,6 +4731,32 @@
     "docs/team/handoffs/gate-wall-target.md",
     "research/notes/2026/10-18-gate-wall-target.md"
    ]
+  },
+  {
+   "id": "console-stale-2",
+   "title": "(S) console-stale follow-ups: fw land rebuilds the main checkout fwcore with scripts/fwcore-build.sh after the fast-forward (Lean: post-land step decided, record written; removes the manual lead step), atomic api.json write (tmp+rename) or unknown on parse error, TOCTOU hash check in fwcore-build.sh, console-web dist and preview children judged or listed, TS chooseBase/buildBase moved to an fwcore op",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "console-stale"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/**",
+    "apps/console-api/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "docs/team/tools/**",
+    "docs/team/handoffs/console-stale.md",
+    "scripts/fwcore-build.sh",
+    "apps/runner/src/land.ts",
+    "docs/team/handoffs/console-stale-2.md"
+   ]
   }
  ],
  "deadline": {
