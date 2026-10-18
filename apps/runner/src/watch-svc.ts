@@ -18,7 +18,7 @@ export const SVC_INPUTS: Record<string, string[]> = {
   fwcore: ["lean/Fw", "lean/Fw.lean", "lean/Main.lean", "lean/lakefile.toml", "lean/lean-toolchain"],
 };
 
-/** Where `scripts/fwcore-build.sh` records the commit the binary was built from. */
+/** Where `docs/team/tools/fwcore-build.sh` records the commit the binary was built from. */
 export const CORE_BIN = "lean/.lake/build/bin/fwcore";
 export const CORE_COMMIT = `${CORE_BIN}.commit`;
 

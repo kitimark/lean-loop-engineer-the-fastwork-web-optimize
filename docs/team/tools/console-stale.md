@@ -15,7 +15,7 @@ the range is empty, nothing is changed (`Svc.judge_head_not_stale`, `Svc.restart
 Two services, two bases (`Stack`):
 - console-api: base = HEAD at its start, written to `.fw-console/api.json` (`{port, pid, commit, startedAt}`).
 - fwcore: base = the commit the binary `lean/.lake/build/bin/fwcore` was built from, recorded next to it by
-  `sh scripts/fwcore-build.sh` (`fwcore.commit`). A land does not rebuild the main checkout's binary, so restarting
+  `sh docs/team/tools/fwcore-build.sh` (`fwcore.commit`). A land does not rebuild the main checkout's binary, so restarting
   console-api leaves fwcore stale (`Stack.restart_without_build_stale`); a rebuild at main clears it
   (`Stack.rebuild_clears`). Without a record, the newest first-parent commit at or before the binary's mtime is the base
   (stated PREMISE: main moves up to 89 s after commit time, so a change in that window can be missed).
@@ -24,7 +24,7 @@ Measurement (TS, no decision): `apps/runner/src/watch-svc.ts` runs one `git log 
 <base>..main -- <path>` per input group of `SVC_INPUTS` and passes the Bool. A failed call carries the previous value
 forward and marks `svcs` stale. console-api also serves `service` in `GET /api/service` and `GET /api/health`.
 
-What you do: when `fw watch` shows `svc.stale fwcore ...`, run `sh scripts/fwcore-build.sh`; for `svc.stale console-api
+What you do: when `fw watch` shows `svc.stale fwcore ...`, run `sh docs/team/tools/fwcore-build.sh`; for `svc.stale console-api
 ...`, stop console-api by the pid in `.fw-console/api.json` and start it again. Nothing is killed or restarted
 automatically. The web dist is read per request and needs no restart.
 

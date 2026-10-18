@@ -141,7 +141,7 @@ describe("collectSvcs with a real history", () => {
     const mid = await collectSvcs(pathsFor(d), real, () => true);
     expect(changedPaths(find(mid, "console-api"))).toEqual([]);
     expect(changedPaths(find(mid, "fwcore"))).toEqual(["lean/Fw"]);
-    writeCore(d, head); // scripts/fwcore-build.sh at main
+    writeCore(d, head); // docs/team/tools/fwcore-build.sh at main
     expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "fwcore"))).toEqual([]);
   });
 
