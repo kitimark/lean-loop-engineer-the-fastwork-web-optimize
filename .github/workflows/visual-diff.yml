@@ -40,6 +40,7 @@ on:
       - 'lean/Fw/Measure/SelfCheck.lean'
       - 'lean/Fw/Measure/Snapshot.lean'
       - 'lean/Fw/Measure/Splits.lean'
+      - 'lean/Fw/Measure/StepAlign.lean'
       - 'lean/Fw/Measure/Tolerance.lean'
       - 'lean/Fw/Measure/WebKit.lean'
       - 'lean/Fw/Measure/Wire.lean'

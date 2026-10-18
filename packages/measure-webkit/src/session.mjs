@@ -51,7 +51,7 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
   let device = null, proxy = null, client = null, cleaned = false;
   const cleanup = async () => {
     if (cleaned) return; cleaned = true;
-    try { client?.close(); } catch { /* ignore */ }
+    try { await client?.close(); } catch { /* ignore */ }
     try { await proxy?.stop(); } catch (e) { log(`proxy stop: ${e.message}`); }
     if (device && !keep) { try { shutdownDevice(device.udid, { log }); } catch (e) { log(`shutdown: ${e.message}`); } }
     await server.close();
