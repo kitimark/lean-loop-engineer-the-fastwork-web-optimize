@@ -9,8 +9,8 @@ Task `lfg-props-shape` (research/notes/2026/10-18-lean-first-gate.md, rule 5). C
 * `search xs q`: the first `x` in `xs` with `q x = false` (a counterexample), `none` when the check passes on all of
   `xs` (`search_none_iff`); `searchUpTo n q` searches `enum n`.
 * The link to a property `P` with a sound pointwise check (`P i → ∀ x, q x = true`): a found counterexample is a kill
-  witness (`refutes_of_search`), so `P_rejects_<bad>` is proved by running the search; with a complete check over an
-  `EnumAll` type, `search all q = none` proves `P i` (`holds_of_searchAll`, `prop_iff_searchAll`).
+  witness (`refutes_of_search`), so `¬ P i` is proved by running the search; with a complete check over an `EnumAll`
+  type, `search all q = none` proves `P i` (`holds_of_searchAll`, `prop_iff_searchAll`).
 
 Instances: `Bool`, `Unit`, `Option`, products, `EnumAll.ofEquiv` (finite); `Nat`, `List`, `Option`, products
 (`Enum`). Guards in a Props module: `#guard (search EnumAll.all (Q impl)).isNone` and, for each bad implementation `m`,
@@ -115,7 +115,7 @@ theorem searchAll_none_iff {α : Type u} [EnumAll α] (q : α → Bool) :
 /-- **A found counterexample is a kill witness.** For every property $P$, implementation $i$, check $q$ and list
 $xs$: if $P(i)$ implies that $q$ passes everywhere (the check is sound for $P$) and the search over $xs$ finds a value,
 then $P(i)$ fails.
-$$\forall P\, i\, q\, xs,\ (P(i) \Rightarrow \forall x,\ q(x) = \mathrm{true}) \wedge \operatorname{search}(xs, q) \ne \mathrm{none} \Rightarrow \lnot P(i)$$ -/
+$$\forall P\, i\, q\, xs,\ (P(i) \Rightarrow \forall x,\ q(x) = \mathrm{true}) \wedge \operatorname{isSome}(\operatorname{search}(xs, q)) = \mathrm{true} \Rightarrow \lnot P(i)$$ -/
 theorem refutes_of_search {Impl : Type v} {α : Type u} (P : Impl → Prop) (i : Impl) (q : α → Bool) (xs : List α)
     (hsound : P i → ∀ x, q x = true) (h : (search xs q).isSome = true) : ¬ P i := by
   intro hp

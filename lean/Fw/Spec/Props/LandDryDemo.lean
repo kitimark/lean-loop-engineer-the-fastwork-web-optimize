@@ -11,19 +11,26 @@ script reading the verdict found none. This module replays the property-first wo
 1. **Signature.** `DryImpl := Outcome → String → Out`: stage outcomes and task in, stdout lines and exit code out.
 2. **Properties over the signature** (no implementation needed): `NoSilentExit` (exactly one `VERDICT` line) and
    `TruthfulVerdict` (the last line is the verdict of the first failing stage, and the exit code is that kind's code).
-3. **Bad implementations** from the incident classes: `emptyNoVerdict` (the incident: the empty branch returns before
-   the verdict), `exnNoVerdict` (a top-level catch prints the error and exits 1), `emptyDone` (the empty branch says
-   `done`). Each one names its incident and is proved equal to `dryOut` off it (`<bad>_agrees_off`, incident
-   `emptyIncident` or `threwIncident`).
+3. **The registered incident and its replay.** The ledger has one incident for this decision, so the registry
+   `landDryRegistry` has one row, `incLandDryNoVerdict`: id `inc-land-dry-no-verdict`, incident inputs
+   `emptyIncident` (an empty branch; strict, `emptyIncident_strict`), replay `emptyNoVerdict` (the empty branch
+   returns before the verdict). The replay is checked against the real run (`landDryRegistry_faithful`). Two extra
+   mutants, not registered incidents: `exnNoVerdict` (a top-level catch prints the error and exits 1) and
+   `emptyDone` (the empty branch says `done`).
 4. **Search before proof.** Pointwise checks `qOneVerdict`, `qTruthful` with `*_sound` lemmas; `#guard`s run the
    search over all 128 outcomes ($\mathbb B^7$, exhaustive) and find the bug in each bad implementation. The
    `emptyDone` guard shows that `NoSilentExit` alone is blind to that bug, which is why `TruthfulVerdict` exists.
-5. **Kill witnesses** `*_rejects_*`, proved by running the search (`Fw.Search.refutes_of_search`).
+5. **Kill witnesses** against the registered replay, `P_rejects_inc_land_dry_no_verdict : ¬ P
+   incLandDryNoVerdict.replay`, proved by running the search (`Fw.Search.refutes_of_search`), and so `Kills
+   landDryRegistry P` (`*_kills`). The mutants get `¬ P bad` theorems too, but those are not kills.
 6. **Proof of the real implementation** `dryOut` (`NoSilentExit_impl`, `TruthfulVerdict_impl`), from
-   `Fw.Console.LandDry.dryRun_one_verdict`.
+   `Fw.Console.LandDry.dryRun_one_verdict`, and the whole convention (`*_convention`).
    **6b. The kills are on the incident** (`*_on_incident`, from `Fw.Spec.Props.failures_on_incident` and
-   `fails_on_incident`): each bad run fails its check only on incident inputs, and on at least one. The search
+   `fails_on_incident`): the replay fails each check only on incident inputs, and on at least one. The search
    result holds for every task name, not only `"x"` (`emptyNoVerdict_search`, `exnNoVerdict_search`).
+   **6c. An unrelated property is not a kill.** `Silly` (the exit code is at most 100) holds of `dryOut` and rejects a
+   made-up bad (`sillyBad`), but it passes the registered replay (`Silly_passes_replay`), so it kills no registered
+   incident (`Silly_not_kill`) and does not meet the convention (`Silly_not_convention`).
 7. **Premise visible**: `stdout_one_verdict` carries `Assume` for the step Lean cannot see, that `land.ts` prints
    `dryOut`'s lines verbatim.
 -/
@@ -66,19 +73,20 @@ def TruthfulVerdict (run : DryImpl) : Prop :=
 $$\operatorname{empty}(O) \iff \lnot\mathit{threw} \wedge \mathit{fresh} \wedge \lnot\mathit{own}$$ -/
 def isEmptyBranch (o : Outcome) : Bool := !o.threw && o.fresh && !o.own
 
-/-- **Bad: the incident.** On an empty branch the run returns after the log, before the verdict line (exit 0);
-otherwise it is the real run.
+/-- **The replay of `inc-land-dry-no-verdict`.** On an empty branch the run returns after the log, before the
+verdict line (exit 0); otherwise it is the real run.
 $$\mathrm{emptyNoVerdict}(O, t) = \begin{cases} (\operatorname{log}(O), 0) & \operatorname{empty}(O) \\ (\operatorname{run}(O, t), \operatorname{code}(\operatorname{kind}(O))) & \text{otherwise} \end{cases}$$ -/
 def emptyNoVerdict : DryImpl := fun o t =>
   if isEmptyBranch o then ⟨o.log, 0⟩ else ⟨dryRun o t, o.kind.exitCode⟩
 
-/-- **Bad: an exception with no verdict.** A top-level catch prints the error message and exits 1; otherwise it is the
-real run.
+/-- **Mutant: an exception with no verdict** (no ledger incident, so not a registry row). A top-level catch prints
+the error message and exits 1; otherwise it is the real run.
 $$\mathrm{exnNoVerdict}(O, t) = \begin{cases} ([\texttt{Error: land failed}], 1) & \mathit{threw} \\ (\operatorname{run}(O, t), \operatorname{code}(\operatorname{kind}(O))) & \text{otherwise} \end{cases}$$ -/
 def exnNoVerdict : DryImpl := fun o t =>
   if o.threw then ⟨["Error: land failed"], 1⟩ else ⟨dryRun o t, o.kind.exitCode⟩
 
-/-- **Bad: an empty branch says `done`.** One verdict line, but the wrong kind: nothing was landed.
+/-- **Mutant: an empty branch says `done`** (no ledger incident, so not a registry row). One verdict line, but the
+wrong kind: nothing was landed.
 $$\mathrm{emptyDone}(O, t) = \begin{cases} (\operatorname{log}(O) \mathbin{+\!\!+} [\operatorname{line}(\mathrm{done}, t)], 0) & \operatorname{empty}(O) \\ (\operatorname{run}(O, t), \operatorname{code}(\operatorname{kind}(O))) & \text{otherwise} \end{cases}$$ -/
 def emptyDone : DryImpl := fun o t =>
   if isEmptyBranch o then ⟨o.log ++ [verdictLine .done t], 0⟩ else ⟨dryRun o t, o.kind.exitCode⟩
@@ -87,13 +95,39 @@ def emptyDone : DryImpl := fun o t =>
 $$\mathrm{dryOut}(O, t) = (\operatorname{run}(O, t), \operatorname{code}(\operatorname{kind}(O)))$$ -/
 def dryOut : DryImpl := fun o t => ⟨dryRun o t, o.kind.exitCode⟩
 
-/-- The incident of `emptyNoVerdict` and `emptyDone`: the outcome is an empty branch.
+/-- The incident inputs of `inc-land-dry-no-verdict`: the outcome is an empty branch.
 $$E_{\mathrm{empty}}(O) \iff \operatorname{empty}(O)$$ -/
 def emptyIncident (o : Outcome) : Prop := isEmptyBranch o = true
 
-/-- The incident of `exnNoVerdict`: the run threw an exception.
-$$E_{\mathrm{exn}}(O) \iff \mathit{threw}(O)$$ -/
-def threwIncident (o : Outcome) : Prop := o.threw = true
+/-- **The incident predicate is strict**: some outcome (every stage false) is not an empty branch.
+$$\exists O,\ \lnot\operatorname{empty}(O)$$ -/
+theorem emptyIncident_strict : Strict emptyIncident :=
+  ⟨⟨false, false, false, false, false, false, false⟩, by unfold emptyIncident; decide⟩
+
+/-- **The registry row of `inc-land-dry-no-verdict`** (docs/team/incidents/ledger.json): incident inputs
+$E_{\mathrm{empty}}$, replay `emptyNoVerdict`.
+$$i_{\mathrm{dry}} = (\texttt{inc-land-dry-no-verdict},\ E_{\mathrm{empty}},\ \mathrm{emptyNoVerdict})$$ -/
+def incLandDryNoVerdict : Incident Outcome (String → Out) where
+  id := "inc-land-dry-no-verdict"
+  pred := emptyIncident
+  replay := emptyNoVerdict
+
+/-- **The incident registry of the dry-run signature**: the one ledger incident of this decision. The mutants
+`exnNoVerdict` and `emptyDone` are not rows: the ledger has no incident for them.
+$$R_{\mathrm{dry}} = [i_{\mathrm{dry}}]$$ -/
+def landDryRegistry : Registry Outcome (String → Out) where
+  rows := [incLandDryNoVerdict]
+  ids_ne := fun i hi => by
+    simp only [List.mem_singleton] at hi
+    subst hi
+    decide
+  ids_nodup := by simp
+  strict := fun i hi => by
+    simp only [List.mem_singleton] at hi
+    subst hi
+    exact emptyIncident_strict
+
+#guard landDryRegistry.rows.map (·.id) == ["inc-land-dry-no-verdict"]
 
 /-- **`emptyNoVerdict` is the real run off the empty branch.** For every outcome that is not an empty branch, and
 every task, `emptyNoVerdict` and `dryOut` give the same output.
@@ -104,23 +138,12 @@ theorem emptyNoVerdict_agrees_off : AgreesOff dryOut emptyNoVerdict emptyInciden
   simp only [emptyIncident, Bool.not_eq_true] at h
   simp only [emptyNoVerdict, dryOut, h, Bool.false_eq_true, ite_false]
 
-/-- **`emptyDone` is the real run off the empty branch.** For every outcome that is not an empty branch, and every
-task, `emptyDone` and `dryOut` give the same output.
-$$\mathrm{AgreesOff}(\mathrm{dryOut}, \mathrm{emptyDone}, E_{\mathrm{empty}})$$ -/
-theorem emptyDone_agrees_off : AgreesOff dryOut emptyDone emptyIncident := by
-  intro o h
-  funext t
-  simp only [emptyIncident, Bool.not_eq_true] at h
-  simp only [emptyDone, dryOut, h, Bool.false_eq_true, ite_false]
-
-/-- **`exnNoVerdict` is the real run when nothing threw.** For every outcome with no exception, and every task,
-`exnNoVerdict` and `dryOut` give the same output.
-$$\mathrm{AgreesOff}(\mathrm{dryOut}, \mathrm{exnNoVerdict}, E_{\mathrm{exn}})$$ -/
-theorem exnNoVerdict_agrees_off : AgreesOff dryOut exnNoVerdict threwIncident := by
-  intro o h
-  funext t
-  simp only [threwIncident, Bool.not_eq_true] at h
-  simp only [exnNoVerdict, dryOut, h, Bool.false_eq_true, ite_false]
+/-- **The registry is faithful to the real run**: every row's replay equals `dryOut` off that row's incident inputs.
+$$\mathrm{Faithful}(\mathrm{dryOut}, R_{\mathrm{dry}})$$ -/
+theorem landDryRegistry_faithful : landDryRegistry.Faithful dryOut := fun i hi => by
+  simp only [landDryRegistry, List.mem_singleton] at hi
+  subst hi
+  exact emptyNoVerdict_agrees_off
 
 /-! ## Step 4: pointwise checks and the search, before any proof -/
 
@@ -185,18 +208,35 @@ theorem qTruthful_sound (run : DryImpl) (t : String) : TruthfulVerdict run → �
 
 /-! ## Step 5: kill witnesses, proved by the search -/
 
-/-- **`NoSilentExit` rejects the incident.** The run that returns before the verdict on an empty branch fails the
-property.
-$$\lnot\,\mathrm{NoSilentExit}(\mathrm{emptyNoVerdict})$$ -/
-theorem NoSilentExit_rejects_emptyNoVerdict : ¬ NoSilentExit emptyNoVerdict :=
-  refutes_of_search _ _ _ EnumAll.all (qOneVerdict_sound emptyNoVerdict "x") (by decide +kernel)
+/-- **`NoSilentExit` rejects the registered incident.** The replay of `inc-land-dry-no-verdict` (it returns before
+the verdict on an empty branch) fails the property.
+$$\lnot\,\mathrm{NoSilentExit}(i_{\mathrm{dry}}.r)$$ -/
+theorem NoSilentExit_rejects_inc_land_dry_no_verdict : ¬ NoSilentExit incLandDryNoVerdict.replay :=
+  refutes_of_search _ _ _ EnumAll.all (qOneVerdict_sound incLandDryNoVerdict.replay "x") (by decide +kernel)
 
-/-- **`NoSilentExit` rejects an exception with no verdict.**
+/-- **`TruthfulVerdict` rejects the registered incident.** The replay of `inc-land-dry-no-verdict` fails the
+property.
+$$\lnot\,\mathrm{TruthfulVerdict}(i_{\mathrm{dry}}.r)$$ -/
+theorem TruthfulVerdict_rejects_inc_land_dry_no_verdict : ¬ TruthfulVerdict incLandDryNoVerdict.replay :=
+  refutes_of_search _ _ _ EnumAll.all (qTruthful_sound incLandDryNoVerdict.replay "x") (by decide +kernel)
+
+/-- **`NoSilentExit` kills a registered incident.**
+$$\mathrm{Kills}(R_{\mathrm{dry}}, \mathrm{NoSilentExit})$$ -/
+theorem NoSilentExit_kills : Kills landDryRegistry NoSilentExit :=
+  kills_of_rejects _ _ incLandDryNoVerdict (List.mem_singleton.mpr rfl) NoSilentExit_rejects_inc_land_dry_no_verdict
+
+/-- **`TruthfulVerdict` kills a registered incident.**
+$$\mathrm{Kills}(R_{\mathrm{dry}}, \mathrm{TruthfulVerdict})$$ -/
+theorem TruthfulVerdict_kills : Kills landDryRegistry TruthfulVerdict :=
+  kills_of_rejects _ _ incLandDryNoVerdict (List.mem_singleton.mpr rfl)
+    TruthfulVerdict_rejects_inc_land_dry_no_verdict
+
+/-- **`NoSilentExit` rejects the exception mutant** (not a registered incident, so not a kill).
 $$\lnot\,\mathrm{NoSilentExit}(\mathrm{exnNoVerdict})$$ -/
 theorem NoSilentExit_rejects_exnNoVerdict : ¬ NoSilentExit exnNoVerdict :=
   refutes_of_search _ _ _ EnumAll.all (qOneVerdict_sound exnNoVerdict "x") (by decide +kernel)
 
-/-- **`TruthfulVerdict` rejects `done` on an empty branch.**
+/-- **`TruthfulVerdict` rejects the `done` mutant** (not a registered incident, so not a kill).
 $$\lnot\,\mathrm{TruthfulVerdict}(\mathrm{emptyDone})$$ -/
 theorem TruthfulVerdict_rejects_emptyDone : ¬ TruthfulVerdict emptyDone :=
   refutes_of_search _ _ _ EnumAll.all (qTruthful_sound emptyDone "x") (by decide +kernel)
@@ -242,11 +282,23 @@ outcome's kind and its exit code is that kind's code.
 $$\mathrm{TruthfulVerdict}(\mathrm{dryOut})$$ -/
 theorem TruthfulVerdict_impl : TruthfulVerdict dryOut := fun o t => ⟨(dryRun_one_verdict o t).2, rfl⟩
 
+/-- **`NoSilentExit` meets the convention**: it holds of `dryOut`, kills a registered incident, and the registry is
+faithful to `dryOut`.
+$$\mathrm{Convention}(R_{\mathrm{dry}}, \mathrm{dryOut}, \mathrm{NoSilentExit})$$ -/
+theorem NoSilentExit_convention : Convention landDryRegistry dryOut NoSilentExit :=
+  ⟨NoSilentExit_impl, NoSilentExit_kills, landDryRegistry_faithful⟩
+
+/-- **`TruthfulVerdict` meets the convention**: it holds of `dryOut`, kills a registered incident, and the registry
+is faithful to `dryOut`.
+$$\mathrm{Convention}(R_{\mathrm{dry}}, \mathrm{dryOut}, \mathrm{TruthfulVerdict})$$ -/
+theorem TruthfulVerdict_convention : Convention landDryRegistry dryOut TruthfulVerdict :=
+  ⟨TruthfulVerdict_impl, TruthfulVerdict_kills, landDryRegistry_faithful⟩
+
 /-! ## Step 6b: every kill is on the incident, for every task
 
-The kill witnesses of step 5 only say that some input fails. With `*_agrees_off` (step 3) and the proofs of step 6,
-`Fw.Spec.Props.failures_on_incident` / `fails_on_incident` show that each bad run fails exactly on its incident
-inputs and on at least one of them. -/
+The kill witnesses of step 5 only say that some input fails. With `landDryRegistry_faithful` (step 3) and the proofs
+of step 6, `Fw.Spec.Props.failures_on_incident` / `fails_on_incident` show that the replay fails each check only on
+incident inputs and on at least one of them. -/
 
 /-- The `NoSilentExit` check on a (task, outcome) pair.
 $$q_1'(r, (t, O)) = q_1(r, t, O)$$ -/
@@ -278,46 +330,36 @@ theorem qTruthfulAt_readsAt : ReadsAt qTruthfulAt Prod.snd := by
   intro i j y h
   simp only [qTruthfulAt, qTruthful, h]
 
-/-- **`NoSilentExit` kills `emptyNoVerdict` on the empty branch.** Every task and outcome on which the check fails
-for `emptyNoVerdict` is an empty branch, and some task and empty-branch outcome make it fail.
-$$(\forall t\, O,\ q_1(\mathrm{emptyNoVerdict}, t, O) = \mathrm{false} \Rightarrow \operatorname{empty}(O)) \wedge \exists t\, O,\ \operatorname{empty}(O) \wedge q_1(\mathrm{emptyNoVerdict}, t, O) = \mathrm{false}$$ -/
-theorem NoSilentExit_rejects_emptyNoVerdict_on_incident :
-    (∀ t o, qOneVerdict emptyNoVerdict t o = false → isEmptyBranch o = true) ∧
-      ∃ t o, isEmptyBranch o = true ∧ qOneVerdict emptyNoVerdict t o = false := by
+/-- **`NoSilentExit` kills the replay on the empty branch.** Every task and outcome on which the check fails for the
+replay of `inc-land-dry-no-verdict` is an incident input (an empty branch), and some task and incident input make it
+fail.
+$$(\forall t\, O,\ q_1(i_{\mathrm{dry}}.r, t, O) = \mathrm{false} \Rightarrow E_{\mathrm{empty}}(O)) \wedge \exists t\, O,\ E_{\mathrm{empty}}(O) \wedge q_1(i_{\mathrm{dry}}.r, t, O) = \mathrm{false}$$ -/
+theorem NoSilentExit_rejects_inc_land_dry_no_verdict_on_incident :
+    (∀ t o, qOneVerdict incLandDryNoVerdict.replay t o = false → incLandDryNoVerdict.pred o) ∧
+      ∃ t o, incLandDryNoVerdict.pred o ∧ qOneVerdict incLandDryNoVerdict.replay t o = false := by
   have hi := (NoSilentExit_iff_pointwise dryOut).mp NoSilentExit_impl
-  refine ⟨fun t o h => failures_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut emptyNoVerdict
-    emptyIncident hi emptyNoVerdict_agrees_off (t, o) h, ?_⟩
-  obtain ⟨⟨t, o⟩, he, hq⟩ := fails_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut emptyNoVerdict
-    emptyIncident hi emptyNoVerdict_agrees_off
-    (fun h => NoSilentExit_rejects_emptyNoVerdict ((NoSilentExit_iff_pointwise _).mpr h))
+  have ha := landDryRegistry_faithful incLandDryNoVerdict (List.mem_singleton.mpr rfl)
+  refine ⟨fun t o h => failures_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut
+    incLandDryNoVerdict.replay incLandDryNoVerdict.pred hi ha (t, o) h, ?_⟩
+  obtain ⟨⟨t, o⟩, he, hq⟩ := fails_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut
+    incLandDryNoVerdict.replay incLandDryNoVerdict.pred hi ha
+    (fun h => NoSilentExit_rejects_inc_land_dry_no_verdict ((NoSilentExit_iff_pointwise _).mpr h))
   exact ⟨t, o, he, hq⟩
 
-/-- **`NoSilentExit` kills `exnNoVerdict` on an exception.** Every task and outcome on which the check fails for
-`exnNoVerdict` threw, and some task and outcome that threw make it fail.
-$$(\forall t\, O,\ q_1(\mathrm{exnNoVerdict}, t, O) = \mathrm{false} \Rightarrow \mathit{threw}(O)) \wedge \exists t\, O,\ \mathit{threw}(O) \wedge q_1(\mathrm{exnNoVerdict}, t, O) = \mathrm{false}$$ -/
-theorem NoSilentExit_rejects_exnNoVerdict_on_incident :
-    (∀ t o, qOneVerdict exnNoVerdict t o = false → o.threw = true) ∧
-      ∃ t o, o.threw = true ∧ qOneVerdict exnNoVerdict t o = false := by
-  have hi := (NoSilentExit_iff_pointwise dryOut).mp NoSilentExit_impl
-  refine ⟨fun t o h => failures_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut exnNoVerdict
-    threwIncident hi exnNoVerdict_agrees_off (t, o) h, ?_⟩
-  obtain ⟨⟨t, o⟩, he, hq⟩ := fails_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut exnNoVerdict
-    threwIncident hi exnNoVerdict_agrees_off
-    (fun h => NoSilentExit_rejects_exnNoVerdict ((NoSilentExit_iff_pointwise _).mpr h))
-  exact ⟨t, o, he, hq⟩
-
-/-- **`TruthfulVerdict` kills `emptyDone` on the empty branch.** Every task and outcome on which the check fails for
-`emptyDone` is an empty branch, and some task and empty-branch outcome make it fail.
-$$(\forall t\, O,\ q_2(\mathrm{emptyDone}, t, O) = \mathrm{false} \Rightarrow \operatorname{empty}(O)) \wedge \exists t\, O,\ \operatorname{empty}(O) \wedge q_2(\mathrm{emptyDone}, t, O) = \mathrm{false}$$ -/
-theorem TruthfulVerdict_rejects_emptyDone_on_incident :
-    (∀ t o, qTruthful emptyDone t o = false → isEmptyBranch o = true) ∧
-      ∃ t o, isEmptyBranch o = true ∧ qTruthful emptyDone t o = false := by
+/-- **`TruthfulVerdict` kills the replay on the empty branch.** Every task and outcome on which the check fails for
+the replay of `inc-land-dry-no-verdict` is an incident input (an empty branch), and some task and incident input make
+it fail.
+$$(\forall t\, O,\ q_2(i_{\mathrm{dry}}.r, t, O) = \mathrm{false} \Rightarrow E_{\mathrm{empty}}(O)) \wedge \exists t\, O,\ E_{\mathrm{empty}}(O) \wedge q_2(i_{\mathrm{dry}}.r, t, O) = \mathrm{false}$$ -/
+theorem TruthfulVerdict_rejects_inc_land_dry_no_verdict_on_incident :
+    (∀ t o, qTruthful incLandDryNoVerdict.replay t o = false → incLandDryNoVerdict.pred o) ∧
+      ∃ t o, incLandDryNoVerdict.pred o ∧ qTruthful incLandDryNoVerdict.replay t o = false := by
   have hi := (TruthfulVerdict_iff_pointwise dryOut).mp TruthfulVerdict_impl
-  refine ⟨fun t o h => failures_on_incident qTruthfulAt Prod.snd qTruthfulAt_readsAt dryOut emptyDone
-    emptyIncident hi emptyDone_agrees_off (t, o) h, ?_⟩
-  obtain ⟨⟨t, o⟩, he, hq⟩ := fails_on_incident qTruthfulAt Prod.snd qTruthfulAt_readsAt dryOut emptyDone
-    emptyIncident hi emptyDone_agrees_off
-    (fun h => TruthfulVerdict_rejects_emptyDone ((TruthfulVerdict_iff_pointwise _).mpr h))
+  have ha := landDryRegistry_faithful incLandDryNoVerdict (List.mem_singleton.mpr rfl)
+  refine ⟨fun t o h => failures_on_incident qTruthfulAt Prod.snd qTruthfulAt_readsAt dryOut
+    incLandDryNoVerdict.replay incLandDryNoVerdict.pred hi ha (t, o) h, ?_⟩
+  obtain ⟨⟨t, o⟩, he, hq⟩ := fails_on_incident qTruthfulAt Prod.snd qTruthfulAt_readsAt dryOut
+    incLandDryNoVerdict.replay incLandDryNoVerdict.pred hi ha
+    (fun h => TruthfulVerdict_rejects_inc_land_dry_no_verdict ((TruthfulVerdict_iff_pointwise _).mpr h))
   exact ⟨t, o, he, hq⟩
 
 /-- On every task the `NoSilentExit` check of `emptyNoVerdict` fails exactly on the empty branch: for every task and
@@ -353,12 +395,62 @@ theorem exnNoVerdict_search (t : String) :
   rw [show qOneVerdict exnNoVerdict t = fun o => !o.threw from funext (qOneVerdict_exnNoVerdict t)]
   rfl
 
+/-! ## Step 6c: an unrelated property is not a kill
+
+The round-2 loophole: with a bad implementation and an incident predicate chosen per property, an unrelated property
+met every rule. `Silly` (exit code at most 100) holds of `dryOut` and rejects a made-up `sillyBad` that differs from
+`dryOut` only on the empty branch, yet it passes the registered replay, so it kills no registered incident. -/
+
+/-- **An unrelated property**: for every outcome and task, the exit code is at most 100.
+$$\mathrm{Silly}(r) \iff \forall O\, t,\ r(O, t).\mathrm{exit} \le 100$$ -/
+def Silly (run : DryImpl) : Prop := ∀ o t, (run o t).exit ≤ 100
+
+/-- **A made-up bad implementation**: on an empty branch the real lines with exit code 200; otherwise the real run.
+$$\mathrm{sillyBad}(O, t) = \begin{cases} (\operatorname{run}(O, t), 200) & \operatorname{empty}(O) \\ \mathrm{dryOut}(O, t) & \text{otherwise} \end{cases}$$ -/
+def sillyBad : DryImpl := fun o t => if isEmptyBranch o then ⟨dryRun o t, 200⟩ else dryOut o t
+
+/-- `Silly` holds of the real run: every kind's exit code is at most 100.
+$$\mathrm{Silly}(\mathrm{dryOut})$$ -/
+theorem Silly_impl : Silly dryOut := by
+  intro o t
+  simp only [dryOut]
+  cases o.kind <;> decide
+
+/-- `Silly` rejects the made-up bad implementation, which counted as a kill in round 2 and counts for nothing now.
+$$\lnot\,\mathrm{Silly}(\mathrm{sillyBad})$$ -/
+theorem Silly_rejects_sillyBad : ¬ Silly sillyBad := fun h => by
+  have := h ⟨false, true, false, false, false, false, false⟩ "x"
+  simp [sillyBad, isEmptyBranch] at this
+
+/-- **`Silly` passes the registered replay**: it is not a kill witness for `inc-land-dry-no-verdict`.
+$$\lnot\lnot\,\mathrm{Silly}(i_{\mathrm{dry}}.r)$$ -/
+theorem Silly_passes_replay : ¬ ¬ Silly incLandDryNoVerdict.replay := fun hn => hn (by
+  intro o t
+  show (emptyNoVerdict o t).exit ≤ 100
+  simp only [emptyNoVerdict]
+  split
+  · show 0 ≤ 100
+    omega
+  · exact Silly_impl o t)
+
+/-- **`Silly` kills no registered incident.**
+$$\lnot\,\mathrm{Kills}(R_{\mathrm{dry}}, \mathrm{Silly})$$ -/
+theorem Silly_not_kill : ¬ Kills landDryRegistry Silly :=
+  not_kills_of_passes _ _ fun i hi => by
+    simp only [landDryRegistry, List.mem_singleton] at hi
+    subst hi
+    exact Classical.not_not.mp Silly_passes_replay
+
+/-- **`Silly` does not meet the convention**, although it holds of `dryOut`.
+$$\lnot\,\mathrm{Convention}(R_{\mathrm{dry}}, \mathrm{dryOut}, \mathrm{Silly})$$ -/
+theorem Silly_not_convention : ¬ Convention landDryRegistry dryOut Silly := fun h => Silly_not_kill h.kills
+
 /-! ## Step 7: the premise Lean cannot see, in the statement -/
 
 /-- The premise that `land.ts` writes `dryOut`'s lines to stdout unchanged (a process boundary, kind shell). It is an
 example id: the registry entry is task `lfg-premise-registry`.
 $$p_{\mathrm{out}} = (\mathrm{shell}, \texttt{land.dryPrintsOutVerbatim})$$ -/
-def printsVerbatim : Premise := ⟨.shell, "land.dryPrintsOutVerbatim"⟩
+def printsVerbatim : Premise := { kind := .shell, id := "land.dryPrintsOutVerbatim" }
 
 /-- **The real stdout has one verdict line, under a named premise.** For every stdout function $s$: if (premise
 $p_{\mathrm{out}}$) $s$ is `dryOut`'s lines for every outcome and task, then for every outcome and task $s$ has exactly

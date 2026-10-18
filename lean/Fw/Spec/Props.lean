@@ -8,27 +8,38 @@ convention here makes a property a first-class value that exists *before* the co
 * **Property over the signature.** A never-happen property of a task is a `Prop`-valued def over the type of the
   implementation, `P : Impl → Prop` (`Property Impl`), never a statement about one fixed def. So the same `P` can be
   proved of the real implementation and refuted for a bad one.
-* **Kill-witness naming.** For a property `P`, the real implementation `impl` and a bad implementation `bad`:
-  `theorem P_impl : P impl` and `theorem P_rejects_<bad> : ¬ P bad` (`implName`, `killName`). The gate decides by the
-  *type* (`P impl`, `¬ P bad`, same head constant `P`); the names are for readers.
-* **Non-vacuity is weak alone.** A kill witness makes the property non-vacuous (`nonvacuous_of_rejects`), but any
-  property that some implementation fails is non-vacuous, even when the failure has nothing to do with the incident.
-* **The kill is tied to the incident.** So every bad implementation also gets `theorem <bad>_agrees_off :
-  AgreesOff impl bad incident`: the bad implementation equals the real one on every input that is not an incident
-  input. For a pointwise property whose check reads the implementation at one point (`ReadsAt`), if the property
-  holds of `impl` then `bad` fails the check only on incident inputs (`failures_on_incident`), and if the property
-  also rejects `bad`, on at least one (`fails_on_incident`). The kill witness then sees the incident, not an
-  unrelated difference.
+* **The kill target is a registered incident, not an author-made bad.** A bad implementation written per property
+  proves little: its author picks both the bad and the inputs it differs on, so an unrelated property (for example
+  "the exit code is at most 100") can reject it. So an `Incident` row pins, once per incident and reviewed with the
+  incident, its ledger `id` (docs/team/incidents/ledger.json), its `pred` (the incident inputs) and its `replay` (the
+  implementation that reproduces the real bug). A `Registry` holds the rows of one signature, each with a non-empty
+  id, distinct ids and a strict predicate (`Strict`: some input is not an incident input).
+* **Kill-witness naming.** For a property `P`, the real implementation `impl` and a registered incident `i`:
+  `theorem P_impl : P impl` and `theorem P_rejects_<i> : ¬ P i.replay` (`implName`, `killName`; the id's `-` become
+  `_`). A property counts as killing only through a registered row (`Kills R P`: some row of `R` has a replay that
+  `P` rejects), and the full convention for one property is `Convention R impl P` (`P impl`, `Kills R P`, and `R`
+  faithful to `impl`). The gate decides by the *type*; the names are for readers.
+* **The replay is checked against the real implementation.** `Registry.Faithful impl R`: every row's replay equals
+  `impl` on every input that is not an incident input of that row (`AgreesOff`). This checks the replay, not a
+  property. For a pointwise property whose check reads the implementation at one point (`ReadsAt`), if the property
+  holds of `impl` then the replay fails the check only on incident inputs (`failures_on_incident`), and if the
+  property also rejects the replay, on at least one (`fails_on_incident`).
+* **Extra bad implementations** (mutants such as a `done` verdict on an empty branch) may still get `¬ P bad`
+  theorems, for example to show that one property is blind to a bug, but they do not count as kills.
 * **Pointwise form.** A property that is a `∀` over inputs of a `Bool` check (`Pointwise`) is what `Fw.Search` can
   search before any proof (`rejects_of_counterexample`).
 * **Premises are visible.** `Assume p claim` holds exactly when `claim` does (`assume_iff`), but it is a structure:
   a proof of it is built only with the explicit `Assume.intro`, and it names the premise `p` (its kind and registry
   id) in the statement. So a theorem that takes `(h : Assume p claim)` says in its type that it rests on the engine,
-  the shell, the file system or CI, and a checker can list the ids.
-* **What Lean does not catch here.** Nothing in this module stops a theorem from taking an outside fact as a bare,
-  unmarked hypothesis, and `Premise.id` is a free string, so an unregistered id elaborates. Those two holes are closed
-  only by the tasks `lfg-premise-registry` (every id must be a registry row) and `lfg-mathview-facts` (MathView lists
-  the hypotheses of each theorem, so an unmarked outside fact is visible in review).
+  the shell, the file system or CI, and a checker can list the ids. A `Premise` id must be non-empty
+  (`Premise.id_ne`, filled by `decide` in `{ kind := …, id := … }`).
+* **What Lean does not catch here.** The marker only labels a premise; it enforces nothing about its content. A
+  marked premise of `False` proves anything (`assume_false_elim`), so premise contents are reviewed with the premise
+  registry. Nothing in this module stops a theorem from taking an outside fact as a bare, unmarked hypothesis, and
+  a non-empty `Premise.id` that is not a registry row still elaborates; likewise an `Incident.id` is not checked
+  against the ledger here. Those holes are closed only by the tasks `lfg-premise-registry` (every premise id must be a
+  registry row) and `lfg-mathview-facts` (MathView lists the hypotheses of each theorem, so an unmarked outside fact
+  is visible in review); the ledger check of incident ids is an open item of `lfg-land-wire`.
 
 Worked example: `Fw.Spec.Props.LandDryDemo`; how-to: docs/team/tools/lean-first.md.
 -/
@@ -55,7 +66,7 @@ $$\forall P : I \to \mathrm{Prop},\ \forall b : I,\ \lnot P(b) \Rightarrow \exis
 theorem nonvacuous_of_rejects {Impl : Type u} (P : Property Impl) (bad : Impl) (h : ¬ P bad) : Nonvacuous P :=
   ⟨bad, h⟩
 
-/-- `Rejects` is the negation, so `P_rejects_<bad>` may be stated either way.
+/-- `Rejects` is the negation, so `P_rejects_<i>` may be stated either way.
 $$\forall P : I \to \mathrm{Prop},\ \forall b : I,\ \mathrm{Rejects}(P, b) \iff \lnot P(b)$$ -/
 theorem rejects_iff {Impl : Type u} (P : Property Impl) (bad : Impl) : Rejects P bad ↔ ¬ P bad := Iff.rfl
 
@@ -107,6 +118,80 @@ theorem fails_on_incident {α : Type v} {β : Type w} {γ : Type u} (Q : (α →
   obtain ⟨y, hy⟩ := this
   exact ⟨y, failures_on_incident Q pt hQ impl bad incident hi ha y hy, hy⟩
 
+/-! ## The incident registry: the kill target -/
+
+/-- An incident predicate is strict when some input is not an incident input.
+$$\mathrm{Strict}(E) \iff \exists a : A,\ \lnot E(a)$$ -/
+def Strict {α : Type v} (incident : α → Prop) : Prop := ∃ a, ¬ incident a
+
+/-- **A registered incident.** One row per incident of docs/team/incidents/ledger.json, for implementations
+$A \to B$: its ledger id, its incident inputs $E$, and its replay $r$, the implementation that reproduces the real bug.
+The row is written once per incident and reviewed with the incident, never per property.
+$$\mathrm{Incident}(A, B) = \mathrm{String} \times (A \to \mathrm{Prop}) \times (A \to B)$$ -/
+structure Incident (α : Type v) (β : Type w) where
+  /-- The ledger id, for example `inc-land-dry-no-verdict`. -/
+  id : String
+  /-- The incident inputs. -/
+  pred : α → Prop
+  /-- The implementation that reproduces the real bug. -/
+  replay : α → β
+
+/-- **A registry of incidents** for one signature $A \to B$: a list of rows, every id non-empty, the ids pairwise
+distinct, and every incident predicate strict.
+$$R = [i_1, \dots, i_n],\quad \forall i \in R,\ i.\mathrm{id} \ne \texttt{""} \wedge \mathrm{Strict}(i.E),\quad \mathrm{Nodup}([i.\mathrm{id} : i \in R])$$ -/
+structure Registry (α : Type v) (β : Type w) where
+  /-- The registered incidents. -/
+  rows : List (Incident α β)
+  /-- Every id is non-empty. -/
+  ids_ne : ∀ i ∈ rows, i.id ≠ ""
+  /-- No id appears twice. -/
+  ids_nodup : (rows.map Incident.id).Nodup
+  /-- Every incident predicate is strict. -/
+  strict : ∀ i ∈ rows, Strict i.pred
+
+/-- **The replays are faithful to the real implementation.** For an implementation $f : A \to B$, every row's replay
+equals $f$ on every input that is not an incident input of that row.
+$$\mathrm{Faithful}(f, R) \iff \forall i \in R,\ \mathrm{AgreesOff}(f, i.r, i.E)$$ -/
+def Registry.Faithful {α : Type v} {β : Type w} (impl : α → β) (R : Registry α β) : Prop :=
+  ∀ i ∈ R.rows, AgreesOff impl i.replay i.pred
+
+/-- **A property kills a registered incident.** Some row of the registry has a replay that the property rejects.
+$$\mathrm{Kills}(R, P) \iff \exists i \in R,\ \lnot P(i.r)$$ -/
+def Kills {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β)) : Prop :=
+  ∃ i ∈ R.rows, ¬ P i.replay
+
+/-- **The full convention for one property.** For a registry $R$, a real implementation $f$ and a property $P$: $P$
+holds of $f$, $P$ kills a registered incident, and the registry's replays are faithful to $f$.
+$$\mathrm{Convention}(R, f, P) \iff P(f) \wedge \mathrm{Kills}(R, P) \wedge \mathrm{Faithful}(f, R)$$ -/
+structure Convention {α : Type v} {β : Type w} (R : Registry α β) (impl : α → β) (P : Property (α → β)) : Prop where
+  /-- `P_impl`. -/
+  holds : P impl
+  /-- From a `P_rejects_<i>` theorem. -/
+  kills : Kills R P
+  /-- The replays are checked against the real implementation. -/
+  faithful : R.Faithful impl
+
+/-- **A kill witness for a registered row is a kill.** For every registry $R$, property $P$ and row $i \in R$: if $P$
+rejects $i$'s replay, then $P$ kills a registered incident.
+$$\forall R\, P,\ \forall i \in R,\ \lnot P(i.r) \Rightarrow \mathrm{Kills}(R, P)$$ -/
+theorem kills_of_rejects {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β)) (i : Incident α β)
+    (hi : i ∈ R.rows) (h : ¬ P i.replay) : Kills R P :=
+  ⟨i, hi, h⟩
+
+/-- **A property that passes every replay kills nothing.** For every registry $R$ and property $P$: if $P$ holds of
+every row's replay, then $P$ kills no registered incident.
+$$\forall R\, P,\ (\forall i \in R,\ P(i.r)) \Rightarrow \lnot\,\mathrm{Kills}(R, P)$$ -/
+theorem not_kills_of_passes {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β))
+    (h : ∀ i ∈ R.rows, P i.replay) : ¬ Kills R P :=
+  fun ⟨i, hi, hn⟩ => hn (h i hi)
+
+/-- **A kill makes the property non-vacuous.** For every registry $R$ and property $P$: if $P$ kills a registered
+incident, some implementation fails $P$.
+$$\forall R\, P,\ \mathrm{Kills}(R, P) \Rightarrow \exists b : A \to B,\ \lnot P(b)$$ -/
+theorem nonvacuous_of_kills {α : Type v} {β : Type w} (R : Registry α β) (P : Property (α → β)) (h : Kills R P) :
+    Nonvacuous P :=
+  let ⟨i, _, hn⟩ := h; ⟨i.replay, hn⟩
+
 /-- The kinds of premise a property may rest on: a browser engine, the shell, the file system, CI, the platform
 (OS, toolchain) or the DOM. The registry `Fw.Ops.Premise` gives each premise one kind.
 $$\mathrm{PremiseKind} = \{\mathrm{engine}, \mathrm{shell}, \mathrm{fs}, \mathrm{ci}, \mathrm{platform}, \mathrm{dom}\}$$ -/
@@ -115,18 +200,25 @@ inductive PremiseKind where
 deriving DecidableEq, Repr
 
 /-- A named premise: its kind and its registry id (an `id` of `Fw.Ops.Premise.registry` or of a module's premise
-rows, for example `land.dryStagesAreLandStages`).
-$$p = (\mathit{kind}, \mathit{id}) \in \mathrm{PremiseKind} \times \mathrm{String}$$ -/
+rows, for example `land.dryStagesAreLandStages`), which must be non-empty. That the id is a registry row is left to
+`lfg-premise-registry`.
+$$p = (\mathit{kind}, \mathit{id}) \in \mathrm{PremiseKind} \times \mathrm{String},\quad \mathit{id} \ne \texttt{""}$$ -/
 structure Premise where
+  /-- The kind of outside fact. -/
   kind : PremiseKind
+  /-- The registry id. -/
   id : String
+  /-- The id is non-empty; `decide` proves it for a literal. -/
+  id_ne : id ≠ "" := by decide
 deriving DecidableEq, Repr
 
 /-- **The premise marker.** An opaque wrapper around the claim: a proof of `Assume p claim` is built only with the
 explicit `Assume.intro` and read only with `Assume.elim`, so a bare proof of the claim does not elaborate where the
 marker is expected, and a theorem that takes `(h : Assume p claim)` shows in its type which outside fact (engine,
-shell, fs, CI) it rests on. A bare, unmarked hypothesis is still possible elsewhere; `lfg-mathview-facts` and
-`lfg-premise-registry` catch that, not this type.
+shell, fs, CI) it rests on. The marker only labels the premise and enforces nothing about its content: a marked
+premise of `False` proves anything (`assume_false_elim`), so premise contents are reviewed with the premise registry.
+A bare, unmarked hypothesis is still possible elsewhere; `lfg-mathview-facts` and `lfg-premise-registry` catch that,
+not this type.
 $$\mathrm{Assume}(p, c) : \mathrm{Prop},\quad \mathrm{intro} : c \to \mathrm{Assume}(p, c),\quad \mathrm{elim} : \mathrm{Assume}(p, c) \to c$$ -/
 structure Assume (p : Premise) (claim : Prop) : Prop where
   /-- Introduce a premise: a proof of the claim, marked with the premise $p$.
@@ -141,21 +233,34 @@ claim.
 $$\forall p,\ \forall c : \mathrm{Prop},\ \mathrm{Assume}(p, c) \iff c$$ -/
 theorem assume_iff (p : Premise) (c : Prop) : Assume p c ↔ c := ⟨Assume.elim, Assume.intro⟩
 
+/-- **A marked premise of `False` proves anything.** For every premise and every claim, a marked `False` gives the
+claim; the marker does not stop it, so the content of every premise is reviewed with the registry.
+$$\forall p,\ \forall c : \mathrm{Prop},\ \mathrm{Assume}(p, \bot) \Rightarrow c$$ -/
+theorem assume_false_elim (p : Premise) (c : Prop) (h : Assume p False) : c := h.elim.elim
+
 -- the marker is opaque: a bare proof of the claim is not a marked claim, only `Assume.intro` builds one
-example (c : Prop) (h : c) : Assume ⟨.shell, "example.id"⟩ c := by
+example (c : Prop) (h : c) : Assume { kind := .shell, id := "example.id" } c := by
   fail_if_success exact h
   exact Assume.intro h
+
+-- an empty premise id does not elaborate
+example : True := by
+  fail_if_success have : Premise := { kind := .shell, id := "" }
+  trivial
 
 /-- The name of the theorem that proves property $P$ of the real implementation.
 $$\operatorname{implName}(P) = P \mathbin{+\!\!+} \texttt{\_impl}$$ -/
 def implName (prop : String) : String := prop ++ "_impl"
 
-/-- The name of the kill witness of property $P$ against the bad implementation $b$.
-$$\operatorname{killName}(P, b) = P \mathbin{+\!\!+} \texttt{\_rejects\_} \mathbin{+\!\!+} b$$ -/
-def killName (prop bad : String) : String := prop ++ "_rejects_" ++ bad
+/-- The name of the kill witness of property $P$ against the registered incident with ledger id $i$: every `-` of
+the id becomes `_`, so the name is a Lean identifier.
+$$\operatorname{killName}(P, i) = P \mathbin{+\!\!+} \texttt{\_rejects\_} \mathbin{+\!\!+} \operatorname{map}(\sigma, i),\quad \sigma(c) = \begin{cases} \texttt{\_} & c = \texttt{-} \\ c & \text{otherwise} \end{cases}$$ -/
+def killName (prop incidentId : String) : String :=
+  prop ++ "_rejects_" ++ incidentId.map fun c => if c = '-' then '_' else c
 
 #guard implName "NoSilentExit" == "NoSilentExit_impl"
-#guard killName "NoSilentExit" "emptyNoVerdict" == "NoSilentExit_rejects_emptyNoVerdict"
-#guard killName "TruthfulVerdict" "emptyDone" == "TruthfulVerdict_rejects_emptyDone"
+#guard killName "NoSilentExit" "inc-land-dry-no-verdict" == "NoSilentExit_rejects_inc_land_dry_no_verdict"
+#guard killName "TruthfulVerdict" "inc-land-dry-no-verdict" == "TruthfulVerdict_rejects_inc_land_dry_no_verdict"
+#guard killName "P" "" == "P_rejects_"
 
 end Fw.Spec.Props
