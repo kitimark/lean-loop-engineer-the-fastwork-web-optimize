@@ -9,7 +9,7 @@ the compiled binary replaces the interpreted `lean --run` driver of `packages/ga
 Split out of `breakgen` (task `site-build-cache`) so the site build does not build the gate's import cone; the
 routing is `Fw.Site.GenRoute.sweepsgenRoute`, and `split_agrees` proves each old `breakgen` gate flag reaches the
 same generator; the arguments are `argsFor`, the old main's rule. -/
-def main (args : List String) : IO UInt32 :=
+def SweepsgenMain.main (args : List String) : IO UInt32 :=
   match Fw.Site.GenRoute.sweepsgenRoute args with
   | .scope => Fw.Gate.ScopeGen.run (Fw.Site.GenRoute.argsFor .scope args)
   | g => Fw.Gate.SweepsGen.run (Fw.Site.GenRoute.argsFor g args)

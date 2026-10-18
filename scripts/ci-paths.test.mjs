@@ -61,14 +61,14 @@ test('Lake cache jobs are read from the workflows: one writer, every setup-lean 
   assert.deepEqual(rows.filter((r) => r.saves).map((r) => `${r.file}/${r.job}`), ['lean.yml/lean']);
   const lean = readFileSync(join(root, WF, 'lean.yml'), 'utf8').split('\n');
   assert.deepEqual(setupLeanJobs(lean), [{ job: 'lean', save: 'true' }, { job: 'mathview-differential', save: 'false' }]);
-  // `lake build` = the lakefile defaults; check.sh adds fwtest
-  assert.deepEqual(by('lean.yml/lean').targets, [...readLakefile(root).defaults, 'fwtest']);
+  // `lake build` = the lakefile defaults; `lake test` runs `fwcore fwtest`, a default target (task lean-bin-slim)
+  assert.deepEqual(by('lean.yml/lean').targets, readLakefile(root).defaults);
   // a site build reaches `lake exe breakgen` through pnpm -> package.json -> scripts/check-breakpoints.mjs (spawnSync)
   for (const k of ['webkit-sim.yml/site', 'visual-diff.yml/site', 'breakpoint-gate.yml/site']) assert.deepEqual(by(k)?.targets, ['breakgen'], k);
   assert.deepEqual(by('webkit-sim.yml/fwcore')?.targets, ['fwcore']);
-  // mutants.sh: `lake build $LIBS fwtest fwcore` with LIBS="Fw FwTest.Mutants.Kill"; `$mod` (no literal) is skipped
-  assert.ok(['Fw', 'FwTest.Mutants.Kill', 'fwtest', 'fwcore'].every((t) => by('mutants.yml/shard').targets.includes(t)));
-  assert.deepEqual(lakeImportFacts(root, rows), [['FwTest.Mutants.Kill', 'fwtest']]);
+  // mutants.sh: `lake build $LIBS fwcore` with LIBS="Fw FwTest.Mutants.Kill"; `$mod` (no literal) is skipped
+  assert.ok(['Fw', 'FwTest.Mutants.Kill', 'fwcore'].every((t) => by('mutants.yml/shard').targets.includes(t)));
+  assert.deepEqual(lakeImportFacts(root, rows), [['FwTest.Mutants.Kill', 'fwcore']]);
   assert.deepEqual(lakeGenProblems(root, false), []);
 });
 

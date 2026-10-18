@@ -8,7 +8,7 @@ import Fw.Parts.PlatformGolden
 /-!
 # Golden vectors for the M2 pilot parts
 
-`lake env lean --run Fw/Parts/Golden.lean <outDir>` writes, per part id:
+`lake exe fwcore partsgolden <outDir>` writes, per part id:
 
 * `<outDir>/<part-id>.jsonl` — only functions the TS part exports, with its `GOLDEN_ARGS` names
   (`{"fn": name, "in": {...}, "out": ...}`);
@@ -386,6 +386,3 @@ def main (args : List String) : IO Unit := do
     IO.println s!"{name}: {ls.length} lines"
 
 end Fw.Parts.Golden
-
-/-- Entry point for `lean --run`. $$\mathit{main} = \operatorname{Golden.main}$$ Runs the golden generator. -/
-def main (args : List String) : IO Unit := Fw.Parts.Golden.main args

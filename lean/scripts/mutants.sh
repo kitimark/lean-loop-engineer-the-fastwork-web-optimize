@@ -4,7 +4,7 @@
 # v1 bug classes put back) are applied to scratch copies under <repo>/.cache/mutants/ (gitignored); the real
 # source tree is never written. Steps per mutant, first failure decides:
 #   1 `lake build <mutated module>`   2 `lake build Fw FwTest.Mutants.Kill` (every theorem, no linking)
-#   3 `lake build fwtest` + `lake test` (golden round trips)   4 `lake build fwcore` + golden/wire-replies.txt
+#   3 `lake build fwcore` + `lake test` (golden round trips)   4 `lake build fwcore` + golden/wire-replies.txt
 # Verdicts: killed:proof (a theorem stops elaborating), killed:guard (a #guard fails), killed:build (another
 # module's def stops type-checking), killed:test, killed:fwcore, killed:timeout; stillborn (the mutated def itself
 # is ill-typed, so no test is needed); equivalent (survived, listed with a reason in FwTest/Mutants/equivalent.tsv);
@@ -116,7 +116,7 @@ rsync -a --delete "$ROOT/packages/contracts/golden/" "$B/packages/contracts/gold
 # not `sed -i` (BSD and GNU spell it differently)
 sed -e 's/^enableArtifactCache = true/enableArtifactCache = false/' "$LEAN/lakefile.toml" >"$B/lean/lakefile.toml"
 echo "mutants: building the baseline in $B"
-if ! (cd "$B/lean" && lake build $LIBS fwtest fwcore >"$S/base.log" 2>&1 && lake test >>"$S/base.log" 2>&1 \
+if ! (cd "$B/lean" && lake build $LIBS fwcore >"$S/base.log" 2>&1 && lake test >>"$S/base.log" 2>&1 \
     && LEAN_ABORT_ON_PANIC=1 .lake/build/bin/fwcore <golden/wire-requests.txt | diff -q - golden/wire-replies.txt >/dev/null); then
   tail -20 "$S/base.log"; echo "mutants: baseline is not green; fix it first"; exit 1
 fi
@@ -171,8 +171,8 @@ run_one() { # $1 scratch dir, $2 file, $3 id → prints "verdict<TAB>detail"
     if [ $rc = 124 ]; then printf 'killed:timeout\t%s\n' "$*"; return; fi
     if [ $rc != 0 ]; then node "$GEN" classify "$w/m$n.log" "$w/lean" "$f"; return; fi
   done
-  step "$w/m3.log" 900 lake build fwtest
-  if [ $rc != 0 ]; then printf 'killed:%s\tlake build fwtest (rc %s)\n' "$([ $rc = 124 ] && echo timeout || echo build)" "$rc"; return; fi
+  step "$w/m3.log" 900 lake build fwcore
+  if [ $rc != 0 ]; then printf 'killed:%s\tlake build fwcore (rc %s)\n' "$([ $rc = 124 ] && echo timeout || echo build)" "$rc"; return; fi
   step "$w/m3.log" 600 lake test
   if [ $rc = 124 ]; then printf 'killed:timeout\tlake test\n'; return; fi
   if [ $rc != 0 ]; then
