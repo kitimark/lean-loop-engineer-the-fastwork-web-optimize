@@ -194,3 +194,18 @@ test('merge-gate: a missing, duplicated or foreign probe or sweep fails', () => 
   const odd = merge([{ ...run(ids, sweepIds), header: { ...header, browser: 'y' } }, run([], [])]);
   assert.equal(odd.r.status, 1, 'headers differ');
 });
+
+// The workflow plans with the Lean default (--params measured): a merge that drops the workflow side fails here (round 4: main's
+// trigger merge once reverted the default to cached).
+test('breakpoint-gate.yml: the times input, the plan step and gate-jobs.mjs all default to the Lean plan (measured)', () => {
+  const yml = readFileSync(join(root, '.github/workflows/breakpoint-gate.yml'), 'utf8');
+  const input = yml.match(/\n      times:\n(?:        .*\n|          .*\n)*?        default: '([a-z]+)'/);
+  assert.ok(input, 'the times input has a default');
+  assert.equal(input[1], 'measured', 'workflow_dispatch input default');
+  assert.match(yml, /TIMES: \$\{\{ inputs\.times \|\| 'measured' \}\}/, 'push runs plan with measured');
+  assert.match(yml, /case "\$TIMES" in measured\|base\|cached\|reduced\) ;;/, 'the guard accepts measured');
+  const dflt = node('gate-jobs.mjs', []);
+  const named = node('gate-jobs.mjs', ['--params', 'measured']);
+  assert.equal(dflt.status, 0, dflt.stderr);
+  assert.equal(dflt.stdout, named.stdout, 'gate-jobs.mjs without --params is the measured plan');
+});
