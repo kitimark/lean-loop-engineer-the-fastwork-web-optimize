@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Ci.Budget
 import Fw.Ci.Verdict
+import Fw.Ci.Intent
 import Fw.Ops.Wire
 /-!
 # JSON codecs and the ops `ci.budget.*` (the GitHub request budget of the CI poller)
@@ -20,7 +21,12 @@ and passes it to the next call.
 | `ci.budget.step` | `now`, `state`?, `event` Event | `state` |
 | `ci.budget.status` | `now`, `state`? | `limits`, `shares`, `used`, `interval`, `headroom`, `retryUntil`, `fails`, `watched`, `createdSince`, `state` |
 | `ci.budget.limits` | (nothing) | `limits` |
-| `ci.verdict` | `runs` [{`guard`, `steps` [{`name`, `conclusion`}], `jobs` [string]}] | `runs` [{`verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict`) |
+| `ci.verdict` | `runs` [Facts] | `runs` [{`verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.combine`) |
+| `ci.verdict` | `msg`, `lanes` {name: Facts or null} | `lanes` [{`name`, `verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.combineRequested`) |
+| `ci.required` | `msg` | `lanes` [name] (`Fw.Ci.Intent.wanted`, table order) |
+
+Facts: `{guard, steps:[{name, conclusion}], jobs:[conclusion], heavySteps:[{name, conclusion}]}` (`heavySteps`: the
+steps of every non-guard job, read for the tip re-check's `stale:` step).
 
 Shapes. Decision: `{decision:"issue", kind:"tick"|"oneoff", cost, state}` (the state with the charge booked; on a
 tick every watched run is covered), `{decision:"wait", until, reason, state}` or `{decision:"stop", reason, state}`;
@@ -222,25 +228,55 @@ def runVerdict (j : Json) : Except String (Fw.Ci.Verdict.Verdict × Json) := do
     | .ok _ => conclField j "guard"
   let steps ← (← arrD j "steps").mapM stepOf
   let jobs ← (← arrD j "jobs").mapM fun v => do pure (Fw.Ci.Verdict.conclOf (← asStr "jobs" v))
-  let v := Fw.Ci.Verdict.verdict ⟨g, Fw.Ci.Verdict.decisionOf steps, jobs⟩
-  let reason := if v == .notRun then Fw.Ci.Verdict.reasonOf g steps else ""
+  let stale := Fw.Ci.Verdict.staleOf (← (← arrD j "heavySteps").mapM stepOf)
+  let v := Fw.Ci.Verdict.verdict ⟨g, Fw.Ci.Verdict.decisionOf steps, jobs, stale⟩
+  let reason := if v == .notRun then Fw.Ci.Verdict.reasonOf g stale steps else ""
   pure (v, Json.mkObj [("verdict", .str (Fw.Ci.Verdict.name v)), ("code", jn (Fw.Ci.Verdict.code v)),
     ("reason", .str reason)])
 
-/-- `ci.verdict`: request `{runs:[{guard, steps:[{name, conclusion}], jobs:[conclusion]}]}` (`guard`: the guard job's
-conclusion, the key absent when the workflow has no guard job, `null` while it runs; `steps`: its steps; `jobs`: every
-other job's conclusion); reply `{runs:[{verdict, code, reason}], verdict,
-code}` with the combined verdict (`Fw.Ci.Verdict.combine`). -/
+/-- One lane of a branch wait: `{name, verdict, code, reason}`; a lane without a run (`null` or absent) is `missing`
+(code 4). -/
+def laneVerdict (lanes : Json) (l : Fw.Ci.Intent.Lane) : Except String (Fw.Ci.Verdict.LaneRun × Json) := do
+  let missing := (⟨l.byDefault, none, none⟩ : Fw.Ci.Verdict.LaneRun)
+  match lanes.getObjVal? l.name with
+  | .error _ | .ok .null =>
+    pure (missing, Json.mkObj [("name", .str l.name), ("verdict", "missing"), ("code", jn 4),
+      ("reason", "no run of this lane for the commit")])
+  | .ok f =>
+    let (v, j) ← runVerdict f
+    let reason := (j.getObjValAs? String "reason").toOption.getD ""
+    pure (⟨l.byDefault, some v, Fw.Ci.Verdict.skipOf reason⟩, j.setObjVal! "name" (.str l.name))
+
+/-- `ci.verdict`. Runs mode: request `{runs:[Facts]}` (`guard`: the guard job's conclusion, the key absent when the
+workflow has no guard job, `null` while it runs; `steps`: its steps; `jobs`: every other job's conclusion;
+`heavySteps`: their steps); reply `{runs:[{verdict, code, reason}], verdict, code}` with the combined verdict
+(`Fw.Ci.Verdict.combine`). Lanes mode (a `lanes` key): request `{msg, lanes:{name: Facts or null}}` with the newest run
+of each lane for one commit; reply `{lanes:[{name, verdict, code, reason}], verdict, code}` over the lanes the message
+wants (`Fw.Ci.Intent.wanted`), combined by `Fw.Ci.Verdict.combineRequested`. -/
 def opVerdict (req : Json) : Except String Reply := do
-  let rs ← (← arrD req "runs").mapM runVerdict
-  let v := Fw.Ci.Verdict.combine (rs.map (·.1))
-  pure [("runs", .arr (rs.map (·.2)).toArray), ("verdict", .str (Fw.Ci.Verdict.name v)),
-    ("code", jn (Fw.Ci.Verdict.code v))]
+  match req.getObjVal? "lanes" with
+  | .ok lanes =>
+    let msg ← str req "msg"
+    let rs ← (Fw.Ci.Intent.lanes.filter fun l => Fw.Ci.Intent.wanted l msg).mapM (laneVerdict lanes)
+    let v := Fw.Ci.Verdict.combineRequested (rs.map (·.1))
+    pure [("lanes", .arr (rs.map (·.2)).toArray), ("verdict", .str (Fw.Ci.Verdict.name v)),
+      ("code", jn (Fw.Ci.Verdict.code v))]
+  | .error _ =>
+    let rs ← (← arrD req "runs").mapM runVerdict
+    let v := Fw.Ci.Verdict.combine (rs.map (·.1))
+    pure [("runs", .arr (rs.map (·.2)).toArray), ("verdict", .str (Fw.Ci.Verdict.name v)),
+      ("code", jn (Fw.Ci.Verdict.code v))]
+
+/-- `ci.required`: request `{msg}`; reply `{lanes:[name]}`, the lanes the head commit message wants, in table order. -/
+def opRequired (req : Json) : Except String Reply := do
+  let msg ← str req "msg"
+  pure [("lanes", .arr ((Fw.Ci.Intent.lanes.filter fun l => Fw.Ci.Intent.wanted l msg).map
+    fun l => Json.str l.name).toArray)]
 
 /-- The ops of this module. -/
 def ops : List String :=
   ["ci.budget.reserve", "ci.budget.next", "ci.budget.observe", "ci.budget.step", "ci.budget.status", "ci.budget.limits",
-    "ci.verdict"]
+    "ci.verdict", "ci.required"]
 
 /-- Dispatch a `ci.budget.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -252,6 +288,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ci.budget.status" => some (opStatus req)
   | "ci.budget.limits" => some (opLimits req)
   | "ci.verdict" => some (opVerdict req)
+  | "ci.required" => some (opRequired req)
   | _ => none
 
 /-! ## Examples -/
@@ -318,7 +355,7 @@ def sample : State where
 #guard runField "ci.budget.status" "{\"now\":100}" "interval" == "30"
 -- a run whose guard was skipped at its if: is not run (code 4), with the reason
 #guard run "ci.verdict" "{\"runs\":[{\"guard\":\"skipped\",\"jobs\":[\"skipped\"]}]}" ==
-  "{\"code\":4,\"runs\":[{\"code\":4,\"reason\":\"guard if: the head commit does not ask for this lane\",\"verdict\":\"not-run\"}],\"verdict\":\"not-run\"}"
+  "{\"code\":4,\"runs\":[{\"code\":4,\"reason\":\"unwanted: guard if: the head commit does not ask for this lane\",\"verdict\":\"not-run\"}],\"verdict\":\"not-run\"}"
 #guard runField "ci.verdict" "{\"runs\":[{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: run\",\"conclusion\":\"success\"}],\"jobs\":[\"success\",\"skipped\"]}]}" "verdict" == "\"pass\""
 #guard runField "ci.verdict" "{\"runs\":[{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: skip: no input changed\",\"conclusion\":\"success\"}],\"jobs\":[\"skipped\"]}]}" "runs" ==
   "[{\"code\":4,\"reason\":\"no input changed\",\"verdict\":\"not-run\"}]"
@@ -329,5 +366,18 @@ def sample : State where
 #guard runField "ci.verdict" "{\"runs\":[{\"jobs\":[\"success\",\"success\"]}]}" "code" == "0"
 #guard runField "ci.verdict" "{\"runs\":[{\"jobs\":[\"skipped\"]}]}" "code" == "4"
 #guard runField "ci.verdict" "{\"runs\":[{\"guard\":null,\"jobs\":[\"success\"]}]}" "code" == "1"
+-- round 3: a job that stopped at its tip re-check makes the run not-run (stale), never fail or pass
+#guard runField "ci.verdict" "{\"runs\":[{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: run\",\"conclusion\":\"success\"}],\"jobs\":[\"failure\"],\"heavySteps\":[{\"name\":\"tip re-check\",\"conclusion\":\"success\"},{\"name\":\"stale: a newer push is the branch tip\",\"conclusion\":\"failure\"}]}]}" "code" == "4"
+-- the lanes mode: [ci:wktr] wants lean and wktr; wktr has no run, so no pass even though lean passed
+#guard runField "ci.verdict" "{\"msg\":\"x [ci:wktr]\",\"lanes\":{\"lean\":{\"jobs\":[\"success\"]}}}" "code" == "4"
+#guard runField "ci.verdict" "{\"msg\":\"x [ci:wktr]\",\"lanes\":{\"lean\":{\"jobs\":[\"success\"]},\"wktr\":null}}" "lanes" ==
+  "[{\"code\":0,\"name\":\"lean\",\"reason\":\"\",\"verdict\":\"pass\"},{\"code\":4,\"name\":\"wktr\",\"reason\":\"no run of this lane for the commit\",\"verdict\":\"missing\"}]"
+#guard runField "ci.verdict" "{\"msg\":\"x [ci:wktr]\",\"lanes\":{\"lean\":{\"jobs\":[\"success\"]},\"wktr\":{\"jobs\":[\"success\"]}}}" "code" == "0"
+-- lean not due (its guard found no input that differs from main) and the requested lane passed: pass
+#guard runField "ci.verdict" "{\"msg\":\"[ci:wktr]\",\"lanes\":{\"lean\":{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: skip: unchanged: none\",\"conclusion\":\"success\"}],\"jobs\":[\"skipped\"]},\"wktr\":{\"jobs\":[\"success\"]}}}" "code" == "0"
+-- a requested lane skipped as unchanged is not a pass
+#guard runField "ci.verdict" "{\"msg\":\"[ci:wktr]\",\"lanes\":{\"lean\":{\"jobs\":[\"success\"]},\"wktr\":{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: skip: unchanged: none\",\"conclusion\":\"success\"}],\"jobs\":[\"skipped\"]}}}" "code" == "4"
+#guard runField "ci.required" "{\"msg\":\"fix [ci:wktr] [ci:difftest]\"}" "lanes" == "[\"difftest\",\"lean\",\"wktr\"]"
+#guard runField "ci.required" "{\"msg\":\"fix\"}" "lanes" == "[\"lean\"]"
 
 end Fw.Wire.Ci

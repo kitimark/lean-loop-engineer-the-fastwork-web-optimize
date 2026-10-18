@@ -1,82 +1,105 @@
 import Fw.Ci.Intent
 /-!
-# Who may cancel a lane's run (task `ci-own-trigger`, round 2)
+# Who may cancel a lane's run (task `ci-own-trigger`, round 3: nobody on `ci/**`)
 
 Round 1 kept workflow-level concurrency: a newer push whose paths matched a workflow created a run, and that run
 cancelled the in-flight one at once, before its own guard decided anything. A push that did not ask for the lane then
 cancelled a requested run and skipped its own (MEASURED: run 39106170371 cancelled by the run of push 74ea297, whose
-engine-premises run 39106360862 was skipped; `research/notes/2026/10-18-ci-own-trigger.md`).
+engine-premises run 39106360862 was skipped; `research/notes/2026/10-18-ci-own-trigger.md`; `wf_level_loses` below).
 
-Now every heavy job carries a job-level concurrency group per lane, branch, job and matrix leg (`Intent.groupExpr`,
-`cancel-in-progress` on `ci/**` refs) and the workflow has none. A job enters its group only when it is queued, and a
-job whose `if:` is false (or whose `needs` were skipped) is never queued. GitHub's docs (github/docs@dae83f7,
-`data/reusables/actions/actions-group-concurrency.md`: "When a concurrent job or workflow is queued, if another job or
-workflow using the same concurrency group in the repository is in progress, the queued job or workflow will be
-`pending`", and `cancel-in-progress: true` "also cancel[s] any currently running job ... in the same concurrency
-group"; `data/reusables/actions/jobs/section-using-conditions-to-control-job-execution.md`: "use the
-`jobs.<job_id>.if` conditional to prevent a job from running", the job is then "marked as _skipped_") give the rule
-modelled here (CONFIRMED for queueing and cancelling; that a skipped job is never queued is INFERRED from those
-sentences and MEASURED on `ci/ci-own-trigger`: run 39109868988 of a push asking for snapshot-extract kept its 6
-running legs and passed after a newer push that touched the lane's inputs without asking for it created run
-39110017442, skipped; see the research note). Every heavy job needs the guard (checked by
-`scripts/ci-paths.mjs`), so only a run whose guard decided to run enters a group.
+Round 2 moved the groups to the heavy jobs with `cancel-in-progress` on `ci/**`. That still let a newer push cancel a
+running job, and GitHub keeps only one pending job per group (github/docs@dae83f7,
+`data/reusables/actions/actions-group-concurrency.md`: "any existing `pending` job or workflow in the same concurrency
+group ... will be canceled"), so the round-2 design relied on the newer run doing the work.
 
-The model: a group's history is the list of runs (push indices) whose job entered it, in entry order. An entry may be
-cancelled only when a later entry exists (an upper bound: GitHub cancels nothing when the earlier job has finished).
+Round 3 (lead decision): on `ci/**` no two runs share a group, so nothing is cancelled or replaced while pending; an
+older run instead stops itself at its tip re-check (`Fw.Ci.Intent.stale_never_works`). The group of a heavy job is the
+lane, a value and the job (`Intent.groupExpr`); the value is the ref on a `main` push (main runs queue, as before) and
+the run id otherwise. Here the value is modelled as a sum type (`GVal`): a ref and a run id never collide, since every
+push ref starts with `refs/` and a run id is a decimal number (INFERRED from GitHub's contexts reference; the text is
+checked against `groupExpr` by `scripts/ci-paths.test.mjs`).
+
+The model: a group's history is the list of runs whose job entered it, in entry order. An entry may be cancelled (or
+replaced while pending) only when a later entry exists.
 -/
 namespace Fw.Ci.Cancel
 open Fw.Ci.Intent
 
-/-- A group history is admissible when every run that entered it is one that started (job level).
-$$\forall s, E:\ \operatorname{adm}(s, E) \iff \forall r \in E:\ s(r)$$ -/
-def Admissible (started : Nat → Bool) (es : List Nat) : Prop := ∀ r ∈ es, started r = true
-
 /-- The entry at position $k$ may be cancelled: some run entered the group after it.
 $$\forall E, k:\ \operatorname{canc}(E, k) \iff k + 1 < |E|$$ -/
-def MayCancel (es : List Nat) (k : Nat) : Prop := k + 1 < es.length
+def MayCancel {α} (es : List α) (k : Nat) : Prop := k + 1 < es.length
 
-instance (es : List Nat) (k : Nat) : Decidable (MayCancel es k) := inferInstanceAs (Decidable (k + 1 < es.length))
+instance {α} (es : List α) (k : Nat) : Decidable (MayCancel es k) :=
+  inferInstanceAs (Decidable (k + 1 < es.length))
 
-/-- **A cancellation needs a newer started run.** Under job-level concurrency, if the entry at position $k$ may be
-cancelled, a later entry exists and its run started the lane.
-$$\forall s, E, k:\ \operatorname{adm}(s, E) \land \operatorname{canc}(E, k) \Rightarrow \exists j:\ k < j < |E| \land s(E_j)$$ -/
-theorem cancel_needs_newer_start (started : Nat → Bool) (es : List Nat) (k : Nat) (h : Admissible started es)
-    (hc : MayCancel es k) : ∃ j, ∃ hj : j < es.length, k < j ∧ started es[j] = true :=
-  ⟨k + 1, hc, Nat.lt_succ_self k, h _ (List.getElem_mem hc)⟩
+/-- The evaluated value in the middle of a group: a ref or a run id.
+$$v \in \{\operatorname{ref}(r)\} \cup \{\operatorname{run}(n)\}$$ -/
+inductive GVal where
+  | ref (r : String)
+  | run (id : Nat)
+  deriving DecidableEq, Repr
 
-/-- **Some started run is never cancelled.** If any run entered the group, the last entry may not be cancelled, and
-its run started the lane: the lane's result arrives.
-$$\forall s, E:\ \operatorname{adm}(s, E) \land E \ne [\,] \Rightarrow \exists k < |E|:\ \lnot\operatorname{canc}(E, k) \land s(E_k)$$ -/
-theorem last_never_cancelled (started : Nat → Bool) (es : List Nat) (h : Admissible started es) (hne : es ≠ []) :
-    ∃ k, ∃ hk : k < es.length, ¬MayCancel es k ∧ started es[k] = true := by
-  have hl : 0 < es.length := List.length_pos_iff.mpr hne
-  refine ⟨es.length - 1, by omega, ?_, h _ (List.getElem_mem _)⟩
-  unfold MayCancel; omega
+/-- A run as the group sees it: its id, event name and ref.
+$$\rho = (\mathit{id},\ e,\ r)$$ -/
+structure Run where
+  id : Nat
+  event : String
+  ref : String
+  deriving DecidableEq, Repr
 
-/-- The started flag of a lane over a branch's pushes. $$\forall S, \ell, P:\ s_{S,\ell,P}(r) = \operatorname{start}(S, \ell, P_r)$$ -/
-def startedOf (S : String → List String) (l : Lane) (ps : Nat → Push) (r : Nat) : Bool := start S l (ps r)
+/-- The value of `github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref ||
+github.run_id`: the ref on a push off `ci/**`, else the run id.
+$$\forall \rho:\ \operatorname{val}(\rho) = \begin{cases} \operatorname{ref}(\rho.r) & \rho.e = \texttt{push} \land \lnot(\texttt{refs/heads/ci/} \sqsubseteq_{\mathrm{pre}} \rho.r) \\ \operatorname{run}(\rho.\mathit{id}) & \text{otherwise} \end{cases}$$ -/
+def groupVal (r : Run) : GVal :=
+  if r.event == "push" && !r.ref.startsWith "refs/heads/ci/" then .ref r.ref else .run r.id
 
-/-- **A push that does not want the lane never enters its group,** so it never cancels a run of that lane.
-$$\forall S, \ell, P, E, r:\ \operatorname{adm}(s_{S,\ell,P}, E) \land P_r.\mathit{ci} \land \lnot\operatorname{want}(\ell, P_r.m) \Rightarrow r \notin E$$ -/
-theorem unwanted_never_enters (S : String → List String) (l : Lane) (ps : Nat → Push) (es : List Nat) (r : Nat)
-    (h : Admissible (startedOf S l ps) es) (hci : (ps r).ci = true) (hw : wanted l (ps r).msg = false) : r ∉ es := by
-  intro hr
-  have := h r hr
-  simp [startedOf, start, hci, hw] at this
+/-- The group of the job `j`, leg $x$, of lane $n$ for run $\rho$.
+$$\forall n, j, x, \rho:\ \operatorname{grp}(n, j, x, \rho) = (n,\ \operatorname{val}(\rho),\ j,\ x)$$ -/
+def groupOf (lane job : String) (leg : Nat) (r : Run) : String × GVal × String × Nat := (lane, groupVal r, job, leg)
 
-/-- **No requested lane is lost to a cancel.** On a branch, if a requested run of the lane entered its group, then
-(1) it may be cancelled only by a later entry whose push itself started the lane (so wanted it), and (2) some entry
-that started the lane is never cancelled.
-$$\forall S, \ell, P, E, k < |E|:\ \operatorname{adm}(s_{S,\ell,P}, E) \Rightarrow \bigl(\operatorname{canc}(E, k) \Rightarrow \exists j:\ k < j < |E| \land \operatorname{start}(S, \ell, P_{E_j}) \land (P_{E_j}.\mathit{ci} \Rightarrow \operatorname{want}(\ell, P_{E_j}.m))\bigr) \land \exists k' < |E|:\ \lnot\operatorname{canc}(E, k') \land \operatorname{start}(S, \ell, P_{E_{k'}})$$ -/
-theorem no_requested_lost (S : String → List String) (l : Lane) (ps : Nat → Push) (es : List Nat) (k : Nat)
-    (hk : k < es.length) (h : Admissible (startedOf S l ps) es) :
-    (MayCancel es k → ∃ j, ∃ hj : j < es.length, k < j ∧ start S l (ps es[j]) = true ∧
-        ((ps es[j]).ci = true → wanted l (ps es[j]).msg = true)) ∧
-      ∃ k', ∃ hk' : k' < es.length, ¬MayCancel es k' ∧ start S l (ps es[k']) = true := by
-  refine ⟨fun hc => ?_, ?_⟩
-  · obtain ⟨j, hj, hkj, hs⟩ := cancel_needs_newer_start _ es k h hc
-    refine ⟨j, hj, hkj, hs, fun hci => ((start_ci_iff S l _ hci).mp hs).1⟩
-  · exact last_never_cancelled _ es h (List.ne_nil_of_length_pos (by omega))
+/-- **A `ci/**` run shares its group with no other run.** If run $\rho$ is a `ci/**` push and $\sigma$ has another id,
+their groups differ (any lane, job and leg).
+$$\forall n, j, x, \rho, \sigma:\ \operatorname{isCi}(\rho.e, \rho.r) \land \rho.\mathit{id} \ne \sigma.\mathit{id} \Rightarrow \operatorname{grp}(n, j, x, \rho) \ne \operatorname{grp}(n, j, x, \sigma)$$ -/
+theorem ci_group_alone (lane job : String) (leg : Nat) (r s : Run) (hci : isCi r.event r.ref = true)
+    (hid : r.id ≠ s.id) : groupOf lane job leg r ≠ groupOf lane job leg s := by
+  have hr : groupVal r = .run r.id := by
+    simp only [isCi, Bool.and_eq_true] at hci
+    simp [groupVal, hci.1, hci.2]
+  intro h
+  simp only [groupOf, Prod.mk.injEq, true_and, and_true] at h
+  rw [hr] at h
+  unfold groupVal at h
+  split at h
+  · exact GVal.noConfusion h
+  · exact hid (GVal.run.inj h)
+
+/-- **Nothing cancels a `ci/**` run.** In a group history of distinct runs that holds a `ci/**` run, that run is the
+only entry, so no entry may be cancelled or replaced.
+$$\forall n, j, x, g, E, \rho \in E:\ \operatorname{nodup}([\sigma.\mathit{id} : \sigma \in E]) \land (\forall \sigma \in E:\ \operatorname{grp}(n, j, x, \sigma) = g) \land \operatorname{isCi}(\rho.e, \rho.r) \Rightarrow |E| = 1 \land \forall k:\ \lnot\operatorname{canc}(E, k)$$ -/
+theorem ci_never_cancelled (lane job : String) (leg : Nat) (g : String × GVal × String × Nat) (es : List Run)
+    (hnd : (es.map (·.id)).Nodup) (hg : ∀ s ∈ es, groupOf lane job leg s = g) (r : Run) (hr : r ∈ es)
+    (hci : isCi r.event r.ref = true) : es.length = 1 ∧ ∀ k, ¬MayCancel es k := by
+  have hsame : ∀ s ∈ es, s.id = r.id := by
+    intro s hs
+    exact Decidable.byContradiction fun hne =>
+      ci_group_alone lane job leg r s hci (Ne.symm hne) ((hg r hr).trans (hg s hs).symm)
+  have hc : (es.map (·.id)).count r.id = (es.map (·.id)).length :=
+    List.count_eq_length.mpr (by
+      intro b hb
+      obtain ⟨s, hs, rfl⟩ := List.mem_map.mp hb
+      simpa using (hsame s hs).symm)
+  have h1 : (es.map (·.id)).count r.id ≤ 1 := by rw [List.Nodup.count hnd]; split <;> omega
+  have hpos : 0 < es.length := List.length_pos_of_mem hr
+  have hlen : es.length = 1 := by
+    rw [List.length_map] at hc
+    omega
+  exact ⟨hlen, fun k hk => by unfold MayCancel at hk; omega⟩
+
+#guard groupVal ⟨7, "push", "refs/heads/ci/x"⟩ == .run 7
+#guard groupVal ⟨7, "push", "refs/heads/main"⟩ == .ref "refs/heads/main"
+#guard groupVal ⟨7, "workflow_dispatch", "refs/heads/main"⟩ == .run 7
+#guard groupOf "lean" "lean" 0 ⟨1, "push", "refs/heads/ci/x"⟩ != groupOf "lean" "lean" 0 ⟨2, "push", "refs/heads/ci/x"⟩
+#guard groupOf "lean" "lean" 0 ⟨1, "push", "refs/heads/main"⟩ == groupOf "lean" "lean" 0 ⟨2, "push", "refs/heads/main"⟩
 
 /-! ## The round-1 rule, for contrast -/
 
