@@ -1221,7 +1221,9 @@ def sStale (o : Obs) : List Alert :=
 
 /-- The `svc.sweepError` alert of a service whose drain caught fwcore throws: subject its name, detail the count.
 
-$$\operatorname{sweepAlert}(s) = (\texttt{svc.sweepError}, \mathit{name}(s), e(s) \cdot \text{“ fwcore throws caught in the drain since start”}, \mathrm{false})$$
+$$\operatorname{sweepAlert}(s) = (\texttt{svc.sweepError}, \mathit{name}(s), \operatorname{dec}(e(s)) \mathbin{+\!\!+} \text{“ fwcore throws caught in the drain since start”}, \mathrm{false})$$
+
+($e(s)$: the service's count of caught throws; $\operatorname{dec}$: its decimal digits.)
 -/
 def sweepAlert (s : Svc) : Alert :=
   ⟨.svcSweepError, s.name, s!"{s.sweepErrors} fwcore throws caught in the drain since start", false⟩
@@ -1680,7 +1682,7 @@ theorem svcSweepError_iff (p : Params) (o : Obs) (x : Alert) :
 /-- Never a swallowed throw: a service that counted a caught fwcore throw always has an alert in the report, named after
 it, whose detail carries the count.
 
-$$\forall p, o,\ \forall s \in \Sigma.\mathit{svcs}:\quad 0 < e(s) \Rightarrow \exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{svc.sweepError} \wedge \mathit{subject}(x) = \mathit{name}(s) \wedge \mathit{detail}(x) = e(s) \cdot \text{“ fwcore throws caught in the drain since start”}$$
+$$\forall p, o,\ \forall s \in \Sigma.\mathit{svcs}:\quad 0 < e(s) \Rightarrow \exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{svc.sweepError} \wedge \mathit{subject}(x) = \mathit{name}(s) \wedge \mathit{detail}(x) = \operatorname{dec}(e(s)) \mathbin{+\!\!+} \text{“ fwcore throws caught in the drain since start”}$$
 -/
 theorem sweep_error_alerts (p : Params) (o : Obs) (s : Svc) (hs : s ∈ o.system.svcs) (he : 0 < s.sweepErrors) :
     ∃ x ∈ (health p o).alerts, x.code = .svcSweepError ∧ x.subject = s.name ∧

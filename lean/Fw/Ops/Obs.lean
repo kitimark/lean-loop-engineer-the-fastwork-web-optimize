@@ -949,7 +949,7 @@ def byId (event : String) (agentId : Option String) (key : String) (ts epoch : N
 guard spawns its obs key and labels it with the name, when $k$, $g$ and the label's event key are
 usable contract ids.
 
-$$\operatorname{byGuard}(e, g, k, t) = \begin{cases} [\mathrm{spawn}(\texttt{guard:}k, k, t), \mathrm{label}(\texttt{guard-label:}k, k, g)] & e = \texttt{SpawnGuard} \land g \ne \bot \land \operatorname{okName}(g) \land \operatorname{okName}(k) \land \operatorname{okName}(\texttt{guard-label:}k) \\ [\,] & \text{otherwise} \end{cases}$$
+$$\operatorname{byGuard}(e, g, k, t) = \begin{cases} [\mathrm{spawn}(\texttt{guard:}k, k, t), \mathrm{label}(\texttt{guard-label:}k, k, \gamma)] & e = \texttt{SpawnGuard} \land g = \mathrm{some}(\gamma) \land \operatorname{okName}(\gamma) \land \operatorname{okName}(k) \land \operatorname{okName}(\texttt{guard-label:}k) \\ [\,] & \text{otherwise} \end{cases}$$
 
 A guard makes the requested name running under the guard's own key.
 -/
@@ -1030,7 +1030,7 @@ named or unnamed, gives a heartbeat spawn of $i$ at the record time; applied to 
 $i$ is a key of name $a$ (the name itself or a key labelled with it) and every stop of $i$ is older
 than $t$, it makes $i$ live and $a$ not ended.
 
-$$\forall \pi, e, i, g, k, t, p, a:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
+$$\forall \pi, e, i, a, g, k, t, p:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
 
 An agent that does anything after its stop is shown running again.
 -/

@@ -1,30 +1,28 @@
 # task-state-truth (handoff)
 
-State: branch `worktree-wf_dd322f5d-433-1`, round 3 (final design) at 0858abd..9d47aea plus this note; check.sh green,
-vitest console-api 266, runner 874, console-web 7; `fw land --dry` (allow Console.lean, Ops/Obs.lean, Wire/Plan.lean).
+State: branch `worktree-wf_f085afd7-2cc-1`, round 4 (conform to the round-3 final design), commits 3a5b058..HEAD.
 Root cause (MEASURED, round 1): strict zod `ObsRecord` refused every SubagentStop carrying `background_tasks`.
 
-## Round 3 (lead decisions, closed)
-- **Liveness by agent id** (`Fw.Plan` keys): a life key is live when seen after its last stop; a name is live
-  while any of `keysOf` = the name + ids labelled with it (`agent.label`, from the health index; label only).
-  SubagentStart/Stop spawn/stop the id; any other event of an id is a heartbeat spawn. `revive_on_event`,
-  `event_revives`, `stop_by_id`, `timeout_spares_recent`.
-- **Claim TTL**: a claim is a sighting at its `at`; no later sighting -> quiet timeout -> parked (`expired`).
-  `no_forever_running`. `since` = last sighting, claim included; board rows carry `keys` for `plan.timeouts`.
-- **Integrate allowlist**: only refs/heads/{ci/,worktree-,integrate-}… (`integrate_allowlist`, `integrate_prefix`);
-  runner `gitFullRef` = `git rev-parse --verify --quiet --symbolic-full-name`, else a given full ref, else refuse.
-- **Admission**: only hook_event_name, agent_id (1..120), agent_name, ts reject; other fields soft (null + note).
-  Rejections, notes, unknown fields and `lifeOf:error` are issues in one spool alert (`reject_alerts`,
-  `issue_alerts`); title capped at 200 UTF-16 units (`alertTitle_le`). A lifeOf throw: not seen, retried.
-- **Backfill**: integrate branches as full refs; fix-people-webkit, fix-nav-hittest parked no-op (handoff-only).
+## Round 4 (lead decisions, done)
+- **Identity only**: every life event is keyed by an agent id, a run key `wf:<run>` or a spawn guard's obs key; a name
+  is only a label (`agent.label`). Lean `wfAllEvents_identity`, `life_identity`, `byGuard`; `byName` is gone. TS:
+  workflow.ts (`wfr`/`wfid` event keys), drain.ts (`lifeOf` has no name; label decisions submit `agent.label`).
+- **Concurrency**: `concurrent_keep` (a stop of one key never ends a name another live key carries),
+  `workflow_concurrent`; real-events golden "concurrent agents" (seq 1113/1114/1118) in Fw/Plan/Golden.lean.
+- **No swallowed throw**: every caught fwcore throw in the sweep or drain (admit, workflow, label, timeout, fieldAlert,
+  lifeOf, alertPlan) is counted per op in `.fw-console/sweep-errors.json` {pid, count, ops} plus spool issue
+  `sweep:<op>`; the runner reads it for the live api pid; fwcore raises `svc.sweepError` (`sweep_error_alerts`).
+- **Backfill**: the 23 agent.stop lines carry `at` = the journal time of their cited seq, keyed by id/name life key.
 
 ## Lead steps
-1. Land; restart console-api; let one drain run (labels + stops of the 6173 unseen SubagentStops).
-2. Apply `docs/team/backfill/task-state-2026-10-18.jsonl` via `fw send`, one line at a time, actor lead, drop `cite`.
+1. Land; restart console-api; let one drain run (first drain on the real spool: 85 s, 6249 accepted, 24 timeouts).
+2. Apply `docs/team/backfill/task-state-2026-10-18.jsonl` via `fw send`, one line at a time, actor lead, drop `cite`,
+   keep `at`. Replay (read-only copy): all 40 accepted, running 25 -> 8, parked 4 -> 13, integrated 13, handedBack 1.
 
 ## Stated limits
-Forged events; 10-min display lag after restart (epochs reset, heartbeats bucketed by 10 min); an id binds to a task
-only once `fw watch` names it; a legacy `live` define without a sighting binds nothing; rejected lines re-alert
-after a restart (offsets reset).
+Forged events; 10-min display lag after restart (epochs reset, heartbeats bucketed); a SpawnGuard bridge key ends
+only at the 120-min quiet timeout (the Agent PostToolUse returns in p50 1.3 s, MEASURED, so it cannot end it);
+legacy name-keyed events stay in the log and `keysOf` keeps the name; an id binds only once `fw watch` labels it;
+sweep-error counts reset on restart.
 
-Read first: `lean/Fw/Plan/Core.lean` "Agent binding" + "Quiet timeout", then `lean/Fw/Ops/Obs.lean` admission/life.
+Read first: `lean/Fw/Plan/Workflow.lean` (identity, concurrency), `lean/Fw/Ops/Obs.lean` life, drain.ts `caught`.

@@ -458,7 +458,7 @@ theorem workflow_foreign_bound (es : List Cmd) (ids : List String) (ended : Bool
 
 /-- A define commutes with the commands of a run: the same plan state in either order, after any prefix.
 
-$$\forall es, d, cs:\quad (\forall c \in cs:\ \operatorname{isLife}(c)) \Rightarrow \operatorname{run}(es \mathbin{+\!\!+} \mathrm{define}(d) :: cs) = \operatorname{run}(es \mathbin{+\!\!+} cs \mathbin{+\!\!+} [\mathrm{define}(d)])$$
+$$\forall d, cs, es:\quad (\forall c \in cs:\ \operatorname{isLife}(c)) \Rightarrow \operatorname{run}(es \mathbin{+\!\!+} \mathrm{define}(d) :: cs) = \operatorname{run}(es \mathbin{+\!\!+} cs \mathbin{+\!\!+} [\mathrm{define}(d)])$$
 -/
 theorem define_life_comm (d : Def) :
     ∀ (cs es : List Cmd), (∀ c ∈ cs, c.isLife = true) →
@@ -651,7 +651,9 @@ deriving Repr, DecidableEq
 /-- The agents of a journal: one per `started` line of a valid run id (duplicates once), done iff a `result` line
 of the same run and agent id exists.
 
-$$\operatorname{agents}(J) = \operatorname{dedup}\{(r, i, \ell, \exists k \in J:\ \lnot k.\mathit{started} \land k.\mathit{run} = r \land k.\mathit{id} = i) : (r, i, \ell) \in J_{\mathit{started}},\ \operatorname{isRunId}(r)\}$$
+$$\operatorname{agents}(J) = \operatorname{dedup}[\,(j.\mathit{run}, j.\mathit{id}, j.\mathit{label}, \exists k \in J:\ \lnot k.\mathit{started} \land k.\mathit{run} = j.\mathit{run} \land k.\mathit{id} = j.\mathit{id}) : j \in J,\ j.\mathit{started} \land \operatorname{isRunId}(j.\mathit{run})\,]$$
+
+($\operatorname{dedup}$ keeps the first of equal entries, in journal order.)
 -/
 def wfAgents (js : List JLine) : List WfAgent :=
   ((js.filter fun j => j.started && isRunId j.run).map fun j =>
@@ -776,7 +778,7 @@ theorem workflow_concurrent (π : State) (ids : List String) (b : WfAgent) (t : 
 run key `wf:<runId>` of a run in `scripts` named like a task, labelled with that name, or of the agent
 id of a journal agent whose label names a task, labelled with that task; never of a task name.
 
-$$\forall (\epsilon, c) \in \operatorname{all}(I, S, R, J):\ \big(\exists w \in \operatorname{runs}(S):\ w.\mathit{name} \in I \land c \in \{\mathrm{label}(\kappa_w, w.\mathit{name}), \mathrm{spawn}(\kappa_w, 0), \mathrm{stop}(\kappa_w, 0)\}\big) \lor \big(\exists a \in \operatorname{agents}(J), t:\ \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land c \in \{\mathrm{label}(a.\mathit{id}, t), \mathrm{spawn}(a.\mathit{id}, 0), \mathrm{stop}(a.\mathit{id}, 0)\}\big)$$
+$$\forall I, S, R, J, \epsilon, c:\ (\epsilon, c) \in \operatorname{all}(I, S, R, J) \Rightarrow \big(\exists w \in \operatorname{runs}(S):\ w.\mathit{name} \in I \land c \in \{\mathrm{label}(\kappa_w, w.\mathit{name}), \mathrm{spawn}(\kappa_w, 0), \mathrm{stop}(\kappa_w, 0)\}\big) \lor \big(\exists a \in \operatorname{agents}(J), t:\ \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land c \in \{\mathrm{label}(a.\mathit{id}, t), \mathrm{spawn}(a.\mathit{id}, 0), \mathrm{stop}(a.\mathit{id}, 0)\}\big)$$
 
 ($\kappa_w = \operatorname{runKey}(w.\mathit{run})$.) A task name only ever appears as a label.
 -/

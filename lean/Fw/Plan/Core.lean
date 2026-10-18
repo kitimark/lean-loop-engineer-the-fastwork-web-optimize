@@ -2486,7 +2486,7 @@ theorem bindRow_step_other {π : State} {c : Cmd} {t : Task} (hm : c.isMark = tr
 key labelled with the name) is live, that is, seen, with no stop at or after its last sighting (a
 spawn or a claim).
 
-$$\forall \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(\pi), \operatorname{bindRow}(\pi, t)) = \mathrm{running} \Rightarrow \exists a:\ \operatorname{agentOf}(\pi, t) = a \land a \in \operatorname{cands}(\pi, t) \land \neg\operatorname{ended}(\pi, a)$$
+$$\forall \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(\pi), \operatorname{bindRow}(\pi, t)) = \mathrm{running} \Rightarrow \exists a:\ \operatorname{agentOf}(\pi, t) = \mathrm{some}(a) \land a \in \operatorname{cands}(\pi, t) \land \neg\operatorname{ended}(\pi, a)$$
 -/
 theorem bound_running_live {π : State} {t : Task} (h : tstate (bound π) (bindRow π t) = .running) :
     ∃ a, agentOf π t = some a ∧ a ∈ cands π t ∧ ended π a = false := by
