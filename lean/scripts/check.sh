@@ -1,6 +1,6 @@
 #!/bin/sh
 # All lean/ gates (TL0) as a DAG (research/notes/2026/10-18-land-speed.md, P2):
-#   serial   grep gates -> import check -> lake build (proofs + #guard; also builds fwtest)
+#   serial   grep gates -> import check -> scripts/fwcore-build.sh (lake build + the build record; proofs + #guard; also builds fwtest)
 #   parallel math-view lint | fwtest (golden round trips) | golden wire replay (real fwcore binary, LEAN_ABORT_ON_PANIC=1)
 #            | breakgen checks x2, sweepsgen checks x4 (generated JSON equals the Lean output)
 #            | engine golden cite lint (every golden/engine row cites a premise, Fw.Ops.Premise.citeLint; m175)
@@ -23,7 +23,7 @@ serial() {  # serial <step> <cmd...>: a failing serial stage is recorded and the
 serial "grep gates" scripts/check-partial.sh
 serial "import check" node scripts/check-imports.mjs  # every Fw module is imported by a root, none twice in Fw.lean (the union merge can repeat a line)
 # the parallel stages read the products of lake build, so a failed build ends the run here
-if ! span lean/check "lake build" sh -c 'lake build && lake build fwtest'; then
+if ! span lean/check "lake build" sh -c 'sh ../scripts/fwcore-build.sh && lake build fwtest'; then
   fails="$fails
   - lake build"
   echo "check: FAILED: $fails"

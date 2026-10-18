@@ -4146,7 +4146,8 @@
     "apps/runner/test/**",
     "docs/team/tools/**",
     "docs/team/handoffs/console-stale.md"
-   ]
+   ],
+   "evidence": "be14d33"
   },
   {
    "id": "workflow-multi-claim",
@@ -4674,6 +4675,61 @@
     "docs/team/incidents/ledger.json",
     "research/notes/2026/10-18-mistake-retro.md",
     "docs/team/handoffs/mistake-record-4.md"
+   ]
+  },
+  {
+   "id": "context-slop",
+   "title": "(M) distill cursor/plugins pstack (no-comments, comment-sicko, unslop, guard-the-context-window, minimize-reader-load, technical-writing) and apply: measured context cost of always-loaded files (CLAUDE.md, agent defs, tool docs, handoffs), fw/hook output, docstrings and code comments; Lean-decided context budget lint; convert the rules into skills (.claude/skills/no-slop, no-comments) and a read-only slop-checker agent registered in SpawnGuard; trim always-loaded files; follow-ups for code and outputs",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-context-slop.md",
+    "CLAUDE.md",
+    ".claude/agents/**",
+    "docs/team/token-policy.md",
+    "docs/team/tools/**",
+    "docs/team/handoffs/context-slop.md",
+    "lean/Fw/Lint/Context.lean",
+    "lean/Fw/Lint/Context/**",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "lean/FwTestMain.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "scripts/context-lint.mjs",
+    "scripts/context-lint.test.mjs",
+    "packages/contracts/golden/lint/**",
+    "lean/scripts/check.sh",
+    ".claude/skills/**",
+    "lean/Fw/Ops/SpawnGuard.lean",
+    "apps/runner/hooks/spawn-guard.mjs",
+    "packages/contracts/golden/ops/**"
+   ]
+  },
+  {
+   "id": "gate-wall-target",
+   "title": "(M) breakpoint-gate wall time to a Lean target for the experiment loop: parts scope from the diff for iteration pushes (full gate once before land), early verdict (any failing cell -> fail, proved monotone; full cell list on demand), shard count chosen in Lean to meet a wall target on the free runner pool or report infeasible; evidence run 39105279831 (50 min, webkit j3 50.1, chromium j2 45.9)",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "gate-shard-balance"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/**",
+    ".github/scripts/gate-shards.mjs",
+    ".github/workflows/breakpoint-gate.yml",
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "research/notes/**",
+    "docs/team/handoffs/gate-shard-balance.md",
+    "docs/team/handoffs/gate-wall-target.md",
+    "research/notes/2026/10-18-gate-wall-target.md"
    ]
   }
  ],

@@ -12,7 +12,7 @@ afterEach(() => core?.close());
 
 describe("fwcore failure handling", () => {
   it("missing binary: clear message with the build command", () => {
-    expect(() => leanBinary("/nonexistent-root", {})).toThrow(/cd lean && lake build/);
+    expect(() => leanBinary("/nonexistent-root", {})).toThrow(/sh scripts\/fwcore-build.sh/);
   });
   it("a crash fails the in-flight call, is logged, and the next call restarts the process", async () => {
     const incidents: Incident[] = [];
