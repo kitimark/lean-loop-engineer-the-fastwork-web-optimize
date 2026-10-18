@@ -1,6 +1,7 @@
 // Owner login: the passphrase from the macOS keychain, the per-address rate limit, the login page.
 // The decision "may this attempt be tried, and what follows" is Lean `console.ownerLogin` (`Fw.Console.Preview.Owner.attempt`,
-// proved `no_unbounded_tries`, `locked_refuses`, `ok_only_if`). This file keeps the per-address records Lean returns, does the
+// proved `no_unbounded_tries` per address, `global_bound` across all addresses, `locked_refuses`, `ok_only_if`). This file
+// keeps the per-address records and the one global record Lean returns, does the
 // constant-time compare (I/O primitive) and reads the keychain. The passphrase is held in memory only: never logged, never
 // printed, never stored in a file or event, never part of an error message.
 import { createHash, timingSafeEqual } from "node:crypto";
@@ -36,6 +37,7 @@ export type Outcome = { verdict: "ok" | "wrong" | "locked" | "disabled"; retryAt
 
 export class LoginGuard {
   private recs = new Map<string, Rec>();
+  private glob: Rec = { fails: [], lockUntil: 0 }; // the global record: failures across all addresses
   private chain: Promise<unknown> = Promise.resolve();
   private window = 600_000; private lock = 600_000; // overwritten by every Lean reply
   private core: Core; private passphrase: string | null; private clock: () => number; private cap: number;
@@ -62,7 +64,8 @@ export class LoginGuard {
     }
     rec = rec ?? { fails: [], lockUntil: 0 };
     const correct = this.passphrase !== null && sameSecret(presented, this.passphrase); // always computed: timing does not show the lock
-    const r = await this.core.ops("console.ownerLogin", { enabled: this.enabled, correct, now, fails: rec.fails, lockUntil: rec.lockUntil });
+    const r = await this.core.ops("console.ownerLogin", { enabled: this.enabled, correct, now, fails: rec.fails, lockUntil: rec.lockUntil, gFails: this.glob.fails, gLockUntil: this.glob.lockUntil });
+    this.glob = { fails: (r.gFails as number[]) ?? [], lockUntil: Number(r.gLockUntil) };
     this.window = Number(r.window); this.lock = Number(r.lock);
     const next: Rec = { fails: (r.fails as number[]) ?? [], lockUntil: Number(r.lockUntil) };
     if (r.verdict === "ok" || (next.fails.length === 0 && next.lockUntil === 0)) this.recs.delete(addr);

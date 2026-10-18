@@ -27,10 +27,10 @@ const SRC_LABEL: Record<string, string> = {
 type Hdr = { req: { header(n: string): string | undefined } };
 
 export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: PreviewManager, owner: OwnerAuth) {
-  const proofOf = (c: Hdr): Proof => ({
+  const proofOf = async (c: Hdr): Promise<Proof> => ({
     secret: caps.secretMatches(c.req.header(SECRET_HEADER)),
     cookie: owner.cookieOk(c.req.header("cookie")),
-    origin: owner.originOk(c.req.header("origin"), c.req.header("host")),
+    origin: await owner.actionOk(store.core, "owner", true, c.req.header("origin"), c.req.header("host")), // Origin = a console origin (Lean console.ownerAction)
   });
   const jsonOnly = (c: Hdr) => ((c.req.header("content-type") ?? "").includes("application/json") ? null : "content-type must be application/json");
 
@@ -38,7 +38,7 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
   app.get("/owner", (c) => {
     const session = owner.redeem(c.req.query("t"));
     if (session === null) return c.json({ ok: false, reason: "owner link invalid or already used" }, 403);
-    c.header("Set-Cookie", OwnerAuth.setCookie(session));
+    for (const ck of owner.cookiesFor(session)) c.header("Set-Cookie", ck, { append: true });
     c.header("Cache-Control", "no-store");
     return c.redirect("/", 303);
   });
@@ -65,11 +65,11 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
       },
       handoff: facts.handoff ? { ref: facts.handoff.ref, excerpt: lines.slice(0, 40).join("\n"), lines: lines.length } : null,
       preview: { target: { kind: d.kind, ref: d.ref, sha: d.sha }, running },
-      canPreview: proofOf(c).cookie, // this browser holds the owner cookie (Lean decides the rest per request)
+      canPreview: owner.cookieOk(c.req.header("cookie")), previewPort: owner.previewPort, // this browser holds the owner cookie (Lean decides the rest per request)
     });
   });
 
-  app.get("/api/previews", (c) => c.json({ ok: true, ...pm.list() }));
+  app.get("/api/previews", (c) => c.json({ ok: true, ...pm.list(), previewPort: owner.previewPort }));
 
   app.post("/api/previews", async (c) => {
     const bad = jsonOnly(c); if (bad) return c.json({ ok: false, reason: bad }, 403);
@@ -77,14 +77,14 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
     try { body = await c.req.json(); } catch { return c.json({ ok: false, reason: "body is not JSON" }, 400); }
     const req = StartReq.safeParse(body);
     if (!req.success) return c.json({ ok: false, reason: "expected {task}" }, 400);
-    const r = await pm.start(req.data.task, proofOf(c));
+    const r = await pm.start(req.data.task, await proofOf(c));
     if (!r.ok) return c.json(r, r.reason === "notOwner" ? 403 : 409);
     return c.json({ ok: true, id: r.id, preview: r.entry }, 202);
   });
 
   app.post("/api/previews/:id/stop", async (c) => {
     const bad = jsonOnly(c); if (bad) return c.json({ ok: false, reason: bad }, 403);
-    const r = await pm.stop(c.req.param("id"), proofOf(c));
+    const r = await pm.stop(c.req.param("id"), await proofOf(c));
     return c.json(r, r.ok ? 200 : r.reason === "notOwner" ? 403 : 404);
   });
 }

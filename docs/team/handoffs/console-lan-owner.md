@@ -1,27 +1,26 @@
-# console-lan-owner handoff
+# console-lan-owner handoff (round 2)
 
-State: branch `worktree-wf_b126b9de-9e2-1`, Lean + TS + tests done; check.sh green; console-api 296+ tests, console-web 7.
+State: branch `worktree-wf_70b094c0-cb0-1` (round 1 + main merged); Lean, TS, tests done; see the final commit.
 
 ## What exists
-- Lean `lean/Fw/Console/PreviewOwner.lean`: login limiter (`attempt`, `no_unbounded_tries`, `locked_refuses`, `ok_only_if`),
-  gate (`allow`, `lan_requires_owner`, `preview_requires_owner`, `loopback_unchanged`), idle sweep (`idle_stops`, `ttl_stops`).
-- Wire ops `console.ownerLogin`, `console.ownerGate`, `console.previewSweep` in `lean/Fw/Wire/Console.lean` (outside the task
-  `writes` globs: `fw land` needs `--allow`); goldens in `packages/contracts/golden/console/`.
-- TS glue in `apps/console-api/src/preview/`: `login.ts` (keychain read, constant-time compare, LoginGuard), `gate.ts`
-  (middleware + /owner/login|logout, /api/owner), `proxy.ts` (/preview/<id>/{r,o,compare}, Referer routing for JS-built
-  absolute paths), `rewrite.ts` (HTML/CSS), `lan.ts` (LAN address), `owner.ts` (sessions), `manager.ts` (idle sweep, prefix).
-- Web: `TaskDetail.tsx` links go through the console port; vite dev proxy covers /preview and /owner.
+- Lean `lean/Fw/Console/PreviewOwner.lean`: login limiter per address and global (`attempt`, `no_unbounded_tries`,
+  `global_bound`, `locked_refuses`, `ok_only_if`), `lanStart` (`lan_start_requires_long`, passphrase >= 12 chars), console gate
+  (`allow`, `lan_requires_owner`, `console_never_serves_preview`, `loopback_unchanged`), preview gate (`allowPreview`,
+  `preview_requires_cookie`), origins (`preview_origin_ne_console`, `owner_action_requires_console_origin`,
+  `preview_origin_refused`, `preview_cookie_no_owner`), idle sweep.
+- Wire ops `console.ownerLogin|ownerGate|ownerAction|lanStart|previewSweep` (`lean/Fw/Wire/Console.lean`); goldens in
+  `packages/contracts/golden/console/`. These files are outside the task `writes` globs: `fw land` needs `--allow`.
+- TS in `apps/console-api/src/preview/`: `gate.ts` (console port, login body cap 1 KiB, Origin check), `preview-app.ts`
+  (preview port: only `fw_preview` cookie, nothing else served), `owner.ts` (sessions with two cookies, `actionOk`),
+  `login.ts` (global record), `proxy.ts` (forwards no cookie), `main.ts` (preview listener = console port + 1).
+- Web: `TaskDetail.tsx` `previewBase(port)` builds links on the preview port.
 
 ## Conventions
-- The passphrase exists only in memory (main.ts reads it once); tests inject a fake; `FW_CONSOLE_KEYCHAIN=off` skips the keychain.
-- Previews need an owner session even from loopback. LAN mode (`FW_CONSOLE_LAN=1`) binds a second server on the private IPv4.
+- Passphrase only in memory; tests inject a fake; `FW_CONSOLE_KEYCHAIN=off` skips the keychain; never print its length.
+- Cookies ignore ports, so the Origin check (Lean) is what refuses preview JS; `/api/commands` allows no Origin (CLI tools).
 
-## Verified
-One real build (`port-platform`, ports 47100/47101): HTML, CSS, images, ES modules and the compare page load under the proxy;
-SvelteKit `/_app/...` and bundle-built `/selling/...` paths load through the Referer route. Child processes cleaned up.
-
-## Open / limits
-- Plain HTTP on the LAN: passphrase and cookie are sniffable on the Wi-Fi. Same-UID access (keychain, ptrace) is accepted.
-- JS bodies are not rewritten; only same-origin Referer routing covers root-absolute strings (a page with no Referer policy change).
-- IPv6 address rotation by an attacker is bounded only by the table cap (1024, fail closed).
-- Read first: `PreviewOwner.lean` header, then `gate.ts`.
+## Open / stated limits
+- Plain HTTP on the LAN (sniffable); same-UID access; preview servers on loopback ports reachable by local processes.
+- An attacker can lock the owner out for 10 min by 20 wrong tries (global limit); JS bodies are not rewritten.
+- Flaky under load: `preview.test.ts` idle tick/reap (timing, real servers).
+- Read first: `PreviewOwner.lean` header, then `preview-app.ts`, `gate.ts`.

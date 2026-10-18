@@ -21,5 +21,5 @@ function apiTarget(): string {
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
-  server: { proxy: Object.fromEntries(["/api", "/preview", "/owner"].map((p) => [p, { target: apiTarget(), changeOrigin: true }])) },
+  server: { proxy: Object.fromEntries(["/api", "/owner"].map((p) => [p, { target: apiTarget(), changeOrigin: true }])) },
 });

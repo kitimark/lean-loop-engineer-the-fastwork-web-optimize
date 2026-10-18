@@ -6,4 +6,7 @@
 {"name":"a command from the console origin","request":{"kind":"command","op":"console.ownerAction","origin":{"host":"192.0.2.7","port":47000},"ownerCookie":false,"trusted":[{"host":"192.0.2.7","port":47000}]},"response":{"allow":true}}
 {"name":"a command from a preview page is refused","request":{"kind":"command","op":"console.ownerAction","origin":{"host":"192.0.2.7","port":47001},"ownerCookie":true,"trusted":[{"host":"192.0.2.7","port":47000}]},"response":{"allow":false}}
 {"name":"a command with no Origin (command-line tool) is accepted","request":{"kind":"command","op":"console.ownerAction","ownerCookie":false,"trusted":[{"host":"192.0.2.7","port":47000}]},"response":{"allow":true}}
-{"name":"an unknown kind is refused","request":{"kind":"x","op":"console.ownerAction","ownerCookie":true,"trusted":[]},"response":{"error":"field kind: expected owner or command"}}
+{"name":"a login from the console origin","request":{"kind":"login","op":"console.ownerAction","origin":{"host":"192.0.2.7","port":47000},"ownerCookie":false,"trusted":[{"host":"192.0.2.7","port":47000}]},"response":{"allow":true}}
+{"name":"a login from a preview page is refused","request":{"kind":"login","op":"console.ownerAction","origin":{"host":"192.0.2.7","port":47001},"ownerCookie":false,"trusted":[{"host":"192.0.2.7","port":47000}]},"response":{"allow":false}}
+{"name":"a login without an Origin is refused","request":{"kind":"login","op":"console.ownerAction","ownerCookie":false,"trusted":[{"host":"192.0.2.7","port":47000}]},"response":{"allow":false}}
+{"name":"an unknown kind is refused","request":{"kind":"x","op":"console.ownerAction","ownerCookie":true,"trusted":[]},"response":{"error":"field kind: expected owner, command or login"}}

@@ -34,7 +34,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewLink` | `hasTty`, `now`? (ms), `last`? (ms of the last link) | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`), `reissue`? (with `now`: may a new link be issued, `mayReissue`: one per minute) |
 | `console.ownerLogin` | `enabled` (the console has an owner passphrase), `correct` (the constant-time compare matched), `now` (ms), `fails`? [ms] and `lockUntil`? (the client address's record; missing = fresh), `gFails`? [ms] and `gLockUntil`? (the global record across all addresses; missing = fresh) | `verdict` (`disabled`/`locked`/`wrong`/`ok`), `fails`, `lockUntil` (the new address record), `gFails`, `gLockUntil` (the new global record), `retryAt` (the end of the longest active lock, else null), `maxTries`, `window`, `lock`, `globMax`, `globWindow`, `globLock` (`Fw.Console.Preview.Owner.attempt`) |
 | `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (valid owner session; on the preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`) | `allow`, `class` (`login`/`preview`/`other`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
-| `console.ownerAction` | `kind` (`owner`: an owner action, needs the owner cookie and an Origin; `command`: `/api/commands`, an Origin if present), `ownerCookie`, `origin`? ({host, port} or null: none sent), `trusted` [{host, port}] (the console origins) | `allow` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`) |
+| `console.ownerAction` | `kind` (`owner`: an owner action, needs the owner cookie and an Origin; `command`: `/api/commands`, an Origin if present; `login`: an Origin, no cookie), `ownerCookie`, `origin`? ({host, port} or null: none sent), `trusted` [{host, port}] (the console origins) | `allow` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`) |
 | `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
@@ -386,7 +386,8 @@ def opOwnerAction (req : Json) : Except String Reply := do
   let ok ← match ← str req "kind" with
     | "owner" => pure (ownerAction trusted ⟨← asBool "ownerCookie" (← field req "ownerCookie"), false⟩ origin)
     | "command" => pure (commandOk trusted origin)
-    | _ => throw "field kind: expected owner or command"
+    | "login" => pure (loginOk trusted origin)
+    | _ => throw "field kind: expected owner, command or login"
   pure [("allow", .bool ok)]
 
 open Fw.Console.Preview.Owner in

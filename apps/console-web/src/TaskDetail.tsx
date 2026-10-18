@@ -11,18 +11,22 @@ type Detail = {
   git: { head: string | null; headSource: string; branch: string | null; onMain: boolean; containedIn: string[] };
   handoff: { ref: string; excerpt: string; lines: number } | null;
   preview: { target: Target; running: Pv | null };
+  previewPort?: number | null; // the preview port (another origin than the console)
   canPreview?: boolean; // this browser holds the owner cookie (set by the one-time owner link the console prints)
 };
-type Listing = { previews: Pv[]; failed: { id: string; task: string; error: string }[] };
+type Listing = { previewPort?: number | null; previews: Pv[]; failed: { id: string; task: string; error: string }[] };
 
 export const wantsDetail = (id: string) => id.startsWith("port-") || id.startsWith("fix-");
 const J = { "content-type": "application/json" };
 /** What a refusal means to the owner; `notOwner` is the missing owner cookie or Origin (open the console's owner link). */
 export const refusedText = (reason: string) =>
   reason === "notOwner" ? "refused: this browser is not signed in as owner; log in as owner (the login page, or the owner link the console printed in its terminal)" : `refused: ${reason}`;
-/** Preview links go through the console's own port (`/preview/<id>/...`), so they work from the phone and sit behind the owner gate. */
-export const urls = (p: Pick<Pv, "id">) => ({
-  rewrite: `/preview/${p.id}/r/`, original: `/preview/${p.id}/o/`, compare: `/preview/${p.id}/compare`,
+/** Preview links point at the preview port (console port + 1): another origin than the console, so preview JavaScript cannot
+ *  act as the owner. `base` is `<protocol>//<host>:<previewPort>`, built from the page's own host (so it works from the phone). */
+export const previewBase = (port: number | null | undefined, loc?: { protocol: string; hostname: string }) =>
+  { if (!port) return ""; const l = loc ?? window.location; return `${l.protocol}//${l.hostname}:${port}`; };
+export const urls = (p: Pick<Pv, "id">, base = "") => ({
+  rewrite: `${base}/preview/${p.id}/r/`, original: `${base}/preview/${p.id}/o/`, compare: `${base}/preview/${p.id}/compare`,
 });
 export const targetText = (t: Target) =>
   t.kind === "none" ? "no work to preview yet" : t.kind === "main" ? "already on main" :
@@ -52,6 +56,7 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
     return () => clearInterval(t);
   }, [open, building, load]);
 
+  const pbase = previewBase(l.previewPort ?? d?.previewPort);
   const mine = l.previews.find((p) => p.task === id) ?? null;
   const failed = l.failed.filter((f) => f.task === id).at(-1) ?? null;
 
@@ -101,9 +106,9 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
           {mine?.phase === "building" && <div>building (a few seconds to a minute)</div>}
           {mine?.phase === "serving" && (
             <ul>
-              <li>task version: <a className="underline" href={urls(mine).rewrite} target="_blank" rel="noreferrer">{urls(mine).rewrite}</a></li>
-              <li>original: <a className="underline" href={urls(mine).original} target="_blank" rel="noreferrer">{urls(mine).original}</a></li>
-              <li>side by side: <a className="underline" href={urls(mine).compare} target="_blank" rel="noreferrer">{urls(mine).compare}</a></li>
+              <li>task version: <a className="underline" href={urls(mine, pbase).rewrite} target="_blank" rel="noreferrer">{urls(mine, pbase).rewrite}</a></li>
+              <li>original: <a className="underline" href={urls(mine, pbase).original} target="_blank" rel="noreferrer">{urls(mine, pbase).original}</a></li>
+              <li>side by side: <a className="underline" href={urls(mine, pbase).compare} target="_blank" rel="noreferrer">{urls(mine, pbase).compare}</a></li>
               <li>expires {new Date(mine.deadline).toLocaleTimeString()}</li>
             </ul>
           )}

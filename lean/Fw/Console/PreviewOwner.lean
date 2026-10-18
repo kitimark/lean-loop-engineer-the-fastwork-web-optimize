@@ -564,6 +564,12 @@ def ownerAction (trusted : List Origin) (jar : Jar) (origin : Option Origin) : B
 $$\operatorname{commandOk}(T, o) = \operatorname{originOk}(\mathrm{false}, T, o)$$ -/
 def commandOk (trusted : List Origin) (origin : Option Origin) : Bool := originOk false trusted origin
 
+/-- A login (`POST /owner/login`): no cookie yet, but the `Origin` header must be there and be a trusted origin, so a
+page on another origin (a preview) cannot post to the login.
+
+$$\operatorname{loginOk}(T, o) = \operatorname{originOk}(\mathrm{true}, T, o)$$ -/
+def loginOk (trusted : List Origin) (origin : Option Origin) : Bool := originOk true trusted origin
+
 /-- **An owner action requires the console origin.** If it is allowed, the request had an `Origin` header and it is one
 of the trusted origins; and with the trusted list holding the console origin but not the preview origin, a request
 from a preview page (its `Origin` is the preview origin) is refused, whatever cookies it carries.
@@ -579,11 +585,13 @@ theorem owner_action_requires_console_origin (trusted : List Origin) (jar : Jar)
 /-- A request from a preview page is refused for every owner action and every command.
 
 $$\mathit{previewOrigin}(h,p) \notin T \Rightarrow \operatorname{ownerAction}(T, j, \mathrm{some}(\mathit{previewOrigin}(h,p))) = \mathrm{false}
-\wedge \operatorname{commandOk}(T, \mathrm{some}(\mathit{previewOrigin}(h,p))) = \mathrm{false}$$ -/
+\wedge \operatorname{commandOk}(T, \mathrm{some}(\mathit{previewOrigin}(h,p))) = \mathrm{false}
+\wedge \operatorname{loginOk}(T, \mathrm{some}(\mathit{previewOrigin}(h,p))) = \mathrm{false}$$ -/
 theorem preview_origin_refused (trusted : List Origin) (jar : Jar) (host : String) (p : Nat)
     (hn : previewOrigin host p ∉ trusted) :
-    ownerAction trusted jar (some (previewOrigin host p)) = false ∧ commandOk trusted (some (previewOrigin host p)) = false := by
-  simp [ownerAction, commandOk, originOk, hn]
+    ownerAction trusted jar (some (previewOrigin host p)) = false ∧ commandOk trusted (some (previewOrigin host p)) = false ∧
+      loginOk trusted (some (previewOrigin host p)) = false := by
+  simp [ownerAction, commandOk, loginOk, originOk, hn]
 
 /-- The console's own origin is accepted when the owner cookie is there.
 

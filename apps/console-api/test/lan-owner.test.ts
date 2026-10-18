@@ -8,7 +8,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
 import { selectCore } from "../src/core/index.ts";
 import { Store } from "../src/store.ts";
+import { serve } from "@hono/node-server";
 import { OwnerAuth } from "../src/preview/owner.ts";
+import { createPreviewApp } from "../src/preview/preview-app.ts";
 import { LoginGuard, readPassphrase, sameSecret, loginPage, KEYCHAIN_HINT } from "../src/preview/login.ts";
 import { isLoopback, isPrivateV4, pickLanAddr } from "../src/preview/lan.ts";
 import { rewriteBody } from "../src/preview/rewrite.ts";
@@ -43,14 +45,37 @@ describe("owner sessions", () => {
     expect(o.cookieOk(ck(b))).toBe(false); // 8 h expiry
     expect(OwnerAuth.setCookie("x")).toMatch(/HttpOnly.*SameSite=Strict/);
   });
-  it("hostOk and originOk follow the LAN hosts", () => {
+  it("hostOk and actionOk (Origin) follow the LAN hosts and the two ports", async () => {
+    const core = selectCore();
     const o = new OwnerAuth();
     expect(o.hostOk("198.51.100.9:4000")).toBe(false);
-    o.setLanHosts(["198.51.100.9:4000"]);
+    o.setPorts(4000, 4001);
+    o.setLanHosts(["198.51.100.9:4000"], ["198.51.100.9:4001"]);
     expect(o.hostOk("198.51.100.9:4000")).toBe(true);
     expect(o.hostOk("evil.example:4000")).toBe(false);
-    expect(o.originOk("http://198.51.100.9:4000", "198.51.100.9:4000")).toBe(true);
-    expect(o.originOk("http://evil.example", "198.51.100.9:4000")).toBe(false);
+    expect(o.hostOk("127.0.0.1:4001")).toBe(false); // the preview port is not the console
+    expect(o.previewHostOk("127.0.0.1:4001")).toBe(true);
+    expect(o.previewHostOk("198.51.100.9:4000")).toBe(false);
+    const act = (kind: "owner" | "command" | "login", ck: boolean, origin?: string) => o.actionOk(core, kind, ck, origin, "198.51.100.9:4000");
+    expect(await act("owner", true, "http://198.51.100.9:4000")).toBe(true);
+    expect(await act("owner", true, "http://198.51.100.9:4001")).toBe(false); // the preview origin
+    expect(await act("owner", true, "http://evil.example")).toBe(false);
+    expect(await act("owner", true, "null")).toBe(false);
+    expect(await act("owner", true, undefined)).toBe(false); // an owner action needs an Origin
+    expect(await act("owner", false, "http://198.51.100.9:4000")).toBe(false); // and the owner cookie
+    expect(await act("command", false, undefined)).toBe(true); // command-line tools send no Origin
+    expect(await act("command", false, "http://198.51.100.9:4001")).toBe(false);
+    expect(await act("login", false, "http://198.51.100.9:4001")).toBe(false);
+    expect(await act("login", false, "http://198.51.100.9:4000")).toBe(true);
+  });
+  it("the preview cookie is not an owner proof, and the owner cookie is not a preview proof", () => {
+    const o = new OwnerAuth();
+    const [own, pv] = o.cookiesFor(o.open()).map((c) => c.split(";")[0]!);
+    expect(own).toMatch(/^fw_owner=/); expect(pv).toMatch(/^fw_preview=/);
+    expect(o.cookieOk(own)).toBe(true); expect(o.previewOk(pv)).toBe(true);
+    expect(o.cookieOk(pv)).toBe(false); expect(o.previewOk(own)).toBe(false);
+    expect(o.cookieOk(`fw_owner=${pv!.split("=")[1]}`)).toBe(false); // the preview value under the owner name
+    expect(own!.split("=")[1]).not.toBe(pv!.split("=")[1]);
   });
 });
 
@@ -109,7 +134,7 @@ describe("gate and login routes", () => {
     const login = new LoginGuard(s.core, pass);
     return { app: createApp(s, undefined, undefined, undefined, owner, undefined, { login, lan }), owner };
   }
-  const form = (p: string) => ({ method: "POST", body: new URLSearchParams({ passphrase: p }).toString(), headers: { "content-type": "application/x-www-form-urlencoded", host: "198.51.100.9:4000" } });
+  const form = (p: string) => ({ method: "POST", body: new URLSearchParams({ passphrase: p }).toString(), headers: { "content-type": "application/x-www-form-urlencoded", host: "198.51.100.9:4000", origin: "http://198.51.100.9:4000" } });
 
   it("LAN: only the login page without a session; HTML gets a redirect, API gets 401; wrong Host 421", async () => {
     const { app } = await mk(true);
@@ -119,7 +144,7 @@ describe("gate and login routes", () => {
     const r = await app.request("/", { headers: { ...H, accept: "text/html" } }, LAN);
     expect(r.status).toBe(303); expect(r.headers.get("location")).toBe("/owner/login");
     expect((await app.request("/api/tasks", { headers: { host: "evil.example" } }, LAN)).status).toBe(421);
-    expect((await app.request("/preview/x/r/", { headers: H }, LAN)).status).toBe(401);
+    expect((await app.request("/preview/x/r/", { headers: H }, LAN)).status).toBe(404); // previews live on the preview port
   });
   it("login sets a session cookie that opens the LAN; logout closes it", async () => {
     const { app } = await mk(true);
@@ -129,7 +154,7 @@ describe("gate and login routes", () => {
     expect(ok.status).toBe(303);
     const cookie = (ok.headers.get("set-cookie") ?? "").split(";")[0]!;
     expect(ok.headers.get("set-cookie")).toMatch(/HttpOnly/);
-    const H = { host: "198.51.100.9:4000", cookie };
+    const H = { host: "198.51.100.9:4000", cookie, origin: "http://198.51.100.9:4000" };
     expect((await app.request("/api/owner", { headers: H }, LAN)).status).toBe(200);
     expect(((await (await app.request("/api/owner", { headers: H }, LAN)).json()) as any).session).toBe(true);
     await app.request("/owner/logout", { method: "POST", headers: H }, LAN);
@@ -139,7 +164,7 @@ describe("gate and login routes", () => {
     const { app } = await mk(true);
     const bodies: string[] = [];
     for (let i = 0; i < 7; i++) {
-      const r = await app.request("/owner/login", { method: "POST", body: JSON.stringify({ passphrase: FAKE + "x" }), headers: { "content-type": "application/json", host: "198.51.100.9:4000" } }, LAN);
+      const r = await app.request("/owner/login", { method: "POST", body: JSON.stringify({ passphrase: FAKE + "x" }), headers: { "content-type": "application/json", host: "198.51.100.9:4000", origin: "http://198.51.100.9:4000" } }, LAN);
       bodies.push(await r.text(), [...r.headers.values()].join("|"));
     }
     const r6 = await app.request("/owner/login", { method: "POST", body: "{not json " + FAKE, headers: { "content-type": "application/json" } }, LAN);
@@ -154,10 +179,10 @@ describe("gate and login routes", () => {
     const r = await app.request("/owner/login", form(FAKE), LAN);
     expect(r.status).toBe(429); expect(Number(r.headers.get("retry-after"))).toBeGreaterThan(0);
   });
-  it("loopback: today's rules (API open), previews still need a session; disabled login says 503", async () => {
+  it("loopback: today's rules (API open), the console never serves previews; disabled login says 503", async () => {
     const { app } = await mk(false, null);
     expect((await app.request("/api/tasks", {}, LOOP)).status).not.toBe(401);
-    expect((await app.request("/preview/x/r/", {}, LOOP)).status).toBe(401);
+    expect((await app.request("/preview/x/r/", {}, LOOP)).status).toBe(404);
     expect((await app.request("/owner/login", {}, LOOP)).status).toBe(503);
     expect((await app.request("/owner/login", form("x"), LOOP)).status).toBe(503);
   });
@@ -178,9 +203,11 @@ describe("preview proxy", () => {
     const touched: string[] = [];
     const pm = { serving: (id: string) => (id === "p1" ? { rp: port, op: port } : null), touch: (id: string) => { touched.push(id); } } as unknown as PreviewManager;
     const s = await store(); const owner = new OwnerAuth();
-    const app = createApp(s, undefined, undefined, pm, owner);
+    const app = createPreviewApp(s.core, owner, pm, { lan: false });
     expect((await app.request("/preview/p1/r/")).status).toBe(401);
-    const H = { cookie: `fw_owner=${owner.open()}` };
+    const ck = owner.cookiesFor(owner.open()).map((c) => c.split(";")[0]!);
+    expect((await app.request("/preview/p1/r/", { headers: { cookie: ck[0]! } })).status).toBe(401); // the owner cookie is no preview access
+    const H = { cookie: ck[1]! };
     const r = await app.request("/preview/p1/r/", { headers: H });
     expect(r.status).toBe(200);
     expect(await r.text()).toBe('<link href="/preview/p1/r/assets/a.css"><script src="/preview/p1/r/assets/a.js"></script>');
@@ -194,6 +221,107 @@ describe("preview proxy", () => {
     expect((await app.request("/preview/nope/r/", { headers: H })).status).toBe(404);
     expect((await app.request("/preview/p1/r/", { method: "POST", headers: H })).status).toBe(405);
     expect((await app.request("/preview/p1/r", { headers: H })).status).toBe(302);
+  });
+});
+
+describe("global login limit, body cap, LAN start", () => {
+  it("20 wrong tries from 25 different addresses lock everyone, even the right passphrase from a fresh address", async () => {
+    const s = await store(); let t = 1_000_000;
+    const g = new LoginGuard(s.core, FAKE, () => t);
+    const seen: string[] = [];
+    for (let i = 0; i < 25; i++) seen.push((await g.attempt(`client-${i}`, "bad")).verdict);
+    expect(seen.filter((v) => v === "wrong").length).toBe(20);
+    expect(seen.slice(20)).toEqual(["locked", "locked", "locked", "locked", "locked"]);
+    expect((await g.attempt("fresh-client", FAKE)).verdict).toBe("locked");
+    t += 600_001;
+    expect((await g.attempt("fresh-client", FAKE)).verdict).toBe("ok");
+  });
+  it("the login body is capped at 1 KiB before it is read (413), the passphrase page still works under the cap", async () => {
+    const s = await store();
+    const owner = new OwnerAuth(); owner.setLanHosts(["198.51.100.9:4000"]);
+    const app = createApp(s, undefined, undefined, undefined, owner, undefined, { login: new LoginGuard(s.core, FAKE), lan: true });
+    const h = { "content-type": "application/json", host: "198.51.100.9:4000", origin: "http://198.51.100.9:4000" };
+    const big = await app.request("/owner/login", { method: "POST", headers: h, body: JSON.stringify({ passphrase: "x".repeat(2000) }) }, LAN);
+    expect(big.status).toBe(413);
+    const ok = await app.request("/owner/login", { method: "POST", headers: h, body: JSON.stringify({ passphrase: FAKE }) }, LAN);
+    expect(ok.status).toBe(200);
+  });
+  it("a cross-origin login (Origin of the preview port) is refused and costs no try", async () => {
+    const s = await store();
+    const owner = new OwnerAuth(); owner.setPorts(4000, 4001); owner.setLanHosts(["198.51.100.9:4000"], ["198.51.100.9:4001"]);
+    const app = createApp(s, undefined, undefined, undefined, owner, undefined, { login: new LoginGuard(s.core, FAKE), lan: true });
+    const h = (origin: string) => ({ "content-type": "application/json", host: "198.51.100.9:4000", origin });
+    for (let i = 0; i < 8; i++) expect((await app.request("/owner/login", { method: "POST", headers: h("http://198.51.100.9:4001"), body: JSON.stringify({ passphrase: FAKE }) }, LAN)).status).toBe(403);
+    expect((await app.request("/owner/login", { method: "POST", headers: h("http://198.51.100.9:4000"), body: JSON.stringify({ passphrase: FAKE }) }, LAN)).status).toBe(200);
+  });
+  it("Lean console.lanStart: a passphrase under 12 characters disables LAN (counted in characters)", async () => {
+    const core = selectCore();
+    const start = async (want: boolean, hasAddr: boolean, hasPass: boolean, passLen: number) => (await core.ops("console.lanStart", { want, hasAddr, hasPass, passLen })).result;
+    expect(await start(true, true, true, 11)).toBe("shortPassphrase");
+    expect(await start(true, true, true, 12)).toBe("start");
+    expect(await start(true, true, false, 0)).toBe("noPassphrase");
+    expect(await start(true, false, true, 30)).toBe("noAddress");
+    expect(await start(false, true, true, 30)).toBe("off");
+    expect(Array.from("ผ่านรหัส1234").length).toBe(12); // length is counted in characters (code points)
+  });
+});
+
+describe("two origins: a preview page cannot act as the owner", () => {
+  it("a real preview page (served on the preview port) posting to the console API with the browser's cookies is refused", async () => {
+    const s = await store();
+    const owner = new OwnerAuth();
+    const calls: string[] = [];
+    let seenCookie: string | undefined = "unset";
+    const pmStub = {
+      serving: (id: string) => (id === "p1" ? { rp: upPort, op: upPort } : null), touch: () => undefined, list: () => ({ previews: [] }),
+      start: async (_t: string, proof: { cookie: boolean; origin: boolean }) => { calls.push("start"); return proof.cookie && proof.origin ? { ok: true, id: "p9", entry: {} } : { ok: false, reason: "notOwner" }; },
+      stop: async (_i: string, proof: { cookie: boolean; origin: boolean }) => { calls.push("stop"); return proof.cookie && proof.origin ? { ok: true } : { ok: false, reason: "notOwner" }; },
+    } as unknown as PreviewManager;
+    let upPort = 0; let consolePort = 0; let previewPort = 0; let browserCookies = "";
+    // the preview's own server: its page script (the "attack" route) runs fetch() against the console as a browser would,
+    // with the preview page's Origin and the cookies the browser holds for that host
+    const up = createServer(async (req, res) => {
+      if (req.url === "/echo") { seenCookie = req.headers.cookie; res.end("echo"); return; }
+      if (req.url === "/attack") {
+        const base = `http://127.0.0.1:${consolePort}`;
+        const hdr = { origin: `http://127.0.0.1:${previewPort}`, cookie: browserCookies, "content-type": "application/json" };
+        const out: Record<string, number> = {};
+        out.start = (await fetch(`${base}/api/previews`, { method: "POST", headers: hdr, body: JSON.stringify({ task: "t1" }) })).status;
+        out.stop = (await fetch(`${base}/api/previews/p1/stop`, { method: "POST", headers: hdr, body: "{}" })).status;
+        out.commands = (await fetch(`${base}/api/commands`, { method: "POST", headers: hdr, body: "{}" })).status;
+        out.logout = (await fetch(`${base}/owner/logout`, { method: "POST", headers: hdr })).status;
+        out.login = (await fetch(`${base}/owner/login`, { method: "POST", headers: hdr, body: JSON.stringify({ passphrase: FAKE }) })).status;
+        res.setHeader("content-type", "application/json"); res.end(JSON.stringify(out)); return;
+      }
+      res.end("<html></html>");
+    });
+    await new Promise<void>((r) => up.listen(0, "127.0.0.1", () => r())); servers.push(up);
+    upPort = (up.address() as { port: number }).port;
+    const login = new LoginGuard(s.core, FAKE);
+    const consoleApp = createApp(s, undefined, undefined, pmStub, owner, undefined, { login, lan: false });
+    const previewApp = createPreviewApp(s.core, owner, pmStub, { lan: false });
+    const lis = (fetchFn: (r: Request, e?: unknown) => unknown) => new Promise<Server>((r) => { const x = serve({ fetch: fetchFn as never, port: 0, hostname: "127.0.0.1" }, () => r(x as unknown as Server)); });
+    const cs = await lis(consoleApp.fetch); const ps = await lis(previewApp.fetch); servers.push(cs, ps);
+    consolePort = (cs.address() as { port: number }).port; previewPort = (ps.address() as { port: number }).port;
+    owner.setPorts(consolePort, previewPort);
+    const [oc, pc] = owner.cookiesFor(owner.open()).map((c) => c.split(";")[0]!);
+    browserCookies = `${oc}; ${pc}`; // a browser sends both cookies to both ports (cookies ignore ports)
+
+    // 1. the preview port: no cookie -> 401; preview cookie -> page; the upstream gets no cookie at all
+    expect((await fetch(`http://127.0.0.1:${previewPort}/preview/p1/r/`)).status).toBe(401);
+    expect((await fetch(`http://127.0.0.1:${previewPort}/preview/p1/r/`, { headers: { cookie: oc! } })).status).toBe(401);
+    expect((await fetch(`http://127.0.0.1:${previewPort}/preview/p1/r/echo`, { headers: { cookie: browserCookies } })).status).toBe(200);
+    expect(seenCookie).toBeUndefined();
+    // 2. the page's own script posts to the console API: every owner action is refused
+    const r = await fetch(`http://127.0.0.1:${previewPort}/preview/p1/r/attack`, { headers: { cookie: browserCookies } });
+    expect(await r.json()).toEqual({ start: 403, stop: 403, commands: 403, logout: 403, login: 403 });
+    expect(calls).toEqual(["start", "stop"]); // they reached the manager only as refused (notOwner), never as owner
+    // 3. the console origin itself still works
+    const own = { origin: `http://127.0.0.1:${consolePort}`, cookie: browserCookies, "content-type": "application/json" };
+    const good = await fetch(`http://127.0.0.1:${consolePort}/api/previews`, { method: "POST", headers: own, body: JSON.stringify({ task: "t1" }) });
+    expect(good.status).toBe(202);
+    // 4. the console port never serves a preview
+    expect((await fetch(`http://127.0.0.1:${consolePort}/preview/p1/r/`, { headers: { cookie: browserCookies } })).status).toBe(404);
   });
 });
 

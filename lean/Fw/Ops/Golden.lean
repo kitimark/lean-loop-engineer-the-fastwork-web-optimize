@@ -461,6 +461,9 @@ def extra : List (String × String × List (String × Json)) := [
     ("a command from the console origin", lit "{\"kind\":\"command\",\"ownerCookie\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"trusted\":[{\"host\":\"192.0.2.7\",\"port\":47000}]}"),
     ("a command from a preview page is refused", lit "{\"kind\":\"command\",\"ownerCookie\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47001},\"trusted\":[{\"host\":\"192.0.2.7\",\"port\":47000}]}"),
     ("a command with no Origin (command-line tool) is accepted", lit "{\"kind\":\"command\",\"ownerCookie\":false,\"trusted\":[{\"host\":\"192.0.2.7\",\"port\":47000}]}"),
+    ("a login from the console origin", lit "{\"kind\":\"login\",\"ownerCookie\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"trusted\":[{\"host\":\"192.0.2.7\",\"port\":47000}]}"),
+    ("a login from a preview page is refused", lit "{\"kind\":\"login\",\"ownerCookie\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47001},\"trusted\":[{\"host\":\"192.0.2.7\",\"port\":47000}]}"),
+    ("a login without an Origin is refused", lit "{\"kind\":\"login\",\"ownerCookie\":false,\"trusted\":[{\"host\":\"192.0.2.7\",\"port\":47000}]}"),
     ("an unknown kind is refused", lit "{\"kind\":\"x\",\"ownerCookie\":true,\"trusted\":[]}")]),
   ("console", "console.lanStart", [
     ("not asked for", lit "{\"want\":false,\"hasAddr\":true,\"hasPass\":true,\"passLen\":20}"),
