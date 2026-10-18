@@ -22,6 +22,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { terminate } from './sim.mjs';
+import { recorder } from './spans.mjs';
 
 const EOF2 = '#EOF\n#EOF\n';
 
@@ -45,9 +46,12 @@ export const DEFAULT_HEADER = 'useFlexibleViewport=true';
 
 /**
  * Launch the app, run one test URL, return its stdout/stderr text, then terminate the app (a fresh process per pass).
- * @returns {Promise<{stdout:string, stderr:string, launch:string, ms:number}>}
+ * `spans` (wall ms): prep (temp dir, listening socket), connect (simctl launch spawned until the app's three sockets are up: the
+ * launch), run (command sent until the end marker: page load, settle, scroll steps), teardown (sockets, simctl terminate, temp dir).
+ * @returns {Promise<{stdout:string, stderr:string, launch:string, ms:number, spans:object}>}
  */
 export async function runOnce({ udid, root, bundleId, url, header = DEFAULT_HEADER, extraArgs = [], timeoutMs = 240000, connectMs = 120000 }) {
+  const rec = recorder();
   const tempDir = mkdtempSync(join(tmpdir(), 'fw-wktr-tmp-'));
   const server = net.createServer();
   await new Promise((ok, bad) => { server.once('error', bad); server.listen(0, '127.0.0.1', ok); });
@@ -59,11 +63,14 @@ export async function runOnce({ udid, root, bundleId, url, header = DEFAULT_HEAD
   let launchOut = '';
   launch.stdout.on('data', (d) => { launchOut += d; });
   launch.stderr.on('data', (d) => { launchOut += d; });
+  rec.mark('prep');
   const t0 = Date.now();
+  let result = null;
   let stdout = '', stderr = '';
   try {
     const timeout = (ms, what) => new Promise((_, bad) => setTimeout(() => bad(new Error(`timeout (${ms} ms): ${what}; launch said: ${launchOut.trim()}`)), ms).unref());
     await Promise.race([sockWait, timeout(connectMs, 'the app did not connect its three sockets')]);
+    rec.mark('connect');
     const [sin, sout, serr] = socks;
     sout.setEncoding('utf8'); serr.setEncoding('utf8');
     serr.on('data', (d) => { stderr += d; });
@@ -75,11 +82,15 @@ export async function runOnce({ udid, root, bundleId, url, header = DEFAULT_HEAD
     done.catch(() => {});
     sin.write(`${url}'--additional-header'${header}\n`);
     await Promise.race([done, timeout(timeoutMs, 'the test did not finish')]);
-    return { stdout, stderr, launch: launchOut.trim(), ms: Date.now() - t0 };
+    rec.mark('run');
+    result = { stdout, stderr, launch: launchOut.trim(), ms: Date.now() - t0 };
+    return result;
   } finally {
     for (const s of socks) s.destroy();
     terminate(udid, bundleId);
     server.close();
     rmSync(tempDir, { recursive: true, force: true });
+    rec.mark('teardown');
+    if (result) result.spans = rec.spans();
   }
 }

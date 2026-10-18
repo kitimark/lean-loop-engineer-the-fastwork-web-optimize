@@ -11,6 +11,7 @@ import { runOnce, DEFAULT_HEADER } from './wktr.mjs';
 import { buildRun, parseOutput } from './reduce.mjs';
 import * as sim from './sim.mjs';
 import { parseVariant } from './variants.mjs';
+import { recorder, timed } from './spans.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ARCHIVE = JSON.parse(readFileSync(join(HERE, 'archive.json'), 'utf8'));
@@ -39,16 +40,20 @@ async function main() {
   const passes = Number(v.passes), step = Number(v.step), frames = Number(v.frames), settleMs = Number(v.settle);
   const variants = v.variants.split(',').map((x) => x.trim()).filter(Boolean).map(parseVariant);
 
-  const dev = sim.ensureDevice({ name: v['device-name'], typeName: v['device-type'], version: v['ios-version'] });
+  // wall-time spans of this invocation (spans-arm-<label>.json): device setup, serving, per-pass teardown, device teardown
+  const arm = recorder();
+  const dev = await timed(arm, 'ensureDevice', () => sim.ensureDevice({ name: v['device-name'], typeName: v['device-type'], version: v['ios-version'] }));
   console.log(`device ${v['device-name']} (${v['device-type']}, iOS ${dev.runtime.version} build ${dev.runtime.buildversion}) created=${dev.created}`);
-  sim.boot(dev.udid);
-  sim.install(dev.udid, app);
+  await timed(arm, 'boot', () => sim.boot(dev.udid));
+  await timed(arm, 'install', () => sim.install(dev.udid, app));
   const results = [];
   let srv = null;
   try {
    for (const vr of variants) {
+    arm.mark('_gap');
     srv = await serveOriginal(site, harnessSource({ step, frames, settleMs, warm: vr.warm, vt: vr.vt, trace: vr.trace, still: vr.still, cases: Number(v.cases) }));
     console.log(`variant ${vr.name}: serving ${site} at ${srv.url}`);
+    arm.mark('serve');
     const tag = `${vr.name}-`;
     for (let p = 1; p <= passes; p++) {
       // The app's GPU process sometimes crashes at launch on a runner ("#CRASHED - com.apple.WebKit.GPU.Development", no
@@ -62,6 +67,7 @@ async function main() {
           if (attempts > 2 || !/closed before the end marker|did not connect/.test(e.message)) throw e;
         }
       }
+      const pass = recorder();
       writeFileSync(join(out, `raw-${tag}${p}.txt`), r.stdout);
       writeFileSync(join(out, `stderr-${tag}${p}.txt`), r.stderr);
       const parsed = parseOutput(r.stdout);
@@ -71,19 +77,29 @@ async function main() {
         header: v.header, variant: vr.name, vt: vr.vt, warm: vr.warm, trace: vr.trace, still: vr.still, step, frames, settleMs, cases: Number(v.cases), attempts, wallMs: r.ms,
       });
       writeFileSync(join(out, `counts-${tag}${p}.json`), JSON.stringify(run));
+      pass.mark('reduce');
+      const spans = { ...r.spans, settleInRun: settleMs, ...pass.spans() };
+      writeFileSync(join(out, `spans-${tag}${p}.json`), JSON.stringify({ schema: 'fw.wktr.spans/1', label: v.label, variant: vr.name, pass: p, attempts, device: v['device-name'], spans }));
+      console.log(`spans ${vr.name} pass ${p}: ${JSON.stringify(spans)}`);
       const tot = {};
       for (const f of run.frames) for (const [k, n] of Object.entries(f.counts)) tot[k] = (tot[k] || 0) + n;
       results.push(tot);
       console.log(`${vr.name} pass ${p}: ${run.frames.length} steps, ${r.ms} ms wall (not phone time); totals ${JSON.stringify(tot)}`);
       console.log(`viewport ${run.meta.page.innerWidth}x${run.meta.page.innerHeight}, dpr ${run.meta.page.dpr}`);
     }
+    arm.mark('passes');
     await srv.close();
     srv = null;
    }
   } finally {
     if (srv) await srv.close();
+    arm.mark('_gap');
     sim.terminate(dev.udid, ARCHIVE.bundleId);
     if (!v.keep) { sim.shutdown(dev.udid); sim.deleteDevice(dev.udid); }
+    arm.mark('deviceTeardown');
+    const total = arm.sinceStart();
+    writeFileSync(join(out, `spans-arm-${v.variants.replace(/,/g, '+')}.json`), JSON.stringify({ schema: 'fw.wktr.spans.arm/1', label: v.label, variants: v.variants, passes, device: v['device-name'], totalMs: total, spans: arm.spans() }));
+    console.log(`arm spans ${v.label} ${v.variants}: total ${total} ms ${JSON.stringify(arm.spans())}`);
   }
 }
 

@@ -216,8 +216,8 @@ def table : List Wf := [
     own "webkit-sim.yml"]⟩,
   ⟨"wktr-fixtures.yml", ["ci/**"], [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
-    "@fwcore", ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
-    own "wktr-fixtures.yml"]⟩,
+    "@fwcore", "packages/contracts/golden/measure/wktr.fixtures.jsonl", ".github/scripts/runner-info.sh",
+    ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", own "wktr-fixtures.yml"]⟩,
   ⟨"wktr.yml", ["ci/**"], [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
     "@fwcore", "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh",

@@ -24,7 +24,7 @@ export function laneFailures(expected, passes) {
 }
 
 /** The fixture of an arm directory: the arm without its `-f<frames>` suffix. */
-export const fixtureOf = (arm) => arm.replace(/-f\d+$/, '');
+export const fixtureOf = (arm) => arm.replace(/^(auto|k\d+)\//, '').replace(/-f\d+$/, '');
 
 /** Per-pass row from a counts file (schema fw.wktr.scroll/1). */
 export function rowOf(run) {
@@ -44,17 +44,22 @@ export function rowOf(run) {
   };
 }
 
+/** A job dir holds <tag>/<arm>/ (tag auto or k<w>, lanes.mjs) or, as before, <arm>/ directly; the arm column then reads tag/arm. */
+const scopes = (d) => readdirSync(d).sort().flatMap((n) => (/^(auto|k\d+)$/.test(n) ? [[join(d, n), `${n}/`]] : []));
+
 /** Every pass row of the given job directories. */
 export function collect(dirs) {
   const rows = [];
   for (const d of dirs) {
-    for (const arm of readdirSync(d).sort()) {
-      const dir = join(d, arm);
-      if (!existsSync(dir) || !/-f\d+$/.test(arm)) continue;
-      for (const f of readdirSync(dir).sort()) {
-        const m = /^counts-(.+)-(\d+)\.json$/.exec(f);
-        if (!m) continue;
-        rows.push({ job: d, arm, variant: m[1], pass: Number(m[2]), ...rowOf(JSON.parse(readFileSync(join(dir, f), 'utf8'))) });
+    for (const [base, prefix] of [[d, ''], ...scopes(d)]) {
+      for (const arm of readdirSync(base).sort()) {
+        const dir = join(base, arm);
+        if (!existsSync(dir) || !/-f\d+$/.test(arm)) continue;
+        for (const f of readdirSync(dir).sort()) {
+          const m = /^counts-(.+)-(\d+)\.json$/.exec(f);
+          if (!m) continue;
+          rows.push({ job: d, arm: prefix + arm, variant: m[1], pass: Number(m[2]), ...rowOf(JSON.parse(readFileSync(join(dir, f), 'utf8'))) });
+        }
       }
     }
   }
@@ -65,7 +70,8 @@ function main(args) {
   const asJson = args.includes('--json');
   const rows = collect(args.filter((a) => !a.startsWith('--')));
   if (args.includes('--assert')) {
-    const passes = rows.map((r) => ({ fixture: fixtureOf(r.arm), styleRecalcs: r.styleRecalcs, renderingUpdates: r.renderingUpdates }));
+    // wider probe widths (k2, k3 of wktr-fixtures mode probe) are the premise test, not the lane: only the serial and the production layout are asserted
+    const passes = rows.filter((r) => !/^k([2-9]|\d\d)\//.test(r.arm)).map((r) => ({ fixture: fixtureOf(r.arm), styleRecalcs: r.styleRecalcs, renderingUpdates: r.renderingUpdates }));
     const fails = laneFailures(WKTR_EXPECTED, passes);
     for (const [x, mu] of WKTR_EXPECTED) {
       const m = passes.filter((q) => q.fixture === x);
