@@ -81,42 +81,39 @@ inductive CrProp where
   | scroll (repaint : Bool)
 deriving Repr, DecidableEq
 
-/-- The Chromium invalidation levels, lowest first: no change, a style recalc only, a direct (deferred) property-tree
-update, a full paint-property update, a re-raster of shared chunks, a repaint, a positioned layout, a full layout.
+/-- The Chromium invalidation levels: no change, a style recalc only, a direct (deferred) property-tree update, a full
+paint-property update, a re-raster of shared chunks, a repaint, a layout that only moves an own composited layer
+(`layoutMove`: no repaint, no re-raster), a positioned layout, a full layout. Since the counterexamples of CI run
+39088367495 the levels are not a chain: `layoutMove` and `raster` each run a stage the other does not, so the order is
+stage inclusion (`CrLevel` `≤`).
 
-$$\mathrm{CrLevel} = \{\mathrm{none}, \mathrm{styleOnly}, \mathrm{direct}, \mathrm{ppFull}, \mathrm{raster}, \mathrm{paint}, \mathrm{layoutPos}, \mathrm{layoutFull}\}$$
+$$\mathrm{CrLevel} = \{\mathrm{none}, \mathrm{styleOnly}, \mathrm{direct}, \mathrm{ppFull}, \mathrm{raster}, \mathrm{paint}, \mathrm{layoutMove}, \mathrm{layoutPos}, \mathrm{layoutFull}\}$$
+
+The nine invalidation levels a Chromium property change can have.
 -/
 inductive CrLevel where
-  | none | styleOnly | direct | ppFull | raster | paint | layoutPos | layoutFull
+  | none | styleOnly | direct | ppFull | raster | paint | layoutMove | layoutPos | layoutFull
 deriving Repr, DecidableEq, Inhabited
 
-/-- Every level once, lowest first.
+/-- Every level once, in declaration order.
 
-$$\mathrm{CrLevel.all} = [\mathrm{none}, \mathrm{styleOnly}, \mathrm{direct}, \mathrm{ppFull}, \mathrm{raster}, \mathrm{paint}, \mathrm{layoutPos}, \mathrm{layoutFull}]$$
+$$\mathrm{CrLevel.all} = [\mathrm{none}, \mathrm{styleOnly}, \mathrm{direct}, \mathrm{ppFull}, \mathrm{raster}, \mathrm{paint}, \mathrm{layoutMove}, \mathrm{layoutPos}, \mathrm{layoutFull}]$$
+
+The list of all levels.
 -/
-def CrLevel.all : List CrLevel := [.none, .styleOnly, .direct, .ppFull, .raster, .paint, .layoutPos, .layoutFull]
+def CrLevel.all : List CrLevel :=
+  [.none, .styleOnly, .direct, .ppFull, .raster, .paint, .layoutMove, .layoutPos, .layoutFull]
 
-/-- The position of a level in the chain.
+/-- The position of a level in `CrLevel.all`. It is written to the signature golden; since `layoutMove` it is no
+longer the level order (which is stage inclusion).
 
-$$\operatorname{rank}(\mathrm{none}) = 0,\ \operatorname{rank}(\mathrm{styleOnly}) = 1,\ \operatorname{rank}(\mathrm{direct}) = 2,\ \operatorname{rank}(\mathrm{ppFull}) = 3,\ \operatorname{rank}(\mathrm{raster}) = 4,\ \operatorname{rank}(\mathrm{paint}) = 5,\ \operatorname{rank}(\mathrm{layoutPos}) = 6,\ \operatorname{rank}(\mathrm{layoutFull}) = 7$$
+$$\operatorname{rank}(\mathrm{none}) = 0,\ \operatorname{rank}(\mathrm{styleOnly}) = 1,\ \operatorname{rank}(\mathrm{direct}) = 2,\ \operatorname{rank}(\mathrm{ppFull}) = 3,\ \operatorname{rank}(\mathrm{raster}) = 4,\ \operatorname{rank}(\mathrm{paint}) = 5,\ \operatorname{rank}(\mathrm{layoutMove}) = 6,\ \operatorname{rank}(\mathrm{layoutPos}) = 7,\ \operatorname{rank}(\mathrm{layoutFull}) = 8$$
+
+The index of a level in the list of all levels.
 -/
 def CrLevel.rank : CrLevel → Nat
-  | .none => 0 | .styleOnly => 1 | .direct => 2 | .ppFull => 3 | .raster => 4 | .paint => 5 | .layoutPos => 6
-  | .layoutFull => 7
-
-/-- The level order is the rank order.
-
-$$a \le b \iff \operatorname{rank}(a) \le \operatorname{rank}(b)$$
--/
-instance : LE CrLevel := ⟨fun a b => a.rank ≤ b.rank⟩
-
-instance (a b : CrLevel) : Decidable (a ≤ b) := inferInstanceAs (Decidable (a.rank ≤ b.rank))
-
-/-- The larger of two levels (the second on a tie).
-
-$$\max(a, b) = \begin{cases} b & \operatorname{rank}(a) \le \operatorname{rank}(b) \\ a & \text{otherwise} \end{cases}$$
--/
-def CrLevel.max (a b : CrLevel) : CrLevel := if a.rank ≤ b.rank then b else a
+  | .none => 0 | .styleOnly => 1 | .direct => 2 | .ppFull => 3 | .raster => 4 | .paint => 5 | .layoutMove => 6
+  | .layoutPos => 7 | .layoutFull => 8
 
 /-- **The stage list of each level** (design note §1.2, note C §2.2).
 * `none`: no stage (`B/core/style/computed_style.cc:767-931`, empty diff). CONFIRMED.
@@ -124,17 +121,21 @@ def CrLevel.max (a b : CrLevel) : CrLevel := if a.rank ≤ b.rank then b else a
 * `direct`: style, props, commit. `transform` some-to-some or `opacity` on a box with its own cc layer: deferred node
   update (`B/core/paint/paint_layer.cc:2469-2497`), direct cc write
   (`B/core/paint/paint_property_tree_builder.cc:1224-1262`). CONFIRMED; commit per frame MEASURED (README:148).
-* `ppFull`: style, props, commit. `translate`/`scale`/`rotate`/`filter` on its own layer, `backdrop-filter`
+* `ppFull`: style, props, commit. `translate`/`rotate`/a non-blur `filter` on its own layer, `backdrop-filter`
   (`computed_style.cc:881-891`, `B/core/layout/layout_object.cc:3224-3230`). CONFIRMED.
 * `raster`: style, props, raster, commit. A transform, opacity or filter value on a box without its own layer
   re-rasters its chunks (`B/platform/graphics/paint/raster_invalidator.cc:64-142`). INFERRED.
 * `paint`: style, props, paint, raster, commit. background-*, color, clip-path, stroke-dashoffset, visibility, z-index
   (`computed_style.cc:1104-1120`, `layout_object.cc:2932-2948`). CONFIRMED.
-* `layoutPos`: adds layout. top/left of a positioned box (`computed_style.cc:792-798`). CONFIRMED (paint INFERRED).
-* `layoutFull`: the same stages; width/height/margin/padding, a transform toggle that flips the stacking state
-  (`computed_style.cc:779-784, 986-988`). CONFIRMED.
+* `layoutMove`: style, layout, props, commit. top/left/margin of a box with its own cc layer: the layout moves the
+  layer, whose contents are neither repainted nor re-rastered. MEASURED (CI run 39088367495: no Paint and no
+  RasterTask in 3 of 3 passes); mechanism INFERRED.
+* `layoutPos`: adds layout. top/left of a positioned box without its own layer (`computed_style.cc:792-798`).
+  CONFIRMED (paint MEASURED, run 39088367495).
+* `layoutFull`: the same stages; width/height/padding, and margin or a transform toggle that flips the stacking state
+  on a box without its own layer (`computed_style.cc:779-784, 986-988`). CONFIRMED.
 
-$$\begin{aligned} \operatorname{stages}(\mathrm{none}) &= [\,] & \operatorname{stages}(\mathrm{styleOnly}) &= [\mathrm{style}] \\ \operatorname{stages}(\mathrm{direct}) &= [\mathrm{style}, \mathrm{props}, \mathrm{commit}] & \operatorname{stages}(\mathrm{ppFull}) &= [\mathrm{style}, \mathrm{props}, \mathrm{commit}] \\ \operatorname{stages}(\mathrm{raster}) &= [\mathrm{style}, \mathrm{props}, \mathrm{raster}, \mathrm{commit}] & \operatorname{stages}(\mathrm{paint}) &= [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] \\ \operatorname{stages}(\mathrm{layoutPos}) &= [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] & \operatorname{stages}(\mathrm{layoutFull}) &= [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] \end{aligned}$$
+$$\begin{aligned} \operatorname{stages}(\mathrm{none}) &= [\,] & \operatorname{stages}(\mathrm{styleOnly}) &= [\mathrm{style}] \\ \operatorname{stages}(\mathrm{direct}) &= [\mathrm{style}, \mathrm{props}, \mathrm{commit}] & \operatorname{stages}(\mathrm{ppFull}) &= [\mathrm{style}, \mathrm{props}, \mathrm{commit}] \\ \operatorname{stages}(\mathrm{raster}) &= [\mathrm{style}, \mathrm{props}, \mathrm{raster}, \mathrm{commit}] & \operatorname{stages}(\mathrm{paint}) &= [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] \\ \operatorname{stages}(\mathrm{layoutMove}) &= [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{commit}] & \operatorname{stages}(\mathrm{layoutPos}) &= [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] \\ \operatorname{stages}(\mathrm{layoutFull}) &= [\mathrm{style}, \mathrm{layout}, \mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] \end{aligned}$$
 -/
 def CrLevel.stages : CrLevel → List Stage
   | .none => []
@@ -143,25 +144,54 @@ def CrLevel.stages : CrLevel → List Stage
   | .ppFull => [.style, .props, .commit]
   | .raster => [.style, .props, .raster, .commit]
   | .paint => [.style, .props, .paint, .raster, .commit]
+  | .layoutMove => [.style, .layout, .props, .commit]
   | .layoutPos => [.style, .layout, .props, .paint, .raster, .commit]
   | .layoutFull => [.style, .layout, .props, .paint, .raster, .commit]
 
+/-- **The level order is stage inclusion**: $a \le b$ iff every stage of $a$ is a stage of $b$ (a preorder; `direct`
+and `ppFull`, `layoutPos` and `layoutFull` have equal stages). Before CI run 39088367495 it was the rank order of a
+chain; `layoutMove` and `raster` are incomparable.
+
+$$a \le b \iff \forall s \in \operatorname{stages}(a):\ s \in \operatorname{stages}(b)$$
+-/
+instance : LE CrLevel := ⟨fun a b => ∀ s ∈ a.stages, s ∈ b.stages⟩
+
+instance (a b : CrLevel) : Decidable (a ≤ b) := inferInstanceAs (Decidable (∀ s ∈ a.stages, s ∈ b.stages))
+
+/-- **The join of two levels**: the second if the first is below it, else the first if the second is below it, else
+the top level `layoutFull` (two incomparable levels, e.g. `layoutMove` and `raster`, join to the full pipeline).
+
+$$\max(a, b) = \begin{cases} b & a \le b \\ a & a \not\le b \land b \le a \\ \mathrm{layoutFull} & \text{otherwise} \end{cases}$$
+
+The second level if it is above the first, else the first if it is above the second, else the top level.
+-/
+def CrLevel.max (a b : CrLevel) : CrLevel := if a ≤ b then b else if b ≤ a then a else .layoutFull
+
 /-- **The level of a plain property change** on a target with layer state `l` (design note §1.2, note C §2.2 table).
-`transform` and `opacity` on their own layer take the deferred direct path; `translate`/`scale`/`rotate` and `filter`
-on their own layer a full property update (no deferred path, `computed_style.cc:881-891`); any of these without its
+`transform` and `opacity` on their own layer take the deferred direct path; `translate`/`rotate` and a non-blur
+`filter` on their own layer a full property update (no deferred path, `computed_style.cc:881-891`); any of these without its
 own layer re-rasters shared chunks; `backdrop-filter` changes compositing reasons (`computed_style.cc:1268-1292`,
 Layerize INFERRED).
 
-$$\operatorname{lvl}(k, l) = \begin{cases} \mathrm{direct} & k \in \{\mathrm{transform}, \mathrm{opacity}\},\ l = \mathrm{own} \\ \mathrm{ppFull} & k \in \{\mathrm{translate}, \mathrm{scale}, \mathrm{rotate}\} \cup \{\mathrm{filter}(b) \mid b \in \mathbb{B}\},\ l = \mathrm{own} \\ \mathrm{raster} & k \in \{\mathrm{transform}, \mathrm{opacity}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}\} \cup \{\mathrm{filter}(b) \mid b \in \mathbb{B}\},\ l \ne \mathrm{own} \\ \mathrm{ppFull} & k = \mathrm{backdropFilter} \\ \mathrm{paint} & k \in \{\mathrm{bgPosition}, \mathrm{bgImage}, \mathrm{bgColor}, \mathrm{color}, \mathrm{clipPath}, \mathrm{strokeDashoffset}, \mathrm{visibility}, \mathrm{zIndex}\} \\ \mathrm{layoutPos} & k \in \{\mathrm{top}, \mathrm{left}\} \\ \mathrm{layoutFull} & k \in \{\mathrm{transformToggle}, \mathrm{width}, \mathrm{height}, \mathrm{margin}, \mathrm{padding}\} \end{cases}$$
+Corrected by CI run 39088367495 (MEASURED, 3 of 3 passes; mechanisms INFERRED): on its own layer `scale`, a blur
+`filter` and a transform toggle re-raster (`raster`, was `ppFull`/`ppFull`/`layoutFull`: the toggle no longer flips
+the stacking state, which `will-change` already fixed, and a new scale or blur radius changes the raster scale or the
+filter's input), and `top`/`left`/`margin` only move the layer (`layoutMove`, was `layoutPos`/`layoutFull`).
+
+$$\operatorname{lvl}(k, l) = \begin{cases} \mathrm{direct} & k \in \{\mathrm{transform}, \mathrm{opacity}\},\ l = \mathrm{own} \\ \mathrm{ppFull} & k \in \{\mathrm{translate}, \mathrm{rotate}, \mathrm{filter}(\mathrm{false})\},\ l = \mathrm{own} \\ \mathrm{raster} & k \in \{\mathrm{scale}, \mathrm{filter}(\mathrm{true}), \mathrm{transformToggle}\},\ l = \mathrm{own} \\ \mathrm{raster} & k \in \{\mathrm{transform}, \mathrm{opacity}, \mathrm{translate}, \mathrm{scale}, \mathrm{rotate}, \mathrm{filter}(\mathrm{false}), \mathrm{filter}(\mathrm{true})\},\ l \ne \mathrm{own} \\ \mathrm{ppFull} & k = \mathrm{backdropFilter} \\ \mathrm{paint} & k \in \{\mathrm{bgPosition}, \mathrm{bgImage}, \mathrm{bgColor}, \mathrm{color}, \mathrm{clipPath}, \mathrm{strokeDashoffset}, \mathrm{visibility}, \mathrm{zIndex}\} \\ \mathrm{layoutMove} & k \in \{\mathrm{top}, \mathrm{left}, \mathrm{margin}\},\ l = \mathrm{own} \\ \mathrm{layoutPos} & k \in \{\mathrm{top}, \mathrm{left}\},\ l \ne \mathrm{own} \\ \mathrm{layoutFull} & k \in \{\mathrm{transformToggle}, \mathrm{margin}\},\ l \ne \mathrm{own} \\ \mathrm{layoutFull} & k \in \{\mathrm{width}, \mathrm{height}, \mathrm{padding}\} \end{cases}$$
+
+The invalidation level of a plain property change on a box with the given layer state.
 -/
 def keyLevel : CrKey → LayerState → CrLevel
   | .transform, .own => .direct
   | .opacity, .own => .direct
-  | .translate, .own | .scale, .own | .rotate, .own | .filter _, .own => .ppFull
+  | .translate, .own | .rotate, .own | .filter false, .own => .ppFull
+  | .scale, .own | .filter true, .own | .transformToggle, .own => .raster
   | .transform, _ | .opacity, _ | .translate, _ | .scale, _ | .rotate, _ | .filter _, _ => .raster
   | .backdropFilter, _ => .ppFull
   | .backgroundPosition, _ | .backgroundImage, _ | .backgroundColor, _ | .color, _ | .clipPath, _
   | .strokeDashoffset, _ | .visibility, _ | .zIndex, _ => .paint
+  | .top, .own | .left, .own | .margin, .own => .layoutMove
   | .top, _ | .left, _ => .layoutPos
   | .transformToggle, _ | .width, _ | .height, _ | .margin, _ | .padding, _ => .layoutFull
 
@@ -170,7 +200,10 @@ readers' levels, at least `styleOnly` (the write restyles the element; design no
 scroll-offset change has no style level (its stages come from `CrProp.extra`).
 
 $$\operatorname{lvl}(\mathrm{css}(k), l) = \operatorname{lvl}(k, l),\qquad \operatorname{lvl}(\mathrm{custom}(i, R), l) = \operatorname{foldl}\big(\max, \mathrm{styleOnly}, [\,\operatorname{lvl}(k, l) \mid k \in R\,]\big)\ (= \mathrm{styleOnly} \text{ for } R = [\,]),\qquad \operatorname{lvl}(\mathrm{scroll}(r), l) = \mathrm{none}$$
-(the maximum is a left fold over $R$ in list order; on a tie the later level is kept, which has the same rank).
+(the maximum is the join `CrLevel.max`, folded left over $R$ in list order; two incomparable levels join to
+$\mathrm{layoutFull}$).
+
+The level of a plain, custom or scroll property change.
 -/
 def crLevel : CrProp → LayerState → CrLevel
   | .css k, l => keyLevel k l
@@ -236,16 +269,22 @@ $$\operatorname{compStages}(m) = [\mathrm{comp}] \mathbin{+\!\!+} \begin{cases} 
 def crCompStages (m : CrMode) : List Stage :=
   [.comp] ++ (if m.everyBeginFrameIsMainFrame then [.style, .props] else [])
 
-/-- **The Chromium engine in mode `m`.** No base stages: a main frame with no change commits nothing (MEASURED
-cc.Commit 0 with only compositor animations, README:146-148), so `commit` comes from the changes.
+/-- **The Chromium engine in mode `m`.** The base stage is `props`: every main frame that updates (a change or a
+script callback) runs PrePaint, which `LocalFrameView::RunPrePaintLifecyclePhase` traces unconditionally before the
+compositing inputs (`B/core/frame/local_frame_view.cc:2586`@f842f52, CONFIRMED; MEASURED: a script-only rAF frame
+runs PrePaint in 3 of 3 passes, CI run 39088367495). Until that run the base was empty. A main frame with no change
+commits nothing (MEASURED cc.Commit 0 with only compositor animations, README:146-148, and in the script-only frame),
+so `commit` comes from the changes.
 
-$$\operatorname{chromiumAt}(m) = \big(m,\ \operatorname{stagesOf}_{\mathrm{cr}},\ \operatorname{compStages}(m),\ [\,]\big)$$
+$$\operatorname{chromiumAt}(m) = \big(m,\ \operatorname{stagesOf}_{\mathrm{cr}},\ \operatorname{compStages}(m),\ [\mathrm{props}]\big)$$
+
+The Chromium engine whose updating frames always pay one PrePaint.
 -/
 def chromiumAt (m : CrMode) : Engine CrProp CrMode where
   mode := m
   stagesOf := crStagesOf
   compStages := crCompStages m
-  base := []
+  base := [.props]
 
 /-- **The Chromium engine of the CI lane.**
 
@@ -253,38 +292,80 @@ $$\mathrm{chromium} = \operatorname{chromiumAt}(\mathrm{lane})$$
 -/
 def chromium : Engine CrProp CrMode := chromiumAt lane
 
-/-! ## Level chain theorems -/
+/-! ## Level order theorems -/
 
-/-- **Level monotonicity.** A lower or equal level dirties a subset of the stages.
+/-- **Level monotonicity.** A lower or equal level dirties a subset of the stages (since the order became stage
+inclusion, this is its definition).
 
 $$\forall a, b \in \mathrm{CrLevel}:\ a \le b \Rightarrow \forall s \in \operatorname{stages}(a):\ s \in \operatorname{stages}(b)$$
+
+A level below another runs only stages the other runs.
 -/
-theorem crStages_mono {a b : CrLevel} (h : a ≤ b) : ∀ s ∈ a.stages, s ∈ b.stages := by
-  revert h
-  cases a <;> cases b <;> decide
+theorem crStages_mono {a b : CrLevel} (h : a ≤ b) : ∀ s ∈ a.stages, s ∈ b.stages := h
+
+/-- The level order is reflexive.
+
+$$\forall a \in \mathrm{CrLevel}:\ a \le a$$
+
+Every level is below itself.
+-/
+theorem CrLevel.le_refl (a : CrLevel) : a ≤ a := fun _ h => h
+
+/-- **`layoutFull` is the top level.**
+
+$$\forall a \in \mathrm{CrLevel}:\ a \le \mathrm{layoutFull}$$
+
+Every level runs only stages a full layout runs.
+-/
+theorem CrLevel.le_layoutFull (a : CrLevel) : a ≤ .layoutFull := by
+  cases a <;> decide
 
 /-- `max` is an upper bound of its left argument.
 
 $$\forall a, b \in \mathrm{CrLevel}:\ a \le \max(a, b)$$
+
+The join is above its first argument.
 -/
 theorem CrLevel.le_max_left (a b : CrLevel) : a ≤ a.max b := by
-  show a.rank ≤ (a.max b).rank
-  unfold CrLevel.max; split <;> omega
+  unfold CrLevel.max
+  split
+  · assumption
+  · split
+    · exact CrLevel.le_refl a
+    · exact CrLevel.le_layoutFull a
 
 /-- `max` is an upper bound of its right argument.
 
 $$\forall a, b \in \mathrm{CrLevel}:\ b \le \max(a, b)$$
+
+The join is above its second argument.
 -/
 theorem CrLevel.le_max_right (a b : CrLevel) : b ≤ a.max b := by
-  show b.rank ≤ (a.max b).rank
-  unfold CrLevel.max; split <;> omega
+  unfold CrLevel.max
+  split
+  · exact CrLevel.le_refl b
+  · split
+    · assumption
+    · exact CrLevel.le_layoutFull b
 
 /-- The level order is transitive.
 
 $$\forall a, b, c \in \mathrm{CrLevel}:\ a \le b \land b \le c \Rightarrow a \le c$$
+
+Stage inclusion composes.
 -/
 theorem CrLevel.le_trans {a b c : CrLevel} (h1 : a ≤ b) (h2 : b ≤ c) : a ≤ c :=
-  Nat.le_trans h1 h2
+  fun s hs => h2 s (h1 s hs)
+
+/-- **The levels are not a chain** (CI run 39088367495): `layoutMove` and `raster` are incomparable, each runs a stage
+the other does not (layout, raster).
+
+$$\mathrm{layoutMove} \not\le \mathrm{raster} \land \mathrm{raster} \not\le \mathrm{layoutMove}$$
+
+A layer move and a re-raster cannot be ranked against each other.
+-/
+theorem layoutMove_raster_incomparable : ¬ CrLevel.layoutMove ≤ .raster ∧ ¬ CrLevel.raster ≤ .layoutMove := by
+  decide
 
 /-- A left fold of `max` stays above its start and above every folded element.
 
@@ -292,7 +373,7 @@ $$\forall x \in \mathrm{CrLevel},\ \forall L \in \mathrm{CrLevel}^{*}:\ x \le \o
 -/
 theorem foldl_max_ge : ∀ (x : CrLevel) (L : List CrLevel),
     x ≤ L.foldl CrLevel.max x ∧ ∀ y ∈ L, y ≤ L.foldl CrLevel.max x
-  | x, [] => ⟨Nat.le_refl _, fun _ h => nomatch h⟩
+  | x, [] => ⟨CrLevel.le_refl _, fun _ h => nomatch h⟩
   | x, y :: ys => by
     obtain ⟨h1, h2⟩ := foldl_max_ge (x.max y) ys
     refine ⟨CrLevel.le_trans (CrLevel.le_max_left x y) h1, fun z hz => ?_⟩
@@ -532,7 +613,8 @@ theorem compTransform_no_layout_paint (m : CrMode) (hm : m = lane ∨ m = realCh
   exact ⟨(h .layout (by simp)).1, (h .paint (by simp)).1⟩
 
 /-- **Worked theorem 1: a JS transform write on its own layer costs at most a top/left write**, through
-`frame_le_of_cover`: same callbacks, the transform change (`direct`) is covered by the top/left change (`layoutPos`),
+`frame_le_of_cover`: same callbacks, the transform change (`direct`) is covered by the top/left change (`layoutPos`; `layoutMove` on its own layer since CI run 39088367495, which still
+contains style, props and commit),
 in every mode and for any target and layer state of the top/left write.
 
 $$\forall m \in \mathrm{CrMode},\ \forall n, e, e' \in \mathbb{N},\ \forall l \in \mathrm{LayerState},\ \forall k \in \{\mathrm{top}, \mathrm{left}\}:\ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e, \mathrm{css}(\mathrm{transform}), \mathrm{own})])\big) \preceq \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{jsWrite}(n, [(e', \mathrm{css}(k), l)])\big)$$
@@ -633,6 +715,14 @@ theorem scroll_stages (e d k : Nat) :
 #guard crThread lane ⟨0, [.css .backgroundColor], .none, true, .document⟩ == .main
 #guard keyLevel .transform .own == .direct && keyLevel .transform .layer == .raster
 #guard keyLevel .translate .own == .ppFull && keyLevel .top .none == .layoutPos
+#guard keyLevel .scale .own == .raster && keyLevel (.filter true) .own == .raster
+#guard keyLevel (.filter false) .own == .ppFull && keyLevel .transformToggle .own == .raster
+#guard keyLevel .transformToggle .layer == .layoutFull && keyLevel .margin .layer == .layoutFull
+#guard keyLevel .top .own == .layoutMove && keyLevel .left .own == .layoutMove && keyLevel .margin .own == .layoutMove
+#guard keyLevel .top .layer == .layoutPos && keyLevel .width .own == .layoutFull
+#guard CrLevel.layoutMove.max .raster == .layoutFull && CrLevel.direct.max .ppFull == .ppFull
+#guard CrLevel.paint.max .raster == .paint && CrLevel.raster.max .paint == .paint
+#guard (chromiumAt lane).base == [.props]
 #guard crLevel (.custom 0 [.opacity, .width]) .own == .layoutFull
 #guard crLevel (.custom 0 []) .own == .styleOnly
 #guard crLevel (.custom 0 [.transform]) .own == .direct
@@ -705,7 +795,7 @@ $$\operatorname{name}(\ell) = \text{the constructor name of } \ell,\ \text{e.g. 
 -/
 def levelName : CrLevel → String
   | .none => "none" | .styleOnly => "styleOnly" | .direct => "direct" | .ppFull => "ppFull" | .raster => "raster"
-  | .paint => "paint" | .layoutPos => "layoutPos" | .layoutFull => "layoutFull"
+  | .paint => "paint" | .layoutMove => "layoutMove" | .layoutPos => "layoutPos" | .layoutFull => "layoutFull"
 
 /-- The JSON name of a layer state.
 
@@ -831,7 +921,7 @@ def goldenRun (root : System.FilePath) (write : Bool) : IO Nat := do
   IO.println s!"chromium golden: {p} is stale"
   return 1
 
-#guard goldenRows.length == 8 + 2 + 3 + 8 + 8
+#guard goldenRows.length == 9 + 2 + 3 + 8 + 8
 #guard (frameWork chromium (animFrame lane fxAnimComp)).passes .style == 1
 #guard (frameWork chromium (animFrame lane fxAnimComp)).units .style == 2
 #guard (frameWork chromium (animFrame lane fxAnimComp)).passes .commit == 0
@@ -845,10 +935,25 @@ def goldenRun (root : System.FilePath) (write : Bool) : IO Nat := do
 
 Each section below closes one ledger statement (`research/findings/ledger.json`, `missingWhy` of
 `Fw.Engine.Chromium`) with the mechanism read from Chromium source @f842f52 (`B/` = `third_party/blink/renderer/`).
-The tables above stay unchanged (the golden rows and `Fw.Parts` read them); a corrected rule is a new definition with
-a bridge theorem back to the old one, as `frameWorkE` does in `Fw.Engine.Core`. -/
+A corrected rule is a new definition with a bridge theorem back to the old one, as `frameWorkE` does in
+`Fw.Engine.Core`. Exception: the counterexamples of CI run 39088367495 (task engine-model-fix) corrected the tables
+above themselves (`keyLevel`, `CrLevel.stages`, the base stage) and the hit count of `crWorkH`. -/
 
 /-! ### Hit tests run PrePaint (ledger n=3) -/
+
+/-- **The hover hit test after a layout** (CI run 39088367495). `LocalFrameView::PerformPostLayoutTasks` marks the
+hover state dirty after every layout (`B/core/frame/local_frame_view.cc:1960-1965`@f842f52, CONFIRMED), and the widget
+recomputes a dirty hover state with a hit test at the mouse position (`B/core/frame/web_frame_widget_impl.cc:3058-3063`,
+CONFIRMED). That the hit test lands in the same frame is MEASURED: each of the 18 Chromium steps with a layout counted
+`trace.HitTest` in 3 of 3 passes, and no step without a layout did except the `elementFromPoint` step. A forced layout (`forcedLayout`) is not
+counted: the run measured only frame layouts.
+
+$$\operatorname{hover}(m, f) = \begin{cases} 1 & \mathrm{layout} \in \operatorname{touched}_{\operatorname{chromiumAt}(m)}(f) \\ 0 & \text{otherwise} \end{cases}$$
+
+One hover hit test in a frame whose lifecycle runs layout, none otherwise.
+-/
+def crHover (m : CrMode) (f : FrameIn CrProp) : Nat :=
+  if Stage.layout ∈ touched (chromiumAt m) f then 1 else 0
 
 /-- **Frame work with hit tests on PrePaint** (ledger n=3). A hit test (`elementFromPoint`, `TreeScope::HitTestPoint`,
 `B/core/dom/tree_scope.cc:246-281, 421-437`) calls `LayoutView::HitTest`, which first runs
@@ -857,13 +962,17 @@ a bridge theorem back to the old one, as `frameWorkE` does in `Fw.Engine.Core`. 
 (`:2395-2452`) and emits the `PrePaint` trace event on every run (`:2570-2593`). So each hit test costs one PrePaint
 (`props`) pass on top of the frame's own lifecycle. CONFIRMED.
 
-$$\operatorname{crWorkH}(m, f) = \Big(s \mapsto \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{passes}(s) + [s = \mathrm{props}]\cdot f.\mathrm{hits},\ \ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{units},\ \ f.\mathrm{hits}\Big)$$
+Since CI run 39088367495 the hit count also has the **hover hit test** (`crHover`): a frame whose lifecycle runs
+layout pays one more hit test. Its PrePaint is not added: the hover path may enter at `HitTestNoLifecycleUpdate`
+(`B/core/layout/layout_view.cc:160-164`), and the pinned sparse clone lacks `event_handler.cc` to tell.
 
-Chromium's frame work in which every hit test also pays one PrePaint pass. -/
+$$\operatorname{crWorkH}(m, f) = \Big(s \mapsto \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{passes}(s) + [s = \mathrm{props}]\cdot f.\mathrm{hits},\ \ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{units},\ \ f.\mathrm{hits} + \operatorname{hover}(m, f)\Big)$$
+
+Chromium's frame work in which every hit test also pays one PrePaint pass and a layout frame pays a hover hit test. -/
 def crWorkH (m : CrMode) (f : FrameIn CrProp) : Work where
   passes s := (frameWork (chromiumAt m) f).passes s + (if s = .props then f.hits else 0)
   units s := (frameWork (chromiumAt m) f).units s
-  hits := f.hits
+  hits := f.hits + crHover m f
 
 /-- **PrePaint passes are at least the hit tests.**
 
@@ -877,9 +986,18 @@ theorem crWorkH_props_ge_hits (m : CrMode) (f : FrameIn CrProp) : f.hits ≤ (cr
 
 $$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f) \preceq \operatorname{crWorkH}(m, f)$$
 
-Adding the PrePaint pass of each hit test only raises the work. -/
+Adding the PrePaint pass of each hit test and the hover hit test only raises the work. -/
 theorem crWorkH_ge (m : CrMode) (f : FrameIn CrProp) : (frameWork (chromiumAt m) f).le (crWorkH m f) :=
-  ⟨fun _ => ⟨Nat.le_add_right _ _, Nat.le_refl _⟩, Nat.le_refl _⟩
+  ⟨fun _ => ⟨Nat.le_add_right _ _, Nat.le_refl _⟩, Nat.le_add_right _ _⟩
+
+/-- **A layout frame pays one hover hit test**, a frame without layout none.
+
+$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ \operatorname{crWorkH}(m, f).\mathrm{hits} = f.\mathrm{hits} + [\mathrm{layout} \in \operatorname{touched}_{\operatorname{chromiumAt}(m)}(f)]$$
+
+The hit count is the page's hit tests plus one when the frame lays out.
+-/
+theorem crWorkH_hits (m : CrMode) (f : FrameIn CrProp) :
+    (crWorkH m f).hits = f.hits + (if Stage.layout ∈ touched (chromiumAt m) f then 1 else 0) := rfl
 
 /-- **No hit test, no change.**
 
@@ -899,6 +1017,12 @@ theorem hitSkip_props (m : CrMode) (f : FrameIn CrProp) :
     (crWorkH m { f with hits := f.hits + 1 }).passes .props = (crWorkH m f).passes .props + 1 := by
   simp [crWorkH, frameWork, touched, forcedPasses, FrameIn.updates]
   omega
+
+#guard (crWorkH lane ⟨0, 0, 0, 0, [⟨0, .css .width, .none⟩], 0⟩).hits == 1
+#guard (crWorkH lane ⟨0, 0, 0, 0, [⟨0, .css .top, .own⟩], 0⟩).hits == 1
+#guard (crWorkH lane ⟨0, 0, 0, 0, [⟨0, .css .transform, .own⟩], 0⟩).hits == 0
+#guard (crWorkH lane ⟨0, 0, 1, 0, [], 0⟩).hits == 0 && (crWorkH lane ⟨0, 0, 0, 2, [], 0⟩).hits == 2
+#guard (crWorkH lane ⟨1, 0, 0, 0, [], 0⟩).passes .props == 1
 
 /-! ### Hit-test units: single point vs list (ledger n=4, first statement) -/
 
@@ -1177,14 +1301,14 @@ def crStagesOfX (c : Change CrPropX) : List Stage :=
 
 /-- **The extended Chromium engine in mode `m`**: `chromiumAt m` with the extended rows.
 
-$$\operatorname{chromiumX}(m) = \big(m,\ \operatorname{stagesOf}^{X}_{\mathrm{cr}},\ \operatorname{compStages}(m),\ [\,]\big)$$
+$$\operatorname{chromiumX}(m) = \big(m,\ \operatorname{stagesOf}^{X}_{\mathrm{cr}},\ \operatorname{compStages}(m),\ [\mathrm{props}]\big)$$
 
-The Chromium engine over the extended property type. -/
+The Chromium engine over the extended property type (base `props` like `chromiumAt` since CI run 39088367495). -/
 def chromiumX (m : CrMode) : Engine CrPropX CrMode where
   mode := m
   stagesOf := crStagesOfX
   compStages := crCompStages m
-  base := []
+  base := [.props]
 
 /-- A table change as an extended change.
 

@@ -21,6 +21,11 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference material.
   never resume one > 250k. Otherwise stop it (`TaskStop`, no model turn) and spawn a fresh agent of the same role
   that starts from the handoff note. Never send a shutdown message to an expired agent: answering it costs a full
   context re-read.
+- **Review loops (lead):** after a task's 2nd refused review of the same kind (each round patching the reviewer's
+  newest probe), the lead stops patching: it writes the threat model (what the check must catch, what it need not)
+  and picks a closed design (allowlist over deny-list, identity over inference, one canonical source over
+  author-chosen inputs) before the next round, names it "final design round", and lists accepted limits so the
+  reviewer judges against them. Incident `inc-review-loop` (docs/team/incidents/ledger.json).
 - **Helpers:** lean-prover, researcher, plan-editor, measure-engineer and console-builder may spawn `scout`/`runner`
   (Haiku) and `checker` (Sonnet) per `docs/team/token-policy.md`; only the lead spawns `patcher`. Helpers are
   read-only unless named for an edit, never commit, write no handoff, and return ≤ 1k tokens to their spawner, not

@@ -3928,7 +3928,8 @@
     "research/notes/**",
     "docs/team/handoffs/engine-model-fix.md",
     "lean/Fw/Parts/**"
-   ]
+   ],
+   "evidence": "2cda145"
   },
   {
    "id": "mistake-record-3",
@@ -4536,6 +4537,143 @@
     "docs/team/handoffs/task-preview.md",
     "docs/team/handoffs/task-preview-2.md",
     "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "premise-ack-2",
+   "title": "(S) premise-ack follow-ups from review: an intermittent ack must not hide a finding that turned steady (Lean: ack matches only while the failure rate stays intermittent; steady -> alert), failClass over all failing runs not the first, ackLint checks ack.engine in p.engines, premise-tests path filter includes research/findings/ledger.json",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "premise-ack"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/**",
+    "packages/premise-tests/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "research/findings/ledger.json",
+    "docs/team/tools/premises.md",
+    "docs/team/handoffs/premise-ack-2.md"
+   ]
+  },
+  {
+   "id": "check-map-lean-2",
+   "title": "(S) check-map-lean follow-ups from review: pre-commit must not pass silently on a missing/stale fwcore (Lean verdict: stale -> fail with rebuild hint), argv goldens for every own CLI (title promise), live-tree mapping check (unmapped extension fails), css/html parse checks, --staged checks the staged blob",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "check-map-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/CheckMap.lean",
+    "scripts/hooks/pre-commit",
+    "scripts/check.sh",
+    "apps/site/scripts/shell-measure.mjs",
+    "packages/contracts/golden/ops/checkmap.jsonl",
+    "lean/scripts/CheckMapGolden.lean",
+    "lean/scripts/check.sh",
+    "scripts/checkmap.mjs",
+    "scripts/test-checkmap.mjs",
+    "docs/team/handoffs/check-map-lean-2.md"
+   ]
+  },
+  {
+   "id": "jev-research",
+   "title": "(S) research TypeSafe Jev (System One decision model): docs + use-case map, fit against our loop decision points (advisory only behind a Lean threshold), offline replay experiment design",
+   "stream": "research",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-jev-decision-model.md"
+   ],
+   "evidence": "05a11b9"
+  },
+  {
+   "id": "jev-oracle",
+   "title": "(M) Jev (TypeSafe System One) as a Lean-wrapped advisory oracle for judgement calls we cannot script: Lean Fw.Oracle (typed question specs Choice/Noul/Score, answer+failure total policy, escalate below a Lean-computed calibrated threshold, never an irreversible action from the oracle alone, redaction before send, answer log keyed by input hash for exact replay); thin TS client (key from macOS keychain service typesafe-api, never in files/logs); first use CI failure triage advisory in fw watch, calibrated on CI history",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Oracle.lean",
+    "lean/Fw/Oracle/**",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "lean/FwTestMain.lean",
+    "packages/oracle/**",
+    "packages/contracts/golden/oracle/**",
+    "apps/runner/src/oracle*.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/oracle*.test.ts",
+    "docs/team/tools/oracle.md",
+    "docs/team/handoffs/jev-oracle.md",
+    "research/notes/2026/10-18-jev-oracle.md",
+    ".gitignore"
+   ]
+  },
+  {
+   "id": "jev-eval",
+   "title": "(M) measure the Jev oracle and decide scaling in Lean: rule-labeled CI triage replay set split calibrate/held-out; coverage, precision, confusion, cost-weighted error; A/B on identical inputs Jev vs Haiku vs Sonnet agent (accuracy, $/decision, latency); net saving incl. double-pay on escalation and wrong-call cost; share of Claude spend that is judgement calls (timing spans); Lean Fw.Oracle.Adopt ladder candidate->shadow->advisory->default with rolling-window demotion; rank next questions by frequency x tokens",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "jev-oracle"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Oracle/**",
+    "lean/Fw/Wire.lean",
+    "lean/FwTestMain.lean",
+    "packages/oracle/**",
+    "packages/contracts/golden/oracle/**",
+    "apps/runner/src/oracle*.ts",
+    "apps/runner/test/oracle*.test.ts",
+    "docs/team/tools/oracle.md",
+    "docs/team/handoffs/jev-eval.md",
+    "research/notes/2026/10-18-jev-eval.md"
+   ]
+  },
+  {
+   "id": "engine-model-fix-2",
+   "title": "(S) engine-model-fix follow-ups from review: wk_cross_claim (run-level WebKit dominance across rest/fade toggle for morph.panel n=11; until then ledger says win on rest frames only), timer-only step in the engine-premises fixture (cr.props base rule INFERRED for timer frames), multi-change frames measured (CrLevel.max joins, WebKit unions), check.sh stage comparing golden/engine/*.jsonl with Lean generators (drift is silent today)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-model-fix"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/**",
+    "lean/Fw/Ops/Premise.lean",
+    "lean/Fw/Ops/EnginePremise.lean",
+    "packages/contracts/golden/engine/**",
+    "packages/contracts/golden/ops/**",
+    "research/findings/ledger.json",
+    "research/notes/**",
+    "docs/team/handoffs/engine-model-fix.md",
+    "lean/Fw/Parts/**",
+    "lean/scripts/check.sh",
+    "lean/scripts/EngineGoldens.lean",
+    "docs/team/handoffs/engine-model-fix-2.md"
+   ]
+  },
+  {
+   "id": "mistake-record-4",
+   "title": "(S) record lead mistake batch 4 (13 items, incl. inc-review-loop) in docs/team/incidents/ledger.json + batch-4 section of the mistake retro; each with class, Lean-provable verdict and hardening task id",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-18-mistake-retro.md",
+    "docs/team/handoffs/mistake-record-4.md"
    ]
   }
  ],
