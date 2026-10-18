@@ -248,8 +248,8 @@ theorem requested_and_changed_starts (S : String → List String) (l : Lane) (p 
   have hw : wanted l p.msg = true := by simp [wanted, hr]
   simp [start, hw, hs, hn, hl]
 
-/-- **The Lean proofs are checked whenever their inputs change.** A default lane (`lean`) starts on every `ci/**`
-push that changed one of its inputs, whatever lanes the head commit names (none, `[ci:none]`, or others), unless a newer
+/-- **The Lean proofs are checked whenever their inputs change.** A default lane (`lean`) starts on every push (a `ci/**`
+push included) that changed one of its inputs, whatever lanes the head commit names (none, `[ci:none]`, or others), unless a newer
 push changed them too or the commit has landed.
 $$\forall S, \ell, p:\ \ell.\mathit{dflt} \land \operatorname{starts}(\ell.w, S, \operatorname{eff}(p.D, p.\delta)) \land \lnot\operatorname{sup}(S, \ell, p.N, p.t) \land \lnot p.\mathit{land} \Rightarrow \operatorname{start}(S, \ell, p)$$ -/
 theorem lean_always_when_changed (S : String → List String) (l : Lane) (p : Push) (hd : l.byDefault = true)
