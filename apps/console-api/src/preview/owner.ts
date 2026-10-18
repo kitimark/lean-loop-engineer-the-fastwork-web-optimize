@@ -1,12 +1,11 @@
-// Owner proof for the preview routes. The console prints a one-time owner link at startup (stdout only, never a
-// file): opening it in the user's browser exchanges the link token for a session cookie (HttpOnly, SameSite=Strict).
+// Owner proof for the preview routes. The console writes a one-time owner link at startup to the controlling terminal
+// only (`link.ts`; Lean `no_file_sink`: never stdout, stderr, a log, the event store or a file): opening it in the user's browser exchanges the link token for a session cookie (HttpOnly, SameSite=Strict).
 // The routes pass three facts to Lean (`Fw.Console.Preview.Proof`): the console secret was shown, the owner cookie
 // matched, the Origin is an origin of this console. Lean admits a request only with cookie and origin and no secret.
 //
 // What this stops (CONFIRMED by test): a request without the cookie (any local process that merely knows the port,
 // an agent's curl), a cross-site page (SameSite=Strict, Origin check), and the runner's own tools (secret header).
-// What it cannot stop (INFERRED): a process of the same OS user that reads the link from the console's stdout or
-// steals the cookie from the browser profile. Nothing here is written to .fw-console or any file an agent reads.
+// What it cannot stop (INFERRED, a stated limit): a process of the same OS user that steals the cookie from the browser profile or the live session (same UID can read the browser's files, ptrace the console, or start the console under a pseudo-terminal it allocates and read the link written there), and one that signals the console: it can only make it print a fresh link to the user's own terminal, at most once a minute (Lean `mayReissue`). Nothing here is written to .fw-console or any file an agent reads.
 import { randomBytes, timingSafeEqual } from "node:crypto";
 
 export const COOKIE = "fw_owner";
@@ -25,8 +24,14 @@ export class OwnerAuth {
   /** `extraOrigins`: web origins besides the console's own, e.g. the Vite dev server (`FW_CONSOLE_WEB_ORIGIN`). */
   constructor(extraOrigins: string[] = []) { this.extraOrigins = extraOrigins; }
 
-  /** The token of the link, for printing once; null after it was used. */
+  /** The token of the link, for writing once to the terminal; null after it was used. Never log it. */
   token(): string | null { return this.link; }
+
+  /** A fresh one-time link (the old unused one stops working); an existing session stays valid. */
+  reissue(): string {
+    this.link = randomBytes(24).toString("base64url");
+    return this.link;
+  }
 
   /** Exchange the link token for the session value of the cookie (single use); null when wrong or already used. */
   redeem(t: string | undefined): string | null {

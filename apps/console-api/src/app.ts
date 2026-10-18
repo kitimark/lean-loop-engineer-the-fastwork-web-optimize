@@ -54,6 +54,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   // latest `fw watch` check (fwcore obs.health output) with the running code's `service` ({commit, startedAt}), or null
   // before any check; GET /api/service is the same `service` object without needing a check
   app.get("/api/health", (c) => {
+    c.header("x-fw-console-pid", String(process.pid)); // lets `owner-link` prove which process it signals
     const h = readLatestHealth(store.dir);
     return c.json(h && service ? { ...h, service } : h);
   });
