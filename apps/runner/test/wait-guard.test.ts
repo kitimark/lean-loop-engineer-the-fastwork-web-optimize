@@ -63,6 +63,37 @@ describe.skipIf(!have)("wait guard vs the Lean goldens (ops.wait.jsonl)", () => 
   });
 });
 
+describe.skipIf(!have)("wait guard: shadow-log false positives are allowed, true positives stay refused (wait-guard-enforce)", () => {
+  const verb = (cmd: string) => {
+    const r = ask(bin, { op: "ops.wait", cmd }) as { decision: string; reason?: string | null; shape?: string | null } | null;
+    return r ? [r.decision, r.reason, r.shape].filter((x) => typeof x === "string").join(":") : "unavailable";
+  };
+  // The 4 shadow-log denies that were false positives (paths replaced), then corpus shapes agents use.
+  const allow = [
+    "S=/tmp/s; cd \"${S:?}\" && find . -mindepth 1 -maxdepth 1 -type d -mmin +60 > \"$S/del.txt\"; while read -r d; do [ -n \"$d\" ] || continue; rm -rf -- \"${S:?}/${d:?}\"; done < \"$S/del.txt\"; df -h / | tail -1",
+    "while IFS= read -r line; do case \"$line\" in pnpm*) t=$(echo \"$line\" | sed -E 's/x/y/'); echo \"== $t\"; eval \"$line\" 2>&1 | tail -2;; esac; done < /tmp/pending.txt; git log --oneline -6 main",
+    "cat > /tmp/c.py <<'EOF'\nimport os\ns = 'x'\n      while (cmd[i + 1] === \">\") i++;\nwhile True:\n    break\nEOF\npython3 /tmp/c.py",
+    "git ls-files | while read -r f; do wc -l \"$f\"; done | sort -n | tail -3",
+    "while read -r a b; do echo $a; done <<< \"$pairs\"",
+    "for i in $(seq 1 10); do sleep 1; done",
+    "i=0; until gh run view 1 --exit-status || [ $i -ge 10 ]; do sleep 120; i=$((i+1)); done",
+    "timeout 600 sh -c 'until gh run view 1 --exit-status; do sleep 120; done'",
+    "pnpm fw ci wait 39086309620",
+    "sh -c 'pnpm test &'",
+    "git commit -m \"fix the while loop\"",
+  ];
+  const deny = [
+    ["until [ \"$(gh run view 1 --json status -q .status)\" = completed ]; do sleep 150; done; gh run view 1", "deny:unboundedLoop"],
+    ["while read l; do echo $l; done", "deny:unboundedLoop"],
+    ["tail -f x.log | while read l; do echo $l; done", "deny:unboundedLoop"],
+    ["for f in a b; do while true; do sleep 1; done; done", "deny:unboundedLoop"],
+    ["cat <<EOF > f\nx\nEOF\nwhile true; do sleep 1; done", "deny:unboundedLoop"],
+    ["ls | while read f; do echo $f; done &", "deny:bgLong:loop"],
+  ] as const;
+  it.each(allow.map((c) => [c.slice(0, 60), c] as const))("allow: %s", (_n, c) => expect(verb(c)).toBe("allow"));
+  it.each(deny.map(([c, v]) => [c.slice(0, 60), c, v] as const))("deny: %s", (_n, c, v) => expect(verb(c)).toBe(v));
+});
+
 describe.skipIf(!have)("wait guard process", () => {
   const run = (command: string, env: Record<string, string>, extra: object = {}) => {
     const d = mkdtempSync(join(tmpdir(), "fw-wg-"));
