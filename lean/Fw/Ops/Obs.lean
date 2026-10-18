@@ -1,4 +1,5 @@
 import Fw.Console.Alert
+import Fw.Plan.Core
 
 /-!
 # Observed tool calls: the obs key and the per-(agent type, tool) summary (`ops.obs`)
@@ -249,19 +250,24 @@ theorem summarize_skip (ls : List Line) (l : Line) (h : isCall l = false) :
 `background_tasks` on every `SubagentStop` record, the drain's strict zod schema refused each of
 those records as an unknown key, counted it only as `invalid`, and so 6376 stops never became an
 `agent.stop`: the board kept every such agent running. The schema decision now lives here: a record
-is the list of its JSON fields; every known field is checked against its spec (the same types and
-lengths as the zod `ObsRecord`); an unknown field never rejects the record but is reported
-(`unknownOf`, raised as a spool alert by `fieldAlert`); a rejected record carries its reason. Proved:
-an extra unknown field never turns an accepted record into a rejected one (`accept_extra`), a known
-optional field with a valid value is kept (`accept_known`), and the drain counts every line as
-accepted or rejected (`drop_counted`), and reports every unknown field of an accepted line
-(`mem_unknown`).
+is the list of its JSON fields. Only the **decision fields** are strict (`strict`): the event name,
+the agent id, the time and the spawn guard's agent name (the task binding); a record whose decision
+field is missing or does not fit is rejected with its reason. Every other known field is soft: a
+missing or ill-typed value is kept as null (or left out when optional) and noted, never a rejection;
+an unknown field is kept out and named. Rejections, notes and unknown fields are all counted and
+raised as one spool alert (`issuesOf`, `fieldAlert`). Proved: only decision fields decide a
+rejection (`soft_never_rejects`), an extra unknown field never turns an accepted record into a
+rejected one (`accept_extra`), the drain counts every line as accepted or rejected
+(`drop_counted`), it reports every unknown field of an accepted line (`mem_unknown`), and every
+rejected line raises the spool alert with its reason counted (`reject_alerts`).
 -/
 
 /-- The length of a string in UTF-16 code units, what zod's `.max` counts: 2 for a character above
 U+FFFF, else 1.
 
 $$\operatorname{len}_{16}(s) = \sum_{c \in s} \begin{cases} 2 & \operatorname{ord}(c) > \mathtt{0xFFFF} \\ 1 & \text{otherwise} \end{cases}$$
+
+Count a string the way JavaScript does.
 -/
 def utf16Len (s : String) : Nat := s.toList.foldl (fun n c => n + if 0xFFFF < c.val.toNat then 2 else 1) 0
 
@@ -290,41 +296,48 @@ inductive Ty where
   | bool
 deriving Repr, DecidableEq
 
-/-- The spec of a known field: name, type, whether null is allowed, whether the field must be present.
+/-- The spec of a known field: name, type, whether null is allowed, whether the field must be
+present, and whether it is a decision field (strict: a bad value rejects the record).
 
-$$\mathit{sp} = (\mathit{name}, \mathit{ty}, \mathit{nullable}, \mathit{required})$$
+$$\mathit{sp} = (\mathit{name}, \mathit{ty}, \mathit{nullable}, \mathit{required}, \mathit{strict})$$
 -/
 structure Spec where
   name     : String
   ty       : Ty
   nullable : Bool
   required : Bool
+  strict   : Bool
 deriving Repr, DecidableEq
 
-/-- The known spool fields, as in the zod `ObsRecord` (`packages/contracts/src/obs.ts`): eight
-required nullable fields, `hook_event_name` (a non-empty string) and `ts` (required, not null), and
-eleven optional nullable fields.
+/-- The known spool fields, as in the zod `ObsRecord` (`packages/contracts/src/obs.ts`). Strict
+(decision fields, marked $^{s}$): `agent_id` (required, nullable, non-empty), `hook_event_name`
+(required, not null, non-empty), `agent_name` (optional, nullable, non-empty, at most 120 units: a
+contract id), `ts` (required, not null). All others are soft: six required nullable fields and ten
+optional nullable fields.
 
-$$\mathit{specs} = [\texttt{agent\_id}{:}\,\mathrm{str}(200), \texttt{agent\_type}{:}\,\mathrm{str}(200), \texttt{hook\_event\_name}{:}\,\mathrm{name}(200)^{!}, \texttt{tool\_name}{:}\,\mathrm{str}(200), \texttt{tool\_use\_id}{:}\,\mathrm{str}(200), \texttt{duration\_ms}{:}\,\mathrm{nat}, \texttt{is\_error}{:}\,\mathrm{bool}, \texttt{verb}{:}\,\mathrm{str}(40), \texttt{agent\_name}{:}\,\mathrm{str}(200)^{?}, \texttt{seen\_by}{:}\,\mathrm{str}(40)^{?}, \texttt{role}{:}\,\mathrm{str}(200)^{?}, \texttt{want\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{got\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{isolation}{:}\,\mathrm{bool}^{?}, \texttt{depth}{:}\,\mathrm{nat}^{?}, \texttt{has\_name}{:}\,\mathrm{bool}^{?}, \texttt{notification\_type}{:}\,\mathrm{str}(40)^{?}, \texttt{message\_len}{:}\,\mathrm{nat}^{?}, \texttt{background\_tasks}{:}\,\mathrm{nat}^{?}, \texttt{ts}{:}\,\mathrm{nat}^{!}]$$
+$$\mathit{specs} = [\texttt{agent\_id}{:}\,\mathrm{name}(200)^{s}, \texttt{agent\_type}{:}\,\mathrm{str}(200), \texttt{hook\_event\_name}{:}\,\mathrm{name}(200)^{!s}, \texttt{tool\_name}{:}\,\mathrm{str}(200), \texttt{tool\_use\_id}{:}\,\mathrm{str}(200), \texttt{duration\_ms}{:}\,\mathrm{nat}, \texttt{is\_error}{:}\,\mathrm{bool}, \texttt{verb}{:}\,\mathrm{str}(40), \texttt{agent\_name}{:}\,\mathrm{name}(120)^{?s}, \texttt{seen\_by}{:}\,\mathrm{str}(40)^{?}, \texttt{role}{:}\,\mathrm{str}(200)^{?}, \texttt{want\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{got\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{isolation}{:}\,\mathrm{bool}^{?}, \texttt{depth}{:}\,\mathrm{nat}^{?}, \texttt{has\_name}{:}\,\mathrm{bool}^{?}, \texttt{notification\_type}{:}\,\mathrm{str}(40)^{?}, \texttt{message\_len}{:}\,\mathrm{nat}^{?}, \texttt{background\_tasks}{:}\,\mathrm{nat}^{?}, \texttt{ts}{:}\,\mathrm{nat}^{!s}]$$
 
-Unmarked: required and nullable; $^{?}$: optional and nullable; $^{!}$: required, not nullable.
+Unmarked: required and nullable; $^{?}$: optional and nullable; $^{!}$: required, not nullable;
+$^{s}$: strict.
 -/
 def specs : List Spec := [
-  ⟨"agent_id", .str 200, true, true⟩, ⟨"agent_type", .str 200, true, true⟩,
-  ⟨"hook_event_name", .name 200, false, true⟩, ⟨"tool_name", .str 200, true, true⟩,
-  ⟨"tool_use_id", .str 200, true, true⟩, ⟨"duration_ms", .nat, true, true⟩,
-  ⟨"is_error", .bool, true, true⟩, ⟨"verb", .str 40, true, true⟩,
-  ⟨"agent_name", .str 200, true, false⟩, ⟨"seen_by", .str 40, true, false⟩,
-  ⟨"role", .str 200, true, false⟩, ⟨"want_kind", .str 40, true, false⟩,
-  ⟨"got_kind", .str 40, true, false⟩, ⟨"isolation", .bool, true, false⟩,
-  ⟨"depth", .nat, true, false⟩, ⟨"has_name", .bool, true, false⟩,
-  ⟨"notification_type", .str 40, true, false⟩, ⟨"message_len", .nat, true, false⟩,
-  ⟨"background_tasks", .nat, true, false⟩, ⟨"ts", .nat, false, true⟩]
+  ⟨"agent_id", .name 200, true, true, true⟩, ⟨"agent_type", .str 200, true, true, false⟩,
+  ⟨"hook_event_name", .name 200, false, true, true⟩, ⟨"tool_name", .str 200, true, true, false⟩,
+  ⟨"tool_use_id", .str 200, true, true, false⟩, ⟨"duration_ms", .nat, true, true, false⟩,
+  ⟨"is_error", .bool, true, true, false⟩, ⟨"verb", .str 40, true, true, false⟩,
+  ⟨"agent_name", .name 120, true, false, true⟩, ⟨"seen_by", .str 40, true, false, false⟩,
+  ⟨"role", .str 200, true, false, false⟩, ⟨"want_kind", .str 40, true, false, false⟩,
+  ⟨"got_kind", .str 40, true, false, false⟩, ⟨"isolation", .bool, true, false, false⟩,
+  ⟨"depth", .nat, true, false, false⟩, ⟨"has_name", .bool, true, false, false⟩,
+  ⟨"notification_type", .str 40, true, false, false⟩, ⟨"message_len", .nat, true, false, false⟩,
+  ⟨"background_tasks", .nat, true, false, false⟩, ⟨"ts", .nat, false, true, true⟩]
 
 /-- Does a value fit a spec: null when nullable, a string within the length (non-empty for a name),
 a natural for `nat`, a boolean for `bool`; `other` never fits.
 
 $$\operatorname{fits}(\mathit{sp}, v) \iff (v = \mathrm{null} \land \mathit{sp}.\mathit{nullable}) \lor (v = \mathrm{str}(s) \land \mathit{sp}.\mathit{ty} = \mathrm{str}(m) \land \operatorname{len}_{16}(s) \le m) \lor (v = \mathrm{str}(s) \land \mathit{sp}.\mathit{ty} = \mathrm{name}(m) \land 0 < \operatorname{len}_{16}(s) \le m) \lor (v = \mathrm{nat}(n) \land \mathit{sp}.\mathit{ty} = \mathrm{nat}) \lor (v = \mathrm{bool}(b) \land \mathit{sp}.\mathit{ty} = \mathrm{bool})$$
+
+Check one value against its field's type.
 -/
 def Spec.fits (sp : Spec) : Val → Bool
   | .null => sp.nullable
@@ -339,17 +352,21 @@ def Spec.fits (sp : Spec) : Val → Bool
 /-- A field name is known when some spec has it.
 
 $$\operatorname{known}(x) \iff \exists \mathit{sp} \in \mathit{specs}:\ \mathit{sp}.\mathit{name} = x$$
+
+Is the field in the spec list.
 -/
 def known (x : String) : Bool := specs.any (·.name == x)
 
 /-- The value of field `x` in a record: that of its first occurrence, none when absent.
 
 $$\operatorname{look}(F, x) = \begin{cases} v & (x, v) \text{ is the first pair of } F \text{ with name } x \\ \bot & \text{no pair of } F \text{ has name } x \end{cases}$$
+
+Read one field of a record.
 -/
 def look (fs : List (String × Val)) (x : String) : Option Val := (fs.find? (·.1 == x)).map (·.2)
 
-/-- Why a spool line was rejected: not a JSON object, a required field missing, or a field whose
-value does not fit its spec.
+/-- Why a spool line was rejected, or why a soft field was noted: not a JSON object, a field missing,
+or a field whose value does not fit its spec.
 
 $$\mathrm{Why} = \{\mathrm{json}\} \cup \mathrm{missing}(\mathrm{String}) \cup \mathrm{invalid}(\mathrm{String})$$
 -/
@@ -359,9 +376,11 @@ inductive Why where
   | invalid (field : String)
 deriving Repr, DecidableEq
 
-/-- The name of a rejection reason, as the wire and `spool-rejects.jsonl` write it.
+/-- The name of a reason, as the wire and `spool-rejects.jsonl` write it.
 
 $$\operatorname{name}(\mathrm{json}) = \texttt{json},\quad \operatorname{name}(\mathrm{missing}(x)) = x \cdot \texttt{:missing},\quad \operatorname{name}(\mathrm{invalid}(x)) = x \cdot \texttt{:invalid}$$
+
+Spell a reason as text.
 -/
 def Why.name : Why → String
   | .json => "json"
@@ -372,36 +391,74 @@ def Why.name : Why → String
 fitting, none otherwise.
 
 $$\operatorname{err}(F, \mathit{sp}) = \begin{cases} \mathrm{missing}(\mathit{sp}.\mathit{name}) & \operatorname{look}(F, \mathit{sp}.\mathit{name}) = \bot \land \mathit{sp}.\mathit{required} \\ \mathrm{invalid}(\mathit{sp}.\mathit{name}) & \operatorname{look}(F, \mathit{sp}.\mathit{name}) = v \land \lnot\operatorname{fits}(\mathit{sp}, v) \\ \bot & \text{otherwise} \end{cases}$$
+
+Find what is wrong with one field.
 -/
 def Spec.err (fs : List (String × Val)) (sp : Spec) : Option Why :=
   match look fs sp.name with
   | none => if sp.required then some (.missing sp.name) else none
   | some v => if sp.fits v then none else some (.invalid sp.name)
 
-/-- The verdict on a record: accepted with its kept known fields and the names of its unknown fields,
-or rejected with a reason.
+/-- The kept pair of one spec: the value when it fits; null when it is missing or does not fit and
+the field is required; nothing otherwise.
 
-$$\mathrm{Verdict} = \mathrm{accept}(K, U) \cup \mathrm{reject}(w)$$
+$$\operatorname{keep}(F, \mathit{sp}) = \begin{cases} (\mathit{sp}.\mathit{name}, v) & \operatorname{look}(F, \mathit{sp}.\mathit{name}) = v \land \operatorname{fits}(\mathit{sp}, v) \\ (\mathit{sp}.\mathit{name}, \mathrm{null}) & \lnot(\operatorname{look}(F, \mathit{sp}.\mathit{name}) = v \land \operatorname{fits}(\mathit{sp}, v)) \land \mathit{sp}.\mathit{required} \\ \bot & \text{otherwise} \end{cases}$$
+
+Keep a good value, and put null in place of a bad or missing required one.
+-/
+def Spec.keep (fs : List (String × Val)) (sp : Spec) : Option (String × Val) :=
+  match look fs sp.name with
+  | some v => if sp.fits v then some (sp.name, v) else if sp.required then some (sp.name, .null) else none
+  | none => if sp.required then some (sp.name, .null) else none
+
+/-- The verdict on a record: accepted with its kept known fields, the names of its unknown fields and
+the notes on its soft fields, or rejected with a reason.
+
+$$\mathrm{Verdict} = \mathrm{accept}(K, U, N) \cup \mathrm{reject}(w)$$
 -/
 inductive Verdict where
-  | accept (kept : List (String × Val)) (unknown : List String)
+  | accept (kept : List (String × Val)) (unknown : List String) (notes : List Why)
   | reject (why : Why)
 deriving Repr, DecidableEq
 
-/-- **Admission of a record**: rejected with the first spec error in spec order; otherwise accepted,
-keeping the present known fields in spec order and listing the unknown field names in record order.
+/-- The rejection reason of a verdict, none for an accepted record.
 
-$$\operatorname{admit}(F) = \begin{cases} \mathrm{reject}(w) & w = \text{the first } \operatorname{err}(F, \mathit{sp}) \ne \bot,\ \mathit{sp} \in \mathit{specs} \\ \mathrm{accept}\big([\, (\mathit{sp}.\mathit{name}, v) : \mathit{sp} \in \mathit{specs},\ \operatorname{look}(F, \mathit{sp}.\mathit{name}) = v \,],\ [\, x : (x, \_) \in F,\ \lnot\operatorname{known}(x) \,]\big) & \text{no spec has an error} \end{cases}$$
+$$\operatorname{why}(\mathrm{reject}(w)) = w,\qquad \operatorname{why}(\mathrm{accept}(K, U, N)) = \bot$$
+
+The reason a record was refused, if it was.
+-/
+def Verdict.why? : Verdict → Option Why
+  | .reject w => some w
+  | .accept .. => none
+
+/-- The decision fields: the specs marked strict.
+
+$$\mathit{strictSpecs} = [\mathit{sp} \in \mathit{specs} \mid \mathit{sp}.\mathit{strict}]$$
+
+The fields whose value a decision reads.
+-/
+def strictSpecs : List Spec := specs.filter (·.strict)
+
+/-- **Admission of a record**: rejected with the first error of a decision field, in spec order;
+otherwise accepted, keeping the known fields in spec order (a soft field that is missing or does not
+fit becomes null when required and is left out when optional), listing the unknown field names in
+record order and the errors of the soft fields in spec order.
+
+$$\operatorname{admit}(F) = \begin{cases} \mathrm{reject}(w) & w = \text{the first } \operatorname{err}(F, \mathit{sp}) \ne \bot,\ \mathit{sp} \in \mathit{strictSpecs} \\ \mathrm{accept}\big([\, \operatorname{keep}(F, \mathit{sp}) \ne \bot : \mathit{sp} \in \mathit{specs} \,],\ [\, x : (x, \_) \in F,\ \lnot\operatorname{known}(x) \,],\ [\, \operatorname{err}(F, \mathit{sp}) \ne \bot : \mathit{sp} \in \mathit{specs},\ \lnot\mathit{sp}.\mathit{strict} \,]\big) & \text{no strict spec has an error} \end{cases}$$
+
+Refuse a record only for a bad decision field; keep everything else, noting what was wrong.
 -/
 def admit (fs : List (String × Val)) : Verdict :=
-  match specs.findSome? (Spec.err fs) with
+  match strictSpecs.findSome? (Spec.err fs) with
   | some w => .reject w
-  | none => .accept (specs.filterMap fun sp => (look fs sp.name).map (sp.name, ·))
-      ((fs.map (·.1)).filter (!known ·))
+  | none => .accept (specs.filterMap (Spec.keep fs)) ((fs.map (·.1)).filter (!known ·))
+      ((specs.filter (!·.strict)).filterMap (Spec.err fs))
 
 /-- Appending a pair adds a value only for a name that had none.
 
 $$\forall F, x, v, y:\quad \operatorname{look}(F \mathbin{+\!\!+} [(x, v)], y) = \begin{cases} \operatorname{look}(F, y) & \operatorname{look}(F, y) \ne \bot \\ v & \operatorname{look}(F, y) = \bot \land x = y \\ \bot & \operatorname{look}(F, y) = \bot \land x \ne y \end{cases}$$
+
+A later duplicate of a field never changes its value.
 -/
 theorem look_append (fs : List (String × Val)) (x : String) (v : Val) (y : String) :
     look (fs ++ [(x, v)]) y = (look fs y).or (if x = y then some v else none) := by
@@ -431,112 +488,115 @@ private theorem filterMap_congr' {α β : Type} {f g : α → Option β} :
 private theorem known_of_spec {sp : Spec} (h : sp ∈ specs) : known sp.name = true :=
   List.any_eq_true.mpr ⟨sp, h, by simp⟩
 
+/-- **Only decision fields decide a rejection** (`soft_never_rejects`): two records whose decision
+fields read the same get the same rejection reason (or are both accepted), whatever their soft and
+unknown fields hold.
+
+$$\forall F, G:\quad (\forall \mathit{sp} \in \mathit{strictSpecs}:\ \operatorname{look}(F, \mathit{sp}.\mathit{name}) = \operatorname{look}(G, \mathit{sp}.\mathit{name})) \Rightarrow \operatorname{why}(\operatorname{admit}(F)) = \operatorname{why}(\operatorname{admit}(G))$$
+
+A soft or unknown field never decides whether a line is refused.
+-/
+theorem soft_never_rejects {fs gs : List (String × Val)}
+    (h : ∀ sp ∈ strictSpecs, look fs sp.name = look gs sp.name) :
+    (admit fs).why? = (admit gs).why? := by
+  have he : strictSpecs.findSome? (Spec.err fs) = strictSpecs.findSome? (Spec.err gs) :=
+    findSome?_congr fun sp hs => by simp only [Spec.err, h sp hs]
+  unfold admit
+  rw [he]
+  split <;> rfl
+
+/-- **A soft or unknown field never rejects**: adding a field whose name no strict spec has, with any
+value, leaves the rejection reason as it was.
+
+$$\forall F, x, v:\quad (\forall \mathit{sp} \in \mathit{strictSpecs}:\ \mathit{sp}.\mathit{name} \ne x) \Rightarrow \operatorname{why}(\operatorname{admit}(F \mathbin{+\!\!+} [(x, v)])) = \operatorname{why}(\operatorname{admit}(F))$$
+
+Whatever a non-decision field holds, a line is refused only if it was refused without it.
+-/
+theorem soft_extra (fs : List (String × Val)) {x : String} (v : Val)
+    (hx : ∀ sp ∈ strictSpecs, sp.name ≠ x) :
+    (admit (fs ++ [(x, v)])).why? = (admit fs).why? :=
+  soft_never_rejects fun sp hs => by
+    rw [look_append]; simp [Ne.symm (hx sp hs)]
+
 /-- **An extra unknown field never rejects a record** (`accept_extra`): a record that differs from an
 accepted one only by one more field of an unknown name is accepted, with the same kept fields and
-that name added to its unknown names.
+notes and that name added to its unknown names.
 
-$$\forall F, K, U, x, v:\quad \operatorname{admit}(F) = \mathrm{accept}(K, U) \land \lnot\operatorname{known}(x) \Rightarrow \operatorname{admit}(F \mathbin{+\!\!+} [(x, v)]) = \mathrm{accept}(K, U \mathbin{+\!\!+} [x])$$
+$$\forall F, K, U, N, x, v:\quad \operatorname{admit}(F) = \mathrm{accept}(K, U, N) \land \lnot\operatorname{known}(x) \Rightarrow \operatorname{admit}(F \mathbin{+\!\!+} [(x, v)]) = \mathrm{accept}(K, U \mathbin{+\!\!+} [x], N)$$
+
+An unknown field is only named, never judged.
 -/
-theorem accept_extra {fs k : List (String × Val)} {u : List String}
-    (h : admit fs = .accept k u) (x : String) (v : Val) (hx : known x = false) :
-    admit (fs ++ [(x, v)]) = .accept k (u ++ [x]) := by
+theorem accept_extra {fs k : List (String × Val)} {u : List String} {n : List Why}
+    (h : admit fs = .accept k u n) (x : String) (v : Val) (hx : known x = false) :
+    admit (fs ++ [(x, v)]) = .accept k (u ++ [x]) n := by
   have hl : ∀ sp ∈ specs, look (fs ++ [(x, v)]) sp.name = look fs sp.name := by
     intro sp hs
     have hne : x ≠ sp.name := fun e => by rw [e, known_of_spec hs] at hx; cases hx
     rw [look_append]; simp [hne]
-  have he : specs.findSome? (Spec.err (fs ++ [(x, v)])) = specs.findSome? (Spec.err fs) :=
-    findSome?_congr fun sp hs => by simp only [Spec.err, hl sp hs]
-  have hk : (specs.filterMap fun sp => (look (fs ++ [(x, v)]) sp.name).map (sp.name, ·)) =
-      specs.filterMap fun sp => (look fs sp.name).map (sp.name, ·) :=
-    filterMap_congr' fun sp hs => by rw [hl sp hs]
+  have hsub : ∀ {l : List Spec}, (∀ sp ∈ l, sp ∈ specs) →
+      ∀ sp ∈ l, Spec.err (fs ++ [(x, v)]) sp = Spec.err fs sp := fun hl' sp hs => by
+    simp only [Spec.err, hl sp (hl' sp hs)]
+  have he : strictSpecs.findSome? (Spec.err (fs ++ [(x, v)])) = strictSpecs.findSome? (Spec.err fs) :=
+    findSome?_congr (hsub fun sp hs => (List.mem_filter.mp hs).1)
+  have hn : ((specs.filter (!·.strict)).filterMap (Spec.err (fs ++ [(x, v)]))) =
+      (specs.filter (!·.strict)).filterMap (Spec.err fs) :=
+    filterMap_congr' (hsub fun sp hs => (List.mem_filter.mp hs).1)
+  have hk : specs.filterMap (Spec.keep (fs ++ [(x, v)])) = specs.filterMap (Spec.keep fs) :=
+    filterMap_congr' fun sp hs => by simp only [Spec.keep, hl sp hs]
   unfold admit at h ⊢
-  rw [he, hk]
+  rw [he, hk, hn]
   split at h
   · cases h
   · cases h
     simp [hx]
 
-/-- **A known optional field with a fitting value is kept**: adding to an accepted record a field
-that it lacks, whose name is known and whose value fits every spec of that name, gives an accepted
-record that keeps the new pair and every pair kept before, with the same unknown names.
-
-$$\forall F, K, U, x, v:\quad \operatorname{admit}(F) = \mathrm{accept}(K, U) \land \operatorname{known}(x) \land \operatorname{look}(F, x) = \bot \land (\forall \mathit{sp} \in \mathit{specs}:\ \mathit{sp}.\mathit{name} = x \Rightarrow \operatorname{fits}(\mathit{sp}, v)) \Rightarrow \exists K':\ \operatorname{admit}(F \mathbin{+\!\!+} [(x, v)]) = \mathrm{accept}(K', U) \land (x, v) \in K' \land K \subseteq K'$$
--/
-theorem accept_known {fs k : List (String × Val)} {u : List String}
-    (h : admit fs = .accept k u) {x : String} {v : Val} (hk : known x = true)
-    (hn : look fs x = none) (hv : ∀ sp ∈ specs, sp.name = x → sp.fits v = true) :
-    ∃ k', admit (fs ++ [(x, v)]) = .accept k' u ∧ (x, v) ∈ k' ∧ ∀ p ∈ k, p ∈ k' := by
-  unfold admit at h ⊢
-  split at h
-  · cases h
-  · rename_i hnone
-    cases h
-    have hall := List.findSome?_eq_none_iff.mp hnone
-    have hnone' : specs.findSome? (Spec.err (fs ++ [(x, v)])) = none := by
-      apply List.findSome?_eq_none_iff.mpr
-      intro sp hs
-      have h0 := hall sp hs
-      by_cases e : sp.name = x
-      · have hl : look (fs ++ [(x, v)]) sp.name = some v := by
-          rw [look_append, e, hn]; simp
-        simp [Spec.err, hl, hv sp hs e]
-      · have hl : look (fs ++ [(x, v)]) sp.name = look fs sp.name := by
-          rw [look_append]; simp [Ne.symm e]
-        simp only [Spec.err, hl]; exact h0
-    rw [hnone']
-    refine ⟨specs.filterMap fun sp => (look (fs ++ [(x, v)]) sp.name).map (sp.name, ·), ?_, ?_, ?_⟩
-    · simp [List.filter_append, hk]
-    · obtain ⟨sp, hs, hsx⟩ := List.any_eq_true.mp hk
-      have hsx' : sp.name = x := by simpa using hsx
-      refine List.mem_filterMap.mpr ⟨sp, hs, ?_⟩
-      rw [look_append, hsx', hn]; simp
-    · intro p hp
-      obtain ⟨sp, hs, hp⟩ := List.mem_filterMap.mp hp
-      refine List.mem_filterMap.mpr ⟨sp, hs, ?_⟩
-      cases hl : look fs sp.name with
-      | none => rw [hl] at hp; cases hp
-      | some w =>
-        rw [hl] at hp
-        rw [look_append, hl]; exact hp
-
 /-- The verdict on a spool line: a line that is not a JSON object is rejected (`json`); an object is
 admitted by its fields.
 
 $$\operatorname{verdict}(\bot) = \mathrm{reject}(\mathrm{json}),\qquad \operatorname{verdict}(F) = \operatorname{admit}(F)$$
+
+Judge one raw line.
 -/
 def verdictOf : Option (List (String × Val)) → Verdict
   | none => .reject .json
   | some fs => admit fs
 
-/-- The accepted lines of a drain: kept fields and unknown names, in line order.
+/-- The accepted lines of a drain: kept fields, unknown names and notes, in line order.
 
-$$\operatorname{acc}(L) = [\, (K, U) : \ell \in L,\ \operatorname{verdict}(\ell) = \mathrm{accept}(K, U) \,]$$
+$$\operatorname{acc}(L) = [\, (K, U, N) : \ell \in L,\ \operatorname{verdict}(\ell) = \mathrm{accept}(K, U, N) \,]$$
+
+The lines that got in.
 -/
-def acceptedOf (ls : List (Option (List (String × Val)))) : List (List (String × Val) × List String) :=
+def acceptedOf (ls : List (Option (List (String × Val)))) :
+    List (List (String × Val) × List String × List Why) :=
   ls.filterMap fun l => match verdictOf l with
-    | .accept k u => some (k, u)
+    | .accept k u n => some (k, u, n)
     | .reject _ => none
 
 /-- The rejection reasons of a drain, one per rejected line, in line order.
 
 $$\operatorname{rej}(L) = [\, w : \ell \in L,\ \operatorname{verdict}(\ell) = \mathrm{reject}(w) \,]$$
+
+Why each refused line was refused.
 -/
 def rejectedOf (ls : List (Option (List (String × Val)))) : List Why :=
-  ls.filterMap fun l => match verdictOf l with
-    | .reject w => some w
-    | .accept .. => none
+  ls.filterMap fun l => (verdictOf l).why?
 
 /-- The unknown field names of a drain's accepted lines, one entry per occurrence.
 
-$$\operatorname{unk}(L) = \operatorname{concat}[\, U : (K, U) \in \operatorname{acc}(L) \,]$$
+$$\operatorname{unk}(L) = \operatorname{concat}[\, U : (K, U, N) \in \operatorname{acc}(L) \,]$$
+
+Every unknown field seen, with repeats.
 -/
 def unknownOf (ls : List (Option (List (String × Val)))) : List String :=
-  (acceptedOf ls).flatMap (·.2)
+  (acceptedOf ls).flatMap (·.2.1)
 
 /-- **The drain drops no line uncounted** (`drop_counted`): every line is accepted or rejected with a
 reason, so the two counts add up to the number of lines.
 
 $$\forall L:\quad |\operatorname{acc}(L)| + |\operatorname{rej}(L)| = |L|$$
+
+No line disappears without being counted.
 -/
 theorem drop_counted (ls : List (Option (List (String × Val)))) :
     (acceptedOf ls).length + (rejectedOf ls).length = ls.length := by
@@ -544,45 +604,72 @@ theorem drop_counted (ls : List (Option (List (String × Val)))) :
   | nil => rfl
   | cons l ls ih =>
     simp only [acceptedOf, rejectedOf, List.filterMap_cons] at ih ⊢
-    cases verdictOf l <;> simp <;> omega
+    rcases h : verdictOf l with ⟨k, u, n⟩ | w
+    · have e : (Verdict.accept k u n).why? = none := rfl
+      simp only [e, List.length_cons]; omega
+    · have e : (Verdict.reject w).why? = some w := rfl
+      simp only [e, List.length_cons]; omega
+
+/-- The unknown names of an accepted record are its field names that are not known. -/
+private theorem unknown_of_accept {fs k : List (String × Val)} {u : List String} {n : List Why}
+    (ha : admit fs = .accept k u n) : u = (fs.map (·.1)).filter (!known ·) := by
+  unfold admit at ha; split at ha
+  · cases ha
+  · cases ha; rfl
 
 /-- **Every unknown field is reported**: a name is among the drain's unknown names exactly when some
 accepted line has a field of that name and the name is not known.
 
-$$\forall L, x:\quad x \in \operatorname{unk}(L) \iff \exists F:\ \mathrm{some}(F) \in L \land (\exists K, U:\ \operatorname{admit}(F) = \mathrm{accept}(K, U)) \land x \in [\, y : (y, \_) \in F \,] \land \lnot\operatorname{known}(x)$$
+$$\forall L, x:\quad x \in \operatorname{unk}(L) \iff \exists F:\ \mathrm{some}(F) \in L \land (\exists K, U, N:\ \operatorname{admit}(F) = \mathrm{accept}(K, U, N)) \land x \in [\, y : (y, \_) \in F \,] \land \lnot\operatorname{known}(x)$$
+
+An unknown field of an accepted line is always named.
 -/
 theorem mem_unknown (ls : List (Option (List (String × Val)))) (x : String) :
-    x ∈ unknownOf ls ↔ ∃ fs, some fs ∈ ls ∧ (∃ k u, admit fs = .accept k u) ∧
+    x ∈ unknownOf ls ↔ ∃ fs, some fs ∈ ls ∧ (∃ k u n, admit fs = .accept k u n) ∧
       x ∈ fs.map (·.1) ∧ known x = false := by
   simp only [unknownOf, acceptedOf, List.mem_flatMap, List.mem_filterMap]
   constructor
-  · rintro ⟨⟨k, u⟩, ⟨l, hl, hv⟩, hx⟩
+  · rintro ⟨⟨k, u, n⟩, ⟨l, hl, hv⟩, hx⟩
     cases l with
     | none => simp [verdictOf] at hv
     | some fs =>
       simp only [verdictOf] at hv
       split at hv
-      · rename_i k' u' ha
+      · rename_i k' u' n' ha
         cases hv
-        have hu : u = (fs.map (·.1)).filter (!known ·) := by
-          unfold admit at ha; split at ha
-          · cases ha
-          · cases ha; rfl
-        rw [hu, List.mem_filter] at hx
-        exact ⟨fs, hl, ⟨k, u, ha⟩, hx.1, by simpa using hx.2⟩
+        rw [unknown_of_accept ha, List.mem_filter] at hx
+        exact ⟨fs, hl, ⟨k, u, n, ha⟩, hx.1, by simpa using hx.2⟩
       · cases hv
-  · rintro ⟨fs, hl, ⟨k, u, ha⟩, hx, hk⟩
-    refine ⟨(k, u), ⟨some fs, hl, by simp [verdictOf, ha]⟩, ?_⟩
-    have hu : u = (fs.map (·.1)).filter (!known ·) := by
-      unfold admit at ha; split at ha
-      · cases ha
-      · cases ha; rfl
-    rw [hu, List.mem_filter]
+  · rintro ⟨fs, hl, ⟨k, u, n, ha⟩, hx, hk⟩
+    refine ⟨(k, u, n), ⟨some fs, hl, by simp [verdictOf, ha]⟩, ?_⟩
+    rw [unknown_of_accept ha, List.mem_filter]
     exact ⟨hx, by simp [hk]⟩
 
-/-- The unknown field names with their counts, in first-seen order.
+/-- The issues of one verdict: a rejection as `rejected:` and its reason; for an accepted record its
+soft-field notes, then its unknown fields marked `:unknown`.
+
+$$\operatorname{issues}(\mathrm{reject}(w)) = [\texttt{rejected:} \cdot \operatorname{name}(w)],\qquad \operatorname{issues}(\mathrm{accept}(K, U, N)) = [\, \operatorname{name}(w) : w \in N \,] \mathbin{+\!\!+} [\, x \cdot \texttt{:unknown} : x \in U \,]$$
+
+What a person should look at in one line.
+-/
+def Verdict.issues : Verdict → List String
+  | .reject w => ["rejected:" ++ w.name]
+  | .accept _ u n => n.map Why.name ++ u.map (· ++ ":unknown")
+
+/-- The issues of a drain, one entry per occurrence, in line order.
+
+$$\operatorname{issues}(L) = \operatorname{concat}[\, \operatorname{issues}(\operatorname{verdict}(\ell)) : \ell \in L \,]$$
+
+Everything about the drained lines a person should look at.
+-/
+def issuesOf (ls : List (Option (List (String × Val)))) : List String :=
+  ls.flatMap fun l => (verdictOf l).issues
+
+/-- The issue names with their counts, in first-seen order.
 
 $$\operatorname{counts}(U) = [\, (x, |[\, y \in U : y = x \,]|) : x \in \operatorname{uniq}(U) \,]$$
+
+Count each issue once per occurrence.
 -/
 def fieldCounts (u : List String) : List (String × Nat) := (uniq u).map fun x => (x, u.count x)
 
@@ -592,10 +679,12 @@ $$\operatorname{spoolOwner} = \texttt{spool}$$
 -/
 def spoolOwner : String := "spool"
 
-/-- **The spool alert for unknown fields**: none when there are none or a spool alert is still open;
-otherwise a step `alert-spool-<now>` naming each unknown field and its count.
+/-- **The spool alert**: none when there is no issue or a spool alert is still open; otherwise a step
+`alert-spool-<now>` naming each issue and its count.
 
-$$\operatorname{fieldAlert}(t, O, C) = \begin{cases} \bot & C = [\,] \lor \exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool} \\ (s, \texttt{alert:} \cdot s, \text{“Spool records carry unknown fields: } x_1 \times n_1, \dots \text{; add them to Fw.Ops.Obs.specs or drop them in emit.mjs, then press Done”}) & \text{otherwise} \end{cases},\quad s = \operatorname{stepId}(\texttt{spool}, t)$$
+$$\operatorname{fieldAlert}(t, O, C) = \begin{cases} \bot & C = [\,] \lor \exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool} \\ (s, \texttt{alert:} \cdot s, \text{“Spool lines need a look: } x_1 \times n_1, \dots \text{ (…); fix emit.mjs or Fw.Ops.Obs.specs, then press Done”}) & \text{otherwise} \end{cases},\quad s = \operatorname{stepId}(\texttt{spool}, t)$$
+
+Raise one alert for all spool problems, unless one is already open.
 -/
 def fieldAlert (now : Nat) (opn : List String) (cs : List (String × Nat)) :
     Option (String × String × String) :=
@@ -603,11 +692,13 @@ def fieldAlert (now : Nat) (opn : List String) (cs : List (String × Nat)) :
   else
     let id := Fw.Console.Alert.stepId (some spoolOwner) now
     let names := ", ".intercalate (cs.map fun (x, n) => s!"{x} x{n}")
-    some (id, "alert:" ++ id, s!"Spool records carry unknown fields: {names}; add them to Fw.Ops.Obs.specs or drop them in emit.mjs, then press Done")
+    some (id, "alert:" ++ id, s!"Spool lines need a look: {names} (rejected: the line was refused; :missing or :invalid: a soft field kept as null; :unknown: a field not in Fw.Ops.Obs.specs; lifeOf:error: fwcore failed, the line is retried); fix emit.mjs or Fw.Ops.Obs.specs, then press Done")
 
-/-- A spool alert is raised exactly when unknown fields were seen and no spool alert is open.
+/-- A spool alert is raised exactly when there is an issue and no spool alert is open.
 
 $$\forall t, O, C:\quad \operatorname{fieldAlert}(t, O, C) \ne \bot \iff C \ne [\,] \land \lnot\exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool}$$
+
+The alert fires on any issue while none is open.
 -/
 theorem fieldAlert_some_iff (t : Nat) (opn : List String) (cs : List (String × Nat)) :
     fieldAlert t opn cs ≠ none ↔
@@ -624,23 +715,61 @@ theorem fieldAlert_some_iff (t : Nat) (opn : List String) (cs : List (String × 
     simp only [Bool.or_eq_true, List.isEmpty_iff, List.any_eq_true, beq_iff_eq, not_or] at h
     exact ⟨h.1, h.2⟩
 
+/-- **Every issue raises the alert, counted**: an issue in the list makes the spool alert fire (when
+none is open) and appears in the counts with a positive count.
+
+$$\forall t, O, I, x:\quad x \in I \land \lnot\exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool} \Rightarrow \operatorname{fieldAlert}(t, O, \operatorname{counts}(I)) \ne \bot \land \exists n > 0:\ (x, n) \in \operatorname{counts}(I)$$
+
+No issue goes unreported.
+-/
+theorem issue_alerts (t : Nat) (opn : List String) {is : List String} {x : String} (hx : x ∈ is)
+    (ho : ¬ ∃ id ∈ opn, Fw.Console.Alert.owner id = some spoolOwner) :
+    fieldAlert t opn (fieldCounts is) ≠ none ∧ ∃ n, 0 < n ∧ (x, n) ∈ fieldCounts is := by
+  have hu : x ∈ uniq is := (mem_uniqAux [] is x).mpr ⟨hx, List.not_mem_nil⟩
+  have hm : (x, is.count x) ∈ fieldCounts is := List.mem_map.mpr ⟨x, hu, rfl⟩
+  refine ⟨(fieldAlert_some_iff t opn _).mpr ⟨List.ne_nil_of_mem hm, ho⟩, is.count x, ?_, hm⟩
+  exact List.count_pos_iff.mpr hx
+
+/-- **Every rejected line raises the spool alert** (`reject_alerts`): when a line of the drain was
+rejected with reason $w$ and no spool alert is open, the alert over the drain's issues (plus any
+extra issues, such as `lifeOf:error`) fires and counts `rejected:` $w$ at least once.
+
+$$\forall t, O, L, E, w:\quad w \in \operatorname{rej}(L) \land \lnot\exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool} \Rightarrow \operatorname{fieldAlert}(t, O, \operatorname{counts}(\operatorname{issues}(L) \mathbin{+\!\!+} E)) \ne \bot \land \exists n > 0:\ (\texttt{rejected:} \cdot \operatorname{name}(w), n) \in \operatorname{counts}(\operatorname{issues}(L) \mathbin{+\!\!+} E)$$
+
+A refused line is never silent: it shows in the spool alert with its reason.
+-/
+theorem reject_alerts (t : Nat) (opn : List String) (ls : List (Option (List (String × Val))))
+    (extra : List String) {w : Why} (hw : w ∈ rejectedOf ls)
+    (ho : ¬ ∃ id ∈ opn, Fw.Console.Alert.owner id = some spoolOwner) :
+    fieldAlert t opn (fieldCounts (issuesOf ls ++ extra)) ≠ none ∧
+      ∃ n, 0 < n ∧ ("rejected:" ++ w.name, n) ∈ fieldCounts (issuesOf ls ++ extra) := by
+  obtain ⟨l, hl, hv⟩ := List.mem_filterMap.mp hw
+  have hi : "rejected:" ++ w.name ∈ issuesOf ls := by
+    refine List.mem_flatMap.mpr ⟨l, hl, ?_⟩
+    revert hv
+    cases verdictOf l with
+    | accept k u n => intro hv; cases hv
+    | reject w' => intro hv; cases hv; simp [Verdict.issues]
+  exact issue_alerts t opn (List.mem_append_left _ hi) ho
+
 /-! ## Agent life from spool records (task `task-state-truth`)
 
-Which plan command an admitted record gives. The decision reads the event name, the agent id, the
-spawn guard's `agent_name`, the name the console's health index gives the agent id, the obs key,
-the record time and the stop epoch of that name (the time of the last stop the drain sent for it, 0
-if none); it never reads `background_tasks` (MEASURED: a session-wide count, 6 to 31 on every one of
-the spool's SubagentStop records, never 0, so the old "no stop while background tasks run" rule
-never sent a stop).
+Liveness is decided **by agent id** (`Fw.Plan.liveK`, `Fw.Plan.ended`): the id is the life key; the
+health index's name of an id only labels it (`labelOf`, `agent.label`), which is how the name's task
+row sees the id (`Fw.Plan.keysOf`). The decision never reads `background_tasks` (MEASURED: a
+session-wide count, 6 to 31 on every one of the spool's SubagentStop records, never 0).
 
-* a named `SpawnGuard` spawns the name at the record time (key `spawn:<obs key>`);
-* a `SubagentStop` of a named agent stops it at the record time (key `stop:<obs key>`); without a
-  name it is counted as unnamed, never dropped silently;
-* a tool event of a named agent is a heartbeat: a spawn at the record time with key
-  `seen:<name>|<epoch>|<time / 10 min>`, so at most one per agent and 10 minutes between stops, and
-  the first tool event after a stop gets a new key. A heartbeat later than the stop revives the
-  agent (a resumed agent's SubagentStop ends a turn, not the agent), and it feeds the quiet timeout
-  (`Fw.Plan.timeouts`).
+* `SubagentStart` of id $i$ spawns $i$ at the record time (event key `start:<obs key>`);
+* `SubagentStop` of id $i$ stops $i$ at the record time (`stop:<obs key>`), named or not; when the
+  health index names $i$, the name's own key (spawned by the spawn guard) is stopped too
+  (`stop:<obs key>|name`);
+* **any other event** of id $i$, named or unnamed, is a heartbeat: a spawn of $i$ at the record time
+  with event key `seen:<i>|<epoch>|<time / 10 min>`, so at most one per id and 10 minutes between
+  stops, and the first event after a stop gets a new key. A heartbeat later than the stop revives
+  the id (`event_revives`, by `Fw.Plan.revive_on_event`), and it feeds the quiet timeout
+  (`Fw.Plan.timeouts`, `Fw.Plan.timeout_spares_recent`);
+* a named `SpawnGuard` also spawns the name (`spawn:<obs key>`): the task row is running from the
+  spawn on, before the health index labels the new id.
 -/
 
 /-- The heartbeat bucket: 10 minutes in milliseconds.
@@ -649,81 +778,126 @@ $$\mathit{seenBucketMs} = 600000$$
 -/
 def seenBucketMs : Nat := 10 * 60000
 
-/-- What a record does to agent life: a spawn or stop (key, agent name, time), an unnamed stop, or
-nothing.
+/-- What a record does to agent life: a spawn or stop of a life key (event key, life key, time).
 
-$$\mathrm{Life} = \mathrm{spawn}(k, a, t) \cup \mathrm{stop}(k, a, t) \cup \{\mathrm{unnamed}, \mathrm{skip}\}$$
+$$\mathrm{Life} = \mathrm{spawn}(e, k, t) \cup \mathrm{stop}(e, k, t)$$
 -/
 inductive Life where
   | spawn (key agent : String) (time : Nat)
   | stop (key agent : String) (time : Nat)
-  | unnamed
-  | skip
 deriving Repr, DecidableEq
 
 /-- A usable agent name: non-empty and at most 120 UTF-16 units (a contract id).
 
 $$\operatorname{okName}(n) \iff 0 < \operatorname{len}_{16}(n) \le 120$$
+
+Is this string fit to be a name.
 -/
 def okName (n : String) : Bool := decide (0 < utf16Len n ∧ utf16Len n ≤ 120)
 
-/-- A tool event: `PreToolUse`, `PostToolUse` or `PostToolUseFailure`.
+/-- The heartbeat event key of id $i$ at time $t$ in stop epoch $p$.
 
-$$\operatorname{isTool}(e) \iff e \in \{\texttt{PreToolUse}, \texttt{PostToolUse}, \texttt{PostToolUseFailure}\}$$
+$$\operatorname{seenKey}(i, p, t) = \texttt{seen:} \cdot i \cdot \texttt{|} \cdot p \cdot \texttt{|} \cdot \lfloor t / 600000 \rfloor$$
+
+($p$ and $\lfloor t / 600000 \rfloor$ written in decimal.) One key per id, epoch and 10 minutes.
 -/
-def isTool (e : String) : Bool := e == "PreToolUse" || e == "PostToolUse" || e == "PostToolUseFailure"
+def seenKey (i : String) (p t : Nat) : String :=
+  "seen:" ++ i ++ "|" ++ toString p ++ "|" ++ toString (t / seenBucketMs)
 
-/-- **The life decision of a record** (event $e$, agent id $i$, spawn-guard name $g$, indexed name $m$,
-obs key $k$, time $t$, stop epoch $p$).
+/-- The life commands of a record by its agent id $i$ (event $e$, obs key $k$, time $t$, stop epoch $p$
+of $i$).
 
-$$\operatorname{life}(e, i, g, m, k, t, p) = \begin{cases} \mathrm{spawn}(\texttt{spawn:}k, g, t) & e = \texttt{SpawnGuard} \land g \ne \bot \land \operatorname{okName}(g) \\ \mathrm{stop}(\texttt{stop:}k, m, t) & e = \texttt{SubagentStop} \land i \ne \bot \land m \ne \bot \land \operatorname{okName}(m) \\ \mathrm{unnamed} & e = \texttt{SubagentStop} \land i \ne \bot \land \lnot(m \ne \bot \land \operatorname{okName}(m)) \\ \mathrm{spawn}(\texttt{seen:}m\texttt{|}p\texttt{|}\lfloor t / 600000 \rfloor, m, t) & \operatorname{isTool}(e) \land i \ne \bot \land m \ne \bot \land \operatorname{okName}(m) \\ \mathrm{skip} & \text{otherwise} \end{cases}$$
+$$\operatorname{byId}(e, i, k, t, p) = \begin{cases} [\,] & i = \bot \\ [\mathrm{spawn}(\texttt{start:}k, i, t)] & e = \texttt{SubagentStart} \\ [\mathrm{stop}(\texttt{stop:}k, i, t)] & e = \texttt{SubagentStop} \\ [\mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t)] & \text{otherwise} \end{cases}$$
 
-($p$ and $\lfloor t / 600000 \rfloor$ written in decimal.)
+The id starts, stops, or is seen alive.
 -/
-def lifeOf (event : String) (agentId agentName name : Option String) (key : String) (ts epoch : Nat) :
-    Life :=
+def byId (event : String) (agentId : Option String) (key : String) (ts epoch : Nat) : List Life :=
+  match agentId with
+  | none => []
+  | some i =>
+    if event == "SubagentStart" then [.spawn ("start:" ++ key) i ts]
+    else if event == "SubagentStop" then [.stop ("stop:" ++ key) i ts]
+    else [.spawn (seenKey i epoch ts) i ts]
+
+/-- The life commands of a record by name (event $e$, agent id $i$, spawn-guard name $g$, the health
+index's name $m$ of $i$, obs key $k$, time $t$).
+
+$$\operatorname{byName}(e, i, g, m, k, t) = \begin{cases} [\mathrm{spawn}(\texttt{spawn:}k, g, t)] & e = \texttt{SpawnGuard} \land g \ne \bot \land \operatorname{okName}(g) \\ [\mathrm{stop}(\texttt{stop:}k\texttt{|name}, m, t)] & e = \texttt{SubagentStop} \land i \ne \bot \land m \ne \bot \land \operatorname{okName}(m) \\ [\,] & \text{otherwise} \end{cases}$$
+
+A spawn guard starts its name; a named id's stop also stops that name.
+-/
+def byName (event : String) (agentId agentName name : Option String) (key : String) (ts : Nat) :
+    List Life :=
   if event == "SpawnGuard" then
     match agentName with
-    | some g => if okName g then .spawn ("spawn:" ++ key) g ts else .skip
-    | none => .skip
+    | some g => if okName g then [.spawn ("spawn:" ++ key) g ts] else []
+    | none => []
   else if event == "SubagentStop" then
     match agentId, name with
-    | some _, some m => if okName m then .stop ("stop:" ++ key) m ts else .unnamed
-    | some _, none => .unnamed
-    | none, _ => .skip
-  else if isTool event then
-    match agentId, name with
-    | some _, some m =>
-      if okName m then .spawn ("seen:" ++ m ++ "|" ++ toString epoch ++ "|" ++ toString (ts / seenBucketMs)) m ts
-      else .skip
-    | _, _ => .skip
-  else .skip
+    | some _, some m => if okName m then [.stop ("stop:" ++ key ++ "|name") m ts] else []
+    | _, _ => []
+  else []
 
-/-- **No stop is dropped silently**: a `SubagentStop` with an agent id gives a stop of its name at the
-record time, or is counted as unnamed.
+/-- **The life decision of a record** (event $e$, agent id $i$, spawn-guard name $g$, indexed name $m$,
+obs key $k$, time $t$, stop epoch $p$ of $i$): the name commands, then the id commands.
 
-$$\forall i, g, m, k, t, p:\quad i \ne \bot \Rightarrow \big(\exists a:\ \operatorname{life}(\texttt{SubagentStop}, i, g, m, k, t, p) = \mathrm{stop}(\texttt{stop:}k, a, t)\big) \lor \operatorname{life}(\texttt{SubagentStop}, i, g, m, k, t, p) = \mathrm{unnamed}$$
+$$\operatorname{life}(e, i, g, m, k, t, p) = \operatorname{byName}(e, i, g, m, k, t) \mathbin{+\!\!+} \operatorname{byId}(e, i, k, t, p)$$
+
+What one spool record says about which agents live.
 -/
-theorem stop_counted {i : Option String} (g m : Option String) (k : String) (t p : Nat)
-    (hi : i.isSome = true) :
-    (∃ a, lifeOf "SubagentStop" i g m k t p = .stop ("stop:" ++ k) a t) ∨
-      lifeOf "SubagentStop" i g m k t p = .unnamed := by
-  obtain ⟨x, rfl⟩ := Option.isSome_iff_exists.mp hi
-  cases m with
-  | none => right; rfl
-  | some n =>
-    by_cases h : okName n = true
-    · left; exact ⟨n, by simp [lifeOf, h]⟩
-    · right; simp [lifeOf, h]
+def lifeOf (event : String) (agentId agentName name : Option String) (key : String) (ts epoch : Nat) :
+    List Life :=
+  byName event agentId agentName name key ts ++ byId event agentId key ts epoch
 
-/-- **A named stop ends its agent at the record time, whatever `background_tasks` says** (the decision
-has no such input).
+/-- **A stop ends its id** (`stop_by_id`): a `SubagentStop` with agent id $i$ stops $i$ at the record
+time, named or not, whatever `background_tasks` says (the decision has no such input).
 
-$$\forall x, g, n, k, t, p:\quad \operatorname{okName}(n) \Rightarrow \operatorname{life}(\texttt{SubagentStop}, x, g, n, k, t, p) = \mathrm{stop}(\texttt{stop:}k, n, t)$$
+$$\forall i, g, m, k, t, p:\quad \mathrm{stop}(\texttt{stop:}k, i, t) \in \operatorname{life}(\texttt{SubagentStop}, i, g, m, k, t, p)$$
+
+Every subagent stop reaches the board as a stop of that id.
 -/
-theorem stop_named (x : String) (g : Option String) {n : String} (k : String) (t p : Nat)
-    (h : okName n = true) : lifeOf "SubagentStop" (some x) g (some n) k t p = .stop ("stop:" ++ k) n t := by
-  simp [lifeOf, h]
+theorem stop_by_id (i : String) (g m : Option String) (k : String) (t p : Nat) :
+    Life.stop ("stop:" ++ k) i t ∈ lifeOf "SubagentStop" (some i) g m k t p := by
+  simp [lifeOf, byId]
+
+/-- **A start spawns its id** (`start_by_id`): a `SubagentStart` with agent id $i$ spawns $i$ at the
+record time.
+
+$$\forall i, g, m, k, t, p:\quad \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{life}(\texttt{SubagentStart}, i, g, m, k, t, p)$$
+
+Every subagent start reaches the board as a spawn of that id.
+-/
+theorem start_by_id (i : String) (g m : Option String) (k : String) (t p : Nat) :
+    Life.spawn ("start:" ++ k) i t ∈ lifeOf "SubagentStart" (some i) g m k t p := by
+  simp [lifeOf, byId]
+
+/-- **Any event revives its id** (`event_revives`): an event of id $i$ other than a start or stop,
+named or unnamed, gives a heartbeat spawn of $i$ at the record time; applied to a plan state where
+$i$ is a key of name $a$ (its own name or a label) and every stop of $i$ is older than $t$, it makes
+$i$ live and $a$ not ended.
+
+$$\forall \pi, e, i, g, m, k, t, p, a:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keys}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{life}(e, i, g, m, k, t, p) \land \operatorname{live}(\pi', i) \land \lnot\operatorname{ended}(\pi', a),\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
+
+An agent that does anything after its stop is shown running again.
+-/
+theorem event_revives (π : Fw.Plan.State) {e i a : String} (g m : Option String) (k : String)
+    (t p : Nat) (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop")
+    (hk : i ∈ Fw.Plan.keysOf π a) (hs : ∀ q ∈ π.stops, q.1 = i → q.2 < t) :
+    Life.spawn (seenKey i p t) i t ∈ lifeOf e (some i) g m k t p ∧
+      Fw.Plan.liveK (Fw.Plan.step π (.spawn i t)) i = true ∧
+      Fw.Plan.ended (Fw.Plan.step π (.spawn i t)) a = false := by
+  refine ⟨?_, Fw.Plan.revive_on_event π hk hs⟩
+  simp [lifeOf, byId, h1, h2]
+
+/-- The label command of an agent id from the health index: event key `label:<id>|<name>`, when the
+name is usable.
+
+$$\operatorname{labelOf}(i, n) = \begin{cases} (\texttt{label:} \cdot i \cdot \texttt{|} \cdot n, i, n) & \operatorname{okName}(n) \\ \bot & \text{otherwise} \end{cases}$$
+
+Tell the board which name an id goes by.
+-/
+def labelOf (id name : String) : Option (String × String × String) :=
+  if okName name then some ("label:" ++ id ++ "|" ++ name, id, name) else none
 
 /-! ## Examples: admission and life -/
 
@@ -734,27 +908,53 @@ private def realStop : List (String × Val) :=
    ("duration_ms", .null), ("is_error", .null), ("verb", .null), ("ts", .nat 1792269356759),
    ("background_tasks", .nat 20)]
 
--- the real stop line is accepted, background_tasks kept, nothing unknown
+-- the real stop line is accepted, background_tasks kept, nothing unknown, no notes
 #guard admit realStop = .accept
   [("agent_id", .str "a0e52ab0600cc97da"), ("agent_type", .str ""),
    ("hook_event_name", .str "SubagentStop"), ("tool_name", .null), ("tool_use_id", .null),
    ("duration_ms", .null), ("is_error", .null), ("verb", .null),
-   ("background_tasks", .nat 20), ("ts", .nat 1792269356759)] []
+   ("background_tasks", .nat 20), ("ts", .nat 1792269356759)] [] []
 -- a new unknown field is accepted and reported, not rejected
-#guard admit (realStop ++ [("future_field", .nat 3)]) matches .accept _ ["future_field"]
--- rejections: missing ts, null hook name, too long verb, negative duration, not an object
+#guard admit (realStop ++ [("future_field", .nat 3)]) matches .accept _ ["future_field"] []
+-- the decision fields
+#guard strictSpecs.map (·.name) = ["agent_id", "hook_event_name", "agent_name", "ts"]
+-- rejections (decision fields only): missing ts, null or empty hook name, empty agent id, empty or
+-- too long agent name
 #guard admit (realStop.filter (·.1 != "ts")) = .reject (.missing "ts")
 #guard admit (realStop.map fun p => if p.1 == "hook_event_name" then (p.1, .null) else p) =
   .reject (.invalid "hook_event_name")
 #guard admit (realStop.map fun p => if p.1 == "hook_event_name" then (p.1, .str "") else p) =
   .reject (.invalid "hook_event_name")
+#guard admit (realStop.map fun p => if p.1 == "agent_id" then (p.1, .str "") else p) =
+  .reject (.invalid "agent_id")
+#guard admit (realStop ++ [("agent_name", .str "")]) = .reject (.invalid "agent_name")
+#guard admit (realStop ++ [("agent_name", .str (String.ofList (List.replicate 121 'n')))]) =
+  .reject (.invalid "agent_name")
+#guard admit (realStop ++ [("agent_name", .null)]) matches .accept _ [] []
+-- soft fields never reject: a too long verb and a negative duration are kept as null and noted;
+-- a missing soft required field is kept as null and noted; a bad optional one is left out and noted
 #guard admit (realStop.map fun p => if p.1 == "verb" then (p.1, .str (String.ofList (List.replicate 41 'v'))) else p) =
-  .reject (.invalid "verb")
-#guard admit (realStop.map fun p => if p.1 == "duration_ms" then (p.1, .other) else p) =
-  .reject (.invalid "duration_ms")
-#guard admit (realStop.filter (·.1 != "background_tasks")) matches .accept _ []
+  .accept
+  [("agent_id", .str "a0e52ab0600cc97da"), ("agent_type", .str ""),
+   ("hook_event_name", .str "SubagentStop"), ("tool_name", .null), ("tool_use_id", .null),
+   ("duration_ms", .null), ("is_error", .null), ("verb", .null),
+   ("background_tasks", .nat 20), ("ts", .nat 1792269356759)] [] [.invalid "verb"]
+#guard admit (realStop.map fun p => if p.1 == "duration_ms" then (p.1, .other) else p) matches
+  .accept _ [] [.invalid "duration_ms"]
+#guard admit (realStop.filter (·.1 != "agent_type")) matches .accept _ [] [.missing "agent_type"]
+#guard admit (realStop.map fun p => if p.1 == "background_tasks" then (p.1, .str "x") else p) =
+  .accept
+  [("agent_id", .str "a0e52ab0600cc97da"), ("agent_type", .str ""),
+   ("hook_event_name", .str "SubagentStop"), ("tool_name", .null), ("tool_use_id", .null),
+   ("duration_ms", .null), ("is_error", .null), ("verb", .null),
+   ("ts", .nat 1792269356759)] [] [.invalid "background_tasks"]
+#guard admit (realStop.filter (·.1 != "background_tasks")) matches .accept _ [] []
+#guard (admit (realStop.filter (·.1 != "ts"))).why? = some (.missing "ts")
+#guard (admit realStop).why? = none
 #guard verdictOf none = .reject .json
 #guard (Why.invalid "verb").name = "verb:invalid"
+#guard (Verdict.reject (.missing "ts")).issues = ["rejected:ts:missing"]
+#guard (Verdict.accept [] ["x"] [.invalid "verb"]).issues = ["verb:invalid", "x:unknown"]
 -- utf16 length: an emoji counts 2
 #guard utf16Len "a😀" = 3
 -- drain counts: 2 accepted, 2 rejected, one unknown field
@@ -763,24 +963,39 @@ private def realStop : List (String × Val) :=
   [.json, .missing "agent_id"]
 #guard unknownOf [some realStop, none, some (realStop ++ [("x", .bool true)])] = ["x"]
 #guard fieldCounts ["x", "y", "x"] = [("x", 2), ("y", 1)]
--- the spool alert: raised once, not while one is open, not when nothing is unknown
+-- issues: rejected lines, then notes and unknown fields of accepted lines
+#guard issuesOf [some realStop, none, some (realStop ++ [("x", .bool true)]), some [],
+    some (realStop.filter (·.1 != "verb"))] =
+  ["rejected:json", "x:unknown", "rejected:agent_id:missing", "verb:missing"]
+#guard fieldCounts (issuesOf [none, none, some realStop] ++ ["lifeOf:error"]) =
+  [("rejected:json", 2), ("lifeOf:error", 1)]
+-- the spool alert: raised once, not while one is open, not when there is no issue
 #guard (fieldAlert 5 [] [("x", 2)]).map (·.1) = some (Fw.Console.Alert.stepId (some "spool") 5)
 #guard fieldAlert 5 [Fw.Console.Alert.stepId (some "spool") 1] [("x", 2)] = none
 #guard fieldAlert 5 [Fw.Console.Alert.stepId (some "ci") 1] [("x", 2)] != none
 #guard fieldAlert 5 [] [] = none
--- life decisions
-#guard lifeOf "SpawnGuard" (some "i") (some "fix-nav") none "k" 7 0 = .spawn "spawn:k" "fix-nav" 7
-#guard lifeOf "SpawnGuard" (some "i") none none "k" 7 0 = .skip
-#guard lifeOf "SpawnGuard" (some "i") (some "") none "k" 7 0 = .skip
-#guard lifeOf "SubagentStop" (some "i") none (some "fix-nav") "k" 9 0 = .stop "stop:k" "fix-nav" 9
-#guard lifeOf "SubagentStop" (some "i") none none "k" 9 0 = .unnamed
-#guard lifeOf "SubagentStop" none none (some "fix-nav") "k" 9 0 = .skip
-#guard lifeOf "PostToolUse" (some "i") none (some "fix-nav") "k" 1200000 9 =
-  .spawn "seen:fix-nav|9|2" "fix-nav" 1200000
-#guard lifeOf "PreToolUse" (some "i") none none "k" 1200000 9 = .skip
-#guard lifeOf "Notification" (some "i") none (some "fix-nav") "k" 1 0 = .skip
+-- life decisions: by id
+#guard lifeOf "SubagentStart" (some "i") none none "k" 3 0 = [.spawn "start:k" "i" 3]
+#guard lifeOf "SubagentStop" (some "i") none none "k" 9 0 = [.stop "stop:k" "i" 9]
+#guard lifeOf "SubagentStop" (some "i") none (some "fix-nav") "k" 9 0 =
+  [.stop "stop:k|name" "fix-nav" 9, .stop "stop:k" "i" 9]
+#guard lifeOf "SubagentStop" (some "i") none (some "") "k" 9 0 = [.stop "stop:k" "i" 9]
+#guard lifeOf "SubagentStop" none none (some "fix-nav") "k" 9 0 = []
+-- any other event of an id is a heartbeat, named or not
+#guard lifeOf "PostToolUse" (some "i") none (some "fix-nav") "k" 1200000 9 = [.spawn "seen:i|9|2" "i" 1200000]
+#guard lifeOf "PreToolUse" (some "i") none none "k" 1200000 9 = [.spawn "seen:i|9|2" "i" 1200000]
+#guard lifeOf "Notification" (some "i") none none "k" 1 0 = [.spawn "seen:i|0|0" "i" 1]
+#guard lifeOf "PreToolUse" none none none "k" 1 0 = []
+-- a spawn guard spawns the name and is a heartbeat of the spawning id
+#guard lifeOf "SpawnGuard" (some "i") (some "fix-nav") none "k" 7 0 =
+  [.spawn "spawn:k" "fix-nav" 7, .spawn "seen:i|0|0" "i" 7]
+#guard lifeOf "SpawnGuard" none (some "fix-nav") none "k" 7 0 = [.spawn "spawn:k" "fix-nav" 7]
+#guard lifeOf "SpawnGuard" none none none "k" 7 0 = []
+#guard lifeOf "SpawnGuard" none (some "") none "k" 7 0 = []
 -- the same bucket after a stop gives a new heartbeat key
-#guard lifeOf "PostToolUse" (some "i") none (some "a") "k" 5 0 != lifeOf "PostToolUse" (some "i") none (some "a") "k" 5 3
+#guard seenKey "i" 0 5 != seenKey "i" 3 5
+-- labels
+#guard labelOf "i" "fix-nav" = some ("label:i|fix-nav", "i", "fix-nav")
+#guard labelOf "i" "" = none
 
 end Fw.Ops.Obs
-
