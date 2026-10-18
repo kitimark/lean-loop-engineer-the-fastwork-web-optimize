@@ -34,4 +34,15 @@
 {"id":"platform.stageBg","inputs":{"missing":[],"extra":["className:data-fw-hidden/platform"]},"outputs":{"missing":[],"extra":[]},"onEvent":{"missing":[],"extra":[]},"targets":{"missing":[],"extra":[]},"order":{"row":null,"code":[]}},
 {"id":"platform.sweep","inputs":{"missing":[],"extra":["className:data-fw-hidden/platform","rect:platform.sweep"]},"outputs":{"missing":[],"extra":[]},"onEvent":{"missing":[],"extra":[]},"targets":{"missing":[],"extra":["platform.sweep"]},"order":{"row":null,"code":[]}}
 ],
-"findings":34}
+"findings":34,
+"codeGroups":[
+["commission","commission.typing","engine.scene","morph.columns","nav","nav.hitTest","nav.langMenu","pain","pain.notes","people.card","people.o","platform","platform.entries","platform.glint","platform.marquee","platform.stageBg","platform.sweep"],
+["hero","hero.accent","hero.cue","hero.deck","hero.exit","hero.orbit"],
+["hero.countdown","morph.countdown"],
+["morph.panel"],
+["overlays.drawer"],
+["overlays.signup"],
+["people"],
+["people.carousel"]
+],
+"codePageLevel":["engine.scroll","morph.mount","morph.tween","people.deck"]}

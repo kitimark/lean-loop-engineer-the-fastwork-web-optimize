@@ -155,8 +155,10 @@ def pointerTypes : List String :=
   ["pointerdown", "pointermove", "pointerup", "pointercancel", "wheel", "touchstart", "touchmove", "touchend",
    "mousedown", "mousemove"]
 
-/-- Text after the last `#` (the local class of `file#local`). $$\operatorname{local}(s) = s_{k+1..}$$ where $k$ is
-the last `#` position; the whole string when it has none. -/
+/-- Text after the last `#` (the local class of `file#local`).
+$$\operatorname{local}(s) = \begin{cases} s_{k+1..} & k \text{ the last position of } \texttt{\#} \text{ in } s \\ s &
+\texttt{\#} \notin s \end{cases}$$
+The whole string when it has no `#`. -/
 def localName (s : String) : String := (s.splitOn "#").getLastD s
 
 /-- Wires a read access feeds, as `Signal.wire` strings; owner `*` is a CSS read of any element.
@@ -238,8 +240,9 @@ theorem reads_cleanup (a : Access) (h : phase a.ctx = .cleanup) : reads a = [] :
   simp [reads, h]
 
 /-- Name and owner of a wire: the text before and after its last `/`; owner `""` when it has none.
-$$\operatorname{split}(p\texttt{/}o) = (p, o)$$ where $o$ contains no `/`; $\operatorname{split}(s) = (s, \texttt{""})$
-without a `/`. -/
+$$\operatorname{split}(s) = \begin{cases} (p, o) & s = p\texttt{/}o,\ \texttt{/} \notin o \\ (s, \texttt{""}) &
+\texttt{/} \notin s \end{cases}$$
+A trailing `/` gives owner `""`. -/
 def splitOwner (w : String) : String × String :=
   match (w.splitOn "/").reverse with
   | o :: rest@(_ :: _) => ("/".intercalate rest.reverse, o)
@@ -248,15 +251,41 @@ def splitOwner (w : String) : String × String :=
 /-- Do two wires name the same signal, up to an owner the extractor left open (`*` any element, `?` unresolved)?
 
 $$\operatorname{same}(u, v) \iff u = v \lor (p_u = p_v \land o_u \ne \texttt{""} \land o_v \ne \texttt{""} \land
-(o_u \in \{\texttt{*}, \texttt{?}\} \lor o_v \in \{\texttt{*}, \texttt{?}\}))$$
+(o_u \in \{\texttt{*}, \texttt{?}\} \lor o_v \in \{\texttt{*}, \texttt{?}\})),\quad (p_u, o_u) =
+\operatorname{split}(u),\ (p_v, o_v) = \operatorname{split}(v)$$
 
-with $(p_u, o_u) = \operatorname{split}(u)$, $(p_v, o_v) = \operatorname{split}(v)$; a wire with an empty owner (no `/`
-or a trailing one) matches only itself. -/
+A wire with an empty owner (no `/` or a trailing one) matches only itself. -/
 def same (u v : String) : Bool :=
   u == v ||
     let (pu, ou) := splitOwner u
     let (pv, ov) := splitOwner v
     pu == pv && ou != "" && ov != "" && (ou == "*" || ou == "?" || ov == "*" || ov == "?")
+
+/-- Kind and name of a wire: the text before and after its first `:`; name `""` when it has none.
+$$\operatorname{kind}(s) = \begin{cases} (k, n) & s = k\texttt{:}n,\ \texttt{:} \notin k \\ (s, \texttt{""}) &
+\texttt{:} \notin s \end{cases}$$
+The name keeps any later `:`. -/
+def splitKind (w : String) : String × String :=
+  match w.splitOn ":" with
+  | k :: n :: rest => (k, ":".intercalate (n :: rest))
+  | _ => (w, "")
+
+/-- A wire pair back as text. $$\operatorname{join}(k, \texttt{""}) = k,\quad \operatorname{join}(k, n) = k\texttt{:}n
+\ (n \ne \texttt{""})$$ The inverse of `splitKind` on the wires `reads` and `writes` produce. -/
+def joinKind (w : String × String) : String := if w.2 == "" then w.1 else w.1 ++ ":" ++ w.2
+
+/-- One part's contract fields as the code shows them, signals as (kind, name) wire pairs.
+$$r = (\mathrm{id}, \mathrm{in}, \mathrm{out}, \mathrm{ev}, T, O)$$
+`in`, `out` and `ev` are the code inputs and the frame and event cross-part writes; `T` the frame write owners; `O`
+the scroll-list orders. -/
+structure Row where
+  id : String
+  inputs : List (String × String)
+  outputs : List (String × String)
+  onEvent : List (String × String)
+  targets : List String
+  order : List Nat
+deriving Repr
 
 /-- JSON string literal. $$\operatorname{jstr}(s) = \texttt{"} \mathbin{+\!\!+} \operatorname{esc}(s) \mathbin{+\!\!+} \texttt{"}$$
 `esc` escapes only backslash and double quote; the extractor writes no control characters. -/
@@ -311,6 +340,9 @@ private def ex (op : Op) (name owner ctx : String) : Access := ⟨"p", "p/a.ts",
 #guard same "className:data-o-stack/*" "className:data-o-stack/people.o" && same "cssVar:--x/?" "cssVar:--x/nav"
 #guard !same "className:data-o/*" "className:data-o-stack/people.o" && !same "cssVar:--x/" "cssVar:--x/*"
 #guard same "rect:pain" "rect:pain" && !same "rect:pain" "rect:pain.notes" && splitOwner "a/b/c" == ("a/b", "c")
+#guard splitKind "cssVar:--x/nav" == ("cssVar", "--x/nav") && splitKind "vw" == ("vw", "")
+#guard splitKind "className:a:b/c" == ("className", "a:b/c") && joinKind ("vw", "") == "vw"
+#guard ["vw", "rect:?", "cssVar:--x/nav", "className:a:b/c"].all fun w => joinKind (splitKind w) == w
 #guard golden ["a"] [] [] == "{\"parts\":[\"a\"],\n\"accesses\":[\n\n],\n\"findings\":[\n\n]}\n"
 
 end Fw.Parts.Footprint
