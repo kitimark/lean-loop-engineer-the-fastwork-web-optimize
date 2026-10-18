@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { getClock } from '../../engine/clock';
 import { getScrollEngine } from '../../engine/scroll';
 import { CommissionTyping } from '../commission.typing';
-import { mediaCondition } from '../../breakpoints';
 import { openDrawer } from '../overlays.drawer';
 import { ARROW, ARROW_COMPACT, FACES, TEXT, UNDERLINE_PATHS, ZERO_PATHS } from './data';
 import { mountCommission } from './driver';
@@ -30,6 +29,20 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
   const title = useRef<HTMLHeadingElement>(null);
   const muted = useRef<HTMLSpanElement>(null);
   const underline = useRef<HTMLSpanElement>(null);
+
+  const arrow = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const img = arrow.current;
+    const compact = matchList('mq.c1000');
+    if (!img || !compact) return;
+    const swap = () => {
+      img.src = compact.matches ? ARROW_COMPACT : ARROW;
+    };
+    swap();
+    compact.addEventListener('change', swap);
+    return () => compact.removeEventListener('change', swap);
+  }, []);
 
   useEffect(() => {
     const els = {
@@ -113,10 +126,7 @@ export function Commission({ variant, typingVariant = 'faithful' }: CommissionPr
                         </span>
                         <span>{TEXT.yourClient}</span>
                       </div>
-                      <picture>
-                        <source media={mediaCondition('mq.c1000')} srcSet={ARROW_COMPACT} />
-                        <img className={css.clientArrow} loading="lazy" decoding="async" src={ARROW} alt="" />
-                      </picture>
+                      <img ref={arrow} className={css.clientArrow} loading="lazy" decoding="async" src={ARROW} alt="" />
                       <span className={css.zeroMark} aria-hidden="true">
                         {ZERO_PATHS.map((paths, i) => (
                           <svg key={i} className={`${css.zeroFrame} ${css[`frame${i}`]}`} viewBox="0 0 107.498 98.0007" fill="none" xmlns="http://www.w3.org/2000/svg">

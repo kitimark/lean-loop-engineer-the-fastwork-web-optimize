@@ -1,6 +1,6 @@
 /* Values restated from the original (assets/2.gBuqKVzi.css): 1-216 and 232-348 section, card, header, rows, copy, divider,
    why link; 425-460 client diagram and zero mark; 916-1210 compact (c1000), 641-1000, <=640, reduced motion; 226-231 sticky
-   (>=1001, no reduced motion). The fee visual of the referral row is the part `commission.typing`. Placeholder pictures only.
+   (>=1001, no reduced motion). The fee visual of the referral row is the part `commission.typing`. Pictures: the snapshot files, bundled.
    The media query texts are byte-equal to the generated conditions (media.test.ts). */
 @layer parts {
   .commission {

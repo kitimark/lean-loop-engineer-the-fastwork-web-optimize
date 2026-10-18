@@ -1,6 +1,6 @@
 /* Values restated from the original (assets/2.gBuqKVzi.css): 348-583 the fee visual (scale box, beat, avatar, message, caret,
    referral card, progress bar, reset state, keyframes), 1066-1071 compact scale box, 1190-1203 and 1206-1209 reduced motion.
-   The media query texts are byte-equal to the generated conditions (media.test.ts). Placeholder pictures only. */
+   The media query texts are byte-equal to the generated conditions (media.test.ts). No pictures. */
 @layer parts {
   .scale {
     --visual-scale: 0.8;

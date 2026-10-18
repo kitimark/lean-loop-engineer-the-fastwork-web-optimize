@@ -6,10 +6,7 @@ import type { Post, Profile, Service } from './data';
  * original's: nodes/2.DyWL8TcE.js 4863-4871 (directories) and the per-profile lists below them (4872-6125).
  */
 const files = import.meta.glob<string>(
-  [
-    '../../../../../snapshot/site/selling/sellers/*/{avatar,cover,post-*,service-*}.jpg',
-    '../../../../../snapshot/site/selling/sellers/*/{store,dining,living,exterior}.jpg',
-  ],
+  '../../../../../snapshot/site/selling/sellers/{sound-composer,photographer,video-editor,graphic-designer,ai-automation,web-developer}/{avatar,cover,post-*,service-*}.jpg',
   { eager: true, import: 'default' },
 );
 

@@ -1,4 +1,4 @@
-/** Text of the section (the English strings of the original's messages, restated) and placeholder drawings. */
+/** Text of the section (the English strings of the original's messages, restated) and the pictures bundled from the snapshot. */
 export const TEXT = {
   titleBase: 'Other platforms keep taking fee.',
   titleAccent: 'We let you keep more.',
