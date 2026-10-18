@@ -658,7 +658,7 @@
    ],
    "repro": "Queue two handed-back branches for land in a script (one lands, the other waits) and run `fw watch --until-alert`: it exits on agent.unlanded for the waiting branch.",
    "fix": {
-    "task": "wait-guard"
+    "task": "land-queue"
    },
    "regression": "none yet: proposed land-queue makes the land queue a file fw reads and adds a golden case where a branch in it raises no agent.unlanded",
    "leanVerdict": "provable",
@@ -696,7 +696,7 @@
    ],
    "repro": "On a branch based before checksfor-inputs, make a land check read a new path, merge main and hand back without running apps/runner/test/land-inputs.test.ts: fw land refuses on the readsOnly premise test.",
    "fix": {
-    "task": "check-map-lean"
+    "task": "land-dry"
    },
    "regression": "apps/runner/test/land-inputs.test.ts catches it, but only at land; proposed land-dry runs it before hand-back",
    "leanVerdict": "provable",
@@ -735,7 +735,7 @@
    ],
    "repro": "Edit another task's handoff, or merge another unlanded task's branch into yours, then run fw land: REFUSED on scope.",
    "fix": {
-    "task": "check-map-lean"
+    "task": "land-dry"
    },
    "regression": "the fw land scope check catches it, but only at land; proposed land-dry runs it before hand-back",
    "leanVerdict": "provable",
@@ -772,7 +772,7 @@
    ],
    "repro": "Set a task's evidence to a commit that exists only on an unlanded branch and run fw plan lint: no error, and the board shows the task done.",
    "fix": {
-    "task": "slow-site-build-note",
+    "task": "evidence-on-main",
     "also": [
      "claim-lint"
     ]
@@ -875,7 +875,7 @@
    ],
    "repro": "Start two shells that each run `while pgrep -f 'x-queue.sh'; do sleep 5; done` (the pattern is in their own argv): neither ever exits.",
    "fix": {
-    "task": "policy-from-lean"
+    "task": "land-queue"
    },
    "regression": "none yet: policy-from-lean puts the pgrep -f wait in its golden of violating commands; proposed land-queue replaces shell waiters with one queue file and the land lock",
    "leanVerdict": "provable",
@@ -974,7 +974,7 @@
    ],
    "repro": "Loop `fw land <branch>` while its output matches /busy/ on a refused land whose output names any identifier containing 'busy': it never stops.",
    "fix": {
-    "task": "policy-from-lean"
+    "task": "land-queue"
    },
    "regression": "none yet: proposed land-queue gives fw land one verdict line and one exit code per refusal kind, and the queue retries on the lock code only",
    "leanVerdict": "provable",
@@ -1007,7 +1007,7 @@
    ],
    "repro": "Define a task with evidence, then define it again without evidence: the row keeps the first evidence and stays done.",
    "fix": {
-    "task": "slow-site-build-note",
+    "task": "evidence-on-main",
     "also": [
      "claim-lint"
     ]
@@ -1043,7 +1043,7 @@
    ],
    "repro": "On two branches change the mechanism string of the same findings entry and merge both: the driver reports a conflict.",
    "fix": {
-    "task": "admit-reads"
+    "task": "findings-subentries"
    },
    "regression": "scripts/merge-ledger.mjs refuses (correct); none yet for the cause",
    "leanVerdict": "provable",
