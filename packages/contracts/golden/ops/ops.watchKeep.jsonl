@@ -1,0 +1,5 @@
+{"name":"same pid and start: live and kept","request":{"entries":[{"pid":7,"start":1792300000}],"op":"ops.watchKeep","rows":[{"args":"caffeinate -i","pid":7,"start":1792300000}]},"response":{"keep":[7],"live":[0]}}
+{"name":"reused pid (other start): dropped, not kept","request":{"entries":[{"pid":7,"start":1792300000}],"op":"ops.watchKeep","rows":[{"args":"python","pid":7,"start":1792300001}]},"response":{"keep":[],"live":[]}}
+{"name":"gone process: dropped","request":{"entries":[{"pid":7,"start":1792300000},{"pid":8,"start":5}],"op":"ops.watchKeep","rows":[{"args":"x","pid":8,"start":5}]},"response":{"keep":[8],"live":[1]}}
+{"name":"the lead Monitor stream is kept without a declaration; other intervals are not","request":{"op":"ops.watchKeep","rows":[{"args":"node apps/runner/src/fw.ts watch --interval 300 --stream","pid":9,"start":1},{"args":"node apps/runner/src/fw.ts watch --interval 60 --stream","pid":10,"start":1}]},"response":{"keep":[9],"live":[]}}
+{"name":"a non-integer start is refused","request":{"entries":[{"pid":7,"start":1.5}],"op":"ops.watchKeep"},"response":{"error":"field start: expected a non-negative integer"}}
