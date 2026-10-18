@@ -179,6 +179,13 @@
     "agent": "a"
   },
   {
+    "type": "agent.label",
+    "key": "label:id-1|a",
+    "actor": "script",
+    "agent": "id-1",
+    "name": "a"
+  },
+  {
     "type": "task.handback",
     "key": "task.handback:a:a:abc1234",
     "actor": "hook",
@@ -188,10 +195,10 @@
   },
   {
     "type": "task.integrate",
-    "key": "task.integrate:a:ci/integrate-1:b00ef68",
+    "key": "task.integrate:a:refs/heads/ci/integrate-1:b00ef68",
     "actor": "lead",
     "task": "a",
-    "branch": "ci/integrate-1",
+    "branch": "refs/heads/ci/integrate-1",
     "tip": "b00ef68"
   },
   {

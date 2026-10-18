@@ -310,18 +310,19 @@ structure Spec where
 deriving Repr, DecidableEq
 
 /-- The known spool fields, as in the zod `ObsRecord` (`packages/contracts/src/obs.ts`). Strict
-(decision fields, marked $^{s}$): `agent_id` (required, nullable, non-empty), `hook_event_name`
+(decision fields, marked $^{s}$): `agent_id` (required, nullable, non-empty, at most 120 units: a
+contract id, since it is a life key), `hook_event_name`
 (required, not null, non-empty), `agent_name` (optional, nullable, non-empty, at most 120 units: a
 contract id), `ts` (required, not null). All others are soft: six required nullable fields and ten
 optional nullable fields.
 
-$$\mathit{specs} = [\texttt{agent\_id}{:}\,\mathrm{name}(200)^{s}, \texttt{agent\_type}{:}\,\mathrm{str}(200), \texttt{hook\_event\_name}{:}\,\mathrm{name}(200)^{!s}, \texttt{tool\_name}{:}\,\mathrm{str}(200), \texttt{tool\_use\_id}{:}\,\mathrm{str}(200), \texttt{duration\_ms}{:}\,\mathrm{nat}, \texttt{is\_error}{:}\,\mathrm{bool}, \texttt{verb}{:}\,\mathrm{str}(40), \texttt{agent\_name}{:}\,\mathrm{name}(120)^{?s}, \texttt{seen\_by}{:}\,\mathrm{str}(40)^{?}, \texttt{role}{:}\,\mathrm{str}(200)^{?}, \texttt{want\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{got\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{isolation}{:}\,\mathrm{bool}^{?}, \texttt{depth}{:}\,\mathrm{nat}^{?}, \texttt{has\_name}{:}\,\mathrm{bool}^{?}, \texttt{notification\_type}{:}\,\mathrm{str}(40)^{?}, \texttt{message\_len}{:}\,\mathrm{nat}^{?}, \texttt{background\_tasks}{:}\,\mathrm{nat}^{?}, \texttt{ts}{:}\,\mathrm{nat}^{!s}]$$
+$$\mathit{specs} = [\texttt{agent\_id}{:}\,\mathrm{name}(120)^{s}, \texttt{agent\_type}{:}\,\mathrm{str}(200), \texttt{hook\_event\_name}{:}\,\mathrm{name}(200)^{!s}, \texttt{tool\_name}{:}\,\mathrm{str}(200), \texttt{tool\_use\_id}{:}\,\mathrm{str}(200), \texttt{duration\_ms}{:}\,\mathrm{nat}, \texttt{is\_error}{:}\,\mathrm{bool}, \texttt{verb}{:}\,\mathrm{str}(40), \texttt{agent\_name}{:}\,\mathrm{name}(120)^{?s}, \texttt{seen\_by}{:}\,\mathrm{str}(40)^{?}, \texttt{role}{:}\,\mathrm{str}(200)^{?}, \texttt{want\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{got\_kind}{:}\,\mathrm{str}(40)^{?}, \texttt{isolation}{:}\,\mathrm{bool}^{?}, \texttt{depth}{:}\,\mathrm{nat}^{?}, \texttt{has\_name}{:}\,\mathrm{bool}^{?}, \texttt{notification\_type}{:}\,\mathrm{str}(40)^{?}, \texttt{message\_len}{:}\,\mathrm{nat}^{?}, \texttt{background\_tasks}{:}\,\mathrm{nat}^{?}, \texttt{ts}{:}\,\mathrm{nat}^{!s}]$$
 
 Unmarked: required and nullable; $^{?}$: optional and nullable; $^{!}$: required, not nullable;
 $^{s}$: strict.
 -/
 def specs : List Spec := [
-  ⟨"agent_id", .name 200, true, true, true⟩, ⟨"agent_type", .str 200, true, true, false⟩,
+  ⟨"agent_id", .name 120, true, true, true⟩, ⟨"agent_type", .str 200, true, true, false⟩,
   ⟨"hook_event_name", .name 200, false, true, true⟩, ⟨"tool_name", .str 200, true, true, false⟩,
   ⟨"tool_use_id", .str 200, true, true, false⟩, ⟨"duration_ms", .nat, true, true, false⟩,
   ⟨"is_error", .bool, true, true, false⟩, ⟨"verb", .str 40, true, true, false⟩,
@@ -679,10 +680,97 @@ $$\operatorname{spoolOwner} = \texttt{spool}$$
 -/
 def spoolOwner : String := "spool"
 
-/-- **The spool alert**: none when there is no issue or a spool alert is still open; otherwise a step
-`alert-spool-<now>` naming each issue and its count.
+/-- The JavaScript (UTF-16) length of one character: 2 above U+FFFF, else 1.
 
-$$\operatorname{fieldAlert}(t, O, C) = \begin{cases} \bot & C = [\,] \lor \exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool} \\ (s, \texttt{alert:} \cdot s, \text{“Spool lines need a look: } x_1 \times n_1, \dots \text{ (…); fix emit.mjs or Fw.Ops.Obs.specs, then press Done”}) & \text{otherwise} \end{cases},\quad s = \operatorname{stepId}(\texttt{spool}, t)$$
+$$u(c) = \begin{cases} 2 & \operatorname{code}(c) > \texttt{0xFFFF} \\ 1 & \text{otherwise} \end{cases}$$
+
+How many UTF-16 units JavaScript spends on the character.
+-/
+def u16 (c : Char) : Nat := if 0xFFFF < c.val.toNat then 2 else 1
+
+/-- The longest prefix of a character list whose UTF-16 length fits a budget.
+
+$$\operatorname{take}_{16}(b, [\,]) = [\,],\qquad \operatorname{take}_{16}(b, c :: l) = \begin{cases} c :: \operatorname{take}_{16}(b - u(c), l) & u(c) \le b \\ [\,] & \text{otherwise} \end{cases}$$
+
+Keep characters from the front while they still fit.
+-/
+def takeU16 : Nat → List Char → List Char
+  | _, [] => []
+  | b, c :: l => if u16 c ≤ b then c :: takeU16 (b - u16 c) l else []
+
+/-- `utf16Len` is the sum of the per-character lengths. -/
+theorem utf16Len_eq (s : String) : utf16Len s = (s.toList.map u16).sum := by
+  unfold utf16Len
+  suffices h : ∀ (l : List Char) (a : Nat),
+      l.foldl (fun n c => n + if 0xFFFF < c.val.toNat then 2 else 1) a = a + (l.map u16).sum by
+    simpa using h s.toList 0
+  intro l
+  induction l with
+  | nil => intro a; simp
+  | cons c l ih => intro a; simp only [List.foldl_cons, ih, List.map_cons, List.sum_cons, u16]; omega
+
+/-- A capped prefix fits its budget.
+
+$$\forall b, l:\quad \textstyle\sum_{c \in \operatorname{take}_{16}(b, l)} u(c) \le b$$
+
+The kept prefix never exceeds the budget.
+-/
+theorem takeU16_le (b : Nat) (l : List Char) : ((takeU16 b l).map u16).sum ≤ b := by
+  induction l generalizing b with
+  | nil => simp [takeU16]
+  | cons c l ih =>
+    unfold takeU16
+    split
+    · have := ih (b - u16 c); simp only [List.map_cons, List.sum_cons]; omega
+    · simp
+
+/-- The fixed start of the spool alert title. -/
+def alertHead : String := "Spool lines need a look: "
+/-- The fixed end of the spool alert title. -/
+def alertTail : String := "; fix emit.mjs or Fw.Ops.Obs.specs, then press Done"
+
+/-- The issue list of the spool alert as characters: `x₁ xn₁, x₂ xn₂, …`.
+
+$$N(C) = \text{“}x_1\ \texttt{x}n_1\texttt{, }\dots\texttt{, }x_k\ \texttt{x}n_k\text{”},\quad C = [(x_1, n_1), \dots, (x_k, n_k)]\ (N([\,]) = \varepsilon)$$
+
+Each issue with its count, comma separated.
+-/
+def alertNames (cs : List (String × Nat)) : List Char :=
+  (", ".intercalate (cs.map fun (x, n) => s!"{x} x{n}")).toList
+
+/-- The spool alert title: the issue list `x₁ x n₁, …` cut to 123 UTF-16 units (an ellipsis marks a cut)
+between a fixed head and tail, so it fits the 200-unit step title.
+
+$$\operatorname{title}(C) = H \cdot \operatorname{take}_{16}(123, N) \cdot e \cdot T,\quad N = N(C),\quad e = \begin{cases} \text{“…”} & |\operatorname{take}_{16}(123, N)| < |N| \\ \varepsilon & \text{otherwise} \end{cases}$$
+
+Name every issue with its count, cut short when the list is long.
+-/
+def alertTitle (cs : List (String × Nat)) : String :=
+  let names := alertNames cs
+  let kept := takeU16 123 names
+  String.ofList (alertHead.toList ++ kept ++ (if kept.length < names.length then ['…'] else []) ++ alertTail.toList)
+
+/-- **The title fits**: the spool alert title is at most 200 UTF-16 units (the contract's step title).
+
+$$\forall C:\quad \operatorname{utf16}(\operatorname{title}(C)) \le 200$$
+
+The alert title is never too long for the board.
+-/
+theorem alertTitle_le (cs : List (String × Nat)) : utf16Len (alertTitle cs) ≤ 200 := by
+  rw [utf16Len_eq]
+  unfold alertTitle
+  simp only [String.toList_ofList]
+  have hk := takeU16_le 123 (alertNames cs)
+  have hh : (alertHead.toList.map u16).sum = 25 := by decide
+  have ht : (alertTail.toList.map u16).sum = 51 := by decide
+  have he : u16 '…' = 1 := by decide
+  split <;> simp only [List.map_append, List.sum_append, hh, ht, List.map_cons, List.map_nil,
+    List.sum_cons, List.sum_nil, he] <;> omega
+
+/-- **The spool alert**: none when there is no issue or a spool alert is still open; otherwise a step
+`alert-spool-<now>` titled with each issue and its count (`alertTitle`).
+
+$$\operatorname{fieldAlert}(t, O, C) = \begin{cases} \bot & C = [\,] \lor \exists \mathit{id} \in O:\ \operatorname{owner}(\mathit{id}) = \texttt{spool} \\ (s, \texttt{alert:} \cdot s, \operatorname{title}(C)) & \text{otherwise} \end{cases},\quad s = \operatorname{stepId}(\texttt{spool}, t)$$
 
 Raise one alert for all spool problems, unless one is already open.
 -/
@@ -691,8 +779,7 @@ def fieldAlert (now : Nat) (opn : List String) (cs : List (String × Nat)) :
   if cs.isEmpty || opn.any (fun id => Fw.Console.Alert.owner id == some spoolOwner) then none
   else
     let id := Fw.Console.Alert.stepId (some spoolOwner) now
-    let names := ", ".intercalate (cs.map fun (x, n) => s!"{x} x{n}")
-    some (id, "alert:" ++ id, s!"Spool lines need a look: {names} (rejected: the line was refused; :missing or :invalid: a soft field kept as null; :unknown: a field not in Fw.Ops.Obs.specs; lifeOf:error: fwcore failed, the line is retried); fix emit.mjs or Fw.Ops.Obs.specs, then press Done")
+    some (id, "alert:" ++ id, alertTitle cs)
 
 /-- A spool alert is raised exactly when there is an issue and no spool alert is open.
 
@@ -890,14 +977,15 @@ theorem event_revives (π : Fw.Plan.State) {e i a : String} (g m : Option String
   simp [lifeOf, byId, h1, h2]
 
 /-- The label command of an agent id from the health index: event key `label:<id>|<name>`, when the
-name is usable.
+id, the name and that key are all usable contract ids.
 
-$$\operatorname{labelOf}(i, n) = \begin{cases} (\texttt{label:} \cdot i \cdot \texttt{|} \cdot n, i, n) & \operatorname{okName}(n) \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{labelOf}(i, n) = \begin{cases} (e, i, n) & \operatorname{okName}(i) \land \operatorname{okName}(n) \land \operatorname{okName}(e) \\ \bot & \text{otherwise} \end{cases},\quad e = \texttt{label:} \cdot i \cdot \texttt{|} \cdot n$$
 
 Tell the board which name an id goes by.
 -/
 def labelOf (id name : String) : Option (String × String × String) :=
-  if okName name then some ("label:" ++ id ++ "|" ++ name, id, name) else none
+  let e := "label:" ++ id ++ "|" ++ name
+  if okName id && okName name && okName e then some (e, id, name) else none
 
 /-! ## Examples: admission and life -/
 
@@ -974,6 +1062,11 @@ private def realStop : List (String × Val) :=
 #guard fieldAlert 5 [Fw.Console.Alert.stepId (some "spool") 1] [("x", 2)] = none
 #guard fieldAlert 5 [Fw.Console.Alert.stepId (some "ci") 1] [("x", 2)] != none
 #guard fieldAlert 5 [] [] = none
+#guard alertTitle [("rejected:json", 2)] = "Spool lines need a look: rejected:json x2; fix emit.mjs or Fw.Ops.Obs.specs, then press Done"
+#guard utf16Len (alertTitle ((List.range 40).map fun i => (s!"field{i}:unknown", i))) = 200
+#guard (alertTitle ((List.range 40).map fun i => (s!"field{i}:unknown", i))).contains '…'
+#guard takeU16 3 ['a', '😀', 'b'] = ['a', '😀']
+#guard takeU16 2 ['a', '😀', 'b'] = ['a']
 -- life decisions: by id
 #guard lifeOf "SubagentStart" (some "i") none none "k" 3 0 = [.spawn "start:k" "i" 3]
 #guard lifeOf "SubagentStop" (some "i") none none "k" 9 0 = [.stop "stop:k" "i" 9]
@@ -997,5 +1090,9 @@ private def realStop : List (String × Val) :=
 -- labels
 #guard labelOf "i" "fix-nav" = some ("label:i|fix-nav", "i", "fix-nav")
 #guard labelOf "i" "" = none
+#guard labelOf "" "fix-nav" = none
+#guard labelOf "i" (String.ofList (List.replicate 115 'n')) = none
+#guard admit (realStop.map fun p => if p.1 == "agent_id" then (p.1, .str (String.ofList (List.replicate 121 'i'))) else p) =
+  .reject (.invalid "agent_id")
 
 end Fw.Ops.Obs

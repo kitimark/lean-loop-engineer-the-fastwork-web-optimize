@@ -1328,6 +1328,18 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 120
+            },
+            "at": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -1549,6 +1561,56 @@
             "key",
             "actor",
             "agent"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "agent.label"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "actor": {
+              "type": "string",
+              "enum": [
+                "user",
+                "lead",
+                "owner",
+                "reviewer",
+                "script",
+                "git",
+                "hook"
+              ]
+            },
+            "agent": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          "required": [
+            "ts",
+            "type",
+            "key",
+            "actor",
+            "agent",
+            "name"
           ],
           "additionalProperties": false
         },

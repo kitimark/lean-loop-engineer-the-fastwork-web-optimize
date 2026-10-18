@@ -3,11 +3,13 @@
 import { z } from "zod";
 
 /** One spool line written by apps/runner/hooks/emit.mjs. Nothing else leaves a hook payload. Typing only: the drain
- *  admits lines with Lean (`ops.obs` raw, `Fw.Ops.Obs.admit`: unknown fields are counted and raised as a spool alert,
- *  never a rejection) and writes only the kept known fields, so every obs.jsonl line still parses as `ObsLine`. Keep the
- *  fields in step with `Fw.Ops.Obs.specs` (a golden test checks that zod accepts every Lean-kept record). */
+ *  admits lines with Lean (`ops.obs` raw, `Fw.Ops.Obs.admit`): only the decision fields (hook_event_name, agent_id,
+ *  agent_name, ts) can reject a line; any other field that is missing or ill-typed is kept as null (or left out) with a
+ *  note, and an unknown field is left out and named. Rejections, notes and unknown fields are all raised as one spool
+ *  alert. The drain writes only the kept fields, so every obs.jsonl line still parses as `ObsLine`. Keep the fields in
+ *  step with `Fw.Ops.Obs.specs` (a golden test checks that zod accepts every Lean-kept record). */
 export const ObsRecord = z.object({
-  agent_id: z.string().max(200).nullable(),
+  agent_id: z.string().min(1).max(120).nullable(),
   agent_type: z.string().max(200).nullable(),
   hook_event_name: z.string().min(1).max(200),
   tool_name: z.string().max(200).nullable(),
@@ -16,7 +18,7 @@ export const ObsRecord = z.object({
   is_error: z.boolean().nullable(),
   verb: z.string().max(40).nullable(),
   /** SpawnGuard only: the `name` of the spawned agent (work-graph tasks are claimed by agents named like the task) */
-  agent_name: z.string().max(200).nullable().optional(),
+  agent_name: z.string().min(1).max(120).nullable().optional(),
   /** SpawnGuard only (spawn-guard-workflows): who saw the spawn, and the kind the guard expected vs was given */
   seen_by: z.string().max(40).nullable().optional(),
   role: z.string().max(200).nullable().optional(),

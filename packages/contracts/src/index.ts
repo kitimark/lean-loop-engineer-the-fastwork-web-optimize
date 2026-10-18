@@ -61,15 +61,20 @@ export const Command = z.discriminatedUnion("type", [
     live: z.array(Id).max(64).optional(),
   }),
   cmd("task.drop", { task: Id }),
-  cmd("task.claim", { task: Id, agent: Id }),
+  /** a claim is a sighting of `agent` at `at` (ms; missing or null = the event's ts): with no later sighting it expires
+   *  by the quiet timeout and the task is parked (expired). Task task-state-truth (claim TTL). */
+  cmd("task.claim", { task: Id, agent: Id, at: z.number().int().nonnegative().nullable().optional() }),
   cmd("task.done", { task: Id, evidence: Sha }),
   cmd("milestone.define", { milestone: Id, title: Text }),
-  // agent life (Lean `Fw.Plan`): an agent of this name was seen / ended at `at` (ms; missing or null = the event's ts).
-  // The board derives the binding from the set of these facts (an agent named like a task works on it): an agent is
-  // live when some spawn is later than every stop of its name, so neither log order nor the order relative to
-  // task.define matters (task task-state-truth). A tool event of a named agent is a spawn too (a heartbeat).
+  // agent life (Lean `Fw.Plan`): life key `agent` (an agent id, or a name from a spawn guard) was seen / ended at `at`
+  // (ms; missing or null = the event's ts). A key is live when some sighting is later than every stop of it, so neither
+  // log order nor the order relative to task.define matters. A name is live while any of its keys is: the name itself
+  // and every id labelled with it (agent.label). Any event of an id is a spawn of it (a heartbeat). Task
+  // task-state-truth: liveness by id.
   cmd("agent.spawn", { agent: Id, at: z.number().int().nonnegative().nullable().optional() }),
   cmd("agent.stop", { agent: Id, at: z.number().int().nonnegative().nullable().optional() }),
+  /** the health index names agent id `agent` as `name`: the id's life counts for that name (Lean `Fw.Plan.keysOf`) */
+  cmd("agent.label", { agent: Id, name: Id }),
   // task outcomes (Lean `Fw.Plan`, task task-state-truth): where an ended agent's work went. The last mark of a task
   // wins; task.unpark clears it. Landed evidence (task.done) wins over all; then a live agent decides: blocked while
   // the task has open blockers (open blockers win over marks), else running; a mark shows only when no agent is live.
@@ -214,9 +219,12 @@ export const PlanTask = z.object({
   /** undone deps */
   blockers: z.array(Id),
   agent: Id.nullable(),
-  /** when the bound agent was last seen (its latest agent.spawn `at`, ms; Lean `Fw.Plan.seenAt`); null for a bare
-   *  claim or no agent; missing in boards from before task-state-truth. The quiet timeout reads it. */
+  /** when the bound agent was last seen (its latest sighting `at`, ms, a claim included; Lean `Fw.Plan.seenAt`); null
+   *  for no agent; missing in boards from before task-state-truth. */
   since: z.number().int().nonnegative().nullable().optional(),
+  /** the live life keys of the bound agent with their last sighting (Lean `Fw.Plan.liveKeys`); the quiet timeout reads
+   *  them (`plan.timeouts`). Missing in boards from before task-state-truth round 3. */
+  keys: z.array(z.object({ key: z.string(), at: z.number().int().nonnegative() })).optional(),
   evidence: z.string().nullable(),
   /** where an ended agent's work went; missing in boards from before task-state-truth */
   outcome: TaskOutcome.nullable().optional(),

@@ -128,7 +128,7 @@ describe("automation", () => {
     });
   }
 
-  it("a stopped agent releases its undone task, which shows parked (no handback); the stop's name comes from the health line; a stop before the define too", async () => {
+  it("a stopped agent releases its undone task, which shows parked (no handback); the stop ends the id and its health-line name; a stop before the define too", async () => {
     const { dir, store } = await open();
     mkdirSync(join(dir, "spool"));
     health(dir, [["id-a", "a"], ["id-c", "c"]]);
@@ -136,7 +136,11 @@ describe("automation", () => {
     await new Drain(store).run();
     for (const c of syncCommands(mini())) await store.submit(c);
     expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "parked", null]]);
-    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([{ actor: "hook", agent: "c", key: `stop:id-c|SubagentStop|${T0 + 4}`, at: T0 + 4 }]);
+    // by id (round 3): every SubagentStop stops its id; a named one also stops the spawn guard's name key
+    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([
+      { actor: "hook", agent: "c", key: `stop:id-c|SubagentStop|${T0 + 4}|name`, at: T0 + 4 },
+      { actor: "hook", agent: "id-c", key: `stop:id-c|SubagentStop|${T0 + 4}`, at: T0 + 4 },
+      { actor: "hook", agent: "id-unknown", key: `stop:id-unknown|SubagentStop|${T0 + 4}`, at: T0 + 4 }]);
     appendFileSync(join(dir, "spool", "s.jsonl"), stopRec("id-a"));
     await new Drain(store).run();
     expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "parked", null]]);
@@ -157,13 +161,13 @@ describe("automation", () => {
     const res = await new Drain(store).run();
     expect(res.invalid).toBe(1);
     expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "parked", null]]);
-    expect(store.readEvents().filter((e) => e.type === "agent.stop").map((e) => (e as { agent: string }).agent)).toEqual(["a", "c"]);
+    expect(store.readEvents().filter((e) => e.type === "agent.stop").map((e) => (e as { agent: string }).agent)).toEqual(["a", "id-a", "c", "id-c"]);
     const rej = readFileSync(join(dir, "spool-rejects.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
     expect(rej).toHaveLength(1);
     expect(rej[0].why).toEqual(["agent_id:missing"]);
   });
 
-  it("outcome marks: handback, integrate, park and unpark show distinct states; integrate into main is refused", async () => {
+  it("outcome marks: handback, integrate, park and unpark show distinct states; integrate outside the allowlist is refused", async () => {
     const { store } = await open();
     for (const c of syncCommands(mini())) await store.submit(c);
     const send = (c: object) => store.submit(c as never);
@@ -173,16 +177,18 @@ describe("automation", () => {
     await send({ type: "agent.stop", key: "x:c", actor: "hook", agent: "c" });
     await send({ type: "task.park", key: "p:a", actor: "lead", task: "a", reason: "waiting on the user" });
     expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "handedBack", null]]);
-    expect(await send({ type: "task.integrate", key: "i:m", actor: "lead", task: "c", branch: "main", tip: "abc1234" }))
-      .toMatchObject({ ok: false, reason: "main is not an integration branch: land with task.done" });
-    expect(await send({ type: "task.integrate", key: "i:h", actor: "hook", task: "c", branch: "ci/i", tip: "abc1234" })).toMatchObject({ ok: false });
-    await send({ type: "task.integrate", key: "i:c", actor: "lead", task: "c", branch: "ci/integrate-1", tip: "abc1234" });
+    // integrate allowlist (Lean `Fw.Plan.integrate_allowlist`): full refs under ci/, worktree-, integrate- only
+    for (const branch of ["main", "refs/heads/main", "origin/HEAD", "main~0", "ci/integrate-1", "refs/heads/ci/", "refs/remotes/origin/ci/x"])
+      expect(await send({ type: "task.integrate", key: `i:m:${branch}`, actor: "lead", task: "c", branch, tip: "abc1234" }))
+        .toMatchObject({ ok: false, reason: "integrate only into refs/heads/ci/*, refs/heads/worktree-* or refs/heads/integrate-*" });
+    expect(await send({ type: "task.integrate", key: "i:h", actor: "hook", task: "c", branch: "refs/heads/ci/i", tip: "abc1234" })).toMatchObject({ ok: false });
+    expect(await send({ type: "task.integrate", key: "i:c", actor: "lead", task: "c", branch: "refs/heads/ci/integrate-1", tip: "abc1234" })).toMatchObject({ ok: true });
     await send({ type: "task.unpark", key: "u:a", actor: "user", task: "a" });
     expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "integrated", null]]);
-    expect((await planOf(store)).tasks[2]!.outcome).toEqual({ kind: "integrated", branch: "ci/integrate-1", tip: "abc1234" });
+    expect((await planOf(store)).tasks[2]!.outcome).toEqual({ kind: "integrated", branch: "refs/heads/ci/integrate-1", tip: "abc1234" });
   });
 
-  it("an old log (legacy `live` on task.define, task.claim, no agent.spawn) replays to the board it gave before", async () => {
+  it("an old log (legacy `live` on task.define, task.claim, no agent.spawn) replays: the claim binds, a legacy live fact no longer does", async () => {
     const dir = mkdtempSync(join(tmpdir(), "fw-plan-"));
     const lines: object[] = [];
     let seq = 0;
@@ -191,8 +197,9 @@ describe("automation", () => {
     log({ type: "task.claim", key: "claim:a", actor: "hook", task: "a", agent: "a" });
     writeFileSync(join(dir, "events.jsonl"), lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
     const { store } = await open(dir);
-    // before claim-order-lean: c was claimed by the live fact, a by the claim, b stays blocked (its dep a is undone)
-    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "running", "c"]]);
+    // a is claimed (a claim is a sighting at its time, expiring by the claim TTL), b stays blocked (its dep a is undone);
+    // c's legacy live fact carries no time, so since task-state-truth round 3 it binds nothing (it could never expire)
+    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "ready", null]]);
     // a client's legacy `live` is dropped now: the console binds from agent.spawn only
     const d = syncCommands({ milestones: [], tasks: [{ id: "n", title: "N", stream: "s", deps: [], owner: "o" }] })[0]!;
     await store.submit({ ...d, live: ["n"] } as never);

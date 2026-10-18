@@ -92,8 +92,9 @@ function readLatestLine(dir: string, keep: (l: z.infer<typeof Line>) => boolean 
   } finally { closeSync(fd); }
 }
 
-/** Agent id -> the name `fw watch` last recorded for it (input.agents[].name of health.jsonl): what an `agent.stop`
- *  carries, since a SubagentStop hook record has the agent's id but not its name. Task task-state-truth: the old
+/** Agent id -> the name `fw watch` last recorded for it (input.agents[].name of health.jsonl): only a label (sent as
+ *  `agent.label`, Lean `Fw.Ops.Obs.labelOf`) that binds the id's life to the task of that name; liveness itself is by id
+ *  (task-state-truth round 3). Task task-state-truth: the old
  *  lookup re-read up to 64 MB of health.jsonl backwards for every stop; this index reads the file once and then only
  *  the bytes appended since (a shorter file, i.e. a rotation, starts over). Empty names are skipped; Lean
  *  `Fw.Ops.Obs.lifeOf` decides whether a name is usable. Reads only. */
@@ -136,5 +137,7 @@ export class NameIndex {
 
   /** The newest indexed name of agent id `id`, or null (call `refresh` first). */
   get(id: string): string | null { return this.names.get(id) ?? null; }
+  /** Every (agent id, newest name) pair indexed so far (call `refresh` first). */
+  entries(): [string, string][] { return [...this.names]; }
   get size(): number { return this.names.size; }
 }
