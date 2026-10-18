@@ -276,9 +276,17 @@ export const prelockAction = (head: string, main0: string, verdict: boolean, att
   head === main0 ? (verdict ? "ff" : "refuse") : attempt < maxRetry ? "recheck" : "fallback";
 export const PRELOCK_RETRIES = 3;
 
-/** Checks that may run at once. TS stand-in for Lean `Fw.Console.LandSpeed.poolSize` (`poolSize_pos`, `poolSize_anti_load`,
- *  `poolSize_mono_cores`); marked for Lean replacement; `loadCeil` is the one-minute load average rounded up. */
-export const poolSize = (cores: number, loadCeil: number): number => Math.max(1, cores - loadCeil);
+/** Checks that may run at once: Lean `Fw.Console.LandPool.poolFair` (an `fwcore` op, `console.landPool`; golden
+ *  `console.landPool.jsonl`): the cores not taken by other work, never fewer than half the cores. `loadCeil` is the one-minute
+ *  load average rounded up. Without fwcore: 1 (serial; the verdict is the same, `verdict_perm`). */
+export const poolFor = (cores: number, loadCeil: number): number => {
+  const r = askCore("console.landPool", { cores, load: loadCeil });
+  return r && Number.isInteger(r.pool) && r.pool >= 1 ? r.pool : 1;
+};
+/** Does a failed check re-run alone? Lean `Fw.Console.LandPool.rerunAlone` (`console.landRetry`); `loadFailure` is the fact that
+ *  the output shows a timeout. Without fwcore: no (the failure stands). */
+export const rerunAlone = (passed: boolean, loadFailure: boolean): boolean =>
+  askCore("console.landRetry", { passed, loadFailure })?.rerun === true;
 /** A failure that load, not the code, can cause: a timeout (vitest "timed out in 5000ms", a killed child). */
 export const LOAD_FAILURE_RE = /timed out in \d+\s*ms|ETIMEDOUT|Hook timed out|Test timed out/;
 
@@ -459,7 +467,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const results: ({ status: number | null; out: string } | undefined)[] = list.map(() => undefined);
     const started = new Set<number>();
     let running = 0;
-    const limit = Math.max(1, o.concurrency ?? poolSize(availableParallelism(), Math.ceil(loadavg()[0] ?? 0)));
+    const limit = Math.max(1, o.concurrency ?? poolFor(availableParallelism(), Math.ceil(loadavg()[0] ?? 0)));
     await new Promise<void>((done) => {
       const pump = () => {
         for (let i = 0; i < list.length && running < limit; i++) {
@@ -479,7 +487,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     // and its second result counts (the verdict is still the conjunction of the final results: `verdict_perm`).
     for (let i = 0; i < list.length; i++) {
       const r0 = results[i]!;
-      if (r0.status === 0 || !LOAD_FAILURE_RE.test(r0.out)) continue;
+      if (!rerunAlone(r0.status === 0, LOAD_FAILURE_RE.test(r0.out))) continue;
       const argv = list[i]!;
       const p = await span("fw land", `${argv.join(" ")} (retry alone: timed out under load)`, () => runCheck(cwd, argv), (r) => r.status);
       results[i] = { status: p.status, out: `${r0.out}\n[timed out under load; re-run alone]\n${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
