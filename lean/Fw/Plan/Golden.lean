@@ -197,12 +197,12 @@ def cases : List (String × List Json) := [
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "obs-next-lean")],
     define "obs-next-lean" [] (key := "plan:d:obs-next-lean"),
     query]),
-  ("stop before define: the agent ended before its task existed, the task is ready", [
+  ("stop before define: the agent ended before its task existed with no handback, the task is parked", [
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
     apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
     define "a" [],
     query]),
-  ("stop and respawn: a stop unbinds an undone task, a done task keeps its agent, a respawn binds again", [
+  ("stop and respawn: a stop unbinds an undone task and parks it, a done task keeps its agent, a respawn binds again", [
     define "a" [],
     define "b" [],
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
@@ -225,7 +225,46 @@ def cases : List (String × List Json) := [
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
     apply "spawn:t2" "script" "agent.spawn" [("agent", .str "b")],
-    apply "stop:x" "lead" "agent.stop" [("agent", .str "b")]])]
+    apply "stop:x" "lead" "agent.stop" [("agent", .str "b")]]),
+  ("outcome (task-state-truth): handback while live stays running; after the stop it is handed back", [
+    define "a" [],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "hb:a" "hook" "task.handback" [("task", .str "a"), ("agent", .str "a"), ("tip", .str "abc1234")],
+    query,
+    apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
+    query]),
+  ("outcome: integrate into a branch, park, unpark (back to parked: no handback), last mark wins", [
+    define "a" [],
+    define "b" [],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
+    apply "int:a" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "ci/integrate-1"), ("tip", .str "b00ef68")],
+    apply "park:b" "lead" "task.park" [("task", .str "b"), ("reason", .str "folded into a")],
+    query,
+    apply "unpark:b" "lead" "task.unpark" [("task", .str "b")],
+    apply "park:a" "lead" "task.park" [("task", .str "a"), ("reason", .str "superseded")],
+    apply "unpark:a" "user" "task.unpark" [("task", .str "a")],
+    query]),
+  ("outcome: a live agent with open blockers shows blocked; done wins over a mark", [
+    define "b" [],
+    define "a" ["b"],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "park:b" "lead" "task.park" [("task", .str "b"), ("reason", .str "waiting")],
+    query,
+    apply "t:b" "git" "task.done" [("task", .str "b"), ("evidence", .str "abc1234")],
+    query]),
+  ("outcome refusals: integrate into main, unknown task, done task, authority, handback without tip", [
+    define "a" [],
+    define "z" [] (evidence := some "abc1234"),
+    apply "int:m" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "main"), ("tip", .str "t")],
+    apply "park:x" "lead" "task.park" [("task", .str "nope"), ("reason", .str "r")],
+    apply "hb:z" "hook" "task.handback" [("task", .str "z"), ("agent", .str "z")],
+    apply "park:h" "hook" "task.park" [("task", .str "a"), ("reason", .str "r")],
+    apply "int:h" "hook" "task.integrate" [("task", .str "a"), ("branch", .str "ci/i"), ("tip", .str "t")],
+    apply "hb:a" "script" "task.handback" [("task", .str "a"), ("agent", .str "a")],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
+    query])]
 
 /-- The plan-sync vectors (`Fw.Plan.syncFrom`): name, main's ref name, the refs, the last synced
 commit, and the commit to sync from (or none). -/

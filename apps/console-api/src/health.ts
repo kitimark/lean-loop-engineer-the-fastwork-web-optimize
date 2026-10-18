@@ -67,13 +67,15 @@ export function readLatestHealth(dir: string): HealthView | null {
   return l ? project(l) : null;
 }
 
-function readLatestLine(dir: string): z.infer<typeof Line> | null {
+/** The newest complete health line that satisfies `keep` (default: any), reading at most `cap` bytes from the end. */
+function readLatestLine(dir: string, keep: (l: z.infer<typeof Line>) => boolean = () => true,
+  cap = Number.POSITIVE_INFINITY): z.infer<typeof Line> | null {
   let fd: number;
   try { fd = openSync(join(dir, "health.jsonl"), "r"); } catch { return null; }
   try {
     const size = fstatSync(fd).size;
     for (let span = 1 << 18; ; span *= 4) {
-      const len = Math.min(size, span);
+      const len = Math.min(size, span, cap);
       const buf = Buffer.alloc(len);
       readSync(fd, buf, 0, len, size - len);
       const lines = buf.toString("utf8").split("\n").filter((l) => l.trim());
@@ -82,18 +84,23 @@ function readLatestLine(dir: string): z.infer<typeof Line> | null {
       for (let i = usable.length - 1; i >= 0; i--) {
         try {
           const p = Line.safeParse(JSON.parse(usable[i]!));
-          if (p.success) return p.data;
+          if (p.success && keep(p.data)) return p.data;
         } catch { /* skip a torn line */ }
       }
-      if (len >= size) return null;
+      if (len >= size || len >= cap) return null;
     }
   } finally { closeSync(fd); }
 }
 
-/** The name `fw watch` recorded for agent id `id` (input.agents[].name) in the latest health line: what an `agent.stop`
- *  carries, since a SubagentStop hook record has the agent's id but not its name. Null when there is no health line,
- *  the id is not in it (an agent that stopped before its first snapshot), or its name is not a contract id. Reads only. */
-export function agentNameOf(dir: string, id: string): string | null {
-  const n = readLatestLine(dir)?.input.agents.find((a) => a.id === id)?.name;
+/** How far back `agentNameOf` looks for an agent id (bytes from the end of health.jsonl). */
+export const NAME_SCAN_BYTES = 64 << 20;
+
+/** The name `fw watch` recorded for agent id `id` (input.agents[].name) in the newest health line that lists the id:
+ *  what an `agent.stop` carries, since a SubagentStop hook record has the agent's id but not its name. Task
+ *  task-state-truth: it read only the latest line before, so an agent already gone from the newest snapshot got no
+ *  stop. Null when no line of the last NAME_SCAN_BYTES lists the id (an agent that stopped before its first
+ *  snapshot), or its name is not a contract id. Reads only. */
+export function agentNameOf(dir: string, id: string, cap = NAME_SCAN_BYTES): string | null {
+  const n = readLatestLine(dir, (l) => l.input.agents.some((a) => a.id === id), cap)?.input.agents.find((a) => a.id === id)?.name;
   return n && n.length <= 120 ? n : null;
 }

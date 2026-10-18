@@ -69,7 +69,11 @@ deriving Repr, DecidableEq
 
 /-- The plan commands.
 
-$$\mathrm{Cmd} = \mathrm{define}(d) \mid \mathrm{drop}(\mathit{task}) \mid \mathrm{claim}(\mathit{task}, \mathit{agent}) \mid \mathrm{done}(\mathit{task}, \mathit{evidence}) \mid \mathrm{milestone}(\mathit{id}, \mathit{title}) \mid \mathrm{spawn}(\mathit{agent}) \mid \mathrm{stop}(\mathit{agent})$$
+$$\mathrm{Cmd} = \mathrm{define}(d) \mid \mathrm{drop}(\mathit{task}) \mid \mathrm{claim}(\mathit{task}, \mathit{agent}) \mid \mathrm{done}(\mathit{task}, \mathit{evidence}) \mid \mathrm{milestone}(\mathit{id}, \mathit{title}) \mid \mathrm{spawn}(\mathit{agent}) \mid \mathrm{stop}(\mathit{agent}) \\ \mid \mathrm{handback}(\mathit{task}, \mathit{agent}, \mathit{tip}_\bot) \mid \mathrm{integrate}(\mathit{task}, \mathit{branch}, \mathit{tip}) \mid \mathrm{park}(\mathit{task}, \mathit{reason}) \mid \mathrm{unpark}(\mathit{task})$$
+
+The last four (task `task-state-truth`) record what became of a task's work when its agent ended
+without a land: handed back, merged into a non-main integration branch, or parked by the lead
+(`unpark` removes the mark).
 -/
 inductive Cmd where
   | define (d : Def)
@@ -79,32 +83,38 @@ inductive Cmd where
   | milestone (id title : String)
   | spawn (agent : String)
   | stop (agent : String)
+  | handback (task agent : String) (tip : Option String)
+  | integrate (task branch tip : String)
+  | park (task reason : String)
+  | unpark (task : String)
 deriving Repr, DecidableEq
 
 /-- The plan command types.
 
-$$\mathrm{CmdType} = \{\mathrm{define}, \mathrm{drop}, \mathrm{claim}, \mathrm{done}, \mathrm{milestone}, \mathrm{spawn}, \mathrm{stop}\}$$
+$$\mathrm{CmdType} = \{\mathrm{define}, \mathrm{drop}, \mathrm{claim}, \mathrm{done}, \mathrm{milestone}, \mathrm{spawn}, \mathrm{stop}, \mathrm{handback}, \mathrm{integrate}, \mathrm{park}, \mathrm{unpark}\}$$
 -/
 inductive CmdType where
-  | define | drop | claim | done | milestone | spawn | stop
+  | define | drop | claim | done | milestone | spawn | stop | handback | integrate | park | unpark
 deriving Repr, DecidableEq
 
 /-- The wire name of a plan command type.
 
-$$\operatorname{name}(\mathrm{define}) = \texttt{"task.define"},\ \operatorname{name}(\mathrm{drop}) = \texttt{"task.drop"},\ \operatorname{name}(\mathrm{claim}) = \texttt{"task.claim"},\ \operatorname{name}(\mathrm{done}) = \texttt{"task.done"},\ \operatorname{name}(\mathrm{milestone}) = \texttt{"milestone.define"},\ \operatorname{name}(\mathrm{spawn}) = \texttt{"agent.spawn"},\ \operatorname{name}(\mathrm{stop}) = \texttt{"agent.stop"}$$
+$$\operatorname{name}(\mathrm{define}) = \texttt{"task.define"},\ \operatorname{name}(\mathrm{drop}) = \texttt{"task.drop"},\ \operatorname{name}(\mathrm{claim}) = \texttt{"task.claim"},\ \operatorname{name}(\mathrm{done}) = \texttt{"task.done"},\ \operatorname{name}(\mathrm{milestone}) = \texttt{"milestone.define"},\ \operatorname{name}(\mathrm{spawn}) = \texttt{"agent.spawn"},\ \operatorname{name}(\mathrm{stop}) = \texttt{"agent.stop"},\ \operatorname{name}(\mathrm{handback}) = \texttt{"task.handback"},\ \operatorname{name}(\mathrm{integrate}) = \texttt{"task.integrate"},\ \operatorname{name}(\mathrm{park}) = \texttt{"task.park"},\ \operatorname{name}(\mathrm{unpark}) = \texttt{"task.unpark"}$$
 -/
 def CmdType.name : CmdType → String
   | .define => "task.define" | .drop => "task.drop" | .claim => "task.claim"
   | .done => "task.done" | .milestone => "milestone.define" | .spawn => "agent.spawn"
-  | .stop => "agent.stop"
+  | .stop => "agent.stop" | .handback => "task.handback" | .integrate => "task.integrate"
+  | .park => "task.park" | .unpark => "task.unpark"
 
 /-- The type of a plan command.
 
-$$\operatorname{type}(\mathrm{define}(\cdot)) = \mathrm{define},\ \dots,\ \operatorname{type}(\mathrm{milestone}(\cdot, \cdot)) = \mathrm{milestone},\ \operatorname{type}(\mathrm{spawn}(\cdot)) = \mathrm{spawn},\ \operatorname{type}(\mathrm{stop}(\cdot)) = \mathrm{stop}$$
+$$\operatorname{type}(\mathrm{define}(\cdot)) = \mathrm{define},\ \dots,\ \operatorname{type}(\mathrm{milestone}(\cdot, \cdot)) = \mathrm{milestone},\ \operatorname{type}(\mathrm{spawn}(\cdot)) = \mathrm{spawn},\ \operatorname{type}(\mathrm{stop}(\cdot)) = \mathrm{stop},\ \operatorname{type}(\mathrm{handback}(\cdot,\cdot,\cdot)) = \mathrm{handback},\ \operatorname{type}(\mathrm{integrate}(\cdot,\cdot,\cdot)) = \mathrm{integrate},\ \operatorname{type}(\mathrm{park}(\cdot,\cdot)) = \mathrm{park},\ \operatorname{type}(\mathrm{unpark}(\cdot)) = \mathrm{unpark}$$
 -/
 def Cmd.type : Cmd → CmdType
   | .define _ => .define | .drop _ => .drop | .claim .. => .claim | .done .. => .done
   | .milestone .. => .milestone | .spawn _ => .spawn | .stop _ => .stop
+  | .handback .. => .handback | .integrate .. => .integrate | .park .. => .park | .unpark _ => .unpark
 
 /-- A milestone row.
 
@@ -117,15 +127,18 @@ deriving Repr, DecidableEq
 
 /-- The plan state: the task rows and the milestone rows, each in definition order, and the agent
 names of the accepted `agent.spawn` and `agent.stop` commands, one entry per command, in log order
-(the board reads only how often each name occurs).
+(the board reads only how often each name occurs), and the outcome marks of the accepted
+`task.handback` / `task.integrate` / `task.park` / `task.unpark` commands, one pair (task id, mark)
+per command in log order (`unpark` records no mark; the board reads the last pair of a task).
 
-$$\pi = (\mathit{tasks}, \mathit{milestones}, \mathit{spawns}, \mathit{stops}), \qquad \pi_0 = ([\,], [\,], [\,], [\,])$$
+$$\pi = (\mathit{tasks}, \mathit{milestones}, \mathit{spawns}, \mathit{stops}, \mathit{marks}), \qquad \pi_0 = ([\,], [\,], [\,], [\,], [\,])$$
 -/
 structure State where
   tasks      : List Task := []
   milestones : List Milestone := []
   spawns     : List String := []
   stops      : List String := []
+  marks      : List (String × Option Mark) := []
 deriving Repr, DecidableEq
 
 /-- The row a definition makes, with the given agent, evidence and evidence provenance.
@@ -202,7 +215,8 @@ $$\operatorname{check}(\pi, c) = \begin{cases}
 \quad \texttt{"dependency cycle"} \text{ if } \neg\operatorname{acyclicB}(U);\ \bot \end{array} & c = \mathrm{define}(d),\ U = \operatorname{upsert}(\pi.\mathit{tasks}, d) \\
 \begin{array}{l} \texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task is done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x); \\
 \quad \texttt{"task "} y \texttt{" depends on it"} \text{ for the first } t \in \pi.\mathit{tasks} \text{ with } t.\mathit{evidence} = \bot \land x \in t.\mathit{deps},\ y = t.\mathit{id};\ \bot \end{array} & c = \mathrm{drop}(x) \\
-\texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task already done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x);\ \bot & c \in \{\mathrm{claim}(x, \cdot), \mathrm{done}(x, \cdot)\} \\
+\texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task already done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x);\ \bot & c \in \{\mathrm{claim}(x, \cdot), \mathrm{done}(x, \cdot), \mathrm{handback}(x, \cdot, \cdot), \mathrm{park}(x, \cdot), \mathrm{unpark}(x)\} \\
+\begin{array}{l} \texttt{"no such task"} \text{ if } x \notin \operatorname{ids}(\pi.\mathit{tasks});\ \texttt{"task already done"} \text{ if } \operatorname{isDone}(\pi.\mathit{tasks}, x); \\ \quad \texttt{"main is not an integration branch: land with task.done"} \text{ if } b = \texttt{"main"};\ \bot \end{array} & c = \mathrm{integrate}(x, b, \cdot) \\
 \bot & c \in \{\mathrm{milestone}(\cdot, \cdot), \mathrm{spawn}(\cdot), \mathrm{stop}(\cdot)\}
 \end{cases}$$
 -/
@@ -226,9 +240,14 @@ def check (s : State) (c : Cmd) : Option String :=
     else match s.tasks.find? (fun t => t.evidence.isNone && t.deps.contains x) with
       | some t => some s!"task {t.id} depends on it"
       | none => none
-  | .claim x _ | .done x _ =>
+  | .claim x _ | .done x _ | .handback x _ _ | .park x _ | .unpark x =>
     if !(ids s.tasks).contains x then some "no such task"
     else if isDone s.tasks x then some "task already done"
+    else none
+  | .integrate x b _ =>
+    if !(ids s.tasks).contains x then some "no such task"
+    else if isDone s.tasks x then some "task already done"
+    else if b == "main" then some "main is not an integration branch: land with task.done"
     else none
   | .milestone .. | .spawn _ | .stop _ => none
 
@@ -241,7 +260,11 @@ $$\operatorname{exec}(\pi, c) = \begin{cases}
 \pi[\mathit{tasks} := \operatorname{setRow}(\mathit{tasks}, x, t \mapsto t[\mathit{evidence} := e,\ \mathit{landed} := \mathrm{true}])] & \mathrm{done}(x, e) \\
 \pi[\mathit{milestones} := \text{the row } m \text{ retitled if present, else appended}] & \mathrm{milestone}(m, \mathit{title}) \\
 \pi[\mathit{spawns} := \mathit{spawns} \mathbin{+\!\!+} [a]] & \mathrm{spawn}(a) \\
-\pi[\mathit{stops} := \mathit{stops} \mathbin{+\!\!+} [a]] & \mathrm{stop}(a)
+\pi[\mathit{stops} := \mathit{stops} \mathbin{+\!\!+} [a]] & \mathrm{stop}(a) \\
+\pi[\mathit{marks} := \mathit{marks} \mathbin{+\!\!+} [(x, \mathrm{handedBack}(a, p))]] & \mathrm{handback}(x, a, p) \\
+\pi[\mathit{marks} := \mathit{marks} \mathbin{+\!\!+} [(x, \mathrm{integrated}(b, p))]] & \mathrm{integrate}(x, b, p) \\
+\pi[\mathit{marks} := \mathit{marks} \mathbin{+\!\!+} [(x, \mathrm{parked}(r))]] & \mathrm{park}(x, r) \\
+\pi[\mathit{marks} := \mathit{marks} \mathbin{+\!\!+} [(x, \bot)]] & \mathrm{unpark}(x)
 \end{cases}$$
 -/
 def exec (s : State) (c : Cmd) : State :=
@@ -256,6 +279,10 @@ def exec (s : State) (c : Cmd) : State :=
     else { s with milestones := s.milestones ++ [{ id := m, title }] }
   | .spawn a => { s with spawns := s.spawns ++ [a] }
   | .stop a => { s with stops := s.stops ++ [a] }
+  | .handback x a p => { s with marks := s.marks ++ [(x, some (.handedBack a p))] }
+  | .integrate x b p => { s with marks := s.marks ++ [(x, some (.integrated b p))] }
+  | .park x r => { s with marks := s.marks ++ [(x, some (.parked r))] }
+  | .unpark x => { s with marks := s.marks ++ [(x, none)] }
 
 /-- One plan step: an accepted command is executed, a refused one leaves the state unchanged.
 
@@ -273,18 +300,19 @@ def run (cs : List Cmd) : State := cs.foldl step {}
 
 /-- The derived state of a task.
 
-$$\mathrm{TState} = \{\mathrm{done}, \mathrm{cut}, \mathrm{running}, \mathrm{ready}, \mathrm{blocked}\}$$
+$$\mathrm{TState} = \{\mathrm{done}, \mathrm{cut}, \mathrm{running}, \mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}, \mathrm{ready}, \mathrm{blocked}\}$$
 -/
 inductive TState where
-  | done | cut | running | ready | blocked
+  | done | cut | running | handedBack | integrated | parked | ready | blocked
 deriving Repr, DecidableEq
 
 /-- The wire name of a task state.
 
-$$\operatorname{name}(\mathrm{done}) = \texttt{"done"},\ \operatorname{name}(\mathrm{cut}) = \texttt{"cut"},\ \operatorname{name}(\mathrm{running}) = \texttt{"running"},\ \operatorname{name}(\mathrm{ready}) = \texttt{"ready"},\ \operatorname{name}(\mathrm{blocked}) = \texttt{"blocked"}$$
+$$\operatorname{name}(\mathrm{done}) = \texttt{"done"},\ \operatorname{name}(\mathrm{cut}) = \texttt{"cut"},\ \operatorname{name}(\mathrm{running}) = \texttt{"running"},\ \operatorname{name}(\mathrm{ready}) = \texttt{"ready"},\ \operatorname{name}(\mathrm{blocked}) = \texttt{"blocked"},\ \operatorname{name}(\mathrm{handedBack}) = \texttt{"handedBack"},\ \operatorname{name}(\mathrm{integrated}) = \texttt{"integrated"},\ \operatorname{name}(\mathrm{parked}) = \texttt{"parked"}$$
 -/
 def TState.name : TState → String
   | .done => "done" | .cut => "cut" | .running => "running" | .ready => "ready" | .blocked => "blocked"
+  | .handedBack => "handedBack" | .integrated => "integrated" | .parked => "parked"
 
 /-- The blockers of a task: its deps that are not done, in dep order.
 
@@ -292,16 +320,26 @@ $$\operatorname{blockers}(ts, t) = [\, d \in t.\mathit{deps} : \neg\operatorname
 -/
 def blockers (ts : List Task) (t : Task) : List String := t.deps.filter fun d => !isDone ts d
 
-/-- The state of a task is computed, never written (first match wins).
+/-- The state a mark shows.
 
-$$\operatorname{tstate}(ts, t) = \begin{cases} \mathrm{done} & t.\mathit{evidence} \ne \bot \\ \mathrm{cut} & t.\mathit{cut} \\ \mathrm{running} & t.\mathit{agent} \ne \bot \\ \mathrm{ready} & \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & \text{otherwise} \end{cases}$$
+$$\operatorname{mstate}(\mathrm{handedBack}(\cdot,\cdot)) = \mathrm{handedBack},\quad \operatorname{mstate}(\mathrm{integrated}(\cdot,\cdot)) = \mathrm{integrated},\quad \operatorname{mstate}(\mathrm{parked}(\cdot)) = \mathrm{parked}$$
+-/
+def Mark.state : Mark → TState
+  | .handedBack .. => .handedBack | .integrated .. => .integrated | .parked _ => .parked
+
+/-- The state of a task is computed, never written (first match wins). A task with an agent is
+running only when it has no blockers (task `task-state-truth`: a task with open blockers is never
+shown running); otherwise its outcome mark, if any, decides, then its blockers.
+
+$$\operatorname{tstate}(ts, t) = \begin{cases} \mathrm{done} & t.\mathit{evidence} \ne \bot \\ \mathrm{cut} & t.\mathit{cut} \\ \mathrm{running} & t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) = [\,] \\ \operatorname{mstate}(m) & t.\mathit{mark} = m \ne \bot \\ \mathrm{ready} & \operatorname{blockers}(ts, t) = [\,] \\ \mathrm{blocked} & \text{otherwise} \end{cases}$$
 -/
 def tstate (ts : List Task) (t : Task) : TState :=
   if t.evidence.isSome then .done
   else if t.cut then .cut
-  else if t.agent.isSome then .running
-  else if blockers ts t = [] then .ready
-  else .blocked
+  else if t.agent.isSome && blockers ts t == [] then .running
+  else match t.mark with
+    | some m => m.state
+    | none => if blockers ts t = [] then .ready else .blocked
 
 /-- `isDone` as a proposition.
 
@@ -319,16 +357,33 @@ theorem mem_blockers {ts : List Task} {t : Task} {d : String} :
     d ∈ blockers ts t ↔ d ∈ t.deps ∧ isDone ts d = false := by
   simp [blockers]
 
-/-- **Ready means: not done, not cut, not running, and every dep done.**
+/-- `blockers` is empty exactly when every dep is done.
 
-$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{ready} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land \forall d \in t.\mathit{deps}:\ \operatorname{isDone}(ts, d) = \mathrm{true}$$
+$$\forall ts, t:\quad \operatorname{blockers}(ts, t) = [\,] \iff \forall d \in t.\mathit{deps}:\ \operatorname{isDone}(ts, d) = \mathrm{true}$$
+-/
+theorem blockers_nil_iff (ts : List Task) (t : Task) :
+    blockers ts t = [] ↔ ∀ d ∈ t.deps, isDone ts d = true := by
+  simp [blockers, List.filter_eq_nil_iff]
+
+/-- A mark never shows ready, blocked, running, done or cut.
+
+$$\forall m:\quad \operatorname{mstate}(m) \in \{\mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\}$$
+-/
+theorem Mark.state_mem (m : Mark) : m.state = .handedBack ∨ m.state = .integrated ∨ m.state = .parked := by
+  cases m <;> simp [Mark.state]
+
+/-- **Ready means: not done, not cut, no agent, no outcome mark, and every dep done.**
+
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{ready} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} = \bot \land t.\mathit{mark} = \bot \land \forall d \in t.\mathit{deps}:\ \operatorname{isDone}(ts, d) = \mathrm{true}$$
 -/
 theorem tstate_ready_iff (ts : List Task) (t : Task) : tstate ts t = .ready ↔
-    t.evidence = none ∧ t.cut = false ∧ t.agent = none ∧ ∀ d ∈ t.deps, isDone ts d = true := by
-  have hb : blockers ts t = [] ↔ ∀ d ∈ t.deps, isDone ts d = true := by
-    simp [blockers, List.filter_eq_nil_iff]
+    t.evidence = none ∧ t.cut = false ∧ t.agent = none ∧ t.mark = none ∧
+      ∀ d ∈ t.deps, isDone ts d = true := by
+  rw [← blockers_nil_iff]
   unfold tstate
-  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> simp [hb]
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    by_cases hb : blockers ts t = [] <;> simp [hb] <;>
+    rcases Mark.state_mem ‹Mark› with h | h | h <;> simp [h]
 
 /-- **Cut means: not done and flagged cut.** (Evidence wins: a task done before it was cut stays done.)
 
@@ -337,7 +392,9 @@ $$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{cut} \iff t.\mathit
 theorem tstate_cut_iff (ts : List Task) (t : Task) :
     tstate ts t = .cut ↔ t.evidence = none ∧ t.cut = true := by
   unfold tstate
-  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> simp <;> split <;> simp
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    by_cases hb : blockers ts t = [] <;> simp [hb] <;>
+    rcases Mark.state_mem ‹Mark› with h | h | h <;> simp [h]
 
 /-- **A cut task is never ready.**
 
@@ -357,8 +414,9 @@ theorem tstate_blocked {ts : List Task} {t : Task} (h : tstate ts t = .blocked) 
   refine ⟨?_, fun _ => mem_blockers⟩
   intro hn
   unfold tstate at h
-  simp [hn] at h
-  split at h <;> (try split at h) <;> (try split at h) <;> cases h
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    simp [he, hc, ha, hm, hn] at h <;>
+    rcases Mark.state_mem ‹Mark› with h' | h' | h' <;> simp [h'] at h
 
 /-- **Done is exactly "has evidence".**
 
@@ -366,16 +424,38 @@ $$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{done} \iff t.\mathi
 -/
 theorem tstate_done_iff (ts : List Task) (t : Task) : tstate ts t = .done ↔ t.evidence ≠ none := by
   unfold tstate
-  split <;> (try split) <;> (try split) <;> (try split) <;> simp_all [Option.isSome_iff_ne_none]
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    by_cases hb : blockers ts t = [] <;> simp [hb] <;>
+    rcases Mark.state_mem ‹Mark› with h | h | h <;> simp [h]
 
-/-- **Running is exactly "claimed, not done and not cut".**
+/-- **Running is exactly "has an agent, no blockers, not done and not cut".**
 
-$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} \ne \bot$$
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) = [\,]$$
 -/
 theorem tstate_running_iff (ts : List Task) (t : Task) :
-    tstate ts t = .running ↔ t.evidence = none ∧ t.cut = false ∧ t.agent ≠ none := by
+    tstate ts t = .running ↔
+      t.evidence = none ∧ t.cut = false ∧ t.agent ≠ none ∧ blockers ts t = [] := by
   unfold tstate
-  split <;> (try split) <;> (try split) <;> (try split) <;> simp_all [Option.isSome_iff_ne_none]
+  cases he : t.evidence <;> cases hc : t.cut <;> cases ha : t.agent <;> cases hm : t.mark <;>
+    by_cases hb : blockers ts t = [] <;> simp [hb] <;>
+    rcases Mark.state_mem ‹Mark› with h | h | h <;> simp [h]
+
+/-- **A task with open blockers is never shown running** (task `task-state-truth`).
+
+$$\forall ts, t:\quad \operatorname{tstate}(ts, t) = \mathrm{running} \Rightarrow \operatorname{blockers}(ts, t) = [\,]$$
+-/
+theorem running_no_blockers {ts : List Task} {t : Task} (h : tstate ts t = .running) :
+    blockers ts t = [] := ((tstate_running_iff ts t).mp h).2.2.2
+
+/-- **An undone, uncut task that is not running shows its mark when it has one.**
+
+$$\forall ts, t, m:\quad t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land \neg\big(t.\mathit{agent} \ne \bot \land \operatorname{blockers}(ts, t) = [\,]\big) \land t.\mathit{mark} = m \Rightarrow \operatorname{tstate}(ts, t) = \operatorname{mstate}(m)$$
+-/
+theorem tstate_mark {ts : List Task} {t : Task} {m : Mark} (he : t.evidence = none)
+    (hc : t.cut = false) (hr : ¬ (t.agent ≠ none ∧ blockers ts t = [])) (hm : t.mark = some m) :
+    tstate ts t = m.state := by
+  unfold tstate
+  cases ha : t.agent <;> simp_all
 
 /-- With unique ids, rows with equal ids are equal.
 
@@ -401,8 +481,8 @@ $$\forall ts, a, b:\quad \operatorname{Nodup}(\operatorname{ids}(ts)) \land b \i
 theorem ready_indep {ts : List Task} {a b : Task} (hn : (ids ts).Nodup) (hb : b ∈ ts)
     (hra : tstate ts a = .ready) (hrb : tstate ts b = .ready) : b.id ∉ a.deps := by
   intro hd
-  obtain ⟨_, _, _, hall⟩ := (tstate_ready_iff ts a).mp hra
-  obtain ⟨hbe, _, _, _⟩ := (tstate_ready_iff ts b).mp hrb
+  obtain ⟨_, _, _, _, hall⟩ := (tstate_ready_iff ts a).mp hra
+  obtain ⟨hbe, _, _, _, _⟩ := (tstate_ready_iff ts b).mp hrb
   obtain ⟨r, hr, hid, hev⟩ := isDone_iff.mp (hall _ hd)
   rw [row_unique hn hr hb hid] at hev
   exact hev hbe
@@ -521,7 +601,7 @@ theorem exec_inv {π : State} {c : Cmd} (hi : Inv π) (hc : check π c = none) :
     simp only [exec]
     split <;> exact ⟨hn, ha⟩
   | spawn a => exact ⟨hn, ha⟩
-  | stop a => exact ⟨hn, ha⟩
+  | stop a | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact ⟨hn, ha⟩
 
 /-- The empty plan state satisfies the invariant.
 
@@ -787,7 +867,7 @@ theorem exec_isDone {π : State} {c : Cmd} {x : String} (hc : check π c = none)
   | done y e => exact isDone_setRow (fun _ _ => ⟨rfl, fun _ => by simp⟩) h
   | milestone m title => simp only [exec]; split <;> exact h
   | spawn a => exact h
-  | stop a => exact h
+  | stop a | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact h
 
 /-- **Done survives every step but one**: a define of that task without evidence, when no row of
 the task holds landed evidence.
@@ -839,7 +919,7 @@ theorem exec_isLanded {π : State} {c : Cmd} {x : String} (hc : check π c = non
   | done y e => exact viaSet _ _ fun _ => ⟨rfl, rfl, by simp⟩
   | milestone m title => simp only [exec]; split <;> exact h
   | spawn a => exact h
-  | stop a => exact h
+  | stop a | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact h
 
 /-- **A land is never undone**: landed evidence survives every step, including a define without
 evidence, so the task stays done.
@@ -971,7 +1051,7 @@ theorem step_evSrc {l : List Cmd} {π : State} (c : Cmd)
       simp only [exec]
       split <;> exact old
     | spawn a => exact old
-    | stop a => exact old
+    | stop a | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact old
   · exact old
 
 /-- **Done needs landed evidence**: in every reachable plan state, a row with evidence `e` either
@@ -1088,11 +1168,41 @@ def agentOf (s : State) (t : Task) : Option String :=
   if t.evidence.isSome then (cands s t).find? (fun a => !ended s a) <|> (cands s t).head?
   else (cands s t).find? (fun a => !ended s a)
 
-/-- The rows with their derived agents (the rows the board shows).
+/-- The last outcome mark recorded for task id `x`: the mark of the last pair of `x` in the mark
+log; none when that pair is an `unpark`, or when `x` has no pair.
 
-$$\operatorname{bound}(\pi) = [\, t[\mathit{agent} := \operatorname{agentOf}(\pi, t)] : t \in \pi.\mathit{tasks} \,]$$
+$$\operatorname{markOf}(\pi, x) = \begin{cases} m_\bot & (x, m_\bot) \text{ is the last pair } (y, \cdot) \text{ of } \pi.\mathit{marks} \text{ with } y = x \\ \bot & \text{no pair of } \pi.\mathit{marks} \text{ has task } x \end{cases}$$
 -/
-def bound (s : State) : List Task := s.tasks.map fun t => { t with agent := agentOf s t }
+def markOf (s : State) (x : String) : Option Mark :=
+  ((s.marks.filter (·.1 == x)).getLast?).bind (·.2)
+
+/-- The reason the board gives a task whose every candidate agent ended with no mark recorded.
+
+$$\operatorname{noHandback} = \texttt{"agent ended without a handback"}$$
+-/
+def noHandback : String := "agent ended without a handback"
+
+/-- **The outcome mark of a row, derived (never stored)**: its last recorded mark; failing that, a
+row that had a candidate agent (`cands`) and has no unended one (`agentOf` is none) is parked with
+reason `noHandback`; otherwise none.
+
+$$\operatorname{outcomeOf}(\pi, t) = \begin{cases} m & \operatorname{markOf}(\pi, t.\mathit{id}) = m \ne \bot \\ \mathrm{parked}(\operatorname{noHandback}) & \operatorname{markOf}(\pi, t.\mathit{id}) = \bot \land \operatorname{cands}(\pi, t) \ne [\,] \land \operatorname{agentOf}(\pi, t) = \bot \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def outcomeOf (s : State) (t : Task) : Option Mark :=
+  markOf s t.id <|>
+    (if !(cands s t).isEmpty && (agentOf s t).isNone then some (.parked noHandback) else none)
+
+/-- A row as the board shows it: with its derived agent and its derived outcome mark.
+
+$$\operatorname{bindRow}(\pi, t) = t[\mathit{agent} := \operatorname{agentOf}(\pi, t),\ \mathit{mark} := \operatorname{outcomeOf}(\pi, t)]$$
+-/
+def bindRow (s : State) (t : Task) : Task := { t with agent := agentOf s t, mark := outcomeOf s t }
+
+/-- The rows with their derived agents and outcome marks (the rows the board shows).
+
+$$\operatorname{bound}(\pi) = [\, \operatorname{bindRow}(\pi, t) : t \in \pi.\mathit{tasks} \,]$$
+-/
+def bound (s : State) : List Task := s.tasks.map (bindRow s)
 
 /-- The derived agent of task id `x`: that of the first row with id `x`; none when no row has it.
 
@@ -1108,14 +1218,26 @@ theorem agentOf_compat {π : State} (t : Task) (h1 : π.spawns = []) (h2 : π.st
     agentOf π t = t.agent := by
   cases ha : t.agent <;> simp [agentOf, cands, ended, h1, h2, ha]
 
-/-- Without spawns and stops the board rows are the stored rows.
+/-- Without spawns, stops and marks no row gets an outcome mark.
 
-$$\forall \pi:\quad \pi.\mathit{spawns} = [\,] \land \pi.\mathit{stops} = [\,] \Rightarrow \operatorname{bound}(\pi) = \pi.\mathit{tasks}$$
+$$\forall \pi, t:\quad \pi.\mathit{spawns} = [\,] \land \pi.\mathit{stops} = [\,] \land \pi.\mathit{marks} = [\,] \Rightarrow \operatorname{outcomeOf}(\pi, t) = \bot$$
 -/
-theorem bound_compat {π : State} (h1 : π.spawns = []) (h2 : π.stops = []) : bound π = π.tasks := by
+theorem outcomeOf_compat {π : State} (t : Task) (h1 : π.spawns = []) (h2 : π.stops = [])
+    (h3 : π.marks = []) : outcomeOf π t = none := by
+  have ha := agentOf_compat t h1 h2
+  cases hA : t.agent <;> simp [outcomeOf, markOf, cands, h1, h3, ha, hA]
+
+/-- Without spawns, stops and marks the board rows are the stored rows, when no stored row has a
+mark (`run_mark_none`: no reachable row has one).
+
+$$\forall \pi:\quad \pi.\mathit{spawns} = [\,] \land \pi.\mathit{stops} = [\,] \land \pi.\mathit{marks} = [\,] \land (\forall t \in \pi.\mathit{tasks}:\ t.\mathit{mark} = \bot) \Rightarrow \operatorname{bound}(\pi) = \pi.\mathit{tasks}$$
+-/
+theorem bound_compat {π : State} (h1 : π.spawns = []) (h2 : π.stops = []) (h3 : π.marks = [])
+    (h4 : ∀ t ∈ π.tasks, t.mark = none) : bound π = π.tasks := by
   unfold bound
   conv => rhs; rw [← List.map_id π.tasks]
-  exact List.map_congr_left fun t _ => by rw [agentOf_compat t h1 h2]; rfl
+  refine List.map_congr_left fun t ht => ?_
+  simp only [bindRow, agentOf_compat t h1 h2, outcomeOf_compat t h1 h2 h3, ← h4 t ht, id]
 
 /-- The derived agent reads the spawn and stop lists only through how often each name occurs.
 
@@ -1475,12 +1597,13 @@ theorem find?_filter_of {p q : Task → Bool} (h : ∀ t, p t = true → q t = t
 
 /-- The commands that keep task `x` bound to agent `a`.
 
-$$\operatorname{keeps}(x, a, c) \iff \begin{cases} d.\mathit{task} = x \Rightarrow x \notin d.\mathit{live} & c = \mathrm{define}(d) \\ y \ne x & c = \mathrm{drop}(y) \text{ or } c = \mathrm{claim}(y, \cdot) \\ \mathrm{true} & c = \mathrm{done}(\cdot, \cdot) \text{ or } c = \mathrm{milestone}(\cdot, \cdot) \\ \mathrm{false} & c = \mathrm{spawn}(\cdot) \\ b \ne a & c = \mathrm{stop}(b) \end{cases}$$
+$$\operatorname{keeps}(x, a, c) \iff \begin{cases} d.\mathit{task} = x \Rightarrow x \notin d.\mathit{live} & c = \mathrm{define}(d) \\ y \ne x & c = \mathrm{drop}(y) \text{ or } c = \mathrm{claim}(y, \cdot) \\ \mathrm{true} & c = \mathrm{done}(\cdot, \cdot) \text{ or } c = \mathrm{milestone}(\cdot, \cdot) \text{ or } \operatorname{isMark}(c) \\ \mathrm{false} & c = \mathrm{spawn}(\cdot) \\ b \ne a & c = \mathrm{stop}(b) \end{cases}$$
 -/
 def Keeps (x a : String) : Cmd → Prop
   | .define d => d.task = x → x ∉ d.live
   | .drop y | .claim y _ => y ≠ x
   | .done .. | .milestone .. => True
+  | .handback .. | .integrate .. | .park .. | .unpark _ => True
   | .spawn _ => False
   | .stop b => b ≠ a
 
@@ -1563,6 +1686,7 @@ theorem boundTo_keep {π : State} {x a : String} {c : Cmd} (h : boundTo π x = s
     | stop b =>
       simp only [exec, boundTo, ht, Option.bind_some]
       exact agentOf_stop hk hta
+    | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact h
   · exact h
 
 /-- **A spawn keeps a binding or switches it to the spawned agent** (it never unbinds).
@@ -1598,13 +1722,13 @@ theorem agentOf_done {π : State} {t : Task} (he : t.evidence ≠ none) :
     simp only [ne_eq, reduceCtorEq, not_false_eq_true, iff_true, List.head?_cons]
     cases (y :: ys).find? (fun a => !ended π a) <;> simp
 
-/-- **Running means: bound, not done, not cut** (on the board rows).
+/-- **Running means: bound, no blockers, not done, not cut** (on the board rows).
 
-$$\forall \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(\pi), t[\mathit{agent} := \operatorname{agentOf}(\pi, t)]) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land \operatorname{agentOf}(\pi, t) \ne \bot$$
+$$\forall \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(\pi), \operatorname{bindRow}(\pi, t)) = \mathrm{running} \iff t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land \operatorname{agentOf}(\pi, t) \ne \bot \land \operatorname{blockers}(\operatorname{bound}(\pi), t) = [\,]$$
 -/
 theorem bound_running_iff (π : State) (t : Task) :
-    tstate (bound π) { t with agent := agentOf π t } = .running ↔
-      t.evidence = none ∧ t.cut = false ∧ agentOf π t ≠ none :=
+    tstate (bound π) (bindRow π t) = .running ↔
+      t.evidence = none ∧ t.cut = false ∧ agentOf π t ≠ none ∧ blockers (bound π) t = [] :=
   tstate_running_iff _ _
 
 /-! ### Plan sync from main's head -/
@@ -1898,7 +2022,7 @@ theorem groups_perm (ts : List Task) : (groups ts).flatten.Perm (readyIn ts .age
 
 /-- A task as the board shows it.
 
-$$v = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{owner}, \mathit{deps}, \mathit{needs}, \mathit{lane}, \mathit{state}, \mathit{blockers}, \mathit{agent}_\bot, \mathit{evidence}_\bot)$$
+$$v = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{owner}, \mathit{deps}, \mathit{needs}, \mathit{lane}, \mathit{state}, \mathit{blockers}, \mathit{agent}_\bot, \mathit{evidence}_\bot, \mathit{outcome}_\bot)$$
 -/
 structure TaskView where
   id        : String
@@ -1913,6 +2037,7 @@ structure TaskView where
   blockers  : List String
   agent     : Option String
   evidence  : Option String
+  outcome   : Option Mark
 deriving Repr, DecidableEq
 
 /-- A milestone as the board shows it: its done and total task counts.
@@ -1939,13 +2064,13 @@ deriving Repr, DecidableEq
 
 /-- The board view of one task.
 
-$$\operatorname{taskView}(ts, t) = (t.\mathit{id}, t.\mathit{title}, t.\mathit{stream}, t.\mathit{milestone}, t.\mathit{owner}, t.\mathit{deps}, t.\mathit{needs}, \operatorname{lane}(t), \operatorname{tstate}(ts, t), \operatorname{blockers}(ts, t), t.\mathit{agent}, t.\mathit{evidence})$$
+$$\operatorname{taskView}(ts, t) = (t.\mathit{id}, t.\mathit{title}, t.\mathit{stream}, t.\mathit{milestone}, t.\mathit{owner}, t.\mathit{deps}, t.\mathit{needs}, \operatorname{lane}(t), \operatorname{tstate}(ts, t), \operatorname{blockers}(ts, t), t.\mathit{agent}, t.\mathit{evidence}, t.\mathit{mark})$$
 -/
 def taskView (ts : List Task) (t : Task) : TaskView :=
   { id := t.id, title := t.title, stream := t.stream, milestone := t.milestone, owner := t.owner,
     deps := t.deps, needs := t.needs, lane := lane t, state := tstate ts t,
     blockers := blockers ts t, agent := t.agent,
-    evidence := t.evidence }
+    evidence := t.evidence, outcome := t.mark }
 
 /-- The rows that are not cut, in row order.
 
@@ -1977,34 +2102,287 @@ $$\operatorname{view}(\pi) = \operatorname{viewWith}(\pi, \operatorname{bound}(\
 -/
 def view (s : State) : View := viewWith s (bound s)
 
-/-- **Old logs give the old board**: without spawns and stops the board is the one built from the
-stored rows (the board before agent binding was derived).
+/-! ## Task outcomes (task `task-state-truth`)
 
-$$\forall \pi:\quad \pi.\mathit{spawns} = [\,] \land \pi.\mathit{stops} = [\,] \Rightarrow \operatorname{view}(\pi) = \operatorname{viewWith}(\pi, \pi.\mathit{tasks})$$
+Why the board showed `running` for tasks whose agents had long ended: `agent.stop` was the only end
+signal, and none arrived (the hook records were dropped), so `agentOf` kept every claim bound. Even
+with stops, a task whose agent ended went back to `ready` or `blocked`, which hid where its work went.
+The outcome commands record that; the theorems below say what the board may then show.
 -/
-theorem view_compat {π : State} (h1 : π.spawns = []) (h2 : π.stops = []) :
-    view π = viewWith π π.tasks := by
-  simp only [view, bound_compat h1 h2]
 
-/-- **A log without spawn and stop commands gives the old board.**
+/-- The task a mark command names (`handback`, `integrate`, `park`, `unpark`); none for the others.
 
-$$\forall cs:\quad (\forall c \in cs:\ \operatorname{isLife}(c) = \mathrm{false}) \Rightarrow \operatorname{view}(\operatorname{run}(cs)) = \operatorname{viewWith}(\operatorname{run}(cs), \operatorname{run}(cs).\mathit{tasks})$$
+$$\operatorname{markTask}(c) = \begin{cases} x & c \in \{\mathrm{handback}(x, \cdot, \cdot), \mathrm{integrate}(x, \cdot, \cdot), \mathrm{park}(x, \cdot), \mathrm{unpark}(x)\} \\ \bot & \text{otherwise} \end{cases}$$
 -/
-theorem run_compat {cs : List Cmd} (h : ∀ c ∈ cs, c.isLife = false) :
+def Cmd.markTask : Cmd → Option String
+  | .handback x .. | .integrate x .. | .park x _ | .unpark x => some x
+  | _ => none
+
+/-- A mark command: one that names a task through `markTask`.
+
+$$\operatorname{isMark}(c) = \mathrm{true} \iff \operatorname{markTask}(c) \ne \bot$$
+-/
+def Cmd.isMark (c : Cmd) : Bool := c.markTask.isSome
+
+/-- A command that is not a mark command leaves the mark log unchanged.
+
+$$\forall \pi, c:\quad \operatorname{isMark}(c) = \mathrm{false} \Rightarrow \operatorname{exec}(\pi, c).\mathit{marks} = \pi.\mathit{marks}$$
+-/
+theorem exec_marks_keep (π : State) {c : Cmd} (h : c.isMark = false) :
+    (exec π c).marks = π.marks := by
+  cases c <;> simp_all [Cmd.isMark, Cmd.markTask, exec] <;> split <;> rfl
+
+/-- A step of a command that is not a mark command leaves the mark log unchanged.
+
+$$\forall \pi, c:\quad \operatorname{isMark}(c) = \mathrm{false} \Rightarrow \operatorname{step}(\pi, c).\mathit{marks} = \pi.\mathit{marks}$$
+-/
+theorem step_marks_keep (π : State) {c : Cmd} (h : c.isMark = false) :
+    (step π c).marks = π.marks := by
+  unfold step; split
+  · exact exec_marks_keep π h
+  · rfl
+
+/-- A fold of commands none of which is a mark command leaves the mark log unchanged.
+
+$$\forall cs, \pi:\quad (\forall c \in cs:\ \operatorname{isMark}(c) = \mathrm{false}) \Rightarrow \operatorname{foldl}(\operatorname{step}, \pi, cs).\mathit{marks} = \pi.\mathit{marks}$$
+-/
+theorem foldl_marks_keep : ∀ (cs : List Cmd) (π : State), (∀ c ∈ cs, c.isMark = false) →
+    (cs.foldl step π).marks = π.marks
+  | [], _, _ => rfl
+  | c :: cs, π, h => by
+    rw [List.foldl_cons, foldl_marks_keep cs _ (fun x hx => h x (List.mem_cons_of_mem _ hx)),
+      step_marks_keep π (h c List.mem_cons_self)]
+
+/-- A mark command changes neither the rows nor the spawn and stop lists.
+
+$$\forall \pi, c:\quad \operatorname{isMark}(c) = \mathrm{true} \Rightarrow \operatorname{step}(\pi, c).\mathit{tasks} = \pi.\mathit{tasks} \land \operatorname{step}(\pi, c).\mathit{spawns} = \pi.\mathit{spawns} \land \operatorname{step}(\pi, c).\mathit{stops} = \pi.\mathit{stops}$$
+-/
+theorem step_mark_frame (π : State) {c : Cmd} (h : c.isMark = true) :
+    (step π c).tasks = π.tasks ∧ (step π c).spawns = π.spawns ∧ (step π c).stops = π.stops := by
+  unfold step; split
+  · cases c <;> simp_all [Cmd.isMark, Cmd.markTask, exec]
+  · exact ⟨rfl, rfl, rfl⟩
+
+/-- `setRow` keeps rows without a mark when `f` does.
+
+$$\forall ts, x, f:\quad (\forall u \in ts:\ u.\mathit{mark} = \bot \Rightarrow f(u).\mathit{mark} = \bot) \land (\forall t \in ts:\ t.\mathit{mark} = \bot) \Rightarrow \forall t \in \operatorname{setRow}(ts, x, f):\ t.\mathit{mark} = \bot$$
+-/
+theorem setRow_mark_none {ts : List Task} {x : String} {f : Task → Task}
+    (hf : ∀ u ∈ ts, u.mark = none → (f u).mark = none) (h : ∀ t ∈ ts, t.mark = none) :
+    ∀ t ∈ setRow ts x f, t.mark = none := by
+  intro t ht
+  simp only [setRow, List.mem_map] at ht
+  obtain ⟨u, hu, rfl⟩ := ht
+  split
+  · exact hf u hu (h u hu)
+  · exact h u hu
+
+/-- An accepted or refused command keeps "no stored row has a mark".
+
+$$\forall \pi, c:\quad (\forall t \in \pi.\mathit{tasks}:\ t.\mathit{mark} = \bot) \Rightarrow \forall t \in \operatorname{step}(\pi, c).\mathit{tasks}:\ t.\mathit{mark} = \bot$$
+-/
+theorem step_mark_none (π : State) (c : Cmd) (h : ∀ t ∈ π.tasks, t.mark = none) :
+    ∀ t ∈ (step π c).tasks, t.mark = none := by
+  unfold step; split
+  · cases c with
+    | define d =>
+      simp only [exec, upsert]
+      split
+      · exact setRow_mark_none (fun _ _ _ => rfl) h
+      · intro t ht
+        rcases List.mem_append.mp ht with ht | ht
+        · exact h t ht
+        · rw [List.mem_singleton] at ht; subst ht; rfl
+    | drop x => intro t ht; simp only [exec, List.mem_filter] at ht; exact h t ht.1
+    | claim x a => exact setRow_mark_none (fun _ _ hu => hu) h
+    | done x e => exact setRow_mark_none (fun _ _ hu => hu) h
+    | milestone m ti => simp only [exec]; split <;> exact h
+    | spawn _ | stop _ | handback _ _ _ | integrate _ _ _ | park _ _ | unpark _ => exact h
+  · exact h
+
+/-- **No reachable stored row has a mark** (marks live only on the board rows, `bindRow`).
+
+$$\forall cs:\quad \forall t \in \operatorname{run}(cs).\mathit{tasks}:\ t.\mathit{mark} = \bot$$
+-/
+theorem run_mark_none (cs : List Cmd) : ∀ t ∈ (run cs).tasks, t.mark = none := by
+  suffices ∀ (cs : List Cmd) (π : State), (∀ t ∈ π.tasks, t.mark = none) →
+      ∀ t ∈ (cs.foldl step π).tasks, t.mark = none from this cs {} (fun _ h => by cases h)
+  intro cs
+  induction cs with
+  | nil => intro π h; exact h
+  | cons c cs ih => intro π h; exact ih _ (step_mark_none π c h)
+
+/-- **Frame: a mark command changes the mark of its own task only.**
+
+$$\forall \pi, c, x:\quad \operatorname{markTask}(c) \ne x \Rightarrow \operatorname{markOf}(\operatorname{step}(\pi, c), x) = \operatorname{markOf}(\pi, x)$$
+-/
+theorem markOf_step_other {π : State} {c : Cmd} {x : String} (h : c.markTask ≠ some x) :
+    markOf (step π c) x = markOf π x := by
+  unfold step; split
+  · cases c <;> simp_all [Cmd.markTask, exec, markOf, List.filter_append] <;> split <;> rfl
+  · rfl
+
+/-- **An accepted mark command sets the mark of its task** (the last one wins; `unpark` clears it).
+
+$$\forall \pi, c, x:\quad \operatorname{markTask}(c) = x \land \operatorname{check}(\pi, c) = \bot \Rightarrow \operatorname{markOf}(\operatorname{step}(\pi, c), x) = \begin{cases} \mathrm{handedBack}(a, p) & c = \mathrm{handback}(x, a, p) \\ \mathrm{integrated}(b, p) & c = \mathrm{integrate}(x, b, p) \\ \mathrm{parked}(r) & c = \mathrm{park}(x, r) \\ \bot & c = \mathrm{unpark}(x) \end{cases}$$
+-/
+theorem markOf_step_self {π : State} {c : Cmd} {x : String} (h : c.markTask = some x)
+    (hc : check π c = none) :
+    markOf (step π c) x = match c with
+      | .handback _ a p => some (.handedBack a p)
+      | .integrate _ b p => some (.integrated b p)
+      | .park _ r => some (.parked r)
+      | _ => none := by
+  simp only [step, hc, ↓reduceIte]
+  cases c <;> simp only [Cmd.markTask, reduceCtorEq, Option.some.injEq] at h <;> subst h <;>
+    simp [exec, markOf, List.filter_append]
+
+/-- **Frame: a mark command of another task leaves a row's board form unchanged.**
+
+$$\forall \pi, c, t:\quad \operatorname{isMark}(c) = \mathrm{true} \land \operatorname{markTask}(c) \ne t.\mathit{id} \Rightarrow \operatorname{bindRow}(\operatorname{step}(\pi, c), t) = \operatorname{bindRow}(\pi, t)$$
+-/
+theorem bindRow_step_other {π : State} {c : Cmd} {t : Task} (hm : c.isMark = true)
+    (h : c.markTask ≠ some t.id) : bindRow (step π c) t = bindRow π t := by
+  obtain ⟨_, hs, hp⟩ := step_mark_frame π hm
+  have ha : agentOf (step π c) = agentOf π := agentOf_congr (by simp [hs]) (by simp [hp])
+  have hc : cands (step π c) t = cands π t := by simp only [cands, hs]
+  simp only [bindRow, outcomeOf, ha, hc, markOf_step_other h]
+
+/-- **Running means a live agent**: on the board, a running task's agent is one of its candidates
+(its claim, or an agent named like it) that has not ended: never stopped, or spawned more often than
+stopped (so its last spawn has no matching stop).
+
+$$\forall \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(\pi), \operatorname{bindRow}(\pi, t)) = \mathrm{running} \Rightarrow \exists a:\ \operatorname{agentOf}(\pi, t) = a \land a \in \operatorname{cands}(\pi, t) \land \big(\#_a(\pi.\mathit{stops}) = 0 \lor \#_a(\pi.\mathit{stops}) < \#_a(\pi.\mathit{spawns})\big)$$
+-/
+theorem bound_running_live {π : State} {t : Task} (h : tstate (bound π) (bindRow π t) = .running) :
+    ∃ a, agentOf π t = some a ∧ a ∈ cands π t ∧
+      (π.stops.count a = 0 ∨ π.stops.count a < π.spawns.count a) := by
+  obtain ⟨he, _, ha, _⟩ := (bound_running_iff π t).mp h
+  obtain ⟨a, hA⟩ := Option.ne_none_iff_exists'.mp ha
+  have hf : (cands π t).find? (fun a => !ended π a) = some a := by
+    simpa [agentOf, he] using hA
+  refine ⟨a, hA, List.mem_of_find?_eq_some hf, ?_⟩
+  have := List.find?_some hf
+  simp only [ended, Bool.not_eq_true', Bool.and_eq_false_iff, decide_eq_false_iff_not] at this
+  omega
+
+/-- **The board never shows a task with open blockers as running.**
+
+$$\forall \pi, v:\quad v \in \operatorname{view}(\pi).\mathit{tasks} \land v.\mathit{state} = \mathrm{running} \Rightarrow v.\mathit{blockers} = [\,]$$
+-/
+theorem view_running_no_blockers {π : State} {v : TaskView} (hv : v ∈ (view π).tasks)
+    (h : v.state = .running) : v.blockers = [] := by
+  simp only [view, viewWith, List.mem_map] at hv
+  obtain ⟨t, _, rfl⟩ := hv
+  exact running_no_blockers h
+
+/-- **Done on the board needs landed evidence**: a board task shown done has evidence $e$, and its
+stored row got $e$ from a land event of the task or from an on-main define of it in the log
+(`done_needs_landed_evidence`).
+
+$$\forall L, v:\quad v \in \operatorname{view}(\operatorname{run}(L)).\mathit{tasks} \land v.\mathit{state} = \mathrm{done} \Rightarrow \exists t \in \operatorname{run}(L).\mathit{tasks}, \exists e:\ v.\mathit{evidence} = e \land v.\mathit{id} = t.\mathit{id} \land \operatorname{src}(L, t, e)$$
+-/
+theorem view_done_landed (l : List Cmd) {v : TaskView} (hv : v ∈ (view (run l)).tasks)
+    (h : v.state = .done) :
+    ∃ t ∈ (run l).tasks, ∃ e, v.evidence = some e ∧ v.id = t.id ∧ EvSrc l t e := by
+  simp only [view, viewWith, bound, List.map_map, List.mem_map, Function.comp] at hv
+  obtain ⟨t, ht, rfl⟩ := hv
+  have hne : t.evidence ≠ none := (tstate_done_iff _ (bindRow (run l) t)).mp h
+  obtain ⟨e, he⟩ := Option.ne_none_iff_exists'.mp hne
+  exact ⟨t, ht, e, he, rfl, done_needs_landed_evidence l ht he⟩
+
+/-- **An undone, uncut task whose candidate agents all ended shows its last mark, or parked**:
+with no mark recorded, parked with reason `noHandback`.
+
+$$\forall ts, \pi, t:\quad t.\mathit{evidence} = \bot \land t.\mathit{cut} = \mathrm{false} \land \operatorname{cands}(\pi, t) \ne [\,] \land (\forall a \in \operatorname{cands}(\pi, t):\ \operatorname{ended}(\pi, a)) \Rightarrow \operatorname{tstate}(ts, \operatorname{bindRow}(\pi, t)) = \begin{cases} \operatorname{mstate}(m) & \operatorname{markOf}(\pi, t.\mathit{id}) = m \ne \bot \\ \mathrm{parked} & \operatorname{markOf}(\pi, t.\mathit{id}) = \bot \end{cases}$$
+-/
+theorem ended_state (ts : List Task) {π : State} {t : Task} (hev : t.evidence = none)
+    (hc : t.cut = false) (hn : cands π t ≠ []) (he : ∀ a ∈ cands π t, ended π a = true) :
+    tstate ts (bindRow π t) = ((markOf π t.id).getD (.parked noHandback)).state := by
+  have hA : agentOf π t = none := by
+    simp only [agentOf, hev, Option.isSome_none, Bool.false_eq_true, ↓reduceIte,
+      List.find?_eq_none]
+    intro a ha; simp [he a ha]
+  have hne : (cands π t).isEmpty = false := by
+    cases hc' : cands π t
+    · exact absurd hc' hn
+    · rfl
+  have ho : outcomeOf π t = some ((markOf π t.id).getD (.parked noHandback)) := by
+    cases hk : markOf π t.id <;> simp [outcomeOf, hk, hA, hne]
+  exact tstate_mark (by simp [bindRow, hev]) (by simp [bindRow, hc]) (by simp [bindRow, hA])
+    (by simp [bindRow, ho])
+
+/-- **Every claimed task whose agents all ended is done, handed back, integrated or parked** (exactly
+one, since the state is one value): never running, ready or blocked, so it does not invite a respawn.
+A candidate is the claim or an agent named like the task (`cands`).
+
+$$\forall ts, \pi, t:\quad t.\mathit{cut} = \mathrm{false} \land \operatorname{cands}(\pi, t) \ne [\,] \land (\forall a \in \operatorname{cands}(\pi, t):\ \operatorname{ended}(\pi, a)) \Rightarrow \operatorname{tstate}(ts, \operatorname{bindRow}(\pi, t)) \in \{\mathrm{done}, \mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\}$$
+-/
+theorem ended_outcome (ts : List Task) {π : State} {t : Task} (hc : t.cut = false)
+    (hn : cands π t ≠ []) (he : ∀ a ∈ cands π t, ended π a = true) :
+    tstate ts (bindRow π t) = .done ∨ tstate ts (bindRow π t) = .handedBack ∨
+      tstate ts (bindRow π t) = .integrated ∨ tstate ts (bindRow π t) = .parked := by
+  cases hev : t.evidence with
+  | some e => exact .inl ((tstate_done_iff _ _).mpr (by simp [bindRow, hev]))
+  | none =>
+    rw [ended_state ts hev hc hn he]
+    exact .inr (Mark.state_mem _)
+
+/-- **Determinism**: the board is a function of the log (the same events give the same states).
+With `view_perm`: only the order of the non-spawn/stop commands matters.
+
+$$\forall L_1, L_2:\quad L_1 = L_2 \Rightarrow \operatorname{view}(\operatorname{run}(L_1)) = \operatorname{view}(\operatorname{run}(L_2))$$
+-/
+theorem view_det {l₁ l₂ : List Cmd} (h : l₁ = l₂) : view (run l₁) = view (run l₂) := h ▸ rfl
+
+/-- **Integration into main is refused**: work reaches main only by landing (`task.done`, which
+needs on-main evidence), never by an integrate mark.
+
+$$\forall \pi, x, p:\quad \operatorname{check}(\pi, \mathrm{integrate}(x, \texttt{"main"}, p)) \ne \bot$$
+-/
+theorem integrate_main_refused (π : State) (x p : String) : check π (.integrate x "main" p) ≠ none := by
+  simp only [check]
+  split
+  · simp
+  · split <;> simp
+
+/-- **A refused command changes nothing** (for a mark command: no mark is recorded, the board is unchanged).
+
+$$\forall \pi, c:\quad \operatorname{check}(\pi, c) \ne \bot \Rightarrow \operatorname{step}(\pi, c) = \pi$$
+-/
+theorem step_refused {π : State} {c : Cmd} (h : check π c ≠ none) : step π c = π := by
+  obtain ⟨e, he⟩ := Option.ne_none_iff_exists'.mp h
+  simp [step, he]
+
+/-- **Old logs give the old board**: without spawns, stops and marks (and no stored row with a
+mark) the board is the one built from the stored rows (the board before agent binding was derived).
+
+$$\forall \pi:\quad \pi.\mathit{spawns} = [\,] \land \pi.\mathit{stops} = [\,] \land \pi.\mathit{marks} = [\,] \land (\forall t \in \pi.\mathit{tasks}:\ t.\mathit{mark} = \bot) \Rightarrow \operatorname{view}(\pi) = \operatorname{viewWith}(\pi, \pi.\mathit{tasks})$$
+-/
+theorem view_compat {π : State} (h1 : π.spawns = []) (h2 : π.stops = []) (h3 : π.marks = [])
+    (h4 : ∀ t ∈ π.tasks, t.mark = none) : view π = viewWith π π.tasks := by
+  simp only [view, bound_compat h1 h2 h3 h4]
+
+/-- **A log without spawn, stop and mark commands gives the old board.**
+
+$$\forall cs:\quad (\forall c \in cs:\ \operatorname{isLife}(c) = \mathrm{false} \land \operatorname{isMark}(c) = \mathrm{false}) \Rightarrow \operatorname{view}(\operatorname{run}(cs)) = \operatorname{viewWith}(\operatorname{run}(cs), \operatorname{run}(cs).\mathit{tasks})$$
+-/
+theorem run_compat {cs : List Cmd} (h : ∀ c ∈ cs, c.isLife = false ∧ c.isMark = false) :
     view (run cs) = viewWith (run cs) (run cs).tasks := by
   have hs : (run cs).spawns = [] := by
     rw [run_split]
     simp only [List.filterMap_eq_nil_iff]
     intro c hc
-    have := h c hc
+    have := (h c hc).1
     cases c <;> simp_all [Cmd.isLife, Cmd.spawnOf]
   have ht : (run cs).stops = [] := by
     rw [run_split]
     simp only [List.filterMap_eq_nil_iff]
     intro c hc
-    have := h c hc
+    have := (h c hc).1
     cases c <;> simp_all [Cmd.isLife, Cmd.stopOf]
-  exact view_compat hs ht
+  have hm : (run cs).marks = [] := foldl_marks_keep cs {} (fun c hc => (h c hc).2)
+  exact view_compat hs ht hm (run_mark_none cs)
 
 /-- **The board depends on the spawn/stop commands only as multisets**: two logs whose other
 commands agree in order and whose spawn and stop names are permutations of each other give the same
@@ -2024,7 +2402,12 @@ theorem view_perm {cs₁ cs₂ : List Cmd} (h : cs₁.filter (!·.isLife) = cs�
     · intro a; rw [run_split, run_split cs₂]; exact hp.count_eq a
   have ht : (run cs₁).tasks = (run cs₂).tasks := by rw [run_split, run_split cs₂, h]
   have hm : (run cs₁).milestones = (run cs₂).milestones := by rw [run_split, run_split cs₂, h]
-  simp only [view, viewWith, bound, ha, ht, hm]
+  have hk : (run cs₁).marks = (run cs₂).marks := by rw [run_split, run_split cs₂, h]
+  have hc : cands (run cs₁) = cands (run cs₂) := by
+    funext t; simp only [cands]; rw [run_split, run_split cs₂, hs.count_eq]
+  have hb : bindRow (run cs₁) = bindRow (run cs₂) := by
+    funext t; simp only [bindRow, outcomeOf, markOf, ha, hk, hc]
+  simp only [view, viewWith, bound, hb, ht, hm]
 
 /-- A milestone never has more done tasks than tasks.
 
@@ -2135,9 +2518,10 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
 #guard let s := run [.spawn "obs-next-lean", .define (mk "obs-next-lean" [])]
   boundTo s "obs-next-lean" == some "obs-next-lean" &&
   (view s).tasks.map (·.state) == [.running]
--- stop before define: the agent ended before its task existed, so the task is ready, unbound
+-- stop before define: the agent ended before its task existed and left no handback, so the task
+-- is parked (reason `noHandback`), unbound (task `task-state-truth`; it was ready before)
 #guard let s := run [.spawn "a", .stop "a", .define (mk "a" [])]
-  boundTo s "a" == none && (view s).tasks.map (·.state) == [.ready]
+  boundTo s "a" == none && (view s).tasks.map (·.state) == [.parked]
 -- a stop unbinds an undone task; a respawn under the same name binds it again
 #guard let s := run [.define (mk "a" []), .spawn "a", .stop "a"]
   boundTo s "a" == none && ended s "a"
@@ -2191,5 +2575,47 @@ def mk (x : String) (deps : List String) (writes : List String := []) : Def :=
 #guard let s := run [.define { mk "a" [] with evidence := some "abc1234" }]
   isDone s.tasks "a" && !isLanded s.tasks "a"
 #guard !isLanded [] "a"
+
+-- outcomes (task `task-state-truth`): a live agent wins over a mark; once it ends the mark shows
+#guard let s := run [.define (mk "a" []), .spawn "a", .handback "a" "a" (some "abc1234")]
+  (view s).tasks.map (·.state) == [.running]
+#guard let s := run [.define (mk "a" []), .spawn "a", .handback "a" "a" (some "abc1234"), .stop "a"]
+  (view s).tasks.map (·.state) == [.handedBack] &&
+  (view s).tasks.map (·.outcome) == [some (.handedBack "a" (some "abc1234"))]
+#guard let s := run [.define (mk "a" []), .spawn "a", .stop "a", .integrate "a" "ci/i-3" "b00ef68"]
+  (view s).tasks.map (·.state) == [.integrated]
+#guard let s := run [.define (mk "a" []), .spawn "a", .stop "a", .park "a" "folded"]
+  (view s).tasks.map (·.state) == [.parked] &&
+  (view s).tasks.map (·.outcome) == [some (.parked "folded")]
+-- the last mark wins; unpark clears it, and the ended agent then shows parked (no handback)
+#guard let s := run [.define (mk "a" []), .park "a" "x", .integrate "a" "ci/i" "t1"]
+  (view s).tasks.map (·.state) == [.integrated]
+#guard let s := run [.define (mk "a" []), .park "a" "x", .unpark "a"]
+  (view s).tasks.map (·.state) == [.ready] && markOf s "a" == none
+#guard let s := run [.define (mk "a" []), .spawn "a", .stop "a", .park "a" "x", .unpark "a"]
+  (view s).tasks.map (·.outcome) == [some (.parked noHandback)]
+-- an ended agent with no mark: parked with reason noHandback; a respawn shows running again
+#guard let s := run [.define (mk "a" []), .spawn "a", .stop "a"]
+  (view s).tasks.map (·.state) == [.parked] &&
+  s.tasks.map (outcomeOf s) == [some (.parked noHandback)]
+#guard let s := run [.define (mk "a" []), .spawn "a", .stop "a", .spawn "a"]
+  (view s).tasks.map (·.state) == [.running]
+-- done wins over every mark
+#guard let s := run [.define (mk "a" []), .park "a" "x", .done "a" "abc1234"]
+  (view s).tasks.map (·.state) == [.done]
+-- a live agent on a task with open blockers: the board shows blocked, not running
+#guard let s := run [.define (mk "b" []), .define (mk "a" ["b"]), .spawn "a"]
+  (view s).tasks.map (·.state) == [.ready, .blocked] && boundTo s "a" == some "a"
+-- ... or its mark, when it has one
+#guard let s := run [.define (mk "b" []), .define (mk "a" ["b"]), .spawn "a", .integrate "a" "ci/i" "t"]
+  (view s).tasks.map (·.state) == [.ready, .integrated]
+-- refusals: unknown task, done task, integration into main
+#guard check {} (.park "a" "x") == some "no such task"
+#guard check (run [.define (mk "a" []), .done "a" "abc1234"]) (.handback "a" "a" none) ==
+  some "task already done"
+#guard check (run [.define (mk "a" [])]) (.integrate "a" "main" "t") ==
+  some "main is not an integration branch: land with task.done"
+#guard check (run [.define (mk "a" [])]) (.unpark "a") == none
+#guard markOf (run [.define (mk "a" []), .park "a" "x"]) "b" == none
 
 end Fw.Plan

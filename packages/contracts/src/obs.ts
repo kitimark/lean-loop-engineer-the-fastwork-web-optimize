@@ -25,6 +25,10 @@ export const ObsRecord = z.object({
   /** Notification only (alert-steps): the notification type and the message length; never the message text */
   notification_type: z.string().max(40).nullable().optional(),
   message_len: z.number().int().nonnegative().nullable().optional(),
+  /** Stop / SubagentStop (SPK-p part 3): the count of the agent's still-running background tasks, never their text.
+   *  Missing from this schema until task-state-truth, so `.strict()` dropped every SubagentStop record and no
+   *  agent.stop ever reached the plan (0 of 765 events). A count > 0 means the turn ended, not the agent. */
+  background_tasks: z.number().int().nonnegative().nullable().optional(),
   ts: z.number().int().nonnegative(),
 }).strict();
 export type ObsRecord = z.infer<typeof ObsRecord>;

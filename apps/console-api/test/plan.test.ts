@@ -126,18 +126,57 @@ describe("automation", () => {
     });
   }
 
-  it("a stopped agent releases its undone task (the stop's name comes from the health line); a stop before the define too", async () => {
+  it("a stopped agent releases its undone task, which shows parked (no handback); the stop's name comes from the health line; a stop before the define too", async () => {
     const { dir, store } = await open();
     mkdirSync(join(dir, "spool"));
     health(dir, [["id-a", "a"], ["id-c", "c"]]);
     appendFileSync(join(dir, "spool", "s.jsonl"), spawnRec("a", "u1") + spawnRec("c", "u2") + stopRec("id-c") + stopRec("id-unknown"));
     await new Drain(store).run();
     for (const c of syncCommands(mini())) await store.submit(c);
-    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "ready", null]]);
+    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "parked", null]]);
     expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([{ actor: "hook", agent: "c", key: "stop:id-c" }]);
     appendFileSync(join(dir, "spool", "s.jsonl"), stopRec("id-a"));
     await new Drain(store).run();
-    expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "ready", null]]);
+    expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "parked", null]]);
+    expect((await planOf(store)).tasks[0]!.outcome).toEqual({ kind: "parked", reason: "agent ended without a handback" });
+  });
+
+  // task-state-truth: the hook adds background_tasks to SubagentStop; ObsRecord lacked it, so .strict() dropped every
+  // stop record silently (0 agent.stop among 765 events) and the board kept ended agents running
+  it("a SubagentStop with background_tasks is accepted; a count > 0 ends a turn, not the agent; a rejected line is logged", async () => {
+    const { dir, store } = await open();
+    mkdirSync(join(dir, "spool"));
+    for (const c of syncCommands(mini())) await store.submit(c);
+    health(dir, [["id-a", "a"], ["id-c", "c"]]);
+    health(dir, [["id-a", "a"]]); // c is gone from the newest snapshot: its name comes from an older line
+    const bg = (agentId: string, n: number) => stopRec(agentId).replace(`"ts":9`, `"background_tasks":${n},"ts":9`);
+    appendFileSync(join(dir, "spool", "s.jsonl"), spawnRec("a", "u1") + spawnRec("c", "u2") + bg("id-a", 2) + bg("id-c", 0) + "{\"nope\":1}\n");
+    const res = await new Drain(store).run();
+    expect(res.invalid).toBe(1);
+    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "parked", null]]);
+    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([{ agent: "c", key: "stop:id-c" }]);
+    const rej = readFileSync(join(dir, "spool-rejects.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(rej).toHaveLength(1);
+    expect(rej[0].why).toContain("hook_event_name:invalid_type");
+  });
+
+  it("outcome marks: handback, integrate, park and unpark show distinct states; integrate into main is refused", async () => {
+    const { store } = await open();
+    for (const c of syncCommands(mini())) await store.submit(c);
+    const send = (c: object) => store.submit(c as never);
+    await send({ type: "agent.spawn", key: "s:c", actor: "hook", agent: "c" });
+    await send({ type: "task.handback", key: "h:c", actor: "hook", task: "c", agent: "c", tip: "abc1234" });
+    expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "running", "c"]]);
+    await send({ type: "agent.stop", key: "x:c", actor: "hook", agent: "c" });
+    await send({ type: "task.park", key: "p:a", actor: "lead", task: "a", reason: "waiting on the user" });
+    expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "handedBack", null]]);
+    expect(await send({ type: "task.integrate", key: "i:m", actor: "lead", task: "c", branch: "main", tip: "abc1234" }))
+      .toMatchObject({ ok: false, reason: "main is not an integration branch: land with task.done" });
+    expect(await send({ type: "task.integrate", key: "i:h", actor: "hook", task: "c", branch: "ci/i", tip: "abc1234" })).toMatchObject({ ok: false });
+    await send({ type: "task.integrate", key: "i:c", actor: "lead", task: "c", branch: "ci/integrate-1", tip: "abc1234" });
+    await send({ type: "task.unpark", key: "u:a", actor: "user", task: "a" });
+    expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "integrated", null]]);
+    expect((await planOf(store)).tasks[2]!.outcome).toEqual({ kind: "integrated", branch: "ci/integrate-1", tip: "abc1234" });
   });
 
   it("an old log (legacy `live` on task.define, task.claim, no agent.spawn) replays to the board it gave before", async () => {

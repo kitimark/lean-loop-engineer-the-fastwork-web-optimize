@@ -1527,6 +1527,218 @@
             "agent"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "task.handback"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "actor": {
+              "type": "string",
+              "enum": [
+                "user",
+                "lead",
+                "owner",
+                "reviewer",
+                "script",
+                "git",
+                "hook"
+              ]
+            },
+            "task": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "agent": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "tip": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "ts",
+            "type",
+            "key",
+            "actor",
+            "task",
+            "agent"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "task.integrate"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "actor": {
+              "type": "string",
+              "enum": [
+                "user",
+                "lead",
+                "owner",
+                "reviewer",
+                "script",
+                "git",
+                "hook"
+              ]
+            },
+            "task": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "branch": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "tip": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          "required": [
+            "ts",
+            "type",
+            "key",
+            "actor",
+            "task",
+            "branch",
+            "tip"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "task.park"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "actor": {
+              "type": "string",
+              "enum": [
+                "user",
+                "lead",
+                "owner",
+                "reviewer",
+                "script",
+                "git",
+                "hook"
+              ]
+            },
+            "task": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "ts",
+            "type",
+            "key",
+            "actor",
+            "task",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "type": {
+              "type": "string",
+              "const": "task.unpark"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "actor": {
+              "type": "string",
+              "enum": [
+                "user",
+                "lead",
+                "owner",
+                "reviewer",
+                "script",
+                "git",
+                "hook"
+              ]
+            },
+            "task": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          "required": [
+            "ts",
+            "type",
+            "key",
+            "actor",
+            "task"
+          ],
+          "additionalProperties": false
         }
       ]
     }

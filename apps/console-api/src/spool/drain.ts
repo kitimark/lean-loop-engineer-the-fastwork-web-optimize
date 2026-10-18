@@ -133,9 +133,21 @@ export class Drain {
     }
   }
 
+  /** Append why a spool line was refused to spool-rejects.jsonl: the zod issue paths and codes, never the payload. */
+  private reject(e: unknown): void {
+    const issues = (e as { issues?: { path: (string | number)[]; code: string }[] }).issues;
+    const why = issues ? issues.map((i) => `${i.path.join(".") || "(root)"}:${i.code}`) : ["json"];
+    try {
+      const fd = openSync(join(dirname(this.obsPath), "spool-rejects.jsonl"), "a");
+      try { writeSync(fd, JSON.stringify({ ts: Date.now(), why }) + "\n"); } finally { closeSync(fd); }
+    } catch { /* logging never blocks the drain */ }
+  }
+
   private async handle(raw: string, res: DrainResult): Promise<"done" | "retry"> {
     let rec: ObsRecord;
-    try { rec = ObsRecord.parse(JSON.parse(raw)); } catch { res.invalid++; return "done"; } // retrying cannot fix it
+    // retrying cannot fix a bad record; it is counted AND logged (task task-state-truth: a schema gap dropped every
+    // SubagentStop record silently, so no agent.stop ever reached the plan)
+    try { rec = ObsRecord.parse(JSON.parse(raw)); } catch (e) { res.invalid++; this.reject(e); return "done"; }
     // the key joins agent, event and tool_use_id, the same fields a transcript reconciler sees (Lean `ops.obs`)
     const key = await obsKey(this.store.core, rec);
     if (key === null) { res.invalid++; return "done"; }
@@ -146,7 +158,8 @@ export class Drain {
     if (rec.hook_event_name === "SpawnGuard" && rec.agent_name && rec.agent_name.length <= 120) {
       await this.store.submit({ type: "agent.spawn", key: `spawn:${key}`, actor: "hook", agent: rec.agent_name });
     }
-    if (rec.hook_event_name === "SubagentStop" && rec.agent_id) {
+    // a SubagentStop with background tasks still running ends a turn, not the agent (it is woken again): no stop
+    if (rec.hook_event_name === "SubagentStop" && rec.agent_id && (rec.background_tasks ?? 0) === 0) {
       const name = agentNameOf(this.store.dir, rec.agent_id); // the hook record has no name; fw watch's health line does
       if (name) await this.store.submit({ type: "agent.stop", key: `stop:${rec.agent_id}`, actor: "hook", agent: name });
     }
