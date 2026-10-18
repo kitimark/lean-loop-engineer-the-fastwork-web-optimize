@@ -15,7 +15,10 @@ State: branch worktree-wf_d4f5d370-7de-1 (round 2 on top of round 1 74ea297 and 
   `decision: skip: <reason>` steps, job-level concurrency before runs-on; checks macOS runs-on vs Lean, status fns.
 - Guard `.github/scripts/changed-inputs.mjs`: `reason=` output; supersede only by a tip that wants the lane (`tipMsg`).
 - `scripts/ci-push.mjs`: default lanes count as asked; refuses only when no REQUESTED lane starts.
-CI (MEASURED, round 2): see research/notes/2026/10-18-ci-own-trigger.md "Round 2" (run ids, exit codes).
+CI (MEASURED, round 2; details in research/notes/2026/10-18-ci-own-trigger.md "Round 2"):
+- (a) premise-tests 39109453735, not asked: `fw ci wait` → not-run, exit 4. difftest 39109671732, GitHub `success`,
+  guard decided skip: not-run, exit 4, with the reason shown (a false pass that the old wait would have accepted).
+- (b) snapshot-extract 39109868988 (asked) kept running and passed after the unasked push's run 39110017442 (skipped).
 Past false passes (MEASURED, 13 charged gh calls): 0 of 12 cited guard-era `success` runs had their heavy jobs skipped.
 Conventions: no decision in YAML/TS; never write `[ci:` in prose in a commit message; probe commits net to zero.
 Open items:

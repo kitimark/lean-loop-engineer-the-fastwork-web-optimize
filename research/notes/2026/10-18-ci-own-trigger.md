@@ -154,7 +154,14 @@ Two pushes covered all three checks (MEASURED, `gh run list` / `gh run view`); a
   12 ran their heavy jobs (6 on branches whose workflows had no guard yet). False passes found: **0**.
 - **Job-level concurrency** (b). Push B ac589a4 (no request) touched a difftest input at 07:57:54Z while A's difftest
   ran: B's difftest 39109637694 was `skipped`; A's run was not cancelled and passed. Inconclusive on its own: A's last
-  job ended 07:58:12Z, the second B's run was created. Repeated with a longer lane: B2_PLACEHOLDER
+  job ended 07:58:12Z, the second B's run was created. Repeated with a longer lane, conclusive:
+  - Push A2 5a00a79 `[ci:snapshot-extract]` (one input line added): run 39109868988, 6 extract legs running from
+    08:02:44Z.
+  - Push B2 a8d0ff3 (no request; it removed that line, an input of the lane) at 08:03:39Z: its run 39110017442 was
+    created 08:04:00Z and `skipped`.
+  - A2's 6 legs ran on to 08:05:23–08:09:32Z, report 08:09:50Z; `fw ci wait` → `pass`, exit 0. In round 1 the same
+    pattern cancelled the requested run 2 s after the push. So a skipped job never enters its group: MEASURED.
+  - The probe commits net to zero (B reverts A's line, C reverts B's; B2 reverts A2's).
 - **Lean always**: push A started lean 39109453769 with `[ci:difftest]` only (its inputs changed), `success`.
 
 ## Limits and open items

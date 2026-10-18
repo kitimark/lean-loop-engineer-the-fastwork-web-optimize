@@ -16,7 +16,9 @@ workflow using the same concurrency group in the repository is in progress, the 
 group"; `data/reusables/actions/jobs/section-using-conditions-to-control-job-execution.md`: "use the
 `jobs.<job_id>.if` conditional to prevent a job from running", the job is then "marked as _skipped_") give the rule
 modelled here (CONFIRMED for queueing and cancelling; that a skipped job is never queued is INFERRED from those
-sentences and MEASURED on `ci/ci-own-trigger`, see the research note). Every heavy job needs the guard (checked by
+sentences and MEASURED on `ci/ci-own-trigger`: run 39109868988 of a push asking for snapshot-extract kept its 6
+running legs and passed after a newer push that touched the lane's inputs without asking for it created run
+39110017442, skipped; see the research note). Every heavy job needs the guard (checked by
 `scripts/ci-paths.mjs`), so only a run whose guard decided to run enters a group.
 
 The model: a group's history is the list of runs (push indices) whose job entered it, in entry order. An entry may be
