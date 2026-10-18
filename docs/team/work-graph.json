@@ -4706,6 +4706,31 @@
     "apps/runner/hooks/spawn-guard.mjs",
     "packages/contracts/golden/ops/**"
    ]
+  },
+  {
+   "id": "gate-wall-target",
+   "title": "(M) breakpoint-gate wall time to a Lean target for the experiment loop: parts scope from the diff for iteration pushes (full gate once before land), early verdict (any failing cell -> fail, proved monotone; full cell list on demand), shard count chosen in Lean to meet a wall target on the free runner pool or report infeasible; evidence run 39105279831 (50 min, webkit j3 50.1, chromium j2 45.9)",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "gate-shard-balance"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/**",
+    ".github/scripts/gate-shards.mjs",
+    ".github/workflows/breakpoint-gate.yml",
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "research/notes/**",
+    "docs/team/handoffs/gate-shard-balance.md",
+    "docs/team/handoffs/gate-wall-target.md",
+    "research/notes/2026/10-18-gate-wall-target.md"
+   ]
   }
  ],
  "deadline": {
