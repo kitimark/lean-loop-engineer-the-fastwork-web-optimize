@@ -21,4 +21,4 @@ Open / limits
 
 Read first: apps/site/src/App.tsx, apps/site/src/parts/nav/index.tsx, morph.columns/index.tsx.
 
-CI: see report (round 2 runs).
+CI (9d7ff406): breakpoint-gate chromium 39149624174 success; chromium-counts swipe-v1 rewrite 39149627595 success.
