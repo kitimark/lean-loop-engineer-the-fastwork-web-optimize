@@ -1,0 +1,32 @@
+{"images":[],"kind":"images","loaded":true,"name":"no image"}
+{"images":[{"complete":true,"h":50,"w":100}],"kind":"images","loaded":true,"name":"one loaded image"}
+{"images":[{"complete":false,"h":0,"w":0}],"kind":"images","loaded":false,"name":"image still loading"}
+{"images":[{"complete":true,"h":0,"w":0}],"kind":"images","loaded":false,"name":"broken image: complete with natural size 0"}
+{"images":[{"complete":true,"h":50,"w":0}],"kind":"images","loaded":false,"name":"zero width"}
+{"images":[{"complete":true,"h":0,"w":100}],"kind":"images","loaded":false,"name":"zero height"}
+{"images":[{"complete":true,"h":10,"w":10},{"complete":true,"h":0,"w":0},{"complete":true,"h":5,"w":5}],"kind":"images","loaded":false,"name":"one broken among loaded"}
+{"images":[{"complete":false,"h":10,"w":10}],"kind":"images","loaded":false,"name":"incomplete with a size (decoding)"}
+{"faces":[],"families":["Google Sans"],"kind":"fonts","loaded":true,"name":"no faces declared (nothing to wait for)"}
+{"faces":[{"family":"Google Sans","status":"loaded"}],"families":["Google Sans"],"kind":"fonts","loaded":true,"name":"needed face loaded"}
+{"faces":[{"family":"Google Sans","status":"unloaded"}],"families":["Google Sans"],"kind":"fonts","loaded":false,"name":"needed face unloaded (never used)"}
+{"faces":[{"family":"Google Sans","status":"loading"}],"families":["Google Sans"],"kind":"fonts","loaded":false,"name":"needed face loading"}
+{"faces":[{"family":"Google Sans","status":"error"}],"families":["Google Sans"],"kind":"fonts","loaded":false,"name":"needed face failed"}
+{"faces":[{"family":"Google Sans","status":"loaded"},{"family":"Other","status":"loading"}],"families":["Google Sans"],"kind":"fonts","loaded":false,"name":"an unrelated face is loading"}
+{"faces":[{"family":"Other","status":"error"}],"families":[],"kind":"fonts","loaded":false,"name":"an unrelated face failed"}
+{"faces":[{"family":"Google Sans","status":"loaded"},{"family":"Playpen","status":"unloaded"}],"families":["Google Sans"],"kind":"fonts","loaded":true,"name":"an unrelated unloaded face is fine"}
+{"faces":[{"family":"Google Sans","status":"loaded"}],"families":["Times New Roman"],"kind":"fonts","loaded":true,"name":"family used but not declared is not needed"}
+{"faces":[{"family":"Google Sans","status":"loaded"},{"family":"Playpen","status":"unloaded"}],"families":["Google Sans","Playpen"],"kind":"fonts","loaded":false,"name":"two needed, one unloaded"}
+{"faces":[{"family":"Google Sans","status":"unloaded"},{"family":"Google Sans","status":"loaded"}],"families":["Google Sans"],"kind":"fonts","loaded":true,"name":"two faces of one family, one loaded"}
+{"faces":[],"families":[],"kind":"fonts","loaded":true,"name":"nothing used, nothing declared"}
+{"a":{"calm":true,"fonts":true,"gate":true,"images":true},"b":{"calm":true,"fonts":true,"gate":true,"images":true},"fontsLoaded":true,"imagesLoaded":true,"kind":"settle","name":"both shot, all facts","present":true,"settled":true}
+{"a":{"calm":true,"fonts":true,"gate":false,"images":true},"b":{"calm":true,"fonts":true,"gate":true,"images":true},"fontsLoaded":true,"imagesLoaded":true,"kind":"settle","name":"gate predicate fails on the original","present":true,"settled":false}
+{"a":{"calm":true,"fonts":true,"gate":true,"images":true},"b":{"calm":true,"fonts":true,"gate":false,"images":true},"fontsLoaded":true,"imagesLoaded":true,"kind":"settle","name":"gate predicate fails on the rewrite","present":true,"settled":false}
+{"a":{"calm":false,"fonts":true,"gate":true,"images":true},"b":{"calm":true,"fonts":true,"gate":true,"images":true},"fontsLoaded":true,"imagesLoaded":true,"kind":"settle","name":"shots disagree on the original","present":true,"settled":false}
+{"a":{"calm":true,"fonts":true,"gate":true,"images":true},"b":{"calm":false,"fonts":true,"gate":true,"images":true},"fontsLoaded":true,"imagesLoaded":true,"kind":"settle","name":"shots disagree on the rewrite","present":true,"settled":false}
+{"a":null,"b":{"calm":true,"fonts":true,"gate":true,"images":true},"fontsLoaded":true,"imagesLoaded":true,"kind":"settle","name":"original absent, rewrite settled","present":true,"settled":true}
+{"a":{"calm":false,"fonts":true,"gate":false,"images":true},"b":null,"fontsLoaded":true,"imagesLoaded":true,"kind":"settle","name":"rewrite absent, original unsettled","present":true,"settled":false}
+{"a":null,"b":null,"fontsLoaded":true,"imagesLoaded":true,"kind":"settle","name":"both absent","present":false,"settled":true}
+{"a":{"calm":true,"fonts":true,"gate":true,"images":true},"b":{"calm":true,"fonts":false,"gate":true,"images":true},"fontsLoaded":false,"imagesLoaded":true,"kind":"settle","name":"fonts not loaded on the rewrite","present":true,"settled":true}
+{"a":{"calm":true,"fonts":true,"gate":true,"images":false},"b":{"calm":true,"fonts":true,"gate":true,"images":true},"fontsLoaded":true,"imagesLoaded":false,"kind":"settle","name":"images not loaded on the original","present":true,"settled":true}
+{"a":null,"b":{"calm":true,"fonts":true,"gate":true,"images":true},"fontsLoaded":true,"imagesLoaded":true,"kind":"settle","name":"unloaded arm absent: nothing to load","present":true,"settled":true}
+{"a":{"calm":true,"fonts":false,"gate":true,"images":false},"b":null,"fontsLoaded":false,"imagesLoaded":false,"kind":"settle","name":"unloaded but the other arm absent","present":true,"settled":true}

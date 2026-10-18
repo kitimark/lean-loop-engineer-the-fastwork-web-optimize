@@ -3565,7 +3565,8 @@
     "packages/visual-diff/**",
     "lean/Fw/Gate/Pixel.lean",
     "docs/team/handoffs/visual-diff-2.md"
-   ]
+   ],
+   "evidence": "371d1f4"
   },
   {
    "id": "wktr-fixture-speed",
