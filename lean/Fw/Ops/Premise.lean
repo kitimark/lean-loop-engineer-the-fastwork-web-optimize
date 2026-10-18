@@ -144,7 +144,7 @@ def premiseLint (ps : List Premise) (ts : List TestRef) (files : List String) : 
 
 /-- `covered` unfolded.
 
-$$\operatorname{covered}(ts, F, p) \iff \big(p.\mathrm{kind} = \mathrm{page} \Rightarrow \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}\big) \land \big(p.\mathrm{kind} = \mathrm{lane} \Rightarrow p.\mathrm{testId} \in F\big)$$
+$$\forall ts, F, p:\  \operatorname{covered}(ts, F, p) \iff \big(p.\mathrm{kind} = \mathrm{page} \Rightarrow \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}\big) \land \big(p.\mathrm{kind} = \mathrm{lane} \Rightarrow p.\mathrm{testId} \in F\big)$$
 -/
 theorem covered_iff (ts : List TestRef) (files : List String) (p : Premise) :
     covered ts files p = true ↔
@@ -154,7 +154,7 @@ theorem covered_iff (ts : List TestRef) (files : List String) (p : Premise) :
 /-- **Lint soundness.** The lint is empty iff every page premise is tested, every lane premise names an existing
 workflow file, and every test is registered to a page premise.
 
-$$\operatorname{lint}(ps, ts, F) = (\varnothing, \varnothing) \iff \Big(\forall p \in ps:\ \big(p.\mathrm{kind} = \mathrm{page} \Rightarrow \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}\big) \land \big(p.\mathrm{kind} = \mathrm{lane} \Rightarrow p.\mathrm{testId} \in F\big)\Big) \land \big(\forall t \in ts\ \exists p \in ps:\ p.\mathrm{kind} = \mathrm{page} \land p.\mathrm{id} = t.\mathrm{premise} \land p.\mathrm{testId} = t.\mathrm{id}\big)$$
+$$\forall ps, ts, F:\  \operatorname{lint}(ps, ts, F) = (\varnothing, \varnothing) \iff \Big(\forall p \in ps:\ \big(p.\mathrm{kind} = \mathrm{page} \Rightarrow \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}\big) \land \big(p.\mathrm{kind} = \mathrm{lane} \Rightarrow p.\mathrm{testId} \in F\big)\Big) \land \big(\forall t \in ts\ \exists p \in ps:\ p.\mathrm{kind} = \mathrm{page} \land p.\mathrm{id} = t.\mathrm{premise} \land p.\mathrm{testId} = t.\mathrm{id}\big)$$
 
 A premise without a test, a lane premise whose workflow is missing, or a test that names no page premise makes the
 lint fail; nothing else does. -/
@@ -183,7 +183,7 @@ def laneFiles (ps : List Premise) : List String := (ps.filter (·.kind == .lane)
 /-- **The registry's own references are lint-clean.** If the test package declares exactly the page tests the registry
 names and exactly the workflows its lane premises name exist, the lint is empty (for any registry).
 
-$$\operatorname{lint}\big(ps,\ \operatorname{pageRefs}(ps),\ \operatorname{laneFiles}(ps)\big) = (\varnothing, \varnothing)$$
+$$\forall ps:\  \operatorname{lint}\big(ps,\ \operatorname{pageRefs}(ps),\ \operatorname{laneFiles}(ps)\big) = (\varnothing, \varnothing)$$
 
 A registry cannot lint itself into a failure; only a test package or workflow set that drifts from it can. -/
 theorem premiseLint_self (ps : List Premise) : premiseLint ps (pageRefs ps) (laneFiles ps) = ⟨[], []⟩ := by
@@ -198,7 +198,7 @@ theorem premiseLint_self (ps : List Premise) : premiseLint ps (pageRefs ps) (lan
 /-- **Dropping a test is caught.** If a page premise is registered and no declared test carries its test id and names
 it, the premise is in the lint's `untested` list.
 
-$$\forall F:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land (\forall t \in ts:\ \neg(t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id})) \Rightarrow p.\mathrm{id} \in \operatorname{lint}(ps, ts, F).\mathrm{untested}$$
+$$\forall ps, ts, F, p:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land (\forall t \in ts:\ \neg(t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id})) \Rightarrow p.\mathrm{id} \in \operatorname{lint}(ps, ts, F).\mathrm{untested}$$
 -/
 theorem untested_of_missing (ps : List Premise) (ts : List TestRef) (files : List String) (p : Premise) (hp : p ∈ ps)
     (hk : p.kind = .page) (h : ∀ t ∈ ts, ¬(t.id = p.testId ∧ t.premise = p.id)) :
@@ -212,7 +212,7 @@ theorem untested_of_missing (ps : List Premise) (ts : List TestRef) (files : Lis
 /-- **A lane premise needs its workflow.** If a lane premise's test id is not among the existing workflow files, the
 premise is in the lint's `untested` list.
 
-$$\forall ts:\ p \in ps \land p.\mathrm{kind} = \mathrm{lane} \land p.\mathrm{testId} \notin F \Rightarrow p.\mathrm{id} \in \operatorname{lint}(ps, ts, F).\mathrm{untested}$$
+$$\forall ps, ts, F, p:\  p \in ps \land p.\mathrm{kind} = \mathrm{lane} \land p.\mathrm{testId} \notin F \Rightarrow p.\mathrm{id} \in \operatorname{lint}(ps, ts, F).\mathrm{untested}$$
 -/
 theorem untested_of_lane_missing (ps : List Premise) (ts : List TestRef) (files : List String) (p : Premise)
     (hp : p ∈ ps) (hk : p.kind = .lane) (h : p.testId ∉ files) : p.id ∈ (premiseLint ps ts files).untested := by
@@ -225,7 +225,7 @@ theorem untested_of_lane_missing (ps : List Premise) (ts : List TestRef) (files 
 
 /-- The premise holds on engine `e` in the results `rs`: the test ran on `e` at least once and every run passed.
 
-$$\operatorname{holds}(rs, p, e) \iff \big(\exists r \in rs:\ r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e\big) \land \big(\forall r \in rs:\ r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e \Rightarrow r.\mathrm{ok}\big)$$
+$$\operatorname{holds}(rs, p, e) \iff \big(\exists r \in rs:\ r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e\big) \land \big(\forall r \in rs:\ (r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e) \Rightarrow r.\mathrm{ok}\big)$$
 -/
 def holds (rs : List Result) (p : Premise) (e : Engine) : Bool :=
   let m := rs.filter fun r => r.testId == p.testId && r.engine == e
@@ -267,7 +267,7 @@ theorem holds_iff (rs : List Result) (p : Premise) (e : Engine) :
 /-- **Flag soundness.** Nothing is flagged iff every page premise has, on every engine it needs, a run of its test and
 every such run passed.
 
-$$\operatorname{flagged}(ps, rs) = [\,] \iff \forall p \in ps:\ p.\mathrm{kind} = \mathrm{page} \Rightarrow \forall e \in p.\mathrm{engines}:\ \operatorname{holds}(rs, p, e)$$
+$$\forall ps, rs:\  \operatorname{flagged}(ps, rs) = [\,] \iff \forall p \in ps:\ p.\mathrm{kind} = \mathrm{page} \Rightarrow \forall e \in p.\mathrm{engines}:\ \operatorname{holds}(rs, p, e)$$
 -/
 theorem flagged_eq_nil_iff (ps : List Premise) (rs : List Result) :
     flagged ps rs = [] ↔ ∀ p ∈ ps, p.kind = .page → ∀ e ∈ p.engines, holds rs p e = true := by
@@ -276,7 +276,7 @@ theorem flagged_eq_nil_iff (ps : List Premise) (rs : List Result) :
 /-- **A failing premise test flags its premise.** One failing run of a page premise's test on an engine the premise
 needs puts the premise (hence its theorems) in the flagged list, whatever else passed.
 
-$$p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \Rightarrow p \in \operatorname{flagged}\big(ps,\ (p.\mathrm{testId}, e, \bot) :: rs\big)$$
+$$\forall ps, rs, p, e:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \Rightarrow p \in \operatorname{flagged}\big(ps,\ (p.\mathrm{testId}, e, \bot) :: rs\big)$$
 -/
 theorem flagged_of_fail (ps : List Premise) (rs : List Result) (p : Premise) (hp : p ∈ ps) (hk : p.kind = .page)
     (e : Engine) (he : e ∈ p.engines) : p ∈ flagged ps (⟨p.testId, e, false⟩ :: rs) := by
@@ -291,7 +291,7 @@ theorem flagged_of_fail (ps : List Premise) (rs : List Result) (p : Premise) (hp
 /-- **A missing test run flags too.** If no result exists for a page premise's test on an engine it needs, the premise
 is flagged: absence is not a pass.
 
-$$p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land (\forall r \in rs:\ \neg(r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e)) \Rightarrow p \in \operatorname{flagged}(ps, rs)$$
+$$\forall ps, rs, p, e:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land (\forall r \in rs:\ \neg(r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e)) \Rightarrow p \in \operatorname{flagged}(ps, rs)$$
 -/
 theorem flagged_of_missing (ps : List Premise) (rs : List Result) (p : Premise) (hp : p ∈ ps) (hk : p.kind = .page)
     (e : Engine) (he : e ∈ p.engines) (h : ∀ r ∈ rs, ¬(r.testId = p.testId ∧ r.engine = e)) :
@@ -307,7 +307,7 @@ theorem flagged_of_missing (ps : List Premise) (rs : List Result) (p : Premise) 
 /-- **Lane premises are not flagged from page results.** Whatever the results, a lane premise is not in the flagged
 list (its workflow is its test; the lint checks the workflow exists).
 
-$$\forall ps, rs:\ p.\mathrm{kind} = \mathrm{lane} \Rightarrow p \notin \operatorname{flagged}(ps, rs)$$
+$$\forall ps, rs, p:\  p.\mathrm{kind} = \mathrm{lane} \Rightarrow p \notin \operatorname{flagged}(ps, rs)$$
 -/
 theorem not_flagged_of_lane (ps : List Premise) (rs : List Result) (p : Premise) (hk : p.kind = .lane) :
     p ∉ flagged ps rs := by
