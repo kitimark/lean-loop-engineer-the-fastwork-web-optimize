@@ -4090,7 +4090,8 @@
     "docs/team/tools/**",
     "docs/team/handoffs/task-preview.md",
     "research/notes/**"
-   ]
+   ],
+   "evidence": "140697a"
   },
   {
    "id": "ci-own-trigger",
