@@ -222,9 +222,9 @@ def stripNames : List Char → Nat → List Char
 
 /-- The row track sizes from the container's resolved `grid-template-rows` (every track listed in px).
 
-$$\operatorname{tracks}(v) = \begin{cases} [\operatorname{px}(w_1), \dots, \operatorname{px}(w_n)] & n \ge 1 \wedge \forall k,\ \operatorname{px}(w_k) \ne \bot \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{tracks}(v) = \begin{cases} [\operatorname{px}(w_1), \dots, \operatorname{px}(w_n)] & n \ge 1 \wedge \forall k,\ \operatorname{px}(w_k) \ne \bot \\ \bot & \text{otherwise} \end{cases},\quad [w_1, \dots, w_n] = \text{the non-empty space-separated words of } \operatorname{strip}(v, 0)$$
 
-where $w_1, \dots, w_n$ are the non-empty space-separated words of $\operatorname{strip}(v, 0)$. The used row sizes. -/
+The used row sizes. -/
 def parseTracks (v : String) : Option (List Rat) :=
   let ws := ((String.ofList (stripNames v.toList 0)).splitOn " ").filter (· != "")
   if ws.isEmpty then none else ws.mapM px
@@ -550,7 +550,7 @@ def canonItem (e : Bool) (io ir : Item) : Item :=
 $$\forall e, x, y,\quad \operatorname{canon}(e, x, y).\mathrm{rect} = y.\mathrm{rect}$$
 
 No geometry is touched. -/
-theorem canonItem_rect (e : Bool) (io ir : Item) : (canonItem e io ir).rect = ir.rect := by
+theorem canonItem_rect (e : Bool) (x y : Item) : (canonItem e x y).rect = y.rect := by
   unfold canonItem; split <;> rfl
 
 /-- Canonicalising keeps every other property.
@@ -558,10 +558,10 @@ theorem canonItem_rect (e : Bool) (io ir : Item) : (canonItem e io ir).rect = ir
 $$\forall e, x, y, q,\quad q \ne \texttt{align-self} \implies \operatorname{canon}(e, x, y)[q] = y[q]$$
 
 Only `align-self` can change. -/
-theorem canonItem_lookup_ne (e : Bool) (io ir : Item) (q : String) (hq : q ≠ "align-self") :
-    (canonItem e io ir).style.lookup q = ir.style.lookup q := by
+theorem canonItem_lookup_ne (e : Bool) (x y : Item) (q : String) (hq : q ≠ "align-self") :
+    (canonItem e x y).style.lookup q = y.style.lookup q := by
   unfold canonItem; split
-  · exact (setStyle_agree _ _ ir).2 q hq
+  · exact (setStyle_agree _ _ y).2 q hq
   · rfl
 
 /-- An equivalent pair's `align-self` items become equal.
@@ -569,8 +569,8 @@ theorem canonItem_lookup_ne (e : Bool) (io ir : Item) (q : String) (hq : q ≠ "
 $$\forall x, y, v,\quad x[\texttt{align-self}] = v \ne \bot \implies \operatorname{styleStatus}(x[\texttt{align-self}], \operatorname{canon}(\mathrm{true}, x, y)[\texttt{align-self}]) = \mathrm{equal}$$
 
 The judged property passes. -/
-theorem canonItem_align_equal (io ir : Item) (v : String) (hv : io.style.lookup "align-self" = some v) :
-    styleStatus (io.style.lookup "align-self") ((canonItem true io ir).style.lookup "align-self") = .equal := by
+theorem canonItem_align_equal (x y : Item) (v : String) (hv : x.style.lookup "align-self" = some v) :
+    styleStatus (x.style.lookup "align-self") ((canonItem true x y).style.lookup "align-self") = .equal := by
   simp [canonItem, setStyle, hv, styleStatus, styleValueEq_refl]
 
 /-- Hide the status of the non-box items with key $p$.
@@ -650,7 +650,11 @@ def base : Side where
   rectHeight := 300
   parentRectTop := 100
 
-/-- The original arm of the stage: `align-self: auto` under `align-items: stretch`. -/
+/-- The original arm of the stage: `align-self: auto` under `align-items: stretch`.
+
+$$o_0 = s_0 \text{ with } \mathrm{alignSelf} = \texttt{auto}$$
+
+The original's facts at the stage. -/
 def baseO : Side := { base with alignSelf := "auto" }
 
 /-- The golden cases: name, original facts, rewrite facts.
@@ -716,7 +720,11 @@ Golden numbers print as JavaScript reads them. -/
 def ratJson (x : Rat) : Json :=
   Json.num ⟨x.num * ((1000000 / x.den : Nat) : Int), 6⟩
 
-/-- The facts as the collector writes them (keys as in `align-equiv.mjs`). -/
+/-- The facts as the collector writes them (keys as in `align-equiv.mjs`).
+
+$$\operatorname{json}(s) = \{\,f : s.f \mid f \in \text{the 30 fields of } \mathrm{Side}\,\},\quad \text{numbers via } \operatorname{dec}$$
+
+One arm's facts as JSON. -/
 def sideJson (s : Side) : Json :=
   Json.mkObj [
     ("alignSelf", s.alignSelf), ("alignItems", s.alignItems), ("display", s.display), ("position", s.position),
@@ -730,7 +738,11 @@ def sideJson (s : Side) : Json :=
     ("parentPaddingTop", s.parentPaddingTop), ("rectTop", ratJson s.rectTop),
     ("rectHeight", ratJson s.rectHeight), ("parentRectTop", ratJson s.parentRectTop)]
 
-/-- One golden line: the request (both arms' facts) and every intermediate answer. -/
+/-- One golden line: the request (both arms' facts) and every intermediate answer.
+
+$$\operatorname{row}(n, o, r) = (n,\ (\operatorname{json}(o), \operatorname{json}(r)),\ (\operatorname{alignEquiv}(o, r), \operatorname{eqv}(o, r), \operatorname{mode}(o), \operatorname{mode}(r), \operatorname{elig}(o), \operatorname{elig}(r), \operatorname{fills}(o), \operatorname{fills}(r)))$$
+
+A case and its answers. -/
 def caseRow (n : String) (o r : Side) : Json :=
   Json.mkObj [
     ("name", n),
@@ -741,11 +753,19 @@ def caseRow (n : String) (o r : Side) : Json :=
       ("eligibleOrig", eligible o), ("eligibleRewrite", eligible r),
       ("fillsOrig", contentFill o), ("fillsRewrite", contentFill r)])]
 
-/-- The golden text, one JSON line per case. -/
+/-- The golden text, one JSON line per case.
+
+$$\mathrm{goldenText} = \textstyle\bigoplus_{(n, o, r) \in \mathrm{cases}} \operatorname{row}(n, o, r) \mathbin{+\!\!+} \texttt{\textbackslash n}\quad (\text{in list order})$$
+
+The golden file's contents. -/
 def goldenText : String :=
   String.join (cases.map fun (n, o, r) => (caseRow n o r).compress ++ "\n")
 
-/-- The golden file, relative to `lean/`. -/
+/-- The golden file, relative to `lean/`.
+
+$$\mathrm{goldenPath} = \texttt{../packages/contracts/golden/gate/align-equiv.jsonl}$$
+
+Where the vectors live. -/
 def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "gate" / "align-equiv.jsonl"
 
 /-- Writes the golden file, or compares it with the generated text and returns $\mathrm{fail} \in \{0, 1\}$ (1 when
