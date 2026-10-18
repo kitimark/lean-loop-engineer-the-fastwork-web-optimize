@@ -60,7 +60,9 @@ export class Reconciler {
       const text = fileAt(this.repo, at, this.graphPath);
       if (text !== null) {
         let cmds: Command[] = [];
-        try { cmds = syncCommands(JSON.parse(text) as WorkGraph, "script", sha10); }
+        // the ancestry fact of each evidence sha against main (Lean refuses a define whose commit is off main)
+        const onMain = (e: string) => isAncestor(this.repo, e, this.mainRef);
+        try { cmds = syncCommands(JSON.parse(text) as WorkGraph, "script", sha10, undefined, onMain); }
         catch (e) { console.error(`plan sync at ${at.slice(0, 7)}: ${(e as Error).message}`); }
         for (const c of cmds) await this.send(c, s);
       }

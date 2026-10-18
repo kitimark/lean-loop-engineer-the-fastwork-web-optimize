@@ -12,6 +12,7 @@ A pure check over the rows of `docs/team/work-graph.json` and the `Task:` traile
 | `evOther` | error | evidence is none of: main commit, CI run id, user decision, prose that names a commit |
 | `evLong` | error | evidence is longer than 64 characters |
 | `trailerNoEvidence` | error | a `Task:` trailer on main names the task, the row has no evidence |
+| `evNotOnMain` | error | the evidence is a commit id that is not an ancestor of main (`git merge-base --is-ancestor`, fact from the glue; task `evidence-on-main`) |
 | `evUser` | warn | evidence is a user decision (`user…`): allowed, tagged |
 | `evProse` | warn | evidence is prose that names a commit (`abc1234: …`): allowed, tagged |
 | `longTitle` | warn | the title is longer than 200 characters (sync clips it) |
@@ -67,18 +68,20 @@ def evKind (s : String) : EvKind :=
 
 /-- A lint code.
 
-$$\mathrm{Code} = \{\mathrm{unknownDep}, \mathrm{evOther}, \mathrm{evLong}, \mathrm{trailerNoEvidence}, \mathrm{evUser}, \mathrm{evProse}, \mathrm{longTitle}, \mathrm{evidenceNoTrailer}\}$$
+$$\mathrm{Code} = \{\mathrm{unknownDep}, \mathrm{evOther}, \mathrm{evLong}, \mathrm{trailerNoEvidence}, \mathrm{evNotOnMain}, \mathrm{evUser}, \mathrm{evProse}, \mathrm{longTitle}, \mathrm{evidenceNoTrailer}\}$$
 -/
 inductive Code
-  | unknownDep | evOther | evLong | trailerNoEvidence | evUser | evProse | longTitle | evidenceNoTrailer
+  | unknownDep | evOther | evLong | trailerNoEvidence | evNotOnMain | evUser | evProse | longTitle
+  | evidenceNoTrailer
 deriving DecidableEq, Repr
 
 /-- Every code, in report order.
 
-$$\mathrm{Codes} = [\mathrm{unknownDep}, \mathrm{evOther}, \mathrm{evLong}, \mathrm{trailerNoEvidence}, \mathrm{evUser}, \mathrm{evProse}, \mathrm{longTitle}, \mathrm{evidenceNoTrailer}]$$
+$$\mathrm{Codes} = [\mathrm{unknownDep}, \mathrm{evOther}, \mathrm{evLong}, \mathrm{trailerNoEvidence}, \mathrm{evNotOnMain}, \mathrm{evUser}, \mathrm{evProse}, \mathrm{longTitle}, \mathrm{evidenceNoTrailer}]$$
 -/
 def Code.all : List Code :=
-  [.unknownDep, .evOther, .evLong, .trailerNoEvidence, .evUser, .evProse, .longTitle, .evidenceNoTrailer]
+  [.unknownDep, .evOther, .evLong, .trailerNoEvidence, .evNotOnMain, .evUser, .evProse, .longTitle,
+    .evidenceNoTrailer]
 
 /-- The name of a code (the wire string).
 
@@ -86,25 +89,29 @@ $$\operatorname{name}(k) = \text{the constructor name of } k$$
 -/
 def Code.name : Code → String
   | .unknownDep => "unknownDep" | .evOther => "evOther" | .evLong => "evLong"
-  | .trailerNoEvidence => "trailerNoEvidence" | .evUser => "evUser" | .evProse => "evProse"
+  | .trailerNoEvidence => "trailerNoEvidence" | .evNotOnMain => "evNotOnMain"
+  | .evUser => "evUser" | .evProse => "evProse"
   | .longTitle => "longTitle" | .evidenceNoTrailer => "evidenceNoTrailer"
 
 /-- The severity of a code: `error`, `warn` or `info`.
 
-$$\operatorname{sev}(k) = \begin{cases}\mathrm{error} & k \in \{\mathrm{unknownDep}, \mathrm{evOther}, \mathrm{evLong}, \mathrm{trailerNoEvidence}\}\\ \mathrm{warn} & k \in \{\mathrm{evUser}, \mathrm{evProse}, \mathrm{longTitle}\}\\ \mathrm{info} & k = \mathrm{evidenceNoTrailer}\end{cases}$$
+$$\operatorname{sev}(k) = \begin{cases}\mathrm{error} & k \in \{\mathrm{unknownDep}, \mathrm{evOther}, \mathrm{evLong}, \mathrm{trailerNoEvidence}, \mathrm{evNotOnMain}\}\\ \mathrm{warn} & k \in \{\mathrm{evUser}, \mathrm{evProse}, \mathrm{longTitle}\}\\ \mathrm{info} & k = \mathrm{evidenceNoTrailer}\end{cases}$$
 -/
 def Code.severity : Code → String
-  | .unknownDep | .evOther | .evLong | .trailerNoEvidence => "error"
+  | .unknownDep | .evOther | .evLong | .trailerNoEvidence | .evNotOnMain => "error"
   | .evUser | .evProse | .longTitle => "warn"
   | .evidenceNoTrailer => "info"
 
-/-- What the check reads besides the row: every task id, and the ids that `Task:` trailers on main name.
+/-- What the check reads besides the row: every task id, the ids that `Task:` trailers on main name,
+and `off`, the ids of the tasks whose evidence the glue found not to be an ancestor of main (default
+empty: a task the glue did not name counts as on main).
 
-$$\mathit{ctx} = (\mathit{ids}, \mathit{named})$$
+$$\mathit{ctx} = (\mathit{ids}, \mathit{named}, \mathit{off})$$
 -/
 structure Ctx where
   ids   : List String
   named : List String
+  off   : List String := []
 
 /-- Does `code` hold for row `t`?
 
@@ -113,6 +120,7 @@ $$\begin{aligned}
 \mathrm{evOther}(t) &\iff t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{other}\\
 \mathrm{evLong}(t) &\iff t.\mathit{evidence} = e \land |e| > 64\\
 \mathrm{trailerNoEvidence}(t) &\iff t.\mathit{id} \in \mathit{named} \land t.\mathit{evidence} = \bot\\
+\mathrm{evNotOnMain}(t) &\iff t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{commit} \land t.\mathit{id} \in \mathit{off}\\
 \mathrm{evUser}(t) &\iff t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{user}\\
 \mathrm{evProse}(t) &\iff t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{prose}\\
 \mathrm{longTitle}(t) &\iff |t.\mathit{title}| > 200\\
@@ -124,6 +132,9 @@ def holds (c : Ctx) (t : Task) : Code → Bool
   | .evOther => match t.evidence with | some e => evKind e == .other | none => false
   | .evLong => match t.evidence with | some e => decide (64 < e.length) | none => false
   | .trailerNoEvidence => c.named.contains t.id && t.evidence.isNone
+  | .evNotOnMain => match t.evidence with
+    | some e => evKind e == .commit && c.off.contains t.id
+    | none => false
   | .evUser => match t.evidence with | some e => evKind e == .user | none => false
   | .evProse => match t.evidence with | some e => evKind e == .prose | none => false
   | .longTitle => decide (200 < t.title.length)
@@ -188,6 +199,16 @@ theorem evidenceNoTrailer_iff (c : Ctx) (t : Task) :
   unfold holds
   cases h : t.evidence <;> simp
 
+/-- **A not-on-main finding means commit evidence the glue found off main.** Evidence of another
+kind (CI run id, user decision, prose) is never checked for ancestry.
+
+$$\operatorname{holds}(t, \mathrm{evNotOnMain}) \iff \exists e:\ t.\mathit{evidence} = e \land \operatorname{kind}(e) = \mathrm{commit} \land t.\mathit{id} \in \mathit{off}$$
+-/
+theorem evNotOnMain_iff (c : Ctx) (t : Task) :
+    holds c t .evNotOnMain = true ↔ ∃ e, t.evidence = some e ∧ evKind e = .commit ∧ t.id ∈ c.off := by
+  unfold holds
+  cases h : t.evidence <;> simp
+
 /-- A finding: the task (or `*` for the whole graph), the code name, its severity, a detail.
 
 $$f = (\mathit{task}, \mathit{code}, \mathit{severity}, \mathit{detail})$$
@@ -228,10 +249,13 @@ def detailOf (c : Ctx) (t : Task) : Code → String
 
 /-- All findings: per task in file order, codes in report order; then the graph-wide `cycle`.
 
-$$\begin{aligned} \forall T, C:\quad \operatorname{lint}(T, C) = {} &[\, (t.\mathit{id}, \operatorname{name}(k), \operatorname{sev}(k), \operatorname{detail}(\mathit{ctx}, t, k)) \mid t \in T,\ k \in \operatorname{codes}(\mathit{ctx}, t) \,] \\ \mathbin{+\!\!+} {} &\begin{cases} [\,] & \operatorname{acyclicB}(T) \\ [(\texttt{*}, \texttt{cycle}, \texttt{error}, \operatorname{join}(\texttt{", "}, [\, r.\mathit{id} \mid r \in \operatorname{stuck}(|T|, T) \,]))] & \neg\operatorname{acyclicB}(T) \end{cases} \\ \text{with } \mathit{ctx} = {} &([\, t.\mathit{id} \mid t \in T \,],\ \mathit{named}(C)) \end{aligned}$$
+$$\begin{aligned} \forall T, C, \mathit{off}:\quad \operatorname{lint}(T, C, \mathit{off}) = {} &[\, (t.\mathit{id}, \operatorname{name}(k), \operatorname{sev}(k), \operatorname{detail}(\mathit{ctx}, t, k)) \mid t \in T,\ k \in \operatorname{codes}(\mathit{ctx}, t) \,] \\ \mathbin{+\!\!+} {} &\begin{cases} [\,] & \operatorname{acyclicB}(T) \\ [(\texttt{*}, \texttt{cycle}, \texttt{error}, \operatorname{join}(\texttt{", "}, [\, r.\mathit{id} \mid r \in \operatorname{stuck}(|T|, T) \,]))] & \neg\operatorname{acyclicB}(T) \end{cases} \\ \text{with } \mathit{ctx} = {} &([\, t.\mathit{id} \mid t \in T \,],\ \mathit{named}(C),\ \mathit{off}) \end{aligned}$$
+
+where $\mathit{off}$ lists the task ids whose evidence is not on main (default $[\,]$).
 -/
-def lint (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) : List Finding :=
-  let c : Ctx := { ids := ts.map (·.id), named := namedIds cs }
+def lint (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (off : List String := []) :
+    List Finding :=
+  let c : Ctx := { ids := ts.map (·.id), named := namedIds cs, off }
   let per := ts.flatMap fun t =>
     (codes c t).map fun k =>
       { task := t.id, code := k.name, severity := k.severity, detail := detailOf c t k : Finding }
@@ -242,26 +266,27 @@ def lint (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) : List Finding :=
 
 /-- Ok: no finding of severity `error`.
 
-$$\operatorname{ok}(T, C) \iff \forall f \in \operatorname{lint}(T, C):\ f.\mathit{severity} \ne \mathrm{error}$$
+$$\operatorname{ok}(T, C, \mathit{off}) \iff \forall f \in \operatorname{lint}(T, C, \mathit{off}):\ f.\mathit{severity} \ne \mathrm{error}$$
 -/
-def ok (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) : Bool :=
-  (lint ts cs).all fun f => f.severity != "error"
+def ok (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (off : List String := []) : Bool :=
+  (lint ts cs off).all fun f => f.severity != "error"
 
 /-- **Lint ok means the graph has no unknown dep and no cycle** (what `fw plan sync` refuses).
 
-$$\operatorname{ok}(T, C) \Rightarrow (\forall t \in T,\ \forall d \in t.\mathit{deps}:\ d \in \operatorname{ids}(T)) \land \operatorname{Acyclic}(T)$$
+$$\forall T, C, \mathit{off}:\quad \operatorname{ok}(T, C, \mathit{off}) \Rightarrow (\forall t \in T,\ \forall d \in t.\mathit{deps}:\ d \in \operatorname{ids}(T)) \land \operatorname{Acyclic}(T)$$
 -/
-theorem ok_sound (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (h : ok ts cs = true) :
+theorem ok_sound (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (off : List String)
+    (h : ok ts cs off = true) :
     (∀ t ∈ ts, ∀ d ∈ t.deps, d ∈ ts.map (·.id)) ∧ Acyclic ts := by
-  have hall : ∀ f ∈ lint ts cs, f.severity != "error" := by
+  have hall : ∀ f ∈ lint ts cs off, f.severity != "error" := by
     intro f hf; simpa [ok] using (List.all_eq_true.mp h f hf)
   constructor
   · intro t ht d hd
     refine Classical.byContradiction fun hn => ?_
-    have hu : holds { ids := ts.map (·.id), named := namedIds cs } t .unknownDep = true :=
+    have hu : holds { ids := ts.map (·.id), named := namedIds cs, off } t .unknownDep = true :=
       (unknownDep_iff _ _).2 ⟨d, hd, hn⟩
-    have hm := (mem_codes { ids := ts.map (·.id), named := namedIds cs } t .unknownDep).2 hu
-    have hf : (⟨t.id, "unknownDep", "error", detailOf { ids := ts.map (·.id), named := namedIds cs } t .unknownDep⟩ : Finding) ∈ lint ts cs := by
+    have hm := (mem_codes { ids := ts.map (·.id), named := namedIds cs, off } t .unknownDep).2 hu
+    have hf : (⟨t.id, "unknownDep", "error", detailOf { ids := ts.map (·.id), named := namedIds cs, off } t .unknownDep⟩ : Finding) ∈ lint ts cs off := by
       unfold lint
       simp only [List.mem_append, List.mem_flatMap, List.mem_map]
       left
@@ -270,7 +295,7 @@ theorem ok_sound (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (h : ok ts 
     simp at this
   · rw [← acyclicB_iff]
     refine Classical.byContradiction fun hn => ?_
-    have hf : (⟨"*", "cycle", "error", ", ".intercalate ((stuck ts.length ts).map (·.id))⟩ : Finding) ∈ lint ts cs := by
+    have hf : (⟨"*", "cycle", "error", ", ".intercalate ((stuck ts.length ts).map (·.id))⟩ : Finding) ∈ lint ts cs off := by
       unfold lint
       simp [hn]
     have := hall _ hf
@@ -283,5 +308,15 @@ theorem ok_sound (ts : List Task) (cs : List Fw.Plan.Trailer.Commit) (h : ok ts 
 #guard evKind "merge of c54c7bf; x" == .prose
 #guard evKind "finished, trust me" == .other
 #guard evKind "abc" == .other
+-- evNotOnMain: commit evidence named off main is an error; other kinds and unnamed tasks are not
+private def tk (x : String) (e : Option String) : Task :=
+  { id := x, title := "", stream := "", milestone := none, deps := [], owner := "", writes := [],
+    devices := [], needs := [], evidence := e, agent := none }
+#guard holds { ids := [], named := [], off := ["a"] } (tk "a" (some "9a5c552")) .evNotOnMain
+#guard !holds { ids := [], named := [] } (tk "a" (some "9a5c552")) .evNotOnMain
+#guard !holds { ids := [], named := [], off := ["a"] } (tk "a" (some "39053169745")) .evNotOnMain
+#guard !holds { ids := [], named := [], off := ["a"] } (tk "a" none) .evNotOnMain
+#guard (lint [tk "a" (some "9a5c552")] [] ["a"]).map (·.code) == ["evNotOnMain", "evidenceNoTrailer"]
+#guard !ok [tk "a" (some "9a5c552")] [] ["a"] && ok [tk "a" (some "9a5c552")] []
 
 end Fw.Plan.Lint

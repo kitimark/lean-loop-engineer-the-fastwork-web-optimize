@@ -20,7 +20,7 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landGuard` | `held`, `alive`?, `here`? (commit is in the locked checkout), `own`? (the land's own commit) | `verdict` (`allow`/`held`/`stale`), `allow` |
 | `console.landCommit` | `locked`, `mergeHead`? (null: MERGE_HEAD gone), `head`, `pre` (HEAD when the lock was taken) | `ok`, `tip`, `reason` (`no lock`/`merge state gone`/`head moved`) |
 | `console.landPick` | `givenAhead`, `others`? [{name, ahead, contains}] | `pick` (`given`/`other`/`nothing`/`ambiguous`), `branch`, `names` |
-| `plan.lint` | `tasks` [{id, title?, deps?, evidence?}], `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
+| `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
 namespace Fw.Wire.Console
@@ -180,11 +180,16 @@ def opPlanLint (req : Json) : Except String Reply := do
     pure ({ id := ← str t "id", title := ← strD t "title" "", stream := "", milestone := none,
             deps := ← strs "deps" (← arrD t "deps"), owner := "", writes := [], devices := [],
             needs := [], evidence := ev, agent := none } : Task)
+  let off ← (← arr req "tasks").toList.filterMapM fun t => do
+    match opt t "evidenceOnMain" with
+    | some (.bool false) => pure (some (← str t "id"))
+    | none | some .null | some (.bool true) => pure none
+    | some _ => throw "evidenceOnMain: expected a boolean"
   let cs ← (← arrD req "commits").mapM fun c => do
     pure ({ sha := ← str c "sha", body := ← str c "body" } : Fw.Plan.Trailer.Commit)
-  let fs := lint ts cs
+  let fs := lint ts cs off
   let n (s : String) := (fs.filter (·.severity == s)).length
-  pure [("ok", .bool (ok ts cs)), ("errors", .num (n "error")), ("warnings", .num (n "warn")), ("infos", .num (n "info")),
+  pure [("ok", .bool (ok ts cs off)), ("errors", .num (n "error")), ("warnings", .num (n "warn")), ("infos", .num (n "info")),
         ("findings", .arr (fs.toArray.map fun f => Json.mkObj
           [("task", .str f.task), ("code", .str f.code), ("severity", .str f.severity), ("detail", .str f.detail)]))]
 

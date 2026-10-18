@@ -44,20 +44,22 @@ def query : Json := Json.mkObj [("op", .str "console.query"), ("now", toJson (0 
 /-- The body fields of a `task.define`. -/
 def defFields (task : String) (deps : List String) (milestone : Option String := none)
     (writes devices : List String := []) (evidence : Option String := none)
-    (needs : List String := []) (cut : Bool := false) (live : List String := []) :
+    (needs : List String := []) (cut : Bool := false) (live : List String := [])
+    (onMain : Option Bool := none) :
     List (String × Json) :=
   [("task", .str task), ("title", .str s!"Task {task}"), ("stream", .str "lean"),
    ("milestone", ostr milestone), ("deps", strsJson deps), ("owner", .str "lean-prover"),
    ("writes", strsJson writes), ("devices", strsJson devices)]
   ++ (if needs.isEmpty then [] else [("needs", strsJson needs)]) ++ [("evidence", ostr evidence)]
   ++ (if cut then [("cut", .bool true)] else []) ++ (if live.isEmpty then [] else [("live", strsJson live)])
+  ++ (match onMain with | some b => [("evidenceOnMain", .bool b)] | none => [])
 
 /-- A `task.define` by the lead (key `d:<task>` unless given). -/
 def define (task : String) (deps : List String) (milestone : Option String := none)
     (writes devices : List String := []) (evidence : Option String := none)
     (key : String := s!"d:{task}") (actor : String := "lead") (needs : List String := [])
-    (cut : Bool := false) (live : List String := []) : Json :=
-  apply key actor "task.define" (defFields task deps milestone writes devices evidence needs cut live)
+    (cut : Bool := false) (live : List String := []) (onMain : Option Bool := none) : Json :=
+  apply key actor "task.define" (defFields task deps milestone writes devices evidence needs cut live onMain)
 
 /-- The synthetic cases: (name, requests). -/
 def cases : List (String × List Json) := [
@@ -66,10 +68,28 @@ def cases : List (String × List Json) := [
     define "a" [] (some "M0"),
     define "b" ["a"] (some "M0"),
     query]),
-  ("define: upsert keeps the claim and the evidence, replaces the definition", [
+  ("define: upsert keeps the claim and landed evidence, replaces the definition", [
     define "a" [],
     apply "c:a" "hook" "task.claim" [("task", .str "a"), ("agent", .str "agent-1")],
     define "a" [] (some "M9") ["lean/A/**"] (key := "d2:a"),
+    define "l" [],
+    apply "f:l" "git" "task.done" [("task", .str "l"), ("evidence", .str "abc1234")],
+    define "l" [] (key := "d2:l"),
+    query]),
+  ("evidence on main: off-main commit evidence refused, state kept; on main accepted", [
+    define "a" [],
+    define "b" ["a"],
+    define "a" [] (evidence := some "9a5c552") (onMain := some false) (key := "d2:a"),
+    query,
+    define "a" [] (evidence := some "9a5c552") (onMain := some true) (key := "d3:a"),
+    query]),
+  ("evidence on main: other kinds are not checked; a define without evidence takes back unlanded evidence", [
+    define "r" [] (evidence := some "39053169745") (onMain := some false),
+    define "u" [] (evidence := some "user: ship it") (onMain := some false),
+    define "c" [] (evidence := some "abc1234") (onMain := some true),
+    define "d" ["c"],
+    query,
+    define "c" [] (key := "d2:c"),
     query]),
   ("refuse: dependency cycle, self dependency, undefined dep", [
     define "a" [],
