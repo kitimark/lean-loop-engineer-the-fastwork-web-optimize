@@ -175,6 +175,9 @@ def table : List Wf := [
     "apps/runner/hooks/cap.mjs", "apps/console-api/src/cap/**", "@fwcore", "pnpm-lock.yaml",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**",
     own "difftest.yml"]⟩,
+  ⟨"engine-premises.yml", ["ci/**"], [
+    "packages/measure-chromium/**", "packages/measure-wktr/**", "packages/contracts/golden/ops/engine-premises.jsonl",
+    ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", own "engine-premises.yml"]⟩,
   ⟨"gate-gaps.yml", ciMain, [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
@@ -244,9 +247,9 @@ def run (diff merged : List String) : List String :=
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
-#guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["wktr-fixtures.yml", "wktr.yml"]
+#guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a fixture page starts both wktr lanes; the fixture workflow file starts only itself
-#guard run ["packages/measure-wktr/fixtures/control/index.html"] [] == ["wktr-fixtures.yml", "wktr.yml"]
+#guard run ["packages/measure-wktr/fixtures/control/index.html"] [] == ["engine-premises.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run [".github/workflows/wktr-fixtures.yml"] [] == ["wktr-fixtures.yml"]
 
 /-! ## Coarse push filter, precise guard (task `ci-cone-glob`)

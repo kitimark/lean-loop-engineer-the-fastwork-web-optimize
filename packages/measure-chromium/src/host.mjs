@@ -69,6 +69,7 @@ writeFileSync(join(out, 'host.json'), JSON.stringify({ note: 'host-side wall fac
 console.error(`attempts=${attempts} (not part of the result)`);
 console.error(`wrote ${join(out, 'counts.json')} (host wall ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 if (r.status !== 0) process.exit(r.status ?? 1);
+if (flag('no-zones')) process.exit(0); // fixture profiles with no scroll zones (engine premise fixtures): counts.json only
 // Per-zone sums come from fwcore (Lean Fw.Measure.zoneSums), never from TS. Without a built fwcore the raw counts stay
 // valid and only zones.json is missing.
 try {

@@ -1,0 +1,17 @@
+{
+  "id": "engine-premise-cr",
+  "about": "Engine premise fixture (task engine-premise-measure): one frame per step of golden/ops/engine-premises.jsonl (65 cases, each followed by an idle frame = 130 frames). The page (src/premise-fixture.mjs) acts once per frame from window.__fwStep(n); no scroll, no input.",
+  "hz": 60,
+  "viewport": { "width": 430, "height": 932, "dpr": 3, "mobile": true, "touch": true },
+  "pinnedDate": "2026-10-01T00:00:00+07:00",
+  "timezone": "Asia/Bangkok",
+  "locale": "en-US",
+  "seed": 1592661556,
+  "load": { "quietFrames": 30, "maxFrames": 900, "prerollFrames": 60 },
+  "zoneHeightPx": 500,
+  "input": { "mode": "page" },
+  "segments": [
+    { "name": "warm", "dyPerFrame": 0, "frames": 6 },
+    { "name": "steps", "dyPerFrame": 0, "frames": 130 }
+  ]
+}

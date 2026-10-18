@@ -166,7 +166,7 @@ if (TARGET === 'rewrite') {
 // measured scrollY (the plan ends when the page end is reached).
 const inputMode = profile.input?.mode ?? 'scrollTo';
 const plan = [];
-if (inputMode === 'scrollTo') {
+if (inputMode === 'scrollTo' || inputMode === 'page') {
   let y = 0;
   for (const seg of profile.segments) {
     if (seg.until === 'end') { while (y < maxScroll) { y = Math.min(maxScroll, y + seg.dyPerFrame); plan.push({ phase: seg.name, y }); } }
@@ -224,10 +224,17 @@ const record = (n, phase, scrollY, r) => {
   frames.push({ n, phase, scrollY, vt: +(vt - START_VT).toFixed(3), counts });
 };
 const metricsNow = async () => Object.fromEntries((await c.send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
-if (inputMode === 'scrollTo') {
+// "page" mode: segments named "warm" come first; the page makes throwaway changes of its own in them (window.__fwWarm(n)) and the
+// verdict drops them. Tracing itself costs one full repaint at the second commit after it starts (MEASURED, engine premise lane).
+const warmN = inputMode === 'page' ? plan.filter((x) => x.phase === 'warm').length : 0;
+if (inputMode === 'scrollTo' || inputMode === 'page') {
   for (let n = 0; n < plan.length; n++, vt += dt) {
     const { phase, y } = plan[n];
-    const r = await frame(vt, `console.timeStamp('F${n}'); window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = scrollY;`);
+    // "page" (engine premise fixtures): the page itself acts once per frame, from its own step table (window.__fwStep(n)), inside the frame's mark window.
+    const pre = inputMode === 'page'
+      ? `console.timeStamp('F${n}'); ${phase === 'warm' ? `window.__fwWarm(${n})` : `window.__fwStep(${n - warmN})`}; var __fwStepResult = scrollY;`
+      : `console.timeStamp('F${n}'); window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = scrollY;`;
+    const r = await frame(vt, pre);
     r.metrics = await metricsNow();
     record(n, phase, r.out, r);
   }
