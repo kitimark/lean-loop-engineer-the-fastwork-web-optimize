@@ -32,9 +32,9 @@ $$\mathrm{Key} = (\mathbb{Q} \cup \{\bot\}) \times \mathbb{Q} \times (\mathbb{Q}
 -/
 abbrev Key := Option Rat × Rat × Option Rat
 
-/-- Steps with their keys, given the offset before the first step.
+/-- Steps paired with their keys, given the offset `p` before the first step.
 
-$$\operatorname{key}(S)_i = (y_{i-1},\, y_i,\, y_{i+1}),\quad y_0' = \bot,\ y_{|S|+1}' = \bot$$
+$$\operatorname{keyedFrom}(p,[\,])=[\,],\quad \operatorname{keyedFrom}(p,[s])=[((p,s.y,\bot),s)],\quad \operatorname{keyedFrom}(p,s::t::r)=((p,s.y,t.y),s)::\operatorname{keyedFrom}(s.y,t::r)$$
 -/
 def keyedFrom : Option Rat → List Step → List (Key × Step)
   | _, [] => []
@@ -159,7 +159,14 @@ deriving Repr, DecidableEq
 /-- Aligned zone `z` of `a` against `b`: the zone records of the paired steps, the plain step counts, and
 `full` (the zone has steps, and every step of both runs in it is paired).
 
-$$\mathrm{full}_z \iff |A_z| > 0 \wedge |A_z| = |B_z| = |P(A,B)_z| = |P(B,A)_z|,\qquad \Delta_z = \operatorname{sum}(P(A,B)_z) - \operatorname{sum}(P(B,A)_z)$$
+$$\begin{aligned}
+\operatorname{azone}_{h,w}(A,B,z) &= (z,\ zh,\ |A_z|,\ |B_z|,\ |P(A,B)_z|,\ |P(B,A)_z|,\ c_A,\ c_B,\ [c_A[j]-c_B[j]]_{j<w},\ a_A,\ a_B,\ a_A-a_B,\ \mathrm{full}_z)\\
+c_A &= \operatorname{zrec}_{h,w}(P(A,B),z).\mathrm{counts},\quad a_A = \operatorname{zrec}_{h,w}(P(A,B),z).\mathrm{area}\quad (c_B, a_B \text{ likewise from } P(B,A))\\
+\mathrm{full}_z &\iff |A_z| > 0 \wedge |A_z| = |B_z| \wedge |A_z| = |P(A,B)_z| \wedge |B_z| = |P(B,A)_z|
+\end{aligned}$$
+
+Here $|A_z|$ counts the steps of $A$ in zone $z$, $|P(A,B)_z|$ is the step count of the zone record, and $c[j]$
+reads a missing entry as $0$.
 -/
 def alignZone (h w : Nat) (a b : List Step) (z : Nat) : AZone :=
   let pa := zoneRec h w (pairedSteps a b) z
@@ -212,7 +219,9 @@ theorem zoneRec_partition (h w : Nat) (ps : List Step) (n : Nat) (j : Nat) (hj :
 
 /-- **Paired steps of A land in the aligned zones.** The zone index of a step paired from A is below the zone count.
 
-$$\forall s \in P(A, B).\;\; \lfloor s.y / h \rfloor < N_h(A, B)$$
+$$\forall s \in P(A, B):\ \operatorname{zix}_h(s.y) < N_h(A, B)$$
+
+Here $\operatorname{zix}_h(y) = \max(0, \lfloor y/h \rfloor)$ with $y/0 = 0$.
 -/
 theorem paired_bound (h : Nat) (a b : List Step) : ∀ s ∈ pairedSteps a b, zoneIx h s.y < alignCount h a b := by
   intro s hs
@@ -222,7 +231,7 @@ theorem paired_bound (h : Nat) (a b : List Step) : ∀ s ∈ pairedSteps a b, zo
 /-- **Zone partition (run A).** For every column `j < w`, the aligned zones' A sums add up to the sum over
 the paired steps of A.
 
-$$\sum_{z < N} \mathrm{countsA}_z[j] = \sum_{s \in P(A,B)} s.\mathrm{row}[j]$$
+$$\forall j < w:\ \sum_{z \in \operatorname{align}_{h,w}(A,B)} \mathrm{countsA}_z[j] = \sum_{s \in P(A,B)} s.\mathrm{row}[j]$$
 -/
 theorem align_partition_a (h w : Nat) (a b : List Step) (j : Nat) (hj : j < w) :
     sumBy (fun z => valAt z.countsA j) (align h w a b) = sumBy (fun s => valAt s.row j) (pairedSteps a b) := by
@@ -231,7 +240,9 @@ theorem align_partition_a (h w : Nat) (a b : List Step) (j : Nat) (hj : j < w) :
 
 /-- **Paired steps of B land in the aligned zones.** The same for the steps paired from B.
 
-$$\forall s \in P(B, A).\;\; \lfloor s.y / h \rfloor < N_h(A, B)$$
+$$\forall s \in P(B, A):\ \operatorname{zix}_h(s.y) < N_h(A, B)$$
+
+Here $\operatorname{zix}_h(y) = \max(0, \lfloor y/h \rfloor)$ with $y/0 = 0$.
 -/
 theorem paired_bound' (h : Nat) (a b : List Step) : ∀ s ∈ pairedSteps b a, zoneIx h s.y < alignCount h a b := by
   intro s hs
@@ -240,7 +251,7 @@ theorem paired_bound' (h : Nat) (a b : List Step) : ∀ s ∈ pairedSteps b a, z
 
 /-- **Zone partition (run B).** The same for run B.
 
-$$\sum_{z < N} \mathrm{countsB}_z[j] = \sum_{s \in P(B,A)} s.\mathrm{row}[j]$$
+$$\forall j < w:\ \sum_{z \in \operatorname{align}_{h,w}(A,B)} \mathrm{countsB}_z[j] = \sum_{s \in P(B,A)} s.\mathrm{row}[j]$$
 -/
 theorem align_partition_b (h w : Nat) (a b : List Step) (j : Nat) (hj : j < w) :
     sumBy (fun z => valAt z.countsB j) (align h w a b) = sumBy (fun s => valAt s.row j) (pairedSteps b a) := by
@@ -347,7 +358,7 @@ theorem full_counts_b (h w : Nat) (a b : List Step) (z : Nat) (hf : (alignZone h
 /-- **A run aligned with itself is all full and has no delta.** Every zone with steps is full, the A and B sums
 are equal and the deltas are 0.
 
-$$\forall z \in \operatorname{align}(A, A):\ \mathrm{countsA}_z = \mathrm{countsB}_z \wedge \Delta_z = 0 \wedge (|A_z| > 0 \Rightarrow \mathrm{full}_z)$$
+$$\forall z \in \operatorname{align}_{h,w}(A, A):\ \mathrm{countsA}_z = \mathrm{countsB}_z \wedge \Delta_z = [0]^w \wedge \mathrm{areaDelta}_z = 0 \wedge (\mathrm{stepsA}_z > 0 \Rightarrow \mathrm{full}_z)$$
 -/
 theorem align_self (h w : Nat) (a : List Step) :
     ∀ x ∈ align h w a a, x.countsA = x.countsB ∧ x.delta = List.replicate w 0 ∧ x.areaDelta = 0 ∧
@@ -385,21 +396,23 @@ def inAll (ss : List (List String)) (k : String) : Bool := ss.all (·.contains k
 
 /-- The paired rows: the keys of the first session, in its order, that every session has (none for no sessions).
 
-$$\operatorname{paired}(S_1 :: \mathcal{R}) = [\, \kappa \in S_1 \mid \operatorname{inAll}(S_1 :: \mathcal{R}, \kappa) \,]$$
+$$\operatorname{paired}([\,]) = [\,],\qquad \operatorname{paired}(S_1 :: \mathcal{R}) = [\, \kappa \in S_1 \mid \operatorname{inAll}(S_1 :: \mathcal{R}, \kappa) \,]$$
 -/
 def pairedRows : List (List String) → List String
   | [] => []
   | s :: rest => s.filter (inAll (s :: rest))
 
-/-- How many sessions have a row with this key.
+/-- How many sessions have a row with this key; a session listed twice counts twice.
 
-$$\operatorname{count}(\mathcal{S}, \kappa) = |\{\, S \in \mathcal{S} \mid \kappa \in S \,\}|$$
+$$\operatorname{count}(\mathcal{S}, \kappa) = \big|[\, S \in \mathcal{S} \mid \kappa \in S \,]\big|$$
 -/
 def sessionsWith (ss : List (List String)) (k : String) : Nat := (ss.filter (·.contains k)).length
 
 /-- The unpaired rows with the number of sessions that have them, each key once, in order of first appearance.
 
-$$\operatorname{unpaired}(\mathcal{S}) = [\, (\kappa, \operatorname{count}(\mathcal{S}, \kappa)) \mid \kappa \in \bigcup \mathcal{S},\ \neg \operatorname{inAll}(\mathcal{S}, \kappa) \,]$$
+$$\operatorname{unpaired}(\mathcal{S}) = [\, (\kappa, \operatorname{count}(\mathcal{S}, \kappa)) \mid \kappa \in \operatorname{eraseDups}([\, \kappa \in \operatorname{concat}(\mathcal{S}) \mid \neg \operatorname{inAll}(\mathcal{S}, \kappa) \,]) \,]$$
+
+Here $\operatorname{eraseDups}$ keeps the first occurrence of each key.
 -/
 def unpairedRows (ss : List (List String)) : List (String × Nat) :=
   (ss.flatten.filter (fun k => !inAll ss k)).eraseDups.map fun k => (k, sessionsWith ss k)

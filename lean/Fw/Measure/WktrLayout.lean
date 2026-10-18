@@ -57,7 +57,8 @@ deriving Repr, DecidableEq, Inhabited
 /-- The 13 cells of the lane (the order of `run.sh` before this task): every fixture at one frame in both variants, and the
 three animation fixtures at three frames in `live`.
 
-$$|\mathrm{cells}| = 5 \cdot 2 + 3 = 13$$
+$$\mathrm{cells} = [\,(f, 1, \mathrm{live}),\ (f, 1, \mathrm{liveTrace}) \mid f \in F_5\,] \mathbin{+\!\!+} [\,(f, 3, \mathrm{live}) \mid f \in F_3\,]$$
+$$F_5 = [\texttt{control}, \texttt{scroll-timeline}, \texttt{scroll-js-transform}, \texttt{scroll-js-bg}, \texttt{time-accel}],\quad F_3 = [\texttt{control}, \texttt{scroll-timeline}, \texttt{time-accel}]$$
 -/
 def cells : List Cell :=
   ["control", "scroll-timeline", "scroll-js-transform", "scroll-js-bg", "time-accel"].flatMap
@@ -323,7 +324,7 @@ cells, take no less time than the serial run. Measured on a 3-core macOS VM (run
 and the two-lane layout 1967 s, so each cell took about 4.4 times as long with two lanes, more than the factor 2 it would have
 had to stay under.
 
-$$k \mid n \ \wedge\ k\,a \le b \ \Rightarrow\ n\,a \le \tfrac{n}{k}\,b$$
+$$\forall n, k, a, b \in \mathbb{N}:\ 0 < k \ \wedge\ k \mid n \ \wedge\ k\,a \le b \ \Rightarrow\ n\,a \le \lfloor n/k \rfloor\, b$$
 -/
 theorem parallel_no_gain (n k a b : Nat) (hk : 0 < k) (hn : k ∣ n) (hb : k * a ≤ b) : n * a ≤ (n / k) * b := by
   obtain ⟨m, rfl⟩ := hn
@@ -396,7 +397,7 @@ def Expect.ok (e : Expect) (kind : Kind) (sums : List (Nat × Nat)) : Bool :=
 
 /-- A deterministic exact rate of `r` thousandths.
 
-$$\operatorname{exact}(r) = (r, r)$$
+$$\operatorname{exact}(f, n, v, t, r) = (f, n, v, t, \mathrm{det}, r, r)$$
 -/
 def exactRate (fixture : String) (frames : Nat) (v : Variant) (t : CountType) (r : Nat) : Expect :=
   ⟨fixture, frames, v, t, .det, r, r⟩
@@ -406,7 +407,14 @@ style recalc; the scroll-timeline animation costs one per update; the document-t
 `ev_animActive` is one per update). The two JS-driven arms restyle in a changing share of the updates (0.74 to 0.93), a class
 `quarantined`, band one half to one.
 
-$$\mu_{\mathrm{control}} = 0, \quad \mu_{\mathrm{timeline}} = 1, \quad \mu_{\mathrm{timeAccel}} = 0, \quad \mu_{\mathrm{js}} \in [\tfrac12, 1] \text{ (quarantined)}$$
+$$\begin{aligned}
+\mathrm{expects} = {} & [\,\operatorname{exact}(\texttt{control}, r, \mathrm{live}, \texttt{styleRecalcs}, 0),\ \operatorname{exact}(\texttt{scroll-timeline}, r, \mathrm{live}, \texttt{styleRecalcs}, 1000),\ \operatorname{exact}(\texttt{time-accel}, r, \mathrm{live}, \texttt{styleRecalcs}, 0) \mid r \in [1, 3]\,] \\
+\mathbin{+\!\!+} {} & [\,\operatorname{exact}(\texttt{control}, 1, \mathrm{liveTrace}, \texttt{styleRecalcs}, 0),\ \operatorname{exact}(\texttt{scroll-timeline}, 1, \mathrm{liveTrace}, \texttt{styleRecalcs}, 1000),\ \operatorname{exact}(\texttt{time-accel}, 1, \mathrm{liveTrace}, \texttt{styleRecalcs}, 0), \\
+& \ \ \operatorname{exact}(\texttt{control}, 1, \mathrm{liveTrace}, \texttt{ev\_animActive}, 0),\ \operatorname{exact}(\texttt{time-accel}, 1, \mathrm{liveTrace}, \texttt{ev\_animActive}, 1000)\,] \\
+\mathbin{+\!\!+} {} & [\,(f, 1, v, \texttt{styleRecalcs}, \mathrm{quar}, 500, 1000) \mid f \in [\texttt{scroll-js-transform}, \texttt{scroll-js-bg}],\ v \in [\mathrm{live}, \mathrm{liveTrace}]\,]
+\end{aligned}$$
+
+The last list runs over $v$ inside $f$, so it has 4 rows and $|\mathrm{expects}| = 15$.
 -/
 def expects : List Expect :=
   [1, 3].flatMap (fun fr =>

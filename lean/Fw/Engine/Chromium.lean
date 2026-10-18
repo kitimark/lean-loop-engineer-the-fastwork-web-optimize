@@ -756,7 +756,7 @@ deriving Repr, DecidableEq
 
 /-- The JSON spelling of a prediction.
 
-$$\operatorname{str}(=\!0) = \texttt{"=0"},\ \operatorname{str}(=\!o) = \texttt{"=o"},\ \operatorname{str}(<\!o) = \texttt{"<o"},\ \operatorname{str}(\le\!o) = \texttt{"≤o"},\ \operatorname{str}(\mathrm{any}) = \texttt{"any"}$$
+$$\operatorname{str}(=\!0) = \texttt{"=0"},\ \operatorname{str}(=\!o) = \texttt{"=o"},\ \operatorname{str}(<\!o) = \texttt{"<o"},\ \operatorname{str}(\le\!o) = \texttt{"\char"2264o"},\ \operatorname{str}(\mathrm{any}) = \texttt{"any"}$$
 -/
 def Pred.str : Pred → String
   | .zero => "=0" | .eqO => "=o" | .ltO => "<o" | .leO => "≤o" | .any => "any"

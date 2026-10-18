@@ -198,7 +198,7 @@ theorem cache_sound {K R : Type} [DecidableEq K] (h : List (String × String) �
 
 /-- Run a whole sequence of worlds through one cache (a workflow run after run).
 
-$$\operatorname{runAll}(c, [\,]) = ([\,], c), \quad \operatorname{runAll}(c, e :: es) = (r :: rs, c'') \text{ with } (r, c') = \operatorname{getOrRun}(c, e)$$
+$$\operatorname{runAll}(c, [\,]) = ([\,], c), \quad \operatorname{runAll}(c, e :: es) = (r :: rs, c'') \text{ with } (r, c') = \operatorname{getOrRun}(c, e),\ (rs, c'') = \operatorname{runAll}(c', es)$$
 -/
 def runAll {K R : Type} [DecidableEq K] (h : List (String × String) → K) (decl : List String)
     (run : Env → R) : Cache K R → List Env → List R × Cache K R

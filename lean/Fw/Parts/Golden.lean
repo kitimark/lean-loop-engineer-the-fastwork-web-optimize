@@ -112,7 +112,20 @@ $\operatorname{total}_\rho = \operatorname{forced}_\rho + [\operatorname{fE}]$ (
 pilot frame the batched rows read style $1/0$ (dirty/clean start) while the batched total is $2/1$, against a faithful
 total of $4/3$: batching saves 2 style passes in the trace, not 3 (`pilot_batched_rows_forced_only`).
 
-$$\mathit{lines} = [\mathrm{forcedCounts}(as, d), \mathrm{forcedCountsBatched}(as, d) \mid as \in \mathit{seqs}, d \in \{\bot, \top\}] \mathbin{+\!\!+} [\mathrm{planLayouts}] \mathbin{+\!\!+} [\mathrm{engineRuns}],\quad \mathrm{forcedCounts}(as, d) = (\operatorname{forced}_{\rho_S}(d, as), \operatorname{forced}_{\rho_L}(d, as))$$
+$$\begin{aligned}
+\mathit{lines} = {} & [\,\mathrm{fc}(as, d),\ \mathrm{fcb}(as, d) \mid as \in \mathit{seqs},\ d \in [\bot, \top]\,] \\
+\mathbin{+\!\!+} {} & [\,\mathrm{planLayouts}(v, ws, d) \mapsto \operatorname{layouts}(d, \operatorname{framePlan}(v, ws)) \mid v \in [\mathrm{faithful}, \mathrm{batched}],\ ws \in W,\ d \in [\bot, \top]\,] \\
+\mathbin{+\!\!+} {} & [\,\mathrm{engineRuns}(p, es) \mapsto \operatorname{runs}(p, es) \mid es \in E,\ p \in [\bot, \top]\,]
+\end{aligned}$$
+$$\begin{aligned}
+\mathit{seqs} &= [\,[\,],\ [\mathrm{RL}],\ [\mathrm{WS}, \mathrm{RL}],\ [\mathrm{RL}, \mathrm{WL}, \mathrm{RL}],\ [\mathrm{RS}, \mathrm{WS}, \mathrm{RS}, \mathrm{WL}, \mathrm{RL}],\ \mathrm{heroExit},\ \mathrm{nav},\ \mathrm{pilot}\,] \\
+E &= [\,[\,],\ [\mathrm{frame}],\ [\mathrm{scroll}, \mathrm{frame}],\ [\mathrm{scroll}, \mathrm{scroll}, \mathrm{scroll}, \mathrm{frame}, \mathrm{frame}, \mathrm{scroll}, \mathrm{frame}],\ [\mathrm{frame}, \mathrm{scroll}, \mathrm{frame}, \mathrm{scroll}, \mathrm{scroll}]\,] \\
+\mathrm{fc}(as, d) &= \mathrm{forcedCounts}(as, d) \mapsto (\operatorname{forced}_{\rho_S}(d, as), \operatorname{forced}_{\rho_L}(d, as)) \\
+\mathrm{fcb}(as, d) &= \mathrm{forcedCountsBatched}(as, d) \mapsto (\operatorname{forced}_{\rho_S}(d, \operatorname{bat}(as)), \operatorname{forced}_{\rho_L}(d, \operatorname{bat}(as)))
+\end{aligned}$$
+
+Each line is labelled with its inputs (left of $\mapsto$) and carries its value (right of $\mapsto$); the batched rows
+are labelled with $as$, not with $\operatorname{bat}(as)$, and $W$ is `writerPatterns`.
 
 Vectors for the cost model, labelled as forced counts rather than totals. -/
 def engineSpecLines : List String :=

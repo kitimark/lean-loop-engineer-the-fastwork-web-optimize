@@ -542,7 +542,7 @@ theorem wk_countdown_style (d : Nat) (l : LayerState) (hd : 0 < d) :
 every pair give `=o`; otherwise passes at most the original's in every pair give `≤o` (not `<o`: whether a scenario
 reaches a hidden frame is not modelled); else `any`.
 
-$$\forall Q \in (\mathrm{Work} \times \mathrm{Work})^{*},\ \forall s \in \mathrm{Stage}:\ \operatorname{relPred}(Q, s) = \begin{cases} \texttt{"=o"} & \forall (v, o) \in Q:\ v.\mathrm{passes}(s) = o.\mathrm{passes}(s) \\ \texttt{"≤o"} & \text{else if } \forall (v, o) \in Q:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \\ \texttt{"any"} & \text{otherwise} \end{cases}\qquad (Q = [\,] \text{ gives } \texttt{\"=o\"})$$
+$$\forall Q \in (\mathrm{Work} \times \mathrm{Work})^{*},\ \forall s \in \mathrm{Stage}:\ \operatorname{relPred}(Q, s) = \begin{cases} \texttt{"=o"} & \forall (v, o) \in Q:\ v.\mathrm{passes}(s) = o.\mathrm{passes}(s) \\ \texttt{"\char"2264o"} & \text{else if } \forall (v, o) \in Q:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \\ \texttt{"any"} & \text{otherwise} \end{cases}\qquad (Q = [\,] \text{ gives } \texttt{"=o"})$$
 
 Equal when no modelled hidden frame changes the stage, at most when some lowers it. -/
 def relPred (pairs : List (Work × Work)) (s : Stage) : String :=
@@ -598,7 +598,7 @@ WebKit Simulator types (no lane yet, so `unusable` until one exists): script, st
 `relPred wkPairs`.
 
 $$\mathrm{goldenRows} = [\operatorname{row}(\texttt{chromium}, n, c, \operatorname{relPred}(\mathrm{crPairs}, s)) \mid (s, n, c) \in C_{\mathrm{cr}}] \mathbin{+\!\!+} [\operatorname{row}(\texttt{webkit}, n, c, \operatorname{relPred}(\mathrm{wkPairs}, s)) \mid (s, n, c) \in C_{\mathrm{wk}}]$$
-$$C_{\mathrm{cr}} = [(\mathrm{script}, \texttt{\"script\"}, \texttt{trace.FireAnimationFrame}), (\mathrm{style}, \texttt{\"style\"}, \texttt{trace.UpdateLayoutTree}), (\mathrm{layout}, \texttt{\"layout\"}, \texttt{trace.Layout}), (\mathrm{commit}, \texttt{\"commit\"}, \texttt{trace.cc.Commit})],\quad C_{\mathrm{wk}} = [(\mathrm{script}, \texttt{\"script\"}, \texttt{FireAnimationFrame}), (\mathrm{style}, \texttt{\"style\"}, \texttt{RecalculateStyles}), (\mathrm{layout}, \texttt{\"layout\"}, \texttt{Layout}), (\mathrm{commit}, \texttt{\"commit\"}, \texttt{Composite})]$$
+$$C_{\mathrm{cr}} = [(\mathrm{script}, \texttt{"script"}, \texttt{trace.FireAnimationFrame}), (\mathrm{style}, \texttt{"style"}, \texttt{trace.UpdateLayoutTree}), (\mathrm{layout}, \texttt{"layout"}, \texttt{trace.Layout}), (\mathrm{commit}, \texttt{"commit"}, \texttt{trace.cc.Commit})],\quad C_{\mathrm{wk}} = [(\mathrm{script}, \texttt{"script"}, \texttt{FireAnimationFrame}), (\mathrm{style}, \texttt{"style"}, \texttt{RecalculateStyles}), (\mathrm{layout}, \texttt{"layout"}, \texttt{Layout}), (\mathrm{commit}, \texttt{"commit"}, \texttt{Composite})]$$
 
 The predictions CI checks for the hidden-pause variant, eight rows. -/
 def goldenRows : List Lean.Json :=

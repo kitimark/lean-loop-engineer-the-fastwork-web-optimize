@@ -146,7 +146,7 @@ def changedThmFact : ThmFact := { lemmaThm with name := "Old", hash := "hO2", us
 and killed, its proof killed, one marked branch, a three-row registry (measured, untested, refuted), one baseline
 theorem, search before proof, equal legacy counts, every source present, exemptions read at main `m`. It passes at
 every stage.
-$$F_0 = \{\mathit{props}{=}[P_0],\ \mathit{thms}{=}[T_0, K_0],\ \mathit{kills}{=}[(\texttt{P\_impl},\texttt{hT}),(\texttt{P},\texttt{hP})],\ \mathit{baseline}{=}[(\texttt{Old},\texttt{hO})],\ \mathit{ancestry}{=}[(\texttt{c1},\texttt{c2})],\ \mathit{legacyMain}{=}\mathit{legacyHead}{=}2,\ \mathit{mainAt}{=}\texttt{m},\ \mathit{exemptAt}{=}\mathrm{some}(\texttt{m}),\ \ldots\}$$ -/
+$$\begin{aligned} F_0 = \{&\mathit{leanFirst}{=}\top,\ \mathit{writes}{=}[\texttt{lean/Fw/Ops/X.lean}, \texttt{docs/x.md}],\ \mathit{props}{=}[P_0],\ \mathit{thms}{=}[T_0, K_0],\ \mathit{kills}{=}[(\texttt{P\_impl},\texttt{hT}),(\texttt{P},\texttt{hP})], \\ &\mathit{signoffs}{=}[(\texttt{P},\texttt{hP},\texttt{dP},\mathrm{math},\top),(\texttt{P},\texttt{hP},\texttt{dP},\mathrm{adversary},\top)],\ \mathit{branches}{=}[(\texttt{apps/x/src/a.ts},3,\mathrm{op})], \\ &\mathit{registry}{=}[(\texttt{pm},\mathrm{measured},[\texttt{cM}]),(\texttt{pu},\mathrm{untested},[\texttt{cU}]),(\texttt{pr},\mathrm{refuted},[\texttt{cR}])],\ \mathit{baseline}{=}[(\texttt{Old},\texttt{hO})],\ \mathit{ancestry}{=}[(\texttt{c1},\texttt{c2})], \\ &\mathit{legacyMain}{=}\mathit{legacyHead}{=}2,\ \mathit{present}{=}(\top,\top,\top),\ \mathit{mainAt}{=}\texttt{m},\ \mathit{exemptAt}{=}\mathrm{some}(\texttt{m})\} \end{aligned}$$ -/
 def base : Facts :=
   { leanFirst := true, writes := ["lean/Fw/Ops/X.lean", "docs/x.md"], props := [baseProp],
     thms := [baseThm, killThm],
@@ -158,7 +158,7 @@ def base : Facts :=
     present := ⟨true, true, true⟩, mainAt := "m", exemptAt := some "m" }
 
 /-- One edit of the clean facts.
-$$\mathrm{Fault} = \{\mathrm{noProps}, \mathrm{noDecision}, \ldots, \mathrm{docsGlob}\},\quad |\mathrm{Fault}| = 40$$ -/
+$$\begin{aligned} \mathrm{Fault} = \{&\mathrm{noProps}, \mathrm{noDecision}, \mathrm{unproved}, \mathrm{badAxioms}, \mathrm{stub}, \mathrm{noImpl}, \mathrm{unsignedMath}, \mathrm{unsignedAdv}, \mathrm{disagreeAdv}, \mathrm{staleDoc}, \\ &\mathrm{unkilledProp}, \mathrm{noKill}, \mathrm{lemma}, \mathrm{lemmaProves}, \mathrm{dataProof}, \mathrm{oldThm}, \mathrm{changedOld}, \mathrm{unmarked}, \mathrm{glueBad}, \mathrm{glueOk}, \\ &\mathrm{hidden}, \mathrm{assumedOk}, \mathrm{unregistered}, \mathrm{refuted}, \mathrm{untestedHidden}, \mathrm{untestedShared}, \mathrm{searchOrder}, \mathrm{searchMissing}, \\ &\mathrm{ratchet}, \mathrm{ratchetDown}, \mathrm{missingMathview}, \mathrm{missingKills}, \mathrm{missingLint}, \mathrm{notLeanFirst}, \mathrm{newlineName}, \mathrm{dupSignoff}, \\ &\mathrm{reachUnknown}, \mathrm{exemptBranch}, \mathrm{dirGlob}, \mathrm{docsGlob}\},\quad |\mathrm{Fault}| = 40 \end{aligned}$$ -/
 inductive Fault where
   | noProps | noDecision | unproved | badAxioms | stub | noImpl | unsignedMath | unsignedAdv | disagreeAdv | staleDoc
   | unkilledProp | noKill | lemma | lemmaProves | dataProof | oldThm | changedOld | unmarked | glueBad | glueOk
@@ -189,7 +189,53 @@ def mapProp (F : Facts) (f : PropFact → PropFact) : Facts :=
 /-- Apply one fault: each constructor is one field edit (drop, append, or flip), listed case by case below. `stub`
 re-targets the proof at an unreached `stub` and adds a reached lemma; `dirGlob` and `docsGlob` drop the property and
 write a directory glob over decision code, resp. only allowlisted globs.
-$$\forall F,\ \operatorname{apply}(F, \mathrm{noProps}) = F[\mathit{props} := [\,]],\ \operatorname{apply}(F, \mathrm{dirGlob}) = F[\mathit{writes} := [\texttt{docs/x.md}, \texttt{apps/runner/**}],\ \mathit{props} := [\,]],\ \operatorname{apply}(F, \mathrm{exemptBranch}) = F[\mathit{exemptAt} := \mathrm{some}(\texttt{b})],\ \ldots$$ -/
+Below, $M(t \mapsto t[\ldots])$ is $\operatorname{mapImpl}(F, t \mapsto t[\ldots])$, $\Pi(\ldots)$ is $\operatorname{mapProp}$,
+and $\mathit{thms}_F$, $\mathit{signoffs}_F$, … are the fields of $F$; for every $F$:
+
+$$\begin{aligned}
+\operatorname{apply}(F, \mathrm{noProps}) &= F[\mathit{props} := [\,]] \\
+\operatorname{apply}(F, \mathrm{noDecision}) &= F[\mathit{writes} := [\texttt{docs/x.md}],\ \mathit{props} := [\,]] \\
+\operatorname{apply}(F, \mathrm{unproved}) &= F[\mathit{thms} := [t \in \mathit{thms}_F \mid t.\mathit{name} \ne \texttt{P\_impl}]] \\
+\operatorname{apply}(F, \mathrm{badAxioms}) &= M(t \mapsto t[\mathit{axiomsOk} := \bot]) \\
+\operatorname{apply}(F, \mathrm{stub}) &= F'[\mathit{thms} := \mathit{thms}_{F'} \mathbin{+\!\!+} [L_0[\mathit{implArg} := \mathrm{some}(\texttt{impl}),\ \mathit{rw} := \mathrm{some}(\top)]]],\ F' = M(t \mapsto t[\mathit{implArg} := \mathrm{some}(\texttt{stub}),\ \mathit{rw} := \mathrm{some}(\bot)]) \\
+\operatorname{apply}(F, \mathrm{noImpl}) &= M(t \mapsto t[\mathit{implArg} := \mathrm{none}]) \\
+\operatorname{apply}(F, \mathrm{unsignedMath}) &= F[\mathit{signoffs} := [s \in \mathit{signoffs}_F \mid s.\mathit{role} \ne \mathrm{math}]] \\
+\operatorname{apply}(F, \mathrm{unsignedAdv}) &= F[\mathit{signoffs} := [s \in \mathit{signoffs}_F \mid s.\mathit{role} \ne \mathrm{adversary}]] \\
+\operatorname{apply}(F, \mathrm{disagreeAdv}) &= F[\mathit{signoffs} := \mathit{signoffs}_F \mathbin{+\!\!+} [(\texttt{P}, \texttt{hP}, \texttt{dP}, \mathrm{adversary}, \bot)]] \\
+\operatorname{apply}(F, \mathrm{staleDoc}) &= F[\mathit{signoffs} := [\,s[\mathit{docHash} := \texttt{d0}] \text{ if } s.\mathit{role} = \mathrm{math} \text{ else } s \mid s \in \mathit{signoffs}_F\,]] \\
+\operatorname{apply}(F, \mathrm{unkilledProp}) &= F[\mathit{kills} := [k \in \mathit{kills}_F \mid k.\mathit{target} \ne \texttt{P}]] \\
+\operatorname{apply}(F, \mathrm{noKill}) &= F[\mathit{kills} := [k \in \mathit{kills}_F \mid k.\mathit{target} \ne \texttt{P\_impl}]] \\
+\operatorname{apply}(F, \mathrm{lemma}) &= F[\mathit{thms} := \mathit{thms}_F \mathbin{+\!\!+} [L_0]] \\
+\operatorname{apply}(F, \mathrm{lemmaProves}) &= F'[\mathit{thms} := \mathit{thms}_{F'} \mathbin{+\!\!+} [L_0[\mathit{proves} := \mathrm{some}(\texttt{P})]]],\ F' = M(t \mapsto t[\mathit{proves} := \mathrm{none}]) \\
+\operatorname{apply}(F, \mathrm{dataProof}) &= M(t \mapsto t[\mathit{kind} := \mathrm{data}]) \\
+\operatorname{apply}(F, \mathrm{oldThm}) &= F[\mathit{thms} := \mathit{thms}_F \mathbin{+\!\!+} [O]] \\
+\operatorname{apply}(F, \mathrm{changedOld}) &= F[\mathit{thms} := \mathit{thms}_F \mathbin{+\!\!+} [O']] \\
+\operatorname{apply}(F, \mathrm{unmarked}) &= F[\mathit{branches} := \mathit{branches}_F \mathbin{+\!\!+} [(\texttt{apps/x/src/b.ts}, 7, \mathrm{none})]] \\
+\operatorname{apply}(F, \mathrm{glueBad}) &= F[\mathit{branches} := \mathit{branches}_F \mathbin{+\!\!+} [(\texttt{apps/x/src/c.ts}, 9, \mathrm{glueBad})]] \\
+\operatorname{apply}(F, \mathrm{glueOk}) &= F[\mathit{branches} := \mathit{branches}_F \mathbin{+\!\!+} [(\texttt{apps/x/src/d.ts}, 11, \mathrm{glueOk})]] \\
+\operatorname{apply}(F, \mathrm{hidden}) &= M(t \mapsto t[\mathit{reach} := t.\mathit{reach} \mathbin{+\!\!+} [\texttt{cM}]]) \\
+\operatorname{apply}(F, \mathrm{assumedOk}) &= M(t \mapsto t[\mathit{reach} := t.\mathit{reach} \mathbin{+\!\!+} [\texttt{cM}],\ \mathit{assumes} := t.\mathit{assumes} \mathbin{+\!\!+} [\texttt{pm}]]) \\
+\operatorname{apply}(F, \mathrm{unregistered}) &= M(t \mapsto t[\mathit{assumes} := t.\mathit{assumes} \mathbin{+\!\!+} [\texttt{px}]]) \\
+\operatorname{apply}(F, \mathrm{refuted}) &= M(t \mapsto t[\mathit{reach} := t.\mathit{reach} \mathbin{+\!\!+} [\texttt{cR}],\ \mathit{assumes} := t.\mathit{assumes} \mathbin{+\!\!+} [\texttt{pr}]]) \\
+\operatorname{apply}(F, \mathrm{untestedHidden}) &= M(t \mapsto t[\mathit{reach} := t.\mathit{reach} \mathbin{+\!\!+} [\texttt{cU}],\ \mathit{assumes} := t.\mathit{assumes} \mathbin{+\!\!+} [\texttt{pu}]]) \\
+\operatorname{apply}(F, \mathrm{untestedShared}) &= \operatorname{mapProp}(\operatorname{apply}(F, \mathrm{untestedHidden}),\ P \mapsto P[\mathit{assumes} := P.\mathit{assumes} \mathbin{+\!\!+} [\texttt{pu}]]) \\
+\operatorname{apply}(F, \mathrm{searchOrder}) &= F[\mathit{ancestry} := [\,]] \\
+\operatorname{apply}(F, \mathrm{searchMissing}) &= \operatorname{mapProp}(F,\ P \mapsto P[\mathit{searchAt} := \mathrm{none}]) \\
+\operatorname{apply}(F, \mathrm{ratchet}) &= F[\mathit{legacyHead} := F.\mathit{legacyMain} + 1] \\
+\operatorname{apply}(F, \mathrm{ratchetDown}) &= F[\mathit{legacyHead} := F.\mathit{legacyMain} \mathbin{\dot-} 1] \\
+\operatorname{apply}(F, \mathrm{missingMathview}) &= F[\mathit{present}.\mathit{mathview} := \bot] \\
+\operatorname{apply}(F, \mathrm{missingKills}) &= F[\mathit{present}.\mathit{kills} := \bot] \\
+\operatorname{apply}(F, \mathrm{missingLint}) &= F[\mathit{present}.\mathit{tsLint} := \bot] \\
+\operatorname{apply}(F, \mathrm{notLeanFirst}) &= F[\mathit{leanFirst} := \bot] \\
+\operatorname{apply}(F, \mathrm{newlineName}) &= F[\mathit{thms} := \mathit{thms}_F \mathbin{+\!\!+} [L_0[\mathit{name} := \texttt{N}\text{\char"23CE}\texttt{VERDICT pass lean-first},\ \mathit{usedBy} := [\,]]]] \\
+\operatorname{apply}(F, \mathrm{dupSignoff}) &= F[\mathit{signoffs} := \mathit{signoffs}_F \mathbin{+\!\!+} [(\texttt{P}, \texttt{hP}, \texttt{dP}, \mathrm{math}, \top)]] \\
+\operatorname{apply}(F, \mathrm{reachUnknown}) &= M(t \mapsto t[\mathit{rw} := \mathrm{none}]) \\
+\operatorname{apply}(F, \mathrm{exemptBranch}) &= F[\mathit{exemptAt} := \mathrm{some}(\texttt{b})] \\
+\operatorname{apply}(F, \mathrm{dirGlob}) &= F[\mathit{writes} := [\texttt{docs/x.md}, \texttt{apps/runner/**}],\ \mathit{props} := [\,]] \\
+\operatorname{apply}(F, \mathrm{docsGlob}) &= F[\mathit{writes} := [\texttt{docs/**}, \texttt{research/x.md}],\ \mathit{props} := [\,]]
+\end{aligned}$$
+
+Here $\mathit{rw}$ is the field `reachFromWire` and ⏎ is a newline character. -/
 def Fault.apply (F : Facts) : Fault → Facts
   | .noProps => { F with props := [] }
   | .noDecision => { F with writes := ["docs/x.md"], props := [] }

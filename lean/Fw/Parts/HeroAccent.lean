@@ -781,7 +781,7 @@ theorem wk_run_equal :
 /-- The relational prediction of one stage over frame pairs $(v, o)$: `=o` if every pair has equal passes, else `≤o`
 if every pair has $v \le o$, else `any`.
 
-$$\forall Q \in (\mathrm{Work} \times \mathrm{Work})^{*},\ \forall s:\ \operatorname{relPred}(Q, s) = \begin{cases} \texttt{"=o"} & \forall (v, o) \in Q:\ v.\mathrm{passes}(s) = o.\mathrm{passes}(s) \\ \texttt{"≤o"} & \text{else if } \forall (v, o) \in Q:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \\ \texttt{"any"} & \text{otherwise} \end{cases}\qquad (Q = [\,] \text{ gives } \texttt{"=o"})$$
+$$\forall Q \in (\mathrm{Work} \times \mathrm{Work})^{*},\ \forall s:\ \operatorname{relPred}(Q, s) = \begin{cases} \texttt{"=o"} & \forall (v, o) \in Q:\ v.\mathrm{passes}(s) = o.\mathrm{passes}(s) \\ \texttt{"\char"2264o"} & \text{else if } \forall (v, o) \in Q:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \\ \texttt{"any"} & \text{otherwise} \end{cases}\qquad (Q = [\,] \text{ gives } \texttt{"=o"})$$
 
 `≤o`, not `<o`: whether a scenario's window holds idle frames is not modelled. -/
 def relPred (pairs : List (Work × Work)) (s : Stage) : String :=
@@ -813,7 +813,7 @@ original's ticks that restyle to an equal value (199.92 ms, 399.90 ms, the `ceil
 rendering updates the table does not show, and a WebKit build without step-aware scheduling ticks the original every
 frame (v1 measured 240 style passes and 481 paints per 4 s, INFERRED to be such a build); neither arm runs script.
 
-$$\forall s \in \mathrm{Stage}:\ \operatorname{wkPred}(s) = \begin{cases} \texttt{"≤o"} & s \ne \mathrm{script} \land \operatorname{relPred}(\mathrm{wkPairs}, s) = \texttt{"=o"} \\ \operatorname{relPred}(\mathrm{wkPairs}, s) & \text{otherwise} \end{cases}$$
+$$\forall s \in \mathrm{Stage}:\ \operatorname{wkPred}(s) = \begin{cases} \texttt{"\char"2264o"} & s \ne \mathrm{script} \land \operatorname{relPred}(\mathrm{wkPairs}, s) = \texttt{"=o"} \\ \operatorname{relPred}(\mathrm{wkPairs}, s) & \text{otherwise} \end{cases}$$
 
 Never claims more than the model shows. -/
 def wkPred (s : Stage) : String :=

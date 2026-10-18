@@ -743,7 +743,7 @@ def wkV : List Work := worksV Fw.Engine.WebKit.webkit true wkOth [] true false e
 
 /-- The emitted prediction: the model's, with a strict `<o` weakened to `≤o`.
 
-$$\forall p:\ \operatorname{soften}(p) = \begin{cases} \text{"≤o"} & p = \text{"<o"} \\ p & p \ne \text{"<o"} \end{cases}$$
+$$\forall p:\ \operatorname{soften}(p) = \begin{cases} \text{"\char"2264o"} & p = \text{"<o"} \\ p & p \ne \text{"<o"} \end{cases}$$
 
 The model's strict drop needs a tail frame (no scroll, lerp unsettled) or a frame where the card is the only style
 writer; the swipe profiles guarantee neither (`swipe-v1` scrolls on every frame, other parts write style on scroll),
@@ -764,7 +764,9 @@ def row (engine scenario : String) (t : CountType) (vs os : List Work) : String 
 
 /-- All golden rows: Chromium on `swipe-v1` and `swipe-touch-v1`, WebKit on `swipe-v1` (all in the c860 band).
 
-$$|\mathrm{goldenLines}| = 2 \cdot |\mathrm{crTypes}| + |\mathrm{wkTypes}| = 20$$
+$$\mathrm{goldenLines} = [\,\operatorname{row}(\texttt{chromium}, sc, \tau, \mathrm{crV}, \mathrm{crO}) \mid sc \in [\texttt{swipe-v1}, \texttt{swipe-touch-v1}],\ \tau \in \mathrm{crTypes}\,] \mathbin{+\!\!+} [\,\operatorname{row}(\texttt{webkit}, \texttt{swipe-v1}, \tau, \mathrm{wkV}, \mathrm{wkO}) \mid \tau \in \mathrm{wkTypes}\,]$$
+
+With 8 Chromium and 4 WebKit count types this is $2 \cdot 8 + 4 = 20$ lines, in this order.
 
 The file `packages/contracts/golden/engine/people-card.jsonl`, line by line. -/
 def goldenLines : List String :=

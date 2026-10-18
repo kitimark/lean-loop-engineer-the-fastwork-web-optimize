@@ -1039,7 +1039,7 @@ def GRow.json (r : GRow) : String :=
 passes and units are at most the original's in every frame and its passes are strictly fewer in some frame; `≤o` when
 only the first holds; `any` otherwise. Counts are whole-page, so the rule never predicts `=0` or `=o`. An empty $F$ gives `≤o`.
 
-$$\operatorname{framePred}(F, s) = \begin{cases} \text{<o} & (\forall (v, o) \in F:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s)) \land \exists (v, o) \in F:\ v.\mathrm{passes}(s) < o.\mathrm{passes}(s) \\ \text{≤o} & (\forall (v, o) \in F:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s)) \land \lnot\exists (v, o) \in F:\ v.\mathrm{passes}(s) < o.\mathrm{passes}(s) \\ \text{any} & \text{otherwise} \end{cases}$$
+$$\operatorname{framePred}(F, s) = \begin{cases} \text{<o} & (\forall (v, o) \in F:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s)) \land \exists (v, o) \in F:\ v.\mathrm{passes}(s) < o.\mathrm{passes}(s) \\ \text{\char"2264o} & (\forall (v, o) \in F:\ v.\mathrm{passes}(s) \le o.\mathrm{passes}(s) \land v.\mathrm{units}(s) \le o.\mathrm{units}(s)) \land \lnot\exists (v, o) \in F:\ v.\mathrm{passes}(s) < o.\mathrm{passes}(s) \\ \text{any} & \text{otherwise} \end{cases}$$
 -/
 def framePred (fr : List (Work × Work)) (s : Stage) : String :=
   if fr.all (fun p => decide (p.1.passes s ≤ p.2.passes s ∧ p.1.units s ≤ p.2.units s)) then

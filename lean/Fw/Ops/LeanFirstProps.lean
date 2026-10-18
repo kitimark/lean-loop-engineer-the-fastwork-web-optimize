@@ -355,7 +355,7 @@ def BaselineNotNew : Property (Facts → ThmFact → Bool) := fun ν =>
   ∀ F t, (t.name, t.hash) ∈ F.baseline → (∀ p ∈ F.baseline, p.1 = t.name → p.2 = t.hash) → ν F t = false
 
 /-- **`changed_is_new`** (theorem 14): a theorem whose (name, hash) pair is not in the baseline is new.
-$$\operatorname{ChangedIsNew}(\nu) :\iff \forall F\, t,\ (t.\mathit{name}, t.\mathit{hash}) \notin B \Rightarrow \nu(F, t) = \mathrm{true}$$
+$$\operatorname{ChangedIsNew}(\nu) :\iff \forall F\, t,\ (t.\mathit{name}, t.\mathit{hash}) \notin F.\mathit{baseline} \Rightarrow \nu(F, t) = \mathrm{true}$$
 An edit to an old theorem's statement is gated like a new theorem. -/
 def ChangedIsNew : Property (Facts → ThmFact → Bool) := fun ν =>
   ∀ F t, (t.name, t.hash) ∉ F.baseline → ν F t = true
