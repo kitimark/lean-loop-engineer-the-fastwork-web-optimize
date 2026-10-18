@@ -1873,6 +1873,12 @@
    "task": "engine-model-fix",
    "field": "mechanism",
    "text": "engine-model-fix: sign change, WebKit trade -> win. Mechanism: the WebKit cost was the rest<->fade toggle frame, modelled as +1 layout unit for the variant's none<->blur flip; but the original's blur(0)<->blur(x) value change also lays out, because a filter change with new outsets is a Layout-level StyleDifference (CI run 39088367495: filter at layer and own runs layoutUpdates). Lean why: Fw.Parts.MorphPanelOpt.wk_toggle_layout_units (2 layout units in both arms), wk_toggle_eqv (equal toggle frames), with wk_rest_claim (rest frames dominate) and wk_rest_layers (one layer fewer). The run-level WebKit statement is not yet one theorem (missingWhy). Chromium stays a trade (cr_toggle_not_le). General lesson: before charging a threshold toggle to the variant, check what the original's continuous change at the same frame already pays; a value change that moves geometry (outsets) costs the same layout as the on/off flip."
+  },
+  {
+   "entry": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
+   "task": "wktr-serial-baseline",
+   "field": "mechanism",
+   "text": "wktr-serial-baseline: in the WKTR fixture lane the class KIND of layoutUpdates and compositingUpdates is run-to-run noise, so a diff of these two types between runs is not evidence about the animation. MEASURED over 5 serial runs of the same fixtures (CI runs 39075991405, 39082884332 k1, 39087188153 and the new 39121950231, 39121958562; macos-26, 3 jobs x 3 passes each): 13 of 144 keys (arm, variant, count type) change kind between runs, 5 of them layoutUpdates and 8 compositingUpdates; the other 11 count types (118 keys, styleRecalcs and renderingUpdates among them) never change kind. The 10 run pairs differ at 2 to 12 of 144 keys; the two new baselines differ at 2, both among the 12 diffs of the earlier pair, so 10 of those 12 do not flip between the new baselines: variance is MEASURED per count type, not per key. The lane assertions (control 0, scroll-timeline 1, time-accel 0 style recalcs per rendering update) held 15 of 15 in both new runs. Decision rules: Lean Fw.Measure.WktrVariance (findings_nil_iff, findingsBy_sub, claim_measured_iff)."
   }
  ]
 }
