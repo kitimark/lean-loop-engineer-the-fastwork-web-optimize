@@ -13,7 +13,11 @@ State: branch worktree-wf_664fab74-06b-1, one commit (see git log). Task: one so
 Verified locally: assets.test.mjs 2/2, apps/site tsc, aot build (dist copies equal snapshot bytes). Build is
 Vite-neutral: CSS url(/selling/...) still warns "didn't resolve at build time" (pre-existing, served from dist).
 
-Open: gate evidence is CI run on ci/site-assets (ids in the report). assets.test.mjs is not in the vitest include
+CI: breakpoint-gate dispatch 39149925429 (push twin 39149924665) on ci/site-assets @654320b1: site build success;
+chromium verdict pass (0 cells not ok); playwright-webkit incomplete, 1 cell not ok: matchMedia =Lean|sweep:phone-rotation
+(#1/#3 not-comparable; a viewport sweep, no asset involved). No main gate run existed to diff; lead to confirm that cell on main.
+
+Open: assets.test.mjs is not in the vitest include
 (apps/site/vitest.config.ts is outside this task's files); add `scripts/**/*.test.mjs` or a package script later.
 Hero template URLs (`${id}-cover.jpg`) are covered by listing all of hero/*; a new template URL needs a manifest entry
 by hand (test cannot see computed URLs). Limit: hand-written allowlist, Lean Fw.Site.Assets later. After merge, the
