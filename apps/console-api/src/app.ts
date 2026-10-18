@@ -13,6 +13,11 @@ import { readLatestHealth } from "./health.ts";
 import { mountPreview } from "./preview/routes.ts";
 import type { PreviewManager } from "./preview/manager.ts";
 import { OwnerAuth } from "./preview/owner.ts";
+import { mountOwnerGate } from "./preview/gate.ts";
+import { LoginGuard } from "./preview/login.ts";
+
+/** Owner login and LAN mode (console-lan-owner): the login guard and whether LAN requests are possible at all. */
+export interface GateOptions { login: LoginGuard; lan: boolean }
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
@@ -23,10 +28,35 @@ const MIME: Record<string, string> = {
  *  api.json also holds the build commit of the fwcore child (`coreCommit`, or `coreUnknown`). */
 export interface ServiceInfo { commit: string | null; startedAt: number }
 
-export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, previews?: PreviewManager, owner: OwnerAuth = new OwnerAuth(), service?: ServiceInfo) {
+export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, previews?: PreviewManager, owner: OwnerAuth = new OwnerAuth(), service?: ServiceInfo, gate?: GateOptions) {
   const app = new Hono();
   // a failed core call (fwcore crash, bad reply) fails the request; the core restarts itself
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
+  // No page of another origin (a task preview) may frame the console: clickjacking would ride the owner's own token.
+  app.use("*", async (c, next) => {
+    c.header("X-Frame-Options", "DENY");
+    c.header("Content-Security-Policy", "frame-ancestors 'none'");
+    await next();
+  });
+  // The owner gate runs first on every request (Lean `console.ownerGate`); with previews it is always on, because previews are
+  // served only to an owner session. Without LAN mode every request is loopback and only `/preview/*` is gated.
+  if (previews || gate) {
+    const g = gate ?? { login: new LoginGuard(store.core, null), lan: false };
+    mountOwnerGate(app, { core: store.core, owner, login: g.login, lan: g.lan });
+  }
+
+  // Every state-changing route (all non-GET; the login excepted, it judges its own Origin) passes the one Lean gate
+  // `console.ownerAction` kind `command`: an `Origin` header, when there is one, must be a console origin (Lean
+  // `preview_origin_refused`, `computed_trusted_refuses_preview`). Command-line tools send none and meet the actor door
+  // below. Owner routes then also need the bearer token (`owner_requires_bearer`).
+  app.use("*", async (c, next) => {
+    const m = c.req.method;
+    if (m === "GET" || m === "HEAD" || c.req.path === "/owner/login") return next();
+    if (!(await owner.actionOk(store.core, "command", false, c.req.header("origin"), c.req.header("host")))) {
+      return c.json({ ok: false, reason: "refused: the Origin of this request is not the console" }, 403);
+    }
+    return next();
+  });
 
   // Typed commands only. 400 = not a valid command; 422 = the reducer refused it, with the reason.
   app.post("/api/commands", async (c) => {

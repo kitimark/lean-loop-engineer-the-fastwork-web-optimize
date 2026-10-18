@@ -102,3 +102,6 @@ import Fw.Ops.LeanFirstProps  -- lfg-spec: the gate properties of section 7 over
 import Fw.Ops.LeanFirstDecision  -- lfg-spec: the gate's decision-code test equals the allowlist rule
 import Fw.Ops.LeanFirstSearch  -- lfg-spec: Enum Facts, fault grid, pointwise checks, search guards
 import Fw.Ops.LeanFirstProofs  -- lfg-spec: proofs of every lean-first gate property (`<P>_impl`)
+import Fw.Spec.Reach  -- lfg-mathview-facts: the closure/reach helpers shared by the props lint and the math-view facts
+import Fw.Spec.MathFacts  -- lfg-mathview-facts: per-theorem facts (head, impl arg, assumes, kill, class, reach, wire)
+import Fw.Spec.MathFactsGuards  -- lfg-mathview-facts: #guards of the facts on real declarations

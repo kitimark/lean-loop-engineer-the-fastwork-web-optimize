@@ -16,6 +16,8 @@ export type Entry = {
   target: { kind: string; ref: string | null; sha: string };
   rp: number; op: number; started: number; deadline: number;
   phase: Phase; pid: number | null; pstart: string | null; tree: string;
+  /** the last proxied request (ms); the time serving began until one comes (Lean `Owner.Live.seen`) */
+  seen: number;
 };
 export type Failed = { id: string; task: string; error: string; at: number };
 /** What the route saw of a request (Lean `Fw.Console.Preview.Proof`); Lean maps it to an actor. */
@@ -81,7 +83,7 @@ export function defaultHooks(root: string, dir: string): Hooks {
       return new Promise<number>((resolve, reject) => {
         const snap = join(e.tree, "snapshot/site");
         const c = spawn(process.execPath, [SERVE_CHILD, "--serve", `--fw-preview=${e.id}`, "--rewrite", join(e.tree, "apps/site/dist/aot"),
-          "--original", snap, "--media", snap, "--rp", String(e.rp), "--op", String(e.op)], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+          "--original", snap, "--media", snap, "--rp", String(e.rp), "--op", String(e.op), "--prefix", `/preview/${e.id}`], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
         track(c.pid ?? null);
         let out = ""; let ready = false;
         const timer = setTimeout(() => { try { process.kill(-c.pid!, "SIGTERM"); } catch { /* gone */ } reject(new Error("server did not start in 10 s")); }, 10_000);
@@ -142,6 +144,7 @@ export class PreviewManager {
   private note(rec: Record<string, unknown>) { appendFileSync(join(this.dir, "preview", "log.jsonl"), JSON.stringify({ at: this.hooks.now(), ...rec }) + "\n"); }
   /** the Lean table: only what Lean reads */
   private live() { return this.entries.map(({ id, task, rp, op, started }) => ({ id, task, rp, op, started })); }
+  private liveSeen() { return this.entries.map(({ id, task, rp, op, started, seen }) => ({ id, task, rp, op, started, seen })); }
   private serial<T>(f: () => Promise<T>): Promise<T> { const p = this.chain.then(f, f); this.chain = p.catch(() => undefined); return p; }
 
   list() { return { previews: this.entries.map((e) => ({ ...e })), failed: this.failed.slice(-5) }; }
@@ -173,7 +176,7 @@ export class PreviewManager {
       const r = await this.core.ops("console.previewAdmit", { ...proof, preview: id, task, now, diskMb: this.hooks.diskMb(), hasTarget: t.kind !== "none", live: this.live() });
       if (r.ok !== true) return { ok: false as const, reason: String(r.reason ?? "refused") };
       const e: Entry = { id, task, target: { kind: t.kind, ref: t.ref, sha: t.sha! }, rp: r.rp as number, op: r.op as number, started: now,
-        deadline: r.deadline as number, phase: "building", pid: null, pstart: null, tree: join(this.dir, "preview", id, "tree") };
+        deadline: r.deadline as number, phase: "building", pid: null, pstart: null, tree: join(this.dir, "preview", id, "tree"), seen: now };
       this.entries.push(e); this.persist(); this.note({ ev: "start", id, task, target: e.target, rp: e.rp, op: e.op });
       this.runs.set(id, this.go(e));
       return { ok: true as const, id, entry: { ...e } };
@@ -188,7 +191,7 @@ export class PreviewManager {
       if (cancelled()) { this.hooks.removeTree(e); return; } // a stop came during the build: nothing started, the tree goes
       const pid = await this.hooks.serve(e, track);
       if (cancelled()) { this.hooks.killGroup(pid); this.hooks.removeTree(e); return; }
-      e.pid = pid; e.pstart = this.hooks.startOf(pid); e.phase = "serving"; this.persist(); this.note({ ev: "serving", id: e.id, pid });
+      e.pid = pid; e.pstart = this.hooks.startOf(pid); e.phase = "serving"; e.seen = this.hooks.now(); this.persist(); this.note({ ev: "serving", id: e.id, pid });
     } catch (err) {
       if (cancelled()) { this.hooks.removeTree(e); return; } // the build step died because of the stop: clean up what it left
       this.failed.push({ id: e.id, task: e.task, error: (err as Error).message, at: this.hooks.now() });
@@ -229,15 +232,22 @@ export class PreviewManager {
     });
   }
 
-  /** every preview past its deadline is stopped (Lean `console.previewTick`) */
+  /** Every preview past its deadline (60 min) or idle for 15 min is stopped (Lean `console.previewSweep`). */
   tick(): Promise<string[]> {
     return this.serial(async () => {
-      const r = await this.core.ops("console.previewTick", { now: this.hooks.now(), live: this.live() });
+      const r = await this.core.ops("console.previewSweep", { now: this.hooks.now(), live: this.liveSeen() });
       const kill = r.kill as string[];
+      for (const w of (r.why as { id: string; why: string }[]) ?? []) this.note({ ev: "sweep", id: w.id, why: w.why });
       await this.remove(kill);
       return kill;
     });
   }
+
+  /** A running preview by id (null while building or when unknown). */
+  serving(id: string): Entry | null { const e = this.entries.find((x) => x.id === id); return e && e.phase === "serving" ? e : null; }
+
+  /** A proxied request reached the preview: its idle clock restarts. Memory only; the table file is not rewritten. */
+  touch(id: string): void { const e = this.entries.find((x) => x.id === id); if (e) e.seen = this.hooks.now(); }
 
   /** console start: the previous run's recorded previews are stopped (Lean `console.previewReap`) */
   async reapRecorded(): Promise<string[]> {
