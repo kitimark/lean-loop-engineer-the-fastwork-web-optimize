@@ -165,14 +165,18 @@ theorem exit_ne_zero_of_fail_cell (es : List (List Verdict × Nat)) (e : List Ve
 
 /-! ## The wire form (what `cli.mjs` reads) -/
 
-/-- The wire names of an engine verdict, as `cli.mjs` prints them. -/
+/-- The wire names of an engine verdict, as `cli.mjs` prints them.
+
+$$\operatorname{wire}(v) = \begin{cases} \texttt{pass} & v = \mathrm{pass} \\ \texttt{fail} & v = \mathrm{fail} \\ \texttt{unsettled} & v = \mathrm{unsettled} \\ \texttt{notRendered} & v = \mathrm{notRendered} \end{cases}$$
+
+Each verdict is printed under the name of its constructor. -/
 def verdictWire : EngineVerdict → String
   | .pass => "pass" | .fail => "fail" | .unsettled => "unsettled" | .notRendered => "notRendered"
 
 /-- The engine verdict from the wire names of its table cells (`pass`, `fail`, `not-comparable`,
 `unreachable:<reason>`, `not-run` for an empty block, which carries no verdict and is dropped).
 
-$$\operatorname{evW}(ns, u) = \operatorname{ev}([\,v(n) \mid n \in ns,\ n \ne \texttt{not-run}\,],\ u)$$
+$$\operatorname{evW}(ns, u) = \begin{cases} \operatorname{ok}(\operatorname{ev}([\,v(n) \mid n \in ns,\ n \ne \texttt{not-run}\,],\ u)) & \text{every such } n \text{ is known to } v = \operatorname{verdictOf} \\ \operatorname{error}(\texttt{unknown verdict } n) & n \text{ the first unknown such name} \end{cases}$$
 
 An unknown name is an error, never a pass. -/
 def engineVerdictW (names : List String) (unsettled : Nat) : Except String EngineVerdict := do
@@ -182,7 +186,12 @@ def engineVerdictW (names : List String) (unsettled : Nat) : Except String Engin
 /-! ## Golden vectors -/
 
 open Lean in
-/-- One engine case: wire names of the cells, the unsettled count, the verdict. -/
+/-- One engine case: wire names of the cells, the unsettled count, the verdict.
+
+$$\operatorname{engineCase}(ns, u) = \begin{cases} \{\mathrm{cells} = ns,\ \mathrm{kind} = \texttt{engine},\ \mathrm{unsettled} = u,\ \mathrm{verdict} = \operatorname{wire}(v)\} & \operatorname{evW}(ns, u) = \operatorname{ok}(v) \\ \{\mathrm{cells} = ns,\ \mathrm{error} = e,\ \mathrm{kind} = \texttt{engine},\ \mathrm{unsettled} = u\} & \operatorname{evW}(ns, u) = \operatorname{error}(e) \end{cases}$$
+
+One compact JSON object with keys in sorted order: the verdict when every cell name is known, else the error
+message of the first unknown name. -/
 def engineCase (cells : List String) (unsettled : Nat) : String :=
   match engineVerdictW cells unsettled with
   | .ok v => (Json.mkObj [("kind", "engine"), ("cells", toJson cells), ("unsettled", toJson unsettled),
@@ -191,11 +200,20 @@ def engineCase (cells : List String) (unsettled : Nat) : String :=
       ("error", e)]).compress
 
 open Lean in
-/-- One run case: the verdicts of the judged engines and the exit code. -/
+/-- One run case: the verdicts of the judged engines and the exit code.
+
+$$\operatorname{exitCase}(vs) = \{\mathrm{engines} = [\,\operatorname{wire}(v) \mid v \in vs\,],\ \mathrm{exit} = \operatorname{exit}(vs),\ \mathrm{kind} = \texttt{exit}\}$$
+
+One compact JSON object with keys in sorted order: the wire names of the verdicts, in order, and the exit code. -/
 def exitCase (vs : List EngineVerdict) : String :=
   (Json.mkObj [("kind", "exit"), ("engines", toJson (vs.map verdictWire)), ("exit", toJson (exitCode vs))]).compress
 
-/-- The golden lines (`packages/contracts/golden/gate/exit.jsonl`). -/
+/-- The golden lines (`packages/contracts/golden/gate/exit.jsonl`).
+
+$$\begin{aligned} \mathrm{goldenLines} = {} &[\,\operatorname{engineCase}(ns, u) \mid (ns, u) \in E\,] \mathbin{+\!\!+} [\,\operatorname{exitCase}(vs) \mid vs \in X\,], \\ E = {} &[\,([\texttt{pass}, \texttt{pass}, \texttt{not-run}], 0),\ ([\texttt{pass}, \texttt{not-comparable}, \texttt{not-run}, \texttt{unreachable:whole-width}], 0),\ ([\texttt{pass}, \texttt{fail}, \texttt{pass}], 0), \\ &\ \ ([\texttt{pass}, \texttt{fail}], 3),\ ([\texttt{pass}, \texttt{pass}], 2),\ ([\texttt{not-comparable}, \texttt{not-run}], 0), \\ &\ \ ([\texttt{unreachable:primary-pair}, \texttt{unreachable:whole-width}], 0),\ ([\,], 0),\ ([\texttt{pass}, \texttt{bogus}], 0)\,], \\ X = {} &[\,[\mathrm{pass}],\ [\mathrm{pass}, \mathrm{pass}],\ [\mathrm{pass}, \mathrm{fail}],\ [\mathrm{fail}],\ [\mathrm{unsettled}],\ [\mathrm{pass}, \mathrm{unsettled}],\ [\mathrm{notRendered}],\ [\mathrm{pass}, \mathrm{notRendered}],\ [\,]\,] \end{aligned}$$
+
+The engine cases come first, then the run cases, each in the order listed, so the file has
+$|E| + |X| = 9 + 9 = 18$ lines. -/
 def goldenLines : List String :=
   [ engineCase ["pass", "pass", "not-run"] 0,
     engineCase ["pass", "not-comparable", "not-run", "unreachable:whole-width"] 0,
