@@ -38,8 +38,12 @@ def apply (key actor type : String) (fields : List (String × Json)) : Json :=
   Json.mkObj [("op", .str "console.apply"), ("event", Json.mkObj ([("key", .str key),
     ("ts", toJson (0 : Nat)), ("actor", .str actor), ("type", .str type)] ++ fields))]
 
-/-- A `console.query` request. -/
-def query : Json := Json.mkObj [("op", .str "console.query"), ("now", toJson (0 : Nat)), ("seq", toJson (0 : Nat))]
+/-- A `console.query` request at time `now` (ms). -/
+def queryAt (now : Nat) : Json :=
+  Json.mkObj [("op", .str "console.query"), ("now", toJson now), ("seq", toJson (0 : Nat))]
+
+/-- A `console.query` request at time $0$. -/
+def query : Json := queryAt 0
 
 /-- The body fields of a `task.define`. -/
 def defFields (task : String) (deps : List String) (milestone : Option String := none)
@@ -60,9 +64,6 @@ def define (task : String) (deps : List String) (milestone : Option String := no
     (key : String := s!"d:{task}") (actor : String := "lead") (needs : List String := [])
     (cut : Bool := false) (live : List String := []) (onMain : Option Bool := none) : Json :=
   apply key actor "task.define" (defFields task deps milestone writes devices evidence needs cut live onMain)
-
-/-- A live key of a board task for `plan.timeouts`: `{key, at}`. -/
-def key (k : String) (n : Nat) : Json := Json.mkObj [("key", .str k), ("at", toJson n)]
 
 /-- The synthetic cases: (name, requests). -/
 def cases : List (String × List Json) := [
@@ -306,7 +307,7 @@ def cases : List (String × List Json) := [
     query,
     apply "seen:id-1|20|0" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (30 : Nat))],
     query]),
-  ("concurrent agents (task-state-truth, real events 1113/1114/1118 of the event log, ids and times only): the name-keyed legacy events end the task at the first agent's stop; the id-keyed events of the same agents keep it running while the second agent lives", [
+  ("concurrent agents (task-state-truth, real events 1113/1114/1118 of the event log, ids and times only): the name-keyed legacy events do nothing (names never sight or stop); the id-keyed events of the same agents keep it running while the second agent lives", [
     define "task-state-truth" [],
     apply "wfa:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.spawn"
       [("agent", .str "task-state-truth"), ("at", toJson (1792314139238 : Nat))],
@@ -326,21 +327,18 @@ def cases : List (String × List Json) := [
     apply "wfid-end:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.stop"
       [("agent", .str "ab23e20bebcfc3046"), ("at", toJson (1792314347670 : Nat))],
     query]),
-  ("claim TTL (task-state-truth): a claim is a sighting at claim time; its timeout stop parks the row as expired", [
+  ("quiet (task-state-truth): a key not seen within quietMs shows quiet with its last-seen time, never parked; a later event runs it again; only its stop parks it; a claim alone never runs a task", [
     define "a" [],
-    apply "c:a" "lead" "task.claim" [("task", .str "a"), ("agent", .str "lead-1"), ("at", toJson (500 : Nat))],
-    query,
-    apply "timeout:lead-1|500" "script" "agent.stop" [("agent", .str "lead-1"), ("at", toJson (500 : Nat))],
-    query]),
-  ("timeouts (task-state-truth): a live key quiet longer than quietMs is due at its last sighting; a recent key and a done task never", [
-    Json.mkObj [("op", .str "plan.timeouts"), ("now", toJson (7200001 : Nat)), ("tasks", .arr #[
-      Json.mkObj [("id", .str "a"), ("keys", .arr #[key "a" 0, key "id-a" 0]), ("evidence", .null)],
-      Json.mkObj [("id", .str "b"), ("keys", .arr #[key "b" 1]), ("evidence", .null)],
-      Json.mkObj [("id", .str "c"), ("keys", .arr #[]), ("evidence", .null)],
-      Json.mkObj [("id", .str "d"), ("keys", .arr #[key "d" 0]), ("evidence", .str "abc1234")]])],
-    Json.mkObj [("op", .str "plan.timeouts"), ("now", toJson (10 : Nat)), ("quietMs", toJson (5 : Nat)), ("tasks", .arr #[
-      Json.mkObj [("id", .str "a"), ("keys", .arr #[key "a" 4])],
-      Json.mkObj [("id", .str "b"), ("keys", .arr #[key "b" 5])]])]])]
+    define "b" [],
+    apply "c:b" "lead" "task.claim" [("task", .str "b"), ("agent", .str "lead-1"), ("at", toJson (500 : Nat))],
+    apply "label:id-1|a" "script" "agent.label" [("agent", .str "id-1"), ("name", .str "a")],
+    apply "start:id-1" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (1000 : Nat))],
+    queryAt 1000,
+    queryAt 7201001,
+    apply "seen:id-1|7201002" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (7201002 : Nat))],
+    queryAt 7201003,
+    apply "stop:id-1" "hook" "agent.stop" [("agent", .str "id-1"), ("at", toJson (7201002 : Nat))],
+    queryAt 99999999])]
 
 /-- The plan-sync vectors (`Fw.Plan.syncFrom`): name, main's ref name, the refs, the last synced
 commit, and the commit to sync from (or none). -/

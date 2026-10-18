@@ -765,7 +765,7 @@ Each issue with its count, comma separated.
 def alertNames (cs : List (String × Nat)) : List Char :=
   (", ".intercalate (cs.map fun (x, n) => s!"{x} x{n}")).toList
 
-/-- The spool alert title: the issue list `x₁ x n₁, …` cut to 123 UTF-16 units (an ellipsis marks a cut)
+/-- The spool alert title: the issue list `x₁ xn₁, …` cut to 123 UTF-16 units (an ellipsis marks a cut)
 between a fixed head and tail, so it fits the 200-unit step title.
 
 $$\operatorname{title}(C) = H \cdot \operatorname{take}_{16}(123, N) \cdot e \cdot T,\quad N = N(C),\quad e = \begin{cases} \text{“…”} & |\operatorname{take}_{16}(123, N)| < |N| \\ \varepsilon & \text{otherwise} \end{cases}$$
@@ -881,12 +881,15 @@ session-wide count, 6 to 31 on every one of the spool's SubagentStop records, ne
 * **any other event** of id $i$, named or unnamed, is a heartbeat: a spawn of $i$ at the record time
   with event key `seen:<i>|<epoch>|<time / 10 min>`, so at most one per id and 10 minutes between
   stops, and the first event after a stop gets a new key. A heartbeat later than the stop revives
-  the id (`event_revives`, by `Fw.Plan.revive_on_event`), and it feeds the quiet timeout
-  (`Fw.Plan.timeouts`, `Fw.Plan.timeout_spares_recent`);
+  the id (`event_revives`, by `Fw.Plan.revive_on_event`); an id with no sighting within the quiet
+  limit shows quiet with its last-seen time, never ended (`Fw.Plan.running_needs_recent_sighting`,
+  `Fw.Plan.timeout_never_ends`);
 * a named `SpawnGuard` record (the spawner's guard, before the new agent has an id) spawns its own
   obs key $k$ (event key `guard:<k>`) and labels $k$ with the requested name (event key
   `guard-label:<k>`): the task row is running from the spawn on, before the health index labels the
-  new id. Nothing stops $k$ but the quiet timeout (`Fw.Plan.no_forever_running`).
+  new id. A `SubagentStop` record carries no obs key of the guard, so no record stops $k$: it runs
+  for the quiet limit after its record and then shows quiet (`Fw.Plan.no_forever_running`), never
+  ended.
 -/
 
 /-- The heartbeat bucket: 10 minutes in milliseconds.

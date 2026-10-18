@@ -24,7 +24,9 @@ same flat event envelope as the other console commands (`key`, `ts`, `actor`, `t
 | `task.park` | `task`, `reason` |
 | `task.unpark` | `task` |
 
-A board task carries `since` (when its agent was last seen, ms, or null: `Fw.Plan.seenAt`), `keys`
+A board task carries `state` (one of `Fw.Plan.TState.name`, `quiet` included: a live bound key not
+seen within the quiet limit), `since` (when its running agent was last seen, ms: `Fw.Plan.seenAt`; for
+a quiet task the last-seen time of its live keys: `Fw.Plan.quietOf`; else null), `keys`
 (the live life keys of its agent with their last-seen times, `[{key, at}]`: `Fw.Plan.liveKeys`) and
 `outcome`: null, or `{kind: "handedBack", agent, tip}`,
 `{kind: "integrated", branch, tip}`, `{kind: "parked", reason}` (`Fw.Plan.outcomeOf`).
@@ -42,7 +44,6 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | op | request | reply |
 |---|---|---|
 | `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist], `classes`? [class ids of research/mistakes/ledger.json] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
-| `plan.timeouts` | `tasks` [board tasks: {id, evidence?, keys? [{key, at}]}], `now` (ms), `quietMs`? (missing = `Fw.Plan.quietMs`) | `stops` [{agent, at}] (`Fw.Plan.timeouts`: append each as `agent.stop` of key `agent` with that `at`, the key's last sighting, so a later event revives it) |
 -/
 namespace Fw.Wire.Plan
 open Lean Fw.Wire Fw.Plan
@@ -215,34 +216,13 @@ def opIncidentLint (req : Json) : Except String Reply := do
           ("findings", .arr (r.findings.toArray.map fun f => Json.mkObj [
             ("code", .str f.code.name), ("severity", .str f.code.severity), ("detail", .str f.detail)]))]))]
 
-/-! ## plan.timeouts (task task-state-truth) -/
-
-/-- Decode a board task for `plan.timeouts`: id, evidence (string or null/missing) and keys
-(`[{key, at}]`, missing or null = `[]`); the other fields are not read by `Fw.Plan.timeouts`. -/
-def timeoutTaskOfJson (t : Json) : Except String TaskView := do
-  let ks ← match opt t "keys" with
-    | none => pure []
-    | some v => do (← asArr "keys" v).toList.mapM fun k => do pure (← str k "key", ← nat k "at")
-  pure { id := ← str t "id", title := "", stream := "", milestone := none, owner := "", deps := [],
-         needs := [], lane := .agent, state := .ready, blockers := [], agent := none, since := none,
-         keys := ks, evidence := ← optStr t "evidence", outcome := none }
-
-/-- `plan.timeouts`: the timeout stops due at `now` (`Fw.Plan.timeouts`), as `{agent, at}`. -/
-def opTimeouts (req : Json) : Except String Reply := do
-  let vs ← (← arr req "tasks").toList.mapM timeoutTaskOfJson
-  let now ← nat req "now"
-  let q ← natD req "quietMs" quietMs
-  pure [("stops", .arr ((timeouts q now vs).toArray.map fun (a, n) =>
-    Json.mkObj [("agent", .str a), ("at", toJson n)]))]
-
 /-- The stateless ops of this module. -/
-def ops : List String := ["plan.incidentLint", "plan.timeouts"]
+def ops : List String := ["plan.incidentLint"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "plan.incidentLint" => some (opIncidentLint req)
-  | "plan.timeouts" => some (opTimeouts req)
   | _ => none
 
 end Fw.Wire.Plan

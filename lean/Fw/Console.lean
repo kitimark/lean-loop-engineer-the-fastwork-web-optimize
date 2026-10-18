@@ -916,7 +916,7 @@ theorem project_isLanded (l₁ l₂ : List Event) {x : String}
   (step s (ev "p3" .lead (.define (Fw.Plan.mk "a" ["b"])))).2 == .refused "dependency cycle"
   && (step s (ev "p3" .owner (.drop "b"))).2 == .refused "actor owner may not cause task.drop"
   && (step s (ev "p3" .hook (.claim "a" "agent-1" 0))).2 == .accepted false
-  && (Fw.Plan.view (apply s (ev "p3" .git (.done "a" "abc1234"))).plan).tasks.map (·.state)
+  && (Fw.Plan.view 0 0 (apply s (ev "p3" .git (.done "a" "abc1234"))).plan).tasks.map (·.state)
        == [.done, .ready]
 #guard
   let ev (k : String) (t : Nat) (a : Actor) (b : Body) : Event := ⟨k, t, a, b⟩
