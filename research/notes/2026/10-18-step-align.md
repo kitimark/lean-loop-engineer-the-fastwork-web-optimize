@@ -74,9 +74,17 @@ pairs vN/rN per session and writes `webkit-align`. Preset and fw overrides are s
   Consequence: when one VM is 1 px taller, the end-of-page census state is excluded (y=5267 in 2 of 3, y=5268 in 1 of 3).
 - Test: `test/mergerows.test.mjs` (fixture with the y=5268 VM). The `merge` job now needs the fwcore artifact.
 
+- CI (MEASURED): run 39081148105 (target both, 2 VMs, commit 9e5641c) passed end to end: plan, site, fwcore, sim v1 v2 r1 r2,
+  align (including `align-classes`, first CI run of that step) and merge, 106 table rows, no unpaired rows (both original VMs had the
+  same document height). The pairing of differing labels is covered by `test/mergerows.test.mjs` and the goldens, not by this run.
+- Earlier attempts of the same branch: sim jobs failed on `simctl list devices ETIMEDOUT`, on a stalled seek after the first scroll
+  (v1, twice; the watchdog from webkit-green reports it) and, in the first attempt, on the within-VM table step that now needs fwcore
+  (moved to the merge job). A `gh run rerun --failed` loses the rerun job's artifact (the first attempt's partial artifact of the same
+  name stays), so a verdict needs a fresh dispatch.
+
 ## Found on the way (not fixed, not mine)
 
-- The `align-classes` workflow step was added after run 39053799594; see the CI result of the follow-up run below.
+- The seek stage after the first scroll of VM v1 stalled twice for 12 minutes (watchdog limit); not investigated here.
 
 ## Reproduce
 

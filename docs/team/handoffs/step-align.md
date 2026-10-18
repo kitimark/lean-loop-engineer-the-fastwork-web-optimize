@@ -20,6 +20,6 @@ Conventions: Lean first, JS prints; mathview lint 0 failing; tests `pnpm --filte
 Open items
 - Preset/fw on the rewrite arm are still refused by `plan` (default config only).
 - When one VM is 1 px taller, the end-of-page census rows (y=5267 / y=5268) are unpaired and excluded, by design and reported.
-- CI verdict of ci/step-align after the merge fix: in the lead's report / the note.
+- CI: run 39081148105 (both, 2 VMs) passed incl. align and merge; v1 flakes (simctl ETIMEDOUT, seek stall); never `rerun --failed` (artifact lost).
 
 Read first: the note, StepAlign.lean doc header, `align.mjs`, `mergerows.mjs`.
