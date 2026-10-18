@@ -55,7 +55,7 @@ Rules (proved below):
   and a declared long-runner never raise `proc.long`; every `proc.long` alert is an undeclared tree older than
   `procMaxMin` whose owner is not live; an orphan of an ended agent does raise it.
 * `svcStale_iff`, `staleAlert_fields`, `sStale_restart` (rule and proofs in `Fw.Obs.Stale`): `svc.stale` fires for a
-  service exactly when an input changed on `main` after it started; a restart at main clears it.
+  service exactly when an input changed on `main` since its base commit (start or build); a restart clears it.
 * `alerts_sorted`, `crit_first`, `mem_alerts`, `health_perm`: the alert list is strictly sorted (critical first, then
   code, subject, detail), holds exactly the raised alerts, and does not depend on the order of the agents.
 -/
@@ -1202,12 +1202,12 @@ def sProc (p : Params) (o : Obs) : List Alert :=
 
 /-- The `svc.stale` alert of a stale service: subject its name, detail the changed input paths (measured values).
 
-$$\operatorname{staleAlert}(s) = (\texttt{svc.stale}, \mathit{name}(s), \text{“changed since start: ”} \cdot \operatorname{join}(\text{“, ”}, \operatorname{changed}(s)), \mathrm{false})$$
+$$\operatorname{staleAlert}(s) = (\texttt{svc.stale}, \mathit{name}(s), \text{“changed on main since its commit: ”} \cdot \operatorname{join}(\text{“, ”}, \operatorname{changed}(s)), \mathrm{false})$$
 -/
 def staleAlert (s : Svc) : Alert :=
-  ⟨.svcStale, s.name, "changed since start: " ++ ", ".intercalate s.changed, false⟩
+  ⟨.svcStale, s.name, "changed on main since its commit: " ++ ", ".intercalate s.changed, false⟩
 
-/-- `svc.stale`: one alert for each service with an input changed on `main` after it started.
+/-- `svc.stale`: one alert for each service with an input changed on `main` since its base commit.
 
 $$\operatorname{sStale}(o) = [\,\operatorname{staleAlert}(s) \mid s \leftarrow \Sigma.\mathit{svcs},\ \operatorname{stale}(s)\,]$$
 -/
@@ -1550,13 +1550,13 @@ theorem declared_quiet (p : Params) (o : Obs) (q : Proc) (h : declaredB o.system
 
 /-! ## Stale services -/
 
-/-- The report holds a `svc.stale` alert exactly when it is the alert of a service with an input changed after its start.
+/-- The report holds a `svc.stale` alert exactly when it is the alert of a service with a changed input.
 
-$$\forall p, o, x:\quad \bigl(x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{svc.stale}\bigr) \iff \exists s \in \Sigma.\mathit{svcs}.\ (\exists i \in I(s).\ \mathit{start}(s) < \mathit{changed}(i)) \wedge x = \operatorname{staleAlert}(s)$$
+$$\forall p, o, x:\quad \bigl(x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{svc.stale}\bigr) \iff \exists s \in \Sigma.\mathit{svcs}.\ (\exists i \in I(s).\ \mathit{changed}(i)) \wedge x = \operatorname{staleAlert}(s)$$
 -/
 theorem svcStale_iff (p : Params) (o : Obs) (x : Alert) :
     (x ∈ (health p o).alerts ∧ x.code = .svcStale) ↔
-      ∃ s ∈ o.system.svcs, (∃ i ∈ s.inputs, s.startedAt < i.changedAt) ∧ x = staleAlert s := by
+      ∃ s ∈ o.system.svcs, (∃ i ∈ s.inputs, i.changed = true) ∧ x = staleAlert s := by
   constructor
   · rintro ⟨hx, e⟩
     have h := (mem_sys p o x).1 (mem_sys_of_notAgent p o x hx (by rw [e]; rfl))
@@ -1572,19 +1572,19 @@ theorem svcStale_iff (p : Params) (o : Obs) (x : Alert) :
 
 /-- A stale service's alert names the service and lists exactly its changed paths.
 
-$$\forall s:\quad \mathit{subject}(\operatorname{staleAlert}(s)) = \mathit{name}(s) \wedge \mathit{detail}(\operatorname{staleAlert}(s)) = \text{“changed since start: ”} \cdot \operatorname{join}(\text{“, ”}, \operatorname{changed}(s))$$
+$$\forall s:\quad \mathit{subject}(\operatorname{staleAlert}(s)) = \mathit{name}(s) \wedge \mathit{detail}(\operatorname{staleAlert}(s)) = \text{“changed on main since its commit: ”} \cdot \operatorname{join}(\text{“, ”}, \operatorname{changed}(s))$$
 -/
 theorem staleAlert_fields (s : Svc) :
     (staleAlert s).subject = s.name ∧
-      (staleAlert s).detail = "changed since start: " ++ ", ".intercalate s.changed := ⟨rfl, rfl⟩
+      (staleAlert s).detail = "changed on main since its commit: " ++ ", ".intercalate s.changed := ⟨rfl, rfl⟩
 
-/-- A service restarted at or after every input's last change raises no `svc.stale` alert (restart at `main` clears it).
+/-- A restarted (or rebuilt) service raises no `svc.stale` alert.
 
-$$\forall s, t:\quad (\forall i \in I(s).\ \mathit{changed}(i) \le t) \Rightarrow \operatorname{sStale}(o[\mathit{svcs} := [\operatorname{restart}(s, t)]]) = []$$
+$$\forall s:\quad \operatorname{sStale}(o[\mathit{svcs} := [\operatorname{restart}(s)]]) = []$$
 -/
-theorem sStale_restart (o : Obs) (s : Svc) (t : Nat) (h : ∀ i ∈ s.inputs, i.changedAt ≤ t) :
-    sStale { o with system := { o.system with svcs := [s.restart t] } } = [] := by
-  simp [sStale, List.filter, Svc.restart_clears s t h]
+theorem sStale_restart (o : Obs) (s : Svc) :
+    sStale { o with system := { o.system with svcs := [s.restart] } } = [] := by
+  simp [sStale, List.filter, Svc.restart_clears s]
 
 /-- Every `proc.long` alert comes from a process tree of the session that is not declared, whose owner is not a live
 agent, and that is alive for strictly more than `procMaxMin` minutes.

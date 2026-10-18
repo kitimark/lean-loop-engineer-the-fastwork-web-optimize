@@ -1,18 +1,24 @@
 # console-stale handoff
 
-State: branch worktree-wf_ebc4ff5b-4b6-1 (round-2 head b82d0c4+handoff commit). check.sh green, runner+console-api+contracts tests green, `fw land --dry` ok.
+State: round 3 on branch worktree-wf_56a18937-3ba-1 (head: see `git log -1`). check.sh green, runner+console-api tests green.
 
 Read first: docs/team/tools/console-stale.md, lean/Fw/Obs/Stale.lean.
 
 Done
-- Lean: Fw.Obs.Stale (Svc, stale_iff, mem_changed, restart_clears); Health: code `svc.stale` (rank 14, later ranks +1),
-  `sStale`, theorems svcStale_iff, staleAlert_fields, sStale_restart; Wire/Obs.lean decodes `system.svcs` (round trip
-  proved; maxHeartbeats raised for systemOf_systemJson); 3 golden rows, health.jsonl regenerated.
-- TS: apps/runner/src/watch-svc.ts (measurement only), console-api writes commit+startedAt to api.json,
-  GET /api/service and `service` inside GET /api/health.
+- Lean: Fw.Obs.Stale. No timestamps (fw land builds the merge commit before its checks and moves main 23-89 s later,
+  MEASURED). Svc = name + inputs `{path, changed : Bool}`; changed = the first-parent range `base..main` touches the path.
+  Theorems: stale_iff, mem_changed, history model (`touched`, `judge_head_not_stale`, `touched_of_mem`), restart_clears,
+  Stack.restart_without_build_stale (restarting console-api leaves a stale fwcore stale), Stack.rebuild_clears.
+  Health: code `svc.stale`, `sStale`, svcStale_iff, staleAlert_fields, sStale_restart; Wire/Obs.lean decodes `svcs`.
+- TS: apps/runner/src/watch-svc.ts. console-api base = `commit` in api.json (HEAD at start). fwcore is its own service:
+  base = `lean/.lake/build/bin/fwcore.commit` written by `scripts/fwcore-build.sh`; without it the binary mtime picks
+  the newest first-parent commit at or before it (stated PREMISE, can miss a change in the 23-89 s land window).
+- Tests: apps/runner/test/watch-svc.test.ts (real git: commit-tree at T-1 min, start at T, ff at T+1 min => stale;
+  restart clears; fwcore stays stale after a console-api restart; rebuild clears; mtime premise).
 
 Open
-- fw land does not print "console-api is stale: restart" (optional).
-- Running console-api must be restarted once to write startedAt; until then no svc.stale is possible (old api.json).
-- lean/Fw/Wire/Obs.lean is outside the task's declared writes (land scope accepted it); add it to the work-graph writes.
-- fwcore is judged to start with console-api; a lake rebuild without restart is not detected.
+- Build the main checkout's binary with `sh scripts/fwcore-build.sh` (plain `lake build` leaves no record, so the mtime
+  premise applies). Running console-api must be restarted once to write a full `commit` (old api.json: no alert).
+- fw land does not print "restart" hints (optional).
+- lean/Fw/Wire/Obs.lean is outside the task's declared writes: land with `--allow lean/Fw/Wire/Obs.lean` or add it to
+  docs/team/work-graph.json writes.

@@ -151,15 +151,18 @@ def typed : List Typed := [
            system := { okSys with simLock := { holder := some "sim-runner", since := some (ago 5) } } } },
   { name := "sim lock holder names no agent: sim.lockOrphan",
     o := { now := t0, agents := [ag "a" 0], system := { okSys with simLock := { holder := some "ghost" } } } },
-  { name := "svc.stale: console-api started before an input changed (strictly after): svc.stale names the changed paths only",
+  { name := "svc.stale: only the inputs touched by main since the base commit are named: svc.stale lists the changed paths",
     o := { now := t0, system := { okSys with svcs := [
-      ⟨"console-api", ago 90, [⟨"apps/console-api/src", ago 60⟩, ⟨"lean/Fw", ago 120⟩, ⟨"apps/console-web/dist", ago 90⟩]⟩] } } },
-  { name := "svc.stale: every input changed at or before the start: no alert",
+      ⟨"console-api", [⟨"apps/console-api/src", true⟩, ⟨"lean/Fw", false⟩, ⟨"apps/console-web/dist", false⟩]⟩] } } },
+  { name := "svc.stale: no input touched since the base commit (also a service with no inputs): no alert",
     o := { now := t0, system := { okSys with svcs := [
-      ⟨"console-api", ago 90, [⟨"apps/console-api/src", ago 90⟩, ⟨"lean/Fw", ago 120⟩]⟩, ⟨"fwcore", ago 5, []⟩] } } },
+      ⟨"console-api", [⟨"apps/console-api/src", false⟩, ⟨"lean/Fw", false⟩]⟩, ⟨"fwcore", []⟩] } } },
+  { name := "svc.stale: console-api restarted but the fwcore binary not rebuilt: only fwcore is stale",
+    o := { now := t0, system := { okSys with svcs := [
+      ⟨"console-api", [⟨"apps/console-api/src", false⟩, ⟨"lean/Fw", false⟩]⟩, ⟨"fwcore", [⟨"lean/Fw", true⟩, ⟨"lean/lakefile.toml", false⟩]⟩] } } },
   { name := "svc.stale: two stale services give two alerts in subject order",
     o := { now := t0, system := { okSys with svcs := [
-      ⟨"fwcore", ago 90, [⟨"lean/Fw", ago 1⟩]⟩, ⟨"console-api", ago 90, [⟨"apps/console-api/src", ago 1⟩]⟩] } } },
+      ⟨"fwcore", [⟨"lean/Fw", true⟩]⟩, ⟨"console-api", [⟨"apps/console-api/src", true⟩]⟩] } } },
   { name := "sim lock with no holder: no alert",
     o := { now := t0, system := { okSys with simLock := { since := some (ago 90) } } } },
   { name := "ci: a failure superseded by a later success, a running run, a cancelled run: no alert",
