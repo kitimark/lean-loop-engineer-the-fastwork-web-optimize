@@ -290,49 +290,35 @@ CONFIRMED, `packages/gate-breakpoints/src/gaps/README.md:1-30`.
 
 ---
 
-## 4. Results so far, and what is pending
+## 4. Results: the proof ledger
 
-**What exists now.**
+### 4.1 How to read a row
 
-| Result | Value | Status, source |
-|---|---|---|
-| Chromium classes, original | frozen: swipe-v1 27/25/10, touch 16/27/19 | MEASURED, `da287ff` |
-| Chromium classes, rewrite | swipe-v1 37/6/1 and 37/7/0; touch 40/0/4 (not frozen) | MEASURED, `fee88b2` |
-| Touch race | R deterministic in 4 touch types; A stable; 0 wedges | MEASURED, `c38088e` |
-| N0 / N1 neutrality reads on A (Chromium) | 0 and 0 after the SVG-document split | MEASURED, `f90c08f` |
-| Per-zone sums of the original, swipe-v1 | 12 zones × 70 types, 3 shards (CI run 39048702153). Zone ids, frames and scrolled px equal in all 3 shards. Cells that differ between shards: 18 of stable types, 25 of quarantined types, 0 of deterministic types | MEASURED, `c719d73` [BL:1-24]; `results/baselines/chromium/swipe-v1/original.zones.json` |
-| Breakpoint gate, pilot parts | 4 of 4 pass, both engines | MEASURED, `2566949` |
-| Gaps lane | Chromium 8/8 pass; WebKit 8/8 unreachable as predicted | MEASURED, `0d561fa` |
+_skeleton: columns and status words._
 
-> **PENDING: zone baselines.**
-> - Chromium cross-shard baseline per zone and type (lo, hi, base, class): tasks `zone-baseline-lean`
->   (Lean op `measure.zoneBaseline`) and `refreeze`.
-> - WebKit zone baselines: task `zone-baselines-webkit`, after `webkit-green`.
-> - Validity table rows V-j and V-t: task `vj-vt`.
->
-> | Engine | Profile | Zones | Baseline | Source |
-> |---|---|---|---|---|
-> | Chromium | swipe-v1 | 12 | _pending_ | |
-> | Chromium | swipe-touch-v1 | 12 | _pending_ | |
-> | WebKit | scroll | _pending_ | _pending_ | |
+### 4.2 Per part: theorem pair, premises, engine verdicts, F-result
 
-> **PENDING: parts and gates.** Faithful checks (`faithful-checks`), bands freeze (`bands-freeze`), all parts ported
-> (`port-parts`, M4), CSS decisions (`css-decide`, the user's).
+_skeleton: one row per ledger finding with a Lean pair._
 
-> **PENDING: experiments (M5, task `experiments`).** One row per landed experiment card: arm, change class, count
-> Δ per zone (Chromium, WebKit), verdict (4 vs 4, disjoint ranges), phone check.
->
-> | Experiment | Parts / flags | Class | Count Δ | Verdict | Phone | Card |
-> |---|---|---|---|---|---|---|
-> | _pending_ | | | | | | |
+### 4.3 Candidates without a proved pair
 
-> **PENDING: phone sessions (M3, tasks `phone-session-1`, `calibration`, `gap-device`).** G1 and G2 need these.
->
-> | Session | Date | Purpose | Slow frames > 34 ms | End-of-page longest frame | Blind verdicts | Chore steps | Incidents |
-> |---|---|---|---|---|---|---|---|
-> | _pending_ | | | | | | | |
->
-> G1 target: `original` within v1's A/A band; `v2-best` ≤ 1.7 % slow frames and ≤ 42 ms [PLAN:149].
+_skeleton: not-proved, not-tried, refuted rows, one line each._
+
+### 4.4 Premises H1-H3 and research gaps RG1-RG11
+
+_skeleton._
+
+### 4.5 Math review state
+
+_skeleton: r14 counts._
+
+### 4.6 Measured inputs
+
+_skeleton: the Chromium and gate rows that still hold._
+
+### 4.7 Pending until C3
+
+_skeleton: the two named pending blocks (faithful bands table; F3/F4 per flag table)._
 
 ---
 
@@ -409,9 +395,9 @@ Why runs failed or were wasted:
 
 ---
 
-## 6. What was cut for the 3-day limit
+## 6. Not done
 
-> **SLOT** (task `plan-rev9`, Fable's plan revision 9): the list of cuts, each with what it costs the result.
+_skeleton: one line per cut, then today's negative results._
 
 ---
 
