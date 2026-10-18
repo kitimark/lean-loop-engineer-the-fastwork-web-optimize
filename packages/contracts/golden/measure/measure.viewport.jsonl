@@ -1,0 +1,5 @@
+{"name":"the profile viewport is kept","request":{"observed":{"h":932,"w":430},"op":"measure.viewport","profile":{"h":932,"w":430}},"response":{"faithful":true,"heightDiffers":false,"widthDiffers":false}}
+{"name":"a zoomed-out layout viewport (the measured 645 x 1398) is refused","request":{"observed":{"h":1398,"w":645},"op":"measure.viewport","profile":{"h":932,"w":430}},"response":{"faithful":false,"heightDiffers":true,"widthDiffers":true}}
+{"name":"only the width grew","request":{"observed":{"h":932,"w":645},"op":"measure.viewport","profile":{"h":932,"w":430}},"response":{"faithful":false,"heightDiffers":false,"widthDiffers":true}}
+{"name":"only the height grew","request":{"observed":{"h":1398,"w":430},"op":"measure.viewport","profile":{"h":932,"w":430}},"response":{"faithful":false,"heightDiffers":true,"widthDiffers":false}}
+{"name":"a smaller viewport is refused too","request":{"observed":{"h":932,"w":320},"op":"measure.viewport","profile":{"h":932,"w":430}},"response":{"faithful":false,"heightDiffers":false,"widthDiffers":true}}

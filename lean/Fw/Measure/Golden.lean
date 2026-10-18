@@ -145,6 +145,11 @@ def retryReq (e : String) (a n : Nat) : Json :=
 def retryPlanReq (es : List String) (n : Nat) : Json :=
   Json.mkObj [("errors", .arr (es.toArray.map Json.str)), ("max", toJson n)]
 
+/-- A `measure.viewport` request. -/
+def viewportReq (pw ph ow oh : Nat) : Json :=
+  Json.mkObj [("profile", Json.mkObj [("w", toJson pw), ("h", toJson ph)]),
+              ("observed", Json.mkObj [("w", toJson ow), ("h", toJson oh)])]
+
 /-- A `measure.simPlan` request (the commit is a fixed 40-character hex string). -/
 def simPlanReq (target vms sessions preset fw experiment : String) : Json :=
   Json.mkObj [("target", .str target), ("vms", .str vms), ("sessions", .str sessions), ("preset", .str preset),
@@ -412,6 +417,12 @@ def cases : List (String × List (String × Json)) := [
     ("no failure at all", retryPlanReq [] 3),
     ("six timeouts, limit 8: waits double up to the cap",
       retryPlanReq ["ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT"] 8)]),
+  ("measure.viewport", [
+    ("the profile viewport is kept", viewportReq 430 932 430 932),
+    ("a zoomed-out layout viewport (the measured 645 x 1398) is refused", viewportReq 430 932 645 1398),
+    ("only the width grew", viewportReq 430 932 645 932),
+    ("only the height grew", viewportReq 430 932 430 1398),
+    ("a smaller viewport is refused too", viewportReq 430 932 320 932)]),
   ("measure.simPlan", [
     ("the defaults: the original arm only, no query", simPlanReq "original" "1" "1" "original" "" "determinism"),
     ("both arms, one VM, the flag in the query of the rewrite arm only",

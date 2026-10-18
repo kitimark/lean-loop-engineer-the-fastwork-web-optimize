@@ -24,22 +24,43 @@ import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
+import Fw.Parts.MorphPanel
+import Fw.Parts.Nav
+import Fw.Parts.NavLangMenu
+import Fw.Parts.NavGolden
+import Fw.Parts.Commission
+import Fw.Parts.CommissionTyping
+import Fw.Parts.CommissionGolden
+import Fw.Parts.Bezier
+import Fw.Parts.OverlayDrawer
+import Fw.Parts.OverlaySignup
+import Fw.Parts.OverlayGolden
+import Fw.Parts.HeroOrbit
+import Fw.Parts.HeroAccent
+import Fw.Parts.HeroDeck
+import Fw.Parts.HeroGolden
+import Fw.Parts.PeopleGolden
 import Fw.Parts.PlatformGolden
 import Fw.Parts.MorphTweenOpt
 import Fw.Parts.HiddenPause
 import Fw.Parts.MorphMountOpt
 import Fw.Parts.HeroExitOpt
 import Fw.Parts.PainNotes
-import Fw.Parts.MorphPanelOpt
+import Fw.Parts.PainNotesGolden
 import Fw.Parts.PeopleDeck
 import Fw.Parts.PeopleCard
-import Fw.Parts.HeroAccent
+import Fw.Parts.PainNotesOpt
+import Fw.Parts.MorphPanelOpt
+import Fw.Parts.PeopleDeckOpt
+import Fw.Parts.PeopleCardOpt
+import Fw.Parts.HeroAccentOpt
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
 import Fw.Measure.Retry
+import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
@@ -111,6 +132,7 @@ import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduc
 import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict
+import Fw.Gate.PageOffset  -- fix-page-offset: page-level top-of-part check (proposal)
 import Fw.Spec.Props  -- lfg-props-shape: property-over-impl convention, Assume premise marker, kill-witness naming
 import Fw.Search  -- lfg-props-shape: Enum, bounded counterexample search, link to properties
 import Fw.Spec.LandDrySig  -- lfg-props-shape: the dry-run implementation signature (Out, DryImpl)

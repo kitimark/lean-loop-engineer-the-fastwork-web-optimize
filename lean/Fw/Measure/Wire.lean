@@ -10,6 +10,7 @@ import Fw.Measure.StepAlign
 import Fw.Measure.Quiet
 import Fw.Measure.EngineCheck
 import Fw.Measure.Retry
+import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
 /-!
 # JSON codecs and ops of the measurement lanes (`measure.*`)
@@ -43,6 +44,7 @@ tolerances are read as exact decimals (`JsonNumber` = mantissa · 10^(−exponen
 | `measure.zoneBaseline` | `runs` (≥ 3, distinct `id`s) [{id, frames \| zones}] (frames as for `measure.zoneSums`, or that op's `zones`), `zoneHeightPx` (≥ 1, needed when a run gives `frames`), `classes` (the frozen table {type: {class, k, t, tBound?}}) | `runs` (ids), `zones` [{id, frames, scrolledPx, firstFrame, lastFrame, types {type: cell}}], `totals` {type: cell}, `detDrift` [{zone, type}], `detDriftTotals` [type], `tally`; cell = {class (or `unlisted`), rule (`unlisted` reads `quarantined`), perRun, lo, hi, base} |
 | `measure.retry` | `error` (a simctl failure text), `attempt` (≥ 1, attempts made so far), `max` (limit, naturals) | `class` (`transient`, `permanent`), `retry`, `delayMs` (the wait before the next attempt, 0 when not retrying) |
 | `measure.retryPlan` | `errors` (strings: the error of attempt 1, 2, …; the attempt after the last works), `max` | `classes`, `delays` (ms, one per retry), `retries`, `outcome` (`succeeded`, `exhausted`, `permanent`) |
+| `measure.viewport` | `profile`, `observed` ({w, h} naturals, CSS px) | `faithful` (`Fw.Measure.Viewport.viewportFaithful`: the page reports exactly the profile viewport), `widthDiffers`, `heightDiffers` |
 | `measure.simPlan` | `target` (`original`, `rewrite`, `both`), `vms`, `sessions` (decimal strings), `preset`, `fw` (`part:variant,...`, may be empty), `experiment` (`determinism`, `quiet`), `sha` (40 hex) | `problems` (empty = accepted), `search` (the query the rewrite is served with), `matrix` [{vm, arm, idx, sha, bp, search}] (empty when refused), `original`, `rewrite`, `both` (whether the matrix has those arms) |
 | `measure.snapshotCounts` | `snapshot` (`args.snapshot` of `LayerTreeHostImpl:snapshot`; a non-object is empty) | `counts` {census.\*, raster.\*} |
 -/
@@ -716,6 +718,17 @@ def opRetryPlan (req : Json) : Except String Reply := do
   pure [("classes", .arr (cs.toArray.map fun c => .str (clsName c))), ("delays", toJson ds),
         ("retries", toJson ds.length), ("outcome", .str o)]
 
+/-- `measure.viewport`: `{profile, observed}` -> whether the run kept the profile viewport (rule:
+`Fw.Measure.Viewport`). -/
+def opViewport (req : Json) : Except String Reply := do
+  let size (k : String) : Except String Fw.Measure.Viewport.Size := do
+    let o ← field req k
+    pure { w := ← nat o "w", h := ← nat o "h" }
+  let p ← size "profile"
+  let o ← size "observed"
+  pure [("faithful", .bool (Fw.Measure.Viewport.viewportFaithful p o)),
+        ("widthDiffers", .bool (o.w != p.w)), ("heightDiffers", .bool (o.h != p.h))]
+
 /-- `measure.simPlan`: the dispatch inputs of `webkit-sim.yml` → the refusals, the query of the rewrite arm and the job
 matrix (rule: `Fw.Measure.SimPlan`). -/
 def opSimPlan (req : Json) : Except String Reply := do
@@ -762,6 +775,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "measure.quietSteps" => some (opQuietSteps req)
   | "measure.retry" => some (opRetry req)
   | "measure.retryPlan" => some (opRetryPlan req)
+  | "measure.viewport" => some (opViewport req)
   | "measure.simPlan" => some (opSimPlan req)
   | "measure.engineCheck" => some (Fw.Wire.Measure.EngineCheck.op req)
   | _ => none

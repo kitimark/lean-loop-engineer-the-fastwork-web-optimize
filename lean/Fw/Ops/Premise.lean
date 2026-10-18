@@ -354,21 +354,24 @@ CI lane of their own asserts (kind `lane`): $p_{18}$-$p_{22}$, the five engine s
 task engine-premise-measure); $p_{23}$-$p_{29}$, the seven stage rules that lane refuted in run 39088367495 and that
 hold on its recorded cells after the model fix (`cr.layout`, `cr.props`, `cr.paint`, `cr.raster`, `cr.hits`,
 `wk.layout`, `wk.props`; task engine-model-fix, `Fw.Ops.EnginePremise.cr_recorded_holds`, `wk_recorded_holds`); and
-$p_{30}$, the WKTR style-rate premise (task wktr-p1p4), whose counter `internals.styleRecalcCount` only
+$p_{32}$, the WKTR style-rate premise (task wktr-p1p4), whose counter `internals.styleRecalcCount` only
 WebKitTestRunner exposes. The lane rules are stated on the `table` step set, which the lane judges in rows of their own
 (`Fw.Ops.EnginePremise.grouped_steps`). The `extra` step set (a clock-shim control, custom-property joins, two-box
 frames; task engine-model-fix-2) is judged separately: in run 39124427211 its rows `chromium.extra.paint` and
 `chromium.extra.raster` fail on `top` with `scale` and every other row holds (`Fw.Ops.EnginePremise.cr_extra_verdicts`,
 `wk_extra_holds`).
 
-$$\operatorname{registry} = [p_1, \dots, p_{30}]$$
+The two `content-visibility` view premises of fix-commission-margin ($p_{30}$, $p_{31}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests.
+
+$$\operatorname{registry} = [p_1, \dots, p_{32}]$$
 $$\begin{aligned}
 \mathrm{id}(p_1..p_{17}) &= [\texttt{anim.list}, \texttt{cv.auto-margin}, \texttt{cv.read-forces-lock}, \texttt{frame.raf-order}, \texttt{frame.ro-same-frame}, \texttt{resize.lag}, \texttt{clock.raf-timeline}, \texttt{css.number-linear}, \texttt{css.inherits-false}, \\
 &\qquad \texttt{dom.token-toggle-noop}, \texttt{dom.inline-same-value}, \texttt{read.forced-update}, \texttt{hit.pointer-events}, \texttt{layout.unit-truncation}, \texttt{io.async-delivery}, \\
 &\qquad \texttt{grid.normal-aspect-ratio-no-stretch}, \texttt{grid.stretch-fill-equals-start}] \quad (\text{page}) \\
 \mathrm{id}(p_{18}..p_{22}) &= [\texttt{cr.script}, \texttt{cr.style}, \texttt{cr.commit}, \texttt{wk.style}, \texttt{wk.commit}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
 \mathrm{id}(p_{23}..p_{29}) &= [\texttt{cr.layout}, \texttt{cr.props}, \texttt{cr.paint}, \texttt{cr.raster}, \texttt{cr.hits}, \texttt{wk.layout}, \texttt{wk.props}] \quad (\text{lane}, \texttt{engine-premises.yml}) \\
-\mathrm{id}(p_{30}) &= \texttt{wktr\_scroll\_timeline\_restyle} \quad (\text{lane}, \texttt{wktr-fixtures.yml})
+\mathrm{id}(p_{30}, p_{31}) &= [\texttt{cv.skip-flag}, \texttt{cv.fresh-after-resize}] \quad (\text{page}) \\
+\mathrm{id}(p_{32}) &= \texttt{wktr\_scroll\_timeline\_restyle} \quad (\text{lane}, \texttt{wktr-fixtures.yml})
 \end{aligned}$$
 -/
 def registry : List Premise := [
@@ -490,6 +493,16 @@ def registry : List Premise := [
     ["Fw.Engine.touched_of_cover", "Fw.Engine.WebKit.mem_wkStages", "Fw.Ops.EnginePremise.wk_recorded_holds"],
   laneRule "wk.props" "props" r"\texttt{compositingUpdates}" r"W_{\mathrm{wk}}" .webkit
     ["Fw.Engine.touched_of_cover", "Fw.Engine.WebKit.mem_wkStages", "Fw.Ops.EnginePremise.wk_recorded_holds"],
+  { id := "cv.skip-flag"
+    statement := r"\forall n:\ n \text{ is in a subtree the engine has skipped (} \texttt{content-visibility:auto} \text{, off screen)} \iff \texttt{checkVisibility}() \wedge \neg\,\texttt{checkVisibility}(\{\mathrm{contentVisibilityAuto}\})\text{; after } \texttt{scrollIntoView} \text{ and two frames the node is no longer skipped}"
+    theorems := ["Fw.Gate.Settle.viewCell_notRendered_iff", "Fw.Gate.Settle.skipped_after_view_only_if_brought"]
+    engines := both
+    testId := "prem.cv.skip-flag" },
+  { id := "cv.fresh-after-resize"
+    statement := r"\forall n \text{ with } \texttt{margin-inline:auto} \text{ and } \texttt{max-width}=m:\ \text{after a viewport resize while } n \text{ is skipped, once } n \text{ is brought into view and three frames pass, } \texttt{getComputedStyle}(n).\mathrm{margin\text{-}left} \text{ equals the geometry-derived margin } (\text{container width} - m)/2"
+    theorems := ["Fw.Gate.Settle.view_bring", "Fw.Gate.Settle.viewCell_fail_of_rendered_diff"]
+    engines := both
+    testId := "prem.cv.fresh-after-resize" },
   { id := "wktr_scroll_timeline_restyle"
     statement := r"\text{WKTR, one rendering update per scroll step: } \Delta\texttt{styleRecalcCount} = (\mu_{\mathrm{control}}, \mu_{\mathrm{timeline}}, \mu_{\mathrm{timeAccel}}) = (0, 1, 0) \text{ for a static control, a transform animation on } \texttt{scroll()} \text{ and an accelerated time-based transform animation}"
     theorems := ["Fw.Engine.WebKit.style_rate_model", "Fw.Engine.WebKit.style_rate_old_refuted"]
@@ -556,7 +569,7 @@ are per golden file (a new golden file cites nothing until it is listed, so all 
 and stage: a row's value is the engine model's per-frame work of that stage (`frameWork` with `chromium`/`chromiumAt`,
 `webkitAt`/`webkitX`), so it rests on that stage rule of that engine. The WebKit style rows whose variant runs a
 transform animation on a scroll timeline (P1, P4 `scrollDriven`; hero-exit's variant) also cite the measured WKTR
-premise $p_{30}$. No page premise is cited: no golden value is computed from a theorem that assumes one (scout sweep of
+premise $p_{32}$. No page premise is cited: no golden value is computed from a theorem that assumes one (scout sweep of
 the generators, 2026-10-18: `frameWorkE`, forced reads, observers and the part theorems of $p_1$-$p_{17}$ are only in
 theorem sections). -/
 
@@ -802,11 +815,11 @@ def wkStages : List (String × String) :=
   ["script", "style", "layout", "props", "paint", "commit"].map fun s => (s, "wk." ++ s)
 
 /-- **The citation rules of the engine goldens**: per listed file and engine stage the engine's stage rule, the
-`chromium.jsonl` stage, signature and mode rules, and $p_{30}$ (`wktr_scroll_timeline_restyle`) for the WebKit style
+`chromium.jsonl` stage, signature and mode rules, and $p_{32}$ (`wktr_scroll_timeline_restyle`) for the WebKit style
 rows of the scroll-timeline variants. The per-file rules come file by file: the Chromium rules of a file, then its
 WebKit rules, then the next file. A pattern $\{k_1{=}v_1, \dots\}$ is the list of pairs in that order.
 
-$$\begin{aligned} \mathrm{engineCites} = {} &[\,c \mid f \in \mathrm{engineFiles},\ c \in [\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{chromium}, \mathrm{stage}{=}s\}, [i]) \mid (s, i) \in \mathrm{crStages}\,] \mathbin{+\!\!+} [\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}s\}, [i]) \mid (s, i) \in \mathrm{wkStages}\,]\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{stage}, \mathrm{stage}{=}s\}, [\texttt{cr.}s]) \mid (s, \_) \in \mathrm{crStages}\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{signature}\}, [\texttt{cr.signature}]),\ (\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{mode}\}, [\texttt{cr.mode}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{webkit.jsonl}, \mathrm{scenario}{=}\texttt{P1}, \mathrm{variant}{=}\texttt{scrollDriven}, \mathrm{stage}{=}\texttt{style}\}, [p_{30}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{webkit.jsonl}, \mathrm{scenario}{=}\texttt{P4}, \mathrm{variant}{=}\texttt{scrollDriven}, \mathrm{stage}{=}\texttt{style}\}, [p_{30}]),\ (\{\mathrm{file}{=}\texttt{hero-exit.jsonl}, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}\texttt{style}\}, [p_{30}])\,] \end{aligned}$$
+$$\begin{aligned} \mathrm{engineCites} = {} &[\,c \mid f \in \mathrm{engineFiles},\ c \in [\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{chromium}, \mathrm{stage}{=}s\}, [i]) \mid (s, i) \in \mathrm{crStages}\,] \mathbin{+\!\!+} [\,(\{\mathrm{file}{=}f, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}s\}, [i]) \mid (s, i) \in \mathrm{wkStages}\,]\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{stage}, \mathrm{stage}{=}s\}, [\texttt{cr.}s]) \mid (s, \_) \in \mathrm{crStages}\,] \\ \mathbin{+\!\!+} {} &[\,(\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{signature}\}, [\texttt{cr.signature}]),\ (\{\mathrm{file}{=}\texttt{chromium.jsonl}, \mathrm{kind}{=}\texttt{mode}\}, [\texttt{cr.mode}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{webkit.jsonl}, \mathrm{scenario}{=}\texttt{P1}, \mathrm{variant}{=}\texttt{scrollDriven}, \mathrm{stage}{=}\texttt{style}\}, [p_{32}]), \\ &\ \ (\{\mathrm{file}{=}\texttt{webkit.jsonl}, \mathrm{scenario}{=}\texttt{P4}, \mathrm{variant}{=}\texttt{scrollDriven}, \mathrm{stage}{=}\texttt{style}\}, [p_{32}]),\ (\{\mathrm{file}{=}\texttt{hero-exit.jsonl}, \mathrm{engine}{=}\texttt{webkit}, \mathrm{stage}{=}\texttt{style}\}, [p_{32}])\,] \end{aligned}$$
 -/
 def engineCites : List Cite :=
   engineFiles.flatMap (fun f =>
@@ -895,7 +908,7 @@ theorem engineCite_ok_iff (files : List String) (hf : ∀ f ∈ laneFiles regist
 
 /-! ## The WKTR lane assertion (`wktr-fixtures.yml`)
 
-The lane premise $p_{30}$ is only as good as its workflow: it must fail when the fixtures measure anything else. The
+The lane premise $p_{32}$ is only as good as its workflow: it must fail when the fixtures measure anything else. The
 decision is here; `packages/measure-wktr/fixtures/summarize.mjs --assert` ports it and is checked against the golden
 `packages/contracts/golden/ops/wktr-lane.jsonl`. -/
 

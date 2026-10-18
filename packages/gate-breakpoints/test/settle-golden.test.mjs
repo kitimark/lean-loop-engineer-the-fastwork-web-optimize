@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { GATE_POLICY, cell, fold, idlePolicy, nextStable, quiet, rendered, report, settled, spent, view, viewCell, waitTrace } from '../src/settle.mjs';
+import { GATE_POLICY, cell, fold, idlePolicy, nextStable, quiet, rendered, report, settled, spent, view, viewCell, viewFor, waitTrace } from '../src/settle.mjs';
 import { settleInPage } from '../src/page.mjs';
 import { maskNotRendered } from '../src/summary.mjs';
 import { PKG } from '../src/serve.mjs';
@@ -89,6 +89,11 @@ test('view: bring bit picks the second reading, and the cell follows (Fw.Gate.Se
   const f = { skipped: true, val: 0 }, g = { skipped: false, val: 132 };
   assert.deepEqual(view(true, f, g), g);
   assert.deepEqual(view(false, f, g), f);
+});
+
+test('viewFor: every golden switch and engine gives the Lean bring flag (Chromium on, WebKit off, the switch overrides)', () => {
+  assert.ok(of('viewFor').length >= 8);
+  for (const l of of('viewFor')) assert.equal(viewFor(l.switch ?? undefined, l.engine), l.view, l.name);
 });
 
 test('report: an unsettled arm is never a pass or a fail', () => {

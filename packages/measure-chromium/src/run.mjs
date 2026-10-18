@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, mkdirSync, openSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
+import { viewportFaithful } from './viewport.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
 
 const N0_ON = !process.env.FW_NO_N0; // FW_NO_N0=1: no N0 census in the page (harness-neutrality control)
@@ -144,7 +145,11 @@ loaded = true;
 // Jump to the fixed profile start, whatever number of frames the load took, then pre-roll with the page idle.
 vt = START_VT;
 for (let i = 0; i < profile.load.prerollFrames; i++, vt += dt) { await frame(vt); }
-const geo = await ev(`({ docH: document.documentElement.scrollHeight, innerH: innerHeight, innerW: innerWidth, y: scrollY, dpr: devicePixelRatio, lang: navigator.language, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, now: new Date().toISOString(), el: document.getElementsByTagName('*').length })`);
+const geo = await ev(`({ docH: document.documentElement.scrollHeight, innerH: innerHeight, innerW: innerWidth, y: scrollY, dpr: devicePixelRatio, lang: navigator.language, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, now: new Date().toISOString(), el: document.getElementsByTagName('*').length, scrollW: document.documentElement.scrollWidth, scale: window.visualViewport ? visualViewport.scale : null })`);
+// Content wider than the viewport enlarges the layout viewport under mobile emulation: not the profile, refuse (Lean Fw.Measure.Viewport).
+if (!viewportFaithful({ w: profile.viewport.width, h: profile.viewport.height }, { w: geo.innerW, h: geo.innerH })) {
+  throw new Error(`viewport not faithful: the page reports ${geo.innerW}x${geo.innerH} (scrollWidth ${geo.scrollW}, scale ${geo.scale}), the profile ${profile.viewport.width}x${profile.viewport.height}; the run is refused`);
+}
 const maxScroll = geo.docH - geo.innerH;
 if (process.env.FW_PROBE === '1') { // debugging only: which input events reach the page
   await ev(`window.__probe = {}; for (const t of ['touchstart','touchmove','touchend','pointerdown','pointermove','pointerup','pointercancel','scroll','mousemove','click','wheel']) addEventListener(t, (e) => { __probe[t] = (__probe[t]||0)+1; }, { capture: true, passive: true }); 0`);
@@ -315,7 +320,7 @@ const result = {
     servedFiles: Object.keys(served).length, servedSha256: servedSha, missing: srv.missing(),
     viewport: profile.viewport, hz: profile.hz, startVirtualMs: START_VT, pinnedDate: profile.pinnedDate, pageDateAtStart: geo.now, timezone: geo.tz,
     target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),
-    n0, docHeightPx: geo.docH, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
+    n0, docHeightPx: geo.docH, innerWidthPx: geo.innerW, innerHeightPx: geo.innerH, scrollWidthPx: geo.scrollW, visualViewportScale: geo.scale, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads,
   },
   frames,
   runLevel,

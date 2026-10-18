@@ -1,0 +1,195 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:11106-11295: the switch, icon, code, chevron, menu, options,
+   keyframes, the <=640 band and reduced motion). The dark look comes from the nav's `is-on-dark` class (nav.hitTest),
+   hence :global. Spec: lean/Fw/Parts/NavLangMenu.lean. */
+@layer parts {
+  .wrap {
+    z-index: 2;
+    position: relative;
+  }
+  .switch {
+    box-sizing: border-box;
+    color: #2b313b;
+    height: 48px;
+    font: inherit;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    appearance: none;
+    background: #ffffffb8;
+    border: 1px solid #7f7f7f2e;
+    border-radius: 999px;
+    flex: none;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 12px;
+    transition:
+      background 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.24s cubic-bezier(0.4, 0, 0.2, 1),
+      color 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+  }
+  :global(.is-on-dark) .switch {
+    color: #fff;
+    background: #ffffff1f;
+    border-color: #ffffff38;
+  }
+  .switch:focus-visible {
+    outline-offset: 2px;
+    outline: 2px solid #0569ff;
+  }
+  .icon,
+  .chevron {
+    pointer-events: none;
+    flex: none;
+    line-height: 0;
+    display: inline-flex;
+  }
+  .icon svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.45px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    width: 16px;
+    height: 16px;
+  }
+  .code {
+    text-align: center;
+    pointer-events: none;
+    min-width: 20px;
+  }
+  .chevron {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    width: 13px;
+    height: 13px;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .wrapOpen .chevron {
+    transform: rotate(180deg);
+  }
+  .menu {
+    --locale-menu-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 30;
+    box-sizing: border-box;
+    background: var(--color-background-surface, #fff);
+    opacity: 0;
+    transform-origin: 100% 0;
+    border-radius: 24px;
+    flex-direction: column;
+    gap: 0;
+    min-width: 198px;
+    padding: 8px;
+    display: flex;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    overflow: clip;
+    transform: translateY(-6px) scale(0.96);
+    box-shadow:
+      0 12px 32px #141c2824,
+      0 2px 8px #141c2814;
+  }
+  .menuOpen {
+    animation: menu-in 0.18s var(--locale-menu-ease) both;
+  }
+  .menuClosing {
+    animation: 0.14s cubic-bezier(0.4, 0, 0.2, 1) both menu-out;
+  }
+  @keyframes menu-in {
+    0% {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes menu-out {
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.98);
+    }
+  }
+  .option {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    color: var(--color-text-primary, #171717);
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    appearance: none;
+    background: 0 0;
+    border: 0;
+    border-radius: 16px;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    display: flex;
+  }
+  .option:hover,
+  .option:focus-visible {
+    background: color-mix(in srgb, var(--color-text-primary, #171717) 5%, transparent);
+    outline: none;
+  }
+  .check {
+    width: 20px;
+    height: 20px;
+    color: var(--color-text-primary, #171717);
+    flex: 0 0 20px;
+    justify-content: center;
+    align-items: center;
+    line-height: 0;
+    display: inline-flex;
+  }
+  .check svg {
+    fill: currentColor;
+    width: 20px;
+    height: 20px;
+  }
+  .label {
+    flex: auto;
+    min-width: 0;
+  }
+  @media (width<=640px) {
+    .switch {
+      height: 36px;
+      padding: 0 8px;
+    }
+    .icon svg {
+      width: 14px;
+      height: 14px;
+    }
+    .chevron {
+      width: 11px;
+      height: 11px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .menuOpen,
+    .menuClosing {
+      opacity: 1;
+      animation: none;
+      transform: none;
+    }
+  }
+}

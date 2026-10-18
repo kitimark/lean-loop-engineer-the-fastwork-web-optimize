@@ -1,12 +1,81 @@
 @layer reset, mui, parts, flags;
 
+/* Google Sans, the page's body face. The files are never committed under apps/site: scripts/build.mjs copies the four
+   woff2 files byte for byte from the unmodified snapshot (snapshot/site/_app/immutable/assets/) into dist/<engine>/fonts/.
+   Descriptors restate the original's @font-face rules (weights 400-700, swap, the unicode ranges of the latin and thai
+   subsets). */
+@font-face {
+  font-family: 'Google Sans';
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/google-sans-latin-normal.BbZhqv4U.woff2') format('woff2');
+  unicode-range: U+??, U+131, U+152-153, U+2BB-2BC, U+2C6, U+2DA, U+2DC, U+304, U+308, U+329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Google Sans';
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+  src: url('/fonts/google-sans-latin-italic.XUjF_20c.woff2') format('woff2');
+  unicode-range: U+??, U+131, U+152-153, U+2BB-2BC, U+2C6, U+2DA, U+2DC, U+304, U+308, U+329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Google Sans';
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/google-sans-thai-normal.CD79Hmaw.woff2') format('woff2');
+  unicode-range: U+2D7, U+303, U+331, U+E01-E5B, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Google Sans';
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+  src: url('/fonts/google-sans-thai-italic.Cygf3A0N.woff2') format('woff2');
+  unicode-range: U+2D7, U+303, U+331, U+E01-E5B, U+200C-200D, U+25CC;
+}
+/* Playpen Sans for the Start Selling notes (pain.notes): same source rule as the original (weights 400-600, swap);
+   the file is copied from snapshot/site/selling/fonts/ by scripts/build.mjs. */
+@font-face {
+  font-family: 'Playpen Sans Start Selling';
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/playpen-sans-latin.woff2') format('woff2');
+}
+
 @layer reset {
   *,
   *::before,
   *::after {
     box-sizing: border-box;
   }
+  /* The original's one global base rule on body: text colour #171717 (--color-text-primary, light scheme), the body
+     font stack, 1rem / 1.5, antialiasing, no margin. Every part inherits these; no part restates them. */
   body {
     margin: 0;
+    color: #171717;
+    font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Avenir Next', Avenir, 'Segoe UI', 'Helvetica Neue',
+      'Adwaita Sans', Cantarell, Ubuntu, Roboto, Noto, Helvetica, Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* The page root restates the original's page-root rule (assets/2.gBuqKVzi.css:1, `.start-selling`: min-width 320px,
+   direction ltr, background #f5f5f3, overflow-x clip). The clip keeps content wider than the viewport from enlarging
+   the layout viewport under mobile emulation. */
+@layer reset {
+  [data-fw='page-root'] {
+    min-width: 320px;
+    direction: ltr;
+    background: #f5f5f3;
+    overflow-x: clip;
   }
 }

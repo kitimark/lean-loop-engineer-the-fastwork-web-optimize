@@ -1,0 +1,195 @@
+/* The portfolio card shared by hero.orbit and hero.deck. Values restated from the original
+   (assets/2.gBuqKVzi.css:1507-1512 @property --entered, 1560-1722 card and profile rules, 1966-1990 keyframes). */
+@property --entered {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@layer parts {
+  .card {
+    --orbit-rot: 0deg;
+    --orbit-u: calc(100cqw / 302);
+    --orbit-enter-x: 0px;
+    --orbit-enter-y: 0px;
+    --scatter-x: 0px;
+    --scatter-y: 0px;
+    --entered: 0;
+    --profile-reveal: var(--entered);
+    z-index: 1;
+    opacity: calc(1 - var(--exit-scatter) * 0.35);
+    filter: blur(var(--ring-motion-blur, 0));
+    pointer-events: auto;
+    transform: rotate(
+      calc(
+        var(--orbit-start-rot, var(--orbit-rot)) +
+          (var(--orbit-rot) - var(--orbit-start-rot, var(--orbit-rot))) * var(--entered)
+      )
+    );
+    translate: calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--exit-scatter) * var(--scatter-x))
+      calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--exit-scatter) * var(--scatter-y));
+    scale: calc((var(--ring-scale) + (1 - var(--ring-scale)) * var(--entered)) * var(--orbit-fit-scale));
+    transform-origin: 50%;
+    will-change: transform, translate, scale, opacity;
+    animation:
+      0.12s ease-out backwards ringAppear,
+      1.7s cubic-bezier(0.2, 0.9, 0.2, 1) var(--orbit-enter-delay) both cardFromRing;
+    background: #fff;
+    border: 1px solid #e4e8eff7;
+    border-radius: 12px;
+    position: absolute;
+    overflow: hidden;
+    box-shadow: 0 2px 4px #00000014;
+    container-type: inline-size;
+  }
+  .hit {
+    width: 100%;
+    height: 100%;
+    color: inherit;
+    text-align: left;
+    pointer-events: none;
+    background: 0 0;
+    border: 0;
+    padding: 0;
+    display: block;
+  }
+  .profile {
+    isolation: isolate;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    display: flex;
+  }
+  .cover {
+    z-index: 0;
+    flex: 0 0 calc(100% - 24.732% * var(--profile-reveal));
+    width: 100%;
+    margin-bottom: calc(-13.245% * var(--profile-reveal));
+    background: #3c3a3a;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .cover picture,
+  .avatar > picture:first-child {
+    display: contents;
+  }
+  .body {
+    z-index: 1;
+    flex: 0 0 calc(34.946% * var(--profile-reveal));
+    width: 100%;
+    min-height: 0;
+    opacity: var(--profile-reveal);
+    transform: translateY(calc((1 - var(--profile-reveal)) * 10px));
+    grid-template-rows: 46.154fr 53.846fr;
+    display: grid;
+    position: relative;
+    overflow: hidden;
+  }
+  .avatarRow {
+    align-items: flex-end;
+    width: 100%;
+    padding: 0 3.974%;
+    display: flex;
+  }
+  .avatar {
+    box-sizing: border-box;
+    width: calc(var(--orbit-u) * 60);
+    height: calc(var(--orbit-u) * 60);
+    border: calc(var(--orbit-u) * 2.344) solid #fff;
+    border-radius: 999px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .avatar > picture:first-child > img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+  }
+  .online {
+    right: calc(var(--orbit-u) * 1.41);
+    bottom: calc(var(--orbit-u) * 1.41);
+    width: calc(var(--orbit-u) * 15);
+    height: calc(var(--orbit-u) * 15);
+    position: absolute;
+  }
+  .info {
+    gap: calc(var(--orbit-u) * 4);
+    width: 100%;
+    min-height: 0;
+    padding: calc(var(--orbit-u) * 12);
+    flex-direction: column;
+    display: flex;
+  }
+  .name,
+  .role {
+    width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    overflow: hidden;
+  }
+  .name {
+    color: #222;
+    font-size: calc(var(--orbit-u) * 16);
+    line-height: calc(var(--orbit-u) * 24);
+  }
+  .role {
+    color: #8d9197;
+    font-size: calc(var(--orbit-u) * 12);
+    line-height: calc(var(--orbit-u) * 18);
+  }
+
+  /* the hero is preparing (server render, or the splash is being reset): no animation, cards hidden (css 1594-1599) */
+  [data-splash='prep'] .card {
+    animation: none;
+    opacity: 0;
+  }
+  /* the splash is done (css 1718-1730): the card sits at its resting state */
+  [data-orbit][data-done] .card {
+    --entered: 1;
+    --profile-reveal: 1;
+    filter: none;
+    transform: rotate(var(--orbit-rot));
+    scale: var(--orbit-fit-scale);
+    animation: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card {
+      --entered: 1;
+      --profile-reveal: 1;
+      filter: none;
+      transform: rotate(var(--orbit-rot));
+      translate: 0;
+      scale: var(--orbit-fit-scale);
+      animation: none;
+    }
+  }
+
+  @keyframes cardFromRing {
+    0%,
+    68% {
+      --entered: 0;
+    }
+    to {
+      --entered: 1;
+    }
+  }
+  @keyframes ringAppear {
+    0% {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
