@@ -32,8 +32,10 @@ imports it, so it decodes the card fields it needs itself).
 | `console.previewFail` | `preview` (id), `live` | `keep` [ids], `kill` [ids] (a failed build's teardown: `fail`, `own`) |
 | `console.previewReap` | `live` | `kill` [ids] (all of the table, `reap`) |
 | `console.previewLink` | `hasTty`, `now`? (ms), `last`? (ms of the last link) | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`), `reissue`? (with `now`: may a new link be issued, `mayReissue`: one per minute) |
-| `console.ownerLogin` | `enabled` (the console has an owner passphrase), `correct` (the constant-time compare matched), `now` (ms), `fails`? [ms] and `lockUntil`? (the client address's record; missing = fresh) | `verdict` (`disabled`/`locked`/`wrong`/`ok`), `fails`, `lockUntil` (the new record), `retryAt` (the lock end while locked, else null), `maxTries`, `window`, `lock` (`Fw.Console.Preview.Owner.attempt`) |
-| `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (valid owner session), `hostOk` (Host names this console), `path` | `allow`, `class` (`login`/`preview`/`other`) (`Fw.Console.Preview.Owner.allow`, `classify`) |
+| `console.ownerLogin` | `enabled` (the console has an owner passphrase), `correct` (the constant-time compare matched), `now` (ms), `fails`? [ms] and `lockUntil`? (the client address's record; missing = fresh), `gFails`? [ms] and `gLockUntil`? (the global record across all addresses; missing = fresh) | `verdict` (`disabled`/`locked`/`wrong`/`ok`), `fails`, `lockUntil` (the new address record), `gFails`, `gLockUntil` (the new global record), `retryAt` (the end of the longest active lock, else null), `maxTries`, `window`, `lock`, `globMax`, `globWindow`, `globLock` (`Fw.Console.Preview.Owner.attempt`) |
+| `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (valid owner session; on the preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`) | `allow`, `class` (`login`/`preview`/`other`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
+| `console.ownerAction` | `kind` (`owner`: an owner action, needs the owner cookie and an Origin; `command`: `/api/commands`, an Origin if present), `ownerCookie`, `origin`? ({host, port} or null: none sent), `trusted` [{host, port}] (the console origins) | `allow` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`) |
+| `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
 | `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
@@ -337,24 +339,62 @@ def opPreviewLink (req : Json) : Except String Reply := do
   pure (base ++ re)
 
 open Fw.Console.Preview.Owner in
-/-- `console.ownerLogin` (`Fw.Console.Preview.Owner.attempt`): the rate limit of the owner login, per client address. -/
+/-- `console.ownerLogin` (`Fw.Console.Preview.Owner.attempt`): the rate limit of the owner login, per client address and
+across all addresses. -/
 def opOwnerLogin (req : Json) : Except String Reply := do
-  let fails ← (← arrD req "fails").mapM fun j => asNat "fails" j
-  let lockUntil ← match opt req "lockUntil" with
-    | none => pure 0
-    | some _ => nat req "lockUntil"
-  let (v, r) := attempt { fails := fails, lockUntil := lockUntil } (← nat req "now") (← asBool "enabled" (← field req "enabled"))
-    (← asBool "correct" (← field req "correct"))
-  pure [("verdict", .str v.name), ("fails", .arr (r.fails.toArray.map fun (t : Nat) => Json.num t)), ("lockUntil", .num r.lockUntil),
-        ("retryAt", if (← nat req "now") < r.lockUntil then .num r.lockUntil else .null),
-        ("maxTries", .num maxTries), ("window", .num window), ("lock", .num lockMs)]
+  let recOf (fk lk : String) : Except String Rec := do
+    let fails ← (← arrD req fk).mapM fun j => asNat fk j
+    let lockUntil ← match opt req lk with
+      | none => pure 0
+      | some _ => nat req lk
+    pure { fails := fails, lockUntil := lockUntil }
+  let now ← nat req "now"
+  let (v, r, g) := attempt (← recOf "fails" "lockUntil") (← recOf "gFails" "gLockUntil") now
+    (← asBool "enabled" (← field req "enabled")) (← asBool "correct" (← field req "correct"))
+  let arr (r : Rec) : Json := .arr (r.fails.toArray.map fun (t : Nat) => Json.num t)
+  let endAt := max r.lockUntil g.lockUntil
+  pure [("verdict", .str v.name), ("fails", arr r), ("lockUntil", .num r.lockUntil),
+        ("gFails", arr g), ("gLockUntil", .num g.lockUntil),
+        ("retryAt", if now < endAt then .num endAt else .null),
+        ("maxTries", .num maxTries), ("window", .num window), ("lock", .num lockMs),
+        ("globMax", .num globMax), ("globWindow", .num globWindow), ("globLock", .num globLock)]
 
 open Fw.Console.Preview.Owner in
-/-- `console.ownerGate` (`Fw.Console.Preview.Owner.allow`): which requests a LAN device may make. -/
+/-- `console.ownerGate` (`Fw.Console.Preview.Owner.allow`, `allowPreview`): which requests a port serves. -/
 def opOwnerGate (req : Json) : Except String Reply := do
   let c := classify (← str req "path")
-  pure [("allow", .bool (allow (← asBool "lan" (← field req "lan")) (← asBool "session" (← field req "session"))
-          (← asBool "hostOk" (← field req "hostOk")) c)), ("class", .str c.name)]
+  let lan ← asBool "lan" (← field req "lan")
+  let session ← asBool "session" (← field req "session")
+  let hostOk ← asBool "hostOk" (← field req "hostOk")
+  let port ← match opt req "port" with
+    | none => pure "console"
+    | some _ => str req "port"
+  let ok ← match port with
+    | "console" => pure (allow lan session hostOk c)
+    | "preview" => pure (allowPreview lan session hostOk)
+    | _ => throw "field port: expected console or preview"
+  pure [("allow", .bool ok), ("class", .str c.name)]
+
+open Fw.Console.Preview.Owner in
+/-- `console.ownerAction` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`): may this request act as the owner. -/
+def opOwnerAction (req : Json) : Except String Reply := do
+  let originOf (j : Json) : Except String Origin := do pure { host := ← str j "host", port := ← nat j "port" }
+  let trusted ← (← arrD req "trusted").mapM originOf
+  let origin ← match opt req "origin" with
+    | none | some .null => pure none
+    | some j => do pure (some (← originOf j))
+  let ok ← match ← str req "kind" with
+    | "owner" => pure (ownerAction trusted ⟨← asBool "ownerCookie" (← field req "ownerCookie"), false⟩ origin)
+    | "command" => pure (commandOk trusted origin)
+    | _ => throw "field kind: expected owner or command"
+  pure [("allow", .bool ok)]
+
+open Fw.Console.Preview.Owner in
+/-- `console.lanStart` (`Fw.Console.Preview.Owner.lanStart`): whether LAN mode starts, and if not, why. -/
+def opLanStart (req : Json) : Except String Reply := do
+  let r := lanStart (← asBool "want" (← field req "want")) (← asBool "hasAddr" (← field req "hasAddr"))
+    (← asBool "hasPass" (← field req "hasPass")) (← nat req "passLen")
+  pure [("result", .str r), ("start", .bool (r == "start"))]
 
 open Fw.Console.Preview.Owner in
 /-- `console.previewSweep` (`Fw.Console.Preview.Owner.sweep`): the TTL and the idle stop in one decision. -/
@@ -377,7 +417,7 @@ def opPreviewSweep (req : Json) : Except String Reply := do
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
   "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
-  "console.ownerLogin", "console.ownerGate", "console.previewSweep"]
+  "console.ownerLogin", "console.ownerGate", "console.ownerAction", "console.lanStart", "console.previewSweep"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -403,6 +443,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.previewLink" => some (opPreviewLink req)
   | "console.ownerLogin" => some (opOwnerLogin req)
   | "console.ownerGate" => some (opOwnerGate req)
+  | "console.ownerAction" => some (opOwnerAction req)
+  | "console.lanStart" => some (opLanStart req)
   | "console.previewSweep" => some (opPreviewSweep req)
   | _ => none
 
