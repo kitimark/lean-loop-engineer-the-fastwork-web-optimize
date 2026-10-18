@@ -3,10 +3,13 @@
 // its golden rows, ports its two pure checks (TS stand-in, checked against the golden lint and flag rows in
 // test/premises.test.ts) and prints. A failing premise test is a finding: the theorems that assume it are listed.
 //
-//   no --results   static lint: the tests the package declares (src/tests.mjs) against the registry, plus a check that
-//                  every theorem a premise names is a declaration in lean/Fw (names starting `planned:` are tasks)
+//   no --results   static lint: the tests the package declares (src/tests.mjs) against the registry's page premises,
+//                  the registry's lane premises against the files in .github/workflows (a lane premise's testId is the
+//                  workflow that asserts it), plus a check that every theorem a premise names is a declaration in
+//                  lean/Fw (names starting `planned:` are tasks)
 //   --results      the JSON files of `node packages/premise-tests/src/run.mjs` (a directory is searched recursively),
-//                  one per engine: lint on the tests they declare, then the flagged premises
+//                  one per engine: lint on the tests they declare, then the flagged page premises (lane premises
+//                  have no page results; their workflow asserts them)
 //   exit codes     0 clean, 3 lint findings or flagged premises or an unknown theorem name, 64 usage
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -18,11 +21,12 @@ export const PREMISES_USAGE =
   "  without --results: static lint of the declared tests against the Lean registry and of the theorem names";
 
 export type Engine = "chromium" | "webkit";
-export type Premise = { id: string; statement: string; theorems: string[]; engines: Engine[]; testId: string };
+export type TestKind = "page" | "lane";
+export type Premise = { id: string; statement: string; theorems: string[]; engines: Engine[]; testId: string; testKind: TestKind };
 export type TestRef = { id: string; premise: string };
 export type Result = { testId: string; engine: Engine; ok: boolean };
 export type Lint = { untested: string[]; unknown: string[] };
-export type LintCase = { name: string; tests: TestRef[]; untested: string[]; unknown: string[] };
+export type LintCase = { name: string; tests: TestRef[]; files: string[]; untested: string[]; unknown: string[] };
 export type FlagCase = { name: string; results: Result[]; flagged: { premise: string; theorems: string[] }[] };
 export type Golden = { premises: Premise[]; lint: LintCase[]; flag: FlagCase[] };
 
@@ -41,11 +45,17 @@ export function parseGolden(text: string): Golden {
   return g;
 }
 
-/** `premiseLint` (Lean: Fw.Ops.Premise.premiseLint): premises without a test, tests naming no registered premise. */
-export function premiseLint(ps: Premise[], ts: TestRef[]): Lint {
+/** `covered` (Lean): a page premise has a declared test naming it; a lane premise's workflow file exists. */
+export function covered(ts: TestRef[], files: string[], p: Premise): boolean {
+  return p.testKind === "lane" ? files.includes(p.testId) : ts.some((t) => t.id === p.testId && t.premise === p.id);
+}
+
+/** `premiseLint` (Lean: Fw.Ops.Premise.premiseLint): premises without a test (lane: without its workflow file among
+ * `files`), tests naming no registered page premise. */
+export function premiseLint(ps: Premise[], ts: TestRef[], files: string[]): Lint {
   return {
-    untested: ps.filter((p) => !ts.some((t) => t.id === p.testId && t.premise === p.id)).map((p) => p.id),
-    unknown: ts.filter((t) => !ps.some((p) => p.id === t.premise && p.testId === t.id)).map((t) => t.id),
+    untested: ps.filter((p) => !covered(ts, files, p)).map((p) => p.id),
+    unknown: ts.filter((t) => !ps.some((p) => p.testKind === "page" && p.id === t.premise && p.testId === t.id)).map((t) => t.id),
   };
 }
 
@@ -55,9 +65,9 @@ export function holds(rs: Result[], p: Premise, e: Engine): boolean {
   return m.length > 0 && m.every((r) => r.ok);
 }
 
-/** `flagged` (Lean: Fw.Ops.Premise.flagged): premises that do not hold on some engine they need (failed or missing). */
+/** `flagged` (Lean: Fw.Ops.Premise.flagged): page premises that do not hold on some engine they need (failed or missing). */
 export function flagged(ps: Premise[], rs: Result[]): Premise[] {
-  return ps.filter((p) => !p.engines.every((e) => holds(rs, p, e)));
+  return ps.filter((p) => p.testKind === "page" && !p.engines.every((e) => holds(rs, p, e)));
 }
 
 // ---- files --------------------------------------------------------------------------------------------------------
@@ -94,6 +104,13 @@ export function findRoot(cwd: string): string {
   }
 }
 
+/** The workflow files of the checkout, as repo-relative paths (`.github/workflows/<name>`). */
+export function workflowFiles(root: string): string[] {
+  const dir = join(root, ".github", "workflows");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((n) => n.endsWith(".yml") || n.endsWith(".yaml")).map((n) => `.github/workflows/${n}`);
+}
+
 /** Declared names in lean/Fw (theorem, def, structure, ...), last name component. */
 export function leanDeclared(root: string): Set<string> {
   const names = new Set<string>();
@@ -121,15 +138,17 @@ export function unknownTheorems(ps: Premise[], declared: Set<string>): { premise
 // ---- report -------------------------------------------------------------------------------------------------------
 
 export type Report = {
-  registered: number; tested: number; holding: number;
+  registered: number; lanes: number; tested: number; holding: number;
   lint: Lint; unknownTheorems: { premise: string; theorem: string }[];
   flagged: { premise: string; engines: Engine[]; reason: string; theorems: string[] }[];
   ranEngines: Engine[]; ok: boolean;
 };
 
-/** Build the report: lint on the declared tests, theorem-name check, flagged premises (only when results are given). */
-export function report(g: Golden, tests: TestRef[], results: (Result & { error?: string })[] | null, declared: Set<string> | null, ran: Engine[]): Report {
-  const lint = premiseLint(g.premises, tests);
+/** Build the report: lint on the declared tests and workflow files, theorem-name check, flagged page premises (only
+ * when results are given). */
+export function report(g: Golden, tests: TestRef[], files: string[], results: (Result & { error?: string })[] | null, declared: Set<string> | null, ran: Engine[]): Report {
+  const lint = premiseLint(g.premises, tests, files);
+  const pages = g.premises.filter((p) => p.testKind === "page").length;
   const unknown = declared ? unknownTheorems(g.premises, declared) : [];
   const fl = results ? flagged(g.premises, results) : [];
   const flaggedOut = fl.map((p) => {
@@ -142,12 +161,12 @@ export function report(g: Golden, tests: TestRef[], results: (Result & { error?:
   });
   const tested = g.premises.length - lint.untested.length;
   const ok = lint.untested.length === 0 && lint.unknown.length === 0 && unknown.length === 0 && flaggedOut.length === 0;
-  return { registered: g.premises.length, tested, holding: results ? g.premises.length - fl.length : 0, lint, unknownTheorems: unknown, flagged: flaggedOut, ranEngines: ran, ok };
+  return { registered: g.premises.length, lanes: g.premises.length - pages, tested, holding: results ? pages - fl.length : 0, lint, unknownTheorems: unknown, flagged: flaggedOut, ranEngines: ran, ok };
 }
 
 export function render(r: Report, withResults: boolean): string {
   const lines: string[] = [];
-  lines.push(`premises: ${r.registered} registered, ${r.tested} with a test${withResults ? `, ${r.holding} hold on ${r.ranEngines.join(" + ") || "no engine"}` : ""}`);
+  lines.push(`premises: ${r.registered} registered (${r.lanes} lane), ${r.tested} with a test${withResults ? `, ${r.holding} page premises hold on ${r.ranEngines.join(" + ") || "no engine"}` : ""}`);
   for (const id of r.lint.untested) lines.push(`LINT premise ${id} has no test`);
   for (const id of r.lint.unknown) lines.push(`LINT test ${id} names no registered premise`);
   for (const u of r.unknownTheorems) lines.push(`LINT premise ${u.premise}: theorem ${u.theorem} is not declared in lean/Fw`);
@@ -195,9 +214,9 @@ export async function premisesCli(argv: string[], cwd: string): Promise<number> 
       if (files.length === 0) throw new UsageError(`no premise result files under ${a.results.join(", ")}`);
       const tests = new Map<string, TestRef>();
       for (const f of files) for (const t of f.tests) tests.set(`${t.id}\u0000${t.premise}`, t);
-      r = report(g, [...tests.values()], files.flatMap((f) => f.results), declared, [...new Set(files.map((f) => f.engine))]);
+      r = report(g, [...tests.values()], workflowFiles(root), files.flatMap((f) => f.results), declared, [...new Set(files.map((f) => f.engine))]);
     } else {
-      r = report(g, await declaredTests(root), null, declared, []);
+      r = report(g, await declaredTests(root), workflowFiles(root), null, declared, []);
     }
     console.log(a.json ? JSON.stringify(r, null, 2) : render(r, a.results.length > 0));
     return r.ok ? 0 : 3;
