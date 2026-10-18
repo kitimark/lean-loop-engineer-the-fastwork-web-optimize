@@ -103,7 +103,7 @@ const pairs = (ps) => {
   return `[${rows.join(',\n      ')}]`;
 };
 const job = (j) => `  -- ${j.slot}\n  { setup := ${j.setup}, probeWall := ${j.probeWall},\n    probes := ${pairs(j.probes)},\n    sweeps := ${pairs(j.sweeps)} }`;
-const eng = (name, label, js) => `/-- The observed ${label} jobs of the run, by slot. -/\ndef ${name} : List JobObs := [\n${js.sort((a, b) => a.slot.localeCompare(b.slot)).map(job).join(',\n')}]\n`;
+const eng = (name, label, js) => `/-- The observed ${label} jobs of the run, by slot (${js.length} jobs; milliseconds). Job $j$ has its setup, its probe wall,\nits (probe id, summed settle wait) pairs $P_j$ and its (sweep, wall) pairs $W_j$.\n\n$$J_{\\text{${label.toLowerCase()}}} = [\\,(\\mathrm{setup}_j, \\mathrm{probeWall}_j, P_j, W_j)\\,]_{j = 0}^{${js.length - 1}}$$\n-/\ndef ${name} : List JobObs := [\n${js.sort((a, b) => a.slot.localeCompare(b.slot)).map(job).join(',\n')}]\n`;
 const lean = `import Fw.Gate.ShardCosts
 /-!
 # Observed gate jobs of run ${runId} (generated, do not edit)
@@ -114,7 +114,10 @@ table of the shard plan.
 -/
 namespace Fw.Gate.ShardCosts
 
-/-- Where the observations come from. -/
+/-- Where the observations come from.
+
+$$\\operatorname{source} = \\texttt{breakpoint-gate run ${runId} at ${commit}}$$
+-/
 def source : String := ${str(`breakpoint-gate run ${runId} at ${commit}`)}
 
 ${eng('chromiumJobs', 'Chromium', out.chromium)}

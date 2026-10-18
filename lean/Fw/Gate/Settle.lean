@@ -294,7 +294,7 @@ theorem settled_withBudget (p : Policy) (F : Nat) (o : Obs) : settled (withBudge
 /-- A smaller frame budget either changes nothing or turns the scan's answer into `unsettled`: it never invents a settled
 answer.
 
-$$F \le F_\pi \Rightarrow \forall f\, i,\ \operatorname{scan}_{\pi[F]}(i, f) = \operatorname{scan}_\pi(i, f) \;\vee\; \operatorname{scan}_{\pi[F]}(i, f) = \mathrm{unsettled}$$ -/
+$$\forall \pi\, o\, F,\quad F \le F_\pi \Rightarrow \forall f\, i,\ \operatorname{scan}_{\pi[F]}(i, f) = \operatorname{scan}_\pi(i, f) \;\vee\; \operatorname{scan}_{\pi[F]}(i, f) = \mathrm{unsettled}$$ -/
 theorem scan_budget_cases (p : Policy) (o : Nat → Obs) (F : Nat) (hF : F ≤ p.maxFrames) :
     ∀ f i, scan (withBudget p F) o i f = scan p o i f ∨ scan (withBudget p F) o i f = .unsettled := by
   intro f
@@ -310,7 +310,7 @@ theorem scan_budget_cases (p : Policy) (o : Nat → Obs) (F : Nat) (hF : F ≤ p
       by_cases h2 : settled p (o i) = true
       · simp [h1, h0, h2]
       · have h1' : spent (withBudget p F) (o i) = false := by simpa using h1
-        simp only [h1', h0, h2, Bool.false_eq_true, if_false]
+        simp only [h1', h0, h2, Bool.false_eq_true, ite_false]
         exact ih (i + 1)
 
 /-- A smaller frame budget never invents a settled wait: the answer is the old one or `unsettled`.
@@ -323,7 +323,7 @@ theorem wait_budget_cases (p : Policy) (o : Nat → Obs) (F : Nat) (hF : F ≤ p
 /-- A scan that settles at observation `k` within `F` frames (frames non-decreasing) gives the same answer under the
 budget `F`.
 
-$$\left(\forall n,\ \mathit{fr}(o_n)\le \mathit{fr}(o_{n+1})\right) \Rightarrow \forall f\, i\, k,\ \operatorname{scan}_\pi(i, f) = \mathrm{settled}(k) \wedge \mathit{fr}(o_k) \le F \Rightarrow \operatorname{scan}_{\pi[F]}(i, f) = \mathrm{settled}(k)$$ -/
+$$\forall \pi\, o\, F,\quad \left(\forall n,\ \mathit{fr}(o_n)\le \mathit{fr}(o_{n+1})\right) \Rightarrow \forall f\, i\, k,\ \operatorname{scan}_\pi(i, f) = \mathrm{settled}(k) \wedge \mathit{fr}(o_k) \le F \Rightarrow \operatorname{scan}_{\pi[F]}(i, f) = \mathrm{settled}(k)$$ -/
 theorem scan_budget_keeps (p : Policy) (o : Nat → Obs) (F : Nat) (fmono : ∀ n, (o n).frames ≤ (o (n + 1)).frames) :
     ∀ f i k, scan p o i f = .settled k → (o k).frames ≤ F → scan (withBudget p F) o i f = .settled k := by
   intro f
@@ -341,11 +341,11 @@ theorem scan_budget_keeps (p : Policy) (o : Nat → Obs) (F : Nat) (fmono : ∀ 
       have h0 : spent (withBudget p F) (o i) = false :=
         (spent_false_iff (withBudget p F) (o i)).2 ⟨hb.1, Nat.le_trans hfi hk⟩
       by_cases h2 : settled p (o i) = true
-      · simp only [h1', h2, Bool.false_eq_true, if_false, if_true] at h
-        simp only [h0, h2, Bool.false_eq_true, if_false, if_true]
+      · simp only [h1', h2, Bool.false_eq_true, ite_false, ite_true] at h
+        simp only [h0, h2, Bool.false_eq_true, ite_false, ite_true]
         exact h
-      · simp only [h1', h2, Bool.false_eq_true, if_false] at h
-        simp only [h0, h2, Bool.false_eq_true, if_false]
+      · simp only [h1', h2, Bool.false_eq_true, ite_false] at h
+        simp only [h0, h2, Bool.false_eq_true, ite_false]
         exact ih (i + 1) k h hk
 
 /-- The frame budget keeps every wait that settles within it: if the wait without the budget settles at observation `k`
@@ -373,7 +373,7 @@ theorem report_budget (p : Policy) (F : Nat) (hF : F ≤ p.maxFrames) (oa ob : N
 agree up to index `n` and the budget is spent at `n`, the scans agree. So the page loop may stop at `n` (and with the
 frame budget, `n ≤ F + 1` when every observation is a real frame: `scan_stops_by_frames`).
 
-$$\left(\forall m,\ i \le m \le n \Rightarrow o_m = o'_m\right) \wedge \operatorname{spent}_\pi(o_n) \Rightarrow \forall f,\ i \le n \Rightarrow \operatorname{scan}_\pi(o)(i, f) = \operatorname{scan}_\pi(o')(i, f)$$ -/
+$$\forall \pi\, o\, o'\, n,\quad \operatorname{spent}_\pi(o_n) \Rightarrow \forall f\, i,\ i \le n \wedge \left(\forall m,\ i \le m \le n \Rightarrow o_m = o'_m\right) \Rightarrow \operatorname{scan}_\pi(o)(i, f) = \operatorname{scan}_\pi(o')(i, f)$$ -/
 theorem scan_decided_by (p : Policy) (o o' : Nat → Obs) (n : Nat) (hs : spent p (o n) = true) :
     ∀ f i, i ≤ n → (∀ m, i ≤ m → m ≤ n → o m = o' m) → scan p o i f = scan p o' i f := by
   intro f
@@ -389,10 +389,10 @@ theorem scan_decided_by (p : Policy) (o o' : Nat → Obs) (n : Nat) (hs : spent 
     · have hr := ih (i + 1) (by omega) (fun m h1 h2 => hag m (by omega) h2)
       simp only [scan, he, hr]
 
-/-- When every observation of the wait is a real frame (`i ≤ fr(o_i)`), the budget is spent by observation `F + 1`, so the
-wait reads at most `F + 2` observations: whatever comes after does not change its answer.
+/-- When every observation of the wait is a real frame (`i ≤ fr(o_i)`), the budget $F_\pi$ is spent by observation $F_\pi + 1$, so
+the wait reads at most $F_\pi + 2$ observations: whatever comes after does not change its answer.
 
-$$\left(\forall i,\ i \le \mathit{fr}(o_i)\right) \wedge \left(\forall m \le F + 1,\ o_m = o'_m\right) \Longrightarrow \operatorname{wait}_\pi(o) = \operatorname{wait}_\pi(o')$$ -/
+$$\forall \pi\, o\, o',\quad \left(\forall i,\ i \le \mathit{fr}(o_i)\right) \wedge \left(\forall m \le F_\pi + 1,\ o_m = o'_m\right) \Longrightarrow \operatorname{wait}_\pi(o) = \operatorname{wait}_\pi(o')$$ -/
 theorem wait_stops_by_frames (p : Policy) (o o' : Nat → Obs) (hfr : ∀ i, i ≤ (o i).frames)
     (hag : ∀ m, m ≤ p.maxFrames + 1 → o m = o' m) : wait p o = wait p o' := by
   have hs : spent p (o (p.maxFrames + 1)) = true := by

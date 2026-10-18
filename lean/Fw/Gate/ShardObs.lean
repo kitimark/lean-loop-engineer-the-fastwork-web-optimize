@@ -8,10 +8,17 @@ table of the shard plan.
 -/
 namespace Fw.Gate.ShardCosts
 
-/-- Where the observations come from. -/
+/-- Where the observations come from.
+
+$$\operatorname{source} = \texttt{breakpoint-gate run 39106417480 at 088315d}$$
+-/
 def source : String := "breakpoint-gate run 39106417480 at 088315d"
 
-/-- The observed Chromium jobs of the run, by slot. -/
+/-- The observed Chromium jobs of the run, by slot (3 jobs; milliseconds). Job $j$ has its setup, its probe wall,
+its (probe id, summed settle wait) pairs $P_j$ and its (sweep, wall) pairs $W_j$.
+
+$$J_{\text{chromium}} = [\,(\mathrm{setup}_j, \mathrm{probeWall}_j, P_j, W_j)\,]_{j = 0}^{2}$$
+-/
 def chromiumJobs : List JobObs := [
   -- j0
   { setup := 29576, probeWall := 266712,
@@ -46,7 +53,11 @@ def chromiumJobs : List JobObs := [
     probes := [],
     sweeps := [("desktop", 347123)] }]
 
-/-- The observed WebKit jobs of the run, by slot. -/
+/-- The observed WebKit jobs of the run, by slot (4 jobs; milliseconds). Job $j$ has its setup, its probe wall,
+its (probe id, summed settle wait) pairs $P_j$ and its (sweep, wall) pairs $W_j$.
+
+$$J_{\text{webkit}} = [\,(\mathrm{setup}_j, \mathrm{probeWall}_j, P_j, W_j)\,]_{j = 0}^{3}$$
+-/
 def webkitJobs : List JobObs := [
   -- j0
   { setup := 43952, probeWall := 564714,

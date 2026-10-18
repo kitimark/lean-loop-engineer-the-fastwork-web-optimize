@@ -279,6 +279,10 @@ theorem plan_deterministic (c : Nat → Nat) (m : Nat) {us₁ us₂ : List Nat} 
 
 /-! ### Dealing -/
 
+/-- Putting a unit keeps the number of jobs.
+
+$$\forall c, v, u, B,\quad |\operatorname{put}_c(v, u, B)| = |B|$$
+-/
 theorem putFirst_length (c : Nat → Nat) (v u : Nat) : ∀ bs : List (List Nat), (putFirst c v u bs).length = bs.length
   | [] => rfl
   | b :: bs => by unfold putFirst; split <;> simp [putFirst_length c v u bs]
@@ -416,9 +420,9 @@ theorem plan_partition (c : Nat → Nat) (m : Nat) (hm : 0 < m) (us : List Nat) 
 
 /-- Graham's invariant of the deal on $k + 1$ jobs.
 
-$$\forall c, k, us, B, M,\quad |B| = k + 1 \wedge (k + 1) \max L_B \le \textstyle\sum L_B + k M \Rightarrow (k + 1) \max L_{\operatorname{deal}_c(B, us)} \le \sum L_B + \sum_{u \in us} c(u) + k \max(M, \max_{u \in us} c(u))$$
+$$\forall c, k, us, B, M,\quad |B| = k + 1 \wedge (k + 1) \max \operatorname{loads}_c(B) \le \textstyle\sum \operatorname{loads}_c(B) + k M \Rightarrow (k + 1) \max \operatorname{loads}_c(\operatorname{deal}_c(B, us)) \le \sum \operatorname{loads}_c(B) + \sum_{u \in us} c(u) + k \max(M, \max_{u \in us} c(u))$$
 
-where $L_X = \operatorname{loads}_c(X)$ and $\max$ of the empty list is 0. -/
+The $\max$ of the empty list is 0. -/
 theorem deal_inv (c : Nat → Nat) (k : Nat) : ∀ (us : List Nat) (bs : List (List Nat)) (M : Nat),
     bs.length = k + 1 → (k + 1) * lmax (loads c bs) ≤ (loads c bs).sum + k * M →
     (k + 1) * lmax (loads c (deal c bs us)) ≤ (loads c bs).sum + (us.map c).sum + k * max M (lmax (us.map c))
@@ -558,10 +562,9 @@ theorem units_sweeps {β : Type} (n : Nat) (W : List β) : (units n W.length).fi
 jobs, and let job $j$ run the probes $S_j$ and sweeps $K_j$ of its units. Every part's verdict over the jobs equals
 its verdict over the unsharded run, for every cost function $c$.
 
-$$\forall \rho, \kappa, \mathrm{hv}, S, K, c, m,\quad m > 0 \Rightarrow V_{\rho,\kappa,\mathrm{hv}}\Big(\textstyle\bigoplus_j S_j, \bigoplus_j K_j\Big) = V_{\rho,\kappa,\mathrm{hv}}(S, K)$$
+$$\forall \mathrm{reach}, \mathrm{key}, \mathrm{hv}, S, K, c, m,\quad m > 0 \Rightarrow \operatorname{scopedVerdict}_{\mathrm{reach},\mathrm{key},\mathrm{hv}}\Big(\textstyle\operatorname{flatten}\big[\operatorname{filterMap}(\operatorname{probeOf}_S, b)\big]_{b \in \operatorname{lpt}_c(m, \operatorname{units}(|S|, |K|))},\ \operatorname{flatten}\big[\operatorname{filterMap}(\operatorname{sweepOf}_{|S|,K}, b)\big]_{b \in \operatorname{lpt}_c(m, \operatorname{units}(|S|, |K|))}\Big) = \operatorname{scopedVerdict}_{\mathrm{reach},\mathrm{key},\mathrm{hv}}(S, K)$$
 
-where $B = \operatorname{lpt}_c(m, \operatorname{units}(|S|, |K|))$, $S_j = [\operatorname{probeOf}_S(i) \ne \bot \mid i \in B_j]$ and
-$K_j = [\operatorname{sweepOf}_{|S|,K}(i) \ne \bot \mid i \in B_j]$. Costs move work between jobs, never a verdict. -/
+Costs move work between jobs, never a verdict. -/
 theorem plan_verdict_eq {κ : Type} [DecidableEq κ] (reach : Fw.Site.Breakpoints.Env → Option Fw.Gate.Reason)
     (key : Fw.Site.Breakpoints.Env → κ) (hv : List κ → Fw.Gate.Verdict) (S : List _) (K : List Fw.Gate.Sweep)
     (c : Nat → Nat) (m : Nat) (hm : 0 < m) :
@@ -675,19 +678,19 @@ def swName : Sw → String
 
 /-- The names of an engine's units: the probe ids in matrix order, then the four sweeps in spec order.
 
-$$\forall P,\quad \operatorname{names}(P) = P \mathbin{+\!\!+} [\texttt{desktop}, \texttt{phone}, \texttt{touch}, \texttt{pain}]$$
+$$\forall I,\quad \operatorname{names}(I) = I \mathbin{+\!\!+} [\texttt{desktop}, \texttt{phone}, \texttt{touch}, \texttt{pain}]$$
 -/
 def unitNames (ids : List String) : List String := ids ++ Sw.all.map swName
 
 /-- The cost vector of an engine's units, computed once per plan: entry $i$ is the cost of unit name $i$.
 
-$$\forall T, P,\quad \operatorname{costVec}(T, P) = [\,\operatorname{costOf}(T.\mathrm{costs}, u)\,]_{u \in \operatorname{names}(P)}$$
+$$\forall T, I,\quad \operatorname{costVec}(T, I) = [\,\operatorname{costOf}(T.\mathrm{costs}, u)\,]_{u \in \operatorname{names}(I)}$$
 -/
 def costVec (T : EngCosts) (ids : List String) : Array Nat := ((unitNames ids).map (costOf T.costs)).toArray
 
 /-- The cost of unit $i$ of an engine: its name's entry in the table, the table's maximum if it has none.
 
-$$\forall T, P, i,\quad c_{T,P}(i) = \begin{cases} \operatorname{costOf}(T.\mathrm{costs}, \operatorname{names}(P)_i) & i < |P| + 4 \\ \operatorname{dflt}(T.\mathrm{costs}) & i \ge |P| + 4 \end{cases}$$
+$$\forall T, I, i,\quad c_{T,I}(i) = \begin{cases} \operatorname{costOf}(T.\mathrm{costs}, \operatorname{names}(I)_i) & i < |I| + 4 \\ \operatorname{dflt}(T.\mathrm{costs}) & i \ge |I| + 4 \end{cases}$$
 -/
 def unitCost (T : EngCosts) (ids : List String) (i : Nat) : Nat := (costVec T ids).getD i (dflt T.costs)
 
@@ -698,7 +701,7 @@ def unitCost (T : EngCosts) (ids : List String) (i : Nat) : Nat := (costVec T id
 
 /-- The LPT plan of one engine on $k$ jobs (the `let`s share one cost vector; `engPlan_eq`).
 
-$$\forall T, P, k,\quad \operatorname{engPlan}(T, P, k) = \operatorname{lpt}_{c_{T,P}}(k, \operatorname{units}(|P|, 4))$$
+$$\forall T, I, k,\quad \operatorname{engPlan}(T, I, k) = \operatorname{lpt}_{c_{T,I}}(k, \operatorname{units}(|I|, 4))$$
 -/
 def engPlan (T : EngCosts) (ids : List String) (k : Nat) : List (List Nat) :=
   let v := costVec T ids
@@ -707,14 +710,14 @@ def engPlan (T : EngCosts) (ids : List String) (k : Nat) : List (List Nat) :=
 
 /-- `engPlan` is LPT over `unitCost`.
 
-$$\forall T, P, k,\quad \operatorname{engPlan}(T, P, k) = \operatorname{lpt}_{c_{T,P}}(k, \operatorname{units}(|P|, 4))$$
+$$\forall T, I, k,\quad \operatorname{engPlan}(T, I, k) = \operatorname{lpt}_{c_{T,I}}(k, \operatorname{units}(|I|, 4))$$
 -/
 theorem engPlan_eq (T : EngCosts) (ids : List String) (k : Nat) :
     engPlan T ids k = lpt (unitCost T ids) k (units ids.length Sw.all.length) := rfl
 
 /-- The durations of one engine's jobs: setup plus the job's load (`engDurs_eq`).
 
-$$\forall T, P, k,\quad \operatorname{engDurs}(T, P, k) = [\,\text{setup}_T + \operatorname{load}_{c_{T,P}}(b)\,]_{b \in \operatorname{engPlan}(T, P, k)}$$
+$$\forall T, I, k,\quad \operatorname{engDurs}(T, I, k) = [\,\text{setup}_T + \operatorname{load}_{c_{T,I}}(b)\,]_{b \in \operatorname{engPlan}(T, I, k)}$$
 -/
 def engDurs (T : EngCosts) (ids : List String) (k : Nat) : List Nat :=
   let v := costVec T ids
@@ -724,7 +727,7 @@ def engDurs (T : EngCosts) (ids : List String) (k : Nat) : List Nat :=
 
 /-- `engDurs` is setup plus the `unitCost` load of each job of `engPlan`.
 
-$$\forall T, P, k,\quad \operatorname{engDurs}(T, P, k) = [\,\text{setup}_T + \operatorname{load}_{c_{T,P}}(b)\,]_{b \in \operatorname{engPlan}(T, P, k)}$$
+$$\forall T, I, k,\quad \operatorname{engDurs}(T, I, k) = [\,\text{setup}_T + \operatorname{load}_{c_{T,I}}(b)\,]_{b \in \operatorname{engPlan}(T, I, k)}$$
 -/
 theorem engDurs_eq (T : EngCosts) (ids : List String) (k : Nat) :
     engDurs T ids k = (engPlan T ids k).map fun b => T.setup + load (unitCost T ids) b := rfl
@@ -737,14 +740,14 @@ def kCands : List (Nat × Nat) := (List.range 8).flatMap fun a => (List.range 8)
 
 /-- The durations of all jobs of a run: Chromium's, then WebKit's.
 
-$$\forall C, P, k_c, k_w,\quad D(C, P, (k_c, k_w)) = \operatorname{engDurs}(C_{\text{chromium}}, P, k_c) \mathbin{+\!\!+} \operatorname{engDurs}(C_{\text{webkit}}, P, k_w)$$
+$$\forall C, I, k_c, k_w,\quad D(C, I, (k_c, k_w)) = \operatorname{engDurs}(C_{\text{chromium}}, I, k_c) \mathbin{+\!\!+} \operatorname{engDurs}(C_{\text{webkit}}, I, k_w)$$
 -/
 def shardDurs (C : Costs) (ids : List String) (kk : Nat × Nat) : List Nat :=
   engDurs C.chromium ids kk.1 ++ engDurs C.webkit ids kk.2
 
 /-- Graham's bound (times $m$) for $r$ concurrent runs of this plan on $m$ free runners.
 
-$$\forall C, P, m, r, \kappa,\quad B(C, P, m, r, \kappa) = r \sum D(C, P, \kappa) + (m - 1) \max D(C, P, \kappa)$$
+$$\forall C, I, m, r, \kappa,\quad B(C, I, m, r, \kappa) = r \sum D(C, I, \kappa) + (m - 1) \max D(C, I, \kappa)$$
 -/
 def shardBound (C : Costs) (ids : List String) (m r : Nat) (kk : Nat × Nat) : Nat :=
   let ds := shardDurs C ids kk
@@ -752,7 +755,7 @@ def shardBound (C : Costs) (ids : List String) (m r : Nat) (kk : Nat × Nat) : N
 
 /-- The job durations of one engine for $k = 1, \dots, 8$ jobs (entry $k - 1$).
 
-$$\forall T, P,\quad \operatorname{durTab}(T, P) = [\operatorname{engDurs}(T, P, 1), \dots, \operatorname{engDurs}(T, P, 8)]$$
+$$\forall T, I,\quad \operatorname{durTab}(T, I) = [\operatorname{engDurs}(T, I, 1), \dots, \operatorname{engDurs}(T, I, 8)]$$
 -/
 def durTab (T : EngCosts) (ids : List String) : List (List Nat) := (List.range 8).map fun a => engDurs T ids (a + 1)
 
@@ -767,7 +770,7 @@ def boundOf (tc tw : List (List Nat)) (m r : Nat) (kk : Nat × Nat) : Nat :=
 
 /-- **The job counts**: the pair of `kCands` with the least bound, the first such pair on a tie.
 
-$$\forall C, P, m, r,\quad \operatorname{chooseK}(C, P, m, r) = \operatorname{argmin}_{\kappa \in \mathrm{kCands}} B(C, P, m, r, \kappa)$$
+$$\forall C, I, m, r,\quad \operatorname{chooseK}(C, I, m, r) = \operatorname{argmin}_{\kappa \in \mathrm{kCands}} B(C, I, m, r, \kappa)$$
 
 More jobs pay more setups; fewer jobs run longer. Computed from one duration table per engine (`durTab`,
 `boundOf`), so each plan is dealt once; `chooseK_eq` states it as the argmin of `shardBound`. -/
@@ -798,7 +801,7 @@ theorem kCands_le : ∀ kk ∈ kCands, kk.1 ≤ 8 ∧ kk.2 ≤ 8 := by
 
 /-- Entry $k - 1$ of the duration table is the plan on $k$ jobs, for $1 \le k \le 8$.
 
-$$\forall T, P, k,\quad 1 \le k \le 8 \Rightarrow \operatorname{durTab}(T, P)[k - 1] = \operatorname{engDurs}(T, P, k)$$
+$$\forall T, I, k,\quad 1 \le k \le 8 \Rightarrow \operatorname{durTab}(T, I)[k - 1] = \operatorname{engDurs}(T, I, k)$$
 -/
 theorem durTab_getD (T : EngCosts) (ids : List String) (k : Nat) (h1 : 0 < k) (h8 : k ≤ 8) :
     (durTab T ids).getD (k - 1) [] = engDurs T ids k := by
@@ -810,7 +813,7 @@ theorem durTab_getD (T : EngCosts) (ids : List String) (k : Nat) (h1 : 0 < k) (h
 
 /-- On every candidate the table bound is `shardBound`.
 
-$$\forall C, P, m, r,\ \forall \kappa \in \mathrm{kCands},\quad \operatorname{boundOf}(\operatorname{durTab}(C_{\text{chromium}}, P), \operatorname{durTab}(C_{\text{webkit}}, P), m, r, \kappa) = B(C, P, m, r, \kappa)$$
+$$\forall C, I, m, r,\ \forall \kappa \in \mathrm{kCands},\quad \operatorname{boundOf}(\operatorname{durTab}(C_{\text{chromium}}, I), \operatorname{durTab}(C_{\text{webkit}}, I), m, r, \kappa) = B(C, I, m, r, \kappa)$$
 -/
 theorem boundOf_eq (C : Costs) (ids : List String) (m r : Nat) :
     ∀ kk ∈ kCands, boundOf (durTab C.chromium ids) (durTab C.webkit ids) m r kk = shardBound C ids m r kk := by
@@ -843,7 +846,7 @@ theorem argminBy_congr {α : Type} (f g : α → Nat) :
 
 /-- `chooseK` is the argmin of `shardBound` over `kCands`, starting from $(1, 1)$.
 
-$$\forall C, P, m, r,\quad \operatorname{chooseK}(C, P, m, r) = \operatorname{argmin}(B(C, P, m, r, \cdot), (1, 1), \mathrm{kCands})$$
+$$\forall C, I, m, r,\quad \operatorname{chooseK}(C, I, m, r) = \operatorname{argmin}(B(C, I, m, r, \cdot), (1, 1), \mathrm{kCands})$$
 -/
 theorem chooseK_eq (C : Costs) (ids : List String) (m r : Nat) :
     chooseK C ids m r = argminBy (shardBound C ids m r) (1, 1) kCands := by
@@ -855,7 +858,7 @@ theorem chooseK_eq (C : Costs) (ids : List String) (m r : Nat) :
 
 /-- The chosen counts are in range and have the least bound of all candidates.
 
-$$\forall C, P, m, r,\quad \operatorname{chooseK}(C, P, m, r) = (k_c, k_w) \text{ with } k_c, k_w \ge 1 \ \wedge\ \forall \kappa \in \mathrm{kCands}.\ B(C, P, m, r, \operatorname{chooseK}(C, P, m, r)) \le B(C, P, m, r, \kappa)$$
+$$\forall C, I, m, r,\quad \operatorname{chooseK}(C, I, m, r) = (k_c, k_w) \text{ with } k_c, k_w \ge 1 \ \wedge\ \forall \kappa \in \mathrm{kCands}.\ B(C, I, m, r, \operatorname{chooseK}(C, I, m, r)) \le B(C, I, m, r, \kappa)$$
 -/
 theorem chooseK_spec (C : Costs) (ids : List String) (m r : Nat) :
     (0 < (chooseK C ids m r).1 ∧ 0 < (chooseK C ids m r).2) ∧
@@ -868,7 +871,7 @@ theorem chooseK_spec (C : Costs) (ids : List String) (m r : Nat) :
 
 /-- **The pool finishes by the bound**: list scheduling of $r$ concurrent runs of the plan on $m \ge 1$ runners.
 
-$$\forall C, P, m, r, \kappa,\quad m > 0 \Rightarrow m \cdot C_{\max}(m, \operatorname{copies}(r, D(C, P, \kappa))) \le B(C, P, m, r, \kappa)$$
+$$\forall C, I, m, r, \kappa,\quad m > 0 \Rightarrow m \cdot C_{\max}(m, \operatorname{copies}(r, D(C, I, \kappa))) \le B(C, I, m, r, \kappa)$$
 -/
 theorem shardBound_sound (C : Costs) (ids : List String) (m : Nat) (hm : 0 < m) (r : Nat) (kk : Nat × Nat) :
     m * makespan m (copies r (shardDurs C ids kk)) ≤ shardBound C ids m r kk :=
@@ -877,7 +880,7 @@ theorem shardBound_sound (C : Costs) (ids : List String) (m : Nat) (hm : 0 < m) 
 /-- **The chosen plan of each engine is valid** (every probe and every whole sweep once, so the merged verdict
 is the unsharded one: `layout_merge_sound`, `plan_verdict_eq`).
 
-$$\forall C, P, m, r, e,\quad |P| = 124 \Rightarrow \operatorname{ValidEng}\big([\operatorname{jobOf}(e, 124, b)]_{b \in \operatorname{engPlan}(C_e, P, k_e)}\big), \quad (k_{\text{chromium}}, k_{\text{webkit}}) = \operatorname{chooseK}(C, P, m, r)$$
+$$\forall C, I, m, r, e,\quad |I| = 124 \Rightarrow \operatorname{ValidEng}\big([\operatorname{jobOf}(e, 124, b)]_{b \in \operatorname{engPlan}(C_e, I, k_e)}\big), \quad (k_{\text{chromium}}, k_{\text{webkit}}) = \operatorname{chooseK}(C, I, m, r)$$
 -/
 theorem chosen_valid (C : Costs) (ids : List String) (hids : ids.length = probesPerEngine) (m r : Nat) :
     ValidEng ((engPlan C.chromium ids (chooseK C ids m r).1).map (jobOf .chromium probesPerEngine)) ∧
