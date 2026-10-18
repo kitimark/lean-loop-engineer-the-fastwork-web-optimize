@@ -7,6 +7,7 @@ import FwTest.Mutants.SpawnGuard
 import FwTest.Mutants.Usage
 import FwTest.Mutants.OpsWire
 import FwTest.Mutants.Wire
+import FwTest.Mutants.LeanFirst
 /-! # Mutant killers (task m0-mutants)
 
 Root of the theorems and golden cases added because a mechanical mutant of an M0 module survived

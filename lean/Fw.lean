@@ -97,3 +97,11 @@ import Fw.Search  -- lfg-props-shape: Enum, bounded counterexample search, link 
 import Fw.Spec.LandDrySig  -- lfg-props-shape: the dry-run implementation signature (Out, DryImpl)
 import Fw.Spec.Incidents  -- lfg-props-shape: the one incident registry (rows, Sig, registryFor, Convention)
 import Fw.Spec.Props.LandDryDemo  -- lfg-props-shape: worked example (inc-land-dry-no-verdict)
+import Fw.Ops.LeanFirst  -- lfg-spec: the lean-first land gate (Facts, reasons, stages, gate, out)
+import Fw.Ops.LeanFirstProps  -- lfg-spec: the gate properties of section 7 over Gate/Render
+import Fw.Ops.LeanFirstDecision  -- lfg-spec: the gate's decision-code test equals the allowlist rule
+import Fw.Ops.LeanFirstSearch  -- lfg-spec: Enum Facts, fault grid, pointwise checks, search guards
+import Fw.Ops.LeanFirstProofs  -- lfg-spec: proofs of every lean-first gate property (`<P>_impl`)
+import Fw.Spec.Reach  -- lfg-mathview-facts: the closure/reach helpers shared by the props lint and the math-view facts
+import Fw.Spec.MathFacts  -- lfg-mathview-facts: per-theorem facts (head, impl arg, assumes, kill, class, reach, wire)
+import Fw.Spec.MathFactsGuards  -- lfg-mathview-facts: #guards of the facts on real declarations
