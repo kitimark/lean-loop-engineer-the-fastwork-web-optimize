@@ -117,3 +117,4 @@ import Fw.Ops.LeanFirstProofs  -- lfg-spec: proofs of every lean-first gate prop
 import Fw.Spec.Reach  -- lfg-mathview-facts: the closure/reach helpers shared by the props lint and the math-view facts
 import Fw.Spec.MathFacts  -- lfg-mathview-facts: per-theorem facts (head, impl arg, assumes, kill, class, reach, wire)
 import Fw.Spec.MathFactsGuards  -- lfg-mathview-facts: #guards of the facts on real declarations
+import Fw.Preset.Gen  -- preset-v2-proved: the v2-proved arm from the findings ledger (V2Proved decides, Gen writes)

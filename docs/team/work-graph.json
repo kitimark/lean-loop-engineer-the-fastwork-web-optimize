@@ -963,7 +963,8 @@
     "apps/site/src/registry/index.ts",
     "packages/contracts/golden/preset/**",
     "docs/team/handoffs/preset-v2-proved.md"
-   ]
+   ],
+   "evidence": "2805b17"
   },
   {
    "id": "report-draft-2",
