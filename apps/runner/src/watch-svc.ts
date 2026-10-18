@@ -17,7 +17,7 @@ import { CORE_BIN_REL, CORE_COMMIT_REL, SHA, buildBase, type Base } from "../../
 import type { Paths, Runner, RunOut } from "./watch-collect.ts";
 
 export interface SvcInput { path: string; changed: boolean }
-export interface Svc { name: string; inputs: SvcInput[]; unknown?: string }
+export interface Svc { name: string; inputs: SvcInput[]; unknown?: string; sweepErrors?: number }
 
 /** The files each piece of running code is built from (repo-relative prefixes). console-api reads its sources and
  *  packages at start; the fwcore binary is built from the Lean modules and is NOT rebuilt when console-api restarts or
@@ -53,6 +53,17 @@ export function readApi(p: Paths, alive: (pid: number) => boolean = isAlive): Ap
 /** The commit console-api started from: null when no live console-api records one. */
 export function readApiBase(p: Paths, alive?: (pid: number) => boolean): string | null {
   return readApi(p, alive)?.commit ?? null;
+}
+
+/** The fwcore throws the live console-api's drain caught since it started (its sweep-errors.json, written by
+ *  apps/console-api/src/spool/drain.ts): 0 when it wrote none; the file of an earlier process (another pid) is ignored.
+ *  fwcore raises `svc.sweepError` for any count above 0 (Lean `Fw.Obs.sweep_error_alerts`). */
+export function readSweepErrors(p: Paths): number {
+  try {
+    const api = JSON.parse(readFileSync(join(p.consoleDir, "api.json"), "utf8")) as Record<string, unknown>;
+    const j = JSON.parse(readFileSync(join(p.consoleDir, "sweep-errors.json"), "utf8")) as Record<string, unknown>;
+    return j.pid === api.pid && typeof j.count === "number" && Number.isSafeInteger(j.count) && j.count > 0 ? j.count : 0;
+  } catch { return 0; }
 }
 
 function isAlive(pid: number): boolean {
@@ -96,7 +107,8 @@ export async function collectSvcs(p: Paths, exec: Runner, alive?: (pid: number) 
       const core = await judgeInputs(p, exec, SVC_INPUTS.fwcore!, api.coreCommit);
       if (core === null) why.push("git failed on the core child's range"); else inputs.push(...core);
     }
-    out.push(why.length ? { name: "console-api", inputs, unknown: why.join("; ") } : { name: "console-api", inputs });
+    const sweepErrors = readSweepErrors(p);
+    out.push({ name: "console-api", inputs, ...(why.length ? { unknown: why.join("; ") } : {}), ...(sweepErrors > 0 ? { sweepErrors } : {}) });
   }
   const disk = coreBase(p);
   if (disk !== null) {

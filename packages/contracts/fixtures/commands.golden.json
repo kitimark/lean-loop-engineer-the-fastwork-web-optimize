@@ -177,5 +177,41 @@
     "key": "stop:a",
     "actor": "hook",
     "agent": "a"
+  },
+  {
+    "type": "agent.label",
+    "key": "label:id-1|a",
+    "actor": "script",
+    "agent": "id-1",
+    "name": "a"
+  },
+  {
+    "type": "task.handback",
+    "key": "task.handback:a:a:abc1234",
+    "actor": "hook",
+    "task": "a",
+    "agent": "a",
+    "tip": "abc1234"
+  },
+  {
+    "type": "task.integrate",
+    "key": "task.integrate:a:refs/heads/ci/integrate-1:b00ef68",
+    "actor": "lead",
+    "task": "a",
+    "branch": "refs/heads/ci/integrate-1",
+    "tip": "b00ef68"
+  },
+  {
+    "type": "task.park",
+    "key": "task.park:a:1",
+    "actor": "lead",
+    "task": "a",
+    "reason": "folded into b"
+  },
+  {
+    "type": "task.unpark",
+    "key": "task.unpark:a:2",
+    "actor": "user",
+    "task": "a"
   }
 ]
