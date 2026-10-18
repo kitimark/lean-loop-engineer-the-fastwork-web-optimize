@@ -1,5 +1,6 @@
 import Fw.Wire
 import Fw.Console.PreviewTable
+import Fw.Ops.LeanFirstSearch
 /-!
 # Golden vectors of the `ops.*` ops
 
@@ -7,7 +8,8 @@ import Fw.Console.PreviewTable
 where `request` carries its `op` and `response` is what `fwcore` replies (without the `id`).
 The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
 `golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors), `golden/lint/lint.context.jsonl`
-(`scripts/context-lint.mjs`).
+(`scripts/context-lint.mjs`). From `named` (file stem not the op): `golden/ops/lean-first.jsonl` (`ops.leanFirst`,
+the lean-first land gate over the fault grid of `Fw.Ops.LeanFirstSearch`).
 Generated from Lean, never by hand:
 
 ```
@@ -477,6 +479,49 @@ def extra : List (String × String × List (String × Json)) := [
     ("the alert source writes as script", lit "{\"source\":\"alert\"}"),
     ("unknown source is refused", lit "{\"source\":\"lead\"}")])]
 
+open Fw.Ops.LeanFirst in
+/-- An `ops.leanFirst` request: the facts, with a `stage` field when one is given. -/
+def leanFirstReq (s : Option Stage) (F : Facts) : Json :=
+  match s, lfFactsJson F with
+  | some s, .obj kvs => .obj (kvs.insert "stage" (.str s.name))
+  | _, j => j
+
+open Fw.Ops.LeanFirst in
+/-- The constructor name of a fault of the lean-first grid. -/
+def faultName (f : Fault) : String := ((reprStr f).splitOn ".").getLastD ""
+
+open Fw.Ops.LeanFirst in
+/-- The `ops.leanFirst` cases: the base facts (all rules met), each single fault of the grid at stage `ratchet` (one
+row per refusal kind, plus the faults that must pass), and the stage, shadow-line, pending and decoder edge cases. -/
+def leanFirstCases : List (String × Json) :=
+  [("all rules met at stage ratchet: pass", leanFirstReq (some .ratchet) base),
+   ("all rules met, no stage field (the live stage): pass", leanFirstReq none base)] ++
+  Fault.all.map (fun f => (s!"fault {faultName f} at stage ratchet", leanFirstReq (some .ratchet) (factsOf [f]))) ++
+  [("unproved at stage shadow: pass with a LEANFIRST would-refuse line", leanFirstReq (some .shadow) (factsOf [.unproved])),
+   ("kills source missing at stage shadow: pass with a LEANFIRST missing line",
+     leanFirstReq (some .shadow) (factsOf [.missingKills])),
+   ("unproved at stage newTasks: refused", leanFirstReq (some .newTasks) (factsOf [.unproved])),
+   ("unproved, not a lean-first task, at stage newTasks: nothing enforced, pass",
+     leanFirstReq (some .newTasks) (factsOf [.notLeanFirst, .unproved])),
+   ("unproved, not a lean-first task, at stage allNew: props not enforced, pass",
+     leanFirstReq (some .allNew) (factsOf [.notLeanFirst, .unproved])),
+   ("no kill, not a lean-first task, at stage allNew: refused", leanFirstReq (some .allNew) (factsOf [.notLeanFirst, .noKill])),
+   ("legacy growth at stage allNew: ratchet not enforced, pass", leanFirstReq (some .allNew) (factsOf [.ratchet])),
+   ("two faults: both reasons, the verdict names the first", leanFirstReq (some .ratchet) (factsOf [.unproved, .noKill])),
+   ("untested premise shared with the property: pass with a WARN line",
+     leanFirstReq (some .ratchet) (factsOf [.untestedShared])),
+   ("a line break in a theorem name is printed as a space", leanFirstReq (some .ratchet) (factsOf [.newlineName, .noKill])),
+   ("empty request at stage ratchet: pending on all three sources", lit "{\"stage\":\"ratchet\"}"),
+   ("empty request at stage shadow: pass", lit "{\"stage\":\"shadow\"}"),
+   ("unknown stage is refused", lit "{\"stage\":\"strict\"}"),
+   ("unknown sign-off role is refused",
+     lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"docHash\":\"d\",\"role\":\"lead\",\"agree\":true}]}"),
+   ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
+
+/-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
+def named : List (String × String × String × List (String × Json)) := [
+  ("ops", "lean-first", "ops.leanFirst", leanFirstCases)]
+
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
   | .obj kvs => .obj (kvs.insert "op" (.str op))
@@ -500,8 +545,9 @@ def dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
 /-- Compare (or write) every golden file; returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let mut stale := 0
-  for (sub, op, cs) in cases.map (fun (op, cs) => ("ops", op, cs)) ++ extra do
-    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{op}.jsonl"
+  for (sub, stem, op, cs) in cases.map (fun (op, cs) => ("ops", op, op, cs)) ++
+      extra.map (fun (sub, op, cs) => (sub, op, op, cs)) ++ named do
+    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{stem}.jsonl"
     if write then IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / sub)
     let text := fileText op cs
     if write then
@@ -511,8 +557,9 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
       if cur != text then
         IO.println s!"ops golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/OpsGolden.lean)"
         stale := stale + 1
-  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0
-  IO.println s!"ops golden: {cases.length + extra.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
+  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0 +
+    named.foldl (fun a c => a + c.2.2.2.length) 0
+  IO.println s!"ops golden: {cases.length + extra.length + named.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
   return stale
 
 end Fw.Wire.Ops.Golden
