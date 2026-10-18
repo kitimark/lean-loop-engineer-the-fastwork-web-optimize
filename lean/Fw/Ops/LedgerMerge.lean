@@ -19,27 +19,29 @@ with the decision below; reading, writing and rendering JSON is glue.
 
 Theorems: `conflict_iff`, `merge_comm_up_to_order`, `no_conflict_disjoint_ids`, `merge_idempotent` and
 `merge_appends` (two branches that append different entries merge to base, ours' entries, theirs' entries: the
-2026-10-18 conflict). Golden vectors: `packages/contracts/golden/ops/ledger-merge.jsonl`
+2026-10-18 conflict). The key type is generic: ids are strings, and per-task notes are keyed by the pair
+(entry, task) (`NoteKey`), so tasks that only add notes never clash (`add_only_merge`, `distinct_notes_merge`,
+`distinct_notes_append`; inc-findings-shared-entry). Golden vectors: `packages/contracts/golden/ops/ledger-merge.jsonl`
 (`Fw.Wire.LedgerMerge.Golden.run`, checked by `lake test`).
 -/
 
 namespace Fw.Ops.LedgerMerge
 
-variable {V : Type} [DecidableEq V]
+variable {K V : Type} [DecidableEq K] [DecidableEq V]
 
 /-- The ids of an entry list, in order.
 
 $$\kappa([(i_1, v_1), \dots, (i_n, v_n)]) = [i_1, \dots, i_n]$$
 
 The id column of a ledger. -/
-def keys (l : List (String × V)) : List String := l.map (·.1)
+def keys (l : List (K × V)) : List K := l.map (·.1)
 
 /-- The value of the first entry with id $i$, or none.
 
 $$\ell(i, [\,]) = \bot, \qquad \ell(i, (j, v) :: L) = \begin{cases} v & j = i \\ \ell(i, L) & j \ne i \end{cases}$$
 
 Looks an id up in a ledger. -/
-def look (i : String) : List (String × V) → Option V
+def look (i : K) : List (K × V) → Option V
   | [] => none
   | (j, v) :: r => if j = i then some v else look i r
 
@@ -68,7 +70,7 @@ def pick3 (b o t : Option V) : Option (Option V) :=
 $$\operatorname{ids}(O, T) = \kappa(O) \mathbin{+\!\!+} [\, i \in \kappa(T) \mid i \notin \kappa(O) \,]$$
 
 The bracket keeps theirs' order (a filtered list, not a set). -/
-def ids (o t : List (String × V)) : List String :=
+def ids (o t : List (K × V)) : List K :=
   keys o ++ (keys t).filter (fun i => decide (i ∉ keys o))
 
 /-- One row of the merge: keep id $i$ with value $v$, drop id $i$ (deleted), or a clash with the base, ours' and
@@ -77,13 +79,13 @@ theirs' versions.
 $$\rho \in \{\mathrm{keep}(i, v),\ \mathrm{drop}(i),\ \mathrm{clash}(i, b, o, t)\}$$
 
 What the driver renders per id. -/
-inductive Row (V : Type) where
+inductive Row (K V : Type) where
   /-- id kept with this value -/
-  | keep (i : String) (v : V)
+  | keep (i : K) (v : V)
   /-- id deleted -/
-  | drop (i : String)
+  | drop (i : K)
   /-- both sides changed the id differently -/
-  | clash (i : String) (b o t : Option V)
+  | clash (i : K) (b o t : Option V)
   deriving DecidableEq, Repr
 
 /-- The row of id $i$.
@@ -91,7 +93,7 @@ inductive Row (V : Type) where
 $$\operatorname{row}(B, O, T, i) = \begin{cases} \mathrm{keep}(i, v) & \operatorname{pick}(\ell(i,B), \ell(i,O), \ell(i,T)) = \mathrm{some}(\mathrm{some}(v)) \\ \mathrm{drop}(i) & \operatorname{pick}(\dots) = \mathrm{some}(\bot) \\ \mathrm{clash}(i, \ell(i,B), \ell(i,O), \ell(i,T)) & \operatorname{pick}(\dots) = \mathrm{none} \end{cases}$$
 
 Applies the three-way rule to one id. -/
-def row (b o t : List (String × V)) (i : String) : Row V :=
+def row (b o t : List (K × V)) (i : K) : Row K V :=
   match pick3 (look i b) (look i o) (look i t) with
   | some (some v) => .keep i v
   | some none => .drop i
@@ -102,14 +104,14 @@ def row (b o t : List (String × V)) (i : String) : Row V :=
 $$\operatorname{rows}(B, O, T) = [\operatorname{row}(B, O, T, i) \mid i \in \operatorname{ids}(O, T)]$$
 
 The per-id decisions the driver renders. -/
-def rows (b o t : List (String × V)) : List (Row V) := (ids o t).map (row b o t)
+def rows (b o t : List (K × V)) : List (Row K V) := (ids o t).map (row b o t)
 
 /-- The entry a row keeps, if any.
 
 $$\operatorname{entry}(\mathrm{keep}(i,v)) = \mathrm{some}(i,v), \quad \operatorname{entry}(\mathrm{drop}(i)) = \operatorname{entry}(\mathrm{clash}(\dots)) = \mathrm{none}$$
 
 Kept rows become entries. -/
-def Row.entry? : Row V → Option (String × V)
+def Row.entry? : Row K V → Option (K × V)
   | .keep i v => some (i, v)
   | _ => none
 
@@ -118,7 +120,7 @@ def Row.entry? : Row V → Option (String × V)
 $$\operatorname{isClash}(\rho) \iff \exists i, b, o, t,\ \rho = \mathrm{clash}(i, b, o, t)$$
 
 Any clash fails the merge. -/
-def Row.isClash : Row V → Bool
+def Row.isClash : Row K V → Bool
   | .clash .. => true
   | _ => false
 
@@ -127,7 +129,7 @@ def Row.isClash : Row V → Bool
 $$\operatorname{merge}(B, O, T) = \begin{cases} \mathrm{none} & \exists \rho \in \operatorname{rows}(B,O,T),\ \operatorname{isClash}(\rho) \\ \mathrm{some}\,[\, e \mid \rho \in \operatorname{rows}(B,O,T),\ \operatorname{entry}(\rho) = \mathrm{some}(e) \,] & \text{otherwise} \end{cases}$$
 
 The whole decision of `scripts/merge-ledger.mjs`; JSON in and out is glue. -/
-def merge (b o t : List (String × V)) : Option (List (String × V)) :=
+def merge (b o t : List (K × V)) : Option (List (K × V)) :=
   let rs := rows b o t
   if rs.any Row.isClash then none else some (rs.filterMap Row.entry?)
 
@@ -152,7 +154,7 @@ omit [DecidableEq V] in
 $$\forall i, L,\quad \ell(i, L) \ne \bot \implies i \in \kappa(L)$$
 
 A looked-up value names a listed id. -/
-theorem mem_keys_of_look {i : String} : ∀ {l : List (String × V)}, look i l ≠ none → i ∈ keys l
+theorem mem_keys_of_look {i : K} : ∀ {l : List (K × V)}, look i l ≠ none → i ∈ keys l
   | [], h => absurd rfl h
   | (j, v) :: r, h => by
     simp only [look] at h
@@ -167,7 +169,7 @@ omit [DecidableEq V] in
 $$\forall i, L,\quad i \in \kappa(L) \implies \ell(i, L) \ne \bot$$
 
 The converse of `mem_keys_of_look`. -/
-theorem look_ne_none {i : String} : ∀ {l : List (String × V)}, i ∈ keys l → look i l ≠ none
+theorem look_ne_none {i : K} : ∀ {l : List (K × V)}, i ∈ keys l → look i l ≠ none
   | [], h => by simp [keys] at h
   | (j, v) :: r, h => by
     simp only [keys, List.map_cons, List.mem_cons] at h
@@ -183,7 +185,7 @@ omit [DecidableEq V] in
 $$\forall i, L, M,\quad \ell(i, L \mathbin{+\!\!+} M) = \begin{cases} \ell(i, L) & \ell(i, L) \ne \bot \\ \ell(i, M) & \ell(i, L) = \bot \end{cases}$$
 
 Used for appended ledgers. -/
-theorem look_append (i : String) : ∀ (l m : List (String × V)), look i (l ++ m) = (look i l).or (look i m)
+theorem look_append (i : K) : ∀ (l m : List (K × V)), look i (l ++ m) = (look i l).or (look i m)
   | [], _ => rfl
   | (j, v) :: r, m => by
     simp only [List.cons_append, look]
@@ -197,7 +199,7 @@ omit [DecidableEq V] in
 $$\forall i, L,\quad i \notin \kappa(L) \implies \ell(i, L) = \bot$$
 
 Contrapositive of `mem_keys_of_look`. -/
-theorem look_eq_none {i : String} {l : List (String × V)} (h : i ∉ keys l) : look i l = none :=
+theorem look_eq_none {i : K} {l : List (K × V)} (h : i ∉ keys l) : look i l = none :=
   Classical.byContradiction fun hn => h (mem_keys_of_look hn)
 
 omit [DecidableEq V] in
@@ -206,7 +208,7 @@ omit [DecidableEq V] in
 $$\forall L, g,\quad \operatorname{nodup}(\kappa(L)) \wedge \big(\forall i \in \kappa(L),\ g(i) = \operatorname{map}(v \mapsto (i, v), \ell(i, L))\big) \implies \operatorname{filterMap}(g, \kappa(L)) = L$$
 
 A list with distinct ids is its ids, each with its value. -/
-theorem filterMap_keys_look : ∀ (l : List (String × V)) (g : String → Option (String × V)), (keys l).Nodup →
+theorem filterMap_keys_look : ∀ (l : List (K × V)) (g : K → Option (K × V)), (keys l).Nodup →
     (∀ i ∈ keys l, g i = (look i l).map (i, ·)) → (keys l).filterMap g = l
   | [], _, _, _ => rfl
   | (a, v) :: r, g, hnd, hg => by
@@ -246,7 +248,7 @@ omit [DecidableEq V] in
 $$\forall i, O, T,\quad i \in \operatorname{ids}(O, T) \iff i \in \kappa(O) \vee i \in \kappa(T)$$
 
 Every id of either side gets a row. -/
-theorem mem_ids (i : String) (o t : List (String × V)) : i ∈ ids o t ↔ i ∈ keys o ∨ i ∈ keys t := by
+theorem mem_ids (i : K) (o t : List (K × V)) : i ∈ ids o t ↔ i ∈ keys o ∨ i ∈ keys t := by
   unfold ids
   simp only [List.mem_append, List.mem_filter, decide_eq_true_eq]
   by_cases h : i ∈ keys o <;> simp [h]
@@ -256,7 +258,7 @@ theorem mem_ids (i : String) (o t : List (String × V)) : i ∈ ids o t ↔ i �
 $$\forall B, O, T,\quad (\exists \rho \in \operatorname{rows}(B,O,T),\ \operatorname{isClash}(\rho)) \iff \exists i,\ \ell(i,O) \ne \ell(i,B) \wedge \ell(i,T) \ne \ell(i,B) \wedge \ell(i,O) \ne \ell(i,T)$$
 
 Ids outside both sides cannot clash, since absent equals absent there. -/
-theorem any_clash_iff (b o t : List (String × V)) :
+theorem any_clash_iff (b o t : List (K × V)) :
     (rows b o t).any Row.isClash = true ↔
       ∃ i, look i o ≠ look i b ∧ look i t ≠ look i b ∧ look i o ≠ look i t := by
   unfold rows
@@ -291,7 +293,7 @@ adding the same id with different values on both sides is one).
 $$\forall B, O, T,\quad \operatorname{merge}(B, O, T) = \mathrm{none} \iff \exists i,\ \ell(i,O) \ne \ell(i,B) \wedge \ell(i,T) \ne \ell(i,B) \wedge \ell(i,O) \ne \ell(i,T)$$
 
 Here $\ell(i, \cdot) = \bot$ when $i$ is absent. -/
-theorem conflict_iff (b o t : List (String × V)) :
+theorem conflict_iff (b o t : List (K × V)) :
     merge b o t = none ↔ ∃ i, look i o ≠ look i b ∧ look i t ≠ look i b ∧ look i o ≠ look i t := by
   rw [← any_clash_iff]
   dsimp only [merge]
@@ -302,7 +304,7 @@ theorem conflict_iff (b o t : List (String × V)) :
 $$\forall B, O, T, M,\quad \operatorname{merge}(B,O,T) = \mathrm{some}(M) \implies \forall (i, v),\ (i, v) \in M \iff (i \in \kappa(O) \vee i \in \kappa(T)) \wedge \operatorname{pick}(\ell(i,B), \ell(i,O), \ell(i,T)) = \mathrm{some}(\mathrm{some}(v))$$
 
 Membership in the merged list, independent of its order. -/
-theorem mem_merge {b o t m : List (String × V)} (h : merge b o t = some m) (i : String) (v : V) :
+theorem mem_merge {b o t m : List (K × V)} (h : merge b o t = some m) (i : K) (v : V) :
     (i, v) ∈ m ↔ (i ∈ keys o ∨ i ∈ keys t) ∧ pick3 (look i b) (look i o) (look i t) = some (some v) := by
   dsimp only [merge] at h
   split at h
@@ -331,7 +333,7 @@ and when both succeed they hold the same entries (only their order may differ).
 $$\forall B, O, T,\quad \big(\operatorname{merge}(B,O,T) = \mathrm{none} \iff \operatorname{merge}(B,T,O) = \mathrm{none}\big) \wedge \forall M, M',\ \operatorname{merge}(B,O,T) = \mathrm{some}(M) \wedge \operatorname{merge}(B,T,O) = \mathrm{some}(M') \implies \forall e,\ e \in M \iff e \in M'$$
 
 The driver's result does not depend on which branch is merged into which, up to order. -/
-theorem merge_comm_up_to_order (b o t : List (String × V)) :
+theorem merge_comm_up_to_order (b o t : List (K × V)) :
     (merge b o t = none ↔ merge b t o = none) ∧
       ∀ m m', merge b o t = some m → merge b t o = some m' → ∀ e, e ∈ m ↔ e ∈ m' := by
   refine ⟨?_, ?_⟩
@@ -348,7 +350,7 @@ theorem merge_comm_up_to_order (b o t : List (String × V)) :
 $$\forall B, O, T,\quad \big(\forall i,\ \ell(i,O) \ne \ell(i,B) \implies \ell(i,T) = \ell(i,B)\big) \implies \exists M,\ \operatorname{merge}(B,O,T) = \mathrm{some}(M)$$
 
 The ids ours changed and the ids theirs changed are disjoint sets; a change is an addition, edit or deletion. -/
-theorem no_conflict_disjoint_ids (b o t : List (String × V))
+theorem no_conflict_disjoint_ids (b o t : List (K × V))
     (h : ∀ i, look i o ≠ look i b → look i t = look i b) : ∃ m, merge b o t = some m := by
   cases hm : merge b o t with
   | some m => exact ⟨m, rfl⟩
@@ -361,7 +363,7 @@ theorem no_conflict_disjoint_ids (b o t : List (String × V))
 $$\forall B, O, T, L,\quad \operatorname{nodup}(\kappa(L)) \wedge \operatorname{ids}(O,T) = \kappa(L) \wedge \big(\forall i \in \kappa(L),\ \operatorname{pick}(\ell(i,B), \ell(i,O), \ell(i,T)) = \mathrm{some}(\ell(i,L))\big) \implies \operatorname{merge}(B,O,T) = \mathrm{some}(L)$$
 
 The common step of `merge_idempotent` and `merge_appends`. -/
-theorem merge_eq_of_pick (b o t l : List (String × V)) (hnd : (keys l).Nodup) (hids : ids o t = keys l)
+theorem merge_eq_of_pick (b o t l : List (K × V)) (hnd : (keys l).Nodup) (hids : ids o t = keys l)
     (hp : ∀ i ∈ keys l, pick3 (look i b) (look i o) (look i t) = some (look i l)) : merge b o t = some l := by
   have hrow : ∀ i ∈ keys l, row b o t i = match look i l with | some v => .keep i v | none => .drop i := by
     intro i hi
@@ -388,7 +390,7 @@ that list unchanged, whatever the base.
 $$\forall B, X,\quad \operatorname{nodup}(\kappa(X)) \implies \operatorname{merge}(B, X, X) = \mathrm{some}(X)$$
 
 Idempotence: a merge of identical sides is a no-op, order included. -/
-theorem merge_idempotent (b x : List (String × V)) (hnd : (keys x).Nodup) : merge b x x = some x := by
+theorem merge_idempotent (b x : List (K × V)) (hnd : (keys x).Nodup) : merge b x x = some x := by
   apply merge_eq_of_pick b x x x hnd
   · unfold ids
     have : (keys x).filter (fun i => decide (i ∉ keys x)) = [] := by
@@ -404,7 +406,7 @@ appends $X$ to the base $B$, theirs appends $Y$, and all ids are distinct; the m
 $$\forall B, X, Y,\quad \operatorname{nodup}(\kappa(B \mathbin{+\!\!+} X \mathbin{+\!\!+} Y)) \implies \operatorname{merge}(B,\ B \mathbin{+\!\!+} X,\ B \mathbin{+\!\!+} Y) = \mathrm{some}(B \mathbin{+\!\!+} X \mathbin{+\!\!+} Y)$$
 
 The textual conflict of two appends is no conflict per id. -/
-theorem merge_appends (B X Y : List (String × V)) (hnd : (keys (B ++ X ++ Y)).Nodup) :
+theorem merge_appends (B X Y : List (K × V)) (hnd : (keys (B ++ X ++ Y)).Nodup) :
     merge B (B ++ X) (B ++ Y) = some (B ++ X ++ Y) := by
   simp only [keys, List.map_append, List.nodup_append, List.mem_append] at hnd
   obtain ⟨⟨hB, hX, hBX⟩, hY, hBXY⟩ := hnd
@@ -439,36 +441,184 @@ theorem merge_appends (B X Y : List (String × V)) (hnd : (keys (B ++ X ++ Y)).N
       have nx : i ∉ keys X := fun hx => hBXY i (Or.inr hx) i hy rfl
       simp [look_eq_none nb, look_eq_none nx, pick3]
 
+/-! ## Per-task notes keyed by (entry, task)
+
+A shared string of an entry (a finding's `mechanism`) that several tasks extend is one version of one id: two tasks
+that each extend it change that id differently, and `conflict_iff` makes that a conflict (inc-findings-shared-entry,
+hero.exit, two hand resolutions). Notes are rows of their own in a separate id-keyed array, keyed by the pair
+(entry, task): a task adds its note and never rewrites another task's, so parallel tasks change disjoint keys. The
+merge is the same `merge` over the key type `String × String`; `distinct_notes_merge` shows it never clashes for
+such branches and keeps every note of both sides. -/
+
+omit [DecidableEq V] in
+/-- In a list with distinct ids, a row's id looks up to that row's value.
+
+$$\forall k, v, L,\quad \operatorname{nodup}(\kappa(L)) \wedge (k, v) \in L \implies \ell(k, L) = \mathrm{some}(v)$$
+
+With distinct ids, membership pins the lookup. -/
+theorem look_of_mem {k : K} {v : V} : ∀ {l : List (K × V)}, (keys l).Nodup → (k, v) ∈ l → look k l = some v
+  | [], _, h => absurd h List.not_mem_nil
+  | (j, w) :: r, hnd, h => by
+    simp only [keys, List.map_cons, List.nodup_cons] at hnd
+    simp only [look]
+    rcases List.mem_cons.mp h with he | hr
+    · simp only [Prod.mk.injEq] at he
+      obtain ⟨rfl, rfl⟩ := he
+      simp
+    · have hk : k ∈ keys r := List.mem_map_of_mem (f := (·.1)) hr
+      have hne : j ≠ k := fun e => hnd.1 (e ▸ hk)
+      simp only [hne, ↓reduceIte]
+      exact look_of_mem hnd.2 hr
+
+/-- One side's row survives an add-only merge: if both sides keep every base row unchanged and no id is new on both
+sides, the rule keeps ours' value for each row of ours.
+
+$$\forall B, O, T, k, v,\quad \Big(\forall k',\ \ell(k',B) \ne \bot \Rightarrow \ell(k',O) = \ell(k',B)\Big) \wedge \Big(\forall k',\ \ell(k',B) \ne \bot \Rightarrow \ell(k',T) = \ell(k',B)\Big) \wedge \Big(\forall k',\ k' \in \kappa(O) \wedge k' \in \kappa(T) \Rightarrow k' \in \kappa(B)\Big) \wedge \operatorname{nodup}(\kappa(O)) \wedge (k, v) \in O \implies \operatorname{pick}(\ell(k,B), \ell(k,O), \ell(k,T)) = \mathrm{some}(\mathrm{some}(v))$$
+
+The per-id step of `add_only_merge`. -/
+theorem pick3_add_only (b o t : List (K × V)) (ho : ∀ k, look k b ≠ none → look k o = look k b)
+    (ht : ∀ k, look k b ≠ none → look k t = look k b) (hd : ∀ k, k ∈ keys o → k ∈ keys t → k ∈ keys b)
+    (hno : (keys o).Nodup) {k : K} {v : V} (hmem : (k, v) ∈ o) :
+    pick3 (look k b) (look k o) (look k t) = some (some v) := by
+  have hov : look k o = some v := look_of_mem hno hmem
+  by_cases hb : look k b = none
+  · have htn : look k t = none := by
+      refine Classical.byContradiction fun hn => ?_
+      have hkb := hd k (List.mem_map_of_mem (f := (·.1)) hmem) (mem_keys_of_look hn)
+      exact look_ne_none hkb hb
+    simp [pick3, hb, hov, htn]
+  · have h1 := ho k hb
+    have h2 := ht k hb
+    rw [hov] at h1
+    rw [h2, ← h1, hov]
+    simp [pick3]
+
+/-- **Add-only branches merge cleanly and keep every row.** If ours and theirs each keep every base row unchanged
+(they only add), no id is new on both sides, and each side's ids are distinct, the merge succeeds and holds every row
+of ours and every row of theirs.
+
+$$\forall B, O, T,\quad \Big(\forall k,\ \ell(k,B) \ne \bot \Rightarrow \ell(k,O) = \ell(k,B)\Big) \wedge \Big(\forall k,\ \ell(k,B) \ne \bot \Rightarrow \ell(k,T) = \ell(k,B)\Big) \wedge \Big(\forall k,\ k \in \kappa(O) \wedge k \in \kappa(T) \Rightarrow k \in \kappa(B)\Big) \wedge \operatorname{nodup}(\kappa(O)) \wedge \operatorname{nodup}(\kappa(T)) \implies \exists M,\ \operatorname{merge}(B,O,T) = \mathrm{some}(M) \wedge (\forall e \in O,\ e \in M) \wedge (\forall e \in T,\ e \in M)$$
+
+Position-free: the added rows may sit anywhere in either side's list. -/
+theorem add_only_merge (b o t : List (K × V)) (ho : ∀ k, look k b ≠ none → look k o = look k b)
+    (ht : ∀ k, look k b ≠ none → look k t = look k b) (hd : ∀ k, k ∈ keys o → k ∈ keys t → k ∈ keys b)
+    (hno : (keys o).Nodup) (hnt : (keys t).Nodup) :
+    ∃ m, merge b o t = some m ∧ (∀ e ∈ o, e ∈ m) ∧ (∀ e ∈ t, e ∈ m) := by
+  have hdis : ∀ k, look k o ≠ look k b → look k t = look k b := by
+    intro k hk
+    by_cases hb : look k b = none
+    · rw [hb] at hk ⊢
+      refine Classical.byContradiction fun hn => ?_
+      exact look_ne_none (hd k (mem_keys_of_look hk) (mem_keys_of_look hn)) hb
+    · exact absurd (ho k hb) hk
+  obtain ⟨m, hm⟩ := no_conflict_disjoint_ids b o t hdis
+  refine ⟨m, hm, ?_, ?_⟩
+  · rintro ⟨k, v⟩ hmem
+    rw [mem_merge hm]
+    exact ⟨Or.inl (List.mem_map_of_mem (f := (·.1)) hmem), pick3_add_only b o t ho ht hd hno hmem⟩
+  · rintro ⟨k, v⟩ hmem
+    rw [mem_merge hm, pick3_comm]
+    exact ⟨Or.inr (List.mem_map_of_mem (f := (·.1)) hmem),
+      pick3_add_only b t o ht ho (fun k h1 h2 => hd k h2 h1) hnt hmem⟩
+
+/-- A note key: the entry the note amends (a finding's merge id) and the task that wrote it.
+
+$$\mathrm{NoteKey} = \mathrm{String} \times \mathrm{String}, \qquad k = (e, \tau)$$
+
+The merge id of a note row. -/
+abbrev NoteKey := String × String
+
+/-- A notes array: note rows keyed by (entry, task), each with a value (the note's text and fields).
+
+$$\mathrm{Notes}(V) = \mathrm{List}(\mathrm{NoteKey} \times V)$$
+
+The `notes` member of a ledger. -/
+abbrev Notes (V : Type) := List (NoteKey × V)
+
+/-- **Two branches adding notes with distinct (entry, task) keys merge with no clash and keep every note.** Ours and
+theirs each keep every base note unchanged (append-only), no (entry, task) key is new on both sides, and each side's
+keys are distinct: the merge succeeds and holds every note of ours and every note of theirs (so every base note).
+
+$$\forall B, O, T \in \mathrm{Notes}(V),\quad \Big(\forall k,\ \ell(k,B) \ne \bot \Rightarrow \ell(k,O) = \ell(k,B)\Big) \wedge \Big(\forall k,\ \ell(k,B) \ne \bot \Rightarrow \ell(k,T) = \ell(k,B)\Big) \wedge \Big(\forall k,\ k \in \kappa(O) \wedge k \in \kappa(T) \Rightarrow k \in \kappa(B)\Big) \wedge \operatorname{nodup}(\kappa(O)) \wedge \operatorname{nodup}(\kappa(T)) \implies \exists M,\ \operatorname{merge}(B,O,T) = \mathrm{some}(M) \wedge (\forall n \in O,\ n \in M) \wedge (\forall n \in T,\ n \in M)$$
+
+Here $k$ ranges over (entry, task) pairs; parallel tasks never clash on notes. -/
+theorem distinct_notes_merge (b o t : Notes V) (ho : ∀ k, look k b ≠ none → look k o = look k b)
+    (ht : ∀ k, look k b ≠ none → look k t = look k b) (hd : ∀ k, k ∈ keys o → k ∈ keys t → k ∈ keys b)
+    (hno : (keys o).Nodup) (hnt : (keys t).Nodup) :
+    ∃ m, merge b o t = some m ∧ (∀ n ∈ o, n ∈ m) ∧ (∀ n ∈ t, n ∈ m) :=
+  add_only_merge b o t ho ht hd hno hnt
+
+/-- **Two tasks appending notes merge to base, ours' notes, theirs' notes.** Ours appends notes $X$ to the base notes
+$N$, theirs appends $Y$, and all (entry, task) keys are distinct.
+
+$$\forall N, X, Y \in \mathrm{Notes}(V),\quad \operatorname{nodup}(\kappa(N \mathbin{+\!\!+} X \mathbin{+\!\!+} Y)) \implies \operatorname{merge}(N,\ N \mathbin{+\!\!+} X,\ N \mathbin{+\!\!+} Y) = \mathrm{some}(N \mathbin{+\!\!+} X \mathbin{+\!\!+} Y)$$
+
+The exact result for the usual case, `merge_appends` on note keys. -/
+theorem distinct_notes_append (N X Y : Notes V) (hnd : (keys (N ++ X ++ Y)).Nodup) :
+    merge N (N ++ X) (N ++ Y) = some (N ++ X ++ Y) :=
+  merge_appends N X Y hnd
+
+-- the incident: one shared string per entry, both tasks extend it: conflict
+#guard merge [("hero.exit", "m")] [("hero.exit", "m; p1p4")] [("hero.exit", "m; restate")] = none
+-- the same two extensions as notes keyed by (entry, task): both kept
+#guard merge ([(("hero.exit", "a"), "m")] : Notes String)
+    [(("hero.exit", "a"), "m"), (("hero.exit", "wktr-p1p4"), "p1p4")]
+    [(("hero.exit", "a"), "m"), (("hero.exit", "hero-exit-restate"), "restate")] =
+  some [(("hero.exit", "a"), "m"), (("hero.exit", "wktr-p1p4"), "p1p4"), (("hero.exit", "hero-exit-restate"), "restate")]
+-- one task, two entries; two tasks, one entry: all distinct keys
+#guard (merge ([] : Notes String) [(("e1", "t"), "x")] [(("e2", "t"), "y"), (("e1", "u"), "z")]).isSome
+-- the same (entry, task) key with different texts on both sides: conflict (excluded by distinct keys)
+#guard merge ([] : Notes String) [(("e", "t"), "x")] [(("e", "t"), "y")] = none
+
 end Fw.Ops.LedgerMerge
 
 /-! ## Golden vectors (`packages/contracts/golden/ops/ledger-merge.jsonl`)
 
 One line per case: `{"name", "base", "ours", "theirs", "rows", "merged"}`. An entry is the JSON object
-`{"id": i, "v": v}`; a row is `{"keep": entry}`, `{"drop": id}` or
-`{"clash": id, "base": entry|null, "ours": entry|null, "theirs": entry|null}`; `merged` is the entry array or
-`null` on a conflict. `scripts/merge-ledger.mjs` must compute the same rows and result from the same three entry
-arrays (`apps/runner/test/ledger-merge.test.ts`). -/
+`{"id": i, "v": v}` (id-keyed cases) or `{"entry": e, "task": τ, "v": v}` (note cases, key $(e, τ)$); a row is
+`{"keep": entry}`, `{"drop": key}` or `{"clash": key, "base": entry|null, "ours": entry|null, "theirs": entry|null}`,
+where `key` is the driver's key string (`i`, or `note:` followed by the JSON array `[e, τ]`); `merged` is the entry
+array or `null` on a conflict. `scripts/merge-ledger.mjs` must compute the same rows and result from the same three
+entry arrays (`apps/runner/test/ledger-merge.test.ts`). -/
 
 namespace Fw.Wire.LedgerMerge.Golden
 open Lean Fw.Ops.LedgerMerge
 
+/-- How a key type is written: its JSON fields in an entry and the driver's key string (`keyOf`). -/
+structure KeyJson (K : Type) where
+  /-- the key's fields of an entry object -/
+  fields : K → List (String × Json)
+  /-- the key string of a `drop` or `clash` row -/
+  str : K → String
+
+/-- Plain ids: `{"id": i}`, key string `i`. -/
+def idKey : KeyJson String := ⟨fun i => [("id", .str i)], id⟩
+
+/-- Note keys: `{"entry": e, "task": τ}`, key string `note:["e","τ"]` (`keyOf` in `scripts/merge-ledger.mjs`). -/
+def noteKey : KeyJson NoteKey :=
+  ⟨fun k => [("entry", .str k.1), ("task", .str k.2)], fun k => "note:" ++ (Json.arr #[.str k.1, .str k.2]).compress⟩
+
+#guard noteKey.str ("hero.exit", "wktr-p1p4") = "note:[\"hero.exit\",\"wktr-p1p4\"]"
+
+variable {K : Type} [DecidableEq K]
+
 /-- An entry as JSON. -/
-def entryJson (e : String × String) : Json := Json.mkObj [("id", .str e.1), ("v", .str e.2)]
+def entryJson (kj : KeyJson K) (e : K × String) : Json := Json.mkObj (kj.fields e.1 ++ [("v", .str e.2)])
 
 /-- An optional version as JSON (`null` when absent). -/
-def optJson (i : String) : Option String → Json
-  | some v => entryJson (i, v)
+def optJson (kj : KeyJson K) (i : K) : Option String → Json
+  | some v => entryJson kj (i, v)
   | none => .null
 
 /-- A row as JSON. -/
-def rowJson : Row String → Json
-  | .keep i v => Json.mkObj [("keep", entryJson (i, v))]
-  | .drop i => Json.mkObj [("drop", .str i)]
-  | .clash i b o t => Json.mkObj [("clash", .str i), ("base", optJson i b), ("ours", optJson i o),
-      ("theirs", optJson i t)]
+def rowJson (kj : KeyJson K) : Row K String → Json
+  | .keep i v => Json.mkObj [("keep", entryJson kj (i, v))]
+  | .drop i => Json.mkObj [("drop", .str (kj.str i))]
+  | .clash i b o t => Json.mkObj [("clash", .str (kj.str i)), ("base", optJson kj i b), ("ours", optJson kj i o),
+      ("theirs", optJson kj i t)]
 
 /-- An entry list as JSON. -/
-def listJson (l : List (String × String)) : Json := .arr (l.map entryJson).toArray
+def listJson (kj : KeyJson K) (l : List (K × String)) : Json := .arr (l.map (entryJson kj)).toArray
 
 /-- The cases: (name, base, ours, theirs). -/
 def cases : List (String × List (String × String) × List (String × String) × List (String × String)) := [
@@ -500,14 +650,35 @@ def cases : List (String × List (String × String) × List (String × String) �
 #guard (cases.map fun (_, b, o, t) => (merge b o t).isSome) =
   [true, true, false, true, true, true, false, true, true, false, true, true, true, true, false, true]
 
-/-- One golden line. -/
-def line (name : String) (b o t : List (String × String)) : String :=
-  (Json.mkObj [("name", .str name), ("base", listJson b), ("ours", listJson o), ("theirs", listJson t),
-    ("rows", .arr ((rows b o t).map rowJson).toArray),
-    ("merged", match merge b o t with | some m => listJson m | none => .null)]).compress
+/-- The note cases (key (entry, task)): (name, base, ours, theirs). -/
+def noteCases : List (String × Notes String × Notes String × Notes String) := [
+  ("notes: two tasks append notes to one entry (inc-findings-shared-entry)",
+    [(("hero.exit", "a"), "1")], [(("hero.exit", "a"), "1"), (("hero.exit", "wktr-p1p4"), "1")],
+    [(("hero.exit", "a"), "1"), (("hero.exit", "hero-exit-restate"), "1")]),
+  ("notes: one task notes two entries, another task one", [],
+    [(("e1", "t"), "1"), (("e2", "t"), "1")], [(("e1", "u"), "1")]),
+  ("notes: same task, same entry, same text on both sides", [(("e", "a"), "1")],
+    [(("e", "a"), "1"), (("e", "t"), "1")], [(("e", "a"), "1"), (("e", "t"), "1")]),
+  ("notes: same (entry, task) with different texts: clash", [], [(("e", "t"), "1")], [(("e", "t"), "2")]),
+  ("notes: a task edits its own note, another appends", [(("e", "t"), "1")], [(("e", "t"), "2")],
+    [(("e", "t"), "1"), (("e", "u"), "1")]),
+  ("notes: one side deletes a note, the other appends", [(("e", "t"), "1"), (("e", "u"), "1")],
+    [(("e", "u"), "1")], [(("e", "t"), "1"), (("e", "u"), "1"), (("f", "t"), "1")])
+]
 
-/-- The text of the golden file. -/
-def fileText : String := String.join (cases.map fun (n, b, o, t) => line n b o t ++ "\n")
+-- the note cases' results, decided in Lean
+#guard (noteCases.map fun (_, b, o, t) => (merge b o t).isSome) = [true, true, true, false, true, true]
+
+/-- One golden line. -/
+def line (kj : KeyJson K) (name : String) (b o t : List (K × String)) : String :=
+  (Json.mkObj [("name", .str name), ("base", listJson kj b), ("ours", listJson kj o), ("theirs", listJson kj t),
+    ("rows", .arr ((rows b o t).map (rowJson kj)).toArray),
+    ("merged", match merge b o t with | some m => listJson kj m | none => .null)]).compress
+
+/-- The text of the golden file: the id-keyed cases, then the note cases. -/
+def fileText : String :=
+  String.join (cases.map fun (n, b, o, t) => line idKey n b o t ++ "\n") ++
+    String.join (noteCases.map fun (n, b, o, t) => line noteKey n b o t ++ "\n")
 
 /-- Compare (or write) `packages/contracts/golden/ops/ledger-merge.jsonl` under `root` (the `lean/` directory);
 returns 1 if the file is stale, else 0. -/
@@ -515,13 +686,13 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / ".." / "packages" / "contracts" / "golden" / "ops" / "ledger-merge.jsonl"
   if write then
     IO.FS.writeFile p fileText
-    IO.println s!"ledger-merge golden: {cases.length} cases written"
+    IO.println s!"ledger-merge golden: {cases.length + noteCases.length} cases written"
     return 0
   let cur ← try IO.FS.readFile p catch _ => pure ""
   if cur != fileText then
     IO.println s!"ledger-merge golden: {p} is stale (regenerate: cd lean && lake test -- --write-ledger-merge-golden)"
     return 1
-  IO.println s!"ledger-merge golden: {cases.length} cases, 0 stale"
+  IO.println s!"ledger-merge golden: {cases.length + noteCases.length} cases, 0 stale"
   return 0
 
 end Fw.Wire.LedgerMerge.Golden

@@ -3754,7 +3754,8 @@
     "research/findings/ledger.json",
     "lean/Fw/Ops/LedgerMerge.lean",
     "scripts/merge-ledger.mjs"
-   ]
+   ],
+   "evidence": "9e67f8b"
   },
   {
    "id": "ci-cone-glob",

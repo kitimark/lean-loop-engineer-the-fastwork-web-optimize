@@ -8,7 +8,7 @@
 // apps/runner/test/ledger-merge.test.ts): per id, a side that left the base unchanged takes the other side's version,
 // equal versions agree, both changed differently is a conflict; order is ours' ids, then theirs' ids ours lacks.
 // This file is glue: it parses the three files, applies the rule to every id-keyed array (top-level array, or each
-// top-level member such as .incidents/.findings/.mistakes/.classes) and to the other top-level members as whole
+// top-level member such as .incidents/.findings/.notes/.mistakes/.classes) and to the other top-level members as whole
 // values, and renders the result with the file's own indent and trailing newline.
 // Exit 0: merged cleanly. Exit 1: conflicts, written as standard <<<<<<< ======= >>>>>>> blocks around each
 // conflicting entry (or the whole file via `git merge-file` when a file is not a ledger we can read).
@@ -30,11 +30,16 @@ export function pick3(b, o, t) {
   return null;
 }
 
-/** The id of a ledger entry: `id`, else `candidate` (research/findings/ledger.json has no id field). */
+/**
+ * The id of a ledger entry: `id`, else `candidate` (research/findings/ledger.json has no id field), else the note key
+ * (entry, task) of a note row as `note:` + JSON.stringify([entry, task]) (Lean `NoteKey`, `Golden.noteKey`; the JSON
+ * pair keeps the key injective whatever characters the strings hold).
+ */
 export function keyOf(e) {
   if (e === null || typeof e !== "object" || Array.isArray(e)) return undefined;
   if (typeof e.id === "string") return e.id;
   if (typeof e.candidate === "string") return `candidate:${e.candidate}`;
+  if (typeof e.entry === "string" && typeof e.task === "string") return `note:${JSON.stringify([e.entry, e.task])}`;
   return undefined;
 }
 
