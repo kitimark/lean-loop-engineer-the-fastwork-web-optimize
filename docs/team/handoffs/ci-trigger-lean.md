@@ -20,7 +20,7 @@ What it does
   filter; 3 of 11 workflows; `lean/**` everywhere; whole-branch guard; no lint), Lean verdict provable.
 Conventions: TS/JS glue holds no decision; the table is the single place to change a trigger. Globs are limited to what GitHub
 and PathCheck read the same (`portableGlob`). Workflow `needs:` must be inline (`[a, b]`) for the reader.
-Fix 2: `wktr-fixtures.yml` in `table`; wktr.yml gains measure-chromium/src/fwcore.mjs (classify.mjs imports it); hooks.test.ts
+Fix 2: `wktr-fixtures.yml`, `visual-diff.yml` in `table`; wktr.yml gains measure-chromium/src/fwcore.mjs (classify.mjs imports it); hooks.test.ts
 timing = interleaved minima, emit/bare < 2 (load-robust; catches about one node startup or more, e.g. a heavy import).
 Open items
 - Math view: new theorems in Fw.Ci.Trigger are unsigned; run math-reviewer.

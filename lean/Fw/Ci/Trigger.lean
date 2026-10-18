@@ -199,6 +199,12 @@ def table : List Wf := [
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", own "snapshot-extract.yml"]⟩,
+  ⟨"visual-diff.yml", ciMain, [
+    "packages/visual-diff/**", "packages/gate-breakpoints/src/**", "packages/gate-breakpoints/package.json",
+    "packages/contracts/golden/gate/**", "apps/site/**", "@breakgen", "snapshot/**", "snapshot.lock.json", "package.json",
+    "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",
+    ".github/actions/setup-lean/**", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
+    own "visual-diff.yml"]⟩,
   ⟨"webkit-sim.yml", ciMain, [
     "packages/measure-webkit/**", "snapshot/**", "snapshot.lock.json", ".github/scripts/check-simulator.sh",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs",
@@ -230,6 +236,9 @@ def run (diff merged : List String) : List String :=
 #guard run ["lean/FwTest/Lease.lean"] [] == ["lean.yml"]
 #guard run ["lean/Fw/Wire.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "lean.yml", "mutants.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run ["lean/Fw/Parts/HeroExit.lean"] [] == ["lean.yml"]
+-- the site builder (breakgen) cone starts the lanes that build the site; a pixel golden starts the visual diff only
+#guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "lean.yml", "visual-diff.yml"]
+#guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
