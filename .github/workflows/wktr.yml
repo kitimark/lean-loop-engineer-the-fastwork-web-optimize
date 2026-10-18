@@ -13,6 +13,7 @@ on:
     paths:
       - 'packages/measure-wktr/**'
       - 'packages/measure-chromium/src/classify.mjs'
+      - 'packages/measure-chromium/src/fwcore.mjs'
       - 'lean/Main.lean'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'

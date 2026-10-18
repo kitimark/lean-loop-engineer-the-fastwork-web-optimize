@@ -2,7 +2,6 @@
 
 State: branch worktree-agent-a6c1c91bf38def240 (commits "ci-trigger-lean: ..."), verified on CI branch ci/ci-trigger-lean.
 Read first: `lean/Fw/Ci/Trigger.lean` (module docstring), then `docs/team/tools/fw-ci.md` last section.
-
 What it does
 - Lean decides: `starts_iff` (a workflow starts iff a push file that differs from main is in its declared inputs),
   `none_started` (soundness: nothing outside every input starts anything), `merge_starts_nothing`, `filter_passes` (the coarse
@@ -19,13 +18,13 @@ What it does
   whole branch; new branch / unknown `before` falls back to the whole branch. Fails open.
 - Incident `inc-ci-trigger-drift` (docs/team/incidents/ledger.json): why ci-trigger-scope did not hold (merge diffs match the
   filter; 3 of 11 workflows; `lean/**` everywhere; whole-branch guard; no lint), Lean verdict provable.
-
 Conventions: TS/JS glue holds no decision; the table is the single place to change a trigger. Globs are limited to what GitHub
 and PathCheck read the same (`portableGlob`). Workflow `needs:` must be inline (`[a, b]`) for the reader.
-
+Fix 2: `wktr-fixtures.yml` in `table`; wktr.yml gains measure-chromium/src/fwcore.mjs (classify.mjs imports it); hooks.test.ts
+timing = interleaved minima, emit/bare < 2 (load-robust; catches about one node startup or more, e.g. a heavy import).
 Open items
 - Math view: new theorems in Fw.Ci.Trigger are unsigned; run math-reviewer.
 - The first push of any new ci/* branch has no `before`: the guard uses the whole branch, so a branch that changes a workflow
   file starts that workflow (by design). Dispatch is the way to run one lane (fw-ci.md).
-- Cones are over-approximate only if Lake reads files besides `import`/`include_str`; add them to `fwcoreFiles` if found.
-- Whole-branch fallback could use `before` from the event payload on new branches; not needed so far.
+- Cones miss files Lake reads besides `import`/`include_str`; add them to `fwcoreFiles` if found. Whole-branch fallback
+  could use the event payload's `before` on new branches; not needed so far.

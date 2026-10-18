@@ -203,9 +203,13 @@ def table : List Wf := [
     "packages/measure-webkit/**", "snapshot/**", "snapshot.lock.json", ".github/scripts/check-simulator.sh",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs",
     own "webkit-sim.yml"]⟩,
+  ⟨"wktr-fixtures.yml", ["ci/**"], [
+    "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
+    "@fwcore", ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
+    own "wktr-fixtures.yml"]⟩,
   ⟨"wktr.yml", ["ci/**"], [
-    "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "@fwcore", "snapshot/**",
-    "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh",
+    "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
+    "@fwcore", "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", own "wktr.yml"]⟩]
 
 #guard (table.map (·.file)).eraseDups.length == table.length
@@ -224,12 +228,15 @@ def run (diff merged : List String) : List String :=
 
 -- a Lean test file, a script and a golden change do not start the lanes that only build the binary
 #guard run ["lean/FwTest/Lease.lean"] [] == ["lean.yml"]
-#guard run ["lean/Fw/Wire.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "lean.yml", "mutants.yml", "wktr.yml"]
+#guard run ["lean/Fw/Wire.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "difftest.yml", "gate-gaps.yml", "lean.yml", "mutants.yml", "wktr-fixtures.yml", "wktr.yml"]
 #guard run ["lean/Fw/Parts/HeroExit.lean"] [] == ["lean.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
-#guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["wktr.yml"]
+#guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["wktr-fixtures.yml", "wktr.yml"]
+-- a fixture page starts both wktr lanes; the fixture workflow file starts only itself
+#guard run ["packages/measure-wktr/fixtures/control/index.html"] [] == ["wktr-fixtures.yml", "wktr.yml"]
+#guard run [".github/workflows/wktr-fixtures.yml"] [] == ["wktr-fixtures.yml"]
 
 /-! ## Golden (`packages/contracts/golden/ci/triggers.jsonl`) -/
 
@@ -262,6 +269,7 @@ def cases : List (String × List String × List String) := [
     ["lean/Fw/Wire.lean", "apps/site/src/a.tsx", "packages/measure-wktr/src/a.mjs"]),
   ("a merge of main plus one own file", ["lean/Fw/Wire.lean", "packages/measure-wktr/src/a.mjs"], ["lean/Fw/Wire.lean"]),
   ("the workflow file itself", [".github/workflows/wktr.yml"], []),
+  ("a wktr fixture page", ["packages/measure-wktr/fixtures/control/index.html"], []),
   ("nothing changed", [], [])]
 
 /-- One replay line: the diff, the merged paths, the sample cones and the started workflows.

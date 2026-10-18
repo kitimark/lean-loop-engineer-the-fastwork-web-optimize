@@ -91,16 +91,23 @@ describe("emit.mjs", () => {
     expect(r.status).toBe(0);
     expect(r.stdout + r.stderr).toBe("");
   });
-  it("timing: under 100 ms, and close to bare node startup", () => {
+  // Load-robust: bare node and the hook run interleaved in one loop, so both see the same machine load, and the test
+  // compares their minima (the least-disturbed run of each), not an absolute median. Bound: the hook's best run costs
+  // less than two bare node startups (measured 2026-10-18 at load ~22 on 8 cores: bare 27 ms, hook 33 ms, ratio 1.2).
+  // Still caught: anything that costs about one node startup or more on every call, e.g. an accidental heavy import
+  // (a node_modules package such as typescript), a child process spawn (git, pnpm), a synchronous network call or a
+  // retry sleep. Not caught: a small regression below one node startup (~25-50 ms).
+  it("timing: emit.mjs costs less than two bare node startups (interleaved minima)", () => {
     const d = tmp();
     const time = (f: () => unknown) => { const t = performance.now(); f(); return performance.now() - t; };
-    const med = (xs: number[]) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
-    const bare = med(Array.from({ length: 15 }, () => time(() => spawnSync("node", ["-e", ""]))));
-    const hookMs = Array.from({ length: 15 }, () => time(() => run("emit.mjs", JSON.stringify(dirty), d)));
-    const m = med([...hookMs]), lo = Math.min(...hookMs);
-    console.log(`emit.mjs latency ms: min ${lo.toFixed(0)} median ${m.toFixed(0)}; bare node median ${bare.toFixed(0)}`);
-    expect(lo).toBeLessThan(100); // the floor; the median depends on machine load while other tests run
-    expect(m - bare).toBeLessThan(40); // the hook adds little on top of starting node
+    const bareMs: number[] = [], hookMs: number[] = [];
+    for (let i = 0; i < 15; i++) {
+      bareMs.push(time(() => spawnSync("node", ["-e", ""])));
+      hookMs.push(time(() => run("emit.mjs", JSON.stringify(dirty), d)));
+    }
+    const bare = Math.min(...bareMs), lo = Math.min(...hookMs);
+    console.log(`emit.mjs latency ms: min ${lo.toFixed(0)}; bare node min ${bare.toFixed(0)}; ratio ${(lo / bare).toFixed(2)}`);
+    expect(lo / bare).toBeLessThan(2);
   });
 });
 
