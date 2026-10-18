@@ -23,8 +23,9 @@ The env var wins over the file; an unknown value means `shadow`. fwcore missing,
 | `bgLong` / `longSleep` | `sleep N` with N over `caps.maxSleepSec` (30 s; suffix s/m/h/d) | same |
 | `unboundedLoop` | an `until`/`while` loop (foreground or not) whose **condition** has no bound (below); the body never counts (`body_irrelevant`): `date`, `deadline`, `$((n+1))`, `break` in the body bound nothing | bound the condition, `timeout N bash -c '...'`, or `pnpm fw ci wait` |
 
-**Bound = the condition only, by an allowlist grammar B** (round 4; Lean `atomParse`, `relOk`, `boundAtom`,
-`condStep`, `comb`; proved `boundAtom_iff`, `grammar_only`, `subst_never_bound`, `seconds_direction`). The condition is
+**Bound = the condition only, by an allowlist grammar B** (round 4, variable rule closed in round 6; Lean `atomParse`,
+`varOk`, `relOk`, `boundAtom`, `condStep`, `comb`, `topAsg`; proved `boundAtom_iff`, `var_allow_iff`,
+`upper_never_bound`, `seconds_capped`, `seconds_direction`, `addSeg_asg`, `grammar_only`, `subst_never_bound`). The condition is
 the and-or list from `while`/`until` to `do`. An element is a bound only when it is exactly one of
 
     B ::= [ V OP N ] | [ N OP V ] | [[ V OP N ]] | [[ N OP V ]]     OP ∈ -lt -le -gt -ge
@@ -32,18 +33,33 @@ the and-or list from `while`/`until` to `do`. An element is a bound only when it
 
 V is `$v`, `${v}` or `"$v"` with v a plain name (letter or `_`, then letters, digits, `_`); in `(( ))` only the bare
 name v. N is a decimal literal of 1 to 18 digits (`0` or no leading zero; 18 digits stay below 2^63, so the shell's
-64-bit arithmetic never wraps). v is not a special variable (`$$ $# $? $!`, positionals, `noBoundVars` = `RANDOM
-SRANDOM LINENO BASHPID PPID UID EUID HISTCMD EPOCHREALTIME EPOCHSECONDS BASH_SUBSHELL SHLVL _ OPTIND LINES COLUMNS
-BASH_ARGC`). The only clock is `SECONDS`; it must move toward the exit: `while` needs clock `<`/`≤` N, `until` needs
-clock `>`/`≥` N (`seconds_direction`).
+64-bit arithmetic never wraps). `$$ $# $? $!` and positionals are not names. **The variable rule is closed, no
+denylist** (round 6, `var_allow_iff`): v counts only if
+
+- (a) v = `SECONDS` and N ≤ 86400 (one day; a bigger N is most likely an epoch time, `seconds_capped`), moving toward
+  the exit: `while` needs `SECONDS` `<`/`≤` N, `until` needs `>`/`≥` N (`seconds_direction`); or
+- (b) v matches `^[a-z][a-z0-9_]*$`, the command assigned it a decimal literal earlier at its top level (`v=N` alone as
+  a segment that starts an and-or list, not piped, not `&`, not inside a block; `i=0; while [ $i -lt 5 ]`,
+  `addSeg_asg`), and v is not one of zsh's 14 lowercase special parameters (`zshLowerSpecials`: `histchars status
+  prompt argv fignore cdpath fpath mailpath manpath psvar zsh_eval_context module_path path pipestatus`, the lowercase
+  rows of `special_params[]` in zsh 5.9 `Src/params.c` l.295-442 @73d3173, pin `zsh` in
+  `refs/upstream/sources.lock.yaml`).
+
+Every other name is out of B with no list (`upper_never_bound`): any name with an uppercase letter except `SECONDS`
+(`BASH_MONOSECONDS`, `PIPESTATUS`, `GROUPS`, `BASH_LINENO`, `BASH_ARGV`, `TTYIDLE`, `EPOCHSECONDS`, `RANDOM`, a user's
+own `N`), a name starting with `_`, and a counter the command never set (`while [ $i -lt 5 ]` alone is denied: an unset
+`i` makes `until [ $i -ge 5 ]` a test error forever). Bash sets only uppercase variables itself (bash manual, Shell
+Variables; INFERRED, bash source not pinned), so (b) never meets a bash special.
 
 **The tool shell may be zsh** (round 5). The agent Bash tool runs commands in the user's login shell, which on this Mac
 is zsh 5.9, not bash. B is read so that each allowed element keeps its meaning in both shells: `[ ]`, `[[ ]]` and
 `(( ))` with a plain variable and a decimal literal behave the same, and `SECONDS` counts up in both. What differs is
-handled by denying it: `EPOCHSECONDS`/`EPOCHREALTIME` exist in zsh only after `zmodload zsh/datetime`, and an unset
-operand turns `[ $EPOCHSECONDS -ge N ]` into a test error (exit 2), so `until` on it never exits; it is therefore in
-`noBoundVars`, not a clock (use `SECONDS`). Bash-only specials (`BASHPID`, `SRANDOM`, `BASH_ARGC`, ...) are unset in
-zsh and never bounds either way. The read-loop and `timeout` rules do not depend on the shell. Everything else bounds nothing (`grammar_only`): `$( )`, backquotes (`subst_never_bound`),
+handled by denying it: `EPOCHSECONDS`/`EPOCHREALTIME` exist in zsh only after `zmodload zsh/datetime` and in bash only
+from 5.0, so they are unset in macOS `/bin/bash` 3.2.57 too; `BASH_MONOSECONDS` exists only in bash ≥ 5.3. An unset
+operand turns `[ $EPOCHSECONDS -ge N ]` into a test error (exit 2), so `until` on it never exits; all of them are
+uppercase and so out of B (use `SECONDS`, which bash 3.2, bash 5 and zsh all count up). Bash-only specials
+(`BASHPID`, `SRANDOM`, `BASH_ARGC`, ...) are unset in zsh and zsh-only ones (`TTYIDLE`, `status`) in bash; none is a
+bound either way. The read-loop and `timeout` rules do not depend on the shell. Everything else bounds nothing (`grammar_only`): `$( )`, backquotes (`subst_never_bound`),
 `$(( ))`, `${v:-..}`, a limit in a variable (`[ $SECONDS -lt $end ]`: write the literal, `[ $SECONDS -lt 600 ]`),
 comma, ternary, hex, octal, `test`, a leading `!`, `<`/`>` in `[ ]` (a redirect) or `[[ ]]` (string order), string
 compares, `true`, `:`, polls (`gh`, `ls`, `pgrep`) and function calls. Elements combine by bash's exit rule: for
@@ -101,7 +117,9 @@ redirect (`<<EOF>f`); an empty quoted delimiter (`<< ''`); variables that name a
 `cat "$f"`); a FIFO or `/proc` file named by a plain path (`cat fifo`, `cat /proc/kmsg`); `for ((;;))`; a command
 substitution in an unquoted here-doc body; a `for`/`if` block or `{ }` group whose stdin is redirected from an endless
 source around a filter; a `sleep $n` with a variable; `pnpm --filter x dev`. In B (round 4): a counter that never
-moves, or is unset or non-numeric (`until [ $x -ge 5 ]` errors and repeats); quotes are removed before B is checked, so
+moves, or is reset in the body (also `SECONDS=0` in the body), or made non-numeric after its literal assignment
+(round 6 denies a counter the command never set); parameters added by zsh modules (`zsh/parameter`,
+`zsh/datetime`, not in `Src/params.c`); quotes are removed before B is checked, so
 `'$i'` and `\$i` read as the variable; word splitting of an unquoted `$i`; a counter set by `eval` or a backquote
 assignment; `read -u fd` / `exec 0<` in the body; a body that appends to its own `done < f` file; `/proc/self/fd/0`;
 sed's `e` command in a filter; the loop text inside `timeout 0|inf bash -c '...'` (`timeoutOk` refuses 0 and `inf` for a
@@ -109,8 +127,8 @@ loop it sees). Foreground
 `tail -f` / `watch` without a loop are out of scope (the Bash tool timeout ends them). Goldens:
 `packages/contracts/golden/ops/ops.wait.jsonl` (generated from Lean).
 
-Shadow review rounds 1-5 (round 5: 6425 allow, 4 deny, false denies 0 on organic records, MEASURED):
-`research/notes/2026/10-18-wait-guard-shadow-review.md`.
+Shadow review rounds 1-6 (round 6: 7685 allow, 4 deny, 0 newly denied and 0 newly allowed against round 5,
+MEASURED): `research/notes/2026/10-18-wait-guard-shadow-review.md`.
 
 ## Turning enforce on (lead hands this to the user)
 After this lands on `main`: in the main checkout run `cd lean && lake build fwcore`; probe once, the reply must be

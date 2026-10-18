@@ -130,3 +130,14 @@ sources:
     paths:
       - src
       - include
+
+  - id: zsh
+    repo: zsh-users/zsh
+    tag: zsh-5.9
+    version: zsh 5.9 (the agent tool shell on the macOS host)
+    sha: 73d317384c9225e46d66444f93b46f0fbe7084ef
+    status: CONFIRMED
+    why: wait-guard bound grammar B (lean/Fw/Ops/Wait.lean zshLowerSpecials from the special-parameter table)
+    paths:
+      - Src/params.c
+      - Config/version.mk
