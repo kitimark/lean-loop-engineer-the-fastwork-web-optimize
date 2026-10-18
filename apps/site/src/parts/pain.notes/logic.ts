@@ -317,3 +317,13 @@ export const keyPos = ({ pos, delta, sizePct }: { pos: number; delta: number; si
 
 /** The constants of `pain-note-stick` the CSS module restates (CSS 2273-2298). */
 export const stickTiming = () => ({ durationMs: STICK_MS, scaleFrom: STICK_SCALE0, x1: 0.33, y1: 1, x2: 0.68, y2: 1, opacityFrom: 0 });
+
+/**
+ * The scene gate of the whole Pain section (JS 2681-2783 `dE`, registered at 4736 with `deferRendering` and root margin
+ * `150% 0px`). Spec: Lean `PainNotes.sceneActive`, `Render.after`, `resize_follows_scene`.
+ */
+export const SCENE_MARGIN = '150% 0px';
+/** JS 2723-2726 `lE`: in range from one viewport above to two below. */
+export const sceneActive = ({ top, bottom, h }: { top: number; bottom: number; h: number }): boolean => -h <= bottom && top <= 2 * h;
+/** Whether the canvas' resize observer runs: a `deferred` section skips its subtree (`content-visibility: auto`). */
+export const renderObserves = ({ active }: { active: boolean }): boolean => active;
