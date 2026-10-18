@@ -2845,9 +2845,7 @@ theorem timeout_never_ends (q now q' now' : Nat) (π : State) (t : Task)
 integrated or parked at one quiet limit and time and a different state at another, then a lead or
 user mark $m$ is recorded for it and it shows that mark.
 
-$$\forall q, \mathit{now}, q', \mathit{now}', \pi, t:\quad s' \in \{\mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\} \land s \ne s' \Rightarrow \exists m:\ \operatorname{markOf}(\pi, t.\mathit{id}) = m \land s' = \operatorname{mstate}(m)$$
-
-where $s = \operatorname{tstate}(\operatorname{bound}(q, \mathit{now}, \pi), \operatorname{bindRow}(q, \mathit{now}, \pi, t))$ and $s' = \operatorname{tstate}(\operatorname{bound}(q', \mathit{now}', \pi), \operatorname{bindRow}(q', \mathit{now}', \pi, t))$.
+$$\forall q, \mathit{now}, q', \mathit{now}', \pi, t:\quad \operatorname{tstate}(\operatorname{bound}(q', \mathit{now}', \pi), \operatorname{bindRow}(q', \mathit{now}', \pi, t)) \in \{\mathrm{handedBack}, \mathrm{integrated}, \mathrm{parked}\} \land \operatorname{tstate}(\operatorname{bound}(q, \mathit{now}, \pi), \operatorname{bindRow}(q, \mathit{now}, \pi, t)) \ne \operatorname{tstate}(\operatorname{bound}(q', \mathit{now}', \pi), \operatorname{bindRow}(q', \mathit{now}', \pi, t)) \Rightarrow \exists m:\ \operatorname{markOf}(\pi, t.\mathit{id}) = m \land \operatorname{tstate}(\operatorname{bound}(q', \mathit{now}', \pi), \operatorname{bindRow}(q', \mathit{now}', \pi, t)) = \operatorname{mstate}(m)$$
 -/
 theorem timeout_ends_only_by_mark (q now q' now' : Nat) (π : State) (t : Task)
     (h' : tstate (bound q' now' π) (bindRow q' now' π t) = .handedBack ∨
