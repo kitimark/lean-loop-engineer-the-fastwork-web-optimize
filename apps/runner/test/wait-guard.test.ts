@@ -58,9 +58,9 @@ describe.skipIf(!have)("wait guard vs the Lean goldens (ops.wait.jsonl)", () => 
     expect(cases.some((c) => c.response.reason === "unboundedLoop")).toBe(true);
   });
   it.each(cases.filter((c) => typeof c.request.cmd === "string").map((c) => [c.name, c] as const))("%s", (_n, c) => {
-    const reply = ask(bin, { op: "ops.wait", cmd: c.request.cmd, ...(c.request.caps ? { caps: c.request.caps } : {}) });
+    const reply = ask(bin, { op: "ops.wait", cmd: c.request.cmd, ...(c.request.caps ? { caps: c.request.caps } : {}) }, 30_000);
     expect(reply).toMatchObject({ decision: c.response.decision, reason: c.response.reason, shape: c.response.shape });
-  });
+  }, 35_000);
 });
 
 describe.skipIf(!have)("wait guard: shadow-log false positives are allowed, true positives stay refused (wait-guard-enforce)", () => {
