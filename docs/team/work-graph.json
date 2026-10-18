@@ -5128,6 +5128,28 @@
     "research/notes/2026/10-18-guidance-proofs.md",
     "docs/team/handoffs/guidance-proofs.md"
    ]
+  },
+  {
+   "id": "chrome-agent-docs",
+   "title": "Research: do Chrome Modern Web Guidance and DevTools for agents help the experiment (cited note)",
+   "stream": "research",
+   "milestone": null,
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-chrome-agent-docs.md"
+   ]
+  },
+  {
+   "id": "chrome-agent-tools-install",
+   "title": "Install-and-apply plan for Chrome Modern Web Guidance skills and DevTools for agents, from a scratch trial (config diffs for the user)",
+   "stream": "research",
+   "milestone": null,
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-chrome-agent-tools-install.md"
+   ]
   }
  ],
  "deadline": {
