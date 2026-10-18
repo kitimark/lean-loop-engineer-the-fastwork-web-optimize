@@ -3597,6 +3597,35 @@
     "research/mistakes/ledger.json",
     "docs/team/handoffs/hero-exit-restate.md"
    ]
+  },
+  {
+   "id": "premises-no-api",
+   "title": "(S) fw premises runs without console-api: the premise-tests CI verdict failed on every branch (console-api is not running); NO_API_GROUPS in lib.ts + test that every pnpm fw <group> in .github/** is a no-API group",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lead",
+   "writes": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/lib.ts",
+    "apps/runner/test/lib.test.ts"
+   ]
+  },
+  {
+   "id": "engine-golden-premise-lint",
+   "title": "(S) m175 hardening: every engine golden row (packages/contracts/golden/engine/**) cites a premise id with a test in Fw.Ops.Premise; lint in check.sh; lane tests (wktr-fixtures.yml) assert expected values instead of only summarising",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "hero-exit-restate"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "lean/scripts/**",
+    "packages/measure-wktr/fixtures/summarize.mjs",
+    ".github/workflows/wktr-fixtures.yml"
+   ]
   }
  ],
  "deadline": {
