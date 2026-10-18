@@ -1,12 +1,21 @@
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  carryCritical, collectAgents, collectCritical, collectSystem, exe, findTranscripts, keepNames, liveKeep, ownProcs, parseTaskIds, readKeep, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
+  carryCritical, collectAgents, collectCritical, collectSystem, exe, findTranscripts, keepNames, ownProcs, parseStartRows, parseTaskIds, readKeep, parseCi, parseEtime, parsePs, sessionProcs, parseDocker, parseMemLevel, parseSpool, parseWorktreeCount, pathsFor,
   summarizeLead, summarizeSpool, summarizeTranscript, type Runner, type SystemSnap,
 } from "../src/watch-collect.ts";
-import { alertKey, appendLog, declareKeep, newAlerts, parseWatchArgs, readLastLog, renderTable, type Health } from "../src/watch.ts";
+import {
+  alertKey, appendLog, coreCaller, declareKeep, diffAlerts, keepDecider, newAlerts, parseWatchArgs, readLastLog, renderTable, streamLines,
+  type AlertKey, type Health,
+} from "../src/watch.ts";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const bin = process.env.FW_CORE_BIN ?? join(here, "../../../lean/.lake/build/bin/fwcore");
+const have = existsSync(bin);
+const core = coreCaller(have ? [bin] : []);
 
 const T0 = Date.parse("2026-10-17T10:00:00Z");
 const ev = (agent: string, h: string, ts: number, extra: object = {}) =>
@@ -154,6 +163,17 @@ describe("system carry-forward", () => {
     const miss = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, exec("missing"));
     expect(miss).toMatchObject({ stale: [], ci: [], docker: [] });
   });
+  it("keep comes from the decision over the lstart rows; a failed decision keeps the previous value, marked stale", async () => {
+    const lstart = "  42 Sun Oct 18 09:58:17 2026 node apps/runner/src/fw.ts watch --interval 300 --stream\n";
+    const ex: Runner = async (cmd) => (cmd === "env" ? lstart : cmd === "gh" || cmd === "docker" ? { missing: true } : "");
+    const seen: unknown[] = [];
+    const s = await collectSystem(p, null, 2000, ex, new Map(), async (entries, rows) => { seen.push(entries, rows); return { live: [], keep: [42] }; });
+    expect(s.keep).toEqual([42]);
+    expect(seen[0]).toEqual([]);
+    const failed = await collectSystem(p, { at: 1000, system: { ...prevSys(), keep: [7] } }, 2000, ex, new Map(), async () => { throw new Error("no fwcore"); });
+    expect(failed).toMatchObject({ keep: [7], stale: ["keep"] });
+    expect((await collectSystem(p, null, 2000, ex)).keep).toEqual([]);
+  });
 });
 
 describe("system parsers", () => {
@@ -239,46 +259,89 @@ describe("critical path", () => {
 
 describe("cli", () => {
   it("parses flags", () => {
-    const base = { json: false, intervalS: null, untilAlert: false, keep: null, unkeep: null, note: null };
+    const base = { json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null };
     expect(parseWatchArgs([])).toEqual(base);
     expect(parseWatchArgs(["--until-alert"]).intervalS).toBe(300);
+    expect(parseWatchArgs(["--interval", "300", "--stream"])).toEqual({ ...base, intervalS: 300, stream: true });
+    expect(parseWatchArgs(["--stream"]).intervalS).toBe(300);
+    for (const bad of [["--stream", "--until-alert"], ["--stream", "--json"], ["--keep", "4", "--stream"]]) expect(() => parseWatchArgs(bad)).toThrow();
     expect(parseWatchArgs(["--json", "--interval", "30"])).toEqual({ ...base, json: true, intervalS: 30 });
     expect(() => parseWatchArgs(["--interval", "x"])).toThrow();
     expect(() => parseWatchArgs(["--nope"])).toThrow();
   });
   it("parses --keep/--note/--unkeep alone", () => {
-    const base = { json: false, intervalS: null, untilAlert: false, keep: null, unkeep: null, note: null };
+    const base = { json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null };
     expect(parseWatchArgs(["--keep", "42", "--note", "monitor"])).toEqual({ ...base, keep: 42, note: "monitor" });
     expect(parseWatchArgs(["--unkeep", "42"])).toEqual({ ...base, unkeep: 42 });
     for (const bad of [["--keep"], ["--keep", "0"], ["--keep", "1.5"], ["--keep", "4", "--interval", "9"], ["--keep", "4", "--unkeep", "4"],
       ["--note", "x"], ["--unkeep", "4", "--note", "x"], ["--keep", "4", "--json"]])
       expect(() => parseWatchArgs(bad)).toThrow();
   });
-  it("--keep writes keep.json with the process start; --unkeep removes; gone or reused pids drop out", () => {
+  it("parses ps lstart rows (UTC) with their command line", () => {
+    expect(parseStartRows("68178 Sun Oct 18 09:58:17 2026     node apps/runner/src/fw.ts watch --interval 300 --stream\n    1 Mon Oct  5 05:57:33 2026 /sbin/launchd\nbad\n 9 Sun Oct 18 09:58:17 2026\n"))
+      .toEqual([
+        { pid: 68178, start: Date.UTC(2026, 9, 18, 9, 58, 17) / 1000, args: "node apps/runner/src/fw.ts watch --interval 300 --stream" },
+        { pid: 1, start: Date.UTC(2026, 9, 5, 5, 57, 33) / 1000, args: "/sbin/launchd" },
+        { pid: 9, start: Date.UTC(2026, 9, 18, 9, 58, 17) / 1000, args: "" },
+      ]);
+  });
+  it("streamLines: one OPEN per opened alert, one CLOSE per closed key, each on one line", () => {
+    expect(streamLines({ opened: [{ code: "proc.long", subject: "node#7", detail: "31m\n idle" }], closed: [{ code: "ci.slow", subject: "r1" }], next: [] }))
+      .toEqual(["OPEN proc.long node#7 31m idle", "CLOSE ci.slow r1"]);
+  });
+});
+
+describe.skipIf(!have)("fwcore ops.watchDiff / ops.watchKeep", () => {
+  const golden = (op: string) => readFileSync(join(here, `../../../packages/contracts/golden/ops/${op}.jsonl`), "utf8").trim().split("\n")
+    .map((l) => JSON.parse(l) as { name: string; request: Record<string, unknown>; response: Record<string, unknown> });
+  it.each([...golden("ops.watchDiff"), ...golden("ops.watchKeep")].filter((c) => !("error" in c.response)).map((c) => [c.name, c] as const))("golden: %s", async (_n, c) => {
+    const { id: _id, ...reply } = await core(c.request);
+    expect(reply).toEqual(c.response);
+  });
+  it("--keep writes keep.json with the process start; --unkeep removes; gone or reused pids drop out", async () => {
     const dir = mkdtempSync(join(tmpdir(), "fw-keep-"));
     try {
       const paths = pathsFor("/x/r", { FW_CONSOLE_DIR: dir } as never);
-      const rows = [{ pid: 7, ppid: 1, ageMs: 60_000, comm: "/usr/bin/caffeinate" }, { pid: 8, ppid: 1, ageMs: 5000, comm: "Python" }];
-      const o = (x: object) => ({ json: false, intervalS: null, untilAlert: false, keep: null, unkeep: null, note: null, ...x });
-      expect(declareKeep(paths, o({ keep: 7, note: "awake" }), rows, 100_000)).toContain("pid 7 (caffeinate) declared");
-      declareKeep(paths, o({ keep: 8 }), rows, 100_000);
-      expect(readKeep(paths)).toEqual([{ pid: 7, startedAt: 40_000, note: "awake" }, { pid: 8, startedAt: 95_000, note: null }]);
-      expect(() => declareKeep(paths, o({ keep: 9 }), rows, 100_000)).toThrow(/no running process 9/);
-      declareKeep(paths, o({ unkeep: 7 }), rows, 100_000);
+      const decide = keepDecider(core);
+      const rows = [{ pid: 7, start: 1000, args: "/usr/bin/caffeinate -i" }, { pid: 8, start: 2000, args: "Python x.py" }];
+      const o = (x: object) => ({ json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null, ...x });
+      expect(await declareKeep(paths, o({ keep: 7, note: "awake" }), rows, decide)).toContain("pid 7 (caffeinate) declared");
+      await declareKeep(paths, o({ keep: 8 }), rows, decide);
+      expect(readKeep(paths)).toEqual([{ pid: 7, start: 1000, note: "awake" }, { pid: 8, start: 2000, note: null }]);
+      await expect(declareKeep(paths, o({ keep: 9 }), rows, decide)).rejects.toThrow(/no running process 9/);
+      await declareKeep(paths, o({ unkeep: 7 }), rows, decide);
       expect(readKeep(paths).map((e) => e.pid)).toEqual([8]);
-      // pid 8 now names a process started 10 s later (reused pid): not the declared one
-      expect(liveKeep(readKeep(paths), [{ pid: 8, ppid: 1, ageMs: 0, comm: "x" }], 105_000)).toEqual([]);
-      expect(liveKeep(readKeep(paths), [{ pid: 8, ppid: 1, ageMs: 9000, comm: "x" }], 105_000)).toHaveLength(1);
-      expect(liveKeep(readKeep(paths), [], 105_000)).toEqual([]);
+      // pid 8 now names a process started 1 s later (reused pid): not the declared one, at any load
+      expect(await decide(readKeep(paths), [{ pid: 8, start: 2001, args: "x" }])).toEqual({ live: [], keep: [] });
+      expect(await decide(readKeep(paths), [{ pid: 8, start: 2000, args: "x" }])).toEqual({ live: [0], keep: [8] });
+      await declareKeep(paths, o({ keep: 7 }), [rows[0]!], decide);
+      expect(readKeep(paths)).toEqual([{ pid: 7, start: 1000, note: null }]);
+      writeFileSync(join(dir, "keep.json"), JSON.stringify([{ pid: 5, startedAt: 9000, note: null }]));
+      expect(readKeep(paths)).toEqual([]);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it("new alerts are those not in the previous check; the first check is a baseline", () => {
-    const h = (codes: [string, string][]): Health => ({ agents: [], system: { alerts: [] }, counts: {}, alerts: codes.map(([code, subject]) => ({ code, subject, detail: "" })) });
-    expect(newAlerts(null, h([["a", "1"]]))).toEqual([]);
-    const prev = new Set([alertKey({ code: "a", subject: "1", detail: "" })]);
-    expect(newAlerts(prev, h([["a", "1"], ["b", "2"]])).map(alertKey)).toEqual(["b|2"]);
+  it("the lead Monitor command line is kept without a declaration", async () => {
+    const decide = keepDecider(core);
+    expect(await decide([], [{ pid: 9, start: 1, args: "node apps/runner/src/fw.ts watch --interval 300 --stream" }, { pid: 10, start: 1, args: "node apps/runner/src/fw.ts watch --until-alert" }]))
+      .toEqual({ live: [], keep: [9] });
   });
-  it("the last logged check is read back as the baseline", () => {
+  it("new alerts are those not in the previous check; the first check is a baseline", async () => {
+    const h = (codes: [string, string][]): Health => ({ agents: [], system: { alerts: [] }, counts: {}, alerts: codes.map(([code, subject]) => ({ code, subject, detail: "" })) });
+    expect(await newAlerts(core, null, h([["a", "1"]]))).toEqual([]);
+    expect((await newAlerts(core, [{ code: "a", subject: "1" }], h([["a", "1"], ["b", "2"]]))).map(alertKey)).toEqual(["b|2"]);
+  });
+  it("a stream over a trace prints each key open once until it closes", async () => {
+    const trace: [string, string][][] = [[["x", "1"]], [["x", "1"], ["y", "2"]], [["y", "2"]], [], [["x", "1"]]];
+    let open: AlertKey[] = [];
+    const lines: string[] = [];
+    for (const t of trace) {
+      const d = await diffAlerts(core, open, t.map(([code, subject]) => ({ code, subject, detail: "d" })));
+      lines.push(...streamLines(d));
+      open = d.next;
+    }
+    expect(lines).toEqual(["OPEN x 1 d", "OPEN y 2 d", "CLOSE x 1", "CLOSE y 2", "OPEN x 1 d"]);
+  });
+  it("the last logged check is read back as the baseline", async () => {
     const base = tmp();
     const p = pathsFor("/x/r", { FW_CONSOLE_DIR: join(base, "fw"), FW_PROJECTS_DIR: base } as never);
     expect(readLastLog(p)).toBeNull();
@@ -288,8 +351,11 @@ describe("cli", () => {
     appendLog(p, snap(2), h("two"));
     const last = readLastLog(p)!;
     expect(last.at).toBe(2);
-    expect(newAlerts(new Set(last.output.alerts.map(alertKey)), h("two"))).toEqual([]);
+    expect(await newAlerts(core, last.output.alerts.map((a) => ({ code: a.code, subject: a.subject })), h("two"))).toEqual([]);
   });
+});
+
+describe("render", () => {
   it("renders at most 40 lines and never the agent ids of done agents", () => {
     const agents = Array.from({ length: 60 }, (_, i) => ({
       id: `id${i}`, name: `agent-${i}`, task: null, type: "t", model: "claude-opus-5-5", kind: "subagent" as const, parent: null,
