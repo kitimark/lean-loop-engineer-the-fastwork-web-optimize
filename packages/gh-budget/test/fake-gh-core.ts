@@ -15,8 +15,11 @@ type Cfg = {
   start?: number; listCost?: number;
   drains?: { at: number; remaining: number }[];
   overrides?: { at: number; lines: string[] }[];
-  runs?: { databaseId: number; createdAt: number; completeAt: number; conclusion?: string; headBranch?: string; workflowName?: string; headSha?: string }[];
+  runs?: { databaseId: number; createdAt: number; completeAt: number; conclusion?: string; headBranch?: string; workflowName?: string; headSha?: string; jobs?: FakeJob[] }[];
 };
+/** A job of `gh run view --json jobs`. Default jobs of a run: a guard that decided `run`, then one `work` job with the
+ *  run's conclusion. */
+export type FakeJob = { name: string; conclusion: string | null; steps?: { name: string; conclusion: string | null }[] };
 type Srv = { hour: number; used: number; ov: number; dr: number };
 
 const iso = (s: number) => new Date(s * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -90,6 +93,13 @@ export function fakeGh(dir: string, args: string[], costEnv: string | undefined,
   if (isView) {
     const r = runs.find((x) => String(x.databaseId) === args[2]);
     if (!r) return { status: 1, stdout: "", stderr: err + "HTTP 404: Not Found (https://api.github.com/x)\n" };
+    if (args.includes("jobs")) {
+      const jobs = r.jobs ?? [
+        { name: "guard", conclusion: "success", steps: [{ name: "decision: run", conclusion: "success" }, { name: "decision: skip: ", conclusion: "skipped" }] },
+        { name: "work", conclusion: r.conclusion ?? "success" },
+      ];
+      return { status: 0, stdout: JSON.stringify({ jobs }) + "\n", stderr: err };
+    }
     return { status: 0, stdout: JSON.stringify(row(r)) + "\n", stderr: err };
   }
   return { status: 0, stdout: "[]\n", stderr: err };

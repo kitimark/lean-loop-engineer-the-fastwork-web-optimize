@@ -3,32 +3,22 @@ name: lean
 # Proofs, golden vectors and the fwcore binary (PLAN 3.2, 5.4 TL0). Same commands as `lean/scripts/check.sh` locally.
 on:
   # Inputs: the Lean project, the checked-in breakpoint table breakgen compares against, setup-lean, the runner-facts script.
-  # A push runs this workflow only when it changes one of these paths; `workflow_dispatch` runs it on demand
+  # Every push creates a run and its guard job decides on these inputs (Lean Fw.Ci.Intent); `workflow_dispatch` runs it on demand
   # (gh workflow run <name> --ref <branch>). Why: docs/team/handoffs/ci-trigger-scope.md.
   push:
     branches: ['ci/**', main]
-    paths:
-      - 'lean/**'
-      - 'apps/site/src/breakpoints.gen.json'
-      - '.github/scripts/changed-inputs.mjs'
-      - '.github/actions/setup-lean/**'
-      - '.github/scripts/runner-info.sh'
-      - '.github/workflows/lean.yml'
   workflow_dispatch:
 
 # Public repo: read-only token, no secrets anywhere, no pull_request(_target) trigger.
 permissions:
   contents: read
 
-# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
-
 jobs:
-  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
-  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and
-  # schedules always run. Fails open on error.
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and some file that differs from main on the whole branch is an
+  # input. A main push runs when its own diff passes the coarse paths; dispatches and schedules always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
@@ -45,14 +35,38 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/lean.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
 
   lean:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:lean:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:lean:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -95,10 +109,27 @@ jobs:
   mathview-differential:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:lean:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:mathview-differential:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     # the runner context is not available at job level: steps use $RUNNER_TEMP/mathview-{store,diff}
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -163,7 +194,7 @@ jobs:
           ! grep -q 'Conventions for notations' "$RUNNER_TEMP/mathview-diff/m3/full.json"
 
       - name: keep the outputs on failure
-        if: failure()
+        if: ${{ (failure()) && steps.stale.outcome == 'skipped' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mathview-differential

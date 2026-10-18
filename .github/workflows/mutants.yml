@@ -9,21 +9,6 @@ on:
   # and the design patches (lean/FwTest/Mutants/**), the driver, setup-lean. Other Lean edits run in lean.yml only.
   push:
     branches: ['ci/**', main]
-    paths:
-      - 'lean/Fw/Console.lean'
-      - 'lean/Fw/Serve.lean'
-      - 'lean/Fw/Ops/Meter.lean'
-      - 'lean/Fw/Ops/PathCheck.lean'
-      - 'lean/Fw/Ops/SpawnGuard.lean'
-      - 'lean/Fw/Ops/Usage.lean'
-      - 'lean/Fw/Ops/Wire.lean'
-      - 'lean/Fw/Spec/DeviceQueue.lean'
-      - 'lean/Fw/Wire.lean'
-      - 'lean/FwTest/Mutants/**'
-      - 'lean/scripts/mutants.sh'
-      - '.github/scripts/changed-inputs.mjs'
-      - '.github/actions/setup-lean/**'
-      - '.github/workflows/mutants.yml'
   workflow_dispatch:
     inputs:
       tag:
@@ -47,16 +32,14 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
-
 jobs:
-  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
-  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and
-  # schedules always run. Fails open on error.
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and some file that differs from main on the whole branch is an
+  # input. A main push runs when its own diff passes the coarse paths; dispatches and schedules always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:mutants]') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -72,11 +55,20 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/mutants.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
 
   plan:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:mutants:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:plan:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -86,6 +78,21 @@ jobs:
       jobs: ${{ steps.plan.outputs.jobs }}
       limit: ${{ steps.plan.outputs.limit }}
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - name: Check the inputs, list the shards
         id: plan
         env:
@@ -106,6 +113,8 @@ jobs:
 
   shard:
     needs: plan
+    concurrency:
+      group: ci-lane:mutants:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:shard:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 75
     strategy:
@@ -119,6 +128,21 @@ jobs:
       JOBS: ${{ needs.plan.outputs.jobs }}
       LIMIT: ${{ needs.plan.outputs.limit }}
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -142,7 +166,7 @@ jobs:
         run: sh lean/scripts/mutants.sh -S "$SHARD/$N" -j "$JOBS" -n "$LIMIT" -r "$TAG"
 
       - name: Collect
-        if: ${{ !cancelled() }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/out"
@@ -154,7 +178,7 @@ jobs:
           ls -l "$out"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
           name: mutants-${{ needs.plan.outputs.tag }}-shard-${{ matrix.shard }}
           path: ${{ runner.temp }}/out
@@ -164,11 +188,28 @@ jobs:
   merge:
     needs: [plan, shard]
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    concurrency:
+      group: ci-lane:mutants:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:merge:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     env:
       TAG: ${{ needs.plan.outputs.tag }}
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -198,7 +239,7 @@ jobs:
           exit "$rc"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
           name: mutants-${{ needs.plan.outputs.tag }}-summary
           path: ${{ runner.temp }}/summary

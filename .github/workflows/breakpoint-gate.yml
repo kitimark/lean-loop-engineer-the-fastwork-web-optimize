@@ -11,38 +11,10 @@ name: breakpoint-gate
 on:
   # Inputs: the gate package, the rewrite it builds (apps/site), lean/ (breakgen, fwcore), the snapshot and its lock, the pnpm
   # workspace files, the scripts and actions the jobs use.
-  # A push runs this workflow only when it changes one of these paths; `workflow_dispatch` runs it on demand
+  # Every push creates a run and its guard job decides on these inputs (Lean Fw.Ci.Intent); `workflow_dispatch` runs it on demand
   # (gh workflow run <name> --ref <branch>). Why: docs/team/handoffs/ci-trigger-scope.md.
   push:
     branches: ['ci/**', main]
-    paths:
-      - 'packages/gate-breakpoints/**'
-      - 'apps/site/**'
-      - 'lean/Main.lean'
-      - 'lean/lakefile.toml'
-      - 'lean/lake-manifest.json'
-      - 'lean/lean-toolchain'
-      - 'lean/Fw/**'
-      - 'lean/*.lean'
-      - 'lean/BreakgenMain.lean'
-      - 'snapshot/**'
-      - 'snapshot.lock.json'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/scripts/gate-shards.mjs'
-      - '.github/scripts/gate-jobs.mjs'
-      - '.github/scripts/cache-key.mjs'
-      - 'packages/contracts/golden/gate/schedule.jsonl'
-      - 'packages/contracts/golden/ops/cache.jsonl'
-      - '.github/scripts/gate-smoke.mjs'
-      - '.github/scripts/merge-gate.mjs'
-      - '.github/scripts/verify-snapshot.mjs'
-      - '.github/scripts/changed-inputs.mjs'
-      - '.github/actions/setup-lean/**'
-      - '.github/actions/setup-pnpm/**'
-      - '.github/actions/gate-engine/**'
-      - '.github/workflows/breakpoint-gate.yml'
   workflow_dispatch:
     inputs:
       engines:
@@ -82,23 +54,19 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
-# Runs of other branches never cancel each other (the ref is in the group). Dispatches on one branch with different inputs
-# (flag set, parts, engines) are different groups, so a loop of variant dispatches is not cancelled by its own next iteration.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.fw }}-${{ inputs.parts }}-${{ inputs.engines }}-${{ inputs.runs }}-${{ inputs.free }}-${{ inputs.times }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
-
 env:
   # Same pinned browser as packages/measure-chromium/Dockerfile.
   HS_VERSION: 156.0.8078.4
   HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
 
 jobs:
-  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
-  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and
-  # schedules always run. Fails open on error.
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and some file that differs from main on the whole branch is an
+  # input. A main push runs when its own diff passes the coarse paths; dispatches and schedules always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:breakpoint-gate]') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -114,7 +82,14 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/breakpoint-gate.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
 
   # The rewrite, built once; every gate job downloads this exact build (its buildId is in each run header, and the merge
   # job refuses files whose headers differ).
@@ -123,6 +98,8 @@ jobs:
   site:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:site:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     outputs:
@@ -130,6 +107,21 @@ jobs:
       engines: ${{ steps.p.outputs.engines }}
       parts: ${{ steps.p.outputs.parts }}
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -184,6 +176,8 @@ jobs:
   # One job per entry of the Lean split: its probes (`cli.mjs run --probes`) and its whole sweeps (`--sweeps`); "none" = nothing.
   gate:
     needs: [site]
+    concurrency:
+      group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:gate:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     name: gate ${{ matrix.engine }} ${{ matrix.job }}
@@ -191,6 +185,21 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.site.outputs.matrix) }}
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -243,9 +252,26 @@ jobs:
   merge:
     needs: [site, gate]
     if: ${{ !cancelled() && needs.site.result == 'success' }}
+    concurrency:
+      group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:merge:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -288,14 +314,14 @@ jobs:
           done
           exit "$rc"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
           name: gate-merged-chromium
           path: ${{ runner.temp }}/gate-chromium
           if-no-files-found: ignore
           retention-days: 30
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
           name: gate-merged-playwright-webkit
           path: ${{ runner.temp }}/gate-playwright-webkit

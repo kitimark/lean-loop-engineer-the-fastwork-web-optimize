@@ -13,6 +13,8 @@ export const paths = (dir: string) => ({
   status: join(dir, "runs-status.json"),
   meta: (runId: number) => join(dir, "meta", `${runId}.json`),
   metaLock: (runId: number) => join(dir, "meta", `${runId}.lock`),
+  jobs: (runId: number) => join(dir, "meta", `${runId}.jobs.json`),
+  jobsLock: (runId: number) => join(dir, "meta", `${runId}.jobs.lock`),
   waiters: join(dir, "waiters"),
 });
 
