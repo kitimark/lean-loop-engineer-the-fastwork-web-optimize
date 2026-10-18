@@ -2,7 +2,7 @@
 import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
-import { httpFor, land } from "./land.ts";
+import { httpFor, land, type LandResult } from "./land.ts";
 import { exitCode, verdictLine } from "./land-verdict.ts";
 import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
@@ -115,7 +115,8 @@ try {
         process.exitCode = exitCode(own?.kind ?? "queued");
       }
     } else {
-      const res = await land(args[0]!, landOpts(task, allow));
+      // an exception inside `land` still ends in exactly one VERDICT line (kind unknown, exit 2): Lean `dry_prints_one_verdict`
+      const res = await land(args[0]!, landOpts(task, allow)).catch((e: unknown): LandResult => ({ ok: false, lines: [`REFUSED: ${e instanceof Error ? e.message : String(e)}`], kind: "unknown" }));
       for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
       // one machine-readable line and a distinct exit code per kind (Lean Fw.Console.LandVerdict); scripts never grep prose
       const kind = res.kind ?? (res.ok ? "done" : "unknown");

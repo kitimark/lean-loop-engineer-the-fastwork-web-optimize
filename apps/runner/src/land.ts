@@ -69,6 +69,9 @@ export type LandOptions = {
   /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test of apps/runner, selected
    *  when `checksFor` selects apps/runner (tests inject both) */
   dryReads?: { argv: string[]; selected?: boolean };
+  /** the dry land's fast lints (argv list, run in the merge-tree worktree); default: `dryLintArgv` (ci-paths --check, and the math-view
+   *  lint when the change touches `lean/`) */
+  dryLints?: string[][];
 };
 /** `ok` = main was changed (or, on a refusal, left as it was). Post-commit trouble never turns it false: it is in `warnings`
  *  (also printed as lines) with the commands that finish the job. */
@@ -330,6 +333,19 @@ const prepLandWt = (dir: string) => {
   if (existsSync(join(dir, "pnpm-lock.yaml"))) { try { execFileSync("pnpm", ["install", "--offline", "--frozen-lockfile"], { cwd: dir, stdio: "ignore" }); } catch { /* the install check retries online */ } }
 };
 
+/** The fast lints of a dry land (task land-dry-full), in the merge-tree worktree `dir`: `node scripts/ci-paths.mjs --check` (0.1 s), and,
+ *  when the change touches `lean/`, the math-view lint exactly as `lean/scripts/check.sh` runs it (`scripts/mathview-cached.sh`: whole-tree
+ *  cache, per-module store), after an incremental `lake build` (no `fwtest`, no tests; the .lake of the slot is warm). An unchanged Lean tree
+ *  is a cache hit and builds nothing. A script the tree lacks is skipped. */
+export function dryLintArgv(dir: string, changed: string[]): string[][] {
+  const out: string[][] = [];
+  if (existsSync(join(dir, "scripts/ci-paths.mjs"))) out.push(["node", "scripts/ci-paths.mjs", "--check"]);
+  if (changed.some((f) => f.startsWith("lean/")) && existsSync(join(dir, "lean/scripts/mathview-cached.sh"))) {
+    out.push(["sh", "-c", "cd lean && scripts/mathview-cached.sh --build >/dev/null"]);
+  }
+  return out;
+}
+
 type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string; k?: Kind } | { kind: "fallback"; why: string };
 /** A failing check whose output names the static reads test (`inc-land-undeclared-reads`) is a `reads` refusal, else `checks`. */
 const READS_FAIL_RE = /land-inputs\.test|premise land\.readsOnly/;
@@ -387,6 +403,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
   const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, branch]);
   if (o.dry && behind) return fail(`${branch} does not contain ${main}: merge ${main} into it (git merge ${main}) and run the dry land again; a stale base can carry another task's diff into the scope check`, "stale");
+  // no commit of its own (the tip is already in main): nothing to land. Lean `dryKind` (after `stale`): VERDICT empty, exit 0.
+  if (o.dry && tryGit(o.cwd, ["merge-base", "--is-ancestor", sha, main])) {
+    return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: "empty" };
+  }
   if (behind && !o.task) return fail(`${branch} is behind ${main}; a fast-forward is impossible (land it with --task for a merge commit; branches are never rebased)`);
 
   // 1. the task and the file scope (Lean: console.landScope)
@@ -511,9 +531,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   // apps/runner (as the real land does) and never touches main, the lock or the queue. The kind comes from `dryKind`.
   if (o.dry) {
     const main0 = git(mainDir, ["rev-parse", "HEAD"]);
-    if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) return fail(`${branch} has nothing to land (already in ${main})`, "done");
+    if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: "empty" };
     lines.push(`dry: ${branch} contains ${main}; scope ok`);
-    const verdict = (merges: boolean, readsSelected: boolean, readsTest: boolean) => dryKind({ containsMain: true, scope: true, merges, readsSelected, readsTest });
+    const verdict = (merges: boolean, readsSelected: boolean, readsTest: boolean, lints = true) =>
+      dryKind({ containsMain: true, scope: true, merges, readsSelected, readsTest, own: true, lints });
     let tree: string | null = null;
     try { tree = git(mainDir, ["-c", `attr.tree=${main0}`, "merge-tree", "--write-tree", main0, sha]).split("\n")[0]!; } catch { /* conflicts */ }
     if (!tree) return fail(`${main} cannot merge ${branch} cleanly`, verdict(false, false, true));
@@ -534,9 +555,18 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         test = bad === null; detail = bad ?? "";
         if (test) lines.push("dry: reads ok (the static land-inputs test passes on the merge tree)");
       } else lines.push("dry: reads not selected (the change does not select apps/runner, so the real land does not run the test either)");
-      const k = verdict(true, selected, test);
+      let lints = true;
+      if (verdict(true, selected, test) === "dry") {
+        // the fast lints that refused real lands (math-view lint, ci-paths --check), on the merge tree, after reads (Lean `dryKind` order)
+        const lintArgv = o.dryLints ?? dryLintArgv(slot.dir, changed);
+        if (lintArgv.length) {
+          const bad = await runChecks(slot.dir, lintArgv);
+          lints = bad === null; detail = bad ?? "";
+        }
+      }
+      const k = verdict(true, selected, test, lints);
       if (k !== "dry") return fail(detail || `dry land refused: ${k}`, k);
-      lines.push(`dry ok at ${main} ${main0.slice(0, 7)}: the land's scope, merge and reads stages pass unless ${main} moves`);
+      lines.push(`dry ok at ${main} ${main0.slice(0, 7)}: the land's scope, merge, reads and fast lints pass unless ${main} moves`);
       return { ok: true, lines, kind: "dry" };
     } finally { slot.free(); }
   }

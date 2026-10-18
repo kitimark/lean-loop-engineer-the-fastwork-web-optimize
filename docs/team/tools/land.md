@@ -25,12 +25,22 @@ Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code
 
 | kind | exit | meaning |
 |---|---|---|
-| done, dry, queued | 0 | landed, dry land passes, queued |
+| done, dry, queued, empty | 0 | landed, dry land passes, queued, the branch has no commit of its own (nothing to land) |
 | busy 10, dirty 11 | 10, 11 | retryable: the lock or the main checkout is in the way |
-| scope 12, reads 13, conflict 14, checks 15, stale 16 | 12-16 | fix the branch |
+| scope 12, reads 13, conflict 14, checks 15, stale 16, lint 17 | 12-17 | fix the branch (lint: a fast lint failed) |
 | unknown | 2 | anything else |
 
-Scripts read the word after `VERDICT` or the exit code, never prose. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
+Scripts read the word after `VERDICT` or the exit code, never prose. Every run (a dry run too, and one that throws) prints exactly one
+`VERDICT` line (Lean `dry_prints_one_verdict`; `fw.ts` turns an exception into `VERDICT unknown`).
+
+### The dry land's fast lints (task `land-dry-full`)
+
+After the reads stage the dry land runs, in the merge-tree worktree (never the main checkout), the fast lints that refused real lands:
+`node scripts/ci-paths.mjs --check` (0.1 s) and, when the change touches `lean/`, the math-view lint the way `lean/scripts/check.sh` runs it
+(`lean/scripts/mathview-cached.sh --build`: whole-tree cache, per-module store; an incremental `lake build` only on a cache miss; no
+`fwtest`, no tests). A failure is `VERDICT lint` (exit 17). Order (Lean `dryKind`): stale, empty (no own commits), scope, conflict, reads,
+lint, dry; `dry_pass_all`: dry means every one of them passed. Glue: `dryLintArgv` in `apps/runner/src/land.ts`; tests inject `dryLints`.
+Cost: see the handoff note `docs/team/handoffs/land-dry-full.md`. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
 
 ## `--queue`: lands in first-in-first-out order (task `land-queue`)
 
