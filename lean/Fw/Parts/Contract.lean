@@ -1,4 +1,5 @@
 import Fw.Parts.EngineScroll
+import Fw.Parts.FootprintData
 
 /-! Part contract table: one `PartSpec` row per part id under `apps/site/src/parts`, the independence premises I1-I4
 (plan section B; I5 recorded, not proved), the groups, and the measurement profiles each part runs under.
@@ -797,6 +798,125 @@ def Signal.wire : Signal → String
 def accessWire : Access → String
   | .readStyle => "RS" | .readLayout => "RL" | .writeStyle => "WS" | .writeLayout => "WL"
 
+/-- A contract signal as the footprint spells it: `scenePaused` is `data-fw-hidden` on the platform, `morphPhase`
+`data-fw-morph` on the nav.
+
+$$\operatorname{fw}(\mathrm{scenePaused}) = \texttt{className:data-fw-hidden/platform},\
+\operatorname{fw}(\mathrm{morphPhase}) = \texttt{className:data-fw-morph/nav},\ \operatorname{fw}(\sigma) =
+\operatorname{wire}(\sigma) \text{ otherwise}$$
+
+The two named signals are attributes the code writes. -/
+def Signal.fw : Signal → String
+  | .scenePaused => "className:data-fw-hidden/platform"
+  | .morphPhase => "className:data-fw-morph/nav"
+  | s => s.wire
+
+/-- Extracted accesses of part `id`. $$\operatorname{code}(p) = [a \in \mathrm{accesses} \mid a.\mathrm{part} = p]$$
+Empty for an id with no code. -/
+def code (id : String) : List Footprint.Access := FootprintData.accesses.filter (·.part == id)
+
+/-- Environment and box wires: a read of these is an input whoever writes them.
+$$\operatorname{env}(w) \iff w \in [\texttt{vw}, \texttt{vh}, \texttt{scrollY}, \texttt{clock}, \texttt{pointer}] \lor
+\texttt{rect:} \sqsubseteq w$$ Every other wire is an input only when another part writes it. -/
+def envWire (w : String) : Bool := ["vw", "vh", "scrollY", "clock", "pointer"].contains w || w.startsWith "rect:"
+
+/-- Wires the parts other than `id` write at frame or event time, first occurrence kept.
+$$W_{\ne p} = \operatorname{dedup}[w \mid a \in \mathrm{accesses},\ a.\mathrm{part} \ne p,\ \phi(a.\mathrm{ctx}) \in
+\{\mathrm{frame}, \mathrm{event}\},\ w \in \operatorname{writes}(a)]$$
+Mount, hover, resize and cleanup writes set no cross-part signal. -/
+def othersWrite (id : String) : List String :=
+  ((FootprintData.accesses.filter fun a =>
+    a.part != id && (Footprint.phase a.ctx == .frame || Footprint.phase a.ctx == .event)).flatMap
+      Footprint.writes).eraseDups
+
+/-- Wires the parts other than `id` read, first occurrence kept.
+$$R_{\ne p} = \operatorname{dedup}[r \mid a \in \mathrm{accesses},\ a.\mathrm{part} \ne p,\ r \in \operatorname{reads}(a)]$$
+`reads` already drops cleanup. -/
+def othersRead (id : String) : List String :=
+  ((FootprintData.accesses.filter (·.part != id)).flatMap Footprint.reads).eraseDups
+
+/-- Code inputs of part `id`: its environment and box reads, and each wire another part writes that one of its reads
+names.
+
+$$\operatorname{in}_{\mathrm{code}}(p) = \operatorname{dedup}\big[x \mid r \in \operatorname{dedup}(\operatorname{reads}
+(\operatorname{code}(p))),\ x \in (\text{if } \operatorname{env}(r) \text{ then } [r] \text{ else }
+[w \in W_{\ne p} \mid \operatorname{same}(r, w)])\big]$$
+
+A read of the part's own classes or variables is not an input. -/
+def codeInputs (id : String) : List String :=
+  let ws := othersWrite id
+  (((code id).flatMap Footprint.reads).eraseDups.flatMap fun r =>
+    if envWire r then [r] else ws.filter (Footprint.same r ·)).eraseDups
+
+/-- Cross-part writes of part `id` in phase `ph`: its writes there that are `scrollY` or that another part reads.
+
+$$\operatorname{out}_{\mathrm{code}}(p, \phi_0) = [w \in \operatorname{dedup}[w \mid a \in \operatorname{code}(p),\
+\phi(a.\mathrm{ctx}) = \phi_0,\ w \in \operatorname{writes}(a)] \mid w = \texttt{scrollY} \lor \exists r \in R_{\ne p}:
+\operatorname{same}(r, w)]$$
+
+`scrollY` moves every box, so it counts without a named reader. -/
+def crossWrites (id : String) (ph : Footprint.Phase) : List String :=
+  let rs := othersRead id
+  ((((code id).filter (Footprint.phase ·.ctx == ph)).flatMap Footprint.writes).eraseDups).filter fun w =>
+    w == "scrollY" || rs.any (Footprint.same · w)
+
+/-- Owners of the elements part `id` writes at frame time, when the owner is a part id.
+
+$$T_{\mathrm{code}}(p) = \operatorname{dedup}[a.\mathrm{owner} \mid a \in \operatorname{code}(p),\ \phi(a.\mathrm{ctx})
+= \mathrm{frame},\ \operatorname{isWrite}(a.\mathrm{op}),\ a.\mathrm{op} \ne \mathrm{scroll},\ a.\mathrm{owner} \in
+\mathrm{ids}]$$
+
+`document`, `?` and parent owners are left out. -/
+def codeTargets (id : String) : List String :=
+  (((code id).filter fun a => Footprint.phase a.ctx == .frame && a.op.isWrite && a.op != .scroll &&
+    parts.any (·.id == a.owner)).map (·.owner)).eraseDups
+
+/-- Scroll-list orders part `id` registers with. $$O_{\mathrm{code}}(p) = \operatorname{dedup}[n \mid a \in
+\operatorname{code}(p),\ a.\mathrm{op} = \mathrm{register},\ n = \operatorname{toNat}(a.\mathrm{name})]$$
+A non-numeric name is left out. -/
+def codeOrder (id : String) : List Nat :=
+  (((code id).filter (·.op == .register)).filterMap (·.name.toNat?)).eraseDups
+
+/-- Code-side wires missing from a row list, and row wires the code never touches.
+
+$$\operatorname{gap}(C, R, A) = ([c \in C \mid \nexists r \in R: \operatorname{same}(c, r)],\ [r \in R \mid \nexists a
+\in A: \operatorname{same}(a, r)])$$
+
+$C$ the code's cross-part wires, $R$ the row's, $A$ every wire the code reads or writes on that side. -/
+def gap (c r a : List String) : List String × List String :=
+  (c.filter fun x => !r.any (Footprint.same x ·), r.filter fun y => !a.any (Footprint.same · y))
+
+/-- One part's diff as a JSON line: inputs, outputs, `onEvent` and targets as missing-from-row and
+not-in-code lists, and the row order against the code orders.
+
+$$\operatorname{diff}(P) = \{\mathrm{id},\ \mathrm{in}: \operatorname{gap}(\operatorname{in}_{\mathrm{code}},
+\operatorname{fw}(\mathrm{in}_P), \operatorname{reads}),\ \mathrm{out}: \operatorname{gap}(\operatorname{out}_{\mathrm{code}}
+(\mathrm{frame}), \operatorname{fw}(\mathrm{out}_P), \operatorname{writes}),\ \mathrm{ev}: \operatorname{gap}
+(\operatorname{out}_{\mathrm{code}}(\mathrm{event}), \operatorname{fw}(\mathrm{ev}_P), \operatorname{writes}),\ T:
+\operatorname{gap}(T_{\mathrm{code}}, T_P, T_{\mathrm{code}}),\ o: (o_P, O_{\mathrm{code}})\}$$
+
+`reads` and `writes` range over all of the part's accesses, any phase. -/
+def diffJson (P : PartSpec) : String :=
+  let rs := ((code P.id).flatMap Footprint.reads).eraseDups
+  let ws := ((code P.id).flatMap Footprint.writes).eraseDups
+  let ct := codeTargets P.id
+  let pair (g : List String × List String) : String :=
+    "{\"missing\":" ++ jarr (g.1.map jstr) ++ ",\"extra\":" ++ jarr (g.2.map jstr) ++ "}"
+  "{\"id\":" ++ jstr P.id ++
+    ",\"inputs\":" ++ pair (gap (codeInputs P.id) (P.inputs.map Signal.fw) rs) ++
+    ",\"outputs\":" ++ pair (gap (crossWrites P.id .frame) (P.outputs.map Signal.fw) ws) ++
+    ",\"onEvent\":" ++ pair (gap (crossWrites P.id .event) (P.onEvent.map Signal.fw) ws) ++
+    ",\"targets\":" ++ pair (gap ct P.targets ct) ++
+    ",\"order\":{\"row\":" ++ (match P.order with | some o => toString o | none => "null") ++
+    ",\"code\":" ++ jarr ((codeOrder P.id).map toString) ++ "}}"
+
+/-- Text of `packages/contracts/golden/parts/footprint-diff.gen.json`: one diff line per row, then the extractor's
+finding count. $$\operatorname{diffs} = \{\mathrm{parts}: [\operatorname{diff}(P) \mid P \in \mathrm{parts}],\
+\mathrm{findings}: |\mathrm{findings}|\}$$ One row per line, newline-terminated. -/
+def diffText : String :=
+  "{\"parts\":[\n" ++ ",\n".intercalate (parts.map diffJson) ++ "\n],\n\"findings\":" ++
+    toString FootprintData.findings.length ++ "}\n"
+
 /-- One contract row as a JSON object on one line, with its group key and profiles.
 
 $$\operatorname{row}(P) = \{\mathrm{id}, g, g_{\mathrm{plan}}, \kappa(P), o, \mathrm{in}, \mathrm{out}, \mathrm{ev}, T, M, A, \ell, s, \operatorname{page}(P), S(P)\}$$
@@ -860,18 +980,33 @@ def checkFile (path text : String) : IO Bool := do
   IO.eprintln s!"contracts golden: {path} differs from the generated bytes"
   return false
 
-/-- Command-line driver (`lean/scripts/ContractsGolden.lean`): `--contracts` or `--scenarios` prints that golden;
-`--check <contracts> <scenarios>` exits 0 when both files hold exactly the generated bytes and every used profile has
+/-- Text of `packages/contracts/golden/parts/footprint.gen.json` from the generated data.
+$$\operatorname{footprint} = \operatorname{golden}(\mathrm{ids}, \mathrm{accesses}, \mathrm{findings})$$
+Byte-equal to the extractor's output when the data module is fresh. -/
+def footprintText : String :=
+  Footprint.golden FootprintData.partIds FootprintData.accesses FootprintData.findings
+
+/-- Command-line driver (`lean/scripts/ContractsGolden.lean`): `--contracts`, `--scenarios` or `--diff` prints that
+golden; `--check <contracts> <scenarios>` exits 0 when both files, and `footprint.gen.json` and
+`footprint-diff.gen.json` next to the contracts file, hold exactly the generated bytes and every used profile has
 `profiles/<id>.json` next to the scenarios file, 1 otherwise.
 
-$$\operatorname{run}(\texttt{--check}\ c\ s) = 0 \iff \operatorname{same}(c, \operatorname{contracts}) \land \operatorname{same}(s, \operatorname{scenarios}) \land \forall P \in \mathrm{parts},\ \forall p \in S(P):\ \operatorname{exists}(\operatorname{dir}(s)/\texttt{profiles}/p\texttt{.json})$$
+$$\operatorname{run}(\texttt{--check}\ c\ s) = 0 \iff \operatorname{same}(c, \operatorname{contracts}) \land
+\operatorname{same}(s, \operatorname{scenarios}) \land \operatorname{same}(\operatorname{dir}(c)/\texttt{footprint.gen.json},
+\operatorname{footprint}) \land \operatorname{same}(\operatorname{dir}(c)/\texttt{footprint-diff.gen.json},
+\operatorname{diffs}) \land \forall P \in \mathrm{parts},\ \forall p \in S(P):\
+\operatorname{exists}(\operatorname{dir}(s)/\texttt{profiles}/p\texttt{.json})$$
 
 Any other argument list prints usage and returns 2; a missing golden file is an uncaught IO error. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | ["--contracts"] => IO.print contractsText; return 0
   | ["--scenarios"] => IO.print scenariosText; return 0
+  | ["--diff"] => IO.print diffText; return 0
   | ["--check", c, s] =>
+    let cdir := (System.FilePath.mk c).parent.getD "."
+    let okF ← checkFile (cdir / "footprint.gen.json").toString footprintText
+    let okD ← checkFile (cdir / "footprint-diff.gen.json").toString diffText
     let okC ← checkFile c contractsText
     let okS ← checkFile s scenariosText
     let dir := (System.FilePath.mk s).parent.getD "." / "profiles"
@@ -880,9 +1015,9 @@ def run (args : List String) : IO UInt32 := do
       unless ← (dir / (p ++ ".json")).pathExists do
         IO.eprintln s!"contracts golden: profile {p} has no file in {dir}"
         okP := false
-    return if okC && okS && okP then 0 else 1
+    return if okF && okD && okC && okS && okP then 0 else 1
   | _ =>
-    IO.eprintln "usage: ContractsGolden (--contracts | --scenarios | --check <contracts.gen.json> <scenarios.gen.json>)"
+    IO.eprintln "usage: ContractsGolden (--contracts | --scenarios | --diff | --check <contracts.gen.json> <scenarios.gen.json>)"
     return 2
 
 #guard independent heroCountdown morphTween
