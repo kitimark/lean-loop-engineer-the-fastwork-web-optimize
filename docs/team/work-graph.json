@@ -5114,6 +5114,20 @@
     "docs/team/handoffs/page-writer.md"
    ],
    "evidence": "257d91c"
+  },
+  {
+   "id": "guidance-proofs",
+   "title": "Chrome Modern Web Guidance in Lean: each rendering-performance rule stated as a theorem under the Chromium and WebKit engine models (Fw.Engine.*); verdict per rule proved / refuted (counterexample) / out of model (named premise); a negative result is a finding",
+   "stream": "proofs",
+   "milestone": null,
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Guidance/**",
+    "lean/Fw.lean",
+    "research/notes/2026/10-18-guidance-proofs.md",
+    "docs/team/handoffs/guidance-proofs.md"
+   ]
   }
  ],
  "deadline": {
