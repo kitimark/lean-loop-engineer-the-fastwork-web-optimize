@@ -734,7 +734,7 @@
   },
   {
    "id": "faithful-checks",
-   "title": "V-g, V-h, V-o, V-q for the 9 end-of-page parts, Chromium (WebKit Simulator only on GO at C1)",
+   "title": "(M) faithful check of the end-of-page region on the integrated head: PL5 band verdict per zone (y04000, y04500, tail) x count type, R vs A, bands from frozen zone-baselines-chromium, verdict in Lean (Fw.Faithful), Chromium counts on CI (swipe-v1, touch); a zone outside its band is reported, not patched",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
@@ -746,6 +746,14 @@
    "owner": "measure-engineer",
    "devices": [
     "ci"
+   ],
+   "writes": [
+    "lean/Fw/Faithful/**",
+    "lean/Fw.lean",
+    "packages/contracts/golden/faithful/**",
+    "research/notes/2026/10-19-faithful-checks.md",
+    "results/faithful/**",
+    "docs/team/handoffs/faithful-checks.md"
    ]
   },
   {
@@ -916,9 +924,58 @@
    "milestone": "M5",
    "cut": false,
    "deps": [
-    "integrate-ports"
+    "integrate-ports-4"
    ],
    "owner": "part-builder"
+  },
+  {
+   "id": "model-checks",
+   "title": "(M) F3/F4 per landed flag arm: one chromium-counts run per flag (?fw=morph.tween:waapi, hidden-pause x3, morph.mount:shift, hero.countdown:strip, nav.hitTest:hit-skip/elements-skip, people.card:shrink, pain.notes:arm), fw engine-check against golden/engine; variantKeys: base is an explicit faithful key (Lean rule + golden); each mismatch a ledger row, never a model patch; WebKit subset as free minutes allow",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-model-fix-2",
+    "zone-baselines-chromium"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/engine-check/**",
+    "lean/Fw/Engine/Keys.lean",
+    "packages/contracts/golden/engine/keys.jsonl",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-19-model-checks.md",
+    "docs/team/handoffs/model-checks.md"
+   ]
+  },
+  {
+   "id": "preset-v2-proved",
+   "title": "(S) v2-proved arm: preset = ledger rows with status proved and no falsified F-result, decided in Lean (subset of registered flags, golden), generated preset registered beside original; ?fw=preset:v2-proved resolves",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "math-final"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Preset/**",
+    "apps/site/src/registry/presets/**",
+    "apps/site/src/registry/index.ts",
+    "packages/contracts/golden/preset/**",
+    "docs/team/handoffs/preset-v2-proved.md"
+   ]
+  },
+  {
+   "id": "report-draft-2",
+   "title": "(S) report rewrite to rev-10 shape from the ledger and math-final r14: per part theorem pair, premises, RG status, chromium/webkit win|trade|no-win, F-result slot; remove pre-rev-10 PENDING/SLOT lines; pre-write the not-done list; two named pending blocks (faithful bands, F3/F4 per flag)",
+   "stream": "report",
+   "milestone": "M6",
+   "deps": [
+    "math-final"
+   ],
+   "owner": "researcher",
+   "writes": [
+    "docs/report/**"
+   ]
   },
   {
    "id": "experiments",
@@ -948,7 +1005,9 @@
     "why-core-lessons",
     "why-engines",
     "why-parts",
-    "engine-model-fix"
+    "engine-model-fix",
+    "model-checks",
+    "preset-v2-proved"
    ],
    "owner": "lead"
   },
@@ -959,7 +1018,8 @@
    "milestone": "M6",
    "deps": [
     "experiments",
-    "math-final"
+    "math-final",
+    "report-draft-2"
    ],
    "owner": "lead"
   },
@@ -1721,7 +1781,7 @@
    "stream": "parts",
    "milestone": "M2",
    "deps": [
-    "integrate-ports",
+    "integrate-ports-4",
     "port-morph-columns",
     "port-morph-countdown",
     "port-morph-mount",
@@ -3683,7 +3743,7 @@
    "milestone": "M5",
    "deps": [
     "visual-diff-2",
-    "integrate-ports"
+    "integrate-ports-4"
    ],
    "owner": "measure-engineer",
    "writes": [
@@ -4260,7 +4320,8 @@
     ".github/scripts/gate-jobs.test.mjs",
     "lean/scripts/check.sh",
     "docs/team/incidents/ledger.json"
-   ]
+   ],
+   "evidence": "21f511b"
   },
   {
    "id": "gate-webkit-red",
@@ -4299,7 +4360,8 @@
     "packages/contracts/golden/gate/exit.jsonl",
     "docs/team/handoffs/gate-no-skip.md",
     "research/notes/2026/10-18-gate-no-skip.md"
-   ]
+   ],
+   "evidence": "369e2b6"
   },
   {
    "id": "gate-run-identity",
@@ -4754,7 +4816,8 @@
     "lean/scripts/check.sh",
     "lean/scripts/EngineGoldens.lean",
     "docs/team/handoffs/engine-model-fix-2.md"
-   ]
+   ],
+   "evidence": "6430263"
   },
   {
    "id": "mistake-record-4",
@@ -5036,6 +5099,60 @@
     "lean/Fw/Gate/**",
     "docs/team/handoffs/integrate-ports.md"
    ]
+  },
+  {
+   "id": "plan-page-readability",
+   "title": "Plan page readable: Now panel first (stamped as-of commit), math view on its own page math-view.html (published beside loop-plan.html via Artifact files), phone width without sideways scroll, text consistent with PLAN rev 10",
+   "stream": "plan",
+   "milestone": null,
+   "deps": [],
+   "owner": "page-writer",
+   "writes": [
+    "docs/plan/loop-plan.html",
+    "docs/plan/math-view.html",
+    "docs/plan/tools/build-math-view.mjs",
+    "docs/team/handoffs/plan-page-readability.md",
+    "docs/team/handoffs/page-writer.md"
+   ],
+   "evidence": "257d91c"
+  },
+  {
+   "id": "guidance-proofs",
+   "title": "Chrome Modern Web Guidance in Lean: each rendering-performance rule stated as a theorem under the Chromium and WebKit engine models (Fw.Engine.*); verdict per rule proved / refuted (counterexample) / out of model (named premise); a negative result is a finding",
+   "stream": "proofs",
+   "milestone": null,
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Guidance/**",
+    "lean/Fw.lean",
+    "research/notes/2026/10-18-guidance-proofs.md",
+    "docs/team/handoffs/guidance-proofs.md"
+   ]
+  },
+  {
+   "id": "chrome-agent-docs",
+   "title": "Research: do Chrome Modern Web Guidance and DevTools for agents help the experiment (cited note)",
+   "stream": "research",
+   "milestone": null,
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-chrome-agent-docs.md"
+   ],
+   "evidence": "bd0a755"
+  },
+  {
+   "id": "chrome-agent-tools-install",
+   "title": "Install-and-apply plan for Chrome Modern Web Guidance skills and DevTools for agents, from a scratch trial (config diffs for the user)",
+   "stream": "research",
+   "milestone": null,
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-chrome-agent-tools-install.md"
+   ],
+   "evidence": "fac6bfc"
   }
  ],
  "deadline": {

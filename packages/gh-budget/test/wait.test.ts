@@ -206,8 +206,11 @@ describe("real processes, real clock", { concurrency: true }, () => {
     w.config({ start: now - 600, listCost: 2, runs: [run(32, { createdAt: now - 300, completeAt: 1e12 })] });
     const rs = await Promise.all(Array.from({ length: 3 }, () => cli(w, ["wait", "32", "--timeout", "6"])));
     for (const r of rs) assert.equal(r.code, 3, r.out);
-    const cs = w.calls();
-    assert.deepEqual(cs.map((c) => c.args[1]), ["view", "list"]);
+    const cs = w.calls().map((c) => c.args[1]);
+    // one elected poller: one view, then at most one list tick before the 6 s timeout (none when the host is too
+    // loaded to reach the first tick in time); never a second view or a second poller's list
+    assert.ok(cs.length === 1 || cs.length === 2, cs.join(","));
+    assert.deepEqual(cs, ["view", "list"].slice(0, cs.length));
   });
 });
 

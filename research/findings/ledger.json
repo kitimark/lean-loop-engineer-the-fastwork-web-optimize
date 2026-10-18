@@ -559,7 +559,10 @@
     "Fw.Parts.MorphPanelOpt.wk_rest_leE",
     "wk_toggle_eqv",
     "wk_toggle_layout_units",
-    "wk_toggle_passes"
+    "wk_toggle_passes",
+    "Fw.Parts.MorphPanelOpt.wk_cross_le",
+    "Fw.Parts.MorphPanelOpt.wk_cross_resident",
+    "Fw.Parts.MorphPanelOpt.wk_cross_claim"
    ],
    "leanAgainst": [
     "cr_toggle_not_le",
@@ -568,19 +571,20 @@
    ],
    "missingWhy": [
     {
-     "statement": "Run level: for a swipe $X$ that crosses rest to fade and back once, $\\operatorname{screen}(\\operatorname{toRun}(W_o(X)),\\operatorname{toRun}(W_v(X)))=\\mathrm{mixed}$ on Chromium and $\\preceq$ frame by frame on WebKit (rest frames by wk_rest_le, toggle frames by wk_toggle_eqv, fade frames equal), and every strict component of the rest frames lies in stages $\\{\\mathrm{props},\\mathrm{raster},\\mathrm{comp}\\}$ with no det/stable count type",
+     "statement": "Run level, Chromium: for a swipe $X$ that crosses rest to fade and back once, $\\operatorname{screen}(\\operatorname{toRun}(W_o(X)),\\operatorname{toRun}(W_v(X)))=\\mathrm{mixed}$, and every strict component of the rest frames lies in stages $\\{\\mathrm{props},\\mathrm{raster},\\mathrm{comp}\\}$ with no det/stable count type",
      "module": "Fw.Parts.MorphPanelOpt",
-     "needs": "compose the per-frame theorems over a toggle-crossing run, plus a stage-to-class map from Fw.Measure.Classes"
+     "needs": "compose cr_rest_lt and cr_toggle_not_le over a toggle-crossing run, plus a stage-to-class map from Fw.Measure.Classes (the WebKit half is wk_cross_claim, engine-model-fix-2)"
     }
    ],
    "premises": [
     "RG10: OPEN (check on the rewrite DOM)",
     "the lane panel may already be composited (own): OPEN, unverified",
-    "z-index auto in the lane band, so the filter is the only stacking reason: CONFIRMED"
+    "z-index auto in the lane band, so the filter is the only stacking reason: CONFIRMED",
+    "WebKit toggle frames equal (wk_toggle_eqv) on the variant page: OPEN, not measured; the rule under it (a filter change with new outsets is Layout) is MEASURED by engine-premises run 39106547260"
    ],
    "v1Evidence": "none (v1 kept blur on #platform; the g0.0 port kept S() with R4a and a 0.9999 clamp, ../fastwork-com-web-optimize/fixes/g0-gpu/README.md:137-146)",
    "lesson": "Removing an identity effect is visually free, but toggling it at a threshold creates stacking-context or layout changes. A saving in uncounted stages paired with a cost in counted ones reads as a regression on CI.",
-   "next": "Prove the run-level mixed theorem. Then either record the rest variant as a no-win, or toggle only in a frame that already pays layout and re-prove."
+   "next": "Measure rewrite+?fw=morph.panel:rest on CI (variant-regate) to lift the WebKit win from rest frames to the whole swipe. Prove the Chromium run-level mixed theorem. Then either record the rest variant as a no-win on Chromium, or toggle only in a frame that already pays layout and re-prove."
   },
   {
    "n": 11,
@@ -1879,6 +1883,18 @@
    "task": "wktr-serial-baseline",
    "field": "mechanism",
    "text": "wktr-serial-baseline (round 2): the claim of wktr-fixture-speed that the 12 class-kind diffs between runs 39075991405 (b) and 39087188153 (c) are run-to-run variance is UNEXPLAINED at key level (a key is arm, variant, count type), not measured. Rule declared first: a diff key is explained only when that same key changes kind among the rival runs (every green wktr-fixtures run whose lane diff touches no measurement code and that has 9 passes in each of 13 cells: 8 runs, 39087202079 39101532073 39104956987 39106417484 39106547247 39119690413 39121950231 39121958562; the failed run 39082884332 and the guard-skipped runs are out; b and c never count in their own set). MEASURED from the wktr-fix-classes artifacts: 9 of the 12 diff keys are explained, 3 are not (time-accel-f1 live-trace/layoutUpdates, live/compositingUpdates, live/layoutUpdates: quarantined in b and in all 8 rivals, stable only in c); dropping any single rival leaves 3 or more findings; with only the two runs of this task as rivals 10 of 12 are unexplained. 14 of 144 keys change kind among the 8 rivals (layoutUpdates 5, compositingUpdates 7, layerFlushes 1, renderingUpdates 1), 17 among all 10 green runs; the other 13 count types are not constant (control-f1/live layerFlushes and renderingUpdates are stable in 39087202079 only), so the round-1 statements that variance is measured per count type and that the other types never change are withdrawn. Whether c is chance (1 run in 10) or an effect of the wktr-fixture-speed code is not decided (INFERRED: the rivals ran that code up to a harness parameter cases, except 39087202079 (b's vintage with a different workflow and summarize.mjs) defaulting to 0). Step time per job: ranges of 4 runs overlap, but the step contents differ (per pass and arm vs per pass and cell): no change detectable, not measured equal. Decision rules: Lean Fw.Measure.WktrVariance (findings_nil_iff, claim_measured_iff, claim_repeat_not_measured, claim_baseline_free)."
+  },
+  {
+   "entry": "blur(0) -> filter:none at rest (MorphPanelOpt rest variant)",
+   "task": "engine-model-fix-2",
+   "field": "mechanism",
+   "text": "engine-model-fix-2: the WebKit win is claimed on rest frames only (wk_rest_claim) until a CI run of rewrite+?fw=morph.panel:rest measures the toggle frames. In the model it holds over a whole swipe of rest, toggle and fade frames in any order: Fw.Parts.MorphPanelOpt.wk_cross_claim (claim = dominates, from wk_cross_le: rest by wk_rest_le, toggle by wk_toggle_eqv, fade frames equal by filterV_fade; and wk_cross_resident: the variant never keeps more layers or backing). PROVED in the model, not MEASURED on the variant page."
+  },
+  {
+   "entry": "arm the 3 s rotation interval only while visible (armed = inView and not narrow and not covered)",
+   "task": "engine-model-fix-2",
+   "field": "chromium",
+   "text": "engine-model-fix-2: the per-tick Chromium saving of cr_idle_tick (one timer callback and one PrePaint) is PROVED in the model only; no measurement bears on it. The step of engine-premises run 39124427211 meant to test it ran no Chromium timer task: in that lane setTimeout is the virtual clock shim's, whose advanceTo runs the callback as a plain call inside the driver's Runtime.evaluate (clock-shim.js:38,59; run.mjs:108), so the frame matched an idle frame (Fw.Ops.EnginePremise.Act, step shimTimer). Whether an empty timer task runs PrePaint is OPEN; it needs a step that posts a native timer task. General lesson: before reading a counter as an engine fact, trace the harness path that produced the work; a shimmed API measures the shim."
   }
  ]
 }

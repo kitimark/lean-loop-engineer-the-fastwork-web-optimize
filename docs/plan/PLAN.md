@@ -278,7 +278,7 @@ flowchart TB
   API["console-api: Node 24 + Hono, single writer, CLI socket, reconcilers, watchers"]
   WEB["console-web"]
   OBS(["observed facts: git refs, hooks, watchers, transcripts"])
-  MV[("loop-plan.html: generated math view")]
+  MV[("math-view.html: generated math view")]
   PHONE(["iPhone Safari: optional spot check (rev 10), class P"])
 
   SITE & SNAP -- "URL ?fw= / ?preset=, window.__fw" --> LANES --> MEAS -- "count vectors (zod)" --> AS --> CM --> API
@@ -617,7 +617,7 @@ build time.
 
 **The math view is generated, never hand-kept** ([10.04 §2]). `lake exe mathview` exports per declaration the
 docstring's English and math, the signature, a machine-made LaTeX form (no LLM), axioms (`sorryAx` = not proved) and
-a 64-bit deep statement hash; `build-math-view.mjs` renders it into `docs/plan/loop-plan.html` (KaTeX as MathML, the
+a 64-bit deep statement hash; `build-math-view.mjs` renders it into `docs/plan/math-view.html`, a page of its own published next to loop-plan.html (KaTeX as MathML, the
 Lean collapsed). Sign-off records are keyed by statement and math hash; the lint (TL0) fails on missing math, `sorry`
 outside an allowlist, a hash changed since signing, a KaTeX error or a non-standard axiom. The math-reviewer writes its
 own math from the signature and compares clause by clause (ℕ vs ℤ, ≤ vs <, truncated subtraction, ties, ⇔ vs ⇒);

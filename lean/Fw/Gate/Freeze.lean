@@ -522,87 +522,68 @@ theorem fit_keeps_outcome (a : Outcome) (ws : List Outcome) (ha : a ≠ .unsettl
 -- which page of a sweep a part is read on
 -- ---------------------------------------------------------------------------------------------------------------
 
-/-- The page loads of one arm of a sweep. On the `plain` page nothing is done between the readings; on the `overlay` page each
-reading opens and closes the part's dialog; on the `mounted` page the mount stage (scroll near the platform section and back,
-`prepareInPage` stage `ready`) runs before every reading.
+/-- The page loads of one arm of a sweep. On the `plain` page the stage that scrolls away and back (the mount stage, `prepareInPage`
+stage `ready`) never runs; on the `mounted` page it runs before every reading.
 
-$$\mathrm{SweepPage} = \{\mathrm{plain}, \mathrm{overlay}, \mathrm{mounted}\}$$ -/
+$$\mathrm{SweepPage} = \{\mathrm{plain}, \mathrm{mounted}\}$$ -/
 inductive SweepPage where
   | plain
-  | overlay
   | mounted
   deriving DecidableEq, Repr
 
-/-- The page a part is read on, from its prepare steps on the two arms: `mounted` when either arm has a mount step, else `overlay`
-when either arm has an overlay step, else `plain`. (A part with both is refused by the runner.)
+/-- The page a part is read on, from whether either arm has a mount step for it: `mounted` when one does, else `plain`.
 
-$$\operatorname{pageOf}(m_o, m_r, v_o, v_r) = \begin{cases} \mathrm{mounted} & m_o \vee m_r \\ \mathrm{overlay} & \neg(m_o \vee m_r) \wedge (v_o \vee v_r) \\ \mathrm{plain} & \text{otherwise} \end{cases}$$
+$$\operatorname{pageOf}(m_o, m_r) = \begin{cases} \mathrm{mounted} & m_o \vee m_r \\ \mathrm{plain} & \text{otherwise} \end{cases}$$
 
-The original renders a skipped section (its remembered size, its pain notes' positions, its typing visual's state) when its dialogs open
-or the page scrolls away and back, and the rewrite does not, so a part that needs neither must not be read after either (CI run
+The original renders a skipped section again (its remembered size, its pain notes' positions, its typing visual's state) when the
+page scrolls away and back, and the rewrite does not, so a part that needs no mount must not be read after the excursion (CI run
 39130842197: pain.notes, commission, commission.typing in four sweeps). -/
-def pageOf (mountOrig mountRewrite overlayOrig overlayRewrite : Bool) : SweepPage :=
-  if mountOrig || mountRewrite then .mounted else if overlayOrig || overlayRewrite then .overlay else .plain
+def pageOf (mountOrig mountRewrite : Bool) : SweepPage :=
+  if mountOrig || mountRewrite then .mounted else .plain
 
 /-- Whether a page runs the mount stage.
 
 $$\operatorname{runsMount}(p) = [p = \mathrm{mounted}]$$ -/
 def runsMount : SweepPage → Bool
   | .mounted => true
-  | _ => false
+  | .plain => false
 
-/-- Whether a page opens and closes dialogs.
+/-- **A part with no mount step is never read after the scroll excursion.**
 
-$$\operatorname{runsOverlay}(p) = [p = \mathrm{overlay}]$$ -/
-def runsOverlay : SweepPage → Bool
-  | .overlay => true
-  | _ => false
-
-/-- **A part with no mount and no overlay step is never read after either.** On its page neither stage runs.
-
-$$\forall m_o, m_r, v_o, v_r,\quad \neg m_o \wedge \neg m_r \wedge \neg v_o \wedge \neg v_r \implies \neg\operatorname{runsMount}(\mathrm{page}) \wedge \neg\operatorname{runsOverlay}(\mathrm{page}),\quad \mathrm{page} = \operatorname{pageOf}(m_o, m_r, v_o, v_r)$$ -/
-theorem plain_part_has_no_history (mo mr vo vr : Bool) (h1 : mo = false) (h2 : mr = false) (h3 : vo = false) (h4 : vr = false) :
-    runsMount (pageOf mo mr vo vr) = false ∧ runsOverlay (pageOf mo mr vo vr) = false := by
-  subst h1 h2 h3 h4; exact ⟨rfl, rfl⟩
+$$\forall m_o, m_r,\quad \neg m_o \wedge \neg m_r \implies \neg\operatorname{runsMount}(\operatorname{pageOf}(m_o, m_r))$$ -/
+theorem plain_part_has_no_history (mo mr : Bool) (h1 : mo = false) (h2 : mr = false) :
+    runsMount (pageOf mo mr) = false := by
+  subst h1 h2; rfl
 
 /-- A part that an arm mounts is read on a page where the mount stage runs.
 
-$$\forall m_o, m_r, v_o, v_r,\quad (m_o \vee m_r) \implies \operatorname{runsMount}(\operatorname{pageOf}(m_o, m_r, v_o, v_r))$$ -/
-theorem mounted_part_gets_mount (mo mr vo vr : Bool) (h : mo = true ∨ mr = true) : runsMount (pageOf mo mr vo vr) = true := by
+$$\forall m_o, m_r,\quad (m_o \vee m_r) \implies \operatorname{runsMount}(\operatorname{pageOf}(m_o, m_r))$$ -/
+theorem mounted_part_gets_mount (mo mr : Bool) (h : mo = true ∨ mr = true) : runsMount (pageOf mo mr) = true := by
   rcases h with rfl | rfl <;> simp [pageOf, runsMount]
 
-/-- A part that an arm opens a dialog for, and no arm mounts, is read on a page where the dialogs run and the mount stage does not.
-
-$$\forall m_o, m_r, v_o, v_r,\quad \neg m_o \wedge \neg m_r \wedge (v_o \vee v_r) \implies \operatorname{runsOverlay}(\mathrm{page}) \wedge \neg\operatorname{runsMount}(\mathrm{page})$$ -/
-theorem overlay_part_gets_overlay (mo mr vo vr : Bool) (h1 : mo = false) (h2 : mr = false) (h : vo = true ∨ vr = true) :
-    runsOverlay (pageOf mo mr vo vr) = true ∧ runsMount (pageOf mo mr vo vr) = false := by
-  subst h1 h2
-  rcases h with rfl | rfl <;> exact ⟨rfl, rfl⟩
-
-/-- The number of parts (each with its four step flags) read on a page.
+/-- The number of parts (each with its two mount flags) read on a page.
 
 $$\operatorname{count}(P, g) = |\{\, x \in P \mid \operatorname{pageOf}(x) = g \,\}|$$ -/
-def pageCount (ps : List (String × Bool × Bool × Bool × Bool)) (g : SweepPage) : Nat :=
-  (ps.filter fun x => pageOf x.2.1 x.2.2.1 x.2.2.2.1 x.2.2.2.2 == g).length
+def pageCount (ps : List (String × Bool × Bool)) (g : SweepPage) : Nat :=
+  (ps.filter fun x => pageOf x.2.1 x.2.2 == g).length
 
-/-- **The three pages read every part exactly once.** The parts of the pages add up to all parts.
+/-- **The two pages read every part exactly once.** The parts of the pages add up to all parts.
 
-$$\forall P,\quad \operatorname{count}(P, \mathrm{plain}) + \operatorname{count}(P, \mathrm{overlay}) + \operatorname{count}(P, \mathrm{mounted}) = |P|$$ -/
-theorem pages_cover (ps : List (String × Bool × Bool × Bool × Bool)) :
-    pageCount ps .plain + pageCount ps .overlay + pageCount ps .mounted = ps.length := by
+$$\forall P,\quad \operatorname{count}(P, \mathrm{plain}) + \operatorname{count}(P, \mathrm{mounted}) = |P|$$ -/
+theorem pages_partition (ps : List (String × Bool × Bool)) :
+    pageCount ps .plain + pageCount ps .mounted = ps.length := by
   induction ps with
   | nil => rfl
   | cons x xs ih =>
     simp only [pageCount, List.filter_cons, List.length_cons] at ih ⊢
-    generalize pageOf x.2.1 x.2.2.1 x.2.2.2.1 x.2.2.2.2 = g
+    generalize pageOf x.2.1 x.2.2 = g
     cases g <;> simp <;> omega
 
-/-- Page cases: (mount step on the original, on the rewrite, overlay step on the original, on the rewrite).
+/-- Page cases: (mount step on the original, on the rewrite).
 
-$$\text{pageCases} = [(m_o, m_r, v_o, v_r)]_k$$ -/
-def pageCases : List (Bool × Bool × Bool × Bool) :=
-  [ (false, false, false, false), (true, false, false, false), (false, true, false, false), (true, true, false, false),
-    (false, false, true, false), (false, false, false, true), (false, false, true, true), (true, false, true, false) ]
+$$\text{pageCases} = [(m_o, m_r)]_k$$ -/
+def pageCases : List (Bool × Bool) :=
+  [ (false, false), (true, false), (false, true), (true, true) ]
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- golden vectors for the TypeScript twin
@@ -700,11 +681,10 @@ def goldenLines : List String :=
     (Json.mkObj [("kind", "readings"), ("name", toJson n), ("start", toJson c),
       ("stages", Json.arr (st.map stageJson).toArray), ("fits", toJson (fits c st)),
       ("readings", toJson (readings c st))]).compress)
-  ++ pageCases.map (fun (mo, mr, vo, vr) =>
-    (Json.mkObj [("kind", "page"), ("mountOrig", toJson mo), ("mountRewrite", toJson mr), ("overlayOrig", toJson vo),
-      ("overlayRewrite", toJson vr),
-      ("page", toJson (match pageOf mo mr vo vr with | .plain => "plain" | .overlay => "overlay" | .mounted => "mounted")),
-      ("runsMount", toJson (runsMount (pageOf mo mr vo vr))), ("runsOverlay", toJson (runsOverlay (pageOf mo mr vo vr)))]).compress)
+  ++ pageCases.map (fun (mo, mr) =>
+    (Json.mkObj [("kind", "page"), ("mountOrig", toJson mo), ("mountRewrite", toJson mr),
+      ("page", toJson (match pageOf mo mr with | .plain => "plain" | .mounted => "mounted")),
+      ("runsMount", toJson (runsMount (pageOf mo mr)))]).compress)
 
 /-- The exact bytes of `packages/contracts/golden/gate/freeze.jsonl`.
 

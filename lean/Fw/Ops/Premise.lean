@@ -331,10 +331,11 @@ theorem not_flagged_of_lane (ps : List Premise) (rs : List Result) (p : Premise)
 private def both : List Engine := [.chromium, .webkit]
 
 -- A measured stage rule of an engine model (kind `lane`): presence of the stage's counters equals membership of the
--- stage in the model's `touched` set, in every unforced frame of the fixture of `engine-premises.yml`.
+-- stage in the model's `touched` set, in every unforced frame of the `table` step set of `engine-premises.yml`; the lane
+-- prints this verdict as row `<engine>.<stage>` and the `extra` step set in its own rows (`Fw.Ops.EnginePremise.Group`).
 private def laneRule (id stage counters model : String) (e : Engine) (ths : List String) : Premise where
   id := id
-  statement := r"\forall f \text{ unforced (one change or none, no forced read) in the fixture steps}:\ " ++ counters ++
+  statement := r"\forall f \text{ unforced (one change or none, no forced read) in the table step set (golden step rows with group table: a case of the property table or its idle frame; the lane judges the extra step set in rows of its own)}:\ " ++ counters ++
     r" \text{ run in } f \iff \mathrm{" ++ stage ++ r"} \in \operatorname{touched}_{" ++ model ++
     r"}(f)\ \text{ (not observed: } \mathrm{units}, \text{ forced passes, the order against the base arm)}"
   theorems := ths
@@ -354,7 +355,11 @@ task engine-premise-measure); $p_{23}$-$p_{29}$, the seven stage rules that lane
 hold on its recorded cells after the model fix (`cr.layout`, `cr.props`, `cr.paint`, `cr.raster`, `cr.hits`,
 `wk.layout`, `wk.props`; task engine-model-fix, `Fw.Ops.EnginePremise.cr_recorded_holds`, `wk_recorded_holds`); and
 $p_{30}$, the WKTR style-rate premise (task wktr-p1p4), whose counter `internals.styleRecalcCount` only
-WebKitTestRunner exposes.
+WebKitTestRunner exposes. The lane rules are stated on the `table` step set, which the lane judges in rows of their own
+(`Fw.Ops.EnginePremise.grouped_steps`). The `extra` step set (a clock-shim control, custom-property joins, two-box
+frames; task engine-model-fix-2) is judged separately: in run 39124427211 its rows `chromium.extra.paint` and
+`chromium.extra.raster` fail on `top` with `scale` and every other row holds (`Fw.Ops.EnginePremise.cr_extra_verdicts`,
+`wk_extra_holds`).
 
 The two `content-visibility` view premises of fix-commission-margin ($p_{31}$, $p_{32}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests.
 
@@ -468,7 +473,7 @@ def registry : List Premise := [
   laneRule "cr.layout" "layout" r"\texttt{Layout}" r"W_{\mathrm{cr}}" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound", "Fw.Ops.EnginePremise.cr_recorded_holds"],
   { id := "cr.props"
-    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the fixture steps}:\ \texttt{PrePaint} \text{ runs in } f \iff \mathrm{props} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f) \lor 0 < f.\mathrm{hits}\ \text{ (every frame with a rendering update touches } \mathrm{props}\text{, and each hit test pays one PrePaint, } \operatorname{crWorkH}\text{; not observed: } \mathrm{units}, \text{ the number of passes)}"
+    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the table step set (golden step rows with group table: a case of the property table or its idle frame; the lane judges the extra step set in rows of its own)}:\ \texttt{PrePaint} \text{ runs in } f \iff \mathrm{props} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f) \lor 0 < f.\mathrm{hits}\ \text{ (every frame with a rendering update touches } \mathrm{props}\text{, and each hit test pays one PrePaint, } \operatorname{crWorkH}\text{; not observed: } \mathrm{units}, \text{ the number of passes)}"
     theorems := ["Fw.Engine.touched_of_cover", "Fw.Engine.Chromium.crWorkH_props_ge_hits",
       "Fw.Ops.EnginePremise.cr_recorded_holds"]
     engines := [.chromium]
@@ -479,7 +484,7 @@ def registry : List Premise := [
   laneRule "cr.raster" "raster" r"\texttt{RasterTask}" r"W_{\mathrm{cr}}" .chromium
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound", "Fw.Ops.EnginePremise.cr_recorded_holds"],
   { id := "cr.hits"
-    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the fixture steps}:\ \texttt{HitTest} \text{ runs in } f \iff 0 < \operatorname{crWorkH}(\mathrm{lane}, f).\mathrm{hits} = f.\mathrm{hits} + [\mathrm{layout} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f)]\ \text{ (not observed: the number of hit tests)}"
+    statement := r"\forall f \text{ unforced (one change or none, no forced read) in the table step set (golden step rows with group table: a case of the property table or its idle frame; the lane judges the extra step set in rows of its own)}:\ \texttt{HitTest} \text{ runs in } f \iff 0 < \operatorname{crWorkH}(\mathrm{lane}, f).\mathrm{hits} = f.\mathrm{hits} + [\mathrm{layout} \in \operatorname{touched}_{W_{\mathrm{cr}}}(f)]\ \text{ (not observed: the number of hit tests)}"
     theorems := ["Fw.Engine.Chromium.crWorkH_hits", "Fw.Ops.EnginePremise.cr_recorded_holds"]
     engines := [.chromium]
     testId := ".github/workflows/engine-premises.yml"
