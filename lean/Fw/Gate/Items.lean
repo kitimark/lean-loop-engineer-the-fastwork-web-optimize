@@ -502,9 +502,9 @@ def mapRole (ρ : String) (g : Item → Item) (pr : PartRaw) : PartRaw :=
 
 /-- Set (or remove) one computed-style property of an element.
 
-$$\operatorname{setStyle}_{p, v}(x) = (x.q,\ \sigma'),\quad \sigma' = \begin{cases} (p, s) :: [\,e \in x.\sigma \mid e.1 \ne p\,] & v = s \ne \bot \\ [\,e \in x.\sigma \mid e.1 \ne p\,] & v = \bot \end{cases}$$
+$$\operatorname{setStyle}_{p, v}(x) = (x.q,\ \sigma',\ x.\iota),\quad \sigma' = \begin{cases} (p, s) :: [\,e \in x.\sigma \mid e.1 \ne p\,] & v = s \ne \bot \\ [\,e \in x.\sigma \mid e.1 \ne p\,] & v = \bot \end{cases}$$
 
-so the box is kept, $\operatorname{setStyle}_{p, v}(x)[p] = v$ and $\operatorname{setStyle}_{p, v}(x)[q] = x[q]$ for $q \ne p$
+so the box and the inline list are kept, $\operatorname{setStyle}_{p, v}(x)[p] = v$ and $\operatorname{setStyle}_{p, v}(x)[q] = x[q]$ for $q \ne p$
 (lookup of the first entry, $\bot$ if absent), with $v \in \mathrm{String}_\bot$; $v = \bot$ removes $p$. Change a single
 property value. -/
 def setStyle (p : String) (v : Option String) (x : Item) : Item :=

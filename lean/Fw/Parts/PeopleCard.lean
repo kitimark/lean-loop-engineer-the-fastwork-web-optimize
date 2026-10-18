@@ -212,7 +212,7 @@ theorem lerp_reduced (o n : Rat) : lerp true o n = n := by
 
 /-- **Contraction.** Away from the snap, one step keeps $78\,\%$ of the distance.
 
-$$|n - o'| = 0.78\,|n - o|$$ when the step does not snap. -/
+$$\forall o, n \in \mathbb{Q}:\ \lnot\bigl(|n - (o + 0.22\,(n - o))| < \varepsilon\bigr) \Rightarrow n - \mathrm{lerp}(\bot, o, n) = 0.78\,(n - o)$$ -/
 theorem lerp_contracts (o n : Rat) (h : ¬ (max (n - (o + (n - o) * rate)) ((o + (n - o) * rate) - n) < snap)) :
     n - lerp false o n = (39 / 50) * (n - o) := by
   unfold lerp lerpK

@@ -201,7 +201,7 @@ def fe (deckW left width s o : Rat) : Rat := deckW / 2 - de left width s o
 
 /-! ## Frame -/
 
-/-- The three animated values and the rail flag. $$(s, x, o, \rho)$$ Scale, offset (px), origin (%), rail in. -/
+/-- The three animated values, the rail flag and the profile progress. $$(s, x, o, \rho, k) \in \mathbb{Q}^3 \times \mathbb{B} \times \mathbb{Q}$$ Scale, offset (px), origin (%), rail in, progress through the profile range. -/
 structure Target where
   scale : Rat
   offset : Rat
@@ -219,11 +219,10 @@ def tgt (y shrink prof fitScale delta : Rat) : Target :=
     ⟨fitScale + (1 - fitScale) * e, delta * (1 - e), 50 + 50 * e, false, 0⟩
   else ⟨1, 0, 100, true, if prof ≤ 0 then 0 else clamp01 ((y - shrink) / prof)⟩
 
-/-- **The two regimes meet.** At the end of the shrink range the first branch has reached the second one's values.
+/-- **The two regimes meet.** With $e = \operatorname{ae}(1)$, the first branch's scale, offset and origin are the
+second branch's $(1, 0, 100)$.
 
-$$S > 0 \Rightarrow \mathrm{scale},\ \mathrm{offset},\ \mathrm{origin}\text{ of } \mathrm{tgt}\text{ near the end} \to (1, 0, 100)$$
-
-(stated exactly: with $e = 1$ the first branch is $(1, 0, 100)$). -/
+$$\forall b, \Delta \in \mathbb{Q}:\ \bigl(b + (1-b)\operatorname{ae}(1),\ \Delta(1 - \operatorname{ae}(1)),\ 50 + 50\operatorname{ae}(1)\bigr) = (1, 0, 100)$$ -/
 theorem shrink_end (fitScale delta : Rat) :
     (fitScale + (1 - fitScale) * ae 1, delta * (1 - ae 1), 50 + 50 * ae 1) = (1, 0, 100) := by
   rw [ae_ends.2]
@@ -370,12 +369,12 @@ theorem pe_hold (cnt : Nat) (k : Rat) (cur : Int) (hc : 2 ≤ cnt) (h0 : 0 ≤ c
 
 /-- Scroll position a tab click aims at (JS 10826-10829).
 
-$$\mathrm{goto}(i) = \Big\lceil y_s - 48 + S + \tfrac{i}{c-1}\,P \Big\rceil$$ -/
+$$\mathrm{goto}(y_s, S, P, c, i) = \lceil y_s - 48 + S + f\,P \rceil,\quad f = \begin{cases} 0 & c \le 1 \\ \tfrac{i}{c-1} & c \ge 2 \end{cases}$$ -/
 def gotoTop (showcaseY shrink prof : Rat) (cnt idx : Nat) : Int :=
   let f : Rat := if cnt ≤ 1 then 0 else (idx : Rat) / ((cnt - 1 : Nat) : Rat)
   (showcaseY - stickyTop + shrink + f * prof).ceil
 
-/-- **The last tab lands at the end of the ranges.** $$\mathrm{goto}(c-1) = \lceil y_s - 48 + S + P \rceil$$ -/
+/-- **The last tab lands at the end of the ranges.** $$\forall y_s, S, P \in \mathbb{Q},\ c \in \mathbb{N}:\ c \ge 2 \Rightarrow \mathrm{goto}(y_s, S, P, c, c-1) = \lceil y_s - 48 + S + P \rceil$$ -/
 theorem goto_last (y s p : Rat) (cnt : Nat) (h : 2 ≤ cnt) :
     gotoTop y s p cnt (cnt - 1) = (y - stickyTop + s + p).ceil := by
   unfold gotoTop
@@ -392,7 +391,7 @@ theorem goto_last (y s p : Rat) (cnt : Nat) (h : 2 ≤ cnt) :
   congr 1
   grind
 
-/-- The first tab lands where the shrink range ends. $$\mathrm{goto}(0) = \lceil y_s - 48 + S \rceil$$ -/
+/-- The first tab lands where the shrink range ends. $$\forall y_s, S, P \in \mathbb{Q},\ c \in \mathbb{N}:\ \mathrm{goto}(y_s, S, P, c, 0) = \lceil y_s - 48 + S \rceil$$ -/
 theorem goto_first (y s p : Rat) (cnt : Nat) :
     gotoTop y s p cnt 0 = (y - stickyTop + s).ceil := by
   unfold gotoTop

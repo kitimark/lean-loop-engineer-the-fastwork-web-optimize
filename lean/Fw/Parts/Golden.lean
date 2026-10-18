@@ -407,10 +407,10 @@ def morphPanelLines : List String :=
 
 end MorphPanelSec
 
-/-- Write the 22 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`):
-one `.jsonl` per pilot part (plus morph.panel), and a `.spec.jsonl` for every pilot part except `hero.countdown` (which has none).
+/-- Write the 27 golden files into `outDir` (first argument `args_0`, default `../packages/contracts/golden/parts`),
+in this order, each file's lines joined with a newline after every line, and print each name with its line count.
 
-$$\mathit{files} = \{\mathit{part}.\mathrm{jsonl} \mid \mathit{part} \in \mathrm{pilot}\} \cup \{\mathit{part}.\mathrm{spec.jsonl} \mid \mathit{part} \in \{\text{engine.scroll}, \text{nav.hitTest}, \text{hero.exit}\}\} \cup \{\text{morph.tween.jsonl}, \text{morph.panel.jsonl}, \text{nav.jsonl}, \text{nav.langMenu.jsonl}, \text{commission.jsonl}, \text{commission.typing.jsonl}, \text{overlays.drawer.jsonl}, \text{overlays.signup.jsonl}, \text{hero.orbit.jsonl}, \text{hero.accent.jsonl}, \text{people.card.jsonl}, \text{people.o.jsonl}, \text{people.deck.jsonl}, \text{people.carousel.jsonl}, \text{pain.notes.jsonl}\},\quad |\mathit{files}| = 22$$
+$$\mathit{files} = [\text{engine.scroll.jsonl}, \text{engine.scroll.spec.jsonl}, \text{nav.hitTest.jsonl}, \text{nav.hitTest.spec.jsonl}, \text{hero.countdown.jsonl}, \text{hero.exit.jsonl}, \text{hero.exit.spec.jsonl}, \text{morph.tween.jsonl}, \text{morph.panel.jsonl}, \text{nav.jsonl}, \text{nav.langMenu.jsonl}, \text{commission.jsonl}, \text{commission.typing.jsonl}, \text{overlays.drawer.jsonl}, \text{overlays.signup.jsonl}, \text{hero.orbit.jsonl}, \text{hero.accent.jsonl}, \text{people.card.jsonl}, \text{people.o.jsonl}, \text{people.deck.jsonl}, \text{people.carousel.jsonl}, \text{pain.notes.jsonl}, \text{platform.jsonl}, \text{platform.sweep.jsonl}, \text{platform.glint.jsonl}, \text{platform.marquee.jsonl}, \text{platform.entries.jsonl}],\quad |\mathit{files}| = 27$$
 
 Regenerates the pilot parts' golden vectors from the Lean definitions. -/
 def main (args : List String) : IO Unit := do

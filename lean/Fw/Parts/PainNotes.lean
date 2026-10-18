@@ -111,7 +111,7 @@ theorem overlaps_symm (a b : Box) (g : Rat) : overlaps a b g = overlaps b a g :=
   simp only [overlaps, Bool.not_eq_true', Bool.or_eq_false_iff, decide_eq_false_iff_not]
   grind
 
-/-- A larger gap only adds overlaps. $$0 \le g \le g' \land \operatorname{overlap}_g(a, b) \Rightarrow \operatorname{overlap}_{g'}(a, b)$$ -/
+/-- A larger gap only adds overlaps. $$\forall a, b,\ g, g' \in \mathbb{Q}:\ g \le g' \land \operatorname{overlap}_g(a, b) \Rightarrow \operatorname{overlap}_{g'}(a, b)$$ -/
 theorem overlaps_gap_mono (a b : Box) (g g' : Rat) (h : g ≤ g') (o : overlaps a b g = true) :
     overlaps a b g' = true := by
   simp only [overlaps, Bool.not_eq_eq_eq_not, Bool.not_true, Bool.or_eq_false_iff, decide_eq_false_iff_not] at o ⊢

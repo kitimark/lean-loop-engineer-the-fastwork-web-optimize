@@ -73,7 +73,7 @@ theorem cursor_period (j : Nat) : cursorAfter (j + (words + 1)) = cursorAfter j 
 
 /-- The box width in $\mathrm{em}/64$ for a cursor value (JS 3667, 3721-3730).
 
-$$W(c) = \begin{cases} 106 & c < 0 \\ w_c & 0 \le c < 6 \end{cases}$$
+$$\forall c \in \mathbb{Z}:\ W(c) = \begin{cases} 106 & c < 0 \\ w_c & 0 \le c < 6 \\ 106 & c \ge 6 \end{cases}$$
 
 The accent resizes for each word. -/
 def widthOf (c : Int) : Nat :=

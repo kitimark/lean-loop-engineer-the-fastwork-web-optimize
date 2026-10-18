@@ -641,7 +641,7 @@ theorem view_bring {α : Type} (f g : Reading α) : view true f g = g := by simp
 
 /-- With nothing brought into view the rule is inert: the first reading is kept, so a gate run without a skipped node is unchanged.
 
-$$\operatorname{viewCell}(\bot, \bot, f_o, g_o, f_r, g_r, a, b) = \operatorname{cell}(\neg f_o.\mathit{skipped}, \neg f_r.\mathit{skipped}, a, b, [f_o.\mathit{val} = f_r.\mathit{val}]),\quad v = \operatorname{viewFor}(\bot, \texttt{playwright-webkit})$$ -/
+$$\operatorname{viewCell}(\bot, \bot, f_o, g_o, f_r, g_r, a, b) = \operatorname{cell}(\neg f_o.\mathit{skipped}, \neg f_r.\mathit{skipped}, a, b, [f_o.\mathit{val} = f_r.\mathit{val}])$$ -/
 theorem viewCell_inert {α : Type} [DecidableEq α] (fo go fr gr : Reading α) (a b : Outcome) :
     viewCell false false fo go fr gr a b = cell (!fo.skipped) (!fr.skipped) a b (decide (fo.val = fr.val)) := by
   simp [viewCell, view]

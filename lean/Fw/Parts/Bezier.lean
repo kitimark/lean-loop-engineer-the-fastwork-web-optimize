@@ -39,7 +39,7 @@ def by' (c : Bez) (s : Rat) : Rat := coord c.y1 c.y2 s
 
 /-- Bisection for $x(s) = t$ on $[lo, hi]$ with $n$ steps, returning the midpoint at the end.
 
-$$\operatorname{bis}_{n+1}(lo, hi) = \begin{cases} \operatorname{bis}_n(m, hi) & x(m) < t \\ \operatorname{bis}_n(lo, m) & \text{otherwise}\end{cases},\quad m = \tfrac{lo+hi}{2}$$ -/
+$$\operatorname{bis}_0(lo, hi) = \tfrac{lo+hi}{2},\qquad \operatorname{bis}_{n+1}(lo, hi) = \begin{cases} \operatorname{bis}_n(m, hi) & x(m) < t \\ \operatorname{bis}_n(lo, m) & \text{otherwise}\end{cases},\quad m = \tfrac{lo+hi}{2}$$ -/
 def bisect (c : Bez) (t : Rat) : Nat → Rat → Rat → Rat
   | 0, lo, hi => (lo + hi) / 2
   | n + 1, lo, hi =>
@@ -49,9 +49,10 @@ def bisect (c : Bez) (t : Rat) : Nat → Rat → Rat → Rat
 /-- Number of bisection steps. $$N = 40$$ How fine the solve is. -/
 def steps : Nat := 40
 
-/-- The eased fraction for a time fraction $t$.
+/-- The eased fraction for a time fraction $t$: the curve's value at the parameter that $N = 40$ bisection steps for
+$x(s) = t$ on $[0, 1]$ reach (an approximation of the exact inverse, not the exact $s$).
 
-$$\operatorname{ease}_c(t) = \begin{cases} 0 & t \le 0 \\ 1 & t \ge 1 \\ y(s^*),\ x(s^*) = t & \text{otherwise}\end{cases}$$ -/
+$$\operatorname{ease}_c(t) = \begin{cases} 0 & t \le 0 \\ 1 & t \ge 1 \\ y(\operatorname{bis}_{40}(0, 1)) & \text{otherwise}\end{cases}$$ -/
 def ease (c : Bez) (t : Rat) : Rat :=
   if t ≤ 0 then 0 else if 1 ≤ t then 1 else by' c (bisect c t steps 0 1)
 

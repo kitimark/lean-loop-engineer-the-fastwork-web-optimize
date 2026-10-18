@@ -143,7 +143,7 @@ theorem escape_needs_mounted (s : St) (k : String) (h : escapeCloses s k = true)
 
 /-! ## Layout and the slide -/
 
-/-- The three layouts of the panel. $$\text{side} \,(w > 860),\ \text{mid} \,(641 \le w \le 860),\ \text{sheet} \,(w \le 640)$$ -/
+/-- The three layouts of the panel. $$\text{side} \,(w > 860),\ \text{mid} \,(640 < w \le 860),\ \text{sheet} \,(w \le 640),\quad w \in \mathbb{Q}$$ -/
 inductive Layout where
   | side
   | mid

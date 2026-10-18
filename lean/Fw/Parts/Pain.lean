@@ -74,7 +74,7 @@ theorem scored_iff (W : Rat) : scored W = true ↔ 1100 ≤ W := by
 
 /-- The canvas is wide enough for the layout at every width, narrow or not.
 
-$$\forall W:\ \operatorname{canvasW}(W) \ge 320 \ge 8$$
+$$\forall W \in \mathbb{Q}:\ \operatorname{canvasW}(W) \ge 8$$
 
 So the narrow base layout (JS 4559-4574) does run; the hidden board spacer is not the script's stage. -/
 theorem canvasW_ge (W : Rat) : 8 ≤ canvasW W := by

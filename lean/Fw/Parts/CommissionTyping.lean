@@ -359,9 +359,9 @@ theorem viewAt_reset (τ : Rat) (h : τ < ((mAvatar : Nat) : Rat)) : viewAt τ =
   unfold viewAt
   simp [h]
 
-/-- The caret is on for exactly $[m_1, m_2)$.
+/-- From $m_0$ on, the caret is on for exactly $[m_1, m_2)$.
 
-$$\forall \tau \in [m_0, T):\ \mathrm{caret}(V(\tau)) = \top \iff m_1 \le \tau < m_2$$
+$$\forall \tau \in \mathbb{Q}:\ \tau \ge m_0 \Rightarrow \bigl(\mathrm{caret}(V(\tau)) = \top \iff m_1 \le \tau < m_2\bigr)$$
 
 It is created with the bubble and removed when the last character has waited its 28 ms. -/
 theorem caret_iff (τ : Rat) (h : ((mAvatar : Nat) : Rat) ≤ τ) :
@@ -530,9 +530,9 @@ theorem observe_enter_elapsed (s : Trig) (now : Rat) (rm : Bool) (h : s.visible 
   simp only [this, ite_false, ite_true]
   grind
 
-/-- Leaving keeps the picture: the loop time freezes where it was.
+/-- Leaving a visible state keeps the picture: the loop time freezes where it was.
 
-$$\forall S, t, \mathit{now}:\ S.\mathit{since} = \mathrm{some}\ t \Rightarrow \operatorname{observe}(S, \bot, \mathit{now}, \mathit{rm}).1.\mathit{frozen} = \mathit{now} - t$$
+$$\forall S, t, \mathit{now}, \mathit{rm}:\quad S.\mathit{visible} = \top \wedge S.\mathit{since} = \mathrm{some}\ t \Rightarrow \operatorname{observe}(S, \bot, \mathit{now}, \mathit{rm}).1.\mathit{frozen} = \mathit{now} - t$$
 
 Cancelling the timers does not blank the bubble. -/
 theorem observe_leave_frozen (s : Trig) (t now : Rat) (rm : Bool) (h : s.visible = true) (hs : s.since = some t) :
@@ -564,7 +564,7 @@ theorem visualScale_le (w : Rat) : visualScale w ≤ 4 / 5 := by unfold visualSc
 /-- From 345.6 px up the scale is 0.8. $$w \ge 345.6 \Rightarrow \mathrm{scale}(w) = 0.8$$ The knee of the CSS `min(100%, 345.6px)`. -/
 theorem visualScale_flat (w : Rat) (h : 3456 / 10 ≤ w) : visualScale w = 4 / 5 := by unfold visualScale; grind
 
-/-- Below the knee the scale is proportional. $$0 \le w \le 345.6 \Rightarrow \mathrm{scale}(w) = w/432$$ The picture fills its column. -/
+/-- Below the knee the scale is proportional. $$\forall w \in \mathbb{Q}:\ w \le 345.6 \Rightarrow \mathrm{scale}(w) = w/432$$ The picture fills its column. -/
 theorem visualScale_prop (w : Rat) (h : w ≤ 3456 / 10) : visualScale w = w / 432 := by unfold visualScale; grind
 
 end Fw.Parts.CommissionTyping

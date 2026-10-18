@@ -104,7 +104,8 @@ inductive Phase
   | idle | rewind | surge | after
 deriving Repr, DecidableEq
 
-/-- A phase with its progress inside it. $$(\mathit{phase}, t)\quad t \in [0, 1]$$ -/
+/-- A phase with its progress inside it (the type does not bound $t$; `phase_t_mem` proves $t \in [0, 1]$ for the clock).
+$$(\mathit{phase}, t) \in \{\mathrm{idle}, \mathrm{rewind}, \mathrm{surge}, \mathrm{after}\} \times \mathbb{Q}$$ -/
 structure Ph where
   phase : Phase
   t : Rat
@@ -187,18 +188,20 @@ $$\theta(900) = 900\,\omega = \tfrac{81}{8}$$
 No jump when the move starts. -/
 theorem angle_cont_start : angleDeg 900 = 900 * omega := by decide +kernel
 
-/-- The rewind ends where the surge starts: the angle is continuous at 1130.4 ms.
+/-- The angle at the turn, 1130.4 ms, is $1130.4\,\omega + p$: the value the rewind formula $\omega e + p\,e_5(t)$ takes at
+$t = 1$.
 
-$$\lim_{t \to 1^-} \bigl(\omega e + p\,e_5(t)\bigr) = \omega e + p = \theta(e)\big|_{e = 1130.4},\quad \text{surge}(0) = \omega e + p$$
+$$\theta(1130.4) = 1130.4\,\omega + p$$
 
-No jump at the turn. -/
+The surge starts at the value the rewind ends on. -/
 theorem angle_cont_turn : angleDeg (11304 / 10) = (11304 / 10) * omega + rewindDeg := by decide +kernel
 
-/-- The surge ends where the fast spin starts: the angle is continuous at 1380 ms.
+/-- The angle at the end of the move, 1380 ms, is $1380\,\omega + m$: the value the surge formula
+$\omega e + p\,(1 - t^2) + m\,e_3(t)$ takes at $e = 1380$, $t = 1$.
 
-$$\lim_{t \to 1^-}\bigl(\omega e + p\,(1 - t^2) + m\,e_3(t)\bigr) = 1380\,\omega + m = \theta(1380)$$
+$$\theta(1380) = 1380\,\omega + m$$
 
-No jump when the move ends (the value at 1380 is the fast spin's start). -/
+The fast spin starts at the value the surge ends on. -/
 theorem angle_cont_end : angleDeg 1380 = 1380 * omega + surgeDeg := by decide +kernel
 
 /-- The radius is continuous at the three joins.
@@ -229,9 +232,9 @@ theorem rest_outside (e : Rat) (h : e < 900 ∨ 1380 ≤ e) : radius e = restRad
   · have : ¬ e < 900 := by grind
     simp [this, h]
 
-/-- The ease polynomials stay in the unit interval on it.
+/-- The cubic ease stays in the unit interval on it.
 
-$$0 \le t \le 1 \;\Rightarrow\; 0 \le e_3(t) \le 1 \;\land\; 0 \le e_5(t) \le 1$$ -/
+$$\forall t \in \mathbb{Q}:\ 0 \le t \le 1 \;\Rightarrow\; 0 \le e_3(t) \le 1$$ -/
 theorem ease3_mem (t : Rat) (h0 : 0 ≤ t) (h1 : t ≤ 1) : 0 ≤ ease3 t ∧ ease3 t ≤ 1 := by
   unfold ease3
   have hu0 : 0 ≤ 1 - t := by grind

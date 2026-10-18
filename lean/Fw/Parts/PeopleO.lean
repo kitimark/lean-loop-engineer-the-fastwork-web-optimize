@@ -71,11 +71,12 @@ theorem phase_mono (rm sa : Bool) (t t' : Nat) (h : t ≤ t') :
   · simp
   · split <;> dsimp only <;> refine ⟨?_, ?_⟩ <;> (try simp only [dle]) <;> (try simp only [stackDelay, expandDelay]) <;> first | omega | simp
 
-/-- **Opening gap.** In the normal case the row opens exactly $b = 120$ ms after the stack shows.
+/-- **Opening gap.** In the normal case ($\mathit{rm} = \mathit{sa} = \bot$) the stack shows at $a = 1300$ but not at
+1299, and the row expands at $a + b = 1420$ but not at 1419.
 
-$$\min\{t : \mathrm{expanded}(t)\} - \min\{t : \mathrm{stack}(t)\} = 120$$
+$$\mathrm{phase}(\bot, \bot, 1300).1 = \top \wedge \mathrm{phase}(\bot, \bot, 1299).1 = \bot \wedge \mathrm{phase}(\bot, \bot, 1420).2 = \top \wedge \mathrm{phase}(\bot, \bot, 1419).2 = \bot$$
 
-(stated as: the stack shows at 1300, the expansion at 1420, and neither earlier). -/
+The row opens 120 ms after the stack shows. -/
 theorem opening_gap :
     (phase false false stackDelay).1 = true ∧ (phase false false (stackDelay - 1)).1 = false ∧
     (phase false false (stackDelay + expandDelay)).2 = true ∧
@@ -180,7 +181,9 @@ theorem card_inside_x (vw x s : Rat) :
   · grind
   · grind
 
-/-- **The card keeps 12 px from the top.** $$T \ge 12$$ -/
+/-- **The card keeps 12 px from the top** when the face bottom $z$ is not above the viewport top.
+
+$$\forall h_v, y, z \in \mathbb{Q}:\ 12 \le z + 12 \Rightarrow 12 \le T(h_v, y, z)$$ -/
 theorem card_top_ge (vh y z : Rat) (h : 12 ≤ z + 12) : 12 ≤ cardTop vh y z := by
   unfold cardTop
   split <;> grind

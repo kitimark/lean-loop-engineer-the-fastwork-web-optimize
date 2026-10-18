@@ -14,10 +14,10 @@ Restated (not copied) from `snapshot/site-pretty/_app/immutable/assets/2.gBuqKVz
 -/
 namespace Fw.Parts.HeroDeck
 
-/-- One deck slot: name, width px, height px, `top` in per-mille of a percent, side ('l' left / 'r' right), side offset
-px, scatter x vw, scatter y vh, z-index.
+/-- One deck slot: name, width px, height px, `top` in percent ($\tau = 69.2488$ is CSS `top: 69.2488%`), side (left
+or right), side offset px, scatter x vw, scatter y vh, z-index.
 
-$$(\mathit{slot}, w, h, 10\,\tau, \mathit{side}, o, s_x, s_y, z)$$ -/
+$$(\mathit{slot}, w, h, \tau, \mathit{left}, o, s_x, s_y, z) \in \Sigma^* \times \mathbb{Q}^3 \times \mathbb{B} \times \mathbb{Q}^3 \times \mathbb{N}$$ -/
 structure Slot where
   name : String
   width : Rat
@@ -44,7 +44,7 @@ theorem slots_len : slots.length = 4 := by decide +kernel
 
 /-- The scatter is mirrored: the left slots go left, the right slots go right, by the same vertical amount.
 
-$$s_x(a) = -s_x(d),\ s_y(a) = s_y(d),\ s_x(b) = -s_x(e),\ s_y(b) = s_y(e)$$
+$$[s_x(u) \mid u \in \text{slots}] = [-42, -48, 42, 48] \wedge [s_y(u) \mid u \in \text{slots}] = [-12, 22, -12, 22]$$
 
 The deck leaves the screen symmetrically on exit. -/
 theorem scatter_mirrored :
@@ -68,9 +68,10 @@ def floatPeriod : Rat := 2200
 /-- The float amplitude in px (CSS keyframe 50%). $$A = 8$$ -/
 def floatAmp : Rat := 8
 
-/-- The float at the keyframe stops: $0$ at the start and end of the loop, $-A$ in the middle.
+/-- The float at a keyframe stop $f$ (a fraction of the loop): $-A$ at the middle stop $f = \tfrac12$, $0$ at every other
+$f$ (so at the start and end stops).
 
-$$y(f) = \begin{cases} 0 & f \in \{0, 1\} \\ -8 & f = \tfrac12 \end{cases},\quad f = (e \bmod P_c)/P_c$$
+$$\forall f \in \mathbb{Q}:\ y(f) = \begin{cases} -8 & f = \tfrac12 \\ 0 & \text{otherwise} \end{cases}$$
 
 (Between the stops the browser interpolates with `ease-in-out`.) -/
 def floatStop (f : Rat) : Rat := if f = 1 / 2 then -floatAmp else 0

@@ -80,9 +80,9 @@ example : next 1800 [(.static, 152)] = next 1800 [(.fixed, 152)] + 152 := by dec
 
 /-! ## The check: one cell per part -/
 
-/-- Tolerance in px.
+/-- Tolerance in px: any rational (the type has no sign constraint; theorems that need $\tau \ge 0$ assume it).
 
-$$\tau \ge 0$$ -/
+$$\tau \in \mathbb{Q}$$ -/
 abbrev Tol := Rat
 
 /-- One probed part: its id and the document top of its root box in each arm (`none` = no box).
@@ -96,7 +96,7 @@ structure PartTop where
 
 /-- The cell passes iff both boxes exist and $|t^{\text{ours}} - t^{\text{orig}}| \le \tau$.
 
-$$\text{cell}(t^{o}, t^{r}, \tau) = [\,t^{r} - t^{o} \le \tau \ \wedge\ t^{o} - t^{r} \le \tau\,]$$ -/
+$$\text{cell}(t^{o}, t^{r}, \tau) = \begin{cases} [\,t^{r} - t^{o} \le \tau \ \wedge\ t^{o} - t^{r} \le \tau\,] & t^{o} \ne \bot \wedge t^{r} \ne \bot \\ \text{false} & \text{otherwise} \end{cases}$$ -/
 def cellPass (τ : Tol) (p : PartTop) : Bool :=
   match p.orig, p.ours with
   | some o, some r => decide (r - o ≤ τ ∧ o - r ≤ τ)

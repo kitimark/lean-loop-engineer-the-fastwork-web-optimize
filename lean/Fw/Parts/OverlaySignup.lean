@@ -46,7 +46,7 @@ def leSqrt (c : Int) (x d : Rat) : Bool :=
 
 /-- One component of `Mn`: $\operatorname{round}(16\,x/\sqrt{d})$ with $d = x^2 + y^2$, JS `Math.round` (ties go up).
 
-$$\operatorname{comp}(x, d) = \max\{k \in [-16, 16] : (2k - 1)\sqrt{d} \le 32x\} = \lfloor 16x/\sqrt{d} + \tfrac12 \rfloor,\quad d > 0$$
+$$\forall x, d \in \mathbb{Q}:\ \operatorname{comp}(x, d) = \max\bigl(\{-16\} \cup \{k \in \mathbb{Z} \cap [-16, 16] : \operatorname{leSqrt}(2k - 1, x, d)\}\bigr),\quad \text{and if } d > 0 \wedge x^2 \le d:\ \operatorname{comp}(x, d) = \lfloor 16x/\sqrt{d} + \tfrac12 \rfloor$$
 
 Exact, with no square root. -/
 def comp (x d : Rat) : Int :=
@@ -82,7 +82,7 @@ def openDir (trigger : Option (Rat × Rat)) : Int × Int :=
 
 /-- Each component is at most 16 in absolute value.
 
-$$\forall x, y:\ |\operatorname{dir}(x,y)_i| \le 16$$ -/
+$$\forall x, d \in \mathbb{Q}:\ -16 \le \operatorname{comp}(x, d) \le 16$$ -/
 theorem comp_bounds (x d : Rat) : -16 ≤ comp x d ∧ comp x d ≤ 16 := by
   unfold comp
   have key : ∀ (l : List Nat) (acc : Int), -16 ≤ acc → acc ≤ 16 → (∀ i ∈ l, i < 33) →
@@ -244,8 +244,9 @@ theorem required_never_closes (src : Source) (self comp layer : Bool) :
     (react src .required self comp layer).close = false := by
   cases src <;> cases self <;> cases comp <;> cases layer <;> decide
 
-/-- The signup (purpose info) closes on Escape unless composing or another layer is open.
-$$\lnot\mathit{comp} \land \lnot\mathit{layer} \Rightarrow \operatorname{react}(\text{escape}, \text{info}) = (\top, \top)$$ -/
+/-- The signup (purpose info) closes on Escape when the target is not the dialog itself, nothing is composing and no
+other layer is open.
+$$\operatorname{react}(\text{escape}, \text{info}, \bot, \bot, \bot) = (\top, \top)$$ -/
 theorem escape_closes_info : react .escape .info false false false = ⟨true, true⟩ := by decide
 
 /-- No close goes through while a request runs. $$\mathit{submitting} \Rightarrow \lnot\operatorname{allowed}$$ -/
@@ -345,7 +346,8 @@ theorem submit_blocked (f : Form) (v h : Bool) (hs : f.submitting = true) : subm
 theorem submit_invalid (f : Form) (h : Bool) : submit f false h = (f, false) := by
   simp [submit]
 
-/-- A sent request leaves `submitting` set, which blocks closing. $$\operatorname{submit}(F,\top,\top) = (F', \top) \Rightarrow F'.\mathit{submitting}$$ -/
+/-- A valid submit with a handler, while no request runs, sends a request and leaves `submitting` set, which blocks
+closing. $$\forall F:\ \lnot F.\mathit{submitting} \Rightarrow \operatorname{submit}(F,\top,\top).2 = \top \wedge \operatorname{submit}(F,\top,\top).1.\mathit{submitting}$$ -/
 theorem submit_sends (f : Form) (hs : f.submitting = false) :
     (submit f true true).2 = true ∧ (submit f true true).1.submitting = true := by
   simp [submit, hs]

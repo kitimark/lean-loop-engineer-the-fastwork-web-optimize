@@ -111,9 +111,9 @@ def exitRaw (bottom h : Rat) : Rat :=
 #guard exitRaw 350 1000 == 1
 #guard exitRaw 600 1000 == 1 / 2
 
-/-- Both raw values are in $[0, 1]$ (viewport height $h > 0$).
+/-- Both raw values are in $[0, 1]$, for every viewport height $h$.
 
-$$\forall h > 0, \mathit{top}, \mathit{bottom}:\ 0 \le T \le 1 \wedge 0 \le E \le 1$$
+$$\forall \mathit{top}, \mathit{bottom}, h \in \mathbb{Q}:\ 0 \le T(\mathit{top}, h) \le 1 \wedge 0 \le E(\mathit{bottom}, h) \le 1$$
 
 The bands are fractions. -/
 theorem raw_mem (top bottom h : Rat) : 0 ≤ enterRaw top h ∧ enterRaw top h ≤ 1 ∧ 0 ≤ exitRaw bottom h ∧ exitRaw bottom h ≤ 1 := by
