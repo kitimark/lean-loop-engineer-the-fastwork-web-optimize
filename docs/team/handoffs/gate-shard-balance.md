@@ -1,7 +1,7 @@
 # gate-shard-balance handoff (round 3, final design round)
 
-State: branch worktree-wf_bde7589c-9ba-1, CI branch ci/gate-shard-balance-r3, code head 9d620c16 (docs commit on top).
-`sh lean/scripts/check.sh` green; `node --test test/*.test.mjs` in packages/gate-breakpoints: 125 pass.
+State: branch worktree-wf_bde7589c-9ba-1, CI branch ci/gate-shard-balance-r3, CI-measured code head 9d620c16; later commits only merge main, move the import test, and edit docs.
+`sh lean/scripts/check.sh` green; `node --test test/*.test.mjs` in packages/gate-breakpoints: 124 pass; packages/snapshot-extract: 10 pass (imports.test.mjs guards the names it imports).
 Read first: research/notes/2026/10-18-gate-shard-balance.md, section "Round 3".
 
 ## What round 3 did

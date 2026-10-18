@@ -187,7 +187,7 @@ state. A faster or greener gate must never come from comparing less or comparing
   by frame; not isolated by a run that changes only that). Round 1: 65.1 job-minutes, 12.2 min.
 - **Found on the way:** round 2 had removed `mountPanel` from `page.mjs` and the stage-less `prepareInPage`, which
   `packages/snapshot-extract` imports; its workflow failed at import time on the first r3 push (39119690415). Restored
-  (`test/consumers.test.mjs` now checks every imported name). Not mine: `mutants` fails on main too (SpawnGuard survivors).
+  (`packages/snapshot-extract/test/imports.test.mjs` now checks every imported name). Not mine: `mutants` fails on main too (SpawnGuard survivors).
 - **Followup, not in this task (one change per task):** the align-self canonicalisation of a reading (`canonArm`, `canonParts`,
   `collectWith`, `attachAlign`) was taken out of this branch. `canonParts` is called nowhere on main, and
   `docs/team/handoffs/gate-align-equiv.md` assigns the call-site edits to integrate-ports. Its own task.
