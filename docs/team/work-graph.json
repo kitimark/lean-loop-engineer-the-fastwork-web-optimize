@@ -4176,6 +4176,30 @@
     "apps/runner/src/**",
     "apps/runner/test/**"
    ]
+  },
+  {
+   "id": "lean-first-gate",
+   "title": "(M) Lean-first enforced, not asked: audit today's lands (TS decisions without a Lean op, theorems that are vacuous or weaker than their claim, untested premises), then a land gate: every new theorem has a killing mutant (non-vacuity), every new TS branch on data has a Lean op or difftest twin, every task states its never-happen properties before code; property-based edge-case search before proof",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lean-ops-gap"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/**",
+    "lean/Fw/Plan/**",
+    "lean/FwTest/**",
+    "packages/difftest/**",
+    "packages/contracts/golden/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    "lean/scripts/**",
+    "docs/team/tools/**",
+    "docs/team/token-policy.md",
+    "research/notes/**",
+    "docs/team/handoffs/lean-first-gate.md"
+   ]
   }
  ],
  "deadline": {
