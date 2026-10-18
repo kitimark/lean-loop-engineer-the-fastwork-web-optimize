@@ -4,18 +4,18 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
-import { PIN_SRC, collectInPage, mountPanel, prepareInPage, waitReady, waitResize } from './page.mjs';
+import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
+import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
+import { PIN_SRC, collectInPage, prepareInPage, settleInPage, waitReady, waitResize } from './page.mjs';
+import { GATE_POLICY, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
+const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const SITES = ['orig', 'rewrite'];
 const FILTER = { orig: '\\.svelte-', rewrite: '-module_' };
 const CAP_MS = { orig: 20000, rewrite: 15000 };
-/** Parts whose original elements exist only after a page action. Their roles are collected in a second pass, after the
- *  action, so every other part is read in the state a fresh load has (the action is a scroll there and back). */
-const ORIG_PREPARE = { 'morph.columns': mountPanel };
-
 async function pool(items, n, fn) {
   const results = new Array(items.length);
   let next = 0;
@@ -76,37 +76,94 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   async function load(env, site) {
     return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: PIN_SRC });
   }
-  // anchors.json `prepare` (per part and arm): steps that bring up elements the page mounts lazily, run once after
-  // the ready wait (morph.countdown); ORIG_PREPARE below is the other route (mount after the early parts are collected)
-  const prepare = Object.fromEntries(SITES.map((site) => [site, Object.values(activeParts).flatMap((p) => (p.prepare && p.prepare[site]) || [])]));
-  const evalReady = async (s, site) => {
-    const settle = await s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
-    if (prepare[site].length > 0) settle.prepared = await s.evaluate(prepareInPage, { steps: prepare[site], capMs: CAP_MS[site] });
-    return settle;
-  };
-  const lateIds = new Set(Object.keys(activeParts).filter((pid) => ORIG_PREPARE[pid]));
-  const pick = (site, late) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => (site === 'orig' && lateIds.has(pid)) === late));
+  // anchors.json `prepare` (per part and arm) is the one route for page states that exist only after an action, all run by
+  // page.mjs prepareInPage. A part with a prepare step is collected AFTER the rest, so every other part is read in the state a
+  // fresh load has (mounting the morph panel scrolls the original there and back, and its scroll-driven values lag): early
+  // parts first, then overlay parts one at a time (open, collect, close), then the mount parts once the mounts have run.
+  //  kind "mount" (morph.countdown, morph.columns, morph.panel): scroll near `scrollNear`, wait for `waitFor`, back to the top.
+  //  kind "overlay" (overlays.*): click `trigger`, wait for `ready`; click `close`, wait until `gone` is gone.
+  const stepsOf = (site, kind) => Object.fromEntries(Object.entries(activeParts)
+    .map(([pid, p]) => [pid, ((p.prepare && p.prepare[site]) || []).filter((st) => st.kind === kind)])
+    .filter(([, steps]) => steps.length > 0));
+  const mountOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'mount')]));
+  const overlayOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'overlay')]));
+  const evalReady = (s, site) => s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
+  // The settle wait (Lean Fw.Gate.Settle, settle.mjs): before anything is collected, in both arms and both engines, the pointer is
+  // parked where it is over no probed element (hover cannot move a probed value), then the page is observed on real frames
+  // until nothing animates, two frames have passed since the resize, the probed values stay within eps for three frames, and the
+  // pointer is outside every probed element; or the budget is spent (outcome 'unsettled', recorded, never a silent pass).
+  const rootsOf = (site) => Object.values(partsArg[site]).flatMap((roles) => roles.map((r) => r.selector));
+  // The sample's wait is the first wait plus the waits for the overlays opened during collection: unsettled when any is.
+  const foldSettle = (first, extra) => (extra || []).reduce((a, w) => ({
+    ...a, outcome: a.outcome === 'unsettled' || w.outcome === 'unsettled' ? 'unsettled' : a.outcome,
+    observations: a.observations + w.observations, waitedMs: a.waitedMs + w.waitedMs, parked: a.parked && w.parked,
+  }), first);
+  // The pointer is parked outside the viewport (-1, -1): no element is under it, so a resize can bring no element under it and
+  // a hover rule or a pointerenter handler never runs. (A point inside the viewport can lie over a hover target at some widths:
+  // hero.orbit z-index = 1 + the pointerenter events, run 39078493093 with the pointer at the corner.)
+  const park = async (s, env) => { if (env.hover === 'hover' && s.mouse) { await s.mouse(-1, -1); return true; } return false; };
+  const parkEarly = park;
+  async function settleArm(s, site, env, only) {
+    const roots = only || rootsOf(site);
+    const parked = await park(s, env);
+    const { trace } = await s.evaluate(settleInPage, { policy: GATE_POLICY, roots, hoverCapable: env.hover === 'hover' });
+    const last = trace[trace.length - 1];
+    const outcome = waitTrace(GATE_POLICY, trace);
+    // stderr only (the output JSON carries the same numbers in settleWait): per-stop settle time, for gate-speed's before/after
+    log(`  settle ${engineName} ${site} ${env.width}x${env.height}${only ? ' (overlay)' : ''}: ${last.t} ms, ${last.frames} frames, ${outcome}`);
+    return {
+      outcome, parked, hoverCapable: env.hover === 'hover',
+      observations: trace.length, frames: last.frames, waitedMs: last.t, running: last.running, stable: last.stable, hoverInside: last.hoverInside,
+    };
+  }
   const collectArg = (site, env, props, parts) => ({
     site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, filter: FILTER[site],
   });
-  async function evalCollect(s, site, env, props) {
-    if (site !== 'orig' || lateIds.size === 0) return s.evaluate(collectInPage, collectArg(site, env, props, partsArg[site]));
-    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, pick(site, false)));
-    for (const pid of lateIds) await s.evaluate(ORIG_PREPARE[pid]);
-    const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(site, true)));
-    raw.parts = { ...raw.parts, ...late.parts };
+  async function evalCollect(s, site, env, props, settleRoots) {
+    const mountIds = Object.keys(mountOf[site]);
+    const overlayIds = Object.keys(overlayOf[site]);
+    const pick = (ids, inside) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid) === inside));
+    const raw = await collectWith(s, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false)));
+    for (const pid of overlayIds) {
+      const steps = overlayOf[site][pid];
+      await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
+      // an opened overlay animates in (WebKit run 39067170911 read the signup dialog at scale 0.9977): settle it before reading
+      if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
+      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
+      raw.parts = { ...raw.parts, ...one.parts };
+      await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
+    }
+    if (mountIds.length > 0) {
+      raw.prepared = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site] });
+      const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true)));
+      raw.parts = { ...raw.parts, ...late.parts };
+    }
     return raw;
   }
 
   // Phase 0: the property lists. Declared names depend on the stylesheets and the elements, not on the environment,
-  // so one reference load per arm fixes them (the engine expands shorthands, so they are per engine).
+  // so one reference load per arm fixes them (the engine expands shorthands, so they are per engine). A timer-driven part
+  // matches different rules at different instants, so the names are the union of several scans across one timer period
+  // (declared.mjs): otherwise two shards could fix different lists and merge-gate would refuse their headers.
   const refEnv = { width: 1440, height: 900, deviceWidth: 1440, deviceHeight: 900, dpr: 1, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
   const declared = {};
   let loadedConfig = null;
   for (const site of SITES) {
     const s = await load(refEnv, site);
+    await parkEarly(s, refEnv); // the declared lists are read with the pointer parked, as every sample is (nav.hitTest header flake)
     await evalReady(s, site);
-    declared[site] = (await evalCollect(s, site, refEnv, null)).parts;
+    // The declared lists are read from a settled page (Lean Fw.Gate.Settle), as every sample is: a rule that matches only while an
+    // entry animation or a pointer/focus state runs (WebKit run 39077507337: the original nav `opacity` listed in 3 of 4 jobs) must
+    // not decide the list. The union over the timer period still covers a state that never settles. An unsettled wait is logged,
+    // and the scans go on (the list is a union, so it only gains names).
+    await settleArm(s, site, refEnv);
+    const scans = [(await evalCollect(s, site, refEnv, null)).parts];
+    const timed = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !overlayOf[site][pid]));
+    for (let i = 0; i < SCAN_EXTRA; i++) {
+      await new Promise((r) => setTimeout(r, SCAN_GAP_MS));
+      scans.push((await s.evaluate(collectInPage, collectArg(site, refEnv, null, timed))).parts);
+    }
+    declared[site] = unionDeclared(scans);
     if (site === 'rewrite') {
       // Regression check of incident inc-variant-gate-flags-off: the page the browser actually loaded must be the config the
       // flags name (the page's own data-fw-config), never silently the default one.
@@ -132,8 +189,11 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     return withRetry(`${site} ${env.width}x${env.height}`, async () => {
       const s = await load(env, site);
       try {
+        await parkEarly(s, env);
         const settle = await evalReady(s, site);
-        const raw = await evalCollect(s, site, env, collectProps);
+        const settleWait = await settleArm(s, site, env);
+        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots));
+        raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
         if (gaps) raw.gap = await s.evaluate(gaps.collect, gaps.collectArg);
         return { settle, raw };
       } finally { await s.close().catch(() => {}); }
@@ -164,10 +224,18 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       const s = await load(sw.stops[0], site);
       try {
         const stops = [];
+        await parkEarly(s, sw.stops[0]);
         await evalReady(s, site);
         for (let i = 0; i < sw.stops.length; i++) {
-          if (i > 0) { await s.resize(sw.stops[i]); await s.evaluate(waitResize); }
-          stops.push(await evalCollect(s, site, sw.stops[i], collectProps));
+          if (i > 0) {
+            const t1 = Date.now();
+            await s.resize(sw.stops[i]); await s.evaluate(waitResize);
+            log(`  resize ${engineName} ${site} ${sw.stops[i].width}x${sw.stops[i].height}: ${Date.now() - t1} ms`);
+          }
+          const settleWait = await settleArm(s, site, sw.stops[i]);
+          const raw = await evalCollect(s, site, sw.stops[i], collectProps, (roots, e) => settleArm(s, site, e, roots));
+          raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
+          stops.push(raw);
         }
         return stops;
       } finally { await s.close().catch(() => {}); }

@@ -1,0 +1,13 @@
+{
+  "id": "hero.accent",
+  "slot": "hero",
+  "anchors": ["hero-accent"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3501-3730; assets/2.gBuqKVzi.css:1221-1400" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

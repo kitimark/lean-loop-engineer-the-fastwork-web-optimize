@@ -79,6 +79,7 @@ export async function launchChromium({ chromePath = process.env.CHROME_PATH ?? C
       return {
         evaluate: (fn, arg) => frame.evaluate(fn, arg),
         async resize(next) { await cdp.send('Emulation.setDeviceMetricsOverride', metrics(next, hostWidth(next))); },
+        async mouse(x, y) { await page.mouse.move(x, y); },
         async close() { await context.close(); },
       };
     },
@@ -111,6 +112,7 @@ export async function launchWebkit() {
       return {
         evaluate: (fn, arg) => frame.evaluate(fn, arg),
         async resize(next) { await page.setViewportSize({ width: next.width, height: next.height }); },
+        async mouse(x, y) { await page.mouse.move(x, y); },
         async close() { await context.close(); },
       };
     },

@@ -1,0 +1,13 @@
+{
+  "id": "overlays.signup",
+  "slot": "overlays",
+  "anchors": ["overlay-signup"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3910-3912,7201-7270,13265-13400; chunks/D313Dngs.js:1927-2038; assets/DialogHeader.Qcgwm6ST.css:642-714; assets/2.gBuqKVzi.css:11613-11623,11624-11740" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

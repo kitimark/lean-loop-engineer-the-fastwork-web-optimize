@@ -1,5 +1,3 @@
-import ButtonBase from '@mui/material/ButtonBase';
-import Typography from '@mui/material/Typography';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { getClock } from '../../engine/clock';
 import { getScrollEngine } from '../../engine/scroll';
@@ -9,14 +7,16 @@ import css from './hero.module.css';
 
 export interface HeroExitProps {
   variant: string;
-  /** `mui` (default) uses MUI Typography/ButtonBase; `plain` bare elements. Same CSS Module and driver. */
-  impl?: 'mui' | 'plain';
+  /** What the sticky stage holds (hero.orbit, hero.deck, the copy, hero.cue); the composition is the `hero` part. */
+  children?: ReactNode;
 }
 
-const CARDS = 4;
-
-/** hero.exit: sticky hero in a 200vh track; `--exit-opacity` is written on the hero per scroll frame. Placeholder content. */
-export function HeroExit({ variant, impl = 'mui' }: HeroExitProps) {
+/**
+ * hero.exit: the sticky hero in a 200vh track; `--exit-opacity` is written on the stage per scroll frame (the exit
+ * driver). The stage carries `data-splash` (`prep` on the server, then `run` and `done`, owned by hero.orbit) so the
+ * copy and the cue can follow the ring splash.
+ */
+export function HeroExit({ variant, children }: HeroExitProps) {
   const trackRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
@@ -30,50 +30,11 @@ export function HeroExit({ variant, impl = 'mui' }: HeroExitProps) {
     return mountExit({ driver, engine: getScrollEngine(), clock: getClock(), readVh: () => window.innerHeight });
   }, []);
 
-  const mui = impl === 'mui';
   return (
-    <section ref={trackRef} className={css.track} data-fw="hero-exit" data-fw-variant={variant}>
-      <div ref={heroRef} className={css.hero}>
-        <div className={css.cards} aria-hidden="true">
-          {Array.from({ length: CARDS }, (_, i) => (
-            <div key={i} className={css.card} />
-          ))}
-        </div>
-        <header className={css.copy}>
-          <div className={css.copyMain}>
-            {mui ? (
-              <Typography variant="h1" className={css.title}>
-                Placeholder headline
-              </Typography>
-            ) : (
-              <h1 className={css.title}>Placeholder headline</h1>
-            )}
-            {mui ? (
-              <Typography variant="body1" component="p" className={css.lead}>
-                Placeholder supporting text.
-              </Typography>
-            ) : (
-              <p className={css.lead}>Placeholder supporting text.</p>
-            )}
-          </div>
-          <button type="button" className={css.cta}>
-            Action
-          </button>
-        </header>
-        {mui ? (
-          <ButtonBase className={css.cue} focusRipple={false}>
-            <Cue>Scroll</Cue>
-          </ButtonBase>
-        ) : (
-          <button type="button" className={css.cue}>
-            <Cue>Scroll</Cue>
-          </button>
-        )}
+    <section ref={trackRef} className={css.track} data-fw="hero-exit" data-fw-variant={variant} aria-labelledby="start-selling-heading">
+      <div ref={heroRef} className={css.hero} data-splash="prep">
+        {children}
       </div>
     </section>
   );
-}
-
-function Cue({ children }: { children: ReactNode }) {
-  return <span className={css.cueLabel}>{children}</span>;
 }

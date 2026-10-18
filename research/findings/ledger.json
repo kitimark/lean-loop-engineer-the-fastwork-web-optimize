@@ -884,7 +884,7 @@
    "missingWhy": [
     {
      "statement": "A work-only theorem wipe_work_lt: $\\forall \\epsilon, k \\in \\mathrm{draw}:\\ W_\\epsilon(v,k) \\prec W_\\epsilon(o,k)$. An E sub-variant: $\\forall t$ in the draw window, $\\mathrm{visible}(o) = \\mathrm{visible}(o \\text{ without dashoffset on frames } 1,2)$, because their opacity is 0.",
-     "module": "Fw.Parts.HeroAccent",
+     "module": "Fw.Parts.HeroAccentOpt",
      "needs": "the draw window restated (is-drawing-in/out, 900 ms each)"
     }
    ],
@@ -906,25 +906,25 @@
    "visual": "E: the exact 199.98/399.96 ms chain equals the original at every instant (exact_chain_vis). Round 200/400 ms boundaries are E per 60 Hz sample only under the phase premise (clean_chain_grid), and phi = 1/50 breaks it (clean_chain_phase_bad).",
    "mechanism": "Removing per-frame servicing helps only if the original is serviced per frame on main. INFERRED: in Chromium the outer svg with an opacity animation gets kActiveOpacityAnimation, so the original runs on the compositor and costs only ride-along style. The chain moves each step onto main (style + commit): 240 -> 20 style, 0 -> 20 commits per 4 s, mixed (cr_comp_window, cr_comp_run_mixed), and worse in real Chrome. WebKit@862f17d already ticks only at steps (KeyframeEffect.cpp:2670-2722), so the work is equal. CI: UpdateLayoutTree and cc.Commit are det, and compositeFailedBits decides which Chromium case holds.",
    "leanFor": [
-    "Fw.Parts.HeroAccent.exact_chain_vis",
-    "Fw.Parts.HeroAccent.clean_chain_grid",
-    "Fw.Parts.HeroAccent.cr_main_le",
-    "Fw.Parts.HeroAccent.cr_main_quiet_lt",
-    "Fw.Parts.HeroAccent.cr_main_run_dominates",
-    "Fw.Parts.HeroAccent.cr_main_leE",
-    "Fw.Parts.HeroAccent.cr_main_quiet_ltE"
+    "Fw.Parts.HeroAccentOpt.exact_chain_vis",
+    "Fw.Parts.HeroAccentOpt.clean_chain_grid",
+    "Fw.Parts.HeroAccentOpt.cr_main_le",
+    "Fw.Parts.HeroAccentOpt.cr_main_quiet_lt",
+    "Fw.Parts.HeroAccentOpt.cr_main_run_dominates",
+    "Fw.Parts.HeroAccentOpt.cr_main_leE",
+    "Fw.Parts.HeroAccentOpt.cr_main_quiet_ltE"
    ],
    "leanAgainst": [
-    "Fw.Parts.HeroAccent.cr_comp_step_not_le",
-    "Fw.Parts.HeroAccent.cr_comp_window",
-    "Fw.Parts.HeroAccent.cr_comp_run_mixed",
-    "Fw.Parts.HeroAccent.cr_realChrome_step_worse",
-    "Fw.Parts.HeroAccent.wk_frame_eq",
-    "Fw.Parts.HeroAccent.wk_run_equal",
-    "Fw.Parts.HeroAccent.clean_chain_phase_bad",
+    "Fw.Parts.HeroAccentOpt.cr_comp_step_not_le",
+    "Fw.Parts.HeroAccentOpt.cr_comp_window",
+    "Fw.Parts.HeroAccentOpt.cr_comp_run_mixed",
+    "Fw.Parts.HeroAccentOpt.cr_realChrome_step_worse",
+    "Fw.Parts.HeroAccentOpt.wk_frame_eq",
+    "Fw.Parts.HeroAccentOpt.wk_run_equal",
+    "Fw.Parts.HeroAccentOpt.clean_chain_phase_bad",
     "Fw.Engine.new_stage_not_le",
     "Fw.Engine.comp_move_not_le",
-    "Fw.Parts.HeroAccent.cr_comp_step_not_leE"
+    "Fw.Parts.HeroAccentOpt.cr_comp_step_not_leE"
    ],
    "missingWhy": [],
    "premises": [
@@ -960,7 +960,7 @@
    "missingWhy": [
     {
      "statement": "ramp_vis: for jumps of width $w$ at boundaries $b_j$, $\\forall t_k$ with $\\min_{z\\in\\mathbb{Z}} |t_k - S - b_j - 600z| \\ge w$: $\\mathrm{val}_{\\mathrm{ramp}}(t_k) = \\mathrm{origVal}(t_k)$. wk_ramp_trade: $\\forall k:\\ W_{\\mathrm{wk}}(v,k) = 0 \\preceq W_{\\mathrm{wk}}(o,k)$, strict on step frames, and $R_v = R_o + (3, 3a)$, hence $\\mathrm{claim} = \\mathrm{trade}$.",
-     "module": "Fw.Parts.HeroAccent",
+     "module": "Fw.Parts.HeroAccentOpt",
      "needs": "C3 for CA (UI-process sample time = display time) on WebKit; a chromium steps-eligibility row cited from cc"
     }
    ],
@@ -983,30 +983,30 @@
    "visual": "E in every env: inside c860 the CSS pins scale 1 and radius 0, so the look does not depend on --future-shrink (look_gated), exactly there (look_const_iff), and the class sequences agree (cls_agree).",
    "mechanism": "The saving is script (rAF and FunctionCall on tail frames) and style (custom-property restyle, a Chromium styleOnly unit), plus a forced style pass when a rect read follows the write (gate_lt_forced). There is no layout or paint, because the value never reached them. CI: FunctionCall and UpdateLayoutTree are det, but the golden is softened to <=o. swipe-v1 scrolls every frame, so no tail frame is guaranteed, and other parts restyle in the same frame. The style element count is quarantined (C-3), and WebKit has no custom-property row. Verdict change under frameWorkE: the forced-read saving is 1 style pass, not 2 (gate_forced_marginE; the old 2 was frameWork counting the frame-end pass as well, gate_forced_margin_old). It stays strict (gate_lt_forcedE); if the rest of the frame also dirties style the style passes tie (gate_forced_tieE) and the win is units only (gate_lt_stageE). why-engines: custom properties live in the inherited rare data (StyleInheritedRareData.h:153@862f17d), so a changed value is Change::Inherited (StyleChange.cpp:42-43) and the resolver restyles every child, passing on through each child whose style changes (StyleTreeResolver.cpp:283-311, 1185-1212). Style units = 1 + |reached| (custom_style_units), and skipping the write is strictly less work (customSkip_lt). CONFIRMED.",
    "leanFor": [
-    "Fw.Parts.PeopleCard.peopleCard_visSame",
-    "Fw.Parts.PeopleCard.look_gated",
-    "Fw.Parts.PeopleCard.look_const_iff",
-    "Fw.Parts.PeopleCard.run_le",
-    "Fw.Parts.PeopleCard.gate_lt_tail",
-    "Fw.Parts.PeopleCard.gate_lt_forced",
-    "Fw.Parts.PeopleCard.cr_dominates",
-    "Fw.Parts.PeopleCard.wk_dominates",
-    "Fw.Parts.PeopleCard.gate_leE",
-    "Fw.Parts.PeopleCard.gate_lt_forcedE",
-    "Fw.Parts.PeopleCard.gate_lt_stageE",
-    "Fw.Parts.PeopleCard.gate_forced_marginE",
+    "Fw.Parts.PeopleCardOpt.peopleCard_visSame",
+    "Fw.Parts.PeopleCardOpt.look_gated",
+    "Fw.Parts.PeopleCardOpt.look_const_iff",
+    "Fw.Parts.PeopleCardOpt.run_le",
+    "Fw.Parts.PeopleCardOpt.gate_lt_tail",
+    "Fw.Parts.PeopleCardOpt.gate_lt_forced",
+    "Fw.Parts.PeopleCardOpt.cr_dominates",
+    "Fw.Parts.PeopleCardOpt.wk_dominates",
+    "Fw.Parts.PeopleCardOpt.gate_leE",
+    "Fw.Parts.PeopleCardOpt.gate_lt_forcedE",
+    "Fw.Parts.PeopleCardOpt.gate_lt_stageE",
+    "Fw.Parts.PeopleCardOpt.gate_forced_marginE",
     "Fw.Engine.WebKit.custom_style_units",
     "Fw.Engine.WebKit.customSkip_lt"
    ],
    "leanAgainst": [
-    "Fw.Parts.PeopleCard.frames_ungated_eq",
-    "Fw.Parts.PeopleCard.gate_forced_tieE",
-    "Fw.Parts.PeopleCard.gate_forced_margin_old"
+    "Fw.Parts.PeopleCardOpt.frames_ungated_eq",
+    "Fw.Parts.PeopleCardOpt.gate_forced_tieE",
+    "Fw.Parts.PeopleCardOpt.gate_forced_margin_old"
    ],
    "missingWhy": [
     {
      "statement": "people.card lane: a scenario with a guaranteed in-band tail frame where --future-shrink moves, so $W_{\\mathrm{wk}}(v,k) \\prec W_{\\mathrm{wk}}(o,k)$ is checkable.",
-     "module": "Fw.Parts.PeopleCard",
+     "module": "Fw.Parts.PeopleCardOpt",
      "needs": "engine row PROVED (Fw.Engine.WebKit.customSkip_lt); remaining: the lane scenario"
     }
    ],
@@ -1036,7 +1036,7 @@
    "missingWhy": [
     {
      "statement": "A work-only instant_work_le: for scroll velocity $> v^*$, $\\forall k \\in \\mathrm{reveal}:\\ W_\\epsilon(v,k) \\preceq W_\\epsilon(o,k)$, strict for $k > 0$. No vis theorem (class L).",
-     "module": "Fw.Parts.PeopleCard",
+     "module": "Fw.Parts.PeopleCardOpt",
      "needs": "the flick threshold restated from the variant"
     }
    ],
@@ -1246,24 +1246,24 @@
    "visual": "E in Q (deck_vis); engine E under premise Faithful (double); a float Length path can give +1/64 px at widths 770/1123/1187 (INFERRED), removed by the nudged formula (snap_nudged)",
    "mechanism": "WebKit marks every fixed/sticky renderer for layout on each layout-viewport move (LocalFrameView.cpp:1930-1939,3735-3746@862f17d). The link into the aspect-ratio shells is UNRESOLVED, so the saving is in layout units inside a pass the frame pays anyway. Layout pass counts stay =o, and the Chromium lane has no viewport move (swipe_eq). New WebKit cost: the deck becomes a size container, and any style traversal through it adds an interleaved layout (StyleTreeResolver.cpp:1328,1377,1460-1480,1515-1522@862f17d). Blink interleaves only when the container needs layout (element.cc:5187-5208@f842f52). why-engines (statement corrected): a reached size container skips its descendants and queues a container query state (StyleTreeResolver.cpp:1377, 1391-1394, 1460-1478@862f17d); resolve() asks for another round (:1515-1522) and Document::resolveStyle runs a layout between rounds only if the render tree needs one (Document.cpp:2897-2911). So a reached container costs >= 2 style rounds (wkRounds_ge_two) but layouts only when layout-dirty (wkLayouts_le); 'layout passes >= 1' was wrong. CONFIRMED.",
    "leanFor": [
-    "Fw.Parts.PeopleDeck.deck_content",
-    "Fw.Parts.PeopleDeck.cqiShell_eq",
-    "Fw.Parts.PeopleDeck.usedShell_same",
-    "Fw.Parts.PeopleDeck.deck_vis",
-    "Fw.Parts.PeopleDeck.crAspectRaw_eq",
-    "Fw.Parts.PeopleDeck.snap_faithful",
-    "Fw.Parts.PeopleDeck.cr_snap_same",
-    "Fw.Parts.PeopleDeck.wk_snap_same",
-    "Fw.Parts.PeopleDeck.snap_nudged",
-    "Fw.Parts.PeopleDeck.deck_le",
-    "Fw.Parts.PeopleDeck.deck_lt",
-    "Fw.Parts.PeopleDeck.deck_run_dominates",
-    "Fw.Parts.PeopleDeck.deck_leE",
-    "Fw.Parts.PeopleDeck.deck_ltE",
+    "Fw.Parts.PeopleDeckOpt.deck_content",
+    "Fw.Parts.PeopleDeckOpt.cqiShell_eq",
+    "Fw.Parts.PeopleDeckOpt.usedShell_same",
+    "Fw.Parts.PeopleDeckOpt.deck_vis",
+    "Fw.Parts.PeopleDeckOpt.crAspectRaw_eq",
+    "Fw.Parts.PeopleDeckOpt.snap_faithful",
+    "Fw.Parts.PeopleDeckOpt.cr_snap_same",
+    "Fw.Parts.PeopleDeckOpt.wk_snap_same",
+    "Fw.Parts.PeopleDeckOpt.snap_nudged",
+    "Fw.Parts.PeopleDeckOpt.deck_le",
+    "Fw.Parts.PeopleDeckOpt.deck_lt",
+    "Fw.Parts.PeopleDeckOpt.deck_run_dominates",
+    "Fw.Parts.PeopleDeckOpt.deck_leE",
+    "Fw.Parts.PeopleDeckOpt.deck_ltE",
     "Fw.Engine.WebKit.wkLayouts_le"
    ],
    "leanAgainst": [
-    "Fw.Parts.PeopleDeck.swipe_eq",
+    "Fw.Parts.PeopleDeckOpt.swipe_eq",
     "Fw.Engine.passes_absorb",
     "Fw.Engine.passes_absorb_changes",
     "Fw.Engine.WebKit.wkRounds_ge_two"
@@ -1271,7 +1271,7 @@
    "missingWhy": [
     {
      "statement": "cqiFormula with the corrected count: $W_{wk}(\\mathrm{cqiF}(d))$ adds $\\operatorname{wkRounds}-1$ style rounds and $\\operatorname{wkLayouts}$ layouts when the deck is in $\\mathrm{trav}(d)$, versus the original's aspect-ratio layout.",
-     "module": "Fw.Parts.PeopleDeck",
+     "module": "Fw.Parts.PeopleDeckOpt",
      "needs": "engine rule PROVED (Fw.Engine.WebKit.wkRounds_ge_two, wkLayouts_le); remaining: trav(d) and the deck's layout-dirty flag per frame in the part"
     },
     {
@@ -1301,34 +1301,34 @@
    "visual": "E: pain_visSame for every env and instant (premise CovOk for the covered case); at width <= 860 E with no premise (narrow_run_eq)",
    "mechanism": "The interval is 1/3 Hz, not the 33 Hz in the inventory. At <= 860 px, and so in both 430 px lanes, `le` returns before any write (JS 4595, narrow_tick_id). In the covered case it only re-sets an empty T. Every skipped tick therefore saves one script callback and no style, layout or paint: about 20 FunctionCalls per minute, at most 1-2 in one CI run. The tick runs on wall-clock timers under BeginFrame control (INFERRED), so trace.FunctionCall may not separate. The WebKit model also charges the tick a commit (base := [.commit]); that is a model convention, not a cite.",
    "leanFor": [
-    "Fw.Parts.PainNotes.tickO_idle",
-    "Fw.Parts.PainNotes.tickV_eq",
-    "Fw.Parts.PainNotes.pain_run_eq",
-    "Fw.Parts.PainNotes.pain_prefix_eq",
-    "Fw.Parts.PainNotes.pain_visSame",
-    "Fw.Parts.PainNotes.narrow_tick_id",
-    "Fw.Parts.PainNotes.narrow_run_eq",
-    "Fw.Parts.PainNotes.wide_armed_iff",
-    "Fw.Parts.PainNotes.resumeAt_on_grid",
-    "Fw.Parts.PainNotes.resumeAt_least",
-    "Fw.Parts.PainNotes.hiddenTick_le",
-    "Fw.Parts.PainNotes.hiddenTick_lt",
-    "Fw.Parts.PainNotes.frames_le",
-    "Fw.Parts.PainNotes.cr_idle_tick",
-    "Fw.Parts.PainNotes.wk_idle_tick",
-    "Fw.Parts.PainNotes.hiddenTick_leE",
-    "Fw.Parts.PainNotes.hiddenTick_ltE",
-    "Fw.Parts.PainNotes.tick_units",
-    "Fw.Parts.PainNotes.tick_passes_eq"
+    "Fw.Parts.PainNotesOpt.tickO_idle",
+    "Fw.Parts.PainNotesOpt.tickV_eq",
+    "Fw.Parts.PainNotesOpt.pain_run_eq",
+    "Fw.Parts.PainNotesOpt.pain_prefix_eq",
+    "Fw.Parts.PainNotesOpt.pain_visSame",
+    "Fw.Parts.PainNotesOpt.narrow_tick_id",
+    "Fw.Parts.PainNotesOpt.narrow_run_eq",
+    "Fw.Parts.PainNotesOpt.wide_armed_iff",
+    "Fw.Parts.PainNotesOpt.resumeAt_on_grid",
+    "Fw.Parts.PainNotesOpt.resumeAt_least",
+    "Fw.Parts.PainNotesOpt.hiddenTick_le",
+    "Fw.Parts.PainNotesOpt.hiddenTick_lt",
+    "Fw.Parts.PainNotesOpt.frames_le",
+    "Fw.Parts.PainNotesOpt.cr_idle_tick",
+    "Fw.Parts.PainNotesOpt.wk_idle_tick",
+    "Fw.Parts.PainNotesOpt.hiddenTick_leE",
+    "Fw.Parts.PainNotesOpt.hiddenTick_ltE",
+    "Fw.Parts.PainNotesOpt.tick_units",
+    "Fw.Parts.PainNotesOpt.tick_passes_eq"
    ],
    "leanAgainst": [
-    "Fw.Parts.PainNotes.naive_rearm_shifts"
+    "Fw.Parts.PainNotesOpt.naive_rearm_shifts"
    ],
    "missingWhy": [
     {
      "statement": "Magnitude: if every skipped tick is idle ($\\mathrm{narrow}\\lor\\mathrm{covered}$ with $T=[]$), then $\\sum_k \\big(W(o,k)-W(v,k)\\big) = (\\mathrm{ticksIn}(t_0,a,b)\\cdot e_{\\mathrm{script}})$, i.e. only the script component is non-zero and $\\mathrm{ticksIn}(t_0,a,b)\\le\\lceil (b-a)/3000\\rceil$",
-     "module": "Fw.Parts.PainNotes",
-     "needs": "PROVED Fw.Parts.PainNotes.tick_units, Fw.Parts.PainNotes.tick_passes_eq (an idle tick adds only script units, passes equal off the base stages); remaining: the bound ticksIn <= ceil((b-a)/3000) and a WebKit cite on whether a write-free timer callback schedules a rendering update"
+     "module": "Fw.Parts.PainNotesOpt",
+     "needs": "PROVED Fw.Parts.PainNotesOpt.tick_units, Fw.Parts.PainNotesOpt.tick_passes_eq (an idle tick adds only script units, passes equal off the base stages); remaining: the bound ticksIn <= ceil((b-a)/3000) and a WebKit cite on whether a write-free timer callback schedules a rendering update"
     }
    ],
    "premises": [
@@ -1363,7 +1363,7 @@
    "missingWhy": [
     {
      "statement": "Toggle frame: $W(v,k_{flip}).\\mathrm{units}(\\mathrm{paint}) < W(o,k_{flip}).\\mathrm{units}(\\mathrm{paint})$ and $\\mathrm{Resident}(v).\\mathrm{layers} = \\mathrm{Resident}(o).\\mathrm{layers}+1 \\Rightarrow \\mathrm{claim} = \\mathrm{trade}$",
-     "module": "Fw.Parts.PainNotes",
+     "module": "Fw.Parts.PainNotesOpt",
      "needs": "Resident accounting for a solid-colour layer (WebKit 0-backing direct colour path needs a source cite at the pin)"
     }
    ],

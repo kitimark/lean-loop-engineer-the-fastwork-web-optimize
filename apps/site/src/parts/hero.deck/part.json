@@ -1,0 +1,13 @@
+{
+  "id": "hero.deck",
+  "slot": "hero",
+  "anchors": ["hero-deck"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3464-3468,4291-4310; assets/2.gBuqKVzi.css:1962-1964,2053-2127" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

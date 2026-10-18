@@ -1,0 +1,196 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:2358-2418, 2430-2444 title, 2784-2860 copy/showcase/pill,
+   3519-3600 phone layout, 3614-3650 reduced motion). The page font is the host's (the original's Google Sans is not shipped),
+   so font-family is not declared. State classes (isVisible, isShrinking) are toggled on the DOM by the driver. */
+@layer parts {
+  .future {
+    --future-shrink: 0;
+    --future-shrink-scale: calc(1 - 0.083333 * var(--future-shrink));
+    --future-shrink-radius: 32px;
+    z-index: 3;
+    color: #151a23;
+    background: transparent;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin-top: calc(1px - 100svh);
+    width: max(100%, 320px);
+    padding: 0;
+    display: flex;
+    position: relative;
+    overflow: visible;
+  }
+  .future[data-fw-scene='paused'],
+  .future[data-fw-scene='paused'] :where(*) {
+    will-change: auto !important;
+    animation-play-state: paused !important;
+  }
+  .card {
+    z-index: 2;
+    isolation: isolate;
+    box-sizing: border-box;
+    border-radius: calc(var(--future-shrink-radius) * var(--future-shrink));
+    will-change: transform, border-radius;
+    background: #fff;
+    flex-direction: column;
+    gap: 48px;
+    width: 100%;
+    padding: 80px 56px;
+    display: flex;
+    position: relative;
+    overflow: clip;
+  }
+  .future.isShrinking > .card {
+    transform: scale(var(--future-shrink-scale));
+    transform-origin: 50% 100%;
+  }
+  .future:not(.isVisible) > .card {
+    visibility: hidden;
+    opacity: 0;
+    filter: blur(14px);
+    pointer-events: none;
+    transition:
+      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      filter 1.6s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 1.6s;
+    transform: translateY(48px);
+  }
+  .future.isVisible > .card {
+    visibility: visible;
+    opacity: 1;
+    filter: none;
+    pointer-events: auto;
+    transition:
+      opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      filter 1.6s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .future.isVisible.isShrinking > .card {
+    transform: scale(var(--future-shrink-scale));
+    transform-origin: 50% 100%;
+  }
+  .header {
+    z-index: 10;
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+    width: 100%;
+    display: flex;
+    position: relative;
+  }
+  .headerCopy {
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    display: flex;
+  }
+  .title {
+    color: #2b313b;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0;
+    font-size: clamp(36px, 4vw, 48px);
+    font-weight: 500;
+    line-height: 1.15;
+  }
+  .titleLead {
+    display: inline;
+  }
+  .titleWords {
+    white-space: nowrap;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    display: inline-flex;
+  }
+  .copy {
+    color: #50555e;
+    text-wrap: pretty;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+  }
+  .copyLead {
+    white-space: nowrap;
+  }
+  .showcase {
+    z-index: 1;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    width: 100%;
+    display: flex;
+    position: relative;
+  }
+  @media (width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px) {
+    .future {
+      --future-shrink-scale: 1;
+      --future-shrink-radius: 0px;
+    }
+    .showcase {
+      overflow: visible;
+    }
+  }
+  @media (width<=860px) {
+    .card {
+      gap: 24px;
+      min-height: 100svh;
+      padding: 32px 20px 48px;
+      overflow: visible;
+    }
+    .header {
+      gap: 32px;
+      margin-bottom: 40px;
+    }
+    .headerCopy {
+      gap: 16px;
+    }
+    .title {
+      letter-spacing: -0.72px;
+      text-wrap: unset;
+      flex-direction: column;
+      align-items: center;
+      font-size: 36px;
+      line-height: 1.15;
+      display: flex;
+    }
+    .titleLead {
+      white-space: nowrap;
+      display: block;
+    }
+    .titleWords {
+      white-space: nowrap;
+      flex-wrap: nowrap;
+      justify-content: center;
+      align-items: center;
+      gap: 0;
+    }
+    .titleWords:has([data-o-stack='true']) {
+      gap: 4px;
+    }
+    .copy br {
+      display: none;
+    }
+    .copyLead {
+      white-space: normal;
+    }
+  }
+  @media (width<=640px) {
+    .future {
+      --future-shrink-radius: 24px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .future {
+      margin-top: -1px;
+    }
+  }
+  @media (width<=860px), (device-width<=500px), (hover: none) and (pointer: coarse) and (width<=1200px) {
+    .future {
+      --future-shrink-scale: 1;
+      --future-shrink-radius: 0px;
+    }
+  }
+}
