@@ -268,31 +268,6 @@ def skip (env : Environment) (n : Name) (ci : ConstantInfo) : Bool :=
   (match ci with | .ctorInfo _ | .recInfo _ => true | _ => false) ||
   (`Fw.Wire).isPrefixOf n
 
-/-- **Is a constant an entry candidate?** The name-level part of `hasEntry`: it is imported (has a module index),
-`skip` keeps it, its name is not internal and has no `.match_` part, and no component starts with `inst`
-(derived-instance helpers such as `instReprWork.repr`). Below, $\sqsubseteq_{\mathrm{str}}$ reads "is a substring
-of" and $\preceq_{\mathrm{str}}$ reads "is a string prefix of".
-$$\forall n, c,\ \operatorname{candidate}(n, c) \iff \operatorname{mod}(n) \ne \bot \land \lnot\operatorname{skip}(n, c) \land \lnot\operatorname{internal}(n) \land \texttt{.match\_} \not\sqsubseteq_{\mathrm{str}} n \land \lnot\exists x \in \operatorname{components}(n),\ \texttt{inst} \preceq_{\mathrm{str}} x$$ -/
-def candidate (env : Environment) (n : Name) (ci : ConstantInfo) : Bool :=
-  (env.getModuleIdxFor? n).isSome && !skip env n ci && !n.isInternal &&
-    (n.toString.splitOn ".match_").length ≤ 1 && !n.components.any (fun c => c.toString.startsWith "inst")
-
-/-- The source line of a declaration, 0 when it has no declaration range (a generated declaration).
-$$\forall n,\ \operatorname{declLine}(n) =\begin{cases} \operatorname{line}(\operatorname{range}(n)) & n \text{ has a declaration range} \\ 0 & \text{otherwise} \end{cases}$$ -/
-def declLine (n : Name) : MetaM Nat := return ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
-
-/-- **Does `entryOf` show a candidate?** It has a source line (not generated), and it is neither an instance nor a
-structure projection.
-$$\forall n,\ \operatorname{shown}(n) \iff \operatorname{declLine}(n) \ne 0 \land \lnot\operatorname{instance}(n) \land \lnot\operatorname{projection}(n)$$ -/
-def shown (n : Name) : MetaM Bool :=
-  return (← declLine n) != 0 && !(← isInstance n) && !(← isProjectionFn n)
-
-/-- **Does a constant get a math-view entry?** It is a `candidate` that `entryOf` shows; `entries` lists exactly these
-constants (a failed export still lists the name), and the math-view facts keep a reach by this test.
-$$\forall n, c,\ \operatorname{hasEntry}(n, c) \iff \operatorname{candidate}(n, c) \land \operatorname{shown}(n)$$ -/
-def hasEntry (env : Environment) (n : Name) (ci : ConstantInfo) : MetaM Bool :=
-  return candidate env n ci && (← shown n)
-
 /-- Heartbeat budget of one declaration's export, in thousands (the unit of `maxHeartbeats`). Each declaration
 gets a fresh budget, so the export's total cost grows with the number of declarations without ever hitting a
 global limit. -/
@@ -364,8 +339,8 @@ def axIsAx (kenv : Kernel.Environment) (c : Name) : Bool :=
 /-- The export of one declaration (`none` when it is not a math-view entry); `axs` are its axioms, sorted. -/
 def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc : Option String)
     (axs : Array Name) : MetaM (Option Entry) := do
-  let line ← declLine n
-  unless ← shown n do return none
+  let line := ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
+  if line == 0 || (← isInstance n) || (← isProjectionFn n) then return none
   let start ← IO.getNumHeartbeats
   let sig ← withOptions (fun o => o.set `format.width (1000 : Nat)) do
     return toString (← PrettyPrinter.ppSignature n).fmt
@@ -400,7 +375,7 @@ def entries (want : Name → Bool := fun _ => true) : MetaM (Array Entry) := do
   let fuel := consts.length + 2
   let mut memo : Std.HashMap Name (List Name) := {}
   for (n, ci) in consts do
-    if !candidate env n ci then continue
+    if skip env n ci then continue
     let some modIdx := env.getModuleIdxFor? n | continue
     let mod := env.header.moduleNames[modIdx.toNat]!
     if !want mod then continue
@@ -408,6 +383,9 @@ def entries (want : Name → Bool := fun _ => true) : MetaM (Array Entry) := do
     -- extensions found in *every* imported module (Lean/Parser/Term/Doc.lean:60-68, Parser/Tactic/Doc.lean:250-258
     -- @ v4.35.0), which would make an entry depend on modules outside its import cone (mathview-module-cache)
     let doc ← findSimpleDocString? env n
+    if n.isInternal || (n.toString.splitOn ".match_").length > 1 then continue
+    -- derived-instance helpers (`instReprWork.repr`, `instToJsonCmd.toJson`, ...)
+    if n.components.any (fun c => c.toString.startsWith "inst") then continue
     -- one declaration can never crash the export: its failure becomes a lint failure with its name
     -- sorted like `collectAxioms`; out of fuel (not expected, see `fuel`) falls back to the old per-call walk
     let mut axs : Array Name := #[]

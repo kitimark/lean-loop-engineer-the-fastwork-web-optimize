@@ -478,9 +478,9 @@ def wireSet (env : Environment) (root : System.FilePath) : IO (Std.HashSet Strin
 /-- **The JSON of one entry**: `toJson` of the entry, unchanged for a non-theorem; a theorem also gets the keys
 `headConst`, `implArg` (`{index, expr}` or null), `assumes`, `killOf`, `class`, `reach` and `reachFromWire`, each
 null when its facts are missing; `reachFromWire` is also null when the theorem has no subjects
-(`Fw.Spec.MathFacts.reachFromWire`).
-$$\operatorname{entryJson}(e, \phi) = \begin{cases} \operatorname{toJson}(e) & e.\mathrm{kind} \ne \texttt{theorem} \\ \operatorname{toJson}(e) \cup \{h, a, A, k, c, \mathit{reach}, \operatorname{reachFromWire}(S, W)\} & \phi = (h, a, A, k, c, \mathit{reach}, S) \\ \operatorname{toJson}(e) \cup \{\text{the 7 keys} \mapsto \mathrm{null}\} & \phi = \bot \end{cases}$$ -/
-def entryJson (inWire : String → Bool) (s : Stored) : Json :=
+(`Fw.Spec.MathFacts.reachFromWire`). `reach` keeps only the names in the set $E$ of exported entry names, in order.
+$$\operatorname{entryJson}_{W, E}(e, \phi) = \begin{cases} \operatorname{toJson}(e) & e.\mathrm{kind} \ne \texttt{theorem} \\ \operatorname{toJson}(e) \cup \{h, a, A, k, c, [r \in \mathit{reach} : r \in E], \operatorname{reachFromWire}(S, W)\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = (h, a, A, k, c, \mathit{reach}, S) \\ \operatorname{toJson}(e) \cup \{\text{the 7 keys} \mapsto \mathrm{null}\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = \bot \end{cases}$$ -/
+def entryJson (inWire isEntry : String → Bool) (s : Stored) : Json :=
   let j := toJson s.entry
   if s.entry.kind != "theorem" then j else
   let keys : List (String × Json) := match s.facts with
@@ -491,7 +491,7 @@ def entryJson (inWire : String → Bool) (s : Stored) : Json :=
          | some i => Json.mkObj [("index", toJson i), ("expr", toJson f.implExpr)]
          | none => Json.null),
        ("assumes", toJson f.assumes), ("killOf", toJson f.killOf), ("class", toJson f.cls.tag),
-       ("reach", toJson f.reach), ("reachFromWire", toJson (Fw.Spec.MathFacts.reachFromWire f.subjects inWire))]
+       ("reach", toJson (f.reach.filter isEntry)), ("reachFromWire", toJson (Fw.Spec.MathFacts.reachFromWire f.subjects inWire))]
   keys.foldl (fun j (k, v) => j.setObjVal! k v) j
 
 /-- The stored entries under key `k`, or `none` when absent or unreadable (then the module is recomputed). -/
@@ -606,7 +606,9 @@ def main (args : List String) : IO UInt32 := do
     | none => do withFacts env rs (nameIndex env) (← Prod.fst <$> (MathView.entries.run' {} {}).toIO ctx st)
   let es := ss.map (·.entry)
   let wire ← wireSet env root
-  let render : Unit → String := fun _ => (Json.arr (ss.map (entryJson wire.contains))).pretty ++ "\n"
+  let names : Std.HashSet String := es.foldl (fun s e => s.insert e.name) {}
+  let render : Unit → String := fun _ =>
+    (Json.arr (ss.map (entryJson wire.contains names.contains))).pretty ++ "\n"
   if let some f := outFile? args then IO.FS.writeFile f (render ())
   if args.contains "--lint" then
     let shadow := es.toList.flatMap ShadowLint.lintEntry

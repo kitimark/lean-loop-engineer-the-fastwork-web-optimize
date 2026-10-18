@@ -16,7 +16,7 @@ few facts that the math view (`lean/MathViewMain.lean`) now emits next to the ex
 * `killOf`: the ledger id of the registered incident whose replay the theorem rejects (`¬ P i.replay`);
 * `class`: `closed`, `rfl`, `defEq` or `general`, by how the proof is built (`classify`);
 * `reach`: the declarations with a math-view entry that the statement and the proof reach (`Fw.Spec.Reach.closure`,
-  `MathView.hasEntry`);
+  `hasEntry`);
 * `reachFromWire`: true or false when the theorem has subjects (whether one of them is reachable from the fwcore
   dispatcher `Fw.Wire.handle` or a golden generator `lean/scripts/*Golden.lean`), null when it has none (`fwIdents`,
   `wireReach`, `reachFromWire`).
@@ -24,6 +24,14 @@ few facts that the math view (`lean/MathViewMain.lean`) now emits next to the ex
 The decisions (`classify`, `implIdx`, `killOf`, `fwIdents`, `reachFromWire`) are pure and carry `#guard`s;
 `Fw.Spec.MathFactsGuards` checks the classification and the other facts on real `Fw` declarations through `facts%`
 and `wire%`. `factsOf` and `wireReach` are the `MetaM` glue that reads the environment.
+
+Threat model of `reachFromWire`: true must never be emitted for a theorem whose subject is dead code
+(inc-proof-of-dead-code); false or null only ask a human to look. Hence one root set (the dispatcher and the golden
+generators, research/notes/2026/10-18-lean-first-gate.md check (d)), subjects that are operations (`subjectsOf`), and
+null when there are none.
+
+Stated limit: the `defEq` class depends on the environment (`sidesDefEq`). The canonical environment is the export's
+(`lake exe mathview`); `facts%` in an elaborated file can disagree near the heartbeat budget.
 -/
 open Lean Meta Elab Term
 
@@ -363,6 +371,21 @@ def entryLike (c : Name) (thms : Bool) : MetaM Bool := do
   if c.components.any (fun x => x.toString.startsWith "inst") then return false
   return !(← isProjectionFn c)
 
+/-- **Does a constant get a math-view entry?** The tests `MathView.entries` and `MathView.entryOf` apply, in one
+place: `MathView.skip` keeps it, it is imported (has a module index), its name is not internal and has no `.match_`
+part, no component starts with `inst`, it has a source line (not generated, so no `ctorIdx` or `noConfusionType`),
+and it is neither an instance nor a structure projection. The export also keeps a reach name only when it is an
+exported entry name (`entryJson`), so a drift between this copy and `MathView` cannot list a name without an entry.
+Below, $\sqsubseteq_{\mathrm{str}}$ reads "is a substring of" and $\preceq_{\mathrm{str}}$ "is a string prefix of".
+$$\forall n, c,\ \operatorname{hasEntry}(n, c) \iff \lnot\operatorname{skip}(n, c) \land \operatorname{mod}(n) \ne \bot \land \lnot\operatorname{internal}(n) \land \texttt{.match\_} \not\sqsubseteq_{\mathrm{str}} n \land \lnot\exists x \in \operatorname{components}(n),\ \texttt{inst} \preceq_{\mathrm{str}} x \land \operatorname{line}(n) \ne 0 \land \lnot\operatorname{instance}(n) \land \lnot\operatorname{projection}(n)$$ -/
+def hasEntry (n : Name) (ci : ConstantInfo) : MetaM Bool := do
+  let env ← getEnv
+  if MathView.skip env n ci || (env.getModuleIdxFor? n).isNone || n.isInternal then return false
+  if (n.toString.splitOn ".match_").length > 1 then return false
+  if n.components.any (fun c => c.toString.startsWith "inst") then return false
+  let line := ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
+  return line != 0 && !(← isInstance n) && !(← isProjectionFn n)
+
 /-- Whether a constant's type ends in a sort: under its binders, opened with `forallTelescopeReducing` (which unfolds
 to expose them), the result type in weak head normal form is `Sort u`. A type (`Counts : Type`), a type family or a
 predicate (`lt : Work → Work → Prop`) is sort-valued; an operation on data is not.
@@ -418,7 +441,7 @@ def subjectsOf (ty : Expr) (implE : Option Expr) : MetaM (List Name) := do
 implementation argument come from the result type under one `¬`; its premises from the `Assume` applications in the
 hypotheses with a literal id (deduplicated, in order); its kill from `killOf`; its class from `classify`; its reach
 from `closure` over the constants of its statement and proof, keeping the names other than $n$ that have a math-view
-entry (`MathView.hasEntry`), sorted by printed name; its subjects from `subjectsOf`, without repeats. Runs under
+entry (`hasEntry`), sorted by printed name; its subjects from `subjectsOf`, without repeats. Runs under
 `plainUnfold`.
 $$\operatorname{factsOf}(n) = \bigl(h, a, A, \operatorname{killOf}(\nu, \operatorname{target}(a), R), \operatorname{classify}(\operatorname{binders}(\tau_n), \operatorname{proofHead}_4(v_n), \operatorname{sidesDefEq}(\tau_n)), \operatorname{sort}\{c \in \operatorname{closure}(\operatorname{consts}(\tau_n) \mathbin{+\!\!+} \operatorname{consts}(v_n)) \mid c \ne n,\ \operatorname{hasEntry}(c)\}, \operatorname{dedup}(\operatorname{subjects}(\tau_n, a))\bigr)$$ -/
 def factsOf (n : Name) (ci : ConstantInfo) (rs : List Row) : MetaM Facts := plainUnfold do
@@ -454,7 +477,7 @@ def factsOf (n : Name) (ci : ConstantInfo) (rs : List Row) : MetaM Facts := plai
     let roots := ci.type.getUsedConstants.toList ++ value.getUsedConstants.toList
     let reach ← (Reach.closure env scope roots).filterM fun c => do
       let some cc := env.find? c | return false
-      return c != n && (← MathView.hasEntry env c cc)
+      return c != n && (← hasEntry c cc)
     let reachS := (reach.map toString).toArray.qsort (· < ·) |>.toList
     let subjects ← subjectsOf ci.type implE
     return { headConst := head.map toString, implIdx := implI, implExpr := implS, assumes, killOf := kill, cls,
