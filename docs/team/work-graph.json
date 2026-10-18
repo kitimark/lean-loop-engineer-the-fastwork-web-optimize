@@ -5138,7 +5138,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-18-chrome-agent-docs.md"
-   ]
+   ],
+   "evidence": "bd0a755"
   },
   {
    "id": "chrome-agent-tools-install",
