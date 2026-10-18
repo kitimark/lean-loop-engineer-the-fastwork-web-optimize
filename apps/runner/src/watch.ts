@@ -5,6 +5,7 @@ import { execFile, spawn } from "node:child_process";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
+import { collect, polledRuns, shapeAlerts, shapeFile, shapeFor, shapeView, type ShapeReply } from "./ci-shape.ts";
 import { collectFacts, formatNext, nextAlerts, slowAlerts, slowNextLines, type NextReply } from "./next.ts";
 import {
   collectSnapshot, exe, liveKeep, parsePs, pathsFor, readKeep, readSamples, writeKeep, type AgentSnap, type Paths, type Prev, type PsRow, type Snapshot,
@@ -81,6 +82,15 @@ export async function slowFor(paths: Paths, core: CoreCall): Promise<string[]> {
   } catch { return []; }
 }
 
+/** One CI-shape pass: append the rows of newly finished runs (the poller's cached runs and this snapshot's CI rows; a
+ *  few charged views at most), then ask fwcore `obs.ciShape`. Null when there is no ledger or the op is unavailable. */
+export async function shapePass(main: string, root: string, snap: Snapshot, core: CoreCall): Promise<ShapeReply | null> {
+  const file = shapeFile(main);
+  const fromSnap = snap.system.ci.flatMap((r) => (r.id ? [{ id: r.id, status: r.status, conclusion: r.conclusion }] : []));
+  await collect([...polledRuns(main), ...fromSnap], main, undefined, file);
+  return shapeFor(file, root, core);
+}
+
 /** `fw next`: print the current NEXT list once. Read-only: no log line, no action. Returns the exit code. */
 export async function nextMain(args: string[], cwd: string, print: (s: string) => void = console.log, core?: CoreCall): Promise<number> {
   if (args.length) throw new UsageError("usage: fw next   (prints `NEXT <agent> <action> <args>` once; read-only)");
@@ -140,9 +150,9 @@ export function newAlerts(prev: Set<string> | null, h: Health): Alert[] {
   return prev === null ? [] : h.alerts.filter((a) => !prev.has(alertKey(a)));
 }
 
-export function appendLog(p: Paths, snap: Snapshot, h: Health): void {
+export function appendLog(p: Paths, snap: Snapshot, h: Health, ciShape: ReturnType<typeof shapeView> = null): void {
   mkdirSync(p.consoleDir, { recursive: true });
-  appendFileSync(join(p.consoleDir, "health.jsonl"), JSON.stringify({ at: snap.now, input: snap, output: h }) + "\n");
+  appendFileSync(join(p.consoleDir, "health.jsonl"), JSON.stringify({ at: snap.now, input: snap, output: h, ...(ciShape ? { ciShape } : {}) }) + "\n");
 }
 
 export interface LogLine { at: number; input: Snapshot; output: Health }
@@ -271,10 +281,12 @@ export async function watchMain(args: string[], cwd: string, print: (s: string) 
     if (nx) h.alerts.push(...nextAlerts(nx)); // agent.held / agent.unlanded: fwcore's proposals shown as alerts
     const slow = await slowFor(paths, call); // timing.slow: fwcore's Fw.Obs.Timing verdicts (obs.slow), never a threshold here
     h.alerts.push(...slowAlerts(slow));
-    appendLog(paths, snap, h);
+    const shape = await shapePass(main, root, snap, call); // ci.shape: fwcore's Fw.Obs.CiShape decision (obs.ciShape)
+    h.alerts.push(...shapeAlerts(shape));
+    appendLog(paths, snap, h, shapeView(shape));
     endPass(0);
     const fresh = newAlerts(prev, h);
-    print(o.json ? JSON.stringify({ input: snap, output: h, next: nx, slow }) : [renderTable(snap, h), ...(nx ? formatNext(nx) : []), ...slowNextLines(slow)].join("\n"));
+    print(o.json ? JSON.stringify({ input: snap, output: h, next: nx, slow, ciShape: shapeView(shape) }) : [renderTable(snap, h), ...(nx ? formatNext(nx) : []), ...slowNextLines(slow)].join("\n"));
     if (o.untilAlert && fresh.length) {
       if (!o.json) print(`NEW ALERT: ${fresh.map((a) => `${a.code} ${a.subject}`).join("; ")}`);
       return 3;

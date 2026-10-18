@@ -1,0 +1,72 @@
+{
+ "createdAt": "2026-10-18T05:43:32Z",
+ "startedAt": "2026-10-18T05:43:32Z",
+ "attempt": 1,
+ "event": "push",
+ "headBranch": "ci/integrate-ports-3",
+ "headSha": "b35b54191b68082746652a074465c3a20c57b871",
+ "workflowName": "breakpoint-gate",
+ "conclusion": "failure",
+ "jobs": [
+  {
+   "name": "guard",
+   "conclusion": "success",
+   "startedAt": "2026-10-18T05:43:38Z",
+   "completedAt": "2026-10-18T05:43:49Z"
+  },
+  {
+   "name": "site",
+   "conclusion": "success",
+   "startedAt": "2026-10-18T05:43:53Z",
+   "completedAt": "2026-10-18T05:45:07Z"
+  },
+  {
+   "name": "gate playwright-webkit j3",
+   "conclusion": "success",
+   "startedAt": "2026-10-18T05:45:14Z",
+   "completedAt": "2026-10-18T06:35:00Z"
+  },
+  {
+   "name": "gate playwright-webkit j1",
+   "conclusion": "success",
+   "startedAt": "2026-10-18T05:49:30Z",
+   "completedAt": "2026-10-18T06:10:19Z"
+  },
+  {
+   "name": "gate playwright-webkit j2",
+   "conclusion": "success",
+   "startedAt": "2026-10-18T05:54:35Z",
+   "completedAt": "2026-10-18T06:15:37Z"
+  },
+  {
+   "name": "gate chromium j1",
+   "conclusion": "success",
+   "startedAt": "2026-10-18T05:50:55Z",
+   "completedAt": "2026-10-18T06:14:59Z"
+  },
+  {
+   "name": "gate playwright-webkit j0",
+   "conclusion": "success",
+   "startedAt": "2026-10-18T05:54:36Z",
+   "completedAt": "2026-10-18T06:16:11Z"
+  },
+  {
+   "name": "gate chromium j0",
+   "conclusion": "success",
+   "startedAt": "2026-10-18T05:55:40Z",
+   "completedAt": "2026-10-18T06:24:56Z"
+  },
+  {
+   "name": "gate chromium j2",
+   "conclusion": "success",
+   "startedAt": "2026-10-18T05:55:50Z",
+   "completedAt": "2026-10-18T06:41:39Z"
+  },
+  {
+   "name": "merge",
+   "conclusion": "failure",
+   "startedAt": "2026-10-18T06:41:43Z",
+   "completedAt": "2026-10-18T06:42:44Z"
+  }
+ ]
+}

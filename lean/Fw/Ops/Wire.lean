@@ -6,6 +6,7 @@ import Fw.Ops.Meter
 import Fw.Ops.Identity
 import Fw.Ops.Obs
 import Fw.Ops.Wait
+import Fw.Obs.CiShape
 /-!
 # JSON codecs and ops of `Fw.Ops` (`ops.*`)
 
@@ -24,6 +25,7 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.cap` | `agent_id`?, `agent_type`? (as `ops.actor`), `tokens` (a Bash input lexed: a string is a word, `{"redir":"2>&1"}` a redirect, `{"stop":"|"}` a control operator) | `decision` (`mint`/`noMint`), `actor`, `argv` (when minted), `reason` (`notFwPrefix`/`unknownActor`, when not) |
 | `ops.door` | `actor`, `secret`? (bool) | `accept` (the door without capability takes this actor), `agentActor` |
 | `ops.wait` | `cmd` (the Bash command text), `caps`? {maxSleepSec?} | `decision` (`allow`/`deny`), `reason` (null, `bgLong` or `unboundedLoop`), `shape` (`bgLong`: `fwWatch`/`loop`/`server`/`tail`/`longSleep`, else null) |
+| `obs.ciShape` | `rows` [{run, workflow, branch?, sha?, event?, createdS?, startedS? (default createdS), job, conclusion? (default `success`), startS, endS, timeoutS? (0 = unknown)}], `params`? {rhoNum?, rhoDen?, minShardS?, window?, nMin?, gNum?, gDen?, minJobS?, thetaNum?, thetaDen?, defaultTimeoutS?, queueMaxS?, aliases? [[from, to]], timeouts? [{workflow, job, s}]}, `lastN`? (default 10) | `runs` (per workflow its last `lastN` runs, oldest first: {workflow, run, branch, sha, createdS, jobS, groups [{group, n, maxS, sumS}] (n ≥ 2), fires}), `raised` (every raise, per workflow oldest first), `open` (the classes firing on each workflow's latest run); an alert is {workflow, cls, run, branch, sha, createdS, subject, value, bound} |
 | `ops.actor` | `agent_id`?, `agent_type`? (string or null, as in a hook payload or a `caps.jsonl` record) | `who` (`lead`/`agent`/`unknown`), `role` (the agent type, or null), `actor` (`lead`/`reviewer`/`owner`, or null: mint no capability) |
 
 `kind` / `runsAs`: `teammate`, `subagent`, `worktree`. `isolation`: `"worktree"`, `true`, `false`
@@ -441,8 +443,83 @@ def opWait (req : Json) : Except String Reply := do
     | .deny (.bgLong s) => [("decision", .str "deny"), ("reason", .str "bgLong"), ("shape", .str (shapeName s))]
     | .deny .unboundedLoop => [("decision", .str "deny"), ("reason", .str "unboundedLoop"), ("shape", .null)]
 
+/-! ## obs.ciShape -/
+
+open Fw.Obs.CiShape in
+/-- A `Cls` wire name. -/
+def clsName : Cls → String
+  | .imbalance => "imbalance" | .growth => "growth" | .nearTimeout => "nearTimeout" | .queue => "queue"
+
+open Fw.Obs.CiShape in
+/-- Decode one CI-shape row (`startedS` defaults to `createdS`, `conclusion` to `success`, `timeoutS` to 0). -/
+def ciRow (j : Json) : Except String Row := do
+  let createdS ← natD j "createdS" 0
+  pure { run := ← nat j "run", workflow := ← str j "workflow", branch := ← strD j "branch" "",
+         sha := ← strD j "sha" "", event := ← strD j "event" "", createdS,
+         startedS := ← natD j "startedS" createdS, job := ← str j "job",
+         conclusion := ← strD j "conclusion" "success", startS := ← nat j "startS", endS := ← nat j "endS",
+         timeoutS := ← natD j "timeoutS" 0 }
+
+open Fw.Obs.CiShape in
+/-- Decode the CI-shape parameters (each field defaults to `Params`). -/
+def ciParams (req : Json) : Except String Params := do
+  match opt req "params" with
+  | none => pure {}
+  | some q =>
+    let d : Params := {}
+    let aliases ← match opt q "aliases" with
+      | none => pure d.aliases
+      | some v => do (← asArr "aliases" v).toList.mapM fun a => do
+          match (← asArr "aliases" a).toList with
+          | [x, y] => pure (← asStr "aliases" x, ← asStr "aliases" y)
+          | _ => throw "field aliases: expected [from, to] pairs"
+    let timeouts ← (← arrD q "timeouts").mapM fun t => do pure (← str t "workflow", ← str t "job", ← nat t "s")
+    pure { rhoNum := ← natD q "rhoNum" d.rhoNum, rhoDen := ← natD q "rhoDen" d.rhoDen,
+           minShardS := ← natD q "minShardS" d.minShardS, window := ← natD q "window" d.window,
+           nMin := ← natD q "nMin" d.nMin, gNum := ← natD q "gNum" d.gNum, gDen := ← natD q "gDen" d.gDen,
+           minJobS := ← natD q "minJobS" d.minJobS, thetaNum := ← natD q "thetaNum" d.thetaNum,
+           thetaDen := ← natD q "thetaDen" d.thetaDen, defaultTimeoutS := ← natD q "defaultTimeoutS" d.defaultTimeoutS,
+           queueMaxS := ← natD q "queueMaxS" d.queueMaxS, aliases, timeouts }
+
+open Fw.Obs.CiShape in
+/-- An alert as JSON. -/
+def ciAlertJson (a : Alert) : Json := Json.mkObj [
+  ("workflow", .str a.workflow), ("cls", .str (clsName a.cls)), ("run", toJson a.run), ("branch", .str a.branch),
+  ("sha", .str a.sha), ("createdS", toJson a.createdS), ("subject", .str a.subject), ("value", toJson a.value),
+  ("bound", toJson a.bound)]
+
+open Fw.Obs.CiShape in
+/-- `obs.ciShape`: per workflow the shape of its last runs, the raised alerts and the open alerts
+(`Fw.Obs.CiShape`). -/
+def opCiShape (req : Json) : Except String Reply := do
+  let rows ← (← arrD req "rows").mapM ciRow
+  let p ← ciParams req
+  let keep ← natD req "lastN" 10
+  let wfs := workflows rows
+  let runs := wfs.flatMap fun wf =>
+    let ids := orderedRuns rows wf
+    let fs := firesSeq p rows ids
+    let n := ids.length
+    ((List.range n).drop (n - keep)).map fun i =>
+      let rs := runRows rows (ids.getD i 0)
+      let r0 := rs.headD { run := 0, workflow := "", job := "", startS := 0, endS := 0 }
+      let groups := (groupNames p rs).filterMap fun g =>
+        let ds := groupDurs p rs g
+        if 2 ≤ ds.length then some (Json.mkObj [("group", .str g), ("n", toJson ds.length),
+          ("maxS", toJson (mx ds)), ("sumS", toJson (sumL ds))]) else none
+      Json.mkObj [("workflow", .str wf), ("run", toJson r0.run), ("branch", .str r0.branch), ("sha", .str r0.sha),
+        ("createdS", toJson r0.createdS), ("jobS", toJson (jobS rs)), ("groups", .arr groups.toArray),
+        ("fires", .arr ((fs.getD i []).toArray.map fun c => .str (clsName c)))]
+  pure [("runs", .arr runs.toArray),
+        ("raised", .arr ((wfs.flatMap (raisedOf p rows)).toArray.map ciAlertJson)),
+        ("open", .arr ((wfs.flatMap (openAlertsOf p rows)).toArray.map ciAlertJson))]
+
 /-- The `ops.*` ops. -/
 def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.cap", "ops.door", "ops.obs", "ops.wait"]
+
+/-- The `obs.*` ops this module also dispatches (ci-shape-obs). Kept apart from `ops`, which the
+`FwTest.Mutants.OpsWire` guard pins; `Fw.Wire.ops` should append this list so `fwcore --ops` names it. -/
+def obsOps : List String := ["obs.ciShape"]
 
 /-- Dispatch an `ops.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -457,6 +534,10 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.door" => some (opDoor req)
   | "ops.obs" => some (opObs req)
   | "ops.wait" => some (opWait req)
+  | "obs.ciShape" => some (opCiShape req)
   | _ => none
+
+-- every listed op (and the `obs.*` extra) is dispatched (ci-shape-obs)
+#guard (ops ++ obsOps).all fun o => (handle o (Json.mkObj [])).isSome
 
 end Fw.Wire.Ops

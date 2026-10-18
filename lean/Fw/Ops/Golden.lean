@@ -226,8 +226,114 @@ def cases : List (String × List (String × Json)) := [
     ("server smoke test with & and kill: deny bgLong server", wait "node server.mjs & pid=$!; sleep 1; curl -s localhost:3000; kill $pid"),
     ("missing cmd is refused", lit "{}")])]
 
+/-! ## obs.ciShape cases (ci-shape-obs): measured breakpoint-gate runs (job offsets and durations in s, from the
+backfilled ledger) and small synthetic runs -/
+
+/-- One `obs.ciShape` row: job `job` of run `run` (workflow `wf`), started `off` s after the run was created at
+`created`, ran `d` s. -/
+def ciRowJ (wf : String) (run created : Nat) (branch sha job : String) (off d : Nat) (concl : String := "success")
+    (timeoutS : Nat := 0) : Json :=
+  Json.mkObj ([("run", toJson run), ("workflow", .str wf), ("branch", .str branch), ("sha", .str sha),
+    ("createdS", toJson created), ("job", .str job), ("conclusion", .str concl), ("startS", toJson (created + off)),
+    ("endS", toJson (created + off + d))] ++ (if timeoutS = 0 then [] else [("timeoutS", toJson timeoutS)]))
+
+/-- The rows of one breakpoint-gate run: (job, start offset, duration) each. -/
+def gateRunJ (run created : Nat) (branch sha : String) (jobs : List (String × Nat × Nat)) : List Json :=
+  jobs.map fun (j, off, d) => ciRowJ "breakpoint-gate" run created branch sha j off d
+
+/-- 56d3f96 (main, old layout: 8 shards plus a `sweeps` job per engine). -/
+def gate56 : List Json := gateRunJ 39055444534 1792259383 "main" "56d3f96" [
+  ("gate (chromium, s0)", 850, 57), ("gate (chromium, s1)", 866, 61), ("gate (chromium, s2)", 814, 48),
+  ("gate (chromium, s3)", 882, 57), ("gate (chromium, s4)", 872, 53), ("gate (chromium, s5)", 933, 71),
+  ("gate (chromium, s6)", 802, 52), ("gate (chromium, s7)", 884, 54),
+  ("gate (playwright-webkit, s0)", 864, 127), ("gate (playwright-webkit, s1)", 922, 107),
+  ("gate (playwright-webkit, s2)", 930, 100), ("gate (playwright-webkit, s3)", 942, 118),
+  ("gate (playwright-webkit, s4)", 794, 124), ("gate (playwright-webkit, s5)", 795, 131),
+  ("gate (playwright-webkit, s6)", 885, 104), ("gate (playwright-webkit, s7)", 850, 142),
+  ("merge (chromium)", 1203, 28), ("merge (playwright-webkit)", 1203, 32), ("plan", 746, 6), ("site", 712, 30),
+  ("sweeps (chromium)", 964, 206), ("sweeps (playwright-webkit)", 868, 331)]
+
+/-- 3130c08 (new layout: 3 chromium, 4 webkit shards). -/
+def gate3130 : List Json := gateRunJ 39086375181 1792286675 "ci/fix-commission-margin" "3130c08" [
+  ("gate chromium j0", 70, 107), ("gate chromium j1", 70, 57), ("gate chromium j2", 70, 66),
+  ("gate playwright-webkit j0", 70, 223), ("gate playwright-webkit j1", 71, 97), ("gate playwright-webkit j2", 70, 102),
+  ("gate playwright-webkit j3", 71, 116), ("guard", 16, 5), ("merge", 297, 70), ("site", 25, 41)]
+
+/-- 9dcc516. -/
+def gate9dcc : List Json := gateRunJ 39087202077 1792287486 "ci/sim-transient-retry" "9dcc516" [
+  ("gate chromium j0", 152, 152), ("gate chromium j1", 128, 135), ("gate chromium j2", 149, 281),
+  ("gate playwright-webkit j0", 97, 216), ("gate playwright-webkit j1", 107, 235), ("gate playwright-webkit j2", 131, 224),
+  ("gate playwright-webkit j3", 87, 237), ("guard", 6, 6), ("merge", 434, 40), ("site", 50, 31)]
+
+/-- b35b541 (run 39101532038, ci/integrate-ports-3): webkit j3 2986 s, chromium j2 2749 s. -/
+def gateB35 : List Json := gateRunJ 39101532038 1792302212 "ci/integrate-ports-3" "b35b541" [
+  ("gate chromium j0", 728, 1756), ("gate chromium j1", 443, 1444), ("gate chromium j2", 738, 2749),
+  ("gate playwright-webkit j0", 664, 1295), ("gate playwright-webkit j1", 358, 1249),
+  ("gate playwright-webkit j2", 663, 1262), ("gate playwright-webkit j3", 102, 2986), ("guard", 6, 11),
+  ("merge", 3491, 61), ("site", 21, 74)]
+
+/-- 1f20349. -/
+def gate1f20 : List Json := gateRunJ 39102129921 1792302833 "ci/mathview-ci-fix" "1f20349" [
+  ("gate chromium j0", 374, 151), ("gate chromium j1", 768, 135), ("gate chromium j2", 360, 278),
+  ("gate playwright-webkit j0", 668, 225), ("gate playwright-webkit j1", 528, 236), ("gate playwright-webkit j2", 770, 216),
+  ("gate playwright-webkit j3", 721, 278), ("guard", 54, 5), ("merge", 1041, 41), ("site", 310, 33)]
+
+/-- b5669db (main, the latest run of the ledger). -/
+def gateB566 : List Json := gateRunJ 39102911533 1792303634 "main" "b5669db" [
+  ("gate chromium j0", 579, 163), ("gate chromium j1", 462, 152), ("gate chromium j2", 772, 282),
+  ("gate playwright-webkit j0", 455, 199), ("gate playwright-webkit j1", 285, 236), ("gate playwright-webkit j2", 376, 199),
+  ("gate playwright-webkit j3", 765, 245), ("guard", 96, 7), ("merge", 1059, 40), ("site", 152, 44)]
+
+/-- The breakpoint-gate `timeout-minutes` as a `timeouts` table (seconds). -/
+def gateTimeouts : Json := Json.arr #[
+  Json.mkObj [("workflow", .str "breakpoint-gate"), ("job", .str "guard"), ("s", toJson 300)],
+  Json.mkObj [("workflow", .str "breakpoint-gate"), ("job", .str "site"), ("s", toJson 3600)],
+  Json.mkObj [("workflow", .str "breakpoint-gate"), ("job", .str "gate"), ("s", toJson 3600)],
+  Json.mkObj [("workflow", .str "breakpoint-gate"), ("job", .str "merge"), ("s", toJson 900)]]
+
+/-- An `obs.ciShape` request: rows, extra params fields (the gate timeouts are always set) and extra request fields. -/
+def ciReq (rows : List Json) (params : List (String × Json) := []) (more : List (String × Json) := []) : Json :=
+  Json.mkObj ([("rows", .arr rows.toArray), ("params", Json.mkObj (("timeouts", gateTimeouts) :: params))] ++ more)
+
+/-- A small synthetic run of workflow `w`: (job, start, end, conclusion) each, created at `created`. -/
+def tinyRun (run created : Nat) (jobs : List (String × Nat × Nat × String)) : List Json :=
+  jobs.map fun (j, s, e, c) => ciRowJ "w" run created "b" s!"s{run}" j (s - created) (e - s) c
+
+/-- An imbalanced tiny run (shards 100 s and 400 s). -/
+def tinyImb (run : Nat) : List Json := tinyRun run (run * 1000) [("t (s0)", run * 1000, run * 1000 + 100, "success"),
+  ("t (s1)", run * 1000, run * 1000 + 400, "success")]
+/-- A balanced tiny run (two 300 s shards). -/
+def tinyBal (run : Nat) : List Json := tinyRun run (run * 1000) [("t (s0)", run * 1000, run * 1000 + 300, "success"),
+  ("t (s1)", run * 1000, run * 1000 + 300, "success")]
+
 /-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
 def extra : List (String × String × List (String × Json)) := [
+  ("obs", "obs.ciShape", [
+    ("breakpoint-gate history 56d3f96 .. b5669db: imbalance raised at 56d3f96 (sweeps webkit 331 s vs mean 142 s), cleared, raised again with growth and nearTimeout at b35b541; nothing open at b5669db",
+      ciReq (gate56 ++ gate3130 ++ gate9dcc ++ gateB35 ++ gate1f20 ++ gateB566)),
+    ("b35b541 alone: webkit j3 1.76 x the mean (imbalance), chromium j2 2749 s > 3/4 of the 3600 s table timeout; no growth without 3 earlier runs",
+      ciReq gateB35),
+    ("b35b541 with rho = 2: the 1.76 ratio no longer fires", ciReq gateB35 [("rhoNum", toJson 2), ("rhoDen", toJson 1)]),
+    ("3130c08: webkit j0 1.66 x the mean, but 223 s is under the 300 s floor: nothing fires", ciReq gate3130),
+    ("b5669db: chromium 1.42 under rho 3/2: nothing fires", ciReq gateB566),
+    ("dedup: imbalanced three runs in a row: raised once, open", ciReq (tinyImb 1 ++ tinyImb 2 ++ tinyImb 3)),
+    ("clears and re-raises: imbalanced, balanced, imbalanced: raised twice, open", ciReq (tinyImb 1 ++ tinyBal 2 ++ tinyImb 3)),
+    ("run order is by creation time, not by row order", ciReq (tinyImb 3 ++ tinyBal 2 ++ tinyImb 1)),
+    ("growth: 600 s runs, then a 1500 s run (x2.5 the median): growth raised", ciReq (tinyBal 1 ++ tinyBal 2 ++ tinyBal 3 ++
+      tinyRun 4 4000 [("t (s0)", 4000, 4750, "success"), ("t (s1)", 4000, 4750, "success")])),
+    ("queue: plan and site end at 200 s, shard s0 starts at 2000 s: 1800 s > 1200 s (s1 1780 s vs s0 100 s is also an imbalance)", ciReq (tinyRun 1 0 [
+      ("plan", 0, 100, "success"), ("site", 100, 200, "success"), ("gate (chromium, s0)", 2000, 2100, "success"),
+      ("gate (chromium, s1)", 210, 1990, "success")])),
+    ("cancelled and skipped: a cancelled job still counts for the timeout, not for imbalance; a skipped job is ignored",
+      ciReq [ciRowJ "w" 1 0 "b" "s1" "t (s0)" 0 3500 "cancelled" 3600, ciRowJ "w" 1 0 "b" "s1" "t (s1)" 0 100,
+        ciRowJ "w" 1 0 "b" "s1" "t (s2)" 0 0 "skipped" 60]),
+    ("row timeoutS 1000 s wins over the 21600 s default: 800 s is near it", ciReq [ciRowJ "w" 1 0 "b" "s1" "x" 0 800 "success" 1000]),
+    ("lastN 1: only the newest run per workflow in runs", ciReq (tinyImb 1 ++ tinyBal 2) [] [("lastN", toJson 1)]),
+    ("no rows", ciReq []),
+    ("a row without job is refused", Json.mkObj [("rows", Json.arr #[Json.mkObj [("run", toJson 1), ("workflow", .str "w"),
+      ("startS", toJson 0), ("endS", toJson 1)]])]),
+    ("aliases must be [from, to] pairs", Json.mkObj [("rows", Json.arr #[]), ("params", Json.mkObj [("aliases",
+      Json.arr #[Json.arr #[.str "sweeps"]])])])]),
   ("plan", "plan.trailers", [
     ("oldest trailer marks done; later ones are duplicates; done and unknown ids are reported", lit "{\"commits\":[{\"sha\":\"s3\",\"body\":\"merge x\\n\\nTask: a\\nTask: c\"},{\"sha\":\"s2\",\"body\":\"Task: b\"},{\"sha\":\"s1\",\"body\":\"subject\\n\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"claimed\"},{\"id\":\"b\",\"state\":\"done\"}]}"),
     ("trailer syntax: line start, blanks around the id, id chars only, CRLF ok", lit "{\"commits\":[{\"sha\":\"s1\",\"body\":\"Task:  t-1.x_2 \\r\\nTask: t 2\\n task: t3\\nTask:\\nxTask: t4\\nTask:t5\"}],\"tasks\":[{\"id\":\"t-1.x_2\",\"state\":\"open\"},{\"id\":\"t5\",\"state\":\"open\"}]}"),

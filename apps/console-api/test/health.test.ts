@@ -57,5 +57,16 @@ describe("GET /api/health", () => {
     expect(r.body.counts.stalled).toBe(1);
     expect(r.body.counts.gone).toBe(2);
     expect(r.body.alerts.map((a: { critical: boolean }) => a.critical)).toEqual([true, false]); // absent -> false
+    expect(r.body.ciShape).toBeNull(); // older lines have no ci-shape reply
+  });
+  it("passes the logged obs.ciShape runs and open alerts through unchanged (ci-shape-obs)", async () => {
+    const ciShape = {
+      runs: [{ workflow: "breakpoint-gate", run: 7, branch: "b", sha: "b35b541", createdS: 1, jobS: 12887,
+        groups: [{ group: "gate playwright-webkit", n: 4, maxS: 2986, sumS: 6792 }], fires: ["imbalance", "nearTimeout"] }],
+      open: [{ workflow: "breakpoint-gate", cls: "imbalance", run: 7, branch: "b", sha: "b35b541", createdS: 1,
+        subject: "gate playwright-webkit", value: 2986, bound: 1698 }],
+    };
+    const r = await get((d) => writeFileSync(join(d, "health.jsonl"), JSON.stringify({ ...JSON.parse(line(1000)), ciShape }) + "\n"));
+    expect(r.body.ciShape).toEqual(ciShape);
   });
 });
