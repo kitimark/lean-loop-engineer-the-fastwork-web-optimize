@@ -4923,7 +4923,8 @@
     "scripts/lake-gc.mjs",
     "apps/runner/src/lake-gc.ts",
     "docs/team/tools/lake-gc.md",
-    "docs/team/handoffs/lean-bin-slim.md"
+    "docs/team/handoffs/lean-bin-slim.md",
+    "docs/team/tools/disk-cleanup.md"
    ]
   }
  ],
