@@ -14,7 +14,8 @@ directory entry and prints the list and the `rm` command; it never deletes. This
   age of at least the floor;
 * `inside_root_only`: every listed path is `<root>/<name>`, with an allowlisted root and a one-segment allowlisted name;
 * `list_monotone_in_age`: a later `now` or a smaller floor lists every path listed before;
-* `alert_iff`: the alert `sys.lakeCache` holds exactly when the cache bytes exceed the budget.
+* `alert_iff`: the alert (`fw lake-gc --check`; `sys.lakeCache` once `fw watch` reads it) holds exactly when the
+  cache bytes exceed the budget.
 -/
 namespace Fw.Ops.LakeGc
 
@@ -58,7 +59,7 @@ def nameChar (x : Char) : Bool := x.isAlphanum || x == '.' || x == '_' || x == '
 
 /-- An entry name that may be listed: non-empty, only `nameChar`s, not starting with `.` (so not `.`, `..` or a hidden
 file). Having no `/`, it is one path segment.
-$$\operatorname{nameOk}(n) \iff n \ne \varepsilon \land \forall x \in n:\ \operatorname{nameChar}(x) \land n_0 \ne \texttt{.}$$ -/
+$$\operatorname{nameOk}(n) \iff n \ne \varepsilon \land (\forall x \in n:\ \operatorname{nameChar}(x)) \land n_0 \ne \texttt{.}$$ -/
 def nameOk (n : String) : Bool := !n.isEmpty && n.all nameChar && !n.startsWith "."
 
 /-- A character allowed in the root: a `nameChar` or `/`.
@@ -67,8 +68,8 @@ def rootChar (x : Char) : Bool := nameChar x || x == '/'
 
 /-- A root the module lists under: absolute, only `rootChar`s, ending in `/artifacts`, and every segment after the
 leading `/` non-empty and neither `.` nor `..` (so the path is normalized and names the artifacts directory itself).
-$$\operatorname{rootOk}(r) \iff r_0 = \texttt{/} \land \forall x \in r:\ \operatorname{rootChar}(x) \land r \text{ ends with } \texttt{/artifacts} \land \forall s \in \operatorname{segs}(r):\ s \notin \{\varepsilon, \texttt{.}, \texttt{..}\}$$
-where $\operatorname{segs}(r)$ is the split of $r$ at `/` without its first (empty) part. -/
+$$\operatorname{rootOk}(r) \iff r_0 = \texttt{/} \land (\forall x \in r:\ \operatorname{rootChar}(x)) \land r \text{ ends with } \texttt{/artifacts} \land (\forall s \in \operatorname{drop}_1(\operatorname{split}_{\texttt{/}}(r)):\ s \notin \{\varepsilon, \texttt{.}, \texttt{..}\})$$
+Here $\operatorname{split}_{\texttt{/}}(r)$ cuts $r$ at every `/`, and $\operatorname{drop}_1$ removes its first (empty) part. -/
 def rootOk (r : String) : Bool :=
   r.startsWith "/" && r.all rootChar && r.endsWith "/artifacts" &&
     ((r.splitOn "/").drop 1).all fun s => s != "" && s != "." && s != ".."
@@ -106,7 +107,7 @@ def listBytes (c : Config) (fs : List Fact) : Nat :=
 $$\operatorname{cacheBytes}(F) = \sum_{f \in F} f.\mathit{size}$$ -/
 def cacheBytes (fs : List Fact) : Nat := (fs.map (·.size)).sum
 
-/-- The alert `sys.lakeCache`: the cache holds more bytes than the budget.
+/-- The cache alert (named `sys.lakeCache` for a later `fw watch` rule): the cache holds more bytes than the budget.
 $$\operatorname{alert}(c, F) \iff \operatorname{cacheBytes}(F) > c.\mathit{budget}$$ -/
 def alert (c : Config) (fs : List Fact) : Bool := decide (cacheBytes fs > c.budget)
 
@@ -205,7 +206,8 @@ theorem list_complete (c : Config) (fs : List Fact) (f : Fact) (hr : rootOk c.ro
   · exact Or.inr (h g hg hn)
   · exact Or.inl hn
 
-/-- **The alert.** `sys.lakeCache` is raised exactly when the cache holds more bytes than the budget.
+/-- **The alert.** The verdict `alert` (`fw lake-gc --check` exits 1 on it) holds exactly when the cache holds more bytes
+than the budget; equal to the budget is no alert.
 $$\forall c, F:\ \operatorname{alert}(c, F) \iff \operatorname{cacheBytes}(F) > c.\mathit{budget}$$ -/
 theorem alert_iff (c : Config) (fs : List Fact) : alert c fs = true ↔ cacheBytes fs > c.budget := by
   simp [alert]
