@@ -4614,6 +4614,28 @@
     "research/notes/2026/10-18-jev-oracle.md",
     ".gitignore"
    ]
+  },
+  {
+   "id": "jev-eval",
+   "title": "(M) measure the Jev oracle and decide scaling in Lean: rule-labeled CI triage replay set split calibrate/held-out; coverage, precision, confusion, cost-weighted error; A/B on identical inputs Jev vs Haiku vs Sonnet agent (accuracy, $/decision, latency); net saving incl. double-pay on escalation and wrong-call cost; share of Claude spend that is judgement calls (timing spans); Lean Fw.Oracle.Adopt ladder candidate->shadow->advisory->default with rolling-window demotion; rank next questions by frequency x tokens",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "jev-oracle"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Oracle/**",
+    "lean/Fw/Wire.lean",
+    "lean/FwTestMain.lean",
+    "packages/oracle/**",
+    "packages/contracts/golden/oracle/**",
+    "apps/runner/src/oracle*.ts",
+    "apps/runner/test/oracle*.test.ts",
+    "docs/team/tools/oracle.md",
+    "docs/team/handoffs/jev-eval.md",
+    "research/notes/2026/10-18-jev-eval.md"
+   ]
   }
  ],
  "deadline": {
