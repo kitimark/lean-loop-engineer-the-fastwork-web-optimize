@@ -5455,7 +5455,7 @@
     "ci"
    ],
    "id": "counts-only",
-   "title": "Lego plan (§C glue): chromium-counts.yml inputs only/scenario, matrix cap 6; RunMeta.only with runKey_inj and golden_base_unique re-proved; engine-check --zones-by-part",
+   "title": "Lego plan (§C glue, rescoped by the Fable CI review): one optional only/search input on chromium-counts.yml (rewrite target only; the plan job charset check at line 129 blocks ?only= today); one part-page run added to Fw.Engine.Keys goldenRuns (runKey_inj already covers any search, no RunMeta.only, no matrix cap); part pages state the frozen-classes premise (engine-check.ts:87,110-112); pilot on the C3 path only if part-stage lands by 18:00",
    "stream": "measure",
    "milestone": "M5",
    "deps": [
@@ -5464,9 +5464,8 @@
    "owner": "measure-engineer",
    "writes": [
     ".github/workflows/chromium-counts.yml",
-    "packages/measure-chromium/src/**",
     "lean/Fw/Engine/Keys.lean",
-    "packages/engine-check/src/**",
+    "packages/contracts/golden/engine/**",
     "docs/team/handoffs/counts-only.md"
    ]
   },
