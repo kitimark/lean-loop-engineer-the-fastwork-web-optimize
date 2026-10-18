@@ -72,10 +72,16 @@
     font-weight: 400;
     line-height: 1.15;
   }
-  /* the slot adds no box: the countdown's own wrap (justify-content: center; width: 100%; margin-top: 32px) is the
-     direct child of the centre column, as in the original (a second 32 px margin here doubled it) */
   .countdown {
-    display: contents;
+    justify-content: center;
+    width: 100%;
+    margin-top: 32px;
+    display: flex;
+  }
+  /* the slot is the original's countdown element (32 px margin); the clock's own wrap inside it adds none, or the
+     margin doubles and the page below the panel shifts */
+  .countdown > :global([data-fw='morph-countdown']) {
+    margin-top: 0;
   }
   /* component rule (column flex, gap 8) overridden by the page's inline style (grid, 12px / 8px gaps; 1 column at <=600) */
   .ctaStack {
