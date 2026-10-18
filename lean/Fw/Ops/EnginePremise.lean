@@ -989,8 +989,7 @@ theorem wk_size_names : names (expectAll wkObservers (wkWork [⟨0, .size, .none
 
 /-! ## The extra cases (task engine-model-fix-2) -/
 
-/-- The extra cases: 7 Chromium (one clock-shim control, three joins, three two-element frames) and 3 WebKit, all
-realizable.
+/-- The extra cases: 7 Chromium (one clock-shim control, three joins, three two-element frames) and 3 WebKit; no two-element pair is dropped as unrealizable.
 
 $$|\mathrm{crExtra}| = 7 \land |\mathrm{wkExtra}| = 3 \land |\mathrm{crSteps}| = 2 \cdot (65 + 7) \land |\mathrm{wkSteps}| = 2 \cdot (30 + 3)$$
 -/
@@ -1134,7 +1133,7 @@ theorem cr_extra_cells :
   decide +kernel
 
 /-- **The lane's verdict rows for the Chromium extra steps** (CI run 39124427211): per observer, the verdict over the
-`extra` step set alone; `paint` and `raster` fail, every other stage holds. These are the rows `extra.<stage>` that
+`extra` step set alone; `paint` and `raster` fail, every other stage holds. These are the rows `chromium.extra.<stage>` that
 `premise-verdict.mjs` prints next to the table rows.
 
 $$[(o.\mathrm{stage}, \operatorname{verdict}(\operatorname{cells}(3, [\,], \mathrm{crExtraRec}, \operatorname{of}(\mathrm{crGrouped}, \mathrm{extra}), o.\mathrm{stage}))) \mid o \in \mathrm{crObservers}] = [(\texttt{script}, \mathrm{holds}), (\texttt{style}, \mathrm{holds}), (\texttt{layout}, \mathrm{holds}), (\texttt{props}, \mathrm{holds}), (\texttt{paint}, \mathrm{fails}), (\texttt{raster}, \mathrm{fails}), (\texttt{commit}, \mathrm{holds}), (\texttt{hits}, \mathrm{holds})]$$

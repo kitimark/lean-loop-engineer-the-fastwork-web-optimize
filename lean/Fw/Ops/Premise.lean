@@ -357,7 +357,7 @@ the `engine-premises.yml` lane measured and found to hold (`cr.script`, `cr.styl
 `cr.raster`, `cr.hits`, `wk.layout`, `wk.props`; task engine-model-fix, `Fw.Ops.EnginePremise.cr_recorded_holds`,
 `wk_recorded_holds`). The lane rules are stated on the `table` step set, which the lane judges in rows of their own
 (`Fw.Ops.EnginePremise.grouped_steps`). The `extra` step set (a clock-shim control, custom-property joins, two-box
-frames; task engine-model-fix-2) is judged separately: in run 39124427211 its `cr.paint` and `cr.raster` rows fail on
+frames; task engine-model-fix-2) is judged separately: in run 39124427211 its rows `chromium.extra.paint` and `chromium.extra.raster` fail on
 `top` with `scale` and every other row holds (`Fw.Ops.EnginePremise.cr_extra_verdicts`, `wk_extra_holds`).
 
 $$\operatorname{registry} = [p_1, \dots, p_{30}]$$

@@ -484,7 +484,7 @@ open Fw.Engine.Chromium in
 (the model's `base`); the variant's frame is zero.**
 
 Changed since CI run 39088367495: the tick paid only `script`; the engine-premises lane MEASURED a PrePaint pass on
-script-only rAF frame (`chromiumAt.base = [props]`).
+a script-only rAF frame (3 of 3 passes) (`chromiumAt.base = [props]`).
 
 $$\forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{passes}(s) = [s \in \{\mathrm{script}, \mathrm{props}\}] \land \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{units}(s) = [s = \mathrm{script}]$$
 $$\land\ \operatorname{frameWork}_{\mathrm{cr}}(\mathrm{idle}) \prec \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0))$$

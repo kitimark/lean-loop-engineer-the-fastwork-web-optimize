@@ -4,8 +4,6 @@ State: round 2 on branch `worktree-wf_e748d0e8-1d8-1` (head: `git log -1`), on t
 `ci/engine-model-fix-2` at 6bf5957; engine-premises run 39124427211 is read and recorded. No new CI run in round 2.
 
 Done
-- Round 1: wk_cross_claim/le/resident (MorphPanelOpt), check.sh "engine goldens check" (EngineGoldens.lean), 7 Chromium
-  and 3 WebKit extra fixture steps, `cr_extra_cells`, `wk_extra_holds`, note section "Follow-up".
 - Round 2 (lead list 1-4), option (a) for item 1: the timer step ran the clock shim (clock-shim.js:38,59 run inside the
   driver's evaluate, run.mjs:108), not a Chromium timer task. Act is now `shimTimer` (golden id/act `shimTimer`),
   expected as an idle frame; all REFUTED/MEASURED timer claims withdrawn (ledger n=21 premise and note, chromiumAt,

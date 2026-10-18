@@ -177,7 +177,7 @@ What this supports:
 - WebKit takes the union of two changes on two boxes: MEASURED on 3 pairs.
 - Chromium highest-level-wins: MEASURED only for comparable levels, where it equals the union. For the one
   incomparable pair measured (`layoutMove` with `raster`) both the join (`layoutFull`) and the union over-predict:
-  no `Paint`, no `RasterTask`, while `scale@own` alone re-rasters (run 39088367495). Mechanism unknown (INFERRED
+  no `Paint`, no `RasterTask`, while `scale@own` alone re-rasters (run 39088367495). The two boxes carry different will-change hints (scale@own: `will-change:scale`; custom[top,scale]@own: `will-change:transform,scale`), so the comparison is not of the combination alone. Mechanism unknown (INFERRED
   candidate: a frame that lays out does not re-raster an own layer whose scale changed; untested).
 - Nothing about Chromium timer tasks: the control ran the shim (above). The base rule stays MEASURED for rAF
   callbacks only, and `Fw.Parts.PainNotes.cr_idle_tick` stays model-only for a timer tick (ledger n=21 note).
