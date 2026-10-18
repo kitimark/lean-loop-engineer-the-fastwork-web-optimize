@@ -5199,6 +5199,17 @@
     "packages/contracts/golden/gate/exit.jsonl",
     "docs/team/handoffs/commission-resize.md"
    ]
+  },
+  {
+   "id": "console-task-details",
+   "title": "Plan tab: a details toggle opens the task panel (and its owner-only Preview) for any task, not only port-*/fix-*",
+   "stream": "console",
+   "milestone": null,
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/console-web/src/Plan.tsx"
+   ]
   }
  ],
  "deadline": {
