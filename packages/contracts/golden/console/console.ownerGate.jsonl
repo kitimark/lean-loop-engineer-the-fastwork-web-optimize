@@ -1,0 +1,11 @@
+{"name":"LAN, no session: the login page","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/owner/login","session":false},"response":{"allow":true,"class":"login"}}
+{"name":"LAN, no session: the console web is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/","session":false},"response":{"allow":false,"class":"other"}}
+{"name":"LAN, no session: the API is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/api/board","session":false},"response":{"allow":false,"class":"other"}}
+{"name":"LAN, no session: a preview is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/preview/a/r/","session":false},"response":{"allow":false,"class":"preview"}}
+{"name":"LAN, no session: another spelling of the login path is refused","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/owner/login/","session":false},"response":{"allow":false,"class":"other"}}
+{"name":"LAN with a session: the console web","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/","session":true},"response":{"allow":true,"class":"other"}}
+{"name":"LAN with a session: a preview","request":{"hostOk":true,"lan":true,"op":"console.ownerGate","path":"/preview/a/r/","session":true},"response":{"allow":true,"class":"preview"}}
+{"name":"LAN with a session but a foreign Host is refused","request":{"hostOk":false,"lan":true,"op":"console.ownerGate","path":"/","session":true},"response":{"allow":false,"class":"other"}}
+{"name":"loopback keeps today's rules: no session needed","request":{"hostOk":false,"lan":false,"op":"console.ownerGate","path":"/api/board","session":false},"response":{"allow":true,"class":"other"}}
+{"name":"loopback: a preview still needs a session","request":{"hostOk":true,"lan":false,"op":"console.ownerGate","path":"/preview/a/o/","session":false},"response":{"allow":false,"class":"preview"}}
+{"name":"loopback with a session: a preview","request":{"hostOk":true,"lan":false,"op":"console.ownerGate","path":"/preview/a/o/","session":true},"response":{"allow":true,"class":"preview"}}
