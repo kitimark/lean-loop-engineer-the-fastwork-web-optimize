@@ -8,7 +8,7 @@
 {"name":"until loop in the foreground with no bound: deny unboundedLoop","request":{"cmd":"until grep -q done out.txt; do sleep 5; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
 {"name":"while loop in the foreground with no bound: deny unboundedLoop","request":{"cmd":"while true; do sleep 60; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
 {"name":"until loop with a counter test: allow","request":{"cmd":"i=0; until [ $i -gt 5 ]; do sleep 5; i=$((i+1)); done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
-{"name":"until loop with a clock deadline: allow","request":{"cmd":"end=$((SECONDS+60)); until [ $SECONDS -ge $end ]; do sleep 2; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
+{"name":"until loop with a clock deadline: allow","request":{"cmd":"until [ $SECONDS -ge 60 ]; do sleep 2; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
 {"name":"timeout before until runs a command named until, no loop is parsed: allow","request":{"cmd":"timeout 60 until grep -q x f; do sleep 1; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
 {"name":"loop inside timeout N bash -c: bounded by timeout: allow","request":{"cmd":"timeout 600 bash -c 'until gh run view 1 --exit-status; do sleep 30; done'","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
 {"name":"for loop backgrounded around fw watch: deny bgLong fwWatch","request":{"cmd":"for f in a b; do pnpm fw watch; done &","op":"ops.wait"},"response":{"decision":"deny","reason":"bgLong","shape":"fwWatch"}}
@@ -81,4 +81,33 @@
 {"name":"r3: here-string running yes: deny","request":{"cmd":"while read l; do echo $l; done <<< \"$(yes)\"","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
 {"name":"r3: here-string running a finite producer: allow","request":{"cmd":"while read -r f; do echo $f; done <<< \"$(git diff --name-only)\"","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
 {"name":"r3: git reflog piped into a read loop: allow","request":{"cmd":"git reflog show main | head -12 | while read h rest; do echo $h; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
+{"name":"r4: gh poll by command substitution compared with a number: deny","request":{"cmd":"until [ \"$(gh run list -b ci/x --json status -q length)\" -ge 1 ]; do sleep 120; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: ls count by command substitution: deny","request":{"cmd":"until [ \"$(ls out/*.json 2>/dev/null | wc -l)\" -gt 0 ]; do sleep 30; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: pgrep count by command substitution: deny","request":{"cmd":"while [ \"$(pgrep -c node)\" -gt 0 ]; do sleep 5; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: backquote substitution: deny","request":{"cmd":"while [ `echo 0` -lt 1 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: $$ is not a counter: deny","request":{"cmd":"while [ $$ -gt 0 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: $# is not a counter: deny","request":{"cmd":"while [ $# -ge 0 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: $RANDOM is not a counter: deny","request":{"cmd":"while [ $RANDOM -ge 0 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: ${x:-0} default expansion: deny","request":{"cmd":"while [ \"${x:-0}\" -lt 1 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: $((0)) arithmetic expansion: deny","request":{"cmd":"while [ $((0)) -lt 1 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: limit held in a variable ($end) is not a literal: deny","request":{"cmd":"end=$((SECONDS+60)); until [ $SECONDS -ge $end ]; do sleep 2; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: while with SECONDS growing away from the exit: deny","request":{"cmd":"while [ $SECONDS -ge 0 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: until with SECONDS growing away from the exit: deny","request":{"cmd":"until [ $SECONDS -lt 0 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: (( SECONDS >= 0 )) in a while: deny","request":{"cmd":"while (( SECONDS >= 0 )); do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: negated test is outside the grammar: deny","request":{"cmd":"while ! [ $SECONDS -lt 60 ]; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: comma in (( )): deny","request":{"cmd":"while (( i < 10 , 1 )); do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: ternary in (( )): deny","request":{"cmd":"while (( i < 10 ? 1 : 1 )); do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: hex literal in (( )): deny","request":{"cmd":"while (( 0x0 < 1 )); do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: octal literal in (( )): deny","request":{"cmd":"while (( 010 < i )); do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: RANDOM in (( )): deny","request":{"cmd":"while (( RANDOM >= 0 )); do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: string order < in [[ ]]: deny","request":{"cmd":"while [[ $i < 10 ]]; do i=$((i+1)); done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: read -n 0 reads nothing and never hits EOF: deny","request":{"cmd":"while read -n 0 x; do :; done < f.txt","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: read -t 0 only polls: deny","request":{"cmd":"while read -t 0; do :; done < f.txt","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: backslash-newline joins a keyword: deny","request":{"cmd":"whi\\\nle true; do sleep 1; done","op":"ops.wait"},"response":{"decision":"deny","reason":"unboundedLoop","shape":null}}
+{"name":"r4: while with SECONDS below a literal: allow","request":{"cmd":"while [ $SECONDS -lt 600 ]; do sleep 5; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
+{"name":"r4: until with quoted SECONDS at a literal or a poll: allow","request":{"cmd":"until [ \"$SECONDS\" -ge 600 ] || gh run view 1 --exit-status; do sleep 30; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
+{"name":"r4: until (( SECONDS > N )): allow","request":{"cmd":"until (( SECONDS > 600 )); do sleep 5; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
+{"name":"r4: [[ ${i} -le 3 ]]: allow","request":{"cmd":"while [[ ${i} -le 3 ]]; do i=$((i+1)); done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
+{"name":"r4: producer with 2>/dev/null: allow","request":{"cmd":"ls -t a*.jsonl 2>/dev/null | head -3 | while read f; do echo $f; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
+{"name":"r4: git worktree list piped into a read loop: allow","request":{"cmd":"git worktree list --porcelain | awk '/^worktree /{print $2}' | while read p; do echo $p; done","op":"ops.wait"},"response":{"decision":"allow","reason":null,"shape":null}}
 {"name":"missing cmd is refused","request":{"op":"ops.wait"},"response":{"error":"missing field cmd"}}

@@ -38,8 +38,8 @@ export function message(reply) {
   }
   return "wait-guard refused: an until/while loop with no bound never ends if its condition cannot come true. The bound must "
     + "be in the loop condition (between while/until and do; the body does not count, nor `break`, `date` or a deadline "
-    + "word): a counter or $SECONDS ordered against a limit (`until cmd || [ $i -ge 10 ]; do ...; i=$((i+1)); done`, "
-    + "`while [ $SECONDS -lt $end ]`), or run the loop as `timeout N bash -c '...'`, or use `pnpm fw ci wait` / "
+    + "word): a plain variable ordered against a decimal literal (`until cmd || [ $i -ge 10 ]; do ...; i=$((i+1)); done`, "
+    + "`while [ $SECONDS -lt 600 ]`, `(( i < 10 ))`; no $(...), $((...)), ${v:-...} or limit held in a variable), or run the loop as `timeout N bash -c '...'`, or use `pnpm fw ci wait` / "
     + "run_in_background. A read loop counts as bounded only when its condition is exactly `while [VAR=..] read [opts] "
     + "[names]` followed by `do` (no `||`, `&&` or second command) and its input is a file (`done < f`), a here-doc, a "
     + "here-string (`<<< \"$(cmd)\"` only with an allowlisted cmd), or an allowlisted producer: `cmd | while read` or "

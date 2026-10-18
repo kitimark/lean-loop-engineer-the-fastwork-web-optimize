@@ -16,9 +16,12 @@ the thing a trailing `&` backgrounds). A unit is *long* when it holds one of the
 `until`/`while` loop, a server or watcher, a `tail -f`, or a `sleep` longer than `caps.maxSleepSec`. `decide` refuses a
 backgrounded long unit (`bgLong`: use the tool's `run_in_background`, which has an owner and a stop) and any
 `until`/`while` loop with no bound (`unboundedLoop`). The bound is read from the loop **condition only** (the words from
-`while`/`until` up to `do`; the body cannot bound or unbound a loop, `body_irrelevant`): an and-or list of tests where a
-counter or `$SECONDS` is ordered against a limit (`[ $i -lt 10 ]`, `(( SECONDS < end ))`), combined by bash's exit
-rule (`comb`), or a read loop `while read [opts] [names]; do ... done` over a finite input: a file, a here-document,
+`while`/`until` up to `do`; the body cannot bound or unbound a loop, `body_irrelevant`): an and-or list combined by
+bash's exit rule (`comb`) in which a test of the allowlist grammar B (`atomParse`, `relOk`) decides the exit: a plain
+variable (`$v`, `${v}`, `"$v"`, or a bare name in `(( ))`) ordered against a decimal literal (`[ $i -lt 10 ]`,
+`[[ $SECONDS -ge 600 ]]`, `(( i < 10 ))`), never a special variable, and a clock only in the exit direction
+(`grammar_only`, `subst_never_bound`, `seconds_direction`). Everything else (command substitution, `$((..))`,
+`${v:-..}`, a limit held in a variable, string tests, `!`, polls) is unbounded. Or a read loop `while read [opts] [names]; do ... done` over a finite input: a file, a here-document,
 a here-string with no command substitution or a finite one, or an allowlisted finite producer piped in or given as
 `< <(...)`. A condition that runs `read` on an input not known finite is unbounded whatever else it tests
 (`readLoop_input_free`). `timeout N` bounds what it wraps (`timeout 600 bash -c '...'`, a producer `timeout 60 tail -f`).
@@ -26,15 +29,16 @@ a here-string with no command substitution or a finite one, or an allowlisted fi
 The read-loop rule is a fact about this classification (`readLoop_bounded`), not about bash: that such a loop ends
 rests on the premises that `read` fails at the end of a finite input and that the allowlisted producers
 (`producerOut`) end; the stdin of a pipeline head is the Bash tool's stdin, `/dev/null` (MEASURED 2026-10-18: fd 0 is
-the character device `/dev/null`, `timeout 5 cat` exits 0 at once). The counter rule assumes the counter moves
-towards its limit (a heuristic: `while [ $i -lt 5 ]` with no increment is allowed); a `break` in the body is not a bound.
+the character device `/dev/null`, `timeout 5 cat` exits 0 at once). The guard targets agent mistakes, not an adversary,
+and fails closed outside B. The counter rule assumes the counter moves towards its limit (`while [ $i -lt 5 ]` with no
+increment is allowed); a `break` in the body is not a bound.
 
 The shapes are a small documented set, tested by goldens; the parse is approximate on purpose.
 Known blind spots (shadow-logged, not claimed): code inside `$( )`, `( )`, `{ }` groups, function bodies or
 `sh -c '...'` strings, aliases, `for ((;;))`, variables naming a device or a FIFO (`< "$f"`), a FIFO or `/proc` file
 named by a plain path (`cat fifo`, `cat /proc/kmsg`), a command substitution in
 an unquoted here-document body, and a here-document operator glued to a word or inside arithmetic (`cat<<EOF`,
-`$((1 << 2))`).
+`$((1 << 2))`), a single-quoted `'$i'` read as a variable, an unset or non-numeric counter, `eval` strings.
 -/
 namespace Fw.Ops.Wait
 
@@ -279,14 +283,16 @@ def mark (a : Acc) : Acc :=
   | none => { a with qat := some a.word.length }
   | some _ => a
 
-/-- Process one character that is not a pending `&` resolver (the first matching row applies; ⏎ is newline).
+/-- Process one character that is not a pending `&` resolver (the first matching row applies; ⏎ is newline). A
+backslash-newline outside single quotes is removed, as in bash (`whi\⏎le` is `while`).
 
-$$\mathrm{stepPlain}(a, c) = \begin{cases} \mathrm{newline}(a[\mathit{comment} := \bot]) & a.\mathit{comment},\ c = \text{⏎} \\ a & a.\mathit{comment},\ c \ne \text{⏎} \\ \mathrm{push}(a[\mathit{esc} := \bot], c) & a.\mathit{esc} \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 1,\ c = \texttt{'} \\ \mathrm{push}(a, c) & a.\mathit{quote} = 1 \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 2,\ c = \texttt{"} \\ a[\mathit{esc} := \top] & a.\mathit{quote} = 2,\ c = \backslash \\ \mathrm{push}(a, c) & a.\mathit{quote} = 2 \\ \mathrm{mark}(a)[\mathit{quote} := 1] & c = \texttt{'} \\ \mathrm{mark}(a)[\mathit{quote} := 2] & c = \texttt{"} \\ \mathrm{mark}(a)[\mathit{esc} := \top] & c = \backslash \\ \mathrm{flushWord}(a) & c \in \{\text{space}, \text{tab}, \text{CR}\} \\ \mathrm{newline}(a) & c = \text{⏎} \\ \mathrm{endSeg}(a, \mathrm{seq}) & c = \texttt{;} \\ \mathrm{unpipe}(a) & c = \texttt{|},\ a.\mathit{prev} = \texttt{|} \\ \mathrm{endSeg}(a, \mathrm{pipe}) & c = \texttt{|} \\ a[\mathit{comment} := \top] & c = \texttt{\#},\ a.\mathit{word} = [\,] \\ \mathrm{push}(a, c) & c = \texttt{\&},\ a.\mathit{prev} \in \{\texttt{>}, \texttt{<}\} \\ a[\mathit{pend} := \top] & c = \texttt{\&} \\ \mathrm{push}(a, c) & \text{otherwise} \end{cases}$$
+$$\mathrm{stepPlain}(a, c) = \begin{cases} \mathrm{newline}(a[\mathit{comment} := \bot]) & a.\mathit{comment},\ c = \text{⏎} \\ a & a.\mathit{comment},\ c \ne \text{⏎} \\ a[\mathit{esc} := \bot] & a.\mathit{esc},\ c = \text{⏎} \\ \mathrm{push}(a[\mathit{esc} := \bot], c) & a.\mathit{esc} \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 1,\ c = \texttt{'} \\ \mathrm{push}(a, c) & a.\mathit{quote} = 1 \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 2,\ c = \texttt{"} \\ a[\mathit{esc} := \top] & a.\mathit{quote} = 2,\ c = \backslash \\ \mathrm{push}(a, c) & a.\mathit{quote} = 2 \\ \mathrm{mark}(a)[\mathit{quote} := 1] & c = \texttt{'} \\ \mathrm{mark}(a)[\mathit{quote} := 2] & c = \texttt{"} \\ \mathrm{mark}(a)[\mathit{esc} := \top] & c = \backslash \\ \mathrm{flushWord}(a) & c \in \{\text{space}, \text{tab}, \text{CR}\} \\ \mathrm{newline}(a) & c = \text{⏎} \\ \mathrm{endSeg}(a, \mathrm{seq}) & c = \texttt{;} \\ \mathrm{unpipe}(a) & c = \texttt{|},\ a.\mathit{prev} = \texttt{|} \\ \mathrm{endSeg}(a, \mathrm{pipe}) & c = \texttt{|} \\ a[\mathit{comment} := \top] & c = \texttt{\#},\ a.\mathit{word} = [\,] \\ \mathrm{push}(a, c) & c = \texttt{\&},\ a.\mathit{prev} \in \{\texttt{>}, \texttt{<}\} \\ a[\mathit{pend} := \top] & c = \texttt{\&} \\ \mathrm{push}(a, c) & \text{otherwise} \end{cases}$$
 -/
 def stepPlain (a : Acc) (c : Char) : Acc :=
   if a.comment then
     if c == '\n' then newline { a with comment := false } else a
-  else if a.esc then push { a with esc := false } c
+  else if a.esc then
+    if c == '\n' then { a with esc := false } else push { a with esc := false } c
   else if a.quote == 1 then
     if c == '\'' then { a with quote := 0 } else push a c
   else if a.quote == 2 then
@@ -486,44 +492,426 @@ $$\mathrm{has}(w, s) \iff s \text{ occurs in } w$$
 -/
 def has (w s : String) : Bool := (w.splitOn s).length > 1
 
-/-- The ordering tests of `[`, `[[` and `test` (equality tests `-eq`/`-ne` are not bounds: a step can jump over them).
+/-- A character of a variable name: an ASCII letter, a digit or `_`.
 
-$$\mathrm{cmpOps} = [\texttt{-lt}, \texttt{-le}, \texttt{-gt}, \texttt{-ge}]$$
+$$\mathrm{nameChar}(c) \iff c \in \{\texttt{A-Z}, \texttt{a-z}, \texttt{0-9}, \texttt{\_}\}$$
 -/
-def cmpOps : List String := ["-lt", "-le", "-gt", "-ge"]
+def nameChar (c : Char) : Bool := c.isAlphanum || c == '_'
 
-/-- Some ordering test in the word list has an expansion (a word holding `$`) right before or right after it: a counter
-or a clock compared against a limit (`$i -lt 10`, `"$(date +%s)" -lt "$end"`, `$SECONDS -ge $end`).
+/-- A variable name: non-empty, a letter or `_` first, then only `nameChar`s. So no special or positional parameter
+(`$`, `#`, `?`, `!`, `@`, `*`, `-`, a digit).
 
-$$\mathrm{cmpBound}(W) \iff \exists i.\ i + 2 < |W| \land W_{i+1} \in \mathrm{cmpOps} \land (\mathrm{has}(W_i, \texttt{\$}) \lor \mathrm{has}(W_{i+2}, \texttt{\$}))$$
+$$\mathrm{isName}([\,]) = \bot, \qquad \mathrm{isName}(c :: r) \iff c \in \{\texttt{A-Z}, \texttt{a-z}, \texttt{\_}\} \land \forall x \in r.\ \mathrm{nameChar}(x)$$
 -/
-def cmpBound : List String → Bool
-  | x :: rest@(y :: z :: _) => (cmpOps.contains y && (has x "$" || has z "$")) || cmpBound rest
-  | _ => false
-
-/-- An arithmetic test `(( ... ))` that compares a variable: with the shift operators `<<`, `>>` removed, the text (words
-joined by spaces) holds `<` or `>`, holds a letter or `$`, and holds no `||` or `&&`.
-
-$$\mathrm{arithBound}(W) \iff (\mathrm{has}(t, \texttt{<}) \lor \mathrm{has}(t, \texttt{>})) \land (\exists ch \in t.\ ch \in \texttt{A-Za-z} \lor \mathrm{has}(t, \texttt{\$})) \land \lnot\mathrm{has}(t, \texttt{||}) \land \lnot\mathrm{has}(t, \texttt{\&\&}),\quad \text{where } t = \mathrm{del}_{\texttt{>>}}(\mathrm{del}_{\texttt{<<}}(\mathrm{join}_{\texttt{" "}}(W)))$$
-Here $\mathrm{join}$ joins the words with single spaces and $\mathrm{del}_p$ deletes every occurrence of $p$.
--/
-def arithBound (ws : List String) : Bool :=
-  let t := ((String.intercalate " " ws).replace "<<" "").replace ">>" ""
-  (has t "<" || has t ">") && (t.any Char.isAlpha || has t "$") && !has t "||" && !has t "&&"
-
-/-- One element of a loop condition (its words, the command first) is a **bound test**: leading `!` words are skipped;
-then `[`, `[[` or `test` with a counter or clock ordering test (`cmpBound`) and no `-o`, `-a` or `!` word, or a first word
-starting with `((` with an arithmetic comparison (`arithBound`). `[ 1 -lt 2 ]`, `[ "$SECONDS" ]`, `true`, `date` are not.
-
-$$\mathrm{boundAtom}(W) = \begin{cases} \mathrm{boundAtom}(r) & W = \texttt{!} :: r \\ \mathrm{cmpBound}(r) \land \forall x \in r.\ x \notin \{\texttt{-o}, \texttt{-a}, \texttt{!}\} & W = t :: r,\ t \in \{\texttt{[}, \texttt{[[}, \texttt{test}\} \\ \mathrm{arithBound}(w :: r) & W = w :: r,\ w \text{ starts with } \texttt{((} \\ \bot & \text{otherwise (also } W = [\,]) \end{cases} \quad \text{(first matching row)}$$
--/
-def boundAtom : List String → Bool
-  | "!" :: r => boundAtom r
-  | "[" :: r => cmpBound r && !r.any (fun x => x == "-o" || x == "-a" || x == "!")
-  | "[[" :: r => cmpBound r && !r.any (fun x => x == "-o" || x == "-a" || x == "!")
-  | "test" :: r => cmpBound r && !r.any (fun x => x == "-o" || x == "-a" || x == "!")
-  | w :: r => w.startsWith "((" && arithBound (w :: r)
+def isName : List Char → Bool
+  | c :: r => (c.isAlpha || c == '_') && r.all nameChar
   | [] => false
+
+/-- A decimal literal: one or more digits, with no leading `0` unless it is exactly `0` (so no octal `010`, no hex
+`0x1`, no sign).
+
+$$\mathrm{isDec}(l) \iff l \ne [\,] \land (\forall x \in l.\ x \in \texttt{0-9}) \land (\mathrm{head}(l) = \texttt{0} \Rightarrow l = [\texttt{0}])$$
+-/
+def isDec (l : List Char) : Bool :=
+  !l.isEmpty && l.all Char.isDigit && (l.head? != some '0' || l == ['0'])
+
+/-- An operand of a bound test: a variable (by name) or a decimal number.
+
+$$\mathrm{Opd} = \mathrm{var}(n) \mid \mathrm{num}(k), \qquad n \in \mathrm{String},\ k \in \mathbb{N}$$
+-/
+inductive Opd where
+  | var (n : String)
+  | num (k : Nat)
+deriving DecidableEq, Repr
+
+/-- A character an operand word may hold: a `nameChar`, `$`, `{` or `}`.
+
+$$\mathrm{opdChar}(c) \iff \mathrm{nameChar}(c) \lor c \in \{\texttt{\$}, \texttt{\{}, \texttt{\}}\}$$
+-/
+def opdChar (c : Char) : Bool := nameChar c || c == '$' || c == '{' || c == '}'
+
+/-- Read an operand word (quotes already removed, so `"$i"` is `$i`). $b$: the word is inside `(( ))`, where a bare name
+is a variable. Every character must be an `opdChar`; then `${n}` or `$n` with `isName(n)` is the variable $n$, a decimal
+literal is a number, and when $b$ a name alone is a variable. Anything else is not an operand: `$$`, `$#`, `$?`, `$1`,
+`$(..)`, `$((..))`, `${x:-0}`, a backquote, `0x1`, `010`, `-1`.
+
+$$\mathrm{opd}_b(w) = \begin{cases} \mathrm{none} & \exists x \in w.\ \lnot\mathrm{opdChar}(x) \\ \mathrm{some}(\mathrm{var}(n)) & w = \texttt{\$\{}\,n\,\texttt{\}} \land \mathrm{isName}(n) \\ \mathrm{some}(\mathrm{var}(n)) & w = \texttt{\$}\,n \land \mathrm{isName}(n) \\ \mathrm{some}(\mathrm{num}(k)) & w \text{ does not start with } \texttt{\$} \land \mathrm{isDec}(w),\ k \text{ the decimal value of } w \\ \mathrm{some}(\mathrm{var}(w)) & w \text{ does not start with } \texttt{\$} \land b \land \mathrm{isName}(w) \\ \mathrm{none} & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+-/
+def opd (bare : Bool) (w : String) : Option Opd :=
+  if w.toList.all opdChar then
+    match w.toList with
+    | '$' :: '{' :: r =>
+      if r.getLast? == some '}' && isName r.dropLast then some (.var (String.ofList r.dropLast)) else none
+    | '$' :: r => if isName r then some (.var (String.ofList r)) else none
+    | l =>
+      if isDec l then some (.num (w.toNat?.getD 0))
+      else if bare && isName l then some (.var w) else none
+  else none
+
+/-- An ordering relation of a bound test (`<`, `≤`, `>`, `≥`).
+
+$$\mathrm{Rel} = \mathrm{lt} \mid \mathrm{le} \mid \mathrm{gt} \mid \mathrm{ge}$$
+-/
+inductive Rel where
+  | lt | le | gt | ge
+deriving DecidableEq, Repr
+
+/-- The relation word: inside `(( ))` ($a$) one of `<`, `<=`, `>`, `>=`; in `[ ]` and `[[ ]]` one of `-lt`, `-le`,
+`-gt`, `-ge` (there `<` is a redirect in `[` and a string order in `[[`, and `-eq`/`-ne` can be jumped over).
+
+$$\mathrm{relOf}_a(w) = \begin{cases} \mathrm{some}(\mathrm{lt}) & (a \land w = \texttt{<}) \lor (\lnot a \land w = \texttt{-lt}) \\ \mathrm{some}(\mathrm{le}) & (a \land w = \texttt{<=}) \lor (\lnot a \land w = \texttt{-le}) \\ \mathrm{some}(\mathrm{gt}) & (a \land w = \texttt{>}) \lor (\lnot a \land w = \texttt{-gt}) \\ \mathrm{some}(\mathrm{ge}) & (a \land w = \texttt{>=}) \lor (\lnot a \land w = \texttt{-ge}) \\ \mathrm{none} & \text{otherwise} \end{cases}$$
+-/
+def relOf (arith : Bool) (w : String) : Option Rel :=
+  if arith then
+    if w == "<" then some .lt else if w == "<=" then some .le
+    else if w == ">" then some .gt else if w == ">=" then some .ge else none
+  else
+    if w == "-lt" then some .lt else if w == "-le" then some .le
+    else if w == "-gt" then some .gt else if w == "-ge" then some .ge else none
+
+/-- The relation seen from the other side: $a\ r\ b \iff b\ \mathrm{flip}(r)\ a$.
+
+$$\mathrm{flip}(\mathrm{lt}) = \mathrm{gt}, \quad \mathrm{flip}(\mathrm{le}) = \mathrm{ge}, \quad \mathrm{flip}(\mathrm{gt}) = \mathrm{lt}, \quad \mathrm{flip}(\mathrm{ge}) = \mathrm{le}$$
+-/
+def Rel.flip : Rel → Rel
+  | .lt => .gt | .le => .ge | .gt => .lt | .ge => .le
+
+/-- A test $v\ r\ N$ that a growing $v$ eventually makes false (and keeps false): $r$ is `<` or `≤`.
+
+$$\mathrm{down}(r) \iff r \in \{\mathrm{lt}, \mathrm{le}\}$$
+-/
+def Rel.down : Rel → Bool
+  | .lt => true | .le => true | _ => false
+
+/-- Variables that are never a bound: bash sets them itself and they do not move towards a limit (random, or fixed
+for the loop).
+
+$$\mathrm{noBoundVars} = [\texttt{RANDOM}, \texttt{SRANDOM}, \texttt{LINENO}, \texttt{BASHPID}, \texttt{PPID}, \texttt{UID}, \texttt{EUID}, \texttt{HISTCMD}, \texttt{EPOCHREALTIME}, \texttt{BASH\_SUBSHELL}, \texttt{SHLVL}]$$
+-/
+def noBoundVars : List String :=
+  ["RANDOM", "SRANDOM", "LINENO", "BASHPID", "PPID", "UID", "EUID", "HISTCMD", "EPOCHREALTIME", "BASH_SUBSHELL", "SHLVL"]
+
+/-- The clocks: variables bash moves up by itself, so their direction is known.
+
+$$\mathrm{clocks} = [\texttt{SECONDS}, \texttt{EPOCHSECONDS}]$$
+-/
+def clocks : List String := ["SECONDS", "EPOCHSECONDS"]
+
+/-- The variable side of a bound test $n\ r\ N$ in a loop ($u$: an `until` loop): $n$ is not in `noBoundVars`, and a
+clock must move towards the exit: a `while` loop exits when the test fails, so it needs `<`/`≤`; an `until` loop exits
+when it holds, so it needs `>`/`≥`. Any other variable is a counter assumed to move towards its limit (a heuristic).
+
+$$\mathrm{varOk}(u, n, r) \iff n \notin \mathrm{noBoundVars} \land (n \in \mathrm{clocks} \Rightarrow (\mathrm{down}(r) \iff \lnot u))$$
+-/
+def varOk (untl : Bool) (n : String) (r : Rel) : Bool :=
+  !noBoundVars.contains n && (!clocks.contains n || (if untl then !r.down else r.down))
+
+/-- A parsed test $x\ r\ y$ is a bound: one side a variable that passes `varOk`, the other a number (two numbers or two
+variables are not).
+
+$$\mathrm{relOk}(u, x, r, y) = \begin{cases} \mathrm{varOk}(u, n, r) & x = \mathrm{var}(n),\ y = \mathrm{num}(k) \\ \mathrm{varOk}(u, n, \mathrm{flip}(r)) & x = \mathrm{num}(k),\ y = \mathrm{var}(n) \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def relOk (untl : Bool) : Opd → Rel → Opd → Bool
+  | .var n, r, .num _ => varOk untl n r
+  | .num _, r, .var n => varOk untl n r.flip
+  | _, _, _ => false
+
+/-- Parse three words as operand, relation, operand ($a$: inside `(( ))`).
+
+$$\mathrm{tri}_a(x, o, y) = \begin{cases} \mathrm{some}(p, r, q) & \mathrm{opd}_a(x) = \mathrm{some}(p) \land \mathrm{relOf}_a(o) = \mathrm{some}(r) \land \mathrm{opd}_a(y) = \mathrm{some}(q) \\ \mathrm{none} & \text{otherwise} \end{cases}$$
+-/
+def tri (arith : Bool) (x o y : String) : Option (Opd × Rel × Opd) :=
+  match opd arith x, relOf arith o, opd arith y with
+  | some p, some r, some q => some (p, r, q)
+  | _, _, _ => none
+
+/-- A character an arithmetic bound test may hold: a `nameChar`, `<`, `>`, `=`, a space, `(` or `)`. No `$`, backquote,
+comma, `?`, `:`, `|`, `&`, `+`, `-`, `!` or tab.
+
+$$\mathrm{arithChar}(c) \iff \mathrm{nameChar}(c) \lor c \in \{\texttt{<}, \texttt{>}, \texttt{=}, \text{space}, \texttt{(}, \texttt{)}\}$$
+-/
+def arithChar (c : Char) : Bool := nameChar c || c == '<' || c == '>' || c == '=' || c == ' ' || c == '(' || c == ')'
+
+/-- The token class of a character inside `(( ))`: 1 a `nameChar`, 2 one of `<>=`, 0 a space, 3 anything else.
+
+$$\mathrm{cls}(c) = \begin{cases} 1 & \mathrm{nameChar}(c) \\ 2 & c \in \{\texttt{<}, \texttt{>}, \texttt{=}\} \\ 0 & c = \text{space} \\ 3 & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+-/
+def cls (c : Char) : Nat :=
+  if nameChar c then 1 else if c == '<' || c == '>' || c == '=' then 2 else if c == ' ' then 0 else 3
+
+/-- One character of the arithmetic tokenizer. The state is the finished tokens (reversed), the current token
+(reversed) and its class; a class-3 character fails, a space ends the current token, a character of the current class
+extends it, any other starts a new token.
+
+$$\mathrm{tokStep}(\mathrm{none}, c) = \mathrm{none}, \qquad \mathrm{tokStep}(\mathrm{some}(T, w, k), c) = \begin{cases} \mathrm{none} & \mathrm{cls}(c) = 3 \\ \mathrm{some}(T', [\,], 0) & \mathrm{cls}(c) = 0 \\ \mathrm{some}(T, c :: w, k) & \mathrm{cls}(c) = k \\ \mathrm{some}(T', [c], \mathrm{cls}(c)) & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+where $T' = T$ if $w = [\,]$, else $\mathrm{rev}(w) :: T$.
+-/
+def tokStep : Option (List String × List Char × Nat) → Char → Option (List String × List Char × Nat)
+  | none, _ => none
+  | some (ts, cur, k), c =>
+    let k' := cls c
+    let ts' := if cur.isEmpty then ts else String.ofList cur.reverse :: ts
+    if k' == 3 then none
+    else if k' == 0 then some (ts', [], 0)
+    else if k' == k then some (ts, c :: cur, k)
+    else some (ts', [c], k')
+
+/-- Split the text inside `(( ))` into tokens: maximal runs of name characters and of `<>=`, split at spaces; none if
+any other character occurs (`i<10` gives `i`, `<`, `10`; `i < 1 0` gives four tokens).
+
+$$\mathrm{arithToks}(l) = \begin{cases} \mathrm{some}(\mathrm{rev}(T')) & \mathrm{foldl}(\mathrm{tokStep}, \mathrm{some}([\,], [\,], 0), l) = \mathrm{some}(T, w, k) \\ \mathrm{none} & \text{otherwise} \end{cases}$$
+where $T' = T$ if $w = [\,]$, else $\mathrm{rev}(w) :: T$.
+-/
+def arithToks (l : List Char) : Option (List String) :=
+  match l.foldl tokStep (some ([], [], 0)) with
+  | some (ts, cur, _) => some (if cur.isEmpty then ts else String.ofList cur.reverse :: ts).reverse
+  | none => none
+
+/-- An arithmetic test `(( x OP y ))` (glued or spaced): every character of every word is an `arithChar`, the words
+joined by single spaces are `((` + $m$ + `))`, and $m$ is exactly three tokens $x, o, y$ that `tri` reads (bare names
+allowed).
+
+$$\mathrm{arithParse}(W) = \begin{cases} \mathrm{tri}_\top(x, o, y) & (\forall w \in W.\ \forall c \in w.\ \mathrm{arithChar}(c)) \land \mathrm{join}_{\texttt{" "}}(W) = \texttt{((}\,m\,\texttt{))} \land \mathrm{arithToks}(m) = \mathrm{some}([x, o, y]) \\ \mathrm{none} & \text{otherwise} \end{cases}$$
+-/
+def arithParse (ws : List String) : Option (Opd × Rel × Opd) :=
+  if ws.all (·.toList.all arithChar) then
+    match (String.intercalate " " ws).toList with
+    | '(' :: '(' :: r =>
+      if r.reverse.take 2 == [')', ')'] then
+        match arithToks r.dropLast.dropLast with
+        | some [x, o, y] => tri true x o y
+        | _ => none
+      else none
+    | _ => none
+  else none
+
+/-- **The bound grammar B.** A condition element (its words, quotes removed) parses as a bound test: exactly
+`[ x OP y ]` or `[[ x OP y ]]` (five words, `-lt -le -gt -ge`, operands `$v`, `${v}` or a decimal), else an arithmetic
+`(( x OP y ))` (`arithParse`). A leading `!`, `test`, `-o`/`-a`, extra words or a redirect all fall outside.
+
+$$\mathrm{atomParse}(W) = \begin{cases} \mathrm{tri}_\bot(x, o, y) & W = [l, x, o, y, r] \land ((l, r) = (\texttt{[}, \texttt{]}) \lor (l, r) = (\texttt{[[}, \texttt{]]})) \\ \mathrm{arithParse}(W) & \text{otherwise} \end{cases}$$
+-/
+def atomParse (ws : List String) : Option (Opd × Rel × Opd) :=
+  match ws with
+  | [l, x, o, y, r] =>
+    if (l == "[" && r == "]") || (l == "[[" && r == "]]") then tri false x o y else arithParse ws
+  | _ => arithParse ws
+
+/-- One element of a loop condition is a **bound test** in a `while` ($u = \bot$) or `until` ($u = \top$) loop: it
+parses in the grammar (`atomParse`) and the parsed test passes `relOk`. Anything else (`true`, `date`, `[ 1 -lt 2 ]`,
+`[ "$(ls | wc -l)" -gt 0 ]`, `[ $i -lt $n ]`) is not.
+
+$$\mathrm{boundAtom}(u, W) = \begin{cases} \mathrm{relOk}(u, x, r, y) & \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \\ \bot & \mathrm{atomParse}(W) = \mathrm{none} \end{cases}$$
+-/
+def boundAtom (untl : Bool) (ws : List String) : Bool :=
+  match atomParse ws with
+  | some (x, r, y) => relOk untl x r y
+  | none => false
+
+/-- **boundAtom is membership in B.** An element is a bound test exactly when it parses in the grammar and the parsed
+test passes `relOk`.
+
+$$\forall u, W.\ \mathrm{boundAtom}(u, W) \iff \exists x, r, y.\ \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{relOk}(u, x, r, y)$$
+-/
+theorem boundAtom_iff (u : Bool) (ws : List String) :
+    boundAtom u ws = true ↔ ∃ x r y, atomParse ws = some (x, r, y) ∧ relOk u x r y = true := by
+  unfold boundAtom
+  split
+  · rename_i x r y h
+    constructor
+    · intro hr; exact ⟨x, r, y, h, hr⟩
+    · rintro ⟨x', r', y', h', hr'⟩
+      rw [h] at h'
+      cases h'
+      exact hr'
+  · rename_i h
+    simp [h]
+
+/-- The variable of a passing `varOk` is not in `noBoundVars`.
+
+$$\forall u, n, r.\ \mathrm{varOk}(u, n, r) \Rightarrow n \notin \mathrm{noBoundVars}$$
+-/
+theorem varOk_noBound (u : Bool) (n : String) (r : Rel) (h : varOk u n r = true) :
+    noBoundVars.contains n = false := by
+  unfold varOk at h
+  revert h
+  cases noBoundVars.contains n <;> simp
+
+/-- A clock passes `varOk` only in the exit direction: `<`/`≤` for `while`, `>`/`≥` for `until`.
+
+$$\forall u, n, r.\ n \in \mathrm{clocks} \land \mathrm{varOk}(u, n, r) \Rightarrow (\mathrm{down}(r) \iff \lnot u)$$
+-/
+theorem varOk_clock (u : Bool) (n : String) (r : Rel) (hc : clocks.contains n = true) (h : varOk u n r = true) :
+    r.down = !u := by
+  unfold varOk at h
+  rw [hc] at h
+  revert h
+  cases noBoundVars.contains n <;> cases u <;> cases r <;> simp [Rel.down]
+
+/-- A bound test has one variable side and one number side, and its variable is not in `noBoundVars`.
+
+$$\forall u, x, r, y.\ \mathrm{relOk}(u, x, r, y) \Rightarrow \exists n, k.\ n \notin \mathrm{noBoundVars} \land ((x = \mathrm{var}(n) \land y = \mathrm{num}(k)) \lor (x = \mathrm{num}(k) \land y = \mathrm{var}(n)))$$
+-/
+theorem relOk_shape (u : Bool) (x : Opd) (r : Rel) (y : Opd) (h : relOk u x r y = true) :
+    ∃ n k, noBoundVars.contains n = false ∧ ((x = .var n ∧ y = .num k) ∨ (x = .num k ∧ y = .var n)) := by
+  match x, y, h with
+  | .var n, .num k, h => exact ⟨n, k, varOk_noBound u n r h, Or.inl ⟨rfl, rfl⟩⟩
+  | .num k, .var n, h => exact ⟨n, k, varOk_noBound u n r.flip h, Or.inr ⟨rfl, rfl⟩⟩
+  | .var _, .var _, h => simp [relOk] at h
+  | .num _, .num _, h => simp [relOk] at h
+
+/-- **Clock direction.** If a bound test of a `while` ($u = \bot$) or `until` ($u = \top$) loop compares a clock $n$
+(`SECONDS`, `EPOCHSECONDS`), the relation as seen from the clock is `<`/`≤` exactly for `while`: the test then reaches
+the loop's exit value as the clock grows.
+
+$$\forall u, W, x, r, y, n.\ n \in \mathrm{clocks} \land \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{boundAtom}(u, W) \Rightarrow (x = \mathrm{var}(n) \Rightarrow (\mathrm{down}(r) \iff \lnot u)) \land (y = \mathrm{var}(n) \Rightarrow (\mathrm{down}(\mathrm{flip}(r)) \iff \lnot u))$$
+-/
+theorem seconds_direction (u : Bool) (ws : List String) (x : Opd) (r : Rel) (y : Opd) (n : String)
+    (hc : clocks.contains n = true) (hp : atomParse ws = some (x, r, y)) (hb : boundAtom u ws = true) :
+    (x = .var n → r.down = !u) ∧ (y = .var n → r.flip.down = !u) := by
+  unfold boundAtom at hb
+  rw [hp] at hb
+  constructor
+  · rintro rfl
+    match y, hb with
+    | .num _, hb => exact varOk_clock u n r hc hb
+    | .var _, hb => simp [relOk] at hb
+  · rintro rfl
+    match x, hb with
+    | .num _, hb => exact varOk_clock u n r.flip hc hb
+    | .var _, hb => simp [relOk] at hb
+
+
+/-- A word holds `$(` (a command substitution, also `$((`): some `$` is directly followed by `(`.
+
+$$\mathrm{dollarParen}([\,]) = \bot, \qquad \mathrm{dollarParen}(a :: r) \iff (a = \texttt{\$} \land \mathrm{head}(r) = \texttt{(}) \lor \mathrm{dollarParen}(r)$$
+-/
+def dollarParen : List Char → Bool
+  | a :: r => (a == '$' && r.head? == some '(') || dollarParen r
+  | [] => false
+
+/-- A word holding `$(` holds both `$` and `(`.
+
+$$\forall l.\ \mathrm{dollarParen}(l) \Rightarrow \texttt{\$} \in l \land \texttt{(} \in l$$
+-/
+theorem dollarParen_mem (l : List Char) (h : dollarParen l = true) : '$' ∈ l ∧ '(' ∈ l := by
+  induction l with
+  | nil => simp [dollarParen] at h
+  | cons a r ih =>
+    simp only [dollarParen, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq] at h
+    rcases h with ⟨rfl, hr⟩ | h
+    · cases r with
+      | nil => simp at hr
+      | cons b r' => simp at hr; subst hr; simp
+    · have := ih h; exact ⟨List.mem_cons_of_mem _ this.1, List.mem_cons_of_mem _ this.2⟩
+
+/-- A character that fails $p$ is not in a list whose every element passes $p$.
+
+$$\forall p, l, c.\ (\forall a \in l.\ p(a)) \land \lnot p(c) \Rightarrow c \notin l$$
+-/
+theorem all_not_mem {p : Char → Bool} {l : List Char} {c : Char} (h : l.all p = true) (hc : p c = false) : c ∉ l := by
+  intro hm
+  have := (List.all_eq_true.mp h) c hm
+  simp [hc] at this
+
+/-- A word that parses as an operand is made of operand characters only.
+
+$$\forall b, w, o.\ \mathrm{opd}(b, w) = \mathrm{some}(o) \Rightarrow \forall c \in w.\ \mathrm{opdChar}(c)$$
+-/
+theorem opd_chars (b : Bool) (w : String) (o : Opd) (h : opd b w = some o) : w.toList.all opdChar = true := by
+  unfold opd at h
+  split at h
+  · assumption
+  · simp at h
+
+/-- A word that parses as a relation is one of the eight order operators.
+
+$$\forall a, w, r.\ \mathrm{relOf}(a, w) = \mathrm{some}(r) \Rightarrow w \in \{\texttt{<}, \texttt{<=}, \texttt{>}, \texttt{>=}, \texttt{-lt}, \texttt{-le}, \texttt{-gt}, \texttt{-ge}\}$$
+-/
+theorem relOf_mem (a : Bool) (w : String) (r : Rel) (h : relOf a w = some r) :
+    w ∈ ["<", "<=", ">", ">=", "-lt", "-le", "-gt", "-ge"] := by
+  unfold relOf at h
+  repeat' split at h
+  all_goals simp_all
+
+/-- A parsed three-word test has sides made of operand characters and an order operator in the middle.
+
+$$\forall a, x, o, y, p.\ \mathrm{tri}(a, x, o, y) = \mathrm{some}(p) \Rightarrow (\forall c \in x.\ \mathrm{opdChar}(c)) \land o \in \{\texttt{<}, \texttt{<=}, \texttt{>}, \texttt{>=}, \texttt{-lt}, \texttt{-le}, \texttt{-gt}, \texttt{-ge}\} \land (\forall c \in y.\ \mathrm{opdChar}(c))$$
+-/
+theorem tri_chars (a : Bool) (x o y : String) (p : Opd × Rel × Opd) (h : tri a x o y = some p) :
+    x.toList.all opdChar = true ∧ o ∈ ["<", "<=", ">", ">=", "-lt", "-le", "-gt", "-ge"] ∧
+      y.toList.all opdChar = true := by
+  unfold tri at h
+  split at h
+  · rename_i p' r q hx ho hy
+    exact ⟨opd_chars _ _ _ hx, relOf_mem _ _ _ ho, opd_chars _ _ _ hy⟩
+  · simp at h
+
+/-- Every word of a parsed `(( ))` test is made of arithmetic characters only.
+
+$$\forall W, p.\ \mathrm{arithParse}(W) = \mathrm{some}(p) \Rightarrow \forall w \in W.\ \forall c \in w.\ \mathrm{arithChar}(c)$$
+-/
+theorem arithParse_chars (ws : List String) (p : Opd × Rel × Opd) (h : arithParse ws = some p) :
+    ∀ w ∈ ws, w.toList.all arithChar = true := by
+  unfold arithParse at h
+  split at h
+  · rename_i hw
+    exact List.all_eq_true.mp hw
+  · simp at h
+
+/-- Every word of a parsed bound test is free of backquotes, and has no `$` (arithmetic form) or no `(` (bracket form).
+
+$$\forall W, p.\ \mathrm{atomParse}(W) = \mathrm{some}(p) \Rightarrow \forall w \in W.\ \texttt{`} \notin w \land (\texttt{\$} \notin w \lor \texttt{(} \notin w)$$
+-/
+theorem atomParse_chars (ws : List String) (p : Opd × Rel × Opd) (h : atomParse ws = some p) :
+    ∀ w ∈ ws, '`' ∉ w.toList ∧ ('$' ∉ w.toList ∨ '(' ∉ w.toList) := by
+  have ar : arithParse ws = some p → ∀ w ∈ ws, '`' ∉ w.toList ∧ ('$' ∉ w.toList ∨ '(' ∉ w.toList) := by
+    intro ha w hw
+    have := arithParse_chars ws p ha w hw
+    exact ⟨all_not_mem this (by decide), Or.inl (all_not_mem this (by decide))⟩
+  unfold atomParse at h
+  split at h
+  · rename_i l x o y r
+    split at h
+    · rename_i hlr
+      obtain ⟨hx, ho, hy⟩ := tri_chars _ _ _ _ _ h
+      have hl : l = "[" ∨ l = "[[" := by
+        simp only [Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq] at hlr
+        rcases hlr with ⟨h1, _⟩ | ⟨h1, _⟩ <;> simp [h1]
+      have hr : r = "]" ∨ r = "]]" := by
+        simp only [Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq] at hlr
+        rcases hlr with ⟨_, h1⟩ | ⟨_, h1⟩ <;> simp [h1]
+      intro w hw
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+      rcases hw with rfl | rfl | rfl | rfl | rfl
+      · rcases hl with rfl | rfl <;> decide
+      · exact ⟨all_not_mem hx (by decide), Or.inr (all_not_mem hx (by decide))⟩
+      · simp only [List.mem_cons, List.not_mem_nil, or_false] at ho
+        rcases ho with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+      · exact ⟨all_not_mem hy (by decide), Or.inr (all_not_mem hy (by decide))⟩
+      · rcases hr with rfl | rfl <;> decide
+    · exact ar h
+  · exact ar h
+
+/-- **A substitution is never a bound.** If some word of a condition element holds `$(` (a command substitution or
+`$((`) or a backquote, the element is not a bound test, in either loop kind: `[ "$(ls | wc -l)" -gt 0 ]`,
+`[ $(gh run list ...) -ge 1 ]`, `[ $((0)) -lt 1 ]`, `` [ `date +%s` -lt 9 ] `` are all unbounded.
+
+$$\forall u, W, w.\ w \in W \land (\mathrm{dollarParen}(w) \lor \texttt{`} \in w) \Rightarrow \lnot\mathrm{boundAtom}(u, W)$$
+-/
+theorem subst_never_bound (u : Bool) (ws : List String) (w : String) (hw : w ∈ ws)
+    (hs : dollarParen w.toList = true ∨ '`' ∈ w.toList) : boundAtom u ws = false := by
+  cases hb : boundAtom u ws with
+  | false => rfl
+  | true =>
+    obtain ⟨x, r, y, hp, _⟩ := (boundAtom_iff u ws).mp hb
+    have hc := atomParse_chars ws _ hp w hw
+    rcases hs with hd | hq
+    · have := dollarParen_mem _ hd
+      rcases hc.2 with h1 | h1
+      · exact absurd this.1 h1
+      · exact absurd this.2 h1
+    · exact absurd hq hc.1
 
 /-- How the bound of an and-or condition grows by one element. A `while` loop ends when its condition fails, an `until`
 loop when it succeeds; a bound test is assumed to reach that exit value and stay there. So for `while`, `a && b` is
@@ -555,15 +943,25 @@ def ansiArg (w : String) : Bool :=
   | '$' :: '\\' :: v => !v.isEmpty && v.all Char.isAlphanum
   | _ => false
 
+/-- A zero count or timeout for `read`: a word that is all digits or starts with `-`, whose trailing run of digits is
+non-empty and only `0`s (`0`, `00`, `-n0`, `-t0`). `read -n 0`, `-N 0` and `-t 0` consume nothing, so they never reach
+the end of the input.
+
+$$\mathrm{zeroArg}(w) \iff d \ne [\,] \land (\forall x \in d.\ x = \texttt{0}) \land (w \text{ starts with } \texttt{-} \lor \forall x \in w.\ x \in \texttt{0-9}),\quad d = \text{the longest suffix of } w \text{ of digits}$$
+-/
+def zeroArg (w : String) : Bool :=
+  let d := w.toList.reverse.takeWhile Char.isDigit
+  !d.isEmpty && d.all (· == '0') && (w.startsWith "-" || w.toList.all Char.isDigit)
+
 /-- A word `read` may take in a read-loop condition: a non-empty word of only letters, digits, `_` and `-` (an option,
 an option argument or a variable name; so no redirect, no expansion, no operator) that is not an option word holding `u`
-(`-u fd` reads another descriptor), or an ANSI-C literal (`-d $'\0'`).
+(`-u fd` reads another descriptor) and not a zero count or timeout (`zeroArg`), or an ANSI-C literal (`-d $'\0'`).
 
-$$\mathrm{isReadArg}(w) \iff (w \ne \varepsilon \land w \in \{\texttt{A-Z}, \texttt{a-z}, \texttt{0-9}, \texttt{\_}, \texttt{-}\}^{*} \land \lnot(w \text{ starts with } \texttt{-} \land \texttt{u} \in w)) \lor \mathrm{ansiArg}(w)$$
+$$\mathrm{isReadArg}(w) \iff (w \ne \varepsilon \land w \in \{\texttt{A-Z}, \texttt{a-z}, \texttt{0-9}, \texttt{\_}, \texttt{-}\}^{*} \land \lnot(w \text{ starts with } \texttt{-} \land \texttt{u} \in w) \land \lnot\mathrm{zeroArg}(w)) \lor \mathrm{ansiArg}(w)$$
 -/
 def isReadArg (w : String) : Bool :=
-  (w != "" && w.all (fun ch => ch.isAlphanum || ch == '_' || ch == '-') && !(w.startsWith "-" && w.contains 'u')) ||
-    ansiArg w
+  (w != "" && w.all (fun ch => ch.isAlphanum || ch == '_' || ch == '-') && !(w.startsWith "-" && w.contains 'u') &&
+    !zeroArg w) || ansiArg w
 
 /-- A plain `read`: optional assignments, `read`, then only `isReadArg` words.
 
@@ -626,15 +1024,70 @@ structure Cnd where
   exact : Bool
 deriving DecidableEq, Repr
 
-/-- Add one condition element (its words $A$, ended by $t$). An element ended by `|` is not the last of its pipeline,
-whose status is that of its last element, so it only adds its `read`; otherwise its bound test joins the list by the
-previous terminator (`comb`).
+/-- Add one condition element (its words $A$ as typed, a leading `!` kept, ended by $t$). An element ended by `|` is not
+the last of its pipeline, whose status is that of its last element, so it only adds its `read`; otherwise its bound test
+(for this loop kind) joins the list by the previous terminator (`comb`). The `read` check looks past reserved prefix
+words (`key`).
 
-$$\mathrm{condStep}(d, A, t) = \begin{cases} d[\mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(A)] & t = \mathrm{pipe} \\ d[\mathit{acc} := \mathrm{comb}(d.\mathit{until}, d.\mathit{op}, d.\mathit{acc}, \mathrm{boundAtom}(A)),\ \mathit{op} := t,\ \mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(A)] & \text{otherwise} \end{cases}$$
+$$\mathrm{condStep}(d, A, t) = \begin{cases} d[\mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & t = \mathrm{pipe} \\ d[\mathit{acc} := \mathrm{comb}(d.\mathit{until}, d.\mathit{op}, d.\mathit{acc}, \mathrm{boundAtom}(d.\mathit{until}, A)),\ \mathit{op} := t,\ \mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & \text{otherwise} \end{cases}$$
 -/
 def condStep (cd : Cnd) (atom : List String) (t : Term) : Cnd :=
-  if t == .pipe then { cd with rd := cd.rd || readSeg atom }
-  else { cd with acc := comb cd.untl cd.op cd.acc (boundAtom atom), op := t, rd := cd.rd || readSeg atom }
+  if t == .pipe then { cd with rd := cd.rd || readSeg (key atom) }
+  else { cd with acc := comb cd.untl cd.op cd.acc (boundAtom cd.untl atom), op := t, rd := cd.rd || readSeg (key atom) }
+
+/-- Read a whole condition: `condStep` over its elements (each its words and terminator), in order. This is what
+`condPart` and `blockPart` do between `while`/`until` and `do`.
+
+$$\mathrm{condFold}(d, [\,]) = d, \qquad \mathrm{condFold}(d, (A, t) :: X) = \mathrm{condFold}(\mathrm{condStep}(d, A, t), X)$$
+-/
+def condFold (cd : Cnd) (xs : List (List String × Term)) : Cnd := xs.foldl (fun d p => condStep d p.1 p.2) cd
+
+/-- `comb` is bounded only if the list so far or the new element is.
+
+$$\forall u, o, x, a.\ \mathrm{comb}(u, o, x, a) \Rightarrow x \lor a$$
+-/
+theorem comb_true (u : Bool) (op : Term) (x a : Bool) (h : comb u op x a = true) : x = true ∨ a = true := by
+  cases op <;> cases u <;> cases x <;> cases a <;> simp_all [comb]
+
+/-- `condStep` keeps the loop kind.
+
+$$\forall d, A, t.\ \mathrm{condStep}(d, A, t).\mathit{until} = d.\mathit{until}$$
+-/
+theorem condStep_untl (cd : Cnd) (atom : List String) (t : Term) : (condStep cd atom t).untl = cd.untl := by
+  unfold condStep; split <;> rfl
+
+/-- **Only the grammar bounds a condition.** If a condition read from a state that is not yet bounded ends bounded,
+some element of it that is not piped on (its terminator is not `|`, so its status counts) parses in the grammar B with a
+test that passes `relOk` for this loop kind. Command substitutions, `gh`/`ls`/`pgrep` polls, string tests and function
+calls never parse, so a condition made of them alone is never bounded.
+
+$$\forall d, X.\ \lnot d.\mathit{acc} \land \mathrm{condFold}(d, X).\mathit{acc} \Rightarrow \exists (A, t) \in X.\ t \ne \mathrm{pipe} \land \exists x, r, y.\ \mathrm{atomParse}(A) = \mathrm{some}(x, r, y) \land \mathrm{relOk}(d.\mathit{until}, x, r, y)$$
+-/
+theorem grammar_only (cd : Cnd) (xs : List (List String × Term)) (h0 : cd.acc = false)
+    (h : (condFold cd xs).acc = true) :
+    ∃ p ∈ xs, p.2 ≠ .pipe ∧ ∃ x r y, atomParse p.1 = some (x, r, y) ∧ relOk cd.untl x r y = true := by
+  suffices key : ∀ (d : Cnd), (condFold d xs).acc = true →
+      d.acc = true ∨ ∃ p ∈ xs, p.2 ≠ .pipe ∧ boundAtom d.untl p.1 = true by
+    rcases key cd h with h1 | ⟨p, hp, ht, hb⟩
+    · simp [h0] at h1
+    · exact ⟨p, hp, ht, (boundAtom_iff _ _).mp hb⟩
+  clear h h0
+  induction xs with
+  | nil => intro d hd; exact Or.inl hd
+  | cons p xs ih =>
+    intro d hd
+    have hd' : (condFold (condStep d p.1 p.2) xs).acc = true := hd
+    rcases ih (condStep d p.1 p.2) hd' with h1 | ⟨q, hq, ht, hb⟩
+    · unfold condStep at h1
+      split at h1
+      · exact Or.inl h1
+      · rename_i hpipe
+        rcases comb_true _ _ _ _ h1 with h2 | h2
+        · exact Or.inl h2
+        · refine Or.inr ⟨p, List.mem_cons_self .., ?_, h2⟩
+          simpa using hpipe
+    · rw [condStep_untl] at hb
+      exact Or.inr ⟨q, List.mem_cons_of_mem _ hq, ht, hb⟩
 
 /-- Replace the first flag of the innermost open block.
 
@@ -644,12 +1097,20 @@ def setTop (b : Bool) : List (Bool × Bool) → List (Bool × Bool)
   | (_, q) :: r => (b, q) :: r
   | [] => []
 
-/-- A device path: it holds `/dev/` or starts with `dev/` (so `//dev/zero` and `./../../dev/zero` count), and is not
-exactly `/dev/null`.
+/-- An output redirect word: after leading digits it starts with `>` (`>f`, `2>/dev/null`, `1>>log`), or it starts with
+`&>`. It writes; it never feeds the command's stdin.
 
-$$\mathrm{isDev}(w) \iff (\mathrm{has}(w, \texttt{/dev/}) \lor w \text{ starts with } \texttt{dev/}) \land w \ne \texttt{/dev/null}$$
+$$\mathrm{outRedir}(w) \iff \mathrm{head}(\mathrm{dropWhile}(\cdot \in \texttt{0-9}, w)) = \texttt{>} \lor w \text{ starts with } \texttt{\&>}$$
 -/
-def isDev (w : String) : Bool := (has w "/dev/" || w.startsWith "dev/") && w != "/dev/null"
+def outRedir (w : String) : Bool :=
+  (w.toList.dropWhile Char.isDigit).head? == some '>' || w.startsWith "&>"
+
+/-- A device path read as input: it holds `/dev/` or starts with `dev/` (so `//dev/zero` and `./../../dev/zero` count),
+is not exactly `/dev/null`, and is not an output redirect word (`2>/dev/null`, `>/dev/stderr` write, they read nothing).
+
+$$\mathrm{isDev}(w) \iff (\mathrm{has}(w, \texttt{/dev/}) \lor w \text{ starts with } \texttt{dev/}) \land w \ne \texttt{/dev/null} \land \lnot\mathrm{outRedir}(w)$$
+-/
+def isDev (w : String) : Bool := (has w "/dev/" || w.startsWith "dev/") && w != "/dev/null" && !outRedir w
 
 /-- A word a finite producer must not hold: `-` (read stdin), a device (`isDev`), a subshell or a process or command
 substitution (a word starting with `(`, or holding `<(`, `$(` or a backquote), or a descriptor duplication `<&`.
@@ -689,6 +1150,28 @@ $$\mathrm{gitFinite} = [\texttt{ls-files}, \texttt{ls-tree}, \texttt{diff}, \tex
 def gitFinite : List String :=
   ["ls-files", "ls-tree", "diff", "log", "show", "status", "branch", "tag", "for-each-ref", "rev-list", "rev-parse",
    "grep", "shortlog", "describe", "cat-file", "blame", "merge-base", "name-rev", "reflog"]
+
+/-- The words after the git subcommand (the global options skipped as in `gitSub`); `[]` if there is no subcommand.
+
+$$\mathrm{gitAfter}([\,]) = [\,], \quad \mathrm{gitAfter}(\texttt{-C} :: x :: r) = \mathrm{gitAfter}(\texttt{-c} :: x :: r) = \mathrm{gitAfter}(r), \quad \mathrm{gitAfter}(w :: r) = \begin{cases} \mathrm{gitAfter}(r) & w \text{ starts with } \texttt{-} \\ r & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+-/
+def gitAfter : List String → List String
+  | "-C" :: _ :: r => gitAfter r
+  | "-c" :: _ :: r => gitAfter r
+  | w :: r => if w.startsWith "-" then gitAfter r else r
+  | [] => []
+
+/-- A git subcommand $s$ with its words $A$ that reads, prints and ends: $s$ in `gitFinite`, or `worktree list`,
+`stash list`, `remote` alone, `remote -v`, `remote get-url ...`, or `config` with a `--list`, `-l` or `--get...` word
+and no `--edit`/`-e` word.
+
+$$\mathrm{gitReadOnly}(s, A) \iff s \in \mathrm{gitFinite} \lor (s \in \{\texttt{worktree}, \texttt{stash}\} \land \mathrm{head}(A) = \texttt{list}) \lor (s = \texttt{remote} \land (A = [\,] \lor \mathrm{head}(A) \in \{\texttt{-v}, \texttt{get-url}\})) \lor (s = \texttt{config} \land \exists x \in A.\ x \in \{\texttt{-{}-list}, \texttt{-l}\} \lor x \text{ starts with } \texttt{-{}-get}) \land \forall x \in A.\ x \notin \{\texttt{-{}-edit}, \texttt{-e}\})$$
+-/
+def gitReadOnly (s : String) (a : List String) : Bool :=
+  gitFinite.contains s || ((s == "worktree" || s == "stash") && a.head? == some "list") ||
+    (s == "remote" && (a.isEmpty || a.head? == some "-v" || a.head? == some "get-url")) ||
+    (s == "config" && a.any (fun x => x == "--list" || x == "-l" || x.startsWith "--get") &&
+      !a.any (fun x => x == "--edit" || x == "-e"))
 
 /-- Substrings that may make a jq program loop or generate without end.
 
@@ -759,7 +1242,7 @@ def xargsCmd : List String → List String
   | [] => []
 
 /-- The command allowlist on the key words $K$ of a producer; $i$ says its stdin is finite. Sources (output independent
-of stdin): `git` with safe global options, a subcommand in `gitFinite` and no `--stdin`; `gh run|pr|issue list|view`;
+of stdin): `git` with safe global options, a read-only subcommand (`gitReadOnly`) and no `--stdin`; `gh run|pr|issue list|view`;
 `cat` with an operand (a word not starting with `-`) and no option word holding `u`; `find` with no
 `-exec -execdir -ok -okdir`; `seq` with no word holding `inf` or `nan` (any case); `ls`, `printf`, `echo`. Only when $i$:
 `node scripts/X.mjs` (a repo script: the path starts with `scripts/` or `./scripts/`, ends with `.mjs`, holds no `..`;
@@ -767,10 +1250,10 @@ MEASURED 2026-10-18: no repo `scripts/*.mjs` listens, watches or loops forever),
 `rg` with no `--pre...` word, `sort` with no `--compress...` word, `sed` with no `sedLoop` word, `awk` with no `awkLoop`
 word, `grep`, `head`, `wc`, `tr`, `cut`, `uniq`. Anything else (`pnpm`, `npm`, other `node` runs, `tail`, `yes`) is not.
 
-$$\mathrm{finiteCmd}(i, K) = \begin{cases} \mathrm{gitSafe}(r) \land \mathrm{gitSub}(r) \in \mathrm{gitFinite} \land \texttt{-{}-stdin} \notin r & K = \texttt{git} :: r \\ g \in \{\texttt{run}, \texttt{pr}, \texttt{issue}\} \land v \in \{\texttt{list}, \texttt{view}\} & K = \texttt{gh} :: g :: v :: r \\ (\exists x \in r.\ x \text{ not starting with } \texttt{-}) \land \lnot\exists x \in r.\ x \text{ starts with } \texttt{-} \land \texttt{u} \in x & K = \texttt{cat} :: r \\ r \cap \{\texttt{-exec}, \texttt{-execdir}, \texttt{-ok}, \texttt{-okdir}\} = \emptyset & K = \texttt{find} :: r \\ \lnot\exists x \in r.\ \mathrm{has}(\mathrm{lower}(x), \texttt{inf}) \lor \mathrm{has}(\mathrm{lower}(x), \texttt{nan}) & K = \texttt{seq} :: r \\ \top & K = k :: r,\ k \in \{\texttt{ls}, \texttt{printf}, \texttt{echo}\} \\ i \land p \text{ starts with } \texttt{scripts/} \text{ or } \texttt{./scripts/} \land p \text{ ends with } \texttt{.mjs} \land \lnot\mathrm{has}(p, \texttt{..}) & K = \texttt{node} :: p :: r \\ i \land \lnot\exists x \in r, j \in \mathrm{jqLoopWords}.\ \mathrm{has}(x, j) & K = \texttt{jq} :: r \\ i \land \lnot\exists x \in r.\ x \text{ starts with } \texttt{-{}-pre} & K = \texttt{rg} :: r \\ i \land \lnot\exists x \in r.\ x \text{ starts with } \texttt{-{}-compress} & K = \texttt{sort} :: r \\ i \land \lnot\exists x \in r.\ \mathrm{sedLoop}(x) & K = \texttt{sed} :: r \\ i \land \lnot\exists x \in r.\ \mathrm{awkLoop}(x) & K = \texttt{awk} :: r \\ i & K = k :: r,\ k \in \{\texttt{grep}, \texttt{head}, \texttt{wc}, \texttt{tr}, \texttt{cut}, \texttt{uniq}\} \\ \bot & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+$$\mathrm{finiteCmd}(i, K) = \begin{cases} \mathrm{gitSafe}(r) \land \mathrm{gitReadOnly}(\mathrm{gitSub}(r), \mathrm{gitAfter}(r)) \land \texttt{-{}-stdin} \notin r & K = \texttt{git} :: r \\ g \in \{\texttt{run}, \texttt{pr}, \texttt{issue}\} \land v \in \{\texttt{list}, \texttt{view}\} & K = \texttt{gh} :: g :: v :: r \\ (\exists x \in r.\ x \text{ not starting with } \texttt{-}) \land \lnot\exists x \in r.\ x \text{ starts with } \texttt{-} \land \texttt{u} \in x & K = \texttt{cat} :: r \\ r \cap \{\texttt{-exec}, \texttt{-execdir}, \texttt{-ok}, \texttt{-okdir}\} = \emptyset & K = \texttt{find} :: r \\ \lnot\exists x \in r.\ \mathrm{has}(\mathrm{lower}(x), \texttt{inf}) \lor \mathrm{has}(\mathrm{lower}(x), \texttt{nan}) & K = \texttt{seq} :: r \\ \top & K = k :: r,\ k \in \{\texttt{ls}, \texttt{printf}, \texttt{echo}\} \\ i \land p \text{ starts with } \texttt{scripts/} \text{ or } \texttt{./scripts/} \land p \text{ ends with } \texttt{.mjs} \land \lnot\mathrm{has}(p, \texttt{..}) & K = \texttt{node} :: p :: r \\ i \land \lnot\exists x \in r, j \in \mathrm{jqLoopWords}.\ \mathrm{has}(x, j) & K = \texttt{jq} :: r \\ i \land \lnot\exists x \in r.\ x \text{ starts with } \texttt{-{}-pre} & K = \texttt{rg} :: r \\ i \land \lnot\exists x \in r.\ x \text{ starts with } \texttt{-{}-compress} & K = \texttt{sort} :: r \\ i \land \lnot\exists x \in r.\ \mathrm{sedLoop}(x) & K = \texttt{sed} :: r \\ i \land \lnot\exists x \in r.\ \mathrm{awkLoop}(x) & K = \texttt{awk} :: r \\ i & K = k :: r,\ k \in \{\texttt{grep}, \texttt{head}, \texttt{wc}, \texttt{tr}, \texttt{cut}, \texttt{uniq}\} \\ \bot & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
 -/
 def finiteCmd (inFin : Bool) : List String → Bool
-  | "git" :: r => gitSafe r && gitFinite.contains (gitSub r) && !r.contains "--stdin"
+  | "git" :: r => gitSafe r && gitReadOnly (gitSub r) (gitAfter r) && !r.contains "--stdin"
   | "gh" :: g :: v :: _ => (g == "run" || g == "pr" || g == "issue") && (v == "list" || v == "view")
   | "cat" :: r => r.any (fun x => !x.startsWith "-") && !r.any (fun x => x.startsWith "-" && x.contains 'u')
   | "find" :: r => !r.any (fun x => x == "-exec" || x == "-execdir" || x == "-ok" || x == "-okdir")
@@ -1016,7 +1499,7 @@ is bounded (`acc`) or exactly a read-loop head (`exact`; its input is checked at
 makes the loop free. Any other segment is one more condition element ($K = \mathrm{key}(s.\mathit{words})$, $f$ its head,
 `""` if none).
 
-$$\mathrm{condPart}(u, s) = \begin{cases} (u.\mathit{stack},\ u.\mathit{free},\ \mathrm{none}) & u.\mathit{cnd} = \mathrm{none} \\ (\mathrm{setTop}(d.\mathit{rd}, u.\mathit{stack}),\ u.\mathit{free} \lor \lnot(d.\mathit{acc} \lor d.\mathit{exact}),\ \mathrm{none}) & u.\mathit{cnd} = \mathrm{some}(d),\ \mathrm{head}(s.\mathit{words}) = \texttt{do} \\ (u.\mathit{stack},\ \top,\ \mathrm{none}) & u.\mathit{cnd} = \mathrm{some}(d),\ \mathrm{blockWord}(f) \\ (u.\mathit{stack},\ u.\mathit{free} \lor \mathrm{badRead}(K),\ \mathrm{some}(\mathrm{condStep}(d[\mathit{exact} := \bot], K, s.\mathit{term}))) & u.\mathit{cnd} = \mathrm{some}(d),\ \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+$$\mathrm{condPart}(u, s) = \begin{cases} (u.\mathit{stack},\ u.\mathit{free},\ \mathrm{none}) & u.\mathit{cnd} = \mathrm{none} \\ (\mathrm{setTop}(d.\mathit{rd}, u.\mathit{stack}),\ u.\mathit{free} \lor \lnot(d.\mathit{acc} \lor d.\mathit{exact}),\ \mathrm{none}) & u.\mathit{cnd} = \mathrm{some}(d),\ \mathrm{head}(s.\mathit{words}) = \texttt{do} \\ (u.\mathit{stack},\ \top,\ \mathrm{none}) & u.\mathit{cnd} = \mathrm{some}(d),\ \mathrm{blockWord}(f) \\ (u.\mathit{stack},\ u.\mathit{free} \lor \mathrm{badRead}(K),\ \mathrm{some}(\mathrm{condStep}(d[\mathit{exact} := \bot], s.\mathit{words}, s.\mathit{term}))) & u.\mathit{cnd} = \mathrm{some}(d),\ \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
 -/
 def condPart (u : UAcc) (s : Seg) : List (Bool × Bool) × Bool × Option Cnd :=
   match u.cnd with
@@ -1024,7 +1507,7 @@ def condPart (u : UAcc) (s : Seg) : List (Bool × Bool) × Bool × Option Cnd :=
   | some cd =>
     if s.words.head? == some "do" then (setTop cd.rd u.stack, u.free || !(cd.acc || cd.exact), none)
     else if blockWord ((key s.words).head?.getD "") then (u.stack, true, none)
-    else (u.stack, u.free || badRead (key s.words), some (condStep { cd with exact := false } (key s.words) s.term))
+    else (u.stack, u.free || badRead (key s.words), some (condStep { cd with exact := false } s.words s.term))
 
 /-- The block part of a step, on the stack $S$ and condition $D$ left by `condPart` ($K = \mathrm{key}(s.\mathit{words})$,
 $f$ its head, `""` if none; $\pi$: the segment reads a finite pipe). An opener pushes a block; a `while`/`until` also opens
@@ -1546,14 +2029,41 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 
 /-! Round 3: the bound comes from the loop condition only; more finite producers; device paths and here-strings. -/
 
-#guard cmpBound ["$i", "-lt", "10"] && cmpBound ["10", "-gt", "$i"] && !cmpBound ["1", "-lt", "2"]
-#guard !cmpBound ["$i", "-eq", "3"] && !cmpBound ["$i", "-lt"] && !cmpBound []
-#guard boundAtom ["[", "$i", "-lt", "10", "]"] && boundAtom ["!", "[", "$i", "-ge", "10", "]"]
-#guard boundAtom ["test", "$SECONDS", "-lt", "$end"] && boundAtom ["[[", "$i", "-le", "3", "]]"]
-#guard !boundAtom ["[", "$SECONDS", "]"] && !boundAtom ["[", "1", "-lt", "2", "]"] && !boundAtom ["true"]
-#guard !boundAtom ["date"] && !boundAtom ["deadline"] && !boundAtom ["[", "$i", "-lt", "3", "-o", "1", "]"] && !boundAtom []
-#guard boundAtom ["((i<10))"] && boundAtom ["((", "SECONDS", "<", "60", "))"] && !boundAtom ["((1<2))"]
-#guard !boundAtom ["((1))"] && !boundAtom ["((i<<2))"] && !boundAtom ["((i<3||1))"]
+#guard isName "i".toList && isName "_x1".toList && !isName "1x".toList && !isName "$".toList && !isName [] && !isName "#".toList
+#guard isDec "10".toList && isDec "0".toList && !isDec "010".toList && !isDec "0x1".toList && !isDec [] && !isDec "-1".toList
+#guard opd false "$i" == some (.var "i") && opd false "${i}" == some (.var "i") && opd false "10" == some (.num 10)
+#guard opd false "i" == none && opd true "i" == some (.var "i") && opd true "0x0" == none && opd false "010" == none
+#guard opd false "$$" == none && opd false "$#" == none && opd false "$?" == none && opd false "$!" == none && opd false "$1" == none
+#guard opd false "$(echo 0)" == none && opd false "$((0))" == none && opd false "${x:-0}" == none && opd false "`date`" == none
+#guard opd false "${i" == none && opd false "$" == none && opd false "" == none
+#guard relOf false "-lt" == some .lt && relOf false "<" == none && relOf true "<=" == some .le && relOf true "-lt" == none
+#guard relOf false "-eq" == none && relOf true "==" == none && relOf true "=<" == none
+#guard arithToks "i<10".toList == some ["i", "<", "10"] && arithToks " i < 10 ".toList == some ["i", "<", "10"]
+#guard arithToks "i < 1 0".toList == some ["i", "<", "1", "0"] && arithToks "i<10,1".toList == none && arithToks [] == some []
+#guard atomParse ["[", "$i", "-lt", "10", "]"] == some (.var "i", .lt, .num 10)
+#guard atomParse ["[[", "10", "-ge", "${n}", "]]"] == some (.num 10, .ge, .var "n")
+#guard atomParse ["((i<10))"] == some (.var "i", .lt, .num 10) && atomParse ["((", "i", "<=", "3", "))"] == some (.var "i", .le, .num 3)
+#guard atomParse ["(( i", ">", "0 ))"] == some (.var "i", .gt, .num 0) && atomParse ["[", "$i", "-lt", "10", "]]"] == none
+#guard atomParse ["!", "[", "$i", "-lt", "10", "]"] == none && atomParse ["test", "$i", "-lt", "10"] == none
+#guard atomParse ["[", "$i", "-lt", "10", "-o", "1", "]"] == none && atomParse ["[", "$i", "<", "10", "]"] == none
+#guard atomParse ["[[", "$i", "<", "10", "]]"] == none && atomParse [] == none && atomParse ["true"] == none
+-- B: counters both ways, clocks only towards the exit
+#guard boundAtom false ["[", "$i", "-lt", "10", "]"] && boundAtom false ["[", "$i", "-ge", "10", "]"] && boundAtom true ["[[", "$i", "-le", "3", "]]"]
+#guard boundAtom false ["[", "$SECONDS", "-lt", "60", "]"] && boundAtom false ["[", "60", "-gt", "$SECONDS", "]"]
+#guard boundAtom true ["[", "$SECONDS", "-ge", "60", "]"] && boundAtom true ["((SECONDS>600))"] && boundAtom false ["((", "SECONDS", "<", "60", "))"]
+#guard !boundAtom false ["[", "$SECONDS", "-ge", "0", "]"] && !boundAtom false ["[", "$SECONDS", "-gt", "5", "]"]
+#guard !boundAtom true ["[", "$SECONDS", "-lt", "0", "]"] && !boundAtom false ["((", "SECONDS", ">=", "0", "))"]
+#guard !boundAtom false ["[", "0", "-lt", "$SECONDS", "]"] && !boundAtom false ["[", "$EPOCHSECONDS", "-gt", "1", "]"]
+-- the round-3 reviewer probes: never a bound
+#guard !boundAtom true ["[", "$(gh run list -b ci/x --json status -q '[.[]|select(.status==\"completed\")]|length')", "-ge", "1", "]"]
+#guard !boundAtom true ["[", "$(ls out/*.json 2>/dev/null", "-gt", "0", "]"] && !boundAtom false ["[", "$(pgrep -c node)", "-gt", "0", "]"]
+#guard !boundAtom false ["[", "$$", "-gt", "0", "]"] && !boundAtom false ["[", "$#", "-ge", "0", "]"] && !boundAtom false ["[", "$((0))", "-lt", "1", "]"]
+#guard !boundAtom false ["[", "${x:-0}", "-lt", "1", "]"] && !boundAtom false ["[", "$RANDOM", "-ge", "0", "]"] && !boundAtom false ["[", "$(echo 0)", "-lt", "1", "]"]
+#guard !boundAtom false ["((", "i", "<", "10", ",", "1", "))"] && !boundAtom false ["((", "i", "<", "10", "?", "1", ":", "1", "))"]
+#guard !boundAtom false ["((", "0x0", "<", "1", "))"] && !boundAtom false ["((", "RANDOM", ">=", "0", "))"] && !boundAtom false ["((i<10,1))"]
+#guard !boundAtom false ["[", "1", "-lt", "2", "]"] && !boundAtom false ["[", "$i", "-lt", "$n", "]"] && !boundAtom false ["((1<2))"]
+#guard !boundAtom false ["date"] && !boundAtom false ["[", "$SECONDS", "]"] && !boundAtom false [] && !boundAtom false ["((i<<2))"]
+#guard !boundAtom false ["[", "`date +%s`", "-lt", "9", "]"] && !boundAtom false ["((", "$i", "<", "9", "))"] && !boundAtom false ["((", "i++", "<", "9", "))"]
 #guard comb false .andIf false true && !comb false .orElse false true && comb true .orElse false true
 #guard !comb true .andIf false true && !comb false .seq true false && comb true .pipe false true
 #guard condStep ⟨false, false, .seq, false, false⟩ ["[", "$i", "-lt", "3", "]"] .andIf == ⟨false, true, .andIf, false, false⟩
@@ -1611,7 +2121,7 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 #guard decideCmd {} "while [ $i -lt 3 ]; do while true; do sleep 1; done; done" == .deny .unboundedLoop
 #guard decideCmd {} "i=0; while [ ! -s \"$F\" ] && [ $i -lt 55 ]; do sleep 10; i=$((i+1)); done" == .allow
 #guard decideCmd {} "i=0; until gh run view 1 --exit-status || [ $i -ge 10 ]; do sleep 30; i=$((i+1)); done" == .allow
-#guard decideCmd {} "end=$((SECONDS+60)); while [ $SECONDS -lt $end ]; do sleep 5; done" == .allow
+#guard decideCmd {} "end=$((SECONDS+60)); while [ $SECONDS -lt $end ]; do sleep 5; done" == .deny .unboundedLoop
 #guard decideCmd {} "while (( i < 10 )); do i=$((i+1)); done" == .allow
 #guard decideCmd {} "git ls-files | sed 's/a/b/' | while read -r f; do echo $f; done" == .allow
 #guard decideCmd {} "git log --oneline | awk '{print $1}' | while read h; do echo $h; done" == .allow
@@ -1621,5 +2131,61 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 #guard decideCmd {} "node scripts/list.mjs | while read l; do echo $l; done" == .allow
 #guard decideCmd {} "while read -r f; do echo $f; done <<< \"$(git diff --name-only)\"" == .allow
 #guard decideCmd {} "timeout 600 bash -c 'until gh run view 1 --exit-status; do sleep 30; done'" == .allow
+
+/-! Round 4: the bound grammar B (`atomParse`, `relOk`); every round-3 reviewer probe is denied. -/
+
+#guard (condFold ⟨false, false, .seq, false, false⟩ [(["[", "$i", "-lt", "3", "]"], .andIf), (["true"], .seq)]).acc
+#guard !(condFold ⟨false, false, .seq, false, false⟩ [(["[", "$i", "-lt", "3", "]"], .orElse), (["true"], .seq)]).acc
+#guard (condFold ⟨true, false, .seq, false, false⟩ [(["gh", "run", "view"], .orElse), (["[", "$i", "-ge", "9", "]"], .seq)]).acc
+#guard dollarParen "a$(b".toList && dollarParen "$((0))".toList && !dollarParen "$x(".toList && !dollarParen [] && !dollarParen "(($".toList
+#guard zeroArg "0" && zeroArg "-n0" && zeroArg "-t00" && zeroArg "00" && !zeroArg "-n1" && !zeroArg "-r" && !zeroArg "x0" && !zeroArg "10"
+#guard !isReadArg "0" && !isReadArg "-n0" && isReadArg "-n" && isReadArg "1" && isReadArg "x0"
+#guard outRedir "2>/dev/null" && outRedir ">/dev/stderr" && outRedir "&>/dev/null" && outRedir "1>>f" && !outRedir "</dev/zero" && !outRedir "f"
+#guard !isDev "2>/dev/null" && !isDev ">/dev/tty" && isDev "</dev/zero" && isDev "/dev/stdin"
+#guard gitAfter ["-C", "d", "worktree", "list"] == ["list"] && gitAfter ["--no-pager", "stash", "list"] == ["list"] && gitAfter [] == []
+#guard gitReadOnly "worktree" ["list", "--porcelain"] && !gitReadOnly "worktree" ["add", "x"] && gitReadOnly "stash" ["list"]
+#guard !gitReadOnly "stash" [] && gitReadOnly "remote" [] && gitReadOnly "remote" ["-v"] && !gitReadOnly "remote" ["add", "o", "u"]
+#guard gitReadOnly "config" ["--list"] && gitReadOnly "config" ["--get", "user.name"] && !gitReadOnly "config" ["-l", "--edit"]
+#guard !gitReadOnly "config" ["user.name", "x"] && gitReadOnly "log" [] && !gitReadOnly "fetch" []
+#guard parse "whi\\\nle true; do sleep 1; done" == parse "while true; do sleep 1; done"
+-- the round-3 reviewer probes, end to end: deny
+#guard decideCmd {} "until [ \"$(gh run list -b ci/x --json status -q '[.[]|select(.status==\"completed\")]|length')\" -ge 1 ]; do sleep 120; done" == .deny .unboundedLoop
+#guard decideCmd {} "until [ \"$(ls out/*.json 2>/dev/null | wc -l)\" -gt 0 ]; do sleep 30; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ \"$(pgrep -c node)\" -gt 0 ]; do sleep 5; done" == .deny .unboundedLoop
+#guard decideCmd {} "until [ $(curl -s -o /dev/null -w '%{http_code}' localhost:3000) -ge 200 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $$ -gt 0 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $# -ge 0 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $((0)) -lt 1 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ \"${x:-0}\" -lt 1 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $RANDOM -ge 0 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ \"$(echo 0)\" -lt 1 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ `echo 0` -lt 1 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $SECONDS -ge 0 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $SECONDS -gt 5 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "until [ $SECONDS -lt 0 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while (( SECONDS >= 0 )); do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while ! [ $SECONDS -lt 60 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while true && ! [ $SECONDS -ge 60 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while (( i < 10 , 1 )); do sleep 1; ((i++)); done" == .deny .unboundedLoop
+#guard decideCmd {} "while (( i < 10 ? 1 : 1 )); do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while (( 0x0 < 1 )); do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while (( RANDOM >= 0 )); do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while (( 010 < i )); do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $i -lt $n ]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "while [[ $i < 10 ]]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "while read -n 0 x; do :; done < f.txt" == .deny .unboundedLoop
+#guard decideCmd {} "while read -N 0 x; do :; done < f.txt" == .deny .unboundedLoop
+#guard decideCmd {} "while read -t 0; do :; done < f.txt" == .deny .unboundedLoop
+#guard decideCmd {} "whi\\\nle true; do sleep 1; done" == .deny .unboundedLoop
+-- B, allowed
+#guard decideCmd {} "while [ $SECONDS -lt 600 ]; do sleep 5; done" == .allow
+#guard decideCmd {} "until [ \"$SECONDS\" -ge 600 ] || gh run view 1 --exit-status; do sleep 30; done" == .allow
+#guard decideCmd {} "i=0; while (( i < 10 )); do i=$((i+1)); done" == .allow
+#guard decideCmd {} "until (( SECONDS > 600 )); do sleep 5; done" == .allow
+#guard decideCmd {} "while [[ ${i} -le 3 ]]; do i=$((i+1)); done" == .allow
+#guard decideCmd {} "while read -t 5 -r l; do echo $l; done < f.txt" == .allow
+#guard decideCmd {} "git worktree list --porcelain | awk '/^worktree /{print $2}' | while read p; do echo $p; done" == .allow
+#guard decideCmd {} "ls -t a*.jsonl 2>/dev/null | head -3 | while read f; do echo $f; done" == .allow
+#guard decideCmd {} "git stash list | while read s; do echo $s; done" == .allow
 
 end Fw.Ops.Wait
