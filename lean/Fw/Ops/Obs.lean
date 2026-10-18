@@ -882,8 +882,9 @@ session-wide count, 6 to 31 on every one of the spool's SubagentStop records, ne
   with event key `seen:<i>|<epoch>|<time / 10 min>`, so at most one per id and 10 minutes between
   stops, and the first event after a stop gets a new key. A heartbeat later than the stop revives
   the id (`event_revives`, by `Fw.Plan.revive_on_event`); an id with no sighting within the quiet
-  limit shows quiet with its last-seen time, never ended (`Fw.Plan.running_needs_recent_sighting`,
-  `Fw.Plan.timeout_never_ends`);
+  limit shows quiet with its last-seen time, never ended by the time
+  (`Fw.Plan.running_needs_recent_sighting`, `Fw.Plan.timeout_never_ends`); a lead or user mark ends
+  it (`Fw.Plan.mark_ends_quiet`);
 * a named `SpawnGuard` record (the spawner's guard, before the new agent has an id) spawns its own
   obs key $k$ (event key `guard:<k>`) and labels $k$ with the requested name (event key
   `guard-label:<k>`): the task row is running from the spawn on, before the health index labels the

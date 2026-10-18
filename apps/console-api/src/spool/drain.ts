@@ -155,7 +155,9 @@ export class Drain {
     return res;
   }
 
-  /** The spool files: labels, then each new complete line admitted by Lean and handled, then the spool alert. */
+  /** The spool files: labels, then each new complete line admitted by Lean and handled, then the spool alert. A throw
+   *  here (`store.board`, `readdir`, a `store.submit` rejection) skips the remaining spool files until the next drain and
+   *  is counted by `once`; the workflow sweep catches its own throws, so it never skips this sweep. */
   private async spoolSweep(res: DrainResult): Promise<void> {
     const spool = join(this.store.dir, "spool");
     if (!existsSync(spool)) return;

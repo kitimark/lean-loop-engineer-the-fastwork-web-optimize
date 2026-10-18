@@ -27,8 +27,10 @@ the critical path and the parallel-safe groups are derived (`view`), never store
   its id (`tkeys`), and names never sight or stop (`names_never_sight`, `claim_never_sights`). At
   time `now` a task runs when a bound key was seen within the quiet limit
   (`running_needs_recent_sighting`), is quiet when a bound key is live but not seen within it, and
-  is parked only after a stop of every seen bound key or a mark (`ended_needs_identity_stops`); the
-  time never ends a task (`timeout_never_ends`). Spawn and stop commute with every command
+  is parked only after a stop of every seen bound key or a mark (`ended_needs_identity_stops`); a
+  lead or user mark ends a quiet task (`mark_ends_quiet`); the time never ends an unmarked task
+  (`timeout_never_ends`) and ends a task only by showing its recorded mark
+  (`timeout_ends_only_by_mark`). Spawn and stop commute with every command
   (`step_life_comm`, `run_comm`, `run_split`), so the board depends only on the order of the other
   commands and on the spawn/stop multisets (`view_perm`).
 * Evidence on main (task `evidence-on-main`): a `task.define` carries the ancestry fact `onMain` of

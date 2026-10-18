@@ -338,6 +338,23 @@ def cases : List (String × List Json) := [
     apply "seen:id-1|7201002" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (7201002 : Nat))],
     queryAt 7201003,
     apply "stop:id-1" "hook" "agent.stop" [("agent", .str "id-1"), ("at", toJson (7201002 : Nat))],
+    queryAt 99999999]),
+  ("a mark ends a quiet task (task-state-truth round 6): a SpawnGuard key that no record stops shows quiet; a park, integrate or handback mark then shows the mark; an unpark shows quiet again", [
+    define "a" [],
+    define "b" [],
+    define "c" [],
+    apply "guard:g1" "hook" "agent.spawn" [("agent", .str "g1"), ("at", toJson (1000 : Nat))],
+    apply "guard-label:g1" "hook" "agent.label" [("agent", .str "g1"), ("name", .str "a")],
+    apply "guard:g2" "hook" "agent.spawn" [("agent", .str "g2"), ("at", toJson (1000 : Nat))],
+    apply "guard-label:g2" "hook" "agent.label" [("agent", .str "g2"), ("name", .str "b")],
+    apply "guard:g3" "hook" "agent.spawn" [("agent", .str "g3"), ("at", toJson (1000 : Nat))],
+    apply "guard-label:g3" "hook" "agent.label" [("agent", .str "g3"), ("name", .str "c")],
+    queryAt 99999999,
+    apply "park:a" "lead" "task.park" [("task", .str "a"), ("reason", .str "superseded")],
+    apply "int:b" "lead" "task.integrate" [("task", .str "b"), ("branch", .str "refs/heads/integrate-ports-2"), ("tip", .str "64857cb")],
+    apply "hb:c" "lead" "task.handback" [("task", .str "c"), ("agent", .str "c"), ("tip", .null)],
+    queryAt 99999999,
+    apply "unpark:a" "lead" "task.unpark" [("task", .str "a")],
     queryAt 99999999])]
 
 /-- The plan-sync vectors (`Fw.Plan.syncFrom`): name, main's ref name, the refs, the last synced
