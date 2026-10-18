@@ -3652,7 +3652,8 @@
     "lean/scripts/**",
     "packages/measure-wktr/fixtures/summarize.mjs",
     ".github/workflows/wktr-fixtures.yml"
-   ]
+   ],
+   "evidence": "1e06a19"
   },
   {
    "id": "visual-diff-3",

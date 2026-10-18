@@ -3,6 +3,8 @@
 #   serial   grep gates -> import check -> lake build (proofs + #guard; also builds fwtest)
 #   parallel math-view lint | fwtest (golden round trips) | golden wire replay (real fwcore binary, LEAN_ABORT_ON_PANIC=1)
 #            | breakgen checks x2, sweepsgen checks x4 (generated JSON equals the Lean output)
+#            | engine golden cite lint (every golden/engine row cites a premise, Fw.Ops.Premise.citeLint; m175)
+#            | premise goldens check (golden/ops/premise.jsonl and wktr-lane.jsonl equal the Lean output)
 # The parallel jobs call the built binaries directly (.lake/build/bin/...), not `lake exe`, so none of them takes Lake's lock.
 # Every failing stage is reported (not just the first); exit non-zero if any failed. The verdict is the conjunction of the
 # stage verdicts, independent of order and completion: Lean Fw.Console.LandSpeed.verdict_perm.
@@ -48,6 +50,8 @@ run_group() {
   job "sweepsgen sweeps site" $bin/sweepsgen --sweeps --check ../apps/site/src/sweeps.gen.json
   job "sweepsgen sweeps golden" $bin/sweepsgen --sweeps-golden --check ../packages/contracts/golden/gate/sweeps.jsonl
   job "sweepsgen scope" $bin/sweepsgen --scope --check ../packages/gate-breakpoints/src/scope.gen.json
+  job "engine golden cite lint" lake env lean --run scripts/EngineCiteLint.lean  # `lake env` builds nothing and takes no lock
+  job "premise goldens check" lake env lean --run scripts/PremiseGolden.lean --check
   i=0
   for p in $pids; do
     wait "$p" || echo "$i" >> "$tmp/failed"
