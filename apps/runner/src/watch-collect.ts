@@ -7,6 +7,7 @@ import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { collectSvcs, type Svc } from "./watch-svc.ts";
 
 export interface SpoolEvent {
   agent_id: string | null; agent_type: string | null; hook_event_name: string;
@@ -53,6 +54,9 @@ export interface SystemSnap {
   services?: number[];
   /** pids the lead declared as intended long-runners (`fw watch --keep`, .fw-console/keep.json), still running */
   keep?: number[];
+  /** the running services with their start time and the last change time on main of each input group (fwcore
+   *  raises svc.stale); see watch-svc.ts */
+  svcs?: Svc[];
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];
@@ -800,12 +804,14 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     procs = keepNames(ownProcs(procs, parseTaskIds(text(lsof)), owners), prev?.system.procs ?? []);
   }
   const consolePids = collectConsolePids(p);
+  let svcs = await collectSvcs(p, exec);
+  if (svcs === null) { stale.push("svcs"); svcs = old?.svcs ?? []; }
   let disk = 0;
   try { const s = statfsSync(p.root); disk = Math.floor((Number(s.bavail) * Number(s.bsize)) / 1e9); } catch { /* unknown -> 0 raises sys.diskLow */ }
   return {
     load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!), memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
-    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, stale,
+    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale,
   };
 }
 

@@ -151,6 +151,15 @@ def typed : List Typed := [
            system := { okSys with simLock := { holder := some "sim-runner", since := some (ago 5) } } } },
   { name := "sim lock holder names no agent: sim.lockOrphan",
     o := { now := t0, agents := [ag "a" 0], system := { okSys with simLock := { holder := some "ghost" } } } },
+  { name := "svc.stale: console-api started before an input changed (strictly after): svc.stale names the changed paths only",
+    o := { now := t0, system := { okSys with svcs := [
+      ⟨"console-api", ago 90, [⟨"apps/console-api/src", ago 60⟩, ⟨"lean/Fw", ago 120⟩, ⟨"apps/console-web/dist", ago 90⟩]⟩] } } },
+  { name := "svc.stale: every input changed at or before the start: no alert",
+    o := { now := t0, system := { okSys with svcs := [
+      ⟨"console-api", ago 90, [⟨"apps/console-api/src", ago 90⟩, ⟨"lean/Fw", ago 120⟩]⟩, ⟨"fwcore", ago 5, []⟩] } } },
+  { name := "svc.stale: two stale services give two alerts in subject order",
+    o := { now := t0, system := { okSys with svcs := [
+      ⟨"fwcore", ago 90, [⟨"lean/Fw", ago 1⟩]⟩, ⟨"console-api", ago 90, [⟨"apps/console-api/src", ago 1⟩]⟩] } } },
   { name := "sim lock with no holder: no alert",
     o := { now := t0, system := { okSys with simLock := { since := some (ago 90) } } } },
   { name := "ci: a failure superseded by a later success, a running run, a cancelled run: no alert",
