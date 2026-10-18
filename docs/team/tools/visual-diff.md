@@ -37,12 +37,12 @@ Both arms must draw the snapshot's real fonts (Google Sans, Playpen Sans) and im
 loads them itself. The rewrite arm is served by an overlay server (`serve.mjs`): its `dist`, and for a missing media file
 (png, jpg, svg, woff2, ttf, mp4, ...) the snapshot file at the same URL, never HTML, JS or CSS. The `@font-face` rules are
 read from the snapshot CSS and injected with a `font-family` override (the port has no font-face of its own; this
-is a harness stand-in and is recorded in the report header, `assets`). `--assets none` turns it off. The page waits up to 5 s
+is a harness stand-in and is recorded in the report header, `assets`). `--assets none` turns it off. The page waits up to 10 s
 for faces and images before the shot.
 
 ## Settled
 An arm is settled when both hold: the gate's settled-sample predicate (`settled p o = running = 0 and minFrames <= frames
-and minStable <= stable and not hoverInside`, from gate-settle, `Fw.Gate.Settle`), observed by an in-page copy over a 3 s
+and minStable <= stable and not hoverInside`, from gate-settle, `Fw.Gate.Settle`), observed by an in-page copy over a 15 s
 budget; and pixel calm, two shots 200 ms apart that are identical or differ only within the part's own tolerance. The
 gate-settle branch has not landed on main, so `settle-adapter.mjs` carries verbatim twins of its predicate and wait; when it
 lands, replace them by an import from `gate-breakpoints/src/settle.mjs` and replay its `settle.jsonl`. Animations are never

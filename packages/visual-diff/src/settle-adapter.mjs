@@ -8,9 +8,12 @@
 
 /**
  * Fw.Gate.Settle.gatePolicy, with one change: the budget. The gate waits up to 10000 ms; a pixel diff over 30 parts x 8 probes x 2
- * arms spends the budget on every part that never settles (an endless animation), so the budget is 3000 ms. The predicate is the same.
+ * arms spends the budget on every part that never settles (an endless animation), so the budget is 15000 ms. Run 39080594980 used
+ * 3000 ms and 34 WebKit cells were cut short with running = 0 but 0 to 3 real frames (about 1 frame/s on the CI runner); the
+ * gate-settle branch settled on 30000 ms for the same reason, which is more than this run can afford per unsettled cell.
+ * The predicate is the same.
  */
-export const GATE_POLICY = Object.freeze({ minFrames: 2, minStable: 3, eps: 100, timeoutMs: 3000 });
+export const GATE_POLICY = Object.freeze({ minFrames: 2, minStable: 3, eps: 100, timeoutMs: 15000 });
 
 /** Fw.Gate.Settle.settled. o = { running, frames, stable, hoverInside, t }. */
 export function settled(p, o) {

@@ -22,7 +22,7 @@ const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const SITES = ['orig', 'rewrite'];
 const CAP_MS = { orig: 20000, rewrite: 15000 };
 /** How long a crop waits for its fonts and images before the premise is judged (ms). */
-const ASSET_WAIT_MS = 5000;
+const ASSET_WAIT_MS = 10000;
 /** The one family the rewrite arm is given (the original's body font; the rewrite declares none of its own). */
 const REWRITE_FAMILY = 'Google Sans';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

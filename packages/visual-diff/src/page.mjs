@@ -39,6 +39,9 @@ export async function assetsInPage({ selector, clip, waitMs }) {
   const imgs = () => Array.from(document.images).filter((im) => touches(im.getBoundingClientRect()));
   const faces = () => Array.from(document.fonts).map((f) => ({ family: unq(f.family), status: f.status }));
   const t0 = performance.now();
+  // A lazy image that touches the crop but whose load WebKit has not started (run 39080594980: star.svg and r5.jpg stayed
+  // incomplete 5 s in the original arm) is made eager; the pixels do not change, only when the file is fetched.
+  if (waitMs > 0) for (const im of imgs()) if (!im.complete && im.loading === 'lazy') im.loading = 'eager';
   while (waitMs > 0 && performance.now() - t0 < waitMs) {
     const busy = faces().some((f) => f.status === 'loading') || imgs().some((im) => !im.complete);
     if (!busy) break;

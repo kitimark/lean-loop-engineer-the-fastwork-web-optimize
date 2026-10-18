@@ -40,7 +40,7 @@ test('settle adapter: the gate predicate and the wait over a trace', () => {
   assert.equal(settled(p, { ...ok, stable: 2 }), false);
   assert.equal(settled(p, { ...ok, hoverInside: true }), false);
   assert.equal(waitTrace(p, [{ ...ok, running: 1, t: 0 }, ok]), 'settled@1');
-  assert.equal(waitTrace(p, [{ ...ok, running: 1, t: 0 }, { ...ok, running: 1, t: 4000 }]), 'unsettled');
+  assert.equal(waitTrace(p, [{ ...ok, running: 1, t: 0 }, { ...ok, running: 1, t: 16000 }]), "unsettled");
   assert.equal(waitTrace(p, []), 'unsettled');
 });
 
