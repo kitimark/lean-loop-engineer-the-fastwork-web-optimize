@@ -225,8 +225,8 @@ theorem rule_of_mem_reasonsOf (F : Facts) (r : Rule) (ρ : Reason) (h : ρ ∈ r
 theorem mem_all (r : Rule) : r ∈ Rule.all := by cases r <;> decide
 
 /-- The enforced reasons are empty exactly when every enforced rule holds.
-$$\forall s\, F,\ [\,\rho \in \operatorname{reasons}(F) \mid \operatorname{enf}(s, \mathit{lf}, \operatorname{rule}(\rho))\,] = [\,] \iff \forall r \in \mathrm{Rule.all},\ \operatorname{enf}(s, \mathit{lf}, r) \Rightarrow \operatorname{RuleOk}(r, F)$$
-where $\mathit{lf} = F.\mathit{leanFirst}$. -/
+$$\forall s\, F,\ [\,\rho \in \operatorname{reasons}(F) \mid \operatorname{enf}(s, F.\mathit{leanFirst}, \operatorname{rule}(\rho))\,] = [\,] \iff \forall r \in \mathrm{Rule.all},\ \operatorname{enf}(s, F.\mathit{leanFirst}, r) \Rightarrow \operatorname{RuleOk}(r, F)$$
+The filter keeps the reasons whose rule is enforced at stage $s$. -/
 theorem reasons_filter_nil_iff (s : Stage) (F : Facts) :
     (reasons F).filter (fun ρ => enforced s F.leanFirst ρ.rule) = [] ↔
       ∀ r ∈ Rule.all, enforced s F.leanFirst r = true → RuleOk r F := by
@@ -270,8 +270,8 @@ theorem judge_pending (R : Facts → List Reason) (s : Stage) (F : Facts) (hp : 
   simp [judge, h1, h2]
 
 /-- With the sources present (or no rule enforced), the verdict is the match on the enforced reasons.
-$$\forall R\, s\, F,\ \bigl(\operatorname{AllPresent}(F) \lor \forall r \in \mathrm{Rule.all},\ \lnot\operatorname{enf}(s, F.\mathit{lf}, r)\bigr) \Rightarrow \bigl(\operatorname{judge}(R, s, F) = \mathrm{pass} \iff E = [\,]\bigr) \land \operatorname{refusals}(\operatorname{judge}(R, s, F)) = E$$
-where $E = [\,\rho \in R(F) \mid \operatorname{enf}(s, F.\mathit{lf}, \operatorname{rule}(\rho))\,]$. -/
+$$\forall R\, s\, F,\ \bigl(\operatorname{AllPresent}(F) \lor \forall r \in \mathrm{Rule.all},\ \lnot\operatorname{enf}(s, F.\mathit{lf}, r)\bigr) \Rightarrow \bigl(\operatorname{judge}(R, s, F) = \mathrm{pass} \iff [\,\rho \in R(F) \mid \operatorname{enf}(s, F.\mathit{lf}, \operatorname{rule}(\rho))\,] = [\,]\bigr) \land \operatorname{refusals}(\operatorname{judge}(R, s, F)) = [\,\rho \in R(F) \mid \operatorname{enf}(s, F.\mathit{lf}, \operatorname{rule}(\rho))\,]$$
+The filtered list holds the reasons of $R(F)$ whose rule is enforced at stage $s$. -/
 theorem judge_settled (R : Facts → List Reason) (s : Stage) (F : Facts)
     (h : AllPresent F ∨ ∀ r ∈ Rule.all, enforced s F.leanFirst r = false) :
     (judge R s F = .pass ↔ (R F).filter (fun ρ => enforced s F.leanFirst ρ.rule) = []) ∧
@@ -725,8 +725,8 @@ theorem mem_of_lookup (B : List (String × String)) (n h : String) (hl : B.looku
       exact List.mem_cons_of_mem _ (ih hl)
 
 /-- **`baseline_not_new` holds of `isNew`.**
-$$\forall F\, t,\ (t.\mathit{name}, t.\mathit{hash}) \in B \Rightarrow (\forall p \in B,\ p.1 = t.\mathit{name} \Rightarrow p.2 = t.\mathit{hash}) \Rightarrow \operatorname{new}(F, t) = \mathrm{false}$$
-where $B = F.\mathit{baseline}$. An unchanged old theorem is not gated. -/
+$$\forall F\, t,\ (t.\mathit{name}, t.\mathit{hash}) \in F.\mathit{baseline} \Rightarrow (\forall p \in F.\mathit{baseline},\ p.1 = t.\mathit{name} \Rightarrow p.2 = t.\mathit{hash}) \Rightarrow \operatorname{new}(F, t) = \mathrm{false}$$
+An unchanged old theorem is not gated. -/
 theorem BaselineNotNew_impl : BaselineNotNew isNew := by
   intro F t hm hu
   simp [isNew, lookup_of_mem F.baseline t.name t.hash hm hu]

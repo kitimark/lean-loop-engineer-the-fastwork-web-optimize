@@ -110,35 +110,42 @@ instance : Enum Present :=
 
 /-! ## The fault grid -/
 
-/-- The clean property of the grid. -/
+/-- The clean property of the grid.
+$$P_0 = \{\mathit{name}{=}\texttt{P},\ \mathit{stmt}{=}\texttt{hP},\ \mathit{doc}{=}\texttt{dP},\ \mathit{reached}{=}\mathrm{true},\ \mathit{assumes}{=}[\,],\ \mathit{searchAt}{=}\texttt{c1},\ \mathit{proofAt}{=}\texttt{c2}\}$$ -/
 def baseProp : PropFact :=
   { name := "P", stmtHash := "hP", docHash := "dP", reached := true, assumes := [], searchAt := some "c1",
     proofAt := some "c2" }
 
-/-- The clean proof of `P` in the grid. -/
+/-- The clean proof of `P` in the grid.
+$$T_0 = \{\mathit{name}{=}\texttt{P\_impl},\ \mathit{hash}{=}\texttt{hT},\ \mathit{kind}{=}\mathrm{general},\ \mathit{proves}{=}\texttt{P},\ \mathit{axiomsOk},\ \mathit{usedBy}{=}[\,],\ \mathit{reach}{=}[\texttt{impl}],\ \mathit{assumes}{=}[\,]\}$$ -/
 def baseThm : ThmFact :=
   { name := "P_impl", hash := "hT", kind := .general, proves := some "P", axiomsOk := true, usedBy := [],
     reach := ["impl"], assumes := [] }
 
-/-- The kill witness of `P` in the grid (exempt by class). -/
+/-- The kill witness of `P` in the grid (exempt by class).
+$$K_0 = \{\mathit{name}{=}\texttt{P\_rejects\_m},\ \mathit{hash}{=}\texttt{hK},\ \mathit{kind}{=}\mathrm{kill},\ \mathit{proves}{=}\bot,\ \mathit{axiomsOk},\ \mathit{usedBy}{=}\mathit{reach}{=}\mathit{assumes}{=}[\,]\}$$ -/
 def killThm : ThmFact :=
   { name := "P_rejects_m", hash := "hK", kind := .kill, proves := none, axiomsOk := true, usedBy := [], reach := [],
     assumes := [] }
 
-/-- A lemma that `P_impl` uses (no kill of its own, so exempt as a lemma). -/
+/-- A lemma that `P_impl` uses (no kill of its own, so exempt as a lemma).
+$$L_0 = \{\mathit{name}{=}\texttt{L},\ \mathit{hash}{=}\texttt{hL},\ \mathit{kind}{=}\mathrm{general},\ \mathit{proves}{=}\bot,\ \mathit{axiomsOk},\ \mathit{usedBy}{=}[\texttt{P\_impl}],\ \mathit{reach}{=}\mathit{assumes}{=}[\,]\}$$ -/
 def lemmaThm : ThmFact :=
   { name := "L", hash := "hL", kind := .general, proves := none, axiomsOk := true, usedBy := ["P_impl"], reach := [],
     assumes := [] }
 
-/-- A baseline theorem at its baseline hash (not new). -/
+/-- A baseline theorem at its baseline hash (not new).
+$$O = L_0[\mathit{name}{=}\texttt{Old},\ \mathit{hash}{=}\texttt{hO},\ \mathit{usedBy}{=}[\,]]$$ -/
 def oldThmFact : ThmFact := { lemmaThm with name := "Old", hash := "hO", usedBy := [] }
 
-/-- A baseline theorem whose statement changed (new). -/
+/-- A baseline theorem whose statement changed (new).
+$$O' = L_0[\mathit{name}{=}\texttt{Old},\ \mathit{hash}{=}\texttt{hO2},\ \mathit{usedBy}{=}[\,]]$$ -/
 def changedThmFact : ThmFact := { lemmaThm with name := "Old", hash := "hO2", usedBy := [] }
 
 /-- **The clean facts**: one decision write, one property proved, reached, signed by both roles and killed, its
 proof killed, one marked branch, a three-row registry (measured, untested, refuted), one baseline theorem, search
-before proof, equal legacy counts, every source present. It passes at every stage. -/
+before proof, equal legacy counts, every source present. It passes at every stage.
+$$F_0 = \{\mathit{props}{=}[P_0],\ \mathit{thms}{=}[T_0, K_0],\ \mathit{kills}{=}[(\texttt{P\_impl},\texttt{hT}),(\texttt{P},\texttt{hP})],\ \mathit{baseline}{=}[(\texttt{Old},\texttt{hO})],\ \mathit{ancestry}{=}[(\texttt{c1},\texttt{c2})],\ \mathit{legacyMain}{=}\mathit{legacyHead}{=}2,\ \ldots\}$$ -/
 def base : Facts :=
   { leanFirst := true, writes := ["lean/Fw/Ops/X.lean", "docs/x.md"], props := [baseProp],
     thms := [baseThm, killThm],
@@ -149,7 +156,8 @@ def base : Facts :=
     baseline := [("Old", "hO")], ancestry := [("c1", "c2")], legacyMain := 2, legacyHead := 2,
     present := ⟨true, true, true⟩ }
 
-/-- One edit of the clean facts. -/
+/-- One edit of the clean facts.
+$$\mathrm{Fault} = \{\mathrm{noProps}, \mathrm{noDecision}, \ldots, \mathrm{dupSignoff}\},\quad |\mathrm{Fault}| = 35$$ -/
 inductive Fault where
   | noProps | noDecision | unproved | badAxioms | unreached | unsignedMath | unsignedAdv | disagreeAdv | staleDoc
   | unkilledProp | noKill | lemma | lemmaProves | dataProof | oldThm | changedOld | unmarked | glueBad | glueOk
@@ -157,22 +165,26 @@ inductive Fault where
   | ratchet | ratchetDown | missingMathview | missingKills | missingLint | notLeanFirst | newlineName | dupSignoff
 deriving DecidableEq, Repr
 
-/-- Every fault. -/
+/-- Every fault, in declaration order.
+$$\mathrm{Fault.all} = [\mathrm{noProps}, \mathrm{noDecision}, \ldots, \mathrm{dupSignoff}],\quad |\mathrm{Fault.all}| = 35$$ -/
 def Fault.all : List Fault :=
   [.noProps, .noDecision, .unproved, .badAxioms, .unreached, .unsignedMath, .unsignedAdv, .disagreeAdv, .staleDoc,
    .unkilledProp, .noKill, .lemma, .lemmaProves, .dataProof, .oldThm, .changedOld, .unmarked, .glueBad, .glueOk,
    .hidden, .assumedOk, .unregistered, .refuted, .untestedHidden, .untestedShared, .searchOrder, .searchMissing,
    .ratchet, .ratchetDown, .missingMathview, .missingKills, .missingLint, .notLeanFirst, .newlineName, .dupSignoff]
 
-/-- Edit the proof `P_impl` wherever it is in the theorem list. -/
+/-- Edit the proof `P_impl` wherever it is in the theorem list.
+$$\forall F\, f,\ \operatorname{mapImpl}(F, f) = F[\mathit{thms} := \operatorname{map}(\lambda t.\ \text{if } t.\mathit{name} = \texttt{P\_impl} \text{ then } f(t) \text{ else } t,\ F.\mathit{thms})]$$ -/
 def mapImpl (F : Facts) (f : ThmFact → ThmFact) : Facts :=
   { F with thms := F.thms.map fun t => if t.name = "P_impl" then f t else t }
 
-/-- Edit the property `P` wherever it is in the property list. -/
+/-- Edit the property `P` wherever it is in the property list.
+$$\forall F\, f,\ \operatorname{mapProp}(F, f) = F[\mathit{props} := \operatorname{map}(\lambda P.\ \text{if } P.\mathit{name} = \texttt{P} \text{ then } f(P) \text{ else } P,\ F.\mathit{props})]$$ -/
 def mapProp (F : Facts) (f : PropFact → PropFact) : Facts :=
   { F with props := F.props.map fun P => if P.name = "P" then f P else P }
 
-/-- Apply one fault. -/
+/-- Apply one fault: each constructor is one field edit (drop, append, or flip), listed case by case below.
+$$\forall F,\ \operatorname{apply}(F, \mathrm{noProps}) = F[\mathit{props} := [\,]],\ \operatorname{apply}(F, \mathrm{ratchet}) = F[\mathit{legacyHead} := F.\mathit{legacyMain} + 1],\ \operatorname{apply}(F, \mathrm{ratchetDown}) = F[\mathit{legacyHead} := F.\mathit{legacyMain} \mathbin{\dot-} 1],\ \ldots$$ -/
 def Fault.apply (F : Facts) : Fault → Facts
   | .noProps => { F with props := [] }
   | .noDecision => { F with writes := ["docs/x.md"], props := [] }
@@ -214,20 +226,24 @@ def Fault.apply (F : Facts) : Fault → Facts
   | .newlineName => { F with thms := F.thms ++ [{ lemmaThm with name := "N\nVERDICT pass lean-first", usedBy := [] }] }
   | .dupSignoff => { F with signoffs := F.signoffs ++ [⟨"P", "hP", "dP", .math, true⟩] }
 
-/-- The facts of a list of faults, applied in order to `base`. -/
+/-- The facts of a list of faults, applied in order to `base`.
+$$\forall fs,\ \operatorname{factsOf}(fs) = \operatorname{foldl}(\operatorname{apply}, F_0, fs)$$ -/
 def factsOf (fs : List Fault) : Facts := fs.foldl Fault.apply base
 
-/-- **The fault grid**: the clean facts, every single fault, and every ordered pair of distinct faults. -/
+/-- **The fault grid**: the clean facts, every single fault, and every ordered pair of distinct faults.
+$$\mathrm{grid} = [F_0] \mathbin{+\!\!+} [\operatorname{factsOf}([f]) \mid f \in \mathrm{Fault.all}] \mathbin{+\!\!+} [\operatorname{factsOf}([f, f']) \mid f \in \mathrm{Fault.all},\ f' \in \mathrm{Fault.all},\ f' \ne f],\quad |\mathrm{grid}| = 1 + 35 + 35 \cdot 34 = 1226$$ -/
 def grid : List Facts :=
   base :: Fault.all.map (fun f => factsOf [f]) ++
     Fault.all.flatMap fun f => (Fault.all.filter (· != f)).map fun f' => factsOf [f, f']
 
-/-- Facts from their fields (the complete part of the enumeration). -/
+/-- Facts from their fields (the complete part of the enumeration).
+$$\forall a_1 \ldots a_{13},\ \operatorname{ofTuple}(a_1, \ldots, a_{13}) = \langle a_1, \ldots, a_{13} \rangle$$ -/
 def Facts.ofTuple : Bool × List String × List PropFact × List ThmFact × List KillRow × List Signoff × List Branch ×
     List PremRow × List (String × String) × List (String × String) × Nat × Nat × Present → Facts
   | ⟨a, b, c, d, e, f, g, h, i, j, k, l, m⟩ => ⟨a, b, c, d, e, f, g, h, i, j, k, l, m⟩
 
-/-- The fields of facts. -/
+/-- The fields of facts, in declaration order.
+$$\forall F,\ \operatorname{toTuple}(F) = (F.\mathit{leanFirst}, F.\mathit{writes}, \ldots, F.\mathit{legacyHead}, F.\mathit{present}),\quad \operatorname{ofTuple}(\operatorname{toTuple}(F)) = F$$ -/
 def Facts.toTuple (F : Facts) : Bool × List String × List PropFact × List ThmFact × List KillRow × List Signoff ×
     List Branch × List PremRow × List (String × String) × List (String × String) × Nat × Nat × Present :=
   (F.leanFirst, F.writes, F.props, F.thms, F.kills, F.signoffs, F.branches, F.registry, F.baseline, F.ancestry,
@@ -292,86 +308,108 @@ instance instEnumEvidence : Enum Evidence :=
 
 /-! ## Pointwise checks, their soundness, and the bounded search theorems -/
 
-/-- The check of `PassIff`. -/
+/-- The check of `PassIff`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(g(s, F) = \mathrm{pass} \iff \operatorname{PassSpec}(s, F)\bigr)$$ -/
 def qPassIff (g : Gate) : Stage × Facts → Bool := fun (s, F) => decide (g s F = .pass ↔ PassSpec s F)
-/-- The check of `RefusesUnproved`. -/
+/-- The check of `RefusesUnproved`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{props}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \forall P \in F.\mathit{props},\ \lnot(\exists t \in F.\mathit{thms},\ \operatorname{Discharges}(F, t, P)) \Rightarrow \mathrm{unproved}(P.\mathit{name}) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qRefusesUnproved (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .props = true → AllPresent F →
     ∀ P ∈ F.props, ¬ (∃ t ∈ F.thms, Discharges F t P) → Reason.unproved P.name ∈ (g s F).refusals)
-/-- The check of `StaleReviewRefuses`. -/
+/-- The check of `StaleReviewRefuses`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{props}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \forall P \in F.\mathit{props},\ \forall r \in [\mathrm{math}, \mathrm{adversary}],\ \lnot\operatorname{Signed}(F, P, r) \Rightarrow \mathrm{unsigned}(P.\mathit{name}, r) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qStaleReviewRefuses (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .props = true → AllPresent F →
     ∀ P ∈ F.props, ∀ r ∈ [Role.math, Role.adversary], ¬ Signed F P r →
       Reason.unsigned P.name r ∈ (g s F).refusals)
-/-- The check of `NoPropsRefuses`. -/
+/-- The check of `NoPropsRefuses`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{props}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \operatorname{Decides}(F) \Rightarrow F.\mathit{props} = [\,] \Rightarrow \exists w \in F.\mathit{writes},\ \operatorname{isDecisionPath}(w) \land \mathrm{noProps}(w) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qNoPropsRefuses (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .props = true → AllPresent F → Decides F → F.props = [] →
     ∃ w ∈ F.writes, isDecisionPath w = true ∧ Reason.noProps w ∈ (g s F).refusals)
-/-- The check of `MutantKillsOrRefuse`. -/
+/-- The check of `MutantKillsOrRefuse`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{kills}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \lnot\operatorname{KillAt}(F, t.\mathit{name}, t.\mathit{hash}) \Rightarrow \lnot\operatorname{Exempt}(F, t) \Rightarrow \mathrm{noKill}(t.\mathit{name}) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qMutantKillsOrRefuse (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .kills = true → AllPresent F →
     ∀ t ∈ F.thms, New F t → ¬ KillAt F t.name t.hash → ¬ Exempt F t → Reason.noKill t.name ∈ (g s F).refusals)
-/-- The check of `ExemptNotDischarge`. -/
+/-- The check of `ExemptNotDischarge`.
+$$\forall d\, F\, t\, P,\ q(d)(F, t, P) = \mathrm{true} \iff \bigl(\operatorname{Exempt}(F, t) \Rightarrow d(F, t, P) = \mathrm{false}\bigr)$$ -/
 def qExemptNotDischarge (d : Facts → ThmFact → PropFact → Bool) : Facts × ThmFact × PropFact → Bool :=
   fun (F, t, P) => decide (Exempt F t → d F t P = false)
-/-- The check of `HiddenPremiseRefuses`. -/
+/-- The check of `HiddenPremiseRefuses`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{premises}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall r \in F.\mathit{registry},\ (\exists c \in r.\mathit{carriers},\ c \in t.\mathit{reach}) \Rightarrow r.\mathit{id} \notin t.\mathit{assumes} \Rightarrow \mathrm{hidden}(t.\mathit{name}, r.\mathit{id}) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qHiddenPremiseRefuses (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .premises = true → AllPresent F →
     ∀ t ∈ F.thms, New F t → ∀ r ∈ F.registry, (∃ c ∈ r.carriers, c ∈ t.reach) → r.id ∉ t.assumes →
       Reason.hidden t.name r.id ∈ (g s F).refusals)
-/-- The check of `UnregisteredPremiseRefuses`. -/
+/-- The check of `UnregisteredPremiseRefuses`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{premises}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall p \in t.\mathit{assumes},\ \lnot(\exists r \in F.\mathit{registry},\ r.\mathit{id} = p) \Rightarrow \mathrm{unregistered}(t.\mathit{name}, p) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qUnregisteredPremiseRefuses (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .premises = true → AllPresent F →
     ∀ t ∈ F.thms, New F t → ∀ p ∈ t.assumes, ¬ (∃ r ∈ F.registry, r.id = p) →
       Reason.unregistered t.name p ∈ (g s F).refusals)
-/-- The check of `RefutedPremiseRefuses`. -/
+/-- The check of `RefutedPremiseRefuses`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{premises}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall p \in t.\mathit{assumes},\ \operatorname{StatusIs}(F, p, \mathrm{refuted}) \Rightarrow \mathrm{refuted}(t.\mathit{name}, p) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qRefutedPremiseRefuses (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .premises = true → AllPresent F →
     ∀ t ∈ F.thms, New F t → ∀ p ∈ t.assumes, StatusIs F p .refuted →
       Reason.refuted t.name p ∈ (g s F).refusals)
-/-- The check of `UntwinnedBranchRefuses`. -/
+/-- The check of `UntwinnedBranchRefuses`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{twins}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \forall b \in F.\mathit{branches},\ (b.\mathit{mark} = \mathrm{none} \lor b.\mathit{mark} = \mathrm{glueBad}) \Rightarrow \mathrm{branch}(b.\mathit{file}, b.\mathit{line}, b.\mathit{mark}) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qUntwinnedBranchRefuses (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .twins = true → AllPresent F →
     ∀ b ∈ F.branches, (b.mark = .none ∨ b.mark = .glueBad) → Reason.branch b.file b.line b.mark ∈ (g s F).refusals)
-/-- The check of `ProofBeforeSearchRefuses`. -/
+/-- The check of `ProofBeforeSearchRefuses`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{search}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow \forall P \in F.\mathit{props},\ \lnot\operatorname{SearchFirst}(F, P) \Rightarrow \mathrm{searchOrder}(P.\mathit{name}) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qProofBeforeSearchRefuses (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .search = true → AllPresent F →
     ∀ P ∈ F.props, ¬ SearchFirst F P → Reason.searchOrder P.name ∈ (g s F).refusals)
-/-- The check of `MissingFactPending`. -/
+/-- The check of `MissingFactPending`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl((\exists r \in \mathrm{Rule.all},\ \operatorname{enf}(s, F.\mathit{lf}, r)) \Rightarrow \lnot\operatorname{AllPresent}(F) \Rightarrow \operatorname{isPending}(g(s, F)) \land \bigwedge_{m \in \{\mathrm{mathview}, \mathrm{kills}, \mathrm{tsLint}\}} (F.\mathit{present}.m = \mathrm{false} \iff m \in \operatorname{pendingOn}(g(s, F)))\bigr)$$ -/
 def qMissingFactPending (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide ((∃ r ∈ Rule.all, enforced s F.leanFirst r = true) → ¬ AllPresent F →
     (g s F).isPending = true ∧
     (F.present.mathview = false ↔ Missing.mathview ∈ (g s F).pendingOn) ∧
     (F.present.kills = false ↔ Missing.kills ∈ (g s F).pendingOn) ∧
     (F.present.tsLint = false ↔ Missing.tsLint ∈ (g s F).pendingOn))
-/-- The check of `PendingExit`. -/
+/-- The check of `PendingExit`.
+$$\forall o\, s\, F,\ q(o)(s, F) = \mathrm{true} \iff \bigl((\exists r \in \mathrm{Rule.all},\ \operatorname{enf}(s, F.\mathit{lf}, r)) \Rightarrow \lnot\operatorname{AllPresent}(F) \Rightarrow o(s, F).\mathit{kind} = \mathrm{pending} \land o(s, F).\mathit{exit} = 75\bigr)$$ -/
 def qPendingExit (o : Render) : Stage × Facts → Bool := fun (s, F) =>
   decide ((∃ r ∈ Rule.all, enforced s F.leanFirst r = true) → ¬ AllPresent F →
     (o s F).kind = .pending ∧ (o s F).exit = 75)
-/-- The check of `OneVerdict`. -/
+/-- The check of `OneVerdict`.
+$$\forall o\, s\, F,\ q(o)(s, F) = \mathrm{true} \iff \bigl|[\,l \in o(s, F).\mathit{lines} \mid \operatorname{isVerdict}(l)\,]\bigr| = 1 \land \operatorname{map}(\operatorname{isVerdict}, \operatorname{getLast?}(o(s, F).\mathit{lines})) = \operatorname{some}(\mathrm{true})$$ -/
 def qOneVerdict (o : Render) : Stage × Facts → Bool := fun (s, F) =>
   decide (verdictCount (o s F).lines = 1 ∧ (o s F).lines.getLast?.map isVerdict = some true)
-/-- The check of `ExitZeroIff`. -/
+/-- The check of `ExitZeroIff`.
+$$\forall o\, s\, F,\ q(o)(s, F) = \mathrm{true} \iff \bigl(o(s, F).\mathit{exit} = 0 \iff \operatorname{PassSpec}(s, F)\bigr)$$ -/
 def qExitZeroIff (o : Render) : Stage × Facts → Bool := fun (s, F) => decide ((o s F).exit = 0 ↔ PassSpec s F)
-/-- The check of `GateMono`. -/
+/-- The check of `GateMono`.
+$$\forall g\, s\, F\, e,\ q(g)(s, F, e) = \mathrm{true} \iff \bigl(g(s, F) = \mathrm{pass} \Rightarrow g(s, F \oplus e) = \mathrm{pass}\bigr)$$ -/
 def qGateMono (g : Gate) : Stage × Facts × Evidence → Bool := fun (s, F, e) =>
   decide (g s F = .pass → g s (F.add e) = .pass)
-/-- The check of `StageMono`. -/
+/-- The check of `StageMono`.
+$$\forall g\, s\, s'\, F,\ q(g)(s, s', F) = \mathrm{true} \iff \bigl(\operatorname{rank}(s) \le \operatorname{rank}(s') \Rightarrow g(s', F) = \mathrm{pass} \Rightarrow g(s, F) = \mathrm{pass}\bigr)$$ -/
 def qStageMono (g : Gate) : Stage × Stage × Facts → Bool := fun (s, s', F) =>
   decide (s.rank ≤ s'.rank → g s' F = .pass → g s F = .pass)
-/-- The check of `BaselineNotNew`. -/
-def qBaselineNotNew (nu : Facts → ThmFact → Bool) : Facts × ThmFact → Bool := fun (F, t) =>
-  decide ((t.name, t.hash) ∈ F.baseline → (∀ p ∈ F.baseline, p.1 = t.name → p.2 = t.hash) → nu F t = false)
-/-- The check of `ChangedIsNew`. -/
-def qChangedIsNew (nu : Facts → ThmFact → Bool) : Facts × ThmFact → Bool := fun (F, t) =>
-  decide ((t.name, t.hash) ∉ F.baseline → nu F t = true)
-/-- The check of `RatchetRefusesGrowth`. -/
+/-- The check of `BaselineNotNew`.
+$$\forall \nu\, F\, t,\ q(\nu)(F, t) = \mathrm{true} \iff \bigl((t.\mathit{name}, t.\mathit{hash}) \in F.\mathit{baseline} \Rightarrow (\forall p \in F.\mathit{baseline},\ p.1 = t.\mathit{name} \Rightarrow p.2 = t.\mathit{hash}) \Rightarrow \nu(F, t) = \mathrm{false}\bigr)$$ -/
+def qBaselineNotNew (ν : Facts → ThmFact → Bool) : Facts × ThmFact → Bool := fun (F, t) =>
+  decide ((t.name, t.hash) ∈ F.baseline → (∀ p ∈ F.baseline, p.1 = t.name → p.2 = t.hash) → ν F t = false)
+/-- The check of `ChangedIsNew`.
+$$\forall \nu\, F\, t,\ q(\nu)(F, t) = \mathrm{true} \iff \bigl((t.\mathit{name}, t.\mathit{hash}) \notin F.\mathit{baseline} \Rightarrow \nu(F, t) = \mathrm{true}\bigr)$$ -/
+def qChangedIsNew (ν : Facts → ThmFact → Bool) : Facts × ThmFact → Bool := fun (F, t) =>
+  decide ((t.name, t.hash) ∉ F.baseline → ν F t = true)
+/-- The check of `RatchetRefusesGrowth`.
+$$\forall g\, s\, F,\ q(g)(s, F) = \mathrm{true} \iff \bigl(\operatorname{enf}(s, F.\mathit{lf}, \mathrm{ratchet}) \Rightarrow \operatorname{AllPresent}(F) \Rightarrow F.\mathit{legacyMain} < F.\mathit{legacyHead} \Rightarrow \mathrm{growth}(F.\mathit{legacyMain}, F.\mathit{legacyHead}) \in \operatorname{refusals}(g(s, F))\bigr)$$ -/
 def qRatchetRefusesGrowth (g : Gate) : Stage × Facts → Bool := fun (s, F) =>
   decide (enforced s F.leanFirst .ratchet = true → AllPresent F → F.legacyMain < F.legacyHead →
     Reason.growth F.legacyMain F.legacyHead ∈ (g s F).refusals)
-/-- The check of `ShadowPasses`. -/
+/-- The check of `ShadowPasses`.
+$$\forall g\, F,\ q(g)(F) = \mathrm{true} \iff g(\mathrm{shadow}, F) = \mathrm{pass}$$ -/
 def qShadowPasses (g : Gate) : Facts → Bool := fun F => decide (g .shadow F = .pass)
-/-- The check of `NoNewline`. -/
+/-- The check of `NoNewline`.
+$$\forall o\, s\, F,\ q(o)(s, F) = \mathrm{true} \iff \forall l \in o(s, F).\mathit{lines},\ \texttt{\textbackslash n} \notin l \land \texttt{\textbackslash r} \notin l$$ -/
 def qNoNewline (o : Render) : Stage × Facts → Bool := fun (s, F) =>
   decide (∀ l ∈ (o s F).lines, '\n' ∉ l.toList ∧ '\r' ∉ l.toList)
 
@@ -445,11 +483,11 @@ theorem qStageMono_iff (g : Gate) : StageMono g ↔ ∀ x, qStageMono g x = true
   ⟨fun h x => decide_eq_true (h x.1 x.2.1 x.2.2), fun h s s' F => of_decide_eq_true (h (s, s', F))⟩
 /-- `qBaselineNotNew` is exact for `BaselineNotNew`.
 $$\forall \nu,\ \operatorname{BaselineNotNew}(\nu) \iff \forall x,\ q(\nu, x) = \mathrm{true}$$ -/
-theorem qBaselineNotNew_iff (nu : Facts → ThmFact → Bool) : BaselineNotNew nu ↔ ∀ x, qBaselineNotNew nu x = true :=
+theorem qBaselineNotNew_iff (ν : Facts → ThmFact → Bool) : BaselineNotNew ν ↔ ∀ x, qBaselineNotNew ν x = true :=
   ⟨fun h x => decide_eq_true (h x.1 x.2), fun h a b => of_decide_eq_true (h (a, b))⟩
 /-- `qChangedIsNew` is exact for `ChangedIsNew`.
 $$\forall \nu,\ \operatorname{ChangedIsNew}(\nu) \iff \forall x,\ q(\nu, x) = \mathrm{true}$$ -/
-theorem qChangedIsNew_iff (nu : Facts → ThmFact → Bool) : ChangedIsNew nu ↔ ∀ x, qChangedIsNew nu x = true :=
+theorem qChangedIsNew_iff (ν : Facts → ThmFact → Bool) : ChangedIsNew ν ↔ ∀ x, qChangedIsNew ν x = true :=
   ⟨fun h x => decide_eq_true (h x.1 x.2), fun h a b => of_decide_eq_true (h (a, b))⟩
 /-- `qRatchetRefusesGrowth` is exact for `RatchetRefusesGrowth`.
 $$\forall g,\ \operatorname{RatchetRefusesGrowth}(g) \iff \forall x,\ q(g, x) = \mathrm{true}$$ -/
