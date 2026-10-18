@@ -7,15 +7,18 @@ Done
 - App: panel mounted lazily by morph.mount (observing `[data-fw="platform"]` now, not the hidden sentinel), inside the nav; debug tray, MUI Menu and the fixed stub div removed.
 - morph.panel: stand-in `.host` removed (panel fills the nav), bell/calendar glyphs, `onAction`, initial morph read from the nav, `<=640` backdrop gap moved here.
 - morph.columns: 21 snapshot images (`/selling/{media,roles,profile,work}/...`), rendered as the backdrop's flex items (stage is `display: contents`), pause rule keyed on the panel's `data-start-selling-scene`; hidden-pause follows that attribute with a MutationObserver and observes the backdrop.
-- Nav logo: `nav/logo.paths.ts` (9 paths from the snapshot's compiled page, generated once; no build-time snapshot read, so no land.ts declaration) and `nav/logo.tsx`.
+- Nav logo: round 2 removed the copied wordmark; nav keeps main's placeholder glyph until svg-extract.
 - CTAs: nav Join and panel action call `openSignup`; hero button and people message button (signup) and commission "why" (drawer) via one delegated click listener in App.tsx, since hero/commission files are other lanes.
 
-Open / follow-ups (outside my writes)
-- packages/gate-breakpoints/src/anchors.json morph.columns roles assume `[data-fw="morph-columns"] > div` is the backdrop; now the backdrop is the panel's `[data-fw-role="backdrop"]` and the stage's children are the columns. Rows need re-anchoring.
-- apps/site/scripts/census.mjs clicks `#open-menu/#open-drawer/#open-dialog` (removed); needs real triggers.
-- Mount and tween both attach wheel/touch listeners (mount's `isActive` left default false, no `onPush`); a taken push is handled twice harmlessly. Unifying is a decision for the Lean side.
+Round 2 (faithful arm judged)
+- anchors.json rows morph.columns (backdrop = panel's backdrop, col/track shifted one level, waitFor morph-columns), overlays.drawer (trigger = commission why button), overlays.signup (trigger = hero button) re-anchored on this branch. census.mjs triggers fixed (tab clicks dropped, no tabs exist). BLANK_GIF removed from morph.columns.
+- Local: apps/site test (70 files, 5026 tests) and tsc pass.
+
+Open / limits
+- waapi arm: `--morph` registered inherits:false, so the panel under the v2-proved preset does not see it: finding, owner morph-tween-inherit (Lean first). Not changed here.
+- Double wheel/touch listeners (mount and tween): row morph-double-listener. Glyph stand-ins: bell/calendar duplicated in hero and morph.panel; logo placeholder; hero button lacks data-selenium (OPEN_SIGNUP uses '[data-fw="hero"] button').
 - Goldens for MorphPanel/MorphTween untouched.
 
 Read first: apps/site/src/App.tsx, apps/site/src/parts/nav/index.tsx, morph.columns/index.tsx.
 
-CI (branch ci/morph-group-integrate, commit 79ad2063): chromium-counts swipe-v1 rewrite run 39146819430 pass. breakpoint-gate chromium run 39146816361 fail only in rows that need re-anchoring: morph.columns (all cells: anchors assume the columns own the backdrop) and overlays.drawer / overlays.signup (anchors.json triggers #open-drawer / #open-dialog no longer exist; real triggers are [data-selenium="start-selling.commission.button.why"] and [data-fw="hero"] button). morph.panel, morph.tween, morph.mount, morph.countdown, nav, nav.langMenu, nav.hitTest all pass in every cell. commission(+typing) fails are the excused commission_resize_scope readings.
+CI: see report (round 2 runs).

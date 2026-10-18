@@ -24,4 +24,3 @@ export const trackHeight = (c: Column): number =>
   c.heights.reduce((a, b) => a + b, 0) + TRACK_GAP * (c.heights.length - 1);
 
 /** 1x1 transparent GIF; keeps the `<img>` boxes without any picture. */
-export const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
