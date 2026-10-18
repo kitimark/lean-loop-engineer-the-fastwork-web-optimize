@@ -16,8 +16,8 @@ Everything that is a *decision* is here; the TypeScript glue only does git, proc
   `fix-` tasks is `Fw.Console.PreviewTable`.
 * **Admission** (`admit`). Only the actor `user` may start a preview (`mayStart`), and a request is `user` only
   when it shows the owner proof (`Proof.actor`: owner cookie and same-origin Origin, no console secret). Then, in this order: one live preview per
-  task, at most `K` live previews, a disk floor, a target, and two free ports of the fixed localhost range
-  (one for the rewrite, one for the original).
+  task, at most `K` live previews, a disk floor, a target, and two free ports of the localhost range
+  [lo, lo + portN) (production: `portLo` = 47100; one for the rewrite, one for the original).
 * **Expiry** (`tick`). A preview lives `ttl` milliseconds from its start; the console ticks, and every
   preview past its deadline is removed from the table and its process group is stopped.
 * **Stop** (`stop`, `reap`). The kill list is always a part of the console's own table (the previews it

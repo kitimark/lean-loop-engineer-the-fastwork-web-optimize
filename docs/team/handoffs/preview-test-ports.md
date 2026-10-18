@@ -1,6 +1,6 @@
 # preview-test-ports handoff
 
-State: branch worktree-wf_23953071-c84-1. Tests of PreviewManager no longer bind 47100-47139.
+State: branch worktree-wf_23953071-c84-1 @ 73e2d401 (plus lead docstring fix). Tests of PreviewManager no longer bind 47100-47139.
 
 Done
 - `lean/Fw/Console/Preview.lean`: the port base is a binder `lo`: `freePorts lo`, `admit lo`, `Reach lo`, `Inv lo`; theorems
