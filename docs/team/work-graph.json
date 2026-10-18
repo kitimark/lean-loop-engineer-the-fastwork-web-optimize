@@ -3600,7 +3600,8 @@
     "lean/Fw/Ops/Premise.lean",
     "research/mistakes/ledger.json",
     "docs/team/handoffs/hero-exit-restate.md"
-   ]
+   ],
+   "evidence": "384fe8a"
   },
   {
    "id": "premises-no-api",
