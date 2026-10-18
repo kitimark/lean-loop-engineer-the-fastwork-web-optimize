@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 
 /** Task detail + owner-only Preview. All facts come from console-api (`/api/tasks/:id/detail`, `/api/previews`); the
@@ -12,13 +13,13 @@ type Detail = {
   handoff: { ref: string; excerpt: string; lines: number } | null;
   preview: { target: Target; running: Pv | null };
   previewPort?: number | null; // the preview port (another origin than the console)
-  canPreview?: boolean; // this browser holds the owner cookie (set by the one-time owner link the console prints)
+  canPreview?: boolean; // this browser sent a live owner token (login page or the one-time owner link)
 };
 type Listing = { previewPort?: number | null; previews: Pv[]; failed: { id: string; task: string; error: string }[] };
 
 export const wantsDetail = (id: string) => id.startsWith("port-") || id.startsWith("fix-");
 const J = { "content-type": "application/json" };
-/** What a refusal means to the owner; `notOwner` is the missing owner cookie or Origin (open the console's owner link). */
+/** What a refusal means to the owner; `notOwner` is the missing owner token or Origin (open the console's owner link). */
 export const refusedText = (reason: string) =>
   reason === "notOwner" ? "refused: this browser is not signed in as owner; log in as owner (the login page, or the owner link the console printed in its terminal)" : `refused: ${reason}`;
 /** Preview links point at the preview port (console port + 1): another origin than the console, so preview JavaScript cannot
@@ -40,7 +41,7 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
 
   const load = useCallback(async () => {
     try {
-      const [a, b] = await Promise.all([fetch(`/api/tasks/${id}/detail`), fetch("/api/previews")]);
+      const [a, b] = await Promise.all([apiFetch(`/api/tasks/${id}/detail`), apiFetch("/api/previews")]);
       const da = await a.json();
       if (da.ok) setD(da); else setMsg(String(da.reason));
       const lb = await b.json();
@@ -62,14 +63,14 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
 
   async function start() {
     setMsg(null);
-    const r = await fetch("/api/previews", { method: "POST", headers: J, body: JSON.stringify({ task: id }) });
+    const r = await apiFetch("/api/previews", { method: "POST", headers: J, body: JSON.stringify({ task: id }) });
     const j = await r.json();
     if (!j.ok) setMsg(refusedText(String(j.reason)));
     await load();
   }
   async function stop(pid: string) {
     setMsg(null);
-    const r = await fetch(`/api/previews/${pid}/stop`, { method: "POST", headers: J, body: "{}" });
+    const r = await apiFetch(`/api/previews/${pid}/stop`, { method: "POST", headers: J, body: "{}" });
     const j = await r.json();
     if (!j.ok) setMsg(refusedText(String(j.reason)));
     await load();

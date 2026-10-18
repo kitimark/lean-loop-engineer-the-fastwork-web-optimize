@@ -385,9 +385,9 @@ describe("routes", () => {
     expect(none.preview.target.kind).toBe("none");
   });
 
-  it("owner proof at the routes: the one-time link sets the cookie; without cookie, with the secret, or without a same-origin Origin the request is refused", async () => {
+  it("owner proof at the routes: the one-time link sets the authorization; without authorization, with the secret, or without a same-origin Origin the request is refused", async () => {
     const { pm, store, secret } = await setup();
-    const owner = new OwnerAuth(["http://127.0.0.1:5173"]);
+    const owner = new OwnerAuth(["http://127.0.0.1:5173"]); owner.setPorts(4000, 4001);
     const app = createApp(store, undefined, undefined, pm, owner);
     const H = "127.0.0.1:4000"; const O = `http://${H}`;
     const post = (body: unknown, h: Record<string, string> = {}) =>
@@ -398,32 +398,35 @@ describe("routes", () => {
     const link = await app.request(`/owner?t=${owner.token()}`);
     expect(link.status).toBe(303);
     const setCookie = link.headers.get("set-cookie")!;
-    expect(setCookie).toMatch(/HttpOnly/); expect(setCookie).toMatch(/SameSite=Strict/);
-    const cookie = setCookie.split(";")[0]!;
+    expect(setCookie).toMatch(/^fw_preview=.*HttpOnly.*SameSite=Strict/); expect(setCookie).not.toContain("fw_owner"); // the only cookie is preview-only
+    const loc = link.headers.get("location")!;
+    expect(loc).toMatch(/^\/#owner=[A-Za-z0-9_-]{40,}$/); // the token travels in the URL fragment, never in a cookie
+    const authorization = `Bearer ${loc.slice("/#owner=".length)}`;
+    expect(link.headers.get("referrer-policy")).toBe("no-referrer");
     expect(owner.token()).toBeNull(); // single use
     expect((await app.request("/owner?t=" + "x")).status).toBe(403);
-    const asSecret = await post({ task: "port-landed" }, { "x-fw-secret": secret, cookie, origin: O });
+    const asSecret = await post({ task: "port-landed" }, { "x-fw-secret": secret, authorization, origin: O });
     expect(asSecret.status).toBe(403); expect(await asSecret.json()).toEqual({ ok: false, reason: "notOwner" });
-    expect((await post({ task: "port-landed" }, { origin: O })).status).toBe(403); // no cookie: an agent's curl
-    expect((await post({ task: "port-landed" }, { cookie })).status).toBe(403); // no Origin
-    expect((await post({ task: "port-landed" }, { cookie, origin: "https://evil.example" })).status).toBe(403);
+    expect((await post({ task: "port-landed" }, { origin: O })).status).toBe(403); // no token: an agent's curl
+    expect((await post({ task: "port-landed" }, { authorization })).status).toBe(403); // no Origin
+    expect((await post({ task: "port-landed" }, { authorization, origin: "https://evil.example" })).status).toBe(403);
     expect((await post({ task: "port-landed", actor: "user" }, { origin: O })).status).toBe(403); // the body cannot claim user
-    expect((await app.request("/api/previews", { method: "POST", body: "{\"task\":\"port-landed\"}", headers: { cookie, origin: O, host: H } })).status).toBe(403);
-    expect((await post({ task: "../x" }, { cookie, origin: O })).status).toBe(400);
+    expect((await app.request("/api/previews", { method: "POST", body: "{\"task\":\"port-landed\"}", headers: { authorization, origin: O, host: H } })).status).toBe(403);
+    expect((await post({ task: "../x" }, { authorization, origin: O })).status).toBe(400);
     expect(pm.list().previews).toEqual([]);
-    const ok = await post({ task: "port-landed" }, { cookie, origin: O });
+    const ok = await post({ task: "port-landed" }, { authorization, origin: O });
     expect(ok.status).toBe(202);
     const { id } = await ok.json() as { id: string };
     await pm.settled(id);
     expect((await (await app.request("/api/previews")).json() as any).previews[0].phase).toBe("serving");
     const stopH = { "content-type": "application/json", host: H };
-    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, "x-fw-secret": secret, cookie, origin: O } })).status).toBe(403);
+    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, "x-fw-secret": secret, authorization, origin: O } })).status).toBe(403);
     expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: stopH })).status).toBe(403);
-    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, cookie } })).status).toBe(403);
-    const dev = await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, cookie, origin: "http://127.0.0.1:5173" } }); // the configured dev origin
+    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, authorization } })).status).toBe(403);
+    const dev = await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, authorization, origin: "http://127.0.0.1:5173" } }); // the configured dev origin
     expect(dev.status).toBe(200);
     expect((await (await app.request("/api/previews")).json() as any).previews).toEqual([]);
-    const det = await (await app.request("/api/tasks/port-landed/detail", { headers: { cookie } })).json() as any;
+    const det = await (await app.request("/api/tasks/port-landed/detail", { headers: { authorization } })).json() as any;
     expect(det.canPreview).toBe(true);
     expect(((await (await app.request("/api/tasks/port-landed/detail")).json()) as any).canPreview).toBe(false);
   });

@@ -2,7 +2,7 @@
 // The route reads three facts from the request and passes them as a `Proof`; Lean maps them to an actor and admits
 // only `user` (owner cookie AND same-origin Origin AND no console secret). Nothing in the body can claim an actor.
 //   secret : the request shows the console secret (the runner's own tools, agents with the secret file)
-//   cookie : the HttpOnly SameSite=Strict cookie that the one-time owner link set in the user's browser
+//   cookie : (field name kept) the request carries a live owner bearer token; no cookie is an owner proof
 //   origin : the Origin header is present and is this console's own origin
 // Residual (INFERRED): a process of the same OS user that reads the owner link from the console's stdout or the
 // cookie from the browser profile. See research/notes/2026/10-18-task-preview.md.
@@ -29,18 +29,20 @@ type Hdr = { req: { header(n: string): string | undefined } };
 export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: PreviewManager, owner: OwnerAuth) {
   const proofOf = async (c: Hdr): Promise<Proof> => ({
     secret: caps.secretMatches(c.req.header(SECRET_HEADER)),
-    cookie: owner.cookieOk(c.req.header("cookie")),
-    origin: await owner.actionOk(store.core, "owner", true, c.req.header("origin"), c.req.header("host")), // Origin = a console origin (Lean console.ownerAction)
+    cookie: owner.bearerOk(c.req.header("authorization")),
+    origin: await owner.actionOk(store.core, "owner", true, c.req.header("origin"), c.req.header("host")), // Origin = a console origin, trusted list from Lean
   });
   const jsonOnly = (c: Hdr) => ((c.req.header("content-type") ?? "").includes("application/json") ? null : "content-type must be application/json");
 
-  /** The one-time owner link: exchanges its token for the owner cookie, then goes to the console. */
+  /** The one-time owner link: exchanges its token for an owner token, handed to the console web in the URL fragment (never
+   *  sent to a server; the web moves it into localStorage and clears it), plus the preview-access cookie. */
   app.get("/owner", (c) => {
     const session = owner.redeem(c.req.query("t"));
     if (session === null) return c.json({ ok: false, reason: "owner link invalid or already used" }, 403);
-    for (const ck of owner.cookiesFor(session)) c.header("Set-Cookie", ck, { append: true });
+    for (const ck of owner.previewCookieFor(session)) c.header("Set-Cookie", ck, { append: true });
     c.header("Cache-Control", "no-store");
-    return c.redirect("/", 303);
+    c.header("Referrer-Policy", "no-referrer");
+    return c.redirect(`/#owner=${session}`, 303);
   });
 
   app.get("/api/tasks/:id/detail", async (c) => {
@@ -65,7 +67,7 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
       },
       handoff: facts.handoff ? { ref: facts.handoff.ref, excerpt: lines.slice(0, 40).join("\n"), lines: lines.length } : null,
       preview: { target: { kind: d.kind, ref: d.ref, sha: d.sha }, running },
-      canPreview: owner.cookieOk(c.req.header("cookie")), previewPort: owner.previewPort, // this browser holds the owner cookie (Lean decides the rest per request)
+      canPreview: owner.bearerOk(c.req.header("authorization")), previewPort: owner.previewPort, // this browser sent a live owner token (Lean decides the rest per request)
     });
   });
 

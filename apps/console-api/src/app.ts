@@ -32,6 +32,12 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   const app = new Hono();
   // a failed core call (fwcore crash, bad reply) fails the request; the core restarts itself
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
+  // No page of another origin (a task preview) may frame the console: clickjacking would ride the owner's own token.
+  app.use("*", async (c, next) => {
+    c.header("X-Frame-Options", "DENY");
+    c.header("Content-Security-Policy", "frame-ancestors 'none'");
+    await next();
+  });
   // The owner gate runs first on every request (Lean `console.ownerGate`); with previews it is always on, because previews are
   // served only to an owner session. Without LAN mode every request is loopback and only `/preview/*` is gated.
   if (previews || gate) {
@@ -39,14 +45,21 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
     mountOwnerGate(app, { core: store.core, owner, login: g.login, lan: g.lan });
   }
 
-  // Typed commands only. 400 = not a valid command; 422 = the reducer refused it, with the reason.
-  app.post("/api/commands", async (c) => {
-    // A page of another origin (a task preview's JavaScript) must not post commands: a browser always sends its `Origin`
-    // on a POST, so one that is not a console origin is refused (Lean `console.ownerAction` kind `command`,
-    // `preview_origin_refused`). Command-line tools send none and pass here; they meet the actor door below.
+  // Every state-changing route (all non-GET; the login excepted, it judges its own Origin) passes the one Lean gate
+  // `console.ownerAction` kind `command`: an `Origin` header, when there is one, must be a console origin (Lean
+  // `preview_origin_refused`, `computed_trusted_refuses_preview`). Command-line tools send none and meet the actor door
+  // below. Owner routes then also need the bearer token (`owner_requires_bearer`).
+  app.use("*", async (c, next) => {
+    const m = c.req.method;
+    if (m === "GET" || m === "HEAD" || c.req.path === "/owner/login") return next();
     if (!(await owner.actionOk(store.core, "command", false, c.req.header("origin"), c.req.header("host")))) {
       return c.json({ ok: false, reason: "refused: the Origin of this request is not the console" }, 403);
     }
+    return next();
+  });
+
+  // Typed commands only. 400 = not a valid command; 422 = the reducer refused it, with the reason.
+  app.post("/api/commands", async (c) => {
     let body: unknown;
     try { body = await c.req.json(); } catch { return c.json({ ok: false, reason: "body is not JSON" }, 400); }
     const parsed = Command.safeParse(body);

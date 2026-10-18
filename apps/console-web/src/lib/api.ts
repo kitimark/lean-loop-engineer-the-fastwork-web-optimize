@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "./auth";
 import { LiveBoard, Command, CommandReply } from "@fw/contracts";
 
 /** Live board over SSE. The board is a projection; the browser never holds or sets status. */
@@ -7,15 +8,40 @@ export function useBoard(): { board: LiveBoard | null; offset: number; live: boo
   const [offset, setOffset] = useState(0);
   const [live, setLive] = useState(false);
   useEffect(() => {
-    const es = new EventSource("/api/stream");
-    es.onopen = () => setLive(true);
-    es.onerror = () => setLive(false); // EventSource reconnects by itself
-    es.addEventListener("board", (m) => {
-      const b = LiveBoard.parse(JSON.parse((m as MessageEvent<string>).data));
+    // fetch, not EventSource: an EventSource cannot send the Authorization header that carries the owner token
+    const ac = new AbortController();
+    const onBlock = (block: string) => {
+      let ev = "message"; const data: string[] = [];
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event:")) ev = line.slice(6).trim();
+        else if (line.startsWith("data:")) data.push(line.slice(5).replace(/^ /, ""));
+      }
+      if (ev !== "board" || data.length === 0) return;
+      const b = LiveBoard.parse(JSON.parse(data.join("\n")));
       setBoard(b);
       setOffset(b.now - Date.now()); // server clock minus local clock
-    });
-    return () => es.close();
+    };
+    void (async () => {
+      while (!ac.signal.aborted) {
+        try {
+          const r = await apiFetch("/api/stream", { signal: ac.signal, headers: { accept: "text/event-stream" } });
+          if (r.status === 401) { setLive(false); window.location.assign("/owner/login"); return; }
+          if (!r.ok || !r.body) throw new Error(`stream ${r.status}`);
+          setLive(true);
+          const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = "";
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            for (let i = buf.indexOf("\n\n"); i >= 0; i = buf.indexOf("\n\n")) { onBlock(buf.slice(0, i)); buf = buf.slice(i + 2); }
+          }
+        } catch { /* aborted or dropped: retry below */ }
+        if (ac.signal.aborted) return;
+        setLive(false);
+        await new Promise((res) => setTimeout(res, 3000));
+      }
+    })();
+    return () => ac.abort();
   }, []);
   return { board, offset, live };
 }
@@ -23,7 +49,7 @@ export function useBoard(): { board: LiveBoard | null; offset: number; live: boo
 /** A fresh key per click, so a retried request is idempotent but two clicks are two commands. */
 export async function sendAsUser(partial: Record<string, unknown>): Promise<CommandReply> {
   const cmd = Command.parse({ ...partial, actor: "user", key: `web:${crypto.randomUUID()}` });
-  const r = await fetch("/api/commands", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cmd) });
+  const r = await apiFetch("/api/commands", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cmd) });
   return CommandReply.parse(await r.json());
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -27,7 +28,7 @@ function useHealth(): { health: HealthView | null | undefined; error: boolean } 
     let alive = true;
     const load = async () => {
       try {
-        const r = await fetch("/api/health");
+        const r = await apiFetch("/api/health");
         const j = (await r.json()) as HealthView | null;
         if (alive) { setHealth(j); setError(false); }
       } catch { if (alive) setError(true); }
