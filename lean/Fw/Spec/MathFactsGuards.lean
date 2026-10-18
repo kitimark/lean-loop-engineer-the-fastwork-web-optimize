@@ -9,6 +9,9 @@ import Fw.Ci.Budget
 import Fw.Wire
 import Fw.Engine.Core
 import Fw.Parts.MorphMountOpt
+import Fw.Spec.DeviceQueue
+import Fw.Gate.Items
+import Fw.Plan.Core
 /-!
 # The math-view facts on real declarations (task `lfg-mathview-facts`)
 
@@ -74,6 +77,17 @@ open Fw.Spec.MathFacts
 -- a statement over the inductive predicate `Reachable`: its subjects are the ops its constructors name
 #guard (facts% Fw.Sched.Admit.deps_respected).subjects == ["Fw.Sched.Admit.step"]
 #guard (wireOf% Fw.Sched.Admit.deps_respected) == some true
+-- one dead subject makes a theorem false, however many wired ones it names (inc-proof-of-dead-code, Probe5)
+#guard (facts% Fw.DeviceQueue.dispatch_sound).subjects ==
+  ["Fw.DeviceQueue.dispatch", "Fw.DeviceQueue.fits", "Fw.DeviceQueue.before"]
+#guard wire% Fw.DeviceQueue.before
+#guard !(wire% Fw.DeviceQueue.dispatch)
+#guard (wireOf% Fw.DeviceQueue.dispatch_sound) == some false
+#guard (wireOf% Fw.Gate.partVerdict_pass_iff) == some false
+#guard (wireOf% Fw.Plan.isLanded_isDone) == some false
+-- generated constants (`ctorIdx`, `ofNat`) have no entry, so they are no subjects
+#guard (facts% Fw.Sched.Admit.Reads.Kind.ofNat_ctorIdx).subjects == []
+#guard (wireOf% Fw.Sched.Admit.Reads.Kind.ofNat_ctorIdx) == none
 -- a statement without an op has no subjects, so `reachFromWire` is null
 #guard (facts% Fw.Spec.Props.assume_false_elim).subjects == []
 #guard (wireOf% Fw.Spec.Props.assume_false_elim) == none

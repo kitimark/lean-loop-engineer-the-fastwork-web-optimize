@@ -17,21 +17,29 @@ few facts that the math view (`lean/MathViewMain.lean`) now emits next to the ex
 * `class`: `closed`, `rfl`, `defEq` or `general`, by how the proof is built (`classify`);
 * `reach`: the declarations with a math-view entry that the statement and the proof reach (`Fw.Spec.Reach.closure`,
   `hasEntry`);
-* `reachFromWire`: true or false when the theorem has subjects (whether one of them is reachable from the fwcore
-  dispatcher `Fw.Wire.handle` or a golden generator `lean/scripts/*Golden.lean`), null when it has none (`fwIdents`,
-  `wireReach`, `reachFromWire`).
+* `reachFromWire`: when the theorem has subjects, true when every one of them is reachable from the fwcore
+  dispatcher `Fw.Wire.handle` or a golden generator `lean/scripts/*Golden.lean`, false when one is not; null when it
+  has none (`fwIdents`, `wireReach`, `reachFromWire`, `wire_all`);
+* `subjectsWire`: each subject with its own wire bit, so a gate can name the dead one (`subjectsWire`,
+  `wire_false_iff`).
 
-The decisions (`classify`, `implIdx`, `killOf`, `fwIdents`, `reachFromWire`) are pure and carry `#guard`s;
+The decisions (`classify`, `implIdx`, `killOf`, `fwIdents`, `reachFromWire`, `subjectsWire`) are pure and carry
+`#guard`s;
 `Fw.Spec.MathFactsGuards` checks the classification and the other facts on real `Fw` declarations through `facts%`
 and `wire%`. `factsOf` and `wireReach` are the `MetaM` glue that reads the environment.
 
 Threat model of `reachFromWire`: true must never be emitted for a theorem whose subject is dead code
 (inc-proof-of-dead-code); false or null only ask a human to look. Hence one root set (the dispatcher and the golden
-generators, research/notes/2026/10-18-lean-first-gate.md check (d)), subjects that are operations (`subjectsOf`), and
-null when there are none.
+generators, research/notes/2026/10-18-lean-first-gate.md check (d)), subjects that are operations with a math-view
+entry (`subjectsOf`, `hasEntry`), true only when every subject is wired (`wire_all`, no aggregate over subjects), and
+null when there are none. The inductive-predicate fallback (`ctorOps`) feeds the same all-rule, so a small wired
+helper in a constructor no longer makes a theorem true by itself; a theorem whose constructors name a dead op is
+false.
 
 Stated limit: the `defEq` class depends on the environment (`sidesDefEq`). The canonical environment is the export's
-(`lake exe mathview`); `facts%` in an elaborated file can disagree near the heartbeat budget.
+(`lake exe mathview`); `facts%` in an elaborated file can disagree near the heartbeat budget. `hasEntry` copies the
+`MathView` entry filters; the export intersects `reach` with the exported entry names, so a drift there cannot list a
+name without an entry.
 -/
 open Lean Meta Elab Term
 
@@ -195,23 +203,71 @@ def fwIdents (src : String) : List String := Id.run do
 #guard fwIdents "MyFw.x Fw.a Fw.a" == ["Fw.a"]
 #guard fwIdents "Fw.x₁ Fw.y" == ["Fw.x", "Fw.y"]
 
-/-- **Is a theorem reachable from the wire?** With no subjects the answer is unknown (null: a human looks); otherwise
-whether some subject is in the wire reach $W$ (passed as its membership test).
-$$\forall S, W,\ \operatorname{reachFromWire}(S, W) = \begin{cases} \bot & S = [\,] \\ \mathrm{true} & S \ne [\,] \land \exists x \in S,\ x \in W \\ \mathrm{false} & \text{otherwise} \end{cases}$$ -/
+/-- **Is a theorem reachable from the wire?** Per subject, no aggregate: with no subjects the answer is unknown (null:
+a human looks); otherwise true only when every subject is in the wire reach $W$ (passed as its membership test), and
+false when some subject is not, so one dead subject makes the theorem false however many wired subjects it names.
+$$\forall S, W,\ \operatorname{reachFromWire}(S, W) = \begin{cases} \bot & S = [\,] \\ \mathrm{true} & S \ne [\,] \land \forall x \in S,\ x \in W \\ \mathrm{false} & S \ne [\,] \land \exists x \in S,\ x \notin W \end{cases}$$ -/
 def reachFromWire (subjects : List String) (inWire : String → Bool) : Option Bool :=
-  if subjects.isEmpty then none else some (subjects.any inWire)
+  if subjects.isEmpty then none else some (subjects.all inWire)
 
-#guard reachFromWire ["Fw.a", "Fw.b"] ["Fw.b", "Fw.c"].contains == some true
+#guard reachFromWire ["Fw.a", "Fw.b"] ["Fw.a", "Fw.b", "Fw.c"].contains == some true
+#guard reachFromWire ["Fw.a", "Fw.b"] ["Fw.b", "Fw.c"].contains == some false
 #guard reachFromWire ["Fw.a"] ["Fw.b"].contains == some false
 #guard reachFromWire [] ["Fw.b"].contains == none
 #guard reachFromWire ["Fw.a"] ([] : List String).contains == some false
+-- `dispatch_sound` (Probe5): the wired `before` next to the dead `dispatch` and `fits`
+#guard reachFromWire ["Fw.DeviceQueue.dispatch", "Fw.DeviceQueue.fits", "Fw.DeviceQueue.before"]
+  ["Fw.DeviceQueue.before"].contains == some false
+
+/-- **Each subject with its wire bit**, in subject order, so a gate can name the dead subject.
+$$\forall S, W,\ \operatorname{subjectsWire}(S, W) = [(x,\ x \in W) : x \in S]$$ -/
+def subjectsWire (subjects : List String) (inWire : String → Bool) : List (String × Bool) :=
+  subjects.map fun x => (x, inWire x)
+
+#guard subjectsWire ["Fw.a", "Fw.b"] ["Fw.b"].contains == [("Fw.a", false), ("Fw.b", true)]
+#guard subjectsWire [] ["Fw.b"].contains == []
+
+/-- **True means every subject is wired.** For every subject list $S$ and wire test $W$: if `reachFromWire` is true,
+every subject is in $W$, so no theorem with a dead subject is reported true (inc-proof-of-dead-code).
+$$\forall S, W,\ \operatorname{reachFromWire}(S, W) = \mathrm{true} \Rightarrow \forall x \in S,\ x \in W$$ -/
+theorem wire_all (S : List String) (W : String → Bool) (h : reachFromWire S W = some true) :
+    ∀ x ∈ S, W x = true := by
+  unfold reachFromWire at h
+  split at h
+  · cases h
+  · simp only [Option.some.injEq, List.all_eq_true] at h
+    exact h
+
+/-- **False names a dead subject.** For every subject list $S$ and wire test $W$: `reachFromWire` is false exactly when
+`subjectsWire` lists some subject with the bit false.
+$$\forall S, W,\ \operatorname{reachFromWire}(S, W) = \mathrm{false} \iff \exists x,\ (x, \mathrm{false}) \in \operatorname{subjectsWire}(S, W)$$ -/
+theorem wire_false_iff (S : List String) (W : String → Bool) :
+    reachFromWire S W = some false ↔ ∃ x, (x, false) ∈ subjectsWire S W := by
+  unfold reachFromWire subjectsWire
+  cases S with
+  | nil => simp
+  | cons a t =>
+    simp only [List.isEmpty_cons, Bool.false_eq_true, ↓reduceIte, Option.some.injEq, List.all_eq_false,
+      List.mem_map, Prod.mk.injEq]
+    constructor
+    · rintro ⟨x, hx, hw⟩
+      exact ⟨x, x, hx, rfl, by simpa using hw⟩
+    · rintro ⟨x, y, hy, rfl, hw⟩
+      exact ⟨y, hy, by simp [hw]⟩
+
+/-- **Null means no subjects.** For every subject list $S$ and wire test $W$: `reachFromWire` is null exactly when
+$S$ is empty.
+$$\forall S, W,\ \operatorname{reachFromWire}(S, W) = \bot \iff S = [\,]$$ -/
+theorem wire_none_iff (S : List String) (W : String → Bool) : reachFromWire S W = none ↔ S = [] := by
+  unfold reachFromWire
+  cases S <;> simp
 
 /-! ## The facts of one theorem (glue) -/
 
-/-- The facts of one theorem, as the export stores them: head constant, implementation argument (index and printed
-argument), premise ids, killed incident id, class, reach, and the subjects that `reachFromWire` reads (stored, not
-printed).
-$$\mathrm{Facts} = (h, a, A, k, c, \mathit{reach}, S)$$ -/
+/-- The facts of one theorem, as the export stores them, one per field: head constant $h$, implementation argument
+index $i$ and printed argument $a$, premise ids $A$, killed incident id $k$, class $c$, reach, and the subjects $S$
+that `reachFromWire` and `subjectsWire` read.
+$$\mathrm{Facts} = (h, i, a, A, k, c, \mathit{reach}, S)$$ -/
 structure Facts where
   /-- Head constant of the result type, under one `¬`. -/
   headConst : Option String := none
@@ -280,7 +336,9 @@ or the recursion limit runs out (`budget = 0` means no limit, as `maxHeartbeats`
 budget edge the answer does too. The canonical environment is the math-view export's (`importModules` with
 `loadExts := false`, in `lake exe mathview`); `facts%` in an elaborated file can differ there (stated limit, one known
 case guarded in `Fw.Spec.MathFactsGuards`).
-$$\operatorname{sidesDefEq}(\forall \vec x,\ l \sim r) \iff l \equiv_{\delta\beta\iota\zeta} r \text{ within the budget},\quad {\sim} \in \{=, \leftrightarrow, \simeq\}$$ -/
+`isDefEq` at default transparency also uses η, proof irrelevance, structure η and literal reduction, and does not
+unfold `@[irreducible]` definitions.
+$$\forall \tau, k,\ \operatorname{sidesDefEq}(\tau, k) \iff \tau = \forall \vec x,\ l \sim r \text{ with } {\sim} \in \{=, \leftrightarrow, \simeq\} \land l \equiv_{\mathrm{default}} r \text{ (isDefEq at default transparency) within } k \cdot 1000 \text{ heartbeats } (k = 0: \text{no limit})$$ -/
 def sidesDefEq (ty : Expr) (budget : Nat) : MetaM Bool :=
   withCurrHeartbeats <| withTheReader Core.Context (fun c => { c with maxHeartbeats := budget * 1000 }) <|
     tryCatchRuntimeEx (forallTelescope ty fun _ r => do
@@ -394,12 +452,15 @@ def sortValued (c : Name) : MetaM Bool := do
   let ci ← getConstInfo c
   forallTelescopeReducing ci.type fun _ r => return (← whnf r).isSort
 
-/-- The operations among constants: the `entryLike` definitions and opaques (theorems excluded) that are not
-sort-valued, in order.
-$$\forall X,\ \operatorname{ops}(X) = [c \in X : \operatorname{entryLike}_{\emptyset}(c),\ \lnot\operatorname{sortValued}(c)]$$ -/
-def opsOf (cs : List Name) : MetaM (List Name) :=
+/-- The operations among constants: the `entryLike` definitions and opaques (theorems excluded) that have a math-view
+entry (`hasEntry`, so no generated `ctorIdx` or `ofNat`) and are not sort-valued, in order.
+$$\forall X,\ \operatorname{ops}(X) = [c \in X : \operatorname{entryLike}_{\emptyset}(c),\ \operatorname{hasEntry}(c, \operatorname{ci}(c)),\ \lnot\operatorname{sortValued}(c)]$$ -/
+def opsOf (cs : List Name) : MetaM (List Name) := do
+  let env ← getEnv
   cs.filterM fun c => do
     unless ← entryLike c false do return false
+    let some ci := env.find? c | return false
+    unless ← hasEntry c ci do return false
     return !(← sortValued c)
 
 /-- The operations an inductive predicate is built from: starting from the project inductive predicates (inductives
@@ -443,7 +504,7 @@ hypotheses with a literal id (deduplicated, in order); its kill from `killOf`; i
 from `closure` over the constants of its statement and proof, keeping the names other than $n$ that have a math-view
 entry (`hasEntry`), sorted by printed name; its subjects from `subjectsOf`, without repeats. Runs under
 `plainUnfold`.
-$$\operatorname{factsOf}(n) = \bigl(h, a, A, \operatorname{killOf}(\nu, \operatorname{target}(a), R), \operatorname{classify}(\operatorname{binders}(\tau_n), \operatorname{proofHead}_4(v_n), \operatorname{sidesDefEq}(\tau_n)), \operatorname{sort}\{c \in \operatorname{closure}(\operatorname{consts}(\tau_n) \mathbin{+\!\!+} \operatorname{consts}(v_n)) \mid c \ne n,\ \operatorname{hasEntry}(c)\}, \operatorname{dedup}(\operatorname{subjects}(\tau_n, a))\bigr)$$ -/
+$$\operatorname{factsOf}(n) = \bigl(h, i, a, A,\operatorname{killOf}(\nu, \operatorname{target}(a), R), \operatorname{classify}(\operatorname{binders}(\tau_n), \operatorname{proofHead}_4(v_n), \operatorname{sidesDefEq}(\tau_n, \mathrm{defEqBudget})),\operatorname{sort}\{c \in \operatorname{closure}(\operatorname{consts}(\tau_n) \mathbin{+\!\!+} \operatorname{consts}(v_n)) \mid c \ne n,\ \operatorname{hasEntry}(c)\}, \operatorname{dedup}(\operatorname{subjects}(\tau_n, a))\bigr)$$ -/
 def factsOf (n : Name) (ci : ConstantInfo) (rs : List Row) : MetaM Facts := plainUnfold do
   let env ← getEnv
   let value := match ci with | .thmInfo t => t.value | _ => default

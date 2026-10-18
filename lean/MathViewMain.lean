@@ -418,7 +418,7 @@ partial def modKeyOf (env : Environment) (build : String) (t : String)
 /-! ## Facts per theorem (task lfg-mathview-facts)
 
 Each theorem entry also carries the facts of `Fw.Spec.MathFacts` (head constant, implementation argument, `Assume`
-premises, killed incident, proof class, reach) and `reachFromWire`. The facts of one theorem depend on its import
+premises, killed incident, proof class, reach), `reachFromWire` and `subjectsWire`. The facts of one theorem depend on its import
 cone and on two global inputs: the registered signatures and registry rows (`factsGlobals`, mixed into every module
 key, so a registry change recomputes every module) and the wire reach (`wireSet`, computed after the merge on every
 run, never stored). Each theorem's facts are computed in a fresh `Core`/`Meta` state, so a full run and a cached run
@@ -476,22 +476,27 @@ def wireSet (env : Environment) (root : System.FilePath) : IO (Std.HashSet Strin
   return w.foldl (fun s n => s.insert n.toString) {}
 
 /-- **The JSON of one entry**: `toJson` of the entry, unchanged for a non-theorem; a theorem also gets the keys
-`headConst`, `implArg` (`{index, expr}` or null), `assumes`, `killOf`, `class`, `reach` and `reachFromWire`, each
-null when its facts are missing; `reachFromWire` is also null when the theorem has no subjects
-(`Fw.Spec.MathFacts.reachFromWire`). `reach` keeps only the names in the set $E$ of exported entry names, in order.
-$$\operatorname{entryJson}_{W, E}(e, \phi) = \begin{cases} \operatorname{toJson}(e) & e.\mathrm{kind} \ne \texttt{theorem} \\ \operatorname{toJson}(e) \cup \{h, a, A, k, c, [r \in \mathit{reach} : r \in E], \operatorname{reachFromWire}(S, W)\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = (h, a, A, k, c, \mathit{reach}, S) \\ \operatorname{toJson}(e) \cup \{\text{the 7 keys} \mapsto \mathrm{null}\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = \bot \end{cases}$$ -/
+`headConst`, `implArg` (`{index, expr}` or null), `assumes`, `killOf`, `class`, `reach`, `reachFromWire` and
+`subjectsWire` (`[{name, wired}]`), each null when its facts are missing; `reachFromWire` is also null when the
+theorem has no subjects (`Fw.Spec.MathFacts.reachFromWire`, true only when every subject is in $W$).
+`reach` keeps only the names in the set $E$ of exported entry names, in order.
+$$\operatorname{entryJson}_{W, E}(e, \phi) = \begin{cases} \operatorname{toJson}(e) & e.\mathrm{kind} \ne \texttt{theorem} \\ \operatorname{toJson}(e) \cup \{h, (i, a), A, k, c, [r \in \mathit{reach} : r \in E], \operatorname{reachFromWire}(S, W), \operatorname{subjectsWire}(S, W)\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = (h, i, a, A, k, c, \mathit{reach}, S) \\ \operatorname{toJson}(e) \cup \{\text{the 8 keys} \mapsto \mathrm{null}\} & e.\mathrm{kind} = \texttt{theorem},\ \phi = \bot \end{cases}$$ -/
 def entryJson (inWire isEntry : String → Bool) (s : Stored) : Json :=
   let j := toJson s.entry
   if s.entry.kind != "theorem" then j else
   let keys : List (String × Json) := match s.facts with
-    | none => ["headConst", "implArg", "assumes", "killOf", "class", "reach", "reachFromWire"].map (·, Json.null)
+    | none => ["headConst", "implArg", "assumes", "killOf", "class", "reach", "reachFromWire", "subjectsWire"].map
+        (·, Json.null)
     | some f =>
       [("headConst", toJson f.headConst),
        ("implArg", match f.implIdx with
          | some i => Json.mkObj [("index", toJson i), ("expr", toJson f.implExpr)]
          | none => Json.null),
        ("assumes", toJson f.assumes), ("killOf", toJson f.killOf), ("class", toJson f.cls.tag),
-       ("reach", toJson (f.reach.filter isEntry)), ("reachFromWire", toJson (Fw.Spec.MathFacts.reachFromWire f.subjects inWire))]
+       ("reach", toJson (f.reach.filter isEntry)),
+       ("reachFromWire", toJson (Fw.Spec.MathFacts.reachFromWire f.subjects inWire)),
+       ("subjectsWire", Json.arr (Fw.Spec.MathFacts.subjectsWire f.subjects inWire |>.toArray.map fun (x, b) =>
+         Json.mkObj [("name", toJson x), ("wired", toJson b)]))]
   keys.foldl (fun j (k, v) => j.setObjVal! k v) j
 
 /-- The stored entries under key `k`, or `none` when absent or unreadable (then the module is recomputed). -/
@@ -578,7 +583,7 @@ def dependentsOf (env : Environment) (root : System.FilePath) (x : String) : IO 
 
 /-- `lake exe mathview [--lint] [--out <file>]`: print every `Fw` declaration as JSON (name, kind, module, line,
 English, math, signature, machine LaTeX, deep statement hash, docstring hash, axioms; a theorem also its facts:
-`headConst`, `implArg`, `assumes`, `killOf`, `class`, `reach`, `reachFromWire`, see `entryJson`); with `--lint`, exit 1 when
+`headConst`, `implArg`, `assumes`, `killOf`, `class`, `reach`, `reachFromWire`, `subjectsWire`, see `entryJson`); with `--lint`, exit 1 when
 a declaration lacks `$$` math or English, depends on `sorryAx`, or on an axiom other than
 `propext`, `Classical.choice`, `Quot.sound`, or when its `$$` math binds a name that it also applies as a function
 and uses as a value (`ShadowLint`), or when a `where` / `with` clause after a `$$` block defines a symbol of that
