@@ -100,6 +100,46 @@ wall clock.
 4. **Glue**: `gate-jobs.mjs` reads `shards.jsonl` and filters it to the scope; `check.sh` runs
    `ShardGolden --check`; `gate-jobs.test.mjs` re-checks coverage and Graham's bound for every golden line.
 
+## Round 2: a frozen page clock in both arms (MEASURED, CI runs 39115860145, 39115867180, 39116538316 on d9a6744)
+Threat model: the gate must never report pass while a compared state was not compared (unsettled, missing, not comparable).
+- **Why the baselines were not a result:** in 39101532038 and 39106417480, 312 of 392 samples per engine (79.6%) were
+  unsettled, so the gate compared frames whose time was the machine's. Round 1's engine verdict ignored that (blocker, fixed
+  in 5107fcc: the verdict counts unsettled from the Lean settle wait, probes and sweep stops, missing = unsettled;
+  `Fw.Gate.Exit`, `exit.jsonl`).
+- **Frozen clock (`Fw.Gate.Freeze`, `src/freeze.mjs`, `page.mjs` KIT_SRC):** Playwright `page.clock` is installed paused before
+  load in both arms and both engines and moved only by the harness (16 ms per frame). Before every observation the document's
+  finite animations are finished and infinite ones paused at the middle of the first iteration. The compared set did not change.
+  Under the frozen clock `t = 16 * frames`, so the 60-frame budget decides (`spent_frozen_frames`), the wait depends only on the
+  first 62 steps (`wait_frozen_agree`), and a real clock gives machine-dependent outcomes where the frozen one does not
+  (`real_clock_machine_dependent`, `frozen_machine_independent`). `freeze_independent_of_elapsed`, `freeze_idem`,
+  `runCount_freeze`, `settled_frozen_anims`: the frozen state does not depend on how long the machine took. `alignTarget_eq`,
+  `stop_stays_in_cell`, `harness_grid_fits`: both arms leave every sweep stop at the same fake instant.
+- **Settled ratio (MEASURED, 3 runs x 2 engines):** 392 of 392 samples settled (0 unsettled, 0 missing) in all 6 engine results;
+  waits are 3 frames, 48 ms of fake time in Chromium. Baselines: 80 of 392 (20.4%).
+- **Wall and cost (run 39116538316, the other two within 0.2 min):** gate wall 5.0 min (first gate job 09:45:50, last end
+  09:50:52); whole run 7.1 min; guard started 6 s after creation, so no queue. 25.9 job-minutes in 6 gate jobs (Chromium 2.4 and
+  3.5; WebKit 4.9 to 5.0 each). Round 1 on 33 parts: 12.2 min wall, 65.1 job-minutes. The part sets differ (main has 15 parts,
+  252 cells per engine), so the numbers are not a like-for-like speed-up; the like-for-like check is main's own gate run
+  39102911533 (same 15 parts).
+- **Per-cell verdicts against main 39102911533 (same 15 parts):** Chromium 252 cells, 0 differ (251 pass, 1 not-comparable).
+  WebKit 252 cells: 12 differ, all `fail` on main and `pass` now: hero.countdown (desk, touch, touch-rm, phone-landscape,
+  dark; `will-change` auto vs transform on `face`) and hero.exit (desk, touch, touch-rm, phone-landscape, dw-arm-isolate, dark,
+  sweep touch-1024-1201; `will-change`, and `copy`/`cue` opacity 0 vs 1, filter blur(18px) vs 0 at desk-861). Reason (INFERRED
+  from the values): those were frames read while an exit or tween was in flight in one arm; with both arms at the same
+  frozen instant and the animations finished they agree. They are real-time differences between the arms, not a missing
+  comparison. One WebKit cell stays `fail` in every run and on main: platform.stageBg x sweep desktop-1512-320-1512 (13 of 57
+  stops, stage and grain height 351.8 vs 319.6 px at 481 to 320 wide), so it does not come from the clock.
+- **The 2 new Chromium cells** (`desk-rm-861` hero.orbit, `desk-rm-1279` commission) belong to the 33-part set. Main has 15
+  parts, so they cannot be reproduced here; integrate-ports-3 brings them. Baselines 39101532038 and 39106417480 (36 rows) have
+  no common-cell pass/fail meaning for 15 parts except that none of the 15 parts' cells is a failing one there.
+- **Confounds to read with these numbers:** Chromium moved from puppeteer-core to playwright-core (same Chrome, same CDP
+  emulation), so a Chromium difference could come from either change; none appeared against main. The gaps lane keeps its native
+  timing. Frozen time is a different state from "after N real seconds": a bug that only shows at a particular real time is not
+  reachable by this gate.
+- **A bug the first two runs found (39114796757, 39114847922, commit b70291b):** main's anchors had no `kind` on the
+  morph.countdown and morph.columns mount steps, so the original panel never mounted and 13 failing rows read 0 original nodes. The runner
+  now refuses an unknown prepare kind and `test/prepare.test.mjs` checks every step.
+
 ## Lessons
 - A settle wait needs a frame budget, not only a time cap. A page with a permanent animation never becomes still, so
   a time-only wait always uses its whole cap (here 30 s × 312 samples).
