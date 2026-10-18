@@ -3,7 +3,15 @@
    layout are restated here so the columns sit in the same flex row. Placeholder content only. */
 @layer parts {
   .stage {
-    position: relative;
+    /* out of normal flow, as inside the original's fixed morph panel (css 10549: pointer-events none, opacity
+       clamp((morph - .08) / .72) = 0 at morph = 0): a fixed, invisible box that adds no page height */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
     height: 320px;
     overflow: hidden;
     background: #131922;

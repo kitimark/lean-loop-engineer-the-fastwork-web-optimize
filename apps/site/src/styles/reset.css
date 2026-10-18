@@ -67,3 +67,15 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+/* The page root restates the original's page-root rule (assets/2.gBuqKVzi.css:1, `.start-selling`: min-width 320px,
+   direction ltr, background #f5f5f3, overflow-x clip). The clip keeps content wider than the viewport from enlarging
+   the layout viewport under mobile emulation. */
+@layer reset {
+  [data-fw='page-root'] {
+    min-width: 320px;
+    direction: ltr;
+    background: #f5f5f3;
+    overflow-x: clip;
+  }
+}
