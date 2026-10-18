@@ -13,13 +13,17 @@ script reading the verdict found none. This module replays the property-first wo
    `TruthfulVerdict` (the last line is the verdict of the first failing stage, and the exit code is that kind's code).
 3. **Bad implementations** from the incident classes: `emptyNoVerdict` (the incident: the empty branch returns before
    the verdict), `exnNoVerdict` (a top-level catch prints the error and exits 1), `emptyDone` (the empty branch says
-   `done`).
+   `done`). Each one names its incident and is proved equal to `dryOut` off it (`<bad>_agrees_off`, incident
+   `emptyIncident` or `threwIncident`).
 4. **Search before proof.** Pointwise checks `qOneVerdict`, `qTruthful` with `*_sound` lemmas; `#guard`s run the
    search over all 128 outcomes ($\mathbb B^7$, exhaustive) and find the bug in each bad implementation. The
    `emptyDone` guard shows that `NoSilentExit` alone is blind to that bug, which is why `TruthfulVerdict` exists.
 5. **Kill witnesses** `*_rejects_*`, proved by running the search (`Fw.Search.refutes_of_search`).
 6. **Proof of the real implementation** `dryOut` (`NoSilentExit_impl`, `TruthfulVerdict_impl`), from
    `Fw.Console.LandDry.dryRun_one_verdict`.
+   **6b. The kills are on the incident** (`*_on_incident`, from `Fw.Spec.Props.failures_on_incident` and
+   `fails_on_incident`): each bad run fails its check only on incident inputs, and on at least one. The search
+   result holds for every task name, not only `"x"` (`emptyNoVerdict_search`, `exnNoVerdict_search`).
 7. **Premise visible**: `stdout_one_verdict` carries `Assume` for the step Lean cannot see, that `land.ts` prints
    `dryOut`'s lines verbatim.
 -/
@@ -83,6 +87,41 @@ def emptyDone : DryImpl := fun o t =>
 $$\mathrm{dryOut}(O, t) = (\operatorname{run}(O, t), \operatorname{code}(\operatorname{kind}(O)))$$ -/
 def dryOut : DryImpl := fun o t => ⟨dryRun o t, o.kind.exitCode⟩
 
+/-- The incident of `emptyNoVerdict` and `emptyDone`: the outcome is an empty branch.
+$$E_{\mathrm{empty}}(O) \iff \operatorname{empty}(O)$$ -/
+def emptyIncident (o : Outcome) : Prop := isEmptyBranch o = true
+
+/-- The incident of `exnNoVerdict`: the run threw an exception.
+$$E_{\mathrm{exn}}(O) \iff \mathit{threw}(O)$$ -/
+def threwIncident (o : Outcome) : Prop := o.threw = true
+
+/-- **`emptyNoVerdict` is the real run off the empty branch.** For every outcome that is not an empty branch, and
+every task, `emptyNoVerdict` and `dryOut` give the same output.
+$$\mathrm{AgreesOff}(\mathrm{dryOut}, \mathrm{emptyNoVerdict}, E_{\mathrm{empty}})$$ -/
+theorem emptyNoVerdict_agrees_off : AgreesOff dryOut emptyNoVerdict emptyIncident := by
+  intro o h
+  funext t
+  simp only [emptyIncident, Bool.not_eq_true] at h
+  simp only [emptyNoVerdict, dryOut, h, Bool.false_eq_true, ite_false]
+
+/-- **`emptyDone` is the real run off the empty branch.** For every outcome that is not an empty branch, and every
+task, `emptyDone` and `dryOut` give the same output.
+$$\mathrm{AgreesOff}(\mathrm{dryOut}, \mathrm{emptyDone}, E_{\mathrm{empty}})$$ -/
+theorem emptyDone_agrees_off : AgreesOff dryOut emptyDone emptyIncident := by
+  intro o h
+  funext t
+  simp only [emptyIncident, Bool.not_eq_true] at h
+  simp only [emptyDone, dryOut, h, Bool.false_eq_true, ite_false]
+
+/-- **`exnNoVerdict` is the real run when nothing threw.** For every outcome with no exception, and every task,
+`exnNoVerdict` and `dryOut` give the same output.
+$$\mathrm{AgreesOff}(\mathrm{dryOut}, \mathrm{exnNoVerdict}, E_{\mathrm{exn}})$$ -/
+theorem exnNoVerdict_agrees_off : AgreesOff dryOut exnNoVerdict threwIncident := by
+  intro o h
+  funext t
+  simp only [threwIncident, Bool.not_eq_true] at h
+  simp only [exnNoVerdict, dryOut, h, Bool.false_eq_true, ite_false]
+
 /-! ## Step 4: pointwise checks and the search, before any proof -/
 
 /-- All 128 stage outcomes, through $\mathbb B^7$.
@@ -134,6 +173,7 @@ theorem qTruthful_sound (run : DryImpl) (t : String) : TruthfulVerdict run → �
 #guard (search EnumAll.all (qOneVerdict emptyNoVerdict "x")).isSome
 #guard (search EnumAll.all (qOneVerdict exnNoVerdict "x")).isSome
 -- what it found: the empty branch (threw, fresh, own) = (false, true, false), and the first exception outcome
+-- (for task "x"; `emptyNoVerdict_search` and `exnNoVerdict_search` in step 6b prove it for every task)
 #guard ((search EnumAll.all (qOneVerdict emptyNoVerdict "x")).map fun o => (o.threw, o.fresh, o.own)) ==
   some (false, true, false)
 #guard ((search EnumAll.all (qOneVerdict exnNoVerdict "x")).map (·.threw)) == some true
@@ -201,6 +241,117 @@ theorem NoSilentExit_impl : NoSilentExit dryOut := fun o t => (dryRun_one_verdic
 outcome's kind and its exit code is that kind's code.
 $$\mathrm{TruthfulVerdict}(\mathrm{dryOut})$$ -/
 theorem TruthfulVerdict_impl : TruthfulVerdict dryOut := fun o t => ⟨(dryRun_one_verdict o t).2, rfl⟩
+
+/-! ## Step 6b: every kill is on the incident, for every task
+
+The kill witnesses of step 5 only say that some input fails. With `*_agrees_off` (step 3) and the proofs of step 6,
+`Fw.Spec.Props.failures_on_incident` / `fails_on_incident` show that each bad run fails exactly on its incident
+inputs and on at least one of them. -/
+
+/-- The `NoSilentExit` check on a (task, outcome) pair.
+$$q_1'(r, (t, O)) = q_1(r, t, O)$$ -/
+def qOneVerdictAt (run : DryImpl) (y : String × Outcome) : Bool := qOneVerdict run y.1 y.2
+
+/-- The `TruthfulVerdict` check on a (task, outcome) pair.
+$$q_2'(r, (t, O)) = q_2(r, t, O)$$ -/
+def qTruthfulAt (run : DryImpl) (y : String × Outcome) : Bool := qTruthful run y.1 y.2
+
+/-- `NoSilentExit` is the pointwise property of the pair check: for every implementation.
+$$\forall r,\ \mathrm{NoSilentExit}(r) \iff \mathrm{Pointwise}(q_1')(r)$$ -/
+theorem NoSilentExit_iff_pointwise (run : DryImpl) : NoSilentExit run ↔ Pointwise qOneVerdictAt run :=
+  (NoSilentExit_iff run).trans ⟨fun h y => h y.1 y.2, fun h t o => h (t, o)⟩
+
+/-- `TruthfulVerdict` is the pointwise property of the pair check: for every implementation.
+$$\forall r,\ \mathrm{TruthfulVerdict}(r) \iff \mathrm{Pointwise}(q_2')(r)$$ -/
+theorem TruthfulVerdict_iff_pointwise (run : DryImpl) : TruthfulVerdict run ↔ Pointwise qTruthfulAt run :=
+  (TruthfulVerdict_iff run).trans ⟨fun h y => h y.1 y.2, fun h t o => h (t, o)⟩
+
+/-- The `NoSilentExit` pair check at $(t, O)$ reads the implementation only at the outcome $O$.
+$$\mathrm{ReadsAt}(q_1', (t, O) \mapsto O)$$ -/
+theorem qOneVerdictAt_readsAt : ReadsAt qOneVerdictAt Prod.snd := by
+  intro i j y h
+  simp only [qOneVerdictAt, qOneVerdict, h]
+
+/-- The `TruthfulVerdict` pair check at $(t, O)$ reads the implementation only at the outcome $O$.
+$$\mathrm{ReadsAt}(q_2', (t, O) \mapsto O)$$ -/
+theorem qTruthfulAt_readsAt : ReadsAt qTruthfulAt Prod.snd := by
+  intro i j y h
+  simp only [qTruthfulAt, qTruthful, h]
+
+/-- **`NoSilentExit` kills `emptyNoVerdict` on the empty branch.** Every task and outcome on which the check fails
+for `emptyNoVerdict` is an empty branch, and some task and empty-branch outcome make it fail.
+$$(\forall t\, O,\ q_1(\mathrm{emptyNoVerdict}, t, O) = \mathrm{false} \Rightarrow \operatorname{empty}(O)) \wedge \exists t\, O,\ \operatorname{empty}(O) \wedge q_1(\mathrm{emptyNoVerdict}, t, O) = \mathrm{false}$$ -/
+theorem NoSilentExit_rejects_emptyNoVerdict_on_incident :
+    (∀ t o, qOneVerdict emptyNoVerdict t o = false → isEmptyBranch o = true) ∧
+      ∃ t o, isEmptyBranch o = true ∧ qOneVerdict emptyNoVerdict t o = false := by
+  have hi := (NoSilentExit_iff_pointwise dryOut).mp NoSilentExit_impl
+  refine ⟨fun t o h => failures_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut emptyNoVerdict
+    emptyIncident hi emptyNoVerdict_agrees_off (t, o) h, ?_⟩
+  obtain ⟨⟨t, o⟩, he, hq⟩ := fails_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut emptyNoVerdict
+    emptyIncident hi emptyNoVerdict_agrees_off
+    (fun h => NoSilentExit_rejects_emptyNoVerdict ((NoSilentExit_iff_pointwise _).mpr h))
+  exact ⟨t, o, he, hq⟩
+
+/-- **`NoSilentExit` kills `exnNoVerdict` on an exception.** Every task and outcome on which the check fails for
+`exnNoVerdict` threw, and some task and outcome that threw make it fail.
+$$(\forall t\, O,\ q_1(\mathrm{exnNoVerdict}, t, O) = \mathrm{false} \Rightarrow \mathit{threw}(O)) \wedge \exists t\, O,\ \mathit{threw}(O) \wedge q_1(\mathrm{exnNoVerdict}, t, O) = \mathrm{false}$$ -/
+theorem NoSilentExit_rejects_exnNoVerdict_on_incident :
+    (∀ t o, qOneVerdict exnNoVerdict t o = false → o.threw = true) ∧
+      ∃ t o, o.threw = true ∧ qOneVerdict exnNoVerdict t o = false := by
+  have hi := (NoSilentExit_iff_pointwise dryOut).mp NoSilentExit_impl
+  refine ⟨fun t o h => failures_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut exnNoVerdict
+    threwIncident hi exnNoVerdict_agrees_off (t, o) h, ?_⟩
+  obtain ⟨⟨t, o⟩, he, hq⟩ := fails_on_incident qOneVerdictAt Prod.snd qOneVerdictAt_readsAt dryOut exnNoVerdict
+    threwIncident hi exnNoVerdict_agrees_off
+    (fun h => NoSilentExit_rejects_exnNoVerdict ((NoSilentExit_iff_pointwise _).mpr h))
+  exact ⟨t, o, he, hq⟩
+
+/-- **`TruthfulVerdict` kills `emptyDone` on the empty branch.** Every task and outcome on which the check fails for
+`emptyDone` is an empty branch, and some task and empty-branch outcome make it fail.
+$$(\forall t\, O,\ q_2(\mathrm{emptyDone}, t, O) = \mathrm{false} \Rightarrow \operatorname{empty}(O)) \wedge \exists t\, O,\ \operatorname{empty}(O) \wedge q_2(\mathrm{emptyDone}, t, O) = \mathrm{false}$$ -/
+theorem TruthfulVerdict_rejects_emptyDone_on_incident :
+    (∀ t o, qTruthful emptyDone t o = false → isEmptyBranch o = true) ∧
+      ∃ t o, isEmptyBranch o = true ∧ qTruthful emptyDone t o = false := by
+  have hi := (TruthfulVerdict_iff_pointwise dryOut).mp TruthfulVerdict_impl
+  refine ⟨fun t o h => failures_on_incident qTruthfulAt Prod.snd qTruthfulAt_readsAt dryOut emptyDone
+    emptyIncident hi emptyDone_agrees_off (t, o) h, ?_⟩
+  obtain ⟨⟨t, o⟩, he, hq⟩ := fails_on_incident qTruthfulAt Prod.snd qTruthfulAt_readsAt dryOut emptyDone
+    emptyIncident hi emptyDone_agrees_off
+    (fun h => TruthfulVerdict_rejects_emptyDone ((TruthfulVerdict_iff_pointwise _).mpr h))
+  exact ⟨t, o, he, hq⟩
+
+/-- On every task the `NoSilentExit` check of `emptyNoVerdict` fails exactly on the empty branch: for every task and
+outcome.
+$$\forall t\, O,\ q_1(\mathrm{emptyNoVerdict}, t, O) = \lnot\operatorname{empty}(O)$$ -/
+theorem qOneVerdict_emptyNoVerdict (t : String) (o : Outcome) :
+    qOneVerdict emptyNoVerdict t o = !isEmptyBranch o := by
+  have h1 : verdictCount (dryRun o t) = 1 := (dryRun_one_verdict o t).1
+  cases h : isEmptyBranch o <;> simp [qOneVerdict, emptyNoVerdict, h, h1, log_no_verdict]
+
+/-- On every task the `NoSilentExit` check of `exnNoVerdict` fails exactly when the run threw: for every task and
+outcome.
+$$\forall t\, O,\ q_1(\mathrm{exnNoVerdict}, t, O) = \lnot\mathit{threw}(O)$$ -/
+theorem qOneVerdict_exnNoVerdict (t : String) (o : Outcome) :
+    qOneVerdict exnNoVerdict t o = !o.threw := by
+  have h1 : verdictCount (dryRun o t) = 1 := (dryRun_one_verdict o t).1
+  have h0 : verdictCount ["Error: land failed"] = 0 := by decide +kernel
+  cases h : o.threw <;> simp [qOneVerdict, exnNoVerdict, h, h1, h0]
+
+/-- **The search finds the empty branch, on every task.** For every task $t$, the first outcome on which the
+`NoSilentExit` check of `emptyNoVerdict` fails is the empty branch with every later stage false.
+$$\forall t,\ \operatorname{search}(\mathrm{all}, q_1(\mathrm{emptyNoVerdict}, t)) = \mathrm{some}(\mathrm{false}, \mathrm{true}, \mathrm{false}, \mathrm{false}, \mathrm{false}, \mathrm{false}, \mathrm{false})$$ -/
+theorem emptyNoVerdict_search (t : String) :
+    search EnumAll.all (qOneVerdict emptyNoVerdict t) = some ⟨false, true, false, false, false, false, false⟩ := by
+  rw [show qOneVerdict emptyNoVerdict t = fun o => !isEmptyBranch o from funext (qOneVerdict_emptyNoVerdict t)]
+  rfl
+
+/-- **The search finds an exception, on every task.** For every task $t$, the first outcome on which the
+`NoSilentExit` check of `exnNoVerdict` fails is the one that threw with every other stage false.
+$$\forall t,\ \operatorname{search}(\mathrm{all}, q_1(\mathrm{exnNoVerdict}, t)) = \mathrm{some}(\mathrm{true}, \mathrm{false}, \mathrm{false}, \mathrm{false}, \mathrm{false}, \mathrm{false}, \mathrm{false})$$ -/
+theorem exnNoVerdict_search (t : String) :
+    search EnumAll.all (qOneVerdict exnNoVerdict t) = some ⟨true, false, false, false, false, false, false⟩ := by
+  rw [show qOneVerdict exnNoVerdict t = fun o => !o.threw from funext (qOneVerdict_exnNoVerdict t)]
+  rfl
 
 /-! ## Step 7: the premise Lean cannot see, in the statement -/
 

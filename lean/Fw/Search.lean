@@ -3,9 +3,9 @@
 
 Task `lfg-props-shape` (research/notes/2026/10-18-lean-first-gate.md, rule 5). Core Lean only, no Mathlib.
 
-* `Enum α`: `enum n` lists values of `α` up to size `n`; larger bounds list more (`mono`) and every value appears at
-  some bound (`complete`). `EnumAll α`: a finite type with one list `all` of every value; it is an `Enum` at every
-  bound.
+* `Enum α`: `enum n` is a list of values of `α` at bound `n`; larger bounds list more (`mono`) and every value
+  appears at some bound (`complete`). The class has no size function: "bound" means only these two laws.
+  `EnumAll α`: a finite type with one list `all` of every value; it is an `Enum` at every bound.
 * `search xs q`: the first `x` in `xs` with `q x = false` (a counterexample), `none` when the check passes on all of
   `xs` (`search_none_iff`); `searchUpTo n q` searches `enum n`.
 * The link to a property `P` with a sound pointwise check (`P i → ∀ x, q x = true`): a found counterexample is a kill
@@ -21,11 +21,11 @@ namespace Fw.Search
 
 universe u v
 
-/-- Values of `α` enumerated by size: `enum n` lists the values of size at most $n$. A larger bound lists every value
-a smaller one did, and every value is listed at some bound.
+/-- Values of `α` enumerated by a bound: `enum n` is a list of values. A larger bound lists every value a smaller one
+did, and every value is listed at some bound. There is no size function; the two laws are all the class says.
 $$\mathrm{enum} : \mathbb N \to \mathrm{List}(\alpha),\quad \forall m\, n\, x,\ m \le n \wedge x \in \mathrm{enum}(m) \Rightarrow x \in \mathrm{enum}(n),\quad \forall x\ \exists n,\ x \in \mathrm{enum}(n)$$ -/
 class Enum (α : Type u) where
-  /-- The values of size at most $n$. $$\mathrm{enum}(n) : \mathrm{List}(\alpha)$$ -/
+  /-- The values listed at bound $n$. $$\mathrm{enum}(n) : \mathrm{List}(\alpha)$$ -/
   enum : Nat → List α
   /-- A larger bound lists more. $$\forall m\, n\, x,\ m \le n \wedge x \in \mathrm{enum}(m) \Rightarrow x \in \mathrm{enum}(n)$$ -/
   mono : ∀ {m n : Nat} {x : α}, m ≤ n → x ∈ enum m → x ∈ enum n
@@ -77,7 +77,7 @@ theorem search_some_first {α : Type u} (xs : List α) (q : α → Bool) (x : α
 $$\operatorname{searchUpTo}(n, q) = \operatorname{search}(\mathrm{enum}(n), q)$$ -/
 def searchUpTo {α : Type u} [Enum α] (n : Nat) (q : α → Bool) : Option α := search (Enum.enum n) q
 
-/-- **No counterexample up to $n$ means the check holds on every value of size at most $n$.** For every bound and
+/-- **No counterexample up to $n$ means the check holds on every value listed by `enum n`.** For every bound and
 every check.
 $$\forall n,\ \forall q,\ \operatorname{searchUpTo}(n, q) = \mathrm{none} \iff \forall x \in \mathrm{enum}(n),\ q(x) = \mathrm{true}$$ -/
 theorem searchUpTo_none_iff {α : Type u} [Enum α] (n : Nat) (q : α → Bool) :
@@ -209,7 +209,7 @@ instance instEnumOption {α : Type u} [Enum α] : Enum (Option α) where
       obtain ⟨n, hn⟩ := Enum.complete a
       exact ⟨n, by simp [hn]⟩
 
-/-- Pairs whose two components both have size at most $n$.
+/-- Pairs whose two components are both listed at bound $n$.
 $$\mathrm{enum}_{\alpha \times \beta}(n) = [(a, b) : a \in \mathrm{enum}_\alpha(n),\ b \in \mathrm{enum}_\beta(n)]$$ -/
 instance instEnumProd {α : Type u} {β : Type v} [Enum α] [Enum β] : Enum (α × β) where
   enum n := (Enum.enum n).flatMap fun a => (Enum.enum n).map fun b => (a, b)
@@ -250,7 +250,7 @@ theorem mem_listsUpTo {α : Type u} (E : List α) (n : Nat) (l : List α) :
       · rintro ⟨hl, ha, ht⟩
         exact Or.inr ⟨a, ha, t, ⟨by omega, ht⟩, rfl, rfl⟩
 
-/-- Lists of length at most $n$ whose elements have size at most $n$.
+/-- Lists of length at most $n$ whose elements are listed at bound $n$.
 $$\mathrm{enum}_{\mathrm{List}(\alpha)}(n) = \operatorname{lists}(\mathrm{enum}_\alpha(n), n)$$ -/
 instance instEnumList {α : Type u} [Enum α] : Enum (List α) where
   enum n := listsUpTo (Enum.enum n) n
