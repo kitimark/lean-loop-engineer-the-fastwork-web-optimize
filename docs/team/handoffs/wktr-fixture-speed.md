@@ -24,9 +24,5 @@ and 39087188153 (auto, 3 jobs, max-parallel 2). Both MEASURED on macos-26, 3 cor
 - Lane: `packages/measure-wktr/fixtures/lanes.mjs` (reads the golden), `premise.mjs` (assertions + premise + spans, in the classes
   job), `summarize.mjs --assert` (coordinator's line; ignores tags k2 k3). Dispatch inputs `mode` auto|probe, `req`.
 - After editing the workflow: `cd lean && lake test -- --write-ci-trigger-golden` then `node scripts/ci-paths.mjs --write`.
-- Writes outside the work-graph list (needs the lead's ack): lean/Fw/**, lean/Fw.lean, lean/scripts/WktrFixturesGolden.lean,
-  packages/contracts/golden/measure/wktr.fixtures.jsonl, packages/measure-wktr/test/premise.test.mjs, Trigger.lean + ci/triggers.jsonl.
+- The work-graph `writes` of this task now list the Lean module, goldens, Trigger.lean and premise.test.mjs. Open: none.
 
-## Open
-- mathview lint has only quantifier warnings for the new theorems (no failures).
-- Read first: this file, `WktrLayout.lean` header, `research`-free; spans are in the run artifacts (`spans-*.json`, `premise.json`).
