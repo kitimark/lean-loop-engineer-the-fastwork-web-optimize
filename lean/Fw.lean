@@ -67,6 +67,7 @@ import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
+import Fw.Oracle  -- jev-oracle: typed answers from an outside model, and the policy over them
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
 import Fw.Obs.Signals  -- obs-signals: agent state from transcript signals (obs.signals)

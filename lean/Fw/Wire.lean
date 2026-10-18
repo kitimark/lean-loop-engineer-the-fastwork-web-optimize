@@ -18,6 +18,7 @@ import Fw.Wire.Console
 import Fw.Wire.Store
 import Fw.Ci.Wire
 import Fw.Ops.CheckMap
+import Fw.Oracle.Wire
 /-!
 # JSON-lines protocol (the only boundary the TypeScript shell sees)
 
@@ -450,6 +451,7 @@ def ops : List String :=
   ++ Fw.Wire.Store.ops -- store-and-run: store.plan, store.manifest, store.objectPath, store.reduce
   ++ Fw.Wire.Ci.ops -- ghb-lean: ci.budget.*
   ++ Fw.Wire.CheckMap.ops -- check-map-lean: ops.checkMap, ops.checkVerdict
+  ++ Fw.Wire.Oracle.ops -- jev-oracle: oracle.*
   ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
@@ -491,6 +493,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.CheckMap.handle other req with  -- check-map-lean
+    | some r => r
+    | none =>
+    match Fw.Wire.Oracle.handle other req with  -- jev-oracle: oracle.*
     | some r => r
     | none => throw s!"unknown op {other}"
 
