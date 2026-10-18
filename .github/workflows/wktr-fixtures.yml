@@ -89,6 +89,7 @@ on:
       - 'lean/Fw/Wire/Plan.lean'
       - 'lean/Fw/Wire/Sched.lean'
       - 'lean/Fw/Wire/Store.lean'
+      - 'packages/contracts/golden/measure/wktr.fixtures.jsonl'
       - '.github/scripts/runner-info.sh'
       - '.github/scripts/changed-inputs.mjs'
       - '.github/actions/setup-lean/**'
