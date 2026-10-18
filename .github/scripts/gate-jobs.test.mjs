@@ -56,6 +56,57 @@ test('gate-jobs: every golden line gives a matrix that covers all probes and swe
   }
 });
 
+// gate-shard-balance: the LPT plan over measured unit costs (Fw.Gate.Shard, golden/gate/shards.jsonl).
+const shards = readFileSync(join(root, 'packages/contracts/golden/gate/shards.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+const genIds = JSON.parse(readFileSync(join(root, 'apps/site/src/breakpoints.gen.json'), 'utf8')).matrix.probes.map((p) => p.id);
+
+test('golden shards: every line runs each probe and whole sweep once per engine, with durations and Graham bound', () => {
+  const costs = shards.find((g) => g.name === 'costs');
+  assert.ok(costs && /^breakpoint-gate run \d+ at [0-9a-f]+$/.test(costs.source), 'the costs line names its run');
+  const lines = shards.filter((g) => g.params === 'measured');
+  assert.equal(lines.length, 12);
+  for (const g of lines) {
+    const durs = g.jobs.map((j) => j.ms);
+    assert.equal(g.jobCount, durs.length, g.name);
+    assert.equal(g.sum, durs.reduce((a, b) => a + b, 0), g.name);
+    assert.equal(g.max, Math.max(...durs), g.name);
+    assert.equal(g.bound, g.r * g.sum + (g.m - 1) * g.max, `${g.name}: Graham numerator`);
+    assert.ok(g.m * g.makespan <= g.bound && g.grahamOk, `${g.name}: m*makespan <= bound`);
+    for (const eng of ['chromium', 'playwright-webkit']) {
+      const js = g.jobs.filter((j) => j.engine === eng);
+      const T = costs[eng];
+      assert.equal(js.length, g.k[eng], `${g.name} ${eng}: k jobs`);
+      assert.deepEqual(js.flatMap((j) => j.probes).sort(), [...genIds].sort(), `${g.name} ${eng}: each probe once`);
+      assert.deepEqual(js.flatMap((j) => j.sweeps).sort(), ['desktop', 'pain', 'phone', 'touch'], `${g.name} ${eng}: each sweep once`);
+      for (const j of js) {
+        const load = j.units.reduce((a, u) => a + (T.costs[u] ?? T.default), 0);
+        assert.equal(j.load, load, `${g.name} ${eng} slot ${j.slot}: load`);
+        assert.equal(j.ms, T.setup + load, `${g.name} ${eng} slot ${j.slot}: duration`);
+      }
+      // Graham's bound per engine (plan_makespan_bound): k * max load <= sum + (k - 1) * max unit cost
+      const unitCosts = js.flatMap((j) => j.units.map((u) => T.costs[u] ?? T.default));
+      const k = js.length;
+      assert.ok(k * Math.max(...js.map((j) => j.load)) <= unitCosts.reduce((a, b) => a + b, 0) + (k - 1) * Math.max(...unitCosts), `${g.name} ${eng}: LPT bound`);
+    }
+  }
+});
+
+test('gate-jobs --params measured passes the Lean jobs through and covers everything once', () => {
+  for (const g of shards.filter((x) => x.params === 'measured')) {
+    const r = node('gate-jobs.mjs', ['--params', 'measured', '--runs', String(g.r), '--free', String(g.m)]);
+    assert.equal(r.status, 0, `${g.name}: ${r.stderr}`);
+    const out = JSON.parse(r.stdout);
+    assert.equal(out.include.length, g.jobCount, g.name);
+    for (const j of out.include) {
+      const lean = g.jobs.find((x) => x.engine === j.engine && `j${x.slot}` === j.job);
+      assert.deepEqual(j.probes === 'none' ? [] : j.probes.split(','), lean.probes, `${g.name} ${j.engine} ${j.job}: probes as Lean says`);
+      assert.equal(j.sweeps === 'none' ? 0 : j.sweeps.split(',').length, lean.sweeps.length, `${g.name} ${j.engine} ${j.job}: sweeps`);
+    }
+  }
+  const narrowed = node('gate-jobs.mjs', ['--parts', 'hero.countdown']);
+  assert.equal(narrowed.status, 0, narrowed.stderr);
+});
+
 test('gate-jobs: --engines narrows, --parts narrows to the Lean scope and drops empty jobs, unknown input fails', () => {
   const one = node('gate-jobs.mjs', ['--engines', 'chromium']);
   assert.equal(one.status, 0, one.stderr);
@@ -142,4 +193,19 @@ test('merge-gate: a missing, duplicated or foreign probe or sweep fails', () => 
   assert.equal(ok([sweepIds[0], sweepIds[1]], [sweepIds[2], sweepIds[3]], ids.slice(half - 1), ids.slice(0, half)).r.status, 1, 'a probe twice');
   const odd = merge([{ ...run(ids, sweepIds), header: { ...header, browser: 'y' } }, run([], [])]);
   assert.equal(odd.r.status, 1, 'headers differ');
+});
+
+// The workflow plans with the Lean default (--params measured): a merge that drops the workflow side fails here (round 4: main's
+// trigger merge once reverted the default to cached).
+test('breakpoint-gate.yml: the times input, the plan step and gate-jobs.mjs all default to the Lean plan (measured)', () => {
+  const yml = readFileSync(join(root, '.github/workflows/breakpoint-gate.yml'), 'utf8');
+  const input = yml.match(/\n      times:\n(?:        .*\n|          .*\n)*?        default: '([a-z]+)'/);
+  assert.ok(input, 'the times input has a default');
+  assert.equal(input[1], 'measured', 'workflow_dispatch input default');
+  assert.match(yml, /TIMES: \$\{\{ inputs\.times \|\| 'measured' \}\}/, 'push runs plan with measured');
+  assert.match(yml, /case "\$TIMES" in measured\|base\|cached\|reduced\) ;;/, 'the guard accepts measured');
+  const dflt = node('gate-jobs.mjs', []);
+  const named = node('gate-jobs.mjs', ['--params', 'measured']);
+  assert.equal(dflt.status, 0, dflt.stderr);
+  assert.equal(dflt.stdout, named.stdout, 'gate-jobs.mjs without --params is the measured plan');
 });
