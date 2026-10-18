@@ -238,18 +238,34 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     expect(await pm.start("fix-none", USER)).toEqual({ ok: false, reason: "noTarget" });
   });
 
+  it("tick stops a preview with no proxied request for 15 min (Lean idle_stops); a touch keeps it", async () => {
+    const { pm, clock } = await setup();
+    const a = await pm.start("port-landed", USER);
+    if (!a.ok) throw new Error("start");
+    await pm.settled(a.id);
+    clock.t += 14 * 60_000;
+    expect(await pm.tick()).toEqual([]);
+    pm.touch(a.id);
+    clock.t += 14 * 60_000;
+    expect(await pm.tick()).toEqual([]); // the touch restarted the idle clock
+    clock.t += 2 * 60_000;
+    expect(await pm.tick()).toEqual([a.id]); // 16 min idle
+    expect(pm.list().previews).toEqual([]);
+  });
+
   it("tick stops every preview past its TTL (and only those); stop of an unknown id kills nothing", async () => {
     const { pm, clock } = await setup();
     const a = await pm.start("port-landed", USER);
     if (!a.ok) throw new Error("start");
     await pm.settled(a.id);
     const pid = pm.list().previews[0]!.pid!;
-    clock.t += 59 * 60_000;
-    expect(await pm.tick()).toEqual([]);
+    for (let i = 0; i < 4; i++) { clock.t += 14 * 60_000; pm.touch(a.id); } // used every 14 min: never idle, 56 min in
+    clock.t += 3 * 60_000;
+    expect(await pm.tick()).toEqual([]); // 59 min: inside the TTL
     expect(await pm.stop("nope", USER)).toEqual({ ok: false, reason: "unknown" });
     expect(alive(pid)).toBe(true);
-    clock.t += 2 * 60_000;
-    expect(await pm.tick()).toEqual([a.id]);
+    clock.t += 2 * 60_000; pm.touch(a.id);
+    expect(await pm.tick()).toEqual([a.id]); // 61 min: past the TTL however recently it was used
     await new Promise((res) => setTimeout(res, 300));
     expect(alive(pid)).toBe(false);
     expect(pm.list().previews).toEqual([]);
@@ -328,7 +344,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     const plain = spawn("sleep", ["30"], { stdio: "ignore" }); // same group as this test process
     try {
       const e = (pid: number, pstart: string | null): Entry => ({ id: "x", task: "t", target: { kind: "main", ref: "main", sha: "a" }, rp: 1, op: 2,
-        started: 0, deadline: 1, phase: "building", pid, pstart, tree: "/nonexistent" });
+        started: 0, deadline: 1, phase: "building", pid, pstart, tree: "/nonexistent", seen: 0 });
       expect(hooks.isOurs(own.pid!, e(own.pid!, hooks.startOf(own.pid!)))).toBe(true);
       expect(hooks.isOurs(own.pid!, e(own.pid!, "Mon Jan  1 00:00:00 2001"))).toBe(false); // a recycled pid has another start time
       expect(hooks.isOurs(own.pid!, e(own.pid!, null))).toBe(false);

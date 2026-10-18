@@ -1,0 +1,5 @@
+{"name":"not asked for","request":{"hasAddr":true,"hasPass":true,"op":"console.lanStart","passLen":20,"want":false},"response":{"result":"off","start":false}}
+{"name":"no private address","request":{"hasAddr":false,"hasPass":true,"op":"console.lanStart","passLen":20,"want":true},"response":{"result":"noAddress","start":false}}
+{"name":"no passphrase in the keychain","request":{"hasAddr":true,"hasPass":false,"op":"console.lanStart","passLen":0,"want":true},"response":{"result":"noPassphrase","start":false}}
+{"name":"eleven characters is too short","request":{"hasAddr":true,"hasPass":true,"op":"console.lanStart","passLen":11,"want":true},"response":{"result":"shortPassphrase","start":false}}
+{"name":"twelve characters starts","request":{"hasAddr":true,"hasPass":true,"op":"console.lanStart","passLen":12,"want":true},"response":{"result":"start","start":true}}

@@ -2,7 +2,8 @@
 // Two read-only static servers on 127.0.0.1: the rewrite (`--rewrite <dist>` on --rp) and the original snapshot
 // (`--original <dir>` on --op). Only I/O: no decisions (ports, lifetime and who may start come from Lean
 // `Fw.Console.Preview`). GET/HEAD only, no-store, path containment, analytics stubbed.
-//   node serve-child.ts --fw-preview=<id> --rewrite <dist> --original <dir> --media <dir> --rp N --op N
+//   node serve-child.ts --fw-preview=<id> --rewrite <dist> --original <dir> --media <dir> --rp N --op N [--prefix /preview/<id>]
+// `--prefix`: the side-by-side page links the two sides through the console's proxy path instead of the loopback ports.
 // `--fw-preview=<id>` is only a marker: the manager checks it in `ps` before it signals a recorded pid after a restart.
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -42,7 +43,7 @@ function serveFile(req: IncomingMessage, res: ServerResponse, file: string) {
   send(res, req, 200, MIME[extname(file).toLowerCase()] ?? "application/octet-stream", readFileSync(file));
 }
 
-type Opts = { root: string; mediaRoot?: string; prerendered?: boolean; compare?: { rp: number; op: number } };
+type Opts = { root: string; mediaRoot?: string; prerendered?: boolean; compare?: { rp: number; op: number; prefix?: string } };
 
 export function handler(o: Opts) {
   const configs = o.prerendered && existsSync(join(o.root, "configs.json"))
@@ -52,7 +53,7 @@ export function handler(o: Opts) {
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, req, 405, "text/plain", "read-only");
     const u = new URL(req.url ?? "/", "http://127.0.0.1");
     if (u.pathname === "/analytics.js") return send(res, req, 200, "text/javascript", ""); // the GTM loader never reaches the network
-    if (o.compare && u.pathname === "/__fw/compare") return send(res, req, 200, "text/html; charset=utf-8", comparePage(o.compare.op, o.compare.rp));
+    if (o.compare && u.pathname === "/__fw/compare") return send(res, req, 200, "text/html; charset=utf-8", comparePage(o.compare.op, o.compare.rp, o.compare.prefix));
     // "/" with a search: the prerendered page of that search (as the gate does), else index.html (the page client-renders)
     let path = u.pathname;
     if (configs && (path === "/" || path === "/index.html")) {
@@ -70,7 +71,9 @@ export function handler(o: Opts) {
 
 /** Side by side: original left, task version right, two iframes of the same width (an iframe's width is its viewport
  *  for `(width)` media queries). Hover, pointer, reduced-motion and dpr cannot be set from an iframe. */
-export function comparePage(op: number, rp: number): string {
+export function comparePage(op: number, rp: number, prefix?: string): string {
+  const ou = prefix ? `${prefix}/o/` : `http://127.0.0.1:${op}/`;
+  const ru = prefix ? `${prefix}/r/` : `http://127.0.0.1:${rp}/`;
   return `<!doctype html><meta charset="utf-8"><title>original | task version</title>
 <style>body{margin:0;font:13px system-ui;background:#eee}header{padding:6px 10px;display:flex;gap:10px;align-items:center}
 .row{display:flex;gap:8px;padding:0 8px 8px}.col{flex:1;min-width:0}.col h2{font-size:12px;margin:2px 0}
@@ -78,15 +81,15 @@ iframe{border:1px solid #888;background:#fff;height:calc(100vh - 80px);width:100
 <header><b>Side by side</b> width <select id=w><option value="">fit</option><option>320</option><option>390</option><option>600</option>
 <option>861</option><option>1024</option><option>1280</option><option>1512</option></select>
 <span>Scroll each side yourself. Emulate hover, reduced motion and dpr in DevTools per window.</span></header>
-<div class=row><div class=col><h2>original (snapshot) :${op}</h2><iframe id=a src="http://127.0.0.1:${op}/"></iframe></div>
-<div class=col><h2>task version :${rp}</h2><iframe id=b src="http://127.0.0.1:${rp}/"></iframe></div></div>
+<div class=row><div class=col><h2>original (snapshot) :${op}</h2><iframe id=a src="${ou}"></iframe></div>
+<div class=col><h2>task version :${rp}</h2><iframe id=b src="${ru}"></iframe></div></div>
 <script>const w=document.getElementById('w');w.onchange=()=>{for(const id of ['a','b']){const f=document.getElementById(id);f.style.width=w.value?w.value+'px':'100%';f.parentElement.style.flex=w.value?'none':'1'}}</script>`;
 }
 
 if (process.argv.includes("--serve")) {
   const rewrite = arg("--rewrite")!, original = arg("--original")!, media = arg("--media");
   const rp = Number(arg("--rp")), op = Number(arg("--op"));
-  const a = createServer(handler({ root: rewrite, mediaRoot: media, prerendered: true, compare: { rp, op } }));
+  const a = createServer(handler({ root: rewrite, mediaRoot: media, prerendered: true, compare: { rp, op, prefix: arg("--prefix") } }));
   const b = createServer(handler({ root: original }));
   let up = 0;
   const ready = () => { if (++up === 2) console.log(JSON.stringify({ ready: true, rp, op })); };
