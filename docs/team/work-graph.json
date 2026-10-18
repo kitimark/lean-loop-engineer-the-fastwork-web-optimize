@@ -1789,7 +1789,8 @@
     "port-morph-countdown",
     "port-morph-mount",
     "port-morph-panel",
-    "port-morph-tween"
+    "port-morph-tween",
+    "morph-group-integrate"
    ],
    "owner": "lead"
   },
@@ -1867,7 +1868,8 @@
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/morph.panel/**"
-   ]
+   ],
+   "evidence": "64857cb: on main via c4b57a2; nav hosting: morph-group-integrate"
   },
   {
    "id": "port-morph-countdown",
@@ -1915,7 +1917,8 @@
    "writes": [
     "apps/site/src/parts/nav/**",
     "apps/site/src/parts/nav.langMenu/**"
-   ]
+   ],
+   "evidence": "5e277bd: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "port-hero",
@@ -1934,7 +1937,8 @@
     "apps/site/src/parts/hero.deck/**",
     "apps/site/src/parts/hero.accent/**",
     "apps/site/src/parts/hero.cue/**"
-   ]
+   ],
+   "evidence": "4d26f44: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "port-people",
@@ -1952,7 +1956,8 @@
     "apps/site/src/parts/people.o/**",
     "apps/site/src/parts/people.deck/**",
     "apps/site/src/parts/people.carousel/**"
-   ]
+   ],
+   "evidence": "103f4c0: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "port-pain",
@@ -1968,7 +1973,8 @@
    "writes": [
     "apps/site/src/parts/pain/**",
     "apps/site/src/parts/pain.notes/**"
-   ]
+   ],
+   "evidence": "5d7f00b: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "port-commission",
@@ -1984,7 +1990,8 @@
    "writes": [
     "apps/site/src/parts/commission/**",
     "apps/site/src/parts/commission.typing/**"
-   ]
+   ],
+   "evidence": "66debaa: on main via c4b57a2; resize readings excused"
   },
   {
    "id": "port-platform",
@@ -2021,7 +2028,8 @@
    "writes": [
     "apps/site/src/parts/overlays.signup/**",
     "apps/site/src/parts/overlays.drawer/**"
-   ]
+   ],
+   "evidence": "7aad851: on main via c4b57a2; gate 39142015714 Chromium pass"
   },
   {
    "id": "vj-vt-chromium",
@@ -2515,7 +2523,8 @@
     "apps/site/src/App.tsx",
     "apps/site/src/registry/index.ts",
     "lean/Fw/Gate/Scope.lean"
-   ]
+   ],
+   "evidence": "c4b57a2: superseded by integrate-ports-4, landed"
   },
   {
    "id": "pa-land",
@@ -2883,7 +2892,8 @@
     "apps/site/src/parts/nav/**",
     "apps/site/src/parts/nav.hitTest/**",
     "apps/site/src/parts/nav.langMenu/**"
-   ]
+   ],
+   "evidence": "b00ef68: on main via c4b57a2"
   },
   {
    "id": "fix-commission",
@@ -2895,7 +2905,8 @@
    "writes": [
     "apps/site/src/parts/commission/**",
     "apps/site/src/parts/commission.typing/**"
-   ]
+   ],
+   "evidence": "3ed01af: on main via c4b57a2"
   },
   {
    "id": "fix-misc",
@@ -2912,7 +2923,8 @@
     "apps/site/src/parts/platform.stageBg/**",
     "apps/site/src/parts/overlays/**",
     "apps/site/src/parts/overlays.signup/**"
-   ]
+   ],
+   "evidence": "ef1774f: on main via c4b57a2"
   },
   {
    "id": "fix-people-webkit",
@@ -2926,7 +2938,8 @@
     "apps/site/src/parts/people.card/**",
     "apps/site/src/parts/people.deck/**",
     "apps/site/src/parts/people.o/**"
-   ]
+   ],
+   "evidence": "0f5cdb7: finding, no code change (gate misreads)"
   },
   {
    "id": "mistake-retro",
@@ -3012,7 +3025,8 @@
     "packages/contracts/golden/gate/**",
     "packages/gate-breakpoints/**",
     "docs/team/handoffs/gate-settle.md"
-   ]
+   ],
+   "evidence": "ee57e36: Fw.Gate.Settle merged; on main"
   },
   {
    "id": "fix-stagebg-webkit",
@@ -3024,7 +3038,8 @@
    "writes": [
     "apps/site/src/parts/platform/**",
     "docs/team/handoffs/fix-stagebg-webkit.md"
-   ]
+   ],
+   "evidence": "f007b85: on main via c4b57a2"
   },
   {
    "id": "workflow-claim",
@@ -3874,7 +3889,8 @@
     "lean/Fw/Parts/**",
     "packages/contracts/golden/parts/**",
     "docs/team/handoffs/fix-orbit.md"
-   ]
+   ],
+   "evidence": "bf7b417: orbit z-index cell skipped (original hover raise)"
   },
   {
    "id": "fix-pain-notes",
@@ -3890,7 +3906,8 @@
     "lean/Fw/Parts/**",
     "packages/contracts/golden/parts/**",
     "docs/team/handoffs/fix-pain-notes.md"
-   ]
+   ],
+   "evidence": "3bcfa3a: on main via c4b57a2"
   },
   {
    "id": "fix-nav-hittest",
@@ -3903,7 +3920,8 @@
    "owner": "part-builder",
    "writes": [
     "docs/team/handoffs/fix-nav-hittest.md"
-   ]
+   ],
+   "evidence": "ad919a4: finding, no code change (body colour rule fixed it)"
   },
   {
    "id": "fix-commission-margin",
@@ -3922,7 +3940,8 @@
     "packages/premise-tests/**",
     "packages/contracts/golden/**",
     "docs/team/handoffs/fix-commission-margin.md"
-   ]
+   ],
+   "evidence": "3301169: on main via c4b57a2"
   },
   {
    "id": "fix-page-offset",
@@ -3939,7 +3958,8 @@
     "lean/Fw/Gate/**",
     "packages/contracts/golden/parts/**",
     "docs/team/handoffs/fix-page-offset.md"
-   ]
+   ],
+   "evidence": "23c0821: on main via c4b57a2"
   },
   {
    "id": "engine-premise-measure",
@@ -5102,7 +5122,8 @@
     "packages/gate-breakpoints/**",
     "lean/Fw/Gate/**",
     "docs/team/handoffs/integrate-ports.md"
-   ]
+   ],
+   "evidence": "c4b57a2: landed (Chromium gate 39142015714 pass, 0 bad)"
   },
   {
    "id": "plan-page-readability",
@@ -5179,13 +5200,14 @@
     "packages/measure-chromium/test/**",
     "research/notes/2026/10-19-page-root-clip.md",
     "docs/team/handoffs/page-root-clip.md"
-   ]
+   ],
+   "evidence": "7897387"
   },
   {
    "id": "commission-resize",
-   "title": "commission and commission.typing faithful under live resize: gate run 39139490674 (integrate-ports-4 at c55826ac) has 57 bad Chromium readings, all in these two parts in the resize columns (desktop sweep 45/57 and 7/57, phone-rotation 2/5, touch-1024 3/5, pain-1440 margins): e.g. --visual-scale 0.762 vs 0.8 at 720x900 mid-sweep; split out of integrate-ports-4 (3rd round), which lands with these readings enumerated as exemptions",
+   "title": "CUT (Lego plan §F): commission and commission.typing faithful under live resize: gate run 39139490674 (integrate-ports-4 at c55826ac) has 57 bad Chromium readings, all in these two parts in the resize columns (desktop sweep 45/57 and 7/57, phone-rotation 2/5, touch-1024 3/5, pain-1440 margins): e.g. --visual-scale 0.762 vs 0.8 at 720x900 mid-sweep; split out of integrate-ports-4 (3rd round), which lands with these readings enumerated as exemptions",
    "stream": "parts",
-   "milestone": "M2",
+   "milestone": "MX",
    "deps": [
     "integrate-ports-4"
    ],
@@ -5198,7 +5220,8 @@
     "lean/Fw/Gate/Exit.lean",
     "packages/contracts/golden/gate/exit.jsonl",
     "docs/team/handoffs/commission-resize.md"
-   ]
+   ],
+   "cut": true
   },
   {
    "id": "console-task-details",
@@ -5211,6 +5234,360 @@
     "apps/console-web/src/Plan.tsx"
    ],
    "evidence": "4351dd2"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "compose-lean",
+   "title": "Lego plan (§C.2): Fw.Engine.Compose over any Engine: units compose across parts (frameWork_append_units, frame_le_append, someLt_append_units), passes do not (passes_not_compositional counterexample), visible_append_of_boxes_eq, lego_swap_sound",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Compose.lean",
+    "lean/Fw.lean",
+    "docs/team/handoffs/compose-lean.md"
+   ],
+   "evidence": "87455f3"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "contract-lean",
+   "title": "Lego plan (§B, §C.1): Fw.Parts.Contract: Signal, PartSpec per part (inputs/outputs from code, file:line), Independent decidable (I1-I4, I5 a recorded premise), groups G1-G5, groups_partition by decide, scenariosFor; generates contracts.gen.json and scenarios.gen.json",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "page-root-clip"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/Contract.lean",
+    "lean/Fw.lean",
+    "lean/scripts/**",
+    "packages/contracts/golden/parts/contracts.gen.json",
+    "packages/measure-chromium/scenarios.gen.json",
+    "docs/team/handoffs/contract-lean.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "content-hero",
+   "title": "Lego plan (§D): hero content: real copy and labels restated, pictures from the unmodified snapshot, accent strokes as restated path data, nav logo; same DOM shape (class E), gated in wave 1",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "page-root-clip"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/parts/hero.*/**",
+    "apps/site/src/parts/nav/logo*",
+    "docs/team/handoffs/content-hero.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "content-people-pain-commission",
+   "title": "Lego plan (§D): people, pain, commission content: avatars, covers, posts, o glyph, three deck panels, drawings, why-bring opens the drawer; content-visibility deferral for people/pain must keep boxes (PL1)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "page-root-clip"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/people*/**",
+    "apps/site/src/parts/pain*/**",
+    "apps/site/src/parts/commission*/**",
+    "apps/site/src/parts/engine.scene/**",
+    "docs/team/handoffs/content-people-pain-commission.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "faithful-checks-rerun",
+   "title": "Lego plan (§D): faithful checks after page-root-clip: zones y04000/y04500/tail, swipe-v1 and swipe-touch-v1, R vs A bands; gate anchor scrollWidth <= innerWidth in the Lean gate table (page-root-clip open item)",
+   "stream": "measure",
+   "milestone": "M2",
+   "deps": [
+    "page-root-clip"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/anchors.json",
+    "lean/Fw/Gate/**",
+    "results/faithful/**",
+    "research/notes/2026/10-19-faithful-rerun.md",
+    "docs/team/handoffs/faithful-checks-rerun.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "integrate-wave-1",
+   "title": "Lego plan (§D, lead): content lanes + faithful anchor integrated; one gate both engines; base counts refreeze per profile (≤ 3 concurrent)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "content-hero",
+    "content-people-pain-commission",
+    "faithful-checks-rerun"
+   ],
+   "owner": "lead",
+   "writes": []
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "morph-group-integrate",
+   "title": "Lego plan (§D, G2): morph panel hosted in the nav (writerRef + backdrop), 21 snapshot images, CTAs (nav Join, hero, commission) open signup/drawer, debug tray and MUI Menu removed; MorphPanel/MorphTween goldens unchanged; own gate + counts",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "page-root-clip"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/morph.*/**",
+    "apps/site/src/parts/nav/index.tsx",
+    "apps/site/src/parts/overlays.*/**",
+    "apps/site/src/App.tsx",
+    "docs/team/handoffs/morph-group-integrate.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "proved-flags-ts",
+   "title": "Lego plan (§D): TS variants for six proved Lean flags (n5 nav write-on-change, n8 clock-aligned, n16 people.card shrink, n21 pain.notes arm, n15 accent steps, n11 panel rest) passing golden tests; v2-proved preset extended and default",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "contract-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/hero.countdown/**",
+    "apps/site/src/parts/people.card/**",
+    "apps/site/src/parts/pain.notes/**",
+    "apps/site/src/parts/hero.accent/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "docs/team/handoffs/proved-flags-ts.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "model-bug-fixes",
+   "title": "Lego plan (§D): fix the 4 refuted model predictions (nav.hitTest FunctionCall per frame, morph.columns/scene UpdateLayoutTree, morph.mount LayoutCount, morph.tween waapi FireAnimationFrame) with Chromium cites; UpdateLayoutTree case checked against passes_not_compositional",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "integrate-wave-1",
+    "compose-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Chromium.lean",
+    "lean/Fw/Engine/Keys.lean",
+    "packages/engine-check/classes.frozen.json",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/model-bug-fixes.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "part-io-lint",
+   "title": "Lego plan (§C glue): lint-part-io.mjs: every setProperty/classList/dataset write outside a part anchor is a declared Contract output",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "contract-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/scripts/lint-part-io.mjs",
+    "apps/site/package.json",
+    "docs/team/handoffs/part-io-lint.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "part-stage",
+   "title": "Lego plan (§C glue): PartStage mounts one part or group under a fixed ScrollEnv with declared inputs and neighbour stubs; route ?only=<id>&stage=...; stub ablation variants; prerender of ?only= pages",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "contract-lean"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/stage/**",
+    "apps/site/src/registry/only.ts",
+    "apps/site/src/App.tsx",
+    "apps/site/scripts/gen-shells.mjs",
+    "apps/site/src/entry-server.tsx",
+    "docs/team/handoffs/part-stage.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "counts-only",
+   "title": "Lego plan (§C glue, rescoped by the Fable CI review): one optional only/search input on chromium-counts.yml (rewrite target only; the plan job charset check at line 129 blocks ?only= today); one part-page run added to Fw.Engine.Keys goldenRuns (runKey_inj already covers any search, no RunMeta.only, no matrix cap); part pages state the frozen-classes premise (engine-check.ts:87,110-112); pilot on the C3 path only if part-stage lands by 18:00",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "part-stage"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/chromium-counts.yml",
+    "lean/Fw/Engine/Keys.lean",
+    "packages/contracts/golden/engine/**",
+    "docs/team/handoffs/counts-only.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "compose-check",
+   "title": "Lego plan (§C.3, after C3): Fw.Measure.Compose F6 per (part, stage, zone): combined delta vs sum of part deltas within the class margin; engine-check --compose",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "compose-lean",
+    "counts-only"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Measure/Compose.lean",
+    "packages/engine-check/src/**",
+    "docs/team/handoffs/compose-check.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "integrate-wave-2",
+   "title": "Lego plan (§D, lead): morph group, proved flags, glue, model fixes integrated; one gate; combined counts per profile + G2 run; engine-check per part zone; F6 pilot",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "morph-group-integrate",
+    "proved-flags-ts",
+    "model-bug-fixes",
+    "part-io-lint",
+    "part-stage",
+    "counts-only"
+   ],
+   "owner": "lead",
+   "writes": []
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "plan-rev11",
+   "title": "Lego plan: PLAN rev 11: §4.8 composition (units compose, passes do not), §6.8 part contract, §10.7 Lego lanes + C3 slice; loop-plan.html",
+   "stream": "plan",
+   "milestone": "M6",
+   "deps": [
+    "compose-lean",
+    "contract-lean"
+   ],
+   "owner": "plan-editor",
+   "writes": [
+    "docs/plan/PLAN.md",
+    "docs/plan/loop-plan.html",
+    "docs/team/handoffs/plan-rev11.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "report-draft-3",
+   "title": "Lego plan (§G): report draft 3: per-part table, independent vs coupled, runs per flag before/after, composition lesson, not-done list; text frozen 2026-10-20 11:15",
+   "stream": "report",
+   "milestone": "M6",
+   "deps": [
+    "integrate-wave-2"
+   ],
+   "owner": "researcher",
+   "writes": [
+    "docs/report/**",
+    "docs/team/handoffs/report-draft-3.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "part-stage-webkit",
+   "title": "CUT until after C3 (Lego plan §F): WebKit part lane on PartStage",
+   "stream": "measure",
+   "milestone": "MX",
+   "cut": true,
+   "deps": [
+    "part-stage"
+   ],
+   "owner": "measure-engineer",
+   "writes": []
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "test-batch",
+   "title": "Speed review A1/A2/A4: wait-guard.test.ts and verdict.test.mjs literal cases batched into one fwcore process per describe (land wall ~240 s -> ~100 s); a second test keeps the per-call ask spawn path covered; wait-guard.test.ts:68 gets the 30 s timeout",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/test/wait-guard.test.ts",
+    "packages/gate-breakpoints/test/verdict.test.mjs",
+    "docs/team/handoffs/test-batch.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "speed-after-c3",
+   "title": "Speed review class B, after C3 (research/notes/2026/10-19-speed-review.md): mathview-differential per-job trigger in Fw.Ci.Trigger (saving only when lean is the slowest lane), 5x mathview lint slowdown, check.sh parallel cap and one sweepsgen, long-lived fwcore for the wait-guard hook or a proved pre-filter, land check-result cache by inputKey (cache_sound), props lint compiled, Wire.Obs rfl proofs, counts matrix sharing setup jobs, main-push heavy lanes",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "integrate-wave-2"
+   ],
+   "owner": "lead",
+   "writes": []
   }
  ],
  "deadline": {

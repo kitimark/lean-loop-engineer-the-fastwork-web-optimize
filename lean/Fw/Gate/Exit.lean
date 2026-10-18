@@ -15,7 +15,8 @@ same state. A cell holds its readings (a probe verdict or a sweep-stop verdict, 
 `<sweep id>#<stop>`). A reading is `ok` when it passed, or when a Lean-registered exemption excuses it (`exemptions`: an
 allowlist of engine, rows, column, verdict, reading ids, reason and premise, rows and ids always enumerated (`exemptions_enumerated`);
 every excused reading is printed in the verdict).
-A cell is `ok` when each of its readings is (`rollup_pass_iff_all_readings`). Nothing else is `ok`: a `fail`, an unsettled
+A cell is `ok` when each of its readings is (`rollup_pass_iff_all_readings`). Nothing else is `ok`: a `fail` other than the 57
+Chromium commission-resize readings of run 39139490674 (`excused_fail_keys`, `commission_resize_excused`), an unsettled
 sample, a not-comparable or unreachable reading that no exemption names, and a not-run cell of a run that was not narrowed to
 parts are each a reason the engine does not pass (`engine_pass_iff_all_cells`, `engineVerdictCS_pass_iff`). No other reading of
 the same cell and no aggregate can hide one: a faster or greener gate never comes from comparing less. The lenient
@@ -172,11 +173,56 @@ def Exemption.matches (x : Exemption) (engine row col : String) (r : Reading) : 
 $$\mathrm{touch1024Ids} = [\texttt{touch-1024-1201\#}i]_{i \in [0, 2, 4]}$$ -/
 def touch1024Ids : List String := [0, 2, 4].map fun i => s!"touch-1024-1201#{i}"
 
-/-- **The allowlist of excused readings** (an exemption is an engine, enumerated rows, a column, enumerated reading ids, a verdict,
-a reason and a premise; nothing outside this list is ever excused, and the list excuses only `not-comparable` and `unreachable`
-verdicts, `exemptions_verdict`).
+/-- The failing Chromium readings of breakpoint-gate run 39139490674 (head `c55826ac`), as (exemption id, row, sweep, stop indices):
+`commission` on the desktop sweep (stops 7 to 51), the tablet sweep (stops 2, 4) and the pain sweep (stops 0, 2, 4), and
+`commission.typing` on the desktop sweep (stops 17, 18, 19, 29, 39, 40, 41).
 
-$$\mathrm{exemptions} = [x_{\mathrm{cross}},\ x_{\mathrm{frac}},\ x_{\mathrm{mm}},\ x_{\mathrm{touch}}^{\mathrm{chromium}},\ x_{\mathrm{touch}}^{\mathrm{webkit}}]$$
+$$\mathrm{R} = [(\texttt{commission}, \texttt{desktop-1512-320-1512}, [7, \dots, 51]),\ (\texttt{commission}, \texttt{touch-1024-1201}, [2, 4]),\ (\texttt{commission}, \texttt{pain-1440-600-1440}, [0, 2, 4]),\ (\texttt{commission.typing}, \texttt{desktop-1512-320-1512}, [17, 18, 19, 29, 39, 40, 41])]$$
+
+Each entry also carries its exemption id. -/
+def commissionResizeStops : List (String × String × String × List Nat) :=
+  [ ("chromium-commission-resize-desktop", "commission", "desktop-1512-320-1512", List.range' 7 45),
+    ("chromium-commission-resize-touch", "commission", "touch-1024-1201", [2, 4]),
+    ("chromium-commission-resize-pain", "commission", "pain-1440-600-1440", [0, 2, 4]),
+    ("chromium-commission-typing-resize-desktop", "commission.typing", "desktop-1512-320-1512", [17, 18, 19, 29, 39, 40, 41]) ]
+
+/-- The keys of those failing readings: row, `sweep:<id>` and `<id>#<stop>`.
+
+$$\mathrm{K}_{\mathrm{resize}} = [\,(\rho, \texttt{sweep:} \mathbin{+\!\!+} w, w \mathbin{+\!\!+} \texttt{\#} \mathbin{+\!\!+} \operatorname{str}(i)) \mid (\_, \rho, w, I) \in \mathrm{R},\ i \in I\,]$$ -/
+def commissionResizeKeys : List Key :=
+  commissionResizeStops.flatMap fun s => s.2.2.2.map fun i => (s.2.1, "sweep:" ++ s.2.2.1, s!"{s.2.2.1}#{i}")
+
+/-- Why the commission readings are excused: the port does not follow a live resize, and a separate task fixes it.
+
+$$\mathrm{reason}_{\mathrm{resize}} \in \mathrm{String}$$ -/
+def commissionResizeReason : String :=
+  "commission port unfaithful under live resize; task commission-resize (work-graph a020b32e); Q36 swap check not passed for these readings"
+
+/-- **Premise of the commission-resize exemptions**: their keys are 57 distinct readings of the universe, each in row `commission` or
+`commission.typing` and in one of the desktop, tablet and pain sweep columns.
+
+$$|\mathrm{K}_{\mathrm{resize}}| = 57 \wedge \operatorname{Nodup}(\mathrm{K}_{\mathrm{resize}}) \wedge \forall (\rho, \kappa, i) \in \mathrm{K}_{\mathrm{resize}},\ (\rho, \kappa, i) \in U \wedge \rho \in \{\texttt{commission}, \texttt{commission.typing}\} \wedge \kappa \in \{\texttt{sweep:desktop-1512-320-1512}, \texttt{sweep:touch-1024-1201}, \texttt{sweep:pain-1440-600-1440}\}$$
+
+The excuse covers no row other than the two commission rows and no column other than the three resize sweeps. -/
+theorem commission_resize_scope :
+    commissionResizeKeys.length = 57 ∧ commissionResizeKeys.Nodup ∧
+      ∀ k ∈ commissionResizeKeys, k ∈ gateUniverse ∧ k.1 ∈ ["commission", "commission.typing"] ∧
+        k.2.1 ∈ ["sweep:desktop-1512-320-1512", "sweep:touch-1024-1201", "sweep:pain-1440-600-1440"] := by
+  decide +kernel
+
+/-- One commission-resize exemption from its (exemption id, row, sweep, stops) entry: Chromium, that row, column `sweep:<sweep>`, the
+reading ids `<sweep>#<stop>`, verdict `fail`.
+
+$$\forall (n, \rho, w, I),\quad x_{\mathrm{resize}}(n, \rho, w, I) = (n, \texttt{chromium}, [\rho], \texttt{sweep:} \mathbin{+\!\!+} w, [w \mathbin{+\!\!+} \texttt{\#} \mathbin{+\!\!+} \operatorname{str}(i)]_{i \in I}, \mathrm{fail}, \mathrm{reason}_{\mathrm{resize}}, \texttt{commission\_resize\_scope})$$ -/
+def resizeExemption (s : String × String × String × List Nat) : Exemption :=
+  { id := s.1, engine := "chromium", rows := [s.2.1], col := "sweep:" ++ s.2.2.1, ids := s.2.2.2.map fun i => s!"{s.2.2.1}#{i}",
+    verdict := .fail, reason := commissionResizeReason, premise := ``Fw.Gate.Exit.commission_resize_scope }
+
+/-- **The allowlist of excused readings** (an exemption is an engine, enumerated rows, a column, enumerated reading ids, a verdict,
+a reason and a premise; nothing outside this list is ever excused; the list excuses `not-comparable` and `unreachable` verdicts,
+and `fail` only in the four commission-resize entries, `exemptions_verdict`, `excused_fail_keys`).
+
+$$\mathrm{exemptions} = [x_{\mathrm{cross}},\ x_{\mathrm{frac}},\ x_{\mathrm{mm}},\ x_{\mathrm{touch}}^{\mathrm{chromium}},\ x_{\mathrm{touch}}^{\mathrm{webkit}}] \mathbin{+\!\!+} [\,x_{\mathrm{resize}}(s) \mid s \in \mathrm{R}\,]$$
 
 * $x_{\mathrm{cross}}$: WebKit, the 36 rows of $\mathrm{rows}$ (listed), column `hover-pointer-cross`, the 4 ids
   $\operatorname{ids}(\text{hover-pointer-cross})$, `unreachable:primary-pair`, premise `matrix_cross_webkit`.
@@ -186,7 +232,9 @@ $$\mathrm{exemptions} = [x_{\mathrm{cross}},\ x_{\mathrm{frac}},\ x_{\mathrm{mm}
   `not-comparable`, premise `fractional_chromium_lean_na`.
 * $x_{\mathrm{touch}}$: each engine, rows [`matchMedia =Lean`], column `sweep:touch-1024-1201`, ids `touch-1024-1201#0`, `#2`, `#4`,
   `not-comparable`, premise `touch1024_lean_na`. The other two stops (1201) and the phone-rotation sweep have no entry: a
-  not-comparable reading there is a finding, not an excuse. -/
+  not-comparable reading there is a finding, not an excuse.
+* $x_{\mathrm{resize}}(s)$: Chromium, the row of $s$, its sweep column, its stop ids, `fail`, reason $\mathrm{reason}_{\mathrm{resize}}$,
+  premise `commission_resize_scope`: the 57 failing readings of run 39139490674, none of WebKit. -/
 def exemptions : List Exemption :=
   [ { id := "webkit-cross-primary-pair", engine := "playwright-webkit", rows := gateRows, col := "hover-pointer-cross",
       ids := blockIds .hoverPointerCross, verdict := .unreachable .primaryPair,
@@ -207,7 +255,8 @@ def exemptions : List Exemption :=
     { id := "webkit-touch-1024-no-vector", engine := "playwright-webkit", rows := ["matchMedia =Lean"], col := "sweep:touch-1024-1201",
       ids := touch1024Ids, verdict := .nc,
       reason := "the 1024 stops of the tablet sweep have no Lean vector (no matrix probe has that environment), so every check against Lean's value there is not applicable",
-      premise := ``Fw.Gate.touch1024_lean_na } ]
+      premise := ``Fw.Gate.touch1024_lean_na } ] ++
+  commissionResizeStops.map resizeExemption
 
 /-- The id under which a not-run cell of a narrowed run is excused.
 
@@ -239,21 +288,24 @@ There is no tolerance: one reading that is neither a pass nor excused makes the 
 def TableCell.ok (e : String) (narrowed : Bool) (c : TableCell) : Bool :=
   if c.readings.isEmpty then narrowed else c.readings.all (·.ok e c.row c.col)
 
-/-- The registry excuses neither a pass nor a fail.
+/-- The registry never excuses a pass, and an entry that excuses a fail is a Chromium entry with the commission-resize reason whose
+every (row, reading id) pair, in its column, is a commission-resize key.
 
-$$\forall x \in \mathrm{exemptions},\ x.\mathit{verdict} \ne \mathrm{pass} \wedge x.\mathit{verdict} \ne \mathrm{fail}$$
+$$\forall x \in \mathrm{exemptions},\ x.\mathit{verdict} \ne \mathrm{pass} \wedge \bigl(x.\mathit{verdict} = \mathrm{fail} \implies x.\mathit{engine} = \texttt{chromium} \wedge x.\mathit{reason} = \mathrm{reason}_{\mathrm{resize}} \wedge \forall \rho \in x.\mathit{rows},\ \forall i \in x.\mathit{ids},\ (\rho, x.\mathit{col}, i) \in \mathrm{K}_{\mathrm{resize}}\bigr)$$
 
-A failing reading is never excusable; only not-comparable and unreachable readings can be. -/
-theorem exemptions_verdict : ∀ x ∈ exemptions, x.verdict ≠ .pass ∧ x.verdict ≠ .fail := by
-  decide
+The only failing readings the registry can excuse are the 57 commission-resize readings. -/
+theorem exemptions_verdict : ∀ x ∈ exemptions, x.verdict ≠ .pass ∧
+    (x.verdict = .fail → x.engine = "chromium" ∧ x.reason = commissionResizeReason ∧
+      ∀ ρ ∈ x.rows, ∀ i ∈ x.ids, (ρ, x.col, i) ∈ commissionResizeKeys) := by
+  decide +kernel
 
-/-- A reading with an excuse neither passed nor failed.
+/-- A reading with an excuse did not pass.
 
-$$\operatorname{excuse}(e, \rho, \kappa, r) \ne \bot \implies r.v \ne \mathrm{pass} \wedge r.v \ne \mathrm{fail}$$
+$$\forall e, \rho, \kappa, r,\quad \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot \implies r.v \ne \mathrm{pass}$$
 
-Excusing a reading never turns a failure into a pass. -/
-theorem excuseReading_not_pass_fail (e row col : String) (r : Reading) (h : (excuseReading e row col r).isSome = true) :
-    r.v ≠ .pass ∧ r.v ≠ .fail := by
+An excuse is only ever looked up for a reading that did not pass. -/
+theorem excuseReading_not_pass (e row col : String) (r : Reading) (h : (excuseReading e row col r).isSome = true) :
+    r.v ≠ .pass := by
   unfold excuseReading at h
   cases hf : exemptions.find? (·.matches e row col r) with
   | none => simp [hf] at h
@@ -261,10 +313,9 @@ theorem excuseReading_not_pass_fail (e row col : String) (r : Reading) (h : (exc
     have hm := List.find?_some hf
     have hmem := List.mem_of_find?_eq_some hf
     simp only [Exemption.matches, Bool.and_eq_true, beq_iff_eq] at hm
-    have hv := exemptions_verdict x hmem
     have hr : r.v = x.verdict := hm.1.1.2
     rw [hr]
-    exact hv
+    exact (exemptions_verdict x hmem).1
 
 /-- **An excuse names its reading by enumeration**: the exemption that excuses a reading lists the reading's row and the reading's id,
 for that engine, column and verdict.
@@ -308,16 +359,41 @@ theorem excused_in_universe (e row col : String) (r : Reading) (h : (excuseReadi
   refine List.mem_flatMap.2 ⟨row, hrows row hrow, List.mem_flatMap.2 ⟨c, hc, List.mem_map.2 ⟨r.id, hids r.id hid, ?_⟩⟩⟩
   rw [hc1, hcol]
 
-/-- An ok reading did not fail.
+/-- **An excused failing reading is a Chromium commission-resize reading.**
 
-$$\operatorname{ok}(e, \rho, \kappa, r) \implies r.v \ne \mathrm{fail}$$
+$$\forall e, \rho, \kappa, r,\quad \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot \wedge r.v = \mathrm{fail} \implies e = \texttt{chromium} \wedge (\rho, \kappa, r.\mathit{id}) \in \mathrm{K}_{\mathrm{resize}}$$
 
-A failing reading is never ok. -/
-theorem Reading.ok_not_fail (e row col : String) (r : Reading) (h : r.ok e row col = true) : r.v ≠ .fail := by
+No WebKit fail and no fail outside the 57 listed keys is ever excused. -/
+theorem excused_fail_keys (e row col : String) (r : Reading) (h : (excuseReading e row col r).isSome = true)
+    (hv : r.v = .fail) : e = "chromium" ∧ (row, col, r.id) ∈ commissionResizeKeys := by
+  obtain ⟨i, hi⟩ := Option.isSome_iff_exists.1 h
+  obtain ⟨x, hx, -, he, hrow, hcol, hid, hxv⟩ := exemptions_enumerated e row col r i hi
+  obtain ⟨-, hf⟩ := exemptions_verdict x hx
+  obtain ⟨hen, -, hk⟩ := hf (hxv ▸ hv)
+  refine ⟨he ▸ hen, ?_⟩
+  have := hk row hrow r.id hid
+  rwa [hcol] at this
+
+/-- **Each of the 57 commission-resize keys is excused as a Chromium fail.**
+
+$$\forall (\rho, \kappa, i) \in \mathrm{K}_{\mathrm{resize}},\quad \operatorname{excuse}(\texttt{chromium}, \rho, \kappa, (i, \mathrm{fail})) \ne \bot$$
+
+With `excused_fail_keys`: the excused failing readings are exactly these keys, in Chromium. -/
+theorem commission_resize_excused :
+    ∀ k ∈ commissionResizeKeys, (excuseReading "chromium" k.1 k.2.1 ⟨k.2.2, .fail⟩).isSome = true := by
+  decide +kernel
+
+/-- An ok reading that failed is a Chromium commission-resize reading.
+
+$$\forall e, \rho, \kappa, r,\quad \operatorname{ok}(e, \rho, \kappa, r) \wedge r.v = \mathrm{fail} \implies e = \texttt{chromium} \wedge (\rho, \kappa, r.\mathit{id}) \in \mathrm{K}_{\mathrm{resize}}$$
+
+Every other failing reading is not ok. -/
+theorem Reading.ok_fail_resize (e row col : String) (r : Reading) (h : r.ok e row col = true) (hv : r.v = .fail) :
+    e = "chromium" ∧ (row, col, r.id) ∈ commissionResizeKeys := by
   simp only [Reading.ok, Bool.or_eq_true, beq_iff_eq] at h
   rcases h with h | h
-  · rw [h]; intro e; cases e
-  · exact (excuseReading_not_pass_fail e row col r h).2
+  · rw [hv] at h; cases h
+  · exact excused_fail_keys e row col r h hv
 
 /-- **A cell is ok exactly when every one of its readings is ok.**
 
@@ -334,20 +410,27 @@ theorem rollup_pass_iff_all_readings (e : String) (N : Bool) (c : TableCell) :
   · have : c.readings.isEmpty = false := by simpa [List.isEmpty_iff] using h
     simp [this, h]
 
-/-- An ok cell has no failing reading.
+/-- Some reading of the cell failed and no exemption excuses it.
 
-$$\operatorname{ok}(e, N, c) \implies \neg\operatorname{isFail}(c)$$
+$$\forall e, c,\quad \operatorname{failsOn}(e, c) \iff \exists r \in c.\mathit{readings},\ r.v = \mathrm{fail} \wedge \operatorname{excuse}(e, c.\mathit{row}, c.\mathit{col}, r) = \bot$$ -/
+def TableCell.failsOn (e : String) (c : TableCell) : Bool :=
+  c.readings.any fun r => r.v == .fail && (excuseReading e c.row c.col r).isNone
+
+/-- An ok cell has no unexcused failing reading.
+
+$$\forall e, N, c,\quad \operatorname{ok}(e, N, c) \implies \neg\operatorname{failsOn}(e, c)$$
 
 -/
-theorem TableCell.ok_not_fail (e : String) (N : Bool) (c : TableCell) (h : c.ok e N = true) : c.isFail = false := by
-  cases hf : c.isFail with
+theorem TableCell.ok_not_failsOn (e : String) (N : Bool) (c : TableCell) (h : c.ok e N = true) : c.failsOn e = false := by
+  cases hf : c.failsOn e with
   | false => rfl
   | true =>
     obtain ⟨r, hr, hv⟩ := List.any_eq_true.1 hf
-    have hv' : r.v = .fail := by simpa using hv
+    simp only [Bool.and_eq_true, beq_iff_eq, Option.isNone_iff_eq_none] at hv
     rcases (rollup_pass_iff_all_readings e N c).1 h with ⟨hnil, _⟩ | ⟨_, hall⟩
     · rw [hnil] at hr; cases hr
-    · exact absurd hv' (Reading.ok_not_fail e c.row c.col r (hall r hr))
+    · have hok := hall r hr
+      simp [Reading.ok, hv.1, hv.2] at hok
 
 /-- A reading that is not ok makes its cell not ok.
 
@@ -366,12 +449,12 @@ theorem TableCell.not_ok_of_reading (e : String) (N : Bool) (c : TableCell) (r :
 /-- The verdict of one engine from the cells of its table, whether the run was narrowed to parts, and the number of unsettled
 samples.
 
-$$\operatorname{ev}_C(e, N, cs, u) = \begin{cases} \mathrm{fail} & \exists c \in cs,\ \operatorname{isFail}(c) \\ \mathrm{unsettled} & \text{no fail} \wedge u > 0 \\ \mathrm{incomplete} & \text{no fail} \wedge u = 0 \wedge \exists c \in cs,\ \neg\operatorname{ok}(e, N, c) \\ \mathrm{pass} & \text{the above fail} \wedge \exists c \in cs,\ \operatorname{isPass}(c) \\ \mathrm{notRendered} & \text{otherwise} \end{cases}$$
+$$\operatorname{ev}_C(e, N, cs, u) = \begin{cases} \mathrm{fail} & \exists c \in cs,\ \operatorname{failsOn}(e, c) \\ \mathrm{unsettled} & \text{no fail} \wedge u > 0 \\ \mathrm{incomplete} & \text{no fail} \wedge u = 0 \wedge \exists c \in cs,\ \neg\operatorname{ok}(e, N, c) \\ \mathrm{pass} & \text{the above fail} \wedge \exists c \in cs,\ \operatorname{isPass}(c) \\ \mathrm{notRendered} & \text{otherwise} \end{cases}$$
 
-A failing cell fails the engine; else an unsettled sample makes it unsettled; else a cell that is neither a pass nor excused makes it
+A cell with an unexcused failing reading fails the engine; else an unsettled sample makes it unsettled; else a cell that is neither a pass nor excused makes it
 incomplete; else it passes only if some cell passed. -/
 def engineVerdictC (e : String) (narrowed : Bool) (cs : List TableCell) (unsettled : Nat) : EngineVerdict :=
-  if cs.any TableCell.isFail then .fail
+  if cs.any (·.failsOn e) then .fail
   else if 0 < unsettled then .unsettled
   else if cs.any (fun c => !c.ok e narrowed) then .incomplete
   else if cs.any TableCell.isPass then .pass
@@ -458,11 +541,11 @@ each of its readings is (`rollup_pass_iff_all_readings`). -/
 theorem engine_pass_iff_all_cells (e : String) (N : Bool) (cs : List TableCell) (u : Nat) :
     engineVerdictC e N cs u = .pass ↔
       u = 0 ∧ (∀ c ∈ cs, c.ok e N = true) ∧ ∃ c ∈ cs, c.isPass = true := by
-  have hfail : ∀ c ∈ cs, c.ok e N = true → c.isFail = false := fun c _ hok => TableCell.ok_not_fail e N c hok
+  have hfail : ∀ c ∈ cs, c.ok e N = true → c.failsOn e = false := fun c _ hok => TableCell.ok_not_failsOn e N c hok
   unfold engineVerdictC
   constructor
   · intro h
-    by_cases h1 : cs.any TableCell.isFail = true
+    by_cases h1 : cs.any (·.failsOn e) = true
     · simp [h1] at h
     · by_cases h2 : 0 < u
       · simp [h1, h2] at h
@@ -476,7 +559,7 @@ theorem engine_pass_iff_all_cells (e : String) (N : Bool) (cs : List TableCell) 
             | false => exact absurd (List.any_eq_true.2 ⟨c, hc, by simp [hk]⟩) h3
           · simp [h1, h2, h3, h4] at h
   · rintro ⟨hu, hall, hex⟩
-    have h1 : ¬ (cs.any TableCell.isFail = true) := by
+    have h1 : ¬ (cs.any (·.failsOn e) = true) := by
       intro h
       obtain ⟨c, hc, hf⟩ := List.any_eq_true.1 h
       have := hfail c hc (hall c hc)
@@ -561,16 +644,18 @@ theorem engineVerdictC_notRun_ne_pass (e : String) (cs : List TableCell) (u : Na
   apply engineVerdictC_ne_pass_of_cell e false cs u c hc
   simp [TableCell.ok, hv]
 
-/-- A failing reading fails its engine.
+/-- A failing reading that no exemption excuses fails its engine.
 
-$$c \in cs \wedge r \in c.\mathit{readings} \wedge r.v = \mathrm{fail} \implies \operatorname{ev}_C(e, N, cs, u) = \mathrm{fail}$$
+$$\forall e, N, cs, u, c, r,\quad c \in cs \wedge r \in c.\mathit{readings} \wedge r.v = \mathrm{fail} \wedge \operatorname{excuse}(e, c.\mathit{row}, c.\mathit{col}, r) = \bot \implies \operatorname{ev}_C(e, N, cs, u) = \mathrm{fail}$$
 
-Unsettled samples do not hide a failure. -/
+Unsettled samples do not hide a failure; by `excused_fail_keys` the excuse is absent for every fail but the 57 Chromium
+commission-resize keys. -/
 theorem engineVerdictC_fail (e : String) (N : Bool) (cs : List TableCell) (u : Nat) (c : TableCell)
-    (hc : c ∈ cs) (r : Reading) (hr : r ∈ c.readings) (hv : r.v = .fail) : engineVerdictC e N cs u = .fail := by
+    (hc : c ∈ cs) (r : Reading) (hr : r ∈ c.readings) (hv : r.v = .fail) (hx : excuseReading e c.row c.col r = none) :
+    engineVerdictC e N cs u = .fail := by
   unfold engineVerdictC
-  have : cs.any TableCell.isFail = true :=
-    List.any_eq_true.2 ⟨c, hc, List.any_eq_true.2 ⟨r, hr, by simp [hv]⟩⟩
+  have : cs.any (·.failsOn e) = true :=
+    List.any_eq_true.2 ⟨c, hc, List.any_eq_true.2 ⟨r, hr, by simp [hv, hx]⟩⟩
   simp [this]
 
 /-- Unsettled samples keep an engine from passing.
@@ -1104,6 +1189,12 @@ def fracCell : String × String × List (String × String) :=
 $$\mathrm{ab} = (\texttt{engine.scroll}, \texttt{desk}, [(\texttt{a}, \texttt{pass}), (\texttt{b}, \texttt{pass})])$$ -/
 def abCell : String × String × List (String × String) := ("engine.scroll", "desk", [("a", "pass"), ("b", "pass")])
 
+/-- A failing stop `i` of sweep `w` in row `ρ`, as a one-reading wire cell.
+
+$$\forall \rho, w, i,\quad \operatorname{resizeCell}(\rho, w, i) = (\rho, \texttt{sweep:} \mathbin{+\!\!+} w, [(w \mathbin{+\!\!+} \texttt{\#} \mathbin{+\!\!+} \operatorname{str}(i), \texttt{fail})])$$ -/
+def resizeCell (row sweep : String) (i : Nat) : String × String × List (String × String) :=
+  (row, "sweep:" ++ sweep, [(s!"{sweep}#{i}", "fail")])
+
 /-- The key of reading `i` of the `engine.scroll` row in the `desk` column.
 
 $$\forall i,\quad \operatorname{k}(i) = (\texttt{engine.scroll}, \texttt{desk}, i)$$ -/
@@ -1113,13 +1204,14 @@ def deskKey (i : String) : Key := ("engine.scroll", "desk", i)
 
 $$\mathrm{goldenLines} = [\operatorname{exemptionLine}(x)]_{x \in \mathrm{exemptions}} \mathbin{+\!\!+} [\mathrm{universeLine}, \mathrm{narrowedLine}] \mathbin{+\!\!+} [\operatorname{engineCase}_U(U, e, N, ns, ws)]_{(U, e, N, ns, ws) \in E} \mathbin{+\!\!+} [\operatorname{exitCase}(N, vs)]_{(N, vs) \in X} \mathbin{+\!\!+} [\operatorname{staleCase}(a, f)]_{(a, f) \in S}$$
 
-The sizes are $|\mathrm{exemptions}| = 5$, $|E| = 57$ engine cases, $|X| = 15$ run cases and $|S| = 8$ hysteresis cases, so the file has
-$5 + 2 + 57 + 15 + 8 = 87$ lines in that order. The engine cases cover: every registered exemption and each of its
+The sizes are $|\mathrm{exemptions}| = 9$, $|E| = 62$ engine cases, $|X| = 15$ run cases and $|S| = 8$ hysteresis cases, so the file has
+$9 + 2 + 62 + 15 + 8 = 96$ lines in that order. The engine cases cover: every registered exemption and each of its
 conditions broken (other engine, other row, other column, other verdict, a reading id it does not list), a cell that mixes an excused
 and an unexcused reading, a not-comparable or unreachable cell with no exemption, a not-run cell in a full and in a narrowed run, the
 order fail over unsettled over incomplete over not-rendered, the wait outcomes (plain digits only, a missing wait, an unknown name,
 the first error), and the universe (a missing, an extra, a doubled or a misplaced reading is refused, a permuted one is not, a
-narrowed run is not refused). The run cases cover a narrowed run with every engine passing. -/
+narrowed run is not refused), and the commission-resize fail exemption (a listed Chromium fail is excused; an unlisted stop, WebKit,
+the other commission row or another sweep is a fail). The run cases cover a narrowed run with every engine passing. -/
 def goldenLines : List String :=
   exemptions.map exemptionLine ++ [universeLine, narrowedLine] ++
   [ engineCase "chromium" false [cell1 okCell, ncMmId] [("settled@3", "settled@5")],
@@ -1179,6 +1271,11 @@ def goldenLines : List String :=
     engineCaseU [deskKey "b", deskKey "a"] "chromium" false [abCell] [],
     engineCaseU [deskKey "a"] "chromium" false [("engine.scroll", "desk", [("a", "fail"), ("b", "pass")])] [],
     engineCaseU [deskKey "a", deskKey "b", deskKey "c"] "chromium" true [abCell] [],
+    engineCase "chromium" false [cell1 okCell, resizeCell "commission" "desktop-1512-320-1512" 7] [],
+    engineCase "chromium" false [cell1 okCell, resizeCell "commission" "desktop-1512-320-1512" 6] [],
+    engineCase "playwright-webkit" false [cell1 okCell, resizeCell "commission" "desktop-1512-320-1512" 7] [],
+    engineCase "chromium" false [cell1 okCell, resizeCell "commission.typing" "desktop-1512-320-1512" 7] [],
+    engineCase "chromium" false [cell1 okCell, resizeCell "commission" "phone-rotation" 2] [],
     exitCase false [.pass],
     exitCase false [.pass, .pass],
     exitCase false [.pass, .fail],
@@ -1203,13 +1300,21 @@ def goldenLines : List String :=
     staleCase "settled@4" "late",
     staleCase "settled@" "settled@1" ]
 
-#guard goldenLines.length == 5 + 2 + 57 + 15 + 8
+#guard goldenLines.length == 9 + 2 + 62 + 15 + 8
 #guard gateRows.length == 36
 #guard gateCols.length == 14
 #guard (gateCols.map (·.2.length)).sum == 196
 #guard gateUniverse.length == 7056
 #guard touch1024Ids == ["touch-1024-1201#0", "touch-1024-1201#2", "touch-1024-1201#4"]
-#guard (exemptions.map fun x => (x.rows.length, x.ids.length)) == [(36, 4), (36, 4), (1, 4), (1, 3), (1, 3)]
+#guard (exemptions.map fun x => (x.rows.length, x.ids.length)) ==
+  [(36, 4), (36, 4), (1, 4), (1, 3), (1, 3), (1, 45), (1, 2), (1, 3), (1, 7)]
+#guard commissionResizeKeys.length == 57
+#guard (commissionResizeKeys.take 2).map (·.2.2) == ["desktop-1512-320-1512#7", "desktop-1512-320-1512#8"]
+#guard commissionResizeKeys[44]? == some ("commission", "sweep:desktop-1512-320-1512", "desktop-1512-320-1512#51")
+#guard (engineVerdictCW "chromium" false [cell1 okCell, resizeCell "commission" "desktop-1512-320-1512" 7] []).toOption == some .pass
+#guard (engineVerdictCW "chromium" false [cell1 okCell, resizeCell "commission" "desktop-1512-320-1512" 52] []).toOption == some .fail
+#guard (engineVerdictCW "playwright-webkit" false [cell1 okCell, resizeCell "commission" "touch-1024-1201" 2] []).toOption == some .fail
+#guard (engineVerdictCW "chromium" false [cell1 okCell, resizeCell "commission.typing" "desktop-1512-320-1512" 20] []).toOption == some .fail
 #guard exitCode [] == 1
 #guard exitCode [.pass, .pass] == 0
 #guard exitCode [.pass, .fail] == 1
