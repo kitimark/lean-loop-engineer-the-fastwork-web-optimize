@@ -783,7 +783,9 @@ $$\mathrm{active}(\mathit{top}, \mathit{bottom}, h) = (\mathit{bottom} \ge -h) \
 def sceneActive (top bottom h : Rat) : Bool := Fw.Parts.Commission.sceneActive top bottom h
 
 /-- The `data-render` attribute two frames after the gate settles (JS 2690-2705 `sE`): `active` while the section is in
-range, `deferred` once it is not. -/
+range, `deferred` once it is not.
+
+$$\mathrm{render} \in \{\mathrm{active}, \mathrm{deferred}\}$$ -/
 inductive Render where
   | active
   | deferred

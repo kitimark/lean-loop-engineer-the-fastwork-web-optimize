@@ -248,7 +248,7 @@ theorem report_settled (i j : Nat) (e : Bool) :
 
 /-- A node counts as rendered when no element on its ancestor chain (itself included) is flagged by the caller as unrendered.
 The flags are an INPUT: this module proves what a flagged probe means (no verdict), not when a flag is right. The gate (probes only, switched on with
-`FW_GATE_VIEW=1`, off by default: see `viewCell`) flags a node the engine has skipped under `content-visibility:auto` (premise `cv.skip-flag`: `checkVisibility()` true and the
+`FW_GATE_VIEW`, on in probes unless `FW_GATE_VIEW=0`: see `viewCell`) flags a node the engine has skipped under `content-visibility:auto` (premise `cv.skip-flag`: `checkVisibility()` true and the
 `contentVisibilityAuto` form false) and, before a flag takes effect, brings the part into view and reads again (`view`,
 `viewCell` below), so only a node still skipped after that is `notRendered`. Premise-tests (run 39076735134) refuted the
 earlier idea that a skipped node reports an unresolved `auto`: `getComputedStyle` returns the resolved length there.
