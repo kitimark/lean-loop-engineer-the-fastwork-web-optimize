@@ -173,9 +173,9 @@ def wireRoot (mod : Name) : Bool :=
 #guard !wireRoot .anonymous
 
 /-- **The `Fw.` identifiers of a source text** (a generator script under `lean/scripts/`): every maximal run of
-identifier characters (letters, digits, `_`, `'`, `.`) that starts with `Fw.`, with trailing dots dropped, in order
-of first occurrence, without repeats.
-$$\operatorname{fwIdents}(s) = \operatorname{dedup}[\operatorname{rtrim}_{\texttt{.}}(w) : w \in \operatorname{runs}(s),\ \texttt{Fw.} \preceq w]$$ -/
+identifier characters (letters, digits, `_`, `'`, `.`) that, with its trailing dots dropped, starts with `Fw.`, in
+order of first occurrence, without repeats.
+$$\forall s,\ \operatorname{fwIdents}(s) = \operatorname{dedup}[\operatorname{rtrim}_{\texttt{.}}(w) : w \in \operatorname{runs}(s),\ \texttt{Fw.} \preceq \operatorname{rtrim}_{\texttt{.}}(w)]$$ -/
 def fwIdents (src : String) : List String := Id.run do
   let isId (c : Char) := c.isAlphanum || c == '_' || c == '\'' || c == '.'
   let mut out : Array String := #[]
@@ -368,9 +368,10 @@ def entryLike (c : Name) (thms : Bool) : MetaM Bool := do
 /-- **The facts of one theorem** $n$ with constant info `ci`, given the registry rows. Its head constant and
 implementation argument come from the result type under one `¬`; its premises from the `Assume` applications in the
 hypotheses with a literal id (deduplicated, in order); its kill from `killOf`; its class from `classify`; its reach
-from `closure` over the constants of its statement and proof, without itself and auxiliary names, sorted; its
-subjects from the implementation argument's project constants, or else the project definitions of the statement.
-$$\operatorname{factsOf}(n) = \bigl(h, a, A, \operatorname{killOf}(\nu, \operatorname{target}(a), R), \operatorname{classify}(b, \operatorname{proofHead}, d), \operatorname{sort}(\operatorname{closure}(\operatorname{consts}(\tau_n) \cup \operatorname{consts}(v_n)) \setminus \{n\}), S\bigr)$$ -/
+from `closure` over the constants of its statement and proof, keeping the `entryLike` theorems, definitions and
+opaques other than $n$, sorted by printed name; its subjects from the implementation argument's `entryLike`
+definitions, or else those of the statement. Runs under `plainUnfold`.
+$$\operatorname{factsOf}(n) = \bigl(h, a, A, \operatorname{killOf}(\nu, \operatorname{target}(a), R), \operatorname{classify}(b, \operatorname{proofHead}, d), \operatorname{sort}\{c \in \operatorname{closure}(\operatorname{consts}(\tau_n) \mathbin{+\!\!+} \operatorname{consts}(v_n)) \mid c \ne n,\ \operatorname{entryLike}_{\{\mathrm{theorem}\}}(c)\}, S\bigr)$$ -/
 def factsOf (n : Name) (ci : ConstantInfo) (rs : List Row) : MetaM Facts := plainUnfold do
   let env ← getEnv
   let value := match ci with | .thmInfo t => t.value | _ => default
