@@ -4926,6 +4926,23 @@
     "docs/team/handoffs/lean-bin-slim.md",
     "docs/team/tools/disk-cleanup.md"
    ]
+  },
+  {
+   "stream": "site",
+   "milestone": "M3",
+   "deps": [
+    "gate-shard-balance"
+   ],
+   "id": "integrate-ports-4",
+   "title": "(M) integrate-ports round 4 after gate-shard-balance lands (deterministic frames): merge worktree-wf_b37180a7-494-1 (4ebd67b) + main; full breakpoint-gate on CI for the exact head with every probe compared (r3 green run 39112059806 compared only 40 of 124 probes: 84 not-comparable, unsettled counted 0); Chromium-only view reading (run.mjs viewFor) as a Lean engine-indexed policy with golden; hero.orbit z-index skipped only when the original card has an inline zIndex (not a blanket skip). Also consult WIP salvage ffb08e3 (worktree-wf_b37180a7-494-2) for engine-model-fix-2",
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/**",
+    "apps/site/scripts/**",
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Gate/**",
+    "docs/team/handoffs/integrate-ports.md"
+   ]
   }
  ],
  "deadline": {
