@@ -5098,6 +5098,21 @@
     "lean/Fw/Gate/**",
     "docs/team/handoffs/integrate-ports.md"
    ]
+  },
+  {
+   "id": "plan-page-readability",
+   "title": "Plan page readable: Now panel first (stamped as-of commit), math view on its own page math-view.html (published beside loop-plan.html via Artifact files), phone width without sideways scroll, text consistent with PLAN rev 10",
+   "stream": "plan",
+   "milestone": null,
+   "deps": [],
+   "owner": "page-writer",
+   "writes": [
+    "docs/plan/loop-plan.html",
+    "docs/plan/math-view.html",
+    "docs/plan/tools/build-math-view.mjs",
+    "docs/team/handoffs/plan-page-readability.md",
+    "docs/team/handoffs/page-writer.md"
+   ]
   }
  ],
  "deadline": {
