@@ -5,14 +5,12 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
-import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
 import { KIT_SRC, PIN_SRC, bringInPage, collectInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
 import { GRID_MS, HOLD_LOAD_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, STEP_MS, alignTarget } from './freeze.mjs';
 import { GATE_POLICY, fold, idlePolicy, view, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
-const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 // Lean Fw.Gate.Settle.viewCell in the probes: OFF unless FW_GATE_VIEW=1. Run 39086375181 (parts=commission): Chromium passed all
 // cells, WebKit failed 7 probes on the scroll-driven --commission-shrink / --commission-enter-shrink (0.4746 vs 0.3702): the
@@ -160,13 +158,13 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     const mountIds = Object.keys(mountOf[site]);
     const overlayIds = Object.keys(overlayOf[site]);
     const pick = (ids, inside) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid) === inside));
-    const raw = await collectWith(s, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false), view));
+    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false), view));
     for (const pid of overlayIds) {
       const steps = overlayOf[site][pid];
       await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
       // an opened overlay animates in (WebKit run 39067170911 read the signup dialog at scale 0.9977): settle it before reading
       if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
-      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, view));
+      const one = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, view));
       raw.parts = { ...raw.parts, ...one.parts };
       await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
     }
@@ -175,7 +173,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       raw.prepared = ready.found;
       log(`  mount ${engineName} ${site} ${env.width}x${env.height}: found ${JSON.stringify(ready.found)}`);
       if (settleRoots) (raw.overlaySettle ||= []).push(idleWait(ready.idle, site, env));
-      const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true), view));
+      const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(mountIds, true), view));
       raw.parts = { ...raw.parts, ...late.parts };
     }
     if (props && view) await bringSkipped(s, site, env, props, raw, settleRoots);
@@ -197,7 +195,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       const b = await s.evaluate(bringInPage, { roots });
       const wait = settleRoots ? await settleRoots(roots, env) : null;
       if (wait) (raw.overlaySettle ||= []).push(wait); // the sample is unsettled when this wait is
-      const again = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, true));
+      const again = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, true));
       const first = raw.parts[pid];
       raw.viewFirst[pid] = first;
       raw.parts[pid] = Object.fromEntries(Object.entries(first).map(([role, fr]) => [role, {

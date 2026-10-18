@@ -45,8 +45,6 @@ export function call(requests) {
 
 /** One arm of a raw record ({truth, truthLegacy, neutral, observed, viewport, parts}, or {raw: ...}), trimmed to the
  *  covered parts. The matchMedia maps travel as [key, value] entries so their order is kept. */
-import { canonParts } from './align-equiv.mjs';
-const canonArm = (o, r) => { const rr = r.raw ?? r, oo = o.raw ?? o; return { ...rr, parts: canonParts(oo.parts, rr.parts) }; };
 const armReq = (x, parts) => {
   const r = x.raw ?? x;
   return {
@@ -66,7 +64,7 @@ export const context = ({ anchors, parts, props, deviceEdges, port }) => ({ anch
 /** A `gate.state` request: states are {requested, orig, rewrite, expect?, expectNeutral?} with raw arms. */
 export const stateRequest = (ctx, states) => ({
   op: 'gate.state', ...ctx,
-  states: states.map((s) => ({ requested: s.requested, orig: armReq(s.orig, ctx.parts), rewrite: armReq(canonArm(s.orig, s.rewrite), ctx.parts), expect: mapReq(s.expect), expectNeutral: mapReq(s.expectNeutral) })),
+  states: states.map((s) => ({ requested: s.requested, orig: armReq(s.orig, ctx.parts), rewrite: armReq(s.rewrite, ctx.parts), expect: mapReq(s.expect), expectNeutral: mapReq(s.expectNeutral) })),
 });
 
 /** A `gate.stale` request: pairs are {after, fresh} raw records (the arm after a sweep, a fresh load there). */
