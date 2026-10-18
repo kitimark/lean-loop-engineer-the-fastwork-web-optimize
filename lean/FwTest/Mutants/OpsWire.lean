@@ -20,7 +20,7 @@ def reply (op s : String) : String :=
   | none => "none"
 
 -- every listed op is dispatched, and every dispatched op is listed
-#guard ops == ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.obs", "ops.wait"]
+#guard ops == ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.cap", "ops.door", "ops.obs", "ops.wait"]
 #guard ops.all fun o => (handle o (Json.mkObj [])).isSome
 
 -- ops.meter: TTL from absent w5m/w1h, absent wakeGapSec, absent state window

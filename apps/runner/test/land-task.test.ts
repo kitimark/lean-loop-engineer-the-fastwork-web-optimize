@@ -1,5 +1,5 @@
 import "./land-timeout.ts";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../console-api/src/app.ts";
@@ -22,7 +22,7 @@ async function setup() {
   const http: Http = {
     get: async (p) => { const r = await app.request(p); return { status: r.status, body: await r.json() }; },
     post: async (p, b) => {
-      const r = await app.request(p, { method: "POST", body: JSON.stringify(b), headers: { "content-type": "application/json" } });
+      const r = await app.request(p, { method: "POST", body: JSON.stringify(b), headers: { "content-type": "application/json", "x-fw-secret": readFileSync(join(fx.consoleDir, "secret"), "utf8").trim() } });
       return { status: r.status, body: await r.json() };
     },
   };

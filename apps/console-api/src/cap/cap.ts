@@ -26,6 +26,15 @@ export function actorFor(agentId: string | null | undefined, agentType: string |
   return agentType.replace(/[A-Z]/g, (c) => c.toLowerCase()).includes("review") ? "reviewer" : "owner";
 }
 
+/** The door without a capability (`POST /api/commands`): MIRROR of Lean `Fw.Ops.Identity.openDoor` (golden `ops.door`,
+ *  cap.test.ts). A body that claims an agent actor (`lead`, `owner`, `reviewer`: exactly the actors a capability
+ *  can be minted for) is accepted only when the caller shows the console secret; user, script, git and hook pass. */
+export const isAgentActor = (a: Actor): boolean => a === "lead" || a === "owner" || a === "reviewer";
+export const openDoor = (a: Actor, secret: boolean): boolean => !isAgentActor(a) || secret;
+
+/** Header that carries the console secret for the door without a capability (the runner's own tools send it). */
+export const SECRET_HEADER = "x-fw-secret";
+
 export type Stamp = { actor: Actor; signedBy: string; toolUseId: string };
 
 export class CapStore {
@@ -49,6 +58,21 @@ export class CapStore {
     const f = join(this.dir, name);
     if (!existsSync(f)) return [];
     return readFileSync(f, "utf8").split("\n").filter(Boolean).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
+  }
+
+  /** Constant-time check of a presented secret against `.fw-console/secret`. */
+  secretMatches(presented: string | undefined | null): boolean {
+    const s = this.secret();
+    if (!s || !presented) return false;
+    const a = Buffer.from(s), b = Buffer.from(presented);
+    return a.length === b.length && timingSafeEqual(a, b);
+  }
+
+  /** The hook's reason for the latest miss (capmiss.jsonl, written by cap.mjs) if it is at most `maxAgeMs` old. */
+  lastMiss(maxAgeMs = 2 * 60_000): { reason: string; message: string } | null {
+    const l = this.lines("capmiss.jsonl").at(-1) as { ts?: number; reason?: string; message?: string } | undefined;
+    if (!l || typeof l.ts !== "number" || typeof l.reason !== "string" || this.clock() - l.ts > maxAgeMs) return null;
+    return { reason: l.reason, message: String(l.message ?? "") };
   }
 
   /** Find the oldest unused, authentic, fresh capability for this command, and consume it. Serialised. */

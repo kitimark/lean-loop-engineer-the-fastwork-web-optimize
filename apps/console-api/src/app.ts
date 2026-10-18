@@ -7,6 +7,7 @@ import type { Store } from "./store.ts";
 import { mountReconcile } from "./reconcile/routes.ts";
 import type { Reconciler } from "./reconcile/reconciler.ts";
 import { mountAgentRoutes } from "./cap/routes.ts";
+import { SECRET_HEADER, openDoor } from "./cap/cap.ts";
 import { mountOps } from "./ops/routes.ts";
 import { readLatestHealth } from "./health.ts";
 
@@ -27,13 +28,18 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
     if (!parsed.success) {
       return c.json({ ok: false, reason: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") }, 400);
     }
+    // The door has no capability: an agent actor (lead/owner/reviewer) in the body is the self-declared kind the
+    // capability door exists to prevent. Lean `Fw.Ops.Identity.openDoor`: it passes only with the console secret.
+    if (!openDoor(parsed.data.actor, caps.secretMatches(c.req.header(SECRET_HEADER)))) {
+      return c.json({ ok: false, reason: `actor ${parsed.data.actor} needs a capability: use \`pnpm fw\` (this door takes user, script, git, hook)` }, 403);
+    }
     const reply = await store.submit(parsed.data);
     return c.json(reply, reply.ok ? 200 : 422);
   });
 
   mountOps(app, store);
   if (reconciler) mountReconcile(app, store, reconciler);
-  const { drain } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
+  const { drain, caps } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
   app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/plan", async (c) => c.json((await store.board()).plan)); // the work graph, derived by fwcore
   app.get("/api/health", (c) => c.json(readLatestHealth(store.dir))); // latest `fw watch` check (fwcore obs.health output) or null

@@ -1,0 +1,11 @@
+{"name":"user (the web UI) passes without the secret","request":{"actor":"user","op":"ops.door"},"response":{"accept":true,"agentActor":false}}
+{"name":"script, git and hook pass without the secret","request":{"actor":"script","op":"ops.door"},"response":{"accept":true,"agentActor":false}}
+{"name":"git passes","request":{"actor":"git","op":"ops.door"},"response":{"accept":true,"agentActor":false}}
+{"name":"hook passes","request":{"actor":"hook","op":"ops.door"},"response":{"accept":true,"agentActor":false}}
+{"name":"lead is refused without the secret","request":{"actor":"lead","op":"ops.door"},"response":{"accept":false,"agentActor":true}}
+{"name":"owner is refused without the secret","request":{"actor":"owner","op":"ops.door"},"response":{"accept":false,"agentActor":true}}
+{"name":"reviewer is refused without the secret","request":{"actor":"reviewer","op":"ops.door","secret":false},"response":{"accept":false,"agentActor":true}}
+{"name":"lead passes with the secret","request":{"actor":"lead","op":"ops.door","secret":true},"response":{"accept":true,"agentActor":true}}
+{"name":"owner passes with the secret","request":{"actor":"owner","op":"ops.door","secret":true},"response":{"accept":true,"agentActor":true}}
+{"name":"unknown actor name is refused","request":{"actor":"root","op":"ops.door"},"response":{"error":"field actor: unknown actor root"}}
+{"name":"missing actor is refused","request":{"op":"ops.door"},"response":{"error":"missing field actor"}}

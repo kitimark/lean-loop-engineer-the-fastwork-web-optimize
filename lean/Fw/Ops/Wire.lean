@@ -21,6 +21,8 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.meter` | `params`?, `state`? {window, fired [{agent, rule}]}, `now`, `agents` [{agent, ctx, idleSec, ttlSec? or w5m?/w1h?, wakeGapSec?}] | `state`, `alerts` [{agent, rule, window}], `verdicts` [{agent, verdict, ttlSec}] |
 | `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, who, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
 | `ops.obs` | `records`? [{agent_id?, hook_event_name, tool_use_id?, ts}], `lines`? [{hook_event_name, agent_type?, tool_name?, is_error?, duration_ms?}] (extra fields ignored) | `keys` (one obs key per record, in order), `summary` [{agent_type, tool_name, calls, errors, total_ms}] (first-seen group order) |
+| `ops.cap` | `agent_id`?, `agent_type`? (as `ops.actor`), `tokens` (a Bash input lexed: a string is a word, `{"redir":"2>&1"}` a redirect, `{"stop":"|"}` a control operator) | `decision` (`mint`/`noMint`), `actor`, `argv` (when minted), `reason` (`notFwPrefix`/`unknownActor`, when not) |
+| `ops.door` | `actor`, `secret`? (bool) | `accept` (the door without capability takes this actor), `agentActor` |
 | `ops.wait` | `cmd` (the Bash command text), `caps`? {maxSleepSec?} | `decision` (`allow`/`deny`), `reason` (null, `bgLong` or `unboundedLoop`), `shape` (`bgLong`: `fwWatch`/`loop`/`server`/`tail`/`longSleep`, else null) |
 | `ops.actor` | `agent_id`?, `agent_type`? (string or null, as in a hook payload or a `caps.jsonl` record) | `who` (`lead`/`agent`/`unknown`), `role` (the agent type, or null), `actor` (`lead`/`reviewer`/`owner`, or null: mint no capability) |
 
@@ -353,6 +355,38 @@ def opActor (req : Json) : Except String Reply := do
         ("role", match w with | .agent r => .str r | _ => .null),
         ("actor", match actorOf w with | some a => .str a.name | none => .null)]
 
+/-! ## ops.cap, ops.door -/
+
+open Fw.Ops.Identity Fw.Console in
+/-- `ops.cap`: the capability decision (`Fw.Ops.Identity.capDecide`) for a record's identity and the lexed tokens of
+its Bash input (`cmdWords` drops redirects and cuts at the first stop): `mint` with the actor and the argv, or `noMint` with its one reason. -/
+def opCap (req : Json) : Except String Reply := do
+  let i ← optS req "agent_id"
+  let t ← optS req "agent_type"
+  let toks ← (← arrD req "tokens").mapM fun j =>
+    match j with
+    | .str w => pure (Tok.word w)
+    | j => match j.getObjVal? "redir", j.getObjVal? "stop" with
+      | .ok _, _ => pure Tok.redir
+      | _, .ok _ => pure Tok.stop
+      | _, _ => throw "field tokens: expected a string, {\"redir\":..} or {\"stop\":..}"
+  pure (match capDecide i t (cmdWords toks) with
+    | .mint a argv => [("decision", .str "mint"), ("actor", .str a.name),
+        ("argv", .arr (argv.toArray.map .str)), ("reason", .null)]
+    | .noMint r => [("decision", .str "noMint"), ("actor", .null), ("argv", .null), ("reason", .str r.name)])
+
+open Fw.Ops.Identity Fw.Console in
+/-- `ops.door`: whether the door without capability accepts a body that claims `actor`
+(`Fw.Ops.Identity.openDoor`; `secret`: the caller showed the console secret, default false). -/
+def opDoor (req : Json) : Except String Reply := do
+  let a ← str req "actor"
+  let secret ← boolD req "secret" false
+  let actor ← match a with
+    | "user" => pure Actor.user | "lead" => pure Actor.lead | "owner" => pure Actor.owner
+    | "reviewer" => pure Actor.reviewer | "script" => pure Actor.script | "git" => pure Actor.git
+    | "hook" => pure Actor.hook | other => throw s!"field actor: unknown actor {other}"
+  pure [("accept", .bool (openDoor actor secret)), ("agentActor", .bool (isAgentActor actor))]
+
 /-! ## ops.obs -/
 
 /-- An optional nullable natural-number field. -/
@@ -408,7 +442,7 @@ def opWait (req : Json) : Except String Reply := do
     | .deny .unboundedLoop => [("decision", .str "deny"), ("reason", .str "unboundedLoop"), ("shape", .null)]
 
 /-- The `ops.*` ops. -/
-def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.obs", "ops.wait"]
+def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.cap", "ops.door", "ops.obs", "ops.wait"]
 
 /-- Dispatch an `ops.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -419,6 +453,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.meter" => some (opMeter req)
   | "ops.hook" => some (opHook req)
   | "ops.actor" => some (opActor req)
+  | "ops.cap" => some (opCap req)
+  | "ops.door" => some (opDoor req)
   | "ops.obs" => some (opObs req)
   | "ops.wait" => some (opWait req)
   | _ => none
