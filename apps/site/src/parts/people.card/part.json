@@ -1,0 +1,13 @@
+{
+  "id": "people.card",
+  "slot": "people",
+  "anchors": ["people-card"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:11257-11560;assets/2.gBuqKVzi.css:2358-2418,2784-2860,3519-3650" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

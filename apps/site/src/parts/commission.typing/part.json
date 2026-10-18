@@ -1,0 +1,13 @@
+{
+  "id": "commission.typing",
+  "slot": "commission",
+  "anchors": ["commission-typing"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:2400-2640; assets/2.gBuqKVzi.css:348-583,1066-1071,1190-1209" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

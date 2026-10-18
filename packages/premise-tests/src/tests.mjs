@@ -100,6 +100,72 @@ export const TESTS = [
     },
   },
   {
+    // The gate's skipped-subtree flag (Fw.Gate.Settle.viewCell): checkVisibility() true and the contentVisibilityAuto form false
+    // exactly while the engine reports the subtree skipped; true on both once scrolled into view. No style is read before the flag.
+    id: 'prem.cv.skip-flag', premise: 'cv.skip-flag', page: 'cv.skip-flag.html',
+    async run({ page }) {
+      const state = await waitSkipped(page);
+      const flags = () => page.evaluate(() => {
+        const f = (id) => { const e = document.getElementById(id); return { visible: e.checkVisibility(), visibleAuto: e.checkVisibility({ contentVisibilityAuto: true }) }; };
+        return { m: f('m'), plain: f('plain'), events: window.__cv.slice() };
+      });
+      const skipped = await flags();
+      await page.evaluate(() => document.getElementById('cv').scrollIntoView());
+      await frames(page, 3);
+      const shown = await flags();
+      const observed = { state, skipped, shown };
+      try {
+        assert.equal(state.events[0], true, 'the engine reported the subtree skipped');
+        assert.deepEqual(skipped.m, { visible: true, visibleAuto: false }, 'a node in the skipped subtree: checkVisibility() true, contentVisibilityAuto form false');
+        assert.deepEqual(skipped.plain, { visible: true, visibleAuto: true }, 'control: an ordinary node is not flagged');
+        assert.equal(skipped.events.at(-1), true, 'the flag read did not unlock the subtree');
+        assert.deepEqual(shown.m, { visible: true, visibleAuto: true }, 'scrolled into view and two frames later the node is not flagged');
+        assert.equal(shown.events.at(-1), false, 'the engine reports the subtree no longer skipped');
+      } catch (e) { e.observed = observed; throw e; }
+      return observed;
+    },
+  },
+  {
+    // fix-commission-margin: a subtree skipped through a viewport resize (one section static, one given its content while already
+    // skipped) shows the fresh used auto margin, equal to the geometry-derived one, once it is brought into view.
+    id: 'prem.cv.fresh-after-resize', premise: 'cv.fresh-after-resize', page: 'cv.fresh-after-resize.html',
+    async run({ page }) {
+      await page.setViewportSize({ width: 800, height: 600 });
+      const state = await waitSkipped(page);
+      await frames(page, 4); // the second section has its content now
+      const lateSkipped = await page.evaluate(() => document.getElementById('lm').checkVisibility() && !document.getElementById('lm').checkVisibility({ contentVisibilityAuto: true }));
+      await page.setViewportSize({ width: 1100, height: 600 });
+      await frames(page, 3);
+      const measure = (inner, section) => page.evaluate(([i, s]) => {
+        const ie = document.getElementById(i), se = document.getElementById(s);
+        const cs = getComputedStyle(ie);
+        const r = ie.getBoundingClientRect(), sr = se.getBoundingClientRect();
+        return { style: cs.marginLeft, geometry: r.left - sr.left - parseFloat(getComputedStyle(se).paddingLeft), width: r.width, innerWidth };
+      }, [inner, section]);
+      // Observed only, the gate's first reading: a read in a skipped subtree (not asserted).
+      const lateBefore = await measure('lm', 'late');
+      const out = {};
+      for (const [inner, section] of [['m', 'cv'], ['lm', 'late']]) {
+        await page.evaluate((s) => document.getElementById(s).scrollIntoView({ block: 'center' }), section);
+        await frames(page, 3);
+        out[inner] = await measure(inner, section);
+      }
+      const want = (1100 - 40 - 300) / 2;
+      const observed = { state, lateSkipped, lateBefore, out, want };
+      try {
+        assert.equal(state.events[0], true, 'the first section was skipped at load');
+        assert.equal(lateSkipped, true, 'the second section was skipped when its content arrived');
+        for (const k of ['m', 'lm']) {
+          assert.equal(out[k].innerWidth, 1100, `${k}: the page sees the new viewport`);
+          assert.equal(out[k].width, 300, `${k}: width`);
+          assert.equal(out[k].style, `${want}px`, `${k}: the used auto margin is fresh once the subtree is in view, got ${out[k].style}`);
+          assert.ok(Math.abs(out[k].geometry - want) < 0.5, `${k}: the geometry-derived margin is ${out[k].geometry}, want ${want}`);
+        }
+      } catch (e) { e.observed = observed; throw e; }
+      return observed;
+    },
+  },
+  {
     id: 'prem.frame.raf-order', premise: 'frame.raf-order', page: 'frame.raf-order.html',
     async run({ page }) {
       const log = await page.evaluate(() => new Promise((resolve) => {

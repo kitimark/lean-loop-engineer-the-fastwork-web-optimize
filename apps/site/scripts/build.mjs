@@ -4,7 +4,7 @@
 import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'vite';
@@ -51,6 +51,22 @@ await build({
     rollupOptions: { input: path.join(root, 'src/entry-client.tsx') },
   },
 });
+// Google Sans: copied byte for byte from the unmodified snapshot (the only place the font may come from); the
+// @font-face rules in src/styles/reset.css point at /fonts/.
+const fontSrc = path.join(root, '../../snapshot/site/_app/immutable/assets');
+await mkdir(path.join(outDir, 'fonts'), { recursive: true });
+for (const f of [
+  'google-sans-latin-normal.BbZhqv4U.woff2',
+  'google-sans-latin-italic.XUjF_20c.woff2',
+  'google-sans-thai-normal.CD79Hmaw.woff2',
+  'google-sans-thai-italic.Cygf3A0N.woff2',
+]) {
+  await copyFile(path.join(fontSrc, f), path.join(outDir, 'fonts', f));
+}
+await copyFile(
+  path.join(root, '../../snapshot/site/selling/fonts/playpen-sans-latin.woff2'),
+  path.join(outDir, 'fonts', 'playpen-sans-latin.woff2'),
+);
 const t1 = performance.now();
 
 await build({

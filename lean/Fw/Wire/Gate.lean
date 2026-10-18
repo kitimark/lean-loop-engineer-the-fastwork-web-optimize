@@ -139,7 +139,7 @@ def roleSpecOf (j : Json) : Except String RoleSpec := do
     | none => pure none
     | some b => pure (some ⟨← str b "role", ← asNat "boxRel.index" (← field b "index")⟩)
   pure ⟨← str j "role", boxRel, ← strsD j "dims", ← strsD j "skipSets", ← strsD j "skipProps",
-    ← str j "why"⟩
+    ← strsD j "skipIfInline", ← str j "why"⟩
 
 /-- The covered parts, in the requested order, from `anchors.parts`. -/
 def partSpecsOf (anchors : Json) (ids : List String) : Except String (List PartSpec) := do
@@ -184,7 +184,7 @@ def itemOf (j : Json) : Except String Item := do
   let style ← match opt j "style" with
     | none => pure []
     | some s => (← entriesOf "style" s).mapM fun (p, v) => do pure (p, ← asStr p v)
-  pure ⟨rect, style⟩
+  pure ⟨rect, style, ← strsD j "inline"⟩
 
 /-- One arm's raw part: roles that are absent or `null` are left out. -/
 def partRawOf (j : Json) : Except String PartRaw := do

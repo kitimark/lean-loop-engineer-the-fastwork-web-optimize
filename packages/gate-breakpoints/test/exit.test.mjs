@@ -38,7 +38,7 @@ test('the universe is the table summary.mjs builds: the matchMedia rows and the 
   const cols = [...gen.matrix.blocks.map((b) => [b.id, gen.matrix.probes.filter((p) => p.block === b.id).map((p) => p.id)]),
     ...sweepDefs(gen).map((s) => [`sweep:${s.id}`, s.stops.map((_, i) => `${s.id}#${i}`)])];
   assert.deepEqual(u.cols, cols);
-  assert.equal(u.size, 18 * 196);
+  assert.equal(u.size, 36 * 196);
   const reg = loadRegistry();
   assert.equal(reg.universe.length, u.size);
   assert.equal(new Set(reg.universe.map((k) => JSON.stringify(k))).size, u.size, 'no key twice');
@@ -212,11 +212,11 @@ test('the full universe (identity): every reading of the Lean table passing is a
   assert.equal(judge(nc), 'incomplete');
   assert.notEqual(runExit(false, [judge(nc)]), 0);
   const t = readingsTable('chromium', nc, reg);
-  assert.deepEqual([t.total, t.pass, t.excused, t.bad], [3528, 3527, 0, 1]);
+  assert.deepEqual([t.total, t.pass, t.excused, t.bad], [7056, 7055, 0, 1]);
   const wk = cells.map((c) => (c[1] === 'fractional-gaps' ? [c[0], c[1], c[2].map(([id]) => [id, 'unreachable:whole-width'])] : c));
   assert.equal(engineVerdictCells('playwright-webkit', false, wk, [], reg.universe).verdict, 'pass');
   const tw = readingsTable('playwright-webkit', wk, reg);
-  assert.deepEqual([tw.total, tw.pass, tw.excused, tw.bad], [3528, 3528 - 72, 72, 0]);
+  assert.deepEqual([tw.total, tw.pass, tw.excused, tw.bad], [7056, 7056 - 144, 144, 0]);
 });
 
 test('a summary.json engine: narrowed is the --parts flag, never the record; a failing, unregistered or missing reading or an unsettled wait is not a pass', () => {

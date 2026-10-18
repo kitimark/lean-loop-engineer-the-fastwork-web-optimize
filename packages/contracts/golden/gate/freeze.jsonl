@@ -30,3 +30,7 @@
 {"fits":false,"kind":"readings","name":"a hold between relative steps","readings":[1020],"stages":[{"at":1000,"work":[["rel",300],["hold",1000],["rel",20]]}],"start":0}
 {"fits":false,"kind":"readings","name":"the clock is past the first instant","readings":[2000,3000],"stages":[{"at":1000,"work":[]},{"at":3000,"work":[]}],"start":2000}
 {"fits":true,"kind":"readings","name":"no stages","readings":[],"stages":[],"start":7}
+{"kind":"page","mountOrig":false,"mountRewrite":false,"page":"plain","runsMount":false}
+{"kind":"page","mountOrig":true,"mountRewrite":false,"page":"mounted","runsMount":true}
+{"kind":"page","mountOrig":false,"mountRewrite":true,"page":"mounted","runsMount":true}
+{"kind":"page","mountOrig":true,"mountRewrite":true,"page":"mounted","runsMount":true}

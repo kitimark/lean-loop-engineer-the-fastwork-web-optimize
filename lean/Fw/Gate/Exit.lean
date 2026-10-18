@@ -178,9 +178,9 @@ verdicts, `exemptions_verdict`).
 
 $$\mathrm{exemptions} = [x_{\mathrm{cross}},\ x_{\mathrm{frac}},\ x_{\mathrm{mm}},\ x_{\mathrm{touch}}^{\mathrm{chromium}},\ x_{\mathrm{touch}}^{\mathrm{webkit}}]$$
 
-* $x_{\mathrm{cross}}$: WebKit, the 18 rows of $\mathrm{rows}$ (listed), column `hover-pointer-cross`, the 4 ids
+* $x_{\mathrm{cross}}$: WebKit, the 36 rows of $\mathrm{rows}$ (listed), column `hover-pointer-cross`, the 4 ids
   $\operatorname{ids}(\text{hover-pointer-cross})$, `unreachable:primary-pair`, premise `matrix_cross_webkit`.
-* $x_{\mathrm{frac}}$: WebKit, the 18 rows of $\mathrm{rows}$, column `fractional-gaps`, the 4 ids $\operatorname{ids}(\text{fractional-gaps})$,
+* $x_{\mathrm{frac}}$: WebKit, the 36 rows of $\mathrm{rows}$, column `fractional-gaps`, the 4 ids $\operatorname{ids}(\text{fractional-gaps})$,
   `unreachable:whole-width`, premise `matrix_fractional_webkit`.
 * $x_{\mathrm{mm}}$: Chromium, rows [`matchMedia =Lean`], column `fractional-gaps`, the 4 ids $\operatorname{ids}(\text{fractional-gaps})$,
   `not-comparable`, premise `fractional_chromium_lean_na`.
@@ -1204,12 +1204,12 @@ def goldenLines : List String :=
     staleCase "settled@" "settled@1" ]
 
 #guard goldenLines.length == 5 + 2 + 57 + 15 + 8
-#guard gateRows.length == 18
+#guard gateRows.length == 36
 #guard gateCols.length == 14
 #guard (gateCols.map (·.2.length)).sum == 196
-#guard gateUniverse.length == 3528
+#guard gateUniverse.length == 7056
 #guard touch1024Ids == ["touch-1024-1201#0", "touch-1024-1201#2", "touch-1024-1201#4"]
-#guard (exemptions.map fun x => (x.rows.length, x.ids.length)) == [(18, 4), (18, 4), (1, 4), (1, 3), (1, 3)]
+#guard (exemptions.map fun x => (x.rows.length, x.ids.length)) == [(36, 4), (36, 4), (1, 4), (1, 3), (1, 3)]
 #guard exitCode [] == 1
 #guard exitCode [.pass, .pass] == 0
 #guard exitCode [.pass, .fail] == 1
