@@ -59,7 +59,7 @@ def waitEnd (w : Wait) (sat : Nat → Bool) : Nat :=
 
 /-- The stop time never passes the deadline.
 
-$$\mathrm{end}(w, \mathit{sat}) \le w.\mathit{deadline}$$
+$$\forall w, \mathit{sat}.\ \mathrm{end}(w, \mathit{sat}) \le w.\mathit{deadline}$$
 -/
 theorem waitEnd_le (w : Wait) (sat : Nat → Bool) : waitEnd w sat ≤ w.deadline := by
   unfold waitEnd
@@ -105,7 +105,7 @@ def handbackOk (es : List Ev) : Bool := (openBg es).isEmpty
 
 /-- An agent that may hand back has no background task left open: everything it started has ended.
 
-$$\mathrm{handback}(E) \ \Rightarrow\ \forall id.\ \mathrm{start}(id) \in E \Rightarrow \mathrm{end}(id) \in E$$
+$$\forall E.\ \mathrm{handback}(E) \ \Rightarrow\ \forall i.\ \mathrm{start}(i) \in E \Rightarrow \mathrm{end}(i) \in E$$
 -/
 theorem handback_no_open_bg (es : List Ev) (h : handbackOk es = true) :
     ∀ i, Ev.start i ∈ es → Ev.stop i ∈ es := by
@@ -847,8 +847,7 @@ theorem cond_without_do_free (c : Caps) (u : UAcc) (s : Seg) (hc : u.cond = true
 or when it starts with `do`, changes neither the open blocks, nor the free flag, nor the finished units, and leaves no
 read-loop head pending.
 
-$$\forall c, u, s.\ u.\mathit{stack} \ne [\,] \land f \notin \mathrm{openers} \cup \mathrm{closers} \land (\lnot u.\mathit{cond} \lor \mathrm{head}(s.\mathit{words}) = \texttt{do}) \ \Rightarrow\ v.\mathit{stack} = u.\mathit{stack} \land v.\mathit{free} = u.\mathit{free} \land v.\mathit{units} = u.\mathit{units} \land \lnot v.\mathit{cond}$$
-where $f = \mathrm{head}(\mathrm{key}(s.\mathit{words}))$ and $v = \mathrm{addSeg}_c(u, s)$.
+$$\forall c, u, s.\ u.\mathit{stack} \ne [\,] \land f \notin \mathrm{openers} \cup \mathrm{closers} \land (\lnot u.\mathit{cond} \lor \mathrm{head}(s.\mathit{words}) = \texttt{do}) \ \Rightarrow\ v.\mathit{stack} = u.\mathit{stack} \land v.\mathit{free} = u.\mathit{free} \land v.\mathit{units} = u.\mathit{units} \land \lnot v.\mathit{cond}, \quad f = \mathrm{head}(\mathrm{key}(s.\mathit{words})),\ v = \mathrm{addSeg}_c(u, s)$$
 -/
 theorem addSeg_inner (c : Caps) (u : UAcc) (s : Seg) (hs : u.stack ≠ [])
     (ho : openers.contains ((key s.words).head?.getD "") = false)
@@ -874,8 +873,7 @@ theorem addSeg_inner (c : Caps) (u : UAcc) (s : Seg) (hs : u.stack ≠ [])
 /-- The body of a block (segments with no block opener or closer), read with no read-loop head pending, changes neither
 the open blocks, nor the free flag, nor the finished units, and leaves no read-loop head pending.
 
-$$\forall c, B, u.\ u.\mathit{stack} \ne [\,] \land \lnot u.\mathit{cond} \land (\forall s \in B.\ \mathrm{head}(\mathrm{key}(s.\mathit{words})) \notin \mathrm{openers} \cup \mathrm{closers}) \ \Rightarrow\ v.\mathit{stack} = u.\mathit{stack} \land v.\mathit{free} = u.\mathit{free} \land v.\mathit{units} = u.\mathit{units} \land \lnot v.\mathit{cond}$$
-where $v = \mathrm{foldl}(\mathrm{addSeg}_c, u, B)$.
+$$\forall c, B, u.\ u.\mathit{stack} \ne [\,] \land \lnot u.\mathit{cond} \land (\forall s \in B.\ \mathrm{head}(\mathrm{key}(s.\mathit{words})) \notin \mathrm{openers} \cup \mathrm{closers}) \ \Rightarrow\ v.\mathit{stack} = u.\mathit{stack} \land v.\mathit{free} = u.\mathit{free} \land v.\mathit{units} = u.\mathit{units} \land \lnot v.\mathit{cond}, \quad v = \mathrm{foldl}(\mathrm{addSeg}_c, u, B)$$
 -/
 theorem addSeg_body (c : Caps) (body : List Seg) (u : UAcc) (hs : u.stack ≠ []) (hc : u.cond = false)
     (hb : ∀ s ∈ body, openers.contains ((key s.words).head?.getD "") = false ∧
@@ -1044,7 +1042,7 @@ theorem foreground_never_bgLong (us : List Job) (h : ∀ u ∈ us, u.bg = false)
 
 /-- A refused command names its reason (every `deny` carries one; `allow` carries none).
 
-$$\mathrm{decide}(U) = \mathrm{deny}(r) \iff \mathrm{check}(U) = \mathrm{some}(r)$$
+$$\forall U, r.\ \mathrm{decide}(U) = \mathrm{deny}(r) \iff \mathrm{check}(U) = \mathrm{some}(r)$$
 -/
 theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ check us = some r := by
   unfold decide
