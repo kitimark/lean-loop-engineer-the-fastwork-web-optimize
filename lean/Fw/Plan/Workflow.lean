@@ -84,7 +84,7 @@ theorem run_append (as bs : List Cmd) : run (as ++ bs) = bs.foldl step (run as) 
   simp [run, List.foldl_append]
 
 /-- **A running workflow named `t` binds `t`**: if the first row `r` with id `t` has no stored agent and
-is not done, and every stop of the name `t` is earlier than $n$, then after $\mathrm{spawn}(t, n)$ the
+is not done, and every stop of the key `t` is earlier than $n$, then after $\mathrm{spawn}(t, n)$ the
 board binds agent `t` to it.
 
 $$\forall \pi, t, n, r:\ \operatorname{row}_t(\pi) = r \land r.\mathit{agent} = \bot \land r.\mathit{evidence} = \bot \land (\forall (b, m) \in \pi.\mathit{stops}:\ b = t \Rightarrow m < n) \Rightarrow \operatorname{boundTo}(\operatorname{step}(\pi, \mathrm{spawn}(t, n)), t) = t$$
@@ -94,38 +94,49 @@ theorem workflow_binds (π : State) (t : String) (n : Nat) (r : Task)
     (hb : ∀ q ∈ π.stops, q.1 = t → q.2 < n) :
     boundTo (step π (.spawn t n)) t = some t := by
   have hid : r.id = t := by simpa using List.find?_some hr
-  have hend : ended { π with spawns := π.spawns ++ [(t, n)] } t = false := by
-    cases h : ended { π with spawns := π.spawns ++ [(t, n)] } t
-    · rfl
-    · exfalso
-      simp only [ended, List.any_eq_true, Bool.and_eq_true, beq_iff_eq, List.all_eq_true] at h
-      obtain ⟨q, hq, hqt, hall⟩ := h
-      have h1 := hall (t, n) (by simp)
-      have h2 := hb q hq hqt
-      simp at h1; omega
-  rw [step_spawn]
-  simp [boundTo, hr, agentOf, cands, opened, he, ha, hid, hend]
+  obtain ⟨hl, hend⟩ := revive_on_event π (k := t) (a := t) (n := n) (by simp [keysOf]) hb
+  have ho : opened (step π (.spawn t n)) t = true := by
+    simp only [liveK, Bool.and_eq_true] at hl
+    simp only [opened, List.any_eq_true]
+    exact ⟨t, by simp [keysOf], hl.1⟩
+  have hr' : (step π (.spawn t n)).tasks.find? (·.id == t) = some r := by rw [step_spawn]; exact hr
+  simp [boundTo, hr', agentOf, cands, ho, he, ha, hid, hend]
 
 /-- **The end of a workflow unbinds an undone task**: after $\mathrm{spawn}(t, n)$ and
-$\mathrm{stop}(t, n)$, where $n$ is no earlier than every spawn of `t` so far, the task is no longer
-bound (a done task keeps `t`, below).
+$\mathrm{stop}(t, n)$, where $n$ is no earlier than every sighting of the key `t` so far and no id is
+labelled `t`, the task is no longer bound (a done task keeps `t`, below).
 
-$$\forall \pi, t, n, r:\ \operatorname{row}_t(\pi) = r \land r.\mathit{agent} = \bot \land r.\mathit{evidence} = \bot \land \operatorname{lastAt}(\pi, t) \le n \Rightarrow \operatorname{boundTo}(\operatorname{step}(\operatorname{step}(\pi, \mathrm{spawn}(t, n)), \mathrm{stop}(t, n)), t) = \bot$$
+$$\forall \pi, t, n, r:\ \operatorname{row}_t(\pi) = r \land r.\mathit{agent} = \bot \land r.\mathit{evidence} = \bot \land (\forall (k, b) \in \pi.\mathit{labels}:\ b \ne t) \land \operatorname{lastAt}(\pi, t) \le n \Rightarrow \operatorname{boundTo}(\operatorname{step}(\operatorname{step}(\pi, \mathrm{spawn}(t, n)), \mathrm{stop}(t, n)), t) = \bot$$
 -/
 theorem workflow_ends (π : State) (t : String) (n : Nat) (r : Task)
     (hr : π.tasks.find? (·.id == t) = some r) (ha : r.agent = none) (he : r.evidence = none)
-    (hb : lastAt π t ≤ n) :
+    (hn : ∀ p ∈ π.labels, p.2 ≠ t) (hb : lastAt π t ≤ n) :
     boundTo (step (step π (.spawn t n)) (.stop t n)) t = none := by
   have hid : r.id = t := by simpa using List.find?_some hr
-  have hend : ended (step (step π (.spawn t n)) (.stop t n)) t = true :=
-    stop_ends (lastAt_le fun p hp hpt => by
-      rw [step_spawn] at hp
-      rcases List.mem_append.mp hp with hp | hp
-      · have := le_lastAt (π := π) (a := t) (n := p.2) (by rw [← hpt]; exact hp)
-        omega
-      · simp at hp; simp [hp])
+  have hsg : ∀ p ∈ sights (step π (.spawn t n)), p ∈ sights π ∨ p = (t, n) := by
+    intro p hp
+    rw [step_spawn] at hp
+    simp only [sights, List.mem_append, List.mem_singleton] at hp ⊢
+    rcases hp with hp | hp | hp
+    · exact .inl (.inl hp)
+    · exact .inl (.inr hp)
+    · exact .inr hp
+  have hle : lastAt (step π (.spawn t n)) t ≤ n := lastAt_le fun p hp hpt => by
+    rcases hsg p hp with hp | rfl
+    · have := le_lastAt (π := π) (k := t) (n := p.2) (by rw [← hpt]; exact hp)
+      omega
+    · exact Nat.le_refl _
+  have hE := stop_ends hle
+  have hf : π.labels.filter (·.2 == t) = [] :=
+    List.filter_eq_nil_iff.mpr fun p hp => by simpa using hn p hp
+  have hend : ended (step (step π (.spawn t n)) (.stop t n)) t = true := by
+    have hk : keysOf (step (step π (.spawn t n)) (.stop t n)) t = [t] := by
+      rw [step_spawn, step_stop]; simp [keysOf, hf]
+    simp [ended, hk, liveK, hE]
   rw [step_spawn, step_stop] at hend ⊢
-  simp [boundTo, hr, agentOf, cands, opened, he, ha, hid, hend]
+  simp only [boundTo, hr, Option.bind_some, agentOf, he, Option.isSome_none, Bool.false_eq_true,
+    ↓reduceIte, cands, ha, Option.toList_none, List.filter_nil, List.nil_append, hid]
+  split <;> simp [hend]
 
 /-- A done task keeps the workflow's agent after the run ended.
 
@@ -136,8 +147,11 @@ theorem workflow_done_keeps (π : State) (t : String) (n : Nat) (r : Task) (e : 
     boundTo (step (step π (.spawn t n)) (.stop t n)) t = some t := by
   have hid : r.id = t := by simpa using List.find?_some hr
   rw [step_spawn, step_stop]
-  simp [boundTo, hr, agentOf, cands, opened, he, ha, hid]
-  split <;> simp
+  have ho : opened { π with spawns := π.spawns ++ [(t, n)], stops := π.stops ++ [(t, n)] } t = true := by
+    simp [opened, keysOf, openedK, sights]
+  simp only [boundTo, hr, Option.bind_some, agentOf, he, Option.isSome_some, ↓reduceIte, cands, ha,
+    Option.toList_none, List.filter_nil, List.nil_append, hid, ho]
+  simp only [List.find?_cons, List.find?_nil, List.head?_cons]; split <;> rfl
 
 /-- A run whose name is not a task id gives no command.
 
@@ -158,34 +172,69 @@ theorem find_congr (p q : String → Bool) :
     simp only [List.find?_cons, h a (List.mem_cons_self ..)]
     rw [find_congr p q l (fun b hb => h b (List.mem_cons_of_mem _ hb))]
 
-/-- Spawns and stops of one name `n` (at any times) change the binding of no row whose id is not `n`
-and whose stored agent is not `n`: a workflow that is no task id binds nothing.
+/-- Spawns and stops of one key `n` leave every other key as it was: seen and live alike.
 
-$$\forall \pi, t, n, xs, ys:\ t.\mathit{id} \ne n \land t.\mathit{agent} \ne \mathrm{some}(n) \land (\forall (b, m) \in xs \mathbin{+\!\!+} ys:\ b = n) \Rightarrow \operatorname{agentOf}(\pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} xs,\ \mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} ys], t) = \operatorname{agentOf}(\pi, t)$$
+$$\forall \pi, n, k, xs, ys:\ (\forall (b, m) \in xs \mathbin{+\!\!+} ys:\ b = n) \land k \ne n \Rightarrow \operatorname{openedK}(\pi', k) = \operatorname{openedK}(\pi, k) \land \operatorname{liveK}(\pi', k) = \operatorname{liveK}(\pi, k), \qquad \pi' = \pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} xs,\ \mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} ys]$$
+-/
+theorem key_other (π : State) (n k : String) (xs ys : List (String × Nat))
+    (hx : ∀ x ∈ xs, x.1 = n) (hy : ∀ y ∈ ys, y.1 = n) (hk : k ≠ n) :
+    openedK { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } k = openedK π k ∧
+      liveK { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } k = liveK π k := by
+  have hsg : sights { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } = sights π ++ xs := by
+    simp [sights]
+  have h0 : xs.any (·.1 == k) = false :=
+    List.any_eq_false.mpr fun p hp => by simp [hx p hp, Ne.symm hk]
+  have ho : openedK { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } k = openedK π k := by
+    simp only [openedK, hsg, List.any_append, h0, Bool.or_false]
+  refine ⟨ho, ?_⟩
+  have hxa : ∀ m : Nat, xs.all (fun p => p.1 != k || decide (p.2 ≤ m)) = true := fun m =>
+    List.all_eq_true.mpr fun p hp => by simp [hx p hp, Ne.symm hk]
+  have hya : (ys.any fun q => q.1 == k &&
+      (sights π ++ xs).all fun p => p.1 != k || decide (p.2 ≤ q.2)) = false :=
+    List.any_eq_false.mpr fun q hq => by simp [hy q hq, Ne.symm hk]
+  have hE : endedK { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } k = endedK π k := by
+    simp only [endedK, hsg, List.any_append, hya, Bool.or_false]
+    simp only [List.all_append, hxa, Bool.and_true]
+  simp only [liveK, ho, hE]
+
+/-- Spawns and stops of one key `n` (at any times) change the binding of no row whose id is not `n`
+and whose stored agent is not `n`, when `n` is no labelled key (no label pairs the id `n` with a name): a workflow
+that is no task id binds nothing.
+
+$$\forall \pi, t, n, xs, ys:\ t.\mathit{id} \ne n \land t.\mathit{agent} \ne \mathrm{some}(n) \land (\forall (b, m) \in xs \mathbin{+\!\!+} ys:\ b = n) \land (\forall (k, b) \in \pi.\mathit{labels}:\ k \ne n) \Rightarrow \operatorname{agentOf}(\pi[\mathit{spawns} := \pi.\mathit{spawns} \mathbin{+\!\!+} xs,\ \mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} ys], t) = \operatorname{agentOf}(\pi, t)$$
 -/
 theorem workflow_foreign_agentOf (π : State) (t : Task) (n : String) (xs ys : List (String × Nat))
-    (hx : ∀ x ∈ xs, x.1 = n) (hy : ∀ y ∈ ys, y.1 = n) (hid : t.id ≠ n) (hag : t.agent ≠ some n) :
+    (hx : ∀ x ∈ xs, x.1 = n) (hy : ∀ y ∈ ys, y.1 = n) (hid : t.id ≠ n) (hag : t.agent ≠ some n)
+    (hl : ∀ p ∈ π.labels, p.1 ≠ n) :
     agentOf { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } t = agentOf π t := by
+  have hkeys : ∀ a, a ≠ n → ∀ k ∈ keysOf π a, k ≠ n := by
+    intro a ha k hk
+    simp only [keysOf, List.mem_cons, List.mem_map, List.mem_filter] at hk
+    rcases hk with rfl | ⟨p, ⟨hp, _⟩, rfl⟩
+    · exact ha
+    · exact hl p hp
+  have hk' : ∀ a, keysOf { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } a = keysOf π a :=
+    fun _ => rfl
   have hend : ∀ a, a ≠ n →
       ended { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } a = ended π a := by
     intro a ha
-    have hx' : ∀ m : Nat, xs.all (fun p => p.1 != a || decide (p.2 ≤ m)) = true := fun m =>
-      List.all_eq_true.mpr fun p hp => by simp [hx p hp, Ne.symm ha]
-    unfold ended
-    simp only [List.any_append, List.all_append, hx', Bool.and_true]
-    have hy' : (ys.any fun q => q.1 == a && π.spawns.all fun p => p.1 != a || decide (p.2 ≤ q.2)) =
-        false :=
-      List.any_eq_false.mpr fun q hq => by simp [hy q hq, Ne.symm ha]
-    rw [hy', Bool.or_false]
+    simp only [ended, hk']
+    rw [any_congr_mem fun k hk => (key_other π n k xs ys hx hy (hkeys a ha k hk)).2]
+  have hop : ∀ a, a ≠ n →
+      opened { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } a = opened π a := by
+    intro a ha
+    simp only [opened, hk']
+    rw [any_congr_mem fun k hk => (key_other π n k xs ys hx hy (hkeys a ha k hk)).1]
   have hc : cands { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } t = cands π t := by
-    have h0 : xs.any (·.1 == t.id) = false :=
-      List.any_eq_false.mpr fun p hp => by simp [hx p hp, Ne.symm hid]
-    unfold cands opened; rw [List.any_append, h0, Bool.or_false]
+    have hfl : t.agent.toList.filter (opened { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys })
+        = t.agent.toList.filter (opened π) :=
+      List.filter_congr fun a ha => hop a fun e => hag (by simp_all)
+    simp only [cands, hfl, hop t.id hid]
   have hmem : ∀ a ∈ cands π t, a ≠ n := by
     intro a ha
-    simp only [cands, List.mem_append, Option.mem_toList, List.mem_ite_nil_right,
+    simp only [cands, List.mem_append, List.mem_filter, Option.mem_toList, List.mem_ite_nil_right,
       List.mem_singleton] at ha
-    rcases ha with h | ⟨_, h⟩
+    rcases ha with ⟨h, _⟩ | ⟨_, h⟩
     · intro e; exact hag (by rw [h, e])
     · intro e; exact hid (by rw [← h, e])
   have hf : (cands π t).find? (fun a => !ended { π with spawns := π.spawns ++ xs, stops := π.stops ++ ys } a)

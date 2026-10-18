@@ -61,6 +61,9 @@ def define (task : String) (deps : List String) (milestone : Option String := no
     (cut : Bool := false) (live : List String := []) (onMain : Option Bool := none) : Json :=
   apply key actor "task.define" (defFields task deps milestone writes devices evidence needs cut live onMain)
 
+/-- A live key of a board task for `plan.timeouts`: `{key, at}`. -/
+def key (k : String) (n : Nat) : Json := Json.mkObj [("key", .str k), ("at", toJson n)]
+
 /-- The synthetic cases: (name, requests). -/
 def cases : List (String × List Json) := [
   ("define: two tasks and a milestone, then the board plan", [
@@ -238,7 +241,7 @@ def cases : List (String × List Json) := [
     define "b" [],
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
     apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
-    apply "int:a" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "ci/integrate-1"), ("tip", .str "b00ef68")],
+    apply "int:a" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/ci/integrate-1"), ("tip", .str "b00ef68")],
     apply "park:b" "lead" "task.park" [("task", .str "b"), ("reason", .str "folded into a")],
     query,
     apply "unpark:b" "lead" "task.unpark" [("task", .str "b")],
@@ -281,22 +284,43 @@ def cases : List (String × List Json) := [
     apply "park:b" "lead" "task.park" [("task", .str "b"), ("reason", .str "folded-no-change")],
     apply "park:c" "lead" "task.park" [("task", .str "c"), ("reason", .str "folded")],
     query]),
-  ("integrate refusals (task-state-truth): every name of main is refused; a branch is accepted", [
+  ("integrate allowlist (task-state-truth): every name of main and every short or unlisted ref is refused; refs/heads/ci/*, worktree-* and integrate-* are accepted", [
     define "a" [],
     apply "int:1" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "HEAD"), ("tip", .str "t")],
     apply "int:2" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "origin/main"), ("tip", .str "t")],
     apply "int:3" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/main"), ("tip", .str "t")],
     apply "int:4" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "Main"), ("tip", .str "t")],
-    apply "int:5" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "ci/main-fix"), ("tip", .str "t")]]),
-  ("timeouts (task-state-truth): a seen agent quiet longer than quietMs is due; a bare claim and a done task never", [
+    apply "int:5" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "ci/main-fix"), ("tip", .str "t")],
+    apply "int:6" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "main~0"), ("tip", .str "t")],
+    apply "int:7" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "origin/HEAD"), ("tip", .str "t")],
+    apply "int:8" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/ci/main-fix"), ("tip", .str "t")],
+    apply "int:9" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/worktree-wf_1"), ("tip", .str "t")],
+    apply "int:10" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/integrate-ports-3"), ("tip", .str "t")],
+    query]),
+  ("liveness by id (task-state-truth): a labelled id keeps its name live; its stop ends it; a later event revives it", [
+    define "a" [],
+    apply "label:id-1|a" "script" "agent.label" [("agent", .str "id-1"), ("name", .str "a")],
+    apply "start:id-1" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (10 : Nat))],
+    query,
+    apply "stop:id-1" "hook" "agent.stop" [("agent", .str "id-1"), ("at", toJson (20 : Nat))],
+    query,
+    apply "seen:id-1|20|0" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (30 : Nat))],
+    query]),
+  ("claim TTL (task-state-truth): a claim is a sighting at claim time; its timeout stop parks the row as expired", [
+    define "a" [],
+    apply "c:a" "lead" "task.claim" [("task", .str "a"), ("agent", .str "lead-1"), ("at", toJson (500 : Nat))],
+    query,
+    apply "timeout:lead-1|500" "script" "agent.stop" [("agent", .str "lead-1"), ("at", toJson (500 : Nat))],
+    query]),
+  ("timeouts (task-state-truth): a live key quiet longer than quietMs is due at its last sighting; a recent key and a done task never", [
     Json.mkObj [("op", .str "plan.timeouts"), ("now", toJson (7200001 : Nat)), ("tasks", .arr #[
-      Json.mkObj [("id", .str "a"), ("agent", .str "a"), ("since", toJson (0 : Nat)), ("evidence", .null)],
-      Json.mkObj [("id", .str "b"), ("agent", .str "b"), ("since", toJson (1 : Nat)), ("evidence", .null)],
-      Json.mkObj [("id", .str "c"), ("agent", .str "lead-1"), ("since", .null), ("evidence", .null)],
-      Json.mkObj [("id", .str "d"), ("agent", .str "d"), ("since", toJson (0 : Nat)), ("evidence", .str "abc1234")]])],
+      Json.mkObj [("id", .str "a"), ("keys", .arr #[key "a" 0, key "id-a" 0]), ("evidence", .null)],
+      Json.mkObj [("id", .str "b"), ("keys", .arr #[key "b" 1]), ("evidence", .null)],
+      Json.mkObj [("id", .str "c"), ("keys", .arr #[]), ("evidence", .null)],
+      Json.mkObj [("id", .str "d"), ("keys", .arr #[key "d" 0]), ("evidence", .str "abc1234")]])],
     Json.mkObj [("op", .str "plan.timeouts"), ("now", toJson (10 : Nat)), ("quietMs", toJson (5 : Nat)), ("tasks", .arr #[
-      Json.mkObj [("id", .str "a"), ("agent", .str "a"), ("since", toJson (4 : Nat))],
-      Json.mkObj [("id", .str "b"), ("agent", .str "b"), ("since", toJson (5 : Nat))]])]])]
+      Json.mkObj [("id", .str "a"), ("keys", .arr #[key "a" 4])],
+      Json.mkObj [("id", .str "b"), ("keys", .arr #[key "b" 5])]])]])]
 
 /-- The plan-sync vectors (`Fw.Plan.syncFrom`): name, main's ref name, the refs, the last synced
 commit, and the commit to sync from (or none). -/

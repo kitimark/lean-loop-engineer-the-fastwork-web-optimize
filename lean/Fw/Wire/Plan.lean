@@ -5,7 +5,7 @@ import Fw.Plan.Incident
 # JSON for the plan commands and the board plan
 
 The wire form of `task.define`, `task.drop`, `task.claim`, `task.done`, `milestone.define`,
-`agent.spawn`, `agent.stop`, and the outcome marks `task.handback`, `task.integrate`, `task.park`,
+`agent.spawn`, `agent.stop`, `agent.label`, and the outcome marks `task.handback`, `task.integrate`, `task.park`,
 `task.unpark` (task `task-state-truth`): the
 same flat event envelope as the other console commands (`key`, `ts`, `actor`, `type`) plus
 
@@ -13,17 +13,19 @@ same flat event envelope as the other console commands (`key`, `ts`, `actor`, `t
 |---|---|
 | `task.define` | `task`, `title`, `stream`, `owner`, `deps` (required); `milestone`, `evidence` (string or null/missing), `writes`, `devices`, `needs`, `live` (string arrays, missing = `[]`), `cut` (boolean, missing = `false`), `evidenceOnMain` (boolean, missing or null = `true`: the glue's `git merge-base --is-ancestor <evidence> main`; written only when false) |
 | `task.drop` | `task` |
-| `task.claim` | `task`, `agent` |
+| `task.claim` | `task`, `agent`; `at` (claim time, ms; missing or null = the event's `ts`) |
 | `task.done` | `task`, `evidence` |
 | `milestone.define` | `milestone`, `title` |
 | `agent.spawn` | `agent`; `at` (when the agent was seen, ms; missing or null = the event's `ts`) |
 | `agent.stop` | `agent`; `at` (when the agent ended, ms; missing or null = the event's `ts`) |
+| `agent.label` | `agent` (a life key, the agent id), `name` (the name it is shown and bound under) |
 | `task.handback` | `task`, `agent`; `tip` (string or null/missing) |
 | `task.integrate` | `task`, `branch`, `tip` |
 | `task.park` | `task`, `reason` |
 | `task.unpark` | `task` |
 
-A board task carries `since` (when its agent was last seen, ms, or null: `Fw.Plan.seenAt`) and
+A board task carries `since` (when its agent was last seen, ms, or null: `Fw.Plan.seenAt`), `keys`
+(the live life keys of its agent with their last-seen times, `[{key, at}]`: `Fw.Plan.liveKeys`) and
 `outcome`: null, or `{kind: "handedBack", agent, tip}`,
 `{kind: "integrated", branch, tip}`, `{kind: "parked", reason}` (`Fw.Plan.outcomeOf`).
 
@@ -40,7 +42,7 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | op | request | reply |
 |---|---|---|
 | `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist], `classes`? [class ids of research/mistakes/ledger.json] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
-| `plan.timeouts` | `tasks` [board tasks: {id, evidence?, agent?, since?}], `now` (ms), `quietMs`? (missing = `Fw.Plan.quietMs`) | `stops` [{agent, since}] (`Fw.Plan.timeouts`: append each as `agent.stop` with `at` = `now`) |
+| `plan.timeouts` | `tasks` [board tasks: {id, evidence?, keys? [{key, at}]}], `now` (ms), `quietMs`? (missing = `Fw.Plan.quietMs`) | `stops` [{agent, at}] (`Fw.Plan.timeouts`: append each as `agent.stop` of key `agent` with that `at`, the key's last sighting, so a later event revives it) |
 -/
 namespace Fw.Wire.Plan
 open Lean Fw.Wire Fw.Plan
@@ -82,16 +84,17 @@ def natD (j : Json) (k : String) (d : Nat) : Except String Nat :=
     | .error _ => .error s!"field {k}: expected a non-negative integer"
 
 /-- Decode a plan command of the given type; `none` when the type is not a plan type. The time of
-`agent.spawn` / `agent.stop` is `at`, or the event's `ts` when `at` is missing. -/
+`task.claim`, `agent.spawn` and `agent.stop` is `at`, or the event's `ts` when `at` is missing. -/
 def cmdOfJson (t : String) (j : Json) (ts : Nat) : Option (Except String Cmd) :=
   match t with
   | "task.define" => some (.define <$> defOfJson j)
   | "task.drop" => some (do pure (.drop (← str j "task")))
-  | "task.claim" => some (do pure (.claim (← str j "task") (← str j "agent")))
+  | "task.claim" => some (do pure (.claim (← str j "task") (← str j "agent") (← natD j "at" ts)))
   | "task.done" => some (do pure (.done (← str j "task") (← str j "evidence")))
   | "milestone.define" => some (do pure (.milestone (← str j "milestone") (← str j "title")))
   | "agent.spawn" => some (do pure (.spawn (← str j "agent") (← natD j "at" ts)))
   | "agent.stop" => some (do pure (.stop (← str j "agent") (← natD j "at" ts)))
+  | "agent.label" => some (do pure (.label (← str j "agent") (← str j "name")))
   | "task.handback" => some (do pure (.handback (← str j "task") (← str j "agent") (← optStr j "tip")))
   | "task.integrate" =>
     some (do pure (.integrate (← str j "task") (← str j "branch") (← str j "tip")))
@@ -122,10 +125,11 @@ def cmdFields : Cmd → List (String × Json)
       ++ (if d.live.isEmpty then [] else [("live", strsJson d.live)])
       ++ (if d.onMain then [] else [("evidenceOnMain", .bool false)])
   | .drop x => [("task", .str x)]
-  | .claim x a => [("task", .str x), ("agent", .str a)]
+  | .claim x a n => [("task", .str x), ("agent", .str a), ("at", toJson n)]
   | .done x e => [("task", .str x), ("evidence", .str e)]
   | .milestone m t => [("milestone", .str m), ("title", .str t)]
   | .spawn a n | .stop a n => [("agent", .str a), ("at", toJson n)]
+  | .label k a => [("agent", .str k), ("name", .str a)]
   | .handback x a p => [("task", .str x), ("agent", .str a), ("tip", ostr p)]
   | .integrate x b p => [("task", .str x), ("branch", .str b), ("tip", .str p)]
   | .park x r => [("task", .str x), ("reason", .str r)]
@@ -147,6 +151,7 @@ def taskViewJson (t : TaskView) : Json := Json.mkObj [
   ("milestone", ostr t.milestone), ("owner", .str t.owner), ("deps", strsJson t.deps),
   ("needs", strsJson t.needs), ("lane", .str t.lane.name), ("state", .str t.state.name), ("blockers", strsJson t.blockers), ("agent", ostr t.agent),
   ("since", match t.since with | none => .null | some n => toJson n),
+  ("keys", .arr (t.keys.toArray.map fun (k, n) => Json.mkObj [("key", .str k), ("at", toJson n)])),
   ("evidence", ostr t.evidence), ("outcome", markJson t.outcome)]
 
 /-- Encode a milestone of the board plan. -/
@@ -212,25 +217,23 @@ def opIncidentLint (req : Json) : Except String Reply := do
 
 /-! ## plan.timeouts (task task-state-truth) -/
 
-/-- Decode a board task for `plan.timeouts`: id, evidence, agent (string or null/missing) and since
-(natural or null/missing); the other fields are not read by `Fw.Plan.timeouts`. -/
+/-- Decode a board task for `plan.timeouts`: id, evidence (string or null/missing) and keys
+(`[{key, at}]`, missing or null = `[]`); the other fields are not read by `Fw.Plan.timeouts`. -/
 def timeoutTaskOfJson (t : Json) : Except String TaskView := do
+  let ks ← match opt t "keys" with
+    | none => pure []
+    | some v => do (← asArr "keys" v).toList.mapM fun k => do pure (← str k "key", ← nat k "at")
   pure { id := ← str t "id", title := "", stream := "", milestone := none, owner := "", deps := [],
-         needs := [], lane := .agent, state := .ready, blockers := [], agent := ← optStr t "agent",
-         since := ← (match opt t "since" with
-           | none => pure none
-           | some v => match v.getNat? with
-             | .ok n => pure (some n)
-             | .error _ => throw "field since: expected a non-negative integer"),
-         evidence := ← optStr t "evidence", outcome := none }
+         needs := [], lane := .agent, state := .ready, blockers := [], agent := none, since := none,
+         keys := ks, evidence := ← optStr t "evidence", outcome := none }
 
-/-- `plan.timeouts`: the timeout stops due at `now` (`Fw.Plan.timeouts`), as `{agent, since}`. -/
+/-- `plan.timeouts`: the timeout stops due at `now` (`Fw.Plan.timeouts`), as `{agent, at}`. -/
 def opTimeouts (req : Json) : Except String Reply := do
   let vs ← (← arr req "tasks").toList.mapM timeoutTaskOfJson
   let now ← nat req "now"
   let q ← natD req "quietMs" quietMs
   pure [("stops", .arr ((timeouts q now vs).toArray.map fun (a, n) =>
-    Json.mkObj [("agent", .str a), ("since", toJson n)]))]
+    Json.mkObj [("agent", .str a), ("at", toJson n)]))]
 
 /-- The stateless ops of this module. -/
 def ops : List String := ["plan.incidentLint", "plan.timeouts"]
