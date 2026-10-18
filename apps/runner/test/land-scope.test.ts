@@ -201,7 +201,7 @@ describe("checksFor", () => {
     expect(checksFor("/nonexistent", ["docs/a.md"])).toEqual([]);
     expect(checksFor("/nonexistent", ["lean/Fw/A.lean"])).toEqual([["sh", "lean/scripts/check.sh"]]);
     const root = join(dirname(new URL(import.meta.url).pathname), "../../..");
-    expect(checksFor(root, ["apps/runner/src/land.ts", "apps/runner/test/x.ts"])).toEqual([["pnpm", "--filter", "./apps/runner", "test"]]);
+    expect(checksFor(root, ["apps/runner/src/land.ts", "apps/runner/test/x.ts"])).toEqual([["pnpm", "--filter", "./apps/runner", "test"], ["pnpm", "--filter", "./packages/engine-check", "test"]]);
   });
   it("installs first when a dependency changes", () => {
     expect(checksFor("/nonexistent", ["pnpm-lock.yaml"])).toEqual([["pnpm", "install", "--frozen-lockfile"]]);

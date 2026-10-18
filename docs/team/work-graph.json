@@ -945,7 +945,8 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-19-model-checks.md",
     "docs/team/handoffs/model-checks.md"
-   ]
+   ],
+   "evidence": "c5ad620"
   },
   {
    "id": "preset-v2-proved",
@@ -5000,7 +5001,8 @@
     "docs/team/tools/prompt-rules.md",
     "docs/team/tools/workflow-patterns.md",
     "docs/team/handoffs/workflow-salvage.md"
-   ]
+   ],
+   "evidence": "495b094"
   },
   {
    "id": "console-lan-owner",
