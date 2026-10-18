@@ -1,6 +1,6 @@
 # console-stale handoff
 
-State: branch worktree-wf_ebc4ff5b-4b6-1 (head = the commit that adds this file; see `git log -1`). check.sh green, runner+console-api+contracts tests green, `fw land --dry` ok.
+State: branch worktree-wf_ebc4ff5b-4b6-1 (round-2 head b82d0c4+handoff commit). check.sh green, runner+console-api+contracts tests green, `fw land --dry` ok.
 
 Read first: docs/team/tools/console-stale.md, lean/Fw/Obs/Stale.lean.
 
