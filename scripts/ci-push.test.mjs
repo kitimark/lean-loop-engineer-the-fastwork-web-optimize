@@ -33,7 +33,10 @@ test('requestMessage asks for exactly the requested lanes (as the guard reads it
   const lean = lanesFor(golden, ['lean']);
   assert.ok(asksExactly(golden, lean, 'fix a typo')); // no intent: only the default lane
   assert.ok(!asksExactly(golden, lanesFor(golden, ['wktr']), 'fix a typo'));
-  assert.ok(!asksExactly(golden, lanesFor(golden, ['wktr']), 'x [ci:wktr] [ci:lean]'));
+  // round 2: lean is always wanted, so naming it changes nothing; naming another lane does
+  assert.ok(asksExactly(golden, lanesFor(golden, ['wktr']), 'x [ci:wktr] [ci:lean]'));
+  assert.ok(!asksExactly(golden, lanesFor(golden, ['wktr']), 'x [ci:wktr] [ci:difftest]'));
+  assert.ok(asksExactly(golden, lanesFor(golden, ['none']), 'fix a typo'));
   assert.equal(requestMessage(golden, []), 'ci: request [ci:none]');
 });
 

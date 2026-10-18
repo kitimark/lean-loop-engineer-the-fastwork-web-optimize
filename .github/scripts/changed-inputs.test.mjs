@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { changedFiles, decide, globToRegExp, guardBase, isLanded, laneFor, lowerAscii, matches, newerFiles, parsePaths, preciseInputs, wantedBy } from './changed-inputs.mjs';
+import { changedFiles, decide, globToRegExp, guardBase, isLanded, laneFor, lowerAscii, matches, newerFiles, newerPush, outputLine, parsePaths, preciseInputs, wantedBy } from './changed-inputs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WF = `name: x
@@ -178,14 +178,25 @@ test('decide with a lane: the head commit must ask for it; landed and superseded
   assert.equal(decide({ ...ci, lane: wktr, msg: 'fix [ci:wktr-fixtures]' }).run, false); // tokens do not confuse
   assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', landed: true }).run, false);
   assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', newer: ['docs/a.md'] }).run, true); // newer push off-input
-  assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', newer: files }).run, false); // superseded
+  // a newer push supersedes only when it wants the lane (round 2: an unrequested push never makes a requested run skip)
+  assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', newer: files, tipMsg: 'fix y' }).run, true);
+  assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', newer: files, tipMsg: 'fix y [ci:wktr]' }).run, false); // superseded
   assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', files: ['docs/a.md'] }).run, false); // requested, unchanged
   assert.equal(decide({ ...ci, lane: lean, msg: 'fix' }).run, true); // the default lane
-  assert.equal(decide({ ...ci, lane: lean, msg: '[ci:none]' }).run, false);
+  // lean is checked whenever its inputs changed, whatever lanes are named (Lean lean_always_when_changed)
+  const leanFiles = ['lean/Fw.lean'];
+  assert.equal(decide({ ...ci, files: leanFiles, globs: ['lean/**'], lane: lean, msg: '[ci:none]' }).run, true);
+  assert.equal(decide({ ...ci, files: leanFiles, globs: ['lean/**'], lane: lean, msg: '[ci:wktr]' }).run, true);
+  assert.equal(decide({ ...ci, files: ['docs/a.md'], globs: ['lean/**'], lane: lean, msg: '[ci:lean]' }).run, false);
+  // a newer push that does not name lean still supersedes it (lean is wanted by every push)
+  assert.equal(decide({ ...ci, files: leanFiles, globs: ['lean/**'], lane: lean, msg: 'a', newer: leanFiles, tipMsg: 'b' }).run, false);
   assert.equal(decide({ ...ci, event: 'workflow_dispatch', lane: wktr, msg: '', landed: true }).run, true);
   assert.equal(decide({ ...ci, ref: 'refs/heads/main', lane: wktr, msg: '' }).run, true);
   assert.equal(lowerAscii('[CI:ÄB]'), '[ci:Äb]'); // Lean Char.toLower lowers ASCII only
   assert.equal(wantedBy(wktr, ''), false);
+  assert.equal(wantedBy(lean, '[ci:none]'), true);
+  assert.equal(outputLine('a\r\nb\nc'), 'a b c');
+  assert.equal(outputLine('x'.repeat(300)).length, 200);
 });
 
 test('isLanded, guardBase and newerFiles read the remote refs of a checkout', () => {
@@ -224,6 +235,7 @@ test('isLanded, guardBase and newerFiles read the remote refs of a checkout', ()
     o('commit', '-q', '-m', 'newer');
     o('push', '-q', 'origin', 'ci/x');
     assert.deepEqual(newerFiles('refs/heads/ci/x', work).sort(), ['docs.md', 'lean/Fw.lean']);
+    assert.equal(newerPush('refs/heads/ci/x', work).msg, 'newer');
     // the branch lands: main moves to the commit; the mirror ci/landed takes over as the base
     o('push', '-q', 'origin', 'HEAD:main');
     o('push', '-q', 'origin', 'HEAD:ci/landed');

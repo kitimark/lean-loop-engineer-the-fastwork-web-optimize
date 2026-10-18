@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // ci-push (task ci-own-trigger): the one way an agent asks CI for runs. A push to ci/** starts only the lanes its head
 // commit names with `[ci:<lane>]` tokens (Lean lean/Fw/Ci/Intent.lean; the guard `if:` and
-// .github/scripts/changed-inputs.mjs), and with no token only the default lane `lean`. This helper
+// .github/scripts/changed-inputs.mjs), plus the default lane `lean` whenever its inputs changed (round 2: whatever lanes
+// are named, `[ci:none]` included). This helper
 //   1. checks every lane name against the Lean intent golden (packages/contracts/golden/ci/intent.jsonl),
 //   2. adds an empty commit `ci: request [ci:a] [ci:b]` when the head commit does not already ask for exactly those lanes,
 //   3. previews, with the guard's own `decide` over this push (fresh origin/main, the branch's remote tip as `before`),
@@ -16,7 +17,8 @@ import { pathToFileURL } from 'node:url';
 import { changedFiles, decide, guardBase, isLanded, loadIntent, preciseInputs, wantedBy } from '../.github/scripts/changed-inputs.mjs';
 
 export const USAGE = 'usage: fw ci push --branch ci/<name> --lanes <lane,lane | none> [--dry]\n' +
-  '  lanes: the workflow file stems (lean, wktr, webkit-sim, ...); `none` pushes without starting a run.';
+  '  lanes: the workflow file stems (lean, wktr, webkit-sim, ...); `none` asks for no lane (lean still runs when its\n' +
+  '  inputs changed: it is the default lane).';
 
 /** Parse the arguments: { branch, lanes, dry }; throws with USAGE on a bad flag. */
 export function parseArgs(argv) {
@@ -51,10 +53,17 @@ export function requestMessage(golden, lanes) {
   return `ci: request ${toks.join(' ')}`;
 }
 
-/** Whether a message asks for exactly these lanes (Lean `wanted`, as the guard reads it). */
+/** Whether a message asks for exactly these lanes (Lean `wanted`, as the guard reads it); a default lane is always
+ *  wanted, so it counts as asked for. */
 export function asksExactly(golden, lanes, msg) {
-  const want = new Set(lanes.map((l) => l.name));
+  const want = new Set([...lanes.map((l) => l.name), ...golden.lanes.filter((l) => l.byDefault).map((l) => l.name)]);
   return golden.lanes.every((l) => wantedBy({ ...l, prefix: golden.prefix }, msg) === want.has(l.name));
+}
+
+/** The requested lanes, then the default lanes not requested (shown in the preview, never a reason to push). */
+export function previewLanes(golden, lanes) {
+  const names = new Set(lanes.map((l) => l.name));
+  return [...lanes, ...golden.lanes.filter((l) => l.byDefault && !names.has(l.name)).map((l) => ({ ...l, prefix: golden.prefix, implicit: true }))];
 }
 
 const git = (cwd, ...a) => execFileSync('git', a, { cwd, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -67,7 +76,7 @@ export function preview(cwd, lanes, msg, before, branch) {
   return lanes.map((l) => {
     const globs = preciseInputs(cwd, l.file) ?? [];
     const r = decide({ event: 'push', ref: `refs/heads/${branch}`, files, globs, msg, lane: l, newer: [], landed });
-    return { lane: l.name, run: r.run, reason: r.reason };
+    return { lane: l.implicit ? `${l.name} (default lane)` : l.name, run: r.run, reason: r.reason, implicit: l.implicit === true };
   });
 }
 
@@ -85,9 +94,9 @@ export function main(argv, cwd = process.cwd()) {
   const head = git(root, 'log', '-1', '--format=%B', 'HEAD');
   const needCommit = !asksExactly(golden, lanes, head);
   const msg = needCommit ? requestMessage(golden, lanes) : head;
-  const plan = preview(root, lanes, msg, remote, a.branch);
+  const plan = preview(root, previewLanes(golden, lanes), msg, remote, a.branch);
   for (const p of plan) console.log(`${p.run ? 'START' : 'skip '} ${p.lane}: ${p.reason}`);
-  if (lanes.length > 0 && !plan.some((p) => p.run)) {
+  if (lanes.length > 0 && !plan.some((p) => p.run && !p.implicit)) {
     console.log('ci-push: no requested lane would start (its inputs are unchanged by this push, or landed). Change an input, or');
     console.log(`  dispatch a record run instead: gh workflow run <lane>.yml --ref ${a.branch}`);
     return 2;

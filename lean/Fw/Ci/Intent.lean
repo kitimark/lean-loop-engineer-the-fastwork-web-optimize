@@ -337,15 +337,16 @@ def containsExpr (s : String) : String := "contains(github.event.head_commit.mes
 $$\mathrm{rec} = \texttt{github.event\_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/')}$$ -/
 def recordExpr : String := "github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/')"
 
-/-- The guard job's `if:` text: `gate` written as a GitHub expression. A default lane has no condition (`true`).
-$$\forall \ell:\ \operatorname{ifExpr}(\ell) = \begin{cases} \texttt{\$\{\{ true \}\}} & \ell.\mathit{dflt} \\ \texttt{\$\{\{ } \mathrm{rec} \mathbin{\|} \operatorname{has}(\operatorname{tok}(\ell.n)) \texttt{ \}\}} & \lnot\ell.\mathit{dflt} \end{cases}$$ -/
+/-- The guard job's `if:` text: `gate` written as a GitHub expression. A default lane has no `if:` at all (the empty
+text: a job without `if:` always runs, and actionlint rejects a constant condition).
+$$\forall \ell:\ \operatorname{ifExpr}(\ell) = \begin{cases} \texttt{""} & \ell.\mathit{dflt} \\ \texttt{\$\{\{ } \mathrm{rec} \mathbin{\|} \operatorname{has}(\operatorname{tok}(\ell.n)) \texttt{ \}\}} & \lnot\ell.\mathit{dflt} \end{cases}$$ -/
 def ifExpr (l : Lane) : String :=
-  if l.byDefault then "${{ true }}"
+  if l.byDefault then ""
   else "${{ " ++ recordExpr ++ " || " ++ containsExpr (String.ofList (tok l.name)) ++ " }}"
 
 #guard ifExpr (laneOf ⟨"wktr.yml", [], []⟩) ==
   "${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:wktr]') }}"
-#guard ifExpr (laneOf ⟨"lean.yml", [], []⟩) == "${{ true }}"
+#guard ifExpr (laneOf ⟨"lean.yml", [], []⟩) == ""
 
 /-! ## Job-level concurrency (round 2) -/
 

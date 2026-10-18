@@ -82,13 +82,6 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
-# Runs of other branches never cancel each other (the ref is in the group). Dispatches on one branch with different inputs
-# (flag set, parts, engines) are different groups, so a loop of variant dispatches is not cancelled by its own next iteration.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.fw }}-${{ inputs.parts }}-${{ inputs.engines }}-${{ inputs.runs }}-${{ inputs.free }}-${{ inputs.times }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
-
 env:
   # Same pinned browser as packages/measure-chromium/Dockerfile.
   HS_VERSION: 156.0.8078.4
@@ -96,9 +89,10 @@ env:
 
 jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
-  # the head commit asks for this lane (`[ci:<lane>]`; with no `[ci:` at all only the default lanes); then it runs the
-  # workflow only if THIS push changed one of its inputs to something other than main's content, no newer push on the
-  # branch changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane
+  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
+  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.
   guard:
     if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:breakpoint-gate]') }}
     runs-on: ubuntu-24.04-arm
@@ -118,6 +112,12 @@ jobs:
           BEFORE: ${{ github.event.before }}
           GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/breakpoint-gate.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
 
   # The rewrite, built once; every gate job downloads this exact build (its buildId is in each run header, and the merge
   # job refuses files whose headers differ).
@@ -126,6 +126,9 @@ jobs:
   site:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && github.ref || github.run_id }}:site:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     outputs:
@@ -187,6 +190,9 @@ jobs:
   # One job per entry of the Lean split: its probes (`cli.mjs run --probes`) and its whole sweeps (`--sweeps`); "none" = nothing.
   gate:
     needs: [site]
+    concurrency:
+      group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && github.ref || github.run_id }}:gate:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     name: gate ${{ matrix.engine }} ${{ matrix.job }}
@@ -246,6 +252,9 @@ jobs:
   merge:
     needs: [site, gate]
     if: ${{ !cancelled() && needs.site.result == 'success' }}
+    concurrency:
+      group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && github.ref || github.run_id }}:merge:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:

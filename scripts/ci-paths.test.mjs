@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { coarseMap, coneOf, coneProblems, expand, guardIf, LAKE_GEN, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
+import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -161,10 +161,13 @@ test('renderPush writes branches and quoted paths', () => {
 
 // ---- task ci-own-trigger: the Lean intent golden (lean/Fw/Ci/Intent.lean) ----
 const intent = loadIntent(root);
-const laneOf = (file) => ({ ...intent.lanes.lanes.find((l) => l.file === file), prefix: intent.lanes.prefix });
+const laneOf = (file) => ({ ...intent.lanes.lanes.find((l) => l.file === file), prefix: intent.lanes.prefix,
+  cancel: intent.lanes.cancel, decision: intent.lanes.decision });
 
-/** A mini evaluator of the guard `if:` (Lean `ifExpr`): `||` of four term shapes, GitHub's case-insensitive functions. */
+/** A mini evaluator of the guard `if:` (Lean `ifExpr`): `||` of four term shapes, GitHub's case-insensitive functions;
+ *  no `if:` (the empty text) always runs. */
 export function evalGuardIf(expr, { event, ref, msg }) {
+  if (expr === '') return true;
   const m = /^\$\{\{ (.*) \}\}$/.exec(expr);
   assert.ok(m, expr);
   const low = (x) => x.toLowerCase();
@@ -195,7 +198,7 @@ test('intent replay: JS decide over the Lean cases starts exactly the Lean `star
     const ctx = { event: c.ci ? 'push' : 'workflow_dispatch', ref: c.ci ? 'refs/heads/ci/x' : 'refs/heads/main', msg: c.msg };
     const started = table.workflows.filter((w) => {
       const globs = expand(S, w.inputs);
-      return decide({ ...ctx, files, globs, lane: laneOf(w.file), newer: c.newer, landed: c.landed }).run;
+      return decide({ ...ctx, files, globs, lane: laneOf(w.file), newer: c.newer, tipMsg: c.tipMsg, landed: c.landed }).run;
     }).map((w) => w.file);
     assert.deepEqual(started, c.started, c.name);
     const gated = table.workflows.filter((w) => evalGuardIf(laneOf(w.file).if, ctx)).map((w) => w.file);
@@ -210,7 +213,8 @@ test('intent: every workflow guard carries the Lean `if:` and passes GUARD_TOKEN
     const lines = readFileSync(join(root, WF, w.file), 'utf8').split('\n');
     const g = readJobs(lines).find((j) => j.name === 'guard');
     const body = lines.slice(g.at, g.end);
-    assert.equal(body[1], guardIf(laneOf(w.file)), w.file);
+    if (laneOf(w.file).if === '') assert.ok(!body.some((l) => /^ {4}if:/.test(l)), w.file); // a default lane: no if:
+    else assert.equal(body[1], guardIf(laneOf(w.file)), w.file);
     assert.ok(body.some((l) => l.trim() === 'GUARD_TOKEN: ${{ github.token }}'), w.file);
   }
 });
@@ -236,7 +240,93 @@ test('evalGuardIf: case-insensitive tokens; [ci:wktr-fixtures] does not request 
   assert.equal(evalGuardIf(wktr, ci('x [ci:wktr-fixtures]')), false);
   assert.equal(evalGuardIf(wktr, ci('fix')), false);
   assert.equal(evalGuardIf(lean, ci('fix')), true);
-  assert.equal(evalGuardIf(lean, ci('[ci:none]')), false);
+  assert.equal(evalGuardIf(lean, ci('[ci:none]')), true); // round 2: lean is always wanted
   assert.equal(evalGuardIf(wktr, { event: 'push', ref: 'refs/heads/main', msg: '' }), true);
   assert.equal(evalGuardIf(wktr, { event: 'workflow_dispatch', ref: 'refs/heads/ci/x', msg: '' }), true);
+});
+
+// ---- ci-own-trigger round 2: gate vectors, job-level concurrency, decision steps, macOS flags ----
+const gateLines = intent.gates ?? [];
+const ifOf = (file) => {
+  const lines = readFileSync(join(root, WF, file), 'utf8').split('\n');
+  return readJobs(lines).find((j) => j.name === 'guard').ifText;
+};
+
+test('gate vectors: every workflow guard if:, as written, equals Lean `gate` on every event, ref and message', () => {
+  assert.equal(gateLines.length, table.workflows.length);
+  for (const gl of gateLines) {
+    const expr = ifOf(gl.file);
+    assert.ok(gl.rows.length >= 4 * 6, gl.file);
+    for (const [event, ref, msg, want] of gl.rows) assert.equal(evalGuardIf(expr, { event, ref, msg }), want, `${gl.file} ${event} ${ref} ${msg}`);
+  }
+});
+
+test('gate vectors: a changed if: text fails the vectors', () => {
+  const gl = gateLines.find((g) => g.file === 'wktr.yml');
+  const wrong = laneOf('wktr-fixtures.yml').if;
+  assert.ok(gl.rows.some(([event, ref, msg, want]) => evalGuardIf(wrong, { event, ref, msg }) !== want));
+});
+
+test('job-level concurrency: no workflow-level group; every non-guard job carries the Lean group of its lane', () => {
+  for (const w of table.workflows) {
+    const lines = readFileSync(join(root, WF, w.file), 'utf8').split('\n');
+    assert.ok(!lines.some((l) => /^concurrency:/.test(l)), w.file);
+    for (const j of readJobs(lines).filter((x) => x.name !== 'guard')) {
+      const want = jobConcurrency(laneOf(w.file), j.name);
+      const k = lines.findIndex((l, i) => i > j.at && i < j.end && l === want[0]);
+      assert.deepEqual(lines.slice(k, k + 3), want, `${w.file} ${j.name}`);
+    }
+    const g = readJobs(lines).find((x) => x.name === 'guard');
+    assert.ok(!lines.slice(g.at, g.end).some((l) => /^ {4}concurrency:/.test(l)), `${w.file}: the guard never waits`);
+  }
+});
+
+test('lint: a workflow-level concurrency block and a missing job group are reported and fixed', () => {
+  const lane = laneOf('gate-gaps.yml');
+  const bad = sample
+    .replace('\njobs:\n', "\nconcurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true\n\njobs:\n")
+    .replace(`${jobConcurrency(lane, 'judge').join('\n')}\n`, '');
+  const r = reconcile('gate-gaps.yml', bad, row, paths, lane);
+  assert.ok(r.problems.some((p) => /workflow-level `concurrency:`/.test(p)), r.problems.join('\n'));
+  assert.ok(r.problems.some((p) => /job judge has no job-level concurrency/.test(p)), r.problems.join('\n'));
+  assert.equal(r.text, sample);
+});
+
+test('decision steps: every guard shows decision: run / decision: skip right after the guard script (Lean decisionStep)', () => {
+  assert.equal(intent.lanes.decision.run, 'decision: run');
+  assert.equal(intent.lanes.decision.skip, 'decision: skip');
+  for (const w of table.workflows) {
+    const text = readFileSync(join(root, WF, w.file), 'utf8');
+    assert.ok(text.includes(`.mjs --workflow ${WF}/${w.file}\n      - name: 'decision: run'\n`), w.file);
+    assert.ok(text.includes("      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'\n        if: steps.g.outputs.run != 'true'\n"), w.file);
+  }
+  const lane = laneOf('gate-gaps.yml');
+  const r = reconcile('gate-gaps.yml', sample.replace("      - name: 'decision: run'\n        if: steps.g.outputs.run == 'true'\n        run: 'true'\n", ''), row, paths, lane);
+  assert.ok(r.problems.some((p) => /decision steps differ/.test(p)), r.problems.join('\n'));
+  assert.equal(r.text, sample);
+});
+
+test('macOS: the Lean flag of every lane equals "some push job runs on macos-* / xcode-*" in its workflow', () => {
+  for (const w of table.workflows) {
+    const lines = readFileSync(join(root, WF, w.file), 'utf8').split('\n');
+    assert.equal(macosJobs(readJobs(lines)).length > 0, laneOf(w.file).macos === true, w.file);
+  }
+  assert.ok(dispatchOnly("${{ needs.guard.outputs.run == 'true' && github.event_name == 'workflow_dispatch' && inputs.macos }}"));
+  assert.ok(!dispatchOnly("${{ github.event_name == 'workflow_dispatch' && inputs.x || true }}"));
+});
+
+test('lint: a macOS job in a lane Lean calls Linux-only fails the check (no --write fix)', () => {
+  const lane = laneOf('gate-gaps.yml');
+  assert.equal(lane.macos, false);
+  const bad = sample.replace(/(\n  judge:\n(?: {4}.*\n)*? {4}runs-on: )ubuntu-24\.04-arm/, '$1macos-26');
+  assert.notEqual(bad, sample);
+  const r = reconcile('gate-gaps.yml', bad, row, paths, lane);
+  assert.ok(r.problems.some((p) => /macos=false in Lean/.test(p)), r.problems.join('\n'));
+});
+
+test('status functions: a job that runs after skipped needs must keep a guard conjunct', () => {
+  assert.ok(unsafeStatusIf('${{ always() }}'));
+  assert.ok(!unsafeStatusIf("${{ always() && needs.fwcore.result == 'success' }}"));
+  assert.ok(!unsafeStatusIf("${{ !cancelled() && needs.guard.outputs.run == 'true' }}"));
+  assert.ok(!unsafeStatusIf("${{ needs.guard.outputs.run == 'true' }}"));
 });

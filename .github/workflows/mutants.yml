@@ -47,16 +47,12 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
-
 jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
-  # the head commit asks for this lane (`[ci:<lane>]`; with no `[ci:` at all only the default lanes); then it runs the
-  # workflow only if THIS push changed one of its inputs to something other than main's content, no newer push on the
-  # branch changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane
+  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
+  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.
   guard:
     if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:mutants]') }}
     runs-on: ubuntu-24.04-arm
@@ -76,10 +72,19 @@ jobs:
           BEFORE: ${{ github.event.before }}
           GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/mutants.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
 
   plan:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:mutants:${{ github.event_name == 'push' && github.ref || github.run_id }}:plan:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -109,6 +114,9 @@ jobs:
 
   shard:
     needs: plan
+    concurrency:
+      group: ci-lane:mutants:${{ github.event_name == 'push' && github.ref || github.run_id }}:shard:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 75
     strategy:
@@ -167,6 +175,9 @@ jobs:
   merge:
     needs: [plan, shard]
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    concurrency:
+      group: ci-lane:mutants:${{ github.event_name == 'push' && github.ref || github.run_id }}:merge:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     env:
