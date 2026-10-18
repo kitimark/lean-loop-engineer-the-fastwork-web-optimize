@@ -4,7 +4,7 @@ import { tmpdir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { fwArgv, tokens, cmdHash, identity, decideCap } from "../hooks/cap.mjs";
+import { fwArgv, tokens, lex, cmdWords, cmdHash, identity, decideCap } from "../hooks/cap.mjs";
 import { capMac, sha256 } from "../hooks/lib.mjs";
 import { notification, verbOf } from "../hooks/emit.mjs";
 
@@ -177,7 +177,7 @@ describe("cap.mjs", () => {
     expect(identity(c.request.agent_id, c.request.agent_type)).toEqual(c.response);
   });
   it.each(capCases.filter((c) => c.response.error === undefined))("decision matches Lean ops.cap: $name", (c) => {
-    const d = decideCap(c.request.agent_id, c.request.agent_type, c.request.tokens as string[]);
+    const d = decideCap(c.request.agent_id, c.request.agent_type, cmdWords(c.request.tokens as Parameters<typeof cmdWords>[0]));
     expect(d.decision).toBe(c.response.decision);
     if (d.decision === "mint") expect({ actor: d.actor, argv: d.argv }).toEqual({ actor: c.response.actor, argv: c.response.argv });
     else expect(d.reason).toBe(c.response.reason);
@@ -197,17 +197,32 @@ describe("cap.mjs", () => {
     run("cap.mjs", call("pnpm -s fw land --dry b"), d);
     expect(lines(d, "capmiss.jsonl")).toMatchObject([{ reason: "notFwPrefix" }]);
   });
+  it("lex drops redirects and stops at a top-level operator", () => {
+    expect(lex("pnpm fw x 2>&1 | tail -5")).toEqual(["pnpm", "fw", "x", { redir: true }, { stop: true }]);
+    expect(tokens("pnpm fw x >out.txt")).toEqual(["pnpm", "fw", "x"]);
+    expect(tokens("pnpm fw x > out.txt y")).toEqual(["pnpm", "fw", "x", "y"]);
+    expect(tokens("pnpm fw x >>log 2>/dev/null")).toEqual(["pnpm", "fw", "x"]);
+    expect(tokens("pnpm fw x <in")).toEqual(["pnpm", "fw", "x"]);
+    expect(tokens("pnpm fw x &>all")).toEqual(["pnpm", "fw", "x"]);
+    expect(tokens("pnpm fw x >&2")).toEqual(["pnpm", "fw", "x"]);
+    expect(tokens("pnpm fw 2>&1 land b")).toEqual(["pnpm", "fw", "land", "b"]);
+    expect(tokens("pnpm fw land b 2")).toEqual(["pnpm", "fw", "land", "b", "2"]);
+    expect(tokens("pnpm fw x '2>&1' | grep a")).toEqual(["pnpm", "fw", "x", "2>&1"]);
+    expect(tokens("pnpm fw x || echo no")).toEqual(["pnpm", "fw", "x"]);
+    expect(tokens("pnpm fw x & echo bg")).toEqual(["pnpm", "fw", "x"]);
+  });
   it("a command that is not about fw leaves no note", () => {
     const d = tmp();
     expect(run("cap.mjs", call("cd x && ls"), d).status).toBe(0);
     expect(lines(d, "capmiss.jsonl")).toEqual([]);
   });
-  it("2>&1 before a pipe is trailingPipe: blocked with exit 2 and the reason on stderr, nothing minted", () => {
+  it("2>&1 before a filter pipe mints for the bare command", () => {
     const d = tmp();
     const r = run("cap.mjs", call("pnpm fw status 2>&1 | tail"), d);
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain("trailingPipe");
-    expect(lines(d, "caps.jsonl")).toEqual([]);
+    expect(r.status).toBe(0);
+    const caps = lines(d, "caps.jsonl");
+    expect(caps).toHaveLength(1);
+    expect(caps[0].cmd_hash).toBe(cmdHash(["status"]));
   });
   it("a plain pipe after the command still mints", () => {
     const d = tmp();

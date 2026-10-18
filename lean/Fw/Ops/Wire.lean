@@ -21,7 +21,7 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.meter` | `params`?, `state`? {window, fired [{agent, rule}]}, `now`, `agents` [{agent, ctx, idleSec, ttlSec? or w5m?/w1h?, wakeGapSec?}] | `state`, `alerts` [{agent, rule, window}], `verdicts` [{agent, verdict, ttlSec}] |
 | `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, who, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
 | `ops.obs` | `records`? [{agent_id?, hook_event_name, tool_use_id?, ts}], `lines`? [{hook_event_name, agent_type?, tool_name?, is_error?, duration_ms?}] (extra fields ignored) | `keys` (one obs key per record, in order), `summary` [{agent_type, tool_name, calls, errors, total_ms}] (first-seen group order) |
-| `ops.cap` | `agent_id`?, `agent_type`? (as `ops.actor`), `tokens` (the first simple command of a Bash input, split like a shell) | `decision` (`mint`/`noMint`), `actor`, `argv` (when minted), `reason` (`notFwPrefix`/`trailingPipe`/`unknownActor`, when not) |
+| `ops.cap` | `agent_id`?, `agent_type`? (as `ops.actor`), `tokens` (a Bash input lexed: a string is a word, `{"redir":"2>&1"}` a redirect, `{"stop":"|"}` a control operator) | `decision` (`mint`/`noMint`), `actor`, `argv` (when minted), `reason` (`notFwPrefix`/`unknownActor`, when not) |
 | `ops.door` | `actor`, `secret`? (bool) | `accept` (the door without capability takes this actor), `agentActor` |
 | `ops.wait` | `cmd` (the Bash command text), `caps`? {maxSleepSec?} | `decision` (`allow`/`deny`), `reason` (null, `bgLong` or `unboundedLoop`), `shape` (`bgLong`: `fwWatch`/`loop`/`server`/`tail`/`longSleep`, else null) |
 | `ops.actor` | `agent_id`?, `agent_type`? (string or null, as in a hook payload or a `caps.jsonl` record) | `who` (`lead`/`agent`/`unknown`), `role` (the agent type, or null), `actor` (`lead`/`reviewer`/`owner`, or null: mint no capability) |
@@ -358,13 +358,19 @@ def opActor (req : Json) : Except String Reply := do
 /-! ## ops.cap, ops.door -/
 
 open Fw.Ops.Identity Fw.Console in
-/-- `ops.cap`: the capability decision (`Fw.Ops.Identity.capDecide`) for a record's identity and the tokens of the
-first simple command of its Bash input: `mint` with the actor and the argv, or `noMint` with its one reason. -/
+/-- `ops.cap`: the capability decision (`Fw.Ops.Identity.capDecide`) for a record's identity and the lexed tokens of
+its Bash input (`cmdWords` drops redirects and cuts at the first stop): `mint` with the actor and the argv, or `noMint` with its one reason. -/
 def opCap (req : Json) : Except String Reply := do
   let i ← optS req "agent_id"
   let t ← optS req "agent_type"
-  let toks ← (← arrD req "tokens").mapM (asStr "tokens")
-  pure (match capDecide i t toks with
+  let toks ← (← arrD req "tokens").mapM fun j =>
+    match j with
+    | .str w => pure (Tok.word w)
+    | j => match j.getObjVal? "redir", j.getObjVal? "stop" with
+      | .ok _, _ => pure Tok.redir
+      | _, .ok _ => pure Tok.stop
+      | _, _ => throw "field tokens: expected a string, {\"redir\":..} or {\"stop\":..}"
+  pure (match capDecide i t (cmdWords toks) with
     | .mint a argv => [("decision", .str "mint"), ("actor", .str a.name),
         ("argv", .arr (argv.toArray.map .str)), ("reason", .null)]
     | .noMint r => [("decision", .str "noMint"), ("actor", .null), ("argv", .null), ("reason", .str r.name)])

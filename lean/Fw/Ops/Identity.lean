@@ -257,26 +257,25 @@ Consumers, checked against `packages/contracts/golden/ops/ops.cap.jsonl` and `op
 
 /-- Why no capability is minted; exactly one reason per refusal.
 
-$$\mathrm{Reason} = \{\mathrm{notFwPrefix},\ \mathrm{trailingPipe},\ \mathrm{unknownActor}\}$$
+$$\mathrm{Reason} = \{\mathrm{notFwPrefix},\ \mathrm{unknownActor}\}$$
 
-`notFwPrefix`: the command does not start with `pnpm fw` (a leading `cd`, or `pnpm -s fw`). `trailingPipe`:
-an argument is a redirection cut off by the tokenizer, as in `2>&1 | tail` (the hashed argv would differ from
-the one `fw` sees). `unknownActor`: the sender is a forked agent without an `agent_type`, or has an empty id.
+`notFwPrefix`: the command does not start with `pnpm fw` (a leading `cd`, or `pnpm -s fw`). `unknownActor`:
+the sender is a forked agent without an `agent_type`, or has an empty id. A trailing filter pipe or a redirect
+is not a reason: the tokenizer drops it (`capDecide_pipe_invariant`).
 -/
 inductive Reason where
   | notFwPrefix
-  | trailingPipe
   | unknownActor
 deriving DecidableEq, Repr
 
 /-- The wire name of a reason.
 
-$$\operatorname{name}(r) = \text{the constructor name of } r \text{ as a string, e.g. } \operatorname{name}(\mathrm{trailingPipe}) = \texttt{"trailingPipe"}$$
+$$\operatorname{name}(r) = \text{the constructor name of } r \text{ as a string, e.g. } \operatorname{name}(\mathrm{notFwPrefix}) = \texttt{"notFwPrefix"}$$
 
 The string the hook records and `pnpm fw` prints.
 -/
 def Reason.name : Reason → String
-  | .notFwPrefix => "notFwPrefix" | .trailingPipe => "trailingPipe" | .unknownActor => "unknownActor"
+  | .notFwPrefix => "notFwPrefix" | .unknownActor => "unknownActor"
 
 /-- The outcome of the capability hook: mint for an actor and an argv, or mint nothing for one reason.
 
@@ -289,51 +288,88 @@ inductive CapDecision where
   | noMint (reason : Reason)
 deriving DecidableEq, Repr
 
-/-- A redirection that the tokenizer cut at an `&`: optional digits, then `<` or `>`.
+/-- A lexed token of a Bash input: a word, a redirect (operator and target, e.g. `2>&1`, `>f`, `>>f`), or a
+top-level control operator (`|`, `;`, `&&`, newline) that ends the first simple command.
 
-$$\operatorname{isRedirStub}(s) = \mathrm{true} \iff s \in \{0,\dots,9\}^{*}\,\{<,>\}\,\Sigma^{*}$$
+$$\mathrm{Tok} = \{\mathrm{word}(s) \mid s \in \mathrm{String}\} \cup \{\mathrm{redir},\ \mathrm{stop}\}$$
 
-For example `2>` (from `2>&1`) and `>out` are stubs; `land` and `2` are not.
+The lexer (quotes, operators) is I/O glue in `cap.mjs`; its output is classified into these three kinds.
 -/
-def isRedirStub (s : String) : Bool :=
-  match s.toList.dropWhile Char.isDigit with
-  | c :: _ => c == '<' || c == '>'
-  | [] => false
+inductive Tok where
+  | word (s : String)
+  | redir
+  | stop
+deriving DecidableEq, Repr
 
-/-- Some argument is a cut redirection.
+/-- The words of the first simple command: redirects are dropped, a stop ends the command.
 
-$$\operatorname{hasStub}(\vec{x}) = \mathrm{true} \iff \exists x \in \vec{x}.\ \operatorname{isRedirStub}(x)$$
+$$\operatorname{cmdWords}(\mathrm{word}(s)\cdot ts) = s \cdot \operatorname{cmdWords}(ts),\quad \operatorname{cmdWords}(\mathrm{redir}\cdot ts) = \operatorname{cmdWords}(ts),\quad \operatorname{cmdWords}(\mathrm{stop}\cdot ts) = \operatorname{cmdWords}([]) = []$$
 
-The test `capDecide` applies to the arguments after `pnpm fw`.
+This is the argv that `fw` sees and the hook hashes.
 -/
-def hasStub (xs : List String) : Bool := xs.any isRedirStub
+def cmdWords : List Tok → List String
+  | [] => []
+  | .stop :: _ => []
+  | .word s :: ts => s :: cmdWords ts
+  | .redir :: ts => cmdWords ts
 
-/-- The capability decision for a record's identity and the tokens of its first simple command.
+/-- Words of a stop-free prefix followed by anything split off.
 
-$$\operatorname{capDecide}(i, t, \vec{w}) = \begin{cases} \mathrm{noMint}(\mathrm{notFwPrefix}) & \nexists \vec{x}.\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \\ \mathrm{noMint}(\mathrm{trailingPipe}) & \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \exists x \in \vec{x}.\ \operatorname{isRedirStub}(x) \\ \mathrm{noMint}(\mathrm{unknownActor}) & \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \forall x \in \vec{x}.\ \neg\operatorname{isRedirStub}(x) \wedge \operatorname{capActor}(i, t) = \bot \\ \mathrm{mint}(a, \vec{x}) & \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \forall x \in \vec{x}.\ \neg\operatorname{isRedirStub}(x) \wedge \operatorname{capActor}(i, t) = a \end{cases}$$
+$$\forall ts, u.\quad (\forall t \in ts.\ t \ne \mathrm{stop}) \implies \operatorname{cmdWords}(ts \cdot u) = \operatorname{cmdWords}(ts) \cdot \operatorname{cmdWords}(u)$$
 
-The checks run in the order prefix, redirection, identity.
+Words concatenate over a prefix that has no control operator.
+-/
+theorem cmdWords_append (ts u : List Tok) (h : ∀ t ∈ ts, t ≠ .stop) :
+    cmdWords (ts ++ u) = cmdWords ts ++ cmdWords u := by
+  induction ts with
+  | nil => simp [cmdWords]
+  | cons t ts ih =>
+    have ht : t ≠ .stop := h t (List.mem_cons_self ..)
+    have ih' := ih (fun x hx => h x (List.mem_cons_of_mem _ hx))
+    cases t with
+    | word s => simp [cmdWords, ih']
+    | redir => simp [cmdWords, ih']
+    | stop => exact absurd rfl ht
+
+/-- Redirects followed by a stop contribute no words.
+
+$$\forall rs, rest.\quad (\forall r \in rs.\ r = \mathrm{redir}) \implies \operatorname{cmdWords}(rs \cdot \mathrm{stop} \cdot rest) = []$$
+
+A tail of redirects and a pipe adds nothing to the argv.
+-/
+theorem cmdWords_redirs_stop (rs rest : List Tok) (h : ∀ r ∈ rs, r = .redir) :
+    cmdWords (rs ++ .stop :: rest) = [] := by
+  induction rs with
+  | nil => simp [cmdWords]
+  | cons r rs ih =>
+    have hr : r = .redir := h r (List.mem_cons_self ..)
+    subst hr
+    simpa [cmdWords] using ih (fun x hx => h x (List.mem_cons_of_mem _ hx))
+
+/-- The capability decision for a record's identity and the words of its first simple command.
+
+$$\operatorname{capDecide}(i, t, \vec{w}) = \begin{cases} \mathrm{noMint}(\mathrm{notFwPrefix}) & \nexists \vec{x}.\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \\ \mathrm{noMint}(\mathrm{unknownActor}) & \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \operatorname{capActor}(i, t) = \bot \\ \mathrm{mint}(a, \vec{x}) & \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \operatorname{capActor}(i, t) = a \end{cases}$$
+
+The checks run in the order prefix, identity.
 -/
 def capDecide (i t : Option String) : List String → CapDecision
   | "pnpm" :: "fw" :: argv =>
-    if hasStub argv then .noMint .trailingPipe
-    else match capActor i t with
-      | some a => .mint a argv
-      | none => .noMint .unknownActor
+    match capActor i t with
+    | some a => .mint a argv
+    | none => .noMint .unknownActor
   | _ => .noMint .notFwPrefix
 
-/-- `capDecide` on a `pnpm fw` command unfolds to the redirection check, then the identity check.
+/-- `capDecide` on a `pnpm fw` command unfolds to the identity check.
 
-$$\forall i, t, \vec{x}.\quad \operatorname{capDecide}(i, t, \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x}) = \begin{cases} \mathrm{noMint}(\mathrm{trailingPipe}) & \operatorname{hasStub}(\vec{x}) \\ \mathrm{mint}(a, \vec{x}) & \neg\operatorname{hasStub}(\vec{x}) \wedge \operatorname{capActor}(i, t) = a \\ \mathrm{noMint}(\mathrm{unknownActor}) & \neg\operatorname{hasStub}(\vec{x}) \wedge \operatorname{capActor}(i, t) = \bot \end{cases}$$
+$$\forall i, t, \vec{x}.\quad \operatorname{capDecide}(i, t, \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x}) = \begin{cases} \mathrm{mint}(a, \vec{x}) & \operatorname{capActor}(i, t) = a \\ \mathrm{noMint}(\mathrm{unknownActor}) & \operatorname{capActor}(i, t) = \bot \end{cases}$$
 
 The defining equation, stated for use in the iff theorems.
 -/
 theorem capDecide_fw (i t : Option String) (argv : List String) :
     capDecide i t ("pnpm" :: "fw" :: argv) =
-      if hasStub argv then .noMint .trailingPipe
-      else match capActor i t with
-        | some a => .mint a argv
-        | none => .noMint .unknownActor := rfl
+      match capActor i t with
+      | some a => .mint a argv
+      | none => .noMint .unknownActor := rfl
 
 /-- Any command that does not start with `pnpm fw` is refused as `notFwPrefix`.
 
@@ -348,53 +384,56 @@ theorem capDecide_other (i t : Option String) (w : List String) (h : ∀ x, w �
   · rename_i x; exact absurd rfl (h x)
   · rfl
 
-/-- A capability is minted exactly for a `pnpm fw` command without a cut redirection, from a known sender.
+/-- A capability is minted exactly for a `pnpm fw` command from a known sender.
 
-$$\forall i, t, \vec{w}, a, \vec{x}.\quad \operatorname{capDecide}(i, t, \vec{w}) = \mathrm{mint}(a, \vec{x}) \iff \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \forall x \in \vec{x}.\ \neg\operatorname{isRedirStub}(x) \wedge \operatorname{capActor}(i, t) = a$$
+$$\forall i, t, \vec{w}, a, \vec{x}.\quad \operatorname{capDecide}(i, t, \vec{w}) = \mathrm{mint}(a, \vec{x}) \iff \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \operatorname{capActor}(i, t) = a$$
 
 The minted argv is exactly what follows `pnpm fw`, and the minted actor is the one of `capActor`.
 -/
 theorem capDecide_mint_iff (i t : Option String) (w : List String) (a : Actor) (x : List String) :
-    capDecide i t w = .mint a x ↔
-      w = "pnpm" :: "fw" :: x ∧ hasStub x = false ∧ capActor i t = some a := by
+    capDecide i t w = .mint a x ↔ w = "pnpm" :: "fw" :: x ∧ capActor i t = some a := by
   by_cases hw : ∃ y, w = "pnpm" :: "fw" :: y
   · obtain ⟨y, rfl⟩ := hw
     rw [capDecide_fw]
-    cases hs : hasStub y with
-    | true =>
-      simp only [ite_true, reduceCtorEq, false_iff, not_and, List.cons.injEq, true_and]
-      intro h; subst h; rw [hs]; simp
-    | false =>
-      simp only [Bool.false_eq_true, ite_false]
-      cases hc : capActor i t with
-      | none => simp
-      | some b =>
-        simp only [CapDecision.mint.injEq, List.cons.injEq, true_and, Option.some.injEq]
-        constructor
-        · rintro ⟨rfl, rfl⟩; exact ⟨rfl, hs, rfl⟩
-        · rintro ⟨rfl, -, rfl⟩; exact ⟨rfl, rfl⟩
+    cases hc : capActor i t with
+    | none => simp
+    | some b =>
+      simp only [CapDecision.mint.injEq, List.cons.injEq, true_and, Option.some.injEq]
+      constructor
+      · rintro ⟨rfl, rfl⟩; exact ⟨rfl, rfl⟩
+      · rintro ⟨rfl, rfl⟩; exact ⟨rfl, rfl⟩
   · rw [capDecide_other i t w (fun y h => hw ⟨y, h⟩)]
     simp only [reduceCtorEq, false_iff, not_and]
     intro h; exact absurd ⟨x, h⟩ hw
 
-/-- No capability is minted for exactly one reason, decided by the three checks in order.
+/-- No capability is minted for exactly one reason, decided by the two checks in order.
 
-$$\operatorname{capDecide}(i, t, \vec{w}) = \mathrm{noMint}(r) \iff \begin{cases} \nexists \vec{x}.\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} & r = \mathrm{notFwPrefix} \\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \exists y \in \vec{x}.\ \operatorname{isRedirStub}(y) & r = \mathrm{trailingPipe} \\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \forall y \in \vec{x}.\ \neg\operatorname{isRedirStub}(y) \wedge \operatorname{capActor}(i, t) = \bot & r = \mathrm{unknownActor} \end{cases}$$
+$$\operatorname{capDecide}(i, t, \vec{w}) = \mathrm{noMint}(r) \iff \begin{cases} \nexists \vec{x}.\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} & r = \mathrm{notFwPrefix} \\ \exists \vec{x}.\ \vec{w} = \texttt{pnpm}\cdot\texttt{fw}\cdot\vec{x} \wedge \operatorname{capActor}(i, t) = \bot & r = \mathrm{unknownActor} \end{cases}$$
 
-The three reasons are mutually exclusive: each refusal carries the one reason whose condition holds.
+The two reasons are mutually exclusive: each refusal carries the one reason whose condition holds.
 -/
 theorem capDecide_noMint_iff (i t : Option String) (w : List String) (r : Reason) :
     capDecide i t w = .noMint r ↔
       (r = .notFwPrefix ∧ ∀ x, w ≠ "pnpm" :: "fw" :: x) ∨
-      (r = .trailingPipe ∧ ∃ x, w = "pnpm" :: "fw" :: x ∧ hasStub x = true) ∨
-      (r = .unknownActor ∧ ∃ x, w = "pnpm" :: "fw" :: x ∧ hasStub x = false ∧ capActor i t = none) := by
+      (r = .unknownActor ∧ ∃ x, w = "pnpm" :: "fw" :: x ∧ capActor i t = none) := by
   by_cases hw : ∃ y, w = "pnpm" :: "fw" :: y
   · obtain ⟨y, rfl⟩ := hw
     rw [capDecide_fw]
-    cases hs : hasStub y <;> cases hc : capActor i t <;> cases r <;> simp [hs, hc]
+    cases hc : capActor i t <;> cases r <;> simp
   · rw [capDecide_other i t w (fun y h => hw ⟨y, h⟩)]
     have : ∀ x, w ≠ "pnpm" :: "fw" :: x := fun y h => hw ⟨y, h⟩
     cases r <;> simp [this]
+
+/-- A trailing filter pipe or redirect does not change the decision.
+
+$$\forall i, t, ts, rs, rest.\quad (\forall t' \in ts.\ t' \ne \mathrm{stop}) \wedge (\forall r \in rs.\ r = \mathrm{redir}) \implies \operatorname{capDecide}(i, t, \operatorname{cmdWords}(ts \cdot rs \cdot \mathrm{stop} \cdot rest)) = \operatorname{capDecide}(i, t, \operatorname{cmdWords}(ts))$$
+
+So `pnpm fw x 2>&1 | tail -5` mints exactly what `pnpm fw x` mints.
+-/
+theorem capDecide_pipe_invariant (i t : Option String) (ts rs rest : List Tok)
+    (hts : ∀ x ∈ ts, x ≠ .stop) (hrs : ∀ r ∈ rs, r = .redir) :
+    capDecide i t (cmdWords (ts ++ (rs ++ .stop :: rest))) = capDecide i t (cmdWords ts) := by
+  rw [cmdWords_append ts _ hts, cmdWords_redirs_stop rs rest hrs, List.append_nil]
 
 /-- The refusal reason is unique: a command cannot be refused for two reasons.
 
@@ -415,7 +454,7 @@ The hook never mints a capability for the user, a script, git or a hook, and nev
 theorem capDecide_mint_actor (i t : Option String) (w : List String) (a : Actor) (x : List String)
     (h : capDecide i t w = .mint a x) :
     (a = .lead ∨ a = .reviewer ∨ a = .owner) ∧ (a = .lead ↔ i = none) := by
-  obtain ⟨-, -, hc⟩ := (capDecide_mint_iff i t w a x).1 h
+  obtain ⟨-, hc⟩ := (capDecide_mint_iff i t w a x).1 h
   exact ⟨capActor_range i t a hc, by rw [← capActor_lead_iff, hc]; simp⟩
 
 /-! ## The door without capability -/
@@ -479,8 +518,7 @@ theorem openDoor_secret (a : Actor) : openDoor a true = true := by
 #guard capDecide (some "a1") (some "") ["pnpm", "fw", "status"] == .noMint .unknownActor
 #guard capDecide none none ["cd", "x"] == .noMint .notFwPrefix
 #guard capDecide none none ["pnpm", "-s", "fw", "land"] == .noMint .notFwPrefix
-#guard capDecide none none ["pnpm", "fw", "land", "b", "2>"] == .noMint .trailingPipe
-#guard capDecide (some "a1") (some "") ["pnpm", "fw", "land", ">o"] == .noMint .trailingPipe
+#guard cmdWords [.word "pnpm", .word "fw", .word "land", .word "b", .redir, .stop, .word "tail"] == ["pnpm", "fw", "land", "b"]
 #guard openDoor .user false && !openDoor .lead false && openDoor .lead true
 
 
