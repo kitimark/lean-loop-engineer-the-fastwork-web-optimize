@@ -128,7 +128,7 @@ abbrev Key := String × String × String
 
 $$U = [\,(\rho, \kappa, i) \mid \rho \in \mathrm{rows},\ (\kappa, I) \in \mathrm{cols},\ i \in I\,]$$
 
-A full run supplies exactly these readings, each once. -/
+A full run supplies exactly these readings, each as often as it occurs in this list (a permutation of it). -/
 def gateUniverse : List Key := gateRows.flatMap fun row => gateCols.flatMap fun c => c.2.map fun i => (row, c.1, i)
 
 /-- **Premise of the Chromium fractional exemption**: the fractional-gaps block is exactly four probes, Chromium reaches each of them,
