@@ -231,7 +231,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     let c = 0;
     const table = {};
     const sweepVerdicts = run.sweeps.map(() => ({}));
-    const withReadings = (k) => ({ ...tallied[k], readings: readingIds[k].map((id, n) => ({ id, verdict: cells[k].verdicts[n] })) });
+    const withReadings = (k) => ({ ...tallied[k], readings: readingIds[k].map((id, n) => ({ id, verdict: k === 0 && n === 0 ? "not-comparable" : cells[k].verdicts[n] })) });
     for (const row of ROWS) {
       table[row] = {};
       for (const b of blocks) { table[row][b] = withReadings(c); c++; }
