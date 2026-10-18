@@ -1,4 +1,5 @@
 import Fw.Gate.Reach
+import Fw.Gate.State
 /-!
 # Probe scope of a pilot part (`gate-probe-scope`)
 
@@ -510,6 +511,32 @@ A sweep never has an unreachable stop, so its verdicts come from the page alone.
 theorem sweeps_reachable :
     (ports.all fun π => sweeps.all fun w => w.stops.all fun e => (envReason π e).isNone) = true := by
   decide +kernel
+
+/-- Whether two environments have the same Lean vector key (what `expectFor` of `spec.mjs` looks up: width, device width, hover,
+pointer, reduced motion and scheme; height and DPR do not matter, `MQ.eval_indep_height_dpr`).
+
+$$\operatorname{sameVec}(a, b) \iff a.w = b.w \wedge a.d_w = b.d_w \wedge a.\eta = b.\eta \wedge a.\pi = b.\pi \wedge a.\mu = b.\mu \wedge a.\sigma = b.\sigma$$
+
+Two loads with the same key have the same expected truth. -/
+def _root_.Fw.Site.Breakpoints.Env.sameVector (a b : Env) : Bool :=
+  a.width == b.width && a.deviceWidth == b.deviceWidth && a.hover == b.hover && a.pointer == b.pointer &&
+    a.motion == b.motion && a.scheme == b.scheme
+
+/-- **The 1024 stops of the tablet sweep have no Lean vector, so their Lean rows are not comparable by construction.**
+
+$$\Bigl(\forall p \in M,\ \neg\operatorname{sameVec}(p.\mathit{env}, \operatorname{touchStop}(1024))\Bigr) \wedge \bigl\{\, i \mid s_i = \operatorname{touchStop}(1024) \,\bigr\} = \{0, 2, 4\} \wedge \bigl(\forall o, r, \mathit{ach}, \forall it \in \operatorname{truthItems}(o, r, \bot, \bot, \mathit{ach}),\ it.\mathrm{cls} \in \{\mathrm{lean}, \mathrm{neutral.lean}\} \implies it.\mathrm{status} = \mathrm{na}\bigr)$$
+
+Here $M$ is the list of matrix probes and $(s_0, \dots, s_4)$ are the stops of `touch-1024-1201`. No matrix probe has the environment of
+stops 0, 2 and 4 (width 1024 is not a width edge pair), so the lookup finds no vector and every check against Lean's value at those
+stops is `na` (`truthItems_lean_na_no_vector`). This is the premise of the exemptions `chromium-touch-1024-no-vector` and
+`webkit-touch-1024-no-vector`: each excuses those readings of the row `matchMedia =Lean` and no others. -/
+theorem touch1024_lean_na :
+    (matrix.all fun p => !p.env.sameVector (touchStop 1024)) = true ∧
+    ((sweeps.find? (·.id == "touch-1024-1201")).map fun w =>
+      (List.range w.stops.length).filter fun i => w.stops[i]? == some (touchStop 1024)) = some [0, 2, 4] ∧
+    ∀ (o r : TruthRaw) (ach : Bool) (it : TItem), it ∈ truthItems o r none none ach →
+      (it.cls = .lean ∨ it.cls = .neutralLean) → it.status = .na :=
+  ⟨by decide +kernel, by decide +kernel, fun o r ach it h hc => truthItems_lean_na_no_vector o r ach it h hc⟩
 
 /-- Whether the part's key changes along a sweep.
 

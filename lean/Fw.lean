@@ -62,6 +62,8 @@ import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
 import Fw.Gate.Coverage
+import Fw.Gate.Settle  -- gate-settle: when a gate sample is settled
+import Fw.Gate.Freeze  -- gate-shard-balance r2: the settle wait under a frozen clock
 import Fw.Gate.AlignEquiv
 import Fw.Gate.Pixel
 import Fw.Wire.Gate
@@ -95,6 +97,9 @@ import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complet
 import Fw.Ops.LakeCache  -- site-build-cache: one Lake cache writer (cache_complete, rebuild_mono, table_complete)
 import Fw.Site.GenRoute  -- site-build-cache: breakgen / sweepsgen split (split_agrees)
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
+import Fw.Gate.Shard  -- gate-shard-balance: LPT shard plan over measured unit costs
+import Fw.Gate.ShardObs  -- gate-shard-balance: observed jobs of a CI run, reduced to the cost table (ShardCosts)
+import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict
 import Fw.Spec.Props  -- lfg-props-shape: property-over-impl convention, Assume premise marker, kill-witness naming

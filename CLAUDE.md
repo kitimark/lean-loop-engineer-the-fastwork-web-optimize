@@ -19,7 +19,9 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference.
   tokens, never one > 250k; otherwise `TaskStop` it and spawn a fresh agent of the same role from its handoff. Never
   send a shutdown message to an expired agent (it re-reads its whole context).
 - **Review loops (lead):** after a task's 2nd refused review of the same kind (each round patching the reviewer's
-  newest probe), stop patching: write the threat model (what the check must catch, what it need not), pick a closed
+  newest probe), stop patching. First look back over every round (what it asked, what was delivered, why it was
+  refused, whether the task drifted or its premise fell); if the cause is still undecided, a Fable agent investigates
+  and advises before the next round. Then write the threat model (what the check must catch, what it need not), pick a closed
   design (allowlist over deny-list, identity over inference, one canonical source over author-chosen inputs, each unit
   decided on its own over a pooled or any-of aggregate), name the
   next round "final design round" and list its accepted limits for the reviewer to judge against. The final design
