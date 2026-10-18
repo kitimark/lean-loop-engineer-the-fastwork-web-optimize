@@ -262,8 +262,10 @@
           "skipSets": [
             "layoutDerived"
           ],
-          "skipProps": [],
-          "why": "the centred row with margin-top 32px; its width is 100% of the panel column (a host value)"
+          "skipProps": [
+            "margin-top"
+          ],
+          "why": "the centred row; its width is 100% of the panel column (a host value). Its margin-top 32px is compared by morph.panel's countdown role: both parts map to the same original element and the rewrite keeps the margin on the panel slot, so the wrap carries none (a second 32px would shift the page below)"
         },
         {
           "role": "root",

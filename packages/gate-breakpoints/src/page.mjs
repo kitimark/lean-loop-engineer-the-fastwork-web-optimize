@@ -225,8 +225,8 @@ export async function settleInPage(arg) {
 }
 
 /**
- * Bring a part into view: scroll the first of its nodes that the engine has skipped (content-visibility:auto) to the middle of
- * the viewport, then wait two real frames so the engine applies the new visibility. Returns how many nodes were skipped before
+ * Bring a part into view: scroll the part's first root to the top of
+ * the viewport (when one of its nodes is skipped by content-visibility:auto), then wait two real frames so the engine applies the new visibility. Returns how many nodes were skipped before
  * the scroll. The gate then settles and reads the part again (Lean Fw.Gate.Settle.view).
  * arg: { roots: [selector] }
  */
@@ -235,7 +235,10 @@ export async function bringInPage(arg) {
   const all = [];
   for (const sel of arg.roots) for (const el of Array.from(document.querySelectorAll(sel)).slice(0, 64)) all.push(el);
   const hit = all.filter(skipped);
-  if (hit.length > 0) hit[0].scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+  // The part's first root goes to the viewport top in both arms: a scroll-driven value (a view timeline on the root) then reads the
+  // same progress in each arm, whatever the page heights are (run 39086375181: centring the first skipped node gave WebKit
+  // 0.4746 vs 0.3702 on --commission-shrink).
+  if (hit.length > 0) window.scrollTo({ top: Math.max(0, all[0].getBoundingClientRect().top + window.scrollY), left: 0, behavior: 'instant' });
   for (let i = 0; i < 2; i++) await new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 250); });
   return { skippedBefore: hit.length, scrollY: window.scrollY };
 }

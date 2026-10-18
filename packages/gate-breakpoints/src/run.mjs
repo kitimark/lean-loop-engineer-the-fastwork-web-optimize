@@ -13,12 +13,12 @@ import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from
 
 const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
-// Lean Fw.Gate.Settle.viewCell in the probes: OFF unless FW_GATE_VIEW=1. Run 39086375181 (parts=commission): Chromium passed all
+// Lean Fw.Gate.Settle.viewCell in the probes: ON unless FW_GATE_VIEW=0 (integrate-ports-3: the full matrix failed commission margin-inline at desk-rm-1280, run 39101532038, 1 probe of 30, a skipped original reading stale used margins; the scroll below is now root-aligned). History: it was OFF by default. Run 39086375181 (parts=commission): Chromium passed all
 // cells, WebKit failed 7 probes on the scroll-driven --commission-shrink / --commission-enter-shrink (0.4746 vs 0.3702): the
 // scroll that brings a part into view is a different scroll position in each arm (the page heights differ), so the second reading
 // carries a scroll-dependent value. The baseline (no view) passes commission on both engines (run 39083482125), so the default
 // stays the baseline; the rule needs a scroll position that is equal by construction before it can be switched on.
-const VIEW_ON = process.env.FW_GATE_VIEW === '1';
+const VIEW_ON = process.env.FW_GATE_VIEW !== '0';
 const SITES = ['orig', 'rewrite'];
 const FILTER = { orig: '\\.svelte-', rewrite: '-module_' };
 const CAP_MS = { orig: 20000, rewrite: 15000 };
