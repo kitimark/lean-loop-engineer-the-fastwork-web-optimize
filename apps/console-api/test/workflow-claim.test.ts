@@ -7,11 +7,11 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { selectCore } from "../src/core/index.ts";
 import { Drain } from "../src/spool/drain.ts";
-import { scriptRun, wfEvents, workflowDirs } from "../src/spool/workflow.ts";
+import { labelTask, parseJournal, scriptRun, type JLine, wfAllEvents, wfEvents, workflowDirs } from "../src/spool/workflow.ts";
 import { Store } from "../src/store.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
-type Vec = { name: string; ids: string[]; scripts: string[]; runs: string[]; events: unknown[] };
+type Vec = { name: string; ids: string[]; scripts: string[]; runs: string[]; events: unknown[]; journal?: JLine[] };
 const vectors = readFileSync(join(root, "packages/contracts/golden/plan/workflow.jsonl"), "utf8").trim().split("\n")
   .map((l) => JSON.parse(l) as Vec);
 
@@ -20,9 +20,22 @@ afterEach(() => { stores.forEach((s) => s.close()); stores = []; });
 
 describe("workflow golden (Lean Fw.Plan.wfEvents)", () => {
   it("has vectors", () => expect(vectors.length).toBeGreaterThan(4));
-  for (const v of vectors) it(v.name, () => expect(wfEvents(v.ids, v.scripts, v.runs)).toEqual(v.events));
+  for (const v of vectors) it(v.name, () => expect(wfAllEvents(v.ids, v.scripts, v.runs, v.journal ?? [])).toEqual(v.events));
+  for (const v of vectors.filter((x) => !x.journal)) it(`old behaviour kept: ${v.name}`, () => expect(wfEvents(v.ids, v.scripts, v.runs)).toEqual(v.events));
   it("scriptRun keeps hyphens in the name", () =>
     expect(scriptRun("wave-next-builders-wf_eaf1cd1e-ed1.js")).toEqual({ name: "wave-next-builders", run: "wf_eaf1cd1e-ed1" }));
+  it("labelTask: text after the first colon", () => {
+    expect(labelTask("build:engine-model-fix")).toBe("engine-model-fix");
+    expect(labelTask("x:y:v")).toBe("y:v");
+    expect([labelTask("review"), labelTask("w:"), labelTask("")]).toEqual([null, null, null]);
+  });
+  it("parseJournal reads only type, agentId and label", () => {
+    const t = [`{"type":"launched"}`, `{"type":"started","agentId":"a1","label":"fix:w","phase":"P"}`, "not json",
+      `{"type":"result","agentId":"a1","result":"free text fix:zzz"}`].join("\n");
+    expect(parseJournal("wf_b37180a7-494", t)).toEqual([
+      { run: "wf_b37180a7-494", id: "a1", started: true, label: "fix:w" },
+      { run: "wf_b37180a7-494", id: "a1", started: false, label: "" }]);
+  });
   it("workflowDirs: FW_WORKFLOWS_DIR wins; a missing project dir gives none", () => {
     expect(workflowDirs("/x", { FW_WORKFLOWS_DIR: "/a:/b" })).toEqual(["/a", "/b"]);
     expect(workflowDirs("/x/y", {}, "/nonexistent-home")).toEqual([]);
@@ -52,5 +65,31 @@ describe("drain sweeps workflow runs", () => {
     writeFileSync(join(wf, "wf_b3d4e643-ace.json"), "{}");
     await drain.run();
     expect(await agentOf()).toBeNull();
+  });
+
+  it("labelled agents bind several tasks of one run, each until its result line (workflow-multi-claim)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "fw-wf-"));
+    const store = await Store.open(dir, selectCore(), () => 1_700_000_000_000);
+    stores.push(store);
+    const wf = join(dir, "sess", "workflows");
+    const run = "wf_b37180a7-494";
+    mkdirSync(join(wf, "scripts"), { recursive: true });
+    mkdirSync(join(dir, "sess", "subagents", "workflows", run), { recursive: true });
+    for (const t of ["engine-model-fix", "integrate-ports"])
+      expect((await store.submit({ type: "task.define", key: `d:${t}`, actor: "lead", task: t, title: "T", stream: "s",
+        milestone: null, deps: [], owner: "o", writes: [], devices: [], needs: [], evidence: null } as never)).ok).toBe(true);
+    const agentOf = async (t: string) => (await store.board()).plan.tasks.find((x) => x.id === t)?.agent ?? null;
+    const jf = join(dir, "sess", "subagents", "workflows", run, "journal.jsonl");
+    const line = (o: object) => JSON.stringify(o) + "\n";
+    writeFileSync(join(wf, "scripts", `integrate-and-engine-fix-${run}.js`), "");
+    writeFileSync(jf, line({ type: "launched" }) + line({ type: "started", agentId: "a1", label: "build:engine-model-fix" })
+      + line({ type: "started", agentId: "a2", label: "build:integrate-ports" }));
+    const drain = new Drain(store, () => [wf]);
+    await drain.run();
+    expect([await agentOf("engine-model-fix"), await agentOf("integrate-ports")]).toEqual(["engine-model-fix", "integrate-ports"]);
+    writeFileSync(jf, line({ type: "started", agentId: "a1", label: "build:engine-model-fix" })
+      + line({ type: "started", agentId: "a2", label: "build:integrate-ports" }) + line({ type: "result", agentId: "a1", result: "ok" }));
+    await drain.run();
+    expect([await agentOf("engine-model-fix"), await agentOf("integrate-ports")]).toEqual([null, "integrate-ports"]);
   });
 });
