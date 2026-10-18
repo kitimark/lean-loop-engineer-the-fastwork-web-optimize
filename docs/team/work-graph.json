@@ -4869,7 +4869,8 @@
     "docs/team/tools/**",
     "lean/Fw/Ops/Golden.lean",
     "docs/team/handoffs/console-lan-owner.md"
-   ]
+   ],
+   "evidence": "e96fa4c"
   },
   {
    "id": "wait-guard-enforce-3",
