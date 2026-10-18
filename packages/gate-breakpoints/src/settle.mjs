@@ -56,6 +56,12 @@ export function report(a, b, equal) {
   return 'unsettled';
 }
 
+/**
+ * Fw.Gate.Exit.staleComparable: the hysteresis pair (the arm after a sweep, a fresh load at the same final environment) is
+ * compared only when both its waits settled. 'missing' (a record made without the wait) is read as unsettled (Fw.Gate.Exit.outcomeOfWire).
+ */
+export const staleComparable = (after, fresh) => report(after, fresh, true) === 'pass';
+
 /** Fw.Gate.Settle.rendered: no ancestor (itself included) skips its subtree. `skips` is one boolean per ancestor. */
 export const rendered = (skips) => !skips.some(Boolean);
 
