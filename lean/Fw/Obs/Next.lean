@@ -127,6 +127,8 @@ structure Branch where
   onMain : Bool := false
   /-- the branch named by the live land lock (`none`: no live lock) -/
   landLock : Option String := none
+  /-- the branch is in the land queue (`fw land --queue`): a pending entry in `.fw-console/land-queue.jsonl` (task `land-queue`) -/
+  inLandQueue : Bool := false
 deriving DecidableEq, Repr
 
 /-- The branch is settled: its tip is an ancestor of `main`, or a land commit for its task is on `main`.
@@ -135,11 +137,12 @@ $$\operatorname{settled}(b) \iff \mathit{landed}(b) \vee \mathit{onMain}(b)$$
 -/
 def Branch.settled (b : Branch) : Bool := b.landed || b.onMain
 
-/-- A `fw land` for this very branch is running: the live land lock names it.
+/-- A `fw land` for this very branch is in flight: the live land lock names it, or the branch is a pending entry of the land
+queue (its single runner will land it).
 
-$$\operatorname{locked}(b) \iff \ell_\bot(b) = \mathit{name}(b)$$
+$$\operatorname{locked}(b) \iff \ell_\bot(b) = \mathit{name}(b) \vee \mathit{inQueue}(b)$$
 -/
-def Branch.locked (b : Branch) : Bool := b.landLock == some b.name
+def Branch.locked (b : Branch) : Bool := b.landLock == some b.name || b.inLandQueue
 
 /-- The agent's worktree: the pid in its lock (`none`: not locked) and whether that pid is alive.
 
@@ -1053,10 +1056,10 @@ theorem no_unlanded_once_on_main (p : Params) (t : Nat) (f : AgentFacts) (β : B
     simp [Branch.settled, hm] at hs
 
 /-- **A land in flight is not an unlanded branch.** `land` and `routeIntegrator` are proposed only for a branch the
-live land lock does not name: if the lock holder is the branch ($\ell_\bot(\beta) = \mathit{name}(\beta)$), neither is
+live land lock does not name and that is not queued: if the branch is in flight ($\operatorname{locked}(\beta)$), neither is
 proposed.
 
-$$\forall p, t, f, \beta, b, k:\quad b_\bot(f) = \beta \wedge \ell_\bot(\beta) = \mathit{name}(\beta) \Rightarrow \mathrm{land}(b, k) \notin \operatorname{next}(p, t, f) \wedge \mathrm{routeIntegrator}(b) \notin \operatorname{next}(p, t, f)$$
+$$\forall p, t, f, \beta, b, k:\quad b_\bot(f) = \beta \wedge \operatorname{locked}(\beta) \Rightarrow \mathrm{land}(b, k) \notin \operatorname{next}(p, t, f) \wedge \mathrm{routeIntegrator}(b) \notin \operatorname{next}(p, t, f)$$
 -/
 theorem no_unlanded_while_locked (p : Params) (t : Nat) (f : AgentFacts) (β : Branch)
     (hbr : f.branch = some β) (hk : β.locked = true) (b k : String) :
@@ -1077,11 +1080,21 @@ theorem no_unlanded_while_locked (p : Params) (t : Nat) (f : AgentFacts) (β : B
     rw [hk] at hl
     cases hl
 
+/-- **A queued land is not an unlanded branch** (task `land-queue`). `land` and `routeIntegrator` are not proposed for a branch that
+is a pending entry of the land queue, so `fw watch` raises no `agent.unlanded` for it.
+
+$$\forall p, t, f, \beta, b, k:\quad b_\bot(f) = \beta \wedge \mathit{inQueue}(\beta) \Rightarrow \mathrm{land}(b, k) \notin \operatorname{next}(p, t, f) \wedge \mathrm{routeIntegrator}(b) \notin \operatorname{next}(p, t, f)$$
+-/
+theorem no_unlanded_while_queued (p : Params) (t : Nat) (f : AgentFacts) (β : Branch)
+    (hbr : f.branch = some β) (hq : β.inLandQueue = true) (b k : String) :
+    Action.land b k ∉ next p t f ∧ Action.routeIntegrator b ∉ next p t f :=
+  no_unlanded_while_locked p t f β hbr (by simp [Branch.locked, hq]) b k
+
 /-- **The alert is suppressed exactly when the lock holder is the branch.** For a non-active agent that handed back with
 no live child, whose branch is ahead of `main`, not settled, merges cleanly and has no unlanded dependency, the
 unlanded alert (`land` or `routeIntegrator`) is absent if and only if the live land lock names that branch.
 
-$$\forall p, t, f, \beta:\quad s(f) \ne \mathrm{active} \wedge h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\operatorname{settled}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,] \Rightarrow \bigl(\mathrm{land}(\mathit{name}(\beta), \mathit{task}(f)) \notin \operatorname{next}(p, t, f) \wedge \mathrm{routeIntegrator}(\mathit{name}(\beta)) \notin \operatorname{next}(p, t, f) \iff \ell_\bot(\beta) = \mathit{name}(\beta)\bigr)$$
+$$\forall p, t, f, \beta:\quad s(f) \ne \mathrm{active} \wedge h_\bot(f) \ne \bot \wedge C(f) = [\,] \wedge b_\bot(f) = \beta \wedge 0 < \mathit{ahead}(\beta) \wedge \neg\operatorname{settled}(\beta) \wedge \mathit{clean}(\beta) \wedge D(\beta) = [\,] \Rightarrow \bigl(\mathrm{land}(\mathit{name}(\beta), \mathit{task}(f)) \notin \operatorname{next}(p, t, f) \wedge \mathrm{routeIntegrator}(\mathit{name}(\beta)) \notin \operatorname{next}(p, t, f) \iff \operatorname{locked}(\beta)\bigr)$$
 -/
 theorem alert_suppressed_iff_locked (p : Params) (t : Nat) (f : AgentFacts) (β : Branch)
     (ha : f.state ≠ .active) (hb : f.handbackAt.isSome) (hc : f.children = []) (hbr : f.branch = some β)
