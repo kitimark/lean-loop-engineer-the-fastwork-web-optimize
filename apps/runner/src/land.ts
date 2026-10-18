@@ -11,7 +11,7 @@ import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin, span } from "./timing.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { dryKind, type Kind } from "./land-verdict.ts";
+import { checkFailKind, failedStages, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
 
 export type Http = {
@@ -64,7 +64,7 @@ export type LandOptions = {
   /** how long to wait for another land's (sub-second) lock before refusing (ms); default 10000 */
   lockWaitMs?: number;
   /** `--dry` (needs `task`): only the cheap stages (stale base, scope, merge-tree, the static reads test on the merge tree); no lock, no
-   *  full check, main untouched. Lean `Fw.Console.LandDry` decides the kind (`dryKind`). */
+   *  full check, main untouched. Lean `Fw.Console.LandDry` decides the kind (`Outcome.kind`). */
   dry?: boolean;
   /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test of apps/runner, selected
    *  when `checksFor` selects apps/runner (tests inject both) */
@@ -77,7 +77,9 @@ export type LandOptions = {
  *  (also printed as lines) with the commands that finish the job. */
 export type LandResult = { ok: boolean; lines: string[]; warnings?: string[];
   /** the verdict kind (Lean `Fw.Console.LandVerdict.Kind`): `done` after a landing, `dry` after a passing dry land, else the refusal's kind */
-  kind?: Kind };
+  kind?: Kind;
+  /** a dry land: the stage outcomes; `fw.ts` prints `dryRun(outcome, task)` (Lean `Fw.Console.LandDry.dryRun`) and `kind` is `outcomeKind(outcome)` */
+  outcome?: Outcome };
 
 export const ATTRIBUTION = [
   "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
@@ -338,12 +340,8 @@ const prepLandWt = (dir: string) => {
  *  cache, per-module store), after an incremental `lake build` (no `fwtest`, no tests; the .lake of the slot is warm). An unchanged Lean tree
  *  is a cache hit and builds nothing. A script the tree lacks is skipped. */
 export function dryLintArgv(dir: string, changed: string[]): string[][] {
-  const out: string[][] = [];
-  if (existsSync(join(dir, "scripts/ci-paths.mjs"))) out.push(["node", "scripts/ci-paths.mjs", "--check"]);
-  if (changed.some((f) => f.startsWith("lean/")) && existsSync(join(dir, "lean/scripts/mathview-cached.sh"))) {
-    out.push(["sh", "-c", "cd lean && scripts/mathview-cached.sh --build >/dev/null"]);
-  }
-  return out;
+  // which lints run is decided by Lean `lintPlan` (land-verdict.ts); this only reads which scripts exist
+  return lintPlan(changed, existsSync(join(dir, "scripts/ci-paths.mjs")), existsSync(join(dir, "lean/scripts/mathview-cached.sh")));
 }
 
 type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string; k?: Kind } | { kind: "fallback"; why: string };
@@ -376,7 +374,13 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
 
 async function landRun(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
   const lines: string[] = via ? [`${via} has nothing to land; landing ${branch}, which is ahead of it and contains it`] : [];
-  const fail = (m: string, kind: Kind = "unknown"): LandResult => { lines.push(`REFUSED: ${m}`); return { ok: false, lines, kind }; };
+  // a dry refusal carries its stage outcome (default: `threw`, a refusal outside the modelled stages) and its kind is the Lean `dryRun` kind
+  const fail = (m: string, kind: Kind = "unknown", out?: Outcome): LandResult => {
+    lines.push(`REFUSED: ${m}`);
+    if (!o.dry) return { ok: false, lines, kind };
+    const oc = out ?? outcome({ threw: true });
+    return { ok: false, lines, kind: outcomeKind(oc), outcome: oc };
+  };
   const main = o.mainRef ?? "main";
   const bc = branchCard(branch);
   if (branch === main) return fail("cannot land the main branch");
@@ -402,10 +406,11 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   }
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
   const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, branch]);
-  if (o.dry && behind) return fail(`${branch} does not contain ${main}: merge ${main} into it (git merge ${main}) and run the dry land again; a stale base can carry another task's diff into the scope check`, "stale");
-  // no commit of its own (the tip is already in main): nothing to land. Lean `dryKind` (after `stale`): VERDICT empty, exit 0.
+  if (o.dry && behind) return fail(`${branch} does not contain ${main}: merge ${main} into it (git merge ${main}) and run the dry land again; a stale base can carry another task's diff into the scope check`, "stale", outcome({ fresh: false }));
+  // no commit of its own (the tip is already in main): nothing to land. Lean `Outcome.first` (after `stale`): VERDICT empty, exit 0.
   if (o.dry && tryGit(o.cwd, ["merge-base", "--is-ancestor", sha, main])) {
-    return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: "empty" };
+    const oc = outcome({ own: false });
+    return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc };
   }
   if (behind && !o.task) return fail(`${branch} is behind ${main}; a fast-forward is impossible (land it with --task for a merge commit; branches are never rebased)`);
 
@@ -436,8 +441,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   if (!sc.body.ok) {
     const list = (xs: string[]) => xs.map((x) => `\n  ${x}`).join("");
     if (sc.body.reason === "noWrites")
-      return fail(`${o.task ? `task ${o.task}` : branch} has no writes, so no file may land. Changed files:${list(changed)}\nadd writes to the task in docs/team/work-graph.json (then fw plan sync), or pass --allow <glob>`, "scope");
-    return fail(`files outside the scope of ${o.task ?? branch}:${list(sc.body.violations as string[])}\nwrites: ${writes.join(", ") || "(none)"}; pass --allow <glob> to admit more`, "scope");
+      return fail(`${o.task ? `task ${o.task}` : branch} has no writes, so no file may land. Changed files:${list(changed)}\nadd writes to the task in docs/team/work-graph.json (then fw plan sync), or pass --allow <glob>`, "scope", outcome({ scope: false }));
+    return fail(`files outside the scope of ${o.task ?? branch}:${list(sc.body.violations as string[])}\nwrites: ${writes.join(", ") || "(none)"}; pass --allow <glob> to admit more`, "scope", outcome({ scope: false }));
   }
   lines.push(`scope ok (${changed.length} files)`);
 
@@ -513,31 +518,31 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       const p = await span("fw land", `${argv.join(" ")} (retry alone: timed out under load)`, () => runCheck(cwd, argv), (r) => r.status);
       results[i] = { status: p.status, out: `${r0.out}\n[timed out under load; re-run alone]\n${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
     }
-    const bad: string[] = [];
+    const bad: string[] = [], failedChecks: { reads: boolean; stages: string[] }[] = [];
     list.forEach((argv, i) => {
       const r = results[i]!;
       appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${r.out}\n[exit ${r.status}]\n\n`);
       if (r.status !== 0) {
-        if (READS_FAIL_RE.test(r.out)) badKind = "reads";
+        failedChecks.push({ reads: READS_FAIL_RE.test(r.out), stages: failedStages(r.out) });
         const tail = r.out.split("\n").filter((l) => l !== "").slice(-30).join("\n");
         bad.push(`check FAILED: ${argv.join(" ")}\nlog: ${logFile}\n${tail}`);
       } else lines.push(`check ok: ${argv.join(" ")}`);
     });
+    // Lean `checkFailKind`: reads, else lint (a lint or compile failure: the same kind a dry land prints), else checks
+    if (failedChecks.length) badKind = checkFailKind(failedChecks);
     return bad.length ? bad.join("\n\n") : null;
   };
   // --dry: the real land's cheap stages and nothing else (Lean `Fw.Console.LandDry`: dry_pass_land_pass, dry_refusal_is_land_refusal,
   // handback_pass_land_pass). It builds the very commit the pre-lock land builds (merge-tree of main and the tip, plus the evidence),
   // checks that tree in a land worktree slot (a pid claim, not the land lock), runs the static reads test only when the change selects
-  // apps/runner (as the real land does) and never touches main, the lock or the queue. The kind comes from `dryKind`.
+  // apps/runner (as the real land does) and never touches main, the lock or the queue. The kind is `outcomeKind` of the stage outcomes (Lean `Outcome.kind`).
   if (o.dry) {
     const main0 = git(mainDir, ["rev-parse", "HEAD"]);
-    if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: "empty" };
+    if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) { const oc = outcome({ own: false }); return { ok: true, lines: [...lines, `dry: ${branch} has no commit of its own (already in ${main}); nothing to land`], kind: outcomeKind(oc), outcome: oc }; }
     lines.push(`dry: ${branch} contains ${main}; scope ok`);
-    const verdict = (merges: boolean, readsSelected: boolean, readsTest: boolean, lints = true) =>
-      dryKind({ containsMain: true, scope: true, merges, readsSelected, readsTest, own: true, lints });
     let tree: string | null = null;
     try { tree = git(mainDir, ["-c", `attr.tree=${main0}`, "merge-tree", "--write-tree", main0, sha]).split("\n")[0]!; } catch { /* conflicts */ }
-    if (!tree) return fail(`${main} cannot merge ${branch} cleanly`, verdict(false, false, true));
+    if (!tree) return fail(`${main} cannot merge ${branch} cleanly`, "conflict", outcome({ merges: false }));
     const slot = claimLandWt(mainDir);
     try {
       const c = git(mainDir, ["commit-tree", tree, "-p", main0, "-p", sha, "-m", `dry ${branch}`]);
@@ -545,7 +550,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       if (writeEvidence(slot.dir, o.task!, sha.slice(0, 7)) === "failed") return fail("could not write the evidence into docs/team/work-graph.json");
       let marks = "";
       try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
-      if (marks) return fail(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, verdict(false, false, true));
+      if (marks) return fail(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, "conflict", outcome({ merges: false }));
       lines.push(`dry: merge ok (${main} ${main0.slice(0, 7)}, tip ${sha.slice(0, 7)}), no conflict markers`);
       const selected = o.dryReads?.selected ?? selectChecks(candidateChecks(slot.dir), changed).includes("apps/runner");
       let test = true, detail = "";
@@ -555,19 +560,20 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         test = bad === null; detail = bad ?? "";
         if (test) lines.push("dry: reads ok (the static land-inputs test passes on the merge tree)");
       } else lines.push("dry: reads not selected (the change does not select apps/runner, so the real land does not run the test either)");
+      const reads = !selected || test; // Lean `Stages.reads`: a test the change does not select cannot refuse
       let lints = true;
-      if (verdict(true, selected, test) === "dry") {
-        // the fast lints that refused real lands (math-view lint, ci-paths --check), on the merge tree, after reads (Lean `dryKind` order)
+      if (reads) {
+        // the fast lints that refused real lands, on the merge tree, after reads (Lean `Outcome.first` order); which ones: Lean `lintPlan`
         const lintArgv = o.dryLints ?? dryLintArgv(slot.dir, changed);
         if (lintArgv.length) {
           const bad = await runChecks(slot.dir, lintArgv);
           lints = bad === null; detail = bad ?? "";
         }
-      }
-      const k = verdict(true, selected, test, lints);
-      if (k !== "dry") return fail(detail || `dry land refused: ${k}`, k);
+      } else lines.push("dry: lints skipped (reads refused first)");
+      const oc = outcome({ reads, lints });
+      if (outcomeKind(oc) !== "dry") return fail(detail || `dry land refused: ${outcomeKind(oc)}`, "unknown", oc);
       lines.push(`dry ok at ${main} ${main0.slice(0, 7)}: the land's scope, merge, reads and fast lints pass unless ${main} moves`);
-      return { ok: true, lines, kind: "dry" };
+      return { ok: true, lines, kind: "dry", outcome: oc };
     } finally { slot.free(); }
   }
   const checks = o.checks ?? checksFor(mainDir, changed);

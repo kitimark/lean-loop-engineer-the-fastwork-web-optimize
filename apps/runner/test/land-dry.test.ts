@@ -3,7 +3,7 @@
 import "./land-timeout.ts";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { exitCode, parseVerdict, verdictLine } from "../src/land-verdict.ts";
+import { dryRun, exitCode, outcome, outcomeKind, parseVerdict } from "../src/land-verdict.ts";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../console-api/src/app.ts";
@@ -126,10 +126,31 @@ describe("fw land --dry", () => {
     expect(withLean).toHaveLength(2);
     expect(withLean[1]!.join(" ")).toContain("mathview-cached.sh");
   });
-  it("every dry run ends in exactly one VERDICT line through `fw land --dry` (also on an empty branch)", () => {
-    const out = ["REFUSED: x", verdictLine("empty", "t1")].join("\n");
-    expect(out.split("\n").filter((l) => l.startsWith("VERDICT ")).length).toBe(1);
-    expect(parseVerdict(out)).toEqual({ kind: "empty", task: "t1" });
+  it("every dry result carries its stage outcome, its kind is the outcome's kind, and dryRun prints exactly one VERDICT line", async () => {
+    const { fx, wt, opts } = await setup();
+    fx.commit(wt, "other/b.ts");
+    const results = [
+      await land(BR, { ...opts, dry: true, ...reads(["true"]) }), // scope
+      await land("no-such-branch", { ...opts, dry: true }), // outside the modelled stages: threw
+    ];
+    for (const r of results) {
+      expect(r.outcome, text(r)).toBeDefined();
+      expect(r.kind).toBe(outcomeKind(r.outcome!));
+      const out = dryRun(r.outcome!, "t1");
+      expect(out.filter((l) => l.startsWith("VERDICT ")).length).toBe(1);
+      expect(parseVerdict(out.join("\n"))?.kind).toBe(r.kind);
+    }
+    expect(results.map((r) => r.kind)).toEqual(["scope", "unknown"]);
+    expect(dryRun(results[0]!.outcome!, "t1")).toEqual(["dry: exception ok", "dry: stale ok", "dry: empty ok", "VERDICT scope t1"]);
+    expect(outcome({ threw: true }).threw).toBe(true);
+  });
+  it("a real land prints `lint` for a lint/compile check failure, as the dry land does, and `checks` for another failure", async () => {
+    const { fx, wt, opts } = await setup();
+    fx.commit(wt, "src/a.ts");
+    const lint = await land(BR, { ...opts, checks: [["sh", "-c", "echo 'check: FAILED stage: mathview lint'; exit 1"]] });
+    expect(lint.kind, text(lint)).toBe("lint");
+    const mixed = await land(BR, { ...opts, checks: [["sh", "-c", "echo 'check: FAILED stage: mathview lint'; echo 'check: FAILED stage: lake test'; exit 1"]] });
+    expect(mixed.kind, text(mixed)).toBe("checks");
   });
   it("needs --task", async () => {
     const { fx, wt, opts } = await setup();
