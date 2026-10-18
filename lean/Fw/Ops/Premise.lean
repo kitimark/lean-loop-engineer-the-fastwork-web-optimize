@@ -985,8 +985,8 @@ def rowOf (file : String) (j : Json) : Row :=
 /-- Runs the citation lint on every non-blank line of every `*.jsonl` below `golden/engine/` (files in sorted path
 order, an unparsable line read as the row $[(\texttt{file}, f)]$) and returns 1 iff it does not pass.
 
-$$\mathrm{citeRun}(\mathit{root}) = \begin{cases} 0 & \operatorname{ok}(\operatorname{citeLint}(\mathrm{registry}, \operatorname{pageRefs}(\mathrm{registry}), F, \mathrm{untested}, \mathrm{engineCites}, \mathit{rows})) \\ 1 & \text{otherwise}\end{cases}$$
-where $F$ is the list of files in `.github/workflows/` and $\mathit{rows}$ the lint rows of those lines. -/
+$$\mathrm{citeRun}(\mathit{root}) = \begin{cases} 0 & \operatorname{ok}(\operatorname{citeLint}(\mathrm{registry}, \operatorname{pageRefs}(\mathrm{registry}), F, \mathrm{untested}, \mathrm{engineCites}, \mathit{rows})) \\ 1 & \text{otherwise}\end{cases} \quad \text{where } F = \text{the files in } \texttt{.github/workflows/},\ \mathit{rows} = \text{the lint rows of those lines}$$
+-/
 -- Page tests are taken from the registry (`fw premises` checks that `packages/premise-tests` declares them).
 def citeRun (root : System.FilePath) : IO Nat := do
   let dir := root / ".." / "packages" / "contracts" / "golden" / "engine"
