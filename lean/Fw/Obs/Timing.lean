@@ -14,21 +14,33 @@ Definitions (all durations in whole ms, `Nat`):
 * A local sample with $\lambda > L$ is **noisy**: it gets the verdict `noisy` and never enters a window. A CI sample is
   never noisy.
 * The **window** of a sample is the last $N$ non-noisy samples with the same key that come before it in the input.
-* The **baseline** is the nearest-rank p90 of the window: the $\lceil 9n/10 \rceil$-th smallest of its $n$ values,
-  defined by counting (`ord`), so no sort is needed and the proofs are about counts.
+* The **baseline** is the nearest-rank median (p50) of the window: the $\lceil n/2 \rceil$-th smallest of its $n$
+  values, defined by counting (`ord`), so no sort is needed and the proofs are about counts. It was the p90 until
+  task `timing-small-n`: with $n \le 9$ the p90 is the window maximum, so a regression seen twice became its own
+  baseline (history $[2,1,2,27,26]$ s, then 40 s was `ok`). A median moves only once a shift fills more than half the window
+  (`no_self_mask`), so the counterexample is now `slow` (`site_regression_slow`).
 * Verdict of one sample, first match: `noBaseline` when the window has fewer than $n_{\min}$ samples; `noisy`; `slow`
   when $d > \max(B, k \cdot b)$ with $B$ the step's budget and $b$ the baseline; otherwise `ok`.
 * A **ceiling** is an absolute limit $C(\mathit{tool}, \mathit{step})$ for one step. A non-noisy sample above its
   ceiling is `slow` at once, with no window needed: a step that is slow from its first run (the 2-minute `fw land`)
   has no history to be slow against, so the relative rule alone never alerts for it. `landCeilings` sets 30 s for the
   whole `fw land` and 5 s for the time its lock is held.
-* **Structural**: a stage is a list of groups (a group is the list of keys of one job, e.g. the matrix legs of
-  `sweeps`); a group's baseline is the largest final baseline of its keys (defined when every key has one). A group is
-  structural when its baseline exceeds twice every sibling group's baseline.
+* **Structural call**: a stage is a list of groups (a group is the list of keys of one job, e.g. the matrix legs of
+  `sweeps`); a group's baseline is the largest final baseline of its keys (defined when every key has one). Every
+  group of every stage gets a call: `structural` when its baseline exceeds twice every sibling group's baseline,
+  `noise` when every sibling has a baseline but one is at least half of it, `undecided` otherwise.
+* **Where stages come from**: `params.stages` when the caller gives any; otherwise (`fw watch` sends no params) they
+  are derived from the CI job samples (`autoStages`): one stage per CI workflow with at least two job families, one
+  group per job family (the job name up to its first `" ("`, so matrix legs share a group). A workflow is a coarser
+  stage than its parallel jobs (sequential jobs count as siblings too), so an auto `structural` call reads "this job
+  family dominates its workflow's job time".
 
-Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `land_budget_alert`, `no_alert_within_budget`, `no_alert_within_budget_list`, `slow_mono_dur`, `noBaseline_iff`,
-`noBaseline_below_nmin`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `outlier_between`, `outlier_bound`, `outlier_shift`,
-`structural_iff`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
+Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `land_budget_alert`,
+`no_alert_within_budget`, `no_alert_within_budget_list`, `slow_mono_dur`, `slow_mono_window`, `no_self_mask`,
+`site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `noBaseline_iff`, `noBaseline_below_nmin`,
+`ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
+`le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
+`calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
 
 Wire: `timingVerdicts` is the entry point (op `obs.timing`, wired by `timing-alert`); the golden is
 `packages/contracts/golden/obs/timing.jsonl`, rendered by `Fw.Wire.Obs.Timing.goldenText` at the end of this file.
@@ -151,6 +163,23 @@ def p90 (xs : List Nat) : Nat := ord xs (rank90 xs.length - 1)
 #guard p90 [10, 20, 30, 40, 50, 60, 70, 80, 90, 100] == 90
 #guard p90 [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110] == 100
 
+/-- The nearest rank of the median among `n` values: $\lceil n/2 \rceil$ (1-based; 0 for `n = 0`).
+
+$$\operatorname{rank}_{50}(n) = \left\lfloor \frac{n + 1}{2} \right\rfloor = \left\lceil \frac{n}{2} \right\rceil$$
+-/
+def rank50 (n : Nat) : Nat := (n + 1) / 2
+
+/-- The nearest-rank median (p50) of a list: its $\lceil n/2 \rceil$-th smallest value (the lower median for an even
+length); 0 for the empty list. This is the baseline of the slow test.
+
+$$\operatorname{p50}(X) = \operatorname{ord}(X, \operatorname{rank}_{50}(|X|) \mathbin{\dot-} 1)$$
+-/
+def p50 (xs : List Nat) : Nat := ord xs (rank50 xs.length - 1)
+
+#guard rank50 0 == 0 && rank50 1 == 1 && rank50 2 == 1 && rank50 5 == 3 && rank50 6 == 3 && rank50 20 == 10
+#guard p50 [] == 0 && p50 [7] == 7 && p50 [3, 9, 1] == 3 && p50 [4, 1, 3, 2] == 2
+#guard p50 [2000, 1000, 2000, 27000, 26000] == 2000 && p90 [2000, 1000, 2000, 27000, 26000] == 27000
+
 /-! ## The verdict of one sample -/
 
 /-- A sample is noisy when it ran locally at a load above the limit (CI samples never are).
@@ -225,18 +254,18 @@ inductive Code where
   | slow
 deriving DecidableEq, Repr
 
-/-- The code of sample `s` against window `w`, first match: too short a window, noisy, slow, ok (with
-$n_{\min} = 0$ an empty window passes the first test and has baseline 0).
+/-- The code of sample `s` against window `w`, first match: too short a window, noisy, slow, ok. The baseline is the
+median of the window (with $n_{\min} = 0$ an empty window passes the first test and has baseline 0).
 
-$$\operatorname{code}_p(w, s) = \begin{cases} \mathsf{noBaseline} & |w| < n_{\min} \\ \mathsf{noisy} & \operatorname{noisy}_p(s) \\ \mathsf{slow} & \operatorname{over}_p(B_p(\mathit{tool}_s), \operatorname{p90}(w), d_s) \\ \mathsf{ok} & \text{otherwise} \end{cases}$$
+$$\operatorname{code}_p(w, s) = \begin{cases} \mathsf{noBaseline} & |w| < n_{\min} \\ \mathsf{noisy} & |w| \ge n_{\min} \wedge \operatorname{noisy}_p(s) \\ \mathsf{slow} & |w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge \operatorname{over}_p(B_p(\mathit{tool}_s), \operatorname{p50}(w), d_s) \\ \mathsf{ok} & \text{otherwise} \end{cases}$$
 -/
 def codeOf (p : Params) (w : List Nat) (s : Sample) : Code :=
   if w.length < p.nMin then .noBaseline
   else if noisy p s then .noisy
-  else if overLimit p (budgetOf p s.tool) (p90 w) s.durMs then .slow
+  else if overLimit p (budgetOf p s.tool) (p50 w) s.durMs then .slow
   else .ok
 
-/-- The verdict of one sample: its index, key and duration, the code, the window size, the baseline (p90 of the
+/-- The verdict of one sample: its index, key and duration, the code, the window size, the baseline (p50 of the
 window, 0 for an empty window) and the budget.
 
 $$v = (i, \mathit{tool}, \mathit{step}, h, d, c, n, b, B)$$
@@ -256,13 +285,13 @@ deriving DecidableEq, Repr
 /-- The verdict of sample `s` at index `i` with the earlier samples `hist`: `slow` when it breaches its step's ceiling
 (whatever the window), else the code against the window.
 
-$$\operatorname{judge}_p(H, i, s) = (i, \mathit{tool}_s, \mathit{step}_s, h_s, d_s, c, |w|, \operatorname{p90}(w), B^*_p(s)),\quad c = \begin{cases} \mathsf{slow} & \operatorname{breach}_p(s) \\ \operatorname{code}_p(w, s) & \text{otherwise} \end{cases},\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
+$$\operatorname{judge}_p(H, i, s) = (i, \mathit{tool}_s, \mathit{step}_s, h_s, d_s, c, |w|, \operatorname{p50}(w), B^*_p(s)),\quad c = \begin{cases} \mathsf{slow} & \operatorname{breach}_p(s) \\ \operatorname{code}_p(w, s) & \text{otherwise} \end{cases},\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
 -/
 def judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
   let w := windowOf p hist s.key
   { idx := i, tool := s.tool, step := s.step, host := s.host, durMs := s.durMs,
     code := if ceilingBreach p s then .slow else codeOf p w s,
-    n := w.length, baseline := p90 w, budgetMs := budgetFor p s }
+    n := w.length, baseline := p50 w, budgetMs := budgetFor p s }
 
 /-- One verdict per sample, in input order; sample $i$ is judged against the samples before it.
 
@@ -273,13 +302,13 @@ def sampleVerdicts (p : Params) (ss : List Sample) : List SampleVerdict :=
 
 /-! ## Structural verdicts -/
 
-/-- The final baseline of a key: the p90 of its window over all samples, defined when that window has at least
+/-- The final baseline of a key: the p50 of its window over all samples, defined when that window has at least
 $n_{\min}$ samples.
 
-$$\operatorname{fb}_p(H, \kappa) = \begin{cases} \operatorname{p90}(\operatorname{win}_p(H, \kappa)) & |\operatorname{win}_p(H, \kappa)| \ge n_{\min} \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{fb}_p(H, \kappa) = \begin{cases} \operatorname{p50}(\operatorname{win}_p(H, \kappa)) & |\operatorname{win}_p(H, \kappa)| \ge n_{\min} \\ \bot & \text{otherwise} \end{cases}$$
 -/
 def finalBaseline (p : Params) (ss : List Sample) (k : Key) : Option Nat :=
-  if p.nMin ≤ (windowOf p ss k).length then some (p90 (windowOf p ss k)) else none
+  if p.nMin ≤ (windowOf p ss k).length then some (p50 (windowOf p ss k)) else none
 
 /-- The largest value of a list, 0 for the empty list.
 
@@ -296,14 +325,26 @@ def groupBaseline (p : Params) (ss : List Sample) (g : Group) : Option Nat :=
   let bs := g.keys.filterMap (finalBaseline p ss)
   if !g.keys.isEmpty && bs.length == g.keys.length then some (maxL bs) else none
 
-/-- A structural verdict: the stage, the group that sets its wall time, its baseline and the largest sibling
-baseline.
+/-- The call on one group of a stage: it sets the stage's time by a wide margin (`structural`), it does not
+(`noise`), or there is not enough history to tell (`undecided`).
 
-$$\sigma = (\mathit{stage}, \mathit{group}, b, c_{\max})$$
+$$c \in \{\mathsf{structural}, \mathsf{noise}, \mathsf{undecided}\}$$
+-/
+inductive Call where
+  | structural
+  | noise
+  | undecided
+deriving DecidableEq, Repr
+
+/-- A structural verdict: the stage, the group, the call on it, its baseline (0 when it has none) and the largest
+sibling baseline (0 when no sibling has one).
+
+$$\sigma = (\mathit{stage}, \mathit{group}, c, b, c_{\max})$$
 -/
 structure StructVerdict where
   stage      : String
   group      : String
+  call       : Call
   baseline   : Nat
   siblingMax : Nat
 deriving DecidableEq, Repr
@@ -316,27 +357,85 @@ def below (b : Nat) : Option Nat → Bool
   | some c => decide (2 * c < b)
   | none => false
 
-/-- The structural verdict of group `g` in stage `S`: present when `g` has a baseline $b$, the stage has another
-group, and every other group of the stage has a baseline $c$ with $2c < b$ (a group listed twice is not its own
-sibling).
+/-- The sibling baselines of group `g` in stage `S`: the group baselines of the other groups of the stage, in order
+(a group listed twice is not its own sibling).
 
-$$\operatorname{st}_p(H, S, g) = \begin{cases} (\mathit{id}_S, \mathit{name}_g, b, \max_{g'} c_{g'}) & \operatorname{gb}_p(H, g) = b \wedge [g' \in G_S \mid g' \ne g] \ne [\,] \wedge \forall g' \in G_S.\ g' \ne g \Rightarrow \exists c_{g'}.\ \operatorname{gb}_p(H, g') = c_{g'} \wedge 2 c_{g'} < b \\ \bot & \text{otherwise} \end{cases}$$
+$$\operatorname{sib}_p(H, S, g) = [\operatorname{gb}_p(H, g') \mid g' \in G_S,\ g' \ne g]$$
 -/
-def structuralOf (p : Params) (ss : List Sample) (st : Stage) (g : Group) : Option StructVerdict :=
+def siblings (p : Params) (ss : List Sample) (st : Stage) (g : Group) : List (Option Nat) :=
+  (st.groups.filter (fun g' => decide (g' ≠ g))).map (groupBaseline p ss)
+
+/-- The call on group `g` in stage `S`, first match: `undecided` when `g` has no baseline or no sibling;
+`structural` when every sibling has a baseline $c$ with $2c < b$; `noise` when every sibling has a baseline (so one
+of them has $2c \ge b$); `undecided` otherwise (a sibling without a baseline).
+
+$$\operatorname{call}_p(H, S, g) = \begin{cases} \mathsf{undecided} & \operatorname{gb}_p(H, g) = \bot \vee \operatorname{sib} = [\,] \\ \mathsf{structural} & \operatorname{gb}_p(H, g) = b \wedge \operatorname{sib} \ne [\,] \wedge \forall o \in \operatorname{sib}.\ \exists c.\ o = \mathsf{some}(c) \wedge 2c < b \\ \mathsf{noise} & \operatorname{gb}_p(H, g) = b \wedge \operatorname{sib} \ne [\,] \wedge (\forall o \in \operatorname{sib}.\ o \ne \bot) \wedge \exists c.\ \mathsf{some}(c) \in \operatorname{sib} \wedge 2c \ge b \\ \mathsf{undecided} & \text{otherwise} \end{cases},\quad \operatorname{sib} = \operatorname{sib}_p(H, S, g)$$
+-/
+def callOf (p : Params) (ss : List Sample) (st : Stage) (g : Group) : Call :=
   match groupBaseline p ss g with
-  | none => none
+  | none => .undecided
   | some b =>
-    let sib := (st.groups.filter (fun g' => decide (g' ≠ g))).map (groupBaseline p ss)
-    if !sib.isEmpty && sib.all (below b) then
-      some { stage := st.id, group := g.name, baseline := b, siblingMax := maxL (sib.filterMap id) }
-    else none
+    let sib := siblings p ss st g
+    if sib.isEmpty then .undecided
+    else if sib.all (below b) then .structural
+    else if sib.all Option.isSome then .noise
+    else .undecided
 
-/-- All structural verdicts: stage by stage, group by group.
+/-- The structural verdict of group `g` in stage `S`: the call, the group's baseline (0 without one) and the largest
+sibling baseline (0 without one).
 
-$$\operatorname{sts}_p(H) = [\operatorname{st}_p(H, S, g) \mid S \in \Sigma,\ g \in G_S,\ \operatorname{st}_p(H, S, g) \ne \bot]$$
+$$\operatorname{st}_p(H, S, g) = (\mathit{id}_S, \mathit{name}_g, \operatorname{call}_p(H, S, g), \operatorname{gb}_p(H, g) \text{ or } 0, \operatorname{maxL}[c \mid \mathsf{some}(c) \in \operatorname{sib}_p(H, S, g)])$$
+-/
+def stageVerdict (p : Params) (ss : List Sample) (st : Stage) (g : Group) : StructVerdict :=
+  { stage := st.id, group := g.name, call := callOf p ss st g, baseline := (groupBaseline p ss g).getD 0,
+    siblingMax := maxL ((siblings p ss st g).filterMap id) }
+
+/-- A job-level CI sample: a CI sample whose step is a job name (no `/`; step spans are `<job>/<step>`).
+
+$$\operatorname{job}(s) \iff h_s = \mathsf{ci} \wedge \text{"/"} \notin \mathit{step}_s$$
+-/
+def isJob (s : Sample) : Bool := decide (s.host = .ci) && !s.step.contains '/'
+
+/-- The job family of a job name: the name up to its first `" ("`, so the matrix legs `gate (chromium, s4)` and
+`gate (playwright-webkit, s0)` share the family `gate`; a name without `" ("` is its own family.
+
+$$\operatorname{fam}(n) = \text{the prefix of } n \text{ before its first } \texttt{" ("} \text{ (all of } n \text{ when there is none)}$$
+-/
+def family (step : String) : String := (step.splitOn " (").headD step
+
+/-- The keys of the job-level CI samples, first occurrence order, without repeats.
+
+$$\operatorname{jk}(H) = \operatorname{dedup}[\operatorname{key}(s) \mid s \in H,\ \operatorname{job}(s)]$$
+-/
+def jobKeys (ss : List Sample) : List Key := ((ss.filter isJob).map Sample.key).eraseDups
+
+/-- The stages derived from the samples when the caller gives none: one stage per CI workflow (tool) that has at
+least two job families, with one group per family (named by the family, holding that family's job keys), in first
+occurrence order. A workflow is coarser than a parallel stage: sequential jobs count as siblings too.
+
+$$\operatorname{auto}(H) = \bigl[(t, [(f, [\kappa \in \operatorname{jk}(H) \mid \mathit{tool}_\kappa = t \wedge \operatorname{fam}(\mathit{step}_\kappa) = f]) \mid f \in F_t]) \mid t \in \operatorname{dedup}[\mathit{tool}_\kappa \mid \kappa \in \operatorname{jk}(H)],\ |F_t| \ge 2\bigr],\quad F_t = \operatorname{dedup}[\operatorname{fam}(\mathit{step}_\kappa) \mid \kappa \in \operatorname{jk}(H),\ \mathit{tool}_\kappa = t]$$
+-/
+def autoStages (ss : List Sample) : List Stage :=
+  let ks := jobKeys ss
+  (ks.map (·.tool)).eraseDups.filterMap fun t =>
+    let fams := ((ks.filter (fun k => decide (k.tool = t))).map (fun k => family k.step)).eraseDups
+    if fams.length < 2 then none
+    else some { id := t, groups := fams.map fun f =>
+      { name := f, keys := ks.filter (fun k => decide (k.tool = t) && decide (family k.step = f)) } }
+
+/-- The stages the structural calls are made on: the caller's stages when it gives any, else the derived ones.
+
+$$\Sigma^*_p(H) = \begin{cases} \Sigma & \Sigma \ne [\,] \\ \operatorname{auto}(H) & \Sigma = [\,] \end{cases}$$
+-/
+def stagesOf (p : Params) (ss : List Sample) : List Stage :=
+  if p.stages.isEmpty then autoStages ss else p.stages
+
+/-- All structural verdicts: one per group of every stage, stage by stage, group by group.
+
+$$\operatorname{sts}_p(H) = [\operatorname{st}_p(H, S, g) \mid S \in \Sigma^*_p(H),\ g \in G_S]$$
 -/
 def structuralVerdicts (p : Params) (ss : List Sample) : List StructVerdict :=
-  p.stages.flatMap (fun st => st.groups.filterMap (structuralOf p ss st))
+  (stagesOf p ss).flatMap (fun st => st.groups.map (stageVerdict p ss st))
 
 /-- A verdict: one per sample, or a structural one.
 
@@ -378,11 +477,33 @@ private def lk : Key := { tool := "t", step := "s", host := .«local» }
 #guard (timingVerdicts { nMin := 1, stages := [{ id := "x", groups := [{ name := "a", keys := [lk] },
   { name := "b", keys := [{ lk with step := "b" }] }] }] }
   [{ tool := "t", step := "s", durMs := 100, host := .«local» },
-   { tool := "t", step := "b", durMs := 49, host := .«local» }]).length == 3
-#guard (structuralOf { nMin := 1 } [{ tool := "t", step := "s", durMs := 100, host := .«local» },
+   { tool := "t", step := "b", durMs := 49, host := .«local» }]).length == 4
+#guard (callOf { nMin := 1 } [{ tool := "t", step := "s", durMs := 100, host := .«local» },
    { tool := "t", step := "b", durMs := 50, host := .«local» }]
   { id := "x", groups := [{ name := "a", keys := [lk] }, { name := "b", keys := [{ lk with step := "b" }] }] }
-  { name := "a", keys := [lk] }).isNone
+  { name := "a", keys := [lk] }) == .noise
+#guard (callOf { nMin := 1 } [{ tool := "t", step := "s", durMs := 100, host := .«local» },
+   { tool := "t", step := "b", durMs := 49, host := .«local» }]
+  { id := "x", groups := [{ name := "a", keys := [lk] }, { name := "b", keys := [{ lk with step := "b" }] }] }
+  { name := "a", keys := [lk] }) == .structural
+#guard (callOf { nMin := 1 } [{ tool := "t", step := "s", durMs := 100, host := .«local» }]
+  { id := "x", groups := [{ name := "a", keys := [lk] }, { name := "b", keys := [{ lk with step := "b" }] }] }
+  { name := "a", keys := [lk] }) == .undecided
+#guard (callOf { nMin := 1 } [{ tool := "t", step := "s", durMs := 100, host := .«local» }]
+  { id := "x", groups := [{ name := "a", keys := [lk] }] } { name := "a", keys := [lk] }) == .undecided
+#guard family "gate (chromium, s4)" == "gate" && family "site" == "site" && family "" == ""
+#guard isJob { tool := "w", step := "site", durMs := 1, host := .ci } &&
+  !isJob { tool := "w", step := "site/Build", durMs := 1, host := .ci } &&
+  !isJob { tool := "w", step := "site", durMs := 1, host := .«local» }
+#guard (autoStages [{ tool := "w", step := "gate (c, s0)", durMs := 1, host := .ci },
+    { tool := "w", step := "sweeps (c)", durMs := 1, host := .ci },
+    { tool := "w", step := "gate (c, s1)", durMs := 1, host := .ci },
+    { tool := "w", step := "gate (c, s0)/Run", durMs := 1, host := .ci },
+    { tool := "v", step := "only", durMs := 1, host := .ci },
+    { tool := "w", step := "gate (c, s0)", durMs := 1, host := .ci }]).map
+    (fun st => (st.id, st.groups.map (fun g => (g.name, g.keys.map (·.step))))) ==
+  [("w", [("gate", ["gate (c, s0)", "gate (c, s1)"]), ("sweeps", ["sweeps (c)"])])]
+#guard stagesOf { stages := [{ id := "x", groups := [] }] } [] == [{ id := "x", groups := [] }]
 
 /-! ## Proofs: the verdict of one sample -/
 
@@ -401,12 +522,12 @@ theorem ceilingBreach_iff (p : Params) (s : Sample) :
 /-- The relative rule alone: the code against a window is `slow` exactly when the window is long enough, the sample is
 not noisy, and its duration exceeds both the budget and $k$ times the baseline.
 
-$$\forall p, w, s:\quad \operatorname{code}_p(w, s) = \mathsf{slow} \iff |w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge k_d \cdot d_s > k_n \cdot \operatorname{p90}(w)$$
+$$\forall p, w, s:\quad \operatorname{code}_p(w, s) = \mathsf{slow} \iff |w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge k_d \cdot d_s > k_n \cdot \operatorname{p50}(w)$$
 -/
 theorem codeOf_slow_iff (p : Params) (w : List Nat) (s : Sample) :
     codeOf p w s = .slow ↔
       p.nMin ≤ w.length ∧ noisy p s = false ∧ budgetOf p s.tool < s.durMs ∧
-        p.kNum * p90 w < p.kDen * s.durMs := by
+        p.kNum * p50 w < p.kDen * s.durMs := by
   unfold codeOf overLimit
   split
   · constructor
@@ -433,13 +554,13 @@ theorem codeOf_slow_iff (p : Params) (w : List Nat) (s : Sample) :
 /-- When a sample's verdict is `slow`: it breaches its step's ceiling (no window needed), or the window is long
 enough, the sample is not noisy, and its duration exceeds both the budget and $k$ times the baseline.
 
-$$\forall p, H, i, s:\quad \operatorname{judge}_p(H, i, s).c = \mathsf{slow} \iff \operatorname{breach}_p(s) \vee \bigl(|w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge k_d \cdot d_s > k_n \cdot \operatorname{p90}(w)\bigr),\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
+$$\forall p, H, i, s:\quad \operatorname{judge}_p(H, i, s).c = \mathsf{slow} \iff \operatorname{breach}_p(s) \vee \bigl(|w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge k_d \cdot d_s > k_n \cdot \operatorname{p50}(w)\bigr),\quad w = \operatorname{win}_p(H, \operatorname{key}(s))$$
 -/
 theorem slow_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     (judge p hist i s).code = .slow ↔
       ceilingBreach p s = true ∨
       (p.nMin ≤ (windowOf p hist s.key).length ∧ noisy p s = false ∧ budgetOf p s.tool < s.durMs ∧
-        p.kNum * p90 (windowOf p hist s.key) < p.kDen * s.durMs) := by
+        p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) := by
   unfold judge
   simp only
   by_cases hb : ceilingBreach p s = true
@@ -774,9 +895,9 @@ theorem rank90_bounds (n : Nat) :
     (1 ≤ n → 1 ≤ rank90 n ∧ rank90 n ≤ n) ∧ (10 ≤ n → 2 ≤ rank90 n ∧ rank90 n < n) := by
   simp only [rank90]; omega
 
-/-- An outlier moves the baseline only toward itself: replacing one window value $x$ by $y$ leaves the new p90
-between the old p90 and $y$ (any window length; for a window of fewer than 10 values the p90 is the maximum, so a
-large $y$ can raise it all the way to $y$).
+/-- An outlier moves the p90 (the baseline before task `timing-small-n`, still used by the outlier bounds below)
+only toward itself: replacing one window value $x$ by $y$ leaves the new p90 between the old p90 and $y$ (any window
+length; for a window of fewer than 10 values the p90 is the maximum, so a large $y$ can raise it all the way to $y$).
 
 $$\forall a, b, x, y:\quad \min(\operatorname{p90}(X), y) \le \operatorname{p90}(X') \le \max(\operatorname{p90}(X), y),\quad X = a \mathbin{+\!\!+} [x] \mathbin{+\!\!+} b,\ X' = a \mathbin{+\!\!+} [y] \mathbin{+\!\!+} b$$
 -/
@@ -824,60 +945,341 @@ theorem outlier_shift (a b : List Nat) (x y : Nat) (hn : 10 ≤ (a ++ x :: b).le
   rw [hp]
   omega
 
+/-! ## Proofs: the median baseline (task `timing-small-n`) -/
+
+/-- Every value is at or below `t` or above it: the two counts add up to the length.
+
+$$\forall X, t:\quad \operatorname{cntLe}(X, t) + |[x \in X \mid x > t]| = |X|$$
+-/
+theorem cnt_split (xs : List Nat) (t : Nat) :
+    cntLe xs t + xs.countP (fun x => decide (t < x)) = xs.length := by
+  rw [List.length_eq_countP_add_countP (fun x => decide (x ≤ t))]
+  unfold cntLe
+  congr 1
+  apply List.countP_congr
+  intro x _
+  simp only [decide_eq_true_eq]
+  omega
+
+/-- The median is at most `t` when at most half of the values exceed `t` (also for the empty list, whose median is
+0).
+
+$$\forall X, t:\quad 2 \cdot |[x \in X \mid x > t]| \le |X| \Rightarrow \operatorname{p50}(X) \le t$$
+-/
+theorem p50_le_of_few_above (xs : List Nat) (t : Nat)
+    (h : 2 * xs.countP (fun x => decide (t < x)) ≤ xs.length) : p50 xs ≤ t := by
+  cases xs with
+  | nil => simp [p50, ord, cands]
+  | cons a r =>
+    have hs := cnt_split (a :: r) t
+    have hl : 1 ≤ (a :: r).length := by simp
+    unfold p50
+    rw [ord_le_iff _ _ _ (by simp only [rank50]; omega)]
+    simp only [rank50]
+    omega
+
+/-- The median is at least `t` when fewer than half of the values are below `t`.
+
+$$\forall X, t:\quad 2 \cdot |[x \in X \mid x < t]| < |X| \Rightarrow t \le \operatorname{p50}(X)$$
+-/
+theorem le_p50_of_few_below (xs : List Nat) (t : Nat)
+    (h : 2 * xs.countP (fun x => decide (x < t)) < xs.length) : t ≤ p50 xs := by
+  rcases Nat.eq_zero_or_pos t with rfl | ht
+  · exact Nat.zero_le _
+  · apply Classical.byContradiction
+    intro hlt
+    have hle : p50 xs ≤ t - 1 := by omega
+    unfold p50 at hle
+    rw [ord_le_iff _ _ _ (by simp only [rank50]; omega)] at hle
+    have hc : cntLe xs (t - 1) = xs.countP (fun x => decide (x < t)) :=
+      List.countP_congr (by intro x _; simp only [decide_eq_true_eq]; omega)
+    simp only [rank50] at hle
+    omega
+
+/-- No self-masking: a slowdown is judged against a median that it can only move once it fills more than half the
+window. If at most half of the window exceeds a level $t$, a non-noisy sample over budget with $k_d \cdot d > k_n \cdot
+t$ is `slow` (with the p90 baseline this failed for $n \le 9$, where the p90 is the maximum).
+
+$$\forall p, w, s, t:\quad |w| \ge n_{\min} \wedge \neg\operatorname{noisy}_p(s) \wedge d_s > B_p(\mathit{tool}_s) \wedge 2 \cdot |[x \in w \mid x > t]| \le |w| \wedge k_d \cdot d_s > k_n \cdot t \Rightarrow \operatorname{code}_p(w, s) = \mathsf{slow}$$
+-/
+theorem no_self_mask (p : Params) (w : List Nat) (s : Sample) (t : Nat)
+    (hn : p.nMin ≤ w.length) (hq : noisy p s = false) (hB : budgetOf p s.tool < s.durMs)
+    (hfew : 2 * w.countP (fun x => decide (t < x)) ≤ w.length) (hk : p.kNum * t < p.kDen * s.durMs) :
+    codeOf p w s = .slow :=
+  (codeOf_slow_iff p w s).2 ⟨hn, hq, hB,
+    Nat.lt_of_le_of_lt (Nat.mul_le_mul_left _ (p50_le_of_few_above w t hfew)) hk⟩
+
+/-- Slow is monotone in the window: a window of the same length with at least as many values at or below every bound
+(no slower in distribution, e.g. some values lowered) keeps a `slow` sample `slow`.
+
+$$\forall p, w, w', s:\quad |w'| = |w| \wedge (\forall v.\ \operatorname{cntLe}(w, v) \le \operatorname{cntLe}(w', v)) \wedge \operatorname{code}_p(w, s) = \mathsf{slow} \Rightarrow \operatorname{code}_p(w', s) = \mathsf{slow}$$
+-/
+theorem slow_mono_window (p : Params) (w w' : List Nat) (s : Sample) (hl : w'.length = w.length)
+    (hc : ∀ v, cntLe w v ≤ cntLe w' v) (h : codeOf p w s = .slow) : codeOf p w' s = .slow := by
+  obtain ⟨h1, h2, h3, h4⟩ := (codeOf_slow_iff p w s).1 h
+  refine (codeOf_slow_iff p w' s).2 ⟨by omega, h2, h3, ?_⟩
+  have hle : p50 w' ≤ p50 w := by
+    cases w with
+    | nil =>
+      have : w' = [] := List.eq_nil_of_length_eq_zero (by simpa using hl)
+      subst this; exact Nat.le_refl _
+    | cons a r =>
+      have hpos : 1 ≤ (a :: r).length := by simp
+      unfold p50
+      rw [hl, ord_le_iff _ _ _ (by rw [hl]; simp only [rank50]; omega)]
+      exact Nat.le_trans (ord_spec _ _ (by simp only [rank50]; omega)).2.1 (hc _)
+  exact Nat.lt_of_le_of_lt (Nat.mul_le_mul_left _ hle) h4
+
+/-- A value of a window is the duration of a sample of the history.
+
+$$\forall p, H, \kappa, x:\quad x \in \operatorname{win}_p(H, \kappa) \Rightarrow \exists s \in H.\ d_s = x$$
+-/
+theorem mem_window (p : Params) (hist : List Sample) (k : Key) (x : Nat) (h : x ∈ windowOf p hist k) :
+    ∃ s ∈ hist, s.durMs = x := by
+  unfold windowOf lastN at h
+  obtain ⟨s, hs, rfl⟩ := List.mem_map.1 (List.mem_of_mem_drop h)
+  exact ⟨s, (List.mem_filter.1 hs).1, rfl⟩
+
+/-- A stable series is never `slow`: when $n_{\min} \ge 1$, no sample breaches a ceiling, and every two durations of
+the series are within the factor $k$ ($k_d \cdot d_s \le k_n \cdot d_t$), no sample verdict is `slow`.
+
+$$\forall p, H:\quad n_{\min} \ge 1 \wedge (\forall s \in H.\ \neg\operatorname{breach}_p(s)) \wedge (\forall s, t \in H.\ k_d \cdot d_s \le k_n \cdot d_t) \Rightarrow \forall v \in \operatorname{sv}_p(H).\ c_v \ne \mathsf{slow}$$
+-/
+theorem stable_never_slow (p : Params) (ss : List Sample) (h1 : 1 ≤ p.nMin)
+    (hb : ∀ s ∈ ss, ceilingBreach p s = false)
+    (ht : ∀ s ∈ ss, ∀ t ∈ ss, p.kDen * s.durMs ≤ p.kNum * t.durMs) :
+    ∀ v ∈ sampleVerdicts p ss, v.code ≠ .slow := by
+  intro v hv
+  obtain ⟨i, hi, he⟩ := List.mem_iff_getElem.1 hv
+  have hi' : i < ss.length := by simpa [sampleVerdicts, List.length_mapIdx] using hi
+  have hv' : v = judge p (ss.take i) i ss[i] := by rw [← he]; simp [sampleVerdicts, List.getElem_mapIdx]
+  subst hv'
+  intro hs
+  rcases (slow_iff p _ i _).1 hs with hbr | ⟨hn, _, _, hk⟩
+  · rw [hb _ (List.getElem_mem hi')] at hbr; cases hbr
+  · have hpos : 0 < (windowOf p (ss.take i) ss[i].key).length := by omega
+    have hmem := (ord_spec (windowOf p (ss.take i) ss[i].key)
+      (rank50 (windowOf p (ss.take i) ss[i].key).length - 1) (by simp only [rank50]; omega)).1
+    obtain ⟨t, htm, hteq⟩ := mem_window p _ _ _ hmem
+    have hst := ht ss[i] (List.getElem_mem hi') t (List.mem_of_mem_take htm)
+    rw [hteq] at hst
+    exact Nat.lt_irrefl _ (Nat.lt_of_lt_of_le hk hst)
+
+/-- A site-build sample of the breakpoint gate (CI) with duration `d` ms, for the counterexample of task
+`timing-small-n`.
+
+$$\operatorname{site}(d) = (\texttt{breakpoint-gate}, \texttt{site}, d, \mathsf{ci}, 0)$$
+-/
+def siteBuild (d : Nat) : Sample := { tool := "breakpoint-gate", step := "site", durMs := d, host := .ci }
+
+/-- The counterexample is now `slow`: after site builds of 2, 1, 2, 27 and 26 s, a 40 s build is `slow` with the
+default parameters $p_0$ (`{}`: $n_{\min} = 5$, $N = 20$, $k = 3/2$, $B_0 = 30000$, no ceilings, no stages; median 2 s;
+with the p90 baseline, 27 s, it was `ok` because $2 \cdot 40 \le 3 \cdot 27$).
+
+$$\operatorname{judge}_{p_0}([\operatorname{site}(2000), \operatorname{site}(1000), \operatorname{site}(2000), \operatorname{site}(27000), \operatorname{site}(26000)], 5, \operatorname{site}(40000)).c = \mathsf{slow}$$
+-/
+theorem site_regression_slow :
+    (judge {} ([2000, 1000, 2000, 27000, 26000].map siteBuild) 5 (siteBuild 40000)).code = .slow := by
+  decide
+
+/-- A repeated regression stays `slow`: after site builds of 2, 1, 2, 27, 26 and 50 s, another 50 s build is `slow`
+with the default parameters $p_0$ (`{}`; the median is still 2 s; with the p90 baseline, 50 s, it was `ok`).
+
+$$\operatorname{judge}_{p_0}([\operatorname{site}(2000), \operatorname{site}(1000), \operatorname{site}(2000), \operatorname{site}(27000), \operatorname{site}(26000), \operatorname{site}(50000)], 6, \operatorname{site}(50000)).c = \mathsf{slow}$$
+-/
+theorem site_repeat_slow :
+    (judge {} ([2000, 1000, 2000, 27000, 26000, 50000].map siteBuild) 6 (siteBuild 50000)).code = .slow := by
+  decide
+
 /-! ## Proofs: structural verdicts -/
+
+/-- The sibling baselines are exactly the baselines of the other groups of the stage.
+
+$$\forall p, H, S, g, o:\quad o \in \operatorname{sib}_p(H, S, g) \iff \exists g' \in G_S.\ g' \ne g \wedge \operatorname{gb}_p(H, g') = o$$
+-/
+theorem mem_siblings (p : Params) (ss : List Sample) (st : Stage) (g : Group) (o : Option Nat) :
+    o ∈ siblings p ss st g ↔ ∃ g' ∈ st.groups, g' ≠ g ∧ groupBaseline p ss g' = o := by
+  simp [siblings, List.mem_map, List.mem_filter, and_assoc]
+
+/-- A group has a sibling exactly when its sibling list is not empty.
+
+$$\forall p, H, S, g:\quad \operatorname{sib}_p(H, S, g) \ne [\,] \iff \exists g' \in G_S.\ g' \ne g$$
+-/
+theorem siblings_ne_nil (p : Params) (ss : List Sample) (st : Stage) (g : Group) :
+    (siblings p ss st g).isEmpty = false ↔ ∃ g' ∈ st.groups, g' ≠ g := by
+  constructor
+  · intro h
+    cases hs : siblings p ss st g with
+    | nil => rw [hs] at h; simp at h
+    | cons o _ =>
+      obtain ⟨g', hg', hne, _⟩ := (mem_siblings p ss st g o).1 (by rw [hs]; simp)
+      exact ⟨g', hg', hne⟩
+  · rintro ⟨g', hg', hne⟩
+    have hm := (mem_siblings p ss st g _).2 ⟨g', hg', hne, rfl⟩
+    cases hs : siblings p ss st g with
+    | nil => rw [hs] at hm; simp at hm
+    | cons _ _ => rfl
 
 /-- When a group is structural: it has a baseline $b$, its stage has another group, and every other group of the
 stage has a baseline $c$ with $2c < b$.
 
-$$\forall p, H, S, g:\quad \operatorname{st}_p(H, S, g) \ne \bot \iff \exists b.\ \operatorname{gb}_p(H, g) = b \wedge (\exists g' \in G_S.\ g' \ne g) \wedge \forall g' \in G_S.\ g' \ne g \Rightarrow \exists c.\ \operatorname{gb}_p(H, g') = c \wedge 2c < b$$
+$$\forall p, H, S, g:\quad \operatorname{call}_p(H, S, g) = \mathsf{structural} \iff \exists b.\ \operatorname{gb}_p(H, g) = b \wedge (\exists g' \in G_S.\ g' \ne g) \wedge \forall g' \in G_S.\ g' \ne g \Rightarrow \exists c.\ \operatorname{gb}_p(H, g') = c \wedge 2c < b$$
 -/
 theorem structural_iff (p : Params) (ss : List Sample) (st : Stage) (g : Group) :
-    (structuralOf p ss st g).isSome = true ↔
+    callOf p ss st g = .structural ↔
       ∃ b, groupBaseline p ss g = some b ∧ (∃ g' ∈ st.groups, g' ≠ g) ∧
         ∀ g' ∈ st.groups, g' ≠ g → ∃ c, groupBaseline p ss g' = some c ∧ 2 * c < b := by
-  unfold structuralOf
+  unfold callOf
   cases hg : groupBaseline p ss g with
   | none => simp
   | some b =>
-    have hall : ((st.groups.filter (fun g' => decide (g' ≠ g))).map (groupBaseline p ss)).all (below b) = true ↔
+    have hall : (siblings p ss st g).all (below b) = true ↔
         ∀ g' ∈ st.groups, g' ≠ g → ∃ c, groupBaseline p ss g' = some c ∧ 2 * c < b := by
-      simp only [List.all_eq_true, List.mem_map, List.mem_filter, decide_eq_true_eq]
+      rw [List.all_eq_true]
       constructor
       · intro h g' hg' hne
-        have := h _ ⟨g', ⟨hg', hne⟩, rfl⟩
+        have := h _ ((mem_siblings p ss st g _).2 ⟨g', hg', hne, rfl⟩)
         cases hc : groupBaseline p ss g' with
         | none => rw [hc] at this; simp [below] at this
         | some c => rw [hc] at this; exact ⟨c, rfl, by simpa [below] using this⟩
-      · rintro h o ⟨g', ⟨hg', hne⟩, rfl⟩
+      · intro h o ho
+        obtain ⟨g', hg', hne, rfl⟩ := (mem_siblings p ss st g o).1 ho
         obtain ⟨c, hc, hlt⟩ := h g' hg' hne
         simp [hc, below, hlt]
-    have hne : (!((st.groups.filter (fun g' => decide (g' ≠ g))).map (groupBaseline p ss)).isEmpty) = true ↔
-        ∃ g' ∈ st.groups, g' ≠ g := by
+    have hne := siblings_ne_nil p ss st g
+    simp only
+    by_cases he : (siblings p ss st g).isEmpty = true
+    · simp only [he, ite_true]
       constructor
-      · intro h; simpa using h
-      · rintro ⟨g', hg', hne⟩
-        have : g' ∈ st.groups.filter (fun g' => decide (g' ≠ g)) := List.mem_filter.2 ⟨hg', by simpa using hne⟩
-        cases hf : st.groups.filter (fun g' => decide (g' ≠ g)) with
-        | nil => rw [hf] at this; simp at this
-        | cons _ _ => simp
-    by_cases hc : (!((st.groups.filter (fun g' => decide (g' ≠ g))).map (groupBaseline p ss)).isEmpty &&
-        ((st.groups.filter (fun g' => decide (g' ≠ g))).map (groupBaseline p ss)).all (below b)) = true
-    · simp only [hc, ite_true, Option.isSome_some, true_iff]
-      rw [Bool.and_eq_true] at hc
-      exact ⟨b, rfl, hne.1 hc.1, hall.1 hc.2⟩
-    · simp only [hc, ite_false, Option.isSome_none, Bool.false_eq_true, false_iff]
-      rintro ⟨b', hb', h1, h2⟩
-      cases hb'
-      exact hc (Bool.and_eq_true _ _ ▸ ⟨hne.2 h1, hall.2 h2⟩)
+      · intro h; cases h
+      · rintro ⟨_, _, h1, _⟩
+        have := hne.2 h1; rw [he] at this; cases this
+    · have he' : (siblings p ss st g).isEmpty = false := by simpa using he
+      simp only [he', Bool.false_eq_true, ite_false]
+      by_cases ha : (siblings p ss st g).all (below b) = true
+      · simp only [ha, ite_true, true_iff]
+        exact ⟨b, rfl, hne.1 he', hall.1 ha⟩
+      · simp only [ha, Bool.false_eq_true, ite_false]
+        constructor
+        · intro h; split at h <;> cases h
+        · rintro ⟨b', hb', _, h2⟩
+          cases hb'
+          exact absurd (hall.2 h2) ha
 
-/-- The structural verdicts of the entry point are exactly the structural verdicts of the groups of the stages.
+/-- When a group is noise: it has a baseline $b$, its stage has another group, every other group has a baseline, and
+some other group has a baseline $c$ with $2c \ge b$.
 
-$$\forall p, H, v:\quad \mathsf{structural}(v) \in \operatorname{timingVerdicts}(p, H) \iff \exists S \in \Sigma.\ \exists g \in G_S.\ \operatorname{st}_p(H, S, g) = \mathsf{some}(v)$$
+$$\forall p, H, S, g:\quad \operatorname{call}_p(H, S, g) = \mathsf{noise} \iff \exists b.\ \operatorname{gb}_p(H, g) = b \wedge (\exists g' \in G_S.\ g' \ne g) \wedge (\forall g' \in G_S.\ g' \ne g \Rightarrow \operatorname{gb}_p(H, g') \ne \bot) \wedge \exists g' \in G_S.\ g' \ne g \wedge \exists c.\ \operatorname{gb}_p(H, g') = c \wedge 2c \ge b$$
+-/
+theorem noise_iff (p : Params) (ss : List Sample) (st : Stage) (g : Group) :
+    callOf p ss st g = .noise ↔
+      ∃ b, groupBaseline p ss g = some b ∧ (∃ g' ∈ st.groups, g' ≠ g) ∧
+        (∀ g' ∈ st.groups, g' ≠ g → (groupBaseline p ss g').isSome = true) ∧
+        ∃ g' ∈ st.groups, g' ≠ g ∧ ∃ c, groupBaseline p ss g' = some c ∧ b ≤ 2 * c := by
+  unfold callOf
+  cases hg : groupBaseline p ss g with
+  | none => simp
+  | some b =>
+    have hsome : (siblings p ss st g).all Option.isSome = true ↔
+        ∀ g' ∈ st.groups, g' ≠ g → (groupBaseline p ss g').isSome = true := by
+      rw [List.all_eq_true]
+      constructor
+      · intro h g' hg' hne; exact h _ ((mem_siblings p ss st g _).2 ⟨g', hg', hne, rfl⟩)
+      · intro h o ho
+        obtain ⟨g', hg', hne, rfl⟩ := (mem_siblings p ss st g o).1 ho
+        exact h g' hg' hne
+    have hnotall : (siblings p ss st g).all (below b) = false ↔
+        ∃ o ∈ siblings p ss st g, below b o = false := by
+      constructor
+      · intro h
+        apply Classical.byContradiction
+        intro hn
+        have : (siblings p ss st g).all (below b) = true :=
+          List.all_eq_true.2 (fun o ho => by
+            cases hb : below b o
+            · exact absurd ⟨o, ho, hb⟩ hn
+            · rfl)
+        rw [this] at h; cases h
+      · rintro ⟨o, ho, hb⟩
+        cases ha : (siblings p ss st g).all (below b)
+        · rfl
+        · rw [List.all_eq_true.1 ha o ho] at hb; cases hb
+    have hne := siblings_ne_nil p ss st g
+    simp only
+    by_cases he : (siblings p ss st g).isEmpty = true
+    · simp only [he, ite_true]
+      constructor
+      · intro h; cases h
+      · rintro ⟨_, _, h1, _⟩
+        have := hne.2 h1; rw [he] at this; cases this
+    · have he' : (siblings p ss st g).isEmpty = false := by simpa using he
+      simp only [he', Bool.false_eq_true, ite_false]
+      by_cases ha : (siblings p ss st g).all (below b) = true
+      · simp only [ha, ite_true]
+        constructor
+        · intro h; cases h
+        · rintro ⟨b', hb', _, _, g', hg', hne', c, hc, hle⟩
+          cases hb'
+          have := List.all_eq_true.1 ha _ ((mem_siblings p ss st g _).2 ⟨g', hg', hne', rfl⟩)
+          rw [hc] at this; simp [below] at this; omega
+      · have ha' : (siblings p ss st g).all (below b) = false := by simpa using ha
+        simp only [ha, Bool.false_eq_true, ite_false]
+        by_cases hs : (siblings p ss st g).all Option.isSome = true
+        · simp only [hs, ite_true, true_iff]
+          obtain ⟨o, ho, hbo⟩ := hnotall.1 ha'
+          obtain ⟨g', hg', hne', rfl⟩ := (mem_siblings p ss st g o).1 ho
+          have hso := hsome.1 hs g' hg' hne'
+          cases hc : groupBaseline p ss g' with
+          | none => rw [hc] at hso; cases hso
+          | some c =>
+            rw [hc] at hbo
+            simp only [below, decide_eq_false_iff_not] at hbo
+            exact ⟨b, rfl, hne.1 he', hsome.1 hs, g', hg', hne', c, hc, by omega⟩
+        · simp only [hs, Bool.false_eq_true, ite_false]
+          constructor
+          · intro h; cases h
+          · rintro ⟨b', hb', _, h3, _⟩
+            exact absurd (hsome.2 h3) hs
+
+/-- The stages are the caller's whenever it gives any.
+
+$$\forall p, H:\quad \Sigma \ne [\,] \Rightarrow \Sigma^*_p(H) = \Sigma$$
+-/
+theorem stagesOf_given (p : Params) (ss : List Sample) (h : p.stages ≠ []) : stagesOf p ss = p.stages := by
+  unfold stagesOf
+  cases hs : p.stages with
+  | nil => exact absurd hs h
+  | cons _ _ => rfl
+
+/-- The structural verdicts of the entry point are exactly the verdicts of the groups of the stages.
+
+$$\forall p, H, v:\quad \mathsf{structural}(v) \in \operatorname{timingVerdicts}(p, H) \iff \exists S \in \Sigma^*_p(H).\ \exists g \in G_S.\ \operatorname{st}_p(H, S, g) = v$$
 -/
 theorem mem_structural (p : Params) (ss : List Sample) (v : StructVerdict) :
     Verdict.structural v ∈ timingVerdicts p ss ↔
-      ∃ st ∈ p.stages, ∃ g ∈ st.groups, structuralOf p ss st g = some v := by
-  simp [timingVerdicts, structuralVerdicts, List.mem_flatMap, List.mem_filterMap]
+      ∃ st ∈ stagesOf p ss, ∃ g ∈ st.groups, stageVerdict p ss st g = v := by
+  simp [timingVerdicts, structuralVerdicts, List.mem_flatMap]
+
+/-- A call is made on every group of every stage: there is one structural verdict per group, and each group's verdict
+(with its call) is in the output.
+
+$$\forall p, H:\quad |\operatorname{sts}_p(H)| = \sum_{S \in \Sigma^*_p(H)} |G_S| \wedge \forall S \in \Sigma^*_p(H).\ \forall g \in G_S.\ \mathsf{structural}(\operatorname{st}_p(H, S, g)) \in \operatorname{timingVerdicts}(p, H)$$
+-/
+theorem calls_total (p : Params) (ss : List Sample) :
+    (structuralVerdicts p ss).length = ((stagesOf p ss).map (fun st => st.groups.length)).sum ∧
+      ∀ st ∈ stagesOf p ss, ∀ g ∈ st.groups, Verdict.structural (stageVerdict p ss st g) ∈ timingVerdicts p ss := by
+  refine ⟨by simp [structuralVerdicts, List.length_flatMap], ?_⟩
+  intro st hst g hg
+  exact (mem_structural p ss _).2 ⟨st, hst, g, hg, rfl⟩
+
+/-- Whenever the caller gives stages, the structural call is made on every group of each of them.
+
+$$\forall p, H:\quad \Sigma \ne [\,] \Rightarrow \forall S \in \Sigma.\ \forall g \in G_S.\ \mathsf{structural}(\operatorname{st}_p(H, S, g)) \in \operatorname{timingVerdicts}(p, H)$$
+-/
+theorem calls_given_stages (p : Params) (ss : List Sample) (h : p.stages ≠ []) :
+    ∀ st ∈ p.stages, ∀ g ∈ st.groups, Verdict.structural (stageVerdict p ss st g) ∈ timingVerdicts p ss := by
+  intro st hst g hg
+  exact (calls_total p ss).2 st (by rw [stagesOf_given p ss h]; exact hst) g hg
 
 end Fw.Obs.Timing
 
@@ -887,8 +1289,8 @@ end Fw.Obs.Timing
 JSON encoders for the future op `obs.timing` (wired by task `timing-alert` in `Fw.Wire.Obs`) and the golden
 `packages/contracts/golden/obs/timing.jsonl`: one line per case, `{"name", "request", "response"}`, where `request`
 is `{"op":"obs.timing","params","samples"}` and `response` is `{"verdicts"}` as `timingVerdicts` computes it.
-Regenerate from `lean/` with `lake env lean --run` on a script `import Fw.Obs.Timing` +
-`def main : IO Unit := Fw.Wire.Obs.Timing.writeGolden`; `checkGolden` compares the file with the Lean output.
+Regenerate from `lean/` with `lake env lean --run scripts/TimingGolden.lean`; with `--check` it compares the file
+with the Lean output (`checkGolden`). A structural verdict carries its `call` (`structural` / `noise` / `undecided`).
 (Namespace `Fw.Wire.Obs.Timing`: wire code for the math view.)
 -/
 namespace Fw.Wire.Obs.Timing
@@ -904,6 +1306,11 @@ def codeStr : Code → String
   | .noisy => "noisy"
   | .ok => "ok"
   | .slow => "slow"
+
+def callStr : Call → String
+  | .structural => "structural"
+  | .noise => "noise"
+  | .undecided => "undecided"
 
 def keyJson (k : Key) : Json :=
   Json.mkObj [("tool", .str k.tool), ("step", .str k.step), ("host", .str (hostStr k.host))]
@@ -929,7 +1336,7 @@ def verdictJson : Verdict → Json
       ("code", .str (codeStr v.code)), ("n", toJson v.n), ("baseline", toJson v.baseline),
       ("budgetMs", toJson v.budgetMs)]
   | .structural v => Json.mkObj [("kind", "structural"), ("stage", .str v.stage), ("group", .str v.group),
-      ("baseline", toJson v.baseline), ("siblingMax", toJson v.siblingMax)]
+      ("call", .str (callStr v.call)), ("baseline", toJson v.baseline), ("siblingMax", toJson v.siblingMax)]
 
 def caseJson (name : String) (p : Params) (ss : List Sample) : Json :=
   Json.mkObj [("name", .str name),
@@ -977,12 +1384,21 @@ def run (tool step : String) (host : Host) (load : Nat) (ds : List Nat) : List S
 /-- A check.sh history around 2 min (handoffs report 117 s and up to 136 s for check.sh). -/
 def checkHist : List Nat := [117000, 124000, 131000, 119000, 136000, 122000]
 
+/-- Five runs of a CI workflow `wf` with jobs `build`, `test (a)`, `test (b)`, `lint` and one step span. -/
+def autoRuns : List Sample :=
+  (List.range 5).flatMap fun _ =>
+    [{ tool := "wf", step := "build", durMs := 10000, host := .ci },
+     { tool := "wf", step := "test (a)", durMs := 100000, host := .ci },
+     { tool := "wf", step := "test (b)", durMs := 110000, host := .ci },
+     { tool := "wf", step := "lint", durMs := 20000, host := .ci },
+     { tool := "wf", step := "test (a)/Run tests", durMs := 90000, host := .ci }]
+
 def cases : List (String × Params × List Sample) :=
-  [("breakpoint-gate run 39067656223: sweeps (345 s) is structural in stage {gate, sweeps} (gate shards <= 147 s); merge is not; one run, so every sample is noBaseline",
+  [("breakpoint-gate run 39067656223: sweeps (345 s) is structural in stage {gate, sweeps} (gate shards <= 147 s), gate is noise, both merges are noise; one run, so every sample is noBaseline",
       gateParams, gateRun),
    ("lean check.sh 128 s after a history of 117-136 s: ok (not slow)",
       {}, run "lean" "check.sh" .«local» 9 (checkHist ++ [128000])),
-   ("lean check.sh 205 s after a history of 117-136 s: slow (2 * 205000 > 3 * 136000)",
+   ("lean check.sh 205 s after a history of 117-136 s: slow (median 122 s; 2 * 205000 > 3 * 122000)",
       {}, run "lean" "check.sh" .«local» 9 (checkHist ++ [205000])),
    ("below n_min: 4 earlier samples (nMin 5), a 10 min run is noBaseline",
       {}, run "lean" "lake build" .«local» 3 [60000, 61000, 59000, 60000, 600000]),
@@ -1013,18 +1429,39 @@ def cases : List (String × Params × List Sample) :=
       landParams, run "fw land" "lock held" .«local» 4 [5001]),
    ("land ceilings: a lock held of 150 s at load 24 on the local Mac is noisy, not an alert",
       landParams, run "fw land" "lock held" .«local» 4 [1000, 1000, 1000, 1000, 1000] ++
-        run "fw land" "lock held" .«local» 24 [150000])]
+        run "fw land" "lock held" .«local» 24 [150000]),
+   ("slow-site-build regression: 40 s after 2, 1, 2, 27, 26 s is slow (median 2 s; the old p90 baseline 27 s gave ok)",
+      {}, run "breakpoint-gate" "site" .ci 0 [2000, 1000, 2000, 27000, 26000, 40000]),
+   ("repeated regression: a second 50 s site build after 2, 1, 2, 27, 26, 50 s is still slow (median 2 s)",
+      {}, run "breakpoint-gate" "site" .ci 0 [2000, 1000, 2000, 27000, 26000, 50000, 50000]),
+   ("stable series (every two durations within k = 3/2): 100-140 s, never slow",
+      {}, run "ci:lean" "check" .ci 0 [100000, 120000, 140000, 110000, 130000, 100000, 140000]),
+   ("a lasting shift is accepted once it fills more than half the window: 2 s x4 then 50 s x7, slow while the median is 2 s, ok from the 6th 50 s on (median 50 s)",
+      {}, run "ci:w" "build" .ci 0 [2000, 2000, 2000, 2000, 50000, 50000, 50000, 50000, 50000, 50000, 50000]),
+   ("auto stages (no params.stages): workflow wf over 5 runs; job family test (matrix legs 100 s and 110 s) is structural against build (10 s) and lint (20 s), which are noise; step spans are not jobs",
+      {}, autoRuns)]
 
 /-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
   ((sampleVerdicts p ss).getLast?).map (·.code)
 
-#guard (structuralVerdicts gateParams gateRun).map (fun v => (v.stage, v.group, v.baseline, v.siblingMax)) ==
-  [("breakpoint-gate:test", "sweeps", 345000, 147000)]
+#guard (structuralVerdicts gateParams gateRun).map (fun v => (v.stage, v.group, v.call, v.baseline, v.siblingMax)) ==
+  [("breakpoint-gate:test", "gate", .noise, 147000, 345000), ("breakpoint-gate:test", "sweeps", .structural, 345000, 147000),
+   ("breakpoint-gate:merge", "merge (chromium)", .noise, 36000, 34000),
+   ("breakpoint-gate:merge", "merge (playwright-webkit)", .noise, 34000, 36000)]
 #guard (sampleVerdicts gateParams gateRun).all (·.code == .noBaseline)
 #guard (cases.drop 1).map (fun (_, p, ss) => lastCode p ss) ==
   [some .ok, some .slow, some .noBaseline, some .ok, some .slow, some .ok, some .slow, some .ok, some .slow, some .slow,
-   some .slow, some .ok, some .slow, some .ok, some .slow, some .noisy]
+   some .slow, some .ok, some .slow, some .ok, some .slow, some .noisy, some .slow, some .slow, some .ok, some .ok,
+   some .noBaseline]
+#guard (sampleVerdicts {} (run "ci:w" "build" .ci 0
+    [2000, 2000, 2000, 2000, 50000, 50000, 50000, 50000, 50000, 50000, 50000])).map (·.code) ==
+  [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .slow, .slow, .slow, .slow, .ok, .ok]
+#guard (sampleVerdicts {} (run "ci:lean" "check" .ci 0
+    [100000, 120000, 140000, 110000, 130000, 100000, 140000])).all (·.code != .slow)
+#guard (structuralVerdicts {} autoRuns).map (fun v => (v.stage, v.group, v.call, v.baseline, v.siblingMax)) ==
+  [("wf", "build", .noise, 10000, 110000), ("wf", "test", .structural, 110000, 20000),
+   ("wf", "lint", .noise, 20000, 110000)]
 #guard (sampleVerdicts landParams (run "fw land" "lock held" .«local» 9 [112483, 124065, 152813])).all (·.code == .slow)
 #guard (sampleVerdicts {} (run "fw land" "lock held" .«local» 9 [112483, 124065, 152813])).all (·.code == .noBaseline)
 #guard (sampleVerdicts {} (run "lean" "check.sh" .«local» 4 [60000, 60000, 60000, 60000, 60000] ++
