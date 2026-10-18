@@ -1,0 +1,5 @@
+convention-wrapped Adv.Wrapped
+convention-wrapped Adv.wrapped
+prop-mentions-impl Adv.IsImplS_convention
+prop-mentions-impl Adv.IsImpl_convention
+prop-mentions-impl Adv.PinViaThm_convention

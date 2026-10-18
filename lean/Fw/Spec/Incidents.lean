@@ -37,7 +37,10 @@ def isEmptyBranch (o : Outcome) : Bool := !o.threw && o.fresh && !o.own
 #guard !isEmptyBranch ⟨false, false, false, false, false, false, false⟩
 #guard !isEmptyBranch ⟨false, true, true, true, true, true, true⟩
 
-/-- The incident inputs of `inc-land-dry-no-verdict`: the outcome is an empty branch.
+/-- The incident inputs of `inc-land-dry-no-verdict`: the outcome is an empty branch. The ledger says only "a branch
+with no own commits"; the `fresh` conjunct (the branch contains main) is INFERRED from the stage order of
+`Fw.Console.LandDry.dryKind`, which reports `stale` before `empty` (lean/Fw/Console/LandDry.lean:78), and from the
+ledger's repro, a branch at main.
 $$\forall O,\ E_{\mathrm{empty}}(O) \iff \operatorname{empty}(O)$$ -/
 def emptyIncident (o : Outcome) : Prop := isEmptyBranch o = true
 

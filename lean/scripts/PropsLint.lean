@@ -4,7 +4,8 @@ import Lean
 
 An environment scan, decided in Lean. Run from `lean/`:
 
-* `lake env lean --run scripts/PropsLint.lean` lints every module under `Fw/` against
+* `lake env lean --run scripts/PropsLint.lean` lints every built module of every `[[lean_lib]]` of `lakefile.toml`
+  (`Fw`, `MathView`, `FwTest`, ...: the module `L` and every module under `L/`) against
   `../docs/team/incidents/ledger.json`;
 * `lake env lean --run scripts/PropsLint.lean <dir> <Module>` also imports the compiled module `<Module>` from `<dir>`
   (for example a reviewer's probe, compiled first with `lake env lean -R <dir> -o <dir>/<Module>.olean
@@ -18,8 +19,13 @@ Rules (a finding is one line `props-lint: <rule> <declaration>: <detail>`; exit 
 * `convention-at-outside`: a declaration outside `Fw.Spec.Incidents` whose statement mentions `ConventionAt`: the gate
   is `Incidents.Convention s impl P`, which takes no registry.
 * `prop-mentions-impl`: in every `Incidents.Convention s impl P` that a statement mentions, the property `P` (and every
-  project definition it unfolds to) mentions neither `impl` nor a project definition that `impl` unfolds to, except the
-  ones the spec vocabulary `Incidents.vocab s` unfolds to (`forbidden`, `propHits`).
+  project constant it reaches: definition values, the types of inductives, constructors, theorems, opaques and axioms,
+  and the constructors of inductives) mentions neither `impl` nor a project constant that `impl` reaches, except the
+  ones that the spec vocabulary `Incidents.vocab s` and the signature's types `Sig.Dom s`, `Sig.Cod s` reach
+  (`forbidden`, `propHits`).
+* `convention-wrapped`: outside `Fw.Spec.Incidents`, a definition whose value reaches `Incidents.Convention` (a
+  wrapper), or a declaration whose type mentions `Convention` or a wrapper anywhere but as the head of a theorem's
+  result type or of `¬ …` there (`misplaced`): `prop-mentions-impl` reads only statements of the form `∀ …, Convention s impl P`.
 * `vocab-has-impl`: the vocabulary of `s` unfolds to `impl` itself.
 * `ledger`: each row of each `registryFor s` has its `pred` and `replay` as named definitions of `Fw.Spec.Incidents`,
   its id is an incident id of the ledger, and that entry's `leanPred` and `leanReplay` are those names.
@@ -37,6 +43,8 @@ def incidentsMod : Name := `Fw.Spec.Incidents
 def propsMod : Name := `Fw.Spec.Props
 /-- The guarded structure types. -/
 def guardedTypes : List Name := [`Fw.Spec.Props.Incident, `Fw.Spec.Props.Registry]
+/-- The gate every incident property is stated through. -/
+def conventionName : Name := `Fw.Spec.Incidents.Convention
 /-- The guarded constructors. -/
 def guardedCtors : List Name := [`Fw.Spec.Props.Incident.mk, `Fw.Spec.Props.Registry.mk]
 
@@ -57,13 +65,61 @@ def exempt (mod n : Name) : Bool :=
 #guard !exempt `Fw.Spec.Props.LandDryDemo `Fw.Spec.Props.Registry.fake
 #guard !exempt `Refute `Refute.fakeReg
 
-/-- **Is a module ours?** Its root is `Fw`, or it is the extra module being linted.
-$$\operatorname{project}(m) \iff \operatorname{root}(m) = \texttt{Fw} \lor m = m_{\mathrm{main}}$$ -/
-def isProject (main mod : Name) : Bool := mod.getRoot == `Fw || mod == main
+/-- What the lint scans: the root names $R$ of the package's `lean_lib`s and the extra module $m_{\mathrm{main}}$
+(`.anonymous` when there is none). -/
+structure Scope where
+  libs : List Name
+  extra : Name
 
-#guard isProject `Refute `Fw.Spec.Incidents
-#guard isProject `Refute `Refute
-#guard !isProject `Refute `Lean.Data.Json
+/-- **Is a module ours?** Its root is the name of a `lean_lib` of the package, or it is the extra module being linted.
+$$\forall R, m_{\mathrm{main}}, m,\ \operatorname{project}_{R, m_{\mathrm{main}}}(m) \iff \operatorname{root}(m) \in R \lor m = m_{\mathrm{main}}$$ -/
+def isProject (sc : Scope) (mod : Name) : Bool := sc.libs.contains mod.getRoot || mod == sc.extra
+
+#guard isProject ⟨[`Fw], `Refute⟩ `Fw.Spec.Incidents
+#guard isProject ⟨[`Fw], `Refute⟩ `Refute
+#guard isProject ⟨[`Fw, `FwTest, `MathView], .anonymous⟩ `FwTest.Golden
+#guard isProject ⟨[`Fw, `FwTest, `MathView], .anonymous⟩ `MathView
+#guard !isProject ⟨[`Fw], `Refute⟩ `Lean.Data.Json
+#guard !isProject ⟨[`Fw], `Refute⟩ `FwTest.Golden
+
+/-- **The `lean_lib` names of a `lakefile.toml`**, given as its lines: for every line `[[lean_lib]]`, the quoted value
+of the first later line of the form `name = "…"` (spaces trimmed), in file order. A `[[lean_lib]]` with no later name
+line, or whose name value is not quoted, contributes nothing.
+$$\forall \ell,\ \operatorname{libNames}(\ell) = [\operatorname{name}(\ell_j) : \ell_i = \texttt{[[lean\_lib]]},\ j = \min\{j > i : \ell_j \text{ is a name line}\},\ \ell_j \text{ quoted}] \text{ in order of } i$$ -/
+def libNames (lines : List String) : List String :=
+  go lines false
+where
+  /-- `pending` is true between a `[[lean_lib]]` header and its name line. -/
+  go : List String → Bool → List String
+    | [], _ => []
+    | l :: ls, pending =>
+      let t := l.trimAscii.toString
+      let rest := (t.drop 4).toString.trimAsciiStart.toString
+      if t == "[[lean_lib]]" then go ls true
+      else if pending && t.startsWith "name" && rest.startsWith "=" then
+        let v := (rest.drop 1).toString.trimAscii.toString
+        (if v.length ≥ 2 && v.startsWith "\"" && v.endsWith "\"" then [((v.drop 1).toString.dropEnd 1).toString]
+          else []) ++ go ls false
+      else go ls pending
+
+#guard libNames ["[[lean_lib]]", "name = \"Fw\"", "globs = [\"Fw.*\"]", "[[lean_exe]]", "name = \"fwcore\"",
+  "[[lean_lib]]", "name = \"MathView\""] == ["Fw", "MathView"]
+#guard libNames ["[[lean_exe]]", "name = \"fwcore\""] == []
+#guard libNames ["[[lean_lib]]"] == []
+#guard libNames [] == []
+
+/-- **A misplaced convention** (rule `convention-wrapped`). Given the names that count as a convention $W$ (the
+constant `Convention` $c$ and the wrappers), the head $h$ of a theorem's result type (`none` for a definition's value),
+and the other constants $U$ of the type (or value): the names of $W$ that occur anywhere but as the head $c$.
+$$\forall W, c, h, U,\ \operatorname{misplaced}(W, c, h, U) = \operatorname{dedup}[x \in U \mathbin{+\!\!+} [h' : h = \mathrm{some}(h'),\ h' \ne c] : x \in W]$$ -/
+def misplaced (conv : List Name) (c : Name) (head : Option Name) (others : List Name) : List Name :=
+  (others ++ (head.filter (· != c)).toList).filter conv.contains |>.eraseDups
+
+#guard misplaced [`C] `C (some `C) [`P, `impl] == []
+#guard misplaced [`C, `Wrapped] `C (some `Wrapped) [] == [`Wrapped]
+#guard misplaced [`C] `C (some `And) [`C, `True] == [`C]
+#guard misplaced [`C] `C none [`C, `PinImpl] == [`C]
+#guard misplaced [`C] `C none [] == []
 
 /-- **The implementation's internals**: the implementation's own names $I_0$, and every project definition the
 implementation unfolds to ($C_I$) that the vocabulary does not unfold to ($C_V$).
@@ -114,6 +170,12 @@ partial def resultType : Expr → Expr
   | .forallE _ _ b _ => resultType b
   | e => e
 
+/-- The constants of the binder types of a type's leading `∀`s, and its result type. -/
+partial def typeParts : Expr → List Name × Expr
+  | .forallE _ t b _ => let (bs, r) := typeParts b; (t.getUsedConstants.toList ++ bs, r)
+  | .mdata _ e => typeParts e
+  | e => ([], e)
+
 /-- The value of a definition, theorem or opaque. -/
 def valueOf? : ConstantInfo → Option Expr
   | .defnInfo d => some d.value
@@ -121,9 +183,21 @@ def valueOf? : ConstantInfo → Option Expr
   | .opaqueInfo o => some o.value
   | _ => none
 
-/-- Every project definition reachable from the roots through definition values (roots included when they are
-project definitions). -/
-partial def closure (env : Environment) (extra : Name) (roots : List Name) : List Name := Id.run do
+/-- What a project constant leads to in `closure`: a definition's value; an inductive's type and its constructors; the
+type of a constructor, theorem, opaque or axiom (a theorem's proof is not followed: it does not change what the
+statement says). -/
+def nextOf : ConstantInfo → List Name
+  | .defnInfo d => d.value.getUsedConstants.toList
+  | .inductInfo i => i.type.getUsedConstants.toList ++ i.ctors
+  | .ctorInfo c => c.type.getUsedConstants.toList
+  | .thmInfo t => t.type.getUsedConstants.toList
+  | .opaqueInfo o => o.type.getUsedConstants.toList
+  | .axiomInfo a => a.type.getUsedConstants.toList
+  | _ => []
+
+/-- Every project constant reachable from the roots through `nextOf` (roots included when they are project
+constants). -/
+partial def closure (env : Environment) (sc : Scope) (roots : List Name) : List Name := Id.run do
   let mut seen : NameSet := {}
   let mut out : Array Name := #[]
   let mut todo := roots
@@ -134,10 +208,10 @@ partial def closure (env : Environment) (extra : Name) (roots : List Name) : Lis
       todo := rest
       if seen.contains c then continue
       seen := seen.insert c
-      unless isProject extra (modOf env c) do continue
-      if let some (.defnInfo d) := env.find? c then
+      unless isProject sc (modOf env c) do continue
+      if let some ci := env.find? c then
         out := out.push c
-        todo := d.value.getUsedConstants.toList ++ todo
+        todo := nextOf ci ++ todo
   return out.toList
 
 /-- The elements of a list expression, after `whnf` at each cons. -/
@@ -165,8 +239,8 @@ def vocabOf (s : Expr) : MetaM (List Name) := do
   let es ← listElems (mkApp (mkConst `Fw.Spec.Incidents.vocab) s)
   es.mapM fun e => return (← strLit e).toName
 
-/-- `registry-outside`, `convention-at-outside` and `prop-mentions-impl` for one declaration. -/
-def lintDecl (extra : Name) (n : Name) (ci : ConstantInfo) : MetaM (List String) := do
+/-- `registry-outside`, `convention-at-outside`, `convention-wrapped` and `prop-mentions-impl` for one declaration. -/
+def lintDecl (sc : Scope) (wrappers : List Name) (n : Name) (ci : ConstantInfo) : MetaM (List String) := do
   let env ← getEnv
   -- a reserved name (`foo.eq_1`, `foo.congr_simp`: Lean generates it on demand, in whichever module first asks, and a
   -- user cannot declare one, `Lean.Elab.checkNotAlreadyDeclared`) belongs to its base declaration
@@ -183,22 +257,38 @@ def lintDecl (extra : Name) (n : Name) (ci : ConstantInfo) : MetaM (List String)
         out := out ++ [s!"props-lint: registry-outside {n}: builds {c} outside {incidentsMod}"]
     if ci.type.getUsedConstants.contains `Fw.Spec.Props.ConventionAt then
       out := out ++ [s!"props-lint: convention-at-outside {n}: states ConventionAt; state Fw.Spec.Incidents.Convention s impl P"]
+    if wrappers.contains owner then
+      out := out ++ [s!"props-lint: convention-wrapped {n}: a definition whose value reaches {conventionName}; state ∀ …, {conventionName} s impl P as a theorem"]
+    let (head, others) := match ci with
+      | .thmInfo _ =>
+        let (bs, rt) := typeParts ci.type
+        -- `¬ Convention s impl P` (a property that fails the convention) asserts no convention
+        let rt := if rt.isAppOfArity ``Not 1 then rt.appArg! else rt
+        (rt.getAppFn.constName?, bs ++ rt.getAppArgs.toList.flatMap (·.getUsedConstants.toList) ++
+          (if rt.getAppFn.isConst then [] else rt.getAppFn.getUsedConstants.toList))
+      | _ => (none, ci.type.getUsedConstants.toList)
+    let mis := misplaced (conventionName :: wrappers) conventionName head others
+    unless mis.isEmpty do
+      out := out ++ [s!"props-lint: convention-wrapped {n}: the type mentions {mis} other than as the head of a theorem's result type"]
   -- every `Convention s impl P` in the statement
   let apps := collectConventions ci.type
   for (s, impl, p) in apps do
-    let implRoots := impl.getUsedConstants.toList.filter fun c => isProject extra (modOf env c)
+    let implRoots := impl.getUsedConstants.toList.filter fun c => isProject sc (modOf env c)
     let vocab ← vocabOf s
     for v in vocab do
       unless env.contains v do
         out := out ++ [s!"props-lint: ledger {n}: vocabulary name {v} does not exist"]
-    let vClos := closure env extra vocab
-    let iClos := closure env extra implRoots
+    -- the signature's own types (`Sig.Dom s`, `Sig.Cod s`) are shared vocabulary, not internals of `impl`
+    let sigTys := (← whnf (mkApp (mkConst `Fw.Spec.Incidents.Sig.Dom) s)).getUsedConstants.toList ++
+      (← whnf (mkApp (mkConst `Fw.Spec.Incidents.Sig.Cod) s)).getUsedConstants.toList
+    let vClos := closure env sc (vocab ++ sigTys)
+    let iClos := closure env sc implRoots
     for r in implRoots do
       if vClos.contains r then
         out := out ++ [s!"props-lint: vocab-has-impl {n}: the vocabulary unfolds to the implementation {r}"]
     let forb := forbidden implRoots iClos vClos
     let pRoots := p.getUsedConstants.toList
-    let pClos := (pRoots ++ closure env extra pRoots).eraseDups
+    let pClos := (pRoots ++ closure env sc pRoots).eraseDups
     let hits := propHits pClos forb
     unless hits.isEmpty do
       out := out ++ [s!"props-lint: prop-mentions-impl {n}: the property {p} reaches {hits} (internals of {impl})"]
@@ -255,33 +345,54 @@ def readLedger (path : System.FilePath) : IO (List (String × Option String × O
     | .error _ => none
 
 /-- The project declarations of an environment. -/
-def projectDecls (env : Environment) (extra : Name) : List (Name × ConstantInfo) :=
-  env.constants.toList.filter fun (n, _) => isProject extra (modOf env n)
+def projectDecls (env : Environment) (sc : Scope) : List (Name × ConstantInfo) :=
+  env.constants.toList.filter fun (n, _) => isProject sc (modOf env n)
+
+/-- The wrappers (rule `convention-wrapped`): the least set of non-exempt project definitions whose value mentions
+`Convention` or a wrapper. -/
+partial def wrappersOf (env : Environment) (decls : List (Name × ConstantInfo)) : List Name :=
+  let defs := decls.filterMap fun (n, ci) => match ci with
+    | .defnInfo d => if exempt (modOf env n) n then none else some (n, d.value.getUsedConstants.toList)
+    | _ => none
+  let rec go (w : List Name) : List Name :=
+    let w' := defs.filterMap fun (n, us) =>
+      if !w.contains n && us.any (fun u => u == conventionName || w.contains u) then some n else none
+    if w'.isEmpty then w else go (w ++ w')
+  go []
 
 /-- Every finding of the environment. -/
-def lintEnv (extra : Name) (ledger : List (String × Option String × Option String)) : MetaM (List String) := do
+def lintEnv (sc : Scope) (ledger : List (String × Option String × Option String)) : MetaM (List String) := do
   let env ← getEnv
+  let decls := projectDecls env sc
+  let wrappers := wrappersOf env decls
   let mut out : List String := []
-  for (n, ci) in projectDecls env extra do
-    out := out ++ (← lintDecl extra n ci)
+  for (n, ci) in decls do
+    out := out ++ (← lintDecl sc wrappers n ci)
   if (sigCtors env).isEmpty then
     out := out ++ ["props-lint: ledger: Fw.Spec.Incidents.Sig is not loaded"]
   out := out ++ (← lintRows ledger)
   return out
 
-/-- Every module under `Fw/`, plus `Fw`. -/
-def fwModules : IO (Array Name) := do
-  let files ← System.FilePath.walkDir "Fw"
-  let mut mods : Array Name := #[`Fw]
-  for f in files do
-    if f.extension == some "lean" then
-      mods := mods.push ((f.withExtension "").toString.splitOn "/" |>.foldl Name.mkStr .anonymous)
-  return mods.qsort (·.toString < ·.toString)
+/-- The modules of the `lean_lib`s named `libs`: for each name `L`, the module `L` when `L.lean` exists and every
+module under `L/`, kept only when its `.olean` is on the search path (built); the skipped ones are returned too. -/
+def libModules (libs : List Name) : IO (Array Name × Array Name) := do
+  let mut mods : Array Name := #[]
+  let mut skipped : Array Name := #[]
+  for l in libs do
+    let root : System.FilePath := l.toString
+    let mut cands : Array Name := if ← (root.withExtension "lean").pathExists then #[l] else #[]
+    if ← root.isDir then
+      for f in ← root.walkDir do
+        if f.extension == some "lean" then
+          cands := cands.push ((f.withExtension "").toString.splitOn "/" |>.foldl Name.mkStr .anonymous)
+    for m in cands do
+      if ← (← findOLean m).pathExists then mods := mods.push m else skipped := skipped.push m
+  return (mods.qsort (·.toString < ·.toString), skipped)
 
 end PropsLint
 
 open PropsLint in
-/-- Lint every module under `Fw/` (no argument), plus one extra compiled module `<Module>` found in `<dir>` (for a
+/-- Lint every built module of every `lean_lib` of `lakefile.toml` (no argument), plus one extra compiled module `<Module>` found in `<dir>` (for a
 reviewer's probe: `lake env lean -R <dir> -o <dir>/<Module>.olean <dir>/<Module>.lean` first). Exit 1 on any
 finding. -/
 def main (args : List String) : IO UInt32 := do
@@ -291,13 +402,17 @@ def main (args : List String) : IO UInt32 := do
     | _ => throw (IO.userError "usage: lake env lean --run scripts/PropsLint.lean [<dir> <Module>]")
   initSearchPath (← findSysroot) dirs
   let ledger ← readLedger "../docs/team/incidents/ledger.json"
-  let mods := (← fwModules) ++ (if extra.isAnonymous then #[] else #[extra])
+  let libs := (libNames (← IO.FS.lines "lakefile.toml").toList).map String.toName
+  let sc : Scope := ⟨libs, extra⟩
+  let (libMods, skipped) ← libModules libs
+  unless skipped.isEmpty do IO.println s!"props-lint: note: not built, not linted: {skipped}"
+  let mods := libMods ++ (if extra.isAnonymous then #[] else #[extra])
   let env ← importModules (mods.map fun m => { module := m }) {} (loadExts := false)
   let ctx : Core.Context := { fileName := "<props-lint>", fileMap := default, maxHeartbeats := 0 }
-  let (out, _) ← ((lintEnv extra ledger).run' {} {}).toIO ctx { env }
+  let (out, _) ← ((lintEnv sc ledger).run' {} {}).toIO ctx { env }
   for l in out do IO.println l
   if out.isEmpty then
-    IO.println s!"props-lint: ok ({(projectDecls env extra).length} project declarations, {(sigCtors env).length} signature(s), ledger rows match)"
+    IO.println s!"props-lint: ok ({libMods.size} modules of {libs}, {(projectDecls env sc).length} project declarations, {(sigCtors env).length} signature(s), ledger rows match)"
     return 0
   IO.println s!"props-lint: FAILED: {out.length} finding(s)"
   return 1

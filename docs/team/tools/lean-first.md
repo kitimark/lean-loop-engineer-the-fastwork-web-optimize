@@ -33,13 +33,19 @@ Stages: C0 and C1 (the cutover commits on main, design note section 8) are not s
    Once the real implementation exists, prove `Faithful s impl`: every replay equals `impl` off its incident inputs
    (`AgreesOff`). That checks the replay, not a property. Extra mutants (`emptyDone`, `exnNoVerdict`) are welcome as
    `¬ P bad` theorems, for example to show a blind property, but they never count as a kill.
-   The check.sh stage `props lint` (`lake env lean --run scripts/PropsLint.lean`, decided in Lean) fails on:
+   The check.sh stage `props lint` (`lake env lean --run scripts/PropsLint.lean`, decided in Lean, over every
+   `lean_lib` of `lean/lakefile.toml`) fails on:
    `registry-outside`, an `Incident`/`Registry` value or constructor outside `Fw.Spec.Incidents`;
    `convention-at-outside`, a statement of `ConventionAt` (the gate form `Convention s impl P` takes no registry);
-   `prop-mentions-impl`, a `Convention s impl P` whose `P` reaches `impl` or a project definition `impl` unfolds to,
-   minus what `vocab s` unfolds to; `ledger`, a row whose id is not a ledger id or whose ledger entry does not name
+   `prop-mentions-impl`, a `Convention s impl P` whose `P` reaches `impl` or a project constant `impl` reaches
+   (definition values; types of inductives, constructors, theorems, opaques, axioms; constructors), minus what
+   `vocab s` and the signature types `Sig.Dom s`, `Sig.Cod s` reach; `convention-wrapped`, a definition whose value
+   reaches `Convention`, or a type that mentions it (or such a wrapper) other than as the head of a theorem's result
+   type (or of `¬ …` there); `ledger`, a row whose id is not a ledger id or whose ledger entry does not name
    the row's `pred` and `replay` in `leanPred` and `leanReplay`. To lint a probe file as well, compile it
-   (`lake env lean -R <dir> -o <dir>/<M>.olean <dir>/<M>.lean`) and run `PropsLint.lean <dir> <M>`.
+   (`lake env lean -R <dir> -o <dir>/<M>.olean <dir>/<M>.lean`) and run `PropsLint.lean <dir> <M>`. The stage
+   runs the lint once with the test cases `lean/scripts/props-lint-cases/Adv.lean` and requires exactly the findings
+   of `Adv.expected.txt`.
    **What a kill means (stated limit).** `Kills s P` says only that `P` separates `impl` from a registered replay.
    It does not prove that `P` is about the incident: a property on an unrelated part of the output that the replay
    also changes (for example "the lines differ between two task names") kills too, and the lint does not see it.
