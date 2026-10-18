@@ -107,6 +107,10 @@ expectation XOR offending cell gives the record for all 130 + 60 steps, and the 
 (MEASURED, scratch script, 0 differences). The seven rules moved from `untestedPremises` into `registry` as lane
 premises (p24-p30, `refuted_registered`); 5 untested remain (cr.comp, cr.signature, cr.mode, wk.script, wk.paint).
 
+Confirmation on fresh data (MEASURED: run 39106547260, commit 898c416, the same lane: 3 Chromium passes, 6 WebKit
+passes): all 12 measured stage rules hold, Chromium 130/130 cells per stage (script, style, layout, props, paint,
+raster, commit, hits), WebKit 60/60 (style, layout, props, commit); no mismatch, unstable or missing cell.
+
 | Premise | Model change (Lean) |
 |---|---|
 | cr.layout, cr.paint, cr.raster | `keyLevel`: top/left/margin @own -> new level `layoutMove` (style, layout, props, commit); scale, blur filter, transform toggle @own -> `raster`; the level order is stage inclusion (`layoutMove_raster_incomparable`), `CrLevel.max` joins incomparable levels to `layoutFull` |

@@ -1,7 +1,8 @@
 # Handoff: engine-model-fix
 
 State: branch `worktree-wf_a05f488a-b8f-1` (head: see `git log -1`; WIP of the stalled builder is commit 898c416).
-CI: `ci/engine-model-fix` pushed at 898c416; engine-premises confirmation run 39106547260 (result in the note below).
+CI: `ci/engine-model-fix` at 898c416; engine-premises run 39106547260 MEASURED all 12 stage rules hold
+(Chromium 130/130 cells x 8 stages, WebKit 60/60 x 4; no unstable or missing cell).
 
 Done
 - Engine models fixed so every cell of run 39088367495 is predicted: `Fw.Ops.EnginePremise.cr_recorded_holds`,
