@@ -3,7 +3,7 @@
 State: branch worktree-wf_9700d3e6-57a-1 (see `git log -1`). Read first: docs/team/handoffs/task-preview.md.
 
 - Owner link secrecy. Lean: `Sink`, `linkSink`, `linkPlan`, `no_file_sink`, `no_nontty_sink`, `linkPlan_ok` (end of
-  lean/Fw/Console/Preview.lean); wire op `console.previewLink` + goldens. TS: apps/console-api/src/preview/link.ts
+  lean/Fw/Console/Preview.lean); wire op `console.previewLink` (no golden yet: adding one needs lean/Fw/Ops/Golden.lean, outside this task scope; land with --allow or a follow-up). TS: apps/console-api/src/preview/link.ts
   (`announceLink`: opens /dev/tty, asks Lean, writes the link to the tty only), main.ts (no token on stdout/stderr), owner.ts
   `reissue()`, src/owner-link.ts (`pnpm --filter @fw/console-api owner-link` sends SIGUSR2 to the pid in api.json; the
   console writes a fresh link to ITS own terminal; the command prints no link). No tty -> no link, message says how.

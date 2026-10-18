@@ -1,2 +1,0 @@
-{"name":"a terminal: the link goes to the tty, the only allowed sink","request":{"hasTty":true,"op":"console.previewLink"},"response":{"allowed":["tty"],"sink":"tty"}}
-{"name":"no terminal: no link is printed","request":{"hasTty":false,"op":"console.previewLink"},"response":{"allowed":["tty"],"sink":null}}

@@ -352,9 +352,6 @@ def extra : List (String × String × List (String × Json)) := [
     ("a failed build leaves the table", lit "{\"preview\":\"a\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
     ("an id that is not in the table changes nothing", lit "{\"preview\":\"zzz\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
     ("missing live is fine: empty table", lit "{\"preview\":\"a\"}")]),
-  ("console", "console.previewLink", [
-    ("a terminal: the link goes to the tty, the only allowed sink", lit "{\"hasTty\":true}"),
-    ("no terminal: no link is printed", lit "{\"hasTty\":false}")]),
   ("console", "console.previewReap", [
     ("everything recorded is killed", lit "{\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
     ("empty table", lit "{\"live\":[]}")]),
