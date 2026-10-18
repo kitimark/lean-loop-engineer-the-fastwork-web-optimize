@@ -17,3 +17,5 @@ Open / follow-ups (outside my writes)
 - Goldens for MorphPanel/MorphTween untouched.
 
 Read first: apps/site/src/App.tsx, apps/site/src/parts/nav/index.tsx, morph.columns/index.tsx.
+
+CI (branch ci/morph-group-integrate, commit 79ad2063): chromium-counts swipe-v1 rewrite run 39146819430 pass. breakpoint-gate chromium run 39146816361 fail only in rows that need re-anchoring: morph.columns (all cells: anchors assume the columns own the backdrop) and overlays.drawer / overlays.signup (anchors.json triggers #open-drawer / #open-dialog no longer exist; real triggers are [data-selenium="start-selling.commission.button.why"] and [data-fw="hero"] button). morph.panel, morph.tween, morph.mount, morph.countdown, nav, nav.langMenu, nav.hitTest all pass in every cell. commission(+typing) fails are the excused commission_resize_scope readings.
