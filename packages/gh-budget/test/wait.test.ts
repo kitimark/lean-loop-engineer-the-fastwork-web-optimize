@@ -48,7 +48,7 @@ test("exit codes: failure is 1, cancelled is 1, an already finished run needs no
   assert.equal(c.calls.filter((x) => x.args[1] === "list").length, 0);
 });
 
-test("a branch follows the newest run: the superseded one is cancelled, the newer one decides", async () => {
+test("a branch wait with --workflow follows the newest run of that workflow created after the commit", async () => {
   const runs = [
     run(10, { headBranch: "ci/x", conclusion: "cancelled", completeAt: T0 + 50 }),
     run(11, { headBranch: "ci/x", createdAt: T0 + 20, completeAt: T0 + 200, conclusion: "success" }),
@@ -71,7 +71,7 @@ const decidedSkip = [
 
 test("not run: a guard-skipped run (GitHub: success) is exit 4 with the guard reason, never a pass", async () => {
   const s = await wait(1, [run(7, { jobs: skipGuard })], { kind: "run", runId: 7 });
-  assert.deepEqual(s.res, [{ code: 4, lines: ["run 7 chromium-counts success -> not-run (guard if: the head commit does not ask for this lane)"] }]);
+  assert.deepEqual(s.res, [{ code: 4, lines: ["run 7 chromium-counts success -> not-run (unwanted: guard if: the head commit does not ask for this lane)"] }]);
   const d = await wait(1, [run(8, { jobs: decidedSkip })], { kind: "run", runId: 8 });
   assert.deepEqual(d.res, [{ code: 4, lines: ["run 8 chromium-counts success -> not-run (no input of difftest changed)"] }]);
 });
@@ -90,16 +90,36 @@ test("verdict: a run passes only if some non-guard job ran and every job that ra
   assert.equal(old.res[0]!.code, 0, "a workflow without a guard job (a branch before ci-trigger-lean) passes on its jobs");
 });
 
-test("not run: a branch wait whose decisive runs were all guard-skipped is exit 4; one pass among them passes", async () => {
+// ci-own-trigger round 3: `--branch` without `--workflow` waits for every lane the commit requests (fwcore `ci.required`)
+// and passes only when each has a pass run for that sha (Lean `combine_requested_never_pass`).
+test("lanes mode: a requested lane that did not run is never a pass, though another lane passed", async () => {
   const runs = [
-    run(20, { headBranch: "ci/x", workflowName: "wktr", jobs: skipGuard }),
+    run(20, { headBranch: "ci/x", workflowName: "wktr", jobs: decidedSkip }),
     run(21, { headBranch: "ci/x", workflowName: "lean", createdAt: T0 + 5 }),
+    run(22, { headBranch: "ci/x", workflowName: "difftest", jobs: skipGuard }), // not requested: ignored
+    run(23, { headBranch: "ci/x", workflowName: "wktr", headSha: "old", createdAt: T0 + 9 }), // another commit: ignored
   ];
-  const all = await wait(1, runs, { kind: "branch", branch: "ci/x", sha: "abc", since: T0 });
-  assert.equal(all.res[0]!.code, 0);
-  assert.ok(all.res[0]!.lines.includes("run 20 wktr success -> not-run (guard if: the head commit does not ask for this lane)"), all.res[0]!.lines.join("\n"));
+  const asked = await wait(1, runs, { kind: "branch", branch: "ci/x", sha: "abc", since: T0, msg: "fix [ci:wktr]" });
+  assert.equal(asked.res[0]!.code, 4, asked.res[0]!.lines.join("\n"));
+  assert.ok(asked.res[0]!.lines.includes("run 20 wktr success -> not-run (no input of difftest changed)"), asked.res[0]!.lines.join("\n"));
+  assert.ok(asked.res[0]!.lines.includes("lanes lean,wktr -> not-run"), asked.res[0]!.lines.join("\n"));
+  const leanOnly = await wait(1, runs, { kind: "branch", branch: "ci/x", sha: "abc", since: T0, msg: "fix" });
+  assert.equal(leanOnly.res[0]!.code, 0, leanOnly.res[0]!.lines.join("\n"));
   const one = await wait(1, runs, { kind: "branch", branch: "ci/x", workflow: "wktr", sha: "abc", since: T0 });
-  assert.equal(one.res[0]!.code, 4);
+  assert.equal(one.res[0]!.code, 0, "--workflow keeps the single-run rule: the newest wktr run on the branch (another commit's) passed");
+});
+
+test("lanes mode: a heavy job stopped at its tip re-check is stale; a requested lane with no run is missing", async () => {
+  const guard = { name: "guard", conclusion: "success", steps: [{ name: "decision: run", conclusion: "success" }] };
+  const staleJob = { name: "work", conclusion: "failure", steps: [{ name: "tip re-check", conclusion: "success" }, { name: "stale: a newer push is the branch tip", conclusion: "failure" }] };
+  const st = await wait(1, [run(30, { headBranch: "ci/x", workflowName: "lean", conclusion: "failure", jobs: [guard, staleJob] })],
+    { kind: "branch", branch: "ci/x", sha: "abc", since: T0, msg: "a" });
+  assert.equal(st.res[0]!.code, 4, st.res[0]!.lines.join("\n"));
+  assert.ok(st.res[0]!.lines.some((l) => l.startsWith("run 30 lean failure -> not-run (stale: ")), st.res[0]!.lines.join("\n"));
+  const miss = await wait(1, [run(31, { headBranch: "ci/x", workflowName: "lean" })],
+    { kind: "branch", branch: "ci/x", sha: "abc", since: T0, msg: "[ci:wktr]" });
+  assert.equal(miss.res[0]!.code, 4, miss.res[0]!.lines.join("\n"));
+  assert.ok(miss.res[0]!.lines.some((l) => l.startsWith("lane wktr no run -> missing")), miss.res[0]!.lines.join("\n"));
 });
 
 test("timeout is exit 3 and the state keeps no watcher behind", async () => {

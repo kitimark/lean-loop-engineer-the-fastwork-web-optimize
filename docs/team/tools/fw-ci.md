@@ -17,15 +17,19 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
 
 ## Waiting for CI: `fw ci wait`, `fw ci budget`
 
-- `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<task> [--workflow <name>] [--sha S] [--since EPOCH] [--timeout S]`.
-  Blocks on the shared poller's local file (0 GitHub calls of its own, however many waiters), follows the NEWEST run per workflow on the
-  branch, then makes one charged `gh run view <id> --json jobs` per finished decisive run (cached per run id) and lets fwcore decide
-  (`ci.verdict`, Lean `Fw.Ci.Verdict.pass_iff`): a run passes only if its guard decided `run`, some other job ran, and every job
-  that ran succeeded. It prints `run <id> <workflow> <conclusion> -> <pass|fail|not-run> (<reason>)`. Exit 0 pass, 1 a run
-  failed, **4 not run** (the guard skipped: the head commit did not ask for the lane, or no input changed, or a newer push
-  superseded it; GitHub still calls such a run `success`, `skipped_never_pass`), 3 timeout (default 540 s) or the poller
-  stopped (call it again), 2 gh could not find the run, 64 usage. With several decisive runs, one pass and no failure is
-  exit 0. Run it in the background; do not loop.
+- `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<task> [--workflow <name>] [--sha S] [--since EPOCH] [--msg TEXT] [--timeout S]`.
+  Blocks on the shared poller's local file (0 GitHub calls of its own, however many waiters), then makes one charged
+  `gh run view <id> --json jobs` per finished decisive run (cached per run id) and lets fwcore decide (`ci.verdict`, Lean
+  `Fw.Ci.Verdict.pass_iff`): a run passes only if its guard decided `run`, some other job ran, every job that ran
+  succeeded, and no job stopped at its `stale:` step. It prints `run <id> <workflow> <conclusion> -> <pass|fail|not-run>
+  (<reason>)`; a not-run reason starts with its tag: `unwanted`, `stale`, `landed`, `unchanged` (Lean `Skip`).
+  - `--branch` without `--workflow` (the default after `fw ci push`): every lane the commit's message requests, plus
+    `lean` (fwcore `ci.required`), must have a pass run **for that exact commit**; `lean` may instead be skipped as
+    `unchanged`. A requested lane that did not run, or has no run 300 s after the commit's runs finished, is not a pass
+    (Lean `combine_requested_never_pass`, `missing_never_pass`). The last line is `lanes <a,b> -> <verdict>`.
+  - `--branch --workflow <name>`: the newest run of that workflow on the branch created after the commit (one run).
+  - Exit 0 pass, 1 a run failed, **4 not run** (GitHub may still say `success`), 3 timeout (default 540 s) or the poller
+    stopped (call it again), 2 gh could not find the run, 64 usage. Run it in the background; do not loop.
 - `pnpm fw ci budget [--json|--resume|--probe]` shows the request budget (0 requests; `--probe` is one charged call).
 - Never `gh run watch`, never a gh loop, never `gh api`. `fw run` waits the same way: after a dispatch it waits for the newest run of the
   workflow created after the previous newest one (a branch wait), and for `--from-run` a run wait; it throws when the run fails.
@@ -34,38 +38,36 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
 
 ## Which workflows a `ci/*` push starts, and how to run the one you will read (tasks `ci-trigger-lean`, `ci-own-trigger`)
 
-- A push to `ci/*` starts a workflow only if THIS push changed one of its declared inputs to something other than main's
-  content (Lean `Fw.Ci.Trigger.starts_iff`, `merge_starts_nothing`): a merge of main starts nothing; a later push that
-  does not touch the inputs does not start it again. The inputs are the rows of `table` in `lean/Fw/Ci/Trigger.lean`;
-  `fwcore` users depend on the import cone of `Main.lean`, not on `lean/**`. The generated `on.push.paths` are coarse and
-  stable: each cone is written as `lean/Fw/**`, `lean/*.lean` (`pushPaths`, task `ci-cone-glob`), so a new module changes no
-  workflow file. Every workflow's first job `guard` computes the precise cone from the checkout and applies the exact rule
-  (`.github/scripts/changed-inputs.mjs`); the other jobs wait for it. Sound: `coarse_sound`, `push_filter_passes`.
-- To change a trigger: edit `table` in `lean/Fw/Ci/Trigger.lean`, `cd lean && lake test -- --write-ci-trigger-golden`, then
-  `node scripts/ci-paths.mjs --write`. The land check `apps/runner/test/ci-triggers.test.ts` fails on any other edit of `on.push`.
-- **Rule for agents: a ci/* push starts only the lanes its head commit asks for (task `ci-own-trigger`, Lean
-  `Fw.Ci.Intent`).** Push with `pnpm fw ci push --branch ci/<task> --lanes <lane>[,<lane>...]` (lanes are the workflow
-  file stems: `lean`, `wktr`, `webkit-sim`, `breakpoint-gate`, ...). It adds an empty commit `ci: request [ci:<lane>] ...`
-  when HEAD does not already ask for exactly those lanes, previews with the guard's own rule which of them will start
-  (fresh `origin/main`), refuses (exit 2) when none would, and pushes (never forced). `--lanes none` asks for no lane (lean still runs if its inputs changed);
-  `--dry` only previews. Then wait: `pnpm fw ci wait --branch ci/<task> --workflow <lane>`.
-  - The token is `[ci:<lane>]` anywhere in the head commit message, any case. The default lane `lean` (ubuntu, never
-    macOS: `default_no_macos`) is always wanted: it runs whenever its inputs changed, whatever lanes the commit names,
-    `[ci:none]` included (`lean_always_when_changed`; it has no guard `if:`). Do not write `[ci:` in prose in a commit
-    message.
-  - The request commits are empty commits (`ci: request [ci:<lane>]`); keep them: they land on main with the branch, and
-    the land check accepts them (a rebase that drops them would also drop the record of what the runs measured).
-  - A requested lane still starts only if this push changed one of its inputs (unchanged inputs: nothing to re-run; the
-    helper says so). To re-run a lane on an unchanged branch, dispatch it: `gh workflow run <lane>.yml --ref ci/<task>`
-    (a dispatch is a record: it always runs). Dispatch also for inputs (`-f key=value`), as before; the push does not
-    start that lane unless you name it, so there is no push-plus-dispatch duplicate to cancel.
-  - Cancelling is per job (task `ci-own-trigger` round 2, Lean `Fw.Ci.Cancel`): every heavy job holds the group
-    `ci-lane:<lane>:<ref>:<job>:<index>` with `cancel-in-progress` on `ci/*` pushes; the guard holds none. A job whose
-    `if:` is false is skipped and never enters its group (GitHub docs: a skipped job never runs), so a newer push that
-    does not want the lane never cancels a running one (`no_requested_lost`); only a newer push whose same job STARTS
-    cancels it (`cancel_needs_newer_start`). Dispatches and schedules group by run id: they never cancel each other. A
-    run whose commit is already on main, or that a newer push wanting the lane superseded, skips its jobs at the guard
-    (`landed_never_runs_heavy`, `superseded_never_runs_heavy`, `unwanted_never_supersedes`); `fw ci wait` says
-    `not-run` (exit 4) with the guard's reason.
-  - You should not need `gh run cancel` any more. If a run you did not ask for starts, report it (a guard bug), do not
-    just cancel it.
+- Round 3 (task `ci-own-trigger`, Lean `Fw.Ci.Intent.decision`): no workflow has `on.push.paths`, so every push to `ci/*`
+  or `main` creates a run of every workflow and its first job `guard` decides (`.github/scripts/changed-inputs.mjs`).
+  On a `ci/*` push it runs the jobs iff, in this order (the first failing one is the skip tag):
+  `unwanted` the head commit asks for the lane (or it is the default lane `lean`); `stale` the commit is still the branch
+  tip (`git ls-remote`; unreadable counts as the tip); `landed` the commit is not on main yet; `unchanged` some file that
+  differs from main on the WHOLE branch (merge-base..HEAD, content not main's: Lean `effective`) is an input. The tip
+  therefore always runs every requested lane whose inputs differ from main, and `lean` whenever lean inputs differ
+  (`tip_starts`, `tip_lean_always`); a later push that reverts part of the branch cannot hide what the branch still
+  carries (`tip_history_free`). A merge of main adds nothing (`merge_starts_nothing`).
+- A `main` push keeps the old rule: it runs iff its own diff (before..HEAD) passes the coarse globs (`pushPaths`:
+  each cone as `lean/Fw/**`, `lean/*.lean`; `main_keeps_paths_rule`). Dispatches and schedules always run.
+- The inputs are the rows of `table` in `lean/Fw/Ci/Trigger.lean`; `fwcore` users depend on the import cone of
+  `Main.lean`, not on `lean/**`. To change one: edit `table`, `cd lean && lake test -- --write-ci-trigger-golden`, then
+  `node scripts/ci-paths.mjs --write`. The land check `apps/runner/test/ci-triggers.test.ts` fails on any other edit.
+- **Rule for agents: a ci/* push starts only the lanes its head commit asks for.** Push with
+  `pnpm fw ci push --branch ci/<task> --lanes <lane>[,<lane>...]` (lanes are the workflow file stems: `lean`, `wktr`,
+  `webkit-sim`, `breakpoint-gate`, ...). It adds an empty commit `ci: request [ci:<lane>] ...` when HEAD does not
+  already ask for exactly those lanes, previews with the guard's own rule over the branch (fresh `origin/main`) which of
+  them will start, refuses (exit 2) when none would or when HEAD is already the tip (a re-push creates no run), and
+  pushes (never forced). `--lanes none` asks for no lane (lean still runs if lean inputs differ from main); `--dry` only
+  previews. Then wait: `pnpm fw ci wait --branch ci/<task>`.
+  - The token is `[ci:<lane>]` anywhere in the head commit message, any case. `lean` (ubuntu, never macOS:
+    `default_no_macos`) is always wanted and has no guard `if:`. Do not write `[ci:` in prose in a commit message.
+  - The request commits are empty commits; keep them: they land on main with the branch.
+  - A requested lane whose inputs equal main on the branch is skipped `unchanged`; to re-run it, dispatch it:
+    `gh workflow run <lane>.yml --ref ci/<task>` (a record: it always runs). Dispatch also for inputs (`-f key=value`).
+  - Nothing is cancelled on `ci/*` (Lean `Fw.Ci.Cancel.ci_never_cancelled`): every heavy job's group holds the run id
+    on `ci/*` and dispatches, the ref on `main` pushes (main runs queue); no job sets `cancel-in-progress`. Instead the
+    first steps of every heavy job re-check the tip (`tip re-check`, then `stale: a newer push is the branch tip` fails
+    the job when a newer push moved it), and every later step that uses `always()`/`failure()`/`cancelled()` also needs
+    `steps.stale.outcome == 'skipped'` (`stale_never_works`). An older push may so use a runner for a minute; it never
+    reports a pass (`stale_never_pass`).
+  - You should not need `gh run cancel`. If a run you did not ask for does work, report it (a guard bug).
