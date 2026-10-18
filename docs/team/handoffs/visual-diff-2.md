@@ -23,10 +23,8 @@ which sits on the unlanded integration base) plus main at 577a040.
   (star.svg, r5.jpg; engine.scene posts) in the ORIGINAL arm never reach complete in 10 s even with `loading=eager`.
   INFERRED: they sit outside an ancestor's overflow clip, so they do not paint; `touches()` in `page.mjs` only tests the crop
   rect. Fix idea: count only images that `elementFromPoint` reaches. Not done (2 CI runs used).
-
 ## Results (run 2 = 39081167623, 104 cells per engine; run 1 39080594980 had 3 s budget)
 Chromium: pass 0, fail 38, unsettled 64, invalid 2. WebKit: pass 0, fail 37, unsettled 62, invalid 5.
-Fails (nav.hitTest, hero.countdown, morph.countdown, morph.columns, platform.glint) are real port differences: placeholder
-nav, bare text countdown, different host boxes (crop sizes differ in the two arms); glint is a 3 to 4 px original element
-against a 21 px placeholder (crop-selector mismatch, harness-ish). Unsettled parts are endless JS-driven motion
-(platform.*, hero.exit, morph.mount, engine.scene): no pause or seek was added.
+Fails (nav.hitTest, hero.countdown, morph.countdown, morph.columns, platform.glint): real port differences (placeholder nav,
+bare text countdown, different host boxes: crop sizes differ per arm); glint is a 3-4 px original element vs a 21 px placeholder
+(crop mismatch, harness-ish). Unsettled = endless JS motion (platform.*, hero.exit, morph.mount, engine.scene); no pause or seek.
