@@ -3924,7 +3924,146 @@
     "packages/contracts/golden/ops/**",
     "research/findings/ledger.json",
     "research/notes/**",
-    "docs/team/handoffs/engine-model-fix.md"
+    "docs/team/handoffs/engine-model-fix.md",
+    "lean/Fw/Parts/**"
+   ]
+  },
+  {
+   "id": "mistake-record-3",
+   "title": "(S) record lead mistake batch 3 (18 items) in docs/team/incidents/ledger.json + batch-3 section of the mistake retro",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-18-mistake-retro.md"
+   ],
+   "evidence": "e934534"
+  },
+  {
+   "id": "wait-guard-enforce",
+   "title": "(S) wait-guard to enforce: fix false positives found in the shadow log (while-read over a file redirect is bounded; Lean theorem in Fw.Ops.Wait), then turn enforce on (lead hands the user the settings command)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "wait-guard"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/**",
+    "docs/team/tools/wait-guard.md"
+   ]
+  },
+  {
+   "id": "land-dry-full",
+   "title": "(S) fw land --dry runs the fast check.sh lints (mathview lint, ci-paths --check) and always prints a VERDICT line (also for a branch with no own commits)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-dry",
+    "mathview-module-cache"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/**",
+    "packages/contracts/golden/**",
+    "docs/team/tools/**"
+   ]
+  },
+  {
+   "id": "ci-shared-failure",
+   "title": "(S) watch groups ci.failed by workflow job across branches: the same job red on >= 2 ci/* branches is one shared-defect alert to the lead (Lean rule in Fw.Obs)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "obs-next-glue",
+    "claim-lint"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "packages/contracts/golden/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "mathview-ci-fix",
+   "title": "(S) lean.yml mathview-differential job red on every branch since 8bcc503 although the views are identical; fix so it fails iff they differ",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "mathview-module-cache"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    ".github/workflows/lean.yml",
+    "lean/scripts/**",
+    "scripts/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**"
+   ]
+  },
+  {
+   "id": "wktr-serial-baseline",
+   "title": "(S) make the wktr-fixture-speed claim MEASURED: two serial baselines; are the 12/144 layoutUpdates/compositingUpdates diffs run-to-run variance?",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "wktr-fixture-speed"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-wktr/**",
+    "research/notes/**",
+    "research/findings/ledger.json"
+   ]
+  },
+  {
+   "id": "land-test-flake",
+   "title": "(S) land-hardening SIGTERM test flakes under the 4-wide land pool (passes alone); wait on events, not deadlines; assert the land-prelock lock semantics",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-pool-fair"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/test/**",
+    "apps/runner/src/land.ts"
+   ],
+   "evidence": "650e494"
+  },
+  {
+   "id": "task-state-truth",
+   "title": "(M) console task state is truthful: agent-end/handback, integrate(branch), park events; Lean derivation with live => agent alive and blockers empty, done => landed evidence, every ended claim in exactly one of handedBack/integrated/parked/done; backfill for the 25 port-/fix- tasks shown running after their agents ended",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "evidence-on-main"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Console/**",
+    "lean/Fw/Plan/**",
+    "lean/Fw/Board/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/**",
+    "apps/console-api/**",
+    "apps/console-web/**",
+    "apps/runner/**",
+    "docs/team/backfill/**",
+    "docs/team/tools/**",
+    "docs/team/handoffs/task-state-truth.md"
    ]
   }
  ],
