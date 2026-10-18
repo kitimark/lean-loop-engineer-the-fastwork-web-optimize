@@ -149,22 +149,19 @@ theorem ordered_perm (fs : List Fact) : (ordered fs).Perm fs := by
     rw [this]
     exact (insertByRank_perm f _).trans (ih.cons f)
 
-/-- The task head among the candidates: the first (in `ordered`) that main contains (a landed task previews its land
-commit), else the first that an integration ref holds (a documentation-only handoff commit never hides the commit
-the gate ran), else the first candidate; no candidate, no head. The worktree or merge head comes before `origin/ci`.
+/-- The task head among the candidates: the first (in `ordered`) that main or an integration ref holds (a
+documentation-only handoff commit never hides the commit the gate ran; the worktree or merge head comes before
+`origin/ci`), else the first candidate; no candidate, no head. A head that main holds then previews its land commit
+(`targetOf`).
 
 $$\operatorname{pickHead}(fs) = \begin{cases}
-\text{the first } f \in \operatorname{ordered}(fs) \text{ with } f.\mathit{onMain} & \text{if any}\\
-\text{the first } f \in \operatorname{ordered}(fs) \text{ with } \operatorname{held}(f) & \text{else, if any}\\
+\text{the first } f \in \operatorname{ordered}(fs) \text{ with } \operatorname{held}(f) & \text{if any}\\
 \operatorname{head}(\operatorname{ordered}(fs)) & \text{otherwise (}\bot \text{ if } fs = [\,])
 \end{cases}$$ -/
 def pickHead (fs : List Fact) : Option Fact :=
-  match (ordered fs).find? (·.onMain) with
+  match (ordered fs).find? Fact.held with
   | some f => some f
-  | none =>
-    match (ordered fs).find? Fact.held with
-    | some f => some f
-    | none => (ordered fs).head?
+  | none => (ordered fs).head?
 
 /-- The integration ref whose tip is exactly the commit, among those that contain it.
 
@@ -301,27 +298,17 @@ theorem pickHead_held (fs : List Fact) (h : ∃ f ∈ fs, f.held = true) :
   obtain ⟨f, hf, hh⟩ := h
   have hmem : f ∈ ordered fs := (ordered_perm fs).mem_iff.mpr hf
   unfold pickHead
-  cases h1 : (ordered fs).find? (·.onMain) with
-  | some g =>
-    refine ⟨g, rfl, ?_⟩
-    have := List.find?_some h1
-    simp [Fact.held, this]
-  | none =>
-    cases hx : (ordered fs).find? Fact.held with
-    | none => exact absurd (List.find?_eq_none.mp hx f hmem) (by simpa using hh)
-    | some g => exact ⟨g, rfl, List.find?_some hx⟩
+  cases hx : (ordered fs).find? Fact.held with
+  | none => exact absurd (List.find?_eq_none.mp hx f hmem) (by simpa using hh)
+  | some g => exact ⟨g, rfl, List.find?_some hx⟩
 
-/-- **A landed head wins.** If some candidate is on main, the picked head is on main.
+/-- **A held head of better rank wins.** If the first candidate in rank order is held, it is the head, whatever
+the glue's listing order (an `origin/ci` ref never beats a worktree or merge head that is held).
 
-$$\exists f \in fs,\ f.\mathit{onMain} \Rightarrow \exists g,\ \operatorname{pickHead}(fs) = g \wedge g.\mathit{onMain}$$ -/
-theorem pickHead_landed (fs : List Fact) (h : ∃ f ∈ fs, f.onMain = true) :
-    ∃ g, pickHead fs = some g ∧ g.onMain = true := by
-  obtain ⟨f, hf, hh⟩ := h
-  have hmem : f ∈ ordered fs := (ordered_perm fs).mem_iff.mpr hf
-  unfold pickHead
-  cases h1 : (ordered fs).find? (·.onMain) with
-  | some g => exact ⟨g, rfl, List.find?_some h1⟩
-  | none => exact absurd (List.find?_eq_none.mp h1 f hmem) (by simpa using hh)
+$$\operatorname{ordered}(fs) = g :: t \ \wedge\ \operatorname{held}(g) \Rightarrow \operatorname{pickHead}(fs) = \mathrm{some}(g)$$ -/
+theorem pickHead_first_held (fs : List Fact) (g : Fact) (t : List Fact) (ho : ordered fs = g :: t)
+    (hg : g.held = true) : pickHead fs = some g := by
+  simp [pickHead, ho, List.find?_cons, hg]
 
 /-- **Filter invariance** (what remains of the former `target_deterministic`). For a held head, dropping the
 integration refs that do not contain it gives the same target; it is the only claim, the target is not

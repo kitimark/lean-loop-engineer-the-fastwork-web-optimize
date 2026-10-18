@@ -7,11 +7,11 @@ import { join } from "node:path";
 
 export type Cand = { ref: string; sha: string; contains: boolean };
 /** One head candidate of a task and what repository history says about it (the Lean `Fw.Console.Preview.Fact`). */
-export type Fact = { src: string; sha: string; onMain: boolean; noCode: boolean; cands: Cand[] };
+export type Fact = { src: string; sha: string; onMain: boolean; noCode: boolean; cands: Cand[]; land: string };
 /**
  * Everything the repository knows about a task, gathered with no decision: the candidates in priority order
- * (handoff branch line, ci/<task>, origin/ci/<task>, branch named like the task, merge second parent, the newest
- * commit touching the handoff), and for
+ * (in any order: Lean `ordered` ranks them: handoff branch line, merge second parent, branch named like the task,
+ * newest commit touching the handoff, ci/<task>, origin/ci/<task>), and for
  * an umbrella the candidates of each sub-task. Which candidate is the head and what to show is Lean
  * (`console.previewTarget`).
  */
@@ -81,11 +81,19 @@ function docsOnly(git: Git, sha: string, ref: string | undefined): boolean {
 
 const isAncestor = (git: Git, a: string, b: string): boolean => git(["merge-base", "--is-ancestor", a, b]) !== null;
 
+/** The land commit of a head on main: the first commit of main's first-parent line after the head on the way to main (the
+ * merge that brought it in); the head itself when it is on that line or no such commit is found. Which fact wins is Lean. */
+export function landCommit(git: Git, sha: string): string {
+  const out = git(["log", "--first-parent", "--ancestry-path", "--reverse", "--format=%h", `${sha}..main`]);
+  const first = out?.split("\n").find(Boolean);
+  return first ? short(first) : sha;
+}
+
 function factOf(git: Git, src: string, sha: string, integ: { ref: string; sha: string }[]): Fact {
   const cands: Cand[] = integ.map((i) => ({ ref: i.ref, sha: i.sha, contains: isAncestor(git, sha, i.ref) }));
   const onMain = isAncestor(git, sha, "main");
   const held = onMain || cands.some((c) => c.contains);
-  return { src, sha, onMain, noCode: !held && docsOnly(git, sha, integ[0]?.ref), cands };
+  return { src, sha, onMain, noCode: !held && docsOnly(git, sha, integ[0]?.ref), cands, land: onMain ? landCommit(git, sha) : "" };
 }
 
 /** The head candidates of a task in priority order: refs that resolve, then a merge's second parent. */
