@@ -47,7 +47,8 @@ def ttl : Nat := 3600000
 $$\mathit{floor} = 2048$$ -/
 def diskFloor : Nat := 2048
 
-/-- The first port of the localhost range.
+/-- The production first port of the localhost range, and the default base of every decision below (a test
+passes another base; nothing else re-types this number).
 
 $$P = \{47100, \dots, 47139\}, \quad \mathit{portLo} = 47100$$ -/
 def portLo : Nat := 47100
@@ -468,8 +469,8 @@ def ports (s : List Pv) : List Nat := s.flatMap fun p => [p.rp, p.op]
 
 /-- The free ports of the range, ascending.
 
-$$F(T) = \{\mathit{portLo} + i \mid i < \mathit{portN}\} \setminus \operatorname{ports}(T)$$ -/
-def freePorts (s : List Pv) : List Nat := (List.range' portLo portN).filter fun q => q ∉ ports s
+$$F_b(T) = \{b + i \mid i < \mathit{portN}\} \setminus \operatorname{ports}(T)$$ with the base `b`. -/
+def freePorts (lo : Nat) (s : List Pv) : List Nat := (List.range' lo portN).filter fun q => q ∉ ports s
 
 /-- Why a start is refused.
 
@@ -537,46 +538,46 @@ structure Req where
 
 /-- The decision on a start: the new table or the refusal. The first failing rule wins.
 
-$$\operatorname{admit}(T, r) = \begin{cases}
+$$\operatorname{admit}_b(T, r) = \begin{cases}
 \mathrm{notOwner} & r.a \ne \mathrm{user}\\
 \mathrm{taskBusy} & \exists p \in T,\ p.\mathit{task} = r.\mathit{task} \vee p.\mathit{id} = r.\mathit{id}\\
 \mathrm{tooMany} & |T| \ge K\\
 \mathrm{lowDisk} & r.\mathit{disk} < \mathit{floor}\\
 \mathrm{noTarget} & \neg r.\mathit{hasTarget}\\
-\mathrm{noPorts} & |F(T)| < 2\\
-(q_1, q_2, r.\mathit{now})\!::\!T & q_1, q_2 \text{ the two smallest of } F(T)
+\mathrm{noPorts} & |F_b(T)| < 2\\
+(q_1, q_2, r.\mathit{now})\!::\!T & q_1, q_2 \text{ the two smallest of } F_b(T)
 \end{cases}$$ -/
-def admit (s : List Pv) (r : Req) : Except Refusal (List Pv) :=
+def admit (lo : Nat) (s : List Pv) (r : Req) : Except Refusal (List Pv) :=
   if !mayStart r.actor then .error .notOwner
   else if s.any (fun p => p.task == r.task || p.id == r.id) then .error .taskBusy
   else if K ≤ s.length then .error .tooMany
   else if r.diskMb < diskFloor then .error .lowDisk
   else if !r.hasTarget then .error .noTarget
-  else match freePorts s with
+  else match freePorts lo s with
     | a :: b :: _ => .ok ({ id := r.id, task := r.task, rp := a, op := b, started := r.now } :: s)
     | _ => .error .noPorts
 
 /-- An agent actor is refused.
 
-$$\operatorname{isAgentActor}(a) \Rightarrow \operatorname{admit}(T, r) = \mathrm{error}(\mathrm{notOwner})$$ -/
-theorem agent_actor_never_admitted (s : List Pv) (r : Req) (h : Fw.Ops.Identity.isAgentActor r.actor = true) :
-    admit s r = .error .notOwner := by
+$$\operatorname{isAgentActor}(a) \Rightarrow \operatorname{admit}_b(T, r) = \mathrm{error}(\mathrm{notOwner})$$ -/
+theorem agent_actor_never_admitted (lo : Nat) (s : List Pv) (r : Req) (h : Fw.Ops.Identity.isAgentActor r.actor = true) :
+    admit lo s r = .error .notOwner := by
   simp [admit, mayStart_not_agent r.actor h]
 
 /-- **Without the owner proof nothing is admitted.** Over the request fields the route sees: a request that
 shows the console secret, or lacks the owner cookie, or lacks a same-origin Origin, is refused `notOwner`
 whatever the table is. (What the theorem cannot say: that no agent holds the cookie; see the design note.)
 
-$$r.a = \operatorname{actor}(p) \wedge \neg(p.\mathit{secret} = \mathrm{false} \wedge p.\mathit{cookie} \wedge p.\mathit{origin}) \Rightarrow \operatorname{admit}(T, r) = \mathrm{error}(\mathrm{notOwner})$$ -/
-theorem agent_never_admitted (s : List Pv) (r : Req) (p : Proof) (ha : r.actor = p.actor)
-    (hp : ¬ (p.secret = false ∧ p.cookie = true ∧ p.origin = true)) : admit s r = .error .notOwner := by
+$$r.a = \operatorname{actor}(p) \wedge \neg(p.\mathit{secret} = \mathrm{false} \wedge p.\mathit{cookie} \wedge p.\mathit{origin}) \Rightarrow \operatorname{admit}_b(T, r) = \mathrm{error}(\mathrm{notOwner})$$ -/
+theorem agent_never_admitted (lo : Nat) (s : List Pv) (r : Req) (p : Proof) (ha : r.actor = p.actor)
+    (hp : ¬ (p.secret = false ∧ p.cookie = true ∧ p.origin = true)) : admit lo s r = .error .notOwner := by
   have hne : r.actor ≠ .user := fun h => hp ((proof_user_iff p).mp (ha ▸ h))
   simp [admit, mayStart, hne]
 
 /-- **Only the user is admitted.**
 
-$$\operatorname{admit}(T, r) = \mathrm{ok}(T') \Rightarrow r.a = \mathrm{user}$$ -/
-theorem admit_user (s s' : List Pv) (r : Req) (h : admit s r = .ok s') : r.actor = .user := by
+$$\operatorname{admit}_b(T, r) = \mathrm{ok}(T') \Rightarrow r.a = \mathrm{user}$$ -/
+theorem admit_user (lo : Nat) (s s' : List Pv) (r : Req) (h : admit lo s r = .ok s') : r.actor = .user := by
   unfold admit at h
   by_cases hm : (!mayStart r.actor) = true
   · simp [hm] at h
@@ -622,19 +623,19 @@ def reap (s : List Pv) : List Pv × List Pv := ([], s)
 
 /-- The tables the transitions produce from the empty one (admit, tick, stop).
 
-$$\mathrm{Reach}([\,]),\quad \mathrm{Reach}(T) \wedge \operatorname{admit}(T, r) = \mathrm{ok}(T') \Rightarrow \mathrm{Reach}(T'),\quad \mathrm{Reach}(T) \Rightarrow \mathrm{Reach}(\operatorname{tick}(T, t)) \wedge \mathrm{Reach}(\operatorname{stop}(T, i))$$ -/
-inductive Reach : List Pv → Prop where
-  | init : Reach []
-  | admit {s s' : List Pv} (r : Req) : Reach s → admit s r = .ok s' → Reach s'
-  | tick {s : List Pv} (t : Nat) : Reach s → Reach (tick s t)
-  | stop {s : List Pv} (i : String) : Reach s → Reach (stop s i)
-  | fail {s : List Pv} (i : String) : Reach s → Reach (fail s i)
+$$\mathrm{Reach}_b([\,]),\quad \mathrm{Reach}_b(T) \wedge \operatorname{admit}_b(T, r) = \mathrm{ok}(T') \Rightarrow \mathrm{Reach}_b(T'),\quad \mathrm{Reach}_b(T) \Rightarrow \mathrm{Reach}_b(\operatorname{tick}(T, t)) \wedge \mathrm{Reach}_b(\operatorname{stop}(T, i))$$ -/
+inductive Reach (lo : Nat) : List Pv → Prop where
+  | init : Reach lo []
+  | admit {s s' : List Pv} (r : Req) : Reach lo s → admit lo s r = .ok s' → Reach lo s'
+  | tick {s : List Pv} (t : Nat) : Reach lo s → Reach lo (tick s t)
+  | stop {s : List Pv} (i : String) : Reach lo s → Reach lo (stop s i)
+  | fail {s : List Pv} (i : String) : Reach lo s → Reach lo (fail s i)
 
 /-- The invariants.
 
-$$\operatorname{Inv}(T) \iff |T| \le K \wedge \operatorname{ports}(T)\ \text{has no duplicates} \wedge \operatorname{ports}(T) \subseteq P$$ -/
-def Inv (s : List Pv) : Prop :=
-  s.length ≤ K ∧ (ports s).Nodup ∧ ∀ q ∈ ports s, portLo ≤ q ∧ q < portLo + portN
+$$\operatorname{Inv}_b(T) \iff |T| \le K \wedge \operatorname{ports}(T)\ \text{has no duplicates} \wedge \operatorname{ports}(T) \subseteq [b, b + \mathit{portN})$$ -/
+def Inv (lo : Nat) (s : List Pv) : Prop :=
+  s.length ≤ K ∧ (ports s).Nodup ∧ ∀ q ∈ ports s, lo ≤ q ∧ q < lo + portN
 
 /-- Filtering the table filters its ports (a sublist).
 
@@ -651,16 +652,16 @@ theorem ports_filter_sublist (s : List Pv) (f : Pv → Bool) : (ports (s.filter 
 
 /-- The invariants survive any filter (tick and stop are filters).
 
-$$\operatorname{Inv}(T) \Rightarrow \operatorname{Inv}(\operatorname{filter}(f, T))$$ -/
-theorem inv_filter {s : List Pv} (f : Pv → Bool) (h : Inv s) : Inv (s.filter f) := by
+$$\operatorname{Inv}_b(T) \Rightarrow \operatorname{Inv}_b(\operatorname{filter}(f, T))$$ -/
+theorem inv_filter {lo : Nat} {s : List Pv} (f : Pv → Bool) (h : Inv lo s) : Inv lo (s.filter f) := by
   obtain ⟨hl, hn, hr⟩ := h
   exact ⟨Nat.le_trans (List.length_filter_le _ _) hl, hn.sublist (ports_filter_sublist s f),
     fun q hq => hr q ((ports_filter_sublist s f).subset hq)⟩
 
 /-- The invariants survive an admitted start.
 
-$$\operatorname{Inv}(T) \wedge \operatorname{admit}(T, r) = \mathrm{ok}(T') \Rightarrow \operatorname{Inv}(T')$$ -/
-theorem inv_admit {s s' : List Pv} (r : Req) (hi : Inv s) (h : admit s r = .ok s') : Inv s' := by
+$$\operatorname{Inv}_b(T) \wedge \operatorname{admit}_b(T, r) = \mathrm{ok}(T') \Rightarrow \operatorname{Inv}_b(T')$$ -/
+theorem inv_admit {lo : Nat} {s s' : List Pv} (r : Req) (hi : Inv lo s) (h : admit lo s r = .ok s') : Inv lo s' := by
   obtain ⟨hl, hn, hr⟩ := hi
   unfold admit at h
   split at h
@@ -679,12 +680,12 @@ theorem inv_admit {s s' : List Pv} (r : Req) (hi : Inv s) (h : admit s r = .ok s
   · rename_i a b rest hf
     simp only [Except.ok.injEq] at h
     subst h
-    have hmem : ∀ q ∈ freePorts s, portLo ≤ q ∧ q < portLo + portN ∧ q ∉ ports s := by
+    have hmem : ∀ q ∈ freePorts lo s, lo ≤ q ∧ q < lo + portN ∧ q ∉ ports s := by
       intro q hq
       unfold freePorts at hq
       simp only [List.mem_filter, List.mem_range'_1, decide_eq_true_eq] at hq
       exact ⟨hq.1.1, hq.1.2, hq.2⟩
-    have hnd : (freePorts s).Nodup := List.Nodup.sublist List.filter_sublist List.nodup_range'
+    have hnd : (freePorts lo s).Nodup := List.Nodup.sublist List.filter_sublist List.nodup_range'
     rw [hf] at hmem hnd
     have ha := hmem a (by simp)
     have hb := hmem b (by simp)
@@ -707,8 +708,8 @@ theorem inv_admit {s s' : List Pv} (r : Req) (hi : Inv s) (h : admit s r = .ok s
 
 /-- **Every reachable table satisfies the invariants.**
 
-$$\mathrm{Reach}(T) \Rightarrow \operatorname{Inv}(T)$$ -/
-theorem reach_inv {s : List Pv} (h : Reach s) : Inv s := by
+$$\mathrm{Reach}_b(T) \Rightarrow \operatorname{Inv}_b(T)$$ -/
+theorem reach_inv {lo : Nat} {s : List Pv} (h : Reach lo s) : Inv lo s := by
   induction h with
   | init => exact ⟨by simp [K], by simp [ports], by simp [ports]⟩
   | admit r _ ha ih => exact inv_admit r ih ha
@@ -718,18 +719,18 @@ theorem reach_inv {s : List Pv} (h : Reach s) : Inv s := by
 
 /-- **At most `K` live previews, always.**
 
-$$\mathrm{Reach}(T) \Rightarrow |T| \le K = 2$$ -/
-theorem live_le_K {s : List Pv} (h : Reach s) : s.length ≤ K := (reach_inv h).1
+$$\mathrm{Reach}_b(T) \Rightarrow |T| \le K = 2$$ -/
+theorem live_le_K {lo : Nat} {s : List Pv} (h : Reach lo s) : s.length ≤ K := (reach_inv h).1
 
 /-- **Ports are pairwise distinct** (the rewrite and original ports of all live previews).
 
-$$\mathrm{Reach}(T) \Rightarrow \operatorname{ports}(T)\ \text{has no duplicates}$$ -/
-theorem ports_distinct {s : List Pv} (h : Reach s) : (ports s).Nodup := (reach_inv h).2.1
+$$\mathrm{Reach}_b(T) \Rightarrow \operatorname{ports}(T)\ \text{has no duplicates}$$ -/
+theorem ports_distinct {lo : Nat} {s : List Pv} (h : Reach lo s) : (ports s).Nodup := (reach_inv h).2.1
 
-/-- **Ports stay in the fixed localhost range.**
+/-- **Ports stay in the range of the base** (production: `portLo`, 47100 to 47139).
 
-$$\mathrm{Reach}(T) \Rightarrow \forall q \in \operatorname{ports}(T):\ 47100 \le q < 47140$$ -/
-theorem ports_in_range {s : List Pv} (h : Reach s) : ∀ q ∈ ports s, portLo ≤ q ∧ q < portLo + portN :=
+$$\mathrm{Reach}_b(T) \Rightarrow \forall q \in \operatorname{ports}(T):\ b \le q < b + 40$$ -/
+theorem ports_in_range {lo : Nat} {s : List Pv} (h : Reach lo s) : ∀ q ∈ ports s, lo ≤ q ∧ q < lo + portN :=
   (reach_inv h).2.2
 
 /-- **Expired previews are stopped at the next tick.** After a tick no preview of the table is past its deadline,

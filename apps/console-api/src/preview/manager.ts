@@ -134,8 +134,11 @@ export class PreviewManager {
   private core: Core;
   private hooks: Hooks;
 
-  constructor(root: string, dir: string, core: Core, hooks: Hooks = defaultHooks(root, dir)) {
-    this.root = root; this.dir = dir; this.core = core; this.hooks = hooks;
+  /** first port of the range; undefined = the Lean default (`Fw.Console.Preview.portLo`), which Lean fills in */
+  private portBase: number | undefined;
+
+  constructor(root: string, dir: string, core: Core, hooks: Hooks = defaultHooks(root, dir), opts: { portBase?: number } = {}) {
+    this.root = root; this.dir = dir; this.core = core; this.hooks = hooks; this.portBase = opts.portBase;
     mkdirSync(join(dir, "preview"), { recursive: true });
   }
 
@@ -173,7 +176,8 @@ export class PreviewManager {
       const t = await this.decision(task);
       const now = this.hooks.now();
       const id = `${task}-${now.toString(36)}${(this.seq++).toString(36)}`;
-      const r = await this.core.ops("console.previewAdmit", { ...proof, preview: id, task, now, diskMb: this.hooks.diskMb(), hasTarget: t.kind !== "none", live: this.live() });
+      const r = await this.core.ops("console.previewAdmit", { ...proof, preview: id, task, now, diskMb: this.hooks.diskMb(), hasTarget: t.kind !== "none", live: this.live(),
+        ...(this.portBase === undefined ? {} : { portBase: this.portBase }) });
       if (r.ok !== true) return { ok: false as const, reason: String(r.reason ?? "refused") };
       const e: Entry = { id, task, target: { kind: t.kind, ref: t.ref, sha: t.sha! }, rp: r.rp as number, op: r.op as number, started: now,
         deadline: r.deadline as number, phase: "building", pid: null, pstart: null, tree: join(this.dir, "preview", id, "tree"), seen: now };
