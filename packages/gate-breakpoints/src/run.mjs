@@ -5,11 +5,13 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
+import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
 import { PIN_SRC, collectInPage, prepareInPage, settleInPage, waitReady, waitResize } from './page.mjs';
 import { GATE_POLICY, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
+const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const SITES = ['orig', 'rewrite'];
 const FILTER = { orig: '\\.svelte-', rewrite: '-module_' };
@@ -121,19 +123,19 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     const mountIds = Object.keys(mountOf[site]);
     const overlayIds = Object.keys(overlayOf[site]);
     const pick = (ids, inside) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid) === inside));
-    const raw = await s.evaluate(collectInPage, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false)));
+    const raw = await collectWith(s, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false)));
     for (const pid of overlayIds) {
       const steps = overlayOf[site][pid];
       await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
       // an opened overlay animates in (WebKit run 39067170911 read the signup dialog at scale 0.9977): settle it before reading
       if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
-      const one = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
+      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
       raw.parts = { ...raw.parts, ...one.parts };
       await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
     }
     if (mountIds.length > 0) {
       raw.prepared = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site] });
-      const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(mountIds, true)));
+      const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true)));
       raw.parts = { ...raw.parts, ...late.parts };
     }
     return raw;
