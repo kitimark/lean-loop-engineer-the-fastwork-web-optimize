@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { cell, verdict, evaluate, loadGolden, present } from '../src/premise-verdict.mjs';
+import { cell, verdict, evaluate, loadGolden, present, GROUPS, rowName, verdictLines } from '../src/premise-verdict.mjs';
 import { pageHtml, stepTable } from '../src/premise-fixture.mjs';
 
 const golden = loadGolden();
@@ -54,14 +54,40 @@ test('evaluate: an exact copy of the expectation holds, one flipped step fails, 
     return c;
   });
   const ok = evaluate(golden, 'chromium', [countsFor(-1), countsFor(-1), countsFor(-1)]);
-  for (const s of Object.values(ok.stages)) assert.equal(s.verdict, 'holds');
+  for (const g of GROUPS) for (const s of Object.values(ok.groups[g].stages)) assert.equal(s.verdict, 'holds');
   const bad = evaluate(golden, 'chromium', [countsFor(2), countsFor(2), countsFor(2)]);
-  assert.equal(bad.stages.layout.verdict, 'fails');
-  assert.equal(bad.stages.style.verdict, 'holds');
-  assert.equal(bad.stages.layout.offending[0].step, 2);
+  assert.equal(bad.groups.table.stages.layout.verdict, 'fails');
+  assert.equal(bad.groups.table.stages.style.verdict, 'holds');
+  assert.equal(bad.groups.table.stages.layout.offending[0].step, 2);
+  assert.equal(bad.groups.extra.stages.layout.verdict, 'holds');
   const mixed = evaluate(golden, 'chromium', [countsFor(-1), countsFor(2), countsFor(-1)]);
-  assert.equal(mixed.stages.layout.verdict, 'inconclusive');
-  assert.equal(mixed.stages.layout.cells.unstable, 1);
+  assert.equal(mixed.groups.table.stages.layout.verdict, 'inconclusive');
+  assert.equal(mixed.groups.table.stages.layout.cells.unstable, 1);
+  const firstExtra = golden.steps.chromium.find((st) => st.group === 'extra').step;
+  const badExtra = evaluate(golden, 'chromium', [countsFor(firstExtra), countsFor(firstExtra), countsFor(firstExtra)]);
+  assert.equal(badExtra.groups.extra.stages.layout.verdict, 'fails');
+  assert.equal(badExtra.groups.table.stages.layout.verdict, 'holds');
+});
+
+test('step sets: every step row names a set of GROUPS, the table set comes first and has 65 + 30 cases', () => {
+  for (const e of ['chromium', 'webkit']) {
+    for (const st of golden.steps[e]) assert.ok(GROUPS.includes(st.group), `${e} ${st.step} ${st.group}`);
+    const groups = golden.steps[e].map((st) => st.group);
+    assert.deepEqual(groups, [...groups].sort((a, b) => GROUPS.indexOf(a) - GROUPS.indexOf(b)));
+  }
+  assert.equal(golden.steps.chromium.filter((st) => st.group === 'table').length, 2 * 65);
+  assert.equal(golden.steps.chromium.filter((st) => st.group === 'extra').length, 2 * 7);
+  assert.equal(golden.steps.webkit.filter((st) => st.group === 'table').length, 2 * 30);
+  assert.equal(golden.steps.webkit.filter((st) => st.group === 'extra').length, 2 * 3);
+  const g = { ...golden, steps: { ...golden.steps, chromium: golden.steps.chromium.map((st, i) => (i === 0 ? { ...st, group: undefined } : st)) } };
+  assert.throws(() => evaluate(g, 'chromium', []), /group/);
+});
+
+test('verdict rows: the table set keeps the premise names, other sets carry the set name', () => {
+  assert.equal(rowName('chromium', 'table', 'paint'), 'chromium.paint');
+  assert.equal(rowName('chromium', 'extra', 'paint'), 'chromium.extra.paint');
+  const r = { engine: 'webkit', groups: { table: { stages: { style: { verdict: 'holds', cells: { agree: 1, mismatch: 0, unstable: 0, missing: 0 } } } } } };
+  assert.deepEqual(verdictLines(r), ['webkit.style: holds (agree 1, mismatch 0, unstable 0, missing 0)']);
 });
 
 test('present sums the counters of an observer', () => {
