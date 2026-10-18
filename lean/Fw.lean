@@ -39,6 +39,7 @@ import Fw.Measure.Classes
 import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
+import Fw.Measure.Retry
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
 import Fw.Ops.Wait

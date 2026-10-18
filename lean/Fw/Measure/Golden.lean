@@ -137,6 +137,14 @@ def zbFrames (x : Int) : Json :=
          Json.mkObj [("n", toJson (2 : Nat)), ("phase", .str "swipe"), ("scrollY", toJson (700 : Nat)),
            ("counts", Json.mkObj [("a", toJson (3 : Nat))])]]
 
+/-- A `measure.retry` request. -/
+def retryReq (e : String) (a n : Nat) : Json :=
+  Json.mkObj [("error", .str e), ("attempt", toJson a), ("max", toJson n)]
+
+/-- A `measure.retryPlan` request. -/
+def retryPlanReq (es : List String) (n : Nat) : Json :=
+  Json.mkObj [("errors", .arr (es.toArray.map Json.str)), ("max", toJson n)]
+
 /-- The cases, per op file: (file stem, [(name, request without op)]). -/
 def cases : List (String × List (String × Json)) := [
   ("measure.zoneSums", [
@@ -377,7 +385,28 @@ def cases : List (String × List (String × Json)) := [
       Json.mkObj [("limit", toJson (10 : Nat)), ("minKept", toJson (1 : Nat)),
         ("durs", lit "[[5,6,7,8],[9,3]]")]),
     ("a non-natural duration is refused",
-      Json.mkObj [("limit", toJson (10 : Nat)), ("minKept", toJson (1 : Nat)), ("durs", lit "[[5,-1]]")])])]
+      Json.mkObj [("limit", toJson (10 : Nat)), ("minKept", toJson (1 : Nat)), ("durs", lit "[[5,-1]]")])]),
+  ("measure.retry", [
+    ("a simctl call killed at its deadline (ETIMEDOUT) is transient: retried after the first attempt, wait 2 s",
+      retryReq "ETIMEDOUT" 1 3),
+    ("the wait doubles: second failure, wait 4 s", retryReq "simctl launch Safari failed: ETIMEDOUT" 2 3),
+    ("the limit is reached: not retried even though transient", retryReq "ETIMEDOUT" 3 3),
+    ("boot message from simctl is transient, case ignored",
+      retryReq "simctl boot failed: UNABLE TO BOOT device in current state: Booted" 1 3),
+    ("device busy is transient", retryReq "Device busy, try again" 1 2),
+    ("the wait stops growing at the cap (30 s)", retryReq "operation timed out" 9 10),
+    ("an unknown device is permanent: never retried", retryReq "Invalid device: fw-iphone-27" 1 3),
+    ("an empty message is permanent", retryReq "" 1 3),
+    ("a limit of 1 never retries", retryReq "ETIMEDOUT" 1 1),
+    ("attempt 0 is refused", retryReq "ETIMEDOUT" 0 3)]),
+  ("measure.retryPlan", [
+    ("one timeout, then the call works: one retry, succeeded", retryPlanReq ["ETIMEDOUT"] 3),
+    ("timeouts to the limit: waits 2 s and 4 s, exhausted", retryPlanReq ["ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT"] 3),
+    ("a permanent error after a timeout ends the plan", retryPlanReq ["ETIMEDOUT", "No such app: x", "ETIMEDOUT"] 5),
+    ("a permanent first error: no retry", retryPlanReq ["Invalid device: x"] 3),
+    ("no failure at all", retryPlanReq [] 3),
+    ("six timeouts, limit 8: waits double up to the cap",
+      retryPlanReq ["ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT", "ETIMEDOUT"] 8)])]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json

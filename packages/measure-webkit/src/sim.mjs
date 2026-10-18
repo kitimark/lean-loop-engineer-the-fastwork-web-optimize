@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { T } from './timeouts.mjs';
 import { retryWhile } from './poll.mjs';
+import { withRetry } from './simretry.mjs';
 
 export const DEVICE_NAME = process.env.FW_SIM_NAME || 'fw-iphone-27';
 export const SAFARI = 'com.apple.mobilesafari';
@@ -39,6 +40,16 @@ function run(cmd, args, { timeoutMs = 120000 } = {}) {
   return { status: r.status, stdout: r.stdout || '', stderr: r.stderr || '', error: r.error };
 }
 export const simctl = (args, opts) => run('xcrun', ['simctl', ...args], opts);
+const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+/**
+ * `simctl` with the Lean retry policy (Fw.Measure.Retry): a transient failure (ETIMEDOUT, device not ready, ...) is asked
+ * again up to `max` attempts with a doubling wait; a permanent one is returned at once. A run lost over an hour to one
+ * simctl timeout that was never asked again (step-align, run 39068024107).
+ */
+export const simctlRetry = (args, opts, { max = 3, log = () => {} } = {}) => withRetry(() => simctl(args, opts), {
+  max, text: (r) => tail(r), sleepSync,
+  onRetry: ({ attempt, delayMs, text }) => log(`simctl ${args[0]} failed (${text}); transient, attempt ${attempt} of ${max}, retry in ${delayMs / 1000} s`),
+});
 const tail = (r) => (r.error ? r.error.code || r.error.message : (r.stderr || r.stdout).trim().split('\n').slice(-2).join(' | '));
 
 /** [{udid, name, state, runtime}] for every available simulator device. */
@@ -76,20 +87,16 @@ export async function bootDevice({ log = () => {} } = {}) {
   const wasBooted = d.state === 'Booted';
   if (!wasBooted) {
     const t0 = Date.now();
-    const r = simctl(['boot', d.udid], { timeoutMs: T(120000) });
+    const r = simctlRetry(['boot', d.udid], { timeoutMs: T(120000) }, { log });
     if (r.status !== 0 && findDevice().state !== 'Booted') throw new Error(`simctl boot failed: ${tail(r)}`);
-    const b = simctl(['bootstatus', d.udid, '-b'], { timeoutMs: T(300000) });
+    const b = simctlRetry(['bootstatus', d.udid, '-b'], { timeoutMs: T(300000) }, { log });
     if (b.status !== 0) throw new Error(`simctl bootstatus failed: ${tail(b)}`);
     log(`booted ${d.name} (${d.runtime.split('.').pop()}) in ${Math.round((Date.now() - t0) / 1000)} s`);
   }
   // Safari restores the last session's tabs; terminate first so the run starts from the same state.
   simctl(['terminate', d.udid, SAFARI]);
-  let l;
-  for (let i = 0; i < 3; i++) { // under heavy host load a launch can time out; the device stays booted, so ask again
-    l = simctl(['launch', d.udid, SAFARI], { timeoutMs: T(90000) });
-    if (l.status === 0) break;
-    log(`simctl launch Safari failed (${tail(l)}); attempt ${i + 1} of 3`);
-  }
+  // under heavy host load a launch can time out; the device stays booted, so the policy asks again (transient errors only)
+  const l = simctlRetry(['launch', d.udid, SAFARI], { timeoutMs: T(90000) }, { log });
   if (l.status !== 0) throw new Error(`simctl launch Safari failed: ${tail(l)}`);
   for (let i = 0; i < T(60); i++) {
     if (findSockets().length) return { udid: d.udid, name: d.name, wasBooted };
@@ -99,13 +106,13 @@ export async function bootDevice({ log = () => {} } = {}) {
 }
 
 export const openUrl = (udid, url) => {
-  const r = simctl(['openurl', udid, url], { timeoutMs: T(120000) }); // blocked 77 s once on a loaded runner
+  const r = simctlRetry(['openurl', udid, url], { timeoutMs: T(120000) }, { max: 2 }); // blocked 77 s once on a loaded runner
   if (r.status !== 0) throw new Error(`simctl openurl failed: ${tail(r)}`);
 };
 
 export function shutdownDevice(udid, { log = () => {} } = {}) {
   simctl(['terminate', udid, SAFARI]);
-  const r = simctl(['shutdown', udid], { timeoutMs: 120000 });
+  const r = simctlRetry(['shutdown', udid], { timeoutMs: 120000 }, { log });
   const state = listDevices().find((d) => d.udid === udid)?.state;
   if (state !== 'Shutdown') log(`warning: shutdown left the device in state ${state} (${tail(r)})`);
   else log('simulator shut down');
