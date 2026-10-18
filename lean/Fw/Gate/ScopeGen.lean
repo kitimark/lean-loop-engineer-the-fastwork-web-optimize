@@ -9,7 +9,7 @@ owners, conditions, extra width facts, knees, dismissed inventory entries, key q
 ids (matrix order) and sweep ids (spec order); the union over all parts; the sweeps with their stops, so the package
 test can compare them with `spec.mjs` `sweepDefs`. `run` prints it or, with `--check <file>`, compares bytes.
 The module defines no `main` (the math view imports every `Fw` module, and `Fw.Parts.Golden` owns the root
-`main`); `packages/gate-breakpoints/scripts/scopegen.mjs` runs `run` through the compiled `breakgen --scope`, or (binary missing) through a two-line `lean --run` driver (the interpreter: ~100 s).
+`main`); `packages/gate-breakpoints/scripts/scopegen.mjs` runs `run` through the compiled `sweepsgen --scope`, or (binary missing) through a two-line `lean --run` driver (the interpreter: ~100 s).
 -/
 namespace Fw.Gate.ScopeGen
 open Lean Fw.Gate Fw.Site.Breakpoints Fw.Site.BreakpointGen
@@ -121,7 +121,7 @@ def checkCode (cur : Array UInt8) : UInt32 := if cur == scopeText.toUTF8.data th
 $$\forall b,\quad \operatorname{checkCode}(b) = 0 \iff b = \operatorname{utf8}(\operatorname{scopeText})$$
 
 So `src/scope.gen.json` is Lean's bytes when `scopegen --check` exits 0, whether the check ran as the compiled
-`breakgen --scope` or as the interpreted `lean --run` driver: both are `run`. -/
+`sweepsgen --scope` or as the interpreted `lean --run` driver: both are `run`. -/
 theorem checkCode_eq_zero_iff (cur : Array UInt8) : checkCode cur = 0 ↔ cur = scopeText.toUTF8.data := by
   unfold checkCode
   split

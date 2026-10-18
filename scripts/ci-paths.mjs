@@ -4,14 +4,17 @@
 //   --check (default)  fails when a workflow's `on.push` (branches, paths) differs from the Lean decision, when a workflow
 //                      lacks the `guard` job, or when a job does not (transitively) wait for it;
 //   --write            rewrites those parts of the workflow files.
+// It also reads, for every job that uses setup-lean, its `save:` and the Lake targets it builds, into the generated Lean
+// module lean/Fw/Ops/LakeJobsGen.lean (--check: equal to the workflows; --write: rewritten). Lean Fw.Ops.LakeCache decides
+// the rules over those rows (one writer, every job covered by it), so the Lean build fails on a broken rule.
 // `@fwcore` / `@breakgen` name the build files plus the import cone of Main.lean / BreakgenMain.lean. In `on.push.paths`
 // every cone is the fixed `coneGlobs` of the golden (`lean/Fw/**`, `lean/*.lean`; Lean `pushPaths`), so a new module
 // changes no workflow file (task ci-cone-glob, `paths_stable_under_new_module`). The guard job computes the precise cone
 // at run time (.github/scripts/changed-inputs.mjs). This check fails when a cone file falls outside `coneGlobs`
 // (Lean `ConeWithin`, the hypothesis of `coarse_sound`).
 // Run:  node scripts/ci-paths.mjs [--write | --check] [--root <dir>]
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { dirname, join, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { coneOf, loadGolden, matches, setMapWith, expand } from '../.github/scripts/changed-inputs.mjs';
 
@@ -20,6 +23,224 @@ export const GUARD_SCRIPT = ['.git', 'hub/scripts/changed-inputs.mjs'].join('');
 
 // The cone reader and the Lean `setMap` / `expand` live in the guard script, which runs them at run time on CI.
 export { coneOf, expand, loadGolden, setMapFor, setMapWith } from '../.github/scripts/changed-inputs.mjs';
+
+const SETUP_LEAN = /^\s*- uses: \.\/\.github\/actions\/setup-lean\s*$/;
+
+/** The jobs of a workflow that use setup-lean, with the `save:` they pass ('true' or 'false', the default). */
+export function setupLeanJobs(lines) {
+  const out = [];
+  for (const j of readJobs(lines)) {
+    for (let i = j.at + 1; i < j.end; i++) {
+      if (!SETUP_LEAN.test(lines[i])) continue;
+      const k = indentOf(lines[i]);
+      let save = 'false';
+      for (let n = i + 1; n < j.end && (isBlank(lines[n]) || indentOf(lines[n]) > k); n++) {
+        const m = /^\s*save:\s*'?(true|false)'?\s*(?:#.*)?$/.exec(lines[n]);
+        if (m) save = m[1];
+      }
+      out.push({ job: j.name, save });
+    }
+  }
+  return out;
+}
+
+// ---- Lake cache jobs (task site-build-cache) -------------------------------------------------------------------------
+// The facts lean/Fw/Ops/LakeCache.lean decides over are read here from the workflows and written to the generated module
+// lean/Fw/Ops/LakeJobsGen.lean: for every job that uses setup-lean, whether it passes `save: 'true'` and the Lake targets
+// it builds. A new setup-lean job needs no hand edit: `--write` adds its row, and the Lean build fails only when a row
+// breaks a rule (Fw.Ops.LakeCache.violations). The targets are the Lake invocations this scanner reads, following
+//   the `run:` blocks of the job and of the local actions it uses (./.github/actions/<x>/action.yml);
+//   `sh|bash|node <file>` (when the file exists); `pnpm --filter <pkg> [run] <script>` (that package.json script);
+//   `lake build [t...]` (no target: lakefile defaultTargets), `lake exe <t>`, `lake test` (lakefile testDriver), and
+//   JS `spawnSync('lake', ['build'|'exe'|'test', ...])`. `$VAR` reads a literal `VAR=...` of the same file, else it is skipped.
+export const LAKE_GEN = 'lean/Fw/Ops/LakeJobsGen.lean';
+
+/** lean/lakefile.toml: default targets, test driver, executables (name, root module), libraries (name, globs). */
+export function readLakefile(root) {
+  const strs = (s) => [...s.matchAll(/"([^"]*)"/g)].map((m) => m[1]);
+  const out = { defaults: [], testDriver: null, exes: [], libs: [] };
+  let cur = null;
+  for (const l of readFileSync(join(root, 'lean/lakefile.toml'), 'utf8').split('\n')) {
+    if (/^\s*#/.test(l)) continue;
+    const sec = /^\[\[(lean_exe|lean_lib)\]\]/.exec(l);
+    if (sec) { cur = { name: null, root: null, globs: [] }; (sec[1] === 'lean_exe' ? out.exes : out.libs).push(cur); continue; }
+    if (/^\[/.test(l)) { cur = null; continue; }
+    const kv = /^\s*(\w+)\s*=\s*(.*)$/.exec(l);
+    if (!kv) continue;
+    if (!cur) {
+      if (kv[1] === 'defaultTargets') out.defaults = strs(kv[2]);
+      if (kv[1] === 'testDriver') out.testDriver = strs(kv[2])[0] ?? null;
+    } else if (kv[1] === 'name') cur.name = strs(kv[2])[0];
+    else if (kv[1] === 'root') cur.root = strs(kv[2])[0];
+    else if (kv[1] === 'globs') cur.globs = strs(kv[2]);
+  }
+  for (const e of out.exes) e.root ??= e.name;
+  return out;
+}
+
+/** The shell text of the `run:` blocks of YAML lines (inline values and `|` / `>` blocks), comment lines dropped. */
+export function runBlocks(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^\s*(?:-\s+)?run:\s*(.*)$/.exec(lines[i]);
+    if (!m) continue;
+    if (/^[|>]/.test(m[1])) {
+      const k = indentOf(lines[i]);
+      for (let n = i + 1; n < lines.length && (lines[n].trim() === '' || indentOf(lines[n]) > k); n++) out.push(lines[n]);
+    } else out.push(m[1]);
+  }
+  return out.filter((l) => !/^\s*#/.test(l)).join('\n');
+}
+
+/** Workspace package name -> directory (apps/*, packages/*). */
+function packageDirs(root) {
+  const out = new Map();
+  for (const top of ['apps', 'packages']) {
+    const d = join(root, top);
+    if (!existsSync(d)) continue;
+    for (const n of readdirSync(d)) {
+      const p = join(d, n, 'package.json');
+      if (existsSync(p)) { try { out.set(JSON.parse(readFileSync(p, 'utf8')).name, join(d, n)); } catch { /* not a package */ } }
+    }
+  }
+  return out;
+}
+
+/** Lake targets a piece of shell or JS text builds (see the header of this section). `ctx`: { root, lake, pkgs, seen }. */
+export function lakeTargetsOf(ctx, text, bases) {
+  const src = text.split('\n').filter((l) => !/^\s*(#|\/\/)/.test(l)).join('\n');
+  const vars = new Map();
+  for (const m of src.matchAll(/^\s*([A-Za-z_]\w*)=(?:"([^"$`(]*)"|'([^']*)'|([^\s$`('"]*))\s*$/gm)) if (!vars.has(m[1])) vars.set(m[1], m[2] ?? m[3] ?? m[4]);
+  const words = (s) => s.trim().split(/\s+/).filter(Boolean).flatMap((w) => {
+    const v = /^\$\{?([A-Za-z_]\w*)\}?$/.exec(w);
+    if (v) return vars.has(v[1]) ? vars.get(v[1]).split(/\s+/).filter(Boolean) : [];
+    return w.includes('$') ? [] : [w];
+  });
+  const out = [];
+  const lakeCmd = (verb, rest) => {
+    const ws = words(rest).filter((w) => !w.startsWith('-'));
+    if (verb === 'build') out.push(...(ws.length ? ws.map((w) => w.replace(/^[+@]/, '').replace(/:.*$/, '')) : ctx.lake.defaults));
+    if (verb === 'exe' && ws.length) out.push(ws[0]);
+    if (verb === 'test' && ctx.lake.testDriver) out.push(ctx.lake.testDriver);
+  };
+  for (const m of src.matchAll(/\blake\s+(build|exe|test)\b([^\n&|;><)"'`#]*)/g)) lakeCmd(m[1], m[2]);
+  for (const m of src.matchAll(/\(\s*['"]lake['"]\s*,\s*\[([^\]]*)\]/g)) {
+    const lits = [];
+    for (const x of m[1].split(',').map((s) => s.trim())) { const q = /^['"]([^'"]*)['"]$/.exec(x); if (!q) break; lits.push(q[1]); }
+    if (lits.length) lakeCmd(lits[0], lits.slice(1).join(' '));
+  }
+  const follow = (key, nextBases, read) => {
+    if (ctx.seen.has(key)) return;
+    ctx.seen.add(key);
+    out.push(...lakeTargetsOf(ctx, read(), nextBases));
+  };
+  for (const m of src.matchAll(/(?:^|[\s;&|(`'"])(?:sh|bash|node)\s+([\w./-]+\.(?:sh|mjs|js))\b/gm)) {
+    const abs = [...bases, ctx.root, join(ctx.root, 'lean')].map((b) => normalize(join(b, m[1]))).find((p) => existsSync(p));
+    if (abs) follow(abs, [dirname(abs), dirname(dirname(abs)), ctx.root], () => readFileSync(abs, 'utf8'));
+  }
+  for (const m of src.matchAll(/\bpnpm\s+(?:--filter[= ]|-F\s*)['"]?([@\w/.-]+?)(?:\.\.\.)?['"]?\s+(?:run\s+)?([\w:.-]+)/g)) {
+    const dir = ctx.pkgs.get(m[1]);
+    const script = dir && JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).scripts?.[m[2]];
+    if (script) follow(`${dir}#${m[2]}`, [dir], () => script);
+  }
+  return out;
+}
+
+/** One row per job that uses setup-lean: { file, job, saves, targets } (targets deduplicated, in reading order). */
+export function lakeJobs(root) {
+  const ctx0 = { root, lake: readLakefile(root), pkgs: packageDirs(root) };
+  const dir = join(root, WF_DIR);
+  const rows = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.yml')).sort()) {
+    const lines = readFileSync(join(dir, file), 'utf8').split('\n');
+    const used = setupLeanJobs(lines);
+    for (const j of readJobs(lines)) {
+      const uses = used.filter((u) => u.job === j.name);
+      if (!uses.length) continue;
+      const body = lines.slice(j.at, j.end);
+      let text = runBlocks(body);
+      for (const l of body) {
+        const a = /^\s*(?:-\s+)?uses:\s*\.\/(\.github\/actions\/[\w.-]+)\s*$/.exec(l);
+        const p = a && join(root, a[1], 'action.yml');
+        if (p && existsSync(p)) text += `\n${runBlocks(readFileSync(p, 'utf8').split('\n'))}`;
+      }
+      const targets = [...new Set(lakeTargetsOf({ ...ctx0, seen: new Set() }, text, [root]))];
+      rows.push({ file, job: j.name, saves: uses.some((u) => u.save === 'true'), targets });
+    }
+  }
+  return rows;
+}
+
+/** Modules under lean/ reachable from a root module by `import` (every import whose file exists). */
+function modulesOf(root, rootModule) {
+  const seen = new Set();
+  const queue = [rootModule];
+  while (queue.length) {
+    const m = queue.pop();
+    const abs = join(root, 'lean', `${m.replace(/\./g, '/')}.lean`);
+    if (seen.has(m) || !existsSync(abs)) continue;
+    seen.add(m);
+    for (const l of readFileSync(abs, 'utf8').split('\n')) { const r = /^import\s+(\S+)/.exec(l); if (r) queue.push(r[1]); }
+  }
+  return seen;
+}
+
+/** Import facts [module, target]: a job target that is a module (no Lake target name) and an executable whose root imports
+ *  it, or a library whose `X.*` glob holds it. */
+export function lakeImportFacts(root, rows) {
+  const lake = readLakefile(root);
+  const names = new Set([...lake.exes.map((e) => e.name), ...lake.libs.map((l) => l.name)]);
+  const out = [];
+  for (const t of [...new Set(rows.flatMap((r) => r.targets))].filter((t) => !names.has(t)).sort()) {
+    for (const e of lake.exes) if (modulesOf(root, e.root).has(t)) out.push([t, e.name]);
+    for (const l of lake.libs) if (l.globs.some((g) => g.endsWith('.*') && t.startsWith(g.slice(0, -1)))) out.push([t, l.name]);
+  }
+  return out;
+}
+
+const tex = (s) => `\\texttt{${s.replace(/_/g, '\\_')}}`;
+const leanStr = (s) => JSON.stringify(s);
+
+/** The text of lean/Fw/Ops/LakeJobsGen.lean. */
+export function renderLakeGen(rows, facts) {
+  const rowTex = (r) => `(${tex(r.file)},\\ ${tex(r.job)},\\ ${r.saves ? '\\top' : '\\bot'},\\ [${r.targets.map(tex).join(',\\ ')}])`;
+  return [
+    '/-!',
+    '# The CI jobs that use setup-lean (generated, do not edit)',
+    '',
+    'Written by `node scripts/ci-paths.mjs --write` from `.github/workflows/*.yml` and the scripts their `run:` blocks call;',
+    '`node scripts/ci-paths.mjs --check` fails when this file differs from what the workflows give. The rules and proofs over',
+    'these rows are in `Fw.Ops.LakeCache`.',
+    '-/',
+    'namespace Fw.Ops.LakeJobsGen',
+    '',
+    "/-- Every CI job that uses `.github/actions/setup-lean`, as (workflow file, job id, passes `save: 'true'`, Lake targets",
+    'it builds), workflow files sorted by name, jobs in file order.',
+    `$$R = [\\,${rows.map(rowTex).join(',\\ ')}\\,]$$ -/`,
+    'def rows : List (String × String × Bool × List String) := [',
+    `${rows.map((r) => `  (${leanStr(r.file)}, ${leanStr(r.job)}, ${r.saves}, [${r.targets.map(leanStr).join(', ')}])`).join(',\n')}]`,
+    '',
+    '/-- Import facts (module, Lake target): a job target that is a module, not a target name, and a target whose root module',
+    'imports it (or whose library glob holds it), read from the `import` lines under `lean/`.',
+    `$$F = [\\,${facts.map(([m, t]) => `(${tex(m)},\\ ${tex(t)})`).join(',\\ ')}\\,]$$ -/`,
+    `def importFacts : List (String × String) := [${facts.map(([m, t]) => `(${leanStr(m)}, ${leanStr(t)})`).join(', ')}]`,
+    '',
+    'end Fw.Ops.LakeJobsGen',
+    '',
+  ].join('\n');
+}
+
+/** Check (or write) the generated Lake jobs module. Returns the problems, or null when the root has no lean/lakefile.toml. */
+export function lakeGenProblems(root, write) {
+  if (!existsSync(join(root, 'lean/lakefile.toml'))) return null;
+  const rows = lakeJobs(root);
+  const want = renderLakeGen(rows, lakeImportFacts(root, rows));
+  const p = join(root, LAKE_GEN);
+  const cur = existsSync(p) ? readFileSync(p, 'utf8') : '';
+  if (cur === want) return [];
+  if (write) { writeFileSync(p, want); return []; }
+  return [`${LAKE_GEN} differs from the setup-lean jobs of the workflows (regenerate: node scripts/ci-paths.mjs --write)`];
+}
 
 /** The set map of the generated push paths (Lean `pushPaths`): every cone replaced by the fixed `coneGlobs`. */
 export const coarseMap = (table) => setMapWith(table, () => table.coneGlobs);
@@ -182,6 +403,7 @@ export function run(root, write) {
   const problems = coneProblems(root, table);
   let wrote = 0;
   const rows = new Map(table.workflows.map((w) => [w.file, w]));
+  try { problems.push(...(lakeGenProblems(root, write) ?? [])); } catch (e) { problems.push(`${LAKE_GEN}: ${e.message}`); }
   for (const w of table.workflows) if (!files.includes(w.file)) problems.push(`${w.file}: in the Lean table but no such workflow file`);
   for (const f of files) {
     const row = rows.get(f);

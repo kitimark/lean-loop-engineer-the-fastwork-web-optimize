@@ -3571,7 +3571,8 @@
     "packages/contracts/golden/**",
     "apps/site/src/*.gen.json",
     "docs/team/handoffs/**"
-   ]
+   ],
+   "evidence": "29d8b04"
   },
   {
    "id": "visual-diff-2",

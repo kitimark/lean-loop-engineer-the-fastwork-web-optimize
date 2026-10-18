@@ -209,12 +209,14 @@ theorem mem_selectChecks (ds : List Decl) (changed : List String) (i : String) :
   simp [selectChecks, and_assoc]
 
 /-- The declared reads proposed for `lean/scripts/check.sh` (P5): `lean/**` plus what it reads outside `lean/`
-(the golden files `lake test` replays, the site's generated breakpoint files, the span helper). `checksfor-inputs`
-owns the final list.
-$$G_{\mathrm{check}} = [\texttt{lean/**},\ \texttt{packages/contracts/golden/**},\ \texttt{apps/site/src/breakpoints.gen.json},\ \texttt{apps/site/src/sweeps.gen.json},\ \texttt{scripts/span.sh}]$$ -/
+(the golden files `lake test` replays, the site's generated breakpoint files, the gate's generated scope file that
+`sweepsgen --scope --check` compares, the workflow files the lane lint of `Fw.Ops.Premise` reads, the span helper).
+`checksfor-inputs` owns the final list.
+$$G_{\mathrm{check}} = [\texttt{lean/**},\ \texttt{packages/contracts/golden/**},\ \texttt{apps/site/src/breakpoints.gen.json},\ \texttt{apps/site/src/sweeps.gen.json},\ \texttt{packages/gate-breakpoints/src/scope.gen.json},\ \texttt{.github/workflows/**},\ \texttt{scripts/span.sh}]$$ -/
 def checkShReads : List String :=
   ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json",
-    "apps/site/src/sweeps.gen.json", "scripts/span.sh"]
+    "apps/site/src/sweeps.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**",
+    "scripts/span.sh"]
 
 /-- The sample `checksFor` table of the golden cases: check.sh and one package test.
 $$D_0 = [(\texttt{check.sh}, G_{\mathrm{check}}),\ (\texttt{contracts}, [\texttt{packages/contracts/**}])]$$ -/
@@ -226,8 +228,65 @@ def sampleDecls : List Decl :=
 #guard selectChecks sampleDecls ["docs/team/handoffs/x.md"] == []
 #guard selectChecks sampleDecls [] == []
 #guard selectChecks sampleDecls ["apps/site/src/breakpoints.gen.json"] == ["check.sh"]
+#guard selectChecks sampleDecls ["packages/gate-breakpoints/src/scope.gen.json"] == ["check.sh"]
+#guard selectChecks sampleDecls ["packages/gate-breakpoints/src/scope.mjs"] == []
+#guard selectChecks sampleDecls [".github/workflows/lean.yml"] == ["check.sh"]
+#guard selectChecks sampleDecls [".github/scripts/changed-inputs.mjs"] == []
 #guard selectChecks [⟨"lean", ["lean/**", "!lean/math.lock.json"]⟩] ["lean/math.lock.json"] == []
 #guard selectChecks sampleDecls ["../lean/x.lean"] == []
+
+/-- The parsed check.sh scope: each declared glob split at `/`, and no exclusions.
+$$\mathrm{parse}(G_{\mathrm{check}}) = \big([[\texttt{lean}, \texttt{**}],\ [\texttt{packages}, \texttt{contracts}, \texttt{golden}, \texttt{**}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{breakpoints.gen.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{sweeps.gen.json}],\ [\texttt{packages}, \texttt{gate-breakpoints}, \texttt{src}, \texttt{scope.gen.json}],\ [\texttt{.github}, \texttt{workflows}, \texttt{**}],\ [\texttt{scripts}, \texttt{span.sh}]],\ [\,]\big)$$ -/
+theorem parseScope_checkShReads : parseScope checkShReads =
+    ⟨[["lean", "**"], ["packages", "contracts", "golden", "**"], ["apps", "site", "src", "breakpoints.gen.json"],
+      ["apps", "site", "src", "sweeps.gen.json"], ["packages", "gate-breakpoints", "src", "scope.gen.json"],
+      [".github", "workflows", "**"], ["scripts", "span.sh"]], []⟩ := by
+  have hi : checkShReads.filter (!·.startsWith "!") = checkShReads := by
+    simp (config := {decide := true}) [checkShReads]
+  have he : checkShReads.filter (·.startsWith "!") = [] := by
+    simp (config := {decide := true}) [checkShReads]
+  rw [parseScope, hi, he]
+  simp only [List.map_nil, checkShReads, List.map_cons, Scope.mk.injEq, List.cons.injEq, and_true]
+  and_intros <;> simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+
+/-- check.sh is selected whenever some changed path is in the parsed check.sh scope, in any check table $D$
+holding the check `check.sh` with reads $G_{\mathrm{check}}$.
+$$\forall D, X, x:\ (\texttt{check.sh}, G_{\mathrm{check}}) \in D \land x \in X \land \mathrm{in}(\mathrm{parse}(G_{\mathrm{check}}), x) \Rightarrow \texttt{check.sh} \in \operatorname{select}(D, X)$$ -/
+theorem checkSh_selected_of_inScope (ds : List Decl) (changed : List String) (x : String)
+    (hd : (⟨"check.sh", checkShReads⟩ : Decl) ∈ ds) (hx : x ∈ changed)
+    (hin : inScope (parseScope checkShReads) x = true) :
+    "check.sh" ∈ selectChecks ds changed :=
+  (mem_selectChecks ds changed _).2 ⟨_, hd, List.any_eq_true.2 ⟨x, hx, hin⟩, rfl⟩
+
+/-- A change to the gate's generated scope file (which `sweepsgen --scope --check` in `check.sh` reads) selects
+`check.sh`: for every check table $D$ holding the check `check.sh` with reads $G_{\mathrm{check}}$, every change list
+$X$ and every changed path $x \in X$ whose segments (split at `/`, empty and `.` segments dropped) equal those of
+`packages/gate-breakpoints/src/scope.gen.json`.
+$$\forall D, X, x:\ (\texttt{check.sh}, G_{\mathrm{check}}) \in D \land x \in X \land \mathrm{segs}(x) = [\texttt{packages}, \texttt{gate-breakpoints}, \texttt{src}, \texttt{scope.gen.json}] \Rightarrow \texttt{check.sh} \in \operatorname{select}(D, X)$$ -/
+theorem scopeGen_selects_checkSh (ds : List Decl) (changed : List String) (x : String)
+    (hd : (⟨"check.sh", checkShReads⟩ : Decl) ∈ ds) (hx : x ∈ changed)
+    (hs : segs x = ["packages", "gate-breakpoints", "src", "scope.gen.json"]) :
+    "check.sh" ∈ selectChecks ds changed := by
+  refine checkSh_selected_of_inScope ds changed x hd hx ?_
+  rw [inScope_iff, parseScope_checkShReads, hs]
+  refine ⟨by simp, by simp, ⟨["packages", "gate-breakpoints", "src", "scope.gen.json"], by simp, ?_⟩, by simp⟩
+  exact matchesPath_lit _ (by simp) (by simp (config := {decide := true}))
+
+/-- A change to a workflow file (which the lane lint of `Fw.Ops.Premise`, run by `check.sh`, reads) selects
+`check.sh`: for every check table $D$ holding the check `check.sh` with reads $G_{\mathrm{check}}$, every change list
+$X$ and every changed path $x \in X$ whose segments start with `.github`, `workflows` and whose remaining segments
+$r$ (possibly none) hold no `..`.
+$$\forall D, X, x, r:\ (\texttt{check.sh}, G_{\mathrm{check}}) \in D \land x \in X \land \mathrm{segs}(x) = \texttt{.github} :: \texttt{workflows} :: r \land \texttt{..} \notin r \Rightarrow \texttt{check.sh} \in \operatorname{select}(D, X)$$ -/
+theorem workflow_selects_checkSh (ds : List Decl) (changed : List String) (x : String) (r : List String)
+    (hd : (⟨"check.sh", checkShReads⟩ : Decl) ∈ ds) (hx : x ∈ changed)
+    (hs : segs x = ".github" :: "workflows" :: r) (hr : ".." ∉ r) :
+    "check.sh" ∈ selectChecks ds changed := by
+  refine checkSh_selected_of_inScope ds changed x hd hx ?_
+  rw [inScope_iff, parseScope_checkShReads, hs]
+  refine ⟨by simp, by simpa using hr, ⟨[".github", "workflows", "**"], by simp, ?_⟩, by simp⟩
+  have h2 : matchesPath [".github", "workflows", "**"] [".github", "workflows"] = true := by
+    simp [matchesPath, globMatch, segMatch, List.range_succ]
+  simpa using matchesPath_append _ _ r h2
 
 /-! ## (b) Cone skip: per-module lint with Merkle keys over the import DAG -/
 
@@ -804,8 +863,8 @@ def premiseCase (p : PremiseRow) : Json :=
   line s!"premise {p.id}" [("op", "landSpeed.premise"), ("id", .str p.id)]
     [("statement", .str p.statement), ("theorems", strs p.theorems), ("test", .str p.test)]
 
-/-- Every golden case: 7 select, 6 prelock, 6 verdict and 4 cache cases, then one row per premise.
-$$\mathrm{cases} = \mathrm{select}_{1..7} \mathbin{+\!\!+} \mathrm{prelock}_{1..6} \mathbin{+\!\!+} \mathrm{verdict}_{1..6} \mathbin{+\!\!+} \mathrm{cache}_{1..4} \mathbin{+\!\!+} [\operatorname{premiseCase}(p) : p \in \mathrm{premises}]$$ -/
+/-- Every golden case: 9 select, 6 prelock, 6 verdict and 4 cache cases, then one row per premise.
+$$\mathrm{cases} = \mathrm{select}_{1..9} \mathbin{+\!\!+} \mathrm{prelock}_{1..6} \mathbin{+\!\!+} \mathrm{verdict}_{1..6} \mathbin{+\!\!+} \mathrm{cache}_{1..4} \mathbin{+\!\!+} [\operatorname{premiseCase}(p) : p \in \mathrm{premises}]$$ -/
 def cases : List Json :=
   [selectCase "golden-only change selects check.sh (P5 mutation)" sampleDecls
       ["packages/contracts/golden/obs/timing.jsonl"],
@@ -813,6 +872,8 @@ def cases : List Json :=
     selectCase "docs-only change selects nothing" sampleDecls ["docs/team/handoffs/x.md"],
     selectCase "empty change selects nothing" sampleDecls [],
     selectCase "site generated breakpoints select check.sh" sampleDecls ["apps/site/src/breakpoints.gen.json"],
+    selectCase "gate generated scope selects check.sh" sampleDecls ["packages/gate-breakpoints/src/scope.gen.json"],
+    selectCase "workflow change selects check.sh" sampleDecls [".github/workflows/lean.yml"],
     selectCase "excluded path is not selected" [⟨"lean", ["lean/**", "!lean/math.lock.json"]⟩]
       ["lean/math.lock.json"],
     selectCase "path with .. is never in scope" sampleDecls ["../lean/x.lean"],
@@ -833,7 +894,7 @@ def cases : List Json :=
     cacheCase "miss: run the check" [(7, true)] 8,
     cacheCase "empty store: miss" [] 0] ++ premises.map premiseCase
 
-#guard cases.length == 32
+#guard cases.length == 34
 
 /-- The golden file text: one compressed JSON line per case.
 $$\mathrm{goldenText} = \operatorname{concat}[\, \operatorname{compress}(c) \mathbin{+\!\!+} \text{"\textbackslash n"} \,]_{c \in \mathrm{cases}}$$ -/
