@@ -1,5 +1,6 @@
 import Fw.Parts.MorphTween
 import Fw.Parts.Pain
+import Fw.Parts.Commission
 /-!
 # pain.notes: the sticky notes of the Pain section (P3 `faithful` port)
 
@@ -12,6 +13,7 @@ Restated (not copied) from the original snapshot:
   * 4511-4534 `ie` (scored placement, canvas width 1100 px and up, `Fw.Parts.Pain.scored_iff`); 4535-4548 `ae` (jittered
     placement below it); 4549-4554 `oe` (text pick); 4555-4589 `ce` (base layout, desktop and narrow; the stage `x` is the canvas `.pain-canvas`, JS 4751);
   * 4590-4646 `le` (the 3 s tick: guards, clear rule, add); 4647-4688 `W`, `ue` (drag and keyboard);
+  * 2681-2783 `dE` (the scene scheduler) and 4736 (the section is registered with `deferRendering`, root margin `150% 0px`);
   * 4698-4703 the intersection rule (`threshold 0.12`), 4696 `setInterval(le, 3e3)`;
 * `snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css` 2273-2277, 2293-2298 `pain-note-stick` (0.56 s,
   `cubic-bezier(0.33, 1, 0.68, 1)`, `opacity 0 -> 1`, `scale 1.14 -> 1`).
@@ -764,5 +766,51 @@ theorem stickScale_mem (t : Rat) : 1 ≤ stickScale t ∧ stickScale t ≤ stick
   have := stick_mem t
   unfold stickScale stickScale0
   grind
+
+/-! ## The scene gate: a section out of range is skipped, so the layout does not follow a resize
+
+The original registers the whole Pain section with the scene scheduler (JS 4736: `dE(check, {deferRendering: true,
+element: section, rootMargin: "150% 0px"})`). Out of range the section is marked `deferred` two frames later and the
+stylesheet (2.gBuqKVzi.css 11760-11763) gives it `content-visibility: auto`: its subtree is not rendered, so the
+`ResizeObserver` on the canvas (JS 4711) does not fire and the notes keep the percentages of the last layout; the check
+callback runs only while the section is active (JS 2672). Back in range the observer fires and the layout is redone. -/
+
+/-- Root margin of the section's observer in percent of the viewport height (JS 4736). $$m = 150$$ -/
+def sceneMarginPct : Nat := 150
+
+/-- The scene gate at mount (JS 2723-2726 `lE`): the same rule as the commission card.
+$$\mathrm{active}(\mathit{top}, \mathit{bottom}, h) = (\mathit{bottom} \ge -h) \wedge (\mathit{top} \le 2h)$$ -/
+def sceneActive (top bottom h : Rat) : Bool := Fw.Parts.Commission.sceneActive top bottom h
+
+/-- The `data-render` attribute two frames after the gate settles (JS 2690-2705 `sE`): `active` while the section is in
+range, `deferred` once it is not. -/
+inductive Render where
+  | active
+  | deferred
+  deriving DecidableEq, Repr
+
+/-- The state after the two frames. $$\mathrm{render}(a) = \begin{cases}\mathrm{active} & a\\ \mathrm{deferred} & \neg a\end{cases}$$ -/
+def Render.after (active : Bool) : Render := if active then .active else .deferred
+
+/-- A deferred section skips its subtree (`content-visibility: auto`, CSS 11760-11763), so the canvas' resize observer
+does not run; an active one reports every resize. $$\mathrm{observes}(r) = (r = \mathrm{active})$$ -/
+def Render.observes (r : Render) : Bool := decide (r = .active)
+
+/-- Out of range the layout is not redone on a resize; in range it is.
+$$\forall a:\ \mathrm{observes}(\mathrm{render}(a)) = a$$ -/
+theorem resize_follows_scene (a : Bool) : (Render.after a).observes = a := by
+  cases a <;> rfl
+
+/-- The scroll check (`d`, JS 4730) is skipped while the section is out of range.
+$$\mathrm{observes}(\mathrm{render}(\mathrm{false})) = \mathrm{false}$$ -/
+theorem deferred_never_observes : (Render.after false).observes = false := rfl
+
+/-- The gate agrees with the commission card's. $$\mathrm{active} = \mathrm{Commission.active}$$ -/
+theorem sceneActive_eq (t b h : Rat) : sceneActive t b h = Fw.Parts.Commission.sceneActive t b h := rfl
+
+#guard sceneActive 0 900 900
+#guard !sceneActive 2000 2900 900
+#guard (Render.after true).observes
+#guard !(Render.after false).observes
 
 end Fw.Parts.PainNotes

@@ -138,6 +138,10 @@ export function createNotesDriver(env: NotesEnv, seed: number) {
     start: scheduleLayout,
     /** ResizeObserver or the narrow list changing (JS 4705-4709). */
     relayout: scheduleLayout,
+    /** The narrow list changing (JS 4709 `c = () => ce()`): laid out in the same task, not on a frame. */
+    layoutNow() {
+      layout();
+    },
     /** IntersectionObserver entry for the notes block (JS 4698-4701). */
     intersect(intersecting: boolean, ratio: number) {
       visibleNow = visible({ intersecting, ratio });

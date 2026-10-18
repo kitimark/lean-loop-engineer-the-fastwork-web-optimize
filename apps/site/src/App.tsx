@@ -53,15 +53,14 @@ export function App({ config }: { config: FwConfig }) {
         </Button>
       </Box>
 
-      <MorphPanel variant={config.variants['morph.panel'] ?? 'faithful'} impl={config.impl['morph.panel']} />
+      <MorphPanel
+        variant={config.variants['morph.panel'] ?? 'faithful'}
+        impl={config.impl['morph.panel']}
+        countdown={<MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />}
+      />
 
       <main>
         <Hero variants={config.variants} />
-        {/* stand-in for the morph panel at rest (scene paused); morph.panel replaces this host */}
-        <div data-start-selling-scene="paused">
-          <MorphCountdown variant={config.variants['morph.countdown'] ?? 'faithful'} impl={config.impl['morph.countdown']} />
-        </div>
-
         <People variants={config.variants} />
         <Pain variant={config.variants['pain'] ?? 'faithful'} notesVariant={config.variants['pain.notes'] ?? 'faithful'} />
         <Commission variant={config.variants['commission'] ?? 'faithful'} typingVariant={config.variants['commission.typing'] ?? 'faithful'} />

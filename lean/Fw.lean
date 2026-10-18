@@ -108,3 +108,4 @@ import Fw.Ops.LakeCache  -- site-build-cache: one Lake cache writer (cache_compl
 import Fw.Site.GenRoute  -- site-build-cache: breakgen / sweepsgen split (split_agrees)
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
+import Fw.Gate.PageOffset  -- fix-page-offset: page-level top-of-part check (proposal)

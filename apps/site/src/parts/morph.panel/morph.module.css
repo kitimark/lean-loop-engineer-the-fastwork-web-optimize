@@ -78,6 +78,11 @@
     margin-top: 32px;
     display: flex;
   }
+  /* the slot is the original's countdown element (32 px margin); the clock's own wrap inside it adds none, or the
+     margin doubles and the page below the panel shifts */
+  .countdown > :global([data-fw='morph-countdown']) {
+    margin-top: 0;
+  }
   /* component rule (column flex, gap 8) overridden by the page's inline style (grid, 12px / 8px gaps; 1 column at <=600) */
   .ctaStack {
     flex-direction: column;

@@ -31,6 +31,8 @@ goldenConformance('pain.notes', {
   permute: (i) => L.permute({ draws: i.draws as number[], xs: i.xs as number[] }),
   jit: (i) => L.jit({ c: i.c as number, r: i.r as number, s: i.s as number }),
   pickText: (i) => L.pickText({ used: i.used as number[], r: i.r as number }),
+  sceneActive: (i) => L.sceneActive({ top: i.top as number, bottom: i.bottom as number, h: i.h as number }),
+  renderObserves: (i) => L.renderObserves({ active: i.active as boolean }),
   rotation: (i) => L.rotation({ j: i.j as number }),
   dragAllowed: (i) => L.dragAllowed({ c860: i.c860 as boolean, button: i.button as number, mouse: i.mouse as boolean }),
   dragPos: (i) => L.dragPos({ origin: i.origin as number, start: i.start as number, cur: i.cur as number, container: i.container as number, sizePct: i.sizePct as number }),

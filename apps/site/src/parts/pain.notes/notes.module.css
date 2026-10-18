@@ -1,6 +1,17 @@
 /* Values restated from the original (assets/2.gBuqKVzi.css:2194-2200, 2250-2298, 2316-2320, 2347-2356, 1167-1172). Spec of the stick curve:
    lean/Fw/Parts/PainNotes.lean (stickMs 560, stickScale0 1.14, cubic-bezier(0.33, 1, 0.68, 1)). */
 @layer parts {
+  /* The scene scheduler marks the whole Pain section (assets/2.gBuqKVzi.css:11755-11763; JS 2690-2705): out of range its
+     animations pause and, two frames later, its subtree is skipped (so the canvas' ResizeObserver does not run). */
+  [data-fw="pain"][data-scene="paused"],
+  [data-fw="pain"][data-scene="paused"] :where(*) {
+    will-change: auto !important;
+    animation-play-state: paused !important;
+  }
+  [data-fw="pain"][data-render="deferred"] {
+    contain-intrinsic-block-size: auto var(--start-selling-intrinsic-block-size, 100vh);
+    content-visibility: auto;
+  }
   .canvas {
     z-index: 1;
     pointer-events: none;
