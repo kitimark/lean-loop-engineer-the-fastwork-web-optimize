@@ -1,66 +1,57 @@
-// Which commit of `main` was the fwcore binary built from? TS STAND-IN for Fw.Obs.chooseBase (lean/Fw/Obs/Stale.lean:
-// chooseBase, fromLog; theorems chooseBase_fresh, chooseBase_stale_record, chooseBase_no_move, fromLog_mem), to be
-// replaced by an fwcore op; test/build-base.test.ts holds the same table as the `#guard`s in that file.
+// Which commit was the fwcore binary built from? TS STAND-IN for Fw.Obs.chooseBase (lean/Fw/Obs/Stale.lean: chooseBase,
+// theorems chooseBase_accepted, chooseBase_at_iff, chooseBase_mismatch, chooseBase_none, chooseBase_unknown_alerts),
+// to be replaced by an fwcore op; test/build-base.test.ts holds the same table as the `#guard`s in that file.
 //
-// scripts/fwcore-build.sh writes `fwcore.commit` AFTER a successful build, so a record is at least as new as its
-// binary. A plain `lake build` leaves the old record behind (older than the binary): it says nothing. Then the base is
-// the newest ref move of `main` at or before the binary's mtime (a build starts at a head of `main`). No such move, or
-// two moves in the same second: unknown. Unknown is an alert (svc.unknown), never silence.
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+// The only source is the build record `<binary>.commit` written by scripts/fwcore-build.sh after a successful build on a
+// clean tree: "<sha of HEAD read before the build> <sha256 of the built binary>". It is accepted only when the sha256
+// of the binary on disk equals the recorded one. No record, another binary's record, a dirty or mid-merge build: the
+// commit is unknown, which is an alert (svc.unknown), never silence and never a guess from file times or the reflog.
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export type Base = { sha: string } | { unknown: string };
-/** Reflog entries of `main`, newest first; times in seconds. */
-export type LogEntry = { sha: string; time: number };
+/** The build record: the commit and the sha256 (hex) of the binary it produced. */
+export type BuildRecord = { sha: string; hash: string };
 
 export const SHA = /^[0-9a-f]{40}$/;
+const HASH = /^[0-9a-f]{64}$/;
 export const CORE_BIN_REL = "lean/.lake/build/bin/fwcore";
 export const CORE_COMMIT_REL = `${CORE_BIN_REL}.commit`;
+export const BUILD_HINT = "sh scripts/fwcore-build.sh";
 
-export function fromLog(bin: number, log: LogEntry[]): Base {
-  const c = log.filter((e) => e.time <= bin);
-  if (c.length === 0) return { unknown: "no move of main at or before the binary" };
-  const [first, ...rest] = c as [LogEntry, ...LogEntry[]];
-  if (rest.some((e) => e.time === first.time)) return { unknown: "two moves of main in the same second as the binary's base" };
-  return { sha: first.sha };
+/** Same reasons as Fw.Obs.chooseBase. */
+export const WHY_MISMATCH = `the build record does not match the binary (rebuilt without scripts/fwcore-build.sh)`;
+export const WHY_NO_RECORD = `no build record: build with scripts/fwcore-build.sh`;
+
+export function chooseBase(binHash: string, rec: BuildRecord | null): Base {
+  if (rec === null) return { unknown: WHY_NO_RECORD };
+  return rec.hash === binHash ? { sha: rec.sha } : { unknown: WHY_MISMATCH };
 }
 
-export function chooseBase(bin: number, rec: { sha: string; time: number } | null, log: LogEntry[]): Base {
-  if (rec !== null && bin <= rec.time) return { sha: rec.sha };
-  return fromLog(bin, log);
+/** `"<sha> <sha256>\n"` -> record; null when malformed. */
+export function parseRecord(text: string): BuildRecord | null {
+  const m = /^([0-9a-f]{40}) ([0-9a-f]{64})\s*$/.exec(text);
+  return m && SHA.test(m[1]!) && HASH.test(m[2]!) ? { sha: m[1]!, hash: m[2]! } : null;
 }
 
-/** `git reflog show --date=unix --format='%H %gd' main` output -> entries (lines that do not parse are dropped). */
-export function parseReflog(out: string): LogEntry[] {
-  const res: LogEntry[] = [];
-  for (const line of out.split("\n")) {
-    const m = /^([0-9a-f]{40}) main@\{(\d+)\}$/.exec(line.trim());
-    if (m) res.push({ sha: m[1]!, time: Number(m[2]) });
-  }
-  return res;
+/** The record next to the binary, or null when absent or malformed. */
+export function readRecord(binPath: string): BuildRecord | null {
+  try { return parseRecord(readFileSync(`${binPath}.commit`, "utf8")); } catch { return null; }
 }
 
-export const REFLOG_ARGS = ["reflog", "show", "--date=unix", "--format=%H %gd", "main"];
-
-/** The record next to the binary: its commit and mtime (seconds), or null when absent or malformed. */
-export function readRecord(binPath: string): { sha: string; time: number } | null {
-  const rp = `${binPath}.commit`;
-  try {
-    const sha = readFileSync(rp, "utf8").trim();
-    return SHA.test(sha) ? { sha, time: Math.floor(statSync(rp).mtimeMs / 1000) } : null;
-  } catch { return null; }
-}
-
-/** The build commit of the binary at `binPath`, with git run in `root` (sync; console-api calls it at each spawn). */
-export function buildBase(root: string, binPath: string): Base {
-  if (!existsSync(binPath)) return { unknown: "no fwcore binary" };
-  const bin = Math.floor(statSync(binPath).mtimeMs / 1000);
-  const rec = readRecord(binPath);
-  if (rec !== null && bin <= rec.time) return { sha: rec.sha };
-  try {
-    return fromLog(bin, parseReflog(execFileSync("git", REFLOG_ARGS, { cwd: root, encoding: "utf8", timeout: 5000 })));
-  } catch (e) { return { unknown: `git reflog failed: ${(e as Error).message.split("\n")[0]}` }; }
-}
+export const sha256File = (path: string): string => createHash("sha256").update(readFileSync(path)).digest("hex");
 
 export const binIn = (root: string) => join(root, CORE_BIN_REL);
+
+/** The build commit of the binary at `binPath` for the checkout `codeRoot` that runs it. A binary that is not
+ *  `<codeRoot>/lean/.lake/build/bin/fwcore` (FW_CORE_BIN, another checkout) with no matching record is unknown, with the
+ *  fact said in the reason: another checkout's data is never used. Pure file reads: no git. */
+export function buildBase(codeRoot: string, binPath: string): Base {
+  if (!existsSync(binPath)) return { unknown: `no fwcore binary (${BUILD_HINT})` };
+  let h: string;
+  try { h = sha256File(binPath); } catch (e) { return { unknown: `cannot read the fwcore binary: ${(e as Error).message.split("\n")[0]}` }; }
+  const b = chooseBase(h, readRecord(binPath));
+  if ("sha" in b || binPath === binIn(codeRoot)) return b;
+  return { unknown: `${b.unknown}; the binary is not ${CORE_BIN_REL} of the checkout this code runs from` };
+}

@@ -1,29 +1,40 @@
 #!/bin/sh
-# The one way to build the fwcore binary (task console-stale). It records the commit the binary was built from next to
-# it (lean/.lake/build/bin/fwcore.commit), read by console-api (at each child spawn) and `fw watch`.
+# The one way to build the fwcore binary (task console-stale; lean/scripts/check.sh and `fw land` build through it).
+# After a successful build on a clean tree it writes the build record next to the binary:
+#   lean/.lake/build/bin/fwcore.commit  =  "<sha of HEAD read before the build> <sha256 of the built binary>"
+# console-api (at each child spawn) and `fw watch` accept a record only when the sha256 of the binary now on disk equals
+# the recorded one (Fw.Obs.chooseBase). Nothing is inferred from file times or the reflog: no record, a record of
+# another binary, or a dirty/mid-merge build leaves the core unknown, which the watcher reports as svc.unknown.
 #
-# - The commit is read BEFORE `lake build`: if `main` moves during the build, the record names the commit built from.
-# - The record is written only after a successful build, and only on a clean tree that is not mid-merge or
-#   mid-rebase: otherwise the binary has no record (an unidentifiable build, which `fw watch` reports as svc.unknown
-#   unless the reflog of main identifies it). The build itself still runs.
-# - A plain `lake build` writes no record; its binary is newer than any old record, which then counts for nothing.
+# - HEAD is read BEFORE `lake build`: if `main` moves during the build, the record names the commit built from.
+# - The record is written only after a successful build, only on a tree that is clean before and after the build
+#   (tracked changes, untracked files under lean/) and has no merge, rebase or cherry-pick in progress, and only when
+#   HEAD did not move. Otherwise the old record is removed; the build itself still runs.
 # Run it in the checkout whose binary runs: sh scripts/fwcore-build.sh
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
+bin=lean/.lake/build/bin/fwcore
+rm -f "$bin.commit"
 c=$(git rev-parse HEAD)
 gitdir=$(git rev-parse --git-dir)
-clean=1
 reason=""
-if ! git diff --quiet HEAD -- . || [ -n "$(git ls-files --others --exclude-standard -- lean)" ]; then clean=0; reason="dirty tree"; fi
-for m in MERGE_HEAD REBASE_HEAD CHERRY_PICK_HEAD rebase-merge rebase-apply; do
-  if [ -e "$gitdir/$m" ]; then clean=0; reason="mid-merge or mid-rebase ($m)"; fi
-done
+state_check() {
+  if ! git diff --quiet HEAD -- . || [ -n "$(git ls-files --others --exclude-standard -- lean)" ]; then reason="dirty tree"; fi
+  for m in MERGE_HEAD REBASE_HEAD CHERRY_PICK_HEAD rebase-merge rebase-apply; do
+    if [ -e "$gitdir/$m" ]; then reason="mid-merge or mid-rebase ($m)"; fi
+  done
+}
+state_check
 (cd lean && lake build)
-if [ "$clean" = 1 ]; then
-  echo "$c" > lean/.lake/build/bin/fwcore.commit
-  echo "fwcore built from $c (recorded)"
-else
-  rm -f lean/.lake/build/bin/fwcore.commit
-  echo "fwcore built; no build record written ($reason): the binary's commit is unknown to the watcher" >&2
+if [ -z "$reason" ]; then
+  state_check
+  [ "$(git rev-parse HEAD)" = "$c" ] || reason="HEAD moved during the build"
 fi
+if [ -n "$reason" ]; then
+  echo "fwcore built; no build record written ($reason): the binary's commit is unknown to the watcher" >&2
+  exit 0
+fi
+if command -v sha256sum >/dev/null 2>&1; then h=$(sha256sum "$bin" | cut -d' ' -f1); else h=$(shasum -a 256 "$bin" | cut -d' ' -f1); fi
+echo "$c $h" > "$bin.commit"
+echo "fwcore built from $c (recorded, sha256 $(echo "$h" | cut -c1-12))"

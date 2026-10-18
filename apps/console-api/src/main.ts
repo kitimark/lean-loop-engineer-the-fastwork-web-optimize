@@ -1,5 +1,5 @@
 import { appendFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
@@ -31,22 +31,24 @@ try {
 }
 // What actually runs: console-api's own code (the commit it started from) and its ONE long-lived fwcore child, spawned
 // from the binary on disk at that moment. At every spawn the child's build commit is recorded in api.json (`coreCommit`,
-// or `coreUnknown` with the reason when the binary's commit cannot be identified: `fw watch` raises svc.unknown). A
+// or `coreUnknown` with the reason when no build record of scripts/fwcore-build.sh matches the binary: `fw watch` raises
+// svc.unknown). Both are judged for the checkout the code runs from (codeRoot), never for another one. A
 // rebuild on disk changes neither until the child respawns or console-api restarts (Fw.Obs.Stack).
-const root = dirname(dir);
-const service = { commit: codeCommit(root), startedAt };
+const root = dirname(dir); // the main checkout: owns .fw-console and the reconciler
+const here = dirname(fileURLToPath(import.meta.url));
+const codeRoot = resolve(here, "../../.."); // the checkout this code runs from (it can be a linked worktree)
+const service = { commit: codeCommit(codeRoot), startedAt };
 let coreInfo: { coreCommit?: string; coreUnknown?: string } = {};
 let listening: { port: number } | null = null;
 const writeApi = () => {
   if (listening) writeFileSync(join(dir, "api.json"), JSON.stringify({ port: listening.port, pid: process.pid, ...service, ...coreInfo }));
 };
 core.onSpawn = (binPath) => {
-  const b = buildBase(root, binPath);
+  const b = buildBase(codeRoot, binPath);
   coreInfo = "sha" in b ? { coreCommit: b.sha } : { coreUnknown: b.unknown };
   writeApi();
 };
 const store = await Store.open(dir, core);
-const here = dirname(fileURLToPath(import.meta.url));
 const reconciler = new Reconciler(store, root);
 reconciler.start();
 const previews = new PreviewManager(dirname(dir), dir, core);

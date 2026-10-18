@@ -96,16 +96,37 @@ def Svc.unknownB (s : Svc) : Bool := s.unknown.isSome
 
 /-! ### The history model
 
-`main` is a first-parent history, oldest first; each commit is the list of paths it touches. A base commit is a
-position `b` in it (the number of commits it contains). Every statement below is about this model: whether the
-range after the base touches a path. -/
+`main` is a first-parent history, oldest first; each commit is the list of files it touches. A base commit is a
+position `b` in it (the number of commits it contains). An input `x` is a git pathspec: a file, or a directory that
+covers every file below it (`git log -- lean/Fw` matches `lean/Fw/Obs/Stale.lean`, not `lean/Fw.lean`). The model
+is that same predicate (`covers`), so the statements below are about what the collector measures. Every statement
+below is about this model: whether the range after the base touches an input. -/
 
-/-- The path is touched by the range after position `b`.
+/-- The input `x` covers the file `f`: they are equal, or `f` lies below the directory `x`.
 
-$$\operatorname{touched}(H, b, x) \iff \exists c \in H[b..].\ x \in c$$
+$$\operatorname{covers}(x, f) \iff f = x \vee (x \mathbin{+\!\!+} \texttt{"/"}) \sqsubseteq f$$
+-/
+def covers (x f : String) : Bool := f == x || (x ++ "/").isPrefixOf f
+
+/-- An input covers itself.
+
+$$\forall x:\quad \operatorname{covers}(x, x)$$
+-/
+theorem covers_self (x : String) : covers x x = true := by simp [covers]
+
+/-- A directory input covers the files below it.
+
+$$\forall x, r:\quad \operatorname{covers}(x,\ x \mathbin{+\!\!+} \texttt{"/"} \mathbin{+\!\!+} r)$$
+-/
+theorem covers_child (x r : String) : covers x (x ++ "/" ++ r) = true := by
+  simp [covers, String.isPrefixOf]
+
+/-- The input is touched by the range after position `b`: some commit of the range changes a file it covers.
+
+$$\operatorname{touched}(H, b, x) \iff \exists c \in H[b..],\ f \in c.\ \operatorname{covers}(x, f)$$
 -/
 def touched (hist : List (List String)) (b : Nat) (x : String) : Bool :=
-  (hist.drop b).any (fun c => decide (x ∈ c))
+  (hist.drop b).any (fun c => c.any (covers x))
 
 /-- The input groups `X` judged against base position `b` of the history `H`.
 
@@ -128,14 +149,15 @@ $$\forall H, x:\quad \neg\operatorname{touched}(H, |H|, x)$$
 theorem touched_length (hist : List (List String)) (x : String) : touched hist hist.length x = false := by
   simp [touched]
 
-/-- A commit on `main` at or after the base that touches a path marks it: a landing after the start is stale.
+/-- A commit on `main` at or after the base that changes a file an input covers marks it: a landing after the start is
+stale.
 
-$$\forall H, b, j, c, x:\quad b \le j \wedge H[j] = c \wedge x \in c \Rightarrow \operatorname{touched}(H, b, x)$$
+$$\forall H, b, j, c, x, f:\quad b \le j \wedge H[j] = c \wedge f \in c \wedge \operatorname{covers}(x, f) \Rightarrow \operatorname{touched}(H, b, x)$$
 -/
 theorem touched_of_mem (hist : List (List String)) (b j : Nat) (hj : b ≤ j) (c : List String)
-    (hc : hist[j]? = some c) (x : String) (hx : x ∈ c) : touched hist b x = true := by
-  simp only [touched, List.any_eq_true, decide_eq_true_eq]
-  refine ⟨c, ?_, hx⟩
+    (hc : hist[j]? = some c) (x f : String) (hf : f ∈ c) (hx : covers x f = true) : touched hist b x = true := by
+  simp only [touched, List.any_eq_true]
+  refine ⟨c, ?_, f, hf, hx⟩
   rw [List.mem_iff_getElem?]
   exact ⟨j - b, by rw [List.getElem?_drop]; simpa [Nat.add_sub_cancel' hj] using hc⟩
 
@@ -145,7 +167,7 @@ $$\forall H, E, b, x:\quad \operatorname{touched}(H, b, x) \Rightarrow \operator
 -/
 theorem touched_append (hist ext : List (List String)) (b : Nat) (x : String)
     (h : touched hist b x = true) : touched (hist ++ ext) b x = true := by
-  simp only [touched, List.any_eq_true, decide_eq_true_eq, List.drop_append] at h ⊢
+  simp only [touched, List.any_eq_true, List.drop_append] at h ⊢
   obtain ⟨c, hc, hx⟩ := h
   exact ⟨c, List.mem_append.2 (.inl hc), hx⟩
 
@@ -236,13 +258,13 @@ def Stack.rebuild (hist : List (List String)) (t : Stack) : Stack := { t with di
 child's build commit touched a `fwcore` input, console-api is still stale after the rebuild. (The old model said a
 rebuild cleared everything: the false negative of round 3.)
 
-$$\forall H, \Theta, j, c, x:\quad k \le j \wedge H[j] = c \wedge x \in c \wedge x \in K \Rightarrow \operatorname{stale}(\operatorname{api}(H, \operatorname{rebuild}(H, \Theta)))$$
+$$\forall H, \Theta, j, c, x, f:\quad k \le j \wedge H[j] = c \wedge f \in c \wedge \operatorname{covers}(x, f) \wedge x \in K \Rightarrow \operatorname{stale}(\operatorname{api}(H, \operatorname{rebuild}(H, \Theta)))$$
 -/
 theorem rebuild_without_restart_api_stale (hist : List (List String)) (apiOwn coreIn : List String) (t : Stack)
-    (j : Nat) (hj : t.coreBase ≤ j) (c : List String) (hc : hist[j]? = some c) (x : String) (hx : x ∈ c)
-    (hk : x ∈ coreIn) :
+    (j : Nat) (hj : t.coreBase ≤ j) (c : List String) (hc : hist[j]? = some c) (x f : String)
+    (hf : f ∈ c) (hx : covers x f = true) (hk : x ∈ coreIn) :
     ((t.rebuild hist).api hist apiOwn coreIn).staleB = true := by
-  refine (Svc.stale_iff _).2 ⟨⟨x, touched hist t.coreBase x⟩, ?_, touched_of_mem hist t.coreBase j hj c hc x hx⟩
+  refine (Svc.stale_iff _).2 ⟨⟨x, touched hist t.coreBase x⟩, ?_, touched_of_mem hist t.coreBase j hj c hc x f hf hx⟩
   simp only [Stack.api, Stack.rebuild, List.mem_append, judgeInputs, List.mem_map]
   exact .inr ⟨x, hk, rfl⟩
 
@@ -273,15 +295,15 @@ theorem restartApi_after_rebuild_clears (hist : List (List String)) (apiOwn core
 /-- Restarting console-api without a rebuild leaves the core inputs stale: the new child comes from the stale binary on
 disk, while console-api's own inputs are fresh.
 
-$$\forall H, \Theta, j, c, x:\quad d \le j \wedge H[j] = c \wedge x \in c \wedge x \in K \Rightarrow \operatorname{stale}(\operatorname{api}(H, \operatorname{restartApi}(H, \Theta))) \wedge \operatorname{stale}(\operatorname{disk}(H, \operatorname{restartApi}(H, \Theta))) \wedge \neg\operatorname{stale}(\operatorname{judge}(H, |H|, \texttt{console-api}, A))$$
+$$\forall H, \Theta, j, c, x, f:\quad d \le j \wedge H[j] = c \wedge f \in c \wedge \operatorname{covers}(x, f) \wedge x \in K \Rightarrow \operatorname{stale}(\operatorname{api}(H, \operatorname{restartApi}(H, \Theta))) \wedge \operatorname{stale}(\operatorname{disk}(H, \operatorname{restartApi}(H, \Theta))) \wedge \neg\operatorname{stale}(\operatorname{judge}(H, |H|, \texttt{console-api}, A))$$
 -/
 theorem restartApi_without_rebuild_stale (hist : List (List String)) (apiOwn coreIn : List String) (t : Stack)
-    (j : Nat) (hj : t.diskBase ≤ j) (c : List String) (hc : hist[j]? = some c) (x : String) (hx : x ∈ c)
-    (hk : x ∈ coreIn) :
+    (j : Nat) (hj : t.diskBase ≤ j) (c : List String) (hc : hist[j]? = some c) (x f : String)
+    (hf : f ∈ c) (hx : covers x f = true) (hk : x ∈ coreIn) :
     ((t.restartApi hist).api hist apiOwn coreIn).staleB = true ∧
       ((t.restartApi hist).disk hist coreIn).staleB = true ∧
       (Svc.judge hist (t.restartApi hist).apiBase "console-api" apiOwn).staleB = false := by
-  have ht := touched_of_mem hist t.diskBase j hj c hc x hx
+  have ht := touched_of_mem hist t.diskBase j hj c hc x f hf hx
   refine ⟨(Svc.stale_iff _).2 ⟨⟨x, touched hist t.diskBase x⟩, ?_, ht⟩,
     (Svc.stale_iff _).2 ⟨⟨x, touched hist t.diskBase x⟩, ?_, ht⟩, Svc.judge_head_not_stale hist "console-api" apiOwn⟩
   · simp only [Stack.api, Stack.restartApi, List.mem_append, judgeInputs, List.mem_map]
@@ -297,11 +319,13 @@ theorem respawn_coreBase (t : Stack) : t.respawn.coreBase = t.diskBase := rfl
 
 /-! ### Which commit was a binary built from
 
-The build script records the commit (`sha`) in a file written after the build succeeded, so the record is at least as
-new as the binary. A plain `lake build` leaves the old record behind, older than the binary: such a record says
-nothing. Then the build commit is read from the reflog of `main`: the newest ref move at or before the binary's time
-(a build starts at a head of `main`; a land moves `main` 23-89 s after it). If that is ambiguous (no move at or before
-the binary, or two moves in the same second), the commit is unknown. All times are seconds. -/
+No time is compared and nothing is inferred from file times or the reflog: a binary's commit is known only from the
+build record that `scripts/fwcore-build.sh` writes after a successful build on a clean tree that is not mid-merge:
+the pair `(s, h)` of the commit `s` read BEFORE the build and the sha256 `h` of the binary it produced. The record is
+tied to the binary by content, so a later build that replaces the binary (even one that restores a cached file with an
+old mtime) makes the record not match, and the binary is unknown. A record is accepted only when the sha256 `h_b` of
+the binary now on disk equals the recorded one. Otherwise (no record, mismatch, a dirty or mid-merge build writes none)
+the commit is unknown, which is an alert, never a guess. -/
 
 /-- The build commit of a binary: a commit, or unknown with the reason.
 
@@ -312,82 +336,89 @@ inductive Base where
   | unknown (why : String)
 deriving DecidableEq, Repr
 
-/-- The base from the reflog of `main` (entries `(sha, time)`, newest first): the newest move at or before the binary
-time `t_b`; unknown when there is none or two moves share its second.
+/-- The base commit of a binary whose sha256 is `h_b`, given its build record `(s, h)` (if any).
 
-$$\operatorname{fromLog}(t_b, L) = \begin{cases} \operatorname{at}(s) & L_{\le t_b} = (s, t) :: R,\ \forall (s', t') \in R.\ t' \ne t \\ \operatorname{unknown} & \text{otherwise}\end{cases}$$
+$$\operatorname{base}(h_b, r) = \begin{cases} \operatorname{at}(s) & r = (s, h),\ h = h_b \\ \operatorname{unknown} & \text{otherwise (no record, or } h \ne h_b)\end{cases}$$
 -/
-def fromLog (bin : Nat) (log : List (String × Nat)) : Base :=
-  match log.filter (fun e => decide (e.2 ≤ bin)) with
-  | [] => .unknown "no move of main at or before the binary"
-  | (s, t) :: rest =>
-    if rest.any (fun e => e.2 == t) then .unknown "two moves of main in the same second as the binary's base" else .at s
-
-/-- The base commit of a binary with mtime `t_b`, given its build record `(sha, t_r)` (if any) and the reflog.
-
-$$\operatorname{base}(t_b, r, L) = \begin{cases} \operatorname{at}(s) & r = (s, t_r),\ t_b \le t_r \\ \operatorname{fromLog}(t_b, L) & \text{otherwise}\end{cases}$$
--/
-def chooseBase (bin : Nat) (rec : Option (String × Nat)) (log : List (String × Nat)) : Base :=
+def chooseBase (binHash : String) (rec : Option (String × String)) : Base :=
   match rec with
-  | some (s, tr) => if bin ≤ tr then .at s else fromLog bin log
-  | none => fromLog bin log
+  | some (s, h) =>
+    if h = binHash then .at s else .unknown "the build record does not match the binary (rebuilt without scripts/fwcore-build.sh)"
+  | none => .unknown "no build record: build with scripts/fwcore-build.sh"
 
-/-- A record not older than the binary is the base.
+/-- An accepted record is the base: the recorded commit, unchanged.
 
-$$\forall s, t_r, L:\quad t_b \le t_r \Rightarrow \operatorname{base}(t_b, (s, t_r), L) = \operatorname{at}(s)$$
+$$\forall h_b, s:\quad \operatorname{base}(h_b, (s, h_b)) = \operatorname{at}(s)$$
 -/
-theorem chooseBase_fresh (bin : Nat) (s : String) (tr : Nat) (log : List (String × Nat)) (h : bin ≤ tr) :
-    chooseBase bin (some (s, tr)) log = .at s := by
-  simp [chooseBase, h]
+theorem chooseBase_accepted (binHash s : String) : chooseBase binHash (some (s, binHash)) = .at s := by
+  simp [chooseBase]
 
-/-- A record older than the binary (binary mtime greater) is ignored: the answer is the reflog's.
+/-- The base is a commit exactly when the record names it and carries the binary's own hash (identity: nothing is
+inferred, nothing is invented).
 
-$$\forall s, t_r, L:\quad t_r < t_b \Rightarrow \operatorname{base}(t_b, (s, t_r), L) = \operatorname{base}(t_b, \bot, L)$$
+$$\forall h_b, r, s:\quad \operatorname{base}(h_b, r) = \operatorname{at}(s) \iff r = (s, h_b)$$
 -/
-theorem chooseBase_stale_record (bin : Nat) (s : String) (tr : Nat) (log : List (String × Nat)) (h : tr < bin) :
-    chooseBase bin (some (s, tr)) log = chooseBase bin none log := by
-  simp [chooseBase, Nat.not_le.2 h]
+theorem chooseBase_at_iff (binHash : String) (rec : Option (String × String)) (s : String) :
+    chooseBase binHash rec = .at s ↔ rec = some (s, binHash) := by
+  constructor
+  · intro h
+    cases rec with
+    | none => simp [chooseBase] at h
+    | some r =>
+      obtain ⟨s', h'⟩ := r
+      by_cases hh : h' = binHash
+      · subst hh; simp [chooseBase] at h; subst h; rfl
+      · simp [chooseBase, hh] at h
+  · rintro rfl; exact chooseBase_accepted binHash s
 
-/-- No record and no move of `main` at or before the binary: unknown, never a guess.
+/-- A record whose hash is not the binary's is never accepted: the base is unknown.
 
-$$\forall L:\quad (\forall (s, t) \in L.\ t_b < t) \Rightarrow \operatorname{base}(t_b, \bot, L) = \operatorname{unknown}$$
+$$\forall h_b, s, h:\quad h \ne h_b \Rightarrow \exists w.\ \operatorname{base}(h_b, (s, h)) = \operatorname{unknown}(w)$$
 -/
-theorem chooseBase_no_move (bin : Nat) (log : List (String × Nat)) (h : ∀ e ∈ log, bin < e.2) :
-    ∃ why, chooseBase bin none log = .unknown why := by
-  have hf : log.filter (fun e => decide (e.2 ≤ bin)) = [] := by
-    apply List.filter_eq_nil_iff.2
-    intro e he
-    simpa using h e he
-  exact ⟨"no move of main at or before the binary", by simp [chooseBase, fromLog, hf]⟩
+theorem chooseBase_mismatch (binHash s h : String) (hne : h ≠ binHash) :
+    ∃ why, chooseBase binHash (some (s, h)) = .unknown why :=
+  ⟨"the build record does not match the binary (rebuilt without scripts/fwcore-build.sh)", by simp [chooseBase, hne]⟩
 
-/-- A commit named by the reflog was a head of `main` at or before the binary.
+/-- No record: unknown.
 
-$$\forall s:\quad \operatorname{fromLog}(t_b, L) = \operatorname{at}(s) \Rightarrow \exists t \le t_b.\ (s, t) \in L$$
+$$\forall h_b:\quad \exists w.\ \operatorname{base}(h_b, \bot) = \operatorname{unknown}(w)$$
 -/
-theorem fromLog_mem (bin : Nat) (log : List (String × Nat)) (s : String) (h : fromLog bin log = .at s) :
-    ∃ t, t ≤ bin ∧ (s, t) ∈ log := by
-  unfold fromLog at h
-  split at h
-  · cases h
-  · rename_i hs s' t rest hc
-    split at h
-    · cases h
-    · cases h
-      have hm : (s, t) ∈ log.filter (fun e => decide (e.2 ≤ bin)) := by rw [hc]; exact List.mem_cons_self
-      rw [List.mem_filter] at hm
-      exact ⟨t, by simpa using hm.2, hm.1⟩
+theorem chooseBase_none (binHash : String) : ∃ why, chooseBase binHash none = .unknown why :=
+  ⟨_, rfl⟩
 
--- A land builds in the pre-lock window: the binary is built at 1000 from head `old` (moved at 100); `main` moves to
--- `new` at 1030. A plain `lake build` leaves no record: the base is `old`, and `new`'s changes are then seen.
-#guard chooseBase 1000 none [("new", 1030), ("old", 100)] == .at "old"
--- the same binary with a record from an older script build: the record is older than the binary, so ignored
-#guard chooseBase 1000 (some ("ancient", 50)) [("new", 1030), ("old", 100)] == .at "old"
-#guard chooseBase 1000 (some ("old", 1001)) [("new", 1030), ("old", 100)] == .at "old"
--- nothing identifies the build: unknown
-#guard chooseBase 1000 none [("new", 1030)] == .unknown "no move of main at or before the binary"
-#guard chooseBase 1000 none [] == .unknown "no move of main at or before the binary"
-#guard chooseBase 1000 none [("b", 100), ("a", 100)] == .unknown "two moves of main in the same second as the binary's base"
--- a record exactly as new as the binary (same second) counts
-#guard chooseBase 1000 (some ("rec", 1000)) [] == .at "rec"
+/-- The reason of an unidentified base (`none` when it is a commit).
+
+$$u(\operatorname{at}(s)) = \bot,\quad u(\operatorname{unknown}(w)) = w$$
+-/
+def Base.unknownOf : Base → Option String
+  | .at _ => none
+  | .unknown w => some w
+
+/-- The service whose code is the binary of base `b`: it carries no inputs of its own here; an unidentified base is
+its `unknown` reason (`svc.unknown`, `unknown_service_alerts` in `Fw.Obs.Health` fires for it).
+
+$$\operatorname{svc}(n, b) = (n, [\,], u(b))$$
+-/
+def Base.svc (name : String) (b : Base) : Svc := { name, unknown := b.unknownOf }
+
+/-- Unknown always alerts: whenever the record does not name the binary (no record, mismatch), the service built from
+it is `unknown`, which `unknown_service_alerts` turns into a `svc.unknown` alert.
+
+$$\forall h_b, r, n:\quad (\forall s.\ r \ne (s, h_b)) \Rightarrow \operatorname{unknown}(\operatorname{svc}(n, \operatorname{base}(h_b, r)))$$
+-/
+theorem chooseBase_unknown_alerts (binHash : String) (rec : Option (String × String)) (name : String)
+    (h : ∀ s, rec ≠ some (s, binHash)) : (Base.svc name (chooseBase binHash rec)).unknownB = true := by
+  cases hb : chooseBase binHash rec with
+  | «at» s => exact absurd ((chooseBase_at_iff binHash rec s).1 hb) (h s)
+  | unknown w => rfl
+
+-- the table of `apps/console-api/test/build-base.test.ts`
+#guard chooseBase "H1" (some ("c1", "H1")) == .at "c1"
+#guard (chooseBase "H2" (some ("c1", "H1"))).unknownOf.isSome
+#guard (chooseBase "H1" none).unknownOf.isSome
+#guard covers "lean/Fw" "lean/Fw/Obs/Stale.lean"
+#guard covers "lean/Fw" "lean/Fw"
+#guard !covers "lean/Fw" "lean/Fw.lean"
+#guard !covers "lean/Fw" "lean/Fwx/a"
 
 end Fw.Obs

@@ -1610,7 +1610,7 @@ theorem sStale_restart (o : Obs) (hist : List (List String)) (n : String) (X : L
 
 /-- The report holds a `svc.unknown` alert exactly when it is the alert of a service whose code cannot be identified.
 
-$$\forall p, o, x:\quad \bigl(x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{svc.unknown}\bigr) \iff \exists s \in \Sigma.\mathit{svcs}, r.\ u(s) = r \wedge x = \operatorname{unknownAlert}(s, r)$$
+$$\forall p, o, x:\quad \bigl(x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{svc.unknown}\bigr) \iff \exists s \in \Sigma.\mathit{svcs}, r.\ u(s) = \operatorname{some}(r) \wedge x = \operatorname{unknownAlert}(s, r)$$
 -/
 theorem svcUnknown_iff (p : Params) (o : Obs) (x : Alert) :
     (x ∈ (health p o).alerts ∧ x.code = .svcUnknown) ↔
@@ -1632,12 +1632,26 @@ theorem svcUnknown_iff (p : Params) (o : Obs) (x : Alert) :
 
 /-- Never silence: a service whose running code cannot be identified always has an alert in the report, named after it.
 
-$$\forall s \in \Sigma.\mathit{svcs}:\quad u(s) = r \Rightarrow \exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{svc.unknown} \wedge \mathit{subject}(x) = \mathit{name}(s)$$
+$$\forall s \in \Sigma.\mathit{svcs}, r:\quad u(s) = \operatorname{some}(r) \Rightarrow \exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{svc.unknown} \wedge \mathit{subject}(x) = \mathit{name}(s)$$
 -/
 theorem unknown_service_alerts (p : Params) (o : Obs) (s : Svc) (hs : s ∈ o.system.svcs) (r : String)
     (hu : s.unknown = some r) :
     ∃ x ∈ (health p o).alerts, x.code = .svcUnknown ∧ x.subject = s.name :=
   ⟨unknownAlert s r, ((svcUnknown_iff p o _).2 ⟨s, hs, r, hu, rfl⟩).1, rfl, rfl⟩
+
+/-- A binary the build record does not name (no record, or a record of another binary) always raises `svc.unknown`:
+the core is never judged on a guessed commit.
+
+$$\forall h_b, r, n:\quad (\forall s.\ r \ne (s, h_b)) \wedge \operatorname{svc}(n, \operatorname{base}(h_b, r)) \in \Sigma.\mathit{svcs} \Rightarrow \exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{svc.unknown} \wedge \mathit{subject}(x) = n$$
+-/
+theorem unidentified_core_alerts (p : Params) (o : Obs) (binHash : String) (rec : Option (String × String))
+    (name : String) (h : ∀ s, rec ≠ some (s, binHash))
+    (hs : Base.svc name (chooseBase binHash rec) ∈ o.system.svcs) :
+    ∃ x ∈ (health p o).alerts, x.code = .svcUnknown ∧ x.subject = name := by
+  have hu := chooseBase_unknown_alerts binHash rec name h
+  cases hr : (Base.svc name (chooseBase binHash rec)).unknown with
+  | none => simp [Svc.unknownB, hr] at hu
+  | some r => exact unknown_service_alerts p o _ hs r hr
 
 /-- Every `proc.long` alert comes from a process tree of the session that is not declared, whose owner is not a live
 agent, and that is alive for strictly more than `procMaxMin` minutes.

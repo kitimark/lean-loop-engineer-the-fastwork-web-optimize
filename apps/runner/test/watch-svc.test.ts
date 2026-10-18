@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { check, coreCaller, coreCandidates } from "../src/watch.ts";
@@ -16,22 +17,22 @@ afterAll(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })))
 const writeApi = (d: string, o: object) => writeFileSync(join(d, ".fw-console", "api.json"), JSON.stringify(o));
 /** an api.json of a live console-api started at `commit` whose fwcore child was built from `coreCommit` */
 const api = (d: string, commit: string, coreCommit: string) => writeApi(d, { port: 1, pid: 42, commit, coreCommit });
-const writeCore = (d: string, commit?: string) => {
+const sha256 = (t: string) => createHash("sha256").update(t).digest("hex");
+/** a built binary (content `bin`); with `commit`, the record scripts/fwcore-build.sh writes ("<sha> <sha256 of the binary>");
+ *  `hash` overrides the recorded hash (the record of another binary) */
+const writeCore = (d: string, commit?: string, hash?: string) => {
   mkdirSync(join(d, "lean/.lake/build/bin"), { recursive: true });
   writeFileSync(join(d, CORE_BIN), "bin");
-  if (commit) writeFileSync(join(d, CORE_COMMIT), commit + "\n");
+  if (commit) writeFileSync(join(d, CORE_COMMIT), `${commit} ${hash ?? sha256("bin")}\n`);
 };
-const setMtime = (path: string, sec: number) => utimesSync(path, sec, sec);
-// a fake runner: `touched[base]` lists the paths the range base..main touches; `reflog` answers the reflog call
-const gitFake = (touched: Record<string, string[]>, reflog = ""): Runner => async (_c, args) => {
-  if (args[0] === "reflog") return reflog;
+// a fake runner: `touched[base]` lists the paths the range base..main touches
+const gitFake = (touched: Record<string, string[]>): Runner => async (_c, args) => {
   const range = args.find((a) => a.endsWith("..main"))!;
   const path = args[args.length - 1]!;
   return (touched[range.slice(0, -6)] ?? []).includes(path) ? SHA_B + "\n" : "";
 };
 const find = (svcs: Awaited<ReturnType<typeof collectSvcs>>, name: string) => svcs.find((s) => s.name === name);
 const changedPaths = (s?: { inputs: { path: string; changed: boolean }[] }) => s?.inputs.filter((i) => i.changed).map((i) => i.path);
-const reflogOf = (...e: [string, number][]) => e.map(([s, t]) => `${s} main@{${t}}`).join("\n");
 
 describe("parseTouched", () => {
   it.each([[SHA_B + "\n", true], ["", false], ["  \n", false]])("%j -> %j", (out, v) => expect(parseTouched(out)).toBe(v));
@@ -85,9 +86,9 @@ describe("collectSvcs (fake runner)", () => {
     let s = find(await collectSvcs(pathsFor(d), gitFake({}), () => true), "console-api")!;
     expect(s.unknown).toBe("api.json records no start commit; api.json records no core build commit");
     expect(s.inputs).toEqual([]);
-    writeApi(d, { port: 1, pid: 42, commit: SHA_A, coreUnknown: "no move of main at or before the binary" });
+    writeApi(d, { port: 1, pid: 42, commit: SHA_A, coreUnknown: "no build record: build with scripts/fwcore-build.sh" });
     s = find(await collectSvcs(pathsFor(d), gitFake({ [SHA_A]: ["apps/console-api/src"] }), () => true), "console-api")!;
-    expect(s.unknown).toBe("no move of main at or before the binary");
+    expect(s.unknown).toBe("no build record: build with scripts/fwcore-build.sh");
     expect(changedPaths(s)).toEqual(["apps/console-api/src"]); // the own group is still judged
   });
   it("a git failure on one service never drops the other", async () => {
@@ -122,23 +123,18 @@ describe("collectSvcs (fake runner)", () => {
     expect(changedPaths(find(svcs, "fwcore"))).toEqual(["lean/Fw"]);
     expect(changedPaths(find(svcs, "console-api"))).toEqual(["lean/Fw"]);
   });
-  it("the disk binary's base: a record not older than the binary wins; an older record is ignored for the reflog; no record uses the reflog; nothing identifies it: unknown", async () => {
+  it("the disk binary's base is its build record when the recorded sha256 is the binary's; a mismatch or no record is unknown (alert), never a guess", async () => {
     const d = root(); writeCore(d, SHA_C);
-    const bin = join(d, CORE_BIN); const rec = join(d, CORE_COMMIT);
-    const log = reflogOf([SHA_B, 1030], [SHA_A, 100]);
-    const touched = { [SHA_A]: ["lean/Fw"], [SHA_B]: [], [SHA_C]: ["lean/Main.lean"] };
-    setMtime(bin, 1000); setMtime(rec, 1000); // record as new as the binary
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), gitFake(touched, log), () => true), "fwcore"))).toEqual(["lean/Main.lean"]);
-    setMtime(rec, 900); // plain `lake build` after an old script build: record older than the binary
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), gitFake(touched, log), () => true), "fwcore"))).toEqual(["lean/Fw"]);
-    rmSync(rec); // no record at all
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), gitFake(touched, log), () => true), "fwcore"))).toEqual(["lean/Fw"]);
-    const none = find(await collectSvcs(pathsFor(d), gitFake(touched, reflogOf([SHA_B, 1030])), () => true), "fwcore")!;
-    expect(none.unknown).toBe("no move of main at or before the binary");
-    const tie = find(await collectSvcs(pathsFor(d), gitFake(touched, reflogOf([SHA_B, 100], [SHA_A, 100])), () => true), "fwcore")!;
-    expect(tie.unknown).toContain("same second");
-    const gitDown = find(await collectSvcs(pathsFor(d), async () => null, () => true), "fwcore")!;
-    expect(gitDown.unknown).toBe("git reflog of main failed");
+    const touched = { [SHA_A]: ["lean/Fw"], [SHA_C]: ["lean/Main.lean"] };
+    const fw = async () => find(await collectSvcs(pathsFor(d), gitFake(touched), () => true), "fwcore")!;
+    expect(changedPaths(await fw())).toEqual(["lean/Main.lean"]); // accepted: judged from the recorded commit
+    writeCore(d, SHA_C, sha256("another binary")); // a plain `lake build` replaced the binary: the record is another binary's
+    expect((await fw()).unknown).toContain("does not match the binary");
+    expect((await fw()).inputs).toEqual([]);
+    rmSync(join(d, CORE_COMMIT)); // no record (never built by the script, or a dirty build removed it)
+    expect((await fw()).unknown).toContain("scripts/fwcore-build.sh");
+    writeFileSync(join(d, CORE_COMMIT), "garbage\n"); // malformed record
+    expect((await fw()).unknown).toContain("no build record");
   });
 });
 
@@ -189,25 +185,20 @@ describe("collectSvcs with a real history", () => {
     expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "console-api"))).toEqual(["apps/console-api/src", "lean/Fw"]);
   });
 
-  it("a plain `lake build` (no record) in the pre-lock window: the reflog names the old head, so the land is seen as stale", async () => {
-    const { d, c } = setup();
-    writeCore(d); // no .commit file, as with a plain `lake build`
-    setMtime(join(d, CORE_BIN), T / 1000); // built at T from `old` (the reflog of main: base at T - 1 h)
-    sh(d, iso(T + 60_000), "merge", "--ff-only", "-q", c);
+  it("a build record names the commit built from: a land after it is seen as stale", async () => {
+    const { d, old, c } = setup();
+    writeCore(d, old); // scripts/fwcore-build.sh read HEAD = old before the build
+    sh(d, iso(T + 60_000), "merge", "--ff-only", "-q", c); // main moves while/after the build
     const fw = find(await collectSvcs(pathsFor(d), real, () => true), "fwcore")!;
     expect(fw.unknown).toBeUndefined();
     expect(changedPaths(fw)).toEqual(["lean/Fw"]);
-    // built after the land (a later build): the newest move at or before the binary is the land itself, clean
-    setMtime(join(d, CORE_BIN), (T + 120_000) / 1000);
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "fwcore"))).toEqual([]);
   });
 
-  it("a binary older than every move of main is unknown (alert), not silence", async () => {
+  it("a plain `lake build` (no record) is unknown whatever main did around it, not silence", async () => {
     const { d, c } = setup();
+    writeCore(d); // no .commit file
     sh(d, iso(T + 60_000), "merge", "--ff-only", "-q", c);
-    writeCore(d);
-    setMtime(join(d, CORE_BIN), (T - 7200_000) / 1000);
-    expect(find(await collectSvcs(pathsFor(d), real, () => true), "fwcore")!.unknown).toBe("no move of main at or before the binary");
+    expect(find(await collectSvcs(pathsFor(d), real, () => true), "fwcore")!.unknown).toBe("no build record: build with scripts/fwcore-build.sh");
   });
 });
 

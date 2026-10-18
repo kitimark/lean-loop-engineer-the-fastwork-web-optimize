@@ -11,9 +11,9 @@
 //  - service `fwcore`: the binary on disk, against the commit it was built from.
 // Design rule: when the code that runs cannot be identified, the service is reported `unknown` with the reason
 // (svc.unknown). Nothing is silently skipped, and a failure to judge one service never drops the other.
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { CORE_BIN_REL, CORE_COMMIT_REL, REFLOG_ARGS, SHA, chooseBase, parseReflog, readRecord, type Base } from "../../console-api/src/core/build-base.ts";
+import { CORE_BIN_REL, CORE_COMMIT_REL, SHA, buildBase, type Base } from "../../console-api/src/core/build-base.ts";
 import type { Paths, Runner, RunOut } from "./watch-collect.ts";
 
 export interface SvcInput { path: string; changed: boolean }
@@ -59,17 +59,12 @@ function isAlive(pid: number): boolean {
   try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
 }
 
-/** The build commit of the binary on disk: its record when not older than the binary, else the newest move of `main`
- *  at or before the binary's mtime (reflog), else unknown (Fw.Obs.chooseBase). Null: no binary on disk. */
-export async function coreBase(p: Paths, exec: Runner): Promise<Base | null> {
+/** The build commit of the binary on disk: its build record when the record's sha256 equals the binary's, else unknown
+ *  with the hint to run scripts/fwcore-build.sh (Fw.Obs.chooseBase; no file time and no reflog is read). Null: no
+ *  binary on disk. */
+export function coreBase(p: Paths): Base | null {
   const bin = join(p.root, CORE_BIN);
-  if (!existsSync(bin)) return null;
-  const mtime = Math.floor(statSync(bin).mtimeMs / 1000);
-  const rec = readRecord(bin);
-  if (rec !== null && mtime <= rec.time) return { sha: rec.sha };
-  const out = await exec("git", REFLOG_ARGS, 5000, p.root);
-  if (typeof out !== "string") return { unknown: "git reflog of main failed" };
-  return chooseBase(mtime, rec, parseReflog(out));
+  return existsSync(bin) ? buildBase(p.root, bin) : null;
 }
 
 /** Judge one group of paths against `base`; the paths that could not be judged make it `null`. */
@@ -103,7 +98,7 @@ export async function collectSvcs(p: Paths, exec: Runner, alive?: (pid: number) 
     }
     out.push(why.length ? { name: "console-api", inputs, unknown: why.join("; ") } : { name: "console-api", inputs });
   }
-  const disk = await coreBase(p, exec);
+  const disk = coreBase(p);
   if (disk !== null) {
     if ("unknown" in disk) out.push({ name: "fwcore", inputs: [], unknown: disk.unknown });
     else {
