@@ -70,6 +70,7 @@ import Fw.Gate.Pixel
 import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
+import Fw.Engine.Keys  -- model-checks: faithful run keys; a +search run never answers for the base
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
