@@ -268,6 +268,15 @@ def skip (env : Environment) (n : Name) (ci : ConstantInfo) : Bool :=
   (match ci with | .ctorInfo _ | .recInfo _ => true | _ => false) ||
   (`Fw.Wire).isPrefixOf n
 
+/-- **Does a constant get a math-view entry?** It is imported (has a module index), `skip` keeps it, its name is not
+internal and has no `.match_` part, and no component starts with `inst` (derived-instance helpers such as
+`instReprWork.repr`). `entries` lists exactly these constants; the math-view facts keep a reach by this test.
+$$\forall n, c,\ \operatorname{hasEntry}(n, c) \iff \operatorname{mod}(n) \ne \bot \land \lnot\operatorname{skip}(n, c) \land \lnot\operatorname{internal}(n) \land \texttt{.match\_} \not\sqsubseteq_{\mathrm{str}} n \land \lnot\exists x \in \operatorname{components}(n),\ \texttt{inst} \preceq_{\mathrm{str}} x$$
+where $\sqsubseteq_{\mathrm{str}}$ is "is a substring of" and $\preceq_{\mathrm{str}}$ is "is a string prefix of". -/
+def hasEntry (env : Environment) (n : Name) (ci : ConstantInfo) : Bool :=
+  (env.getModuleIdxFor? n).isSome && !skip env n ci && !n.isInternal &&
+    (n.toString.splitOn ".match_").length ≤ 1 && !n.components.any (fun c => c.toString.startsWith "inst")
+
 /-- Heartbeat budget of one declaration's export, in thousands (the unit of `maxHeartbeats`). Each declaration
 gets a fresh budget, so the export's total cost grows with the number of declarations without ever hitting a
 global limit. -/
@@ -375,7 +384,7 @@ def entries (want : Name → Bool := fun _ => true) : MetaM (Array Entry) := do
   let fuel := consts.length + 2
   let mut memo : Std.HashMap Name (List Name) := {}
   for (n, ci) in consts do
-    if skip env n ci then continue
+    if !hasEntry env n ci then continue
     let some modIdx := env.getModuleIdxFor? n | continue
     let mod := env.header.moduleNames[modIdx.toNat]!
     if !want mod then continue
@@ -383,9 +392,6 @@ def entries (want : Name → Bool := fun _ => true) : MetaM (Array Entry) := do
     -- extensions found in *every* imported module (Lean/Parser/Term/Doc.lean:60-68, Parser/Tactic/Doc.lean:250-258
     -- @ v4.35.0), which would make an entry depend on modules outside its import cone (mathview-module-cache)
     let doc ← findSimpleDocString? env n
-    if n.isInternal || (n.toString.splitOn ".match_").length > 1 then continue
-    -- derived-instance helpers (`instReprWork.repr`, `instToJsonCmd.toJson`, ...)
-    if n.components.any (fun c => c.toString.startsWith "inst") then continue
     -- one declaration can never crash the export: its failure becomes a lint failure with its name
     -- sorted like `collectAxioms`; out of fuel (not expected, see `fuel`) falls back to the old per-call walk
     let mut axs : Array Name := #[]

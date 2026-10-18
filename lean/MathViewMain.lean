@@ -424,8 +424,8 @@ key, so a registry change recomputes every module) and the wire reach (`wireSet`
 run, never stored). Each theorem's facts are computed in a fresh `Core`/`Meta` state, so a full run and a cached run
 give the same bytes. -/
 
-/-- An exported entry and, for a theorem, its facts (none for any other kind; none for a theorem whose facts ran out
-of `factsBudget` or whose name was not found): what the module store keeps per declaration.
+/-- An exported entry and, for a theorem, its facts (none for any other kind, and for a theorem whose facts were not
+computed, see `withFacts`): what the module store keeps per declaration.
 $$\mathrm{Stored} = \mathrm{Entry} \times \mathrm{Option}(\mathrm{Facts})$$ -/
 structure Stored where
   /-- The math-view entry, unchanged. -/
@@ -456,8 +456,9 @@ def nameIndex (env : Environment) : Std.HashMap String Name :=
   env.constants.map₁.fold (init := {}) fun m n _ => if MathView.inScope n then m.insert n.toString n else m
 
 /-- **The facts of the theorem entries** of `es`, each by `factsOf` in a fresh `Core`/`Meta` state within
-`factsBudget`.
-$$\operatorname{withFacts}(es) = [(e,\ \phi(e)) : e \in es],\quad \phi(e) = \begin{cases} \operatorname{factsOf}(e) & e.\mathrm{kind} = \texttt{theorem} \text{ and it finishes within the budget} \\ \bot & \text{otherwise} \end{cases}$$ -/
+`factsBudget`; none for a non-theorem, for a printed name missing from `names` or from the environment, and when
+`factsOf` throws any error (running out of the budget included).
+$$\operatorname{withFacts}(es) = [(e,\ \phi(e)) : e \in es],\quad \phi(e) = \begin{cases} \operatorname{factsOf}(n_e) & e.\mathrm{kind} = \texttt{theorem},\ n_e = \mathit{names}(e.\mathrm{name}) \text{ defined},\ n_e \in \mathrm{env},\ \operatorname{factsOf}(n_e) \text{ returns within the budget without error} \\ \bot & \text{otherwise} \end{cases}$$ -/
 def withFacts (env : Environment) (rs : List Fw.Spec.MathFacts.Row) (names : Std.HashMap String Name)
     (es : Array MathView.Entry) : IO (Array Stored) := do
   let ctx : Core.Context := { fileName := "<mathview>", fileMap := default }
@@ -469,22 +470,15 @@ def withFacts (env : Environment) (rs : List Fw.Spec.MathFacts.Row) (names : Std
     let (r, _) ← (x.run' {} {}).toIO ctx { env }
     return { entry := e, facts := r.toOption }
 
-/-- The generator sources: the text of every `scripts/*Golden.lean` under `root`, in name order (none when the
-directory is missing). -/
-def goldenSources (root : System.FilePath) : IO (List String) := do
-  let dir := root / "scripts"
-  unless ← dir.pathExists do return []
-  let fs := (← dir.readDir).filter (·.fileName.endsWith "Golden.lean") |>.map (·.path)
-  fs.qsort (·.toString < ·.toString) |>.toList.mapM IO.FS.readFile
-
-/-- The wire reach $W$ (`Fw.Spec.MathFacts.wireReach` over the generator sources) by printed name. -/
+/-- The wire reach $W$ (`Fw.Spec.MathFacts.wireReach` over `Fw.Spec.MathFacts.goldenSources root`) by printed name. -/
 def wireSet (env : Environment) (root : System.FilePath) : IO (Std.HashSet String) := do
-  let w := Fw.Spec.MathFacts.wireReach env (← goldenSources root)
+  let w := Fw.Spec.MathFacts.wireReach env (← Fw.Spec.MathFacts.goldenSources root)
   return w.foldl (fun s n => s.insert n.toString) {}
 
 /-- **The JSON of one entry**: `toJson` of the entry, unchanged for a non-theorem; a theorem also gets the keys
 `headConst`, `implArg` (`{index, expr}` or null), `assumes`, `killOf`, `class`, `reach` and `reachFromWire`, each
-null when its facts are missing.
+null when its facts are missing; `reachFromWire` is also null when the theorem has no subjects
+(`Fw.Spec.MathFacts.reachFromWire`).
 $$\operatorname{entryJson}(e, \phi) = \begin{cases} \operatorname{toJson}(e) & e.\mathrm{kind} \ne \texttt{theorem} \\ \operatorname{toJson}(e) \cup \{h, a, A, k, c, \mathit{reach}, \operatorname{reachFromWire}(S, W)\} & \phi = (h, a, A, k, c, \mathit{reach}, S) \\ \operatorname{toJson}(e) \cup \{\text{the 7 keys} \mapsto \mathrm{null}\} & \phi = \bot \end{cases}$$ -/
 def entryJson (inWire : String → Bool) (s : Stored) : Json :=
   let j := toJson s.entry

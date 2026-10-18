@@ -47,7 +47,7 @@ partial def resultType : Expr → Expr
   | e => e
 
 /-- The constants of the binder types of a type's leading `∀`s (metadata skipped), and its result type.
-$$\operatorname{typeParts}(\forall x : A,\ B) = (\operatorname{consts}(A) \mathbin{+\!\!+} C_B,\ r_B) \text{ where } (C_B, r_B) = \operatorname{typeParts}(B),\qquad \operatorname{typeParts}(e) = ([\,], e) \text{ otherwise}$$ -/
+$$\operatorname{typeParts}(\forall x : A,\ B) = (\operatorname{consts}(A) \mathbin{+\!\!+} C_B,\ r_B) \text{ where } (C_B, r_B) = \operatorname{typeParts}(B),\quad \operatorname{typeParts}(\mathrm{mdata}(e)) = \operatorname{typeParts}(e),\quad \operatorname{typeParts}(e) = ([\,], e) \text{ otherwise}$$ -/
 partial def typeParts : Expr → List Name × Expr
   | .forallE _ t b _ => let (bs, r) := typeParts b; (t.getUsedConstants.toList ++ bs, r)
   | .mdata _ e => typeParts e
@@ -75,9 +75,9 @@ def nextOf : ConstantInfo → List Name
   | _ => []
 
 /-- Every project constant reachable from the roots through `nextOf` (roots included when they are project
-constants), in depth-first order of first visit. A name that is not in the environment, or whose module is not a
-project module, is neither listed nor followed.
-$$\operatorname{closure}(X) = \{c \mid \exists x \in X,\ x \to^{*} c,\ \operatorname{project}(\operatorname{modOf}(c))\},\quad a \to b \iff \operatorname{project}(\operatorname{modOf}(a)) \land b \in \operatorname{next}(a)$$ -/
+constants), as a list without repeats in depth-first order of first visit. A name that is not in the environment,
+or whose module is not a project module, is neither listed nor followed.
+$$\operatorname{set}(\operatorname{closure}(X)) = \{c \mid \exists x \in X,\ x \to^{*} c,\ c \in \mathrm{env},\ \operatorname{project}(\operatorname{modOf}(c))\},\quad a \to b \iff a \in \mathrm{env} \land \operatorname{project}(\operatorname{modOf}(a)) \land b \in \operatorname{next}(a)$$ -/
 partial def closure (env : Environment) (sc : Scope) (roots : List Name) : List Name := Id.run do
   let mut seen : NameSet := {}
   let mut out : Array Name := #[]

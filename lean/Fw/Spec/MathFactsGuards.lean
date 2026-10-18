@@ -6,12 +6,17 @@ import Fw.Console.Alert
 import Fw.Sched.Admit
 import Fw.Obs.Stale
 import Fw.Ci.Budget
+import Fw.Wire
+import Fw.Engine.Core
+import Fw.Parts.MorphMountOpt
 /-!
 # The math-view facts on real declarations (task `lfg-mathview-facts`)
 
 `#guard`s over `facts%` (`Fw.Spec.MathFacts`): each fact the math view emits, checked on `Fw` theorems whose answer is
 known: a closed data lint, a defining equation, a general proof with binders, a property of an implementation, a
 convention, a kill of a registered incident, a theorem under a named premise, and a statement without a head constant.
+`wire%` and `wireOf%` check the wire reach and `reachFromWire` (true, false and null), `defEqAt%` the budget edge of
+the `defEq` class.
 -/
 open Fw.Spec.MathFacts
 
@@ -57,3 +62,27 @@ open Fw.Spec.MathFacts
 -- a statement whose result type has no head constant
 #guard (facts% Fw.Spec.Props.assume_false_elim).headConst == none
 #guard (facts% Fw.Spec.Props.assume_false_elim).implIdx == none
+
+-- the wire reach: the dispatcher is in it; the incident's dead helper `taskAdmitted` (inc-proof-of-dead-code) is not
+#guard wire% Fw.Wire.handle
+#guard !(wire% Fw.Wire.Sched.taskAdmitted)
+-- a theorem about a wired op
+#guard (wireOf% Fw.Sched.Admit.writes_disjoint) == some true
+-- the alias `Fw.Screen.Counts` and the predicate `Work.lt` are not subjects; the op `toCounts` is not wired
+#guard (facts% Fw.Engine.toCounts_ne_of_lt).subjects == ["Fw.Engine.toCounts"]
+#guard (wireOf% Fw.Engine.toCounts_ne_of_lt) == some false
+-- a statement over the inductive predicate `Reachable`: its subjects are the ops its constructors name
+#guard (facts% Fw.Sched.Admit.deps_respected).subjects == ["Fw.Sched.Admit.step"]
+#guard (wireOf% Fw.Sched.Admit.deps_respected) == some true
+-- a statement without an op has no subjects, so `reachFromWire` is null
+#guard (facts% Fw.Spec.Props.assume_false_elim).subjects == []
+#guard (wireOf% Fw.Spec.Props.assume_false_elim) == none
+
+-- reach keeps only names with a math-view entry: no generated `ctorIdx` or `noConfusionType`
+#guard (facts% Fw.Ci.Budget.wsum_single).reach.contains "Fw.Ci.Budget.Kind"
+#guard !(facts% Fw.Ci.Budget.wsum_single).reach.any fun s =>
+  s.endsWith ".ctorIdx" || s.endsWith ".noConfusionType" || s.endsWith ".ctorElimType"
+
+-- the defEq class sits on a heartbeat budget: `cr_swipe_mixed` is defEq within `defEqBudget`, not within 1k
+#guard (facts% Fw.Parts.MorphMountOpt.cr_swipe_mixed).cls == .defEq
+#guard !(defEqAt% Fw.Parts.MorphMountOpt.cr_swipe_mixed 1)
