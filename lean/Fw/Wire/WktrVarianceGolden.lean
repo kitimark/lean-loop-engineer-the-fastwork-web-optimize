@@ -7,6 +7,7 @@ import Lean.Data.Json
 
 * `diffCase`: two class-kind tables and the keys `Fw.Measure.WktrVariance.differs` returns (sorted, once each).
 * `findingsCase`: a baseline, a candidate, the serial runs, the `varying` keys, the `findings` and the `claim` verdict.
+* `typeCase`: the same at the count-type yardstick (`findingsBy typeOf`, `claimBy typeOf`).
 * `pairCase`: runs and `pairDiffs`.
 * `overlapCase`, `rangeCase`: the timing-range rules.
 
@@ -57,6 +58,19 @@ def findingsCases : List Json :=
       ("base", tableJson b), ("cand", tableJson c), ("varying", strs (sortUniq (varying rs))),
       ("findings", strs (sortUniq (findings b c rs))), ("claim", Json.str (verdictName (claim b c rs)))]
 
+private def u1 : Table := [("a/live/lu", .det), ("b/live/lu", .quar), ("a/live/sr", .det)]
+private def u2 : Table := [("a/live/lu", .stable), ("b/live/lu", .quar), ("a/live/sr", .det)]
+private def u3 : Table := [("a/live/lu", .det), ("b/live/lu", .stable), ("a/live/sr", .det)]
+private def u4 : Table := [("a/live/lu", .det), ("b/live/lu", .quar), ("a/live/sr", .stable), ("c/live-trace/lu", .det)]
+
+def typeCases : List Json :=
+  let sets : List (String × List Table) := [("none", []), ("u1u2", [u1, u2]), ("u1u2u3", [u1, u2, u3]), ("u1u1", [u1, u1])]
+  (sets.flatMap fun (sn, rs) => [("u1", u1, "u3", u3), ("u1", u1, "u4", u4), ("u3", u3, "u4", u4)].map
+      fun (bn, b, cn, c) => (sn, rs, bn, b, cn, c)).map fun (sn, rs, bn, b, cn, c) =>
+    Json.mkObj [("kind", Json.str "typeCase"), ("name", Json.str s!"{sn}-{bn}-{cn}"), ("runs", Json.arr (rs.map tableJson).toArray),
+      ("base", tableJson b), ("cand", tableJson c),
+      ("findings", strs (sortUniq (findingsBy typeOf b c rs))), ("claim", Json.str (verdictName (claimBy typeOf b c rs)))]
+
 def pairCases : List Json :=
   [[], [t1], [t1, t2], [t1, t2, t3], [t1, t2, t3, t4]].map fun rs =>
     Json.mkObj [("kind", Json.str "pairCase"), ("runs", Json.arr (rs.map tableJson).toArray),
@@ -76,7 +90,7 @@ def rangeCases : List Json :=
         | none => Json.null)]
 
 /-- The lines of the file. -/
-def cases : List Json := diffCases ++ findingsCases ++ pairCases ++ overlapCases ++ rangeCases
+def cases : List Json := diffCases ++ findingsCases ++ typeCases ++ pairCases ++ overlapCases ++ rangeCases
 
 def text : String := String.join (cases.map fun j => j.compress ++ "\n")
 

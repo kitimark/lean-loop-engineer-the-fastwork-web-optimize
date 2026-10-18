@@ -5,7 +5,7 @@ import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { differs, varying, findings, claim, pairDiffs, overlap, rangeOf, tableOfClassesDir, tableOfPremise } from '../fixtures/variance.mjs';
+import { differs, varying, findings, claim, findingsByType, claimByType, typeOf, pairDiffs, overlap, rangeOf, tableOfClassesDir, tableOfPremise } from '../fixtures/variance.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(HERE, '..', '..', 'contracts', 'golden', 'measure', 'wktr.variance.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
@@ -25,6 +25,15 @@ test('varying, findings and claim equal Lean', () => {
     assert.deepEqual(findings(c.base, c.cand, c.runs), c.findings, c.name);
     assert.equal(claim(c.base, c.cand, c.runs), c.claim, c.name);
   }
+});
+
+test('type-level findings and claim equal Lean', () => {
+  assert.ok(of('typeCase').length > 0);
+  for (const c of of('typeCase')) {
+    assert.deepEqual(findingsByType(c.base, c.cand, c.runs), c.findings, c.name);
+    assert.equal(claimByType(c.base, c.cand, c.runs), c.claim, c.name);
+  }
+  assert.equal(typeOf('control-f1/live-trace/layoutUpdates'), 'layoutUpdates');
 });
 
 test('pairDiffs equals Lean', () => {

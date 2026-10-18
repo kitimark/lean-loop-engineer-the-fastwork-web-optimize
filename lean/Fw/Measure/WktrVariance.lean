@@ -205,6 +205,69 @@ theorem findings_sub_differs (base cand : Table) (rs : List Table) :
   rw [mem_findings] at hk
   exact (mem_differs base cand k).2 hk.1
 
+/-- **Coarser yardstick.** The same findings with keys compared through a projection `f` (the count type of a key, say): a diff is
+explained when some varying key has the same image.
+
+$$\operatorname{findings}_f(b, c, R) = \{k \in \operatorname{differs}(b, c) \mid f(k) \notin f[\operatorname{varying}(R)]\}$$
+-/
+def findingsBy (f : String → String) (base cand : Table) (rs : List Table) : List String :=
+  (differs base cand).filter (fun k => !((varying rs).map f).contains (f k))
+
+/-- A projected finding is a diff with no varying key of the same image.
+
+$$k \in \operatorname{findings}_f(b, c, R) \iff b[k] \ne c[k] \ \land\ \forall j \in \operatorname{varying}(R):\ f(j) \ne f(k)$$
+-/
+theorem mem_findingsBy (f : String → String) (base cand : Table) (rs : List Table) (k : String) :
+    k ∈ findingsBy f base cand rs ↔ base.lookup k ≠ cand.lookup k ∧ ∀ j, j ∈ varying rs → f j ≠ f k := by
+  unfold findingsBy
+  rw [List.mem_filter, mem_differs]
+  simp only [Bool.not_eq_true']
+  refine and_congr Iff.rfl ?_
+  constructor
+  · intro h j hj e
+    have hc : ((varying rs).map f).contains (f k) = true := List.contains_iff_mem.2 (List.mem_map.2 ⟨j, hj, e⟩)
+    rw [h] at hc
+    exact absurd hc (by decide)
+  · intro h
+    cases hc : ((varying rs).map f).contains (f k)
+    · rfl
+    · obtain ⟨j, hj, e⟩ := List.mem_map.1 (List.contains_iff_mem.1 hc)
+      exact absurd e (h j hj)
+
+/-- **A coarser yardstick explains at least as much**: every projected finding is a key finding.
+
+$$\operatorname{findings}_f(b, c, R) \subseteq \operatorname{findings}(b, c, R)$$
+-/
+theorem findingsBy_sub (f : String → String) (base cand : Table) (rs : List Table) :
+    ∀ k, k ∈ findingsBy f base cand rs → k ∈ findings base cand rs := by
+  intro k hk
+  rw [mem_findingsBy] at hk
+  rw [mem_findings]
+  exact ⟨hk.1, fun hv => hk.2 k hv rfl⟩
+
+/-- With the identity projection the findings are the key findings.
+
+$$\operatorname{findings}_{\mathrm{id}}(b, c, R) = \operatorname{findings}(b, c, R)$$
+-/
+theorem findingsBy_id (base cand : Table) (rs : List Table) (k : String) :
+    k ∈ findingsBy id base cand rs ↔ k ∈ findings base cand rs := by
+  rw [mem_findingsBy, mem_findings]
+  constructor
+  · intro h
+    exact ⟨h.1, fun hv => h.2 k hv rfl⟩
+  · intro h
+    refine ⟨h.1, fun j hj e => h.2 ?_⟩
+    have e' : j = k := e
+    exact e' ▸ hj
+
+/-- The count type of a key `arm/variant/type`: the last `/` part.
+
+$$\operatorname{typeOf}(\text{arm}/\text{variant}/\text{type}) = \text{type}$$
+-/
+def typeOf (k : String) : String := (k.splitOn "/").getLast?.getD k
+
+#guard typeOf "control-f1/live/layoutUpdates" == "layoutUpdates" && typeOf "x" == "x"
+
 /-- The status of the claim "the diffs are run-to-run variance".
 
 $$\mathrm{Verdict} = \{\mathrm{measured}, \mathrm{unexplained}, \mathrm{noBaseline}\}$$
@@ -247,6 +310,31 @@ theorem claim_needs_two (base cand : Table) (rs : List Table) (h : rs.length < 2
   intro hm
   have := ((claim_measured_iff base cand rs).1 hm).1
   omega
+
+/-- The claim at the coarser yardstick `f`.
+
+$$\operatorname{claim}_f(b, c, R) = \operatorname{verdict}(|R|, \operatorname{findings}_f(b, c, R))$$
+-/
+def claimBy (f : String → String) (base cand : Table) (rs : List Table) : Verdict :=
+  verdict rs.length (findingsBy f base cand rs)
+
+/-- **The coarser claim never loses a measured key claim.**
+
+$$\operatorname{claim}(b, c, R) = \mathrm{measured} \Rightarrow \operatorname{claim}_f(b, c, R) = \mathrm{measured}$$
+-/
+theorem claimBy_of_claim (f : String → String) (base cand : Table) (rs : List Table)
+    (h : claim base cand rs = .measured) : claimBy f base cand rs = .measured := by
+  have h2 := (claim_measured_iff base cand rs).1 h
+  have hn : findingsBy f base cand rs = [] := by
+    rw [List.eq_nil_iff_forall_not_mem]
+    intro k hk
+    have hf := findingsBy_sub f base cand rs k hk
+    rw [(findings_nil_iff base cand rs).2 h2.2] at hf
+    exact absurd hf (by simp)
+  have h3 : ¬ rs.length < 2 := by omega
+  unfold claimBy verdict
+  rw [hn]
+  simp [h3]
 
 /-- The diff counts of every pair of runs (the spread of the run-to-run variance).
 
@@ -304,5 +392,15 @@ private def t3 : Table := [("a", .det), ("b", .quar), ("c", .stable)]
 #guard pairDiffs [t1, t2, t3] == [2, 2, 2]
 #guard overlap (687, 874) (572, 976) && !overlap (1, 2) (3, 4)
 #guard rangeOf [3, 1, 2] == some (1, 3) && (rangeOf []).isNone
+
+private def u1 : Table := [("a/live/lu", .det), ("b/live/lu", .quar), ("a/live/sr", .det)]
+private def u2 : Table := [("a/live/lu", .stable), ("b/live/lu", .quar), ("a/live/sr", .det)]
+private def u3 : Table := [("a/live/lu", .det), ("b/live/lu", .stable), ("a/live/sr", .det)]
+private def u4 : Table := [("a/live/lu", .det), ("b/live/lu", .quar), ("a/live/sr", .stable)]
+
+#guard findings u1 u3 [u1, u2] == ["b/live/lu"]
+#guard (findingsBy typeOf u1 u3 [u1, u2]).isEmpty
+#guard claimBy typeOf u1 u3 [u1, u2] == .measured && claim u1 u3 [u1, u2] == .unexplained
+#guard findingsBy typeOf u1 u4 [u1, u2] == ["a/live/sr"]
 
 end Fw.Measure.WktrVariance

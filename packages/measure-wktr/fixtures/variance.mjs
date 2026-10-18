@@ -33,6 +33,18 @@ export const verdict = (n, fs) => (n < 2 ? 'noBaseline' : fs.length === 0 ? 'mea
 /** Fw.Measure.WktrVariance.claim. */
 export const claim = (base, cand, rs) => verdict(rs.length, findings(base, cand, rs));
 
+/** Fw.Measure.WktrVariance.typeOf: the count type of a key arm/variant/type. */
+export const typeOf = (k) => k.split('/').pop();
+
+/** Fw.Measure.WktrVariance.findingsBy typeOf: the diffs whose count type does not vary among the runs (sorted). */
+export function findingsByType(base, cand, rs) {
+  const v = new Set(varying(rs).map(typeOf));
+  return differs(base, cand).filter((k) => !v.has(typeOf(k)));
+}
+
+/** Fw.Measure.WktrVariance.claimBy typeOf. */
+export const claimByType = (base, cand, rs) => verdict(rs.length, findingsByType(base, cand, rs));
+
 /** Fw.Measure.WktrVariance.pairDiffs: the diff count of every pair i < j. */
 export function pairDiffs(rs) {
   const out = [];
@@ -88,7 +100,6 @@ export function labelOf(src) {
   return id ? `run ${id}${m?.[2] ? ` ${m[2]}` : ''}` : src;
 }
 
-const typeOf = (k) => k.split('/').pop();
 const byType = (ks) => Object.entries(ks.reduce((o, k) => ({ ...o, [typeOf(k)]: (o[typeOf(k)] ?? 0) + 1 }), {})).sort().map(([t, n]) => `${t} ${n}`).join(', ') || '-';
 
 function main(argv) {
@@ -101,14 +112,14 @@ function main(argv) {
   const res = {
     keys: Object.keys(base).length, baselines: runs.map((r) => r.name), pairDiffs: pairDiffs(rs), varying: v,
     pairs: runs.flatMap((r, i) => runs.slice(i + 1).map((s) => ({ a: r.name, b: s.name, differs: differs(r.t, s.t) }))),
-    cands: cands.map((c) => ({ name: c.name, differs: differs(base, c.t), findings: findings(base, c.t, rs), claim: claim(base, c.t, rs) })),
+    cands: cands.map((c) => ({ name: c.name, differs: differs(base, c.t), findings: findings(base, c.t, rs), claim: claim(base, c.t, rs), findingsByType: findingsByType(base, c.t, rs), claimByType: claimByType(base, c.t, rs) })),
     ranges: opt('range').map((x) => { const [n, vs] = x.split('='); return { name: n, range: rangeOf(vs.split(',').map(Number)) }; }),
   };
   if (argv.includes('--json')) { console.log(JSON.stringify(res)); return; }
   console.log(`keys ${res.keys}; ${runs.length} baselines; diff count per pair: ${res.pairDiffs.join(', ') || '-'}`);
   console.log(`varying across the baselines (${v.length}): ${byType(v)}`);
   for (const p of res.pairs) console.log(`pair ${p.a} ~ ${p.b}: ${p.differs.length} (${byType(p.differs)})`);
-  for (const c of res.cands) console.log(`cand ${c.name}: ${c.differs.length} diffs (${byType(c.differs)}); findings ${c.findings.length} [${c.findings.join(' ')}]; claim ${c.claim}`);
+  for (const c of res.cands) console.log(`cand ${c.name}: ${c.differs.length} diffs (${byType(c.differs)}); findings ${c.findings.length} [${c.findings.join(' ')}]; claim ${c.claim}; by type: findings ${c.findingsByType.length}, claim ${c.claimByType}`);
   for (const r of res.ranges) console.log(`range ${r.name}: ${r.range ? r.range.join('..') : '-'}`);
   for (let i = 0; i < res.ranges.length; i++) for (let j = i + 1; j < res.ranges.length; j++) {
     if (res.ranges[i].range && res.ranges[j].range) console.log(`overlap ${res.ranges[i].name} ~ ${res.ranges[j].name}: ${overlap(res.ranges[i].range, res.ranges[j].range)}`);
