@@ -29,7 +29,10 @@ It is already the shadow hook there today; with this change the same line enforc
 ## Allowed (false-positive classes of the shadow log, Lean `fp_classes_allowed`)
 - A: a named lead call with `isolation: "worktree"` for plan-editor, researcher or general-purpose (a worktree is never
   less safe than the kind the role names; `okKind`).
-- B: an unnamed read-only helper (fork, workflow-subagent, checker, scout, ...), also nested under another agent.
+- B: an unnamed read-only helper (fork, workflow-subagent, checker, slop-checker, scout, ...), also nested under another
+  agent.
+- C: an unnamed `patcher` from the lead (depth 0, `leadEditHelpers`); nested it stays refused. Every role in the table
+  has an accepted spawn shape (`every_role_spawnable`, `helpers_from_lead`, `helpers_nested`, `patcher_nested_refused`).
 - A task defined after the spawn: the guard reads no task, so nothing to refuse.
 
 Shadow-log counts (spawns the guard saw, 2026-10-17 18:49 to 10-18 03:30): 14 refusals. Class A 9 (plan-editor 6,
