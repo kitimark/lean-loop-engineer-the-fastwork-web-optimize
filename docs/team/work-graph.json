@@ -4889,7 +4889,8 @@
     "docs/team/tools/wait-guard.md",
     "docs/team/handoffs/wait-guard-enforce.md",
     "docs/team/handoffs/wait-guard-enforce-2.md"
-   ]
+   ],
+   "evidence": "c9d5990"
   },
   {
    "stream": "tooling",
@@ -4905,6 +4906,25 @@
     "apps/runner/src/watch.ts",
     "docs/team/tools/fw-watch.md",
     "docs/team/handoffs/watch-stream.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "id": "lean-bin-slim",
+   "title": "(S) Lean build disk: MEASURED 2026-10-18 the toolchain Lake artifact cache (~/.elan/toolchains/<v>/lake/cache/artifacts) held 62 GB, 55 GB unreferenced (link count 1), mostly 579 executables of ~100 MB (6 exes rebuilt per worktree, no eviction). Do: (a) one fwcore executable with subcommands replacing mathview/fwtest/partsgolden/sweepsgen/breakgen, outputs byte-identical (differential on goldens); (b) strip in fwcore-build.sh (fwcore 104->75 MB measured); (c) fw lake-gc: list cache artifacts with link count 1 older than N h and print the delete command for the user (Lake treats a missing artifact as a miss: Lake/Build/Common.lean:521-535@v4.35.0); fw watch alert when the cache exceeds a Lean budget; (d) zstd the mathview cache only if cheap (37 MB, 9x measured)",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/lakefile.lean",
+    "lean/FwCore*.lean",
+    "lean/scripts/**",
+    "scripts/fwcore-build.sh",
+    "scripts/lake-gc.mjs",
+    "apps/runner/src/lake-gc.ts",
+    "docs/team/tools/lake-gc.md",
+    "docs/team/handoffs/lean-bin-slim.md",
+    "docs/team/tools/disk-cleanup.md"
    ]
   }
  ],
