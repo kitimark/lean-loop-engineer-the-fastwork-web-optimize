@@ -10,13 +10,14 @@ Reads `research/findings/ledger.json` and `apps/site/src/parts/*/part.json`, dec
 namespace Fw.Preset.Gen
 open Lean Fw.Preset
 
-/-- **The link table**: each flag and the ledger rows (part, candidate) that carry its proof, in priority order (the
-first qualifying flag of a part wins). The flag-to-row mapping is read from the variants' code and the rows' text
-(INFERRED); a flag absent here never enters the arm (`unlinked_not_mem`).
+/-- **The link table**: each flag and the ledger rows that carry its proof, in priority order (the first qualifying flag
+of a part wins). A row is named by its (part, candidate) text; $k_n$ below is the row of ledger entry $n$ (for $n = 8$
+and $25$ the letter names which of the rows with that $n$). The mapping is read from the variants' code and the rows'
+text (INFERRED); a flag absent here never enters the arm (`unlinked_not_mem`).
 
 $$\Lambda = [(\mathrm{engine.scroll{:}batched}, [k_1]),\ (\mathrm{nav.hitTest{:}elements\text{-}skip}, [k_4]),\ (\mathrm{nav.hitTest{:}hit\text{-}skip}, [k_3]),\ (\mathrm{hero.countdown{:}strip}, [k_7]),\ (\mathrm{morph.countdown{:}strip}, [k_7, k_{13}]),\ (\mathrm{morph.countdown{:}hidden\text{-}pause}, [k_{8h}, k_{25m}]),\ (\mathrm{morph.columns{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{engine.scene{:}hidden\text{-}pause}, [k_{25h}]),\ (\mathrm{morph.mount{:}shift}, [k_{12}]),\ (\mathrm{morph.tween{:}waapi}, [k_9])]$$
 
-where $k_n$ is the (part, candidate) text of ledger row $n$ written out below. -/
+Each flag points at the ledger rows that must all be proved for it to enter. -/
 def links : List (Flag × List Key) :=
   let k1 : Key := ("engine.scroll", "batched (all reads, then all returned writes, one pass per frame)")
   let k3 : Key := ("nav.hitTest", "hit-skip (skip the probe while morph > 0.2)")
@@ -186,23 +187,38 @@ $$\operatorname{decisionsText}(R, L) = \mathop{+\!\!+}_{f \in \operatorname{deci
 def decisionsText (reg : List Reg) (ledger : List Row) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger f).compress ++ "\n")
 
-/-- The ledger path, from `lean/`. -/
+/-- The ledger path, from `lean/`.
+
+$$\mathrm{ledgerPath} = \texttt{../research/findings/ledger.json}$$ -/
 def ledgerPath : System.FilePath := ".." / "research" / "findings" / "ledger.json"
-/-- The parts directory, from `lean/`. -/
+/-- The parts directory, from `lean/`.
+
+$$\mathrm{partsDir} = \texttt{../apps/site/src/parts}$$ -/
 def partsDir : System.FilePath := ".." / "apps" / "site" / "src" / "parts"
-/-- The golden preset, from `lean/`. -/
+/-- The golden preset, from `lean/`.
+
+$$\mathrm{goldenPreset} = \texttt{../packages/contracts/golden/preset/v2-proved.json}$$ -/
 def goldenPreset : System.FilePath := ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.json"
-/-- The golden decision rows, from `lean/`. -/
+/-- The golden decision rows, from `lean/`.
+
+$$\mathrm{goldenDecisions} = \texttt{../packages/contracts/golden/preset/v2-proved.decisions.jsonl}$$ -/
 def goldenDecisions : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.decisions.jsonl"
-/-- The site preset, from `lean/`. -/
+/-- The site preset, from `lean/`.
+
+$$\mathrm{sitePreset} = \texttt{../apps/site/src/registry/presets/v2-proved.json}$$ -/
 def sitePreset : System.FilePath := ".." / "apps" / "site" / "src" / "registry" / "presets" / "v2-proved.json"
 
-/-- Read and parse a JSON file. -/
+/-- Read and parse a JSON file; a parse error names the path.
+
+$$\operatorname{readJson}(p) = \operatorname{parse}(\operatorname{read}(p))$$ -/
 def readJson (p : System.FilePath) : IO Json := do
   IO.ofExcept ((Json.parse (← IO.FS.readFile p)).mapError fun e => s!"{p}: {e}")
 
-/-- Every registered variant: the `part.json` of each directory under the parts directory, sorted by name. -/
+/-- Every registered variant: the `part.json` of each directory under the parts directory, directories sorted by
+name; a directory without `part.json` is skipped.
+
+$$\operatorname{readRegistry} = \mathop{+\!\!+}_{d \in \operatorname{sort}(\mathrm{partsDir}),\ d/\texttt{part.json} \text{ exists}} \operatorname{parsePart}(\operatorname{readJson}(d/\texttt{part.json}))$$ -/
 def readRegistry : IO (List Reg) := do
   let ds := (← partsDir.readDir).qsort (·.fileName < ·.fileName)
   let mut out : List Reg := []
@@ -212,7 +228,10 @@ def readRegistry : IO (List Reg) := do
       out := out ++ (← IO.ofExcept ((parsePart (← readJson pj)).mapError fun e => s!"{pj}: {e}"))
   return out
 
-/-- Write the three files, or with `--check` throw when any differs from the Lean output. -/
+/-- Write the three files, or with `--check` throw when any differs from the Lean output; a ledger or part that does not
+parse, or a preset that is not closed, throws before anything is written.
+
+$$\operatorname{run}(a) = \begin{cases} \operatorname{throw} & \operatorname{generate}(R, \Lambda, L) = \operatorname{error} \\ \operatorname{throw} & \texttt{--check} \in a,\ \exists (p, t) \in \mathrm{outs}:\ \operatorname{read}(p) \ne t \\ \operatorname{write}(\mathrm{outs}) & \texttt{--check} \notin a \end{cases}$$ -/
 def run (args : List String) : IO Unit := do
   let ledger ← IO.ofExcept ((parseLedger (← readJson ledgerPath)).mapError fun e => s!"{ledgerPath}: {e}")
   let reg ← readRegistry
