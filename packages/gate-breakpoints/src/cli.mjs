@@ -97,7 +97,7 @@ export function engineVerdictCells(engine, narrowed, cells, waits, universe, reg
     ? `${c.row}|${c.col}: not-run`
     : `${c.row}|${c.col}: ${c.readings.filter((r) => !readingOk(engine, c.row, c.col, r, reg)).map((r) => `${r.id} ${r.v}`).join(', ')}`));
   const diff = universeDiff(wireKeys(cells), universe);
-  const isFail = (c) => c.readings.some((r) => r.v === 'fail');
+  const isFail = (c) => c.readings.some((r) => r.v === 'fail' && excuseReading(engine, c.row, c.col, r, reg) === null);
   const isPass = (c) => c.readings.some((r) => r.v === 'pass');
   let verdict;
   if (!narrowed && !diff.identical) verdict = 'refused';
