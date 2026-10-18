@@ -1,19 +1,20 @@
 ---
 id: 2026-10-17-v2-report
 kind: note
-title: "v2 report: a measurable, provable loop for the fastwork.com scroll experiment (draft skeleton)"
+title: "v2 report: a measurable, provable loop for the fastwork.com scroll experiment (draft 2, rev-10 shape)"
 status: draft
 created: 2026-10-17
-updated: 2026-10-17
-authors: [agent:researcher-report-draft]
+updated: 2026-10-18
+authors: [agent:researcher-report-draft, agent:researcher-report-draft-2]
 topics: [report, write-up, lean, measurement, ci, agent-teams, cost]
 ---
 
 # v2 report (draft)
 
-**State of this draft.** Written at commit `e5bf4e4` (2026-10-17 23:34 +0700). Sections 1-3, 5 and 7 hold what
-exists now. Every place that waits for a result is a **PENDING** block that names the task that fills it. The
-experiment ends by **2026-10-20 13:15 +0700** (user decision, `ad5eeea`). The final step adds results only.
+**State of this draft.** Sections 2, 3, 5 and 7 were written at `e5bf4e4` (2026-10-17 23:34 +0700). Sections 1, 4
+and 6 were rewritten at `698b775` (2026-10-18) to the rev-10 shape of [P10:1072-1074, 1083]: per part the theorem
+pair, its premises, the RG status, the engine verdicts and an F-result slot. Two named pending blocks remain, both in
+§4.7, and close at C3 (2026-10-19 23:15 +0700). The experiment ends by **2026-10-20 13:15 +0700** (`ad5eeea`).
 
 **Status words.** MEASURED: a number from a run or a count in this repo, with its commit, run id or file. CONFIRMED:
 a cited source, doc or record says so. INFERRED: a judgement or expectation not yet checked.
@@ -22,7 +23,11 @@ a cited source, doc or record says so. INFERRED: a judgement or expectation not 
 
 | Tag | File |
 |---|---|
-| [PLAN] | `docs/plan/PLAN.md` (revision 8) |
+| [PLAN] | `docs/plan/PLAN.md` (revision 8; line numbers at `e5bf4e4`, used in §2-§3) |
+| [P10] | `docs/plan/PLAN.md` (revision 10; line numbers at `698b775`) |
+| [LG] | `research/findings/ledger.json` at `698b775`: `L<k>` is the k-th row of `findings` (1-based, 47 rows), `N<k>` the k-th row of `notes` (0-based, 23 rows) |
+| [R14] | `research/notes/2026/10-18-math-review-r14-f9b30af.md` (math review round 14) |
+| [RG] | `research/notes/2026/10-18-engine-gaps.md` (RG1-RG11 at the pins; RG<k> is the note's R<k>) |
 | [CU] | `docs/team/improvements/2026-10-17.md` (the catch-up log) |
 | [EV] | `research/notes/2026/10-17-plan-evidence.md` |
 | [WG] | `docs/team/work-graph.json` |
@@ -38,39 +43,48 @@ Numbers taken from git or `gh run list` in this draft were counted at `e5bf4e4`;
 
 ## 1. Question and setup
 
-**Question.** Can a loop built on deterministic engine counts, a proved Lean core and an agent team reproduce v1's
-result with far less phone time, fewer tool bugs and less elapsed time? [PLAN:134-136]
+**Question.** Can a loop built on proofs over engine models, deterministic engine counts and an agent team reproduce
+v1's end-of-page result with far less phone time, fewer tool bugs and less elapsed time? CONFIRMED [P10:1063-1064]
+
+**Answer shape (rev 10).** Each optimization is a Lean theorem pair: (vis) the visible scene equals the original's
+for every width band and instant, and (work) no engine stage does more work in any frame, under a cited model of
+Chromium and of WebKit. CI counts can falsify a model; they do not decide. The phone is an optional spot check and
+never evidence. CONFIRMED [P10:493-534]
 
 **v1, as the plan states it** (all CONFIRMED by the plan's citations; nothing here is read from v1's raw data).
 
 | v1 figure | Value | Source |
 |---|---|---|
-| Slow frames in the swipe | 20.1 % → 1.7 % | [PLAN:88], [01 §0] |
-| End-of-page longest frame | 584 ms → 42 ms | [PLAN:89] |
-| Elapsed time | 10 days | [PLAN:89] |
-| Agents started (transcripts) | 442 (848) | [PLAN:89], [08 §3] |
-| Model cost at list price | about $11.4k (v1's own readout: about $13.5k) | [PLAN:89-90] |
-| Incidents | 276; 231 filed against its own tools; 45 were feature requests | [PLAN:90-91] |
-| Incidents involving the iPhone or Simulator driver | about 111 of 276 | [PLAN:96] |
-| Phone block length | 12-35 min plus cooling | [PLAN:96] |
-| Full test suite per tooling commit | 250-280 s | [PLAN:98] |
-| Chore steps per phone session | 82-105 of 166 | [PLAN:150] |
-| Device incident share | about 40 % | [PLAN:150] |
+| Slow frames in the swipe | 20.1 % → 1.7 % | [P10:113] |
+| End-of-page longest frame | 584 ms → 42 ms | [P10:114] |
+| Elapsed time | 10 days | [P10:114] |
+| Agents started (transcripts) | 442 (848) | [P10:114] |
+| Model cost at list price | about $11.4k (v1's own readout: about $13.5k) | [P10:115] |
+| Incidents | 276; 231 filed against its own tools; 45 were feature requests | [P10:115-116] |
+| Incidents involving the iPhone or Simulator driver | about 111 of 276 | [P10:121] |
+| Phone block length | 12-35 min plus cooling | [P10:121] |
+| Full test suite per tooling commit | 250-280 s | [P10:123] |
+| Chore steps per phone session | 82-105 of 166 | [P10:183] |
+| Device incident share | about 40 % | [P10:183] |
 
 **v2 setup.**
 
 | Item | v2 | Status, source |
 |---|---|---|
-| Time box | 72 h: first commit `931aa35` at 2026-10-17 13:15 +0700, end 2026-10-20 13:15 +0700 | MEASURED (git); deadline CONFIRMED (`ad5eeea`) |
-| Inner loop | Deterministic work counts on CI: Chromium headless shell in a Linux container; WebKit on the iOS Simulator and WKTR | CONFIRMED [PLAN:94-96], [CU:444-446] |
-| Outer loop | The real iPhone, in sessions the user books | CONFIRMED [PLAN:105-112] |
-| Site | React rewrite as pluggable parts, picked by flags | CONFIRMED [PLAN:97] |
-| Decisions | One Lean 4 process, `fwcore`; TypeScript moves data | CONFIRMED [PLAN:98] |
-| Where counts run | GitHub Actions, public repo (user direction `417d90d`) | CONFIRMED [CU:444-446] |
-| Cost rule | Speed first; cost reported, no hard caps | CONFIRMED [PLAN:151] |
+| Time box | 72 h: first commit `931aa35` at 2026-10-17 13:15 +0700, end 2026-10-20 13:15 +0700 | MEASURED (commit log); deadline CONFIRMED (`ad5eeea`) |
+| Evidence | A (vis)/(work) theorem pair per part and optimization under `Fw.Engine.{Core, Visual, Chromium, WebKit}`; every engine rule cites a line at `chromium@f842f52` or `WebKit@862f17d` | CONFIRMED [P10:493-512] |
+| Model check | Lean emits one prediction per (scenario, variant, stage); F0-F2 on a fixture, F3/F4 on the rewrite arm per flag in the Chromium lane, F5 on the WebKit Simulator lane; a mismatch is a model bug | CONFIRMED [P10:515-530] |
+| Inner loop | Chromium headless shell counts on CI; WebKit Simulator counts on CI where green; WKTR not modelled | CONFIRMED [P10:1070-1071] |
+| Phone | Optional spot check with no dependents; session 1 held (`0c901f2`); session 2 is not a condition | CONFIRMED [P10:532-534, 1082] |
+| Site | React rewrite as pluggable parts, picked by flags; presets `original`, `v1-best`, `v2-proved` | CONFIRMED [P10:711-713] |
+| Decisions | One Lean 4 process, `fwcore`; TypeScript moves data | CONFIRMED [P10:123] |
+| Where counts run | GitHub Actions, free runners of the public repo | CONFIRMED [CU:444-446] |
+| Cost rule | Speed first; cost reported, no hard caps | CONFIRMED [P10:184] |
 
-**Success criteria** are G1-G4 in [PLAN:149-152]. G1 (on the iPhone, `v2-best` at or below 1.7 % slow frames and
-42 ms end-of-page longest frame) needs the phone and is PENDING (§4).
+**Success criteria (rev 10)** are G1-G4 [P10:182-185]. G1 is "reproduced, proved": every flag in `v2-proved` has its
+theorem pair in both engine models at every width band, and no F0-F5 prediction is falsified on CI. `v2-proved` is
+the set of optimizations with a proved pair and no falsified prediction [P10:93]. §4.2 gives each pair; §4.7 holds
+the two results that close at C3 (2026-10-19 23:15 +0700).
 
 ---
 
@@ -294,31 +308,184 @@ CONFIRMED, `packages/gate-breakpoints/src/gaps/README.md:1-30`.
 
 ### 4.1 How to read a row
 
-_skeleton: columns and status words._
+Every row is one ledger finding [LG] (`L<k>`). Its verdicts, premises and Lean names are the ledger's, which cite
+engine lines at `chromium@f842f52` and `WebKit@862f17d`. Lean names are in `lean/Fw` at `698b775` (each name in §4.2
+resolves to one declaration, CONFIRMED by grep at `698b775`); the prefix `Fw.Parts.` is dropped.
+
+| Column | Meaning |
+|---|---|
+| (vis) | The theorem that the visible scene of the variant equals the original's: E (equal), E-s (equal at each sample), Q (within the gate's tolerances). "none" means the ledger has no such theorem |
+| (work) | The theorem that bounds the variant's work per frame, and the theorem against a claim where one exists |
+| Ledger | `proved` or `partly-proved` as recorded in the ledger |
+| Cr, Wk | The ledger's verdict per engine model: win (less work, no more layers), trade (less of one, more of another), no-win (equal), worse, unknown |
+| Open premise | The premise of the row that is not CONFIRMED, with the ledger's status |
+| RG | Research gaps the row rests on, with their status from [RG] |
+| F | Where the row's F3/F4 result goes: the flag it runs under, or why it cannot run at `698b775` |
+
+All verdicts are under the engine models, so they are CONFIRMED as Lean results and INFERRED as engine facts until
+F3/F4 (Chromium) or F5 (WebKit) check them. F3/F4 have not run on any flag at `698b775` (§4.7).
 
 ### 4.2 Per part: theorem pair, premises, engine verdicts, F-result
 
-_skeleton: one row per ledger finding with a Lean pair._
+| L | Part: optimization | (vis) | (work) | Ledger | Cr | Wk | Open premise (status) | RG | F |
+|---|---|---|---|---|---|---|---|---|---|
+| L1 | engine.scroll: batched reads then writes | none; E needs premise NI (INFERRED) | `EngineScroll.batched_le_faithful`, `total_batch_win_iff` | proved | no-win | unknown | Chromium runs UpdateLayoutTree only when style is dirty at a lifecycle step: INFERRED (CI 784 vs a local no-write probe 94 per 385 frames) | RG4 CONFIRMED | `engine.scroll:batched` |
+| L3 | nav.hitTest: hit-skip while morph > 0.2 | `NavHitTestOpt.hitSkip_visSame` (E) | `hitSkip_run_dominates` | proved | win | win | swipe-v1 reaches morph > 0.2: OPEN, INFERRED false, so F3 may see no skipped frame | RG4 CONFIRMED | `nav.hitTest:hit-skip` |
+| L4 | nav.hitTest: elements-skip with an allow-list | `elementsSkip_visSame` (E under premise AL) | `elementsSkip_run_dominates` | proved | win | win | AL generated from CSS: no theorem yet (missingWhy) | RG4 CONFIRMED | `nav.hitTest:elements-skip` |
+| L5 | nav.hitTest: write-on-change | `NavHitTest.changed_write` (E) | `writeOnChange_le`; against: `toggle_noop` | proved | no-win | no-win | none: `toggle` is a no-op when unchanged, CONFIRMED in both engines | none | no flag |
+| L6 | hero.exit: threaded scroll-driven consumers | `HeroExitOpt.consumer_eq_s` (E-s under RG11) | `cr_real_tradeE`, `wk_tradeE` (trade) | partly-proved | trade | trade | WebKit ticks scroll-timeline animations each update: MEASURED, CI 39075991405 [LG N2, N7] | RG11 CONFIRMED; RG7 O3 CONFIRMED | no flag |
+| L7 | hero.countdown: strip (one strip per digit) | `HeroCountdownOpt.strip_visSame` (E) | `strip_claim`; against: `strip_backing_gt` | proved | trade | trade | each layer backs its whole box: INFERRED | none | `hero.countdown:strip`; F5 lane green 3 times (§4.6) |
+| L8 | hero.countdown: cd-roll-ca (WAAPI roll) | none (E-s at one cadence is missingWhy) | engine level only: `Engine.Chromium.compTransform_no_layout_paint` | partly-proved | win | trade | Safari time-based animations off the threaded path: OPEN (RG7 O2) | RG5 lane shim breaks it; RG7 O2 OPEN | no flag |
+| L9 | hero.countdown: clock-aligned timer | `HeroCountdown.drift_skips` (not E on WebKit under timer alignment) | against: `HeroCountdownOpt.same_run_noClaim` | proved | no-win | worse | iOS 26 thermal timer grid: OPEN | none | no flag |
+| L10 | hero/morph.countdown: skip face writes while hidden | `HiddenPause.hidden_pause_eq` (E) | `skipWrites_leE` | proved | win | win | which hidden forms skip paint: OPEN (RG6 residual) | RG6 residual OPEN | `morph.countdown:hidden-pause` |
+| L11 | morph.tween: one WAAPI animation on registered `--morph` | `MorphTweenOpt.waapi_vis` (E-s) | `waapi_work_le_chromium`, `waapi_work_le_webkit`, `drop_run_dominates` | proved | win | win | timeline zero under the lane clock shim needs an offset: OPEN | RG2, RG3, RG3b CONFIRMED; RG8 MEASURED; RG5 lane OPEN | `morph.tween:waapi` |
+| L13 | morph.panel: `blur(0)` → `none` at rest | `MorphPanelOpt.rest_visSame_E` (E under RG10) | `cr_rest_claim` with against `cr_toggle_not_le`; `wk_cross_claim` | proved | trade | win | WebKit toggle frames on the variant page: OPEN, not measured [LG N20] | RG10 CONFIRMED; check on the rewrite DOM OPEN | no `morph.panel` part on main |
+| L16 | morph.panel: own layer during the blur fade | `fade_visSame_Q` (Q) | `wk_fade_trade`; against: `cr_fade_noClaim` | proved | no-win | trade | original panel already its own layer in the lane: OPEN | none | no `morph.panel` part on main |
+| L17 | morph.mount: warm-up mount at a still moment | `MorphMountOpt.visSame_mount` (E under HiddenBefore) | `shift_peak_lt` (peak); against: `Engine.shift_not_dominates` | proved | trade | trade | the counting window holds the warm-up frame: premise | none | `morph.mount:shift`; engine-check has no peak window |
+| L19 | morph.countdown: strip, reused from L7 | `HeroCountdownOpt.strip_visSame` (E) | `strip_frame_ltE`; against: `strip_backing_gt` | partly-proved | trade | trade | shared-loop scheduling delta of the TS strip: OPEN, not modelled | none | `morph.countdown:strip` |
+| L20 | morph.columns: still picture while closed | `HiddenPause.panel_visSame` (E while hidden) | `pause_le`; against: `cr_realChrome_pause_eq`, `wk_pause_eq` | partly-proved | no-win | trade | which hidden forms drop the Chromium property node: OPEN (RG6) | RG6 residual OPEN | `morph.columns:hidden-pause` |
+| L23 | hero.accent: boil as a chain of opacity steps | `HeroAccent.exact_chain_vis` (E) | `cr_main_run_dominates`; against: `cr_comp_step_not_le` | proved | trade | no-win | the Chromium original is composited: OPEN (`compositeFailedBits` decides) | RG5 lane phase gap CONFIRMED | no hero.accent part on main |
+| L25 | people.card: skip the shrink write in the c860 band | `PeopleCard.peopleCard_visSame` (E) | `cr_dominates`, `wk_dominates` | proved | win | win | swipe profiles contain tail frames: OPEN | none | none yet: people is a shell; `people.card:shrink` planned in `model-checks` |
+| L28 | people.card: pre-painted card (g0.0m) | none (pixels E per the ledger) | `Engine.shift_peak`; against: `shift_not_dominates` | partly-proved | trade | trade | WebKit paints the opacity-0 `will-change` layer: INFERRED at the pin | RG6 CONFIRMED | none: people is a shell |
+| L33 | people.deck: cqi sizing | `PeopleDeck.deck_vis` (E in Q) | `deck_run_dominates`; against: `Engine.WebKit.wkRounds_ge_two` | partly-proved | no-win | win | relayout link from sticky to shells: UNRESOLVED | none | none: people is a shell |
+| L34 | pain.notes: arm the 3 s interval only while visible | `PainNotes.pain_visSame` (E; premise CovOk OPEN) | `hiddenTick_lt`, `cr_idle_tick`, `wk_idle_tick` | proved | win | win | Chromium per-tick saving is model-only; the timer rule is OPEN [LG N21] | none | none yet: pain is a shell; `pain.notes:arm` planned in `model-checks` |
+| L36 | commission.typing: forced-layout fix | none (E per the ledger; ResizeObserver timing INFERRED) | `EngineScroll.batched_le_faithful`, `HiddenPause.skipWrites_le` | partly-proved | win | win | read parity of the reorder: OPEN | none | none: commission is a shell |
+| L38 | commission.typing: 2 characters per step | not E (class L, `PlatformEntries.typing_subsample`) | `HiddenPause.skipWrites_le` | proved | win | win | text writes restyle no element: INFERRED | none | a look change: proposal only |
+| L39 | platform.sweep: band moved by `translateX` | geometry `PlatformSweep.band_eq_bgpos`; pixels Q | `Engine.comp_move_le_off`; against: `comp_move_not_le` | partly-proved | trade | trade | WebKit keeps the masked band on the compositor: UNRESOLVED in source | none | no flag |
+| L42 | engine.scene: pause compositor marquees while hidden | `HiddenPause.scenePaused_imp_hiddenPause` (E) | `cr_pause_style_units`; against: `cr_realChrome_pause_eq`, `wk_pause_eq` | proved | no-win | no-win | every BeginFrame is a main frame in the lane: INFERRED (RG1) | RG1 OPEN; RG6 residual OPEN | `morph.columns:hidden-pause` |
+| L43 | engine.scene: hysteresis and idle pre-warm | `HiddenPause.hiddenPause_visSame` (E) | `flips_le_one`; against: `flips_oscillate` | partly-proved | unknown | unknown | the 800 per 10 s flap rate came from a v1 build with deferral: CONFIRMED | none | no flag |
+| L44 | morph.countdown: hidden, spring keeps integrating | `HiddenPause.hidden_pause_eq` (E under hsync) | `unhide_leE`, `cr_countdown_style` | proved | win | win | hsync writes the state before paint on unhide: OPEN | none | `morph.countdown:hidden-pause` |
+| L45 | engine.scene: pause per element, not per section | `HiddenPause.hiddenPause_visSame` (E with the original clock) | `pause_le` | partly-proved | win | win | a descendant-selector flip restyles the subtree: INFERRED | none | `engine.scene:hidden-pause` exists but is not mounted |
+
+**What the table says** (counts from [LG] by `python3 -c` over `findings`, MEASURED at `698b775`):
+
+| Ledger status | Rows | Cr win / trade / no-win / other | Wk win / trade / no-win / other |
+|---|---|---|---|
+| proved | 17 | 8 / 4 / 5 / 0 | 9 / 3 / 3 / 2 (worse 1, unknown 1) |
+| partly-proved | 10 | 3 / 4 / 2 / 1 (unknown) | 3 / 6 / 0 / 1 (unknown) |
+| not-proved | 14 | 8 / 2 / 3 / 1 (worse) | 7 / 5 / 2 / 0 |
+| not-tried | 4 | 0 / 1 / 3 / 0 | 1 / 2 / 1 / 0 |
+
+- Proved with a win in both engine models: 8 rows, L3, L4, L10, L11, L25, L34, L38, L44. MEASURED [LG].
+- Of these, L38 changes the look (class L), so it is a proposal, not a `v2-proved` flag. CONFIRMED [P10:1073].
+- L25 and L34 have no flag on the page at `698b775`, because people and pain are shells (`part.json` variants
+  `shell`). CONFIRMED (repo at `698b775`).
+- The `v2-proved` candidates with a flag on main are therefore L3 or L4 (two answers to the same nav probe), L10/L44
+  (`morph.countdown:hidden-pause`) and L11 (`morph.tween:waapi`). INFERRED: task `experiments` decides at C3 after
+  F3/F4.
+- Proved but not a win in both models: L1, L5, L7, L9, L13, L16, L17, L23, L42. Each is a negative or mixed result
+  with its mechanism in the ledger. MEASURED [LG].
 
 ### 4.3 Candidates without a proved pair
 
-_skeleton: not-proved, not-tried, refuted rows, one line each._
+One line each; the reason is the ledger's `visual` or `premises` text. Verdicts are the ledger's model verdicts.
+
+| L | Part: candidate | Ledger | Cr | Wk | Why there is no pair |
+|---|---|---|---|---|---|
+| L2 | engine.scroll: observers instead of per-frame rect reads | not-tried | no-win | no-win | not E: Blink delivers IntersectionObserver one frame late, and thresholds cannot drive continuous outputs |
+| L12 | morph.tween: compositor-morph on a scroll timeline | not-proved | trade | trade | not E (class L): scaling a box is not resizing it, and a scroll timeline replaces the 680 ms tween |
+| L14 | morph.panel: constant 20 px glass | not-proved | no-win | no-win | not E (class L); the GPU cost of a changing radius has no counter (OPEN) |
+| L15 | morph.panel: bar from two flat GPU layers (Safari) | not-tried | no-win | trade | Q only: v1 found the 1 px outline differs mid-motion |
+| L18 | morph.countdown: own clock layer while the menu is open | not-proved | worse | trade | not E in Chromium: new-layer text drawn up to 1 device px off in v1 |
+| L21 | morph.columns: images sized to the drawn size | not-proved | no-win | no-win | not E: a smaller source changes resampling, outside PL1/PL2 |
+| L22 | hero.accent: wipe instead of the stroke draw | not-proved | win | win | not E (class L): the stroke-order drawing becomes a wipe |
+| L24 | hero.accent: boil-ca (linear with 0.01 % jumps) | not-proved | no-win | trade | E-s only under a phase premise; Safari's CA path for time-based animations is OPEN (RG7 O2) |
+| L26 | people.card: instant reveal after a fast flick | not-proved | win | win | not E (class L); v1's look, accepted there |
+| L27 | people.card: blur tail cut to 0.9 s | not-proved | win | trade | fails the gate: blur 0.24 px against `none` is outside `filterQ` (1e-3) |
+| L29 | people.o: FLIP with WAAPI translate | not-proved | win | win | not E (class L): layout snaps to device pixels, the compositor does not |
+| L30 | people.carousel: keep 5 slots mounted (st5) | not-proved | win | win | no Lean pair yet; E assumes an in-place `src` swap paints the same image (INFERRED) |
+| L31 | people.carousel: rest at opacity 0.999 (st6) | not-proved | win | win | Q at the gate's boundary; pixel E needs the engines' alpha rounding (OPEN) |
+| L32 | people.carousel: clip-path crop instead of a shrink | not-proved | win | win | not E (class L): the crop cuts the border ring and moves followers by sub-pixels |
+| L35 | pain.notes: solid-colour layer for the dark flip | not-tried | trade | trade | Q at best: 8-bit rounding happens at different points (≤ 1 LSB, INFERRED) |
+| L37 | commission.typing: no `container-type` above per-frame text | not-tried | no-win | win | E only if no container query resolves against it: OPEN; the rewrite declares `container-type` |
+| L40 | platform.glint: clip-path span instead of SMIL | not-proved | trade | trade | geometry E-s unproved; pixels Q (≤ 64 LSB in Chrome, ≤ 33 in WebKit, v1) |
+| L41 | engine.scene: pause the hero while covered | not-proved | win | win | occlusion is not modelled; 0.999 cover alpha can flip rounding by 1 LSB (OPEN) |
+
+Two rows are premises, not optimizations: L46 (`cv.auto-margin`) is refuted in both engines, and L47 (`anim.list`)
+holds in Chromium and fails intermittently in WebKit. MEASURED [LG L46, L47]. Both were premises of the cut task
+`gate-settle` (§6).
 
 ### 4.4 Premises H1-H3 and research gaps RG1-RG11
 
-_skeleton._
+**H1-H3** are the path premises: the engine rasterizes the same scene the same way whichever thread draws a box
+[P10:509-513]. In Lean they are the structure `PathPremises` (`Fw/Engine/Visual.lean:461`, C1-C3 there), and at
+`698b775` only `Fw.Parts.MorphPanelOpt` uses it (grep over `lean/Fw`). The other (vis) theorems are scene-level, and
+`visSame_render` (`Visual.lean:446`) turns equal scenes into equal images for any `R : Scene → α`, so H1-H3 sit in the
+step from "equal scene" to "equal pixels". CONFIRMED (Lean source at `698b775`). They matter for the rows whose
+variant changes which thread or layer draws a box: L6, L7, L16, L19, L39 (INFERRED from the ledger's `visual` text).
+
+| Premise | Statement | Status, source |
+|---|---|---|
+| H1 | no LCD text in a box whose path differs between the arms | not vacuous in the Chromium lane: DPR 3 does not turn LCD text off on Linux. CONFIRMED [RG] R9 |
+| H2 | no compositor scale animation on such a box | not checked; INFERRED from the variant code only |
+| H3 | the compositor samples the same value function at its own frame time | not checked; INFERRED |
+
+The check for H1-H3 was `pixel-spot` (Chromium only), cut in §6.
+
+**Research gaps** (12 items, RG3b counted alone; status at the pins `f842f52` / `862f17d`, [RG] summary table):
+
+| Gap | Status | Rows that rest on it |
+|---|---|---|
+| RG1 lane main frame per BeginFrame | OPEN (value MEASURED, requester not found) | L42 |
+| RG2 same restyle set for animated and inline writes | CONFIRMED | L11 |
+| RG3 registered `<number>` interpolation is linear | CONFIRMED | L11 |
+| RG3b discrete flag flip at p ≥ c | CONFIRMED | L11 |
+| RG4 forced-update sites | CONFIRMED | L1, L3, L4 |
+| RG5 timeline zero is the HR-time origin | CONFIRMED in the engines; the Chromium lane's clock shim breaks it | L8, L11, L23 |
+| RG6 paint skip and ticking per hidden form | CONFIRMED, small residual OPEN | L10, L20, L28, L42 |
+| RG7 threaded animation modes | O3 CONFIRMED; O2 CONFIRMED for the lane, OPEN for shipping Safari | L6, L8, L24 |
+| RG8 fp tie of the curve | MEASURED (Node golden, max diff 3.33e-16) | L11 |
+| RG9 LCD text at DPR 3 | CONFIRMED not vacuous in the Chromium lane | H1 |
+| RG10 `blur(0)` makes a containing block and stacking context | CONFIRMED | L13, L27 |
+| RG11 scroll-timeline progress = offset / range | CONFIRMED, engine-specific quantization | L6 |
 
 ### 4.5 Math review state
 
-_skeleton: r14 counts._
+| Measure | Value | Status, source |
+|---|---|---|
+| Round 14 at `f9b30af`: reviewed / agree / disagree | 2357 / 2266 / 91 | MEASURED [R14] counts table |
+| `Fw.Parts.*` modules in round 14 (21 modules) | 454 reviewed, 451 agree, 3 disagree | MEASURED [R14] per-module table |
+| Round 14 fixes | all 91 fixed in docstrings only, no Lean statement changed | CONFIRMED, `3c2a1de`; `docs/team/handoffs/math-final.md` |
+| Math view after the fixes (main `c2410d2`) | 5109 agree, 0 disagree, 517 stale, 1373 pending | MEASURED, `docs/team/handoffs/math-final.md` |
+| Held back from round 14 | `Gate.*`, `Plan.*`, `Console*`, `Engine*` (1389 entries) | CONFIRMED, same handoff |
+
+C4 asks for 0 disagree and 0 stale [P10:1083]. At round 14 the view has 0 disagree and 517 stale, and the engine
+model modules `Fw.Engine.*` that every (work) theorem uses were not in the round. A round 15 over the stale and
+held-back entries is the open step. INFERRED from the counts above.
 
 ### 4.6 Measured inputs
 
-_skeleton: the Chromium and gate rows that still hold._
+| Result | Value | Status, source |
+|---|---|---|
+| Chromium zone baselines, 4 (profile, arm) pairs, 3 shards each | det/stable/quarantined: swipe-v1 A 32/28/10, R 44/7/0; touch A 23/32/15, R 50/1/0; 0 unlisted, detDrift empty | MEASURED, `f4c6ea5`, runs 39048702153, 39050423094 [BL] |
+| WebKit zone baselines of the original | gateable per zone: RenderingFrame, Composite, EventDispatch | MEASURED, `6b5933d`, run 39061324429 |
+| Touch race | R deterministic in 4 touch types; A stable; 0 wedges | MEASURED, `c38088e` |
+| N0 / N1 neutrality reads on A (Chromium) | 0 and 0 after the SVG-document split | MEASURED, `f90c08f` |
+| Engine premises in the lane (17 untested) | 5 held, 7 refuted, 5 not measurable | MEASURED, run 39088367495; `docs/team/handoffs/engine-premise-measure.md` |
+| Model fixes from those runs | `morph.panel` own layer: Chromium trade → no-win; `blur(0)` → `none`: WebKit trade → win | MEASURED, run 39088367495 [LG N18, N19] |
+| WebKit Simulator on the rewrite, `hero.countdown:strip` | 3 green runs (39104964068, 39123585294, 39123621097); 86 of 95 class rows agree across them | MEASURED, `docs/team/handoffs/webkit-sim-rewrite.md` |
+| F0-F2 on the fixture | no result through `fw engine-check` yet: no fixture artifact was fed to it (open item of the task) | CONFIRMED, `docs/team/handoffs/engine-ci-check.md` |
+| Breakpoint gate, pilot parts | 4 of 4 pass, both engines | MEASURED, `2566949` |
+| Breakpoint gate settle wait | 212.4 → 65.5 job-min with a 60-frame settle budget; per-cell verdicts equal | MEASURED, `088315d`; `research/notes/2026/10-18-gate-shard-balance.md` |
+| Gaps lane | Chromium 8/8 pass; WebKit 8/8 unreachable as predicted | MEASURED, `0d561fa` |
 
 ### 4.7 Pending until C3
 
-_skeleton: the two named pending blocks (faithful bands table; F3/F4 per flag table)._
+These two blocks are the only open results in this draft. Both close at C3 (2026-10-19 23:15 +0700); a block still
+open at C3 moves to §6 with its reason [P10:1082].
+
+> **PENDING 1: faithful bands table** (task `faithful-checks`). PL5 band verdict per zone (y04000, y04500, tail) and
+> count type, rewrite against original, bands from the frozen Chromium zone baselines, verdict in Lean
+> (`Fw.Faithful`).
+>
+> | Zone | Count type | Band (lo, hi) | Original | Rewrite (`faithful`) | Verdict | Run |
+> |---|---|---|---|---|---|---|
+
+> **PENDING 2: F3/F4 per flag table** (tasks `model-checks`, then `experiments`). One Chromium counts run per flag
+> on the rewrite arm, read with `fw engine-check`; a mismatch is a model bug, never a tolerance change.
+>
+> | Flag | Ledger rows | F3 (=0 stages) | F4 (=o, <o stages) | Model bugs | Run |
+> |---|---|---|---|---|---|
 
 ---
 
