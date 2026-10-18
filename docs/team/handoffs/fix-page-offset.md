@@ -24,3 +24,13 @@ No golden changed (wiring only; site tests 5024 pass; `lean Fw/Gate/PageOffset.l
 
 ## Open
 Original centre column title wraps to 2 lines (placeholder text), so panel height differs; not a flow issue.
+
+## CI (2 of 3 runs; dispatch breakpoint-gate parts=morph.panel,morph.countdown,pain.notes, both engines)
+- 39084461260 (slot `display: contents`): morph.panel FAIL on countdown display (flex vs contents); morph.countdown pass.
+- 39086309620 (slot kept, wrap margin 0 inside it; the committed state): morph.panel pass; morph.countdown FAIL on wrap
+  margin-top (orig 32, ours 0). Both parts compare the SAME original element (.waitlist-closing-countdown), so one
+  margin cannot satisfy both cells without doubling. Lead decision: map one role (suggest morph.countdown compares the
+  slot, or the panel gate skips the slot box). Layout itself is correct (page tops equal locally).
+- pain.notes sweep still FAIL 25/57 (note x 249.7 vs 308.2 at #3 @1279, 135 probes) on both runs: NOT the 16-probe state
+  fix-pain-notes reported; not read further (budget). Check that integrate-ports-2 carries scene.ts correctly.
+- `fw land --dry`: REFUSED scope: App.tsx and lean/Fw.lean are outside the task glob (plus integrate-ports-2's files).
