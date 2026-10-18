@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/main.ts",
     "test": "tsc --noEmit && vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "owner-link": "node src/owner-link.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
