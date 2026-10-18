@@ -1,4 +1,5 @@
 import Fw.Wire
+import Fw.Console.PreviewTable
 /-!
 # Golden vectors of the `ops.*` ops
 
@@ -415,6 +416,51 @@ def extra : List (String × String × List (String × Json)) := [
     ("failed by the code: final", lit "{\"passed\":false,\"loadFailure\":false}"),
     ("timed out under load: re-run alone", lit "{\"passed\":false,\"loadFailure\":true}"),
     ("missing loadFailure is refused", lit "{\"passed\":false}")]),
+  ("console", "console.previewTarget", [
+    ("landed on main: main", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"7ba0436\",\"onMain\":true,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("integrated only: the newest integration ref that contains it", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"4d26f44\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("an older ref when the newest does not contain it", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"4d26f44\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("the head is exactly an integration tip: that ref, not a newer one", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"26e5f53\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("a documentation-only handoff commit does not hide the commit the gate ran", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"handoff\",\"sha\":\"ad919a4\",\"onMain\":false,\"noCode\":true,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]},{\"src\":\"ci\",\"sha\":\"26e5f53\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("a head with no code that nothing holds: the newest integration ref", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"named\",\"sha\":\"ef1774f\",\"onMain\":false,\"noCode\":true,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]}],\"children\":[]}"),
+    ("a head with code that nothing holds: its own head", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"named\",\"sha\":\"0f5cdb7\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]}],\"children\":[]}"),
+    ("no integration ref at all and no code: its own head", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"named\",\"sha\":\"0f5cdb7\",\"onMain\":false,\"noCode\":true,\"cands\":[]}],\"children\":[]}"),
+    ("no head and no sub-task: no preview", lit "{\"main\":\"25d9402\",\"facts\":[],\"children\":[]}"),
+    ("an umbrella whose sub-tasks are all on main: main", lit "{\"main\":\"25d9402\",\"facts\":[],\"children\":[{\"facts\":[{\"src\":\"ci\",\"sha\":\"a1\",\"onMain\":true,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}]},{\"facts\":[{\"src\":\"ci\",\"sha\":\"a2\",\"onMain\":true,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}]}]}"),
+    ("an umbrella with one sub-task only integrated: the first ref that holds all", lit "{\"main\":\"25d9402\",\"facts\":[],\"children\":[{\"facts\":[{\"src\":\"ci\",\"sha\":\"a1\",\"onMain\":true,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}]},{\"facts\":[{\"src\":\"ci\",\"sha\":\"a2\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]}]}]}"),
+    ("an umbrella whose sub-tasks share no ref: no preview", lit "{\"main\":\"25d9402\",\"facts\":[],\"children\":[{\"facts\":[{\"src\":\"ci\",\"sha\":\"a1\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]}]},{\"facts\":[{\"src\":\"ci\",\"sha\":\"a2\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}]}]}"),
+    ("missing main is refused", lit "{\"facts\":[]}")] ++ Fw.Console.PreviewTable.goldenCases),
+  ("console", "console.previewAdmit", [
+    ("the user starts the first preview: the two lowest ports", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[]}"),
+    ("the second preview takes the next two", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
+    ("a freed port pair is reused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("a third preview is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("the same task twice is refused", lit "{\"preview\":\"n\",\"task\":\"port-nav\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
+    ("the same id twice is refused", lit "{\"preview\":\"a\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
+    ("low disk is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":100,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[]}"),
+    ("no target is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":false,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[]}"),
+    ("the console secret is refused even with cookie and origin", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":true,\"cookie\":true,\"origin\":true,\"live\":[]}"),
+    ("no owner cookie is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":false,\"origin\":true,\"live\":[]}"),
+    ("no same-origin Origin is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":false,\"live\":[]}"),
+    ("neither cookie nor origin is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":false,\"origin\":false,\"live\":[]}"),
+    ("a missing proof field is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"live\":[]}"),
+    ("missing now is refused", lit "{\"secret\":false,\"cookie\":true,\"origin\":true,\"preview\":\"n\",\"task\":\"t\",\"diskMb\":9000,\"hasTarget\":true,\"live\":[]}")]),
+  ("console", "console.previewTick", [
+    ("nothing live", lit "{\"now\":10,\"live\":[]}"),
+    ("both inside the TTL", lit "{\"now\":3000000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("the older one is past its deadline", lit "{\"now\":3600000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("both past", lit "{\"now\":3700000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}")]),
+  ("console", "console.previewStop", [
+    ("the user stops a recorded preview", lit "{\"secret\":false,\"cookie\":true,\"origin\":true,\"preview\":\"a\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("an id that is not in the table kills nothing", lit "{\"secret\":false,\"cookie\":true,\"origin\":true,\"preview\":\"zzz\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("a request without the owner cookie is refused", lit "{\"secret\":false,\"cookie\":false,\"origin\":true,\"preview\":\"a\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}")]),
+  ("console", "console.previewFail", [
+    ("a failed build leaves the table", lit "{\"preview\":\"a\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("an id that is not in the table changes nothing", lit "{\"preview\":\"zzz\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
+    ("missing live is fine: empty table", lit "{\"preview\":\"a\"}")]),
+  ("console", "console.previewReap", [
+    ("everything recorded is killed", lit "{\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("empty table", lit "{\"live\":[]}")]),
   ("console", "console.actor", [
     ("all sources", lit "{}"),
     ("the alert source writes as script", lit "{\"source\":\"alert\"}"),
