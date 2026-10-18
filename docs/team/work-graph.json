@@ -5131,7 +5131,8 @@
     "lean/Fw.lean",
     "research/notes/2026/10-18-guidance-proofs.md",
     "docs/team/handoffs/guidance-proofs.md"
-   ]
+   ],
+   "evidence": "b3ea61b"
   },
   {
    "id": "chrome-agent-docs",
