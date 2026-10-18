@@ -681,7 +681,7 @@ theorem computed_trusted_refuses_preview (q : Nat) (own : Option Origin) (extra 
   intro hm
   exact trusted_not_preview q own extra _ hm rfl
 
-/-- **While the preview port is unset, every owner action and every login with an Origin is refused.**
+/-- **While the preview port is unset, every owner action and every login that carries an Origin header is refused.**
 
 $$\operatorname{ownerAction}(T(\bot,h,E), c, \mathrm{some}(o)) = \mathrm{false} \wedge \operatorname{loginOk}(T(\bot,h,E), \mathrm{some}(o)) = \mathrm{false}$$ -/
 theorem unset_refuses (own : Option Origin) (extra : List Origin) (c : Cred) (o : Origin) :
