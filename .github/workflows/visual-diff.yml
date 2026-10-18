@@ -56,6 +56,8 @@ on:
       - 'lean/Fw/Parts/MorphMount.lean'
       - 'lean/Fw/Plan/Core.lean'
       - 'lean/Fw/Plan/Graph.lean'
+      - 'lean/Fw/Plan/Lint.lean'
+      - 'lean/Fw/Plan/Trailer.lean'
       - 'lean/Fw/Site/BreakpointFacts.lean'
       - 'lean/Fw/Site/BreakpointGen.lean'
       - 'lean/Fw/Site/BreakpointMatrix.lean'
