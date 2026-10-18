@@ -43,7 +43,7 @@ function callBin(bin: string, req: Record<string, unknown>, timeoutMs = 15000): 
 
 export function coreCaller(bins: string[]): CoreCall {
   return async (req) => {
-    if (bins.length === 0) throw new Error("fwcore not built: cd lean && lake build (obs.health needs the watch-lean commit)");
+    if (bins.length === 0) throw new Error("fwcore not built: sh scripts/fwcore-build.sh (obs.health needs the watch-lean commit)");
     let last = "";
     for (const b of bins) {
       try {
@@ -92,7 +92,7 @@ export async function nextMain(args: string[], cwd: string, print: (s: string) =
   const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap);
   const h = await check(snap, call);
   const reply = await nextFor(paths, main, snap, h, call);
-  if (!reply) { print("fw next: fwcore obs.next unavailable (cd lean && lake build)"); return 0; }
+  if (!reply) { print("fw next: fwcore obs.next unavailable (sh scripts/fwcore-build.sh)"); return 0; }
   const lines = [...formatNext(reply), ...slowNextLines(await slowFor(paths, call))];
   print(lines.length ? lines.join("\n") : "NEXT: none");
   return 0;

@@ -24,6 +24,9 @@ open Fw.Wire.Ops.Golden (lit withOp respond)
 /-- The observation time of every typed case (ms since the epoch). -/
 def t0 : Nat := 1760000000000
 
+/-- A service with the given input groups, its code identified. -/
+def sv (n : String) (i : List Fw.Obs.SvcInput) : Fw.Obs.Svc := { name := n, inputs := i }
+
 /-- `m` minutes before `t0`, minus `ms` milliseconds more recent (so `ago 10 1` is 9 min 59.999 s before `t0`). -/
 def ago (m : Nat) (ms : Nat := 0) : Nat := t0 - m * msPerMin + ms
 
@@ -153,16 +156,23 @@ def typed : List Typed := [
     o := { now := t0, agents := [ag "a" 0], system := { okSys with simLock := { holder := some "ghost" } } } },
   { name := "svc.stale: only the inputs touched by main since the base commit are named: svc.stale lists the changed paths",
     o := { now := t0, system := { okSys with svcs := [
-      ⟨"console-api", [⟨"apps/console-api/src", true⟩, ⟨"lean/Fw", false⟩, ⟨"apps/console-web/dist", false⟩]⟩] } } },
+      sv "console-api" [⟨"apps/console-api/src", true⟩, ⟨"lean/Fw", false⟩, ⟨"apps/console-web/dist", false⟩]] } } },
   { name := "svc.stale: no input touched since the base commit (also a service with no inputs): no alert",
     o := { now := t0, system := { okSys with svcs := [
-      ⟨"console-api", [⟨"apps/console-api/src", false⟩, ⟨"lean/Fw", false⟩]⟩, ⟨"fwcore", []⟩] } } },
+      sv "console-api" [⟨"apps/console-api/src", false⟩, ⟨"lean/Fw", false⟩], sv "fwcore" []] } } },
   { name := "svc.stale: console-api restarted but the fwcore binary not rebuilt: only fwcore is stale",
     o := { now := t0, system := { okSys with svcs := [
-      ⟨"console-api", [⟨"apps/console-api/src", false⟩, ⟨"lean/Fw", false⟩]⟩, ⟨"fwcore", [⟨"lean/Fw", true⟩, ⟨"lean/lakefile.toml", false⟩]⟩] } } },
+      sv "console-api" [⟨"apps/console-api/src", false⟩, ⟨"lean/Fw", false⟩], sv "fwcore" [⟨"lean/Fw", true⟩, ⟨"lean/lakefile.toml", false⟩]] } } },
   { name := "svc.stale: two stale services give two alerts in subject order",
     o := { now := t0, system := { okSys with svcs := [
-      ⟨"fwcore", [⟨"lean/Fw", true⟩]⟩, ⟨"console-api", [⟨"apps/console-api/src", true⟩]⟩] } } },
+      sv "fwcore" [⟨"lean/Fw", true⟩], sv "console-api" [⟨"apps/console-api/src", true⟩]] } } },
+  { name := "svc.unknown: the build commit of the fwcore binary cannot be identified: an alert, not silence",
+    o := { now := t0, system := { okSys with svcs := [
+      { name := "fwcore", unknown := some "no main ref move at or before the binary" }] } } },
+  { name := "svc.unknown and svc.stale together: console-api has a changed own input and an unidentifiable core child",
+    o := { now := t0, system := { okSys with svcs := [
+      { name := "console-api", inputs := [⟨"apps/console-api/src", true⟩], unknown := some "api.json records no core build commit" },
+      sv "fwcore" [⟨"lean/Fw", false⟩]] } } },
   { name := "sim lock with no holder: no alert",
     o := { now := t0, system := { okSys with simLock := { since := some (ago 90) } } } },
   { name := "ci: a failure superseded by a later success, a running run, a cancelled run: no alert",

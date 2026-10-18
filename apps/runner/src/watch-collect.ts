@@ -54,8 +54,8 @@ export interface SystemSnap {
   services?: number[];
   /** pids the lead declared as intended long-runners (`fw watch --keep`, .fw-console/keep.json), still running */
   keep?: number[];
-  /** the running services with their start time and the last change time on main of each input group (fwcore
-   *  raises svc.stale); see watch-svc.ts */
+  /** the running code (console-api, its fwcore child, the fwcore binary on disk): per input group whether the range
+   *  base..main touches it (fwcore raises svc.stale), or why the base is unknown (svc.unknown); see watch-svc.ts */
   svcs?: Svc[];
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
@@ -804,8 +804,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     procs = keepNames(ownProcs(procs, parseTaskIds(text(lsof)), owners), prev?.system.procs ?? []);
   }
   const consolePids = collectConsolePids(p);
-  let svcs = await collectSvcs(p, exec);
-  if (svcs === null) { stale.push("svcs"); svcs = old?.svcs ?? []; }
+  const svcs = await collectSvcs(p, exec); // never fails as a whole: a service it cannot judge is reported unknown
   let disk = 0;
   try { const s = statfsSync(p.root); disk = Math.floor((Number(s.bavail) * Number(s.bsize)) / 1e9); } catch { /* unknown -> 0 raises sys.diskLow */ }
   return {

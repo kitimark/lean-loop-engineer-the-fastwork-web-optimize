@@ -1,24 +1,22 @@
 # console-stale handoff
 
-State: round 3 on branch worktree-wf_56a18937-3ba-1 (code head b4661a1, plus this handoff commit). check.sh green, runner+console-api tests green.
+State: round 4 on branch worktree-wf_78d166a4-1a6-1 (head: see `git log -1`; merged round-3 head bc83b8a and main).
 
 Read first: docs/team/tools/console-stale.md, lean/Fw/Obs/Stale.lean.
 
-Done
-- Lean: Fw.Obs.Stale. No timestamps (fw land builds the merge commit before its checks and moves main 23-89 s later,
-  MEASURED). Svc = name + inputs `{path, changed : Bool}`; changed = the first-parent range `base..main` touches the path.
-  Theorems: stale_iff, mem_changed, history model (`touched`, `judge_head_not_stale`, `touched_of_mem`), restart_clears,
-  Stack.restart_without_build_stale (restarting console-api leaves a stale fwcore stale), Stack.rebuild_clears.
-  Health: code `svc.stale`, `sStale`, svcStale_iff, staleAlert_fields, sStale_restart; Wire/Obs.lean decodes `svcs`.
-- TS: apps/runner/src/watch-svc.ts. console-api base = `commit` in api.json (HEAD at start). fwcore is its own service:
-  base = `lean/.lake/build/bin/fwcore.commit` written by `docs/team/tools/fwcore-build.sh`; without it the binary mtime picks
-  the newest first-parent commit at or before it (stated PREMISE, can miss a change in the 23-89 s land window).
-- Tests: apps/runner/test/watch-svc.test.ts (real git: commit-tree at T-1 min, start at T, ff at T+1 min => stale;
-  restart clears; fwcore stays stale after a console-api restart; rebuild clears; mtime premise).
+Done (round 4)
+- Lean: Svc gets `unknown : Option String`; code `svc.unknown` (rank 15, later codes shifted), `sUnknown`, `svcUnknown_iff`,
+  `unknown_service_alerts`. Stale.lean: Stack = (apiBase, coreBase, diskBase) over the history model; theorems
+  rebuild_without_restart_api_stale, rebuild_clears_disk, restartApi_after_rebuild_clears, restartApi_without_rebuild_stale,
+  touched_append, judge_stale_append; `chooseBase`/`fromLog` (record vs reflog, unknown) with theorems and `#guard` table.
+- TS: console-api records `coreCommit`/`coreUnknown` in api.json at every fwcore child spawn (core/lean.ts `onSpawn`, main.ts).
+  TS stand-in for chooseBase: apps/console-api/src/core/build-base.ts (same table as the #guards). watch-svc.ts judges
+  console-api on own inputs + fwcore inputs vs its child, and the disk binary; never drops one service for the other.
+- scripts/fwcore-build.sh is the one writer of the build record (moved from docs/team/tools). BUILD_HINT and runner hints use it.
 
 Open
-- Build the main checkout's binary with `sh docs/team/tools/fwcore-build.sh` (plain `lake build` leaves no record, so the mtime
-  premise applies). Running console-api must be restarted once to write a full `commit` (old api.json: no alert).
-- fw land does not print "restart" hints (optional).
-- lean/Fw/Wire/Obs.lean is outside the task's declared writes: land with `--allow lean/Fw/Wire/Obs.lean` or add it to
-  docs/team/work-graph.json writes.
+- lean/scripts/check.sh still runs plain `lake build`: switching it to the script needs `scripts/fwcore-build.sh` in
+  Fw/Console/LandSpeed.lean checkShReads (and its golden), outside this task's writes.
+- Lands needing `--allow lean/Fw/Wire/Obs.lean`; scripts/fwcore-build.sh is a new path outside the declared writes.
+- The running console-api must be restarted once to write `coreCommit`; until then `svc.unknown console-api` is raised (by design).
+- TS stand-in chooseBase to be replaced by an fwcore op.

@@ -15,8 +15,9 @@ const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
 };
 
-/** Which code this process runs: the commit of its checkout when it started and the start time (ms). `fw watch` compares
- *  the start time with the last change of the process's input files on main (fwcore `svc.stale`). */
+/** Which code this process runs: the commit of its checkout when it started (its base) and the start time (ms,
+ *  informational). `fw watch` asks whether the range base..main touches the process's input files (fwcore `svc.stale`);
+ *  api.json also holds the build commit of the fwcore child (`coreCommit`, or `coreUnknown`). */
 export interface ServiceInfo { commit: string | null; startedAt: number }
 
 export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, service?: ServiceInfo) {

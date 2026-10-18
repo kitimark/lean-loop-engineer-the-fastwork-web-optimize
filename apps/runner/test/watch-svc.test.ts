@@ -5,87 +5,146 @@ import { join, resolve } from "node:path";
 import { check, coreCaller, coreCandidates } from "../src/watch.ts";
 import { afterAll, describe, expect, it } from "vitest";
 import { pathsFor, type Runner } from "../src/watch-collect.ts";
-import { CORE_BIN, CORE_COMMIT, SVC_INPUTS, collectSvcs, parseTouched, readApiBase } from "../src/watch-svc.ts";
+import { CORE_BIN, CORE_COMMIT, SVC_INPUTS, collectSvcs, parseTouched, readApi, readApiBase } from "../src/watch-svc.ts";
 
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
+const SHA_C = "c".repeat(40);
 const dirs: string[] = [];
 const root = () => { const d = mkdtempSync(join(tmpdir(), "fwsvc-")); dirs.push(d); mkdirSync(join(d, ".fw-console")); return d; };
 afterAll(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })));
 const writeApi = (d: string, o: object) => writeFileSync(join(d, ".fw-console", "api.json"), JSON.stringify(o));
+/** an api.json of a live console-api started at `commit` whose fwcore child was built from `coreCommit` */
+const api = (d: string, commit: string, coreCommit: string) => writeApi(d, { port: 1, pid: 42, commit, coreCommit });
 const writeCore = (d: string, commit?: string) => {
   mkdirSync(join(d, "lean/.lake/build/bin"), { recursive: true });
   writeFileSync(join(d, CORE_BIN), "bin");
   if (commit) writeFileSync(join(d, CORE_COMMIT), commit + "\n");
 };
-// a fake runner: `touched[base]` lists the paths the range base..main touches
-const gitFake = (touched: Record<string, string[]>): Runner => async (_c, args) => {
+const setMtime = (path: string, sec: number) => utimesSync(path, sec, sec);
+// a fake runner: `touched[base]` lists the paths the range base..main touches; `reflog` answers the reflog call
+const gitFake = (touched: Record<string, string[]>, reflog = ""): Runner => async (_c, args) => {
+  if (args[0] === "reflog") return reflog;
   const range = args.find((a) => a.endsWith("..main"))!;
   const path = args[args.length - 1]!;
   return (touched[range.slice(0, -6)] ?? []).includes(path) ? SHA_B + "\n" : "";
 };
-const find = (svcs: Awaited<ReturnType<typeof collectSvcs>>, name: string) => svcs!.find((s) => s.name === name);
+const find = (svcs: Awaited<ReturnType<typeof collectSvcs>>, name: string) => svcs.find((s) => s.name === name);
 const changedPaths = (s?: { inputs: { path: string; changed: boolean }[] }) => s?.inputs.filter((i) => i.changed).map((i) => i.path);
+const reflogOf = (...e: [string, number][]) => e.map(([s, t]) => `${s} main@{${t}}`).join("\n");
 
 describe("parseTouched", () => {
   it.each([[SHA_B + "\n", true], ["", false], ["  \n", false]])("%j -> %j", (out, v) => expect(parseTouched(out)).toBe(v));
   it.each([["garbage"], [null], [{ missing: true }]])("%j -> null", (out) => expect(parseTouched(out as never)).toBeNull());
 });
 
-describe("readApiBase", () => {
-  it("reads the start commit of a live console-api; none for a dead pid, a missing file, an old api.json or a non-sha", () => {
+describe("readApi / readApiBase", () => {
+  it("reads the start commit and the core build record of a live console-api; none for a dead pid or a missing file", () => {
     const d = root(); const p = pathsFor(d);
-    expect(readApiBase(p, () => true)).toBeNull(); // no api.json
+    expect(readApi(p, () => true)).toBeNull(); // no api.json
     writeApi(d, { port: 1, pid: 42 });
-    expect(readApiBase(p, () => true)).toBeNull(); // no commit
-    writeApi(d, { port: 1, pid: 42, commit: "abc" });
+    expect(readApi(p, () => true)).toEqual({ commit: null, coreCommit: null, coreUnknown: null }); // alive, nothing identified
+    writeApi(d, { port: 1, pid: 42, commit: "abc", coreCommit: "xyz" });
     expect(readApiBase(p, () => true)).toBeNull(); // not a full sha
-    writeApi(d, { port: 1, pid: 42, commit: SHA_A, startedAt: 1 });
-    expect(readApiBase(p, () => true)).toBe(SHA_A);
-    expect(readApiBase(p, () => false)).toBeNull(); // crashed: stale file, pid gone
+    writeApi(d, { port: 1, pid: 42, commit: SHA_A, coreCommit: SHA_B, startedAt: 1 });
+    expect(readApi(p, () => true)).toEqual({ commit: SHA_A, coreCommit: SHA_B, coreUnknown: null });
+    writeApi(d, { port: 1, pid: 42, commit: SHA_A, coreUnknown: "why" });
+    expect(readApi(p, () => true)).toEqual({ commit: SHA_A, coreCommit: null, coreUnknown: "why" });
+    expect(readApi(p, () => false)).toBeNull(); // crashed: stale file, pid gone
   });
 });
 
 describe("collectSvcs (fake runner)", () => {
-  it("each service is judged against its own base: console-api by its start commit, fwcore by its build commit", async () => {
-    const d = root(); writeApi(d, { port: 1, pid: 42, commit: SHA_A }); writeCore(d, SHA_B);
-    const svcs = await collectSvcs(pathsFor(d), gitFake({ [SHA_A]: ["apps/console-api/src"], [SHA_B]: ["lean/Fw"] }), () => true);
-    expect(svcs!.map((s) => s.name)).toEqual(["console-api", "fwcore"]);
-    expect(find(svcs, "console-api")!.inputs.map((i) => i.path)).toEqual(SVC_INPUTS["console-api"]);
-    expect(changedPaths(find(svcs, "console-api"))).toEqual(["apps/console-api/src"]); // the workflow-claim landing
-    expect(changedPaths(find(svcs, "fwcore"))).toEqual(["lean/Fw"]);
+  it("each piece is judged against its own base: console-api by its start commit, its fwcore child by the child's build commit, the disk binary by its record", async () => {
+    const d = root(); api(d, SHA_A, SHA_B); writeCore(d, SHA_C);
+    const svcs = await collectSvcs(pathsFor(d), gitFake({ [SHA_A]: ["apps/console-api/src"], [SHA_B]: ["lean/Fw"], [SHA_C]: [] }), () => true);
+    expect(svcs.map((s) => s.name)).toEqual(["console-api", "fwcore"]);
+    expect(find(svcs, "console-api")!.inputs.map((i) => i.path)).toEqual([...SVC_INPUTS["console-api"]!, ...SVC_INPUTS.fwcore!]);
+    expect(changedPaths(find(svcs, "console-api"))).toEqual(["apps/console-api/src", "lean/Fw"]);
+    expect(changedPaths(find(svcs, "fwcore"))).toEqual([]);
+    expect(svcs.every((s) => s.unknown === undefined)).toBe(true);
+  });
+  it("console-api inputs include its package.json and the lockfile", () => {
+    expect(SVC_INPUTS["console-api"]).toEqual(expect.arrayContaining(["apps/console-api/package.json", "pnpm-lock.yaml"]));
   });
   it("asks for the first-parent range base..main with the path after --", async () => {
-    const d = root(); writeApi(d, { port: 1, pid: 42, commit: SHA_A });
+    const d = root(); api(d, SHA_A, SHA_B);
     const seen: string[][] = [];
     await collectSvcs(pathsFor(d), async (_c, a, _t, cwd) => { seen.push([...a, String(cwd)]); return ""; }, () => true);
     expect(seen[0]).toEqual(["log", "-1", "--first-parent", "--format=%H", `${SHA_A}..main`, "--", "apps/console-api/src", d]);
   });
-  it("[] when neither is running or built; fwcore alone when console-api is down; null (carry forward) when a call fails", async () => {
+  it("[] when nothing runs and nothing is built; the disk binary alone when console-api is down", async () => {
     const d = root();
     expect(await collectSvcs(pathsFor(d), gitFake({}), () => true)).toEqual([]);
     writeCore(d, SHA_B);
-    expect((await collectSvcs(pathsFor(d), gitFake({}), () => true))!.map((s) => s.name)).toEqual(["fwcore"]);
-    writeApi(d, { port: 1, pid: 42, commit: SHA_A });
-    expect(await collectSvcs(pathsFor(d), async () => null, () => true)).toBeNull();
+    expect((await collectSvcs(pathsFor(d), gitFake({}), () => true)).map((s) => s.name)).toEqual(["fwcore"]);
   });
-  it("restarting console-api (new start commit) does not refresh fwcore; a rebuild does", async () => {
+  it("a live console-api with no start commit or no core build commit is unknown with the reason, never skipped", async () => {
+    const d = root();
+    writeApi(d, { port: 1, pid: 42 }); // an old api.json
+    let s = find(await collectSvcs(pathsFor(d), gitFake({}), () => true), "console-api")!;
+    expect(s.unknown).toBe("api.json records no start commit; api.json records no core build commit");
+    expect(s.inputs).toEqual([]);
+    writeApi(d, { port: 1, pid: 42, commit: SHA_A, coreUnknown: "no move of main at or before the binary" });
+    s = find(await collectSvcs(pathsFor(d), gitFake({ [SHA_A]: ["apps/console-api/src"] }), () => true), "console-api")!;
+    expect(s.unknown).toBe("no move of main at or before the binary");
+    expect(changedPaths(s)).toEqual(["apps/console-api/src"]); // the own group is still judged
+  });
+  it("a git failure on one service never drops the other", async () => {
+    const d = root(); api(d, SHA_A, SHA_B); writeCore(d, SHA_C);
+    const failA: Runner = async (c, a, t, cwd) => (a.some((x) => x.startsWith(SHA_A)) ? null : gitFake({ [SHA_C]: ["lean/Fw"] })(c, a, t, cwd));
+    const svcs = await collectSvcs(pathsFor(d), failA, () => true);
+    expect(find(svcs, "console-api")!.unknown).toContain("git failed");
+    expect(find(svcs, "fwcore")).toEqual({ name: "fwcore", inputs: SVC_INPUTS.fwcore!.map((path) => ({ path, changed: path === "lean/Fw" })) });
+    const failAll = await collectSvcs(pathsFor(d), async () => null, () => true);
+    expect(failAll.map((s) => [s.name, s.unknown !== undefined])).toEqual([["console-api", true], ["fwcore", true]]);
+  });
+  it("a rebuild on disk without a console-api restart leaves console-api stale; the restart clears it (Fw.Obs.rebuild_without_restart_api_stale)", async () => {
+    const d = root();
+    const touched = { [SHA_A]: ["lean/Fw"], [SHA_B]: [] }; // a lean land happened after A, nothing after B
+    writeCore(d, SHA_A); api(d, SHA_A, SHA_A);
+    let svcs = await collectSvcs(pathsFor(d), gitFake(touched), () => true);
+    expect(changedPaths(find(svcs, "fwcore"))).toEqual(["lean/Fw"]);
+    expect(changedPaths(find(svcs, "console-api"))).toEqual(["lean/Fw"]);
+    writeCore(d, SHA_B); // fwcore-build.sh at main: the disk is fresh, the child is not
+    svcs = await collectSvcs(pathsFor(d), gitFake(touched), () => true);
+    expect(changedPaths(find(svcs, "fwcore"))).toEqual([]);
+    expect(changedPaths(find(svcs, "console-api"))).toEqual(["lean/Fw"]); // still stale
+    api(d, SHA_B, SHA_B); // console-api restarted (new child from the fresh binary)
+    svcs = await collectSvcs(pathsFor(d), gitFake(touched), () => true);
+    expect(svcs.map((s) => changedPaths(s))).toEqual([[], []]);
+  });
+  it("restarting console-api without a rebuild: the new child is as old as the disk, so both stay stale", async () => {
     const d = root(); writeCore(d, SHA_A);
     const touched = { [SHA_A]: ["lean/Fw"], [SHA_B]: [] };
-    writeApi(d, { port: 1, pid: 42, commit: SHA_A });
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), gitFake(touched), () => true), "fwcore"))).toEqual(["lean/Fw"]);
-    writeApi(d, { port: 2, pid: 43, commit: SHA_B }); // restart at the current main
-    const after = await collectSvcs(pathsFor(d), gitFake(touched), () => true);
-    expect(changedPaths(find(after, "console-api"))).toEqual([]);
-    expect(changedPaths(find(after, "fwcore"))).toEqual(["lean/Fw"]); // Fw.Obs.Stack.restart_without_build_stale
-    writeCore(d, SHA_B); // fwcore-build.sh at main
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), gitFake(touched), () => true), "fwcore"))).toEqual([]);
+    api(d, SHA_B, SHA_A); // restarted at B, child spawned from the binary built at A
+    const svcs = await collectSvcs(pathsFor(d), gitFake(touched), () => true);
+    expect(changedPaths(find(svcs, "fwcore"))).toEqual(["lean/Fw"]);
+    expect(changedPaths(find(svcs, "console-api"))).toEqual(["lean/Fw"]);
+  });
+  it("the disk binary's base: a record not older than the binary wins; an older record is ignored for the reflog; no record uses the reflog; nothing identifies it: unknown", async () => {
+    const d = root(); writeCore(d, SHA_C);
+    const bin = join(d, CORE_BIN); const rec = join(d, CORE_COMMIT);
+    const log = reflogOf([SHA_B, 1030], [SHA_A, 100]);
+    const touched = { [SHA_A]: ["lean/Fw"], [SHA_B]: [], [SHA_C]: ["lean/Main.lean"] };
+    setMtime(bin, 1000); setMtime(rec, 1000); // record as new as the binary
+    expect(changedPaths(find(await collectSvcs(pathsFor(d), gitFake(touched, log), () => true), "fwcore"))).toEqual(["lean/Main.lean"]);
+    setMtime(rec, 900); // plain `lake build` after an old script build: record older than the binary
+    expect(changedPaths(find(await collectSvcs(pathsFor(d), gitFake(touched, log), () => true), "fwcore"))).toEqual(["lean/Fw"]);
+    rmSync(rec); // no record at all
+    expect(changedPaths(find(await collectSvcs(pathsFor(d), gitFake(touched, log), () => true), "fwcore"))).toEqual(["lean/Fw"]);
+    const none = find(await collectSvcs(pathsFor(d), gitFake(touched, reflogOf([SHA_B, 1030])), () => true), "fwcore")!;
+    expect(none.unknown).toBe("no move of main at or before the binary");
+    const tie = find(await collectSvcs(pathsFor(d), gitFake(touched, reflogOf([SHA_B, 100], [SHA_A, 100])), () => true), "fwcore")!;
+    expect(tie.unknown).toContain("same second");
+    const gitDown = find(await collectSvcs(pathsFor(d), async () => null, () => true), "fwcore")!;
+    expect(gitDown.unknown).toBe("git reflog of main failed");
   });
 });
 
 // real history, the fw land pre-lock path: the merge commit C is built with commit-tree BEFORE the checks (dated
-// T - 1 min), console-api starts at T from the old main, and main is fast-forwarded to C at T + 1 min. A commit-time
-// comparison misses this; the first-parent range start..main does not.
+// T - 1 min), the binary is built (plain `lake build`, no record) and console-api starts at T from the old main, and
+// main is fast-forwarded to C at T + 1 min. A commit-time comparison misses this; the first-parent range does not.
 describe("collectSvcs with a real history", () => {
   const sh = (cwd: string, date: string | null, ...args: string[]) => execFileSync("git", args, {
     cwd, encoding: "utf8",
@@ -108,73 +167,78 @@ describe("collectSvcs with a real history", () => {
     sh(d, iso(T - 600_000), "commit", "-qam", "branch work");
     const feat = sh(d, null, "rev-parse", "HEAD");
     sh(d, null, "checkout", "-q", "main");
-    // fw land: commit-tree with two parents, dated before the checks (T - 1 min); main moves later
     const c = sh(d, iso(T - 60_000), "commit-tree", "-p", old, "-p", feat, "-m", "land", `${feat}^{tree}`);
     return { d, old, c };
   }
 
   it("a console-api started in the window between commit-tree and the ff is stale; a restart after the ff clears it", async () => {
     const { d, old, c } = setup();
-    writeApi(d, { port: 1, pid: 42, commit: old }); // started at T, main still at old
+    api(d, old, old); // started at T, main still at old
     sh(d, iso(T + 60_000), "merge", "--ff-only", "-q", c); // main moves at T + 1 min
     const stale = await collectSvcs(pathsFor(d), real, () => true);
-    expect(changedPaths(find(stale, "console-api"))).toEqual(["apps/console-api/src"]);
-    writeApi(d, { port: 2, pid: 43, commit: sh(d, null, "rev-parse", "main") }); // restart records the current main
+    expect(changedPaths(find(stale, "console-api"))).toEqual(["apps/console-api/src", "lean/Fw"]);
+    const head = sh(d, null, "rev-parse", "main");
+    api(d, head, head); // restart records the current main
     expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "console-api"))).toEqual([]);
   });
 
   it("a branch merged --no-ff is seen at the merge (first-parent)", async () => {
     const { d, old } = setup();
     sh(d, iso(T + 300_000), "merge", "--no-ff", "-qm", "land", "feat");
-    writeApi(d, { port: 1, pid: 42, commit: old });
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "console-api"))).toEqual(["apps/console-api/src"]);
+    api(d, old, old);
+    expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "console-api"))).toEqual(["apps/console-api/src", "lean/Fw"]);
   });
 
-  it("fwcore: stale after a lean land following its build; a console-api restart leaves it stale; a rebuild at main clears it", async () => {
-    const { d, old, c } = setup();
-    writeCore(d, old);
-    writeApi(d, { port: 1, pid: 42, commit: old });
+  it("a plain `lake build` (no record) in the pre-lock window: the reflog names the old head, so the land is seen as stale", async () => {
+    const { d, c } = setup();
+    writeCore(d); // no .commit file, as with a plain `lake build`
+    setMtime(join(d, CORE_BIN), T / 1000); // built at T from `old` (the reflog of main: base at T - 1 h)
     sh(d, iso(T + 60_000), "merge", "--ff-only", "-q", c);
-    const head = sh(d, null, "rev-parse", "main");
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "fwcore"))).toEqual(["lean/Fw"]);
-    writeApi(d, { port: 2, pid: 43, commit: head }); // restart without a rebuild
-    const mid = await collectSvcs(pathsFor(d), real, () => true);
-    expect(changedPaths(find(mid, "console-api"))).toEqual([]);
-    expect(changedPaths(find(mid, "fwcore"))).toEqual(["lean/Fw"]);
-    writeCore(d, head); // docs/team/tools/fwcore-build.sh at main
+    const fw = find(await collectSvcs(pathsFor(d), real, () => true), "fwcore")!;
+    expect(fw.unknown).toBeUndefined();
+    expect(changedPaths(fw)).toEqual(["lean/Fw"]);
+    // built after the land (a later build): the newest move at or before the binary is the land itself, clean
+    setMtime(join(d, CORE_BIN), (T + 120_000) / 1000);
     expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "fwcore"))).toEqual([]);
   });
 
-  it("without a build record the binary mtime decides (premise): built after the land is clean, before it is stale", async () => {
+  it("a binary older than every move of main is unknown (alert), not silence", async () => {
     const { d, c } = setup();
     sh(d, iso(T + 60_000), "merge", "--ff-only", "-q", c);
-    writeCore(d); // no .commit file
-    const bin = join(d, CORE_BIN);
-    utimesSync(bin, (T + 120_000) / 1000, (T + 120_000) / 1000);
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "fwcore"))).toEqual([]);
-    utimesSync(bin, (T - 1_800_000) / 1000, (T - 1_800_000) / 1000); // built from `base` (committed T - 1 h), before the land
-    expect(changedPaths(find(await collectSvcs(pathsFor(d), real, () => true), "fwcore"))).toEqual(["lean/Fw"]);
+    writeCore(d);
+    setMtime(join(d, CORE_BIN), (T - 7200_000) / 1000);
+    expect(find(await collectSvcs(pathsFor(d), real, () => true), "fwcore")!.unknown).toBe("no move of main at or before the binary");
   });
 });
 
 // end to end with the real fwcore binary (skipped when it is not built)
 const repo = resolve(import.meta.dirname, "../../..");
-describe.skipIf(!existsSync(join(repo, "lean/.lake/build/bin/fwcore")))("svc.stale through fwcore", () => {
+describe.skipIf(!existsSync(join(repo, "lean/.lake/build/bin/fwcore")))("svc.stale and svc.unknown through fwcore", () => {
   const core = coreCaller(coreCandidates(repo, repo, {}));
-  const snap = async (touched: Record<string, string[]>, startCommit = SHA_A) => {
-    const d = root(); writeApi(d, { port: 1, pid: 42, commit: startCommit });
+  const snap = async (writeIt: (d: string) => void, touched: Record<string, string[]>) => {
+    const d = root(); writeIt(d);
     const svcs = await collectSvcs(pathsFor(d), gitFake(touched), () => true);
     return { now: 10 * 3600_000, params: {}, agents: [], lead: { lastToolAt: null, noteAt: null },
       system: { load1: 0, loadFloor: 0, memPressure: "normal", diskFreeGB: 100, simLock: { holder: null, since: null },
         docker: [], worktrees: 0, consolePids: [], ci: [], services: [], keep: [], svcs, stale: [] } } as never;
   };
   it("workflow-claim landed after console-api started: svc.stale names the changed paths", async () => {
-    const h = await check(await snap({ [SHA_A]: ["apps/console-api/src"] }), core);
+    const h = await check(await snap((d) => api(d, SHA_A, SHA_A), { [SHA_A]: ["apps/console-api/src"] }), core);
     const a = h.alerts.filter((x) => x.code === "svc.stale");
     expect(a.map((x) => [x.subject, x.detail])).toEqual([["console-api", "changed on main since its commit: apps/console-api/src"]]);
   });
   it("a restart (new start commit, empty range) clears it", async () => {
-    const h = await check(await snap({ [SHA_A]: ["apps/console-api/src"] }, SHA_B), core);
+    const h = await check(await snap((d) => api(d, SHA_B, SHA_B), { [SHA_A]: ["apps/console-api/src"] }), core);
     expect(h.alerts.filter((x) => x.code === "svc.stale")).toEqual([]);
+  });
+  it("a lean land with a rebuild but no restart: console-api's fwcore child is stale (svc.stale console-api lean/Fw)", async () => {
+    const h = await check(await snap((d) => { writeCore(d, SHA_B); api(d, SHA_B, SHA_A); }, { [SHA_A]: ["lean/Fw"] }), core);
+    expect(h.alerts.filter((x) => x.code === "svc.stale").map((x) => [x.subject, x.detail])).toEqual([["console-api", "changed on main since its commit: lean/Fw"]]);
+  });
+  it("code that cannot be identified is svc.unknown with the reason", async () => {
+    const h = await check(await snap((d) => { writeCore(d); writeApi(d, { port: 1, pid: 42, commit: SHA_A }); }, {}), core);
+    const a = h.alerts.filter((x) => x.code === "svc.unknown");
+    expect(a.map((x) => x.subject).sort()).toEqual(["console-api", "fwcore"]);
+    expect(a.find((x) => x.subject === "console-api")!.detail).toBe("cannot identify the code that runs: api.json records no core build commit");
   });
 });

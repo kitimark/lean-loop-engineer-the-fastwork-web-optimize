@@ -1,28 +1,35 @@
-// Collector for the staleness rule (task console-stale). Measurement only: per service, its base commit of `main`
-// (console-api: HEAD at its start, from .fw-console/api.json; fwcore: the commit the binary was built from) and, per
-// input group, whether the first-parent range `base..main` touches it. No timestamp is compared: `fw land` builds the
-// merge commit before its checks and moves main 23-89 s later (MEASURED), so commit times predate the move. Whether a
-// service is stale, and the alert, are decided by fwcore (`svc.stale`, Fw.Obs.Health.sStale; rule and proofs in
-// lean/Fw/Obs/Stale.lean). No process is killed or restarted here.
+// Collector for the staleness rule (task console-stale). Measurement only: per piece of running code, its base commit
+// of `main` and, per input group, whether the first-parent range `base..main` touches it. No timestamp is compared:
+// `fw land` builds the merge commit before its checks and moves main 23-89 s later (MEASURED), so commit times predate
+// the move. Whether a service is stale, and the alerts, are decided by fwcore (`svc.stale`, `svc.unknown`; rule and
+// proofs in lean/Fw/Obs/Stale.lean, lean/Fw/Obs/Health.lean). No process is killed or restarted here.
+//
+// What RUNS is judged, not what is on disk:
+//  - service `console-api`: its own inputs against the commit it started from (api.json `commit`) AND the fwcore
+//    inputs against the build commit of the fwcore child it holds (api.json `coreCommit`, written at every child
+//    spawn). A rebuild on disk without a restart leaves it stale (Fw.Obs.rebuild_without_restart_api_stale).
+//  - service `fwcore`: the binary on disk, against the commit it was built from.
+// Design rule: when the code that runs cannot be identified, the service is reported `unknown` with the reason
+// (svc.unknown). Nothing is silently skipped, and a failure to judge one service never drops the other.
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { CORE_BIN_REL, CORE_COMMIT_REL, REFLOG_ARGS, SHA, chooseBase, parseReflog, readRecord, type Base } from "../../console-api/src/core/build-base.ts";
 import type { Paths, Runner, RunOut } from "./watch-collect.ts";
 
 export interface SvcInput { path: string; changed: boolean }
-export interface Svc { name: string; inputs: SvcInput[] }
+export interface Svc { name: string; inputs: SvcInput[]; unknown?: string }
 
-/** The files each service is built from (repo-relative prefixes). console-api reads its sources at start; the fwcore
- *  binary is built from the Lean modules and is NOT rebuilt when console-api restarts or a land runs. */
+/** The files each piece of running code is built from (repo-relative prefixes). console-api reads its sources and
+ *  packages at start; the fwcore binary is built from the Lean modules and is NOT rebuilt when console-api restarts or
+ *  a land runs. console-api is also judged on the `fwcore` list, against its child's build commit. */
 export const SVC_INPUTS: Record<string, string[]> = {
-  "console-api": ["apps/console-api/src", "packages/contracts/src", "packages/contracts/package.json"],
+  "console-api": ["apps/console-api/src", "apps/console-api/package.json", "pnpm-lock.yaml", "packages/contracts/src", "packages/contracts/package.json"],
   fwcore: ["lean/Fw", "lean/Fw.lean", "lean/Main.lean", "lean/lakefile.toml", "lean/lean-toolchain"],
 };
 
-/** Where `docs/team/tools/fwcore-build.sh` records the commit the binary was built from. */
-export const CORE_BIN = "lean/.lake/build/bin/fwcore";
-export const CORE_COMMIT = `${CORE_BIN}.commit`;
-
-const SHA = /^[0-9a-f]{40}$/;
+/** Where `scripts/fwcore-build.sh` records the commit the binary was built from. */
+export const CORE_BIN = CORE_BIN_REL;
+export const CORE_COMMIT = CORE_COMMIT_REL;
 
 /** `git log --format=%H` output: non-empty means the range touches the path. Null on anything else. */
 export function parseTouched(out: RunOut): boolean | null {
@@ -31,64 +38,78 @@ export function parseTouched(out: RunOut): boolean | null {
   return t === "" ? false : SHA.test(t.split("\n")[0]!) ? true : null;
 }
 
-/** The commit console-api started from, from api.json: null when absent, malformed, or the process is gone. */
-export function readApiBase(p: Paths, alive: (pid: number) => boolean = isAlive): string | null {
+export interface ApiRecord { commit: string | null; coreCommit: string | null; coreUnknown: string | null }
+
+/** What the live console-api recorded in api.json; null when no console-api runs (absent, malformed or pid gone). */
+export function readApi(p: Paths, alive: (pid: number) => boolean = isAlive): ApiRecord | null {
   try {
-    const j = JSON.parse(readFileSync(join(p.consoleDir, "api.json"), "utf8")) as { pid?: unknown; commit?: unknown };
-    if (typeof j.pid !== "number" || typeof j.commit !== "string" || !SHA.test(j.commit) || !alive(j.pid)) return null;
-    return j.commit;
+    const j = JSON.parse(readFileSync(join(p.consoleDir, "api.json"), "utf8")) as Record<string, unknown>;
+    if (typeof j.pid !== "number" || !alive(j.pid)) return null;
+    const sha = (v: unknown) => (typeof v === "string" && SHA.test(v) ? v : null);
+    return { commit: sha(j.commit), coreCommit: sha(j.coreCommit), coreUnknown: typeof j.coreUnknown === "string" ? j.coreUnknown : null };
   } catch { return null; }
+}
+
+/** The commit console-api started from: null when no live console-api records one. */
+export function readApiBase(p: Paths, alive?: (pid: number) => boolean): string | null {
+  return readApi(p, alive)?.commit ?? null;
 }
 
 function isAlive(pid: number): boolean {
   try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
 }
 
-/** The commit the fwcore binary was built from: the recorded commit when `fwcore-build.sh` wrote one; otherwise, as a
- *  stated PREMISE, the newest first-parent commit of main whose commit time is at or before the binary's mtime (a
- *  land moves main 23-89 s after that time, so a change in that window can be missed). Null: no binary (fwcore is
- *  not judged); "git": a git failure. */
-export async function coreBase(p: Paths, exec: Runner): Promise<string | null | "git"> {
+/** The build commit of the binary on disk: its record when not older than the binary, else the newest move of `main`
+ *  at or before the binary's mtime (reflog), else unknown (Fw.Obs.chooseBase). Null: no binary on disk. */
+export async function coreBase(p: Paths, exec: Runner): Promise<Base | null> {
   const bin = join(p.root, CORE_BIN);
   if (!existsSync(bin)) return null;
-  try {
-    const rec = readFileSync(join(p.root, CORE_COMMIT), "utf8").trim();
-    if (SHA.test(rec)) return rec;
-  } catch { /* no record: fall back to the mtime */ }
-  const sec = Math.floor(statSync(bin).mtimeMs / 1000);
-  const out = await exec("git", ["rev-list", "-1", "--first-parent", `--before=${sec}`, "main"], 5000, p.root);
-  if (typeof out !== "string") return "git";
-  const sha = out.trim();
-  return SHA.test(sha) ? sha : "git";
+  const mtime = Math.floor(statSync(bin).mtimeMs / 1000);
+  const rec = readRecord(bin);
+  if (rec !== null && mtime <= rec.time) return { sha: rec.sha };
+  const out = await exec("git", REFLOG_ARGS, 5000, p.root);
+  if (typeof out !== "string") return { unknown: "git reflog of main failed" };
+  return chooseBase(mtime, rec, parseReflog(out));
 }
 
-async function judge(p: Paths, exec: Runner, name: string, base: string): Promise<Svc | null> {
+/** Judge one group of paths against `base`; the paths that could not be judged make it `null`. */
+async function judgeInputs(p: Paths, exec: Runner, paths: string[], base: string): Promise<SvcInput[] | null> {
   const inputs: SvcInput[] = [];
-  for (const path of SVC_INPUTS[name]!) {
+  for (const path of paths) {
     const t = parseTouched(await exec("git", ["log", "-1", "--first-parent", "--format=%H", `${base}..main`, "--", path], 5000, p.root));
     if (t === null) return null;
     inputs.push({ path, changed: t });
   }
-  return { name, inputs };
+  return inputs;
 }
 
-/** The services to judge, each against its own base commit: console-api (HEAD at its start) when it is running, and
- *  the fwcore binary (its build commit) when it is built, independent of console-api restarts. `null` when a git call
- *  failed (the caller carries the previous value and marks it stale); `[]` when neither can be judged. */
-export async function collectSvcs(p: Paths, exec: Runner, alive?: (pid: number) => boolean): Promise<Svc[] | null> {
+/** The services to judge. Never `null`: a service whose running code cannot be identified, or whose git calls failed,
+ *  is returned `unknown` with the reason (the other services are still judged). `[]` when nothing runs. */
+export async function collectSvcs(p: Paths, exec: Runner, alive?: (pid: number) => boolean): Promise<Svc[]> {
   const out: Svc[] = [];
-  const api = readApiBase(p, alive);
+  const api = readApi(p, alive);
   if (api !== null) {
-    const s = await judge(p, exec, "console-api", api);
-    if (s === null) return null;
-    out.push(s);
+    const inputs: SvcInput[] = [];
+    const why: string[] = [];
+    if (api.commit === null) why.push("api.json records no start commit");
+    else {
+      const own = await judgeInputs(p, exec, SVC_INPUTS["console-api"]!, api.commit);
+      if (own === null) why.push("git failed on the start commit's range"); else inputs.push(...own);
+    }
+    if (api.coreCommit === null) why.push(api.coreUnknown ?? "api.json records no core build commit");
+    else {
+      const core = await judgeInputs(p, exec, SVC_INPUTS.fwcore!, api.coreCommit);
+      if (core === null) why.push("git failed on the core child's range"); else inputs.push(...core);
+    }
+    out.push(why.length ? { name: "console-api", inputs, unknown: why.join("; ") } : { name: "console-api", inputs });
   }
-  const core = await coreBase(p, exec);
-  if (core === "git") return null;
-  if (core !== null) {
-    const s = await judge(p, exec, "fwcore", core);
-    if (s === null) return null;
-    out.push(s);
+  const disk = await coreBase(p, exec);
+  if (disk !== null) {
+    if ("unknown" in disk) out.push({ name: "fwcore", inputs: [], unknown: disk.unknown });
+    else {
+      const inputs = await judgeInputs(p, exec, SVC_INPUTS.fwcore!, disk.sha);
+      out.push(inputs === null ? { name: "fwcore", inputs: [], unknown: "git failed on the binary's range" } : { name: "fwcore", inputs });
+    }
   }
   return out;
 }

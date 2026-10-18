@@ -27,7 +27,7 @@ idleAt?, workflowDone? [false], transcriptOnly? [false], ctxTokens?}` (any other
 `{diskFreeGB, memPressure? ["normal"|"warn"|"critical"], simLock? {holder?, since?}, docker? [{id, name, startedAt}],
 worktrees? [0] (a count), ci? [{workflow, branch, status, conclusion?, startedAt, endedAt?}], loadFloor? [0] (the floor
 of the 1-min load average), procs? [{pid, name, startedAt, pids? [[]], agent?}] (`agent`: the
-id of the agent whose Bash call started the tree), services? [[]] (pids), keep? [[]] (pids the lead declared), svcs? [{name, inputs? [{path, changed? false}]}] (services and, for each input group, whether
+id of the agent whose Bash call started the tree), services? [[]] (pids), keep? [[]] (pids the lead declared), svcs? [{name, inputs? [{path, changed? false}], unknown? (why the code that runs cannot be identified: raises svc.unknown)}] (services and, for each input group, whether
 `main` changed it since the service's base commit)}` (any other field,
 e.g. `load1`, `consolePids`, `stale`, is ignored). `prevAt` is the time of the previous check (absent: first check);
 `critical` lists the task ids on the critical path. `null` counts as absent.
@@ -212,11 +212,12 @@ def svcInputOf (j : Json) : Except String SvcInput := do
 /-- A service as JSON. -/
 def svcJson (v : Svc) : Json :=
   Json.mkObj [("name", .str v.name),
-    ("inputs", .arr (v.inputs.toArray.map svcInputJson))]
+    ("inputs", .arr (v.inputs.toArray.map svcInputJson)), ("unknown", ostr v.unknown)]
 
 /-- Decode a service (`inputs` optional, default empty). -/
 def svcOf (j : Json) : Except String Svc := do
-  pure { name := ← str j "name", inputs := ← (← arrD j "inputs").mapM svcInputOf }
+  pure { name := ← str j "name", inputs := ← (← arrD j "inputs").mapM svcInputOf,
+         unknown := ← optS j "unknown" }
 
 /-- The system facts as JSON (every field written). -/
 def systemJson (s : System) : Json :=
@@ -417,9 +418,10 @@ theorem svcInputOf_svcInputJson (i : SvcInput) : svcInputOf (svcInputJson i) = .
 $$\forall v:\quad \operatorname{svcOf}(\operatorname{svcJson}(v)) = \mathrm{ok}(v)$$
 -/
 theorem svcOf_svcJson (v : Svc) : svcOf (svcJson v) = .ok v := by
-  obtain ⟨name, ins⟩ := v
-  have hi := arrD_arr (svcJson ⟨name, ins⟩) "inputs" _ rfl
-  simp only [svcOf, hi, Array.toList_map, ok_bind, mapM_rt svcInputJson svcInputOf svcInputOf_svcInputJson]
+  obtain ⟨name, ins, un⟩ := v
+  have hi := arrD_arr (svcJson ⟨name, ins, un⟩) "inputs" _ rfl
+  have hu : optS (svcJson ⟨name, ins, un⟩) "unknown" = .ok un := by cases un <;> rfl
+  simp only [svcOf, hi, hu, Array.toList_map, ok_bind, mapM_rt svcInputJson svcInputOf svcInputOf_svcInputJson]
   rfl
 
 set_option maxHeartbeats 1000000 in

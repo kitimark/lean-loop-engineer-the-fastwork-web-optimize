@@ -55,7 +55,10 @@ Rules (proved below):
   and a declared long-runner never raise `proc.long`; every `proc.long` alert is an undeclared tree older than
   `procMaxMin` whose owner is not live; an orphan of an ended agent does raise it.
 * `svcStale_iff`, `staleAlert_fields`, `sStale_restart` (rule and proofs in `Fw.Obs.Stale`): `svc.stale` fires for a
-  service exactly when an input changed on `main` since its base commit (start or build); a restart clears it.
+  service exactly when an input changed on `main` since its base commit (start or build); a service judged at the
+  head raises none.
+* `svcUnknown_iff`, `unknown_service_alerts`: `svc.unknown` fires for every service whose running code cannot be
+  identified (never silence).
 * `alerts_sorted`, `crit_first`, `mem_alerts`, `health_perm`: the alert list is strictly sorted (critical first, then
   code, subject, detail), holds exactly the raised alerts, and does not depend on the order of the agents.
 -/
@@ -446,21 +449,21 @@ theorem stalled_facts (p : Params) (t : Nat) (A : List Agent) (a : Agent) (h : s
 
 /-- The alert codes, listed in the order of their wire names.
 
-$$\mathcal C = \{\texttt{agent.ctxHigh}, \texttt{agent.ctxWarn}, \texttt{agent.errStreak}, \texttt{agent.gone}, \texttt{agent.stalled}, \texttt{agent.toolHang}, \texttt{agent.toolSlow}, \texttt{ci.failed}, \texttt{ci.finished}, \texttt{ci.slow}, \texttt{docker.orphan}, \texttt{proc.long}, \texttt{sim.lockLong}, \texttt{sim.lockOrphan}, \texttt{svc.stale}, \texttt{sys.diskLow}, \texttt{sys.loadHigh}, \texttt{sys.memCritical}, \texttt{team.overCap}, \texttt{team.permissionWait}, \texttt{worktrees.many}\}$$
+$$\mathcal C = \{\texttt{agent.ctxHigh}, \texttt{agent.ctxWarn}, \texttt{agent.errStreak}, \texttt{agent.gone}, \texttt{agent.stalled}, \texttt{agent.toolHang}, \texttt{agent.toolSlow}, \texttt{ci.failed}, \texttt{ci.finished}, \texttt{ci.slow}, \texttt{docker.orphan}, \texttt{proc.long}, \texttt{sim.lockLong}, \texttt{sim.lockOrphan}, \texttt{svc.stale}, \texttt{svc.unknown}, \texttt{sys.diskLow}, \texttt{sys.loadHigh}, \texttt{sys.memCritical}, \texttt{team.overCap}, \texttt{team.permissionWait}, \texttt{worktrees.many}\}$$
 -/
 inductive Code where
   | ctxHigh | ctxWarn | errStreak | gone | stalled | toolHang | toolSlow
-  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | simLockLong | simLockOrphan | svcStale | diskLow | loadHigh
+  | ciFailed | ciFinished | ciSlow | dockerOrphan | procLong | simLockLong | simLockOrphan | svcStale | svcUnknown | diskLow | loadHigh
   | memCritical | overCap | permissionWait | worktreesMany
 deriving DecidableEq, Repr
 
 /-- Every code, in rank order.
 
-$$\mathcal C = (c_0, \ldots, c_{20})$$
+$$\mathcal C = (c_0, \ldots, c_{21})$$
 -/
 def Code.all : List Code :=
   [.ctxHigh, .ctxWarn, .errStreak, .gone, .stalled, .toolHang, .toolSlow,
-   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .simLockLong, .simLockOrphan, .svcStale, .diskLow, .loadHigh,
+   .ciFailed, .ciFinished, .ciSlow, .dockerOrphan, .procLong, .simLockLong, .simLockOrphan, .svcStale, .svcUnknown, .diskLow, .loadHigh,
    .memCritical, .overCap, .permissionWait, .worktreesMany]
 
 /-- The wire name of a code.
@@ -472,7 +475,7 @@ def Code.name : Code → String
   | .gone => "agent.gone" | .stalled => "agent.stalled" | .toolHang => "agent.toolHang"
   | .toolSlow => "agent.toolSlow" | .ciFailed => "ci.failed" | .ciFinished => "ci.finished" | .ciSlow => "ci.slow"
   | .dockerOrphan => "docker.orphan" | .procLong => "proc.long" | .simLockLong => "sim.lockLong"
-  | .simLockOrphan => "sim.lockOrphan" | .svcStale => "svc.stale" | .diskLow => "sys.diskLow" | .loadHigh => "sys.loadHigh"
+  | .simLockOrphan => "sim.lockOrphan" | .svcStale => "svc.stale" | .svcUnknown => "svc.unknown" | .diskLow => "sys.diskLow" | .loadHigh => "sys.loadHigh"
   | .memCritical => "sys.memCritical" | .overCap => "team.overCap" | .permissionWait => "team.permissionWait"
   | .worktreesMany => "worktrees.many"
 
@@ -483,8 +486,8 @@ $$\operatorname{rank}(c_i) = i$$
 def Code.rank : Code → Nat
   | .ctxHigh => 0 | .ctxWarn => 1 | .errStreak => 2 | .gone => 3 | .stalled => 4 | .toolHang => 5 | .toolSlow => 6
   | .ciFailed => 7 | .ciFinished => 8 | .ciSlow => 9 | .dockerOrphan => 10 | .procLong => 11 | .simLockLong => 12
-  | .simLockOrphan => 13 | .svcStale => 14 | .diskLow => 15 | .loadHigh => 16 | .memCritical => 17 | .overCap => 18
-  | .permissionWait => 19 | .worktreesMany => 20
+  | .simLockOrphan => 13 | .svcStale => 14 | .svcUnknown => 15 | .diskLow => 16 | .loadHigh => 17 | .memCritical => 18 | .overCap => 19
+  | .permissionWait => 20 | .worktreesMany => 21
 
 /-- Whether a code is about one agent (`agent.*`).
 
@@ -501,7 +504,7 @@ theorem Code.rank_inj (c c' : Code) (h : c.rank = c'.rank) : c = c' := by
 
 /-- Rank order is the order of the wire names: the names in rank order are strictly increasing strings.
 
-$$\operatorname{name}(c_0) < \operatorname{name}(c_1) < \cdots < \operatorname{name}(c_{20}) \quad\text{(lexicographic)}$$
+$$\operatorname{name}(c_0) < \operatorname{name}(c_1) < \cdots < \operatorname{name}(c_{21}) \quad\text{(lexicographic)}$$
 -/
 theorem Code.names_sorted : (Code.all.map Code.name).Pairwise (· < ·) := by decide
 
@@ -1214,6 +1217,21 @@ $$\operatorname{sStale}(o) = [\,\operatorname{staleAlert}(s) \mid s \leftarrow \
 def sStale (o : Obs) : List Alert :=
   (o.system.svcs.filter Svc.staleB).map staleAlert
 
+/-- The `svc.unknown` alert of a service whose running code cannot be identified: subject its name, detail the reason.
+
+$$\operatorname{unknownAlert}(s, r) = (\texttt{svc.unknown}, \mathit{name}(s), \text{“cannot identify the code that runs: ”} \cdot r, \mathrm{false})$$
+-/
+def unknownAlert (s : Svc) (r : String) : Alert :=
+  ⟨.svcUnknown, s.name, "cannot identify the code that runs: " ++ r, false⟩
+
+/-- `svc.unknown`: one alert for each service whose running code cannot be identified. Unidentifiable code is never
+silence.
+
+$$\operatorname{sUnknown}(o) = [\,\operatorname{unknownAlert}(s, r) \mid s = (n, I, r) \leftarrow \Sigma.\mathit{svcs},\ r \ne \bot\,]$$
+-/
+def sUnknown (o : Obs) : List Alert :=
+  o.system.svcs.filterMap fun s => s.unknown.map (unknownAlert s)
+
 /-- `worktrees.many`: more worktrees than `worktreesMax`.
 
 $$\operatorname{sWt}(p, o) = \operatorname{when}(\mathit{wtMax} < \mathit{wt},\ (\texttt{worktrees.many}, \texttt{worktrees}, \text{“}\mathit{wt}\text{ worktrees”}, \mathrm{false})),\quad \text{where } o = (t, A, \ell, \Sigma, \mathit{prev}, K),\ \Sigma = (\mathit{disk}, m, L, C, \mathit{wt}, R, \lambda, Q, S, D)$$
@@ -1231,11 +1249,11 @@ def sPerm (o : Obs) : List Alert :=
 
 /-- The team and system alerts: the pieces in code order.
 
-$$\operatorname{sysAlerts}(p, o) = \operatorname{sCiFailed}(o) \mathbin{+\!\!+} \operatorname{sCiFin}(p, o) \mathbin{+\!\!+} \operatorname{sCiSlow}(p, o) \mathbin{+\!\!+} \operatorname{sDocker}(p, o) \mathbin{+\!\!+} \operatorname{sProc}(p, o) \mathbin{+\!\!+} \operatorname{sLockLong}(p, o) \mathbin{+\!\!+} \operatorname{sOrphan}(p, o) \mathbin{+\!\!+} \operatorname{sDisk}(p, o) \mathbin{+\!\!+} \operatorname{sLoad}(p, o) \mathbin{+\!\!+} \operatorname{sMem}(o) \mathbin{+\!\!+} \operatorname{sOver}(p, o) \mathbin{+\!\!+} \operatorname{sPerm}(o) \mathbin{+\!\!+} \operatorname{sWt}(p, o)$$
+$$\operatorname{sysAlerts}(p, o) = \operatorname{sCiFailed}(o) \mathbin{+\!\!+} \operatorname{sCiFin}(p, o) \mathbin{+\!\!+} \operatorname{sCiSlow}(p, o) \mathbin{+\!\!+} \operatorname{sDocker}(p, o) \mathbin{+\!\!+} \operatorname{sProc}(p, o) \mathbin{+\!\!+} \operatorname{sLockLong}(p, o) \mathbin{+\!\!+} \operatorname{sOrphan}(p, o) \mathbin{+\!\!+} \operatorname{sStale}(o) \mathbin{+\!\!+} \operatorname{sUnknown}(o) \mathbin{+\!\!+} \operatorname{sDisk}(p, o) \mathbin{+\!\!+} \operatorname{sLoad}(p, o) \mathbin{+\!\!+} \operatorname{sMem}(o) \mathbin{+\!\!+} \operatorname{sOver}(p, o) \mathbin{+\!\!+} \operatorname{sPerm}(o) \mathbin{+\!\!+} \operatorname{sWt}(p, o)$$
 -/
 def sysAlerts (p : Params) (o : Obs) : List Alert :=
   sCiFailed o ++ sCiFin p o ++ sCiSlow p o ++ sDocker p o ++ sProc p o ++ sLockLong p o ++ sOrphan p o ++
-    sStale o ++ sDisk p o ++ sLoad p o ++ sMem o ++ sOver p o ++ sPerm o ++ sWt p o
+    sStale o ++ sUnknown o ++ sDisk p o ++ sLoad p o ++ sMem o ++ sOver p o ++ sPerm o ++ sWt p o
 
 /-- Every raised alert, unsorted: each agent's alerts, then the team and system alerts.
 
@@ -1338,6 +1356,7 @@ def sysPiece (p : Params) (o : Obs) : Code → List Alert
   | .simLockLong => sLockLong p o
   | .simLockOrphan => sOrphan p o
   | .svcStale => sStale o
+  | .svcUnknown => sUnknown o
   | .diskLow => sDisk p o
   | .loadHigh => sLoad p o
   | .memCritical => sMem o
@@ -1348,7 +1367,7 @@ def sysPiece (p : Params) (o : Obs) : Code → List Alert
 
 /-- `sysAlerts` is the concatenation of the pieces in rank order.
 
-$$\forall p, o:\quad \operatorname{sysAlerts}(p, o) = \operatorname{piece}(p, o, c_0) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{piece}(p, o, c_{20})$$
+$$\forall p, o:\quad \operatorname{sysAlerts}(p, o) = \operatorname{piece}(p, o, c_0) \mathbin{+\!\!+} \cdots \mathbin{+\!\!+} \operatorname{piece}(p, o, c_{21})$$
 -/
 theorem sysAlerts_eq (p : Params) (o : Obs) : sysAlerts p o = Code.all.flatMap (sysPiece p o) := by
   simp [sysAlerts, Code.all, sysPiece, List.flatMap_cons, List.append_assoc]
@@ -1358,9 +1377,12 @@ theorem sysAlerts_eq (p : Params) (o : Obs) : sysAlerts p o = Code.all.flatMap (
 $$\forall p, o, c, x:\quad x \in \operatorname{piece}(p, o, c) \Rightarrow \mathit{code}(x) = c$$
 -/
 theorem piece_code (p : Params) (o : Obs) (c : Code) (x : Alert) (h : x ∈ sysPiece p o c) : x.code = c := by
-  cases c <;> simp only [sysPiece, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sDisk, sLoad,
+  cases c <;> simp only [sysPiece, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sUnknown, sDisk, sLoad,
     sMem, sOver, sPerm, sWt, List.not_mem_nil] at h
   all_goals first
+    | (obtain ⟨s, _, e⟩ := List.mem_filterMap.1 h
+       cases hu : s.unknown <;> simp only [hu, Option.map_none, Option.map_some, reduceCtorEq, Option.some.injEq] at e
+       subst e; rfl)
     | (obtain ⟨_, e⟩ := (mem_when _ _ _).1 h; subst e; rfl)
     | (obtain ⟨_, _, e⟩ := List.mem_map.1 h; subst e; rfl)
     | (obtain ⟨_, _, e⟩ := List.mem_map.1 h; subst e; exact procAlert_code _ _)
@@ -1578,13 +1600,44 @@ theorem staleAlert_fields (s : Svc) :
     (staleAlert s).subject = s.name ∧
       (staleAlert s).detail = "changed on main since its commit: " ++ ", ".intercalate s.changed := ⟨rfl, rfl⟩
 
-/-- A restarted (or rebuilt) service raises no `svc.stale` alert.
+/-- A service judged at the head of `main` (just restarted or rebuilt) raises no `svc.stale` alert.
 
-$$\forall s:\quad \operatorname{sStale}(o[\mathit{svcs} := [\operatorname{restart}(s)]]) = []$$
+$$\forall H, n, X:\quad \operatorname{sStale}(o[\mathit{svcs} := [\operatorname{judge}(H, |H|, n, X)]]) = []$$
 -/
-theorem sStale_restart (o : Obs) (s : Svc) :
-    sStale { o with system := { o.system with svcs := [s.restart] } } = [] := by
-  simp [sStale, List.filter, Svc.restart_clears s]
+theorem sStale_restart (o : Obs) (hist : List (List String)) (n : String) (X : List String) :
+    sStale { o with system := { o.system with svcs := [Svc.judge hist hist.length n X] } } = [] := by
+  simp [sStale, List.filter, Svc.judge_head_not_stale hist n X]
+
+/-- The report holds a `svc.unknown` alert exactly when it is the alert of a service whose code cannot be identified.
+
+$$\forall p, o, x:\quad \bigl(x \in \operatorname{health}(p, o).\mathit{alerts} \wedge \mathit{code}(x) = \texttt{svc.unknown}\bigr) \iff \exists s \in \Sigma.\mathit{svcs}, r.\ u(s) = r \wedge x = \operatorname{unknownAlert}(s, r)$$
+-/
+theorem svcUnknown_iff (p : Params) (o : Obs) (x : Alert) :
+    (x ∈ (health p o).alerts ∧ x.code = .svcUnknown) ↔
+      ∃ s ∈ o.system.svcs, ∃ r, s.unknown = some r ∧ x = unknownAlert s r := by
+  constructor
+  · rintro ⟨hx, e⟩
+    have h := (mem_sys p o x).1 (mem_sys_of_notAgent p o x hx (by rw [e]; rfl))
+    rw [e] at h
+    simp only [sysPiece, sUnknown, List.mem_filterMap] at h
+    obtain ⟨s, hs, hr⟩ := h
+    cases hu : s.unknown with
+    | none => simp [hu] at hr
+    | some r => simp only [hu, Option.map_some, Option.some.injEq] at hr; exact ⟨s, hs, r, hu, hr.symm⟩
+  · rintro ⟨s, hs, r, hu, rfl⟩
+    have hy : unknownAlert s r ∈ sysPiece p o (unknownAlert s r).code := by
+      show unknownAlert s r ∈ sUnknown o
+      exact List.mem_filterMap.2 ⟨s, hs, by simp [hu]⟩
+    exact ⟨(mem_alerts p o _).2 (List.mem_append.2 (.inr ((mem_sys p o _).2 hy))), rfl⟩
+
+/-- Never silence: a service whose running code cannot be identified always has an alert in the report, named after it.
+
+$$\forall s \in \Sigma.\mathit{svcs}:\quad u(s) = r \Rightarrow \exists x \in \operatorname{health}(p, o).\mathit{alerts}.\ \mathit{code}(x) = \texttt{svc.unknown} \wedge \mathit{subject}(x) = \mathit{name}(s)$$
+-/
+theorem unknown_service_alerts (p : Params) (o : Obs) (s : Svc) (hs : s ∈ o.system.svcs) (r : String)
+    (hu : s.unknown = some r) :
+    ∃ x ∈ (health p o).alerts, x.code = .svcUnknown ∧ x.subject = s.name :=
+  ⟨unknownAlert s r, ((svcUnknown_iff p o _).2 ⟨s, hs, r, hu, rfl⟩).1, rfl, rfl⟩
 
 /-- Every `proc.long` alert comes from a process tree of the session that is not declared, whose owner is not a live
 agent, and that is alive for strictly more than `procMaxMin` minutes.
@@ -1833,6 +1886,7 @@ theorem sysPiece_mono (p q : Params) (o : Obs) (hpq : Looser p q) (c : Code) (x 
       exact ⟨hb.1, Nat.le_trans (Nat.mul_le_mul_right _ hpq.sim) hb.2⟩
   · simp only [sysPiece, sOrphan] at h ⊢; rw [← ho]; exact h
   · exact h
+  · exact h
   · exact when_sub _ (fun hb => by simp only [decide_eq_true_eq] at hb ⊢; omega) x h
   · exact when_sub _ (fun hb => by simp only [decide_eq_true_eq] at hb ⊢; omega) x h
   · exact h
@@ -1899,7 +1953,7 @@ theorem sysAlerts_perm (p : Params) (o : Obs) (l : List Agent) (hl : l.Perm o.ag
       unfold ownerLiveB; cases r.agent <;> simp only [hl.any_eq]
     simp only [procLongB, hw]
   have ha : procAlert { o with agents := l } = procAlert o := rfl
-  simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sDisk, sLoad, sMem, sOver,
+  simp only [sysAlerts, sCiFailed, sCiFin, sCiSlow, sDocker, sProc, sLockLong, sOrphan, sStale, sUnknown, sDisk, sLoad, sMem, sOver,
     sPerm, sWt, hn, hk, hh, ho, hd, hq, ha]
 
 /-- The report's alerts, system codes and counts do not depend on the order of the agents (the rows follow it).
