@@ -45,7 +45,7 @@ while (stack.length) {
   stack.push(...importsOf(readFileSync(fileOf(m), "utf8")));
 }
 const other = new Set();
-const others = [...walk(join(root, "FwTest")), ...["FwTestMain", "Main", "BreakgenMain"].map((n) => join(root, n + ".lean")),
+const others = [...walk(join(root, "FwTest")), ...["FwTestMain", "Main", "BreakgenMain", "SweepsgenMain"].map((n) => join(root, n + ".lean")),
   ...walk(join(root, "scripts"))].filter(existsSync);
 const st2 = others.flatMap((f) => importsOf(readFileSync(f, "utf8")));
 while (st2.length) {

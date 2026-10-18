@@ -23,7 +23,10 @@ the serialised declared inputs, `hashFiles` is one more hash).
   one thing a Lean proof cannot check; the golden file `golden/ops/cache.jsonl` lists the declared
   inputs of every cache in the repository and a test checks each appears in the cache key.
 * A partial-key fallback (`restore-keys`) is NOT modelled: it looks up a key that covers fewer inputs
-  than `decl`, which `key_complete` cannot cover. Do not use it.
+  than `decl`, which `key_complete` cannot cover. Do not use it for a result cache. (Lake's artifact
+  cache, the last section, may use it: there an entry is a set of artifacts that Lake re-checks one by
+  one against their traces (a premise about Lake, not proved here), so a fallback entry can only cost
+  rebuilds, which `rebuild_in_cone` bounds.)
 -/
 namespace Fw.Ops.Cache
 
@@ -241,5 +244,117 @@ theorem partial_key_unsound {K R : Type} (h : List (String × String) → K) (dk
     (run : Env → R) (e e' : Env) (hagree : ∀ n ∈ dkey, e n = e' n) (hne : run e ≠ run e') :
     key h dkey e = key h dkey e' ∧ run e ≠ run e' :=
   ⟨key_congr h dkey e e' hagree, hne⟩
+
+/-! ## Lake's artifact cache: one writer, narrow readers (task `site-build-cache`)
+
+The cache above stores one result per key. Lake's artifact cache (`.lake-cache`, `actions/cache` in
+`.github/actions/setup-lean`) is different: an entry is a *set* of module artifacts, each named by the
+module's input hash, and a job that restores it rebuilds exactly the modules of its own import cone whose
+artifact is missing. Premise (Lake's behaviour, not proved here): Lake re-checks every trace, so a stale or
+partial entry is never unsound, only slow;
+the question here is which modules a job rebuilds.
+
+Before this task every job that ran `setup-lean` could save the shared key, and GitHub keeps the first save.
+A site job whose cone was two modules could win and store an entry without the gate modules; later jobs
+that needed those modules restored it and rebuilt 38 of them (2 s -> 50 s,
+research/notes/2026/10-18-slow-site-build.md). The fix: only one job (the `lean` job of `lean.yml`, which builds
+every target) saves; every other job only restores (`Fw.Ops.LakeCache.jobs`). `cache_complete` says that the
+writer's entry holds every module any reader needs when every reader's targets are in the writer's cone;
+`rebuild_mono` and `rebuild_in_cone` say a job never rebuilds more than its own cone.
+
+The model: `deps m` lists the modules (or Lake targets) `m` imports; `hash m` names `m`'s artifact for one
+source tree (one exact cache key; a fallback entry from another tree has other hashes, and the rebuild bounds
+still hold).
+-/
+
+/-- Module `m` is in the import cone of the roots `ts`: a root, or imported by a module of the cone.
+
+$$\forall \mathit{deps}, T:\ \operatorname{cl}_{\mathit{deps}}(T) = \text{the least } X \text{ with } T \subseteq X \text{ and } \forall m \in X,\ \forall d \in \mathit{deps}(m):\ d \in X$$ -/
+inductive InCone (deps : String → List String) (ts : List String) : String → Prop
+  | root {m : String} : m ∈ ts → InCone deps ts m
+  | dep {m d : String} : InCone deps ts m → d ∈ deps m → InCone deps ts d
+
+/-- **The cone is transitive.** If every root of `ts'` is in the cone of `ts`, the whole cone of `ts'` is.
+
+$$\forall \mathit{deps}, T, T':\ (\forall t \in T':\ t \in \operatorname{cl}(T)) \Rightarrow \forall m:\ (m \in \operatorname{cl}(T') \Rightarrow m \in \operatorname{cl}(T))$$ -/
+theorem inCone_trans (deps : String → List String) (ts ts' : List String)
+    (hroots : ∀ t ∈ ts', InCone deps ts t) {m : String} (h : InCone deps ts' m) : InCone deps ts m := by
+  induction h with
+  | root hm => exact hroots _ hm
+  | dep _ hd ih => exact InCone.dep ih hd
+
+/-- **More roots, larger cone.**
+
+$$\forall \mathit{deps}, T, T':\ T' \subseteq T \Rightarrow \forall m:\ (m \in \operatorname{cl}(T') \Rightarrow m \in \operatorname{cl}(T))$$ -/
+theorem inCone_mono (deps : String → List String) (ts ts' : List String) (hsub : ∀ t ∈ ts', t ∈ ts)
+    {m : String} (h : InCone deps ts' m) : InCone deps ts m :=
+  inCone_trans deps ts ts' (fun t ht => InCone.root (hsub t ht)) h
+
+/-- A restored Lake entry: the set of artifact hashes it holds.
+
+$$\mathrm{Entry}(H) = H \to \mathrm{Prop}$$ -/
+abbrev Entry (H : Type) := H → Prop
+
+/-- Module `m` is rebuilt by a job with targets `ts` that restored the entry `C`: it is in the job's cone and its
+artifact is not in `C`.
+
+$$\forall \mathit{deps}, h, C, T, m:\ m \in \operatorname{rb}(T, C) \iff m \in \operatorname{cl}(T) \land h(m) \notin C$$ -/
+def Rebuilds {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H) (ts : List String)
+    (m : String) : Prop :=
+  InCone deps ts m ∧ ¬ C (hash m)
+
+/-- The entry after a job builds its targets on top of the restored entry `C`: `C` plus the artifact of every
+module of its cone (what the job saves, if it saves).
+
+$$\forall \mathit{deps}, h, C, T:\ \operatorname{after}(T, C) = C \cup \{\, h(m) \mid m \in \operatorname{cl}(T) \,\}$$ -/
+def afterBuild {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H) (ts : List String) :
+    Entry H :=
+  fun x => C x ∨ ∃ m, InCone deps ts m ∧ hash m = x
+
+/-- **A job never rebuilds outside its own cone.**
+
+$$\forall \mathit{deps}, h, C, T, m:\ m \in \operatorname{rb}(T, C) \Rightarrow m \in \operatorname{cl}(T)$$ -/
+theorem rebuild_in_cone {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
+    (ts : List String) (m : String) (h : Rebuilds deps hash C ts m) : InCone deps ts m := h.1
+
+/-- **Rebuilds are monotone in the cone.** A job whose cone lies inside another job's cone rebuilds no module the
+other would not rebuild from the same entry.
+
+$$\forall \mathit{deps}, h, C, T, T':\ \operatorname{cl}(T') \subseteq \operatorname{cl}(T) \Rightarrow \forall m:\ (m \in \operatorname{rb}(T', C) \Rightarrow m \in \operatorname{rb}(T, C))$$ -/
+theorem rebuild_mono {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
+    (ts ts' : List String) (hcl : ∀ m, InCone deps ts' m → InCone deps ts m) (m : String)
+    (h : Rebuilds deps hash C ts' m) : Rebuilds deps hash C ts m :=
+  ⟨hcl m h.1, h.2⟩
+
+/-- **A larger entry never rebuilds more.**
+
+$$\forall \mathit{deps}, h, C, C', T:\ C \subseteq C' \Rightarrow \forall m:\ (m \in \operatorname{rb}(T, C') \Rightarrow m \in \operatorname{rb}(T, C))$$ -/
+theorem rebuild_antitone {H : Type} (deps : String → List String) (hash : String → H) (C C' : Entry H)
+    (ts : List String) (hsub : ∀ x, C x → C' x) (m : String) (h : Rebuilds deps hash C' ts m) :
+    Rebuilds deps hash C ts m :=
+  ⟨h.1, fun hc => h.2 (hsub _ hc)⟩
+
+/-- **Cache completeness.** If every target of a restoring job is in the writer's cone, the entry the writer saves
+(whatever entry it restored) holds every module the restoring job needs on the same source tree: the job
+rebuilds nothing.
+
+$$\forall \mathit{deps}, h, C, T_w, T_j:\ (\forall t \in T_j:\ t \in \operatorname{cl}(T_w)) \Rightarrow \forall m:\ m \notin \operatorname{rb}(T_j, \operatorname{after}(T_w, C))$$ -/
+theorem cache_complete {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
+    (tw tj : List String) (hcov : ∀ t ∈ tj, InCone deps tw t) (m : String) :
+    ¬ Rebuilds deps hash (afterBuild deps hash C tw) tj m :=
+  fun h => h.2 (Or.inr ⟨m, inCone_trans deps tw tj hcov h.1, rfl⟩)
+
+/-- **Why the first-save race was slow.** If a narrow job saves the entry, a job whose cone holds a module that was
+not in the restored entry and whose artifact the saver did not build rebuilds it.
+
+$$\forall \mathit{deps}, h, C, T_s, T_j, m:\ m \in \operatorname{cl}(T_j) \land h(m) \notin C \land (\forall m' \in \operatorname{cl}(T_s):\ h(m') \ne h(m)) \Rightarrow m \in \operatorname{rb}(T_j, \operatorname{after}(T_s, C))$$ -/
+theorem narrow_saver_rebuilds {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
+    (ts tj : List String) (m : String) (hj : InCone deps tj m) (hc : ¬ C (hash m))
+    (hout : ∀ m', InCone deps ts m' → hash m' ≠ hash m) :
+    Rebuilds deps hash (afterBuild deps hash C ts) tj m := by
+  refine ⟨hj, ?_⟩
+  rintro (h | ⟨m', hm', he⟩)
+  · exact hc h
+  · exact hout m' hm' he
 
 end Fw.Ops.Cache

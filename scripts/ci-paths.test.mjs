@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { matches } from '../.github/scripts/changed-inputs.mjs';
-import { coneOf, expand, loadGolden, portableGlob, readJobs, reconcile, renderPush, run, setMapFor, unguarded } from './ci-paths.mjs';
+import { coneOf, expand, lakeCacheProblems, loadGolden, loadLakeCache, portableGlob, readJobs, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -43,6 +43,32 @@ test('the fwcore cone is smaller than lean/** and holds the entry module and the
   assert.equal(matches(expand(S, wktr.inputs), 'lean/FwTest/Lease.lean'), false);
   assert.equal(matches(expand(S, wktr.inputs), 'lean/scripts/check.sh'), false);
   assert.equal(matches(expand(S, wktr.inputs), 'lean/Main.lean'), true);
+});
+
+test('the breakgen cone (run by every site build) holds only the breakpoint generator (task site-build-cache)', () => {
+  const cone = coneOf(root, 'BreakgenMain');
+  assert.ok(cone.includes('lean/Fw/Site/BreakpointGen.lean'));
+  assert.ok(cone.every((p) => p === 'lean/BreakgenMain.lean' || p.startsWith('lean/Fw/Site/')), cone.join(' '));
+  assert.ok(cone.length <= 8, `breakgen cone grew to ${cone.length} files: ${cone.join(' ')}`);
+  // the gate generators live in sweepsgen
+  assert.ok(coneOf(root, 'SweepsgenMain').includes('lean/Fw/Gate/Scope.lean'));
+});
+
+test('Lake cache: exactly one writer, and every setup-lean job equals the Lean table', () => {
+  const rows = loadLakeCache(root);
+  assert.ok(rows && rows.length >= 10);
+  assert.deepEqual(rows.filter((r) => r.saves).map((r) => `${r.file}/${r.job}`), ['lean.yml/lean']);
+  assert.ok(rows.every((r) => r.covered));
+  const lean = readFileSync(join(root, WF, 'lean.yml'), 'utf8').split('\n');
+  assert.deepEqual(setupLeanJobs(lean), [{ job: 'lean', save: 'true' }, { job: 'mathview-differential', save: 'false' }]);
+  assert.deepEqual(lakeCacheProblems('lean.yml', lean, rows), []);
+  // a second writer, a missing writer and an unlisted job are each reported
+  const gg = readFileSync(join(root, WF, 'gate-gaps.yml'), 'utf8');
+  const twoWriters = gg.replace(/^( +)- uses: \.\/\.github\/actions\/setup-lean$/m, "$1- uses: ./.github/actions/setup-lean\n$1  with:\n$1    save: 'true'");
+  assert.ok(lakeCacheProblems('gate-gaps.yml', twoWriters.split('\n'), rows).some((p) => /save: 'true'/.test(p)));
+  const noWriter = lean.join('\n').replace("save: 'true'", "save: 'false'").split('\n');
+  assert.ok(lakeCacheProblems('lean.yml', noWriter, rows).some((p) => /job lean passes save: 'false'/.test(p)));
+  assert.ok(lakeCacheProblems('other.yml', gg.split('\n'), rows).some((p) => /not in lean\/Fw\/Ops\/LakeCache.lean/.test(p)));
 });
 
 const sample = readFileSync(join(root, WF, 'gate-gaps.yml'), 'utf8');
