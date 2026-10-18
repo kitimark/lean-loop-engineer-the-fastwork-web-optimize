@@ -7,7 +7,7 @@
 // script, result or transcript text.
 // TS STAND-IN: `runsOf`/`wfEvents` mirror Lean `scriptRun`/`runFileId`/`wfEvents`; checked against
 // packages/contracts/golden/plan/workflow.jsonl (test/workflow-claim.test.ts). Replace by an fwcore op when one exists.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -121,12 +121,39 @@ export function workflowDirs(root: string, env: NodeJS.ProcessEnv = process.env,
   } catch { return []; }
 }
 
-/** The events of one `workflows/` dir (an unreadable dir gives none). */
-export function scanWorkflows(dir: string, ids: readonly string[]): WfEvent[] {
+/** A workflow event as submitted: a spawn or stop carries `at` (ms), the file time of the fact when one was readable. */
+export type WfTimed = WfEvent | (Extract<WfEvent, { type: "agent.spawn" | "agent.stop" }> & { at: number });
+
+/** The events of one `workflows/` dir (an unreadable dir gives none), each spawn and stop stamped with the time of its
+ *  fact, never the read time: a run spawn at its script's mtime, a run stop at its run file's mtime; an agent spawn at
+ *  its `agent-<id>.meta.json` mtime (written when the agent starts), else at the journal's birth time, else its mtime; an
+ *  agent stop at the journal's mtime, or the run file's when later. Journal lines carry no time. So a journal first read
+ *  after the agent's SubagentStop never gives a spawn later than that stop. */
+export function scanWorkflows(dir: string, ids: readonly string[]): WfTimed[] {
   const ls = (d: string): string[] => { try { return readdirSync(d); } catch { return []; } };
+  const st = (p: string): { birth: number; mtime: number } | null => {
+    try { const s = statSync(p); return { birth: Math.floor(s.birthtimeMs), mtime: Math.floor(s.mtimeMs) }; } catch { return null; }
+  };
   const jdir = join(dir, "..", "subagents", "workflows");
-  const journal = ls(jdir).filter((r) => RUN_ID.test(r)).flatMap((r) => {
+  const runs = ls(jdir).filter((r) => RUN_ID.test(r));
+  const journal = runs.flatMap((r) => {
     try { return parseJournal(r, readFileSync(join(jdir, r, "journal.jsonl"), "utf8")); } catch { return []; }
   });
-  return wfAllEvents(ids, ls(join(dir, "scripts")), ls(dir), journal);
+  const scripts = ls(join(dir, "scripts"));
+  const runFiles = ls(dir);
+  const at = new Map<string, number>();
+  for (const f of scripts) { const w = scriptRun(f), t = st(join(dir, "scripts", f)); if (w && t) at.set(`wfr:${w.run}`, t.mtime); }
+  const runEnd = new Map<string, number>();
+  for (const f of runFiles) { const r = runFileId(f), t = st(join(dir, f)); if (r && t) { runEnd.set(r, t.mtime); at.set(`wfr-end:${r}`, t.mtime); } }
+  const jt = new Map(runs.map((r) => [r, st(join(jdir, r, "journal.jsonl"))] as const));
+  for (const j of journal) {
+    const t = jt.get(j.run);
+    const meta = st(join(jdir, j.run, `agent-${j.id}.meta.json`));
+    const start = meta?.mtime ?? (t && t.birth > 0 && t.birth <= t.mtime ? t.birth : t?.mtime);
+    if (start !== undefined) at.set(`wfid:${j.run}:${j.id}`, start);
+    const end = Math.max(t?.mtime ?? -1, runEnd.get(j.run) ?? -1);
+    if (end >= 0) at.set(`wfid-end:${j.run}:${j.id}`, end);
+  }
+  return wfAllEvents(ids, scripts, runFiles, journal).map((e) =>
+    e.type === "agent.label" || !at.has(e.key) ? e : { ...e, at: at.get(e.key)! });
 }

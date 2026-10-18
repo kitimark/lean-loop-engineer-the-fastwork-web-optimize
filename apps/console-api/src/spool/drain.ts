@@ -188,7 +188,8 @@ export class Drain {
   }
 
   /** Workflow runs and their labelled agents (Lean `Fw.Plan.wfAllEvents`): `agent.label` of the run key or agent id with
-   *  the task, `agent.spawn` at the start, `agent.stop` at the end. The event key carries the run (and agent) id, so a
+   *  the task, `agent.spawn` at the start, `agent.stop` at the end, each with `at` the file time of the fact
+   *  (`scanWorkflows`), so a late read never postdates a SubagentStop. The event key carries the run (and agent) id, so a
    *  repeated sweep is a duplicate; a refusal is tried again next drain; a throw is counted. */
   private async workflowSweep(res: DrainResult): Promise<void> {
     try {
@@ -200,7 +201,7 @@ export class Drain {
           if (this.wfSent.has(e.key)) continue;
           const reply = await this.store.submit(e.type === "agent.label"
             ? { type: e.type, key: e.key, actor: "hook", agent: e.agent, name: e.name }
-            : { type: e.type, key: e.key, actor: "hook", agent: e.agent });
+            : { type: e.type, key: e.key, actor: "hook", agent: e.agent, at: "at" in e ? e.at : null });
           if (reply.ok) this.wfSent.add(e.key);
         }
       }
