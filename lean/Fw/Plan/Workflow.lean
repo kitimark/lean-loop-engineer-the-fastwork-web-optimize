@@ -261,4 +261,182 @@ theorem wfEvents_foreign (ids scripts runFiles : List String)
   rw [workflow_foreign_none ids _ w (h w hw)]
   rfl
 
+
+/-! ### Labelled workflow agents (task `workflow-multi-claim`)
+
+A run that works several tasks (`integrate-and-engine-fix`, `guard-hardening-r2`) names its agents
+`<phase>:<task>`. **Signal (CONFIRMED, session dir):** `<session>/subagents/workflows/<runId>/journal.jsonl` has a
+`{"type":"started","agentId":…,"label":…}` line when an agent starts and a `{"type":"result","agentId":…}` line when it
+ends; the glue reads only those fields, never a result text, script or transcript. A label's task is the text
+after its first `:`; the agent binds that task while it runs, as `meta.name` does for the whole run. -/
+
+/-- The task named by a label `<phase>:<task>`: the non-empty text after the first `:`.
+
+$$\operatorname{labelTask}(\ell) = \begin{cases} \mathrm{some}(t) & \ell = p \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} t \land \texttt{:} \notin p \land t \ne \varepsilon \\ \mathrm{none} & \text{otherwise}\end{cases}$$
+-/
+def labelTask (l : String) : Option String :=
+  let r := l.dropWhile (· != ':')
+  if r.isEmpty then none else
+    let t := (r.drop 1).toString
+    if t.isEmpty then none else some t
+
+/-- A journal line: the run (its directory name), the agent id, whether it is a `started` line (else a `result`
+line) and the label of a `started` line.
+
+$$j = (\mathit{run}, \mathit{id}, \mathit{started}, \mathit{label})$$
+-/
+structure JLine where
+  run     : String
+  id      : String
+  started : Bool
+  label   : String
+deriving Repr, DecidableEq
+
+/-- A workflow agent: run, agent id, label, and whether its `result` line exists.
+
+$$a = (\mathit{run}, \mathit{id}, \ell, \mathit{done})$$
+-/
+structure WfAgent where
+  run   : String
+  id    : String
+  label : String
+  done  : Bool
+deriving Repr, DecidableEq
+
+/-- The agents of a journal: one per `started` line of a valid run id (duplicates once), done iff a `result` line
+of the same run and agent id exists.
+
+$$\operatorname{agents}(J) = \operatorname{dedup}\{(r, i, \ell, \exists k \in J:\ \lnot k.\mathit{started} \land k.\mathit{run} = r \land k.\mathit{id} = i) : (r, i, \ell) \in J_{\mathit{started}},\ \operatorname{isRunId}(r)\}$$
+-/
+def wfAgents (js : List JLine) : List WfAgent :=
+  ((js.filter fun j => j.started && isRunId j.run).map fun j =>
+    ({ run := j.run, id := j.id, label := j.label,
+       done := js.any fun k => !k.started && k.run == j.run && k.id == j.id } : WfAgent)).eraseDups
+
+/-- The commands of a labelled agent, given the task ids and whether its run ended: a label naming a task id spawns
+that task, and stops it once the agent or its run ended; any other label gives none.
+
+$$\operatorname{acmds}(I, e, a) = \begin{cases} [\mathrm{spawn}(t), \mathrm{stop}(t)] & \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land (a.\mathit{done} \lor e) \\ [\mathrm{spawn}(t)] & \operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land \lnot(a.\mathit{done} \lor e) \\ [\,] & \text{otherwise}\end{cases}$$
+-/
+def WfAgent.cmds (ids : List String) (runEnded : Bool) (a : WfAgent) : List Cmd :=
+  match labelTask a.label with
+  | some t => if ids.contains t then .spawn t :: (if a.done || runEnded then [.stop t] else []) else []
+  | none => []
+
+/-- The events of the labelled agents (keys `wfa:<run>:<id>` and `wfa-end:<run>:<id>`).
+
+$$\operatorname{aevents}(I, R, J) = \mathop{\mathrm{concat}}_{a \in \operatorname{agents}(J)} \operatorname{ev}(a, a.\mathrm{cmds}(I, a.\mathit{run} \in \operatorname{ids}(R)))$$
+-/
+def agentEvents (ids runFiles : List String) (journal : List JLine) : List (String × String × String) :=
+  let ended := runFiles.filterMap runFileId
+  (wfAgents journal).flatMap fun a =>
+    (a.cmds ids (ended.contains a.run)).filterMap fun
+      | .spawn t => some (s!"wfa:{a.run}:{a.id}", "agent.spawn", t)
+      | .stop t => some (s!"wfa-end:{a.run}:{a.id}", "agent.stop", t)
+      | _ => none
+
+/-- All workflow events: those of the runs named like a task, then those of the labelled agents.
+
+$$\operatorname{all}(I, S, R, J) = \operatorname{events}(I, S, R) \mathbin{+\!\!+} \operatorname{aevents}(I, R, J)$$
+-/
+def wfAllEvents (ids scripts runFiles : List String) (journal : List JLine) : List (String × String × String) :=
+  wfEvents ids scripts runFiles ++ agentEvents ids runFiles journal
+
+/-- **The old behaviour is kept**: with no journal lines the events are exactly the single-name events, so the
+old goldens replay unchanged.
+
+$$\forall I, S, R:\quad \operatorname{all}(I, S, R, [\,]) = \operatorname{events}(I, S, R)$$
+-/
+theorem wfAllEvents_nil (ids scripts runFiles : List String) :
+    wfAllEvents ids scripts runFiles [] = wfEvents ids scripts runFiles := by
+  simp [wfAllEvents, agentEvents, wfAgents]
+
+/-- A running agent labelled with a task id binds it (one spawn, no stop).
+
+$$\operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land \lnot a.\mathit{done} \Rightarrow \operatorname{acmds}(I, \bot, a) = [\mathrm{spawn}(t)]$$
+-/
+theorem WfAgent.cmds_running (ids : List String) (a : WfAgent) (t : String)
+    (hl : labelTask a.label = some t) (ht : ids.contains t = true) (hd : a.done = false) :
+    a.cmds ids false = [.spawn t] := by
+  have := List.contains_iff_mem.1 ht
+  simp [WfAgent.cmds, hl, hd, this]
+
+/-- An ended agent (or one of an ended run) spawns and stops its task: the binding ends with the agent.
+
+$$\operatorname{labelTask}(a.\ell) = \mathrm{some}(t) \land t \in I \land (a.\mathit{done} \lor e) \Rightarrow \operatorname{acmds}(I, e, a) = [\mathrm{spawn}(t), \mathrm{stop}(t)]$$
+-/
+theorem WfAgent.cmds_ended (ids : List String) (e : Bool) (a : WfAgent) (t : String)
+    (hl : labelTask a.label = some t) (ht : ids.contains t = true) (hd : (a.done || e) = true) :
+    a.cmds ids e = [.spawn t, .stop t] := by
+  have := List.contains_iff_mem.1 ht
+  simp [WfAgent.cmds, hl, hd, this]
+
+/-- The commands of an agent are spawns and stops.
+
+$$\forall I, e, a, c \in a.\mathrm{cmds}(I, e):\ \operatorname{isLife}(c) = \mathrm{true}$$
+-/
+theorem WfAgent.cmds_life (ids : List String) (e : Bool) (a : WfAgent) :
+    ∀ c ∈ a.cmds ids e, c.isLife = true := by
+  intro c hc
+  unfold WfAgent.cmds at hc
+  split at hc
+  · split at hc
+    · cases hde : (a.done || e) <;> simp [hde] at hc <;> rcases hc with rfl | rfl <;> rfl
+    · simp at hc
+  · simp at hc
+
+/-- **A define commutes with the commands of a labelled agent**, as with a run's.
+
+$$\forall es, d, I, e, a, x:\quad \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} \mathrm{define}(d) :: a.\mathrm{cmds}), x) = \operatorname{boundTo}(\operatorname{run}(es \mathbin{+\!\!+} a.\mathrm{cmds} \mathbin{+\!\!+} [\mathrm{define}(d)]), x)$$
+-/
+theorem define_agent_comm (es : List Cmd) (d : Def) (ids : List String) (e : Bool) (a : WfAgent)
+    (x : String) :
+    boundTo (run (es ++ .define d :: a.cmds ids e)) x =
+      boundTo (run (es ++ a.cmds ids e ++ [.define d])) x := by
+  rw [define_life_comm d _ es (WfAgent.cmds_life ids e a)]
+
+/-- **Every bound task is a plan task named by a label or the run's name**: each event of `wfAllEvents` binds an
+id of the plan, and that id is the `meta.name` of a run in `scripts` or the `<task>` of the label of a journal
+agent.
+
+$$\forall (k, \tau, t) \in \operatorname{all}(I, S, R, J):\ t \in I \land \big(\exists w \in \operatorname{runs}(S):\ w.\mathit{name} = t\ \lor\ \exists a \in \operatorname{agents}(J):\ \operatorname{labelTask}(a.\ell) = \mathrm{some}(t)\big)$$
+-/
+theorem wfAllEvents_bound (ids scripts runFiles : List String) (journal : List JLine)
+    (e : String × String × String) (he : e ∈ wfAllEvents ids scripts runFiles journal) :
+    e.2.2 ∈ ids ∧ ((∃ w ∈ runsOf scripts, w.name = e.2.2) ∨
+      ∃ a ∈ wfAgents journal, labelTask a.label = some e.2.2) := by
+  unfold wfAllEvents at he
+  rcases List.mem_append.1 he with h | h
+  · unfold wfEvents at h
+    obtain ⟨w, hw, h⟩ := List.mem_flatMap.1 h
+    obtain ⟨c, hc, hce⟩ := List.mem_filterMap.1 h
+    unfold Wf.cmds at hc
+    split at hc
+    · rename_i hid
+      have hn : w.name ∈ ids := List.contains_iff_mem.1 hid
+      have hc' : c = .spawn w.name ∨ c = .stop w.name := by
+        simp only [List.mem_cons] at hc
+        rcases hc with h1 | h1
+        · exact Or.inl h1
+        · split at h1 <;> simp_all
+      rcases hc' with rfl | rfl <;> simp at hce <;> subst hce <;> exact ⟨hn, Or.inl ⟨w, hw, rfl⟩⟩
+    · simp at hc
+  · unfold agentEvents at h
+    obtain ⟨a, ha, h⟩ := List.mem_flatMap.1 h
+    obtain ⟨c, hc, hce⟩ := List.mem_filterMap.1 h
+    unfold WfAgent.cmds at hc
+    split at hc
+    · rename_i t hl
+      split at hc
+      · rename_i hid
+        have hn : t ∈ ids := List.contains_iff_mem.1 hid
+        have hc' : c = .spawn t ∨ c = .stop t := by
+          simp only [List.mem_cons] at hc
+          rcases hc with h1 | h1
+          · exact Or.inl h1
+          · split at h1 <;> simp_all
+        rcases hc' with rfl | rfl <;> simp at hce <;> subst hce <;> exact ⟨hn, Or.inr ⟨a, ha, hl⟩⟩
+      · simp at hc
+    · simp at hc
+
 end Fw.Plan
