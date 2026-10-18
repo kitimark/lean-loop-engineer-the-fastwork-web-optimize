@@ -4675,7 +4675,8 @@
     "docs/team/incidents/ledger.json",
     "research/notes/2026/10-18-mistake-retro.md",
     "docs/team/handoffs/mistake-record-4.md"
-   ]
+   ],
+   "evidence": "f9a2a99"
   },
   {
    "id": "context-slop",
@@ -4756,6 +4757,93 @@
     "scripts/fwcore-build.sh",
     "apps/runner/src/land.ts",
     "docs/team/handoffs/console-stale-2.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "id": "review-loop-alert",
+   "title": "(S) fw watch alert lead.redesign when a task has 2 refused reviews of the same class (Lean rule over workflow review verdicts; inc-review-loop)",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Console/ReviewLoop.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/review-loop.test.ts",
+    "packages/contracts/golden/console/review-loop.jsonl",
+    "docs/team/tools/watch.md",
+    "docs/team/handoffs/review-loop-alert.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lfg-props-shape"
+   ],
+   "id": "theorem-reach-lint",
+   "title": "(S) lint: every theorem subject is reachable from a Wire op, a generator or a golden (no proofs of dead code; inc-proof-of-dead-code), decided in Lean over the environment",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/scripts/ReachLint.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Console/LandSpeed.lean",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/src/land.ts",
+    "docs/team/tools/lean-first.md",
+    "docs/team/handoffs/theorem-reach-lint.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "ci-own-trigger"
+   ],
+   "id": "land-cancel-runs",
+   "title": "(S) fw land cancels queued/in-progress runs of the landed task ci/<task> branch after the fast-forward (Lean: a landed branch run gives no verdict anyone reads; inc-landed-runs-queued)",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/Landed.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-cancel.test.ts",
+    "packages/contracts/golden/ci/landed.jsonl",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/land-cancel-runs.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "id": "gate-expected-red",
+   "title": "(S) expected-red list for gate lanes on main until integrate-ports lands (Lean: a red job on main is expected iff listed with its finding id; anything else alerts; inc-red-on-main-by-design)",
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/ExpectedRed.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "apps/runner/src/watch*.ts",
+    "packages/contracts/golden/ci/expected-red.jsonl",
+    "docs/team/tools/fw-ci.md",
+    "docs/team/handoffs/gate-expected-red.md"
+   ]
+  },
+  {
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "id": "workflow-salvage",
+   "title": "(S) workflow stage pattern: a null builder result runs a salvage agent on its worktree (commit WIP, write handoff, report state) before verify; prompt-rules require ending with the structured result (batch-5: gate-shard-balance builder ended without a result)",
+   "owner": "lean-prover",
+   "writes": [
+    "docs/team/tools/prompt-rules.md",
+    "docs/team/tools/workflow-patterns.md",
+    "docs/team/handoffs/workflow-salvage.md"
    ]
   }
  ],
