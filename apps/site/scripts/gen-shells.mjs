@@ -16,8 +16,12 @@ const must = [...gen.matrix.probes.map((p) => Math.ceil(p.width)), ...gen.edgePa
 const model = fit(rows, 0.05, must);
 
 const files = new Map([['src/shells/boxes.gen.json', JSON.stringify(model, null, 1) + '\n']]);
-// a section that has been ported to the real part no longer has a shell box file (its measured heights stay in the model)
-const PORTED = new Set(['platform']);
+// A section whose part.json has a faithful variant is ported to the real part: its folder owns its CSS, so it has no shell box file
+// (its measured heights stay in boxes.gen.json). Derived from the part files, so a port needs no edit here.
+const PORTED = new Set(SECTION_IDS.filter((id) => {
+  const f = join(SITE, 'src/parts', id, 'part.json');
+  return existsSync(f) && Object.values(JSON.parse(readFileSync(f, 'utf8')).variants ?? {}).some((v) => v.kind === 'faithful');
+}));
 for (const id of SECTION_IDS) if (!PORTED.has(id)) files.set(`src/parts/${id}/box.module.css`, sectionCss(model, id));
 
 let bad = 0;

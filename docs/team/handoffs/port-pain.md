@@ -1,0 +1,31 @@
+# Handoff: port-pain (pain + pain.notes, faithful)
+
+Branch worktree-agent-a199a4ef3874fa11e (CI ref `ci/port-pain`). Commits: part commit, then "shared, additive" commit. Gate run id is in the report.
+Verdict: `pain` faithful (static markup + CSS, content-driven height replaces the shell fit); `pain.notes` faithful except one deliberate delta:
+randomness is a seeded stream (`mulberry32`, seed `NOTES_SEED`) and the shuffle draws without replacement (the original uses `Math.random` and a random-comparator sort). PLAN 4.3 requires this.
+
+## Files
+- Lean: `lean/Fw/Parts/Pain.lean` (board spacer width, section >= 300svh, `scored_iff`: the scored placement runs from a 1100 px viewport). NOTE: the original binds the notes' stage `x` to `.pain-canvas` (inset 0 over the sticky box), not `.pain-notes-stage`; found from CI run 39057192529 (notes missing). The narrow layout (11 notes) is live.
+  `lean/Fw/Parts/PainNotes.lean` (tick rule, overlap, avoid box, jittered placement, text pick, base layout, drag/keys, mulberry, permute, stick curve `stick`/`stickScale`, ~25 theorems, all with `$$` math). `PainNotesGolden.lean` has `lines`; jsonl `packages/contracts/golden/parts/pain.notes.jsonl` (416 lines, made with a scratch driver `lake env lean --run`).
+- TS: `apps/site/src/parts/pain/` (index, pain.module.css, media.ts/test, part.json), `apps/site/src/parts/pain.notes/` (logic.ts + golden test, driver.ts + driver.test.ts with a fake env, index.tsx, notes.module.css, media.ts/test, data.ts English strings, part.json).
+- Pointer/key moves write element style directly (`writeNote`); React state changes only when the set of notes changes. 3 s tick = `clock.interval`; first layout = one own-rAF frame; card check = `registerScroll('pain.notes', 120)`.
+
+## Shared edits (separate commit, additive)
+`App.tsx` (Pain gets `notesVariant`), `registry/index.ts` (+pain.notes), `Scope.lean` (+2 PartUse), `scope.gen.json` (regenerated), `anchors.json` (+pain, +pain.notes).
+Also `apps/site/scripts/gen-shells.mjs`: `PORTED = {'pain'}` skips writing/checking `parts/pain/box.module.css`; the fit stays in `boxes.gen.json` and `SECTION_IDS` (other ports: add your id to PORTED, do not touch model.ts).
+Not done: `Golden.lean` does not import `PainNotesGolden` (shared; append `lines`), `Fw.lean` needs nothing (globs). Scope.lean docstring list of pilot parts not updated.
+
+## Gate (run 39060345950, full matrix, both engines)
+- `pain`: pass in every cell, chromium and playwright-webkit.
+- `pain.notes`: pass in every probe cell on chromium. Open: (1) live-resize sweeps (desktop 1512->320, phone rotation): the original does NOT relayout the notes on a plain
+  resize while the section is off-screen, because `dE(..., deferRendering)` (engine.scene, JS 2690-2713) sets `content-visibility:auto` on the section and a skipped subtree gets no
+  ResizeObserver delivery (verified locally: original `left` stays 24.7314% from 1512 to 1000; only the `(max-width:860px)` change relays out). The rewrite relays out on RO. Resolves when engine.scene is ported.
+  (2) WebKit (Linux) touch cells: note count orig 11 vs rewrite 0 at touch-319..touch-1512 (9 of 30 probes; touch-rm passes). Local Playwright WebKit mobile emulation gives equal counts, so the cause is unknown: first thing to check next.
+- Verdict: pain faithful; pain.notes faithful-with-delta (seeded RNG + the two open gate items above).
+
+## Open
+- `is-pain-dark` is a global class (`:global`) the people port must toggle on `[data-fw="pain"]` (original JS 11324); until then at <=860 the section is white like the original at first paint.
+- The commission port must expose `[data-fw="commission-card"]` (or `.commission-card`) for the clear rule; absent now (rule inert).
+- Fonts (Google Sans, Playpen Sans) are not shipped in the rewrite, so text boxes are compared with `layoutDerived` skips; the sticky box height uses one-line h2.
+- Only the English dictionary is in `data.ts`.
+- Read first: `Pain.lean` then `PainNotes.lean` module docstring, then `driver.ts`.

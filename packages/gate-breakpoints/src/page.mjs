@@ -382,8 +382,8 @@ export async function settleInPage(arg) {
 }
 
 /**
- * Bring a part into view: scroll the first of its nodes that the engine has skipped (content-visibility:auto) to the middle of
- * the viewport, then wait two real frames so the engine applies the new visibility. Returns how many nodes were skipped before
+ * Bring a part into view: scroll the part's first root to the top of the viewport (when one of its nodes is skipped by
+ * content-visibility:auto), then wait two real frames so the engine applies the new visibility. Returns how many nodes were skipped before
  * the scroll. The gate then settles and reads the part again (Lean Fw.Gate.Settle.view).
  * arg: { roots: [selector] }
  */
@@ -392,7 +392,10 @@ export async function bringInPage(arg) {
   const all = [];
   for (const sel of arg.roots) for (const el of Array.from(document.querySelectorAll(sel)).slice(0, 64)) all.push(el);
   const hit = all.filter(skipped);
-  if (hit.length > 0) hit[0].scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+  // The part's first root goes to the viewport top in both arms: a scroll-driven value (a view timeline on the root) then reads the
+  // same progress in each arm, whatever the page heights are (run 39086375181: centring the first skipped node gave WebKit
+  // 0.4746 vs 0.3702 on --commission-shrink).
+  if (hit.length > 0) window.scrollTo({ top: Math.max(0, all[0].getBoundingClientRect().top + window.scrollY), left: 0, behavior: 'instant' });
   const K = window.__fwk;
   for (let i = 0; i < 2; i++) await (K ? K.frame() : new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 250); }));
   if (K) K.freeze();
@@ -479,7 +482,7 @@ export function collectInPage(arg) {
 
   for (const [pid, roles] of Object.entries(arg.parts)) {
     out.parts[pid] = {};
-    for (const { role, selector, rect: wantRect } of roles) {
+    for (const { role, selector, rect: wantRect, inline: inlineNames } of roles) {
       const els = Array.from(document.querySelectorAll(selector)).slice(0, 64);
       const declared = new Set();
       const items = els.map((el) => {
@@ -495,7 +498,13 @@ export function collectInPage(arg) {
         for (const n of names) style[n] = cs.getPropertyValue(n);
         // An item read in a skipped subtree carries `skipped: true`: the gate brings its part into view and reads again
         // (run.mjs, Lean Fw.Gate.Settle.view); one still skipped then is masked by summary.mjs maskNotRendered.
-        return skippedOf.get(el) ? { rect, style, skipped: true } : { rect, style };
+        // `inline`: the properties of the role's anchors.json `skipIfInline` that the element's own style attribute sets (a hover
+        // raise written by a script); Lean (Fw.Gate.cmpAt) leaves such a property out of that pair on the original's element only.
+        const inline = (inlineNames || []).filter((n) => el.style.getPropertyValue(n) !== '');
+        const item = { rect, style };
+        if (inline.length > 0) item.inline = inline;
+        if (skippedOf.get(el)) item.skipped = true;
+        return item;
       });
       out.parts[pid][role] = { count: els.length, declared: Array.from(declared).sort(), items: arg.props ? items : [] };
     }

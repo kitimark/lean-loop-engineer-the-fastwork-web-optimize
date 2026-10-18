@@ -33,6 +33,9 @@ export const stopSpan = (n) => MAIN_OFF_MS + SLOT_MS * (n + 2);
 export const stopBase = (i, n) => READY_TO_MS + i * stopSpan(n);
 /** Lean Fw.Gate.Freeze.ovRank / mountRank / viewRank: the rank of the overlay `j`, of the mount reading, of the view reading `q`. */
 export const ovRank = (j) => 1 + j;
+
+/** Fw.Gate.Freeze.pageOf: the page of a sweep a part is read on, 'mounted' when either arm has a mount step for it, else 'plain'. */
+export const pageOf = (mountOrig, mountRewrite) => (mountOrig || mountRewrite ? 'mounted' : 'plain');
 export const mountRank = (nOv) => nOv + 1;
 export const viewRank = (nOv, q) => nOv + 2 + q;
 

@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>cv.fresh-after-resize</title>
+<style>
+  body { margin: 0 }
+  .spacer { height: 4000px }
+  .cv { content-visibility: auto; contain-intrinsic-size: auto 200px; padding: 0 20px }
+  .cv.deferred { contain-intrinsic-block-size: auto 200px }
+  .inner { margin-inline: auto; width: 100%; max-width: 300px; height: 20px; background: #888 }
+</style>
+<div class="spacer"></div>
+<section class="cv" id="cv"><div class="inner" id="m"></div></section>
+<div class="spacer"></div>
+<section class="cv deferred" id="late"></section>
+<script>
+  // The engine's own signal that the first subtree is skipped, recorded without reading any style.
+  window.__cv = [];
+  document.getElementById('cv').addEventListener('contentvisibilityautostatechange', (e) => window.__cv.push(e.skipped));
+  // The second section gets its content after two frames, while it is already skipped (the way the commission rewrite defers its rows).
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const d = document.createElement('div');
+    d.className = 'inner'; d.id = 'lm';
+    document.getElementById('late').appendChild(d);
+  }));
+</script>
