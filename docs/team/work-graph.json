@@ -4158,7 +4158,8 @@
     "apps/console-api/test/**",
     "docs/team/tools/**",
     "docs/team/handoffs/workflow-multi-claim.md"
-   ]
+   ],
+   "evidence": "5ad545c"
   },
   {
    "id": "premise-ack",
@@ -4175,6 +4176,53 @@
     "packages/premise-tests/**",
     "apps/runner/src/**",
     "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "lean-first-gate",
+   "title": "(M) Lean-first enforced, not asked: audit today's lands (TS decisions without a Lean op, theorems that are vacuous or weaker than their claim, untested premises), then a land gate: every new theorem has a killing mutant (non-vacuity), every new TS branch on data has a Lean op or difftest twin, every task states its never-happen properties before code; property-based edge-case search before proof",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "lean-ops-gap"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/**",
+    "lean/Fw/Plan/**",
+    "lean/FwTest/**",
+    "packages/difftest/**",
+    "packages/contracts/golden/**",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    "lean/scripts/**",
+    "docs/team/tools/**",
+    "docs/team/token-policy.md",
+    "research/notes/**",
+    "docs/team/handoffs/lean-first-gate.md"
+   ]
+  },
+  {
+   "id": "gate-shard-balance",
+   "title": "(M) breakpoint-gate shards balanced by measured cost: run 39101532038 (ci/integrate-ports-3) had webkit j3 49.8 min vs 21 min for j0-j2 and chromium j2 > 41 min; gate-shards.mjs splits round-robin by matrix order while Lean Fw.Gate.Schedule (LPT sched/makespan) is unused; per-load cost table from runs, Lean-planned shards with a makespan bound, settle-time bounds",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "gate-speed-ci"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/**",
+    ".github/scripts/gate-shards.mjs",
+    ".github/workflows/breakpoint-gate.yml",
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "research/notes/**",
+    "docs/team/handoffs/gate-shard-balance.md"
    ]
   }
  ],
