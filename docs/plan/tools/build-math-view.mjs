@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Generates the "Math view" of docs/plan/loop-plan.html from the Lean core lean/ (fwcore) and writes it
-// between the mathview markers, plus the review summary between the mathview-review markers.
+// Generates the "Math view" from the Lean core lean/ (fwcore): the full view goes between the mathview markers of
+// docs/plan/math-view.html (its own page), the review summary between the mathview-review markers of
+// docs/plan/loop-plan.html.
 // The source is `lake exe mathview` (lean/README.md): a JSON export of every Fw declaration, whose
 // docstring holds one English sentence and one or more $$...$$ blocks (PLAN §5.3). The TeX is rendered
 // here with KaTeX 0.16.11 as MathML (browsers draw it natively), so the page needs no script, and a TeX
@@ -22,6 +23,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const leanDir = join(root, 'lean');
 const notesDir = join(root, 'research/notes');
 const pagePath = join(root, 'docs/plan/loop-plan.html');
+const viewPath = join(root, 'docs/plan/math-view.html');
 // Module order on the page; a module not listed (a new Fw/ subtree) follows in name order.
 const order = ['Fw.Spec.Frames', 'Fw.Spec.Verdict', 'Fw.Spec.Null', 'Fw.Spec.Screen', 'Fw.Spec.Cost', 'Fw.Spec.Flags',
   'Fw.Spec.Stage', 'Fw.Spec.Lease', 'Fw.Spec.DeviceQueue', 'Fw.Spec.ArtifactKey', 'Fw.Console', 'Fw.Board'];
@@ -50,8 +52,24 @@ if (katex.version !== KATEX_VERSION) {
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 // Display math is set inline with \displaystyle, so a wide formula scrolls from its left edge.
-const tex = (src, display) =>
-  katex.renderToString((display ? '\\displaystyle ' : '') + src, { displayMode: false, output: 'mathml', throwOnError: true, strict: 'error' });
+// KaTeX writes an operator built from several atoms (`\mathbin{+\!\!+}` list append, `\mathop{+\!\!+}`, `\mathbin{::}`,
+// `\mathbin{\langle|\rangle}`, and the monus `\mathbin{\dot-}`, written as an <mo> around a <mover>) as an <mo> that holds <mo>, <mtext> and <mspace> children. The HTML parser breaks that
+// apart (the inner MO and MTEXT leave the MathML namespace), which draws a stray symbol on its own line. Each such
+// <mo> becomes one <mo> carrying the concatenated text, so the docstrings and their review hashes stay unchanged.
+const LEAF = String.raw`<(?:mo|mtext|mi)\b[^>]*>[^<]*<\/(?:mo|mtext|mi)>|<mspace\b[^>]*\/>`;
+const NESTED_MO = new RegExp(String.raw`<mo\b([^>]*)>((?:${LEAF})+)<\/mo>`, 'g');
+const DOT_MINUS = /<mo\b([^>]*)><mover accent="true"><mo>\u2212<\/mo><mo>\u02D9<\/mo><\/mover><\/mo>/g;
+const MRROW_MO = new RegExp(String.raw`(<mo\b[^>]*>)<mrow>((?:${LEAF})+)<\/mrow><\/mo>`, 'g');
+const flattenMo = (ml) => ml.replace(DOT_MINUS, '<mo$1>\u2238</mo>').replace(MRROW_MO, '$1$2</mo>').replace(NESTED_MO, (_, attrs, inner) => {
+  const text = [...inner.matchAll(/<(?:mo|mtext|mi)\b[^>]*>([^<]*)<\/(?:mo|mtext|mi)>/g)].map((m) => m[1].replace(/[\u2063\s]/g, '')).join('');
+  return `<mo${attrs}>${text}</mo>`;
+});
+const tex = (src, display) => {
+  const out = flattenMo(katex.renderToString((display ? '\\displaystyle ' : '') + src,
+    { displayMode: false, output: 'mathml', throwOnError: true, strict: 'error' }));
+  if (/<mo\b[^>]*><[a-z]/.test(out)) throw new Error(`nested <mo> in the MathML of: ${src.slice(0, 80)}`);
+  return out;
+};
 
 // Notation used in the docstrings (research/kickoff/10-automation-and-proof/04-lean-to-math.md §3).
 const notation = [
@@ -208,13 +226,23 @@ function entry(d) {
     }
   });
   const st = d.status;
-  const chip = `<span class="chip ${st.cls}"${st.file ? ` title="${esc(st.file)}"` : ''}>${st.label}</span>`;
+  const chip = st.key === 'agree' ? '' : `<span class="chip ${st.cls}"${st.file ? ` title="${esc(st.file)}"` : ''}>${st.label}</span>`;
+  const kind = ['theorem', 'lemma', 'def'].includes(d.kind) ? '' : `<span class="chip">${d.kind}</span>`;
   return [
-    `<div class="mv-entry${isThm(d) ? ' thm' : ''}">`,
-    `<div class="mv-head"><code class="mv-name" title="${esc(d.name)}">${esc(short(d.name))}</code><span class="chip">${d.kind}</span>${chip}<span class="mv-loc">l.${d.line}</span></div>`,
+    `<div class="mv-entry${isThm(d) ? ' thm' : ''}" id="${entryId(d.name)}">`,
+    `<div class="mv-head"><code class="mv-name" title="${esc(d.name)}">${esc(short(d.name))}</code>${kind}${chip}<span class="mv-loc">l.${d.line}</span></div>`,
     ...parts,
     '</div>',
   ].join('\n');
+}
+
+// Entry anchors sit on the entry itself, inside its closed <details>; a browser opens the ancestors on navigation.
+const ids = new Map();
+function entryId(name) {
+  const id = 'mv-e-' + name.replace(/^Fw\./, '').replace(/[^A-Za-z0-9_.-]/g, (c) => `_${c.codePointAt(0).toString(16)}_`);
+  if (ids.has(id) && ids.get(id) !== name) throw new Error(`entry id collision: ${name} and ${ids.get(id)}`);
+  ids.set(id, name);
+  return id;
 }
 
 const tally = (ds) => {
@@ -228,8 +256,10 @@ const tallyText = (n) => [
 
 function render(mods, all, stamp) {
   const nThm = all.filter(isThm).length;
+  const disagree = all.filter((d) => d.status.key === 'disagree');
   const out = [
     BEGIN,
+    `<p class="mv-count">${all.length} declarations in ${mods.length} modules: ${nThm} theorems, ${all.length - nThm} definitions. Review: ${tallyText(tally(all))}. Generated from <span class="mono">lake exe mathview</span> on <span class="mono">lean/</span> (export <span class="mono">${stamp}</span>, a sha256 of every name, stmtHash and mathHash); formulas pre-rendered as MathML by KaTeX ${KATEX_VERSION}.</p>`,
     '<details>',
     '<summary>Notation</summary>',
     '<div class="tbl mv-notation"><table>',
@@ -240,22 +270,37 @@ function render(mods, all, stamp) {
       : `<tr><td><span class="mv-i">${tex(t, false)}</span></td><td>${esc(a)}</td></tr>`)),
     '</tbody></table></div>',
     '</details>',
-    `<nav class="mv-jump" aria-label="Math view modules">${mods.map((m) => `<a href="#${modId(m.name)}">${esc(modLabel(m.name))}</a>`).join('')}</nav>`,
+    ...(disagree.length ? [
+      '<h2 id="mv-attention">Needs attention</h2>',
+      `<p>${disagree.length} declarations where the reviewer disagrees with the docstring.</p>`,
+      `<ul class="tight">${disagree.map((d) => `<li><a href="#${entryId(d.name)}"><code>${esc(short(d.name))}</code></a> <span class="mv-sub">${esc(modLabel(d.module))}</span></li>`).join('')}</ul>`,
+    ] : []),
+    '<h2 id="mv-modules">Modules</h2>',
+    '<div class="tbl"><table>',
+    '<thead><tr><th>Module</th><th>Theorems</th><th>Definitions</th><th>Agree</th><th>Disagree</th><th>Stale</th><th>Pending</th></tr></thead>',
+    '<tbody>',
+    ...mods.map((m) => {
+      const n = tally(m.decls);
+      const nt = m.decls.filter(isThm).length;
+      return `<tr><td class="k"><a href="#${modId(m.name)}">${esc(modLabel(m.name))}</a></td><td>${nt}</td><td>${m.decls.length - nt}</td><td>${n.agree}</td><td>${n.disagree}</td><td>${n.stale}</td><td>${n.pending}</td></tr>`;
+    }),
+    '</tbody></table></div>',
+    '<h2>All declarations</h2>',
     '<div class="mv-all">',
-    `<p class="mv-count">${all.length} declarations in ${mods.length} modules: ${nThm} theorems, ${all.length - nThm} definitions. Review: ${tallyText(tally(all))}. Generated from <span class="mono">lake exe mathview</span> on <span class="mono">lean/</span> (export <span class="mono">${stamp}</span>, a sha256 of every name, stmtHash and mathHash); formulas pre-rendered as MathML by KaTeX ${KATEX_VERSION}.</p>`,
   ];
   for (const m of mods) {
     const thms = m.decls.filter(isThm);
     const defs = m.decls.filter((d) => !isThm(d));
     const n = tally(m.decls);
     out.push(
-      `<div class="mv-mod" id="${modId(m.name)}">`,
-      `<div class="mv-modhead"><h3>${esc(modLabel(m.name))}</h3><span class="mv-sub">${esc(heading(m.name))}</span><span class="mv-file mono">${esc(modFile(m.name))} · ${thms.length} theorems · ${defs.length} definitions · ${n.agree}/${m.decls.length} reviewed</span></div>`,
+      `<details class="mv-mod">`,
+      `<summary><span class="mv-modname">${esc(modLabel(m.name))}</span> <span class="mv-sub">${thms.length} theorems · ${defs.length} definitions · ${n.agree}/${m.decls.length} reviewed${n.disagree ? ` · ${n.disagree} disagree` : ''}${n.stale ? ` · ${n.stale} stale` : ''}</span></summary>`,
+      `<div class="mv-modbody" id="${modId(m.name)}">`,
+      `<div class="mv-modhead"><h3>${esc(modLabel(m.name))}</h3><span class="mv-sub">${esc(heading(m.name))}</span><span class="mv-file mono">${esc(modFile(m.name))}</span></div>`,
       ...thms.map(entry),
-      `<details class="mv-defs"><summary>Definitions used (${defs.length})</summary>`,
-      ...defs.map(entry),
-      '</details>',
+      ...(defs.length ? [`<details class="mv-defs"><summary>Definitions used (${defs.length})</summary>`, ...defs.map(entry), '</details>'] : []),
       '</div>',
+      '</details>',
     );
   }
   out.push('</div>', END);
@@ -266,6 +311,9 @@ function render(mods, all, stamp) {
 function renderReview(all, stamp) {
   const n = tally(all);
   const done = n.agree === all.length;
+  const chipLabel = n.disagree ? `${n.disagree} disagree` : n.stale ? `${n.stale} stale` : n.pending ? 'review pending' : 'reviewed';
+  const disagree = all.filter((d) => d.status.key === 'disagree');
+  const view = 'math-view.html';
   const record = existsSync(join(root, FWCORE_RECORD))
     ? `<a href="../../${FWCORE_RECORD}">${esc(FWCORE_RECORD.split('/').pop())}</a>`
     : `<span class="mono">${esc(FWCORE_RECORD.split('/').pop())}</span> (not written yet)`;
@@ -273,7 +321,8 @@ function renderReview(all, stamp) {
   const nThm = all.filter(isThm).length;
   return [
     RBEGIN,
-    `<h3><a class="chip ${done ? 'ok' : 'open'}" href="#mv-review">${done ? 'reviewed' : 'review pending'}</a> ${tallyText(n)}</h3>`,
+    `<h3><a class="chip ${done ? 'ok' : n.disagree ? 'bad' : 'open'}" href="#mv-review">${chipLabel}</a> ${tallyText(n)}</h3>`,
+    `<p>${all.length} declarations (${nThm} theorems) in ${new Set(all.map((d) => d.module)).size} modules. <a href="${view}">Open the full math view</a> (own page; one closed section per module).${disagree.length ? ` Disagreements: ${disagree.map((d) => `<a href="${view}#${entryId(d.name)}"><code>${esc(short(d.name))}</code></a>`).join(', ')}.` : ''}</p>`,
     `<p id="mv-review">Each declaration shows its status: <i>agree</i> or <i>disagree</i> from a math-reviewer record, <i>review stale</i> when the Lean statement or, for rows that carry a docstring hash, the docstring changed after the review, <i>review pending</i> when no record covers it yet. Record for <span class="mono">lean/</span>: ${record}. The protocol: write its own math from the Lean, then compare it clause by clause with the docstring (ℕ vs ℤ, every hypothesis, ≤ vs &lt;, rounding, empty lists, ties, direction of ⇒ and ⇔).</p>`,
     `<p>${clean
       ? `In export <span class="mono">${stamp}</span> all ${all.length} declarations (${nThm} theorems) are free of <code>sorry</code> and use only the standard axioms (<code>propext</code>, <code>Classical.choice</code>, <code>Quot.sound</code>), checked by <code>lake exe mathview --lint</code>.`
@@ -297,19 +346,22 @@ const stamp = createHash('sha256')
   .update(all.map((d) => `${d.name}\t${d.stmtHash}\t${d.mathHash}`).sort().join('\n'))
   .digest('hex').slice(0, 12);
 
-const page = readFileSync(pagePath, 'utf8');
-const splice = (text, begin, end, content) => {
+const splice = (text, begin, end, content, path) => {
   const a = text.indexOf(begin);
   const b = text.indexOf(end);
-  if (a < 0 || b < a) throw new Error(`markers ${begin.slice(0, 24)}… not found in ${relative(root, pagePath)}`);
+  if (a < 0 || b < a) throw new Error(`markers ${begin.slice(0, 24)}… not found in ${relative(root, path)}`);
   return text.slice(0, a) + content + text.slice(b + end.length);
 };
-const next = splice(splice(page, BEGIN, END, render(mods, all, stamp)), RBEGIN, REND, renderReview(all, stamp));
+const page = readFileSync(pagePath, 'utf8');
+const view = readFileSync(viewPath, 'utf8');
+const nextPage = splice(page, RBEGIN, REND, renderReview(all, stamp), pagePath);
+const nextView = splice(view, BEGIN, END, render(mods, all, stamp), viewPath);
 const summary = `${all.length} declarations from ${mods.length} modules; review ${tallyText(tally(all))}`;
 if (process.argv.includes('--check')) {
-  if (next !== page) { console.error('math view is out of date: run node docs/plan/tools/build-math-view.mjs'); process.exit(1); }
+  if (nextPage !== page || nextView !== view) { console.error('math view is out of date: run node docs/plan/tools/build-math-view.mjs'); process.exit(1); }
   console.log(`math view up to date (${summary})`);
 } else {
-  writeFileSync(pagePath, next);
-  console.log(`wrote ${summary} into ${relative(root, pagePath)}`);
+  writeFileSync(pagePath, nextPage);
+  writeFileSync(viewPath, nextView);
+  console.log(`wrote ${summary} into ${relative(root, viewPath)} and the review panel into ${relative(root, pagePath)}`);
 }
