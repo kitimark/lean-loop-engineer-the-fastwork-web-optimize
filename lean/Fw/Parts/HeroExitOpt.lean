@@ -41,6 +41,11 @@ What is proved:
   main-thread work still strictly drops (`wk_trade`), but not for any change list (`wk_trade_not_general`); the UI
   process gains the animations: again a trade.
 * **Golden rows** (`goldenJsonl` → `packages/contracts/golden/engine/hero-exit.jsonl`) in the `engine-check` schema.
+* **Changed since CI run 39088367495 (engine-model-fix).** On Chromium a `filter: blur()` value change on an own layer
+  rasters (MEASURED), so both arms keep one raster pass (`crOrigPasses`, `crVarPasses`) and the golden raster row is
+  `≤o`, not `<o`; the variant still rasters fewer units. On WebKit the compositing table (`wkCompUpdate`) gives the
+  original's shared-layer changes a compositing update, so that row is `<o`, not `≤o`. Every trade theorem still
+  holds as stated.
 
 Not modelled (open): the frames where the opacity crosses 1 (WebKit `opacityCross1` lays out; only interior frames
 $0 < e < 1$ are tabled), resident layers (the variant adds a composited layer per animated consumer, so the core
@@ -407,105 +412,140 @@ theorem crVar_eq (m : CrMode) (l : Bool) (N : Nat) (r : Bool) (hm : m.threadedAn
     simp [crVar, animFrame, crAnims, hf1, hf2, hb, (hc _).1, (hc _).2, CrAnim.changes] <;>
     rfl
 
-/-- The original's passes per stage in a scrolled frame ($\lambda$: the consumers' layer state, $r$: a cull-rect
-repaint).
+/-- The number of blurred consumers in a scrolled frame: the cue always, the copy above 600 px ($\lnot\ell$).
 
-$$\operatorname{oP}(\lambda, r)(s) = \begin{cases} 1 & s \in \{\mathrm{script}, \mathrm{style}, \mathrm{props}, \mathrm{commit}\} \\ [r] & s = \mathrm{paint} \\ [\lambda \ne \mathrm{own} \lor r] & s = \mathrm{raster} \\ 0 & s \in \{\mathrm{layout}, \mathrm{comp}\} \end{cases}$$
--/
-def crOrigPasses (lo : LayerState) (r : Bool) : Stage → Nat
+$$\forall \ell \in \mathbb{B}:\ \operatorname{blurs}(\ell) = \begin{cases} 1 & \ell \\ 2 & \lnot\ell \end{cases}$$
+
+How many consumers carry a `filter: blur()`. -/
+def blurs (l : Bool) : Nat := if l then 1 else 2
+
+/-- The original's passes per stage in a scrolled frame ($r$: a cull-rect repaint). The raster pass always runs,
+because the cue's blur re-rasters on every layer state.
+
+Changed since CI run 39088367495: the raster pass was $[\lambda \ne \mathrm{own} \lor r]$; a blur value change on
+an own layer was modelled as a property-tree update and is MEASURED as a raster.
+
+$$\forall r \in \mathbb{B}:\ \operatorname{oP}(r)(s) = \begin{cases} 1 & s \in \{\mathrm{script}, \mathrm{style}, \mathrm{props}, \mathrm{raster}, \mathrm{commit}\} \\ [r] & s = \mathrm{paint} \\ 0 & s \in \{\mathrm{layout}, \mathrm{comp}\} \end{cases}$$
+
+The original's stage passes in one scrolled frame. -/
+def crOrigPasses (r : Bool) : Stage → Nat
   | .script => 1 | .style => 1 | .layout => 0 | .props => 1
   | .paint => if r then 1 else 0
-  | .raster => if lo ≠ .own ∨ r = true then 1 else 0
+  | .raster => 1
   | .commit => 1 | .comp => 0
 
-/-- The original's units per stage in a scrolled frame with $N$ cards.
+/-- The original's units per stage in a scrolled frame with $N$ cards. On an own layer only the blurred consumers
+re-raster.
 
-$$\operatorname{oU}(N, \lambda, r)(s) = \begin{cases} 1 & s = \mathrm{script} \\ N + 3 & s \in \{\mathrm{style}, \mathrm{props}, \mathrm{commit}\} \\ [r] & s = \mathrm{paint} \\ [\lambda \ne \mathrm{own}]\,(N + 2) + [r] & s = \mathrm{raster} \\ 0 & s \in \{\mathrm{layout}, \mathrm{comp}\} \end{cases}$$
--/
-def crOrigUnits (N : Nat) (lo : LayerState) (r : Bool) : Stage → Nat
+Changed since CI run 39088367495: the raster units were $[\lambda \ne \mathrm{own}]\,(N + 2) + [r]$ (no blurred
+consumer re-rastered on an own layer).
+
+$$\forall \ell, N, \lambda, r:\ \operatorname{oU}(\ell, N, \lambda, r)(s) = \begin{cases} 1 & s = \mathrm{script} \\ N + 3 & s \in \{\mathrm{style}, \mathrm{props}, \mathrm{commit}\} \\ [r] & s = \mathrm{paint} \\ \big(\operatorname{blurs}(\ell) \text{ if } \lambda = \mathrm{own}, \text{ else } N + 2\big) + [r] & s = \mathrm{raster} \\ 0 & s \in \{\mathrm{layout}, \mathrm{comp}\} \end{cases}$$
+
+The original's stage units in one scrolled frame. -/
+def crOrigUnits (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) : Stage → Nat
   | .script => 1 | .style => N + 3 | .layout => 0 | .props => N + 3
   | .paint => if r then 1 else 0
-  | .raster => (if lo = .own then 0 else N + 2) + (if r then 1 else 0)
+  | .raster => (if lo = .own then blurs l else N + 2) + (if r then 1 else 0)
   | .commit => N + 3 | .comp => 0
 
-/-- The stages a reader of `--exit-opacity` dirties at layer state $\lambda$: its own layer takes the property-tree
-fast path, any other layer state re-rasters.
+/-- The stages a reader of `--exit-opacity` dirties at layer state $\lambda$, $b$: the reader includes a blur. An
+unblurred reader on its own layer takes the property-tree fast path; any other reader re-rasters.
 
-$$\operatorname{readerStages}(\lambda) = \begin{cases} [\mathrm{style}, \mathrm{props}, \mathrm{commit}] & \lambda = \mathrm{own} \\ [\mathrm{style}, \mathrm{props}, \mathrm{raster}, \mathrm{commit}] & \lambda \ne \mathrm{own} \end{cases}$$
--/
-def readerStages (lo : LayerState) : List Stage :=
-  if lo = .own then [.style, .props, .commit] else [.style, .props, .raster, .commit]
+Changed since CI run 39088367495: the blur flag $b$ is new; a blurred reader on its own layer took the fast path.
 
-/-- Every consumer of the original dirties exactly the reader stages, in both bands.
+$$\forall \lambda, b:\ \operatorname{readerStages}(\lambda, b) = \begin{cases} [\mathrm{style}, \mathrm{props}, \mathrm{commit}] & \lambda = \mathrm{own} \land \lnot b \\ [\mathrm{style}, \mathrm{props}, \mathrm{raster}, \mathrm{commit}] & \text{otherwise} \end{cases}$$
 
-$$\forall x \in \mathbb{N},\ \forall K, \lambda, \ell:\ K \in \{\operatorname{copyReaders}(\ell), \operatorname{cueReaders}(\ell), [\mathrm{opacity}, \mathrm{transform}]\} \Rightarrow \operatorname{stagesOf}_{\mathrm{cr}}\big(x, \mathrm{custom}(0, K), \lambda\big) = \operatorname{readerStages}(\lambda)$$
+What one consumer's inherited change costs. -/
+def readerStages (lo : LayerState) (b : Bool) : List Stage :=
+  if lo = .own ∧ b = false then [.style, .props, .commit] else [.style, .props, .raster, .commit]
 
-Copy, cue and cards all cost the same stages per frame. -/
+/-- Every consumer of the original dirties exactly the reader stages of its layer state and blur flag, in both
+bands.
+
+Changed since CI run 39088367495: the stages now depend on whether $K$ contains a blur.
+
+$$\forall x \in \mathbb{N},\ \forall K, \lambda, \ell:\ K \in \{\operatorname{copyReaders}(\ell), \operatorname{cueReaders}(\ell), [\mathrm{opacity}, \mathrm{transform}]\} \Rightarrow \operatorname{stagesOf}_{\mathrm{cr}}\big(x, \mathrm{custom}(0, K), \lambda\big) = \operatorname{readerStages}\big(\lambda, \operatorname{blur}(\mathrm{true}) \in K\big)$$
+
+Copy, cue and cards cost the reader stages; only a blur keeps the raster on an own layer. -/
 theorem reader_stages (x : Nat) (ks : List CrKey) (lo : LayerState) (l : Bool)
     (hk : ks = copyReaders l ∨ ks = cueReaders l ∨ ks = [.opacity, .transform]) :
-    crStagesOf ⟨x, .custom exitVar ks, lo⟩ = readerStages lo := by
+    crStagesOf ⟨x, .custom exitVar ks, lo⟩ = readerStages lo (decide (CrKey.filter true ∈ ks)) := by
   rcases hk with rfl | rfl | rfl <;> cases l <;> cases lo <;> rfl
 
 /-- **Exact work of the original's scrolled frame on Chromium**, in every mode and both bands: one callback, one
 style pass over the hero and its $N + 2$ readers, a property update and commit for the readers and the scroll, and a
-raster of every reader unless it has its own layer.
+raster of every reader unless it has its own layer and no blur.
 
-$$\forall m, \ell, N, \lambda, r,\ \forall s \in \mathrm{Stage}:\ W.\mathrm{passes}(s) = \operatorname{oP}(\lambda, r)(s) \land W.\mathrm{units}(s) = \operatorname{oU}(N, \lambda, r)(s)\quad\text{where } W = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{crOrig}(\ell, N, \lambda, r)\big)$$
+Changed since CI run 39088367495: the tables `oP` and `oU` changed (raster, see `crOrigPasses`, `crOrigUnits`).
+
+$$\forall m, \ell, N, \lambda, r,\ \forall s \in \mathrm{Stage}:\ W.\mathrm{passes}(s) = \operatorname{oP}(r)(s) \land W.\mathrm{units}(s) = \operatorname{oU}(\ell, N, \lambda, r)(s)\quad\text{where } W = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}\big(\operatorname{crOrig}(\ell, N, \lambda, r)\big)$$
 
 What one scrolled frame of the original costs Chromium, stage by stage. -/
 theorem cr_orig_exact (m : CrMode) (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) (s : Stage) :
-    (frameWork (chromiumAt m) (crOrig l N lo r)).passes s = crOrigPasses lo r s ∧
-      (frameWork (chromiumAt m) (crOrig l N lo r)).units s = crOrigUnits N lo r s := by
-  have hc : ∀ i, crStagesOf ⟨4 + i, .custom exitVar [.opacity, .transform], lo⟩ = readerStages lo :=
+    (frameWork (chromiumAt m) (crOrig l N lo r)).passes s = crOrigPasses r s ∧
+      (frameWork (chromiumAt m) (crOrig l N lo r)).units s = crOrigUnits l N lo r s := by
+  have hc : ∀ i, crStagesOf ⟨4 + i, .custom exitVar [.opacity, .transform], lo⟩ = readerStages lo false :=
     fun i => reader_stages _ _ lo l (by simp)
-  have h2 := reader_stages 2 (copyReaders l) lo l (by simp)
-  have h3 := reader_stages 3 (cueReaders l) lo l (by simp)
+  have h2 : crStagesOf ⟨2, .custom exitVar (copyReaders l), lo⟩ = readerStages lo (!l) := by
+    rw [reader_stages 2 (copyReaders l) lo l (by simp)]; cases l <;> rfl
+  have h3 : crStagesOf ⟨3, .custom exitVar (cueReaders l), lo⟩ = readerStages lo true := by
+    rw [reader_stages 3 (cueReaders l) lo l (by simp)]; cases l <;> rfl
   have h1 : crStagesOf ⟨1, .custom exitVar [], lo⟩ = [.style] := by cases lo <;> rfl
   have hs : crStagesOf (scrollC r) = scrollStages r := rfl
   have hm : ∀ t, t ∈ ((List.range N).map fun i =>
       (⟨4 + i, .custom exitVar [.opacity, .transform], lo⟩ : Change CrProp)).flatMap crStagesOf →
-      t ∈ readerStages lo := by
+      t ∈ readerStages lo false := by
     intro t ht
     simp only [List.mem_flatMap, List.mem_map] at ht
     obtain ⟨_, ⟨i, _, rfl⟩, h⟩ := ht
     rwa [hc i] at h
   have hp : (frameWork (chromiumAt m) (crOrig l N lo r)).passes s =
-      if s ∈ (crOrigChanges l N lo r).flatMap crStagesOf ++ [.script] then 1 else 0 := by
+      if s ∈ (crOrigChanges l N lo r).flatMap crStagesOf ++ [.props, .script] then 1 else 0 := by
     simp [frameWork, touched, crOrig, jsWrite, FrameIn.updates, chromiumAt]
     cases s <;> simp [forcedPasses]
   have hu : (frameWork (chromiumAt m) (crOrig l N lo r)).units s =
       (crOrigChanges l N lo r).countP (fun c => decide (s ∈ crStagesOf c)) + (if s = .script then 1 else 0) := by
     simp [frameWork, stageUnits, crOrig, jsWrite, chromiumAt]
     by_cases h : s ∈ crCompStages m <;> simp [h] <;> first | rfl | congr
-  have hmem : s ∈ (crOrigChanges l N lo r).flatMap crStagesOf ++ [.script] ↔
-      (s = .style ∨ s ∈ readerStages lo ∨ s ∈ scrollStages r ∨ s = .script) := by
+  have hmem : s ∈ (crOrigChanges l N lo r).flatMap crStagesOf ++ [.props, .script] ↔
+      (s = .style ∨ s ∈ readerStages lo (!l) ∨ s ∈ readerStages lo true ∨ s ∈ scrollStages r ∨ s = .props ∨
+        s = .script) := by
     have := hm s
     simp only [crOrigChanges, List.flatMap_append, List.flatMap_cons, List.flatMap_nil, List.mem_append,
       List.mem_cons, List.mem_nil_iff, h1, h2, h3, hs, or_false, List.append_nil]
+    have hrs : s ∈ readerStages lo false → s ∈ readerStages lo true := by
+      cases lo <;> cases s <;> decide
     grind
   rw [hp, hu]
   simp only [hmem]
   simp only [crOrigChanges, List.countP_append, List.countP_cons, List.countP_nil, List.countP_map,
     Function.comp_def, h1, h2, h3, hc, hs]
   clear hp hu hmem hm hc h1 h2 h3 hs
-  cases lo <;> cases r <;> cases s <;>
-    simp [readerStages, scrollStages, crOrigPasses, crOrigUnits] <;> omega
+  cases l <;> cases lo <;> cases r <;> cases s <;>
+    simp [readerStages, scrollStages, crOrigPasses, crOrigUnits, blurs] <;> omega
 
-/-- The variant's passes per stage in a scrolled frame.
+/-- The variant's passes per stage in a scrolled frame. The main-thread blur animations re-raster their own layers.
 
-$$\operatorname{vP}(r)(s) = \begin{cases} 1 & s \in \{\mathrm{style}, \mathrm{props}, \mathrm{commit}, \mathrm{comp}\} \\ [r] & s \in \{\mathrm{paint}, \mathrm{raster}\} \\ 0 & s \in \{\mathrm{script}, \mathrm{layout}\} \end{cases}$$
--/
+Changed since CI run 39088367495: the raster pass was $[r]$ (a blur on an own layer was a property-tree update).
+
+$$\forall r \in \mathbb{B}:\ \operatorname{vP}(r)(s) = \begin{cases} 1 & s \in \{\mathrm{style}, \mathrm{props}, \mathrm{raster}, \mathrm{commit}, \mathrm{comp}\} \\ [r] & s = \mathrm{paint} \\ 0 & s \in \{\mathrm{script}, \mathrm{layout}\} \end{cases}$$
+
+The variant's stage passes in one scrolled frame. -/
 def crVarPasses (r : Bool) : Stage → Nat
   | .script => 0 | .style => 1 | .layout => 0 | .props => 1
   | .paint => if r then 1 else 0
-  | .raster => if r then 1 else 0
+  | .raster => 1
   | .commit => 1 | .comp => 1
 
 /-- The variant's units per stage in a scrolled frame, with $b = 1 + [\lnot\ell]$ blur animations on main,
 $c = N + 1 + [\ell]$ compositor animations, and the ride-along $\varepsilon = [m.\mathrm{everyBeginFrameIsMainFrame}]\,c$.
 
-$$\operatorname{vU}(m, \ell, N, r)(s) = \begin{cases} b + \varepsilon & s = \mathrm{style} \\ b + 1 + \varepsilon & s = \mathrm{props} \\ [r] & s \in \{\mathrm{paint}, \mathrm{raster}\} \\ b + 1 & s = \mathrm{commit} \\ c & s = \mathrm{comp} \\ 0 & s \in \{\mathrm{script}, \mathrm{layout}\} \end{cases}$$
--/
+Changed since CI run 39088367495: the raster units were $[r]$; each blur animation now adds one.
+
+$$\forall m, \ell, N, r:\ \operatorname{vU}(m, \ell, N, r)(s) = \begin{cases} b + \varepsilon & s = \mathrm{style} \\ b + 1 + \varepsilon & s = \mathrm{props} \\ [r] & s = \mathrm{paint} \\ b + [r] & s = \mathrm{raster} \\ b + 1 & s = \mathrm{commit} \\ c & s = \mathrm{comp} \\ 0 & s \in \{\mathrm{script}, \mathrm{layout}\} \end{cases}$$
+
+The variant's stage units in one scrolled frame. -/
 def crVarUnits (m : CrMode) (l : Bool) (N : Nat) (r : Bool) : Stage → Nat :=
   let b := if l then 1 else 2
   let c := N + (if l then 2 else 1)
@@ -513,7 +553,7 @@ def crVarUnits (m : CrMode) (l : Bool) (N : Nat) (r : Bool) : Stage → Nat :=
   fun
   | .script => 0 | .style => b + e | .layout => 0 | .props => b + 1 + e
   | .paint => if r then 1 else 0
-  | .raster => if r then 1 else 0
+  | .raster => b + (if r then 1 else 0)
   | .commit => b + 1 | .comp => c
 
 /-- **Exact work of the variant's scrolled frame on Chromium** (threaded animation on): no script; the blur animations
@@ -548,7 +588,7 @@ theorem cr_real_trade (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) :
   refine ⟨⟨⟨fun s hs => ?_, ?_⟩, .script, by decide, ?_⟩, (hv .comp).1, (ho .comp).1⟩
   · rw [(hv s).1, (hv s).2, (ho s).1, (ho s).2]
     cases l <;> cases lo <;> cases r <;> cases s <;>
-      simp_all [crVarPasses, crVarUnits, crOrigPasses, crOrigUnits, realChrome] <;> omega
+      simp_all [crVarPasses, crVarUnits, crOrigPasses, crOrigUnits, blurs, realChrome] <;> omega
   · simp [frameWork, crVar, crOrig, animFrame, jsWrite]
   · left; rw [(hv .script).1, (ho .script).1]; simp [crVarPasses, crOrigPasses]
 
@@ -576,7 +616,7 @@ theorem cr_lane_mixed (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) :
   · show (frameWork _ _).passes s ≤ (frameWork _ _).passes s ∧ (frameWork _ _).units s ≤ (frameWork _ _).units s
     rw [(hv s).1, (hv s).2, (ho s).1, (ho s).2]
     cases l <;> cases lo <;> cases r <;> cases s <;>
-      simp_all [crVarPasses, crVarUnits, crOrigPasses, crOrigUnits, lane] <;> omega
+      simp_all [crVarPasses, crVarUnits, crOrigPasses, crOrigUnits, blurs, lane] <;> omega
   · show (frameWork _ _).passes _ = (frameWork _ _).passes _
     rw [(hv _).1, (ho _).1]; rfl
   · show (frameWork _ _).units _ = (frameWork _ _).units _ + 1
@@ -820,7 +860,7 @@ theorem wk_var_exact (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.
       (frameWork (webkitX m) (wkVar m l N)).units s = (if s = .style ∨ s = .comp then N + 3 else 0) := by
   obtain ⟨_, h1, _⟩ := hμ
   rw [h1, wkVar_eq m hm l N]
-  have h0 : diffStages (wkDiff ⟨0, .scrollPos, .none⟩) = [] := scrollPos_stages m 0 .none
+  have h0 : wkStages ⟨0, .scrollPos, .none⟩ = [] := scrollPos_stages m 0 .none
   have hfm : ((⟨0, .base .scrollPos, .none⟩ : Change WkPropX) ::
       (wkTargets l N).map (fun e => ⟨e, .restyle, .own⟩)).flatMap wkStagesOfX =
       (wkTargets l N).flatMap (fun _ => [Stage.style]) := by
@@ -868,13 +908,15 @@ theorem wkOrigChanges_length (l : Bool) (N : Nat) (lo : LayerState) : (wkOrigCha
 
 $$\forall m, \ell, N, \lambda:\ \lambda \ne \mathrm{none} \Rightarrow \forall c \in \operatorname{wkOrigChanges}(\ell, N, \lambda):\ \mathrm{style} \in \operatorname{webkitAt}(m).\mathrm{stagesOf}(c)$$
 
-Each consumer's opacity, transform or filter change is restyled when the targets have a layer (a filter change on a
-box without a layer is `equal` in WebKit's diff, so the hypothesis is needed). -/
+Each consumer's opacity, transform or filter change is restyled when the targets have a layer. Changed since CI run
+39088367495: a filter change now lays out on every layer state (it was `equal` on a box without a layer), so the
+hypothesis is no longer needed; it is kept so the callers stay as they were. -/
 theorem wkOrig_style (m : WkMode) (l : Bool) (N : Nat) (lo : LayerState) (hlo : lo ≠ .none) :
     ∀ c ∈ wkOrigChanges l N lo, Stage.style ∈ (webkitAt m).stagesOf c := by
   have hp : ∀ c : Change WkProp, c.layer ≠ .none → (c.prop = .opacity ∨ c.prop = .transform ∨ c.prop = .filter) →
       Stage.style ∈ (webkitAt m).stagesOf c := by
     intro ⟨e, p, l'⟩ hl hp
+    simp only [webkitAt]; rw [mem_wkStages_of_ne _ (by decide)]
     show Stage.style ∈ diffStages (wkDiff ⟨0, p, l'⟩)
     simp only at hp hl
     rcases hp with rfl | rfl | rfl <;> cases l' <;> first | decide | exact absurd rfl hl
@@ -923,7 +965,8 @@ theorem wk_trade (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.thre
       Bool.false_eq_true, ↓reduceIte, Nat.add_zero]
     rw [List.countP_eq_length.mpr (fun c hc => by simpa using hsty c hc), wkOrigChanges_length]
     simp [webkitAt]
-  have hnc : ∀ c : Change WkProp, Stage.comp ∉ diffStages (wkDiff c) := fun c => comp_not_diff _
+  have hnc : ∀ c : Change WkProp, Stage.comp ∉ wkStages c := fun c => by
+    rw [mem_wkStages_of_ne c (by decide)]; exact comp_not_diff _
   have hop : O.passes .comp = 0 := by
     show (frameWork _ _).passes _ = _
     simp [frameWork, touched, forcedPasses, scrollStep, jsFrame, webkitAt, FrameIn.updates, hnc]
@@ -961,7 +1004,7 @@ theorem wk_trade_not_general (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) 
   rw [hv, h1] at hle
   have hsp : (webkitAt m).stagesOf ⟨0, .scrollPos, .none⟩ = [] := scrollPos_stages m 0 .none
   have h0 : (frameWork (webkitAt m) (scrollStep (jsFrame []))).passes .style = 0 := by
-    have hsp' : diffStages (wkDiff ⟨0, .scrollPos, .none⟩) = [] := hsp
+    have hsp' : wkStages ⟨0, .scrollPos, .none⟩ = [] := hsp
     simp [frameWork, touched, forcedPasses, scrollStep, jsFrame, hsp', webkitAt, FrameIn.updates]
   rw [h0] at hle
   simp at hle
@@ -1110,8 +1153,9 @@ def gPred (e k : String) : String :=
   ((goldenRows.find? fun r => r.engine == e && r.countType == k).map (·.prediction)).getD "?"
 
 #guard goldenRows.length == 20
--- Chromium lane: the script is gone, the raster of the shared-layer consumers is gone; style rides along when idle.
-#guard gPred "chromium" "trace.FireAnimationFrame" == "<o" && gPred "chromium" "raster.invalidationRects" == "<o"
+-- Chromium lane: the script is gone. The raster pass stays (since CI run 39088367495 a blur value change rasters even
+-- on an own layer, MEASURED), with fewer units (the blurred consumers only), so raster is `≤o`, no longer `<o`.
+#guard gPred "chromium" "trace.FireAnimationFrame" == "<o" && gPred "chromium" "raster.invalidationRects" == "≤o"
 #guard gPred "chromium" "trace.UpdateLayoutTree" == "any" && gPred "chromium" "trace.Layout" == "≤o"
 #guard gPred "chromium" "trace.cc.Commit" == "≤o" && gPred "chromium" "trace.Paint" == "≤o"
 #guard gPred "chromium" "trace.PrePaint" == "any" && gPred "chromium" "census.layers" == "any"
@@ -1120,7 +1164,9 @@ def gPred (e k : String) : String :=
 #guard gPred "webkit" "FireAnimationFrame" == "<o" && gPred "webkit" "RecalculateStyles" == "≤o"
 #guard gPred "webkit" "Layout" == "<o" && gPred "webkit" "Paint" == "<o" && gPred "webkit" "Composite" == "≤o"
 #guard gPred "webkit" "styleRecalcs" == "≤o" && gPred "webkit" "layoutUpdates" == "<o"
-#guard gPred "webkit" "compositingUpdates" == "≤o" && gPred "webkit" "renderingUpdates" == "≤o"
+-- Since CI run 39088367495 the original's opacity and transform changes on a shared layer pay a compositing update
+-- (the compositing table, `wkCompUpdate`) and the variant's do not, so compositing updates are `<o` (were `≤o`).
+#guard gPred "webkit" "compositingUpdates" == "<o" && gPred "webkit" "renderingUpdates" == "≤o"
 #guard gPred "webkit" "x" == "?"
 
 /-! ## Under the frame-end pass (`frameWorkE`, ledger n=1)

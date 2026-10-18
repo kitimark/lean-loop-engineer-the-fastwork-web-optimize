@@ -779,8 +779,10 @@ What the driver writes. -/
 def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
 
 #guard goldenLines.length == 20
+-- Since CI run 39088367495 every Chromium frame with an update runs PrePaint (base `[props]`, MEASURED), so the
+-- original's callback-only frames pay one the gated variant skips: `trace.PrePaint` is `≤o` (was `=o`).
 #guard (crTypes.map fun t => predict t.exact (series crV t) (series crO t)) ==
-  ["<o", "<o", "=o", "=o", "=o", "=o", "=o", "=o"]
+  ["<o", "<o", "=o", "=o", "=o", "≤o", "=o", "=o"]
 #guard (wkTypes.map fun t => predict t.exact (series wkV t) (series wkO t)) == ["≤o", "=o", "=o", "≤o"]
 #guard goldenLines.all fun l => (l.splitOn "\"<o\"").length == 1
 

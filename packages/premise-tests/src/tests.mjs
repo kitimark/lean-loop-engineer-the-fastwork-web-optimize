@@ -29,27 +29,34 @@ export const TESTS = [
           name: a instanceof CSSTransition ? a.transitionProperty : a instanceof CSSAnimation ? a.animationName : '',
         }));
         for (const id of ['tr', 'quick']) { const e = document.getElementById(id); getComputedStyle(e).width; e.style.width = '90px'; }
+        const t0 = performance.now();
         const lerp = document.getElementById('lerp'); let w = 10; let stop = false;
         const loop = () => { w += (90 - w) * 0.1; lerp.style.width = `${w}px`; if (!stop) requestAnimationFrame(loop); };
         requestAnimationFrame(loop);
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         const during = describe();
+        // Elapsed ms from the style change to the `during` sample: above 300 the short transition may have ended
+        // (a slow runner), so a failure then is a timing flake, not an engine difference (premise-ack, ledger
+        // premise.anim.list).
+        const msToDuring = Math.round(performance.now() - t0);
         await new Promise((r) => setTimeout(r, 1500)); // the 300 ms transition is long over
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         const after = describe();
         const lerpMoved = parseFloat(lerp.style.width) > 20;
         stop = true;
-        return { during, after, lerpMoved };
+        return { during, after, lerpMoved, msToDuring };
       });
       const has = (l, target, kind) => l.some((x) => x.target === target && x.kind === kind);
-      assert.ok(has(o.during, 'css', 'animation'), 'the CSS animation is listed');
-      assert.ok(o.during.some((x) => x.target === 'css' && x.name === 'grow'), 'with its keyframes name');
-      assert.ok(has(o.during, 'tr', 'transition'), 'the running CSS transition is listed');
-      assert.ok(has(o.during, 'quick', 'transition'), 'the short transition is listed while running');
-      assert.ok(o.lerpMoved, 'the rAF lerp really ran');
-      assert.ok(!o.during.some((x) => x.target === 'lerp'), 'the rAF lerp is not listed');
-      assert.ok(!has(o.after, 'quick', 'transition'), 'a finished transition leaves the list');
-      assert.ok(has(o.after, 'css', 'animation') && has(o.after, 'tr', 'transition'), 'running ones stay');
+      try {
+        assert.ok(has(o.during, 'css', 'animation'), 'the CSS animation is listed');
+        assert.ok(o.during.some((x) => x.target === 'css' && x.name === 'grow'), 'with its keyframes name');
+        assert.ok(has(o.during, 'tr', 'transition'), 'the running CSS transition is listed');
+        assert.ok(has(o.during, 'quick', 'transition'), 'the short transition is listed while running');
+        assert.ok(o.lerpMoved, 'the rAF lerp really ran');
+        assert.ok(!o.during.some((x) => x.target === 'lerp'), 'the rAF lerp is not listed');
+        assert.ok(!has(o.after, 'quick', 'transition'), 'a finished transition leaves the list');
+        assert.ok(has(o.after, 'css', 'animation') && has(o.after, 'tr', 'transition'), 'running ones stay');
+      } catch (e) { e.observed = o; throw e; }
       return o;
     },
   },

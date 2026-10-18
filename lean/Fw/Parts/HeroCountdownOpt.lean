@@ -597,7 +597,7 @@ theorem wk_strip (m : WkMode) (ℓ : LayerState) (fs : List (FrameIn WkProp × L
   have hS : ∀ e, (webkitAt m).stagesOf ⟨e, .transform, ℓ⟩ = (webkitAt m).stagesOf ⟨0, .transform, ℓ⟩ :=
     fun _ => rfl
   have hS0 : (webkitAt m).stagesOf ⟨0, .transform, ℓ⟩ ≠ [] := by
-    show diffStages (wkDiff ⟨0, .transform, ℓ⟩) ≠ []
+    simp only [webkitAt]
     cases ℓ <;> decide
   exact ⟨strip_claim _ _ _ _ hS hS0 fs rv ro, strip_passes_eq _ _ _ _ hS⟩
 

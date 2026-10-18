@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Console.Land
 import Fw.Ops.PathCheck
+import Fw.Spec.ConeMiss
 /-!
 # Why the `fw land` speed-ups keep the land verdict
 
@@ -210,13 +211,14 @@ theorem mem_selectChecks (ds : List Decl) (changed : List String) (i : String) :
 
 /-- The declared reads proposed for `lean/scripts/check.sh` (P5): `lean/**` plus what it reads outside `lean/`
 (the golden files `lake test` replays, the site's generated breakpoint files, the gate's generated scope file that
-`sweepsgen --scope --check` compares, the workflow files the lane lint of `Fw.Ops.Premise` reads, the span helper).
-`checksfor-inputs` owns the final list.
-$$G_{\mathrm{check}} = [\texttt{lean/**},\ \texttt{packages/contracts/golden/**},\ \texttt{apps/site/src/breakpoints.gen.json},\ \texttt{apps/site/src/sweeps.gen.json},\ \texttt{packages/gate-breakpoints/src/scope.gen.json},\ \texttt{.github/workflows/**},\ \texttt{scripts/span.sh}]$$ -/
+`sweepsgen --scope --check` compares, the workflow files the lane lint of `Fw.Ops.Premise` reads, the span helper, the fwcore build helper,
+the incident ledger that `scripts/PropsLint.lean` matches the registry rows against). `checksfor-inputs` owns the
+final list.
+$$G_{\mathrm{check}} = [\texttt{lean/**},\ \texttt{packages/contracts/golden/**},\ \texttt{apps/site/src/breakpoints.gen.json},\ \texttt{apps/site/src/sweeps.gen.json},\ \texttt{packages/gate-breakpoints/src/scope.gen.json},\ \texttt{.github/workflows/**},\ \texttt{scripts/span.sh},\ \texttt{scripts/fwcore-build.sh},\ \texttt{docs/team/incidents/ledger.json}]$$ -/
 def checkShReads : List String :=
   ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json",
     "apps/site/src/sweeps.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**",
-    "scripts/span.sh"]
+    "scripts/span.sh", "scripts/fwcore-build.sh", "docs/team/incidents/ledger.json"]
 
 /-- The sample `checksFor` table of the golden cases: check.sh and one package test.
 $$D_0 = [(\texttt{check.sh}, G_{\mathrm{check}}),\ (\texttt{contracts}, [\texttt{packages/contracts/**}])]$$ -/
@@ -234,13 +236,15 @@ def sampleDecls : List Decl :=
 #guard selectChecks sampleDecls [".github/scripts/changed-inputs.mjs"] == []
 #guard selectChecks [⟨"lean", ["lean/**", "!lean/math.lock.json"]⟩] ["lean/math.lock.json"] == []
 #guard selectChecks sampleDecls ["../lean/x.lean"] == []
+#guard selectChecks sampleDecls ["docs/team/incidents/ledger.json"] == ["check.sh"]
+#guard selectChecks sampleDecls ["docs/team/incidents/other.json"] == []
 
 /-- The parsed check.sh scope: each declared glob split at `/`, and no exclusions.
-$$\mathrm{parse}(G_{\mathrm{check}}) = \big([[\texttt{lean}, \texttt{**}],\ [\texttt{packages}, \texttt{contracts}, \texttt{golden}, \texttt{**}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{breakpoints.gen.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{sweeps.gen.json}],\ [\texttt{packages}, \texttt{gate-breakpoints}, \texttt{src}, \texttt{scope.gen.json}],\ [\texttt{.github}, \texttt{workflows}, \texttt{**}],\ [\texttt{scripts}, \texttt{span.sh}]],\ [\,]\big)$$ -/
+$$\mathrm{parse}(G_{\mathrm{check}}) = \big([[\texttt{lean}, \texttt{**}],\ [\texttt{packages}, \texttt{contracts}, \texttt{golden}, \texttt{**}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{breakpoints.gen.json}],\ [\texttt{apps}, \texttt{site}, \texttt{src}, \texttt{sweeps.gen.json}],\ [\texttt{packages}, \texttt{gate-breakpoints}, \texttt{src}, \texttt{scope.gen.json}],\ [\texttt{.github}, \texttt{workflows}, \texttt{**}],\ [\texttt{scripts}, \texttt{span.sh}],\ [\texttt{scripts}, \texttt{fwcore-build.sh}],\ [\texttt{docs}, \texttt{team}, \texttt{incidents}, \texttt{ledger.json}]],\ [\,]\big)$$ -/
 theorem parseScope_checkShReads : parseScope checkShReads =
     ⟨[["lean", "**"], ["packages", "contracts", "golden", "**"], ["apps", "site", "src", "breakpoints.gen.json"],
       ["apps", "site", "src", "sweeps.gen.json"], ["packages", "gate-breakpoints", "src", "scope.gen.json"],
-      [".github", "workflows", "**"], ["scripts", "span.sh"]], []⟩ := by
+      [".github", "workflows", "**"], ["scripts", "span.sh"], ["scripts", "fwcore-build.sh"], ["docs", "team", "incidents", "ledger.json"]], []⟩ := by
   have hi : checkShReads.filter (!·.startsWith "!") = checkShReads := by
     simp (config := {decide := true}) [checkShReads]
   have he : checkShReads.filter (·.startsWith "!") = [] := by
@@ -306,6 +310,20 @@ $$x \in \operatorname{cone}(m) \iff x = m \lor \exists i \in \mathit{imp}(m):\ x
 inductive InCone (G : Graph) (x : Mod) : Mod → Prop
   | refl : InCone G x x
   | step {m i : Mod} : i ∈ G.imp m → InCone G x i → InCone G x m
+
+/-- `InCone` is the import reachability `Fw.Spec.ConeMiss.Reach` of the graph's import map, so the expected-miss
+computation `Fw.Spec.ConeMiss.dependents` lists exactly the modules whose cone contains the edited one.
+$$\forall G, x, m:\ x \in \operatorname{cone}_G(m) \iff \mathrm{Reach}_{\mathit{imp}_G}(x, m)$$ -/
+theorem inCone_iff_reach (G : Graph) (x m : Mod) : InCone G x m ↔ Fw.Spec.ConeMiss.Reach G.imp x m := by
+  constructor
+  · intro h
+    induction h with
+    | refl => exact .refl
+    | step hi _ ih => exact .step hi ih
+  · intro h
+    induction h with
+    | refl => exact .refl
+    | step hi _ ih => exact .step hi ih
 
 /-- The Merkle key of a module: a hash of its name, its source blob, the tool blob and its imports' keys (Lake's
 `depHash` has this shape; the lint program and toolchain enter as the extra blob `t`).

@@ -109,7 +109,7 @@ async function check(browser, arm, tol) {
     const diffs = SECTIONS.map((s) => [s, r[s] === null ? Infinity : r[s] - o[s]]);
     const d = Math.max(...diffs.map(([, v]) => Math.abs(v)));
     worst = Math.max(worst, d);
-    const pageDiff = r.docH - r.heroTop - o.docH; 0 (scrollHeight is a whole number: 1 px slack)
+    const pageDiff = r.docH - r.heroTop - o.docH; // page tolerance max(tol, 1), even when tol is 0 (scrollHeight is a whole number: 1 px slack)
     const flag = d > tol || Math.abs(pageDiff) > Math.max(tol, 1) ? 'FAIL' : 'ok';
     if (flag === 'FAIL') bad++;
     console.log(`${flag} ${p.width}x${p.height} sections ${diffs.map(([s, v]) => `${s}${v >= 0 ? '+' : ''}${Number.isFinite(v) ? v.toFixed(2) : 'missing'}`).join(' ')} docH ${r.docH} - scaffold ${r.heroTop} vs ${o.docH} (${pageDiff >= 0 ? '+' : ''}${pageDiff.toFixed(2)})`);

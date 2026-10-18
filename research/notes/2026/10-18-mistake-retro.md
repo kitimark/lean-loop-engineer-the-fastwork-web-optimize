@@ -245,6 +245,146 @@ Eight of the nine provable rows have no hardening task of their own yet. Each na
 - **c-late-check** recurred six times, but its hardening (check-map-lean) has not landed. The land checks did their
   job; they only ran too late.
 
+## Batch 3: the lead's mistakes of 2026-10-18 midday
+
+The lead's list held 18 items (the task said 19; the input file has 18 lines). They are rows of
+`docs/team/incidents/ledger.json`: 16 new rows, and 2 items are repeats.
+- **Repeats.** The 3rd `fw watch &` and the 4th `fw watch ... & disown` are new `occurrences` of
+  `inc-watch-bg-ampersand` (now 4). Its `fix.also` gained `policy-from-lean`, so it reads open again.
+  wait-guard landed (ddaf278), but it runs in shadow mode (b42769d): it logs and does not refuse.
+- **Observation.** Item 11 is not a mistake. It is the open question `inc-obs-matrix-context-commission`, linked to
+  integrate-ports (also fix-commission-margin). Its two CI runs, 39083505918 and 39083482125, disagree at one head.
+- **`at` field.** Every new row carries the recording time, because the list gave no time per item.
+
+| class | new rows | provable | partly | no |
+|---|---:|---:|---:|---:|
+| c-late-check | 3 (4 occurrences) | 3 | 0 | 0 |
+| c-spec-gap | 3 | 2 | 1 | 0 |
+| c-env-assume | 3 | 0 | 2 | 1 |
+| c-sample-validity | 2 (1 is the observation) | 1 | 1 | 0 |
+| c-quota | 2 | 1 | 1 | 0 |
+| c-proxy-verdict | 1 | 1 | 0 | 0 |
+| c-identity-heuristic | 1 | 1 | 0 | 0 |
+| c-shared-no-lock | 1 | 1 | 0 | 0 |
+| c-orphan-wait | 0 (+2 occurrences on the existing row, now 4) | (1) | | |
+| **total** | **16** | **10** | **5** | **1** |
+
+No new class was needed. Derived status (`pnpm fw incidents lint`: 49 incidents, 0 errors):
+- 1 fixed: `inc-wt-prep-lsp-as-build`, by cap-diagnose (d5b9d00).
+- 5 fixing.
+- 10 open.
+
+**What the landed work did and did not close:**
+- land-queue/dry (809fcd4) landed, but three land-dry defects are still open:
+  - the VERDICT line is missing for an empty branch;
+  - the mathview lint is not run;
+  - the land-inputs scan follows ignored files on disk (`apps/runner/test/land-inputs.test.ts:73-89@b50332c`, an
+    `existsSync` filter).
+- findings-subentries (dfc1d70) landed. Its handoff conflict (`inc-handoff-write-refused`) is a separate open row.
+
+**Classes that recurred after a hardening landed:**
+- **c-orphan-wait:** the guard runs in shadow mode.
+- **c-late-check:** land-dry covers part of it.
+- **c-shared-no-lock:** Fw.Sched.Admit `wconf` exists, but nothing calls it at spawn.
+
+Each time, the rule existed, but the tool boundary did not enforce it.
+
+**The three hardenings with the biggest payoff** (proposed work-graph lines; the lead adds them):
+
+| id | title | deps |
+|---|---|---|
+| `wait-guard-enforce` | (S) Fw.Ops.Wait: a while-read loop fed by a file redirect is bounded (golden), then wait-guard switches to enforce (the settings change goes to the user as one ready command) | wait-guard |
+| `land-dry-full` | (S) fw land --dry prints exactly one VERDICT line on every path (an `empty` kind), runs the mathview lint (module cache) and scans tracked files only (`git ls-files`) | land-dry, mathview-module-cache |
+| `ci-shared-failure` | (S) Fw.Obs shared-failure rule: group ci.failed by (workflow, job) across branches; one job red on 2 or more branches is one lead alert; a 'CI green' claim needs every job of the run green | obs-next-glue, claim-lint |
+
+Why these three:
+- **wait-guard-enforce** ends the most repeated mistake: 4 orphans, each found and killed by hand. It also fixes the
+  false positive (`inc-wait-guard-while-read-fp`) that blocks enforce mode.
+- **land-dry-full** covers 3 rows and 4 occurrences. Each one cost a land refusal under the lock.
+- **ci-shared-failure** fixes the case where one shared red job hid every lane's CI verdict for 5+ runs.
+
+Runners-up, now hosted by open tasks:
+- `wt-reap`: remove a landed worktree only when `git status --porcelain` is empty (untracked included), plus a
+  scratch quota (inc-worktree-force-untracked, inc-disk-scratch-growth).
+- `spawn-admit`: the spawn guard asks `ops.admit` (inc-parallel-write-overlap).
+- `ci-run-cap`: a push-side counter per ci/* branch (inc-ci-run-cap-prompt).
+
+## Batch 4: the lead's mistakes of 2026-10-18 early afternoon
+
+The lead's list held 16 items (the task said 13; the input file has 16 bullets). They are rows of
+`docs/team/incidents/ledger.json`: 15 new rows, and 1 item is a repeat.
+- **Repeat.** `pnpm fw watch` chained after `gh run cancel` in one background call is the 5th occurrence of
+  `inc-watch-bg-ampersand`. It was not an orphan, because the harness owned the call, but it broke the rule "fw watch
+  alone in its own call".
+- **Related, not a repeat.** `inc-console-stale-service` has the same symptom as `inc-workflow-unbound`, but a new
+  root cause: the fix was on main and the running service was older than it.
+- **`at` field.** Taken from the evidence (commit, event or run time) where there is one; otherwise the recording time.
+- **Review-loop counts are CONFIRMED** from the workflow run journals (local-only, `ready_to_land: false`):
+
+  | task | refused runs | next run |
+  |---|---|---|
+  | lfg-props-shape | 3 | round 4: one registry, closed Sig |
+  | console-stale | 4 | round 5: build record = sha + binary sha256, no reflog or mtime |
+  | wait-guard-enforce | 3 | round 4 run; the work lands under the id wait-guard-enforce-2 (80bfed2) |
+
+  The rule is now in CLAUDE.md (Team, "Review loops (lead)", f0e5cec).
+
+| class | new rows | provable | partly | no |
+|---|---:|---:|---:|---:|
+| c-proxy-verdict | 3 | 3 | 0 | 0 |
+| c-handcopy | 2 | 1 | 1 | 0 |
+| c-order-derived | 2 | 2 | 0 | 0 |
+| c-orphan-wait | 1 (+1 occurrence on the existing row, now 5) | 0 | 1 | 0 |
+| c-quota | 1 | 1 | 0 | 0 |
+| c-env-assume | 1 | 1 | 0 | 0 |
+| c-late-check | 1 | 1 | 0 | 0 |
+| c-identity-heuristic | 1 | 1 | 0 | 0 |
+| c-unearned-claim | 1 | 0 | 1 | 0 |
+| c-spec-gap | 1 | 0 | 1 | 0 |
+| c-shared-no-lock | 1 | 0 | 0 | 1 |
+| **total** | **15** | **10** | **4** | **1** |
+
+Derived status at recording time (`pnpm fw incidents lint`: 64 incidents, 0 errors): 4 fixed, 7 fixing, 4 open.
+
+**No new class.** The lead's list names a class `c-silent-drop` for `inc-obs-silent-drop`. The row uses
+c-proxy-verdict: the drain's success did not mean every record was accepted. But this is the 2nd time
+(d41aef0 on 2026-10-17, then 2a43e6e) that the strict ObsRecord schema dropped a whole record kind. If it happens a
+3rd time, add `c-silent-drop` to `research/mistakes/ledger.json`. Its rule: a validator that drops must count and
+alert.
+
+**One general lesson per item:**
+
+| incident | hardening (host) | lesson |
+|---|---|---|
+| inc-test-pid-marker | land-test-flake (done) | Test temp files go in a per-run dir, never at a pid-named path in a shared tmp. |
+| inc-ci-hardcoded-expect | mathview-ci-fix (done) | A check computes its expected value from the same source as the code; it never hard-codes it. |
+| inc-landed-runs-queued | ci-own-trigger; proposed `land-cancel-runs` | A landed branch's runs give no verdict anyone reads, so landing cancels them. |
+| inc-watch-bg-ampersand (5th) | wait-guard, policy-from-lean | A rule stated in memory breaks again under time pressure until the tool boundary refuses it. |
+| inc-console-stale-service | console-stale | A service that decides state must prove it runs main's code; landing a change to its inputs restarts it. |
+| inc-workflow-multi-unbound | workflow-multi-claim (done) | Bind work by an explicit label per agent, not by a name that holds one id. |
+| inc-folded-land-not-done | task-state-truth | Done comes from landed evidence for every task a merge carries, not from the branch name. |
+| inc-red-on-main-by-design | premise-ack (done); proposed `gate-expected-red` (integrate-ports) | A lane that is always red tells you nothing; known findings need an acknowledged list. |
+| inc-obs-silent-drop | task-state-truth (r2: accept_extra, drop_counted) | A validator that drops must count and alert. |
+| inc-workflow-agent-stall | task-state-truth; proposed `workflow-one-task` | Long work commits WIP every 20-30 min; two long tasks never share one stoppable unit. |
+| inc-ci-skipped-false-pass | ci-own-trigger (r2), lean-ops-gap | A verdict reader checks that the work ran, not only the status; review the reader side of every gate change. |
+| inc-proof-of-dead-code | lfg-ts-lint; proposed `theorem-reach-lint` | A theorem counts only if its subject is reachable from an op or a generator. |
+| inc-precommit-stale-fwcore | check-map-lean-2, console-stale | A gate never maps "cannot check" to pass. |
+| inc-spawn-patcher-unreachable | policy-from-lean; proposed `spawn-role-reach` | Every rule table needs a reachability theorem: each role has an accepted call. |
+| inc-proof-of-typed-expectation | task-preview-2, lfg-kill-ci | A proof over hand-typed facts and expectations certifies the typist; take facts from a committed extractor. |
+| inc-review-loop | task-spec-lint; proposed `review-loop-alert` | After the 2nd refusal of one kind, write the threat model and pick a closed design (allowlist, identity, single source) before the next round. |
+
+**Proposed hardening ids.** Each is hosted by the existing task named in its row, as in batch 3. The lead adds the
+ones it wants:
+
+| id | title | deps |
+|---|---|---|
+| `review-loop-alert` | (S) Fw.Obs rule: refused rounds per (task, class); 2 or more without a threat model in the next spawn prompt -> lead.redesign alert in fw watch | task-spec-lint |
+| `spawn-role-reach` | (S) Fw.Ops.SpawnGuard every_role_reachable over the role table; fix the name/kind derivation for the patcher role | spawn-enforce |
+| `theorem-reach-lint` | (S) every theorem's subject is reachable from a Wire op or a generator (mathview reach over the op table) | lfg-ts-lint |
+| `land-cancel-runs` | (S) fw land cancels queued and in-progress runs of ci/<task> after a land (Lean rule) | ci-own-trigger |
+| `workflow-one-task` | (S) one task per workflow when a sibling runs long; WIP commit cadence; agent.stalled names run and sibling | task-state-truth |
+| `gate-expected-red` | (S) breakpoint-gate expected-red cells in Lean until integrate-ports, red iff an unexpected cell | integrate-ports |
+
 ## Dropped or merged items
 
 - **Unsolved goals in Incident.lean:361:** normal proof iteration inside one task, not a process mistake. Dropped.
@@ -281,5 +421,11 @@ Per the task's write list, this task wrote no handoff file; this note and the le
 - **PLAN, "Lean first" section:** add the rule "a proof counts for a gate probe only through Fw.Gate.Coverage
   (generated constant or golden)". Port tasks then hand back only with exit-0 verdict records at the branch head,
   with full scope and the task's flags.
+- **docs/team/work-graph.json (batch 3):** add wait-guard-enforce, land-dry-full and ci-shared-failure (lines above).
+  Then repoint the hosted rows' `fix.task` to them: inc-watch-bg-ampersand, inc-wait-guard-while-read-fp,
+  inc-land-inputs-untracked-exists, inc-handback-without-check, inc-land-dry-no-verdict and inc-ci-shared-job-red.
 - **incident-lean-fields (open):** take `classId`, `leanVerdict`, `empiricalCheck` and `evidenceStatus` from
   `research/mistakes/ledger.json` as the incident schema fields.
+- **docs/team/work-graph.json (batch 4):** add review-loop-alert first: it turns the CLAUDE.md "Review loops (lead)"
+  rule into a fw watch alert. Then add spawn-role-reach (the patcher role is unreachable today), then the other four
+  proposed ids. When each one exists, repoint its row's `fix.task` to it.
