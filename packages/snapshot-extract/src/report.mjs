@@ -145,3 +145,4 @@ export function renderMarkdown(engine, summary, root, fontRep) {
   L.push(`Original families without a loaded face: ${missingOrig.length === 0 ? 'none' : missingOrig.map((f) => f.family).join(', ')}.`, '');
   return L.join('\n');
 }
+// probe ci-own-trigger r2 (b2): a requested run of this lane; the next push reverts this line without asking for it
