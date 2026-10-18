@@ -977,7 +977,8 @@
    "owner": "researcher",
    "writes": [
     "docs/report/**"
-   ]
+   ],
+   "evidence": "79b320d"
   },
   {
    "id": "experiments",
