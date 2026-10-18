@@ -552,9 +552,9 @@ def Cell.passes : Cell → Bool
   | .pass => true
   | _ => false
 
-/-- `unsettled` and `notRendered` (like `fail`) are never a passing cell.
+/-- Only `pass` is a passing cell: `fail`, `unsettled` and `notRendered` are not.
 
-$$c \in \{\mathrm{fail}, \mathrm{unsettled}, \mathrm{notRendered}\} \;\Longrightarrow\; \operatorname{passes}(c) = \bot$$ -/
+$$\forall c,\ \operatorname{passes}(c) = \top \iff c = \mathrm{pass}$$ -/
 theorem Cell.passes_iff (c : Cell) : c.passes = true ↔ c = .pass := by
   cases c <;> simp [Cell.passes]
 
@@ -762,9 +762,9 @@ theorem sample_delay_invariant {p : Policy} {α : Type} (T : Traj p α) (i j : N
 
 /-- `pain.notes`: the original is one layout behind until two real frames have passed since the resize (a
 `ResizeObserver` notification, then the `requestAnimationFrame` callback it schedules). Fewer than `minFrames` real
-frames is unsettled; so is a page that never delivers a frame.
+frames is unsettled.
 
-$$\mathit{fr}(o) < m_f \;\Longrightarrow\; \neg\operatorname{settled}_\pi(o)\qquad\text{and}\qquad \left(\forall i,\ \mathit{fr}(o_i) < m_f\right) \Longrightarrow \operatorname{wait}_\pi(o) = \mathrm{unsettled}$$ -/
+$$\mathit{fr}(o) < m_f \;\Longrightarrow\; \neg\operatorname{settled}_\pi(o)$$ -/
 theorem pain_notes_unsettled (p : Policy) (o : Obs) (h : o.frames < p.minFrames) : settled p o = false := by
   simp only [settled]
   have : ¬ p.minFrames ≤ o.frames := by omega
@@ -814,7 +814,7 @@ def runCount (as : List Anim) : Nat := (as.filter (fun a => decide (a.elapsed < 
 /-- `overlays.signup`: the dialog enter animation (0.4 s) is running at any elapsed time below its duration, so a sample taken
 there (scale 0.9977 at the WebKit touch probe) has `running ≥ 1` and is unsettled.
 
-$$e < d \wedge a = (d, e) \wedge a \in A \;\Longrightarrow\; \operatorname{runCount}(A) \ge 1 \;\Longrightarrow\; \neg\operatorname{settled}_\pi\!\left(\mathit{run} := \operatorname{runCount}(A), \ldots\right)$$ -/
+$$\forall a\,A\,\mathit{fr}\,\mathit{st}\,\mathit{hov}\,t,\quad a \in A \wedge \mathit{elapsed}(a) < \mathit{dur}(a) \;\Longrightarrow\; \neg\operatorname{settled}_\pi\bigl(\operatorname{runCount}(A), \mathit{fr}, \mathit{st}, \mathit{hov}, t\bigr)$$ -/
 theorem signup_unsettled (p : Policy) (as : List Anim) (a : Anim) (ha : a ∈ as) (he : a.elapsed < a.dur)
     (frames stable t : Nat) (hov : Bool) :
     settled p { running := runCount as, frames := frames, stable := stable, hoverInside := hov, t := t } = false := by
@@ -946,7 +946,7 @@ def obsJson (o : Obs) : Json :=
 
 /-- The JSON of a policy.
 
-$$\pi \mapsto \{m_f, m_s, \varepsilon, T\}$$ -/
+$$\pi \mapsto \{m_f, m_s, \varepsilon, T, F\}$$ -/
 def policyJson (p : Policy) : Json :=
   Json.mkObj [("minFrames", toJson p.minFrames), ("minStable", toJson p.minStable), ("eps", toJson p.eps), ("timeoutMs", toJson p.timeoutMs),
     ("maxFrames", toJson p.maxFrames)]
@@ -1108,9 +1108,9 @@ def quietCases : List (String × Nat × List Int × List Int) :=
     ("no values at all", 100, [], []),
     ("people.deck scale mid lerp", 100, [977000], [979000]) ]
 
-/-- One golden line per case, in the order observation cases, wait cases, quiet cases, report cases.
+/-- One golden line per case, in the order of the eight case lists: observation, wait, quiet, rendered, cell, view, fold, report.
 
-$$\text{lines} = [\ell_{\mathrm{obs}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{wait}}(c)]_c \mathbin{+\!\!+} [\ell_{\mathrm{report}}(c)]_c$$ -/
+$$\text{lines} = [\ell_{\mathrm{obs}}(c)]_{c \in \mathrm{obsCases}} \mathbin{+\!\!+} [\ell_{\mathrm{wait}}(c)]_{c \in \mathrm{waitCases}} \mathbin{+\!\!+} [\ell_{\mathrm{quiet}}(c)]_{c \in \mathrm{quietCases}} \mathbin{+\!\!+} [\ell_{\mathrm{rendered}}(c)]_{c \in \mathrm{renderedCases}} \mathbin{+\!\!+} [\ell_{\mathrm{cell}}(c)]_{c \in \mathrm{cellCases}} \mathbin{+\!\!+} [\ell_{\mathrm{view}}(c)]_{c \in \mathrm{viewCases}} \mathbin{+\!\!+} [\ell_{\mathrm{fold}}(c)]_{c \in \mathrm{foldCases}} \mathbin{+\!\!+} [\ell_{\mathrm{report}}(c)]_{c \in \mathrm{reportCases}}$$ -/
 def goldenLines : List String :=
   obsCases.map (fun (n, o) =>
     (Json.mkObj [("kind", "settled"), ("name", toJson n), ("policy", policyJson gatePolicy), ("obs", obsJson o),
@@ -1146,9 +1146,9 @@ def goldenLines : List String :=
 $$\text{goldenText} = \mathbin{+\!\!+}_{\ell \in \text{goldenLines}} (\ell \mathbin{+\!\!+} \texttt{newline})$$ -/
 def goldenText : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
-/-- The value after `flag` in an argument list.
+/-- The value after the first occurrence of `flag` that has a successor in an argument list.
 
-$$\operatorname{argAfter}([\dots, f, v, \dots], f) = \mathrm{some}(v)$$ -/
+$$\operatorname{argAfter}(xs, f) = \begin{cases} \mathrm{some}(xs_{i+1}) & i = \min\{\, i \mid xs_i = f \wedge i + 1 < |xs| \,\} \text{ exists} \\ \mathrm{none} & \text{otherwise} \end{cases}$$ -/
 def argAfter : List String → String → Option String
   | a :: b :: rest, flag => if a == flag then some b else argAfter (b :: rest) flag
   | _, _ => none

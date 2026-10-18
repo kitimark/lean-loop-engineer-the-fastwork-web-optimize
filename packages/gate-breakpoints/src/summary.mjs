@@ -52,7 +52,7 @@ const outcomeOf = (arm) => waitOf(arm)?.outcome ?? 'missing';
 /**
  * Lean's report (Fw.Gate.Settle.report, settle.mjs) for one state: 'unsettled' when either arm's wait ended unsettled or is
  * missing. The values' equality is not needed for that case, so true is passed; the entries name the arms that did not
- * settle. `wait` is the pair of outcomes the engine verdict is taken from (Fw.Gate.Exit.engineVerdictS).
+ * settle. `wait` is the pair of outcomes the engine verdict is taken from (Fw.Gate.Exit.engineVerdictCS).
  */
 function settleOf(label, state) {
   const wait = { orig: outcomeOf(state.orig), rewrite: outcomeOf(state.rewrite) };

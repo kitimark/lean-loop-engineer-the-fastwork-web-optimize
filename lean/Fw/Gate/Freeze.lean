@@ -15,7 +15,12 @@
   `Fw.Gate.Settle` and proves it: the observations depend on the step index alone (`wait_frozen_agree`), the frame budget
   alone ends an unsettled wait (`spent_frozen_frames`), a wait settles iff some step inside the budget is settled
   (`wait_frozen_settled_iff`), and after the freeze nothing finite runs, so "settled" means three quiet frames, no hover
-  (`settled_frozen_anims`). Golden vectors for the TypeScript twin close the file.
+  (`settled_frozen_anims`).
+
+  Round 3 adds the instants (section Instants): every observation of a run is read at an absolute fake time `instant`,
+  the same in both arms whatever prepare or mount steps one arm ran before (`both_arms_same_instant`,
+  `mount_same_instant`); a stage that does not fit its slot is flagged unsettled, never silently read at another time
+  (`overshoot_flagged`, `unfit_never_pass`). Golden vectors for the TypeScript twin close the file.
 -/
 import Lean.Data.Json
 import Fw.Gate.Settle
@@ -491,7 +496,7 @@ $$\operatorname{instantOutcome}(\mathit{ok}) = \begin{cases} \mathrm{settled}(0)
 def instantOutcome (ok : Bool) : Outcome := if ok then .settled 0 else .unsettled
 
 /-- **A sample read at the wrong instant never passes.** Folded into the sample's waits, a late reading makes the sample unsettled,
-so its report is never pass, and the engine is not a pass (`Fw.Gate.Exit.engineVerdictS_ne_pass_of_unsettled`).
+so its report is never pass, and the engine is not a pass (`Fw.Gate.Exit.engineVerdictCS_ne_pass_of_unsettled`).
 
 $$\operatorname{fits}(c, st) = \bot \implies \forall a\, ws\, b\, e,\ \operatorname{report}(\operatorname{fold}(a, \operatorname{instantOutcome}(\bot) :: ws), b, e) \ne \mathrm{pass}$$ -/
 theorem unfit_never_pass (a : Outcome) (ws : List Outcome) (b : Outcome) (e : Bool) :

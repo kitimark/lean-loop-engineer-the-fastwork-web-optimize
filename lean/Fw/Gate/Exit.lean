@@ -626,7 +626,7 @@ samples' waits; the verdict, the unsettled count and the excused cells (excuse i
 
 $$\operatorname{engineCase}(e, N, ns, ws) = \begin{cases} \{\mathrm{cells} = ns,\ \mathrm{engine} = e,\ \mathrm{exempt} = X,\ \mathrm{kind} = \texttt{engine},\ \mathrm{narrowed} = N,\ \mathrm{unsettled} = \operatorname{u}(ws'),\ \mathrm{verdict} = \operatorname{wire}(v),\ \mathrm{waits} = ws\} & \operatorname{ev}_{WW}(e, N, ns, ws) = \operatorname{ok}(v) \\ \{\mathrm{cells} = ns,\ \mathrm{engine} = e,\ \mathrm{error} = m,\ \mathrm{kind} = \texttt{engine},\ \mathrm{narrowed} = N,\ \mathrm{waits} = ws\} & \operatorname{ev}_{WW}(e, N, ns, ws) = \operatorname{error}(m) \end{cases}$$
 
-where $X = [[\operatorname{excuse}(e, N, c), r \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} c] \mid (r, c, \cdot) \in ns,\ \operatorname{excuse}(e, N, \cdot) \ne \bot]$.
+Here $X = [[\operatorname{excuse}(e, N, c), r \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} c] \mid (r, c, \cdot) \in ns,\ \operatorname{excuse}(e, N, \cdot) \ne \bot]$.
 One compact JSON object with keys in sorted order. -/
 def engineCase (engine : String) (narrowed : Bool) (cells : List (String × String × String))
     (waits : List (String × String)) : String :=
@@ -687,7 +687,7 @@ def fracCell : String × String × String := ("hero.exit", "fractional-gaps", "u
 
 $$\mathrm{goldenLines} = [\operatorname{exemptionLine}(x)]_{x \in \mathrm{exemptions}} \mathbin{+\!\!+} [\mathrm{narrowedLine}] \mathbin{+\!\!+} [\operatorname{engineCase}(e, N, ns, ws)]_{(e, N, ns, ws) \in E} \mathbin{+\!\!+} [\operatorname{exitCase}(vs)]_{vs \in X} \mathbin{+\!\!+} [\operatorname{staleCase}(a, f)]_{(a, f) \in S}$$
 
-with $|\mathrm{exemptions}| = 3$, $|E| = 33$ engine cases, $|X| = 10$ run cases and $|S| = 8$ hysteresis cases, so the file has
+The sizes are $|\mathrm{exemptions}| = 3$, $|E| = 33$ engine cases, $|X| = 10$ run cases and $|S| = 8$ hysteresis cases, so the file has
 $3 + 1 + 33 + 10 + 8 = 55$ lines in that order. The engine cases cover: every registered exemption and each of its three
 conditions broken (other engine, other row, other verdict, other column), a not-comparable or unreachable cell with no
 exemption, a not-run cell in a full and in a narrowed run, the order fail over unsettled over incomplete over not-rendered, and the

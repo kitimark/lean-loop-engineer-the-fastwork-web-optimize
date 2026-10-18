@@ -732,9 +732,10 @@ $$\forall T, I, k,\quad \operatorname{engDurs}(T, I, k) = [\,\text{setup}_T + \o
 theorem engDurs_eq (T : EngCosts) (ids : List String) (k : Nat) :
     engDurs T ids k = (engPlan T ids k).map fun b => T.setup + load (unitCost T ids) b := rfl
 
-/-- The job counts considered: 1 to 8 jobs per engine.
+/-- The job counts considered, as an ordered list: 1 to 8 jobs per engine, Chromium's count first, in lexicographic order.
+`chooseK` takes the first pair on a tie, so this order is part of the answer.
 
-$$\mathrm{kCands} = \{1, \dots, 8\}^2$$
+$$\mathrm{kCands} = [\,(a, b) \mid a \leftarrow [1..8],\ b \leftarrow [1..8]\,]$$
 -/
 def kCands : List (Nat × Nat) := (List.range 8).flatMap fun a => (List.range 8).map fun b => (a + 1, b + 1)
 

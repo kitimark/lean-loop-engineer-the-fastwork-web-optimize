@@ -35,9 +35,11 @@ def engName : Eng → String
   | .chromium => "chromium"
   | .webkit => "playwright-webkit"
 
-/-- The jobs of one engine: slot, probe ids, sweep names, duration and load.
+/-- The jobs of one engine: engine, slot, job count, probe ids, sweep names, unit names, load and duration.
 
-$$\operatorname{engJobs}(C, e, k) = [\,(s,\ b,\ \textstyle\sum_{u \in b} c_e(u),\ \mathrm{setup}_e + \sum_{u \in b} c_e(u))\,]_{(b, s) \in \operatorname{zipIdx}(\operatorname{engPlan}(C_e, \mathrm{ids}, k))}$$
+$$\operatorname{engJobs}(C, e, k) = \Bigl[\bigl(e,\ s,\ k,\ \operatorname{filterMap}(\operatorname{probeOf}_{\mathrm{ids}}, b),\ \operatorname{swName}\bigl(\operatorname{filterMap}(\operatorname{sweepOf}, b)\bigr),\ [\operatorname{names}(\mathrm{ids})_i]_{i \in b},\ \operatorname{load}_c(b),\ \mathrm{setup}_{C_e} + \operatorname{load}_c(b)\bigr)\Bigr]_{(b, s) \in \operatorname{zipIdx}(\operatorname{engPlan}(C_e, \mathrm{ids}, k))}$$
+
+where $c = c_{C_e, \mathrm{ids}}$ is the unit cost of the engine's table.
 -/
 def engJobs (C : Costs) (e : Eng) (k : Nat) : List Json :=
   let T := C.of e
