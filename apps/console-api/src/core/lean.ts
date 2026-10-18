@@ -18,7 +18,7 @@ import type { Core } from "./index.ts";
 export type LeanBin = { path: string };
 export type Incident = { at: number; kind: "exit" | "stderr" | "bad-line" | "replay" | "timeout"; detail: string };
 
-export const BUILD_HINT = "cd lean && lake build";
+export const BUILD_HINT = "sh scripts/fwcore-build.sh";
 
 /** Reply of the stateful `console.apply`: the outcome and the rows the event touched (empty unless accepted fresh). */
 export const ServeApply = z.object({
@@ -73,7 +73,12 @@ export class LeanCore implements Core {
   private log: (() => string[]) | null = null;
   private replayDone: Promise<Replayed> = Promise.resolve({ accepted: 0, duplicate: 0, refused: 0 });
 
+  /** called just before each spawn of the child with the binary path (console-api records its build commit) */
+  onSpawn: ((binPath: string) => void) | null = null;
+
   private bin: LeanBin;
+  /** the binary the next spawn runs */
+  get binPath(): string { return this.bin.path; }
   private onIncident: (i: Incident) => void;
   private callTimeoutMs: number;
 
@@ -89,6 +94,7 @@ export class LeanCore implements Core {
   private ensure(): ChildProcessWithoutNullStreams {
     if (this.child) return this.child;
     if (this.closed) throw new Error("fwcore: core is closed");
+    try { this.onSpawn?.(this.bin.path); } catch (e) { this.incident("stderr", `onSpawn failed: ${(e as Error).message}`); }
     const child = spawn(this.bin.path, [], {
       env: { ...process.env, LEAN_ABORT_ON_PANIC: "1" }, // a panic must abort, not return a default value
       stdio: ["pipe", "pipe", "pipe"],
