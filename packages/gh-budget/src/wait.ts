@@ -7,7 +7,9 @@
 // though GitHub's run conclusion is `success` (task ci-own-trigger round 2). Round 3: a heavy job that stopped at its
 // `stale:` step (a newer push is the tip) is `stale`, never a pass; `--branch` without `--workflow` waits for every lane
 // the head commit requests (fwcore `ci.required`) on that exact commit and passes only when each has a pass run (a
-// default lane may also be skipped as unchanged; Lean `combine_requested_never_pass`).
+// default lane may also be skipped as unchanged; Lean `combine_requested_never_pass`). Round 4: a message that could
+// not be read (`msg` null or absent) is an unknown request, and fwcore answers not-run at once
+// (Lean `unknown_request_never_pass`).
 import { mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -20,8 +22,8 @@ import { locked, paths, readJson, readStatus, stepUnlocked, writeAtomic, type Ro
 export type Target =
   | { kind: "run"; runId: number }
   /** `since`: epoch second of the commit being waited for (runs created before it are not ours). `msg`: the commit's
-   *  message; without `workflow` it selects the lanes mode (every requested lane on this sha). */
-  | { kind: "branch"; branch: string; workflow?: string; sha: string; since: number; msg?: string };
+   *  message (null or absent: unknown); without `workflow` it selects the lanes mode (every requested lane on this sha). */
+  | { kind: "branch"; branch: string; workflow?: string; sha: string; since: number; msg?: string | null };
 
 /** 0 pass, 1 fail, 2 a gh error, 3 timeout / budget stop, 4 not run (every decisive run's guard skipped). */
 export type Waited = { code: 0 | 1 | 2 | 3 | 4; lines: string[] };
@@ -55,9 +57,9 @@ export function factsOf(jobs: Job[]): RunFacts {
   };
 }
 
-/** Lanes mode: a branch target without `--workflow` (no message: only the default lanes are requested). */
+/** Lanes mode: a branch target without `--workflow` (no message: the request is unknown, never a pass). */
 const lanesMode = (t: Target): boolean => t.kind === "branch" && t.workflow === undefined;
-const msgOf = (t: Target): string => (t.kind === "branch" ? t.msg ?? "" : "");
+const msgOf = (t: Target): string | null => (t.kind === "branch" ? t.msg ?? null : null);
 
 /** Which rows decide the wait: the run; in lanes mode the newest run of each workflow for the exact commit; else the
  *  newest run of the workflow on the branch created after the commit. */
@@ -115,7 +117,7 @@ async function jobsOf(env: Env, runId: number, deadline: number): Promise<{ fact
 
 /** Lanes mode: the newest run of each requested lane for the commit, then fwcore `ci.verdict {msg, lanes}` decides
  *  (Lean `combineRequested`): a lane with no run is `missing`, never a pass. */
-async function lanesVerdictOf(env: Env, msg: string, required: string[], rs: Row[], deadline: number): Promise<Waited> {
+async function lanesVerdictOf(env: Env, msg: string | null, required: string[], rs: Row[], deadline: number): Promise<Waited> {
   const lanes: Record<string, RunFacts | null> = {};
   for (const n of required) {
     const r = rs.find((x) => x.workflowName === n);
@@ -205,7 +207,12 @@ async function createdOf(env: Env, runId: number, deadline: number): Promise<{ r
 export async function waitFor(env: Env, t: Target, o: { timeoutS: number }): Promise<Waited> {
   const regAt = env.now();
   const deadline = regAt + o.timeoutS;
-  const required = lanesMode(t) ? ((env.core({ op: "ci.required", msg: msgOf(t) }).lanes ?? []) as string[]) : null;
+  const req = lanesMode(t) ? env.core({ op: "ci.required", msg: msgOf(t) }) : null;
+  if (req && req.lanes === null) {
+    const sha = t.kind === "branch" ? t.sha : "";
+    return { code: Number(req.code) as Waited["code"], lines: [`lanes ? -> ${String(req.verdict)} (${String(req.reason)}; commit ${sha})`] };
+  }
+  const required = req ? ((req.lanes ?? []) as string[]) : null;
   let id: number;
   let createdAt: number;
   if (t.kind === "run") {
@@ -226,7 +233,7 @@ export async function waitFor(env: Env, t: Target, o: { timeoutS: number }): Pro
     let nextAt = 0;
     for (;;) {
       const ev = evaluate(readStatus(env.dir), t, regAt, required, env.now());
-      if ("done" in ev) return required ? await lanesVerdictOf(env, msgOf(t),required, ev.done, deadline) : await verdictOf(env, ev.done, deadline);
+      if ("done" in ev) return required ? await lanesVerdictOf(env, msgOf(t), required, ev.done, deadline) : await verdictOf(env, ev.done, deadline);
       if ("stopped" in ev) return { code: 3, lines: [`wait: the poller stopped (${ev.stopped}); see \`fw ci budget\`, \`fw ci budget --resume\``] };
       if (env.now() >= deadline) return { code: 3, lines: [`wait: timed out after ${o.timeoutS} s; run it again to keep waiting (\`fw ci budget\` shows the poller)`] };
       poller ??= tryLock(paths(env.dir).poller);

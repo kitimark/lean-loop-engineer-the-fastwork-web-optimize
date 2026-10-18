@@ -40,11 +40,12 @@ export function loadGolden(root) {
   return { table: lines.find((l) => l.kind === 'table'), cases: lines.filter((l) => l.kind === 'case') };
 }
 
-/** The Lean intent golden (Fw.Ci.Intent): the lanes (name, token, macOS and default flags, the guard `if:`) and the
- *  replay cases. */
+/** The Lean intent golden (Fw.Ci.Intent): the lanes (name, token, macOS and default flags, the guard `if:`), the
+ *  replay cases, the gate vectors and the push vectors (`pushOk`). */
 export function loadIntent(root) {
   const lines = readFileSync(join(root, 'packages/contracts/golden/ci/intent.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-  return { lanes: lines.find((l) => l.kind === 'lanes'), cases: lines.filter((l) => l.kind === 'case'), gates: lines.filter((l) => l.kind === 'gate') };
+  return { lanes: lines.find((l) => l.kind === 'lanes'), cases: lines.filter((l) => l.kind === 'case'), gates: lines.filter((l) => l.kind === 'gate'),
+    push: lines.find((l) => l.kind === 'push') };
 }
 
 /** The lane of a workflow file (Lean `laneOf`), with the token prefix; null when it has none. */

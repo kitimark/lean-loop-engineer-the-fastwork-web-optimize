@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { join } from "node:path";
 import test, { describe, it } from "node:test";
 import { waitFor } from "../src/wait.ts";
+import { messageOf, parseWait } from "../src/cli.ts";
 import { drive, mkWorld, repoRoot } from "./util.ts";
 
 const T0 = 1_800_000_000;
@@ -120,6 +121,27 @@ test("lanes mode: a heavy job stopped at its tip re-check is stale; a requested 
     { kind: "branch", branch: "ci/x", sha: "abc", since: T0, msg: "[ci:wktr]" });
   assert.equal(miss.res[0]!.code, 4, miss.res[0]!.lines.join("\n"));
   assert.ok(miss.res[0]!.lines.some((l) => l.startsWith("lane wktr no run -> missing")), miss.res[0]!.lines.join("\n"));
+});
+
+// ci-own-trigger round 4: a commit whose message cannot be read is an unknown request; the wait never passes, even
+// with a lean pass on that sha (Lean `unknown_request_never_pass`).
+test("lanes mode: an unknown request (message unreadable) is not-run at once, though lean passed", async () => {
+  const runs = [run(40, { headBranch: "ci/x", workflowName: "lean" })];
+  for (const msg of [null, undefined]) {
+    const t = { kind: "branch" as const, branch: "ci/x", sha: "abc", since: T0, ...(msg === null ? { msg } : {}) };
+    const r = await wait(1, runs, t);
+    assert.equal(r.res[0]!.code, 4, r.res[0]!.lines.join("\n"));
+    assert.ok(r.res[0]!.lines.some((l) => l.startsWith("lanes ? -> not-run (unknown request")), r.res[0]!.lines.join("\n"));
+  }
+});
+
+test("parseWait: a sha not in the local object store with --since gives an unknown message, not an empty one", () => {
+  const p = parseWait(["--branch", "ci/x", "--sha", "deadbeef1", "--since", "100"], repoRoot);
+  assert.equal(p.target.kind === "branch" ? p.target.msg : "run", null);
+  assert.equal(messageOf(repoRoot, "deadbeef1"), null);
+  assert.equal(typeof messageOf(repoRoot, "HEAD"), "string");
+  const given = parseWait(["--branch", "ci/x", "--sha", "deadbeef1", "--since", "100", "--msg", "x [ci:wktr]"], repoRoot);
+  assert.equal(given.target.kind === "branch" ? given.target.msg : "run", "x [ci:wktr]");
 });
 
 test("timeout is exit 3 and the state keeps no watcher behind", async () => {

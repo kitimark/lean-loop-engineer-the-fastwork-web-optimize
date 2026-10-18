@@ -17,6 +17,9 @@ Round 3: a heavy job whose run is no longer the branch tip stops at its first st
 `Fw.Ci.Intent.stale_never_works`): its step `stale: …` fails and the run is *not run* (`stale_never_pass`). A wait on a branch
 (`combineRequested`) passes only when every lane the head commit requests has a passing run for that commit and the
 default lane (lean) passed or its guard found no input that differs from `main` (`combine_requested_never_pass`).
+
+Round 4: when the head commit's message cannot be read, the requested lanes are unknown and the wait never passes
+(`waitVerdict`, `unknown_request_never_pass`).
 -/
 namespace Fw.Ci.Verdict
 
@@ -43,7 +46,7 @@ def conclOf (s : String) : Concl :=
 `decision`: the guard's `run=…` as its decision step shows it (`none`: the run shows no decision step). `jobs`: the
 conclusions of every other job. `stale`: some other job's tip re-check found a newer branch tip (its step `stale: …`
 failed, `staleOf`).
-$$f = (g,\ d,\ J,\ \sigma), \quad d \in \{\top, \bot, \mathrm{none}\},\ \sigma \in \{\top, \bot\}$$ -/
+$$f = (g,\ d,\ J,\ \sigma), \quad d \in \{\mathrm{some}(\top), \mathrm{some}(\bot), \mathrm{none}\},\ \sigma \in \{\top, \bot\}$$ -/
 structure Facts where
   guard : Concl
   decision : Option Bool
@@ -352,6 +355,29 @@ theorem missing_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (hv
   intro h
   have := ((combine_requested_pass_iff rs).mp h).1 r hr
   simp [laneOk, hv] at this
+
+/-- **The verdict of a branch wait whose request may be unknown** (round 4). `none`: the head commit's message could not
+be read (the commit is not in the local object store, or git failed), so the lanes it requests are unknown and the wait
+is not run; `some R`: the lanes it requests, combined by `combineRequested`.
+$$\forall q:\ \operatorname{wait}(q) = \begin{cases} \mathrm{notRun} & q = \mathrm{none} \\ \operatorname{req}(R) & q = \mathrm{some}(R) \end{cases}$$ -/
+def waitVerdict : Option (List LaneRun) → Verdict
+  | none => .notRun
+  | some rs => combineRequested rs
+
+/-- **An unknown request never passes.** When the lanes the commit requests are unknown, the wait does not pass.
+$$\operatorname{wait}(\mathrm{none}) \ne \mathrm{pass}$$ -/
+theorem unknown_request_never_pass : waitVerdict none ≠ .pass := by
+  simp [waitVerdict]
+
+/-- **When a wait passes.** Exactly when the request is known and its lanes pass by `combineRequested`.
+$$\forall q:\ \operatorname{wait}(q) = \mathrm{pass} \iff \exists R:\ q = \mathrm{some}(R) \land \operatorname{req}(R) = \mathrm{pass}$$ -/
+theorem wait_pass_iff (q : Option (List LaneRun)) :
+    waitVerdict q = .pass ↔ ∃ rs, q = some rs ∧ combineRequested rs = .pass := by
+  cases q <;> simp [waitVerdict]
+
+#guard waitVerdict none == .notRun
+#guard waitVerdict (some [⟨true, some .pass, none⟩]) == .pass
+#guard waitVerdict (some []) == .notRun
 
 -- probe (1) of the round-2 review: difftest requested and skipped at its guard, lean passed: not a pass
 #guard combineRequested [⟨false, some .notRun, some .unchanged⟩, ⟨true, some .pass, none⟩] == .notRun

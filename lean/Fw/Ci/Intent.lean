@@ -153,7 +153,7 @@ structure Lane where
   byDefault : Bool
 
 /-- The workflows whose push run holds a macOS job (`gate-gaps` runs macOS only on a dispatch with `macos=true`).
-$$M = [\texttt{engine-premises},\ \texttt{sim-speed},\ \texttt{webkit-sim},\ \texttt{wktr-fixtures},\ \texttt{wktr}]$$ -/
+$$M = [\texttt{engine-premises.yml},\ \texttt{sim-speed.yml},\ \texttt{webkit-sim.yml},\ \texttt{wktr-fixtures.yml},\ \texttt{wktr.yml}]$$ -/
 def macosFiles : List String :=
   ["engine-premises.yml", "sim-speed.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 
@@ -369,7 +369,7 @@ def recordExpr : String := "github.event_name != 'push' || !startsWith(github.re
 
 /-- The guard job's `if:` text: `gate` written as a GitHub expression. A default lane has no `if:` at all (the empty
 text: a job without `if:` always runs, and actionlint rejects a constant condition).
-$$\forall \ell:\ \operatorname{ifExpr}(\ell) = \begin{cases} \texttt{""} & \ell.\mathit{dflt} \\ \texttt{\$\{\{ } \mathrm{rec} \mathbin{\|} \operatorname{has}(\operatorname{tok}(\ell.n)) \texttt{ \}\}} & \lnot\ell.\mathit{dflt} \end{cases}$$ -/
+$$\forall \ell:\ \operatorname{ifExpr}(\ell) = \begin{cases} \texttt{""} & \ell.\mathit{dflt} \\ \texttt{\$\{\{ } \mathrm{rec} \texttt{ || } \operatorname{has}(\operatorname{tok}(\ell.n)) \texttt{ \}\}} & \lnot\ell.\mathit{dflt} \end{cases}$$ -/
 def ifExpr (l : Lane) : String :=
   if l.byDefault then ""
   else "${{ " ++ recordExpr ++ " || " ++ containsExpr (String.ofList (tok l.name)) ++ " }}"
@@ -470,6 +470,78 @@ theorem group_lane_inj (l l' : Lane) (job : String) (hl : validName l.name = tru
   simp only [groupExpr, String.toList_append, String.toList_singleton, List.append_assoc, List.singleton_append,
     List.append_cancel_left_eq] at h2
   exact String.toList_inj.mp (sep_inj _ _ _ _ ':' (nc _ hl) (nc _ hl') h2)
+
+/-! ## The push preview (round 4: `fw ci push` refuses a partial request) -/
+
+/-- One lane of the push preview: whether the agent named it in `--lanes` (a default lane it did not name: `false`)
+and whether its guard would start it on this push, the pushed commit being the tip (`start`).
+$$p = (\mathit{named},\ \mathit{run})$$ -/
+structure Planned where
+  named : Bool
+  run : Bool
+  deriving DecidableEq, Repr
+
+/-- **Whether `fw ci push` pushes.** Every named lane would start; or, with `--partial` ($\pi$), at least one named lane
+would. A request that names no lane (`none`) satisfies the first disjunct, so it always pushes.
+$$\forall \pi, P:\ \operatorname{pushOk}(\pi, P) \iff (\forall p \in P:\ p.\mathit{named} \Rightarrow p.\mathit{run}) \lor \bigl(\pi \land \exists p \in P:\ p.\mathit{named} \land p.\mathit{run}\bigr)$$ -/
+def pushOk (part : Bool) (ps : List Planned) : Bool :=
+  ps.all (fun p => !p.named || p.run) || (part && ps.any fun p => p.named && p.run)
+
+/-- **Without `--partial`, a push starts every named lane.** If the push goes ahead, every lane the agent named would
+start, so no named lane is skipped as unchanged or landed and the wait is not doomed to *not run*.
+$$\forall P:\ \operatorname{pushOk}(\bot, P) \Rightarrow \forall p \in P:\ p.\mathit{named} \Rightarrow p.\mathit{run}$$ -/
+theorem push_full_starts (ps : List Planned) (h : pushOk false ps = true) :
+    ∀ p ∈ ps, p.named = true → p.run = true := by
+  intro p hp hn
+  simp only [pushOk, Bool.false_and, Bool.or_false, List.all_eq_true] at h
+  have := h p hp
+  simp [hn] at this
+  exact this
+
+/-- **A named lane that would be skipped refuses the push** (without `--partial`).
+$$\forall P, p:\ p \in P \land p.\mathit{named} \land \lnot p.\mathit{run} \Rightarrow \lnot\operatorname{pushOk}(\bot, P)$$ -/
+theorem skipped_named_refused (ps : List Planned) (p : Planned) (hp : p ∈ ps) (hn : p.named = true)
+    (hr : p.run = false) : pushOk false ps = false := by
+  cases h : pushOk false ps
+  · rfl
+  · have := push_full_starts ps h p hp hn
+    rw [hr] at this
+    exact absurd this (by decide)
+
+/-- **With `--partial`, a push starts at least one named lane** unless no lane is named.
+$$\forall P:\ \operatorname{pushOk}(\top, P) \land (\exists p \in P:\ p.\mathit{named}) \Rightarrow \exists p \in P:\ p.\mathit{named} \land p.\mathit{run}$$ -/
+theorem partial_starts_one (ps : List Planned) (h : pushOk true ps = true) (hn : ∃ p ∈ ps, p.named = true) :
+    ∃ p ∈ ps, p.named = true ∧ p.run = true := by
+  simp only [pushOk, Bool.true_and, Bool.or_eq_true, List.all_eq_true, List.any_eq_true, Bool.and_eq_true] at h
+  rcases h with h | h
+  · obtain ⟨p, hp, hpn⟩ := hn
+    have := h p hp
+    simp [hpn] at this
+    exact ⟨p, hp, hpn, this⟩
+  · exact h
+
+#guard pushOk false [⟨true, true⟩, ⟨false, false⟩]
+#guard !pushOk false [⟨true, true⟩, ⟨true, false⟩]
+#guard pushOk true [⟨true, true⟩, ⟨true, false⟩]
+#guard !pushOk true [⟨true, false⟩, ⟨false, true⟩]
+#guard pushOk false [⟨false, false⟩]
+#guard pushOk false []
+
+/-- Every preview of at most 3 lanes, in order: lists over $\{(\mathit{named}, \mathit{run})\} = \{\bot,\top\}^2$.
+$$\mathrm{plans} = [\, P : |P| \le 3,\ P \in (\{\bot,\top\}^2)^{*} \,]$$ -/
+def plans : List (List Planned) :=
+  let one : List Planned := [⟨false, false⟩, ⟨false, true⟩, ⟨true, false⟩, ⟨true, true⟩]
+  let ext (ps : List (List Planned)) := ps.flatMap fun xs => one.map fun p => xs ++ [p]
+  let l1 := ext [[]]
+  let l2 := ext l1
+  [[]] ++ l1 ++ l2 ++ ext l2
+
+#guard plans.length == 85
+
+/-- The push vectors: for each $\pi$ and each plan, the value of `pushOk` (`ci-push.mjs` checks its own rule on them).
+$$\mathrm{pushVec} = [\, (\pi, P, \operatorname{pushOk}(\pi, P)) : \pi \in [\bot, \top],\ P \in \mathrm{plans} \,]$$ -/
+def pushVectors : List (Bool × List Planned × Bool) :=
+  [false, true].flatMap fun part => plans.map fun ps => (part, ps, pushOk part ps)
 
 /-! ## Replay cases and golden (`packages/contracts/golden/ci/intent.jsonl`) -/
 
@@ -603,9 +675,15 @@ def caseLine (k : String × Ev × String × List String × List String × Bool �
     ("decisions", Json.mkObj ((decideIntent ev msg diff merged tip landed).map fun (f, t) => (f, Json.str t))),
     ("started", strs (runIntent ev msg diff merged tip landed)), ("gated", strs (gatedBy (ev == .ciPush) msg))]
 
-/-- The golden text. $$\text{one JSON object per line: the lanes, the cases, then one gate line per lane}$$ -/
+/-- The push line: the push vectors, each row `[part, [[named, run]], ok]`.
+$$\operatorname{pushLine} = \{\texttt{kind}: \texttt{push},\ \texttt{rows}: \mathrm{pushVec}\}$$ -/
+def pushLine : Json :=
+  Json.mkObj [("kind", "push"), ("rows", .arr (pushVectors.map fun (part, ps, ok) =>
+    Json.arr #[.bool part, .arr (ps.map fun p => Json.arr #[.bool p.named, .bool p.run]).toArray, .bool ok]).toArray)]
+
+/-- The golden text. $$\text{one JSON object per line: the lanes, the cases, one gate line per lane, then the push line}$$ -/
 def goldenText : String :=
-  String.join (((lanesLine :: cases.map caseLine) ++ lanes.map gateLine).map fun j => j.compress ++ "\n")
+  String.join (((lanesLine :: cases.map caseLine) ++ lanes.map gateLine ++ [pushLine]).map fun j => j.compress ++ "\n")
 
 /-- Compare (or write) the golden file; returns the number of stale files.
 $$\operatorname{runGolden}(\mathit{write}) = 0\ \text{if the file equals goldenText (or was written), else } 1$$ -/

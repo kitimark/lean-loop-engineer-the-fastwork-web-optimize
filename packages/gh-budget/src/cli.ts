@@ -53,9 +53,14 @@ export function parseWait(argv: string[], cwd: string): { target: Target; timeou
   const at = since ?? Number(git(cwd, ["log", "-1", "--format=%ct", s]));
   if (!Number.isFinite(at) || at <= 0) throw new Usage(`cannot read the commit time of ${s} (pass --since <epoch>)\n${WAIT_USAGE}`);
   if (workflow) return { target: { kind: "branch", branch: b, workflow, sha: s, since: at }, timeoutS };
-  const m = msg ?? spawnSync("git", ["log", "-1", "--format=%B", s], { cwd, encoding: "utf8" }).stdout;
-  if (m === undefined || m === null) throw new Usage(`cannot read the message of ${s} (pass --msg)\n${WAIT_USAGE}`);
-  return { target: { kind: "branch", branch: b, sha: s, since: at, msg: m }, timeoutS };
+  return { target: { kind: "branch", branch: b, sha: s, since: at, msg: msg ?? messageOf(cwd, s) }, timeoutS };
+}
+
+/** The full message of commit `s`, or null when git cannot read it (not in the local object store, or git failed): the
+ *  request is then unknown and fwcore never passes the wait (Lean `unknown_request_never_pass`). */
+export function messageOf(cwd: string, s: string): string | null {
+  const r = spawnSync("git", ["log", "-1", "--format=%B", `${s}^{commit}`, "--"], { cwd, encoding: "utf8" });
+  return r.status === 0 && typeof r.stdout === "string" ? r.stdout : null;
 }
 
 async function budget(env: Env, argv: string[]): Promise<number> {

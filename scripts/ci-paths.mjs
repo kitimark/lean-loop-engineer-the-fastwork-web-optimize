@@ -30,7 +30,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { coneOf, loadGolden, loadIntent, matches, setMapWith, expand } from '../.github/scripts/changed-inputs.mjs';
+import { coneOf, loadGolden, loadIntent, matches, setMapFor, setMapWith, expand } from '../.github/scripts/changed-inputs.mjs';
 
 const WF_DIR = ['.git', 'hub/workflows'].join('');
 export const GUARD_SCRIPT = ['.git', 'hub/scripts/changed-inputs.mjs'].join('');
@@ -609,6 +609,30 @@ export function portableGlob(g) {
   return !/[?+\[\]!{}]/.test(g) && !g.split('/').some((seg) => seg.includes('**') && seg !== '**') && !g.startsWith('/');
 }
 
+/** The repo paths a shell script under lean/scripts reads relative to lean/ (every `../<path>`); a path that is not a
+ *  literal (empty, or with `$`, `*`, `?`, `{`) is returned as null so the lint fails closed on it. */
+export function leanScriptPaths(text) {
+  return [...text.matchAll(/\.\.\/([^\s'"`;)|&<>]*)/g)].map((m) => (m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
+}
+
+/** Round 4 of task ci-own-trigger: the lean row of the Lean table is the one source of lean.yml's inputs, so every repo
+ *  path a lean/scripts/*.sh reads (`../<path>`) must be one of them; otherwise a branch changing only that file would
+ *  skip lean as `unchanged` and the wait would count the skip as satisfied. Returns the problems. */
+export function leanInputProblems(root, table) {
+  const row = table.workflows.find((w) => w.file === 'lean.yml');
+  if (!row) return ['lean.yml: no row in the Lean table (lean/Fw/Ci/Trigger.lean `table`)'];
+  const globs = expand(setMapFor(root, table), row.inputs);
+  const dir = join(root, 'lean', 'scripts');
+  const out = [];
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.sh')).sort()) {
+    for (const p of leanScriptPaths(readFileSync(join(dir, f), 'utf8'))) {
+      if (p === null) out.push(`lean/scripts/${f}: reads a ../ path that is not a literal file path (write it out, so the lean row can name it)`);
+      else if (!matches(globs, normalize(p))) out.push(`lean/scripts/${f}: reads ../${p}, which is not an input of the lean.yml row (add it to lean/Fw/Ci/Trigger.lean \`table\`, then cd lean && lake test -- --write-ci-trigger-golden)`);
+    }
+  }
+  return out;
+}
+
 /** Check (or write) every workflow. Returns { problems, wrote }. */
 export function run(root, write) {
   const { table } = loadGolden(root);
@@ -617,7 +641,7 @@ export function run(root, write) {
   const S = coarseMap(table);
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
-  const problems = coneProblems(root, table);
+  const problems = [...coneProblems(root, table), ...leanInputProblems(root, table)];
   let wrote = 0;
   const rows = new Map(table.workflows.map((w) => [w.file, w]));
   try { problems.push(...(lakeGenProblems(root, write) ?? [])); } catch (e) { problems.push(`${LAKE_GEN}: ${e.message}`); }
@@ -645,7 +669,7 @@ function main() {
   const { problems, wrote } = run(root, write);
   if (write) {
     console.log(`ci-paths: wrote ${wrote} workflow file(s)`);
-    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent/.test(p));
+    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent|lean\/scripts\//.test(p));
     for (const p of left) console.log(`  ${p}`);
     process.exit(left.length ? 1 : 0);
   }

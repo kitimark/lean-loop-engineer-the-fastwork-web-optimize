@@ -6,13 +6,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { loadIntent } from '../.github/scripts/changed-inputs.mjs';
-import { asksExactly, lanesFor, parseArgs, requestMessage } from './ci-push.mjs';
+import { asksExactly, lanesFor, parseArgs, pushOk, requestMessage } from './ci-push.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const golden = loadIntent(root).lanes;
 
 test('parseArgs: branch must be ci/<name>; lanes required; unknown flags refused', () => {
-  assert.deepEqual(parseArgs(['--branch', 'ci/x', '--lanes', 'wktr, lean']), { branch: 'ci/x', lanes: ['wktr', 'lean'], dry: false });
+  assert.deepEqual(parseArgs(['--branch', 'ci/x', '--lanes', 'wktr, lean']), { branch: 'ci/x', lanes: ['wktr', 'lean'], dry: false, partial: false });
   assert.equal(parseArgs(['--branch', 'ci/x', '--lanes', 'none', '--dry']).dry, true);
   assert.throws(() => parseArgs(['--branch', 'main', '--lanes', 'lean']), /ci\/<name>/);
   assert.throws(() => parseArgs(['--branch', 'ci/x']), /--lanes is required/);
@@ -69,11 +69,15 @@ test('the CLI refuses a push that would start nothing, and pushes with the reque
     writeFileSync(join(work, 'lean', 'Fw', 'CiPushProbe.lean'), '-- probe\n');
     g('add', '.');
     g('commit', '-q', '-m', 'probe');
-    const dry = cli('--branch', 'ci/t', '--lanes', 'lean,wktr', '--dry');
+    // round 4: wktr would be skipped, so its wait could never pass; refused without --partial (Lean pushOk)
+    const full = cli('--branch', 'ci/t', '--lanes', 'lean,wktr', '--dry');
+    assert.equal(full.code, 2, full.out);
+    assert.match(full.out, /requested lane\(s\) wktr would not start/);
+    const dry = cli('--branch', 'ci/t', '--lanes', 'lean,wktr', '--partial', '--dry');
     assert.equal(dry.code, 0, dry.out);
     assert.match(dry.out, /START lean/);
     assert.match(dry.out, /skip  wktr/);
-    const r2 = cli('--branch', 'ci/t', '--lanes', 'lean,wktr');
+    const r2 = cli('--branch', 'ci/t', '--lanes', 'lean,wktr', '--partial');
     assert.equal(r2.code, 0, r2.out);
     assert.equal(g('log', '-1', '--format=%s', 'HEAD'), 'ci: request [ci:lean] [ci:wktr]');
     assert.equal(g('ls-remote', 'origin', 'refs/heads/ci/t').split(/\s+/)[0], g('rev-parse', 'HEAD'));
@@ -89,4 +93,14 @@ test('the CLI refuses a push that would start nothing, and pushes with the reque
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('pushOk equals the Lean push vectors (every preview of at most 3 lanes, with and without --partial)', () => {
+  const rows = loadIntent(root).push.rows;
+  assert.equal(rows.length, 170);
+  for (const [part, ps, ok] of rows) {
+    const plan = ps.map(([named, run]) => ({ implicit: !named, run }));
+    assert.equal(pushOk(part, plan), ok, JSON.stringify([part, ps]));
+  }
+  assert.equal(parseArgs(['--branch', 'ci/x', '--lanes', 'wktr', '--partial']).partial, true);
 });

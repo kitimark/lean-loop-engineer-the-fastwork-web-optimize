@@ -22,8 +22,8 @@ and passes it to the next call.
 | `ci.budget.status` | `now`, `state`? | `limits`, `shares`, `used`, `interval`, `headroom`, `retryUntil`, `fails`, `watched`, `createdSince`, `state` |
 | `ci.budget.limits` | (nothing) | `limits` |
 | `ci.verdict` | `runs` [Facts] | `runs` [{`verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.combine`) |
-| `ci.verdict` | `msg`, `lanes` {name: Facts or null} | `lanes` [{`name`, `verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.combineRequested`) |
-| `ci.required` | `msg` | `lanes` [name] (`Fw.Ci.Intent.wanted`, table order) |
+| `ci.verdict` | `msg` (null: unknown), `lanes` {name: Facts or null} | `lanes` [{`name`, `verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict.waitVerdict`) |
+| `ci.required` | `msg` (null: unknown) | `lanes` [name] (`Fw.Ci.Intent.wanted`, table order); unknown: `lanes` null, `verdict`, `code`, `reason` |
 
 Facts: `{guard, steps:[{name, conclusion}], jobs:[conclusion], heavySteps:[{name, conclusion}]}` (`heavySteps`: the
 steps of every non-guard job, read for the tip re-check's `stale:` step).
@@ -247,31 +247,44 @@ def laneVerdict (lanes : Json) (l : Fw.Ci.Intent.Lane) : Except String (Fw.Ci.Ve
     let reason := (j.getObjValAs? String "reason").toOption.getD ""
     pure (⟨l.byDefault, some v, Fw.Ci.Verdict.skipOf reason⟩, j.setObjVal! "name" (.str l.name))
 
+/-- The reply fields of a wait whose request is unknown (`Fw.Ci.Verdict.waitVerdict none`), after `pre`. -/
+def unknownReply (pre : Reply) : Reply :=
+  pre ++ [("verdict", .str (Fw.Ci.Verdict.name (Fw.Ci.Verdict.waitVerdict none))),
+    ("code", jn (Fw.Ci.Verdict.code (Fw.Ci.Verdict.waitVerdict none))),
+    ("reason", "unknown request: the head commit's message could not be read (fetch the commit, or pass --msg)")]
+
 /-- `ci.verdict`. Runs mode: request `{runs:[Facts]}` (`guard`: the guard job's conclusion, the key absent when the
 workflow has no guard job, `null` while it runs; `steps`: its steps; `jobs`: every other job's conclusion;
 `heavySteps`: their steps); reply `{runs:[{verdict, code, reason}], verdict, code}` with the combined verdict
 (`Fw.Ci.Verdict.combine`). Lanes mode (a `lanes` key): request `{msg, lanes:{name: Facts or null}}` with the newest run
 of each lane for one commit; reply `{lanes:[{name, verdict, code, reason}], verdict, code}` over the lanes the message
-wants (`Fw.Ci.Intent.wanted`), combined by `Fw.Ci.Verdict.combineRequested`. -/
+wants (`Fw.Ci.Intent.wanted`), combined by `Fw.Ci.Verdict.waitVerdict`; `msg` absent or `null` (the message could
+not be read) gives `lanes` `[]`, verdict not run and `reason` (`unknown_request_never_pass`). -/
 def opVerdict (req : Json) : Except String Reply := do
   match req.getObjVal? "lanes" with
   | .ok lanes =>
-    let msg ← str req "msg"
-    let rs ← (Fw.Ci.Intent.lanes.filter fun l => Fw.Ci.Intent.wanted l msg).mapM (laneVerdict lanes)
-    let v := Fw.Ci.Verdict.combineRequested (rs.map (·.1))
-    pure [("lanes", .arr (rs.map (·.2)).toArray), ("verdict", .str (Fw.Ci.Verdict.name v)),
-      ("code", jn (Fw.Ci.Verdict.code v))]
+    match ← optStr req "msg" with
+    | none => pure (unknownReply [("lanes", .arr #[])])
+    | some msg =>
+      let rs ← (Fw.Ci.Intent.lanes.filter fun l => Fw.Ci.Intent.wanted l msg).mapM (laneVerdict lanes)
+      let v := Fw.Ci.Verdict.waitVerdict (some (rs.map (·.1)))
+      pure [("lanes", .arr (rs.map (·.2)).toArray), ("verdict", .str (Fw.Ci.Verdict.name v)),
+        ("code", jn (Fw.Ci.Verdict.code v))]
   | .error _ =>
     let rs ← (← arrD req "runs").mapM runVerdict
     let v := Fw.Ci.Verdict.combine (rs.map (·.1))
     pure [("runs", .arr (rs.map (·.2)).toArray), ("verdict", .str (Fw.Ci.Verdict.name v)),
       ("code", jn (Fw.Ci.Verdict.code v))]
 
-/-- `ci.required`: request `{msg}`; reply `{lanes:[name]}`, the lanes the head commit message wants, in table order. -/
+/-- `ci.required`: request `{msg}`; reply `{lanes:[name]}`, the lanes the head commit message wants, in table order.
+`msg` absent or `null` (the message could not be read): reply `{lanes:null, verdict, code, reason}` with the verdict of
+an unknown request (not run), so the caller stops without waiting. -/
 def opRequired (req : Json) : Except String Reply := do
-  let msg ← str req "msg"
-  pure [("lanes", .arr ((Fw.Ci.Intent.lanes.filter fun l => Fw.Ci.Intent.wanted l msg).map
-    fun l => Json.str l.name).toArray)]
+  match ← optStr req "msg" with
+  | none => pure (unknownReply [("lanes", .null)])
+  | some msg =>
+    pure [("lanes", .arr ((Fw.Ci.Intent.lanes.filter fun l => Fw.Ci.Intent.wanted l msg).map
+      fun l => Json.str l.name).toArray)]
 
 /-- The ops of this module. -/
 def ops : List String :=
@@ -379,5 +392,10 @@ def sample : State where
 #guard runField "ci.verdict" "{\"msg\":\"[ci:wktr]\",\"lanes\":{\"lean\":{\"jobs\":[\"success\"]},\"wktr\":{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: skip: unchanged: none\",\"conclusion\":\"success\"}],\"jobs\":[\"skipped\"]}}}" "code" == "4"
 #guard runField "ci.required" "{\"msg\":\"fix [ci:wktr] [ci:difftest]\"}" "lanes" == "[\"difftest\",\"lean\",\"wktr\"]"
 #guard runField "ci.required" "{\"msg\":\"fix\"}" "lanes" == "[\"lean\"]"
+-- round 4: an unknown message (null or absent) never passes and requires no lane list
+#guard runField "ci.required" "{\"msg\":null}" "lanes" == "null"
+#guard runField "ci.required" "{}" "code" == "4"
+#guard runField "ci.verdict" "{\"msg\":null,\"lanes\":{\"lean\":{\"jobs\":[\"success\"]}}}" "code" == "4"
+#guard runField "ci.verdict" "{\"lanes\":{\"lean\":{\"jobs\":[\"success\"]}}}" "verdict" == "\"not-run\""
 
 end Fw.Wire.Ci

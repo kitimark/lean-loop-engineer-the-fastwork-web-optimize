@@ -7,29 +7,32 @@
 //   1. checks every lane name against the Lean intent golden (packages/contracts/golden/ci/intent.jsonl),
 //   2. adds an empty commit `ci: request [ci:a] [ci:b]` when the head commit does not already ask for exactly those lanes,
 //   3. previews, with the guard's own `decide` over the branch (fresh origin/main; HEAD as the tip), which requested
-//      lanes would start, and refuses (exit 2) when none would,
+//      lanes would start, and refuses (exit 2) unless every named lane would start (Lean `pushOk`; with --partial,
+//      unless at least one would),
 //   4. pushes HEAD to origin ci/<name> (never forced).
 // Every decision is the guard's (Lean-replayed); this file is argument parsing, git calls and printing.
-// Run:  pnpm fw ci push --branch ci/<task> --lanes <lane,lane | none> [--dry]
+// Run:  pnpm fw ci push --branch ci/<task> --lanes <lane,lane | none> [--partial] [--dry]
 //       (or node scripts/ci-push.mjs ...)
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { branchFiles, decide, guardBase, isLanded, loadIntent, preciseInputs, wantedBy } from '../.github/scripts/changed-inputs.mjs';
 
-export const USAGE = 'usage: fw ci push --branch ci/<name> --lanes <lane,lane | none> [--dry]\n' +
+export const USAGE = 'usage: fw ci push --branch ci/<name> --lanes <lane,lane | none> [--partial] [--dry]\n' +
   '  lanes: the workflow file stems (lean, wktr, webkit-sim, ...); `none` asks for no lane (lean still runs when its\n' +
-  '  inputs changed: it is the default lane).';
+  '  inputs changed: it is the default lane). Refuses when a named lane would be skipped (its wait could never pass);\n' +
+  '  --partial pushes when at least one named lane would start.';
 
-/** Parse the arguments: { branch, lanes, dry }; throws with USAGE on a bad flag. */
+/** Parse the arguments: { branch, lanes, dry, partial }; throws with USAGE on a bad flag. */
 export function parseArgs(argv) {
-  const a = { branch: '', lanes: null, dry: false };
+  const a = { branch: '', lanes: null, dry: false, partial: false };
   for (let i = 0; i < argv.length; i++) {
     const f = argv[i];
     const val = () => { const v = argv[++i]; if (v === undefined || v.startsWith('--')) throw new Error(`flag ${f} needs a value\n${USAGE}`); return v; };
     if (f === '--branch') a.branch = val();
     else if (f === '--lanes') a.lanes = val().split(',').map((x) => x.trim()).filter(Boolean);
     else if (f === '--dry') a.dry = true;
+    else if (f === '--partial') a.partial = true;
     else throw new Error(`unknown argument ${f}\n${USAGE}`);
   }
   if (!/^ci\/[A-Za-z0-9._/-]+$/.test(a.branch)) throw new Error(`--branch must be ci/<name>\n${USAGE}`);
@@ -67,6 +70,12 @@ export function previewLanes(golden, lanes) {
   return [...lanes, ...golden.lanes.filter((l) => l.byDefault && !names.has(l.name)).map((l) => ({ ...l, prefix: golden.prefix, implicit: true }))];
 }
 
+/** Lean `pushOk`: push when every named lane (not implicit) would start, or, with `part`, when at least one would.
+ *  Checked against the Lean push vectors of the intent golden (scripts/ci-push.test.mjs). */
+export function pushOk(part, plan) {
+  return plan.every((p) => p.implicit || p.run) || (part && plan.some((p) => !p.implicit && p.run));
+}
+
 const git = (cwd, ...a) => execFileSync('git', a, { cwd, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
 /** The guard's decision for each requested lane on a push of HEAD to `branch`, HEAD being the tip (Lean `decision`). */
@@ -101,8 +110,10 @@ export function main(argv, cwd = process.cwd()) {
   const msg = needCommit ? requestMessage(golden, lanes) : head;
   const plan = preview(root, previewLanes(golden, lanes), msg, a.branch);
   for (const p of plan) console.log(`${p.run ? 'START' : 'skip '} ${p.lane}: ${p.reason}`);
-  if (lanes.length > 0 && !plan.some((p) => p.run && !p.implicit)) {
-    console.log('ci-push: no requested lane would start (no input differs from main on the branch, or landed). Change an input, or');
+  if (!pushOk(a.partial, plan)) {
+    const skipped = plan.filter((p) => !p.implicit && !p.run).map((p) => p.lane);
+    console.log(`ci-push: requested lane(s) ${skipped.join(', ')} would not start (no input differs from main on the branch, or landed),`);
+    console.log(`  so a wait on this push could never pass. Change an input, push with --partial${a.partial ? ' (no named lane starts)' : ''}, or`);
     console.log(`  dispatch a record run instead: gh workflow run <lane>.yml --ref ${a.branch}`);
     return 2;
   }

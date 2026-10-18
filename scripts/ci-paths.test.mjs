@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
+import { coarseMap, coneOf, coneProblems, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -383,4 +383,23 @@ test('status functions: a job that runs after skipped needs must keep a guard co
   assert.ok(!unsafeStatusIf("${{ always() && needs.fwcore.result == 'success' }}"));
   assert.ok(!unsafeStatusIf("${{ !cancelled() && needs.guard.outputs.run == 'true' }}"));
   assert.ok(!unsafeStatusIf("${{ needs.guard.outputs.run == 'true' }}"));
+});
+
+test('lean inputs: every ../ path a lean/scripts/*.sh reads is an input of the lean.yml row (round 4)', () => {
+  assert.deepEqual(leanInputProblems(root, table), []);
+  assert.deepEqual(leanScriptPaths(". ../scripts/span.sh\nsh -c 'sh ../scripts/fwcore-build.sh && x' ../a/$b ../\n"),
+    ['scripts/span.sh', 'scripts/fwcore-build.sh', null, null]);
+});
+
+test('lint: a lean script reading a file outside the lean.yml row fails the check', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ci-paths-lean-'));
+  try {
+    mkdirSync(join(dir, 'lean', 'scripts'), { recursive: true });
+    writeFileSync(join(dir, 'lean', 'scripts', 'check.sh'), '. ../scripts/span.sh\nx --check ../apps/site/src/new.gen.json\n');
+    const t = { sets: {}, workflows: [{ file: 'lean.yml', inputs: ['lean/**', 'scripts/span.sh'] }] };
+    const ps = leanInputProblems(dir, t);
+    assert.equal(ps.length, 1);
+    assert.match(ps[0], /reads \.\.\/apps\/site\/src\/new\.gen\.json, which is not an input/);
+    assert.deepEqual(leanInputProblems(dir, { sets: {}, workflows: [] }).length, 1);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
