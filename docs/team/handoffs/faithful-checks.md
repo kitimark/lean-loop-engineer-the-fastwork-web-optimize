@@ -8,11 +8,12 @@ What exists and is verified (MEASURED on CI, verdict by Lean):
   theorems, fwcore op `faithful.verdict`, 13 goldens, generated measured theorems (`decide +kernel`).
 - `packages/measure-chromium/src/faithful.mjs` (`verdict`, `lean` modes, `--check`), `test/faithful.test.mjs`.
 - `results/faithful/swipe-v1.verdict.json`, `results/faithful/runs/swipe-v1/*` (R and A' baselines of CI run 39130842058).
-- `results/faithful/swipe-touch-v1.finding.json`; note `research/notes/2026/10-19-faithful-checks.md`.
+- `results/faithful/swipe-touch-v1.finding.json`; note `research/notes/2026/10-18-faithful-checks.md`.
 
 Result: swipe-v1 R fails y04000, y04500 (absent) and tail; control A'/A passes all three. R's page ends 240 px earlier
 (4396 vs 4636 px). swipe-touch-v1: the three rewrite shards of run 39131232365 stop with "touch input did not scroll the page
-after 40 moves" (run.mjs:277); no touch verdict. Findings are not patched.
+after 40 moves" (run.mjs:277); no touch verdict. Findings are not patched. The swipe-v1 R verdict of run 39130842058 was
+measured on a 645x1398 layout viewport (no page-root clip, task page-root-clip): not comparable; re-run after it lands.
 
 Open items:
 - Why R is 240 px shorter at the end and why touch cannot scroll R: not diagnosed (a follow-up task).

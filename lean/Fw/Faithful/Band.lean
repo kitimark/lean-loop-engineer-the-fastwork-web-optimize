@@ -13,6 +13,7 @@ total with margin $2t$ (V-i, `Fw.Measure.marginOf`). This module is the verdict 
   over its shards, where $s$ is the family slack at A's median and $m$ the stable margin; R's median must lie in it.
   For a deterministic type $\mathrm{lo}_A = \mathrm{hi}_A$, so the band is the plain $|R - A| \le s$.
 * A cell is `skipped` unless A's frozen class table lists the type as deterministic or stable.
+* Forced layouts (PLAN §6.6 asks for them exact) have no count type in `bandTable` and are not gated.
 
 Proved: the verdict is exactly the interval test (`status_pass_iff`); a deterministic exact-family cell passes
 exactly when R equals A (`exact_det_pass_iff`); every observed A value lies in its own band (`aa_in_band`); the

@@ -65,7 +65,7 @@ deriving Repr, DecidableEq
 
 /-- The compared cell of a type: A's envelope and median against R's median, A's class table `T` for the class.
 
-$$\operatorname{out}_T(a, r, \tau) = \big(\tau,\ \operatorname{family}(\tau),\ \operatorname{status}(\operatorname{entry}(T, \tau), \tau, (a.\mathrm{lo}, a.\mathrm{hi}, a.\mathrm{base}, r.\mathrm{base})),\ \ldots\big)$$
+$$\operatorname{out}_T(a, r, \tau) = \big(\tau,\ \operatorname{family}(\tau),\ \operatorname{status}(\operatorname{entry}(T, \tau), \tau, o),\ o\big),\quad o = (\operatorname{cell}(a,\tau).\mathrm{lo},\ \operatorname{cell}(a,\tau).\mathrm{hi},\ \operatorname{cell}(a,\tau).\mathrm{base},\ \operatorname{cell}(r,\tau).\mathrm{base})$$
 -/
 def cellOut (tb : Freeze.Table) (a r : ZBase) (ty : String) : CellOut :=
   let ca := a.cell ty
@@ -93,7 +93,7 @@ def findZ (zs : List ZBase) (Z : String) : Option ZBase := zs.find? (·.id == Z)
 /-- The verdict of zone `Z` of R's zones `rs` against A's zones `as`: absent in either arm gives no cells; else the
 shape is "same frames and same scrolled pixels" and the cells are those of `typesOf`.
 
-$$\operatorname{zoneVerdict}_T(As, Rs, Z) = \begin{cases} (Z, \top, [a.\mathrm{frames} = r.\mathrm{frames} \land a.\mathrm{px} = r.\mathrm{px}], [\operatorname{out}_T(a, r, \tau)]_{\tau \in \operatorname{types}(a, r)}) & a = \operatorname{find}(As, Z),\ r = \operatorname{find}(Rs, Z) \\ (Z, \bot, \bot, [\,]) & \text{otherwise} \end{cases}$$
+$$\operatorname{zoneVerdict}_T(As, Rs, Z) = \begin{cases} (Z, \top, [a.\mathrm{frames} = r.\mathrm{frames} \land a.\mathrm{px} = r.\mathrm{px}], [\operatorname{out}_T(a, r, \tau)]_{\tau \in \operatorname{types}(a, r)}) & \operatorname{find}(As, Z) = a \ne \bot \land \operatorname{find}(Rs, Z) = r \ne \bot \\ (Z, \bot, \bot, [\,]) & \operatorname{find}(As, Z) = \bot \lor \operatorname{find}(Rs, Z) = \bot \end{cases}$$
 -/
 def zoneVerdict (tb : Freeze.Table) (as rs : List ZBase) (Z : String) : ZoneVerdict :=
   match findZ as Z, findZ rs Z with
@@ -153,7 +153,7 @@ theorem pass_iff (v : ZoneVerdict) :
 
 /-- A zone missing in either arm never passes.
 
-$$\forall As, Rs, Z:\ \operatorname{find}(As, Z) = \bot \lor \operatorname{find}(Rs, Z) = \bot \;\Rightarrow\; \operatorname{pass}(\operatorname{zoneVerdict}(As, Rs, Z)) = \bot$$
+$$\forall T, As, Rs, Z:\ \operatorname{find}(As, Z) = \bot \lor \operatorname{find}(Rs, Z) = \bot \;\Rightarrow\; \operatorname{pass}(\operatorname{zoneVerdict}_T(As, Rs, Z)) = \bot$$
 -/
 theorem not_pass_of_absent (tb : Freeze.Table) (as rs : List ZBase) (Z : String)
     (h : findZ as Z = none ∨ findZ rs Z = none) : (zoneVerdict tb as rs Z).pass = false := by
@@ -162,7 +162,7 @@ theorem not_pass_of_absent (tb : Freeze.Table) (as rs : List ZBase) (Z : String)
 
 /-- A zone whose frame count differs between the arms never passes.
 
-$$\forall As, Rs, Z, a, r:\ \operatorname{find}(As, Z) = a \land \operatorname{find}(Rs, Z) = r \land a.\mathrm{frames} \ne r.\mathrm{frames} \;\Rightarrow\; \operatorname{pass}(\operatorname{zoneVerdict}(As, Rs, Z)) = \bot$$
+$$\forall T, As, Rs, Z, a, r:\ \operatorname{find}(As, Z) = a \land \operatorname{find}(Rs, Z) = r \land a.\mathrm{frames} \ne r.\mathrm{frames} \;\Rightarrow\; \operatorname{pass}(\operatorname{zoneVerdict}_T(As, Rs, Z)) = \bot$$
 -/
 theorem not_pass_of_frames (tb : Freeze.Table) (as rs : List ZBase) (Z : String) {a r : ZBase}
     (ha : findZ as Z = some a) (hr : findZ rs Z = some r) (h : a.frames ≠ r.frames) :
@@ -191,7 +191,7 @@ theorem cell_of_mem (tb : Freeze.Table) (a r : ZBase) {ty : String} (h : ty ∈ 
 
 /-- A cell carries the verdict of its type's table entry and numbers.
 
-$$\forall T, a, r, \tau:\ \operatorname{out}_T(a, r, \tau).\mathrm{status} = \operatorname{status}(\operatorname{entry}(T, \tau), \tau, (a.\mathrm{lo}, a.\mathrm{hi}, a.\mathrm{base}, r.\mathrm{base}))$$
+$$\forall T, a, r, \tau:\ \operatorname{out}_T(a, r, \tau).\mathrm{status} = \operatorname{status}\big(\operatorname{entry}(T, \tau), \tau, o\big),\quad o = (\operatorname{cell}(a,\tau).\mathrm{lo},\ \operatorname{cell}(a,\tau).\mathrm{hi},\ \operatorname{cell}(a,\tau).\mathrm{base},\ \operatorname{cell}(r,\tau).\mathrm{base})$$
 -/
 theorem cell_status (tb : Freeze.Table) (a r : ZBase) (ty : String) :
     (cellOut tb a r ty).status =

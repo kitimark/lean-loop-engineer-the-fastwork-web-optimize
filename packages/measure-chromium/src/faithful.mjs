@@ -140,7 +140,7 @@ export function leanSource(runsDir) {
       out.push(`/-- **Zone \`${z.id}\` of \`${p}\`, measured.** The verdict \`Fw.Faithful.zoneVerdict\` computes from the cells above: ` +
         `${z.pass ? 'it passes' : 'it does not pass'}; failing types ${z.failed.length ? z.failed.map((t) => '`' + t + '`').join(', ') : 'none'}; ` +
         `present ${z.present}, shape ${z.shape}.`, '',
-        `$$\\operatorname{pass}(\\operatorname{zoneVerdict}_{T}(As, Rs, \\texttt{${z.id}})) = ${z.pass ? '\\top' : '\\bot'} \\ \\land\\ \\operatorname{failed} = ${z.failed.length ? '\\{' + z.failed.map((t) => '\\texttt{' + t.replace(/_/g, '\\_') + '}').join(', ') + '\\}' : '\\emptyset'}$$`, '-/',
+        `$$\\operatorname{pass}(v) = ${z.pass ? '\\top' : '\\bot'} \\ \\land\\ \\operatorname{failed}(v) = [${z.failed.length ? z.failed.map((t) => '\\texttt{' + t.replace(/_/g, '\\_') + '}').join(',\\ ') : '\\,'}],\\quad v = \\operatorname{zoneVerdict}_{T_{\\mathrm{${p}}}}(As_{\\mathrm{${p}}}, Rs_{\\mathrm{${p}}}, \\texttt{${z.id}})$$`, '-/',
         `theorem ${P}_${ident(z.id)} :`,
         `    (zoneVerdict ${P}Table ${P}A ${P}R "${z.id}").pass = ${z.pass} ∧`,
         `    (zoneVerdict ${P}Table ${P}A ${P}R "${z.id}").failed = ${failed} := by`, '  decide +kernel', '');

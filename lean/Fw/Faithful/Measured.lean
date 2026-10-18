@@ -432,7 +432,7 @@ def swipeV1R : List ZBase := [swipeV1Ry04000, swipeV1Rtail]
 
 /-- **Zone `y04000` of `swipe-v1`, measured.** The verdict `Fw.Faithful.zoneVerdict` computes from the cells above: it does not pass; failing types `census.drawingAreaPx`, `census.drawingLayers`, `census.layers`, `census.solidTiles`, `census.tilings`, `hasDamage`, `metric.RecalcStyleCount`, `raster.invalidatedLayers`, `raster.invalidationRects`, `trace.Animation.begin`, `trace.Animation.instant`, `trace.CullRectUpdate`, `trace.FireAnimationFrame`, `trace.Layer.created`, `trace.PaintImage`, `trace.PrePaint`, `trace.RequestAnimationFrame`, `trace.ScheduleStyleRecalculation`, `trace.ScrollLayer`, `trace.UpdateLayer`, `trace.UpdateLayoutTree`, `trace.Layout.dirtyObjects`, `trace.Layout.totalObjects`; present true, shape false.
 
-$$\operatorname{pass}(\operatorname{zoneVerdict}_{T}(As, Rs, \texttt{y04000})) = \bot \ \land\ \operatorname{failed} = \{\texttt{census.drawingAreaPx}, \texttt{census.drawingLayers}, \texttt{census.layers}, \texttt{census.solidTiles}, \texttt{census.tilings}, \texttt{hasDamage}, \texttt{metric.RecalcStyleCount}, \texttt{raster.invalidatedLayers}, \texttt{raster.invalidationRects}, \texttt{trace.Animation.begin}, \texttt{trace.Animation.instant}, \texttt{trace.CullRectUpdate}, \texttt{trace.FireAnimationFrame}, \texttt{trace.Layer.created}, \texttt{trace.PaintImage}, \texttt{trace.PrePaint}, \texttt{trace.RequestAnimationFrame}, \texttt{trace.ScheduleStyleRecalculation}, \texttt{trace.ScrollLayer}, \texttt{trace.UpdateLayer}, \texttt{trace.UpdateLayoutTree}, \texttt{trace.Layout.dirtyObjects}, \texttt{trace.Layout.totalObjects}\}$$
+$$\operatorname{pass}(v) = \bot \ \land\ \operatorname{failed}(v) = [\texttt{census.drawingAreaPx},\ \texttt{census.drawingLayers},\ \texttt{census.layers},\ \texttt{census.solidTiles},\ \texttt{census.tilings},\ \texttt{hasDamage},\ \texttt{metric.RecalcStyleCount},\ \texttt{raster.invalidatedLayers},\ \texttt{raster.invalidationRects},\ \texttt{trace.Animation.begin},\ \texttt{trace.Animation.instant},\ \texttt{trace.CullRectUpdate},\ \texttt{trace.FireAnimationFrame},\ \texttt{trace.Layer.created},\ \texttt{trace.PaintImage},\ \texttt{trace.PrePaint},\ \texttt{trace.RequestAnimationFrame},\ \texttt{trace.ScheduleStyleRecalculation},\ \texttt{trace.ScrollLayer},\ \texttt{trace.UpdateLayer},\ \texttt{trace.UpdateLayoutTree},\ \texttt{trace.Layout.dirtyObjects},\ \texttt{trace.Layout.totalObjects}],\quad v = \operatorname{zoneVerdict}_{T_{\mathrm{swipe-v1}}}(As_{\mathrm{swipe-v1}}, Rs_{\mathrm{swipe-v1}}, \texttt{y04000})$$
 -/
 theorem swipeV1_y04000 :
     (zoneVerdict swipeV1Table swipeV1A swipeV1R "y04000").pass = false ∧
@@ -441,7 +441,7 @@ theorem swipeV1_y04000 :
 
 /-- **Zone `y04500` of `swipe-v1`, measured.** The verdict `Fw.Faithful.zoneVerdict` computes from the cells above: it does not pass; failing types none; present false, shape false.
 
-$$\operatorname{pass}(\operatorname{zoneVerdict}_{T}(As, Rs, \texttt{y04500})) = \bot \ \land\ \operatorname{failed} = \emptyset$$
+$$\operatorname{pass}(v) = \bot \ \land\ \operatorname{failed}(v) = [\,],\quad v = \operatorname{zoneVerdict}_{T_{\mathrm{swipe-v1}}}(As_{\mathrm{swipe-v1}}, Rs_{\mathrm{swipe-v1}}, \texttt{y04500})$$
 -/
 theorem swipeV1_y04500 :
     (zoneVerdict swipeV1Table swipeV1A swipeV1R "y04500").pass = false ∧
@@ -450,7 +450,7 @@ theorem swipeV1_y04500 :
 
 /-- **Zone `tail` of `swipe-v1`, measured.** The verdict `Fw.Faithful.zoneVerdict` computes from the cells above: it does not pass; failing types `census.drawingAreaPx`, `census.drawingLayers`, `census.layers`, `census.solidTiles`, `census.tilings`, `hasDamage`, `raster.invalidationAreaPx`, `raster.invalidationRects`, `trace.FireAnimationFrame`, `trace.Layout.dirtyObjects`, `trace.Layout.totalObjects`, `trace.RequestAnimationFrame`, `trace.UpdateLayer`; present true, shape true.
 
-$$\operatorname{pass}(\operatorname{zoneVerdict}_{T}(As, Rs, \texttt{tail})) = \bot \ \land\ \operatorname{failed} = \{\texttt{census.drawingAreaPx}, \texttt{census.drawingLayers}, \texttt{census.layers}, \texttt{census.solidTiles}, \texttt{census.tilings}, \texttt{hasDamage}, \texttt{raster.invalidationAreaPx}, \texttt{raster.invalidationRects}, \texttt{trace.FireAnimationFrame}, \texttt{trace.Layout.dirtyObjects}, \texttt{trace.Layout.totalObjects}, \texttt{trace.RequestAnimationFrame}, \texttt{trace.UpdateLayer}\}$$
+$$\operatorname{pass}(v) = \bot \ \land\ \operatorname{failed}(v) = [\texttt{census.drawingAreaPx},\ \texttt{census.drawingLayers},\ \texttt{census.layers},\ \texttt{census.solidTiles},\ \texttt{census.tilings},\ \texttt{hasDamage},\ \texttt{raster.invalidationAreaPx},\ \texttt{raster.invalidationRects},\ \texttt{trace.FireAnimationFrame},\ \texttt{trace.Layout.dirtyObjects},\ \texttt{trace.Layout.totalObjects},\ \texttt{trace.RequestAnimationFrame},\ \texttt{trace.UpdateLayer}],\quad v = \operatorname{zoneVerdict}_{T_{\mathrm{swipe-v1}}}(As_{\mathrm{swipe-v1}}, Rs_{\mathrm{swipe-v1}}, \texttt{tail})$$
 -/
 theorem swipeV1_tail :
     (zoneVerdict swipeV1Table swipeV1A swipeV1R "tail").pass = false ∧

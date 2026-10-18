@@ -39,6 +39,8 @@ max(2, 10 %); sheet mutations 0; stable types add the margin 2t (PLAN.md PL5). A
 
 ## Reading
 
+- Not comparable: the swipe-v1 R verdict of run 39130842058 was measured on a 645x1398 layout viewport, because the
+  rewrite has no page-root overflow-x clip (task page-root-clip). The verdict is re-run after page-root-clip lands.
 - The `y04000` and `tail` counts of R are not comparable to A as long as the pages end at different scroll heights; a
   shorter page moves content across zone boundaries. The shape failure (px or frames differ) is the first finding; the
   out-of-band cells are listed as measured, not explained.
