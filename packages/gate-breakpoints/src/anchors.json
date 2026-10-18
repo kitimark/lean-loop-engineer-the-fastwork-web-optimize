@@ -2009,9 +2009,10 @@
             "--orbit-enter-x",
             "--orbit-enter-y",
             "--orbit-start-rot",
-            "--ring-motion-blur"
+            "--ring-motion-blur",
+            "z-index"
           ],
-          "why": "ten cards: size, position and the settled transform, compared to the orbit box; the three start variables are written by the splash's last frame, so their value depends on the frame it caught (formula: Lean HeroOrbit.place and its golden vectors)"
+          "why": "ten cards: z-index is the hover raise (N2:4121-4129, an inline style that is never lowered again): the original raises card 3 when the load-time pointer sits over it in one reduced-motion probe of three runs (39101532038, 39105279831, 39108604447: desk-rm-860, -861, -860; the rewrite stays 1), so the gate does not read it; size, position and the settled transform, compared to the orbit box; the three start variables are written by the splash's last frame, so their value depends on the frame it caught (formula: Lean HeroOrbit.place and its golden vectors)"
         },
         {
           "role": "cover",
