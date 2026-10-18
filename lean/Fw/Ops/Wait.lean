@@ -10,17 +10,24 @@ owner). Handback: `handbackOk` allows an agent to hand back only when every back
 started has ended; proved `handback_no_open_bg`.
 
 **2. A foreground `Bash` call must not start a long-running process with `&`.** The command is parsed
-(`parse`) into segments split at `; \n | || && &` (here-document bodies are skipped: they are data), grouped into
-*units* (an and-or list or a whole `until/while/for/if/case ... done/fi/esac` compound, the thing a trailing `&`
-backgrounds). A unit is *long* when it holds one of the `Shape`s: `fw watch`, an `until`/`while` loop, a server or
-watcher, a `tail -f`, or a `sleep` longer than `caps.maxSleepSec`. `decide` refuses a backgrounded long unit
-(`bgLong`: use the tool's `run_in_background`, which has an owner and a stop) and any `until`/`while` loop with no
-bound (`unboundedLoop`: no `timeout` wrapper, no counter / clock test, and not a `while read` loop over a finite input,
-proved `readLoop_bounded`).
+(`parse`) into segments split at `; \n | || && &` (here-document bodies are skipped: they are data; a body opens only at
+an unquoted `<<`), grouped into *units* (an and-or list or a whole `until/while/for/if/case ... done/fi/esac` compound,
+the thing a trailing `&` backgrounds). A unit is *long* when it holds one of the `Shape`s: `fw watch`, an
+`until`/`while` loop, a server or watcher, a `tail -f`, or a `sleep` longer than `caps.maxSleepSec`. `decide` refuses a
+backgrounded long unit (`bgLong`: use the tool's `run_in_background`, which has an owner and a stop) and any
+`until`/`while` loop with no bound (`unboundedLoop`: no `timeout` wrapper, no counter / clock test, and not a read loop
+`while read [opts] [names]; do ... done` over a finite input: a file, a here-document or here-string, or an allowlisted
+finite producer piped in or given as `< <(...)`).
+
+The read-loop rule is a fact about this classification (`readLoop_bounded`), not about bash: that such a loop ends
+rests on the premises that `read` fails at the end of a finite input and that the allowlisted producers
+(`producerOut`) end; the stdin of a pipeline head is the Bash tool's stdin, `/dev/null` (MEASURED 2026-10-18: fd 0 is
+the character device `/dev/null`, `timeout 5 cat` exits 0 at once).
 
 The shapes are a small documented set, tested by goldens; the parse is approximate on purpose.
-Known blind spots (shadow-logged, not claimed): code inside `$( )`, `( )` or `sh -c '...'` strings, aliases, and
-a here-document delimiter glued to a redirect (`<<EOF>f`).
+Known blind spots (shadow-logged, not claimed): code inside `$( )`, `( )`, `{ }` groups, function bodies or
+`sh -c '...'` strings, aliases, variables naming a device or a FIFO (`< "$f"`), and a here-document operator glued to
+a word or inside arithmetic (`cat<<EOF`, `$((1 << 2))`).
 -/
 namespace Fw.Ops.Wait
 
@@ -134,11 +141,14 @@ structure Seg where
 deriving DecidableEq, Repr
 
 /-- The scanner state: quote (0 none, 1 single, 2 double), pending backslash, a pending `&` (not yet known to be
-`&&`, `&>` or a background), comment, the previous character, the current word (reversed), the current words
-(reversed), the finished segments (reversed), the here-document delimiters still to read (each with its `<<-` flag:
-leading tabs stripped), whether the scanner is inside a here-document body, and the body line read so far (reversed).
+`&&`, `&>` or a background), comment, the previous character, the current word (reversed), the length the current word
+had at its first quote or backslash (`none`: no quoting yet), whether the previous word of the segment was an unquoted
+here-document operator `<<` (`some false`) or `<<-` (`some true`), the current words (reversed), the finished segments
+(reversed), the here-document delimiters still to read (each with its `<<-` flag: leading tabs stripped), whether the
+scanner is inside a here-document body, and the body line read so far (reversed).
 
-$$\mathrm{Acc} = \mathbb{N} \times \mathbb{B} \times \mathbb{B} \times \mathbb{B} \times \mathrm{Char} \times \mathrm{Char}^{*} \times \mathrm{String}^{*} \times \mathrm{Seg}^{*} \times (\mathrm{Char}^{*} \times \mathbb{B})^{*} \times \mathbb{B} \times \mathrm{Char}^{*}, \quad a = (\mathit{quote}, \mathit{esc}, \mathit{pend}, \mathit{comment}, \mathit{prev}, \mathit{word}, \mathit{words}, \mathit{segs}, \mathit{hd}, \mathit{body}, \mathit{line}), \quad \{\} = (0, \bot, \bot, \bot, \texttt{' '}, [\,], [\,], [\,], [\,], \bot, [\,])$$
+$$\mathrm{Acc} = \mathbb{N} \times \mathbb{B} \times \mathbb{B} \times \mathbb{B} \times \mathrm{Char} \times \mathrm{Char}^{*} \times \mathrm{Option}(\mathbb{N}) \times \mathrm{Option}(\mathbb{B}) \times \mathrm{String}^{*} \times \mathrm{Seg}^{*} \times (\mathrm{Char}^{*} \times \mathbb{B})^{*} \times \mathbb{B} \times \mathrm{Char}^{*}$$
+$$a = (\mathit{quote}, \mathit{esc}, \mathit{pend}, \mathit{comment}, \mathit{prev}, \mathit{word}, \mathit{qat}, \mathit{lastOp}, \mathit{words}, \mathit{segs}, \mathit{hd}, \mathit{body}, \mathit{line}), \quad \{\} = (0, \bot, \bot, \bot, \texttt{' '}, [\,], \mathrm{none}, \mathrm{none}, [\,], [\,], [\,], \bot, [\,])$$
 -/
 structure Acc where
   quote   : Nat := 0
@@ -147,49 +157,86 @@ structure Acc where
   comment : Bool := false
   prev    : Char := ' '
   word    : List Char := []
+  qat     : Option Nat := none
+  lastOp  : Option Bool := none
   words   : List String := []
   segs    : List Seg := []
   hd      : List (List Char × Bool) := []
   body    : Bool := false
   line    : List Char := []
 
-/-- The here-document delimiter a finished word `w` opens, given the word `p` before it in the segment: the whole
-word after a `<<` (or `<<-`) word, else the rest of a word `<<D` or `<<-D` with `D` non-empty; a here-string `<<<` opens
-none. The flag is true for `<<-` (the closing line may start with tabs). Quotes are already removed, so `<<'EOF'` is
-`<<EOF`.
+/-- The first two characters of the current word were typed unquoted (its first quote or backslash, if any, comes at
+position 2 or later), so a leading `<<` in it is the here-document operator and not text.
 
-$$\mathrm{hereDelim}(p, w) = \begin{cases} \mathrm{some}(w, \bot) & p = \texttt{<<} \\ \mathrm{some}(w, \top) & p = \texttt{<<-} \\ \mathrm{none} & w = \texttt{<<<}\,r \\ \mathrm{none} & w = \texttt{<<-} \\ \mathrm{some}(D, \top) & w = \texttt{<<-}\,D,\ D \ne \varepsilon \\ \mathrm{some}(D, \bot) & w = \texttt{<<}\,D,\ D \ne \varepsilon \\ \mathrm{none} & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+$$\mathrm{leadOpen}(q) \iff q = \mathrm{none} \ \lor\ \exists n.\ q = \mathrm{some}(n) \land 2 \le n$$
 -/
-def hereDelim (p : String) (w : List Char) : Option (List Char × Bool) :=
-  if p == "<<" then some (w, false)
-  else if p == "<<-" then some (w, true)
-  else match w with
-    | '<' :: '<' :: '<' :: _ => none
-    | ['<', '<', '-'] => none
-    | '<' :: '<' :: '-' :: d@(_ :: _) => some (d, true)
-    | '<' :: '<' :: d@(_ :: _) => some (d, false)
-    | _ => none
+def leadOpen : Option Nat → Bool
+  | none => true
+  | some n => decide (2 ≤ n)
 
-/-- Finish the current word (if any); a word that opens a here-document queues its delimiter. Here $p$ is the head of
-$a.\mathit{words}$ (`""` if none), $w = \mathrm{rev}(a.\mathit{word})$, and $\mathrm{toList}(\mathrm{none}) = [\,]$,
+/-- The here-document delimiter a finished word `w` opens. After an unquoted `<<` (or `<<-`) operator word
+($\mathit{op} = \mathrm{some}(t)$) the whole word is the delimiter; otherwise only a word whose leading `<<` is unquoted
+($\mathit{opn}$) opens one: the rest of a word `<<D` or `<<-D` with `D` non-empty; a here-string `<<<` opens none. The
+flag is true for `<<-` (the closing line may start with tabs). Quotes are already removed, so `<<'EOF'` is `<<EOF`.
+
+$$\mathrm{hereDelim}(\mathit{op}, \mathit{opn}, w) = \begin{cases} \mathrm{some}(w, t) & \mathit{op} = \mathrm{some}(t) \\ \mathrm{none} & \mathit{op} = \mathrm{none},\ \lnot \mathit{opn} \\ \mathrm{none} & w = \texttt{<<<}\,r \\ \mathrm{none} & w = \texttt{<<-} \\ \mathrm{some}(D, \top) & w = \texttt{<<-}\,D,\ D \ne \varepsilon \\ \mathrm{some}(D, \bot) & w = \texttt{<<}\,D,\ D \ne \varepsilon \\ \mathrm{none} & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+-/
+def hereDelim (op : Option Bool) (opn : Bool) (w : List Char) : Option (List Char × Bool) :=
+  match op with
+  | some t => some (w, t)
+  | none =>
+    if !opn then none
+    else match w with
+      | '<' :: '<' :: '<' :: _ => none
+      | ['<', '<', '-'] => none
+      | '<' :: '<' :: '-' :: d@(_ :: _) => some (d, true)
+      | '<' :: '<' :: d@(_ :: _) => some (d, false)
+      | _ => none
+
+/-- The operator state after a finished word `w`: an unquoted word `<<` or `<<-` (its leading `<<` unquoted, $\mathit{opn}$)
+makes the next word the delimiter.
+
+$$\mathrm{opWord}(\mathit{opn}, w) = \begin{cases} \mathrm{some}(\bot) & \mathit{opn},\ w = \texttt{<<} \\ \mathrm{some}(\top) & \mathit{opn},\ w = \texttt{<<-} \\ \mathrm{none} & \text{otherwise} \end{cases}$$
+-/
+def opWord (opn : Bool) (w : List Char) : Option Bool :=
+  if opn && w == ['<', '<'] then some false
+  else if opn && w == ['<', '<', '-'] then some true
+  else none
+
+/-- Finish the current word (if any); a word that opens a here-document queues its delimiter. Here
+$w = \mathrm{rev}(a.\mathit{word})$, $\mathit{opn} = \mathrm{leadOpen}(a.\mathit{qat})$, and $\mathrm{toList}(\mathrm{none}) = [\,]$,
 $\mathrm{toList}(\mathrm{some}(x)) = [x]$.
 
-$$\mathrm{flushWord}(a) = \begin{cases} a & a.\mathit{word} = [\,] \\ a[\mathit{words} := \mathrm{str}(w) :: a.\mathit{words},\ \mathit{word} := [\,],\ \mathit{hd} := a.\mathit{hd} \mathbin{+\!\!+} \mathrm{toList}(\mathrm{hereDelim}(p, w))] & \text{otherwise} \end{cases}$$
+$$\mathrm{flushWord}(a) = \begin{cases} a[\mathit{qat} := \mathrm{none}] & a.\mathit{word} = [\,] \\ a[\mathit{words} := \mathrm{str}(w) :: a.\mathit{words},\ \mathit{word} := [\,],\ \mathit{qat} := \mathrm{none},\ \mathit{hd} := a.\mathit{hd} \mathbin{+\!\!+} \mathrm{toList}(\mathrm{hereDelim}(a.\mathit{lastOp}, \mathit{opn}, w)),\ \mathit{lastOp} := \mathrm{opWord}(\mathit{opn}, w)] & \text{otherwise} \end{cases}$$
 -/
 def flushWord (a : Acc) : Acc :=
-  if a.word.isEmpty then a
+  if a.word.isEmpty then { a with qat := none }
   else
     let w := a.word.reverse
-    { a with words := String.ofList w :: a.words, word := [],
-             hd := a.hd ++ (hereDelim (a.words.head?.getD "") w).toList }
+    let opn := leadOpen a.qat
+    { a with words := String.ofList w :: a.words, word := [], qat := none,
+             hd := a.hd ++ (hereDelim a.lastOp opn w).toList, lastOp := opWord opn w }
+
+/-- A word whose leading `<<` was quoted or escaped (`"<<EOF"`, `'<<'`, `\<<EOF`), not after an unquoted `<<` operator,
+queues no here-document and is no operator: the text after it stays code.
+
+$$\forall a.\ a.\mathit{lastOp} = \mathrm{none} \land \lnot \mathrm{leadOpen}(a.\mathit{qat}) \ \Rightarrow\ \mathrm{flushWord}(a).\mathit{hd} = a.\mathit{hd} \land \mathrm{flushWord}(a).\mathit{lastOp} = \mathrm{none}$$
+-/
+theorem flushWord_quoted (a : Acc) (h1 : a.lastOp = none) (h2 : leadOpen a.qat = false) :
+    (flushWord a).hd = a.hd ∧ (flushWord a).lastOp = none := by
+  unfold flushWord
+  split
+  · simp [h1]
+  · simp [h1, h2, hereDelim, opWord]
 
 /-- Finish the current segment with a terminator. An empty segment is dropped (so `a &&⏎ b` stays one list), except a
-`bg` or `fin` terminator on an empty segment is dropped too: there is nothing to background.
+`bg` or `fin` terminator on an empty segment is dropped too: there is nothing to background. The operator state is
+reset: a delimiter word must be in the operator's segment.
 
-$$\mathrm{endSeg}(a, t) = \begin{cases} a' & a'.\mathit{words} = [\,] \\ a'[\mathit{words} := [\,],\ \mathit{segs} := (\mathrm{rev}(a'.\mathit{words}), t) :: a'.\mathit{segs}] & \text{otherwise} \end{cases}, \quad a' = \mathrm{flushWord}(a)$$
+$$\mathrm{endSeg}(a, t) = \begin{cases} a' & a'.\mathit{words} = [\,] \\ a'[\mathit{words} := [\,],\ \mathit{segs} := (\mathrm{rev}(a'.\mathit{words}), t) :: a'.\mathit{segs}] & \text{otherwise} \end{cases}, \quad a' = \mathrm{flushWord}(a)[\mathit{lastOp} := \mathrm{none}]$$
 -/
 def endSeg (a : Acc) (t : Term) : Acc :=
-  let a := flushWord a
+  let a := { flushWord a with lastOp := none }
   if a.words.isEmpty then a
   else { a with words := [], segs := ⟨a.words.reverse, t⟩ :: a.segs }
 
@@ -216,9 +263,18 @@ $$\mathrm{push}(a, c) = a[\mathit{word} := c :: a.\mathit{word}]$$
 -/
 def push (a : Acc) (c : Char) : Acc := { a with word := c :: a.word }
 
+/-- Record that the current word is quoted from here on: the word length at its first quote or backslash.
+
+$$\mathrm{mark}(a) = \begin{cases} a[\mathit{qat} := \mathrm{some}(|a.\mathit{word}|)] & a.\mathit{qat} = \mathrm{none} \\ a & \text{otherwise} \end{cases}$$
+-/
+def mark (a : Acc) : Acc :=
+  match a.qat with
+  | none => { a with qat := some a.word.length }
+  | some _ => a
+
 /-- Process one character that is not a pending `&` resolver (the first matching row applies; ⏎ is newline).
 
-$$\mathrm{stepPlain}(a, c) = \begin{cases} \mathrm{newline}(a[\mathit{comment} := \bot]) & a.\mathit{comment},\ c = \text{⏎} \\ a & a.\mathit{comment},\ c \ne \text{⏎} \\ \mathrm{push}(a[\mathit{esc} := \bot], c) & a.\mathit{esc} \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 1,\ c = \texttt{'} \\ \mathrm{push}(a, c) & a.\mathit{quote} = 1 \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 2,\ c = \texttt{"} \\ a[\mathit{esc} := \top] & a.\mathit{quote} = 2,\ c = \backslash \\ \mathrm{push}(a, c) & a.\mathit{quote} = 2 \\ a[\mathit{quote} := 1] & c = \texttt{'} \\ a[\mathit{quote} := 2] & c = \texttt{"} \\ a[\mathit{esc} := \top] & c = \backslash \\ \mathrm{flushWord}(a) & c \in \{\text{space}, \text{tab}, \text{CR}\} \\ \mathrm{newline}(a) & c = \text{⏎} \\ \mathrm{endSeg}(a, \mathrm{seq}) & c = \texttt{;} \\ \mathrm{unpipe}(a) & c = \texttt{|},\ a.\mathit{prev} = \texttt{|} \\ \mathrm{endSeg}(a, \mathrm{pipe}) & c = \texttt{|} \\ a[\mathit{comment} := \top] & c = \texttt{\#},\ a.\mathit{word} = [\,] \\ \mathrm{push}(a, c) & c = \texttt{\&},\ a.\mathit{prev} \in \{\texttt{>}, \texttt{<}\} \\ a[\mathit{pend} := \top] & c = \texttt{\&} \\ \mathrm{push}(a, c) & \text{otherwise} \end{cases}$$
+$$\mathrm{stepPlain}(a, c) = \begin{cases} \mathrm{newline}(a[\mathit{comment} := \bot]) & a.\mathit{comment},\ c = \text{⏎} \\ a & a.\mathit{comment},\ c \ne \text{⏎} \\ \mathrm{push}(a[\mathit{esc} := \bot], c) & a.\mathit{esc} \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 1,\ c = \texttt{'} \\ \mathrm{push}(a, c) & a.\mathit{quote} = 1 \\ a[\mathit{quote} := 0] & a.\mathit{quote} = 2,\ c = \texttt{"} \\ a[\mathit{esc} := \top] & a.\mathit{quote} = 2,\ c = \backslash \\ \mathrm{push}(a, c) & a.\mathit{quote} = 2 \\ \mathrm{mark}(a)[\mathit{quote} := 1] & c = \texttt{'} \\ \mathrm{mark}(a)[\mathit{quote} := 2] & c = \texttt{"} \\ \mathrm{mark}(a)[\mathit{esc} := \top] & c = \backslash \\ \mathrm{flushWord}(a) & c \in \{\text{space}, \text{tab}, \text{CR}\} \\ \mathrm{newline}(a) & c = \text{⏎} \\ \mathrm{endSeg}(a, \mathrm{seq}) & c = \texttt{;} \\ \mathrm{unpipe}(a) & c = \texttt{|},\ a.\mathit{prev} = \texttt{|} \\ \mathrm{endSeg}(a, \mathrm{pipe}) & c = \texttt{|} \\ a[\mathit{comment} := \top] & c = \texttt{\#},\ a.\mathit{word} = [\,] \\ \mathrm{push}(a, c) & c = \texttt{\&},\ a.\mathit{prev} \in \{\texttt{>}, \texttt{<}\} \\ a[\mathit{pend} := \top] & c = \texttt{\&} \\ \mathrm{push}(a, c) & \text{otherwise} \end{cases}$$
 -/
 def stepPlain (a : Acc) (c : Char) : Acc :=
   if a.comment then
@@ -230,9 +286,9 @@ def stepPlain (a : Acc) (c : Char) : Acc :=
     if c == '"' then { a with quote := 0 }
     else if c == '\\' then { a with esc := true }
     else push a c
-  else if c == '\'' then { a with quote := 1 }
-  else if c == '"' then { a with quote := 2 }
-  else if c == '\\' then { a with esc := true }
+  else if c == '\'' then { mark a with quote := 1 }
+  else if c == '"' then { mark a with quote := 2 }
+  else if c == '\\' then { mark a with esc := true }
   else if c == ' ' || c == '\t' || c == '\r' then flushWord a
   else if c == '\n' then newline a
   else if c == ';' then endSeg a .seq
@@ -419,9 +475,9 @@ def key (ws : List String) : List String := ws.dropWhile (prefixWords.contains �
 
 /-- The words that bound a loop on their own: a clock, a counter or an arithmetic test.
 
-$$\mathrm{boundWords} = [\texttt{-lt}, \texttt{-le}, \texttt{-gt}, \texttt{-ge}, \texttt{date}, \texttt{SECONDS}, \texttt{\$SECONDS}, \texttt{deadline}, \texttt{DEADLINE}, \texttt{seq}]$$
+$$\mathrm{boundWords} = [\texttt{-lt}, \texttt{-le}, \texttt{-gt}, \texttt{-ge}, \texttt{date}, \texttt{SECONDS}, \texttt{\$SECONDS}, \texttt{deadline}, \texttt{DEADLINE}]$$
 -/
-def boundWords : List String := ["-lt", "-le", "-gt", "-ge", "date", "SECONDS", "$SECONDS", "deadline", "DEADLINE", "seq"]
+def boundWords : List String := ["-lt", "-le", "-gt", "-ge", "date", "SECONDS", "$SECONDS", "deadline", "DEADLINE"]
 
 /-- Does a word bound a loop (also `$((...))` and `SECONDS=`-style words)?
 
@@ -430,54 +486,252 @@ $$\mathrm{isBoundWord}(w) \iff w \in \mathrm{boundWords} \lor w \text{ starts wi
 def isBoundWord (w : String) : Bool :=
   boundWords.contains w || w.startsWith "$((" || w.startsWith "((" || w.startsWith "SECONDS" || w.startsWith "deadline=" || w.startsWith "DEADLINE="
 
-/-- A variable assignment word (`IFS=`, `LC_ALL=C`): it holds `=` and does not start with `-`.
+/-- `s` occurs in `w` as a substring.
 
-$$\mathrm{isAssign}(w) \iff \texttt{=} \text{ occurs in } w \land w \text{ does not start with } \texttt{-}$$
+$$\mathrm{has}(w, s) \iff s \text{ occurs in } w$$
 -/
-def isAssign (w : String) : Bool := (w.splitOn "=").length > 1 && !w.startsWith "-"
+def has (w s : String) : Bool := (w.splitOn s).length > 1
 
-/-- A read loop: `while`, then optional assignments, then `read` (`while IFS= read -r line`). It ends when its input
-does: `read` fails at end of input.
+/-- A variable assignment word (`IFS=`, `LC_ALL=C`): it holds `=`, does not start with `-`, and runs no command
+substitution (no `$(` and no backquote).
 
-$$\mathrm{isReadLoop}(K) \iff K = \texttt{while} :: r \ \land\ \mathrm{head}(\mathrm{dropWhile}(\mathrm{isAssign}, r)) = \texttt{read}$$
+$$\mathrm{isAssign}(w) \iff \mathrm{has}(w, \texttt{=}) \land w \text{ does not start with } \texttt{-} \land \lnot\mathrm{has}(w, \texttt{\$(}) \land \lnot\mathrm{has}(w, \texttt{`})$$
 -/
-def isReadLoop : List String → Bool
-  | "while" :: r => (r.dropWhile isAssign).head? == some "read"
+def isAssign (w : String) : Bool := has w "=" && !w.startsWith "-" && !has w "$(" && !has w "`"
+
+/-- A word `read` may take in a read-loop condition: non-empty, only letters, digits, `_` and `-` (an option, an option
+argument or a variable name; so no redirect, no expansion, no operator), and not an option word holding `u` (`-u fd`
+reads another descriptor).
+
+$$\mathrm{isReadArg}(w) \iff w \ne \varepsilon \land w \in \{\texttt{A-Z}, \texttt{a-z}, \texttt{0-9}, \texttt{\_}, \texttt{-}\}^{*} \land \lnot(w \text{ starts with } \texttt{-} \land \texttt{u} \in w)$$
+-/
+def isReadArg (w : String) : Bool :=
+  w != "" && w.all (fun ch => ch.isAlphanum || ch == '_' || ch == '-') && !(w.startsWith "-" && w.contains 'u')
+
+/-- A read-loop condition: the words of the segment (from its command on) are exactly `while`, optional assignments,
+`read`, then only `isReadArg` words (`while IFS= read -r line`). Nothing else may run in the condition.
+
+$$\mathrm{isReadCond}(K) \iff K = \texttt{while} :: r \ \land\ \mathrm{dropWhile}(\mathrm{isAssign}, r) = \texttt{read} :: A \ \land\ \forall x \in A.\ \mathrm{isReadArg}(x)$$
+-/
+def isReadCond : List String → Bool
+  | "while" :: r =>
+    match r.dropWhile isAssign with
+    | "read" :: args => args.all isReadArg
+    | _ => false
   | _ => false
 
-/-- A redirect target that is a finite input: non-empty, not a process substitution (`(...` or `<(...`), and not a
-device other than `/dev/null` (`/dev/zero`, `/dev/stdin` and ttys may never end).
+/-- A read-loop head: a segment whose words (from its command on) are a read-loop condition and that ends with `;` or a
+newline (`seq`), so no `||`, `&&` or `|` extends the condition. (That the next segment starts with `do` is checked by the
+grouping, `addSeg`.)
 
-$$\mathrm{finiteTarget}(t) \iff t \ne \varepsilon \land t \text{ starts with neither } \texttt{(} \text{ nor } \texttt{<(} \land (t \text{ does not start with } \texttt{/dev/} \lor t = \texttt{/dev/null})$$
+$$\mathrm{readHead}(s) \iff \mathrm{isReadCond}(\mathrm{key}(s.\mathit{words})) \land s.\mathit{term} = \mathrm{seq}$$
+-/
+def readHead (s : Seg) : Bool := isReadCond (key s.words) && s.term == .seq
+
+/-- A read-loop condition starts with `while`.
+
+$$\forall K.\ \mathrm{isReadCond}(K) \Rightarrow \mathrm{head}(K) = \texttt{while}$$
+-/
+theorem isReadCond_head (k : List String) (h : isReadCond k = true) : k.head? = some "while" := by
+  match k, h with
+  | "while" :: _, _ => rfl
+  | [], h => simp [isReadCond] at h
+  | x :: r, h =>
+    unfold isReadCond at h
+    split at h
+    · simp_all
+    · simp at h
+
+/-- A word a finite producer must not hold: `-` (read stdin), a device other than `/dev/null`, a subshell or a process
+or command substitution (a word starting with `(`, or holding `<(`, `$(` or a backquote), or a descriptor duplication
+`<&`.
+
+$$\mathrm{badWord}(w) \iff w = \texttt{-} \lor (w \text{ starts with } \texttt{/dev/} \land w \ne \texttt{/dev/null}) \lor w \text{ starts with } \texttt{(} \lor \mathrm{has}(w, \texttt{<(}) \lor \mathrm{has}(w, \texttt{\$(}) \lor \mathrm{has}(w, \texttt{`}) \lor \mathrm{has}(w, \texttt{<\&})$$
+-/
+def badWord (w : String) : Bool :=
+  w == "-" || (w.startsWith "/dev/" && w != "/dev/null") || w.startsWith "(" || has w "<(" || has w "$(" ||
+    has w "`" || has w "<&"
+
+/-- The git subcommand: the first word after the global options (`-C dir`, `-c k=v` take a value; other `-...` words
+none); `""` if there is none.
+
+$$\mathrm{gitSub}([\,]) = \varepsilon, \quad \mathrm{gitSub}(\texttt{-C} :: x :: r) = \mathrm{gitSub}(\texttt{-c} :: x :: r) = \mathrm{gitSub}(r), \quad \mathrm{gitSub}(w :: r) = \begin{cases} \mathrm{gitSub}(r) & w \text{ starts with } \texttt{-} \\ w & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
+-/
+def gitSub : List String → String
+  | "-C" :: _ :: r => gitSub r
+  | "-c" :: _ :: r => gitSub r
+  | w :: r => if w.startsWith "-" then gitSub r else w
+  | [] => ""
+
+/-- The git subcommands that read the repository, print and end (no watch, no pager without a tty, no command run).
+
+$$\mathrm{gitFinite} = [\texttt{ls-files}, \texttt{ls-tree}, \texttt{diff}, \texttt{log}, \texttt{show}, \texttt{status}, \texttt{branch}, \texttt{tag}, \texttt{for-each-ref}, \texttt{rev-list}, \texttt{rev-parse}, \texttt{grep}, \texttt{shortlog}, \texttt{describe}, \texttt{cat-file}, \texttt{blame}, \texttt{merge-base}, \texttt{name-rev}]$$
+-/
+def gitFinite : List String :=
+  ["ls-files", "ls-tree", "diff", "log", "show", "status", "branch", "tag", "for-each-ref", "rev-list", "rev-parse",
+   "grep", "shortlog", "describe", "cat-file", "blame", "merge-base", "name-rev"]
+
+/-- Substrings that may make a jq program loop or generate without end.
+
+$$\mathrm{jqLoopWords} = [\texttt{repeat}, \texttt{recurse}, \texttt{until}, \texttt{while}, \texttt{range}, \texttt{def}, \texttt{infinite}]$$
+-/
+def jqLoopWords : List String := ["repeat", "recurse", "until", "while", "range", "def", "infinite"]
+
+/-- The producer allowlist: sources (their output does not depend on stdin) and filters (they end when their stdin ends).
+
+$$\mathrm{sourceCmds} = [\texttt{git}, \texttt{gh}, \texttt{cat}, \texttt{find}, \texttt{ls}, \texttt{printf}, \texttt{echo}, \texttt{seq}], \quad \mathrm{filterCmds} = [\texttt{grep}, \texttt{rg}, \texttt{jq}, \texttt{sort}, \texttt{head}, \texttt{wc}], \quad \mathrm{producerCmds} = \mathrm{sourceCmds} \mathbin{+\!\!+} \mathrm{filterCmds}$$
+-/
+def sourceCmds : List String := ["git", "gh", "cat", "find", "ls", "printf", "echo", "seq"]
+
+/-- The filters of the producer allowlist (see `sourceCmds`).
+
+$$\mathrm{filterCmds} = [\texttt{grep}, \texttt{rg}, \texttt{jq}, \texttt{sort}, \texttt{head}, \texttt{wc}]$$
+-/
+def filterCmds : List String := ["grep", "rg", "jq", "sort", "head", "wc"]
+
+/-- Every command name a finite producer may start with.
+
+$$\mathrm{producerCmds} = \mathrm{sourceCmds} \mathbin{+\!\!+} \mathrm{filterCmds}$$
+-/
+def producerCmds : List String := sourceCmds ++ filterCmds
+
+/-- Is the output of a segment known to be finite (an allowlist)? $\mathit{inFin}$ says its stdin is finite. Here
+$K = \mathrm{key}(W)$. The segment has no bad word and no long shape, and $K$ is one of: `git` with a subcommand in
+`gitFinite` and no `--stdin`; `gh run list|view`; `cat` with at least one operand (a word not starting with `-`) and no
+option word holding `u`; `find` with no `-exec -execdir -ok -okdir`; `seq` with no word holding `inf` or `nan` (any case);
+`ls`, `printf`, `echo`; or, only when $\mathit{inFin}$, `grep`, `head`, `wc`, `jq` with no `jqLoopWords` substring,
+`rg` with no `--pre...` word, `sort` with no `--compress...` word. Anything else is not finite.
+
+$$\mathrm{producerOut}_c(\mathit{inFin}, W) \iff (\forall x \in K.\ \lnot\mathrm{badWord}(x)) \land \mathrm{shapesOf}_c(W) = [\,] \land \mathrm{allowed}(\mathit{inFin}, K)$$
+$$\mathrm{allowed}(i, K) = \begin{cases} \mathrm{gitSub}(r) \in \mathrm{gitFinite} \land \texttt{-{}-stdin} \notin r & K = \texttt{git} :: r \\ v \in \{\texttt{list}, \texttt{view}\} & K = \texttt{gh} :: \texttt{run} :: v :: r \\ (\exists x \in r.\ x \text{ not starting with } \texttt{-}) \land \lnot\exists x \in r.\ x \text{ starts with } \texttt{-} \land \texttt{u} \in x & K = \texttt{cat} :: r \\ r \cap \{\texttt{-exec}, \texttt{-execdir}, \texttt{-ok}, \texttt{-okdir}\} = \emptyset & K = \texttt{find} :: r \\ \lnot\exists x \in r.\ \mathrm{has}(\mathrm{lower}(x), \texttt{inf}) \lor \mathrm{has}(\mathrm{lower}(x), \texttt{nan}) & K = \texttt{seq} :: r \\ \top & K = k :: r,\ k \in \{\texttt{ls}, \texttt{printf}, \texttt{echo}\} \\ i \land \lnot\exists x \in r, j \in \mathrm{jqLoopWords}.\ \mathrm{has}(x, j) & K = \texttt{jq} :: r \\ i \land \lnot\exists x \in r.\ x \text{ starts with } \texttt{-{}-pre} & K = \texttt{rg} :: r \\ i \land \lnot\exists x \in r.\ x \text{ starts with } \texttt{-{}-compress} & K = \texttt{sort} :: r \\ i & K = k :: r,\ k \in \{\texttt{grep}, \texttt{head}, \texttt{wc}\} \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def producerOut (c : Caps) (inFin : Bool) (ws : List String) : Bool :=
+  let ks := key ws
+  !ks.any badWord && (shapesOf c ws).isEmpty &&
+  match ks with
+  | "git" :: r => gitFinite.contains (gitSub r) && !r.contains "--stdin"
+  | "gh" :: "run" :: v :: _ => v == "list" || v == "view"
+  | "cat" :: r => r.any (fun x => !x.startsWith "-") && !r.any (fun x => x.startsWith "-" && x.contains 'u')
+  | "find" :: r => !r.any (fun x => x == "-exec" || x == "-execdir" || x == "-ok" || x == "-okdir")
+  | "seq" :: r => !r.any (fun x => has x.toLower "inf" || has x.toLower "nan")
+  | "ls" :: _ => true
+  | "printf" :: _ => true
+  | "echo" :: _ => true
+  | "jq" :: r => inFin && !r.any (fun x => jqLoopWords.any (has x ·))
+  | "rg" :: r => inFin && !r.any (·.startsWith "--pre")
+  | "sort" :: r => inFin && !r.any (·.startsWith "--compress")
+  | "grep" :: _ => inFin
+  | "head" :: _ => inFin
+  | "wc" :: _ => inFin
+  | _ => false
+
+/-- **A producer outside the allowlist is never finite**, whatever its stdin: `ping`, `tail`, `yes`, `log stream`,
+`sleep`, a block word, an empty segment.
+
+$$\forall c, i, W.\ \mathrm{head}(\mathrm{key}(W)) \notin \mathrm{producerCmds} \ \Rightarrow\ \lnot\mathrm{producerOut}_c(i, W)$$
+where $\mathrm{head}$ of an empty list is the empty word $\varepsilon$ (not in the list).
+-/
+theorem producer_outside_list (c : Caps) (inFin : Bool) (ws : List String)
+    (h : producerCmds.contains ((key ws).head?.getD "") = false) : producerOut c inFin ws = false := by
+  unfold producerOut
+  generalize key ws = ks at *
+  dsimp only
+  split <;> simp_all [producerCmds, sourceCmds, filterCmds]
+
+/-- A filter (`grep rg jq sort head wc`) reading an input not known to be finite is not finite (`tail -f x | grep y`).
+
+$$\forall c, W.\ \mathrm{head}(\mathrm{key}(W)) \in \mathrm{filterCmds} \ \Rightarrow\ \lnot\mathrm{producerOut}_c(\bot, W)$$
+where $\mathrm{head}$ of an empty list is the empty word $\varepsilon$.
+-/
+theorem filter_needs_finite_input (c : Caps) (ws : List String)
+    (h : filterCmds.contains ((key ws).head?.getD "") = true) : producerOut c false ws = false := by
+  unfold producerOut
+  generalize key ws = ks at *
+  dsimp only
+  split <;> simp_all [filterCmds]
+
+/-- A redirect target that is a finite input: non-empty, not a process substitution or subshell (`(...` or `<(...`),
+not a descriptor (`&3`) or a read-write `<>`, and not a device other than `/dev/null` (`/dev/zero`, `/dev/stdin` and
+ttys may never end).
+
+$$\mathrm{finiteTarget}(t) \iff t \ne \varepsilon \land t \text{ starts with none of } \texttt{(},\ \texttt{<(},\ \texttt{\&},\ \texttt{>} \land (t \text{ does not start with } \texttt{/dev/} \lor t = \texttt{/dev/null})$$
 -/
 def finiteTarget (t : String) : Bool :=
-  t != "" && !t.startsWith "(" && !t.startsWith "<(" && (!t.startsWith "/dev/" || t == "/dev/null")
+  t != "" && !t.startsWith "(" && !t.startsWith "<(" && !t.startsWith "&" && !t.startsWith ">" &&
+    (!t.startsWith "/dev/" || t == "/dev/null")
 
-/-- Does a word list hold a finite input redirect: `<` or `0<` followed by a finite target, a word `<t` with a finite
-target `t`, or a here-document / here-string word (starting with `<<`)? Here $n$ is the head of $r$ (`""` if none).
+/-- The redirect scan state: whether the last stdin redirect seen is finite (`none`: no stdin redirect yet), whether the
+previous word was a bare `<` or `0<` (its target comes next), and the words of an open process substitution read so far
+with a flag that it is the stdin target (`none` outside one).
 
-$$\mathrm{finiteRedir}([\,]) = \bot, \qquad \mathrm{finiteRedir}(w :: r) = \begin{cases} \mathrm{finiteTarget}(n) & w \in \{\texttt{<}, \texttt{0<}\} \\ \top & w = \texttt{<<}\,x \\ \mathrm{finiteTarget}(t) & w = \texttt{<}\,t,\ t \ne \varepsilon \\ \bot & \text{otherwise} \end{cases} \ \lor\ \mathrm{finiteRedir}(r) \quad \text{(first matching row)}$$
+$$\mathrm{RAcc} = \mathrm{Option}(\mathbb{B}) \times \mathbb{B} \times \mathrm{Option}(\mathrm{String}^{*} \times \mathbb{B}), \quad \{\} = (\mathrm{none}, \bot, \mathrm{none})$$
 -/
-def finiteRedir : List String → Bool
-  | [] => false
-  | w :: rest =>
-    (if w == "<" || w == "0<" then finiteTarget (rest.head?.getD "")
-     else match w.toList with
-       | '<' :: '<' :: _ => true
-       | '<' :: t@(_ :: _) => finiteTarget (String.ofList t)
-       | _ => false) || finiteRedir rest
+structure RAcc where
+  last : Option Bool := none
+  lt   : Bool := false
+  sub  : Option (List String × Bool) := none
 
-/-- A pipeline producer that ends by itself: a plain command (its first command word $k$ is not empty, not a block
-opener or closer, not `yes`; the segment is not a bare `cat`, which reads the tool's stdin), with no long shape and no
-follow word (`-f`, `-F`, `--follow`, `watch`). Here $K = \mathrm{key}(W)$ and $k$ the head of $K$ (`""` if none).
+/-- A word with its first `n` characters dropped.
 
-$$\mathrm{finiteProducer}_c(W) \iff k \ne \varepsilon \land k \notin \mathrm{openers} \cup \mathrm{closers} \cup \{\texttt{yes}\} \land K \ne [\texttt{cat}] \land \mathrm{shapesOf}_c(W) = [\,] \land \forall x \in W.\ x \notin \{\texttt{-f}, \texttt{-F}, \texttt{-{}-follow}, \texttt{watch}\}$$
+$$\mathrm{dropS}(w, n) = \mathrm{str}(\mathrm{drop}(n, \mathrm{chars}(w)))$$
 -/
-def finiteProducer (c : Caps) (ws : List String) : Bool :=
-  let ks := key ws
-  let k := ks.head?.getD ""
-  k != "" && !openers.contains k && !closers.contains k && k != "yes" && ks != ["cat"] &&
-    (shapesOf c ws).isEmpty && !ws.any (fun x => x == "-f" || x == "-F" || x == "--follow" || x == "watch")
+def dropS (w : String) (n : Nat) : String := String.ofList (w.toList.drop n)
+
+/-- The word without a closing `)`, if it ends with one.
+
+$$\mathrm{closeParen}(w) = \begin{cases} \mathrm{some}(v) & w = v\,\texttt{)} \\ \mathrm{none} & \text{otherwise} \end{cases}$$
+-/
+def closeParen (w : String) : Option String :=
+  if w.endsWith ")" then some (String.ofList w.toList.dropLast) else none
+
+/-- The finiteness of a process substitution's command words (empty words dropped): an allowlisted producer whose
+stdin is finite (the tool's stdin).
+
+$$\mathrm{subFin}_c(W) = \mathrm{producerOut}_c(\top, [x \in W \mid x \ne \varepsilon])$$
+-/
+def subFin (c : Caps) (ws : List String) : Bool := producerOut c true (ws.filter (· != ""))
+
+/-- Open a process substitution at the word rest `x` (after `<(`): closed at once if `x` ends with `)`; `st` says it is
+the stdin target.
+
+$$\mathrm{openSub}_c(r, x, \mathit{st}) = \begin{cases} r[\mathit{lt} := \bot,\ \mathit{last} := (\mathit{st}\ ?\ \mathrm{some}(\mathrm{subFin}_c([v])) : r.\mathit{last})] & \mathrm{closeParen}(x) = \mathrm{some}(v) \\ r[\mathit{lt} := \bot,\ \mathit{sub} := \mathrm{some}([x], \mathit{st})] & \text{otherwise} \end{cases}$$
+-/
+def openSub (c : Caps) (r : RAcc) (x : String) (st : Bool) : RAcc :=
+  match closeParen x with
+  | some v => { r with lt := false, last := if st then some (subFin c [v]) else r.last }
+  | none => { r with lt := false, sub := some ([x], st) }
+
+/-- One word of a redirect scan (first matching row). Inside a process substitution words are collected until one ends
+with `)`. After a bare `<`/`0<` the word is the target. A word `<<...` is a here-document or here-string (finite);
+`<t` or `0<t` a file redirect; a `<(` word not after `<` is an argument, skipped. Other words change nothing.
+
+$$\mathrm{rstep}_c(r, w) = \begin{cases} r[\mathit{sub} := \mathrm{none},\ \mathit{last} := (\mathit{st}\ ?\ \mathrm{some}(\mathrm{subFin}_c(W \mathbin{+\!\!+} [v])) : r.\mathit{last})] & r.\mathit{sub} = \mathrm{some}(W, \mathit{st}),\ \mathrm{closeParen}(w) = \mathrm{some}(v) \\ r[\mathit{sub} := \mathrm{some}(W \mathbin{+\!\!+} [w], \mathit{st})] & r.\mathit{sub} = \mathrm{some}(W, \mathit{st}) \\ \mathrm{openSub}_c(r, \mathrm{dropS}(w, 2), \top) & r.\mathit{lt},\ w \text{ starts with } \texttt{<(} \\ r[\mathit{lt} := \bot,\ \mathit{last} := \mathrm{some}(\mathrm{finiteTarget}(w))] & r.\mathit{lt} \\ r[\mathit{lt} := \top] & w \in \{\texttt{<}, \texttt{0<}\} \\ r[\mathit{last} := \mathrm{some}(\top)] & w \text{ starts with } \texttt{<<} \\ \mathrm{openSub}_c(r, \mathrm{dropS}(w, 2), \bot) & w \text{ starts with } \texttt{<(} \\ r[\mathit{last} := \mathrm{some}(\mathrm{finiteTarget}(\mathrm{dropS}(w, 1)))] & w \text{ starts with } \texttt{<} \\ r[\mathit{last} := \mathrm{some}(\mathrm{finiteTarget}(\mathrm{dropS}(w, 2)))] & w \text{ starts with } \texttt{0<} \\ r & \text{otherwise} \end{cases}$$
+-/
+def rstep (c : Caps) (r : RAcc) (w : String) : RAcc :=
+  match r.sub with
+  | some (ws, st) =>
+    match closeParen w with
+    | some v => { r with sub := none, last := if st then some (subFin c (ws ++ [v])) else r.last }
+    | none => { r with sub := some (ws ++ [w], st) }
+  | none =>
+    if r.lt then
+      if w.startsWith "<(" then openSub c r (dropS w 2) true
+      else { r with lt := false, last := some (finiteTarget w) }
+    else if w == "<" || w == "0<" then { r with lt := true }
+    else if w.startsWith "<<" then { r with last := some true }
+    else if w.startsWith "<(" then openSub c r (dropS w 2) false
+    else if w.startsWith "<" then { r with last := some (finiteTarget (dropS w 1)) }
+    else if w.startsWith "0<" then { r with last := some (finiteTarget (dropS w 2)) }
+    else r
+
+/-- The stdin redirect of a word list (bash applies the last one): `none` when there is none, else whether it is a finite
+input. A process substitution left open makes it `some false`.
+
+$$\mathrm{inRedir}_c(W) = \begin{cases} \mathrm{some}(\bot) & r.\mathit{sub} \ne \mathrm{none} \\ r.\mathit{last} & \text{otherwise} \end{cases}, \quad r = \mathrm{foldl}(\mathrm{rstep}_c, \{\}, W)$$
+-/
+def inRedir (c : Caps) (ws : List String) : Option Bool :=
+  let r := ws.foldl (rstep c) {}
+  if r.sub.isSome then some false else r.last
 
 /-- Facts about one unit (the thing a trailing `&` backgrounds).
 
@@ -489,71 +743,82 @@ structure Job where
   unbounded : Bool
 deriving DecidableEq, Repr
 
-/-- The running state of the unit grouping: the open blocks (innermost first; `true` marks a read loop whose input is
-not yet known to be finite, decided at its `done`), the shapes so far, whether a loop with no input bound was seen
-(`free`), a bound word, a `timeout` wrapper, whether the unit is still empty, the previous segment and the finished
-units.
+/-- The running state of the unit grouping: the open blocks (innermost first; each with two flags: it is a read loop,
+and it reads a finite pipe), the shapes so far, whether a loop with no input bound was seen (`free`), a bound word, a
+`timeout` wrapper, whether the unit is still empty, the previous segment, whether the previous segment was a read-loop
+head (so this one must start with `do`), whether the previous segment's output is known finite, and the finished units.
 
-$$\mathrm{UAcc} = \mathbb{B}^{*} \times \mathrm{Shape}^{*} \times \mathbb{B} \times \mathbb{B} \times \mathbb{B} \times \mathbb{B} \times \mathrm{Seg} \times \mathrm{Job}^{*}, \quad u = (\mathit{stack}, \mathit{shapes}, \mathit{free}, \mathit{bound}, \mathit{wrapped}, \mathit{fresh}, \mathit{last}, \mathit{units}), \quad \{\} = ([\,], [\,], \bot, \bot, \bot, \top, ([\,], \mathrm{fin}), [\,])$$
+$$\mathrm{UAcc} = (\mathbb{B} \times \mathbb{B})^{*} \times \mathrm{Shape}^{*} \times \mathbb{B} \times \mathbb{B} \times \mathbb{B} \times \mathbb{B} \times \mathrm{Seg} \times \mathbb{B} \times \mathbb{B} \times \mathrm{Job}^{*}$$
+$$u = (\mathit{stack}, \mathit{shapes}, \mathit{free}, \mathit{bound}, \mathit{wrapped}, \mathit{fresh}, \mathit{last}, \mathit{cond}, \mathit{lastFin}, \mathit{units}), \quad \{\} = ([\,], [\,], \bot, \bot, \bot, \top, ([\,], \mathrm{fin}), \bot, \bot, [\,])$$
 -/
 structure UAcc where
-  stack   : List Bool := []
+  stack   : List (Bool × Bool) := []
   shapes  : List Shape := []
   free    : Bool := false
   bound   : Bool := false
   wrapped : Bool := false
   fresh   : Bool := true
   last    : Seg := ⟨[], .fin⟩
+  cond    : Bool := false
+  lastFin : Bool := false
   units   : List Job := []
 
 /-- Add one segment to the grouping; close the unit when no block is open and the segment ends the list. Here
 $K = \mathrm{key}(s.\mathit{words})$, $f$ its head (`""` if none), $\ell \iff f \in \{\texttt{until}, \texttt{while}\}$,
-$\rho = \mathrm{isReadLoop}(K)$, and $\pi \iff u.\mathit{last}.\mathit{term} = \mathrm{pipe} \land
-\mathrm{finiteProducer}_c(u.\mathit{last}.\mathit{words})$ (the loop reads a finite pipe).
+$\rho = \mathrm{readHead}(s)$, $\iota \iff u.\mathit{last}.\mathit{term} \ne \mathrm{pipe} \lor u.\mathit{lastFin}$ (this
+segment's stdin is finite: a pipeline head reads the tool's stdin), $\pi \iff u.\mathit{last}.\mathit{term} = \mathrm{pipe}
+\land u.\mathit{lastFin}$ (it reads a finite pipe), and $\delta \iff u.\mathit{cond} \land \mathrm{head}(s.\mathit{words})
+\ne \texttt{do}$ (a read-loop head not followed by `do`: more commands in the condition).
 
 $$\mathrm{addSeg}_c(u, s) = \begin{cases} \{\}[\mathit{units} := (s.\mathit{term} = \mathrm{bg},\ u'.\mathit{shapes},\ u'.\mathit{free} \land \lnot(u'.\mathit{bound} \lor u'.\mathit{wrapped})) :: u.\mathit{units}] & S = [\,] \land s.\mathit{term} \notin \{\mathrm{join}, \mathrm{pipe}\} \\ u' & \text{otherwise} \end{cases}$$
-$$(S, \phi) = \begin{cases} ((\rho \land \lnot\pi) :: u.\mathit{stack},\ \bot) & f \in \mathrm{openers} \\ (r,\ p \land \lnot \mathrm{finiteRedir}(s.\mathit{words})) & f \in \mathrm{closers},\ u.\mathit{stack} = p :: r \\ ([\,], \bot) & f \in \mathrm{closers},\ u.\mathit{stack} = [\,] \\ (u.\mathit{stack}, \bot) & \text{otherwise} \end{cases}$$
-$$u' = u[\mathit{stack} := S,\ \mathit{shapes} := u.\mathit{shapes} \mathbin{+\!\!+} [\mathrm{loop} \mid \ell] \mathbin{+\!\!+} \mathrm{shapesOf}_c(s.\mathit{words}),\ \mathit{free} := u.\mathit{free} \lor (\ell \land \lnot\rho) \lor \phi,\ \mathit{bound} := u.\mathit{bound} \lor \exists x \in s.\mathit{words}.\ \mathrm{isBoundWord}(x),\ \mathit{wrapped} := (u.\mathit{fresh}\ ?\ f \in \{\texttt{timeout}, \texttt{gtimeout}\} : u.\mathit{wrapped}),\ \mathit{fresh} := \bot,\ \mathit{last} := s]$$
+$$(S, \phi) = \begin{cases} ((\rho, \pi) :: u.\mathit{stack},\ \bot) & f \in \mathrm{openers} \\ (r,\ p_1 \land \lnot\, \mathrm{getD}(\mathrm{inRedir}_c(s.\mathit{words}), p_2)) & f \in \mathrm{closers},\ u.\mathit{stack} = (p_1, p_2) :: r \\ ([\,], \bot) & f \in \mathrm{closers},\ u.\mathit{stack} = [\,] \\ (u.\mathit{stack}, \bot) & \text{otherwise} \end{cases}$$
+$$u' = u[\mathit{stack} := S,\ \mathit{shapes} := u.\mathit{shapes} \mathbin{+\!\!+} [\mathrm{loop} \mid \ell] \mathbin{+\!\!+} \mathrm{shapesOf}_c(s.\mathit{words}),\ \mathit{free} := u.\mathit{free} \lor (\ell \land \lnot\rho) \lor \delta \lor \phi,\ \mathit{bound} := u.\mathit{bound} \lor \exists x \in s.\mathit{words}.\ \mathrm{isBoundWord}(x),$$
+$$\qquad \mathit{wrapped} := (u.\mathit{fresh}\ ?\ f \in \{\texttt{timeout}, \texttt{gtimeout}\} : u.\mathit{wrapped}),\ \mathit{fresh} := \bot,\ \mathit{last} := s,\ \mathit{cond} := \rho,\ \mathit{lastFin} := \mathrm{producerOut}_c(\iota, s.\mathit{words})]$$
+where $\mathrm{getD}(\mathrm{some}(b), d) = b$ and $\mathrm{getD}(\mathrm{none}, d) = d$ (the `done` redirect overrides the pipe).
 -/
 def addSeg (c : Caps) (u : UAcc) (s : Seg) : UAcc :=
   let f := (key s.words).head?.getD ""
   let isLoop := f == "until" || f == "while"
-  let rl := isReadLoop (key s.words)
-  let piped := u.last.term == .pipe && finiteProducer c u.last.words
-  let (stack, phi) : List Bool × Bool :=
-    if openers.contains f then ((rl && !piped) :: u.stack, false)
+  let rl := readHead s
+  let inFin := u.last.term != .pipe || u.lastFin
+  let piped := u.last.term == .pipe && u.lastFin
+  let nodo := u.cond && s.words.head? != some "do"
+  let (stack, phi) : List (Bool × Bool) × Bool :=
+    if openers.contains f then ((rl, piped) :: u.stack, false)
     else if closers.contains f then
       match u.stack with
-      | p :: r => (r, p && !finiteRedir s.words)
+      | p :: r => (r, p.1 && !(inRedir c s.words).getD p.2)
       | [] => ([], false)
     else (u.stack, false)
   let wrapped := if u.fresh then (f == "timeout" || f == "gtimeout") else u.wrapped
   let sh := (if isLoop then [Shape.loop] else []) ++ shapesOf c s.words
-  let u' := { u with stack, shapes := u.shapes ++ sh, free := u.free || (isLoop && !rl) || phi,
-                     bound := u.bound || s.words.any isBoundWord, wrapped, fresh := false, last := s }
+  let u' := { u with stack, shapes := u.shapes ++ sh, free := u.free || (isLoop && !rl) || nodo || phi,
+                     bound := u.bound || s.words.any isBoundWord, wrapped, fresh := false, last := s, cond := rl,
+                     lastFin := producerOut c inFin s.words }
   if stack.isEmpty && s.term != .join && s.term != .pipe then
     { units := ⟨s.term == .bg, u'.shapes, u'.free && !(u'.bound || u'.wrapped)⟩ :: u.units }
   else u'
 
-/-- The units of a command (a trailing open unit is closed at the end; a read loop still open there counts as free).
-Here $u = \mathrm{foldl}(\mathrm{addSeg}_c, \{\}, \mathrm{parse}(\mathit{cmd}))$.
+/-- The units of a command (a trailing open unit is closed at the end; a read loop still open there, or a read-loop head
+with nothing after it, counts as free). Here $u = \mathrm{foldl}(\mathrm{addSeg}_c, \{\}, \mathrm{parse}(\mathit{cmd}))$.
 
-$$\mathrm{units}_c(\mathit{cmd}) = \mathrm{rev}\begin{cases} u.\mathit{units} & u.\mathit{fresh} \\ (\bot,\ u.\mathit{shapes},\ (u.\mathit{free} \lor \top \in u.\mathit{stack}) \land \lnot(u.\mathit{bound} \lor u.\mathit{wrapped})) :: u.\mathit{units} & \text{otherwise} \end{cases}$$
+$$\mathrm{units}_c(\mathit{cmd}) = \mathrm{rev}\begin{cases} u.\mathit{units} & u.\mathit{fresh} \\ (\bot,\ u.\mathit{shapes},\ (u.\mathit{free} \lor u.\mathit{cond} \lor \exists p \in u.\mathit{stack}.\ p_1) \land \lnot(u.\mathit{bound} \lor u.\mathit{wrapped})) :: u.\mathit{units} & \text{otherwise} \end{cases}$$
 -/
 def units (c : Caps) (cmd : String) : List Job :=
   let u := (parse cmd).foldl (addSeg c) {}
   let u := if u.fresh then u
-    else { u with units := ⟨false, u.shapes, (u.free || u.stack.any id) && !(u.bound || u.wrapped)⟩ :: u.units }
+    else { u with units := ⟨false, u.shapes, (u.free || u.cond || u.stack.any (·.1)) && !(u.bound || u.wrapped)⟩ :: u.units }
   u.units.reverse
 
-/-- A `while`/`until` segment that is not a read loop marks the loop free (unbounded unless a bound word or a `timeout`
-wrapper is in the unit): its own block stays open, so the unit does not close here.
+/-- A `while`/`until` segment that is not a read-loop head (`while true`, `while read l || true`, `while read l < f`,
+`until read x`) marks the loop free (unbounded unless a bound word or a `timeout` wrapper is in the unit): its own block
+stays open, so the unit does not close here.
 
-$$\forall c, u, s.\ \mathrm{head}(\mathrm{key}(s.\mathit{words})) \in \{\texttt{while}, \texttt{until}\} \land \lnot \mathrm{isReadLoop}(\mathrm{key}(s.\mathit{words})) \ \Rightarrow\ \mathrm{addSeg}_c(u, s).\mathit{free}$$
+$$\forall c, u, s.\ \mathrm{head}(\mathrm{key}(s.\mathit{words})) \in \{\texttt{while}, \texttt{until}\} \land \lnot \mathrm{readHead}(s) \ \Rightarrow\ \mathrm{addSeg}_c(u, s).\mathit{free}$$
 -/
 theorem plainLoop_free (c : Caps) (u : UAcc) (s : Seg)
     (hf : (key s.words).head? = some "while" ∨ (key s.words).head? = some "until")
-    (hr : isReadLoop (key s.words) = false) : (addSeg c u s).free = true := by
+    (hr : readHead s = false) : (addSeg c u s).free = true := by
   have hf' : ((key s.words).head?.getD "" == "until" || (key s.words).head?.getD "" == "while") = true := by
     rcases hf with h | h <;> simp [h]
   have ho : openers.contains ((key s.words).head?.getD "") = true := by
@@ -562,102 +827,124 @@ theorem plainLoop_free (c : Caps) (u : UAcc) (s : Seg)
   simp only [hf', hr, ho, ite_true]
   simp
 
-/-- One segment inside an open block whose command is no block opener or closer changes neither the open blocks, nor
-the free flag, nor the finished units.
+/-- A read-loop head followed by a segment that does not start with `do` (`while read l; [ 1 ]; do`: the condition is a
+list whose last command decides) marks the loop free, while a block is open and the segment closes none.
 
-$$\forall c, u, s.\ u.\mathit{stack} \ne [\,] \land f \notin \mathrm{openers} \cup \mathrm{closers} \ \Rightarrow\ \mathrm{addSeg}_c(u, s).\mathit{stack} = u.\mathit{stack} \land \mathrm{addSeg}_c(u, s).\mathit{free} = u.\mathit{free} \land \mathrm{addSeg}_c(u, s).\mathit{units} = u.\mathit{units}, \quad f = \mathrm{head}(\mathrm{key}(s.\mathit{words}))$$
+$$\forall c, u, s.\ u.\mathit{cond} \land u.\mathit{stack} \ne [\,] \land \mathrm{head}(s.\mathit{words}) \ne \texttt{do} \land \mathrm{head}(\mathrm{key}(s.\mathit{words})) \notin \mathrm{closers} \ \Rightarrow\ \mathrm{addSeg}_c(u, s).\mathit{free}$$
+-/
+theorem cond_without_do_free (c : Caps) (u : UAcc) (s : Seg) (hc : u.cond = true) (hs : u.stack ≠ [])
+    (hd : s.words.head? ≠ some "do") (hcl : closers.contains ((key s.words).head?.getD "") = false) :
+    (addSeg c u s).free = true := by
+  have hn : (u.cond && s.words.head? != some "do") = true := by simp [hc, hd]
+  unfold addSeg
+  simp only [hcl, hn, Bool.or_true, Bool.true_or]
+  split
+  · simp
+  · obtain ⟨p, r, hpr⟩ := List.exists_cons_of_ne_nil hs
+    simp [hpr]
+
+/-- One segment inside an open block whose command is no block opener or closer, read when no read-loop head is pending
+or when it starts with `do`, changes neither the open blocks, nor the free flag, nor the finished units, and leaves no
+read-loop head pending.
+
+$$\forall c, u, s.\ u.\mathit{stack} \ne [\,] \land f \notin \mathrm{openers} \cup \mathrm{closers} \land (\lnot u.\mathit{cond} \lor \mathrm{head}(s.\mathit{words}) = \texttt{do}) \ \Rightarrow\ v.\mathit{stack} = u.\mathit{stack} \land v.\mathit{free} = u.\mathit{free} \land v.\mathit{units} = u.\mathit{units} \land \lnot v.\mathit{cond}$$
+where $f = \mathrm{head}(\mathrm{key}(s.\mathit{words}))$ and $v = \mathrm{addSeg}_c(u, s)$.
 -/
 theorem addSeg_inner (c : Caps) (u : UAcc) (s : Seg) (hs : u.stack ≠ [])
     (ho : openers.contains ((key s.words).head?.getD "") = false)
-    (hc : closers.contains ((key s.words).head?.getD "") = false) :
-    (addSeg c u s).stack = u.stack ∧ (addSeg c u s).free = u.free ∧ (addSeg c u s).units = u.units := by
+    (hc : closers.contains ((key s.words).head?.getD "") = false)
+    (hk : u.cond = false ∨ s.words.head? = some "do") :
+    (addSeg c u s).stack = u.stack ∧ (addSeg c u s).free = u.free ∧ (addSeg c u s).units = u.units ∧
+      (addSeg c u s).cond = false := by
   have hl : ((key s.words).head?.getD "" == "until" || (key s.words).head?.getD "" == "while") = false := by
     cases h1 : ((key s.words).head?.getD "" == "until") <;> cases h2 : ((key s.words).head?.getD "" == "while") <;>
       simp_all [openers]
+  have hr : readHead s = false := by
+    cases h : readHead s
+    · rfl
+    · simp only [readHead, Bool.and_eq_true] at h
+      have := isReadCond_head _ h.1
+      simp [this, openers] at ho
+  have hn : (u.cond && s.words.head? != some "do") = false := by
+    rcases hk with h | h <;> simp [h]
   unfold addSeg
-  simp only [ho, hc, hl]
+  simp only [ho, hc, hl, hr, hn]
   simp [hs]
 
-/-- The body of a block (segments with no block opener or closer) changes neither the open blocks, nor the free flag,
-nor the finished units, while a block is open.
+/-- The body of a block (segments with no block opener or closer), read with no read-loop head pending, changes neither
+the open blocks, nor the free flag, nor the finished units, and leaves no read-loop head pending.
 
-$$\forall c, B, u.\ u.\mathit{stack} \ne [\,] \land (\forall s \in B.\ \mathrm{head}(\mathrm{key}(s.\mathit{words})) \notin \mathrm{openers} \cup \mathrm{closers}) \ \Rightarrow\ v.\mathit{stack} = u.\mathit{stack} \land v.\mathit{free} = u.\mathit{free} \land v.\mathit{units} = u.\mathit{units}, \quad v = \mathrm{foldl}(\mathrm{addSeg}_c, u, B)$$
+$$\forall c, B, u.\ u.\mathit{stack} \ne [\,] \land \lnot u.\mathit{cond} \land (\forall s \in B.\ \mathrm{head}(\mathrm{key}(s.\mathit{words})) \notin \mathrm{openers} \cup \mathrm{closers}) \ \Rightarrow\ v.\mathit{stack} = u.\mathit{stack} \land v.\mathit{free} = u.\mathit{free} \land v.\mathit{units} = u.\mathit{units} \land \lnot v.\mathit{cond}$$
+where $v = \mathrm{foldl}(\mathrm{addSeg}_c, u, B)$.
 -/
-theorem addSeg_body (c : Caps) (body : List Seg) (u : UAcc) (hs : u.stack ≠ [])
+theorem addSeg_body (c : Caps) (body : List Seg) (u : UAcc) (hs : u.stack ≠ []) (hc : u.cond = false)
     (hb : ∀ s ∈ body, openers.contains ((key s.words).head?.getD "") = false ∧
       closers.contains ((key s.words).head?.getD "") = false) :
     (body.foldl (addSeg c) u).stack = u.stack ∧ (body.foldl (addSeg c) u).free = u.free ∧
-      (body.foldl (addSeg c) u).units = u.units := by
+      (body.foldl (addSeg c) u).units = u.units ∧ (body.foldl (addSeg c) u).cond = false := by
   induction body generalizing u with
-  | nil => simp
+  | nil => simp [hc]
   | cons s body ih =>
-    have h1 := addSeg_inner c u s hs (hb s (by simp)).1 (hb s (by simp)).2
-    have := ih (addSeg c u s) (h1.1 ▸ hs) (fun x hx => hb x (by simp [hx]))
+    have h1 := addSeg_inner c u s hs (hb s (by simp)).1 (hb s (by simp)).2 (Or.inl hc)
+    have := ih (addSeg c u s) (h1.1 ▸ hs) h1.2.2.2 (fun x hx => hb x (by simp [hx]))
     simp only [List.foldl_cons]
-    exact ⟨this.1.trans h1.1, this.2.1.trans h1.2.1, this.2.2.trans h1.2.2⟩
+    exact ⟨this.1.trans h1.1, this.2.1.trans h1.2.1, this.2.2.1.trans h1.2.2.1, this.2.2.2⟩
 
-/-- **Read loops are bounded by their input.** A block `while [assignments] read ...; B; done` whose body $B$ opens and
-closes no block adds no free (unbounded) loop when its input is finite: either the segment before it is a finite
-producer piped into it (`git ls-files | while read f; ...`), or its `done` segment holds a finite input redirect
-(`done < file`, `done <<EOF`, `done <<< "$x"`). Starting from a state with no free loop, the grouping still has no free
-loop, and the unit closed by `done` (if any) is bounded.
+/-- **Read loops: a fact about the classification.** Take a read-loop head $w$ (`while [assignments] read [args]` ended
+by `;` or a newline), then a segment $d_0$ starting with `do`, a body $B$, with no block opener or closer in $d_0 :: B$,
+and a `done` segment $d$, read with no free loop and no read-loop head pending. If the loop's stdin is classified finite
+(the `done` segment's last stdin redirect is finite, or it has none and the loop reads a pipe whose producer is
+classified finite), the grouping still has no free loop and the unit closed by `done` (if any) is bounded.
+That such a loop ends in bash is not proved here: it rests on the premises that `read` fails at the end of a finite
+input and that the allowlisted producers (`producerOut`) end.
 
-$$\forall c, u, w, d, B.\ \neg u.\mathit{free} \land \mathrm{isReadLoop}(\mathrm{key}(w.\mathit{words})) \land (\forall s \in B.\ \mathrm{head}(\mathrm{key}(s.\mathit{words})) \notin \mathrm{openers} \cup \mathrm{closers}) \land \mathrm{head}(\mathrm{key}(d.\mathit{words})) = \texttt{done} \land \big((u.\mathit{last}.\mathit{term} = \mathrm{pipe} \land \mathrm{finiteProducer}_c(u.\mathit{last}.\mathit{words})) \lor \mathrm{finiteRedir}(d.\mathit{words})\big)$$
-$$\Rightarrow\ \neg v.\mathit{free} \land (v.\mathit{units} = u.\mathit{units} \lor \exists j.\ v.\mathit{units} = j :: u.\mathit{units} \land \neg j.\mathit{unbounded}), \quad v = \mathrm{foldl}(\mathrm{addSeg}_c, u, w :: B \mathbin{+\!\!+} [d])$$
+$$\forall c, u, w, d_0, B, d.\ \lnot u.\mathit{free} \land \lnot u.\mathit{cond} \land \mathrm{readHead}(w) \land \mathrm{head}(d_0.\mathit{words}) = \texttt{do} \land (\forall s \in d_0 :: B.\ \mathrm{head}(\mathrm{key}(s.\mathit{words})) \notin \mathrm{openers} \cup \mathrm{closers}) \land \mathrm{head}(\mathrm{key}(d.\mathit{words})) = \texttt{done}$$
+$$\land\ \big(\mathrm{inRedir}_c(d.\mathit{words}) = \mathrm{some}(\top) \lor (\mathrm{inRedir}_c(d.\mathit{words}) = \mathrm{none} \land u.\mathit{last}.\mathit{term} = \mathrm{pipe} \land u.\mathit{lastFin})\big)$$
+$$\Rightarrow\ \lnot v.\mathit{free} \land (v.\mathit{units} = u.\mathit{units} \lor \exists j.\ v.\mathit{units} = j :: u.\mathit{units} \land \lnot j.\mathit{unbounded}), \quad v = \mathrm{foldl}(\mathrm{addSeg}_c, u, w :: d_0 :: B \mathbin{+\!\!+} [d])$$
 -/
-theorem readLoop_bounded (c : Caps) (u : UAcc) (w d : Seg) (body : List Seg)
-    (hu : u.free = false) (hw : isReadLoop (key w.words) = true)
-    (hb : ∀ s ∈ body, openers.contains ((key s.words).head?.getD "") = false ∧
+theorem readLoop_bounded (c : Caps) (u : UAcc) (w d0 d : Seg) (body : List Seg)
+    (hu : u.free = false) (hc : u.cond = false) (hw : readHead w = true) (h0 : d0.words.head? = some "do")
+    (hb : ∀ s ∈ d0 :: body, openers.contains ((key s.words).head?.getD "") = false ∧
       closers.contains ((key s.words).head?.getD "") = false)
     (hd : (key d.words).head? = some "done")
-    (hin : (u.last.term = .pipe ∧ finiteProducer c u.last.words = true) ∨ finiteRedir d.words = true) :
-    ((w :: body ++ [d]).foldl (addSeg c) u).free = false ∧
-      (((w :: body ++ [d]).foldl (addSeg c) u).units = u.units ∨
-        ∃ j, ((w :: body ++ [d]).foldl (addSeg c) u).units = j :: u.units ∧ j.unbounded = false) := by
+    (hin : inRedir c d.words = some true ∨
+      (inRedir c d.words = none ∧ u.last.term = .pipe ∧ u.lastFin = true)) :
+    ((w :: d0 :: body ++ [d]).foldl (addSeg c) u).free = false ∧
+      (((w :: d0 :: body ++ [d]).foldl (addSeg c) u).units = u.units ∨
+        ∃ j, ((w :: d0 :: body ++ [d]).foldl (addSeg c) u).units = j :: u.units ∧ j.unbounded = false) := by
   -- the `while` segment
   have hwh : (key w.words).head? = some "while" := by
-    match h : key w.words with
-    | "while" :: _ => simp
-    | [] => simp [h, isReadLoop] at hw
-    | x :: r =>
-      have : x = "while" := by
-        rw [h] at hw
-        unfold isReadLoop at hw
-        split at hw
-        · simp_all
-        · simp at hw
-      simp [this]
-  let pushed := isReadLoop (key w.words) && !(u.last.term == .pipe && finiteProducer c u.last.words)
-  have hpush : pushed = true → finiteRedir d.words = true := by
-    intro hp
-    rcases hin with ⟨h1, h2⟩ | h
-    · simp [pushed, h1, h2] at hp
-    · exact h
-  have hw1 : (addSeg c u w).stack = pushed :: u.stack ∧ (addSeg c u w).free = false ∧
-      (addSeg c u w).units = u.units := by
+    simp only [readHead, Bool.and_eq_true] at hw
+    exact isReadCond_head _ hw.1
+  let piped := u.last.term == .pipe && u.lastFin
+  have hw1 : (addSeg c u w).stack = (true, piped) :: u.stack ∧ (addSeg c u w).free = false ∧
+      (addSeg c u w).units = u.units ∧ (addSeg c u w).cond = true := by
     unfold addSeg
     simp only [hwh, hw]
-    simp [hu, pushed, hw, openers]
-  -- the body
+    simp [hu, hc, piped, openers]
+  -- the `do` segment and the body
   have hne : (addSeg c u w).stack ≠ [] := by rw [hw1.1]; simp
-  have hb1 := addSeg_body c body (addSeg c u w) hne hb
+  have hd0 := addSeg_inner c (addSeg c u w) d0 hne (hb d0 (by simp)).1 (hb d0 (by simp)).2 (Or.inr h0)
+  have hne0 : (addSeg c (addSeg c u w) d0).stack ≠ [] := by rw [hd0.1]; exact hne
+  have hb1 := addSeg_body c body (addSeg c (addSeg c u w) d0) hne0 hd0.2.2.2 (fun x hx => hb x (by simp [hx]))
   -- the `done` segment
-  generalize hv : body.foldl (addSeg c) (addSeg c u w) = v at hb1
-  have hvs : v.stack = pushed :: u.stack := hb1.1.trans hw1.1
-  have hvf : v.free = false := hb1.2.1.trans hw1.2.1
-  have hvu : v.units = u.units := hb1.2.2.trans hw1.2.2
-  have hphi : (pushed && !finiteRedir d.words) = false := by
-    cases hp : pushed
-    · simp
-    · simp [hpush hp]
-  have hfold : (w :: body ++ [d]).foldl (addSeg c) u = addSeg c v d := by
+  generalize hv : body.foldl (addSeg c) (addSeg c (addSeg c u w) d0) = v at hb1
+  have hvs : v.stack = (true, piped) :: u.stack := hb1.1.trans (hd0.1.trans hw1.1)
+  have hvf : v.free = false := hb1.2.1.trans (hd0.2.1.trans hw1.2.1)
+  have hvu : v.units = u.units := hb1.2.2.1.trans (hd0.2.2.1.trans hw1.2.2.1)
+  have hvc : v.cond = false := hb1.2.2.2
+  have hphi : (inRedir c d.words).getD piped = true := by
+    rcases hin with h | ⟨h1, h2, h3⟩
+    · simp [h]
+    · simp [h1, piped, h2, h3]
+  have hfold : (w :: d0 :: body ++ [d]).foldl (addSeg c) u = addSeg c v d := by
     simp [List.foldl_append, hv]
   rw [hfold]
   have hk : (key d.words).head?.getD "" = "done" := by simp [hd]
   have hdo' : openers.contains "done" = false := by decide
   have hdc' : closers.contains "done" = true := by decide
   unfold addSeg
-  simp only [hk, hdo', hdc', hvs, hvf, hvu, hphi, Bool.false_eq_true, ite_false, ite_true]
+  simp only [hk, hdo', hdc', hvs, hvf, hvu, hvc, hphi, Bool.false_eq_true, ite_false, ite_true]
   split
   · exact ⟨by simp, Or.inr ⟨_, rfl, by simp⟩⟩
   · exact ⟨by simp, Or.inl rfl⟩
@@ -765,39 +1052,97 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 
 /-! ## Examples -/
 
-#guard hereDelim "" "<<EOF".toList == some ("EOF".toList, false)
-#guard hereDelim "" "<<-EOF".toList == some ("EOF".toList, true)
-#guard hereDelim "<<" "PY".toList == some ("PY".toList, false)
-#guard hereDelim "" "<<<".toList == none
-#guard hereDelim "" "<<-".toList == none
-#guard hereDelim "" "<<".toList == none
-#guard isReadLoop ["while", "IFS=", "read", "-r", "line"]
-#guard !isReadLoop ["while", "true"]
-#guard !isReadLoop ["until", "read", "x"]
-#guard finiteRedir ["done", "<", "f.txt"] && finiteRedir ["done", "<f"] && finiteRedir ["done", "<<<", "$x"]
-#guard finiteRedir ["done", "<<EOF"] && finiteRedir ["done", "<", "/dev/null"]
-#guard !finiteRedir ["done", "<", "<(tail", "-f", "x)"] && !finiteRedir ["done", "<", "/dev/zero"] && !finiteRedir ["done"]
-#guard finiteProducer {} ["git", "ls-files"] && finiteProducer {} ["find", "."]
-#guard !finiteProducer {} ["yes"] && !finiteProducer {} ["cat"] && !finiteProducer {} ["tail", "-f", "x"]
-#guard !finiteProducer {} ["done"] && !finiteProducer {} ["gh", "run", "watch", "1"]
+#guard hereDelim none true "<<EOF".toList == some ("EOF".toList, false)
+#guard hereDelim none true "<<-EOF".toList == some ("EOF".toList, true)
+#guard hereDelim (some false) true "PY".toList == some ("PY".toList, false)
+#guard hereDelim none false "<<EOF".toList == none
+#guard hereDelim none true "<<<".toList == none
+#guard hereDelim none true "<<-".toList == none
+#guard hereDelim none true "<<".toList == none
+#guard leadOpen none && leadOpen (some 2) && !leadOpen (some 0) && !leadOpen (some 1)
+#guard opWord true "<<".toList == some false && opWord true "<<-".toList == some true && opWord false "<<".toList == none
+#guard has "a<(b" "<(" && !has "a<b" "<(" && has "x$(y" "$("
+#guard isReadArg "-r" && isReadArg "line" && isReadArg "1" && !isReadArg "-u" && !isReadArg "-ru" && !isReadArg "<f"
+#guard !isReadArg "" && !isReadArg "$x"
+#guard isReadCond ["while", "IFS=", "read", "-r", "line"]
+#guard !isReadCond ["while", "true"] && !isReadCond ["until", "read", "x"]
+#guard !isReadCond ["while", "read", "l", "<", "f"] && !isReadCond ["while", "read", "-u", "3", "l"]
+#guard !isReadCond ["while", "X=$(yes)", "read", "l"]
+#guard readHead ⟨["while", "read", "l"], .seq⟩ && !readHead ⟨["while", "read", "l"], .join⟩
+#guard !readHead ⟨["while", "read", "l"], .pipe⟩
+#guard gitSub ["-C", "x", "log"] == "log" && gitSub ["--no-pager", "diff"] == "diff" && gitSub [] == ""
+#guard producerOut {} true ["git", "ls-files"] && producerOut {} true ["git", "-C", "d", "diff", "--name-only"]
+#guard !producerOut {} true ["git", "bisect", "run", "x"] && !producerOut {} true ["git", "hash-object", "--stdin"]
+#guard producerOut {} true ["find", ".", "-name", "*.lean"] && !producerOut {} true ["find", ".", "-exec", "tail", "-f", "{}", ";"]
+#guard producerOut {} true ["ls"] && producerOut {} true ["printf", "%s\\n", "a"] && producerOut {} true ["echo", "x"]
+#guard producerOut {} true ["seq", "1", "5"] && !producerOut {} true ["seq", "inf"] && !producerOut {} true ["seq", "1", "INF"]
+#guard producerOut {} true ["gh", "run", "list"] && producerOut {} true ["gh", "run", "view", "1"]
+#guard !producerOut {} true ["gh", "run", "watch", "1"]
+#guard producerOut {} true ["cat", "f.txt"] && !producerOut {} true ["cat"] && !producerOut {} true ["cat", "-"]
+#guard !producerOut {} true ["cat", "-u", "f"] && !producerOut {} true ["cat", "/dev/urandom"]
+#guard producerOut {} true ["cat", "/dev/null"]
+#guard producerOut {} true ["grep", "-rl", "x", "."] && !producerOut {} false ["grep", "x"]
+#guard producerOut {} true ["jq", "-r", ".a[]", "f.json"] && !producerOut {} true ["jq", "-n", "repeat(1)"]
+#guard !producerOut {} true ["rg", "--pre", "x", "y"] && !producerOut {} true ["sort", "--compress-program=x"]
+#guard producerOut {} true ["sort", "f"] && producerOut {} true ["head", "-5", "f"] && producerOut {} true ["wc", "-l", "f"]
+#guard !producerOut {} true ["ping", "x"] && !producerOut {} true ["tail", "-fn", "10", "log"]
+#guard !producerOut {} true ["tail", "--follow=name", "log"] && !producerOut {} true ["tail", "-n", "5", "f"]
+#guard !producerOut {} true ["log", "stream"] && !producerOut {} true ["sleep", "infinity"] && !producerOut {} true ["yes"]
+#guard !producerOut {} true ["done"] && !producerOut {} true [] && !producerOut {} true ["echo", "$(yes)"]
+#guard inRedir {} ["done", "<", "f.txt"] == some true && inRedir {} ["done", "<f"] == some true
+#guard inRedir {} ["done", "<<<", "$x"] == some true && inRedir {} ["done", "<<EOF"] == some true
+#guard inRedir {} ["done", "<", "/dev/null"] == some true && inRedir {} ["done"] == none
+#guard inRedir {} ["done", "<", "<(tail", "-f", "x)"] == some false && inRedir {} ["done", "<", "/dev/zero"] == some false
+#guard inRedir {} ["done", "<", "<(git", "diff", "--name-only", "main)"] == some true
+#guard inRedir {} ["done", "<", "<(ls)"] == some true && inRedir {} ["done", "<", "<(ping", "x)"] == some false
+#guard inRedir {} ["done", "<", "f", "<", "/dev/zero"] == some false && inRedir {} ["done", "<", "/dev/zero", "<", "f"] == some true
+#guard inRedir {} ["done", "<&3"] == some false && inRedir {} ["done", "0<f"] == some true && inRedir {} ["done", "<", "<(ls"] == some false
+#guard inRedir {} ["done", "<", "<(cat", "<(tail", "-f", "x))"] == some false
 #guard (parse "a | b || c").map (·.term) == [.pipe, .join, .fin]
 #guard parse "cat <<'EOF' > f\nwhile true; do x; done\nEOF\necho ok" == [⟨["cat", "<<EOF", ">", "f"], .seq⟩, ⟨["echo", "ok"], .fin⟩]
+#guard parse "cat << 'EOF'\nwhile true\nEOF\necho ok" == [⟨["cat", "<<", "EOF"], .seq⟩, ⟨["echo", "ok"], .fin⟩]
+#guard (parse "echo \"<<EOF\"\nuntil false; do sleep 5; done").length == 4
+#guard (parse "echo '<<EOF'\nx").length == 2 && (parse "echo \\<<EOF\nx").length == 2 && (parse "echo \"<<\" EOF\nx").length == 2
 #guard decideCmd {} "while IFS= read -r l; do echo \"$l\"; done < f.txt" == .allow
+#guard decideCmd {} "while read l\ndo\n  echo $l\ndone < f.txt" == .allow
 #guard decideCmd {} "git ls-files | while read -r f; do echo $f; done | sort" == .allow
+#guard decideCmd {} "git ls-files | grep x | while read -r f; do echo $f; done" == .allow
 #guard decideCmd {} "while read -r a; do echo $a; done <<< \"$x\"" == .allow
+#guard decideCmd {} "while read -r f; do echo $f; done < <(git diff --name-only main)" == .allow
 #guard decideCmd {} "cat > f.py <<'EOF'\nwhile True:\n  pass\nEOF\npython3 f.py" == .allow
 #guard decideCmd {} "cat <<-EOF > x\n\twhile true; do sleep 1; done\n\tEOF\necho ok" == .allow
 #guard decideCmd {} "find . -type f | while read f; do while read l; do echo $l; done < \"$f\"; done" == .allow
+#guard decideCmd {} "while read l || true; do sleep 1; done < f" == .deny .unboundedLoop
+#guard decideCmd {} "while read l || :; do sleep 1; done < f" == .deny .unboundedLoop
+#guard decideCmd {} "while read l; [ 1 ]; do sleep 1; done < f" == .deny .unboundedLoop
+#guard decideCmd {} "while read l && true; do sleep 1; done < f" == .deny .unboundedLoop
+#guard decideCmd {} "while read -u 3 l; do sleep 1; done < f" == .deny .unboundedLoop
 #guard decideCmd {} "while read l; do echo $l; done" == .deny .unboundedLoop
 #guard decideCmd {} "tail -f log | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "tail -f log | grep x | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "ping x | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "tail -fn 10 log | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "tail --follow=name log | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "cat /dev/urandom | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "cat - | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "cat -u f | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "log stream | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "sleep infinity | while read l; do echo $l; done" == .deny .unboundedLoop
 #guard decideCmd {} "yes | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "seq inf | while read l; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "ls | while read l; do echo $l; done < /dev/zero" == .deny .unboundedLoop
 #guard decideCmd {} "while read l < f; do echo $l; done" == .deny .unboundedLoop
+#guard decideCmd {} "while read l < f; do echo $l; done < g" == .deny .unboundedLoop
 #guard decideCmd {} "while read l; do echo $l; done < <(tail -f x)" == .deny .unboundedLoop
+#guard decideCmd {} "while read l; do echo $l; done < <(ping x)" == .deny .unboundedLoop
+#guard decideCmd {} "echo \"<<EOF\"\nuntil false; do sleep 5; done" == .deny .unboundedLoop
+#guard decideCmd {} "echo '<<EOF'\nuntil false; do sleep 5; done" == .deny .unboundedLoop
 #guard decideCmd {} "for f in a b; do while true; do sleep 1; done; done" == .deny .unboundedLoop
 #guard decideCmd {} "cat <<EOF > f\nx\nEOF\nwhile true; do sleep 1; done" == .deny .unboundedLoop
 #guard decideCmd {} "until [ \"$(gh run view 1 --json status -q .status)\" = completed ]; do sleep 150; done" == .deny .unboundedLoop
 #guard decideCmd {} "ls | while read f; do echo $f; done &" == .deny (.bgLong .loop)
 #guard decideCmd {} "cat <<EOF > f\nhi\nEOF\npnpm fw watch &" == .deny (.bgLong .fwWatch)
+#guard decideCmd {} "node server.mjs & pid=$!; sleep 1; curl -s localhost:3000; kill $pid" == .deny (.bgLong .server)
 #guard decideCmd {} "a || b &" == .allow
 
 end Fw.Ops.Wait

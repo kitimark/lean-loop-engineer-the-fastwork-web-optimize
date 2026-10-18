@@ -32,11 +32,16 @@ export function message(reply) {
   if (reply.reason === "bgLong") {
     return `wait-guard refused: this command starts a long-running process (${reply.shape ?? "?"}) with a trailing & in a foreground call, `
       + "which leaves an orphan process. Run it with the Bash tool's run_in_background: true and no &, so the tool owns it, "
-      + "can stop it and tells you when it ends. Set FW_WAIT_GUARD=shadow to only log.";
+      + "can stop it and tells you when it ends. For a smoke test (`node server.mjs & pid=$!; ...; kill $pid`), start the "
+      + "server in one Bash call with run_in_background: true, run the checks in the next call, then stop the background "
+      + "task (TaskStop). Set FW_WAIT_GUARD=shadow to only log.";
   }
   return "wait-guard refused: an until/while loop with no bound never ends if its condition cannot come true. Give it a deadline "
     + "(wrap it in `timeout N`, or test a counter or SECONDS in the loop), or use `pnpm fw ci wait` / run_in_background. "
-    + "A `while read` loop over a file (`done < f`), a here-string or a finite pipe counts as bounded. "
+    + "A read loop counts as bounded only when its condition is exactly `while [VAR=..] read [opts] [names]` followed by "
+    + "`do` (no `||`, `&&` or second command) and its input is a file (`done < f`), a here-doc/here-string, or an "
+    + "allowlisted producer: `cmd | while read` or `done < <(cmd)` with cmd one of git (read-only subcommands), ls, find, "
+    + "grep, rg, jq, printf, echo, seq, sort, head, wc, gh run list/view, cat FILE (docs/team/tools/wait-guard.md). "
     + "Set FW_WAIT_GUARD=shadow to only log.";
 }
 
