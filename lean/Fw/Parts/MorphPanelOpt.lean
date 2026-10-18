@@ -41,6 +41,9 @@ frame, so the fade is `φ = 1 - min(1, r / 0.55)`. At rest (`r ≤ 0`) the panel
 * (work) at the rest↔fade toggle frames: in Chromium the `none`↔`blur` flip costs more, `cr_toggle_not_le`
   (stacking-context flip, full layout); in WebKit the toggle frames are equal, `wk_toggle_eqv` (the original's
   `blur(0)`↔`blur(x)` change also lays out). The rest win is not per-frame in Chromium.
+* (work) WebKit over a whole swipe of rest, toggle and fade frames in any order: `wk_cross_le` (frame by frame),
+  `wk_cross_resident`, `wk_cross_claim` (`dominates`). Model only: no CI run of the variant page measured the toggle
+  frames yet, so the ledger claims the WebKit win on rest frames only.
 * (work) during the fade. Chromium: **no claim**, `cr_fade_stages` (the blur write is `raster` on every layer
   state), `cr_fade_eq`, `cr_fade_noClaim`. WebKit: a **trade**, `wk_fade_le`, `wk_fade_paint_drop` (paint −1),
   `wk_fade_props_drop` (props −1), `fade_layers_up` (resident layers +1), `wk_fade_trade` (`claim = trade`).
@@ -578,6 +581,97 @@ On WebKit the `none` ↔ `blur` flip costs nothing over the original's toggle. -
 theorem wk_toggle_eqv (ℓ : LayerState) :
     (frameWork webkit (wkEdgeV ℓ)).eqv (frameWork webkit (wkEdgeO ℓ)) := by
   cases ℓ <;> exact ⟨frame_le_union webkit (by decide), frame_le_union webkit (by decide)⟩
+
+/-! ## WebKit over a whole run that crosses rest and fade (`wk_cross_claim`) -/
+
+/-- **One frame of a WebKit run** of the rest variant: a rest frame (`φ = 1`), a toggle frame (opacity crosses 1 and
+the filter flips, layer state `ℓ`), or a fade frame with work `w`. A fade frame is the same in both arms, because the
+variant writes the original's filter whenever `φ < 1` (`filterV_fade`).
+
+$$\mathrm{WkCross} = \mathrm{rest}(\mathrm{RestIn}(\mathrm{WkProp})) \mid \mathrm{edge}(\mathrm{LayerState}) \mid \mathrm{fade}(\mathrm{Work})$$
+
+The three kinds of frame in a swipe that leaves rest and comes back. -/
+inductive WkCross where
+  | rest (x : RestIn WebKit.WkProp)
+  | edge (ℓ : LayerState)
+  | fade (w : Work)
+
+open Fw.Engine.WebKit in
+/-- **The original's WebKit work** of one frame: `blur(0)` at rest, the `blur(0)` ↔ `blur(x)` toggle, the fade
+frame's work.
+
+$$\forall x, \ell, w:\ W_o(\mathrm{rest}(x)) = W_{\mathrm{wk}}(F_o(1), x),\quad W_o(\mathrm{edge}(\ell)) = \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_o(\ell)),\quad W_o(\mathrm{fade}(w)) = w$$
+
+What each frame of the run costs the original. -/
+def wkCrossO : WkCross → Work
+  | .rest x => wkRestW (filterO 1) x
+  | .edge ℓ => frameWork webkit (wkEdgeO ℓ)
+  | .fade w => w
+
+open Fw.Engine.WebKit in
+/-- **The variant's WebKit work** of one frame: `none` at rest, the `none` ↔ `blur(x)` toggle, the fade frame's work.
+
+$$\forall x, \ell, w:\ W_v(\mathrm{rest}(x)) = W_{\mathrm{wk}}(F_v(1), x),\quad W_v(\mathrm{edge}(\ell)) = \operatorname{frameWork}_{\mathrm{webkit}}(\operatorname{wkEdge}_v(\ell)),\quad W_v(\mathrm{fade}(w)) = w$$
+
+What each frame of the run costs the variant. -/
+def wkCrossV : WkCross → Work
+  | .rest x => wkRestW (filterV 1) x
+  | .edge ℓ => frameWork webkit (wkEdgeV ℓ)
+  | .fade w => w
+
+/-- `φ = 1` is rest: the progress `0` gives the full fade.
+
+$$\operatorname{fade}(0) = 1$$
+
+Rest frames use the filters at `φ = 1`. -/
+theorem fade_zero : fade 0 = 1 := by unfold fade; grind
+
+/-- **WebKit, every frame of the run**: the variant is at most the original, frame by frame (rest by `wk_rest_le`,
+toggle by `wk_toggle_eqv`, fade equal).
+
+$$\forall c \in \mathrm{WkCross}:\ W_v(c) \preceq W_o(c)$$
+
+No frame of a rest-fade-rest swipe costs WebKit more. -/
+theorem wk_cross_le (c : WkCross) : (wkCrossV c).le (wkCrossO c) := by
+  cases c with
+  | rest x => have h := wk_rest_le (r := 0) (by decide) x; rw [fade_zero] at h; exact h
+  | edge ℓ => exact (wk_toggle_eqv ℓ).1
+  | fade w => exact Work.le_refl w
+
+/-- **WebKit resident state over the run**: whatever fade value `φ` the variant's resident state is taken at, and
+`φ'` the original's, the variant's is at most the original's (the original's filter is never `none`).
+
+$$\forall \varphi, \varphi' \in \mathbb{Q},\ \forall d, \rho, k:\ \operatorname{res}_{\mathrm{wk}}(F_v(\varphi), d, \rho, k) \preceq \operatorname{res}_{\mathrm{wk}}(F_o(\varphi'), d, \rho, k)$$
+
+The variant never keeps more layers or backing than the original. -/
+theorem wk_cross_resident (φ φ' : Rat) (desc : Bool) (res : Resident) (kpx : Nat) :
+    (wkResident (filterV φ) desc res kpx).le (wkResident (filterO φ') desc res kpx) := by
+  unfold filterV
+  split
+  · cases desc <;> simp [wkResident, groups, filterO, Resident.le]
+  · cases desc <;> simp [wkResident, groups, filterO, Resident.le]
+
+/-- **(work) WebKit, a whole run across rest and fade: dominates.** For any run of rest, toggle and fade frames in
+any order with one rest frame in which the compositor draws the panel, the claim is "dominates", with the variant's
+resident state taken at any fade value `φ` and the original's at any `φ'` (so also at the run's peak).
+
+$$\forall X \in \mathrm{WkCross}^{*},\ \forall \varphi, \varphi' \in \mathbb{Q},\ \forall d, \rho, k:\ \big(\exists x:\ \mathrm{rest}(x) \in X \land x.\mathrm{drawSurface}\big) \Rightarrow \operatorname{claim}\big(\operatorname{screen}(\operatorname{toRun}(\operatorname{map}(W_o, X)), \operatorname{toRun}(\operatorname{map}(W_v, X))), \operatorname{res}_{\mathrm{wk}}(F_v(\varphi), d, \rho, k), \operatorname{res}_{\mathrm{wk}}(F_o(\varphi'), d, \rho, k)\big) = \mathrm{dominates}$$
+
+In the model, the WebKit rest variant wins over the whole swipe, toggle frames included. -/
+theorem wk_cross_claim (xs : List WkCross) (hx : ∃ x, WkCross.rest x ∈ xs ∧ x.drawSurface = true)
+    (φ φ' : Rat) (desc : Bool) (res : Resident) (kpx : Nat) :
+    claim (Screen.screen (toRun (xs.map wkCrossO)) (toRun (xs.map wkCrossV)))
+      (wkResident (filterV φ) desc res kpx) (wkResident (filterO φ') desc res kpx) = .dominates := by
+  obtain ⟨x, hm, h⟩ := hx
+  have hlt : (wkCrossV (.rest x)).lt (wkCrossO (.rest x)) := by
+    have h' := wk_rest_lt (r := 0) (by decide) x h; rw [fade_zero] at h'; exact h'
+  rw [run_claim _ _ (leAll_map _ _ wk_cross_le xs) (someLt_map _ _ xs ⟨_, hm, hlt⟩)]
+  simp [wk_cross_resident]
+
+#guard claim (Screen.screen (toRun ([WkCross.rest ⟨WebKit.jsFrame [], false, false, true⟩, .edge .layer,
+    .fade Work.zero, .edge .layer, .rest ⟨WebKit.jsFrame [], false, false, true⟩].map wkCrossO))
+  (toRun ([WkCross.rest ⟨WebKit.jsFrame [], false, false, true⟩, .edge .layer, .fade Work.zero, .edge .layer,
+    .rest ⟨WebKit.jsFrame [], false, false, true⟩].map wkCrossV))) ⟨0, 0⟩ ⟨1, 0⟩ == .dominates
 
 /-! ## (work) during the fade: an own layer is a trade -/
 
