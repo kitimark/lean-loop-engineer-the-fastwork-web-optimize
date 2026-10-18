@@ -4494,6 +4494,26 @@
    "writes": [
     "research/notes/**"
    ]
+  },
+  {
+   "id": "wait-guard-enforce-2",
+   "title": "(S) wait-guard round 3 before enforce: bound words only from the loop condition (body_irrelevant), finite-filter allowlist widened (sed/tr/cut/uniq/awk, xargs, gh pr list, NUL reads); then the lead hands the user the enforce switch",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "wait-guard-enforce"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/**",
+    "docs/team/tools/wait-guard.md",
+    "docs/team/handoffs/wait-guard-enforce.md",
+    "docs/team/handoffs/wait-guard-enforce-2.md"
+   ]
   }
  ],
  "deadline": {
