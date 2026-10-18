@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -50,13 +51,45 @@ describe("collectSvcs", () => {
     const d = root(); writeApi(d, { port: 1, pid: 42, startedAt: T0 });
     const seen: string[][] = [];
     await collectSvcs(pathsFor(d), async (_c, a, _t, cwd) => { seen.push([...a, String(cwd)]); return ""; }, () => true);
-    expect(seen[0]).toEqual(["log", "-1", "--format=%ct", "main", "--", "apps/console-api/src", d]);
+    expect(seen[0]).toEqual(["log", "-1", "--first-parent", "--format=%ct", "main", "--", "apps/console-api/src", d]);
   });
   it("[] when console-api is not running; null (carry forward) when git fails", async () => {
     const d = root();
     expect(await collectSvcs(pathsFor(d), gitAt({}), () => true)).toEqual([]);
     writeApi(d, { port: 1, pid: 42, startedAt: T0 });
     expect(await collectSvcs(pathsFor(d), async () => null, () => true)).toBeNull();
+  });
+});
+
+// real git: a branch committed BEFORE console-api started but merged --no-ff AFTER it reaches main at the merge time
+describe("collectSvcs with a real git history", () => {
+  const sh = (cwd: string, date: string | null, ...args: string[]) => execFileSync("git", args, {
+    cwd, encoding: "utf8",
+    env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.invalid", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.invalid",
+      ...(date ? { GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } : {}) },
+  });
+  const real: Runner = async (c, args, _t, cwd) => { try { return execFileSync(c, args, { cwd, encoding: "utf8" }); } catch { return null; } };
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const T = 1_760_000_000_000;
+  const changedOf = (svcs: Awaited<ReturnType<typeof collectSvcs>>) =>
+    svcs!.find((s) => s.name === "console-api")!.inputs.find((i) => i.path === "apps/console-api/src")!.changedAt;
+
+  it("dates the change at the merge, so the service is stale; a restart after the merge clears it", async () => {
+    const d = root(); sh(d, null, "init", "-q", "-b", "main");
+    mkdirSync(join(d, "apps/console-api/src"), { recursive: true });
+    writeFileSync(join(d, "apps/console-api/src/a.ts"), "1\n"); sh(d, null, "add", "-A"); sh(d, iso(T - 3600_000), "commit", "-qm", "base");
+    sh(d, null, "checkout", "-q", "-b", "feat");
+    writeFileSync(join(d, "apps/console-api/src/a.ts"), "2\n"); sh(d, iso(T - 600_000), "commit", "-qam", "branch work");
+    sh(d, null, "checkout", "-q", "main");
+    sh(d, iso(T + 300_000), "merge", "--no-ff", "-qm", "land", "feat");
+
+    writeApi(d, { port: 1, pid: 42, startedAt: T });
+    const changed = changedOf(await collectSvcs(pathsFor(d), real, () => true));
+    expect(changed).toBe(T + 300_000); // the merge, not the branch commit at T - 10 min
+    expect(T).toBeLessThan(changed); // Lean rule start < changed: svc.stale
+
+    writeApi(d, { port: 1, pid: 42, startedAt: T + 400_000 }); // restarted after the merge
+    expect(T + 400_000).not.toBeLessThan(changedOf(await collectSvcs(pathsFor(d), real, () => true)));
   });
 });
 

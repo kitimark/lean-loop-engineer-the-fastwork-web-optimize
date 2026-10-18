@@ -1,7 +1,7 @@
 /-!
 # Stale services: a running service must not lag the files it was built from
 
-A service (console-api, the `fwcore` binary it spawns, the web dist) reads input files when it starts. If one of
+A service (console-api and the `fwcore` binary it spawns) reads input files when it starts. If one of
 them changed on `main` after the start, the running process still holds the old code: the incident of task
 `console-stale` (console-api started 04:12 kept running while `workflow-claim` landed at 04:48, so workflow runs
 stayed unbound in the ready lane for hours). This module is the pure rule; the collector (`fw watch`) only measures
@@ -13,8 +13,9 @@ files at or after it).
 
 namespace Fw.Obs
 
-/-- One input group of a service: a path (file or directory prefix) and the time of the last commit on `main` that
-touched it (ms).
+/-- One input group of a service: a path (file or directory prefix) and the time the last change reached `main`
+(ms): the committer time of the newest first-parent commit of `main` that touched it, so a branch merged with
+`--no-ff` counts at the merge, not at the branch commit.
 
 $$i = (\mathit{path}, \mathit{changed}) \in \mathrm{String} \times \mathbb N$$
 -/

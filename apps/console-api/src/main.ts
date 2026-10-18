@@ -13,6 +13,7 @@ function codeCommit(root: string): string | null {
   try { return execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8", timeout: 3000 }).trim() || null; } catch { return null; }
 }
 
+const startedAt = Date.now(); // first statement that runs: before any await, so no input read can predate it
 const dir = consoleDir();
 mkdirSync(dir, { recursive: true });
 let core;
@@ -29,7 +30,7 @@ const store = await Store.open(dir, core);
 const here = dirname(fileURLToPath(import.meta.url));
 const reconciler = new Reconciler(store, dirname(dir));
 reconciler.start();
-const service = { commit: codeCommit(dirname(dir)), startedAt: Date.now() };
+const service = { commit: codeCommit(dirname(dir)), startedAt };
 const app = createApp(store, join(here, "../../console-web/dist"), reconciler, service);
 
 setInterval(() => { void app.drain.run().catch((e) => console.error("spool drain failed:", e)); }, 2000).unref();

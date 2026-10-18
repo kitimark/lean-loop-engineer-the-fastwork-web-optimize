@@ -47,7 +47,7 @@ export async function collectSvcs(p: Paths, exec: Runner, alive?: (pid: number) 
   for (const [name, paths] of Object.entries(SVC_INPUTS)) {
     const inputs: SvcInput[] = [];
     for (const path of paths) {
-      const t = parseCommitTime(await exec("git", ["log", "-1", "--format=%ct", "main", "--", path], 5000, p.root));
+      const t = parseCommitTime(await exec("git", ["log", "-1", "--first-parent", "--format=%ct", "main", "--", path], 5000, p.root));
       if (t === null) return null;
       inputs.push({ path, changedAt: t });
     }
