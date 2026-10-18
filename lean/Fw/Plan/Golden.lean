@@ -388,7 +388,11 @@ def wfCases : List (String × List String × List String × List String × List 
      jl "wf_b37180a7-494" "a3" true "w:", jl "wf_b37180a7-494" "a5" false "fix:v", jl "bad" "a6" true "fix:v"]),
   ("two agents of one task (task-state-truth): each is keyed by its own id; the result line of one stops only that id", ["t"],
     ["review-wf_4e2a0add-492.js"], [],
-    [jl "wf_4e2a0add-492" "a1" true "fix:t", jl "wf_4e2a0add-492" "a2" true "review:t", jl "wf_4e2a0add-492" "a1" false ""])]
+    [jl "wf_4e2a0add-492" "a1" true "fix:t", jl "wf_4e2a0add-492" "a2" true "review:t", jl "wf_4e2a0add-492" "a1" false ""]),
+  ("every agent of a run named like a task works on it whatever its label (task-state-truth round 5); a label task is added; a failed line (started false) stops the id", ["t", "u"],
+    ["t-wf_4e2a0add-492.js"], [],
+    [jl "wf_4e2a0add-492" "a1" true "review", jl "wf_4e2a0add-492" "a2" true "fix:u", jl "wf_4e2a0add-492" "a3" true "fix:t",
+     jl "wf_4e2a0add-492" "a1" false ""])]
 
 /-- One workflow event as the console-api sends it: `{key, type, agent}` for a spawn or stop,
 `{key, type, agent, name}` for a label (`Fw.Plan.wfAllEvents` gives no other command). -/

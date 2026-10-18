@@ -322,6 +322,7 @@
                   "done",
                   "cut",
                   "running",
+                  "quiet",
                   "handedBack",
                   "integrated",
                   "parked",

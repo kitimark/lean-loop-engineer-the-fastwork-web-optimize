@@ -6,10 +6,12 @@
 // Task task-state-truth: every decision is Lean's (`ops.obs`): which lines are admitted (`Fw.Ops.Obs.admit`: only the
 // decision fields can reject a line; every rejection, soft-field note and unknown field is an issue, raised as one spool
 // alert), what a record does to agent life (`Fw.Ops.Obs.lifeOf`: liveness by agent id, any event of an id is a
-// heartbeat), which ids the health index names (`Fw.Ops.Obs.labelOf`, `agent.label`) and which quiet keys have timed
-// out (`plan.timeouts`, `Fw.Plan.timeouts`). This file only reads files, keeps the name index and the stop epochs, and
-// submits what Lean returns. A life key is an agent id (or a spawn guard's bridge key), never a name: a name only labels
-// a key (round 4). Every throw a sweep or the drain catches is counted (`sweepErrors`, written to sweep-errors.json) and
+// heartbeat) and which ids the health index names (`Fw.Ops.Obs.labelOf`, `agent.label`). Round 5: no timeout stop; a key
+// not seen for `Fw.Plan.quietMs` shows quiet on the board (`Fw.Plan.quietOf`, derived at query time), and only an
+// identity stop ends it. This file only reads files, keeps the name index and the stop epochs, and submits what Lean
+// returns. A life key is an agent id (or a spawn guard's bridge key), never a name: a name only labels
+// a key (round 4). The whole drain body runs in one try (round 5), so no throw escapes `run()`. Every throw a sweep or
+// the drain catches is counted (`sweepErrors`, written to sweep-errors.json) and
 // the watch raises `svc.sweepError` with the count (Lean `Fw.Obs.sweep_error_alerts`); none is swallowed.
 import { existsSync, fsyncSync, openSync, closeSync, readFileSync, readdirSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -22,11 +24,11 @@ import { scanWorkflows, workflowDirs } from "./workflow.ts";
 /** One drain's counts. `invalid`: lines Lean rejected (logged with the reason); `unknown`: occurrences of fields Lean
  *  does not know on new accepted lines; `issues`: issue occurrences (rejections, soft-field notes, unknown fields,
  *  lifeOf errors; Lean `Fw.Ops.Obs.issuesOf`); `stops`: agent.stop sent from SubagentStop records (by id); `unnamed`: of
- *  those, stops of an id the health index does not name yet; `labels`: agent.label sent; `timeouts`: agent.stop sent by
- *  the quiet timeout; `sweepErrors`: throws caught in this drain (each also counted in sweep-errors.json). */
+ *  those, stops of an id the health index does not name yet; `labels`: agent.label sent; `sweepErrors`: throws caught in
+ *  this drain (each also counted in sweep-errors.json). */
 export type DrainResult = {
   accepted: number; duplicates: number; invalid: number; retry: number; alerts: number;
-  unknown: number; issues: number; stops: number; unnamed: number; labels: number; timeouts: number; sweepErrors: number;
+  unknown: number; issues: number; stops: number; unnamed: number; labels: number; sweepErrors: number;
 };
 
 /** The file the watch reads for `svc.sweepError`: `{pid, count, ops: {<op>: count}}` of this console-api process. */
@@ -145,39 +147,44 @@ export class Drain {
   }
 
   private async once(): Promise<DrainResult> {
-    const res: DrainResult = { accepted: 0, duplicates: 0, invalid: 0, retry: 0, alerts: 0, unknown: 0, issues: 0, stops: 0, unnamed: 0, labels: 0, timeouts: 0, sweepErrors: 0 };
-    await this.workflowSweep(res);
-    const spool = join(this.store.dir, "spool");
-    if (existsSync(spool)) {
-      this.names.refresh();
-      await this.labelSweep(res);
-      // the alert steps still open on the board (refreshed each drain: a person may have answered or cancelled one)
-      this.openAlerts = new Set((await this.store.board()).steps
-        .filter((st) => st.id.startsWith("alert-") && (st.status === "waiting" || st.status === "started")).map((st) => st.id));
-      for (const f of readdirSync(spool).filter((n) => n.endsWith(".jsonl")).sort()) {
-        const path = join(spool, f);
-        const start = this.offsets.get(path) ?? 0;
-        if (statSync(path).size <= start) continue;
-        const buf = readFileSync(path).subarray(start);
-        const end = buf.lastIndexOf(10) + 1; // a torn last line (no newline yet) waits for the next drain
-        const raws = buf.subarray(0, end).toString("utf8").split("\n").slice(0, -1);
-        let verdicts: Admitted[];
-        try { verdicts = raws.length ? await admitLines(this.store.core, raws) : []; }
-        catch (e) { this.caught("admit", e, res); continue; } // offset kept: the lines are read again next drain
-        let pos = 0, advance = true, consumed = 0;
-        for (let i = 0; i < raws.length; i++) {
-          const len = Buffer.byteLength(raws[i]!) + 1;
-          const verdict = await this.handle(verdicts[i]!, res);
-          if (verdict === "retry") advance = false;
-          pos += len;
-          if (advance) consumed = pos;
-        }
-        this.offsets.set(path, start + consumed);
-      }
-      await this.fieldAlert(res);
-    }
-    await this.timeoutSweep(res);
+    const res: DrainResult = { accepted: 0, duplicates: 0, invalid: 0, retry: 0, alerts: 0, unknown: 0, issues: 0, stops: 0, unnamed: 0, labels: 0, sweepErrors: 0 };
+    try {
+      await this.workflowSweep(res);
+      await this.spoolSweep(res);
+    } catch (e) { this.caught("drain", e, res); } // board, submits and posts: a throw is counted, never escapes
     return res;
+  }
+
+  /** The spool files: labels, then each new complete line admitted by Lean and handled, then the spool alert. */
+  private async spoolSweep(res: DrainResult): Promise<void> {
+    const spool = join(this.store.dir, "spool");
+    if (!existsSync(spool)) return;
+    this.names.refresh();
+    await this.labelSweep(res);
+    // the alert steps still open on the board (refreshed each drain: a person may have answered or cancelled one)
+    this.openAlerts = new Set((await this.store.board()).steps
+      .filter((st) => st.id.startsWith("alert-") && (st.status === "waiting" || st.status === "started")).map((st) => st.id));
+    for (const f of readdirSync(spool).filter((n) => n.endsWith(".jsonl")).sort()) {
+      const path = join(spool, f);
+      const start = this.offsets.get(path) ?? 0;
+      if (statSync(path).size <= start) continue;
+      const buf = readFileSync(path).subarray(start);
+      const end = buf.lastIndexOf(10) + 1; // a torn last line (no newline yet) waits for the next drain
+      const raws = buf.subarray(0, end).toString("utf8").split("\n").slice(0, -1);
+      let verdicts: Admitted[];
+      try { verdicts = raws.length ? await admitLines(this.store.core, raws) : []; }
+      catch (e) { this.caught("admit", e, res); continue; } // offset kept: the lines are read again next drain
+      let pos = 0, advance = true, consumed = 0;
+      for (let i = 0; i < raws.length; i++) {
+        const len = Buffer.byteLength(raws[i]!) + 1;
+        const verdict = await this.handle(verdicts[i]!, res);
+        if (verdict === "retry") advance = false;
+        pos += len;
+        if (advance) consumed = pos;
+      }
+      this.offsets.set(path, start + consumed);
+    }
+    await this.fieldAlert(res);
   }
 
   /** Workflow runs and their labelled agents (Lean `Fw.Plan.wfAllEvents`): `agent.label` of the run key or agent id with
@@ -215,21 +222,6 @@ export class Drain {
         if (reply.ok) { this.labelSent.add(tag); if (!reply.duplicate) res.labels++; }
       }
     } catch (e) { this.caught("label", e, res); } // the next drain tries again
-  }
-
-  /** The quiet timeout (Lean `plan.timeouts`, `Fw.Plan.timeouts`): a live key of an undone task's agent not seen for
-   *  `Fw.Plan.quietMs` gets `agent.stop` at its last sighting (key `timeout:<key>|<at>`, so one per sighting; a later
-   *  event revives it). Never blocks. */
-  private async timeoutSweep(res: DrainResult): Promise<void> {
-    try {
-      const b = await this.store.board();
-      const tasks = b.plan.tasks.map((t) => ({ id: t.id, evidence: t.evidence, keys: t.keys ?? [] }));
-      const r = await this.store.core.ops("plan.timeouts", { tasks, now: b.now });
-      for (const s of r.stops as { agent: string; at: number }[]) {
-        const reply = await this.store.submit({ type: "agent.stop", key: `timeout:${s.agent}|${s.at}`, actor: "script", agent: s.agent, at: s.at });
-        if (reply.ok) res.timeouts++;
-      }
-    } catch (e) { this.caught("timeout", e, res); } // the next drain tries again
   }
 
   /** Spool issues (Lean `Fw.Ops.Obs.fieldAlert`): one spool alert naming them with counts while none is open. */

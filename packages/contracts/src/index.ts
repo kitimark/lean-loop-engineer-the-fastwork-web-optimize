@@ -192,7 +192,7 @@ export type BoardCard = z.infer<typeof BoardCard>;
 /** "cut": the task was cut from the plan (never ready, off the critical path, not in milestone totals) */
 /** "handedBack" / "integrated" / "parked": the task's agents ended and its last outcome mark says where the work
  *  went (Lean `Fw.Plan.tstate`, task task-state-truth); an agent that ended with no mark shows "parked". */
-export const TaskState = z.enum(["done", "cut", "running", "handedBack", "integrated", "parked", "ready", "blocked"]);
+export const TaskState = z.enum(["done", "cut", "running", "quiet", "handedBack", "integrated", "parked", "ready", "blocked"]);
 export type TaskState = z.infer<typeof TaskState>;
 export const TaskLane = z.enum(["agent", "device"]);
 /** A task's derived outcome mark (Lean `Fw.Plan.outcomeOf`), null when none. */
@@ -219,11 +219,11 @@ export const PlanTask = z.object({
   /** undone deps */
   blockers: z.array(Id),
   agent: Id.nullable(),
-  /** when the bound agent was last seen (its latest sighting `at`, ms, a claim included; Lean `Fw.Plan.seenAt`); null
-   *  for no agent; missing in boards from before task-state-truth. */
+  /** when the running agent was last seen (its latest sighting `at`, ms; Lean `Fw.Plan.seenAt`); for a quiet task the
+   *  last sighting of its live keys (Lean `Fw.Plan.quietOf`); else null; missing in boards from before task-state-truth. */
   since: z.number().int().nonnegative().nullable().optional(),
-  /** the live life keys of the bound agent with their last sighting (Lean `Fw.Plan.liveKeys`); the quiet timeout reads
-   *  them (`plan.timeouts`). Missing in boards from before task-state-truth round 3. */
+  /** the live life keys of the bound agent with their last sighting (Lean `Fw.Plan.liveKeys`). Missing in boards from
+   *  before task-state-truth round 3. */
   keys: z.array(z.object({ key: z.string(), at: z.number().int().nonnegative() })).optional(),
   evidence: z.string().nullable(),
   /** where an ended agent's work went; missing in boards from before task-state-truth */

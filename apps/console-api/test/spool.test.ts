@@ -197,17 +197,24 @@ describe("spool drain", () => {
     return () => { store.core.ops = real; };
   };
   const swept = (dir: string) => JSON.parse(readFileSync(join(dir, SWEEP_ERRORS), "utf8")) as { pid: number; count: number; ops: Record<string, number> };
-  it("a fwcore throw in the timeout sweep is counted (svc.sweepError), never swallowed; the next drain runs it again", async () => {
+  // round 5, lead decision 4: the whole drain body (board, submits, posts) runs in one try
+  it("a rejecting core: every throw of the drain body is counted (svc.sweepError), run() never rejects; the next drain reads the lines again", async () => {
     const { dir, store } = await fresh();
-    const restore = throwing(store, (op) => op === "plan.timeouts");
+    spool(dir, "a1", rec());
+    health(dir, [{ id: "a1", name: "fix-nav" }]);
+    const realBoard = store.board.bind(store);
+    store.board = async () => { throw new Error("core down"); };
+    const restore = throwing(store, () => true);
     const d = new Drain(store);
-    expect(await d.run()).toMatchObject({ sweepErrors: 1, timeouts: 0 });
-    expect(await d.run()).toMatchObject({ sweepErrors: 1 });
-    expect(swept(dir)).toEqual({ pid: process.pid, count: 2, ops: { timeout: 2 } });
-    expect(d.sweepErrors()).toEqual({ timeout: 2 });
+    const r = await d.run();
+    expect(r.sweepErrors).toBeGreaterThanOrEqual(1);
+    expect(d.sweepErrors()).toMatchObject({ drain: 1 });
+    expect(swept(dir).ops).toMatchObject({ drain: 1 });
+    expect(await d.run()).toMatchObject({ accepted: 0 });
+    expect(d.sweepErrors()).toMatchObject({ drain: 2 });
     restore();
-    expect(await d.run()).toMatchObject({ sweepErrors: 0 });
-    expect(swept(dir).count).toBe(2);
+    store.board = realBoard;
+    expect(await d.run()).toMatchObject({ accepted: 1, sweepErrors: 0 });
   });
   it("a fwcore throw in admission, the alert plan, the label sweep or the workflow sweep is counted per op", async () => {
     const { dir, store } = await fresh();
@@ -236,13 +243,15 @@ describe("spool drain", () => {
     spool(dir, "a1", { ...rec({ tool_use_id: "t3" }), extra: 2 });
     expect(await d.run()).toMatchObject({ accepted: 1, unknown: 1, alerts: 0 }); // one open: no second alert
   });
-  it("quiet timeout: an agent not seen for quietMs gets agent.stop at now", async () => {
+  it("quiet (round 5): an agent not seen for quietMs shows quiet with its last-seen time; no stop is sent", async () => {
     const { dir, store } = await fresh();
     await define(store, "fix-nav");
     health(dir, [{ id: "a1", name: "fix-nav" }]);
-    spool(dir, "a1", rec({ ts: 1_700_000_000_000 - 2 * 3600_000 - 1 }));
-    expect(await new Drain(store).run()).toMatchObject({ accepted: 1, timeouts: 1 });
-    expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "parked", agent: null });
+    const at = 1_700_000_000_000 - 2 * 3600_000 - 1;
+    spool(dir, "a1", rec({ ts: at }));
+    expect(await new Drain(store).run()).toMatchObject({ accepted: 1, sweepErrors: 0 });
+    expect((await store.board()).plan.tasks[0]).toMatchObject({ state: "quiet", agent: null, since: at, outcome: null });
+    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toEqual([]);
   });
   it("golden: zod ObsRecord accepts every record Lean keeps, and refuses what Lean rejects", async () => {
     const { store } = await fresh();

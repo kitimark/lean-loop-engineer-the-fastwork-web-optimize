@@ -135,7 +135,7 @@ describe("automation", () => {
     });
   }
 
-  it("a stopped agent releases its undone task, which shows parked (no handback): the stop ends its id only; the spawn's bridge key ends at the quiet timeout; a stop before the define too", async () => {
+  it("a stopped agent's id ends; the spawn's bridge key, which no record stops, shows quiet after quietMs, never parked (round 5)", async () => {
     const { dir, store } = await open();
     mkdirSync(join(dir, "spool"));
     health(dir, [["id-a", "a"], ["id-c", "c"]]);
@@ -146,7 +146,7 @@ describe("automation", () => {
     expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([
       { actor: "hook", agent: "id-c", key: `stop:id-c|SubagentStop|${T0 + 4}`, at: T0 + 4 },
       { actor: "hook", agent: "id-unknown", key: `stop:id-unknown|SubagentStop|${T0 + 4}`, at: T0 + 4 }]);
-    // no event ties the spawn's bridge key to id-c, so c shows running until that key's quiet timeout (stated limit)
+    // no event ties the spawn's bridge key to id-c, so c shows running until quietMs passes, then quiet (stated limit)
     expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "running", "c"]]);
     stores = stores.filter((s) => s !== store);
     store.close();
@@ -154,12 +154,14 @@ describe("automation", () => {
     stores.push(later);
     appendFileSync(join(dir, "spool", "s.jsonl"), toolRec("id-a", T0 + QUIET));
     const d = new Drain(later);
-    expect(await d.run()).toMatchObject({ timeouts: 2, sweepErrors: 0 });
-    expect(await rows(later)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "parked", null]]);
-    expect((await planOf(later)).tasks[2]!.outcome).toEqual({ kind: "parked", reason: "agent ended without a handback" });
+    expect(await d.run()).toMatchObject({ sweepErrors: 0 });
+    expect(await rows(later)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "quiet", null]]);
+    expect((await planOf(later)).tasks[2]!.outcome).toBeNull();
+    expect(store.readEvents().filter((e) => e.key.startsWith("timeout:"))).toEqual([]);
     appendFileSync(join(dir, "spool", "s.jsonl"), stopRec("id-a", T0 + QUIET + 1));
     await d.run();
-    expect(await rows(later)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "parked", null]]);
+    // id-a stopped; a's bridge key has no stop, so a shows quiet, not parked
+    expect(await rows(later)).toEqual([["a", "quiet", null], ["b", "blocked", null], ["c", "quiet", null]]);
   });
 
   // task-state-truth: the hook adds background_tasks to SubagentStop; the strict schema refused it, so no stop reached
@@ -187,10 +189,12 @@ describe("automation", () => {
     const { store } = await open();
     for (const c of syncCommands(mini())) await store.submit(c);
     const send = (c: object) => store.submit(c as never);
-    await send({ type: "agent.spawn", key: "s:c", actor: "hook", agent: "c" });
+    // round 5: a name never sights, so the id is labelled with the task (Lean `names_never_sight`)
+    await send({ type: "agent.label", key: "l:c", actor: "hook", agent: "id-c", name: "c" });
+    await send({ type: "agent.spawn", key: "s:c", actor: "hook", agent: "id-c" });
     await send({ type: "task.handback", key: "h:c", actor: "hook", task: "c", agent: "c", tip: "abc1234" });
     expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "running", "c"]]);
-    await send({ type: "agent.stop", key: "x:c", actor: "hook", agent: "c" });
+    await send({ type: "agent.stop", key: "x:c", actor: "hook", agent: "id-c" });
     await send({ type: "task.park", key: "p:a", actor: "lead", task: "a", reason: "waiting on the user" });
     expect(await rows(store)).toEqual([["a", "parked", null], ["b", "blocked", null], ["c", "handedBack", null]]);
     // integrate allowlist (Lean `Fw.Plan.integrate_allowlist`): full refs under ci/, worktree-, integrate- only
@@ -204,7 +208,7 @@ describe("automation", () => {
     expect((await planOf(store)).tasks[2]!.outcome).toEqual({ kind: "integrated", branch: "refs/heads/ci/integrate-1", tip: "abc1234" });
   });
 
-  it("an old log (legacy `live` on task.define, task.claim, no agent.spawn) replays: the claim binds, a legacy live fact no longer does", async () => {
+  it("an old log (legacy `live` on task.define, task.claim, no agent.spawn) replays: neither the claim nor a legacy live fact binds (names never sight, round 5)", async () => {
     const dir = mkdtempSync(join(tmpdir(), "fw-plan-"));
     const lines: object[] = [];
     let seq = 0;
@@ -213,9 +217,9 @@ describe("automation", () => {
     log({ type: "task.claim", key: "claim:a", actor: "hook", task: "a", agent: "a" });
     writeFileSync(join(dir, "events.jsonl"), lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
     const { store } = await open(dir);
-    // a is claimed (a claim is a sighting at its time, expiring by the claim TTL), b stays blocked (its dep a is undone);
-    // c's legacy live fact carries no time, so since task-state-truth round 3 it binds nothing (it could never expire)
-    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "ready", null]]);
+    // a's claim names a task, and a name never sights since round 5 (Lean `claim_never_sights`), so a stays ready and b
+    // blocked (its dep a is undone); c's legacy live fact carries no time, so since round 3 it binds nothing
+    expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "ready", null]]);
     // a client's legacy `live` is dropped now: the console binds from agent.spawn only
     const d = syncCommands({ milestones: [], tasks: [{ id: "n", title: "N", stream: "s", deps: [], owner: "o" }] })[0]!;
     await store.submit({ ...d, live: ["n"] } as never);
