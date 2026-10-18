@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 
 /** Task detail + owner-only Preview. All facts come from console-api (`/api/tasks/:id/detail`, `/api/previews`); the
@@ -11,17 +12,22 @@ type Detail = {
   git: { head: string | null; headSource: string; branch: string | null; onMain: boolean; containedIn: string[] };
   handoff: { ref: string; excerpt: string; lines: number } | null;
   preview: { target: Target; running: Pv | null };
-  canPreview?: boolean; // this browser holds the owner cookie (set by the one-time owner link the console prints)
+  previewPort?: number | null; // the preview port (another origin than the console)
+  canPreview?: boolean; // this browser sent a live owner token (login page or the one-time owner link)
 };
-type Listing = { previews: Pv[]; failed: { id: string; task: string; error: string }[] };
+type Listing = { previewPort?: number | null; previews: Pv[]; failed: { id: string; task: string; error: string }[] };
 
 export const wantsDetail = (id: string) => id.startsWith("port-") || id.startsWith("fix-");
 const J = { "content-type": "application/json" };
-/** What a refusal means to the owner; `notOwner` is the missing owner cookie or Origin (open the console's owner link). */
+/** What a refusal means to the owner; `notOwner` is the missing owner token or Origin (open the console's owner link). */
 export const refusedText = (reason: string) =>
-  reason === "notOwner" ? "refused: this browser is not signed in as owner; open the owner link the console printed in its terminal" : `refused: ${reason}`;
-export const urls = (p: Pick<Pv, "rp" | "op">) => ({
-  rewrite: `http://127.0.0.1:${p.rp}/`, original: `http://127.0.0.1:${p.op}/`, compare: `http://127.0.0.1:${p.rp}/__fw/compare`,
+  reason === "notOwner" ? "refused: this browser is not signed in as owner; log in as owner (the login page, or the owner link the console printed in its terminal)" : `refused: ${reason}`;
+/** Preview links point at the preview port (console port + 1): another origin than the console, so preview JavaScript cannot
+ *  act as the owner. `base` is `<protocol>//<host>:<previewPort>`, built from the page's own host (so it works from the phone). */
+export const previewBase = (port: number | null | undefined, loc?: { protocol: string; hostname: string }) =>
+  { if (!port) return ""; const l = loc ?? window.location; return `${l.protocol}//${l.hostname}:${port}`; };
+export const urls = (p: Pick<Pv, "id">, base = "") => ({
+  rewrite: `${base}/preview/${p.id}/r/`, original: `${base}/preview/${p.id}/o/`, compare: `${base}/preview/${p.id}/compare`,
 });
 export const targetText = (t: Target) =>
   t.kind === "none" ? "no work to preview yet" : t.kind === "main" ? "already on main" :
@@ -35,7 +41,7 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
 
   const load = useCallback(async () => {
     try {
-      const [a, b] = await Promise.all([fetch(`/api/tasks/${id}/detail`), fetch("/api/previews")]);
+      const [a, b] = await Promise.all([apiFetch(`/api/tasks/${id}/detail`), apiFetch("/api/previews")]);
       const da = await a.json();
       if (da.ok) setD(da); else setMsg(String(da.reason));
       const lb = await b.json();
@@ -51,19 +57,20 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
     return () => clearInterval(t);
   }, [open, building, load]);
 
+  const pbase = previewBase(l.previewPort ?? d?.previewPort);
   const mine = l.previews.find((p) => p.task === id) ?? null;
   const failed = l.failed.filter((f) => f.task === id).at(-1) ?? null;
 
   async function start() {
     setMsg(null);
-    const r = await fetch("/api/previews", { method: "POST", headers: J, body: JSON.stringify({ task: id }) });
+    const r = await apiFetch("/api/previews", { method: "POST", headers: J, body: JSON.stringify({ task: id }) });
     const j = await r.json();
     if (!j.ok) setMsg(refusedText(String(j.reason)));
     await load();
   }
   async function stop(pid: string) {
     setMsg(null);
-    const r = await fetch(`/api/previews/${pid}/stop`, { method: "POST", headers: J, body: "{}" });
+    const r = await apiFetch(`/api/previews/${pid}/stop`, { method: "POST", headers: J, body: "{}" });
     const j = await r.json();
     if (!j.ok) setMsg(refusedText(String(j.reason)));
     await load();
@@ -93,16 +100,16 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
           )}
           <div className="flex flex-wrap items-center gap-2">
             <span>preview: {targetText(d.preview.target)}</span>
-            {d.canPreview === false && <span data-testid="owner-hint">to start or stop a preview, open the owner link the console printed in its terminal (once, in this browser)</span>}
+            {d.canPreview === false && <span data-testid="owner-hint">to start or stop a preview, <a className="underline" href="/owner/login">log in as owner</a> (or open the owner link the console printed in its terminal, once, in this browser)</span>}
             {d.canPreview !== false && !mine && d.preview.target.kind !== "none" && <button className="rounded border px-2 py-0.5" onClick={() => void start()}>Preview</button>}
             {d.canPreview !== false && mine && <button className="rounded border px-2 py-0.5" onClick={() => void stop(mine.id)}>Stop</button>}
           </div>
           {mine?.phase === "building" && <div>building (a few seconds to a minute)</div>}
           {mine?.phase === "serving" && (
             <ul>
-              <li>task version: <a className="underline" href={urls(mine).rewrite} target="_blank" rel="noreferrer">{urls(mine).rewrite}</a></li>
-              <li>original: <a className="underline" href={urls(mine).original} target="_blank" rel="noreferrer">{urls(mine).original}</a></li>
-              <li>side by side: <a className="underline" href={urls(mine).compare} target="_blank" rel="noreferrer">{urls(mine).compare}</a></li>
+              <li>task version: <a className="underline" href={urls(mine, pbase).rewrite} target="_blank" rel="noreferrer">{urls(mine, pbase).rewrite}</a></li>
+              <li>original: <a className="underline" href={urls(mine, pbase).original} target="_blank" rel="noreferrer">{urls(mine, pbase).original}</a></li>
+              <li>side by side: <a className="underline" href={urls(mine, pbase).compare} target="_blank" rel="noreferrer">{urls(mine, pbase).compare}</a></li>
               <li>expires {new Date(mine.deadline).toLocaleTimeString()}</li>
             </ul>
           )}

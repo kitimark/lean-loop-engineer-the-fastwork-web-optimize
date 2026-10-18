@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import type { LiveBoard, Plan, PlanTask } from "@fw/contracts";
 import { Smartphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
