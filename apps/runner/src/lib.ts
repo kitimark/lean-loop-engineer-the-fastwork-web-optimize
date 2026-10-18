@@ -55,6 +55,48 @@ export function stepCommand(argv: string[], env: Record<string, string | undefin
   }
 }
 
+export const TASK_USAGE = "usage: fw task handback <task> [--agent a] [--tip sha] | fw task integrate <task> --into <branch> --tip <sha>\n" +
+  "       fw task park <task> --reason <text> | fw task unpark <task>   (--as <actor>, --key <k>; default actor lead)";
+
+/** The full ref name git resolves `name` to (`git rev-parse --symbolic-full-name`, e.g. `HEAD` on main ->
+ *  `refs/heads/main`), or null when it is not a ref. I/O only. */
+export function gitFullRef(name: string, cwd = process.cwd()): string | null {
+  try {
+    const out = execFileSync("git", ["rev-parse", "--symbolic-full-name", "--end-of-options", name], { cwd, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return out.startsWith("refs/") ? out : null;
+  } catch { return null; }
+}
+
+/** `fw task handback|integrate|park|unpark`: an outcome mark of a task (Lean `Fw.Plan`, task task-state-truth). Only
+ *  argument mapping: fwcore decides what the mark means (`tstate`) and refuses unknown/done tasks and every name of main
+ *  (`Fw.Plan.isMainRef`). `--into` is sent as the full ref it resolves to (`resolveRef`, git in `fw`), so a name that
+ *  resolves to main (`HEAD` on main, a local alias) reaches Lean as `refs/heads/main` and is refused; an unresolved name
+ *  is sent as given. The default key names the content (a repeat is a duplicate); park/unpark add the time. */
+export function taskCommand(argv: string[], env: Record<string, string | undefined>, now = Date.now(),
+  resolveRef: (name: string) => string | null = () => null): Command {
+  const [verb, ...rest] = argv;
+  const { pos, flags } = parseFlags(rest);
+  const actor = Actor.parse(flags.as ?? env.FW_ACTOR ?? "lead");
+  const task = need(pos[0], "<task>");
+  switch (verb) {
+    case "handback": {
+      const agent = flags.agent ?? task, tip = flags.tip ?? null;
+      return Command.parse({ type: "task.handback", key: flags.key ?? `task.handback:${task}:${agent}:${tip ?? "none"}`, actor, task, agent, tip });
+    }
+    case "integrate": {
+      const into = need(flags.into, "--into <branch>"), tip = need(flags.tip, "--tip <sha>");
+      const branch = resolveRef(into) ?? into;
+      return Command.parse({ type: "task.integrate", key: flags.key ?? `task.integrate:${task}:${branch}:${tip}`, actor, task, branch, tip });
+    }
+    case "park":
+      return Command.parse({ type: "task.park", key: flags.key ?? `task.park:${task}:${now}`, actor, task, reason: need(flags.reason, "--reason <text>") });
+    case "unpark":
+      return Command.parse({ type: "task.unpark", key: flags.key ?? `task.unpark:${task}:${now}`, actor, task });
+    default:
+      throw new UsageError(TASK_USAGE);
+  }
+}
+
 /** `fw` groups that run without console-api. Every `pnpm fw <group>` in .github/** must be one of these (CI has no
  *  console-api; test/lib.test.ts checks the workflows). */
 export const NO_API_GROUPS: readonly string[] = ["run", "ci", "next", "engine-check", "incidents", "coverage", "premises"];

@@ -2,7 +2,10 @@
 // Observations are facts, not events: they live in .fw-console/obs.jsonl. Only alerts reach events.jsonl.
 import { z } from "zod";
 
-/** One spool line written by apps/runner/hooks/emit.mjs. Nothing else leaves a hook payload. */
+/** One spool line written by apps/runner/hooks/emit.mjs. Nothing else leaves a hook payload. Typing only: the drain
+ *  admits lines with Lean (`ops.obs` raw, `Fw.Ops.Obs.admit`: unknown fields are counted and raised as a spool alert,
+ *  never a rejection) and writes only the kept known fields, so every obs.jsonl line still parses as `ObsLine`. Keep the
+ *  fields in step with `Fw.Ops.Obs.specs` (a golden test checks that zod accepts every Lean-kept record). */
 export const ObsRecord = z.object({
   agent_id: z.string().max(200).nullable(),
   agent_type: z.string().max(200).nullable(),
@@ -25,6 +28,10 @@ export const ObsRecord = z.object({
   /** Notification only (alert-steps): the notification type and the message length; never the message text */
   notification_type: z.string().max(40).nullable().optional(),
   message_len: z.number().int().nonnegative().nullable().optional(),
+  /** Stop / SubagentStop (SPK-p part 3): the count of still-running background tasks, never their text. MEASURED
+   *  (task-state-truth): session-wide, 6 to 31 on every SubagentStop of the spool, never 0, so it does not decide
+   *  whether an agent ended; the drain does not read it (Lean `Fw.Ops.Obs.lifeOf`). */
+  background_tasks: z.number().int().nonnegative().nullable().optional(),
   ts: z.number().int().nonnegative(),
 }).strict();
 export type ObsRecord = z.infer<typeof ObsRecord>;
