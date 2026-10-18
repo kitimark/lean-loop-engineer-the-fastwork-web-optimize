@@ -1,11 +1,12 @@
 // Tests of scripts/ci-paths.mjs: the workflows equal the Lean decision, the Lean replay cases hold under GitHub's own glob
 // reading (an independent matcher), and the lint fails on each way the trigger can drift.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { matches } from '../.github/scripts/changed-inputs.mjs';
-import { coneOf, expand, lakeCacheProblems, loadGolden, loadLakeCache, portableGlob, readJobs, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
+import { coneOf, expand, LAKE_GEN, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -54,21 +55,49 @@ test('the breakgen cone (run by every site build) holds only the breakpoint gene
   assert.ok(coneOf(root, 'SweepsgenMain').includes('lean/Fw/Gate/Scope.lean'));
 });
 
-test('Lake cache: exactly one writer, and every setup-lean job equals the Lean table', () => {
-  const rows = loadLakeCache(root);
-  assert.ok(rows && rows.length >= 10);
+test('Lake cache jobs are read from the workflows: one writer, every setup-lean job, its targets', () => {
+  const rows = lakeJobs(root);
+  const by = (k) => rows.find((r) => `${r.file}/${r.job}` === k);
   assert.deepEqual(rows.filter((r) => r.saves).map((r) => `${r.file}/${r.job}`), ['lean.yml/lean']);
-  assert.ok(rows.every((r) => r.covered));
   const lean = readFileSync(join(root, WF, 'lean.yml'), 'utf8').split('\n');
   assert.deepEqual(setupLeanJobs(lean), [{ job: 'lean', save: 'true' }, { job: 'mathview-differential', save: 'false' }]);
-  assert.deepEqual(lakeCacheProblems('lean.yml', lean, rows), []);
-  // a second writer, a missing writer and an unlisted job are each reported
-  const gg = readFileSync(join(root, WF, 'gate-gaps.yml'), 'utf8');
-  const twoWriters = gg.replace(/^( +)- uses: \.\/\.github\/actions\/setup-lean$/m, "$1- uses: ./.github/actions/setup-lean\n$1  with:\n$1    save: 'true'");
-  assert.ok(lakeCacheProblems('gate-gaps.yml', twoWriters.split('\n'), rows).some((p) => /save: 'true'/.test(p)));
-  const noWriter = lean.join('\n').replace("save: 'true'", "save: 'false'").split('\n');
-  assert.ok(lakeCacheProblems('lean.yml', noWriter, rows).some((p) => /job lean passes save: 'false'/.test(p)));
-  assert.ok(lakeCacheProblems('other.yml', gg.split('\n'), rows).some((p) => /not in lean\/Fw\/Ops\/LakeCache.lean/.test(p)));
+  // `lake build` = the lakefile defaults; check.sh adds fwtest
+  assert.deepEqual(by('lean.yml/lean').targets, [...readLakefile(root).defaults, 'fwtest']);
+  // a site build reaches `lake exe breakgen` through pnpm -> package.json -> scripts/check-breakpoints.mjs (spawnSync)
+  for (const k of ['webkit-sim.yml/site', 'visual-diff.yml/site', 'breakpoint-gate.yml/site']) assert.deepEqual(by(k)?.targets, ['breakgen'], k);
+  assert.deepEqual(by('webkit-sim.yml/fwcore')?.targets, ['fwcore']);
+  // mutants.sh: `lake build $LIBS fwtest fwcore` with LIBS="Fw FwTest.Mutants.Kill"; `$mod` (no literal) is skipped
+  assert.ok(['Fw', 'FwTest.Mutants.Kill', 'fwtest', 'fwcore'].every((t) => by('mutants.yml/shard').targets.includes(t)));
+  assert.deepEqual(lakeImportFacts(root, rows), [['FwTest.Mutants.Kill', 'fwtest']]);
+  assert.deepEqual(lakeGenProblems(root, false), []);
+});
+
+test('Lake targets: the scanner reads lake build / exe / test, variables, sh and pnpm', () => {
+  const ctx = { root, lake: { defaults: ['D'], testDriver: 'T' }, pkgs: new Map(), seen: new Set() };
+  assert.deepEqual(lakeTargetsOf(ctx, 'lake build && lake build a b:olean >log; lake exe e --x; lake test', [root]), ['D', 'a', 'b', 'e', 'T']);
+  assert.deepEqual(lakeTargetsOf(ctx, 'L="x y"\nlake build $L z $u\n# lake build c', [root]), ['x', 'y', 'z']);
+  assert.deepEqual(lakeTargetsOf(ctx, "spawnSync('lake', ['exe', 'g', '--check', file])", [root]), ['g']);
+});
+
+test('Lake cache: a new setup-lean job needs no hand edit (--write adds its row; --check then passes)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-lakegen-'));
+  try {
+    mkdirSync(join(dir, WF), { recursive: true });
+    mkdirSync(join(dir, 'lean/Fw/Ops'), { recursive: true });
+    copyFileSync(join(root, 'lean/lakefile.toml'), join(dir, 'lean/lakefile.toml'));
+    const job = (name, extra) => [`  ${name}:`, '    runs-on: ubuntu-24.04-arm', '    steps:', '      - uses: ./.github/actions/setup-lean', ...extra];
+    writeFileSync(join(dir, WF, 'lean.yml'), ['on:', 'jobs:', ...job('lean', ['        with:', "          save: 'true'", '      - run: lake build']), ''].join('\n'));
+    assert.deepEqual(lakeGenProblems(dir, true), []);
+    assert.deepEqual(lakeGenProblems(dir, false), []);
+    writeFileSync(join(dir, WF, 'new.yml'), ['on:', 'jobs:', ...job('extra', ['      - working-directory: lean', '        run: |', '          lake build fwcore']), ''].join('\n'));
+    assert.match(lakeGenProblems(dir, false)[0], /regenerate: node scripts\/ci-paths.mjs --write/);
+    assert.deepEqual(lakeJobs(dir).map((r) => [r.file, r.job, r.saves, r.targets.join(' ')]),
+      [['lean.yml', 'lean', true, readLakefile(root).defaults.join(' ')], ['new.yml', 'extra', false, 'fwcore']]);
+    assert.deepEqual(lakeGenProblems(dir, true), []);
+    assert.match(readFileSync(join(dir, LAKE_GEN), 'utf8'), /\("new\.yml", "extra", false, \["fwcore"\]\)/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 const sample = readFileSync(join(root, WF, 'gate-gaps.yml'), 'utf8');

@@ -140,7 +140,10 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "apps/runner": ["apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
-    ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs"],
+    ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
+    // site-build-cache: ci-paths reads each setup-lean job's Lake targets (lakefile, the scripts its run: blocks call) into
+    // the generated lean/Fw/Ops/LakeJobsGen.lean and compares
+    "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
   "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/contracts/golden/parts/**"],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["packages/contracts/golden/measure/**", "results/baselines/chromium/**"],

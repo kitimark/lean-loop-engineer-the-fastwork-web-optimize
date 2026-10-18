@@ -12,7 +12,6 @@ import Fw.Obs.Golden
 import Fw.Ops.LedgerMerge
 import FwTest.CiBudget
 import Fw.Ci.Trigger
-import Fw.Ops.LakeCache
 import FwTest.Mutants.Kill  -- m0-mutants killers: #guards and theorems that kill the M0 mutants
 
 /-- `lake test`: pseudo-random lease traces, golden JSON-lines round trips, the `Rat` wire form,
@@ -51,9 +50,6 @@ def main (args : List String) : IO UInt32 := do
   -- ledger-merge-driver: packages/contracts/golden/ops/ledger-merge.jsonl (`-- --write-ledger-merge-golden` regenerates)
   if args.contains "--write-ledger-merge-golden" then discard <| Fw.Wire.LedgerMerge.Golden.run (← FwTest.Golden.root) true
   let lmg ← Fw.Wire.LedgerMerge.Golden.run (← FwTest.Golden.root) false
-  -- site-build-cache: packages/contracts/golden/ops/lake-cache.jsonl (`-- --write-lake-cache-golden` regenerates)
-  if args.contains "--write-lake-cache-golden" then discard <| Fw.Ops.LakeCache.runGolden (← FwTest.Golden.root) true
-  let lcg ← Fw.Ops.LakeCache.runGolden (← FwTest.Golden.root) false
   -- replay timing (informational): 2,000 events through the reducer
   let evs : List Fw.Console.Event := (List.range 1000).flatMap fun i =>
     [⟨s!"o{i}", i, .owner, .cardOpen s!"c{i}" "o" false⟩, ⟨s!"a{i}", i, .lead, .cardApprove s!"c{i}"⟩]
@@ -62,6 +58,6 @@ def main (args : List String) : IO UInt32 := do
   let n := (s.cards.filter (·.approved)).length
   let t1 ← IO.monoNanosNow
   IO.println s!"console replay: 2000 events, {n} approved cards, {(t1 - t0) / 1000000} ms"
-  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && sg == 0 && pg == 0 && gg == 0 && aeg == 0 && obg == 0 && nxg == 0 && sgn == 0 && stg == 0 && cbg == 0 && ctg == 0 && lmg == 0 && lcg == 0 && n == 1000
+  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && sg == 0 && pg == 0 && gg == 0 && aeg == 0 && obg == 0 && nxg == 0 && sgn == 0 && stg == 0 && cbg == 0 && ctg == 0 && lmg == 0 && n == 1000
   IO.println (if ok then "fwtest: all passed" else "fwtest: FAILED")
   return if ok then 0 else 1

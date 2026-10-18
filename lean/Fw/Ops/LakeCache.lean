@@ -1,17 +1,18 @@
-import Lean.Data.Json
 import Fw.Ops.Cache
+import Fw.Ops.LakeJobsGen
 /-!
 # Who saves the Lake artifact cache (task `site-build-cache`)
 
-The table of every CI job that runs `.github/actions/setup-lean`: its workflow file, its job id, whether it saves
-the Lake cache (`save: 'true'`) and the Lake targets it builds. Exactly one job saves: the `lean` job of
-`lean.yml`, which builds every default target and `fwtest`. `table_complete` proves (with `Fw.Ops.Cache.cache_complete`)
-that on the writer's source tree no other job rebuilds a module.
+The rules over every CI job that runs `.github/actions/setup-lean`: exactly one job saves the Lake cache
+(`save: 'true'`), the `lean` job of `lean.yml`, and every job's Lake targets are covered by the writer's targets.
+`ok_complete` proves (with `Fw.Ops.Cache.cache_complete`) that then, on the writer's source tree, no job rebuilds a
+module; `one_writer` and `table_complete` apply that to the real jobs.
 
-Generated from this file: `packages/contracts/golden/ops/lake-cache.jsonl`. `scripts/ci-paths.mjs --check` (a land
-check) fails when a workflow job that uses `setup-lean` is missing from the table, or when its `save:` differs.
-The job's targets are read from the workflow by hand (its `lake build ...` and `pnpm ... build` steps); that is the
-premise this module cannot check.
+The rows are not copied by hand: `scripts/ci-paths.mjs --write` reads them from the workflows (each job's `save:` and
+the `lake build` / `lake exe` / `lake test` invocations its `run:` blocks reach) into the generated module
+`Fw.Ops.LakeJobsGen`, and `scripts/ci-paths.mjs --check` (a land check) fails when that module is stale. A new
+setup-lean job therefore needs no hand edit; the Lean build fails only when a row breaks a rule, with the message of
+`violations`. Premise this module cannot check: the scanner reads every Lake target a job builds.
 -/
 namespace Fw.Ops.LakeCache
 open Lean Fw.Ops.Cache
@@ -25,106 +26,138 @@ structure LakeJob where
   targets : List String
 deriving Repr, DecidableEq
 
-/-- `lake build` with no argument: the default targets of `lean/lakefile.toml`.
-$$T_{\mathrm{def}} = [\mathrm{Fw},\ \mathrm{fwcore},\ \mathrm{mathview},\ \mathrm{breakgen},\ \mathrm{sweepsgen},\ \mathrm{partsgolden}]$$ -/
-def defaults : List String := ["Fw", "fwcore", "mathview", "breakgen", "sweepsgen", "partsgolden"]
+/-- The job that must be the one writer: workflow `lean.yml`, job `lean` (it runs `lake build` and
+`lean/scripts/check.sh`, so it builds every default target and `fwtest`).
+$$\operatorname{isW}(j) \iff j.\mathit{file} = \texttt{lean.yml} \land j.\mathit{job} = \texttt{lean}$$ -/
+def isWriter (j : LakeJob) : Bool := j.file == "lean.yml" && j.job == "lean"
 
-/-- The one writer: `lean.yml` job `lean` runs `lake build` and `lean/scripts/check.sh` (`lake build fwtest`).
-$$w = (\texttt{lean.yml},\ \texttt{lean},\ \top,\ T_{\mathrm{def}} \mathbin{+\!\!+} [\mathrm{fwtest}])$$ -/
-def writer : LakeJob := ⟨"lean.yml", "lean", true, defaults ++ ["fwtest"]⟩
+/-- The writer row of a job list: the first job that `isWriter` accepts, if any.
+$$\operatorname{wr}(J) = \begin{cases} \mathrm{some}\ j_i & i = \min\{\, i \mid \operatorname{isW}(j_i) \,\} \\ \mathrm{none} & \text{no } j \in J \text{ has } \operatorname{isW}(j) \end{cases}$$ -/
+def writerOf (js : List LakeJob) : Option LakeJob := js.find? isWriter
 
-/-- Every job that uses `setup-lean`, the writer first. A site job runs `pnpm --filter @fw/site build`, whose first
-step is `lake exe breakgen --check` (apps/site/scripts/check-breakpoints.mjs), so its only target is `breakgen`.
-$$J = \text{the 14 rows below, in order: } [\,w,\ (\texttt{lean.yml}, \texttt{mathview-differential}, \bot, T_{\mathrm{def}}),\ (\texttt{breakpoint-gate.yml}, \texttt{site}, \bot, [\mathrm{breakgen}]),\ \ldots\,]$$ -/
-def jobs : List LakeJob := [
-  writer,
-  ⟨"lean.yml", "mathview-differential", false, defaults⟩,
-  ⟨"breakpoint-gate.yml", "site", false, ["breakgen"]⟩,
-  ⟨"breakpoint-gate.yml", "merge", false, ["fwcore"]⟩,
-  ⟨"chromium-counts.yml", "fwcore", false, ["fwcore"]⟩,
-  ⟨"chromium-counts.yml", "site", false, ["breakgen"]⟩,
-  ⟨"difftest.yml", "fwcore", false, ["fwcore"]⟩,
-  ⟨"gate-gaps.yml", "site", false, ["breakgen"]⟩,
-  ⟨"gate-gaps.yml", "judge", false, ["fwcore"]⟩,
-  ⟨"mutants.yml", "shard", false, ["Fw", "FwTest.Mutants.Kill", "fwtest", "fwcore"]⟩,
-  ⟨"snapshot-extract.yml", "site", false, ["breakgen"]⟩,
-  ⟨"visual-diff.yml", "site", false, ["breakgen"]⟩,
-  ⟨"wktr.yml", "fwcore", false, ["fwcore"]⟩,
-  ⟨"wktr-fixtures.yml", "fwcore", false, ["fwcore"]⟩]
+/-- Import facts the coverage rule may use, as (module, Lake target whose root imports it), generated with the rows.
+$$F = \mathtt{LakeJobsGen.importFacts}$$ -/
+def importFacts : List (String × String) := Fw.Ops.LakeJobsGen.importFacts
 
-/-- Import facts the table relies on, as (module, root that imports it): `FwTestMain.lean` imports
-`FwTest.Mutants.Kill`, so it is in the cone of `fwtest`.
-$$F = [(\mathrm{FwTest.Mutants.Kill},\ \mathrm{fwtest})]$$ -/
-def importFacts : List (String × String) := [("FwTest.Mutants.Kill", "fwtest")]
+/-- The targets of `j` the writer `w` does not cover: those that are no writer target and that no import fact puts
+in the cone of a writer target.
+$$\operatorname{unc}(w, j) = [\, t \in T_j \mid t \notin T_w \land \lnot \exists (t, r) \in F:\ r \in T_w \,]$$ -/
+def uncovered (w j : LakeJob) : List String :=
+  j.targets.filter fun t => !(w.targets.contains t || importFacts.any fun f => f.1 == t && w.targets.contains f.2)
 
-/-- A job's targets are covered by the writer: each is a writer target, or a module that an import fact puts in the
-cone of a writer target.
-$$\operatorname{cov}(j) \iff \forall t \in T_j:\ t \in T_w \lor \exists (t, r) \in F:\ r \in T_w$$ -/
-def covered (j : LakeJob) : Bool :=
-  j.targets.all fun t => writer.targets.contains t || importFacts.any fun f => f.1 == t && writer.targets.contains f.2
+/-- `w` covers `j`: every target of `j` is a writer target, or a module that an import fact puts in the cone of a
+writer target.
+$$\operatorname{cov}(w, j) \iff \forall t \in T_j:\ t \in T_w \lor \exists (t, r) \in F:\ r \in T_w$$ -/
+def coveredBy (w j : LakeJob) : Bool :=
+  j.targets.all fun t => w.targets.contains t || importFacts.any fun f => f.1 == t && w.targets.contains f.2
 
-#guard jobs.filter (·.saves) == [writer]
-#guard jobs.all covered
+/-- **The rules.** A writer row exists, the jobs that save are exactly `[w]`, and every job builds at least one
+target the scanner read and is covered by `w`.
+$$\operatorname{ok}(J) \iff \exists w:\ \operatorname{wr}(J) = \mathrm{some}\ w \land [\, j \in J : j.\mathit{saves} \,] = [w] \land \forall j \in J:\ T_j \ne [\,] \land \operatorname{cov}(w, j)$$ -/
+def ok (js : List LakeJob) : Bool :=
+  match writerOf js with
+  | none => false
+  | some w => js.filter (·.saves) == [w] && js.all fun j => !j.targets.isEmpty && coveredBy w j
+
+/-- A job as `file/job`. $$\operatorname{name}(j) = j.\mathit{file} \mathbin{+\!\!+} \texttt{/} \mathbin{+\!\!+} j.\mathit{job}$$ -/
+def name (j : LakeJob) : String := j.file ++ "/" ++ j.job
+
+/-- What breaks the rules, one message per broken rule and job (diagnostics for the build log; `ok` decides).
+$$\operatorname{viol}(J) = \begin{cases} [\text{no writer row}] & \operatorname{wr}(J) = \mathrm{none} \\ [\text{savers} \ne [w] \text{ if so}] \mathbin{+\!\!+} [\, \text{empty}(j) \mid j \in J,\ T_j = [\,] \,] \mathbin{+\!\!+} [\, \text{unc}(j) \mid j \in J,\ \operatorname{unc}(w, j) \ne [\,] \,] & \operatorname{wr}(J) = \mathrm{some}\ w \end{cases}$$ -/
+def violations (js : List LakeJob) : List String :=
+  match writerOf js with
+  | none => ["no job lean.yml/lean uses setup-lean: the Lake cache has no writer"]
+  | some w =>
+    let savers := js.filter (·.saves)
+    (if savers == [w] then [] else
+      [s!"the jobs that pass save: 'true' to setup-lean are {savers.map name}; exactly [lean.yml/lean] must"]) ++
+    js.filterMap (fun j => if j.targets.isEmpty then some s!"{name j}: uses setup-lean but builds no Lake target the scanner reads (scripts/ci-paths.mjs)" else none) ++
+    js.filterMap fun j =>
+      let u := uncovered w j
+      if u.isEmpty then none else some s!"{name j}: builds {u}, which lean.yml/lean (the cache writer) does not build"
+
+/-- The table: one job per generated row.
+$$J = [\, (f, j, s, T) \mid (f, j, s, T) \in \mathtt{LakeJobsGen.rows} \,]$$ -/
+def jobs : List LakeJob := Fw.Ops.LakeJobsGen.rows.map fun (f, j, s, t) => ⟨f, j, s, t⟩
+
+-- A readable build error when a workflow breaks a rule (the theorems below would only say `decide` failed).
+#eval show IO Unit from do
+  let v := violations jobs
+  unless v.isEmpty do
+    throw <| IO.userError ("Lake cache rules broken by the workflows (Fw.Ops.LakeCache):\n  " ++ "\n  ".intercalate v)
+
+#guard ok jobs == (violations jobs).isEmpty
 #guard (jobs.map fun j => (j.file, j.job)).eraseDups.length == jobs.length
-#guard covered ⟨"x.yml", "y", false, ["Fw.Gate.Scope"]⟩ == false
-
-/-- **One writer.** Exactly one job of the table saves the Lake cache, and it is `writer`.
-$$[\, j \in J : j.\mathit{saves} \,] = [w]$$ -/
-theorem one_writer : jobs.filter (·.saves) = [writer] := by decide
-
-/-- Every job of the table is covered by the writer.
-$$\forall j \in J:\ \operatorname{cov}(j)$$ -/
-theorem all_covered : ∀ j ∈ jobs, covered j = true := by decide
+-- the rules reject: a second saver, no writer, an empty job, an uncovered target
+#guard ok [⟨"lean.yml", "lean", true, ["Fw"]⟩, ⟨"x.yml", "y", false, ["Fw"]⟩] == true
+#guard ok [⟨"lean.yml", "lean", true, ["Fw"]⟩, ⟨"x.yml", "y", true, ["Fw"]⟩] == false
+#guard ok [⟨"lean.yml", "lean", false, ["Fw"]⟩] == false
+#guard ok [⟨"x.yml", "y", true, ["Fw"]⟩] == false
+#guard ok [] == false
+#guard ok [⟨"lean.yml", "lean", true, ["Fw"]⟩, ⟨"x.yml", "y", false, []⟩] == false
+#guard ok [⟨"lean.yml", "lean", true, ["Fw"]⟩, ⟨"x.yml", "y", false, ["Fw.Gate.Scope"]⟩] == false
+#guard (violations [⟨"lean.yml", "lean", true, ["Fw"]⟩, ⟨"x.yml", "y", true, ["Fw"]⟩]).length == 1
+#guard coveredBy ⟨"lean.yml", "lean", true, ["fwtest"]⟩ ⟨"x.yml", "y", false, ["FwTest.Mutants.Kill"]⟩ ==
+  importFacts.contains ("FwTest.Mutants.Kill", "fwtest")
 
 /-- A covered job's targets are all in the writer's cone, for every import graph in which the import facts hold.
-$$\forall \mathit{deps}:\ (\forall (m, r) \in F:\ m \in \operatorname{cl}([r])) \Rightarrow \forall j:\ \operatorname{cov}(j) \Rightarrow \forall t \in T_j:\ t \in \operatorname{cl}(T_w)$$ -/
+$$\forall \mathit{deps}:\ (\forall (m, r) \in F:\ m \in \operatorname{cl}([r])) \Rightarrow \forall w, j:\ \operatorname{cov}(w, j) \Rightarrow \forall t \in T_j:\ t \in \operatorname{cl}(T_w)$$ -/
 theorem covered_inCone (deps : String → List String) (hf : ∀ f ∈ importFacts, InCone deps [f.2] f.1)
-    (j : LakeJob) (hc : covered j = true) : ∀ t ∈ j.targets, InCone deps writer.targets t := by
+    (w j : LakeJob) (hc : coveredBy w j = true) : ∀ t ∈ j.targets, InCone deps w.targets t := by
   intro t ht
   have h := List.all_eq_true.mp hc t ht
   simp only [Bool.or_eq_true, List.contains_iff_mem, List.any_eq_true, Bool.and_eq_true, beq_iff_eq] at h
   rcases h with hw | ⟨f, hfm, hft, hfw⟩
   · exact InCone.root hw
   · subst hft
-    exact inCone_mono deps writer.targets [f.2] (fun x hx => by simp at hx; subst hx; exact hfw) (hf f hfm)
+    exact inCone_mono deps w.targets [f.2] (fun x hx => by simp at hx; subst hx; exact hfw) (hf f hfm)
 
-/-- **The table is complete.** On the writer's source tree, whatever entry the writer restored, the entry it saves
-holds every module any job of the table needs: no job rebuilds a module (given the import facts).
-$$\forall \mathit{deps}, h, C:\ (\forall (m, r) \in F:\ m \in \operatorname{cl}([r])) \Rightarrow \forall j \in J,\ \forall m:\ m \notin \operatorname{rb}(T_j, \operatorname{after}(T_w, C))$$ -/
-theorem table_complete {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
+/-- **One writer, for every job list that keeps the rules.** If $\operatorname{ok}(J)$, the writer row exists and
+the jobs that save are exactly it.
+$$\forall J:\ \operatorname{ok}(J) \Rightarrow \exists w:\ \operatorname{wr}(J) = \mathrm{some}\ w \land [\, j \in J : j.\mathit{saves} \,] = [w]$$ -/
+theorem ok_one_writer (js : List LakeJob) (h : ok js = true) :
+    ∃ w, writerOf js = some w ∧ js.filter (·.saves) = [w] := by
+  unfold ok at h
+  cases hw : writerOf js with
+  | none => simp [hw] at h
+  | some w =>
+    simp only [hw, Bool.and_eq_true, beq_iff_eq] at h
+    exact ⟨w, rfl, h.1⟩
+
+/-- **Every job is covered, for every job list that keeps the rules.**
+$$\forall J, w:\ \operatorname{ok}(J) \land \operatorname{wr}(J) = \mathrm{some}\ w \Rightarrow \forall j \in J:\ T_j \ne [\,] \land \operatorname{cov}(w, j)$$ -/
+theorem ok_covered (js : List LakeJob) (h : ok js = true) (w : LakeJob) (hw : writerOf js = some w) :
+    ∀ j ∈ js, j.targets ≠ [] ∧ coveredBy w j = true := by
+  intro j hj
+  unfold ok at h
+  simp only [hw, Bool.and_eq_true, List.all_eq_true, Bool.not_eq_true', List.isEmpty_eq_false_iff] at h
+  exact h.2 j hj
+
+/-- **Cache completeness, for every job list that keeps the rules.** On the writer's source tree, whatever entry
+the writer restored, the entry it saves holds every module any job needs: no job rebuilds a module (given the
+import facts).
+$$\forall J, w, \mathit{deps}, h, C:\ \operatorname{ok}(J) \land \operatorname{wr}(J) = \mathrm{some}\ w \land (\forall (m, r) \in F:\ m \in \operatorname{cl}([r])) \Rightarrow \forall j \in J,\ \forall m:\ m \notin \operatorname{rb}(T_j, \operatorname{after}(T_w, C))$$ -/
+theorem ok_complete {H : Type} (js : List LakeJob) (h : ok js = true) (w : LakeJob) (hw : writerOf js = some w)
+    (deps : String → List String) (hash : String → H) (C : Entry H)
     (hf : ∀ f ∈ importFacts, InCone deps [f.2] f.1) :
-    ∀ j ∈ jobs, ∀ m, ¬ Rebuilds deps hash (afterBuild deps hash C writer.targets) j.targets m :=
-  fun j hj m => cache_complete deps hash C writer.targets j.targets
-    (covered_inCone deps hf j (all_covered j hj)) m
+    ∀ j ∈ js, ∀ m, ¬ Rebuilds deps hash (afterBuild deps hash C w.targets) j.targets m :=
+  fun j hj m => cache_complete deps hash C w.targets j.targets
+    (covered_inCone deps hf w j (ok_covered js h w hw j hj).2) m
 
-/-! ## Golden (`packages/contracts/golden/ops/lake-cache.jsonl`) -/
+/-- The generated table keeps the rules. $$\operatorname{ok}(J)$$ -/
+theorem jobs_ok : ok jobs = true := by decide
 
-/-- One golden line per job.
-$$\operatorname{line}(j) = \{\texttt{kind}: \texttt{job},\ \mathit{file},\ \mathit{job},\ \mathit{saves},\ T_j,\ \operatorname{cov}(j)\}$$ -/
-def jobLine (j : LakeJob) : Json :=
-  Json.mkObj [("kind", "job"), ("file", .str j.file), ("job", .str j.job), ("saves", .bool j.saves),
-    ("targets", .arr (j.targets.map Json.str).toArray), ("covered", .bool (covered j))]
+/-- **One writer.** In the table read from the workflows, the writer row exists and the jobs that save the Lake
+cache are exactly it.
+$$\exists w:\ \operatorname{wr}(J) = \mathrm{some}\ w \land [\, j \in J : j.\mathit{saves} \,] = [w]$$ -/
+theorem one_writer : ∃ w, writerOf jobs = some w ∧ jobs.filter (·.saves) = [w] := ok_one_writer jobs jobs_ok
 
-/-- The text of the golden file: one JSON object per job, in table order.
-$$\operatorname{goldenText} = \textstyle\bigoplus_{j \in J} (\mathrm{compress}(\operatorname{line}(j)) \mathbin{+\!\!+} \text{newline})$$ -/
-def goldenText : String := String.join (jobs.map fun j => (jobLine j).compress ++ "\n")
-
-/-- Compare (or write) the golden file; returns the number of stale files. A missing or unreadable file reads as the
-empty string, so it counts as stale.
-$$\operatorname{runGolden}(\mathit{write}) = \begin{cases} 0 & \mathit{write} \ (\text{after writing goldenText}) \\ 0 & \lnot\mathit{write} \land \operatorname{read}(p) = \operatorname{goldenText} \\ 1 & \lnot\mathit{write} \land \operatorname{read}(p) \ne \operatorname{goldenText} \end{cases},\quad \operatorname{read}(p) = \text{""} \text{ if } p \text{ is missing}$$ -/
-def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
-  let dir := root / ".." / "packages" / "contracts" / "golden" / "ops"
-  let p := dir / "lake-cache.jsonl"
-  if write then
-    IO.FS.createDirAll dir
-    IO.FS.writeFile p goldenText
-    IO.println s!"lake cache golden: written {jobs.length} jobs"
-    return 0
-  let cur ← try IO.FS.readFile p catch _ => pure ""
-  if cur != goldenText then
-    IO.println s!"lake cache golden: {p} is stale (regenerate: cd lean && lake test -- --write-lake-cache-golden)"
-    return 1
-  IO.println s!"lake cache golden: {jobs.length} jobs ok"
-  return 0
+/-- **The table is complete.** For the jobs read from the workflows: on the writer's source tree, whatever entry the
+writer restored, the entry it saves holds every module any job needs (given the import facts).
+$$\forall w, \mathit{deps}, h, C:\ \operatorname{wr}(J) = \mathrm{some}\ w \land (\forall (m, r) \in F:\ m \in \operatorname{cl}([r])) \Rightarrow \forall j \in J,\ \forall m:\ m \notin \operatorname{rb}(T_j, \operatorname{after}(T_w, C))$$ -/
+theorem table_complete {H : Type} (w : LakeJob) (hw : writerOf jobs = some w) (deps : String → List String)
+    (hash : String → H) (C : Entry H) (hf : ∀ f ∈ importFacts, InCone deps [f.2] f.1) :
+    ∀ j ∈ jobs, ∀ m, ¬ Rebuilds deps hash (afterBuild deps hash C w.targets) j.targets m :=
+  ok_complete jobs jobs_ok w hw deps hash C hf
 
 end Fw.Ops.LakeCache

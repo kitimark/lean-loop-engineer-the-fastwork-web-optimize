@@ -3,14 +3,18 @@
 **State.** Done on `worktree-agent-ac288a08ef259c00c`: main commit 64e3996, main merged (3dbed91), follow-up commit
 with the checker's docstring fixes and this note. Fix of the land-inputs refusal on `worktree-agent-adf9be370c61e65d7`:
 Lean `checkShReads` += `packages/gate-breakpoints/src/scope.gen.json`, `.github/workflows/**` (land.ts, golden match);
-proved `parseScope_checkShReads`, `scopeGen_selects_checkSh`, `workflow_selects_checkSh`. Ready to land.
+proved `parseScope_checkShReads`, `scopeGen_selects_checkSh`, `workflow_selects_checkSh`. Follow-up (this branch):
+the Lake job table is generated, not hand-copied (below). Ready to land.
+- Generated table: `node scripts/ci-paths.mjs --write` reads every setup-lean job (its `save:`, the Lake targets its
+  `run:` blocks reach via sh/node/pnpm scripts and local actions) into `lean/Fw/Ops/LakeJobsGen.lean`; `--check` fails
+  only when that file is stale. `Fw.Ops.LakeCache.ok` holds the rules (one saver = lean.yml/lean, no empty job, every
+  job covered); `ok_one_writer`/`ok_complete` hold for any job list, `jobs_ok` by `decide`, and an `#eval` prints
+  `violations` as the build error. The old golden `lake-cache.jsonl` is gone (the generated module is the golden).
 - `breakgen` imports only `Fw.Site.BreakpointGen` and the import-free `Fw.Site.GenRoute` (cone 42 -> 6 files). New
   exe `sweepsgen` takes `--sweeps`, `--sweeps-golden`, `--scope` (no flag = sweeps); a gate flag on `breakgen` exits 2.
 - Lean: `GenRoute.split_agrees`; `Fw.Ops.Cache` `rebuild_in_cone`, `rebuild_mono`, `rebuild_antitone`,
-  `cache_complete`, `narrow_saver_rebuilds`; `Fw.Ops.LakeCache` `one_writer`, `table_complete` + golden
-  `packages/contracts/golden/ops/lake-cache.jsonl`.
+  `cache_complete`, `narrow_saver_rebuilds`; `Fw.Ops.LakeCache` `one_writer`, `table_complete`.
 - `setup-lean` input `save` (default `'false'` = actions/cache/restore); only lean.yml job `lean` passes `'true'`.
-  `scripts/ci-paths.mjs --check` fails if a setup-lean job is missing from the table or its `save:` differs.
 - MEASURED (visual-diff dispatch, `[skip ci]` heads, chromium, 1 shard), step "Build the rewrite": 27 s before
   (run 39083515734, main tree) -> 4 s after (run 39083518442).
 
@@ -21,7 +25,8 @@ The Trigger table is unchanged, because sweepsgen is no declared input of a non-
 **Open items.**
 - `Fw.Gate.SweepsGen` `generatedBy` still says "lake exe breakgen --sweeps" (kept for identical bytes); changing it
   means regenerating both sweeps.gen.json files and golden/gate/sweeps.jsonl.
-- `LakeJob.targets` are read from the workflows by hand, a premise the lint does not check.
+- Premise: the scanner sees every Lake target a job builds (`$VAR` without a literal is skipped, e.g. mutants'
+  `$mod`). Import facts read lean/** imports, which apps/runner's declared reads do not cover (same gap as coneOf).
 - check-imports DRIVER_RUN entries for Scope/ScopeGen may now be redundant.
 - The land-test-speed and sweeps-lean handoffs still say `breakgen --sweeps/--scope`.
 - check.sh span names changed (breakgen -> sweepsgen).
