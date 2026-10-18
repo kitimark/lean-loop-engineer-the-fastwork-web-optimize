@@ -21,9 +21,11 @@ namespace Fw.Plan
 /-- A task row of the work graph: its definition (id, title, stream, milestone, deps, owner, write
 globs, exclusive devices, and needs such as `"device"` for the iPhone with the user at it) and its two
 observed facts, the evidence that it is done and the agent that claimed it, plus the `cut` flag of the
-definition (a task cut from the plan, kept as a row for the record; default false).
+definition (a task cut from the plan, kept as a row for the record; default false), and `landed`, the
+provenance of the evidence: true when it came from a land event (`task.done`), false when it came from
+a definition or there is none (default false).
 
-$$t = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{agent}_\bot, \mathit{cut})$$
+$$t = (\mathit{id}, \mathit{title}, \mathit{stream}, \mathit{milestone}_\bot, \mathit{deps}, \mathit{owner}, \mathit{writes}, \mathit{devices}, \mathit{needs}, \mathit{evidence}_\bot, \mathit{agent}_\bot, \mathit{cut}, \mathit{landed})$$
 -/
 structure Task where
   id        : String
@@ -38,6 +40,7 @@ structure Task where
   evidence  : Option String
   agent     : Option String
   cut       : Bool := false
+  landed    : Bool := false
 deriving Repr, DecidableEq
 
 /-- The ids of a list of rows, in order.
