@@ -32,21 +32,24 @@ structure SvcInput where
   changed : Bool
 deriving DecidableEq, Repr
 
-/-- A service: its name, its input groups (each judged against the base commit of the code that runs it) and, when
-that code cannot be identified, the reason.
+/-- A service: its name, its input groups (each judged against the base commit of the code that runs it), when that
+code cannot be identified, the reason, and the fwcore throws its drain caught since it started.
 
-$$s = (\mathit{name}, I, u) \in \mathrm{String} \times \mathcal I^* \times (\mathrm{String} \cup \{\bot\})$$
+$$s = (\mathit{name}, I, u, e) \in \mathrm{String} \times \mathcal I^* \times (\mathrm{String} \cup \{\bot\}) \times \mathbb N$$
 -/
 structure Svc where
   name    : String
   inputs  : List SvcInput := []
   /-- Why the code this service runs cannot be identified (`none`: it can). Never silence: the alert `svc.unknown`. -/
   unknown : Option String := none
+  /-- The fwcore throws the service's drain caught since it started (`0`: none). Never silence: the alert
+  `svc.sweepError`. -/
+  sweepErrors : Nat := 0
 deriving DecidableEq, Repr
 
 /-- The changed input paths of a service.
 
-$$\operatorname{changed}(s) = [\,\mathit{path}(i) \mid i \leftarrow I,\ \mathit{changed}(i)\,],\quad s = (n, I, u)$$
+$$\operatorname{changed}(s) = [\,\mathit{path}(i) \mid i \leftarrow I,\ \mathit{changed}(i)\,],\quad s = (n, I, u, e)$$
 -/
 def Svc.changed (s : Svc) : List String :=
   (s.inputs.filter (fun i => i.changed)).map SvcInput.path
@@ -90,7 +93,7 @@ theorem Svc.stale_iff (s : Svc) :
 
 /-- The code of a service cannot be identified.
 
-$$\operatorname{unknown}(s) \iff u \ne \bot,\quad s = (n, I, u)$$
+$$\operatorname{unknown}(s) \iff u \ne \bot,\quad s = (n, I, u, e)$$
 -/
 def Svc.unknownB (s : Svc) : Bool := s.unknown.isSome
 

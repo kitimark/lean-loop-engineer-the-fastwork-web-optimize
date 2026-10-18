@@ -38,8 +38,12 @@ def apply (key actor type : String) (fields : List (String × Json)) : Json :=
   Json.mkObj [("op", .str "console.apply"), ("event", Json.mkObj ([("key", .str key),
     ("ts", toJson (0 : Nat)), ("actor", .str actor), ("type", .str type)] ++ fields))]
 
-/-- A `console.query` request. -/
-def query : Json := Json.mkObj [("op", .str "console.query"), ("now", toJson (0 : Nat)), ("seq", toJson (0 : Nat))]
+/-- A `console.query` request at time `now` (ms). -/
+def queryAt (now : Nat) : Json :=
+  Json.mkObj [("op", .str "console.query"), ("now", toJson now), ("seq", toJson (0 : Nat))]
+
+/-- A `console.query` request at time $0$. -/
+def query : Json := queryAt 0
 
 /-- The body fields of a `task.define`. -/
 def defFields (task : String) (deps : List String) (milestone : Option String := none)
@@ -197,12 +201,12 @@ def cases : List (String × List Json) := [
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "obs-next-lean")],
     define "obs-next-lean" [] (key := "plan:d:obs-next-lean"),
     query]),
-  ("stop before define: the agent ended before its task existed, the task is ready", [
+  ("stop before define: the agent ended before its task existed with no handback, the task is parked", [
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
     apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
     define "a" [],
     query]),
-  ("stop and respawn: a stop unbinds an undone task, a done task keeps its agent, a respawn binds again", [
+  ("stop and respawn: a stop unbinds an undone task and parks it, a done task keeps its agent, a respawn binds again", [
     define "a" [],
     define "b" [],
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
@@ -211,7 +215,7 @@ def cases : List (String × List Json) := [
     apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
     apply "stop:b1" "hook" "agent.stop" [("agent", .str "b")],
     query,
-    apply "spawn:t3" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "spawn:t3" "hook" "agent.spawn" [("agent", .str "a"), ("at", toJson (5 : Nat))],
     query]),
   ("claim and spawn: an explicit claim wins; when its agent stops the name match takes over", [
     define "a" [],
@@ -225,7 +229,133 @@ def cases : List (String × List Json) := [
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
     apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
     apply "spawn:t2" "script" "agent.spawn" [("agent", .str "b")],
-    apply "stop:x" "lead" "agent.stop" [("agent", .str "b")]])]
+    apply "stop:x" "lead" "agent.stop" [("agent", .str "b")]]),
+  ("outcome (task-state-truth): handback while live stays running; after the stop it is handed back", [
+    define "a" [],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "hb:a" "hook" "task.handback" [("task", .str "a"), ("agent", .str "a"), ("tip", .str "abc1234")],
+    query,
+    apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
+    query]),
+  ("outcome: integrate into a branch, park, unpark (back to parked: no handback), last mark wins", [
+    define "a" [],
+    define "b" [],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
+    apply "int:a" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/ci/integrate-1"), ("tip", .str "b00ef68")],
+    apply "park:b" "lead" "task.park" [("task", .str "b"), ("reason", .str "folded into a")],
+    query,
+    apply "unpark:b" "lead" "task.unpark" [("task", .str "b")],
+    apply "park:a" "lead" "task.park" [("task", .str "a"), ("reason", .str "superseded")],
+    apply "unpark:a" "user" "task.unpark" [("task", .str "a")],
+    query]),
+  ("outcome: a live agent with open blockers shows blocked; done wins over a mark", [
+    define "b" [],
+    define "a" ["b"],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "park:b" "lead" "task.park" [("task", .str "b"), ("reason", .str "waiting")],
+    query,
+    apply "t:b" "git" "task.done" [("task", .str "b"), ("evidence", .str "abc1234")],
+    query]),
+  ("outcome refusals: integrate into main, unknown task, done task, authority, handback without tip", [
+    define "a" [],
+    define "z" [] (evidence := some "abc1234"),
+    apply "int:m" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "main"), ("tip", .str "t")],
+    apply "park:x" "lead" "task.park" [("task", .str "nope"), ("reason", .str "r")],
+    apply "hb:z" "hook" "task.handback" [("task", .str "z"), ("agent", .str "z")],
+    apply "park:h" "hook" "task.park" [("task", .str "a"), ("reason", .str "r")],
+    apply "int:h" "hook" "task.integrate" [("task", .str "a"), ("branch", .str "ci/i"), ("tip", .str "t")],
+    apply "hb:a" "script" "task.handback" [("task", .str "a"), ("agent", .str "a")],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a")],
+    apply "stop:a1" "hook" "agent.stop" [("agent", .str "a")],
+    query]),
+  ("life times (task-state-truth): a stop ends every earlier spawn whatever the log order; a later heartbeat revives", [
+    define "a" [],
+    apply "spawn:t1" "hook" "agent.spawn" [("agent", .str "a"), ("at", toJson (10 : Nat))],
+    apply "stop:a1" "hook" "agent.stop" [("agent", .str "a"), ("at", toJson (20 : Nat))],
+    apply "seen:a|0|0" "hook" "agent.spawn" [("agent", .str "a"), ("at", toJson (15 : Nat))],
+    query,
+    apply "seen:a|20|0" "hook" "agent.spawn" [("agent", .str "a"), ("at", toJson (30 : Nat))],
+    query]),
+  ("fold (task-state-truth): a task parked folded-no-change satisfies its dependents; another park does not", [
+    define "b" [],
+    define "c" [],
+    define "a" ["b"],
+    define "d" ["c"],
+    apply "park:b" "lead" "task.park" [("task", .str "b"), ("reason", .str "folded-no-change")],
+    apply "park:c" "lead" "task.park" [("task", .str "c"), ("reason", .str "folded")],
+    query]),
+  ("integrate allowlist (task-state-truth): every name of main and every short or unlisted ref is refused; refs/heads/ci/*, worktree-* and integrate-* are accepted", [
+    define "a" [],
+    apply "int:1" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "HEAD"), ("tip", .str "t")],
+    apply "int:2" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "origin/main"), ("tip", .str "t")],
+    apply "int:3" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/main"), ("tip", .str "t")],
+    apply "int:4" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "Main"), ("tip", .str "t")],
+    apply "int:5" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "ci/main-fix"), ("tip", .str "t")],
+    apply "int:6" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "main~0"), ("tip", .str "t")],
+    apply "int:7" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "origin/HEAD"), ("tip", .str "t")],
+    apply "int:8" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/ci/main-fix"), ("tip", .str "t")],
+    apply "int:9" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/worktree-wf_1"), ("tip", .str "t")],
+    apply "int:10" "lead" "task.integrate" [("task", .str "a"), ("branch", .str "refs/heads/integrate-ports-3"), ("tip", .str "t")],
+    query]),
+  ("liveness by id (task-state-truth): a labelled id keeps its name live; its stop ends it; a later event revives it", [
+    define "a" [],
+    apply "label:id-1|a" "script" "agent.label" [("agent", .str "id-1"), ("name", .str "a")],
+    apply "start:id-1" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (10 : Nat))],
+    query,
+    apply "stop:id-1" "hook" "agent.stop" [("agent", .str "id-1"), ("at", toJson (20 : Nat))],
+    query,
+    apply "seen:id-1|20|0" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (30 : Nat))],
+    query]),
+  ("concurrent agents (task-state-truth, real events 1113/1114/1118 of the event log, ids and times only): the name-keyed legacy events do nothing (names never sight or stop); the id-keyed events of the same agents keep it running while the second agent lives", [
+    define "task-state-truth" [],
+    apply "wfa:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.spawn"
+      [("agent", .str "task-state-truth"), ("at", toJson (1792314139238 : Nat))],
+    apply "wfa:wf_4e2a0add-492:a887a6e804a4d6418" "script" "agent.spawn"
+      [("agent", .str "task-state-truth"), ("at", toJson (1792314139283 : Nat))],
+    apply "wfa-end:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.stop"
+      [("agent", .str "task-state-truth"), ("at", toJson (1792314347670 : Nat))],
+    query,
+    apply "wfid-label:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.label"
+      [("agent", .str "ab23e20bebcfc3046"), ("name", .str "task-state-truth")],
+    apply "wfid:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.spawn"
+      [("agent", .str "ab23e20bebcfc3046"), ("at", toJson (1792314139238 : Nat))],
+    apply "wfid-label:wf_4e2a0add-492:a887a6e804a4d6418" "script" "agent.label"
+      [("agent", .str "a887a6e804a4d6418"), ("name", .str "task-state-truth")],
+    apply "wfid:wf_4e2a0add-492:a887a6e804a4d6418" "script" "agent.spawn"
+      [("agent", .str "a887a6e804a4d6418"), ("at", toJson (1792314139283 : Nat))],
+    apply "wfid-end:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.stop"
+      [("agent", .str "ab23e20bebcfc3046"), ("at", toJson (1792314347670 : Nat))],
+    query]),
+  ("quiet (task-state-truth): a key not seen within quietMs shows quiet with its last-seen time, never parked; a later event runs it again; only its stop parks it; a claim alone never runs a task", [
+    define "a" [],
+    define "b" [],
+    apply "c:b" "lead" "task.claim" [("task", .str "b"), ("agent", .str "lead-1"), ("at", toJson (500 : Nat))],
+    apply "label:id-1|a" "script" "agent.label" [("agent", .str "id-1"), ("name", .str "a")],
+    apply "start:id-1" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (1000 : Nat))],
+    queryAt 1000,
+    queryAt 7201001,
+    apply "seen:id-1|7201002" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (7201002 : Nat))],
+    queryAt 7201003,
+    apply "stop:id-1" "hook" "agent.stop" [("agent", .str "id-1"), ("at", toJson (7201002 : Nat))],
+    queryAt 99999999]),
+  ("a mark ends a quiet task (task-state-truth round 6): a SpawnGuard key that no record stops shows quiet; a park, integrate or handback mark then shows the mark; an unpark shows quiet again", [
+    define "a" [],
+    define "b" [],
+    define "c" [],
+    apply "guard:g1" "hook" "agent.spawn" [("agent", .str "g1"), ("at", toJson (1000 : Nat))],
+    apply "guard-label:g1" "hook" "agent.label" [("agent", .str "g1"), ("name", .str "a")],
+    apply "guard:g2" "hook" "agent.spawn" [("agent", .str "g2"), ("at", toJson (1000 : Nat))],
+    apply "guard-label:g2" "hook" "agent.label" [("agent", .str "g2"), ("name", .str "b")],
+    apply "guard:g3" "hook" "agent.spawn" [("agent", .str "g3"), ("at", toJson (1000 : Nat))],
+    apply "guard-label:g3" "hook" "agent.label" [("agent", .str "g3"), ("name", .str "c")],
+    queryAt 99999999,
+    apply "park:a" "lead" "task.park" [("task", .str "a"), ("reason", .str "superseded")],
+    apply "int:b" "lead" "task.integrate" [("task", .str "b"), ("branch", .str "refs/heads/integrate-ports-2"), ("tip", .str "64857cb")],
+    apply "hb:c" "lead" "task.handback" [("task", .str "c"), ("agent", .str "c"), ("tip", .null)],
+    queryAt 99999999,
+    apply "unpark:a" "lead" "task.unpark" [("task", .str "a")],
+    queryAt 99999999])]
 
 /-- The plan-sync vectors (`Fw.Plan.syncFrom`): name, main's ref name, the refs, the last synced
 commit, and the commit to sync from (or none). -/
@@ -272,17 +402,32 @@ def wfCases : List (String × List String × List String × List String × List 
   ("the run file ends every agent of the run; the meta.name binding is kept", ["guard", "w", "v"],
     ["guard-wf_b37180a7-494.js"], ["wf_b37180a7-494.json"],
     [jl "wf_b37180a7-494" "a1" true "fix:w", jl "wf_b37180a7-494" "a1" true "fix:w", jl "wf_b37180a7-494" "a2" true "x:y:v",
-     jl "wf_b37180a7-494" "a3" true "w:", jl "wf_b37180a7-494" "a5" false "fix:v", jl "bad" "a6" true "fix:v"])]
+     jl "wf_b37180a7-494" "a3" true "w:", jl "wf_b37180a7-494" "a5" false "fix:v", jl "bad" "a6" true "fix:v"]),
+  ("two agents of one task (task-state-truth): each is keyed by its own id; the result line of one stops only that id", ["t"],
+    ["review-wf_4e2a0add-492.js"], [],
+    [jl "wf_4e2a0add-492" "a1" true "fix:t", jl "wf_4e2a0add-492" "a2" true "review:t", jl "wf_4e2a0add-492" "a1" false ""]),
+  ("every agent of a run named like a task works on it whatever its label (task-state-truth round 5); a label task is added; a failed line (started false) stops the id", ["t", "u"],
+    ["t-wf_4e2a0add-492.js"], [],
+    [jl "wf_4e2a0add-492" "a1" true "review", jl "wf_4e2a0add-492" "a2" true "fix:u", jl "wf_4e2a0add-492" "a3" true "fix:t",
+     jl "wf_4e2a0add-492" "a1" false ""])]
 
-/-- One workflow line: `{name, ids, scripts, runs, [journal: [{run, id, started, label}]], events: [{key, type, agent}]}` (`Fw.Plan.wfAllEvents`; no `journal` field = none). -/
+/-- One workflow event as the console-api sends it: `{key, type, agent}` for a spawn or stop,
+`{key, type, agent, name}` for a label (`Fw.Plan.wfAllEvents` gives no other command). -/
+def wfEventJson (k : String) : Fw.Plan.Cmd → Json
+  | .spawn a _ => Json.mkObj [("key", .str k), ("type", .str "agent.spawn"), ("agent", .str a)]
+  | .stop a _ => Json.mkObj [("key", .str k), ("type", .str "agent.stop"), ("agent", .str a)]
+  | .label a n => Json.mkObj [("key", .str k), ("type", .str "agent.label"), ("agent", .str a), ("name", .str n)]
+  | _ => Json.mkObj [("key", .str k)]
+
+/-- One workflow line: `{name, ids, scripts, runs, [journal: [{run, id, started, label}]], events: [{key, type, agent[, name]}]}` (`Fw.Plan.wfAllEvents`; no `journal` field = none). -/
 def wfLine (c : String × List String × List String × List String × List Fw.Plan.JLine) : String :=
   let (n, ids, ss, rs, js) := c
   let jsJson : List (String × Json) := if js.isEmpty then [] else
     [("journal", .arr (js.toArray.map fun j => Json.mkObj [("run", .str j.run), ("id", .str j.id),
       ("started", .bool j.started), ("label", .str j.label)]))]
   (Json.mkObj ([("name", .str n), ("ids", strsJson ids), ("scripts", strsJson ss), ("runs", strsJson rs),
-    ("events", .arr ((Fw.Plan.wfAllEvents ids ss rs js).toArray.map fun (k, t, a) =>
-      Json.mkObj [("key", .str k), ("type", .str t), ("agent", .str a)]))] ++ jsJson)).compress
+    ("events", .arr ((Fw.Plan.wfAllEvents ids ss rs js).toArray.map fun (k, c) => wfEventJson k c))]
+    ++ jsJson)).compress
 
 /-- The text of `workflow.jsonl`. -/
 def wfText : String := String.join (wfCases.map fun c => wfLine c ++ "\n")
