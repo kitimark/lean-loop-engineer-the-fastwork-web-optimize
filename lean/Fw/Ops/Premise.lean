@@ -7,10 +7,13 @@ it is false the proof silently stops applying (that is how the base engine model
 sampled unsettled pages). This module is the registry of those premises and the two pure checks around it.
 
 * `registry`: per premise its id, statement (LaTeX), the theorems that assume it, the engines it must hold on, and the
-  id of the browser test that asserts it (`packages/premise-tests`, run on CI on both engines).
-* `premiseLint`: the premises without a test, and the tests that name an unknown premise (`premiseLint_sound`).
-* `flagged`: given the CI results, the premises whose test failed (or is missing) on an engine they need, with the
-  theorems that assume them (`flagged_eq_nil_iff`, `flagged_of_fail`). A failing premise test is a finding.
+  id of the browser test that asserts it: a `page` test (`packages/premise-tests`, run on CI on both engines) or, for
+  a premise a page cannot observe, a `lane` (its test id is the CI workflow file that asserts it).
+* `premiseLint`: the premises without a test (a lane premise: whose workflow file does not exist), and the tests that
+  name an unknown premise (`premiseLint_sound`, `untested_of_lane_missing`).
+* `flagged`: given the page-test CI results, the page premises whose test failed (or is missing) on an engine they
+  need, with the theorems that assume them (`flagged_eq_nil_iff`, `flagged_of_fail`). A failing premise test is a
+  finding. Lane premises are asserted by their own workflow (`not_flagged_of_lane`).
 
 Golden vectors (`packages/contracts/golden/ops/premise.jsonl`): the registry rows, lint cases and flag cases. The TS
 side (`apps/runner/src/premises.ts`, `fw premises`) is checked against them. Generate, never by hand:
@@ -42,9 +45,28 @@ def Engine.name : Engine → String
   | .chromium => "chromium"
   | .webkit => "webkit"
 
-/-- One registered premise.
+/-- How a premise is tested: a `page` test of `packages/premise-tests` (run by `premise-tests.yml`, results read by
+`fw premises --results`), or a CI `lane` (a workflow of its own, for premises a Playwright page cannot observe, e.g.
+WebKit's `internals.styleRecalcCount`, only exposed in WebKitTestRunner). A lane premise's `testId` is the workflow
+file's path.
 
-$$p = (\mathrm{id},\ \mathrm{statement},\ \mathrm{theorems},\ \mathrm{engines},\ \mathrm{testId})$$
+$$\mathrm{TestKind} = \{\mathrm{page},\ \mathrm{lane}\}$$
+-/
+inductive TestKind where
+  | page | lane
+deriving DecidableEq, Repr
+
+/-- The test kind's name in the JSON files.
+
+$$\operatorname{name}(\mathrm{page}) = \texttt{page},\quad \operatorname{name}(\mathrm{lane}) = \texttt{lane}$$
+-/
+def TestKind.name : TestKind → String
+  | .page => "page"
+  | .lane => "lane"
+
+/-- One registered premise; `kind` defaults to `page`.
+
+$$p = (\mathrm{id},\ \mathrm{statement},\ \mathrm{theorems},\ \mathrm{engines},\ \mathrm{testId},\ \mathrm{kind})$$
 -/
 structure Premise where
   id : String
@@ -52,6 +74,7 @@ structure Premise where
   theorems : List String
   engines : List Engine
   testId : String
+  kind : TestKind := .page
 
 /-- A test as the test package declares it: its id and the premise it names.
 
@@ -85,12 +108,22 @@ $$\operatorname{tested}(ts, p) \iff \exists t \in ts:\ t.\mathrm{id} = p.\mathrm
 def tested (ts : List TestRef) (p : Premise) : Bool :=
   ts.any fun t => t.id == p.testId && t.premise == p.id
 
-/-- Test `t` is registered: some premise names it as its test and is the premise `t` names.
+/-- Premise `p` is covered by a test: a page premise by a declared page test (`tested`), a lane premise by an existing
+workflow file, i.e. its test id is among the workflow paths `files` (the caller lists `.github/workflows/`).
 
-$$\operatorname{registered}(ps, t) \iff \exists p \in ps:\ p.\mathrm{id} = t.\mathrm{premise} \land p.\mathrm{testId} = t.\mathrm{id}$$
+$$\operatorname{covered}(ts, F, p) \iff \begin{cases} \operatorname{tested}(ts, p) & p.\mathrm{kind} = \mathrm{page} \\ p.\mathrm{testId} \in F & p.\mathrm{kind} = \mathrm{lane} \end{cases}$$
+-/
+def covered (ts : List TestRef) (files : List String) (p : Premise) : Bool :=
+  match p.kind with
+  | .page => tested ts p
+  | .lane => files.contains p.testId
+
+/-- Test `t` is registered: some page premise names it as its test and is the premise `t` names.
+
+$$\operatorname{registered}(ps, t) \iff \exists p \in ps:\ p.\mathrm{kind} = \mathrm{page} \land p.\mathrm{id} = t.\mathrm{premise} \land p.\mathrm{testId} = t.\mathrm{id}$$
 -/
 def registered (ps : List Premise) (t : TestRef) : Bool :=
-  ps.any fun p => p.id == t.premise && p.testId == t.id
+  ps.any fun p => p.kind == .page && p.id == t.premise && p.testId == t.id
 
 /-- The lint result: premise ids without a test, and ids of tests that name an unknown premise.
 
@@ -101,59 +134,98 @@ structure Lint where
   unknown : List String
 deriving DecidableEq, Repr
 
-/-- **The premise lint.**
+/-- **The premise lint**, on the declared page tests `ts` and the existing workflow files `files`.
 
-$$\operatorname{lint}(ps, ts) = \big(\,[p.\mathrm{id} \mid p \in ps,\ \neg\operatorname{tested}(ts, p)],\ [t.\mathrm{id} \mid t \in ts,\ \neg\operatorname{registered}(ps, t)]\,\big)$$
+$$\operatorname{lint}(ps, ts, F) = \big(\,[p.\mathrm{id} \mid p \in ps,\ \neg\operatorname{covered}(ts, F, p)],\ [t.\mathrm{id} \mid t \in ts,\ \neg\operatorname{registered}(ps, t)]\,\big)$$
 -/
-def premiseLint (ps : List Premise) (ts : List TestRef) : Lint where
-  untested := (ps.filter fun p => !tested ts p).map (·.id)
+def premiseLint (ps : List Premise) (ts : List TestRef) (files : List String) : Lint where
+  untested := (ps.filter fun p => !covered ts files p).map (·.id)
   unknown := (ts.filter fun t => !registered ps t).map (·.id)
 
-/-- **Lint soundness.** The lint is empty iff every premise is tested and every test is registered.
+/-- `covered` unfolded.
 
-$$\operatorname{lint}(ps, ts) = (\varnothing, \varnothing) \iff \big(\forall p \in ps\ \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}\big) \land \big(\forall t \in ts\ \exists p \in ps:\ p.\mathrm{id} = t.\mathrm{premise} \land p.\mathrm{testId} = t.\mathrm{id}\big)$$
-
-A premise without a test, or a test that names no premise, makes the lint fail; nothing else does. -/
-theorem premiseLint_sound (ps : List Premise) (ts : List TestRef) :
-    premiseLint ps ts = ⟨[], []⟩ ↔
-      (∀ p ∈ ps, ∃ t ∈ ts, t.id = p.testId ∧ t.premise = p.id) ∧
-      (∀ t ∈ ts, ∃ p ∈ ps, p.id = t.premise ∧ p.testId = t.id) := by
-  simp only [premiseLint, Lint.mk.injEq, List.map_eq_nil_iff, List.filter_eq_nil_iff, tested, registered,
-    Bool.not_eq_true', List.any_eq_false, Bool.and_eq_true, beq_iff_eq, Classical.not_forall, Classical.not_not]
-  constructor
-  · rintro ⟨h1, h2⟩
-    exact ⟨fun p hp => by simpa [and_left_comm] using h1 p hp, fun t ht => by simpa [and_left_comm] using h2 t ht⟩
-  · rintro ⟨h1, h2⟩
-    exact ⟨fun p hp => by simpa [and_left_comm] using h1 p hp, fun t ht => by simpa [and_left_comm] using h2 t ht⟩
-
-/-- **The registry's own references are lint-clean.** If the test package declares exactly the tests the registry
-names, the lint is empty (for any registry).
-
-$$\operatorname{lint}\big(ps,\ [\operatorname{ref}(p) \mid p \in ps]\big) = (\varnothing, \varnothing)$$
-
-A registry cannot lint itself into a failure; only a test package that drifts from it can. -/
-theorem premiseLint_self (ps : List Premise) : premiseLint ps (ps.map Premise.ref) = ⟨[], []⟩ := by
-  rw [premiseLint_sound]
-  refine ⟨fun p hp => ⟨p.ref, List.mem_map_of_mem hp, rfl, rfl⟩, fun t ht => ?_⟩
-  obtain ⟨p, hp, rfl⟩ := List.mem_map.mp ht
-  exact ⟨p, hp, rfl, rfl⟩
-
-/-- **Dropping a test is caught.** If a premise is registered and no declared test carries its test id and names it,
-the premise is in the lint's `untested` list.
-
-$$p \in ps \land (\forall t \in ts:\ \neg(t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id})) \Rightarrow p.\mathrm{id} \in \operatorname{lint}(ps, ts).\mathrm{untested}$$
+$$\forall ts, F, p:\  \operatorname{covered}(ts, F, p) \iff \big(p.\mathrm{kind} = \mathrm{page} \Rightarrow \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}\big) \land \big(p.\mathrm{kind} = \mathrm{lane} \Rightarrow p.\mathrm{testId} \in F\big)$$
 -/
-theorem untested_of_missing (ps : List Premise) (ts : List TestRef) (p : Premise) (hp : p ∈ ps)
-    (h : ∀ t ∈ ts, ¬(t.id = p.testId ∧ t.premise = p.id)) : p.id ∈ (premiseLint ps ts).untested := by
-  simp only [premiseLint, List.mem_map, List.mem_filter, Bool.not_eq_true', tested, List.any_eq_false,
-    Bool.and_eq_true, beq_iff_eq]
-  exact ⟨p, ⟨hp, fun t ht => h t ht⟩, rfl⟩
+theorem covered_iff (ts : List TestRef) (files : List String) (p : Premise) :
+    covered ts files p = true ↔
+      (p.kind = .page → ∃ t ∈ ts, t.id = p.testId ∧ t.premise = p.id) ∧ (p.kind = .lane → p.testId ∈ files) := by
+  cases hk : p.kind <;> simp [covered, hk, tested]
+
+/-- **Lint soundness.** The lint is empty iff every page premise is tested, every lane premise names an existing
+workflow file, and every test is registered to a page premise.
+
+$$\forall ps, ts, F:\  \operatorname{lint}(ps, ts, F) = (\varnothing, \varnothing) \iff \Big(\forall p \in ps:\ \big(p.\mathrm{kind} = \mathrm{page} \Rightarrow \exists t \in ts:\ t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id}\big) \land \big(p.\mathrm{kind} = \mathrm{lane} \Rightarrow p.\mathrm{testId} \in F\big)\Big) \land \big(\forall t \in ts\ \exists p \in ps:\ p.\mathrm{kind} = \mathrm{page} \land p.\mathrm{id} = t.\mathrm{premise} \land p.\mathrm{testId} = t.\mathrm{id}\big)$$
+
+A premise without a test, a lane premise whose workflow is missing, or a test that names no page premise makes the
+lint fail; nothing else does. -/
+theorem premiseLint_sound (ps : List Premise) (ts : List TestRef) (files : List String) :
+    premiseLint ps ts files = ⟨[], []⟩ ↔
+      (∀ p ∈ ps, (p.kind = .page → ∃ t ∈ ts, t.id = p.testId ∧ t.premise = p.id) ∧
+        (p.kind = .lane → p.testId ∈ files)) ∧
+      (∀ t ∈ ts, ∃ p ∈ ps, p.kind = .page ∧ p.id = t.premise ∧ p.testId = t.id) := by
+  have hr : ∀ t : TestRef, registered ps t = true ↔ ∃ p ∈ ps, p.kind = .page ∧ p.id = t.premise ∧ p.testId = t.id := by
+    intro t; simp [registered, and_assoc]
+  simp only [premiseLint, Lint.mk.injEq, List.map_eq_nil_iff, List.filter_eq_nil_iff, Bool.not_eq_true',
+    Bool.not_eq_false, ← covered_iff, ← hr]
+
+/-- The page tests the registry expects: the references of its page premises.
+
+$$\operatorname{pageRefs}(ps) = [\operatorname{ref}(p) \mid p \in ps,\ p.\mathrm{kind} = \mathrm{page}]$$
+-/
+def pageRefs (ps : List Premise) : List TestRef := (ps.filter (·.kind == .page)).map Premise.ref
+
+/-- The workflow files the registry expects: the test ids of its lane premises.
+
+$$\operatorname{laneFiles}(ps) = [p.\mathrm{testId} \mid p \in ps,\ p.\mathrm{kind} = \mathrm{lane}]$$
+-/
+def laneFiles (ps : List Premise) : List String := (ps.filter (·.kind == .lane)).map (·.testId)
+
+/-- **The registry's own references are lint-clean.** If the test package declares exactly the page tests the registry
+names and exactly the workflows its lane premises name exist, the lint is empty (for any registry).
+
+$$\forall ps:\  \operatorname{lint}\big(ps,\ \operatorname{pageRefs}(ps),\ \operatorname{laneFiles}(ps)\big) = (\varnothing, \varnothing)$$
+
+A registry cannot lint itself into a failure; only a test package or workflow set that drifts from it can. -/
+theorem premiseLint_self (ps : List Premise) : premiseLint ps (pageRefs ps) (laneFiles ps) = ⟨[], []⟩ := by
+  rw [premiseLint_sound]
+  refine ⟨fun p hp => ⟨fun hk => ⟨p.ref, ?_, rfl, rfl⟩, fun hk => ?_⟩, fun t ht => ?_⟩
+  · exact List.mem_map_of_mem (List.mem_filter.mpr ⟨hp, by simp [hk]⟩)
+  · exact List.mem_map_of_mem (List.mem_filter.mpr ⟨hp, by simp [hk]⟩)
+  · obtain ⟨p, hp, rfl⟩ := List.mem_map.mp ht
+    obtain ⟨hp, hk⟩ := List.mem_filter.mp hp
+    exact ⟨p, hp, by simpa using hk, rfl, rfl⟩
+
+/-- **Dropping a test is caught.** If a page premise is registered and no declared test carries its test id and names
+it, the premise is in the lint's `untested` list.
+
+$$\forall ps, ts, F, p:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land (\forall t \in ts:\ \neg(t.\mathrm{id} = p.\mathrm{testId} \land t.\mathrm{premise} = p.\mathrm{id})) \Rightarrow p.\mathrm{id} \in \operatorname{lint}(ps, ts, F).\mathrm{untested}$$
+-/
+theorem untested_of_missing (ps : List Premise) (ts : List TestRef) (files : List String) (p : Premise) (hp : p ∈ ps)
+    (hk : p.kind = .page) (h : ∀ t ∈ ts, ¬(t.id = p.testId ∧ t.premise = p.id)) :
+    p.id ∈ (premiseLint ps ts files).untested := by
+  refine List.mem_map.mpr ⟨p, List.mem_filter.mpr ⟨hp, ?_⟩, rfl⟩
+  cases hc : covered ts files p
+  · rfl
+  · obtain ⟨t, ht, a, b⟩ := ((covered_iff ts files p).mp hc).1 hk
+    exact absurd ⟨a, b⟩ (h t ht)
+
+/-- **A lane premise needs its workflow.** If a lane premise's test id is not among the existing workflow files, the
+premise is in the lint's `untested` list.
+
+$$\forall ps, ts, F, p:\  p \in ps \land p.\mathrm{kind} = \mathrm{lane} \land p.\mathrm{testId} \notin F \Rightarrow p.\mathrm{id} \in \operatorname{lint}(ps, ts, F).\mathrm{untested}$$
+-/
+theorem untested_of_lane_missing (ps : List Premise) (ts : List TestRef) (files : List String) (p : Premise)
+    (hp : p ∈ ps) (hk : p.kind = .lane) (h : p.testId ∉ files) : p.id ∈ (premiseLint ps ts files).untested := by
+  refine List.mem_map.mpr ⟨p, List.mem_filter.mpr ⟨hp, ?_⟩, rfl⟩
+  cases hc : covered ts files p
+  · rfl
+  · exact absurd (((covered_iff ts files p).mp hc).2 hk) h
 
 /-! ## Flagging theorems from CI results -/
 
 /-- The premise holds on engine `e` in the results `rs`: the test ran on `e` at least once and every run passed.
 
-$$\operatorname{holds}(rs, p, e) \iff \big(\exists r \in rs:\ r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e\big) \land \big(\forall r \in rs:\ r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e \Rightarrow r.\mathrm{ok}\big)$$
+$$\operatorname{holds}(rs, p, e) \iff \big(\exists r \in rs:\ r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e\big) \land \big(\forall r \in rs:\ (r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e) \Rightarrow r.\mathrm{ok}\big)$$
 -/
 def holds (rs : List Result) (p : Premise) (e : Engine) : Bool :=
   let m := rs.filter fun r => r.testId == p.testId && r.engine == e
@@ -166,13 +238,14 @@ $$\operatorname{premiseHolds}(rs, p) \iff \forall e \in p.\mathrm{engines}:\ \op
 def premiseHolds (rs : List Result) (p : Premise) : Bool :=
   p.engines.all (holds rs p)
 
-/-- **The flagged premises**: those that do not hold on some engine they need (failed or missing). Their `theorems`
-are the theorems whose proof no longer applies.
+/-- **The flagged premises**: the page premises that do not hold on some engine they need (failed or missing). Their
+`theorems` are the theorems whose proof no longer applies. Lane premises are never flagged here: no page result
+exists for them; their own workflow asserts them.
 
-$$\operatorname{flagged}(ps, rs) = [\,p \in ps \mid \neg\operatorname{premiseHolds}(rs, p)\,]$$
+$$\operatorname{flagged}(ps, rs) = [\,p \in ps \mid p.\mathrm{kind} = \mathrm{page} \land \neg\operatorname{premiseHolds}(rs, p)\,]$$
 -/
 def flagged (ps : List Premise) (rs : List Result) : List Premise :=
-  ps.filter fun p => !premiseHolds rs p
+  ps.filter fun p => p.kind == .page && !premiseHolds rs p
 
 /-- `holds` unfolded: a run exists and every run passed.
 
@@ -191,42 +264,54 @@ theorem holds_iff (rs : List Result) (p : Premise) (e : Engine) :
   · rintro ⟨⟨r, hr, a, b⟩, h⟩
     exact ⟨fun hn => hn r ⟨hr, a, b⟩, fun r hr => h r hr.1 hr.2.1 hr.2.2⟩
 
-/-- **Flag soundness.** Nothing is flagged iff every premise has, on every engine it needs, a run of its test and
+/-- **Flag soundness.** Nothing is flagged iff every page premise has, on every engine it needs, a run of its test and
 every such run passed.
 
-$$\operatorname{flagged}(ps, rs) = [\,] \iff \forall p \in ps\ \forall e \in p.\mathrm{engines}:\ \operatorname{holds}(rs, p, e)$$
+$$\forall ps, rs:\  \operatorname{flagged}(ps, rs) = [\,] \iff \forall p \in ps:\ p.\mathrm{kind} = \mathrm{page} \Rightarrow \forall e \in p.\mathrm{engines}:\ \operatorname{holds}(rs, p, e)$$
 -/
 theorem flagged_eq_nil_iff (ps : List Premise) (rs : List Result) :
-    flagged ps rs = [] ↔ ∀ p ∈ ps, ∀ e ∈ p.engines, holds rs p e = true := by
+    flagged ps rs = [] ↔ ∀ p ∈ ps, p.kind = .page → ∀ e ∈ p.engines, holds rs p e = true := by
   simp [flagged, premiseHolds, List.filter_eq_nil_iff]
 
-/-- **A failing premise test flags its premise.** One failing run of the test on an engine the premise needs puts the
-premise (hence its theorems) in the flagged list, whatever else passed.
+/-- **A failing premise test flags its premise.** One failing run of a page premise's test on an engine the premise
+needs puts the premise (hence its theorems) in the flagged list, whatever else passed.
 
-$$p \in ps \land e \in p.\mathrm{engines} \Rightarrow p \in \operatorname{flagged}\big(ps,\ (p.\mathrm{testId}, e, \bot) :: rs\big)$$
+$$\forall ps, rs, p, e:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \Rightarrow p \in \operatorname{flagged}\big(ps,\ (p.\mathrm{testId}, e, \bot) :: rs\big)$$
 -/
-theorem flagged_of_fail (ps : List Premise) (rs : List Result) (p : Premise) (hp : p ∈ ps) (e : Engine)
-    (he : e ∈ p.engines) : p ∈ flagged ps (⟨p.testId, e, false⟩ :: rs) := by
-  simp only [flagged, List.mem_filter, Bool.not_eq_true', premiseHolds, List.all_eq_false]
+theorem flagged_of_fail (ps : List Premise) (rs : List Result) (p : Premise) (hp : p ∈ ps) (hk : p.kind = .page)
+    (e : Engine) (he : e ∈ p.engines) : p ∈ flagged ps (⟨p.testId, e, false⟩ :: rs) := by
+  simp only [flagged, List.mem_filter, Bool.and_eq_true, Bool.not_eq_true', premiseHolds, List.all_eq_false, hk,
+    beq_self_eq_true, true_and]
   refine ⟨hp, e, he, ?_⟩
   cases h : holds (⟨p.testId, e, false⟩ :: rs) p e
   · simp
   · have := ((holds_iff _ _ _).mp h).2 ⟨p.testId, e, false⟩ (List.mem_cons_self ..) rfl rfl
     cases this
 
-/-- **A missing test run flags too.** If no result exists for the premise's test on an engine it needs, the premise is
-flagged: absence is not a pass.
+/-- **A missing test run flags too.** If no result exists for a page premise's test on an engine it needs, the premise
+is flagged: absence is not a pass.
 
-$$p \in ps \land e \in p.\mathrm{engines} \land (\forall r \in rs:\ \neg(r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e)) \Rightarrow p \in \operatorname{flagged}(ps, rs)$$
+$$\forall ps, rs, p, e:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land (\forall r \in rs:\ \neg(r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e)) \Rightarrow p \in \operatorname{flagged}(ps, rs)$$
 -/
-theorem flagged_of_missing (ps : List Premise) (rs : List Result) (p : Premise) (hp : p ∈ ps) (e : Engine)
-    (he : e ∈ p.engines) (h : ∀ r ∈ rs, ¬(r.testId = p.testId ∧ r.engine = e)) : p ∈ flagged ps rs := by
-  simp only [flagged, List.mem_filter, Bool.not_eq_true', premiseHolds, List.all_eq_false]
+theorem flagged_of_missing (ps : List Premise) (rs : List Result) (p : Premise) (hp : p ∈ ps) (hk : p.kind = .page)
+    (e : Engine) (he : e ∈ p.engines) (h : ∀ r ∈ rs, ¬(r.testId = p.testId ∧ r.engine = e)) :
+    p ∈ flagged ps rs := by
+  simp only [flagged, List.mem_filter, Bool.and_eq_true, Bool.not_eq_true', premiseHolds, List.all_eq_false, hk,
+    beq_self_eq_true, true_and]
   refine ⟨hp, e, he, ?_⟩
   cases hh : holds rs p e
   · simp
   · obtain ⟨⟨r, hr, a, b⟩, _⟩ := (holds_iff _ _ _).mp hh
     exact absurd ⟨a, b⟩ (h r hr)
+
+/-- **Lane premises are not flagged from page results.** Whatever the results, a lane premise is not in the flagged
+list (its workflow is its test; the lint checks the workflow exists).
+
+$$\forall ps, rs, p:\  p.\mathrm{kind} = \mathrm{lane} \Rightarrow p \notin \operatorname{flagged}(ps, rs)$$
+-/
+theorem not_flagged_of_lane (ps : List Premise) (rs : List Result) (p : Premise) (hk : p.kind = .lane) :
+    p ∉ flagged ps rs := by
+  simp [flagged, hk]
 
 /-! ## The registry -/
 
@@ -236,10 +321,14 @@ private def both : List Engine := [.chromium, .webkit]
 /-- **The registry.** Every empirical browser premise a Lean theorem relies on, its theorems and its test. Sources: the
 gate-settle and fix-commission tasks, `Fw.Engine.Core` (`frameWorkE`, forced updates R4) and `Lessons`, and the
 premises of `research/findings/ledger.json` that a static page can assert (R3, R5, `Faithful`, the `inherits` premise,
-the allow-list premise AL, the write-on-change premises, IO delivery), and the grid alignment premises of `Fw.Gate.AlignEquiv` (gate-align-equiv), and the two `content-visibility` view premises of fix-commission-margin (`cv.skip-flag`, `cv.fresh-after-resize`). Premises that need engine counters
-(compositing bits, per-stage counts) stay with the engine-check lane (`fw engine-check`, tests F0-F4).
+the allow-list premise AL, the write-on-change premises, IO delivery), and the grid alignment premises of
+`Fw.Gate.AlignEquiv` (gate-align-equiv, $p_{16}$ and $p_{17}$, page tests). Premises that need engine counters
+(compositing bits, per-stage counts) stay with the engine-check lane (`fw engine-check`, tests F0-F4), except those a
+CI lane of their own asserts (kind `lane`): $p_{18}$, the WKTR style-rate premise (task wktr-p1p4), whose counter
+`internals.styleRecalcCount` only WebKitTestRunner exposes. The two `content-visibility` view premises of
+fix-commission-margin ($p_{19}$, $p_{20}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests.
 
-$$\operatorname{registry} = [p_1, \dots, p_{19}]$$
+$$\operatorname{registry} = [p_1, \dots, p_{20}]$$
 -/
 def registry : List Premise := [
   { id := "anim.list"
@@ -336,7 +425,13 @@ def registry : List Premise := [
     statement := r"\forall n \text{ with } \texttt{margin-inline:auto} \text{ and } \texttt{max-width}=m:\ \text{after a viewport resize while } n \text{ is skipped, once } n \text{ is brought into view and three frames pass, } \texttt{getComputedStyle}(n).\mathrm{margin\text{-}left} \text{ equals the geometry-derived margin } (\text{container width} - m)/2"
     theorems := ["Fw.Gate.Settle.view_bring", "Fw.Gate.Settle.viewCell_fail_of_rendered_diff"]
     engines := both
-    testId := "prem.cv.fresh-after-resize" }
+    testId := "prem.cv.fresh-after-resize" },
+  { id := "wktr_scroll_timeline_restyle"
+    statement := r"\text{WKTR, one rendering update per scroll step: } \Delta\texttt{styleRecalcCount} = (\mu_{\mathrm{control}}, \mu_{\mathrm{timeline}}, \mu_{\mathrm{timeAccel}}) = (0, 1, 0) \text{ for a static control, a transform animation on } \texttt{scroll()} \text{ and an accelerated time-based transform animation}"
+    theorems := ["Fw.Engine.WebKit.style_rate_model", "Fw.Engine.WebKit.style_rate_old_refuted"]
+    engines := [.webkit]
+    testId := ".github/workflows/wktr-fixtures.yml"
+    kind := .lane }
 ]
 
 /-- The premise ids are pairwise distinct.
@@ -359,10 +454,16 @@ theorem registry_nonempty : ∀ p ∈ registry, p.engines ≠ [] ∧ p.theorems 
 
 /-- The registry is lint-clean against its own references (`premiseLint_self`, instantiated).
 
-$$\operatorname{lint}(\mathrm{registry}, [\operatorname{ref}(p) \mid p \in \mathrm{registry}]) = (\varnothing, \varnothing)$$
+$$\operatorname{lint}(\mathrm{registry}, \operatorname{pageRefs}(\mathrm{registry}), \operatorname{laneFiles}(\mathrm{registry})) = (\varnothing, \varnothing)$$
 -/
-theorem registry_lint_clean : premiseLint registry (registry.map Premise.ref) = ⟨[], []⟩ :=
+theorem registry_lint_clean : premiseLint registry (pageRefs registry) (laneFiles registry) = ⟨[], []⟩ :=
   premiseLint_self registry
+
+/-- The lane premises of the registry, with their workflow files: exactly the WKTR style-rate premise.
+
+$$\operatorname{laneFiles}(\mathrm{registry}) = [\texttt{.github/workflows/wktr-fixtures.yml}]$$
+-/
+theorem registry_laneFiles : laneFiles registry = [".github/workflows/wktr-fixtures.yml"] := by decide
 
 /-! ## Golden rows -/
 
@@ -371,45 +472,53 @@ private def strs (l : List String) : Json := Json.arr (l.map Json.str).toArray
 
 /-- A premise row.
 
-$$\operatorname{row}(p) = \{\mathrm{kind}{:}\,\texttt{premise},\ \mathrm{id}, \mathrm{statement}, \mathrm{theorems}, \mathrm{engines}, \mathrm{testId}\}$$
+$$\operatorname{row}(p) = \{\mathrm{kind}{:}\,\texttt{premise},\ \mathrm{id}, \mathrm{statement}, \mathrm{theorems}, \mathrm{engines}, \mathrm{testId}, \mathrm{testKind} = p.\mathrm{kind}\}$$
 -/
 def premiseRow (p : Premise) : Json :=
   Json.mkObj [("kind", "premise"), ("id", .str p.id), ("statement", .str p.statement), ("theorems", strs p.theorems),
-    ("engines", strs (p.engines.map Engine.name)), ("testId", .str p.testId)]
+    ("engines", strs (p.engines.map Engine.name)), ("testId", .str p.testId), ("testKind", .str p.kind.name)]
 
 -- A test reference as JSON.
 private def refJson (t : TestRef) : Json := Json.mkObj [("id", .str t.id), ("premise", .str t.premise)]
 
--- The lint cases: the test lists the lint is run on.
-private def lintCases : List (String × List TestRef) :=
-  let full := registry.map Premise.ref
+-- The lint cases: the test lists and workflow file lists the lint is run on.
+private def lintCases : List (String × List TestRef × List String) :=
+  let full := pageRefs registry
+  let lanes := laneFiles registry
   let first : TestRef := (full.head?).getD ⟨"", ""⟩
-  [("clean", full), ("empty", []), ("missing-first", full.drop 1), ("unknown-test", full ++ [⟨"prem.ghost", "ghost"⟩]),
-   ("wrong-test-id", ⟨"prem.other", first.premise⟩ :: full.drop 1),
-   ("wrong-premise", ⟨first.id, "ghost"⟩ :: full.drop 1)]
+  [("clean", full, lanes), ("empty", [], []), ("missing-first", full.drop 1, lanes),
+   ("unknown-test", full ++ [⟨"prem.ghost", "ghost"⟩], lanes),
+   ("wrong-test-id", ⟨"prem.other", first.premise⟩ :: full.drop 1, lanes),
+   ("wrong-premise", ⟨first.id, "ghost"⟩ :: full.drop 1, lanes),
+   ("lane-workflow-missing", full, [".github/workflows/lean.yml"]),
+   ("lane-as-page-test", full ++ (registry.filter (·.kind == .lane)).map Premise.ref, lanes)]
 
 /-- A lint row.
 
-$$\operatorname{row}(ts) = \{\mathrm{kind}{:}\,\texttt{lint},\ \mathrm{tests} = ts,\ \mathrm{untested},\ \mathrm{unknown}\}$$
+$$\operatorname{row}(ts, F) = \{\mathrm{kind}{:}\,\texttt{lint},\ \mathrm{tests} = ts,\ \mathrm{files} = F,\ \mathrm{untested},\ \mathrm{unknown}\}$$
 -/
-def lintRow (name : String) (ts : List TestRef) : Json :=
-  let l := premiseLint registry ts
+def lintRow (name : String) (ts : List TestRef) (files : List String) : Json :=
+  let l := premiseLint registry ts files
   Json.mkObj [("kind", "lint"), ("name", .str name), ("tests", Json.arr (ts.map refJson).toArray),
-    ("untested", strs l.untested), ("unknown", strs l.unknown)]
+    ("files", strs files), ("untested", strs l.untested), ("unknown", strs l.unknown)]
 
--- Every test of the registry passing on every engine it needs.
+-- The page premises of the registry (the only ones with page results).
+private def pages : List Premise := registry.filter (·.kind == .page)
+
+-- Every page test of the registry passing on every engine it needs.
 private def allPass : List Result :=
-  registry.flatMap fun p => p.engines.map fun e => ⟨p.testId, e, true⟩
+  pages.flatMap fun p => p.engines.map fun e => ⟨p.testId, e, true⟩
 
 -- The flag cases: result lists the flagging is run on.
 private def flagCases : List (String × List Result) :=
-  let firstTest := (registry.head?.map (·.testId)).getD ""
-  let lastTest := (registry.getLast?.map (·.testId)).getD ""
+  let firstTest := (pages.head?.map (·.testId)).getD ""
+  let lastTest := (pages.getLast?.map (·.testId)).getD ""
   [("all-pass", allPass), ("no-results", []),
    ("one-fail-chromium", allPass.map fun r => if r.testId == firstTest && r.engine == .chromium then { r with ok := false } else r),
    ("missing-webkit", allPass.filter fun r => !(r.testId == lastTest && r.engine == .webkit)),
    ("flaky-webkit", ⟨firstTest, .webkit, false⟩ :: allPass),
-   ("unknown-test-result", ⟨"prem.ghost", .chromium, false⟩ :: allPass)]
+   ("unknown-test-result", ⟨"prem.ghost", .chromium, false⟩ :: allPass),
+   ("lane-result-fails", ⟨".github/workflows/wktr-fixtures.yml", .webkit, false⟩ :: allPass)]
 
 -- A result as JSON.
 private def resultJson (r : Result) : Json :=
@@ -426,7 +535,7 @@ def flagRow (name : String) (rs : List Result) : Json :=
 
 -- The text of the golden file: the registry rows, the lint rows, the flag rows.
 private def goldenText : String :=
-  let rows : List Json := registry.map premiseRow ++ lintCases.map (fun (n, ts) => lintRow n ts) ++
+  let rows : List Json := registry.map premiseRow ++ lintCases.map (fun (n, ts, fs) => lintRow n ts fs) ++
     flagCases.map (fun (n, rs) => flagRow n rs)
   String.join (rows.map fun j => j.compress ++ "\n")
 
@@ -450,13 +559,17 @@ def run(root : System.FilePath) (write : Bool) : IO Nat := do
   return 0
 
 -- the cases mean what their names say
-#guard (premiseLint registry ((lintCases.lookup "clean").getD [])) == ⟨[], []⟩
-#guard (premiseLint registry []).untested.length == registry.length
-#guard (premiseLint registry ((lintCases.lookup "unknown-test").getD [])).unknown == ["prem.ghost"]
+#guard (premiseLint registry (pageRefs registry) (laneFiles registry)) == ⟨[], []⟩
+#guard (premiseLint registry [] []).untested.length == registry.length
+#guard (premiseLint registry (pageRefs registry ++ [⟨"prem.ghost", "ghost"⟩]) (laneFiles registry)).unknown == ["prem.ghost"]
+#guard (premiseLint registry (pageRefs registry) [".github/workflows/lean.yml"]).untested == ["wktr_scroll_timeline_restyle"]
+#guard (premiseLint registry (pageRefs registry ++ (registry.filter (·.kind == .lane)).map Premise.ref)
+  (laneFiles registry)).unknown == [".github/workflows/wktr-fixtures.yml"]
 #guard (flagged registry allPass).isEmpty
-#guard (flagged registry []).length == registry.length
+#guard (flagged registry []).length == pages.length && pages.length + 1 == registry.length
 #guard (flagged registry ((flagCases.lookup "one-fail-chromium").getD [])).length == 1
 #guard (flagged registry ((flagCases.lookup "missing-webkit").getD [])).length == 1
 #guard (flagged registry ((flagCases.lookup "unknown-test-result").getD [])).isEmpty
+#guard (flagged registry ((flagCases.lookup "lane-result-fails").getD [])).isEmpty
 
 end Fw.Ops.Premise

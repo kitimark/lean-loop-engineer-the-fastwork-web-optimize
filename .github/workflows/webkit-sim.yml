@@ -14,6 +14,7 @@ on:
       - '.github/scripts/check-simulator.sh'
       - '.github/scripts/verify-snapshot.mjs'
       - '.github/scripts/runner-info.sh'
+      - '.github/scripts/changed-inputs.mjs'
       - '.github/workflows/webkit-sim.yml'
   workflow_dispatch:
     inputs:
@@ -43,12 +44,12 @@ on:
         type: string
         default: '3'
       target:
-        description: Which page to measure. Only original (the read-only snapshot) is served by this lane; rewrite stops the plan job
+        description: Which page to measure. original = the read-only snapshot; rewrite = the default prerendered build of apps/site (own VM jobs r1..); both = the two arms, then the step-aligned comparison (align job)
         type: choice
-        options: [original, rewrite]
+        options: [original, rewrite, both]
         default: original
       preset:
-        description: Site preset to measure. Only 'original' (the read-only snapshot) is wired in this lane; any other value stops the plan job
+        description: Site preset. Only 'original' (the default prerendered config for the rewrite) is wired in this lane; any other value stops the plan job
         type: string
         default: original
       fw:
@@ -79,6 +80,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/webkit-sim.yml
   plan:
     needs: [guard]
@@ -87,6 +89,9 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
+      rewrite: ${{ steps.m.outputs.rewrite }}
+      both: ${{ steps.m.outputs.both }}
+      original: ${{ steps.m.outputs.original }}
     steps:
       - id: m
         env:
@@ -95,23 +100,77 @@ jobs:
           TARGET: ${{ inputs.target || 'original' }}
           PRESET: ${{ inputs.preset || 'original' }}
           FW: ${{ inputs.fw || '' }}
+          EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
         run: |
           set -euo pipefail
-          # Accepted so `fw run` can dispatch them, but this lane serves only the snapshot: stop instead of measuring
-          # the original under another key.
-          if [ "$TARGET" != original ] || [ "$PRESET" != original ] || [ -n "$FW" ]; then
-            echo "target '$TARGET' / preset '$PRESET' / fw '$FW' is not served by webkit-sim yet (only the original snapshot is)" >&2
+          # the quiet experiment measures the snapshot only
+          if [ "$EXPERIMENT" = quiet ] && [ "$TARGET" != original ]; then echo "experiment quiet needs target original" >&2; exit 1; fi
+          # Accepted so `fw run` can dispatch them, but this lane serves only the snapshot and the default rewrite build:
+          # stop instead of measuring either under another key.
+          case "$TARGET" in original|rewrite|both) ;; *) echo "bad target '$TARGET'" >&2; exit 1 ;; esac
+          if [ "$PRESET" != original ] || [ -n "$FW" ]; then
+            echo "preset '$PRESET' / fw '$FW' is not served by webkit-sim yet (only the default configuration is)" >&2
             exit 1
           fi
           case "$VMS" in 1|2|3) ;; *) echo "vms must be 1..3" >&2; exit 1 ;; esac
           case "$SESSIONS" in 1|2|3|4) ;; *) echo "sessions must be 1..4" >&2; exit 1 ;; esac
-          matrix=$(seq 1 "$VMS" | jq -R -s -c '{vm: (split("\n") | map(select(length > 0)) | map("v" + .))}')
+          # One job per (arm, VM): original on v1.., rewrite on r1..; a pair vN/rN is aligned by scroll position afterwards.
+          matrix=$(seq 1 "$VMS" | jq -R -s -c --arg t "$TARGET" '(split("\n") | map(select(length > 0))) as $n | {include: [$n[] as $i | (if $t != "rewrite" then {vm: ("v" + $i), arm: "original"} else empty end), (if $t != "original" then {vm: ("r" + $i), arm: "rewrite"} else empty end)]}')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
+          if [ "$TARGET" = original ]; then echo "rewrite=false" >> "$GITHUB_OUTPUT"; else echo "rewrite=true" >> "$GITHUB_OUTPUT"; fi
+          if [ "$TARGET" = rewrite ]; then echo "original=false" >> "$GITHUB_OUTPUT"; else echo "original=true" >> "$GITHUB_OUTPUT"; fi
+          if [ "$TARGET" = both ]; then echo "both=true" >> "$GITHUB_OUTPUT"; else echo "both=false" >> "$GITHUB_OUTPUT"; fi
+
+  # The rewrite arm: the default prerendered build of apps/site (what chromium-counts builds), served by the lane like the snapshot.
+  site:
+    needs: [plan]
+    if: ${{ needs.plan.outputs.rewrite == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/site...'
+      - name: Build the rewrite (default prerendered config)
+        run: pnpm --filter @fw/site build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+          if-no-files-found: error
+          retention-days: 3
+
+  # fwcore (Lean) pairs the steps of the two arms and sums the zones (align job) and pairs the rows of the class tables of
+  # the VMs (merge job); built here.
+  fwcore:
+    needs: [plan]
+    if: ${{ needs.plan.outputs.original == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      - name: lake build fwcore
+        working-directory: lean
+        run: lake build fwcore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fwcore
+          path: lean/.lake/build/bin/fwcore
+          if-no-files-found: error
+          retention-days: 3
 
   sim:
-    needs: [guard, plan]
-    if: ${{ needs.guard.outputs.run == 'true' }}
+    needs: [guard, plan, site]
+    # site is skipped for target original: that must not skip the sim jobs
+    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && needs.plan.result == 'success' && needs.site.result != 'failure' }}
     runs-on: xcode-27
     # healthy: 33-43 min for 2 sessions (3 runs, before the readiness polling replaced the fixed sleeps); one stalled job held a slot for 90 min
     timeout-minutes: 60
@@ -133,6 +192,7 @@ jobs:
         run: sh .github/scripts/check-simulator.sh --create
 
       - name: Verify the snapshot against snapshot.lock.json
+        if: ${{ matrix.arm == 'original' }}
         run: node .github/scripts/verify-snapshot.mjs
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -147,6 +207,13 @@ jobs:
           brew install ios-webkit-debug-proxy
           command -v ios_webkit_debug_proxy
           brew list --versions ios-webkit-debug-proxy
+
+      - name: The rewrite build (site job)
+        if: ${{ matrix.arm == 'rewrite' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: ${{ runner.temp }}/site
 
       - name: Tool and runner facts
         run: |
@@ -176,6 +243,8 @@ jobs:
           SESSIONS: ${{ inputs.sessions || '1' }}
           FRESH: ${{ inputs.fresh_boot && 'yes' || 'no' }}
           VM: ${{ matrix.vm }}
+          ARM: ${{ matrix.arm }}
+          SITE_DIR: ${{ runner.temp }}/site
           EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
           ARMS: ${{ inputs.arms || '0,1,3' }}
           REPS: ${{ inputs.reps || '3' }}
@@ -188,6 +257,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
+          # rewrite arm: --site serves the prerendered build (default config, empty search) instead of the snapshot
+          site=()
+          if [ "$ARM" = rewrite ]; then site=(--site "$SITE_DIR"); fi
           if [ "$EXPERIMENT" = quiet ]; then
             node src/cli.mjs quiet --arms "$ARMS" --reps "$REPS" --keep --out "out/$VM-quiet.json" 2> >(tee "out/$VM-quiet.log" >&2)
             ls -l out
@@ -197,20 +269,11 @@ jobs:
             keep=--keep
             # fresh_boot: no --keep, so each session ends with the device shut down and the next one boots it again
             if [ "$FRESH" = yes ]; then keep=; fi
-            node src/cli.mjs determinism --runs 2 $keep --out "out/$VM-session-$s.json" 2> >(tee "out/$VM-session-$s.log" >&2) | tee "out/$VM-session-$s.md"
+            node src/cli.mjs determinism --runs 2 $keep ${site[@]+"${site[@]}"} --out "out/$VM-session-$s.json" 2> >(tee "out/$VM-session-$s.log" >&2) | tee "out/$VM-session-$s.md"
           done
           ls -l out
 
-      - name: Within-VM classes
-        if: ${{ (inputs.experiment || 'determinism') == 'determinism' }}
-        working-directory: packages/measure-webkit
-        env:
-          VM: ${{ matrix.vm }}
-        run: |
-          set -euo pipefail
-          files=(out/"$VM"-session-*.json)
-          node src/cli.mjs merge "${files[@]}" | tee "out/$VM-classes.md"
-          cp out/"$VM"-* "$RUNNER_TEMP/result/"
+      # The within-VM class tables are made by the merge job: pairing rows is fwcore's (Lean) and this job has no Linux binary.
 
       # Kept even when a session failed: the logs say where a slow start stalled.
       - name: Keep logs and host state
@@ -220,7 +283,8 @@ jobs:
           VM: ${{ matrix.vm }}
         run: |
           mkdir -p out "$RUNNER_TEMP/result"
-          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > out/"$VM"-host.txt 2>&1 || true
+          # shellcheck disable=SC2009
+          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; ps -axo pid,ppid,etime,stat,command | grep -E "cli.mjs|ios_webkit|tee " | grep -v grep; } > out/"$VM"-host.txt 2>&1 || true
           cp out/"$VM"-* "$RUNNER_TEMP/result/" 2>/dev/null || true
 
       # Always: stop the proxy's device and delete it, even when a step failed or the job was cancelled.
@@ -238,10 +302,11 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  # Classes over all VMs (the worse class wins, as `merge` does locally). Only needs node, so it runs on Linux.
+  # Classes over all VMs (the worse class wins, as `merge` does locally; rows are paired by key in Lean, rows not every VM has
+  # are listed as unpaired). Needs node and fwcore only, so it runs on Linux.
   merge:
-    needs: [plan, sim]
-    if: ${{ (inputs.experiment || 'determinism') == 'determinism' }}
+    needs: [plan, sim, fwcore]
+    if: ${{ needs.plan.outputs.original == 'true' && (inputs.experiment || 'determinism') == 'determinism' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
@@ -258,14 +323,27 @@ jobs:
           # one artifact per VM; with a single match the action extracts it without a subdirectory, so subdirectories cannot be
           # relied on. Merging flat is safe: every file name starts with its VM (v1-session-1.json).
           merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: fwcore
+          path: ${{ runner.temp }}/bin
       - name: Classes over all sessions of all VMs
+        env:
+          FWCORE: ${{ runner.temp }}/bin/fwcore
         run: |
           set -euo pipefail
+          chmod +x "$FWCORE"
           out="$RUNNER_TEMP/classes"
           mkdir -p "$out"
-          files=("$RUNNER_TEMP"/vms/*-session-*.json)
+          # the classes are those of the original arm (v*); the rewrite arm (r*) is compared by the align job
+          files=("$RUNNER_TEMP"/vms/v*-session-*.json)
           printf "%s\n" "${files[@]}"
           node packages/measure-webkit/src/cli.mjs merge "${files[@]}" | tee "$out/classes.md"
+          # within-VM tables (all sessions of one VM), as the sim jobs made them before merge needed fwcore
+          for f in "$RUNNER_TEMP"/vms/*-session-1.json; do
+            vm=$(basename "$f"); vm=${vm%%-session-*}
+            node packages/measure-webkit/src/cli.mjs merge "$RUNNER_TEMP"/vms/"$vm"-session-*.json > "$out/$vm-classes.md"
+          done
           sha256sum "${files[@]}" | tee "$out/sha256.txt"
           {
             echo '### webkit-sim: classes over all VMs and sessions (worst wins)'
@@ -275,5 +353,60 @@ jobs:
         with:
           name: webkit-classes
           path: ${{ runner.temp }}/classes
+          if-no-files-found: error
+          retention-days: 30
+
+  # Original against rewrite by scroll position (Lean: Fw.Measure.StepAlign). Pair vN/rN session k: pass i of one against
+  # pass i of the other. Only meaningful for target both. Linux: it needs node and fwcore only.
+  align:
+    needs: [plan, sim, fwcore]
+    if: ${{ needs.plan.outputs.both == 'true' && needs.sim.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: webkit-sim-*
+          path: ${{ runner.temp }}/vms
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: fwcore
+          path: ${{ runner.temp }}/bin
+      - name: Align A (v) and R (r) per VM and session
+        env:
+          FWCORE: ${{ runner.temp }}/bin/fwcore
+        run: |
+          set -euo pipefail
+          chmod +x "$FWCORE"
+          out="$RUNNER_TEMP/align"
+          mkdir -p "$out"
+          for a in "$RUNNER_TEMP"/vms/v*-session-*.json; do
+            n=$(basename "$a"); r="$RUNNER_TEMP/vms/r${n#v}"
+            test -f "$r" || { echo "no rewrite counterpart for $n" >&2; exit 1; }
+            node packages/measure-webkit/src/cli.mjs align "$a" "$r" --out "$out/${n%.json}.align.json" | tee "$out/${n%.json}.align.md"
+          done
+          # classes of the full-zone sums over every pass of every VM and session (deterministic / stable / quarantined)
+          args=()
+          for a in "$RUNNER_TEMP"/vms/v*-session-*.json; do n=$(basename "$a"); args+=("$a" "$RUNNER_TEMP/vms/r${n#v}"); done
+          node packages/measure-webkit/src/cli.mjs align-classes "${args[@]}" --types RecalculateStyles,Layout,Paint,Composite,RenderingFrame --out "$out/classes.align.json" | tee "$out/classes.align.md"
+          {
+            echo '### webkit-sim: original (A) against rewrite (R) by scroll position'
+            echo '#### classes of the full-zone sums over all passes'
+            cat "$out/classes.align.md"
+            echo '#### per zone, per VM and session'
+            cat "$out"/v*.align.md
+          } >> "$GITHUB_STEP_SUMMARY"
+          sha256sum "$RUNNER_TEMP"/vms/*-session-*.json | tee "$out/sha256.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: webkit-align
+          path: ${{ runner.temp }}/align
           if-no-files-found: error
           retention-days: 30

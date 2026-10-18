@@ -16,3 +16,31 @@
 4. `prelock: false` (option) = the old protocol only. The card fast-forward path (no `--task`) is unchanged.
 
 TS stand-in, marked for Lean replacement: `prelockAction` (no fwcore op yet); checked against the `landSpeed.prelock` golden.
+
+## `--dry` and verdict lines (task `land-dry`)
+
+`pnpm fw land <branch> --task <id> --dry` runs the real land's cheap stages on the same merge-tree commit: stale base (the branch must contain main), scope, merge and conflict markers, and the static reads test (`land-inputs.test.ts`) when the change selects `apps/runner`. It takes no lock, writes no queue entry and never moves main; the checks run in a land worktree slot (a pid claim). Lean: `Fw.Console.LandDry` (`dry_pass_land_pass`, `dry_refusal_is_land_refusal`, `handback_pass_land_pass`).
+
+Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code per kind (Lean `Fw.Console.LandVerdict`):
+
+| kind | exit | meaning |
+|---|---|---|
+| done, dry, queued | 0 | landed, dry land passes, queued |
+| busy 10, dirty 11 | 10, 11 | retryable: the lock or the main checkout is in the way |
+| scope 12, reads 13, conflict 14, checks 15, stale 16 | 12-16 | fix the branch |
+| unknown | 2 | anything else |
+
+Scripts read the word after `VERDICT` or the exit code, never prose. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
+
+## `--queue`: lands in first-in-first-out order (task `land-queue`)
+
+`pnpm fw land --queue <branch> --task <id> [--allow <glob>]... [--no-run]` appends one `enq` line to `.fw-console/land-queue.jsonl` (a task already pending is not added twice), then becomes the single runner if no live runner holds `.fw-console/land-queue.runner`, and lands the pending entries head first. `--no-run` only enqueues. `pnpm fw land --queue-status` prints one `VERDICT queued <task>` per pending entry and `VERDICT <kind> <task>` for the last result of each finished one.
+
+- The log is the only state: `enq` and `res` lines; the pending list is their fold (Lean `Fw.Console.LandQueue`: `enq_idem`, `enq_appends`, `res_head`, `pending_nodup`).
+- The runner retries an entry only for `busy` and `dirty`, at most 5 attempts (`retryAfter_iff`, `retryAfter_bounded`, `retryAfter_final`); it reads the kind from the land's result, never from its text.
+- The runner lock holds (pid, start time of `ps -o lstart= -p <pid>`); a holder is live only when the start time now at that pid is the recorded one (`runnerLive_iff`). No process is found by a command-line pattern.
+- `fw watch` / `fw next` raise no `agent.unlanded` for a branch that is a pending entry (`Fw.Obs.Next.no_unlanded_while_queued`, fact `landQueued`).
+- The exit code of `--queue` is the kind of this task's result, or 0 with `VERDICT queued` when another runner (or `--no-run`) will land it.
+
+Fixture measure (3 tiny branches, real land, no CI, in-process, local debug run, not a result): queue overhead about 10 ms per land.
+TS stand-in `apps/runner/src/land-queue.ts`, checked against `packages/contracts/golden/console/land-queue.jsonl`.

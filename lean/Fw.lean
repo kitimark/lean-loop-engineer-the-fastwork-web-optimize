@@ -91,10 +91,14 @@ import Fw.Obs.Signals  -- obs-signals: agent state from transcript signals (obs.
 import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
+import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
 import Fw.Console.LandSpeed  -- land-speed-lean: result cache, lint_modular, pre-lock land, check verdict
-import Fw.Console.LandPool  -- land-test-speed: proposal, a fair-share floor under poolSize (not wired into land.ts)
+import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rule
+import Fw.Console.LandDry  -- land-dry: dry land stages and hand-back rule
+import Fw.Console.LandQueue  -- land-queue: FIFO land queue, bounded retry, runner identity
+import Fw.Console.LandPool -- land-test-speed: proposal, a fair-share floor under poolSize (not wired into land.ts)
 import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
 import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
 import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split
