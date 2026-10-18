@@ -184,7 +184,9 @@ def table : List Wf := [
     ".github/scripts/check-simulator.sh", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
     ".github/actions/setup-pnpm/**", own "gate-gaps.yml"]⟩,
   ⟨"lean.yml", ciMain, [
-    "lean/**", "apps/site/src/breakpoints.gen.json", ".github/scripts/changed-inputs.mjs",
+    "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "scripts/span.sh",
+    "scripts/fwcore-build.sh", "packages/contracts/golden/gate/sweeps.jsonl",
+    "packages/gate-breakpoints/src/scope.gen.json", ".github/scripts/changed-inputs.mjs",
     ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh", own "lean.yml"]⟩,
   ⟨"mutants.yml", ciMain, [
     "lean/Fw/Console.lean", "lean/Fw/Serve.lean", "lean/Fw/Ops/Meter.lean", "lean/Fw/Ops/PathCheck.lean",

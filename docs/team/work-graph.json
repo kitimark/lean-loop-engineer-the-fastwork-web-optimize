@@ -4123,7 +4123,8 @@
     "docs/team/token-policy.md",
     "research/notes/**",
     "docs/team/handoffs/ci-own-trigger.md"
-   ]
+   ],
+   "evidence": "ab98277"
   },
   {
    "id": "console-stale",
