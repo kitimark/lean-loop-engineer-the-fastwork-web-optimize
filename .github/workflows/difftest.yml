@@ -16,8 +16,80 @@ on:
       - 'packages/measure-chromium/src/**'
       - 'apps/runner/hooks/cap.mjs'
       - 'apps/console-api/src/cap/**'
-      - 'lean/**'
+      - 'lean/Main.lean'
+      - 'lean/lakefile.toml'
+      - 'lean/lake-manifest.json'
+      - 'lean/lean-toolchain'
+      - 'lean/Fw/Board.lean'
+      - 'lean/Fw/Ci/Budget.lean'
+      - 'lean/Fw/Ci/Wire.lean'
+      - 'lean/Fw/Console.lean'
+      - 'lean/Fw/Console/Alert.lean'
+      - 'lean/Fw/Console/Land.lean'
+      - 'lean/Fw/Console/Self.lean'
+      - 'lean/Fw/Gate/Compare.lean'
+      - 'lean/Fw/Gate/Items.lean'
+      - 'lean/Fw/Gate/Reach.lean'
+      - 'lean/Fw/Gate/Rule.lean'
+      - 'lean/Fw/Gate/State.lean'
+      - 'lean/Fw/Measure/Arms.lean'
+      - 'lean/Fw/Measure/Classes.lean'
+      - 'lean/Fw/Measure/EngineCheck.lean'
+      - 'lean/Fw/Measure/Freeze.lean'
+      - 'lean/Fw/Measure/Neutral.lean'
+      - 'lean/Fw/Measure/Quiet.lean'
+      - 'lean/Fw/Measure/SelfCheck.lean'
+      - 'lean/Fw/Measure/Snapshot.lean'
+      - 'lean/Fw/Measure/Splits.lean'
+      - 'lean/Fw/Measure/Tolerance.lean'
+      - 'lean/Fw/Measure/WebKit.lean'
+      - 'lean/Fw/Measure/Wire.lean'
+      - 'lean/Fw/Measure/ZoneBaseline.lean'
+      - 'lean/Fw/Measure/Zones.lean'
+      - 'lean/Fw/Obs/Health.lean'
+      - 'lean/Fw/Obs/Next.lean'
+      - 'lean/Fw/Obs/Signals.lean'
+      - 'lean/Fw/Obs/Timing.lean'
+      - 'lean/Fw/Ops/Identity.lean'
+      - 'lean/Fw/Ops/Meter.lean'
+      - 'lean/Fw/Ops/Obs.lean'
+      - 'lean/Fw/Ops/PathCheck.lean'
+      - 'lean/Fw/Ops/SpawnGuard.lean'
+      - 'lean/Fw/Ops/Usage.lean'
+      - 'lean/Fw/Ops/Wire.lean'
+      - 'lean/Fw/Plan/Core.lean'
+      - 'lean/Fw/Plan/Graph.lean'
+      - 'lean/Fw/Plan/Incident.lean'
+      - 'lean/Fw/Plan/Lint.lean'
+      - 'lean/Fw/Plan/Trailer.lean'
+      - 'lean/Fw/Sched/Admit.lean'
+      - 'lean/Fw/Sched/ParMetrics.lean'
+      - 'lean/Fw/Serve.lean'
+      - 'lean/Fw/Site/BreakpointFacts.lean'
+      - 'lean/Fw/Site/BreakpointGen.lean'
+      - 'lean/Fw/Site/BreakpointMatrix.lean'
+      - 'lean/Fw/Site/Breakpoints.lean'
+      - 'lean/Fw/Spec/Cost.lean'
+      - 'lean/Fw/Spec/DeviceQueue.lean'
+      - 'lean/Fw/Spec/Flags.lean'
+      - 'lean/Fw/Spec/Frames.lean'
+      - 'lean/Fw/Spec/Lease.lean'
+      - 'lean/Fw/Spec/Null.lean'
+      - 'lean/Fw/Spec/Screen.lean'
+      - 'lean/Fw/Spec/Verdict.lean'
+      - 'lean/Fw/Store/Ci.lean'
+      - 'lean/Fw/Store/Layout.lean'
+      - 'lean/Fw/Store/Reduce.lean'
+      - 'lean/Fw/Wire.lean'
+      - 'lean/Fw/Wire/Console.lean'
+      - 'lean/Fw/Wire/Gate.lean'
+      - 'lean/Fw/Wire/Obs.lean'
+      - 'lean/Fw/Wire/OpsGate.lean'
+      - 'lean/Fw/Wire/Plan.lean'
+      - 'lean/Fw/Wire/Sched.lean'
+      - 'lean/Fw/Wire/Store.lean'
       - 'pnpm-lock.yaml'
+      - '.github/scripts/changed-inputs.mjs'
       - '.github/actions/setup-lean/**'
       - '.github/actions/setup-pnpm/**'
       - '.github/workflows/difftest.yml'
@@ -42,7 +114,30 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 
 jobs:
+  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
+  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and
+  # schedules always run. Fails open on error.
+  guard:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/difftest.yml
+
   fwcore:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:

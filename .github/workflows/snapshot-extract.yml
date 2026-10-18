@@ -19,6 +19,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/scripts/verify-snapshot.mjs'
+      - '.github/scripts/changed-inputs.mjs'
       - '.github/actions/setup-lean/**'
       - '.github/actions/setup-pnpm/**'
       - '.github/actions/gate-engine/**'
@@ -38,7 +39,30 @@ env:
   HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
 
 jobs:
+  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
+  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and
+  # schedules always run. Fails open on error.
+  guard:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/snapshot-extract.yml
+
   site:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
@@ -59,6 +83,8 @@ jobs:
           retention-days: 3
 
   tests:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
