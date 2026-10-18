@@ -221,6 +221,21 @@ def extra : List (String × String × List (String × Json)) := [
     ("a candidate that does not contain the given branch is no candidate", lit "{\"givenAhead\":false,\"others\":[{\"name\":\"ci/t\",\"ahead\":true,\"contains\":false}]}"),
     ("two different candidates: ambiguous, refuse", lit "{\"givenAhead\":false,\"others\":[{\"name\":\"ci/t\",\"ahead\":true,\"contains\":true},{\"name\":\"w\",\"ahead\":true,\"contains\":true}]}"),
     ("missing givenAhead is refused", lit "{\"others\":[]}")]),
+  ("console", "console.landPool", [
+    ("idle machine: all cores", lit "{\"cores\":8,\"load\":0}"),
+    ("light load: the free cores", lit "{\"cores\":8,\"load\":3}"),
+    ("load at half the cores: half", lit "{\"cores\":8,\"load\":5}"),
+    ("saturated: the fair-share floor, not one", lit "{\"cores\":8,\"load\":20}"),
+    ("odd core count", lit "{\"cores\":10,\"load\":23}"),
+    ("one core: one", lit "{\"cores\":1,\"load\":9}"),
+    ("zero cores: still one", lit "{\"cores\":0,\"load\":0}"),
+    ("missing load is refused", lit "{\"cores\":8}")]),
+  ("console", "console.landRetry", [
+    ("passed: no re-run", lit "{\"passed\":true,\"loadFailure\":false}"),
+    ("passed with a timeout word in the log: no re-run", lit "{\"passed\":true,\"loadFailure\":true}"),
+    ("failed by the code: final", lit "{\"passed\":false,\"loadFailure\":false}"),
+    ("timed out under load: re-run alone", lit "{\"passed\":false,\"loadFailure\":true}"),
+    ("missing loadFailure is refused", lit "{\"passed\":false}")]),
   ("console", "console.actor", [
     ("all sources", lit "{}"),
     ("the alert source writes as script", lit "{\"source\":\"alert\"}"),

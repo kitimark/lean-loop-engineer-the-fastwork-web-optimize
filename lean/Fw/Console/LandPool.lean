@@ -6,8 +6,8 @@ import Fw.Console.LandSpeed
 load average `ℓ` (rounded up) reaches the core count `c`. On this machine that is the normal state (load 14 to 20 on 8
 cores), so a land costs the *sum* of its checks (282 s for the snapshot-extract land).
 
-This module is a **proposal**, not wired into `apps/runner/src/land.ts` (the lead decides; `land.ts` is not in this
-task's write set). It states the change as `poolFair`, keeps every theorem of `poolSize`, and proves the two facts the
+This module is **wired** into `apps/runner/src/land.ts` (task land-pool-fair) through the ops `console.landPool` and
+`console.landRetry` (`Fw.Wire.Console`). It states the change as `poolFair`, keeps every theorem of `poolSize`, and proves the two facts the
 change rests on, under the standard model of a fair CPU scheduler:
 
 * with `ℓ` runnable threads of other work and `k` of ours, every thread gets `c / (ℓ + k)` of a core when `ℓ + k ≥ c`,
@@ -98,5 +98,61 @@ theorem poolFair_saturated (c l : Nat) (h : c ≤ l) : 2 * poolFair c l ≤ l �
 #guard poolFair 0 0 == 1
 #guard poolSize 8 5 == 3
 #guard poolSize 8 20 == 1
+
+/-! ## The timeout fallback: a check that timed out under load re-runs alone -/
+
+/-- Re-run a check alone iff it failed and its output shows a failure that load can cause (a timeout). Here `r` = the
+first run passed, `f` = the output shows a load failure.
+$$\operatorname{rerun}(r, f) = \neg r \land f$$ -/
+def rerunAlone (passed loadFailure : Bool) : Bool := !passed && loadFailure
+
+/-- The pool a re-run uses: one check, alone.
+$$\operatorname{rerunPool} = 1$$ -/
+def rerunPool : Nat := 1
+
+/-- The result that counts: the re-run's when there was one, else the first run's.
+$$\operatorname{settle}(r, f, r') = \begin{cases} r' & \operatorname{rerun}(r, f) \\ r & \text{otherwise} \end{cases}$$ -/
+def settle (passed loadFailure second : Bool) : Bool := if rerunAlone passed loadFailure then second else passed
+
+/-- A passing check is never re-run.
+$$\forall f:\ \operatorname{rerun}(\top, f) = \bot$$ -/
+theorem rerunAlone_pass (f : Bool) : rerunAlone true f = false := by simp [rerunAlone]
+
+/-- A failure without a load signature is final: the code, not the load, failed it.
+$$\forall r:\ \operatorname{rerun}(r, \bot) = \bot$$ -/
+theorem rerunAlone_noload (r : Bool) : rerunAlone r false = false := by simp [rerunAlone]
+
+/-- A timed-out check re-runs.
+$$\operatorname{rerun}(\bot, \top) = \top$$ -/
+theorem rerunAlone_timeout : rerunAlone false true = true := rfl
+
+/-- The re-run is alone: its pool is one, never more than the pool of the land.
+$$\forall c, \ell:\ \operatorname{rerunPool} = 1 \le \operatorname{poolFair}(c, \ell)$$ -/
+theorem rerunPool_le (c l : Nat) : rerunPool ≤ poolFair c l := poolFair_pos c l
+
+/-- After a re-run, the re-run's result counts.
+$$\operatorname{rerun}(r, f) \Rightarrow \operatorname{settle}(r, f, r') = r'$$ -/
+theorem settle_rerun (r f r' : Bool) (h : rerunAlone r f = true) : settle r f r' = r' := by simp [settle, h]
+
+/-- Without a re-run, the first result counts.
+$$\neg\operatorname{rerun}(r, f) \Rightarrow \operatorname{settle}(r, f, r') = r$$ -/
+theorem settle_norerun (r f r' : Bool) (h : rerunAlone r f = false) : settle r f r' = r := by simp [settle, h]
+
+/-- A pass stays a pass, and a failure that is not a load failure stays a failure.
+$$\forall r, f, r':\ r = \top \lor f = \bot \Rightarrow \operatorname{settle}(r, f, r') = r$$ -/
+theorem settle_first (r f r' : Bool) (h : r = true ∨ f = false) : settle r f r' = r := by
+  rcases h with rfl | rfl <;> simp [settle, rerunAlone]
+
+/-- **The pool size and the re-run change no verdict.** Whatever order the settled results arrive in (any pool, serial or
+not), the land's verdict is the same.
+$$\forall E, D \sim D':\ \operatorname{verdict}(E, D) = \operatorname{verdict}(E, D')$$ -/
+theorem verdict_pool_free (expected : List String) (done done' : List (String × Bool)) (hp : done.Perm done') :
+    verdict expected done = verdict expected done' := verdict_perm expected done done' hp
+
+#guard rerunAlone false true
+#guard !rerunAlone false false
+#guard !rerunAlone true true
+#guard settle false true true
+#guard !settle false false true
 
 end Fw.Console.LandPool

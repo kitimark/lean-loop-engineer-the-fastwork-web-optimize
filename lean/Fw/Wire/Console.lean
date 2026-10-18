@@ -1,6 +1,7 @@
 import Fw.Ops.Wire
 import Fw.Console.Land
 import Fw.Console.Self
+import Fw.Console.LandPool
 import Fw.Console.Alert
 import Fw.Plan.Trailer
 import Fw.Plan.Lint
@@ -20,6 +21,8 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landGuard` | `held`, `alive`?, `here`? (commit is in the locked checkout), `own`? (the land's own commit) | `verdict` (`allow`/`held`/`stale`), `allow` |
 | `console.landCommit` | `locked`, `mergeHead`? (null: MERGE_HEAD gone), `head`, `pre` (HEAD when the lock was taken) | `ok`, `tip`, `reason` (`no lock`/`merge state gone`/`head moved`) |
 | `console.landPick` | `givenAhead`, `others`? [{name, ahead, contains}] | `pick` (`given`/`other`/`nothing`/`ambiguous`), `branch`, `names` |
+| `console.landPool` | `cores`, `load` (one-minute load average rounded up) | `pool` (`Fw.Console.LandPool.poolFair`) |
+| `console.landRetry` | `passed`, `loadFailure` | `rerun` (`Fw.Console.LandPool.rerunAlone`), `pool` (the re-run's pool, 1) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
@@ -167,6 +170,20 @@ def opLandPick (req : Json) : Except String Reply := do
     | .nothing => [("pick", .str "nothing"), ("branch", .null), ("names", .arr #[])]
     | .ambiguous ns => [("pick", .str "ambiguous"), ("branch", .null), ("names", .arr (ns.toArray.map Json.str))])
 
+open Fw.Console.LandPool in
+/-- `console.landPool`: how many land checks may run at once (`Fw.Console.LandPool.poolFair`). -/
+def opLandPool (req : Json) : Except String Reply := do
+  let c ← nat req "cores"
+  let l ← nat req "load"
+  pure [("pool", .num (poolFair c l))]
+
+open Fw.Console.LandPool in
+/-- `console.landRetry`: does a failed check re-run alone? (`Fw.Console.LandPool.rerunAlone`). -/
+def opLandRetry (req : Json) : Except String Reply := do
+  let p ← asBool "passed" (← field req "passed")
+  let f ← asBool "loadFailure" (← field req "loadFailure")
+  pure [("rerun", .bool (rerunAlone p f)), ("pool", .num rerunPool)]
+
 /-! ## plan.lint -/
 
 open Fw.Plan Fw.Plan.Lint in
@@ -197,7 +214,7 @@ def opPlanLint (req : Json) : Except String Reply := do
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
-  "console.landCommit", "console.landPick", "plan.trailers", "plan.lint"]
+  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "plan.trailers", "plan.lint"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -210,6 +227,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.landGuard" => some (opLandGuard req)
   | "console.landCommit" => some (opLandCommit req)
   | "console.landPick" => some (opLandPick req)
+  | "console.landPool" => some (opLandPool req)
+  | "console.landRetry" => some (opLandRetry req)
   | "plan.trailers" => some (opTrailers req)
   | "plan.lint" => some (opPlanLint req)
   | _ => none
