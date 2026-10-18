@@ -4589,7 +4589,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-18-jev-decision-model.md"
-   ]
+   ],
+   "evidence": "05a11b9"
   },
   {
    "id": "jev-oracle",
