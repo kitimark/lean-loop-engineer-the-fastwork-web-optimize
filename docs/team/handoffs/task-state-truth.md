@@ -1,7 +1,8 @@
 # task-state-truth (handoff)
 
-State: branch `worktree-wf_b39c0afc-f56-1`, code at 7d9a613 (round 2: 318558d Lean, 0da41b5 TS, 7d9a613 backfill and docs).
-`check.sh` reports all gates green. The vitest suites pass: console-api 245, runner 605, console-web 4, contracts 7.
+State: branch `worktree-wf_b39c0afc-f56-1`, code at 7d9a613 (round 2: 318558d Lean, 0da41b5 TS, 7d9a613 backfill and docs), main merged in at 9291cba; this
+note is the next commit. After the merge, `check.sh` reports all gates green and the vitest suites pass (console-api 259,
+runner 873, console-web 7). `fw land --dry ... --allow lean/Fw/Console.lean --allow lean/Fw/Ops/Obs.lean` gives VERDICT dry.
 
 Root cause (MEASURED): the strict zod `ObsRecord` rejected every SubagentStop that carried `background_tasks`
 (emit.mjs 2a43e6e), so 6376 stops never became `agent.stop`.
