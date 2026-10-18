@@ -23,7 +23,7 @@ const spool = (dir: string, name: string, ...lines: (object | string)[]) =>
   appendFileSync(join(dir, "spool", `${name}.jsonl`), lines.map((l) => (typeof l === "string" ? l : JSON.stringify(l)) + "\n").join(""));
 const lines = (f: string) => readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
 /** events.jsonl without the agent life facts (agent.spawn/stop/label; every event of an id is a heartbeat since round 3) */
-const notLife = (es: { type: string }[]) => es.filter((e) => !e.type.startsWith("agent."));
+const notLife = <E extends { type: string }>(es: E[]) => es.filter((e) => !e.type.startsWith("agent."));
 
 describe("spool drain", () => {
   it("accepts observations into obs.jsonl; events.jsonl gets only the id's heartbeat", async () => {
