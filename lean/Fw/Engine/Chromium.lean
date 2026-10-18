@@ -121,7 +121,7 @@ def CrLevel.rank : CrLevel → Nat
 * `direct`: style, props, commit. `transform` some-to-some or `opacity` on a box with its own cc layer: deferred node
   update (`B/core/paint/paint_layer.cc:2469-2497`), direct cc write
   (`B/core/paint/paint_property_tree_builder.cc:1224-1262`). CONFIRMED; commit per frame MEASURED (README:148).
-* `ppFull`: style, props, commit. `translate`/`scale`/`rotate`/`filter` on its own layer, `backdrop-filter`
+* `ppFull`: style, props, commit. `translate`/`rotate`/a non-blur `filter` on its own layer, `backdrop-filter`
   (`computed_style.cc:881-891`, `B/core/layout/layout_object.cc:3224-3230`). CONFIRMED.
 * `raster`: style, props, raster, commit. A transform, opacity or filter value on a box without its own layer
   re-rasters its chunks (`B/platform/graphics/paint/raster_invalidator.cc:64-142`). INFERRED.
@@ -163,13 +163,13 @@ the top level `layoutFull` (two incomparable levels, e.g. `layoutMove` and `rast
 
 $$\max(a, b) = \begin{cases} b & a \le b \\ a & a \not\le b \land b \le a \\ \mathrm{layoutFull} & \text{otherwise} \end{cases}$$
 
-The first of the second argument, the first argument and the top level that is above both arguments.
+The second level if it is above the first, else the first if it is above the second, else the top level.
 -/
 def CrLevel.max (a b : CrLevel) : CrLevel := if a ≤ b then b else if b ≤ a then a else .layoutFull
 
 /-- **The level of a plain property change** on a target with layer state `l` (design note §1.2, note C §2.2 table).
-`transform` and `opacity` on their own layer take the deferred direct path; `translate`/`scale`/`rotate` and `filter`
-on their own layer a full property update (no deferred path, `computed_style.cc:881-891`); any of these without its
+`transform` and `opacity` on their own layer take the deferred direct path; `translate`/`rotate` and a non-blur
+`filter` on their own layer a full property update (no deferred path, `computed_style.cc:881-891`); any of these without its
 own layer re-rasters shared chunks; `backdrop-filter` changes compositing reasons (`computed_style.cc:1268-1292`,
 Layerize INFERRED).
 
