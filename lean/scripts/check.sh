@@ -1,8 +1,8 @@
 #!/bin/sh
 # All lean/ gates (TL0) as a DAG (research/notes/2026/10-18-land-speed.md, P2):
-#   serial   grep gates -> import check -> scripts/fwcore-build.sh (lake build + the build record; proofs + #guard; also builds fwtest)
-#   parallel math-view lint | fwtest (golden round trips) | golden wire replay (real fwcore binary, LEAN_ABORT_ON_PANIC=1)
-#            | breakgen checks x2, sweepsgen checks x4 (generated JSON equals the Lean output)
+#   serial   grep gates -> import check -> scripts/fwcore-build.sh (lake build + strip + the build record; proofs + #guard)
+#   parallel math-view lint | fwcore fwtest (golden round trips) | golden wire replay (real fwcore binary, LEAN_ABORT_ON_PANIC=1)
+#            | breakgen checks x2, fwcore sweepsgen checks x4 (generated JSON equals the Lean output)
 #            | engine golden cite lint (every golden/engine row cites a premise, Fw.Ops.Premise.citeLint; m175)
 #            | premise goldens check (golden/ops/premise.jsonl and wktr-lane.jsonl equal the Lean output)
 #            | checkmap golden check (golden/ops/checkmap.jsonl equals the Lean output; Fw.Ops.CheckMap)
@@ -23,7 +23,7 @@ serial() {  # serial <step> <cmd...>: a failing serial stage is recorded and the
 serial "grep gates" scripts/check-partial.sh
 serial "import check" node scripts/check-imports.mjs  # every Fw module is imported by a root, none twice in Fw.lean (the union merge can repeat a line)
 # the parallel stages read the products of lake build, so a failed build ends the run here
-if ! span lean/check "lake build" sh -c 'sh ../scripts/fwcore-build.sh && lake build fwtest'; then
+if ! span lean/check "lake build" sh ../scripts/fwcore-build.sh; then
   fails="$fails
   - lake build"
   echo "check: FAILED: $fails"
@@ -42,20 +42,21 @@ job() {  # job <step> <cmd...>: run in the background; output kept in $tmp/<n>.o
 }
 run_group() {
   job "mathview lint" scripts/mathview-cached.sh   # lint; replayed from .lake/mathview-cache/ when the sources are unchanged
-  job "lake test" $bin/fwtest
+  job "lake test" $bin/fwcore fwtest
   job "golden wire replay" sh -c "LEAN_ABORT_ON_PANIC=1 $bin/fwcore < golden/wire-requests.txt | diff - golden/wire-replies.txt && echo 'check: fwcore binary reproduces golden/wire-replies.txt'"
   job "breakgen check lean" $bin/breakgen --check Fw/Site/breakpoints.gen.json
   job "breakgen check site" sh -c "$bin/breakgen --check ../apps/site/src/breakpoints.gen.json || echo 'check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet'"
   # the gate generators, split out of breakgen (task site-build-cache; the same bytes: Fw.Site.GenRoute.split_agrees)
-  job "sweepsgen sweeps lean" $bin/sweepsgen --sweeps --check Fw/Site/sweeps.gen.json
-  job "sweepsgen sweeps site" $bin/sweepsgen --sweeps --check ../apps/site/src/sweeps.gen.json
-  job "sweepsgen sweeps golden" $bin/sweepsgen --sweeps-golden --check ../packages/contracts/golden/gate/sweeps.jsonl
-  job "sweepsgen scope" $bin/sweepsgen --scope --check ../packages/gate-breakpoints/src/scope.gen.json
+  job "sweepsgen sweeps lean" $bin/fwcore sweepsgen --sweeps --check Fw/Site/sweeps.gen.json
+  job "sweepsgen sweeps site" $bin/fwcore sweepsgen --sweeps --check ../apps/site/src/sweeps.gen.json
+  job "sweepsgen sweeps golden" $bin/fwcore sweepsgen --sweeps-golden --check ../packages/contracts/golden/gate/sweeps.jsonl
+  job "sweepsgen scope" $bin/fwcore sweepsgen --scope --check ../packages/gate-breakpoints/src/scope.gen.json
   job "engine golden cite lint" lake env lean --run scripts/EngineCiteLint.lean  # `lake env` builds nothing and takes no lock
   job "premise goldens check" lake env lean --run scripts/PremiseGolden.lean --check
   job "engine premise golden check" lake env lean --run scripts/EnginePremiseGolden.lean --check
   job "checkmap golden check" lake env lean --run scripts/CheckMapGolden.lean --check  # golden/ops/checkmap.jsonl (Fw.Ops.CheckMap)
   job "shard golden check" lake env lean --run scripts/ShardGolden.lean --check
+  job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check  # golden/ops/lakegc.jsonl (Fw.Ops.LakeGc)
   # props lint (one registry in Fw.Spec.Incidents, rows match the ledger, properties do not name the impl), run once over
   # every lean_lib plus the test cases scripts/props-lint-cases/Adv.lean: the findings must be exactly Adv.expected.txt
   job "props lint" sh -c 'mkdir -p "$1" && cp scripts/props-lint-cases/Adv.lean "$1/" &&

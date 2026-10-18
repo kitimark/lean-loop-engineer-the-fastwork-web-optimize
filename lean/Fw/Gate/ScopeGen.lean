@@ -53,13 +53,14 @@ def partJson (u : PartUse) : Json :=
     ("probes", probeIds (scopeProbes u)),
     ("sweeps", toJson ((scopeSweeps u).map (·.id)))]
 
+set_option compiler.extract_closed false in
 /-- The union of all pilot scopes, in matrix and spec order.
 
-$$\operatorname{unionJson} = \{\mathrm{probes}: \operatorname{ids}(S_\cup),\ \mathrm{sweeps}: [\,\mathrm{id}(w) \mid w \in K_\cup\,]\},\quad S_\cup = [\,p \in M \mid \exists u \in \mathrm{pilot},\ \exists q \in S(u):\ \mathrm{id}(q) = \mathrm{id}(p)\,],\quad K_\cup = [\,w \in W \mid \exists u \in \mathrm{pilot},\ \exists v \in K(u):\ \mathrm{id}(v) = \mathrm{id}(w)\,],\quad \text{with } M = \mathrm{matrix},\ W = \mathrm{sweeps},\ S = \operatorname{scopeProbes},\ K = \operatorname{scopeSweeps}$$
+$$\operatorname{unionJson}() = \{\mathrm{probes}: \operatorname{ids}(S_\cup),\ \mathrm{sweeps}: [\,\mathrm{id}(w) \mid w \in K_\cup\,]\},\quad S_\cup = [\,p \in M \mid \exists u \in \mathrm{pilot},\ \exists q \in S(u):\ \mathrm{id}(q) = \mathrm{id}(p)\,],\quad K_\cup = [\,w \in W \mid \exists u \in \mathrm{pilot},\ \exists v \in K(u):\ \mathrm{id}(v) = \mathrm{id}(w)\,],\quad \text{with } M = \mathrm{matrix},\ W = \mathrm{sweeps},\ S = \operatorname{scopeProbes},\ K = \operatorname{scopeSweeps}$$
 
 What `--parts` with every pilot part runs: the matrix probes and spec sweeps whose id some pilot scope names, in
 matrix and spec order. -/
-def unionJson : Json :=
+def unionJson (_ : Unit := ()) : Json :=
   Json.mkObj [
     ("probes", probeIds (matrix.filter fun p => pilotParts.any fun u => (scopeProbes u).any (·.id == p.id))),
     ("sweeps", toJson ((sweeps.filter fun w => pilotParts.any fun u => (scopeSweeps u).any (·.id == w.id)).map (·.id)))]
@@ -80,12 +81,13 @@ def hypothesisText : String :=
 #guard hypothesisText.startsWith "H: on a fixed engine port, " &&
   hypothesisText.endsWith "The full matrix (no --parts) stays the gate of record."
 
+set_option compiler.extract_closed false in
 /-- The whole generated document.
 
-$$\operatorname{scopeJson} = \{\mathrm{schema}, \mathrm{generatedBy}, H, \mathrm{theorems}, \mathcal P, |M|, W, (\operatorname{partJson}(u))_{u \in \mathrm{pilot}}, (S_\cup, K_\cup)\}$$
+$$\operatorname{scopeJson}() = \{\mathrm{schema}, \mathrm{generatedBy}, H, \mathrm{theorems}, \mathcal P, |M|, W, (\operatorname{partJson}(u))_{u \in \mathrm{pilot}}, (S_\cup, K_\cup)\}$$
 
 What `scope.gen.json` holds. -/
-def scopeJson : Json :=
+def scopeJson (_ : Unit := ()) : Json :=
   Json.mkObj [
     ("schema", toJson "fw.gate-breakpoints.scope/1"),
     ("generatedBy", toJson "lean/Fw/Gate/ScopeGen.lean (Fw.Gate.ScopeGen.scopeText); regenerate with node packages/gate-breakpoints/scripts/scopegen.mjs"),
@@ -100,12 +102,13 @@ def scopeJson : Json :=
     ("parts", Json.mkObj (pilotParts.map fun u => (u.id, partJson u))),
     ("union", unionJson)]
 
+set_option compiler.extract_closed false in
 /-- The exact bytes of the generated file: `scopeJson` pretty-printed at width 120, newline-terminated.
 
-$$\operatorname{scopeText} = \operatorname{pretty}_{120}(\operatorname{scopeJson}) \mathbin{+\!\!+} \text{newline}$$
+$$\operatorname{scopeText}() = \operatorname{pretty}_{120}(\operatorname{scopeJson}) \mathbin{+\!\!+} \text{newline}$$
 
 What the generator prints and `--check` compares. -/
-def scopeText : String := scopeJson.pretty 120 ++ "\n"
+def scopeText (_ : Unit := ()) : String := scopeJson.pretty 120 ++ "\n"
 
 
 /-- The exit code of `--check` for a file holding the bytes `cur`.

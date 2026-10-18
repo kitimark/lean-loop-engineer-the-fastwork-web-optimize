@@ -1,5 +1,6 @@
 import Fw.Wire
 import Fw.Console.PreviewTable
+import Fw.Ops.LeanFirstSearch
 /-!
 # Golden vectors of the `ops.*` ops
 
@@ -7,7 +8,8 @@ import Fw.Console.PreviewTable
 where `request` carries its `op` and `response` is what `fwcore` replies (without the `id`).
 The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
 `golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors), `golden/lint/lint.context.jsonl`
-(`scripts/context-lint.mjs`).
+(`scripts/context-lint.mjs`). From `named` (file stem not the op): `golden/ops/lean-first.jsonl` (`ops.leanFirst`,
+the lean-first land gate over the single faults of the grid of `Fw.Ops.LeanFirstSearch`, at the deployed stage).
 Generated from Lean, never by hand:
 
 ```
@@ -18,7 +20,7 @@ cd lean && lake env lean --run scripts/OpsGolden.lean --check   # fail if a file
 `lake test` runs the same check. Consumers: the hooks agent (`emit.mjs`, `spawn-guard.mjs`:
 `ops.hook`, `ops.spawn`; `cap.mjs`: `ops.actor`, `ops.cap`), console-api's capability door (`cap.ts`
 `actorFor`: `ops.actor`; `openDoor`: `ops.door`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
-meter (`ops.usage`, `ops.meter`).
+meter (`ops.usage`, `ops.meter`), `fw watch` (`ops.watchDiff`, `ops.watchKeep`).
 -/
 namespace Fw.Wire.Ops.Golden
 open Lean
@@ -298,7 +300,19 @@ def cases : List (String × List (String × Json)) := [
     ("r6: a counter set only after && (may not run): deny", wait "true && i=0; until [ $i -ge 5 ]; do i=$((i+1)); done"),
     ("r6: lowercase counter set to a literal first: allow", wait "i=0; while [ $i -lt 5 ]; do echo $i; i=$((i+1)); done"),
     ("r6: SECONDS at the one-day cap: allow", wait "while [ $SECONDS -lt 86400 ]; do sleep 5; done"),
-    ("missing cmd is refused", lit "{}")])]
+    ("missing cmd is refused", lit "{}")]),
+  ("ops.watchDiff", [
+    ("first check opens every alert, one line per key (first detail)", lit "{\"now\":[{\"code\":\"proc.long\",\"subject\":\"node#7\",\"detail\":\"31m\"},{\"code\":\"proc.long\",\"subject\":\"node#7\",\"detail\":\"32m\"},{\"code\":\"ci.slow\",\"subject\":\"run-1\"}]}"),
+    ("open alerts stay quiet, a gone one closes, a new one opens", lit "{\"prev\":[{\"code\":\"proc.long\",\"subject\":\"node#7\"},{\"code\":\"ci.slow\",\"subject\":\"run-1\"}],\"now\":[{\"code\":\"ci.slow\",\"subject\":\"run-1\",\"detail\":\"x\"},{\"code\":\"agent.gone\",\"subject\":\"a1\",\"detail\":\"y\"}]}"),
+    ("same code, other subject is another key", lit "{\"prev\":[{\"code\":\"proc.long\",\"subject\":\"node#7\"}],\"now\":[{\"code\":\"proc.long\",\"subject\":\"node#8\",\"detail\":\"\"}]}"),
+    ("no alerts closes all, a repeated open key closes once", lit "{\"prev\":[{\"code\":\"a\",\"subject\":\"1\"},{\"code\":\"a\",\"subject\":\"1\"}],\"now\":[]}"),
+    ("missing now is refused", lit "{\"prev\":[]}")]),
+  ("ops.watchKeep", [
+    ("same pid and start: live and kept", lit "{\"entries\":[{\"pid\":7,\"start\":1792300000}],\"rows\":[{\"pid\":7,\"start\":1792300000,\"args\":\"caffeinate -i\"}]}"),
+    ("reused pid (other start): dropped, not kept", lit "{\"entries\":[{\"pid\":7,\"start\":1792300000}],\"rows\":[{\"pid\":7,\"start\":1792300001,\"args\":\"python\"}]}"),
+    ("gone process: dropped", lit "{\"entries\":[{\"pid\":7,\"start\":1792300000},{\"pid\":8,\"start\":5}],\"rows\":[{\"pid\":8,\"start\":5,\"args\":\"x\"}]}"),
+    ("the lead Monitor stream is kept without a declaration; other intervals are not", lit "{\"rows\":[{\"pid\":9,\"start\":1,\"args\":\"node apps/runner/src/fw.ts watch --interval 300 --stream\"},{\"pid\":10,\"start\":1,\"args\":\"node apps/runner/src/fw.ts watch --interval 60 --stream\"}]}"),
+    ("a non-integer start is refused", lit "{\"entries\":[{\"pid\":7,\"start\":1.5}]}")])]
 
 /-- One file of a `lint.context` request. -/
 def lintFile (path : String) (bytes : Nat) (lines : List String) : Json :=
@@ -541,6 +555,56 @@ def extra : List (String × String × List (String × Json)) := [
     ("the alert source writes as script", lit "{\"source\":\"alert\"}"),
     ("unknown source is refused", lit "{\"source\":\"lead\"}")])]
 
+open Fw.Ops.LeanFirst in
+/-- An `ops.leanFirst` request: the encoded facts. -/
+def leanFirstReq (F : Facts) : Json := lfFactsJson F
+
+/-- A JSON object with one more field (other JSON unchanged). -/
+def withField (k : String) (v : Json) : Json → Json
+  | .obj kvs => .obj (kvs.insert k v)
+  | j => j
+
+open Fw.Ops.LeanFirst in
+/-- The constructor name of a fault of the lean-first grid. -/
+def faultName (f : Fault) : String := ((reprStr f).splitOn ".").getLastD ""
+
+open Fw.Ops.LeanFirst in
+/-- The `ops.leanFirst` cases, all judged at the deployed constant `stage` (a request cannot choose it): the base
+facts (all rules met), each single fault of the grid, the binding, decision-path and read-at-main cases, a request
+`stage` field (ignored), and the decoder edge cases. -/
+def leanFirstCases : List (String × Json) :=
+  let at_ := s!"at the deployed stage {stage.name}"
+  [(s!"all rules met {at_}", leanFirstReq base)] ++
+  Fault.all.map (fun f => (s!"fault {faultName f} {at_}", leanFirstReq (factsOf [f]))) ++
+  [(s!"two reason faults (stub implementation, no kill): both reasons, the verdict names the first {at_}",
+     leanFirstReq (factsOf [.stub, .noKill])),
+   (s!"stub: the property's own implementation is unreached though a lemma of the land is reached {at_}",
+     leanFirstReq (factsOf [.stub])),
+   (s!"directory glob apps/runner/** over decision code with no property: no-props {at_}",
+     leanFirstReq (factsOf [.dirGlob])),
+   (s!"globs only under docs/ and research/ with no property: not decision code {at_}",
+     leanFirstReq (factsOf [.docsGlob])),
+   (s!"a candidate theorem without reachFromWire: missing reach {at_}", leanFirstReq (factsOf [.reachUnknown])),
+   (s!"exempt.tsv and killOf read at branch commit b, not main m: missing exempt-main {at_}",
+     leanFirstReq (factsOf [.exemptBranch])),
+   (s!"exempt.tsv and killOf never read (no exemptAt): missing exempt-main {at_}",
+     withField "exemptAt" .null (leanFirstReq base)),
+   (s!"request stage field ratchet is ignored: same reply as all rules met {at_}",
+     withField "stage" (.str "ratchet") (leanFirstReq base)),
+   (s!"request stage field ratchet is ignored on a stub {at_}",
+     withField "stage" (.str "ratchet") (leanFirstReq (factsOf [.stub]))),
+   (s!"unknown stage name is ignored, not refused {at_}", lit "{\"stage\":\"strict\"}"),
+   (s!"untested premise shared with the property: WARN line {at_}", leanFirstReq (factsOf [.untestedShared])),
+   (s!"a line break in a theorem name is printed as a space {at_}", leanFirstReq (factsOf [.newlineName, .noKill])),
+   (s!"empty request: every source missing {at_}", lit "{}"),
+   ("unknown sign-off role is refused",
+     lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"docHash\":\"d\",\"role\":\"lead\",\"agree\":true}]}"),
+   ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
+
+/-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
+def named : List (String × String × String × List (String × Json)) := [
+  ("ops", "lean-first", "ops.leanFirst", leanFirstCases)]
+
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
   | .obj kvs => .obj (kvs.insert "op" (.str op))
@@ -564,8 +628,9 @@ def dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
 /-- Compare (or write) every golden file; returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let mut stale := 0
-  for (sub, op, cs) in cases.map (fun (op, cs) => ("ops", op, cs)) ++ extra do
-    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{op}.jsonl"
+  for (sub, stem, op, cs) in cases.map (fun (op, cs) => ("ops", op, op, cs)) ++
+      extra.map (fun (sub, op, cs) => (sub, op, op, cs)) ++ named do
+    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{stem}.jsonl"
     if write then IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / sub)
     let text := fileText op cs
     if write then
@@ -575,8 +640,9 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
       if cur != text then
         IO.println s!"ops golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/OpsGolden.lean)"
         stale := stale + 1
-  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0
-  IO.println s!"ops golden: {cases.length + extra.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
+  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0 +
+    named.foldl (fun a c => a + c.2.2.2.length) 0
+  IO.println s!"ops golden: {cases.length + extra.length + named.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
   return stale
 
 end Fw.Wire.Ops.Golden

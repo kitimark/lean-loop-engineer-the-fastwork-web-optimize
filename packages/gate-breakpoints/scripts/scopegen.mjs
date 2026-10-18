@@ -1,6 +1,6 @@
 // Generates or checks src/scope.gen.json from Lean (Fw.Gate.ScopeGen.scopeText). Glue only: every scope decision and
 // its proof is in lean/Fw/Gate/Scope.lean. Lean modules under Fw/ may not define a root `main` (the math view imports
-// all of them), so the compiled `sweepsgen --scope` (lean/SweepsgenMain.lean) runs it; `scopegenInterpreted` is the old
+// all of them), so the compiled `fwcore sweepsgen --scope` (lean/SweepsgenMain.lean) runs it; `scopegenInterpreted` is the old
 // two-line `lake env lean --run` driver (about 100 s: the interpreter).
 //   node scripts/scopegen.mjs            regenerate src/scope.gen.json
 //   node scripts/scopegen.mjs --check    exit 1 when src/scope.gen.json differs from the Lean bytes
@@ -15,13 +15,13 @@ const PKG = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LEAN = resolve(PKG, '../../lean');
 export const SCOPE_GEN = join(PKG, 'src/scope.gen.json');
 
-/** Run Fw.Gate.ScopeGen.run with `args`; returns { status, stdout, stderr }. `lake build sweepsgen` first (a no-op when the
- *  binary is current, so a stale binary cannot vouch for new Lean sources), then the compiled `sweepsgen --scope`. */
+/** Run Fw.Gate.ScopeGen.run with `args`; returns { status, stdout, stderr }. `lake build fwcore` first (a no-op when the
+ *  binary is current, so a stale binary cannot vouch for new Lean sources), then the compiled `fwcore sweepsgen --scope`. */
 export function scopegen(args) {
-  const b = spawnSync('lake', ['build', 'sweepsgen'], { cwd: LEAN, encoding: 'utf8', maxBuffer: 1 << 26 });
+  const b = spawnSync('lake', ['build', 'fwcore'], { cwd: LEAN, encoding: 'utf8', maxBuffer: 1 << 26 });
   if (b.error) throw b.error;
-  if (b.status !== 0) return { status: b.status, stdout: b.stdout, stderr: `lake build sweepsgen failed:\n${b.stdout}${b.stderr}` };
-  const r = spawnSync(join(LEAN, '.lake/build/bin/sweepsgen'), ['--scope', ...args], { cwd: LEAN, encoding: 'utf8', maxBuffer: 1 << 26 });
+  if (b.status !== 0) return { status: b.status, stdout: b.stdout, stderr: `lake build fwcore failed:\n${b.stdout}${b.stderr}` };
+  const r = spawnSync(join(LEAN, '.lake/build/bin/fwcore'), ['sweepsgen', '--scope', ...args], { cwd: LEAN, encoding: 'utf8', maxBuffer: 1 << 26 });
   if (r.error) throw r.error;
   return { status: r.status, stdout: r.stdout, stderr: r.stderr };
 }

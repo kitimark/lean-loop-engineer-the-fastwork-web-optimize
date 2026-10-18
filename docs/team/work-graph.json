@@ -4123,7 +4123,8 @@
     "docs/team/token-policy.md",
     "research/notes/**",
     "docs/team/handoffs/ci-own-trigger.md"
-   ]
+   ],
+   "evidence": "ab98277"
   },
   {
    "id": "console-stale",
@@ -4294,7 +4295,8 @@
     "lean/Fw.lean",
     "lean/FwTest/**",
     "packages/contracts/golden/ops/**"
-   ]
+   ],
+   "evidence": "c05ac54"
   },
   {
    "id": "lfg-mathview-facts",
@@ -4363,7 +4365,7 @@
   },
   {
    "id": "lfg-workflow",
-   "title": "(S) work-graph fields leanFirst and props; adversary role checklist; lead-only docs/team/props/signoffs.jsonl; spec-land step in docs/team/tools/land.md (research/notes/2026/10-18-lean-first-gate.md)",
+   "title": "(S) work-graph fields leanFirst and props; adversary role checklist; lead-only docs/team/props/signoffs.jsonl; spec-land step in docs/team/tools/land.md (research/notes/2026/10-18-lean-first-gate.md); from lfg-spec/lfg-mathview-facts reviews: align research note 10-18-lean-first-gate.md section 1(a) (allowlist paths), section 6 (every-subject wire rule) and section 7 items 1 and 10 with the proved forms; state that W depends on the imported module set",
    "stream": "tooling",
    "milestone": "M5",
    "deps": [
@@ -4378,7 +4380,7 @@
   },
   {
    "id": "lfg-land-wire",
-   "title": "(S) land.ts lean-first check: facts, ops.leanFirst, print Out verbatim, exit 75 when pending, stage from Lean, shadow by default (research/notes/2026/10-18-lean-first-gate.md)",
+   "title": "(S) land.ts lean-first check: facts, ops.leanFirst, print Out verbatim, exit 75 when pending, stage from Lean, shadow by default (research/notes/2026/10-18-lean-first-gate.md); from lfg-spec review: an empty or missing mainAt fails closed (pending), and docs/team/props/signoffs.jsonl and the work-graph leanFirst flag are read at main like exempt.tsv",
    "stream": "tooling",
    "milestone": "M5",
    "deps": [
@@ -4909,7 +4911,8 @@
     "docs/team/tools/fw-watch.md",
     "docs/team/handoffs/watch-stream.md",
     "apps/runner/src/watch-collect.ts"
-   ]
+   ],
+   "evidence": "cceb720"
   },
   {
    "stream": "tooling",
@@ -4928,7 +4931,8 @@
     "docs/team/tools/lake-gc.md",
     "docs/team/handoffs/lean-bin-slim.md",
     "docs/team/tools/disk-cleanup.md"
-   ]
+   ],
+   "evidence": "1aa4fdb"
   },
   {
    "stream": "site",
@@ -4937,7 +4941,7 @@
     "gate-shard-balance"
    ],
    "id": "integrate-ports-4",
-   "title": "(M) integrate-ports round 4 after gate-shard-balance lands (deterministic frames): merge worktree-wf_b37180a7-494-1 (4ebd67b) + main; full breakpoint-gate on CI for the exact head with every probe compared (r3 green run 39112059806 compared only 40 of 124 probes: 84 not-comparable, unsettled counted 0); Chromium-only view reading (run.mjs viewFor) as a Lean engine-indexed policy with golden; hero.orbit z-index skipped only when the original card has an inline zIndex (not a blanket skip). Also consult WIP salvage ffb08e3 (worktree-wf_b37180a7-494-2) for engine-model-fix-2",
+   "title": "(M) integrate-ports round 4 after gate-shard-balance lands (deterministic frames): merge worktree-wf_b37180a7-494-1 (4ebd67b) + main; full breakpoint-gate on CI for the exact head with every probe compared (r3 green run 39112059806 compared only 40 of 124 probes: 84 not-comparable, unsettled counted 0); Chromium-only view reading (run.mjs viewFor) as a Lean engine-indexed policy with golden; hero.orbit z-index skipped only when the original card has an inline zIndex (not a blanket skip). Also consult WIP salvage ffb08e3 (worktree-wf_b37180a7-494-2) for engine-model-fix-2. From the port/fix reconcile (2026-10-18, verified): merge main (branch 45 behind); merge the handoff-only commits ef1774f5, 0f5cdb71, ad919a46 (fix-misc, fix-people-webkit); the full gate must show 124/124 compared, 0 unsettled, commission 869.5-vs-869 font cell fixed, people.card/deck settled; investigate snapshot-extract failure 39112059791; write the missing port-morph-panel handoff notes in integrate-ports.md; after the land the lead adds main-reachable evidence for port-morph-panel, integrate-ports and the fix-* deps it covers. fix-nav-hittest is superseded (body colour rule); fix-orbit is open until the inline-zIndex skip passes desk-rm-860/861",
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/**",
