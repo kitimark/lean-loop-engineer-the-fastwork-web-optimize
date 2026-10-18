@@ -148,6 +148,11 @@ export const selectChecks = (ds: { id: string; reads: string[] }[], changed: str
 export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**", "scripts/span.sh", "scripts/fwcore-build.sh", "docs/team/incidents/ledger.json",
   "research/findings/ledger.json", "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json"];
 export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
+/** apps/site reads of snapshot assets, derived from the one source apps/site/assets.manifest.json (listed <=> copied <=> read). */
+export function siteAssetReads(manifestPath = join(new URL(import.meta.url).pathname, "../../../site/assets.manifest.json")): string[] {
+  const m = JSON.parse(readFileSync(manifestPath, "utf8")) as { files: { src: string }[]; bundled?: string[] };
+  return [...new Set([...m.files.map((f) => f.src), ...(m.bundled ?? [])])].sort();
+}
 /** Files a package's tests read outside their own directory and outside their `workspace:` dependencies, found by the
  *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
  *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
@@ -162,7 +167,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     // site-build-cache: ci-paths reads each setup-lean job's Lake targets (lakefile, the scripts its run: blocks call) into
     // the generated lean/Fw/Ops/LakeJobsGen.lean and compares
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
-  "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/contracts/golden/parts/**", "snapshot/site/_app/immutable/assets/**", "snapshot/site/selling/fonts/**", "snapshot/site/selling/sellers/**", "snapshot/site/selling/commission/**"],
+  "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/contracts/golden/parts/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["packages/contracts/golden/measure/**", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
