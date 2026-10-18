@@ -5,8 +5,8 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { coarseMap, coneOf, coneProblems, expand, LAKE_GEN, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
+import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
+import { coarseMap, coneOf, coneProblems, expand, guardIf, LAKE_GEN, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -157,4 +157,86 @@ test('lint: a new root job that does not wait for the guard is reported', () => 
 
 test('renderPush writes branches and quoted paths', () => {
   assert.deepEqual(renderPush(['ci/**', 'main'], ['a/**']), ['  push:', "    branches: ['ci/**', main]", '    paths:', "      - 'a/**'"]);
+});
+
+// ---- task ci-own-trigger: the Lean intent golden (lean/Fw/Ci/Intent.lean) ----
+const intent = loadIntent(root);
+const laneOf = (file) => ({ ...intent.lanes.lanes.find((l) => l.file === file), prefix: intent.lanes.prefix });
+
+/** A mini evaluator of the guard `if:` (Lean `ifExpr`): `||` of four term shapes, GitHub's case-insensitive functions. */
+export function evalGuardIf(expr, { event, ref, msg }) {
+  const m = /^\$\{\{ (.*) \}\}$/.exec(expr);
+  assert.ok(m, expr);
+  const low = (x) => x.toLowerCase();
+  return m[1].split(' || ').some((t) => {
+    if (t === "github.event_name != 'push'") return event !== 'push';
+    if (t === "!startsWith(github.ref, 'refs/heads/ci/')") return !low(ref).startsWith('refs/heads/ci/');
+    const c = /^(!?)contains\(github\.event\.head_commit\.message, '([^']*)'\)$/.exec(t);
+    assert.ok(c, `unknown term ${t}`);
+    const has = low(msg).includes(low(c[2]));
+    return c[1] === '!' ? !has : has;
+  });
+}
+
+test('intent golden: one lane per workflow of the Lean table; only lean is a default lane; no default lane is macOS', () => {
+  assert.deepEqual(intent.lanes.lanes.map((l) => l.file).sort(), table.workflows.map((w) => w.file).sort());
+  assert.deepEqual(intent.lanes.lanes.filter((l) => l.byDefault).map((l) => l.file), ['lean.yml']);
+  for (const l of intent.lanes.lanes) {
+    assert.equal(l.token, `${intent.lanes.prefix}${l.name}]`);
+    assert.ok(!(l.byDefault && l.macos), l.file); // Lean default_lane_not_macos
+  }
+});
+
+test('intent replay: JS decide over the Lean cases starts exactly the Lean `start` lanes, the generated if: gates exactly `gate`', () => {
+  assert.ok(intent.cases.length >= 10);
+  for (const c of intent.cases) {
+    const S = (g) => (table.sets[g] ?? [g]).flatMap((h) => (h.startsWith('@cone:') ? (c.cones[h.slice(6)] ?? []) : [h]));
+    const files = c.diff.filter((f) => !c.merged.includes(f));
+    const ctx = { event: c.ci ? 'push' : 'workflow_dispatch', ref: c.ci ? 'refs/heads/ci/x' : 'refs/heads/main', msg: c.msg };
+    const started = table.workflows.filter((w) => {
+      const globs = expand(S, w.inputs);
+      return decide({ ...ctx, files, globs, lane: laneOf(w.file), newer: c.newer, landed: c.landed }).run;
+    }).map((w) => w.file);
+    assert.deepEqual(started, c.started, c.name);
+    const gated = table.workflows.filter((w) => evalGuardIf(laneOf(w.file).if, ctx)).map((w) => w.file);
+    assert.deepEqual(gated, c.gated, c.name);
+    // the if: never skips a lane the guard would start (Lean start_gate)
+    for (const f of started) assert.ok(gated.includes(f), `${c.name}: ${f}`);
+  }
+});
+
+test('intent: every workflow guard carries the Lean `if:` and passes GUARD_TOKEN', () => {
+  for (const w of table.workflows) {
+    const lines = readFileSync(join(root, WF, w.file), 'utf8').split('\n');
+    const g = readJobs(lines).find((j) => j.name === 'guard');
+    const body = lines.slice(g.at, g.end);
+    assert.equal(body[1], guardIf(laneOf(w.file)), w.file);
+    assert.ok(body.some((l) => l.trim() === 'GUARD_TOKEN: ${{ github.token }}'), w.file);
+  }
+});
+
+test('lint: a changed or removed guard if: and a missing GUARD_TOKEN are reported and restored', () => {
+  const lane = laneOf('gate-gaps.yml');
+  const changed = sample.replace(guardIf(lane), guardIf(laneOf('wktr.yml')));
+  const r1 = reconcile('gate-gaps.yml', changed, row, paths, lane);
+  assert.ok(r1.problems.some((p) => /guard's `if:` differs/.test(p)), r1.problems.join('\n'));
+  assert.equal(reconcile('gate-gaps.yml', r1.text, row, paths, lane).problems.length, 0);
+  const removed = sample.replace(`${guardIf(lane)}\n`, '').replace(/^ {10}GUARD_TOKEN: .*\n/m, '');
+  const r2 = reconcile('gate-gaps.yml', removed, row, paths, lane);
+  assert.ok(r2.problems.some((p) => /guard's `if:` differs/.test(p)), r2.problems.join('\n'));
+  assert.ok(r2.problems.some((p) => /GUARD_TOKEN/.test(p)), r2.problems.join('\n'));
+  assert.equal(r2.text, sample);
+});
+
+test('evalGuardIf: case-insensitive tokens; [ci:wktr-fixtures] does not request wktr; records always pass', () => {
+  const wktr = laneOf('wktr.yml').if;
+  const lean = laneOf('lean.yml').if;
+  const ci = (msg) => ({ event: 'push', ref: 'refs/heads/ci/x', msg });
+  assert.equal(evalGuardIf(wktr, ci('x [CI:WKTR]')), true);
+  assert.equal(evalGuardIf(wktr, ci('x [ci:wktr-fixtures]')), false);
+  assert.equal(evalGuardIf(wktr, ci('fix')), false);
+  assert.equal(evalGuardIf(lean, ci('fix')), true);
+  assert.equal(evalGuardIf(lean, ci('[ci:none]')), false);
+  assert.equal(evalGuardIf(wktr, { event: 'push', ref: 'refs/heads/main', msg: '' }), true);
+  assert.equal(evalGuardIf(wktr, { event: 'workflow_dispatch', ref: 'refs/heads/ci/x', msg: '' }), true);
 });

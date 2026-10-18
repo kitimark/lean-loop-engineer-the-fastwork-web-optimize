@@ -12,11 +12,15 @@
 // changes no workflow file (task ci-cone-glob, `paths_stable_under_new_module`). The guard job computes the precise cone
 // at run time (.github/scripts/changed-inputs.mjs). This check fails when a cone file falls outside `coneGlobs`
 // (Lean `ConeWithin`, the hypothesis of `coarse_sound`).
+// The guard job's own `if:` is the Lean intent condition (lean/Fw/Ci/Intent.lean `ifExpr`, task ci-own-trigger, golden
+// packages/contracts/golden/ci/intent.jsonl): on a ci/* push the guard, and so every job, is skipped unless the head
+// commit asks for the lane (`[ci:<lane>]`) or, with no `[ci:` at all, the lane is a default lane. --check fails when a
+// guard's `if:` or its GUARD_TOKEN env differs; --write sets them.
 // Run:  node scripts/ci-paths.mjs [--write | --check] [--root <dir>]
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { coneOf, loadGolden, matches, setMapWith, expand } from '../.github/scripts/changed-inputs.mjs';
+import { coneOf, loadGolden, loadIntent, matches, setMapWith, expand } from '../.github/scripts/changed-inputs.mjs';
 
 const WF_DIR = ['.git', 'hub/workflows'].join('');
 export const GUARD_SCRIPT = ['.git', 'hub/scripts/changed-inputs.mjs'].join('');
@@ -324,13 +328,23 @@ export function unguarded(jobs) {
   return jobs.filter((j) => j.name !== 'guard' && !reaches(j)).map((j) => j.name);
 }
 
-/** The text of the guard job for a workflow file. */
-export function guardJob(file) {
+/** The comment above the guard job. */
+export const GUARD_COMMENT = [
+  '  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless',
+  '  # the head commit asks for this lane (`[ci:<lane>]`; with no `[ci:` at all only the default lanes); then it runs the',
+  "  # workflow only if THIS push changed one of its inputs to something other than main's content, no newer push on the",
+  '  # branch changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.',
+];
+
+/** The guard job's `if:` line for a lane (Lean `ifExpr`). */
+export const guardIf = (lane) => `    if: ${lane.if}`;
+
+/** The text of the guard job for a workflow file and its lane. */
+export function guardJob(file, lane) {
   return [
-    '  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of',
-    "  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and",
-    '  # schedules always run. Fails open on error.',
+    ...GUARD_COMMENT,
     '  guard:',
+    ...(lane ? [guardIf(lane)] : []),
     '    runs-on: ubuntu-24.04-arm',
     '    timeout-minutes: 5',
     '    outputs:',
@@ -346,13 +360,14 @@ export function guardJob(file) {
     '          EVENT_NAME: ${{ github.event_name }}',
     '          REF: ${{ github.ref }}',
     '          BEFORE: ${{ github.event.before }}',
+    '          GUARD_TOKEN: ${{ github.token }}',
     `        run: node ${GUARD_SCRIPT} --workflow ${WF_DIR}/${file}`,
     '',
   ];
 }
 
 /** Everything wrong with one workflow's text, and the fixed text. */
-export function reconcile(file, text, row, paths) {
+export function reconcile(file, text, row, paths, lane = null) {
   const problems = [];
   let lines = text.split('\n');
   // 1. on.push
@@ -365,10 +380,35 @@ export function reconcile(file, text, row, paths) {
   if (!jobs.some((j) => j.name === 'guard')) {
     problems.push(`${file}: no \`guard\` job`);
     const at = lines.indexOf('jobs:');
-    lines = [...lines.slice(0, at + 1), ...guardJob(file), ...lines.slice(at + 1)];
+    lines = [...lines.slice(0, at + 1), ...guardJob(file, lane), ...lines.slice(at + 1)];
     jobs = readJobs(lines);
   }
-  const g = jobs.find((j) => j.name === 'guard');
+  let g = jobs.find((j) => j.name === 'guard');
+  // the comment above the guard
+  let c = g.at;
+  while (c > 0 && /^ {2}#/.test(lines[c - 1])) c--;
+  if (lines.slice(c, g.at).join('\n') !== GUARD_COMMENT.join('\n')) {
+    problems.push(`${file}: the comment above the guard job differs`);
+    lines = [...lines.slice(0, c), ...GUARD_COMMENT, ...lines.slice(g.at)];
+    jobs = readJobs(lines);
+    g = jobs.find((j) => j.name === 'guard');
+  }
+  // the intent condition (Lean `ifExpr`) on the guard job itself
+  if (lane) {
+    const k = lines.findIndex((l, i) => i > g.at && i < g.end && /^ {4}if:/.test(l));
+    if (k < 0 || lines[k] !== guardIf(lane)) {
+      problems.push(`${file}: the guard's \`if:\` differs from the Lean intent condition (lane ${lane.name})`);
+      if (k < 0) lines.splice(g.at + 1, 0, guardIf(lane));
+      else lines[k] = guardIf(lane);
+      jobs = readJobs(lines);
+      g = jobs.find((j) => j.name === 'guard');
+    }
+  }
+  if (!lines.slice(g.at, g.end).some((l) => l.trim() === 'GUARD_TOKEN: ${{ github.token }}')) {
+    problems.push(`${file}: the guard job does not pass GUARD_TOKEN: github.token`);
+    const k = lines.findIndex((l, i) => i >= g.at && i < g.end && l.trim() === 'BEFORE: ${{ github.event.before }}');
+    if (k >= 0) { lines.splice(k + 1, 0, `${lines[k].slice(0, indentOf(lines[k]))}GUARD_TOKEN: \${{ github.token }}`); jobs = readJobs(lines); g = jobs.find((j) => j.name === 'guard'); }
+  }
   const body = lines.slice(g.at, g.end).join('\n');
   const callee = `node ${GUARD_SCRIPT} --workflow ${WF_DIR}/${file}`;
   if (!body.includes(callee)) problems.push(`${file}: the guard job does not run \`${callee}\``);
@@ -397,6 +437,8 @@ export function portableGlob(g) {
 /** Check (or write) every workflow. Returns { problems, wrote }. */
 export function run(root, write) {
   const { table } = loadGolden(root);
+  const intent = loadIntent(root).lanes;
+  const lanes = new Map((intent?.lanes ?? []).map((l) => [l.file, l]));
   const S = coarseMap(table);
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
@@ -408,11 +450,13 @@ export function run(root, write) {
   for (const f of files) {
     const row = rows.get(f);
     if (!row) { problems.push(`${f}: not in the Lean table (lean/Fw/Ci/Trigger.lean \`table\`)`); continue; }
+    const lane = lanes.get(f);
+    if (!lane) problems.push(`${f}: no lane in the Lean intent golden (lean/Fw/Ci/Intent.lean \`lanes\`; lake test -- --write-ci-trigger-golden)`);
     const paths = expand(S, row.inputs);
     for (const p of paths) if (!portableGlob(p)) problems.push(`${f}: glob ${p} is not read the same by GitHub and by Lean PathCheck`);
     const text = readFileSync(join(dir, f), 'utf8');
     let r;
-    try { r = reconcile(f, text, row, paths); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
+    try { r = reconcile(f, text, row, paths, lane ?? null); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
     problems.push(...r.problems);
     if (write && r.text !== text) { writeFileSync(join(dir, f), r.text); wrote++; }
   }
@@ -426,7 +470,7 @@ function main() {
   const { problems, wrote } = run(root, write);
   if (write) {
     console.log(`ci-paths: wrote ${wrote} workflow file(s)`);
-    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs/.test(p));
+    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent/.test(p));
     for (const p of left) console.log(`  ${p}`);
     process.exit(left.length ? 1 : 0);
   }

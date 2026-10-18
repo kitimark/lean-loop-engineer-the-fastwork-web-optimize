@@ -7,6 +7,7 @@ import { exitCode, verdictLine } from "./land-verdict.ts";
 import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { nextMain, watchMain } from "./watch.ts";
 import { runCli } from "./run.ts";
 import { ciCli } from "./ci.ts";
@@ -33,6 +34,10 @@ try {
     process.exitCode = await ghBudgetCli(rest, process.cwd()); // shared GitHub poller: no gh loops (packages/gh-budget)
     console.log = log;
     if (rest[0] === "wait") await ingestRuns(runIdsOf(seen.flatMap((x) => x.split("\n"))), process.cwd()); // jobs fetched once, deduped by run id
+  } else if (group === "ci" && rest[0] === "push") {
+    // ci-own-trigger: ask CI for lanes with [ci:<lane>] tokens and push (scripts/ci-push.mjs; no decision here)
+    const script = new URL("../../../scripts/ci-push.mjs", import.meta.url).pathname;
+    process.exitCode = spawnSync(process.execPath, [script, ...rest.slice(1)], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
   } else if (group === "ci") {
     process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "incidents") {

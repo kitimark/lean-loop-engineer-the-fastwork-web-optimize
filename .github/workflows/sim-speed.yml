@@ -47,8 +47,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Paths guard: see wktr.yml. Gates every job of the workflow on a ci/* push; main pushes and dispatches always run.
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; with no `[ci:` at all only the default lanes); then it runs the
+  # workflow only if THIS push changed one of its inputs to something other than main's content, no newer push on the
+  # branch changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
   guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:sim-speed]') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -64,6 +68,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/sim-speed.yml
 
   plan:

@@ -19,7 +19,7 @@ describe("CI push triggers equal the Lean decision", () => {
     expect(r.ok).toBe(true);
   });
   it("the replay cases and the lint's own tests pass", () => {
-    const r = node("--test", "scripts/ci-paths.test.mjs", ".github/scripts/changed-inputs.test.mjs");
+    const r = node("--test", "scripts/ci-paths.test.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-push.test.mjs");
     expect(r.out).toMatch(/fail 0/);
     expect(r.ok).toBe(true);
   });

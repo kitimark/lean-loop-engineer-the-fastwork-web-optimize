@@ -74,6 +74,7 @@ import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
 import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
 import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
 import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
+import Fw.Ci.Intent  -- ci-own-trigger: a ci/* push starts only the lanes its head commit asks for
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
 import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after an edit (dependents)

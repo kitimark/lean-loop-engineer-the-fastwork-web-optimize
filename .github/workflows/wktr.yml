@@ -56,10 +56,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Paths guard (research: ci-paths-guard handoff). A merge of main into a ci/* branch makes GitHub's push `paths:` filter
-  # (before-sha..sha) match, so every macOS lane would start. This job re-asks the question against the merge-base with
-  # main and the workflow's own `on.push.paths` list; main pushes and workflow_dispatch always run. Fails open on error.
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; with no `[ci:` at all only the default lanes); then it runs the
+  # workflow only if THIS push changed one of its inputs to something other than main's content, no newer push on the
+  # branch changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
   guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:wktr]') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -77,6 +79,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/wktr.yml
 
   plan:
