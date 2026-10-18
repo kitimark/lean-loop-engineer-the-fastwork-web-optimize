@@ -5278,17 +5278,17 @@
     "ci"
    ],
    "id": "content-hero",
-   "title": "Lego plan (§D): hero content: real copy and labels restated, pictures from the unmodified snapshot, accent strokes as restated path data, nav logo; same DOM shape (class E), gated in wave 1",
+   "title": "Lego plan (§D): hero content: real copy and labels restated, pictures from the unmodified snapshot, accent strokes stay stand-in waves until svg-extract (path data is never committed); nav logo moved to morph-group-integrate; own breakpoint-gate CI run before review; same DOM shape (class E), gated in wave 1",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
-    "page-root-clip"
+    "page-root-clip",
+    "site-assets"
    ],
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/hero/**",
     "apps/site/src/parts/hero.*/**",
-    "apps/site/src/parts/nav/logo*",
     "docs/team/handoffs/content-hero.md"
    ]
   },
@@ -5301,7 +5301,8 @@
    "stream": "parts",
    "milestone": "M2",
    "deps": [
-    "page-root-clip"
+    "page-root-clip",
+    "site-assets"
    ],
    "owner": "part-builder",
    "writes": [
@@ -5317,7 +5318,7 @@
     "ci"
    ],
    "id": "faithful-checks-rerun",
-   "title": "Lego plan (§D): faithful checks after page-root-clip: zones y04000/y04500/tail, swipe-v1 and swipe-touch-v1, R vs A bands; gate anchor scrollWidth <= innerWidth in the Lean gate table (page-root-clip open item)",
+   "title": "Faithful verdict after page-root-clip (split r2): Lean comparable(A,R) over profile/preset/zone height/browser/viewport, NO DATA and not-comparable are named refusals with exit 1, baselines carry innerWidth/innerHeight/scrollWidth from the CI artifacts of runs 39146329183 and 39146332555 (no new measurement); page-root gate anchor split to gate-page-root-anchor",
    "stream": "measure",
    "milestone": "M2",
    "deps": [
@@ -5325,10 +5326,19 @@
    ],
    "owner": "measure-engineer",
    "writes": [
-    "packages/gate-breakpoints/anchors.json",
-    "lean/Fw/Gate/**",
+    "lean/Fw/Faithful/**",
+    "lean/Fw.lean",
+    "lean/Fw/Wire.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/FaithfulGolden.lean",
+    "packages/contracts/golden/faithful/**",
+    "packages/measure-chromium/package.json",
+    "packages/measure-chromium/src/faithful.mjs",
+    "packages/measure-chromium/src/zone-baseline.mjs",
+    "packages/measure-chromium/test/faithful.test.mjs",
     "results/faithful/**",
     "research/notes/2026/10-19-faithful-rerun.md",
+    "research/findings/ledger.json",
     "docs/team/handoffs/faithful-checks-rerun.md"
    ]
   },
@@ -5343,7 +5353,8 @@
    "deps": [
     "content-hero",
     "content-people-pain-commission",
-    "faithful-checks-rerun"
+    "faithful-checks-rerun",
+    "site-assets"
    ],
    "owner": "lead",
    "writes": []
@@ -5353,7 +5364,7 @@
     "ci"
    ],
    "id": "morph-group-integrate",
-   "title": "Lego plan (§D, G2): morph panel hosted in the nav (writerRef + backdrop), 21 snapshot images, CTAs (nav Join, hero, commission) open signup/drawer, debug tray and MUI Menu removed; MorphPanel/MorphTween goldens unchanged; own gate + counts",
+   "title": "Lego plan (§D, G2): morph panel hosted in the nav (writerRef + backdrop), 21 snapshot images, CTAs (nav Join, hero, commission) open signup/drawer, debug tray and MUI Menu removed; MorphPanel/MorphTween goldens unchanged; own gate + counts; r2: judged on the faithful arm (waapi inheritance is morph-tween-inherit), gate anchor rows for morph.columns/overlays re-pointed on this branch, logo back to placeholder until svg-extract",
    "stream": "parts",
    "milestone": "M2",
    "deps": [
@@ -5365,7 +5376,9 @@
     "apps/site/src/parts/nav/index.tsx",
     "apps/site/src/parts/overlays.*/**",
     "apps/site/src/App.tsx",
-    "docs/team/handoffs/morph-group-integrate.md"
+    "docs/team/handoffs/morph-group-integrate.md",
+    "packages/gate-breakpoints/src/anchors.json",
+    "apps/site/scripts/census.mjs"
    ]
   },
   {
@@ -5587,6 +5600,162 @@
     "integrate-wave-2"
    ],
    "owner": "lead",
+   "writes": []
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "site-assets",
+   "title": "Wave-1 shared cause (Fable 10-19): one manifest apps/site/assets.manifest.json of every snapshot file the site serves; build.mjs copies each byte for byte and fails on a missing one; land.ts apps/site reads derived from the manifest; test: every /selling/ and /fonts/ URL in apps/site/src is listed; CI gate run as evidence. Path data is NOT extracted here (svg-extract)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "page-root-clip"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/assets.manifest.json",
+    "apps/site/scripts/build.mjs",
+    "apps/site/scripts/assets.test.mjs",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-inputs.test.ts",
+    "docs/team/handoffs/site-assets.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "svg-extract",
+   "title": "Fastwork inline SVG path data (accent words, wordmark) read from snapshot/site/index.html at build time into gitignored *.gen.json with a prebuild/pretest step; never committed (rule: path data is Fastwork material)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "site-assets",
+    "morph-group-integrate",
+    "content-hero"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/scripts/svg-extract.mjs",
+    "apps/site/package.json",
+    ".gitignore",
+    "docs/team/handoffs/svg-extract.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "snapshot-paths-cleanup",
+   "title": "After C3: inline snapshot SVG paths already on main (hero bell/calendar, overlays.drawer, commission chevron, morph.panel) move to svg-extract output; then a test fails on any tracked snapshot-verbatim path string",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "svg-extract",
+    "integrate-wave-2"
+   ],
+   "owner": "part-builder",
+   "writes": []
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "morph-tween-inherit",
+   "title": "Finding (wave-1 r1): the v2-proved waapi arm registers --morph with inherits:false (waapi.logic.ts:16-20) so nav descendants (the hosted panel) never see it; the fw arm was never gated for port-morph-tween. Lean first in MorphTweenOpt (registration constant + premise), golden, TS; gate both arms",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "morph-group-integrate"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/morph-tween-waapi.jsonl",
+    "apps/site/src/parts/morph.tween/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/morph-tween-inherit.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "gate-page-root-anchor",
+   "title": "Split from faithful-checks-rerun: gate item fits(o) := scrollWidth(o) <= requested width (innerWidth = requested is implied, stated as a limit); Lean row in Coverage (no engine wildcard), wire, page.mjs; anchors.json row by this task after morph-group-integrate lands; gate run with the item equal in both arms",
+   "stream": "gate",
+   "milestone": "M2",
+   "deps": [
+    "morph-group-integrate",
+    "faithful-checks-rerun"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/src/page.mjs",
+    "packages/gate-breakpoints/src/anchors.json",
+    "lean/Fw/Wire/Gate.lean",
+    "lean/Fw/Gate/PageRoot.lean",
+    "lean/Fw/Gate/Coverage.lean",
+    "lean/Fw.lean",
+    "docs/team/handoffs/gate-page-root-anchor.md"
+   ]
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "deck-panels-lean",
+   "title": "Follow-up (wave-1 r1 review): people.deck Services/Reviews/About panels: Lean-first panel spec, then content",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "integrate-wave-1"
+   ],
+   "owner": "part-builder",
+   "writes": []
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "people-o-glyph",
+   "title": "Follow-up (wave-1 r1 review): people.o glyph and claim/pin icons from the snapshot instead of CSS shapes",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "integrate-wave-1"
+   ],
+   "owner": "part-builder",
+   "writes": []
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "people-pain-deferral",
+   "title": "Follow-up (wave-1 r1 review): content-visibility deferral for people/pain/commission as the original: Lean box rule first, zones CI shows no box moves",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "integrate-wave-1"
+   ],
+   "owner": "part-builder",
+   "writes": []
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "morph-double-listener",
+   "title": "Follow-up (wave-1 r1 review): morph group: double wheel/touch listeners (Lean follow-up from wave-1 r1)",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "integrate-wave-1"
+   ],
+   "owner": "part-builder",
    "writes": []
   }
  ],
