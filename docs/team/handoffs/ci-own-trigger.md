@@ -15,7 +15,8 @@ State: round 3 (final design) on branch worktree-wf_6bd98862-798-1, commit: see 
   (branch preview, refuses when HEAD is already the tip), `packages/gh-budget/src/wait.ts` (lanes mode, 300 s grace).
 - Docs: docs/team/tools/fw-ci.md (wait, trigger); research/notes/2026/10-18-ci-own-trigger.md "Round 3".
 CI (MEASURED, round 3): A 84e8d32 premise-tests 39113339224 verdict job stopped at `stale:` after B a84fead was pushed
-(wait: not-run); B premise-tests 39113394803 pass; B lean 39113394772 ran (lint fail, fixed 567cc31); C1/C2 in note.
+(wait: not-run); B premise-tests 39113394803 pass; B lean 39113394772 ran (lint fail, fixed 567cc31). C1 4c78c8c:
+lean 39113772134 pass but premise-tests 39113772068 leg stale → wait `not-run` exit 4; C2 360f218 → `pass` exit 0.
 Conventions: no decision in YAML/TS; never write `[ci:` in prose in a commit message; probe commits net to zero
 (probe A/B/C: lean/probe-x.txt, packages/premise-tests/probe-y.txt added and removed).
 Open items:

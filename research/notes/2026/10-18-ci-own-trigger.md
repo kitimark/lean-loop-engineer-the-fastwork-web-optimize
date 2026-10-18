@@ -191,7 +191,12 @@ differ from `main`; a wait must never pass when a requested lane did not run; ol
     passed the re-check (08:55:58Z) and succeeded; B a84fead pushed 08:56:36Z; A's `verdict` job started 08:56:52Z
     and stopped at `stale:` (5 s). `fw ci wait --sha 84e8d32` → `not-run (stale: …)` for premise-tests, while GitHub
     says `failure`. B's premise-tests → `pass`.
-  - ROUND3_C_PLACEHOLDER
+  - Requested lane not run, wait not a pass: C1 4c78c8c (request commit on C) and C2 360f218 (empty request commit)
+    pushed 21 s apart. C1's premise-tests 39113772068: guard `run` 09:02:40Z; leg `engine (playwright-webkit)` started
+    09:02:44Z (before C2) and ran; leg `engine (chromium)` started 09:02:47Z and stopped at `stale:` in 4 s; `verdict`
+    skipped. C1's lean 39113772134 passed (its job passed the re-check first). `fw ci wait --sha 4c78c8c` →
+    `lanes lean,premise-tests -> not-run`, exit 4, though lean passed. C2: lean 39113796622 and premise-tests
+    39113796624 → `lanes lean,premise-tests -> pass`, exit 0.
 
 ## Limits and open items
 
