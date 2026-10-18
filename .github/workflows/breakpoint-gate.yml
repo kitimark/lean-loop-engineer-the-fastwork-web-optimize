@@ -1,8 +1,9 @@
 name: breakpoint-gate
 
 # Breakpoint parity gate (PLAN 6.6): original snapshot against the rewrite, 124 loads per engine and the 4 live-resize
-# sweeps, split over a few jobs per engine by the Lean split (Fw.Gate.Schedule.choose, golden/gate/schedule.jsonl;
-# .github/scripts/gate-jobs.mjs deals the probes and checks coverage), merged into the same <engine>.json that
+# sweeps, split over a few jobs per engine by the Lean split (default: Fw.Gate.Shard, LPT over measured unit costs,
+# golden/gate/shards.jsonl; older sets: Fw.Gate.Schedule.choose, golden/gate/schedule.jsonl; .github/scripts/gate-jobs.mjs
+# passes the jobs through and checks coverage), merged into the same <engine>.json that
 # `cli.mjs summary` reads on the Mac. Why few jobs: the free plan runs 20 jobs for the whole account and one run used to
 # start 22 (docs/team/tools/gate-speed.md).
 # Engines on the runner: Chrome Headless Shell 156.0.8078.4 (the counts lane's browser; the local gate uses desktop
@@ -34,6 +35,7 @@ on:
       - '.github/scripts/gate-jobs.mjs'
       - '.github/scripts/cache-key.mjs'
       - 'packages/contracts/golden/gate/schedule.jsonl'
+      - 'packages/contracts/golden/gate/shards.jsonl'
       - 'packages/contracts/golden/ops/cache.jsonl'
       - '.github/scripts/gate-smoke.mjs'
       - '.github/scripts/merge-gate.mjs'
@@ -63,9 +65,11 @@ on:
         type: string
         default: '8'
       times:
-        description: Time set of the Lean split (base, cached, reduced); cached until the reduced sweep is wired into run.mjs
+        description: >-
+          Time set of the Lean split: measured (default; Fw.Gate.Shard LPT over the measured unit costs,
+          golden/gate/shards.jsonl) or the older mean-cost sets base, cached, reduced (Fw.Gate.Schedule)
         type: string
-        default: 'cached'
+        default: 'measured'
       fw:
         description: >-
           Flag set of the rewrite arm, e.g. morph.tween:waapi (becomes ?fw=...; the build prerenders every single-variant page). Empty = the default config.
@@ -142,13 +146,13 @@ jobs:
           ENGINES: ${{ inputs.engines || 'both' }}
           RUNS: ${{ inputs.runs || '2' }}
           FREE: ${{ inputs.free || '8' }}
-          TIMES: ${{ inputs.times || 'cached' }}
+          TIMES: ${{ inputs.times || 'measured' }}
           PARTS: ${{ inputs.parts || '' }}
         run: |
           set -euo pipefail
           case "$RUNS" in 1|2|3) ;; *) echo "runs must be 1, 2 or 3" >&2; exit 1 ;; esac
           case "$FREE" in 4|8|12|20) ;; *) echo "free must be 4, 8, 12 or 20" >&2; exit 1 ;; esac
-          case "$TIMES" in base|cached|reduced) ;; *) echo "times must be base, cached or reduced" >&2; exit 1 ;; esac
+          case "$TIMES" in measured|base|cached|reduced) ;; *) echo "times must be measured, base, cached or reduced" >&2; exit 1 ;; esac
           case "$ENGINES" in
             both) engines='["chromium","playwright-webkit"]' ;;
             chromium) engines='["chromium"]' ;;
