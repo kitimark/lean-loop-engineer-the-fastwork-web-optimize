@@ -22,8 +22,11 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference.
   newest probe), stop patching: write the threat model (what the check must catch, what it need not), pick a closed
   design (allowlist over deny-list, identity over inference, one canonical source over author-chosen inputs, each unit
   decided on its own over a pooled or any-of aggregate), name the
-  next round "final design round" and list its accepted limits for the reviewer to judge against. Incident
-  `inc-review-loop` (docs/team/incidents/ledger.json).
+  next round "final design round" and list its accepted limits for the reviewer to judge against. The final design
+  round adds no new mechanism; pin the unit of decision in the review prompt (items below it are follow-ups); take a
+  limit the reviewer offers instead of patching it; a 3rd refusal splits the task, never a "fix round". When
+  forensics refute a task's premise, close it as a finding and re-plan; never fix the real cause sideways in that
+  branch. Incident `inc-review-loop` (docs/team/incidents/ledger.json).
 - **Helpers:** lean-prover, researcher, plan-editor, measure-engineer and console-builder may spawn `scout`, `runner`,
   `checker` and `slop-checker` per `docs/team/token-policy.md`; only the lead spawns `patcher`. Helpers are read-only
   unless named for an edit, never commit, write no handoff, and return ≤ 1k tokens to their spawner, not the lead.
