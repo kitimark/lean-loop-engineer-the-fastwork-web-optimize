@@ -150,8 +150,7 @@ def afterParen (l : List Char) : Option (List Char) :=
 /-- A markdown heading named after task history: after leading blanks it starts with `#`, and it holds `(task ` or
 ends (before trailing blanks) with `(<task id>)`.
 
-$$\mathrm{historyHeading}(l) \iff t_0 = \texttt{\#} \land \big(\mathrm{infix}(\texttt{(task }, t) \lor (t' = u \mathbin{+\!\!+} \texttt{)} \land \mathrm{afterParen}(u) = w \land \mathrm{isTaskId}(w))\big)$$
-where $t$ is $l$ without leading spaces and tabs and $t'$ is $t$ without trailing spaces and tabs.
+$$\forall l:\ \mathrm{historyHeading}(l) \iff |t| > 0 \land t_0 = \texttt{\#} \land \big(\mathrm{infix}(\texttt{(task }, t) \lor \exists u, w:\ t' = u \mathbin{+\!\!+} \texttt{)} \land \mathrm{afterParen}(u) = \mathrm{some}(w) \land \mathrm{isTaskId}(w)\big),\quad t = \mathrm{dropWhile}_{\{\text{space},\text{tab}\}}(l),\ t' = \mathrm{rev}(\mathrm{dropWhile}_{\{\text{space},\text{tab}\}}(\mathrm{rev}(t)))$$
 -/
 def historyHeading (l : List Char) : Bool :=
   let blank (c : Char) : Bool := c == ' ' || c == '\t'
@@ -263,7 +262,7 @@ def over : Option Nat → Nat → Bool
 
 /-- The first measure over the kind's budget, checked in the order bytes, lines, description.
 
-$$\mathrm{fail}(k, b, l, d) = \begin{cases} \mathrm{bytes} & \mathrm{over}(\beta(k).\mathit{bytes}, b) \\ \mathrm{lines} & \lnot\mathrm{over}(\beta(k).\mathit{bytes}, b) \land \mathrm{over}(\beta(k).\mathit{lines}, l) \\ \mathrm{desc} & \lnot\mathrm{over}(\beta(k).\mathit{bytes}, b) \land \lnot\mathrm{over}(\beta(k).\mathit{lines}, l) \land \mathrm{over}(\beta(k).\mathit{desc}, d) \\ \bot & \text{otherwise} \end{cases}$$
+$$\mathrm{budgetFail}(k, b, l, d) = \begin{cases} \mathrm{bytes} & \mathrm{over}(\beta(k).\mathit{bytes}, b) \\ \mathrm{lines} & \lnot\mathrm{over}(\beta(k).\mathit{bytes}, b) \land \mathrm{over}(\beta(k).\mathit{lines}, l) \\ \mathrm{desc} & \lnot\mathrm{over}(\beta(k).\mathit{bytes}, b) \land \lnot\mathrm{over}(\beta(k).\mathit{lines}, l) \land \mathrm{over}(\beta(k).\mathit{desc}, d) \\ \bot & \text{otherwise} \end{cases}$$
 -/
 def budgetFail (k : FileKind) (b l d : Nat) : Option Measure :=
   if over (budget k).bytes b then some .bytes
@@ -281,7 +280,7 @@ deriving DecidableEq, Repr
 
 /-- The verdict: over budget first; else the marker of the first hit; else ok.
 
-$$\mathrm{verdict}(f) = \begin{cases} \mathrm{overBudget}(m) & \mathrm{fail}(f.\mathit{kind}, f.\mathit{bytes}, f.\mathit{lines}, f.\mathit{desc}) = m \\ \mathrm{slop}(s) & \mathrm{fail}(\dots) = \bot \land f.\mathit{hits} = (s, n) :: r \\ \mathrm{ok} & \mathrm{fail}(\dots) = \bot \land f.\mathit{hits} = [] \end{cases}$$
+$$\mathrm{verdict}(f) = \begin{cases} \mathrm{overBudget}(m) & \mathrm{budgetFail}(f.\mathit{kind}, f.\mathit{bytes}, f.\mathit{lines}, f.\mathit{desc}) = m \\ \mathrm{slop}(s) & \mathrm{budgetFail}(\dots) = \bot \land f.\mathit{hits} = (s, n) :: r \\ \mathrm{ok} & \mathrm{budgetFail}(\dots) = \bot \land f.\mathit{hits} = [] \end{cases}$$
 -/
 def verdict (f : Facts) : Verdict :=
   match budgetFail f.kind f.bytes f.lines f.desc with
@@ -305,8 +304,7 @@ def rank : Verdict → Nat
 /-- Every file gets exactly one verdict class, and the class is the one the definition names: over budget with the
 failing measure, slop with the first hit's marker, or ok with no failing measure and no hit.
 
-$$\forall f:\ \big(\exists m:\ \mathrm{verdict}(f) = \mathrm{overBudget}(m) \land \mathrm{fail}(f) = m\big) \lor \big(\exists s, n, r:\ \mathrm{verdict}(f) = \mathrm{slop}(s) \land \mathrm{fail}(f) = \bot \land f.\mathit{hits} = (s, n) :: r\big) \lor \big(\mathrm{verdict}(f) = \mathrm{ok} \land \mathrm{fail}(f) = \bot \land f.\mathit{hits} = []\big)$$
-where $\mathrm{fail}(f) = \mathrm{fail}(f.\mathit{kind}, f.\mathit{bytes}, f.\mathit{lines}, f.\mathit{desc})$.
+$$\forall f:\ \big(\exists m:\ \mathrm{verdict}(f) = \mathrm{overBudget}(m) \land \mathrm{budgetFail}(f.\mathit{kind}, f.\mathit{bytes}, f.\mathit{lines}, f.\mathit{desc}) = \mathrm{some}(m)\big) \lor \big(\exists s, n, r:\ \mathrm{verdict}(f) = \mathrm{slop}(s) \land \mathrm{budgetFail}(f.\mathit{kind}, f.\mathit{bytes}, f.\mathit{lines}, f.\mathit{desc}) = \mathrm{none} \land f.\mathit{hits} = (s, n) :: r\big) \lor \big(\mathrm{verdict}(f) = \mathrm{ok} \land \mathrm{budgetFail}(f.\mathit{kind}, f.\mathit{bytes}, f.\mathit{lines}, f.\mathit{desc}) = \mathrm{none} \land f.\mathit{hits} = []\big)$$
 -/
 theorem verdict_cases (f : Facts) :
     (∃ m, verdict f = .overBudget m ∧ budgetFail f.kind f.bytes f.lines f.desc = some m) ∨
@@ -332,7 +330,7 @@ theorem over_mono (c : Option Nat) {v' v : Nat} (h : v' ≤ v) (ho : over c v' =
 /-- Over budget is monotone in size: if a file is over its kind's budget, a file of the same kind that is at least as
 large in bytes, lines and description is over it too.
 
-$$\forall k, b', l', d', b, l, d:\ b' \le b \land l' \le l \land d' \le d \land \mathrm{fail}(k, b', l', d') \ne \bot \Rightarrow \mathrm{fail}(k, b, l, d) \ne \bot$$
+$$\forall k, b', l', d', b, l, d:\ b' \le b \land l' \le l \land d' \le d \land \mathrm{budgetFail}(k, b', l', d') \ne \mathrm{none} \Rightarrow \mathrm{budgetFail}(k, b, l, d) \ne \mathrm{none}$$
 -/
 theorem overBudget_mono (k : FileKind) {b' l' d' b l d : Nat} (hb : b' ≤ b) (hl : l' ≤ l) (hd : d' ≤ d)
     (h : (budgetFail k b' l' d').isSome = true) : (budgetFail k b l d).isSome = true := by

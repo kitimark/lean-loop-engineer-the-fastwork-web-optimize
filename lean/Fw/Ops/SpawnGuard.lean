@@ -521,8 +521,7 @@ theorem isolation_not_mismatch (i : Input) (hiso : i.req.isolation = true) (w g 
 `.claude/agents`), plus two helper roles the shadow log showed without a row: the built-in `fork`
 and `workflow-subagent`, both read-only subagents. `slop-checker` is a read-only helper row like `checker`.
 
-$$P = [\,(\texttt{lean-prover}, \mathrm{wt}, \top),\ (\texttt{console-builder}, \mathrm{wt}, \top),\ (\texttt{measure-engineer}, \mathrm{wt}, \top),\ (\texttt{part-builder}, \mathrm{wt}, \top),\ (\texttt{env-ops}, \mathrm{wt}, \top),\ (\texttt{page-writer}, \mathrm{wt}, \top),\ (\texttt{researcher}, \mathrm{tm}, \top),\ (\texttt{plan-editor}, \mathrm{tm}, \top),\ (\texttt{reviewer}, \mathrm{sub}, \bot),\ (\texttt{math-reviewer}, \mathrm{sub}, \bot),\ (\texttt{checker}, \mathrm{sub}, \bot),\ (\texttt{slop-checker}, \mathrm{sub}, \bot),\ (\texttt{scout}, \mathrm{sub}, \bot),\ (\texttt{runner}, \mathrm{sub}, \bot),\ (\texttt{patcher}, \mathrm{sub}, \top),\ (\texttt{Explore}, \mathrm{sub}, \bot),\ (\texttt{Plan}, \mathrm{sub}, \bot),\ (\texttt{general-purpose}, \mathrm{sub}, \top),\ (\texttt{fork}, \mathrm{sub}, \bot),\ (\texttt{workflow-subagent}, \mathrm{sub}, \bot)\,]$$
-with $\mathrm{wt} = \mathrm{worktree}$, $\mathrm{tm} = \mathrm{teammate}$, $\mathrm{sub} = \mathrm{subagent}$.
+$$P = [\,(\texttt{lean-prover}, \mathrm{worktree}, \top),\ (\texttt{console-builder}, \mathrm{worktree}, \top),\ (\texttt{measure-engineer}, \mathrm{worktree}, \top),\ (\texttt{part-builder}, \mathrm{worktree}, \top),\ (\texttt{env-ops}, \mathrm{worktree}, \top),\ (\texttt{page-writer}, \mathrm{worktree}, \top),\ (\texttt{researcher}, \mathrm{teammate}, \top),\ (\texttt{plan-editor}, \mathrm{teammate}, \top),\ (\texttt{reviewer}, \mathrm{subagent}, \bot),\ (\texttt{math-reviewer}, \mathrm{subagent}, \bot),\ (\texttt{checker}, \mathrm{subagent}, \bot),\ (\texttt{slop-checker}, \mathrm{subagent}, \bot),\ (\texttt{scout}, \mathrm{subagent}, \bot),\ (\texttt{runner}, \mathrm{subagent}, \bot),\ (\texttt{patcher}, \mathrm{subagent}, \top),\ (\texttt{Explore}, \mathrm{subagent}, \bot),\ (\texttt{Plan}, \mathrm{subagent}, \bot),\ (\texttt{general-purpose}, \mathrm{subagent}, \top),\ (\texttt{fork}, \mathrm{subagent}, \bot),\ (\texttt{workflow-subagent}, \mathrm{subagent}, \bot)\,]$$
 -/
 def prodRoles : List Role :=
   [⟨"lean-prover", .worktree, true⟩, ⟨"console-builder", .worktree, true⟩, ⟨"measure-engineer", .worktree, true⟩,
@@ -660,7 +659,7 @@ def shapeOf (r : Role) : Req :=
 /-- Every role of the roster has an accepted spawn shape: its documented shape names the role and the guard accepts it
 on the hook's input (no role is a dead end; before $E$ the lead's unnamed `patcher` call was refused as `unnamed`).
 
-$$\forall \rho \in P:\quad \mathrm{shape}(\rho).\mathit{role} = \rho.\mathit{name} \land \mathrm{accepted}(\mathrm{decide}(\mathrm{hook}(\mathrm{shape}(\rho))))$$
+$$\forall r \in P:\quad \mathrm{shape}(r).\mathit{role} = r.\mathit{name} \land \mathrm{accepted}(\mathrm{decide}(\mathrm{hook}(\mathrm{shape}(r))))$$
 -/
 theorem every_role_spawnable : ∀ r ∈ prodRoles,
     (shapeOf r).role = r.name ∧ (decide (hookInput (shapeOf r))).accepted = true := by decide +kernel
@@ -687,7 +686,7 @@ $$\forall s \in G,\ \forall n \in H:\quad \mathrm{decide}(\mathrm{hook}((\texttt
 theorem helpers_nested : ∀ s ∈ helperSpawners, ∀ n ∈ helperRoles,
     decide (hookInput ⟨"", n, false, "", s, 1⟩) = .allow := by decide +kernel
 
-/-- `patcher` stays lead-only: from every spawner of $G$ at depth 1, named or not, with or without isolation, the call
+/-- `patcher` stays lead-only: from every spawner of $G$ at depth 1, unnamed or named `p1`, with or without isolation, the call
 is refused.
 
 $$\forall s \in G,\ \forall m \in \{\texttt{""}, \texttt{p1}\},\ \forall b \in \{\bot, \top\}:\quad \lnot\mathrm{accepted}(\mathrm{decide}(\mathrm{hook}((m, \texttt{patcher}, b, \texttt{""}, s, 1))))$$
