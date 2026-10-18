@@ -33,10 +33,13 @@ What is proved:
   stays on main (bit 12, `blur_main`). In real Chrome the main-thread work strictly drops (`cr_real_trade`); in the CI
   lane (every BeginFrame a main frame) the compositor animations' ride-along makes the props units one higher
   (`cr_lane_mixed`). Either way the compositor stage gains work: a **trade**, never "dominates".
-* **Work, WebKit** (`webkitAt m`, threaded scroll-driven on): every animation, blur included, is accelerated
-  (`wk_all_comp`; with the threaded path off, all run on main: `wk_legacy_main`); a scrolled frame keeps only the scroll commit on the web process (`wk_var_exact`), so the
-  main-thread work strictly drops for **any** original change list (`wk_trade`), and the UI process gains the
-  animations: again a trade.
+* **Work, WebKit** (`webkitX m`, threaded scroll-driven on): every animation, blur included, is accelerated
+  (`wk_all_comp`; with the threaded path off, all run on main: `wk_legacy_main`). Under the measured premise
+  `WktrStyleRate.Holds` (WKTR fixtures, task wktr-p1p4: a scroll-timeline animation restyles its target once per
+  rendering update, accelerated or not) a scrolled frame keeps the scroll commit **and one style pass** with $N + 3$
+  restyle units on the web process (`wk_var_exact`). Against the original's own changes ($2N + 4$ style units) the
+  main-thread work still strictly drops (`wk_trade`), but not for any change list (`wk_trade_not_general`); the UI
+  process gains the animations: again a trade.
 * **Golden rows** (`goldenJsonl` → `packages/contracts/golden/engine/hero-exit.jsonl`) in the `engine-check` schema.
 
 Not modelled (open): the frames where the opacity crosses 1 (WebKit `opacityCross1` lays out; only interior frames
@@ -662,48 +665,172 @@ theorem wk_legacy_main (m : WkMode) (hm : m.threadedScrollDriven = false) (l : B
   subst hm
   rcases wkAnims_mem l N a ha with rfl | rfl | rfl <;> cases ttb <;> cases p <;> decide
 
-/-- A frame of WebKit animations: if every animation is accelerated, a compositor frame with one tick each;
-otherwise the main thread applies the changes $cs$ (no script).
+/-! ### The variant's frames on the extended engine (`webkitX`, after the WKTR fixtures)
 
-$$\operatorname{wkAnimsFrame}(m, A, cs) = \begin{cases} \operatorname{compFrame}(|A|) & \forall a \in A:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \\ (0, 0, 0, 0, cs, 0) & \text{otherwise} \end{cases}$$
+The first version modelled the variant's scrolled frame as `scrollStep (compFrame (N + 3))`: compositor ticks only, no
+web-process style. The WKTR fixtures (task wktr-p1p4, premise `WktrStyleRate.Holds`) measured one style recalc per
+rendering update for an accelerated animation on a scroll timeline, so the frame is rebuilt here with
+`Fw.Engine.WebKit.withAnim`: each accelerated scroll-driven animation adds one compositor animation and, in a frame
+with a rendering update, one `restyle` of its target. -/
+
+/-- The target element of each animation of `wkAnims`, in the same order: the copy is element 2, the cue element 3,
+card $i$ element $4 + i$ (the numbering of `wkOrigChanges`).
+
+$$\operatorname{wkTargets}(\ell, N) = [2] \mathbin{+\!\!+} \begin{cases} [3] & \ell \\ [2] & \lnot\ell \end{cases} \mathbin{+\!\!+} [3] \mathbin{+\!\!+} [4 + i \mid i \in [0, N)]$$
 -/
-def wkAnimsFrame (m : WkMode) (as : List WkAnim) (cs : List (Change WkProp)) : FrameIn WkProp :=
-  if as.all (fun a => decide (wkThread m a = .comp)) then compFrame as.length else ⟨0, 0, 0, 0, cs, 0⟩
+def wkTargets (l : Bool) (N : Nat) : List Nat :=
+  [2] ++ (if l then [3] else [2]) ++ [3] ++ (List.range N).map (4 + ·)
 
-/-- **The variant's scrolled frame on WebKit** in mode $m$ ($cs$: what the animations would write on the main thread).
+/-- One target per animation.
 
-$$\operatorname{wkVar}(m, \ell, N, cs) = \operatorname{scrollStep}\big(\operatorname{wkAnimsFrame}(m, \operatorname{wkAnims}(\ell, N), cs)\big)$$
+$$\forall \ell \in \mathbb{B},\ \forall N \in \mathbb{N}:\ |\operatorname{wkTargets}(\ell, N)| = N + 3$$
+
+The target list is as long as the animation list. -/
+theorem wkTargets_length (l : Bool) (N : Nat) : (wkTargets l N).length = N + 3 := by
+  cases l <;> simp [wkTargets] <;> omega
+
+/-- The WebKit property a CSS property of the variant writes on the main thread (only opacity, transform and filter
+occur; any other property gives nothing).
+
+$$\operatorname{cssWk}(p) = \begin{cases} \mathrm{opacity} & p = \mathrm{opacity} \\ \mathrm{transform} & p = \mathrm{transform} \\ \mathrm{filter} & p = \mathrm{filter} \\ \bot & \text{otherwise} \end{cases}$$
 -/
-def wkVar (m : WkMode) (l : Bool) (N : Nat) (cs : List (Change WkProp)) : FrameIn WkProp :=
-  scrollStep (wkAnimsFrame m (wkAnims l N) cs)
+def cssWk : CssProp → Option WkProp
+  | .opacity => some .opacity
+  | .transform => some .transform
+  | .filter => some .filter
+  | _ => none
 
-/-- With threaded scroll-driven animations on, the variant's scrolled frame is the scroll plus a compositor frame with
-$N + 3$ animation ticks.
+/-- What animation $a$ on element $e$ writes when it runs on the main thread: one change per animated property, with
+the element on its own layer.
 
-$$\forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N, cs:\ \operatorname{wkVar}(m, \ell, N, cs) = \operatorname{scrollStep}\big(\operatorname{compFrame}(N + 3)\big)$$
+$$\operatorname{wkMain}(e, a) = [(e, \operatorname{base}(q), \mathrm{own}) \mid p \in a.\mathrm{props},\ \operatorname{cssWk}(p) = q \ne \bot]$$
+-/
+def wkMain (e : Nat) (a : WkAnim) : List (Change WkPropX) :=
+  a.props.filterMap fun p => (cssWk p).map fun q => ⟨e, .base q, .own⟩
 
-What the variant's frame consists of on WebKit. -/
-theorem wkVar_eq (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) (cs : List (Change WkProp)) :
-    wkVar m l N cs = scrollStep (compFrame (N + 3)) := by
-  have h : (wkAnims l N).all (fun a => decide (wkThread m a = .comp)) = true := by
-    rw [List.all_eq_true]; intro a ha; simp [wk_all_comp m hm l N a ha]
-  simp only [wkVar, wkAnimsFrame, h, ↓reduceIte, wkAnims_length]
+/-- Add one animation $(e, a)$ to a frame (`withAnim` with no scheduled document timeline).
 
-/-- **Exact work of the variant's scrolled frame on WebKit** (threaded scroll-driven on): the web process does only the
-scroll's commit pass (zero units); the compositor ticks the $N + 3$ animations.
+$$\operatorname{wkStep}(m, f, (e, a)) = \operatorname{withAnim}(m, a, e, \mathrm{own}, \operatorname{wkMain}(e, a), f, \mathrm{false})$$
+-/
+def wkStep (m : WkMode) (f : FrameIn WkPropX) (p : Nat × WkAnim) : FrameIn WkPropX :=
+  withAnim m p.2 p.1 .own (wkMain p.1 p.2) f false
 
-$$\forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N, cs,\ \forall s \in \mathrm{Stage}:\ W.\mathrm{passes}(s) = [s \in \{\mathrm{commit}, \mathrm{comp}\}] \land W.\mathrm{units}(s) = \begin{cases} N + 3 & s = \mathrm{comp} \\ 0 & s \ne \mathrm{comp} \end{cases}\quad\text{where } W = \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkVar}(m, \ell, N, cs)\big)$$
+/-- The frame $f$ with all animations of the variant added, in order.
 
-What one scrolled frame of the variant costs WebKit, stage by stage. -/
-theorem wk_var_exact (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat)
-    (cs : List (Change WkProp)) (s : Stage) :
-    (frameWork (webkitAt m) (wkVar m l N cs)).passes s = (if s = .commit ∨ s = .comp then 1 else 0) ∧
-      (frameWork (webkitAt m) (wkVar m l N cs)).units s = (if s = .comp then N + 3 else 0) := by
-  rw [wkVar_eq m hm l N cs]
-  have h0 := scrollPos_stages m 0 .none
-  simp only [webkitAt] at h0
-  cases s <;> simp [frameWork, touched, stageUnits, forcedPasses, FrameIn.updates, webkitAt, scrollStep,
-    compFrame, h0]
+$$\operatorname{wkWith}(m, \ell, N, f) = \operatorname{foldl}\big(\operatorname{wkStep}(m),\ f,\ \operatorname{zip}(\operatorname{wkTargets}(\ell, N), \operatorname{wkAnims}(\ell, N))\big)$$
+-/
+def wkWith (m : WkMode) (l : Bool) (N : Nat) (f : FrameIn WkPropX) : FrameIn WkPropX :=
+  ((wkTargets l N).zip (wkAnims l N)).foldl (wkStep m) f
+
+/-- **The variant's scrolled frame on WebKit** in mode $m$: the delivered scroll position plus the $N + 3$ animations.
+
+$$\operatorname{wkVar}(m, \ell, N) = \operatorname{wkWith}\big(m, \ell, N, \operatorname{scrollStep}^{X}(\varnothing)\big)$$
+-/
+def wkVar (m : WkMode) (l : Bool) (N : Nat) : FrameIn WkPropX :=
+  wkWith m l N (scrollStepX emptyX)
+
+/-- **The variant's idle frame on WebKit**: no scroll, no change, only the animations (no rendering update).
+
+$$\operatorname{wkIdle}(m, \ell, N) = \operatorname{wkWith}(m, \ell, N, \varnothing)$$
+-/
+def wkIdle (m : WkMode) (l : Bool) (N : Nat) : FrameIn WkPropX :=
+  wkWith m l N emptyX
+
+/-- Adding accelerated scroll-driven animations to a frame: each adds one compositor animation, and one `restyle` of
+its target exactly when the frame has a rendering update.
+
+$$\forall m, P, f:\ (\forall (e, a) \in P:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{scroll}) \Rightarrow \operatorname{foldl}(\operatorname{wkStep}(m), f, P) = f\Big[\mathrm{changes} \mathrel{+\!\!+}= \begin{cases} [(e, \mathrm{restyle}, \mathrm{own}) \mid (e, a) \in P] & \operatorname{updates}(f) \\ [\,] & \lnot\operatorname{updates}(f) \end{cases},\ \mathrm{compAnims} \mathrel{+}= |P|\Big]$$
+
+The ride-along of `withAnim`, summed over a list of animations. -/
+theorem foldl_wkStep (m : WkMode) (ps : List (Nat × WkAnim))
+    (hps : ∀ p ∈ ps, wkThread m p.2 = .comp ∧ p.2.timeline = .scroll) (f : FrameIn WkPropX) :
+    ps.foldl (wkStep m) f =
+      ⟨f.script, f.forcedStyle, f.forcedLayout, f.hits,
+        f.changes ++ (if f.updates then ps.map (fun p => ⟨p.1, .restyle, .own⟩) else []),
+        f.compAnims + ps.length⟩ := by
+  induction ps generalizing f with
+  | nil => cases f; simp
+  | cons p ps ih =>
+    obtain ⟨hc, ht⟩ := hps p (List.mem_cons_self ..)
+    rw [List.foldl_cons, ih (fun q hq => hps q (List.mem_cons_of_mem _ hq))]
+    cases f with
+    | mk sc fs fl hi ch ca =>
+      cases hu : (FrameIn.updates ⟨sc, fs, fl, hi, ch, ca⟩ : Bool) <;>
+        simp_all [wkStep, withAnim, wkTicks, FrameIn.updates] <;> omega
+
+/-- Every animation of the variant, paired with its target, is accelerated and scroll-driven when threaded
+scroll-driven animations are on.
+
+$$\forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N,\ \forall (e, a) \in \operatorname{zip}(\operatorname{wkTargets}(\ell, N), \operatorname{wkAnims}(\ell, N)):\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{scroll}$$
+
+The hypothesis of `foldl_wkStep` holds for the variant. -/
+theorem wkPairs_comp (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) :
+    ∀ p ∈ (wkTargets l N).zip (wkAnims l N), wkThread m p.2 = .comp ∧ p.2.timeline = .scroll := by
+  intro p hp
+  have ha : p.2 ∈ wkAnims l N := (List.of_mem_zip hp).2
+  refine ⟨wk_all_comp m hm l N p.2 ha, ?_⟩
+  rcases wkAnims_mem l N p.2 ha with h | h | h <;> rw [h] <;> rfl
+
+/-- **The variant's scrolled frame on WebKit, rebuilt** (threaded scroll-driven on): the scroll position, one
+`restyle` per animation target, and $N + 3$ compositor animations.
+
+$$\forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N:\ \operatorname{wkVar}(m, \ell, N) = \big(0, 0, 0, 0,\ (0, \operatorname{base}(\mathrm{scrollPos}), \mathrm{none}) :: [(e, \mathrm{restyle}, \mathrm{own}) \mid e \in \operatorname{wkTargets}(\ell, N)],\ N + 3\big)$$
+
+What the variant's frame consists of on WebKit: the old version (`scrollStep (compFrame (N + 3))`, no restyle) is
+refuted by the fixtures (`Fw.Engine.WebKit.style_rate_old_refuted`). -/
+theorem wkVar_eq (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) :
+    wkVar m l N = ⟨0, 0, 0, 0, ⟨0, .base .scrollPos, .none⟩ :: (wkTargets l N).map (fun e => ⟨e, .restyle, .own⟩),
+      N + 3⟩ := by
+  have hz : ((wkTargets l N).zip (wkAnims l N)).map (fun p => (⟨p.1, .restyle, .own⟩ : Change WkPropX)) =
+      (wkTargets l N).map (fun e => ⟨e, .restyle, .own⟩) := by
+    have hf := List.map_fst_zip (l₁ := wkTargets l N) (l₂ := wkAnims l N)
+      (by simp [wkTargets_length, wkAnims_length])
+    calc ((wkTargets l N).zip (wkAnims l N)).map (fun p => (⟨p.1, .restyle, .own⟩ : Change WkPropX))
+        = (((wkTargets l N).zip (wkAnims l N)).map Prod.fst).map
+            (fun e => (⟨e, .restyle, .own⟩ : Change WkPropX)) := by rw [List.map_map]; rfl
+      _ = _ := by rw [hf]
+  rw [wkVar, wkWith, foldl_wkStep m _ (wkPairs_comp m hm l N)]
+  simp [scrollStepX, emptyX, FrameIn.updates, hz, List.length_zip, wkTargets_length, wkAnims_length]
+
+/-- **The variant's idle frame on WebKit** (threaded scroll-driven on): no rendering update, so no ride-along; only
+the $N + 3$ compositor animations, i.e. the old `compFrame (N + 3)` lifted.
+
+$$\forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N:\ \operatorname{wkIdle}(m, \ell, N) = \operatorname{liftF}\big(\operatorname{compFrame}(N + 3)\big)$$
+
+Between scroll updates the variant costs the web process nothing. -/
+theorem wkIdle_eq (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) :
+    wkIdle m l N = liftWkFrame (compFrame (N + 3)) := by
+  rw [wkIdle, wkWith, foldl_wkStep m _ (wkPairs_comp m hm l N)]
+  simp [emptyX, FrameIn.updates, liftWkFrame, compFrame, List.length_zip, wkTargets_length, wkAnims_length]
+
+/-- **Exact work of the variant's scrolled frame on WebKit** (threaded scroll-driven on), under the measured premise:
+the web process runs the scroll's commit pass and $\mu_{\mathrm{timeline}}$ style passes (one per rendering update,
+as measured) with $N + 3$ style units (one restyle per animation target); the compositor ticks the $N + 3$
+animations; nothing else.
+
+$$\forall \mu:\ \operatorname{Holds}(\mu) \Rightarrow \forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N,\ \forall s \in \mathrm{Stage}:\ W.\mathrm{passes}(s) = \begin{cases} 1 & s \in \{\mathrm{commit}, \mathrm{comp}\} \\ \mu_{\mathrm{timeline}} & s = \mathrm{style} \\ 0 & \text{otherwise} \end{cases} \land W.\mathrm{units}(s) = \begin{cases} N + 3 & s \in \{\mathrm{style}, \mathrm{comp}\} \\ 0 & \text{otherwise} \end{cases}$$
+$$\text{where } W = \operatorname{frameWork}_{\operatorname{webkitX}(m)}\big(\operatorname{wkVar}(m, \ell, N)\big)$$
+
+What one scrolled frame of the variant costs WebKit, stage by stage (the earlier statement, style $0$, was refuted by
+the WKTR fixtures). -/
+theorem wk_var_exact (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool)
+    (N : Nat) (s : Stage) :
+    (frameWork (webkitX m) (wkVar m l N)).passes s =
+        (if s = .commit ∨ s = .comp then 1 else if s = .style then μ.timeline else 0) ∧
+      (frameWork (webkitX m) (wkVar m l N)).units s = (if s = .style ∨ s = .comp then N + 3 else 0) := by
+  obtain ⟨_, h1, _⟩ := hμ
+  rw [h1, wkVar_eq m hm l N]
+  have h0 : diffStages (wkDiff ⟨0, .scrollPos, .none⟩) = [] := scrollPos_stages m 0 .none
+  have hfm : ((⟨0, .base .scrollPos, .none⟩ : Change WkPropX) ::
+      (wkTargets l N).map (fun e => ⟨e, .restyle, .own⟩)).flatMap wkStagesOfX =
+      (wkTargets l N).flatMap (fun _ => [Stage.style]) := by
+    simp [wkStagesOfX, h0, List.flatMap_map]
+  have hne : Stage.style ∈ (wkTargets l N).flatMap (fun _ => [Stage.style]) := by
+    simp [List.mem_flatMap]; exact ⟨2, by simp [wkTargets]⟩
+  have hsub : ∀ t, t ∈ (wkTargets l N).flatMap (fun _ => [Stage.style]) → t = .style := by
+    intro t ht; simp [List.mem_flatMap] at ht; exact ht.2
+  cases s <;> simp only [frameWork, touched, stageUnits, forcedPasses, FrameIn.updates, webkitX, hfm] <;>
+    simp [h0, wkStagesOfX, hne, Function.comp_def, wkTargets_length] <;> (try intro h; exact absurd (hsub _ h) (by decide))
 
 /-- No WebKit style change dirties the compositor stage.
 
@@ -712,44 +839,6 @@ $$\forall d \in \mathrm{Diff}:\ \mathrm{comp} \notin \operatorname{diffStages}(d
 The web process never runs compositor work for a style change. -/
 theorem comp_not_diff (d : Diff) : Stage.comp ∉ diffStages d := by
   cases d <;> simp [diffStages]
-
-/-- **WebKit: a trade.** With threaded scroll-driven animations on, the variant's scrolled frame does strictly less
-main-thread work than a scrolled frame of the original's callback, **whatever** changes $cs$ that callback writes
-(the script pass is gone and every main-thread stage but the scroll's commit is empty), and its compositor ticks $N + 3$
-animations where the original's compositor does nothing.
-
-$$\forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N, cs:\ V \prec_{\mathrm{main}} O \land V.\mathrm{passes}(\mathrm{comp}) = 1 \land V.\mathrm{units}(\mathrm{comp}) = N + 3 \land O.\mathrm{passes}(\mathrm{comp}) = 0 \land O.\mathrm{units}(\mathrm{comp}) = 0$$
-$$\text{where } V = \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkVar}(m, \ell, N, cs)\big),\ O = \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{scrollStep}(\operatorname{jsFrame}(cs))\big)$$
-
-On WebKit the variant empties the main thread and pays on the compositor. -/
-theorem wk_trade (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) (cs : List (Change WkProp)) :
-    let V := frameWork (webkitAt m) (wkVar m l N cs)
-    let O := frameWork (webkitAt m) (scrollStep (jsFrame cs))
-    mainLt V O ∧ V.passes .comp = 1 ∧ V.units .comp = N + 3 ∧ O.passes .comp = 0 ∧ O.units .comp = 0 := by
-  intro V O
-  have hv := wk_var_exact m hm l N cs
-  have hoc : O.passes .commit = 1 := scroll_commit m (jsFrame cs)
-  have hos : O.passes .script = 1 := by
-    show (frameWork _ _).passes _ = _
-    simp [frameWork, touched, forcedPasses, scrollStep, jsFrame]
-  have hnc : ∀ c : Change WkProp, Stage.comp ∉ diffStages (wkDiff c) := fun c => comp_not_diff _
-  have hop : O.passes .comp = 0 := by
-    show (frameWork _ _).passes _ = _
-    simp [frameWork, touched, forcedPasses, scrollStep, jsFrame, webkitAt, FrameIn.updates, hnc]
-  have hou : O.units .comp = 0 := by
-    show (frameWork _ _).units _ = _
-    simp [frameWork, stageUnits, scrollStep, jsFrame, webkitAt, hnc]
-  refine ⟨⟨⟨fun s hs => ?_, ?_⟩, .script, by decide, ?_⟩, (hv .comp).1, (hv .comp).2, hop, hou⟩
-  · show (frameWork _ _).passes s ≤ O.passes s ∧ (frameWork _ _).units s ≤ O.units s
-    rw [(hv s).1, (hv s).2]
-    by_cases hc : s = .commit
-    · subst hc; simp [hoc]
-    · simp [hc, hs]
-  · show (frameWork _ _).hits ≤ (frameWork _ _).hits
-    simp [frameWork, wkVar_eq m hm l N cs, scrollStep, compFrame, jsFrame]
-  · left
-    show (frameWork _ _).passes _ < O.passes _
-    rw [(hv _).1, hos]; decide
 
 /-- **The original's scrolled frame on WebKit** at layer state $\lambda$: the callback writes the inherited property,
 and each consumer's computed `opacity`, `transform` and `filter` change (copy: opacity, transform, and blur above
@@ -761,6 +850,121 @@ def wkOrigChanges (l : Bool) (N : Nat) (lo : LayerState) : List (Change WkProp) 
   [⟨2, .opacity, lo⟩, ⟨2, .transform, lo⟩] ++ (if l then [] else [⟨2, .filter, lo⟩]) ++ [⟨3, .filter, lo⟩] ++
     (if l then [⟨3, .transform, lo⟩] else []) ++
     (List.range N).flatMap (fun i => [⟨4 + i, .opacity, lo⟩, ⟨4 + i, .transform, lo⟩])
+
+/-- The original writes $2N + 4$ consumer changes per scrolled frame, in both bands.
+
+$$\forall \ell \in \mathbb{B},\ \forall N \in \mathbb{N},\ \forall \lambda:\ |\operatorname{wkOrigChanges}(\ell, N, \lambda)| = 2N + 4$$
+
+Four hero changes plus two per card. -/
+theorem wkOrigChanges_length (l : Bool) (N : Nat) (lo : LayerState) : (wkOrigChanges l N lo).length = 2 * N + 4 := by
+  have h : ((List.range N).flatMap
+      (fun i => ([⟨4 + i, .opacity, lo⟩, ⟨4 + i, .transform, lo⟩] : List (Change WkProp)))).length = 2 * N := by
+    induction N with
+    | zero => rfl
+    | succ n ih => rw [List.range_succ, List.flatMap_append, List.length_append, ih]; simp; omega
+  cases l <;> simp [wkOrigChanges, h] <;> omega
+
+/-- Every change of the original dirties `style` on WebKit, at any layer state.
+
+$$\forall m, \ell, N, \lambda:\ \lambda \ne \mathrm{none} \Rightarrow \forall c \in \operatorname{wkOrigChanges}(\ell, N, \lambda):\ \mathrm{style} \in \operatorname{webkitAt}(m).\mathrm{stagesOf}(c)$$
+
+Each consumer's opacity, transform or filter change is restyled when the targets have a layer (a filter change on a
+box without a layer is `equal` in WebKit's diff, so the hypothesis is needed). -/
+theorem wkOrig_style (m : WkMode) (l : Bool) (N : Nat) (lo : LayerState) (hlo : lo ≠ .none) :
+    ∀ c ∈ wkOrigChanges l N lo, Stage.style ∈ (webkitAt m).stagesOf c := by
+  have hp : ∀ c : Change WkProp, c.layer ≠ .none → (c.prop = .opacity ∨ c.prop = .transform ∨ c.prop = .filter) →
+      Stage.style ∈ (webkitAt m).stagesOf c := by
+    intro ⟨e, p, l'⟩ hl hp
+    show Stage.style ∈ diffStages (wkDiff ⟨0, p, l'⟩)
+    simp only at hp hl
+    rcases hp with rfl | rfl | rfl <;> cases l' <;> first | decide | exact absurd rfl hl
+  intro c hc
+  refine hp c ?_ ?_ <;> cases l <;> simp [wkOrigChanges] at hc <;> grind
+
+/-- **WebKit: still a trade, for the original's own change list** (threaded scroll-driven on, measured premise). The
+variant's scrolled frame does strictly less main-thread work than the original's scrolled frame with the changes
+$\operatorname{wkOrigChanges}(\ell, N, \lambda)$: the script pass is gone, the style pass stays (one each: the
+variant's ride-along, the original's consumer changes) with $N + 3 \le 2N + 4$ units, and every other main-thread
+stage but the scroll's commit is empty. The compositor ticks $N + 3$ animations where the original's does nothing.
+
+$$\forall \mu:\ \operatorname{Holds}(\mu) \Rightarrow \forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N, \lambda:\ \lambda \ne \mathrm{none} \Rightarrow V \prec_{\mathrm{main}} O \land V.\mathrm{passes}(\mathrm{comp}) = 1 \land V.\mathrm{units}(\mathrm{comp}) = N + 3 \land O.\mathrm{passes}(\mathrm{comp}) = 0 \land O.\mathrm{units}(\mathrm{comp}) = 0$$
+$$\text{where } V = \operatorname{frameWork}_{\operatorname{webkitX}(m)}\big(\operatorname{wkVar}(m, \ell, N)\big),\ O = \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{scrollStep}(\operatorname{jsFrame}(\operatorname{wkOrigChanges}(\ell, N, \lambda)))\big)$$
+
+On WebKit the variant still lightens the main thread and pays on the compositor; the earlier "for any change list"
+is false (`wk_trade_not_general`). -/
+theorem wk_trade (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool)
+    (N : Nat) (lo : LayerState) (hlo : lo ≠ .none) :
+    let V := frameWork (webkitX m) (wkVar m l N)
+    let O := frameWork (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo)))
+    mainLt V O ∧ V.passes .comp = 1 ∧ V.units .comp = N + 3 ∧ O.passes .comp = 0 ∧ O.units .comp = 0 := by
+  intro V O
+  have hv := wk_var_exact μ hμ m hm l N
+  have h1 : μ.timeline = 1 := hμ.2.1
+  have hoc : O.passes .commit = 1 := scroll_commit m _
+  have hos : O.passes .script = 1 := by
+    show (frameWork _ _).passes _ = _
+    simp [frameWork, touched, forcedPasses, scrollStep, jsFrame]
+  have hsty := wkOrig_style m l N lo hlo
+  have hne : wkOrigChanges l N lo ≠ [] := by
+    intro h; have := wkOrigChanges_length l N lo; rw [h] at this; simp at this
+  have hosp : O.passes .style = 1 := by
+    show (frameWork _ _).passes _ = _
+    obtain ⟨c, hc⟩ := List.exists_mem_of_ne_nil _ hne
+    have : Stage.style ∈ touched (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) := by
+      simp only [touched, scrollStep, jsFrame, List.mem_append, List.flatMap_cons, List.mem_flatMap]
+      exact Or.inl (Or.inl (Or.inl (Or.inr ⟨c, hc, hsty c hc⟩)))
+    show (if Stage.style ∈ touched (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) then 1 else 0) +
+      forcedPasses (scrollStep (jsFrame (wkOrigChanges l N lo))) .style = 1
+    simp only [this, ↓reduceIte]; rfl
+  have hosu : O.units .style = 2 * N + 4 := by
+    show stageUnits _ _ _ = _
+    have hsp : (webkitAt m).stagesOf ⟨0, .scrollPos, .none⟩ = [] := scrollPos_stages m 0 .none
+    simp only [stageUnits, scrollStep, jsFrame, List.countP_cons, hsp, List.not_mem_nil, decide_false,
+      Bool.false_eq_true, ↓reduceIte, Nat.add_zero]
+    rw [List.countP_eq_length.mpr (fun c hc => by simpa using hsty c hc), wkOrigChanges_length]
+    simp [webkitAt]
+  have hnc : ∀ c : Change WkProp, Stage.comp ∉ diffStages (wkDiff c) := fun c => comp_not_diff _
+  have hop : O.passes .comp = 0 := by
+    show (frameWork _ _).passes _ = _
+    simp [frameWork, touched, forcedPasses, scrollStep, jsFrame, webkitAt, FrameIn.updates, hnc]
+  have hou : O.units .comp = 0 := by
+    show (frameWork _ _).units _ = _
+    simp [frameWork, stageUnits, scrollStep, jsFrame, webkitAt, hnc]
+  refine ⟨⟨⟨fun s hs => ?_, ?_⟩, .script, by decide, ?_⟩, (hv .comp).1, (hv .comp).2, hop, hou⟩
+  · show (frameWork _ _).passes s ≤ O.passes s ∧ (frameWork _ _).units s ≤ O.units s
+    rw [(hv s).1, (hv s).2, h1]
+    by_cases hc : s = .commit
+    · subst hc; simp [hoc]
+    · by_cases hy : s = .style
+      · subst hy; simp [hosp, hosu]; omega
+      · simp [hc, hs, hy]
+  · show (frameWork _ _).hits ≤ (frameWork _ _).hits
+    simp [frameWork, wkVar_eq m hm l N, scrollStep, jsFrame]
+  · left
+    show (frameWork _ _).passes _ < O.passes _
+    rw [(hv _).1, hos]; simp
+
+/-- **The earlier trade "for any change list" is false.** Under the measured premise, against a scrolled frame whose
+callback writes nothing, the variant does **more** main-thread work: its ride-along style pass ($1 > 0$).
+
+$$\forall \mu:\ \operatorname{Holds}(\mu) \Rightarrow \forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N:\ \lnot\big(V \preceq_{\mathrm{main}} O_{\varnothing}\big)$$
+$$\text{where } V = \operatorname{frameWork}_{\operatorname{webkitX}(m)}\big(\operatorname{wkVar}(m, \ell, N)\big),\ O_{\varnothing} = \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{scrollStep}(\operatorname{jsFrame}([\,]))\big)$$
+
+The variant's style floor makes the trade depend on what the original writes (a negative result of the fixtures). -/
+theorem wk_trade_not_general (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true)
+    (l : Bool) (N : Nat) :
+    ¬ mainLe (frameWork (webkitX m) (wkVar m l N)) (frameWork (webkitAt m) (scrollStep (jsFrame []))) := by
+  intro ⟨h, _⟩
+  have hv := (wk_var_exact μ hμ m hm l N .style).1
+  have h1 : μ.timeline = 1 := hμ.2.1
+  have hle := (h .style (by decide)).1
+  rw [hv, h1] at hle
+  have hsp : (webkitAt m).stagesOf ⟨0, .scrollPos, .none⟩ = [] := scrollPos_stages m 0 .none
+  have h0 : (frameWork (webkitAt m) (scrollStep (jsFrame []))).passes .style = 0 := by
+    have hsp' : diffStages (wkDiff ⟨0, .scrollPos, .none⟩) = [] := hsp
+    simp [frameWork, touched, forcedPasses, scrollStep, jsFrame, hsp', webkitAt, FrameIn.updates]
+  rw [h0] at hle
+  simp at hle
 
 end Wk
 
@@ -854,16 +1058,19 @@ def crFrames : List (Work × Work) :=
   [(frameWork E v, frameWork E (crOrig gBand gN .layer false)),
     (frameWork E ⟨0, 0, 0, 0, [], v.compAnims⟩, frameWork E (⟨0, 0, 0, 0, [], 0⟩ : FrameIn Chromium.CrProp))]
 
-/-- **WebKit frames** (Safari mode): a scrolled frame and an idle frame (original: nothing; variant: compositor
-ticks only).
+/-- **WebKit frames** (Safari mode): a scrolled frame and an idle frame (original: nothing; variant: its animations
+with no rendering update). The variant's frames use the extended engine `webkitX`, so the scrolled frame carries the
+measured ride-along restyle (`wk_var_exact`); the original's use `webkitAt` (equal on lifted frames, `webkitX_lift`).
 
-$$F_{\mathrm{wk}} = \big[(\operatorname{frameWork}(\operatorname{wkVar}(\mathrm{safari}, \mathrm{true}, 4, cs)), \operatorname{frameWork}(\operatorname{scrollStep}(\operatorname{jsFrame}(cs)))),\ (\operatorname{frameWork}(\operatorname{compFrame}(7)), \operatorname{frameWork}((0, 0, 0, 0, [\,], 0)))\big],\quad cs = \operatorname{wkOrigChanges}(\mathrm{true}, 4, \mathrm{layer})$$
+$$F_{\mathrm{wk}} = \big[(\operatorname{frameWork}_{X}(\operatorname{wkVar}(\mathrm{safari}, \mathrm{true}, 4)), \operatorname{frameWork}_{A}(\operatorname{scrollStep}(\operatorname{jsFrame}(cs)))),\ (\operatorname{frameWork}_{X}(\operatorname{wkIdle}(\mathrm{safari}, \mathrm{true}, 4)), \operatorname{frameWork}_{A}((0, 0, 0, 0, [\,], 0)))\big]$$
+$$\text{where } cs = \operatorname{wkOrigChanges}(\mathrm{true}, 4, \mathrm{layer}),\ X = \operatorname{webkitX}(\mathrm{safari}),\ A = \operatorname{webkitAt}(\mathrm{safari})$$
 -/
 def wkFrames : List (Work × Work) :=
   let E := WebKit.webkitAt WebKit.WkMode.safari
+  let EX := WebKit.webkitX WebKit.WkMode.safari
   let cs := wkOrigChanges gBand gN .layer
-  [(frameWork E (wkVar WebKit.WkMode.safari gBand gN cs), frameWork E (WebKit.scrollStep (WebKit.jsFrame cs))),
-    (frameWork E (WebKit.compFrame (gN + 3)), frameWork E (⟨0, 0, 0, 0, [], 0⟩ : FrameIn WebKit.WkProp))]
+  [(frameWork EX (wkVar WebKit.WkMode.safari gBand gN), frameWork E (WebKit.scrollStep (WebKit.jsFrame cs))),
+    (frameWork EX (wkIdle WebKit.WkMode.safari gBand gN), frameWork E (⟨0, 0, 0, 0, [], 0⟩ : FrameIn WebKit.WkProp))]
 
 /-- The Chromium count types per stage; `paint` keeps only `trace.Paint`, since the raster counts belong to
 `raster`.
@@ -908,10 +1115,11 @@ def gPred (e k : String) : String :=
 #guard gPred "chromium" "trace.UpdateLayoutTree" == "any" && gPred "chromium" "trace.Layout" == "≤o"
 #guard gPred "chromium" "trace.cc.Commit" == "≤o" && gPred "chromium" "trace.Paint" == "≤o"
 #guard gPred "chromium" "trace.PrePaint" == "any" && gPred "chromium" "census.layers" == "any"
--- WebKit: script, style, layout and paint are gone; the scroll's commit stays.
-#guard gPred "webkit" "FireAnimationFrame" == "<o" && gPred "webkit" "RecalculateStyles" == "<o"
+-- WebKit: script, layout and paint are gone; the scroll's commit stays. Style stays one pass per scroll update (the
+-- measured ride-along, `wk_var_exact`) with fewer units (7 vs 12), so `≤o`, not `<o` (it was `<o` before wktr-p1p4).
+#guard gPred "webkit" "FireAnimationFrame" == "<o" && gPred "webkit" "RecalculateStyles" == "≤o"
 #guard gPred "webkit" "Layout" == "<o" && gPred "webkit" "Paint" == "<o" && gPred "webkit" "Composite" == "≤o"
-#guard gPred "webkit" "styleRecalcs" == "<o" && gPred "webkit" "layoutUpdates" == "<o"
+#guard gPred "webkit" "styleRecalcs" == "≤o" && gPred "webkit" "layoutUpdates" == "<o"
 #guard gPred "webkit" "compositingUpdates" == "≤o" && gPred "webkit" "renderingUpdates" == "≤o"
 #guard gPred "webkit" "x" == "?"
 
@@ -941,23 +1149,24 @@ theorem cr_real_tradeE (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) (ev eo 
   rw [frameWorkE_eq_of_dirty _ _ ev hv, frameWorkE_eq_of_dirty _ _ eo ho]
   exact cr_real_trade l N lo r
 
-/-- **WebKit under `frameWorkE`: still a trade.**
+/-- **WebKit under `frameWorkE`: still a trade** for the original's own change list, under the measured premise.
 
-$$\forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N, cs,\ \forall e_v, e_o:\ (\forall s \in \operatorname{touched}(V_f):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}(O_f):\ e_o(s) = \top) \Rightarrow V \prec_{\mathrm{main}} O \land V.\mathrm{passes}(\mathrm{comp}) = 1 \land V.\mathrm{units}(\mathrm{comp}) = N + 3 \land O.\mathrm{passes}(\mathrm{comp}) = 0 \land O.\mathrm{units}(\mathrm{comp}) = 0$$
-$$\text{where } V_f = \operatorname{wkVar}(m, \ell, N, cs),\ O_f = \operatorname{scrollStep}(\operatorname{jsFrame}(cs)),\ V = \operatorname{frameWork}^{e_v}_{\operatorname{webkitAt}(m)}(V_f),\ O = \operatorname{frameWork}^{e_o}_{\operatorname{webkitAt}(m)}(O_f)$$
+$$\forall \mu:\ \operatorname{Holds}(\mu) \Rightarrow \forall m:\ m.\mathrm{threadedScrollDriven} \Rightarrow \forall \ell, N, \lambda:\ \lambda \ne \mathrm{none} \Rightarrow \forall e_v, e_o:\ (\forall s \in \operatorname{touched}_{\operatorname{webkitX}(m)}(V_f):\ e_v(s) = \top) \land (\forall s \in \operatorname{touched}_{\operatorname{webkitAt}(m)}(O_f):\ e_o(s) = \top) \Rightarrow V \prec_{\mathrm{main}} O \land V.\mathrm{passes}(\mathrm{comp}) = 1 \land V.\mathrm{units}(\mathrm{comp}) = N + 3 \land O.\mathrm{passes}(\mathrm{comp}) = 0 \land O.\mathrm{units}(\mathrm{comp}) = 0$$
+$$\text{where } V_f = \operatorname{wkVar}(m, \ell, N),\ O_f = \operatorname{scrollStep}(\operatorname{jsFrame}(\operatorname{wkOrigChanges}(\ell, N, \lambda))),\ V = \operatorname{frameWork}^{e_v}_{\operatorname{webkitX}(m)}(V_f),\ O = \operatorname{frameWork}^{e_o}_{\operatorname{webkitAt}(m)}(O_f)$$
 
 Safari's trade does not depend on the frame-end pass either. -/
-theorem wk_tradeE (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) (cs : List (Change WkProp))
-    (ev eo : Stage → Bool)
-    (hv : ∀ s, s ∈ touched (webkitAt m) (wkVar m l N cs) → ev s = true)
-    (ho : ∀ s, s ∈ touched (webkitAt m) (scrollStep (jsFrame cs)) → eo s = true) :
-    mainLt (frameWorkE (webkitAt m) (wkVar m l N cs) ev) (frameWorkE (webkitAt m) (scrollStep (jsFrame cs)) eo) ∧
-    (frameWorkE (webkitAt m) (wkVar m l N cs) ev).passes .comp = 1 ∧
-    (frameWorkE (webkitAt m) (wkVar m l N cs) ev).units .comp = N + 3 ∧
-    (frameWorkE (webkitAt m) (scrollStep (jsFrame cs)) eo).passes .comp = 0 ∧
-    (frameWorkE (webkitAt m) (scrollStep (jsFrame cs)) eo).units .comp = 0 := by
+theorem wk_tradeE (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool)
+    (N : Nat) (lo : LayerState) (hlo : lo ≠ .none) (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched (webkitX m) (wkVar m l N) → ev s = true)
+    (ho : ∀ s, s ∈ touched (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) → eo s = true) :
+    mainLt (frameWorkE (webkitX m) (wkVar m l N) ev)
+      (frameWorkE (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) eo) ∧
+    (frameWorkE (webkitX m) (wkVar m l N) ev).passes .comp = 1 ∧
+    (frameWorkE (webkitX m) (wkVar m l N) ev).units .comp = N + 3 ∧
+    (frameWorkE (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) eo).passes .comp = 0 ∧
+    (frameWorkE (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) eo).units .comp = 0 := by
   rw [frameWorkE_eq_of_dirty _ _ ev hv, frameWorkE_eq_of_dirty _ _ eo ho]
-  exact wk_trade m hm l N cs
+  exact wk_trade μ hμ m hm l N lo hlo
 
 end EndPass
 

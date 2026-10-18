@@ -552,7 +552,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "30eb037"
   },
   {
    "id": "spk-q",
@@ -2434,7 +2435,12 @@
     "fix-misc",
     "fix-people-webkit",
     "gate-settle",
-    "fix-stagebg-webkit"
+    "fix-stagebg-webkit",
+    "fix-orbit",
+    "fix-pain-notes",
+    "fix-nav-hittest",
+    "fix-commission-margin",
+    "fix-page-offset"
    ],
    "owner": "part-builder",
    "writes": [
@@ -3278,7 +3284,8 @@
     "lean/Fw/Ops/Wait.lean",
     "apps/runner/hooks/wait-guard.mjs",
     "apps/runner/test/**"
-   ]
+   ],
+   "evidence": "2c70fe0"
   },
   {
    "id": "ci-runner-lint",
@@ -3548,10 +3555,25 @@
    ],
    "owner": "lean-prover",
    "writes": [
-    "lean/lakefile.lean",
-    "lean/Fw/Ops/Cache.lean",
-    ".github/workflows/**"
-   ]
+    "lean/lakefile.toml",
+    "lean/*Main.lean",
+    "lean/README.md",
+    "lean/Fw/Ops/**",
+    "lean/Fw/Gate/*Gen.lean",
+    "lean/Fw/Site/GenRoute.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/scripts/**",
+    ".github/workflows/**",
+    ".github/actions/setup-lean/**",
+    "scripts/ci-paths*",
+    "packages/gate-breakpoints/scripts/scopegen.mjs",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-inputs.test.ts",
+    "packages/contracts/golden/**",
+    "apps/site/src/*.gen.json",
+    "docs/team/handoffs/**"
+   ],
+   "evidence": "29d8b04"
   },
   {
    "id": "visual-diff-2",
@@ -3600,7 +3622,8 @@
     "lean/Fw/Ops/Premise.lean",
     "research/mistakes/ledger.json",
     "docs/team/handoffs/hero-exit-restate.md"
-   ]
+   ],
+   "evidence": "384fe8a"
   },
   {
    "id": "premises-no-api",
@@ -3630,7 +3653,8 @@
     "lean/scripts/**",
     "packages/measure-wktr/fixtures/summarize.mjs",
     ".github/workflows/wktr-fixtures.yml"
-   ]
+   ],
+   "evidence": "1e06a19"
   },
   {
    "id": "visual-diff-3",
@@ -3659,6 +3683,214 @@
     "research/notes/2026/10-18-slow-site-build.md"
    ],
    "evidence": "9a5c552"
+  },
+  {
+   "id": "mistake-retro-2",
+   "title": "(S) incident rows for the lead mistakes of 2026-10-18 afternoon (13 rows: 9 provable, 3 partly, 1 no); retro note counts and recurrences",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-18-mistake-retro.md"
+   ],
+   "evidence": "f9e7b7a"
+  },
+  {
+   "id": "land-dry",
+   "title": "(S) fw land --dry: scope + declared reads (land-inputs) + merge check, no lock; Lean rule: hand-back refused unless dry passes at the branch head after merging main (inc-land-undeclared-reads x4, inc-land-scope-stale-base)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/**"
+   ]
+  },
+  {
+   "id": "land-queue",
+   "title": "(M) fw land --queue: queue file + land lock + Lean FIFO order; one machine-readable verdict line and a distinct exit code per refusal kind; fw watch silent for queued branches (inc-land-waiters-pgrep, inc-land-retry-text-match, inc-watch-unlanded-queued)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-dry"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Obs/**"
+   ],
+   "evidence": "058a684"
+  },
+  {
+   "id": "evidence-on-main",
+   "title": "(S) plan lint: evidence sha not an ancestor of main is rejected at define (upsert keeps evidence, so an early field cannot be retracted) (inc-evidence-before-land, inc-upsert-keeps-evidence)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/**",
+    "apps/runner/src/plan.ts",
+    "apps/console-api/src/**"
+   ],
+   "evidence": "90bac86"
+  },
+  {
+   "id": "findings-subentries",
+   "title": "(S) findings ledger: append-only per-task notes keyed by (entry, task) so parallel tasks never rewrite one shared mechanism string (inc-findings-shared-entry: 2 manual resolutions)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "research/findings/ledger.json",
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "scripts/merge-ledger.mjs"
+   ]
+  },
+  {
+   "id": "ci-cone-glob",
+   "title": "(S) CI push filters coarse and stable (lean/Fw/**, lean/*.lean); exact import cone computed by the guard job; theorems coarse_sound, push_filter_passes, paths_stable_under_new_module (a new Lean module rewrote 7 workflows)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "ci-trigger-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    ".github/scripts/**",
+    ".github/workflows/**",
+    "docs/team/tools/fw-ci.md",
+    "docs/team/handoffs/ci-cone-glob.md"
+   ],
+   "evidence": "3924fca"
+  },
+  {
+   "id": "fix-orbit",
+   "title": "(S) hero.orbit Chromium cells desk-rm-860/861 (reduced motion) on integrate-ports-2",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gate-settle"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/hero.orbit/**",
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/parts/**",
+    "docs/team/handoffs/fix-orbit.md"
+   ]
+  },
+  {
+   "id": "fix-pain-notes",
+   "title": "(S) pain.notes note x: original defers the Pain section (content-visibility) and skips resize relayout; ported with Lean spec (145 -> 16 Chromium probes, WebKit passes)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gate-settle"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/pain.notes/**",
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/parts/**",
+    "docs/team/handoffs/fix-pain-notes.md"
+   ]
+  },
+  {
+   "id": "fix-nav-hittest",
+   "title": "(S) nav.hitTest border colour: stale run without the global body colour; passes on integrate-ports-2 26e5f53 with no code change (run 39082828467)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gate-settle"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "docs/team/handoffs/fix-nav-hittest.md"
+   ]
+  },
+  {
+   "id": "fix-commission-margin",
+   "title": "(M) commission inner/rows margin-inline in a content-visibility skipped subtree: real difference vs measurement artifact, decided by premise tests; Lean notRendered rule if artifact",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gate-settle"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "packages/gate-breakpoints/src/**",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Parts/**",
+    "packages/premise-tests/**",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/fix-commission-margin.md"
+   ]
+  },
+  {
+   "id": "fix-page-offset",
+   "title": "(M) everything below the hero sits 120 px lower than the original at every stop (gate compares part-local geometry only); fix the owning part; Lean page-level check proposal (part root top y)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "fix-pain-notes"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/**",
+    "lean/Fw/Parts/**",
+    "lean/Fw/Gate/**",
+    "packages/contracts/golden/parts/**",
+    "docs/team/handoffs/fix-page-offset.md"
+   ]
+  },
+  {
+   "id": "engine-premise-measure",
+   "title": "(L) measure the 17 untested engine premises cited by all 253 engine golden rows (engine-golden-premise-lint): rank by rows covered, Chromium trace lanes / WKTR lanes on CI, move each held premise into the registry, each failed one becomes a finding with its theorems restated",
+   "stream": "measure",
+   "milestone": "M3",
+   "deps": [
+    "engine-golden-premise-lint"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "packages/measure-*/**",
+    "packages/premise-tests/**",
+    ".github/workflows/**",
+    "research/findings/ledger.json"
+   ]
+  },
+  {
+   "id": "land-pool-fair",
+   "title": "(S) wire Lean poolFair into the land check pool (fwcore op): lands 56-60 s serial at load ~15 (poolSize 1) vs the 30 s ceiling; keep timeout re-run alone; measure on real lands",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-test-speed"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/**",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/land-pool-fair.md"
+   ],
+   "evidence": "e551a06"
   }
  ],
  "deadline": {

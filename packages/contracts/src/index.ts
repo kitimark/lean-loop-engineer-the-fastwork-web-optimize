@@ -52,6 +52,9 @@ export const Command = z.discriminatedUnion("type", [
     evidence: Sha.nullable(),
     /** the task was cut from the plan (Lean `Fw.Plan` state `cut`: never ready, not counted). Missing = false */
     cut: z.boolean().optional(),
+    /** the evidence sha is an ancestor of main (`git merge-base --is-ancestor`, collected by the glue). Lean
+     *  `Fw.Plan.check` refuses a define with commit evidence off main (task evidence-on-main). Missing = true */
+    evidenceOnMain: z.boolean().optional(),
     /** LEGACY (claim-order-lean): the live agent names console-api once added on receipt. New writers omit it; an
      *  agent is bound by agent.spawn / agent.stop (Lean `Fw.Plan.agentOf`). Still decoded so old logs replay to the
      *  same board. Missing = [] */

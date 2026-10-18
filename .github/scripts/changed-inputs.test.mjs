@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { changedFiles, decide, globToRegExp, matches, parsePaths } from './changed-inputs.mjs';
+import { changedFiles, decide, globToRegExp, matches, parsePaths, preciseInputs } from './changed-inputs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WF = `name: x
@@ -145,4 +145,20 @@ test('changedFiles ignores what a merge of main brought in', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('preciseInputs: the Lean row with the cones of the checkout; the static paths hold only the coarse globs', () => {
+  const root = join(here, '..', '..');
+  const precise = preciseInputs(root, '.github/workflows/wktr.yml');
+  assert.ok(precise.includes('lean/Main.lean') && precise.includes('packages/measure-wktr/**'));
+  assert.ok(!precise.includes('lean/Fw/**'), 'no coarse glob in the precise inputs');
+  const coneFile = precise.find((g) => /^lean\/Fw\/.+\.lean$/.test(g));
+  assert.ok(coneFile, 'the cone files are listed');
+  // the guard decides on the precise list: a module outside the cone skips, a cone module runs
+  const ci = { event: 'push', ref: 'refs/heads/ci/x' };
+  assert.equal(decide({ ...ci, files: ['lean/Fw/NotImported.lean'], globs: precise }).run, false);
+  assert.equal(decide({ ...ci, files: [coneFile], globs: precise }).run, true);
+  const paths = parsePaths(readFileSync(join(root, '.github/workflows/wktr.yml'), 'utf8'));
+  assert.ok(paths.includes('lean/Fw/**') && !paths.includes(coneFile));
+  assert.equal(preciseInputs(root, '.github/workflows/no-such.yml'), null);
 });

@@ -57,7 +57,11 @@ jobs:
         with:
           persist-credentials: false
 
+      # The one Lake cache writer (lean/Fw/Ops/LakeCache.lean `isWriter`): it builds every target, so its entry holds every
+      # module the restore-only jobs need (Fw.Ops.LakeCache.table_complete).
       - uses: ./.github/actions/setup-lean
+        with:
+          save: 'true'
 
       - name: lake build
         working-directory: lean

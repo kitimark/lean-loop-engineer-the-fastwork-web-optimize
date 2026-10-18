@@ -196,6 +196,55 @@ Pattern (INFERRED): the lead's mistakes are mostly **acceptance** mistakes (taki
 tasks gate-exit-verdict, admit-reads, plan-principles-lint and resume-rule target exactly these. All four make the
 lead's decision a Lean refusal instead of a judgement call.
 
+## Batch 2: the lead's mistakes of 2026-10-18 afternoon
+
+The lead listed 15 more mistakes. They are rows of `docs/team/incidents/ledger.json` (not of `ledger.json` here),
+13 new rows in all, with `occurrences` where a pattern recurred. Merges:
+- The four undeclared-read refusals at land (snapshot-extract; gate-exit-verdict twice; gate-align-equiv) are one
+  row, `inc-land-undeclared-reads`. The two scope refusals in the same item are a separate row,
+  `inc-land-scope-stale-base`.
+- The stray chromium-counts and gate-gaps runs on the integrate-ports-2 push are the existing `inc-ci-trigger-drift`
+  (its symptom names that push). It got no new row.
+- Early evidence (`inc-evidence-before-land`) and "upsert keeps it" (`inc-upsert-keeps-evidence`) are two rows. The
+  first is a claim the lead had not earned; the second is stored state that no edit can take back.
+
+| class | rows | provable | partly | no |
+|---|---:|---:|---:|---:|
+| c-unearned-claim | 3 | 1 | 2 | 0 |
+| c-late-check | 2 (6 occurrences) | 2 | 0 | 0 |
+| c-identity-heuristic | 2 | 2 | 0 | 0 |
+| c-order-derived | 2 | 2 | 0 | 0 |
+| c-orphan-wait | 1 (2 occurrences) | 1 | 0 | 0 |
+| c-shared-no-lock | 1 (2 occurrences) | 1 | 0 | 0 |
+| c-sample-validity | 1 | 0 | 1 | 0 |
+| c-env-assume | 1 | 0 | 0 | 1 |
+| **total** | **13** | **9** | **3** | **1** |
+
+Eight of the nine provable rows have no hardening task of their own yet. Each names an open task of its class as host, and its
+`leanReason` names the proposed task:
+- `land-queue` (inc-land-waiters-pgrep, inc-land-retry-text-match, inc-watch-unlanded-queued);
+- `land-dry` (inc-land-undeclared-reads, inc-land-scope-stale-base);
+- `evidence-on-main` (inc-evidence-before-land, inc-upsert-keeps-evidence);
+- `findings-subentries` (inc-findings-shared-entry).
+
+`inc-watch-bg-ampersand` is covered by `wait-guard`.
+
+**Classes that recurred after a hardening landed:**
+- **c-identity-heuristic.** spawn-enforce had landed. Identity was still decided by text: a `pgrep -f` pattern made
+  four land waiters deadlock, and a loose 'busy' match re-ran a refused land for about 20 min. MEASURED in this task:
+  `scripts/wt-prep.sh` took a 12-hour-old `lean --server` (the LSP) for a main build and skipped the clone. That is
+  the open wt-prep defect above, still live.
+- **c-order-derived.** timing-alert had landed: it silences agent.unlanded for landed and locked branches. "Waiting
+  in the land queue" is still no fact of the decision, so the watch churned.
+- **c-unearned-claim.** pa-evidence-lint had landed, but it checks the shape of a sha, not that the sha is on main.
+  Evidence written before the land passed it.
+- **c-orphan-wait.** obs-signals had landed. It detects waiting-own-bg; it does not refuse. `fw watch &` came back a
+  second time while wait-guard is still open.
+- **c-shared-no-lock.** ledger-merge-driver had landed. It refuses, correctly, when one entry is changed on both
+  sides. Three tasks still rewrote one findings entry, so two merges needed resolution by hand.
+- **c-late-check** recurred six times, but its hardening (check-map-lean) has not landed. The land checks did their
+  job; they only ran too late.
+
 ## Dropped or merged items
 
 - **Unsolved goals in Incident.lean:361:** normal proof iteration inside one task, not a process mistake. Dropped.
