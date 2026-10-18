@@ -20,7 +20,8 @@ Accepted limits: off-band causes (layout 0 vs 24, rAF, compositor census) undiag
 until refreeze; no new counts run; the frozen original A recorded no observed viewport, only its declared fields are compared (control is observed);
 scrollWidth is recorded, not gated.
 
+Lean CI: run 39150524865 (lean, success) at c0d79175 on ci/faithful-rerun, check.sh incl. the faithful golden check.
 Open: (1) 10-18 note line 38 and handoffs/faithful-checks.md cite results/faithful/swipe-touch-v1.finding.json, removed in fe70ab0f (revision 44ab82b2 has it);
-outside this task's writes. (2) Lean CI evidence: cite the ci/faithful-rerun lean run for the tip (see report). (3) regenerate after a refreeze:
+outside this task's writes. (2) regenerate after a refreeze:
 zone-baseline.mjs baseline ..., faithful.mjs verdict, faithful.mjs lean.
 Local: pnpm install --offline --frozen-lockfile first; after a bare lake build run lake build fwcore. Read first: Comparable.lean, then faithful.mjs (prepare, judge).
