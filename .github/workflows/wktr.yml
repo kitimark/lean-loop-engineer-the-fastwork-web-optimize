@@ -49,17 +49,14 @@ on:
 permissions:
   contents: read
 
-# A push to a ci/* branch replaces the older push run of that branch; every dispatch is its own group, so the three runs of
-# a frozen table never cancel each other.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  # Paths guard (research: ci-paths-guard handoff). A merge of main into a ci/* branch makes GitHub's push `paths:` filter
-  # (before-sha..sha) match, so every macOS lane would start. This job re-asks the question against the merge-base with
-  # main and the workflow's own `on.push.paths` list; main pushes and workflow_dispatch always run. Fails open on error.
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane
+  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
+  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.
   guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:wktr]') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -77,11 +74,21 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/wktr.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
 
   plan:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:wktr:${{ github.event_name == 'push' && github.ref || github.run_id }}:plan:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -106,6 +113,9 @@ jobs:
   wktr:
     needs: [guard, plan]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:wktr:${{ github.event_name == 'push' && github.ref || github.run_id }}:wktr:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: macos-26
     timeout-minutes: 60
     strategy:
@@ -186,6 +196,9 @@ jobs:
   fwcore:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:wktr:${{ github.event_name == 'push' && github.ref || github.run_id }}:fwcore:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
@@ -207,6 +220,9 @@ jobs:
   classes:
     needs: [guard, wktr, fwcore]
     if: ${{ always() && needs.guard.outputs.run == 'true' && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' }}
+    concurrency:
+      group: ci-lane:wktr:${{ github.event_name == 'push' && github.ref || github.run_id }}:classes:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:

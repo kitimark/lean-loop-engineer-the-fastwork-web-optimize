@@ -325,11 +325,18 @@ Numbers were re-checked against `profile.json` [pj] and the notes before changin
 | 20 | minor | scout lacks Serena; `$SCRATCH` undefined | fixed: Serena `find_symbol`/`get_symbols_overview` in C1; scratchpad path given in the prompt (C1, C2) |
 | 21 | minor | "builders" ambiguous; patcher keeps CLAUDE.md | fixed: C11 names the roles; C4 adds `omitClaudeMd: true` and the needed rules in its body |
 
-## CI pushes (task `ci-trigger-lean`)
+## CI pushes (tasks `ci-trigger-lean`, `ci-own-trigger`)
 
-A push to a `ci/*` branch starts only the workflows whose declared inputs this push changed (Lean `Fw.Ci.Trigger`); a run you
-intend to read is started with `gh workflow run <file> --ref ci/<task>` and waited for with `pnpm fw ci wait`, never with an extra
-push. Details and the commands: `docs/team/tools/fw-ci.md`, section "Which workflows a ci/* push starts".
+A push to a `ci/*` branch starts only the lanes its head commit asks for with `[ci:<lane>]` tokens, and of those only the ones
+whose inputs this push changed (Lean `Fw.Ci.Intent`, over `Fw.Ci.Trigger`). With no token at all it starts only `lean`
+(never a macOS lane). Request CI with exactly one command:
+
+    pnpm fw ci push --branch ci/<task> --lanes <lane>[,<lane>...]     # e.g. --lanes wktr,lean; --lanes none; --dry previews
+
+then `pnpm fw ci wait --branch ci/<task> --workflow <lane>` in the background. Re-run a lane on an unchanged branch, or run
+one with inputs, by dispatch: `gh workflow run <lane>.yml --ref ci/<task> [-f key=value]`. Never write `[ci:` in prose in a
+commit message, never push an empty commit by hand to trigger CI, and do not cancel runs by hand: an unrequested run is a
+guard bug to report. Details: `docs/team/tools/fw-ci.md`, section "Which workflows a ci/* push starts".
 
 ## Hand-back rule (task `land-dry`)
 

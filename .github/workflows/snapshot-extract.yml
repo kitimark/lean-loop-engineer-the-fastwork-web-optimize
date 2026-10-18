@@ -29,20 +29,19 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
-
 env:
   # Same pinned browser as packages/measure-chromium/Dockerfile and breakpoint-gate.
   HS_VERSION: 156.0.8078.4
   HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
 
 jobs:
-  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
-  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and
-  # schedules always run. Fails open on error.
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane
+  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
+  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.
   guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:snapshot-extract]') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -58,11 +57,21 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/snapshot-extract.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
 
   site:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:snapshot-extract:${{ github.event_name == 'push' && github.ref || github.run_id }}:site:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
@@ -85,6 +94,9 @@ jobs:
   tests:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:snapshot-extract:${{ github.event_name == 'push' && github.ref || github.run_id }}:tests:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
@@ -100,6 +112,9 @@ jobs:
 
   extract:
     needs: [site]
+    concurrency:
+      group: ci-lane:snapshot-extract:${{ github.event_name == 'push' && github.ref || github.run_id }}:extract:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     strategy:
@@ -139,6 +154,9 @@ jobs:
 
   report:
     needs: [tests, extract]
+    concurrency:
+      group: ci-lane:snapshot-extract:${{ github.event_name == 'push' && github.ref || github.run_id }}:report:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     steps:

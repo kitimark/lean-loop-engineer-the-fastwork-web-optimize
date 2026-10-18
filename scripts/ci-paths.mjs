@@ -12,11 +12,21 @@
 // changes no workflow file (task ci-cone-glob, `paths_stable_under_new_module`). The guard job computes the precise cone
 // at run time (.github/scripts/changed-inputs.mjs). This check fails when a cone file falls outside `coneGlobs`
 // (Lean `ConeWithin`, the hypothesis of `coarse_sound`).
+// The guard job's own `if:` is the Lean intent condition (lean/Fw/Ci/Intent.lean `ifExpr`, task ci-own-trigger, golden
+// packages/contracts/golden/ci/intent.jsonl): on a ci/* push the guard, and so every job, is skipped unless the head
+// commit asks for the lane (`[ci:<lane>]`) or the lane is a default lane (lean). --check fails when a guard's `if:`, its
+// GUARD_TOKEN env or its decision steps (Lean `Fw.Ci.Verdict.decisionStep`, read by `fw ci wait`) differ; --write sets
+// them. Round 2: no workflow-level `concurrency:` (a push that did not ask for the lane cancelled a requested run, Lean
+// `Fw.Ci.Cancel.wf_level_loses`); every non-guard job carries the Lean job-level group (`Intent.groupExpr`, one group per
+// lane, ref, job and matrix leg), so only a newer run whose guard started the lane cancels (`no_requested_lost`).
+// --check also fails when the Lean macOS flag of a lane differs from its workflow (a job on `macos-*` / `xcode-*` whose
+// `if:` is not dispatch-only), and when a job's `if:` uses a status function without a conjunct that is false when the
+// guard skipped.
 // Run:  node scripts/ci-paths.mjs [--write | --check] [--root <dir>]
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { coneOf, loadGolden, matches, setMapWith, expand } from '../.github/scripts/changed-inputs.mjs';
+import { coneOf, loadGolden, loadIntent, matches, setMapWith, expand } from '../.github/scripts/changed-inputs.mjs';
 
 const WF_DIR = ['.git', 'hub/workflows'].join('');
 export const GUARD_SCRIPT = ['.git', 'hub/scripts/changed-inputs.mjs'].join('');
@@ -299,17 +309,21 @@ export function readJobs(lines) {
     const end = k + 1 < heads.length ? heads[k + 1].at : lines.length;
     let needs = [];
     let hasIf = false;
+    let ifText = '';
+    let runsOn = '';
     for (let i = h.at + 1; i < end; i++) {
       if (indentOf(lines[i]) !== 4) continue;
+      const ro = /^ {4}runs-on:\s*(.*?)\s*(?:#.*)?$/.exec(lines[i]);
+      if (ro) runsOn = ro[1];
       const n = /^ {4}needs:\s*(.*?)\s*(?:#.*)?$/.exec(lines[i]);
       if (n) {
         const v = n[1];
         if (v === '' || v.startsWith('-')) throw new Error(`job ${h.name}: write \`needs\` inline ([a, b]) so the reader can see it`);
         needs = v.replace(/^\[|\]$/g, '').split(',').map((x) => x.trim()).filter(Boolean);
       }
-      if (/^ {4}if:/.test(lines[i])) hasIf = true;
+      if (/^ {4}if:/.test(lines[i])) { hasIf = true; ifText = lines[i].replace(/^ {4}if:\s*/, ''); }
     }
-    return { name: h.name, at: h.at, end, needs, hasIf };
+    return { name: h.name, at: h.at, end, needs, hasIf, ifText, runsOn };
   });
 }
 
@@ -324,13 +338,58 @@ export function unguarded(jobs) {
   return jobs.filter((j) => j.name !== 'guard' && !reaches(j)).map((j) => j.name);
 }
 
-/** The text of the guard job for a workflow file. */
-export function guardJob(file) {
+/** The comment above the guard job. */
+export const GUARD_COMMENT = [
+  '  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless',
+  '  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if',
+  "  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane",
+  '  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.',
+  '  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.',
+];
+
+/** The guard's decision steps (Lean `Fw.Ci.Verdict.decisionStep`): `fw ci wait` reads which one ran from the jobs. */
+export function decisionSteps(lane) {
   return [
-    '  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of',
-    "  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and",
-    '  # schedules always run. Fails open on error.',
+    `      - name: '${lane.decision.run}'`,
+    "        if: steps.g.outputs.run == 'true'",
+    "        run: 'true'",
+    `      - name: '${lane.decision.skip}: \${{ steps.g.outputs.reason }}'`,
+    "        if: steps.g.outputs.run != 'true'",
+    "        run: 'true'",
+  ];
+}
+
+/** A job's job-level concurrency (Lean `Intent.groupExpr`, `cancelExpr`). */
+export function jobConcurrency(lane, job) {
+  return ['    concurrency:', `      group: ${lane.group.replace('<job>', job)}`, `      cancel-in-progress: ${lane.cancel}`];
+}
+
+/** A job that runs only on a dispatch: its `if:` is a conjunction with `github.event_name == 'workflow_dispatch'`. */
+export function dispatchOnly(ifText) {
+  return ifText.includes("github.event_name == 'workflow_dispatch' &&") && !ifText.includes('||');
+}
+
+/** The jobs of a workflow that may run on a macOS runner on a push (Lean `Lane.macos` must equal "some"). */
+export function macosJobs(jobs) {
+  return jobs.filter((j) => /^(macos-|xcode-)/.test(j.runsOn) && !dispatchOnly(j.ifText)).map((j) => j.name);
+}
+
+/** A status function (`always()`, `cancelled()`, `failure()`) lets a job run after its needs were skipped; its `if:` must
+ *  then hold a conjunct that is false when the guard skipped (a needed job's success, or the guard's run=true). */
+export function unsafeStatusIf(ifText) {
+  return /always\(\)|cancelled\(\)|failure\(\)/.test(ifText) &&
+    !/needs\.[A-Za-z0-9_-]+\.result == 'success'|needs\.guard\.outputs\.run == 'true'/.test(ifText);
+}
+
+/** The guard job's `if:` line for a lane (Lean `ifExpr`). */
+export const guardIf = (lane) => `    if: ${lane.if}`;
+
+/** The text of the guard job for a workflow file and its lane. */
+export function guardJob(file, lane) {
+  return [
+    ...GUARD_COMMENT,
     '  guard:',
+    ...(lane && lane.if ? [guardIf(lane)] : []),
     '    runs-on: ubuntu-24.04-arm',
     '    timeout-minutes: 5',
     '    outputs:',
@@ -346,13 +405,15 @@ export function guardJob(file) {
     '          EVENT_NAME: ${{ github.event_name }}',
     '          REF: ${{ github.ref }}',
     '          BEFORE: ${{ github.event.before }}',
+    '          GUARD_TOKEN: ${{ github.token }}',
     `        run: node ${GUARD_SCRIPT} --workflow ${WF_DIR}/${file}`,
+    ...(lane?.decision ? decisionSteps(lane) : []),
     '',
   ];
 }
 
 /** Everything wrong with one workflow's text, and the fixed text. */
-export function reconcile(file, text, row, paths) {
+export function reconcile(file, text, row, paths, lane = null) {
   const problems = [];
   let lines = text.split('\n');
   // 1. on.push
@@ -365,10 +426,44 @@ export function reconcile(file, text, row, paths) {
   if (!jobs.some((j) => j.name === 'guard')) {
     problems.push(`${file}: no \`guard\` job`);
     const at = lines.indexOf('jobs:');
-    lines = [...lines.slice(0, at + 1), ...guardJob(file), ...lines.slice(at + 1)];
+    lines = [...lines.slice(0, at + 1), ...guardJob(file, lane), ...lines.slice(at + 1)];
     jobs = readJobs(lines);
   }
-  const g = jobs.find((j) => j.name === 'guard');
+  let g = jobs.find((j) => j.name === 'guard');
+  // the comment above the guard
+  let c = g.at;
+  while (c > 0 && /^ {2}#/.test(lines[c - 1])) c--;
+  if (lines.slice(c, g.at).join('\n') !== GUARD_COMMENT.join('\n')) {
+    problems.push(`${file}: the comment above the guard job differs`);
+    lines = [...lines.slice(0, c), ...GUARD_COMMENT, ...lines.slice(g.at)];
+    jobs = readJobs(lines);
+    g = jobs.find((j) => j.name === 'guard');
+  }
+  // the intent condition (Lean `ifExpr`) on the guard job itself
+  if (lane && lane.if === '') {
+    // a default lane: no `if:` (Lean `ifExpr` is empty), the guard runs on every push its paths pass
+    const k = lines.findIndex((l, i) => i > g.at && i < g.end && /^ {4}if:/.test(l));
+    if (k >= 0) {
+      problems.push(`${file}: the guard of default lane ${lane.name} has an \`if:\`; Lean \`ifExpr\` gives none`);
+      lines.splice(k, 1);
+      jobs = readJobs(lines);
+      g = jobs.find((j) => j.name === 'guard');
+    }
+  } else if (lane) {
+    const k = lines.findIndex((l, i) => i > g.at && i < g.end && /^ {4}if:/.test(l));
+    if (k < 0 || lines[k] !== guardIf(lane)) {
+      problems.push(`${file}: the guard's \`if:\` differs from the Lean intent condition (lane ${lane.name})`);
+      if (k < 0) lines.splice(g.at + 1, 0, guardIf(lane));
+      else lines[k] = guardIf(lane);
+      jobs = readJobs(lines);
+      g = jobs.find((j) => j.name === 'guard');
+    }
+  }
+  if (!lines.slice(g.at, g.end).some((l) => l.trim() === 'GUARD_TOKEN: ${{ github.token }}')) {
+    problems.push(`${file}: the guard job does not pass GUARD_TOKEN: github.token`);
+    const k = lines.findIndex((l, i) => i >= g.at && i < g.end && l.trim() === 'BEFORE: ${{ github.event.before }}');
+    if (k >= 0) { lines.splice(k + 1, 0, `${lines[k].slice(0, indentOf(lines[k]))}GUARD_TOKEN: \${{ github.token }}`); jobs = readJobs(lines); g = jobs.find((j) => j.name === 'guard'); }
+  }
   const body = lines.slice(g.at, g.end).join('\n');
   const callee = `node ${GUARD_SCRIPT} --workflow ${WF_DIR}/${file}`;
   if (!body.includes(callee)) problems.push(`${file}: the guard job does not run \`${callee}\``);
@@ -386,6 +481,62 @@ export function reconcile(file, text, row, paths) {
     lines.splice(j.at + 1, 0, '    needs: [guard]', "    if: ${{ needs.guard.outputs.run == 'true' }}");
   }
   for (const name of unguarded(readJobs(lines))) problems.push(`${file}: job ${name} has needs but none leads to guard (edit by hand)`);
+  // 4. the guard's decision steps, right after the guard script (Lean Fw.Ci.Verdict.decisionStep)
+  if (lane?.decision) {
+    g = readJobs(lines).find((j) => j.name === 'guard');
+    const k = lines.findIndex((l, i) => i > g.at && i < g.end && l.trim() === `run: ${callee}`);
+    if (k >= 0) {
+      let e = k + 1;
+      while (e < g.end && lines[e].startsWith("      - name: 'decision:")) { e++; while (e < g.end && !isBlank(lines[e]) && indentOf(lines[e]) >= 8) e++; }
+      const want = decisionSteps(lane);
+      if (lines.slice(k + 1, e).join('\n') !== want.join('\n')) {
+        problems.push(`${file}: the guard's decision steps differ (Lean Fw.Ci.Verdict.decisionStep)`);
+        lines.splice(k + 1, e - k - 1, ...want);
+      }
+    }
+  }
+  // 5. no workflow-level concurrency (Lean Fw.Ci.Cancel.wf_level_loses); its comment goes with it
+  const wc = lines.findIndex((l) => /^concurrency:/.test(l));
+  if (wc >= 0) {
+    problems.push(`${file}: workflow-level \`concurrency:\` (a push that does not ask for the lane would cancel a requested run; Lean Fw.Ci.Cancel.wf_level_loses)`);
+    let e = wc + 1;
+    while (e < lines.length && /^\s+\S/.test(lines[e])) e++;
+    let c = wc;
+    while (c > 0 && /^#/.test(lines[c - 1])) c--;
+    if (e < lines.length && isBlank(lines[e]) && c > 0 && isBlank(lines[c - 1])) e++;
+    lines.splice(c, e - c);
+  }
+  // 6. every non-guard job: the Lean job-level group (Intent.groupExpr), before its runs-on
+  if (lane?.group) {
+    for (const name of readJobs(lines).map((j) => j.name).filter((n) => n !== 'guard')) {
+      const j = readJobs(lines).find((x) => x.name === name);
+      const want = jobConcurrency(lane, name);
+      const k = lines.findIndex((l, i) => i > j.at && i < j.end && l === '    concurrency:');
+      if (k >= 0) {
+        let e = k + 1;
+        while (e < j.end && !isBlank(lines[e]) && indentOf(lines[e]) > 4) e++;
+        if (lines.slice(k, e).join('\n') !== want.join('\n')) {
+          problems.push(`${file}: job ${name}: concurrency differs from the Lean group (lane ${lane.name})`);
+          lines.splice(k, e - k, ...want);
+        }
+      } else {
+        problems.push(`${file}: job ${name} has no job-level concurrency group (lane ${lane.name})`);
+        const r = lines.findIndex((l, i) => i > j.at && i < j.end && /^ {4}runs-on:/.test(l));
+        lines.splice(r >= 0 ? r : j.at + 1, 0, ...want);
+      }
+    }
+  }
+  // 7. the Lean macOS flag equals the workflow (Fw.Ci.Intent macosFiles); a status function keeps a guard conjunct
+  const jobs7 = readJobs(lines);
+  if (lane) {
+    const mac = macosJobs(jobs7);
+    if ((mac.length > 0) !== (lane.macos === true)) {
+      problems.push(`${file}: lane ${lane.name} has macos=${lane.macos === true} in Lean (Fw.Ci.Intent macosFiles) but its push macOS jobs are [${mac.join(', ')}] (edit by hand)`);
+    }
+  }
+  for (const j of jobs7) {
+    if (j.name !== 'guard' && unsafeStatusIf(j.ifText)) problems.push(`${file}: job ${j.name}: its \`if:\` uses a status function without a needs success or guard run conjunct, so it would run (and enter its group) after the guard skipped (edit by hand)`);
+  }
   return { problems, text: lines.join('\n') };
 }
 
@@ -397,6 +548,8 @@ export function portableGlob(g) {
 /** Check (or write) every workflow. Returns { problems, wrote }. */
 export function run(root, write) {
   const { table } = loadGolden(root);
+  const intent = loadIntent(root).lanes;
+  const lanes = new Map((intent?.lanes ?? []).map((l) => [l.file, { ...l, cancel: intent.cancel, decision: intent.decision }]));
   const S = coarseMap(table);
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
@@ -408,11 +561,13 @@ export function run(root, write) {
   for (const f of files) {
     const row = rows.get(f);
     if (!row) { problems.push(`${f}: not in the Lean table (lean/Fw/Ci/Trigger.lean \`table\`)`); continue; }
+    const lane = lanes.get(f);
+    if (!lane) problems.push(`${f}: no lane in the Lean intent golden (lean/Fw/Ci/Intent.lean \`lanes\`; lake test -- --write-ci-trigger-golden)`);
     const paths = expand(S, row.inputs);
     for (const p of paths) if (!portableGlob(p)) problems.push(`${f}: glob ${p} is not read the same by GitHub and by Lean PathCheck`);
     const text = readFileSync(join(dir, f), 'utf8');
     let r;
-    try { r = reconcile(f, text, row, paths); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
+    try { r = reconcile(f, text, row, paths, lane ?? null); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
     problems.push(...r.problems);
     if (write && r.text !== text) { writeFileSync(join(dir, f), r.text); wrote++; }
   }
@@ -426,7 +581,7 @@ function main() {
   const { problems, wrote } = run(root, write);
   if (write) {
     console.log(`ci-paths: wrote ${wrote} workflow file(s)`);
-    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs/.test(p));
+    const left = problems.filter((p) => /by hand|not in the Lean table|no such workflow|not read the same|outside coneGlobs|no lane in the Lean intent/.test(p));
     for (const p of left) console.log(`  ${p}`);
     process.exit(left.length ? 1 : 0);
   }

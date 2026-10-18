@@ -62,19 +62,17 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
-
 env:
   IMAGE: fw-measure-chromium:1
 
 jobs:
-  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
-  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and
-  # schedules always run. Fails open on error.
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane
+  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
+  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.
   guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:chromium-counts]') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -90,11 +88,21 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/chromium-counts.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
 
   plan:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:plan:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     outputs:
@@ -150,6 +158,9 @@ jobs:
   fwcore:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:fwcore:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
@@ -172,6 +183,9 @@ jobs:
   site:
     needs: [plan]
     if: ${{ needs.plan.outputs.rewrite == 'true' }}
+    concurrency:
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:site:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
@@ -201,6 +215,9 @@ jobs:
   image:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:image:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     # actions: read lets the reuse step download the artifact of an earlier run of this workflow.
@@ -259,6 +276,9 @@ jobs:
     # site is skipped when only the original is measured; anything else that did not succeed stops the counts.
     if: ${{ !cancelled() && needs.plan.result == 'success' && needs.fwcore.result == 'success' && needs.image.result == 'success' && (needs.site.result == 'success' || needs.site.result == 'skipped') }}
     name: counts (${{ matrix.target }}, ${{ matrix.run }})
+    concurrency:
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:counts:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     strategy:
@@ -355,6 +375,9 @@ jobs:
     needs: [plan, fwcore, counts]
     # `counts` runs when `site` is skipped (target=original); without this condition that skip propagates to classify.
     if: ${{ !cancelled() && needs.plan.result == 'success' && needs.fwcore.result == 'success' && needs.counts.result == 'success' }}
+    concurrency:
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:classify:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:

@@ -1,24 +1,36 @@
 #!/usr/bin/env node
-// changed-inputs: the "paths guard" for macOS lanes on ci/* pushes.
+// changed-inputs: the guard job of every workflow (Lean Fw.Ci.Intent `start`, over Fw.Ci.Trigger `starts`).
 //
-// Problem: an agent merges main into its ci/* branch and pushes. GitHub's push `paths:` filter compares against the
-// push's before-sha, so main's merged changes match and every macOS lane starts. This script answers the question the
-// filter should have asked: does THIS BRANCH (merge-base with main ... HEAD) touch an input of the workflow?
-//
-// The globs are the workflow's PRECISE inputs (task ci-cone-glob): its row of the Lean table
-// (packages/contracts/golden/ci/triggers.jsonl) with `@fwcore` / `@breakgen` expanded to the import cones computed from
-// this checkout. The static `on.push.paths` hold only the coarse cone globs (`lean/Fw/**`, `lean/*.lean`), so a new
-// module changes no workflow file, while this guard keeps the exact decision (Lean Fw.Ci.Trigger: starts_iff,
-// push_filter_passes). Without a Lean row (or an unreadable golden) it falls back to the workflow's own `on.push.paths`
-// (a superset). Usage in a first job on ubuntu (checkout with fetch-depth: 0):
+// A run starts only when someone asked for it (task ci-own-trigger). On a push to ci/** the guard runs the workflow's
+// jobs iff ALL of:
+//   - the head commit wants the lane: it names it with a token `[ci:<lane>]` (case-insensitive), or the lane is a
+//     default lane (only `lean`, never a macOS lane): lean is checked whenever its inputs changed, whatever lanes the
+//     commit names (`[ci:none]` included). Lean `wanted`, `no_unrequested_start`, `lean_always_when_changed`,
+//     `default_no_macos`. The guard job's own `if:` (Lean `ifExpr`, written by scripts/ci-paths.mjs) already skips the
+//     guard, so no runner starts, when the lane is not wanted.
+//   - THIS push changed one of the lane's inputs to something other than main's content: before..HEAD (the whole branch
+//     when `before` is unknown or a new branch) intersected with the files that differ from the base (Lean
+//     Fw.Ci.Trigger `effective`, `starts_iff`). The inputs are the workflow's row of the Lean table
+//     (packages/contracts/golden/ci/triggers.jsonl) with `@fwcore` / `@breakgen` expanded to the import cones of this
+//     checkout; without a row, the workflow's own `on.push.paths` (a superset).
+//   - no newer push on the branch that itself wants the lane changed one of those inputs (`superseded`; the tip and its
+//     message are read with `git ls-remote`, so a run that waited behind a newer requesting push does not start its
+//     jobs, and a newer push that does not ask for the lane never makes this one skip). Lean
+//     `superseded_never_runs_heavy`, `unwanted_never_supersedes`.
+//   - the commit is not already on main (`landed`: an ancestor of origin/main or of origin/ci/landed). Lean
+//     `landed_never_runs_heavy`.
+// Cancelling is per job, not per run: every heavy job holds its lane's group `ci-lane:<lane>:<ref>:<job>:<index>`
+// (Lean `groupExpr`); a job whose `if:` is false is skipped and never enters the group, so a newer push that does not
+// want the lane never cancels a running one (Lean Fw.Ci.Cancel `no_requested_lost`, `cancel_needs_newer_start`).
+// Anything that is not a push to ci/** (main pushes, workflow_dispatch, schedules) always runs: a run there is a record
+// (Lean `record_always_runs`). Any error fails open (run=true), never closed.
+// Usage in a first job on ubuntu (checkout with fetch-depth: 0):
 //   node .github/scripts/changed-inputs.mjs --workflow .github/workflows/<name>.yml
-// Env: EVENT_NAME (github.event_name), REF (github.ref), BEFORE (github.event.before), PATHS_GUARD_BASE (default origin/main).
-// Output: `run=true|false` on stdout and in $GITHUB_OUTPUT, the reason and the files in $GITHUB_STEP_SUMMARY.
-//   - not a push to refs/heads/ci/**  -> run=true (main pushes, workflow_dispatch, anything else always run)
-//   - a push to ci/**                 -> run=true iff a file THIS PUSH changed (before..HEAD; the whole branch when `before` is
-//                                        unknown or a new branch) and that differs from main's content matches one of the globs
-//                                        (Lean Fw.Ci.Trigger: starts_iff, merge_starts_nothing)
-//   - any error (no merge-base, git failure, unreadable globs) -> run=true: the guard fails open, never closed.
+// Env: EVENT_NAME (github.event_name), REF (github.ref), BEFORE (github.event.before), GUARD_TOKEN (github.token, for
+// ls-remote), PATHS_GUARD_BASE (default: origin/ci/landed when it contains origin/main, else origin/main).
+// Output: `run=true|false` and `reason=<one line>` in $GITHUB_OUTPUT (the guard's `decision: skip: <reason>` step
+// shows the reason in the run's jobs, read by `fw ci wait`), the reason and the files on stdout and in
+// $GITHUB_STEP_SUMMARY.
 //
 // GitHub's filter glob (docs "Filter pattern cheat sheet"): `*` any chars but `/`, `**` any chars, `?`/`+` zero-or-one /
 // one-or-more of the preceding character, `[...]` a class, a leading `!` excludes (later patterns win).
@@ -31,6 +43,20 @@ import { pathToFileURL } from 'node:url';
 export function loadGolden(root) {
   const lines = readFileSync(join(root, 'packages/contracts/golden/ci/triggers.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
   return { table: lines.find((l) => l.kind === 'table'), cases: lines.filter((l) => l.kind === 'case') };
+}
+
+/** The Lean intent golden (Fw.Ci.Intent): the lanes (name, token, macOS and default flags, the guard `if:`) and the
+ *  replay cases. */
+export function loadIntent(root) {
+  const lines = readFileSync(join(root, 'packages/contracts/golden/ci/intent.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  return { lanes: lines.find((l) => l.kind === 'lanes'), cases: lines.filter((l) => l.kind === 'case'), gates: lines.filter((l) => l.kind === 'gate') };
+}
+
+/** The lane of a workflow file (Lean `laneOf`), with the token prefix; null when it has none. */
+export function laneFor(root, workflowFile) {
+  const { lanes } = loadIntent(root);
+  const l = lanes?.lanes.find((x) => x.file === basename(workflowFile));
+  return l ? { ...l, prefix: lanes.prefix } : null;
 }
 
 /** Repo paths (under lean/) of the import cone of a root module: its file, every `import Fw...` module file, and the files
@@ -164,15 +190,79 @@ export function matches(globs, file) {
   return hit;
 }
 
-/** The decision, pure: { run, reason, matched }. */
-export function decide({ event, ref, files, globs }) {
+/** Lean `lower`: only ASCII A-Z lowered (Lean `Char.toLower`). */
+export function lowerAscii(m) {
+  return String(m).replace(/[A-Z]/g, (c) => c.toLowerCase());
+}
+
+/** Lean `wanted`: a default lane always, any other lane when the message names its token (case-insensitive). */
+export function wantedBy(lane, msg) {
+  return lane.byDefault === true || lowerAscii(msg).includes(lane.token);
+}
+
+/** The decision, pure (Lean Fw.Ci.Intent `start`): { run, reason, matched }. `lane` null: no Lean lane, so every
+ *  push is wanted (the old path-only guard). `newer`: files changed between this commit and the branch tip; `tipMsg`:
+ *  the tip's message (a newer push supersedes only when it wants the lane, Lean `superseded`). */
+export function decide({ event, ref, files, globs, msg = '', lane = null, newer = [], tipMsg = '', landed = false }) {
   if (event !== 'push' || !String(ref).startsWith('refs/heads/ci/')) {
-    return { run: true, reason: `${event} on ${ref}: always runs`, matched: [] };
+    return { run: true, reason: `${event} on ${ref}: always runs (a record)`, matched: [] };
+  }
+  if (lane && !wantedBy(lane, msg)) {
+    return { run: false, reason: `the head commit does not name ${lane.token} and ${lane.name} is not a default lane`, matched: [] };
   }
   const matched = files.filter((f) => matches(globs, f));
-  return matched.length > 0
-    ? { run: true, reason: `${matched.length} of ${files.length} changed file(s) since the merge-base with main match the inputs`, matched }
-    : { run: false, reason: `none of the ${files.length} file(s) changed since the merge-base with main match the inputs`, matched };
+  if (matched.length === 0) {
+    return { run: false, reason: `none of the ${files.length} file(s) this push changed (and that differ from main) match the inputs`, matched };
+  }
+  if (landed) return { run: false, reason: 'this commit is already on main (landed)', matched };
+  const sup = lane && !wantedBy(lane, tipMsg) ? [] : newer.filter((f) => matches(globs, f));
+  if (sup.length > 0) return { run: false, reason: `superseded: a newer push on the branch that wants this lane changed ${sup.length} input file(s)`, matched };
+  return { run: true, reason: `${matched.length} of ${files.length} changed file(s) match the inputs${lane ? `; the head commit wants ${lane.name}` : ''}`, matched };
+}
+
+const gitIn = (cwd, ...a) => execFileSync('git', a, { cwd, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+const linesOf = (t) => (t === '' ? [] : t.split('\n'));
+
+/** The guard's base for "differs from main": origin/ci/landed (a mirror of the landed main, when the lead keeps one)
+ *  when it exists and contains origin/main, else origin/main. */
+export function guardBase(cwd = process.cwd()) {
+  try {
+    gitIn(cwd, 'rev-parse', '--verify', '-q', 'refs/remotes/origin/ci/landed');
+    gitIn(cwd, 'merge-base', '--is-ancestor', 'refs/remotes/origin/main', 'refs/remotes/origin/ci/landed');
+    return 'origin/ci/landed';
+  } catch {
+    return 'origin/main';
+  }
+}
+
+/** Lean `landed`: HEAD is an ancestor of one of the main refs. */
+export function isLanded(cwd = process.cwd(), refs = ['origin/main', 'origin/ci/landed']) {
+  for (const r of refs) {
+    try { gitIn(cwd, 'rev-parse', '--verify', '-q', `refs/remotes/${r}`); } catch { continue; }
+    try { gitIn(cwd, 'merge-base', '--is-ancestor', 'HEAD', `refs/remotes/${r}`); return true; } catch { /* not an ancestor */ }
+  }
+  return false;
+}
+
+/** Lean `newer` and `tipMsg`: the files changed between HEAD and the branch's current tip on the remote, and the tip's
+ *  message ({ files: [], msg: '' } when HEAD is the tip). actions/checkout points origin/<branch> at the pushed commit,
+ *  so the tip is read with ls-remote. */
+export function newerPush(ref, cwd = process.cwd(), token = '') {
+  const auth = token ? ['-c', `http.extraheader=AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`] : [];
+  const tip = (gitIn(cwd, ...auth, 'ls-remote', 'origin', ref).split(/\s+/)[0] ?? '').trim();
+  if (!/^[0-9a-f]{40}$/.test(tip) || tip === gitIn(cwd, 'rev-parse', 'HEAD')) return { files: [], msg: '' };
+  try { gitIn(cwd, 'cat-file', '-e', `${tip}^{commit}`); } catch { gitIn(cwd, ...auth, 'fetch', '-q', '--no-tags', '--filter=blob:none', 'origin', tip); }
+  return { files: linesOf(gitIn(cwd, 'diff', '--name-only', '--no-renames', 'HEAD', tip)), msg: gitIn(cwd, 'log', '-1', '--format=%B', tip) };
+}
+
+/** The files of `newerPush` alone. */
+export function newerFiles(ref, cwd = process.cwd(), token = '') {
+  return newerPush(ref, cwd, token).files;
+}
+
+/** The reason as one `$GITHUB_OUTPUT` value and step-name text: one line, no `\r`, at most 200 characters. */
+export function outputLine(reason) {
+  return String(reason).replace(/[\r\n]+/g, ' ').slice(0, 200);
 }
 
 /** Files changed from the merge-base of `base` and HEAD to HEAD (renames listed as delete + add). */
@@ -201,32 +291,46 @@ function main() {
   if (!workflow) throw new Error('usage: changed-inputs.mjs --workflow <file>');
   const event = process.env.EVENT_NAME ?? 'push';
   const ref = process.env.REF ?? '';
-  const base = process.env.PATHS_GUARD_BASE || 'origin/main';
+  let base = process.env.PATHS_GUARD_BASE || '';
   let result;
   let files = [];
   let source = '';
+  let lane = null;
   try {
     let globs = null;
     try { globs = preciseInputs(process.cwd(), workflow); } catch { globs = null; }
+    try { lane = laneFor(process.cwd(), workflow); } catch { lane = null; }
     source = globs ? 'the Lean table, cones from this checkout' : 'the workflow on.push.paths (no Lean row)';
     globs ??= parsePaths(readFileSync(workflow, 'utf8'));
     const guarded = event === 'push' && ref.startsWith('refs/heads/ci/');
-    if (guarded) files = changedFiles(base, process.cwd(), process.env.BEFORE ?? '');
-    result = decide({ event, ref, files, globs });
+    let msg = '';
+    let landed = false;
+    let newer = [];
+    let tipMsg = '';
+    if (guarded) {
+      base ||= guardBase();
+      files = changedFiles(base, process.cwd(), process.env.BEFORE ?? '');
+      msg = gitIn(process.cwd(), 'log', '-1', '--format=%B', 'HEAD');
+      console.log(`head commit: ${msg.split('\n')[0]}`); // the intent the guard read
+      landed = isLanded();
+      // superseded is best effort: on a read error the run counts as not superseded (fail open)
+      try { ({ files: newer, msg: tipMsg } = newerPush(ref, process.cwd(), process.env.GUARD_TOKEN ?? '')); } catch (e) { console.log(`superseded check skipped: ${String(e.message).split('\n')[0]}`); }
+    }
+    result = decide({ event, ref, files, globs, msg, lane, newer, tipMsg, landed });
   } catch (e) {
     result = { run: true, reason: `guard error, failing open: ${e.message}`, matched: [] };
   }
   const line = `run=${result.run}`;
   console.log(line);
   console.log(result.reason);
-  if (source) console.log(`inputs: ${source}`);
+  if (source) console.log(`inputs: ${source}; lane: ${lane ? lane.name : 'none'}; base: ${base || 'n/a'}`);
   for (const f of files) console.log(`${result.matched.includes(f) ? '  input ' : '  other '}${f}`);
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${line}\n`);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${line}\nreason=${outputLine(result.reason)}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) {
     const rows = files.slice(0, 200).map((f) => `- ${result.matched.includes(f) ? '**input**' : 'other'} \`${f}\``).join('\n');
     appendFileSync(
       process.env.GITHUB_STEP_SUMMARY,
-      `### paths guard: ${line}\n${result.reason} (workflow \`${workflow}\`, base \`${base}\`, inputs: ${source})\n\n${rows}\n`,
+      `### guard: ${line}\n${result.reason} (workflow \`${workflow}\`, lane \`${lane ? lane.name : 'none'}\`, base \`${base || 'n/a'}\`, inputs: ${source})\n\n${rows}\n`,
     );
   }
 }

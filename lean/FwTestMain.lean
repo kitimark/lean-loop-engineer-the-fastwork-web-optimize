@@ -12,6 +12,7 @@ import Fw.Obs.Golden
 import Fw.Ops.LedgerMerge
 import FwTest.CiBudget
 import Fw.Ci.Trigger
+import Fw.Ci.Intent
 import FwTest.Mutants.Kill  -- m0-mutants killers: #guards and theorems that kill the M0 mutants
 
 /-- `lake test`: pseudo-random lease traces, golden JSON-lines round trips, the `Rat` wire form,
@@ -46,7 +47,9 @@ def main (args : List String) : IO UInt32 := do
   let cbg := (← Fw.Wire.Ci.Golden.run (← FwTest.Golden.root) false) + (← FwTest.CiBudget.replay (← FwTest.Golden.root))
   -- ci-trigger-lean: packages/contracts/golden/ci/triggers.jsonl (`-- --write-ci-trigger-golden` regenerates)
   if args.contains "--write-ci-trigger-golden" then discard <| Fw.Ci.Trigger.runGolden (← FwTest.Golden.root) true
-  let ctg ← Fw.Ci.Trigger.runGolden (← FwTest.Golden.root) false
+  -- ci-own-trigger: packages/contracts/golden/ci/intent.jsonl (the same flag regenerates it)
+  if args.contains "--write-ci-trigger-golden" then discard <| Fw.Ci.Intent.runGolden (← FwTest.Golden.root) true
+  let ctg := (← Fw.Ci.Trigger.runGolden (← FwTest.Golden.root) false) + (← Fw.Ci.Intent.runGolden (← FwTest.Golden.root) false)
   -- ledger-merge-driver: packages/contracts/golden/ops/ledger-merge.jsonl (`-- --write-ledger-merge-golden` regenerates)
   if args.contains "--write-ledger-merge-golden" then discard <| Fw.Wire.LedgerMerge.Golden.run (← FwTest.Golden.root) true
   let lmg ← Fw.Wire.LedgerMerge.Golden.run (← FwTest.Golden.root) false

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { changedFiles, decide, globToRegExp, matches, parsePaths, preciseInputs } from './changed-inputs.mjs';
+import { changedFiles, decide, globToRegExp, guardBase, isLanded, laneFor, lowerAscii, matches, newerFiles, newerPush, outputLine, parsePaths, preciseInputs, wantedBy } from './changed-inputs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WF = `name: x
@@ -161,4 +161,88 @@ test('preciseInputs: the Lean row with the cones of the checkout; the static pat
   const paths = parsePaths(readFileSync(join(root, '.github/workflows/wktr.yml'), 'utf8'));
   assert.ok(paths.includes('lean/Fw/**') && !paths.includes(coneFile));
   assert.equal(preciseInputs(root, '.github/workflows/no-such.yml'), null);
+});
+
+// ---- task ci-own-trigger (Lean Fw.Ci.Intent) ----
+const repoRoot = join(here, '..', '..');
+
+test('decide with a lane: the head commit must ask for it; landed and superseded runs skip; records run', () => {
+  const globs = parsePaths(WF);
+  const wktr = laneFor(repoRoot, 'wktr.yml');
+  const lean = laneFor(repoRoot, '.github/workflows/lean.yml');
+  const files = ['packages/measure-wktr/src/a.mjs'];
+  const ci = { event: 'push', ref: 'refs/heads/ci/x', files, globs };
+  assert.equal(decide({ ...ci, lane: wktr, msg: 'fix' }).run, false); // no intent, not a default lane
+  assert.equal(decide({ ...ci, lane: wktr, msg: 'fix [ci:wktr]' }).run, true);
+  assert.equal(decide({ ...ci, lane: wktr, msg: 'fix [CI:Wktr]' }).run, true); // case-insensitive
+  assert.equal(decide({ ...ci, lane: wktr, msg: 'fix [ci:wktr-fixtures]' }).run, false); // tokens do not confuse
+  assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', landed: true }).run, false);
+  assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', newer: ['docs/a.md'] }).run, true); // newer push off-input
+  // a newer push supersedes only when it wants the lane (round 2: an unrequested push never makes a requested run skip)
+  assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', newer: files, tipMsg: 'fix y' }).run, true);
+  assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', newer: files, tipMsg: 'fix y [ci:wktr]' }).run, false); // superseded
+  assert.equal(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', files: ['docs/a.md'] }).run, false); // requested, unchanged
+  assert.equal(decide({ ...ci, lane: lean, msg: 'fix' }).run, true); // the default lane
+  // lean is checked whenever its inputs changed, whatever lanes are named (Lean lean_always_when_changed)
+  const leanFiles = ['lean/Fw.lean'];
+  assert.equal(decide({ ...ci, files: leanFiles, globs: ['lean/**'], lane: lean, msg: '[ci:none]' }).run, true);
+  assert.equal(decide({ ...ci, files: leanFiles, globs: ['lean/**'], lane: lean, msg: '[ci:wktr]' }).run, true);
+  assert.equal(decide({ ...ci, files: ['docs/a.md'], globs: ['lean/**'], lane: lean, msg: '[ci:lean]' }).run, false);
+  // a newer push that does not name lean still supersedes it (lean is wanted by every push)
+  assert.equal(decide({ ...ci, files: leanFiles, globs: ['lean/**'], lane: lean, msg: 'a', newer: leanFiles, tipMsg: 'b' }).run, false);
+  assert.equal(decide({ ...ci, event: 'workflow_dispatch', lane: wktr, msg: '', landed: true }).run, true);
+  assert.equal(decide({ ...ci, ref: 'refs/heads/main', lane: wktr, msg: '' }).run, true);
+  assert.equal(lowerAscii('[CI:ÄB]'), '[ci:Äb]'); // Lean Char.toLower lowers ASCII only
+  assert.equal(wantedBy(wktr, ''), false);
+  assert.equal(wantedBy(lean, '[ci:none]'), true);
+  assert.equal(outputLine('a\r\nb\nc'), 'a b c');
+  assert.equal(outputLine('x'.repeat(300)).length, 200);
+});
+
+test('isLanded, guardBase and newerFiles read the remote refs of a checkout', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ci-intent-'));
+  try {
+    const cfg = ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false'];
+    const at = (cwd) => (...a) => execFileSync('git', [...cfg, ...a], { cwd, encoding: 'utf8' }).trim();
+    const up = join(dir, 'up.git');
+    const work = join(dir, 'work');
+    const other = join(dir, 'other');
+    mkdirSync(work);
+    at(dir)('init', '-q', '--bare', '-b', 'main', up);
+    const w = at(work);
+    const put = (f, text) => { mkdirSync(dirname(join(work, f)), { recursive: true }); writeFileSync(join(work, f), text); };
+    w('init', '-q', '-b', 'main');
+    w('remote', 'add', 'origin', up);
+    put('README.md', '1');
+    w('add', '.');
+    w('commit', '-q', '-m', 'root');
+    w('push', '-q', 'origin', 'main');
+    w('checkout', '-q', '-b', 'ci/x');
+    put('lean/Fw.lean', 'a');
+    w('add', '.');
+    w('commit', '-q', '-m', 'change [ci:lean]');
+    w('push', '-q', 'origin', 'ci/x');
+    w('fetch', '-q', 'origin');
+    assert.equal(isLanded(work), false);
+    assert.equal(guardBase(work), 'origin/main');
+    assert.deepEqual(newerFiles('refs/heads/ci/x', work), []); // HEAD is the tip
+    // a newer push from another clone supersedes HEAD
+    at(dir)('clone', '-q', '-b', 'ci/x', up, other);
+    const o = at(other);
+    writeFileSync(join(other, 'docs.md'), 'x');
+    writeFileSync(join(other, 'lean', 'Fw.lean'), 'b');
+    o('add', '.');
+    o('commit', '-q', '-m', 'newer');
+    o('push', '-q', 'origin', 'ci/x');
+    assert.deepEqual(newerFiles('refs/heads/ci/x', work).sort(), ['docs.md', 'lean/Fw.lean']);
+    assert.equal(newerPush('refs/heads/ci/x', work).msg, 'newer');
+    // the branch lands: main moves to the commit; the mirror ci/landed takes over as the base
+    o('push', '-q', 'origin', 'HEAD:main');
+    o('push', '-q', 'origin', 'HEAD:ci/landed');
+    w('fetch', '-q', 'origin');
+    assert.equal(isLanded(work), true);
+    assert.equal(guardBase(work), 'origin/ci/landed');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

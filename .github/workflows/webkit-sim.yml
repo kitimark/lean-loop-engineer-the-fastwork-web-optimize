@@ -60,12 +60,14 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.experiment || 'determinism' }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
-
 jobs:
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane
+  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
+  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.
   guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:webkit-sim]') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -81,10 +83,20 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
         run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/webkit-sim.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
   plan:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:webkit-sim:${{ github.event_name == 'push' && github.ref || github.run_id }}:plan:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
@@ -126,6 +138,9 @@ jobs:
   site:
     needs: [plan]
     if: ${{ needs.plan.outputs.rewrite == 'true' }}
+    concurrency:
+      group: ci-lane:webkit-sim:${{ github.event_name == 'push' && github.ref || github.run_id }}:site:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
@@ -150,6 +165,9 @@ jobs:
   fwcore:
     needs: [plan]
     if: ${{ needs.plan.outputs.original == 'true' }}
+    concurrency:
+      group: ci-lane:webkit-sim:${{ github.event_name == 'push' && github.ref || github.run_id }}:fwcore:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
@@ -171,6 +189,9 @@ jobs:
     needs: [guard, plan, site]
     # site is skipped for target original: that must not skip the sim jobs
     if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && needs.plan.result == 'success' && needs.site.result != 'failure' }}
+    concurrency:
+      group: ci-lane:webkit-sim:${{ github.event_name == 'push' && github.ref || github.run_id }}:sim:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: xcode-27
     # healthy: 33-43 min for 2 sessions (3 runs, before the readiness polling replaced the fixed sleeps); one stalled job held a slot for 90 min
     timeout-minutes: 60
@@ -307,6 +328,9 @@ jobs:
   merge:
     needs: [plan, sim, fwcore]
     if: ${{ needs.plan.outputs.original == 'true' && (inputs.experiment || 'determinism') == 'determinism' }}
+    concurrency:
+      group: ci-lane:webkit-sim:${{ github.event_name == 'push' && github.ref || github.run_id }}:merge:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
@@ -361,6 +385,9 @@ jobs:
   align:
     needs: [plan, sim, fwcore]
     if: ${{ needs.plan.outputs.both == 'true' && needs.sim.result == 'success' }}
+    concurrency:
+      group: ci-lane:webkit-sim:${{ github.event_name == 'push' && github.ref || github.run_id }}:align:${{ strategy.job-index }}
+      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
