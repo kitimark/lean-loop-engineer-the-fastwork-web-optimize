@@ -23,7 +23,7 @@ universe u v
 
 /-- Values of `α` enumerated by size: `enum n` lists the values of size at most $n$. A larger bound lists every value
 a smaller one did, and every value is listed at some bound.
-$$\mathrm{enum} : \mathbb N \to \mathrm{List}(\alpha),\quad m \le n \wedge x \in \mathrm{enum}(m) \Rightarrow x \in \mathrm{enum}(n),\quad \forall x\ \exists n,\ x \in \mathrm{enum}(n)$$ -/
+$$\mathrm{enum} : \mathbb N \to \mathrm{List}(\alpha),\quad \forall m\, n\, x,\ m \le n \wedge x \in \mathrm{enum}(m) \Rightarrow x \in \mathrm{enum}(n),\quad \forall x\ \exists n,\ x \in \mathrm{enum}(n)$$ -/
 class Enum (α : Type u) where
   /-- The values of size at most $n$. $$\mathrm{enum}(n) : \mathrm{List}(\alpha)$$ -/
   enum : Nat → List α
@@ -41,7 +41,7 @@ class EnumAll (α : Type u) where
   complete : ∀ x : α, x ∈ all
 
 /-- A finite type enumerates all of its values at every bound.
-$$\mathrm{enum}(n) = \mathrm{all}$$ -/
+$$\forall n,\ \mathrm{enum}(n) = \mathrm{all}$$ -/
 instance (priority := low) instEnumOfEnumAll {α : Type u} [EnumAll α] : Enum α where
   enum _ := EnumAll.all
   mono _ h := h
@@ -139,9 +139,9 @@ theorem prop_iff_searchAll {Impl : Type v} {α : Type u} [EnumAll α] (P : Impl 
     (hiff : ∀ i, P i ↔ ∀ x, Q i x = true) (i : Impl) : P i ↔ search EnumAll.all (Q i) = none := by
   rw [hiff i, searchAll_none_iff]
 
-/-- **The property holds on every bound.** For every property $P$, pointwise check $Q$, implementation $i$ and bound
-$n$: if $P$ is exactly "$Q$ passes everywhere", then $P(i)$ holds exactly when the search finds nothing at every
-bound; a clean search at one bound $n$ is the property on that bound only.
+/-- **The property is a clean search at every bound.** For every property $P$, pointwise check $Q$ and implementation
+$i$: if $P$ is exactly "$Q$ passes everywhere", then $P(i)$ holds exactly when the search finds nothing at every
+bound; a clean search at one bound is the property on that bound only (`searchUpTo_none_iff`).
 $$\forall P\, Q,\ (\forall i,\ P(i) \iff \forall x,\ Q(i, x) = \mathrm{true}) \Rightarrow \forall i,\ P(i) \iff \forall n,\ \operatorname{searchUpTo}(n, Q(i)) = \mathrm{none}$$ -/
 theorem prop_iff_searchUpTo {Impl : Type v} {α : Type u} [Enum α] (P : Impl → Prop) (Q : Impl → α → Bool)
     (hiff : ∀ i, P i ↔ ∀ x, Q i x = true) (i : Impl) : P i ↔ ∀ n, searchUpTo n (Q i) = none := by
