@@ -2,13 +2,15 @@
 import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
-import { httpFor, land } from "./land.ts";
-import { exitCode, verdictLine } from "./land-verdict.ts";
+import { httpFor, land, type LandResult } from "./land.ts";
+import { dryRun, exitCode, outcome, outcomeKind, verdictLine } from "./land-verdict.ts";
 import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { nextMain, watchMain } from "./watch.ts";
-import { runCli } from "./run.ts";
+import { fwcoreCall, runCli } from "./run.ts";
+import { execFileSync } from "node:child_process";
 import { ciCli } from "./ci.ts";
 import { ghBudgetCli } from "@fw/gh-budget";
 import { engineCheckCli } from "./engine-check.ts";
@@ -33,6 +35,10 @@ try {
     process.exitCode = await ghBudgetCli(rest, process.cwd()); // shared GitHub poller: no gh loops (packages/gh-budget)
     console.log = log;
     if (rest[0] === "wait") await ingestRuns(runIdsOf(seen.flatMap((x) => x.split("\n"))), process.cwd()); // jobs fetched once, deduped by run id
+  } else if (group === "ci" && rest[0] === "push") {
+    // ci-own-trigger: ask CI for lanes with [ci:<lane>] tokens and push (scripts/ci-push.mjs; no decision here)
+    const script = new URL("../../../scripts/ci-push.mjs", import.meta.url).pathname;
+    process.exitCode = spawnSync(process.execPath, [script, ...rest.slice(1)], { cwd: process.cwd(), stdio: "inherit" }).status ?? 1;
   } else if (group === "ci") {
     process.exitCode = await ciCli(rest, process.cwd());
   } else if (group === "incidents") {
@@ -40,6 +46,10 @@ try {
   } else if (group === "premises") { process.exitCode = await (await import("./premises.ts")).premisesCli(rest, process.cwd()); // Lean premises vs browser tests
   } else if (group === "coverage") {
     process.exitCode = await (await import("./coverage.ts")).coverageCli(rest, process.cwd()); // lean-coverage: warn mode
+  } else if (group === "lake-gc") { // lean-bin-slim: lists, never deletes (Fw.Ops.LakeGc)
+    const { LakeGcUsage, lakeGcCli } = await import("./lake-gc.ts");
+    const top = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: process.cwd(), encoding: "utf8" }).trim();
+    try { process.exitCode = lakeGcCli(rest, top, fwcoreCall(process.cwd())); } catch (e) { throw e instanceof LakeGcUsage ? new UsageError(e.message) : e; }
   } else if (group === "watch") {
     process.exitCode = await watchMain(rest, process.cwd());
   } else if (group === "next") {
@@ -115,12 +125,23 @@ try {
         process.exitCode = exitCode(own?.kind ?? "queued");
       }
     } else {
-      const res = await land(args[0]!, landOpts(task, allow));
-      for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
-      // one machine-readable line and a distinct exit code per kind (Lean Fw.Console.LandVerdict); scripts never grep prose
-      const kind = res.kind ?? (res.ok ? "done" : "unknown");
-      console.log(verdictLine(kind, task ?? args[0]!));
-      process.exitCode = exitCode(kind);
+      // an exception inside `land` still ends in a refusal: kind unknown, exit 2 (a dry run: `outcome({ threw: true })`)
+      const dry = rest.includes("--dry");
+      const res = await land(args[0]!, landOpts(task, allow)).catch((e: unknown): LandResult => ({ ok: false, lines: [`REFUSED: ${e instanceof Error ? e.message : String(e)}`], kind: "unknown", outcome: dry ? outcome({ threw: true }) : undefined }));
+      if (dry) {
+        // glue only: prose to stderr, then exactly the lines Lean `Fw.Console.LandDry.dryRun` returns for the stage outcomes
+        // (one VERDICT line: `dryRun_one_verdict`), and the exit code of the kind it printed
+        const oc = res.outcome ?? outcome({ threw: true });
+        for (const l of res.lines) console.error(l);
+        for (const l of dryRun(oc, task ?? args[0]!)) console.log(l);
+        process.exitCode = exitCode(outcomeKind(oc));
+      } else {
+        for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
+        // one machine-readable line and a distinct exit code per kind (Lean Fw.Console.LandVerdict); scripts never grep prose
+        const kind = res.kind ?? (res.ok ? "done" : "unknown");
+        console.log(verdictLine(kind, task ?? args[0]!));
+        process.exitCode = exitCode(kind);
+      }
     }
   } else if (group === "step" || group === "card" || group === "send") {
     // `fw send '<json command>'` is the escape hatch for run.* commands
@@ -131,7 +152,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw plan sync <file>|show | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json] [--check] | fw step post|start|answer|done|cancel ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

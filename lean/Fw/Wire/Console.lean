@@ -3,6 +3,8 @@ import Fw.Console.Land
 import Fw.Console.Self
 import Fw.Console.LandPool
 import Fw.Console.Alert
+import Fw.Console.Preview
+import Fw.Console.PreviewOwner
 import Fw.Plan.Trailer
 import Fw.Plan.Lint
 /-!
@@ -23,6 +25,18 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landPick` | `givenAhead`, `others`? [{name, ahead, contains}] | `pick` (`given`/`other`/`nothing`/`ambiguous`), `branch`, `names` |
 | `console.landPool` | `cores`, `load` (one-minute load average rounded up) | `pool` (`Fw.Console.LandPool.poolFair`) |
 | `console.landRetry` | `passed`, `loadFailure` | `rerun` (`Fw.Console.LandPool.rerunAlone`), `pool` (the re-run's pool, 1) |
+| `console.previewTarget` | `main` (main's sha), `facts` [{src, sha, onMain, noCode, fpLine? (the head is on main's first-parent line), path? [{sha, p2Has}] (first-parent ancestry path from the head to main, oldest first), ownWork? (a merge's second parent contains the task's own work; default true), behind? (another candidate holds code this one lacks), cands [{ref, sha, contains}]}] (head candidates in priority order), `children` [{facts}] (the candidate lists of the sub-tasks of an umbrella) | `kind` (`main`/`integration`/`own`/`none`), `ref`, `sha`, `head` (sha or null), `headSrc` (`Fw.Console.Preview.headOf`) |
+| `console.previewAdmit` | `secret`, `cookie`, `origin` (the proofs the route checked: `Fw.Console.Preview.Proof`), `preview` (the new preview's id), `task`, `now` (ms), `diskMb`, `hasTarget`, `live` [{id, task, rp, op, started}] | `ok`, `reason` (`notOwner`/`taskBusy`/`tooMany`/`lowDisk`/`noTarget`/`noPorts`), `actor`, `rp`, `op` (the ports), `deadline`, `ttl`, `k` (`Fw.Console.Preview.admit`) |
+| `console.previewTick` | `now`, `live` | `keep` [ids], `kill` [ids] (`tick`, `expired`) |
+| `console.previewStop` | `secret`, `cookie`, `origin`, `preview` (id), `live` | `ok`, `reason` (`notOwner`/`unknown`), `actor`, `kill` [ids] (`stop`, `own`) |
+| `console.previewFail` | `preview` (id), `live` | `keep` [ids], `kill` [ids] (a failed build's teardown: `fail`, `own`) |
+| `console.previewReap` | `live` | `kill` [ids] (all of the table, `reap`) |
+| `console.previewLink` | `hasTty`, `now`? (ms), `last`? (ms of the last link) | `sink` (`tty` or null: print no link), `allowed` [sinks] (`linkSink`: only `tty`), `reissue`? (with `now`: may a new link be issued, `mayReissue`: one per minute) |
+| `console.ownerLogin` | `enabled` (the console has an owner passphrase), `correct` (the constant-time compare matched), `now` (ms), `fails`? [ms] and `lockUntil`? (the client address's record; missing = fresh), `gFails`? [ms] and `gLockUntil`? (the global record across all addresses; missing = fresh) | `verdict` (`disabled`/`locked`/`wrong`/`ok`), `fails`, `lockUntil` (the new address record), `gFails`, `gLockUntil` (the new global record), `retryAt` (the end of the longest active lock, else null), `maxTries`, `window`, `lock`, `globMax`, `globWindow`, `globLock` (`Fw.Console.Preview.Owner.attempt`) |
+| `console.ownerGate` | `lan` (non-loopback or unknown remote address), `session` (console port: a valid owner bearer token in the Authorization header, never a cookie; preview port: a valid preview-access cookie), `hostOk` (Host names this port), `path`, `port`? (`console` default, or `preview`) | `allow`, `class` (`login`/`preview`/`other`/`shell`) (`Fw.Console.Preview.Owner.allow` for the console port, `allowPreview` for the preview port; `classify`) |
+| `console.ownerAction` | `kind` (`owner`: an owner action, needs the bearer token and an Origin; `command`: any other non-GET route, an Origin if present; `login`: an Origin, no token), `bearer` (a valid owner token in the Authorization header), `origin`? ({host, port} or null: none sent), `host`? (the origin of the Host header when it names this console, else null), `extra` [{host, port}] (configured web origins), `previewPort`? (null = unset: nothing is trusted) | `allow`, `trusted` (the computed trusted origins, none on the preview port) (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`) |
+| `console.lanStart` | `want` (LAN mode was asked for), `hasAddr` (a private address was found), `hasPass` (the keychain item was read), `passLen` (its length in characters; never echoed) | `result` (`off`/`noAddress`/`noPassphrase`/`shortPassphrase`/`start`), `start` (`Fw.Console.Preview.Owner.lanStart`) |
+| `console.previewSweep` | `now`, `live` [{id, task, rp, op, started, seen? (last proxied request, default started)}] | `keep` [ids], `kill` [ids], `why` [{id, why: `ttl`/`idle`}], `idle` (ms) (`Fw.Console.Preview.Owner.sweep`, `reaped`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
@@ -210,11 +224,208 @@ def opPlanLint (req : Json) : Except String Reply := do
         ("findings", .arr (fs.toArray.map fun f => Json.mkObj
           [("task", .str f.task), ("code", .str f.code), ("severity", .str f.severity), ("detail", .str f.detail)]))]
 
+/-! ## console.preview* -/
+
+open Fw.Console.Preview in
+/-- The actor named `name`, or an error. -/
+def actorOfName (name : String) : Except String Fw.Console.Actor :=
+  match name with
+  | "user" => .ok .user | "lead" => .ok .lead | "owner" => .ok .owner | "reviewer" => .ok .reviewer
+  | "script" => .ok .script | "git" => .ok .git | "hook" => .ok .hook
+  | _ => throw s!"field actor: unknown actor {name}"
+
+open Fw.Console.Preview in
+/-- The proofs of a request (`secret`, `cookie`, `origin`), each a boolean. -/
+def proofOf (req : Json) : Except String Proof := do
+  pure { secret := ← asBool "secret" (← field req "secret"), cookie := ← asBool "cookie" (← field req "cookie"),
+         origin := ← asBool "origin" (← field req "origin") }
+
+open Fw.Console.Preview in
+/-- The live table of a request. -/
+def liveOf (req : Json) : Except String (List Pv) := do
+  (← arrD req "live").mapM fun p => do
+    pure ({ id := ← str p "id", task := ← str p "task", rp := ← nat p "rp", op := ← nat p "op", started := ← nat p "started" } : Pv)
+
+open Fw.Console.Preview in
+/-- A head fact of a request. -/
+def factOf (j : Json) : Except String Fact := do
+  let cs ← (← arrD j "cands").mapM fun c => do
+    pure ({ ref := ← str c "ref", sha := ← str c "sha", contains := ← asBool "contains" (← field c "contains") } : Cand)
+  pure { src := ← str j "src", sha := ← str j "sha", onMain := ← asBool "onMain" (← field j "onMain"),
+         noCode := ← asBool "noCode" (← field j "noCode"), cands := cs,
+         fpLine := ← boolD j "fpLine" false,
+         path := ← (← arrD j "path").mapM fun c => do
+           pure ({ sha := ← str c "sha", p2Has := ← asBool "p2Has" (← field c "p2Has") } : PathC),
+         ownWork := ← boolD j "ownWork" false, behind := ← boolD j "behind" false }
+
+open Fw.Console.Preview in
+/-- `console.previewTarget` (`Fw.Console.Preview.headOf`). -/
+def opPreviewTarget (req : Json) : Except String Reply := do
+  let fs ← (← arrD req "facts").mapM factOf
+  let ks ← (← arrD req "children").mapM fun c => do
+    (← arrD c "facts").mapM factOf
+  let d := headOf (← str req "main") fs ks
+  let hd := match d.1 with
+    | some f => [("head", Json.str f.sha), ("headSrc", Json.str f.src)]
+    | none => [("head", Json.null), ("headSrc", Json.null)]
+  pure (hd ++ (match d.2 with
+    | .main s => [("kind", .str "main"), ("ref", .str "main"), ("sha", .str s)]
+    | .integration r s => [("kind", .str "integration"), ("ref", .str r), ("sha", .str s)]
+    | .own s => [("kind", .str "own"), ("ref", .null), ("sha", .str s)]
+    | .none => [("kind", .str "none"), ("ref", .null), ("sha", .null)]))
+
+open Fw.Console.Preview in
+/-- `console.previewAdmit` (`Fw.Console.Preview.admit`). -/
+def opPreviewAdmit (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let p ← proofOf req
+  let r : Req := { actor := p.actor, id := ← str req "preview", task := ← str req "task",
+                   now := ← nat req "now", diskMb := ← nat req "diskMb", hasTarget := ← asBool "hasTarget" (← field req "hasTarget") }
+  let lim := [("ttl", Json.num ttl), ("k", Json.num K), ("actor", Json.str (Fw.Console.Actor.name p.actor))]
+  pure (match admit s r with
+    | .error e => [("ok", .bool false), ("reason", .str e.name), ("rp", .null), ("op", .null), ("deadline", .null)] ++ lim
+    | .ok (p :: _) => [("ok", .bool true), ("reason", .null), ("rp", .num p.rp), ("op", .num p.op), ("deadline", .num p.deadline)] ++ lim
+    | .ok [] => [("ok", .bool false), ("reason", .str "noPorts"), ("rp", .null), ("op", .null), ("deadline", .null)] ++ lim)
+
+open Fw.Console.Preview in
+/-- The ids of a table as JSON. -/
+def idsJson (s : List Pv) : Json := .arr (s.toArray.map fun p => Json.str p.id)
+
+open Fw.Console.Preview in
+/-- `console.previewTick` (`Fw.Console.Preview.tick`, `expired`). -/
+def opPreviewTick (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let now ← nat req "now"
+  pure [("keep", idsJson (tick s now)), ("kill", idsJson (expired s now))]
+
+open Fw.Console.Preview in
+/-- `console.previewStop` (`Fw.Console.Preview.stop`, `own`). -/
+def opPreviewStop (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let a := (← proofOf req).actor
+  let i ← str req "preview"
+  let an := ("actor", Json.str (Fw.Console.Actor.name a))
+  pure (if !mayStart a then [("ok", .bool false), ("reason", .str "notOwner"), an, ("kill", .arr #[])]
+    else match own s i with
+      | [] => [("ok", .bool false), ("reason", .str "unknown"), an, ("kill", .arr #[])]
+      | k => [("ok", .bool true), ("reason", .null), an, ("kill", idsJson k)])
+
+open Fw.Console.Preview in
+/-- `console.previewFail` (`Fw.Console.Preview.fail`, `own`): the teardown of a failed build. -/
+def opPreviewFail (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let i ← str req "preview"
+  pure [("keep", idsJson (fail s i)), ("kill", idsJson (own s i))]
+
+open Fw.Console.Preview in
+/-- `console.previewReap` (`Fw.Console.Preview.reap`). -/
+def opPreviewReap (req : Json) : Except String Reply := do
+  pure [("kill", idsJson (reap (← liveOf req)).2)]
+
+open Fw.Console.Preview in
+/-- `console.previewLink` (`Fw.Console.Preview.linkPlan`, `linkSink`): where the owner link goes. -/
+def opPreviewLink (req : Json) : Except String Reply := do
+  let all : List (String × Sink) := [("tty", .tty), ("stdout", .stdout), ("stderr", .stderr), ("file", .file), ("log", .log), ("eventStore", .eventStore)]
+  let name (s : Sink) : String := (all.find? fun p => p.2 == s).map (·.1) |>.getD "?"
+  let plan := linkPlan (← asBool "hasTty" (← field req "hasTty"))
+  let last : Option Nat ← match opt req "last" with
+    | none => pure none
+    | some _ => do pure (some (← nat req "last"))
+  let re : Reply ← match opt req "now" with
+    | none => pure []
+    | some _ => do pure [("reissue", Json.bool (mayReissue last (← nat req "now")))]
+  let base : Reply := [("sink", match plan with | some s => Json.str (name s) | none => Json.null),
+        ("allowed", Json.arr ((all.filter fun p => linkSink p.2).map fun p => Json.str p.1).toArray)]
+  pure (base ++ re)
+
+open Fw.Console.Preview.Owner in
+/-- `console.ownerLogin` (`Fw.Console.Preview.Owner.attempt`): the rate limit of the owner login, per client address and
+across all addresses. -/
+def opOwnerLogin (req : Json) : Except String Reply := do
+  let recOf (fk lk : String) : Except String Rec := do
+    let fails ← (← arrD req fk).mapM fun j => asNat fk j
+    let lockUntil ← match opt req lk with
+      | none => pure 0
+      | some _ => nat req lk
+    pure { fails := fails, lockUntil := lockUntil }
+  let now ← nat req "now"
+  let (v, r, g) := attempt (← recOf "fails" "lockUntil") (← recOf "gFails" "gLockUntil") now
+    (← asBool "enabled" (← field req "enabled")) (← asBool "correct" (← field req "correct"))
+  let arr (r : Rec) : Json := .arr (r.fails.toArray.map fun (t : Nat) => Json.num t)
+  let endAt := max r.lockUntil g.lockUntil
+  pure [("verdict", .str v.name), ("fails", arr r), ("lockUntil", .num r.lockUntil),
+        ("gFails", arr g), ("gLockUntil", .num g.lockUntil),
+        ("retryAt", if now < endAt then .num endAt else .null),
+        ("maxTries", .num maxTries), ("window", .num window), ("lock", .num lockMs),
+        ("globMax", .num globMax), ("globWindow", .num globWindow), ("globLock", .num globLock)]
+
+open Fw.Console.Preview.Owner in
+/-- `console.ownerGate` (`Fw.Console.Preview.Owner.allow`, `allowPreview`): which requests a port serves. -/
+def opOwnerGate (req : Json) : Except String Reply := do
+  let c := classify (← str req "path")
+  let lan ← asBool "lan" (← field req "lan")
+  let session ← asBool "session" (← field req "session")
+  let hostOk ← asBool "hostOk" (← field req "hostOk")
+  let port ← match opt req "port" with
+    | none => pure "console"
+    | some _ => str req "port"
+  let ok ← match port with
+    | "console" => pure (allow lan session hostOk c)
+    | "preview" => pure (allowPreview lan session hostOk)
+    | _ => throw "field port: expected console or preview"
+  pure [("allow", .bool ok), ("class", .str c.name)]
+
+open Fw.Console.Preview.Owner in
+/-- `console.ownerAction` (`Fw.Console.Preview.Owner.ownerAction`, `commandOk`, `loginOk`, `trustedOrigins`): may this request
+act as the owner. The trusted origin list is computed here from the Host's own origin, the configured extra origins and the
+preview port; a missing preview port trusts nothing. -/
+def opOwnerAction (req : Json) : Except String Reply := do
+  let originOf (j : Json) : Except String Origin := do pure { host := ← str j "host", port := ← nat j "port" }
+  let optOrigin (k : String) : Except String (Option Origin) := match opt req k with
+    | none | some .null => pure none
+    | some j => do pure (some (← originOf j))
+  let extra ← (← arrD req "extra").mapM originOf
+  let pp ← match opt req "previewPort" with
+    | none | some .null => pure none
+    | some _ => do pure (some (← nat req "previewPort"))
+  let trusted := trustedOrigins pp (← optOrigin "host") extra
+  let origin ← optOrigin "origin"
+  let ok ← match ← str req "kind" with
+    | "owner" => pure (ownerAction trusted ⟨← asBool "bearer" (← field req "bearer"), false⟩ origin)
+    | "command" => pure (commandOk trusted origin)
+    | "login" => pure (loginOk trusted origin)
+    | _ => throw "field kind: expected owner, command or login"
+  pure [("allow", .bool ok), ("trusted", .arr (trusted.toArray.map fun o => Json.mkObj [("host", .str o.host), ("port", .num o.port)]))]
+
+open Fw.Console.Preview.Owner in
+/-- `console.lanStart` (`Fw.Console.Preview.Owner.lanStart`): whether LAN mode starts, and if not, why. -/
+def opLanStart (req : Json) : Except String Reply := do
+  let r := lanStart (← asBool "want" (← field req "want")) (← asBool "hasAddr" (← field req "hasAddr"))
+    (← asBool "hasPass" (← field req "hasPass")) (← nat req "passLen")
+  pure [("result", .str r), ("start", .bool (r == "start"))]
+
+open Fw.Console.Preview.Owner in
+/-- `console.previewSweep` (`Fw.Console.Preview.Owner.sweep`): the TTL and the idle stop in one decision. -/
+def opPreviewSweep (req : Json) : Except String Reply := do
+  let now ← nat req "now"
+  let live ← (← arrD req "live").mapM fun p => do
+    let pv : Fw.Console.Preview.Pv := { id := ← str p "id", task := ← str p "task", rp := ← nat p "rp", op := ← nat p "op", started := ← nat p "started" }
+    let seen ← match opt p "seen" with
+      | none => pure pv.started
+      | some _ => nat p "seen"
+    pure ({ pv := pv, seen := seen } : Live)
+  let ids (l : List Live) : Json := .arr (l.toArray.map fun x => Json.str x.pv.id)
+  pure [("keep", ids (sweep live now)), ("kill", ids (reaped live now)),
+        ("why", .arr ((reaped live now).toArray.map fun x => Json.mkObj [("id", .str x.pv.id), ("why", .str (why x now))])),
+        ("idle", .num idleLimit)]
+
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
-  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "plan.trailers", "plan.lint"]
+  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "plan.trailers", "plan.lint",
+  "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
+  "console.ownerLogin", "console.ownerGate", "console.ownerAction", "console.lanStart", "console.previewSweep"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -231,6 +442,18 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.landRetry" => some (opLandRetry req)
   | "plan.trailers" => some (opTrailers req)
   | "plan.lint" => some (opPlanLint req)
+  | "console.previewTarget" => some (opPreviewTarget req)
+  | "console.previewAdmit" => some (opPreviewAdmit req)
+  | "console.previewTick" => some (opPreviewTick req)
+  | "console.previewStop" => some (opPreviewStop req)
+  | "console.previewFail" => some (opPreviewFail req)
+  | "console.previewReap" => some (opPreviewReap req)
+  | "console.previewLink" => some (opPreviewLink req)
+  | "console.ownerLogin" => some (opOwnerLogin req)
+  | "console.ownerGate" => some (opOwnerGate req)
+  | "console.ownerAction" => some (opOwnerAction req)
+  | "console.lanStart" => some (opLanStart req)
+  | "console.previewSweep" => some (opPreviewSweep req)
   | _ => none
 
 end Fw.Wire.Console

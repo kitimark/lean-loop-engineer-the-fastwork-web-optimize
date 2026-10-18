@@ -7,6 +7,7 @@ import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { collectSvcs, type Svc } from "./watch-svc.ts";
 
 export interface SpoolEvent {
   agent_id: string | null; agent_type: string | null; hook_event_name: string;
@@ -53,6 +54,9 @@ export interface SystemSnap {
   services?: number[];
   /** pids the lead declared as intended long-runners (`fw watch --keep`, .fw-console/keep.json), still running */
   keep?: number[];
+  /** the running code (console-api, its fwcore child, the fwcore binary on disk): per input group whether the range
+   *  base..main touches it (fwcore raises svc.stale), or why the base is unknown (svc.unknown); see watch-svc.ts */
+  svcs?: Svc[];
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];
@@ -747,39 +751,58 @@ export function ownProcs(procs: Proc[], taskOf: Map<number, string>, owners: Map
   });
 }
 
-/** One declared long-runner in `.fw-console/keep.json` (written by `fw watch --keep <pid>`): its pid, its start time
- *  (ms, from ps at declaration) and the lead's note. */
-export interface KeepEntry { pid: number; startedAt: number; note: string | null }
+/** One declared long-runner in `.fw-console/keep.json` (written by `fw watch --keep <pid>`): its pid, its absolute start
+ *  time (seconds since the epoch, from `ps lstart`) and the lead's note. Entries without `start` (the older
+ *  `startedAt` format) are dropped. */
+export interface KeepEntry { pid: number; start: number; note: string | null }
 export function readKeep(p: Paths): KeepEntry[] {
   try {
     const j = JSON.parse(readFileSync(join(p.consoleDir, "keep.json"), "utf8"));
     return (Array.isArray(j) ? j : []).filter((e): e is KeepEntry =>
-      typeof e?.pid === "number" && typeof e?.startedAt === "number").map((e) => ({ pid: e.pid, startedAt: e.startedAt, note: str(e.note) }));
+      Number.isInteger(e?.pid) && Number.isInteger(e?.start)).map((e) => ({ pid: e.pid, start: e.start, note: str(e.note) }));
   } catch { return []; }
 }
 export function writeKeep(p: Paths, entries: KeepEntry[]): void {
   mkdirSync(p.consoleDir, { recursive: true });
   writeFileSync(join(p.consoleDir, "keep.json"), JSON.stringify(entries, null, 1) + "\n");
 }
-/** The declared entries that still name the same process (a ps row with that pid whose start is within 2 s of the
- *  declared start), so a reused pid is never exempt. */
-export function liveKeep(entries: KeepEntry[], rows: PsRow[], now: number): KeepEntry[] {
-  const by = new Map(rows.map((r) => [r.pid, r]));
-  return entries.filter((e) => { const r = by.get(e.pid); return !!r && Math.abs(now - r.ageMs - e.startedAt) <= 2000; });
+
+/** A process with its absolute start time (seconds since the epoch) and command line. */
+export interface StartRow { pid: number; start: number; args: string }
+/** `ps` with a fixed locale and zone, so `lstart` reads the same for a process at every check. */
+export const PS_START = ["LC_ALL=C", "TZ=UTC", "ps", "-A", "-o", "pid=,lstart=,args="];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** `env PS_START` output (`pid Www Mmm d hh:mm:ss yyyy args`, UTC) -> rows; malformed lines are skipped. */
+export function parseStartRows(out: string | null): StartRow[] {
+  const rows: StartRow[] = [];
+  for (const line of (out ?? "").split("\n")) {
+    const m = /^\s*(\d+)\s+[A-Z][a-z]{2}\s+([A-Z][a-z]{2})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+(\d{4})(?:\s+(.*?))?\s*$/.exec(line);
+    const mon = m ? MONTHS.indexOf(m[2]!) : -1;
+    if (!m || mon < 0) continue;
+    const ms = Date.UTC(Number(m[7]), mon, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+    rows.push({ pid: Number(m[1]), start: Math.floor(ms / 1000), args: m[8] ?? "" });
+  }
+  return rows;
 }
+/** fwcore `ops.watchKeep` (Fw.Ops.WatchDiff): `live` = indices of the entries whose pid and start match a row, `keep` =
+ *  exempt pids (live entries and allowlisted command lines). */
+export type KeepDecide = (entries: { pid: number; start: number }[], rows: StartRow[]) => Promise<{ live: number[]; keep: number[] }>;
 
 /** The previous check's system part, if it is recent enough to carry forward (SCOPE.carryMs). */
 export interface Prev { at: number; system: SystemSnap; critical?: string[] }
 
 /** `owners`: Bash task id -> agent id (from `collectAgents`); trees whose task id is not in it have no owner. */
+/** `keepOf`: fwcore's keep decision; null leaves `keep` empty. A failed `ps` or decision keeps the previous value
+ *  (stale `keep`). */
 export async function collectSystem(p: Paths, prev: Prev | null = null, now = Date.now(), exec: Runner = chargedRunner(run, () => systemEnv(p.root)),
-  owners: Map<string, string> = new Map()): Promise<SystemSnap> {
-  const [mem, wt, dock, ci, ps] = await Promise.all([
+  owners: Map<string, string> = new Map(), keepOf: KeepDecide | null = null): Promise<SystemSnap> {
+  const [mem, wt, dock, ci, ps, psStart] = await Promise.all([
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
     exec("docker", ["ps", "--format", "{{.ID}}\t{{.Names}}\t{{.CreatedAt}}"], 3000),
     exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt"], 10000, p.root),
     exec("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], 3000),
+    exec("env", PS_START, 3000),
   ]);
   // a failed (not missing) gh or docker call keeps the previous value, marked stale, instead of reporting "none":
   // otherwise its alerts would vanish and come back as new
@@ -791,21 +814,30 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
   if (ci === null) { stale.push("ci"); ciRuns = old?.ci ?? []; }
   const rows = parsePs(text(ps));
   let procs = sessionProcs(rows, process.pid, now);
-  let keep = liveKeep(readKeep(p), rows, now).map((e) => e.pid);
+  let keep: number[] = [];
   if (ps === null) { stale.push("procs"); procs = old?.procs ?? []; keep = old?.keep ?? []; }
   else {
     // lsof exits 1 when a listed pid has ended meanwhile (anyExit keeps the others); on a timeout the owners come
     // from the previous check (keepNames)
     const lsof = procs.length ? await exec("lsof", ["-a", "-d", "1", "-Fpn", "-p", procs.map((q) => q.pid).join(",")], 3000, undefined, true) : "";
     procs = keepNames(ownProcs(procs, parseTaskIds(text(lsof)), owners), prev?.system.procs ?? []);
+    if (keepOf) {
+      const entries = readKeep(p);
+      const scope = new Set([...procs.flatMap((q) => [q.pid, ...q.pids]), ...entries.map((e) => e.pid)]);
+      try {
+        if (psStart === null) throw new Error("ps lstart failed");
+        keep = (await keepOf(entries, parseStartRows(text(psStart)).filter((r) => scope.has(r.pid)))).keep;
+      } catch { stale.push("keep"); keep = old?.keep ?? []; }
+    }
   }
   const consolePids = collectConsolePids(p);
+  const svcs = await collectSvcs(p, exec); // never fails as a whole: a service it cannot judge is reported unknown
   let disk = 0;
   try { const s = statfsSync(p.root); disk = Math.floor((Number(s.bavail) * Number(s.bsize)) / 1e9); } catch { /* unknown -> 0 raises sys.diskLow */ }
   return {
     load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!), memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
-    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, stale,
+    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale,
   };
 }
 
@@ -835,10 +867,10 @@ export function carryCritical(crit: string[] | null, prev: Prev | null, now: num
 }
 
 export async function collectSnapshot(p: Paths, now = Date.now(), params: Record<string, number> = DEFAULT_PARAMS, prev: Prev | null = null,
-  get: PlanFetch = getJson): Promise<Snapshot> {
+  get: PlanFetch = getJson, keepOf: KeepDecide | null = null): Promise<Snapshot> {
   const owners = new Map<string, string>();
   const agents = collectAgents(p, now, owners);
-  const [system, crit] = await Promise.all([collectSystem(p, prev, now, undefined, owners), collectCritical(p, process.env, get)]);
+  const [system, crit] = await Promise.all([collectSystem(p, prev, now, undefined, owners, keepOf), collectCritical(p, process.env, get)]);
   const { critical, stale } = carryCritical(crit, prev, now);
   if (stale) system.stale.push("plan");
   return { now, params, agents, lead: collectLead(p), system, prevAt: prev?.at ?? null, critical };

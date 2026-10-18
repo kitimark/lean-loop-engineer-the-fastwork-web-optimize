@@ -1,0 +1,2 @@
+{"name":"everything recorded is killed","request":{"live":[{"id":"a","op":47101,"rp":47100,"started":0,"task":"port-nav"},{"id":"b","op":47103,"rp":47102,"started":1000,"task":"fix-nav"}],"op":"console.previewReap"},"response":{"kill":["a","b"]}}
+{"name":"empty table","request":{"live":[],"op":"console.previewReap"},"response":{"kill":[]}}

@@ -32,11 +32,23 @@ export function message(reply) {
   if (reply.reason === "bgLong") {
     return `wait-guard refused: this command starts a long-running process (${reply.shape ?? "?"}) with a trailing & in a foreground call, `
       + "which leaves an orphan process. Run it with the Bash tool's run_in_background: true and no &, so the tool owns it, "
-      + "can stop it and tells you when it ends. Set FW_WAIT_GUARD=shadow to only log.";
+      + "can stop it and tells you when it ends. For a smoke test (`node server.mjs & pid=$!; ...; kill $pid`), start the "
+      + "server in one Bash call with run_in_background: true, run the checks in the next call, then stop the background "
+      + "task (TaskStop). Set FW_WAIT_GUARD=shadow to only log.";
   }
-  return "wait-guard refused: an until/while loop with no bound never ends if its condition cannot come true. Give it a deadline "
-    + "(wrap it in `timeout N`, or test a counter or SECONDS in the loop), or use `pnpm fw ci wait` / run_in_background. "
-    + "Set FW_WAIT_GUARD=shadow to only log.";
+  return "wait-guard refused: an until/while loop with no bound never ends if its condition cannot come true. The bound must "
+    + "be in the loop condition (between while/until and do; the body does not count, nor `break`, `date` or a deadline "
+    + "word): a lowercase counter set to a decimal literal earlier in the command, ordered against a decimal literal "
+    + "(`i=0; until cmd || [ $i -ge 10 ]; do ...; i=$((i+1)); done`, `i=0; while (( i < 10 ))`), or `SECONDS` against "
+    + "N <= 86400 (`while [ $SECONDS -lt 600 ]`); no other uppercase or shell variable, no $(...), $((...)), ${v:-...} or limit held in a variable), or run the loop as `timeout N bash -c '...'`, or use `pnpm fw ci wait` / "
+    + "run_in_background. A read loop counts as bounded only when its condition is exactly `while [VAR=..] read [opts] "
+    + "[names]` followed by `do` (no `||`, `&&` or second command) and its input is a file (`done < f`), a here-doc, a "
+    + "here-string (`<<< \"$(cmd)\"` only with an allowlisted cmd), or an allowlisted producer: `cmd | while read` or "
+    + "`done < <(cmd)` with cmd one of git (read-only subcommands), ls, find, printf, echo, seq, cat FILE, gh run list/view, "
+    + "gh pr|issue list/view, timeout N ..., then filters grep, rg, jq, sort, head, wc, tr, cut, uniq, sed (no labels), "
+    + "awk (no loops/getline), xargs (running one of these), node scripts/*.mjs. pnpm/npm/npx are not allowlisted: write "
+    + "their output to a file first (`pnpm ... > f.txt; while read l; do ...; done < f.txt`) "
+    + "(docs/team/tools/wait-guard.md). Set FW_WAIT_GUARD=shadow to only log.";
 }
 
 /** What to print for a decision in the given mode: the PreToolUse hook output, or null (allow, shadow, off, no reply). */

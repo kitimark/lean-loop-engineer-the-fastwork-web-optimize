@@ -1,11 +1,15 @@
 import Fw.Wire
+import Fw.Console.PreviewTable
+import Fw.Ops.LeanFirstSearch
 /-!
 # Golden vectors of the `ops.*` ops
 
 `packages/contracts/golden/ops/<op>.jsonl`: one line per case, `{"name", "request", "response"}`,
 where `request` carries its `op` and `response` is what `fwcore` replies (without the `id`).
 The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
-`golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors).
+`golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors), `golden/lint/lint.context.jsonl`
+(`scripts/context-lint.mjs`). From `named` (file stem not the op): `golden/ops/lean-first.jsonl` (`ops.leanFirst`,
+the lean-first land gate over the single faults of the grid of `Fw.Ops.LeanFirstSearch`, at the deployed stage).
 Generated from Lean, never by hand:
 
 ```
@@ -16,7 +20,7 @@ cd lean && lake env lean --run scripts/OpsGolden.lean --check   # fail if a file
 `lake test` runs the same check. Consumers: the hooks agent (`emit.mjs`, `spawn-guard.mjs`:
 `ops.hook`, `ops.spawn`; `cap.mjs`: `ops.actor`, `ops.cap`), console-api's capability door (`cap.ts`
 `actorFor`: `ops.actor`; `openDoor`: `ops.door`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
-meter (`ops.usage`, `ops.meter`).
+meter (`ops.usage`, `ops.meter`), `fw watch` (`ops.watchDiff`, `ops.watchKeep`).
 -/
 namespace Fw.Wire.Ops.Golden
 open Lean
@@ -176,8 +180,9 @@ def cases : List (String × List (String × Json)) := [
     ("until loop in the foreground with no bound: deny unboundedLoop", wait "until grep -q done out.txt; do sleep 5; done"),
     ("while loop in the foreground with no bound: deny unboundedLoop", wait "while true; do sleep 60; done"),
     ("until loop with a counter test: allow", wait "i=0; until [ $i -gt 5 ]; do sleep 5; i=$((i+1)); done"),
-    ("until loop with a clock deadline: allow", wait "end=$((SECONDS+60)); until [ $SECONDS -ge $end ]; do sleep 2; done"),
-    ("until loop wrapped in timeout: allow", wait "timeout 60 until grep -q x f; do sleep 1; done"),
+    ("until loop with a clock deadline: allow", wait "until [ $SECONDS -ge 60 ]; do sleep 2; done"),
+    ("timeout before until runs a command named until, no loop is parsed: allow", wait "timeout 60 until grep -q x f; do sleep 1; done"),
+    ("loop inside timeout N bash -c: bounded by timeout: allow", wait "timeout 600 bash -c 'until gh run view 1 --exit-status; do sleep 30; done'"),
     ("for loop backgrounded around fw watch: deny bgLong fwWatch", wait "for f in a b; do pnpm fw watch; done &"),
     ("long sleep with &: deny bgLong longSleep", wait "sleep 600 &"),
     ("sleep with a minute suffix behind &&: deny", wait "sleep 2m && echo hi &"),
@@ -190,10 +195,161 @@ def cases : List (String × List (String × Json)) := [
     ("newline continues an and-or list: the backgrounded list is long: deny", wait "a &&\n pnpm dev &"),
     ("comment is ignored: allow", wait "echo hi # pnpm fw watch &"),
     ("empty command: allow", wait ""),
-    ("missing cmd is refused", lit "{}")])]
+    ("while-read loop over a file redirect: bounded by its input: allow", wait "while IFS= read -r line; do echo \"$line\"; done < list.txt"),
+    ("while-read loop fed by a finite pipe: allow", wait "git ls-files | while read -r f; do wc -l \"$f\"; done | sort"),
+    ("while-read loop over a here-string: allow", wait "while read -r a b; do echo $a; done <<< \"$pairs\""),
+    ("here-document body is data, not commands: allow", wait "cat > f.py <<'EOF'\nwhile True:\n    pass\nEOF\npython3 f.py"),
+    ("<<- here-document with a tab-indented delimiter: allow", wait "cat <<-EOF > x.sh\n\twhile true; do sleep 1; done\n\tEOF\necho ok"),
+    ("nested read loops, both over finite input: allow", wait "find . -type f | while read f; do while read l; do echo $l; done < \"$f\"; done"),
+    ("while-read loop on the tool's stdin: deny unboundedLoop", wait "while read l; do echo $l; done"),
+    ("while-read loop fed by tail -f: deny unboundedLoop", wait "tail -f x.log | while read l; do echo $l; done"),
+    ("while-read loop over a process substitution: deny unboundedLoop", wait "while read l; do echo $l; done < <(tail -f x.log)"),
+    ("read with its own redirect re-reads line 1 forever: deny unboundedLoop", wait "while read l < f; do echo $l; done"),
+    ("loop after do is still seen: deny unboundedLoop", wait "for f in a b; do while true; do sleep 1; done; done"),
+    ("loop after a closed here-document is code again: deny unboundedLoop", wait "cat <<EOF > f\nx\nEOF\nwhile true; do sleep 1; done"),
+    ("CI poll with no counter: deny unboundedLoop", wait "until [ \"$(gh run view 1 --json status -q .status)\" = completed ]; do sleep 150; done"),
+    ("finite read loop with &: still a backgrounded loop: deny bgLong loop", wait "ls | while read f; do echo $f; done &"),
+    ("read condition extended by || true never fails: deny unboundedLoop", wait "while read l || true; do sleep 1; done < f"),
+    ("read condition extended by || : never fails: deny unboundedLoop", wait "while read l || :; do sleep 1; done < f"),
+    ("read condition followed by another command before do: deny unboundedLoop", wait "while read l; [ 1 ]; do sleep 1; done < f"),
+    ("read loop over a process substitution of an allowlisted producer: allow", wait "while read -r f; do echo $f; done < <(git diff --name-only main)"),
+    ("read loop over a process substitution of ping: deny unboundedLoop", wait "while read l; do echo $l; done < <(ping x)"),
+    ("producer outside the allowlist (ping): deny unboundedLoop", wait "ping x | while read l; do echo $l; done"),
+    ("tail -fn is a follow: deny unboundedLoop", wait "tail -fn 10 log | while read l; do echo $l; done"),
+    ("tail --follow=name is a follow: deny unboundedLoop", wait "tail --follow=name log | while read l; do echo $l; done"),
+    ("cat of a device: deny unboundedLoop", wait "cat /dev/urandom | while read l; do echo $l; done"),
+    ("cat - reads stdin: deny unboundedLoop", wait "cat - | while read l; do echo $l; done"),
+    ("cat -u: deny unboundedLoop", wait "cat -u f | while read l; do echo $l; done"),
+    ("log stream never ends: deny unboundedLoop", wait "log stream | while read l; do echo $l; done"),
+    ("sleep infinity: deny unboundedLoop", wait "sleep infinity | while read l; do echo $l; done"),
+    ("a filter after an endless producer: deny unboundedLoop", wait "tail -f log | grep x | while read l; do echo $l; done"),
+    ("an allowlisted filter after a finite producer: allow", wait "git ls-files | grep lean | while read -r f; do wc -l \"$f\"; done"),
+    ("a done redirect overrides the pipe: deny unboundedLoop", wait "ls | while read l; do echo $l; done < /dev/zero"),
+    ("double-quoted <<EOF is text, the loop after it is code: deny unboundedLoop", wait "echo \"<<EOF\"\nuntil false; do sleep 5; done"),
+    ("single-quoted <<EOF is text, the loop after it is code: deny unboundedLoop", wait "echo '<<EOF'\nuntil false; do sleep 5; done"),
+    ("server smoke test with & and kill: deny bgLong server", wait "node server.mjs & pid=$!; sleep 1; curl -s localhost:3000; kill $pid"),
+    ("r3: arithmetic in the body does not bound an endless read loop: deny", wait "tail -f log | while read l; do echo $((n+1)); done"),
+    ("r3: date in the body does not bound a read loop over yes: deny", wait "yes | while read l; do echo; date; done"),
+    ("r3: date in the body does not bound while true: deny", wait "while true; do date; sleep 1; done"),
+    ("r3: date in the body does not bound a CI poll: deny", wait "until gh run view 1 --exit-status; do date; sleep 120; done"),
+    ("r3: the word deadline is not a bound: deny", wait "until false; do sleep 1; echo deadline; done"),
+    ("r3: $SECONDS not compared to a limit is not a bound: deny", wait "while [ \"$SECONDS\" ]; do sleep 1; done"),
+    ("r3: a constant comparison is not a bound: deny", wait "while [ 1 -lt 2 ]; do sleep 1; done"),
+    ("r3: a break in the body is not a bound: deny", wait "i=0; while :; do [ $i -lt 5 ] || break; i=$((i+1)); done"),
+    ("r3: a counter test cannot clear a read of an endless input: deny", wait "i=0; tail -f log | while read l && [ $i -lt 9 ]; do i=$((i+1)); done"),
+    ("r3: while with test || true never fails: deny", wait "i=0; while [ $i -lt 9 ] || true; do sleep 1; done"),
+    ("r3: counter and an until-loop test in the condition: allow", wait "i=0; until gh run view 1 --exit-status || [ $i -ge 10 ]; do sleep 30; i=$((i+1)); done"),
+    ("r3: file test and counter joined by &&: allow", wait "i=0; while [ ! -s \"$F\" ] && [ $i -lt 55 ]; do sleep 10; i=$((i+1)); done"),
+    ("r3: arithmetic counter test: allow", wait "i=0; while (( i < 10 )); do i=$((i+1)); done"),
+    ("r3: sed and awk filters after a finite producer: allow", wait "git log --oneline | sed 's/a/b/' | awk '{print $1}' | while read h; do echo $h; done"),
+    ("r3: awk with a loop is not a finite filter: deny", wait "git log | awk '{while(1)print}' | while read h; do echo $h; done"),
+    ("r3: xargs running echo over a finite input: allow", wait "ls | xargs -n 1 echo | while read l; do echo $l; done"),
+    ("r3: gh pr list as a producer: allow", wait "gh pr list --json number -q '.[].number' | while read n; do gh pr view $n; done"),
+    ("r3: read -d $'\\0' over find -print0: allow", wait "find . -name '*.json' -print0 | while IFS= read -r -d $'\\0' f; do echo \"$f\"; done"),
+    ("r3: a repo node script is a finite producer: allow", wait "node scripts/list.mjs | while read l; do echo $l; done"),
+    ("r3: pnpm is not a known finite producer: deny", wait "pnpm -s fw list | while read l; do echo $l; done"),
+    ("r3: //dev/zero is a device: deny", wait "while read l; do echo $l; done < //dev/zero"),
+    ("r3: ./../../dev/zero is a device: deny", wait "cat ./../../dev/zero | while read l; do echo $l; done"),
+    ("r3: here-string running yes: deny", wait "while read l; do echo $l; done <<< \"$(yes)\""),
+    ("r3: here-string running a finite producer: allow", wait "while read -r f; do echo $f; done <<< \"$(git diff --name-only)\""),
+    ("r3: git reflog piped into a read loop: allow", wait "git reflog show main | head -12 | while read h rest; do echo $h; done"),
+    ("r4: gh poll by command substitution compared with a number: deny", wait "until [ \"$(gh run list -b ci/x --json status -q length)\" -ge 1 ]; do sleep 120; done"),
+    ("r4: ls count by command substitution: deny", wait "until [ \"$(ls out/*.json 2>/dev/null | wc -l)\" -gt 0 ]; do sleep 30; done"),
+    ("r4: pgrep count by command substitution: deny", wait "while [ \"$(pgrep -c node)\" -gt 0 ]; do sleep 5; done"),
+    ("r4: backquote substitution: deny", wait "while [ `echo 0` -lt 1 ]; do sleep 1; done"),
+    ("r4: $$ is not a counter: deny", wait "while [ $$ -gt 0 ]; do sleep 1; done"),
+    ("r4: $# is not a counter: deny", wait "while [ $# -ge 0 ]; do sleep 1; done"),
+    ("r4: $RANDOM is not a counter: deny", wait "while [ $RANDOM -ge 0 ]; do sleep 1; done"),
+    ("r4: ${x:-0} default expansion: deny", wait "while [ \"${x:-0}\" -lt 1 ]; do sleep 1; done"),
+    ("r4: $((0)) arithmetic expansion: deny", wait "while [ $((0)) -lt 1 ]; do sleep 1; done"),
+    ("r4: limit held in a variable ($end) is not a literal: deny", wait "end=$((SECONDS+60)); until [ $SECONDS -ge $end ]; do sleep 2; done"),
+    ("r4: while with SECONDS growing away from the exit: deny", wait "while [ $SECONDS -ge 0 ]; do sleep 1; done"),
+    ("r4: until with SECONDS growing away from the exit: deny", wait "until [ $SECONDS -lt 0 ]; do sleep 1; done"),
+    ("r4: (( SECONDS >= 0 )) in a while: deny", wait "while (( SECONDS >= 0 )); do sleep 1; done"),
+    ("r4: negated test is outside the grammar: deny", wait "while ! [ $SECONDS -lt 60 ]; do sleep 1; done"),
+    ("r4: comma in (( )): deny", wait "i=0; while (( i < 10 , 1 )); do sleep 1; done"),
+    ("r4: ternary in (( )): deny", wait "i=0; while (( i < 10 ? 1 : 1 )); do sleep 1; done"),
+    ("r4: hex literal in (( )): deny", wait "while (( 0x0 < 1 )); do sleep 1; done"),
+    ("r4: octal literal in (( )): deny", wait "while (( 010 < i )); do sleep 1; done"),
+    ("r4: RANDOM in (( )): deny", wait "while (( RANDOM >= 0 )); do sleep 1; done"),
+    ("r4: string order < in [[ ]]: deny", wait "i=0; while [[ $i < 10 ]]; do i=$((i+1)); done"),
+    ("r4: read -n 0 reads nothing and never hits EOF: deny", wait "while read -n 0 x; do :; done < f.txt"),
+    ("r4: read -t 0 only polls: deny", wait "while read -t 0; do :; done < f.txt"),
+    ("r4: backslash-newline joins a keyword: deny", wait "whi\\\nle true; do sleep 1; done"),
+    ("r4: while with SECONDS below a literal: allow", wait "while [ $SECONDS -lt 600 ]; do sleep 5; done"),
+    ("r4: until with quoted SECONDS at a literal or a poll: allow", wait "until [ \"$SECONDS\" -ge 600 ] || gh run view 1 --exit-status; do sleep 30; done"),
+    ("r4: until (( SECONDS > N )): allow", wait "until (( SECONDS > 600 )); do sleep 5; done"),
+    ("r4: [[ ${i} -le 3 ]]: allow", wait "i=0; while [[ ${i} -le 3 ]]; do i=$((i+1)); done"),
+    ("r4: producer with 2>/dev/null: allow", wait "ls -t a*.jsonl 2>/dev/null | head -3 | while read f; do echo $f; done"),
+    ("r4: git worktree list piped into a read loop: allow", wait "git worktree list --porcelain | awk '/^worktree /{print $2}' | while read p; do echo $p; done"),
+    ("r5: EPOCHSECONDS may be unset in zsh, never a bound: deny", wait "until [ $EPOCHSECONDS -ge 1760800000 ]; do sleep 1; done"),
+    ("r5: a 23-digit literal is not a number: deny", wait "i=0; while [ $i -lt 12345678901234567890123 ]; do i=$((i+1)); done"),
+    ("r5: $_ is reset by every command: deny", wait "while [ $_ -lt 10 ]; do sleep 1; done"),
+    ("r6: BASH_MONOSECONDS in [ ] (unset in zsh and bash < 5.3): deny", wait "until [ $BASH_MONOSECONDS -ge 1 ]; do sleep 0.2; done"),
+    ("r6: BASH_MONOSECONDS in (( )): deny", wait "until (( BASH_MONOSECONDS >= 1 )); do sleep 0.2; done"),
+    ("r6: PIPESTATUS is reset by the shell: deny", wait "until [ $PIPESTATUS -ge 3 ]; do PIPESTATUS=$((PIPESTATUS+1)); done"),
+    ("r6: GROUPS is fixed by the shell: deny", wait "until [ $GROUPS -ge 999999 ]; do GROUPS=$((GROUPS+1)); done"),
+    ("r6: BASH_LINENO is set by the shell: deny", wait "until [ $BASH_LINENO -ge 3 ]; do BASH_LINENO=$((BASH_LINENO+1)); done"),
+    ("r6: BASH_ARGV is set by the shell: deny", wait "until [ $BASH_ARGV -ge 3 ]; do BASH_ARGV=$((BASH_ARGV+1)); done"),
+    ("r6: zsh status is reset by every command: deny", wait "while [ $status -lt 3 ]; do sleep 0.1; done"),
+    ("r6: zsh status even when assigned first: deny", wait "status=0; while [ $status -lt 3 ]; do sleep 0.1; done"),
+    ("r6: zsh TTYIDLE: deny", wait "while [ $TTYIDLE -lt 3 ]; do sleep 0.1; done"),
+    ("r6: SECONDS against an epoch literal: deny", wait "while [ $SECONDS -lt 1792312012 ]; do sleep 1; done"),
+    ("r6: an uppercase counter, even assigned: deny", wait "N=0; while [ $N -lt 5 ]; do N=$((N+1)); done"),
+    ("r6: a counter never set by the command: deny", wait "while [ $i -lt 5 ]; do i=$((i+1)); done"),
+    ("r6: a counter set only after && (may not run): deny", wait "true && i=0; until [ $i -ge 5 ]; do i=$((i+1)); done"),
+    ("r6: lowercase counter set to a literal first: allow", wait "i=0; while [ $i -lt 5 ]; do echo $i; i=$((i+1)); done"),
+    ("r6: SECONDS at the one-day cap: allow", wait "while [ $SECONDS -lt 86400 ]; do sleep 5; done"),
+    ("missing cmd is refused", lit "{}")]),
+  ("ops.watchDiff", [
+    ("first check opens every alert, one line per key (first detail)", lit "{\"now\":[{\"code\":\"proc.long\",\"subject\":\"node#7\",\"detail\":\"31m\"},{\"code\":\"proc.long\",\"subject\":\"node#7\",\"detail\":\"32m\"},{\"code\":\"ci.slow\",\"subject\":\"run-1\"}]}"),
+    ("open alerts stay quiet, a gone one closes, a new one opens", lit "{\"prev\":[{\"code\":\"proc.long\",\"subject\":\"node#7\"},{\"code\":\"ci.slow\",\"subject\":\"run-1\"}],\"now\":[{\"code\":\"ci.slow\",\"subject\":\"run-1\",\"detail\":\"x\"},{\"code\":\"agent.gone\",\"subject\":\"a1\",\"detail\":\"y\"}]}"),
+    ("same code, other subject is another key", lit "{\"prev\":[{\"code\":\"proc.long\",\"subject\":\"node#7\"}],\"now\":[{\"code\":\"proc.long\",\"subject\":\"node#8\",\"detail\":\"\"}]}"),
+    ("no alerts closes all, a repeated open key closes once", lit "{\"prev\":[{\"code\":\"a\",\"subject\":\"1\"},{\"code\":\"a\",\"subject\":\"1\"}],\"now\":[]}"),
+    ("missing now is refused", lit "{\"prev\":[]}")]),
+  ("ops.watchKeep", [
+    ("same pid and start: live and kept", lit "{\"entries\":[{\"pid\":7,\"start\":1792300000}],\"rows\":[{\"pid\":7,\"start\":1792300000,\"args\":\"caffeinate -i\"}]}"),
+    ("reused pid (other start): dropped, not kept", lit "{\"entries\":[{\"pid\":7,\"start\":1792300000}],\"rows\":[{\"pid\":7,\"start\":1792300001,\"args\":\"python\"}]}"),
+    ("gone process: dropped", lit "{\"entries\":[{\"pid\":7,\"start\":1792300000},{\"pid\":8,\"start\":5}],\"rows\":[{\"pid\":8,\"start\":5,\"args\":\"x\"}]}"),
+    ("the lead Monitor stream is kept without a declaration; other intervals are not", lit "{\"rows\":[{\"pid\":9,\"start\":1,\"args\":\"node apps/runner/src/fw.ts watch --interval 300 --stream\"},{\"pid\":10,\"start\":1,\"args\":\"node apps/runner/src/fw.ts watch --interval 60 --stream\"}]}"),
+    ("a non-integer start is refused", lit "{\"entries\":[{\"pid\":7,\"start\":1.5}]}")])]
+
+/-- One file of a `lint.context` request. -/
+def lintFile (path : String) (bytes : Nat) (lines : List String) : Json :=
+  Json.mkObj [("path", .str path), ("bytes", toJson bytes), ("lines", .arr (lines.toArray.map .str))]
+
+/-- A `lint.context` request for these files. -/
+def lintFiles (fs : List Json) : Json := Json.mkObj [("files", .arr fs.toArray)]
+
+/-- `n` numbered lines. -/
+def numbered (n : Nat) : List String := (List.range n).map fun k => s!"line {k}"
+
+/-- The `lint.context` cases (Fw.Lint.Context); consumer `scripts/context-lint.mjs`. -/
+def lintCases : List (String × Json) := [
+  ("handoff: 30 lines is ok, 31 is over the line budget",
+    lintFiles [lintFile "docs/team/handoffs/a.md" 300 (numbered 30), lintFile "docs/team/handoffs/b.md" 310 (numbered 31)]),
+  ("CLAUDE.md: over 5600 bytes is over budget even with slop; at 5600 a dated note is slop",
+    lintFiles [lintFile "CLAUDE.md" 5601 ["Rule (user decision 2026-10-17)."],
+      lintFile "CLAUDE.md" 5600 ["Rule (user decision 2026-10-17)."]]),
+  ("agent: a SHA in the body is slop; the description budget is 300 bytes",
+    lintFiles [lintFile ".claude/agents/a.md" 200 ["---", "name: a", "description: short", "---", "Read src at 5b3d632."],
+      lintFile ".claude/agents/b.md" 400 ["---", "name: b", "description: " ++ "".pushn 'x' 301, "---", "Body."]]),
+  ("team doc: a heading named after a task is slop; a plain heading is ok",
+    lintFiles [lintFile "docs/team/tools/land.md" 100 ["# land", "## Output (task land-dry)"],
+      lintFile "docs/team/tools/x.md" 100 ["# x", "## Output (JSON)"]]),
+  ("skill: an AI tell (em dash, inflated word, filler) is slop, the first hit's line is reported",
+    lintFiles [lintFile ".claude/skills/s/SKILL.md" 100 ["---", "description: d", "---", "Plain line.", "We leverage — it."]]),
+  ("handoffs and other files get no SHA or date check; other files have no budget",
+    lintFiles [lintFile "docs/team/handoffs/c.md" 50 ["state: 5b3d632 on 2026-10-17"],
+      lintFile "research/notes/n.md" 999999 ["delve"]]),
+  ("no files: zero counts", lintFiles []),
+  ("files missing: refused", Json.mkObj []),
+  ("a file without lines: refused",
+    Json.mkObj [("files", .arr #[Json.mkObj [("path", .str "CLAUDE.md"), ("bytes", toJson 1)]])])]
 
 /-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
 def extra : List (String × String × List (String × Json)) := [
+  ("lint", "lint.context", lintCases),
   ("plan", "plan.trailers", [
     ("oldest trailer marks done; later ones are duplicates; done and unknown ids are reported", lit "{\"commits\":[{\"sha\":\"s3\",\"body\":\"merge x\\n\\nTask: a\\nTask: c\"},{\"sha\":\"s2\",\"body\":\"Task: b\"},{\"sha\":\"s1\",\"body\":\"subject\\n\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"claimed\"},{\"id\":\"b\",\"state\":\"done\"}]}"),
     ("trailer syntax: line start, blanks around the id, id chars only, CRLF ok", lit "{\"commits\":[{\"sha\":\"s1\",\"body\":\"Task:  t-1.x_2 \\r\\nTask: t 2\\n task: t3\\nTask:\\nxTask: t4\\nTask:t5\"}],\"tasks\":[{\"id\":\"t-1.x_2\",\"state\":\"open\"},{\"id\":\"t5\",\"state\":\"open\"}]}"),
@@ -276,10 +432,178 @@ def extra : List (String × String × List (String × Json)) := [
     ("failed by the code: final", lit "{\"passed\":false,\"loadFailure\":false}"),
     ("timed out under load: re-run alone", lit "{\"passed\":false,\"loadFailure\":true}"),
     ("missing loadFailure is refused", lit "{\"passed\":false}")]),
+  ("console", "console.previewTarget", [
+    ("landed on main: main", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"7ba0436\",\"onMain\":true,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("integrated only: the newest integration ref that contains it", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"4d26f44\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("an older ref when the newest does not contain it", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"4d26f44\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("the head is exactly an integration tip: that ref, not a newer one", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"26e5f53\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("a documentation-only handoff commit does not hide the commit the gate ran", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"handoff\",\"sha\":\"ad919a4\",\"onMain\":false,\"noCode\":true,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]},{\"src\":\"ci\",\"sha\":\"26e5f53\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}],\"children\":[]}"),
+    ("a head with no code that nothing holds: the newest integration ref", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"named\",\"sha\":\"ef1774f\",\"onMain\":false,\"noCode\":true,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]}],\"children\":[]}"),
+    ("a head with code that nothing holds: its own head", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"named\",\"sha\":\"0f5cdb7\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]}],\"children\":[]}"),
+    ("no integration ref at all and no code: its own head", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"named\",\"sha\":\"0f5cdb7\",\"onMain\":false,\"noCode\":true,\"cands\":[]}],\"children\":[]}"),
+    ("no head and no sub-task: no preview", lit "{\"main\":\"25d9402\",\"facts\":[],\"children\":[]}"),
+    ("an umbrella whose sub-tasks are all on main: main", lit "{\"main\":\"25d9402\",\"facts\":[],\"children\":[{\"facts\":[{\"src\":\"ci\",\"sha\":\"a1\",\"onMain\":true,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}]},{\"facts\":[{\"src\":\"ci\",\"sha\":\"a2\",\"onMain\":true,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}]}]}"),
+    ("an umbrella with one sub-task only integrated: the first ref that holds all", lit "{\"main\":\"25d9402\",\"facts\":[],\"children\":[{\"facts\":[{\"src\":\"ci\",\"sha\":\"a1\",\"onMain\":true,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}]},{\"facts\":[{\"src\":\"ci\",\"sha\":\"a2\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]}]}]}"),
+    ("an umbrella whose sub-tasks share no ref: no preview", lit "{\"main\":\"25d9402\",\"facts\":[],\"children\":[{\"facts\":[{\"src\":\"ci\",\"sha\":\"a1\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":true},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":false}]}]},{\"facts\":[{\"src\":\"ci\",\"sha\":\"a2\",\"onMain\":false,\"noCode\":false,\"cands\":[{\"ref\":\"origin/ci/integrate-ports-3\",\"sha\":\"b35b541\",\"contains\":false},{\"ref\":\"integrate-ports-2\",\"sha\":\"26e5f53\",\"contains\":true}]}]}]}"),
+    ("a head that is a direct commit on main's first-parent line is its own land commit", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"d1d1d1d\",\"onMain\":true,\"noCode\":false,\"fpLine\":true,\"path\":[],\"cands\":[]}],\"children\":[]}"),
+    ("a landed head previews the first line commit whose second parent holds it", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"ci\",\"sha\":\"a1a1a1a\",\"onMain\":true,\"noCode\":false,\"fpLine\":false,\"path\":[{\"sha\":\"b2b2b2b\",\"p2Has\":false},{\"sha\":\"c3c3c3c\",\"p2Has\":true},{\"sha\":\"e5e5e5e\",\"p2Has\":true}],\"cands\":[]}],\"children\":[]}"),
+    ("a merge whose second parent does not hold the task's work is never the head", lit "{\"main\":\"25d9402\",\"facts\":[{\"src\":\"merge\",\"sha\":\"f6f6f6f\",\"onMain\":true,\"noCode\":false,\"fpLine\":true,\"ownWork\":false,\"path\":[],\"cands\":[]},{\"src\":\"originCi\",\"sha\":\"5b50ad0\",\"onMain\":true,\"noCode\":false,\"fpLine\":false,\"path\":[{\"sha\":\"6e968ba\",\"p2Has\":true}],\"cands\":[]},{\"src\":\"handoffCommit\",\"sha\":\"72971b8\",\"onMain\":true,\"noCode\":false,\"behind\":true,\"fpLine\":false,\"path\":[{\"sha\":\"6e968ba\",\"p2Has\":true}],\"cands\":[]}],\"children\":[]}"),
+    ("missing main is refused", lit "{\"facts\":[]}")] ++ Fw.Console.PreviewTable.goldenCases),
+  ("console", "console.previewAdmit", [
+    ("the user starts the first preview: the two lowest ports", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[]}"),
+    ("the second preview takes the next two", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
+    ("a freed port pair is reused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("a third preview is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("the same task twice is refused", lit "{\"preview\":\"n\",\"task\":\"port-nav\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
+    ("the same id twice is refused", lit "{\"preview\":\"a\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
+    ("low disk is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":100,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[]}"),
+    ("no target is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":false,\"secret\":false,\"cookie\":true,\"origin\":true,\"live\":[]}"),
+    ("the console secret is refused even with cookie and origin", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":true,\"cookie\":true,\"origin\":true,\"live\":[]}"),
+    ("no owner cookie is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":false,\"origin\":true,\"live\":[]}"),
+    ("no same-origin Origin is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"origin\":false,\"live\":[]}"),
+    ("neither cookie nor origin is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":false,\"origin\":false,\"live\":[]}"),
+    ("a missing proof field is refused", lit "{\"preview\":\"n\",\"task\":\"port-hero\",\"now\":5000,\"diskMb\":9000,\"hasTarget\":true,\"secret\":false,\"cookie\":true,\"live\":[]}"),
+    ("missing now is refused", lit "{\"secret\":false,\"cookie\":true,\"origin\":true,\"preview\":\"n\",\"task\":\"t\",\"diskMb\":9000,\"hasTarget\":true,\"live\":[]}")]),
+  ("console", "console.previewTick", [
+    ("nothing live", lit "{\"now\":10,\"live\":[]}"),
+    ("both inside the TTL", lit "{\"now\":3000000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("the older one is past its deadline", lit "{\"now\":3600000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("both past", lit "{\"now\":3700000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}")]),
+  ("console", "console.previewStop", [
+    ("the user stops a recorded preview", lit "{\"secret\":false,\"cookie\":true,\"origin\":true,\"preview\":\"a\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("an id that is not in the table kills nothing", lit "{\"secret\":false,\"cookie\":true,\"origin\":true,\"preview\":\"zzz\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("a request without the owner cookie is refused", lit "{\"secret\":false,\"cookie\":false,\"origin\":true,\"preview\":\"a\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}")]),
+  ("console", "console.previewFail", [
+    ("a failed build leaves the table", lit "{\"preview\":\"a\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("an id that is not in the table changes nothing", lit "{\"preview\":\"zzz\",\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}"),
+    ("missing live is fine: empty table", lit "{\"preview\":\"a\"}")]),
+  ("console", "console.previewLink", [
+    ("a terminal: the link goes to the tty, the only allowed sink", lit "{\"hasTty\":true}"),
+    ("no terminal: no link is printed", lit "{\"hasTty\":false}"),
+    ("a first reissue is allowed", lit "{\"hasTty\":true,\"now\":5000}"),
+    ("a reissue 59.999 s after the last link is refused", lit "{\"hasTty\":true,\"now\":70000,\"last\":10001}"),
+    ("a reissue a minute after the last link is allowed", lit "{\"hasTty\":true,\"now\":70000,\"last\":10000}")]),
+  ("console", "console.previewReap", [
+    ("everything recorded is killed", lit "{\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
+    ("empty table", lit "{\"live\":[]}")]),
+  ("console", "console.ownerLogin", [
+    ("a fresh address with the right passphrase gets in", lit "{\"enabled\":true,\"correct\":true,\"now\":1000}"),
+    ("a wrong passphrase is recorded at the address and globally", lit "{\"enabled\":true,\"correct\":false,\"now\":1000}"),
+    ("the fifth failure inside the window locks the address for 10 minutes", lit "{\"enabled\":true,\"correct\":false,\"now\":5000,\"fails\":[1000,2000,3000,4000]}"),
+    ("failures older than the window are forgotten", lit "{\"enabled\":true,\"correct\":false,\"now\":700000,\"fails\":[1000,2000,3000,4000]}"),
+    ("a locked address is refused even with the right passphrase", lit "{\"enabled\":true,\"correct\":true,\"now\":5001,\"lockUntil\":605000}"),
+    ("the lock ends at its end time", lit "{\"enabled\":true,\"correct\":true,\"now\":605000,\"lockUntil\":605000}"),
+    ("a console without a passphrase refuses the login", lit "{\"enabled\":false,\"correct\":true,\"now\":1000}"),
+    ("a missing correct field is refused", lit "{\"enabled\":true,\"now\":1000}"),
+    ("the twentieth global failure locks every address, a fresh one included", lit "{\"enabled\":true,\"correct\":false,\"now\":20000,\"gFails\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]}"),
+    ("a global lock refuses a fresh address with the right passphrase", lit "{\"enabled\":true,\"correct\":true,\"now\":20001,\"gLockUntil\":620000}"),
+    ("a global lock that ended lets a correct passphrase in", lit "{\"enabled\":true,\"correct\":true,\"now\":620000,\"gLockUntil\":620000}"),
+    ("a wrong passphrase adds to the global failures", lit "{\"enabled\":true,\"correct\":false,\"now\":3000,\"gFails\":[1000,2000]}"),
+    ("global failures older than the window are forgotten", lit "{\"enabled\":true,\"correct\":false,\"now\":700000,\"gFails\":[1000,2000,3000]}")]),
+  ("console", "console.ownerGate", [
+    ("LAN, no session: the login page", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/owner/login\"}"),
+    ("LAN, no token: the shell (the built console web) is served", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/\"}"),
+    ("LAN, no token: a static asset is shell", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/assets/index.js\"}"),
+    ("LAN, no token: the owner link route is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/owner\"}"),
+    ("LAN, no token: logout is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/owner/logout\"}"),
+    ("LAN, no token, foreign Host: the shell is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":false,\"path\":\"/\"}"),
+    ("LAN, no session: the API is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/api/board\"}"),
+    ("LAN, no session: a preview path is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/preview/a/r/\"}"),
+    ("LAN, no session: another spelling of the login path is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/owner/login/\"}"),
+    ("LAN with a session: the console web", lit "{\"lan\":true,\"session\":true,\"hostOk\":true,\"path\":\"/\"}"),
+    ("LAN with a session: the console port never serves a preview path", lit "{\"lan\":true,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/r/\"}"),
+    ("LAN with a session but a foreign Host is refused", lit "{\"lan\":true,\"session\":true,\"hostOk\":false,\"path\":\"/\"}"),
+    ("loopback keeps today's rules: no session needed", lit "{\"lan\":false,\"session\":false,\"hostOk\":false,\"path\":\"/api/board\"}"),
+    ("loopback: the console port never serves a preview path", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/o/\"}"),
+    ("preview port, no preview cookie: refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
+    ("preview port, preview cookie: served", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
+    ("preview port, LAN, preview cookie, foreign Host: refused", lit "{\"lan\":true,\"session\":true,\"hostOk\":false,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
+    ("preview port, LAN, preview cookie, right Host: served", lit "{\"lan\":true,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
+    ("an unknown port is refused", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"path\":\"/\",\"port\":\"x\"}")]),
+  ("console", "console.ownerAction", [
+    ("owner action: bearer token and the console origin (own Host)", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("owner action from a preview page (the preview origin) is refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47001},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("the preview port is not the console port plus one: its origin is still refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":51234},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":51234}"),
+    ("an extra origin on the preview port is dropped from the trusted list", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"localhost\",\"port\":47001},\"host\":{\"host\":\"127.0.0.1\",\"port\":47000},\"extra\":[{\"host\":\"localhost\",\"port\":47001},{\"host\":\"localhost\",\"port\":5173}],\"previewPort\":47001}"),
+    ("an extra web origin (the dev server) is trusted", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"localhost\",\"port\":5173},\"host\":{\"host\":\"127.0.0.1\",\"port\":47000},\"extra\":[{\"host\":\"localhost\",\"port\":5173}],\"previewPort\":47001}"),
+    ("the preview port unset: nothing is trusted, the owner action is refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[]}"),
+    ("owner action without an Origin header is refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("owner action with a null Origin is refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":null,\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("owner action without the bearer token is refused", lit "{\"kind\":\"owner\",\"bearer\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a command from the console origin", lit "{\"kind\":\"command\",\"bearer\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a command from a preview page is refused", lit "{\"kind\":\"command\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47001},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a command with no Origin (command-line tool) is accepted", lit "{\"kind\":\"command\",\"bearer\":false,\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a login from the console origin", lit "{\"kind\":\"login\",\"bearer\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a login from a preview page is refused", lit "{\"kind\":\"login\",\"bearer\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47001},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a login without an Origin is refused", lit "{\"kind\":\"login\",\"bearer\":false,\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("an unknown kind is refused", lit "{\"kind\":\"x\",\"bearer\":true,\"extra\":[]}")]),
+  ("console", "console.lanStart", [
+    ("not asked for", lit "{\"want\":false,\"hasAddr\":true,\"hasPass\":true,\"passLen\":20}"),
+    ("no private address", lit "{\"want\":true,\"hasAddr\":false,\"hasPass\":true,\"passLen\":20}"),
+    ("no passphrase in the keychain", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":false,\"passLen\":0}"),
+    ("eleven characters is too short", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":true,\"passLen\":11}"),
+    ("twelve characters starts", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":true,\"passLen\":12}")]),
+  ("console", "console.previewSweep", [
+    ("nothing live", lit "{\"now\":10,\"live\":[]}"),
+    ("a fresh and a busy preview stay", lit "{\"now\":1000000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":500000},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":900000}]}"),
+    ("15 minutes without a request stops it (idle)", lit "{\"now\":1400000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":500000}]}"),
+    ("14 min 59.999 s without a request stays", lit "{\"now\":1399999,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":500000}]}"),
+    ("the TTL stops a preview that is in use", lit "{\"now\":3600000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":3599000}]}"),
+    ("a preview never used since it started is idle after 15 minutes", lit "{\"now\":900000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}")]),
   ("console", "console.actor", [
     ("all sources", lit "{}"),
     ("the alert source writes as script", lit "{\"source\":\"alert\"}"),
     ("unknown source is refused", lit "{\"source\":\"lead\"}")])]
+
+open Fw.Ops.LeanFirst in
+/-- An `ops.leanFirst` request: the encoded facts. -/
+def leanFirstReq (F : Facts) : Json := lfFactsJson F
+
+/-- A JSON object with one more field (other JSON unchanged). -/
+def withField (k : String) (v : Json) : Json → Json
+  | .obj kvs => .obj (kvs.insert k v)
+  | j => j
+
+open Fw.Ops.LeanFirst in
+/-- The constructor name of a fault of the lean-first grid. -/
+def faultName (f : Fault) : String := ((reprStr f).splitOn ".").getLastD ""
+
+open Fw.Ops.LeanFirst in
+/-- The `ops.leanFirst` cases, all judged at the deployed constant `stage` (a request cannot choose it): the base
+facts (all rules met), each single fault of the grid, the binding, decision-path and read-at-main cases, a request
+`stage` field (ignored), and the decoder edge cases. -/
+def leanFirstCases : List (String × Json) :=
+  let at_ := s!"at the deployed stage {stage.name}"
+  [(s!"all rules met {at_}", leanFirstReq base)] ++
+  Fault.all.map (fun f => (s!"fault {faultName f} {at_}", leanFirstReq (factsOf [f]))) ++
+  [(s!"two reason faults (stub implementation, no kill): both reasons, the verdict names the first {at_}",
+     leanFirstReq (factsOf [.stub, .noKill])),
+   (s!"stub: the property's own implementation is unreached though a lemma of the land is reached {at_}",
+     leanFirstReq (factsOf [.stub])),
+   (s!"directory glob apps/runner/** over decision code with no property: no-props {at_}",
+     leanFirstReq (factsOf [.dirGlob])),
+   (s!"globs only under docs/ and research/ with no property: not decision code {at_}",
+     leanFirstReq (factsOf [.docsGlob])),
+   (s!"a candidate theorem without reachFromWire: missing reach {at_}", leanFirstReq (factsOf [.reachUnknown])),
+   (s!"exempt.tsv and killOf read at branch commit b, not main m: missing exempt-main {at_}",
+     leanFirstReq (factsOf [.exemptBranch])),
+   (s!"exempt.tsv and killOf never read (no exemptAt): missing exempt-main {at_}",
+     withField "exemptAt" .null (leanFirstReq base)),
+   (s!"request stage field ratchet is ignored: same reply as all rules met {at_}",
+     withField "stage" (.str "ratchet") (leanFirstReq base)),
+   (s!"request stage field ratchet is ignored on a stub {at_}",
+     withField "stage" (.str "ratchet") (leanFirstReq (factsOf [.stub]))),
+   (s!"unknown stage name is ignored, not refused {at_}", lit "{\"stage\":\"strict\"}"),
+   (s!"untested premise shared with the property: WARN line {at_}", leanFirstReq (factsOf [.untestedShared])),
+   (s!"a line break in a theorem name is printed as a space {at_}", leanFirstReq (factsOf [.newlineName, .noKill])),
+   (s!"empty request: every source missing {at_}", lit "{}"),
+   ("unknown sign-off role is refused",
+     lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"docHash\":\"d\",\"role\":\"lead\",\"agree\":true}]}"),
+   ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
+
+/-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
+def named : List (String × String × String × List (String × Json)) := [
+  ("ops", "lean-first", "ops.leanFirst", leanFirstCases)]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
@@ -304,8 +628,9 @@ def dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
 /-- Compare (or write) every golden file; returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let mut stale := 0
-  for (sub, op, cs) in cases.map (fun (op, cs) => ("ops", op, cs)) ++ extra do
-    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{op}.jsonl"
+  for (sub, stem, op, cs) in cases.map (fun (op, cs) => ("ops", op, op, cs)) ++
+      extra.map (fun (sub, op, cs) => (sub, op, op, cs)) ++ named do
+    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{stem}.jsonl"
     if write then IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / sub)
     let text := fileText op cs
     if write then
@@ -315,8 +640,9 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
       if cur != text then
         IO.println s!"ops golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/OpsGolden.lean)"
         stale := stale + 1
-  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0
-  IO.println s!"ops golden: {cases.length + extra.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
+  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0 +
+    named.foldl (fun a c => a + c.2.2.2.length) 0
+  IO.println s!"ops golden: {cases.length + extra.length + named.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
   return stale
 
 end Fw.Wire.Ops.Golden

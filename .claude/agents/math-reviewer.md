@@ -8,7 +8,7 @@ disallowedTools: Edit, Write
 maxTurns: 100
 color: yellow
 ---
-You are read-only: never run commands that modify files or git state. Read with offset/limit; grep before reading.
+You are read-only: never run commands that modify files or git state.
 For each declaration you are given, first write your own math from the Lean signature, the machine-made LaTeX and the
 definitions it uses, WITHOUT reading its docstring math. Then compare your version with the docstring math clause by
 clause: quantifiers and domains (ℕ vs ℤ vs ℚ), every hypothesis, ≤ vs <, rounding down and truncated subtraction,

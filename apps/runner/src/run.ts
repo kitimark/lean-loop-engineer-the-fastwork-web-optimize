@@ -66,7 +66,7 @@ function fwcoreBin(cwd: string): string {
   const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).stdout.trim();
   const cands = [process.env.FW_CORE_BIN, top && join(top, rel), common && join(dirname(common), rel)].filter((x): x is string => !!x);
   const bin = cands.find((p) => existsSync(p));
-  if (!bin) throw new Error("fwcore not built: cd lean && lake build");
+  if (!bin) throw new Error("fwcore not built: sh scripts/fwcore-build.sh");
   return bin;
 }
 
@@ -263,11 +263,13 @@ export async function latestRun(gh: Gh, workflow: string, ref: string): Promise<
   return rows[0] ? { id: String(rows[0].databaseId), createdAt: rows[0].createdAt ?? "", workflowName: rows[0].workflowName ?? "" } : null;
 }
 
-/** The run id of a decided wait; a run that did not succeed stops the command (like `gh run watch --exit-status`). */
+/** The run id of a decided wait; a run that did not pass (fwcore `ci.verdict`) stops the command (like `gh run watch
+ *  --exit-status`): a failure, and also a run whose guard skipped (exit 4, not run), which GitHub calls `success`. */
 function decided(engine: string, w: Waited): string {
   const id = runLine.exec(w.lines[0] ?? "")?.[1];
   if (w.code === 0 && id) return id;
-  throw new Error(`${engine}: ${w.code === 1 ? "the run did not succeed: " : "cannot wait for the run: "}${w.lines.join("; ")}`);
+  const why = w.code === 1 ? "the run did not succeed: " : w.code === 4 ? "the run did not run (its guard skipped): " : "cannot wait for the run: ";
+  throw new Error(`${engine}: ${why}${w.lines.join("; ")}`);
 }
 
 /** Count reduction and verdict: base and var runs per engine -> fwcore's `store.reduce`. */

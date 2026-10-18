@@ -16,8 +16,15 @@
 4. `prelock: false` (option) = the old protocol only. The card fast-forward path (no `--task`) is unchanged.
 
 TS stand-in, marked for Lean replacement: `prelockAction` (no fwcore op yet); checked against the `landSpeed.prelock` golden.
+First-in-first-out landing: `land-queue.md`.
 
-## `--dry` and verdict lines (task `land-dry`)
+## `--dry` and verdict lines
+
+Hand-back rule: before an agent hands a branch back it merges `main` into it and runs `pnpm fw land <branch> --task <id>
+[--allow <glob>]... --dry`, and hands back only when the last line is `VERDICT dry <id>` (exit 0). Other kinds are fixed
+first: `stale` = merge main again, `scope` = declare the write or pass `--allow`, `reads` = declare the read in the
+premise, `conflict` = resolve. Lean `handback_pass_land_pass`: if the dry land passes and main has not moved, the real
+land's scope, merge and reads stages pass.
 
 `pnpm fw land <branch> --task <id> --dry` runs the real land's cheap stages on the same merge-tree commit: stale base (the branch must contain main), scope, merge and conflict markers, and the static reads test (`land-inputs.test.ts`) when the change selects `apps/runner`. It takes no lock, writes no queue entry and never moves main; the checks run in a land worktree slot (a pid claim). Lean: `Fw.Console.LandDry` (`dry_pass_land_pass`, `dry_refusal_is_land_refusal`, `handback_pass_land_pass`).
 
@@ -25,22 +32,24 @@ Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code
 
 | kind | exit | meaning |
 |---|---|---|
-| done, dry, queued | 0 | landed, dry land passes, queued |
+| done, dry, queued, empty | 0 | landed, dry land passes, queued, the branch has no commit of its own (nothing to land) |
 | busy 10, dirty 11 | 10, 11 | retryable: the lock or the main checkout is in the way |
-| scope 12, reads 13, conflict 14, checks 15, stale 16 | 12-16 | fix the branch |
+| scope 12, reads 13, conflict 14, checks 15, stale 16, lint 17 | 12-17 | fix the branch (lint: a fast lint failed) |
 | unknown | 2 | anything else |
 
-Scripts read the word after `VERDICT` or the exit code, never prose. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
+Scripts read the word after `VERDICT` or the exit code, never prose. A dry run (also one that throws or is refused before any stage) prints
+exactly one `VERDICT` line, last: `fw.ts` prints the lines Lean `dryRun` returns for the seven stage outcomes that `land.ts` computes
+(Lean `dryRun_one_verdict`; a thrown exception is the outcome `threw`, kind `unknown`). Not proved: that `land.ts` computes the outcomes
+truthfully (tests only). A non-dry land prints its VERDICT line in `fw.ts` as before (tests, not a theorem).
 
-## `--queue`: lands in first-in-first-out order (task `land-queue`)
+### The dry land's fast lints
 
-`pnpm fw land --queue <branch> --task <id> [--allow <glob>]... [--no-run]` appends one `enq` line to `.fw-console/land-queue.jsonl` (a task already pending is not added twice), then becomes the single runner if no live runner holds `.fw-console/land-queue.runner`, and lands the pending entries head first. `--no-run` only enqueues. `pnpm fw land --queue-status` prints one `VERDICT queued <task>` per pending entry and `VERDICT <kind> <task>` for the last result of each finished one.
+After the reads stage the dry land runs, in the merge-tree worktree (never the main checkout), the fast lints that refused real lands:
+`node scripts/ci-paths.mjs --check` (0.1 s) and, when the change touches `lean/`, the math-view lint the way `lean/scripts/check.sh` runs it
+(`lean/scripts/mathview-cached.sh --build`: whole-tree cache, per-module store; an incremental `lake build` only on a cache miss; no
+`fwtest`, no tests). A failure is `VERDICT lint` (exit 17). Which lints run is Lean `lintPlan`. Order (Lean `Outcome.first`): exception, stale, empty (no own commits), scope, conflict, reads,
+lint, dry (`kind_spec`: the kind is the first failing stage in that order); `dry_pass_all`: dry means every one of them passed. A real
+land prints `lint` too when a failed check reports only the `check.sh` stages `lake build` / `mathview lint` (Lean `checkFailKind`,
+`dry_kind_is_real_kind`); the real land has no `ci-paths` check, so a `ci-paths` failure has no real counterpart. Glue: `dryLintArgv` in `apps/runner/src/land.ts`; tests inject `dryLints`.
+Cost: see the handoff note `docs/team/handoffs/land-dry-full.md`. TS stand-in `apps/runner/src/land-verdict.ts`, checked against `packages/contracts/golden/console/land-dry.jsonl`.
 
-- The log is the only state: `enq` and `res` lines; the pending list is their fold (Lean `Fw.Console.LandQueue`: `enq_idem`, `enq_appends`, `res_head`, `pending_nodup`).
-- The runner retries an entry only for `busy` and `dirty`, at most 5 attempts (`retryAfter_iff`, `retryAfter_bounded`, `retryAfter_final`); it reads the kind from the land's result, never from its text.
-- The runner lock holds (pid, start time of `ps -o lstart= -p <pid>`); a holder is live only when the start time now at that pid is the recorded one (`runnerLive_iff`). No process is found by a command-line pattern.
-- `fw watch` / `fw next` raise no `agent.unlanded` for a branch that is a pending entry (`Fw.Obs.Next.no_unlanded_while_queued`, fact `landQueued`).
-- The exit code of `--queue` is the kind of this task's result, or 0 with `VERDICT queued` when another runner (or `--no-run`) will land it.
-
-Fixture measure (3 tiny branches, real land, no CI, in-process, local debug run, not a result): queue overhead about 10 ms per land.
-TS stand-in `apps/runner/src/land-queue.ts`, checked against `packages/contracts/golden/console/land-queue.jsonl`.

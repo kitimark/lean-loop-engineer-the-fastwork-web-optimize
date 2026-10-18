@@ -19,7 +19,7 @@ cd lean && lake test                          # fail if a file is stale or a cas
   `task.define` in dependency order, then a query). Written from the JSON at generation time; the
   check replays the stored requests and compares the stored replies, so a later edit of the work
   graph does not make it stale (regenerate to refresh it).
-* `workflow.jsonl`: `Fw.Plan.wfEvents` vectors, one per line `{name, ids, scripts, runs, events}`: the
+* `workflow.jsonl`: `Fw.Plan.wfAllEvents` vectors, one per line `{name, ids, scripts, runs, events}`: the
   agent events of workflow runs from the file names of the session's `workflows/` dir (task
   `workflow-claim`). Checked byte for byte.
 * `sync.jsonl`: `Fw.Plan.syncFrom` vectors, one per line `{name, main, refs, last, from}`, for the
@@ -248,27 +248,41 @@ def syncLine (c : String × String × List (String × String) × Option String) 
 /-- The text of `sync.jsonl`. -/
 def syncText : String := String.join (syncCases.map fun c => syncLine c ++ "\n")
 
-/-- The workflow vectors (`Fw.Plan.wfEvents`): name, task ids, script file names, run file names. -/
-def wfCases : List (String × List String × List String × List String) := [
+/-- A journal line vector. -/
+def jl (run id : String) (started : Bool) (label : String) : Fw.Plan.JLine := { run, id, started, label }
+
+/-- The workflow vectors (`Fw.Plan.wfAllEvents`): name, task ids, script file names, run file names, journal lines. -/
+def wfCases : List (String × List String × List String × List String × List Fw.Plan.JLine) := [
   ("a running workflow named like a task spawns it", ["mistake-retro", "x"],
-    ["mistake-retro-wf_b3d4e643-ace.js"], []),
+    ["mistake-retro-wf_b3d4e643-ace.js"], [], []),
   ("its run file adds the stop", ["mistake-retro"],
-    ["mistake-retro-wf_b3d4e643-ace.js"], ["wf_b3d4e643-ace.json"]),
+    ["mistake-retro-wf_b3d4e643-ace.js"], ["wf_b3d4e643-ace.json"], []),
   ("a name that is no task id gives nothing", ["x"],
-    ["agent-bottlenecks-wf_05e58d40-de0.js", "x-y-wf_05e58d40-de0.js"], []),
+    ["agent-bottlenecks-wf_05e58d40-de0.js", "x-y-wf_05e58d40-de0.js"], [], []),
   ("hyphens in the name; two runs; the run file of another run stops only that one", ["wave-next-builders", "a"],
-    ["wave-next-builders-wf_eaf1cd1e-ed1.js", "a-wf_c2b8a932-977.js"], ["wf_c2b8a932-977.json"]),
-  ("the same script twice is one run", ["a"], ["a-wf_c2b8a932-977.js", "a-wf_c2b8a932-977.js"], []),
+    ["wave-next-builders-wf_eaf1cd1e-ed1.js", "a-wf_c2b8a932-977.js"], ["wf_c2b8a932-977.json"], []),
+  ("the same script twice is one run", ["a"], ["a-wf_c2b8a932-977.js", "a-wf_c2b8a932-977.js"], [], []),
   ("malformed file names are ignored", ["a"],
     ["a-wf_c2b8a932-977.json", "-wf_c2b8a932-977.js", "a-wf_C2b8a932-977.js", "a-wf_c2b8a932-97.js", "a.js", "a-wf_c2b8a932-977.js.bak"],
-    ["wf_c2b8a932-977.js", "wf_zz.json", "notes.json"])]
+    ["wf_c2b8a932-977.js", "wf_zz.json", "notes.json"], []),
+  ("a label <phase>:<task> binds that task while the agent runs; a result line ends it", ["engine-model-fix", "integrate-ports", "x"],
+    ["integrate-and-engine-fix-wf_b37180a7-494.js"], [],
+    [jl "wf_b37180a7-494" "a1" true "build:engine-model-fix", jl "wf_b37180a7-494" "a2" true "build:integrate-ports",
+     jl "wf_b37180a7-494" "a1" false "", jl "wf_b37180a7-494" "a3" true "review", jl "wf_b37180a7-494" "a4" true "verify:nope"]),
+  ("the run file ends every agent of the run; the meta.name binding is kept", ["guard", "w", "v"],
+    ["guard-wf_b37180a7-494.js"], ["wf_b37180a7-494.json"],
+    [jl "wf_b37180a7-494" "a1" true "fix:w", jl "wf_b37180a7-494" "a1" true "fix:w", jl "wf_b37180a7-494" "a2" true "x:y:v",
+     jl "wf_b37180a7-494" "a3" true "w:", jl "wf_b37180a7-494" "a5" false "fix:v", jl "bad" "a6" true "fix:v"])]
 
-/-- One workflow line: `{name, ids, scripts, runs, events: [{key, type, agent}]}`. -/
-def wfLine (c : String × List String × List String × List String) : String :=
-  let (n, ids, ss, rs) := c
-  (Json.mkObj [("name", .str n), ("ids", strsJson ids), ("scripts", strsJson ss), ("runs", strsJson rs),
-    ("events", .arr ((Fw.Plan.wfEvents ids ss rs).toArray.map fun (k, t, a) =>
-      Json.mkObj [("key", .str k), ("type", .str t), ("agent", .str a)]))]).compress
+/-- One workflow line: `{name, ids, scripts, runs, [journal: [{run, id, started, label}]], events: [{key, type, agent}]}` (`Fw.Plan.wfAllEvents`; no `journal` field = none). -/
+def wfLine (c : String × List String × List String × List String × List Fw.Plan.JLine) : String :=
+  let (n, ids, ss, rs, js) := c
+  let jsJson : List (String × Json) := if js.isEmpty then [] else
+    [("journal", .arr (js.toArray.map fun j => Json.mkObj [("run", .str j.run), ("id", .str j.id),
+      ("started", .bool j.started), ("label", .str j.label)]))]
+  (Json.mkObj ([("name", .str n), ("ids", strsJson ids), ("scripts", strsJson ss), ("runs", strsJson rs),
+    ("events", .arr ((Fw.Plan.wfAllEvents ids ss rs js).toArray.map fun (k, t, a) =>
+      Json.mkObj [("key", .str k), ("type", .str t), ("agent", .str a)]))] ++ jsJson)).compress
 
 /-- The text of `workflow.jsonl`. -/
 def wfText : String := String.join (wfCases.map fun c => wfLine c ++ "\n")

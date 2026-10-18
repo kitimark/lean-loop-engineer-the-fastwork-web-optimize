@@ -1,8 +1,9 @@
 import Fw.Ops.Golden
 /-!
-# Golden vectors of `ops.admit`, `ops.gate` and `metrics.*`
+# Golden vectors of `ops.admit`, `ops.gate`, `ops.taskAdmit` and `metrics.*`
 
-`packages/contracts/golden/ops/{admit,metrics,gate}.jsonl`: one
+`packages/contracts/golden/ops/{admit,metrics,gate}.jsonl` and
+`packages/contracts/golden/sched/task-admit.jsonl` (`ops.taskAdmit`, task admit-reads): one
 line per case, `{"name", "request", "response"}`, where `request` carries its `op` and `response`
 is what `fwcore` replies (without the `id`). Generated from Lean, never by hand:
 
@@ -181,6 +182,53 @@ def metricsCases : List (String × String × Json) := [
   ("benchVerdict: seed 69", "metrics.benchVerdict", lit "{\"seed\":69,\"ms\":[3,1,4,1,5,9,2,6]}"),
   ("busy: a non-integer bound is refused", "metrics.busy", lit "{\"a\":0.5,\"b\":10,\"ivs\":[]}")]
 
+/-- A task as JSON fields, for the `ops.taskAdmit` cases. -/
+def task (id : String) (writes : List String) (reads : List String := []) : Json :=
+  Json.mkObj [("id", .str id), ("writes", toJson writes), ("reads", toJson reads)]
+
+/-- The write globs of the incident pair of 2026-10-18 (docs/team/work-graph.json at that day). -/
+def wktrFixtureSpeed : Json := task "wktr-fixture-speed"
+  [".github/workflows/wktr-fixtures.yml", "packages/measure-wktr/fixtures/**", "packages/measure-wktr/src/**",
+   "packages/measure-wktr/test/premise.test.mjs", "lean/Fw/Measure/WktrLayout.lean", "lean/Fw.lean",
+   "lean/Fw/Wire/WktrFixturesGolden.lean", "lean/scripts/WktrFixturesGolden.lean",
+   "packages/contracts/golden/measure/wktr.fixtures.jsonl", "lean/Fw/Ci/Trigger.lean",
+   "packages/contracts/golden/ci/triggers.jsonl", "docs/team/handoffs/wktr-fixture-speed.md"]
+
+/-- The second task of the incident pair. -/
+def enginePremiseMeasure : Json := task "engine-premise-measure"
+  ["lean/Fw/Ops/Premise.lean", "packages/measure-*/**", "packages/premise-tests/**", ".github/workflows/**",
+   "research/findings/ledger.json"]
+
+/-- The `ops.taskAdmit` cases (golden/sched/task-admit.jsonl): (name, request without op). -/
+def taskAdmitCases : List (String × Json) := [
+  ("incident 2026-10-18 replay: both running, the pair is reported (first clash: both write .github/workflows)",
+   Json.mkObj [("running", .arr #[wktrFixtureSpeed, enginePremiseMeasure])]),
+  ("incident pair, one running: the other is refused with the first clash",
+   Json.mkObj [("running", .arr #[wktrFixtureSpeed]), ("candidates", .arr #[enginePremiseMeasure])]),
+  ("empty running set admits everything (admit_eventually, drained)",
+   Json.mkObj [("running", .arr #[]), ("candidates", .arr #[wktrFixtureSpeed, enginePremiseMeasure])]),
+  ("disjoint literal prefixes are admitted",
+   Json.mkObj [("running", .arr #[task "a" ["apps/site/**"]]),
+               ("candidates", .arr #[task "b" ["lean/Fw/Sched/Admit.lean", "packages/contracts/golden/sched/**"]])]),
+  ("a write under a running read is refused (wr)",
+   Json.mkObj [("running", .arr #[task "r" ["docs/r.md"] ["packages/measure-wktr/src/cli.mjs"]]),
+               ("candidates", .arr #[task "w" ["packages/measure-wktr/src/**"]])]),
+  ("a read under a running write is refused (rw)",
+   Json.mkObj [("running", .arr #[task "w" ["packages/measure-wktr/src/**"]]),
+               ("candidates", .arr #[task "r" ["docs/r.md"] ["packages/measure-wktr/src/cli.mjs"]])]),
+  ("two readers of one file do not conflict",
+   Json.mkObj [("running", .arr #[task "r1" [] ["lean/Fw/A.lean"]]), ("candidates", .arr #[task "r2" [] ["lean/Fw/A.lean"]])]),
+  ("conservative: a wildcard in the middle overlaps at its literal prefix",
+   Json.mkObj [("running", .arr #[task "a" ["packages/*/src/a.ts"]]), ("candidates", .arr #[task "b" ["packages/x/test/b.ts"]])]),
+  ("sibling wildcard segments do not overlap when the literal prefixes differ",
+   Json.mkObj [("running", .arr #[task "a" ["packages/measure-wktr/**"]]),
+               ("candidates", .arr #[task "b" ["packages/measure-chromium/**"]])]),
+  ("per-agent scratch directories are disjoint",
+   Json.mkObj [("running", .arr #[task "a" ["scratchpad/admit-reads/**"]]),
+               ("candidates", .arr #[task "b" ["scratchpad/land-dry-full/**"], task "c" ["scratchpad/**"]])]),
+  ("a task without writes or reads is always admitted",
+   Json.mkObj [("running", .arr #[enginePremiseMeasure]), ("candidates", .arr #[task "idle" []])])]
+
 /-- The text of one golden file. -/
 def fileText (cs : List (String × String × Json)) : String :=
   String.join (cs.map fun (name, op, req) =>
@@ -194,13 +242,22 @@ def files : List (String × List (String × String × Json)) :=
 /-- The golden directory, relative to `lean/`. -/
 def dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
 
-/-- Compare (or write) both golden files; returns the number of stale files. -/
+/-- The `golden/sched` files (task admit-reads): (file stem, cases). -/
+def schedFiles : List (String × List (String × String × Json)) :=
+  [("task-admit", taskAdmitCases.map fun (n, r) => (n, "ops.taskAdmit", r))]
+
+/-- The `golden/sched` directory, relative to `lean/`. -/
+def schedDir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "sched"
+
+/-- Compare (or write) the golden files of both directories; returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
-  let d := root / dir
-  if write then IO.FS.createDirAll d
+  if write then
+    IO.FS.createDirAll (root / dir)
+    IO.FS.createDirAll (root / schedDir)
   let mut stale := 0
-  for (stem, cs) in files do
-    let p := d / s!"{stem}.jsonl"
+  let all := files.map (fun f => (dir, f)) ++ schedFiles.map (fun f => (schedDir, f))
+  for (sub, stem, cs) in all do
+    let p := root / sub / s!"{stem}.jsonl"
     let text := fileText cs
     if write then
       IO.FS.writeFile p text
@@ -212,8 +269,8 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
   for name in gateGuardMismatches do
     IO.println s!"sched golden: ops.gate case '{name}': guard differs from the ops.spawn reply"
     stale := stale + 1
-  let n := files.foldl (fun a c => a + c.2.length) 0
-  IO.println s!"sched golden: {files.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
+  let n := all.foldl (fun a c => a + c.2.2.length) 0
+  IO.println s!"sched golden: {all.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
   return stale
 
 end Fw.Wire.Sched.Golden
