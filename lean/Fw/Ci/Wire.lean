@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Ci.Budget
+import Fw.Ci.Verdict
 import Fw.Ops.Wire
 /-!
 # JSON codecs and the ops `ci.budget.*` (the GitHub request budget of the CI poller)
@@ -19,6 +20,7 @@ and passes it to the next call.
 | `ci.budget.step` | `now`, `state`?, `event` Event | `state` |
 | `ci.budget.status` | `now`, `state`? | `limits`, `shares`, `used`, `interval`, `headroom`, `retryUntil`, `fails`, `watched`, `createdSince`, `state` |
 | `ci.budget.limits` | (nothing) | `limits` |
+| `ci.verdict` | `runs` [{`guard`, `steps` [{`name`, `conclusion`}], `jobs` [string]}] | `runs` [{`verdict`, `code`, `reason`}], `verdict`, `code` (`Fw.Ci.Verdict`) |
 
 Shapes. Decision: `{decision:"issue", kind:"tick"|"oneoff", cost, state}` (the state with the charge booked; on a
 tick every watched run is covered), `{decision:"wait", until, reason, state}` or `{decision:"stop", reason, state}`;
@@ -201,9 +203,39 @@ def opStatus (req : Json) : Except String Reply := do
 /-- `ci.budget.limits`: the limits (`Fw.Ci.Budget.defaults`). -/
 def opLimits (_req : Json) : Except String Reply := pure [("limits", limitsJson defaults)]
 
+/-! ## `ci.verdict` (`Fw.Ci.Verdict`) -/
+
+/-- A conclusion field (absent or `null`, e.g. still running: `""`, which folds to failure). -/
+def conclField (j : Json) (k : String) : Except String Fw.Ci.Verdict.Concl := do
+  pure (Fw.Ci.Verdict.conclOf ((← optStr j k).getD ""))
+
+/-- A guard step `{name, conclusion}`. -/
+def stepOf (j : Json) : Except String (String × Fw.Ci.Verdict.Concl) := do
+  pure (← str j "name", ← conclField j "conclusion")
+
+/-- One run's verdict as JSON: `{verdict, code, reason}`. -/
+def runVerdict (j : Json) : Except String (Fw.Ci.Verdict.Verdict × Json) := do
+  let g ← conclField j "guard"
+  let steps ← (← arrD j "steps").mapM stepOf
+  let jobs ← (← arrD j "jobs").mapM fun v => do pure (Fw.Ci.Verdict.conclOf (← asStr "jobs" v))
+  let v := Fw.Ci.Verdict.verdict ⟨g, Fw.Ci.Verdict.decisionOf steps, jobs⟩
+  let reason := if v == .notRun then Fw.Ci.Verdict.reasonOf g steps else ""
+  pure (v, Json.mkObj [("verdict", .str (Fw.Ci.Verdict.name v)), ("code", jn (Fw.Ci.Verdict.code v)),
+    ("reason", .str reason)])
+
+/-- `ci.verdict`: request `{runs:[{guard, steps:[{name, conclusion}], jobs:[conclusion]}]}` (`guard`: the guard job's
+conclusion; `steps`: its steps; `jobs`: every other job's conclusion); reply `{runs:[{verdict, code, reason}], verdict,
+code}` with the combined verdict (`Fw.Ci.Verdict.combine`). -/
+def opVerdict (req : Json) : Except String Reply := do
+  let rs ← (← arrD req "runs").mapM runVerdict
+  let v := Fw.Ci.Verdict.combine (rs.map (·.1))
+  pure [("runs", .arr (rs.map (·.2)).toArray), ("verdict", .str (Fw.Ci.Verdict.name v)),
+    ("code", jn (Fw.Ci.Verdict.code v))]
+
 /-- The ops of this module. -/
 def ops : List String :=
-  ["ci.budget.reserve", "ci.budget.next", "ci.budget.observe", "ci.budget.step", "ci.budget.status", "ci.budget.limits"]
+  ["ci.budget.reserve", "ci.budget.next", "ci.budget.observe", "ci.budget.step", "ci.budget.status", "ci.budget.limits",
+    "ci.verdict"]
 
 /-- Dispatch a `ci.budget.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -214,6 +246,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ci.budget.step" => some (opStep req)
   | "ci.budget.status" => some (opStatus req)
   | "ci.budget.limits" => some (opLimits req)
+  | "ci.verdict" => some (opVerdict req)
   | _ => none
 
 /-! ## Examples -/
@@ -278,5 +311,13 @@ def sample : State where
 #guard runField "ci.budget.limits" "{}" "limits" ==
   "{\"B\":3000,\"B1\":60,\"F\":500,\"Pmin\":30,\"R\":1200,\"R1\":40,\"W\":3600,\"W1\":60,\"back0\":60,\"backMax\":3600,\"listCost\":2,\"maxFails\":6,\"shares\":{\"oneoff\":{\"hour\":1200,\"minute\":40},\"tick\":{\"hour\":1800,\"minute\":20}}}"
 #guard runField "ci.budget.status" "{\"now\":100}" "interval" == "30"
+-- a run whose guard was skipped at its if: is not run (code 4), with the reason
+#guard run "ci.verdict" "{\"runs\":[{\"guard\":\"skipped\",\"jobs\":[\"skipped\"]}]}" ==
+  "{\"code\":4,\"runs\":[{\"code\":4,\"reason\":\"guard if: the head commit does not ask for this lane\",\"verdict\":\"not-run\"}],\"verdict\":\"not-run\"}"
+#guard runField "ci.verdict" "{\"runs\":[{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: run\",\"conclusion\":\"success\"}],\"jobs\":[\"success\",\"skipped\"]}]}" "verdict" == "\"pass\""
+#guard runField "ci.verdict" "{\"runs\":[{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: skip: no input changed\",\"conclusion\":\"success\"}],\"jobs\":[\"skipped\"]}]}" "runs" ==
+  "[{\"code\":4,\"reason\":\"no input changed\",\"verdict\":\"not-run\"}]"
+#guard runField "ci.verdict" "{\"runs\":[{\"guard\":\"success\",\"jobs\":[\"success\",\"failure\"]},{\"guard\":\"skipped\"}]}" "code" == "1"
+#guard runField "ci.verdict" "{\"runs\":[]}" "code" == "4"
 
 end Fw.Wire.Ci
