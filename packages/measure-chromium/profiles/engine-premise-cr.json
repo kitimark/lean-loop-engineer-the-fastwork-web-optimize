@@ -1,6 +1,6 @@
 {
   "id": "engine-premise-cr",
-  "about": "Engine premise fixture (task engine-premise-measure): one frame per step of golden/ops/engine-premises.jsonl (65 table cases plus 7 extra cases of task engine-model-fix-2: one timer, three joins, three two-box frames; each followed by an idle frame = 144 frames). The page (src/premise-fixture.mjs) acts once per frame from window.__fwStep(n); no scroll, no input.",
+  "about": "Engine premise fixture (task engine-premise-measure): one frame per step of golden/ops/engine-premises.jsonl (65 table cases plus 7 extra cases of task engine-model-fix-2: one clock-shim control (shimTimer), three joins, three two-box frames; each followed by an idle frame = 144 frames). The page (src/premise-fixture.mjs) acts once per frame from window.__fwStep(n); no scroll, no input.",
   "hz": 60,
   "viewport": { "width": 430, "height": 932, "dpr": 3, "mobile": true, "touch": true },
   "pinnedDate": "2026-10-01T00:00:00+07:00",

@@ -484,15 +484,14 @@ open Fw.Engine.Chromium in
 (the model's `base`); the variant's frame is zero.**
 
 Changed since CI run 39088367495: the tick paid only `script`; the engine-premises lane MEASURED a PrePaint pass on
-every script-only frame (`chromiumAt.base = [props]`).
+script-only rAF frame (`chromiumAt.base = [props]`).
 
 $$\forall s \in \mathrm{Stage}:\ \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{passes}(s) = [s \in \{\mathrm{script}, \mathrm{props}\}] \land \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0)).\mathrm{units}(s) = [s = \mathrm{script}]$$
 $$\land\ \operatorname{frameWork}_{\mathrm{cr}}(\mathrm{idle}) \prec \operatorname{frameWork}_{\mathrm{cr}}(\operatorname{withTick}(\mathrm{idle}, 1, 0, 0))$$
 
 On Chromium, each hidden 3 s tick is, in the model, one timer callback and one PrePaint pass the variant no longer
-runs. Not MEASURED for a tick that changes nothing: an empty `setTimeout(0)` frame ran no `PrePaint` and no traced
-`FunctionCall` (CI run 39124427211, `Fw.Ops.EnginePremise.cr_extra_cells`), so the PrePaint saving is an over-count
-and the script saving is not observed by the lane's counters. -/
+runs. OPEN for a timer task: the base rule is MEASURED on rAF frames only, and no lane has run a Chromium timer task
+(the engine-premises `shimTimer` step is the clock shim's plain call, `Fw.Ops.EnginePremise.Act`). -/
 theorem cr_idle_tick :
     (∀ s : Stage, (frameWork chromium (withTick idle 1 0 0)).passes s =
         (if s = .script ∨ s = .props then 1 else 0) ∧

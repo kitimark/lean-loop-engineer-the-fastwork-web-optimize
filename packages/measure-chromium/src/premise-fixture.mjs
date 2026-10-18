@@ -4,9 +4,11 @@
 //   node src/premise-fixture.mjs --engine chromium --out <dir>     writes <dir>/index.html
 //
 // The page does exactly what the step says, once per frame: set one inline property (`set`; a step with `more` also sets
-// one property on each extra box `e<step>_<j>`), register one rAF callback (`raf`), post one empty setTimeout(0) callback
-// (`timer`), call document.elementFromPoint (`hit`), or nothing (`idle`). Chromium: the driver calls window.__fwStep(n) inside
-// frame n's mark window (run.mjs input mode "page"). WebKit: the WKTR harness calls it from its rAF (packages/measure-wktr).
+// one property on each extra box `e<step>_<j>`), register one rAF callback (`raf`), pass an empty callback to the page's
+// setTimeout(0) (`shimTimer`), call document.elementFromPoint (`hit`), or nothing (`idle`). Chromium: the driver calls
+// window.__fwStep(n) inside frame n's mark window (run.mjs input mode "page"). WebKit: the WKTR harness calls it from its rAF
+// (packages/measure-wktr). In the Chromium lane setTimeout is the clock shim's (clock-shim.js), whose advanceTo runs the
+// callback as a plain call in the same evaluate (run.mjs frame()), so `shimTimer` is a harness control, not a timer task.
 // Pure apart from the CLI; no site code, no decisions (what to do and what to expect are the golden's).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -54,7 +56,7 @@ ${boxes}
       for (const x of s.m || []) document.getElementById(x.id).style.setProperty(x.p, x.v);
     }
     else if (s.a === 'raf') requestAnimationFrame(function () {});
-    else if (s.a === 'timer') setTimeout(function () {}, 0);
+    else if (s.a === 'shimTimer') setTimeout(function () {}, 0);
     else if (s.a === 'hit') document.elementFromPoint(10, 10);
     return s.a;
   };

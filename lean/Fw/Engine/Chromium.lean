@@ -165,8 +165,8 @@ $$\max(a, b) = \begin{cases} b & a \le b \\ a & a \not\le b \land b \le a \\ \ma
 
 The second level if it is above the first, else the first if it is above the second, else the top level. For
 comparable levels the join's stages are the union of both (`Fw.Ops.EnginePremise.max_stages_of_comparable`), which
-CI run 39124427211 MEASURED on two comparable joins. The incomparable case is an upper bound only: the one measured
-pair, `top` and `scale` read through one custom property on an own-layer box, ran no `Paint` and no `RasterTask`
+CI run 39124427211 MEASURED on two comparable joins. The incomparable case is refuted on the one pair measured:
+`top` and `scale` read through one custom property on an own-layer box ran no `Paint` and no `RasterTask`
 (`Fw.Ops.EnginePremise.cr_extra_cells`).
 -/
 def CrLevel.max (a b : CrLevel) : CrLevel := if a ≤ b then b else if b ≤ a then a else .layoutFull
@@ -278,9 +278,9 @@ script callback) runs PrePaint, which `LocalFrameView::RunPrePaintLifecyclePhase
 compositing inputs (`B/core/frame/local_frame_view.cc:2586`@f842f52, CONFIRMED; MEASURED: a script-only rAF frame
 runs PrePaint in 3 of 3 passes, CI run 39088367495). Until that run the base was empty. A main frame with no change
 commits nothing (MEASURED cc.Commit 0 with only compositor animations, README:146-148, and in the script-only frame),
-so `commit` comes from the changes. The base rule is MEASURED for rAF callbacks only: a frame whose only work is
-one empty `setTimeout(0)` callback ran no `PrePaint` (and no traced `FunctionCall`) in 3 of 3 passes, CI run
-39124427211 (`Fw.Ops.EnginePremise.cr_extra_cells`), so the model over-counts such a timer frame.
+so `commit` comes from the changes. The base rule is MEASURED for rAF callbacks only; for a timer task it is OPEN (the
+lane's `shimTimer` step runs its callback through the virtual clock shim inside the driver's evaluate, not as a
+Chromium timer task: `Fw.Ops.EnginePremise.Act`).
 
 $$\operatorname{chromiumAt}(m) = \big(m,\ \operatorname{stagesOf}_{\mathrm{cr}},\ \operatorname{compStages}(m),\ [\mathrm{props}]\big)$$
 
