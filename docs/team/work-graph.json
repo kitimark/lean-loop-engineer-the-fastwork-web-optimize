@@ -4066,6 +4066,29 @@
     "docs/team/tools/**",
     "docs/team/handoffs/task-state-truth.md"
    ]
+  },
+  {
+   "id": "task-preview",
+   "title": "(M) console task detail for port-/fix- tasks (state, agent, branch, commits, handoff, gate cells) + owner-only preview server per task: Lean decides target commit, ports, TTL, at most K previews, kill only own PIDs; side by side with the original snapshot for manual testing",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "evidence-on-main"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Console/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/**",
+    "apps/console-api/**",
+    "apps/console-web/**",
+    "apps/runner/**",
+    "docs/team/tools/**",
+    "docs/team/handoffs/task-preview.md",
+    "research/notes/**"
+   ]
   }
  ],
  "deadline": {
