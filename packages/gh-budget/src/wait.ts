@@ -62,12 +62,12 @@ const lanesMode = (t: Target): boolean => t.kind === "branch" && t.workflow === 
 const msgOf = (t: Target): string | null => (t.kind === "branch" ? t.msg ?? null : null);
 
 /** Which rows decide the wait: the run; in lanes mode the newest run of each workflow for the exact commit; else the
- *  newest run of the workflow on the branch created after the commit. */
+ *  newest run of the workflow on the branch for the exact commit, created after it. */
 export function relevant(rows: Row[], t: Target): Row[] {
   if (t.kind === "run") return rows.filter((r) => r.databaseId === t.runId);
   const mine = lanesMode(t)
     ? rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha))
-    : rows.filter((r) => r.headBranch === t.branch && (t.workflow === undefined || r.workflowName === t.workflow) && epoch(r.createdAt) >= t.since);
+    : rows.filter((r) => r.headBranch === t.branch && r.headSha.startsWith(t.sha) && (t.workflow === undefined || r.workflowName === t.workflow) && epoch(r.createdAt) >= t.since);
   const newest = new Map<string, Row>();
   for (const r of mine) { const k = r.workflowName; if (!newest.has(k) || r.databaseId > newest.get(k)!.databaseId) newest.set(k, r); }
   return [...newest.values()];

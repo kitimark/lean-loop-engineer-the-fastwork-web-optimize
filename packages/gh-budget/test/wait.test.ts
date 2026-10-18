@@ -62,6 +62,12 @@ test("a branch wait with --workflow follows the newest run of that workflow crea
   assert.deepEqual(views.map((c) => c.args.slice(2)), [["11", "--json", "jobs"]], "a branch wait views only the jobs of the decisive run");
 });
 
+test("a branch wait with --workflow never takes a run of a newer commit (exact sha, round-5 review)", async () => {
+  const runs = [run(13, { headBranch: "ci/x", headSha: "def", createdAt: T0 + 20, completeAt: T0 + 60, conclusion: "success" })];
+  const r = await wait(1, runs, { kind: "branch", branch: "ci/x", workflow: "chromium-counts", sha: "abc", since: T0 });
+  assert.notEqual(r.res[0]?.code, 0, "a pass on def is not a pass on abc");
+});
+
 // ci-own-trigger round 2: GitHub calls a run whose jobs were all skipped `success`; the verdict is fwcore's
 // `ci.verdict` (lean/Fw/Ci/Verdict.lean `skipped_never_pass`, `pass_iff`), so such a run is `not-run`, exit 4.
 const skipGuard = [{ name: "guard", conclusion: "skipped", steps: [] }, { name: "work", conclusion: "skipped" }];
@@ -107,7 +113,7 @@ test("lanes mode: a requested lane that did not run is never a pass, though anot
   const leanOnly = await wait(1, runs, { kind: "branch", branch: "ci/x", sha: "abc", since: T0, msg: "fix" });
   assert.equal(leanOnly.res[0]!.code, 0, leanOnly.res[0]!.lines.join("\n"));
   const one = await wait(1, runs, { kind: "branch", branch: "ci/x", workflow: "wktr", sha: "abc", since: T0 });
-  assert.equal(one.res[0]!.code, 0, "--workflow keeps the single-run rule: the newest wktr run on the branch (another commit's) passed");
+  assert.equal(one.res[0]!.code, 4, "--workflow takes only runs of the exact commit: run 20 (abc, skipped) decides, never run 23 (another commit)");
 });
 
 test("lanes mode: a heavy job stopped at its tip re-check is stale; a requested lane with no run is missing", async () => {
