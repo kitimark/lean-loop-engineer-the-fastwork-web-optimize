@@ -3554,9 +3554,23 @@
    ],
    "owner": "lean-prover",
    "writes": [
-    "lean/lakefile.lean",
-    "lean/Fw/Ops/Cache.lean",
-    ".github/workflows/**"
+    "lean/lakefile.toml",
+    "lean/*Main.lean",
+    "lean/README.md",
+    "lean/Fw/Ops/**",
+    "lean/Fw/Gate/*Gen.lean",
+    "lean/Fw/Site/GenRoute.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/scripts/**",
+    ".github/workflows/**",
+    ".github/actions/setup-lean/**",
+    "scripts/ci-paths*",
+    "packages/gate-breakpoints/scripts/scopegen.mjs",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-inputs.test.ts",
+    "packages/contracts/golden/**",
+    "apps/site/src/*.gen.json",
+    "docs/team/handoffs/**"
    ]
   },
   {
