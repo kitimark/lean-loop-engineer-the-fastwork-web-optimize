@@ -104,6 +104,7 @@ read 0.05 vs 0.10, output 2.5 vs 10 $/MTok, CONFIRMED [F§4]). Delegation pays m
 | Sweep that would read > 100k tokens (~400 KB) | split over several scouts; if it cannot be split, still one `scout` (Haiku > 100k is 2-4x cheaper than Sonnet) |
 | Build/test/measure run, log > 100 lines | inline with log to a file + `grep`/`tail` (free); `runner` only for several runs or a diagnosis over many log lines |
 | Waiting > 1 min | per [PLAN] Waiting: a bounded foreground wait (a blocking command with a timeout, or Monitor with an until-condition); never a sleep-poll loop of model requests (a 6-min poll cost a 0.13M-token rewrite, MEASURED [P§d]); a wait over the agent's TTL costs (1.25 - r) C, so a long or unknown wait ends with a handoff note |
+| Waiting for a CI run | `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<x> [--workflow <name>]`, in the background (exit 0/1/3); never `gh run watch` or a gh loop: every gh call goes through the shared request budget (`docs/team/tools/fw-ci.md`) |
 | You need verbatim text to edit it | inline `Read` with offset/limit; never delegate |
 | Judgement over > 20 KB (diagnose a failure, cross-check numbers, review a diff hunk against a checklist) | `checker` (Sonnet); not for adversarial math, number or privacy review (stays Opus, D5) |
 | Mechanical edits to many named files (e.g. 71 docstring fixes [I]) | lead spawns `patcher` (Sonnet) at depth 1 with absolute paths; nobody touches those files until it returns |
@@ -323,3 +324,9 @@ Numbers were re-checked against `profile.json` [pj] and the notes before changin
 | 19 | minor | C14 before C16 breaks Lean first | fixed: C16 listed before C14; Python P1/P2/P4 marked as temporary stand-in |
 | 20 | minor | scout lacks Serena; `$SCRATCH` undefined | fixed: Serena `find_symbol`/`get_symbols_overview` in C1; scratchpad path given in the prompt (C1, C2) |
 | 21 | minor | "builders" ambiguous; patcher keeps CLAUDE.md | fixed: C11 names the roles; C4 adds `omitClaudeMd: true` and the needed rules in its body |
+
+## CI pushes (task `ci-trigger-lean`)
+
+A push to a `ci/*` branch starts only the workflows whose declared inputs this push changed (Lean `Fw.Ci.Trigger`); a run you
+intend to read is started with `gh workflow run <file> --ref ci/<task>` and waited for with `pnpm fw ci wait`, never with an extra
+push. Details and the commands: `docs/team/tools/fw-ci.md`, section "Which workflows a ci/* push starts".

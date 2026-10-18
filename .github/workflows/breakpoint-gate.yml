@@ -1,7 +1,10 @@
 name: breakpoint-gate
 
-# Breakpoint parity gate (PLAN 6.6): original snapshot against the rewrite, 124 loads per engine, in 8 shards per engine,
-# plus the 4 live-resize sweeps, merged into the same <engine>.json that `cli.mjs summary` reads on the Mac.
+# Breakpoint parity gate (PLAN 6.6): original snapshot against the rewrite, 124 loads per engine and the 4 live-resize
+# sweeps, split over a few jobs per engine by the Lean split (Fw.Gate.Schedule.choose, golden/gate/schedule.jsonl;
+# .github/scripts/gate-jobs.mjs deals the probes and checks coverage), merged into the same <engine>.json that
+# `cli.mjs summary` reads on the Mac. Why few jobs: the free plan runs 20 jobs for the whole account and one run used to
+# start 22 (docs/team/tools/gate-speed.md).
 # Engines on the runner: Chrome Headless Shell 156.0.8078.4 (the counts lane's browser; the local gate uses desktop
 # Chrome) and Playwright WebKit on Linux (a WebKitGTK/WPE port, NOT Mobile Safari). Both are separate `platform` keys:
 # a CI table is a second opinion, not a replacement for the Mac run (research note ci-measurement-feasibility).
@@ -15,16 +18,100 @@ on:
     paths:
       - 'packages/gate-breakpoints/**'
       - 'apps/site/**'
-      - 'lean/**'
+      - 'lean/Main.lean'
+      - 'lean/lakefile.toml'
+      - 'lean/lake-manifest.json'
+      - 'lean/lean-toolchain'
+      - 'lean/Fw/Board.lean'
+      - 'lean/Fw/Ci/Budget.lean'
+      - 'lean/Fw/Ci/Wire.lean'
+      - 'lean/Fw/Console.lean'
+      - 'lean/Fw/Console/Alert.lean'
+      - 'lean/Fw/Console/Land.lean'
+      - 'lean/Fw/Console/Self.lean'
+      - 'lean/Fw/Gate/Compare.lean'
+      - 'lean/Fw/Gate/Items.lean'
+      - 'lean/Fw/Gate/Reach.lean'
+      - 'lean/Fw/Gate/Rule.lean'
+      - 'lean/Fw/Gate/State.lean'
+      - 'lean/Fw/Measure/Arms.lean'
+      - 'lean/Fw/Measure/Classes.lean'
+      - 'lean/Fw/Measure/EngineCheck.lean'
+      - 'lean/Fw/Measure/Freeze.lean'
+      - 'lean/Fw/Measure/Neutral.lean'
+      - 'lean/Fw/Measure/Quiet.lean'
+      - 'lean/Fw/Measure/SelfCheck.lean'
+      - 'lean/Fw/Measure/Snapshot.lean'
+      - 'lean/Fw/Measure/Splits.lean'
+      - 'lean/Fw/Measure/Tolerance.lean'
+      - 'lean/Fw/Measure/WebKit.lean'
+      - 'lean/Fw/Measure/Wire.lean'
+      - 'lean/Fw/Measure/ZoneBaseline.lean'
+      - 'lean/Fw/Measure/Zones.lean'
+      - 'lean/Fw/Obs/Health.lean'
+      - 'lean/Fw/Obs/Next.lean'
+      - 'lean/Fw/Obs/Signals.lean'
+      - 'lean/Fw/Obs/Timing.lean'
+      - 'lean/Fw/Ops/Identity.lean'
+      - 'lean/Fw/Ops/Meter.lean'
+      - 'lean/Fw/Ops/Obs.lean'
+      - 'lean/Fw/Ops/PathCheck.lean'
+      - 'lean/Fw/Ops/SpawnGuard.lean'
+      - 'lean/Fw/Ops/Usage.lean'
+      - 'lean/Fw/Ops/Wire.lean'
+      - 'lean/Fw/Plan/Core.lean'
+      - 'lean/Fw/Plan/Graph.lean'
+      - 'lean/Fw/Plan/Incident.lean'
+      - 'lean/Fw/Plan/Lint.lean'
+      - 'lean/Fw/Plan/Trailer.lean'
+      - 'lean/Fw/Sched/Admit.lean'
+      - 'lean/Fw/Sched/ParMetrics.lean'
+      - 'lean/Fw/Serve.lean'
+      - 'lean/Fw/Site/BreakpointFacts.lean'
+      - 'lean/Fw/Site/BreakpointGen.lean'
+      - 'lean/Fw/Site/BreakpointMatrix.lean'
+      - 'lean/Fw/Site/Breakpoints.lean'
+      - 'lean/Fw/Spec/Cost.lean'
+      - 'lean/Fw/Spec/DeviceQueue.lean'
+      - 'lean/Fw/Spec/Flags.lean'
+      - 'lean/Fw/Spec/Frames.lean'
+      - 'lean/Fw/Spec/Lease.lean'
+      - 'lean/Fw/Spec/Null.lean'
+      - 'lean/Fw/Spec/Screen.lean'
+      - 'lean/Fw/Spec/Verdict.lean'
+      - 'lean/Fw/Store/Ci.lean'
+      - 'lean/Fw/Store/Layout.lean'
+      - 'lean/Fw/Store/Reduce.lean'
+      - 'lean/Fw/Wire.lean'
+      - 'lean/Fw/Wire/Console.lean'
+      - 'lean/Fw/Wire/Gate.lean'
+      - 'lean/Fw/Wire/Obs.lean'
+      - 'lean/Fw/Wire/OpsGate.lean'
+      - 'lean/Fw/Wire/Plan.lean'
+      - 'lean/Fw/Wire/Sched.lean'
+      - 'lean/Fw/Wire/Store.lean'
+      - 'lean/BreakgenMain.lean'
+      - 'lean/Fw/Gate/Merge.lean'
+      - 'lean/Fw/Gate/Mount.lean'
+      - 'lean/Fw/Gate/Scope.lean'
+      - 'lean/Fw/Gate/ScopeGen.lean'
+      - 'lean/Fw/Gate/SweepReduce.lean'
+      - 'lean/Fw/Gate/SweepsGen.lean'
+      - 'lean/Fw/Parts/MorphMount.lean'
       - 'snapshot/**'
       - 'snapshot.lock.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/scripts/gate-shards.mjs'
+      - '.github/scripts/gate-jobs.mjs'
+      - '.github/scripts/cache-key.mjs'
+      - 'packages/contracts/golden/gate/schedule.jsonl'
+      - 'packages/contracts/golden/ops/cache.jsonl'
       - '.github/scripts/gate-smoke.mjs'
       - '.github/scripts/merge-gate.mjs'
       - '.github/scripts/verify-snapshot.mjs'
+      - '.github/scripts/changed-inputs.mjs'
       - '.github/actions/setup-lean/**'
       - '.github/actions/setup-pnpm/**'
       - '.github/actions/gate-engine/**'
@@ -36,10 +123,27 @@ on:
         type: choice
         options: [both, chromium, playwright-webkit]
         default: both
-      shards:
-        description: Shards per engine (1 to 16)
+      runs:
+        description: >-
+          Gate runs expected to share the 20-job pool at once (1 to 3); picks the line of the Lean split
+          (the split is the same for 1 to 3 with the cached times; it differs once the reduced sweep is live)
+        type: string
+        default: '2'
+      free:
+        description: >-
+          Runners of the account's 20 you expect to be free for this run (4, 8, 12 or 20); picks the line of the Lean split
+          (fewer free runners favour fewer jobs: Fw.Gate.Schedule.wall_lower, wall_upper)
         type: string
         default: '8'
+      times:
+        description: Time set of the Lean split (base, cached, reduced); cached until the reduced sweep is wired into run.mjs
+        type: string
+        default: 'cached'
+      fw:
+        description: >-
+          Flag set of the rewrite arm, e.g. morph.tween:waapi (becomes ?fw=...; the build prerenders every single-variant page). Empty = the default config.
+        type: string
+        default: ''
       parts:
         description: >-
           Pilot parts to check, comma separated (engine.scroll, nav.hitTest, hero.countdown, hero.exit); empty = all.
@@ -52,8 +156,10 @@ permissions:
   contents: read
 
 # A newer push to the same ci/** branch cancels the older run of this workflow; main never cancels (a run there is a record).
+# Runs of other branches never cancel each other (the ref is in the group). Dispatches on one branch with different inputs
+# (flag set, parts, engines) are different groups, so a loop of variant dispatches is not cancelled by its own next iteration.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.fw }}-${{ inputs.parts }}-${{ inputs.engines }}-${{ inputs.runs }}-${{ inputs.free }}-${{ inputs.times }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 
 env:
@@ -62,57 +168,78 @@ env:
   HS_SHA256: 81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
 
 jobs:
-  plan:
+  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
+  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and
+  # schedules always run. Fails open on error.
+  guard:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 10
+    timeout-minutes: 5
     outputs:
-      shards: ${{ steps.p.outputs.shards }}
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/breakpoint-gate.yml
+
+  # The rewrite, built once; every gate job downloads this exact build (its buildId is in each run header, and the merge
+  # job refuses files whose headers differ).
+  # It also holds the plan (the Lean job split, a few ms of node): a separate plan job took a runner of the shared 20
+  # and its own queue wait (Fw.Gate.Schedule: Fixed.two_fewer_jobs).
+  site:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    outputs:
+      matrix: ${{ steps.p.outputs.matrix }}
       engines: ${{ steps.p.outputs.engines }}
       parts: ${{ steps.p.outputs.parts }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
-          sparse-checkout: |
-            .github/scripts
-            apps/site/src/breakpoints.gen.json
-            packages/gate-breakpoints/src
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
       - id: p
+        name: Plan the gate jobs (Lean split for the free runners)
         env:
           ENGINES: ${{ inputs.engines || 'both' }}
-          SHARDS: ${{ inputs.shards || '8' }}
+          RUNS: ${{ inputs.runs || '2' }}
+          FREE: ${{ inputs.free || '8' }}
+          TIMES: ${{ inputs.times || 'cached' }}
           PARTS: ${{ inputs.parts || '' }}
         run: |
           set -euo pipefail
-          case "$SHARDS" in ''|*[!0-9]*) echo "shards must be a number" >&2; exit 1 ;; esac
+          case "$RUNS" in 1|2|3) ;; *) echo "runs must be 1, 2 or 3" >&2; exit 1 ;; esac
+          case "$FREE" in 4|8|12|20) ;; *) echo "free must be 4, 8, 12 or 20" >&2; exit 1 ;; esac
+          case "$TIMES" in base|cached|reduced) ;; *) echo "times must be base, cached or reduced" >&2; exit 1 ;; esac
           case "$ENGINES" in
             both) engines='["chromium","playwright-webkit"]' ;;
             chromium) engines='["chromium"]' ;;
             playwright-webkit) engines='["playwright-webkit"]' ;;
             *) echo "bad engines" >&2; exit 1 ;;
           esac
-          # gate-shards checks the part ids against anchors.json (exit 2 on an unknown id); empty means all parts.
+          # gate-jobs checks the part ids against anchors.json (exit 2 on an unknown id); empty means all parts.
           parts_args=()
           if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
-          shards=$(node .github/scripts/gate-shards.mjs --shards "$SHARDS" ${parts_args[@]+"${parts_args[@]}"})
-          echo "engines=$engines" >> "$GITHUB_OUTPUT"
-          echo "parts=$PARTS" >> "$GITHUB_OUTPUT"
-          echo "shards=$shards" >> "$GITHUB_OUTPUT"
+          jobs=$(node .github/scripts/gate-jobs.mjs --params "$TIMES" --runs "$RUNS" --free "$FREE" --engines "$ENGINES" ${parts_args[@]+"${parts_args[@]}"})
+          matrix=$(printf '%s' "$jobs" | node -e 'process.stdout.write(JSON.stringify({include: JSON.parse(require("fs").readFileSync(0, "utf8")).include}))')
+          {
+            echo "engines=$engines"
+            echo "parts=$PARTS"
+            echo "matrix=$matrix"
+          } >> "$GITHUB_OUTPUT"
           echo "$engines"
-          echo "$shards"
-
-  # The rewrite, built once; every gate job downloads this exact build (its buildId is in each run header, and the merge
-  # job refuses shards whose headers differ).
-  site:
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          persist-credentials: false
+          echo "$matrix" | cut -c1-400
       - uses: ./.github/actions/setup-lean
       # `pnpm build` of the site first runs `lake exe breakgen --check` (the checked-in gen file must equal Lean's output).
       - uses: ./.github/actions/setup-pnpm
@@ -127,15 +254,15 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  # One job per entry of the Lean split: its probes (`cli.mjs run --probes`) and its whole sweeps (`--sweeps`); "none" = nothing.
   gate:
-    needs: [plan, site]
+    needs: [site]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
+    name: gate ${{ matrix.engine }} ${{ matrix.job }}
     strategy:
       fail-fast: false
-      matrix:
-        engine: ${{ fromJSON(needs.plan.outputs.engines) }}
-        shard: ${{ fromJSON(needs.plan.outputs.shards).shard }}
+      matrix: ${{ fromJSON(needs.site.outputs.matrix) }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -157,90 +284,40 @@ jobs:
           ENGINE: ${{ matrix.engine }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_SEARCH: ${{ inputs.fw && format('?fw={0}', inputs.fw) || '' }}
           SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
         working-directory: packages/gate-breakpoints
         timeout-minutes: 5
         run: node "$SMOKE" --engine "$ENGINE"
-      - name: Run the shard
+      - name: Run the job (probes, then whole sweeps)
         env:
           ENGINE: ${{ matrix.engine }}
-          PROBES: ${{ fromJSON(needs.plan.outputs.shards).probes[matrix.shard] }}
-          PARTS: ${{ needs.plan.outputs.parts }}
+          PROBES: ${{ matrix.probes }}
+          SWEEPS: ${{ matrix.sweeps }}
+          PARTS: ${{ needs.site.outputs.parts }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_SEARCH: ${{ inputs.fw && format('?fw={0}', inputs.fw) || '' }}
         working-directory: packages/gate-breakpoints
         run: |
           parts_args=()
           if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
-          node src/cli.mjs run --engine "$ENGINE" --probes "$PROBES" --sweeps none --concurrency 4 ${parts_args[@]+"${parts_args[@]}"} --out out/shard
+          node src/cli.mjs run --engine "$ENGINE" --probes "$PROBES" --sweeps "$SWEEPS" --concurrency 4 ${parts_args[@]+"${parts_args[@]}"} --out out/job
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: gate-${{ matrix.engine }}-${{ matrix.shard }}
-          path: packages/gate-breakpoints/out/shard/${{ matrix.engine }}.json
+          name: gate-${{ matrix.engine }}-${{ matrix.job }}
+          path: packages/gate-breakpoints/out/job/${{ matrix.engine }}.json
           if-no-files-found: error
           retention-days: 14
 
-  sweeps:
-    needs: [plan, site]
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        engine: ${{ fromJSON(needs.plan.outputs.engines) }}
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          persist-credentials: false
-      - name: Verify the snapshot against snapshot.lock.json
-        run: node .github/scripts/verify-snapshot.mjs
-      - uses: ./.github/actions/setup-pnpm
-        with:
-          filter: '@fw/gate-breakpoints'
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: site-dist
-          path: apps/site/dist/aot
-      - uses: ./.github/actions/gate-engine
-        with:
-          engine: ${{ matrix.engine }}
-      - name: Smoke test the engine (fails in under two minutes instead of burning the job budget)
-        env:
-          ENGINE: ${{ matrix.engine }}
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-          SMOKE: ${{ github.workspace }}/.github/scripts/gate-smoke.mjs
-        working-directory: packages/gate-breakpoints
-        timeout-minutes: 5
-        run: node "$SMOKE" --engine "$ENGINE"
-      - name: Run the sweeps (no matrix probes)
-        env:
-          ENGINE: ${{ matrix.engine }}
-          PARTS: ${{ needs.plan.outputs.parts }}
-          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-        working-directory: packages/gate-breakpoints
-        run: |
-          parts_args=()
-          if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
-          node src/cli.mjs run --engine "$ENGINE" --probes none --concurrency 4 ${parts_args[@]+"${parts_args[@]}"} --out out/sweeps
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: gate-${{ matrix.engine }}-sweeps
-          path: packages/gate-breakpoints/out/sweeps/${{ matrix.engine }}.json
-          if-no-files-found: error
-          retention-days: 14
-
-  # One merge job per engine, so a failing WebKit shard does not hide the Chromium table.
+  # One merge job for the engines: `fwcore` is built once (a merge job per engine built it twice, 36 s each, and took a second
+  # runner of the shared 20: Fw.Gate.Schedule.Fixed.work_saved). Each engine is merged and summarized on its own, so a failing
+  # WebKit job does not hide the Chromium table, and each keeps its own artifact.
   merge:
-    needs: [plan, gate, sweeps]
-    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    needs: [site, gate]
+    if: ${{ !cancelled() && needs.site.result == 'success' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        engine: ${{ fromJSON(needs.plan.outputs.engines) }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -255,29 +332,45 @@ jobs:
         run: lake build fwcore
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: gate-${{ matrix.engine }}-*
+          pattern: gate-*-j*
           path: ${{ runner.temp }}/parts
-      - name: Merge the shards and summarize
+      - name: Merge the jobs and summarize
         env:
-          ENGINE: ${{ matrix.engine }}
+          ENGINES: ${{ join(fromJSON(needs.site.outputs.engines), ' ') }}
         run: |
           set -euo pipefail
           parts="$RUNNER_TEMP/parts"
-          out="$RUNNER_TEMP/gate"
-          mkdir -p "$out"
           ls "$parts"
-          shards=("$parts"/gate-"$ENGINE"-s[0-9]*/"$ENGINE".json)
-          node .github/scripts/merge-gate.mjs --out "$out/$ENGINE.json" --sweeps "$parts/gate-$ENGINE-sweeps/$ENGINE.json" "${shards[@]}"
           # `summary` is the same code the Mac run uses; it reads <engine>.json from --out.
-          node packages/gate-breakpoints/src/cli.mjs summary --out "$out"
-          sha256sum "$out"/*.json | tee "$out/sha256.txt"
-          {
-            echo "### breakpoint-gate: $ENGINE"
-            cat "$out/summary.md"
-          } >> "$GITHUB_STEP_SUMMARY"
+          # `summary` exits non-zero exactly when the merged verdict is not pass (gate-exit-verdict, Lean exit_zero_iff). Keep the
+          # code per engine, write the step summary, and fail the job at the end, so the uploads below still run on a failing verdict.
+          rc=0
+          for ENGINE in $ENGINES; do
+            out="$RUNNER_TEMP/gate-$ENGINE"
+            mkdir -p "$out"
+            jobs=("$parts"/gate-"$ENGINE"-j[0-9]*/"$ENGINE".json)
+            if ! node .github/scripts/merge-gate.mjs --out "$out/$ENGINE.json" "${jobs[@]}"; then rc=1; continue; fi
+            erc=0
+            node packages/gate-breakpoints/src/cli.mjs summary --out "$out" || erc=$?
+            sha256sum "$out"/*.json | tee "$out/sha256.txt"
+            {
+              echo "### breakpoint-gate: $ENGINE"
+              cat "$out/summary.md"
+            } >> "$GITHUB_STEP_SUMMARY"
+            if [ "$erc" -ne 0 ]; then rc="$erc"; fi
+          done
+          exit "$rc"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
         with:
-          name: gate-merged-${{ matrix.engine }}
-          path: ${{ runner.temp }}/gate
-          if-no-files-found: error
+          name: gate-merged-chromium
+          path: ${{ runner.temp }}/gate-chromium
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: gate-merged-playwright-webkit
+          path: ${{ runner.temp }}/gate-playwright-webkit
+          if-no-files-found: ignore
           retention-days: 30

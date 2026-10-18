@@ -1,0 +1,259 @@
+name: difftest
+
+# Randomized differential tests (docs/team/tools/difftest.md): every TS function that mirrors a fwcore wire op runs on
+# fast-check inputs next to the real fwcore binary; outputs must be equal. Free Linux runners only, no secrets.
+#   fwcore    `lake build fwcore`, passed to the test jobs by artifact (same pattern as chromium-counts.yml).
+#   fixed     fixed seed 20261018, DIFFTEST_RUNS=2000 per op: reproducible; a failure here blocks.
+#   rotating  seed = run id (reported in the job summary), DIFFTEST_RUNS=20000: finds new cases; a failure is reported (the
+#             shrunk golden-row candidates are uploaded) but does not fail the workflow, so a new seed never blocks a landing.
+on:
+  # Inputs: the package, the TS modules it checks, the Lean project (fwcore), the lockfile, the actions it uses.
+  push:
+    branches: ['ci/**', main]
+    paths:
+      - 'packages/difftest/**'
+      - 'packages/measure-webkit/src/**'
+      - 'packages/measure-chromium/src/**'
+      - 'apps/runner/hooks/cap.mjs'
+      - 'apps/console-api/src/cap/**'
+      - 'lean/Main.lean'
+      - 'lean/lakefile.toml'
+      - 'lean/lake-manifest.json'
+      - 'lean/lean-toolchain'
+      - 'lean/Fw/Board.lean'
+      - 'lean/Fw/Ci/Budget.lean'
+      - 'lean/Fw/Ci/Wire.lean'
+      - 'lean/Fw/Console.lean'
+      - 'lean/Fw/Console/Alert.lean'
+      - 'lean/Fw/Console/Land.lean'
+      - 'lean/Fw/Console/Self.lean'
+      - 'lean/Fw/Gate/Compare.lean'
+      - 'lean/Fw/Gate/Items.lean'
+      - 'lean/Fw/Gate/Reach.lean'
+      - 'lean/Fw/Gate/Rule.lean'
+      - 'lean/Fw/Gate/State.lean'
+      - 'lean/Fw/Measure/Arms.lean'
+      - 'lean/Fw/Measure/Classes.lean'
+      - 'lean/Fw/Measure/EngineCheck.lean'
+      - 'lean/Fw/Measure/Freeze.lean'
+      - 'lean/Fw/Measure/Neutral.lean'
+      - 'lean/Fw/Measure/Quiet.lean'
+      - 'lean/Fw/Measure/SelfCheck.lean'
+      - 'lean/Fw/Measure/Snapshot.lean'
+      - 'lean/Fw/Measure/Splits.lean'
+      - 'lean/Fw/Measure/Tolerance.lean'
+      - 'lean/Fw/Measure/WebKit.lean'
+      - 'lean/Fw/Measure/Wire.lean'
+      - 'lean/Fw/Measure/ZoneBaseline.lean'
+      - 'lean/Fw/Measure/Zones.lean'
+      - 'lean/Fw/Obs/Health.lean'
+      - 'lean/Fw/Obs/Next.lean'
+      - 'lean/Fw/Obs/Signals.lean'
+      - 'lean/Fw/Obs/Timing.lean'
+      - 'lean/Fw/Ops/Identity.lean'
+      - 'lean/Fw/Ops/Meter.lean'
+      - 'lean/Fw/Ops/Obs.lean'
+      - 'lean/Fw/Ops/PathCheck.lean'
+      - 'lean/Fw/Ops/SpawnGuard.lean'
+      - 'lean/Fw/Ops/Usage.lean'
+      - 'lean/Fw/Ops/Wire.lean'
+      - 'lean/Fw/Plan/Core.lean'
+      - 'lean/Fw/Plan/Graph.lean'
+      - 'lean/Fw/Plan/Incident.lean'
+      - 'lean/Fw/Plan/Lint.lean'
+      - 'lean/Fw/Plan/Trailer.lean'
+      - 'lean/Fw/Sched/Admit.lean'
+      - 'lean/Fw/Sched/ParMetrics.lean'
+      - 'lean/Fw/Serve.lean'
+      - 'lean/Fw/Site/BreakpointFacts.lean'
+      - 'lean/Fw/Site/BreakpointGen.lean'
+      - 'lean/Fw/Site/BreakpointMatrix.lean'
+      - 'lean/Fw/Site/Breakpoints.lean'
+      - 'lean/Fw/Spec/Cost.lean'
+      - 'lean/Fw/Spec/DeviceQueue.lean'
+      - 'lean/Fw/Spec/Flags.lean'
+      - 'lean/Fw/Spec/Frames.lean'
+      - 'lean/Fw/Spec/Lease.lean'
+      - 'lean/Fw/Spec/Null.lean'
+      - 'lean/Fw/Spec/Screen.lean'
+      - 'lean/Fw/Spec/Verdict.lean'
+      - 'lean/Fw/Store/Ci.lean'
+      - 'lean/Fw/Store/Layout.lean'
+      - 'lean/Fw/Store/Reduce.lean'
+      - 'lean/Fw/Wire.lean'
+      - 'lean/Fw/Wire/Console.lean'
+      - 'lean/Fw/Wire/Gate.lean'
+      - 'lean/Fw/Wire/Obs.lean'
+      - 'lean/Fw/Wire/OpsGate.lean'
+      - 'lean/Fw/Wire/Plan.lean'
+      - 'lean/Fw/Wire/Sched.lean'
+      - 'lean/Fw/Wire/Store.lean'
+      - 'pnpm-lock.yaml'
+      - '.github/scripts/changed-inputs.mjs'
+      - '.github/actions/setup-lean/**'
+      - '.github/actions/setup-pnpm/**'
+      - '.github/workflows/difftest.yml'
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Seed for the rotating job (empty means the run id)
+        type: string
+        default: ''
+      runs:
+        description: Runs per op for the rotating job
+        type: string
+        default: '20000'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+
+jobs:
+  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
+  # its inputs (the paths list under `on.push`) to something other than main's content; main pushes, dispatches and
+  # schedules always run. Fails open on error.
+  guard:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/difftest.yml
+
+  fwcore:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-lean
+      - name: lake build fwcore
+        working-directory: lean
+        run: lake build fwcore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fwcore
+          path: lean/.lake/build/bin/fwcore
+          if-no-files-found: error
+          retention-days: 1
+
+  fixed:
+    needs: [fwcore]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/difftest @fw/console-api...'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: fwcore
+          path: ${{ runner.temp }}/fwcore
+      - name: Differential tests, fixed seed
+        env:
+          FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
+          DIFFTEST_SEED: '20261018'
+          DIFFTEST_RUNS: '2000'
+          DIFFTEST_OUT: ${{ runner.temp }}/candidates
+        run: |
+          set -euo pipefail
+          chmod +x "$FW_CORE_BIN"
+          pnpm --filter @fw/difftest test 2>&1 | tee "$RUNNER_TEMP/fixed.log"
+      - name: Summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo "### difftest, fixed seed 20261018"
+            echo '```'
+            grep -E '^difftest \{|^✖|differs' "$RUNNER_TEMP/fixed.log" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ failure() }}
+        with:
+          name: difftest-candidates-fixed
+          path: ${{ runner.temp }}/candidates
+          if-no-files-found: ignore
+          retention-days: 14
+
+  rotating:
+    needs: [fwcore]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/difftest @fw/console-api...'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: fwcore
+          path: ${{ runner.temp }}/fwcore
+      - name: Pick the seed
+        id: seed
+        env:
+          INPUT_SEED: ${{ github.event.inputs.seed }}
+          INPUT_RUNS: ${{ github.event.inputs.runs }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          seed="${INPUT_SEED:-}"
+          if [ -z "$seed" ]; then seed=$(( RUN_ID % 2147483647 )); fi
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "runs=${INPUT_RUNS:-20000}" >> "$GITHUB_OUTPUT"
+      - name: Differential tests, rotating seed
+        env:
+          FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
+          DIFFTEST_SEED: ${{ steps.seed.outputs.seed }}
+          DIFFTEST_RUNS: ${{ steps.seed.outputs.runs }}
+          DIFFTEST_OUT: ${{ runner.temp }}/candidates
+        run: |
+          set -euo pipefail
+          chmod +x "$FW_CORE_BIN"
+          pnpm --filter @fw/difftest test 2>&1 | tee "$RUNNER_TEMP/rotating.log"
+      - name: Summary
+        if: ${{ always() }}
+        env:
+          SEED: ${{ steps.seed.outputs.seed }}
+        run: |
+          {
+            echo "### difftest, rotating seed $SEED"
+            echo '```'
+            grep -E '^difftest \{|^✖|differs' "$RUNNER_TEMP/rotating.log" || true
+            echo '```'
+            if [ -d "$RUNNER_TEMP/candidates" ] && ls "$RUNNER_TEMP/candidates"/*.jsonl >/dev/null 2>&1; then
+              echo "New golden-row candidates (artifact difftest-candidates-rotating):"
+              wc -l "$RUNNER_TEMP"/candidates/*.jsonl
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ failure() }}
+        with:
+          name: difftest-candidates-rotating
+          path: ${{ runner.temp }}/candidates
+          if-no-files-found: ignore
+          retention-days: 30

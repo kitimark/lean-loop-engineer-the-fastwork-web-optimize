@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { PIN_SRC, collectInPage, mountPanel, prepareInPage, waitReady, waitResize } from './page.mjs';
-import { snapshotRoot, siteDist, startServer, PKG } from './serve.mjs';
+import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
@@ -61,7 +61,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const lock = JSON.parse(readFileSync(resolve(PKG, '../../snapshot.lock.json'), 'utf8'));
   const dist = siteDist();
   const buildInfo = JSON.parse(readFileSync(join(dist, 'build-info.json'), 'utf8'));
-  const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist) };
+  const variantPage = rewriteFor(dist); // FW_SEARCH: a flagged config of the rewrite (default: none)
+  const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist, variantPage.rewrite) };
   const engine = await (gaps ? gaps.launcher : LAUNCHERS[engineName])();
   const cond = gen.conditions.map((c) => ({ tsId: c.tsId, css: c.css, legacyCss: c.legacyCss }));
   const neutral = gen.neutral.map((n) => ({ tsId: n.tsId, css: n.css }));
@@ -73,7 +74,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     }))]));
 
   async function load(env, site) {
-    return engine.open(env, { origin: servers[site].origin, path: '/', init: PIN_SRC });
+    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: PIN_SRC });
   }
   // anchors.json `prepare` (per part and arm): steps that bring up elements the page mounts lazily, run once after
   // the ready wait (morph.countdown); ORIG_PREPARE below is the other route (mount after the early parts are collected)
@@ -101,10 +102,18 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   // so one reference load per arm fixes them (the engine expands shorthands, so they are per engine).
   const refEnv = { width: 1440, height: 900, deviceWidth: 1440, deviceHeight: 900, dpr: 1, hover: 'hover', pointer: 'fine', reducedMotion: 'no-preference', colorScheme: 'light' };
   const declared = {};
+  let loadedConfig = null;
   for (const site of SITES) {
     const s = await load(refEnv, site);
     await evalReady(s, site);
     declared[site] = (await evalCollect(s, site, refEnv, null)).parts;
+    if (site === 'rewrite') {
+      // Regression check of incident inc-variant-gate-flags-off: the page the browser actually loaded must be the config the
+      // flags name (the page's own data-fw-config), never silently the default one.
+      loadedConfig = await s.evaluate(() => document.getElementById('root')?.dataset.fwConfig ?? null);
+      const want = variantPage.hash ?? buildInfo.configHash;
+      if (loadedConfig !== want) throw new Error(`rewrite arm loaded config ${loadedConfig}, expected ${want} for flags "${variantPage.search}"`);
+    }
     await s.close();
   }
   const props = {};
@@ -176,6 +185,8 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     gen: { sha256: genSha, schema: gen.schema, probes: gen.matrix.loadsPerEngine },
     snapshot: lock.snapshot,
     site: { buildId: buildInfo.buildId, configHash: buildInfo.configHash, muiCss: buildInfo.muiCss },
+    // the flags the rewrite arm ran with ('' = the default config) and the config hash the browser read from the loaded page
+    flags: { search: variantPage.search, configHash: loadedConfig },
     port: portOf(engineName),
     pinnedDate: '2026-10-01T00:00:00+07:00',
     ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped, ...(scope ? { scope } : {}) } } : {}),

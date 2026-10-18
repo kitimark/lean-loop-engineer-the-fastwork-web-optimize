@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>css.number-linear</title>
+<style>
+  @property --n { syntax: '<number>'; inherits: true; initial-value: 0 }
+  @keyframes ramp { from { --n: 0 } to { --n: 10 } }
+  /* paused with a negative delay: the animation sits at a fixed progress, nothing is seeked */
+  .r { animation: ramp 1s linear paused both }
+  #p25 { animation-delay: -0.25s }
+  #p50 { animation-delay: -0.5s }
+  #p75 { animation-delay: -0.75s }
+</style>
+<div id="p25" class="r"></div>
+<div id="p50" class="r"></div>
+<div id="p75" class="r"></div>

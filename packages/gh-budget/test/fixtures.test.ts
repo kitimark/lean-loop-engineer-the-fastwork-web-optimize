@@ -34,7 +34,7 @@ const LEAK = /someone-private|login|authorization|content-type|x-github-request-
 
 async function replay(fx: Fx, N: number) {
   const sc = fx.scenario;
-  const w = mkWorld(sc.start);
+  const w = mkWorld(sc.start, { fastGh: true });
   w.config({ start: sc.start, listCost: 2, overrides: fx.overrides, drains: fx.drains,
     runs: Array.from({ length: N }, (_, i) => ({ databaseId: i + 1, createdAt: sc.start, completeAt: 1e12, conclusion: "success" })) });
   const env = w.env;

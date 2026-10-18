@@ -5,26 +5,42 @@
     "rewritePropsFrom": "every longhand declared by a rewrite CSS-module rule (selector contains '-module_') that matches the element, over all @media/@layer blocks; this is the set of properties the part restates",
     "originOnlyPropsFrom": "every longhand declared by a snapshot component rule (selector contains '.svelte-') that matches the element and is not in the rewrite set; reported as information, never in the verdict",
     "skipPrefixes": [
-      { "prefix": "animation", "why": "the entrance (ring splash, copy-from-ring) is owned by hero.orbit and is not restated; both arms are compared in the settled state (the original waits for .is-ring-splash-done)" }
+      {
+        "prefix": "animation",
+        "why": "the entrance (ring splash, copy-from-ring) is owned by hero.orbit and is not restated; both arms are compared in the settled state (the original waits for .is-ring-splash-done)"
+      }
     ],
     "skipSets": {
       "layoutDerived": {
-        "props": ["width", "height", "inline-size", "block-size", "transform-origin", "perspective-origin"],
+        "props": [
+          "width",
+          "height",
+          "inline-size",
+          "block-size",
+          "transform-origin",
+          "perspective-origin"
+        ],
         "why": "used values of a box whose size comes from placeholder text, a font or a host that differs (shrink-to-fit width, line count, 1ch)"
       }
     }
   },
   "parts": {
     "engine.scroll": {
-      "anchors": ["engine-scroll"],
-      "cites": ["rewrite: EngineScroll marks the document element with data-fw=\"engine-scroll\" once mounted; original: the page scrolls the document and its callbacks run on the window scroll, 2.DyWL8TcE.js:2667-2782"],
+      "anchors": [
+        "engine-scroll"
+      ],
+      "cites": [
+        "rewrite: EngineScroll marks the document element with data-fw=\"engine-scroll\" once mounted; original: the page scrolls the document and its callbacks run on the window scroll, 2.DyWL8TcE.js:2667-2782"
+      ],
       "roles": [
         {
           "role": "scroller",
           "orig": "html",
           "rewrite": "html[data-fw=\"engine-scroll\"]",
           "boxRel": null,
-          "dims": ["w"],
+          "dims": [
+            "w"
+          ],
           "skipSets": [],
           "skipProps": [],
           "why": "the scroll container is the document; the part restates no CSS, so only its width is compared (height is page content). If the mark is missing the rewrite count is 0 and the count differs"
@@ -34,7 +50,9 @@
           "orig": "body",
           "rewrite": "body",
           "boxRel": null,
-          "dims": ["w"],
+          "dims": [
+            "w"
+          ],
           "skipSets": [],
           "skipProps": [],
           "why": "the element the engine's callbacks read and write inside; its width must follow the viewport at every breakpoint (height is page content)"
@@ -42,11 +60,21 @@
       ]
     },
     "nav.hitTest": {
-      "anchors": ["nav"],
-      "cites": ["original: header.start-selling-top-nav is the element whose rect gives the probe point, 2.DyWL8TcE.js:12955-12963; rewrite: [data-fw=\"nav\"], the part's default navSelector"],
+      "anchors": [
+        "nav"
+      ],
+      "cites": [
+        "original: header.start-selling-top-nav is the element whose rect gives the probe point, 2.DyWL8TcE.js:12955-12963; rewrite: [data-fw=\"nav\"], the part's default navSelector"
+      ],
       "excluded": [
-        { "what": "nav box x, y, w, h", "why": "placeholder AppBar versus the original pill; owned by the nav part, which does not exist yet. Measured at 1280: original 148,16 984x64; rewrite 0,0 1280x48. Probe point x (x + w/2) is 640 in both" },
-        { "what": "dark sections (.pain, .start-selling-platform*, .commission) and the is-on-dark class", "why": "the rewrite page has no such sections; the class decision is covered by the Lean golden vectors (logic.test.ts), and at scroll 0 the nav sits over the hero in both arms (never dark)" }
+        {
+          "what": "nav box x, y, w, h",
+          "why": "placeholder AppBar versus the original pill; owned by the nav part, which does not exist yet. Measured at 1280: original 148,16 984x64; rewrite 0,0 1280x48. Probe point x (x + w/2) is 640 in both"
+        },
+        {
+          "what": "dark sections (.pain, .start-selling-platform*, .commission) and the is-on-dark class",
+          "why": "the rewrite page has no such sections; the class decision is covered by the Lean golden vectors (logic.test.ts), and at scroll 0 the nav sits over the hero in both arms (never dark)"
+        }
       ],
       "roles": [
         {
@@ -62,36 +90,145 @@
       ]
     },
     "morph.mount": {
-      "anchors": ["morph-mount"],
-      "cites": ["original: .start-selling-platform is the element the IntersectionObserver watches (rootMargin 200% 0px) and whose rect arms the push, 2.DyWL8TcE.js:13040-13047, 13076-13086; rewrite: [data-fw=\"morph-mount\"], the hidden sentinel the part renders until the platform section is ported"],
+      "anchors": [
+        "morph-mount"
+      ],
+      "cites": [
+        "original: .start-selling-platform is the element the IntersectionObserver watches (rootMargin 200% 0px) and whose rect arms the push, 2.DyWL8TcE.js:13040-13047, 13076-13086; rewrite: [data-fw=\"morph-mount\"], the hidden sentinel the part renders until the platform section is ported"
+      ],
       "excluded": [
-        { "what": "platform box (x, y, w, h) and style", "why": "the original is the full platform section (page-height, owned by the platform part); the rewrite sentinel is hidden and zero-sized. The part restates no CSS, so nothing is compared but existence; the decision logic (arm geometry, push rule, listener guard) is covered by the Lean golden vectors (logic.test.ts)" }
+        {
+          "what": "platform box (x, y, w, h) and style",
+          "why": "the original is the full platform section (page-height, owned by the platform part); the rewrite sentinel is hidden and zero-sized. The part restates no CSS, so nothing is compared but existence; the decision logic (arm geometry, push rule, listener guard) is covered by the Lean golden vectors (logic.test.ts)"
+        }
       ],
       "roles": [
-        { "role": "target", "orig": ".start-selling-platform", "rewrite": "[data-fw=\"morph-mount\"]", "boxRel": null, "dims": [], "skipSets": [], "skipProps": [],
-          "why": "the observed element exists once in both arms at every breakpoint (count). No width gate in the original: the arm is viewport-height relative at a scroll position, not a media edge" }
+        {
+          "role": "target",
+          "orig": ".start-selling-platform",
+          "rewrite": "[data-fw=\"morph-mount\"]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the observed element exists once in both arms at every breakpoint (count). No width gate in the original: the arm is viewport-height relative at a scroll position, not a media edge"
+        }
       ]
     },
     "hero.countdown": {
-      "anchors": ["hero-countdown"],
-      "cites": ["snapshot 2.gBuqKVzi.css:1375-1495 (.countdown, .unit, .face, .label, .number, .digit)"],
+      "anchors": [
+        "hero-countdown"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:1375-1495 (.countdown, .unit, .face, .label, .number, .digit)"
+      ],
       "roles": [
-        { "role": "root", "orig": ".hero-track .countdown", "rewrite": "[data-fw=\"hero-countdown\"]", "boxRel": null, "dims": ["h"], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "x, y and w depend on the host: the original sits inside .hero-copy (shrink-to-content, centred), the rewrite is a block-level flex box that fills the main column" },
-        { "role": "unit", "orig": ".hero-track .countdown > .unit", "rewrite": "[data-fw=\"hero-countdown\"] > div", "boxRel": { "role": "unit", "index": 0 }, "dims": ["x", "y", "w", "h"], "skipSets": [], "skipProps": [],
-          "why": "fixed-size cards (width/height from CSS), compared relative to the first card, so the host offset drops out and the gap and the sizes stay" },
-        { "role": "value", "orig": ".hero-track .countdown > .unit > .face", "rewrite": "[data-fw=\"hero-countdown\"] > div > span:first-child", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent (digit glyph widths and line box); font size, line height, colour and flex are compared" },
-        { "role": "label", "orig": ".hero-track .countdown > .unit > .label", "rewrite": "[data-fw=\"hero-countdown\"] > div > span:last-child", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent (placeholder label text, own font)" },
-        { "role": "number", "orig": ".hero-track .countdown .face > .number", "rewrite": "[data-fw=\"hero-countdown\"] [data-value]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent" },
-        { "role": "digit", "orig": ".hero-track .countdown .number > .digit", "rewrite": "[data-fw=\"hero-countdown\"] [data-digit]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "width is 1ch (font dependent), height is one text line" },
-        { "role": "spacer", "orig": ".hero-track .countdown .digit > .spacer", "rewrite": "[data-fw=\"hero-countdown\"] [data-spacer]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent" },
-        { "role": "face", "orig": ".hero-track .countdown .digit > .face", "rewrite": "[data-fw=\"hero-countdown\"] [data-face]", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["transform"],
-          "why": "count only plus declared styles; transform is written every frame by the digit spring (JS state, not a breakpoint)" }
+        {
+          "role": "root",
+          "orig": ".hero-track .countdown",
+          "rewrite": "[data-fw=\"hero-countdown\"]",
+          "boxRel": null,
+          "dims": [
+            "h"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "x, y and w depend on the host: the original sits inside .hero-copy (shrink-to-content, centred), the rewrite is a block-level flex box that fills the main column"
+        },
+        {
+          "role": "unit",
+          "orig": ".hero-track .countdown > .unit",
+          "rewrite": "[data-fw=\"hero-countdown\"] > div",
+          "boxRel": {
+            "role": "unit",
+            "index": 0
+          },
+          "dims": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "fixed-size cards (width/height from CSS), compared relative to the first card, so the host offset drops out and the gap and the sizes stay"
+        },
+        {
+          "role": "value",
+          "orig": ".hero-track .countdown > .unit > .face",
+          "rewrite": "[data-fw=\"hero-countdown\"] > div > span:first-child",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "box is text-dependent (digit glyph widths and line box); font size, line height, colour and flex are compared"
+        },
+        {
+          "role": "label",
+          "orig": ".hero-track .countdown > .unit > .label",
+          "rewrite": "[data-fw=\"hero-countdown\"] > div > span:last-child",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "box is text-dependent (placeholder label text, own font)"
+        },
+        {
+          "role": "number",
+          "orig": ".hero-track .countdown .face > .number",
+          "rewrite": "[data-fw=\"hero-countdown\"] [data-value]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "box is text-dependent"
+        },
+        {
+          "role": "digit",
+          "orig": ".hero-track .countdown .number > .digit",
+          "rewrite": "[data-fw=\"hero-countdown\"] [data-digit]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "width is 1ch (font dependent), height is one text line"
+        },
+        {
+          "role": "spacer",
+          "orig": ".hero-track .countdown .digit > .spacer",
+          "rewrite": "[data-fw=\"hero-countdown\"] [data-spacer]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "box is text-dependent"
+        },
+        {
+          "role": "face",
+          "orig": ".hero-track .countdown .digit > .face",
+          "rewrite": "[data-fw=\"hero-countdown\"] [data-face]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "transform"
+          ],
+          "why": "count only plus declared styles; transform is written every frame by the digit spring (JS state, not a breakpoint)"
+        }
       ]
     },
     "morph.countdown": {
@@ -121,54 +258,238 @@
       ]
     },
     "hero.exit": {
-      "anchors": ["hero-exit"],
-      "cites": ["snapshot 2.gBuqKVzi.css:1523-1590 (.hero-track, .hero)", "1725-1745 (.hero-copy)", "1750-1795 (.hero-copy-main, h1, p)", "1905-1936 (.scroll-cue)", "2040-2160 (<=600 and reduced motion)"],
+      "anchors": [
+        "hero-exit"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:1523-1590 (.hero-track, .hero)",
+        "1725-1745 (.hero-copy)",
+        "1750-1795 (.hero-copy-main, h1, p)",
+        "1905-1936 (.scroll-cue)",
+        "2040-2160 (<=600 and reduced motion)"
+      ],
       "excluded": [
-        { "what": "cards (.orbit-card, .mobile-deck)", "why": "the rewrite's four placeholder cards stand in for hero.orbit, whose geometry is set by JS in the original (10 ring cards plus a 4-card mobile deck); not restated by this part" },
-        { "what": "cta button", "why": "the rewrite's .cta is a placeholder (blue pill); the original's .hero-cta button is a different design and is not restated" },
-        { "what": "countdown inside .hero-copy", "why": "compared by hero.countdown; in the rewrite it is a sibling above the track, so hero-copy height and y are host-dependent and excluded" }
+        {
+          "what": "cards (.orbit-card, .mobile-deck)",
+          "why": "the rewrite's four placeholder cards stand in for hero.orbit, whose geometry is set by JS in the original (10 ring cards plus a 4-card mobile deck); not restated by this part"
+        },
+        {
+          "what": "cta button",
+          "why": "the rewrite's .cta is a placeholder (blue pill); the original's .hero-cta button is a different design and is not restated"
+        },
+        {
+          "what": "countdown inside .hero-copy",
+          "why": "compared by hero.countdown; in the rewrite it is a sibling above the track, so hero-copy height and y are host-dependent and excluded"
+        }
       ],
       "roles": [
-        { "role": "track", "orig": ".hero-track", "rewrite": "[data-fw=\"hero-exit\"]", "boxRel": null, "dims": ["w", "h"], "skipSets": [], "skipProps": [],
-          "why": "x and y are page offsets (the rewrite has a nav bar and the countdown above it); width and height (200vh, or auto under reduced motion) are the part's own" },
-        { "role": "hero", "orig": ".hero-track > .hero", "rewrite": "[data-fw=\"hero-exit\"] > div", "boxRel": { "role": "track", "index": 0 }, "dims": ["x", "y", "w", "h"], "skipSets": [], "skipProps": ["--copy-in"],
-          "why": "--copy-in is declared on .hero in the rewrite and on .hero-copy and .scroll-cue in the original; the inherited value on those two elements is compared instead" },
-        { "role": "copy", "orig": ".hero-track .hero > .hero-copy", "rewrite": "[data-fw=\"hero-exit\"] > div > header", "boxRel": { "role": "hero", "index": 0 }, "dims": ["x", "w"], "skipSets": ["layoutDerived"], "skipProps": ["bottom"],
-          "why": "y and height depend on the content inside (the original also holds the countdown and the call to action); width and x are fixed by min(92vw, 900px) and by 100% / 393px; bottom of an absolutely positioned box is a used value from the content height" },
-        { "role": "copyMain", "orig": ".hero-track .hero-copy-main", "rewrite": "[data-fw=\"hero-exit\"] header > div", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent (headline and paragraph)" },
-        { "role": "title", "orig": ".hero-track .hero-copy-main > h1", "rewrite": "[data-fw=\"hero-exit\"] header h1", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent (line count of the placeholder headline)" },
-        { "role": "lead", "orig": ".hero-track .hero-copy-main > p", "rewrite": "[data-fw=\"hero-exit\"] header p", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "box is text-dependent (line count of the placeholder paragraph)" },
-        { "role": "cue", "orig": ".hero-track .hero > button.scroll-cue", "rewrite": "[data-fw=\"hero-exit\"] > div > button", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["transform", "top", "bottom", "right"],
-          "why": "content-sized (the original has an icon, the rewrite only a label): translate(-50%) is a fraction of its own width, and the auto side of top/bottom/right is a used value from its own size"}
+        {
+          "role": "track",
+          "orig": ".hero-track",
+          "rewrite": "[data-fw=\"hero-exit\"]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "x and y are page offsets (the rewrite has a nav bar and the countdown above it); width and height (200vh, or auto under reduced motion) are the part's own"
+        },
+        {
+          "role": "hero",
+          "orig": ".hero-track > .hero",
+          "rewrite": "[data-fw=\"hero-exit\"] > div",
+          "boxRel": {
+            "role": "track",
+            "index": 0
+          },
+          "dims": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "--copy-in"
+          ],
+          "why": "--copy-in is declared on .hero in the rewrite and on .hero-copy and .scroll-cue in the original; the inherited value on those two elements is compared instead"
+        },
+        {
+          "role": "copy",
+          "orig": ".hero-track .hero > .hero-copy",
+          "rewrite": "[data-fw=\"hero-exit\"] > div > header",
+          "boxRel": {
+            "role": "hero",
+            "index": 0
+          },
+          "dims": [
+            "x",
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "bottom"
+          ],
+          "why": "y and height depend on the content inside (the original also holds the countdown and the call to action); width and x are fixed by min(92vw, 900px) and by 100% / 393px; bottom of an absolutely positioned box is a used value from the content height"
+        },
+        {
+          "role": "copyMain",
+          "orig": ".hero-track .hero-copy-main",
+          "rewrite": "[data-fw=\"hero-exit\"] header > div",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "box is text-dependent (headline and paragraph)"
+        },
+        {
+          "role": "title",
+          "orig": ".hero-track .hero-copy-main > h1",
+          "rewrite": "[data-fw=\"hero-exit\"] header h1",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "box is text-dependent (line count of the placeholder headline)"
+        },
+        {
+          "role": "lead",
+          "orig": ".hero-track .hero-copy-main > p",
+          "rewrite": "[data-fw=\"hero-exit\"] header p",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "box is text-dependent (line count of the placeholder paragraph)"
+        },
+        {
+          "role": "cue",
+          "orig": ".hero-track .hero > button.scroll-cue",
+          "rewrite": "[data-fw=\"hero-exit\"] > div > button",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "transform",
+            "top",
+            "bottom",
+            "right"
+          ],
+          "why": "content-sized (the original has an icon, the rewrite only a label): translate(-50%) is a fraction of its own width, and the auto side of top/bottom/right is a used value from its own size"
+        }
       ]
     },
     "morph.columns": {
-      "anchors": ["morph-columns"],
-      "cites": ["snapshot 2.gBuqKVzi.css:10559-10607 (backdrop, col, track, img, keyframes)", "10812-10825 (reduced motion)", "10983-10988 (<=640)", "2.DyWL8TcE.js:12887-12935 (column data), 13125-13152 (markup)", "the original mounts the panel only after the platform section nears the viewport (IntersectionObserver, 200% margin, 13080-13089); run.mjs scrolls the original there and back before collecting these roles (ORIG_PREPARE)"],
+      "anchors": [
+        "morph-columns"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:10559-10607 (backdrop, col, track, img, keyframes)",
+        "10812-10825 (reduced motion)",
+        "10983-10988 (<=640)",
+        "2.DyWL8TcE.js:12887-12935 (column data), 13125-13152 (markup)",
+        "the original mounts the panel only after the platform section nears the viewport (IntersectionObserver, 200% margin, 13080-13089); run.mjs scrolls the original there and back before collecting these roles (ORIG_PREPARE)"
+      ],
       "excluded": [
-        { "what": "the panel, pill, veil, centre content, countdown", "why": "owned by morph.panel, morph.countdown, morph.mount and morph.tween" },
-        { "what": "column and image widths, column heights, x and y", "why": "the host differs: the original backdrop fills the nav pill (a JS-driven box), the rewrite has a fixed 320px stage; heights of the tracks and images are the part's own and are compared" },
-        { "what": "image pictures (src)", "why": "placeholder 1x1 images; the box height comes from the inline height, which both arms set" }
+        {
+          "what": "the panel, pill, veil, centre content, countdown",
+          "why": "owned by morph.panel, morph.countdown, morph.mount and morph.tween"
+        },
+        {
+          "what": "column and image widths, column heights, x and y",
+          "why": "the host differs: the original backdrop fills the nav pill (a JS-driven box), the rewrite has a fixed 320px stage; heights of the tracks and images are the part's own and are compared"
+        },
+        {
+          "what": "image pictures (src)",
+          "why": "placeholder 1x1 images; the box height comes from the inline height, which both arms set"
+        }
       ],
       "roles": [
-        { "role": "backdrop", "orig": ".start-selling-morph-backdrop", "rewrite": "[data-fw=\"morph-columns\"] > div", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["left", "right"],
-          "why": "inset: 0 -3% resolves left and right against the host width (a pill in the original, the stage in the rewrite); opacity, gap and the flex row are the part's own" },
-        { "role": "col", "orig": ".start-selling-morph-col", "rewrite": "[data-fw=\"morph-columns\"] > div > div", "boxRel": null, "dims": [], "skipSets": ["layoutDerived"], "skipProps": ["transform"],
-          "why": "translateY(var(--col-offset)) is a percentage of the column's own height, which is the host height; display (none from the 4th column at <=640) and flex are compared" },
-        { "role": "track", "orig": ".start-selling-morph-col-track", "rewrite": "[data-fw=\"morph-columns\"] > div > div > div", "boxRel": null, "dims": ["h"], "skipSets": ["layoutDerived"], "skipProps": ["transform"],
-          "why": "transform is the marquee (paused at rest in both arms, but the original's start phase is not pinned); animation-* longhands are skipped for every part by the style skipPrefixes (the keyframes name is hashed in the rewrite); will-change is compared. Height is the sum of the image heights and gaps, times 0.96: the original panel is scale(0.96) at morph 0, which the rewrite stage restates as a stand-in" },
-        { "role": "img", "orig": ".start-selling-morph-col img", "rewrite": "[data-fw=\"morph-columns\"] img", "boxRel": null, "dims": ["h"], "skipSets": ["layoutDerived"], "skipProps": [],
-          "why": "width is the column's share of the host; the height is inline in both arms" }
+        {
+          "role": "backdrop",
+          "orig": ".start-selling-morph-backdrop",
+          "rewrite": "[data-fw=\"morph-columns\"] > div",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "left",
+            "right"
+          ],
+          "why": "inset: 0 -3% resolves left and right against the host width (a pill in the original, the stage in the rewrite); opacity, gap and the flex row are the part's own"
+        },
+        {
+          "role": "col",
+          "orig": ".start-selling-morph-col",
+          "rewrite": "[data-fw=\"morph-columns\"] > div > div",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "transform"
+          ],
+          "why": "translateY(var(--col-offset)) is a percentage of the column's own height, which is the host height; display (none from the 4th column at <=640) and flex are compared"
+        },
+        {
+          "role": "track",
+          "orig": ".start-selling-morph-col-track",
+          "rewrite": "[data-fw=\"morph-columns\"] > div > div > div",
+          "boxRel": null,
+          "dims": [
+            "h"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "transform"
+          ],
+          "why": "transform is the marquee (paused at rest in both arms, but the original's start phase is not pinned); animation-* longhands are skipped for every part by the style skipPrefixes (the keyframes name is hashed in the rewrite); will-change is compared. Height is the sum of the image heights and gaps, times 0.96: the original panel is scale(0.96) at morph 0, which the rewrite stage restates as a stand-in"
+        },
+        {
+          "role": "img",
+          "orig": ".start-selling-morph-col img",
+          "rewrite": "[data-fw=\"morph-columns\"] img",
+          "boxRel": null,
+          "dims": [
+            "h"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "width is the column's share of the host; the height is inline in both arms"
+        }
       ]
     },
     "morph.tween": {
-      "anchors": ["morph-tween"],
-      "cites": ["rewrite: MorphTween marks the document element with data-fw-morph-tween once mounted; original: the tween listens on the window and is armed by the platform section, 2.DyWL8TcE.js:12999-13089"],
+      "anchors": [
+        "morph-tween"
+      ],
+      "cites": [
+        "rewrite: MorphTween marks the document element with data-fw-morph-tween once mounted; original: the tween listens on the window and is armed by the platform section, 2.DyWL8TcE.js:12999-13089"
+      ],
       "excluded": [
-        { "what": "the platform section, the nav morph and the value --morph", "why": "owned by morph.mount, morph.panel and the nav; the rewrite page has no platform section yet, so the tween never arms. Its decisions are covered by the Lean golden vectors (logic.test.ts) and the driver tests" }
+        {
+          "what": "the platform section, the nav morph and the value --morph",
+          "why": "owned by morph.mount, morph.panel and the nav; the rewrite page has no platform section yet, so the tween never arms. Its decisions are covered by the Lean golden vectors (logic.test.ts) and the driver tests"
+        }
       ],
       "roles": [
         {
@@ -176,10 +497,343 @@
           "orig": "html",
           "rewrite": "html[data-fw-morph-tween]",
           "boxRel": null,
-          "dims": ["w"],
+          "dims": [
+            "w"
+          ],
           "skipSets": [],
           "skipProps": [],
           "why": "the part renders nothing and restates no CSS; only the document element's width is compared. If the mark is missing the rewrite count is 0 and the count differs"
+        }
+      ]
+    },
+    "platform": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:5388-5400, 5528-5560, 5602-5670, 5809-5960, 6037-6130, 7752-7830, 10835-10870, 10985-11075",
+        "2.DyWL8TcE.js:12414-12661 (markup), 12434-12448 (shrink)",
+        "PL1: the section box height is the sum of the rows (stage aspect ratio), compared exactly"
+      ],
+      "excluded": [
+        {
+          "what": "text-dependent boxes (mission title width, row title and copy heights, line counts)",
+          "why": "the rewrite page has no web font yet, so wrapping and line counts differ; the boxes that do not depend on text are compared exactly"
+        },
+        {
+          "what": "stage visuals (profile, ask, secure network, invoice)",
+          "why": "owned by platform.entries, platform.glint and platform.marquee"
+        }
+      ],
+      "roles": [
+        {
+          "role": "section",
+          "orig": "section#platform",
+          "rewrite": "[data-fw=\"platform\"]",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the section box: width and height (card padding + mission + rows), the part's own sum of stage heights; height skipped: title wraps differ until the web font lands (delta in part.json)"
+        },
+        {
+          "role": "card",
+          "orig": ".start-selling-platform-card",
+          "rewrite": "[data-fw=\"platform\"] > div",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "will-change",
+            "transform-origin"
+          ],
+          "why": "the dark card (padding 96/56/80 down to 64/20 at the 860 combo); height skipped (text wrap, no web font yet); will-change follows the original scene pause"
+        },
+        {
+          "role": "missionTitle",
+          "orig": "#built-heading",
+          "rewrite": "#built-heading",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "font size and weight per breakpoint; the box is text-dependent"
+        },
+        {
+          "role": "row",
+          "orig": ".start-selling-platform-row",
+          "rewrite": "[data-fw-row]",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "grid of two columns (one at <=640); the height follows the copy at <=640 and is text-dependent there"
+        },
+        {
+          "role": "rowCopy",
+          "orig": ".start-selling-platform-row-copy",
+          "rewrite": "[data-fw-row] > div:last-child",
+          "boxRel": null,
+          "dims": [
+            "w"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "copy column; height and y depend on the title's line count"
+        },
+        {
+          "role": "rowTitle",
+          "orig": ".start-selling-platform-row-title",
+          "rewrite": "[data-fw-row] h3",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [],
+          "why": "type size and weight per breakpoint; the box is text-dependent"
+        }
+      ]
+    },
+    "platform.stageBg": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:6330-6405 (stage, mesh, grain, bg, visual, artboard), 8217-8225, 10985-10995"
+      ],
+      "excluded": [
+        {
+          "what": "image pictures (src, srcset)",
+          "why": "the assets are the original's public files, served next to the page at publish time; absent in the rewrite build"
+        }
+      ],
+      "roles": [
+        {
+          "role": "stage",
+          "orig": ".start-selling-platform-stage",
+          "rewrite": "[data-fw-row] > div:first-child",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "aspect-ratio 640/512 (361/288 at the 860 combo): both dimensions are the part's own"
+        },
+        {
+          "role": "grain",
+          "orig": ".start-selling-platform-stage-grain",
+          "rewrite": "[data-fw-row] > div:first-child > div[aria-hidden=\"true\"]:first-child",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "background-image"
+          ],
+          "why": "overlay at opacity 0.55 (0.42 on the secure mesh), tiled 128 px"
+        },
+        {
+          "role": "bg",
+          "orig": ".start-selling-platform-stage-bg",
+          "rewrite": "[data-fw-row] > div:first-child > picture > img",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "blurred 16 px photo, opacity 0.5 (0.15 for the quote)"
+        },
+        {
+          "role": "artboard",
+          "orig": ".start-selling-platform-stage-artboard",
+          "rewrite": "[data-fw-row] > div:first-child > div > div",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "640 x 512 box scaled by 100cqw / 640px"
+        }
+      ]
+    },
+    "platform.sweep": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:5802-5805, 11081-11103",
+        "lean/Fw/Parts/PlatformSweep.lean"
+      ],
+      "excluded": [
+        {
+          "what": "background-position and the animation longhands",
+          "why": "the phase of a running animation is not pinned at load; animation-* is skipped for every part and the exact curve is the Lean spec"
+        }
+      ],
+      "roles": [
+        {
+          "role": "word",
+          "orig": ".start-selling-platform-row-title-doc,.start-selling-platform-row-title-earn,.start-selling-platform-row-title-secure,.start-selling-platform-row-title-organized",
+          "rewrite": "[data-fw-sweep]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "background-position"
+          ],
+          "why": "gradient, size 300% and text clip of the four words; the box is text-dependent"
+        }
+      ]
+    },
+    "platform.glint": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.DyWL8TcE.js:12150-12212, 12269-12275; 2.gBuqKVzi.css 7020-7060 (dash)",
+        "lean/Fw/Parts/PlatformGlint.lean"
+      ],
+      "excluded": [
+        {
+          "what": "the SMIL x1/x2 values",
+          "why": "they are attributes of an animated gradient (not computed style); the schedule is the Lean spec and golden vectors"
+        }
+      ],
+      "roles": [
+        {
+          "role": "dash",
+          "orig": ".start-selling-platform-secure-network-dash",
+          "rewrite": "[data-fw-dash]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "transform",
+            "opacity",
+            "background-image"
+          ],
+          "why": "two dashes of 94 x 3.2 px at fixed artboard positions"
+        }
+      ]
+    },
+    "platform.entries": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css keyframes (profile, cred, secure-network, invoice, orders, agents-ask)",
+        "lean/Fw/Parts/PlatformEntries.lean"
+      ],
+      "excluded": [
+        {
+          "what": "opacity, transform and filter of entering elements",
+          "why": "they depend on the time since the stage became visible; the gate loads at the top where no stage is seen, and the curves are the Lean spec"
+        }
+      ],
+      "roles": [
+        {
+          "role": "visual",
+          "orig": ".start-selling-platform-profile,.start-selling-platform-visual.is-search,.start-selling-platform-secure,.start-selling-platform-invoice",
+          "rewrite": "[data-fw-visual]",
+          "boxRel": null,
+          "dims": [
+            "w",
+            "h"
+          ],
+          "skipSets": [],
+          "skipProps": [
+            "opacity",
+            "transform",
+            "filter",
+            "position",
+            "overflow-x",
+            "overflow-y"
+          ],
+          "why": "the four stage visuals fill the artboard"
+        }
+      ]
+    },
+    "platform.marquee": {
+      "anchors": [
+        "platform"
+      ],
+      "cites": [
+        "snapshot 2.gBuqKVzi.css:6484-6496, 7497",
+        "lean/Fw/Parts/PlatformMarquee.lean"
+      ],
+      "excluded": [
+        {
+          "what": "transform",
+          "why": "the phase of the running marquee is not pinned at load"
+        }
+      ],
+      "roles": [
+        {
+          "role": "track",
+          "orig": ".start-selling-platform-profile-reviews-track",
+          "rewrite": "[data-marquee]",
+          "boxRel": null,
+          "dims": [
+            "h"
+          ],
+          "skipSets": [
+            "layoutDerived"
+          ],
+          "skipProps": [
+            "transform"
+          ],
+          "why": "max-content track of two identical sets; width follows the card set"
+        }
+      ]
+    },
+    "engine.scene": {
+      "anchors": [],
+      "cites": [
+        "rewrite: EngineScene (apps/site/src/parts/engine.scene) pauses the platform section's CSS animations while it paints nothing (data-fw-hidden); the original runs a scene scheduler, 2.DyWL8TcE.js (see lean/Fw/Parts/HiddenPause.lean)",
+        "original: .start-selling-platform, the section the scene scheduler watches"
+      ],
+      "excluded": [
+        {
+          "what": "animation-play-state and every other animation longhand, transform of the running scenes",
+          "why": "animation-* is skipped for every part by the style skipPrefixes and the phase of a running animation is not pinned at load; the pause itself (what the variant changes) is not a number the gate reads. The variant is judged here only as: it removes nothing the other parts compare (their rows run under the same flags) and the observed section still exists once"
+        }
+      ],
+      "roles": [
+        {
+          "role": "scene",
+          "orig": ".start-selling-platform",
+          "rewrite": "[data-fw=\"platform\"]",
+          "boxRel": null,
+          "dims": [],
+          "skipSets": [],
+          "skipProps": [],
+          "why": "the observed scene section exists once in both arms at every breakpoint (count); no width gate: the pause follows visibility, not a media edge"
         }
       ]
     }

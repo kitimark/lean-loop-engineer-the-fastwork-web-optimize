@@ -1,0 +1,1509 @@
+{
+ "schema": "fw.zonebaseline.webkit/1",
+ "note": "Per-pass per-500px-zone sums of the WebKit Simulator scroll counts (Lean measure.webkit.zones). Zone ids z00.. by floor(y/500); frames = scroll steps; sums include paintArea.",
+ "engine": "webkit-sim",
+ "target": "original",
+ "runId": "39061324429",
+ "zonePx": 500,
+ "sessions": [
+  {
+   "name": "v1-session-1",
+   "sessionSha256": "86e00507cff6c6e9345a46e81e59f4dddc048dd78877395265da847af65f805e",
+   "passes": 2
+  },
+  {
+   "name": "v2-session-1",
+   "sessionSha256": "75d0b54b4aabab8f26b0a8a8be5517f1b287573d501c989ff19f430b7ba2f50d",
+   "passes": 2
+  },
+  {
+   "name": "v3-session-1",
+   "sessionSha256": "0c6296a496c5baec00e918919f26843b094377cbed1334776e679380ad2eb810",
+   "passes": 2
+  }
+ ],
+ "runs": [
+  {
+   "id": "v1-session-1-p1",
+   "zones": [
+    {
+     "id": "z00",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 0,
+     "lastFrame": 9,
+     "sums": {
+      "RecalculateStyles": 78,
+      "Layout": 85,
+      "Paint": 165,
+      "Composite": 19,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 68,
+      "TimerFire": 11,
+      "ObserverCallback": 20,
+      "EventDispatch": 10,
+      "FunctionCall": 101,
+      "ScheduleStyleRecalculation": 78,
+      "InvalidateLayout": 89,
+      "paintArea": 8431875
+     }
+    },
+    {
+     "id": "z01",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 10,
+     "lastFrame": 19,
+     "sums": {
+      "RecalculateStyles": 73,
+      "Layout": 76,
+      "Paint": 183,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 66,
+      "TimerFire": 14,
+      "ObserverCallback": 16,
+      "EventDispatch": 10,
+      "FunctionCall": 101,
+      "ScheduleStyleRecalculation": 73,
+      "InvalidateLayout": 72,
+      "paintArea": 13928872
+     }
+    },
+    {
+     "id": "z02",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 20,
+     "lastFrame": 29,
+     "sums": {
+      "RecalculateStyles": 45,
+      "Layout": 46,
+      "Paint": 129,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 60,
+      "TimerFire": 9,
+      "ObserverCallback": 10,
+      "EventDispatch": 10,
+      "FunctionCall": 85,
+      "ScheduleStyleRecalculation": 45,
+      "InvalidateLayout": 41,
+      "paintArea": 11677297
+     }
+    },
+    {
+     "id": "z03",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 30,
+     "lastFrame": 39,
+     "sums": {
+      "RecalculateStyles": 63,
+      "Layout": 94,
+      "Paint": 188,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 89,
+      "TimerFire": 11,
+      "ObserverCallback": 15,
+      "EventDispatch": 10,
+      "FunctionCall": 119,
+      "ScheduleStyleRecalculation": 63,
+      "InvalidateLayout": 64,
+      "paintArea": 18519557
+     }
+    },
+    {
+     "id": "z04",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 40,
+     "lastFrame": 49,
+     "sums": {
+      "RecalculateStyles": 62,
+      "Layout": 82,
+      "Paint": 84,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 85,
+      "TimerFire": 5,
+      "ObserverCallback": 9,
+      "EventDispatch": 10,
+      "FunctionCall": 106,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 55,
+      "paintArea": 6299980
+     }
+    },
+    {
+     "id": "z05",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 50,
+     "lastFrame": 59,
+     "sums": {
+      "RecalculateStyles": 63,
+      "Layout": 59,
+      "Paint": 78,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 72,
+      "TimerFire": 8,
+      "ObserverCallback": 13,
+      "EventDispatch": 10,
+      "FunctionCall": 98,
+      "ScheduleStyleRecalculation": 63,
+      "InvalidateLayout": 52,
+      "paintArea": 6762767
+     }
+    },
+    {
+     "id": "z06",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 60,
+     "lastFrame": 69,
+     "sums": {
+      "RecalculateStyles": 66,
+      "Layout": 41,
+      "Paint": 81,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 63,
+      "TimerFire": 6,
+      "ObserverCallback": 4,
+      "EventDispatch": 10,
+      "FunctionCall": 83,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 27,
+      "paintArea": 6198570
+     }
+    },
+    {
+     "id": "z07",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 70,
+     "lastFrame": 79,
+     "sums": {
+      "RecalculateStyles": 87,
+      "Layout": 68,
+      "Paint": 138,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 72,
+      "TimerFire": 27,
+      "ObserverCallback": 7,
+      "EventDispatch": 10,
+      "FunctionCall": 116,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 54,
+      "paintArea": 6200825
+     }
+    },
+    {
+     "id": "z08",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 80,
+     "lastFrame": 89,
+     "sums": {
+      "RecalculateStyles": 69,
+      "Layout": 35,
+      "Paint": 109,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 70,
+      "TimerFire": 2,
+      "ObserverCallback": 5,
+      "EventDispatch": 10,
+      "FunctionCall": 87,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 25,
+      "paintArea": 2725444
+     }
+    },
+    {
+     "id": "z09",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 90,
+     "lastFrame": 99,
+     "sums": {
+      "RecalculateStyles": 59,
+      "Layout": 59,
+      "Paint": 140,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 53,
+      "TimerFire": 22,
+      "ObserverCallback": 10,
+      "EventDispatch": 10,
+      "FunctionCall": 94,
+      "ScheduleStyleRecalculation": 45,
+      "InvalidateLayout": 49,
+      "paintArea": 3212955
+     }
+    },
+    {
+     "id": "z10",
+     "frames": 7,
+     "scrolledPx": 267,
+     "firstFrame": 100,
+     "lastFrame": 106,
+     "sums": {
+      "RecalculateStyles": 43,
+      "Layout": 39,
+      "Paint": 81,
+      "Composite": 14,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 29,
+      "TimerFire": 1,
+      "ObserverCallback": 4,
+      "EventDispatch": 7,
+      "FunctionCall": 40,
+      "ScheduleStyleRecalculation": 31,
+      "InvalidateLayout": 53,
+      "paintArea": 715635
+     }
+    }
+   ]
+  },
+  {
+   "id": "v1-session-1-p2",
+   "zones": [
+    {
+     "id": "z00",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 0,
+     "lastFrame": 9,
+     "sums": {
+      "RecalculateStyles": 77,
+      "Layout": 83,
+      "Paint": 163,
+      "Composite": 19,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 68,
+      "TimerFire": 9,
+      "ObserverCallback": 15,
+      "EventDispatch": 10,
+      "FunctionCall": 107,
+      "ScheduleStyleRecalculation": 77,
+      "InvalidateLayout": 83,
+      "paintArea": 9602234
+     }
+    },
+    {
+     "id": "z01",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 10,
+     "lastFrame": 19,
+     "sums": {
+      "RecalculateStyles": 73,
+      "Layout": 70,
+      "Paint": 214,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 66,
+      "TimerFire": 12,
+      "ObserverCallback": 19,
+      "EventDispatch": 10,
+      "FunctionCall": 100,
+      "ScheduleStyleRecalculation": 73,
+      "InvalidateLayout": 69,
+      "paintArea": 17337701
+     }
+    },
+    {
+     "id": "z02",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 20,
+     "lastFrame": 29,
+     "sums": {
+      "RecalculateStyles": 45,
+      "Layout": 47,
+      "Paint": 137,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 60,
+      "TimerFire": 7,
+      "ObserverCallback": 7,
+      "EventDispatch": 10,
+      "FunctionCall": 82,
+      "ScheduleStyleRecalculation": 45,
+      "InvalidateLayout": 52,
+      "paintArea": 11036810
+     }
+    },
+    {
+     "id": "z03",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 30,
+     "lastFrame": 39,
+     "sums": {
+      "RecalculateStyles": 64,
+      "Layout": 78,
+      "Paint": 192,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 79,
+      "TimerFire": 10,
+      "ObserverCallback": 13,
+      "EventDispatch": 10,
+      "FunctionCall": 107,
+      "ScheduleStyleRecalculation": 64,
+      "InvalidateLayout": 60,
+      "paintArea": 18062188
+     }
+    },
+    {
+     "id": "z04",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 40,
+     "lastFrame": 49,
+     "sums": {
+      "RecalculateStyles": 63,
+      "Layout": 74,
+      "Paint": 86,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 81,
+      "TimerFire": 5,
+      "ObserverCallback": 11,
+      "EventDispatch": 10,
+      "FunctionCall": 103,
+      "ScheduleStyleRecalculation": 63,
+      "InvalidateLayout": 55,
+      "paintArea": 6535229
+     }
+    },
+    {
+     "id": "z05",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 50,
+     "lastFrame": 59,
+     "sums": {
+      "RecalculateStyles": 62,
+      "Layout": 62,
+      "Paint": 75,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 72,
+      "TimerFire": 6,
+      "ObserverCallback": 13,
+      "EventDispatch": 10,
+      "FunctionCall": 96,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 48,
+      "paintArea": 6345754
+     }
+    },
+    {
+     "id": "z06",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 60,
+     "lastFrame": 69,
+     "sums": {
+      "RecalculateStyles": 64,
+      "Layout": 39,
+      "Paint": 73,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 63,
+      "TimerFire": 4,
+      "ObserverCallback": 4,
+      "EventDispatch": 10,
+      "FunctionCall": 81,
+      "ScheduleStyleRecalculation": 63,
+      "InvalidateLayout": 24,
+      "paintArea": 6289142
+     }
+    },
+    {
+     "id": "z07",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 70,
+     "lastFrame": 79,
+     "sums": {
+      "RecalculateStyles": 85,
+      "Layout": 69,
+      "Paint": 139,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 71,
+      "TimerFire": 22,
+      "ObserverCallback": 7,
+      "EventDispatch": 10,
+      "FunctionCall": 110,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 51,
+      "paintArea": 6524583
+     }
+    },
+    {
+     "id": "z08",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 80,
+     "lastFrame": 89,
+     "sums": {
+      "RecalculateStyles": 78,
+      "Layout": 43,
+      "Paint": 125,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 80,
+      "TimerFire": 1,
+      "ObserverCallback": 5,
+      "EventDispatch": 10,
+      "FunctionCall": 96,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 33,
+      "paintArea": 2704690
+     }
+    },
+    {
+     "id": "z09",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 90,
+     "lastFrame": 99,
+     "sums": {
+      "RecalculateStyles": 54,
+      "Layout": 52,
+      "Paint": 135,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 56,
+      "TimerFire": 18,
+      "ObserverCallback": 10,
+      "EventDispatch": 10,
+      "FunctionCall": 93,
+      "ScheduleStyleRecalculation": 46,
+      "InvalidateLayout": 41,
+      "paintArea": 3690470
+     }
+    },
+    {
+     "id": "z10",
+     "frames": 7,
+     "scrolledPx": 267,
+     "firstFrame": 100,
+     "lastFrame": 106,
+     "sums": {
+      "RecalculateStyles": 40,
+      "Layout": 33,
+      "Paint": 72,
+      "Composite": 14,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 29,
+      "TimerFire": 3,
+      "ObserverCallback": 4,
+      "EventDispatch": 7,
+      "FunctionCall": 42,
+      "ScheduleStyleRecalculation": 31,
+      "InvalidateLayout": 38,
+      "paintArea": 648520
+     }
+    }
+   ]
+  },
+  {
+   "id": "v2-session-1-p1",
+   "zones": [
+    {
+     "id": "z00",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 0,
+     "lastFrame": 9,
+     "sums": {
+      "RecalculateStyles": 79,
+      "Layout": 83,
+      "Paint": 158,
+      "Composite": 19,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 68,
+      "TimerFire": 11,
+      "ObserverCallback": 22,
+      "EventDispatch": 10,
+      "FunctionCall": 104,
+      "ScheduleStyleRecalculation": 79,
+      "InvalidateLayout": 86,
+      "paintArea": 7238085
+     }
+    },
+    {
+     "id": "z01",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 10,
+     "lastFrame": 19,
+     "sums": {
+      "RecalculateStyles": 75,
+      "Layout": 74,
+      "Paint": 175,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 66,
+      "TimerFire": 19,
+      "ObserverCallback": 19,
+      "EventDispatch": 10,
+      "FunctionCall": 106,
+      "ScheduleStyleRecalculation": 75,
+      "InvalidateLayout": 71,
+      "paintArea": 16246812
+     }
+    },
+    {
+     "id": "z02",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 20,
+     "lastFrame": 29,
+     "sums": {
+      "RecalculateStyles": 43,
+      "Layout": 44,
+      "Paint": 126,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 60,
+      "TimerFire": 11,
+      "ObserverCallback": 10,
+      "EventDispatch": 10,
+      "FunctionCall": 87,
+      "ScheduleStyleRecalculation": 43,
+      "InvalidateLayout": 38,
+      "paintArea": 11827657
+     }
+    },
+    {
+     "id": "z03",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 30,
+     "lastFrame": 39,
+     "sums": {
+      "RecalculateStyles": 64,
+      "Layout": 77,
+      "Paint": 190,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 79,
+      "TimerFire": 10,
+      "ObserverCallback": 15,
+      "EventDispatch": 10,
+      "FunctionCall": 108,
+      "ScheduleStyleRecalculation": 64,
+      "InvalidateLayout": 64,
+      "paintArea": 17924816
+     }
+    },
+    {
+     "id": "z04",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 40,
+     "lastFrame": 49,
+     "sums": {
+      "RecalculateStyles": 60,
+      "Layout": 73,
+      "Paint": 87,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 81,
+      "TimerFire": 6,
+      "ObserverCallback": 11,
+      "EventDispatch": 10,
+      "FunctionCall": 104,
+      "ScheduleStyleRecalculation": 60,
+      "InvalidateLayout": 56,
+      "paintArea": 6330473
+     }
+    },
+    {
+     "id": "z05",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 50,
+     "lastFrame": 59,
+     "sums": {
+      "RecalculateStyles": 61,
+      "Layout": 52,
+      "Paint": 75,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 72,
+      "TimerFire": 4,
+      "ObserverCallback": 11,
+      "EventDispatch": 10,
+      "FunctionCall": 93,
+      "ScheduleStyleRecalculation": 61,
+      "InvalidateLayout": 40,
+      "paintArea": 6208753
+     }
+    },
+    {
+     "id": "z06",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 60,
+     "lastFrame": 69,
+     "sums": {
+      "RecalculateStyles": 62,
+      "Layout": 40,
+      "Paint": 80,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 63,
+      "TimerFire": 6,
+      "ObserverCallback": 4,
+      "EventDispatch": 10,
+      "FunctionCall": 83,
+      "ScheduleStyleRecalculation": 61,
+      "InvalidateLayout": 26,
+      "paintArea": 7356601
+     }
+    },
+    {
+     "id": "z07",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 70,
+     "lastFrame": 79,
+     "sums": {
+      "RecalculateStyles": 86,
+      "Layout": 70,
+      "Paint": 142,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 71,
+      "TimerFire": 24,
+      "ObserverCallback": 7,
+      "EventDispatch": 10,
+      "FunctionCall": 112,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 53,
+      "paintArea": 6565853
+     }
+    },
+    {
+     "id": "z08",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 80,
+     "lastFrame": 89,
+     "sums": {
+      "RecalculateStyles": 75,
+      "Layout": 43,
+      "Paint": 113,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 78,
+      "TimerFire": 0,
+      "ObserverCallback": 5,
+      "EventDispatch": 10,
+      "FunctionCall": 93,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 33,
+      "paintArea": 2698867
+     }
+    },
+    {
+     "id": "z09",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 90,
+     "lastFrame": 99,
+     "sums": {
+      "RecalculateStyles": 58,
+      "Layout": 55,
+      "Paint": 141,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 53,
+      "TimerFire": 22,
+      "ObserverCallback": 10,
+      "EventDispatch": 10,
+      "FunctionCall": 94,
+      "ScheduleStyleRecalculation": 46,
+      "InvalidateLayout": 44,
+      "paintArea": 3696477
+     }
+    },
+    {
+     "id": "z10",
+     "frames": 7,
+     "scrolledPx": 267,
+     "firstFrame": 100,
+     "lastFrame": 106,
+     "sums": {
+      "RecalculateStyles": 42,
+      "Layout": 36,
+      "Paint": 77,
+      "Composite": 14,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 29,
+      "TimerFire": 3,
+      "ObserverCallback": 4,
+      "EventDispatch": 7,
+      "FunctionCall": 42,
+      "ScheduleStyleRecalculation": 31,
+      "InvalidateLayout": 43,
+      "paintArea": 703852
+     }
+    }
+   ]
+  },
+  {
+   "id": "v2-session-1-p2",
+   "zones": [
+    {
+     "id": "z00",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 0,
+     "lastFrame": 9,
+     "sums": {
+      "RecalculateStyles": 79,
+      "Layout": 83,
+      "Paint": 177,
+      "Composite": 19,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 68,
+      "TimerFire": 9,
+      "ObserverCallback": 20,
+      "EventDispatch": 10,
+      "FunctionCall": 101,
+      "ScheduleStyleRecalculation": 78,
+      "InvalidateLayout": 85,
+      "paintArea": 8868382
+     }
+    },
+    {
+     "id": "z01",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 10,
+     "lastFrame": 19,
+     "sums": {
+      "RecalculateStyles": 72,
+      "Layout": 73,
+      "Paint": 203,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 66,
+      "TimerFire": 12,
+      "ObserverCallback": 18,
+      "EventDispatch": 10,
+      "FunctionCall": 100,
+      "ScheduleStyleRecalculation": 72,
+      "InvalidateLayout": 70,
+      "paintArea": 17023536
+     }
+    },
+    {
+     "id": "z02",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 20,
+     "lastFrame": 29,
+     "sums": {
+      "RecalculateStyles": 45,
+      "Layout": 45,
+      "Paint": 131,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 60,
+      "TimerFire": 8,
+      "ObserverCallback": 6,
+      "EventDispatch": 10,
+      "FunctionCall": 82,
+      "ScheduleStyleRecalculation": 45,
+      "InvalidateLayout": 49,
+      "paintArea": 10731621
+     }
+    },
+    {
+     "id": "z03",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 30,
+     "lastFrame": 39,
+     "sums": {
+      "RecalculateStyles": 66,
+      "Layout": 97,
+      "Paint": 195,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 89,
+      "TimerFire": 10,
+      "ObserverCallback": 15,
+      "EventDispatch": 10,
+      "FunctionCall": 118,
+      "ScheduleStyleRecalculation": 66,
+      "InvalidateLayout": 62,
+      "paintArea": 18195251
+     }
+    },
+    {
+     "id": "z04",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 40,
+     "lastFrame": 49,
+     "sums": {
+      "RecalculateStyles": 62,
+      "Layout": 78,
+      "Paint": 82,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 85,
+      "TimerFire": 4,
+      "ObserverCallback": 9,
+      "EventDispatch": 10,
+      "FunctionCall": 105,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 51,
+      "paintArea": 6449471
+     }
+    },
+    {
+     "id": "z05",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 50,
+     "lastFrame": 59,
+     "sums": {
+      "RecalculateStyles": 62,
+      "Layout": 58,
+      "Paint": 68,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 72,
+      "TimerFire": 6,
+      "ObserverCallback": 13,
+      "EventDispatch": 10,
+      "FunctionCall": 96,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 48,
+      "paintArea": 5833595
+     }
+    },
+    {
+     "id": "z06",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 60,
+     "lastFrame": 69,
+     "sums": {
+      "RecalculateStyles": 63,
+      "Layout": 31,
+      "Paint": 69,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 63,
+      "TimerFire": 2,
+      "ObserverCallback": 4,
+      "EventDispatch": 10,
+      "FunctionCall": 78,
+      "ScheduleStyleRecalculation": 63,
+      "InvalidateLayout": 19,
+      "paintArea": 5878871
+     }
+    },
+    {
+     "id": "z07",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 70,
+     "lastFrame": 79,
+     "sums": {
+      "RecalculateStyles": 86,
+      "Layout": 69,
+      "Paint": 137,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 71,
+      "TimerFire": 26,
+      "ObserverCallback": 7,
+      "EventDispatch": 10,
+      "FunctionCall": 115,
+      "ScheduleStyleRecalculation": 63,
+      "InvalidateLayout": 54,
+      "paintArea": 6348880
+     }
+    },
+    {
+     "id": "z08",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 80,
+     "lastFrame": 89,
+     "sums": {
+      "RecalculateStyles": 71,
+      "Layout": 38,
+      "Paint": 105,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 74,
+      "TimerFire": 2,
+      "ObserverCallback": 5,
+      "EventDispatch": 10,
+      "FunctionCall": 91,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 28,
+      "paintArea": 2697021
+     }
+    },
+    {
+     "id": "z09",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 90,
+     "lastFrame": 99,
+     "sums": {
+      "RecalculateStyles": 61,
+      "Layout": 60,
+      "Paint": 138,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 53,
+      "TimerFire": 24,
+      "ObserverCallback": 10,
+      "EventDispatch": 10,
+      "FunctionCall": 96,
+      "ScheduleStyleRecalculation": 46,
+      "InvalidateLayout": 49,
+      "paintArea": 3192390
+     }
+    },
+    {
+     "id": "z10",
+     "frames": 7,
+     "scrolledPx": 267,
+     "firstFrame": 100,
+     "lastFrame": 106,
+     "sums": {
+      "RecalculateStyles": 42,
+      "Layout": 37,
+      "Paint": 79,
+      "Composite": 14,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 29,
+      "TimerFire": 1,
+      "ObserverCallback": 4,
+      "EventDispatch": 7,
+      "FunctionCall": 40,
+      "ScheduleStyleRecalculation": 31,
+      "InvalidateLayout": 44,
+      "paintArea": 714544
+     }
+    }
+   ]
+  },
+  {
+   "id": "v3-session-1-p1",
+   "zones": [
+    {
+     "id": "z00",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 0,
+     "lastFrame": 9,
+     "sums": {
+      "RecalculateStyles": 78,
+      "Layout": 81,
+      "Paint": 184,
+      "Composite": 19,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 68,
+      "TimerFire": 10,
+      "ObserverCallback": 21,
+      "EventDispatch": 10,
+      "FunctionCall": 102,
+      "ScheduleStyleRecalculation": 76,
+      "InvalidateLayout": 83,
+      "paintArea": 9219623
+     }
+    },
+    {
+     "id": "z01",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 10,
+     "lastFrame": 19,
+     "sums": {
+      "RecalculateStyles": 73,
+      "Layout": 69,
+      "Paint": 219,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 66,
+      "TimerFire": 12,
+      "ObserverCallback": 18,
+      "EventDispatch": 10,
+      "FunctionCall": 100,
+      "ScheduleStyleRecalculation": 73,
+      "InvalidateLayout": 67,
+      "paintArea": 17089105
+     }
+    },
+    {
+     "id": "z02",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 20,
+     "lastFrame": 29,
+     "sums": {
+      "RecalculateStyles": 44,
+      "Layout": 50,
+      "Paint": 142,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 60,
+      "TimerFire": 6,
+      "ObserverCallback": 6,
+      "EventDispatch": 10,
+      "FunctionCall": 80,
+      "ScheduleStyleRecalculation": 44,
+      "InvalidateLayout": 54,
+      "paintArea": 12056976
+     }
+    },
+    {
+     "id": "z03",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 30,
+     "lastFrame": 39,
+     "sums": {
+      "RecalculateStyles": 64,
+      "Layout": 80,
+      "Paint": 196,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 79,
+      "TimerFire": 10,
+      "ObserverCallback": 15,
+      "EventDispatch": 10,
+      "FunctionCall": 108,
+      "ScheduleStyleRecalculation": 63,
+      "InvalidateLayout": 61,
+      "paintArea": 18642402
+     }
+    },
+    {
+     "id": "z04",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 40,
+     "lastFrame": 49,
+     "sums": {
+      "RecalculateStyles": 63,
+      "Layout": 70,
+      "Paint": 81,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 81,
+      "TimerFire": 5,
+      "ObserverCallback": 9,
+      "EventDispatch": 10,
+      "FunctionCall": 102,
+      "ScheduleStyleRecalculation": 64,
+      "InvalidateLayout": 51,
+      "paintArea": 6444139
+     }
+    },
+    {
+     "id": "z05",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 50,
+     "lastFrame": 59,
+     "sums": {
+      "RecalculateStyles": 62,
+      "Layout": 52,
+      "Paint": 60,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 72,
+      "TimerFire": 5,
+      "ObserverCallback": 13,
+      "EventDispatch": 10,
+      "FunctionCall": 95,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 43,
+      "paintArea": 5423829
+     }
+    },
+    {
+     "id": "z06",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 60,
+     "lastFrame": 69,
+     "sums": {
+      "RecalculateStyles": 67,
+      "Layout": 37,
+      "Paint": 78,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 63,
+      "TimerFire": 8,
+      "ObserverCallback": 4,
+      "EventDispatch": 10,
+      "FunctionCall": 85,
+      "ScheduleStyleRecalculation": 64,
+      "InvalidateLayout": 24,
+      "paintArea": 5514254
+     }
+    },
+    {
+     "id": "z07",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 70,
+     "lastFrame": 79,
+     "sums": {
+      "RecalculateStyles": 86,
+      "Layout": 70,
+      "Paint": 147,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 71,
+      "TimerFire": 21,
+      "ObserverCallback": 7,
+      "EventDispatch": 10,
+      "FunctionCall": 109,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 52,
+      "paintArea": 7628495
+     }
+    },
+    {
+     "id": "z08",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 80,
+     "lastFrame": 89,
+     "sums": {
+      "RecalculateStyles": 79,
+      "Layout": 43,
+      "Paint": 123,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 80,
+      "TimerFire": 1,
+      "ObserverCallback": 5,
+      "EventDispatch": 10,
+      "FunctionCall": 96,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 33,
+      "paintArea": 2704637
+     }
+    },
+    {
+     "id": "z09",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 90,
+     "lastFrame": 99,
+     "sums": {
+      "RecalculateStyles": 56,
+      "Layout": 50,
+      "Paint": 126,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 55,
+      "TimerFire": 19,
+      "ObserverCallback": 10,
+      "EventDispatch": 10,
+      "FunctionCall": 93,
+      "ScheduleStyleRecalculation": 45,
+      "InvalidateLayout": 40,
+      "paintArea": 2926626
+     }
+    },
+    {
+     "id": "z10",
+     "frames": 7,
+     "scrolledPx": 267,
+     "firstFrame": 100,
+     "lastFrame": 106,
+     "sums": {
+      "RecalculateStyles": 38,
+      "Layout": 31,
+      "Paint": 74,
+      "Composite": 14,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 29,
+      "TimerFire": 2,
+      "ObserverCallback": 4,
+      "EventDispatch": 7,
+      "FunctionCall": 41,
+      "ScheduleStyleRecalculation": 32,
+      "InvalidateLayout": 33,
+      "paintArea": 999092
+     }
+    }
+   ]
+  },
+  {
+   "id": "v3-session-1-p2",
+   "zones": [
+    {
+     "id": "z00",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 0,
+     "lastFrame": 9,
+     "sums": {
+      "RecalculateStyles": 80,
+      "Layout": 85,
+      "Paint": 155,
+      "Composite": 19,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 68,
+      "TimerFire": 12,
+      "ObserverCallback": 21,
+      "EventDispatch": 10,
+      "FunctionCall": 103,
+      "ScheduleStyleRecalculation": 79,
+      "InvalidateLayout": 86,
+      "paintArea": 7230998
+     }
+    },
+    {
+     "id": "z01",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 10,
+     "lastFrame": 19,
+     "sums": {
+      "RecalculateStyles": 77,
+      "Layout": 76,
+      "Paint": 169,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 66,
+      "TimerFire": 22,
+      "ObserverCallback": 22,
+      "EventDispatch": 10,
+      "FunctionCall": 110,
+      "ScheduleStyleRecalculation": 77,
+      "InvalidateLayout": 71,
+      "paintArea": 16067372
+     }
+    },
+    {
+     "id": "z02",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 20,
+     "lastFrame": 29,
+     "sums": {
+      "RecalculateStyles": 47,
+      "Layout": 48,
+      "Paint": 124,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 60,
+      "TimerFire": 13,
+      "ObserverCallback": 10,
+      "EventDispatch": 10,
+      "FunctionCall": 89,
+      "ScheduleStyleRecalculation": 47,
+      "InvalidateLayout": 45,
+      "paintArea": 10715566
+     }
+    },
+    {
+     "id": "z03",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 30,
+     "lastFrame": 39,
+     "sums": {
+      "RecalculateStyles": 65,
+      "Layout": 81,
+      "Paint": 188,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 79,
+      "TimerFire": 16,
+      "ObserverCallback": 17,
+      "EventDispatch": 10,
+      "FunctionCall": 115,
+      "ScheduleStyleRecalculation": 65,
+      "InvalidateLayout": 69,
+      "paintArea": 17950277
+     }
+    },
+    {
+     "id": "z04",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 40,
+     "lastFrame": 49,
+     "sums": {
+      "RecalculateStyles": 65,
+      "Layout": 78,
+      "Paint": 89,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 81,
+      "TimerFire": 10,
+      "ObserverCallback": 13,
+      "EventDispatch": 10,
+      "FunctionCall": 109,
+      "ScheduleStyleRecalculation": 65,
+      "InvalidateLayout": 60,
+      "paintArea": 6551072
+     }
+    },
+    {
+     "id": "z05",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 50,
+     "lastFrame": 59,
+     "sums": {
+      "RecalculateStyles": 60,
+      "Layout": 56,
+      "Paint": 89,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 72,
+      "TimerFire": 8,
+      "ObserverCallback": 15,
+      "EventDispatch": 10,
+      "FunctionCall": 99,
+      "ScheduleStyleRecalculation": 60,
+      "InvalidateLayout": 44,
+      "paintArea": 6499681
+     }
+    },
+    {
+     "id": "z06",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 60,
+     "lastFrame": 69,
+     "sums": {
+      "RecalculateStyles": 74,
+      "Layout": 49,
+      "Paint": 73,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 63,
+      "TimerFire": 19,
+      "ObserverCallback": 4,
+      "EventDispatch": 10,
+      "FunctionCall": 96,
+      "ScheduleStyleRecalculation": 64,
+      "InvalidateLayout": 34,
+      "paintArea": 5130541
+     }
+    },
+    {
+     "id": "z07",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 70,
+     "lastFrame": 79,
+     "sums": {
+      "RecalculateStyles": 85,
+      "Layout": 68,
+      "Paint": 130,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 72,
+      "TimerFire": 29,
+      "ObserverCallback": 7,
+      "EventDispatch": 10,
+      "FunctionCall": 118,
+      "ScheduleStyleRecalculation": 64,
+      "InvalidateLayout": 53,
+      "paintArea": 6335244
+     }
+    },
+    {
+     "id": "z08",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 80,
+     "lastFrame": 89,
+     "sums": {
+      "RecalculateStyles": 62,
+      "Layout": 32,
+      "Paint": 85,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 64,
+      "TimerFire": 2,
+      "ObserverCallback": 5,
+      "EventDispatch": 10,
+      "FunctionCall": 81,
+      "ScheduleStyleRecalculation": 62,
+      "InvalidateLayout": 21,
+      "paintArea": 2792569
+     }
+    },
+    {
+     "id": "z09",
+     "frames": 10,
+     "scrolledPx": 450,
+     "firstFrame": 90,
+     "lastFrame": 99,
+     "sums": {
+      "RecalculateStyles": 62,
+      "Layout": 63,
+      "Paint": 141,
+      "Composite": 20,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 53,
+      "TimerFire": 28,
+      "ObserverCallback": 10,
+      "EventDispatch": 10,
+      "FunctionCall": 100,
+      "ScheduleStyleRecalculation": 48,
+      "InvalidateLayout": 57,
+      "paintArea": 3336206
+     }
+    },
+    {
+     "id": "z10",
+     "frames": 7,
+     "scrolledPx": 267,
+     "firstFrame": 100,
+     "lastFrame": 106,
+     "sums": {
+      "RecalculateStyles": 44,
+      "Layout": 38,
+      "Paint": 83,
+      "Composite": 14,
+      "RenderingFrame": 0,
+      "FireAnimationFrame": 29,
+      "TimerFire": 4,
+      "ObserverCallback": 4,
+      "EventDispatch": 7,
+      "FunctionCall": 43,
+      "ScheduleStyleRecalculation": 30,
+      "InvalidateLayout": 46,
+      "paintArea": 740857
+     }
+    }
+   ]
+  }
+ ]
+}

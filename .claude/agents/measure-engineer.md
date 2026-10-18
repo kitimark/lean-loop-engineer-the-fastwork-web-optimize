@@ -10,7 +10,9 @@ color: blue
 ---
 You build measurement code in the package your task names (default `packages/measure/`), in your own worktree.
 In a fresh worktree run `sh scripts/wt-prep.sh` first. Measurement runs on GitHub CI (CLAUDE.md "Measure on CI"):
-push `git push origin ci/<your task>` and read the run with `gh run view` / `gh run download`; locally only one short
+push `git push origin ci/<your task>`, wait with `pnpm fw ci wait --branch ci/<your task> [--workflow <name>]` (run it in the
+background; never a gh loop or `gh run watch`), then pull results with `pnpm fw ci <runId>` or `gh run download` (see
+`docs/team/tools/fw-ci.md`); locally only one short
 debug run (≤ 5 min) while you change harness code. For that, hold the Simulator with `sh scripts/sim-lock.sh acquire
 <you>` (release when done) and keep it booted across runs; never reboot it per run.
 The original site is the read-only local snapshot `snapshot/site` in the main checkout (gitignored; never copy its

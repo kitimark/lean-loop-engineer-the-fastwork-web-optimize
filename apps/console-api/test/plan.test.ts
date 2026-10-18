@@ -1,9 +1,13 @@
-// Work graph through the real fwcore: golden replay, the batch door, task.claim from a spawn, task.done from a landing.
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+// Work graph through the real fwcore: golden replay, the batch door, agent.spawn/stop from the spool (both orders),
+// old logs, task.done from a landing, and the plan sync the reconciler runs when main moves.
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+// These tests start fwcore and version-control child processes; the 5 s default failed them under machine load. No wall-clock assertions.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 import { LiveBoard } from "@fw/contracts";
 import { createApp } from "../src/app.ts";
 import { capMac, sha256 } from "../src/cap/cap.ts";
@@ -93,33 +97,65 @@ describe("agent door", () => {
 });
 
 describe("automation", () => {
-  it("a spawned agent named like a task claims it (task.claim); other names do nothing", async () => {
+  const spawnRec = (name: string, id: string) => JSON.stringify({ agent_id: null, agent_type: null, hook_event_name: "SpawnGuard",
+    tool_name: "Agent", tool_use_id: id, duration_ms: null, is_error: null, verb: "allow", agent_name: name, ts: 5 }) + "\n";
+  const stopRec = (agentId: string) => JSON.stringify({ agent_id: agentId, agent_type: "lean-prover", hook_event_name: "SubagentStop",
+    tool_name: null, tool_use_id: null, duration_ms: null, is_error: null, verb: null, ts: 9 }) + "\n";
+  const health = (dir: string, agents: [string, string][]) => appendFileSync(join(dir, "health.jsonl"), JSON.stringify({
+    at: 1, input: { now: 1, agents: agents.map(([id, name]) => ({ id, name })), system: { diskFreeGB: 100 } },
+    output: { agents: agents.map(([id]) => ({ id, state: "active", alerts: [] })), system: { alerts: [] },
+      counts: { active: agents.length, idle: 0, parked: 0, stalled: 0, gone: 0, done: 0 }, alerts: [] },
+  }) + "\n");
+  const rows = async (store: Store) => (await planOf(store)).tasks.map((t) => [t.id, t.state, t.agent]);
+
+  // the obs-next-lean trace (claim-order-lean): the agent spawned before plan sync defined its task
+  for (const order of ["define, then spawn", "spawn, then define"] as const) {
+    it(`a spawned agent named like a task works on it, whatever the order (${order}); other names do nothing`, async () => {
+      const { dir, store } = await open();
+      mkdirSync(join(dir, "spool"));
+      const define = async () => { for (const c of syncCommands(mini())) await store.submit(c); };
+      const spawn = async () => {
+        appendFileSync(join(dir, "spool", "s.jsonl"), spawnRec("a", "u1") + spawnRec("scout-7", "u2"));
+        expect(await new Drain(store).run()).toMatchObject({ accepted: 2, invalid: 0 });
+      };
+      if (order === "define, then spawn") { await define(); await spawn(); } else { await spawn(); await define(); }
+      expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "ready", null]]);
+      // the hook sends the fact unconditionally; nothing is claimed by name matching in TS
+      expect(store.readEvents().filter((e) => e.type === "agent.spawn")).toMatchObject([{ actor: "hook", agent: "a" }, { actor: "hook", agent: "scout-7" }]);
+      expect(store.readEvents().filter((e) => e.type === "task.claim")).toEqual([]);
+    });
+  }
+
+  it("a stopped agent releases its undone task (the stop's name comes from the health line); a stop before the define too", async () => {
     const { dir, store } = await open();
-    for (const c of syncCommands(mini())) await store.submit(c);
     mkdirSync(join(dir, "spool"));
-    const rec = (name: string, id: string) => JSON.stringify({ agent_id: null, agent_type: null, hook_event_name: "SpawnGuard", tool_name: "Agent",
-      tool_use_id: id, duration_ms: null, is_error: null, verb: "allow", agent_name: name, ts: 5 }) + "\n";
-    appendFileSync(join(dir, "spool", "s.jsonl"), rec("a", "u1") + rec("scout-7", "u2"));
-    const r = await new Drain(store).run();
-    expect(r).toMatchObject({ accepted: 2, invalid: 0 });
-    const t = (await planOf(store)).tasks.find((x) => x.id === "a")!;
-    expect(t).toMatchObject({ state: "running", agent: "a" });
-    expect(store.readEvents().filter((e) => e.type === "task.claim")).toMatchObject([{ actor: "hook", task: "a" }]);
+    health(dir, [["id-a", "a"], ["id-c", "c"]]);
+    appendFileSync(join(dir, "spool", "s.jsonl"), spawnRec("a", "u1") + spawnRec("c", "u2") + stopRec("id-c") + stopRec("id-unknown"));
+    await new Drain(store).run();
+    for (const c of syncCommands(mini())) await store.submit(c);
+    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "ready", null]]);
+    expect(store.readEvents().filter((e) => e.type === "agent.stop")).toMatchObject([{ actor: "hook", agent: "c", key: "stop:id-c" }]);
+    appendFileSync(join(dir, "spool", "s.jsonl"), stopRec("id-a"));
+    await new Drain(store).run();
+    expect(await rows(store)).toEqual([["a", "ready", null], ["b", "blocked", null], ["c", "ready", null]]);
   });
 
-  it("a task defined after its agent was spawned is claimed when the agent is live (health), not when gone", async () => {
-    const { dir, store } = await open();
-    const agents = [["a1", "b", "active"], ["a2", "c", "gone"], ["a3", "zz", "idle"]];
-    appendFileSync(join(dir, "health.jsonl"), JSON.stringify({
-      at: 1, input: { now: 1, agents: agents.map(([id, name]) => ({ id, name })), system: { diskFreeGB: 100 } },
-      output: { agents: agents.map(([id, , state]) => ({ id, state, alerts: [] })), system: { alerts: [] },
-        counts: { active: 1, idle: 1, parked: 0, stalled: 0, gone: 1, done: 0 }, alerts: [] },
-    }) + "\n");
-    for (const c of syncCommands(mini())) await store.submit({ ...c, ...(c.type === "task.define" ? { live: ["c"] } : {}) } as never);
-    const p = await planOf(store);
-    expect(p.tasks.map((t) => [t.id, t.state, t.agent])).toEqual([["a", "ready", null], ["b", "running", "b"], ["c", "ready", null]]);
-    // the fact is the console's: a client's `live` is replaced by the health line's live names
-    expect(store.readEvents().filter((e) => e.type === "task.define").map((e) => (e as { live?: string[] }).live)).toEqual([["b", "zz"], ["b", "zz"], ["b", "zz"]]);
+  it("an old log (legacy `live` on task.define, task.claim, no agent.spawn) replays to the board it gave before", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "fw-plan-"));
+    const lines: object[] = [];
+    let seq = 0;
+    const log = (c: object) => lines.push({ ...c, seq: ++seq, ts: 1_700_000_000_000 });
+    for (const c of syncCommands(mini())) log({ ...c, ...(c.type === "task.define" && c.task !== "a" ? { live: ["c", "zz"] } : {}) });
+    log({ type: "task.claim", key: "claim:a", actor: "hook", task: "a", agent: "a" });
+    writeFileSync(join(dir, "events.jsonl"), lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
+    const { store } = await open(dir);
+    // before claim-order-lean: c was claimed by the live fact, a by the claim, b stays blocked (its dep a is undone)
+    expect(await rows(store)).toEqual([["a", "running", "a"], ["b", "blocked", null], ["c", "running", "c"]]);
+    // a client's legacy `live` is dropped now: the console binds from agent.spawn only
+    const d = syncCommands({ milestones: [], tasks: [{ id: "n", title: "N", stream: "s", deps: [], owner: "o" }] })[0]!;
+    await store.submit({ ...d, live: ["n"] } as never);
+    expect(store.readEvents().at(-1)).not.toHaveProperty("live");
+    expect((await planOf(store)).tasks.find((t) => t.id === "n")).toMatchObject({ state: "ready", agent: null });
   });
 
   it("a card named like a task, once landed, finishes it with the landed sha as evidence", async () => {

@@ -1,0 +1,13 @@
+# lean/Fw.lean is only import lines; parallel proof branches each add one at the end, so git would conflict on every
+# pair of them. Keep both sides. The union merge cannot tell a repeated line or an orphaned module, so
+# lean/scripts/check-imports.mjs (run by lean/scripts/check.sh) checks: no import twice, every module reachable.
+lean/Fw.lean merge=union
+
+# The JSON ledgers are id-keyed entry arrays; two branches that each append an entry conflict line-wise although
+# the entries do not clash. scripts/merge-ledger.mjs merges them per id (Lean Fw.Ops.LedgerMerge). git config is per
+# clone, so enable the driver once per clone (docs/team/tools/ledger-merge.md):
+#   git config merge.ledger.driver "node scripts/merge-ledger.mjs %O %A %B"
+# Without that config git ignores merge=ledger and falls back to its line merge.
+docs/team/incidents/ledger.json merge=ledger
+research/findings/ledger.json merge=ledger
+research/mistakes/ledger.json merge=ledger

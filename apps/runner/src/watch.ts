@@ -1,11 +1,13 @@
 // `fw watch`: collect the team snapshot, ask fwcore `obs.health` for states and alerts, print a compact table,
 // append input+output to .fw-console/health.jsonl. No decision logic here: every state and alert code is fwcore's.
+import { begin } from "./timing.ts";
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
+import { collectFacts, formatNext, nextAlerts, slowAlerts, slowNextLines, type NextReply } from "./next.ts";
 import {
-  collectSnapshot, exe, liveKeep, parsePs, pathsFor, readKeep, writeKeep, type AgentSnap, type Paths, type Prev, type PsRow, type Snapshot,
+  collectSnapshot, exe, liveKeep, parsePs, pathsFor, readKeep, readSamples, writeKeep, type AgentSnap, type Paths, type Prev, type PsRow, type Snapshot,
 } from "./watch-collect.ts";
 
 export const WATCH_USAGE = "usage: fw watch [--json] [--interval <s>] [--until-alert]   (exit 3 when a new alert appears)\n       fw watch --keep <pid> [--note <text>] | --unkeep <pid>   (declare an intended long-runner: no proc.long)";
@@ -57,6 +59,43 @@ export function coreCaller(bins: string[]): CoreCall {
 export async function check(snap: Snapshot, core: CoreCall): Promise<Health> {
   const r = await core({ op: "obs.health", ...snap });
   return r as unknown as Health;
+}
+
+/** `obs.next` for the same snapshot: the facts are observed in next.ts, every action is fwcore's. Null when the op or
+ *  a collector is unavailable (the watch then runs without NEXT lines). */
+export async function nextFor(paths: Paths, main: string, snap: Snapshot, h: Health, core: CoreCall): Promise<NextReply | null> {
+  try {
+    const facts = await collectFacts(paths, main, snap, h);
+    return (await core({ op: "obs.next", now: snap.now, agents: facts })) as NextReply;
+  } catch { return null; }
+}
+
+/** `obs.slow` for the span history: the `<tool>/<step>` subjects fwcore's Fw.Obs.Timing verdicts call slow (the latest
+ *  sample of the step is slow). No threshold here. Empty when the op or the history is unavailable. */
+export async function slowFor(paths: Paths, core: CoreCall): Promise<string[]> {
+  try {
+    const samples = readSamples(paths);
+    if (samples.length === 0) return [];
+    const r = await core({ op: "obs.slow", samples });
+    return Array.isArray(r.slow) ? (r.slow as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  } catch { return []; }
+}
+
+/** `fw next`: print the current NEXT list once. Read-only: no log line, no action. Returns the exit code. */
+export async function nextMain(args: string[], cwd: string, print: (s: string) => void = console.log, core?: CoreCall): Promise<number> {
+  if (args.length) throw new UsageError("usage: fw next   (prints `NEXT <agent> <action> <args>` once; read-only)");
+  const { root, main } = await repoRoots(cwd);
+  const paths = pathsFor(main);
+  const call = core ?? coreCaller(coreCandidates(root, main));
+  const last = readLastLog(paths);
+  const prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical } : null;
+  const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap);
+  const h = await check(snap, call);
+  const reply = await nextFor(paths, main, snap, h, call);
+  if (!reply) { print("fw next: fwcore obs.next unavailable (cd lean && lake build)"); return 0; }
+  const lines = [...formatNext(reply), ...slowNextLines(await slowFor(paths, call))];
+  print(lines.length ? lines.join("\n") : "NEXT: none");
+  return 0;
 }
 
 // ---- rendering ----
@@ -225,11 +264,17 @@ export async function watchMain(args: string[], cwd: string, print: (s: string) 
   let prev: Set<string> | null = last ? new Set(last.output.alerts.map(alertKey)) : null;
   let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical } : null;
   for (;;) {
+    const endPass = begin("fw", "watch pass", main); // timing-spans: one span per collection pass
     const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap);
     const h = await check(snap, call);
+    const nx = await nextFor(paths, main, snap, h, call);
+    if (nx) h.alerts.push(...nextAlerts(nx)); // agent.held / agent.unlanded: fwcore's proposals shown as alerts
+    const slow = await slowFor(paths, call); // timing.slow: fwcore's Fw.Obs.Timing verdicts (obs.slow), never a threshold here
+    h.alerts.push(...slowAlerts(slow));
     appendLog(paths, snap, h);
+    endPass(0);
     const fresh = newAlerts(prev, h);
-    print(o.json ? JSON.stringify({ input: snap, output: h }) : renderTable(snap, h));
+    print(o.json ? JSON.stringify({ input: snap, output: h, next: nx, slow }) : [renderTable(snap, h), ...(nx ? formatNext(nx) : []), ...slowNextLines(slow)].join("\n"));
     if (o.untilAlert && fresh.length) {
       if (!o.json) print(`NEW ALERT: ${fresh.map((a) => `${a.code} ${a.subject}`).join("; ")}`);
       return 3;

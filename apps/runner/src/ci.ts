@@ -2,12 +2,14 @@
 // chromium-counts run into the artifact store (`.fw-console/store/`), one store key per target in the run.
 // Every decision is fwcore's: `store.ciRun` (lean/Fw/Store/Ci.lean) accepts or refuses the run, names the shard
 // artifacts and their entry directories per target and gives each target's key inputs; `store.manifest` (via `ingest`
-// in run.ts) checks the manifest and gives the key and the object paths. This file is gh calls, file reads and copies.
+// in run.ts) checks the manifest and gives the key and the object paths. This file is gh calls (all through the request
+// budget, `chargedGh`), file reads and copies.
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { UsageError } from "./lib.ts";
-import { fwcoreCall, ghCli, ingest, storeDir, type FwCall, type Gh } from "./run.ts";
+import { realEnv } from "@fw/gh-budget";
+import { chargedGh, fwcoreCall, ingest, storeDir, type FwCall, type Gh } from "./run.ts";
 
 export const CI_USAGE = "usage: fw ci [<run id>] [--workflow chromium-counts] [--branch main] [--store <dir>]\n" +
   "  without a run id: the latest run of the workflow on the branch. Refuses a run that did not succeed or lacks a shard.";
@@ -53,16 +55,16 @@ const copyTree = (from: string, to: string, prefix = ""): void => {
   }
 };
 
-export function latestRunId(gh: Gh, workflow: string, branch: string): string | null {
-  const rows = JSON.parse(gh(["run", "list", "--workflow", workflow, "--branch", branch, "--limit", "1", "--json", "databaseId"])) as { databaseId: number }[];
+export async function latestRunId(gh: Gh, workflow: string, branch: string): Promise<string | null> {
+  const rows = JSON.parse(await gh(["run", "list", "--workflow", workflow, "--branch", branch, "--limit", "1", "--json", "databaseId"])) as { databaseId: number }[];
   return rows[0] ? String(rows[0].databaseId) : null;
 }
 
 /** The whole command. Exit code: 0 stored (or unchanged), 2 refused. */
-export function ciMain(args: CiArgs, d: CiDeps): number {
-  const runId = args.runId ?? latestRunId(d.gh, args.workflow, args.branch);
+export async function ciMain(args: CiArgs, d: CiDeps): Promise<number> {
+  const runId = args.runId ?? await latestRunId(d.gh, args.workflow, args.branch);
   if (!runId) { d.log(`refused: no run of ${args.workflow} on ${args.branch}`); return 2; }
-  const v = JSON.parse(d.gh(["run", "view", runId, "--json", "workflowName,status,conclusion,headSha,jobs"])) as Omit<CiRunInfo, "runId">;
+  const v = JSON.parse(await d.gh(["run", "view", runId, "--json", "workflowName,status,conclusion,headSha,jobs"])) as Omit<CiRunInfo, "runId">;
   const run: CiRunInfo = { runId, workflowName: v.workflowName, status: v.status, conclusion: v.conclusion ?? "", headSha: v.headSha, jobs: v.jobs.map((j) => ({ name: j.name, conclusion: j.conclusion ?? "" })) };
   // Check the run itself first, so a failed run downloads nothing.
   const pre = ciRun(d.call, run);
@@ -70,7 +72,7 @@ export function ciMain(args: CiArgs, d: CiDeps): number {
   mkdirSync(d.tmp, { recursive: true });
   const dl = mkdtempSync(join(d.tmp, `ci-${runId}-`));
   try {
-    d.gh(["run", "download", runId, "-D", dl, "--pattern", "chromium-counts-*", "--pattern", "chromium-classes"]);
+    await d.gh(["run", "download", runId, "-D", dl, "--pattern", "chromium-counts-*", "--pattern", "chromium-classes"]);
     // Read the facts of every shard artifact fwcore named that was downloaded; the missing ones fwcore refuses.
     const artifacts = pre.targets.flatMap((t) => t.shards).filter((s) => existsSync(join(dl, s.artifact))).map((s): CiFacts => {
       const c = JSON.parse(rd(join(dl, s.artifact, "counts.json"))) as { profile: { id: string }; meta: { search?: string; target?: string } };
@@ -98,9 +100,9 @@ export function ciMain(args: CiArgs, d: CiDeps): number {
   } finally { rmSync(dl, { recursive: true, force: true }); }
 }
 
-export function ciCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env): number {
+export async function ciCli(argv: string[], cwd: string, env: Record<string, string | undefined> = process.env): Promise<number> {
   const args = parseCiArgs(argv);
   const common = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8" }).stdout.trim();
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(common), ".fw-console");
-  return ciMain(args, { call: fwcoreCall(cwd), gh: ghCli, store: args.store ?? storeDir(consoleDir), tmp: join(consoleDir, "tmp"), log: (l) => console.log(l) });
+  return ciMain(args, { call: fwcoreCall(cwd), gh: chargedGh(realEnv(cwd)), store: args.store ?? storeDir(consoleDir), tmp: join(consoleDir, "tmp"), log: (l) => console.log(l) });
 }

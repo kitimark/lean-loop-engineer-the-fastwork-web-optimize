@@ -19,6 +19,7 @@ import { MorphCountdown } from './parts/morph.countdown';
 import { NavHitTest } from './parts/nav.hitTest';
 import { MorphMount } from './parts/morph.mount';
 import { MorphColumns } from './parts/morph.columns';
+import { EngineScene } from './parts/engine.scene';
 import { People } from './parts/people';
 import { Pain } from './parts/pain';
 import { Commission } from './parts/commission';
@@ -31,6 +32,7 @@ export function App({ config }: { config: FwConfig }) {
   const [dialog, setDialog] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [panel, setPanel] = useState(false); // morph.mount: the panel's DOM insertion (once, never unmounted)
 
   useEffect(() => setHydrated(), []); // root effects run after hydration has committed
 
@@ -38,8 +40,11 @@ export function App({ config }: { config: FwConfig }) {
     <>
       <EngineScroll variant={config.variants['engine.scroll'] ?? 'faithful'} />
       <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
-      <MorphMount variant={config.variants['morph.mount'] ?? 'faithful'} />
+      <MorphMount variant={config.variants['morph.mount'] ?? 'faithful'} onMount={() => setPanel(true)} />
+      {panel && <div data-fw="morph-panel" aria-hidden style={{ position: 'fixed', inset: 0, visibility: 'hidden', pointerEvents: 'none' }} />}
       <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} />
+      {/* engine.scene: the platform section is the scene it pauses while it paints nothing (hidden-pause) */}
+      <EngineScene variant={config.variants['engine.scene'] ?? 'faithful'} selector='[data-fw="platform"]' />
       <AppBar position="sticky" data-fw="nav">
         <Toolbar>
           <Typography variant="h6" component="div" style={{ flexGrow: 1 }}>
@@ -68,7 +73,16 @@ export function App({ config }: { config: FwConfig }) {
         <People variant={config.variants['people'] ?? 'shell'} />
         <Pain variant={config.variants['pain'] ?? 'shell'} />
         <Commission variant={config.variants['commission'] ?? 'shell'} />
-        <Platform variant={config.variants['platform'] ?? 'shell'} />
+        <Platform
+          variant={config.variants['platform'] ?? 'faithful'}
+          sub={{
+            sweep: config.variants['platform.sweep'],
+            glint: config.variants['platform.glint'],
+            entries: config.variants['platform.entries'],
+            stageBg: config.variants['platform.stageBg'],
+            marquee: config.variants['platform.marquee'],
+          }}
+        />
         <MorphColumns variant={config.variants['morph.columns'] ?? 'faithful'} />
       </main>
 

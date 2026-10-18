@@ -1,0 +1,1059 @@
+{
+ "about": "Team tooling incidents, one record per root cause. Evidence kinds: commit (sha on main), event (seq in .fw-console/events.jsonl, local-only), ci (GitHub Actions run id), file (repo path), proc (process shape, no pids that matter later). Each incident names the work-graph task that fixes it (fix.task, plus fix.also); status is derived, never stored: fixed iff fix.task and every also task are done, fixing iff one of them is claimed, else open (Fw.Plan.Incident; check with pnpm fw incidents lint, see README.md). Each incident also carries its mistake-retro link (research/mistakes/ledger.json): leanVerdict (provable | partly | no), leanReason, hardening (a work-graph task id; required unless the verdict is no), empiricalCheck (the test or CI check; required when the verdict is no), mistakeClass (a retro class id) and mistake (the retro row, informational).",
+ "incidents": [
+  {
+   "id": "inc-orphan-wait-loop",
+   "at": "2026-10-18T03:00+07:00",
+   "title": "Agent wait loop that can never finish keeps a done agent 'waiting on its own background work'",
+   "symptom": "Agents reported back but stayed held: wktr-ci-lane for 2 h 54 min, ghb-runner 22 min, port-platform 35 min (first attributed to integrate-ports by the lead; corrected from the transcript tool-use id, research/notes/2026/10-18-transcript-signals.md). fw watch raised proc.long sleep#<pid>.",
+   "cause": "CONFIRMED (process command lines read with ps): open-ended `until grep -q <text> <file>; do sleep N; done` loops whose text could never appear. (1) The shared scratch name watch2.txt was overwritten by other agents. (2) The pattern '# pass' never appears in vitest output. (3) The watched file was the output of a background task that had already exited.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "until grep -q 'Run wktr\\|completed' <scratchpad>/watch2.txt; sleep 45 (elapsed 2:54:28)",
+     "note": "killed by the lead; wktr-ci-lane completed at once"
+    },
+    {
+     "kind": "proc",
+     "ref": "until grep -q '# pass' /tmp/ghb-test.log; sleep 3 (elapsed 22:06)",
+     "note": "the vitest log never contains '# pass'"
+    },
+    {
+     "kind": "proc",
+     "ref": "until grep -q 'merge (playwright-webkit) completed' <tasks>/bo3ksfboe.output; sleep 15 (elapsed 35:07)",
+     "note": "the producer had exited with only 'gate (chromium, s7) completed success'"
+    }
+   ],
+   "repro": "Spawn an agent that backgrounds `until grep -q X f; do sleep 3; done` where f never gets X; it hands back; the harness shows it as waiting on background work forever.",
+   "fix": {
+    "task": "obs-next-lean",
+    "also": [
+     "obs-next-glue"
+    ]
+   },
+   "regression": "packages/contracts/golden/obs/next.jsonl cases 2, 3, 6",
+   "mistake": "m090",
+   "mistakeClass": "c-orphan-wait",
+   "leanVerdict": "provable",
+   "leanReason": "Wait with deadline terminates by construction; obs-signals flags BG minus END.",
+   "hardening": "wait-guard"
+  },
+  {
+   "id": "inc-unlanded-handback",
+   "at": "2026-10-18T01:23+07:00",
+   "title": "Agent reported back with a green gate, but its branch sat unlanded and looked stuck",
+   "symptom": "port-nav reported back at 01:23 with every gate job green. Its branch was queued for the integrator and nothing showed that. The user asked whether it was stuck about 1.5 h later.",
+   "cause": "CONFIRMED: nothing derives 'handed back + branch ahead + not landed + not in an integrator queue' into a next action.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39057124869",
+     "note": "port-nav gate, all jobs success; the integrator-queue note (handoffs/integrate-ports.md) exists only on the unlanded branch ci/integrate-ports, so it is not cited as a file on main"
+    }
+   ],
+   "repro": "An agent hands back with a branch that is ahead of main; fw watch shows no action for it.",
+   "fix": {
+    "task": "obs-next-lean",
+    "also": [
+     "obs-next-glue"
+    ]
+   },
+   "regression": "packages/contracts/golden/obs/next.jsonl case 1",
+   "mistake": "m133",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "keep_of_open_action, unlanded alert (done).",
+   "hardening": "obs-next-lean"
+  },
+  {
+   "id": "inc-claim-order",
+   "at": "2026-10-18T03:03+07:00",
+   "title": "Agent not bound to its task when the task is defined after the spawn",
+   "symptom": "obs-next-lean was running but the board showed its task as 'ready' with no agent. The lead claimed it by hand.",
+   "cause": "CONFIRMED (code read): the claim at spawn (apps/console-api/src/spool/drain.ts claimFor) runs once and needs the task to exist. The claim at define time (Fw.Plan.Core Def.liveAgent) needs the agent in the latest fw watch snapshot, which is taken every 300 s. Neither retries.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "7202de9",
+     "note": "task committed at 03:02:56"
+    },
+    {
+     "kind": "event",
+     "ref": "480",
+     "note": "task.define obs-next-lean at 03:05:16 (after the spawn)"
+    },
+    {
+     "kind": "event",
+     "ref": "486",
+     "note": "manual task.claim by the lead"
+    }
+   ],
+   "repro": "Commit a task, spawn an agent with the task's name, then run fw plan sync within one watch interval: the task stays unclaimed.",
+   "fix": {
+    "task": "claim-order-lean"
+   },
+   "regression": "packages/contracts/golden/plan (obs-next-lean trace in both orders)",
+   "mistake": "m128",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "define_spawn_comm (done fafc0d5).",
+   "hardening": "claim-order-lean"
+  },
+  {
+   "id": "inc-plan-sync-on-land-only",
+   "at": "2026-10-18T03:30+07:00",
+   "title": "New tasks reach the board only when something runs fw plan sync",
+   "symptom": "A task committed to main was not on the board after 5 min. The lead's foreground wait looked stuck to the user.",
+   "cause": "CONFIRMED: only fw land (and a manual fw plan sync) applies work-graph defines; the reconciler does not watch main.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "b2e5ff1",
+     "note": "claim-order-lean committed; not defined until a manual sync"
+    }
+   ],
+   "repro": "Commit a new task to docs/team/work-graph.json on main and query /api/board: the task is absent until fw plan sync.",
+   "fix": {
+    "task": "claim-order-lean"
+   },
+   "regression": "apps/console-api/test (sync on main HEAD move)",
+   "mistake": "m130",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "Sync on HEAD move (done).",
+   "hardening": "claim-order-lean"
+  },
+  {
+   "id": "inc-land-post-commit-throw",
+   "at": "2026-10-18T02:46+07:00",
+   "title": "fw land exits 1 with 'fetch failed' after the merge commit, which skips cleanup and sync",
+   "symptom": "Lands of ghb-runner, proof-morph-mount and proof-nav-hittest merged but exited 1, so the lead cleaned up by hand.",
+   "cause": "CONFIRMED by pa-sync-main: any throw after the merge commit skipped cleanup and sync, and the internal sync used a capability that was already spent.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "1c64c85",
+     "note": "ghb-runner land that exited 1"
+    },
+    {
+     "kind": "commit",
+     "ref": "ca48604",
+     "note": "the fix: retry, a warning list, exit 0 once merged"
+    }
+   ],
+   "repro": "Run fw land while the console API is unreachable after the merge commit.",
+   "fix": {
+    "task": "pa-sync-main"
+   },
+   "regression": "apps/runner/test/land-post.test.ts",
+   "mistake": "m139",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "Land as a resumable step machine (step_inv; done 618654e).",
+   "hardening": "pa-sync-main"
+  },
+  {
+   "id": "inc-commit-during-land",
+   "at": "2026-10-18T03:40+07:00",
+   "title": "A lead commit on main during fw land's open merge became the land's merge commit",
+   "symptom": "The lead's work-graph commit dec1226 had parents (b2e5ff1, e33e16f), with the lead's message and no Task trailer. The land process was still running its checks.",
+   "cause": "CONFIRMED: fw land does merge --no-ff --no-commit and keeps it open for minutes of checks. Nothing stops other commits in the main checkout meanwhile.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "80d7610",
+     "note": "dec1226 amended with the Task: proof-pain-notes trailer after the land process group was stopped"
+    }
+   ],
+   "repro": "Start fw land on a branch with Lean changes; while check.sh runs, git commit any file on main.",
+   "fix": {
+    "task": "land-hardening"
+   },
+   "regression": "apps/runner/test (commit during land is refused)",
+   "mistake": "m065",
+   "mistakeClass": "c-shared-no-lock",
+   "leanVerdict": "provable",
+   "leanReason": "Land lock protocol: run_safe_locked, land_commit_exact (done).",
+   "hardening": "land-hardening"
+  },
+  {
+   "id": "inc-land-scope-registrations",
+   "at": "2026-10-18T03:20+07:00",
+   "title": "fw land refuses the normal registration files of a port or a measurement task",
+   "symptom": "port-platform was refused for registry/index.ts, App.tsx, gen-shells.mjs, Gate/Scope.lean, Parts/Golden.lean, anchors.json and its Lean part files. zone-baselines-webkit was refused for its adapter, test and results. Every land needed hand-written --allow.",
+   "cause": "CONFIRMED: Fw.Console.Land admits task.writes + handoff + generated + a fixed registration list. Ports and measurement tasks have registration sets that list does not know.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "6e968ba",
+     "note": "port-platform landed with 7 --allow globs (Land-Allow trailer)"
+    },
+    {
+     "kind": "commit",
+     "ref": "20f0388",
+     "note": "zone-baselines-webkit landed with 2 --allow globs"
+    }
+   ],
+   "repro": "fw land a port branch without --allow.",
+   "fix": {
+    "task": "land-hardening"
+   },
+   "regression": "packages/contracts/golden/console/console.landScope.jsonl",
+   "mistake": "m141",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "kindRegs_mem_landScope (done).",
+   "hardening": "land-hardening"
+  },
+  {
+   "id": "inc-agent-on-ci-branch",
+   "at": "2026-10-18T03:25+07:00",
+   "title": "An agent committed on its ci/* branch, so fw land of the worktree branch said 'nothing to land'",
+   "symptom": "zone-baselines-webkit's commit 6b5933d was only on ci/zone-baselines-webkit. The worktree branch was already in main.",
+   "cause": "CONFIRMED: the agent checked out ci/<task> in its worktree. fw land only looks at the branch it is given.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "20f0388",
+     "note": "landed from ci/zone-baselines-webkit by hand"
+    }
+   ],
+   "repro": "In a worktree, git checkout -b ci/x, commit, and fw land the worktree branch.",
+   "fix": {
+    "task": "land-hardening"
+   },
+   "regression": "apps/runner/test (land finds the agent's ci/<task> branch)",
+   "mistake": "m140",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "pick_given_iff (done).",
+   "hardening": "land-hardening"
+  },
+  {
+   "id": "inc-fw-lean-import-conflict",
+   "at": "2026-10-18T03:00+07:00",
+   "title": "Every parallel proof branch conflicted on lean/Fw.lean",
+   "symptom": "proof-hidden-pause, proof-hero-exit and port-platform each needed a hand merge of one import line.",
+   "cause": "CONFIRMED: lean/Fw.lean is a hand-kept list of imports.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "8a9fe61",
+     "note": "stopgap: .gitattributes merge=union"
+    }
+   ],
+   "repro": "Two branches each append an import to lean/Fw.lean and both merge into main.",
+   "fix": {
+    "task": "land-hardening"
+   },
+   "regression": "lean/scripts/check.sh (every lean/Fw/**/*.lean module is imported exactly once)",
+   "mistake": "m066",
+   "mistakeClass": "c-shared-no-lock",
+   "leanVerdict": "provable",
+   "leanReason": "Generated import list; check-imports (done).",
+   "hardening": "land-hardening"
+  },
+  {
+   "id": "inc-gh-rate-limit",
+   "at": "2026-10-18T01:07+07:00",
+   "title": "The agents' shared GitHub token emptied its 5000/h core bucket",
+   "symptom": "Every agent's CI wait failed with 403 at the same time.",
+   "cause": "CONFIRMED (X-Ratelimit headers): about 12 agents polled gh run view every 30 s, and gh run watch defaults to 3 s.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-gh-rate-budget.md"
+    },
+    {
+     "kind": "commit",
+     "ref": "1c64c85",
+     "note": "ghb-runner: every runner gh call goes through ghCharged"
+    }
+   ],
+   "repro": "research/notes/2026/10-18-gh-rate-budget.md, the call-count model.",
+   "fix": {
+    "task": "ghb-runner",
+    "also": [
+     "ghb-lean",
+     "ghb-glue"
+    ]
+   },
+   "regression": "packages/gh-budget tests; Fw.Ci.Budget theorems",
+   "mistake": "m100",
+   "mistakeClass": "c-quota",
+   "leanVerdict": "provable",
+   "leanReason": "Ci/Budget window_bound (done 84fb01c).",
+   "hardening": "ghb-lean"
+  },
+  {
+   "id": "inc-next-false-positives",
+   "at": "2026-10-18T03:30+07:00",
+   "title": "fw next proposed land for a branch that conflicts with main and respawn for agents that finished long ago",
+   "symptom": "Live `fw next` printed `NEXT variant-morph-panel-rest land` for a branch that contains the unlanded port-morph-panel branch and conflicts with main, and 11 `respawnFromHandoff` lines for long-finished agents (env-elan, explainer-rev6, lean-math, macos-queue, ...).",
+   "cause": "CONFIRMED (Fw.Obs.Next at 8a52856): `lands` looked only at ahead/landed/queued, and `respawn` only at stuck and no child. Neither read whether the branch merges cleanly, whether it carries unlanded dependencies, or whether the agent's task is still open.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "packages/contracts/golden/obs/next.jsonl",
+     "note": "cases 9, 9b (waitDeps, conflict) and 10-10c (no respawn without an open task and a handoff); rules before the fix at branch commit 8a52856"
+    }
+   ],
+   "repro": "Fw.Obs.Next: a handed-back agent whose branch has deps or does not merge cleanly got `land`; a gone agent with a done task got `respawnFromHandoff`.",
+   "fix": {
+    "task": "obs-next-glue"
+   },
+   "regression": "Fw.Obs.Next land_sound, waitDeps_sound, respawn_sound and the golden cases; apps/runner/test/next.test.ts",
+   "mistake": "m134",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "land_sound, respawn_sound (done).",
+   "hardening": "obs-next-lean"
+  },
+  {
+   "id": "inc-retention-hides-unlanded",
+   "at": "2026-10-18T03:30+07:00",
+   "title": "The health collector dropped an agent one hour after it ended, hiding its unlanded branch",
+   "symptom": "port-nav ended at 01:23 with its branch unlanded; at 03:23 it was gone from the health agents list and from the NEXT input, so no routeIntegrator or land could be proposed.",
+   "cause": "CONFIRMED (source): SCOPE.keepDoneMs = 1 h in apps/runner/src/watch-collect.ts:71 drops ended agents from the snapshot regardless of open work (branch ahead of main, worktree, child).",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/watch-collect.ts",
+     "note": "SCOPE.keepDoneMs = 1 h at line 71 (main 6d5bf87) when the incident was seen"
+    },
+    {
+     "kind": "event",
+     "ref": "health snapshot at 03:23",
+     "note": "port-nav absent from the agents list (local-only)"
+    }
+   ],
+   "repro": "End an agent with an unlanded branch, wait more than an hour, run fw watch: the agent is not in the snapshot.",
+   "fix": {
+    "task": "obs-next-glue"
+   },
+   "regression": "Fw.Obs.Next keep_of_open_action and golden case 8; apps/runner/test/next.test.ts (hasWorktree)",
+   "mistake": "m133",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "keep_of_open_action, unlanded alert (done).",
+   "hardening": "obs-next-lean"
+  },
+  {
+   "id": "inc-variant-gate-flags-off",
+   "at": "2026-10-18T04:30+07:00",
+   "title": "Variant gate runs tested the rewrite with every flag off",
+   "symptom": "breakpoint-gate had no variant-flag input, so runs on ci/variant-* compared original vs rewrite with flags off; morph.mount:shift landed on such a run (39067215069) and hidden-pause reported one (39067391933)",
+   "cause": "CONFIRMED: .github/workflows/breakpoint-gate.yml workflow_dispatch inputs were engines, shards, parts only; found by the variant-hidden-pause agent",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39067215069",
+     "note": "morph.mount:shift gate, flags off"
+    },
+    {
+     "kind": "ci",
+     "ref": "39067391933",
+     "note": "hidden-pause gate, flags off"
+    },
+    {
+     "kind": "ci",
+     "ref": "39067656223",
+     "note": "first flagged run (FW_SEARCH ?fw=morph.tween:waapi) from the tween branch"
+    }
+   ],
+   "repro": "Push a variant branch to ci/<x> and read FW_SEARCH in the gate log: empty before the fix.",
+   "fix": {
+    "task": "variant-regate",
+    "also": [
+     "variant-morph-tween-waapi"
+    ]
+   },
+   "regression": "breakpoint-gate summary names the flags it ran with; a variant land requires a flagged run",
+   "mistake": "m043",
+   "mistakeClass": "c-proxy-verdict",
+   "leanVerdict": "provable",
+   "leanReason": "flags(run) = flags(task) is a pure equality in the verdict record.",
+   "hardening": "gate-exit-verdict"
+  },
+  {
+   "id": "inc-silent-stdin-bg",
+   "at": "2026-10-18T00:54+07:00",
+   "title": "A background shell blocked on stdin ran 3 h with no end signal",
+   "symptom": "port-nav ran grep plus `cat > file` with no input; the harness auto-backgrounded it at 00:54; it never ended, emitted nothing, and was found only by the transcript research at about 04:25 and killed by PID",
+   "cause": "CONFIRMED (ps and transcript): a command reading stdin in a non-interactive shell blocks forever; no file records a hang, only ps shows it",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-transcript-signals.md",
+     "note": "port-nav timeline, part B"
+    },
+    {
+     "kind": "proc",
+     "ref": "cat (child of a session shell, elapsed 3:10:14)",
+     "note": "killed by the lead"
+    }
+   ],
+   "repro": "Run `cat > /tmp/x` in a background Bash call: it never exits.",
+   "fix": {
+    "task": "obs-signals"
+   },
+   "regression": "packages/contracts/golden/obs/signals.jsonl (port-nav @ 01:24:30 and @ 03:58:00: hung bh6n4n7sw), Fw.Wire.Obs guard obs.next stdinWait -> killOrphan, apps/runner/test/signals.test.ts",
+   "mistake": "m092",
+   "mistakeClass": "c-orphan-wait",
+   "leanVerdict": "partly",
+   "leanReason": "Static detection of a stdin reader is approximate; a deadline on every background task is provable.",
+   "hardening": "obs-signals",
+   "empiricalCheck": "ps of open background tasks at handback"
+  },
+  {
+   "id": "inc-worktree-role-as-teammate",
+   "at": "2026-10-18T01:56+07:00",
+   "title": "Worktree roles spawned by name without isolation ran as teammates in the main checkout",
+   "symptom": "The shadow spawn guard logged deny:kindMismatch (wanted worktree, got teammate) for part-builder (port-people-fix, 01:56) and measure-engineer (step-align-fix, 02:38), plus two earlier unattributed ones; the spawns went ahead because the guard only logged, so their edits would land in the lead's checkout, untracked by any branch.",
+   "cause": "CONFIRMED (code read, PLAN 8.1 and lean/Fw/Ops/SpawnGuard.lean effKind): a named Agent call from the lead without isolation is a teammate in the main checkout, whatever the role file asks for; the guard saw it and was in shadow mode.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ops/SpawnGuard.lean",
+     "note": "trap_exact: the exact verdict for this call shape"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/hooks/spawn-guard.mjs",
+     "note": "shadow mode before this fix; enforce prints a deny with the reason"
+    }
+   ],
+   "repro": "Agent call from the lead with subagent_type part-builder and a name but no isolation: fwcore ops.spawn answers deny kindMismatch.",
+   "fix": {
+    "task": "spawn-enforce"
+   },
+   "regression": "apps/runner/test/spawn-guard.test.ts 'refused with its reason: worktree role without isolation (I-272 trap)' and Lean trap_exact",
+   "mistake": "m116",
+   "mistakeClass": "c-identity-heuristic",
+   "leanVerdict": "provable",
+   "leanReason": "trap_worktree_role_as_teammate; enforce (done).",
+   "hardening": "spawn-enforce"
+  },
+  {
+   "id": "inc-workflow-unbound",
+   "at": "2026-10-18T04:40+07:00",
+   "title": "A task worked on by a Workflow run showed in the ready lane",
+   "symptom": "Task mistake-retro ran as Workflow run wf_b3d4e643-ace (meta.name = the task id) but the board kept it in ready, unbound; the lead claimed it by hand (task.claim with agent=wf_b3d4e643-ace, event seq 577).",
+   "cause": "CONFIRMED (code read, lean/Fw/Plan/Core.lean agentOf/cands, docs/team/tools/spawn-guard.md): the board binds an agent to a task only from agent.spawn / agent.stop of named Agent spawns. A Workflow run and its unnamed subagents never emit one (PreToolUse(Agent) does not fire for workflow agents), so nothing bound the task.",
+   "evidence": [
+    {
+     "kind": "event",
+     "ref": "577",
+     "note": "the hand claim: task.claim mistake-retro by agent wf_b3d4e643-ace (run id wf_b3d4e643-ace)"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Plan/Workflow.lean",
+     "note": "workflow_binds, workflow_ends, workflow_foreign_agentOf, define_workflow_comm"
+    },
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-transcript-signals.md",
+     "note": "run start = workflows/scripts/<meta.name>-<runId>.js, run end = workflows/<runId>.json"
+    }
+   ],
+   "repro": "Start a Workflow whose meta.name equals a ready task id: the task stays in ready while the run is alive.",
+   "fix": {
+    "task": "workflow-claim"
+   },
+   "regression": "packages/contracts/golden/plan/workflow.jsonl (Lean Fw.Plan.wfEvents) checked by apps/console-api/test/workflow-claim.test.ts, plus the Lean theorems workflow_binds and define_workflow_comm",
+   "mistake": "m144",
+   "mistakeClass": "c-order-derived",
+   "leanVerdict": "provable",
+   "leanReason": "workflow_binds (done 21c8c42).",
+   "hardening": "workflow-claim"
+  },
+  {
+   "id": "inc-slow-land",
+   "at": "2026-10-18T12:00+07:00",
+   "title": "fw land took about 2 minutes for weeks, with the land lock held the whole time, and nothing alerted",
+   "symptom": "A Lean-touching fw land took about 126 s at the median (check.sh alone: p50 152.8 s, p90 199.8 s over 5 spans of 112.5, 124.1, 152.8, 191.9 and 199.8 s) and main was blocked for all of it. Nobody noticed until timing spans existed.",
+   "cause": "MEASURED (mathview profile and land.ts read, research/notes/2026/10-18-land-speed.md): (1) the mathview lint recomputed the library helper collectAxioms from scratch for each of about 4,077 declarations, with its shared cache off because loadExts is false; about 96% of the lint (p50 118.1 s, max 211.7 s over 8 spans) was that; (2) its cache key covers the whole of Fw/**/*.lean, so every land that touches lean/ misses; (3) fw land runs all of check.sh while the land lock is held (land.ts take to release), so the miss sits on main's critical path; (4) Fw.Obs.Timing flagged slow only against a step's own recent window and needed 5 samples, so a step that is slow from its first run never alerted.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-land-speed.md",
+     "note": "span table from .fw-console/timings.jsonl (local-only): fw land / check.sh p50 152,813 ms, mathview lint (miss) p50 118,082 ms, ranked fixes P1-P5"
+    },
+    {
+     "kind": "commit",
+     "ref": "51ca579",
+     "note": "the research note: mathview collectAxioms is 96% of the lint, the lock is held over all checks"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Obs/Timing.lean",
+     "note": "slow_iff before this fix: slow needs a window of n_min samples and d > k times the p90, so the first slow land cannot alert"
+    }
+   ],
+   "repro": "On a Lean-touching branch run `pnpm fw land <branch> --task <id>`: .fw-console/timings.jsonl gets a `fw land / lock held` span of about 2 minutes (before the speed-ups land).",
+   "fix": {
+    "task": "mathview-axreach",
+    "also": [
+     "land-timing-ceiling",
+     "mathview-module-cache",
+     "check-dag",
+     "land-prelock"
+    ]
+   },
+   "regression": "Fw.Obs.Timing ceilings (landCeilings: fw land / total 30 s, fw land / lock held 5 s) with the theorem land_budget_alert (a non-noisy land over its ceiling is slow with no history), golden packages/contracts/golden/obs/timing.jsonl, and the #guard that replays the three measured check.sh spans as lock-held samples",
+   "leanVerdict": "provable",
+   "leanReason": "Pure decisions: axiom-reach memo equals the per-call search (Fw.Spec.AxReach query_exact), check cache and pre-lock land (Fw.Console.LandSpeed cache_sound, preLand_commit_exact), regression budget (Fw.Obs.Timing land_budget_alert).",
+   "hardening": "mathview-axreach",
+   "mistakeClass": "c-late-check"
+  },
+  {
+   "id": "inc-watch-unlanded-after-land",
+   "at": "2026-10-18T05:00+07:00",
+   "title": "fw watch kept raising agent.unlanded for tasks already landed on main",
+   "symptom": "After `fw land` the watch still printed `agent.unlanded <task>` and `NEXT <task> land ...` for workflow-claim (after fba6670) and for timing-lean, although their land commits were on main.",
+   "cause": "CONFIRMED (code read, apps/runner/src/next.ts collectRaw/buildFacts, lean/Fw/Obs/Next.lean lands): landed was read only from the branch (`git merge-base --is-ancestor <branch> main`), so a branch that is deleted or not an ancestor after the land (rebased or squashed tip) left the agent's branch fact open or unknown.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Obs/Next.lean",
+     "note": "Branch.settled = landed || onMain; no_unlanded_once_on_main: a land commit for the task on main means no land/routeIntegrator action for any branch name"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/timing-alert.test.ts",
+     "note": "a land commit on main silences the alert with the branch gone from git (ahead/landed unknown) and with the branch present but not an ancestor"
+    },
+    {
+     "kind": "file",
+     "ref": "packages/contracts/golden/obs/next.jsonl",
+     "note": "case inc-watch-unlanded-after-land (Lean-generated)"
+    }
+   ],
+   "repro": "Run `fw land` for a task, delete its branch, run `fw watch`: agent.unlanded is raised for the task.",
+   "fix": {
+    "task": "timing-alert"
+   },
+   "regression": "Lean theorem no_unlanded_once_on_main (lean/Fw/Obs/Next.lean), golden case in packages/contracts/golden/obs/next.jsonl, apps/runner/test/timing-alert.test.ts (landCommitOnMain reads the `Task:` trailer from main)",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Obs.Next no_unlanded_once_on_main: landed is decided from main history, not branch existence.",
+   "hardening": "timing-alert",
+   "mistakeClass": "c-order-derived"
+  },
+  {
+   "id": "inc-watch-alert-during-land",
+   "at": "2026-10-18T05:00+07:00",
+   "title": "fw watch raised agent.unlanded for a branch while fw land was landing it",
+   "symptom": "While `fw land` held the land lock for a branch, the watch (and `fw next`) raised agent.unlanded / NEXT land for that same branch.",
+   "cause": "CONFIRMED (code read, lean/Fw/Obs/Next.lean lands, apps/runner/hooks/land-guard.mjs): the decision knew the branch was ahead and not an ancestor of main, but not that the land lock (`<git common dir>/fw-land.lock`) names it, so a land in flight looked like an abandoned branch.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Obs/Next.lean",
+     "note": "Branch.locked; alert_suppressed_iff_locked: the alert is absent iff the live lock holder is the branch; no_unlanded_while_locked"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/timing-alert.test.ts",
+     "note": "the lock naming the branch suppresses, another branch's lock or no lock does not"
+    },
+    {
+     "kind": "file",
+     "ref": "packages/contracts/golden/obs/next.jsonl",
+     "note": "cases inc-watch-alert-during-land and the other-branch lock (Lean-generated)"
+    }
+   ],
+   "repro": "Hold the land lock for a branch (fw land mid-merge) and run `fw watch`: agent.unlanded for that branch.",
+   "fix": {
+    "task": "timing-alert"
+   },
+   "regression": "Lean theorems alert_suppressed_iff_locked and no_unlanded_while_locked (lean/Fw/Obs/Next.lean), golden cases in next.jsonl, apps/runner/test/timing-alert.test.ts",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Obs.Next alert_suppressed_iff_locked, no_unlanded_while_locked: the land lock holder is suppressed.",
+   "hardening": "timing-alert",
+   "mistakeClass": "c-order-derived"
+  },
+  {
+   "id": "inc-ci-trigger-drift",
+   "at": "2026-10-18T13:00+07:00",
+   "title": "Every push to a ci/* branch still started 5-7 workflows (about 40 runs for 20 free runners; the lead cancelled 18-24 by hand) after ci-trigger-scope was marked done",
+   "symptom": "chromium-counts, gate-gaps, breakpoint-gate and wktr (5 shared macOS slots) started on pushes to ci/integrate-ports-2 and ci/gate-settle that nobody would read; the lead cancelled them one by one.",
+   "cause": "CONFIRMED (workflow files and the guard script read at c5442bc): five causes. (1) The on.push.paths filter of the hosting service tests the push diff before..after, and a merge of main into the branch puts main's files in that diff, so the filter matches. (2) The first fix covered 3 of 11 workflows; later workflows (gate-gaps, difftest, mutants, premise-tests, snapshot-extract, sim-speed) each got a hand-written list and nothing compared the set of workflows with a decision. (3) Every lane that builds fwcore listed lean/**, so an edit to a Lean test, script or part module started them all, though only the import cone of Main.lean can change the binary. (4) The guard job added later (4 macOS lanes) asked whether the whole branch since the merge-base touches an input, so once a branch had touched one every later push started it again. (5) No lint: a trigger could differ from any intent without a check failing.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-17-ci-trigger-scope.md",
+     "note": "the first fix: paths filters, 3 workflows"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ci/Trigger.lean",
+     "note": "starts_iff, none_started, merge_starts_nothing, filter_passes, skipped_replays; the table of all triggers"
+    },
+    {
+     "kind": "file",
+     "ref": "scripts/ci-paths.mjs",
+     "note": "the generator and lint of on.push, the guard job and needs"
+    }
+   ],
+   "repro": "Push a ci/* branch that merges main, or push twice to a branch whose first push changed lean/: before the fix chromium-counts, gate-gaps, breakpoint-gate and wktr start on the second push.",
+   "fix": {
+    "task": "ci-trigger-lean"
+   },
+   "regression": "packages/contracts/golden/ci/triggers.jsonl (Lean-generated cases), scripts/ci-paths.test.mjs, apps/runner/test/ci-triggers.test.ts (a land check: a workflow whose on.push, guard job or needs differs from the Lean decision fails)",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Ci.Trigger starts_iff, none_started, merge_starts_nothing: a workflow starts iff a push file that differs from main is in its declared inputs; a merge of main starts nothing. The import cone and the YAML are glue, checked by the lint against the Lean table.",
+   "hardening": "ci-trigger-lean",
+   "mistakeClass": "c-quota"
+  },
+  {
+   "id": "inc-watch-bg-ampersand",
+   "at": "2026-10-18T13:00+07:00",
+   "title": "The lead started fw watch with a trailing & inside a foreground shell call, twice; the watcher outlived the call as an orphan",
+   "symptom": "A `pnpm fw watch ... &` launched inside a foreground Bash call kept running after the call returned, with no owner the harness tracks and no end notification; the lead found it later and killed it by its own PID. It was the second launch in the same form.",
+   "cause": "INFERRED (lead's mistake list; harness behaviour of `&` in a foreground call): a trailing `&` detaches the child from the tool call, so nothing holds a handle, a bound or an end signal for it. The sanctioned forms (run_in_background, or a monitor with an until predicate) are prose rules; nothing refuses a long-runner launched with `&`.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "zsh -c '... pnpm fw watch ... &': the watcher reparented after the call returned; killed by its own PID",
+     "note": "process shape seen by the lead"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/watch.ts",
+     "note": "fw watch is a long-running watcher with no self-bound unless --until-alert ends it"
+    }
+   ],
+   "repro": "In a foreground Bash call run `pnpm fw watch --until-alert &` and let the call return: the watcher keeps running with no owner and no end notification.",
+   "fix": {
+    "task": "wait-guard"
+   },
+   "regression": "none yet: wait-guard adds a hook test that refuses a long-runner (fw watch, a shell wait loop) launched with a trailing & in a foreground call, and Fw.Ops.Wait golden cases",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Ops.Wait (wait-guard): a launch is admitted iff it has an owner (run_in_background or a tracked monitor) and a bound; the command text is an exact fact the hook sees, so the refusal is a pure decision.",
+   "hardening": "wait-guard",
+   "mistakeClass": "c-orphan-wait",
+   "occurrences": [
+    "first fw watch & launch by the lead",
+    "second fw watch & launch; orphan killed by its own PID"
+   ]
+  },
+  {
+   "id": "inc-watch-unlanded-queued",
+   "at": "2026-10-18T14:15+07:00",
+   "title": "fw watch ended on agent.unlanded for branches already waiting in the lead's land queue, so the lead relaunched it again and again",
+   "symptom": "With several branches waiting for `fw land`, each `fw watch --until-alert` run ended at once on agent.unlanded for a waiting branch; the lead relaunched the watch after each exit, and real alerts were harder to see.",
+   "cause": "CONFIRMED (code read, lean/Fw/Obs/Next.lean Branch and lands, apps/runner/src/next.ts INTEGRATOR_LIST): the alert is silent only when the branch is settled (landed or on main) or holds the land lock. The decision's `queued` fact means the integrator's list in docs/team/handoffs/integrate-ports.md, and a queued branch still yields routeIntegrator. The lead's land queue was a scratch script that fw cannot read, so a branch waiting its turn looked abandoned.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Obs/Next.lean",
+     "note": "Branch.queued = on the integrator's list; lands: queued gives routeIntegrator, not silence; alert_suppressed_iff_locked knows the lock holder only"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/next.ts",
+     "note": "queued is read from INTEGRATOR_LIST, the only queue fw knows"
+    }
+   ],
+   "repro": "Queue two handed-back branches for land in a script (one lands, the other waits) and run `fw watch --until-alert`: it exits on agent.unlanded for the waiting branch.",
+   "fix": {
+    "task": "land-queue"
+   },
+   "regression": "none yet: proposed land-queue makes the land queue a file fw reads and adds a golden case where a branch in it raises no agent.unlanded",
+   "leanVerdict": "provable",
+   "leanReason": "Same shape as alert_suppressed_iff_locked: with a land-queue fact read from a real queue file, the alert is absent iff the branch is settled, locked or in the land queue. Proposed task land-queue (not yet in the work graph); wait-guard hosts it until then, because the watch is the lead's wait and must not end on an alert it already knows is false.",
+   "hardening": "wait-guard",
+   "mistakeClass": "c-order-derived"
+  },
+  {
+   "id": "inc-land-undeclared-reads",
+   "at": "2026-10-18T13:18+07:00",
+   "title": "fw land refused branches four times for undeclared reads that the agents could have found before hand-back",
+   "symptom": "The land.readsOnly premise test refused snapshot-extract, gate-exit-verdict (twice) and gate-align-equiv: a land check read files outside its declared input globs. Each refusal cost a full land of about 4-5 min plus a lead fix commit (152846b, 2bd8766, 2cc5faa).",
+   "cause": "CONFIRMED (code read, apps/runner/test/land-inputs.test.ts and apps/runner/src/land.ts check inputs; commits 152846b, 2bd8766, 2cc5faa): the branches were built before checksfor-inputs landed and the agents did not run the land checks after merging main. The check is cheap and static, but its only call site is fw land under the lock, so its first run on a branch was the land itself.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "152846b",
+     "note": "snapshot-extract: reads of gate-breakpoints/src declared after the refusal"
+    },
+    {
+     "kind": "commit",
+     "ref": "2bd8766",
+     "note": "gate-exit-verdict: reads of packages/contracts/golden/gate/** declared after the refusal"
+    },
+    {
+     "kind": "commit",
+     "ref": "2cc5faa",
+     "note": "gate-exit-verdict again and gate-align-equiv (align-equiv.mjs) declared after the refusals"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/land-inputs.test.ts",
+     "note": "the readsOnly premise test that refused them"
+    }
+   ],
+   "repro": "On a branch based before checksfor-inputs, make a land check read a new path, merge main and hand back without running apps/runner/test/land-inputs.test.ts: fw land refuses on the readsOnly premise test.",
+   "fix": {
+    "task": "land-dry"
+   },
+   "regression": "apps/runner/test/land-inputs.test.ts catches it, but only at land; proposed land-dry runs it before hand-back",
+   "leanVerdict": "provable",
+   "leanReason": "The refusal is already a pure decision (declared input globs against read paths); only its timing is wrong. A Lean hand-back rule (hand-back ok only with an ok dry-land verdict at the branch head after merging main) refuses before the land. Proposed task land-dry (not yet in the work graph); check-map-lean (precommit_covers: every check runs before the commit) hosts it until then.",
+   "hardening": "check-map-lean",
+   "mistakeClass": "c-late-check",
+   "occurrences": [
+    "snapshot-extract: gate-breakpoints/src (152846b)",
+    "gate-exit-verdict: packages/contracts/golden/gate/exit.jsonl (2bd8766)",
+    "gate-exit-verdict: golden/gate/** after the next merge of main (2cc5faa)",
+    "gate-align-equiv: premise-tests reads gate-breakpoints align-equiv.mjs (2cc5faa)"
+   ]
+  },
+  {
+   "id": "inc-land-scope-stale-base",
+   "at": "2026-10-18T14:10+07:00",
+   "title": "fw land refused two branches on scope: one carried another task's diff through an old merge base, one edited another task's handoff",
+   "symptom": "hero-exit-restate carried wktr-p1p4's changes because it had merged them before wktr-p1p4 landed; visual-diff-2 edited docs/team/handoffs/visual-diff.md, the earlier task's handoff. Both were refused at land, each costing a land plus a lead fix.",
+   "cause": "CONFIRMED (code read, apps/runner/src/land.ts: the task and the file scope, Lean console.landScope): the scope check compares the branch diff with the task's writes and its own handoff, but it runs only in fw land. The spawn checklist ends at 'merge main and commit', so the agents never ran it.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/land.ts",
+     "note": "step 1: the task and the file scope (Lean: console.landScope), run only inside fw land"
+    },
+    {
+     "kind": "commit",
+     "ref": "8ee7f95",
+     "note": "visual-diff-2 handoff: the task's own handoff file, docs/team/handoffs/visual-diff-2.md"
+    },
+    {
+     "kind": "commit",
+     "ref": "acf7eb7",
+     "note": "hero-exit-restate landed after the scope fix"
+    }
+   ],
+   "repro": "Edit another task's handoff, or merge another unlanded task's branch into yours, then run fw land: REFUSED on scope.",
+   "fix": {
+    "task": "land-dry"
+   },
+   "regression": "the fw land scope check catches it, but only at land; proposed land-dry runs it before hand-back",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Console.Land landVerdict decides the file scope as a pure set check over the diff; a dry land before hand-back moves the refusal to the agent. Proposed task land-dry (not yet in the work graph); check-map-lean hosts it until then.",
+   "hardening": "check-map-lean",
+   "mistakeClass": "c-late-check",
+   "occurrences": [
+    "hero-exit-restate: wktr-p1p4's diff through an old merge",
+    "visual-diff-2: edited the visual-diff handoff"
+   ]
+  },
+  {
+   "id": "inc-evidence-before-land",
+   "at": "2026-10-18T13:34+07:00",
+   "title": "The lead wrote evidence on slow-site-build before that commit was on main; the board showed done and fw land refused the branch",
+   "symptom": "The work-graph define in e584b8a gave slow-site-build evidence 9a5c552 while that commit was still on the task's unlanded branch. The console derived done, fw land refused the branch as already done, and the note had to land under a new task, slow-site-build-note.",
+   "cause": "CONFIRMED (code read, lean/Fw/Plan/Lint.lean isCommit and the evidence codes): the plan lint (pa-evidence-lint) checks that commit evidence has the shape of a sha (7 to 40 hex characters), not that it is an ancestor of main, and done is derived from evidence alone. So a sha written before its land is accepted and reads as done.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "e584b8a",
+     "note": "the define that set the evidence early"
+    },
+    {
+     "kind": "commit",
+     "ref": "f23ce76",
+     "note": "the evidence removed until the note lands"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Plan/Lint.lean",
+     "note": "evidence kinds: a commit is any 7-40 hex string; no ancestry code"
+    }
+   ],
+   "repro": "Set a task's evidence to a commit that exists only on an unlanded branch and run fw plan lint: no error, and the board shows the task done.",
+   "fix": {
+    "task": "evidence-on-main",
+    "also": [
+     "claim-lint"
+    ]
+   },
+   "regression": "none yet: proposed evidence-on-main adds a lint code for commit evidence not on main, with a golden case",
+   "leanVerdict": "provable",
+   "leanReason": "Ancestry is a git fact the lint can collect as it does for trailers; a Lean rule (commit evidence c is valid iff c is in the main commit set) makes done imply landed. Proposed task evidence-on-main (not yet in the work graph); claim-lint (a status needs its proof) hosts it until then.",
+   "hardening": "claim-lint",
+   "mistakeClass": "c-unearned-claim"
+  },
+  {
+   "id": "inc-premise-unmeasured-goldens",
+   "at": "2026-10-18T13:36+07:00",
+   "title": "Engine goldens P1/P4 'scroll-driven style = 0' on WebKit were an unmeasured premise; three HeroExitOpt theorems were false as stated",
+   "symptom": "webkit.jsonl P1/P4 and hero-exit.jsonl predicted 0 style recalcs for scroll-timeline animations; WKTR measured exactly 1 per rendering update (53/53, 159/159). wkVar_eq, wk_var_exact and wk_trade had to be restated (hero-exit-restate).",
+   "cause": "MEASURED (WKTR fixtures, CI run 39075991405; commit 08987df): the WebKit model let an accelerated scroll-driven animation skip style because the time-based case does. That premise was read from source structure, never measured, and no registry entry or test stood behind the golden rows, so the theorems were proved on top of it. The lead accepted the goldens without asking for the premise's test.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "08987df",
+     "note": "wktr-p1p4: WebKit restyles once per update on a scroll timeline (measured); model and goldens corrected"
+    },
+    {
+     "kind": "ci",
+     "ref": "39075991405",
+     "note": "WKTR fixtures run that refuted the premise"
+    },
+    {
+     "kind": "file",
+     "ref": "docs/team/handoffs/wktr-p1p4.md",
+     "note": "the measurement and the refuted rows"
+    },
+    {
+     "kind": "commit",
+     "ref": "acf7eb7",
+     "note": "hero-exit-restate: theorems restated under WktrStyleRate.Holds"
+    }
+   ],
+   "repro": "Run wktr-fixtures.yml with the scroll-timeline fixture: styleRecalcs per update is 1, not the 0 the old goldens predicted.",
+   "fix": {
+    "task": "wktr-p1p4",
+    "also": [
+     "hero-exit-restate",
+     "engine-golden-premise-lint"
+    ]
+   },
+   "regression": "wktr-fixtures.yml (styleRecalcs per update: control 0, scroll timeline 1, time-accelerated 0); WktrStyleRate.Holds is an explicit hypothesis of the restated theorems",
+   "leanVerdict": "partly",
+   "leanReason": "The model was proved, the premise was not: Lean can only prove premise => conclusion. Now the premise is WktrStyleRate.Holds, an explicit hypothesis of style_rate_model and the restated wk_var_exact / wk_trade, registered as wktr_scroll_timeline_restyle (kind lane, .github/workflows/wktr-fixtures.yml; lint: a lane premise must name an existing workflow). Hardening (concrete): every row of packages/contracts/golden/engine/*.jsonl carries a premise field naming a registry id with a test (page test in packages/premise-tests or lane workflow), and fw premises (Lean Fw.Ops.Premise) fails on a row without one or with an id that is not covered.",
+   "hardening": "engine-golden-premise-lint",
+   "empiricalCheck": "wktr-fixtures.yml (styleRecalcs per update: control 0, scroll timeline 1, time-accelerated 0)",
+   "mistakeClass": "c-unearned-claim",
+   "mistake": "m175"
+  },
+  {
+   "id": "inc-gate-scan-page-state",
+   "at": "2026-10-18T13:40+07:00",
+   "title": "gate-speed-ci: the phase-0 declared-property scan depends on page state, so parallel jobs disagree on the header",
+   "symptom": "In run R2 of gate-speed-ci, the WebKit phase-0 scan listed the original nav opacity in 3 of 4 jobs; merge-gate failed on 'header differs'.",
+   "cause": "CONFIRMED (docs/team/handoffs/gate-speed-ci.md:25; packages/gate-breakpoints/src/run.mjs and page.mjs:163-170): the declared-property list is read from the live page at scan time, so whether the nav is mid-animation changes the list. Nothing requires a settled page before the scan or makes the list a function of the stylesheet only; more jobs raise the odds of a split.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "docs/team/handoffs/gate-speed-ci.md",
+     "note": "line 25: FLAKE found in R2, nav opacity in 3 of 4 WebKit jobs"
+    },
+    {
+     "kind": "file",
+     "ref": "packages/gate-breakpoints/src/page.mjs",
+     "note": "the declared-property scan at 163-170"
+    }
+   ],
+   "repro": "Run the WebKit breakpoint gate split into 4 jobs: the phase-0 lists can differ in nav opacity between jobs and merge-gate fails on 'header differs'.",
+   "fix": {
+    "task": "gate-settle"
+   },
+   "regression": "none yet: gate-settle (Fw.Gate.Settle) makes a scan on an unsettled page invalid",
+   "leanVerdict": "partly",
+   "leanReason": "Fw.Gate.Settle can require a settled page before the scan, and the merge can refuse unequal headers as a sample error instead of a verdict; whether the page is settled is a fact read from the browser.",
+   "hardening": "gate-settle",
+   "mistakeClass": "c-sample-validity"
+  },
+  {
+   "id": "inc-land-waiters-pgrep",
+   "at": "2026-10-18T13:52+07:00",
+   "title": "Four land waiters deadlocked for about 20 minutes: each waited with pgrep -f on the queue script's name and matched the others",
+   "symptom": "The lead started four shell waiters of the form `while pgrep -f \"<scratchpad>/land-queue.sh\"; do sleep N; done; fw land ...`. None ever left its loop, and no land ran for about 20 minutes.",
+   "cause": "CONFIRMED (pgrep(1) on macOS: only the caller and its ancestors are excluded from the match): each waiter's own shell command line contains the pattern text, so every waiter matched the other waiters' shells and all four waited for each other. Process identity came from a command-line pattern, not from a recorded PID, a lock holder or a queue file.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "4 zsh waiters, each running `while pgrep -f <pattern>` with the pattern in its own argv",
+     "note": "process shape seen by the lead"
+    },
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-18-mistake-retro.md",
+     "note": "c-identity-heuristic: identity from argv text; the wt-prep pattern defect of the same kind"
+    }
+   ],
+   "repro": "Start two shells that each run `while pgrep -f 'x-queue.sh'; do sleep 5; done` (the pattern is in their own argv): neither ever exits.",
+   "fix": {
+    "task": "land-queue"
+   },
+   "regression": "none yet: policy-from-lean puts the pgrep -f wait in its golden of violating commands; proposed land-queue replaces shell waiters with one queue file and the land lock",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Ops.Policy (policy-from-lean, kill_iff_owner): a process is selected only by a recorded PID or lock holder, never by a pattern; a queue file with FIFO order under one lock has no wait-for cycle. Proposed task land-queue (not yet in the work graph) adds the queue; policy-from-lean hosts it until then.",
+   "hardening": "policy-from-lean",
+   "mistakeClass": "c-identity-heuristic"
+  },
+  {
+   "id": "inc-ci-verdict-needs-api",
+   "at": "2026-10-18T14:04+07:00",
+   "title": "premise-tests failed on every branch: its CI verdict step `pnpm fw premises` tried to reach console-api",
+   "symptom": "From the day premise-tests landed, its verdict step failed on every ci/* push. The watch reported ci.failed premise-tests three times and nobody read the cause until gate-align-equiv did.",
+   "cause": "CONFIRMED (code read at 06853aa: apps/runner/src/fw.ts, apps/runner/src/lib.ts NO_API_GROUPS): fw.ts sent every command group except a hand-kept list through apiBase() (console-api), the list lacked premises, and console-api never runs on CI. The watch alert named the workflow, not the failing step's first error line, so three alerts read like flakes.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "06853aa",
+     "note": "fw premises runs without console-api; test that every pnpm fw group in .github/** is a no-API group"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/lib.ts",
+     "note": "NO_API_GROUPS"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/lib.test.ts",
+     "note": "every `pnpm fw <group>` in .github/** runs without console-api"
+    }
+   ],
+   "repro": "Before 06853aa, run `pnpm fw premises` on a host with no console-api (any CI runner): it fails reaching the API.",
+   "fix": {
+    "task": "premises-no-api"
+   },
+   "regression": "apps/runner/test/lib.test.ts: every `pnpm fw <group>` in .github/** is in NO_API_GROUPS",
+   "leanVerdict": "no",
+   "leanReason": "Whether console-api runs on a CI host is an environment fact, and the group table is glue; a test over the workflow files covers it. The watch quoting the failing step's first error is I/O, not a decision.",
+   "empiricalCheck": "apps/runner/test/lib.test.ts (every pnpm fw group named in .github/** is a no-API group)",
+   "mistakeClass": "c-env-assume",
+   "occurrences": [
+    "ci.failed premise-tests alert 1",
+    "ci.failed premise-tests alert 2",
+    "ci.failed premise-tests alert 3"
+   ]
+  },
+  {
+   "id": "inc-prompt-premise-align",
+   "at": "2026-10-18T13:34+07:00",
+   "title": "The lead's gate-align-equiv spawn prompt assumed align-self auto resolves to normal; on the original page it resolves to stretch",
+   "symptom": "The prompt framed the equivalence rule around normal. The agent read the snapshot CSS, found that auto takes the parent's computed align-items (stretch there), and narrowed the rule.",
+   "cause": "CONFIRMED (lean/Fw/Gate/AlignEquiv.lean:14, css-align-3 §6.2: auto computes to the parent's computed align-items): the lead stated a CSS premise in a spawn prompt from memory, with no source and no check against the snapshot, and nothing reads prompt premises.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Gate/AlignEquiv.lean",
+     "note": "align-self auto resolves to the parent's align-items (css-align-3 §6.2)"
+    },
+    {
+     "kind": "commit",
+     "ref": "3b582d4",
+     "note": "gate-align-equiv: Lean align-self equivalence from the spec rule"
+    }
+   ],
+   "repro": "Spawn a task whose prompt states a CSS resolution without a source: nothing checks it before the agent builds on it.",
+   "fix": {
+    "task": "gate-align-equiv"
+   },
+   "regression": "Fw.Gate.AlignEquiv resolves auto from the parent's align-items; its golden vectors are replayed by the JS mirror",
+   "leanVerdict": "partly",
+   "leanReason": "The resolution rule is now in Lean (Fw.Gate.AlignEquiv), so a later prompt can cite it instead of restating it; a premise written in a spawn prompt is prose no lint reads.",
+   "hardening": "gate-align-equiv",
+   "mistakeClass": "c-unearned-claim"
+  },
+  {
+   "id": "inc-land-retry-text-match",
+   "at": "2026-10-18T13:54+07:00",
+   "title": "The lead's land queue retried on any output containing 'busy' and re-ran a refused land for about 20 minutes",
+   "symptom": "fw land refused gate-exit-verdict (undeclared read of packages/contracts/golden/gate/exit.jsonl), but the output also held a mathview warning naming the theorem dispatch_busy (lean/Fw/Spec/DeviceQueue.lean). The queue script read 'busy' as 'land lock held, retry' and ran the same refused land again and again.",
+   "cause": "CONFIRMED (code read, apps/runner/src/land.ts: every refusal is one free-text `REFUSED: ...` line with exit 1): fw land gives no machine-readable verdict kind, so the script matched a loose substring of the whole output; the outcome was decided by text, not by a code.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/land.ts",
+     "note": "fail(): `REFUSED: <text>`, one exit code for every refusal kind"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Spec/DeviceQueue.lean",
+     "note": "dispatch_busy: the theorem name the substring matched"
+    },
+    {
+     "kind": "commit",
+     "ref": "2bd8766",
+     "note": "the real cause of the refusal, fixed after the loop was stopped"
+    }
+   ],
+   "repro": "Loop `fw land <branch>` while its output matches /busy/ on a refused land whose output names any identifier containing 'busy': it never stops.",
+   "fix": {
+    "task": "land-queue"
+   },
+   "regression": "none yet: proposed land-queue gives fw land one verdict line and one exit code per refusal kind, and the queue retries on the lock code only",
+   "leanVerdict": "provable",
+   "leanReason": "A Lean land verdict enum with an injective map to exit codes makes the retry decision a pure function of the code (retry iff the lock is held). Proposed task land-queue (not yet in the work graph); policy-from-lean (authority from recorded facts, not text) hosts it until then.",
+   "hardening": "policy-from-lean",
+   "mistakeClass": "c-identity-heuristic"
+  },
+  {
+   "id": "inc-upsert-keeps-evidence",
+   "at": "2026-10-18T13:49+07:00",
+   "title": "A define cannot take back early evidence: upsert keeps a row's evidence, so slow-site-build stayed done",
+   "symptom": "After the lead removed slow-site-build's evidence from docs/team/work-graph.json (f23ce76), the board still showed the task done.",
+   "cause": "CONFIRMED (code read, lean/Fw/Plan/Core.lean upsert keeps t.evidence when a define has an existing id; lean/Fw/Plan/Golden.lean case 'define: upsert keeps the claim and the evidence'): upsert is built so that a define never loses landed evidence, which also makes evidence written in error stored state that no edit of the work graph can retract.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Plan/Core.lean",
+     "note": "upsert: an existing id keeps its evidence"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Plan/Golden.lean",
+     "note": "golden: define upsert keeps the claim and the evidence"
+    },
+    {
+     "kind": "commit",
+     "ref": "f23ce76",
+     "note": "the evidence removed from the work graph; the board kept it"
+    }
+   ],
+   "repro": "Define a task with evidence, then define it again without evidence: the row keeps the first evidence and stays done.",
+   "fix": {
+    "task": "evidence-on-main",
+    "also": [
+     "claim-lint"
+    ]
+   },
+   "regression": "none yet: proposed evidence-on-main rejects a define whose commit evidence is not on main",
+   "leanVerdict": "provable",
+   "leanReason": "Fw.Plan.Core upsert is pure: if a define is applied only when its commit evidence is on main (else rejected), kept evidence was always landed and keeping it stays sound. Proposed task evidence-on-main (not yet in the work graph); claim-lint hosts it until then.",
+   "hardening": "claim-lint",
+   "mistakeClass": "c-order-derived"
+  },
+  {
+   "id": "inc-findings-shared-entry",
+   "at": "2026-10-18T13:55+07:00",
+   "title": "Parallel tasks rewrote the same findings ledger entry (hero.exit), so two merges needed manual resolution",
+   "symptom": "wktr-p1p4, hero-exit-restate and main each changed the hero.exit entry of research/findings/ledger.json. The ledger merge driver refused both merges, correctly, and the lead unioned the arrays and chose the mechanism text by hand (212c919, dc1fee1).",
+   "cause": "CONFIRMED (scripts/merge-ledger.mjs: union by id, a conflict when one id changed differently on both sides): the driver resolves edits to different ids, not two edits to one id. A findings entry holds one shared mechanism string that every task rewrites, and no task owns an entry, so parallel tasks collide on it.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "212c919",
+     "note": "merge main into wktr-p1p4: hero.exit changed on both sides, resolved by hand"
+    },
+    {
+     "kind": "commit",
+     "ref": "dc1fee1",
+     "note": "merge main into hero-exit-restate: hero.exit resolved by hand again"
+    },
+    {
+     "kind": "file",
+     "ref": "scripts/merge-ledger.mjs",
+     "note": "union by id; both sides changed one id differently is a conflict"
+    }
+   ],
+   "repro": "On two branches change the mechanism string of the same findings entry and merge both: the driver reports a conflict.",
+   "fix": {
+    "task": "findings-subentries"
+   },
+   "regression": "scripts/merge-ledger.mjs refuses (correct); none yet for the cause",
+   "leanVerdict": "provable",
+   "leanReason": "With append-only per-task notes keyed by (entry id, task), the id-keyed merge (conflict iff one key changed differently on both sides) never conflicts across tasks. Proposed task findings-subentries (not yet in the work graph); admit-reads (owners for shared resources) hosts it until then.",
+   "hardening": "admit-reads",
+   "mistakeClass": "c-shared-no-lock",
+   "occurrences": [
+    "212c919 (wktr-p1p4)",
+    "dc1fee1 (hero-exit-restate)"
+   ]
+  }
+ ]
+}

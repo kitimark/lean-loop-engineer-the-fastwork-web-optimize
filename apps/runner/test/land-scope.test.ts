@@ -1,5 +1,6 @@
 // `fw land --task` on a plain (non-card) agent branch: file scope from the task's writes (Lean console.landScope),
 // marker check, failing checks, dirty/locked worktrees, merge-never-rebase, safe cleanup.
+import "./land-timeout.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -130,8 +131,7 @@ describe("fw land --task on an agent branch", () => {
     const before = mainSha();
     const r = await land(BR, { ...opts, checks: [["true"], ["false"]] });
     expect(r.ok).toBe(false);
-    expect(text(r)).toMatch(/check failed: false/);
-    expect(text(r)).toMatch(/merge aborted/);
+    expect(text(r)).toMatch(/check FAILED: false/);
     expect(mainSha()).toBe(before); clean(); noMerge();
     expect(fx.git(fx.root, "branch", "--list", BR)).toContain(BR);
   });

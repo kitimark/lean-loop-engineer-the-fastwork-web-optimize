@@ -4,6 +4,7 @@ import Fw.Parts.NavHitTest
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
+import Fw.Parts.PlatformGolden
 /-!
 # Golden vectors for the M2 pilot parts
 
@@ -103,7 +104,17 @@ def engineLines : List String :=
   ([(false, 0), (false, 1), (false, 5), (true, 0), (true, 1), (true, 2)].map fun (a, n) =>
       line "listenerAction" [("attached", .bool a), ("size", jnat n)] (.str (listenerAction a n)))
 
-/-- engine.scroll Lean-only lines: forced counts, plan layouts, runs. $$\text{lines}$$ Vectors for the cost model. -/
+/-- engine.scroll Lean-only lines: forced counts, plan layouts, runs.
+
+The `forcedCounts` and `forcedCountsBatched` rows carry **forced passes only** ($\operatorname{forced}_\rho$), not the
+stage's trace total: they omit the frame-end lifecycle pass. The trace total is
+$\operatorname{total}_\rho = \operatorname{forced}_\rho + [\operatorname{fE}]$ (`EngineScroll.total_eq`). For the
+pilot frame the batched rows read style $1/0$ (dirty/clean start) while the batched total is $2/1$, against a faithful
+total of $4/3$: batching saves 2 style passes in the trace, not 3 (`pilot_batched_rows_forced_only`).
+
+$$\mathit{lines} = [\mathrm{forcedCounts}(as, d), \mathrm{forcedCountsBatched}(as, d) \mid as \in \mathit{seqs}, d \in \{\bot, \top\}] \mathbin{+\!\!+} [\mathrm{planLayouts}] \mathbin{+\!\!+} [\mathrm{engineRuns}],\quad \mathrm{forcedCounts}(as, d) = (\operatorname{forced}_{\rho_S}(d, as), \operatorname{forced}_{\rho_L}(d, as))$$
+
+Vectors for the cost model, labelled as forced counts rather than totals. -/
 def engineSpecLines : List String :=
   let seqs : List (List Access) :=
     [[], [.readLayout], [.writeStyle, .readLayout], [.readLayout, .writeLayout, .readLayout],
@@ -124,6 +135,29 @@ def engineSpecLines : List String :=
       line "engineRuns" [("pending", .bool p),
         ("events", .arr (es.map (fun e => Json.str (match e with | .scroll => "scroll" | .frame => "frame"))).toArray)]
         (jnat (runs p es)))
+
+/-- The read-first reordering the `forcedCountsBatched` rows use. $$\operatorname{bat}(as) = [a \in as \mid a \text{ is a read}] \mathbin{+\!\!+} [a \in as \mid a \text{ is a write}]$$ All reads, then all writes, each in order. -/
+def batchedOrder (as : List Access) : List Access := as.filter Access.isRead ++ as.filter (fun a => !a.isRead)
+
+#guard batchedOrder [.writeStyle, .readLayout] == [.readLayout, .writeStyle]
+#guard forced styleRole true (batchedOrder pilotFrame) == 1
+#guard total styleRole true (batchedOrder pilotFrame) == 2
+
+/-- **The batched golden rows are forced counts, not totals.** For the pilot frame and either start flag, the
+`forcedCountsBatched` style value is $[d]$ while the batched trace total is $1 + [d]$; the faithful forced count and
+total are both $3 + [d]$; layout is $[d]$ in all four.
+
+$$\forall d \in \mathbb{B}:\ \operatorname{forced}_{\rho_S}(d, \operatorname{bat}(\mathit{pilot})) = [d] \land \operatorname{total}_{\rho_S}(d, \operatorname{bat}(\mathit{pilot})) = 1 + [d] \land \operatorname{forced}_{\rho_S}(d, \mathit{pilot}) = \operatorname{total}_{\rho_S}(d, \mathit{pilot}) = 3 + [d] \land \operatorname{forced}_{\rho_L}(d, \operatorname{bat}(\mathit{pilot})) = \operatorname{total}_{\rho_L}(d, \operatorname{bat}(\mathit{pilot})) = \operatorname{forced}_{\rho_L}(d, \mathit{pilot}) = \operatorname{total}_{\rho_L}(d, \mathit{pilot}) = [d]$$
+
+Read as totals the pilot's batched row is 2/1, not 1/0, so batching saves two style passes, not three. -/
+theorem pilot_batched_rows_forced_only (d : Bool) :
+    forced styleRole d (batchedOrder pilotFrame) = d.toNat ∧
+      total styleRole d (batchedOrder pilotFrame) = 1 + d.toNat ∧
+      forced styleRole d pilotFrame = 3 + d.toNat ∧ total styleRole d pilotFrame = 3 + d.toNat ∧
+      forced layoutRole d (batchedOrder pilotFrame) = d.toNat ∧
+      total layoutRole d (batchedOrder pilotFrame) = d.toNat ∧
+      forced layoutRole d pilotFrame = d.toNat ∧ total layoutRole d pilotFrame = d.toNat := by
+  cases d <;> decide
 
 end Engine
 
@@ -299,7 +333,10 @@ def stIn (s : St) : Json :=
   Json.mkObj [("value", rin s.value), ("target", rin s.target), ("from", rin s.f), ("to", rin s.t),
     ("start", rin s.start), ("pending", .bool s.pending)]
 
-/-- morph.tween lines (TS functions). $$\text{lines}$$ The conformance vectors for the TS tween. -/
+/-- morph.tween lines (TS functions): the conformance vectors for the TS tween. Comprehensions run their generators
+left to right, outer to inner; `line`, `rin`, `ratWire` as in `PlatformGolden`.
+
+$$\begin{aligned} \mathrm{tweenLines} = {} &[\, \operatorname{line}(\texttt{ease}, \{\texttt{x}{:}\ \operatorname{rin}(x)\}, \operatorname{ratWire}(\operatorname{ease}(x))) \mid x \in X \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{tween}, \{\texttt{from}{:}\ \operatorname{rin}(f), \texttt{to}{:}\ \operatorname{rin}(t), \texttt{elapsed}{:}\ \operatorname{rin}(e)\}, \{\texttt{value}{:}\ \operatorname{ratWire}(\operatorname{tween}(f, t, e).\mathrm{value}), \texttt{done}{:}\ \operatorname{tween}(f, t, e).\mathrm{done}\}) \mid (f, t) \in \mathit{Ends},\ e \in \mathit{Els} \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{dir}, \{\texttt{delta}{:}\ \operatorname{rin}(d)\}, (\operatorname{dir}(d) = \operatorname{some}(g)\ ?\ \operatorname{ratWire}(g) : \texttt{null})) \mid d \in [0, 0.5, 0.99, 1, -1, 1.5, -0.5, 120, -120, 0] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{armed}, \{\texttt{rectHeight}{:}\ \operatorname{rin}(h), \texttt{rectBottom}{:}\ \operatorname{rin}(b), \texttt{viewportHeight}{:}\ \operatorname{rin}(v)\}, \operatorname{armed}(h, b, v)) \\ &\qquad \mid (h, b, v) \in [(360, 800, 800), (359.9, 800, 800), (800, 808, 800), (800, 808.5, 800), (0, 0, 800), (380.25, 844, 844), (379.8, 844, 844), (900, 852, 844), (900, 852.01, 844)] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{taken}, \{\texttt{active}{:}\ a, \texttt{delta}{:}\ \operatorname{rin}(d), \texttt{armed}{:}\ r\}, \operatorname{taken}(a, d, r)) \mid a \in [\bot, \top],\ d \in [-5, 0, 0.5, 5],\ r \in [\bot, \top] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{active}, \{\texttt{target}{:}\ \operatorname{rin}(w), \texttt{value}{:}\ \operatorname{rin}(r)\}, \operatorname{active}(w, r)) \mid (w, r) \in [(0, 0), (0.001, 0), (0, 0.001), (0.0011, 0), (0, 0.0011), (1, 0), (0, 1), (1, 1)] \,] \\ \mathbin{+\!\!+} {} &[\, y \mid m \in [0, 0.1, 0.275, 0.5, 0.5225, 0.5226, 0.55, 0.9, 1],\ y \in [\operatorname{line}(\texttt{fade}, \{\texttt{m}{:}\ \operatorname{rin}(m)\}, \operatorname{ratWire}(\operatorname{fade}(m))),\ \operatorname{line}(\texttt{pointerNone}, \{\texttt{m}{:}\ \operatorname{rin}(m)\}, \operatorname{pointerNone}(m))] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{push}, \{\texttt{state}{:}\ \operatorname{stIn}(s), \texttt{goal}{:}\ \operatorname{rin}(g), \texttt{reduced}{:}\ \rho, \texttt{now}{:}\ \operatorname{rin}(1000)\}, \operatorname{stJson}(\operatorname{push}(s, g, \rho, 1000))) \mid s \in S_p,\ g \in [0, 1],\ \rho \in [\bot, \top] \,] \\ \mathbin{+\!\!+} {} &[\, \operatorname{line}(\texttt{frame}, \{\texttt{state}{:}\ \operatorname{stIn}(s), \texttt{now}{:}\ \operatorname{rin}(n)\}, \operatorname{stJson}(\operatorname{frame}(s, n))) \mid s \in S_f,\ n \in [100, 116.667, 440, 780, 781, 90] \,], \\ \text{with } X = {} &[-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5],\quad \mathit{Els} = [-16, 0, 16.667, 100, 340, 500, 679, 679.9, 680, 680.1, 1000], \\ \mathit{Ends} = {} &[(0, 1), (1, 0), (0.3, 1), (0.8, 0), (0.5, 0.5)],\quad q_1 = \operatorname{push}(\mathrm{rest}, 1, \bot, 100), \\ S_p = {} &[\mathrm{rest}, q_1, \operatorname{frame}(q_1, 440), \operatorname{frame}(q_1, 780), \operatorname{push}(\mathrm{rest}, 1, \top, 100), \operatorname{frame}(\operatorname{push}(\operatorname{frame}(q_1, 440), 0, \bot, 450), 450)], \\ S_f = {} &[\mathrm{rest}, q_1, \operatorname{frame}(q_1, 440), \operatorname{push}(\mathrm{rest}, 1, \top, 100)] \end{aligned}$$ -/
 def tweenLines : List String :=
   let xs : List Rat := [-1, 0, 0.1, 0.25, 0.5, 0.75, 0.9, 1, 1.5]
   let els : List Rat := [-16, 0, 16.667, 100, 340, 500, 679, 679.9, 680, 680.1, 1000]
@@ -343,7 +380,7 @@ def main (args : List String) : IO Unit := do
     [("engine.scroll.jsonl", engineLines), ("engine.scroll.spec.jsonl", engineSpecLines),
      ("nav.hitTest.jsonl", navLines), ("nav.hitTest.spec.jsonl", navSpecLines),
      ("hero.countdown.jsonl", countdownLines), ("hero.exit.jsonl", exitLines),
-     ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines)]
+     ("hero.exit.spec.jsonl", exitSpecLines), ("morph.tween.jsonl", tweenLines)] ++ PlatformGolden.files
   for (name, ls) in files do
     IO.FS.writeFile (dir ++ "/" ++ name) (String.join (ls.map (· ++ "\n")))
     IO.println s!"{name}: {ls.length} lines"

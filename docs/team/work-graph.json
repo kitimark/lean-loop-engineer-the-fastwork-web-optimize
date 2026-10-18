@@ -260,7 +260,8 @@
    ],
    "devices": [
     "simulator"
-   ]
+   ],
+   "evidence": "7818dbb"
   },
   {
    "id": "plan-rev6",
@@ -350,7 +351,8 @@
    "writes": [
     "packages/gate-breakpoints/src/anchors.json",
     "lean/Fw/Gate/**"
-   ]
+   ],
+   "evidence": "78b850a"
   },
   {
    "id": "m0-mutants",
@@ -363,7 +365,8 @@
     "lean/FwTest/Mutants/**",
     "lean/scripts/mutants.sh",
     "research/notes/2026/10-17-mutants.md"
-   ]
+   ],
+   "evidence": "8074907"
   },
   {
    "id": "spk-hooks",
@@ -396,16 +399,17 @@
   },
   {
    "id": "spawn-enforce",
-   "title": "CUT (rev 9): Switch spawn-guard from shadow to enforce",
+   "title": "(S) BROUGHT BACK 2026-10-18: switch spawn-guard from shadow to enforce after a shadow-log false-positive check; the enforce decision in Lean with a theorem; incidents ledger regression",
    "stream": "parallel",
-   "milestone": "MX",
-   "cut": true,
+   "milestone": "M5",
+   "cut": false,
    "deps": [],
-   "owner": "lead",
+   "owner": "console-builder",
    "writes": [
     ".claude/settings.json",
     "apps/runner/hooks/spawn-guard.mjs"
-   ]
+   ],
+   "evidence": "94b8a97"
   },
   {
    "id": "verdict-to-lean",
@@ -434,7 +438,8 @@
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Wire/**"
-   ]
+   ],
+   "evidence": "bf4d660"
   },
   {
    "id": "lean-console-gaps",
@@ -449,7 +454,8 @@
     "lean/Fw/Console*.lean",
     "lean/Fw/Console/**",
     "lean/Fw/Ops/**"
-   ]
+   ],
+   "evidence": "acc5d83"
   },
   {
    "id": "measure-ts-to-lean",
@@ -476,7 +482,8 @@
    "owner": "console-builder",
    "writes": [
     "apps/runner/**"
-   ]
+   ],
+   "evidence": "ba20c0e"
   },
   {
    "id": "touch-wedge",
@@ -494,7 +501,8 @@
    ],
    "devices": [
     "docker"
-   ]
+   ],
+   "evidence": "25bd9f4"
   },
   {
    "id": "hittest",
@@ -510,7 +518,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "f90c08f"
   },
   {
    "id": "webkit-quiet",
@@ -559,7 +568,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "f90c08f"
   },
   {
    "id": "zone-baselines-chromium",
@@ -598,7 +608,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "6b5933d"
   },
   {
    "id": "store-and-run",
@@ -613,7 +624,8 @@
     "apps/runner/src/run*.ts",
     "packages/contracts/src/artifacts.ts",
     "lean/Fw/Store/**"
-   ]
+   ],
+   "evidence": "da3632e"
   },
   {
    "id": "vj-vt",
@@ -700,7 +712,8 @@
    ],
    "devices": [
     "simulator"
-   ]
+   ],
+   "evidence": "0d561fa"
   },
   {
    "id": "gap-device",
@@ -825,7 +838,8 @@
    ],
    "devices": [
     "simulator"
-   ]
+   ],
+   "evidence": "2357452"
   },
   {
    "id": "wktr-ci-lane",
@@ -839,19 +853,21 @@
    "writes": [
     ".github/workflows/wktr.yml",
     "packages/measure-wktr/**"
-   ]
+   ],
+   "evidence": "c5d10bd"
   },
   {
    "id": "wktr-readme-fix",
-   "title": "CUT (rev 9): measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update",
+   "title": "(S) BROUGHT BACK 2026-10-18 (lane is live): measure-wktr/measure-webkit README: a prebuilt WKTR exists; UIHelper.renderingUpdate() is rAF + setTimeout 0, not one rendering update; cite WebKit source",
    "stream": "measure",
-   "milestone": "MX",
-   "cut": true,
+   "milestone": "M5",
+   "cut": false,
    "deps": [],
    "owner": "measure-engineer",
    "writes": [
     "packages/measure-webkit/README.md"
-   ]
+   ],
+   "evidence": "65b6704"
   },
   {
    "id": "calibration",
@@ -894,11 +910,13 @@
   },
   {
    "id": "port-parts",
-   "title": "CUT (rev 9): Port every other part through the full breakpoint gate",
+   "title": "(L) BROUGHT BACK 2026-10-18, rescoped: port the parts the findings ledger needs (not-tried/not-proved candidates on unported parts: people.o, people.carousel, hero.accent, hero.cue, commission.typing; confirm the list against apps/site/src/parts after integrate-ports) through the full breakpoint gate",
    "stream": "parts",
-   "milestone": "MX",
-   "cut": true,
-   "deps": [],
+   "milestone": "M5",
+   "cut": false,
+   "deps": [
+    "integrate-ports"
+   ],
    "owner": "part-builder"
   },
   {
@@ -925,7 +943,10 @@
     "proof-hero-accent",
     "variant-hidden-pause",
     "variant-morph-mount-shift",
-    "variant-morph-panel-rest"
+    "variant-morph-panel-rest",
+    "why-core-lessons",
+    "why-engines",
+    "why-parts"
    ],
    "owner": "lead"
   },
@@ -985,7 +1006,8 @@
    "writes": [
     "apps/console-web/**",
     "apps/console-api/**"
-   ]
+   ],
+   "evidence": "fa032f4"
   },
   {
    "id": "cap-actor-fix",
@@ -1036,7 +1058,8 @@
     "apps/runner/hooks/emit.mjs",
     "apps/console-api/src/spool/**",
     "lean/Fw/Console/**"
-   ]
+   ],
+   "evidence": "c92c310"
   },
   {
    "id": "scrub-precommit",
@@ -1098,7 +1121,8 @@
    "writes": [
     "packages/measure-chromium/classes.frozen.json",
     ".github/workflows/chromium-counts.yml"
-   ]
+   ],
+   "evidence": "da287ff"
   },
   {
    "id": "pixel-tolerance",
@@ -1112,7 +1136,8 @@
    "writes": [
     "lean/Fw/Measure/**",
     "packages/measure-chromium/src/classes.mjs"
-   ]
+   ],
+   "evidence": "5879861"
   },
   {
    "id": "plan-rev7",
@@ -1126,7 +1151,8 @@
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
-   ]
+   ],
+   "evidence": "9ffa4fe"
   },
   {
    "id": "watch-fix",
@@ -1144,7 +1170,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "1a4a062"
   },
   {
    "id": "spk-p-wake",
@@ -1157,7 +1184,8 @@
    "owner": "researcher",
    "writes": [
     "research/notes/2026/10-17-spk-drafts/spk-p.md"
-   ]
+   ],
+   "evidence": "548f99c"
   },
   {
    "id": "plan-evidence-link",
@@ -1170,7 +1198,8 @@
    "owner": "console-builder",
    "writes": [
     "apps/console-web/src/Plan.tsx"
-   ]
+   ],
+   "evidence": "630110e"
   },
   {
    "id": "math-r7",
@@ -1187,7 +1216,8 @@
    "owner": "math-reviewer",
    "writes": [
     "research/notes/2026/10-17-math-review-r7.md"
-   ]
+   ],
+   "evidence": "7d564e2"
   },
   {
    "id": "gate-unreachable",
@@ -1205,7 +1235,8 @@
     "apps/site/src/breakpoints.gen.json",
     "packages/gate-breakpoints/src/verdict.mjs",
     "packages/contracts/golden/gate/**"
-   ]
+   ],
+   "evidence": "3a8c263"
   },
   {
    "id": "css-decide",
@@ -1228,7 +1259,8 @@
    "writes": [
     ".github/workflows/sim-speed.yml",
     "research/notes/2026/10-17-sim-speed.md"
-   ]
+   ],
+   "evidence": "7563f79"
   },
   {
    "id": "ci-trigger-scope",
@@ -1242,7 +1274,8 @@
     ".github/workflows/chromium-counts.yml",
     ".github/workflows/breakpoint-gate.yml",
     "research/notes/2026/10-17-ci-trigger-scope.md"
-   ]
+   ],
+   "evidence": "6723de2"
   },
   {
    "id": "watch-slow",
@@ -1260,7 +1293,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "8a430c3"
   },
   {
    "id": "touch-ci-verify",
@@ -1275,7 +1309,8 @@
    "writes": [
     "packages/measure-chromium/README.md",
     "packages/measure-chromium/profiles/**"
-   ]
+   ],
+   "evidence": "da287ff"
   },
   {
    "id": "mutants-ci",
@@ -1290,7 +1325,8 @@
    "writes": [
     ".github/workflows/mutants.yml",
     "lean/scripts/mutants.sh"
-   ]
+   ],
+   "evidence": "cd49282"
   },
   {
    "id": "freeze-lean",
@@ -1306,7 +1342,8 @@
     "packages/measure-chromium/src/freeze.mjs",
     "packages/measure-chromium/classes.frozen.json",
     "packages/contracts/golden/measure/**"
-   ]
+   ],
+   "evidence": "bc2e28a"
   },
   {
    "id": "rewrite-ci-lane",
@@ -1320,7 +1357,8 @@
    "writes": [
     ".github/workflows/chromium-counts.yml",
     "packages/measure-chromium/src/host.mjs"
-   ]
+   ],
+   "evidence": "fee88b2"
   },
   {
    "id": "math-r8-fix",
@@ -1341,7 +1379,8 @@
     "lean/Fw/Plan/**",
     "lean/Fw/Board.lean",
     "lean/Fw/Ops/**"
-   ]
+   ],
+   "evidence": "a82e4a4"
   },
   {
    "id": "plan-rev7-1",
@@ -1357,7 +1396,8 @@
    "writes": [
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html"
-   ]
+   ],
+   "evidence": "5cdeab5"
   },
   {
    "id": "plan-cut",
@@ -1372,7 +1412,8 @@
     "docs/plan/PLAN.md",
     "docs/plan/loop-plan.html",
     "research/notes/2026/10-17-plan-evidence.md"
-   ]
+   ],
+   "evidence": "7cf9d44"
   },
   {
    "id": "store-target",
@@ -1389,7 +1430,8 @@
     "packages/contracts/golden/store/**",
     "apps/runner/src/run*.ts",
     "apps/runner/test/run*.ts"
-   ]
+   ],
+   "evidence": "cb29d1c"
   },
   {
    "id": "math-r9-fix",
@@ -1405,7 +1447,8 @@
     "lean/Fw/Measure/**",
     "lean/MathViewMain.lean",
     "lean/scripts/mathview*"
-   ]
+   ],
+   "evidence": "19e980e"
   },
   {
    "id": "mutant-ids-stable",
@@ -1419,7 +1462,8 @@
    "writes": [
     "lean/FwTest/Mutants/**",
     "lean/scripts/mutants.sh"
-   ]
+   ],
+   "evidence": "df861a7"
   },
   {
    "id": "webkit-green",
@@ -1454,7 +1498,8 @@
     "packages/measure-chromium/src/trace.mjs",
     "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/test/**"
-   ]
+   ],
+   "evidence": "33fdcfe"
   },
   {
    "id": "refreeze",
@@ -1483,7 +1528,8 @@
    "writes": [
     "packages/measure-chromium/src/input*.mjs",
     "packages/measure-chromium/src/run.mjs"
-   ]
+   ],
+   "evidence": "c38088e"
   },
   {
    "id": "watch-proc-allow",
@@ -1501,7 +1547,8 @@
     "apps/runner/src/watch*.ts",
     "apps/runner/test/watch*.ts",
     "docs/team/tools/watch.md"
-   ]
+   ],
+   "evidence": "15ea817"
   },
   {
    "id": "plan-rev9",
@@ -1530,7 +1577,8 @@
     "lean/Fw/Gate/**",
     "lean/Fw/Measure/Arms.lean",
     "lean/MathViewMain.lean"
-   ]
+   ],
+   "evidence": "25b68d2"
   },
   {
    "id": "ci-paths-guard",
@@ -1547,7 +1595,8 @@
     ".github/workflows/gate-gaps.yml",
     ".github/workflows/sim-speed.yml",
     ".github/scripts/changed-inputs.mjs"
-   ]
+   ],
+   "evidence": "df77488"
   },
   {
    "id": "store-cirun",
@@ -1564,7 +1613,8 @@
     "packages/contracts/golden/store/**",
     "apps/runner/src/ci.ts",
     "apps/runner/test/ci.test.ts"
-   ]
+   ],
+   "evidence": "73ae012"
   },
   {
    "id": "webkit-gonogo",
@@ -1622,7 +1672,8 @@
    "owner": "researcher",
    "writes": [
     "docs/report/v2-report.md"
-   ]
+   ],
+   "evidence": "aceb354"
   },
   {
    "id": "freeze-refuse",
@@ -1699,7 +1750,9 @@
    "stream": "lean",
    "milestone": "M6",
    "deps": [
-    "math-r10-fix"
+    "math-r10-fix",
+    "math-pending-tool",
+    "math-r13-fix"
    ],
    "owner": "math-reviewer"
   },
@@ -1885,7 +1938,8 @@
     "apps/site/src/parts/platform.entries/**",
     "apps/site/src/parts/platform.stageBg/**",
     "apps/site/src/parts/platform.marquee/**"
-   ]
+   ],
+   "evidence": "86fdafc"
   },
   {
    "id": "port-overlays",
@@ -2033,7 +2087,8 @@
    "writes": [
     "lean/Fw/Parts/MorphTweenOpt.lean",
     "packages/contracts/golden/parts/morph-tween-waapi.jsonl"
-   ]
+   ],
+   "evidence": "ebcd1d4"
   },
   {
    "id": "variant-morph-tween-waapi",
@@ -2047,7 +2102,8 @@
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/morph.tween/**"
-   ]
+   ],
+   "evidence": "a151059"
   },
   {
    "id": "proof-nav-hittest",
@@ -2062,7 +2118,8 @@
    "writes": [
     "lean/Fw/Parts/NavHitTestOpt.lean",
     "packages/contracts/golden/engine/nav-hittest.jsonl"
-   ]
+   ],
+   "evidence": "fe92907"
   },
   {
    "id": "proof-countdown-strip",
@@ -2077,7 +2134,8 @@
    "writes": [
     "lean/Fw/Parts/HeroCountdownOpt.lean",
     "packages/contracts/golden/engine/countdown-strip.jsonl"
-   ]
+   ],
+   "evidence": "d5cca09"
   },
   {
    "id": "proof-hidden-pause",
@@ -2092,7 +2150,8 @@
    "writes": [
     "lean/Fw/Parts/HiddenPause.lean",
     "packages/contracts/golden/engine/hidden-pause.jsonl"
-   ]
+   ],
+   "evidence": "63478da"
   },
   {
    "id": "proof-morph-mount",
@@ -2107,7 +2166,8 @@
    "writes": [
     "lean/Fw/Parts/MorphMountOpt.lean",
     "packages/contracts/golden/engine/morph-mount.jsonl"
-   ]
+   ],
+   "evidence": "21c37a2"
   },
   {
    "id": "proof-morph-panel",
@@ -2122,7 +2182,8 @@
    "writes": [
     "lean/Fw/Parts/MorphPanelOpt.lean",
     "packages/contracts/golden/engine/morph-panel.jsonl"
-   ]
+   ],
+   "evidence": "e42b7be"
   },
   {
    "id": "proof-hero-exit",
@@ -2137,7 +2198,8 @@
    "writes": [
     "lean/Fw/Parts/HeroExitOpt.lean",
     "packages/contracts/golden/engine/hero-exit.jsonl"
-   ]
+   ],
+   "evidence": "f6544e3"
   },
   {
    "id": "proof-people-card",
@@ -2152,7 +2214,8 @@
    "writes": [
     "lean/Fw/Parts/PeopleCard.lean",
     "packages/contracts/golden/engine/people-card.jsonl"
-   ]
+   ],
+   "evidence": "343fcd7"
   },
   {
    "id": "proof-pain-notes",
@@ -2167,7 +2230,8 @@
    "writes": [
     "lean/Fw/Parts/PainNotes.lean",
     "packages/contracts/golden/engine/pain-notes.jsonl"
-   ]
+   ],
+   "evidence": "80d7610"
   },
   {
    "id": "proof-people-deck",
@@ -2182,7 +2246,8 @@
    "writes": [
     "lean/Fw/Parts/PeopleDeck.lean",
     "packages/contracts/golden/engine/people-deck.jsonl"
-   ]
+   ],
+   "evidence": "0276899"
   },
   {
    "id": "proof-hero-accent",
@@ -2197,7 +2262,8 @@
    "writes": [
     "lean/Fw/Parts/HeroAccent.lean",
     "packages/contracts/golden/engine/hero-accent.jsonl"
-   ]
+   ],
+   "evidence": "49caf84"
   },
   {
    "id": "variant-hidden-pause",
@@ -2228,7 +2294,8 @@
    "owner": "part-builder",
    "writes": [
     "apps/site/src/parts/morph.mount/**"
-   ]
+   ],
+   "evidence": "3aedff5"
   },
   {
    "id": "variant-morph-panel-rest",
@@ -2334,7 +2401,8 @@
    "owner": "measure-engineer",
    "writes": [
     "packages/gh-budget/**"
-   ]
+   ],
+   "evidence": "901481f"
   },
   {
    "id": "ghb-runner",
@@ -2352,14 +2420,22 @@
     "apps/runner/src/fw.ts",
     ".claude/agents/measure-engineer.md",
     "docs/team/tools/**"
-   ]
+   ],
+   "evidence": "1c64c85"
   },
   {
    "id": "integrate-ports",
    "title": "Integrate finished port branches (morph.panel, nav, commission, overlays, hero, people) into one branch from main; one gate prepare mechanism + animation settle; one full gate run, then the lead lands it",
    "stream": "parts",
    "milestone": "M2",
-   "deps": [],
+   "deps": [
+    "fix-nav",
+    "fix-commission",
+    "fix-misc",
+    "fix-people-webkit",
+    "gate-settle",
+    "fix-stagebg-webkit"
+   ],
    "owner": "part-builder",
    "writes": [
     "packages/gate-breakpoints/src/**",
@@ -2379,7 +2455,8 @@
     "apps/runner/src/land.ts",
     "apps/runner/test/land*.ts",
     "lean/Fw/Console/Land.lean"
-   ]
+   ],
+   "evidence": "50434d4"
   },
   {
    "id": "pa-evidence-lint",
@@ -2394,7 +2471,8 @@
     "apps/runner/src/plan.ts",
     "lean/Fw/Plan/Lint.lean",
     "docs/team/work-graph.json"
-   ]
+   ],
+   "evidence": "2d743c5"
   },
   {
    "id": "pa-sync-main",
@@ -2407,6 +2485,1249 @@
    "owner": "console-builder",
    "writes": [
     "apps/runner/src/plan.ts"
+   ],
+   "evidence": "ca48604"
+  },
+  {
+   "id": "obs-next-lean",
+   "title": "(M) Fw.Obs.Next: per-agent next action from observed facts (handback seen, branch ahead/landed, worktree lock, child procs with kind/age/watched-file staleness, CI run state) -> {none, land, routeIntegrator, killOrphan pid, respawnFromHandoff, nudge, waitCi}; proofs: total + unique, never acts on an active agent, kill only own non-ancestor sleep-loop children of a handed-back or stale owner, land only when report seen and branch ahead with no live child; golden vectors",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Obs/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/obs/**"
+   ],
+   "evidence": "9542ad1"
+  },
+  {
+   "id": "obs-next-glue",
+   "title": "(S) fw watch: collect the Fw.Obs.Next facts (transcript handback, ps tree under the session, git main..branch, worktree locks, fw ci state) and print NEXT lines; fw next lists them; alert agent.held / agent.unlanded; TS checked against the Lean golden",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "obs-next-lean"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/next.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/**"
+   ],
+   "evidence": "0aac45c"
+  },
+  {
+   "id": "claim-order-lean",
+   "title": "(S) bug: agent-task binding depends on event order (claim only at spawn if the task exists; define-time claim only if the agent is in the last 300 s fw watch snapshot). Record spawns as events and derive the binding in Fw.Plan.Core so it is order-independent; prove spawn/define commute on the agent field; golden incl. the obs-next-lean 03:03/03:05 trace; reconciler runs plan sync whenever main HEAD moves (defines no longer wait for a fw land)",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Core.lean",
+    "lean/Fw/Plan/Golden.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/golden/plan/**",
+    "packages/contracts/src/**",
+    "apps/console-api/src/spool/drain.ts",
+    "apps/console-api/src/store.ts",
+    "apps/console-api/src/health.ts",
+    "apps/console-api/test/**",
+    "apps/console-api/src/reconcile/**",
+    "apps/runner/src/plan.ts"
+   ],
+   "evidence": "fafc0d5"
+  },
+  {
+   "id": "incident-lint",
+   "title": "(S) Fw.Plan.Incident: lint docs/team/incidents/ledger.json against the work graph: every incident has >= 1 evidence of a known kind (commit on main, ci run id, existing repo file, event seq, proc), a fix task that exists, a regression pointer; status derived (fixed iff fix task done); fw plan lint reports incidents; golden vectors; theorems on the derivation",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Incident.lean",
+    "lean/Fw/Plan/Lint.lean",
+    "lean/Fw/Wire/Plan.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/src/plan.ts",
+    "apps/runner/test/**",
+    "docs/team/incidents/**"
+   ],
+   "evidence": "67ae540"
+  },
+  {
+   "id": "land-hardening",
+   "title": "(M) fw land: (a) land lock: no other commit on main while a land holds its merge (pre-commit hook + lock file, Lean protocol theorem: the merge commit parents are exactly (main0, branch) and its message carries the Task trailer); (b) Lean landScope admits a task kind registration set (part ports: registry, App, gen-shells, Gate/Scope, Parts/Golden, Parts/<Part>*.lean, anchors.json; measure tasks: packages/measure-*/**, results/baselines/**) instead of hand --allow; (c) land finds the agent ci/<task> branch when the worktree branch has nothing; (d) lean/Fw.lean generated or checked: every lean/Fw/**/*.lean imported exactly once (replaces the union stopgap); regression tests from docs/team/incidents/ledger.json",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "apps/runner/hooks/**",
+    "lean/Fw/Console/Land.lean",
+    "lean/Fw.lean",
+    "lean/scripts/**",
+    "packages/contracts/golden/console/**",
+    ".gitattributes",
+    "docs/team/tools/**"
+   ],
+   "evidence": "0581ec6"
+  },
+  {
+   "id": "math-pending-tool",
+   "title": "(S) scripts/math-pending.mjs: reproducible pending/stale list from the mathview export minus signed review rows, balanced batches by module (replaces hand-scraping loop-plan.html); feeds math-final",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "general-purpose",
+   "writes": [
+    "scripts/math-pending.mjs",
+    "scripts/test-math-pending.mjs"
+   ],
+   "evidence": "e38c4be"
+  },
+  {
+   "id": "math-r13-fix",
+   "title": "(M) fix the 72 disagree rows of math review r13 (research/notes/2026/10-18-math-review-r13-0cee322.md): docstring math must state the definition body / all hypotheses (PlatformEntries/Golden/Glint/Sweep/Marquee/Section, Morph*Opt/PainNotes/HeroExitOpt golden tables, Engine.WebKit/Chromium rows, Gate.pilotParts, Parts.Golden.tweenLines, Plan.Lint); Console.Land rows go to land-hardening",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "math-pending-tool"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/**",
+    "lean/Fw/Engine/Chromium.lean",
+    "lean/Fw/Engine/WebKit.lean",
+    "lean/Fw/Gate/Scope.lean",
+    "lean/Fw/Plan/Lint.lean"
+   ],
+   "evidence": "0d9b06c"
+  },
+  {
+   "id": "why-core-lessons",
+   "title": "(L) research/findings/ledger.json missingWhy for Fw.Engine.Core/Visual (incl. the frameWork style-pass overcount: passes = forced + [endDirty]) and a new Fw.Engine.Lessons proving the general lessons (compositor move is a trade never dominance; a shift never removes work; resident-only wins are invisible to pass counters; removing a stage subset of the dominant change saves no pass; pausing a compositor animation saves no main work; reader removal and batching closed form); re-check every dependent part proof",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Core.lean",
+    "lean/Fw/Engine/Visual.lean",
+    "lean/Fw/Engine/Lessons.lean",
+    "lean/Fw/Engine.lean",
+    "lean/Fw/Parts/**",
+    "research/findings/**"
+   ],
+   "evidence": "22f1c8c"
+  },
+  {
+   "id": "why-engines",
+   "title": "(M) research/findings/ledger.json missingWhy for Fw.Engine.Chromium and Fw.Engine.WebKit (16 statements), each citing engine source",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "math-r13-fix",
+    "why-core-lessons"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/Chromium.lean",
+    "lean/Fw/Engine/WebKit.lean",
+    "research/findings/**"
+   ],
+   "evidence": "9c14908"
+  },
+  {
+   "id": "why-parts",
+   "title": "(L) research/findings/ledger.json missingWhy for the per-part modules (about 39 statements across Fw.Parts.*): why each candidate wins, trades, gives nothing or is worse",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [
+    "math-r13-fix",
+    "why-core-lessons"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/engine/**",
+    "research/findings/**"
+   ],
+   "evidence": "c9c9afc"
+  },
+  {
+   "id": "obs-signals",
+   "title": "(M) Fw.Obs.Signals: classify each agent from transcript signals (BG launched minus END notified/[exited]/[killed]; turn open/closed; handback) into working | waiting-own-bg | handed-back-held | handed-back-done | finished | idle, with proofs (total, deterministic, monotone in t for END); golden from the 8 real timelines in research/notes/2026/10-18-transcript-signals.md; collector fixes: retention not from meta.finished, stale finished on resume, workflow-agent bg tasks, branch from meta.worktreeBranch, [killed] marker, silent hung bg tasks via ps",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "obs-next-glue"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Signals.lean",
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "lean/Fw.lean",
+    "lean/FwTestMain.lean",
+    "packages/contracts/golden/obs/**",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/next.ts",
+    "apps/runner/test/**",
+    "docs/team/incidents/ledger.json"
+   ],
+   "evidence": "f087fea"
+  },
+  {
+   "id": "variant-regate",
+   "title": "(S) re-gate every landed or pending variant with its flag on (fw input of breakpoint-gate): morph.mount:shift, hidden-pause (3 parts; add them to the gate scope, wire engine.scene), morph.panel:rest after integrate-ports; compare each against a flags-off baseline run of the same commit; record per-variant per-engine verdicts",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "variant-morph-tween-waapi"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Gate/Scope.lean",
+    "apps/site/src/App.tsx",
+    "apps/site/src/registry/index.ts",
+    "results/**"
+   ],
+   "evidence": "55564ec"
+  },
+  {
+   "id": "timing-spans",
+   "title": "(M) timing spans for every automation step: fw commands, fw land phases (merge, each check, sync, cleanup), check.sh/lake build stages, package tests, fw watch passes, CI job and step durations (one gh-budget call per finished run); append to .fw-console/timings.jsonl {tool, step, startMs, durMs, exit, commit, load}; fw timings [--tool] prints p50/p90/last per step",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/timing.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "lean/scripts/check.sh",
+    "scripts/**",
+    "docs/team/tools/**"
+   ],
+   "evidence": "2860daa"
+  },
+  {
+   "id": "timing-lean",
+   "title": "(M) Fw.Obs.Timing: slow verdict per (tool, step) from history (baseline = p90 of the last N with N >= n_min; slow iff dur > max(budget, k * baseline)); theorems: no alert within budget, an outlier moves the baseline by a bounded amount, monotone in dur, deterministic; golden from real numbers (sweeps 312 s vs shards <= 147 s, lean check ~2 min, land checks)",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/obs/timing.jsonl"
+   ],
+   "evidence": "1f808b0"
+  },
+  {
+   "id": "timing-alert",
+   "title": "(S) wire Fw.Obs.Timing: fw watch alert timing.slow, fw next NEXT investigate step=<tool/step> (the lead delegates an investigate+prove task), console Health timings panel; TS checked against the timing golden",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "timing-spans",
+    "timing-lean",
+    "obs-signals"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Wire/Obs.lean",
+    "lean/Fw/Obs/Next.lean",
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/next.ts",
+    "apps/runner/test/**",
+    "apps/console-web/src/**",
+    "docs/team/tools/**"
+   ],
+   "evidence": "1149bca"
+  },
+  {
+   "id": "sweeps-lean",
+   "title": "(M) Fw.Gate.SweepReduce (mem_stopHist_iff, scopedVerdict_reduce; stutter-free desktop sweep 57 -> 35 stops emitted as generated JSON) and Fw.Gate.Merge (model of merge-gate.mjs: mergeById_eq_unsharded, sharded_verdict_eq; whole-sweep granularity only); mount idempotence; decoder invariance for role.declared; from the scratch proofs in research/notes/2026/10-18-sweeps-speed.md",
+   "stream": "lean",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/SweepReduce.lean",
+    "lean/Fw/Gate/Merge.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Site/**",
+    "apps/site/src/sweeps.gen.json",
+    "packages/contracts/golden/gate/**"
+   ],
+   "evidence": "35ea874"
+  },
+  {
+   "id": "gate-speed-impl",
+   "title": "(M) breakpoint-gate in-page speed (CI structure moved to gate-speed-ci): per-stop timing; event-driven settle on Fw.Gate.Settle instead of fixed sleeps; orig panel mounted once per sweep (mount idempotence); skip the unused declared scan; parallel Phase 0 loads; Lean-generated reduced desktop sweep (scopedVerdict_reduce); parts narrowing; before/after with fw timings",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "sweeps-lean",
+    "variant-regate",
+    "timing-spans",
+    "gate-settle",
+    "gate-speed-ci"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/**",
+    "docs/team/tools/**",
+    "results/**"
+   ]
+  },
+  {
+   "id": "fix-nav",
+   "title": "(M) integration fix: nav and nav.hitTest border colour rgb(23,23,23) vs black, font-family on nav earn and nav.langMenu switch, nav bar width in WebKit phone rotation (run 39067170911)",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/nav.hitTest/**",
+    "apps/site/src/parts/nav.langMenu/**"
+   ]
+  },
+  {
+   "id": "fix-commission",
+   "title": "(M) integration fix: commission section/track/card/sticky heights 829.77 vs 777.44, runway height, title display, underline, inner/row margins; commission.typing avatarLarge, transitions, scale at <=720, beat x/y (run 39067170911)",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "apps/site/src/parts/commission.typing/**"
+   ]
+  },
+  {
+   "id": "fix-misc",
+   "title": "(M) integration fix: pain.notes x (90 probes), hero.orbit card z-index, platform.stageBg heights (WebKit), overlays.signup widths 359.2 vs 360 (WebKit touch) (run 39067170911)",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/pain/**",
+    "apps/site/src/parts/pain.notes/**",
+    "apps/site/src/parts/hero/**",
+    "apps/site/src/parts/hero.orbit/**",
+    "apps/site/src/parts/platform.stageBg/**",
+    "apps/site/src/parts/overlays/**",
+    "apps/site/src/parts/overlays.signup/**"
+   ]
+  },
+  {
+   "id": "fix-people-webkit",
+   "title": "(M) integration fix, WebKit tails: people.card radius and --future-shrink, people.deck shell, people.o height (run 39067170911)",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/people/**",
+    "apps/site/src/parts/people.card/**",
+    "apps/site/src/parts/people.deck/**",
+    "apps/site/src/parts/people.o/**"
+   ]
+  },
+  {
+   "id": "mistake-retro",
+   "title": "(M) retro of every mistake in this loop run (incidents, gate failures, agent and lead errors): root cause, Lean-provable? (yes/partly/no + reason), Lean hardening that fails the class early; research/notes/2026/10-18-mistake-retro.md + research/mistakes/ledger.json",
+   "stream": "research",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-mistake-retro.md",
+    "research/mistakes/**"
+   ],
+   "evidence": "4cf4e8c"
+  },
+  {
+   "id": "incident-lean-fields",
+   "title": "(S) Fw.Plan.Incident: every incident carries leanVerdict (provable|partly|no + reason) and a hardening task id or the empirical check that covers it; fw incidents lint refuses entries without them; backfill the ledger from mistake-retro",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "mistake-retro"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Incident.lean",
+    "lean/Fw/Plan/**",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/src/incidents.ts",
+    "apps/runner/test/**",
+    "docs/team/incidents/**"
+   ],
+   "evidence": "f1f5489"
+  },
+  {
+   "id": "lean-coverage",
+   "title": "(M) Fw.Gate.Coverage: every (part, property) the breakpoint gate probes maps to a Lean-sourced value (generated CSS/constant or golden vector) or a stated exemption; theorem coverage_lint_sound; fw lint fails on an uncovered probe; first run lists the integrate-ports cells",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/Coverage.lean",
+    "lean/Fw/Gate/**",
+    "packages/contracts/golden/gate/**",
+    "apps/runner/src/coverage.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/**"
+   ],
+   "evidence": "aa205f9"
+  },
+  {
+   "id": "fix-proofs",
+   "title": "(L) Lean coverage of the gate probes, bulk then per fix: static values generated from the snapshot-extract reference data via Lean (Fw.Site.Reference -> generated CSS per part, moves probes from uncovered to generated; lean-coverage first run: 168 of 52346 covered, 280 of 292 failing cells uncovered); dynamic fixes (commission driver phase, nav body rule, stageBg) proved per fix; the 7 golden-covered-but-failing items explained; why each escaped Lean recorded in the findings ledger",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [
+    "fix-nav",
+    "fix-commission",
+    "fix-misc",
+    "fix-people-webkit",
+    "lean-coverage",
+    "gate-settle",
+    "snapshot-extract"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/parts/**",
+    "apps/site/src/parts/**",
+    "research/findings/ledger.json"
+   ]
+  },
+  {
+   "id": "gate-settle",
+   "title": "(M) Fw.Gate.Settle: a probe sample is valid only when settled (no running animation/transition on probed nodes, >= 2 rAF after the last resize, pointer parked off hover-reactive targets); theorem sample_delay_invariant; gate waits on it; closes pain.notes, hero.orbit, overlays.signup misreads (fix-misc)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Gate/Settle.lean",
+    "lean/Fw/Gate/Golden.lean",
+    "packages/contracts/golden/gate/**",
+    "packages/gate-breakpoints/**",
+    "docs/team/handoffs/gate-settle.md"
+   ]
+  },
+  {
+   "id": "fix-stagebg-webkit",
+   "title": "(S) platform.stageBg WebKit <=640: stage h 319.6 vs 351.8 (aspect-ratio 361/288 under grid stretch); WebKit-only CI experiment (align-self:start on the slot), Lean row for h=(W-40)*288/361",
+   "stream": "site",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "docs/team/handoffs/fix-stagebg-webkit.md"
+   ]
+  },
+  {
+   "id": "workflow-claim",
+   "title": "(S) a Workflow run binds a task like a named spawn: workflow start/end with meta.name = task id become agent.spawn/stop (hook or watch collector); Lean Fw.Plan workflow_binds + claim-order commutation still holds; mistake-retro sat in ready while running",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Plan/Core.lean",
+    "lean/Fw/Plan/**",
+    "packages/contracts/golden/plan/**",
+    "apps/runner/hooks/**",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/**"
+   ],
+   "evidence": "21c8c42"
+  },
+  {
+   "id": "cap-diagnose",
+   "title": "(S) fw capability misses say why: cap hook decides in Lean (Fw.Ops.Identity) mint | noMint(reason: notFwPrefix e.g. cd/-s, trailingPipe, unknownActor) and fw prints the reason instead of a bare 403; golden ops.cap.jsonl; DEFECT: /api/commands takes actor from the body with no capability check (app.ts:23-31) — same Lean identity decision; wt-prep counts the Lean LSP as a build (scripts/wt-prep.sh:21-27)",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "lean-coverage",
+    "premise-tests"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Ops/Identity.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/runner/hooks/cap.mjs",
+    "apps/runner/hooks/lib.mjs",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/**",
+    "apps/console-api/src/app.ts",
+    "packages/contracts/src/index.ts",
+    "scripts/wt-prep.sh"
+   ]
+  },
+  {
+   "id": "sim-transient-retry",
+   "title": "(S) webkit-sim: transient simulator errors (simctl ETIMEDOUT) retried by a Lean policy (retry iff class transient and attempt < n, bounded backoff; theorem retry_terminates, permanent_never_retried); step-align run 39068024107 lost >1 h to one simctl timeout",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "step-align"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Measure/Retry.lean",
+    "lean/Fw/Measure/Golden.lean",
+    "packages/contracts/golden/measure/**",
+    "packages/measure-webkit/src/**",
+    ".github/workflows/webkit-sim.yml"
+   ]
+  },
+  {
+   "id": "land-speed-research",
+   "title": "(S) why fw land takes ~126 s p50 (mathview lint ~110 s of it, under the land lock): profile, incremental/scoped/pre-lock checks, Lean soundness (cache_sound, lint_modular, pre-lock equivalence extending land_commit_exact); research/notes/2026/10-18-land-speed.md + implementation tasks",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-land-speed.md"
+   ],
+   "evidence": "51ca579"
+  },
+  {
+   "id": "gate-speed-ci",
+   "title": "(M) breakpoint-gate CI structure faster with proofs: Fw.Ops.Cache (cache_sound, key_complete; engine install cache), Fw.Gate.Schedule (Graham list-scheduling bound on the 20-runner free pool; Lean-chosen whole-sweep shards; uses mergeById_eq_unsharded), concurrency group; before/after timings, identical failures",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Ops/Cache.lean",
+    "lean/Fw/Gate/Schedule.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/schedule.jsonl",
+    "packages/contracts/golden/ops/cache.jsonl",
+    ".github/actions/gate-engine/**",
+    ".github/workflows/breakpoint-gate.yml",
+    ".github/scripts/merge-gate.mjs",
+    "docs/team/tools/gate-speed.md"
+   ],
+   "evidence": "f9d28e0"
+  },
+  {
+   "id": "premise-tests",
+   "title": "(M) every empirical premise of a Lean theorem gets a named Playwright test on Chromium + WebKit (CI); Fw.Ops.Premise registry + premiseLint_sound; fw premises lint; failing premise flags its theorems",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/premise-tests/**",
+    ".github/workflows/premise-tests.yml",
+    "apps/runner/src/premises.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "docs/team/tools/premises.md"
+   ],
+   "evidence": "aada757"
+  },
+  {
+   "id": "snapshot-extract",
+   "title": "(M) browser-extracted reference values of the original (computed + inherited source) per part x breakpoint x engine, consumed by Lean (Fw.Site.Reference); port-vs-reference diff and missing-font report; replaces hand transcription",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/snapshot-extract/**",
+    ".github/workflows/snapshot-extract.yml",
+    "lean/Fw/Site/Reference.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/site/**",
+    "docs/team/tools/snapshot-extract.md"
+   ],
+   "evidence": "152846b"
+  },
+  {
+   "id": "visual-diff",
+   "title": "(M) per-part screenshot diff original vs rewrite on both engines at gate breakpoints (CI artifacts only); verdict in Lean Fw.Gate.Pixel (unsettled_never_pass, tolerance_monotone)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Gate/Pixel.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/gate/pixel.jsonl",
+    "packages/visual-diff/**",
+    ".github/workflows/visual-diff.yml",
+    "docs/team/tools/visual-diff.md"
+   ]
+  },
+  {
+   "id": "ts-lean-diff",
+   "title": "(M) randomized differential tests TS vs fwcore (fast-check, shrinking) for every wire op with a TS mirror; inventory of TS decision logic without a Lean op",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "packages/difftest/**",
+    ".github/workflows/difftest.yml",
+    "docs/team/tools/difftest.md"
+   ],
+   "evidence": "7341aaa"
+  },
+  {
+   "id": "land-speed-lean",
+   "title": "(S) Fw.Console.LandSpeed: cache_sound for check results, lint_modular, pre-lock check equivalence extending land_commit_exact, check verdict order-independence (from the proved scratch draft); golden console/land-speed.jsonl (research/notes/2026/10-18-land-speed.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-speed-research"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/land-speed.jsonl"
+   ],
+   "evidence": "e1417e1"
+  },
+  {
+   "id": "mathview-axreach",
+   "title": "(S) mathview lint 110 s -> ~10 s: shared axiom-reachability memo in MathView (collectAxioms is 96% of lint time), total function with fuel; Fw.Spec.AxReach reach fixpoint, memo invariant, fresh-search equality (new = old per-call result)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-speed-research"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/MathView.lean",
+    "lean/Fw/Spec/AxReach.lean",
+    "lean/Fw.lean"
+   ],
+   "evidence": "a59ed74"
+  },
+  {
+   "id": "land-timing-ceiling",
+   "title": "(S) Fw.Obs.Timing budget for fw land (and lock-held span) so a land-time regression alerts; land.ts emits the lock-held span; the slow land recorded as an incident",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-speed-research"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/timing.jsonl",
+    "apps/runner/src/land.ts",
+    "docs/team/incidents/**"
+   ],
+   "evidence": "c883cd3"
+  },
+  {
+   "id": "checksfor-inputs",
+   "title": "(S) checksFor declares each check input set (soundness premise of the result cache); tests that an undeclared input change is caught",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-speed-lean",
+    "land-timing-ceiling"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**"
+   ],
+   "evidence": "29385a2"
+  },
+  {
+   "id": "check-dag",
+   "title": "(S) run independent checks as a DAG in parallel (lake binaries directly, all failures reported); order-independence from land-speed-lean",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "mathview-axreach",
+    "checksfor-inputs"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/scripts/check.sh",
+    "lean/scripts/check-partial.sh",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**"
+   ],
+   "evidence": "59e08f2"
+  },
+  {
+   "id": "land-prelock",
+   "title": "(M) check before the lock on merge-tree commit C in a warm land worktree; under the lock only compare-and-ff (Lean landTip); lock held < 1 s; bounded retry then fallback",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "check-dag",
+    "land-speed-lean"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/Land.lean",
+    "apps/runner/hooks/land-guard.mjs",
+    "apps/runner/test/**"
+   ],
+   "evidence": "55a7c30"
+  },
+  {
+   "id": "mathview-module-cache",
+   "title": "(S) per-module mathview cache keyed by module + import cone + tool hash, shared across worktrees; lint_modular makes it sound; differential CI job vs full lint",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "mathview-axreach",
+    "check-dag"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/MathViewMain.lean",
+    "lean/MathView.lean",
+    "lean/scripts/mathview-cached.sh",
+    ".github/workflows/lean.yml"
+   ],
+   "evidence": "a4416ca"
+  },
+  {
+   "id": "gate-exit-verdict",
+   "title": "(S) DEFECT: gate summary exits 0 when parts fail (cli.mjs:25-27); Fw.Gate.Exit exit_zero_iff (exit 0 iff merged verdict pass) + golden; agents read the verdict, never job conclusions (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "gate-speed-ci"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Gate/Exit.lean",
+    "lean/Fw.lean",
+    "packages/gate-breakpoints/src/cli.mjs",
+    "packages/gate-breakpoints/test/exit*.test.mjs",
+    "packages/contracts/golden/gate/exit.jsonl"
+   ],
+   "evidence": "01937d3"
+  },
+  {
+   "id": "check-map-lean",
+   "title": "(S) DEFECT: shell-measure.mjs does not parse; Fw.Ops.CheckMap precommit_covers, tracked_mapped: every tracked file kind maps to a static check run pre-commit; argv golden for own CLIs (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "check-dag"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/CheckMap.lean",
+    "scripts/hooks/pre-commit",
+    "scripts/check.sh",
+    "apps/site/scripts/shell-measure.mjs",
+    "packages/contracts/golden/ops/checkmap.jsonl"
+   ]
+  },
+  {
+   "id": "wait-guard",
+   "title": "(S) Fw.Ops.Wait wait_bounded, handback_no_open_bg: every wait has a bound and an owner; handback refused with open background work (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "timing-alert"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "ci-runner-lint",
+   "title": "(S) Fw.Ci.Runners labels_free, mac_le_five, jobs_le_cap: workflow lint (free runners only, macOS concurrency, job cap) (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "gate-speed-ci",
+    "premise-tests",
+    "visual-diff",
+    "snapshot-extract",
+    "ts-lean-diff"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Ci/Runners.lean",
+    "scripts/ci-lint.mjs",
+    ".github/workflows/**"
+   ]
+  },
+  {
+   "id": "mathdoc-binders",
+   "title": "(S) MathView binder coverage both ways, List-cardinality notation lint, lint on changed decls pre-push (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "mathview-module-cache"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/MathView.lean",
+    "lean/MathViewMain.lean",
+    "scripts/hooks/pre-push"
+   ]
+  },
+  {
+   "id": "claim-lint",
+   "title": "(S) Fw.Plan.Claims claim_ok_iff: CONFIRMED needs a source/doc, MEASURED needs a run id, a bound needs a theorem; lint over research notes and handoffs (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Claims.lean",
+    "packages/plan-lint/**",
+    "packages/contracts/golden/plan/claims.jsonl"
+   ]
+  },
+  {
+   "id": "plan-principles-lint",
+   "title": "(S) Fw.Plan.Principles: a decision needs a Lean dependency; no calendar dates; local-lane allow-list; next ranked by critical path (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/Principles.lean",
+    "packages/contracts/golden/plan/principles.jsonl"
+   ]
+  },
+  {
+   "id": "admit-reads",
+   "title": "(S) Fw.Sched.Admit read sets: reads_disjoint with concurrent writes; scratch names injective per agent (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Sched/Admit.lean",
+    "packages/contracts/golden/sched/**"
+   ]
+  },
+  {
+   "id": "task-spec-lint",
+   "title": "(S) Fw.Plan.TaskSpec spec_ok_iff (deliverable vs title/writes); land refuses without a handoff (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-prelock"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/TaskSpec.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "policy-from-lean",
+   "title": "(M) Fw.Ops.Policy forbidden_denied, kill_iff_owner; golden = every violating command in the ledger; settings deny list generated (lead reviews before enabling) (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "cap-diagnose"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Policy.lean",
+    "apps/runner/hooks/policy.mjs",
+    "packages/contracts/golden/ops/policy.jsonl",
+    "docs/team/tools/policy.md"
+   ]
+  },
+  {
+   "id": "resume-rule",
+   "title": "(S) Fw.Obs.Resume resume_iff (idle < TTL or ctx < 30k; never > 250k) in fw next (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "timing-alert"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Resume.lean",
+    "apps/runner/src/next.ts",
+    "apps/runner/test/**"
+   ]
+  },
+  {
+   "id": "measure-valid",
+   "title": "(S) Fw.Measure.Valid: a verdict implies settled, aligned key, one clock, unit-typed tolerance; harness sample records carry the proof inputs (research/notes/2026/10-18-mistake-retro.md)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "gate-settle",
+    "step-align"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Measure/Valid.lean",
+    "packages/measure-webkit/src/**",
+    "packages/measure-chromium/src/**"
+   ]
+  },
+  {
+   "id": "lean-ops-gap",
+   "title": "(M) Lean-first violations found by ts-lean-diff: give each TS decision without a Lean op one (parts logic.ts wire ops, spool/workflow.ts, plan-sync syncFrom, shells/model.ts, measure-wktr reduce, parseMemLevel, gh-budget wait verdict, next.ts classifyTree, judgeDevice, spawn-guard mode mapping, emit.mjs) and add each to packages/difftest; also diff flags.resolve and measure.splits",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "ts-lean-diff"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Wire/**",
+    "lean/Fw/Ops/**",
+    "packages/difftest/**",
+    "packages/contracts/golden/**"
+   ]
+  },
+  {
+   "id": "wktr-p1p4",
+   "title": "(M) goldens P1 (scrollDriven RecalculateStyles = 0) and P4 (styleRecalcs = 0) contradict WebKit source (scroll timeline restyles each update, scroll_comp_ride; why-engines): WKTR scroll-timeline fixture on CI decides it; regenerate the goldens; re-check every Parts theorem that assumes P1/P4 on WebKit and restate verdicts that change; register the premise in premise-tests",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "why-engines"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/measure-wktr/**",
+    "packages/contracts/golden/engine/**",
+    "lean/Fw/Engine/WebKit.lean",
+    "research/findings/**"
+   ],
+   "evidence": "212c919"
+  },
+  {
+   "id": "ledger-merge-driver",
+   "title": "(S) git merge driver for JSON ledgers keyed by id (incidents, findings, mistakes): union by id, conflict only when one id differs on both sides; Lean model mergeById comm/assoc + conflict_iff (reuse Fw.Gate.Merge); .gitattributes entries; three ledger land conflicts on 2026-10-18",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "scripts/merge-ledger.mjs",
+    ".gitattributes",
+    "packages/contracts/golden/ops/ledger-merge.jsonl",
+    "docs/team/tools/ledger-merge.md"
+   ],
+   "evidence": "156f99c"
+  },
+  {
+   "id": "ci-trigger-lean",
+   "title": "(M) ci-trigger-scope (M1, done) did not hold: on 2026-10-18 every ci/* push still started 5-7 workflows (~40 runs for 20 free runners; lead cancelled 18). Decide triggers in Lean from declared inputs (checksfor-inputs read sets; fwcore users depend on the built binary hash, not on all of lean/**); generate on.push.paths; a lint fails when a workflow trigger differs from the Lean decision (regression guard); interim rule: agents cancel push runs they will not read",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "checksfor-inputs",
+    "gate-speed-ci"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    ".github/workflows/**"
+   ],
+   "evidence": "00dddfd"
+  },
+  {
+   "id": "gate-align-equiv",
+   "title": "(S) Lean rule: declared align-self pair judged equal when both give start-behaviour per css-align-3 6.2.5 / css-grid-1 6.2 (aspect-ratio grid item); geometry still compared (no skipProps); JS replays goldens; premise grid-normal-aspect-ratio-no-stretch",
+   "stream": "gate",
+   "milestone": "M2",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Gate/AlignEquiv.lean",
+    "lean/Fw.lean",
+    "packages/gate-breakpoints/src/align-equiv.mjs",
+    "packages/gate-breakpoints/test/align-equiv.test.mjs",
+    "docs/team/handoffs/gate-align-equiv.md"
+   ],
+   "evidence": "2cc5faa"
+  },
+  {
+   "id": "timing-small-n",
+   "title": "(S) Fw.Obs.Timing: median baseline (p90 = max for n<=9 masked a repeated 27 s site build), structural/noise call per stage group; theorems no_self_mask, stable_never_slow, monotone",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/TimingGolden.lean",
+    "packages/contracts/golden/obs/timing.jsonl",
+    "docs/team/handoffs/timing-small-n.md"
+   ],
+   "evidence": "03f90ab"
+  },
+  {
+   "id": "land-test-speed",
+   "title": "(M) land checks: gate-breakpoints 105-112 s, gh-budget 81 s, runner 43-46 s tests made fast without weakening (fake clock, shared launch, Lean decision goldens); poolSize vs idle lake serve load proposal",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/gate-breakpoints/test/**",
+    "packages/gh-budget/**",
+    "apps/runner/test/**",
+    "docs/team/handoffs/land-test-speed.md"
+   ],
+   "evidence": "9bef00e"
+  },
+  {
+   "id": "slow-site-build",
+   "title": "(S) investigate timing.slow site build 2 s -> 50 s: breakgen imports SweepsGen (Scope/Console/Plan), shared Lake cache key saved by narrow jobs; note",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-slow-site-build.md"
+   ]
+  },
+  {
+   "id": "site-build-cache",
+   "title": "(S) split a sweepsgen exe from breakgen; only the lean workflow saves the Lake cache; Lean cache_complete + rebuild_mono in Fw.Ops.Cache",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "slow-site-build",
+    "gate-speed-ci"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/lakefile.lean",
+    "lean/Fw/Ops/Cache.lean",
+    ".github/workflows/**"
+   ]
+  },
+  {
+   "id": "visual-diff-2",
+   "title": "(M) visual-diff re-run with real assets: both arms serve snapshot fonts and images (first run showed serif fallback + grey placeholders, 0 passes = invalid sample); settled predicate from gate-settle; Lean premise assets_loaded before any pixel verdict",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "visual-diff",
+    "snapshot-extract"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/visual-diff/**",
+    "lean/Fw/Gate/Pixel.lean",
+    "docs/team/handoffs/visual-diff-2.md"
+   ],
+   "evidence": "371d1f4"
+  },
+  {
+   "id": "wktr-fixture-speed",
+   "title": "(M) wktr-fixtures: spans per pass (launch/settle/run); premise test counts equal serial vs k-parallel per variant (live variants likely timing-dependent); Lean rule k-parallel only if premise holds; job max-parallel from free macOS slots (run 39075991405: j1-j3 serial, ~13 min each, 39 launches ~18 s)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "wktr-p1p4"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    ".github/workflows/wktr-fixtures.yml",
+    "packages/measure-wktr/fixtures/**",
+    "packages/measure-wktr/src/**"
+   ]
+  },
+  {
+   "id": "hero-exit-restate",
+   "title": "(M) HeroExitOpt rebuilt on webkitX: wkVar_eq, wk_var_exact, wk_trade false as stated (WebKit restyles 1/update on scroll timelines, wktr-p1p4); restate with WktrStyleRate.Holds, regenerate hero-exit.jsonl (<o to <=o), premise wktr_scroll_timeline_restyle (lane test), downstream claims, mistake row",
+   "stream": "proofs",
+   "milestone": "M3",
+   "deps": [
+    "wktr-p1p4"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "packages/contracts/golden/parts/hero-exit.jsonl",
+    "lean/Fw/Ops/Premise.lean",
+    "research/mistakes/ledger.json",
+    "docs/team/handoffs/hero-exit-restate.md"
+   ],
+   "evidence": "384fe8a"
+  },
+  {
+   "id": "premises-no-api",
+   "title": "(S) fw premises runs without console-api: the premise-tests CI verdict failed on every branch (console-api is not running); NO_API_GROUPS in lib.ts + test that every pnpm fw <group> in .github/** is a no-API group",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lead",
+   "writes": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/lib.ts",
+    "apps/runner/test/lib.test.ts"
+   ],
+   "evidence": "06853aa"
+  },
+  {
+   "id": "engine-golden-premise-lint",
+   "title": "(S) m175 hardening: every engine golden row (packages/contracts/golden/engine/**) cites a premise id with a test in Fw.Ops.Premise; lint in check.sh; lane tests (wktr-fixtures.yml) assert expected values instead of only summarising",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "hero-exit-restate"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "lean/scripts/**",
+    "packages/measure-wktr/fixtures/summarize.mjs",
+    ".github/workflows/wktr-fixtures.yml"
+   ]
+  },
+  {
+   "id": "visual-diff-3",
+   "title": "(M) visual-diff against the integrated site (visual-diff-2 ran main: placeholders, so its 38/37 fails are unported parts, not port gaps): deterministic time (Playwright page.clock for JS motion, getAnimations pause+seek for CSS) so the 62-64 unsettled cells settle; lazy images counted only if elementFromPoint reaches them (5 invalid); real fonts per region (drop the Google Sans override); import gate settle.mjs instead of the verbatim copy; math-review Pixel theorems",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "visual-diff-2",
+    "integrate-ports"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/visual-diff/**",
+    "lean/Fw/Gate/Pixel.lean",
+    "docs/team/handoffs/visual-diff-3.md"
+   ]
+  },
+  {
+   "id": "slow-site-build-note",
+   "title": "(S) land the slow-site-build research note (slow-site-build was marked done early by an evidence field the plan keeps on upsert)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-slow-site-build.md"
+   ],
+   "evidence": "9a5c552"
+  },
+  {
+   "id": "mistake-retro-2",
+   "title": "(S) incident rows for the lead mistakes of 2026-10-18 afternoon (13 rows: 9 provable, 3 partly, 1 no); retro note counts and recurrences",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-18-mistake-retro.md"
+   ],
+   "evidence": "f9e7b7a"
+  },
+  {
+   "id": "land-dry",
+   "title": "(S) fw land --dry: scope + declared reads (land-inputs) + merge check, no lock; Lean rule: hand-back refused unless dry passes at the branch head after merging main (inc-land-undeclared-reads x4, inc-land-scope-stale-base)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/**"
+   ]
+  },
+  {
+   "id": "land-queue",
+   "title": "(M) fw land --queue: queue file + land lock + Lean FIFO order; one machine-readable verdict line and a distinct exit code per refusal kind; fw watch silent for queued branches (inc-land-waiters-pgrep, inc-land-retry-text-match, inc-watch-unlanded-queued)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-dry"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Obs/**"
+   ]
+  },
+  {
+   "id": "evidence-on-main",
+   "title": "(S) plan lint: evidence sha not an ancestor of main is rejected at define (upsert keeps evidence, so an early field cannot be retracted) (inc-evidence-before-land, inc-upsert-keeps-evidence)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/**",
+    "apps/runner/src/plan.ts",
+    "apps/console-api/src/**"
+   ]
+  },
+  {
+   "id": "findings-subentries",
+   "title": "(S) findings ledger: append-only per-task notes keyed by (entry, task) so parallel tasks never rewrite one shared mechanism string (inc-findings-shared-entry: 2 manual resolutions)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "research/findings/ledger.json",
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "scripts/merge-ledger.mjs"
    ]
   }
  ],

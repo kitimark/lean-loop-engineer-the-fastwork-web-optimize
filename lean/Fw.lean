@@ -16,12 +16,24 @@ import Fw.Site.Breakpoints
 import Fw.Site.BreakpointFacts
 import Fw.Site.BreakpointMatrix
 import Fw.Site.BreakpointGen
+import Fw.Site.Reference
 import Fw.Parts.EngineScroll
 import Fw.Parts.NavHitTest
+import Fw.Parts.NavHitTestOpt
 import Fw.Parts.HeroCountdown
+import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
+import Fw.Parts.PlatformGolden
 import Fw.Parts.MorphTweenOpt
+import Fw.Parts.HiddenPause
+import Fw.Parts.MorphMountOpt
+import Fw.Parts.HeroExitOpt
+import Fw.Parts.PainNotes
+import Fw.Parts.MorphPanelOpt
+import Fw.Parts.PeopleDeck
+import Fw.Parts.PeopleCard
+import Fw.Parts.HeroAccent
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Quiet
@@ -32,6 +44,7 @@ import Fw.Ops.SpawnGuard
 import Fw.Ops.PathCheck
 import Fw.Ops.Usage
 import Fw.Ops.Meter
+import Fw.Ops.Premise
 import Fw.Ops.Identity
 import Fw.Ops.Wire
 import Fw.Sched.Admit
@@ -44,6 +57,24 @@ import Fw.Gate.Rule
 import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
+import Fw.Gate.Coverage
+import Fw.Gate.AlignEquiv
+import Fw.Gate.Pixel
 import Fw.Wire.Gate
+import Fw.Wire.GateDeclared
 import Fw.Engine
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
+import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
+import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
+import Fw.Obs.Signals  -- obs-signals: agent state from transcript signals (obs.signals)
+import Fw.Plan.Incident  -- incident-lint: plan.incidentLint
+import Fw.Plan.Workflow  -- workflow-claim: workflow runs as agent events
+import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing samples
+import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
+import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
+import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
+import Fw.Console.LandSpeed  -- land-speed-lean: result cache, lint_modular, pre-lock land, check verdict
+import Fw.Console.LandPool  -- land-test-speed: proposal, a fair-share floor under poolSize (not wired into land.ts)
+import Fw.Ops.LedgerMerge  -- ledger-merge-driver: three-way id merge of the JSON ledgers (scripts/merge-ledger.mjs)
+import Fw.Ops.Cache  -- gate-speed-ci: cache soundness (cache_sound, key_complete)
+import Fw.Gate.Schedule  -- gate-speed-ci: Graham bound and the gate job split

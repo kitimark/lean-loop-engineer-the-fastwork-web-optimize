@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>css.inherits-false</title>
+<style>
+  @property --no { syntax: '<number>'; inherits: false; initial-value: 0 }
+  @property --yes { syntax: '<number>'; inherits: true; initial-value: 0 }
+  #parent { --no: 5; --yes: 5 }
+</style>
+<div id="parent"><div id="child"></div></div>

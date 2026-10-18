@@ -70,3 +70,23 @@ export function repin(isActive: boolean, y: number, pin: number): boolean {
 
 /** Position on the scroll engine: directly after nav.hitTest (100), as the original runs both in one callback. */
 export const MOUNT_PIN_ORDER = 101;
+
+/**
+ * Variant `shift` (Lean: lean/Fw/Parts/MorphMountOpt.lean `mountV`): a still moment counts as a trigger like an
+ * intersecting entry. `mountNext(m, near || warm, push)`; `mountV_of_mountO`: never later than the original.
+ */
+export function mountNextWarm(mounted: boolean, intersecting: boolean, pushed: boolean, warm: boolean): boolean {
+  return mountNext(mounted, intersecting || warm, pushed);
+}
+
+/** A moment is still when the morph is idle and the page has not scrolled or been pushed for this many ms. */
+export const WARM_QUIET_MS = 150;
+
+/** `warm` tick: no motion running (morph idle) and no scroll or push for `WARM_QUIET_MS`. */
+export function warmStill(isActive: boolean, msSinceMotion: number): boolean {
+  return !isActive && msSinceMotion >= WARM_QUIET_MS;
+}
+
+export function isShift(variant: string): boolean {
+  return variant === 'shift';
+}

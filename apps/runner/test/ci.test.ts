@@ -77,7 +77,7 @@ describe.skipIf(!hasCore)("ciMain against fwcore", () => {
   const put = (p: string, s: string) => { mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, s); };
   /** A gh double: `run view` returns `info`, `run download` writes the artifacts of `shards`/`classes`. */
   function fakeGh(info: object, shards: string[], classes: string[], calls: string[][] = [], search = ""): Gh {
-    return (a) => {
+    return async (a) => {
       calls.push(a);
       if (a[0] === "run" && a[1] === "view") return JSON.stringify(info);
       if (a[0] === "run" && a[1] === "download") {
@@ -97,9 +97,9 @@ describe.skipIf(!hasCore)("ciMain against fwcore", () => {
   const deps = (gh: Gh, store: string, logs: string[]) => ({ call, gh, store, tmp: mk(), log: (l: string) => logs.push(l) });
   const files = (d: string): string[] => (existsSync(d) ? readdirSync(d, { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).map((e) => join(e.parentPath, e.name)) : []);
 
-  it("stores one key per target, and a second pull of the same run changes nothing", () => {
+  it("stores one key per target, and a second pull of the same run changes nothing", async () => {
     const store = mk(), logs: string[] = [];
-    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs))).toBe(0);
+    expect(await ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs))).toBe(0);
     expect(logs.filter((l) => l.includes(" stored,"))).toHaveLength(2);
     const before = files(store).sort();
     expect(before.filter((f) => f.endsWith("manifest.json"))).toHaveLength(2);
@@ -108,47 +108,47 @@ describe.skipIf(!hasCore)("ciMain against fwcore", () => {
     expect(manifests[0]).toMatchObject({ engine: "chromium", preset: "original", fw: [], profile: "swipe-v1", gitSha: SHA, image: IMG, runId: "42" });
     expect(manifests[0].entries.map((e: { name: string }) => e.name)).toEqual(expect.arrayContaining(["ci.json", "classes/classes.json", "r1/counts.json", "r2/image-id.txt"]));
     const logs2: string[] = [];
-    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs2))).toBe(0);
+    expect(await ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs2))).toBe(0);
     expect(logs2.filter((l) => l.endsWith("(5 artifacts)") || l.includes(" unchanged "))).toHaveLength(2);
     expect(files(store).sort()).toEqual(before);
   });
 
-  it("takes preset and flags of the rewrite from its query", () => {
+  it("takes preset and flags of the rewrite from its query", async () => {
     const store = mk();
     const q = "?preset=strip-demo&fw=hero.countdown:strip";
     const rw = { ...info, jobs: [job("counts (rewrite, r1)"), job("counts (rewrite, r2)")] };
-    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(rw, ALL.slice(2), ["rewrite"], [], q), store, []))).toBe(0);
+    expect(await ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(rw, ALL.slice(2), ["rewrite"], [], q), store, []))).toBe(0);
     const m = JSON.parse(readFileSync(files(store).find((f) => f.endsWith("manifest.json"))!, "utf8"));
     expect(m).toMatchObject({ target: "rewrite", preset: "strip-demo", fw: ["hero.countdown:strip"] });
   });
 
-  it("refuses a failed run before downloading anything", () => {
+  it("refuses a failed run before downloading anything", async () => {
     const calls: string[][] = [], logs: string[] = [];
-    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh({ ...info, conclusion: "failure" }, ALL, [], calls), mk(), logs))).toBe(2);
+    expect(await ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh({ ...info, conclusion: "failure" }, ALL, [], calls), mk(), logs))).toBe(2);
     expect(logs).toEqual(["refused: run 42 concluded failure, not success"]);
     expect(calls.some((c) => c[1] === "download")).toBe(false);
   });
 
-  it("refuses a run with a missing shard and stores nothing", () => {
+  it("refuses a run with a missing shard and stores nothing", async () => {
     const store = mk(), logs: string[] = [];
-    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL.slice(0, 3), ["original", "rewrite"]), store, logs))).toBe(2);
+    expect(await ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL.slice(0, 3), ["original", "rewrite"]), store, logs))).toBe(2);
     expect(logs).toEqual(["refused: missing shard artifact chromium-counts-rewrite-r2"]);
     expect(files(store)).toEqual([]);
   });
 
-  it("without a run id it takes the latest run of the workflow on the branch", () => {
+  it("without a run id it takes the latest run of the workflow on the branch", async () => {
     const logs: string[] = [], calls: string[][] = [];
     const inner = fakeGh(info, ALL, ["original", "rewrite"], calls);
-    const gh: Gh = (a) => (a[0] === "run" && a[1] === "list" ? JSON.stringify([{ databaseId: 77 }]) : inner(a));
-    expect(ciMain({ workflow: "chromium-counts", branch: "main" }, deps(gh, mk(), logs))).toBe(0);
+    const gh: Gh = async (a) => (a[0] === "run" && a[1] === "list" ? JSON.stringify([{ databaseId: 77 }]) : await inner(a));
+    expect(await ciMain({ workflow: "chromium-counts", branch: "main" }, deps(gh, mk(), logs))).toBe(0);
     expect(calls.find((c) => c[1] === "view")![2]).toBe("77");
   });
 
-  it("a different run with the same key is not overwritten", () => {
+  it("a different run with the same key is not overwritten", async () => {
     const store = mk();
-    expect(ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, []))).toBe(0);
+    expect(await ciMain({ runId: "42", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, []))).toBe(0);
     const logs: string[] = [];
-    expect(ciMain({ runId: "43", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs))).toBe(2);
+    expect(await ciMain({ runId: "43", workflow: "chromium-counts", branch: "main" }, deps(fakeGh(info, ALL, ["original", "rewrite"]), store, logs))).toBe(2);
     expect(logs[0]).toMatch(/already stored from run 42/);
   });
 });

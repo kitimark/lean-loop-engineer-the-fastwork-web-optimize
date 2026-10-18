@@ -1,0 +1,6 @@
+{
+  "schema": "fw.visual-diff.tolerances/1",
+  "about": "Per-part tolerance of the pixel verdict (lean/Fw/Gate/Pixel.lean Tol). ppm = allowed changed pixels per million of the crop; delta = allowed largest channel difference (0..255); countAA = whether antialiasing-only pixels count as changes. `default` applies to every part without an entry; `parts` holds overrides, each with the reason. Data only: the rule is Lean's.",
+  "default": { "ppm": 2000, "delta": 64, "countAA": false },
+  "parts": {}
+}

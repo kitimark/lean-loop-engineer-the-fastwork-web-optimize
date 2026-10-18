@@ -123,6 +123,25 @@ test('changedFiles ignores what a merge of main brought in', () => {
     const files2 = changedFiles('main', dir);
     assert.deepEqual(files2.sort(), ['docs/a.md', 'packages/measure-wktr/src/a.mjs']);
     assert.equal(decide({ event: 'push', ref: 'refs/heads/ci/x', files: files2, globs }).run, true);
+    // the next push changes only docs: the branch still touches an input, but THIS push does not, so it skips
+    const before = git('rev-parse', 'HEAD').trim();
+    put('docs/b.md', 'later');
+    git('add', '.');
+    git('commit', '-q', '-m', 'more docs');
+    const files3 = changedFiles('main', dir, before);
+    assert.deepEqual(files3, ['docs/b.md']);
+    assert.equal(decide({ event: 'push', ref: 'refs/heads/ci/x', files: files3, globs }).run, false);
+    // an unknown or all-zero before falls back to the whole branch
+    assert.deepEqual(changedFiles('main', dir, '0'.repeat(40)).sort(), ['docs/a.md', 'docs/b.md', 'packages/measure-wktr/src/a.mjs']);
+    // a push that only merges main (main moved again) changes nothing of its own
+    const before2 = git('rev-parse', 'HEAD').trim();
+    git('checkout', '-q', 'main');
+    put('apps/site/src/m.ts', 'm');
+    git('add', '.');
+    git('commit', '-q', '-m', 'main moves again');
+    git('checkout', '-q', 'ci/x');
+    git('merge', '-q', '--no-ff', '-m', 'merge main again', 'main');
+    assert.deepEqual(changedFiles('main', dir, before2), []);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

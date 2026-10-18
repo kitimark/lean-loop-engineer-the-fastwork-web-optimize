@@ -760,7 +760,7 @@ def bitCount (b : Nat) (as : List CrAnim) : Nat := (as.filter fun a => decide (b
 /-- One golden F0 row: the number of the scenario's animations with bit 0 set in the lane (always 0,
 `failBits_lane_no0`).
 
-$$\operatorname{f0}(x, A) = \{\mathrm{test}{:}\,\mathrm{F0},\ \mathrm{scenario}{:}\,x,\ \mathrm{stage}{:}\,\mathrm{comp},\ v{:}\,\operatorname{bitCount}(0, A),\ \mathrm{pred}{:}\,=\!0, \ldots\}$$
+$$\begin{aligned} \forall x, A:\quad \operatorname{f0}(x, A) = \{&\mathrm{kind}{:}\,\texttt{stage},\ \mathrm{test}{:}\,\texttt{F0},\ \mathrm{scenario}{:}\,x,\ \mathrm{ref}{:}\,\texttt{rest},\ \mathrm{mode}{:}\,\texttt{lane},\ \mathrm{stage}{:}\,\texttt{comp}, \\ &\mathrm{counts}{:}\,[\texttt{trace.Animation.compositeFailedBits.bit0}],\ v{:}\,\operatorname{bitCount}(0, A),\ o{:}\,\operatorname{bitCount}(0, \mathrm{fxRest}), \\ &\mathrm{vUnits}{:}\,0,\ \mathrm{oUnits}{:}\,0,\ \mathrm{pred}{:}\,(\texttt{=0} \text{ if } \operatorname{bitCount}(0, A) = 0 \text{ else } \texttt{any})\} \end{aligned}$$
 -/
 def f0Row (x : String) (ax : List CrAnim) : Lean.Json :=
   Lean.Json.mkObj [("kind", "stage"), ("test", "F0"), ("scenario", .str x), ("ref", "rest"), ("mode", "lane"),
@@ -840,5 +840,630 @@ def goldenRun (root : System.FilePath) (write : Bool) : IO Nat := do
 #guard (frameWork (chromiumAt realChrome) (animFrame realChrome fxAnimComp)).passes .style == 0
 #guard predOf .layout 0 1 == .ltO && predOf .layout 0 0 == .zero && predOf .props 0 1 == .any
 #guard predOf .style 1 1 == .leO && predOf .style 1 0 == .any
+
+/-! ## Engine mechanisms (why-engines)
+
+Each section below closes one ledger statement (`research/findings/ledger.json`, `missingWhy` of
+`Fw.Engine.Chromium`) with the mechanism read from Chromium source @f842f52 (`B/` = `third_party/blink/renderer/`).
+The tables above stay unchanged (the golden rows and `Fw.Parts` read them); a corrected rule is a new definition with
+a bridge theorem back to the old one, as `frameWorkE` does in `Fw.Engine.Core`. -/
+
+/-! ### Hit tests run PrePaint (ledger n=3) -/
+
+/-- **Frame work with hit tests on PrePaint** (ledger n=3). A hit test (`elementFromPoint`, `TreeScope::HitTestPoint`,
+`B/core/dom/tree_scope.cc:246-281, 421-437`) calls `LayoutView::HitTest`, which first runs
+`UpdateAllLifecyclePhasesExceptPaint` (`B/core/layout/layout_view.cc:149-151`), i.e. the lifecycle up to
+`kPrePaintClean` (`B/core/frame/local_frame_view.cc:2199-2203`). That path has no "already clean" early return
+(`:2395-2452`) and emits the `PrePaint` trace event on every run (`:2570-2593`). So each hit test costs one PrePaint
+(`props`) pass on top of the frame's own lifecycle. CONFIRMED.
+
+$$\operatorname{crWorkH}(m, f) = \Big(s \mapsto \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{passes}(s) + [s = \mathrm{props}]\cdot f.\mathrm{hits},\ \ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{units},\ \ f.\mathrm{hits}\Big)$$
+
+Chromium's frame work in which every hit test also pays one PrePaint pass. -/
+def crWorkH (m : CrMode) (f : FrameIn CrProp) : Work where
+  passes s := (frameWork (chromiumAt m) f).passes s + (if s = .props then f.hits else 0)
+  units s := (frameWork (chromiumAt m) f).units s
+  hits := f.hits
+
+/-- **PrePaint passes are at least the hit tests.**
+
+$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ f.\mathrm{hits} \le \operatorname{crWorkH}(m, f).\mathrm{passes}(\mathrm{props})$$
+
+Every hit test in a frame shows up as a PrePaint pass. -/
+theorem crWorkH_props_ge_hits (m : CrMode) (f : FrameIn CrProp) : f.hits ≤ (crWorkH m f).passes .props := by
+  simp [crWorkH]
+
+/-- **The old frame work is a lower bound.**
+
+$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f) \preceq \operatorname{crWorkH}(m, f)$$
+
+Adding the PrePaint pass of each hit test only raises the work. -/
+theorem crWorkH_ge (m : CrMode) (f : FrameIn CrProp) : (frameWork (chromiumAt m) f).le (crWorkH m f) :=
+  ⟨fun _ => ⟨Nat.le_add_right _ _, Nat.le_refl _⟩, Nat.le_refl _⟩
+
+/-- **No hit test, no change.**
+
+$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ f.\mathrm{hits} = 0 \Rightarrow \forall s \in \mathrm{Stage}:\ \operatorname{crWorkH}(m, f).\mathrm{passes}(s) = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f).\mathrm{passes}(s)$$
+
+Without hit tests the corrected and the old pass counts agree. -/
+theorem crWorkH_no_hits (m : CrMode) (f : FrameIn CrProp) (h : f.hits = 0) (s : Stage) :
+    (crWorkH m f).passes s = (frameWork (chromiumAt m) f).passes s := by
+  simp [crWorkH, h]
+
+/-- **Skipping one hit test removes exactly one PrePaint pass** (the hit-skip variant of `nav.hitTest`).
+
+$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}):\ \operatorname{crWorkH}(m, f[\mathrm{hits} := f.\mathrm{hits} + 1]).\mathrm{passes}(\mathrm{props}) = \operatorname{crWorkH}(m, f).\mathrm{passes}(\mathrm{props}) + 1$$
+
+A frame that skips one probe runs one PrePaint fewer, whatever else it does. -/
+theorem hitSkip_props (m : CrMode) (f : FrameIn CrProp) :
+    (crWorkH m { f with hits := f.hits + 1 }).passes .props = (crWorkH m f).passes .props + 1 := by
+  simp [crWorkH, frameWork, touched, forcedPasses, FrameIn.updates]
+  omega
+
+/-! ### Hit-test units: single point vs list (ledger n=4, first statement) -/
+
+/-- The kind of a hit test: a single point (`elementFromPoint`) or a list-based one (`elementsFromPoint`).
+
+$$\mathrm{HitKind} = \{\mathrm{single}, \mathrm{list}\}$$ -/
+inductive HitKind where
+  | single | list
+deriving Repr, DecidableEq
+
+/-- **Which hit tests the cache may serve.** `HitTestCache::LookupCachedResult` and `AddCachedResult` return early for
+list-based (and rect-based) requests (`B/core/layout/hit_test_cache.cc:54-56`, `B/core/layout/hit_test_request.h:146-152`
+`AvoidCache`). CONFIRMED.
+
+$$\operatorname{cacheable}(\mathrm{single}) = \mathrm{true},\qquad \operatorname{cacheable}(\mathrm{list}) = \mathrm{false}$$
+
+Only a single-point hit test can be answered from the hit-test cache. -/
+def HitKind.cacheable : HitKind → Bool
+  | .single => true
+  | .list => false
+
+/-- **Hit-test units**: the boxes a hit test visits among `n` candidate boxes in paint order, when the first hit is
+at depth `d`. A cached single-point test visits none; an uncached one stops at the first hit; a list-based test is
+never cached and keeps going past every hit (`HitTestResult::AddNodeToListBasedTestResult` returns "continue" for a
+penetrating list, `B/core/layout/hit_test_result.cc:565-586`), so it visits all `n`. CONFIRMED.
+
+$$\operatorname{hitUnits}(k, c, d, n) = \begin{cases} 0 & k = \mathrm{single} \land c \\ \min(d + 1, n) & k = \mathrm{single} \land \lnot c \\ n & k = \mathrm{list} \end{cases}$$
+
+The boxes one hit test walks: none on a cache hit, up to the first hit for a single point, all for a list. -/
+def hitUnits (k : HitKind) (cacheHit : Bool) (d n : Nat) : Nat :=
+  match k with
+  | .single => if cacheHit then 0 else min (d + 1) n
+  | .list => n
+
+/-- **A single-point test never visits more than a list-based one.**
+
+$$\forall c, c' \in \mathbb{B},\ \forall d, n \in \mathbb{N}:\ \operatorname{hitUnits}(\mathrm{single}, c, d, n) \le \operatorname{hitUnits}(\mathrm{list}, c', d, n)$$
+
+Whatever the cache does, the list-based test walks at least as many boxes. -/
+theorem single_le_list (c c' : Bool) (d n : Nat) : hitUnits .single c d n ≤ hitUnits .list c' d n := by
+  cases c <;> simp [hitUnits]; omega
+
+/-- **When the list costs strictly more.** Uncached, the list-based test walks strictly more boxes iff the first hit
+lies before the last candidate.
+
+$$\forall d, n \in \mathbb{N}:\ \operatorname{hitUnits}(\mathrm{single}, \mathrm{false}, d, n) < \operatorname{hitUnits}(\mathrm{list}, \mathrm{false}, d, n) \iff d + 1 < n$$
+
+The trade is strict exactly when boxes lie behind the first hit. -/
+theorem single_lt_list_iff (d n : Nat) : hitUnits .single false d n < hitUnits .list false d n ↔ d + 1 < n := by
+  simp [hitUnits]; omega
+
+/-- **A list-based test ignores the cache.**
+
+$$\forall c \in \mathbb{B},\ \forall d, n \in \mathbb{N}:\ \operatorname{cacheable}(\mathrm{list}) = \mathrm{false} \land \operatorname{hitUnits}(\mathrm{list}, c, d, n) = n$$
+
+The list-based answer is never served from the cache and always walks every candidate. -/
+theorem list_uncached (c : Bool) (d n : Nat) : HitKind.cacheable .list = false ∧ hitUnits .list c d n = n :=
+  ⟨rfl, rfl⟩
+
+#guard hitUnits .single true 2 9 == 0 && hitUnits .single false 2 9 == 3 && hitUnits .list true 2 9 == 9
+#guard hitUnits .single false 12 9 == 9 && HitKind.cacheable .single && !HitKind.cacheable .list
+
+/-! ### Paint fan-out of an inherited pointer-events write (ledger n=4, second statement) -/
+
+/-- Duplicate-free copy of a list, keeping the last occurrence of each value.
+
+$$\operatorname{nub}([\,]) = [\,],\qquad \operatorname{nub}(x :: L) = \begin{cases} \operatorname{nub}(L) & x \in L \\ x :: \operatorname{nub}(L) & x \notin L \end{cases}$$
+
+The list with repeated values removed. -/
+def nub {α : Type} [DecidableEq α] : List α → List α
+  | [] => []
+  | x :: l => if x ∈ l then nub l else x :: nub l
+
+/-- `nub` keeps exactly the members.
+
+$$\forall L \in \alpha^{*},\ \forall y \in \alpha:\ y \in \operatorname{nub}(L) \iff y \in L$$
+
+Removing duplicates loses no value. -/
+theorem mem_nub {α : Type} [DecidableEq α] (l : List α) (y : α) : y ∈ nub l ↔ y ∈ l := by
+  induction l with
+  | nil => simp [nub]
+  | cons x l ih =>
+    by_cases hx : x ∈ l
+    · simp only [nub, hx, ↓reduceIte, ih, List.mem_cons]
+      constructor
+      · exact Or.inr
+      · rintro (rfl | h)
+        · exact hx
+        · exact h
+    · simp [nub, hx, ih]
+
+/-- `nub` never lengthens.
+
+$$\forall L \in \alpha^{*}:\ |\operatorname{nub}(L)| \le |L|$$
+
+Dropping duplicates gives at most as many values. -/
+theorem nub_length_le {α : Type} [DecidableEq α] (l : List α) : (nub l).length ≤ l.length := by
+  induction l with
+  | nil => simp [nub]
+  | cons x l ih =>
+    by_cases hx : x ∈ l <;> simp [nub, hx] <;> omega
+
+/-- `nub` of a non-empty list is non-empty.
+
+$$\forall L \in \alpha^{*}:\ L \ne [\,] \Rightarrow 1 \le |\operatorname{nub}(L)|$$
+
+A non-empty list keeps at least one value. -/
+theorem nub_length_pos {α : Type} [DecidableEq α] (l : List α) (h : l ≠ []) : 1 ≤ (nub l).length := by
+  cases l with
+  | nil => exact absurd rfl h
+  | cons x l =>
+    have hm : x ∈ nub (x :: l) := (mem_nub _ x).2 (List.mem_cons_self ..)
+    cases hn : nub (x :: l) with
+    | nil => rw [hn] at hm; simp at hm
+    | cons _ _ => simp
+
+/-- `nub` of a duplicate-free list is the list.
+
+$$\forall L \in \alpha^{*}:\ \operatorname{nodup}(L) \Rightarrow \operatorname{nub}(L) = L$$
+
+A list with no repeated value is left as it is. -/
+theorem nub_eq_of_nodup {α : Type} [DecidableEq α] (l : List α) (h : l.Nodup) : nub l = l := by
+  induction l with
+  | nil => rfl
+  | cons x l ih =>
+    rw [List.nodup_cons] at h
+    simp [nub, h.1, ih h.2]
+
+/-- `nub` of a non-empty list of one repeated value is that value once.
+
+$$\forall L \in \alpha^{*},\ \forall y \in \alpha:\ L \ne [\,] \land (\forall x \in L:\ x = y) \Rightarrow \operatorname{nub}(L) = [y]$$
+
+A list that repeats one value collapses to it. -/
+theorem nub_eq_single {α : Type} [DecidableEq α] (l : List α) (y : α) (hne : l ≠ []) (h : ∀ x ∈ l, x = y) :
+    nub l = [y] := by
+  induction l with
+  | nil => exact absurd rfl hne
+  | cons x l ih =>
+    have hx : x = y := h x (List.mem_cons_self ..)
+    cases l with
+    | nil => simp [nub, hx]
+    | cons z l =>
+      have hz : x ∈ z :: l := by
+        rw [hx, h z (List.mem_cons_of_mem _ (List.mem_cons_self ..))]
+        exact List.mem_cons_self ..
+      simp only [nub, hz, ↓reduceIte]
+      exact ih (List.cons_ne_nil _ _) (fun w hw => h w (List.mem_cons_of_mem _ hw))
+
+/-- **Paint units of an inherited `pointer-events` write** (ledger n=4). `pointer-events` is inherited
+(`B/core/css/css_properties.json5:5316-5328`); a changed value on a box sets
+`SetShouldInvalidatePaintForHitTest` (`B/core/layout/layout_object.cc:3477-3480, 5211-5219`), which pre-paint turns
+into `SetNeedsRepaint` on the box's **painting layer** (`B/core/paint/pre_paint_tree_walk.cc:285-302`). So the
+repaint units are the distinct painting layers among the boxes that inherit the value, not the boxes. CONFIRMED.
+
+$$\operatorname{pePaintUnits}(L, I) = \big|\operatorname{nub}([\,L(b) \mid b \in I\,])\big|$$
+
+One repaint per painting layer reached by the inherited value. -/
+def pePaintUnits (layerOf : Nat → Nat) (inh : List Nat) : Nat := (nub (inh.map layerOf)).length
+
+/-- **Bounds of the fan-out.** At least one layer repaints when some box inherits the value, and never more than one
+per inheriting box.
+
+$$\forall L : \mathbb{N} \to \mathbb{N},\ \forall I \in \mathbb{N}^{*}:\ \operatorname{pePaintUnits}(L, I) \le |I| \ \land\ \big(I \ne [\,] \Rightarrow 1 \le \operatorname{pePaintUnits}(L, I)\big)$$
+
+The old row's "one unit per inheriting box" is only an upper bound. -/
+theorem pePaintUnits_bounds (layerOf : Nat → Nat) (inh : List Nat) :
+    pePaintUnits layerOf inh ≤ inh.length ∧ (inh ≠ [] → 1 ≤ pePaintUnits layerOf inh) := by
+  refine ⟨?_, fun h => ?_⟩
+  · have := nub_length_le (inh.map layerOf)
+    simpa [pePaintUnits] using this
+  · apply nub_length_pos
+    simpa using h
+
+/-- **One layer per box: the old count holds.**
+
+$$\forall L : \mathbb{N} \to \mathbb{N},\ \forall I \in \mathbb{N}^{*}:\ \operatorname{nodup}([\,L(b) \mid b \in I\,]) \Rightarrow \operatorname{pePaintUnits}(L, I) = |I|$$
+
+When every inheriting box paints into its own layer, each costs one repaint. -/
+theorem pePaintUnits_distinct (layerOf : Nat → Nat) (inh : List Nat) (h : (inh.map layerOf).Nodup) :
+    pePaintUnits layerOf inh = inh.length := by
+  simp [pePaintUnits, nub_eq_of_nodup _ h]
+
+/-- **One shared layer: one repaint.**
+
+$$\forall L : \mathbb{N} \to \mathbb{N},\ \forall I \in \mathbb{N}^{*},\ \forall \ell \in \mathbb{N}:\ I \ne [\,] \land (\forall b \in I:\ L(b) = \ell) \Rightarrow \operatorname{pePaintUnits}(L, I) = 1$$
+
+Boxes that share one painting layer cost one repaint together. -/
+theorem pePaintUnits_shared (layerOf : Nat → Nat) (inh : List Nat) (L : Nat) (hne : inh ≠ [])
+    (h : ∀ b ∈ inh, layerOf b = L) : pePaintUnits layerOf inh = 1 := by
+  have hm : ∀ x ∈ inh.map layerOf, x = L := by
+    intro x hx
+    obtain ⟨b, hb, rfl⟩ := List.mem_map.1 hx
+    exact h b hb
+  simp [pePaintUnits, nub_eq_single _ L (by simpa using hne) hm]
+
+#guard pePaintUnits id [1, 2, 3] == 3 && pePaintUnits (fun _ => 7) [1, 2, 3] == 1
+#guard pePaintUnits (fun b => b / 2) [2, 3, 4] == 2 && pePaintUnits id [] == 0
+
+/-! ### Opacity crossing 1 (ledger n=19) -/
+
+/-- **The level of an opacity change that crosses 1** (ledger n=19). `opacity < 1` makes a box a stacking context
+(`HasOpacity`, `B/core/style/computed_style.h:2085`; `CalculateIsStackingContextWithoutContainment`,
+`B/core/style/computed_style.cc:2958-2995`). When the stacking-context bit flips, the style diff asks for a full
+layout and a paint invalidation (`computed_style.cc:779-784`). It does not flip when another reason keeps the box a
+stacking context (a transform, a running opacity animation, `will-change`, a z-index on a positioned box, ...); then
+the change is the plain opacity row. CONFIRMED.
+
+$$\operatorname{lvl}_{\times 1}(o, l) = \begin{cases} \operatorname{lvl}(\mathrm{opacity}, l) & o \\ \mathrm{layoutFull} & \lnot o \end{cases}$$
+
+Crossing 1 relays out the box unless it is a stacking context for another reason. -/
+def opacityCross1Level (otherSC : Bool) (l : LayerState) : CrLevel :=
+  if otherSC then keyLevel .opacity l else .layoutFull
+
+/-- **A stacking-context flip lays out.**
+
+$$\forall l \in \mathrm{LayerState}:\ \mathrm{layout} \in \operatorname{stages}(\operatorname{lvl}_{\times 1}(\mathrm{false}, l))$$
+
+Without another stacking-context reason, crossing 1 costs a layout. -/
+theorem opacityCross1_layout (l : LayerState) : Stage.layout ∈ (opacityCross1Level false l).stages := by
+  simp [opacityCross1Level, CrLevel.stages]
+
+/-- **No flip, no new row.**
+
+$$\forall l \in \mathrm{LayerState}:\ \operatorname{lvl}_{\times 1}(\mathrm{true}, l) = \operatorname{lvl}(\mathrm{opacity}, l)$$
+
+A box that stays a stacking context pays the plain opacity row. -/
+theorem opacityCross1_otherSC (l : LayerState) : opacityCross1Level true l = keyLevel .opacity l := rfl
+
+/-- **Resting at 0.999 never lays out** (the `people.carousel` rest at opacity 0.999): an opacity change that stays
+below 1 is the plain opacity row, which is at most the crossing row and has no layout.
+
+$$\forall o \in \mathbb{B},\ \forall l \in \mathrm{LayerState}:\ \operatorname{lvl}(\mathrm{opacity}, l) \le \operatorname{lvl}_{\times 1}(o, l) \ \land\ \mathrm{layout} \notin \operatorname{stages}(\operatorname{lvl}(\mathrm{opacity}, l))$$
+
+Staying below 1 costs no more than crossing it, and never a layout. -/
+theorem rest999_le (o : Bool) (l : LayerState) :
+    keyLevel .opacity l ≤ opacityCross1Level o l ∧ Stage.layout ∉ (keyLevel .opacity l).stages := by
+  cases o <;> cases l <;> decide
+
+#guard opacityCross1Level false .own == .layoutFull && opacityCross1Level true .own == .direct
+#guard opacityCross1Level true .none == .raster
+
+/-! ### The extended property type and engine -/
+
+/-- **Chromium properties with the why-engines rows.** `base p` is a row of the table above; `opacityCross1 o` an
+opacity change across 1 (`o`: another stacking-context reason); `pointerEvents` an inherited `pointer-events` write;
+`svgPaintServerAttr` a geometry attribute (`x1`, `x2`, `y1`, `y2`) of an SVG gradient.
+
+$$\mathrm{CrPropX} = \{\mathrm{base}(p) \mid p \in \mathrm{CrProp}\} \cup \{\mathrm{opacityCross1}(o) \mid o \in \mathbb{B}\} \cup \{\mathrm{pointerEvents}, \mathrm{svgPaintServerAttr}\}$$
+
+The Chromium property type extended by the rows this section proves. -/
+inductive CrPropX where
+  | base (p : CrProp)
+  | opacityCross1 (otherSC : Bool)
+  | pointerEvents
+  | svgPaintServerAttr
+deriving Repr, DecidableEq
+
+/-- **Stages of the extended rows.** `base` keeps `crStagesOf`; `opacityCross1` takes its level's stages;
+`pointerEvents` restyles, runs pre-paint (where the hit-test paint invalidation is applied,
+`pre_paint_tree_walk.cc:285-302`), repaints, and commits (the commit is INFERRED from the repaint). An SVG gradient
+attribute runs no style recalc: `SVGLinearGradientElement::SvgAttributeChanged` handles `x1`/`x2`/`y1`/`y2` by
+`InvalidateGradient` (`B/core/svg/svg_linear_gradient_element.cc:69-78`, `B/core/svg/svg_gradient_element.cc:135-138`),
+which removes the resource's cached data and marks every client for **paint** invalidation only
+(`B/core/layout/svg/layout_svg_resource_container.cc:337-342`,
+`B/core/layout/svg/layout_svg_resource_gradient.cc:81-86`). CONFIRMED except the noted commit.
+
+$$\operatorname{stagesOf}^{X}_{\mathrm{cr}}(e, x, l) = \begin{cases} \operatorname{stagesOf}_{\mathrm{cr}}(e, p, l) & x = \mathrm{base}(p) \\ \operatorname{stages}(\operatorname{lvl}_{\times 1}(o, l)) & x = \mathrm{opacityCross1}(o) \\ [\mathrm{style}, \mathrm{props}, \mathrm{paint}, \mathrm{commit}] & x = \mathrm{pointerEvents} \\ [\mathrm{props}, \mathrm{paint}, \mathrm{raster}, \mathrm{commit}] & x = \mathrm{svgPaintServerAttr} \end{cases}$$
+
+The stages each extended Chromium change dirties. -/
+def crStagesOfX (c : Change CrPropX) : List Stage :=
+  match c.prop with
+  | .base p => crStagesOf ⟨c.elem, p, c.layer⟩
+  | .opacityCross1 o => (opacityCross1Level o c.layer).stages
+  | .pointerEvents => [.style, .props, .paint, .commit]
+  | .svgPaintServerAttr => [.props, .paint, .raster, .commit]
+
+/-- **The extended Chromium engine in mode `m`**: `chromiumAt m` with the extended rows.
+
+$$\operatorname{chromiumX}(m) = \big(m,\ \operatorname{stagesOf}^{X}_{\mathrm{cr}},\ \operatorname{compStages}(m),\ [\,]\big)$$
+
+The Chromium engine over the extended property type. -/
+def chromiumX (m : CrMode) : Engine CrPropX CrMode where
+  mode := m
+  stagesOf := crStagesOfX
+  compStages := crCompStages m
+  base := []
+
+/-- A table change as an extended change.
+
+$$\operatorname{lift}(e, p, l) = (e, \mathrm{base}(p), l)$$
+
+Wraps an old Chromium change in the extended type. -/
+def liftCr (c : Change CrProp) : Change CrPropX := ⟨c.elem, .base c.prop, c.layer⟩
+
+/-- A frame of table changes as an extended frame.
+
+$$\operatorname{liftF}(f) = f[\mathrm{changes} := [\,\operatorname{lift}(c) \mid c \in f.\mathrm{changes}\,]]$$
+
+Wraps every change of an old Chromium frame. -/
+def liftCrFrame (f : FrameIn CrProp) : FrameIn CrPropX :=
+  ⟨f.script, f.forcedStyle, f.forcedLayout, f.hits, f.changes.map liftCr, f.compAnims⟩
+
+/-- **The extension keeps the old table.** A lifted frame has the same passes, units and hit tests under the
+extended engine.
+
+$$\forall m \in \mathrm{CrMode},\ \forall f \in \mathrm{FrameIn}(\mathrm{CrProp}),\ \forall s \in \mathrm{Stage}:\ W^{X}.\mathrm{passes}(s) = W.\mathrm{passes}(s) \land W^{X}.\mathrm{units}(s) = W.\mathrm{units}(s) \land W^{X}.\mathrm{hits} = W.\mathrm{hits}$$
+$$\text{where } W^{X} = \operatorname{frameWork}_{\operatorname{chromiumX}(m)}(\operatorname{liftF}(f)),\ W = \operatorname{frameWork}_{\operatorname{chromiumAt}(m)}(f)$$
+
+Every theorem about the old Chromium rows carries over to the extended engine. -/
+theorem chromiumX_lift (m : CrMode) (f : FrameIn CrProp) (s : Stage) :
+    (frameWork (chromiumX m) (liftCrFrame f)).passes s = (frameWork (chromiumAt m) f).passes s ∧
+      (frameWork (chromiumX m) (liftCrFrame f)).units s = (frameWork (chromiumAt m) f).units s ∧
+      (frameWork (chromiumX m) (liftCrFrame f)).hits = (frameWork (chromiumAt m) f).hits := by
+  have hs : ∀ c : Change CrProp, crStagesOfX (liftCr c) = crStagesOf c := fun _ => rfl
+  have hfm : (f.changes.map liftCr).flatMap crStagesOfX = f.changes.flatMap crStagesOf := by
+    induction f.changes with
+    | nil => rfl
+    | cons c cs ih => simp only [List.map_cons, List.flatMap_cons, hs, ih]
+  have hcount : (f.changes.map liftCr).countP (fun c => decide (s ∈ (chromiumX m).stagesOf c)) =
+      f.changes.countP (fun c => decide (s ∈ (chromiumAt m).stagesOf c)) := by
+    induction f.changes with
+    | nil => rfl
+    | cons c cs ih => rw [List.map_cons, List.countP_cons, List.countP_cons, ih]; rfl
+  refine ⟨?_, ?_, rfl⟩
+  · simp only [frameWork, touched, chromiumX, chromiumAt, liftCrFrame, FrameIn.updates, forcedPasses, hfm,
+      List.isEmpty_map]
+    cases s <;> rfl
+  · simp only [frameWork, stageUnits, liftCrFrame]
+    rw [hcount]
+    rfl
+
+/-- **An SVG gradient attribute repaints without layout** (ledger n=24): one change of `x1`/`x2`/`y1`/`y2` in a
+frame with nothing else costs no layout and no style pass, one paint pass.
+
+$$\forall m \in \mathrm{CrMode},\ \forall e \in \mathbb{N},\ \forall l \in \mathrm{LayerState}:\ W.\mathrm{passes}(\mathrm{layout}) = 0 \land W.\mathrm{passes}(\mathrm{style}) = 0 \land W.\mathrm{passes}(\mathrm{paint}) = 1$$
+$$\text{where } W = \operatorname{frameWork}_{\operatorname{chromiumX}(m)}\big((0, 0, 0, 0, [(e, \mathrm{svgPaintServerAttr}, l)], 0)\big)$$
+
+In Chromium a SMIL gradient attribute step is a repaint only. -/
+theorem svgAttr_paint_only (m : CrMode) (e : Nat) (l : LayerState) :
+    (frameWork (chromiumX m) ⟨0, 0, 0, 0, [⟨e, .svgPaintServerAttr, l⟩], 0⟩).passes .layout = 0 ∧
+      (frameWork (chromiumX m) ⟨0, 0, 0, 0, [⟨e, .svgPaintServerAttr, l⟩], 0⟩).passes .style = 0 ∧
+      (frameWork (chromiumX m) ⟨0, 0, 0, 0, [⟨e, .svgPaintServerAttr, l⟩], 0⟩).passes .paint = 1 := by
+  simp [frameWork, touched, chromiumX, crStagesOfX, forcedPasses, FrameIn.updates]
+
+#guard crStagesOfX ⟨1, .svgPaintServerAttr, .none⟩ == [.props, .paint, .raster, .commit]
+#guard crStagesOfX ⟨1, .opacityCross1 false, .own⟩ == CrLevel.layoutFull.stages
+#guard crStagesOfX ⟨1, .base (.css .opacity), .own⟩ == crStagesOf ⟨1, .css .opacity, .own⟩
+#guard crStagesOfX ⟨1, .pointerEvents, .layer⟩ == [.style, .props, .paint, .commit]
+
+/-! ### Animations with no visible change (ledger n=25) -/
+
+/-- **Failure bits with bit 17.** Bit 17 `kAnimationHasNoVisibleChange` (`B/core/animation/compositor_animations.h:116-120`)
+is set when the animation cannot change any pixel (`compositor_animations.cc:285-290, 491-495, 514-588`). `vis` says
+whether the animation can change pixels. CONFIRMED for the bit; whether an effective opacity of 0 on the target sets
+it is the open premise of ledger n=25 (CI fixture R6).
+
+$$\operatorname{bits}^{V}(m, a, v) = \operatorname{bits}(m, a) \mathbin{+\!\!+} [17 \mid \lnot v]$$
+
+The modelled failure bits plus the no-visible-change bit. -/
+def failBitsV (m : CrMode) (a : CrAnim) (vis : Bool) : List Nat :=
+  failBits m a ++ (if vis then [] else [17])
+
+/-- Where a running animation is serviced: on the compositor, on the main thread every frame, or nowhere.
+
+$$\mathrm{CrRun} = \{\mathrm{comp}, \mathrm{main}, \mathrm{idle}\}$$ -/
+inductive CrRun where
+  | comp | main | idle
+deriving Repr, DecidableEq
+
+/-- **The thread rule with bit 17.** `Animation::animation_has_no_effect_` is set iff the failure reasons are exactly
+`kAnimationHasNoVisibleChange` (`B/core/animation/animation.cc:860-865`), and such an animation is not ticked on the
+main thread (`:3389-3393`) nor started on the compositor: it idles. Otherwise the old rule applies. CONFIRMED.
+
+$$\operatorname{run}(m, a, v) = \begin{cases} \mathrm{idle} & \operatorname{bits}^{V}(m, a, v) = [17] \\ \mathrm{comp} & \operatorname{bits}^{V}(m, a, v) \ne [17] \land \operatorname{crThread}(m, a) = \mathrm{comp} \\ \mathrm{main} & \text{otherwise} \end{cases}$$
+
+An animation that can change no pixel and has no other failure is neither ticked nor composited. -/
+def crRunV (m : CrMode) (a : CrAnim) (vis : Bool) : CrRun :=
+  if failBitsV m a vis = [17] then .idle else if crThread m a = .comp then .comp else .main
+
+/-- **Bit 17 is not among the modelled bits.**
+
+$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\ 17 \notin \operatorname{bits}(m, a)$$
+
+The old bit list never contains the no-visible-change bit. -/
+theorem failBits_no17 (m : CrMode) (a : CrAnim) : 17 ∉ failBits m a := by
+  simp only [failBits, List.mem_append]
+  split <;> split <;> split <;> split <;> split <;> simp
+
+/-- **A visible animation keeps the old rule.**
+
+$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\ \operatorname{run}(m, a, \mathrm{true}) = \begin{cases} \mathrm{comp} & \operatorname{crThread}(m, a) = \mathrm{comp} \\ \mathrm{main} & \text{otherwise} \end{cases}$$
+
+For an animation that changes pixels, the bit-17 rule is `crThread`. -/
+theorem crRunV_visible (m : CrMode) (a : CrAnim) :
+    crRunV m a true = if crThread m a = .comp then .comp else .main := by
+  have h : failBitsV m a true ≠ [17] := by
+    intro h
+    have : 17 ∈ failBits m a := by simp [failBitsV] at h; simp [h]
+    exact failBits_no17 m a this
+  simp [crRunV, h]
+
+/-- **When an invisible animation idles.**
+
+$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim}:\ \operatorname{run}(m, a, \mathrm{false}) = \mathrm{idle} \iff \operatorname{bits}(m, a) = [\,]$$
+
+An animation with no visible change idles exactly when nothing else stops it from compositing. -/
+theorem crRunV_idle_iff (m : CrMode) (a : CrAnim) : crRunV m a false = .idle ↔ failBits m a = [] := by
+  constructor
+  · intro h
+    simp only [crRunV] at h
+    split at h
+    · rename_i hb
+      simp only [failBitsV, Bool.false_eq_true, ↓reduceIte] at hb
+      cases hf : failBits m a with
+      | nil => rfl
+      | cons x xs =>
+        rw [hf] at hb
+        cases xs with
+        | nil => simp at hb
+        | cons y ys => simp at hb
+    · split at h <;> cases h
+  · intro h
+    simp [crRunV, failBitsV, h]
+
+/-- **One frame of animations with visibility flags**: like `animFrame`, but an idle animation contributes nothing.
+
+$$\operatorname{animFrame}^{V}(m, A) = \Big(0, 0, 0, 0,\ \mathop{+\!\!+}_{(a, v) \in A,\ \operatorname{run}(m, a, v) = \mathrm{main}} \operatorname{changes}(a),\ \big|[\,(a, v) \in A \mid \operatorname{run}(m, a, v) = \mathrm{comp}\,]\big|\Big)$$
+
+The frame of running animations once idle ones are dropped. -/
+def animFrameV (m : CrMode) (as : List (CrAnim × Bool)) : FrameIn CrProp where
+  script := 0
+  forcedStyle := 0
+  forcedLayout := 0
+  hits := 0
+  changes := (as.filter fun x => decide (crRunV m x.1 x.2 = .main)).flatMap fun x => x.1.changes
+  compAnims := (as.filter fun x => decide (crRunV m x.1 x.2 = .comp)).length
+
+/-- **All visible: the old frame.**
+
+$$\forall m \in \mathrm{CrMode},\ \forall A \in \mathrm{CrAnim}^{*}:\ \operatorname{animFrame}^{V}(m, [\,(a, \mathrm{true}) \mid a \in A\,]) = \operatorname{animFrame}(m, A)$$
+
+With every animation visible, the bit-17 frame is the old frame. -/
+theorem animFrameV_visible (m : CrMode) (as : List CrAnim) :
+    animFrameV m (as.map fun a => (a, true)) = animFrame m as := by
+  have hr : ∀ a : CrAnim, crRunV m a true = .main ↔ crThread m a = .main := by
+    intro a; rw [crRunV_visible]; cases crThread m a <;> simp
+  have hc : ∀ a : CrAnim, crRunV m a true = .comp ↔ crThread m a = .comp := by
+    intro a; rw [crRunV_visible]; cases crThread m a <;> simp
+  simp only [animFrameV, animFrame]
+  congr 1
+  · induction as with
+    | nil => rfl
+    | cons a as ih =>
+      simp only [List.map_cons, List.filter_cons, hr a]
+      split <;> simp [ih]
+  · induction as with
+    | nil => rfl
+    | cons a as ih =>
+      simp only [List.map_cons, List.filter_cons, hc a]
+      split <;> simp [ih]
+
+/-- **An idle animation drops out of the frame**, so pausing it saves nothing (ledger n=25: the hidden pause of an
+animation that already idles is free).
+
+$$\forall m \in \mathrm{CrMode},\ \forall a \in \mathrm{CrAnim},\ \forall v \in \mathbb{B},\ \forall A \in (\mathrm{CrAnim} \times \mathbb{B})^{*}:\ \operatorname{run}(m, a, v) = \mathrm{idle} \Rightarrow \operatorname{animFrame}^{V}(m, (a, v) :: A) = \operatorname{animFrame}^{V}(m, A)$$
+
+Removing an idle animation leaves the frame, hence its work, unchanged. -/
+theorem idle_drops (m : CrMode) (a : CrAnim) (v : Bool) (as : List (CrAnim × Bool)) (h : crRunV m a v = .idle) :
+    animFrameV m ((a, v) :: as) = animFrameV m as := by
+  simp [animFrameV, h]
+
+#guard crRunV lane ⟨1, [.css .transform], .own, true, .document⟩ false == .idle
+#guard crRunV lane ⟨1, [.css .transform], .own, true, .document⟩ true == .comp
+#guard crRunV lane ⟨1, [.css .width], .own, true, .document⟩ false == .main
+#guard crRunV lane ⟨1, [.css .transform], .own, false, .document⟩ false == .main
+
+/-! ### Size-container style rounds (ledger n=22, Chromium half) -/
+
+/-- The largest value of `f` over a list, 0 for the empty list.
+
+$$\operatorname{maxOf}(f, [\,]) = 0,\qquad \operatorname{maxOf}(f, x :: L) = \max(f(x), \operatorname{maxOf}(f, L))$$
+
+The maximum of a measure over a list. -/
+def maxOf {β : Type} (f : β → Nat) : List β → Nat
+  | [] => 0
+  | x :: l => max (f x) (maxOf f l)
+
+/-- `maxOf` is monotone in the measure.
+
+$$\forall f, g : \beta \to \mathbb{N},\ \forall L \in \beta^{*}:\ (\forall x \in L:\ f(x) \le g(x)) \Rightarrow \operatorname{maxOf}(f, L) \le \operatorname{maxOf}(g, L)$$
+
+A pointwise smaller measure has a smaller maximum. -/
+theorem maxOf_le {β : Type} (f g : β → Nat) (l : List β) (h : ∀ x ∈ l, f x ≤ g x) : maxOf f l ≤ maxOf g l := by
+  induction l with
+  | nil => simp [maxOf]
+  | cons x l ih =>
+    simp only [maxOf]
+    have h1 := h x (List.mem_cons_self ..)
+    have h2 := ih (fun y hy => h y (List.mem_cons_of_mem _ hy))
+    omega
+
+/-- `maxOf` bounds every member.
+
+$$\forall f : \beta \to \mathbb{N},\ \forall L \in \beta^{*},\ \forall x \in L:\ f(x) \le \operatorname{maxOf}(f, L)$$
+
+No member exceeds the maximum. -/
+theorem le_maxOf {β : Type} (f : β → Nat) (l : List β) (x : β) (hx : x ∈ l) : f x ≤ maxOf f l := by
+  induction l with
+  | nil => simp at hx
+  | cons y l ih =>
+    simp only [maxOf]
+    rcases List.mem_cons.1 hx with rfl | h
+    · omega
+    · have := ih h; omega
+
+/-- `maxOf` of a mapped list.
+
+$$\forall f : \gamma \to \mathbb{N},\ \forall h : \beta \to \gamma,\ \forall L \in \beta^{*}:\ \operatorname{maxOf}(f, [\,h(x) \mid x \in L\,]) = \operatorname{maxOf}(f \circ h, L)$$
+
+Measuring after a map is measuring the composite. -/
+theorem maxOf_map {β γ : Type} (f : γ → Nat) (h : β → γ) (l : List β) :
+    maxOf f (l.map h) = maxOf (fun x => f (h x)) l := by
+  induction l with
+  | nil => rfl
+  | cons x l ih => simp [maxOf, ih]
+
+/-- **Chromium style rounds of one lifecycle update** (ledger n=22). Each chain lists the size containers on one
+root-to-leaf path the style traversal reaches, outermost first, with `(id, layoutDirty)`. A container skips its
+subtree's style recalc only if it **needs layout** and is eligible for size containment, or is being re-attached
+(`Element::SkipStyleRecalcForContainer`, `B/core/dom/element.cc:5187-5225`, called at `:5360-5375`); the skipped
+subtree is resumed during layout (`BlockNode::Layout` calls `UpdateStyleAndLayoutTreeForSizeContainer`). So the
+rounds of style recalc are 1 plus the most layout-dirty containers on one chain; they run inside the one layout pass.
+CONFIRMED (the re-attach case is folded into `layoutDirty`).
+
+$$\operatorname{crRounds}(\mathcal{C}) = 1 + \operatorname{maxOf}\big(\mathit{ch} \mapsto |[\,(i, d) \in \mathit{ch} \mid d\,]|,\ \mathcal{C}\big)$$
+
+Chromium recalculates style once more per layout-dirty container nesting level. -/
+def crRounds (chains : List (List (Nat × Bool))) : Nat :=
+  1 + maxOf (fun ch => (ch.filter fun x => x.2).length) chains
+
+/-- **Rounds are bounded by nesting depth.**
+
+$$\forall \mathcal{C} \in ((\mathbb{N} \times \mathbb{B})^{*})^{*}:\ \operatorname{crRounds}(\mathcal{C}) \le 1 + \operatorname{maxOf}(|\cdot|, \mathcal{C})$$
+
+Only layout-dirty containers add a round, so the count is at most one more than the deepest chain. -/
+theorem crRounds_le_depth (chains : List (List (Nat × Bool))) :
+    crRounds chains ≤ 1 + maxOf List.length chains := by
+  have := maxOf_le (fun ch : List (Nat × Bool) => (ch.filter fun x => x.2).length) List.length chains
+    (fun ch _ => List.length_filter_le _ _)
+  simp only [crRounds]; omega
+
+/-- **Removing a container never adds a round** (Chromium).
+
+$$\forall \mathcal{C},\ \forall c \in \mathbb{N}:\ \operatorname{crRounds}\big([\,[\,(i, d) \in \mathit{ch} \mid i \ne c\,] \mid \mathit{ch} \in \mathcal{C}\,]\big) \le \operatorname{crRounds}(\mathcal{C})$$
+
+Dropping `container-type` from one element can only lower Chromium's style rounds. -/
+theorem crRounds_remove (chains : List (List (Nat × Bool))) (c : Nat) :
+    crRounds (chains.map fun ch => ch.filter fun x => decide (x.1 ≠ c)) ≤ crRounds chains := by
+  simp only [crRounds, maxOf_map]
+  have := maxOf_le (fun ch : List (Nat × Bool) => ((ch.filter fun x => decide (x.1 ≠ c)).filter fun x => x.2).length)
+    (fun ch => (ch.filter fun x => x.2).length) chains
+    (fun ch _ => ((List.filter_sublist (l := ch)).filter _).length_le)
+  omega
+
+#guard crRounds [] == 1 && crRounds [[(1, true), (2, false), (3, true)], [(4, true)]] == 3
+#guard crRounds [[(1, false), (2, false)]] == 1
 
 end Fw.Engine.Chromium

@@ -165,5 +165,17 @@
     "actor": "lead",
     "milestone": "M0",
     "title": "Start"
+  },
+  {
+    "type": "agent.spawn",
+    "key": "spawn:a",
+    "actor": "hook",
+    "agent": "a"
+  },
+  {
+    "type": "agent.stop",
+    "key": "stop:a",
+    "actor": "hook",
+    "agent": "a"
   }
 ]

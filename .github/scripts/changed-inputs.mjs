@@ -8,10 +8,12 @@
 // The globs are the workflow's own `on.push.paths` list (read from the workflow file, so there is one place to keep
 // them). Usage in a first job on ubuntu (checkout with fetch-depth: 0):
 //   node .github/scripts/changed-inputs.mjs --workflow .github/workflows/<name>.yml
-// Env: EVENT_NAME (github.event_name), REF (github.ref), PATHS_GUARD_BASE (default origin/main).
+// Env: EVENT_NAME (github.event_name), REF (github.ref), BEFORE (github.event.before), PATHS_GUARD_BASE (default origin/main).
 // Output: `run=true|false` on stdout and in $GITHUB_OUTPUT, the reason and the files in $GITHUB_STEP_SUMMARY.
 //   - not a push to refs/heads/ci/**  -> run=true (main pushes, workflow_dispatch, anything else always run)
-//   - a push to ci/**                 -> run=true iff a file changed since the merge-base matches one of the globs
+//   - a push to ci/**                 -> run=true iff a file THIS PUSH changed (before..HEAD; the whole branch when `before` is
+//                                        unknown or a new branch) and that differs from main's content matches one of the globs
+//                                        (Lean Fw.Ci.Trigger: starts_iff, merge_starts_nothing)
 //   - any error (no merge-base, git failure, unreadable globs) -> run=true: the guard fails open, never closed.
 //
 // GitHub's filter glob (docs "Filter pattern cheat sheet"): `*` any chars but `/`, `**` any chars, `?`/`+` zero-or-one /
@@ -105,11 +107,19 @@ export function decide({ event, ref, files, globs }) {
 }
 
 /** Files changed from the merge-base of `base` and HEAD to HEAD (renames listed as delete + add). */
-export function changedFiles(base, cwd = process.cwd()) {
+export function changedFiles(base, cwd = process.cwd(), before = '') {
   const git = (...a) => execFileSync('git', a, { cwd, encoding: 'utf8', maxBuffer: 64 << 20 }).trim();
+  const lines = (t) => (t === '' ? [] : t.split('\n'));
   const mb = git('merge-base', base, 'HEAD');
-  const out = git('diff', '--name-only', '--no-renames', mb, 'HEAD');
-  return out === '' ? [] : out.split('\n');
+  // the push's own diff: before..HEAD when `before` is a commit we have, else the whole branch (merge-base..HEAD)
+  let lo = mb;
+  if (/^[0-9a-f]{7,40}$/.test(before) && !/^0+$/.test(before)) {
+    try { git('cat-file', '-e', `${before}^{commit}`); lo = before; } catch { /* not fetched: use the whole branch */ }
+  }
+  const pushed = lines(git('diff', '--name-only', '--no-renames', lo, 'HEAD'));
+  // Lean `Fw.Ci.Trigger.effective`: keep the files whose new content is not already main's (a merge of main brings none)
+  const differs = new Set(lines(git('diff', '--name-only', '--no-renames', base, 'HEAD')));
+  return pushed.filter((f) => differs.has(f));
 }
 
 function arg(name) {
@@ -128,7 +138,7 @@ function main() {
   try {
     const globs = parsePaths(readFileSync(workflow, 'utf8'));
     const guarded = event === 'push' && ref.startsWith('refs/heads/ci/');
-    if (guarded) files = changedFiles(base);
+    if (guarded) files = changedFiles(base, process.cwd(), process.env.BEFORE ?? '');
     result = decide({ event, ref, files, globs });
   } catch (e) {
     result = { run: true, reason: `guard error, failing open: ${e.message}`, matched: [] };
