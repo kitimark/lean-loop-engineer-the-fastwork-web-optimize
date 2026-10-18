@@ -1,5 +1,5 @@
 /* Values restated from the original (assets/2.gBuqKVzi.css:2866-2915 avatars, 3614-3626 reduced motion). The avatar photos
-   are not shipped: each slot is a neutral fill at the same 32px box. */
+   are the snapshot files (img, object-fit cover); the neutral fill shows until they load. */
 @layer parts {
   .pill {
     box-sizing: border-box;
@@ -48,8 +48,8 @@
   }
   .avatar {
     background: #d9d9d9;
-    background-position: center;
-    background-size: cover;
+    object-fit: cover;
+    object-position: center top;
     border: 1px solid #e4e8eff7;
     border-radius: 50%;
     flex: 0 0 32px;

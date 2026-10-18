@@ -3,7 +3,7 @@ import { getClock } from '../../engine/clock';
 import { watchActive } from '../people/shared';
 import css from './carousel.module.css';
 import { createLoop } from './driver';
-import { avatarOf, bg, RING_ORDER } from '../people/assets';
+import { avatarOf, RING_ORDER } from '../people/assets';
 import { COPY } from '../people/data';
 import { restWindow, START, swapWindow, type State } from './logic';
 import { matchList } from './media';
@@ -37,9 +37,11 @@ export function PeopleCarousel({ variant }: { variant: string }) {
       <div className={css.proof}>
         <div ref={ref} className={`${css.avatars} ${css.carousel}`} aria-hidden="true" data-fw="people-carousel" data-fw-variant={variant}>
           {ids.map((ring, i) => (
-        <span
+        <img
           key={`${s.swapping ? 'swap' : 'rest'}-${ring}`}
-          style={bg(avatarOf({ id: RING_ORDER[ring]! }))}
+          alt=""
+          draggable={false}
+          src={avatarOf({ id: RING_ORDER[ring]! })}
           className={s.swapping && i === 0 ? `${css.avatar} ${css.isExit}` : s.swapping && i === last ? `${css.avatar} ${css.isEnter}` : css.avatar}
         />
       ))}
