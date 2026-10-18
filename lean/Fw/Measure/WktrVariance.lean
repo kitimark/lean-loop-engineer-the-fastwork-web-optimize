@@ -291,7 +291,7 @@ theorem claim_needs_two (b c : Run) (rs : List Run) (h : nBaselines (rivals b c 
 
 /-- A pair of equal numbers has one distinct element.
 
-$\operatorname{dedup}([n, n]) = [n]$
+$$\operatorname{dedup}([n, n]) = [n]$$
 -/
 theorem eraseDups_pair (n : Nat) : [n, n].eraseDups = [n] := by
   simp [List.eraseDups, List.eraseDupsBy, List.eraseDupsBy.loop]
