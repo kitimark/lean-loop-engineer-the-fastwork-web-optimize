@@ -10,13 +10,19 @@ Consumers: `apps/runner/src/watch.ts` (`ops.watchDiff`, `ops.watchKeep`); golden
 -/
 namespace Fw.Ops.WatchDiff
 
-/-- An alert key: the alert code and its subject. -/
+/-- An alert key: the alert code and its subject.
+
+$$\mathrm{Key} = \mathrm{String} \times \mathrm{String} \ni (\mathit{code}, \mathit{subject})$$
+-/
 structure Key where
   code : String
   subject : String
 deriving DecidableEq, Repr
 
-/-- One alert of a check: its key and a detail text that is printed but never compared. -/
+/-- One alert of a check: its key and a detail text that is printed but never compared.
+
+$$\mathrm{Alert} = \mathrm{Key} \times \mathrm{String} \ni (\mathit{key}, \mathit{detail})$$
+-/
 structure Alert where
   key : Key
   detail : String
@@ -59,7 +65,10 @@ $$\operatorname{closed}(P, N) = [\,k \in \operatorname{uniq}(P) : k \notin [\,a.
 def closedKeys (prev : List Key) (now : List Alert) : List Key :=
   (uniq prev).filter fun k => decide (k ∉ now.map (·.key))
 
-/-- The result of one check: the alerts it opens (with their detail), the keys it closes, the next open set. -/
+/-- The result of one check: the alerts it opens (with their detail), the keys it closes, the next open set.
+
+$$\mathrm{Step} = \mathrm{List}\ \mathrm{Alert} \times \mathrm{List}\ \mathrm{Key} \times \mathrm{List}\ \mathrm{Key} \ni (\mathit{opened}, \mathit{closed}, \mathit{next})$$
+-/
 structure Step where
   opened : List Alert
   closed : List Key
@@ -75,7 +84,10 @@ def step (prev : List Key) (now : List Alert) : Step :=
     closed := closedKeys prev now
     next := keysOf now }
 
-/-- One printed line of the stream: `OPEN` with the alert, or `CLOSE` with the key. -/
+/-- One printed line of the stream: `OPEN` with the alert, or `CLOSE` with the key.
+
+$$\mathrm{Ev} = \{\mathrm{open}(a) : a \in \mathrm{Alert}\} \cup \{\mathrm{close}(k) : k \in \mathrm{Key}\}$$
+-/
 inductive Ev where
   | opened (a : Alert)
   | closed (k : Key)
@@ -172,11 +184,9 @@ theorem mem_keysOf (now : List Alert) (k : Key) : k ∈ keysOf now ↔ k ∈ now
   mem_uniq _ _
 
 /-- Each key is decided on its own: whether a check opens it, closes it or keeps it open depends only on whether the
-key is in the open set and in the check.
+key is in the open set and in the check. Here $K_N = [\,a.\mathit{key} : a \in N\,]$.
 
 $$\forall P,\ \forall N,\ \forall k:\ \big(k \in [\,a.\mathit{key} : a \in \operatorname{step}(P,N).\mathit{opened}\,] \iff k \notin P \land k \in K_N\big) \land \big(k \in \operatorname{step}(P,N).\mathit{closed} \iff k \in P \land k \notin K_N\big) \land \big(k \in \operatorname{step}(P,N).\mathit{next} \iff k \in K_N\big)$$
-
-where $K_N = [\,a.\mathit{key} : a \in N\,]$.
 -/
 theorem diff_per_key (prev : List Key) (now : List Alert) (k : Key) :
     (k ∈ (step prev now).opened.map (·.key) ↔ k ∉ prev ∧ k ∈ now.map (·.key)) ∧
@@ -188,11 +198,10 @@ theorem diff_per_key (prev : List Key) (now : List Alert) (k : Key) :
     exact ⟨fun ⟨a, b⟩ => ⟨b, a⟩, fun ⟨a, b⟩ => ⟨b, a⟩⟩
   · simp only [step, closedKeys, List.mem_filter, mem_uniq, decide_eq_true_eq]
 
-/-- The lines of one check about one key: an `OPEN` when the key is new, a `CLOSE` when it went away, else none.
+/-- The lines of one check about one key: an `OPEN` when the key is new, a `CLOSE` when it went away, else none. Here
+$K_N = [\,a.\mathit{key} : a \in N\,]$; the first two cases cannot both hold.
 
 $$\forall P,\ \forall N,\ \forall k:\ \pi_k(\operatorname{lines}(\operatorname{step}(P,N))) = \begin{cases} [\mathrm{open}(k, \operatorname{detail}(N,k))] & k \notin P \land k \in K_N \\ [\mathrm{close}(k)] & k \in P \land k \notin K_N \\ [\,] & \text{otherwise} \end{cases}$$
-
-where $K_N = [\,a.\mathit{key} : a \in N\,]$ (the first two cases cannot both hold).
 -/
 theorem proj_step (prev : List Key) (now : List Alert) (k : Key) :
     proj k (step prev now).events =
@@ -226,17 +235,16 @@ theorem proj_step (prev : List Key) (now : List Alert) (k : Key) :
 
 /-- Projection distributes over a run's first check.
 
-$$\pi_k(\operatorname{run}(S, N :: T).1) = \pi_k(\operatorname{lines}(\operatorname{step}(S,N))) \mathbin{+\!\!+} \pi_k(\operatorname{run}(\operatorname{keys}(N), T).1)$$
+$$\forall S,\ \forall N,\ \forall T,\ \forall k:\ \pi_k(\operatorname{run}(S, N :: T).1) = \pi_k(\operatorname{lines}(\operatorname{step}(S,N))) \mathbin{+\!\!+} \pi_k(\operatorname{run}(\operatorname{keys}(N), T).1)$$
 -/
 theorem proj_run_cons (s : List Key) (now : List Alert) (ts : List (List Alert)) (k : Key) :
     proj k (run s (now :: ts)).1 = proj k (step s now).events ++ proj k (run (keysOf now) ts).1 := by
   simp [run, proj, List.filter_append, step]
 
 /-- Over any run, the lines about any key alternate `OPEN`, `CLOSE`, `OPEN`, ..., starting from whether the key is in
-the initial open set: no key is printed open twice without a close between, nor closed twice without an open between.
+the initial open set: no key is printed open twice without a close between, nor closed twice without an open between. Here $[k \in S]$ is $\top$ when $k \in S$ and $\bot$ otherwise.
 
 $$\forall S,\ \forall T,\ \forall k:\ \operatorname{alt}\big([k \in S],\ \pi_k(\operatorname{run}(S, T).1)\big)$$
-where $[k \in S]$ is $\top$ when $k \in S$ and $\bot$ otherwise.
 -/
 theorem opened_once (s : List Key) (ts : List (List Alert)) (k : Key) :
     Alternates (decide (k ∈ s)) (proj k (run s ts).1) := by
@@ -250,10 +258,9 @@ theorem opened_once (s : List Key) (ts : List (List Alert)) (k : Key) :
       simp only [h1, h2, not_true_eq_false, not_false_eq_true, and_true, and_false, ↓reduceIte, decide_true, decide_false, List.nil_append, List.cons_append] at hn ⊢ <;> (try simp only [Alternates, true_and]) <;> exact hn
 
 /-- After any run the final open set holds a key exactly when the key's last line is `OPEN` (or, with no line about
-it, when the initial open set held it).
+it, when the initial open set held it). Here $[k \in S]$ is $\top$ when $k \in S$ and $\bot$ otherwise.
 
 $$\forall S,\ \forall T,\ \forall k:\ k \in \operatorname{run}(S,T).2 \iff \operatorname{openAfter}\big([k \in S],\ \pi_k(\operatorname{run}(S,T).1)\big) = \top$$
-where $[k \in S]$ is $\top$ when $k \in S$ and $\bot$ otherwise.
 -/
 theorem run_state_iff (s : List Key) (ts : List (List Alert)) (k : Key) :
     k ∈ (run s ts).2 ↔ openAfter (decide (k ∈ s)) (proj k (run s ts).1) = true := by
@@ -307,13 +314,19 @@ theorem every_open_reported (s : List Key) (ts : List (List Alert)) (now : List 
 
 /-! ## Declared long-runners -/
 
-/-- A declared long-runner in `keep.json`: its pid and its absolute start time (seconds since the epoch). -/
+/-- A declared long-runner in `keep.json`: its pid and its absolute start time (seconds since the epoch).
+
+$$\mathrm{Entry} = \mathbb{N} \times \mathbb{N} \ni (\mathit{pid}, \mathit{start})$$
+-/
 structure Entry where
   pid : Nat
   start : Nat
 deriving DecidableEq, Repr
 
-/-- A running process: pid, absolute start time (seconds since the epoch) and command line. -/
+/-- A running process: pid, absolute start time (seconds since the epoch) and command line.
+
+$$\mathrm{Row} = \mathbb{N} \times \mathbb{N} \times \mathrm{String} \ni (\mathit{pid}, \mathit{start}, \mathit{args})$$
+-/
 structure Row where
   pid : Nat
   start : Nat
