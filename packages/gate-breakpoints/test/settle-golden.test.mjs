@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { GATE_POLICY, cell, nextStable, quiet, rendered, report, settled, waitTrace } from '../src/settle.mjs';
+import { GATE_POLICY, cell, nextStable, quiet, rendered, report, settled, view, viewCell, waitTrace } from '../src/settle.mjs';
 import { settleInPage } from '../src/page.mjs';
 import { maskNotRendered } from '../src/summary.mjs';
 import { PKG } from '../src/serve.mjs';
@@ -54,6 +54,14 @@ test('quiet and nextStable: every golden pair of frames, node copy and page copy
 test('wait: every golden trace gives Lean outcome', () => {
   assert.ok(of('wait').length >= 8);
   for (const l of of('wait')) assert.equal(waitTrace(l.policy, l.trace), l.outcome, l.name);
+});
+
+test('view: bring bit picks the second reading, and the cell follows (Fw.Gate.Settle.viewCell)', () => {
+  assert.ok(of('view').length >= 8);
+  for (const l of of('view')) assert.equal(viewCell(l.bringO, l.bringR, l.firstO, l.againO, l.firstR, l.againR, l.a, l.b), l.cell, l.name);
+  const f = { skipped: true, val: 0 }, g = { skipped: false, val: 132 };
+  assert.deepEqual(view(true, f, g), g);
+  assert.deepEqual(view(false, f, g), f);
 });
 
 test('report: an unsettled arm is never a pass or a fail', () => {

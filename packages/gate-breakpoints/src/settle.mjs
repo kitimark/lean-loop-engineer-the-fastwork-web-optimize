@@ -52,3 +52,15 @@ export function cell(ra, rb, a, b, equal) {
   if (!(ra && rb)) return 'notRendered';
   return report(a, b, equal);
 }
+
+/** Fw.Gate.Settle.view: the reading the gate keeps for a node. `bring`: the node's part was brought into view and read again. */
+export const view = (bring, first, again) => (bring ? again : first);
+
+/**
+ * Fw.Gate.Settle.viewCell: the cell of one node from the two arms' first and second readings ({ skipped, val }); the kept
+ * readings decide rendered / equal. a, b: the arms' settle outcomes.
+ */
+export function viewCell(bo, br, fo, go, fr, gr, a, b) {
+  const o = view(bo, fo, go), r = view(br, fr, gr);
+  return cell(!o.skipped, !r.skipped, a, b, o.val === r.val);
+}

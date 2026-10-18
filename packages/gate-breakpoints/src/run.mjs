@@ -6,13 +6,19 @@ import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
 import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
-import { PIN_SRC, collectInPage, prepareInPage, settleInPage, waitReady, waitResize } from './page.mjs';
-import { GATE_POLICY, waitTrace } from './settle.mjs';
+import { PIN_SRC, bringInPage, collectInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
+import { GATE_POLICY, view, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const collectWith = async (s, arg) => { const raw = await s.evaluate(collectInPage, arg); if (arg.props) attachAlignFacts(raw, await s.evaluate(collectAlignFacts, { parts: arg.parts, props: arg.props })); return raw; };
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
+// Lean Fw.Gate.Settle.viewCell in the probes: OFF unless FW_GATE_VIEW=1. Run 39086375181 (parts=commission): Chromium passed all
+// cells, WebKit failed 7 probes on the scroll-driven --commission-shrink / --commission-enter-shrink (0.4746 vs 0.3702): the
+// scroll that brings a part into view is a different scroll position in each arm (the page heights differ), so the second reading
+// carries a scroll-dependent value. The baseline (no view) passes commission on both engines (run 39083482125), so the default
+// stays the baseline; the rule needs a scroll position that is equal by construction before it can be switched on.
+const VIEW_ON = process.env.FW_GATE_VIEW === '1';
 const SITES = ['orig', 'rewrite'];
 const FILTER = { orig: '\\.svelte-', rewrite: '-module_' };
 const CAP_MS = { orig: 20000, rewrite: 15000 };
@@ -116,29 +122,58 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       observations: trace.length, frames: last.frames, waitedMs: last.t, running: last.running, stable: last.stable, hoverInside: last.hoverInside,
     };
   }
-  const collectArg = (site, env, props, parts) => ({
-    site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, filter: FILTER[site],
+  const collectArg = (site, env, props, parts, view = false) => ({
+    site, conditions: cond, neutral, dprWanted: env.dpr, widthWanted: env.width, parts, props, flagSkipped: view, filter: FILTER[site],
   });
-  async function evalCollect(s, site, env, props, settleRoots) {
+  async function evalCollect(s, site, env, props, settleRoots, view = false) {
     const mountIds = Object.keys(mountOf[site]);
     const overlayIds = Object.keys(overlayOf[site]);
     const pick = (ids, inside) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid) === inside));
-    const raw = await collectWith(s, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false)));
+    const raw = await collectWith(s, collectArg(site, env, props, pick([...mountIds, ...overlayIds], false), view));
     for (const pid of overlayIds) {
       const steps = overlayOf[site][pid];
       await s.evaluate(prepareInPage, { stage: 'open', steps, capMs: CAP_MS[site] });
       // an opened overlay animates in (WebKit run 39067170911 read the signup dialog at scale 0.9977): settle it before reading
       if (settleRoots) (raw.overlaySettle ||= []).push(await settleRoots(partsArg[site][pid].map((r) => r.selector), env));
-      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }));
+      const one = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, view));
       raw.parts = { ...raw.parts, ...one.parts };
       await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
     }
     if (mountIds.length > 0) {
       raw.prepared = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site] });
-      const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true)));
+      const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true), view));
       raw.parts = { ...raw.parts, ...late.parts };
     }
+    if (props && view) await bringSkipped(s, site, env, props, raw, settleRoots);
     return raw;
+  }
+  // Lean Fw.Gate.Settle.view. A part with a node read in a skipped content-visibility subtree (page.mjs collectInPage flags it) is
+  // brought into view, settled and read again; the second reading is the one kept (`view true first again`, node by node), the
+  // first is recorded under raw.viewFirst. A node still skipped carries the flag again and summary.mjs maskNotRendered gives it no
+  // verdict (cell notRendered). A part without a skipped node is left exactly as read. The page is scrolled back to the top.
+  async function bringSkipped(s, site, env, props, raw, settleRoots) {
+    const skippedIds = Object.entries(raw.parts)
+      .filter(([pid, roles]) => !mountOf[site][pid] && !overlayOf[site][pid] && Object.values(roles).some((r) => r.items.some((it) => it.skipped)))
+      .map(([pid]) => pid);
+    if (skippedIds.length === 0) return;
+    raw.viewFirst = {};
+    raw.viewed = {};
+    for (const pid of skippedIds) {
+      const roots = partsArg[site][pid].map((r) => r.selector);
+      const b = await s.evaluate(bringInPage, { roots });
+      const wait = settleRoots ? await settleRoots(roots, env) : null;
+      if (wait) (raw.overlaySettle ||= []).push(wait); // the sample is unsettled when this wait is
+      const again = await collectWith(s, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, true));
+      const first = raw.parts[pid];
+      raw.viewFirst[pid] = first;
+      raw.parts[pid] = Object.fromEntries(Object.entries(first).map(([role, fr]) => [role, {
+        ...fr, items: fr.items.map((it, i) => view(true, it, again.parts[pid][role].items[i] ?? it)),
+      }]));
+      const still = Object.values(raw.parts[pid]).reduce((n, r) => n + r.items.filter((it) => it.skipped).length, 0);
+      raw.viewed[pid] = { skippedBefore: b.skippedBefore, stillSkipped: still, scrollY: b.scrollY, ...(wait ? { settle: wait.outcome } : {}) };
+      log(`  view ${engineName} ${site} ${env.width}x${env.height} ${pid}: ${b.skippedBefore} skipped, ${still} still skipped`);
+    }
+    await s.evaluate(scrollTopInPage);
   }
 
   // Phase 0: the property lists. Declared names depend on the stylesheets and the elements, not on the environment,
@@ -185,14 +220,14 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const collectProps = Object.fromEntries(Object.entries(props).map(([pid, roles]) => [pid, Object.fromEntries(
     Object.entries(roles).map(([role, v]) => [role, [...v.restated, ...v.originOnly]]))]));
 
-  async function sample(env, site) {
+  async function sample(env, site, view = VIEW_ON) {
     return withRetry(`${site} ${env.width}x${env.height}`, async () => {
       const s = await load(env, site);
       try {
         await parkEarly(s, env);
         const settle = await evalReady(s, site);
         const settleWait = await settleArm(s, site, env);
-        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots));
+        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots), view);
         raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
         if (gaps) raw.gap = await s.evaluate(gaps.collect, gaps.collectArg);
         return { settle, raw };
@@ -241,7 +276,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       } finally { await s.close().catch(() => {}); }
     })));
     const last = sw.stops[sw.stops.length - 1];
-    const fresh = await Promise.all(SITES.map((site) => sample(last, site)));
+    const fresh = await Promise.all(SITES.map((site) => sample(last, site, false)));
     sweepRecords.push({ id: sw.id, blurb: sw.blurb, stops: sw.stops, orig: perSite[0], rewrite: perSite[1], freshFinal: { orig: fresh[0], rewrite: fresh[1] } });
     log(`  ${engineName}: sweep ${sw.id} done (${sw.stops.length} stops)`);
   }

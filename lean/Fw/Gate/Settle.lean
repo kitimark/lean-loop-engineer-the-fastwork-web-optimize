@@ -247,10 +247,11 @@ theorem report_settled (i j : Nat) (e : Bool) :
 -- ---------------------------------------------------------------------------------------------------------------
 
 /-- A node counts as rendered when no element on its ancestor chain (itself included) is flagged by the caller as unrendered.
-The flags are an INPUT: this module proves what a flagged probe means (no verdict), not when a flag is right. The gate supplies
-no flag today. Run 39071577161 suggested flagging a node under a `content-visibility` skip (its `inner/rows` auto margin), but
-premise-tests (run 39076735134) refuted the premise: `getComputedStyle` returns the resolved length (150px) there on Chromium and
-WebKit, so a skip is no reason to drop a probe. A flag needs its own tested premise (for example no layout box at all).
+The flags are an INPUT: this module proves what a flagged probe means (no verdict), not when a flag is right. The gate (probes only, switched on with
+`FW_GATE_VIEW=1`, off by default: see `viewCell`) flags a node the engine has skipped under `content-visibility:auto` (premise `cv.skip-flag`: `checkVisibility()` true and the
+`contentVisibilityAuto` form false) and, before a flag takes effect, brings the part into view and reads again (`view`,
+`viewCell` below), so only a node still skipped after that is `notRendered`. Premise-tests (run 39076735134) refuted the
+earlier idea that a skipped node reports an unresolved `auto`: `getComputedStyle` returns the resolved length there.
 
 $$\operatorname{rendered}(s_1,\dots,s_n) \iff \forall i,\ s_i = \bot$$
 
@@ -352,6 +353,95 @@ theorem cell_decided (ra rb : Bool) (a b : Outcome) (e : Bool) (h : cell ra rb a
     ra = true ∧ rb = true ∧ ∃ i j, a = .settled i ∧ b = .settled j := by
   rcases ra with _ | _ <;> rcases rb with _ | _ <;> simp [cell] at h ⊢
   rcases a with i | _ <;> rcases b with j | _ <;> cases e <;> simp [report] at h ⊢
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- a node in a skipped subtree is brought into view and read again (fix-commission)
+-- ---------------------------------------------------------------------------------------------------------------
+
+/-- One arm's reading of one node: whether the engine had the node's subtree skipped (`content-visibility:auto`, off screen)
+at the read, and the value read.
+
+$$\mathrm{Reading}_\alpha = \{\ \mathit{skipped} \in \{0,1\},\ \mathit{val} \in \alpha\ \}$$ -/
+structure Reading (α : Type) where
+  skipped : Bool
+  val : α
+  deriving Repr
+
+/-- The reading the gate keeps for a node. `bring` says that the gate brought the node's part into view (`scrollIntoView`),
+settled and read again; then the kept reading is the second one, and the first (possibly stale) value is dropped. Without
+`bring` the first reading is kept.
+
+$$\operatorname{view}(b, f, g) = \begin{cases} g & b \\ f & \neg b\end{cases}$$ -/
+def view {α : Type} (bring : Bool) (first again : Reading α) : Reading α := if bring then again else first
+
+/-- The gate brings a part into view whenever one of its nodes was read in a skipped subtree, so every skipped first reading is covered.
+
+$$\operatorname{Covered}(b, f) \iff (f.\mathit{skipped} \Rightarrow b)$$ -/
+def Covered {α : Type} (bring : Bool) (first : Reading α) : Prop := first.skipped = true → bring = true
+
+/-- The cell of one node from the two arms' first and second readings: the kept readings decide which arm renders the node and
+whether the values are equal; `a`, `b` are the arms' settle outcomes.
+
+$$\operatorname{viewCell}(b_o, b_r, f_o, g_o, f_r, g_r, a, b) = \operatorname{cell}\big(\neg\operatorname{view}(b_o, f_o, g_o).\mathit{skipped},\ \neg\operatorname{view}(b_r, f_r, g_r).\mathit{skipped},\ a,\ b,\ [\operatorname{view}(b_o, f_o, g_o).\mathit{val} = \operatorname{view}(b_r, f_r, g_r).\mathit{val}]\big)$$ -/
+def viewCell {α : Type} [DecidableEq α] (bo br : Bool) (fo go fr gr : Reading α) (a b : Outcome) : Cell :=
+  cell (!(view bo fo go).skipped) (!(view br fr gr).skipped) a b (decide ((view bo fo go).val = (view br fr gr).val))
+
+/-- A brought node's stale first value never reaches the cell: the kept reading is the second one.
+
+$$\operatorname{view}(\top, f, g) = g$$ -/
+theorem view_bring {α : Type} (f g : Reading α) : view true f g = g := by simp [view]
+
+/-- With nothing brought into view the rule is inert: the first reading is kept, so a gate run without a skipped node is unchanged.
+
+$$\operatorname{viewCell}(\bot, \bot, f_o, g_o, f_r, g_r, a, b) = \operatorname{cell}(\neg f_o.\mathit{skipped}, \neg f_r.\mathit{skipped}, a, b, [f_o.\mathit{val} = f_r.\mathit{val}])$$ -/
+theorem viewCell_inert {α : Type} [DecidableEq α] (fo go fr gr : Reading α) (a b : Outcome) :
+    viewCell false false fo go fr gr a b = cell (!fo.skipped) (!fr.skipped) a b (decide (fo.val = fr.val)) := by
+  simp [viewCell, view]
+
+/-- A node is `notRendered` only when the kept reading of one arm is still skipped.
+
+$$\operatorname{viewCell}(\dots) = \mathrm{notRendered} \iff \operatorname{view}(b_o, f_o, g_o).\mathit{skipped} \vee \operatorname{view}(b_r, f_r, g_r).\mathit{skipped}$$ -/
+theorem viewCell_notRendered_iff {α : Type} [DecidableEq α] (bo br : Bool) (fo go fr gr : Reading α) (a b : Outcome) :
+    viewCell bo br fo go fr gr a b = .notRendered ↔ (view bo fo go).skipped = true ∨ (view br fr gr).skipped = true := by
+  unfold viewCell cell
+  rcases h1 : (view bo fo go).skipped <;> rcases h2 : (view br fr gr).skipped <;> simp <;>
+    cases report a b _ <;> simp
+
+/-- A node reads as skipped after the rule only if the gate brought it into view and the engine still reported it skipped on
+the second reading: a skipped node is never given up before it was brought into view.
+
+$$\operatorname{Covered}(b, f) \wedge \operatorname{view}(b, f, g).\mathit{skipped} \Longrightarrow b \wedge g.\mathit{skipped}$$ -/
+theorem skipped_after_view_only_if_brought {α : Type} (bring : Bool) (f g : Reading α) (hc : Covered bring f)
+    (h : (view bring f g).skipped = true) : bring = true ∧ g.skipped = true := by
+  cases bring
+  · exact absurd (hc (by simpa [view] using h)) (by simp)
+  · exact ⟨rfl, by simpa [view] using h⟩
+
+/-- The rule never hides a rendered difference: when both kept readings are of rendered nodes, both arms settled and the kept
+values differ, the cell is `fail`.
+
+$$\neg k_o.\mathit{skipped} \wedge \neg k_r.\mathit{skipped} \wedge k_o.\mathit{val} \ne k_r.\mathit{val} \Longrightarrow \operatorname{viewCell}(\dots, \mathrm{settled}(i), \mathrm{settled}(j)) = \mathrm{fail}$$ -/
+theorem viewCell_fail_of_rendered_diff {α : Type} [DecidableEq α] (bo br : Bool) (fo go fr gr : Reading α) (i j : Nat)
+    (ho : (view bo fo go).skipped = false) (hr : (view br fr gr).skipped = false)
+    (hd : (view bo fo go).val ≠ (view br fr gr).val) :
+    viewCell bo br fo go fr gr (.settled i) (.settled j) = .fail := by
+  simp [viewCell, cell, ho, hr, hd, report]
+
+/-- The rule never invents a pass: a pass needs both kept readings of rendered nodes, equal values and both arms settled.
+
+$$\operatorname{viewCell}(\dots) = \mathrm{pass} \Longrightarrow \neg k_o.\mathit{skipped} \wedge \neg k_r.\mathit{skipped} \wedge k_o.\mathit{val} = k_r.\mathit{val} \wedge \exists i\, j,\ a = \mathrm{settled}(i) \wedge b = \mathrm{settled}(j)$$ -/
+theorem viewCell_pass_sound {α : Type} [DecidableEq α] (bo br : Bool) (fo go fr gr : Reading α) (a b : Outcome)
+    (h : viewCell bo br fo go fr gr a b = .pass) :
+    (view bo fo go).skipped = false ∧ (view br fr gr).skipped = false ∧ (view bo fo go).val = (view br fr gr).val
+      ∧ ∃ i j, a = .settled i ∧ b = .settled j := by
+  obtain ⟨h1, h2, i, j, ha, hb⟩ := cell_decided _ _ a b _ (Or.inl h)
+  have h1' : (view bo fo go).skipped = false := by simpa using h1
+  have h2' : (view br fr gr).skipped = false := by simpa using h2
+  subst ha hb
+  refine ⟨h1', h2', ?_, i, j, rfl, rfl⟩
+  cases hd : decide ((view bo fo go).val = (view br fr gr).val)
+  · simp [viewCell, cell, report, h1', h2', hd] at h
+  · simpa using hd
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- the model: a settled sample does not depend on when it was taken
@@ -707,6 +797,20 @@ def cellCases : List (String × Bool × Bool × Outcome × Outcome × Bool) :=
     ("rewrite not rendered, values equal", true, false, .settled 1, .settled 2, true),
     ("neither rendered, both unsettled", false, false, .unsettled, .unsettled, false) ]
 
+/-- View cells: (name, original brought, rewrite brought, original first and second reading, rewrite first and second reading,
+outcome a, outcome b). A reading is (skipped, value).
+
+$$\text{viewCases} = [(n_k, b_o, b_r, f_o, g_o, f_r, g_r, a_k, b_k)]_k$$ -/
+def viewCases : List (String × Bool × Bool × (Bool × Nat) × (Bool × Nat) × (Bool × Nat) × (Bool × Nat) × Outcome × Outcome) :=
+  [ ("nothing skipped, equal", false, false, (false, 132), (false, 0), (false, 132), (false, 0), .settled 1, .settled 2),
+    ("nothing skipped, different", false, false, (false, 132), (false, 0), (false, 0), (false, 0), .settled 1, .settled 2),
+    ("commission: stale first margin 0, fresh after view equal", false, true, (false, 132), (false, 0), (true, 0), (false, 132), .settled 1, .settled 2),
+    ("stale first margin 0, fresh after view different", false, true, (false, 132), (false, 0), (true, 0), (false, 7), .settled 1, .settled 2),
+    ("still skipped after view", false, true, (false, 132), (false, 0), (true, 0), (true, 0), .settled 1, .settled 2),
+    ("both skipped, both brought, equal fresh values", true, true, (true, 1), (false, 9), (true, 2), (false, 9), .settled 1, .settled 2),
+    ("rendered difference is not hidden by a brought node elsewhere", true, true, (true, 1), (false, 9), (true, 2), (false, 8), .settled 1, .settled 2),
+    ("rendered, one arm unsettled", false, true, (false, 5), (false, 0), (true, 0), (false, 5), .settled 1, .unsettled) ]
+
 /-- Ancestor chains: (name, one flag per ancestor, true = it skips its subtree).
 
 $$\text{renderedCases} = [(n_k, s_k)]_k$$ -/
@@ -747,6 +851,13 @@ def goldenLines : List String :=
     (Json.mkObj [("kind", "cell"), ("name", toJson n), ("renderedA", toJson ra), ("renderedB", toJson rb),
       ("a", toJson (outcomeText a)), ("b", toJson (outcomeText b)), ("equal", toJson e),
       ("cell", toJson (cellText (cell ra rb a b e)))]).compress)
+  ++ viewCases.map (fun (n, bo, br, fo, go, fr, gr, a, b) =>
+    let rd (x : Bool × Nat) : Json := Json.mkObj [("skipped", toJson x.1), ("val", toJson x.2)]
+    let mk (x : Bool × Nat) : Reading Nat := { skipped := x.1, val := x.2 }
+    (Json.mkObj [("kind", "view"), ("name", toJson n), ("bringO", toJson bo), ("bringR", toJson br),
+      ("firstO", rd fo), ("againO", rd go), ("firstR", rd fr), ("againR", rd gr),
+      ("a", toJson (outcomeText a)), ("b", toJson (outcomeText b)),
+      ("cell", toJson (cellText (viewCell bo br (mk fo) (mk go) (mk fr) (mk gr) a b)))]).compress)
   ++ reportCases.map (fun (n, a, b, e) =>
     (Json.mkObj [("kind", "report"), ("name", toJson n), ("a", toJson (outcomeText a)), ("b", toJson (outcomeText b)),
       ("equal", toJson e), ("report", toJson (reportText (report a b e)))]).compress)
@@ -788,5 +899,8 @@ def run (args : List String) : IO UInt32 := do
 #guard cell false true (.settled 1) (.settled 2) false == .notRendered
 #guard cell true true (.settled 1) (.settled 2) false == .fail
 #guard rendered [false, true, false] == false
+#guard viewCell true false (α := Nat) ⟨true, 0⟩ ⟨false, 132⟩ ⟨false, 132⟩ ⟨false, 0⟩ (.settled 1) (.settled 2) == .pass
+#guard viewCell false true (α := Nat) ⟨false, 132⟩ ⟨false, 0⟩ ⟨true, 0⟩ ⟨false, 7⟩ (.settled 1) (.settled 2) == .fail
+#guard viewCell false true (α := Nat) ⟨false, 132⟩ ⟨false, 0⟩ ⟨true, 0⟩ ⟨true, 0⟩ (.settled 1) (.settled 2) == .notRendered
 
 end Fw.Gate.Settle

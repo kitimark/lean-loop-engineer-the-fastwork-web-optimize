@@ -225,6 +225,29 @@ export async function settleInPage(arg) {
 }
 
 /**
+ * Bring a part into view: scroll the first of its nodes that the engine has skipped (content-visibility:auto) to the middle of
+ * the viewport, then wait two real frames so the engine applies the new visibility. Returns how many nodes were skipped before
+ * the scroll. The gate then settles and reads the part again (Lean Fw.Gate.Settle.view).
+ * arg: { roots: [selector] }
+ */
+export async function bringInPage(arg) {
+  const skipped = (el) => { try { return !!el.checkVisibility && el.checkVisibility() && !el.checkVisibility({ contentVisibilityAuto: true }); } catch { return false; } };
+  const all = [];
+  for (const sel of arg.roots) for (const el of Array.from(document.querySelectorAll(sel)).slice(0, 64)) all.push(el);
+  const hit = all.filter(skipped);
+  if (hit.length > 0) hit[0].scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+  for (let i = 0; i < 2; i++) await new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 250); });
+  return { skippedBefore: hit.length, scrollY: window.scrollY };
+}
+
+/** Back to the top of the page after bringInPage, then two real frames. */
+export async function scrollTopInPage() {
+  window.scrollTo(0, 0);
+  for (let i = 0; i < 2; i++) await new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 250); });
+  return window.scrollY;
+}
+
+/**
  * Collect the raw facts of one arm in its current state.
  * arg: { site: 'orig'|'rewrite', conditions: [{tsId, css, legacyCss}], neutral: [{tsId, css}], dprWanted, widthWanted,
  *        parts: { [partId]: [{ role, selector, rect }] }, props: { [partId]: { [role]: string[] } } | null, filter: string }
@@ -274,6 +297,24 @@ export function collectInPage(arg) {
     try { walk(sheet.cssRules); } catch { /* cross-origin sheet: not part of either arm */ }
   }
   const matches = (el, sel) => { try { return el.matches(sel); } catch { return false; } };
+  // Whether the engine has the node's subtree skipped (content-visibility:auto, off screen): rendered by the DOM
+  // (checkVisibility() true) but not by contentVisibilityAuto. Read for every probed node BEFORE any rect or style is read: a
+  // style read forces a skipped subtree's lock open for the length of the read (premise cv.read-forces-lock). An engine without
+  // the option reports nothing skipped. Premise cv.skip-flag. Only when the caller asks (`flagSkipped`: the probes, which load
+  // fresh): bringing a part into view starts its animations (commission typing), and a sweep carries that state to all later stops
+  // (CI run 39084163586: 111 of 114 samples of one sweep ended unsettled), so sweeps read as before.
+  const skippedOf = new Map();
+  if (arg.props && arg.flagSkipped) {
+    for (const roles of Object.values(arg.parts)) {
+      for (const { selector } of roles) {
+        for (const el of Array.from(document.querySelectorAll(selector)).slice(0, 64)) {
+          let sk = false;
+          try { sk = !!el.checkVisibility && el.checkVisibility() && !el.checkVisibility({ contentVisibilityAuto: true }); } catch { sk = false; }
+          skippedOf.set(el, sk);
+        }
+      }
+    }
+  }
 
   for (const [pid, roles] of Object.entries(arg.parts)) {
     out.parts[pid] = {};
@@ -291,9 +332,9 @@ export function collectInPage(arg) {
         const cs = getComputedStyle(el);
         const style = {};
         for (const n of names) style[n] = cs.getPropertyValue(n);
-        // No item is flagged unrendered: a content-visibility skip is no reason to drop a probe (premise-tests run 39076735134: an
-        // auto margin there resolves to px). summary.mjs maskNotRendered acts only on an item that carries `skipped: true`.
-        return { rect, style };
+        // An item read in a skipped subtree carries `skipped: true`: the gate brings its part into view and reads again
+        // (run.mjs, Lean Fw.Gate.Settle.view); one still skipped then is masked by summary.mjs maskNotRendered.
+        return skippedOf.get(el) ? { rect, style, skipped: true } : { rect, style };
       });
       out.parts[pid][role] = { count: els.length, declared: Array.from(declared).sort(), items: arg.props ? items : [] };
     }
