@@ -1010,6 +1010,9 @@
         "cut": {
           "type": "boolean"
         },
+        "evidenceOnMain": {
+          "type": "boolean"
+        },
         "live": {
           "maxItems": 64,
           "type": "array",

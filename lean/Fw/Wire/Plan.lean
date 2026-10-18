@@ -10,7 +10,7 @@ same flat event envelope as the other console commands (`key`, `ts`, `actor`, `t
 
 | type | fields |
 |---|---|
-| `task.define` | `task`, `title`, `stream`, `owner`, `deps` (required); `milestone`, `evidence` (string or null/missing), `writes`, `devices`, `needs`, `live` (string arrays, missing = `[]`), `cut` (boolean, missing = `false`) |
+| `task.define` | `task`, `title`, `stream`, `owner`, `deps` (required); `milestone`, `evidence` (string or null/missing), `writes`, `devices`, `needs`, `live` (string arrays, missing = `[]`), `cut` (boolean, missing = `false`), `evidenceOnMain` (boolean, missing or null = `true`: the glue's `git merge-base --is-ancestor <evidence> main`; written only when false) |
 | `task.drop` | `task` |
 | `task.claim` | `task`, `agent` |
 | `task.done` | `task`, `evidence` |
@@ -48,12 +48,20 @@ def boolD (j : Json) (k : String) : Except String Bool :=
   | some (.bool b) => .ok b
   | some _ => .error s!"field {k}: expected a boolean"
 
+/-- An optional boolean field that defaults to true: missing or `null` is `true`. -/
+def boolT (j : Json) (k : String) : Except String Bool :=
+  match opt j k with
+  | none | some .null => .ok true
+  | some (.bool b) => .ok b
+  | some _ => .error s!"field {k}: expected a boolean"
+
 /-- Decode a `task.define` payload. -/
 def defOfJson (j : Json) : Except String Def := do
   pure { task := ← str j "task", title := ← str j "title", stream := ← str j "stream",
          milestone := ← optStr j "milestone", deps := ← strs j "deps", owner := ← str j "owner",
          writes := ← strsD j "writes", devices := ← strsD j "devices", needs := ← strsD j "needs",
-         evidence := ← optStr j "evidence", cut := ← boolD j "cut", live := ← strsD j "live" }
+         evidence := ← optStr j "evidence", cut := ← boolD j "cut", live := ← strsD j "live",
+         onMain := ← boolT j "evidenceOnMain" }
 
 /-- Decode a plan command of the given type; `none` when the type is not a plan type. -/
 def cmdOfJson (t : String) (j : Json) : Option (Except String Cmd) :=
@@ -87,6 +95,7 @@ def cmdFields : Cmd → List (String × Json)
       ("evidence", ostr d.evidence)]
       ++ (if d.cut then [("cut", .bool true)] else [])
       ++ (if d.live.isEmpty then [] else [("live", strsJson d.live)])
+      ++ (if d.onMain then [] else [("evidenceOnMain", .bool false)])
   | .drop x => [("task", .str x)]
   | .claim x a => [("task", .str x), ("agent", .str a)]
   | .done x e => [("task", .str x), ("evidence", .str e)]
