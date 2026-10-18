@@ -3394,6 +3394,27 @@
         "T:11956"
       ],
       "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m175",
+      "classId": "c-unearned-claim",
+      "title": "Engine goldens P1/P4 \"scroll-driven style = 0\" on WebKit: a premise taken as fact without a measurement",
+      "when": "engine-webkit-lean and proof-hero-exit, before 08987df",
+      "who": "engine-webkit-lean / proof-hero-exit agents",
+      "symptom": "webkit.jsonl P1/P4 and hero-exit.jsonl predicted RecalculateStyles/styleRecalcs <o for scroll-timeline animations; WKTR measured exactly 1 style recalc per rendering update (53/53, 159/159).",
+      "rootCause": "The WebKit model let an accelerated scroll-driven animation skip style (compositor-only) because the time-based case does; that premise was read from source structure, never measured, and no registry entry or test stood behind the golden rows, so wkVar_eq, wk_var_exact and wk_trade (any cs) were proved on top of it.",
+      "detectedBy": "wktr-p1p4 WKTR fixtures on CI (run 39075991405)",
+      "cost": "two wrong golden rows per consumer, 3 false theorems in HeroExitOpt, task hero-exit-restate",
+      "leanVerdict": "partly",
+      "leanReason": "The model was proved, the premise was not: Lean can only prove premise => conclusion. Now the premise is WktrStyleRate.Holds, an explicit hypothesis of style_rate_model and the restated wk_var_exact / wk_trade, registered as wktr_scroll_timeline_restyle (kind lane, .github/workflows/wktr-fixtures.yml; lint: a lane premise must name an existing workflow). Hardening (concrete): every row of packages/contracts/golden/engine/*.jsonl carries a premise field naming a registry id with a test (page test in packages/premise-tests or lane workflow), and fw premises (Lean Fw.Ops.Premise) fails on a row without one or with an id that is not covered.",
+      "empiricalCheck": "wktr-fixtures.yml (styleRecalcs per update: control 0, scroll timeline 1, time-accelerated 0)",
+      "evidence": [
+        "commit 08987df",
+        "docs/team/handoffs/wktr-p1p4.md",
+        "lean/Fw/Engine/WebKit.lean style_rate_old_refuted",
+        "lean/Fw/Parts/HeroExitOpt.lean wk_trade_not_general"
+      ],
+      "evidenceStatus": "MEASURED"
     }
   ],
   "dropped": [
