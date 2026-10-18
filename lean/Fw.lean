@@ -51,6 +51,7 @@ import Fw.Ops.Premise
 import Fw.Ops.EnginePremise
 import Fw.Ops.Identity
 import Fw.Ops.Wire
+import Fw.Ops.Salvage  -- workflow-salvage: a builder exit without a result (decide, golden text)
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
 import Fw.Wire.Sched
