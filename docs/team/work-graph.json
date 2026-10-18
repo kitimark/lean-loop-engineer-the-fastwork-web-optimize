@@ -4231,8 +4231,9 @@
    "stream": "tooling",
    "milestone": "M5",
    "deps": [
-    "gh-poller",
-    "gate-shard-balance"
+    "ghb-glue",
+    "ghb-runner",
+    "timing-spans"
    ],
    "owner": "lean-prover",
    "writes": [
