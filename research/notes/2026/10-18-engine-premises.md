@@ -43,4 +43,57 @@ iff zero, and <= / < against the base arm". For a frame without forced style or 
 counters in one frame with `s in touched E f`. The `units` component of `Work` (changes per stage) is not observed by a
 presence test; that gap is stated in the registry statement of each moved premise.
 
-Method and results are appended below once the CI runs have been read.
+## Method (CONFIRMED: `.github/workflows/engine-premises.yml`, `packages/measure-chromium/src/premise-*.mjs`, `lean/Fw/Ops/EnginePremise.lean`)
+
+- One generated fixture page per engine; every step is one frame: a single style change on a probe element at a placement
+  (none / own compositing layer / layer child), a bare rAF, or idle. Expected presence per stage comes from the Lean model
+  (`touched`), written to `packages/contracts/golden/ops/engine-premises.jsonl` (251 rows); the TS verdict is a port of the
+  Lean verdict (cell agree / mismatch / unstable / missing; a stage fails if any cell mismatches).
+- Chromium: Docker trace lane with BeginFrameControl (65 cases, 130 steps); counters are trace events bucketed per frame
+  (`FireAnimationFrame`, `FunctionCall`, `UpdateLayoutTree`, `Layout`, `PrePaint`, `Paint`, `RasterTask`, `cc.Commit`,
+  `HitTest`). Six warm frames follow trace start and are dropped: Tracing.start forces one full repaint at the second
+  commit after it starts (INFERRED from the trace). `raster.invalidationRects` is unusable (stale per-layer rects).
+- WebKit: WKTR cases mode on the Simulator, `internals` counters sampled in rAF (30 cases, 60 steps).
+- Excluded cases (6 Chromium, 27 WebKit) are property/placement pairs the engine cannot form.
+- Gap: a presence test sees neither `units` nor forced passes nor the ordering against the base arm; each moved premise
+  states this in its registry statement.
+
+## Results (MEASURED: run 39088367495, commit 485b013; 3 independent Chromium jobs, 3 WebKit jobs x 2 passes; no unstable cell)
+
+| Premise | Verdict | Cells (agree / mismatch) |
+|---|---|---|
+| cr.script, cr.style, cr.commit | holds | 130 / 0 |
+| wk.style, wk.commit | holds | 60 / 0 |
+| cr.layout | fails | 129 / 1 |
+| cr.props | fails | 129 / 1 |
+| cr.paint | fails | 126 / 4 |
+| cr.raster | fails | 125 / 5 |
+| cr.hits | fails | 112 / 18 |
+| wk.layout | fails | 58 / 2 |
+| wk.props | fails | 50 / 10 |
+| wk.script, wk.paint, cr.comp, cr.signature, cr.mode | not measured | no counter / needs real Chrome |
+
+Five hold and move into `registry` (lane `engine-premises.yml`). Seven fail and stay in `untestedPremises` with the
+counterexamples recorded in `refutedPremises`. Five cannot be measured with our counters. Untested remaining: 12 (7
+refuted, 5 unmeasurable); 100 of the 253 golden rows now rest only on measured premises, 153 still cite one of the 12.
+
+### Findings (MEASURED counterexamples; the mechanisms are INFERRED and untested)
+
+| Premise | Counterexample (all passes agree) | Likely mechanism | Rows citing it |
+|---|---|---|---|
+| cr.layout | transform none<->some at an own layer: model Layout, observed none | a transform change never needs layout; the model's `layoutFull` level over-counts at `@own` | 38 rows, 10 files (levels layoutFull) |
+| cr.props | a bare rAF frame after `padding@own` runs PrePaint (one cell, step 126) | lagging property update of the previous layout change | 13 rows, 7 files |
+| cr.paint | `top`, `left`, `margin`, transform none<->some at an own layer run no Paint (model runs) | the own layer is moved without repaint | 18 rows, 9 files |
+| cr.raster | `scale@own`, `filter(blur)@own` run RasterTask (model none); `top`, `left`, `margin` at own run none (model runs) | scale and blur re-raster the layer; position at an own layer only moves it | 6 rows, 3 files |
+| cr.hits | every layout-affecting set step (transform none<->some at none/layer, top/left at layer/own, width, height, margin, padding at all placements) also runs HitTest | hover/hit-test update after layout | 2 rows (nav-hittest) |
+| wk.layout | `filter` at layer and own run layoutUpdates (model none) | filter changes visual overflow | 23 rows, 10 files |
+| wk.props | compositingUpdates runs for transform, opacity, filter at layer and background, color, mask, insetAbs at own/layer (model none); `opacity@own` runs none (model runs) | WebKit re-evaluates compositing on more changes than the model's table | 5 rows, 2 files |
+
+Row counts per file are from `lean/scripts/EngineCiteLint.lean` (a row cites a premise by file, engine and stage); a row
+breaks only if its scenario's change is one of the counterexamples, which the golden rows do not record per property.
+
+General lesson: the stage rules hold for the stages that every engine runs per frame regardless of layer (script, style,
+commit) and fail at the compositor boundary (layout, paint, raster, props of an own layer), where the model's levels are
+coarser than the engine. Parts whose theorems rest on those stages for promoted elements (hero-exit, morph-mount,
+morph-panel, people-card, people-deck, pain-notes, nav-hittest) are sound only where their change avoids the counterexample
+list. A model fix would split `layoutPos`, `layoutFull` and `paint` per placement (a follow-up for the model owner).
