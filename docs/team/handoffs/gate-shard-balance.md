@@ -7,7 +7,7 @@ force-pushed). `sh lean/scripts/check.sh` green. Package tests green (`node --te
 - 5107fcc: engine verdict counts unsettled from the Lean settle wait (`Fw.Gate.Exit`, `exit.jsonl`).
 - Frozen page clock in both arms: `lean/Fw/Gate/Freeze.lean`, `golden/gate/freeze.jsonl`, `src/freeze.mjs`, `page.mjs` (KIT_SRC,
   freezeAnimations), `engines.mjs` (freezeClock; Chromium now playwright-core with CDP emulation), `run.mjs` (resizeTo, frozen).
-  `FW_GATE_FROZEN=0` is a debug switch; the gaps lane stays native. check.sh stage `GateGolden.lean` checks exit and freeze goldens.
+  `FW_GATE_FROZEN=0` is a debug switch; the gaps lane stays native. `test/freeze.test.mjs` checks freeze.jsonl and exit.jsonl against the Lean bytes (lean/scripts is outside this task's scope).
 - anchors.json: mount steps of morph.countdown and morph.columns carry `kind: mount`; the runner refuses unknown kinds.
 
 ## Result (MEASURED, 3 runs on d9a6744 -> 39115860145, 39115867180, 39116538316)

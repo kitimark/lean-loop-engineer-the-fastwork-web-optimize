@@ -3,7 +3,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { GATE_POLICY } from '../src/settle.mjs';
 import { GRID_MS, HOLD_LOAD_MS, POST_RESIZE_MS, READY_TO_MS, STEP_MS, alignTarget, freezeTime, frozenWait } from '../src/freeze.mjs';
 import { KIT_SRC, freezeAnimations } from '../src/page.mjs';
@@ -73,4 +76,17 @@ test('the harness grid: a stop plus the settle span fits one grid cell, and the 
   }
   // two arms anywhere inside the same cell go to the same instant (Lean alignTarget_eq)
   assert.equal(alignTarget(10000), alignTarget(11975));
+});
+
+test('exit.jsonl is the bytes Lean generates (Fw.Gate.Exit.goldenLines)', { skip: !existsSync(resolve(ROOT, 'lean/.lake/build')) && 'lean not built' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'exitgen-'));
+  try {
+    const driver = join(dir, 'ExitGenDriver.lean');
+    writeFileSync(driver, 'import Fw.Gate.Exit\ndef main : IO Unit := IO.print (String.intercalate "" (Fw.Gate.Exit.goldenLines.map (· ++ "\\n")))\n');
+    const r = spawnSync('lake', ['env', 'lean', '--run', driver], { cwd: resolve(ROOT, 'lean'), encoding: 'utf8', maxBuffer: 1 << 26 });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, readFileSync(resolve(ROOT, 'packages/contracts/golden/gate/exit.jsonl'), 'utf8'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
