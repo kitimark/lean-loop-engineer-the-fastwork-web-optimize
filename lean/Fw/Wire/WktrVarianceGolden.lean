@@ -6,8 +6,9 @@ import Lean.Data.Json
 `packages/contracts/golden/measure/wktr.variance.jsonl`, one JSON object per line, `kind` says which:
 
 * `diffCase`: two class-kind tables and the keys `Fw.Measure.WktrVariance.differs` returns (sorted, once each).
-* `findingsCase`: a baseline, a candidate, the serial runs, the `varying` keys, the `findings` and the `claim` verdict.
-* `typeCase`: the same at the count-type yardstick (`findingsBy typeOf`, `claimBy typeOf`).
+* `findingsCase`: serial runs (id and table), a baseline and a candidate run, the `rivals` ids (the runs of the set with the id of neither side), their
+  distinct count `nBaselines`, the `varying` keys among the rivals, the `findings` and the `claim` verdict.
+* `typeOfCase`: a key and `typeOf` of it (a descriptive label; no verdict uses it).
 * `pairCase`: runs and `pairDiffs`.
 * `overlapCase`, `rangeCase`: the timing-range rules.
 
@@ -49,27 +50,24 @@ def diffCases : List Json :=
     Json.mkObj [("kind", Json.str "diffCase"), ("name", Json.str s!"{n}-{m}"), ("a", tableJson a), ("b", tableJson b),
       ("differs", strs (sortUniq (differs a b)))]
 
+def runJson (r : Run) : Json := Json.mkObj [("id", (r.1 : Json)), ("table", tableJson r.2)]
+
 def findingsCases : List Json :=
-  let sets : List (String × List Table) :=
-    [("none", []), ("one", [t1]), ("t1t2", [t1, t2]), ("t1t2t3", [t1, t2, t3]), ("t1t1", [t1, t1])]
-  (sets.flatMap fun (sn, rs) => [("t1", t1, "t2", t2), ("t1", t1, "t3", t3), ("t1", t1, "t4", t4), ("t2", t2, "t4", t4)].map
-      fun (bn, b, cn, c) => (sn, rs, bn, b, cn, c)).map fun (sn, rs, bn, b, cn, c) =>
-    Json.mkObj [("kind", Json.str "findingsCase"), ("name", Json.str s!"{sn}-{bn}-{cn}"), ("runs", Json.arr (rs.map tableJson).toArray),
-      ("base", tableJson b), ("cand", tableJson c), ("varying", strs (sortUniq (varying rs))),
-      ("findings", strs (sortUniq (findings b c rs))), ("claim", Json.str (verdictName (claim b c rs)))]
+  let sets : List (String × List Run) :=
+    [("none", []), ("one", [(1, t1)]), ("t1t2", [(1, t1), (2, t2)]), ("t1t2t3", [(1, t1), (2, t2), (3, t3)]),
+     ("dup", [(1, t1), (1, t1)]), ("twin", [(1, t1), (9, t1)]), ("selfIn", [(10, t1), (11, t2), (12, t3)])]
+  let pairs : List (String × Run × Run) :=
+    [("a", (10, t1), (11, t2)), ("b", (10, t1), (12, t3)), ("c", (10, t1), (13, t4)), ("d", (20, t2), (13, t4))]
+  (sets.flatMap fun (sn, rs) => pairs.map fun (pn, b, c) => (sn, rs, pn, b, c)).map fun (sn, rs, pn, b, c) =>
+    let rv := rivals b c rs
+    Json.mkObj [("kind", Json.str "findingsCase"), ("name", Json.str s!"{sn}-{pn}"), ("runs", Json.arr (rs.map runJson).toArray),
+      ("base", runJson b), ("cand", runJson c), ("rivals", Json.arr (rv.map fun r => (r.1 : Json)).toArray),
+      ("nBaselines", (nBaselines rv : Json)), ("varying", strs (sortUniq (varying (rv.map Prod.snd)))),
+      ("findings", strs (sortUniq (findings b.2 c.2 (rv.map Prod.snd)))), ("claim", Json.str (verdictName (claim b c rs)))]
 
-private def u1 : Table := [("a/live/lu", .det), ("b/live/lu", .quar), ("a/live/sr", .det)]
-private def u2 : Table := [("a/live/lu", .stable), ("b/live/lu", .quar), ("a/live/sr", .det)]
-private def u3 : Table := [("a/live/lu", .det), ("b/live/lu", .stable), ("a/live/sr", .det)]
-private def u4 : Table := [("a/live/lu", .det), ("b/live/lu", .quar), ("a/live/sr", .stable), ("c/live-trace/lu", .det)]
-
-def typeCases : List Json :=
-  let sets : List (String × List Table) := [("none", []), ("u1u2", [u1, u2]), ("u1u2u3", [u1, u2, u3]), ("u1u1", [u1, u1])]
-  (sets.flatMap fun (sn, rs) => [("u1", u1, "u3", u3), ("u1", u1, "u4", u4), ("u3", u3, "u4", u4)].map
-      fun (bn, b, cn, c) => (sn, rs, bn, b, cn, c)).map fun (sn, rs, bn, b, cn, c) =>
-    Json.mkObj [("kind", Json.str "typeCase"), ("name", Json.str s!"{sn}-{bn}-{cn}"), ("runs", Json.arr (rs.map tableJson).toArray),
-      ("base", tableJson b), ("cand", tableJson c),
-      ("findings", strs (sortUniq (findingsBy typeOf b c rs))), ("claim", Json.str (verdictName (claimBy typeOf b c rs)))]
+def typeOfCases : List Json :=
+  ["control-f1/live/layoutUpdates", "a/live-trace/renderingUpdates", "x", "a/b"].map fun k =>
+    Json.mkObj [("kind", Json.str "typeOfCase"), ("key", Json.str k), ("type", Json.str (typeOf k))]
 
 def pairCases : List Json :=
   [[], [t1], [t1, t2], [t1, t2, t3], [t1, t2, t3, t4]].map fun rs =>
@@ -77,7 +75,7 @@ def pairCases : List Json :=
       ("pairDiffs", Json.arr ((pairDiffs rs).map fun (n : Nat) => (n : Json)).toArray)]
 
 def overlapCases : List Json :=
-  ([((687, 874), (572, 976)), ((1, 2), (3, 4)), ((3, 4), (1, 2)), ((1, 3), (3, 5)), ((5, 5), (5, 5)), ((0, 0), (1, 1))] :
+  ([((687, 874), (572, 976)), ((1, 2), (3, 4)), ((3, 4), (1, 2)), ((1, 3), (3, 5)), ((5, 5), (5, 5)), ((0, 0), (1, 1)), ((2, 1), (1, 2))] :
       List ((Nat × Nat) × (Nat × Nat))).map fun (a, b) =>
     Json.mkObj [("kind", Json.str "overlapCase"), ("a", Json.arr #[(a.1 : Json), (a.2 : Json)]),
       ("b", Json.arr #[(b.1 : Json), (b.2 : Json)]), ("overlap", Json.bool (overlap a b))]
@@ -90,7 +88,7 @@ def rangeCases : List Json :=
         | none => Json.null)]
 
 /-- The lines of the file. -/
-def cases : List Json := diffCases ++ findingsCases ++ typeCases ++ pairCases ++ overlapCases ++ rangeCases
+def cases : List Json := diffCases ++ findingsCases ++ typeOfCases ++ pairCases ++ overlapCases ++ rangeCases
 
 def text : String := String.join (cases.map fun j => j.compress ++ "\n")
 
