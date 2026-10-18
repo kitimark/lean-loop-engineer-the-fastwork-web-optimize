@@ -20,7 +20,8 @@ The v1 repo `../fastwork-com-web-optimize` is read-only reference.
   send a shutdown message to an expired agent (it re-reads its whole context).
 - **Review loops (lead):** after a task's 2nd refused review of the same kind (each round patching the reviewer's
   newest probe), stop patching: write the threat model (what the check must catch, what it need not), pick a closed
-  design (allowlist over deny-list, identity over inference, one canonical source over author-chosen inputs), name the
+  design (allowlist over deny-list, identity over inference, one canonical source over author-chosen inputs, each unit
+  decided on its own over a pooled or any-of aggregate), name the
   next round "final design round" and list its accepted limits for the reviewer to judge against. Incident
   `inc-review-loop` (docs/team/incidents/ledger.json).
 - **Helpers:** lean-prover, researcher, plan-editor, measure-engineer and console-builder may spawn `scout`, `runner`,
