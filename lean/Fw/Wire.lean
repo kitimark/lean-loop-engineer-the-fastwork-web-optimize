@@ -18,6 +18,7 @@ import Fw.Wire.Console
 import Fw.Wire.Store
 import Fw.Ci.Wire
 import Fw.Ops.CheckMap
+import Fw.Lint.Context
 /-!
 # JSON-lines protocol (the only boundary the TypeScript shell sees)
 
@@ -450,6 +451,7 @@ def ops : List String :=
   ++ Fw.Wire.Store.ops -- store-and-run: store.plan, store.manifest, store.objectPath, store.reduce
   ++ Fw.Wire.Ci.ops -- ghb-lean: ci.budget.*
   ++ Fw.Wire.CheckMap.ops -- check-map-lean: ops.checkMap, ops.checkVerdict
+  ++ Fw.Wire.Lint.ops -- context-slop: lint.context
   ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
@@ -491,6 +493,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.CheckMap.handle other req with  -- check-map-lean
+    | some r => r
+    | none =>
+    match Fw.Wire.Lint.handle other req with  -- context-slop: lint.context
     | some r => r
     | none => throw s!"unknown op {other}"
 
