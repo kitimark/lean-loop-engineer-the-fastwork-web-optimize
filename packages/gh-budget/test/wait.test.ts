@@ -86,6 +86,8 @@ test("verdict: a run passes only if some non-guard job ran and every job that ra
   assert.equal(bad.res[0]!.code, 1);
   const g = await wait(1, [run(16, { conclusion: "failure", jobs: [{ ...guard, conclusion: "failure" }, { name: "a", conclusion: "skipped" }] })], { kind: "run", runId: 16 });
   assert.equal(g.res[0]!.code, 1, "a failed guard is a failure, not a skip");
+  const old = await wait(1, [run(17, { jobs: [{ name: "build", conclusion: "success" }] })], { kind: "run", runId: 17 });
+  assert.equal(old.res[0]!.code, 0, "a workflow without a guard job (a branch before ci-trigger-lean) passes on its jobs");
 });
 
 test("not run: a branch wait whose decisive runs were all guard-skipped is exit 4; one pass among them passes", async () => {

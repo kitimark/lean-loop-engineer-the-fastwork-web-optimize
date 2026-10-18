@@ -215,7 +215,11 @@ def stepOf (j : Json) : Except String (String × Fw.Ci.Verdict.Concl) := do
 
 /-- One run's verdict as JSON: `{verdict, code, reason}`. -/
 def runVerdict (j : Json) : Except String (Fw.Ci.Verdict.Verdict × Json) := do
-  let g ← conclField j "guard"
+  -- no `guard` key: the run's workflow has no guard job (a branch based before task ci-trigger-lean), so nothing was
+  -- decided away and the guard counts as `success`; a present key (also `null`) is read as a conclusion
+  let g ← match j.getObjVal? "guard" with
+    | .error _ => pure Fw.Ci.Verdict.Concl.success
+    | .ok _ => conclField j "guard"
   let steps ← (← arrD j "steps").mapM stepOf
   let jobs ← (← arrD j "jobs").mapM fun v => do pure (Fw.Ci.Verdict.conclOf (← asStr "jobs" v))
   let v := Fw.Ci.Verdict.verdict ⟨g, Fw.Ci.Verdict.decisionOf steps, jobs⟩
@@ -224,7 +228,8 @@ def runVerdict (j : Json) : Except String (Fw.Ci.Verdict.Verdict × Json) := do
     ("reason", .str reason)])
 
 /-- `ci.verdict`: request `{runs:[{guard, steps:[{name, conclusion}], jobs:[conclusion]}]}` (`guard`: the guard job's
-conclusion; `steps`: its steps; `jobs`: every other job's conclusion); reply `{runs:[{verdict, code, reason}], verdict,
+conclusion, the key absent when the workflow has no guard job, `null` while it runs; `steps`: its steps; `jobs`: every
+other job's conclusion); reply `{runs:[{verdict, code, reason}], verdict,
 code}` with the combined verdict (`Fw.Ci.Verdict.combine`). -/
 def opVerdict (req : Json) : Except String Reply := do
   let rs ← (← arrD req "runs").mapM runVerdict
@@ -319,5 +324,10 @@ def sample : State where
   "[{\"code\":4,\"reason\":\"no input changed\",\"verdict\":\"not-run\"}]"
 #guard runField "ci.verdict" "{\"runs\":[{\"guard\":\"success\",\"jobs\":[\"success\",\"failure\"]},{\"guard\":\"skipped\"}]}" "code" == "1"
 #guard runField "ci.verdict" "{\"runs\":[]}" "code" == "4"
+-- no guard key (a workflow without a guard job): pass iff a job ran and all that ran succeeded; a null guard (still
+-- running) is not a pass
+#guard runField "ci.verdict" "{\"runs\":[{\"jobs\":[\"success\",\"success\"]}]}" "code" == "0"
+#guard runField "ci.verdict" "{\"runs\":[{\"jobs\":[\"skipped\"]}]}" "code" == "4"
+#guard runField "ci.verdict" "{\"runs\":[{\"guard\":null,\"jobs\":[\"success\"]}]}" "code" == "1"
 
 end Fw.Wire.Ci
