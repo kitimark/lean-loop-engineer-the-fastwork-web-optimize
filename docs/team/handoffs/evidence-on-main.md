@@ -24,7 +24,6 @@ State: committed on the worktree branch (task `evidence-on-main`; incidents `inc
 - `fw land`'s after-sync throws when the graph holds off-main evidence (it names the sha).
 - Math view (docs/plan/loop-plan.html) still lists apply_isDone/project_isDone; regenerate with `lake exe mathview`.
 - Outside the writes list: lean/Fw/{Console,Wire/Plan,Wire/Console}.lean, apps/runner/src/fw.ts,
-  apps/runner/test/plan.test.ts, packages/contracts/{schema,golden/plan}, .github/workflows/visual-diff.yml
-  (ci-paths: Core now imports Lint).
+  apps/runner/test/plan.test.ts, packages/contracts/{schema,golden/plan}.
 
 Read first: Core.lean module doc bullet "Evidence on main", then section "Done and landed".
