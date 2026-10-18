@@ -19,8 +19,12 @@ backgrounded long unit (`bgLong`: use the tool's `run_in_background`, which has 
 `while`/`until` up to `do`; the body cannot bound or unbound a loop, `body_irrelevant`): an and-or list combined by
 bash's exit rule (`comb`) in which a test of the allowlist grammar B (`atomParse`, `relOk`) decides the exit: a plain
 variable (`$v`, `${v}`, `"$v"`, or a bare name in `(( ))`) ordered against a decimal literal (`[ $i -lt 10 ]`,
-`[[ $SECONDS -ge 600 ]]`, `(( i < 10 ))`), never a special variable, and a clock only in the exit direction
-(`grammar_only`, `subst_never_bound`, `seconds_direction`). Everything else (command substitution, `$((..))`,
+`[[ $SECONDS -ge 600 ]]`, `(( i < 10 ))`). The variable rule is closed (`varOk`, `var_allow_iff`): either `SECONDS`
+with a limit of at most 86400 and only in the exit direction (`seconds_capped`, `seconds_direction`), or a lowercase
+name (`^[a-z][a-z0-9_]*$`) that the command set to a decimal literal at its top level before the loop (`i=0; while
+...`, `addSeg_asg`) and that is not one of zsh's lowercase special parameters (`zshLowerSpecials`, from zsh 5.9
+`Src/params.c`). Every other uppercase name is out of B with no list (`upper_never_bound`); also
+`grammar_only`, `subst_never_bound`. Everything else (command substitution, `$((..))`,
 `${v:-..}`, a limit held in a variable, string tests, `!`, polls) is unbounded. Or a read loop `while read [opts] [names]; do ... done` over a finite input: a file, a here-document,
 a here-string with no command substitution or a finite one, or an allowlisted finite producer piped in or given as
 `< <(...)`. A condition that runs `read` on an input not known finite is unbounded whatever else it tests
@@ -38,7 +42,8 @@ Known blind spots (shadow-logged, not claimed): code inside `$( )`, `( )`, `{ }`
 `sh -c '...'` strings, aliases, `for ((;;))`, variables naming a device or a FIFO (`< "$f"`), a FIFO or `/proc` file
 named by a plain path (`cat fifo`, `cat /proc/kmsg`), a command substitution in
 an unquoted here-document body, and a here-document operator glued to a word or inside arithmetic (`cat<<EOF`,
-`$((1 << 2))`), a single-quoted `'$i'` read as a variable, an unset or non-numeric counter, `eval` strings.
+`$((1 << 2))`), a single-quoted `'$i'` read as a variable, a counter or `SECONDS` reset in the loop body, `eval`
+strings, special parameters that zsh modules add (`zsh/parameter`, `zsh/datetime`).
 -/
 namespace Fw.Ops.Wait
 
@@ -584,40 +589,72 @@ $$\mathrm{down}(r) \iff r \in \{\mathrm{lt}, \mathrm{le}\}$$
 def Rel.down : Rel → Bool
   | .lt => true | .le => true | _ => false
 
-/-- Variables that are never a bound: the shell sets them itself and they do not move towards a limit (random, fixed
-for the loop, or reset by every command like `_`), or they may be unset in the tool shell: `EPOCHSECONDS` and
-`EPOCHREALTIME` exist in zsh only after `zmodload zsh/datetime`, and an unset operand makes `[ -ge N ]` an error, so
-an `until` loop on it never exits.
+/-- A character of a lowercase name after its first: `a-z`, `0-9` or `_`.
 
-$$\mathrm{noBoundVars} = [\texttt{RANDOM}, \texttt{SRANDOM}, \texttt{LINENO}, \texttt{BASHPID}, \texttt{PPID}, \texttt{UID}, \texttt{EUID}, \texttt{HISTCMD}, \texttt{EPOCHREALTIME}, \texttt{EPOCHSECONDS}, \texttt{BASH\_SUBSHELL}, \texttt{SHLVL}, \texttt{\_}, \texttt{OPTIND}, \texttt{LINES}, \texttt{COLUMNS}, \texttt{BASH\_ARGC}]$$
+$$\mathrm{lowerChar}(c) \iff c \in \{\texttt{a-z}, \texttt{0-9}, \texttt{\_}\}$$
 -/
-def noBoundVars : List String :=
-  ["RANDOM", "SRANDOM", "LINENO", "BASHPID", "PPID", "UID", "EUID", "HISTCMD", "EPOCHREALTIME", "EPOCHSECONDS",
-    "BASH_SUBSHELL", "SHLVL", "_", "OPTIND", "LINES", "COLUMNS", "BASH_ARGC"]
+def lowerChar (c : Char) : Bool := c.isLower || c.isDigit || c == '_'
 
-/-- The clocks: variables the shell moves up by itself (in bash and in zsh), so their direction is known.
+/-- A lowercase variable name, the pattern `^[a-z][a-z0-9_]*$`: a letter `a-z` first, then only `lowerChar`s. Every
+variable bash sets itself is uppercase (bash manual, Shell Variables; INFERRED, bash source not pinned), so a lowercase
+name is a user variable unless zsh reserves it (`zshLowerSpecials`).
 
-$$\mathrm{clocks} = [\texttt{SECONDS}]$$
+$$\mathrm{isLowerName}([\,]) = \bot, \qquad \mathrm{isLowerName}(c :: r) \iff c \in \texttt{a-z} \land \forall x \in r.\ \mathrm{lowerChar}(x)$$
 -/
-def clocks : List String := ["SECONDS"]
+def isLowerName : List Char → Bool
+  | c :: r => c.isLower && r.all lowerChar
+  | [] => false
 
-/-- The variable side of a bound test $n\ r\ N$ in a loop ($u$: an `until` loop): $n$ is not in `noBoundVars`, and a
-clock must move towards the exit: a `while` loop exits when the test fails, so it needs `<`/`≤`; an `until` loop exits
-when it holds, so it needs `>`/`≥`. Any other variable is a counter assumed to move towards its limit (a heuristic).
+/-- The lowercase special parameters of zsh 5.9, each with its line in the table `special_params[]` of `Src/params.c`
+at zsh-users/zsh@73d3173 (tag `zsh-5.9`, `refs/upstream/sources.lock.yaml` entry `zsh`; CONFIRMED). These are all the
+lowercase names of that table (l.295-442): the shell sets them itself (`status`, `pipestatus`, `argv`) or ties them to
+an uppercase variable (`path`, `fpath`, ...). Check: `awk 'NR>=295 && NR<=442' Src/params.c | grep -o
+'"[a-z][a-z0-9_]*"' | sort -u` prints exactly these 14 names. Not covered: parameters that loadable modules add (for
+example `zsh/parameter`, `zsh/datetime`), which the tool shell does not load by default.
 
-$$\mathrm{varOk}(u, n, r) \iff n \notin \mathrm{noBoundVars} \land (n \in \mathrm{clocks} \Rightarrow (\mathrm{down}(r) \iff \lnot u))$$
+$$\mathrm{zshSpecialRows} = [(\texttt{histchars}, 314), (\texttt{status}, 418), (\texttt{prompt}, 419), (\texttt{argv}, 425), (\texttt{fignore}, 426), (\texttt{cdpath}, 427), (\texttt{fpath}, 428), (\texttt{mailpath}, 429), (\texttt{manpath}, 430), (\texttt{psvar}, 431), (\texttt{zsh\_eval\_context}, 433), (\texttt{module\_path}, 435), (\texttt{path}, 436), (\texttt{pipestatus}, 440)]$$
 -/
-def varOk (untl : Bool) (n : String) (r : Rel) : Bool :=
-  !noBoundVars.contains n && (!clocks.contains n || (if untl then !r.down else r.down))
+def zshSpecialRows : List (String × Nat) :=
+  [("histchars", 314), ("status", 418), ("prompt", 419), ("argv", 425), ("fignore", 426), ("cdpath", 427),
+    ("fpath", 428), ("mailpath", 429), ("manpath", 430), ("psvar", 431), ("zsh_eval_context", 433),
+    ("module_path", 435), ("path", 436), ("pipestatus", 440)]
 
-/-- A parsed test $x\ r\ y$ is a bound: one side a variable that passes `varOk`, the other a number (two numbers or two
-variables are not).
+/-- The names of `zshSpecialRows`: zsh's lowercase special parameters, never a loop bound.
 
-$$\mathrm{relOk}(u, x, r, y) = \begin{cases} \mathrm{varOk}(u, n, r) & x = \mathrm{var}(n),\ y = \mathrm{num}(k) \\ \mathrm{varOk}(u, n, \mathrm{flip}(r)) & x = \mathrm{num}(k),\ y = \mathrm{var}(n) \\ \bot & \text{otherwise} \end{cases}$$
+$$\mathrm{zshLowerSpecials} = [\,n \mid (n, \ell) \in \mathrm{zshSpecialRows}\,]$$
 -/
-def relOk (untl : Bool) : Opd → Rel → Opd → Bool
-  | .var n, r, .num _ => varOk untl n r
-  | .num _, r, .var n => varOk untl n r.flip
+def zshLowerSpecials : List String := zshSpecialRows.map (·.1)
+
+/-- The largest limit a `SECONDS` bound may have: one day in seconds. A larger literal is most likely an epoch time
+(`SECONDS` taken for `date +%s`), and the loop would run for decades.
+
+$$\mathrm{secondsCap} = 86400$$
+-/
+def secondsCap : Nat := 86400
+
+/-- **The variable rule of B.** The variable side of a bound test $n\ r\ k$ in a loop ($u$: an `until` loop; $A$: the
+names assigned a decimal literal at the top level of the command before the loop, see `topAsg`). Either $n$ is
+`SECONDS` (the one clock: bash and zsh move it up by themselves), $k \le 86400$, and it moves towards the exit (a
+`while` loop exits when the test fails, so `<`/`≤`; an `until` loop when it holds, so `>`/`≥`); or $n$ is a lowercase
+name that the command assigned before the loop and that zsh does not reserve. Every other name is never a bound: any
+name with an uppercase letter other than `SECONDS` (`BASH_MONOSECONDS`, `PIPESTATUS`, `EPOCHSECONDS`, `RANDOM`), a
+name starting with `_` or a digit, and a counter the command never set. A counter is assumed to move towards its limit
+(a heuristic).
+
+$$\mathrm{varOk}(u, A, n, r, k) = \begin{cases} k \le 86400 \land (\mathrm{down}(r) \iff \lnot u) & n = \texttt{SECONDS} \\ \mathrm{isLowerName}(n) \land n \in A \land n \notin \mathrm{zshLowerSpecials} & \text{otherwise} \end{cases}$$
+-/
+def varOk (untl : Bool) (asg : List String) (n : String) (r : Rel) (k : Nat) : Bool :=
+  if n == "SECONDS" then decide (k ≤ secondsCap) && (if untl then !r.down else r.down)
+  else isLowerName n.toList && asg.contains n && !zshLowerSpecials.contains n
+
+/-- A parsed test $x\ r\ y$ is a bound: one side a variable that passes `varOk` against the number on the other side
+(two numbers or two variables are not).
+
+$$\mathrm{relOk}(u, A, x, r, y) = \begin{cases} \mathrm{varOk}(u, A, n, r, k) & x = \mathrm{var}(n),\ y = \mathrm{num}(k) \\ \mathrm{varOk}(u, A, n, \mathrm{flip}(r), k) & x = \mathrm{num}(k),\ y = \mathrm{var}(n) \\ \bot & \text{otherwise} \end{cases}$$
+-/
+def relOk (untl : Bool) (asg : List String) : Opd → Rel → Opd → Bool
+  | .var n, r, .num k => varOk untl asg n r k
+  | .num k, r, .var n => varOk untl asg n r.flip k
   | _, _, _ => false
 
 /-- Parse three words as operand, relation, operand ($a$: inside `(( ))`).
@@ -699,24 +736,24 @@ def atomParse (ws : List String) : Option (Opd × Rel × Opd) :=
     if (l == "[" && r == "]") || (l == "[[" && r == "]]") then tri false x o y else arithParse ws
   | _ => arithParse ws
 
-/-- One element of a loop condition is a **bound test** in a `while` ($u = \bot$) or `until` ($u = \top$) loop: it
-parses in the grammar (`atomParse`) and the parsed test passes `relOk`. Anything else (`true`, `date`, `[ 1 -lt 2 ]`,
-`[ "$(ls | wc -l)" -gt 0 ]`, `[ $i -lt $n ]`) is not.
+/-- One element of a loop condition is a **bound test** in a `while` ($u = \bot$) or `until` ($u = \top$) loop, given
+the names $A$ assigned before the loop: it parses in the grammar (`atomParse`) and the parsed test passes `relOk`.
+Anything else (`true`, `date`, `[ 1 -lt 2 ]`, `[ "$(ls | wc -l)" -gt 0 ]`, `[ $i -lt $n ]`) is not.
 
-$$\mathrm{boundAtom}(u, W) = \begin{cases} \mathrm{relOk}(u, x, r, y) & \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \\ \bot & \mathrm{atomParse}(W) = \mathrm{none} \end{cases}$$
+$$\mathrm{boundAtom}(u, A, W) = \begin{cases} \mathrm{relOk}(u, A, x, r, y) & \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \\ \bot & \mathrm{atomParse}(W) = \mathrm{none} \end{cases}$$
 -/
-def boundAtom (untl : Bool) (ws : List String) : Bool :=
+def boundAtom (untl : Bool) (asg : List String) (ws : List String) : Bool :=
   match atomParse ws with
-  | some (x, r, y) => relOk untl x r y
+  | some (x, r, y) => relOk untl asg x r y
   | none => false
 
 /-- **boundAtom is membership in B.** An element is a bound test exactly when it parses in the grammar and the parsed
 test passes `relOk`.
 
-$$\forall u, W.\ \mathrm{boundAtom}(u, W) \iff \exists x, r, y.\ \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{relOk}(u, x, r, y)$$
+$$\forall u, A, W.\ \mathrm{boundAtom}(u, A, W) \iff \exists x, r, y.\ \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{relOk}(u, A, x, r, y)$$
 -/
-theorem boundAtom_iff (u : Bool) (ws : List String) :
-    boundAtom u ws = true ↔ ∃ x r y, atomParse ws = some (x, r, y) ∧ relOk u x r y = true := by
+theorem boundAtom_iff (u : Bool) (asg ws : List String) :
+    boundAtom u asg ws = true ↔ ∃ x r y, atomParse ws = some (x, r, y) ∧ relOk u asg x r y = true := by
   unfold boundAtom
   split
   · rename_i x r y h
@@ -729,60 +766,134 @@ theorem boundAtom_iff (u : Bool) (ws : List String) :
   · rename_i h
     simp [h]
 
-/-- The variable of a passing `varOk` is not in `noBoundVars`.
+/-- **The variable rule, as stated.** A variable side passes exactly when it is `SECONDS` with a limit of at most one
+day facing the exit, or a lowercase name assigned before the loop that zsh does not reserve.
 
-$$\forall u, n, r.\ \mathrm{varOk}(u, n, r) \Rightarrow n \notin \mathrm{noBoundVars}$$
+$$\forall u, A, n, r, k.\ \mathrm{varOk}(u, A, n, r, k) \iff (n = \texttt{SECONDS} \land k \le 86400 \land (\mathrm{down}(r) \iff \lnot u)) \lor (\mathrm{isLowerName}(n) \land n \in A \land n \notin \mathrm{zshLowerSpecials})$$
 -/
-theorem varOk_noBound (u : Bool) (n : String) (r : Rel) (h : varOk u n r = true) :
-    noBoundVars.contains n = false := by
-  unfold varOk at h
-  revert h
-  cases noBoundVars.contains n <;> simp
+theorem var_allow_iff (u : Bool) (asg : List String) (n : String) (r : Rel) (k : Nat) :
+    varOk u asg n r k = true ↔ (n = "SECONDS" ∧ k ≤ secondsCap ∧ r.down = !u) ∨
+      (isLowerName n.toList = true ∧ n ∈ asg ∧ n ∉ zshLowerSpecials) := by
+  by_cases hn : n = "SECONDS"
+  · subst hn
+    have hl : isLowerName ['S', 'E', 'C', 'O', 'N', 'D', 'S'] = false := by decide
+    cases u <;> cases r <;> simp [varOk, hl, Rel.down]
+  · simp [varOk, hn, and_assoc]
 
-/-- A clock passes `varOk` only in the exit direction: `<`/`≤` for `while`, `>`/`≥` for `until`.
+/-- A lowercase name has no uppercase letter.
 
-$$\forall u, n, r.\ n \in \mathrm{clocks} \land \mathrm{varOk}(u, n, r) \Rightarrow (\mathrm{down}(r) \iff \lnot u)$$
+$$\forall l.\ \mathrm{isLowerName}(l) \Rightarrow \forall c \in l.\ c \notin \texttt{A-Z}$$
 -/
-theorem varOk_clock (u : Bool) (n : String) (r : Rel) (hc : clocks.contains n = true) (h : varOk u n r = true) :
-    r.down = !u := by
-  unfold varOk at h
-  rw [hc] at h
-  revert h
-  cases noBoundVars.contains n <;> cases u <;> cases r <;> simp [Rel.down]
+theorem lowerName_no_upper (l : List Char) (h : isLowerName l = true) : ∀ c ∈ l, c.isUpper = false := by
+  have key : ∀ c : Char, lowerChar c = true → c.isUpper = false := by
+    intro c hc
+    simp only [lowerChar, Char.isLower, Char.isDigit, Char.isUpper, Bool.or_eq_true, Bool.and_eq_true,
+      decide_eq_true_eq, beq_iff_eq] at hc ⊢
+    rcases hc with (⟨h1, h2⟩ | ⟨h1, h2⟩) | h1
+    · simp only [decide_eq_false_iff_not, not_and, UInt32.le_iff_toNat_le] at h1 h2 ⊢
+      intro _; simp only [Char.reduceVal, UInt32.reduceToNat] at *; omega
+    · simp only [decide_eq_false_iff_not, not_and, UInt32.le_iff_toNat_le] at h1 h2 ⊢
+      intro _; simp only [Char.reduceVal, UInt32.reduceToNat] at *; omega
+    · subst h1; decide
+  match l, h with
+  | c :: r, h =>
+    simp only [isLowerName, Bool.and_eq_true, List.all_eq_true] at h
+    intro x hx
+    rcases List.mem_cons.mp hx with rfl | hx
+    · exact key x (by simp [lowerChar, h.1])
+    · exact key x (h.2 x hx)
 
-/-- A bound test has one variable side and one number side, and its variable is not in `noBoundVars`.
+/-- **Uppercase names never bound.** If a parsed bound test compares a name holding an uppercase letter `A-Z` and the
+name is not `SECONDS`, the element is not a bound test, whatever the assignments: `BASH_MONOSECONDS`, `PIPESTATUS`,
+`GROUPS`, `BASH_LINENO`, `BASH_ARGV`, `TTYIDLE`, `EPOCHSECONDS`, `RANDOM` and every other shell variable are out of B
+with no list.
 
-$$\forall u, x, r, y.\ \mathrm{relOk}(u, x, r, y) \Rightarrow \exists n, k.\ n \notin \mathrm{noBoundVars} \land ((x = \mathrm{var}(n) \land y = \mathrm{num}(k)) \lor (x = \mathrm{num}(k) \land y = \mathrm{var}(n)))$$
+$$\forall u, A, W, x, r, y, n.\ \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land (x = \mathrm{var}(n) \lor y = \mathrm{var}(n)) \land (\exists c \in n.\ c \in \texttt{A-Z}) \land n \ne \texttt{SECONDS} \Rightarrow \lnot\mathrm{boundAtom}(u, A, W)$$
 -/
-theorem relOk_shape (u : Bool) (x : Opd) (r : Rel) (y : Opd) (h : relOk u x r y = true) :
-    ∃ n k, noBoundVars.contains n = false ∧ ((x = .var n ∧ y = .num k) ∨ (x = .num k ∧ y = .var n)) := by
+theorem upper_never_bound (u : Bool) (asg ws : List String) (x : Opd) (r : Rel) (y : Opd) (n : String)
+    (hp : atomParse ws = some (x, r, y)) (hv : x = .var n ∨ y = .var n) (hu : ∃ c ∈ n.toList, c.isUpper = true)
+    (hs : n ≠ "SECONDS") : boundAtom u asg ws = false := by
+  have hv' : ∀ r' k, varOk u asg n r' k = false := by
+    intro r' k
+    cases hb : varOk u asg n r' k with
+    | false => rfl
+    | true =>
+      rcases (var_allow_iff u asg n r' k).mp hb with ⟨h1, _⟩ | ⟨h1, _⟩
+      · exact absurd h1 hs
+      · obtain ⟨c, hc, hcu⟩ := hu
+        rw [lowerName_no_upper _ h1 c hc] at hcu
+        exact absurd hcu (by decide)
+  unfold boundAtom
+  rw [hp]
+  rcases hv with rfl | rfl
+  · cases y with
+    | num k => exact hv' r k
+    | var _ => rfl
+  · cases x with
+    | num k => exact hv' r.flip k
+    | var _ => rfl
+
+/-- **SECONDS is capped.** If a bound test compares `SECONDS` with a number $k$, then $k \le 86400$: a `SECONDS`
+loop on an epoch literal is not a bound.
+
+$$\forall u, A, W, x, r, y, k.\ \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{boundAtom}(u, A, W) \land ((x = \mathrm{var}(\texttt{SECONDS}) \land y = \mathrm{num}(k)) \lor (x = \mathrm{num}(k) \land y = \mathrm{var}(\texttt{SECONDS}))) \Rightarrow k \le 86400$$
+-/
+theorem seconds_capped (u : Bool) (asg ws : List String) (x : Opd) (r : Rel) (y : Opd) (k : Nat)
+    (hp : atomParse ws = some (x, r, y)) (hb : boundAtom u asg ws = true)
+    (hs : (x = .var "SECONDS" ∧ y = .num k) ∨ (x = .num k ∧ y = .var "SECONDS")) : k ≤ secondsCap := by
+  unfold boundAtom at hb
+  rw [hp] at hb
+  rcases hs with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+  · rcases (var_allow_iff _ _ _ _ _).mp hb with ⟨_, h, _⟩ | ⟨h, _⟩
+    · exact h
+    · exact absurd h (by decide)
+  · rcases (var_allow_iff _ _ _ _ _).mp hb with ⟨_, h, _⟩ | ⟨h, _⟩
+    · exact h
+    · exact absurd h (by decide)
+
+/-- A bound test has one variable side and one number side, and its variable is `SECONDS` or a name assigned before
+the loop.
+
+$$\forall u, A, x, r, y.\ \mathrm{relOk}(u, A, x, r, y) \Rightarrow \exists n, k.\ (n = \texttt{SECONDS} \lor n \in A) \land ((x = \mathrm{var}(n) \land y = \mathrm{num}(k)) \lor (x = \mathrm{num}(k) \land y = \mathrm{var}(n)))$$
+-/
+theorem relOk_shape (u : Bool) (asg : List String) (x : Opd) (r : Rel) (y : Opd) (h : relOk u asg x r y = true) :
+    ∃ n k, (n = "SECONDS" ∨ n ∈ asg) ∧ ((x = .var n ∧ y = .num k) ∨ (x = .num k ∧ y = .var n)) := by
+  have side : ∀ n r' k, varOk u asg n r' k = true → n = "SECONDS" ∨ n ∈ asg := by
+    intro n r' k hv
+    rcases (var_allow_iff u asg n r' k).mp hv with ⟨h1, _⟩ | ⟨_, h2, _⟩
+    · exact Or.inl h1
+    · exact Or.inr h2
   match x, y, h with
-  | .var n, .num k, h => exact ⟨n, k, varOk_noBound u n r h, Or.inl ⟨rfl, rfl⟩⟩
-  | .num k, .var n, h => exact ⟨n, k, varOk_noBound u n r.flip h, Or.inr ⟨rfl, rfl⟩⟩
+  | .var n, .num k, h => exact ⟨n, k, side n r k h, Or.inl ⟨rfl, rfl⟩⟩
+  | .num k, .var n, h => exact ⟨n, k, side n r.flip k h, Or.inr ⟨rfl, rfl⟩⟩
   | .var _, .var _, h => simp [relOk] at h
   | .num _, .num _, h => simp [relOk] at h
 
-/-- **Clock direction.** If a bound test of a `while` ($u = \bot$) or `until` ($u = \top$) loop compares a clock $n$
-(`SECONDS`), the relation as seen from the clock is `<`/`≤` exactly for `while`: the test then reaches
-the loop's exit value as the clock grows.
+/-- **Clock direction.** If a bound test of a `while` ($u = \bot$) or `until` ($u = \top$) loop compares `SECONDS`,
+the relation as seen from `SECONDS` is `<`/`≤` exactly for `while`: the test then reaches the loop's exit value as the
+clock grows.
 
-$$\forall u, W, x, r, y, n.\ n \in \mathrm{clocks} \land \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{boundAtom}(u, W) \Rightarrow (x = \mathrm{var}(n) \Rightarrow (\mathrm{down}(r) \iff \lnot u)) \land (y = \mathrm{var}(n) \Rightarrow (\mathrm{down}(\mathrm{flip}(r)) \iff \lnot u))$$
+$$\forall u, A, W, x, r, y.\ \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{boundAtom}(u, A, W) \Rightarrow (x = \mathrm{var}(\texttt{SECONDS}) \Rightarrow (\mathrm{down}(r) \iff \lnot u)) \land (y = \mathrm{var}(\texttt{SECONDS}) \Rightarrow (\mathrm{down}(\mathrm{flip}(r)) \iff \lnot u))$$
 -/
-theorem seconds_direction (u : Bool) (ws : List String) (x : Opd) (r : Rel) (y : Opd) (n : String)
-    (hc : clocks.contains n = true) (hp : atomParse ws = some (x, r, y)) (hb : boundAtom u ws = true) :
-    (x = .var n → r.down = !u) ∧ (y = .var n → r.flip.down = !u) := by
+theorem seconds_direction (u : Bool) (asg ws : List String) (x : Opd) (r : Rel) (y : Opd)
+    (hp : atomParse ws = some (x, r, y)) (hb : boundAtom u asg ws = true) :
+    (x = .var "SECONDS" → r.down = !u) ∧ (y = .var "SECONDS" → r.flip.down = !u) := by
   unfold boundAtom at hb
   rw [hp] at hb
+  have dir : ∀ r' k, varOk u asg "SECONDS" r' k = true → r'.down = !u := by
+    intro r' k hv
+    rcases (var_allow_iff u asg _ r' k).mp hv with ⟨_, _, h⟩ | ⟨h, _⟩
+    · exact h
+    · exact absurd h (by decide)
   constructor
   · rintro rfl
     match y, hb with
-    | .num _, hb => exact varOk_clock u n r hc hb
+    | .num k, hb => exact dir r k hb
     | .var _, hb => simp [relOk] at hb
   · rintro rfl
     match x, hb with
-    | .num _, hb => exact varOk_clock u n r.flip hc hb
+    | .num k, hb => exact dir r.flip k hb
     | .var _, hb => simp [relOk] at hb
-
 
 /-- A word holds `$(` (a command substitution, also `$((`): some `$` is directly followed by `(`.
 
@@ -899,14 +1010,14 @@ theorem atomParse_chars (ws : List String) (p : Opd × Rel × Opd) (h : atomPars
 `$((`) or a backquote, the element is not a bound test, in either loop kind: `[ "$(ls | wc -l)" -gt 0 ]`,
 `[ $(gh run list ...) -ge 1 ]`, `[ $((0)) -lt 1 ]`, `` [ `date +%s` -lt 9 ] `` are all unbounded.
 
-$$\forall u, W, w.\ w \in W \land (\mathrm{dollarParen}(w) \lor \texttt{`} \in w) \Rightarrow \lnot\mathrm{boundAtom}(u, W)$$
+$$\forall u, A, W, w.\ w \in W \land (\mathrm{dollarParen}(w) \lor \texttt{`} \in w) \Rightarrow \lnot\mathrm{boundAtom}(u, A, W)$$
 -/
-theorem subst_never_bound (u : Bool) (ws : List String) (w : String) (hw : w ∈ ws)
-    (hs : dollarParen w.toList = true ∨ '`' ∈ w.toList) : boundAtom u ws = false := by
-  cases hb : boundAtom u ws with
+theorem subst_never_bound (u : Bool) (asg ws : List String) (w : String) (hw : w ∈ ws)
+    (hs : dollarParen w.toList = true ∨ '`' ∈ w.toList) : boundAtom u asg ws = false := by
+  cases hb : boundAtom u asg ws with
   | false => rfl
   | true =>
-    obtain ⟨x, r, y, hp, _⟩ := (boundAtom_iff u ws).mp hb
+    obtain ⟨x, r, y, hp, _⟩ := (boundAtom_iff u asg ws).mp hb
     have hc := atomParse_chars ws _ hp w hw
     rcases hs with hd | hq
     · have := dollarParen_mem _ hd
@@ -1014,9 +1125,9 @@ theorem isReadCond_head (k : List String) (h : isReadCond k = true) : k.head? = 
 
 /-- The state of a loop condition read so far (from `while`/`until` up to `do`): an `until` loop, whether the and-or
 list so far is bounded, how the last element ended, whether some element runs `read`, and whether the condition is so
-far exactly a read-loop head.
+far exactly a read-loop head, and $A$: the names assigned a decimal literal at the top level before the loop (`topAsg`).
 
-$$\mathrm{Cnd} = (\mathit{until}, \mathit{acc}, \mathit{op}, \mathit{rd}, \mathit{exact}) \in \mathbb{B} \times \mathbb{B} \times \mathrm{Term} \times \mathbb{B} \times \mathbb{B}$$
+$$\mathrm{Cnd} = (\mathit{until}, \mathit{acc}, \mathit{op}, \mathit{rd}, \mathit{exact}, A) \in \mathbb{B} \times \mathbb{B} \times \mathrm{Term} \times \mathbb{B} \times \mathbb{B} \times \mathrm{String}^{*}$$
 -/
 structure Cnd where
   untl  : Bool
@@ -1024,6 +1135,7 @@ structure Cnd where
   op    : Term
   rd    : Bool
   exact : Bool
+  asg   : List String
 deriving DecidableEq, Repr
 
 /-- Add one condition element (its words $A$ as typed, a leading `!` kept, ended by $t$). An element ended by `|` is not
@@ -1031,11 +1143,11 @@ the last of its pipeline, whose status is that of its last element, so it only a
 (for this loop kind) joins the list by the previous terminator (`comb`). The `read` check looks past reserved prefix
 words (`key`).
 
-$$\mathrm{condStep}(d, A, t) = \begin{cases} d[\mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & t = \mathrm{pipe} \\ d[\mathit{acc} := \mathrm{comb}(d.\mathit{until}, d.\mathit{op}, d.\mathit{acc}, \mathrm{boundAtom}(d.\mathit{until}, A)),\ \mathit{op} := t,\ \mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & \text{otherwise} \end{cases}$$
+$$\mathrm{condStep}(d, A, t) = \begin{cases} d[\mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & t = \mathrm{pipe} \\ d[\mathit{acc} := \mathrm{comb}(d.\mathit{until}, d.\mathit{op}, d.\mathit{acc}, \mathrm{boundAtom}(d.\mathit{until}, d.A, A)),\ \mathit{op} := t,\ \mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & \text{otherwise} \end{cases}$$
 -/
 def condStep (cd : Cnd) (atom : List String) (t : Term) : Cnd :=
   if t == .pipe then { cd with rd := cd.rd || readSeg (key atom) }
-  else { cd with acc := comb cd.untl cd.op cd.acc (boundAtom cd.untl atom), op := t, rd := cd.rd || readSeg (key atom) }
+  else { cd with acc := comb cd.untl cd.op cd.acc (boundAtom cd.untl cd.asg atom), op := t, rd := cd.rd || readSeg (key atom) }
 
 /-- Read a whole condition: `condStep` over its elements (each its words and terminator), in order. This is what
 `condPart` and `blockPart` do between `while`/`until` and `do`.
@@ -1058,21 +1170,28 @@ $$\forall d, A, t.\ \mathrm{condStep}(d, A, t).\mathit{until} = d.\mathit{until}
 theorem condStep_untl (d : Cnd) (atom : List String) (t : Term) : (condStep d atom t).untl = d.untl := by
   unfold condStep; split <;> rfl
 
+/-- `condStep` keeps the names assigned before the loop.
+
+$$\forall d, A, t.\ \mathrm{condStep}(d, A, t).A = d.A$$
+-/
+theorem condStep_asg (d : Cnd) (atom : List String) (t : Term) : (condStep d atom t).asg = d.asg := by
+  unfold condStep; split <;> rfl
+
 /-- **Only the grammar bounds a condition.** If a condition read from a state that is not yet bounded ends bounded,
 some element of it that is not piped on (its terminator is not `|`, so its status counts) parses in the grammar B with a
 test that passes `relOk` for this loop kind. Command substitutions, `gh`/`ls`/`pgrep` polls, string tests and function
 calls never parse, so a condition made of them alone is never bounded.
 
-$$\forall d, X.\ \lnot d.\mathit{acc} \land \mathrm{condFold}(d, X).\mathit{acc} \Rightarrow \exists (A, t) \in X.\ t \ne \mathrm{pipe} \land \exists x, r, y.\ \mathrm{atomParse}(A) = \mathrm{some}(x, r, y) \land \mathrm{relOk}(d.\mathit{until}, x, r, y)$$
+$$\forall d, X.\ \lnot d.\mathit{acc} \land \mathrm{condFold}(d, X).\mathit{acc} \Rightarrow \exists (W, t) \in X.\ t \ne \mathrm{pipe} \land \exists x, r, y.\ \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{relOk}(d.\mathit{until}, d.A, x, r, y)$$
 -/
 theorem grammar_only (d : Cnd) (xs : List (List String × Term)) (h0 : d.acc = false)
     (h : (condFold d xs).acc = true) :
-    ∃ p ∈ xs, p.2 ≠ .pipe ∧ ∃ x r y, atomParse p.1 = some (x, r, y) ∧ relOk d.untl x r y = true := by
+    ∃ p ∈ xs, p.2 ≠ .pipe ∧ ∃ x r y, atomParse p.1 = some (x, r, y) ∧ relOk d.untl d.asg x r y = true := by
   suffices key : ∀ (e : Cnd), (condFold e xs).acc = true →
-      e.acc = true ∨ ∃ p ∈ xs, p.2 ≠ .pipe ∧ boundAtom e.untl p.1 = true by
+      e.acc = true ∨ ∃ p ∈ xs, p.2 ≠ .pipe ∧ boundAtom e.untl e.asg p.1 = true by
     rcases key d h with h1 | ⟨p, hp, ht, hb⟩
     · simp [h0] at h1
-    · exact ⟨p, hp, ht, (boundAtom_iff _ _).mp hb⟩
+    · exact ⟨p, hp, ht, (boundAtom_iff _ _ _).mp hb⟩
   clear h h0
   induction xs with
   | nil => intro d hd; exact Or.inl hd
@@ -1088,7 +1207,7 @@ theorem grammar_only (d : Cnd) (xs : List (List String × Term)) (h0 : d.acc = f
         · exact Or.inl h2
         · refine Or.inr ⟨p, List.mem_cons_self .., ?_, h2⟩
           simpa using hpipe
-    · rw [condStep_untl] at hb
+    · rw [condStep_untl, condStep_asg] at hb
       exact Or.inr ⟨q, List.mem_cons_of_mem _ hq, ht, hb⟩
 
 /-- Replace the first flag of the innermost open block.
@@ -1474,10 +1593,11 @@ deriving DecidableEq, Repr
 /-- The running state of the unit grouping: the open blocks (innermost first; each with two flags: its condition runs
 `read`, and it reads a finite pipe), the shapes so far, whether a loop with no bound was seen (`free`), whether the unit is
 still empty, the previous segment, the loop condition being read (`none` outside one), whether the previous segment's
-output is known finite, and the finished units.
+output is known finite, the finished units, and the names assigned a decimal literal at the top level so far
+(`topAsg`; kept across units).
 
-$$\mathrm{UAcc} = (\mathbb{B} \times \mathbb{B})^{*} \times \mathrm{Shape}^{*} \times \mathbb{B} \times \mathbb{B} \times \mathrm{Seg} \times \mathrm{Option}(\mathrm{Cnd}) \times \mathbb{B} \times \mathrm{Job}^{*}$$
-$$u = (\mathit{stack}, \mathit{shapes}, \mathit{free}, \mathit{fresh}, \mathit{last}, \mathit{cnd}, \mathit{lastFin}, \mathit{units}), \quad \{\} = ([\,], [\,], \bot, \top, ([\,], \mathrm{fin}), \mathrm{none}, \bot, [\,])$$
+$$\mathrm{UAcc} = (\mathbb{B} \times \mathbb{B})^{*} \times \mathrm{Shape}^{*} \times \mathbb{B} \times \mathbb{B} \times \mathrm{Seg} \times \mathrm{Option}(\mathrm{Cnd}) \times \mathbb{B} \times \mathrm{Job}^{*} \times \mathrm{String}^{*}$$
+$$u = (\mathit{stack}, \mathit{shapes}, \mathit{free}, \mathit{fresh}, \mathit{last}, \mathit{cnd}, \mathit{lastFin}, \mathit{units}, \mathit{asg}), \quad \{\} = ([\,], [\,], \bot, \top, ([\,], \mathrm{fin}), \mathrm{none}, \bot, [\,], [\,])$$
 -/
 structure UAcc where
   stack   : List (Bool × Bool) := []
@@ -1488,6 +1608,35 @@ structure UAcc where
   cnd     : Option Cnd := none
   lastFin : Bool := false
   units   : List Job := []
+  asg     : List String := []
+
+/-- A literal assignment word `v=N`: exactly one `=`, a variable name before it and a decimal literal (`isDec`) after
+it; the result is the name. `i=0` gives `i`; `i=$((i+1))`, `i=$n`, `i=010`, `i=`, `a=b=1` give none.
+
+$$\mathrm{litAsg}(w) = \begin{cases} \mathrm{some}(v) & w = v\,\texttt{=}\,N \land \texttt{=} \notin v \land \texttt{=} \notin N \land \mathrm{isName}(v) \land \mathrm{isDec}(N) \\ \mathrm{none} & \text{otherwise} \end{cases}$$
+-/
+def litAsg (w : String) : Option String :=
+  match w.splitOn "=" with
+  | [v, n] => if isName v.toList && isDec n.toList then some v else none
+  | _ => none
+
+/-- The names a segment assigns a decimal literal: when every word is a literal assignment (`i=0`, `i=0 j=5`), their
+names in order; otherwise none at all (`i=0 cmd` sets `i` for `cmd` only, `export i=0`, `{ i=0`, `(i=0)` count as
+nothing).
+
+$$\mathrm{litNames}(W) = \begin{cases} [\,v \mid w \in W,\ \mathrm{litAsg}(w) = \mathrm{some}(v)\,] & W \ne [\,] \land \forall w \in W.\ \mathrm{litAsg}(w) \ne \mathrm{none} \\ [\,] & \text{otherwise} \end{cases}$$
+-/
+def litNames (ws : List String) : List String :=
+  if !ws.isEmpty && ws.all (fun w => (litAsg w).isSome) then ws.filterMap litAsg else []
+
+/-- A segment that runs in the tool shell itself at the top level of the command, first in its and-or list: the unit
+is still empty (no open block, no open condition, not after `&&`, `||` or `|`) and the segment is neither piped on
+(`|` runs it in a subshell in bash) nor backgrounded (`&`). Its literal assignments then hold for every later loop of
+the command.
+
+$$\mathrm{topAsg}(u, s) \iff u.\mathit{fresh} \land s.\mathit{term} \notin \{\mathrm{pipe}, \mathrm{bg}\}$$
+-/
+def topAsg (u : UAcc) (s : Seg) : Bool := u.fresh && s.term != .pipe && s.term != .bg
 
 /-- A block word: a block opener or closer.
 
@@ -1514,18 +1663,19 @@ def condPart (u : UAcc) (s : Seg) : List (Bool × Bool) × Bool × Option Cnd :=
 /-- The block part of a step, on the stack $S$ and condition $D$ left by `condPart` ($K = \mathrm{key}(s.\mathit{words})$,
 $f$ its head, `""` if none; $\pi$: the segment reads a finite pipe). An opener pushes a block; a `while`/`until` also opens
 its condition with the rest of its segment. A closer pops the innermost block, and a loop whose condition ran `read` is
-free when its stdin is not known finite (the `done` segment's last stdin redirect, else the pipe it reads).
+free when its stdin is not known finite (the `done` segment's last stdin redirect, else the pipe it reads). $A$: the
+names assigned before the loop, stored in the new condition.
 
-$$\mathrm{blockPart}_c(\pi, s, S, D) = \begin{cases} ((\bot, \pi) :: S,\ \bot,\ \mathrm{some}(\mathrm{condStep}((f = \texttt{until}, \bot, \mathrm{seq}, \bot, \mathrm{readHead}(s)), \mathrm{tail}(K), s.\mathit{term}))) & f \in \{\texttt{while}, \texttt{until}\} \\ ((\bot, \pi) :: S,\ \bot,\ D) & f \in \mathrm{openers} \setminus \{\texttt{while}, \texttt{until}\} \\ (r,\ p_1 \land \lnot\,\mathrm{getD}(\mathrm{inRedir}_c(s.\mathit{words}), p_2),\ D) & f \in \mathrm{closers},\ S = (p_1, p_2) :: r \\ ([\,],\ \bot,\ D) & f \in \mathrm{closers},\ S = [\,] \\ (S,\ \bot,\ D) & \text{otherwise} \end{cases} \quad \text{(first matching row)},\quad \text{where } K = \mathrm{key}(s.\mathit{words}),\ f = \mathrm{head}(K) \text{ (\texttt{""} if } K = [\,]),\ \mathrm{getD}(\mathrm{some}(b), x) = b,\ \mathrm{getD}(\mathrm{none}, x) = x$$
+$$\mathrm{blockPart}_c(\pi, A, s, S, D) = \begin{cases} ((\bot, \pi) :: S,\ \bot,\ \mathrm{some}(\mathrm{condStep}((f = \texttt{until}, \bot, \mathrm{seq}, \bot, \mathrm{readHead}(s), A), \mathrm{tail}(K), s.\mathit{term}))) & f \in \{\texttt{while}, \texttt{until}\} \\ ((\bot, \pi) :: S,\ \bot,\ D) & f \in \mathrm{openers} \setminus \{\texttt{while}, \texttt{until}\} \\ (r,\ p_1 \land \lnot\,\mathrm{getD}(\mathrm{inRedir}_c(s.\mathit{words}), p_2),\ D) & f \in \mathrm{closers},\ S = (p_1, p_2) :: r \\ ([\,],\ \bot,\ D) & f \in \mathrm{closers},\ S = [\,] \\ (S,\ \bot,\ D) & \text{otherwise} \end{cases} \quad \text{(first matching row)},\quad \text{where } K = \mathrm{key}(s.\mathit{words}),\ f = \mathrm{head}(K) \text{ (\texttt{""} if } K = [\,]),\ \mathrm{getD}(\mathrm{some}(b), x) = b,\ \mathrm{getD}(\mathrm{none}, x) = x$$
 The `done` redirect overrides the pipe.
 -/
-def blockPart (c : Caps) (piped : Bool) (s : Seg) (st : List (Bool × Bool)) (cd : Option Cnd) :
+def blockPart (c : Caps) (piped : Bool) (asg : List String) (s : Seg) (st : List (Bool × Bool)) (cd : Option Cnd) :
     List (Bool × Bool) × Bool × Option Cnd :=
   let k := key s.words
   let f := k.head?.getD ""
   if openers.contains f then
     ((false, piped) :: st, false,
-      if f == "until" || f == "while" then some (condStep ⟨f == "until", false, .seq, false, readHead s⟩ k.tail s.term)
+      if f == "until" || f == "while" then some (condStep ⟨f == "until", false, .seq, false, readHead s, asg⟩ k.tail s.term)
       else cd)
   else if closers.contains f then
     match st with
@@ -1537,12 +1687,13 @@ def blockPart (c : Caps) (piped : Bool) (s : Seg) (st : List (Bool × Bool)) (cd
 $K = \mathrm{key}(s.\mathit{words})$, $f$ its head (`""` if none), $\ell \iff f \in \{\texttt{until}, \texttt{while}\}$,
 $\iota \iff u.\mathit{last}.\mathit{term} \ne \mathrm{pipe} \lor u.\mathit{lastFin}$ (this segment's stdin is finite: a
 pipeline head reads the tool's stdin), $\pi \iff u.\mathit{last}.\mathit{term} = \mathrm{pipe} \land u.\mathit{lastFin}$
-(it reads a finite pipe), $(S_0, F_0, D_0) = \mathrm{condPart}(u, s)$ and $(S, \phi, D) = \mathrm{blockPart}_c(\pi, s, S_0,
-D_0)$.
+(it reads a finite pipe), $(S_0, F_0, D_0) = \mathrm{condPart}(u, s)$ and $(S, \phi, D) = \mathrm{blockPart}_c(\pi, u.\mathit{asg}, s,
+S_0, D_0)$, and $A' = u.\mathit{asg} \mathbin{+\!\!+} \mathrm{litNames}(s.\mathit{words})$ if $\mathrm{topAsg}(u, s)$, else
+$A' = u.\mathit{asg}$.
 
-$$\mathrm{addSeg}_c(u, s) = \begin{cases} \{\}[\mathit{units} := (s.\mathit{term} = \mathrm{bg},\ u'.\mathit{shapes},\ u'.\mathit{free}) :: u.\mathit{units}] & S = [\,] \land s.\mathit{term} \notin \{\mathrm{andIf}, \mathrm{orElse}, \mathrm{pipe}\} \\ u' & \text{otherwise} \end{cases}$$
+$$\mathrm{addSeg}_c(u, s) = \begin{cases} \{\}[\mathit{units} := (s.\mathit{term} = \mathrm{bg},\ u'.\mathit{shapes},\ u'.\mathit{free}) :: u.\mathit{units},\ \mathit{asg} := A'] & S = [\,] \land s.\mathit{term} \notin \{\mathrm{andIf}, \mathrm{orElse}, \mathrm{pipe}\} \\ u' & \text{otherwise} \end{cases}$$
 $$u' = u[\mathit{stack} := S,\ \mathit{shapes} := u.\mathit{shapes} \mathbin{+\!\!+} [\mathrm{loop} \mid \ell] \mathbin{+\!\!+} \mathrm{shapesOf}_c(s.\mathit{words}),\ \mathit{free} := F_0 \lor (\ell \land \mathrm{badRead}(\mathrm{tail}(K))) \lor \phi,$$
-$$\qquad \mathit{fresh} := \bot,\ \mathit{last} := s,\ \mathit{cnd} := D,\ \mathit{lastFin} := \mathrm{producerOut}_c(\iota, s.\mathit{words})]$$
+$$\qquad \mathit{fresh} := \bot,\ \mathit{last} := s,\ \mathit{cnd} := D,\ \mathit{lastFin} := \mathrm{producerOut}_c(\iota, s.\mathit{words}),\ \mathit{asg} := A']$$
 -/
 def addSeg (c : Caps) (u : UAcc) (s : Seg) : UAcc :=
   let k := key s.words
@@ -1551,12 +1702,13 @@ def addSeg (c : Caps) (u : UAcc) (s : Seg) : UAcc :=
   let inFin := u.last.term != .pipe || u.lastFin
   let piped := u.last.term == .pipe && u.lastFin
   let a := condPart u s
-  let b := blockPart c piped s a.1 a.2.2
+  let b := blockPart c piped u.asg s a.1 a.2.2
   let sh := (if isLoop then [Shape.loop] else []) ++ shapesOf c s.words
   let u' := { u with stack := b.1, shapes := u.shapes ++ sh, free := a.2.1 || (isLoop && badRead k.tail) || b.2.1,
-                     fresh := false, last := s, cnd := b.2.2, lastFin := producerOut c inFin s.words }
+                     fresh := false, last := s, cnd := b.2.2, lastFin := producerOut c inFin s.words,
+                     asg := if topAsg u s then u.asg ++ litNames s.words else u.asg }
   if b.1.isEmpty && s.term != .andIf && s.term != .orElse && s.term != .pipe then
-    { units := ⟨s.term == .bg, u'.shapes, u'.free⟩ :: u.units }
+    { units := ⟨s.term == .bg, u'.shapes, u'.free⟩ :: u.units, asg := u'.asg }
   else u'
 
 /-- The units of a command (a trailing open unit is closed at the end; a loop condition still open there, or an open
@@ -1571,17 +1723,33 @@ def units (c : Caps) (cmd : String) : List Job :=
     else { u with units := ⟨false, u.shapes, u.free || u.cnd.isSome || u.stack.any (·.1)⟩ :: u.units }
   u.units.reverse
 
+/-- **Where the assigned names come from.** One segment adds its literal assignments (`litNames`) to the names a later
+loop may use exactly when it runs at the top level, first in its and-or list (`topAsg`); any other segment (in a block,
+in a loop condition, after `&&`/`||`/`|`, piped on or backgrounded) adds none. Together with `addSeg_loop` (a new loop's
+condition stores `u.asg`, the names before its segment) and `condStep_asg`, a counter is in B only if the command set
+it to a literal before the loop.
+
+$$\forall c, u, s.\ \mathrm{addSeg}_c(u, s).\mathit{asg} = \begin{cases} u.\mathit{asg} \mathbin{+\!\!+} \mathrm{litNames}(s.\mathit{words}) & \mathrm{topAsg}(u, s) \\ u.\mathit{asg} & \text{otherwise} \end{cases}$$
+-/
+theorem addSeg_asg (c : Caps) (u : UAcc) (s : Seg) :
+    (addSeg c u s).asg = if topAsg u s then u.asg ++ litNames s.words else u.asg := by
+  unfold addSeg
+  dsimp only
+  split
+  · rfl
+  · rfl
+
 /-- A `while`/`until` segment, read with no condition open, pushes a block whose read flag is still off and opens its
 condition with the rest of its words; it marks the loop free exactly when that first element is a bad read, and it closes
 no unit.
 
-$$\forall c, u, s.\ u.\mathit{cnd} = \mathrm{none} \land f \in \{\texttt{while}, \texttt{until}\} \ \Rightarrow\ v.\mathit{stack} = (\bot, \pi) :: u.\mathit{stack} \land v.\mathit{cnd} = \mathrm{some}(\mathrm{condStep}((f = \texttt{until}, \bot, \mathrm{seq}, \bot, \mathrm{readHead}(s)), \mathrm{tail}(K), s.\mathit{term}))$$
+$$\forall c, u, s.\ u.\mathit{cnd} = \mathrm{none} \land f \in \{\texttt{while}, \texttt{until}\} \ \Rightarrow\ v.\mathit{stack} = (\bot, \pi) :: u.\mathit{stack} \land v.\mathit{cnd} = \mathrm{some}(\mathrm{condStep}((f = \texttt{until}, \bot, \mathrm{seq}, \bot, \mathrm{readHead}(s), u.\mathit{asg}), \mathrm{tail}(K), s.\mathit{term}))$$
 $$\qquad \land\ v.\mathit{free} = (u.\mathit{free} \lor \mathrm{badRead}(\mathrm{tail}(K))) \land v.\mathit{units} = u.\mathit{units},\quad \text{where } K = \mathrm{key}(s.\mathit{words}),\ f = \mathrm{head}(K)\text{ (\texttt{""} if } K = [\,]),\ \pi \iff u.\mathit{last}.\mathit{term} = \mathrm{pipe} \land u.\mathit{lastFin},\ v = \mathrm{addSeg}_c(u, s)$$
 -/
 theorem addSeg_loop (c : Caps) (u : UAcc) (s : Seg) (hn : u.cnd = none)
     (hf : (key s.words).head? = some "while" ∨ (key s.words).head? = some "until") :
     (addSeg c u s).stack = (false, u.last.term == .pipe && u.lastFin) :: u.stack ∧
-      (addSeg c u s).cnd = some (condStep ⟨(key s.words).head? == some "until", false, .seq, false, readHead s⟩
+      (addSeg c u s).cnd = some (condStep ⟨(key s.words).head? == some "until", false, .seq, false, readHead s, u.asg⟩
         (key s.words).tail s.term) ∧
       (addSeg c u s).free = (u.free || badRead (key s.words).tail) ∧ (addSeg c u s).units = u.units := by
   have ho : openers.contains ((key s.words).head?.getD "") = true := by
@@ -1811,7 +1979,7 @@ theorem readLoop_bounded (c : Caps) (u : UAcc) (w d0 e : Seg) (body : List Seg)
   have hbr : badRead (key w.words).tail = false := by simp [badRead, hpl]
   have h1 := addSeg_loop c u w hn (Or.inl hwh)
   let piped := u.last.term == .pipe && u.lastFin
-  let cd := condStep ⟨(key w.words).head? == some "until", false, .seq, false, readHead w⟩ (key w.words).tail w.term
+  let cd := condStep ⟨(key w.words).head? == some "until", false, .seq, false, readHead w, u.asg⟩ (key w.words).tail w.term
   have hcx : cd.exact = true := by simp [cd, condStep, hw'.2, hw]
   have h2 := loop_body c (addSeg c u w) cd d0 body (by rw [h1.1]; simp) h1.2.1 h0 hb
   have hf : (w :: d0 :: body ++ [e]).foldl (addSeg c) u =
@@ -2051,30 +2219,30 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 #guard atomParse ["[", "$i", "-lt", "10", "-o", "1", "]"] == none && atomParse ["[", "$i", "<", "10", "]"] == none
 #guard atomParse ["[[", "$i", "<", "10", "]]"] == none && atomParse [] == none && atomParse ["true"] == none
 -- B: counters both ways, clocks only towards the exit
-#guard boundAtom false ["[", "$i", "-lt", "10", "]"] && boundAtom false ["[", "$i", "-ge", "10", "]"] && boundAtom true ["[[", "$i", "-le", "3", "]]"]
-#guard boundAtom false ["[", "$SECONDS", "-lt", "60", "]"] && boundAtom false ["[", "60", "-gt", "$SECONDS", "]"]
-#guard boundAtom true ["[", "$SECONDS", "-ge", "60", "]"] && boundAtom true ["((SECONDS>600))"] && boundAtom false ["((", "SECONDS", "<", "60", "))"]
-#guard !boundAtom false ["[", "$SECONDS", "-ge", "0", "]"] && !boundAtom false ["[", "$SECONDS", "-gt", "5", "]"]
-#guard !boundAtom true ["[", "$SECONDS", "-lt", "0", "]"] && !boundAtom false ["((", "SECONDS", ">=", "0", "))"]
-#guard !boundAtom false ["[", "0", "-lt", "$SECONDS", "]"] && !boundAtom false ["[", "$EPOCHSECONDS", "-gt", "1", "]"]
-#guard !boundAtom true ["[", "$EPOCHSECONDS", "-ge", "1760800000", "]"] && !boundAtom false ["[", "$_", "-lt", "10", "]"]
-#guard !boundAtom false ["[", "$OPTIND", "-lt", "10", "]"] && !boundAtom false ["((", "LINES", "<", "10", "))"]
-#guard !boundAtom false ["[", "$COLUMNS", "-lt", "10", "]"] && !boundAtom false ["[", "${BASH_ARGC}", "-lt", "10", "]"]
-#guard !boundAtom false ["[", "$i", "-lt", "12345678901234567890123", "]"] && opd false "12345678901234567890123" == none
+#guard boundAtom false ["i"] ["[", "$i", "-lt", "10", "]"] && boundAtom false ["i"] ["[", "$i", "-ge", "10", "]"] && boundAtom true ["i"] ["[[", "$i", "-le", "3", "]]"]
+#guard boundAtom false ["i"] ["[", "$SECONDS", "-lt", "60", "]"] && boundAtom false ["i"] ["[", "60", "-gt", "$SECONDS", "]"]
+#guard boundAtom true ["i"] ["[", "$SECONDS", "-ge", "60", "]"] && boundAtom true ["i"] ["((SECONDS>600))"] && boundAtom false ["i"] ["((", "SECONDS", "<", "60", "))"]
+#guard !boundAtom false ["i"] ["[", "$SECONDS", "-ge", "0", "]"] && !boundAtom false ["i"] ["[", "$SECONDS", "-gt", "5", "]"]
+#guard !boundAtom true ["i"] ["[", "$SECONDS", "-lt", "0", "]"] && !boundAtom false ["i"] ["((", "SECONDS", ">=", "0", "))"]
+#guard !boundAtom false ["i"] ["[", "0", "-lt", "$SECONDS", "]"] && !boundAtom false ["i"] ["[", "$EPOCHSECONDS", "-gt", "1", "]"]
+#guard !boundAtom true ["i"] ["[", "$EPOCHSECONDS", "-ge", "1760800000", "]"] && !boundAtom false ["i"] ["[", "$_", "-lt", "10", "]"]
+#guard !boundAtom false ["i"] ["[", "$OPTIND", "-lt", "10", "]"] && !boundAtom false ["i"] ["((", "LINES", "<", "10", "))"]
+#guard !boundAtom false ["i"] ["[", "$COLUMNS", "-lt", "10", "]"] && !boundAtom false ["i"] ["[", "${BASH_ARGC}", "-lt", "10", "]"]
+#guard !boundAtom false ["i"] ["[", "$i", "-lt", "12345678901234567890123", "]"] && opd false "12345678901234567890123" == none
 -- the round-3 reviewer probes: never a bound
-#guard !boundAtom true ["[", "$(gh run list -b ci/x --json status -q '[.[]|select(.status==\"completed\")]|length')", "-ge", "1", "]"]
-#guard !boundAtom true ["[", "$(ls out/*.json 2>/dev/null", "-gt", "0", "]"] && !boundAtom false ["[", "$(pgrep -c node)", "-gt", "0", "]"]
-#guard !boundAtom false ["[", "$$", "-gt", "0", "]"] && !boundAtom false ["[", "$#", "-ge", "0", "]"] && !boundAtom false ["[", "$((0))", "-lt", "1", "]"]
-#guard !boundAtom false ["[", "${x:-0}", "-lt", "1", "]"] && !boundAtom false ["[", "$RANDOM", "-ge", "0", "]"] && !boundAtom false ["[", "$(echo 0)", "-lt", "1", "]"]
-#guard !boundAtom false ["((", "i", "<", "10", ",", "1", "))"] && !boundAtom false ["((", "i", "<", "10", "?", "1", ":", "1", "))"]
-#guard !boundAtom false ["((", "0x0", "<", "1", "))"] && !boundAtom false ["((", "RANDOM", ">=", "0", "))"] && !boundAtom false ["((i<10,1))"]
-#guard !boundAtom false ["[", "1", "-lt", "2", "]"] && !boundAtom false ["[", "$i", "-lt", "$n", "]"] && !boundAtom false ["((1<2))"]
-#guard !boundAtom false ["date"] && !boundAtom false ["[", "$SECONDS", "]"] && !boundAtom false [] && !boundAtom false ["((i<<2))"]
-#guard !boundAtom false ["[", "`date +%s`", "-lt", "9", "]"] && !boundAtom false ["((", "$i", "<", "9", "))"] && !boundAtom false ["((", "i++", "<", "9", "))"]
+#guard !boundAtom true ["i"] ["[", "$(gh run list -b ci/x --json status -q '[.[]|select(.status==\"completed\")]|length')", "-ge", "1", "]"]
+#guard !boundAtom true ["i"] ["[", "$(ls out/*.json 2>/dev/null", "-gt", "0", "]"] && !boundAtom false ["i"] ["[", "$(pgrep -c node)", "-gt", "0", "]"]
+#guard !boundAtom false ["i"] ["[", "$$", "-gt", "0", "]"] && !boundAtom false ["i"] ["[", "$#", "-ge", "0", "]"] && !boundAtom false ["i"] ["[", "$((0))", "-lt", "1", "]"]
+#guard !boundAtom false ["i"] ["[", "${x:-0}", "-lt", "1", "]"] && !boundAtom false ["i"] ["[", "$RANDOM", "-ge", "0", "]"] && !boundAtom false ["i"] ["[", "$(echo 0)", "-lt", "1", "]"]
+#guard !boundAtom false ["i"] ["((", "i", "<", "10", ",", "1", "))"] && !boundAtom false ["i"] ["((", "i", "<", "10", "?", "1", ":", "1", "))"]
+#guard !boundAtom false ["i"] ["((", "0x0", "<", "1", "))"] && !boundAtom false ["i"] ["((", "RANDOM", ">=", "0", "))"] && !boundAtom false ["i"] ["((i<10,1))"]
+#guard !boundAtom false ["i"] ["[", "1", "-lt", "2", "]"] && !boundAtom false ["i"] ["[", "$i", "-lt", "$n", "]"] && !boundAtom false ["i"] ["((1<2))"]
+#guard !boundAtom false ["i"] ["date"] && !boundAtom false ["i"] ["[", "$SECONDS", "]"] && !boundAtom false ["i"] [] && !boundAtom false ["i"] ["((i<<2))"]
+#guard !boundAtom false ["i"] ["[", "`date +%s`", "-lt", "9", "]"] && !boundAtom false ["i"] ["((", "$i", "<", "9", "))"] && !boundAtom false ["i"] ["((", "i++", "<", "9", "))"]
 #guard comb false .andIf false true && !comb false .orElse false true && comb true .orElse false true
 #guard !comb true .andIf false true && !comb false .seq true false && comb true .pipe false true
-#guard condStep ⟨false, false, .seq, false, false⟩ ["[", "$i", "-lt", "3", "]"] .andIf == ⟨false, true, .andIf, false, false⟩
-#guard condStep ⟨false, true, .andIf, false, true⟩ ["read", "l"] .pipe == ⟨false, true, .andIf, true, true⟩
+#guard condStep ⟨false, false, .seq, false, false, ["i"]⟩ ["[", "$i", "-lt", "3", "]"] .andIf == ⟨false, true, .andIf, false, false, ["i"]⟩
+#guard condStep ⟨false, true, .andIf, false, true, ["i"]⟩ ["read", "l"] .pipe == ⟨false, true, .andIf, true, true, ["i"]⟩
 #guard setTop true [(false, true), (false, false)] == [(true, true), (false, false)] && setTop true [] == []
 #guard ansiArg "$\\0" && ansiArg "$\\n" && !ansiArg "$\\" && !ansiArg "$x" && !ansiArg ""
 #guard isReadArg "$\\0" && plainRead ["IFS=", "read", "-r", "-d", "$\\0", "f"] && !plainRead ["read", "<", "f"]
@@ -2129,7 +2297,7 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 #guard decideCmd {} "i=0; while [ ! -s \"$F\" ] && [ $i -lt 55 ]; do sleep 10; i=$((i+1)); done" == .allow
 #guard decideCmd {} "i=0; until gh run view 1 --exit-status || [ $i -ge 10 ]; do sleep 30; i=$((i+1)); done" == .allow
 #guard decideCmd {} "end=$((SECONDS+60)); while [ $SECONDS -lt $end ]; do sleep 5; done" == .deny .unboundedLoop
-#guard decideCmd {} "while (( i < 10 )); do i=$((i+1)); done" == .allow
+#guard decideCmd {} "i=0; while (( i < 10 )); do i=$((i+1)); done" == .allow
 #guard decideCmd {} "git ls-files | sed 's/a/b/' | while read -r f; do echo $f; done" == .allow
 #guard decideCmd {} "git log --oneline | awk '{print $1}' | while read h; do echo $h; done" == .allow
 #guard decideCmd {} "find . -name '*.json' -print0 | while IFS= read -r -d $'\\0' f; do echo \"$f\"; done" == .allow
@@ -2141,9 +2309,9 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 
 /-! Round 4: the bound grammar B (`atomParse`, `relOk`); every round-3 reviewer probe is denied. -/
 
-#guard (condFold ⟨false, false, .seq, false, false⟩ [(["[", "$i", "-lt", "3", "]"], .andIf), (["true"], .seq)]).acc
-#guard !(condFold ⟨false, false, .seq, false, false⟩ [(["[", "$i", "-lt", "3", "]"], .orElse), (["true"], .seq)]).acc
-#guard (condFold ⟨true, false, .seq, false, false⟩ [(["gh", "run", "view"], .orElse), (["[", "$i", "-ge", "9", "]"], .seq)]).acc
+#guard (condFold ⟨false, false, .seq, false, false, ["i"]⟩ [(["[", "$i", "-lt", "3", "]"], .andIf), (["true"], .seq)]).acc
+#guard !(condFold ⟨false, false, .seq, false, false, ["i"]⟩ [(["[", "$i", "-lt", "3", "]"], .orElse), (["true"], .seq)]).acc
+#guard (condFold ⟨true, false, .seq, false, false, ["i"]⟩ [(["gh", "run", "view"], .orElse), (["[", "$i", "-ge", "9", "]"], .seq)]).acc
 #guard dollarParen "a$(b".toList && dollarParen "$((0))".toList && !dollarParen "$x(".toList && !dollarParen [] && !dollarParen "(($".toList
 #guard zeroArg "0" && zeroArg "-n0" && zeroArg "-t00" && zeroArg "00" && !zeroArg "-n1" && !zeroArg "-r" && !zeroArg "x0" && !zeroArg "10"
 #guard !isReadArg "0" && !isReadArg "-n0" && isReadArg "-n" && isReadArg "1" && isReadArg "x0"
@@ -2193,10 +2361,54 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 #guard decideCmd {} "until [ \"$SECONDS\" -ge 600 ] || gh run view 1 --exit-status; do sleep 30; done" == .allow
 #guard decideCmd {} "i=0; while (( i < 10 )); do i=$((i+1)); done" == .allow
 #guard decideCmd {} "until (( SECONDS > 600 )); do sleep 5; done" == .allow
-#guard decideCmd {} "while [[ ${i} -le 3 ]]; do i=$((i+1)); done" == .allow
+#guard decideCmd {} "i=0; while [[ ${i} -le 3 ]]; do i=$((i+1)); done" == .allow
 #guard decideCmd {} "while read -t 5 -r l; do echo $l; done < f.txt" == .allow
 #guard decideCmd {} "git worktree list --porcelain | awk '/^worktree /{print $2}' | while read p; do echo $p; done" == .allow
 #guard decideCmd {} "ls -t a*.jsonl 2>/dev/null | head -3 | while read f; do echo $f; done" == .allow
 #guard decideCmd {} "git stash list | while read s; do echo $s; done" == .allow
+
+/-! Round 6: the closed variable rule (`varOk`): `SECONDS` with a limit ≤ 86400, or a lowercase name the command set to a
+literal before the loop that zsh does not reserve. Every round-5 reviewer probe is denied. -/
+-- the zsh table: 14 lowercase names, each a lowercase name, no duplicates, lines inside special_params[] (l.295-442)
+#guard zshLowerSpecials.length == 14 && zshLowerSpecials.all (isLowerName ·.toList) && zshLowerSpecials.eraseDups.length == 14
+#guard zshSpecialRows.all (fun p => 295 ≤ p.2 && p.2 ≤ 442) && zshLowerSpecials.contains "status" && zshLowerSpecials.contains "pipestatus"
+#guard isLowerName "i".toList && isLowerName "n2_x".toList && !isLowerName "_i".toList && !isLowerName "I".toList && !isLowerName "iX".toList && !isLowerName [] && !isLowerName "2i".toList
+#guard litAsg "i=0" == some "i" && litAsg "n=600" == some "n" && litAsg "i=$((i+1))" == none && litAsg "i=010" == none && litAsg "i=" == none && litAsg "a=b=1" == none && litAsg "-i=0" == none
+#guard litNames ["i=0", "j=5"] == ["i", "j"] && litNames ["i=0", "cmd"] == [] && litNames [] == [] && litNames ["export", "i=0"] == []
+-- varOk: SECONDS capped and directed, lowercase assigned names, nothing else
+#guard varOk false [] "SECONDS" .lt 86400 && !varOk false [] "SECONDS" .lt 86401 && !varOk false [] "SECONDS" .lt 1792312012
+#guard varOk false ["i"] "i" .lt 5 && !varOk false [] "i" .lt 5 && !varOk false ["status"] "status" .lt 3 && !varOk false ["N"] "N" .lt 5
+#guard ["BASH_MONOSECONDS", "PIPESTATUS", "GROUPS", "BASH_LINENO", "BASH_ARGV", "TTYIDLE", "EPOCHSECONDS", "RANDOM", "FUNCNAME", "ERRNO", "ARGC"].all (fun n => !varOk false [n] n .lt 5 && !varOk true [n] n .ge 5)
+#guard zshLowerSpecials.all (fun n => !varOk false [n] n .lt 5 && !varOk true [n] n .ge 5)
+-- the round-5 reviewer probes: deny
+#guard decideCmd {} "until [ $BASH_MONOSECONDS -ge 1 ]; do sleep 0.2; done" == .deny .unboundedLoop
+#guard decideCmd {} "until (( BASH_MONOSECONDS >= 1 )); do sleep 0.2; done" == .deny .unboundedLoop
+#guard decideCmd {} "until [ $PIPESTATUS -ge 3 ]; do PIPESTATUS=$((PIPESTATUS+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "PIPESTATUS=0; until [ $PIPESTATUS -ge 3 ]; do PIPESTATUS=$((PIPESTATUS+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "until [ $GROUPS -ge 999999 ]; do GROUPS=$((GROUPS+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "until [ $BASH_LINENO -ge 3 ]; do BASH_LINENO=$((BASH_LINENO+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "until [ $BASH_ARGV -ge 3 ]; do BASH_ARGV=$((BASH_ARGV+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $status -lt 3 ]; do sleep 0.1; done" == .deny .unboundedLoop
+#guard decideCmd {} "status=0; while [ $status -lt 3 ]; do sleep 0.1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $TTYIDLE -lt 3 ]; do sleep 0.1; done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $SECONDS -lt 1792312012 ]; do sleep 1; done" == .deny .unboundedLoop
+#guard decideCmd {} "until (( SECONDS > 86401 )); do sleep 1; done" == .deny .unboundedLoop
+-- counters: set to a literal at the top level before the loop, else denied
+#guard decideCmd {} "i=0; while [ $i -lt 5 ]; do echo $i; i=$((i+1)); done" == .allow
+#guard decideCmd {} "i=0\nwhile [ $i -lt 5 ]; do echo $i; i=$((i+1)); done" == .allow
+#guard decideCmd {} "i=0 && until [ $i -ge 5 ]; do i=$((i+1)); done" == .allow
+#guard decideCmd {} "n=0 i=0; echo start; while [ $i -lt 5 ]; do i=$((i+1)); done" == .allow
+#guard decideCmd {} "while [ $SECONDS -lt 86400 ]; do sleep 5; done" == .allow
+#guard decideCmd {} "while [ $i -lt 5 ]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "N=0; while [ $N -lt 5 ]; do N=$((N+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "_i=0; while [ $_i -lt 5 ]; do _i=$((_i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "i=$n; while [ $i -lt 5 ]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "while [ $i -lt 5 ]; do i=$((i+1)); done; i=0" == .deny .unboundedLoop
+#guard decideCmd {} "true && i=0; until [ $i -ge 5 ]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "false || i=0; until [ $i -ge 5 ]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "echo | i=0; until [ $i -ge 5 ]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "i=0 & until [ $i -ge 5 ]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "if true; then i=0; fi; until [ $i -ge 5 ]; do i=$((i+1)); done" == .deny .unboundedLoop
+#guard decideCmd {} "i=0 cmd; until [ $i -ge 5 ]; do i=$((i+1)); done" == .deny .unboundedLoop
 
 end Fw.Ops.Wait
