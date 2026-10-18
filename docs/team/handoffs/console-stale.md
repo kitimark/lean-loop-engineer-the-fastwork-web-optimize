@@ -1,22 +1,30 @@
 # console-stale handoff
 
-State: round 4 on branch worktree-wf_78d166a4-1a6-1 (code head 6085e89 after merging round-3 head bc83b8a and main; a handoff commit follows).
+State: round 5 (final design round) on branch worktree-wf_6c45d729-0a2-1 (merged round-4 head f76d486 and main).
 
-Read first: docs/team/tools/console-stale.md, lean/Fw/Obs/Stale.lean.
+Read first: docs/team/tools/console-stale.md, lean/Fw/Obs/Stale.lean (end: build record section).
 
-Done (round 4)
-- Lean: Svc gets `unknown : Option String`; code `svc.unknown` (rank 15, later codes shifted), `sUnknown`, `svcUnknown_iff`,
-  `unknown_service_alerts`. Stale.lean: Stack = (apiBase, coreBase, diskBase) over the history model; theorems
-  rebuild_without_restart_api_stale, rebuild_clears_disk, restartApi_after_rebuild_clears, restartApi_without_rebuild_stale,
-  touched_append, judge_stale_append; `chooseBase`/`fromLog` (record vs reflog, unknown) with theorems and `#guard` table.
-- TS: console-api records `coreCommit`/`coreUnknown` in api.json at every fwcore child spawn (core/lean.ts `onSpawn`, main.ts).
-  TS stand-in for chooseBase: apps/console-api/src/core/build-base.ts (same table as the #guards). watch-svc.ts judges
-  console-api on own inputs + fwcore inputs vs its child, and the disk binary; never drops one service for the other.
-- scripts/fwcore-build.sh is the one writer of the build record (moved from docs/team/tools). BUILD_HINT and runner hints use it.
+Done (round 5, lead decisions 1-4)
+- No reflog, no mtime anywhere. The only source of a binary's commit is the build record written by
+  scripts/fwcore-build.sh: `<sha of HEAD before the build> <sha256 of the built binary>`, after a successful build on a
+  tree that is clean before and after (no merge/rebase in progress, HEAD unmoved). Accepted only when the sha256 of the
+  binary on disk equals the recorded one; else svc.unknown with the hint to run the script.
+- Lean (Stale.lean): `chooseBase binHash rec`, theorems chooseBase_accepted, chooseBase_at_iff (identity),
+  chooseBase_mismatch, chooseBase_none, chooseBase_unknown_alerts; Health.lean: unidentified_core_alerts. Inputs are
+  path prefixes: `covers`, covers_self, covers_child; touched/touched_of_mem and the three Stack theorems restated with
+  a covered file. Round-4 math nits fixed (svcUnknown_iff, unknown_service_alerts).
+- lean/scripts/check.sh builds through scripts/fwcore-build.sh (so fw land does); LandSpeed checkShReads + golden
+  land-speed.jsonl + runner CHECK_SH_READS gained `scripts/fwcore-build.sh`.
+- console-api main.ts: codeRoot = resolve(here, ../../..) for codeCommit and buildBase; a binary that is not
+  <codeRoot>/lean/.lake/build/bin/fwcore without a matching record is unknown (reason says so).
+- TS stand-in build-base.ts (pure file reads, no git) and watch-svc.ts coreBase; tests updated. Tool note states the
+  watcher's own code is not judged (stated limit).
 
 Open
-- lean/scripts/check.sh still runs plain `lake build`: switching it to the script needs `scripts/fwcore-build.sh` in
-  Fw/Console/LandSpeed.lean checkShReads (and its golden), outside this task's writes.
-- Lands needing `--allow lean/Fw/Wire/Obs.lean`; scripts/fwcore-build.sh is a new path outside the declared writes.
-- The running console-api must be restarted once to write `coreCommit`; until then `svc.unknown console-api` is raised (by design).
+- Lands need `--allow lean/Fw/Wire/Obs.lean` and `--allow scripts/fwcore-build.sh` (declared writes miss them);
+  also touched: lean/Fw/Console/LandSpeed.lean, lean/Fw/Obs/Health.lean, lean/scripts/check.sh, apps/runner/src/land.ts,
+  packages/contracts/golden/console/land-speed.jsonl (see the dry-run list).
+- The running console-api must be restarted once to write `coreCommit`; until then `svc.unknown console-api`.
+- Builds before this lands have no record: the core shows svc.unknown until `sh scripts/fwcore-build.sh` runs once.
 - TS stand-in chooseBase to be replaced by an fwcore op.
+- The watcher's own code (fw watch) is not a judged service (stated limit).
