@@ -196,13 +196,13 @@ footer { padding-block: 2.5rem 3rem; border-top: 1px solid var(--line); color: v
 @media (max-width: 600px) {
   nav.toc { position: static; }
   header.hero { padding-block: 1.5rem 1rem; gap: 0.9rem; }
-  #now table, #now tbody, #now tr, #now td { display: block; }
-  #now thead { display: none; }
-  #now table { min-width: 0; }
-  #now tr { padding: 0.7rem 0.9rem; border-top: 1px solid var(--line); }
-  #now tr:first-child { border-top: 0; }
-  #now td { border: 0; padding: 0.2rem 0; }
-  #now td::before { content: attr(data-label); display: block; font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  #now > .tbl table, #now > .tbl tbody, #now > .tbl tr, #now > .tbl td { display: block; }
+  #now > .tbl thead { display: none; }
+  #now > .tbl table { min-width: 0; }
+  #now > .tbl tr { padding: 0.7rem 0.9rem; border-top: 1px solid var(--line); }
+  #now > .tbl tr:first-child { border-top: 0; }
+  #now > .tbl td { border: 0; padding: 0.2rem 0; }
+  #now > .tbl td::before { content: attr(data-label); display: block; font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 }
 html { scroll-behavior: smooth; }
 section[id] { scroll-margin-top: 3.5rem; }
@@ -293,7 +293,7 @@ section[id] { scroll-margin-top: 3.5rem; }
       <p>Inside the 3-day frame a workstream starts as soon as its inputs exist; independent ones run in parallel, each in its own worktree. The deadline, the checkpoints and the critical path are in <a href="#now">Now</a>. Milestones M0–M6 stay gates, but each checkpoint has a "must be true" and a fallback, and a task past its checkpoint is cut, not extended. M4 (all parts promoted) is out of scope for v2; cut tasks sit in milestone MX. The live task list is <code>docs/team/work-graph.json</code>.</p>
     </div>
     <details>
-      <summary>Dependency graph drawn for revision 7 (superseded by the critical path in Now)</summary>
+      <summary>Dependency graph and workstream table drawn for revision 7 (superseded by the critical path in Now)</summary>
     <figure class="fig">
       <svg viewBox="0 0 980 540" role="img" aria-labelledby="graphTitle">
         <title id="graphTitle">Workstreams and what blocks them, with the critical path and the phone-calibration chain</title>
@@ -379,7 +379,6 @@ section[id] { scroll-margin-top: 3.5rem; }
       </svg>
       <p class="cap">An arrow from A to B means B waits for A. The critical path (red, re-checked for revision 7, inferred) runs counts-chromium → store-and-run → M1 → pilot parts → M2 → port parts → M4 → experiments → M5 → write-up → M6: the per-engine baselines on CI are the long pole, and slow WebKit Simulator runs on CI are its main risk. Breakpoints, lean-site and site-aot feed the pilot parts in parallel. Four pilot parts are started; three must pass for M2. Calibration (orange) is the second chain: it waits on WKTR counts on CI and on phone sessions, which the user starts on demand; only class SM landings wait for M3, class W experiments do not. All counts run on GitHub Actions (not drawn). "Landed" is read from git; nothing on this graph is hand-written status.</p>
     </figure>
-    </details>
     <div class="tbl">
       <table>
         <thead><tr><th>Workstream</th><th>Blocked by</th><th>Landed, and what is left</th></tr></thead>
@@ -404,6 +403,7 @@ section[id] { scroll-margin-top: 3.5rem; }
         </tbody>
       </table>
     </div>
+    </details>
     <div class="stack">
       <h3>Public CI: where counts are measured</h3>
       <p>Chromium counts, WebKit Simulator counts, the breakpoint gate and WKTR run on GitHub Actions (the user's direction, 417d90d), with read-only contents, actions pinned by SHA and inputs passed through env. A workflow runs only when its inputs change, and a newer push cancels a stale run: before that, 21 of 28 runs touched no input and 248 of 414 job-minutes were wasted. The free plan allows 20 jobs at once, 5 of them macOS. This Mac keeps the phone sessions and one short debug run per harness change; a local run is never reported as a result. Agents may push only <code>ci/*</code> branches.</p>
@@ -502,7 +502,7 @@ section[id] { scroll-margin-top: 3.5rem; }
       <ul class="tight">
         <li>Q5: look and work parity for experiment parts, look parity for the rest, every breakpoint for all parts; a time box per part.</li>
         <li>Q6: the parity reference is snapshot b1789284481295-a455e793; v1's best build becomes the <code>v1-best</code> preset.</li>
-        <li>Q7: two booked phone sessions in v2 (2026-10-18 and 2026-10-19, 45 min each); classes X and P always use the phone. Since rev 10, session 2 is optional (D1).</li>
+        <li>Q7: session 1 held, session 2 optional (D1); since rev 10 the phone is a spot check, never evidence; class P proposals still go to the user on the phone.</li>
         <li>Q8: Chromium is a development aid with no fitted coefficients.</li>
         <li>Q9: acceptance bands V-a to V-t; a licence is per change class.</li>
         <li>Q10: no "less work" landing for style-affecting changes in WebKit until a test-runner element count (WKTR) exists. WKTR runs from WebKit's prebuilt products (about 315 MB) on GitHub's <code>macos-26</code> runners; the rented cloud Mac is a fallback only.</li>

@@ -1,6 +1,6 @@
 # Handoff: page-writer
 
-State at 9367dea + uncommitted (Math view sourced from fwcore `lean/`; previously f2988c0, rev 5 published).
+State at 2c3e5e3f (branch worktree-wf_33987ed2-d9d-2, main a3196a4 merged): loop-plan.html is the page, math-view.html its supporting file.
 
 - `docs/plan/loop-plan.html` is the published page; `docs/plan/math-view.html` (the generated math view, about 10.5 MB) is a
   supporting file published at the same relative path, so the page's `math-view.html` links resolve. The lead publishes both.

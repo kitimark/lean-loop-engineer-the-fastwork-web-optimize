@@ -1,6 +1,6 @@
 # Handoff: plan-page-readability
 
-State: branch worktree-wf_33987ed2-d9d-2, round 2 on top of the round-1 commit (main a3196a4 merged).
+State at 2c3e5e3f plus the lead fix commit after it (branch worktree-wf_33987ed2-d9d-2, main a3196a4 merged).
 
 - Math view moved to its own page `docs/plan/math-view.html` (head and tokens copied from loop-plan; generated block
   between `mathview:begin/end`). `loop-plan.html` keeps only the `mathview-review` panel (chip by priority

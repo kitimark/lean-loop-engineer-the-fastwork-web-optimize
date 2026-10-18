@@ -197,13 +197,13 @@ footer { padding-block: 2.5rem 3rem; border-top: 1px solid var(--line); color: v
 @media (max-width: 600px) {
   nav.toc { position: static; }
   header.hero { padding-block: 1.5rem 1rem; gap: 0.9rem; }
-  #now table, #now tbody, #now tr, #now td { display: block; }
-  #now thead { display: none; }
-  #now table { min-width: 0; }
-  #now tr { padding: 0.7rem 0.9rem; border-top: 1px solid var(--line); }
-  #now tr:first-child { border-top: 0; }
-  #now td { border: 0; padding: 0.2rem 0; }
-  #now td::before { content: attr(data-label); display: block; font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  #now > .tbl table, #now > .tbl tbody, #now > .tbl tr, #now > .tbl td { display: block; }
+  #now > .tbl thead { display: none; }
+  #now > .tbl table { min-width: 0; }
+  #now > .tbl tr { padding: 0.7rem 0.9rem; border-top: 1px solid var(--line); }
+  #now > .tbl tr:first-child { border-top: 0; }
+  #now > .tbl td { border: 0; padding: 0.2rem 0; }
+  #now > .tbl td::before { content: attr(data-label); display: block; font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 }
 html { scroll-behavior: smooth; }
 section[id] { scroll-margin-top: 3.5rem; }
