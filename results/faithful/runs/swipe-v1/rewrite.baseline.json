@@ -3,12 +3,24 @@
  "note": "Cross-shard baseline per zone and count type, and whole-run totals: fwcore measure.zoneBaseline (Lean Fw.Measure.ZoneBaseline). class = the type in the frozen table (unlisted = not in it; rule quarantined); perRun in the order of runs; lo, hi; base = the observed value at sorted index floor((n-1)/2). Raw counts are work, not milliseconds. Regenerate after every refreeze.",
  "source": {
   "zonesFile": "results/faithful/runs/swipe-v1/rewrite.zones.json",
-  "zonesSha256": "ae326d4021f5c38a8f4f385102e90e065bc6dee08dbf9b14a312b7c4ce5276a4",
+  "zonesSha256": "2b56c1204d74a993fba8f3d870b81472f82b779c0035b092ef10f8dd14d9c854",
   "storeKey": "b427fb5e5ed7cc3f8e39fd0caf46d5b435a138b6ab8ca1beb31a5feb4448ff49",
   "runId": "39146329183",
   "gitSha": "b8c051ab264a7b6cb2eb2b0f32cb23e9df003f4f",
   "image": "sha256:46bbef32fe69c58a97215403b74254edbc18aa97ede5eade06dedbf0620cb3dc",
-  "zoneHeightPx": 500
+  "zoneHeightPx": 500,
+  "preset": "original",
+  "browser": "HeadlessChrome/156.0.8078.4",
+  "viewport": {
+   "width": 430,
+   "height": 932,
+   "dpr": 3,
+   "mobile": true,
+   "touch": true
+  },
+  "innerWidthPx": 430,
+  "innerHeightPx": 932,
+  "scrollWidthPx": 430
  },
  "classTable": {
   "file": "packages/measure-chromium/classes.frozen.json",

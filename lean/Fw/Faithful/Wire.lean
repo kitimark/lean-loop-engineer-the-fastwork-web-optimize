@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Faithful.Zone
+import Fw.Faithful.Comparable
 import Fw.Measure.Wire
 /-!
 # The op `faithful.verdict` (task faithful-checks)
@@ -8,6 +9,7 @@ JSON glue for `Fw.Faithful.zoneVerdict` (namespace `Fw.Wire.Faithful`, so the ma
 
 | op | request | reply |
 |---|---|---|
+| `faithful.comparable` | `a`, `r` (each `{profile, preset, browser, zoneHeightPx, viewport: {width, height, dpr, mobile, touch}, observed?: {width, height}}`) | `comparable` (`Fw.Faithful.comparable a r = none`), `field` (the first failing field, else `null`) |
 | `faithful.verdict` | `classes` (A's frozen class table `{type: {class, k, t, tBound?}}`), `a` and `r` (zone lists as in the `zones` of a `measure.zoneBaseline` reply or a stored baseline file: `{id, frames, scrolledPx, types: {type: {lo, hi, base}}}`), `zones`? (ids to judge, default the region `y04000`, `y04500`, `tail`) | `pass`, `failedZones`, `zones` `[{id, present, shape, pass, framesA, framesR, pxA, pxR, failed, tally, cells}]`, `cells` `{type: {family, status, lo, hi, a, r}}` |
 
 `a` supplies the envelope `lo`, `hi` and the median `base`; `r` supplies the median `base` only (its `lo`, `hi` are
@@ -59,13 +61,35 @@ def opVerdict (req : Json) : Except String Reply := do
   pure [("pass", .bool (vs.all (·.pass))), ("failedZones", strArr ((vs.filter (!·.pass)).map (·.id))),
         ("zones", .arr (vs.toArray.map (zoneJson a r)))]
 
+/-- Decode the `Meta` of a baseline: `viewport` is the profile viewport, `observed` (optional) what the page reported. -/
+def metaOf (j : Json) : Except String Meta := do
+  let vp ← field j "viewport"
+  let bool (k : String) : Except String Bool := do
+    match (← field vp k).getBool? with
+    | .ok b => pure b
+    | .error _ => throw s!"field viewport.{k}: expected a boolean"
+  let obs : Option Fw.Measure.Viewport.Size ← match opt j "observed" with
+    | none => pure none
+    | some o => pure (some ⟨← nat o "width", ← nat o "height"⟩)
+  pure { profile := ← str j "profile", preset := ← str j "preset", browser := ← str j "browser",
+         zoneHeightPx := ← nat j "zoneHeightPx", width := ← nat vp "width", height := ← nat vp "height",
+         dpr := ← asRat "viewport.dpr" (← field vp "dpr"), mobile := ← bool "mobile", touch := ← bool "touch", observed := obs }
+
+/-- `faithful.comparable`: see the table above. -/
+def opComparable (req : Json) : Except String Reply := do
+  let a ← metaOf (← field req "a")
+  let r ← metaOf (← field req "r")
+  let c := comparable a r
+  pure [("comparable", .bool c.isNone), ("field", match c with | some f => .str f | none => .null)]
+
 /-- The ops of this module. -/
-def ops : List String := ["faithful.verdict"]
+def ops : List String := ["faithful.verdict", "faithful.comparable"]
 
 /-- Dispatch a `faithful.*` op (`none` when it is not one). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "faithful.verdict" => some (opVerdict req)
+  | "faithful.comparable" => some (opComparable req)
   | _ => none
 
 end Fw.Wire.Faithful

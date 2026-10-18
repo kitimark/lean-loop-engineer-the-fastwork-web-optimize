@@ -1,6 +1,6 @@
 import Fw.Faithful.Golden
 
-/-- Write (or with `--check`, verify) `packages/contracts/golden/faithful/faithful.verdict.jsonl`. Run from `lean/`:
+/-- Write (or with `--check`, verify) the files `packages/contracts/golden/faithful/faithful.{verdict,comparable}.jsonl`. Run from `lean/`:
 `lake env lean --run scripts/FaithfulGolden.lean [--check]`. -/
 def main (args : List String) : IO UInt32 := do
   let stale ← Fw.Wire.Faithful.Golden.run "." (!args.contains "--check")

@@ -18,6 +18,9 @@
   "mobile": true,
   "touch": true
  },
+ "innerWidthPx": 430,
+ "innerHeightPx": 932,
+ "scrollWidthPx": 430,
  "shards": {
   "r1": {
    "frames": 531,

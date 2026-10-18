@@ -1,7 +1,8 @@
 # Faithful check re-run after page-root-clip (task faithful-checks-rerun)
 
-Status: MEASURED (Chromium counts, CI), verdict computed by Lean (`Fw.Faithful`, fwcore `faithful.verdict`); the anchor part is
-PROVED in Lean (`Fw.Gate.PageRoot`). Educational study of the public fastwork.com homepage, not affiliated with Fastwork.
+Status: MEASURED (Chromium counts, CI), verdict computed by Lean (`Fw.Faithful`, fwcore `faithful.verdict`); the comparability of
+the baselines is decided by Lean too (`Fw.Faithful.comparable`, PROVED). Round 2 (closed design): the page-root gate anchor of round 1
+was refuted by the 645 px run and removed (ledger finding `gate.pageRoot.fixedInnerWidth`); its work moved to task gate-page-root-anchor. Educational study of the public fastwork.com homepage, not affiliated with Fastwork.
 Method, bands and class table are those of `research/notes/2026/10-18-faithful-checks.md`; this note holds the new numbers only.
 
 ## Question
@@ -47,16 +48,25 @@ table `classes.frozen.json`. Files: `results/faithful/runs/<p>/*`, verdicts `res
 - R has 17 (swipe-v1) and 18 (swipe-touch-v1) types the frozen table does not list (unlisted, not gating) and detDrift 40 / 56 cells
   across its three shards: the rewrite is less deterministic than A in these runs (INFERRED to be the live rAF/animation work of R; not diagnosed).
 
-## Gate anchor
+## Comparable before scored
 
-`Fw.Gate.PageRoot` (lean/Fw/Gate/PageRoot.lean): the anchor `scrollWidth <= innerWidth` as a gate item (class box, key
-`scrollWidth<=innerWidth`), statuses `equal` (both arms fit), `differ` (original fits, rewrite overflows), `na` (original overflows:
-no valid control), `missing`. Theorems: `status_equal_iff`, `status_differ_iff`, `status_na_of_orig_overflow`, `status_missing`,
-`cell_pass_iff`, `cell_fail_iff` (as the only item of a cell, with `cellVerdict`), and the why: `clip_fits` (with overflow-x clip it
-holds for any content width), `noclip_overflows` (without the clip, content wider than the viewport breaks it, the 645 px case),
-`noclip_fits_of_le`. `anchors.json`: role `pageRoot` (original `.start-selling`, rewrite `[data-fw="page-root"]`, dimension `w`) in part
-`engine.scroll`, so the existing box comparison already sees a root whose width leaves the viewport. The `scrollWidth` observation
-itself is not collected by `page.mjs` yet (it reads `innerWidth` and `clientWidth`): follow-up.
+`Fw.Faithful.comparable a r` (lean/Fw/Faithful/Comparable.lean, op `faithful.comparable`) decides, before any cell is scored, whether
+two baselines measured the same thing: same profile, preset, zone height, browser and profile viewport (width, height, dpr, mobile,
+touch), the candidate recorded the viewport its page reported, and that equals the profile viewport (`Fw.Measure.Viewport.viewportFaithful`).
+It answers `none` or the first failing field. Proved: `comparable_iff`, `refusal_sound`, `unfaithful_refused` (a page that reported another
+viewport is never comparable), `unobserved_refused`, `comparable_self`; the 645 x 1398 replay is a `decide` example (refused as `viewport`).
+`Fw.Faithful.Measured` states `swipeV1_comparable`, `swipeV1_control_comparable` and the touch twins for the two cited runs.
+
+- `zone-baseline.mjs` now carries `preset`, `browser`, `viewport`, `innerWidthPx`, `innerHeightPx`, `scrollWidthPx` from the counts meta into the
+  zones file and `baseline.source`, and fails when the shards disagree. All four run baselines were regenerated from `gh run download` of
+  39146329183 and 39146332555 (no new measurement); only those fields changed. Every run reported 430 x 932, scrollWidth 430, on all 12 shards.
+- `faithful.mjs verdict` judges every profile. No rewrite baseline: `NO DATA: <profile>`; Lean refuses the pair: `not comparable: <field>`; both
+  exit 1, and the verdict file records `verdict: null` with the refusal. A control that is not comparable is recorded (`controlRefusal`), not scored.
+- The verdict blocks (`verdict`, `control`, `reply`, `controlReply`) of both profiles are unchanged by the regeneration; the file adds `meta`
+  and `comparable`. The Lean check (`lean/scripts/check.sh`, incl. the golden check) ran in CI on this branch's tip, see the handoff.
+
+Accepted limit: the frozen original A was measured before the observed viewport was recorded, so only its declared fields are compared
+(`observed = none`); the control of each run is observed. The scrollWidth is recorded, not gated here (the gate item is task gate-page-root-anchor).
 
 ## Limits
 

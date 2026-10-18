@@ -30,8 +30,7 @@
         "engine-scroll"
       ],
       "cites": [
-        "rewrite: EngineScroll marks the document element with data-fw=\"engine-scroll\" once mounted; original: the page scrolls the document and its callbacks run on the window scroll, 2.DyWL8TcE.js:2667-2782",
-        "rewrite: apps/site wraps main in div[data-fw=\"page-root\"] with the original rule (min-width 320px, direction ltr, overflow-x clip); original: .start-selling in 2.gBuqKVzi.css:1. Lean: Fw.Gate.PageRoot (anchor scrollWidth <= innerWidth, theorems clip_fits, noclip_overflows)"
+        "rewrite: EngineScroll marks the document element with data-fw=\"engine-scroll\" once mounted; original: the page scrolls the document and its callbacks run on the window scroll, 2.DyWL8TcE.js:2667-2782"
       ],
       "roles": [
         {
@@ -57,18 +56,6 @@
           "skipSets": [],
           "skipProps": [],
           "why": "the element the engine's callbacks read and write inside; its width must follow the viewport at every breakpoint (height is page content)"
-        },
-        {
-          "role": "pageRoot",
-          "orig": ".start-selling",
-          "rewrite": "[data-fw=\"page-root\"]",
-          "boxRel": null,
-          "dims": [
-            "w"
-          ],
-          "skipSets": [],
-          "skipProps": [],
-          "why": "the page root that clips horizontal overflow; its width follows the viewport at every breakpoint, so a rewrite that overflows (layout viewport widened, run 39130842058: 645 px for 430 px) differs here. The scrollWidth <= innerWidth observation is specified in Fw.Gate.PageRoot and is not collected by page.mjs yet"
         }
       ]
     },

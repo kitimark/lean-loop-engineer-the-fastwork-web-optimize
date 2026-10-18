@@ -2,7 +2,7 @@ import Fw.Wire
 /-!
 # Golden vectors of `faithful.verdict`
 
-`packages/contracts/golden/faithful/faithful.verdict.jsonl`: one line per case, `{"name", "request", "response"}`,
+`packages/contracts/golden/faithful/<op>.jsonl` (`faithful.verdict`, `faithful.comparable`): one line per case, `{"name", "request", "response"}`,
 generated from Lean, never by hand (same format as the `measure.*` goldens):
 
 ```
@@ -55,8 +55,8 @@ def rCells (edits : List (String × Int)) : List (String × Int × Int × Int) :
     | some (_, v) => (ty, v, v, v)
     | none => (ty, b, b, b)
 
-/-- The cases. -/
-def cases : List (String × Json) := [
+/-- The cases of `faithful.verdict`. -/
+def verdictCases : List (String × Json) := [
   ("R equals A in all three zones: pass", req (aZones aCells) (aZones (rCells []))),
   ("an exact-family cell one off: its zone fails and names the type",
     req (aZones aCells) [zone "y04000" 50 500 (rCells [("trace.cc.Draw", 51)]), zone "y04500" 14 136 (rCells []),
@@ -90,40 +90,75 @@ def cases : List (String × Json) := [
   ("zones asks for one zone only", req (aZones aCells) (aZones (rCells [])) (some ["tail"])),
   ("classes missing is refused", Json.mkObj [("a", .arr #[]), ("r", .arr #[])])]
 
+/-- A baseline's meta: profile viewport 430 x 932 at dpr 3 (mobile, touch), `observed` the size the page reported. -/
+def mj (profile : String := "swipe-v1") (observed : Option (Nat × Nat) := some (430, 932)) (preset : String := "original")
+    (browser : String := "HeadlessChrome/156.0.8078.4") (zoneHeightPx : Nat := 500) (width : Nat := 430) (touch : Bool := true) : Json :=
+  Json.mkObj ([("profile", .str profile), ("preset", .str preset), ("browser", .str browser),
+    ("zoneHeightPx", toJson zoneHeightPx),
+    ("viewport", Json.mkObj [("width", toJson width), ("height", toJson 932), ("dpr", toJson 3), ("mobile", .bool true),
+      ("touch", .bool touch)])] ++
+    (match observed with
+     | some (w, h) => [("observed", Json.mkObj [("width", toJson w), ("height", toJson h)])]
+     | none => []))
+
+/-- A `faithful.comparable` request. -/
+def cmp (a r : Json) : Json := Json.mkObj [("a", a), ("r", r)]
+
+/-- The cases of `faithful.comparable`. -/
+def comparableCases : List (String × Json) := [
+  ("candidate and reference observed at the profile viewport: comparable", cmp (mj) (mj)),
+  ("the frozen reference recorded no observed viewport: comparable", cmp (mj (observed := none)) (mj)),
+  ("the 645 x 1398 run: the candidate's page reported another viewport", cmp (mj) (mj (observed := some (645, 1398)))),
+  ("a candidate that did not record its observed viewport is refused", cmp (mj) (mj (observed := none))),
+  ("another profile is refused first", cmp (mj) (mj (profile := "swipe-touch-v1") (observed := some (645, 1398)))),
+  ("another preset", cmp (mj) (mj (preset := "rewrite"))),
+  ("another zone height", cmp (mj) (mj (zoneHeightPx := 400))),
+  ("another browser build", cmp (mj) (mj (browser := "HeadlessChrome/157.0.0.0"))),
+  ("another declared viewport width", cmp (mj) (mj (width := 390) (observed := some (390, 932)))),
+  ("another touch flag", cmp (mj) (mj (touch := false))),
+  ("the reference's own observation is not the profile viewport", cmp (mj (observed := some (645, 1398))) (mj)),
+  ("field a missing is refused", Json.mkObj [("r", mj)])]
+
+/-- The cases: file name, case name, request. -/
+def cases : List (String × String × Json) :=
+  verdictCases.map (fun (n, r) => ("faithful.verdict", n, r)) ++ comparableCases.map (fun (n, r) => ("faithful.comparable", n, r))
+
 /-- The request with its `op` field set. -/
-def withOp (j : Json) : Json :=
+def withOp (op : String) (j : Json) : Json :=
   match j with
-  | .obj kvs => .obj (kvs.insert "op" (.str "faithful.verdict"))
+  | .obj kvs => .obj (kvs.insert "op" (.str op))
   | j => j
 
 /-- The reply to a request as a JSON object without the id. -/
-def respond (req : Json) : Json :=
-  match Json.parse (Fw.Wire.handleLine (withOp req).compress) with
+def respond (op : String) (req : Json) : Json :=
+  match Json.parse (Fw.Wire.handleLine (withOp op req).compress) with
   | .ok (.obj kvs) => .obj (kvs.erase "id")
   | .ok j => j
   | .error e => Json.mkObj [("error", .str s!"reply is not JSON: {e}")]
 
-/-- The text of the golden file. -/
-def fileText : String :=
-  String.join (cases.map fun (name, r) =>
-    (Json.mkObj [("name", .str name), ("request", withOp r), ("response", respond r)]).compress ++ "\n")
+/-- The text of the golden file of one op. -/
+def fileText (op : String) : String :=
+  String.join ((cases.filter (·.1 == op)).map fun (_, name, r) =>
+    (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
 
-/-- The golden file, relative to `lean/`. -/
-def file : System.FilePath := ".." / "packages" / "contracts" / "golden" / "faithful" / "faithful.verdict.jsonl"
+/-- The golden file of an op, relative to `lean/`. -/
+def file (op : String) : System.FilePath := ".." / "packages" / "contracts" / "golden" / "faithful" / s!"{op}.jsonl"
 
-/-- Write the golden file, or with `write = false` compare it; returns the number of stale files. -/
+/-- Write the golden files, or with `write = false` compare them; returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
-  let p := root / file
-  if write then
-    IO.FS.createDirAll (p.parent.getD ".")
-    IO.FS.writeFile p fileText
-    IO.println s!"faithful golden: {cases.length} cases, written"
-    return 0
-  let cur ← try IO.FS.readFile p catch _ => pure ""
-  if cur != fileText then
-    IO.println s!"faithful golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/FaithfulGolden.lean)"
-    return 1
-  IO.println s!"faithful golden: {cases.length} cases, 0 stale"
-  return 0
+  let mut stale := 0
+  for op in ["faithful.verdict", "faithful.comparable"] do
+    let p := root / file op
+    if write then
+      IO.FS.createDirAll (p.parent.getD ".")
+      IO.FS.writeFile p (fileText op)
+      IO.println s!"faithful golden {op}: {(cases.filter (·.1 == op)).length} cases, written"
+    else
+      let cur ← try IO.FS.readFile p catch _ => pure ""
+      if cur != fileText op then
+        IO.println s!"faithful golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/FaithfulGolden.lean)"
+        stale := stale + 1
+      else IO.println s!"faithful golden {op}: {(cases.filter (·.1 == op)).length} cases, 0 stale"
+  return stale
 
 end Fw.Wire.Faithful.Golden

@@ -9,9 +9,13 @@
 // <runs> holds the files `zone-baseline.mjs baseline --out <runs> --profile p --target rewrite|original` writes.
 //
 //   node src/faithful.mjs verdict [--profile swipe-v1] [--runs results/faithful/runs] [--out results/faithful] [--check]
-//        writes <out>/<p>.verdict.json: R against A (the verdict) and A' against A (the control)
+//        for every profile (default PROFILES) writes <out>/<p>.verdict.json: R against A (the verdict) and A' against A (the control),
+//        after Lean (`faithful.comparable`, Fw.Faithful.comparable) accepted the pair. A profile with no rewrite baseline prints
+//        `NO DATA: <p>`, a pair Lean refuses prints `not comparable: <field>`; either is a named refusal, the file records it
+//        (`verdict: null`) and the exit code is 1. The verdict is Lean's, the refusal is Lean's or a missing file, never silence.
 //   node src/faithful.mjs lean [--runs ...] [--out lean/Fw/Faithful/Measured.lean] [--check]
-//        writes the Lean file with the measured cells and one theorem per profile and zone (decided by `decide`)
+//        writes the Lean file with the measured cells, the comparability of each pair and one theorem per profile and zone
+//        (decided by `decide`); the same refusals apply (exit 1)
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -29,7 +33,7 @@ const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 /** The three region zones of a baseline file, as the `a`/`r` lists of `faithful.verdict`. */
 export const regionOf = (baseline) => baseline.zones.filter((z) => REGION.includes(z.id));
 
-/** A profile without a rewrite baseline (its CI run produced no counts, see results/faithful/swipe-touch-v1.finding.json) has no verdict. */
+/** A profile without a rewrite baseline (its CI run produced no counts) has no verdict: `NO DATA`, never silence. */
 const hasR = (profile, runsDir) => existsSync(join(runsDir, profile, 'rewrite.baseline.json'));
 
 /** Everything one profile's verdict needs, read from files. */
@@ -45,6 +49,26 @@ export function load(profile, runsDir) {
     A: readJson(aPath), R: readJson(rPath), C: existsSync(cPath) ? readJson(cPath) : null,
     paths: { A: relative(ROOT, aPath), R: relative(ROOT, rPath), C: relative(ROOT, cPath) } };
 }
+
+/**
+ * How a baseline was measured, as the `a`/`r` of `faithful.comparable`: from `baseline.source` (written by zone-baseline.mjs since
+ * run 39146329183); the frozen original baseline A predates those fields, so its zones file (checked against `zonesSha256`) is read.
+ */
+export function metaOf(baseline) {
+  let s = baseline.source;
+  if (s.viewport === undefined || s.preset === undefined || s.browser === undefined) {
+    const zp = join(ROOT, s.zonesFile);
+    const text = readFileSync(zp);
+    if (sha(text) !== s.zonesSha256) throw new Error(`${s.zonesFile} does not hash to the sha256 its baseline names`);
+    s = { ...s, ...JSON.parse(text) };
+  }
+  const meta = { profile: baseline.profile, preset: s.preset, browser: s.browser, zoneHeightPx: s.zoneHeightPx, viewport: s.viewport };
+  if (typeof s.innerWidthPx === 'number' && typeof s.innerHeightPx === 'number') meta.observed = { width: s.innerWidthPx, height: s.innerHeightPx };
+  return meta;
+}
+
+/** `faithful.comparable` of the pair (Lean `Fw.Faithful.comparable`): `{comparable, field}`; `field` names the first failing check. */
+export const comparableOf = (a, r) => call([{ op: 'faithful.comparable', a, r }])[0];
 
 /** `faithful.verdict` of `r` against `a` (baseline files) under the class table. */
 export const verdictOf = (classes, a, r) => call([{ op: 'faithful.verdict', classes, a: regionOf(a), r: regionOf(r) }])[0];
@@ -64,35 +88,72 @@ export function summarize(v) {
   };
 }
 
-function verdictMode() {
-  const runs = resolve(arg('--runs', join(ROOT, 'results/faithful/runs')));
-  const outDir = resolve(arg('--out', join(ROOT, 'results/faithful')));
-  const profiles = (arg('--profile') ? [arg('--profile')] : PROFILES).filter((p) => hasR(p, runs));
+/** The profile's inputs and Lean's comparability answers, or the named refusal (`NO DATA`, `not comparable`). */
+export function prepare(p, runs) {
+  if (!hasR(p, runs)) return { refusal: { kind: 'no-data', text: `NO DATA: ${p}: no rewrite baseline in ${relative(ROOT, join(runs, p))} (its CI run produced no counts)` } };
+  const d = load(p, runs);
+  const metas = { A: metaOf(d.A), R: metaOf(d.R), C: d.C ? metaOf(d.C) : null };
+  const cmpR = comparableOf(metas.A, metas.R);
+  if (!cmpR.comparable) {
+    return { d, metas, cmpR, refusal: { kind: 'not-comparable', field: cmpR.field, text: `not comparable: ${cmpR.field}: ${p} rewrite against the frozen original (Lean Fw.Faithful.comparable)` } };
+  }
+  return { d, metas, cmpR, cmpC: metas.C ? comparableOf(metas.A, metas.C) : null };
+}
+
+const NOTE = 'PL5 band verdict per zone (y04000, y04500, tail) and count type, rewrite R against the frozen original baseline A (Lean Fw.Faithful, ' +
+  'fwcore faithful.verdict), after Lean Fw.Faithful.comparable accepted the pair (profile, preset, zone height, browser, profile viewport, and the ' +
+  'viewport the page reported). Chromium only, one CI run per arm; raw counts are work, not milliseconds. A result outside a band is a finding.';
+
+/** The verdict file of one profile, and its refusal (null when Lean decided). */
+export function judge(p, runs) {
+  const q = prepare(p, runs);
+  const base = { schema: 'fw.faithful.verdict/2', note: NOTE, profile: p, region: REGION };
+  if (q.refusal) {
+    return { refusal: q.refusal, file: { ...base, verdict: null, refusal: { kind: q.refusal.kind, field: q.refusal.field ?? null, text: q.refusal.text },
+      meta: q.metas ?? null, comparable: q.cmpR ?? null } };
+  }
+  const { d, metas, cmpR, cmpC } = q;
+  const verdict = verdictOf(d.classes, d.A, d.R);
+  const control = cmpC?.comparable ? verdictOf(d.classes, d.A, d.C) : null;
+  const file = {
+    ...base, classTable: d.classTable, files: d.paths,
+    sourceA: d.A.source, sourceR: d.R.source, sourceControl: d.C?.source ?? null,
+    meta: metas, comparable: { rewrite: cmpR, control: cmpC },
+    verdict: summarize(verdict), control: control ? summarize(control) : null,
+    controlRefusal: d.C === null ? 'no control baseline' : cmpC.comparable ? null : `not comparable: ${cmpC.field}`,
+    reply: verdict, controlReply: control,
+  };
+  return { refusal: null, file, summary: `R ${verdict.pass ? 'PASS' : 'FAIL ' + verdict.failedZones.join(',')}` +
+    (control ? `; control A'/A ${control.pass ? 'pass' : 'FAIL ' + control.failedZones.join(',')}` : `; control: ${file.controlRefusal}`) };
+}
+
+/** Judge every profile; write (or `check`) <out>/<p>.verdict.json. Returns the report lines and the exit code (1 on any refusal or difference). */
+export function verdictRun({ runs, out, profiles = PROFILES, check = false }) {
+  const lines = [];
+  let code = 0;
   for (const p of profiles) {
-    const d = load(p, runs);
-    const verdict = verdictOf(d.classes, d.A, d.R);
-    const control = d.C ? verdictOf(d.classes, d.A, d.C) : null;
-    const file = {
-      schema: 'fw.faithful.verdict/1',
-      note: 'PL5 band verdict per zone (y04000, y04500, tail) and count type, rewrite R against the frozen original baseline A (Lean Fw.Faithful, ' +
-        'fwcore faithful.verdict). Chromium only, one CI run per arm; raw counts are work, not milliseconds. A result outside a band is a finding.',
-      profile: p, region: REGION, classTable: d.classTable, files: d.paths,
-      sourceA: d.A.source, sourceR: d.R.source, sourceControl: d.C?.source ?? null,
-      verdict: summarize(verdict), control: control ? summarize(control) : null,
-      reply: verdict, controlReply: control,
-    };
-    const text = JSON.stringify(file, null, 1) + '\n';
-    const path = join(outDir, `${p}.verdict.json`);
-    if (args.includes('--check')) {
-      if (!existsSync(path) || readFileSync(path, 'utf8') !== text) { console.error(`DIFFERS: ${path}`); process.exit(1); }
-      console.log(`identical: ${path}`);
+    const j = judge(p, runs);
+    const path = join(out, `${p}.verdict.json`);
+    const text = JSON.stringify(j.file, null, 1) + '\n';
+    if (j.refusal) { lines.push(j.refusal.text); code = 1; }
+    if (check) {
+      if (!existsSync(path) || readFileSync(path, 'utf8') !== text) { lines.push(`DIFFERS: ${path}`); code = 1; }
+      else if (!j.refusal) lines.push(`identical: ${path}`);
     } else {
-      mkdirSync(outDir, { recursive: true });
+      mkdirSync(out, { recursive: true });
       writeFileSync(path, text);
-      console.log(`wrote ${path}: R ${verdict.pass ? 'PASS' : 'FAIL ' + verdict.failedZones.join(',')}` +
-        (control ? `; control A'/A ${control.pass ? 'pass' : 'FAIL ' + control.failedZones.join(',')}` : ''));
+      lines.push(`wrote ${path}${j.refusal ? ': no verdict (refusal recorded)' : `: ${j.summary}`}`);
     }
   }
+  return { lines, code };
+}
+
+function verdictMode() {
+  const runs = resolve(arg('--runs', join(ROOT, 'results/faithful/runs')));
+  const out = resolve(arg('--out', join(ROOT, 'results/faithful')));
+  const { lines, code } = verdictRun({ runs, out, profiles: arg('--profile') ? [arg('--profile')] : PROFILES, check: args.includes('--check') });
+  for (const l of lines) (/^(NO DATA|not comparable|DIFFERS)/.test(l) ? console.error : console.log)(l);
+  process.exit(code);
 }
 
 const ident = (s) => s.replace(/[^A-Za-z0-9]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''));
@@ -101,17 +162,20 @@ const lvl = { deterministic: '.det', stable: '.stable', quarantined: '.quar' };
 /** The Lean source of the measured cells and the per-zone theorems. */
 export function leanSource(runsDir) {
   const out = [];
-  out.push('import Fw.Faithful.Zone', '/-!',
+  out.push('import Fw.Faithful.Zone', 'import Fw.Faithful.Comparable', '/-!',
     '# The measured PL5 verdict of the end-of-page region (generated, task faithful-checks)', '',
     'Generated by `packages/measure-chromium/src/faithful.mjs lean` from the frozen original baseline, the rewrite baseline of one CI run',
     'and the class table of `classes.frozen.json`; never edited by hand. One theorem per profile and zone states the pass bit and the',
-    'failing types that `Fw.Faithful.zoneVerdict` computes from those cells (decided by `decide`). A zone outside its band is stated as',
+    'failing types that `Fw.Faithful.zoneVerdict` computes from those cells (decided by `decide`). Before them, one theorem per profile',
+    'states that `Fw.Faithful.comparable` accepts the rewrite and the control of the run against the frozen original. A zone outside its band is stated as',
     'it is, with the failing types listed; the theorem is not a claim that the zone passes.', '-/',
     'namespace Fw.Faithful.Measured', 'open Fw.Measure', '');
   out.push('/-- A cell.', '', '$$\\mathrm{zc}(\\tau, \\mathrm{lo}, \\mathrm{hi}, b) = (\\tau, \\mathrm{lo}, \\mathrm{hi}, b)$$', '-/',
     'abbrev zc (t : String) (lo hi b : Int) : ZCell := ⟨t, lo, hi, b⟩', '');
-  for (const p of PROFILES.filter((q) => hasR(q, runsDir))) {
-    const d = load(p, runsDir);
+  for (const p of PROFILES) {
+    const q = prepare(p, runsDir);
+    if (q.refusal) throw new Error(q.refusal.text);
+    const { d, metas } = q;
     const verdict = verdictOf(d.classes, d.A, d.R);
     const P = ident(p);
     const entries = Object.keys(d.classes).sort().map((t) => {
@@ -128,6 +192,21 @@ export function leanSource(runsDir) {
         `$$\\mathrm{${name.replace(/[A-Z]/g, (c) => c)}} = (\\texttt{${z.id}}, ${z.frames}, ${z.scrolledPx}, \\text{cells})$$`, '-/',
         `def ${name} : ZBase := ⟨"${z.id}", ${z.frames}, ${n(z.scrolledPx)}, [`, '  ' + cells.join(',\n  ') + ']⟩', ''];
     };
+    const dprText = (v) => `(${Math.round(v.dpr * 1000)} / 1000 : Rat)`;
+    const metaDef = (name, who, m) => [`/-- How ${who} of profile \`${p}\` was measured: profile, preset, browser, zone height, profile viewport, observed viewport.`, '',
+      `$$\\mathrm{${name}} = (\\texttt{${m.profile}}, \\texttt{${m.preset}}, ${m.zoneHeightPx}, ${m.viewport.width} \\times ${m.viewport.height}, ${m.observed ? `${m.observed.width} \\times ${m.observed.height}` : '\\bot'})$$`, '-/',
+      `def ${name} : Meta := ⟨"${m.profile}", "${m.preset}", "${m.browser}", ${m.zoneHeightPx}, ${m.viewport.width}, ${m.viewport.height}, ${dprText(m.viewport)}, ${m.viewport.mobile}, ${m.viewport.touch}, ` +
+      `${m.observed ? `some ⟨${m.observed.width}, ${m.observed.height}⟩` : 'none'}⟩`, ''];
+    out.push(...metaDef(`${P}MetaA`, 'the frozen original', metas.A), ...metaDef(`${P}MetaR`, 'the rewrite', metas.R));
+    out.push(`/-- **Profile \`${p}\`: the rewrite is comparable with the original.** Same profile, preset, zone height, browser and profile viewport, and the page reported the profile viewport.`, '',
+      `$$\\mathrm{cmp}(A_{\\mathrm{${p}}}, R_{\\mathrm{${p}}}) = \\bot$$`, '-/',
+      `theorem ${P}_comparable : comparable ${P}MetaA ${P}MetaR = none := by decide +kernel`, '');
+    if (metas.C) {
+      out.push(...metaDef(`${P}MetaC`, 'the control (the original of the same CI run)', metas.C));
+      out.push(`/-- **Profile \`${p}\`: the control is comparable with the original.**`, '',
+        `$$\\mathrm{cmp}(A_{\\mathrm{${p}}}, C_{\\mathrm{${p}}}) = \\bot$$`, '-/',
+        `theorem ${P}_control_comparable : comparable ${P}MetaA ${P}MetaC = none := by decide +kernel`, '');
+    }
     const aZ = regionOf(d.A), rZ = regionOf(d.R);
     for (const z of aZ) out.push(...zdef(`${P}A${ident(z.id)}`, 'the original (frozen baseline)', z));
     for (const z of rZ) out.push(...zdef(`${P}R${ident(z.id)}`, 'the rewrite (integrated head)', z));
@@ -138,8 +217,7 @@ export function leanSource(runsDir) {
     for (const z of verdict.zones) {
       const failed = `[${z.failed.map((t) => `"${t}"`).join(', ')}]`;
       out.push(`/-- **Zone \`${z.id}\` of \`${p}\`, measured.** The verdict \`Fw.Faithful.zoneVerdict\` computes from the cells above: ` +
-        `${z.pass ? 'it passes' : 'it does not pass'}; failing types ${z.failed.length ? z.failed.map((t) => '`' + t + '`').join(', ') : 'none'}; ` +
-        `present ${z.present}, shape ${z.shape}.`, '',
+        `${z.pass ? 'it passes' : 'it does not pass'}; failing types ${z.failed.length ? z.failed.map((t) => '`' + t + '`').join(', ') : 'none'}.`, '',
         `$$\\operatorname{pass}(v) = ${z.pass ? '\\top' : '\\bot'} \\ \\land\\ \\operatorname{failed}(v) = [${z.failed.length ? z.failed.map((t) => '\\texttt{' + t.replace(/_/g, '\\_') + '}').join(',\\ ') : '\\,'}],\\quad v = \\operatorname{zoneVerdict}_{T_{\\mathrm{${p}}}}(As_{\\mathrm{${p}}}, Rs_{\\mathrm{${p}}}, \\texttt{${z.id}})$$`, '-/',
         `theorem ${P}_${ident(z.id)} :`,
         `    (zoneVerdict ${P}Table ${P}A ${P}R "${z.id}").pass = ${z.pass} ∧`,
@@ -153,7 +231,8 @@ export function leanSource(runsDir) {
 function leanMode() {
   const runs = resolve(arg('--runs', join(ROOT, 'results/faithful/runs')));
   const path = resolve(arg('--out', join(ROOT, 'lean/Fw/Faithful/Measured.lean')));
-  const text = leanSource(runs);
+  let text;
+  try { text = leanSource(runs); } catch (e) { console.error(e.message); process.exit(1); }
   if (args.includes('--check')) {
     if (!existsSync(path) || readFileSync(path, 'utf8') !== text) { console.error(`DIFFERS: ${path}`); process.exit(1); }
     console.log(`identical: ${path}`);

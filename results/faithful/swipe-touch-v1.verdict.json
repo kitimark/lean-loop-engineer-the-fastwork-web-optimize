@@ -1,6 +1,6 @@
 {
- "schema": "fw.faithful.verdict/1",
- "note": "PL5 band verdict per zone (y04000, y04500, tail) and count type, rewrite R against the frozen original baseline A (Lean Fw.Faithful, fwcore faithful.verdict). Chromium only, one CI run per arm; raw counts are work, not milliseconds. A result outside a band is a finding.",
+ "schema": "fw.faithful.verdict/2",
+ "note": "PL5 band verdict per zone (y04000, y04500, tail) and count type, rewrite R against the frozen original baseline A (Lean Fw.Faithful, fwcore faithful.verdict), after Lean Fw.Faithful.comparable accepted the pair (profile, preset, zone height, browser, profile viewport, and the viewport the page reported). Chromium only, one CI run per arm; raw counts are work, not milliseconds. A result outside a band is a finding.",
  "profile": "swipe-touch-v1",
  "region": [
   "y04000",
@@ -28,21 +28,104 @@
  },
  "sourceR": {
   "zonesFile": "results/faithful/runs/swipe-touch-v1/rewrite.zones.json",
-  "zonesSha256": "802df9a4f9aad84960832d11dd133820c7fccdb6b1f61e028e8e9250f63e19df",
+  "zonesSha256": "0c7173b503e547d064dcf8c6bcadeea4353b29fd6224c78cf778d256213960e4",
   "storeKey": "7b002bbe0004572cb1fc1383159db9bba42285da51b0a0c321d2d29061f00c3e",
   "runId": "39146332555",
   "gitSha": "b8c051ab264a7b6cb2eb2b0f32cb23e9df003f4f",
   "image": "sha256:28cce168f6349a52a1a2e2c13ca9844afc100daeee339ed53d1cc33dbecacc7c",
-  "zoneHeightPx": 500
+  "zoneHeightPx": 500,
+  "preset": "original",
+  "browser": "HeadlessChrome/156.0.8078.4",
+  "viewport": {
+   "width": 430,
+   "height": 932,
+   "dpr": 3,
+   "mobile": true,
+   "touch": true
+  },
+  "innerWidthPx": 430,
+  "innerHeightPx": 932,
+  "scrollWidthPx": 430
  },
  "sourceControl": {
   "zonesFile": "results/faithful/runs/swipe-touch-v1/original.zones.json",
-  "zonesSha256": "772a06ca522ba432bfeed12ca9e0262be482e1d0750a3d58dde5b7d9b089fc56",
+  "zonesSha256": "1033bb8ccd2ffe0532a1b3d5fc29131ff14edfb60adc9b7e3e45fc7a793e1b65",
   "storeKey": "e19291ec1f51811a0124343c8ce3fed71510834e605e7df33884de34360f6976",
   "runId": "39146332555",
   "gitSha": "b8c051ab264a7b6cb2eb2b0f32cb23e9df003f4f",
   "image": "sha256:28cce168f6349a52a1a2e2c13ca9844afc100daeee339ed53d1cc33dbecacc7c",
-  "zoneHeightPx": 500
+  "zoneHeightPx": 500,
+  "preset": "original",
+  "browser": "HeadlessChrome/156.0.8078.4",
+  "viewport": {
+   "width": 430,
+   "height": 932,
+   "dpr": 3,
+   "mobile": true,
+   "touch": true
+  },
+  "innerWidthPx": 430,
+  "innerHeightPx": 932,
+  "scrollWidthPx": 430
+ },
+ "meta": {
+  "A": {
+   "profile": "swipe-touch-v1",
+   "preset": "original",
+   "browser": "HeadlessChrome/156.0.8078.4",
+   "zoneHeightPx": 500,
+   "viewport": {
+    "width": 430,
+    "height": 932,
+    "dpr": 3,
+    "mobile": true,
+    "touch": true
+   }
+  },
+  "R": {
+   "profile": "swipe-touch-v1",
+   "preset": "original",
+   "browser": "HeadlessChrome/156.0.8078.4",
+   "zoneHeightPx": 500,
+   "viewport": {
+    "width": 430,
+    "height": 932,
+    "dpr": 3,
+    "mobile": true,
+    "touch": true
+   },
+   "observed": {
+    "width": 430,
+    "height": 932
+   }
+  },
+  "C": {
+   "profile": "swipe-touch-v1",
+   "preset": "original",
+   "browser": "HeadlessChrome/156.0.8078.4",
+   "zoneHeightPx": 500,
+   "viewport": {
+    "width": 430,
+    "height": 932,
+    "dpr": 3,
+    "mobile": true,
+    "touch": true
+   },
+   "observed": {
+    "width": 430,
+    "height": 932
+   }
+  }
+ },
+ "comparable": {
+  "rewrite": {
+   "comparable": true,
+   "field": null
+  },
+  "control": {
+   "comparable": true,
+   "field": null
+  }
  },
  "verdict": {
   "pass": false,
@@ -737,6 +820,7 @@
    }
   ]
  },
+ "controlRefusal": null,
  "reply": {
   "failedZones": [
    "y04000",

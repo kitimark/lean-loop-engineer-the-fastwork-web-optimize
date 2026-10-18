@@ -133,7 +133,6 @@ import Fw.Wire.ShardGolden  -- gate-shard-balance: golden/gate/shards.jsonl
 import Fw.Measure.WktrLayout  -- wktr-fixture-speed: lane layout, premise gate, fixture assertions
 import Fw.Measure.WktrVariance  -- wktr-serial-baseline: run-to-run variance of class kinds, findings, verdict
 import Fw.Gate.PageOffset  -- fix-page-offset: page-level top-of-part check (proposal)
-import Fw.Gate.PageRoot  -- faithful-checks-rerun: the page-root anchor scrollWidth <= innerWidth
 import Fw.Spec.Props  -- lfg-props-shape: property-over-impl convention, Assume premise marker, kill-witness naming
 import Fw.Search  -- lfg-props-shape: Enum, bounded counterexample search, link to properties
 import Fw.Spec.LandDrySig  -- lfg-props-shape: the dry-run implementation signature (Out, DryImpl)
@@ -149,6 +148,7 @@ import Fw.Spec.MathFacts  -- lfg-mathview-facts: per-theorem facts (head, impl a
 import Fw.Spec.MathFactsGuards  -- lfg-mathview-facts: #guards of the facts on real declarations
 import Fw.Preset.Gen  -- preset-v2-proved: the v2-proved arm from the findings ledger (V2Proved decides, Gen writes)
 import Fw.Faithful.Band
+import Fw.Faithful.Comparable
 import Fw.Faithful.Zone
 import Fw.Faithful.Wire
 import Fw.Faithful.Golden
