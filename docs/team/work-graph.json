@@ -4090,7 +4090,8 @@
     "docs/team/tools/**",
     "docs/team/handoffs/task-preview.md",
     "research/notes/**"
-   ]
+   ],
+   "evidence": "140697a"
   },
   {
    "id": "ci-own-trigger",
@@ -4513,6 +4514,25 @@
     "docs/team/tools/wait-guard.md",
     "docs/team/handoffs/wait-guard-enforce.md",
     "docs/team/handoffs/wait-guard-enforce-2.md"
+   ]
+  },
+  {
+   "id": "task-preview-2",
+   "title": "(S) task-preview follow-ups from review: owner link written to /dev/tty only (an agent read it from a background output file and became owner), console must be started by the user in a terminal; panel head = landed/merged head (expectHead in the Lean table, merge/handoff before origin/ci), 9/25 heads wrong today",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "task-preview"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/console-api/**",
+    "apps/console-web/**",
+    "lean/Fw/Console/Preview*.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/task-preview.md",
+    "docs/team/handoffs/task-preview-2.md",
+    "docs/team/tools/**"
    ]
   }
  ],

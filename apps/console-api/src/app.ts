@@ -10,6 +10,9 @@ import { mountAgentRoutes } from "./cap/routes.ts";
 import { SECRET_HEADER, openDoor } from "./cap/cap.ts";
 import { mountOps } from "./ops/routes.ts";
 import { readLatestHealth } from "./health.ts";
+import { mountPreview } from "./preview/routes.ts";
+import type { PreviewManager } from "./preview/manager.ts";
+import { OwnerAuth } from "./preview/owner.ts";
 
 const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
@@ -20,7 +23,7 @@ const MIME: Record<string, string> = {
  *  api.json also holds the build commit of the fwcore child (`coreCommit`, or `coreUnknown`). */
 export interface ServiceInfo { commit: string | null; startedAt: number }
 
-export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, service?: ServiceInfo) {
+export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, previews?: PreviewManager, owner: OwnerAuth = new OwnerAuth(), service?: ServiceInfo) {
   const app = new Hono();
   // a failed core call (fwcore crash, bad reply) fails the request; the core restarts itself
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
@@ -45,6 +48,7 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   mountOps(app, store);
   if (reconciler) mountReconcile(app, store, reconciler);
   const { drain, caps } = mountAgentRoutes(app, store); // capability-gated agent door + spool drain
+  if (previews) mountPreview(app, store, caps, previews, owner); // task detail panel + owner-only preview (task-preview)
   app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/plan", async (c) => c.json((await store.board()).plan)); // the work graph, derived by fwcore
   // latest `fw watch` check (fwcore obs.health output) with the running code's `service` ({commit, startedAt}), or null
