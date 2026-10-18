@@ -301,7 +301,9 @@ def crJoin (id : String) (rs : List CrKey) (hints css : String) : Case :=
 /-- **A two-element case**: the table members `a` and `b` changed in one frame, `a` on the case's box and `b` on an
 extra box; `none` if a member has no CSS spelling or is not realizable.
 
-$$\forall a, b:\ \operatorname{pair}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{style}(a),\ a.\mathrm{prop},\ a.v_1,\ [(\operatorname{style}(b), b.\mathrm{prop}, b.v_1)],\ \operatorname{expect}(W_{\mathrm{cr}}(\operatorname{crFrames}[(0, \operatorname{css}(a), \ell_a), (1, \operatorname{css}(b), \ell_b)]))\big) & \operatorname{real}_{\mathrm{cr}}(a) \land \operatorname{real}_{\mathrm{cr}}(b) \\ \bot & \text{otherwise} \end{cases}$$
+$$\forall a = (k_a, \ell_a),\ b = (k_b, \ell_b):\ \operatorname{pair}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{st}(a) \mathbin{+\!\!+} c_a.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_a.v_0 \mathbin{+\!\!+} \texttt{;},\ c_a.\mathrm{prop},\ c_a.v_1,\ [(\operatorname{st}(b) \mathbin{+\!\!+} c_b.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_b.v_0 \mathbin{+\!\!+} \texttt{;},\ c_b.\mathrm{prop},\ c_b.v_1)],\ \operatorname{expect}(W_{\mathrm{cr}}(\operatorname{crFrames}[(0, \operatorname{css}(k_a), \ell_a), (1, \operatorname{css}(k_b), \ell_b)]))\big) & \operatorname{crCss}(k_a) = \mathrm{some}\ c_a \land \operatorname{crCss}(k_b) = \mathrm{some}\ c_b \land \operatorname{real}_{\mathrm{cr}}(k_a, \ell_a) \land \operatorname{real}_{\mathrm{cr}}(k_b, \ell_b) \\ \bot & \text{otherwise} \end{cases}$$
+
+where $\operatorname{st}(k, \ell) = \operatorname{layerStyle}(\ell, \operatorname{hint}(k))$.
 
 Two boxes changed in the same frame. -/
 def crPair (a b : CrKey × LayerState) : Option Case :=
@@ -322,7 +324,8 @@ on one own-layer box); three two-element frames (`top@own` with `scale@own`, `tr
 
 $$\mathrm{crExtra} = [\mathrm{timer}] \mathbin{+\!\!+} [\operatorname{join}(\{\mathrm{top}, \mathrm{scale}\}), \operatorname{join}(\{\mathrm{top}, \mathrm{transform}\}), \operatorname{join}(\{\mathrm{bgColor}, \mathrm{opacity}\})] \mathbin{+\!\!+} [\operatorname{pair}(\mathrm{top}@\mathrm{own}, \mathrm{scale}@\mathrm{own}), \operatorname{pair}(\mathrm{transform}@\mathrm{own}, \mathrm{bgColor}@\mathrm{none}), \operatorname{pair}(\mathrm{top}@\mathrm{own}, \mathrm{transform}@\mathrm{own})]$$
 
-The frames that test the timer base rule and how levels combine. -/
+where the pairs go through `filterMap` (a pair that is $\bot$ is dropped; all three are defined, `extra_counts`). The
+frames that test the timer base rule and how levels combine. -/
 def crExtraCases : List Case :=
   [{ id := "timer", act := .timer, expect := expectAll crObservers (crWork ⟨1, 0, 0, 0, [], 0⟩) },
    crJoin "custom[top,scale]@own" [.top, .scale] "transform,scale"
@@ -483,9 +486,11 @@ $$\mathrm{wkSteps}_0 = \operatorname{steps}(\operatorname{expect}(W_{\mathrm{wk}
 def wkSteps0 : List Case := steps (expectAll wkObservers (wkWork [])) wkCases
 
 /-- **A WebKit two-element case**: the members `a` and `b` changed in one frame, `a` on the case's box and `b` on an
-extra box; `none` if a member is not realizable.
+extra box; `none` if a member has no CSS spelling or is not realizable.
 
-$$\forall a, b:\ \operatorname{pair}_{\mathrm{wk}}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{style}(a),\ a.\mathrm{prop},\ a.v_1,\ [(\operatorname{style}(b), b.\mathrm{prop}, b.v_1)],\ \operatorname{expect}(W_{\mathrm{wk}}[(0, a), (1, b)])\big) & \operatorname{real}_{\mathrm{wk}}(a) \land \operatorname{real}_{\mathrm{wk}}(b) \\ \bot & \text{otherwise} \end{cases}$$
+$$\forall a = (p_a, \ell_a),\ b = (p_b, \ell_b):\ \operatorname{pair}_{\mathrm{wk}}(a, b) = \begin{cases} \mathrm{some}\big(\operatorname{id}(a) \mathbin{+\!\!+} \texttt{+} \mathbin{+\!\!+} \operatorname{id}(b),\ \mathrm{set},\ \operatorname{st}(a) \mathbin{+\!\!+} c_a.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_a.v_0 \mathbin{+\!\!+} \texttt{;},\ c_a.\mathrm{prop},\ c_a.v_1,\ [(\operatorname{st}(b) \mathbin{+\!\!+} c_b.\mathrm{prop} \mathbin{+\!\!+} \texttt{:} \mathbin{+\!\!+} c_b.v_0 \mathbin{+\!\!+} \texttt{;},\ c_b.\mathrm{prop},\ c_b.v_1)],\ \operatorname{expect}(W_{\mathrm{wk}}[(0, p_a, \ell_a), (1, p_b, \ell_b)])\big) & \operatorname{wkCss}(p_a) = \mathrm{some}\ c_a \land \operatorname{wkCss}(p_b) = \mathrm{some}\ c_b \land \operatorname{real}_{\mathrm{wk}}(p_a, \ell_a) \land \operatorname{real}_{\mathrm{wk}}(p_b, \ell_b) \\ \bot & \text{otherwise} \end{cases}$$
+
+where $\operatorname{st}(p, \ell) = \operatorname{wkLayerStyle}(p, \ell)$.
 
 Two boxes changed in the same WebKit frame. -/
 def wkPair (a b : WkProp × LayerState) : Option Case :=
@@ -504,7 +509,8 @@ def wkPair (a b : WkProp × LayerState) : Option Case :=
 
 $$\mathrm{wkExtra} = [\operatorname{pair}_{\mathrm{wk}}(\mathrm{opacity}@\mathrm{own}, \mathrm{background}@\mathrm{layer}), \operatorname{pair}_{\mathrm{wk}}(\mathrm{opacity}@\mathrm{own}, \mathrm{size}@\mathrm{none}), \operatorname{pair}_{\mathrm{wk}}(\mathrm{transform}@\mathrm{own}, \mathrm{color}@\mathrm{own})]$$
 
-The WebKit frames that test whether two changes take the union of their stages. -/
+where the pairs go through `filterMap` (a pair that is $\bot$ is dropped; all three are defined, `extra_counts`). The
+WebKit frames that test whether two changes take the union of their stages. -/
 def wkExtraCases : List Case :=
   [((WkProp.opacity, LayerState.own), (WkProp.background, LayerState.layer)),
    ((.opacity, .own), (.size, .none)), ((.transform, .own), (.color, .own))].filterMap fun (a, b) => wkPair a b
