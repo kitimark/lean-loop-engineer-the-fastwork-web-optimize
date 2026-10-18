@@ -3442,7 +3442,8 @@
     "packages/contracts/golden/engine/**",
     "lean/Fw/Engine/WebKit.lean",
     "research/findings/**"
-   ]
+   ],
+   "evidence": "212c919"
   },
   {
    "id": "ledger-merge-driver",
@@ -3596,6 +3597,64 @@
     "research/mistakes/ledger.json",
     "docs/team/handoffs/hero-exit-restate.md"
    ]
+  },
+  {
+   "id": "premises-no-api",
+   "title": "(S) fw premises runs without console-api: the premise-tests CI verdict failed on every branch (console-api is not running); NO_API_GROUPS in lib.ts + test that every pnpm fw <group> in .github/** is a no-API group",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lead",
+   "writes": [
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/lib.ts",
+    "apps/runner/test/lib.test.ts"
+   ],
+   "evidence": "06853aa"
+  },
+  {
+   "id": "engine-golden-premise-lint",
+   "title": "(S) m175 hardening: every engine golden row (packages/contracts/golden/engine/**) cites a premise id with a test in Fw.Ops.Premise; lint in check.sh; lane tests (wktr-fixtures.yml) assert expected values instead of only summarising",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "hero-exit-restate"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "lean/scripts/**",
+    "packages/measure-wktr/fixtures/summarize.mjs",
+    ".github/workflows/wktr-fixtures.yml"
+   ]
+  },
+  {
+   "id": "visual-diff-3",
+   "title": "(M) visual-diff against the integrated site (visual-diff-2 ran main: placeholders, so its 38/37 fails are unported parts, not port gaps): deterministic time (Playwright page.clock for JS motion, getAnimations pause+seek for CSS) so the 62-64 unsettled cells settle; lazy images counted only if elementFromPoint reaches them (5 invalid); real fonts per region (drop the Google Sans override); import gate settle.mjs instead of the verbatim copy; math-review Pixel theorems",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "visual-diff-2",
+    "integrate-ports"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/visual-diff/**",
+    "lean/Fw/Gate/Pixel.lean",
+    "docs/team/handoffs/visual-diff-3.md"
+   ]
+  },
+  {
+   "id": "slow-site-build-note",
+   "title": "(S) land the slow-site-build research note (slow-site-build was marked done early by an evidence field the plan keeps on upsert)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "researcher",
+   "writes": [
+    "research/notes/2026/10-18-slow-site-build.md"
+   ],
+   "evidence": "9a5c552"
   }
  ],
  "deadline": {

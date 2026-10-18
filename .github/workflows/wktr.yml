@@ -12,6 +12,7 @@ on:
     branches: ['ci/**']
     paths:
       - 'packages/measure-wktr/**'
+      - '!packages/measure-wktr/fixtures/**'
       - 'packages/measure-chromium/src/classify.mjs'
       - 'lean/Main.lean'
       - 'lean/lakefile.toml'
