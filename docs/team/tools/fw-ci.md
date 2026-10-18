@@ -19,8 +19,13 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
 
 - `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<task> [--workflow <name>] [--sha S] [--since EPOCH] [--timeout S]`.
   Blocks on the shared poller's local file (0 GitHub calls of its own, however many waiters), follows the NEWEST run per workflow on the
-  branch, prints `run <id> <workflow> <conclusion>`. Exit 0 every decisive run succeeded, 1 a run failed, 3 timeout (default 540 s) or the
-  poller stopped (call it again), 2 gh could not find the run, 64 usage. Run it in the background; do not loop.
+  branch, then makes one charged `gh run view <id> --json jobs` per finished decisive run (cached per run id) and lets fwcore decide
+  (`ci.verdict`, Lean `Fw.Ci.Verdict.pass_iff`): a run passes only if its guard decided `run`, some other job ran, and every job
+  that ran succeeded. It prints `run <id> <workflow> <conclusion> -> <pass|fail|not-run> (<reason>)`. Exit 0 pass, 1 a run
+  failed, **4 not run** (the guard skipped: the head commit did not ask for the lane, or no input changed, or a newer push
+  superseded it; GitHub still calls such a run `success`, `skipped_never_pass`), 3 timeout (default 540 s) or the poller
+  stopped (call it again), 2 gh could not find the run, 64 usage. With several decisive runs, one pass and no failure is
+  exit 0. Run it in the background; do not loop.
 - `pnpm fw ci budget [--json|--resume|--probe]` shows the request budget (0 requests; `--probe` is one charged call).
 - Never `gh run watch`, never a gh loop, never `gh api`. `fw run` waits the same way: after a dispatch it waits for the newest run of the
   workflow created after the previous newest one (a branch wait), and for `--from-run` a run wait; it throws when the run fails.
@@ -42,18 +47,25 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
   `Fw.Ci.Intent`).** Push with `pnpm fw ci push --branch ci/<task> --lanes <lane>[,<lane>...]` (lanes are the workflow
   file stems: `lean`, `wktr`, `webkit-sim`, `breakpoint-gate`, ...). It adds an empty commit `ci: request [ci:<lane>] ...`
   when HEAD does not already ask for exactly those lanes, previews with the guard's own rule which of them will start
-  (fresh `origin/main`), refuses (exit 2) when none would, and pushes (never forced). `--lanes none` pushes without a run;
+  (fresh `origin/main`), refuses (exit 2) when none would, and pushes (never forced). `--lanes none` asks for no lane (lean still runs if its inputs changed);
   `--dry` only previews. Then wait: `pnpm fw ci wait --branch ci/<task> --workflow <lane>`.
-  - The token is `[ci:<lane>]` anywhere in the head commit message, any case. A message with no `[ci:` at all starts only
-    the default lane `lean` (ubuntu, never macOS: `default_no_macos`); any `[ci:` turns the default off, so name `lean`
-    too if you want it. Do not write `[ci:` in prose in a commit message.
+  - The token is `[ci:<lane>]` anywhere in the head commit message, any case. The default lane `lean` (ubuntu, never
+    macOS: `default_no_macos`) is always wanted: it runs whenever its inputs changed, whatever lanes the commit names,
+    `[ci:none]` included (`lean_always_when_changed`; it has no guard `if:`). Do not write `[ci:` in prose in a commit
+    message.
+  - The request commits are empty commits (`ci: request [ci:<lane>]`); keep them: they land on main with the branch, and
+    the land check accepts them (a rebase that drops them would also drop the record of what the runs measured).
   - A requested lane still starts only if this push changed one of its inputs (unchanged inputs: nothing to re-run; the
     helper says so). To re-run a lane on an unchanged branch, dispatch it: `gh workflow run <lane>.yml --ref ci/<task>`
     (a dispatch is a record: it always runs). Dispatch also for inputs (`-f key=value`), as before; the push does not
     start that lane unless you name it, so there is no push-plus-dispatch duplicate to cancel.
-  - A newer push on the same branch cancels the in-flight runs of every workflow whose paths it touches (workflow
-    concurrency), even when it does not request them; put the tokens on your newest push. A run whose commit is already
-    on main, or that a newer push superseded, skips its jobs at the guard (`landed_never_runs_heavy`,
-    `superseded_never_runs_heavy`).
+  - Cancelling is per job (task `ci-own-trigger` round 2, Lean `Fw.Ci.Cancel`): every heavy job holds the group
+    `ci-lane:<lane>:<ref>:<job>:<index>` with `cancel-in-progress` on `ci/*` pushes; the guard holds none. A job whose
+    `if:` is false is skipped and never enters its group (GitHub docs: a skipped job never runs), so a newer push that
+    does not want the lane never cancels a running one (`no_requested_lost`); only a newer push whose same job STARTS
+    cancels it (`cancel_needs_newer_start`). Dispatches and schedules group by run id: they never cancel each other. A
+    run whose commit is already on main, or that a newer push wanting the lane superseded, skips its jobs at the guard
+    (`landed_never_runs_heavy`, `superseded_never_runs_heavy`, `unwanted_never_supersedes`); `fw ci wait` says
+    `not-run` (exit 4) with the guard's reason.
   - You should not need `gh run cancel` any more. If a run you did not ask for starts, report it (a guard bug), do not
     just cancel it.

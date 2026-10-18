@@ -138,12 +138,32 @@ Two pushes covered all three checks (MEASURED, `gh run list` / `gh run view`); a
   4 of them with macOS jobs. After, 1 run per push and 0 macOS minutes for the no-token push.
 - The local preview of `fw ci push` ("2 of 56") matched the guard on CI exactly.
 
+## Round 2: verdict, job-level concurrency, lean always (MEASURED on `ci/ci-own-trigger`, Linux lanes only)
+
+- **Verdict.** `fw ci wait` used to pass every `success`. GitHub marks a run whose guard ran and decided `run=false`
+  `success` (its other jobs are skipped), and a run skipped at the guard `if:` `skipped`. Now one charged
+  `gh run view --json jobs` per finished run feeds fwcore `ci.verdict` (Lean `Fw.Ci.Verdict.pass_iff`).
+  - (a) Push A 27b708f `[ci:difftest]`: premise-tests 39109453735 (not asked, `skipped`):
+    `fw ci wait` → `not-run (guard if: the head commit does not ask for this lane)`, exit 4.
+  - Push C 5e54c56 `[ci:difftest]` reverting B's line (no effective input change): difftest 39109671732 is
+    `success` on GitHub; `fw ci wait --branch --workflow difftest` → `not-run (none of the 0 file(s) this push changed
+    (and that differ from main) match the inputs)`, exit 4. The old wait would have passed it: a false pass, caught.
+  - A's difftest 39109453745 → `pass`, exit 0 (guard 7 s, fwcore 49 s, fixed 13 s, rotating 19 s).
+- **Past false passes** (13 charged gh calls: 1 list + 12 jobs views): of the 36 run ids cited in docs since the guard
+  landed (fdb1468), 6 are this task's round 1 and 12 predate the guard's runs; of the 18 left, 12 are `success` and all
+  12 ran their heavy jobs (6 on branches whose workflows had no guard yet). False passes found: **0**.
+- **Job-level concurrency** (b). Push B ac589a4 (no request) touched a difftest input at 07:57:54Z while A's difftest
+  ran: B's difftest 39109637694 was `skipped`; A's run was not cancelled and passed. Inconclusive on its own: A's last
+  job ended 07:58:12Z, the second B's run was created. Repeated with a longer lane: B2_PLACEHOLDER
+- **Lean always**: push A started lean 39109453769 with `[ci:difftest]` only (its inputs changed), `success`.
+
 ## Limits and open items
 
-- **Workflow-level concurrency is evaluated when the run is created, before the guard `if:`** (INFERRED from the GitHub
-  docs on `concurrency`). So a newer push cancels the in-flight runs of every workflow whose paths it touches, even when
-  it requests none of them. That is cause (d), and it remains. The fix is job-level concurrency on the heavy jobs (option
-  F).
+- ~~Workflow-level concurrency cancels in-flight runs on any newer push whose paths match~~ (cause d): fixed in round 2
+  by job-level groups (see below).
+- Supersede reads the newest tip's own push diff and message. If the tip wants lane X but an intermediate push (not
+  wanting X) changed X's inputs and the tip's push did not, the older run is not superseded by the guard; its job group
+  is then cancelled only when the tip's X job starts (INFERRED, by the Lean model `cancel_needs_newer_start`).
 - A newer push that GitHub has not yet turned into runs is caught by the guard's ls-remote check. The concurrency cancel
   covers the rest. `superseded_never_runs_heavy` speaks about the guard.
 - `landed` is only as fresh as `origin/main` or `origin/ci/landed`. Until the land step pushes `ci/landed`, a run whose

@@ -19,6 +19,9 @@
 //     `superseded_never_runs_heavy`, `unwanted_never_supersedes`.
 //   - the commit is not already on main (`landed`: an ancestor of origin/main or of origin/ci/landed). Lean
 //     `landed_never_runs_heavy`.
+// Cancelling is per job, not per run: every heavy job holds its lane's group `ci-lane:<lane>:<ref>:<job>:<index>`
+// (Lean `groupExpr`); a job whose `if:` is false is skipped and never enters the group, so a newer push that does not
+// want the lane never cancels a running one (Lean Fw.Ci.Cancel `no_requested_lost`, `cancel_needs_newer_start`).
 // Anything that is not a push to ci/** (main pushes, workflow_dispatch, schedules) always runs: a run there is a record
 // (Lean `record_always_runs`). Any error fails open (run=true), never closed.
 // Usage in a first job on ubuntu (checkout with fetch-depth: 0):
