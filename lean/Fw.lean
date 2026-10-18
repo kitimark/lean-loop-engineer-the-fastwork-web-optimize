@@ -91,6 +91,12 @@ import Fw.Gate.Pixel
 import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
+import Fw.Guidance.Basic
+import Fw.Guidance.Motion
+import Fw.Guidance.Scroll
+import Fw.Guidance.Tasks
+import Fw.Guidance.Style
+import Fw.Guidance.Stability
 import Fw.Engine.Keys  -- model-checks: faithful run keys; a +search run never answers for the base
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
