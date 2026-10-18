@@ -3928,7 +3928,8 @@
     "research/notes/**",
     "docs/team/handoffs/engine-model-fix.md",
     "lean/Fw/Parts/**"
-   ]
+   ],
+   "evidence": "2cda145"
   },
   {
    "id": "mistake-record-3",
