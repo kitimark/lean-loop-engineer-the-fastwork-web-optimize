@@ -21,7 +21,7 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 | `ops.meter` | `params`?, `state`? {window, fired [{agent, rule}]}, `now`, `agents` [{agent, ctx, idleSec, ttlSec? or w5m?/w1h?, wakeGapSec?}] | `state`, `alerts` [{agent, rule, window}], `verdicts` [{agent, verdict, ttlSec}] |
 | `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, who, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
 | `ops.obs` | `records`? [{agent_id?, hook_event_name, tool_use_id?, ts}], `lines`? [{hook_event_name, agent_type?, tool_name?, is_error?, duration_ms?}] (extra fields ignored) | `keys` (one obs key per record, in order), `summary` [{agent_type, tool_name, calls, errors, total_ms}] (first-seen group order) |
-| `ops.obs` (admission and life, task task-state-truth) | `raw`? [spool lines as strings], `life`? [{event, agent_id?, agent_name?, name? (the health index's name of agent_id), key, ts, epoch? (the time of the last stop sent for agent_id, 0 if none)}], `labels`? [{id, name}], `fieldAlert`? {now, open [step ids], issues [{issue, count}]} | `admitted` [{ok: true, key, rec (the kept known fields), unknown [names], notes [soft-field reasons], issues [names]} or {ok: false, why, issues [names]}], `tally` {accepted, rejected, unknown [{field, count}], issues [{issue, count}]}; `life` [one list per request: [{kind (`spawn`/`stop`), key, agent, at}]]; `labels` [{key, agent, name} or null]; `alert` {step, key, title} or null. Each only when requested |
+| `ops.obs` (admission and life, task task-state-truth) | `raw`? [spool lines as strings], `life`? [{event, agent_id?, agent_name?, key, ts, epoch? (the time of the last stop sent for agent_id, 0 if none)}], `labels`? [{id, name}], `fieldAlert`? {now, open [step ids], issues [{issue, count}]} | `admitted` [{ok: true, key, rec (the kept known fields), unknown [names], notes [soft-field reasons], issues [names]} or {ok: false, why, issues [names]}], `tally` {accepted, rejected, unknown [{field, count}], issues [{issue, count}]}; `life` [one list per request: [{kind (`spawn`/`stop`), key, agent, at} or {kind `label`, key, agent, name}]]; `labels` [{key, agent, name} or null]; `alert` {step, key, title} or null. Each only when requested |
 | `ops.cap` | `agent_id`?, `agent_type`? (as `ops.actor`), `tokens` (a Bash input lexed: a string is a word, `{"redir":"2>&1"}` a redirect, `{"stop":"|"}` a control operator) | `decision` (`mint`/`noMint`), `actor`, `argv` (when minted), `reason` (`notFwPrefix`/`unknownActor`, when not) |
 | `ops.door` | `actor`, `secret`? (bool) | `accept` (the door without capability takes this actor), `agentActor` |
 | `ops.wait` | `cmd` (the Bash command text), `caps`? {maxSleepSec?} | `decision` (`allow`/`deny`), `reason` (null, `bgLong` or `unboundedLoop`), `shape` (`bgLong`: `fwWatch`/`loop`/`server`/`tail`/`longSleep`, else null) |
@@ -449,10 +449,12 @@ def admittedJson (v : Verdict) : Json :=
   | .reject w => Json.mkObj [("ok", .bool false), ("why", .str w.name), is]
 
 open Fw.Ops.Obs in
-/-- A life command as JSON: `{kind, key, agent, at}` (`agent` is the life key: an agent id or a name). -/
+/-- A life command as JSON: `{kind, key, agent, at}` for a spawn or stop, `{kind, key, agent, name}`
+for a label (`agent` is the life key: an agent id or a spawn guard's obs key). -/
 def lifeJson : Life → Json
   | .spawn k a t => Json.mkObj [("kind", .str "spawn"), ("key", .str k), ("agent", .str a), ("at", toJson t)]
   | .stop k a t => Json.mkObj [("kind", .str "stop"), ("key", .str k), ("agent", .str a), ("at", toJson t)]
+  | .label k a n => Json.mkObj [("kind", .str "label"), ("key", .str k), ("agent", .str a), ("name", .str n)]
 
 /-- Counts as JSON objects `{<field>: name, count}`. -/
 def countsJson (field : String) (cs : List (String × Nat)) : Json :=
@@ -487,7 +489,7 @@ def opObs (req : Json) : Except String Reply := do
     | none => pure []
     | some _ => do
       let ds ← (← arr req "life").toList.mapM fun l => do
-        pure (lifeOf (← str l "event") (← optS l "agent_id") (← optS l "agent_name") (← optS l "name")
+        pure (lifeOf (← str l "event") (← optS l "agent_id") (← optS l "agent_name")
           (← str l "key") (← nat l "ts") (← natD l "epoch" 0))
       pure [("life", .arr (ds.toArray.map fun d => .arr (d.toArray.map lifeJson)))]
   let labels : Reply ← match opt req "labels" with

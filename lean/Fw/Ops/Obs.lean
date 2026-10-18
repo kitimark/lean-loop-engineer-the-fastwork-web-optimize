@@ -469,7 +469,10 @@ theorem look_append (fs : List (String × Val)) (x : String) (v : Val) (y : Stri
   | some p => simp
   | none => by_cases h : x = y <;> simp [h]
 
-/-- `findSome?` agrees for two functions that agree on the list. -/
+/-- `findSome?` agrees for two functions that agree on the list.
+
+$$\forall f, g, l:\quad (\forall a \in l:\ f(a) = g(a)) \Rightarrow \operatorname{findSome}(f, l) = \operatorname{findSome}(g, l)$$
+-/
 private theorem findSome?_congr {α β : Type} {f g : α → Option β} :
     ∀ {l : List α}, (∀ a ∈ l, f a = g a) → l.findSome? f = l.findSome? g
   | [], _ => rfl
@@ -477,7 +480,10 @@ private theorem findSome?_congr {α β : Type} {f g : α → Option β} :
     simp only [List.findSome?_cons, h a (List.mem_cons_self ..),
       findSome?_congr (fun b hb => h b (List.mem_cons_of_mem _ hb))]
 
-/-- `filterMap` agrees for two functions that agree on the list. -/
+/-- `filterMap` agrees for two functions that agree on the list.
+
+$$\forall f, g, l:\quad (\forall a \in l:\ f(a) = g(a)) \Rightarrow \operatorname{filterMap}(f, l) = \operatorname{filterMap}(g, l)$$
+-/
 private theorem filterMap_congr' {α β : Type} {f g : α → Option β} :
     ∀ {l : List α}, (∀ a ∈ l, f a = g a) → l.filterMap f = l.filterMap g
   | [], _ => rfl
@@ -485,7 +491,10 @@ private theorem filterMap_congr' {α β : Type} {f g : α → Option β} :
     simp only [List.filterMap_cons, h a (List.mem_cons_self ..),
       filterMap_congr' (fun b hb => h b (List.mem_cons_of_mem _ hb))]
 
-/-- Every spec name is known. -/
+/-- Every spec name is known.
+
+$$\forall \mathit{sp} \in \mathit{specs}:\quad \operatorname{known}(\mathit{sp}.\mathit{name}) = \mathrm{true}$$
+-/
 private theorem known_of_spec {sp : Spec} (h : sp ∈ specs) : known sp.name = true :=
   List.any_eq_true.mpr ⟨sp, h, by simp⟩
 
@@ -611,7 +620,10 @@ theorem drop_counted (ls : List (Option (List (String × Val)))) :
     · have e : (Verdict.reject w).why? = some w := rfl
       simp only [e, List.length_cons]; omega
 
-/-- The unknown names of an accepted record are its field names that are not known. -/
+/-- The unknown names of an accepted record are its field names that are not known.
+
+$$\forall F, K, U, N:\quad \operatorname{admit}(F) = \mathrm{accept}(K, U, N) \Rightarrow U = [\, x : (x, \_) \in F,\ \operatorname{known}(x) = \mathrm{false} \,]$$
+-/
 private theorem unknown_of_accept {fs k : List (String × Val)} {u : List String} {n : List Why}
     (ha : admit fs = .accept k u n) : u = (fs.map (·.1)).filter (!known ·) := by
   unfold admit at ha; split at ha
@@ -856,22 +868,25 @@ theorem reject_alerts (t : Nat) (opn : List String) (ls : List (Option (List (St
 
 /-! ## Agent life from spool records (task `task-state-truth`)
 
-Liveness is decided **by agent id** (`Fw.Plan.liveK`, `Fw.Plan.ended`): the id is the life key; the
-health index's name of an id only labels it (`labelOf`, `agent.label`), which is how the name's task
-row sees the id (`Fw.Plan.keysOf`). The decision never reads `background_tasks` (MEASURED: a
+Liveness is decided **by identity** (`Fw.Plan.liveK`, `Fw.Plan.ended`): every life command of a
+record is keyed by the record's agent id or by its obs key, never by a name. A name only labels a key
+(`labelOf`, `agent.label`, from the health index; a spawn guard's own label), which is how the name's
+task row sees the key (`Fw.Plan.keysOf`). The decision never reads `background_tasks` (MEASURED: a
 session-wide count, 6 to 31 on every one of the spool's SubagentStop records, never 0).
 
 * `SubagentStart` of id $i$ spawns $i$ at the record time (event key `start:<obs key>`);
-* `SubagentStop` of id $i$ stops $i$ at the record time (`stop:<obs key>`), named or not; when the
-  health index names $i$, the name's own key (spawned by the spawn guard) is stopped too
-  (`stop:<obs key>|name`);
+* `SubagentStop` of id $i$ stops $i$ at the record time (`stop:<obs key>`), named or not, and nothing
+  else: two agents of one name are two keys, and the stop of one leaves the other live
+  (`Fw.Plan.concurrent_keep`);
 * **any other event** of id $i$, named or unnamed, is a heartbeat: a spawn of $i$ at the record time
   with event key `seen:<i>|<epoch>|<time / 10 min>`, so at most one per id and 10 minutes between
   stops, and the first event after a stop gets a new key. A heartbeat later than the stop revives
   the id (`event_revives`, by `Fw.Plan.revive_on_event`), and it feeds the quiet timeout
   (`Fw.Plan.timeouts`, `Fw.Plan.timeout_spares_recent`);
-* a named `SpawnGuard` also spawns the name (`spawn:<obs key>`): the task row is running from the
-  spawn on, before the health index labels the new id.
+* a named `SpawnGuard` record (the spawner's guard, before the new agent has an id) spawns its own
+  obs key $k$ (event key `guard:<k>`) and labels $k$ with the requested name (event key
+  `guard-label:<k>`): the task row is running from the spawn on, before the health index labels the
+  new id. Nothing stops $k$ but the quiet timeout (`Fw.Plan.no_forever_running`).
 -/
 
 /-- The heartbeat bucket: 10 minutes in milliseconds.
@@ -880,14 +895,23 @@ $$\mathit{seenBucketMs} = 600000$$
 -/
 def seenBucketMs : Nat := 10 * 60000
 
-/-- What a record does to agent life: a spawn or stop of a life key (event key, life key, time).
+/-- What a record does to agent life: a spawn or stop of a life key (event key, life key, time), or a
+label of a life key with a name (event key, life key, name).
 
-$$\mathrm{Life} = \mathrm{spawn}(e, k, t) \cup \mathrm{stop}(e, k, t)$$
+$$\mathrm{Life} = \mathrm{spawn}(e, k, t) \cup \mathrm{stop}(e, k, t) \cup \mathrm{label}(e, k, n)$$
 -/
 inductive Life where
   | spawn (key agent : String) (time : Nat)
   | stop (key agent : String) (time : Nat)
+  | label (key agent name : String)
 deriving Repr, DecidableEq
+
+/-- The life key a life command names.
+
+$$\operatorname{agent}(\mathrm{spawn}(e, k, t)) = \operatorname{agent}(\mathrm{stop}(e, k, t)) = \operatorname{agent}(\mathrm{label}(e, k, n)) = k$$
+-/
+def Life.agent : Life → String
+  | .spawn _ a _ | .stop _ a _ | .label _ a _ => a
 
 /-- A usable agent name: non-empty and at most 120 UTF-16 units (a contract id).
 
@@ -909,7 +933,7 @@ def seenKey (i : String) (p t : Nat) : String :=
 /-- The life commands of a record by its agent id $i$ (event $e$, obs key $k$, time $t$, stop epoch $p$
 of $i$).
 
-$$\operatorname{byId}(e, i, k, t, p) = \begin{cases} [\,] & i = \bot \\ [\mathrm{spawn}(\texttt{start:}k, i, t)] & e = \texttt{SubagentStart} \\ [\mathrm{stop}(\texttt{stop:}k, i, t)] & e = \texttt{SubagentStop} \\ [\mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t)] & \text{otherwise} \end{cases}$$
+$$\operatorname{byId}(e, i, k, t, p) = \begin{cases} [\,] & i = \bot \\ [\mathrm{spawn}(\texttt{start:}k, i, t)] & i \ne \bot \land e = \texttt{SubagentStart} \\ [\mathrm{stop}(\texttt{stop:}k, i, t)] & i \ne \bot \land e = \texttt{SubagentStop} \\ [\mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t)] & \text{otherwise} \end{cases}$$
 
 The id starts, stops, or is seen alive.
 -/
@@ -921,71 +945,99 @@ def byId (event : String) (agentId : Option String) (key : String) (ts epoch : N
     else if event == "SubagentStop" then [.stop ("stop:" ++ key) i ts]
     else [.spawn (seenKey i epoch ts) i ts]
 
-/-- The life commands of a record by name (event $e$, agent id $i$, spawn-guard name $g$, the health
-index's name $m$ of $i$, obs key $k$, time $t$).
+/-- The life commands of a spawn guard (event $e$, requested name $g$, obs key $k$, time $t$): a named
+guard spawns its obs key and labels it with the name, when $k$, $g$ and the label's event key are
+usable contract ids.
 
-$$\operatorname{byName}(e, i, g, m, k, t) = \begin{cases} [\mathrm{spawn}(\texttt{spawn:}k, g, t)] & e = \texttt{SpawnGuard} \land g \ne \bot \land \operatorname{okName}(g) \\ [\mathrm{stop}(\texttt{stop:}k\texttt{|name}, m, t)] & e = \texttt{SubagentStop} \land i \ne \bot \land m \ne \bot \land \operatorname{okName}(m) \\ [\,] & \text{otherwise} \end{cases}$$
+$$\operatorname{byGuard}(e, g, k, t) = \begin{cases} [\mathrm{spawn}(\texttt{guard:}k, k, t), \mathrm{label}(\texttt{guard-label:}k, k, g)] & e = \texttt{SpawnGuard} \land g \ne \bot \land \operatorname{okName}(g) \land \operatorname{okName}(k) \land \operatorname{okName}(\texttt{guard-label:}k) \\ [\,] & \text{otherwise} \end{cases}$$
 
-A spawn guard starts its name; a named id's stop also stops that name.
+A guard makes the requested name running under the guard's own key.
 -/
-def byName (event : String) (agentId agentName name : Option String) (key : String) (ts : Nat) :
-    List Life :=
+def byGuard (event : String) (agentName : Option String) (key : String) (ts : Nat) : List Life :=
   if event == "SpawnGuard" then
     match agentName with
-    | some g => if okName g then [.spawn ("spawn:" ++ key) g ts] else []
+    | some g =>
+      if okName g && okName key && okName ("guard-label:" ++ key) then
+        [.spawn ("guard:" ++ key) key ts, .label ("guard-label:" ++ key) key g]
+      else []
     | none => []
-  else if event == "SubagentStop" then
-    match agentId, name with
-    | some _, some m => if okName m then [.stop ("stop:" ++ key ++ "|name") m ts] else []
-    | _, _ => []
   else []
 
-/-- **The life decision of a record** (event $e$, agent id $i$, spawn-guard name $g$, indexed name $m$,
-obs key $k$, time $t$, stop epoch $p$ of $i$): the name commands, then the id commands.
+/-- **The life decision of a record** (event $e$, agent id $i$, spawn-guard name $g$, obs key $k$,
+time $t$, stop epoch $p$ of $i$): the guard commands, then the id commands.
 
-$$\operatorname{lifeOf}(e, i, g, m, k, t, p) = \operatorname{byName}(e, i, g, m, k, t) \mathbin{+\!\!+} \operatorname{byId}(e, i, k, t, p)$$
+$$\operatorname{lifeOf}(e, i, g, k, t, p) = \operatorname{byGuard}(e, g, k, t) \mathbin{+\!\!+} \operatorname{byId}(e, i, k, t, p)$$
 
 What one spool record says about which agents live.
 -/
-def lifeOf (event : String) (agentId agentName name : Option String) (key : String) (ts epoch : Nat) :
+def lifeOf (event : String) (agentId agentName : Option String) (key : String) (ts epoch : Nat) :
     List Life :=
-  byName event agentId agentName name key ts ++ byId event agentId key ts epoch
+  byGuard event agentName key ts ++ byId event agentId key ts epoch
+
+/-- **Identity only** (`life_identity`): every life command of a record is keyed by the record's agent
+id or by its obs key, and every stop is a stop of the agent id.
+
+$$\forall e, i, g, k, t, p, c:\quad c \in \operatorname{lifeOf}(e, i, g, k, t, p) \Rightarrow \big(\operatorname{agent}(c) = k \lor \mathrm{some}(\operatorname{agent}(c)) = i\big) \land \big(\forall e', a, t':\ c = \mathrm{stop}(e', a, t') \Rightarrow \mathrm{some}(a) = i\big)$$
+
+No name is ever a life key, and no record stops anything but its own agent.
+-/
+theorem life_identity (e : String) (i g : Option String) (k : String) (t p : Nat) (c : Life)
+    (hc : c ∈ lifeOf e i g k t p) :
+    (c.agent = k ∨ some c.agent = i) ∧ ∀ e' a t', c = .stop e' a t' → some a = i := by
+  simp only [lifeOf, List.mem_append, byGuard, byId] at hc
+  rcases hc with hc | hc
+  · split at hc
+    · split at hc
+      · split at hc
+        · simp only [List.mem_cons, List.not_mem_nil, or_false] at hc
+          rcases hc with rfl | rfl <;> simp [Life.agent]
+        · simp at hc
+      · simp at hc
+    · simp at hc
+  · split at hc
+    · simp at hc
+    · rename_i a
+      split at hc
+      · simp only [List.mem_singleton] at hc; subst hc; simp [Life.agent]
+      · split at hc
+        · simp only [List.mem_singleton] at hc; subst hc; simp [Life.agent]
+        · simp only [List.mem_singleton] at hc; subst hc; simp [Life.agent]
 
 /-- **A stop ends its id** (`stop_by_id`): a `SubagentStop` with agent id $i$ stops $i$ at the record
 time, named or not, whatever `background_tasks` says (the decision has no such input).
 
-$$\forall i, g, m, k, t, p:\quad \mathrm{stop}(\texttt{stop:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStop}, \mathrm{some}(i), g, m, k, t, p)$$
+$$\forall i, g, k, t, p:\quad \mathrm{stop}(\texttt{stop:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStop}, \mathrm{some}(i), g, k, t, p)$$
 
 Every subagent stop reaches the board as a stop of that id.
 -/
-theorem stop_by_id (i : String) (g m : Option String) (k : String) (t p : Nat) :
-    Life.stop ("stop:" ++ k) i t ∈ lifeOf "SubagentStop" (some i) g m k t p := by
+theorem stop_by_id (i : String) (g : Option String) (k : String) (t p : Nat) :
+    Life.stop ("stop:" ++ k) i t ∈ lifeOf "SubagentStop" (some i) g k t p := by
   simp [lifeOf, byId]
 
 /-- **A start spawns its id** (`start_by_id`): a `SubagentStart` with agent id $i$ spawns $i$ at the
 record time.
 
-$$\forall i, g, m, k, t, p:\quad \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStart}, \mathrm{some}(i), g, m, k, t, p)$$
+$$\forall i, g, k, t, p:\quad \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStart}, \mathrm{some}(i), g, k, t, p)$$
 
 Every subagent start reaches the board as a spawn of that id.
 -/
-theorem start_by_id (i : String) (g m : Option String) (k : String) (t p : Nat) :
-    Life.spawn ("start:" ++ k) i t ∈ lifeOf "SubagentStart" (some i) g m k t p := by
+theorem start_by_id (i : String) (g : Option String) (k : String) (t p : Nat) :
+    Life.spawn ("start:" ++ k) i t ∈ lifeOf "SubagentStart" (some i) g k t p := by
   simp [lifeOf, byId]
 
 /-- **Any event revives its id** (`event_revives`): an event of id $i$ other than a start or stop,
 named or unnamed, gives a heartbeat spawn of $i$ at the record time; applied to a plan state where
-$i$ is a key of name $a$ (its own name or a label) and every stop of $i$ is older than $t$, it makes
-$i$ live and $a$ not ended.
+$i$ is a key of name $a$ (the name itself or a key labelled with it) and every stop of $i$ is older
+than $t$, it makes $i$ live and $a$ not ended.
 
-$$\forall \pi, e, i, g, m, k, t, p, a:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, m, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
+$$\forall \pi, e, i, g, k, t, p, a:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
 
 An agent that does anything after its stop is shown running again.
 -/
-theorem event_revives (π : Fw.Plan.State) {e i a : String} (g m : Option String) (k : String)
+theorem event_revives (π : Fw.Plan.State) {e i a : String} (g : Option String) (k : String)
     (t p : Nat) (h1 : e ≠ "SubagentStart") (h2 : e ≠ "SubagentStop")
     (hk : i ∈ Fw.Plan.keysOf π a) (hs : ∀ q ∈ π.stops, q.1 = i → q.2 < t) :
-    Life.spawn (seenKey i p t) i t ∈ lifeOf e (some i) g m k t p ∧
+    Life.spawn (seenKey i p t) i t ∈ lifeOf e (some i) g k t p ∧
       Fw.Plan.liveK (Fw.Plan.step π (.spawn i t)) i = true ∧
       Fw.Plan.ended (Fw.Plan.step π (.spawn i t)) a = false := by
   refine ⟨?_, Fw.Plan.revive_on_event π hk hs⟩
@@ -1083,23 +1135,22 @@ private def realStop : List (String × Val) :=
 #guard takeU16 3 ['a', '😀', 'b'] = ['a', '😀']
 #guard takeU16 2 ['a', '😀', 'b'] = ['a']
 -- life decisions: by id
-#guard lifeOf "SubagentStart" (some "i") none none "k" 3 0 = [.spawn "start:k" "i" 3]
-#guard lifeOf "SubagentStop" (some "i") none none "k" 9 0 = [.stop "stop:k" "i" 9]
-#guard lifeOf "SubagentStop" (some "i") none (some "fix-nav") "k" 9 0 =
-  [.stop "stop:k|name" "fix-nav" 9, .stop "stop:k" "i" 9]
-#guard lifeOf "SubagentStop" (some "i") none (some "") "k" 9 0 = [.stop "stop:k" "i" 9]
-#guard lifeOf "SubagentStop" none none (some "fix-nav") "k" 9 0 = []
+#guard lifeOf "SubagentStart" (some "i") none "k" 3 0 = [.spawn "start:k" "i" 3]
+#guard lifeOf "SubagentStop" (some "i") none "k" 9 0 = [.stop "stop:k" "i" 9]
+#guard lifeOf "SubagentStop" (some "i") (some "fix-nav") "k" 9 0 = [.stop "stop:k" "i" 9]
+#guard lifeOf "SubagentStop" none none "k" 9 0 = []
 -- any other event of an id is a heartbeat, named or not
-#guard lifeOf "PostToolUse" (some "i") none (some "fix-nav") "k" 1200000 9 = [.spawn "seen:i|9|2" "i" 1200000]
-#guard lifeOf "PreToolUse" (some "i") none none "k" 1200000 9 = [.spawn "seen:i|9|2" "i" 1200000]
-#guard lifeOf "Notification" (some "i") none none "k" 1 0 = [.spawn "seen:i|0|0" "i" 1]
-#guard lifeOf "PreToolUse" none none none "k" 1 0 = []
--- a spawn guard spawns the name and is a heartbeat of the spawning id
-#guard lifeOf "SpawnGuard" (some "i") (some "fix-nav") none "k" 7 0 =
-  [.spawn "spawn:k" "fix-nav" 7, .spawn "seen:i|0|0" "i" 7]
-#guard lifeOf "SpawnGuard" none (some "fix-nav") none "k" 7 0 = [.spawn "spawn:k" "fix-nav" 7]
-#guard lifeOf "SpawnGuard" none none none "k" 7 0 = []
-#guard lifeOf "SpawnGuard" none (some "") none "k" 7 0 = []
+#guard lifeOf "PostToolUse" (some "i") none "k" 1200000 9 = [.spawn "seen:i|9|2" "i" 1200000]
+#guard lifeOf "PreToolUse" (some "i") none "k" 1200000 9 = [.spawn "seen:i|9|2" "i" 1200000]
+#guard lifeOf "Notification" (some "i") none "k" 1 0 = [.spawn "seen:i|0|0" "i" 1]
+#guard lifeOf "PreToolUse" none none "k" 1 0 = []
+-- a named spawn guard spawns and labels its obs key, and is a heartbeat of the spawning id
+#guard lifeOf "SpawnGuard" (some "i") (some "fix-nav") "k" 7 0 =
+  [.spawn "guard:k" "k" 7, .label "guard-label:k" "k" "fix-nav", .spawn "seen:i|0|0" "i" 7]
+#guard lifeOf "SpawnGuard" none (some "fix-nav") "k" 7 0 = [.spawn "guard:k" "k" 7, .label "guard-label:k" "k" "fix-nav"]
+#guard lifeOf "SpawnGuard" none none "k" 7 0 = []
+#guard lifeOf "SpawnGuard" none (some "") "k" 7 0 = []
+#guard lifeOf "SpawnGuard" none (some "fix-nav") (String.ofList (List.replicate 110 'k')) 7 0 = []
 -- the same bucket after a stop gives a new heartbeat key
 #guard seenKey "i" 0 5 != seenKey "i" 3 5
 -- labels
