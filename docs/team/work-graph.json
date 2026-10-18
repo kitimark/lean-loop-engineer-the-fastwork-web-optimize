@@ -3938,7 +3938,8 @@
    "writes": [
     "docs/team/incidents/ledger.json",
     "research/notes/2026/10-18-mistake-retro.md"
-   ]
+   ],
+   "evidence": "e934534"
   },
   {
    "id": "wait-guard-enforce",
