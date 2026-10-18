@@ -597,4 +597,46 @@ def Facts.add (F : Facts) (e : Evidence) : Facts :=
     present := ⟨F.present.mathview || e.present.mathview, F.present.kills || e.present.kills,
       F.present.tsLint || e.present.tsLint⟩ }
 
+/-! ## Examples of the decision functions (the fault grid is in `Fw.Ops.LeanFirstSearch`) -/
+
+/-- Facts with nothing in them, all sources present, of a lean-first task (for the examples).
+$$F_\emptyset = (\mathrm{true}, [\,], [\,], [\,], [\,], [\,], [\,], [\,], [\,], [\,], 0, 0, (\mathrm{true}, \mathrm{true}, \mathrm{true}))$$ -/
+def emptyFacts : Facts :=
+  { leanFirst := true, writes := [], props := [], thms := [], kills := [], signoffs := [], branches := [],
+    registry := [], baseline := [], ancestry := [], legacyMain := 0, legacyHead := 0, present := ⟨true, true, true⟩ }
+
+-- the stage table
+#guard Rule.all.all fun r => !enforced .shadow true r
+#guard Rule.all.filter (enforced .newTasks true) == [.props, .kills, .twins, .premises, .search]
+#guard Rule.all.filter (enforced .newTasks false) == []
+#guard Rule.all.filter (enforced .allNew false) == [.kills, .twins, .premises]
+#guard Rule.all.filter (enforced .ratchet false) == [.kills, .twins, .premises, .ratchet]
+#guard Rule.all.filter (enforced .ratchet true) == Rule.all
+#guard !anyEnforced .newTasks false && anyEnforced .allNew false
+-- marks, missing sources, newline cleaning, verdict lines
+#guard [Mark.none, .op, .twin, .glueOk, .glueBad].map Mark.ok == [false, true, true, true, false]
+#guard missing { emptyFacts with present := ⟨false, true, false⟩ } == [.mathview, .tsLint]
+#guard missing emptyFacts == []
+#guard clean "a\nb\rc" == "a b c" && clean "" == ""
+#guard isVerdict (mkLine .verdict "pass lean-first") && !isVerdict (mkLine .reason "VERDICT pass")
+#guard verdictCount ["VERDICT a", "REASON b", "VERDICT c"] == 2
+#guard fillMarks [⟨"a", 1, .none⟩, ⟨"b", 2, .op⟩, ⟨"c", 3, .none⟩] [.twin, .glueBad] ==
+  [⟨"a", 1, .twin⟩, ⟨"b", 2, .op⟩, ⟨"c", 3, .none⟩]
+-- the gate and its output on empty facts: pass, pending without sources, nothing enforced at shadow
+#guard gate .ratchet emptyFacts == .pass
+#guard gate .ratchet { emptyFacts with present := ⟨true, false, true⟩ } == .pending [.kills]
+#guard gate .shadow { emptyFacts with present := ⟨false, false, false⟩ } == .pass
+#guard gate .newTasks { emptyFacts with leanFirst := false, present := ⟨false, false, false⟩ } == .pass
+#guard gate .ratchet { emptyFacts with legacyMain := 2, legacyHead := 3 } == .refuse [.growth 2 3]
+#guard gate .allNew { emptyFacts with legacyMain := 2, legacyHead := 3 } == .pass
+#guard gate .ratchet { emptyFacts with writes := ["apps/runner/src/land.ts"] } ==
+  .refuse [.noProps "apps/runner/src/land.ts"]
+#guard (out .ratchet { emptyFacts with present := ⟨true, false, true⟩ }) ==
+  ⟨.pending, 75, ["REASON lean-first:missing kills", "VERDICT pending lean-first:missing kills"]⟩
+#guard (out .ratchet { emptyFacts with legacyMain := 2, legacyHead := 3 }) ==
+  ⟨.refused, 1, ["REASON lean-first:ratchet growth 2->3", "VERDICT refused lean-first:ratchet 2->3"]⟩
+#guard (out .shadow { emptyFacts with legacyMain := 2, legacyHead := 3 }) ==
+  ⟨.pass, 0, ["LEANFIRST shadow would-refuse ratchet growth 2->3", "VERDICT pass lean-first"]⟩
+#guard (run emptyFacts).exit == 0
+
 end Fw.Ops.LeanFirst
