@@ -11,11 +11,15 @@ type Detail = {
   git: { head: string | null; headSource: string; branch: string | null; onMain: boolean; containedIn: string[] };
   handoff: { ref: string; excerpt: string; lines: number } | null;
   preview: { target: Target; running: Pv | null };
+  canPreview?: boolean; // this browser holds the owner cookie (set by the one-time owner link the console prints)
 };
 type Listing = { previews: Pv[]; failed: { id: string; task: string; error: string }[] };
 
 export const wantsDetail = (id: string) => id.startsWith("port-") || id.startsWith("fix-");
 const J = { "content-type": "application/json" };
+/** What a refusal means to the owner; `notOwner` is the missing owner cookie or Origin (open the console's owner link). */
+export const refusedText = (reason: string) =>
+  reason === "notOwner" ? "refused: this browser is not signed in as owner; open the owner link the console printed in its terminal" : `refused: ${reason}`;
 export const urls = (p: Pick<Pv, "rp" | "op">) => ({
   rewrite: `http://127.0.0.1:${p.rp}/`, original: `http://127.0.0.1:${p.op}/`, compare: `http://127.0.0.1:${p.rp}/__fw/compare`,
 });
@@ -54,14 +58,14 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
     setMsg(null);
     const r = await fetch("/api/previews", { method: "POST", headers: J, body: JSON.stringify({ task: id }) });
     const j = await r.json();
-    if (!j.ok) setMsg(`refused: ${j.reason}`);
+    if (!j.ok) setMsg(refusedText(String(j.reason)));
     await load();
   }
   async function stop(pid: string) {
     setMsg(null);
     const r = await fetch(`/api/previews/${pid}/stop`, { method: "POST", headers: J, body: "{}" });
     const j = await r.json();
-    if (!j.ok) setMsg(`refused: ${j.reason}`);
+    if (!j.ok) setMsg(refusedText(String(j.reason)));
     await load();
   }
 
@@ -89,8 +93,9 @@ export function TaskDetail({ id, version }: { id: string; version?: number }) {
           )}
           <div className="flex flex-wrap items-center gap-2">
             <span>preview: {targetText(d.preview.target)}</span>
-            {!mine && d.preview.target.kind !== "none" && <button className="rounded border px-2 py-0.5" onClick={() => void start()}>Preview</button>}
-            {mine && <button className="rounded border px-2 py-0.5" onClick={() => void stop(mine.id)}>Stop</button>}
+            {d.canPreview === false && <span data-testid="owner-hint">to start or stop a preview, open the owner link the console printed in its terminal (once, in this browser)</span>}
+            {d.canPreview !== false && !mine && d.preview.target.kind !== "none" && <button className="rounded border px-2 py-0.5" onClick={() => void start()}>Preview</button>}
+            {d.canPreview !== false && mine && <button className="rounded border px-2 py-0.5" onClick={() => void stop(mine.id)}>Stop</button>}
           </div>
           {mine?.phase === "building" && <div>building (a few seconds to a minute)</div>}
           {mine?.phase === "serving" && (

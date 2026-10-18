@@ -20,13 +20,21 @@ Question: how does the owner see what a port-/fix- task built, side by side with
 | handoff excerpt (40 lines) | `docs/team/handoffs/<task>.md` on main, an integration ref or the task branch | same |
 | preview target and running preview | Lean `console.previewTarget`; manager table | polled every 2 s while building |
 
-Nothing is stored as status. The task head is found by a TS stand-in (`findHead`): handoff Branch line, `ci/<task>`,
-`origin/ci/<task>`, a branch named like the task, then the second parent of a merge naming the task. No reliable
-task-to-branch link exists in the events (INFERRED from the investigation). The rule should move to Lean.
 
-## Preview target (Lean, `lean/Fw/Console/Preview.lean`)
-No head: `none`. Head on main: `main`. Else the first integration ref (newest first) containing the head:
-`integration(ref, sha)`. Else `own(head)`. Theorem `target_deterministic`: only the candidates that contain the head matter.
+Nothing is stored as status. Facts are gathered by git in `facts.ts` (no decision there): the head candidates in priority
+order (handoff Branch line, `ci/<task>`, `origin/ci/<task>`, a branch named like the task, the second parent of a merge
+naming the task, the newest commit touching the handoff), and for each candidate: is it an ancestor of main, which
+integration refs contain it, is its work beyond the newest integration ref documentation only. **Which candidate is the
+head and what to show is Lean** (`console.previewTarget` = `Fw.Console.Preview.headOf`).
+
+## Head and target (Lean, `lean/Fw/Console/Preview.lean`, `PreviewTable.lean`)
+Head: the first candidate held by main or an integration ref, else the first candidate (`pickHead`). Target: head on main:
+`main`; head exactly an integration tip: that ref; else the newest integration ref containing it; a head with no code
+that nothing holds: the newest integration ref; else `own(head)`. No candidate but sub-tasks `<task>-*` (an umbrella):
+the first integration ref holding all sub-task heads, or `main`, or `none`. `PreviewTable.lean` holds the repository facts
+of all 25 `port-`/`fix-` tasks and the investigation's answer and proves `table_matches` (`decide +kernel`); the same
+rows are the golden `console.previewTarget.jsonl` (the TS glue is checked against it). `targetOf_filter_invariant` proves
+only that dropping integration refs that do not contain the head changes nothing (the docstring no longer claims more).
 
 ## Lifecycle
 1. request: `POST /api/previews {task}` -> `console.previewAdmit` (refusal order: notOwner, taskBusy, tooMany, lowDisk,
@@ -38,25 +46,36 @@ No head: `none`. Head on main: `main`. Else the first integration ref (newest fi
    original snapshot. `/__fw/compare` is a two-iframe page.
 4. expire: a 30 s tick calls `console.previewTick`; every preview past its deadline is stopped (`expired_stopped`).
 5. stop: `console.previewStop` returns the kill list; only table entries are killed (`stop_only_own`).
-6. cleanup: kill the recorded group (`process.kill(-pid)`), `git worktree remove --force`, prune. A failed build cleans itself.
-   On console start `console.previewReap` stops the previous run's recorded previews, verifying with `ps -o command=`
-   that the pid's command line holds `--fw-preview=<id>` or `/<id>/tree`. Nothing is ever killed by name.
+6. cleanup: kill the recorded group (`process.kill(-pid)`) only if `isOurs`: the process still has the start time
+   (`ps lstart`) recorded at spawn, leads its own process group, and carries `--fw-preview=<id>` or `/<id>/tree` (a
+   recycled pid never matches). `git worktree remove --force`, prune. Nothing is ever killed by name.
+7. a failed build leaves the table through Lean (`console.previewFail`: `fail`, `own`; no TS-only path). A stop during a
+   build sets a cancel flag: the remaining build steps do not run, the running step's group is killed, the tree is removed
+   again after the step ends. A server that crashes after it was ready clears its recorded pid. On console start
+   `console.previewReap` stops the previous run's recorded previews with the same `isOurs` check.
 
-## Auth
-Owner only. Lean `mayStart` admits only actor `user` (`agent_never_admitted`). The actor is stamped by the route, never
-read from the body (`cap.ts`: `SECRET_HEADER`, `secretMatches`, `actorFor`): a caller showing the console secret is stamped
-`lead` and refused; the browser, which has no secret, is `user`. A foreign Origin and non-JSON content types are refused
-(blocks cross-site pages). Servers bind 127.0.0.1 only.
-Residual risk (INFERRED): an agent of the same OS user sending curl with no secret and no Origin is stamped `user`. The
-console cannot tell it from the browser; the limit is the same as for every other user-only door in the console.
+## Auth (owner proof)
+Owner only. The route reads three facts and sends them to Lean as a `Proof`: `secret` (the request shows the console
+secret), `cookie` (the HttpOnly SameSite=Strict owner cookie matches), `origin` (the Origin header is the console's own
+loopback origin, or one in `FW_CONSOLE_WEB_ORIGIN`). `Proof.actor`: secret -> lead; cookie and origin -> user; else script.
+`mayStart` admits only `user`. Theorem `agent_never_admitted`: a request that fails the cookie, or the Origin, or shows
+the secret is refused (`proof_user_iff`). The cookie is minted by the one-time owner link the console prints to stdout at
+startup (`/owner?t=<token>`, single use, 303 to `/`); the token and the session value are never written to a file.
+Servers bind 127.0.0.1 only.
+Residual risk (INFERRED): a process of the same OS user that reads the link from the console's terminal output (or a
+background task's output file) before the user opens it, or reads the cookie from the browser profile, is the owner.
+Agent-side wait-guard style refusal of Bash commands that call `/api/previews` is not added (it lives in
+.claude/settings.json hooks, which this task may not edit).
 
 ## Limits
 - Previews are logged to `.fw-console/preview/log.jsonl` and `table.json`, not to `events.jsonl` (avoids conflict with
   task-state-truth); they are runtime state, not task state. Open item: bring them into the event log with a reducer rule.
 - A build needs the offline pnpm store and about 5 s to a minute; a task whose sha predates `apps/site` cannot build (it fails and cleans up).
 - The compare page uses iframes; a page that frame-busts would not show side by side (open the two URLs instead).
-- TS stand-ins to replace by Lean: `findHead` and the facts cache (`facts.ts`).
+- TS stand-ins to replace by Lean: the facts cache (`facts.ts`); git ancestry itself stays glue.
 
 ## Lean
-Theorems: `target_deterministic`, `ports_distinct`, `live_le_K`, `agent_never_admitted`, `expired_stopped`, `stop_only_own`,
-plus `reach_inv`, `ports_in_range`, `tick_idem`, `stop_partition`, `reap_all`. Goldens: `packages/contracts/golden/console/console.preview*.jsonl`.
+Theorems: `headOf_noWork`, `targetOf_landed`, `targetOf_held_not_own`, `targetOf_own`, `pickHead_held`, `targetOf_filter_invariant`,
+`table_matches`, `proof_user_iff`, `agent_actor_never_admitted`, `agent_never_admitted`, `admit_user`, `ports_distinct`, `live_le_K`,
+`expired_stopped`, `stop_only_own`, `fail_only_own`, `tick_within_period`, plus `reach_inv`, `ports_in_range`, `tick_idem`,
+`stop_partition`, `reap_all`. Goldens: `packages/contracts/golden/console/console.preview*.jsonl`.

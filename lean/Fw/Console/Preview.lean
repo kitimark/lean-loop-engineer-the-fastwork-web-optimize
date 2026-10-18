@@ -7,12 +7,15 @@ The console can start a local web server per `port-*` / `fix-*` task: the task's
 to the original snapshot, for manual testing (task `task-preview`, `research/notes/2026/10-18-task-preview.md`).
 Everything that is a *decision* is here; the TypeScript glue only does git, process and http I/O.
 
-* **Target commit** (`target`). The preview shows the commit that has the task's work in the state the user
-  wants to judge: `main` when the task head is already an ancestor of main (landed); else the first
-  integration ref that contains the head (the glue passes the refs newest first, `git for-each-ref
-  --sort=-committerdate`); else the task's own head (nothing integrated it yet); no head, no preview.
-* **Admission** (`admit`). Only the actor `user` may start a preview (`mayStart`; the lead, owner and
-  reviewer are the agent actors of `Fw.Ops.Identity.isAgentActor`). Then, in this order: one live preview per
+* **Head and target commit** (`headOf`). The glue gathers repository facts for each head candidate of the task
+  (handoff branch line, `ci/<task>`, `origin/ci/<task>`, a branch named like the task, a merge's second
+  parent) and for each sub-task of an umbrella; Lean picks the head (`pickHead`) and its target (`targetOf`,
+  `umbrella`): `main` when the head is landed; else the integration ref whose tip is the head, else the newest
+  integration ref containing it; a head with no code of its own that nothing holds shows the newest integration
+  ref; else the head itself; no head and no sub-task head, no preview. The checked table of the 25 `port-` /
+  `fix-` tasks is `Fw.Console.PreviewTable`.
+* **Admission** (`admit`). Only the actor `user` may start a preview (`mayStart`), and a request is `user` only
+  when it shows the owner proof (`Proof.actor`: owner cookie and same-origin Origin, no console secret). Then, in this order: one live preview per
   task, at most `K` live previews, a disk floor, a target, and two free ports of the fixed localhost range
   (one for the rewrite, one for the original).
 * **Expiry** (`tick`). A preview lives `ttl` milliseconds from its start; the console ticks, and every
@@ -56,14 +59,28 @@ def portN : Nat := 40
 
 /-! ## Target commit -/
 
-/-- An integration ref the glue found: its name, its tip, and whether it contains the task head
-(`git merge-base --is-ancestor head tip`).
+/-- An integration ref the glue found: its name, its tip, and whether it contains a given commit
+(`git merge-base --is-ancestor commit tip`).
 
 $$c = (\mathit{ref}, \mathit{sha}, \mathit{contains}) \in \mathrm{String} \times \mathrm{String} \times \mathbb{B}$$ -/
 structure Cand where
   ref : String
   sha : String
   contains : Bool
+deriving Repr, DecidableEq
+
+/-- What the glue knows (through git) about one head candidate of a task: where the candidate came from
+(`handoff` branch line, `ci/<task>`, `origin/ci/<task>`, a branch named like the task, a merge's second
+parent), its commit, whether main contains it, whether its own commits touch only documentation, and which
+integration refs contain it (newest first).
+
+$$f = (\mathit{src}, s, \mathit{onMain}, \mathit{noCode}, \mathit{cs})$$ -/
+structure Fact where
+  src : String
+  sha : String
+  onMain : Bool
+  noCode : Bool
+  cands : List Cand
 deriving Repr, DecidableEq
 
 /-- What a preview shows.
@@ -76,93 +93,199 @@ inductive Target where
   | none
 deriving Repr, DecidableEq
 
-/-- The first candidate that contains the head (candidates come newest first).
+/-- The first candidate that contains the commit (candidates come newest first).
 
 $$\operatorname{firstContaining}(cs) = \text{the first } c \in cs \text{ with } c.\mathit{contains}$$ -/
 def firstContaining (cs : List Cand) : Option Cand := cs.find? (·.contains)
 
-/-- The preview target of a task.
+/-- A commit is held when main or an integration ref contains it.
 
-$$\operatorname{target}(m, h, \mathit{onMain}, cs) = \begin{cases}
-\mathrm{none} & h = \bot\\
-\mathrm{main}(m) & h \ne \bot \wedge \mathit{onMain}\\
-\mathrm{integration}(c) & h \ne \bot \wedge \neg\mathit{onMain} \wedge c = \operatorname{firstContaining}(cs)\\
-\mathrm{own}(h) & \text{otherwise}
+$$\operatorname{held}(f) \iff f.\mathit{onMain} \vee \exists c \in f.\mathit{cs},\ c.\mathit{contains}$$ -/
+def Fact.held (f : Fact) : Bool := f.onMain || f.cands.any (·.contains)
+
+/-- The task head among the candidates (given in priority order): the first one that main or an integration
+ref holds (a documentation-only handoff commit never hides the commit the gate ran); if none is held, the
+first candidate; no candidate, no head.
+
+$$\operatorname{pickHead}(fs) = \begin{cases}
+\text{the first } f \in fs \text{ with } \operatorname{held}(f) & \exists f \in fs,\ \operatorname{held}(f)\\
+\operatorname{head}(fs) & \text{otherwise (}\bot \text{ if } fs = [\,])
 \end{cases}$$ -/
-def target (mainSha : String) (head : Option String) (onMain : Bool) (cs : List Cand) : Target :=
-  match head with
-  | none => .none
-  | some h =>
-    if onMain then .main mainSha
-    else match firstContaining cs with
+def pickHead (fs : List Fact) : Option Fact :=
+  match fs.find? Fact.held with
+  | some f => some f
+  | none => fs.head?
+
+/-- The integration ref whose tip is exactly the commit, among those that contain it.
+
+$$\operatorname{exactTip}(f) = \text{the first } c \in f.\mathit{cs} \text{ with } c.\mathit{contains} \wedge c.\mathit{sha} = f.s$$ -/
+def exactTip (f : Fact) : Option Cand := f.cands.find? fun c => c.contains && c.sha == f.sha
+
+/-- The target of one head. Order: main (landed); the integration ref whose tip is the head (the exact state
+the gate judged); the newest integration ref containing it; for a head with no code of its own that nothing
+holds, the newest integration ref (the newest state of the parts it examined); else the head itself.
+
+$$\operatorname{targetOf}(m, f) = \begin{cases}
+\mathrm{main}(m) & f.\mathit{onMain}\\
+\mathrm{integration}(c) & c = \operatorname{exactTip}(f)\\
+\mathrm{integration}(c) & c = \operatorname{firstContaining}(f.\mathit{cs})\\
+\mathrm{integration}(\operatorname{head}(f.\mathit{cs})) & f.\mathit{noCode} \wedge f.\mathit{cs} \ne [\,]\\
+\mathrm{own}(f.s) & \text{otherwise}
+\end{cases}$$ -/
+def targetOf (mainSha : String) (f : Fact) : Target :=
+  if f.onMain then .main mainSha
+  else match exactTip f with
+    | some c => .integration c.ref c.sha
+    | none => match firstContaining f.cands with
       | some c => .integration c.ref c.sha
-      | none => .own h
+      | none => match f.noCode, f.cands with
+        | true, c :: _ => .integration c.ref c.sha
+        | _, _ => .own f.sha
+
+/-- The target of an umbrella task (no commit of its own; sub-tasks `<task>-*` with heads, given as facts):
+`main` when every sub-task head is on main; else the first integration ref (newest first, taken from the
+first sub-task's list) that contains every sub-task head; else none. No sub-task with a head, no target.
+
+$$\operatorname{umbrella}(m, ks) = \begin{cases}
+\mathrm{none} & ks = [\,]\\
+\mathrm{main}(m) & \forall k \in ks,\ k.\mathit{onMain}\\
+\mathrm{integration}(c) & c \text{ the first of } k_0.\mathit{cs} \text{ with } \forall k \in ks,\ k \text{ is contained in } c\\
+\mathrm{none} & \text{otherwise}
+\end{cases}$$
+A sub-task's containment in `c` is the `contains` flag of its entry with the same ref name. -/
+def umbrella (mainSha : String) (ks : List Fact) : Target :=
+  match ks with
+  | [] => .none
+  | k0 :: _ =>
+    if ks.all (·.onMain) then .main mainSha
+    else match k0.cands.find? fun c => ks.all fun k => k.cands.any fun d => d.ref == c.ref && d.contains with
+      | some c => .integration c.ref c.sha
+      | none => .none
+
+/-- The decision of the task head: which candidate is the head, and what its preview shows. With no
+candidate the sub-tasks decide: each sub-task's candidate list `kss` gives its head by `pickHead`
+(`umbrella`).
+
+$$\operatorname{headOf}(m, fs, kss) = \begin{cases}
+(f, \operatorname{targetOf}(m, f)) & f = \operatorname{pickHead}(fs) \ne \bot\\
+(\bot, \operatorname{umbrella}(m, [\operatorname{pickHead}(ks) \mid ks \in kss, \operatorname{pickHead}(ks) \ne \bot])) & fs = [\,]
+\end{cases}$$ -/
+def headOf (mainSha : String) (fs : List Fact) (kss : List (List Fact)) : Option Fact × Target :=
+  match pickHead fs with
+  | some f => (some f, targetOf mainSha f)
+  | none => (none, umbrella mainSha (kss.filterMap pickHead))
 
 /-- **No work, no preview.**
 
-$$\forall m, \mathit{om}, cs:\ \operatorname{target}(m, \bot, \mathit{om}, cs) = \mathrm{none}$$ -/
-theorem target_noWork (m : String) (om : Bool) (cs : List Cand) : target m none om cs = .none := rfl
+$$\forall m:\ \operatorname{headOf}(m, [\,], [\,]) = (\bot, \mathrm{none})$$ -/
+theorem headOf_noWork (m : String) : headOf m [] [] = (none, .none) := rfl
 
-/-- **Landed means main.**
+/-- **Landed means main.** A head main contains gives `main`.
 
-$$\operatorname{target}(m, \mathrm{some}\ h, \mathrm{true}, cs) = \mathrm{main}(m)$$ -/
-theorem target_landed (m h : String) (cs : List Cand) : target m (some h) true cs = .main m := by
-  simp [target]
+$$f.\mathit{onMain} \Rightarrow \operatorname{targetOf}(m, f) = \mathrm{main}(m)$$ -/
+theorem targetOf_landed (m : String) (f : Fact) (h : f.onMain = true) : targetOf m f = .main m := by
+  simp [targetOf, h]
 
-/-- **Own head only when nothing contains it.**
+/-- **A held head is never shown as its own.** If main or an integration ref holds the head, the target is
+`main` or an integration ref, not `own`.
 
-$$\operatorname{target}(m, \mathrm{some}\ h, \mathrm{false}, cs) = \mathrm{own}(h) \iff \forall c \in cs,\ \neg c.\mathit{contains}$$ -/
-theorem target_own_iff (m h : String) (cs : List Cand) :
-    target m (some h) false cs = .own h ↔ ∀ c ∈ cs, c.contains = false := by
-  unfold target firstContaining
-  cases hf : cs.find? (·.contains) with
+$$\operatorname{held}(f) \Rightarrow \forall s,\ \operatorname{targetOf}(m, f) \ne \mathrm{own}(s)$$ -/
+theorem targetOf_held_not_own (m : String) (f : Fact) (h : f.held = true) (s : String) :
+    targetOf m f ≠ .own s := by
+  unfold Fact.held at h
+  unfold targetOf exactTip firstContaining
+  by_cases hm : f.onMain = true
+  · simp [hm]
+  · have hc : f.cands.any (·.contains) = true := by simpa [hm] using h
+    have hs : (f.cands.find? (·.contains)).isSome = true := by
+      rw [List.find?_isSome]; simpa using hc
+    simp only [hm, Bool.false_eq_true, ite_false]
+    cases he : f.cands.find? (fun c => c.contains && c.sha == f.sha) with
+    | some c => simp
+    | none =>
+      cases hf : f.cands.find? (·.contains) with
+      | some c => simp
+      | none => simp [hf] at hs
+
+/-- **Own head only when nothing holds it.** A target of `own` means main does not contain the head, no
+integration ref does, and the head has code (or there is no integration ref at all).
+
+$$\operatorname{targetOf}(m, f) = \mathrm{own}(s) \Rightarrow \neg f.\mathit{onMain} \wedge (\forall c \in f.\mathit{cs},\ \neg c.\mathit{contains}) \wedge (\neg f.\mathit{noCode} \vee f.\mathit{cs} = [\,])$$ -/
+theorem targetOf_own (m s : String) (f : Fact) (h : targetOf m f = .own s) :
+    f.onMain = false ∧ (∀ c ∈ f.cands, c.contains = false) ∧ (f.noCode = false ∨ f.cands = []) := by
+  unfold targetOf exactTip firstContaining at h
+  by_cases hm : f.onMain = true
+  · simp [hm] at h
+  have hm' : f.onMain = false := by simpa using hm
+  simp only [hm', Bool.false_eq_true, ite_false] at h
+  cases he : f.cands.find? (fun c => c.contains && c.sha == f.sha) with
+  | some c => simp [he] at h
   | none =>
-    have h0 : ∀ c ∈ cs, c.contains = false := by
-      intro c hc
-      have := List.find?_eq_none.mp hf c hc
-      simpa using this
-    simp
-    exact h0
-  | some c =>
-    have hm := List.mem_of_find?_eq_some hf
-    have hc := List.find?_some hf
-    simp only [ite_false, reduceCtorEq, false_iff]
-    intro hall
-    have := hall c hm
-    simp_all
+    cases hf : f.cands.find? (·.contains) with
+    | some c => simp [he, hf] at h
+    | none =>
+      refine ⟨hm', fun c hc => ?_, ?_⟩
+      · have := List.find?_eq_none.mp hf c hc
+        simpa using this
+      · simp only [he, hf] at h
+        cases hn : f.noCode with
+        | false => exact Or.inl rfl
+        | true =>
+          right
+          cases hcs : f.cands with
+          | nil => rfl
+          | cons c t => simp [hn, hcs] at h
 
-/-- **The integration pick is the first containing ref.**
+/-- **The pick is held when anything is.** If some candidate is held, the picked head is held (it is the
+first held one).
 
-$$\operatorname{target}(m, \mathrm{some}\ h, \mathrm{false}, cs) = \mathrm{integration}(r, s) \Rightarrow
-cs = \mathit{pre} \mathbin{+\!\!+} (r, s, \mathrm{true}) :: \mathit{post} \wedge \forall p \in \mathit{pre},\ \neg p.\mathit{contains}$$ -/
-theorem target_integration_first (m h r s : String) (cs : List Cand)
-    (ht : target m (some h) false cs = .integration r s) :
-    ∃ pre c post, cs = pre ++ c :: post ∧ c.contains = true ∧ c.ref = r ∧ c.sha = s ∧
-      ∀ p ∈ pre, p.contains = false := by
-  unfold target firstContaining at ht
-  cases hf : cs.find? (·.contains) with
-  | none => simp [hf] at ht
-  | some c =>
-    simp only [hf, Bool.false_eq_true, ite_false, Target.integration.injEq] at ht
-    obtain ⟨hcon, pre, post, hcs, hpre⟩ := (List.find?_eq_some_iff_append.mp hf)
-    refine ⟨pre, c, post, hcs, by simpa using hcon, ht.1, ht.2, fun p hp => ?_⟩
-    simpa using hpre p hp
+$$\exists f \in fs,\ \operatorname{held}(f) \Rightarrow \exists g,\ \operatorname{pickHead}(fs) = g \wedge \operatorname{held}(g)$$ -/
+theorem pickHead_held (fs : List Fact) (h : ∃ f ∈ fs, f.held = true) :
+    ∃ g, pickHead fs = some g ∧ g.held = true := by
+  obtain ⟨f, hf, hh⟩ := h
+  unfold pickHead
+  cases hx : fs.find? Fact.held with
+  | none => exact absurd (List.find?_eq_none.mp hx f hf) (by simpa using hh)
+  | some g => exact ⟨g, rfl, List.find?_some hx⟩
 
-/-- **Determinism.** The target is a function of its four inputs, and candidates that do not contain the
-head do not matter: dropping them gives the same target.
+/-- **Filter invariance** (what remains of the former `target_deterministic`). For a held head, dropping the
+integration refs that do not contain it gives the same target; it is the only claim, the target is not
+asserted to depend on anything else.
 
-$$\operatorname{target}(m, h, \mathit{om}, cs) = \operatorname{target}(m, h, \mathit{om}, \operatorname{filter}(\mathit{contains}, cs))$$ -/
-theorem target_deterministic (m : String) (h : Option String) (om : Bool) (cs : List Cand) :
-    target m h om cs = target m h om (cs.filter (·.contains)) := by
-  unfold target firstContaining
-  have : (cs.filter (·.contains)).find? (·.contains) = cs.find? (·.contains) := by
+$$\operatorname{held}(f) \Rightarrow \operatorname{targetOf}(m, f) = \operatorname{targetOf}\bigl(m, f[\mathit{cs} := \operatorname{filter}(\mathit{contains}, f.\mathit{cs})]\bigr)$$ -/
+theorem targetOf_filter_invariant (m : String) (f : Fact) (h : f.held = true) :
+    targetOf m f = targetOf m { f with cands := f.cands.filter (·.contains) } := by
+  have key : ∀ (cs : List Cand) (p : Cand → Bool), (∀ c, p c = true → c.contains = true) →
+      (cs.filter (·.contains)).find? p = cs.find? p := by
+    intro cs p hp
     induction cs with
     | nil => rfl
     | cons c t ih =>
       by_cases hc : c.contains = true
-      · simp [hc]
-      · simp [hc, ih]
-  rw [this]
+      · simp [hc, List.find?_cons, ih]
+      · have : p c = false := by
+          cases hpc : p c
+          · rfl
+          · exact absurd (hp c hpc) hc
+        simp [hc, this, ih]
+  have hex : (f.cands.filter (·.contains)).find? (fun c => c.contains && c.sha == f.sha)
+      = f.cands.find? (fun c => c.contains && c.sha == f.sha) :=
+    key f.cands _ (fun c hc => by simpa using (Bool.and_eq_true_iff.mp hc).1)
+  have hfc : (f.cands.filter (·.contains)).find? (·.contains) = f.cands.find? (·.contains) :=
+    key f.cands _ (fun c hc => hc)
+  by_cases hm : f.onMain = true
+  · simp [targetOf, hm]
+  · have hc : f.cands.any (·.contains) = true := by unfold Fact.held at h; simpa [hm] using h
+    have hs : (f.cands.find? (·.contains)).isSome = true := by
+      rw [List.find?_isSome]; simpa using hc
+    unfold targetOf exactTip firstContaining
+    simp only [hm, Bool.false_eq_true, ite_false, hex, hfc]
+    cases f.cands.find? (fun c => c.contains && c.sha == f.sha) with
+    | some c => rfl
+    | none =>
+      cases hf : f.cands.find? (·.contains) with
+      | none => simp [hf] at hs
+      | some c => simp
 
 /-! ## The table, admission, ports -/
 
@@ -217,6 +340,34 @@ $$\operatorname{isAgentActor}(a) \Rightarrow \operatorname{mayStart}(a) = \mathr
 theorem mayStart_not_agent (a : Actor) (h : Fw.Ops.Identity.isAgentActor a = true) : mayStart a = false := by
   cases a <;> simp_all [mayStart, Fw.Ops.Identity.isAgentActor]
 
+/-- What a request to a preview route shows: the three facts the route can check, and nothing else. `secret`: the
+console secret header matched (the runner's own tools). `cookie`: the owner cookie matched the session that the
+one-time owner link opened. `origin`: the Origin header is present and is an origin of this console.
+
+$$p = (\mathit{secret}, \mathit{cookie}, \mathit{origin}) \in \mathbb{B}^3$$ -/
+structure Proof where
+  secret : Bool
+  cookie : Bool
+  origin : Bool
+deriving Repr, DecidableEq
+
+/-- The actor a request is stamped as.
+
+$$\operatorname{actor}(p) = \begin{cases}
+\mathrm{lead} & p.\mathit{secret}\\
+\mathrm{user} & \neg p.\mathit{secret} \wedge p.\mathit{cookie} \wedge p.\mathit{origin}\\
+\mathrm{script} & \text{otherwise}
+\end{cases}$$ -/
+def Proof.actor (p : Proof) : Actor :=
+  if p.secret then .lead else if p.cookie && p.origin then .user else .script
+
+/-- **Only the full owner proof is `user`.**
+
+$$\operatorname{actor}(p) = \mathrm{user} \iff p.\mathit{secret} = \mathrm{false} \wedge p.\mathit{cookie} = \mathrm{true} \wedge p.\mathit{origin} = \mathrm{true}$$ -/
+theorem proof_user_iff (p : Proof) :
+    p.actor = .user ↔ (p.secret = false ∧ p.cookie = true ∧ p.origin = true) := by
+  cases p with | mk a b c => cases a <;> cases b <;> cases c <;> simp [Proof.actor]
+
 /-- A start request (the facts; `hasTarget` is `target ≠ none`).
 
 $$r = (a, \mathit{id}, \mathit{task}, \mathit{now}, \mathit{disk}, \mathit{hasTarget})$$ -/
@@ -249,12 +400,22 @@ def admit (s : List Pv) (r : Req) : Except Refusal (List Pv) :=
     | a :: b :: _ => .ok ({ id := r.id, task := r.task, rp := a, op := b, started := r.now } :: s)
     | _ => .error .noPorts
 
-/-- **Agents are never admitted.**
+/-- An agent actor is refused.
 
 $$\operatorname{isAgentActor}(a) \Rightarrow \operatorname{admit}(T, r) = \mathrm{error}(\mathrm{notOwner})$$ -/
-theorem agent_never_admitted (s : List Pv) (r : Req) (h : Fw.Ops.Identity.isAgentActor r.actor = true) :
+theorem agent_actor_never_admitted (s : List Pv) (r : Req) (h : Fw.Ops.Identity.isAgentActor r.actor = true) :
     admit s r = .error .notOwner := by
   simp [admit, mayStart_not_agent r.actor h]
+
+/-- **Without the owner proof nothing is admitted.** Over the request fields the route sees: a request that
+shows the console secret, or lacks the owner cookie, or lacks a same-origin Origin, is refused `notOwner`
+whatever the table is. (What the theorem cannot say: that no agent holds the cookie; see the design note.)
+
+$$r.a = \operatorname{actor}(p) \wedge \neg(p.\mathit{secret} = \mathrm{false} \wedge p.\mathit{cookie} \wedge p.\mathit{origin}) \Rightarrow \operatorname{admit}(T, r) = \mathrm{error}(\mathrm{notOwner})$$ -/
+theorem agent_never_admitted (s : List Pv) (r : Req) (p : Proof) (ha : r.actor = p.actor)
+    (hp : ¬ (p.secret = false ∧ p.cookie = true ∧ p.origin = true)) : admit s r = .error .notOwner := by
+  have hne : r.actor ≠ .user := fun h => hp ((proof_user_iff p).mp (ha ▸ h))
+  simp [admit, mayStart, hne]
 
 /-- **Only the user is admitted.**
 
@@ -285,6 +446,17 @@ def stop (s : List Pv) (i : String) : List Pv := s.filter fun p => p.id != i
 $$\operatorname{own}(T, i) = [\,p \in T \mid p.\mathit{id} = i\,]$$ -/
 def own (s : List Pv) (i : String) : List Pv := s.filter fun p => p.id == i
 
+/-- A failed build tears down: the preview with that id leaves the table (the same filter as a stop, without
+an actor: the console tears down its own failure through Lean, not by a TypeScript-only path).
+
+$$\operatorname{fail}(T, i) = \operatorname{stop}(T, i)$$ -/
+def fail (s : List Pv) (i : String) : List Pv := stop s i
+
+/-- The console ticks every 30 s.
+
+$$\mathit{tickPeriod} = 30000\ \text{ms}$$ -/
+def tickPeriod : Nat := 30000
+
 /-- Console start or stop: everything recorded is killed and the table is empty.
 
 $$\operatorname{reap}(T) = (\,[\,],\ T\,)$$ -/
@@ -300,6 +472,7 @@ inductive Reach : List Pv → Prop where
   | admit {s s' : List Pv} (r : Req) : Reach s → admit s r = .ok s' → Reach s'
   | tick {s : List Pv} (t : Nat) : Reach s → Reach (tick s t)
   | stop {s : List Pv} (i : String) : Reach s → Reach (stop s i)
+  | fail {s : List Pv} (i : String) : Reach s → Reach (fail s i)
 
 /-- The invariants.
 
@@ -385,6 +558,7 @@ theorem reach_inv {s : List Pv} (h : Reach s) : Inv s := by
   | admit r _ ha ih => exact inv_admit r ih ha
   | tick t _ ih => exact inv_filter _ ih
   | stop i _ ih => exact inv_filter _ ih
+  | fail i _ ih => exact inv_filter _ ih
 
 /-- **At most `K` live previews, always.**
 
@@ -458,6 +632,26 @@ theorem stop_partition (s : List Pv) (i : String) : (own s i ++ stop s i).Perm s
 $$\operatorname{expired}(T, t) \subseteq T$$ -/
 theorem expired_sub (s : List Pv) (t : Nat) : ∀ p ∈ expired s t, p ∈ s :=
   fun _ hp => (List.mem_filter.mp hp).1
+
+/-- **A failure removes only table entries.**
+
+$$\operatorname{fail}(T, i) \subseteq T, \qquad (\forall p \in T,\ p.\mathit{id} \ne i) \Rightarrow \operatorname{fail}(T, i) = T$$ -/
+theorem fail_only_own (s : List Pv) (i : String) :
+    (∀ p ∈ fail s i, p ∈ s) ∧ ((∀ p ∈ s, p.id ≠ i) → fail s i = s) := by
+  refine ⟨fun p hp => (List.mem_filter.mp hp).1, fun h => ?_⟩
+  unfold fail stop
+  rw [List.filter_eq_self]
+  intro p hp
+  simp [h p hp]
+
+/-- **The lifetime bound.** With a tick every `tickPeriod` ms, some tick falls in the 30 s window that starts at
+a preview's deadline; with `expired_stopped` the preview is gone at most 30 s after its 60 minutes.
+
+$$\tau \le d \Rightarrow \exists k:\ d \le \tau + k \cdot 30000 < d + 30000$$ -/
+theorem tick_within_period (d τ : Nat) (h : τ ≤ d) :
+    ∃ k, d ≤ τ + k * tickPeriod ∧ τ + k * tickPeriod < d + tickPeriod := by
+  unfold tickPeriod
+  exact ⟨(d - τ + 29999) / 30000, by omega, by omega⟩
 
 /-- **Reap kills exactly the table and empties it.**
 

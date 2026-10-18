@@ -7,6 +7,7 @@ import { selectCore } from "./core/index.ts";
 import { Store, consoleDir } from "./store.ts";
 import { Reconciler } from "./reconcile/reconciler.ts";
 import { PreviewManager } from "./preview/manager.ts";
+import { OwnerAuth } from "./preview/owner.ts";
 
 const dir = consoleDir();
 mkdirSync(dir, { recursive: true });
@@ -27,7 +28,8 @@ reconciler.start();
 const previews = new PreviewManager(dirname(dir), dir, core);
 await previews.reapRecorded().catch((e) => console.error("preview reap failed:", e)); // previews a crashed run left behind
 setInterval(() => { void previews.tick().catch((e) => console.error("preview tick failed:", e)); }, 30_000).unref();
-const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews);
+const owner = new OwnerAuth((process.env.FW_CONSOLE_WEB_ORIGIN ?? "").split(",").filter(Boolean)); // e.g. the Vite dev origin
+const app = createApp(store, join(here, "../../console-web/dist"), reconciler, previews, owner);
 
 setInterval(() => { void app.drain.run().catch((e) => console.error("spool drain failed:", e)); }, 2000).unref();
 
@@ -35,6 +37,8 @@ setInterval(() => { void app.drain.run().catch((e) => console.error("spool drain
 const server = serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 0), hostname: "127.0.0.1" }, (info) => {
   writeFileSync(join(dir, "api.json"), JSON.stringify({ port: info.port, pid: process.pid }));
   console.log(`console-api listening on http://127.0.0.1:${info.port}  (core: ${core.name}, log: ${join(dir, "events.jsonl")}, ${store.seq} events)`);
+  // the one-time owner link: stdout only, never a file. Open it in your browser once to be allowed to start/stop previews.
+  console.log(`owner link (open once, in your browser): http://127.0.0.1:${info.port}/owner?t=${owner.token()}`);
 });
 
 const stop = async () => {

@@ -8,10 +8,12 @@ import { createApp } from "../src/app.ts";
 import { selectCore } from "../src/core/index.ts";
 import { Store } from "../src/store.ts";
 import { CapStore } from "../src/cap/cap.ts";
-import { PreviewManager, defaultHooks, type Hooks } from "../src/preview/manager.ts";
+import { PreviewManager, defaultHooks, type Entry, type Hooks, type Proof } from "../src/preview/manager.ts";
+import { OwnerAuth } from "../src/preview/owner.ts";
 import { branchOfHandoff, partsOf } from "../src/preview/facts.ts";
 import { safeFile } from "../src/preview/serve-child.ts";
 
+const USER: Proof = { secret: false, cookie: true, origin: true }; // the owner's browser: cookie and same-origin Origin
 const tmp = (p: string) => mkdtempSync(join(tmpdir(), p));
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const sh = (cwd: string, ...a: string[]) => execFileSync("git", a, { cwd, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
@@ -85,20 +87,21 @@ async function setup(opts: { disk?: { mb: number } } = {}) {
 }
 
 describe("PreviewManager (Lean console.preview* decisions, real server child)", () => {
-  it("target: landed -> main, integrated only -> integration ref, unintegrated -> own head, no work -> none", async () => {
+  it("target (Lean): landed -> main, integrated only -> integration ref, unintegrated -> own head, no work -> none", async () => {
     const { pm } = await setup();
-    expect((await pm.target("port-landed")).kind).toBe("main");
-    const i = await pm.target("port-integ");
+    expect((await pm.decision("port-landed")).kind).toBe("main");
+    const i = await pm.decision("port-integ");
     expect(i.kind).toBe("integration");
     expect(i.ref).toBe("integrate-ports-9");
-    const o = await pm.target("fix-own");
+    expect(i.headSrc).toBe("ci");
+    const o = await pm.decision("fix-own");
     expect(o.kind).toBe("own");
-    expect((await pm.target("fix-none")).kind).toBe("none");
+    expect((await pm.decision("fix-none")).kind).toBe("none");
   });
 
   it("starts a preview: two servers on distinct loopback ports, the snapshot media fallback, analytics stubbed; stop kills the group", async () => {
     const { pm, dir } = await setup();
-    const r = await pm.start("port-landed", "user");
+    const r = await pm.start("port-landed", USER);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     await pm.settled(r.id);
@@ -117,7 +120,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     expect((await fetch(`http://127.0.0.1:${p!.rp}/..%2f..%2fetc/passwd`)).status).toBe(404);
     const pid = p!.pid!;
     expect(alive(pid)).toBe(true);
-    expect(await pm.stop(r.id, "user")).toEqual({ ok: true, reason: null });
+    expect(await pm.stop(r.id, USER)).toEqual({ ok: true, reason: null });
     await new Promise((res) => setTimeout(res, 300));
     expect(alive(pid)).toBe(false);
     expect(pm.list().previews).toEqual([]);
@@ -125,34 +128,37 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     await expect(fetch(`http://127.0.0.1:${p!.rp}/`)).rejects.toThrow();
   });
 
-  it("agents are refused (lead, owner, reviewer); K = 2; same task twice; low disk; no target", async () => {
+  it("only cookie + same-origin + no secret is admitted; K = 2; same task twice; low disk; no target", async () => {
     const disk = { mb: 99999 };
     const { pm } = await setup({ disk });
-    for (const a of ["lead", "owner", "reviewer"]) expect(await pm.start("port-landed", a)).toEqual({ ok: false, reason: "notOwner" });
+    const refused: Proof[] = [
+      { secret: true, cookie: true, origin: true }, { secret: true, cookie: false, origin: false }, { secret: false, cookie: false, origin: true },
+      { secret: false, cookie: true, origin: false }, { secret: false, cookie: false, origin: false }];
+    for (const p of refused) expect(await pm.start("port-landed", p)).toEqual({ ok: false, reason: "notOwner" });
     expect(pm.list().previews).toEqual([]);
-    const a = await pm.start("port-landed", "user"); expect(a.ok).toBe(true);
-    expect(await pm.start("port-landed", "user")).toEqual({ ok: false, reason: "taskBusy" });
-    const b = await pm.start("fix-own", "user"); expect(b.ok).toBe(true);
-    expect(await pm.start("port-integ", "user")).toEqual({ ok: false, reason: "tooMany" });
+    const a = await pm.start("port-landed", USER); expect(a.ok).toBe(true);
+    expect(await pm.start("port-landed", USER)).toEqual({ ok: false, reason: "taskBusy" });
+    const b = await pm.start("fix-own", USER); expect(b.ok).toBe(true);
+    expect(await pm.start("port-integ", USER)).toEqual({ ok: false, reason: "tooMany" });
     const ports = pm.list().previews.flatMap((p) => [p.rp, p.op]);
     expect(new Set(ports).size).toBe(4);
     if (a.ok) await pm.settled(a.id); if (b.ok) await pm.settled(b.id);
     await pm.shutdown();
     disk.mb = 10;
-    expect(await pm.start("port-landed", "user")).toEqual({ ok: false, reason: "lowDisk" });
+    expect(await pm.start("port-landed", USER)).toEqual({ ok: false, reason: "lowDisk" });
     disk.mb = 99999;
-    expect(await pm.start("fix-none", "user")).toEqual({ ok: false, reason: "noTarget" });
+    expect(await pm.start("fix-none", USER)).toEqual({ ok: false, reason: "noTarget" });
   });
 
   it("tick stops every preview past its TTL (and only those); stop of an unknown id kills nothing", async () => {
     const { pm, clock } = await setup();
-    const a = await pm.start("port-landed", "user");
+    const a = await pm.start("port-landed", USER);
     if (!a.ok) throw new Error("start");
     await pm.settled(a.id);
     const pid = pm.list().previews[0]!.pid!;
     clock.t += 59 * 60_000;
     expect(await pm.tick()).toEqual([]);
-    expect(await pm.stop("nope", "user")).toEqual({ ok: false, reason: "unknown" });
+    expect(await pm.stop("nope", USER)).toEqual({ ok: false, reason: "unknown" });
     expect(alive(pid)).toBe(true);
     clock.t += 2 * 60_000;
     expect(await pm.tick()).toEqual([a.id]);
@@ -166,17 +172,85 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     const store = await Store.open(dir, selectCore()); stores.push(store);
     const hooks = { ...stubHooks(root, dir, { t: 5 }), build: async () => { throw new Error("pnpm install exited 1"); } };
     const pm = new PreviewManager(root, dir, store.core, hooks); mgrs.push(pm);
-    const r = await pm.start("port-landed", "user");
+    const r = await pm.start("port-landed", USER);
     if (!r.ok) throw new Error("start");
     await pm.settled(r.id);
-    await pm.stop("x", "user"); // drains the serial queue
+    await pm.stop("x", USER); // drains the serial queue
     expect(pm.list().previews).toEqual([]);
     expect(pm.list().failed[0]?.error).toContain("pnpm install exited 1");
   });
 
+  it("a failed build leaves through Lean (fail): the other preview is untouched", async () => {
+    const root = repo(); const dir = join(root, ".fw-console");
+    const store = await Store.open(dir, selectCore()); stores.push(store);
+    const base = stubHooks(root, dir, { t: 5 });
+    const hooks: Hooks = { ...base, build: async (e, t, c) => { if (e.task === "fix-own") throw new Error("boom"); await base.build(e, t, c); } };
+    const pm = new PreviewManager(root, dir, store.core, hooks); mgrs.push(pm);
+    const a = await pm.start("port-landed", USER); const b = await pm.start("fix-own", USER);
+    if (!a.ok || !b.ok) throw new Error("start");
+    await pm.settled(a.id); await pm.settled(b.id); await pm.stop("x", USER);
+    expect(pm.list().previews.map((p) => p.id)).toEqual([a.id]);
+    expect(pm.list().failed[0]?.error).toBe("boom");
+  });
+
+  it("a stop during the build cancels the remaining steps and cleans up", async () => {
+    const root = repo(); const dir = join(root, ".fw-console");
+    const store = await Store.open(dir, selectCore()); stores.push(store);
+    const base = stubHooks(root, dir, { t: 5 });
+    let release: () => void = () => undefined; const gate = new Promise<void>((r) => { release = r; });
+    const steps: string[] = []; let served = false;
+    const hooks: Hooks = { ...base,
+      async build(e, _t, cancelled) {
+        for (const step of ["checkout", "install", "build"]) {
+          if (cancelled()) throw new Error("cancelled");
+          steps.push(step); mkdirSync(join(dir, "preview", e.id), { recursive: true });
+          if (step === "checkout") await gate;
+        }
+      },
+      async serve(e, t) { served = true; return base.serve(e, t); } };
+    const pm = new PreviewManager(root, dir, store.core, hooks); mgrs.push(pm);
+    const r = await pm.start("port-landed", USER);
+    if (!r.ok) throw new Error("start");
+    expect(await pm.stop(r.id, USER)).toEqual({ ok: true, reason: null });
+    release(); await pm.settled(r.id);
+    expect(steps).toEqual(["checkout"]); // install and build never ran
+    expect(served).toBe(false);
+    expect(pm.list().previews).toEqual([]);
+    expect(pm.list().failed).toEqual([]); // a stop is not a failure
+    expect(existsSync(join(dir, "preview", r.id))).toBe(false);
+  });
+
+  it("a crashed server clears its pid; a recorded pid that is not ours is never signalled", async () => {
+    const { pm } = await setup();
+    const a = await pm.start("port-landed", USER);
+    if (!a.ok) throw new Error("start");
+    await pm.settled(a.id);
+    const pid = pm.list().previews[0]!.pid!;
+    expect(pm.list().previews[0]!.pstart).toBeTruthy();
+    process.kill(-pid, "SIGKILL"); // our own child's group: simulate a crash
+    for (let i = 0; i < 40 && pm.list().previews[0]!.pid !== null; i++) await new Promise((res) => setTimeout(res, 50));
+    expect(pm.list().previews[0]!.pid).toBeNull();
+    expect(await pm.stop(a.id, USER)).toEqual({ ok: true, reason: null }); // nothing to signal, the row and tree go
+  });
+
+  it("isOurs: the recorded start time and own process group must match", async () => {
+    const hooks = defaultHooks(tmp("fw-pv-h-"), tmp("fw-pv-d-"));
+    const { spawn } = await import("node:child_process");
+    const own = spawn("sleep", ["30"], { detached: true, stdio: "ignore" });
+    const plain = spawn("sleep", ["30"], { stdio: "ignore" }); // same group as this test process
+    try {
+      const e = (pid: number, pstart: string | null): Entry => ({ id: "x", task: "t", target: { kind: "main", ref: "main", sha: "a" }, rp: 1, op: 2,
+        started: 0, deadline: 1, phase: "building", pid, pstart, tree: "/nonexistent" });
+      expect(hooks.isOurs(own.pid!, e(own.pid!, hooks.startOf(own.pid!)))).toBe(true);
+      expect(hooks.isOurs(own.pid!, e(own.pid!, "Mon Jan  1 00:00:00 2001"))).toBe(false); // a recycled pid has another start time
+      expect(hooks.isOurs(own.pid!, e(own.pid!, null))).toBe(false);
+      expect(hooks.isOurs(plain.pid!, e(plain.pid!, hooks.startOf(plain.pid!)))).toBe(false); // not the leader of its own group
+    } finally { process.kill(-own.pid!, "SIGKILL"); process.kill(plain.pid!, "SIGKILL"); }
+  });
+
   it("reapRecorded stops a previous run's recorded process group, verified by its command line", async () => {
     const { pm, dir, root, store, clock } = await setup();
-    const a = await pm.start("port-landed", "user");
+    const a = await pm.start("port-landed", USER);
     if (!a.ok) throw new Error("start");
     await pm.settled(a.id);
     const pid = pm.list().previews[0]!.pid!;
@@ -207,29 +281,47 @@ describe("routes", () => {
     expect(none.preview.target.kind).toBe("none");
   });
 
-  it("start: the browser (no secret) is the user; a caller with the console secret is stamped lead and refused; foreign Origin and non-JSON are refused", async () => {
+  it("owner proof at the routes: the one-time link sets the cookie; without cookie, with the secret, or without a same-origin Origin the request is refused", async () => {
     const { pm, store, secret } = await setup();
-    const app = createApp(store, undefined, undefined, pm);
+    const owner = new OwnerAuth(["http://127.0.0.1:5173"]);
+    const app = createApp(store, undefined, undefined, pm, owner);
+    const H = "127.0.0.1:4000"; const O = `http://${H}`;
     const post = (body: unknown, h: Record<string, string> = {}) =>
-      app.request("/api/previews", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...h } });
-    const asLead = await post({ task: "port-landed" }, { "x-fw-secret": secret });
-    expect(asLead.status).toBe(403);
-    expect(await asLead.json()).toEqual({ ok: false, reason: "notOwner" });
-    expect((await post({ task: "port-landed", actor: "user" }, { "x-fw-secret": secret })).status).toBe(403); // the body cannot claim user
-    expect((await post({ task: "port-landed" }, { origin: "https://evil.example" })).status).toBe(403);
-    expect((await app.request("/api/previews", { method: "POST", body: "{\"task\":\"port-landed\"}" })).status).toBe(403);
-    expect((await post({ task: "../x" })).status).toBe(400);
-    const ok = await post({ task: "port-landed" }, { origin: "http://localhost:5173" });
+      app.request("/api/previews", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", host: H, ...h } });
+    // before the link is used nobody is the owner, even with a same-origin Origin
+    expect((await post({ task: "port-landed" }, { origin: O })).status).toBe(403);
+    expect((await app.request("/owner?t=wrong")).status).toBe(403);
+    const link = await app.request(`/owner?t=${owner.token()}`);
+    expect(link.status).toBe(303);
+    const setCookie = link.headers.get("set-cookie")!;
+    expect(setCookie).toMatch(/HttpOnly/); expect(setCookie).toMatch(/SameSite=Strict/);
+    const cookie = setCookie.split(";")[0]!;
+    expect(owner.token()).toBeNull(); // single use
+    expect((await app.request("/owner?t=" + "x")).status).toBe(403);
+    const asSecret = await post({ task: "port-landed" }, { "x-fw-secret": secret, cookie, origin: O });
+    expect(asSecret.status).toBe(403); expect(await asSecret.json()).toEqual({ ok: false, reason: "notOwner" });
+    expect((await post({ task: "port-landed" }, { origin: O })).status).toBe(403); // no cookie: an agent's curl
+    expect((await post({ task: "port-landed" }, { cookie })).status).toBe(403); // no Origin
+    expect((await post({ task: "port-landed" }, { cookie, origin: "https://evil.example" })).status).toBe(403);
+    expect((await post({ task: "port-landed", actor: "user" }, { origin: O })).status).toBe(403); // the body cannot claim user
+    expect((await app.request("/api/previews", { method: "POST", body: "{\"task\":\"port-landed\"}", headers: { cookie, origin: O, host: H } })).status).toBe(403);
+    expect((await post({ task: "../x" }, { cookie, origin: O })).status).toBe(400);
+    expect(pm.list().previews).toEqual([]);
+    const ok = await post({ task: "port-landed" }, { cookie, origin: O });
     expect(ok.status).toBe(202);
     const { id } = await ok.json() as { id: string };
     await pm.settled(id);
-    const list = await (await app.request("/api/previews")).json() as any;
-    expect(list.previews[0].phase).toBe("serving");
-    const stopLead = await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": secret } });
-    expect(stopLead.status).toBe(403);
-    const stop = await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { "content-type": "application/json" } });
-    expect(stop.status).toBe(200);
+    expect((await (await app.request("/api/previews")).json() as any).previews[0].phase).toBe("serving");
+    const stopH = { "content-type": "application/json", host: H };
+    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, "x-fw-secret": secret, cookie, origin: O } })).status).toBe(403);
+    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: stopH })).status).toBe(403);
+    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, cookie } })).status).toBe(403);
+    const dev = await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, cookie, origin: "http://127.0.0.1:5173" } }); // the configured dev origin
+    expect(dev.status).toBe(200);
     expect((await (await app.request("/api/previews")).json() as any).previews).toEqual([]);
+    const det = await (await app.request("/api/tasks/port-landed/detail", { headers: { cookie } })).json() as any;
+    expect(det.canPreview).toBe(true);
+    expect(((await (await app.request("/api/tasks/port-landed/detail")).json()) as any).canPreview).toBe(false);
   });
 });
 

@@ -1,7 +1,8 @@
 // Task previews: process and git glue around the Lean rules in `Fw.Console.Preview` (via `console.preview*` ops).
 // This file holds the table of what the console started and does the I/O: git worktree, build, server child, kill.
-// It decides nothing: target, admission (actor, K, disk floor, ports), expiry and the kill lists come from fwcore.
-// Kills only the process groups recorded in its own table (verified against `ps` after a restart), never by name.
+// It decides nothing: head and target, admission (owner proof, K, disk floor, ports), expiry, the failure teardown and
+// the kill lists come from fwcore. Kills only process groups recorded in its own table, and only when the process
+// still has the start time recorded at spawn (a recycled pid is never signalled), never by name.
 import { spawn, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statfsSync, writeFileSync, appendFileSync, openSync, closeSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -14,17 +15,25 @@ export type Entry = {
   id: string; task: string;
   target: { kind: string; ref: string | null; sha: string };
   rp: number; op: number; started: number; deadline: number;
-  phase: Phase; pid: number | null; tree: string;
+  phase: Phase; pid: number | null; pstart: string | null; tree: string;
 };
 export type Failed = { id: string; task: string; error: string; at: number };
+/** What the route saw of a request (Lean `Fw.Console.Preview.Proof`); Lean maps it to an actor. */
+export type Proof = { secret: boolean; cookie: boolean; origin: boolean };
+/** The Lean answer of `console.previewTarget`: the head commit found and what a preview of the task shows. */
+export type Decision = { head: string | null; headSrc: string | null; kind: string; ref: string | null; sha: string | null };
 
 export type Hooks = {
-  /** make the tree at the sha and build the site into it; `track` records each child process group as it starts */
-  build(e: Entry, track: (pid: number | null) => void): Promise<void>;
+  /** make the tree at the sha and build the site into it; `track` records each child process group as it starts;
+   *  `cancelled` is true once a stop asked for the build to end: the remaining steps must not run */
+  build(e: Entry, track: (pid: number | null) => void, cancelled: () => boolean): Promise<void>;
   /** start the server child (rewrite on rp, original on op); resolves with its process group once both listen */
   serve(e: Entry, track: (pid: number | null) => void): Promise<number>;
   removeTree(e: Entry): void;
   killGroup(pid: number): void;
+  /** the start time of a process (`ps lstart`), null when it is gone */
+  startOf(pid: number): string | null;
+  /** the process is still the one recorded at spawn: same start time, own process group, our command line */
   isOurs(pid: number, e: Entry): boolean;
   diskMb(): number;
   now(): number;
@@ -33,6 +42,10 @@ export type Hooks = {
 const here = dirname(fileURLToPath(import.meta.url));
 export const SERVE_CHILD = join(here, "serve-child.ts");
 const BUILD_TIMEOUT_MS = 180_000;
+
+const startOf = (pid: number): string | null => {
+  try { return execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim() || null; } catch { return null; }
+};
 
 export function defaultHooks(root: string, dir: string): Hooks {
   const base = join(dir, "preview");
@@ -54,11 +67,15 @@ export function defaultHooks(root: string, dir: string): Hooks {
       });
     });
   return {
-    async build(e, track) {
+    async build(e, track, cancelled) {
+      const step = (cmd: string, args: string[], cwd: string) => {
+        if (cancelled()) throw new Error("cancelled"); // a stop during the build ends the remaining steps
+        return run(e, track, cmd, args, cwd);
+      };
       // a detached checkout of the sha in the console's own preview area: never the main checkout, never a land slot
-      await run(e, track, "git", ["worktree", "add", "--detach", e.tree, e.target.sha], root);
-      await run(e, track, "pnpm", ["install", "--offline", "--frozen-lockfile", "--filter", "@fw/site...", "--dir", e.tree], e.tree);
-      await run(e, track, process.execPath, [join(e.tree, "apps/site/scripts/build.mjs"), "--engine", "aot"], join(e.tree, "apps/site"));
+      await step("git", ["worktree", "add", "--detach", e.tree, e.target.sha], root);
+      await step("pnpm", ["install", "--offline", "--frozen-lockfile", "--filter", "@fw/site...", "--dir", e.tree], e.tree);
+      await step(process.execPath, [join(e.tree, "apps/site/scripts/build.mjs"), "--engine", "aot"], join(e.tree, "apps/site"));
     },
     serve(e, track) {
       return new Promise<number>((resolve, reject) => {
@@ -66,11 +83,15 @@ export function defaultHooks(root: string, dir: string): Hooks {
         const c = spawn(process.execPath, [SERVE_CHILD, "--serve", `--fw-preview=${e.id}`, "--rewrite", join(e.tree, "apps/site/dist/aot"),
           "--original", snap, "--media", snap, "--rp", String(e.rp), "--op", String(e.op)], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
         track(c.pid ?? null);
-        let out = "";
+        let out = ""; let ready = false;
         const timer = setTimeout(() => { try { process.kill(-c.pid!, "SIGTERM"); } catch { /* gone */ } reject(new Error("server did not start in 10 s")); }, 10_000);
-        c.stdout.on("data", (b) => { out += b; if (out.includes('"ready"')) { clearTimeout(timer); resolve(c.pid!); } });
+        c.stdout.on("data", (b) => { out += b; if (out.includes('"ready"')) { ready = true; clearTimeout(timer); resolve(c.pid!); } });
         c.stderr.on("data", (b) => { out += b; });
-        c.on("exit", (code) => { clearTimeout(timer); reject(new Error(`server exited ${code}: ${out.slice(-300)}`)); });
+        c.on("exit", (code) => {
+          clearTimeout(timer);
+          if (ready) track(null); // a crashed server: forget its pid, so no later signal reaches a recycled one
+          else reject(new Error(`server exited ${code}: ${out.slice(-300)}`));
+        });
         c.unref();
       });
     },
@@ -80,10 +101,13 @@ export function defaultHooks(root: string, dir: string): Hooks {
       try { execFileSync("git", ["worktree", "prune"], { cwd: root, stdio: "ignore" }); } catch { /* ignore */ }
     },
     killGroup(pid) { try { process.kill(-pid, "SIGTERM"); } catch { try { process.kill(pid, "SIGTERM"); } catch { /* gone */ } } },
+    startOf,
     isOurs(pid, e) {
+      if (e.pstart === null || startOf(pid) !== e.pstart) return false; // not the process recorded at spawn
       try {
-        const cmd = execFileSync("ps", ["-o", "command=", "-p", String(pid)], { stdio: ["ignore", "pipe", "ignore"] }).toString();
-        return cmd.includes(`--fw-preview=${e.id}`) || cmd.includes(`/${e.id}/tree`);
+        const [pgid = "", ...cmd] = execFileSync("ps", ["-o", "pgid=,command=", "-p", String(pid)], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim().split(/\s+/);
+        const line = cmd.join(" ");
+        return Number(pgid) === pid && (line.includes(`--fw-preview=${e.id}`) || line.includes(`/${e.id}/tree`) || e.phase === "building");
       } catch { return false; }
     },
     diskMb() { const s = statfsSync(dir); return Math.floor((s.bavail * s.bsize) / (1024 * 1024)); },
@@ -134,20 +158,22 @@ export class PreviewManager {
     return facts;
   }
 
-  async target(task: string, f: TaskFacts = this.facts(task)) {
-    const r = await this.core.ops("console.previewTarget", { main: f.mainSha, head: f.head, onMain: f.onMain, cands: f.cands });
-    return { kind: String(r.kind), ref: (r.ref as string | null) ?? null, sha: (r.sha as string | null) ?? null };
+  /** The head and the target of a task: Lean `console.previewTarget` over the gathered facts. */
+  async decision(task: string, f: TaskFacts = this.facts(task)): Promise<Decision> {
+    const r = await this.core.ops("console.previewTarget", { main: f.mainSha, facts: f.facts, children: f.children.map((c) => ({ facts: c.facts })) });
+    return { head: (r.head as string | null) ?? null, headSrc: (r.headSrc as string | null) ?? null, kind: String(r.kind),
+      ref: (r.ref as string | null) ?? null, sha: (r.sha as string | null) ?? null };
   }
 
-  start(task: string, actor: string): Promise<StartReply> {
+  start(task: string, proof: Proof): Promise<StartReply> {
     return this.serial(async () => {
-      const t = await this.target(task);
+      const t = await this.decision(task);
       const now = this.hooks.now();
       const id = `${task}-${now.toString(36)}${(this.seq++).toString(36)}`;
-      const r = await this.core.ops("console.previewAdmit", { actor, preview: id, task, now, diskMb: this.hooks.diskMb(), hasTarget: t.kind !== "none", live: this.live() });
+      const r = await this.core.ops("console.previewAdmit", { ...proof, preview: id, task, now, diskMb: this.hooks.diskMb(), hasTarget: t.kind !== "none", live: this.live() });
       if (r.ok !== true) return { ok: false as const, reason: String(r.reason ?? "refused") };
       const e: Entry = { id, task, target: { kind: t.kind, ref: t.ref, sha: t.sha! }, rp: r.rp as number, op: r.op as number, started: now,
-        deadline: r.deadline as number, phase: "building", pid: null, tree: join(this.dir, "preview", id, "tree") };
+        deadline: r.deadline as number, phase: "building", pid: null, pstart: null, tree: join(this.dir, "preview", id, "tree") };
       this.entries.push(e); this.persist(); this.note({ ev: "start", id, task, target: e.target, rp: e.rp, op: e.op });
       this.runs.set(id, this.go(e));
       return { ok: true as const, id, entry: { ...e } };
@@ -155,28 +181,38 @@ export class PreviewManager {
   }
 
   private async go(e: Entry): Promise<void> {
-    const track = (pid: number | null) => { e.pid = pid; this.persist(); };
+    const track = (pid: number | null) => { e.pid = pid; e.pstart = pid === null ? null : this.hooks.startOf(pid); this.persist(); };
+    const cancelled = () => this.cancelled.has(e.id);
     try {
-      await this.hooks.build(e, track);
-      if (this.cancelled.has(e.id)) return;
+      await this.hooks.build(e, track, cancelled);
+      if (cancelled()) { this.hooks.removeTree(e); return; } // a stop came during the build: nothing started, the tree goes
       const pid = await this.hooks.serve(e, track);
-      if (this.cancelled.has(e.id)) { this.hooks.killGroup(pid); return; }
-      e.pid = pid; e.phase = "serving"; this.persist(); this.note({ ev: "serving", id: e.id, pid });
+      if (cancelled()) { this.hooks.killGroup(pid); this.hooks.removeTree(e); return; }
+      e.pid = pid; e.pstart = this.hooks.startOf(pid); e.phase = "serving"; this.persist(); this.note({ ev: "serving", id: e.id, pid });
     } catch (err) {
-      if (this.cancelled.has(e.id)) return;
+      if (cancelled()) { this.hooks.removeTree(e); return; } // the build step died because of the stop: clean up what it left
       this.failed.push({ id: e.id, task: e.task, error: (err as Error).message, at: this.hooks.now() });
       this.note({ ev: "failed", id: e.id, error: (err as Error).message });
-      await this.serial(async () => { await this.remove([e.id]); });
+      await this.serial(async () => { await this.failTeardown(e.id); });
     }
   }
 
-  /** teardown of recorded entries: kill the group, remove the tree and the table row */
+  /** A failed build leaves the table through Lean (`console.previewFail`: `fail`, `own`); no TypeScript-only path. */
+  private async failTeardown(id: string) {
+    const r = await this.core.ops("console.previewFail", { preview: id, live: this.live() });
+    await this.remove(r.kill as string[]);
+  }
+
+  /** teardown of recorded entries: kill the group (if it is still ours), remove the tree and the table row */
   private async remove(ids: string[]) {
     for (const id of ids) {
       const e = this.entries.find((x) => x.id === id);
       if (!e) continue; // not in our table: nothing to kill
       this.cancelled.add(id);
-      if (e.pid !== null) this.hooks.killGroup(e.pid);
+      if (e.pid !== null) {
+        if (this.hooks.isOurs(e.pid, e)) this.hooks.killGroup(e.pid);
+        else this.note({ ev: "pidNotOurs", id, pid: e.pid }); // gone or recycled: never signalled
+      }
       this.hooks.removeTree(e);
       this.entries = this.entries.filter((x) => x.id !== id);
       this.note({ ev: "removed", id });
@@ -184,9 +220,9 @@ export class PreviewManager {
     this.persist();
   }
 
-  stop(id: string, actor: string): Promise<{ ok: boolean; reason: string | null }> {
+  stop(id: string, proof: Proof): Promise<{ ok: boolean; reason: string | null }> {
     return this.serial(async () => {
-      const r = await this.core.ops("console.previewStop", { actor, preview: id, live: this.live() });
+      const r = await this.core.ops("console.previewStop", { ...proof, preview: id, live: this.live() });
       if (r.ok !== true) return { ok: false, reason: String(r.reason) };
       await this.remove(r.kill as string[]);
       return { ok: true, reason: null };
@@ -211,7 +247,7 @@ export class PreviewManager {
     const r = await this.core.ops("console.previewReap", { live: rec.map(({ id, task, rp, op, started }) => ({ id, task, rp, op, started })) });
     for (const id of r.kill as string[]) {
       const e = rec.find((x) => x.id === id)!;
-      if (e.pid !== null && this.hooks.isOurs(e.pid, e)) this.hooks.killGroup(e.pid); // a recorded pid, verified by its command line
+      if (e.pid !== null && this.hooks.isOurs(e.pid, e)) this.hooks.killGroup(e.pid); // a recorded pid with its recorded start time
       this.hooks.removeTree(e);
       this.note({ ev: "reaped", id });
     }
