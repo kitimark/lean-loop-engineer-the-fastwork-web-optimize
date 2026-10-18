@@ -55,6 +55,10 @@ export function stepCommand(argv: string[], env: Record<string, string | undefin
   }
 }
 
+/** `fw` groups that run without console-api. Every `pnpm fw <group>` in .github/** must be one of these (CI has no
+ *  console-api; test/lib.test.ts checks the workflows). */
+export const NO_API_GROUPS: readonly string[] = ["run", "ci", "next", "engine-check", "incidents", "coverage", "premises"];
+
 /** Where console-api listens: FW_API, else .fw-console/api.json at the main checkout root. */
 export function apiBase(env: Record<string, string | undefined>, cwd = process.cwd()): string {
   if (env.FW_API) return env.FW_API;
