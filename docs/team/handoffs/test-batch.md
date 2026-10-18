@@ -11,10 +11,10 @@ Changes
 Measured (one run each, wall seconds, load average at start)
 | file | before | after |
 | wait-guard.test.ts (vitest) | 144 s (load 13) | 57 s (load 5) |
-| verdict.test.mjs (node --test) | 45 s (load 6-13) | 19 s (load 4) |
-Load differs between runs, so part of the gain is less contention; the spawn count dropped by about 30 (wait-guard) and 12 (verdict).
+| verdict.test.mjs (node --test) | 45 s (load 6-13, contended); 31 s at load 5 (reviewer) | 19-20 s (load 4) |
+Load differs between runs, so part of the gain is less contention; the spawn count dropped by 128 (wait-guard: 130 -> 2) and 16 (verdict: 21 -> 5).
 
 Open
 - wait-guard.test.ts still spawns one fwcore per case in the "false positives" describe (allow / deny / review3
-  it.each via verb(), ~190 spawns); that is now the dominant cost. Batching it needs a lazy precompute like the golden one.
+  it.each via verb(), ~83 spawns (review, review3, allow, deny)); that is now the dominant cost. Batching it needs a lazy precompute like the golden one.
 - Both files pass (226 and 13 tests).
