@@ -78,6 +78,7 @@ import Fw.Gate.Compare
 import Fw.Gate.Items
 import Fw.Gate.State
 import Fw.Gate.Coverage
+import Fw.Gate.Settle  -- gate-settle: when a gate sample is settled
 import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
