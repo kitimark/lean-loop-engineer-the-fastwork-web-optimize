@@ -1125,9 +1125,10 @@ theorem isReadCond_head (k : List String) (h : isReadCond k = true) : k.head? = 
 
 /-- The state of a loop condition read so far (from `while`/`until` up to `do`): an `until` loop, whether the and-or
 list so far is bounded, how the last element ended, whether some element runs `read`, and whether the condition is so
-far exactly a read-loop head, and $A$: the names assigned a decimal literal at the top level before the loop (`topAsg`).
+far exactly a read-loop head, and $\mathit{asg}$: the names assigned a decimal literal at the top level before the loop
+(`topAsg`).
 
-$$\mathrm{Cnd} = (\mathit{until}, \mathit{acc}, \mathit{op}, \mathit{rd}, \mathit{exact}, A) \in \mathbb{B} \times \mathbb{B} \times \mathrm{Term} \times \mathbb{B} \times \mathbb{B} \times \mathrm{String}^{*}$$
+$$\mathrm{Cnd} = (\mathit{until}, \mathit{acc}, \mathit{op}, \mathit{rd}, \mathit{exact}, \mathit{asg}) \in \mathbb{B} \times \mathbb{B} \times \mathrm{Term} \times \mathbb{B} \times \mathbb{B} \times \mathrm{String}^{*}$$
 -/
 structure Cnd where
   untl  : Bool
@@ -1143,7 +1144,7 @@ the last of its pipeline, whose status is that of its last element, so it only a
 (for this loop kind) joins the list by the previous terminator (`comb`). The `read` check looks past reserved prefix
 words (`key`).
 
-$$\mathrm{condStep}(d, A, t) = \begin{cases} d[\mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & t = \mathrm{pipe} \\ d[\mathit{acc} := \mathrm{comb}(d.\mathit{until}, d.\mathit{op}, d.\mathit{acc}, \mathrm{boundAtom}(d.\mathit{until}, d.A, A)),\ \mathit{op} := t,\ \mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & \text{otherwise} \end{cases}$$
+$$\mathrm{condStep}(d, A, t) = \begin{cases} d[\mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & t = \mathrm{pipe} \\ d[\mathit{acc} := \mathrm{comb}(d.\mathit{until}, d.\mathit{op}, d.\mathit{acc}, \mathrm{boundAtom}(d.\mathit{until}, d.\mathit{asg}, A)),\ \mathit{op} := t,\ \mathit{rd} := d.\mathit{rd} \lor \mathrm{readSeg}(\mathrm{key}(A))] & \text{otherwise} \end{cases}$$
 -/
 def condStep (cd : Cnd) (atom : List String) (t : Term) : Cnd :=
   if t == .pipe then { cd with rd := cd.rd || readSeg (key atom) }
@@ -1172,7 +1173,7 @@ theorem condStep_untl (d : Cnd) (atom : List String) (t : Term) : (condStep d at
 
 /-- `condStep` keeps the names assigned before the loop.
 
-$$\forall d, A, t.\ \mathrm{condStep}(d, A, t).A = d.A$$
+$$\forall d, A, t.\ \mathrm{condStep}(d, A, t).\mathit{asg} = d.\mathit{asg}$$
 -/
 theorem condStep_asg (d : Cnd) (atom : List String) (t : Term) : (condStep d atom t).asg = d.asg := by
   unfold condStep; split <;> rfl
@@ -1182,7 +1183,7 @@ some element of it that is not piped on (its terminator is not `|`, so its statu
 test that passes `relOk` for this loop kind. Command substitutions, `gh`/`ls`/`pgrep` polls, string tests and function
 calls never parse, so a condition made of them alone is never bounded.
 
-$$\forall d, X.\ \lnot d.\mathit{acc} \land \mathrm{condFold}(d, X).\mathit{acc} \Rightarrow \exists (W, t) \in X.\ t \ne \mathrm{pipe} \land \exists x, r, y.\ \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{relOk}(d.\mathit{until}, d.A, x, r, y)$$
+$$\forall d, X.\ \lnot d.\mathit{acc} \land \mathrm{condFold}(d, X).\mathit{acc} \Rightarrow \exists (W, t) \in X.\ t \ne \mathrm{pipe} \land \exists x, r, y.\ \mathrm{atomParse}(W) = \mathrm{some}(x, r, y) \land \mathrm{relOk}(d.\mathit{until}, d.\mathit{asg}, x, r, y)$$
 -/
 theorem grammar_only (d : Cnd) (xs : List (List String × Term)) (h0 : d.acc = false)
     (h : (condFold d xs).acc = true) :

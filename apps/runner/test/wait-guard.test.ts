@@ -150,7 +150,10 @@ describe.skipIf(!have)("wait guard: shadow-log false positives are allowed, true
     ["end=$((SECONDS+60)); while [ $SECONDS -lt $end ]; do sleep 5; done", "deny:unboundedLoop"],
     ["while [ \"$(pgrep -c node)\" -gt 0 ]; do sleep 5; done", "deny:unboundedLoop"],
     ["while [ $SECONDS -ge 0 ]; do sleep 1; done", "deny:unboundedLoop"],
-    ["while (( i < 10 )); do i=$((i+1)); done", "allow"],
+    ["i=0; while (( i < 10 )); do i=$((i+1)); done", "allow"],
+    ["while (( i < 10 )); do i=$((i+1)); done", "deny:unboundedLoop"],
+    ["until [ $BASH_MONOSECONDS -ge 1 ]; do sleep 0.2; done", "deny:unboundedLoop"],
+    ["while [ $SECONDS -lt 1792312012 ]; do sleep 1; done", "deny:unboundedLoop"],
     ["git log --oneline | sed 's/a/b/' | awk '{print $1}' | while read h; do echo $h; done", "allow"],
     ["git ls-files | tr a b | cut -c1-3 | uniq | while read l; do echo $l; done", "allow"],
     ["ls | xargs -n 1 echo | while read l; do echo $l; done", "allow"],
@@ -165,6 +168,7 @@ describe.skipIf(!have)("wait guard: shadow-log false positives are allowed, true
     const loop = message({ reason: "unboundedLoop" });
     for (const s of ["cmd | while read", "done < <(cmd)", "gh run list/view", "no `||`"]) expect(loop).toContain(s);
     for (const s of ["loop condition", "pnpm ... > f.txt", "timeout N bash -c"]) expect(loop).toContain(s);
+    for (const s of ["i=0; until", "N <= 86400", "lowercase counter"]) expect(loop).toContain(s);
     const bg = message({ reason: "bgLong", shape: "server" });
     for (const s of ["kill $pid", "run_in_background: true", "TaskStop"]) expect(bg).toContain(s);
   });
