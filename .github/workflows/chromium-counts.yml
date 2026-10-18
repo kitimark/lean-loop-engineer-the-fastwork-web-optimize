@@ -6,31 +6,10 @@ name: chromium-counts
 on:
   # Inputs: the Chromium harness and image, the rewrite it measures (apps/site, built with the pnpm workspace files), fwcore and
   # the breakpoint sources (lean/), the snapshot and its lock, the scripts and actions the jobs use.
-  # A push runs this workflow only when it changes one of these paths; `workflow_dispatch` runs it on demand
+  # Every push creates a run and its guard job decides on these inputs (Lean Fw.Ci.Intent); `workflow_dispatch` runs it on demand
   # (gh workflow run <name> --ref <branch>). Why: docs/team/handoffs/ci-trigger-scope.md.
   push:
     branches: ['ci/**', main]
-    paths:
-      - 'packages/measure-chromium/**'
-      - 'apps/site/**'
-      - 'lean/Main.lean'
-      - 'lean/lakefile.toml'
-      - 'lean/lake-manifest.json'
-      - 'lean/lean-toolchain'
-      - 'lean/Fw/**'
-      - 'lean/*.lean'
-      - 'lean/BreakgenMain.lean'
-      - 'snapshot/**'
-      - 'snapshot.lock.json'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/scripts/verify-snapshot.mjs'
-      - '.github/scripts/runner-info.sh'
-      - '.github/scripts/changed-inputs.mjs'
-      - '.github/actions/setup-lean/**'
-      - '.github/actions/setup-pnpm/**'
-      - '.github/workflows/chromium-counts.yml'
   workflow_dispatch:
     inputs:
       profile:
@@ -68,9 +47,9 @@ env:
 jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
-  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane
-  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
-  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.
+  # the commit is the branch tip, is not on main yet, and some file that differs from main on the whole branch is an
+  # input. A main push runs when its own diff passes the coarse paths; dispatches and schedules always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:chromium-counts]') }}
     runs-on: ubuntu-24.04-arm
@@ -101,8 +80,7 @@ jobs:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
     concurrency:
-      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:plan:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:plan:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     outputs:
@@ -112,6 +90,21 @@ jobs:
       rewrite: ${{ steps.m.outputs.rewrite }}
       search: ${{ steps.m.outputs.search }}
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -159,11 +152,25 @@ jobs:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
     concurrency:
-      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:fwcore:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:fwcore:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -184,11 +191,25 @@ jobs:
     needs: [plan]
     if: ${{ needs.plan.outputs.rewrite == 'true' }}
     concurrency:
-      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:site:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:site:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -216,8 +237,7 @@ jobs:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
     concurrency:
-      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:image:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:image:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     # actions: read lets the reuse step download the artifact of an earlier run of this workflow.
@@ -227,6 +247,21 @@ jobs:
     outputs:
       image-id: ${{ steps.build.outputs.image-id || steps.reuse.outputs.image-id }}
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -277,14 +312,28 @@ jobs:
     if: ${{ !cancelled() && needs.plan.result == 'success' && needs.fwcore.result == 'success' && needs.image.result == 'success' && (needs.site.result == 'success' || needs.site.result == 'skipped') }}
     name: counts (${{ matrix.target }}, ${{ matrix.run }})
     concurrency:
-      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:counts:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:counts:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -376,11 +425,25 @@ jobs:
     # `counts` runs when `site` is skipped (target=original); without this condition that skip propagates to classify.
     if: ${{ !cancelled() && needs.plan.result == 'success' && needs.fwcore.result == 'success' && needs.counts.result == 'success' }}
     concurrency:
-      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && github.ref || github.run_id }}:classify:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:classify:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false

@@ -77,8 +77,15 @@ test('the CLI refuses a push that would start nothing, and pushes with the reque
     assert.equal(r2.code, 0, r2.out);
     assert.equal(g('log', '-1', '--format=%s', 'HEAD'), 'ci: request [ci:lean] [ci:wktr]');
     assert.equal(g('ls-remote', 'origin', 'refs/heads/ci/t').split(/\s+/)[0], g('rev-parse', 'HEAD'));
-    // the same request again: the push brings nothing new, so it is refused
+    // the same request again: HEAD is already the tip, a push would create no run, so it is refused
     assert.equal(cli('--branch', 'ci/t', '--lanes', 'lean,wktr').code, 2);
+    // a docs-only commit on top: the tip decides on the whole branch, so lean still starts (Lean tip_history_free)
+    writeFileSync(join(work, 'notes.md'), 'x\n');
+    g('add', '.');
+    g('commit', '-q', '-m', 'docs');
+    const r3 = cli('--branch', 'ci/t', '--lanes', 'lean', '--dry');
+    assert.equal(r3.code, 0, r3.out);
+    assert.match(r3.out, /START lean/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

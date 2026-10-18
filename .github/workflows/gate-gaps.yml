@@ -14,27 +14,6 @@ name: gate-gaps
 on:
   push:
     branches: ['ci/**', main]
-    paths:
-      - 'packages/gate-breakpoints/**'
-      - 'apps/site/**'
-      - 'lean/Main.lean'
-      - 'lean/lakefile.toml'
-      - 'lean/lake-manifest.json'
-      - 'lean/lean-toolchain'
-      - 'lean/Fw/**'
-      - 'lean/*.lean'
-      - 'lean/BreakgenMain.lean'
-      - 'snapshot/**'
-      - 'snapshot.lock.json'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/scripts/verify-snapshot.mjs'
-      - '.github/scripts/check-simulator.sh'
-      - '.github/scripts/changed-inputs.mjs'
-      - '.github/actions/setup-lean/**'
-      - '.github/actions/setup-pnpm/**'
-      - '.github/workflows/gate-gaps.yml'
   workflow_dispatch:
     inputs:
       macos:
@@ -48,9 +27,9 @@ permissions:
 jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
-  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane
-  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
-  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.
+  # the commit is the branch tip, is not on main yet, and some file that differs from main on the whole branch is an
+  # input. A main push runs when its own diff passes the coarse paths; dispatches and schedules always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:gate-gaps]') }}
     runs-on: ubuntu-24.04-arm
@@ -81,11 +60,25 @@ jobs:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
     concurrency:
-      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && github.ref || github.run_id }}:site:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:site:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -105,8 +98,7 @@ jobs:
   collect-linux:
     needs: [site]
     concurrency:
-      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && github.ref || github.run_id }}:collect-linux:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:collect-linux:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     strategy:
@@ -114,6 +106,21 @@ jobs:
       matrix:
         rep: [r1, r2]
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -155,8 +162,7 @@ jobs:
     needs: [guard, site]
     if: ${{ needs.guard.outputs.run == 'true' && github.event_name == 'workflow_dispatch' && inputs.macos }}
     concurrency:
-      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && github.ref || github.run_id }}:collect-macos:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:collect-macos:${{ strategy.job-index }}
     runs-on: xcode-27
     timeout-minutes: 40
     strategy:
@@ -168,6 +174,21 @@ jobs:
       FW_IOS_BUILD: 24A434
       FW_SIM_NAME: fw-iphone-27
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -197,13 +218,13 @@ jobs:
         timeout-minutes: 34
         run: node src/cli.mjs gaps collect --engines webkit --ci --out out/gaps
       - name: Shut down and delete the Simulator devices
-        if: ${{ always() }}
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         run: |
           xcrun simctl shutdown all || true
           xcrun simctl delete "$FW_SIM_NAME" || true
           xcrun simctl delete fw-gaps-ipad || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() }}
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         with:
           name: gaps-raw-macos-${{ matrix.rep }}
           path: packages/gate-breakpoints/out/gaps
@@ -214,11 +235,25 @@ jobs:
     needs: [collect-linux, collect-macos]
     if: ${{ !cancelled() && needs.collect-linux.result == 'success' }}
     concurrency:
-      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && github.ref || github.run_id }}:judge:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:gate-gaps:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:judge:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false

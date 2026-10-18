@@ -1,36 +1,31 @@
 #!/usr/bin/env node
-// changed-inputs: the guard job of every workflow (Lean Fw.Ci.Intent `start`, over Fw.Ci.Trigger `starts`).
+// changed-inputs: the guard job of every workflow (Lean Fw.Ci.Intent `decision`, over Fw.Ci.Trigger `starts`).
 //
-// A run starts only when someone asked for it (task ci-own-trigger). On a push to ci/** the guard runs the workflow's
-// jobs iff ALL of:
-//   - the head commit wants the lane: it names it with a token `[ci:<lane>]` (case-insensitive), or the lane is a
-//     default lane (only `lean`, never a macOS lane): lean is checked whenever its inputs changed, whatever lanes the
-//     commit names (`[ci:none]` included). Lean `wanted`, `no_unrequested_start`, `lean_always_when_changed`,
-//     `default_no_macos`. The guard job's own `if:` (Lean `ifExpr`, written by scripts/ci-paths.mjs) already skips the
-//     guard, so no runner starts, when the lane is not wanted.
-//   - THIS push changed one of the lane's inputs to something other than main's content: before..HEAD (the whole branch
-//     when `before` is unknown or a new branch) intersected with the files that differ from the base (Lean
-//     Fw.Ci.Trigger `effective`, `starts_iff`). The inputs are the workflow's row of the Lean table
-//     (packages/contracts/golden/ci/triggers.jsonl) with `@fwcore` / `@breakgen` expanded to the import cones of this
-//     checkout; without a row, the workflow's own `on.push.paths` (a superset).
-//   - no newer push on the branch that itself wants the lane changed one of those inputs (`superseded`; the tip and its
-//     message are read with `git ls-remote`, so a run that waited behind a newer requesting push does not start its
-//     jobs, and a newer push that does not ask for the lane never makes this one skip). Lean
-//     `superseded_never_runs_heavy`, `unwanted_never_supersedes`.
-//   - the commit is not already on main (`landed`: an ancestor of origin/main or of origin/ci/landed). Lean
-//     `landed_never_runs_heavy`.
-// Cancelling is per job, not per run: every heavy job holds its lane's group `ci-lane:<lane>:<ref>:<job>:<index>`
-// (Lean `groupExpr`); a job whose `if:` is false is skipped and never enters the group, so a newer push that does not
-// want the lane never cancels a running one (Lean Fw.Ci.Cancel `no_requested_lost`, `cancel_needs_newer_start`).
-// Anything that is not a push to ci/** (main pushes, workflow_dispatch, schedules) always runs: a run there is a record
-// (Lean `record_always_runs`). Any error fails open (run=true), never closed.
+// Round 3 of task ci-own-trigger. No workflow has a `paths` filter, so every push creates a run of every lane and this
+// guard decides. On a push to ci/** it runs the workflow's jobs iff ALL of (else it skips with a tagged reason):
+//   - `unwanted`: the head commit wants the lane: it names it with a token `[ci:<lane>]` (case-insensitive), or the
+//     lane is a default lane (only `lean`, never a macOS lane). The guard job's own `if:` (Lean `ifExpr`, written by
+//     scripts/ci-paths.mjs) already skips the guard, so no runner starts, when the lane is not wanted.
+//   - `stale`: the commit is the branch tip (`git ls-remote`; a read error counts as the tip, fail open). An older push
+//     never runs heavy work; the tip does (Lean `stale_guard_never_starts`, `tip_starts`).
+//   - `landed`: the commit is not already on main (an ancestor of origin/main or origin/ci/landed).
+//   - `unchanged`: some file that differs from main on the WHOLE branch (merge-base..HEAD, intersected with the files
+//     whose content is not main's: Lean `effective`) is an input of the lane. Never this push's own diff, so a revert
+//     in a later push cannot hide a change the branch still carries (Lean `tip_history_free`, `tip_lean_always`).
+//     The inputs are the workflow's row of the Lean table (packages/contracts/golden/ci/triggers.jsonl) with
+//     `@fwcore` / `@breakgen` expanded to the import cones of this checkout.
+// Every heavy job then re-checks the tip in its first step and stops as `stale:` when a newer push moved it (Lean
+// `stale_never_works`); no concurrency group is shared on ci/**, so nothing is cancelled (Lean Fw.Ci.Cancel).
+// A push to main keeps the old rule: it runs iff its own diff (before..HEAD) passes the coarse paths globs (Lean
+// `main_keeps_paths_rule`, `pushPaths`). Dispatches and schedules always run (`record_always_runs`). Any error fails
+// open (run=true), never closed.
 // Usage in a first job on ubuntu (checkout with fetch-depth: 0):
 //   node .github/scripts/changed-inputs.mjs --workflow .github/workflows/<name>.yml
 // Env: EVENT_NAME (github.event_name), REF (github.ref), BEFORE (github.event.before), GUARD_TOKEN (github.token, for
 // ls-remote), PATHS_GUARD_BASE (default: origin/ci/landed when it contains origin/main, else origin/main).
-// Output: `run=true|false` and `reason=<one line>` in $GITHUB_OUTPUT (the guard's `decision: skip: <reason>` step
-// shows the reason in the run's jobs, read by `fw ci wait`), the reason and the files on stdout and in
-// $GITHUB_STEP_SUMMARY.
+// Output: `run=true|false` and `reason=<tag>: <one line>` in $GITHUB_OUTPUT (the guard's `decision: skip: <reason>`
+// step shows the reason in the run's jobs, read by `fw ci wait`: Lean Fw.Ci.Verdict `skipOf`), the reason and the
+// files on stdout and in $GITHUB_STEP_SUMMARY.
 //
 // GitHub's filter glob (docs "Filter pattern cheat sheet"): `*` any chars but `/`, `**` any chars, `?`/`+` zero-or-one /
 // one-or-more of the preceding character, `[...]` a class, a leading `!` excludes (later patterns win).
@@ -200,24 +195,43 @@ export function wantedBy(lane, msg) {
   return lane.byDefault === true || lowerAscii(msg).includes(lane.token);
 }
 
-/** The decision, pure (Lean Fw.Ci.Intent `start`): { run, reason, matched }. `lane` null: no Lean lane, so every
- *  push is wanted (the old path-only guard). `newer`: files changed between this commit and the branch tip; `tipMsg`:
- *  the tip's message (a newer push supersedes only when it wants the lane, Lean `superseded`). */
-export function decide({ event, ref, files, globs, msg = '', lane = null, newer = [], tipMsg = '', landed = false }) {
-  if (event !== 'push' || !String(ref).startsWith('refs/heads/ci/')) {
-    return { run: true, reason: `${event} on ${ref}: always runs (a record)`, matched: [] };
+
+/** The coarse push globs of a workflow (Lean `pushPaths`: every cone replaced by `coneGlobs`); null without a row. */
+export function pushInputs(root, workflowFile) {
+  const { table } = loadGolden(root);
+  const row = table?.workflows.find((w) => w.file === basename(workflowFile));
+  return row ? expand(setMapWith(table, () => table.coneGlobs), row.inputs) : null;
+}
+
+/** Lean `evOf`: `ci` for a push to refs/heads/ci/**, `main` for any other push, else `record`. */
+export function evOf(event, ref) {
+  if (event === 'push' && String(ref).startsWith('refs/heads/ci/')) return 'ci';
+  return event === 'push' ? 'main' : 'record';
+}
+
+/** The decision, pure (Lean Fw.Ci.Intent `decision`): { run, reason, matched }; a skip reason starts with its tag
+ *  (Lean `Skip.tag`). `files`: on a ci push the branch's effective files (merge-base..HEAD that differ from main); on a
+ *  main push the push's own diff, or null when unknown (runs). `globs`: the lane's precise inputs; `pushGlobs`: its
+ *  coarse push globs (main pushes). `lane` null: no Lean lane, so every push is wanted. `tip`: HEAD is the branch tip. */
+export function decide({ event, ref, files, globs, pushGlobs = globs, msg = '', lane = null, tip = true, landed = false }) {
+  const ev = evOf(event, ref);
+  if (ev === 'record') return { run: true, reason: `${event} on ${ref}: always runs (a record)`, matched: [] };
+  if (ev === 'main') {
+    if (files == null) return { run: true, reason: 'main push with an unknown before commit: runs (fail open)', matched: [] };
+    const matched = files.filter((f) => matches(pushGlobs, f));
+    if (matched.length === 0) return { run: false, reason: `unchanged: none of the ${files.length} file(s) this main push changed match the paths globs`, matched };
+    return { run: true, reason: `${matched.length} of ${files.length} file(s) this main push changed match the paths globs`, matched };
   }
   if (lane && !wantedBy(lane, msg)) {
-    return { run: false, reason: `the head commit does not name ${lane.token} and ${lane.name} is not a default lane`, matched: [] };
+    return { run: false, reason: `unwanted: the head commit does not name ${lane.token} and ${lane.name} is not a default lane`, matched: [] };
   }
+  if (!tip) return { run: false, reason: 'stale: a newer push is the branch tip; its run decides', matched: [] };
+  if (landed) return { run: false, reason: 'landed: this commit is already on main', matched: [] };
   const matched = files.filter((f) => matches(globs, f));
   if (matched.length === 0) {
-    return { run: false, reason: `none of the ${files.length} file(s) this push changed (and that differ from main) match the inputs`, matched };
+    return { run: false, reason: `unchanged: none of the ${files.length} file(s) that differ from main on the branch match the inputs`, matched };
   }
-  if (landed) return { run: false, reason: 'this commit is already on main (landed)', matched };
-  const sup = lane && !wantedBy(lane, tipMsg) ? [] : newer.filter((f) => matches(globs, f));
-  if (sup.length > 0) return { run: false, reason: `superseded: a newer push on the branch that wants this lane changed ${sup.length} input file(s)`, matched };
-  return { run: true, reason: `${matched.length} of ${files.length} changed file(s) match the inputs${lane ? `; the head commit wants ${lane.name}` : ''}`, matched };
+  return { run: true, reason: `${matched.length} of ${files.length} file(s) that differ from main on the branch match the inputs${lane ? `; the head commit wants ${lane.name}` : ''}`, matched };
 }
 
 const gitIn = (cwd, ...a) => execFileSync('git', a, { cwd, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -244,20 +258,17 @@ export function isLanded(cwd = process.cwd(), refs = ['origin/main', 'origin/ci/
   return false;
 }
 
-/** Lean `newer` and `tipMsg`: the files changed between HEAD and the branch's current tip on the remote, and the tip's
- *  message ({ files: [], msg: '' } when HEAD is the tip). actions/checkout points origin/<branch> at the pushed commit,
- *  so the tip is read with ls-remote. */
-export function newerPush(ref, cwd = process.cwd(), token = '') {
+/** The branch tip on the remote (`git ls-remote`, with the job token when given): its sha, or '' when unreadable.
+ *  actions/checkout points origin/<branch> at the pushed commit, so the remote is asked. */
+export function remoteTip(ref, cwd = process.cwd(), token = '') {
   const auth = token ? ['-c', `http.extraheader=AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`] : [];
   const tip = (gitIn(cwd, ...auth, 'ls-remote', 'origin', ref).split(/\s+/)[0] ?? '').trim();
-  if (!/^[0-9a-f]{40}$/.test(tip) || tip === gitIn(cwd, 'rev-parse', 'HEAD')) return { files: [], msg: '' };
-  try { gitIn(cwd, 'cat-file', '-e', `${tip}^{commit}`); } catch { gitIn(cwd, ...auth, 'fetch', '-q', '--no-tags', '--filter=blob:none', 'origin', tip); }
-  return { files: linesOf(gitIn(cwd, 'diff', '--name-only', '--no-renames', 'HEAD', tip)), msg: gitIn(cwd, 'log', '-1', '--format=%B', tip) };
+  return /^[0-9a-f]{40}$/.test(tip) ? tip : '';
 }
 
-/** The files of `newerPush` alone. */
-export function newerFiles(ref, cwd = process.cwd(), token = '') {
-  return newerPush(ref, cwd, token).files;
+/** Lean `tip`: HEAD is the branch tip; an unreadable tip counts as the tip (fail open). */
+export function isTip(head, tip) {
+  return tip === '' || tip === head;
 }
 
 /** The reason as one `$GITHUB_OUTPUT` value and step-name text: one line, no `\r`, at most 200 characters. */
@@ -265,20 +276,20 @@ export function outputLine(reason) {
   return String(reason).replace(/[\r\n]+/g, ' ').slice(0, 200);
 }
 
-/** Files changed from the merge-base of `base` and HEAD to HEAD (renames listed as delete + add). */
-export function changedFiles(base, cwd = process.cwd(), before = '') {
-  const git = (...a) => execFileSync('git', a, { cwd, encoding: 'utf8', maxBuffer: 64 << 20 }).trim();
-  const lines = (t) => (t === '' ? [] : t.split('\n'));
-  const mb = git('merge-base', base, 'HEAD');
-  // the push's own diff: before..HEAD when `before` is a commit we have, else the whole branch (merge-base..HEAD)
-  let lo = mb;
-  if (/^[0-9a-f]{7,40}$/.test(before) && !/^0+$/.test(before)) {
-    try { git('cat-file', '-e', `${before}^{commit}`); lo = before; } catch { /* not fetched: use the whole branch */ }
-  }
-  const pushed = lines(git('diff', '--name-only', '--no-renames', lo, 'HEAD'));
-  // Lean `Fw.Ci.Trigger.effective`: keep the files whose new content is not already main's (a merge of main brings none)
-  const differs = new Set(lines(git('diff', '--name-only', '--no-renames', base, 'HEAD')));
-  return pushed.filter((f) => differs.has(f));
+/** Lean `effective` over the whole branch: files changed from the merge-base of `base` and HEAD to HEAD whose content
+ *  at HEAD is not `base`'s (renames listed as delete + add). */
+export function branchFiles(base, cwd = process.cwd()) {
+  const mb = gitIn(cwd, 'merge-base', base, 'HEAD');
+  const branch = linesOf(gitIn(cwd, 'diff', '--name-only', '--no-renames', mb, 'HEAD'));
+  const differs = new Set(linesOf(gitIn(cwd, 'diff', '--name-only', '--no-renames', base, 'HEAD')));
+  return branch.filter((f) => differs.has(f));
+}
+
+/** A main push's own diff (before..HEAD); null when `before` is not a commit we have (a new branch, a force push). */
+export function pushFiles(before, cwd = process.cwd()) {
+  if (!/^[0-9a-f]{7,40}$/.test(before) || /^0+$/.test(before)) return null;
+  try { gitIn(cwd, 'cat-file', '-e', `${before}^{commit}`); } catch { return null; }
+  return linesOf(gitIn(cwd, 'diff', '--name-only', '--no-renames', before, 'HEAD'));
 }
 
 function arg(name) {
@@ -298,25 +309,31 @@ function main() {
   let lane = null;
   try {
     let globs = null;
-    try { globs = preciseInputs(process.cwd(), workflow); } catch { globs = null; }
+    let pushGlobs = null;
+    try { globs = preciseInputs(process.cwd(), workflow); pushGlobs = pushInputs(process.cwd(), workflow); } catch { globs = null; }
     try { lane = laneFor(process.cwd(), workflow); } catch { lane = null; }
-    source = globs ? 'the Lean table, cones from this checkout' : 'the workflow on.push.paths (no Lean row)';
-    globs ??= parsePaths(readFileSync(workflow, 'utf8'));
-    const guarded = event === 'push' && ref.startsWith('refs/heads/ci/');
+    source = globs ? 'the Lean table, cones from this checkout' : 'no Lean row: every file';
+    globs ??= ['**'];
+    pushGlobs ??= ['**'];
+    const ev = evOf(event, ref);
     let msg = '';
     let landed = false;
-    let newer = [];
-    let tipMsg = '';
-    if (guarded) {
+    let tip = true;
+    if (ev === 'ci') {
       base ||= guardBase();
-      files = changedFiles(base, process.cwd(), process.env.BEFORE ?? '');
+      files = branchFiles(base);
       msg = gitIn(process.cwd(), 'log', '-1', '--format=%B', 'HEAD');
       console.log(`head commit: ${msg.split('\n')[0]}`); // the intent the guard read
       landed = isLanded();
-      // superseded is best effort: on a read error the run counts as not superseded (fail open)
-      try { ({ files: newer, msg: tipMsg } = newerPush(ref, process.cwd(), process.env.GUARD_TOKEN ?? '')); } catch (e) { console.log(`superseded check skipped: ${String(e.message).split('\n')[0]}`); }
+      try {
+        const t = remoteTip(ref, process.cwd(), process.env.GUARD_TOKEN ?? '');
+        tip = isTip(gitIn(process.cwd(), 'rev-parse', 'HEAD'), t);
+        console.log(`branch tip: ${t || 'unreadable (counts as the tip)'}`);
+      } catch (e) { console.log(`tip check skipped (counts as the tip): ${String(e.message).split('\n')[0]}`); }
+    } else if (ev === 'main') {
+      files = pushFiles(process.env.BEFORE ?? '');
     }
-    result = decide({ event, ref, files, globs, msg, lane, newer, tipMsg, landed });
+    result = decide({ event, ref, files, globs, pushGlobs, msg, lane, tip, landed });
   } catch (e) {
     result = { run: true, reason: `guard error, failing open: ${e.message}`, matched: [] };
   }
@@ -324,10 +341,10 @@ function main() {
   console.log(line);
   console.log(result.reason);
   if (source) console.log(`inputs: ${source}; lane: ${lane ? lane.name : 'none'}; base: ${base || 'n/a'}`);
-  for (const f of files) console.log(`${result.matched.includes(f) ? '  input ' : '  other '}${f}`);
+  for (const f of files ?? []) console.log(`${result.matched.includes(f) ? '  input ' : '  other '}${f}`);
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${line}\nreason=${outputLine(result.reason)}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) {
-    const rows = files.slice(0, 200).map((f) => `- ${result.matched.includes(f) ? '**input**' : 'other'} \`${f}\``).join('\n');
+    const rows = (files ?? []).slice(0, 200).map((f) => `- ${result.matched.includes(f) ? '**input**' : 'other'} \`${f}\``).join('\n');
     appendFileSync(
       process.env.GITHUB_STEP_SUMMARY,
       `### guard: ${line}\n${result.reason} (workflow \`${workflow}\`, lane \`${lane ? lane.name : 'none'}\`, base \`${base || 'n/a'}\`, inputs: ${source})\n\n${rows}\n`,

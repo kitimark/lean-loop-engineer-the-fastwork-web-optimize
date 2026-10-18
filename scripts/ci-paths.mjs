@@ -1,24 +1,28 @@
 #!/usr/bin/env node
 // ci-paths: the push trigger of every workflow is decided in Lean (lean/Fw/Ci/Trigger.lean, task ci-trigger-lean) and
 // written to packages/contracts/golden/ci/triggers.jsonl. This script expands that table against the checkout and
-//   --check (default)  fails when a workflow's `on.push` (branches, paths) differs from the Lean decision, when a workflow
+//   --check (default)  fails when a workflow's `on.push` (branches; no paths) differs from the Lean decision, when a workflow
 //                      lacks the `guard` job, or when a job does not (transitively) wait for it;
 //   --write            rewrites those parts of the workflow files.
 // It also reads, for every job that uses setup-lean, its `save:` and the Lake targets it builds, into the generated Lean
 // module lean/Fw/Ops/LakeJobsGen.lean (--check: equal to the workflows; --write: rewritten). Lean Fw.Ops.LakeCache decides
 // the rules over those rows (one writer, every job covered by it), so the Lean build fails on a broken rule.
-// `@fwcore` / `@breakgen` name the build files plus the import cone of Main.lean / BreakgenMain.lean. In `on.push.paths`
-// every cone is the fixed `coneGlobs` of the golden (`lean/Fw/**`, `lean/*.lean`; Lean `pushPaths`), so a new module
-// changes no workflow file (task ci-cone-glob, `paths_stable_under_new_module`). The guard job computes the precise cone
-// at run time (.github/scripts/changed-inputs.mjs). This check fails when a cone file falls outside `coneGlobs`
-// (Lean `ConeWithin`, the hypothesis of `coarse_sound`).
-// The guard job's own `if:` is the Lean intent condition (lean/Fw/Ci/Intent.lean `ifExpr`, task ci-own-trigger, golden
-// packages/contracts/golden/ci/intent.jsonl): on a ci/* push the guard, and so every job, is skipped unless the head
-// commit asks for the lane (`[ci:<lane>]`) or the lane is a default lane (lean). --check fails when a guard's `if:`, its
-// GUARD_TOKEN env or its decision steps (Lean `Fw.Ci.Verdict.decisionStep`, read by `fw ci wait`) differ; --write sets
-// them. Round 2: no workflow-level `concurrency:` (a push that did not ask for the lane cancelled a requested run, Lean
-// `Fw.Ci.Cancel.wf_level_loses`); every non-guard job carries the Lean job-level group (`Intent.groupExpr`, one group per
-// lane, ref, job and matrix leg), so only a newer run whose guard started the lane cancels (`no_requested_lost`).
+// `@fwcore` / `@breakgen` name the build files plus the import cone of Main.lean / BreakgenMain.lean. The coarse push
+// globs (every cone the fixed `coneGlobs`, `lean/Fw/**`, `lean/*.lean`; Lean `pushPaths`) are read by the guard on a
+// main push only. This check fails when a cone file falls outside `coneGlobs` (Lean `ConeWithin`, `coarse_sound`).
+// Round 3 of task ci-own-trigger (Lean Fw.Ci.Intent, golden packages/contracts/golden/ci/intent.jsonl):
+//   - no `on.push.paths`: every push creates a run of every lane, so the tip push always gets its guard, which decides
+//     on the whole branch (.github/scripts/changed-inputs.mjs; Lean `decision`, `tip_starts`, `tip_lean_always`);
+//   - the guard job's own `if:` is the Lean intent condition (`ifExpr`): on a ci/* push the guard, and so every job, is
+//     skipped unless the head commit asks for the lane (`[ci:<lane>]`) or the lane is a default lane (lean);
+//     --check fails when a guard's `if:`, its GUARD_TOKEN env or its decision steps (Lean `Fw.Ci.Verdict.decisionStep`,
+//     read by `fw ci wait`) differ; --write sets them;
+//   - no workflow-level `concurrency:` (Lean `Fw.Ci.Cancel.wf_level_loses`); every non-guard job carries the Lean
+//     job-level group (`Intent.groupExpr`) without `cancel-in-progress`: on ci/** the group holds the run id, so nothing
+//     is cancelled (`Fw.Ci.Cancel.ci_never_cancelled`); main pushes keep one queue per ref;
+//   - the first steps of every non-guard job re-check the branch tip (`tip re-check`, then `stale: ...` fails the job
+//     when a newer push moved the tip; Lean `stale_never_works`), and every step whose `if:` uses a status function
+//     carries the conjunct `steps.stale.outcome == 'skipped'` (Lean `workConj`).
 // --check also fails when the Lean macOS flag of a lane differs from its workflow (a job on `macos-*` / `xcode-*` whose
 // `if:` is not dispatch-only), and when a job's `if:` uses a status function without a conjunct that is false when the
 // guard skipped.
@@ -271,9 +275,9 @@ export function coneProblems(root, table) {
 const quote = (s) => `'${s}'`;
 const branchItem = (b) => (/[*\[\]{}:,&!#|>%@`'"?\s]/.test(b) ? quote(b) : b);
 
-/** The `push:` block the Lean decision gives, as lines. */
-export function renderPush(branches, paths) {
-  return ['  push:', `    branches: [${branches.map(branchItem).join(', ')}]`, '    paths:', ...paths.map((p) => `      - ${quote(p)}`)];
+/** The `push:` block the Lean decision gives, as lines: the branches, no `paths` (round 3: the guard decides). */
+export function renderPush(branches) {
+  return ['  push:', `    branches: [${branches.map(branchItem).join(', ')}]`];
 }
 
 const indentOf = (l) => l.length - l.trimStart().length;
@@ -342,9 +346,9 @@ export function unguarded(jobs) {
 export const GUARD_COMMENT = [
   '  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless',
   '  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if',
-  "  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane",
-  '  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.',
-  '  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.',
+  "  # the commit is the branch tip, is not on main yet, and some file that differs from main on the whole branch is an",
+  '  # input. A main push runs when its own diff passes the coarse paths; dispatches and schedules always run. Fails open.',
+  '  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.',
 ];
 
 /** The guard's decision steps (Lean `Fw.Ci.Verdict.decisionStep`): `fw ci wait` reads which one ran from the jobs. */
@@ -359,9 +363,41 @@ export function decisionSteps(lane) {
   ];
 }
 
-/** A job's job-level concurrency (Lean `Intent.groupExpr`, `cancelExpr`). */
+/** A job's job-level concurrency (Lean `Intent.groupExpr`): the group only, no `cancel-in-progress`. */
 export function jobConcurrency(lane, job) {
-  return ['    concurrency:', `      group: ${lane.group.replace('<job>', job)}`, `      cancel-in-progress: ${lane.cancel}`];
+  return ['    concurrency:', `      group: ${lane.group.replace('<job>', job)}`];
+}
+
+/** The first steps of every non-guard job (Lean `tipName`/`tipIf`, `staleName`/`staleIf`): read the branch tip with
+ *  `git ls-remote` (no checkout needed; an unreadable tip counts as the tip, fail open, Lean `isTip`), then fail the
+ *  job as `stale:` when the tip is not this commit, so no later step without a status function runs. */
+export function recheckSteps(rc) {
+  return [
+    `      - name: '${rc.tipName}'`,
+    '        id: tip',
+    `        if: \${{ ${rc.tipIf} }}`,
+    '        shell: bash',
+    '        env:',
+    '          GH_TOKEN: ${{ github.token }}',
+    '        run: |',
+    `          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\\n')"`,
+    '          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""',
+    '          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi',
+    `      - name: '${rc.staleName}'`,
+    '        id: stale',
+    `        if: \${{ ${rc.staleIf} }}`,
+    '        shell: bash',
+    '        run: exit 1',
+  ];
+}
+
+const STATUS_FN = /always\(\)|cancelled\(\)|failure\(\)/;
+
+/** A step `if:` with a status function, with the Lean `workConj` added (`(e) && conj`); other texts unchanged. */
+export function withConj(ifText, conj) {
+  if (!STATUS_FN.test(ifText) || ifText.includes(conj)) return ifText;
+  const m = /^\$\{\{\s*(.*?)\s*\}\}$/.exec(ifText.trim());
+  return `\${{ (${m ? m[1] : ifText.trim()}) && ${conj} }}`;
 }
 
 /** A job that runs only on a dispatch: its `if:` is a conjunction with `github.event_name == 'workflow_dispatch'`. */
@@ -413,12 +449,12 @@ export function guardJob(file, lane) {
 }
 
 /** Everything wrong with one workflow's text, and the fixed text. */
-export function reconcile(file, text, row, paths, lane = null) {
+export function reconcile(file, text, row, lane = null) {
   const problems = [];
   let lines = text.split('\n');
-  // 1. on.push
+  // 1. on.push: the branches, no paths (a docs-only tip push must still create the run whose guard decides)
   const [s, e] = pushRange(lines);
-  const want = renderPush(row.branches, paths);
+  const want = renderPush(row.branches);
   if (lines.slice(s, e).join('\n') !== want.join('\n')) problems.push(`${file}: on.push differs from the Lean decision`);
   lines = [...lines.slice(0, s), ...want, ...lines.slice(e)];
   // 2. the guard job
@@ -441,7 +477,7 @@ export function reconcile(file, text, row, paths, lane = null) {
   }
   // the intent condition (Lean `ifExpr`) on the guard job itself
   if (lane && lane.if === '') {
-    // a default lane: no `if:` (Lean `ifExpr` is empty), the guard runs on every push its paths pass
+    // a default lane: no `if:` (Lean `ifExpr` is empty), the guard runs on every push
     const k = lines.findIndex((l, i) => i > g.at && i < g.end && /^ {4}if:/.test(l));
     if (k >= 0) {
       problems.push(`${file}: the guard of default lane ${lane.name} has an \`if:\`; Lean \`ifExpr\` gives none`);
@@ -526,6 +562,34 @@ export function reconcile(file, text, row, paths, lane = null) {
       }
     }
   }
+  // 6b. every non-guard job with steps: the tip re-check first (Lean tipName/staleName), and every step `if:` with a
+  // status function carries the Lean workConj, so a stale run does no work (Lean `stale_never_works`)
+  const rc = lane?.recheck;
+  if (rc) {
+    const named = (l) => l === `      - name: '${rc.tipName}'` || l === `      - name: '${rc.staleName}'`;
+    for (const name of readJobs(lines).map((j) => j.name).filter((n) => n !== 'guard')) {
+      const j = readJobs(lines).find((x) => x.name === name);
+      const k = lines.findIndex((l, i) => i > j.at && i < j.end && l === '    steps:');
+      if (k < 0) continue; // a reusable-workflow job: no steps of its own
+      const want = recheckSteps(rc);
+      let e = k + 1;
+      while (e < j.end && named(lines[e])) { e++; while (e < j.end && !isBlank(lines[e]) && indentOf(lines[e]) >= 8) e++; }
+      if (lines.slice(k + 1, e).join('\n') !== want.join('\n')) {
+        problems.push(`${file}: job ${name}: the first steps differ from the Lean tip re-check (lane ${lane.name})`);
+        lines.splice(k + 1, e - k - 1, ...want);
+      }
+      const j2 = readJobs(lines).find((x) => x.name === name);
+      for (let i = j2.at + 1; i < j2.end; i++) {
+        const m = /^( {8})if:\s*(.*)$/.exec(lines[i]);
+        if (!m) continue;
+        const fixed = withConj(m[2], rc.conj);
+        if (fixed !== m[2]) {
+          problems.push(`${file}: job ${name}: a step \`if:\` with a status function lacks \`${rc.conj}\` (Lean workConj)`);
+          lines[i] = `${m[1]}if: ${fixed}`;
+        }
+      }
+    }
+  }
   // 7. the Lean macOS flag equals the workflow (Fw.Ci.Intent macosFiles); a status function keeps a guard conjunct
   const jobs7 = readJobs(lines);
   if (lane) {
@@ -549,7 +613,7 @@ export function portableGlob(g) {
 export function run(root, write) {
   const { table } = loadGolden(root);
   const intent = loadIntent(root).lanes;
-  const lanes = new Map((intent?.lanes ?? []).map((l) => [l.file, { ...l, cancel: intent.cancel, decision: intent.decision }]));
+  const lanes = new Map((intent?.lanes ?? []).map((l) => [l.file, { ...l, decision: intent.decision, recheck: intent.recheck }]));
   const S = coarseMap(table);
   const dir = join(root, WF_DIR);
   const files = readdirSync(dir).filter((f) => f.endsWith('.yml')).sort();
@@ -563,11 +627,11 @@ export function run(root, write) {
     if (!row) { problems.push(`${f}: not in the Lean table (lean/Fw/Ci/Trigger.lean \`table\`)`); continue; }
     const lane = lanes.get(f);
     if (!lane) problems.push(`${f}: no lane in the Lean intent golden (lean/Fw/Ci/Intent.lean \`lanes\`; lake test -- --write-ci-trigger-golden)`);
-    const paths = expand(S, row.inputs);
+    const paths = expand(S, row.inputs); // the coarse globs the guard reads on a main push
     for (const p of paths) if (!portableGlob(p)) problems.push(`${f}: glob ${p} is not read the same by GitHub and by Lean PathCheck`);
     const text = readFileSync(join(dir, f), 'utf8');
     let r;
-    try { r = reconcile(f, text, row, paths, lane ?? null); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
+    try { r = reconcile(f, text, row, lane ?? null); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
     problems.push(...r.problems);
     if (write && r.text !== text) { writeFileSync(join(dir, f), r.text); wrote++; }
   }

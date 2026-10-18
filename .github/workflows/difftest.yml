@@ -10,23 +10,6 @@ on:
   # Inputs: the package, the TS modules it checks, the Lean project (fwcore), the lockfile, the actions it uses.
   push:
     branches: ['ci/**', main]
-    paths:
-      - 'packages/difftest/**'
-      - 'packages/measure-webkit/src/**'
-      - 'packages/measure-chromium/src/**'
-      - 'apps/runner/hooks/cap.mjs'
-      - 'apps/console-api/src/cap/**'
-      - 'lean/Main.lean'
-      - 'lean/lakefile.toml'
-      - 'lean/lake-manifest.json'
-      - 'lean/lean-toolchain'
-      - 'lean/Fw/**'
-      - 'lean/*.lean'
-      - 'pnpm-lock.yaml'
-      - '.github/scripts/changed-inputs.mjs'
-      - '.github/actions/setup-lean/**'
-      - '.github/actions/setup-pnpm/**'
-      - '.github/workflows/difftest.yml'
   schedule:
     - cron: '23 4 * * *'
   workflow_dispatch:
@@ -46,9 +29,9 @@ permissions:
 jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
-  # THIS push changed one of its inputs to something other than main's content, no newer push that wants the lane
-  # changed one, and the commit is not on main yet. Main pushes, dispatches and schedules always run. Fails open.
-  # Every other job has its own concurrency group (lane, ref, job, leg): only a newer run that started cancels it.
+  # the commit is the branch tip, is not on main yet, and some file that differs from main on the whole branch is an
+  # input. A main push runs when its own diff passes the coarse paths; dispatches and schedules always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
   guard:
     if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:difftest]') }}
     runs-on: ubuntu-24.04-arm
@@ -79,11 +62,25 @@ jobs:
     needs: [guard]
     if: ${{ needs.guard.outputs.run == 'true' }}
     concurrency:
-      group: ci-lane:difftest:${{ github.event_name == 'push' && github.ref || github.run_id }}:fwcore:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:difftest:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:fwcore:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -101,11 +98,25 @@ jobs:
   fixed:
     needs: [fwcore]
     concurrency:
-      group: ci-lane:difftest:${{ github.event_name == 'push' && github.ref || github.run_id }}:fixed:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:difftest:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:fixed:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -127,7 +138,7 @@ jobs:
           chmod +x "$FW_CORE_BIN"
           pnpm --filter @fw/difftest test 2>&1 | tee "$RUNNER_TEMP/fixed.log"
       - name: Summary
-        if: ${{ always() }}
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         run: |
           {
             echo "### difftest, fixed seed 20261018"
@@ -136,7 +147,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ failure() }}
+        if: ${{ (failure()) && steps.stale.outcome == 'skipped' }}
         with:
           name: difftest-candidates-fixed
           path: ${{ runner.temp }}/candidates
@@ -146,12 +157,26 @@ jobs:
   rotating:
     needs: [fwcore]
     concurrency:
-      group: ci-lane:difftest:${{ github.event_name == 'push' && github.ref || github.run_id }}:rotating:${{ strategy.job-index }}
-      cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+      group: ci-lane:difftest:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:rotating:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     continue-on-error: true
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -185,7 +210,7 @@ jobs:
           chmod +x "$FW_CORE_BIN"
           pnpm --filter @fw/difftest test 2>&1 | tee "$RUNNER_TEMP/rotating.log"
       - name: Summary
-        if: ${{ always() }}
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         env:
           SEED: ${{ steps.seed.outputs.seed }}
         run: |
@@ -200,7 +225,7 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ failure() }}
+        if: ${{ (failure()) && steps.stale.outcome == 'skipped' }}
         with:
           name: difftest-candidates-rotating
           path: ${{ runner.temp }}/candidates
