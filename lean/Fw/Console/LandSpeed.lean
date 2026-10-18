@@ -249,8 +249,8 @@ theorem parseScope_checkShReads : parseScope checkShReads =
   simp only [List.map_nil, checkShReads, List.map_cons, Scope.mk.injEq, List.cons.injEq, and_true]
   and_intros <;> simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
 
-/-- check.sh is selected exactly when some changed path is in the parsed check.sh scope, in any check table $D$
-holding the check `check.sh` with reads $G_{\mathrm{check}}$ (the direction used below: in scope gives selected).
+/-- check.sh is selected whenever some changed path is in the parsed check.sh scope, in any check table $D$
+holding the check `check.sh` with reads $G_{\mathrm{check}}$.
 $$\forall D, X, x:\ (\texttt{check.sh}, G_{\mathrm{check}}) \in D \land x \in X \land \mathrm{in}(\mathrm{parse}(G_{\mathrm{check}}), x) \Rightarrow \texttt{check.sh} \in \operatorname{select}(D, X)$$ -/
 theorem checkSh_selected_of_inScope (ds : List Decl) (changed : List String) (x : String)
     (hd : (⟨"check.sh", checkShReads⟩ : Decl) ∈ ds) (hx : x ∈ changed)
@@ -260,7 +260,7 @@ theorem checkSh_selected_of_inScope (ds : List Decl) (changed : List String) (x 
 
 /-- A change to the gate's generated scope file (which `sweepsgen --scope --check` in `check.sh` reads) selects
 `check.sh`: for every check table $D$ holding the check `check.sh` with reads $G_{\mathrm{check}}$, every change list
-$X$ and every changed path $x \in X$ whose segments (split at `/`, empty and `.` segments dropped) are
+$X$ and every changed path $x \in X$ whose segments (split at `/`, empty and `.` segments dropped) equal those of
 `packages/gate-breakpoints/src/scope.gen.json`.
 $$\forall D, X, x:\ (\texttt{check.sh}, G_{\mathrm{check}}) \in D \land x \in X \land \mathrm{segs}(x) = [\texttt{packages}, \texttt{gate-breakpoints}, \texttt{src}, \texttt{scope.gen.json}] \Rightarrow \texttt{check.sh} \in \operatorname{select}(D, X)$$ -/
 theorem scopeGen_selects_checkSh (ds : List Decl) (changed : List String) (x : String)
