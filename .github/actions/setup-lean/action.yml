@@ -1,7 +1,16 @@
 name: setup-lean
 description: >-
   Install elan from a pinned release (sha256 checked), install the Lean toolchain named in lean/lean-toolchain, and
-  restore/save Lake's local artifact cache. Run after actions/checkout. Linux arm64 only.
+  restore Lake's local artifact cache (and save it, in the one writer job). Run after actions/checkout. Linux arm64 only.
+
+inputs:
+  save:
+    description: >-
+      'true' only in the one writer job (lean.yml job `lean`, which builds every target): it also saves the Lake cache at
+      the end of the job. Every other job only restores. Decided in lean/Fw/Ops/LakeCache.lean (`one_writer`,
+      `table_complete`) and checked by scripts/ci-paths.mjs.
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -35,9 +44,22 @@ runs:
 
     # Key = architecture + toolchain pin + Lake manifest (+ the sources, so a changed tree saves a new entry).
     # restore-keys fall back to the newest entry with the same toolchain and manifest: Lake re-checks every trace, so a
-    # stale entry only costs a rebuild of what changed.
-    - name: Restore Lake artifact cache
+    # stale entry only costs a rebuild of what changed (Fw.Ops.Cache.rebuild_in_cone).
+    # One writer (task site-build-cache): GitHub keeps the first save of a key, so when every job could save, a narrow job
+    # (a site build) won the race and stored an entry without the modules wider jobs need (38 rebuilt, 2 s -> 50 s;
+    # research/notes/2026/10-18-slow-site-build.md). Now only the job with `save: 'true'` saves (actions/cache, whose post
+    # step saves); every other job uses actions/cache/restore (Fw.Ops.Cache.cache_complete, Fw.Ops.LakeCache.one_writer).
+    - name: Restore Lake artifact cache (and save it at the end of this job)
+      if: ${{ inputs.save == 'true' }}
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ github.workspace }}/.lake-cache
+        key: lake-${{ runner.arch }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}-${{ hashFiles('lean/lakefile.toml', 'lean/*.lean', 'lean/Fw/**', 'lean/FwTest/**') }}
+        restore-keys: |
+          lake-${{ runner.arch }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}-
+    - name: Restore Lake artifact cache (restore only)
+      if: ${{ inputs.save != 'true' }}
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ github.workspace }}/.lake-cache
         key: lake-${{ runner.arch }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}-${{ hashFiles('lean/lakefile.toml', 'lean/*.lean', 'lean/Fw/**', 'lean/FwTest/**') }}

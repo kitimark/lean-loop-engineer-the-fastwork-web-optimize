@@ -4,6 +4,8 @@
 //   --check (default)  fails when a workflow's `on.push` (branches, paths) differs from the Lean decision, when a workflow
 //                      lacks the `guard` job, or when a job does not (transitively) wait for it;
 //   --write            rewrites those parts of the workflow files.
+// It also checks the Lake cache writer (lean/Fw/Ops/LakeCache.lean, golden packages/contracts/golden/ops/lake-cache.jsonl):
+// every job that uses setup-lean is in the Lean table, and exactly the table's writer passes `save: 'true'` (fixed by hand).
 // `@fwcore` / `@breakgen` expand to the build files plus the import cone of Main.lean / BreakgenMain.lean (the files that
 // can change the built binary), found by scanning `import Fw...` and `include_str` in lean/. A new import in a cone moves
 // the paths, so the check fails until `--write` is run: the list cannot go stale silently.
@@ -21,11 +23,53 @@ export function loadGolden(root) {
   return { table: lines.find((l) => l.kind === 'table'), cases: lines.filter((l) => l.kind === 'case') };
 }
 
+/** The Lean Lake-cache table (one line per job that uses setup-lean), or null when the golden is absent (a fixture root). */
+export function loadLakeCache(root) {
+  const p = join(root, 'packages/contracts/golden/ops/lake-cache.jsonl');
+  if (!existsSync(p)) return null;
+  return readFileSync(p, 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((l) => l.kind === 'job');
+}
+
+const SETUP_LEAN = /^\s*- uses: \.\/\.github\/actions\/setup-lean\s*$/;
+
+/** The jobs of a workflow that use setup-lean, with the `save:` they pass ('true' or 'false', the default). */
+export function setupLeanJobs(lines) {
+  const out = [];
+  for (const j of readJobs(lines)) {
+    for (let i = j.at + 1; i < j.end; i++) {
+      if (!SETUP_LEAN.test(lines[i])) continue;
+      const k = indentOf(lines[i]);
+      let save = 'false';
+      for (let n = i + 1; n < j.end && (isBlank(lines[n]) || indentOf(lines[n]) > k); n++) {
+        const m = /^\s*save:\s*'?(true|false)'?\s*(?:#.*)?$/.exec(lines[n]);
+        if (m) save = m[1];
+      }
+      out.push({ job: j.name, save });
+    }
+  }
+  return out;
+}
+
+/** Problems of one workflow against the Lean Lake-cache table (fixed by hand: the Lean table decides). */
+export function lakeCacheProblems(file, lines, rows) {
+  const problems = [];
+  const used = setupLeanJobs(lines);
+  for (const u of used) {
+    const r = rows.find((x) => x.file === file && x.job === u.job);
+    if (!r) { problems.push(`${file}: job ${u.job} uses setup-lean but is not in lean/Fw/Ops/LakeCache.lean \`jobs\` (edit by hand)`); continue; }
+    if ((u.save === 'true') !== r.saves) problems.push(`${file}: job ${u.job} passes save: '${u.save}' to setup-lean, the Lean table says ${r.saves} (edit by hand)`);
+  }
+  for (const r of rows.filter((x) => x.file === file)) {
+    if (!used.some((u) => u.job === r.job)) problems.push(`${file}: lean/Fw/Ops/LakeCache.lean lists job ${r.job}, which does not use setup-lean (edit by hand)`);
+  }
+  return problems;
+}
+
 /** Repo paths (under lean/) of the import cone of a root module: its file, every `import Fw...` module file, and the files
  *  they `include_str`. */
 export function coneOf(root, rootModule) {
   const leanDir = join(root, 'lean');
-  const modFile = (m) => (m === 'Main' || m === 'BreakgenMain' ? `${m}.lean` : `${m.replace(/\./g, '/')}.lean`);
+  const modFile = (m) => `${m.replace(/\./g, '/')}.lean`; // a root such as Main or BreakgenMain is lean/<Root>.lean
   const seen = new Set();
   const files = new Set();
   const queue = [rootModule];
@@ -213,6 +257,8 @@ export function run(root, write) {
   const problems = [];
   let wrote = 0;
   const rows = new Map(table.workflows.map((w) => [w.file, w]));
+  const lake = loadLakeCache(root);
+  if (lake) for (const r of lake) if (!files.includes(r.file)) problems.push(`${r.file}: in lean/Fw/Ops/LakeCache.lean but no such workflow file (edit by hand)`);
   for (const w of table.workflows) if (!files.includes(w.file)) problems.push(`${w.file}: in the Lean table but no such workflow file`);
   for (const f of files) {
     const row = rows.get(f);
@@ -220,6 +266,7 @@ export function run(root, write) {
     const paths = expand(S, row.inputs);
     for (const p of paths) if (!portableGlob(p)) problems.push(`${f}: glob ${p} is not read the same by GitHub and by Lean PathCheck`);
     const text = readFileSync(join(dir, f), 'utf8');
+    if (lake) { try { problems.push(...lakeCacheProblems(f, text.split('\n'), lake)); } catch (e) { problems.push(`${f}: ${e.message}`); } }
     let r;
     try { r = reconcile(f, text, row, paths); } catch (e) { problems.push(`${f}: ${e.message}`); continue; }
     problems.push(...r.problems);
