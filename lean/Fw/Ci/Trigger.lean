@@ -37,7 +37,8 @@ def expand (S : String → List String) (gs : List String) : List String :=
   gs.flatMap fun g => if g.startsWith "@" then S g else [g]
 
 /-- The push's own change: the files of its diff whose new content differs from `main`'s.
-$$\operatorname{eff}(D, m) = [\, x \in D : m(x) \,]$$ where $m(x)$ says the new content of $x$ is not `main`'s. -/
+Here $m(x)$ says the new content of $x$ is not `main`'s.
+$$\operatorname{eff}(D, m) = [\, x \in D : m(x) \,]$$ -/
 def effective (diff : List String) (differs : String → Bool) : List String := diff.filter differs
 
 /-- Does the push start the workflow? Some effective change is in the scope of its expanded inputs.
@@ -57,7 +58,7 @@ theorem effective_sub (diff : List String) (differs : String → Bool) (x : Stri
 
 /-- **Starts iff an input changed.** A workflow starts exactly when a path of the diff that differs from `main` is in
 the scope of its expanded inputs.
-$$\operatorname{starts}(w, S, \operatorname{eff}(D, m)) \iff \exists x \in D:\ m(x) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)$$ -/
+$$\forall S, w, D, m:\ \operatorname{starts}(w, S, \operatorname{eff}(D, m)) \iff \exists x \in D:\ m(x) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)$$ -/
 theorem starts_iff (S : String → List String) (w : Wf) (diff : List String) (differs : String → Bool) :
     w.starts S (effective diff differs) = true ↔
       ∃ x ∈ diff, differs x = true ∧ inScope (parseScope (expand S w.inputs)) x = true := by
@@ -70,7 +71,7 @@ theorem starts_iff (S : String → List String) (w : Wf) (diff : List String) (d
 
 /-- **Soundness: a change outside every declared input starts nothing.** If no effective change of the push is in the
 scope of any workflow's expanded inputs, the push starts no workflow.
-$$(\forall w \in W,\ \forall x \in D:\ m(x) \Rightarrow \lnot\mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)) \Rightarrow \operatorname{started}(W, S, D, m) = [\,]$$ -/
+$$\forall S, W, D, m:\ (\forall w \in W,\ \forall x \in D:\ m(x) \Rightarrow \lnot\mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)) \Rightarrow \operatorname{started}(W, S, D, m) = [\,]$$ -/
 theorem none_started (S : String → List String) (ws : List Wf) (diff : List String) (differs : String → Bool)
     (h : ∀ w ∈ ws, ∀ x ∈ diff, differs x = true → inScope (parseScope (expand S w.inputs)) x = false) :
     startedBy S ws diff differs = [] := by
@@ -85,7 +86,7 @@ theorem none_started (S : String → List String) (ws : List Wf) (diff : List St
 
 /-- **Completeness: the workflows started are exactly the ones with a changed input.** The file of `w` is in the started
 list iff some workflow of that file has an effective change in its inputs.
-$$f \in \operatorname{started}(W, S, D, m) \iff \exists w \in W:\ w.\mathit{file} = f \land \exists x \in D:\ m(x) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)$$ -/
+$$\forall S, W, D, m, f:\ f \in \operatorname{started}(W, S, D, m) \iff \exists w \in W:\ w.\mathit{file} = f \land \exists x \in D:\ m(x) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, w.G)), x)$$ -/
 theorem mem_startedBy (S : String → List String) (ws : List Wf) (diff : List String) (differs : String → Bool) (f : String) :
     f ∈ startedBy S ws diff differs ↔
       ∃ w ∈ ws, w.file = f ∧ ∃ x ∈ diff, differs x = true ∧ inScope (parseScope (expand S w.inputs)) x = true := by
@@ -98,7 +99,7 @@ theorem mem_startedBy (S : String → List String) (ws : List Wf) (diff : List S
 
 /-- **A merge of `main` starts nothing.** If every path of the diff already has `main`'s content (a push that only
 merges `main`), no workflow starts, whatever the inputs.
-$$(\forall x \in D:\ \lnot m(x)) \Rightarrow \operatorname{started}(W, S, D, m) = [\,]$$ -/
+$$\forall S, W, D, m:\ (\forall x \in D:\ \lnot m(x)) \Rightarrow \operatorname{started}(W, S, D, m) = [\,]$$ -/
 theorem merge_starts_nothing (S : String → List String) (ws : List Wf) (diff : List String) (differs : String → Bool)
     (h : ∀ x ∈ diff, differs x = false) : startedBy S ws diff differs = [] :=
   none_started S ws diff differs fun _ _ x hx hd => by rw [h x hx] at hd; exact Bool.noConfusion hd
@@ -106,7 +107,7 @@ theorem merge_starts_nothing (S : String → List String) (ws : List Wf) (diff :
 /-- **The coarse GitHub filter never drops a needed start.** GitHub's `on.push.paths` filter runs on the whole diff
 `before..after`; if the workflow starts (an effective input changed) the filter passes, so the generated `paths` list
 together with the guard decides exactly `starts`.
-$$\operatorname{starts}(w, S, \operatorname{eff}(D, m)) \Rightarrow \operatorname{sel}(\operatorname{expand}(S, w.G), D)$$ -/
+$$\forall S, w, D, m:\ \operatorname{starts}(w, S, \operatorname{eff}(D, m)) \Rightarrow \operatorname{sel}(\operatorname{expand}(S, w.G), D)$$ -/
 theorem filter_passes (S : String → List String) (w : Wf) (diff : List String) (differs : String → Bool)
     (h : w.starts S (effective diff differs) = true) : selected (expand S w.inputs) diff = true := by
   obtain ⟨x, hx, _, hi⟩ := (starts_iff S w diff differs).mp h
@@ -243,8 +244,9 @@ def tableLine : Json :=
       ("inputs", strs w.inputs)]).toArray),
     ("sets", Json.mkObj (sets.map fun (n, xs) => (n, strs xs)))]
 
-/-- The replay cases: a push (its diff, the paths that already equal `main`) and the workflows it starts under the
-sample cones. -/
+/-- The replay cases: a push (its diff, the paths that already equal `main`); the workflows it starts under the
+sample cones are added by `caseLine`.
+$$\mathrm{cases} = [\, (n, D, M) \,]$$ -/
 def cases : List (String × List String × List String) := [
   ("docs only", ["docs/team/handoffs/x.md"], []),
   ("lean test file", ["lean/FwTest/Lease.lean"], []),
@@ -272,7 +274,8 @@ def caseLine (c : String × List String × List String) : Json :=
 /-- The text of the golden file. $$\text{one JSON object per line: the table, then the cases}$$ -/
 def goldenText : String := String.join ((tableLine :: cases.map caseLine).map fun j => j.compress ++ "\n")
 
-/-- Compare (or write) the golden file; returns the number of stale files. -/
+/-- Compare (or write) the golden file; returns the number of stale files.
+$$\operatorname{runGolden}(\mathit{write}) = 0\ \text{if the file equals goldenText (or was written), else } 1$$ -/
 def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / ".." / "packages" / "contracts" / "golden" / "ci" / "triggers.jsonl"
   if write then
