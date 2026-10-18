@@ -306,6 +306,26 @@ def cases : List (String × List Json) := [
     query,
     apply "seen:id-1|20|0" "hook" "agent.spawn" [("agent", .str "id-1"), ("at", toJson (30 : Nat))],
     query]),
+  ("concurrent agents (task-state-truth, real events 1113/1114/1118 of the event log, ids and times only): the name-keyed legacy events end the task at the first agent's stop; the id-keyed events of the same agents keep it running while the second agent lives", [
+    define "task-state-truth" [],
+    apply "wfa:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.spawn"
+      [("agent", .str "task-state-truth"), ("at", toJson (1792314139238 : Nat))],
+    apply "wfa:wf_4e2a0add-492:a887a6e804a4d6418" "script" "agent.spawn"
+      [("agent", .str "task-state-truth"), ("at", toJson (1792314139283 : Nat))],
+    apply "wfa-end:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.stop"
+      [("agent", .str "task-state-truth"), ("at", toJson (1792314347670 : Nat))],
+    query,
+    apply "wfid-label:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.label"
+      [("agent", .str "ab23e20bebcfc3046"), ("name", .str "task-state-truth")],
+    apply "wfid:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.spawn"
+      [("agent", .str "ab23e20bebcfc3046"), ("at", toJson (1792314139238 : Nat))],
+    apply "wfid-label:wf_4e2a0add-492:a887a6e804a4d6418" "script" "agent.label"
+      [("agent", .str "a887a6e804a4d6418"), ("name", .str "task-state-truth")],
+    apply "wfid:wf_4e2a0add-492:a887a6e804a4d6418" "script" "agent.spawn"
+      [("agent", .str "a887a6e804a4d6418"), ("at", toJson (1792314139283 : Nat))],
+    apply "wfid-end:wf_4e2a0add-492:ab23e20bebcfc3046" "script" "agent.stop"
+      [("agent", .str "ab23e20bebcfc3046"), ("at", toJson (1792314347670 : Nat))],
+    query]),
   ("claim TTL (task-state-truth): a claim is a sighting at claim time; its timeout stop parks the row as expired", [
     define "a" [],
     apply "c:a" "lead" "task.claim" [("task", .str "a"), ("agent", .str "lead-1"), ("at", toJson (500 : Nat))],
@@ -367,17 +387,28 @@ def wfCases : List (String × List String × List String × List String × List 
   ("the run file ends every agent of the run; the meta.name binding is kept", ["guard", "w", "v"],
     ["guard-wf_b37180a7-494.js"], ["wf_b37180a7-494.json"],
     [jl "wf_b37180a7-494" "a1" true "fix:w", jl "wf_b37180a7-494" "a1" true "fix:w", jl "wf_b37180a7-494" "a2" true "x:y:v",
-     jl "wf_b37180a7-494" "a3" true "w:", jl "wf_b37180a7-494" "a5" false "fix:v", jl "bad" "a6" true "fix:v"])]
+     jl "wf_b37180a7-494" "a3" true "w:", jl "wf_b37180a7-494" "a5" false "fix:v", jl "bad" "a6" true "fix:v"]),
+  ("two agents of one task (task-state-truth): each is keyed by its own id; the result line of one stops only that id", ["t"],
+    ["review-wf_4e2a0add-492.js"], [],
+    [jl "wf_4e2a0add-492" "a1" true "fix:t", jl "wf_4e2a0add-492" "a2" true "review:t", jl "wf_4e2a0add-492" "a1" false ""])]
 
-/-- One workflow line: `{name, ids, scripts, runs, [journal: [{run, id, started, label}]], events: [{key, type, agent}]}` (`Fw.Plan.wfAllEvents`; no `journal` field = none). -/
+/-- One workflow event as the console-api sends it: `{key, type, agent}` for a spawn or stop,
+`{key, type, agent, name}` for a label (`Fw.Plan.wfAllEvents` gives no other command). -/
+def wfEventJson (k : String) : Fw.Plan.Cmd → Json
+  | .spawn a _ => Json.mkObj [("key", .str k), ("type", .str "agent.spawn"), ("agent", .str a)]
+  | .stop a _ => Json.mkObj [("key", .str k), ("type", .str "agent.stop"), ("agent", .str a)]
+  | .label a n => Json.mkObj [("key", .str k), ("type", .str "agent.label"), ("agent", .str a), ("name", .str n)]
+  | _ => Json.mkObj [("key", .str k)]
+
+/-- One workflow line: `{name, ids, scripts, runs, [journal: [{run, id, started, label}]], events: [{key, type, agent[, name]}]}` (`Fw.Plan.wfAllEvents`; no `journal` field = none). -/
 def wfLine (c : String × List String × List String × List String × List Fw.Plan.JLine) : String :=
   let (n, ids, ss, rs, js) := c
   let jsJson : List (String × Json) := if js.isEmpty then [] else
     [("journal", .arr (js.toArray.map fun j => Json.mkObj [("run", .str j.run), ("id", .str j.id),
       ("started", .bool j.started), ("label", .str j.label)]))]
   (Json.mkObj ([("name", .str n), ("ids", strsJson ids), ("scripts", strsJson ss), ("runs", strsJson rs),
-    ("events", .arr ((Fw.Plan.wfAllEvents ids ss rs js).toArray.map fun (k, t, a) =>
-      Json.mkObj [("key", .str k), ("type", .str t), ("agent", .str a)]))] ++ jsJson)).compress
+    ("events", .arr ((Fw.Plan.wfAllEvents ids ss rs js).toArray.map fun (k, c) => wfEventJson k c))]
+    ++ jsJson)).compress
 
 /-- The text of `workflow.jsonl`. -/
 def wfText : String := String.join (wfCases.map fun c => wfLine c ++ "\n")
