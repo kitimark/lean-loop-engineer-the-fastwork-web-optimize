@@ -5,7 +5,8 @@
 /**
  * Init script, injected before any page script in both arms and both engines. It pins `Date` (new Date(), Date.now())
  * to one instant and seeds Math.random (mulberry32), so the countdown and any random layout choice are identical
- * between the two arms and between runs. It leaves timers, requestAnimationFrame and performance.now native.
+ * between the two arms and between runs. It leaves timers, requestAnimationFrame and performance.now native (the frozen-clock
+ * gate run, src/freeze.mjs, has the engine's page clock replace them before this script runs; Date then stays pinned here).
  */
 export const PIN_SRC = `(() => {
   const FIXED = Date.parse('2026-10-01T00:00:00+07:00');
@@ -30,15 +31,81 @@ export const PIN_SRC = `(() => {
   };
 })();`;
 
-/** Wait until the arm has settled: fonts, hydration (rewrite) or the hero splash (original), then 3 frames and 300 ms. */
+/**
+ * The freeze pass over the document's CSS and Web animations (Lean Fw.Gate.Freeze.freezeAct), run by the frozen-clock gate
+ * before every observation: a finite animation or transition jumps to its end (`finish()`), an infinite one is paused at the
+ * middle of its first iteration. The timer-restarted strokes and copy animations, the resize-triggered transitions and the
+ * infinite floats of hero.cue.* are then at a fixed state whenever and however fast the machine took them there. Animations of a
+ * non-document timeline (scroll-driven) and of a non-numeric duration are left alone. Self-contained (it is serialised into the
+ * page by KIT_SRC). Returns { finished, paused } for the record.
+ * The text between the markers is replayed against the Lean golden file (test/freeze.test.mjs).
+ */
+export function freezeAnimations() {
+  // <freeze>
+  const target = (t) => (Number.isFinite(t.iterations) ? t.delay + t.iterations * t.duration : t.delay + Math.floor(t.duration / 2));
+  // </freeze>
+  let finished = 0, paused = 0;
+  for (const a of document.getAnimations()) {
+    try {
+      if (!(a.timeline instanceof DocumentTimeline)) continue;
+      const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+      if (!t || typeof t.duration !== 'number') continue;
+      if (Number.isFinite(t.iterations)) {
+        if (a.playState !== 'finished' && a.playState !== 'idle') { a.finish(); finished++; }
+      } else {
+        a.pause();
+        a.currentTime = target(t);
+        paused++;
+      }
+    } catch { /* an animation that cannot be finished or paused stays as it is, and shows as running */ }
+  }
+  return { finished, paused };
+}
+
+/**
+ * Init script of the frozen-clock gate run (after PIN_SRC): the page-side kit `window.__fwk` used by every function below when
+ * present. `window.__fwClock(op, n)` is the engine's exposed binding (engines.mjs): 'step' advances the page clock by n ms and
+ * answers whether a real rendering frame was confirmed; 'holdTo' advances it to the absolute fake time n; 'real' waits n real ms
+ * (for what the fake clock cannot drive: network, hydration) and answers the real time. Nothing else moves the clock.
+ */
+export const KIT_SRC = `(() => {
+  const clock = (op, n) => window.__fwClock(op, n);
+  window.__fwk = {
+    freeze: ${freezeAnimations.toString()},
+    step: (ms) => clock('step', ms),
+    sleep: (ms) => clock('step', ms),
+    holdTo: (abs) => clock('holdTo', abs),
+    real: (ms) => clock('real', ms),
+    frame: async () => { const p = new Promise((r) => requestAnimationFrame(() => r())); const ok = await clock('step', 16); await p; return ok; },
+  };
+})();`;
+
+/**
+ * Wait until the arm has settled: fonts, hydration (rewrite) or the hero splash (original), then 3 frames and 300 ms.
+ * With the frozen-clock kit (arg.holdMs, arg.readyToMs, arg.graceMs): wait in REAL time for what the fake clock cannot drive (the
+ * rewrite's hydration flag; the original has none, so a real grace), hold the clock to the absolute instant holdMs, wait for the
+ * original's splash in fake steps, freeze the animations, 3 frames and 300 ms of steps, then hold to readyToMs: both arms leave
+ * here at the same fake instant.
+ */
 export async function waitReady(arg) {
   const { site, capMs } = arg;
+  const K = window.__fwk;
   const t0 = performance.now();
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
+  const sleep = K ? K.sleep : (ms) => new Promise((r) => setTimeout(r, ms));
+  const frame = K ? K.frame : () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
   try { await document.fonts.ready; } catch { /* no font API */ }
   let ready = false;
   let splash = null;
+  if (K) {
+    const r0 = await K.real(0);
+    if (site === 'rewrite') {
+      while (!(window.__fw && window.__fw.hydrated) && (await K.real(50)) - r0 < capMs) { /* real time only */ }
+    } else {
+      while (document.readyState !== 'complete' && (await K.real(50)) - r0 < capMs) { /* real time only */ }
+      await K.real(arg.graceMs);
+    }
+    await K.holdTo(arg.holdMs);
+  }
   if (site === 'rewrite') {
     while (!(window.__fw && window.__fw.hydrated) && performance.now() - t0 < capMs) await sleep(50);
     ready = !!(window.__fw && window.__fw.hydrated);
@@ -47,6 +114,25 @@ export async function waitReady(arg) {
     while (!done() && performance.now() - t0 < capMs) await sleep(50);
     splash = done();
     ready = !!document.querySelector('.hero-track .hero');
+  }
+  if (K) {
+    // frozen clock: finish the finite animations and pause the infinite ones, give them 3 frames and 300 ms to act on that
+    // (a handler of `animationend` runs, a timer restarts a stroke), freeze again, and hold to the common instant
+    let awaited = K.freeze().finished;
+    for (let i = 0; i < 3; i++) { await frame(); awaited += K.freeze().finished; }
+    await sleep(300);
+    awaited += K.freeze().finished;
+    await K.holdTo(arg.readyToMs);
+    awaited += K.freeze().finished;
+    const left = document.getAnimations().filter((a) => {
+      const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+      return t && Number.isFinite(t.iterations) && (a.playState === 'running' || a.playState === 'pending');
+    }).length;
+    const fw0 = window.__fw;
+    return {
+      ready, splash, fwMode: fw0 ? fw0.mode : null, hydrationErrors: fw0 ? (fw0.hydrationErrors ? fw0.hydrationErrors.length ?? fw0.hydrationErrors : 0) : null,
+      animations: { waitedMs: Math.round(performance.now() - t0), awaited, passes: 1, left },
+    };
   }
   // Every FINITE CSS animation or transition has finished, so the page is compared in its end state and never in a tail
   // (infinite ones, e.g. the call-to-action orbit, are ignored). Parts mount at different times (the original's people
@@ -92,14 +178,15 @@ export async function waitReady(arg) {
  *    wait until `gone` no longer matches, so the next read starts from the closed page.
  */
 export async function prepareInPage(arg) {
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
+  const K = window.__fwk; // the frozen-clock kit (KIT_SRC), absent in a native run
+  const sleep = K ? K.sleep : (ms) => new Promise((r) => setTimeout(r, ms));
+  const frame = K ? K.frame : () => Promise.race([new Promise((r) => requestAnimationFrame(() => r())), sleep(250)]);
   const running = () => document.getAnimations().filter((a) => {
     const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
     return t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
   }).length;
   // a real frame (true) or the 250 ms keep-alive (false)
-  const realFrame = () => new Promise((resolve) => {
+  const realFrame = K ? K.frame : () => new Promise((resolve) => {
     let done = false;
     requestAnimationFrame(() => { if (!done) { done = true; resolve(true); } });
     setTimeout(() => { if (!done) { done = true; resolve(false); } }, 250);
@@ -111,11 +198,13 @@ export async function prepareInPage(arg) {
     const t1 = performance.now();
     const trace = [];
     let frames = 0;
+    if (K) K.freeze();
     for (;;) {
       const obs = { running: running(), frames, stable: 0, hoverInside: false, t: Math.round(performance.now() - t1) };
       trace.push(obs);
       if (obs.running === 0 || capMs < obs.t || maxFrames < obs.frames) return trace;
       if (await realFrame()) frames++;
+      if (K) K.freeze();
     }
   };
   const t0 = performance.now();
@@ -134,13 +223,14 @@ export async function prepareInPage(arg) {
     window.scrollTo({ top: 0, behavior: 'instant' });
     for (let i = 0; i < 3; i++) await frame();
     await sleep(300);
+    if (K) K.freeze();
     return { found, idle: await idle(arg.capMs, arg.maxFrames) };
   } else if (arg.stage === 'open') {
     for (const step of arg.steps) {
       const btn = document.querySelector(step.trigger);
       if (!btn) { found.push(false); continue; }
       btn.click();
-      while (!document.querySelector(step.ready) && performance.now() - t0 < 5000) await sleep(50);
+      while (!document.querySelector(step.ready) && performance.now() - t0 < 5000) { if (K) K.freeze(); await sleep(50); }
       found.push(!!document.querySelector(step.ready));
       // no fixed sleep: the caller's settle wait (settleInPage) ends on the dialog's enter animation being finished and quiet
       await frame();
@@ -149,7 +239,7 @@ export async function prepareInPage(arg) {
     for (const step of arg.steps) {
       const btn = document.querySelector(step.close);
       if (btn) btn.click();
-      while (document.querySelector(step.gone) && performance.now() - t0 < 5000) await sleep(50);
+      while (document.querySelector(step.gone) && performance.now() - t0 < 5000) { if (K) K.freeze(); await sleep(50); }
       found.push(!document.querySelector(step.gone));
       for (let i = 0; i < 2; i++) await frame();
       await sleep(100);
@@ -163,7 +253,17 @@ export async function prepareInPage(arg) {
  * (settleInPage, Fw.Gate.Settle) follows and ends on events (two real frames, nothing running, the probed values quiet),
  * so the fixed 600 ms sleep and the drain of every finite animation are gone (sweeps-speed note, 10-18).
  */
-export async function waitResize() {
+export async function waitResize(arg) {
+  const K = window.__fwk;
+  if (K && arg && arg.holdTo !== undefined) {
+    // frozen clock: four steps (the resize observers fire on the first real frame and what they schedule runs on the next ones),
+    // then to the absolute instant every arm reaches (run.mjs: the aligned instant plus the post-resize advance), then the freeze
+    for (let i = 0; i < 4; i++) await K.frame();
+    K.freeze();
+    await K.holdTo(arg.holdTo);
+    K.freeze();
+    return true;
+  }
   await Promise.race([new Promise((r) => requestAnimationFrame(() => r())), new Promise((r) => setTimeout(r, 250))]);
   return true;
 }
@@ -221,16 +321,20 @@ export async function settleInPage(arg) {
     }
     return { running: anims.size, hover, sig };
   };
+  const K = window.__fwk; // the frozen-clock kit (KIT_SRC): one step of the fake clock is one frame, animations are frozen at each
+  const nextFrame = K ? K.frame : () => new Promise((resolve) => {
+    let done = false;
+    requestAnimationFrame(() => { if (!done) { done = true; resolve(true); } });
+    setTimeout(() => { if (!done) { done = true; resolve(false); } }, 250);
+  });
   const t0 = performance.now();
   const trace = [];
+  if (K) K.freeze();
   let prev = observe().sig;
   let frames = 0, stable = 0;
   for (;;) {
-    const gotFrame = await new Promise((resolve) => {
-      let done = false;
-      requestAnimationFrame(() => { if (!done) { done = true; resolve(true); } });
-      setTimeout(() => { if (!done) { done = true; resolve(false); } }, 250);
-    });
+    const gotFrame = await nextFrame();
+    if (K) K.freeze();
     const o = observe();
     if (gotFrame) {
       frames++;
@@ -256,14 +360,18 @@ export async function bringInPage(arg) {
   for (const sel of arg.roots) for (const el of Array.from(document.querySelectorAll(sel)).slice(0, 64)) all.push(el);
   const hit = all.filter(skipped);
   if (hit.length > 0) hit[0].scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
-  for (let i = 0; i < 2; i++) await new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 250); });
+  const K = window.__fwk;
+  for (let i = 0; i < 2; i++) await (K ? K.frame() : new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 250); }));
+  if (K) K.freeze();
   return { skippedBefore: hit.length, scrollY: window.scrollY };
 }
 
 /** Back to the top of the page after bringInPage, then two real frames. */
 export async function scrollTopInPage() {
   window.scrollTo(0, 0);
-  for (let i = 0; i < 2; i++) await new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 250); });
+  const K = window.__fwk;
+  for (let i = 0; i < 2; i++) await (K ? K.frame() : new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 250); }));
+  if (K) K.freeze();
   return window.scrollY;
 }
 

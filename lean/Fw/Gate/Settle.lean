@@ -371,7 +371,7 @@ theorem report_budget (p : Policy) (F : Nat) (hF : F ≤ p.maxFrames) (oa ob : N
 
 /-- The scan's answer depends on no observation past the first one whose budget is spent: if two observation sequences
 agree up to index `n` and the budget is spent at `n`, the scans agree. So the page loop may stop at `n` (and with the
-frame budget, `n ≤ F + 1` when every observation is a real frame: `scan_stops_by_frames`).
+frame budget, `n ≤ F + 1` when every observation is a real frame: `wait_stops_by_frames`; Fw.Gate.Freeze.wait_frozen_agree states it for the frozen clock).
 
 $$\forall \pi\, o\, o'\, n,\quad \operatorname{spent}_\pi(o_n) \Rightarrow \forall f\, i,\ i \le n \wedge \left(\forall m,\ i \le m \le n \Rightarrow o_m = o'_m\right) \Rightarrow \operatorname{scan}_\pi(o)(i, f) = \operatorname{scan}_\pi(o')(i, f)$$ -/
 theorem scan_decided_by (p : Policy) (o o' : Nat → Obs) (n : Nat) (hs : spent p (o n) = true) :

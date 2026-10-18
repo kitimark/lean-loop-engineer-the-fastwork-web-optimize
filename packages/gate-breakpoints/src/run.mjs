@@ -6,7 +6,8 @@ import { dirname, join, resolve } from 'node:path';
 import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
 import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
-import { PIN_SRC, bringInPage, collectInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
+import { KIT_SRC, PIN_SRC, bringInPage, collectInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
+import { GRID_MS, HOLD_LOAD_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, STEP_MS, alignTarget } from './freeze.mjs';
 import { GATE_POLICY, fold, idlePolicy, view, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
@@ -19,6 +20,10 @@ const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 // carries a scroll-dependent value. The baseline (no view) passes commission on both engines (run 39083482125), so the default
 // stays the baseline; the rule needs a scroll position that is equal by construction before it can be switched on.
 const VIEW_ON = process.env.FW_GATE_VIEW === '1';
+// The frozen clock (gate-shard-balance round 2, Lean Fw.Gate.Freeze, src/freeze.mjs): the page clock is frozen before load and moved
+// only by the harness, animations are frozen before each observation. On for the gate; off for the gaps lane (its own native
+// timing) and with FW_GATE_FROZEN=0 (a debug switch, never a result).
+const FROZEN_ON = process.env.FW_GATE_FROZEN !== '0';
 const SITES = ['orig', 'rewrite'];
 const FILTER = { orig: '\\.svelte-', rewrite: '-module_' };
 const CAP_MS = { orig: 20000, rewrite: 15000 };
@@ -68,6 +73,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const dist = siteDist();
   const buildInfo = JSON.parse(readFileSync(join(dist, 'build-info.json'), 'utf8'));
   const variantPage = rewriteFor(dist); // FW_SEARCH: a flagged config of the rewrite (default: none)
+  const frozen = FROZEN_ON && !gaps;
   const servers = { orig: await startServer(snapshotRoot()), rewrite: await startServer(dist, variantPage.rewrite) };
   const engine = await (gaps ? gaps.launcher : LAUNCHERS[engineName])();
   const cond = gen.conditions.map((c) => ({ tsId: c.tsId, css: c.css, legacyCss: c.legacyCss }));
@@ -80,7 +86,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     }))]));
 
   async function load(env, site) {
-    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: PIN_SRC });
+    return engine.open(env, { origin: servers[site].origin, path: site === 'rewrite' ? '/' + variantPage.search : '/', init: frozen ? PIN_SRC + '\n' + KIT_SRC : PIN_SRC, frozen });
   }
   // anchors.json `prepare` (per part and arm) is the one route for page states that exist only after an action, all run by
   // page.mjs prepareInPage. A part with a prepare step is collected AFTER the rest, so every other part is read in the state a
@@ -93,7 +99,16 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     .filter(([, steps]) => steps.length > 0));
   const mountOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'mount')]));
   const overlayOf = Object.fromEntries(SITES.map((site) => [site, stepsOf(site, 'overlay')]));
-  const evalReady = (s, site) => s.evaluate(waitReady, { site, capMs: CAP_MS[site] });
+  const evalReady = (s, site) => s.evaluate(waitReady, { site, capMs: CAP_MS[site], ...(frozen ? { holdMs: HOLD_LOAD_MS, readyToMs: READY_TO_MS, graceMs: site === 'orig' ? ORIG_GRACE_MS : 0 } : {}) });
+  // The frozen clock before a live resize: aligned to the next grid instant, so both arms leave the previous stop at the same fake
+  // time (Lean Fw.Gate.Freeze.alignTarget_eq), and the post-resize advance ends at the same instant in both arms.
+  const resizeTo = async (s, next) => {
+    if (!frozen) { await s.resize(next); await s.evaluate(waitResize); return; }
+    await s.holdTo(alignTarget(s.clockMs(), GRID_MS));
+    const base = s.clockMs();
+    await s.resize(next);
+    await s.evaluate(waitResize, { holdTo: base + POST_RESIZE_MS });
+  };
   // The settle wait (Lean Fw.Gate.Settle, settle.mjs): before anything is collected, in both arms and both engines, the pointer is
   // parked where it is over no probed element (hover cannot move a probed value), then the page is observed on real frames
   // until nothing animates, two frames have passed since the resize, the probed values stay within eps for three frames, and the
@@ -206,7 +221,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     const scans = [(await evalCollect(s, site, refEnv, null)).parts];
     const timed = Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => !overlayOf[site][pid]));
     for (let i = 0; i < SCAN_EXTRA; i++) {
-      await new Promise((r) => setTimeout(r, SCAN_GAP_MS));
+      if (frozen) await s.advance(SCAN_GAP_MS); else await new Promise((r) => setTimeout(r, SCAN_GAP_MS));
       scans.push((await s.evaluate(collectInPage, collectArg(site, refEnv, null, timed))).parts);
     }
     declared[site] = unionDeclared(scans);
@@ -281,7 +296,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
         for (let i = 0; i < sw.stops.length; i++) {
           if (i > 0) {
             const t1 = Date.now();
-            await s.resize(sw.stops[i]); await s.evaluate(waitResize);
+            await resizeTo(s, sw.stops[i]);
             log(`  resize ${engineName} ${site} ${sw.stops[i].width}x${sw.stops[i].height}: ${Date.now() - t1} ms`);
           }
           const settleWait = await settleArm(s, site, sw.stops[i]);
@@ -309,6 +324,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     flags: { search: variantPage.search, configHash: loadedConfig },
     port: portOf(engineName),
     pinnedDate: '2026-10-01T00:00:00+07:00',
+    clock: frozen ? { kind: 'frozen', stepMs: STEP_MS, holdLoadMs: HOLD_LOAD_MS, readyToMs: READY_TO_MS, postResizeMs: POST_RESIZE_MS, gridMs: GRID_MS } : { kind: 'native' },
     ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped, ...(scope ? { scope } : {}) } } : {}),
     props,
   };

@@ -62,6 +62,7 @@ import Fw.Gate.Items
 import Fw.Gate.State
 import Fw.Gate.Coverage
 import Fw.Gate.Settle  -- gate-settle: when a gate sample is settled
+import Fw.Gate.Freeze  -- gate-shard-balance r2: the settle wait under a frozen clock
 import Fw.Gate.AlignEquiv
 import Fw.Gate.Pixel
 import Fw.Wire.Gate
