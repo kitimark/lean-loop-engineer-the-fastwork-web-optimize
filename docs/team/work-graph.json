@@ -552,7 +552,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "30eb037"
   },
   {
    "id": "spk-q",
@@ -3671,7 +3672,8 @@
    "writes": [
     "docs/team/incidents/ledger.json",
     "research/notes/2026/10-18-mistake-retro.md"
-   ]
+   ],
+   "evidence": "f9e7b7a"
   },
   {
    "id": "land-dry",

@@ -17,10 +17,13 @@ import { scrollRun } from './scrollrun.mjs';
 import { seekExperiment } from './seek.mjs';
 import { probe } from './rfprobe.mjs';
 import { screenAndTicks } from './handoff.mjs';
+import { watch } from './watchdog.mjs';
+import { alignPasses, scrollsOf, zoneTable, coverageLine, classifyAligned, classTable } from './align.mjs';
 import { warmUpLoad, perStepPasses, classifyModes, perStepTable } from './perstep.mjs';
 import { quietPasses } from './quiet.mjs';
 import { byArm, armsTable, devCorrelation } from './quietreport.mjs';
-import { onePassRetrying, classifyPasses, reasonNames, markdownTable, resolveStates } from './determinism.mjs';
+import { onePassRetrying, classifyPasses, markdownTable, resolveStates } from './determinism.mjs';
+import { mergeSessions, unpairedTable } from './mergerows.mjs';
 import { COUNT_TYPES, zones, summarize } from './reduce.mjs';
 
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'out');
@@ -49,6 +52,8 @@ const OPTS = {
   arms: { type: 'string', default: '0,1,3' }, // quiet: busy-loop processes per arm
   reps: { type: 'string', default: '3' }, // quiet: rounds (each round runs every arm once)
   cols: { type: 'string' }, // handoff: comma list of count types forming the vector (default all 12)
+  types: { type: 'string', default: 'RecalculateStyles,Layout,Paint,Composite' }, // align: count types printed as tables
+  'zone-px': { type: 'string', default: '500' }, // align: zone height
 };
 const { values: v, positionals } = parseArgs({ args: rest, options: OPTS, allowPositionals: true, allowNegative: true });
 const num = (s) => Number(s);
@@ -178,31 +183,48 @@ async function main() {
       save('handoff', out);
       break;
     }
+    case 'align': {
+      // align <a.json> <r.json>: pass i of A against pass i of R by scroll position (fwcore measure.webkit.align); a `determinism`
+      // or `perstep` file on each side. A zone is comparable as a whole when `full`.
+      const [aFile, rFile] = positionals;
+      if (!aFile || !rFile) throw new Error('usage: align <a.json> <r.json> [--types t1,t2] [--zone-px 500] [--out file] [--mode base]');
+      const read = (f) => JSON.parse(readFileSync(resolve(f), 'utf8'));
+      const aScrolls = scrollsOf(read(aFile), v.mode), rScrolls = scrollsOf(read(rFile), v.mode);
+      const res = await alignPasses(aScrolls, rScrolls, num(v['zone-px']));
+      res.pairs.forEach((p, i) => console.log(`pass ${i + 1}: ${coverageLine(p, aScrolls[i].ys.length, rScrolls[i].ys.length)}`));
+      for (const t of v.types.split(',')) console.log(`\n${zoneTable(res.pairs, t)}`);
+      if (v.out) save('align', { schema: 'fw.webkit.align/1', a: aFile, r: rFile, zonePx: num(v['zone-px']), passes: res.passes, pairs: res.pairs });
+      break;
+    }
+    case 'align-classes': {
+      // align-classes <a1.json> <r1.json> <a2.json> <r2.json> ...: every pass of every pair aligned, then the zone sums of the full zones
+      // classified over all passes (deterministic / stable / quarantined) for the A arm, the R arm and the delta.
+      if (positionals.length < 2 || positionals.length % 2) throw new Error('usage: align-classes <a1.json> <r1.json> [<a2.json> <r2.json> ...] [--types t1,t2] [--zone-px 500] [--out file]');
+      const read = (f) => JSON.parse(readFileSync(resolve(f), 'utf8'));
+      const pairs = [];
+      for (let i = 0; i < positionals.length; i += 2) pairs.push(...(await alignPasses(scrollsOf(read(positionals[i]), v.mode), scrollsOf(read(positionals[i + 1]), v.mode), num(v['zone-px']))).pairs);
+      const res = classifyAligned(pairs);
+      console.log(`passes ${pairs.length} (${positionals.length / 2} file pairs)\n\n${classTable(res, v.types.split(','))}`);
+      if (v.out) save('align-classes', { schema: 'fw.webkit.align-classes/1', files: positionals, zonePx: num(v['zone-px']), ...res });
+      break;
+    }
     case 'merge': {
-      // merge: classes of independent determinism sessions (JSON files from `determinism --out`), the worse one wins
-      const rank = { deterministic: 0, stable: 1, quarantined: 2 };
+      // merge: classes of independent determinism sessions (JSON files from `determinism --out`), the worse one wins.
+      // Rows are matched by key; rows not every session has are listed as unpaired (Lean: StepAlign.pairedRows)
       const raw = positionals.map((f) => JSON.parse(readFileSync(resolve(f), 'utf8')).passes); // recomputed from the raw passes
-      const reasons = [...new Set(raw.flatMap(reasonNames))].sort(); // same reason rows in every session
-      const sessions = raw.map((passes) => classifyPasses(passes, { reasons }));
-      const keyOf = (r) => `${r.family}|${r.metric}|${r.level}`;
-      for (const rows of sessions) {
-        if (rows.length !== sessions[0].length || rows.some((r, i) => keyOf(r) !== keyOf(sessions[0][i]))) throw new Error('sessions do not have the same rows (different states or passes?)');
-      }
-      const out = sessions[0].map((r, i) => {
-        const classes = sessions.map((rows) => rows[i].cls);
-        return { ...r, classes, cls: classes.reduce((w, x) => (rank[x] > rank[w] ? x : w)), agree: new Set(classes).size === 1 };
-      });
+      const { sessions, out, unpaired } = await mergeSessions(raw);
       console.log('| family | count type | level | class (worst of sessions) | sessions agree |');
       console.log('|---|---|---|---|---|');
       for (const r of out) console.log(`| ${r.family} | ${r.metric} | ${r.level} | **${r.cls}** | ${r.agree ? 'yes' : r.classes.join(' / ')} |`);
+      if (unpaired.length) console.log(unpairedTable(unpaired));
       if (v.out) { // machine-readable table for the baselines: scroll rows by level, {class, per-session classes, worst spread}
         const level = (l) => (l === 'total' ? 'total' : l === 'per 500 px zone' ? 'zone' : l === 'per step' ? 'step' : null);
         const byLevel = { total: {}, zone: {}, step: {} };
-        out.forEach((r, i) => {
+        for (const r of out) {
           const lv = r.family === 'scroll' ? level(r.level) : null;
-          if (lv) byLevel[lv][r.metric] = { class: r.cls, sessions: r.classes, maxSpread: Math.max(...sessions.map((rows) => rows[i].maxSpread ?? 0)), maxRelSpread: Math.max(...sessions.map((rows) => rows[i].maxRelSpread ?? 0)) };
-        });
-        save('classes', { schema: 'fw.webkit.classes/1', sessions: sessions.length, passesPerSession: raw.map((p) => p.length), byLevel, rows: out.map(({ family, metric, level: lv, cls, classes }) => ({ family, metric, level: lv, class: cls, sessions: classes })) });
+          if (lv) byLevel[lv][r.metric] = { class: r.cls, sessions: r.classes, maxSpread: Math.max(...r.at.map((i, s) => sessions[s][i].maxSpread ?? 0)), maxRelSpread: Math.max(...r.at.map((i, s) => sessions[s][i].maxRelSpread ?? 0)) };
+        }
+        save('classes', { schema: 'fw.webkit.classes/1', sessions: sessions.length, passesPerSession: raw.map((p) => p.length), byLevel, rows: out.map(({ family, metric, level: lv, cls, classes }) => ({ family, metric, level: lv, class: cls, sessions: classes })), unpaired });
       }
       break;
     }
@@ -212,8 +234,11 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: census|scroll|seek|determinism|merge <a.json> <b.json>|sim down  [--state y[,y|max]] [--clock pinned|live] [--hold ms] [--settle ms] [--window ms] [--step px] [--frames n] [--ns a,b] [--runs n] [--out file] [--keep] [--vendors off|live] [--no-seek]');
+      console.error('usage: census|scroll|seek|determinism|align <a.json> <r.json>|align-classes <a.json> <r.json>...|merge <a.json> <b.json>|sim down  [--state y[,y|max]] [--clock pinned|live] [--hold ms] [--settle ms] [--window ms] [--step px] [--frames n] [--ns a,b] [--runs n] [--out file] [--keep] [--vendors off|live] [--no-seek]');
       process.exitCode = 2;
   }
 }
-main().catch((e) => { console.error(`error: ${e.message}`); process.exitCode = 1; });
+// Fail fast: a stall (no output for 90 s x FW_WK_TIMEOUT_SCALE, FW_WK_STALL_MS overrides) or a process that outlives its command
+// ends with a message saying why, instead of sitting until the CI step timeout (watchdog.mjs).
+const guard = watch();
+main().catch((e) => { console.error(`error: ${e.message}`); process.exitCode = 1; }).finally(() => guard.done(process.exitCode ?? 0));
