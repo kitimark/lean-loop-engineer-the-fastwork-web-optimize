@@ -3627,6 +3627,22 @@
     "packages/measure-wktr/fixtures/summarize.mjs",
     ".github/workflows/wktr-fixtures.yml"
    ]
+  },
+  {
+   "id": "visual-diff-3",
+   "title": "(M) visual-diff against the integrated site (visual-diff-2 ran main: placeholders, so its 38/37 fails are unported parts, not port gaps): deterministic time (Playwright page.clock for JS motion, getAnimations pause+seek for CSS) so the 62-64 unsettled cells settle; lazy images counted only if elementFromPoint reaches them (5 invalid); real fonts per region (drop the Google Sans override); import gate settle.mjs instead of the verbatim copy; math-review Pixel theorems",
+   "stream": "gate",
+   "milestone": "M5",
+   "deps": [
+    "visual-diff-2",
+    "integrate-ports"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "packages/visual-diff/**",
+    "lean/Fw/Gate/Pixel.lean",
+    "docs/team/handoffs/visual-diff-3.md"
+   ]
   }
  ],
  "deadline": {
