@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { getClock } from '../../engine/clock';
 import { startAccentChain } from './driver';
-import { artOf, BASE_ART, standInPath } from './data';
+import { artOf, BASE_ART } from './data';
 import { BASE_WIDTH, widthOf, type AccentState } from './logic';
 import { matchList } from './media';
 import css from './accent.module.css';
@@ -19,7 +19,7 @@ const frameCls = [css.frame0, css.frame1, css.frame2] as const;
  * hero.accent: the hand-drawn word inside the headline. Server and first client render show the base word, idle. After
  * mount the timer chain (Lean `HeroAccent.chainAt`) writes the state class every 0.9 s or more and, at each word change,
  * the box width, paint insets, view box and stroke of the three frames, straight on the DOM (no React state, nothing per
- * frame). Strokes are stand-ins for the original's hand-drawn paths.
+ * frame). Strokes are the original's hand-drawn paths.
  */
 export function HeroAccent({ variant }: HeroAccentProps) {
   const emRef = useRef<HTMLElement>(null);
@@ -51,7 +51,7 @@ export function HeroAccent({ variant }: HeroAccentProps) {
           em.setAttribute('aria-label', art.label);
           svgs.forEach((svg, k) => {
             svg.setAttribute('viewBox', `0 0 ${art.viewBox[0]} ${art.viewBox[1]}`);
-            svg.querySelector('path')!.setAttribute('d', standInPath(art.viewBox[0], art.viewBox[1], k));
+            svg.querySelector('path')!.setAttribute('d', art.paths[k]!);
           });
         },
       },
@@ -93,7 +93,7 @@ export function HeroAccent({ variant }: HeroAccentProps) {
                 strokeWidth={6.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d={standInPath(vw, vh, k)}
+                d={BASE_ART.paths[k]}
               />
             </svg>
           ))}
