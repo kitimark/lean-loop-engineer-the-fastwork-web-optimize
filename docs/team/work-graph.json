@@ -3660,6 +3660,74 @@
     "research/notes/2026/10-18-slow-site-build.md"
    ],
    "evidence": "9a5c552"
+  },
+  {
+   "id": "mistake-retro-2",
+   "title": "(S) incident rows for the lead mistakes of 2026-10-18 afternoon (13 rows: 9 provable, 3 partly, 1 no); retro note counts and recurrences",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-18-mistake-retro.md"
+   ]
+  },
+  {
+   "id": "land-dry",
+   "title": "(S) fw land --dry: scope + declared reads (land-inputs) + merge check, no lock; Lean rule: hand-back refused unless dry passes at the branch head after merging main (inc-land-undeclared-reads x4, inc-land-scope-stale-base)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/**"
+   ]
+  },
+  {
+   "id": "land-queue",
+   "title": "(M) fw land --queue: queue file + land lock + Lean FIFO order; one machine-readable verdict line and a distinct exit code per refusal kind; fw watch silent for queued branches (inc-land-waiters-pgrep, inc-land-retry-text-match, inc-watch-unlanded-queued)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "land-dry"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/watch*.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Obs/**"
+   ]
+  },
+  {
+   "id": "evidence-on-main",
+   "title": "(S) plan lint: evidence sha not an ancestor of main is rejected at define (upsert keeps evidence, so an early field cannot be retracted) (inc-evidence-before-land, inc-upsert-keeps-evidence)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Plan/**",
+    "apps/runner/src/plan.ts",
+    "apps/console-api/src/**"
+   ]
+  },
+  {
+   "id": "findings-subentries",
+   "title": "(S) findings ledger: append-only per-task notes keyed by (entry, task) so parallel tasks never rewrite one shared mechanism string (inc-findings-shared-entry: 2 manual resolutions)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "research/findings/ledger.json",
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "scripts/merge-ledger.mjs"
+   ]
   }
  ],
  "deadline": {
