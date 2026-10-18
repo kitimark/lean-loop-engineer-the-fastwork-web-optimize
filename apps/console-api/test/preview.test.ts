@@ -238,6 +238,21 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     expect(await pm.start("fix-none", USER)).toEqual({ ok: false, reason: "noTarget" });
   });
 
+  it("tick stops a preview with no proxied request for 15 min (Lean idle_stops); a touch keeps it", async () => {
+    const { pm, clock } = await setup();
+    const a = await pm.start("port-landed", USER);
+    if (!a.ok) throw new Error("start");
+    await pm.settled(a.id);
+    clock.t += 14 * 60_000;
+    expect(await pm.tick()).toEqual([]);
+    pm.touch(a.id);
+    clock.t += 14 * 60_000;
+    expect(await pm.tick()).toEqual([]); // the touch restarted the idle clock
+    clock.t += 2 * 60_000;
+    expect(await pm.tick()).toEqual([a.id]); // 16 min idle
+    expect(pm.list().previews).toEqual([]);
+  });
+
   it("tick stops every preview past its TTL (and only those); stop of an unknown id kills nothing", async () => {
     const { pm, clock } = await setup();
     const a = await pm.start("port-landed", USER);

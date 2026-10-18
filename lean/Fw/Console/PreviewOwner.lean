@@ -54,12 +54,16 @@ def Rec.fail (r : Rec) (now : Nat) : Rec :=
   let fs := (r.fails.filter fun t => decide (now < t + window)) ++ [now]
   if maxTries ≤ fs.length then { fails := [], lockUntil := now + lockMs } else { fails := fs, lockUntil := 0 }
 
-/-- What a login attempt gets. -/
+/-- What a login attempt gets.
+
+$$\mathrm{Verdict} = \{\mathrm{disabled},\ \mathrm{locked},\ \mathrm{wrong},\ \mathrm{ok}\}$$ -/
 inductive Verdict where
   | disabled | locked | wrong | ok
 deriving Repr, DecidableEq
 
-/-- Its wire name. -/
+/-- Its wire name.
+
+$$\mathrm{name}(\mathrm{ok}) = \texttt{ok},\quad \mathrm{name}(\mathrm{wrong}) = \texttt{wrong}$$ -/
 def Verdict.name : Verdict → String
   | .disabled => "disabled" | .locked => "locked" | .wrong => "wrong" | .ok => "ok"
 
@@ -233,11 +237,15 @@ inductive Cls where
   | login | preview | other
 deriving Repr, DecidableEq
 
-/-- Its wire name. -/
+/-- Its wire name.
+
+$$\mathrm{name}(\mathrm{login}) = \texttt{login},\quad \mathrm{name}(\mathrm{preview}) = \texttt{preview}$$ -/
 def Cls.name : Cls → String
   | .login => "login" | .preview => "preview" | .other => "other"
 
-/-- The class of a path (exact match for the login page: any other spelling is `other`, hence gated). -/
+/-- The class of a path (exact match for the login page: any other spelling is `other`, hence gated).
+
+$$\operatorname{classify}(p) = \operatorname{cls}(p)$$ -/
 def classify (path : String) : Cls :=
   if path == "/owner/login" then .login else if path.startsWith "/preview/" then .preview else .other
 

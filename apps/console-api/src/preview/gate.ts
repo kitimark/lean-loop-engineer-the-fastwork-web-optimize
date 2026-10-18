@@ -8,6 +8,7 @@ import type { Core } from "../core/index.ts";
 import { OwnerAuth } from "./owner.ts";
 import { LoginGuard, loginPage } from "./login.ts";
 import { isLoopback } from "./lan.ts";
+import { viaReferer } from "./proxy.ts";
 
 export type OwnerDeps = { core: Core; owner: OwnerAuth; login: LoginGuard; lan: boolean };
 
@@ -22,7 +23,7 @@ export function mountOwnerGate(app: Hono, d: OwnerDeps) {
     const remote = remoteOf(c);
     const lan = d.lan && !isLoopback(remote); // outside LAN mode the console listens on loopback only
     const hostOk = d.owner.hostOk(c.req.header("host"));
-    const r = await d.core.ops("console.ownerGate", { lan, session: d.owner.cookieOk(c.req.header("cookie")), hostOk, path: c.req.path });
+    const r = await d.core.ops("console.ownerGate", { lan, session: d.owner.cookieOk(c.req.header("cookie")), hostOk, path: viaReferer(c.req.path, c.req.header("referer"), c.req.header("host")) ?? c.req.path });
     if (r.allow === true) return next();
     c.header("Cache-Control", "no-store");
     if (lan && !hostOk) return c.json({ ok: false, reason: "unknown host" }, 421);
