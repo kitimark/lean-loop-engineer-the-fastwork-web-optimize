@@ -643,8 +643,7 @@ def cls (c : Char) : Nat :=
 (reversed) and its class; a class-3 character fails, a space ends the current token, a character of the current class
 extends it, any other starts a new token.
 
-$$\mathrm{tokStep}(\mathrm{none}, c) = \mathrm{none}, \qquad \mathrm{tokStep}(\mathrm{some}(T, w, k), c) = \begin{cases} \mathrm{none} & \mathrm{cls}(c) = 3 \\ \mathrm{some}(T', [\,], 0) & \mathrm{cls}(c) = 0 \\ \mathrm{some}(T, c :: w, k) & \mathrm{cls}(c) = k \\ \mathrm{some}(T', [c], \mathrm{cls}(c)) & \text{otherwise} \end{cases} \quad \text{(first matching row)}$$
-where $T' = T$ if $w = [\,]$, else $\mathrm{rev}(w) :: T$.
+$$\mathrm{tokStep}(\mathrm{none}, c) = \mathrm{none}, \qquad \mathrm{tokStep}(\mathrm{some}(T, w, k), c) = \begin{cases} \mathrm{none} & \mathrm{cls}(c) = 3 \\ \mathrm{some}(T', [\,], 0) & \mathrm{cls}(c) = 0 \\ \mathrm{some}(T, c :: w, k) & \mathrm{cls}(c) = k \\ \mathrm{some}(T', [c], \mathrm{cls}(c)) & \text{otherwise} \end{cases} \quad \text{(first matching row)}, \qquad T' = \begin{cases} T & w = [\,] \\ \mathrm{rev}(w) :: T & \text{otherwise} \end{cases}$$
 -/
 def tokStep : Option (List String × List Char × Nat) → Char → Option (List String × List Char × Nat)
   | none, _ => none
@@ -659,8 +658,7 @@ def tokStep : Option (List String × List Char × Nat) → Char → Option (List
 /-- Split the text inside `(( ))` into tokens: maximal runs of name characters and of `<>=`, split at spaces; none if
 any other character occurs (`i<10` gives `i`, `<`, `10`; `i < 1 0` gives four tokens).
 
-$$\mathrm{arithToks}(l) = \begin{cases} \mathrm{some}(\mathrm{rev}(T')) & \mathrm{foldl}(\mathrm{tokStep}, \mathrm{some}([\,], [\,], 0), l) = \mathrm{some}(T, w, k) \\ \mathrm{none} & \text{otherwise} \end{cases}$$
-where $T' = T$ if $w = [\,]$, else $\mathrm{rev}(w) :: T$.
+$$\mathrm{arithToks}(l) = \begin{cases} \mathrm{some}(\mathrm{rev}(T')) & \mathrm{foldl}(\mathrm{tokStep}, \mathrm{some}([\,], [\,], 0), l) = \mathrm{some}(T, w, k) \\ \mathrm{none} & \text{otherwise} \end{cases}, \qquad T' = \begin{cases} T & w = [\,] \\ \mathrm{rev}(w) :: T & \text{otherwise} \end{cases}$$
 -/
 def arithToks (l : List Char) : Option (List String) :=
   match l.foldl tokStep (some ([], [], 0)) with
@@ -1053,7 +1051,7 @@ theorem comb_true (u : Bool) (op : Term) (x a : Bool) (h : comb u op x a = true)
 
 $$\forall d, A, t.\ \mathrm{condStep}(d, A, t).\mathit{until} = d.\mathit{until}$$
 -/
-theorem condStep_untl (cd : Cnd) (atom : List String) (t : Term) : (condStep cd atom t).untl = cd.untl := by
+theorem condStep_untl (d : Cnd) (atom : List String) (t : Term) : (condStep d atom t).untl = d.untl := by
   unfold condStep; split <;> rfl
 
 /-- **Only the grammar bounds a condition.** If a condition read from a state that is not yet bounded ends bounded,
@@ -1063,12 +1061,12 @@ calls never parse, so a condition made of them alone is never bounded.
 
 $$\forall d, X.\ \lnot d.\mathit{acc} \land \mathrm{condFold}(d, X).\mathit{acc} \Rightarrow \exists (A, t) \in X.\ t \ne \mathrm{pipe} \land \exists x, r, y.\ \mathrm{atomParse}(A) = \mathrm{some}(x, r, y) \land \mathrm{relOk}(d.\mathit{until}, x, r, y)$$
 -/
-theorem grammar_only (cd : Cnd) (xs : List (List String × Term)) (h0 : cd.acc = false)
-    (h : (condFold cd xs).acc = true) :
-    ∃ p ∈ xs, p.2 ≠ .pipe ∧ ∃ x r y, atomParse p.1 = some (x, r, y) ∧ relOk cd.untl x r y = true := by
-  suffices key : ∀ (d : Cnd), (condFold d xs).acc = true →
-      d.acc = true ∨ ∃ p ∈ xs, p.2 ≠ .pipe ∧ boundAtom d.untl p.1 = true by
-    rcases key cd h with h1 | ⟨p, hp, ht, hb⟩
+theorem grammar_only (d : Cnd) (xs : List (List String × Term)) (h0 : d.acc = false)
+    (h : (condFold d xs).acc = true) :
+    ∃ p ∈ xs, p.2 ≠ .pipe ∧ ∃ x r y, atomParse p.1 = some (x, r, y) ∧ relOk d.untl x r y = true := by
+  suffices key : ∀ (e : Cnd), (condFold e xs).acc = true →
+      e.acc = true ∨ ∃ p ∈ xs, p.2 ≠ .pipe ∧ boundAtom e.untl p.1 = true by
+    rcases key d h with h1 | ⟨p, hp, ht, hb⟩
     · simp [h0] at h1
     · exact ⟨p, hp, ht, (boundAtom_iff _ _).mp hb⟩
   clear h h0
@@ -1162,14 +1160,14 @@ def gitAfter : List String → List String
   | [] => []
 
 /-- A git subcommand $s$ with its words $A$ that reads, prints and ends: $s$ in `gitFinite`, or `worktree list`,
-`stash list`, `remote` alone, `remote -v`, `remote get-url ...`, or `config` with a `--list`, `-l` or `--get...` word
-and no `--edit`/`-e` word.
+`stash list`, `remote` alone, exactly `remote -v`, `remote get-url ...`, or `config` with a `--list`, `-l` or
+`--get...` word and no `--edit`/`-e` word. A $\mathrm{head}(A) = x$ condition is false on $A = [\,]$.
 
-$$\mathrm{gitReadOnly}(s, A) \iff s \in \mathrm{gitFinite} \lor (s \in \{\texttt{worktree}, \texttt{stash}\} \land \mathrm{head}(A) = \texttt{list}) \lor (s = \texttt{remote} \land (A = [\,] \lor \mathrm{head}(A) \in \{\texttt{-v}, \texttt{get-url}\})) \lor (s = \texttt{config} \land \exists x \in A.\ x \in \{\texttt{-{}-list}, \texttt{-l}\} \lor x \text{ starts with } \texttt{-{}-get}) \land \forall x \in A.\ x \notin \{\texttt{-{}-edit}, \texttt{-e}\})$$
+$$\mathrm{gitReadOnly}(s, A) \iff s \in \mathrm{gitFinite} \lor (s \in \{\texttt{worktree}, \texttt{stash}\} \land \mathrm{head}(A) = \texttt{list}) \lor (s = \texttt{remote} \land (A = [\,] \lor A = [\texttt{-v}] \lor \mathrm{head}(A) = \texttt{get-url})) \lor (s = \texttt{config} \land (\exists x \in A.\ x \in \{\texttt{-{}-list}, \texttt{-l}\} \lor x \text{ starts with } \texttt{-{}-get}) \land (\forall x \in A.\ x \notin \{\texttt{-{}-edit}, \texttt{-e}\}))$$
 -/
 def gitReadOnly (s : String) (a : List String) : Bool :=
   gitFinite.contains s || ((s == "worktree" || s == "stash") && a.head? == some "list") ||
-    (s == "remote" && (a.isEmpty || a.head? == some "-v" || a.head? == some "get-url")) ||
+    (s == "remote" && (a.isEmpty || a == ["-v"] || a.head? == some "get-url")) ||
     (s == "config" && a.any (fun x => x == "--list" || x == "-l" || x.startsWith "--get") &&
       !a.any (fun x => x == "--edit" || x == "-e"))
 
@@ -2145,6 +2143,7 @@ theorem deny_iff_check (us : List Job) (r : Reason) : decide us = .deny r ↔ ch
 #guard gitAfter ["-C", "d", "worktree", "list"] == ["list"] && gitAfter ["--no-pager", "stash", "list"] == ["list"] && gitAfter [] == []
 #guard gitReadOnly "worktree" ["list", "--porcelain"] && !gitReadOnly "worktree" ["add", "x"] && gitReadOnly "stash" ["list"]
 #guard !gitReadOnly "stash" [] && gitReadOnly "remote" [] && gitReadOnly "remote" ["-v"] && !gitReadOnly "remote" ["add", "o", "u"]
+#guard !gitReadOnly "remote" ["-v", "add", "o", "u"] && gitReadOnly "remote" ["get-url", "origin"]
 #guard gitReadOnly "config" ["--list"] && gitReadOnly "config" ["--get", "user.name"] && !gitReadOnly "config" ["-l", "--edit"]
 #guard !gitReadOnly "config" ["user.name", "x"] && gitReadOnly "log" [] && !gitReadOnly "fetch" []
 #guard parse "whi\\\nle true; do sleep 1; done" == parse "while true; do sleep 1; done"

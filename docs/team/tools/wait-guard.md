@@ -23,14 +23,28 @@ The env var wins over the file; an unknown value means `shadow`. fwcore missing,
 | `bgLong` / `longSleep` | `sleep N` with N over `caps.maxSleepSec` (30 s; suffix s/m/h/d) | same |
 | `unboundedLoop` | an `until`/`while` loop (foreground or not) whose **condition** has no bound (below); the body never counts (`body_irrelevant`): `date`, `deadline`, `$((n+1))`, `break` in the body bound nothing | bound the condition, `timeout N bash -c '...'`, or `pnpm fw ci wait` |
 
-**Bound = the condition only** (Lean `boundAtom`, `condStep`, `comb`). The condition is the and-or list from
-`while`/`until` to `do`. An atom is bounded when it orders a counter or `$SECONDS` against a limit: `[ $i -lt 10 ]`,
-`[[ $SECONDS -ge $end ]]`, `test $n -le 5` (a `-lt -le -gt -ge -eq -ne` with a `$` operand, no `-o -a !` inside), or
-`(( i < 10 ))` (a `<`/`>` with a name or `$`, no `||`/`&&`). `[ 1 -lt 2 ]`, `[ "$SECONDS" ]`, `[ -f x ]`, `true`, `:`,
-`sleep 1` and any command bound nothing. Atoms combine by bash's exit rule: for `while`, `a && b` is bounded if either
-is, `a || b` only if both are; for `until` the other way round; after `;` the last list decides. A loop prefixed
-`timeout N` (N > 0) or inside `timeout N bash -c '...'` (a blind spot below, so allowed) is bounded by the timeout.
-Heuristic: the counter is assumed to move (`while [ $i -lt 5 ]` with no increment is allowed).
+**Bound = the condition only, by an allowlist grammar B** (round 4; Lean `atomParse`, `relOk`, `boundAtom`,
+`condStep`, `comb`; proved `boundAtom_iff`, `grammar_only`, `subst_never_bound`, `seconds_direction`). The condition is
+the and-or list from `while`/`until` to `do`. An element is a bound only when it is exactly one of
+
+    B ::= [ V OP N ] | [ N OP V ] | [[ V OP N ]] | [[ N OP V ]]     OP ∈ -lt -le -gt -ge
+        | (( v OP N )) | (( N OP v ))                               OP ∈ <  <=  >  >=
+
+V is `$v`, `${v}` or `"$v"` with v a plain name (letter or `_`, then letters, digits, `_`); in `(( ))` only the bare
+name v. N is a decimal literal (`0` or no leading zero). v is not a special variable (`$$ $# $? $!`, positionals,
+`RANDOM SRANDOM LINENO BASHPID PPID UID EUID HISTCMD EPOCHREALTIME BASH_SUBSHELL SHLVL`). A clock (`SECONDS`,
+`EPOCHSECONDS`) must move toward the exit: `while` needs clock `<`/`≤` N, `until` needs clock `>`/`≥` N
+(`seconds_direction`). Everything else bounds nothing (`grammar_only`): `$( )`, backquotes (`subst_never_bound`),
+`$(( ))`, `${v:-..}`, a limit in a variable (`[ $SECONDS -lt $end ]`: write the literal, `[ $SECONDS -lt 600 ]`),
+comma, ternary, hex, octal, `test`, a leading `!`, `<`/`>` in `[ ]` (a redirect) or `[[ ]]` (string order), string
+compares, `true`, `:`, polls (`gh`, `ls`, `pgrep`) and function calls. Elements combine by bash's exit rule: for
+`while`, `a && b` is bounded if either is, `a || b` only if both are; for `until` the other way round; after `;` the last
+list decides. `timeout N` is not in B as a condition element (`while timeout 5 cmd` repeats forever); it bounds only as a
+wrapper: a loop prefixed `timeout N` (N > 0) or inside `timeout N bash -c '...'` (a blind spot below, so allowed).
+
+**Threat model.** The guard targets agent mistakes (a poll with no exit, a forgotten counter), not an adversary: an
+agent that wants an endless loop can hide one in `bash -c`, `eval` or a function. Outside B it fails closed: an
+unrecognised condition is unbounded, and the deny message names the forms that pass.
 
 **Bounded read loop** (Lean `plainRead`, `inRedir`, `producerOut`; `readLoop_bounded`, `readLoop_input_free`). The
 condition is `while [VAR=..] read [opts] [names]` (opts and names are words of letters, digits, `_`, `-`, or `$'\0'`-style: `-r -t 1 -d '' -d $'\0'`; no `-u fd`), ended
@@ -42,12 +56,14 @@ else the pipe into it; it must be one of:
   finite producer (`<<< "$(git diff --name-only)"`; `<<< "$(yes)"` is denied);
 - `done < <(cmd)` or `cmd | ... | while read` with `cmd` on the producer allowlist: `git` (no `-c`, `--config-env`,
   `--exec-path`; no `--stdin`) with a read-only subcommand (`ls-files ls-tree diff log show status branch tag
-  for-each-ref rev-list rev-parse grep shortlog describe cat-file blame merge-base name-rev reflog`), `gh run|pr|issue
+  for-each-ref rev-list rev-parse grep shortlog describe cat-file blame merge-base name-rev reflog`, round 4:
+  `worktree list`, `stash list`, `remote [-v|get-url]`, `config --list|-l|--get*` without `--edit`), `gh run|pr|issue
   list|view`, `cat FILE...` (an operand, no `-`, no `-u`), `find` (no `-exec -execdir -ok -okdir`), `seq` (no
   `inf`/`nan`), `ls`, `printf`, `echo`, `timeout N cmd`; and, when their own input is finite, the filters `grep`, `rg`
   (no `--pre`), `jq` (no `repeat recurse until while range def infinite`), `sort` (no `--compress...`), `head`, `wc`,
   `tr`, `cut`, `uniq`, `sed` (no `:label`/branch loop), `awk` (no `while for do getline`), `xargs CMD` (CMD itself on
-  the list), `node scripts/*.mjs` (a repo script path, no `..`). No producer word may be `-`, a device, `(...`, or hold
+  the list), `node scripts/*.mjs` (a repo script path, no `..`). No producer word may be `-`, a device (an output
+  redirect such as `2>/dev/null` is not one), `(...`, or hold
   `<(`, `$(`, a backquote or `<&`. Anything else (`ping`, `tail`, `yes`, `log stream`, `sleep infinity`, `gh run watch`)
   is never finite (`producer_outside_list`); a filter after an endless producer is not either
   (`filter_needs_finite_input`).
@@ -75,7 +91,12 @@ aliases; a here-doc operator glued to a word or in arithmetic (`cat<<EOF`, `$((1
 redirect (`<<EOF>f`); an empty quoted delimiter (`<< ''`); variables that name a device or FIFO (`done < "$f"`,
 `cat "$f"`); a FIFO or `/proc` file named by a plain path (`cat fifo`, `cat /proc/kmsg`); `for ((;;))`; a command
 substitution in an unquoted here-doc body; a `for`/`if` block or `{ }` group whose stdin is redirected from an endless
-source around a filter; a `sleep $n` with a variable; `pnpm --filter x dev`; a counter that never moves. Foreground
+source around a filter; a `sleep $n` with a variable; `pnpm --filter x dev`. In B (round 4): a counter that never
+moves, or is unset or non-numeric (`until [ $x -ge 5 ]` errors and repeats); quotes are removed before B is checked, so
+`'$i'` and `\$i` read as the variable; word splitting of an unquoted `$i`; a counter set by `eval` or a backquote
+assignment; `read -u fd` / `exec 0<` in the body; a body that appends to its own `done < f` file; `/proc/self/fd/0`;
+sed's `e` command in a filter; the loop text inside `timeout 0|inf bash -c '...'` (`timeoutOk` refuses 0 and `inf` for a
+loop it sees). Foreground
 `tail -f` / `watch` without a loop are out of scope (the Bash tool timeout ends them). Goldens:
 `packages/contracts/golden/ops/ops.wait.jsonl` (generated from Lean).
 
@@ -100,6 +121,15 @@ stdin (`cat -`, `cat |`, `grep x -`, `rg x -`, `< /dev/stdin`, `while read` with
 `head -c 10 /dev/zero`; `< <(git log | cat)`; a counter checked by `break` in the body. Misses 7, all blind spots:
 `cat /proc/kmsg`, `cat fifo`, `(sleep 300) &`, `{ sleep 300; } &`, `bash -c 'while true...'`, a function body, and
 `while [ $x -lt 5 ]` with no increment.
+Round 4 (allowlist grammar B; also `read -n 0|-N 0|-t 0` never counts as a read, backslash-newline is joined before
+parsing, `2>/dev/null` in a producer is not a device, `git worktree|stash list` are producers), MEASURED on 4810 records
+(all recovered): 4807 allow, 3 deny, the same 3 true positives (the `gh run view` poll, the reviewer here-doc corpus,
+`until grep -qE ... ; do sleep 5; done`). Against round 3 on the same 4810 records: 0 newly denied, 2 newly allowed
+(round-3 false denies on new records: `git worktree list --porcelain | awk | grep | while read`, `ls -t ... 2>/dev/null |
+head -3 | while read`). False denies 0. Synthetic 80-row corpus: 1 mismatch, by design: `until [ $SECONDS -ge $end ]` is
+now denied (a limit in a variable; no real record used it). Every round-3 reviewer probe with verdict deny (`$( )` polls
+via `gh`/`ls`/`pgrep`, `$$`, `$#`, `$RANDOM`, `${x:-0}`, `$((0))`, SECONDS the wrong way, `!`, comma, ternary, hex,
+octal in `(( ))`, `read -n 0`, `whi\⏎le`) is a `#guard` in `Fw/Ops/Wait.lean` and a golden row (`r4:`).
 
 ## Turning enforce on (lead hands this to the user)
 After this lands on `main`: in the main checkout run `cd lean && lake build fwcore`; probe once, the reply must be
