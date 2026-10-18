@@ -4869,6 +4869,26 @@
     "lean/Fw/Ops/Golden.lean",
     "docs/team/handoffs/console-lan-owner.md"
    ]
+  },
+  {
+   "id": "wait-guard-enforce-3",
+   "title": "(S) wait-guard round 6: loop variables by allowlist (lowercase name assigned a decimal literal earlier in the same command, not a zsh lowercase special from pinned zsh params.c; SECONDS with N <= 86400; every uppercase shell variable rejected without a list), docs for bash 3.2; then hand the user the enforce switch",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "wait-guard-enforce-2"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Wait.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/runner/hooks/wait-guard.mjs",
+    "apps/runner/test/**",
+    "docs/team/tools/wait-guard.md",
+    "docs/team/handoffs/wait-guard-enforce.md",
+    "docs/team/handoffs/wait-guard-enforce-2.md"
+   ]
   }
  ],
  "deadline": {
