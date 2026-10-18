@@ -18,7 +18,12 @@ const MIME: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
 };
 
-export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, previews?: PreviewManager, owner: OwnerAuth = new OwnerAuth()) {
+/** Which code this process runs: the commit of its checkout when it started (its base) and the start time (ms,
+ *  informational). `fw watch` asks whether the range base..main touches the process's input files (fwcore `svc.stale`);
+ *  api.json also holds the build commit of the fwcore child (`coreCommit`, or `coreUnknown`). */
+export interface ServiceInfo { commit: string | null; startedAt: number }
+
+export function createApp(store: Store, webDist?: string, reconciler?: Reconciler, previews?: PreviewManager, owner: OwnerAuth = new OwnerAuth(), service?: ServiceInfo) {
   const app = new Hono();
   // a failed core call (fwcore crash, bad reply) fails the request; the core restarts itself
   app.onError((e, c) => c.json({ ok: false, reason: `decision core failed: ${e.message}` }, 500));
@@ -46,7 +51,14 @@ export function createApp(store: Store, webDist?: string, reconciler?: Reconcile
   if (previews) mountPreview(app, store, caps, previews, owner); // task detail panel + owner-only preview (task-preview)
   app.get("/api/board", async (c) => c.json(await store.board()));
   app.get("/api/plan", async (c) => c.json((await store.board()).plan)); // the work graph, derived by fwcore
-  app.get("/api/health", (c) => { c.header("x-fw-console-pid", String(process.pid)); return c.json(readLatestHealth(store.dir)); }); // the pid header lets `owner-link` prove which process it signals // latest `fw watch` check (fwcore obs.health output) or null
+  // latest `fw watch` check (fwcore obs.health output) with the running code's `service` ({commit, startedAt}), or null
+  // before any check; GET /api/service is the same `service` object without needing a check
+  app.get("/api/health", (c) => {
+    c.header("x-fw-console-pid", String(process.pid)); // lets `owner-link` prove which process it signals
+    const h = readLatestHealth(store.dir);
+    return c.json(h && service ? { ...h, service } : h);
+  });
+  app.get("/api/service", (c) => c.json(service ?? null));
   app.get("/api/events", (c) => {
     const since = Number(c.req.query("since") ?? 0);
     return c.json(store.readEvents().filter((e) => e.seq > since));

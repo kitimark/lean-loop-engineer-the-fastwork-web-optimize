@@ -48,9 +48,9 @@
 {"countType":"renderingUpdates","engine":"webkit","prediction":"=o","scenario":"P4","stage":"commit","variant":"scrollDriven"}
 {"countType":"styleRecalcs","engine":"webkit","prediction":">0","scenario":"P5","stage":"style","variant":"original"}
 {"countType":"layoutUpdates","engine":"webkit","prediction":">0","scenario":"P5","stage":"layout","variant":"original"}
-{"countType":"compositingUpdates","engine":"webkit","prediction":"=0","scenario":"P5","stage":"props","variant":"original"}
+{"countType":"compositingUpdates","engine":"webkit","prediction":">0","scenario":"P5","stage":"props","variant":"original"}
 {"countType":"renderingUpdates","engine":"webkit","prediction":">0","scenario":"P5","stage":"commit","variant":"original"}
 {"countType":"styleRecalcs","engine":"webkit","prediction":"=o","scenario":"P5","stage":"style","variant":"js3d"}
 {"countType":"layoutUpdates","engine":"webkit","prediction":"=0","scenario":"P5","stage":"layout","variant":"js3d"}
-{"countType":"compositingUpdates","engine":"webkit","prediction":">o","scenario":"P5","stage":"props","variant":"js3d"}
+{"countType":"compositingUpdates","engine":"webkit","prediction":"=o","scenario":"P5","stage":"props","variant":"js3d"}
 {"countType":"renderingUpdates","engine":"webkit","prediction":"=o","scenario":"P5","stage":"commit","variant":"js3d"}

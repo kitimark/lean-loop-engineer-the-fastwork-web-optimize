@@ -97,3 +97,44 @@ commit) and fail at the compositor boundary (layout, paint, raster, props of an 
 coarser than the engine. Parts whose theorems rest on those stages for promoted elements (hero-exit, morph-mount,
 morph-panel, people-card, people-deck, pain-notes, nav-hittest) are sound only where their change avoids the counterexample
 list. A model fix would split `layoutPos`, `layoutFull` and `paint` per placement (a follow-up for the model owner).
+
+## Model fix (task engine-model-fix, 2026-10-18)
+
+Every counterexample cell of run 39088367495 is now predicted: `Fw.Ops.EnginePremise.cr_recorded_holds` and
+`wk_recorded_holds` rebuild all 190 step cells from the recorded presences (`crRecorded`, `wkRecorded`) and get
+`holds` for every observer (PROVED). The records were checked against the run's `premise-verdict` artifact: old
+expectation XOR offending cell gives the record for all 130 + 60 steps, and the regenerated golden predicts each one
+(MEASURED, scratch script, 0 differences). The seven rules moved from `untestedPremises` into `registry` as lane
+premises (p24-p30, `refuted_registered`); 5 untested remain (cr.comp, cr.signature, cr.mode, wk.script, wk.paint).
+
+Confirmation on fresh data (MEASURED: run 39106547260, commit 898c416, the same lane: 3 Chromium passes, 6 WebKit
+passes): all 12 measured stage rules hold, Chromium 130/130 cells per stage (script, style, layout, props, paint,
+raster, commit, hits), WebKit 60/60 (style, layout, props, commit); no mismatch, unstable or missing cell.
+
+| Premise | Model change (Lean) |
+|---|---|
+| cr.layout, cr.paint, cr.raster | `keyLevel`: top/left/margin @own -> new level `layoutMove` (style, layout, props, commit); scale, blur filter, transform toggle @own -> `raster`; the level order is stage inclusion (`layoutMove_raster_incomparable`), `CrLevel.max` joins incomparable levels to `layoutFull` |
+| cr.props | `chromiumAt.base = [props]`: every updating main frame runs PrePaint (`local_frame_view.cc:2586`@f842f52) |
+| cr.hits | `crWorkH.hits` adds one hover hit test per frame that lays out (`crHover`, `crWorkH_hits`) |
+| wk.layout | `filter` (outsets change) is Layout; `filterPainted` keeps the old Equal+Filter rule |
+| wk.props | `props` comes from the compositing table `wkCompUpdate` (`wkStages`, `mem_wkStages`) |
+
+### Sign changes (claims whose verdict changed)
+
+| Claim | Engine | Old | New | Lean why |
+|---|---|---|---|---|
+| morph.panel own layer during the blur fade (ledger n=11) | Chromium | trade (raster -1) | no-win (equal work, +1 layer) | `cr_fade_stages`, `cr_fade_eq`, `cr_fade_noClaim` |
+| morph.panel blur(0) -> filter:none at rest (n=11) | WebKit | trade (toggle +1 layout unit) | win (toggle frames equal) | `wk_toggle_layout_units`, `wk_toggle_eqv`, `wk_rest_claim` |
+| WebKit table P5 js3d vs 2D transform | WebKit | compositingUpdates `>o` | `=o` | `webkit.jsonl` rows, `predOf` guards |
+| WebKit union-check pair (transform@own + insetAbs vs background@layer + size) | WebKit | accepted | rejected | `unionLe` guards in `Fw.Engine.WebKit` |
+
+Strength changes without a sign change: hero-exit Chromium raster `<o` -> `≤o` and WebKit compositingUpdates `≤o` ->
+`<o` (still a trade on both); pain-notes and people-card Chromium PrePaint `=o` -> `≤o` (the gated variants also skip
+the base PrePaint of a callback-only frame); morph.panel WebKit fade is still a trade, now paint -1 and props -1 per
+frame and dominated frame by frame (`wk_fade_le`, `wk_fade_trade`). Ledger notes for the two ledger sign changes are
+keyed (entry, engine-model-fix).
+
+General lesson: a stage model calibrated per property and not per (property, placement) misprices exactly the
+compositor-boundary cases that optimizations target (promotion, own layers, filter radius), so every claim that
+promotes an element must cite the per-placement row, and a refuted premise must be followed by a sweep of the claims
+that cite it.
