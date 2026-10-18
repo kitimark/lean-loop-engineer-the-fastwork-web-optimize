@@ -37,6 +37,13 @@ def aliveN (p role kind : String) (n : Nat) : String :=
   "[" ++ ",".intercalate ((List.range n).map fun k =>
     s!"\{\"name\":\"{p}{k}\",\"role\":\"{role}\",\"kind\":\"{kind}\"}") ++ "]"
 
+/-- An `ops.wait` request for one Bash command, with optional `caps` (a JSON text). -/
+def wait' (cmd : String) (caps : String) : Json :=
+  Json.mkObj [("cmd", .str cmd), ("caps", lit caps)]
+
+/-- An `ops.wait` request for one Bash command. -/
+def wait (cmd : String) : Json := Json.mkObj [("cmd", .str cmd)]
+
 /-- The cases, per op file: (file stem, [(name, request without op)]). -/
 def cases : List (String × List (String × Json)) := [
   ("ops.spawn", [
@@ -152,7 +159,33 @@ def cases : List (String × List (String × Json)) := [
     ("summary: null fields count as main, ?, no error and 0 ms", lit "{\"lines\":[{\"hook_event_name\":\"PostToolUse\",\"agent_type\":null,\"tool_name\":null,\"is_error\":null,\"duration_ms\":null}]}"),
     ("empty request: no keys, no rows", lit "{}"),
     ("record without ts is refused", lit "{\"records\":[{\"hook_event_name\":\"Stop\"}]}"),
-    ("fractional duration is refused", lit "{\"lines\":[{\"hook_event_name\":\"PostToolUse\",\"duration_ms\":1.5}]}")])]
+    ("fractional duration is refused", lit "{\"lines\":[{\"hook_event_name\":\"PostToolUse\",\"duration_ms\":1.5}]}")]),
+  ("ops.wait", [
+    ("fw watch with a trailing &: deny bgLong fwWatch", wait "pnpm fw watch --until-alert &"),
+    ("fw watch in the foreground: allow", wait "pnpm fw watch --until-alert"),
+    ("fw watch behind && and &: the whole list is backgrounded: deny", wait "cd x && node apps/runner/fw.mjs watch &"),
+    ("test run sent to the background with a log: allow (not long-running)", wait "pnpm test > log.txt 2>&1 &"),
+    ("2>&1 and &> are redirects, not background: allow", wait "pnpm vitest run 2>&1 | tail -5; cmd &> out.log"),
+    ("& inside quotes is text: allow", wait "echo 'pnpm fw watch &' \"a & b\""),
+    ("until loop with &: deny bgLong loop", wait "until grep -q done out.txt; do sleep 5; done &"),
+    ("until loop in the foreground with no bound: deny unboundedLoop", wait "until grep -q done out.txt; do sleep 5; done"),
+    ("while loop in the foreground with no bound: deny unboundedLoop", wait "while true; do sleep 60; done"),
+    ("until loop with a counter test: allow", wait "i=0; until [ $i -gt 5 ]; do sleep 5; i=$((i+1)); done"),
+    ("until loop with a clock deadline: allow", wait "end=$((SECONDS+60)); until [ $SECONDS -ge $end ]; do sleep 2; done"),
+    ("until loop wrapped in timeout: allow", wait "timeout 60 until grep -q x f; do sleep 1; done"),
+    ("for loop backgrounded around fw watch: deny bgLong fwWatch", wait "for f in a b; do pnpm fw watch; done &"),
+    ("long sleep with &: deny bgLong longSleep", wait "sleep 600 &"),
+    ("sleep with a minute suffix behind &&: deny", wait "sleep 2m && echo hi &"),
+    ("short sleep with &: allow", wait "sleep 5 &"),
+    ("sleep over the cap set by caps: deny", wait' "sleep 10 &" "{\"maxSleepSec\":5}"),
+    ("dev server with &: deny bgLong server", wait "pnpm dev &"),
+    ("node server script with &: deny bgLong server", wait "node apps/console-api/server.mjs & sleep 1; curl localhost"),
+    ("tail -f with &: deny bgLong tail", wait "tail -f x.log &"),
+    ("only the unit before & counts: a later foreground fw watch is allowed", wait "echo hi & pnpm fw watch"),
+    ("newline continues an and-or list: the backgrounded list is long: deny", wait "a &&\n pnpm dev &"),
+    ("comment is ignored: allow", wait "echo hi # pnpm fw watch &"),
+    ("empty command: allow", wait ""),
+    ("missing cmd is refused", lit "{}")])]
 
 /-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
 def extra : List (String × String × List (String × Json)) := [
