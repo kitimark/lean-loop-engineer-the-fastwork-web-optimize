@@ -4847,6 +4847,27 @@
     "docs/team/tools/workflow-patterns.md",
     "docs/team/handoffs/workflow-salvage.md"
    ]
+  },
+  {
+   "id": "console-lan-owner",
+   "title": "(M) console owner without a terminal + phone on the same Wi-Fi: owner passphrase from macOS keychain (service fw-console-owner) with a login page and Lean-decided rate limit; opt-in LAN mode (bind LAN address at runtime, every LAN request owner-gated except login, per-device cookie); previews proxied through the console port so the gate covers them; just-in-time previews with Lean idle stop (15 min no request) besides the 60 min TTL",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "task-preview-2"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "apps/console-api/**",
+    "apps/console-web/**",
+    "lean/Fw/Console/Preview*.lean",
+    "packages/contracts/golden/console/**",
+    "docs/team/handoffs/task-preview.md",
+    "docs/team/handoffs/task-preview-2.md",
+    "docs/team/tools/**",
+    "lean/Fw/Ops/Golden.lean",
+    "docs/team/handoffs/console-lan-owner.md"
+   ]
   }
  ],
  "deadline": {
