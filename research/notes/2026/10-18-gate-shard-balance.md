@@ -112,8 +112,9 @@ Threat model: the gate must never report pass while a compared state was not com
   Under the frozen clock `t = 16 * frames`, so the 60-frame budget decides (`spent_frozen_frames`), the wait depends only on the
   first 62 steps (`wait_frozen_agree`), and a real clock gives machine-dependent outcomes where the frozen one does not
   (`real_clock_machine_dependent`, `frozen_machine_independent`). `freeze_independent_of_elapsed`, `freeze_idem`,
-  `runCount_freeze`, `settled_frozen_anims`: the frozen state does not depend on how long the machine took. `alignTarget_eq`,
-  `stop_stays_in_cell`, `harness_grid_fits`: both arms leave every sweep stop at the same fake instant.
+  `runCount_freeze`, `settled_frozen_anims`: the frozen state does not depend on how long the machine took. Round 2 aligned
+  sweep stops to a fake-time grid (`alignTarget_eq`, `stop_stays_in_cell`, `harness_grid_fits`); round 3 replaced that with
+  absolute instants (below), which also cover the overlay and mount stages the grid did not.
 - **Settled ratio (MEASURED, 3 runs x 2 engines):** 392 of 392 samples settled (0 unsettled, 0 missing) in all 6 engine results;
   waits are 3 frames, 48 ms of fake time in Chromium. Baselines: 80 of 392 (20.4%).
 - **Wall and cost (run 39116538316, the other two within 0.2 min):** gate wall 5.0 min (first gate job 09:45:50, last end
@@ -139,6 +140,57 @@ Threat model: the gate must never report pass while a compared state was not com
 - **A bug the first two runs found (39114796757, 39114847922, commit b70291b):** main's anchors had no `kind` on the
   morph.countdown and morph.columns mount steps, so the original panel never mounted and 13 failing rows read 0 original nodes. The runner
   now refuses an unknown prepare kind and `test/prepare.test.mjs` checks every step.
+
+## Round 3 (final design round): same instant by identity, a verdict per cell
+Threat model: the gate never passes an engine unless every cell was compared and passed with both arms observed in the same
+state. A faster or greener gate must never come from comparing less or comparing different instants.
+- **Same instant by identity (`Fw.Gate.Freeze`, section Instants; `src/freeze.mjs`, `run.mjs`).** Each observation is read at an
+  absolute fake time `instant = base + mainOff + slotMs * rank` (mainOff 2000, slotMs 4000, readyTo 10000; ranks: main 0,
+  overlay j 1+j, mount nOv+1, view part nOv+2+q; `stopBase i n = readyTo + i * (mainOff + slotMs * (n+2))`). The harness holds
+  the clock to that instant, whatever prepare or mount stage that arm ran before (`holdTo` never moves back). The step lists of
+  the two arms are unioned, so an arm without a step still holds to the same instant. Proved: `both_arms_same_instant`,
+  `mount_same_instant` (an orig-only mount stage), `instant_before_next`, `rank_order`, `readings_of_fits`, `fits_of_readings`.
+  A stage that does not fit its slot is `unfit`: the sample is flagged unsettled (`overshoot_flagged`, `unfit_never_pass`),
+  never read at another time. `test/freeze.test.mjs` runs an orig-only mount step on a mock session and checks equal clock
+  readings; the page records of the four final runs hold no `late` row (0 unfit instants).
+- **One verdict per cell, no aggregate (`Fw.Gate.Exit`).** `engine_pass_iff_all_cells`: an engine passes iff no sample is
+  unsettled, every cell is `ok` (passed, or excused) and some cell passed. `exit_zero_iff_all_cells`, `exit_ne_zero_of_cell`,
+  `engineVerdictC_nc_ne_pass`: a not-comparable or unreachable cell with no exemption keeps the exit non-zero; a failing cell is
+  never excusable (`exemptions_verdict`, `excuse_not_pass_fail`). New engine verdict `incomplete`. A not-run cell is `ok` only in
+  a run narrowed to parts (`header.parts`), never in a full run.
+- **Allowlist printed in the verdict (`Fw.Gate.Exit.exemptions`, read by `cli.mjs` from `exit.jsonl`, no list of its own):**
+
+  | id | engine | cell | verdict | premise |
+  |---|---|---|---|---|
+  | webkit-cross-primary-pair | playwright-webkit | any row x `hover-pointer-cross` | unreachable:primary-pair | `matrix_cross_webkit` |
+  | webkit-fractional-whole-width | playwright-webkit | any row x `fractional-gaps` | unreachable:whole-width | `matrix_fractional_webkit` |
+  | chromium-matchmedia-lean-fractional | chromium | `matchMedia =Lean` x `fractional-gaps` | not-comparable | `truthItems_lean_na` |
+
+  Printed per run: Chromium 252 cells, 251 pass + 1 excused; WebKit 252 cells, 215 pass + 36 excused (18 + 18) + 1 fail.
+- **Accepted limits (stated, not hidden).**
+  1. Settling is by construction under the frozen clock (`runCount_freeze`, `settled_frozen_anims`). The evidence is identical
+     per-cell verdicts across runs (below), not the settled ratio: 392 of 392 samples settled in every run is what the
+     construction predicts, so it cannot be an independent check.
+  2. The 1 WebKit cell `platform.stageBg x sweep desktop-1512-320-1512` fails (stage and grain height 351.8 vs 319.6 px at 481
+     to 320 wide). Main has it too. It stays a failure, so the WebKit gate job exits 1 by design.
+  3. Frozen time is a different state from "after N real seconds" (round 2 limit, unchanged).
+- **Per-cell comparison (MEASURED).** Runs on the same code head 9d620c16: 39121185833 (push) and 39121195975 (dispatch); on
+  the previous head acc2a006 (same gate code): 39119690406 and 39119721449; round 2: 39116538316; main: 39102911533.
+  504 cells (252 per engine) compared across all six result sets. Chromium: 0 cells differ anywhere. WebKit: the same 12 cells
+  differ between main and every round-2/3 run and nowhere else: hero.countdown (desk, touch, touch-rm, phone-landscape, dark)
+  and hero.exit (desk, touch, touch-rm, phone-landscape, dw-arm-isolate, dark, sweep touch-1024-1201), `fail` on main and `pass`
+  now, for the reason given in round 2 (frames read while an exit or tween was in flight in one arm). No cell changed between
+  round 2 and round 3: the instants and the per-cell rule change what is guaranteed, not what these 504 cells say.
+- **Cost (MEASURED, job durations).** Round 3: gate jobs 27.7 job-minutes (run 39121185833; the other three 27.1 to 28.0); the
+  longest WebKit job 5.8 min and the first-to-last gate wall about 5.9 min. Round 2: 25.9 job-minutes, 5.0 min. About 7% more
+  job-minutes and 0.9 min more wall (INFERRED cause: a stop now spans a fixed 10 s of fake time, which the harness steps frame
+  by frame; not isolated by a run that changes only that). Round 1: 65.1 job-minutes, 12.2 min.
+- **Found on the way:** round 2 had removed `mountPanel` from `page.mjs` and the stage-less `prepareInPage`, which
+  `packages/snapshot-extract` imports; its workflow failed at import time on the first r3 push (39119690415). Restored
+  (`test/consumers.test.mjs` now checks every imported name). Not mine: `mutants` fails on main too (SpawnGuard survivors).
+- **Followup, not in this task (one change per task):** the align-self canonicalisation of a reading (`canonArm`, `canonParts`,
+  `collectWith`, `attachAlign`) was taken out of this branch. `canonParts` is called nowhere on main, and
+  `docs/team/handoffs/gate-align-equiv.md` assigns the call-site edits to integrate-ports. Its own task.
 
 ## Lessons
 - A settle wait needs a frame budget, not only a time cap. A page with a permanent animation never becomes still, so
