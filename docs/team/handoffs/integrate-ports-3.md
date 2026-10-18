@@ -11,7 +11,8 @@ Generated files replayed (sweepsgen, partsgolden, scopegen, ci-paths): no furthe
 | 39101532038 | merge | morph.countdown wrap margin-top (40 probes), commission inner/rows margin-inline desk-rm-1280, hero.orbit card z-index desk-rm-860 | morph.countdown wrap margin-top |
 | 39105279831 | a1eccb8 | hero.orbit card z-index desk-rm-861 | commission: 11 probes (view reading flips scene state), touch-rm-1000/1201 |
 | 39108604447 | 9e23e15 | hero.orbit card z-index desk-rm-860 | pass (72 cells) |
-Run 4 (this head): orbit z-index skipped in anchors.json (result in the final report).
+| 39112059806 | bf7b417 | pass | pass |
+Run 4 is green on both engines. After it, main (0cc1dfa) was merged (d2f81e6: *Opt modules re-taken from main, registry 32); no gate input changed.
 
 ## Cells
 1. pain.notes note x: PASSES since fix-page-offset (the 152 px page offset was the cause), all three runs.
