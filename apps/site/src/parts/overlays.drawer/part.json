@@ -1,0 +1,13 @@
+{
+  "id": "overlays.drawer",
+  "slot": "overlays",
+  "anchors": ["overlay-drawer"],
+  "experiment": true,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:2893-3030; assets/2.gBuqKVzi.css:684-914,1145-1165,1215-1218" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

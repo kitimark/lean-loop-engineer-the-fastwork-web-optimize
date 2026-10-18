@@ -347,7 +347,9 @@ CI lane of their own asserts (kind `lane`): $p_{18}$, the WKTR style-rate premis
 the `engine-premises.yml` lane measured and found to hold (`cr.script`, `cr.style`, `cr.commit`, `wk.style`,
 `wk.commit`; task engine-premise-measure).
 
-$$\operatorname{registry} = [p_1, \dots, p_{23}]$$
+The two `content-visibility` view premises of fix-commission-margin ($p_{24}$, $p_{25}$: `cv.skip-flag`, `cv.fresh-after-resize`) are page tests.
+
+$$\operatorname{registry} = [p_1, \dots, p_{25}]$$
 -/
 def registry : List Premise := [
   { id := "anim.list"
@@ -445,6 +447,16 @@ def registry : List Premise := [
     ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound"],
   laneRule "wk.commit" "commit" r"\texttt{renderingUpdates}" r"W_{\mathrm{wk}}" .webkit
     ["Fw.Engine.WebKit.base_commit", "Fw.Engine.WebKit.scroll_commit"],
+  { id := "cv.skip-flag"
+    statement := r"\forall n:\ n \text{ is in a subtree the engine has skipped (} \texttt{content-visibility:auto} \text{, off screen)} \iff \texttt{checkVisibility}() \wedge \neg\,\texttt{checkVisibility}(\{\mathrm{contentVisibilityAuto}\})\text{; after } \texttt{scrollIntoView} \text{ and two frames the node is no longer skipped}"
+    theorems := ["Fw.Gate.Settle.viewCell_notRendered_iff", "Fw.Gate.Settle.skipped_after_view_only_if_brought"]
+    engines := both
+    testId := "prem.cv.skip-flag" },
+  { id := "cv.fresh-after-resize"
+    statement := r"\forall n \text{ with } \texttt{margin-inline:auto} \text{ and } \texttt{max-width}=m:\ \text{after a viewport resize while } n \text{ is skipped, once } n \text{ is brought into view and three frames pass, } \texttt{getComputedStyle}(n).\mathrm{margin\text{-}left} \text{ equals the geometry-derived margin } (\text{container width} - m)/2"
+    theorems := ["Fw.Gate.Settle.view_bring", "Fw.Gate.Settle.viewCell_fail_of_rendered_diff"]
+    engines := both
+    testId := "prem.cv.fresh-after-resize" },
   { id := "wktr_scroll_timeline_restyle"
     statement := r"\text{WKTR, one rendering update per scroll step: } \Delta\texttt{styleRecalcCount} = (\mu_{\mathrm{control}}, \mu_{\mathrm{timeline}}, \mu_{\mathrm{timeAccel}}) = (0, 1, 0) \text{ for a static control, a transform animation on } \texttt{scroll()} \text{ and an accelerated time-based transform animation}"
     theorems := ["Fw.Engine.WebKit.style_rate_model", "Fw.Engine.WebKit.style_rate_old_refuted"]

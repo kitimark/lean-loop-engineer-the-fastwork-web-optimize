@@ -1,0 +1,13 @@
+{
+  "id": "nav.langMenu",
+  "slot": "nav",
+  "anchors": ["nav-lang"],
+  "experiment": false,
+  "impls": ["plain"],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12720-12880; assets/2.gBuqKVzi.css:11106-11295" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}

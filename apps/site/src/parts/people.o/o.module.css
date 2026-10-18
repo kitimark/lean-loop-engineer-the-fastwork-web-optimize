@@ -1,0 +1,352 @@
+/* Values restated from the original (assets/2.gBuqKVzi.css:2430-2780 the "o" and the preview card, 3566-3569 phone,
+   3614-3626 reduced motion). Faces are neutral fills (the photos are not shipped). State classes (isStack, isExpanded,
+   isHovered) come from the part's state, which changes at event times, never per frame. */
+@layer parts {
+  .srOnly {
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    position: absolute;
+    overflow: hidden;
+  }
+  .o {
+    vertical-align: baseline;
+    flex-shrink: 0;
+    grid-template-columns: minmax(0, 0.6042em);
+    min-width: 0;
+    height: 1.0417em;
+    transition:
+      grid-template-columns 0.92s cubic-bezier(0.22, 1, 0.36, 1),
+      height 0.92s cubic-bezier(0.22, 1, 0.36, 1);
+    display: inline-grid;
+    position: relative;
+    overflow: hidden;
+  }
+  .o.isExpanded {
+    grid-template-columns: minmax(0, 5.25em);
+    height: 1.0833em;
+    overflow: visible;
+  }
+  .o.isStandalone {
+    align-self: center;
+    margin-inline-start: 0.28em;
+  }
+  .stage {
+    pointer-events: none;
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    position: relative;
+    overflow: visible;
+  }
+  .vector {
+    z-index: 2;
+    opacity: 1;
+    transform-origin: 50%;
+    width: 0.533em;
+    height: 0.542em;
+    transition:
+      opacity 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+    display: block;
+    position: absolute;
+    top: 0.3281em;
+    left: 0.035em;
+    transform: scale(1);
+  }
+  .ring {
+    box-sizing: border-box;
+    border: 0.09em solid currentColor;
+    border-radius: 50%;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .o.isStack .vector {
+    opacity: 0;
+    filter: blur(0.6px);
+    transform: scale(1.75);
+  }
+  .stack {
+    z-index: 1;
+    opacity: 0;
+    align-items: center;
+    width: 5.1667em;
+    height: 1em;
+    display: flex;
+    position: absolute;
+    top: 0.0417em;
+    left: 0.0417em;
+  }
+  .o.isStack .stack {
+    opacity: 1;
+    transition: opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .face {
+    z-index: calc(1 + var(--o-face, 0));
+    box-sizing: border-box;
+    opacity: 0;
+    pointer-events: none;
+    appearance: none;
+    font-size: inherit;
+    transform-origin: 50%;
+    background: #fff;
+    border: 2px solid #e4e8eff7;
+    border-radius: 999px;
+    flex: none;
+    width: 1em;
+    max-width: 1em;
+    height: 1em;
+    margin: 0 -0.1667em 0 0;
+    padding: 0;
+    transition:
+      opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.56s cubic-bezier(0.22, 1, 0.36, 1),
+      max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      margin 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      border-width 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    display: block;
+    position: relative;
+    overflow: hidden;
+    transform: scale(0.72);
+  }
+  .o.isExpanded .face:not(:disabled) {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  .face:is(:hover, :focus-visible),
+  .face.isHovered {
+    z-index: 8;
+  }
+  .face:focus-visible {
+    outline-offset: 2px;
+    outline: 2px solid #2b313b;
+  }
+  .faceFill {
+    background: #d9d9d9;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .o.isStack .face {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .o.isStack:not(.isExpanded) .face {
+    transition-delay: calc(var(--o-face, 0) * 0.17s);
+  }
+  .o.isStack.isExpanded .face:is(:hover, :focus-visible) {
+    transition-duration: 0.14s;
+    transform: scale(1.18);
+  }
+  .face:last-child {
+    margin-right: 0;
+  }
+
+  .preview {
+    z-index: 120;
+    color: #171717;
+    color-scheme: light;
+    width: min(320px, 100vw - 24px);
+    text-align: left;
+    animation: 0.16s cubic-bezier(0.22, 1, 0.36, 1) both previewIn;
+    position: fixed;
+  }
+  .sellerCard {
+    box-sizing: border-box;
+    color: #171717;
+    background: #fff;
+    border-radius: 12px;
+    flex-direction: column;
+    width: 100%;
+    display: flex;
+    overflow: hidden;
+    box-shadow: 0 16px 40px #10182824;
+  }
+  .sellerHero {
+    z-index: 0;
+    flex: none;
+    width: 100%;
+    margin-bottom: -40px;
+    position: relative;
+  }
+  .sellerStrip {
+    box-sizing: border-box;
+    background: #fff;
+    gap: 2px;
+    width: 100%;
+    padding: 4px;
+    display: flex;
+  }
+  .sellerTile {
+    aspect-ratio: 176.33/172;
+    background: #d9d9d9;
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .sellerTile:first-child {
+    border-radius: 8px 0 0 8px;
+  }
+  .sellerTile:last-child {
+    border-radius: 0 8px 8px 0;
+  }
+  .sellerContent {
+    z-index: 1;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    padding: 16px;
+    display: flex;
+    position: relative;
+  }
+  .sellerAvatar {
+    z-index: 1;
+    background: #d9d9d9;
+    border-radius: 50%;
+    align-self: flex-start;
+    width: 56px;
+    height: 56px;
+    line-height: 0;
+    position: relative;
+    box-shadow: 0 0 0 2px #fff;
+  }
+  .sellerIdentity {
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    display: flex;
+  }
+  .sellerIdentity strong {
+    color: #171717;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    overflow: hidden;
+  }
+  .sellerIdentity p {
+    color: #0d0c2299;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
+    overflow: hidden;
+  }
+  .sellerCard dl {
+    align-items: flex-end;
+    gap: 24px;
+    margin: 0;
+    display: flex;
+  }
+  .sellerCard dl > div {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    display: flex;
+  }
+  .sellerCard dt {
+    color: #0d0c2299;
+    order: 2;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  .sellerCard dd {
+    color: #171717;
+    white-space: nowrap;
+    order: 1;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .sellerMessage {
+    color: #fff;
+    width: 100%;
+    height: 36px;
+    cursor: pointer;
+    background: #262626;
+    border: 0;
+    border-radius: 999px;
+    justify-content: center;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.2;
+    display: flex;
+  }
+  .sellerBio {
+    color: #171717b8;
+    text-overflow: ellipsis;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    display: -webkit-box;
+    overflow: hidden;
+  }
+  .sellerTags {
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+  }
+  .sellerTags li {
+    color: #262626;
+    background: #e5e5e5;
+    border-radius: 9999px;
+    align-items: center;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    display: inline-flex;
+  }
+  @keyframes previewIn {
+    0% {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @media (width<=860px) {
+    .face {
+      cursor: default;
+      pointer-events: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .o,
+    .vector,
+    .stack,
+    .face {
+      transition: none;
+      animation: none;
+    }
+    .o.isExpanded {
+      grid-template-columns: minmax(0, 5.25em);
+      height: 1.0833em;
+    }
+  }
+}

@@ -1,0 +1,240 @@
+/* Values restated from the original: assets/2.gBuqKVzi.css:1513-1517 (@property --copy-in), 1725-1900 (copy, headline,
+   call to action), 1984-1999 keyframes, 2031-2060 and 2128-2160 (<=600, reduced motion); index.html inline styles
+   (call-to-action stack, RSVP link, invite note). Placeholder text. The splash state comes from the hero stage's
+   `data-splash` (prep | run | done), set by hero.orbit. */
+@property --copy-in {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@layer parts {
+  .copy {
+    --copy-in: 0;
+    z-index: 3;
+    color: #2b313b;
+    text-align: center;
+    width: min(92vw, 900px);
+    max-width: 900px;
+    opacity: calc(var(--copy-in) * var(--exit-opacity));
+    filter: blur(calc((1 - var(--copy-in)) * 16px + var(--exit-scatter) * 18px));
+    transform: translateY(calc((1 - var(--copy-in)) * 12px + var(--exit-scatter) * -10px));
+    will-change: opacity, filter, transform;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    padding: 0 24px;
+    animation: 0.7s cubic-bezier(0.16, 1, 0.3, 1) 1.14s forwards copyFromRing;
+    display: flex;
+    position: relative;
+  }
+  [data-splash='prep'] .copy {
+    animation: none;
+  }
+  [data-splash='done'] .copy {
+    --copy-in: 1;
+    animation: none;
+  }
+  .copyMain {
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    display: flex;
+    overflow: visible;
+  }
+  .title {
+    color: #2b313b;
+    letter-spacing: -0.025em;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    font-size: clamp(40px, 4.5vw, 64px);
+    font-weight: 500;
+    line-height: 1.15;
+    display: flex;
+    overflow: visible;
+  }
+  .line {
+    line-height: 1.15;
+  }
+  .words {
+    white-space: nowrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: clamp(14px, 1.6vw, 24px);
+    font-weight: 500;
+    line-height: 1.15;
+    display: flex;
+    overflow: visible;
+  }
+  :global(html[dir='rtl']) .words {
+    flex-direction: row-reverse;
+  }
+  .copy p {
+    color: #2b313b;
+    max-width: 42rem;
+    margin: 0;
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  /* call to action stack (index.html inline styles; the gradient border pseudo-elements are display: none in the original) */
+  .ctaStack {
+    flex-direction: column;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 8px;
+    display: grid;
+  }
+  .ctaStack > .note {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+  .cta {
+    --hero-orbit-angle: 0deg;
+    isolation: isolate;
+    border-radius: 999px;
+    min-width: 80px;
+    min-height: 48px;
+    transition: transform 0.6s cubic-bezier(0.44, 0, 0.56, 1);
+    display: inline-flex;
+    position: relative;
+  }
+  .cta:hover {
+    transform: scale(1.04);
+  }
+  .cta button {
+    z-index: 1;
+    color: #fff;
+    min-width: 100%;
+    height: 48px;
+    cursor: pointer;
+    background: #131922;
+    border: 1px solid #fff3;
+    border-radius: 999px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 24px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    white-space: nowrap;
+    display: inline-flex;
+    position: relative;
+  }
+  .cta button:focus-visible,
+  .rsvp:focus-visible {
+    outline-offset: 3px;
+    outline: 2px solid #0569ff;
+  }
+  .rsvp {
+    box-sizing: border-box;
+    color: #131922;
+    border: 1px solid #d4d4d4;
+    border-radius: 999px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0 24px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    background-color: transparent;
+    transition: border-color 0.2s;
+    display: inline-flex;
+  }
+  .rsvp:hover {
+    border-color: #a3a3a3;
+  }
+  .icon {
+    flex: none;
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+  .copy .note {
+    color: #171717;
+    text-align: center;
+    white-space: nowrap;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+  }
+  .ctaStack .note.invite {
+    color: #737373;
+    text-wrap: balance;
+    white-space: normal;
+    max-width: 34ch;
+    font-size: 11px;
+    line-height: 15px;
+  }
+
+  @keyframes copyFromRing {
+    0% {
+      --copy-in: 0;
+    }
+    to {
+      --copy-in: 1;
+    }
+  }
+
+  @media (width<=600px) {
+    .copy,
+    [data-splash='done'] .copy {
+      --copy-in: 1;
+      width: 100%;
+      max-width: 393px;
+      opacity: var(--exit-opacity);
+      filter: none;
+      transform: translate(-50%, calc(var(--exit-scatter) * -8px));
+      gap: 40px;
+      padding: 0 20px;
+      animation: none;
+      position: absolute;
+      top: 20.6573%;
+      left: 50%;
+    }
+    .title {
+      letter-spacing: -1.6px;
+      font-size: 40px;
+      line-height: 1.15;
+    }
+    .words {
+      white-space: nowrap;
+      flex-wrap: nowrap;
+      gap: 12px;
+    }
+    .copy p {
+      max-width: 300px;
+      padding: 0;
+    }
+    .ctaStack {
+      grid-template-columns: auto;
+    }
+    .rsvp {
+      order: -1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .copy {
+      --copy-in: 1;
+      filter: none;
+      animation: none;
+    }
+    .cta,
+    .rsvp {
+      transition: none;
+    }
+  }
+}
