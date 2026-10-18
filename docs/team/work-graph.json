@@ -3245,7 +3245,8 @@
     "packages/gate-breakpoints/src/cli.mjs",
     "packages/gate-breakpoints/test/exit*.test.mjs",
     "packages/contracts/golden/gate/exit.jsonl"
-   ]
+   ],
+   "evidence": "01937d3"
   },
   {
    "id": "check-map-lean",
@@ -3565,7 +3566,8 @@
     "packages/visual-diff/**",
     "lean/Fw/Gate/Pixel.lean",
     "docs/team/handoffs/visual-diff-2.md"
-   ]
+   ],
+   "evidence": "371d1f4"
   },
   {
    "id": "wktr-fixture-speed",
