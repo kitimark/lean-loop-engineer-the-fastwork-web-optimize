@@ -1,7 +1,7 @@
 // Incident repros for `fw land` (docs/team/incidents/ledger.json): inc-commit-during-land, inc-land-scope-registrations,
 // inc-agent-on-ci-branch, inc-fw-lean-import-conflict. Decisions are Lean (Fw.Console.Land); these tests drive the real git.
 import "./land-timeout.ts";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -159,28 +159,39 @@ describe("inc-commit-during-land: the land lock", () => {
     const { fx, wt, lock, mainSha } = await setup();
     fx.commit(wt, "src/a.ts");
     const before = mainSha();
-    const script = join(realpathSync(tmpdir()), `fw-land-sig-${process.pid}.mts`);
+    // a fresh dir per run: a fixed `<pid>.started` name survived earlier runs (pid reuse), so the wait returned at once, before
+    // the land had taken the lock (the flake under load)
+    const dir = mkdtempSync(join(realpathSync(tmpdir()), "fw-land-sig-"));
+    const script = join(dir, "run.mts");
     const landSrc = join(here, "../src/land.ts");
-    const started = join(realpathSync(tmpdir()), `fw-land-sig-${process.pid}.started`);
+    const started = join(dir, "started");
     writeFileSync(script, [
       `import { land } from ${JSON.stringify(landSrc)};`,
       `const http = { get: async () => ({ status: 200, body: { tasks: [{ id: "t1", state: "todo", owner: "builder", stream: "s", writes: ["src/**"] }] } }), post: async () => ({ status: 200, body: { ok: true, refusals: [], scope: [], violations: [] } }) };`,
       `await land(${JSON.stringify(BR)}, { http, cwd: ${JSON.stringify(fx.root)}, prelock: false, checks: [["sh", "-c", ${JSON.stringify("touch " + started + "; exec sleep 30")}]], ci: false, task: "t1" });`,
     ].join("\n"));
-    const p = spawn(process.execPath, [script], { stdio: ["ignore", "inherit", "inherit"] });
-    // the check itself says it is running (merge open, lock held): no fixed pause, and `prelock: false` so that the signal
-    // really arrives under the lock (with the default the checks run before the lock and this test waited 17 s for nothing)
-    const t0 = Date.now();
-    while (!existsSync(started) && p.exitCode === null && Date.now() - t0 < 60_000) await new Promise((r) => setTimeout(r, 20));
-    expect(existsSync(started), "the check must have started").toBe(true);
-    expect(existsSync(lock()), "the lock is held while the check runs").toBe(true);
-    expect(p.exitCode, "the land process must still be running (in its checks)").toBeNull();
-    p.kill("SIGTERM");
-    await new Promise((r) => p.once("exit", r));
-    expect(existsSync(lock())).toBe(false);
-    expect(mainSha()).toBe(before);
-    expect(() => fx.git(fx.root, "rev-parse", "-q", "--verify", "MERGE_HEAD")).toThrow();
-  }, 40000);
+    // own process group, so the finally block can kill the land and its check (never by name)
+    const p = spawn(process.execPath, [script], { stdio: ["ignore", "inherit", "inherit"], detached: true });
+    const exited = new Promise<void>((r) => p.once("exit", () => r()));
+    try {
+      // the check itself says it is running (merge open, lock held): an event, not a fixed pause; `prelock: false` so the signal
+      // really arrives under the lock. Generous bound, well under the test timeout.
+      const t0 = Date.now();
+      while (!existsSync(started) && p.exitCode === null && Date.now() - t0 < 80_000) await new Promise((r) => setTimeout(r, 20));
+      expect(existsSync(started), "the check must have started").toBe(true);
+      expect(existsSync(lock()), "the lock is held while the check runs").toBe(true);
+      expect(p.exitCode, "the land process must still be running (in its checks)").toBeNull();
+      p.kill("SIGTERM");
+      await exited;
+      expect(existsSync(lock())).toBe(false);
+      expect(mainSha()).toBe(before);
+      expect(() => fx.git(fx.root, "rev-parse", "-q", "--verify", "MERGE_HEAD")).toThrow();
+    } finally {
+      if (p.exitCode === null && p.pid) { try { process.kill(-p.pid, "SIGKILL"); } catch { /* gone */ } }
+      try { if (p.pid) process.kill(-p.pid, "SIGKILL"); } catch { /* group already gone */ }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 100000);
 });
 
 describe("inc-land-scope-registrations: per-kind registration sets", () => {
