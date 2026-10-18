@@ -18,7 +18,7 @@ def checkCases : List (String × String × Json) := [
     paths ["apps/runner/src/fw.ts", "a.mjs", "b.js", "c.cjs", "x.json", "y.jsonl", ".github/workflows/lean.yml",
       "scripts/wt-prep.sh", "scripts/hooks/pre-commit", "tool.py", "packages/gate-breakpoints/a.swift", "app.webmanifest",
       "docs/plan/PLAN.md", "apps/site/src/a.css", "img.png", "LICENSE"]),
-  ("ops.checkMap", "Lean: modules and the lakefile build once (lake build, lake build fwtest); a script elaborates alone",
+  ("ops.checkMap", "Lean: modules and the lakefile build once (lake build); a script elaborates alone",
     paths ["lean/Fw/Ops/CheckMap.lean", "lean/lakefile.toml", "lean/scripts/OpsGolden.lean", "lean/Main.lean"]),
   ("ops.checkMap", "tsx: one tsc run per package", paths ["apps/site/src/a.tsx", "apps/console-web/src/b.tsx", "apps/site/src/c.tsx"]),
   ("ops.checkMap", "snapshot and research sketches are exempt, research JSON is not",

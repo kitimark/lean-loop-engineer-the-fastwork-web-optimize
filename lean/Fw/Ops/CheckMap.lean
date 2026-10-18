@@ -228,7 +228,7 @@ def pyProg : String := "import ast,sys\nfor f in sys.argv[1:]: ast.parse(open(f,
 /-- The commands of one check over its files `fs` (argv of our own CLI `scripts/checkmap.mjs file <mode>` where no
 standard tool parses the file).
 
-$$\mathrm{cmds}(c, F) = \begin{cases} [(\texttt{lean}, \texttt{lake build}, F), (\texttt{lean}, \texttt{lake build fwtest}, F)] & c = \mathtt{lakeBuild} \\ [(\texttt{lean}, \texttt{lake env lean}\ \mathrm{rel}(f), [f]) : f \in F] & c = \mathtt{leanElab} \\ [(\texttt{.}, \texttt{node --check}\ f, [f]) : f \in F] & c = \mathtt{nodeCheck} \\ [(\texttt{.}, \texttt{sh -n}\ f, [f]) : f \in F] & c = \mathtt{shParse} \\ [(\texttt{.}, \texttt{swiftc -parse}\ f, [f]) : f \in F] & c = \mathtt{swiftParse} \\ [(\texttt{.}, \texttt{node scripts/checkmap.mjs file tsc}\ g, [f \in F : \mathrm{pkg}(f) = g]) : g \in \mathrm{dedup}[\mathrm{pkg}(f) : f \in F]] & c = \mathtt{tscProject} \\ [(\texttt{.}, \mathrm{tool}(c) \mathbin{+\!\!+} F, F)] & c \in \{\mathtt{tsStrip}, \mathtt{jsonParse}, \mathtt{jsonlParse}, \mathtt{yamlParse}, \mathtt{pyParse}\} \\ [\,] & c = \mathtt{exempt} \end{cases}$$
+$$\mathrm{cmds}(c, F) = \begin{cases} [(\texttt{lean}, \texttt{lake build}, F)] & c = \mathtt{lakeBuild} \\ [(\texttt{lean}, \texttt{lake env lean}\ \mathrm{rel}(f), [f]) : f \in F] & c = \mathtt{leanElab} \\ [(\texttt{.}, \texttt{node --check}\ f, [f]) : f \in F] & c = \mathtt{nodeCheck} \\ [(\texttt{.}, \texttt{sh -n}\ f, [f]) : f \in F] & c = \mathtt{shParse} \\ [(\texttt{.}, \texttt{swiftc -parse}\ f, [f]) : f \in F] & c = \mathtt{swiftParse} \\ [(\texttt{.}, \texttt{node scripts/checkmap.mjs file tsc}\ g, [f \in F : \mathrm{pkg}(f) = g]) : g \in \mathrm{dedup}[\mathrm{pkg}(f) : f \in F]] & c = \mathtt{tscProject} \\ [(\texttt{.}, \mathrm{tool}(c) \mathbin{+\!\!+} F, F)] & c \in \{\mathtt{tsStrip}, \mathtt{jsonParse}, \mathtt{jsonlParse}, \mathtt{yamlParse}, \mathtt{pyParse}\} \\ [\,] & c = \mathtt{exempt} \end{cases}$$
 
 $$\mathrm{tool}(\mathtt{tsStrip}) = \texttt{node scripts/checkmap.mjs file ts}, \quad \mathrm{tool}(\mathtt{jsonParse}) = \texttt{node scripts/checkmap.mjs file json}, \quad \mathrm{tool}(\mathtt{jsonlParse}) = \texttt{node scripts/checkmap.mjs file jsonl}, \quad \mathrm{tool}(\mathtt{yamlParse}) = \texttt{ruby -ryaml -e}\ \mathrm{yamlProg}, \quad \mathrm{tool}(\mathtt{pyParse}) = \texttt{python3 -c}\ \mathrm{pyProg}$$
 
@@ -237,7 +237,7 @@ none.
 -/
 def cmdsFor (c : Check) (fs : List String) : List Cmd :=
   match c with
-  | .lakeBuild => [⟨c, "lean", ["lake", "build"], fs⟩, ⟨c, "lean", ["lake", "build", "fwtest"], fs⟩]
+  | .lakeBuild => [⟨c, "lean", ["lake", "build"], fs⟩]
   | .leanElab => fs.map fun f => ⟨c, "lean", ["lake", "env", "lean", rel f], [f]⟩
   | .nodeCheck => fs.map fun f => ⟨c, ".", ["node", "--check", f], [f]⟩
   | .shParse => fs.map fun f => ⟨c, ".", ["sh", "-n", f], [f]⟩
@@ -660,7 +660,7 @@ theorem runOk_iff (strict : Bool) (u : Nat) (codes : List Nat) :
 #guard (plan ["apps/site/src/a.tsx", "apps/site/src/b.tsx", "apps/console-web/src/c.tsx"]).map (·.argv.getLast!) ==
   ["apps/site", "apps/console-web"]
 #guard (plan ["lean/scripts/X.lean", "lean/Fw/A.lean", "a.mjs"]).map (·.argv) ==
-  [["lake", "build"], ["lake", "build", "fwtest"], ["lake", "env", "lean", "scripts/X.lean"], ["node", "--check", "a.mjs"]]
+  [["lake", "build"], ["lake", "env", "lean", "scripts/X.lean"], ["node", "--check", "a.mjs"]]
 #guard verdict false [0, 127] && !verdict true [0, 127] && !verdict false [0, 1] && verdict true []
 #guard runOk false 0 [0] && !runOk false 1 [0] && !runOk false 0 [2] && runOk true 0 []
 

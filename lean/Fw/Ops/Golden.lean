@@ -20,7 +20,7 @@ cd lean && lake env lean --run scripts/OpsGolden.lean --check   # fail if a file
 `lake test` runs the same check. Consumers: the hooks agent (`emit.mjs`, `spawn-guard.mjs`:
 `ops.hook`, `ops.spawn`; `cap.mjs`: `ops.actor`, `ops.cap`), console-api's capability door (`cap.ts`
 `actorFor`: `ops.actor`; `openDoor`: `ops.door`), the land agent (`fw land`: `ops.pathCheck`) and console-api's usage
-meter (`ops.usage`, `ops.meter`).
+meter (`ops.usage`, `ops.meter`), `fw watch` (`ops.watchDiff`, `ops.watchKeep`).
 -/
 namespace Fw.Wire.Ops.Golden
 open Lean
@@ -310,7 +310,19 @@ def cases : List (String × List (String × Json)) := [
     ("r6: a counter set only after && (may not run): deny", wait "true && i=0; until [ $i -ge 5 ]; do i=$((i+1)); done"),
     ("r6: lowercase counter set to a literal first: allow", wait "i=0; while [ $i -lt 5 ]; do echo $i; i=$((i+1)); done"),
     ("r6: SECONDS at the one-day cap: allow", wait "while [ $SECONDS -lt 86400 ]; do sleep 5; done"),
-    ("missing cmd is refused", lit "{}")])]
+    ("missing cmd is refused", lit "{}")]),
+  ("ops.watchDiff", [
+    ("first check opens every alert, one line per key (first detail)", lit "{\"now\":[{\"code\":\"proc.long\",\"subject\":\"node#7\",\"detail\":\"31m\"},{\"code\":\"proc.long\",\"subject\":\"node#7\",\"detail\":\"32m\"},{\"code\":\"ci.slow\",\"subject\":\"run-1\"}]}"),
+    ("open alerts stay quiet, a gone one closes, a new one opens", lit "{\"prev\":[{\"code\":\"proc.long\",\"subject\":\"node#7\"},{\"code\":\"ci.slow\",\"subject\":\"run-1\"}],\"now\":[{\"code\":\"ci.slow\",\"subject\":\"run-1\",\"detail\":\"x\"},{\"code\":\"agent.gone\",\"subject\":\"a1\",\"detail\":\"y\"}]}"),
+    ("same code, other subject is another key", lit "{\"prev\":[{\"code\":\"proc.long\",\"subject\":\"node#7\"}],\"now\":[{\"code\":\"proc.long\",\"subject\":\"node#8\",\"detail\":\"\"}]}"),
+    ("no alerts closes all, a repeated open key closes once", lit "{\"prev\":[{\"code\":\"a\",\"subject\":\"1\"},{\"code\":\"a\",\"subject\":\"1\"}],\"now\":[]}"),
+    ("missing now is refused", lit "{\"prev\":[]}")]),
+  ("ops.watchKeep", [
+    ("same pid and start: live and kept", lit "{\"entries\":[{\"pid\":7,\"start\":1792300000}],\"rows\":[{\"pid\":7,\"start\":1792300000,\"args\":\"caffeinate -i\"}]}"),
+    ("reused pid (other start): dropped, not kept", lit "{\"entries\":[{\"pid\":7,\"start\":1792300000}],\"rows\":[{\"pid\":7,\"start\":1792300001,\"args\":\"python\"}]}"),
+    ("gone process: dropped", lit "{\"entries\":[{\"pid\":7,\"start\":1792300000},{\"pid\":8,\"start\":5}],\"rows\":[{\"pid\":8,\"start\":5,\"args\":\"x\"}]}"),
+    ("the lead Monitor stream is kept without a declaration; other intervals are not", lit "{\"rows\":[{\"pid\":9,\"start\":1,\"args\":\"node apps/runner/src/fw.ts watch --interval 300 --stream\"},{\"pid\":10,\"start\":1,\"args\":\"node apps/runner/src/fw.ts watch --interval 60 --stream\"}]}"),
+    ("a non-integer start is refused", lit "{\"entries\":[{\"pid\":7,\"start\":1.5}]}")])]
 
 /-- One file of a `lint.context` request. -/
 def lintFile (path : String) (bytes : Nat) (lines : List String) : Json :=
