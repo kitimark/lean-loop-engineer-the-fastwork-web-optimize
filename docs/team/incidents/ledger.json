@@ -1809,7 +1809,7 @@
    "at": "2026-10-18T14:50+07:00",
    "title": "False pass: a CI run whose heavy jobs were all skipped at the guard concluded success, and fw ci wait reported PASS for a lane that never ran",
    "symptom": "fw ci wait and fw run report PASS when every decisive run concluded success, but a run whose guard skipped all real jobs also concludes success. The lead found it; the reviewer of the gate change had not.",
-   "cause": "CONFIRMED (code read, packages/gh-budget/src/wait.ts:48@2063ebb: `verdict = rs.every(r => r.conclusion === \"success\") ? 0 : 1`). MEASURED (gh run view 39105133805: chromium-counts concluded success with only the guard job run; plan, image, fwcore, site, counts and classify skipped). The guard came with ci-trigger-lean; ci-own-trigger makes skips the common case.",
+   "cause": "CONFIRMED (code read, packages/gh-budget/src/wait.ts:49@2063ebb: `verdict = rs.every(r => r.conclusion === \"success\") ? 0 : 1`). MEASURED (gh run view 39105133805: chromium-counts concluded success with only the guard job run; plan, image, fwcore, site, counts and classify skipped). The guard came with ci-trigger-lean; ci-own-trigger makes skips the common case.",
    "evidence": [
     {
      "kind": "ci",
@@ -1819,7 +1819,7 @@
     {
      "kind": "file",
      "ref": "packages/gh-budget/src/wait.ts",
-     "note": "line 48: success maps to exit 0 with no check that a job ran"
+     "note": "line 49: success maps to exit 0 with no check that a job ran"
     }
    ],
    "repro": "Push a ci/* branch that changes no input of a lane and wait on that lane: the run concludes success in seconds and the wait exits 0.",
@@ -1947,7 +1947,7 @@
    "at": "2026-10-18T14:08+07:00",
    "title": "Proof of a hand-typed expectation: table_matches certified wrong heads because facts and expectations were typed with the same mistake",
    "symptom": "task-preview round 2's PreviewTable proves that headOf returns each row's expectation (table_matches), but the port-platform row's merge fact is b2e5ff1, a main commit (the second parent of the 'merge main (port-platform)' commit 411847d), and the expected head and land commit were typed from the same reading; the proof passed.",
-   "cause": "CONFIRMED (lean/Fw/Console/PreviewTable.lean:121@10390a3 merge fact b2e5ff1; git: 411847d's second parent is b2e5ff1, a work-graph commit on main). INFERRED (lead's review): the facts and expect fields were entered by hand by the code's author, so a shared misreading made the proof certify it.",
+   "cause": "CONFIRMED (lean/Fw/Console/PreviewTable.lean:121@10390a3 merge fact b2e5ff1; git: 411847d (a worktree branch merge, not on main)'s second parent is b2e5ff1, a work-graph commit on main). INFERRED (lead's review): the facts and expect fields were entered by hand by the code's author, so a shared misreading made the proof certify it.",
    "evidence": [
     {
      "kind": "file",
