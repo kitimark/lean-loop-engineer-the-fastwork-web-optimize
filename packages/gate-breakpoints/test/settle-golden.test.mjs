@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { GATE_POLICY, cell, nextStable, quiet, rendered, report, settled, view, viewCell, waitTrace } from '../src/settle.mjs';
+import { GATE_POLICY, cell, fold, idlePolicy, nextStable, quiet, rendered, report, settled, spent, view, viewCell, waitTrace } from '../src/settle.mjs';
 import { settleInPage } from '../src/page.mjs';
 import { maskNotRendered } from '../src/summary.mjs';
 import { PKG } from '../src/serve.mjs';
@@ -54,6 +54,33 @@ test('quiet and nextStable: every golden pair of frames, node copy and page copy
 test('wait: every golden trace gives Lean outcome', () => {
   assert.ok(of('wait').length >= 8);
   for (const l of of('wait')) assert.equal(waitTrace(l.policy, l.trace), l.outcome, l.name);
+});
+
+test('the page loop stops where Lean has decided: truncating at its stop keeps the outcome (scan_decided_by)', () => {
+  const pageSettled = fromPage('settled');
+  const pageSpent = fromPage('spent');
+  for (const l of of('wait')) {
+    const stop = l.trace.findIndex((o) => pageSettled(l.policy, o) || pageSpent(l.policy, o));
+    for (const o of l.trace) assert.equal(pageSpent(l.policy, o), spent(l.policy, o), l.name);
+    const seen = stop < 0 ? l.trace : l.trace.slice(0, stop + 1);
+    assert.equal(waitTrace(l.policy, seen), l.outcome, l.name);
+  }
+});
+
+test('frame budget: the gate policy ends a wait after maxFrames real frames, the idle policy is Lean idlePolicy', () => {
+  assert.equal(GATE_POLICY.maxFrames, 60);
+  const byName = (n) => of('wait').find((l) => l.name === n);
+  assert.equal(byName('a lerp that never stops spends the frame budget long before the timeout').outcome, 'unsettled');
+  assert.equal(byName('settles exactly at the frame budget').outcome, 'settled@2');
+  assert.equal(byName('settles one frame after the frame budget').outcome, 'unsettled');
+  const idle = of('wait').filter((l) => l.name.startsWith('idle:'));
+  assert.ok(idle.length >= 4);
+  for (const l of idle) assert.deepEqual(l.policy, idlePolicy(GATE_POLICY, l.policy.timeoutMs), l.name);
+});
+
+test('fold: a sample is unsettled when any of its waits is (golden)', () => {
+  assert.ok(of('fold').length >= 5);
+  for (const l of of('fold')) assert.equal(fold(l.first, l.extra), l.outcome, l.name);
 });
 
 test('view: bring bit picks the second reading, and the cell follows (Fw.Gate.Settle.viewCell)', () => {

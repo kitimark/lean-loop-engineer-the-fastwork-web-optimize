@@ -86,7 +86,8 @@ export async function waitReady(arg) {
  *  - kind "mount", stage "ready" (morph.countdown, morph.columns, morph.panel): some elements exist only after the page has
  *    been near them (the morph panel mounts when the platform section is within 200% of the viewport and stays mounted). Per
  *    step: scroll so the `scrollNear` element's top is 1.5 viewports below the fold, wait for `waitFor`, then return to the
- *    top and wait out running finite animations, so every part is collected from the top in the same state.
+ *    top and wait out running finite animations (the idle wait, bounded by the arm cap and the frame budget: Lean
+ *    Fw.Gate.Settle.idlePolicy), so every part is collected from the top in the same state. Returns { found, idle: trace }.
  *  - kind "overlay", stage "open" (overlays.drawer, overlays.signup): click `trigger`, wait for `ready` (the caller then settles and collects that one part). The caller collects that one part, then runs stage "close": click `close`,
  *    wait until `gone` no longer matches, so the next read starts from the closed page.
  */
@@ -97,9 +98,25 @@ export async function prepareInPage(arg) {
     const t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
     return t && Number.isFinite(t.iterations) && a.playState !== 'finished' && a.playState !== 'idle';
   }).length;
-  const idle = async (capMs) => {
+  // a real frame (true) or the 250 ms keep-alive (false)
+  const realFrame = () => new Promise((resolve) => {
+    let done = false;
+    requestAnimationFrame(() => { if (!done) { done = true; resolve(true); } });
+    setTimeout(() => { if (!done) { done = true; resolve(false); } }, 250);
+  });
+  // The idle wait (Lean Fw.Gate.Settle.idlePolicy, gate-shard-balance): one observation per real frame until no finite
+  // animation of the document runs, or the time cap or the frame budget is spent. Returns the trace; the runner applies Lean's
+  // `wait` to it and folds the outcome into the sample (an unsettled idle wait makes the sample unsettled: Settle.fold).
+  const idle = async (capMs, maxFrames) => {
     const t1 = performance.now();
-    while (running() > 0 && performance.now() - t1 < capMs) await sleep(50);
+    const trace = [];
+    let frames = 0;
+    for (;;) {
+      const obs = { running: running(), frames, stable: 0, hoverInside: false, t: Math.round(performance.now() - t1) };
+      trace.push(obs);
+      if (obs.running === 0 || capMs < obs.t || maxFrames < obs.frames) return trace;
+      if (await realFrame()) frames++;
+    }
   };
   const t0 = performance.now();
   const found = [];
@@ -117,7 +134,7 @@ export async function prepareInPage(arg) {
     window.scrollTo({ top: 0, behavior: 'instant' });
     for (let i = 0; i < 3; i++) await frame();
     await sleep(300);
-    await idle(arg.capMs);
+    return { found, idle: await idle(arg.capMs, arg.maxFrames) };
   } else if (arg.stage === 'open') {
     for (const step of arg.steps) {
       const btn = document.querySelector(step.trigger);
@@ -157,11 +174,11 @@ export async function waitResize() {
  * not count as a frame): the finite animations and transitions under the probed subtree (`getAnimations`), the real frames
  * since the wait began, the run of quiet frames (every probed box, transform number and opacity within eps of the frame before:
  * this is what sees a requestAnimationFrame-driven lerp that `getAnimations` does not list), and whether the pointer is inside a
- * probed element. It stops at the first settled observation or when the budget is spent. The outcome is NOT decided here: the
+ * probed element. It stops at the first settled observation or when the budget (time or frames, Lean `spent`) is spent. The outcome is NOT decided here: the
  * runner applies Lean's `wait` (settle.mjs waitTrace) to the returned trace.
- * arg: { policy: {minFrames, minStable, eps, timeoutMs}, roots: [selector], hoverCapable: boolean } (an environment that cannot
+ * arg: { policy: {minFrames, minStable, eps, timeoutMs, maxFrames}, roots: [selector], hoverCapable: boolean } (an environment that cannot
  * hover never reports the pointer inside: `:hover` can stay matched there after a touch, but no hover rule applies).
- * The two predicates between the markers are replayed against the Lean golden by test/settle.test.mjs (extracted from this text).
+ * The three predicates between the markers are replayed against the Lean golden by test/settle.test.mjs (extracted from this text).
  */
 export async function settleInPage(arg) {
   const p = arg.policy;
@@ -171,6 +188,9 @@ export async function settleInPage(arg) {
   // <quiet>
   const quiet = (eps, u, v) => u.length === v.length && u.every((a, i) => Math.abs(a - v[i]) <= eps);
   // </quiet>
+  // <spent>
+  const spent = (q, o) => q.timeoutMs < o.t || q.maxFrames < o.frames;
+  // </spent>
   const micro = (x) => Math.round(x * 1e6);
   const els = () => {
     const seen = new Set();
@@ -219,7 +239,7 @@ export async function settleInPage(arg) {
     }
     const obs = { running: o.running, frames, stable, hoverInside: o.hover, t: Math.round(performance.now() - t0) };
     trace.push(obs);
-    if (settled(p, obs) || obs.t > p.timeoutMs) break;
+    if (settled(p, obs) || spent(p, obs)) break;
   }
   return { trace };
 }

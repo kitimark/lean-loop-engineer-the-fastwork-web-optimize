@@ -7,7 +7,7 @@ import { LAUNCHERS } from './engines.mjs';
 import { SCAN_EXTRA, SCAN_GAP_MS, unionDeclared } from './declared.mjs';
 import { attachAlignFacts, collectAlignFacts } from './align-equiv.mjs';
 import { PIN_SRC, bringInPage, collectInPage, prepareInPage, scrollTopInPage, settleInPage, waitReady, waitResize } from './page.mjs';
-import { GATE_POLICY, view, waitTrace } from './settle.mjs';
+import { GATE_POLICY, fold, idlePolicy, view, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
@@ -99,11 +99,20 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   // until nothing animates, two frames have passed since the resize, the probed values stay within eps for three frames, and the
   // pointer is outside every probed element; or the budget is spent (outcome 'unsettled', recorded, never a silent pass).
   const rootsOf = (site) => Object.values(partsArg[site]).flatMap((roles) => roles.map((r) => r.selector));
-  // The sample's wait is the first wait plus the waits for the overlays opened during collection: unsettled when any is.
+  // The sample's wait is the first wait plus the waits for the overlays opened during collection, the parts brought into view
+  // and the mount stage's idle wait: unsettled when any is (Lean Fw.Gate.Settle.fold).
   const foldSettle = (first, extra) => (extra || []).reduce((a, w) => ({
-    ...a, outcome: a.outcome === 'unsettled' || w.outcome === 'unsettled' ? 'unsettled' : a.outcome,
+    ...a, outcome: fold(a.outcome, [w.outcome]),
     observations: a.observations + w.observations, waitedMs: a.waitedMs + w.waitedMs, parked: a.parked && w.parked,
   }), first);
+  // The mount stage's idle wait (page.mjs prepareInPage 'ready'): Lean's `wait` under idlePolicy (nothing runs, the arm's cap,
+  // the frame budget) decides its outcome from the trace; it is folded into the sample like an overlay's settle.
+  const idleWait = (trace, site, env) => {
+    const last = trace[trace.length - 1];
+    const outcome = waitTrace(idlePolicy(GATE_POLICY, CAP_MS[site]), trace);
+    log(`  idle ${engineName} ${site} ${env.width}x${env.height}: ${last.t} ms, ${last.frames} frames, ${outcome}`);
+    return { outcome, parked: true, observations: trace.length, frames: last.frames, waitedMs: last.t, running: last.running, stable: 0, hoverInside: false, idle: true };
+  };
   // The pointer is parked outside the viewport (-1, -1): no element is under it, so a resize can bring no element under it and
   // a hover rule or a pointerenter handler never runs. (A point inside the viewport can lie over a hover target at some widths:
   // hero.orbit z-index = 1 + the pointerenter events, run 39078493093 with the pointer at the corner.)
@@ -140,7 +149,9 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       await s.evaluate(prepareInPage, { stage: 'close', steps, capMs: CAP_MS[site] });
     }
     if (mountIds.length > 0) {
-      raw.prepared = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site] });
+      const ready = await s.evaluate(prepareInPage, { stage: 'ready', steps: Object.values(mountOf[site]).flat(), capMs: CAP_MS[site], maxFrames: GATE_POLICY.maxFrames });
+      raw.prepared = ready.found;
+      if (settleRoots) (raw.overlaySettle ||= []).push(idleWait(ready.idle, site, env));
       const late = await collectWith(s, collectArg(site, env, props, pick(mountIds, true), view));
       raw.parts = { ...raw.parts, ...late.parts };
     }

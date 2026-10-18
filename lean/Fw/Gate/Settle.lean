@@ -42,22 +42,30 @@ structure Obs where
 
 /-- The wait policy.
 
-$$\pi = (m_f, m_s, \varepsilon, T) \in \mathbb{N}^4$$
+$$\pi = (m_f, m_s, \varepsilon, T, F) \in \mathbb{N}^5$$
 
 `minFrames`: real frames required after the last resize; `minStable`: quiet frames required in a row; `eps`: the quiet
-threshold in millionths of a unit (px, or a unitless value such as a scale); `timeoutMs`: the bound of the wait. -/
+threshold in millionths of a unit (px, or a unitless value such as a scale); `timeoutMs`: the time bound of the wait;
+`maxFrames`: the frame budget of the wait (gate-shard-balance): an observation after more than `F` real frames ends the
+wait as `unsettled`, as one after more than `T` milliseconds does. -/
 structure Policy where
   minFrames : Nat
   minStable : Nat
   eps : Nat
   timeoutMs : Nat
+  maxFrames : Nat
   deriving DecidableEq, Repr
 
 /-- The policy the gate uses: two frames after each resize (a `ResizeObserver` notification, then the callback it
-schedules), three quiet frames in a row, quiet meaning every probed value moved by at most 0.0001, 30000 ms (the CI WebKit paints this page at 0.3 to 1.7 frames per second, MEASURED in run 39078493093, so three frames can take 10 s).
+schedules), three quiet frames in a row, quiet meaning every probed value moved by at most 0.0001, 30000 ms (the CI WebKit paints this page at 0.3 to 1.7 frames per second, MEASURED in run 39078493093, so three frames can take 10 s),
+and at most 60 real frames. The frame budget is gate-shard-balance's fix of run 39101532038 (MEASURED from its 7 job logs):
+every wait that settled did so within 25 real frames (Chromium at most 25, WebKit at most 20), and every wait that did not
+settle ran to the 30 s timeout after at least 78 frames. A 60-frame budget gives a wait that settles within 60 frames the
+same outcome (`wait_budget_keeps`) and a page that never settles the same `unsettled` (`wait_unsettled_of_never`); an
+unsettled wait on Chromium (60 frames per second) then ends after about 1 s instead of 30 s.
 
-$$\pi_{\mathrm{gate}} = (2, 3, 100, 30000)$$ -/
-def gatePolicy : Policy := { minFrames := 2, minStable := 3, eps := 100, timeoutMs := 30000 }
+$$\pi_{\mathrm{gate}} = (2, 3, 100, 30000, 60)$$ -/
+def gatePolicy : Policy := { minFrames := 2, minStable := 3, eps := 100, timeoutMs := 30000, maxFrames := 60 }
 
 /-- The decision on one observation: nothing animates, enough real frames passed, the boxes were stable, and the pointer
 is not inside a hover-reactive target.
@@ -75,19 +83,25 @@ def sampleOk (p : Policy) (o : Obs) : Bool := settled p o
 
 $$\mathrm{Outcome} = \mathrm{settled}(i) \mid \mathrm{unsettled}, \quad i \in \mathbb{N}$$
 
-`settled i`: observation `i` (0-based) was the first settled one inside the budget; `unsettled`: the budget ran out first. -/
+`settled i`: observation `i` (0-based) was the first settled one inside the budget; `unsettled`: the budget (time or
+frames) ran out first. -/
 inductive Outcome where
   | settled (at_ : Nat)
   | unsettled
   deriving DecidableEq, Repr
 
+/-- The budget is spent at an observation: more than `T` milliseconds or more than `F` real frames since the wait began.
+
+$$\operatorname{spent}_\pi(o) \iff T < t(o) \;\vee\; F < \mathit{fr}(o)$$ -/
+def spent (p : Policy) (o : Obs) : Bool := decide (p.timeoutMs < o.t) || decide (p.maxFrames < o.frames)
+
 /-- The scan behind `wait`: from observation `i`, with `fuel` observations left.
 
-$$\operatorname{scan}(i, f+1) = \begin{cases}\mathrm{unsettled} & T < t(o_i)\\ \mathrm{settled}(i) & t(o_i)\le T \wedge \operatorname{settled}(o_i)\\ \operatorname{scan}(i+1, f) & \text{otherwise}\end{cases}\qquad \operatorname{scan}(i,0) = \mathrm{unsettled}$$ -/
+$$\operatorname{scan}(i, f+1) = \begin{cases}\mathrm{unsettled} & \operatorname{spent}_\pi(o_i)\\ \mathrm{settled}(i) & \neg\operatorname{spent}_\pi(o_i) \wedge \operatorname{settled}_\pi(o_i)\\ \operatorname{scan}(i+1, f) & \text{otherwise}\end{cases}\qquad \operatorname{scan}(i,0) = \mathrm{unsettled}$$ -/
 def scan (p : Policy) (o : Nat → Obs) : Nat → Nat → Outcome
   | _, 0 => .unsettled
   | i, f + 1 =>
-    if p.timeoutMs < (o i).t then .unsettled
+    if spent p (o i) then .unsettled
     else if settled p (o i) then .settled i
     else scan p o (i + 1) f
 
@@ -118,38 +132,49 @@ def report : Outcome → Outcome → Bool → Report
 -- the wait is sound and bounded
 -- ---------------------------------------------------------------------------------------------------------------
 
-/-- The scan answers `settled k` only for a settled observation inside the budget.
+/-- The budget is not spent exactly when both the time and the frame count are inside it.
 
-$$\operatorname{scan}(i, f) = \mathrm{settled}(k) \Rightarrow \operatorname{settled}_\pi(o_k) \wedge t(o_k) \le T$$ -/
+$$\forall \pi\, o,\quad \neg\operatorname{spent}_\pi(o) \iff t(o) \le T \wedge \mathit{fr}(o) \le F$$ -/
+theorem spent_false_iff (p : Policy) (o : Obs) :
+    spent p o = false ↔ o.t ≤ p.timeoutMs ∧ o.frames ≤ p.maxFrames := by
+  simp only [spent, Bool.or_eq_false_iff, decide_eq_false_iff_not, Nat.not_lt]
+
+/-- The scan answers `settled k` only for a settled observation inside the budget, at or after where it started.
+
+$$\forall f\, i\, k,\quad \operatorname{scan}(i, f) = \mathrm{settled}(k) \Rightarrow \operatorname{settled}_\pi(o_k) \wedge t(o_k) \le T \wedge \mathit{fr}(o_k) \le F \wedge i \le k$$ -/
 theorem scan_sound (p : Policy) (o : Nat → Obs) :
-    ∀ f i k, scan p o i f = .settled k → settled p (o k) = true ∧ (o k).t ≤ p.timeoutMs := by
+    ∀ f i k, scan p o i f = .settled k →
+      settled p (o k) = true ∧ (o k).t ≤ p.timeoutMs ∧ (o k).frames ≤ p.maxFrames ∧ i ≤ k := by
   intro f
   induction f with
   | zero => intro i k h; simp [scan] at h
   | succ f ih =>
     intro i k h
     simp only [scan] at h
-    by_cases h1 : p.timeoutMs < (o i).t
-    · simp [h1] at h
-    · by_cases h2 : settled p (o i) = true
+    cases h1 : spent p (o i)
+    · have hb := (spent_false_iff p (o i)).1 h1
+      by_cases h2 : settled p (o i) = true
       · simp [h1, h2] at h
         subst h
-        exact ⟨h2, by omega⟩
+        exact ⟨h2, hb.1, hb.2, Nat.le_refl _⟩
       · simp [h1, h2] at h
-        exact ih (i + 1) k h
+        obtain ⟨a, b, c, d⟩ := ih (i + 1) k h
+        exact ⟨a, b, c, by omega⟩
+    · simp [h1] at h
 
 /-- A settled answer is a settled observation inside the budget.
 
-$$\forall \pi\, o\, k,\quad \operatorname{wait}_\pi(o) = \mathrm{settled}(k) \;\Longrightarrow\; \operatorname{settled}_\pi(o_k) \wedge t(o_k) \le T$$
+$$\forall \pi\, o\, k,\quad \operatorname{wait}_\pi(o) = \mathrm{settled}(k) \;\Longrightarrow\; \operatorname{settled}_\pi(o_k) \wedge t(o_k) \le T \wedge \mathit{fr}(o_k) \le F$$
 
-The wait never reports a settled sample it did not see, and never one after the timeout. -/
+The wait never reports a settled sample it did not see, and never one after the timeout or the frame budget. -/
 theorem wait_sound (p : Policy) (o : Nat → Obs) (k : Nat) (h : wait p o = .settled k) :
-    settled p (o k) = true ∧ (o k).t ≤ p.timeoutMs :=
-  scan_sound p o _ _ _ h
+    settled p (o k) = true ∧ (o k).t ≤ p.timeoutMs ∧ (o k).frames ≤ p.maxFrames := by
+  obtain ⟨a, b, c, _⟩ := scan_sound p o _ _ _ h
+  exact ⟨a, b, c⟩
 
 /-- A scan over observations none of which is settled is `unsettled`.
 
-$$(\forall i,\ \neg\operatorname{settled}_\pi(o_i)) \Rightarrow \operatorname{scan}(i, f) = \mathrm{unsettled}$$ -/
+$$\left(\forall i,\ \neg\operatorname{settled}_\pi(o_i)\right) \Rightarrow \forall f\, i,\ \operatorname{scan}(i, f) = \mathrm{unsettled}$$ -/
 theorem scan_unsettled_of_never (p : Policy) (o : Nat → Obs) (never : ∀ i, settled p (o i) = false) :
     ∀ f i, scan p o i f = .unsettled := by
   intro f
@@ -158,56 +183,66 @@ theorem scan_unsettled_of_never (p : Policy) (o : Nat → Obs) (never : ∀ i, s
   | succ f ih =>
     intro i
     simp only [scan]
-    by_cases h1 : p.timeoutMs < (o i).t
-    · simp [h1]
-    · simp [h1, never i]
+    cases h1 : spent p (o i)
+    · simp [never i]
       exact ih (i + 1)
+    · simp
 
-/-- A page that never settles ends the wait as `unsettled` (the timeout is the bound; there is no silent success).
+/-- A page that never settles ends the wait as `unsettled` (the time and frame budgets are the bound; there is no silent
+success).
 
-$$\left(\forall i,\ \neg\operatorname{settled}_\pi(o_i)\right) \Longrightarrow \operatorname{wait}_\pi(o) = \mathrm{unsettled}$$ -/
+$$\forall \pi\, o,\quad \left(\forall i,\ \neg\operatorname{settled}_\pi(o_i)\right) \Longrightarrow \operatorname{wait}_\pi(o) = \mathrm{unsettled}$$ -/
 theorem wait_unsettled_of_never (p : Policy) (o : Nat → Obs) (never : ∀ i, settled p (o i) = false) :
     wait p o = .unsettled :=
   scan_unsettled_of_never p o never _ _
 
-/-- A scan with enough fuel that reaches a settled observation inside the budget (time non-decreasing) finds one no later.
+/-- A non-decreasing sequence is bounded by its later values.
 
-$$i \le j < i + f \wedge \operatorname{settled}_\pi(o_j) \wedge t(o_j) \le T \Rightarrow \exists k,\ \operatorname{scan}(i, f) = \mathrm{settled}(k) \wedge i \le k \le j$$ -/
-theorem scan_complete (p : Policy) (o : Nat → Obs) (tmono : ∀ i, (o i).t ≤ (o (i + 1)).t) :
-    ∀ f i j, i ≤ j → j < i + f → settled p (o j) = true → (o j).t ≤ p.timeoutMs →
+$$\left(\forall n,\ g(n) \le g(n+1)\right) \Rightarrow \forall i\, j,\ i \le j \Rightarrow g(i) \le g(j)$$ -/
+theorem mono_le (g : Nat → Nat) (h : ∀ n, g n ≤ g (n + 1)) (i j : Nat) (hij : i ≤ j) : g i ≤ g j := by
+  have : ∀ d, g i ≤ g (i + d) := by
+    intro d
+    induction d with
+    | zero => exact Nat.le_refl _
+    | succ d ihd => exact Nat.le_trans ihd (h (i + d))
+  have h2 := this (j - i)
+  rwa [show i + (j - i) = j by omega] at h2
+
+/-- A scan with enough fuel that reaches a settled observation inside the budget (time and frames non-decreasing) finds
+one no later.
+
+$$\left(\forall n,\ t(o_n)\le t(o_{n+1}) \wedge \mathit{fr}(o_n)\le \mathit{fr}(o_{n+1})\right) \Rightarrow \forall f\, i\, j,\ i \le j < i + f \wedge \operatorname{settled}_\pi(o_j) \wedge t(o_j) \le T \wedge \mathit{fr}(o_j) \le F \Rightarrow \exists k,\ \operatorname{scan}(i, f) = \mathrm{settled}(k) \wedge i \le k \le j$$ -/
+theorem scan_complete (p : Policy) (o : Nat → Obs) (tmono : ∀ n, (o n).t ≤ (o (n + 1)).t)
+    (fmono : ∀ n, (o n).frames ≤ (o (n + 1)).frames) :
+    ∀ f i j, i ≤ j → j < i + f → settled p (o j) = true → (o j).t ≤ p.timeoutMs → (o j).frames ≤ p.maxFrames →
       ∃ k, scan p o i f = .settled k ∧ i ≤ k ∧ k ≤ j := by
   intro f
   induction f with
   | zero => intro i j _ hj; omega
   | succ f ih =>
-    intro i j hij hjf hs ht
+    intro i j hij hjf hs ht hfr
     simp only [scan]
-    have hti : (o i).t ≤ (o j).t := by
-      have : ∀ d, (o i).t ≤ (o (i + d)).t := by
-        intro d
-        induction d with
-        | zero => exact Nat.le_refl _
-        | succ d ihd => exact Nat.le_trans ihd (tmono (i + d))
-      have h := this (j - i)
-      rwa [show i + (j - i) = j by omega] at h
-    have h1 : ¬ p.timeoutMs < (o i).t := by omega
+    have hti := mono_le (fun n => (o n).t) tmono i j hij
+    have hfi := mono_le (fun n => (o n).frames) fmono i j hij
+    have h1 : spent p (o i) = false := (spent_false_iff p (o i)).2 ⟨by omega, by omega⟩
     by_cases h2 : settled p (o i) = true
     · exact ⟨i, by simp [h1, h2], Nat.le_refl _, hij⟩
     · by_cases hji : j = i
       · subst hji; exact absurd hs h2
-      · obtain ⟨k, hk, hk1, hk2⟩ := ih (i + 1) j (by omega) (by omega) hs ht
+      · obtain ⟨k, hk, hk1, hk2⟩ := ih (i + 1) j (by omega) (by omega) hs ht hfr
         exact ⟨k, by simp [h1, h2, hk], by omega, hk2⟩
 
-/-- If time is non-decreasing and some observation `j` is settled inside the budget, the wait finds a settled observation
-no later than `j`: a page that settles in time is not reported `unsettled`.
+/-- If time and frames are non-decreasing and some observation `j` is settled inside both budgets, the wait finds a
+settled observation no later than `j`: a page that settles in time is not reported `unsettled`.
 
-$$\left(\forall i,\ t(o_i)\le t(o_{i+1})\right) \wedge \operatorname{settled}_\pi(o_j) \wedge t(o_j)\le T \wedge j \le T \;\Longrightarrow\; \exists k\le j,\ \operatorname{wait}_\pi(o) = \mathrm{settled}(k)$$
+$$\left(\forall n,\ t(o_n)\le t(o_{n+1}) \wedge \mathit{fr}(o_n)\le \mathit{fr}(o_{n+1})\right) \wedge j \le T \wedge \operatorname{settled}_\pi(o_j) \wedge t(o_j)\le T \wedge \mathit{fr}(o_j) \le F \;\Longrightarrow\; \exists k\le j,\ \operatorname{wait}_\pi(o) = \mathrm{settled}(k)$$
 
 (The bound `j ≤ T` says one observation per millisecond at most: the scan covers `T + 1` of them.) -/
-theorem wait_complete (p : Policy) (o : Nat → Obs) (tmono : ∀ i, (o i).t ≤ (o (i + 1)).t) (j : Nat)
-    (hj : j ≤ p.timeoutMs) (hs : settled p (o j) = true) (ht : (o j).t ≤ p.timeoutMs) :
+theorem wait_complete (p : Policy) (o : Nat → Obs) (tmono : ∀ n, (o n).t ≤ (o (n + 1)).t)
+    (fmono : ∀ n, (o n).frames ≤ (o (n + 1)).frames) (j : Nat)
+    (hj : j ≤ p.timeoutMs) (hs : settled p (o j) = true) (ht : (o j).t ≤ p.timeoutMs) (hf : (o j).frames ≤ p.maxFrames) :
     ∃ k, wait p o = .settled k ∧ k ≤ j := by
-  obtain ⟨k, hk, _, hk2⟩ := scan_complete p o tmono (p.timeoutMs + 1) 0 j (by omega) (by omega) hs ht
+  obtain ⟨k, hk, _, hk2⟩ := scan_complete p o tmono fmono (p.timeoutMs + 1) 0 j (by omega) (by omega) hs ht hf
   exact ⟨k, hk, hk2⟩
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -241,6 +276,220 @@ $$\operatorname{report}(\mathrm{settled}(i), \mathrm{settled}(j), e) = \begin{ca
 theorem report_settled (i j : Nat) (e : Bool) :
     report (.settled i) (.settled j) e = (if e then .pass else .fail) := by
   cases e <;> rfl
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- the frame budget (gate-shard-balance): it only ends waits sooner, and keeps every outcome inside it
+-- ---------------------------------------------------------------------------------------------------------------
+
+/-- The policy `π` with frame budget `F` instead of its own.
+
+$$\pi[F] = (m_f, m_s, \varepsilon, T, F)$$ -/
+def withBudget (p : Policy) (F : Nat) : Policy := { p with maxFrames := F }
+
+/-- The settled decision does not read the frame budget.
+
+$$\forall \pi\, F\, o,\quad \operatorname{settled}_{\pi[F]}(o) = \operatorname{settled}_\pi(o)$$ -/
+theorem settled_withBudget (p : Policy) (F : Nat) (o : Obs) : settled (withBudget p F) o = settled p o := rfl
+
+/-- A smaller frame budget either changes nothing or turns the scan's answer into `unsettled`: it never invents a settled
+answer.
+
+$$F \le F_\pi \Rightarrow \forall f\, i,\ \operatorname{scan}_{\pi[F]}(i, f) = \operatorname{scan}_\pi(i, f) \;\vee\; \operatorname{scan}_{\pi[F]}(i, f) = \mathrm{unsettled}$$ -/
+theorem scan_budget_cases (p : Policy) (o : Nat → Obs) (F : Nat) (hF : F ≤ p.maxFrames) :
+    ∀ f i, scan (withBudget p F) o i f = scan p o i f ∨ scan (withBudget p F) o i f = .unsettled := by
+  intro f
+  induction f with
+  | zero => intro i; simp [scan]
+  | succ f ih =>
+    intro i
+    simp only [scan, settled_withBudget]
+    by_cases h1 : spent (withBudget p F) (o i) = true
+    · simp [h1]
+    · have hb := (spent_false_iff _ (o i)).1 (by simpa using h1)
+      have h0 : spent p (o i) = false := (spent_false_iff p (o i)).2 ⟨hb.1, Nat.le_trans hb.2 hF⟩
+      by_cases h2 : settled p (o i) = true
+      · simp [h1, h0, h2]
+      · have h1' : spent (withBudget p F) (o i) = false := by simpa using h1
+        simp only [h1', h0, h2, Bool.false_eq_true, if_false]
+        exact ih (i + 1)
+
+/-- A smaller frame budget never invents a settled wait: the answer is the old one or `unsettled`.
+
+$$\forall \pi\, o\, F,\quad F \le F_\pi \Longrightarrow \operatorname{wait}_{\pi[F]}(o) = \operatorname{wait}_\pi(o) \;\vee\; \operatorname{wait}_{\pi[F]}(o) = \mathrm{unsettled}$$ -/
+theorem wait_budget_cases (p : Policy) (o : Nat → Obs) (F : Nat) (hF : F ≤ p.maxFrames) :
+    wait (withBudget p F) o = wait p o ∨ wait (withBudget p F) o = .unsettled :=
+  scan_budget_cases p o F hF _ _
+
+/-- A scan that settles at observation `k` within `F` frames (frames non-decreasing) gives the same answer under the
+budget `F`.
+
+$$\left(\forall n,\ \mathit{fr}(o_n)\le \mathit{fr}(o_{n+1})\right) \Rightarrow \forall f\, i\, k,\ \operatorname{scan}_\pi(i, f) = \mathrm{settled}(k) \wedge \mathit{fr}(o_k) \le F \Rightarrow \operatorname{scan}_{\pi[F]}(i, f) = \mathrm{settled}(k)$$ -/
+theorem scan_budget_keeps (p : Policy) (o : Nat → Obs) (F : Nat) (fmono : ∀ n, (o n).frames ≤ (o (n + 1)).frames) :
+    ∀ f i k, scan p o i f = .settled k → (o k).frames ≤ F → scan (withBudget p F) o i f = .settled k := by
+  intro f
+  induction f with
+  | zero => intro i k h; simp [scan] at h
+  | succ f ih =>
+    intro i k h hk
+    have hik := (scan_sound p o (f + 1) i k h).2.2.2
+    have hfi := mono_le (fun n => (o n).frames) fmono i k hik
+    simp only [scan, settled_withBudget] at h ⊢
+    by_cases h1 : spent p (o i) = true
+    · simp [h1] at h
+    · have h1' : spent p (o i) = false := by simpa using h1
+      have hb := (spent_false_iff p (o i)).1 h1'
+      have h0 : spent (withBudget p F) (o i) = false :=
+        (spent_false_iff (withBudget p F) (o i)).2 ⟨hb.1, Nat.le_trans hfi hk⟩
+      by_cases h2 : settled p (o i) = true
+      · simp only [h1', h2, Bool.false_eq_true, if_false, if_true] at h
+        simp only [h0, h2, Bool.false_eq_true, if_false, if_true]
+        exact h
+      · simp only [h1', h2, Bool.false_eq_true, if_false] at h
+        simp only [h0, h2, Bool.false_eq_true, if_false]
+        exact ih (i + 1) k h hk
+
+/-- The frame budget keeps every wait that settles within it: if the wait without the budget settles at observation `k`
+after at most `F` real frames (frames non-decreasing), the wait with budget `F` settles at the same `k`.
+
+$$\forall \pi\, o\, F\, k,\quad \left(\forall n,\ \mathit{fr}(o_n)\le \mathit{fr}(o_{n+1})\right) \wedge \operatorname{wait}_\pi(o) = \mathrm{settled}(k) \wedge \mathit{fr}(o_k) \le F \;\Longrightarrow\; \operatorname{wait}_{\pi[F]}(o) = \mathrm{settled}(k)$$ -/
+theorem wait_budget_keeps (p : Policy) (o : Nat → Obs) (F k : Nat) (fmono : ∀ n, (o n).frames ≤ (o (n + 1)).frames)
+    (h : wait p o = .settled k) (hk : (o k).frames ≤ F) : wait (withBudget p F) o = .settled k :=
+  scan_budget_keeps p o F fmono _ _ _ h hk
+
+/-- The cell report under a smaller frame budget is the old report or `unsettled`: the budget never creates a pass or a
+fail that the wait without it would not give.
+
+$$\forall \pi\, F\, a\, b\, e,\quad F \le F_\pi \Rightarrow \operatorname{report}(\operatorname{wait}_{\pi[F]}(a), \operatorname{wait}_{\pi[F]}(b), e) \in \{\operatorname{report}(\operatorname{wait}_\pi(a), \operatorname{wait}_\pi(b), e),\ \mathrm{unsettled}\}$$ -/
+theorem report_budget (p : Policy) (F : Nat) (hF : F ≤ p.maxFrames) (oa ob : Nat → Obs) (e : Bool) :
+    report (wait (withBudget p F) oa) (wait (withBudget p F) ob) e = report (wait p oa) (wait p ob) e ∨
+      report (wait (withBudget p F) oa) (wait (withBudget p F) ob) e = .unsettled := by
+  rcases wait_budget_cases p oa F hF with ha | ha <;> rcases wait_budget_cases p ob F hF with hb | hb
+  · exact Or.inl (by rw [ha, hb])
+  · exact Or.inr (unsettled_never_fail _ _ e (Or.inr hb))
+  · exact Or.inr (unsettled_never_fail _ _ e (Or.inl ha))
+  · exact Or.inr (unsettled_never_fail _ _ e (Or.inl ha))
+
+/-- The scan's answer depends on no observation past the first one whose budget is spent: if two observation sequences
+agree up to index `n` and the budget is spent at `n`, the scans agree. So the page loop may stop at `n` (and with the
+frame budget, `n ≤ F + 1` when every observation is a real frame: `scan_stops_by_frames`).
+
+$$\left(\forall m,\ i \le m \le n \Rightarrow o_m = o'_m\right) \wedge \operatorname{spent}_\pi(o_n) \Rightarrow \forall f,\ i \le n \Rightarrow \operatorname{scan}_\pi(o)(i, f) = \operatorname{scan}_\pi(o')(i, f)$$ -/
+theorem scan_decided_by (p : Policy) (o o' : Nat → Obs) (n : Nat) (hs : spent p (o n) = true) :
+    ∀ f i, i ≤ n → (∀ m, i ≤ m → m ≤ n → o m = o' m) → scan p o i f = scan p o' i f := by
+  intro f
+  induction f with
+  | zero => intro i _ _; simp [scan]
+  | succ f ih =>
+    intro i hi hag
+    have he : o i = o' i := hag i (Nat.le_refl _) hi
+    by_cases hin : i = n
+    · subst hin
+      have h' : spent p (o' i) = true := he ▸ hs
+      simp [scan, hs, h']
+    · have hr := ih (i + 1) (by omega) (fun m h1 h2 => hag m (by omega) h2)
+      simp only [scan, he, hr]
+
+/-- When every observation of the wait is a real frame (`i ≤ fr(o_i)`), the budget is spent by observation `F + 1`, so the
+wait reads at most `F + 2` observations: whatever comes after does not change its answer.
+
+$$\left(\forall i,\ i \le \mathit{fr}(o_i)\right) \wedge \left(\forall m \le F + 1,\ o_m = o'_m\right) \Longrightarrow \operatorname{wait}_\pi(o) = \operatorname{wait}_\pi(o')$$ -/
+theorem wait_stops_by_frames (p : Policy) (o o' : Nat → Obs) (hfr : ∀ i, i ≤ (o i).frames)
+    (hag : ∀ m, m ≤ p.maxFrames + 1 → o m = o' m) : wait p o = wait p o' := by
+  have hs : spent p (o (p.maxFrames + 1)) = true := by
+    have := hfr (p.maxFrames + 1)
+    simp only [spent, Bool.or_eq_true, decide_eq_true_eq]
+    exact Or.inr (by omega)
+  exact scan_decided_by p o o' (p.maxFrames + 1) hs _ 0 (by omega) (fun m _ h => hag m h)
+
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- the mount stage's idle wait and the sample's fold (gate-shard-balance)
+-- ---------------------------------------------------------------------------------------------------------------
+
+/-- The policy of the mount stage's idle wait (`prepareInPage` stage `ready`, after the mount steps scrolled the page and
+back): it ends when no finite animation of the document runs, with no frame or quiet minimum, under the arm's time cap
+`c` and the gate's frame budget. Before gate-shard-balance this wait had only the time cap (20 s for the original), and in
+run 39101532038 it ran to that cap at each of the 29 desktop-sweep stops from 400 px back up to 1512 px (about 21 s per
+stop, MEASURED), whose main settle waits were all unsettled anyway.
+
+$$\pi_{\mathrm{idle}}(\pi, c) = (0, 0, \varepsilon, c, F)$$ -/
+def idlePolicy (p : Policy) (c : Nat) : Policy := { p with minFrames := 0, minStable := 0, timeoutMs := c }
+
+/-- Under the idle policy an observation is settled exactly when nothing runs and the pointer is not inside a target (the
+idle observations always say `false` there).
+
+$$\forall \pi\, c\, o,\quad \operatorname{settled}_{\pi_{\mathrm{idle}}(\pi, c)}(o) \iff \mathit{run}(o) = 0 \wedge \neg\mathit{hov}(o)$$ -/
+theorem idle_settled_iff (p : Policy) (c : Nat) (o : Obs) :
+    settled (idlePolicy p c) o = true ↔ o.running = 0 ∧ o.hoverInside = false := by
+  simp [settled, idlePolicy]
+
+/-- One step of the sample's fold: `unsettled` when either outcome is, else the first.
+
+$$\operatorname{fold}_1(a, w) = \begin{cases}\mathrm{unsettled} & a = \mathrm{unsettled} \vee w = \mathrm{unsettled}\\ a & \text{otherwise}\end{cases}$$ -/
+def fold1 (a w : Outcome) : Outcome := if a = .unsettled ∨ w = .unsettled then .unsettled else a
+
+/-- The outcome of a sample: its first (main) wait folded with the later waits it made (overlays opened, parts brought into
+view, the mount stage's idle wait), left to right (`run.mjs` `foldSettle`).
+
+$$\operatorname{fold}(a, [w_1, \dots, w_n]) = \operatorname{fold}_1(\cdots\operatorname{fold}_1(a, w_1)\cdots, w_n)$$ -/
+def fold (first : Outcome) (extra : List Outcome) : Outcome := extra.foldl fold1 first
+
+/-- An unsettled start stays unsettled through the fold.
+
+$$\forall\, ws,\quad \operatorname{fold}(\mathrm{unsettled}, ws) = \mathrm{unsettled}$$ -/
+theorem fold_unsettled_start : ∀ ws : List Outcome, fold .unsettled ws = .unsettled := by
+  intro ws
+  induction ws with
+  | nil => rfl
+  | cons w ws ih => simpa [fold, List.foldl, fold1] using ih
+
+/-- The sample is unsettled when any of its waits is: the first one or a later one.
+
+$$\forall a\, ws,\quad a = \mathrm{unsettled} \vee \mathrm{unsettled} \in ws \;\Longrightarrow\; \operatorname{fold}(a, ws) = \mathrm{unsettled}$$ -/
+theorem fold_unsettled (a : Outcome) (ws : List Outcome) (h : a = .unsettled ∨ Outcome.unsettled ∈ ws) :
+    fold a ws = .unsettled := by
+  induction ws generalizing a with
+  | nil =>
+    rcases h with h | h
+    · subst h; rfl
+    · simp at h
+  | cons w ws ih =>
+    simp only [fold, List.foldl]
+    rcases h with h | h
+    · subst h; exact fold_unsettled_start (w :: ws)
+    · rcases List.mem_cons.1 h with h | h
+      · subst h
+        have h1 : fold1 a .unsettled = .unsettled := by simp [fold1]
+        rw [h1]; exact fold_unsettled_start ws
+      · exact ih (fold1 a w) (Or.inr h)
+
+/-- When every wait of the sample settled, the sample's outcome is its first wait's.
+
+$$\forall a\, ws,\quad a \ne \mathrm{unsettled} \wedge \mathrm{unsettled} \notin ws \;\Longrightarrow\; \operatorname{fold}(a, ws) = a$$ -/
+theorem fold_settled (a : Outcome) (ws : List Outcome) (ha : a ≠ .unsettled) (h : Outcome.unsettled ∉ ws) :
+    fold a ws = a := by
+  induction ws with
+  | nil => rfl
+  | cons w ws ih =>
+    simp only [fold, List.foldl]
+    have hw : w ≠ .unsettled := fun e => h (e ▸ List.mem_cons_self ..)
+    have h1 : fold1 a w = a := by simp [fold1, ha, hw]
+    rw [h1]
+    exact ih (fun e => h (List.mem_cons_of_mem _ e))
+
+/-- A sample one of whose waits (the main settle, an overlay, a brought part or the mount stage's idle wait) is unsettled
+never gives a pass, whatever the other arm and the values.
+
+$$\forall a\, ws\, b\, e,\quad \mathrm{unsettled} \in ws \;\Longrightarrow\; \operatorname{report}(\operatorname{fold}(a, ws), b, e) \ne \mathrm{pass}$$ -/
+theorem fold_unsettled_never_pass (a : Outcome) (ws : List Outcome) (b : Outcome) (e : Bool)
+    (h : Outcome.unsettled ∈ ws) : report (fold a ws) b e ≠ .pass :=
+  unsettled_never_pass _ _ e (Or.inl (fold_unsettled a ws (Or.inr h)))
+
+#guard fold (.settled 2) [.settled 0, .settled 5] == .settled 2
+#guard fold (.settled 2) [.settled 0, .unsettled] == .unsettled
+#guard fold .unsettled [] == .unsettled
+#guard settled (idlePolicy gatePolicy 20000) { running := 0, frames := 0, stable := 0, hoverInside := false, t := 0 } == true
+#guard settled (idlePolicy gatePolicy 20000) { running := 2, frames := 9, stable := 9, hoverInside := false, t := 10 } == false
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- a probe on a node that is not rendered has no verdict (fix-commission: inner/rows margin-inline at pain-1440 #0)
@@ -699,7 +948,8 @@ def obsJson (o : Obs) : Json :=
 
 $$\pi \mapsto \{m_f, m_s, \varepsilon, T\}$$ -/
 def policyJson (p : Policy) : Json :=
-  Json.mkObj [("minFrames", toJson p.minFrames), ("minStable", toJson p.minStable), ("eps", toJson p.eps), ("timeoutMs", toJson p.timeoutMs)]
+  Json.mkObj [("minFrames", toJson p.minFrames), ("minStable", toJson p.minStable), ("eps", toJson p.eps), ("timeoutMs", toJson p.timeoutMs),
+    ("maxFrames", toJson p.maxFrames)]
 
 /-- An outcome as the twin writes it: `"settled@i"` or `"unsettled"`.
 
@@ -774,7 +1024,33 @@ def waitCases : List (String × Policy × List Obs) :=
       gatePolicy, [ob 0 2 2 true 16, ob 0 3 3 true 33, ob 0 4 4 true 50]),
     ("empty trace", gatePolicy, []),
     ("a stricter policy needs more frames",
-      { minFrames := 4, minStable := 2, eps := 100, timeoutMs := 100 }, [ob 0 2 2 false 16, ob 0 3 3 false 33, ob 0 4 4 false 50]) ]
+      { minFrames := 4, minStable := 2, eps := 100, timeoutMs := 100, maxFrames := 60 }, [ob 0 2 2 false 16, ob 0 3 3 false 33, ob 0 4 4 false 50]),
+    ("a lerp that never stops spends the frame budget long before the timeout",
+      gatePolicy, [ob 0 1 0 false 16, ob 0 30 0 false 500, ob 0 60 0 false 1000, ob 0 61 0 false 1016, ob 0 62 3 false 1033]),
+    ("settles exactly at the frame budget",
+      gatePolicy, [ob 1 1 0 false 16, ob 0 58 1 false 966, ob 0 60 3 false 1000]),
+    ("settles one frame after the frame budget",
+      gatePolicy, [ob 1 1 0 false 16, ob 0 59 1 false 983, ob 0 61 3 false 1016]),
+    ("slow frames: the timeout comes before the frame budget",
+      gatePolicy, [ob 1 1 0 false 3000, ob 1 40 0 false 29000, ob 1 41 0 false 30001]),
+    ("idle: nothing runs at once",
+      idlePolicy gatePolicy 20000, [ob 0 0 0 false 0]),
+    ("idle: animations finish after some frames",
+      idlePolicy gatePolicy 20000, [ob 2 0 0 false 0, ob 1 10 0 false 170, ob 0 20 0 false 340]),
+    ("idle: timers keep restarting animations past the frame budget",
+      idlePolicy gatePolicy 20000, [ob 3 0 0 false 0, ob 2 60 0 false 1000, ob 4 61 0 false 1016, ob 0 70 0 false 1200]),
+    ("idle: the cap comes first on slow frames",
+      idlePolicy gatePolicy 15000, [ob 1 0 0 false 0, ob 1 20 0 false 14000, ob 1 21 0 false 15001]) ]
+
+/-- Sample folds: (name, first wait, later waits).
+
+$$\text{foldCases} = [(n_k, a_k, ws_k)]_k$$ -/
+def foldCases : List (String × Outcome × List Outcome) :=
+  [ ("no later waits", .settled 3, []),
+    ("all settled", .settled 3, [.settled 0, .settled 7]),
+    ("an overlay did not settle", .settled 3, [.settled 0, .unsettled]),
+    ("the main wait did not settle", .unsettled, [.settled 0]),
+    ("the idle wait did not settle", .settled 1, [.unsettled]) ]
 
 /-- Cell reports: (name, arm a, arm b, equal).
 
@@ -858,6 +1134,9 @@ def goldenLines : List String :=
       ("firstO", rd fo), ("againO", rd go), ("firstR", rd fr), ("againR", rd gr),
       ("a", toJson (outcomeText a)), ("b", toJson (outcomeText b)),
       ("cell", toJson (cellText (viewCell bo br (mk fo) (mk go) (mk fr) (mk gr) a b)))]).compress)
+  ++ foldCases.map (fun (n, a, ws) =>
+    (Json.mkObj [("kind", "fold"), ("name", toJson n), ("first", toJson (outcomeText a)),
+      ("extra", toJson (ws.map outcomeText)), ("outcome", toJson (outcomeText (fold a ws)))]).compress)
   ++ reportCases.map (fun (n, a, b, e) =>
     (Json.mkObj [("kind", "report"), ("name", toJson n), ("a", toJson (outcomeText a)), ("b", toJson (outcomeText b)),
       ("equal", toJson e), ("report", toJson (reportText (report a b e)))]).compress)
@@ -896,6 +1175,10 @@ def run (args : List String) : IO UInt32 := do
 #guard waitList gatePolicy [ob 1 1 0 false 16, ob 0 2 1 false 33, ob 0 3 3 false 50] == .settled 2
 #guard waitList gatePolicy [ob 0 1 0 false 1000, ob 0 2 3 false 30001, ob 0 3 4 false 30017] == .unsettled
 #guard waitList gatePolicy [] == .unsettled
+#guard waitList gatePolicy [ob 0 60 3 false 1000] == .settled 0
+#guard waitList gatePolicy [ob 0 61 3 false 1000] == .unsettled
+#guard spent gatePolicy (ob 0 61 0 false 10) == true
+#guard spent gatePolicy (ob 0 60 0 false 30000) == false
 #guard cell false true (.settled 1) (.settled 2) false == .notRendered
 #guard cell true true (.settled 1) (.settled 2) false == .fail
 #guard rendered [false, true, false] == false
