@@ -8,8 +8,10 @@ import { loadState, paths, readJson, stepEvent } from "./state.ts";
 export const WAIT_USAGE = [
   "usage: fw ci wait <runId> [--timeout s]",
   "       fw ci wait --branch <ci/x> [--workflow <name>] [--sha <sha>] [--since <epoch>] [--timeout s]",
-  "  Blocks on the shared poller's local file (no GitHub call of its own). Exit 0: success, 1: failure,",
-  "  3: timeout or the poller stopped (call it again), 2: gh could not find the run. Prints `run <id> <workflow> <conclusion>`.",
+  "  Blocks on the shared poller's local file; one charged `gh run view --json jobs` per finished run decides (fwcore",
+  "  ci.verdict). Exit 0: pass (the guard decided run, a job ran, every job that ran succeeded), 1: failure,",
+  "  4: not run (the guard skipped; GitHub still says success), 3: timeout or the poller stopped (call it again),",
+  "  2: gh could not find the run. Prints `run <id> <workflow> <conclusion> -> <verdict> (<reason>)`.",
   "  With --branch it follows the NEWEST run of each workflow created after the commit (superseded runs are cancelled).",
   "usage: fw ci budget [--json] [--resume] [--probe]   (0 requests; --probe makes 1 charged `gh run list --limit 1`)",
 ].join("\n");
@@ -82,7 +84,7 @@ export async function ghBudgetCli(argv: string[], cwd: string): Promise<number> 
     process.once("SIGTERM", onSig("SIGTERM"));
     if (!parsed) return await budget(env, rest);
     const res = await waitFor(env, parsed.target, { timeoutS: parsed.timeoutS });
-    for (const l of res.lines) (res.code === 0 || res.code === 1 ? console.log : console.error)(l);
+    for (const l of res.lines) (res.code === 0 || res.code === 1 || res.code === 4 ? console.log : console.error)(l);
     return res.code;
   } catch (e) {
     console.error(e instanceof Error ? e.message : String(e));
