@@ -17,18 +17,19 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
 
 ## Waiting for CI: `fw ci wait`, `fw ci budget`
 
-- `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<task> [--workflow <name>] [--sha S] [--since EPOCH] [--msg TEXT] [--timeout S]`.
+- `pnpm fw ci wait <runId>` or `pnpm fw ci wait --branch ci/<task> [--workflow <name>] [--sha S] [--since EPOCH] [--timeout S]`.
   Blocks on the shared poller's local file (0 GitHub calls of its own, however many waiters), then makes one charged
   `gh run view <id> --json jobs` per finished decisive run (cached per run id) and lets fwcore decide (`ci.verdict`, Lean
   `Fw.Ci.Verdict.pass_iff`): a run passes only if its guard decided `run`, some other job ran, every job that ran
   succeeded, and no job stopped at its `stale:` step. It prints `run <id> <workflow> <conclusion> -> <pass|fail|not-run>
   (<reason>)`; a not-run reason starts with its tag: `unwanted`, `stale`, `landed`, `unchanged` (Lean `Skip`).
   - `--branch` without `--workflow` (the default after `fw ci push`): every lane the commit's message requests, plus
-    `lean` (fwcore `ci.required`), must have a pass run **for that exact commit**; `lean` may instead be skipped as
-    `unchanged`. A requested lane that did not run, or has no run 300 s after the commit's runs finished, is not a pass
-    (Lean `combine_requested_never_pass`, `missing_never_pass`). The last line is `lanes <a,b> -> <verdict>`. When the
-    commit's message cannot be read (the sha is not in the local object store), the request is unknown: exit 4 at once
-    with `lanes ? -> not-run (unknown request ...)` (Lean `unknown_request_never_pass`); fetch the commit or pass `--msg`.
+    `lean` (fwcore `ci.required`), must have a pass run **for that exact commit**; no skip counts, `unchanged` and
+    `lean` included (round 5, `wait_needs_default_pass`). A lane that did not run, or has no run 300 s after the
+    commit's runs finished, is not a pass (Lean `combine_requested_never_pass`, `missing_never_pass`). The last line is
+    `lanes <a,b> -> <verdict>`. The message is read from git only. When it cannot be read (the sha is not in the local
+    object store), the request is unknown: exit 4 at once with `lanes ? -> not-run (unknown request ...)` (Lean
+    `unknown_request_never_pass`); fetch the commit and wait again.
   - `--branch --workflow <name>`: the newest run of that workflow on the branch created after the commit (one run).
   - Exit 0 pass, 1 a run failed, **4 not run** (GitHub may still say `success`), 3 timeout (default 540 s) or the poller
     stopped (call it again), 2 gh could not find the run, 64 usage. Run it in the background; do not loop.
@@ -45,9 +46,9 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
   On a `ci/*` push it runs the jobs iff, in this order (the first failing one is the skip tag):
   `unwanted` the head commit asks for the lane (or it is the default lane `lean`); `stale` the commit is still the branch
   tip (`git ls-remote`; unreadable counts as the tip); `landed` the commit is not on main yet; `unchanged` some file that
-  differs from main on the WHOLE branch (merge-base..HEAD, content not main's: Lean `effective`) is an input. The tip
-  therefore always runs every requested lane whose inputs differ from main, and `lean` whenever lean inputs differ
-  (`tip_starts`, `tip_lean_always`); a later push that reverts part of the branch cannot hide what the branch still
+  differs from main on the WHOLE branch (merge-base..HEAD, content not main's: Lean `effective`) is an input; round 5:
+  `lean` never skips as `unchanged` on `ci/*` (`lean_never_unchanged`). The tip therefore always runs every requested
+  lane whose inputs differ from main, and `lean` on every tip not on main (`tip_starts`, `tip_lean_always`); a later push that reverts part of the branch cannot hide what the branch still
   carries (`tip_history_free`). A merge of main adds nothing (`merge_starts_nothing`).
 - A `main` push keeps the old rule: it runs iff its own diff (before..HEAD) passes the coarse globs (`pushPaths`:
   each cone as `lean/Fw/**`, `lean/*.lean`; `main_keeps_paths_rule`). Dispatches and schedules always run.

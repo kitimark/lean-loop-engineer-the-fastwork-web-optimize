@@ -212,8 +212,8 @@ def opLimits (_req : Json) : Except String Reply := pure [("limits", limitsJson 
 /-! ## `ci.verdict` (`Fw.Ci.Verdict`) -/
 
 /-- A conclusion field: the conclusion its text names; absent or `null` (e.g. still running) reads as `""`, which
-folds to failure.
-$$\forall j, k:\ \operatorname{concl}(j, k) = \operatorname{conclOf}(j[k]\ \text{if a string, else } \texttt{""})$$ -/
+folds to failure; any other value is an error.
+$$\forall j, k:\ \operatorname{concl}(j, k) = \begin{cases} \operatorname{conclOf}(\texttt{""}) & j[k] \in \{\text{absent}, \texttt{null}\} \\ \operatorname{conclOf}(j[k]) & j[k] \text{ a string} \\ \mathrm{error} & \text{otherwise} \end{cases}$$ -/
 def conclField (j : Json) (k : String) : Except String Fw.Ci.Verdict.Concl := do
   pure (Fw.Ci.Verdict.conclOf ((← optStr j k).getD ""))
 
@@ -224,7 +224,7 @@ def stepOf (j : Json) : Except String (String × Fw.Ci.Verdict.Concl) := do
 
 /-- One run's verdict as JSON: `{verdict, code, reason}`. Below $T$, $J$, $H$ are the run's `steps`, `jobs` and
 `heavySteps` (absent: empty), and a `guard` key that is absent reads as success.
-$$\forall j:\ \operatorname{runV}(j) = \operatorname{verdict}(g,\ \operatorname{decOf}(T),\ J,\ \operatorname{staleOf}(H)),\ g = \begin{cases} \mathrm{success} & \texttt{guard} \notin j \\ \operatorname{concl}(j, \texttt{guard}) & \text{otherwise} \end{cases}$$ -/
+$$\forall j:\ \operatorname{runV}(j) = (v,\ \{\texttt{verdict}: \operatorname{name}(v),\ \texttt{code}: \operatorname{code}(v),\ \texttt{reason}: r\}),\quad v = \operatorname{verdict}(g,\ \operatorname{decOf}(T),\ J,\ \operatorname{staleOf}(H)),\quad g = \begin{cases} \mathrm{success} & \texttt{guard} \notin j \\ \operatorname{concl}(j, \texttt{guard}) & \text{otherwise} \end{cases},\quad r = \begin{cases} \operatorname{reasonOf}(g, \operatorname{staleOf}(H), T) & v = \mathrm{notRun} \\ \texttt{""} & \text{otherwise} \end{cases}$$ -/
 def runVerdict (j : Json) : Except String (Fw.Ci.Verdict.Verdict × Json) := do
   -- no `guard` key: the run's workflow has no guard job (a branch based before task ci-trigger-lean), so nothing was
   -- decided away and the guard counts as `success`; a present key (also `null`) is read as a conclusion
@@ -240,7 +240,8 @@ def runVerdict (j : Json) : Except String (Fw.Ci.Verdict.Verdict × Json) := do
     ("reason", .str reason)])
 
 /-- One lane of a branch wait: `{name, verdict, code, reason}`; a lane without a run (`null` or absent) is `missing`
-(code 4, verdict `none`). The skip kind is the one its reason names.
+(code 4, verdict `none`). Below $\operatorname{laneV}$ is its `LaneRun`, whose skip kind is the one the reason names;
+an error of `runVerdict` is the result.
 $$\forall F, \ell:\ \operatorname{laneV}(F, \ell) = \begin{cases} (\mathrm{none},\ \mathrm{none}) & F[\ell.n] \in \{\text{absent}, \texttt{null}\} \\ (\mathrm{some}(v),\ \operatorname{skipOf}(s)) & \text{otherwise, with } (v, s) \text{ the verdict and reason of } \operatorname{runV}(F[\ell.n]) \end{cases}$$ -/
 def laneVerdict (lanes : Json) (l : Fw.Ci.Intent.Lane) : Except String (Fw.Ci.Verdict.LaneRun × Json) := do
   match lanes.getObjVal? l.name with
@@ -267,8 +268,8 @@ workflow has no guard job, `null` while it runs; `steps`: its steps; `jobs`: eve
 of each lane for one commit; reply `{lanes:[{name, verdict, code, reason}], verdict, code}` over `waitLanes msg` (the
 requested lanes and lean), combined by `Fw.Ci.Verdict.waitVerdict` (`Fw.Ci.Intent.wait_needs_default_pass`); `msg`
 absent or `null` (the message could not be read) gives `lanes` `[]`, verdict not run and `reason`
-(`unknown_request_never_pass`).
-$$\forall m, F:\ \operatorname{verdict}_{\mathrm{lanes}}(m, F) = \begin{cases} \operatorname{wait}(\mathrm{none}) & m \in \{\text{absent}, \texttt{null}\} \\ \operatorname{wait}\bigl(\mathrm{some}([\, \operatorname{laneV}(F, \ell) : \ell \in \operatorname{waitLanes}(m) \,])\bigr) & \text{otherwise} \end{cases} \qquad \forall \vec{\jmath}:\ \operatorname{verdict}_{\mathrm{runs}}(\vec{\jmath}) = \operatorname{combine}([\, \operatorname{runV}(j) : j \in \vec{\jmath} \,])$$ -/
+(`unknown_request_never_pass`). A field of the wrong type is an error; `runs` absent is `[]`.
+$$\forall m, F:\ \operatorname{verdict}_{\mathrm{lanes}}(m, F) = \begin{cases} \operatorname{wait}(\mathrm{none}) & m \in \{\text{absent}, \texttt{null}\} \\ \operatorname{wait}\bigl(\mathrm{some}([\, \operatorname{laneV}(F, \ell) : \ell \in \operatorname{waitLanes}(m) \,])\bigr) & \text{otherwise} \end{cases} \qquad \forall \vec{\jmath}:\ \operatorname{verdict}_{\mathrm{runs}}(\vec{\jmath}) = \operatorname{combine}([\, \operatorname{runV}(j)_1 : j \in \vec{\jmath} \,])$$ -/
 def opVerdict (req : Json) : Except String Reply := do
   match req.getObjVal? "lanes" with
   | .ok lanes =>
@@ -287,7 +288,7 @@ def opVerdict (req : Json) : Except String Reply := do
 
 /-- `ci.required`: request `{msg}`; reply `{lanes:[name]}`, the names of `waitLanes msg` in table order. `msg` absent
 or `null` (the message could not be read): reply `{lanes:null, verdict, code, reason}` with the verdict of an unknown
-request (not run), so the caller stops without waiting.
+request (not run), so the caller stops without waiting. A `msg` that is not a string is an error.
 $$\forall m:\ \operatorname{required}(m) = \begin{cases} \mathrm{null} & m \in \{\text{absent}, \texttt{null}\} \\ [\, \ell.n : \ell \in \operatorname{waitLanes}(m) \,] & \text{otherwise} \end{cases}$$ -/
 def opRequired (req : Json) : Except String Reply := do
   match ← optStr req "msg" with

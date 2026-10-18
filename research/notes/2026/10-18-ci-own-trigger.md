@@ -214,13 +214,40 @@ Three holes from the round-3 review, each closed in Lean first:
   `skipped_named_refused`); `--partial` pushes when at least one named lane starts (`partial_starts_one`). The JS rule
   equals the 170 Lean push vectors of `intent.jsonl` (`ci-push.test.mjs`).
 
+## Round 5 (final design round): lean never skips as unchanged on `ci/*`
+
+The round-4 review found more files that `check.sh` reads through Lean programs (`fwtest` goldens, the props-lint
+ledger) outside the lean row, so a `[ci:wktr]` branch changing only such a file passed the wait with lean skipped as
+`unchanged` (MEASURED by the reviewer on fwcore 866474b: code 0). Closed design (lead decision): lean's inputs stop
+being a safety input.
+- `Fw.Ci.Intent.decision`: on a `ci/**` push a default lane (always wanted) skips only as stale or landed
+  (`lean_never_unchanged`, `tip_lean_always`, `default_iff_lean`). Other lanes keep the `unchanged` skip.
+- `Fw.Ci.Verdict.laneOk` is now "the run passed" (`laneOk_iff`); `LaneRun` lost its `dflt` field. A wait over
+  `waitLanes m` passes only with a pass of lean and of every requested lane (`wait_needs_default_pass`,
+  `wait_needs_requested_pass`); fwcore `ci.verdict` and `ci.required` read `waitLanes`. The reviewer's probe is a
+  `#guard` in `Fw/Ci/Wire.lean` (code 4) and a test in `wait.test.ts`.
+- `fw ci wait` reads the head message from git only; `--msg` is gone (round-4 minor: a caller could replace the
+  commit's request). The guard comment of every workflow says lean always runs (`ci-paths --write`).
+- Math minors: the record expression is `\mathrm{notCi}`, Verdict's `combineRequested` / `decisionOf` are
+  `\operatorname{combReq}` / `\operatorname{decOf}`, Intent's `groupExpr` is `\operatorname{grpX}`; the new or changed
+  Wire defs (`conclField`, `stepOf`, `runVerdict`, `laneVerdict`, `unknownReply`, `opVerdict`, `opRequired`) carry `$$`.
+- Cost (accepted by the lead): lean runs on every `ci/*` tip push that is not on main, also docs-only ones.
+
 ## Limits and open items
+
+- Round 5: `fw ci wait` needs the commit in the local object store (fetch it first); otherwise it answers not-run.
+- Round 5: a landed commit's lean skips as `landed`, so a wait on it is not a pass (wait on the branch tip instead).
+- Round 5: the lean-input lint (`leanInputProblems`) is now hygiene for the `main` push paths rule only, not a safety
+  check; Lean programs reading `../` paths at run time are still not scanned.
+- Round 5: other modules keep their own `grp`/`dec`-like symbols (e.g. `Fw.Ci.Cancel` `grp`); only the clashes the
+  review named were renamed. Wire ops outside this task (`opLimits` and the budget ops) still have prose docstrings.
 
 - Round 4: the lane request is read from the tip commit only. A raw `git push` of a commit that does not repeat an
   earlier `[ci:x]` drops x: the earlier push is stale and the wait requires only what the tip asks for. Use
   `fw ci push`; CLAUDE.md still names a raw `git push origin ci/<name>` (a lead or user edit).
 - Round 4: the lean-input lint reads `../<path>` in `lean/scripts/*.sh` only; a file read through a variable, by a
-  script those scripts call outside `lean/`, or by a Lean program at run time is not checked.
+  script those scripts call outside `lean/`, or by a Lean program at run time is not checked (round 5: no longer a
+  safety gap, see above).
 
 - ~~Workflow-level concurrency cancels in-flight runs on any newer push whose paths match~~ (cause d): fixed in round 2
   by job-level groups (see below).
