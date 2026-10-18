@@ -8,14 +8,18 @@ import Fw.Gate.Scope
 
 The summary step used to exit 0 whatever the table said, so a gate job showed success on a failing run
 (mistake retro, class `c-proxy-verdict`). Here the exit code is a function of the merged verdict per engine, and the
-engine verdict is a function of EVERY cell of its table, one by one (gate-shard-balance round 3).
+engine verdict is a function of EVERY reading of EVERY cell of its table, one by one (gate-shard-balance rounds 3 and 4).
 
-**The rule.** An engine passes only if every cell was compared and passed, with both arms observed in the same state.
-A cell is `ok` when it passed, or when a Lean-registered exemption excuses it (`exemptions`: an allowlist of cell id,
-engine, verdict, reason and premise, printed in the verdict). Nothing else is `ok`: a `fail`, an unsettled sample, a
-not-comparable or unreachable cell that no exemption names, and a not-run cell of a run that was not narrowed to parts are
-each a reason the engine does not pass (`engine_pass_iff_all_cells`, `engineVerdictCS_pass_iff`). There is no aggregate
-that can hide one: a faster or greener gate never comes from comparing less.
+**The rule.** An engine passes only if every reading of every cell was compared and passed, with both arms observed in the
+same state. A cell holds its readings (a probe verdict or a sweep-stop verdict, each with an id: the probe id or
+`<sweep id>#<stop>`). A reading is `ok` when it passed, or when a Lean-registered exemption excuses it (`exemptions`: an
+allowlist of engine, row, column, verdict, reading ids, reason and premise; every excused reading is printed in the verdict).
+A cell is `ok` when each of its readings is (`rollup_pass_iff_all_readings`). Nothing else is `ok`: a `fail`, an unsettled
+sample, a not-comparable or unreachable reading that no exemption names, and a not-run cell of a run that was not narrowed to
+parts are each a reason the engine does not pass (`engine_pass_iff_all_cells`, `engineVerdictCS_pass_iff`). No other reading of
+the same cell and no aggregate can hide one: a faster or greener gate never comes from comparing less. The lenient
+`Fw.Gate.Rule.rollup` (a block passes when some probe passed and none failed) is used for display, State and Scope only, never
+for this decision.
 
 An engine's verdict is one of five (`EngineVerdict`): `pass`, `fail`, `unsettled` (some sample did not settle on an arm, so
 its numbers are not a measurement), `incomplete` (a cell is neither a pass nor excused) and `notRendered` (nothing passed).
@@ -746,7 +750,7 @@ $$\{\mathrm{id} = \texttt{narrowed-run},\ \mathrm{kind} = \texttt{narrowed},\ \m
 def narrowedLine : String :=
   (Json.mkObj [("kind", "narrowed"), ("id", narrowedId), ("reason", narrowedReason)]).compress
 
-/-- The excuses of a cell, one per excused reading: (excuse id, cell id `row|col`, reading id). A not-run cell of a narrowed run has one,
+/-- The excuses of a cell, one per excused reading: (excuse id, `row|col` of the cell, reading id). A not-run cell of a narrowed run has one,
 under `narrowed-run` with an empty reading id.
 
 $$X(e, N, c) = \begin{cases} [(\texttt{narrowed-run}, \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, \varepsilon)] & c.\mathit{readings} = [\,] \wedge N \\ [\,] & c.\mathit{readings} = [\,] \wedge \neg N \\ [(\operatorname{excuse}(e, \rho, \kappa, r), \rho \mathbin{+\!\!+} \texttt{"|"} \mathbin{+\!\!+} \kappa, r.\mathit{id}) \mid r \in c.\mathit{readings},\ \operatorname{excuse}(e, \rho, \kappa, r) \ne \bot] & \text{otherwise} \end{cases}$$
@@ -860,9 +864,10 @@ def fracCell : String × String × String := ("hero.exit", "fractional-gaps", "u
 
 $$\mathrm{goldenLines} = [\operatorname{exemptionLine}(x)]_{x \in \mathrm{exemptions}} \mathbin{+\!\!+} [\mathrm{narrowedLine}] \mathbin{+\!\!+} [\operatorname{engineCase}(e, N, ns, ws)]_{(e, N, ns, ws) \in E} \mathbin{+\!\!+} [\operatorname{exitCase}(vs)]_{vs \in X} \mathbin{+\!\!+} [\operatorname{staleCase}(a, f)]_{(a, f) \in S}$$
 
-The sizes are $|\mathrm{exemptions}| = 3$, $|E| = 33$ engine cases, $|X| = 10$ run cases and $|S| = 8$ hysteresis cases, so the file has
-$3 + 1 + 33 + 10 + 8 = 55$ lines in that order. The engine cases cover: every registered exemption and each of its three
-conditions broken (other engine, other row, other verdict, other column), a not-comparable or unreachable cell with no
+The sizes are $|\mathrm{exemptions}| = 5$, $|E| = 47$ engine cases, $|X| = 10$ run cases and $|S| = 8$ hysteresis cases, so the file has
+$5 + 1 + 47 + 10 + 8 = 71$ lines in that order. The engine cases cover: every registered exemption and each of its
+conditions broken (other engine, other row, other column, other verdict, other reading id), a cell that mixes an excused and an
+unexcused reading, a not-comparable or unreachable cell with no
 exemption, a not-run cell in a full and in a narrowed run, the order fail over unsettled over incomplete over not-rendered, and the
 wait outcomes (plain digits only, a missing wait, an unknown name, the first error). -/
 def goldenLines : List String :=

@@ -80,7 +80,7 @@ theorem gatePolicy_frozen : stepMs * gatePolicy.maxFrames ≤ gatePolicy.timeout
 hover flag) have the same wait: the answer is a function of the page's steps alone, whichever machine ran them and
 however long it took.
 
-$$\left(\forall m \le F + 1,\ \mathit{run}_m = \mathit{run}'_m \wedge \mathit{st}_m = \mathit{st}'_m\right) \wedge \mathit{hov} = \mathit{hov}' \;\Longrightarrow\; \operatorname{wait}_\pi(o) = \operatorname{wait}_\pi(o')$$ -/
+$$\left(\forall m \le F + 1,\ \mathit{run}_m = \mathit{run}'_m \wedge \mathit{st}_m = \mathit{st}'_m\right) \;\Longrightarrow\; \operatorname{wait}_\pi(o_{\mathit{run},\mathit{st},\mathit{hov}}) = \operatorname{wait}_\pi(o_{\mathit{run}',\mathit{st}',\mathit{hov}})$$ -/
 theorem wait_frozen_agree (p : Policy) (run stable run' stable' : Nat → Nat) (hov : Bool)
     (h : ∀ m, m ≤ p.maxFrames + 1 → run m = run' m ∧ stable m = stable' m) :
     wait p (frozenObs run stable hov) = wait p (frozenObs run' stable' hov) := by
@@ -273,7 +273,9 @@ def instant (b k : Nat) : Nat := b + mainOff + slotMs * k
 
 /-- The ranks of a stop: the first reading is rank 0, overlay part $j$ is rank $1 + j$, the mount parts (read together) rank
 $n_o + 1$, and the part with index $q$ read after it was brought into view rank $n_o + 2 + q$. The ranks are positions in a list
-fixed by the part list (the union of both arms' prepare steps), so they are the same in both arms.
+fixed by the part list (the union of both arms' prepare steps), so they are the same in both arms. The parts brought into view are
+the union over both arms of the parts either arm read skipped (src/view.mjs `viewUnion`), so a part is read at its view rank in both
+arms or in neither.
 
 $$\operatorname{ovRank}(j) = 1 + j, \qquad \operatorname{mountRank}(n_o) = n_o + 1, \qquad \operatorname{viewRank}(n_o, q) = n_o + 2 + q$$ -/
 def ovRank (j : Nat) : Nat := 1 + j
@@ -333,7 +335,7 @@ theorem instant_before_next (i n k : Nat) (h : k ≤ n + 1) :
   have : 4000 * k + 4000 ≤ 4000 * (n + 2) := by omega
   omega
 
-/-- The stop base is strictly after the ready instant for later stops and the first reading comes after the base.
+/-- The stop bases strictly increase with the stop index, and the first reading of a stop comes after its base.
 
 $$\operatorname{base}(i, n) < \operatorname{base}(i + 1, n) \;\wedge\; \operatorname{base}(i, n) < \operatorname{instant}(\operatorname{base}(i, n), 0)$$ -/
 theorem stopBase_lt (i n : Nat) : stopBase i n < stopBase (i + 1) n ∧ stopBase i n < instant (stopBase i n) 0 := by
@@ -495,10 +497,11 @@ theorem overshoot_flagged :
 $$\operatorname{instantOutcome}(\mathit{ok}) = \begin{cases} \mathrm{settled}(0) & \mathit{ok} \\ \mathrm{unsettled} & \neg\mathit{ok} \end{cases}$$ -/
 def instantOutcome (ok : Bool) : Outcome := if ok then .settled 0 else .unsettled
 
-/-- **A sample read at the wrong instant never passes.** Folded into the sample's waits, a late reading makes the sample unsettled,
-so its report is never pass, and the engine is not a pass (`Fw.Gate.Exit.engineVerdictCS_ne_pass_of_unsettled`).
+/-- **A sample read at the wrong instant never passes.** The harness folds `instantOutcome (fits c st)` into the sample's waits
+(that step is glue, not part of this theorem); with a late reading (`fits c st = false`) that outcome is unsettled, so the report is
+never pass, and the engine is not a pass (`Fw.Gate.Exit.engineVerdictCS_ne_pass_of_unsettled`). The theorem states the fold:
 
-$$\operatorname{fits}(c, st) = \bot \implies \forall a\, ws\, b\, e,\ \operatorname{report}(\operatorname{fold}(a, \operatorname{instantOutcome}(\bot) :: ws), b, e) \ne \mathrm{pass}$$ -/
+$$\forall a\, ws\, b\, e,\quad \operatorname{report}(\operatorname{fold}(a, \operatorname{instantOutcome}(\bot) :: ws), b, e) \ne \mathrm{pass}$$ -/
 theorem unfit_never_pass (a : Outcome) (ws : List Outcome) (b : Outcome) (e : Bool) :
     report (fold a (instantOutcome false :: ws)) b e ≠ .pass :=
   fold_unsettled_never_pass a _ b e (List.mem_cons_self ..)
@@ -617,9 +620,10 @@ def goldenLines : List String :=
 $$\text{goldenText} = \mathbin{+\!\!+}_{\ell \in \text{goldenLines}} (\ell \mathbin{+\!\!+} \texttt{newline})$$ -/
 def goldenText : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
-/-- Command-line driver: print the golden text, or with `--check <file>` exit 0 when the file holds exactly these bytes.
+/-- Command-line driver: print the golden text (exit 0), or with `--check <file>` exit 0 exactly when the file holds these bytes
+and 1 otherwise.
 
-$$\operatorname{run}(\mathit{args}) = 0 \iff \text{no mismatch}$$ -/
+$$\operatorname{run}(\texttt{--check}\ f) = 0 \iff \operatorname{bytes}(f) = \operatorname{goldenText}$$ -/
 def run (args : List String) : IO UInt32 := do
   match argAfter args "--check" with
   | some path =>

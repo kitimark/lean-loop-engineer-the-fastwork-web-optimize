@@ -9,6 +9,7 @@ import { KIT_SRC, PIN_SRC, bringInPage, collectInPage, freezeInPage, prepareInPa
 import { HOLD_LOAD_MS, MAIN_OFF_MS, ORIG_GRACE_MS, POST_RESIZE_MS, READY_TO_MS, SLOT_MS, STEP_MS, checkAt, instant, lateWait, mountRank, newRec, observeAt, ovRank, stopBase, viewRank } from './freeze.mjs';
 import { GATE_POLICY, fold, idlePolicy, view, waitTrace } from './settle.mjs';
 import { snapshotRoot, siteDist, startServer, rewriteFor, PKG } from './serve.mjs';
+import { makeViewBarrier, skippedParts, viewStage } from './view.mjs';
 import { loadAnchors, loadGen, probeEnv, scopeFor, selectParts, sweepDefs } from './spec.mjs';
 
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
@@ -173,7 +174,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   // `ctx` = { base, rec } (frozen only): the stop base and the sample's record of readings that missed their instant. Order of the
   // readings and their ranks (Lean Fw.Gate.Freeze): the main parts 0, overlay j = 1 + j, the mount parts together = nOverlay + 1, a
   // part brought into view = nOverlay + 2 + its index among the plain parts.
-  async function evalCollect(s, site, env, props, settleRoots, view = false, ctx = null) {
+  async function evalCollect(s, site, env, props, settleRoots, view = false, ctx = null, viewSync = null) {
     const at = (rank, label) => (ctx ? observeAt(s, instant(ctx.base, rank), freezeInPage, ctx.rec, label) : true);
     const pick = (ids) => Object.fromEntries(Object.entries(partsArg[site]).filter(([pid]) => ids.includes(pid)));
     await at(0, 'main');
@@ -201,7 +202,7 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
       const late = await s.evaluate(collectInPage, collectArg(site, env, props, pick(mtIds), view));
       raw.parts = { ...raw.parts, ...late.parts };
     }
-    if (props && view) await bringSkipped(s, site, env, props, raw, settleRoots, at);
+    if (props && view) await bringSkipped(s, site, env, props, raw, settleRoots, at, viewSync);
     const miss = ctx && lateWait(ctx.rec);
     if (miss) {
       (raw.overlaySettle ||= []).push(miss);
@@ -210,34 +211,25 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
     }
     return raw;
   }
-  // Lean Fw.Gate.Settle.view. A part with a node read in a skipped content-visibility subtree (page.mjs collectInPage flags it) is
-  // brought into view, settled and read again; the second reading is the one kept (`view true first again`, node by node), the
-  // first is recorded under raw.viewFirst. A node still skipped carries the flag again and summary.mjs maskNotRendered gives it no
-  // verdict (cell notRendered). A part without a skipped node is left exactly as read. The page is scrolled back to the top.
-  async function bringSkipped(s, site, env, props, raw, settleRoots, at) {
-    const skippedIds = Object.entries(raw.parts)
-      .filter(([pid, roles]) => plainIds.includes(pid) && Object.values(roles).some((r) => r.items.some((it) => it.skipped)))
-      .map(([pid]) => pid);
-    if (skippedIds.length === 0) return;
-    raw.viewFirst = {};
-    raw.viewed = {};
-    for (const pid of skippedIds) {
-      const roots = partsArg[site][pid].map((r) => r.selector);
-      const b = await s.evaluate(bringInPage, { roots });
-      const wait = settleRoots ? await settleRoots(roots, env) : null;
-      if (wait) (raw.overlaySettle ||= []).push(wait); // the sample is unsettled when this wait is
-      await at(viewRank(ovIds.length, plainIds.indexOf(pid)), `view ${pid}`);
-      const again = await s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, true));
-      const first = raw.parts[pid];
-      raw.viewFirst[pid] = first;
-      raw.parts[pid] = Object.fromEntries(Object.entries(first).map(([role, fr]) => [role, {
-        ...fr, items: fr.items.map((it, i) => view(true, it, again.parts[pid][role].items[i] ?? it)),
-      }]));
-      const still = Object.values(raw.parts[pid]).reduce((n, r) => n + r.items.filter((it) => it.skipped).length, 0);
-      raw.viewed[pid] = { skippedBefore: b.skippedBefore, stillSkipped: still, scrollY: b.scrollY, ...(wait ? { settle: wait.outcome } : {}) };
-      log(`  view ${engineName} ${site} ${env.width}x${env.height} ${pid}: ${b.skippedBefore} skipped, ${still} still skipped`);
-    }
-    await s.evaluate(scrollTopInPage);
+  // Lean Fw.Gate.Settle.view, src/view.mjs. A part with a node read in a skipped content-visibility subtree (page.mjs collectInPage flags
+  // it) is brought into view, settled and read again; the second reading is the one kept (`view true first again`, node by node), the
+  // first is recorded under raw.viewFirst. The parts brought are the UNION over both arms (`viewSync` posts this arm's skipped parts
+  // and returns the union once both arms have posted), so both arms bring, settle and read the same parts at the same view instants.
+  // A node still skipped carries the flag again and summary.mjs maskNotRendered gives it no verdict (cell notRendered). A part
+  // without a skipped node in either arm is left exactly as read. The page is scrolled back to the top.
+  async function bringSkipped(s, site, env, props, raw, settleRoots, at, viewSync) {
+    const mine = skippedParts(raw.parts, plainIds);
+    const ids = viewSync ? await viewSync(mine) : mine;
+    await viewStage({
+      roots: (pid) => partsArg[site][pid].map((r) => r.selector),
+      bring: (roots) => s.evaluate(bringInPage, { roots }),
+      settle: (roots) => (settleRoots ? settleRoots(roots, env) : null),
+      at: (pid) => at(viewRank(ovIds.length, plainIds.indexOf(pid)), `view ${pid}`),
+      again: (pid) => s.evaluate(collectInPage, collectArg(site, env, props, { [pid]: partsArg[site][pid] }, true)).then((r) => r.parts),
+      keep: view,
+      log: (pid, bt, still) => log(`  view ${engineName} ${site} ${env.width}x${env.height} ${pid}: ${bt.skippedBefore} skipped, ${still} still skipped`),
+    }, raw, ids);
+    if (ids.length > 0) await s.evaluate(scrollTopInPage);
   }
 
   // Phase 0: the property lists. Declared names depend on the stylesheets and the elements, not on the environment,
@@ -285,19 +277,33 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   const collectProps = Object.fromEntries(Object.entries(props).map(([pid, roles]) => [pid, Object.fromEntries(
     Object.entries(roles).map(([role, v]) => [role, [...v.restated, ...v.originOnly]]))]));
 
-  async function sample(env, site, view = VIEW_ON) {
-    return withRetry(`${site} ${env.width}x${env.height}`, async () => {
+  // `viewSync` (only a pair sample, samplePair) makes the view set the union over both arms; the pair retries as one, an arm never alone.
+  async function sample(env, site, view = VIEW_ON, viewSync = null) {
+    const retry = viewSync ? (label, fn) => fn() : withRetry;
+    return retry(`${site} ${env.width}x${env.height}`, async () => {
       const s = await load(env, site);
       try {
         await parkEarly(s, env);
         const rec = newRec();
         const settle = await evalReady(s, site, rec);
         const settleWait = await settleArm(s, site, env);
-        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots), view, frozen ? { base: stopBase(0, readingCount(view)), rec } : null);
+        const raw = await evalCollect(s, site, env, collectProps, (roots, e) => settleArm(s, site, e, roots), view, frozen ? { base: stopBase(0, readingCount(view)), rec } : null, viewSync);
         raw.settleWait = foldSettle(settleWait, raw.overlaySettle); delete raw.overlaySettle;
         if (gaps) raw.gap = await s.evaluate(gaps.collect, gaps.collectArg);
         return { settle, raw };
       } finally { await s.close().catch(() => {}); }
+    });
+  }
+
+  // Both arms of one probe with the view set shared (Lean viewCell with the same bring flag for both arms): the arms load and run
+  // together, meet at the barrier after their first reading, and bring the union of the parts either arm read skipped.
+  async function samplePair(env) {
+    return withRetry(`pair ${env.width}x${env.height}`, async () => {
+      const barrier = makeViewBarrier(plainIds, SITES);
+      const rs = await Promise.allSettled(SITES.map((site) => sample(env, site, true, (list) => barrier.post(site, list)).catch((e) => { barrier.fail(e); throw e; })));
+      const bad = rs.find((r) => r.status === 'rejected');
+      if (bad) throw bad.reason;
+      return rs.map((r) => r.value);
     });
   }
 
@@ -308,13 +314,23 @@ export async function runEngine({ engineName, outDir, concurrency = 4, probeFilt
   let done = 0;
   const tProbes = Date.now();
   // `load <id> <site>: <ms> ms` lines are the measured unit costs of Fw.Gate.ShardCosts (gate-shard-balance).
-  const sampled = await pool(tasks, concurrency, async ({ p, site }) => {
-    const t0 = Date.now();
-    const r = await sample(gaps ? gaps.mapProbe(p) : probeEnv(p), site);
+  const loaded = (p, site, t0) => {
     log(`  load ${engineName} ${p.id} ${site}: ${Date.now() - t0} ms`);
     if (++done % 20 === 0) log(`  ${engineName}: ${done}/${tasks.length} loads`);
-    return r;
-  });
+  };
+  const sampled = VIEW_ON
+    ? (await pool(probes, Math.max(1, Math.floor(concurrency / 2)), async (p) => {
+      const t0 = Date.now();
+      const pair = await samplePair(gaps ? gaps.mapProbe(p) : probeEnv(p));
+      for (const site of SITES) loaded(p, site, t0);
+      return pair;
+    })).flat()
+    : await pool(tasks, concurrency, async ({ p, site }) => {
+      const t0 = Date.now();
+      const r = await sample(gaps ? gaps.mapProbe(p) : probeEnv(p), site);
+      loaded(p, site, t0);
+      return r;
+    });
   log(`  ${engineName}: probes done (${tasks.length} loads, ${Date.now() - tProbes} ms)`);
   const probeRecords = probes.map((p, i) => ({
     id: p.id, block: p.block, env: probeEnv(p), ...(gaps ? { realized: gaps.mapProbe(p) } : {}),
