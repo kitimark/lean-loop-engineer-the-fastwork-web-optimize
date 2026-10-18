@@ -77,7 +77,7 @@ def nextOf : ConstantInfo → List Name
 /-- Every project constant reachable from the roots through `nextOf` (roots included when they are project
 constants), as a list without repeats in depth-first order of first visit. A name that is not in the environment,
 or whose module is not a project module, is neither listed nor followed.
-$$\operatorname{set}(\operatorname{closure}(X)) = \{c \mid \exists x \in X,\ x \to^{*} c,\ c \in \mathrm{env},\ \operatorname{project}(\operatorname{modOf}(c))\},\quad a \to b \iff a \in \mathrm{env} \land \operatorname{project}(\operatorname{modOf}(a)) \land b \in \operatorname{next}(a)$$ -/
+$$\forall X,\ \operatorname{set}(\operatorname{closure}(X)) =\{c \mid \exists x \in X,\ x \to^{*} c,\ c \in \mathrm{env},\ \operatorname{project}(\operatorname{modOf}(c))\},\quad a \to b \iff a \in \mathrm{env} \land \operatorname{project}(\operatorname{modOf}(a)) \land b \in \operatorname{next}(a)$$ -/
 partial def closure (env : Environment) (sc : Scope) (roots : List Name) : List Name := Id.run do
   let mut seen : NameSet := {}
   let mut out : Array Name := #[]

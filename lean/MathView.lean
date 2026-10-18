@@ -278,12 +278,12 @@ def candidate (env : Environment) (n : Name) (ci : ConstantInfo) : Bool :=
     (n.toString.splitOn ".match_").length ≤ 1 && !n.components.any (fun c => c.toString.startsWith "inst")
 
 /-- The source line of a declaration, 0 when it has no declaration range (a generated declaration).
-$$\operatorname{declLine}(n) = \begin{cases} \operatorname{line}(\operatorname{range}(n)) & n \text{ has a declaration range} \\ 0 & \text{otherwise} \end{cases}$$ -/
+$$\forall n,\ \operatorname{declLine}(n) =\begin{cases} \operatorname{line}(\operatorname{range}(n)) & n \text{ has a declaration range} \\ 0 & \text{otherwise} \end{cases}$$ -/
 def declLine (n : Name) : MetaM Nat := return ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
 
 /-- **Does `entryOf` show a candidate?** It has a source line (not generated), and it is neither an instance nor a
 structure projection.
-$$\operatorname{shown}(n) \iff \operatorname{declLine}(n) \ne 0 \land \lnot\operatorname{instance}(n) \land \lnot\operatorname{projection}(n)$$ -/
+$$\forall n,\ \operatorname{shown}(n) \iff \operatorname{declLine}(n) \ne 0 \land \lnot\operatorname{instance}(n) \land \lnot\operatorname{projection}(n)$$ -/
 def shown (n : Name) : MetaM Bool :=
   return (← declLine n) != 0 && !(← isInstance n) && !(← isProjectionFn n)
 

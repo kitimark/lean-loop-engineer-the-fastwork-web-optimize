@@ -1,38 +1,30 @@
 # Handoff: lfg-mathview-facts
 
-**State:** done on branch `worktree-wf_57efa528-98a-1` (see `git log -3`); `sh lean/scripts/check.sh` green; not landed.
+**State:** round 2 on branch `worktree-wf_cde75b6e-1eb-1` (round 1 `ca517c5` and main `f25c908` merged; see `git log -3`).
+Not landed. The CI mathview-differential job has not run (needs a `ci/*` push, lead decides).
 
-**What it does.** `lean/MathViewMain.lean` adds 7 keys to every theorem entry: `headConst`, `implArg` (`{index, expr}`
-or null), `assumes`, `killOf`, `class` (closed | rfl | defEq | general), `reach` and `reachFromWire`. Non-theorem
-entries and every existing field stay byte-identical. MEASURED locally: with the 7 keys and heartbeats removed, the
-6048 old entries hash the same as the pre-change export. `mathview-cached.sh --diff` reports identical output for a
-cold store, a warm store and a half-pruned store.
+**What round 2 changed** (round-1 reviews: math-reviewer and adversarial, both refused):
+- Wire reach $W$ = `closure([Fw.Wire.handle] ++ fwIdents(scripts/*Golden.lean))`. `wireRoot` and the module-name roots
+  are gone. `#guard !(wire% Fw.Wire.Sched.taskAdmitted)`.
+- Subjects (`subjectsOf`): `opsOf` drops sort-valued constants (types, aliases, predicates). If none remain, `ctorOps`
+  takes the ops named in the ctor types of the statement's project inductive predicates (Prop-valued only, followed
+  transitively, defs not unfolded).
+- `reachFromWire : Option Bool`: null when there are no subjects.
+- `reach` keeps `MathView.hasEntry` names. `hasEntry` = `candidate` (the old `skip` + name filters) ∧ `shown` (the
+  `entryOf` test), so `entries` and the facts share one test.
+- The defEq environment limit is stated in `sidesDefEq` and in the note (section 6), guarded via `defEqAt%`.
+- The math-review minors are fixed in the docstrings.
 
-**Read first.**
-- `lean/Fw/Spec/MathFacts.lean`: the pure decisions with `#guard`s (`classify`, `implIdx`, `killOf`, `wireRoot`,
-  `fwIdents`, `reachFromWire`), 2 theorems (`closed_binders`, `general_of`), the MetaM glue `factsOf` and `wireReach`,
-  and the `facts%` term elaborator.
-- `lean/Fw/Spec/MathFactsGuards.lean`: `#guard`s on real Fw theorems, one per class and per fact.
-- `lean/Fw/Spec/Reach.lean`: `closure` and the registry readers, moved out of `scripts/PropsLint.lean`, which now
-  imports them. One copy of the logic, no duplicate.
-- `MathViewMain.lean`, section "Facts per theorem": the types `Stored`, `withFacts`, `factsGlobals` and `entryJson`.
+**Counts (MEASURED locally, export of 2792 theorems):** round 1 (`ca517c5`): true 2062, false 722, null 0.
+Round 2: true 1681, false 949, null 162. 11 went false → true, all from the inductive-predicate fallback
+(Sched.Admit, Ci.Budget, Console.Preview). Base fields differ from round 1 only in modules changed since then.
 
-**Conventions.**
-- Facts are computed in a fresh Core/Meta state for each theorem, within `factsBudget` (20000k heartbeats).
-- `plainUnfold` turns off smart unfolding. Smart unfolding needs the matcher extension, which `loadExts := false`
-  does not load. Without this, `facts%` and the export would disagree, for example on `wsum_single`.
-- The registry rows and the Sig Dom/Cod are global inputs. Their key (`factsGlobals`) is mixed into the tool hash.
-- `reachFromWire` is computed after the merge on every run and never stored.
-- The tool hash now includes `MathFacts.lean` and `Reach.lean`, so it covers 8 sources in total.
+**Read first:** `lean/Fw/Spec/MathFacts.lean` (`subjectsOf`, `wireReach`, the elaborators `facts%`, `wire%`,
+`wireOf%`, `defEqAt%`), `lean/Fw/Spec/MathFactsGuards.lean`, `MathView.lean` (`candidate`, `shown`, `hasEntry`).
 
-**Open items.**
-- The CI mathview-differential job has not run yet. It needs a `ci/*` push, which the lead decides.
-- The `defEq` class sits on a heartbeat budget. Near the edge the result depends on the environment:
-  `MorphMountOpt.cr_swipe_mixed` is `defEq` in the export but `general` under `facts%` with extensions loaded.
-  Every other theorem (2721 compared) matches.
-- Generators are matched only by fully qualified `Fw.` identifiers in `scripts/*Golden.lean`.
-- `reach` follows definition bodies and theorem types, not proof bodies (the `closure` rule).
-- `killOf` matches only `¬ P x` with x a registered row or replay. An `Assume` id must be a literal.
-- The export takes about 54 s wall (MEASURED locally), against 40 s before. The `export` phase on a cold store is 40-49 s.
-- The task asked for a `checker` subagent on the docstrings, but no spawn tool was available. The 6-point checklist
-  was self-applied instead.
+**Open items:**
+- `wire%` reads `scripts/` relative to the working directory, and Lake does not track those files. A changed golden
+  script does not rebuild the guards.
+- An inductive-predicate subject can be a small helper (for example `Vec.get` in `eq_of_seq`). True then means
+  "some op in the invariant is wired".
+- No spawn tool was available, so the 6-point docstring checklist was self-applied.

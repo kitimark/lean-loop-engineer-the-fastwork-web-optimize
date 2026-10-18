@@ -366,16 +366,18 @@ def entryLike (c : Name) (thms : Bool) : MetaM Bool := do
 /-- Whether a constant's type ends in a sort: under its binders, opened with `forallTelescopeReducing` (which unfolds
 to expose them), the result type in weak head normal form is `Sort u`. A type (`Counts : Type`), a type family or a
 predicate (`lt : Work → Work → Prop`) is sort-valued; an operation on data is not.
-$$\operatorname{sortValued}(c) \iff \tau_c \equiv_{\mathrm{whnf}} \forall \vec x,\ \mathrm{Sort}\ u$$ -/
+$$\forall c,\ \operatorname{sortValued}(c) \iff \exists u,\ \tau_c \equiv_{\mathrm{whnf}} \forall \vec x,\ \mathrm{Sort}\ u$$ -/
 def sortValued (c : Name) : MetaM Bool := do
   let ci ← getConstInfo c
   forallTelescopeReducing ci.type fun _ r => return (← whnf r).isSort
 
 /-- The operations among constants: the `entryLike` definitions and opaques (theorems excluded) that are not
 sort-valued, in order.
-$$\operatorname{ops}(X) = [c \in X : \operatorname{entryLike}_{\emptyset}(c),\ \lnot\operatorname{sortValued}(c)]$$ -/
+$$\forall X,\ \operatorname{ops}(X) = [c \in X : \operatorname{entryLike}_{\emptyset}(c),\ \lnot\operatorname{sortValued}(c)]$$ -/
 def opsOf (cs : List Name) : MetaM (List Name) :=
-  cs.filterM fun c => do return (← entryLike c false) && !(← sortValued c)
+  cs.filterM fun c => do
+    unless ← entryLike c false do return false
+    return !(← sortValued c)
 
 /-- The operations an inductive predicate is built from: starting from the project inductive predicates (inductives
 whose type ends in `Prop`) among `cs`, the `opsOf` the constants of their constructors' types, following each project
@@ -383,7 +385,7 @@ inductive predicate those types name, each inductive once; definitions are not u
 breadth-first order (repeats are removed by `factsOf`). Below, $P(Z)$ is the set of project inductive predicates in
 $Z$ and $Y^{*}$ the least set with $P(X) \subseteq Y^{*}$ and $P(\operatorname{consts}(\tau_k)) \subseteq Y^{*}$ for
 every $I \in Y^{*}$ and $k \in \operatorname{ctors}(I)$.
-$$\operatorname{set}(\operatorname{ctorOps}(X)) = \bigcup \{\operatorname{set}(\operatorname{ops}(\operatorname{consts}(\tau_k))) : I \in Y^{*},\ k \in \operatorname{ctors}(I)\}$$ -/
+$$\forall X,\ \operatorname{set}(\operatorname{ctorOps}(X)) =\bigcup \{\operatorname{set}(\operatorname{ops}(\operatorname{consts}(\tau_k))) : I \in Y^{*},\ k \in \operatorname{ctors}(I)\}$$ -/
 def ctorOps (cs : List Name) : MetaM (List Name) := do
   let env ← getEnv
   let mut seen : NameSet := {}
@@ -407,7 +409,7 @@ def ctorOps (cs : List Name) : MetaM (List Name) := do
 /-- **The subjects of a theorem** with statement $\tau$ and implementation argument $a$: the operations among the
 constants of $a$ (or of $\tau$ when there is no implementation argument); when there are none, the operations its
 inductive predicates are built from (`ctorOps` over the constants of $\tau$); possibly empty.
-$$\operatorname{subjects}(\tau, a) = \begin{cases} \operatorname{ops}(X) & \operatorname{ops}(X) \ne [\,] \\ \operatorname{ctorOps}(\operatorname{consts}(\tau)) & \text{otherwise} \end{cases},\quad X = \begin{cases} \operatorname{consts}(a) & a \ne \bot \\ \operatorname{consts}(\tau) & a = \bot \end{cases}$$ -/
+$$\forall \tau, a,\ \operatorname{subjects}(\tau, a) =\begin{cases} \operatorname{ops}(X) & \operatorname{ops}(X) \ne [\,] \\ \operatorname{ctorOps}(\operatorname{consts}(\tau)) & \text{otherwise} \end{cases},\quad X = \begin{cases} \operatorname{consts}(a) & a \ne \bot \\ \operatorname{consts}(\tau) & a = \bot \end{cases}$$ -/
 def subjectsOf (ty : Expr) (implE : Option Expr) : MetaM (List Name) := do
   let base ← opsOf (match implE with | some a => a.getUsedConstants.toList | none => ty.getUsedConstants.toList)
   if base.isEmpty then ctorOps ty.getUsedConstants.toList else return base
@@ -465,7 +467,7 @@ def dispatcher : Name := `Fw.Wire.handle
 /-- **The wire reach** $W$: every project declaration reachable (`closure`) from the fwcore dispatcher
 `Fw.Wire.handle` and from the `Fw.` identifiers (`fwIdents`) of the given generator sources that name a constant of
 the environment (research/notes/2026/10-18-lean-first-gate.md, land check (d)). No module is a root by its name.
-$$W = \operatorname{closure}\bigl([\texttt{Fw.Wire.handle}] \mathbin{+\!\!+} [c : s \in \mathit{srcs},\ c \in \operatorname{fwIdents}(s),\ c \in \mathrm{env}]\bigr)$$ -/
+$$\forall \mathit{srcs},\ W(\mathit{srcs}) = \operatorname{closure}\bigl([\texttt{Fw.Wire.handle}] \mathbin{+\!\!+} [c : s \in \mathit{srcs},\ c \in \operatorname{fwIdents}(s),\ c \in \mathrm{env}]\bigr)$$ -/
 def wireReach (env : Environment) (srcs : List String) : List Name :=
   let named := (srcs.flatMap fwIdents).filterMap fun s => let c := s.toName; if env.contains c then some c else none
   Reach.closure env scope (dispatcher :: named)
