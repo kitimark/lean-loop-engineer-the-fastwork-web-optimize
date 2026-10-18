@@ -59,6 +59,10 @@ $$\operatorname{answers}(m, v) \iff \operatorname{runKey}(m) = v \ \lor\ (v = \t
 def answers (m : RunMeta) (v : String) : Bool :=
   runKey m == v || (v == "hidden-pause" && m.target == "rewrite" && hpSearch m.search)
 
+/-- **The first `+` splits a list uniquely.** If two lists with a `+` in the middle are equal and neither prefix contains `+`,
+the prefixes are equal and so are the tails.
+
+$$\forall a, b, c, d \in \mathrm{Char}^{*}:\ \texttt{+} \notin a \land \texttt{+} \notin c \land a \mathbin{+\!\!+} \texttt{+} :: b = c \mathbin{+\!\!+} \texttt{+} :: d \Rightarrow a = c \land b = d$$ -/
 theorem list_split_plus : ∀ (a b c d : List Char),
     '+' ∉ a → '+' ∉ c → a ++ '+' :: b = c ++ '+' :: d → a = c ∧ b = d := by
   intro a
