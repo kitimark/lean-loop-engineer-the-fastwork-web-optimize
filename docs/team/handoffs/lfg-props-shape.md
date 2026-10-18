@@ -1,7 +1,8 @@
 # lfg-props-shape handoff
 
-State: round 4 (final) on branch worktree-wf_b82902f8-8e2-1, code head 48427cf (round 3 and main merged in).
-check.sh green with the new stage `props lint`; key theorems use only standard axioms.
+State: round 4 (final) on branch worktree-wf_b82902f8-8e2-1, code head f1ed99b, main merged after it. check.sh green
+with new stage `props lint`; `fw land --dry` VERDICT dry; key theorems standard axioms only. check.sh now declares
+its ledger read (`LandSpeed.checkShReads`, land-speed golden, land.ts `CHECK_SH_READS`).
 
 Round 4 (lead decisions 1-3):
 - One registry, `lean/Fw/Spec/Incidents.lean`: row `LandDry.incLandDryNoVerdict`, closed `Sig`, `Sig.Dom/Cod`,
@@ -25,6 +26,5 @@ Round-3 probe ported (scratchpad lfg4/Refute4.lean; `lake env lean -R d -o d/Ref
 Open items / stated limits:
 - `TaskSensitive r := ∀ o, lines(r o "a") ≠ lines(r o "b")` kills with no finding; an inline restatement of impl
   is not caught either. Both are review items. `Strict` rules out only the everywhere-true predicate.
-- `pnpm fw incidents lint` cannot run here (no node_modules); Incident.lean has no unknown-key code (INFERRED ok).
 - No checker spawned (no agent tool); docstrings self-reviewed (binders quantified).
 Read first: Props.lean module doc, Incidents.lean, lean-first.md step 3, then PropsLint.lean rules.
