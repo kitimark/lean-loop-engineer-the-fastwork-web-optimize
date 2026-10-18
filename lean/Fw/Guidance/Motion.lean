@@ -231,7 +231,7 @@ theorem wk_guide_comp (m : WkMode) (ps : List CssProp) (τ : Timeline) (hne : ps
 /-- **No main-thread work for a time-based UI-process animation (WebKit).** Adding a UI-process animation on a
 document timeline with no scheduled update leaves every stage but `comp` as it was, for any frame.
 
-$$\forall m, a, e, \ell, \mathit{cs}, f,\ \forall s \in \mathrm{Stage} \setminus \{\mathrm{comp}\}:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{time} \Rightarrow W'.\mathrm{passes}(s) = W.\mathrm{passes}(s) \land \operatorname{units}(g, s) = \operatorname{units}(f, s)$$
+$$\forall m \in \mathrm{WkMode},\ \forall a \in \mathrm{WkAnim},\ \forall e \in \mathbb{N},\ \forall \ell \in \mathrm{LayerState},\ \forall \mathit{cs} \in \mathrm{Change}(\mathrm{WkProp}^{X})^{*},\ \forall f \in \mathrm{FrameIn}(\mathrm{WkProp}^{X}):\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{time} \Rightarrow \forall s \in \mathrm{Stage} \setminus \{\mathrm{comp}\}:\ W'.\mathrm{passes}(s) = W.\mathrm{passes}(s) \land \operatorname{units}(g, s) = \operatorname{units}(f, s)$$
 $$\text{where } g = \operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, f, \mathrm{false}),\ W' = \operatorname{frameWork}_{\operatorname{webkitX}(m)}(g),\ W = \operatorname{frameWork}_{\operatorname{webkitX}(m)}(f),\ \operatorname{units} = \operatorname{units}_{\operatorname{webkitX}(m)}$$
 
 A time-based accelerated animation costs WebKit's main thread nothing. -/

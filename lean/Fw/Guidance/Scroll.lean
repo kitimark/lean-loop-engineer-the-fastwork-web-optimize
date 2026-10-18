@@ -159,6 +159,24 @@ theorem defer_units {P M : Type} (E : Engine P M) (fs : List (FrameIn P)) (w : F
   · have := Nat.mul_le_mul_right (stageUnits E w s) h
     omega
 
+/-- **Deferring to `scrollend` pays the handler's forced passes once (any frame inputs).** Over the scroll frames `F`,
+the per-frame run's forced passes on a stage are the frames' own plus `|F|` times the handler's; the deferred run pays
+the handler's once.
+
+$$\forall F \in \mathrm{FrameIn}(P)^{*},\ \forall w \in \mathrm{FrameIn}(P),\ \forall s \in \mathrm{Stage}:\ \sum_{f \in F} \operatorname{forced}(\operatorname{join}(f, w), s) = \sum_{f \in F} \operatorname{forced}(f, s) + |F| \cdot \operatorname{forced}(w, s) \land \sum_{f \in F \mathbin{+\!\!+} [w]} \operatorname{forced}(f, s) = \sum_{f \in F} \operatorname{forced}(f, s) + \operatorname{forced}(w, s)$$
+
+A layout read in the handler forces layout in every scrolled frame, or once after the scroll. -/
+theorem defer_forced {P : Type} (fs : List (FrameIn P)) (w : FrameIn P) (s : Stage) :
+    (fs.map fun f => forcedPasses (join f w) s).sum =
+        (fs.map fun f => forcedPasses f s).sum + fs.length * forcedPasses w s ∧
+      ((fs ++ [w]).map fun f => forcedPasses f s).sum = (fs.map fun f => forcedPasses f s).sum + forcedPasses w s := by
+  refine ⟨?_, by simp⟩
+  induction fs with
+  | nil => simp
+  | cons f fs ih =>
+    simp only [List.map_cons, List.sum_cons, List.length_cons, forced_join, Nat.succ_mul] at *
+    omega
+
 /-- **Counterexample on passes (Chromium).** Two scrolled frames and a handler that writes a transform on an own
 layer: the deferred run pays three property-tree passes, the per-frame run two, because the handler's own frame
 commits again.

@@ -127,7 +127,7 @@ theorem wk_pause_comp (m : WebKit.WkMode) (f : FrameIn WebKit.WkProp) (s : Stage
 /-- **Pausing a scroll-driven UI-process animation saves a style unit (WebKit).** In a frame that updates, the
 animation adds one style unit.
 
-$$\forall m, a, e, \ell, \mathit{cs}, f, \sigma:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{scroll} \land \operatorname{updates}(f) \Rightarrow \operatorname{units}_E(\operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, f, \sigma), \mathrm{style}) = \operatorname{units}_E(f, \mathrm{style}) + 1\quad\text{where } E = \operatorname{webkitX}(m)$$
+$$\forall m \in \mathrm{WkMode},\ \forall a \in \mathrm{WkAnim},\ \forall e \in \mathbb{N},\ \forall \ell \in \mathrm{LayerState},\ \forall \mathit{cs} \in \mathrm{Change}(\mathrm{WkProp}^{X})^{*},\ \forall f \in \mathrm{FrameIn}(\mathrm{WkProp}^{X}),\ \forall \sigma \in \mathbb{B}:\ \operatorname{wkThread}(m, a) = \mathrm{comp} \land a.\tau = \mathrm{scroll} \land \operatorname{updates}(f) \Rightarrow \operatorname{units}_E(\operatorname{withAnim}(m, a, e, \ell, \mathit{cs}, f, \sigma), \mathrm{style}) = \operatorname{units}_E(f, \mathrm{style}) + 1\quad\text{where } E = \operatorname{webkitX}(m)$$
 
 A scroll-driven animation ticks on the main thread when the frame updates. -/
 theorem wk_pause_scroll (m : WebKit.WkMode) (a : WebKit.WkAnim) (e : Nat) (ℓ : LayerState)
