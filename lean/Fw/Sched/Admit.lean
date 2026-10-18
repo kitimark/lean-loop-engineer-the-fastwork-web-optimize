@@ -1809,3 +1809,577 @@ open Cex in
 #guard (runTrace {} σi (cmds ++ rest)).run.map (fun w => (w.id, w.start)) == [("z", 26)]
 
 end Fw.Sched.Admit
+
+/-!
+# Glob write sets, read sets and scratch names (task admit-reads)
+
+Incident 2026-10-18 (research/notes/2026/10-18-mistake-retro.md, c-shared-no-lock): two tasks whose
+write globs met in `packages/measure-wktr/**` ran at the same time; agents also shared scratch file
+names. This section is the task-level admission rule on the work graph's globs (glob semantics of
+`Fw.Ops.PathCheck`: a glob matches a path or one of its directory prefixes): a task starts only if
+its write globs meet neither the write nor the declared read globs of any running task, and its
+read globs meet no running write glob. The glob test is conservative (`gover_sound`); on literal
+paths it is the prefix test `pconf` of the item model above (`gover_pconf`).
+
+Proved: `gover_sound`, `gover_pconf`, `admits_iff`, `blockAt_none`, `mem_clashes`, `blockAt_sound`,
+`admit_disjoint`, `reads_disjoint`, `admit_eventually`, `overlapPairs_nil`, `scratch_injective`,
+`scratch_disjoint`.
+-/
+namespace Fw.Sched.Admit.Reads
+
+open Fw.Ops.PathCheck (segs segMatch globMatch matchesPath segMatch_lit)
+
+/-! ## The conservative glob overlap test -/
+
+/-- A wildcard segment: it contains `*` (so `**` is one).
+
+$$\operatorname{wild}(s) \iff \texttt{*} \in s$$
+-/
+def wild (s : String) : Bool := s.toList.contains '*'
+
+/-- The literal prefix of a glob segment list: its segments before the first wildcard segment.
+
+$$\operatorname{lit}(g) = \operatorname{takeWhile}(\lnot\operatorname{wild},\ g)$$
+-/
+def lit (g : List String) : List String := g.takeWhile fun s => !wild s
+
+/-- Overlap test on glob segment lists: one literal prefix is a prefix of the other.
+
+$$A \between B \iff \operatorname{lit}(A) \sqsubseteq \operatorname{lit}(B) \ \lor\ \operatorname{lit}(B) \sqsubseteq \operatorname{lit}(A)$$
+-/
+def goverL (A B : List String) : Bool := (lit A).isPrefixOf (lit B) || (lit B).isPrefixOf (lit A)
+
+/-- Overlap test on two glob strings, split with `segs`.
+
+$$g \between h \iff \operatorname{segs}(g) \between \operatorname{segs}(h)$$
+-/
+def gover (g h : String) : Bool := goverL (segs g) (segs h)
+
+/-- The overlap test is symmetric.
+
+$$\forall g, h:\quad g \between h \iff h \between g$$
+-/
+theorem gover_comm (g h : String) : gover g h = gover h g := by
+  simp [gover, goverL, Bool.or_comm]
+
+/-- A segment that is not wild is neither `**` nor contains `*`.
+
+$$\forall s:\quad \lnot\operatorname{wild}(s) \Rightarrow s \ne \texttt{**} \land \texttt{*} \notin s$$
+-/
+theorem not_wild {s : String} (h : wild s = false) : s ≠ "**" ∧ '*' ∉ s.toList := by
+  have hm : '*' ∉ s.toList := by simpa [wild] using h
+  refine ⟨?_, hm⟩
+  rintro rfl
+  exact hm (by simp)
+
+/-- A glob that matches a whole path starts the path with its literal prefix.
+
+$$\forall g, y:\quad \mathrm{gm}(g, y) \Rightarrow \operatorname{lit}(g) \sqsubseteq y$$
+-/
+theorem lit_prefix (g y : List String) (h : globMatch g y = true) : lit g <+: y := by
+  induction g generalizing y with
+  | nil => simp [lit]
+  | cons a g ih =>
+    cases hw : wild a with
+    | true => simp [lit, hw]
+    | false =>
+      obtain ⟨h1, h2⟩ := not_wild hw
+      have hl : lit (a :: g) = a :: lit g := by simp [lit, hw]
+      rw [hl]
+      cases y with
+      | nil => simp [globMatch] at h
+      | cons b y =>
+        have e : globMatch (a :: g) (b :: y) = (segMatch a.toList b.toList && globMatch g y) := by
+          simp [globMatch]
+        rw [e, Bool.and_eq_true, segMatch_lit _ _ h2, String.toList_inj] at h
+        obtain ⟨rfl, hy⟩ := h
+        exact (List.prefix_cons_inj _).mpr (ih y hy)
+
+/-- A glob that matches a path (or one of its directory prefixes) starts the path with its literal
+prefix.
+
+$$\forall g, x:\quad \mathrm{mp}(g, x) \Rightarrow \operatorname{lit}(g) \sqsubseteq x$$
+-/
+theorem lit_prefix_path (g x : List String) (h : matchesPath g x = true) : lit g <+: x := by
+  simp only [matchesPath, List.any_eq_true, List.mem_range] at h
+  obtain ⟨k, _, hm⟩ := h
+  exact (lit_prefix g _ hm).trans (List.take_prefix _ _)
+
+/-- Soundness of the overlap test on segment lists: if two globs match a common path, the test says
+overlap.
+
+$$\forall A, B, x:\quad \mathrm{mp}(A, x) \land \mathrm{mp}(B, x) \Rightarrow A \between B$$
+-/
+theorem goverL_sound (A B x : List String) (ha : matchesPath A x = true) (hb : matchesPath B x = true) :
+    goverL A B = true := by
+  have := List.prefix_or_prefix_of_prefix (lit_prefix_path A x ha) (lit_prefix_path B x hb)
+  simp only [goverL, Bool.or_eq_true, List.isPrefixOf_iff_prefix]
+  exact this
+
+/-- Glob-overlap soundness: if two glob strings can match a common path (segment list), the test
+says overlap.
+
+$$\forall g, h, x:\quad \mathrm{mp}(\operatorname{segs}(g), x) \land \mathrm{mp}(\operatorname{segs}(h), x) \Rightarrow g \between h$$
+-/
+theorem gover_sound (g h : String) (x : List String) (hg : matchesPath (segs g) x = true)
+    (hh : matchesPath (segs h) x = true) : gover g h = true :=
+  goverL_sound _ _ x hg hh
+
+/-- A segment list without wild segments is its own literal prefix.
+
+$$\forall A:\quad (\forall s \in A:\ \lnot\operatorname{wild}(s)) \Rightarrow \operatorname{lit}(A) = A$$
+-/
+theorem lit_self (A : List String) (h : ∀ s ∈ A, wild s = false) : lit A = A := by
+  induction A with
+  | nil => rfl
+  | cons a A ih =>
+    have ha := h a List.mem_cons_self
+    have : lit (a :: A) = a :: lit A := by simp [lit, ha]
+    rw [this, ih fun s m => h s (List.mem_cons_of_mem _ m)]
+
+/-- On literal paths (no segment contains `*`) the glob test is the prefix conflict `pconf` of the
+item model.
+
+$$\forall g, h:\quad (\forall s \in \operatorname{segs}(g) \cup \operatorname{segs}(h):\ \lnot\operatorname{wild}(s)) \Rightarrow \big(g \between h \iff g \bowtie h\big)$$
+-/
+theorem gover_pconf (g h : String) (hg : ∀ s ∈ segs g, wild s = false) (hh : ∀ s ∈ segs h, wild s = false) :
+    gover g h = pconf g h := by
+  simp [gover, goverL, pconf, lit_self _ hg, lit_self _ hh]
+
+/-! ## Tasks, clashes and the admission decision -/
+
+/-- A task of the work graph: its id, its write globs $W(x)$ and its declared read globs $R(x)$
+(empty when undeclared).
+
+$$x = (\mathit{id},\ W(x),\ R(x)) \in \mathrm{String} \times \mathrm{String}^{*} \times \mathrm{String}^{*}$$
+-/
+structure Task where
+  id : String
+  writes : List String := []
+  reads : List String := []
+deriving DecidableEq, Repr
+
+/-- The kind of a clash: the candidate's write against a running write (`ww`), the candidate's
+write against a running read (`wr`), the candidate's read against a running write (`rw`).
+
+$$\mathcal K = \{\mathrm{ww},\ \mathrm{wr},\ \mathrm{rw}\}$$
+-/
+inductive Kind where
+  | ww | wr | rw
+deriving DecidableEq, Repr
+
+/-- Every clash kind, in report order.
+
+$$\mathcal K = [\mathrm{ww},\ \mathrm{wr},\ \mathrm{rw}]$$
+-/
+def Kind.all : List Kind := [.ww, .wr, .rw]
+
+/-- The candidate's side of a kind: its writes for `ww` and `wr`, its reads for `rw`.
+
+$$\operatorname{mine}(x, \mathrm{ww}) = \operatorname{mine}(x, \mathrm{wr}) = W(x), \quad \operatorname{mine}(x, \mathrm{rw}) = R(x)$$
+-/
+def mine (x : Task) : Kind → List String
+  | .ww => x.writes
+  | .wr => x.writes
+  | .rw => x.reads
+
+/-- The running task's side of a kind: its writes for `ww` and `rw`, its reads for `wr`.
+
+$$\operatorname{theirs}(y, \mathrm{ww}) = \operatorname{theirs}(y, \mathrm{rw}) = W(y), \quad \operatorname{theirs}(y, \mathrm{wr}) = R(y)$$
+-/
+def theirs (y : Task) : Kind → List String
+  | .ww => y.writes
+  | .wr => y.reads
+  | .rw => y.writes
+
+/-- Two glob lists meet: some glob of the first overlaps some glob of the second.
+
+$$\operatorname{meet}(A, B) \iff \exists a \in A,\ b \in B:\ a \between b$$
+-/
+def meet (A B : List String) : Bool := A.any fun a => B.any fun b => gover a b
+
+/-- Task conflict: for some kind, the candidate's side meets the running task's side.
+
+$$x \between y \iff \exists k \in \mathcal K:\ \operatorname{meet}(\operatorname{mine}(x, k),\ \operatorname{theirs}(y, k))$$
+
+that is, $W(x)$ meets $W(y)$, or $W(x)$ meets $R(y)$, or $R(x)$ meets $W(y)$.
+-/
+def conf (x y : Task) : Bool := Kind.all.any fun k => meet (mine x k) (theirs y k)
+
+/-- `meet` is symmetric.
+
+$$\forall A, B:\quad \operatorname{meet}(A, B) \iff \operatorname{meet}(B, A)$$
+-/
+theorem meet_comm (A B : List String) : meet A B = meet B A := by
+  apply Bool.eq_iff_iff.mpr
+  simp only [meet, List.any_eq_true]
+  constructor
+  · rintro ⟨a, ha, b, hb, h⟩; exact ⟨b, hb, a, ha, by rw [gover_comm]; exact h⟩
+  · rintro ⟨b, hb, a, ha, h⟩; exact ⟨a, ha, b, hb, by rw [gover_comm]; exact h⟩
+
+/-- Task conflict is symmetric (the `wr` and `rw` kinds swap).
+
+$$\forall x, y:\quad x \between y \iff y \between x$$
+-/
+theorem conf_comm (x y : Task) : conf x y = conf y x := by
+  simp only [conf, Kind.all, mine, theirs, List.any_cons, List.any_nil, Bool.or_false]
+  rw [meet_comm x.writes y.writes, meet_comm x.writes y.reads, meet_comm x.reads y.writes]
+  cases meet y.writes x.writes <;> cases meet y.reads x.writes <;> cases meet y.writes x.reads <;> rfl
+
+/-- A clash: the running task's id, the kind, the candidate's glob and the running task's glob.
+
+$$c = (\mathit{task},\ k,\ \mathit{mine},\ \mathit{theirs}) \in \mathrm{String} \times \mathcal K \times \mathrm{String} \times \mathrm{String}$$
+-/
+structure Clash where
+  task : String
+  kind : Kind
+  mine : String
+  theirs : String
+deriving DecidableEq, Repr
+
+/-- The overlapping pairs of two glob lists, in order (first by $A$, then by $B$).
+
+$$\operatorname{pairs}(A, B) = [\,(a, b) \mid a \in A,\ b \in B,\ a \between b\,]$$
+-/
+def pairsOf (A B : List String) : List (String × String) :=
+  A.flatMap fun a => (B.filter fun b => gover a b).map fun b => (a, b)
+
+/-- The clashes of candidate $x$ with running task $y$, by kind (`ww`, `wr`, `rw`), then by pair.
+
+$$\operatorname{clashes}(x, y) = [\,(\mathit{id}(y), k, a, b) \mid k \in \mathcal K,\ (a, b) \in \operatorname{pairs}(\operatorname{mine}(x, k), \operatorname{theirs}(y, k))\,]$$
+-/
+def clashes (x y : Task) : List Clash :=
+  Kind.all.flatMap fun k => (pairsOf (mine x k) (theirs y k)).map fun p => ⟨y.id, k, p.1, p.2⟩
+
+/-- The first clash of candidate $x$ with the running list, in running order (`none`: admitted).
+
+$$\operatorname{blockAt}(\mathit{Run}, x) = \operatorname{head}\big(\operatorname{clashes}(x, y_1) \mathbin{+\!\!+} \dots \mathbin{+\!\!+} \operatorname{clashes}(x, y_n)\big), \quad \mathit{Run} = [y_1, \dots, y_n], \quad \operatorname{head}([\,]) = \bot$$
+-/
+def blockAt (run : List Task) (x : Task) : Option Clash := (run.flatMap (clashes x)).head?
+
+/-- The admission decision: $x$ conflicts with no running task.
+
+$$\operatorname{admits}(\mathit{Run}, x) \iff \forall y \in \mathit{Run}:\ \lnot(x \between y)$$
+-/
+def admits (run : List Task) (x : Task) : Bool := run.all fun y => !conf x y
+
+/-- `admits` is the stated rule.
+
+$$\forall \mathit{Run}, x:\quad \operatorname{admits}(\mathit{Run}, x) \iff \forall y \in \mathit{Run}:\ \lnot(x \between y)$$
+-/
+theorem admits_iff (run : List Task) (x : Task) : admits run x = true ↔ ∀ y ∈ run, conf x y = false := by
+  simp [admits]
+
+/-- Membership in `pairsOf`.
+
+$$\forall A, B, a, b:\quad (a, b) \in \operatorname{pairs}(A, B) \iff a \in A \land b \in B \land a \between b$$
+-/
+theorem mem_pairsOf (A B : List String) (a b : String) :
+    (a, b) ∈ pairsOf A B ↔ a ∈ A ∧ b ∈ B ∧ gover a b = true := by
+  simp only [pairsOf, List.mem_flatMap, List.mem_map, List.mem_filter, Prod.mk.injEq]
+  constructor
+  · rintro ⟨a', ha, b', ⟨hb, hg⟩, rfl, rfl⟩; exact ⟨ha, hb, hg⟩
+  · rintro ⟨ha, hb, hg⟩; exact ⟨a, ha, b, ⟨hb, hg⟩, rfl, rfl⟩
+
+/-- Membership in `clashes`: a clash names the running task, and its globs are on the two sides of
+its kind and overlap.
+
+$$\forall x, y, c:\quad c \in \operatorname{clashes}(x, y) \iff \mathit{task}(c) = \mathit{id}(y) \land \mathit{mine}(c) \in \operatorname{mine}(x, k(c)) \land \mathit{theirs}(c) \in \operatorname{theirs}(y, k(c)) \land \mathit{mine}(c) \between \mathit{theirs}(c)$$
+-/
+theorem mem_clashes (x y : Task) (c : Clash) :
+    c ∈ clashes x y ↔ c.task = y.id ∧ c.mine ∈ mine x c.kind ∧ c.theirs ∈ theirs y c.kind ∧
+      gover c.mine c.theirs = true := by
+  obtain ⟨t, k, m, th⟩ := c
+  simp only [clashes, List.mem_flatMap, List.mem_map]
+  constructor
+  · rintro ⟨k', _, ⟨p1, p2⟩, hp, he⟩
+    simp only [Clash.mk.injEq] at he
+    obtain ⟨rfl, rfl, rfl, rfl⟩ := he
+    exact ⟨rfl, (mem_pairsOf _ _ _ _).mp hp⟩
+  · rintro ⟨rfl, hm, ht, hg⟩
+    exact ⟨k, by cases k <;> simp [Kind.all], (m, th), (mem_pairsOf _ _ _ _).mpr ⟨hm, ht, hg⟩, rfl⟩
+
+/-- No clash with $y$ exactly when $x$ does not conflict with $y$.
+
+$$\forall x, y:\quad \operatorname{clashes}(x, y) = [\,] \iff \lnot(x \between y)$$
+-/
+theorem clashes_nil (x y : Task) : clashes x y = [] ↔ conf x y = false := by
+  rw [List.eq_nil_iff_forall_not_mem]
+  simp only [conf, meet, List.any_eq_false, Bool.not_eq_true]
+  constructor
+  · intro h k _ a ha b hb
+    cases hg : gover a b
+    · rfl
+    · exact absurd ((mem_clashes _ _ _).mpr ⟨rfl, ha, hb, hg⟩) (h ⟨y.id, k, a, b⟩)
+  · intro h c hc
+    obtain ⟨_, hm, ht, hg⟩ := (mem_clashes _ _ _).mp hc
+    have := h c.kind (by cases c.kind <;> simp [Kind.all]) c.mine hm c.theirs ht
+    rw [hg] at this
+    exact absurd this (by decide)
+
+/-- No first clash exactly when the task is admitted.
+
+$$\forall \mathit{Run}, x:\quad \operatorname{blockAt}(\mathit{Run}, x) = \bot \iff \operatorname{admits}(\mathit{Run}, x)$$
+-/
+theorem blockAt_none (run : List Task) (x : Task) : blockAt run x = none ↔ admits run x = true := by
+  rw [blockAt, List.head?_eq_none_iff, List.flatMap_eq_nil_iff, admits_iff]
+  exact forall₂_congr fun y _ => clashes_nil x y
+
+/-- The reported clash is real: it names a running task, its globs lie on the two sides of its kind,
+and they overlap.
+
+$$\forall \mathit{Run}, x, c:\quad \operatorname{blockAt}(\mathit{Run}, x) = c \Rightarrow \exists y \in \mathit{Run}:\ \mathit{task}(c) = \mathit{id}(y) \land \mathit{mine}(c) \in \operatorname{mine}(x, k(c)) \land \mathit{theirs}(c) \in \operatorname{theirs}(y, k(c)) \land \mathit{mine}(c) \between \mathit{theirs}(c)$$
+-/
+theorem blockAt_sound (run : List Task) (x : Task) (c : Clash) (h : blockAt run x = some c) :
+    ∃ y ∈ run, c.task = y.id ∧ c.mine ∈ mine x c.kind ∧ c.theirs ∈ theirs y c.kind ∧
+      gover c.mine c.theirs = true := by
+  have hm := List.mem_of_head? h
+  rw [List.mem_flatMap] at hm
+  obtain ⟨y, hy, hc⟩ := hm
+  exact ⟨y, hy, (mem_clashes _ _ _).mp hc⟩
+
+/-! ## Running set: start and finish -/
+
+/-- A command: start a task (it joins the running set only if admitted) or finish a task by id.
+
+$$c \in \{\operatorname{start}(x),\ \operatorname{finish}(i)\}$$
+-/
+inductive Cmd where
+  | start (x : Task)
+  | finish (id : String)
+
+/-- One step on the running list: an admitted start is prepended, a refused start changes nothing,
+a finish removes every running task with that id.
+
+$$\operatorname{step}(\mathit{Run}, \operatorname{start}(x)) = \begin{cases} x :: \mathit{Run} & \operatorname{admits}(\mathit{Run}, x) \\ \mathit{Run} & \text{otherwise} \end{cases}, \qquad \operatorname{step}(\mathit{Run}, \operatorname{finish}(i)) = [\, y \in \mathit{Run} : \mathit{id}(y) \ne i \,]$$
+-/
+def stepT (run : List Task) : Cmd → List Task
+  | .start x => if admits run x then x :: run else run
+  | .finish i => run.filter fun y => y.id != i
+
+/-- Run a list of commands from left to right.
+
+$$\operatorname{steps}(\mathit{Run}, [\,]) = \mathit{Run}, \qquad \operatorname{steps}(\mathit{Run}, c :: cs) = \operatorname{steps}(\operatorname{step}(\mathit{Run}, c), cs)$$
+-/
+def stepsT : List Task → List Cmd → List Task
+  | run, [] => run
+  | run, c :: cs => stepsT (stepT run c) cs
+
+/-- The running lists reachable from the empty one by steps.
+
+$$\mathrm{Reach}([\,]), \qquad \mathrm{Reach}(\mathit{Run}) \Rightarrow \mathrm{Reach}(\operatorname{step}(\mathit{Run}, c))$$
+-/
+inductive ReachT : List Task → Prop where
+  | init : ReachT []
+  | step {run : List Task} (c : Cmd) : ReachT run → ReachT (stepT run c)
+
+/-- Every step keeps the running list pairwise conflict-free.
+
+$$\forall \mathit{Run}, c:\quad \big(\forall i < j < |\mathit{Run}|:\ \lnot(\mathit{Run}_i \between \mathit{Run}_j)\big) \Rightarrow \forall i < j < |\mathit{Run}'|:\ \lnot(\mathit{Run}'_i \between \mathit{Run}'_j), \quad \mathit{Run}' = \operatorname{step}(\mathit{Run}, c)$$
+-/
+theorem pairwise_stepT (run : List Task) (c : Cmd) (h : run.Pairwise fun a b => conf a b = false) :
+    (stepT run c).Pairwise fun a b => conf a b = false := by
+  cases c with
+  | start x =>
+    simp only [stepT]
+    split
+    · next ha => exact List.pairwise_cons.mpr ⟨(admits_iff run x).mp ha, h⟩
+    · exact h
+  | finish i => exact h.sublist List.filter_sublist
+
+/-- Every reachable running list is pairwise conflict-free.
+
+$$\forall \mathit{Run}:\quad \mathrm{Reach}(\mathit{Run}) \Rightarrow \forall i < j < |\mathit{Run}|:\ \lnot(\mathit{Run}_i \between \mathit{Run}_j)$$
+-/
+theorem pairwise_reach {run : List Task} (h : ReachT run) : run.Pairwise fun a b => conf a b = false := by
+  induction h with
+  | init => exact List.Pairwise.nil
+  | step c _ ih => exact pairwise_stepT _ c ih
+
+/-- Task $t$ writes path $p$: some write glob of $t$ matches $p$.
+
+$$\operatorname{wr}(t, p) \iff \exists g \in W(t):\ \mathrm{mp}(\operatorname{segs}(g), p)$$
+-/
+def hitsW (t : Task) (p : List String) : Prop := ∃ g ∈ t.writes, matchesPath (segs g) p = true
+
+/-- Task $t$ reads path $p$: some declared read glob of $t$ matches $p$.
+
+$$\operatorname{rd}(t, p) \iff \exists g \in R(t):\ \mathrm{mp}(\operatorname{segs}(g), p)$$
+-/
+def hitsR (t : Task) (p : List String) : Prop := ∃ g ∈ t.reads, matchesPath (segs g) p = true
+
+/-- If two glob lists do not meet, no path is matched by a glob of each.
+
+$$\forall A, B, p:\quad \lnot\operatorname{meet}(A, B) \Rightarrow \lnot\big((\exists a \in A:\ \mathrm{mp}(\operatorname{segs}(a), p)) \land (\exists b \in B:\ \mathrm{mp}(\operatorname{segs}(b), p))\big)$$
+-/
+theorem meet_false_disjoint {A B : List String} (h : meet A B = false) (p : List String)
+    (ha : ∃ a ∈ A, matchesPath (segs a) p = true) (hb : ∃ b ∈ B, matchesPath (segs b) p = true) : False := by
+  obtain ⟨a, ha, hpa⟩ := ha
+  obtain ⟨b, hb, hpb⟩ := hb
+  have : meet A B = true := by
+    simp only [meet, List.any_eq_true]
+    exact ⟨a, ha, b, hb, gover_sound a b p hpa hpb⟩
+  rw [h] at this
+  exact absurd this (by decide)
+
+/-- The parts of a task conflict.
+
+$$\forall x, y:\quad \lnot(x \between y) \iff \lnot\operatorname{meet}(W(x), W(y)) \land \lnot\operatorname{meet}(W(x), R(y)) \land \lnot\operatorname{meet}(R(x), W(y))$$
+-/
+theorem conf_false_iff (x y : Task) : conf x y = false ↔
+    meet x.writes y.writes = false ∧ meet x.writes y.reads = false ∧ meet x.reads y.writes = false := by
+  simp [conf, Kind.all, mine, theirs]
+
+/-- Two admitted running tasks never write a common path.
+
+$$\forall \mathit{Run}:\quad \mathrm{Reach}(\mathit{Run}) \Rightarrow \forall i < j < |\mathit{Run}|,\ \forall p:\ \lnot\big(\operatorname{wr}(\mathit{Run}_i, p) \land \operatorname{wr}(\mathit{Run}_j, p)\big)$$
+-/
+theorem admit_disjoint {run : List Task} (h : ReachT run) :
+    run.Pairwise fun a b => ∀ p, ¬ (hitsW a p ∧ hitsW b p) :=
+  (pairwise_reach h).imp fun hc p ⟨ha, hb⟩ =>
+    meet_false_disjoint ((conf_false_iff _ _).mp hc).1 p ha hb
+
+/-- No admitted running task writes a path that another one reads (either order).
+
+$$\forall \mathit{Run}:\quad \mathrm{Reach}(\mathit{Run}) \Rightarrow \forall i < j < |\mathit{Run}|,\ \forall p:\ \lnot\big(\operatorname{wr}(\mathit{Run}_i, p) \land \operatorname{rd}(\mathit{Run}_j, p)\big) \land \lnot\big(\operatorname{rd}(\mathit{Run}_i, p) \land \operatorname{wr}(\mathit{Run}_j, p)\big)$$
+-/
+theorem reads_disjoint {run : List Task} (h : ReachT run) :
+    run.Pairwise fun a b => ∀ p, ¬ (hitsW a p ∧ hitsR b p) ∧ ¬ (hitsR a p ∧ hitsW b p) :=
+  (pairwise_reach h).imp fun hc p =>
+    have hc := (conf_false_iff _ _).mp hc
+    ⟨fun ⟨ha, hb⟩ => meet_false_disjoint hc.2.1 p ha hb, fun ⟨ha, hb⟩ => meet_false_disjoint hc.2.2 p ha hb⟩
+
+/-- Finishing a list of ids removes exactly the running tasks with those ids.
+
+$$\forall \mathit{Run}, I:\quad \operatorname{steps}(\mathit{Run}, [\operatorname{finish}(i) \mid i \in I]) = [\, y \in \mathit{Run} : \mathit{id}(y) \notin I \,]$$
+-/
+theorem stepsT_finish (run : List Task) (ids : List String) :
+    stepsT run (ids.map Cmd.finish) = run.filter fun y => !ids.contains y.id := by
+  induction ids generalizing run with
+  | nil => simp only [stepsT, List.map_nil]; exact (List.filter_eq_self.mpr (by simp)).symm
+  | cons i ids ih =>
+    simp only [List.map_cons, stepsT, stepT, ih, List.filter_filter]
+    congr 1
+    funext y
+    by_cases h : y.id = i <;> simp [h]
+
+/-- Admission never blocks a task forever when the running set drains: once every running task
+that conflicts with $x$ has finished (finishes only, no new starts), $x$ is admitted and starts.
+
+$$\forall \mathit{Run}, x, I:\quad \big(\forall y \in \mathit{Run}:\ x \between y \Rightarrow \mathit{id}(y) \in I\big) \Rightarrow \operatorname{admits}(\mathit{Run}', x) \land \operatorname{step}(\mathit{Run}', \operatorname{start}(x)) = x :: \mathit{Run}', \quad \mathit{Run}' = \operatorname{steps}(\mathit{Run}, [\operatorname{finish}(i) \mid i \in I])$$
+-/
+theorem admit_eventually (run : List Task) (x : Task) (ids : List String)
+    (h : ∀ y ∈ run, conf x y = true → y.id ∈ ids) :
+    admits (stepsT run (ids.map Cmd.finish)) x = true ∧
+      stepT (stepsT run (ids.map Cmd.finish)) (.start x) = x :: stepsT run (ids.map Cmd.finish) := by
+  have ha : admits (stepsT run (ids.map Cmd.finish)) x = true := by
+    rw [admits_iff, stepsT_finish]
+    intro y hy
+    rw [List.mem_filter] at hy
+    cases hc : conf x y with
+    | false => rfl
+    | true =>
+      have := h y hy.1 hc
+      simp [this] at hy
+  exact ⟨ha, by simp [stepT, ha]⟩
+
+/-- The empty running set admits every task.
+
+$$\forall x:\quad \operatorname{admits}([\,], x)$$
+-/
+theorem admits_nil (x : Task) : admits [] x = true := rfl
+
+/-! ## Replay: the overlapping pairs of a task list -/
+
+/-- The overlapping pairs of a task list, each with its first clash: for $i < j$, the pair
+$(\mathit{id}(t_i), c)$ where $c$ is the first clash of $t_i$ (as candidate) with $t_j$ (as running).
+
+$$\operatorname{overlaps}([t_1, \dots, t_n]) = [\,(\mathit{id}(t_i), c) \mid i < j,\ c = \operatorname{head}(\operatorname{clashes}(t_i, t_j)) \ne \bot\,]$$
+-/
+def overlapPairs : List Task → List (String × Clash)
+  | [] => []
+  | a :: rest => rest.filterMap (fun b => (clashes a b).head?.map fun c => (a.id, c)) ++ overlapPairs rest
+
+/-- No pair is reported exactly when the list is pairwise conflict-free.
+
+$$\forall T:\quad \operatorname{overlaps}(T) = [\,] \iff \forall i < j < |T|:\ \lnot(T_i \between T_j)$$
+-/
+theorem overlapPairs_nil (ts : List Task) :
+    overlapPairs ts = [] ↔ ts.Pairwise fun a b => conf a b = false := by
+  induction ts with
+  | nil => simp [overlapPairs]
+  | cons a rest ih =>
+    simp only [overlapPairs, List.append_eq_nil_iff, ih, List.pairwise_cons, List.filterMap_eq_nil_iff,
+      Option.map_eq_none_iff, List.head?_eq_none_iff, clashes_nil]
+
+/-! ## Scratch names -/
+
+/-- The scratch directory of an agent, relative to the session scratchpad root.
+
+$$\operatorname{scratch}(a) = \texttt{scratchpad/} \mathbin{+\!\!+} a \mathbin{+\!\!+} \texttt{/}$$
+-/
+def scratch (agent : String) : String := "scratchpad/" ++ agent ++ "/"
+
+/-- Scratch directory names are injective in the agent name.
+
+$$\forall a, b:\quad \operatorname{scratch}(a) = \operatorname{scratch}(b) \Rightarrow a = b$$
+-/
+theorem scratch_injective (a b : String) (h : scratch a = scratch b) : a = b := by
+  have := congrArg String.toList h
+  simp only [scratch, String.toList_append] at this
+  exact String.toList_inj.mp (List.append_cancel_left (List.append_cancel_right this))
+
+/-- The scratch trees of two different agents (names without `*`) share no path: no path is
+matched by both `scratchpad/a` and `scratchpad/b` (each covers its subtree).
+
+$$\forall a, b, x:\quad \texttt{*} \notin a \land \texttt{*} \notin b \land a \ne b \Rightarrow \lnot\big(\mathrm{mp}([\texttt{scratchpad}, a], x) \land \mathrm{mp}([\texttt{scratchpad}, b], x)\big)$$
+-/
+theorem scratch_disjoint (a b : String) (x : List String) (ha : '*' ∉ a.toList) (hb : '*' ∉ b.toList)
+    (hne : a ≠ b) : ¬ (matchesPath ["scratchpad", a] x = true ∧ matchesPath ["scratchpad", b] x = true) := by
+  rintro ⟨h1, h2⟩
+  have hs := goverL_sound _ _ x h1 h2
+  have hw : ∀ s, '*' ∉ s.toList → wild s = false := fun s h => by simpa [wild] using h
+  have hsp : wild "scratchpad" = false := hw _ (by simp)
+  rw [goverL, lit_self _ (by simp [hsp, hw a ha]), lit_self _ (by simp [hsp, hw b hb])] at hs
+  simp [List.isPrefixOf, hne, Ne.symm hne] at hs
+
+/-! ## Examples -/
+
+/-- The incident pair of 2026-10-18, first task (write globs abridged to three).
+
+$$W(\mathit{wf}) = [\texttt{packages/measure-wktr/fixtures/**},\ \texttt{packages/measure-wktr/src/**},\ \texttt{lean/Fw/Measure/WktrLayout.lean}]$$
+-/
+def wf : Task :=
+  { id := "wktr-fixture-speed"
+    writes := ["packages/measure-wktr/fixtures/**", "packages/measure-wktr/src/**", "lean/Fw/Measure/WktrLayout.lean"] }
+
+/-- The incident pair of 2026-10-18, second task (write globs abridged to three).
+
+$$W(\mathit{ep}) = [\texttt{lean/Fw/Ops/Premise.lean},\ \texttt{packages/measure-*/**},\ \texttt{packages/premise-tests/**}]$$
+-/
+def ep : Task :=
+  { id := "engine-premise-measure"
+    writes := ["lean/Fw/Ops/Premise.lean", "packages/measure-*/**", "packages/premise-tests/**"] }
+
+/-- A reader of the WKTR CLI.
+
+$$W(\mathit{rd}) = [\texttt{docs/x.md}], \quad R(\mathit{rd}) = [\texttt{packages/measure-wktr/src/cli.mjs}]$$
+-/
+def rd : Task := { id := "rd", writes := ["docs/x.md"], reads := ["packages/measure-wktr/src/cli.mjs"] }
+
+#guard gover "packages/measure-wktr/**" "packages/measure-*/**"
+#guard !gover "packages/measure-wktr/**" "packages/measure-chromium/**"
+#guard gover "lean/Fw" "lean/Fw/Sched/Admit.lean" && !gover "lean/Fw/A.lean" "lean/Fw/B.lean"
+#guard gover "**" "apps/site/x" && gover "" "apps"
+#guard !admits [wf] ep && blockAt [wf] ep == some ⟨"wktr-fixture-speed", .ww, "packages/measure-*/**",
+  "packages/measure-wktr/fixtures/**"⟩
+#guard !admits [wf] rd && (blockAt [wf] rd).map (·.kind) == some .rw
+#guard !admits [rd] wf && (blockAt [rd] wf).map (·.kind) == some .wr
+#guard !admits [rd] ep && admits [{ id := "z", writes := ["apps/site/**"] }] wf
+#guard stepT [wf] (.start ep) == [wf] && stepsT [wf] [.finish "wktr-fixture-speed", .start ep] == [ep]
+#guard (overlapPairs [wf, ep, rd]).map (fun p => (p.1, p.2.task)) ==
+  [("wktr-fixture-speed", "engine-premise-measure"), ("wktr-fixture-speed", "rd"), ("engine-premise-measure", "rd")]
+#guard overlapPairs [rd, { id := "z", writes := ["apps/site/**"] }] == []
+#guard segs (scratch "admit-reads") == ["scratchpad", "admit-reads"] && scratch "a" != scratch "b"
+
+end Fw.Sched.Admit.Reads
