@@ -4040,6 +4040,31 @@
     "apps/runner/src/land.ts"
    ],
    "evidence": "650e494"
+  },
+  {
+   "id": "task-state-truth",
+   "title": "(M) console task state is truthful: agent-end/handback, integrate(branch), park events; Lean derivation with live => agent alive and blockers empty, done => landed evidence, every ended claim in exactly one of handedBack/integrated/parked/done; backfill for the 25 port-/fix- tasks shown running after their agents ended",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "evidence-on-main"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Console/**",
+    "lean/Fw/Plan/**",
+    "lean/Fw/Board/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/**",
+    "apps/console-api/**",
+    "apps/console-web/**",
+    "apps/runner/**",
+    "docs/team/backfill/**",
+    "docs/team/tools/**",
+    "docs/team/handoffs/task-state-truth.md"
+   ]
   }
  ],
  "deadline": {
