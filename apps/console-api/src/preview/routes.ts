@@ -1,11 +1,11 @@
 // HTTP glue for the task detail panel and the owner-only preview. The decisions are Lean (`console.preview*`).
 // The route reads three facts from the request and passes them as a `Proof`; Lean maps them to an actor and admits
-// only `user` (owner cookie AND same-origin Origin AND no console secret). Nothing in the body can claim an actor.
+// only `user` (owner bearer token AND console Origin AND no console secret). Nothing in the body can claim an actor.
 //   secret : the request shows the console secret (the runner's own tools, agents with the secret file)
-//   cookie : the HttpOnly SameSite=Strict cookie that the one-time owner link set in the user's browser
+//   cookie : (field name kept) the request carries a live owner bearer token; no cookie is an owner proof
 //   origin : the Origin header is present and is this console's own origin
 // Residual (INFERRED): a process of the same OS user that reads the owner link from the console's stdout or the
-// cookie from the browser profile. See research/notes/2026/10-18-task-preview.md.
+// owner token from the browser profile's localStorage. See research/notes/2026/10-18-task-preview.md.
 import type { Hono } from "hono";
 import { z } from "zod";
 import type { Store } from "../store.ts";
@@ -27,20 +27,22 @@ const SRC_LABEL: Record<string, string> = {
 type Hdr = { req: { header(n: string): string | undefined } };
 
 export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: PreviewManager, owner: OwnerAuth) {
-  const proofOf = (c: Hdr): Proof => ({
+  const proofOf = async (c: Hdr): Promise<Proof> => ({
     secret: caps.secretMatches(c.req.header(SECRET_HEADER)),
-    cookie: owner.cookieOk(c.req.header("cookie")),
-    origin: owner.originOk(c.req.header("origin"), c.req.header("host")),
+    cookie: owner.bearerOk(c.req.header("authorization")),
+    origin: await owner.actionOk(store.core, "owner", true, c.req.header("origin"), c.req.header("host")), // Origin = a console origin, trusted list from Lean
   });
   const jsonOnly = (c: Hdr) => ((c.req.header("content-type") ?? "").includes("application/json") ? null : "content-type must be application/json");
 
-  /** The one-time owner link: exchanges its token for the owner cookie, then goes to the console. */
+  /** The one-time owner link: exchanges its token for an owner token, handed to the console web in the URL fragment (never
+   *  sent to a server; the web moves it into localStorage and clears it), plus the preview-access cookie. */
   app.get("/owner", (c) => {
     const session = owner.redeem(c.req.query("t"));
     if (session === null) return c.json({ ok: false, reason: "owner link invalid or already used" }, 403);
-    c.header("Set-Cookie", OwnerAuth.setCookie(session));
+    for (const ck of owner.previewCookieFor(session)) c.header("Set-Cookie", ck, { append: true });
     c.header("Cache-Control", "no-store");
-    return c.redirect("/", 303);
+    c.header("Referrer-Policy", "no-referrer");
+    return c.redirect(`/#owner=${session}`, 303);
   });
 
   app.get("/api/tasks/:id/detail", async (c) => {
@@ -65,11 +67,11 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
       },
       handoff: facts.handoff ? { ref: facts.handoff.ref, excerpt: lines.slice(0, 40).join("\n"), lines: lines.length } : null,
       preview: { target: { kind: d.kind, ref: d.ref, sha: d.sha }, running },
-      canPreview: proofOf(c).cookie, // this browser holds the owner cookie (Lean decides the rest per request)
+      canPreview: owner.bearerOk(c.req.header("authorization")), previewPort: owner.previewPort, // this browser sent a live owner token (Lean decides the rest per request)
     });
   });
 
-  app.get("/api/previews", (c) => c.json({ ok: true, ...pm.list() }));
+  app.get("/api/previews", (c) => c.json({ ok: true, ...pm.list(), previewPort: owner.previewPort }));
 
   app.post("/api/previews", async (c) => {
     const bad = jsonOnly(c); if (bad) return c.json({ ok: false, reason: bad }, 403);
@@ -77,14 +79,14 @@ export function mountPreview(app: Hono, store: Store, caps: CapStore, pm: Previe
     try { body = await c.req.json(); } catch { return c.json({ ok: false, reason: "body is not JSON" }, 400); }
     const req = StartReq.safeParse(body);
     if (!req.success) return c.json({ ok: false, reason: "expected {task}" }, 400);
-    const r = await pm.start(req.data.task, proofOf(c));
+    const r = await pm.start(req.data.task, await proofOf(c));
     if (!r.ok) return c.json(r, r.reason === "notOwner" ? 403 : 409);
     return c.json({ ok: true, id: r.id, preview: r.entry }, 202);
   });
 
   app.post("/api/previews/:id/stop", async (c) => {
     const bad = jsonOnly(c); if (bad) return c.json({ ok: false, reason: bad }, 403);
-    const r = await pm.stop(c.req.param("id"), proofOf(c));
+    const r = await pm.stop(c.req.param("id"), await proofOf(c));
     return c.json(r, r.ok ? 200 : r.reason === "notOwner" ? 403 : 404);
   });
 }

@@ -112,7 +112,7 @@ describe("main.ts started as a background task (stdout and stderr are files, no 
     // detached = its own session: no controlling terminal, as for a harness background task
     const child = spawn(process.execPath, [join(here, "../src/main.ts")], {
       cwd: join(here, ".."), detached: true, stdio: ["ignore", fd, fd],
-      env: { ...process.env, FW_CONSOLE_DIR: join(dir, ".fw-console"), PORT: "0" },
+      env: { ...process.env, FW_CONSOLE_DIR: join(dir, ".fw-console"), PORT: "0", FW_CONSOLE_KEYCHAIN: "off" },
     });
     closeSync(fd);
     try {

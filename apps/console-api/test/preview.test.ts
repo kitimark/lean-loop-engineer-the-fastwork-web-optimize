@@ -238,18 +238,34 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     expect(await pm.start("fix-none", USER)).toEqual({ ok: false, reason: "noTarget" });
   });
 
+  it("tick stops a preview with no proxied request for 15 min (Lean idle_stops); a touch keeps it", async () => {
+    const { pm, clock } = await setup();
+    const a = await pm.start("port-landed", USER);
+    if (!a.ok) throw new Error("start");
+    await pm.settled(a.id);
+    clock.t += 14 * 60_000;
+    expect(await pm.tick()).toEqual([]);
+    pm.touch(a.id);
+    clock.t += 14 * 60_000;
+    expect(await pm.tick()).toEqual([]); // the touch restarted the idle clock
+    clock.t += 2 * 60_000;
+    expect(await pm.tick()).toEqual([a.id]); // 16 min idle
+    expect(pm.list().previews).toEqual([]);
+  });
+
   it("tick stops every preview past its TTL (and only those); stop of an unknown id kills nothing", async () => {
     const { pm, clock } = await setup();
     const a = await pm.start("port-landed", USER);
     if (!a.ok) throw new Error("start");
     await pm.settled(a.id);
     const pid = pm.list().previews[0]!.pid!;
-    clock.t += 59 * 60_000;
-    expect(await pm.tick()).toEqual([]);
+    for (let i = 0; i < 4; i++) { clock.t += 14 * 60_000; pm.touch(a.id); } // used every 14 min: never idle, 56 min in
+    clock.t += 3 * 60_000;
+    expect(await pm.tick()).toEqual([]); // 59 min: inside the TTL
     expect(await pm.stop("nope", USER)).toEqual({ ok: false, reason: "unknown" });
     expect(alive(pid)).toBe(true);
-    clock.t += 2 * 60_000;
-    expect(await pm.tick()).toEqual([a.id]);
+    clock.t += 2 * 60_000; pm.touch(a.id);
+    expect(await pm.tick()).toEqual([a.id]); // 61 min: past the TTL however recently it was used
     await new Promise((res) => setTimeout(res, 300));
     expect(alive(pid)).toBe(false);
     expect(pm.list().previews).toEqual([]);
@@ -328,7 +344,7 @@ describe("PreviewManager (Lean console.preview* decisions, real server child)", 
     const plain = spawn("sleep", ["30"], { stdio: "ignore" }); // same group as this test process
     try {
       const e = (pid: number, pstart: string | null): Entry => ({ id: "x", task: "t", target: { kind: "main", ref: "main", sha: "a" }, rp: 1, op: 2,
-        started: 0, deadline: 1, phase: "building", pid, pstart, tree: "/nonexistent" });
+        started: 0, deadline: 1, phase: "building", pid, pstart, tree: "/nonexistent", seen: 0 });
       expect(hooks.isOurs(own.pid!, e(own.pid!, hooks.startOf(own.pid!)))).toBe(true);
       expect(hooks.isOurs(own.pid!, e(own.pid!, "Mon Jan  1 00:00:00 2001"))).toBe(false); // a recycled pid has another start time
       expect(hooks.isOurs(own.pid!, e(own.pid!, null))).toBe(false);
@@ -369,9 +385,9 @@ describe("routes", () => {
     expect(none.preview.target.kind).toBe("none");
   });
 
-  it("owner proof at the routes: the one-time link sets the cookie; without cookie, with the secret, or without a same-origin Origin the request is refused", async () => {
+  it("owner proof at the routes: the one-time link sets the authorization; without authorization, with the secret, or without a same-origin Origin the request is refused", async () => {
     const { pm, store, secret } = await setup();
-    const owner = new OwnerAuth(["http://127.0.0.1:5173"]);
+    const owner = new OwnerAuth(["http://127.0.0.1:5173"]); owner.setPorts(4000, 4001);
     const app = createApp(store, undefined, undefined, pm, owner);
     const H = "127.0.0.1:4000"; const O = `http://${H}`;
     const post = (body: unknown, h: Record<string, string> = {}) =>
@@ -382,32 +398,35 @@ describe("routes", () => {
     const link = await app.request(`/owner?t=${owner.token()}`);
     expect(link.status).toBe(303);
     const setCookie = link.headers.get("set-cookie")!;
-    expect(setCookie).toMatch(/HttpOnly/); expect(setCookie).toMatch(/SameSite=Strict/);
-    const cookie = setCookie.split(";")[0]!;
+    expect(setCookie).toMatch(/^fw_preview=.*HttpOnly.*SameSite=Strict/); expect(setCookie).not.toContain("fw_owner"); // the only cookie is preview-only
+    const loc = link.headers.get("location")!;
+    expect(loc).toMatch(/^\/#owner=[A-Za-z0-9_-]{40,}$/); // the token travels in the URL fragment, never in a cookie
+    const authorization = `Bearer ${loc.slice("/#owner=".length)}`;
+    expect(link.headers.get("referrer-policy")).toBe("no-referrer");
     expect(owner.token()).toBeNull(); // single use
     expect((await app.request("/owner?t=" + "x")).status).toBe(403);
-    const asSecret = await post({ task: "port-landed" }, { "x-fw-secret": secret, cookie, origin: O });
+    const asSecret = await post({ task: "port-landed" }, { "x-fw-secret": secret, authorization, origin: O });
     expect(asSecret.status).toBe(403); expect(await asSecret.json()).toEqual({ ok: false, reason: "notOwner" });
-    expect((await post({ task: "port-landed" }, { origin: O })).status).toBe(403); // no cookie: an agent's curl
-    expect((await post({ task: "port-landed" }, { cookie })).status).toBe(403); // no Origin
-    expect((await post({ task: "port-landed" }, { cookie, origin: "https://evil.example" })).status).toBe(403);
+    expect((await post({ task: "port-landed" }, { origin: O })).status).toBe(403); // no token: an agent's curl
+    expect((await post({ task: "port-landed" }, { authorization })).status).toBe(403); // no Origin
+    expect((await post({ task: "port-landed" }, { authorization, origin: "https://evil.example" })).status).toBe(403);
     expect((await post({ task: "port-landed", actor: "user" }, { origin: O })).status).toBe(403); // the body cannot claim user
-    expect((await app.request("/api/previews", { method: "POST", body: "{\"task\":\"port-landed\"}", headers: { cookie, origin: O, host: H } })).status).toBe(403);
-    expect((await post({ task: "../x" }, { cookie, origin: O })).status).toBe(400);
+    expect((await app.request("/api/previews", { method: "POST", body: "{\"task\":\"port-landed\"}", headers: { authorization, origin: O, host: H } })).status).toBe(403);
+    expect((await post({ task: "../x" }, { authorization, origin: O })).status).toBe(400);
     expect(pm.list().previews).toEqual([]);
-    const ok = await post({ task: "port-landed" }, { cookie, origin: O });
+    const ok = await post({ task: "port-landed" }, { authorization, origin: O });
     expect(ok.status).toBe(202);
     const { id } = await ok.json() as { id: string };
     await pm.settled(id);
     expect((await (await app.request("/api/previews")).json() as any).previews[0].phase).toBe("serving");
     const stopH = { "content-type": "application/json", host: H };
-    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, "x-fw-secret": secret, cookie, origin: O } })).status).toBe(403);
+    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, "x-fw-secret": secret, authorization, origin: O } })).status).toBe(403);
     expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: stopH })).status).toBe(403);
-    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, cookie } })).status).toBe(403);
-    const dev = await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, cookie, origin: "http://127.0.0.1:5173" } }); // the configured dev origin
+    expect((await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, authorization } })).status).toBe(403);
+    const dev = await app.request(`/api/previews/${id}/stop`, { method: "POST", headers: { ...stopH, authorization, origin: "http://127.0.0.1:5173" } }); // the configured dev origin
     expect(dev.status).toBe(200);
     expect((await (await app.request("/api/previews")).json() as any).previews).toEqual([]);
-    const det = await (await app.request("/api/tasks/port-landed/detail", { headers: { cookie } })).json() as any;
+    const det = await (await app.request("/api/tasks/port-landed/detail", { headers: { authorization } })).json() as any;
     expect(det.canPreview).toBe(true);
     expect(((await (await app.request("/api/tasks/port-landed/detail")).json()) as any).canPreview).toBe(false);
   });
