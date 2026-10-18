@@ -5758,6 +5758,39 @@
    ],
    "owner": "part-builder",
    "writes": []
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "contract-rows-from-code",
+   "title": "Split from contract-lean (2nd refusal, Fable retro): static extractor over each part's TS+CSS (rect reads by selector/IO target, setProperty/classList/dataset/setAttribute writes, CSS [data-*]/:has/:global and var() reads) emits a footprint JSON; the Lean contract table is generated from it (hand rows become the diff baseline); discharges premise declared-rows-unverified; first cases: people.o->people.card data-o-stack, people.carousel rect people, dead selectors",
+   "stream": "proofs",
+   "milestone": "M5",
+   "deps": [
+    "contract-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "apps/site/scripts/part-footprint.mjs",
+    "lean/Fw/Parts/Contract.lean",
+    "packages/contracts/golden/parts/**",
+    "docs/team/handoffs/contract-rows-from-code.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dead-selectors",
+   "title": "Faithfulness finding (contract retro): pain.notes cardSelector (index.tsx:40) and nav.hitTest EXCLUDE_SELECTOR (logic.ts:19) match no element after the CSS-module rename (build.mjs:41); restore intended targets via data-fw anchors, Lean first where a decision depends on them",
+   "stream": "parts",
+   "milestone": "M5",
+   "deps": [
+    "integrate-wave-1"
+   ],
+   "owner": "part-builder",
+   "writes": []
   }
  ],
  "deadline": {
