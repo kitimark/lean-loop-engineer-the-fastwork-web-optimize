@@ -1709,6 +1709,48 @@
    "v1Evidence": "../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 10 (largest phone style record 29.2-32.2 ms at the #platform switch; about 10 of 14-17 slow frames on about 8 flips); fixes/scene-scope/README.md (RB landed, PR-002 rev 2)",
    "lesson": "A broad pause selector costs a subtree restyle at every flip; a per-element pause costs O(animations). The saving sits in toggle frames and element counts, which pass counters cannot see.",
    "next": "Prove the toggle-frame theorem after adding a fan-out rule; ask for a deterministic element-count type or a per-flip WebKit RecalculateStyles duration."
+  },
+  {
+   "id": "premise.cv.auto-margin",
+   "n": 26,
+   "part": "premise",
+   "candidate": "premise cv.auto-margin: a node under a content-visibility-skipped subtree reports unresolved auto margins",
+   "status": "refuted",
+   "chromium": "premise-false",
+   "webkit": "premise-false",
+   "visual": "n/a (a premise of planned:gate-settle and planned:fix-commission, not an optimization)",
+   "mechanism": "MEASURED (premise-tests, CI runs 39082835090, 39084127865, 39087188278, 39101531977, 39102911529; Chrome Headless Shell 156.0.8078.4 and Playwright WebKit 27.2 on Linux): with the subtree reported skipped by the engine's contentvisibilityautostatechange event, getComputedStyle(n).marginLeft returns the used 150px, not auto; the read forces the lock open. Only a display:none subtree reports auto (premise cv.read-forces-lock holds).",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Ops.Premise.acks"
+   ],
+   "missingWhy": [],
+   "premises": [
+    "cv.read-forces-lock: holds on both engines in the same runs, MEASURED"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A style read is a forced update even inside a skipped subtree: no getComputedStyle probe can observe the skipped state; detect skipping by the engine's event instead.",
+   "next": "Kept registered as a negative result and acknowledged in Fw.Ops.Premise.acks (both engines, steady); gate-settle and fix-commission must not rely on auto margins."
+  },
+  {
+   "id": "premise.anim.list",
+   "n": 27,
+   "part": "premise",
+   "candidate": "premise anim.list: getAnimations lists every running CSS animation and transition and no rAF lerp",
+   "status": "intermittent",
+   "chromium": "premise-holds",
+   "webkit": "premise-false-intermittent",
+   "visual": "n/a (a premise of planned:gate-settle, not an optimization)",
+   "mechanism": "MEASURED: on Playwright WebKit 27.2 (Linux) the 300 ms #quick transition was not in document.body.getAnimations({subtree: true}) two rAFs after its start in CI run 39102911529 (main); the same test passed on WebKit in runs 39082835090, 39084127865, 39087188278 and 39101531977, and on Chromium in all five. Cause OPEN: INFERRED a loaded runner let the 300 ms transition finish before the sample (the failing run recorded no observed value).",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Ops.Premise.acks"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A premise test sampled after a fixed number of frames can fail on a slow runner; record the elapsed time with every observation so a timing flake and an engine difference can be told apart.",
+   "next": "Acknowledged as intermittent in Fw.Ops.Premise.acks (WebKit only); the test now records the elapsed ms on failure; decide once a failing run carries it."
   }
  ],
  "notes": [

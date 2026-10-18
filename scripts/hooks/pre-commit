@@ -1,9 +1,15 @@
 #!/bin/sh
 # pre-commit: (1) land lock: no other commit in a checkout where `fw land` holds its merge open (apps/runner/hooks/land-guard.mjs,
-# decided by Lean console.landGuard); (2) privacy scrub of staged content (scripts/scrub.mjs). Enabled by scripts/wt-prep.sh via
+# decided by Lean console.landGuard); (2) static checks of the staged files (scripts/checkmap.mjs: `node --check` for .mjs/.js,
+# a TypeScript parse or tsc, lake build, JSON/JSONL/YAML/sh/Python/Swift parse; which check runs on which file, and the
+# verdict, are Lean Fw.Ops.CheckMap; skipped for the land's own commit, FW_LAND_TOKEN set, whose branch the land checked);
+# (3) privacy scrub of staged content (scripts/scrub.mjs). Enabled by scripts/wt-prep.sh via
 # `git config core.hooksPath scripts/hooks` (relative path, so it resolves inside each worktree).
 top=$(git rev-parse --show-toplevel) || exit 1
 if [ -f "$top/apps/runner/hooks/land-guard.mjs" ]; then
   node "$top/apps/runner/hooks/land-guard.mjs" || exit 1
+fi
+if [ -z "${FW_LAND_TOKEN:-}" ] && [ -f "$top/scripts/checkmap.mjs" ]; then
+  node "$top/scripts/checkmap.mjs" --staged || exit 1
 fi
 exec node "$top/scripts/scrub.mjs"

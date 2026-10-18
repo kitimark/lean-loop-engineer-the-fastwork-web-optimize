@@ -14,6 +14,10 @@ sampled unsettled pages). This module is the registry of those premises and the 
 * `flagged`: given the page-test CI results, the page premises whose test failed (or is missing) on an engine they
   need, with the theorems that assume them (`flagged_eq_nil_iff`, `flagged_of_fail`). A failing premise test is a
   finding. Lane premises are asserted by their own workflow (`not_flagged_of_lane`).
+* `ackVerdict` (task premise-ack): a known finding recorded in `research/findings/ledger.json` is acknowledged
+  (`acks`: premise, engine, observed class, ledger id) and keeps the lane green; the verdict is red iff some finding
+  is unacknowledged or some acknowledgement is stale (`red_iff_unacked`, `ack_never_hides_new`, `changed_finding_red`,
+  `stale_ack_reported`).
 * `citeLint` (m175 hardening): every row of every engine golden (`packages/contracts/golden/engine/**`) cites the
   premises its value depends on (`engineCites`); a row citing nothing or an id that is neither a measured registry
   premise nor an `untestedPremises` entry fails (`uncited_row_flagged`, `bad_of_unknown`, `engineCite_ok_iff`); the
@@ -21,8 +25,8 @@ sampled unsettled pages). This module is the registry of those premises and the 
 * `laneFailures`: the WKTR lane's assertion (`wktr-fixtures.yml` via `summarize.mjs --assert`; golden
   `packages/contracts/golden/ops/wktr-lane.jsonl`, `laneFailures_nil_iff`, `lane_old_claim_fails`).
 
-Golden vectors (`packages/contracts/golden/ops/premise.jsonl`): the registry rows, lint cases and flag cases. The TS
-side (`apps/runner/src/premises.ts`, `fw premises`) is checked against them. Generate, never by hand:
+Golden vectors (`packages/contracts/golden/ops/premise.jsonl`): the registry rows, the lint and flag cases,
+the acknowledgements, the ack, ack-lint and error-class cases. The TS side (`apps/runner/src/premises.ts`, `fw premises`) is checked against them. Generate, never by hand:
 
 ```
 cd lean && lake env lean --run scripts/PremiseGolden.lean           # write the file
@@ -90,14 +94,16 @@ structure TestRef where
   id : String
   premise : String
 
-/-- One CI result: the test, the engine it ran on, and whether its assertions held.
+/-- One CI result: the test, the engine it ran on, whether its assertions held, and the error text of a failing run
+(the empty string when there is none; `run.mjs` writes the first 6 lines of the thrown error).
 
-$$r = (\mathrm{testId},\ e,\ \mathrm{ok})$$
+$$r = (\mathrm{testId},\ e,\ \mathrm{ok},\ \mathrm{error})$$
 -/
 structure Result where
   testId : String
   engine : Engine
   ok : Bool
+  error : String := ""
 
 /-! ## Lint -/
 
@@ -282,16 +288,16 @@ theorem flagged_eq_nil_iff (ps : List Premise) (rs : List Result) :
 /-- **A failing premise test flags its premise.** One failing run of a page premise's test on an engine the premise
 needs puts the premise (hence its theorems) in the flagged list, whatever else passed.
 
-$$\forall ps, rs, p, e:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \Rightarrow p \in \operatorname{flagged}\big(ps,\ (p.\mathrm{testId}, e, \bot) :: rs\big)$$
+$$\forall ps, rs, p, e:\  p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \Rightarrow p \in \operatorname{flagged}\big(ps,\ (p.\mathrm{testId}, e, \bot, \varepsilon) :: rs\big)\quad (\varepsilon = \text{the empty string})$$
 -/
 theorem flagged_of_fail (ps : List Premise) (rs : List Result) (p : Premise) (hp : p ∈ ps) (hk : p.kind = .page)
-    (e : Engine) (he : e ∈ p.engines) : p ∈ flagged ps (⟨p.testId, e, false⟩ :: rs) := by
+    (e : Engine) (he : e ∈ p.engines) : p ∈ flagged ps (⟨p.testId, e, false, ""⟩ :: rs) := by
   simp only [flagged, List.mem_filter, Bool.and_eq_true, Bool.not_eq_true', premiseHolds, List.all_eq_false, hk,
     beq_self_eq_true, true_and]
   refine ⟨hp, e, he, ?_⟩
-  cases h : holds (⟨p.testId, e, false⟩ :: rs) p e
+  cases h : holds (⟨p.testId, e, false, ""⟩ :: rs) p e
   · simp
-  · have := ((holds_iff _ _ _).mp h).2 ⟨p.testId, e, false⟩ (List.mem_cons_self ..) rfl rfl
+  · have := ((holds_iff _ _ _).mp h).2 ⟨p.testId, e, false, ""⟩ (List.mem_cons_self ..) rfl rfl
     cases this
 
 /-- **A missing test run flags too.** If no result exists for a page premise's test on an engine it needs, the premise
@@ -959,6 +965,290 @@ def laneText : String :=
     ("passes", Json.arr (qs.map passJson).toArray), ("failures", Json.arr ((laneFailures wktrExpected qs).map Json.str).toArray)]
   String.join ((exp :: rows).map fun j => j.compress ++ "\n")
 
+/-! ## Acknowledged findings (task premise-ack)
+
+A failing premise test is a finding (`flagged`). Once a finding is recorded in `research/findings/ledger.json`, an
+acknowledgement (`acks`) keeps the lane green for exactly that observation: the premise, the engine and the observed
+class (the first non-blank line of the error, which carries the observed value). Any other finding stays red: a new
+premise or engine (`ack_never_hides_new`) or a changed observation (`changed_finding_red`). An acknowledgement whose
+observation is gone, e.g. because the premise now holds on that engine, is reported as stale and is red too
+(`stale_ack_reported`): it must be removed. `red_iff_unacked` is the whole rule.
+
+One exception, stated in the types: an acknowledgement marked `intermittent` (its finding appears in some CI runs and
+not in others, MEASURED and recorded in its ledger entry) is never stale (`intermittent_not_stale`); it still accepts
+only its exact observation, so it hides no new or changed finding either.
+-/
+
+/-- The class of an error text: its first line (lines split at `\n`) that holds a character other than space, tab,
+carriage return and line feed, or `failed` when no line does (also for the empty text).
+
+$$\operatorname{errorClass}(s) = \begin{cases} \ell_j & \text{if } J \ne \varnothing,\ j = \min J \\ \texttt{failed} & \text{if } J = \varnothing \end{cases} \qquad [\ell_0, \dots, \ell_k] = \operatorname{split}_{\backslash n}(s),\quad J = \{\, i \mid \exists c \in \ell_i:\ c \notin \{\text{space}, \backslash t, \backslash r, \backslash n\} \,\}$$
+-/
+def errorClass (s : String) : String :=
+  ((s.splitOn "\n").find? fun l => l.any fun c => !c.isWhitespace).getD "failed"
+
+#guard errorClass "" == "failed"
+#guard errorClass " \n\t\n" == "failed"
+#guard errorClass "\n  \nskipped, got 150px\n\n'150px' !== 'auto'\n" == "skipped, got 150px"
+#guard errorClass "  x  " == "  x  "
+
+/-- The observed class of premise `p` on engine `e`: `no result` when its test has no run on `e`; otherwise the error
+class of the first failing run on `e`, or `passed` when every run on `e` passed.
+
+$$\operatorname{failClass}(rs, p, e) = \begin{cases} \texttt{no result} & M = [\,] \\ \operatorname{errorClass}(r.\mathrm{error}) & M \ne [\,],\ r \text{ the first } r \in M \text{ with } r.\mathrm{ok} = \bot \\ \texttt{passed} & M \ne [\,],\ \forall r \in M:\ r.\mathrm{ok} = \top \end{cases} \qquad M = [\,r \in rs \mid r.\mathrm{testId} = p.\mathrm{testId} \land r.\mathrm{engine} = e\,]$$
+-/
+def failClass (rs : List Result) (p : Premise) (e : Engine) : String :=
+  let m := rs.filter fun r => r.testId == p.testId && r.engine == e
+  if m.isEmpty then "no result" else ((m.find? (!·.ok)).map (errorClass ·.error)).getD "passed"
+
+/-- One observed finding: a premise that does not hold on an engine, and the observed class there.
+
+$$f = (\mathrm{premise},\ e,\ \mathrm{cls})$$
+-/
+structure Observed where
+  premise : String
+  engine : Engine
+  cls : String
+deriving DecidableEq, Repr
+
+/-- **The observed findings**: for every flagged premise `p` (in `ps` order) and every engine `e` of `p.engines` (in
+order) on which it does not hold, the premise id, the engine and the observed class.
+
+$$\operatorname{findings}(ps, rs) = [\,(p.\mathrm{id},\ e,\ \operatorname{failClass}(rs, p, e)) \mid p \in \operatorname{flagged}(ps, rs),\ e \in p.\mathrm{engines},\ \operatorname{holds}(rs, p, e) = \bot\,]$$
+-/
+def findings (ps : List Premise) (rs : List Result) : List Observed :=
+  (flagged ps rs).flatMap fun p =>
+    (p.engines.filter fun e => !holds rs p e).map fun e => ⟨p.id, e, failClass rs p e⟩
+
+/-- An acknowledgement: the premise, the engine, the observed class it accepts, the id of the entry in
+`research/findings/ledger.json` that records the finding, and whether the finding is intermittent (seen in some CI
+runs only).
+
+$$a = (\mathrm{premise},\ e,\ \mathrm{cls},\ \mathrm{finding},\ \mathrm{intermittent})$$
+-/
+structure Ack where
+  premise : String
+  engine : Engine
+  cls : String
+  finding : String
+  intermittent : Bool
+
+/-- The observation an acknowledgement accepts.
+
+$$\operatorname{obs}(a) = (a.\mathrm{premise},\ a.\mathrm{engine},\ a.\mathrm{cls})$$
+-/
+def Ack.obs (a : Ack) : Observed := ⟨a.premise, a.engine, a.cls⟩
+
+/-- A finding is acknowledged when some acknowledgement accepts exactly it (same premise, engine and class).
+
+$$\operatorname{acked}(ks, f) \iff \exists a \in ks:\ \operatorname{obs}(a) = f$$
+-/
+def acked (ks : List Ack) (f : Observed) : Bool := ks.any (·.obs == f)
+
+/-- The parts of the verdict: the acknowledged findings, the unacknowledged ones, the stale acknowledgements.
+
+$$v = (\mathrm{acked},\ \mathrm{unacked},\ \mathrm{stale})$$
+-/
+structure AckVerdict where
+  acked : List Observed
+  unacked : List Observed
+  stale : List Ack
+
+/-- **The verdict on the findings `fs` under the acknowledgements `ks`**: the findings some acknowledgement accepts,
+the findings none accepts, and the acknowledgements that are not intermittent and whose observation is not among the
+findings (stale).
+
+$$\operatorname{ackVerdict}(ks, fs) = \big(\,[\,f \in fs \mid \operatorname{acked}(ks, f)\,],\ [\,f \in fs \mid \neg\operatorname{acked}(ks, f)\,],\ [\,a \in ks \mid a.\mathrm{intermittent} = \bot \land \operatorname{obs}(a) \notin fs\,]\,\big)$$
+-/
+def ackVerdict (ks : List Ack) (fs : List Observed) : AckVerdict where
+  acked := fs.filter (acked ks)
+  unacked := fs.filter fun f => !acked ks f
+  stale := ks.filter fun a => !a.intermittent && !fs.contains a.obs
+
+/-- The lane is red when some finding is unacknowledged or some acknowledgement is stale.
+
+$$\operatorname{red}(v) \iff v.\mathrm{unacked} \ne [\,] \lor v.\mathrm{stale} \ne [\,]$$
+-/
+def AckVerdict.red (v : AckVerdict) : Bool := !v.unacked.isEmpty || !v.stale.isEmpty
+
+/-- **Red iff unacknowledged (or stale).** The verdict is red exactly when some finding is accepted by no
+acknowledgement, or some acknowledgement that is not intermittent accepts no finding.
+
+$$\forall ks, fs:\ \operatorname{red}(\operatorname{ackVerdict}(ks, fs)) \iff \big(\exists f \in fs\ \forall a \in ks:\ \operatorname{obs}(a) \ne f\big) \lor \big(\exists a \in ks:\ a.\mathrm{intermittent} = \bot \land \operatorname{obs}(a) \notin fs\big)$$
+-/
+theorem red_iff_unacked (ks : List Ack) (fs : List Observed) :
+    (ackVerdict ks fs).red = true ↔
+      (∃ f ∈ fs, ∀ a ∈ ks, a.obs ≠ f) ∨ (∃ a ∈ ks, a.intermittent = false ∧ a.obs ∉ fs) := by
+  simp [ackVerdict, AckVerdict.red, acked, List.filter_eq_nil_iff]
+
+/-- A page premise that does not hold on an engine it needs yields that finding, with its observed class.
+
+$$\forall ps, rs, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \Rightarrow (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e)) \in \operatorname{findings}(ps, rs)$$
+-/
+theorem mem_findings (ps : List Premise) (rs : List Result) (p : Premise) (e : Engine) (hp : p ∈ ps)
+    (hk : p.kind = .page) (he : e ∈ p.engines) (hh : holds rs p e = false) :
+    (⟨p.id, e, failClass rs p e⟩ : Observed) ∈ findings ps rs := by
+  have hf : p ∈ flagged ps rs := by
+    simp only [flagged, List.mem_filter, Bool.and_eq_true, Bool.not_eq_true', premiseHolds, List.all_eq_false, hk,
+      beq_self_eq_true, true_and]
+    exact ⟨hp, e, he, by simp [hh]⟩
+  simp only [findings, List.mem_flatMap, List.mem_map, List.mem_filter]
+  exact ⟨p, hf, e, ⟨he, by simp [hh]⟩, rfl⟩
+
+/-- **A changed finding is red.** If a page premise fails on an engine it needs and no acknowledgement for that
+premise and engine accepts the observed class, the finding is unacknowledged and the verdict is red.
+
+$$\forall ps, rs, ks, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \land \big(\forall a \in ks:\ a.\mathrm{premise} = p.\mathrm{id} \Rightarrow a.\mathrm{engine} = e \Rightarrow a.\mathrm{cls} \ne \operatorname{failClass}(rs, p, e)\big) \Rightarrow (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e)) \in \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)).\mathrm{unacked} \land \operatorname{red}(\operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)))$$
+-/
+theorem changed_finding_red (ps : List Premise) (rs : List Result) (ks : List Ack) (p : Premise) (e : Engine)
+    (hp : p ∈ ps) (hk : p.kind = .page) (he : e ∈ p.engines) (hh : holds rs p e = false)
+    (hn : ∀ a ∈ ks, a.premise = p.id → a.engine = e → a.cls ≠ failClass rs p e) :
+    (⟨p.id, e, failClass rs p e⟩ : Observed) ∈ (ackVerdict ks (findings ps rs)).unacked ∧
+      (ackVerdict ks (findings ps rs)).red = true := by
+  have hm := mem_findings ps rs p e hp hk he hh
+  have hu : (⟨p.id, e, failClass rs p e⟩ : Observed) ∈ (ackVerdict ks (findings ps rs)).unacked := by
+    simp only [ackVerdict, List.mem_filter, acked, Bool.not_eq_true', List.any_eq_false, beq_iff_eq]
+    refine ⟨hm, fun a ha h => ?_⟩
+    simp only [Ack.obs, Observed.mk.injEq] at h
+    exact hn a ha h.1 h.2.1 h.2.2
+  refine ⟨hu, ?_⟩
+  simp only [AckVerdict.red, Bool.or_eq_true, Bool.not_eq_true', List.isEmpty_eq_false_iff]
+  exact Or.inl (List.ne_nil_of_mem hu)
+
+/-- **An acknowledgement never hides a new finding.** A page premise failing on an engine it needs, with no
+acknowledgement for that premise and engine (a new premise, or a known premise on a new engine), is unacknowledged and
+the verdict is red, whatever else is acknowledged.
+
+$$\forall ps, rs, ks, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \land \big(\forall a \in ks:\ \neg(a.\mathrm{premise} = p.\mathrm{id} \land a.\mathrm{engine} = e)\big) \Rightarrow (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e)) \in \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)).\mathrm{unacked} \land \operatorname{red}(\operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)))$$
+-/
+theorem ack_never_hides_new (ps : List Premise) (rs : List Result) (ks : List Ack) (p : Premise) (e : Engine)
+    (hp : p ∈ ps) (hk : p.kind = .page) (he : e ∈ p.engines) (hh : holds rs p e = false)
+    (hn : ∀ a ∈ ks, ¬(a.premise = p.id ∧ a.engine = e)) :
+    (⟨p.id, e, failClass rs p e⟩ : Observed) ∈ (ackVerdict ks (findings ps rs)).unacked ∧
+      (ackVerdict ks (findings ps rs)).red = true :=
+  changed_finding_red ps rs ks p e hp hk he hh fun a ha h1 h2 _ => hn a ha ⟨h1, h2⟩
+
+/-- **A stale acknowledgement is reported.** If an acknowledgement is not intermittent and every premise of `ps` with
+the acknowledged id now holds on the acknowledged engine, the acknowledgement is stale and the verdict is red (it must
+be removed).
+
+$$\forall ps, rs, ks, a:\ a \in ks \land a.\mathrm{intermittent} = \bot \land \big(\forall p \in ps:\ p.\mathrm{id} = a.\mathrm{premise} \Rightarrow \operatorname{holds}(rs, p, a.\mathrm{engine}) = \top\big) \Rightarrow a \in \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)).\mathrm{stale} \land \operatorname{red}(\operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)))$$
+-/
+theorem stale_ack_reported (ps : List Premise) (rs : List Result) (ks : List Ack) (a : Ack) (ha : a ∈ ks)
+    (hi : a.intermittent = false) (hh : ∀ p ∈ ps, p.id = a.premise → holds rs p a.engine = true) :
+    a ∈ (ackVerdict ks (findings ps rs)).stale ∧ (ackVerdict ks (findings ps rs)).red = true := by
+  have hs : a ∈ (ackVerdict ks (findings ps rs)).stale := by
+    simp only [ackVerdict, List.mem_filter, hi, Bool.not_false, Bool.true_and, Bool.not_eq_true']
+    refine ⟨ha, Bool.eq_false_iff.mpr fun hc => ?_⟩
+    have hm := List.contains_iff_mem.mp hc
+    simp only [findings, List.mem_flatMap, List.mem_map, List.mem_filter] at hm
+    obtain ⟨p, hf, e, ⟨_, he⟩, heq⟩ := hm
+    simp only [Ack.obs, Observed.mk.injEq] at heq
+    have hp : p ∈ ps := (List.mem_filter.mp hf).1
+    have := hh p hp heq.1
+    rw [← heq.2.1] at this
+    simp [this] at he
+  refine ⟨hs, ?_⟩
+  simp only [AckVerdict.red, Bool.or_eq_true, Bool.not_eq_true', List.isEmpty_eq_false_iff]
+  exact Or.inr (List.ne_nil_of_mem hs)
+
+/-- **An intermittent acknowledgement is never stale**, whatever the findings.
+
+$$\forall ks, fs, a:\ a.\mathrm{intermittent} = \top \Rightarrow a \notin \operatorname{ackVerdict}(ks, fs).\mathrm{stale}$$
+-/
+theorem intermittent_not_stale (ks : List Ack) (fs : List Observed) (a : Ack) (hi : a.intermittent = true) :
+    a ∉ (ackVerdict ks fs).stale := by
+  simp [ackVerdict, hi]
+
+/-- The acknowledgements that cite nothing known: whose premise is no page premise of `ps`, or whose finding id is not
+among the ledger ids `ids`.
+
+$$\operatorname{ackLint}(ps, ids, ks) = [\,a \in ks \mid \neg(\exists p \in ps:\ p.\mathrm{kind} = \mathrm{page} \land p.\mathrm{id} = a.\mathrm{premise}) \lor a.\mathrm{finding} \notin ids\,]$$
+-/
+def ackLint (ps : List Premise) (ids : List String) (ks : List Ack) : List Ack :=
+  ks.filter fun a => !(ps.any fun p => p.kind == .page && p.id == a.premise) || !ids.contains a.finding
+
+/-- **The acknowledged findings.** Each is a premise refuted on CI (run 39102911529, Chrome Headless Shell 156.0.8078.4
+and Playwright WebKit 27.2 on Linux) and recorded in `research/findings/ledger.json` under its `finding` id:
+`anim.list` fails on WebKit only and intermittently (`getAnimations` did not list the short running transition in run
+39102911529; it did in runs 39082835090, 39084127865, 39087188278 and 39101531977), `cv.auto-margin` fails on both
+engines in all five runs (a style read forces the content-visibility lock open and returns 150px).
+
+$$\mathrm{acks} = [\,(\texttt{anim.list}, \mathrm{webkit}, \texttt{the short transition is listed while running}, \texttt{premise.anim.list}, \top),\ (\texttt{cv.auto-margin}, \mathrm{chromium}, \texttt{skipped subtree reports unresolved auto margin, got 150px}, \texttt{premise.cv.auto-margin}, \bot),\ (\texttt{cv.auto-margin}, \mathrm{webkit}, \texttt{skipped subtree reports unresolved auto margin, got 150px}, \texttt{premise.cv.auto-margin}, \bot)\,]$$
+-/
+def acks : List Ack := [
+  ⟨"anim.list", .webkit, "the short transition is listed while running", "premise.anim.list", true⟩,
+  ⟨"cv.auto-margin", .chromium, "skipped subtree reports unresolved auto margin, got 150px", "premise.cv.auto-margin",
+    false⟩,
+  ⟨"cv.auto-margin", .webkit, "skipped subtree reports unresolved auto margin, got 150px", "premise.cv.auto-margin",
+    false⟩]
+
+/-- The ledger ids the acknowledgements cite (each must be an `id` in `research/findings/ledger.json`; `fw premises`
+checks it).
+
+$$\mathrm{ackFindingIds} = [\,\texttt{premise.anim.list},\ \texttt{premise.cv.auto-margin}\,]$$
+-/
+def ackFindingIds : List String := ["premise.anim.list", "premise.cv.auto-margin"]
+
+/-- Every acknowledgement names a registered page premise and a cited ledger id.
+
+$$\operatorname{ackLint}(\mathrm{registry}, \mathrm{ackFindingIds}, \mathrm{acks}) = [\,]$$
+-/
+theorem acks_lint_clean : ackLint registry ackFindingIds acks = [] := by decide
+
+-- The page premises of the registry (the only ones with page results).
+private def pages : List Premise := registry.filter (·.kind == .page)
+
+-- Every page test of the registry passing on every engine it needs.
+private def allPass : List Result :=
+  pages.flatMap fun p => p.engines.map fun e => ⟨p.testId, e, true, ""⟩
+
+-- Replace the runs of test `t` on engine `e` by one run with the given outcome.
+private def setRun (rs : List Result) (t : String) (e : Engine) (ok : Bool) (err : String) : List Result :=
+  rs.map fun r => if r.testId == t && r.engine == e then ⟨t, e, ok, err⟩ else r
+
+-- The error text of the failing cv.auto-margin test in run 39102911529 (both engines).
+private def cvErr : String := "skipped subtree reports unresolved auto margin, got 150px\n\n'150px' !== 'auto'\n"
+
+-- The results of run 39102911529: every page premise holds except anim.list on WebKit and cv.auto-margin on both.
+private def knownRun : List Result :=
+  let rs := setRun allPass "prem.anim.list" .webkit false "the short transition is listed while running"
+  let rs := setRun rs "prem.cv.auto-margin" .chromium false cvErr
+  setRun rs "prem.cv.auto-margin" .webkit false cvErr
+
+-- The ack cases: result lists the ack verdict is run on.
+private def ackCases : List (String × List Result) :=
+  [("known-run", knownRun),
+   ("known-run-retry-passed", ⟨"prem.anim.list", .webkit, true, ""⟩ :: knownRun),
+   ("intermittent-absent", setRun knownRun "prem.anim.list" .webkit true ""),
+   ("all-pass", allPass),
+   ("new-premise", setRun knownRun "prem.frame.raf-order" .webkit false "the order differs"),
+   ("new-engine", setRun knownRun "prem.anim.list" .chromium false "the short transition is listed while running"),
+   ("changed-value", setRun knownRun "prem.cv.auto-margin" .webkit false "skipped subtree reports unresolved auto margin, got 151px"),
+   ("changed-assertion", setRun knownRun "prem.anim.list" .webkit false "the CSS animation is listed"),
+   ("now-holds-chromium", setRun knownRun "prem.cv.auto-margin" .chromium true ""),
+   ("missing-run", knownRun.filter fun r => !(r.testId == "prem.anim.list" && r.engine == .webkit))]
+
+-- The verdict of an ack case under the registry and `acks`.
+private def caseVerdict (rs : List Result) : AckVerdict := ackVerdict acks (findings registry rs)
+
+#guard (findings registry knownRun).length == 3
+#guard !(caseVerdict knownRun).red && (caseVerdict knownRun).acked.length == 3
+#guard ackCases.map (fun (n, rs) => (n, (caseVerdict rs).red)) ==
+  [("known-run", false), ("known-run-retry-passed", false), ("intermittent-absent", false), ("all-pass", true),
+   ("new-premise", true),
+   ("new-engine", true), ("changed-value", true), ("changed-assertion", true), ("now-holds-chromium", true),
+   ("missing-run", true)]
+#guard (caseVerdict allPass).stale.length == 2 && (caseVerdict allPass).unacked.isEmpty
+#guard (caseVerdict ((ackCases.lookup "new-premise").getD [])).unacked == [⟨"frame.raf-order", .webkit, "the order differs"⟩]
+#guard ((caseVerdict ((ackCases.lookup "changed-value").getD [])).stale.map (·.engine)) == [.webkit]
+#guard ((caseVerdict ((ackCases.lookup "missing-run").getD [])).unacked.map (·.cls)) == ["no result"]
+#guard ((pages.find? (·.id == "anim.list")).map fun p => failClass knownRun p .chromium) == some "passed"
+#guard acked acks ⟨"anim.list", .webkit, "the short transition is listed while running"⟩
+#guard !acked acks ⟨"anim.list", .chromium, "the short transition is listed while running"⟩
+#guard (ackLint registry [] acks).length == 3
+#guard (ackLint registry ackFindingIds (⟨"ghost", .webkit, "x", "premise.anim.list", false⟩ :: acks)).length == 1
+
 /-! ## Golden rows -/
 
 -- A string list as JSON.
@@ -996,13 +1286,6 @@ def lintRow (name : String) (ts : List TestRef) (files : List String) : Json :=
   Json.mkObj [("kind", "lint"), ("name", .str name), ("tests", Json.arr (ts.map refJson).toArray),
     ("files", strs files), ("untested", strs l.untested), ("unknown", strs l.unknown)]
 
--- The page premises of the registry (the only ones with page results).
-private def pages : List Premise := registry.filter (·.kind == .page)
-
--- Every page test of the registry passing on every engine it needs.
-private def allPass : List Result :=
-  pages.flatMap fun p => p.engines.map fun e => ⟨p.testId, e, true⟩
-
 -- The flag cases: result lists the flagging is run on.
 private def flagCases : List (String × List Result) :=
   let firstTest := (pages.head?.map (·.testId)).getD ""
@@ -1010,13 +1293,68 @@ private def flagCases : List (String × List Result) :=
   [("all-pass", allPass), ("no-results", []),
    ("one-fail-chromium", allPass.map fun r => if r.testId == firstTest && r.engine == .chromium then { r with ok := false } else r),
    ("missing-webkit", allPass.filter fun r => !(r.testId == lastTest && r.engine == .webkit)),
-   ("flaky-webkit", ⟨firstTest, .webkit, false⟩ :: allPass),
-   ("unknown-test-result", ⟨"prem.ghost", .chromium, false⟩ :: allPass),
-   ("lane-result-fails", ⟨".github/workflows/wktr-fixtures.yml", .webkit, false⟩ :: allPass)]
+   ("flaky-webkit", ⟨firstTest, .webkit, false, ""⟩ :: allPass),
+   ("unknown-test-result", ⟨"prem.ghost", .chromium, false, ""⟩ :: allPass),
+   ("lane-result-fails", ⟨".github/workflows/wktr-fixtures.yml", .webkit, false, ""⟩ :: allPass)]
 
--- A result as JSON.
+-- A result as JSON (`error` only when non-empty).
 private def resultJson (r : Result) : Json :=
-  Json.mkObj [("testId", .str r.testId), ("engine", .str r.engine.name), ("ok", .bool r.ok)]
+  Json.mkObj ([("testId", .str r.testId), ("engine", .str r.engine.name), ("ok", .bool r.ok)] ++
+    if r.error.isEmpty then [] else [("error", .str r.error)])
+
+-- An observed finding as JSON.
+private def obsJson (f : Observed) : Json :=
+  Json.mkObj [("premise", .str f.premise), ("engine", .str f.engine.name), ("class", .str f.cls)]
+
+-- An acknowledgement as JSON.
+private def ackJson (a : Ack) : Json :=
+  Json.mkObj [("premise", .str a.premise), ("engine", .str a.engine.name), ("class", .str a.cls),
+    ("finding", .str a.finding), ("intermittent", .bool a.intermittent)]
+
+/-- An acknowledgement row.
+
+$$\operatorname{row}(a) = \{\mathrm{kind}{:}\,\texttt{ack},\ \mathrm{premise}, \mathrm{engine}, \mathrm{class} = a.\mathrm{cls}, \mathrm{finding}, \mathrm{intermittent}\}$$
+-/
+def ackRow (a : Ack) : Json :=
+  Json.mkObj [("kind", "ack"), ("premise", .str a.premise), ("engine", .str a.engine.name), ("class", .str a.cls),
+    ("finding", .str a.finding), ("intermittent", .bool a.intermittent)]
+
+/-- An ack-case row: the results, the findings, and the verdict under the registry and `acks`.
+
+$$\operatorname{row}(rs) = \{\mathrm{kind}{:}\,\texttt{ackcase},\ \mathrm{results} = rs,\ \mathrm{findings} = F,\ \mathrm{acked}, \mathrm{unacked}, \mathrm{stale} \text{ of } \operatorname{ackVerdict}(\mathrm{acks}, F),\ \mathrm{red}\},\quad F = \operatorname{findings}(\mathrm{registry}, rs)$$
+-/
+def ackCaseRow (name : String) (rs : List Result) : Json :=
+  let fs := findings registry rs
+  let v := ackVerdict acks fs
+  Json.mkObj [("kind", "ackcase"), ("name", .str name), ("results", Json.arr (rs.map resultJson).toArray),
+    ("findings", Json.arr (fs.map obsJson).toArray), ("acked", Json.arr (v.acked.map obsJson).toArray),
+    ("unacked", Json.arr (v.unacked.map obsJson).toArray), ("stale", Json.arr (v.stale.map ackJson).toArray),
+    ("red", .bool v.red)]
+
+-- The ack-lint cases: the ledger ids and acknowledgements the lint is run on.
+private def ackLintCases : List (String × List String × List Ack) :=
+  [("clean", ackFindingIds, acks), ("no-ledger", [], acks), ("one-id", ["premise.anim.list"], acks),
+   ("unknown-premise", ackFindingIds, ⟨"ghost", .webkit, "x", "premise.anim.list", false⟩ :: acks),
+   ("lane-premise", ackFindingIds, [⟨"wktr_scroll_timeline_restyle", .webkit, "x", "premise.anim.list", false⟩])]
+
+/-- An ack-lint row.
+
+$$\operatorname{row}(ids, ks) = \{\mathrm{kind}{:}\,\texttt{acklint},\ \mathrm{ids},\ \mathrm{acks} = ks,\ \mathrm{bad} = \operatorname{ackLint}(\mathrm{registry}, ids, ks)\}$$
+-/
+def ackLintRow (name : String) (ids : List String) (ks : List Ack) : Json :=
+  Json.mkObj [("kind", "acklint"), ("name", .str name), ("ids", strs ids), ("acks", Json.arr (ks.map ackJson).toArray),
+    ("bad", Json.arr ((ackLint registry ids ks).map ackJson).toArray)]
+
+-- The error-class cases.
+private def errorClassCases : List String :=
+  ["", " \n\t\n", cvErr, "\n  \nfirst\nsecond", "  padded  \nx", "one line"]
+
+/-- An error-class row.
+
+$$\operatorname{row}(s) = \{\mathrm{kind}{:}\,\texttt{errorclass},\ \mathrm{error} = s,\ \mathrm{class} = \operatorname{errorClass}(s)\}$$
+-/
+def errorClassRow (s : String) : Json :=
+  Json.mkObj [("kind", "errorclass"), ("error", .str s), ("class", .str (errorClass s))]
 
 /-- A flag row.
 
@@ -1027,10 +1365,13 @@ def flagRow (name : String) (rs : List Result) : Json :=
     ("flagged", Json.arr ((flagged registry rs).map fun p =>
       Json.mkObj [("premise", .str p.id), ("theorems", strs p.theorems)]).toArray)]
 
--- The text of the golden file: the registry rows, the lint rows, the flag rows.
+-- The text of the golden file: the registry rows, the lint rows, the flag rows, then the acknowledgement rows, the
+-- ack cases, the ack-lint cases and the error-class cases.
 private def goldenText : String :=
   let rows : List Json := registry.map premiseRow ++ lintCases.map (fun (n, ts, fs) => lintRow n ts fs) ++
-    flagCases.map (fun (n, rs) => flagRow n rs)
+    flagCases.map (fun (n, rs) => flagRow n rs) ++ acks.map ackRow ++
+    ackCases.map (fun (n, rs) => ackCaseRow n rs) ++ ackLintCases.map (fun (n, ids, ks) => ackLintRow n ids ks) ++
+    errorClassCases.map errorClassRow
   String.join (rows.map fun j => j.compress ++ "\n")
 
 -- The golden file, relative to `lean/`.
