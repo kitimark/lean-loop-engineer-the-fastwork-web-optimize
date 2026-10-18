@@ -120,9 +120,11 @@ def parseFlags (j : Json) : Except String (List Flag) := do
   (← j.getArr?).toList.mapM fun x => do parseFlag (← x.getStr?)
 
 /-- Parse one `part.json` into its registered variants in key order, each with its `requires` and `conflicts` lists.
-With $\rho(n, v) = \operatorname{parseFlags}(j.n[\operatorname{key}(j.\mathrm{id}, v)])$ when that entry exists and
-$\rho(n, v) = []$ when the field or entry is missing: a missing or non-string `id`, a missing or non-object `variants`,
-a missing or unknown `kind`, or a bad flag list is an error.
+A `requires` or `conflicts` field that is absent or not an object, or that lacks the variant's entry, counts as
+empty. A missing or non-string `id`, a missing or non-object `variants`, a missing or unknown `kind`, or an entry that
+is not a list `parseFlags` accepts is an error.
+
+$$\rho(n, v) = \begin{cases} \operatorname{parseFlags}(j.n[\operatorname{key}(j.\mathrm{id}, v)]) & j.n \text{ is an object holding the entry } \operatorname{key}(j.\mathrm{id}, v) \\ [] & j.n \text{ absent or not an object, or the entry absent} \end{cases}$$
 
 $$\operatorname{parsePart}(j) = [\,((j.\mathrm{id}, v), \operatorname{parseKind}(j.\mathrm{variants}.v.\mathrm{kind}), \rho(\mathrm{requires}, v), \rho(\mathrm{conflicts}, v)) \mid v \in \operatorname{keys}(j.\mathrm{variants})\,]$$ -/
 def parsePart (j : Json) : Except String (List Reg) := do
@@ -144,9 +146,9 @@ def presetText (p : List Flag) : String :=
   (Json.mkObj [("name", "v2-proved"), ("extends", "original"),
     ("fw", Json.mkObj (p.map fun f => (f.part, .str f.variant)))]).compress ++ "\n"
 
-/-- The JSON of a verdict.
+/-- The JSON of a verdict: its verdict word, plus the ledger key $k = (k_1, k_2)$ and the status or count it names.
 
-$$\operatorname{whyJson}(w) = \{\mathrm{verdict}, \text{and the key, status or count it names}\}$$ -/
+$$\operatorname{whyJson}(w) = \begin{cases} \{\mathrm{verdict}: \texttt{proved}\} & w = \mathrm{proved} \\ \{\mathrm{verdict}: \texttt{no-link}\} & w = \mathrm{noLink} \\ \{\mathrm{verdict}: \texttt{falsified-flag}\} & w = \mathrm{falsifiedFlag} \\ \{\mathrm{verdict}: \texttt{row-count},\ \mathrm{part}: k_1,\ \mathrm{candidate}: k_2,\ \mathrm{count}: n\} & w = \mathrm{rowCount}(k, n) \\ \{\mathrm{verdict}: \texttt{not-proved},\ \mathrm{part}: k_1,\ \mathrm{candidate}: k_2,\ \mathrm{status}: s\} & w = \mathrm{notProved}(k, s) \\ \{\mathrm{verdict}: \texttt{falsified},\ \mathrm{part}: k_1,\ \mathrm{candidate}: k_2\} & w = \mathrm{falsified}(k) \end{cases}$$ -/
 def whyJson : Why → Json
   | .proved => Json.mkObj [("verdict", "proved")]
   | .noLink => Json.mkObj [("verdict", "no-link")]
@@ -174,7 +176,11 @@ def decided (reg : List Reg) : List Flag :=
 /-- One decision row: the flag, whether it is registered `optimized`, its verdict, membership, the flag that shadows
 it, and the ledger inputs it read (the rows of each linked key and the rows naming the flag).
 
-$$\operatorname{decision}(R, L, f) = \{\mathrm{flag}, \mathrm{registered}: \operatorname{isOpt}(R, f), \mathrm{why}: \operatorname{why}(\Lambda, L, f), \mathrm{member}: f \in \operatorname{preset}(R, \Lambda, L), \mathrm{shadowedBy}, \mathrm{rows}, \mathrm{flagRows}\}$$ -/
+$$\operatorname{decision}(R, L, f) = \{\mathrm{flag}: \operatorname{key}(f), \mathrm{registered}: \operatorname{isOpt}(R, f), \mathrm{why}: \operatorname{whyJson}(\operatorname{why}(\Lambda, L, f)), \mathrm{member}: f \in \operatorname{preset}(R, \Lambda, L), \mathrm{shadowedBy}, \mathrm{rows}, \mathrm{flagRows}\}$$
+
+$$\mathrm{shadowedBy} = \begin{cases} \operatorname{key}(g) & \operatorname{ok}(R, \Lambda, L, f) \land f \notin \operatorname{preset}(R, \Lambda, L) \land \operatorname{firstOk}(\operatorname{ok}(R, \Lambda, L), [\,h \mid (h, \kappa) \in \Lambda\,], f.\mathrm{part}) = g \\ \mathrm{null} & \text{otherwise} \end{cases}$$
+
+$$\mathrm{rows} = [\,\{\mathrm{part}: k_1,\ \mathrm{candidate}: k_2,\ \mathrm{found}: [\operatorname{rowJson}(r) \mid r \in \operatorname{rowsOf}(L, k)]\} \mid k \in \operatorname{linkOf}(\Lambda, f) \text{, or } [] \text{ when } \operatorname{linkOf}(\Lambda, f) = \bot\,],\quad \mathrm{flagRows} = [\,\operatorname{rowJson}(r) \mid r \in L,\ r.\mathrm{flag} = \operatorname{key}(f)\,]$$ -/
 def decision (reg : List Reg) (ledger : List Row) (f : Flag) : Json :=
   let p := preset reg links ledger
   let fs := links.map (·.1)
@@ -191,7 +197,7 @@ def decision (reg : List Reg) (ledger : List Row) (f : Flag) : Json :=
 
 /-- The decision file: one compact JSON line per decided flag.
 
-$$\operatorname{decisionsText}(R, L) = \mathop{+\!\!+}_{f \in \operatorname{decided}(R)} \operatorname{json}(\operatorname{decision}(R, L, f)) \mathbin{+\!\!+} \texttt{"\textbackslash n"}$$ -/
+$$\operatorname{decisionsText}(R, L) = \mathop{+\!\!+}_{f \in \operatorname{decided}(R)} \bigl(\operatorname{json}(\operatorname{decision}(R, L, f)) \mathbin{+\!\!+} \texttt{"\textbackslash n"}\bigr)$$ -/
 def decisionsText (reg : List Reg) (ledger : List Row) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger f).compress ++ "\n")
 
@@ -236,10 +242,12 @@ def readRegistry : IO (List Reg) := do
       out := out ++ (← IO.ofExcept ((parsePart (← readJson pj)).mapError fun e => s!"{pj}: {e}"))
   return out
 
-/-- Write the three files, or with `--check` throw when any differs from the Lean output; a ledger or part that does not
-parse, or a preset that is not closed, throws before anything is written.
+/-- Write the three files, or with `--check` throw when any differs from the Lean output and print a message when none
+does; a ledger or part that does not parse, or a preset that is not closed, throws before anything is written. Each case
+assumes the cases above it do not apply; a file that cannot be read reads as the empty string $\varepsilon$. Here
+$P = \operatorname{generate}(R, \Lambda, L)$ and $\mathrm{outs} = [(\mathrm{goldenPreset}, \operatorname{presetText}(P)),\ (\mathrm{sitePreset}, \operatorname{presetText}(P)),\ (\mathrm{goldenDecisions}, \operatorname{decisionsText}(R, L))]$.
 
-$$\operatorname{run}(a) = \begin{cases} \operatorname{throw} & \operatorname{generate}(R, \Lambda, L) = \operatorname{error} \\ \operatorname{throw} & \texttt{--check} \in a,\ \exists (p, t) \in \mathrm{outs}:\ \operatorname{read}(p) \ne t \\ \operatorname{write}(\mathrm{outs}) & \texttt{--check} \notin a \end{cases}$$ -/
+$$\operatorname{run}(a) = \begin{cases} \operatorname{throw} & L \text{ or } R \text{ fails to parse, or } \operatorname{generate}(R, \Lambda, L) = \operatorname{error} \\ \operatorname{throw} & \texttt{--check} \in a,\ \exists (p, t) \in \mathrm{outs}:\ \operatorname{read}(p) \ne t \\ \text{no write} & \texttt{--check} \in a,\ \forall (p, t) \in \mathrm{outs}:\ \operatorname{read}(p) = t \\ \operatorname{write}(\mathrm{outs}) & \texttt{--check} \notin a \end{cases}$$ -/
 def run (args : List String) : IO Unit := do
   let ledger ← IO.ofExcept ((parseLedger (← readJson ledgerPath)).mapError fun e => s!"{ledgerPath}: {e}")
   let reg ← readRegistry
