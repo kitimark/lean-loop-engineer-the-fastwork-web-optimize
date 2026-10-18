@@ -18,6 +18,7 @@ import platformStageBg from '../parts/platform.stageBg/part.json';
 import platformMarquee from '../parts/platform.marquee/part.json';
 import original from './presets/original.json';
 import stripDemo from './presets/strip-demo.json';
+import v2Proved from './presets/v2-proved.json';
 import { resolve } from './resolve';
 import type { PartDef, PresetDef, ResolveResult } from './types';
 
@@ -25,6 +26,7 @@ export const parts: PartDef[] = [heroCountdown as PartDef, heroExit as PartDef, 
 export const presets: Record<string, PresetDef> = {
   original: original as PresetDef,
   'strip-demo': stripDemo as PresetDef,
+  'v2-proved': v2Proved as PresetDef,
 };
 
 export function resolveSearch(search: string): ResolveResult {

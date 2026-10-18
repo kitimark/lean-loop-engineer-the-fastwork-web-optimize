@@ -51,6 +51,7 @@ import Fw.Ops.Premise
 import Fw.Ops.EnginePremise
 import Fw.Ops.Identity
 import Fw.Ops.Wire
+import Fw.Ops.Salvage  -- workflow-salvage: a builder exit without a result (decide, golden text)
 import Fw.Sched.Admit
 import Fw.Sched.ParMetrics
 import Fw.Wire.Sched
@@ -69,6 +70,7 @@ import Fw.Gate.Pixel
 import Fw.Wire.Gate
 import Fw.Wire.GateDeclared
 import Fw.Engine
+import Fw.Engine.Keys  -- model-checks: faithful run keys; a +search run never answers for the base
 import Fw.Ci.Wire  -- ghb-lean: Fw.Ci.Budget and the ci.budget.* ops
 import Fw.Plan.Lint  -- pa-evidence-lint: plan.lint
 import Fw.Obs.Next  -- obs-next-lean: next action per agent (obs.next)
@@ -115,3 +117,4 @@ import Fw.Ops.LeanFirstProofs  -- lfg-spec: proofs of every lean-first gate prop
 import Fw.Spec.Reach  -- lfg-mathview-facts: the closure/reach helpers shared by the props lint and the math-view facts
 import Fw.Spec.MathFacts  -- lfg-mathview-facts: per-theorem facts (head, impl arg, assumes, kill, class, reach, wire)
 import Fw.Spec.MathFactsGuards  -- lfg-mathview-facts: #guards of the facts on real declarations
+import Fw.Preset.Gen  -- preset-v2-proved: the v2-proved arm from the findings ledger (V2Proved decides, Gen writes)
