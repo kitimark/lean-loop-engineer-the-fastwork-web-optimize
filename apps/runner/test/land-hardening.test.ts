@@ -299,7 +299,7 @@ describe("inc-fw-lean-import-conflict: lean/scripts/check-imports.mjs", () => {
 
 describe("golden vectors of the land ops", () => {
   const rows = (op: string) => readFileSync(join(here, `../../../packages/contracts/golden/console/${op}.jsonl`), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
-  for (const op of ["console.landLock", "console.landGuard", "console.landCommit", "console.landPick", "console.landScope"]) {
+  for (const op of ["console.landLock", "console.landGuard", "console.landCommit", "console.landPick", "console.landScope", "console.landPool", "console.landRetry"]) {
     it(`${op}: fwcore reproduces every row`, () => {
       expect(existsSync(coreBin())).toBe(true);
       const all = rows(op);

@@ -1,0 +1,8 @@
+{"name":"idle machine: all cores","request":{"cores":8,"load":0,"op":"console.landPool"},"response":{"pool":8}}
+{"name":"light load: the free cores","request":{"cores":8,"load":3,"op":"console.landPool"},"response":{"pool":5}}
+{"name":"load at half the cores: half","request":{"cores":8,"load":5,"op":"console.landPool"},"response":{"pool":4}}
+{"name":"saturated: the fair-share floor, not one","request":{"cores":8,"load":20,"op":"console.landPool"},"response":{"pool":4}}
+{"name":"odd core count","request":{"cores":10,"load":23,"op":"console.landPool"},"response":{"pool":5}}
+{"name":"one core: one","request":{"cores":1,"load":9,"op":"console.landPool"},"response":{"pool":1}}
+{"name":"zero cores: still one","request":{"cores":0,"load":0,"op":"console.landPool"},"response":{"pool":1}}
+{"name":"missing load is refused","request":{"cores":8,"op":"console.landPool"},"response":{"error":"missing field load"}}
