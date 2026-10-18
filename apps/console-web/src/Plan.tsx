@@ -56,6 +56,16 @@ const Task = ({ t, extra }: { t: PlanTask; extra?: React.ReactNode }) => (
   </li>
 );
 
+/** The label of a task whose agents ended (fwcore states handedBack / integrated / parked, task task-state-truth):
+ *  where the work went. Display only; the state and the outcome come from fwcore. */
+export function outcomeLabel(t: PlanTask): string {
+  const o = t.outcome;
+  if (t.state === "handedBack") return o?.kind === "handedBack" ? `handed back by ${o.agent}${o.tip ? ` at ${o.tip.slice(0, 7)}` : ", no commit"}` : "handed back";
+  if (t.state === "integrated") return o?.kind === "integrated" ? `integrated into ${o.branch} at ${o.tip.slice(0, 7)}` : "integrated";
+  if (t.state === "parked") return o?.kind === "parked" ? `parked: ${o.reason}` : "parked";
+  return "";
+}
+
 export const DeviceBadge = () => (
   <Badge variant="outline" data-testid="device-badge"><Smartphone className="size-3" aria-hidden />needs you + iPhone</Badge>
 );
@@ -100,6 +110,7 @@ export function Columns({ plan }: { plan: Plan }) {
   const by = new Map(plan.tasks.map((t) => [t.id, t]));
   const of = (s: string) => plan.tasks.filter((t) => t.state === s);
   const running = of("running"), blocked = of("blocked"), done = of("done"), cut = of("cut");
+  const ended = plan.tasks.filter((t) => t.state === "handedBack" || t.state === "integrated" || t.state === "parked");
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
@@ -117,7 +128,12 @@ export function Columns({ plan }: { plan: Plan }) {
       <Card>
         <CardHeader><CardTitle>Running ({running.length})</CardTitle></CardHeader>
         <CardContent><ul className="space-y-2">{running.map((t) => <Task key={t.id} t={t} extra={<Badge>agent {t.agent}</Badge>} />)}</ul>
-          {running.length === 0 && <p className="text-sm text-muted-foreground">No agent is on a task.</p>}</CardContent>
+          {running.length === 0 && <p className="text-sm text-muted-foreground">No agent is on a task.</p>}
+          {ended.length > 0 && <>
+            <div className="mb-1 mt-3 text-xs text-muted-foreground">Agent ended, not landed ({ended.length})</div>
+            <ul className="space-y-2" data-testid="ended">{ended.map((t) => <Task key={t.id} t={t}
+              extra={<Badge variant="outline" data-outcome={t.state}>{outcomeLabel(t)}</Badge>} />)}</ul>
+          </>}</CardContent>
       </Card>
       <Card>
         <CardHeader><CardTitle>Blocked ({blocked.length})</CardTitle></CardHeader>
