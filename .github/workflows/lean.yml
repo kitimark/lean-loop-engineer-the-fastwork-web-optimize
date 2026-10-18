@@ -116,17 +116,21 @@ jobs:
           sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/warm"
           grep -qx 'misses 0' "$RUNNER_TEMP/mathview-diff/warm/cached.stats"
 
-      # a docstring edit in a leaf (imported only by the root Fw) recomputes exactly that leaf and Fw
+      # a docstring edit in one module recomputes exactly the modules whose import cone contains it: the `miss` lines
+      # equal `mathview --dependents` (Fw.Spec.ConeMiss.dependents, exact by mem_dependents; a hard-coded `misses 2`
+      # broke once Fw.Ci.Trigger and Fw.Console.LandPool imported LandSpeed)
       - name: mutation 1, one-module edit
         working-directory: lean
         run: |
           sed -i 's/the verdict is a conjunction over modules\./the verdict is a conjunction over all modules./' Fw/Console/LandSpeed.lean
           git diff --quiet -- Fw/Console/LandSpeed.lean && { echo "mutation 1 did not apply"; exit 1; }
           lake build
-          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/m1"
-          grep -qx 'misses 2' "$RUNNER_TEMP/mathview-diff/m1/cached.stats"
-          grep -qx 'miss Fw.Console.LandSpeed' "$RUNNER_TEMP/mathview-diff/m1/cached.stats"
-          grep -qx 'miss Fw' "$RUNNER_TEMP/mathview-diff/m1/cached.stats"
+          d="$RUNNER_TEMP/mathview-diff/m1"
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$d"
+          .lake/build/bin/mathview --dependents Fw.Console.LandSpeed | sort > "$d/expected.miss"
+          sed -n 's/^miss //p' "$d/cached.stats" | sort > "$d/actual.miss"
+          diff "$d/expected.miss" "$d/actual.miss"
+          grep -qx 'miss Fw.Console.LandSpeed' "$d/cached.stats"
 
       # Fw/Spec/AxReach.lean is outside the cone of Fw.Console.LandSpeed but the axiom rule runs its code: a semantic
       # change there must recompute every module, LandSpeed included (it enters every key through the tool hash)
@@ -150,9 +154,12 @@ jobs:
         run: |
           printf '\nrecommended_spelling "zz" for "zz" in [Fw.Console.LandSpeed.lintAll]\n' >> Fw.lean
           lake build
-          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$RUNNER_TEMP/mathview-diff/m3"
-          grep -qx 'misses 1' "$RUNNER_TEMP/mathview-diff/m3/cached.stats"
-          grep -qx 'miss Fw' "$RUNNER_TEMP/mathview-diff/m3/cached.stats"
+          d="$RUNNER_TEMP/mathview-diff/m3"
+          sh scripts/mathview-cached.sh --diff "$RUNNER_TEMP/mathview-store" "$d"
+          .lake/build/bin/mathview --dependents Fw | sort > "$d/expected.miss"
+          sed -n 's/^miss //p' "$d/cached.stats" | sort > "$d/actual.miss"
+          diff "$d/expected.miss" "$d/actual.miss"
+          grep -qx 'misses 1' "$d/cached.stats"
           ! grep -q 'Conventions for notations' "$RUNNER_TEMP/mathview-diff/m3/full.json"
 
       - name: keep the outputs on failure

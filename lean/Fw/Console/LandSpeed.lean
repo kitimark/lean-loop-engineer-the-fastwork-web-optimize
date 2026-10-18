@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Console.Land
 import Fw.Ops.PathCheck
+import Fw.Spec.ConeMiss
 /-!
 # Why the `fw land` speed-ups keep the land verdict
 
@@ -306,6 +307,20 @@ $$x \in \operatorname{cone}(m) \iff x = m \lor \exists i \in \mathit{imp}(m):\ x
 inductive InCone (G : Graph) (x : Mod) : Mod → Prop
   | refl : InCone G x x
   | step {m i : Mod} : i ∈ G.imp m → InCone G x i → InCone G x m
+
+/-- `InCone` is the import reachability `Fw.Spec.ConeMiss.Reach` of the graph's import map, so the expected-miss
+computation `Fw.Spec.ConeMiss.dependents` lists exactly the modules whose cone contains the edited one.
+$$\forall G, x, m:\ x \in \operatorname{cone}_G(m) \iff \mathrm{Reach}_{\mathit{imp}_G}(x, m)$$ -/
+theorem inCone_iff_reach (G : Graph) (x m : Mod) : InCone G x m ↔ Fw.Spec.ConeMiss.Reach G.imp x m := by
+  constructor
+  · intro h
+    induction h with
+    | refl => exact .refl
+    | step hi _ ih => exact .step hi ih
+  · intro h
+    induction h with
+    | refl => exact .refl
+    | step hi _ ih => exact .step hi ih
 
 /-- The Merkle key of a module: a hash of its name, its source blob, the tool blob and its imports' keys (Lake's
 `depHash` has this shape; the lint program and toolchain enter as the extra blob `t`).

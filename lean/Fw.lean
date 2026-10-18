@@ -76,6 +76,7 @@ import Fw.Obs.Timing  -- timing-lean: slow / structural verdicts over timing sam
 import Fw.Ci.Trigger  -- ci-trigger-lean: which workflows a push starts
 import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged engine verdicts
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
+import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after an edit (dependents)
 import Fw.Console.LandSpeed  -- land-speed-lean: result cache, lint_modular, pre-lock land, check verdict
 import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rule
 import Fw.Console.LandDry  -- land-dry: dry land stages and hand-back rule

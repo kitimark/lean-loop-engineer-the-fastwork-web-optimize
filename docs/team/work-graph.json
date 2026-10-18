@@ -4009,7 +4009,8 @@
     "scripts/**",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/**"
-   ]
+   ],
+   "evidence": "fdc7aae"
   },
   {
    "id": "wktr-serial-baseline",
