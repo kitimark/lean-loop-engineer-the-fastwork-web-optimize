@@ -947,7 +947,8 @@
     "variant-morph-panel-rest",
     "why-core-lessons",
     "why-engines",
-    "why-parts"
+    "why-parts",
+    "engine-model-fix"
    ],
    "owner": "lead"
   },
@@ -2999,7 +3000,8 @@
     "apps/console-api/src/app.ts",
     "packages/contracts/src/index.ts",
     "scripts/wt-prep.sh"
-   ]
+   ],
+   "evidence": "4e6e3f7"
   },
   {
    "id": "sim-transient-retry",
@@ -3016,7 +3018,8 @@
     "packages/contracts/golden/measure/**",
     "packages/measure-webkit/src/**",
     ".github/workflows/webkit-sim.yml"
-   ]
+   ],
+   "evidence": "3629e94"
   },
   {
    "id": "land-speed-research",
@@ -3762,7 +3765,8 @@
     "research/findings/ledger.json",
     "lean/Fw/Ops/LedgerMerge.lean",
     "scripts/merge-ledger.mjs"
-   ]
+   ],
+   "evidence": "9e67f8b"
   },
   {
    "id": "ci-cone-glob",
@@ -3881,7 +3885,8 @@
     "packages/premise-tests/**",
     ".github/workflows/**",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "fb6fd93"
   },
   {
    "id": "land-pool-fair",
@@ -3900,6 +3905,26 @@
     "docs/team/handoffs/land-pool-fair.md"
    ],
    "evidence": "e551a06"
+  },
+  {
+   "id": "engine-model-fix",
+   "title": "(M) fix the engine model where CI refuted 7 premises (run 39088367495; research/notes/2026/10-18-engine-premises.md): split Chromium levels layoutPos/layoutFull/paint per placement (transform none<->some @own: no Layout/Paint; top/left/margin @own: no Paint/Raster; scale and blur @own re-raster; hit-test after every layout change), WebKit filter → layoutUpdates and the compositing table; restate the engine goldens and every theorem that used the old rule (as hero-exit-restate did), re-run the engine-premises lane until the 7 hold; list every optimization claim whose sign changes (under-counts: cr.raster scale/blur, cr.hits, wk.layout filter, wk.props) as a negative-result finding",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "engine-premise-measure"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Engine/**",
+    "lean/Fw/Ops/Premise.lean",
+    "lean/Fw/Ops/EnginePremise.lean",
+    "packages/contracts/golden/engine/**",
+    "packages/contracts/golden/ops/**",
+    "research/findings/ledger.json",
+    "research/notes/**",
+    "docs/team/handoffs/engine-model-fix.md"
+   ]
   }
  ],
  "deadline": {

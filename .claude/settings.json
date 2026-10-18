@@ -27,7 +27,8 @@
     "PostToolUseFailure": [{ "matcher": "*", "hooks": [{ "type": "command", "async": true, "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/emit.mjs" }] }],
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [{ "type": "command", "if": "Bash(pnpm fw *)", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/cap.mjs" }] },
-      { "matcher": "Agent", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/spawn-guard.mjs" }] }
+      { "matcher": "Agent", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/spawn-guard.mjs" }] },
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/apps/runner/hooks/wait-guard.mjs" }] }
     ]
   },
   "permissions": {

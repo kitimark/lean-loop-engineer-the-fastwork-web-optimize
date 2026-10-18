@@ -324,6 +324,18 @@ theorem not_flagged_of_lane (ps : List Premise) (rs : List Result) (p : Premise)
 -- Both engines.
 private def both : List Engine := [.chromium, .webkit]
 
+-- A measured stage rule of an engine model (kind `lane`): presence of the stage's counters equals membership of the
+-- stage in the model's `touched` set, in every unforced frame of the fixture of `engine-premises.yml`.
+private def laneRule (id stage counters model : String) (e : Engine) (ths : List String) : Premise where
+  id := id
+  statement := r"\forall f \text{ unforced (one change or none, no forced read) in the fixture steps}:\ " ++ counters ++
+    r" \text{ run in } f \iff \mathrm{" ++ stage ++ r"} \in \operatorname{touched}_{" ++ model ++
+    r"}(f)\ \text{ (not observed: } \mathrm{units}, \text{ forced passes, the order against the base arm)}"
+  theorems := ths
+  engines := [e]
+  testId := ".github/workflows/engine-premises.yml"
+  kind := .lane
+
 /-- **The registry.** Every empirical browser premise a Lean theorem relies on, its theorems and its test. Sources: the
 gate-settle and fix-commission tasks, `Fw.Engine.Core` (`frameWorkE`, forced updates R4) and `Lessons`, and the
 premises of `research/findings/ledger.json` that a static page can assert (R3, R5, `Faithful`, the `inherits` premise,
@@ -331,9 +343,11 @@ the allow-list premise AL, the write-on-change premises, IO delivery), and the g
 `Fw.Gate.AlignEquiv` (gate-align-equiv, $p_{16}$ and $p_{17}$, page tests). Premises that need engine counters
 (compositing bits, per-stage counts) stay with the engine-check lane (`fw engine-check`, tests F0-F4), except those a
 CI lane of their own asserts (kind `lane`): $p_{18}$, the WKTR style-rate premise (task wktr-p1p4), whose counter
-`internals.styleRecalcCount` only WebKitTestRunner exposes.
+`internals.styleRecalcCount` only WebKitTestRunner exposes; and $p_{19}$-$p_{23}$, the five engine stage rules that
+the `engine-premises.yml` lane measured and found to hold (`cr.script`, `cr.style`, `cr.commit`, `wk.style`,
+`wk.commit`; task engine-premise-measure).
 
-$$\operatorname{registry} = [p_1, \dots, p_{18}]$$
+$$\operatorname{registry} = [p_1, \dots, p_{23}]$$
 -/
 def registry : List Premise := [
   { id := "anim.list"
@@ -421,6 +435,16 @@ def registry : List Premise := [
     theorems := ["Fw.Gate.AlignEquiv.equivSpec_sound"]
     engines := both
     testId := "prem.grid.stretch-fill-equals-start" },
+  laneRule "cr.script" "script" r"\texttt{FireAnimationFrame}, \texttt{FunctionCall}" r"W_{\mathrm{cr}}" .chromium
+    ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound"],
+  laneRule "cr.style" "style" r"\texttt{UpdateLayoutTree}" r"W_{\mathrm{cr}}" .chromium
+    ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound"],
+  laneRule "cr.commit" "commit" r"\texttt{cc.Commit}" r"W_{\mathrm{cr}}" .chromium
+    ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound"],
+  laneRule "wk.style" "style" r"\texttt{styleRecalcs}" r"W_{\mathrm{wk}}" .webkit
+    ["Fw.Engine.touched_of_cover", "Fw.Engine.run_dominates_sound"],
+  laneRule "wk.commit" "commit" r"\texttt{renderingUpdates}" r"W_{\mathrm{wk}}" .webkit
+    ["Fw.Engine.WebKit.base_commit", "Fw.Engine.WebKit.scroll_commit"],
   { id := "wktr_scroll_timeline_restyle"
     statement := r"\text{WKTR, one rendering update per scroll step: } \Delta\texttt{styleRecalcCount} = (\mu_{\mathrm{control}}, \mu_{\mathrm{timeline}}, \mu_{\mathrm{timeAccel}}) = (0, 1, 0) \text{ for a static control, a transform animation on } \texttt{scroll()} \text{ and an accelerated time-based transform animation}"
     theorems := ["Fw.Engine.WebKit.style_rate_model", "Fw.Engine.WebKit.style_rate_old_refuted"]
@@ -435,11 +459,11 @@ $$\operatorname{ids}(\mathrm{registry}) \text{ has no repeats}$$
 -/
 theorem registry_ids_nodup : (registry.map (·.id)).Nodup := by decide
 
-/-- The test ids are pairwise distinct: one test per premise.
+/-- The page test ids are pairwise distinct: one test per page premise (lane premises share their workflow file).
 
-$$\operatorname{testIds}(\mathrm{registry}) \text{ has no repeats}$$
+$$\operatorname{testIds}(\{p \in \mathrm{registry} \mid p.\mathrm{kind} = \mathrm{page}\}) \text{ has no repeats}$$
 -/
-theorem registry_testIds_nodup : (registry.map (·.testId)).Nodup := by decide
+theorem registry_testIds_nodup : ((registry.filter (·.kind == .page)).map (·.testId)).Nodup := by decide
 
 /-- Every premise names at least one engine and at least one theorem.
 
@@ -454,11 +478,13 @@ $$\operatorname{lint}(\mathrm{registry}, \operatorname{pageRefs}(\mathrm{registr
 theorem registry_lint_clean : premiseLint registry (pageRefs registry) (laneFiles registry) = ⟨[], []⟩ :=
   premiseLint_self registry
 
-/-- The lane premises of the registry, with their workflow files: exactly the WKTR style-rate premise.
+/-- The lane premises of the registry, with their workflow files: the five engine stage rules (`engine-premises.yml`)
+and the WKTR style-rate premise (`wktr-fixtures.yml`).
 
-$$\operatorname{laneFiles}(\mathrm{registry}) = [\texttt{.github/workflows/wktr-fixtures.yml}]$$
+$$\operatorname{laneFiles}(\mathrm{registry}) = [\texttt{engine-premises.yml}]^{5} \mathbin{+\!\!+} [\texttt{wktr-fixtures.yml}]$$
 -/
-theorem registry_laneFiles : laneFiles registry = [".github/workflows/wktr-fixtures.yml"] := by decide
+theorem registry_laneFiles : laneFiles registry =
+    List.replicate 5 ".github/workflows/engine-premises.yml" ++ [".github/workflows/wktr-fixtures.yml"] := by decide
 
 /-- Adding workflow files keeps a premise covered: coverage is monotone in the file list.
 
@@ -506,18 +532,17 @@ private def stageRule (id stage counters model : String) (e : Engine) : Untested
 
 /-- **The untested engine premises**: per engine, the stage rules of its Lean model (one per counted stage), and for
 Chromium the property-signature table and the mode facts of `chromium.jsonl`, none of which a test measures yet.
+(Task engine-premise-measure moved five of the first 17 into `registry`; seven of the remaining 12 are measured and
+refuted at named cells, `refutedPremises`; five cannot be measured with our counters.)
 
-$$\mathrm{untested} = [u_1, \dots, u_{17}]$$
+$$\mathrm{untested} = [u_1, \dots, u_{12}]$$
 -/
 -- Measuring one means a CI lane that asserts it, then moving it into `registry` as a lane premise.
 def untestedPremises : List Untested := [
-  stageRule "cr.script" "script" r"\texttt{FireAnimationFrame}, \texttt{FunctionCall}" r"W_{\mathrm{cr}}" .chromium,
-  stageRule "cr.style" "style" r"\texttt{UpdateLayoutTree}" r"W_{\mathrm{cr}}" .chromium,
   stageRule "cr.layout" "layout" r"\texttt{Layout}, \texttt{Layout.dirtyObjects}, \texttt{LayoutCount}" r"W_{\mathrm{cr}}" .chromium,
   stageRule "cr.props" "props" r"\texttt{PrePaint}" r"W_{\mathrm{cr}}" .chromium,
   stageRule "cr.paint" "paint" r"\texttt{Paint}, \texttt{PrePaint}, \texttt{raster.invalidationAreaPx}" r"W_{\mathrm{cr}}" .chromium,
   stageRule "cr.raster" "raster" r"\texttt{raster.invalidationAreaPx}, \texttt{raster.invalidationRects}" r"W_{\mathrm{cr}}" .chromium,
-  stageRule "cr.commit" "commit" r"\texttt{cc.Commit}" r"W_{\mathrm{cr}}" .chromium,
   stageRule "cr.comp" "comp" r"\texttt{census.layers}, \texttt{compositeFailedBits}" r"W_{\mathrm{cr}}" .chromium,
   stageRule "cr.hits" "hits" r"\texttt{HitTest}" r"W_{\mathrm{cr}}" .chromium,
   { id := "cr.signature"
@@ -527,12 +552,36 @@ def untestedPremises : List Untested := [
     statement := r"\text{the lane (headless, BeginFrameControl) and real Chrome differ only as the mode rows of } \texttt{chromium.jsonl} \text{ say (threaded animations, main frame per BeginFrame, compositor stages)}"
     engines := [.chromium] },
   stageRule "wk.script" "script" r"\texttt{FireAnimationFrame}" r"W_{\mathrm{wk}}" .webkit,
-  stageRule "wk.style" "style" r"\texttt{RecalculateStyles}, \texttt{styleRecalcs}" r"W_{\mathrm{wk}}" .webkit,
   stageRule "wk.layout" "layout" r"\texttt{Layout}, \texttt{layoutUpdates}" r"W_{\mathrm{wk}}" .webkit,
   stageRule "wk.props" "props" r"\texttt{compositingUpdates}" r"W_{\mathrm{wk}}" .webkit,
-  stageRule "wk.paint" "paint" r"\texttt{Paint}" r"W_{\mathrm{wk}}" .webkit,
-  stageRule "wk.commit" "commit" r"\texttt{Composite}, \texttt{renderingUpdates}" r"W_{\mathrm{wk}}" .webkit
+  stageRule "wk.paint" "paint" r"\texttt{Paint}" r"W_{\mathrm{wk}}" .webkit
 ]
+
+/-- **The measured refutations.** Per untested premise that the `engine-premises.yml` lane measured and found false
+(run 39088367495, 3 independent Chromium jobs and 3 WebKit jobs with 2 passes each): the fixture cases (step `act` of the
+case) where every pass disagrees with the model. The rule stays an assumption of the goldens that cite it (the lint still
+reports it), now with its known counterexamples.
+
+$$\mathrm{refuted} = [(i, C_i)],\quad C_i = \{\text{cases } c \mid \text{presence of the counters of stage}(i) \text{ in } c \ne [\![\mathrm{stage}(i) \in \operatorname{touched}(c)]\!]\}$$
+-/
+def refutedPremises : List (String × List String) := [
+  ("cr.layout", ["transform(none<->some)@own: set (Layout absent, model runs)"]),
+  ("cr.props", ["rAF-only frame after padding@own (PrePaint runs, model absent)"]),
+  ("cr.paint", ["transform(none<->some)@own", "top@own", "left@own", "margin@own (Paint absent, model runs)"]),
+  ("cr.raster", ["scale@own", "filter(blur)@own (RasterTask runs, model absent)",
+    "top@own", "left@own", "margin@own (RasterTask absent, model runs)"]),
+  ("cr.hits", ["transform(none<->some)@none/@layer", "top@layer/@own", "left@layer/@own", "width@none/@layer/@own",
+    "height@none/@layer/@own", "margin@none/@layer/@own", "padding@none/@layer/@own (HitTest runs, model absent)"]),
+  ("wk.layout", ["filter@layer", "filter@own (layoutUpdates runs, model absent)"]),
+  ("wk.props", ["transform@layer", "opacity@layer", "filter@layer", "background@own", "color@own", "mask@layer",
+    "mask@own", "insetAbs@layer", "insetAbs@own (compositingUpdates runs, model absent)",
+    "opacity@own (compositingUpdates absent, model runs)"])]
+
+/-- Every refuted premise is still an untested premise (a refutation is not a measurement of the rule).
+
+$$\forall (i, C) \in \mathrm{refuted}:\ i \in \{u.\mathrm{id} \mid u \in \mathrm{untested}\}$$
+-/
+theorem refuted_untested : ∀ r ∈ refutedPremises, r.1 ∈ untestedPremises.map (·.id) := by decide
 
 /-- A golden row as the lint reads it: the row's string-valued fields, plus `file` (its path below `golden/engine/`).
 
@@ -709,12 +758,13 @@ def engineCites : List Cite :=
    ⟨[("file", "webkit.jsonl"), ("scenario", "P4"), ("variant", "scrollDriven"), ("stage", "style")], [wktrId]⟩,
    ⟨[("file", "hero-exit.jsonl"), ("engine", "webkit"), ("stage", "style")], [wktrId]⟩]
 
-/-- Every id the rules cite is one of the 17 untested premises or $p_{18}$ (the WKTR lane premise).
+/-- Every id the rules cite is one of the 12 untested premises or a lane premise of the registry.
 
-$$\{\, i \mid c \in \mathrm{engineCites},\ i \in c.\mathrm{premises} \,\} \subseteq \{u.\mathrm{id} \mid u \in \mathrm{untested}\} \cup \{p_{18}.\mathrm{id}\}$$
+$$\{\, i \mid c \in \mathrm{engineCites},\ i \in c.\mathrm{premises} \,\} \subseteq \{u.\mathrm{id} \mid u \in \mathrm{untested}\} \cup \{p.\mathrm{id} \mid p \in \mathrm{registry},\ p.\mathrm{kind} = \mathrm{lane}\}$$
 -/
 theorem engineCites_ids :
-    ∀ c ∈ engineCites, ∀ i ∈ c.premises, i ∈ untestedPremises.map (·.id) ∨ i = wktrId := by
+    ∀ c ∈ engineCites, ∀ i ∈ c.premises,
+      i ∈ untestedPremises.map (·.id) ∨ i ∈ (registry.filter (·.kind == .lane)).map (·.id) := by
   decide +kernel
 
 /-- The untested ids are pairwise distinct and none is a registry premise id (an untested premise is never measured).
@@ -726,7 +776,7 @@ theorem untested_ids_fresh :
   decide
 
 /-- **The rules are valid on main.** With the registry's page tests and any workflow list containing the registry's
-lane workflow (`wktr-fixtures.yml`), every id of every rule is measured or untested.
+lane workflows (`engine-premises.yml`, `wktr-fixtures.yml`), every id of every rule is measured or untested.
 
 $$\forall F:\ (\forall f \in \operatorname{laneFiles}(\mathrm{registry}):\ f \in F) \Rightarrow \forall c \in \mathrm{engineCites}\ \forall i \in c.\mathrm{premises}:\ \operatorname{measured}(\mathrm{registry}, \operatorname{pageRefs}(\mathrm{registry}), F, i) \lor \operatorname{assumed}(\mathrm{untested}, i)$$
 -/
@@ -734,15 +784,17 @@ theorem engineCites_valid (files : List String) (hf : ∀ f ∈ laneFiles regist
     ∀ c ∈ engineCites, ∀ i ∈ c.premises,
       measured registry (pageRefs registry) files i = true ∨ assumed untestedPremises i = true := by
   intro c hc i hi
-  rcases engineCites_ids c hc i hi with h | rfl
+  rcases engineCites_ids c hc i hi with h | h
   · right
     obtain ⟨u, hu, rfl⟩ := List.mem_map.mp h
     exact List.any_eq_true.mpr ⟨u, hu, by simp⟩
   · left
-    have hp : covered (pageRefs registry) (laneFiles registry) (registry.getLast (by decide)) = true := by decide
-    refine List.any_eq_true.mpr ⟨registry.getLast (by decide), List.getLast_mem _, ?_⟩
-    simp only [Bool.and_eq_true, beq_iff_eq]
-    exact ⟨by decide, covered_mono _ _ _ _ hf hp⟩
+    obtain ⟨p, hp, rfl⟩ := List.mem_map.mp h
+    obtain ⟨hpm, hk⟩ := List.mem_filter.mp hp
+    have hk' : p.kind = .lane := by simpa using hk
+    have hl : p.testId ∈ laneFiles registry := List.mem_map.mpr ⟨p, hp, rfl⟩
+    refine List.any_eq_true.mpr ⟨p, hpm, ?_⟩
+    simp [covered, hk', hf _ hl]
 
 /-- **The lint passes on main once every row is annotated**: with any workflow list containing the lane workflows, the
 citation lint under `engineCites` passes iff every row is cited by some rule.
@@ -768,9 +820,11 @@ theorem engineCite_ok_iff (files : List String) (hf : ∀ f ∈ laneFiles regist
 #guard cites engineCites [("file", "hero-exit.jsonl"), ("engine", "webkit"), ("stage", "gpu")] == []
 #guard cites engineCites [("file", "chromium.jsonl"), ("kind", "signature"), ("level", "none")] == ["cr.signature"]
 #guard (citeLint registry (pageRefs registry) [] untestedPremises engineCites
-  [[("file", "hero-exit.jsonl"), ("engine", "webkit"), ("stage", "style")]]).bad.length == 1
+  [[("file", "hero-exit.jsonl"), ("engine", "webkit"), ("stage", "style")]]).bad.length == 2
 #guard (citeLint registry (pageRefs registry) (laneFiles registry) untestedPremises engineCites
-  [[("file", "hero-exit.jsonl"), ("engine", "webkit"), ("stage", "style")]]).untested == ["wk.style"]
+  [[("file", "hero-exit.jsonl"), ("engine", "webkit"), ("stage", "style")]]).untested == []
+#guard (citeLint registry (pageRefs registry) (laneFiles registry) untestedPremises engineCites
+  [[("file", "hero-exit.jsonl"), ("engine", "webkit"), ("stage", "layout")]]).untested == ["wk.layout"]
 #guard (citeLint registry (pageRefs registry) (laneFiles registry) untestedPremises [⟨[], ["ghost"]⟩] [[]]).ok == false
 #guard (citeLint registry (pageRefs registry) (laneFiles registry) untestedPremises engineCites
   [[("file", "x.jsonl")]]).uncited.length == 1
@@ -1040,11 +1094,12 @@ def laneRun (root : System.FilePath) (write : Bool) : IO Nat := do
 #guard (premiseLint registry (pageRefs registry) (laneFiles registry)) == ⟨[], []⟩
 #guard (premiseLint registry [] []).untested.length == registry.length
 #guard (premiseLint registry (pageRefs registry ++ [⟨"prem.ghost", "ghost"⟩]) (laneFiles registry)).unknown == ["prem.ghost"]
-#guard (premiseLint registry (pageRefs registry) [".github/workflows/lean.yml"]).untested == ["wktr_scroll_timeline_restyle"]
+#guard (premiseLint registry (pageRefs registry) [".github/workflows/lean.yml"]).untested ==
+  (registry.filter (·.kind == .lane)).map (·.id)
 #guard (premiseLint registry (pageRefs registry ++ (registry.filter (·.kind == .lane)).map Premise.ref)
-  (laneFiles registry)).unknown == [".github/workflows/wktr-fixtures.yml"]
+  (laneFiles registry)).unknown == laneFiles registry
 #guard (flagged registry allPass).isEmpty
-#guard (flagged registry []).length == pages.length && pages.length + 1 == registry.length
+#guard (flagged registry []).length == pages.length && pages.length + 6 == registry.length
 #guard (flagged registry ((flagCases.lookup "one-fail-chromium").getD [])).length == 1
 #guard (flagged registry ((flagCases.lookup "missing-webkit").getD [])).length == 1
 #guard (flagged registry ((flagCases.lookup "unknown-test-result").getD [])).isEmpty

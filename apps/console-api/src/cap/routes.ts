@@ -17,7 +17,11 @@ export function mountAgentRoutes(app: Hono, store: Store): { drain: Drain; caps:
     const req = AgentRequest.safeParse(body);
     if (!req.success) return c.json({ ok: false, reason: "expected {argv: string[], command}" }, 400);
     const s = await caps.consume(req.data.argv);
-    if (!s) return c.json({ ok: false, reason: "no valid, unused capability for this command" }, 403);
+    if (!s) {
+      const miss = caps.lastMiss(); // the hook said why it minted nothing (notFwPrefix, trailingPipe); else the cap is missing, spent or stale
+      const why = miss ? `; the capability hook says ${miss.reason}: ${miss.message}` : "";
+      return c.json({ ok: false, reason: `no valid, unused capability for this command${why}`, ...(miss ? { cause: miss.reason } : {}) }, 403);
+    }
     // one capability covers one `fw` invocation; `fw plan sync` sends its commands as one array (each stamped alike)
     if (Array.isArray(req.data.command)) {
       const replies = [];

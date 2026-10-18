@@ -43,7 +43,7 @@ JSON Schemas: `pnpm --filter @fw/contracts gen` -> `packages/contracts/schema/`.
 | Door | Used by | Actor |
 |---|---|---|
 | `POST /api/agent/commands` `{argv, command}` | `pnpm fw ...` (every `fw` command) | stamped from the PreToolUse capability (`cap.mjs`): `lead` (main), `reviewer` (agent type matches `review`), else `owner`. Never `user`, `script`, `git`. The actor in the body is overwritten. No valid unused capability: 403 |
-| `POST /api/commands` | the web UI (the user's buttons) only; also tests | whatever the body says (self-declared, including `user`) |
+| `POST /api/commands` | the web UI (the user's buttons) only; also tests | the body's actor, but only `user`, `script`, `git`, `hook`; `lead`, `owner`, `reviewer` need the console secret in `x-fw-secret` (Lean `Fw.Ops.Identity.openDoor`), else 403 |
 | reconciler, spool drain (inside console-api) | git facts, alerts | `git`, `script` |
 
 Whether the stamped actor may send that command is still decided by the Lean `may` table (422). Ops for clients:

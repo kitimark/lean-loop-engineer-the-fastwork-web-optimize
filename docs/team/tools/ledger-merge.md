@@ -1,7 +1,7 @@
 # Ledger merge driver (`merge=ledger`)
 
 Driver: `scripts/merge-ledger.mjs`. Decision: Lean `Fw.Ops.LedgerMerge` (`merge`, `rows`, `pick3`); the script only
-parses, applies the rule and renders. Golden: `packages/contracts/golden/ops/ledger-merge.jsonl` (16 cases, checked
+parses, applies the rule and renders. Golden: `packages/contracts/golden/ops/ledger-merge.jsonl` (16 id cases and 6 note cases, checked
 by `lake test`; regenerate with `cd lean && lake test -- --write-ledger-merge-golden`); the script is checked against
 it by `apps/runner/test/ledger-merge.test.ts`.
 
@@ -34,7 +34,28 @@ order and append, so this is base order, then ours' additions, then theirs'.
 
 Theorems: `conflict_iff`, `merge_comm_up_to_order` (swapping ours and theirs gives the same entry set),
 `no_conflict_disjoint_ids`, `merge_idempotent` (merge(b, x, x) = x, order included, for distinct ids),
-`merge_appends` (merge(B, B++X, B++Y) = B++X++Y for distinct ids).
+`merge_appends` (merge(B, B++X, B++Y) = B++X++Y for distinct ids), and for notes `add_only_merge` /
+`distinct_notes_merge` (both sides only add, no key new on both sides: no clash, every row of both sides kept) and
+`distinct_notes_append`. The key type is generic in Lean (ids are strings, note keys are pairs).
+
+## Per-task notes (`notes`, findings ledger)
+Why: a finding's `mechanism` is one string of one id. Two tasks that each extend it change that id differently,
+which is a conflict by `conflict_iff` (inc-findings-shared-entry: hero.exit, resolved by hand in 212c919, dc1fee1).
+
+Convention (research/findings/ledger.json):
+- A task that adds facts to an existing finding appends one row to the top-level `notes` array instead of editing
+  the shared string: `{"entry": <the finding's candidate text, verbatim>, "task": <work-graph task id>,
+  "field": <the finding field it extends, e.g. "mechanism">, "text": <the addition, with its CONFIRMED/MEASURED
+  status>}`. One row per (entry, task); a task edits only its own rows.
+- The full mechanism of a finding is its `mechanism` string followed by its `field: "mechanism"` notes, in array
+  order. Later notes may supersede earlier ones; say so in the text ("Restated (task): ...").
+- Edit the shared fields (`mechanism`, `verdict` fields, `next`, ...) only for a deliberate restatement that owns
+  the finding, ideally when no other open task writes it; that edit can still clash, by design.
+- Driver key of a note row: `note:` + `JSON.stringify([entry, task])` (`keyOf`); the `notes` member is merged per
+  key like `findings`. The test checks every note names an existing candidate and the keys are distinct.
+- Migration (task findings-subentries): the labelled per-task tails of 16 mechanism strings moved verbatim into
+  18 notes (why-engines 15, wktr-p1p4 2, hero-exit-restate 1); mechanism + notes rejoined equals the old text,
+  except that hero.exit's wktr-p1p4 note joins its two segments (the old text had the restatement between them).
 
 ## What the script does (glue)
 - Entry id: `id`, else `candidate` (`research/findings/ledger.json` has no `id`; editing a candidate's text is a

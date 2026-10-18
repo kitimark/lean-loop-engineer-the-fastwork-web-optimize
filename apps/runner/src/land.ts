@@ -12,6 +12,7 @@ import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin, span } from "./timing.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { dryKind, type Kind } from "./land-verdict.ts";
+import { consoleSecret } from "./lib.ts";
 
 export type Http = {
   get(path: string): Promise<{ status: number; body: any }>;
@@ -20,10 +21,10 @@ export type Http = {
 
 /** `localhost` may resolve to ::1 first while console-api listens on 127.0.0.1 only: always dial the IPv4 loopback. */
 export const loopback = (base: string) => base.replace(/^(https?:\/\/)localhost(?=[:/]|$)/, "$1127.0.0.1");
-export const httpFor = (base0: string): Http => { const base = loopback(base0); return {
+export const httpFor = (base0: string): Http => { const base = loopback(base0); let secret: string | undefined; return {
   get: async (p) => { const r = await fetch(base + p); return { status: r.status, body: await r.json() }; },
   post: async (p, b) => {
-    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) });
+    const r = await fetch(base + p, { method: "POST", headers: { "content-type": "application/json", "x-fw-secret": (secret ??= consoleSecret()) }, body: JSON.stringify(b) });
     return { status: r.status, body: await r.json() };
   },
 }; };

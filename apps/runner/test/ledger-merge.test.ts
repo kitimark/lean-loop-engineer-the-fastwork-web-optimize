@@ -46,6 +46,45 @@ describe("the real ledgers keep their formatting", () => {
   }
 });
 
+describe("findings notes keyed by (entry, task) (inc-findings-shared-entry; Lean distinct_notes_merge)", () => {
+  type Finding = Entry & { candidate: string; part: string; mechanism: string };
+  type Note = { entry: string; task: string; field: string; text: string };
+  const p = "research/findings/ledger.json";
+  const text = readFileSync(join(repo, p), "utf8");
+  const doc = JSON.parse(text) as { findings: Finding[]; notes: Note[] };
+  const render = (d: unknown) => JSON.stringify(d, null, 1);
+
+  it("every note names a finding by its candidate, carries task, field and text, and the keys are distinct", () => {
+    const candidates = new Set(doc.findings.map((f) => f.candidate));
+    const fields = new Set(Object.keys(doc.findings[0]!));
+    const keys = new Set<string>();
+    for (const n of doc.notes) {
+      expect(Object.keys(n).sort()).toEqual(["entry", "field", "task", "text"]);
+      expect(candidates.has(n.entry), n.entry).toBe(true);
+      expect(fields.has(n.field), n.field).toBe(true);
+      expect(n.text.length).toBeGreaterThan(0);
+      keys.add(JSON.stringify([n.entry, n.task]));
+    }
+    expect(keys.size).toBe(doc.notes.length);
+  });
+
+  const hero = doc.findings.find((f) => f.part === "hero.exit")!;
+  const note = (task: string): Note => ({ entry: hero.candidate, task, field: "mechanism", text: `${task} adds a fact` });
+
+  it("two tasks each append a note to hero.exit: merged cleanly, both notes kept", () => {
+    const a = render({ ...doc, notes: [...doc.notes, note("task-a")] });
+    const b = render({ ...doc, notes: [...doc.notes, note("task-b")] });
+    const r = driver.mergeTexts(text, a, b);
+    expect(r.conflicts).toBe(0);
+    expect(JSON.parse(r.text)).toEqual({ ...doc, notes: [...doc.notes, note("task-a"), note("task-b")] });
+  });
+
+  it("two tasks each rewrite hero.exit's shared mechanism: one conflict (the incident)", () => {
+    const edit = (s: string) => render({ ...doc, findings: doc.findings.map((f) => (f === hero ? { ...f, mechanism: `${f.mechanism} ${s}` } : f)) });
+    expect(driver.mergeTexts(text, edit("a"), edit("b")).conflicts).toBe(1);
+  });
+});
+
 describe("the 2026-10-18 land conflict in a scratch repo", () => {
   const dir = mkdtempSync(join(tmpdir(), "ledger-merge-"));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));

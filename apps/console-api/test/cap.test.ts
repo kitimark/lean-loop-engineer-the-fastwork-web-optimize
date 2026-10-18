@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
-import { actorFor, capMac, sha256 } from "../src/cap/cap.ts";
+import { actorFor, capMac, openDoor, sha256 } from "../src/cap/cap.ts";
 import { selectCore } from "../src/core/index.ts";
 import { Store } from "../src/store.ts";
 // the hook's formula must equal the verifier's
@@ -29,10 +29,35 @@ const grant = (dir: string, secret: string, o: { agent_type?: string; id: string
 type ActorCase = { name: string; request: { agent_id?: unknown; agent_type?: unknown }; response: { actor?: string | null; error?: string } };
 const actorCases = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../../packages/contracts/golden/ops/ops.actor.jsonl"), "utf8")
   .split("\n").filter(Boolean).map((l) => JSON.parse(l) as ActorCase);
+/** Lean `ops.door` golden cases (generated). */
+type DoorCase = { name: string; request: { actor?: unknown; secret?: boolean }; response: { accept?: boolean; error?: string } };
+const doorCases = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../../packages/contracts/golden/ops/ops.door.jsonl"), "utf8")
+  .split("\n").filter(Boolean).map((l) => JSON.parse(l) as DoorCase);
 const post = (app: ReturnType<typeof createApp>, argv: string[], command: unknown) =>
   app.request("/api/agent/commands", { method: "POST", body: JSON.stringify({ argv, command }), headers: { "content-type": "application/json" } });
 const open = { type: "card.open", key: "k1", actor: "user", card: "A", owner: "o", needsDevice: false };
 const argv = ["send", "x"];
+
+describe("door without capability: Lean ops.door", () => {
+  it.each(doorCases.filter((c) => c.response.error === undefined))("matches the golden case: $name", (c) => {
+    expect(openDoor(c.request.actor as never, c.request.secret ?? false)).toBe(c.response.accept);
+  });
+});
+
+describe("capability door: the 403 says why", () => {
+  it("a hook miss (capmiss.jsonl) is quoted in the 403; an old one is not", async () => {
+    const { dir, app } = await fresh();
+    const bare = (await (await post(app, argv, open)).json()) as { reason: string };
+    expect(bare.reason).toBe("no valid, unused capability for this command");
+    appendFileSync(join(dir, "capmiss.jsonl"), JSON.stringify({ ts: NOW, tool_use_id: "t", reason: "notFwPrefix", message: "must START with pnpm fw" }) + "\n");
+    const r = await post(app, argv, open);
+    expect(r.status).toBe(403);
+    expect(await r.json()).toMatchObject({ ok: false, cause: "notFwPrefix", reason: expect.stringContaining("the capability hook says notFwPrefix: must START with pnpm fw") });
+    const old = await fresh();
+    appendFileSync(join(old.dir, "capmiss.jsonl"), JSON.stringify({ ts: NOW - 10 * 60_000, reason: "trailingPipe", message: "x" }) + "\n");
+    expect(((await (await post(old.app, argv, open)).json()) as { reason: string }).reason).toBe("no valid, unused capability for this command");
+  });
+});
 
 describe("capability door", () => {
   it("hook and verifier compute the same MAC", () => {

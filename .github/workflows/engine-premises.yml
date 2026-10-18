@@ -1,0 +1,280 @@
+name: engine-premises
+
+# Engine premise lane (task engine-premise-measure): do the engine tables behind the golden rows hold in the real engines?
+# Lean (Fw.Ops.EnginePremise, golden/ops/engine-premises.jsonl) generates one small step per table case and the model's
+# expected presence of every stage per step. A generated page (packages/measure-chromium/src/premise-fixture.mjs) makes
+# exactly that change once per frame. Chromium: the counts harness (profile engine-premise-cr, BeginFrameControl, trace events)
+# on `runs` fresh VMs. WebKit: the WebKitTestRunner harness in "cases" mode (internals counters per rendering update) on
+# `jobs` fresh macOS VMs x `passes` fresh processes. The verdict job compares every step with the model (premise-verdict.mjs,
+# the TS port of the Lean cell and verdict functions): agree / mismatch / unstable / missing per cell, holds / fails /
+# inconclusive per stage. Counts only; nothing is phone time.
+on:
+  push:
+    branches: ['ci/**']
+    paths:
+      - 'packages/measure-chromium/**'
+      - 'packages/measure-wktr/**'
+      - 'packages/contracts/golden/ops/engine-premises.jsonl'
+      - '.github/scripts/runner-info.sh'
+      - '.github/scripts/changed-inputs.mjs'
+      - '.github/workflows/engine-premises.yml'
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: Which engine to measure
+        type: choice
+        options: [both, chromium, webkit]
+        default: both
+      runs:
+        description: Chromium VMs (1 to 6), one pass each
+        type: string
+        default: '3'
+      jobs:
+        description: WebKit macOS VMs (1 to 4)
+        type: string
+        default: '3'
+      passes:
+        description: WebKit fresh-process passes per VM (1 to 4)
+        type: string
+        default: '2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: fw-measure-chromium:1
+
+jobs:
+  # Paths guard (Lean Fw.Ci.Trigger, scripts/ci-paths.mjs): on a ci/* push, runs the workflow only if THIS push changed one of
+  # its inputs to something other than main's content; dispatches always run. Fails open on error.
+  guard:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/engine-premises.yml
+
+  plan:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      cr: ${{ steps.m.outputs.cr }}
+      wk: ${{ steps.m.outputs.wk }}
+      cr_matrix: ${{ steps.m.outputs.cr_matrix }}
+      wk_matrix: ${{ steps.m.outputs.wk_matrix }}
+    steps:
+      - id: m
+        env:
+          ENGINE: ${{ inputs.engine || 'both' }}
+          RUNS: ${{ inputs.runs || '3' }}
+          JOBS: ${{ inputs.jobs || '3' }}
+        run: |
+          set -euo pipefail
+          case "$RUNS" in 1|2|3|4|5|6) ;; *) echo "runs must be 1..6" >&2; exit 1 ;; esac
+          case "$JOBS" in 1|2|3|4) ;; *) echo "jobs must be 1..4" >&2; exit 1 ;; esac
+          case "$ENGINE" in both|chromium|webkit) ;; *) echo "bad engine" >&2; exit 1 ;; esac
+          if [ "$ENGINE" = webkit ]; then echo "cr=false" >> "$GITHUB_OUTPUT"; else echo "cr=true" >> "$GITHUB_OUTPUT"; fi
+          if [ "$ENGINE" = chromium ]; then echo "wk=false" >> "$GITHUB_OUTPUT"; else echo "wk=true" >> "$GITHUB_OUTPUT"; fi
+          echo "cr_matrix=$(seq 1 "$RUNS" | jq -R -s -c '{run: (split("\n") | map(select(length > 0)) | map("r" + .))}')" >> "$GITHUB_OUTPUT"
+          echo "wk_matrix=$(seq 1 "$JOBS" | jq -R -s -c '{job: (split("\n") | map(select(length > 0)) | map("j" + .))}')" >> "$GITHUB_OUTPUT"
+
+  # The Chromium image, built once; the matrix jobs load this exact image and check its content id.
+  image:
+    needs: [plan]
+    if: ${{ needs.plan.outputs.cr == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    outputs:
+      image-id: ${{ steps.build.outputs.image-id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - id: build
+        run: |
+          set -euo pipefail
+          docker build -t "$IMAGE" packages/measure-chromium
+          id=$(docker image inspect --format '{{.Id}}' "$IMAGE")
+          echo "image-id=$id" >> "$GITHUB_OUTPUT"
+          echo "image id: $id"
+          docker run --rm --entrypoint sh -v "$PWD/packages/measure-chromium/src:/driver:ro" "$IMAGE" /driver/image-check.sh
+          mkdir -p "$RUNNER_TEMP/image"
+          docker save "$IMAGE" | zstd -T0 -10 -q -o "$RUNNER_TEMP/image/image.tar.zst"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: premise-image
+          path: ${{ runner.temp }}/image/image.tar.zst
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 3
+
+  chromium:
+    needs: [plan, image]
+    name: chromium (${{ matrix.run }})
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.cr_matrix) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: premise-image
+          path: ${{ runner.temp }}/image
+      - name: Load the image and check its digest
+        env:
+          WANT_ID: ${{ needs.image.outputs.image-id }}
+        run: |
+          set -euo pipefail
+          zstd -dc "$RUNNER_TEMP/image/image.tar.zst" | docker load
+          got=$(docker image inspect --format '{{.Id}}' "$IMAGE")
+          echo "want $WANT_ID"
+          echo "got  $got"
+          test "$got" = "$WANT_ID"
+      - name: Runner facts
+        run: sh .github/scripts/runner-info.sh "$RUNNER_TEMP/runner.json"
+      - name: The page, generated from the golden
+        run: node packages/measure-chromium/src/premise-fixture.mjs --engine chromium --out "$RUNNER_TEMP/page"
+      - name: Counts run
+        env:
+          LABEL: ${{ matrix.run }}
+          FW_DOCKER_CPUS: '4'
+        run: |
+          set -euo pipefail
+          node packages/measure-chromium/src/host.mjs --profile engine-premise-cr --label "$LABEL" --target fixture --site-dir "$RUNNER_TEMP/page" --no-zones
+          res="$RUNNER_TEMP/result"
+          mkdir -p "$res"
+          cp "packages/measure-chromium/out/engine-premise-cr/$LABEL/counts.json" "$res/counts.json"
+          cp "$RUNNER_TEMP/runner.json" "$res/runner.json"
+          printf '%s\n' "${{ needs.image.outputs.image-id }}" > "$res/image-id.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: premise-cr-${{ matrix.run }}
+          path: ${{ runner.temp }}/result
+          if-no-files-found: error
+          retention-days: 30
+
+  webkit:
+    needs: [plan]
+    if: ${{ needs.plan.outputs.wk == 'true' }}
+    name: webkit (${{ matrix.job }})
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.wk_matrix) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: cache
+        with:
+          path: ${{ runner.temp }}/wktr-zip
+          key: wktr-ios-min-324039-${{ hashFiles('packages/measure-wktr/src/archive.json') }}
+      - name: Archive, extracted into an empty directory (size and sha256 verified)
+        run: sh packages/measure-wktr/scripts/fetch-archive.sh "$RUNNER_TEMP/wktr-zip" "$RUNNER_TEMP/wktr-root"
+      - name: Select Xcode 26.5 and show the tools
+        run: |
+          set -euo pipefail
+          ls -d /Applications/Xcode_26.5*.app
+          sudo xcode-select -s /Applications/Xcode_26.5.app
+          mkdir -p "$RUNNER_TEMP/result"
+          sh .github/scripts/runner-info.sh "$RUNNER_TEMP/result/runner.json"
+          {
+            sw_vers
+            xcodebuild -version
+            xcrun simctl list runtimes
+          } | tee "$RUNNER_TEMP/result/tools.txt"
+      - name: The page, generated from the golden
+        run: node packages/measure-chromium/src/premise-fixture.mjs --engine webkit --out "$RUNNER_TEMP/page"
+      - name: WKTR premise run, fresh process per pass
+        env:
+          PASSES: ${{ inputs.passes || '2' }}
+        run: |
+          set -euo pipefail
+          steps=$(node packages/measure-chromium/src/premise-fixture.mjs --engine webkit --count)
+          sh packages/measure-wktr/fixtures/premises.sh "$RUNNER_TEMP/wktr-root" "$RUNNER_TEMP/result" "$RUNNER_TEMP/page" "$steps" "$PASSES" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
+          ls -lR "$RUNNER_TEMP/result" | head -40
+      - name: Delete the Simulator device
+        if: ${{ always() }}
+        run: |
+          xcrun simctl shutdown all || true
+          xcrun simctl delete fw-wktr || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() }}
+        with:
+          name: premise-wk-${{ matrix.job }}
+          path: ${{ runner.temp }}/result
+          if-no-files-found: error
+          retention-days: 30
+
+  # The verdicts: every pass of every VM against the model, per engine.
+  verdict:
+    needs: [chromium, webkit]
+    if: ${{ always() && (needs.chromium.result == 'success' || needs.webkit.result == 'success') }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: premise-*-*
+          path: ${{ runner.temp }}/runs
+      - name: Verdicts
+        env:
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/verdict"
+          mkdir -p "$out"
+          echo "workflow run $RUN_ID, sha $SHA" > "$out/run.txt"
+          cd "$RUNNER_TEMP/runs"
+          v="$GITHUB_WORKSPACE/packages/measure-chromium/src/premise-verdict.mjs"
+          if ls premise-cr-*/counts.json > /dev/null 2>&1; then
+            node "$v" --engine chromium --out "$out/chromium.json" --md "$out/chromium.md" premise-cr-*/counts.json | tee "$out/chromium.txt"
+            cat "$out/chromium.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if ls premise-wk-*/premises-f1/counts-live-*.json > /dev/null 2>&1; then
+            node "$v" --engine webkit --out "$out/webkit.json" --md "$out/webkit.md" premise-wk-*/premises-f1/counts-live-*.json | tee "$out/webkit.txt"
+            cat "$out/webkit.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: premise-verdict
+          path: ${{ runner.temp }}/verdict
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,27 @@
+{"name":"lead mints for pnpm fw status","request":{"op":"ops.cap","tokens":["pnpm","fw","status"]},"response":{"actor":"lead","argv":["status"],"decision":"mint","reason":null}}
+{"name":"lead: agent_type ignored","request":{"agent_id":null,"agent_type":"main","op":"ops.cap","tokens":["pnpm","fw","land","b","--task","t"]},"response":{"actor":"lead","argv":["land","b","--task","t"],"decision":"mint","reason":null}}
+{"name":"agent mints as owner","request":{"agent_id":"a0123456789abcdef","agent_type":"lean-prover","op":"ops.cap","tokens":["pnpm","fw","land","b"]},"response":{"actor":"owner","argv":["land","b"],"decision":"mint","reason":null}}
+{"name":"reviewer role mints as reviewer","request":{"agent_id":"a0123456789abcdef","agent_type":"Math-REVIEWER","op":"ops.cap","tokens":["pnpm","fw","card","review"]},"response":{"actor":"reviewer","argv":["card","review"],"decision":"mint","reason":null}}
+{"name":"bare pnpm fw mints an empty argv","request":{"op":"ops.cap","tokens":["pnpm","fw"]},"response":{"actor":"lead","argv":[],"decision":"mint","reason":null}}
+{"name":"leading cd: notFwPrefix","request":{"op":"ops.cap","tokens":["cd","apps/runner"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"notFwPrefix"}}
+{"name":"pnpm -s fw: notFwPrefix","request":{"op":"ops.cap","tokens":["pnpm","-s","fw","land","--dry","b"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"notFwPrefix"}}
+{"name":"pnpm --filter x fw: notFwPrefix","request":{"op":"ops.cap","tokens":["pnpm","--filter","x","fw","status"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"notFwPrefix"}}
+{"name":"empty command: notFwPrefix","request":{"op":"ops.cap","tokens":[]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"notFwPrefix"}}
+{"name":"pnpm alone: notFwPrefix","request":{"op":"ops.cap","tokens":["pnpm"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"notFwPrefix"}}
+{"name":"a different program: notFwPrefix","request":{"op":"ops.cap","tokens":["echo","pnpm","fw"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"notFwPrefix"}}
+{"name":"2>&1 then a filter pipe mints for the bare command","request":{"op":"ops.cap","tokens":["pnpm","fw","land","b",{"redir":"2>&1"},{"stop":"|"},"tail","-5"]},"response":{"actor":"lead","argv":["land","b"],"decision":"mint","reason":null}}
+{"name":"redirect to a file is dropped","request":{"op":"ops.cap","tokens":["pnpm","fw","status",{"redir":">out.txt"}]},"response":{"actor":"lead","argv":["status"],"decision":"mint","reason":null}}
+{"name":"append redirect and 2>/dev/null are dropped","request":{"op":"ops.cap","tokens":["pnpm","fw","status",{"redir":">>log"},{"redir":"2>/dev/null"}]},"response":{"actor":"lead","argv":["status"],"decision":"mint","reason":null}}
+{"name":"input redirect is dropped","request":{"op":"ops.cap","tokens":["pnpm","fw","send",{"redir":"<in"}]},"response":{"actor":"lead","argv":["send"],"decision":"mint","reason":null}}
+{"name":"redirect between words is dropped","request":{"op":"ops.cap","tokens":["pnpm","fw",{"redir":"2>&1"},"land","b"]},"response":{"actor":"lead","argv":["land","b"],"decision":"mint","reason":null}}
+{"name":"a pipe ends the command (grep filter)","request":{"op":"ops.cap","tokens":["pnpm","fw","land","b",{"stop":"|"},"grep","VERDICT"]},"response":{"actor":"lead","argv":["land","b"],"decision":"mint","reason":null}}
+{"name":"&& ends the command","request":{"op":"ops.cap","tokens":["pnpm","fw","status",{"stop":"&&"},"echo","done"]},"response":{"actor":"lead","argv":["status"],"decision":"mint","reason":null}}
+{"name":"a lone number is an argument, not a redirect","request":{"op":"ops.cap","tokens":["pnpm","fw","land","b","2"]},"response":{"actor":"lead","argv":["land","b","2"],"decision":"mint","reason":null}}
+{"name":"a pipe before pnpm fw: notFwPrefix","request":{"op":"ops.cap","tokens":["echo",{"stop":"|"},"pnpm","fw","status"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"notFwPrefix"}}
+{"name":"unknown actor stays refused through a pipe","request":{"agent_id":"a0123456789abcdef","agent_type":"","op":"ops.cap","tokens":["pnpm","fw","land",{"redir":"2>&1"},{"stop":"|"},"tail"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"unknownActor"}}
+{"name":"forked agent: unknownActor","request":{"agent_id":"a0123456789abcdef","agent_type":"","op":"ops.cap","tokens":["pnpm","fw","status"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"unknownActor"}}
+{"name":"agent_id without agent_type: unknownActor","request":{"agent_id":"a0123456789abcdef","op":"ops.cap","tokens":["pnpm","fw","status"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"unknownActor"}}
+{"name":"empty agent_id: unknownActor","request":{"agent_id":"","agent_type":"lean-prover","op":"ops.cap","tokens":["pnpm","fw","status"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"unknownActor"}}
+{"name":"prefix wins over unknown actor","request":{"agent_id":"a0123456789abcdef","agent_type":"","op":"ops.cap","tokens":["cd","x"]},"response":{"actor":null,"argv":null,"decision":"noMint","reason":"notFwPrefix"}}
+{"name":"non-string token is refused","request":{"op":"ops.cap","tokens":["pnpm",7]},"response":{"error":"field tokens: expected a string, {\"redir\":..} or {\"stop\":..}"}}
+{"name":"non-string agent_id is refused","request":{"agent_id":7,"op":"ops.cap","tokens":["pnpm","fw"]},"response":{"error":"field agent_id: expected a string"}}

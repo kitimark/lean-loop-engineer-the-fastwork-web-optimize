@@ -1,0 +1,10 @@
+{"name":"a simctl call killed at its deadline (ETIMEDOUT) is transient: retried after the first attempt, wait 2 s","request":{"attempt":1,"error":"ETIMEDOUT","max":3,"op":"measure.retry"},"response":{"class":"transient","delayMs":2000,"retry":true}}
+{"name":"the wait doubles: second failure, wait 4 s","request":{"attempt":2,"error":"simctl launch Safari failed: ETIMEDOUT","max":3,"op":"measure.retry"},"response":{"class":"transient","delayMs":4000,"retry":true}}
+{"name":"the limit is reached: not retried even though transient","request":{"attempt":3,"error":"ETIMEDOUT","max":3,"op":"measure.retry"},"response":{"class":"transient","delayMs":0,"retry":false}}
+{"name":"boot message from simctl is transient, case ignored","request":{"attempt":1,"error":"simctl boot failed: UNABLE TO BOOT device in current state: Booted","max":3,"op":"measure.retry"},"response":{"class":"transient","delayMs":2000,"retry":true}}
+{"name":"device busy is transient","request":{"attempt":1,"error":"Device busy, try again","max":2,"op":"measure.retry"},"response":{"class":"transient","delayMs":2000,"retry":true}}
+{"name":"the wait stops growing at the cap (30 s)","request":{"attempt":9,"error":"operation timed out","max":10,"op":"measure.retry"},"response":{"class":"transient","delayMs":30000,"retry":true}}
+{"name":"an unknown device is permanent: never retried","request":{"attempt":1,"error":"Invalid device: fw-iphone-27","max":3,"op":"measure.retry"},"response":{"class":"permanent","delayMs":0,"retry":false}}
+{"name":"an empty message is permanent","request":{"attempt":1,"error":"","max":3,"op":"measure.retry"},"response":{"class":"permanent","delayMs":0,"retry":false}}
+{"name":"a limit of 1 never retries","request":{"attempt":1,"error":"ETIMEDOUT","max":1,"op":"measure.retry"},"response":{"class":"transient","delayMs":0,"retry":false}}
+{"name":"attempt 0 is refused","request":{"attempt":0,"error":"ETIMEDOUT","max":3,"op":"measure.retry"},"response":{"error":"field attempt: expected at least 1"}}

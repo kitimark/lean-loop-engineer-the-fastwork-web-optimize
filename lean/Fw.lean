@@ -39,6 +39,7 @@ import Fw.Measure.Classes
 import Fw.Measure.Quiet
 import Fw.Measure.Tolerance
 import Fw.Measure.WebKit
+import Fw.Measure.Retry
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
 import Fw.Ops.Wait
@@ -46,6 +47,7 @@ import Fw.Ops.PathCheck
 import Fw.Ops.Usage
 import Fw.Ops.Meter
 import Fw.Ops.Premise
+import Fw.Ops.EnginePremise
 import Fw.Ops.Identity
 import Fw.Ops.Wire
 import Fw.Sched.Admit

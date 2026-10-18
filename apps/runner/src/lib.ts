@@ -60,9 +60,19 @@ export function stepCommand(argv: string[], env: Record<string, string | undefin
 export const NO_API_GROUPS: readonly string[] = ["run", "ci", "next", "engine-check", "incidents", "coverage", "premises"];
 
 /** Where console-api listens: FW_API, else .fw-console/api.json at the main checkout root. */
+export function consoleDirOf(env: Record<string, string | undefined>, cwd = process.cwd()): string {
+  return env.FW_CONSOLE_DIR ?? join(dirname(execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd }).toString().trim()), ".fw-console");
+}
+
+/** The console secret (`.fw-console/secret`) for the door without a capability, or "" when unreadable. The runner's own
+ *  tools (`fw land`'s plan sync speaks as the lead) show it; console-api refuses agent actors there without it. */
+export function consoleSecret(env: Record<string, string | undefined> = process.env, cwd = process.cwd()): string {
+  try { return readFileSync(join(consoleDirOf(env, cwd), "secret"), "utf8").trim(); } catch { return ""; }
+}
+
 export function apiBase(env: Record<string, string | undefined>, cwd = process.cwd()): string {
   if (env.FW_API) return env.FW_API;
-  const dir = env.FW_CONSOLE_DIR ?? join(dirname(execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd }).toString().trim()), ".fw-console");
+  const dir = consoleDirOf(env, cwd);
   try {
     const { port } = JSON.parse(readFileSync(join(dir, "api.json"), "utf8")) as { port: number };
     return `http://127.0.0.1:${port}`;

@@ -24,7 +24,7 @@ const { values: v, positionals } = parseArgs({
     settle: { type: 'string', default: '6000' }, header: { type: 'string', default: DEFAULT_HEADER },
     'device-name': { type: 'string', default: 'fw-wktr' }, 'device-type': { type: 'string', default: 'iPhone 17' },
     'ios-version': { type: 'string', default: '26.5' }, label: { type: 'string', default: 'local' },
-    keep: { type: 'boolean', default: false }, variants: { type: 'string', default: 'live' }, timeout: { type: 'string', default: '240000' },
+    keep: { type: 'boolean', default: false }, cases: { type: 'string', default: '0' }, variants: { type: 'string', default: 'live' }, timeout: { type: 'string', default: '240000' },
   },
 });
 
@@ -51,7 +51,7 @@ async function main() {
   try {
    for (const vr of variants) {
     arm.mark('_gap');
-    srv = await serveOriginal(site, harnessSource({ step, frames, settleMs, warm: vr.warm, vt: vr.vt, trace: vr.trace, still: vr.still }));
+    srv = await serveOriginal(site, harnessSource({ step, frames, settleMs, warm: vr.warm, vt: vr.vt, trace: vr.trace, still: vr.still, cases: Number(v.cases) }));
     console.log(`variant ${vr.name}: serving ${site} at ${srv.url}`);
     arm.mark('serve');
     const tag = `${vr.name}-`;
@@ -74,7 +74,7 @@ async function main() {
       const run = buildRun(parsed, {
         lane: 'wktr', label: v.label, pass: p, archive: { revision: ARCHIVE.revision, commit: ARCHIVE.commit, sha256: ARCHIVE.sha256 },
         device: { name: v['device-type'], runtime: dev.runtime.version, runtimeBuild: dev.runtime.buildversion },
-        header: v.header, variant: vr.name, vt: vr.vt, warm: vr.warm, trace: vr.trace, still: vr.still, step, frames, settleMs, attempts, wallMs: r.ms,
+        header: v.header, variant: vr.name, vt: vr.vt, warm: vr.warm, trace: vr.trace, still: vr.still, step, frames, settleMs, cases: Number(v.cases), attempts, wallMs: r.ms,
       });
       writeFileSync(join(out, `counts-${tag}${p}.json`), JSON.stringify(run));
       pass.mark('reduce');
