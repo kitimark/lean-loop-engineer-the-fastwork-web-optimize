@@ -15,6 +15,14 @@ Append one object to `incidents` with these fields:
   - `proc`: a process shape (warning: not reproducible). Prefer commit, ci and file.
 - `repro`: how to make it happen again. `regression`: the test or golden that keeps it fixed.
 - `fix`: `{task, also?}`: work-graph task ids. Each must exist in `docs/team/work-graph.json`.
+- The mistake-retro link (`research/mistakes/ledger.json`, task incident-lean-fields):
+  - `leanVerdict`: `provable`, `partly` or `no` (exact, lowercase). `leanReason`: why Lean can or cannot prove it.
+  - `hardening`: the work-graph task id of the Lean-backed hardening. Required for `provable` and `partly`;
+    optional for `no`, but when present it must exist.
+  - `empiricalCheck`: the test or CI check that covers it. Required for `no`; optional otherwise.
+  - `mistakeClass` (optional): a class id of `research/mistakes/ledger.json` (`classes[].id`).
+  - `mistake` (optional, not linted): the retro row id (`m…`) the incident matches.
+  - Copy verdict and reason from the retro's mistake row; do not invent new ones.
 - Never write a `status` field. The lint derives the status: fixed when `fix.task` and every `also` task are done,
   fixing when one of them is claimed, open otherwise.
 
@@ -24,4 +32,6 @@ Append one object to `incidents` with these fields:
 - Facts come from git, the file system and the board, never from the ledger. If the console-api is down, task
   states come from the work graph file (no claims, so nothing shows as fixing).
 - Errors: no evidence, an unknown kind, a malformed ref, a commit not on main, a missing file, an unknown or
-  missing fix task, a blank repro or regression, a cause without a prefix, a `status` field, or a duplicate id.
+  missing fix task, a blank repro or regression, a cause without a prefix, a `status` field, a duplicate id, or a
+  missing or wrong Lean field (`missingLeanVerdict`, `badLeanVerdict`, `missingLeanReason`, `missingHardening`,
+  `unknownHardening`, `missingEmpiricalCheck`, `unknownMistakeClass`; the detail names the field).

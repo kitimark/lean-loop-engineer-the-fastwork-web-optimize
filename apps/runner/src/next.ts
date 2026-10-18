@@ -8,6 +8,7 @@ import { execFile } from "node:child_process";
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
+import { lockFacts, lockFile } from "../hooks/land-guard.mjs";
 import {
   exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, readMeta, readsStdin, signalsOf, withLeadNotes,
   type LeadNote, type Paths, type Proc, type SigFacts, type SigProcKind, type Snapshot, type TranscriptSignals,
@@ -21,7 +22,13 @@ export type ChildFact = {
 } & ({ kind: "sleepLoop" | "build" | "other" | "stdinWait" } | { kind: "ciWait"; run: number; timeoutMin: number });
 export interface AgentFacts {
   id: string; task: string; state: string; session: number; handbackAt: number | null;
-  branch: { name: string; ahead: number; landed: boolean; queued: boolean; mergesClean: boolean; deps: string[] } | null;
+  branch: {
+    name: string; ahead: number; landed: boolean; queued: boolean; mergesClean: boolean; deps: string[];
+    /** a land commit with this task's `Task:` trailer is on main (inc-watch-unlanded-after-land) */
+    onMain: boolean;
+    /** the branch named by the live land lock, null when none (inc-watch-alert-during-land) */
+    landLock: string | null;
+  } | null;
   /** docs/team/handoffs/<name>.md exists */
   handoff: boolean;
   worktree: { lockPid: number | null; lockAlive: boolean } | null;
@@ -96,6 +103,8 @@ export interface FileObs { mtimeMs: number; lastLine: string }
 export interface RawAgent {
   id: string; name: string | null; task: string | null; state: string; ctxTokens: number | null; handbackAt: number | null;
   worktree: Worktree | null; ahead: number | null; landed: boolean | null;
+  /** a land commit with the task's `Task:` trailer is on main (null/absent: not checked) */
+  onMain?: boolean | null;
   /** `git merge-tree --write-tree main <branch>` exited 0 (null: not checked: no unlanded branch) */
   mergesClean: boolean | null;
   /** unlanded branches of other agents that the branch contains (git ancestry), by branch name */
@@ -113,6 +122,8 @@ export interface Raw {
   /** the session's Bash process trees (Snapshot.system.procs), `agent` = owner */
   procs: Proc[]; ps: RawPs[];
   alive: (pid: number) => boolean; file: (path: string) => FileObs | null;
+  /** the branch named by the live land lock (null: no lock, a dead holder, or no branch in it) */
+  landLock?: string | null;
   /** text of the integrator's list (a branch name in it means queued) */
   queuedText: string; ci: RawCi[]; board: Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>;
 }
@@ -209,10 +220,11 @@ export function buildFacts(raw: Raw): AgentFacts[] {
     const br = a.branch ?? w?.branch ?? null;
     return {
       id: task, task, state: a.state, session: raw.session, handbackAt: a.handbackAt,
-      branch: br && a.ahead !== null && a.landed !== null
+      // the branch may be gone from git after `fw land` (ahead/landed null): a land commit on main still makes it a fact
+      branch: br && ((a.ahead !== null && a.landed !== null) || a.onMain)
         ? {
-          name: br, ahead: a.ahead, landed: a.landed, queued: hasWord(raw.queuedText, br),
-          mergesClean: a.mergesClean ?? true,
+          name: br, ahead: a.ahead ?? 0, landed: a.landed ?? false, queued: hasWord(raw.queuedText, br),
+          mergesClean: a.mergesClean ?? true, onMain: a.onMain === true, landLock: raw.landLock ?? null,
           // observed dependencies: contained unlanded agent branches, then the task's board dependencies not done
           deps: [...a.branchDeps, ...(raw.board.get(task)?.deps ?? []).filter((d) => raw.board.get(d)?.done === false)],
         } : null,
@@ -237,6 +249,13 @@ export function formatNext(reply: NextReply): string[] {
   }
   return lines;
 }
+/** `NEXT investigate step=<tool/step>` for each slow step of fwcore's `obs.slow` (the lead turns it into an
+ *  investigate + improve + prove task). */
+export const slowNextLines = (slow: string[]): string[] => slow.map((s) => `NEXT investigate step=${s}`);
+/** The `timing.slow` alerts of `fw watch`: one per slow step of fwcore's `obs.slow` (subject = `<tool>/<step>`). */
+export const slowAlerts = (slow: string[]): { code: string; subject: string; detail: string }[] =>
+  slow.map((s) => ({ code: "timing.slow", subject: s, detail: "latest sample is slow (Fw.Obs.Timing verdict); NEXT investigate step=" + s }));
+
 /** Alerts for `fw watch`: a kill proposal = agent.held, a land/route proposal = agent.unlanded (subject = agent id). */
 export function nextAlerts(reply: NextReply): { code: string; subject: string; detail: string }[] {
   const out: { code: string; subject: string; detail: string }[] = [];
@@ -311,6 +330,22 @@ async function branchState(p: Paths, branch: string, cache: Map<string, [number 
   return r;
 }
 
+/** Whether a land commit for `task` is on main: a commit whose message has the line `Task: <task>` (what `fw land`
+ *  writes). Read from main's history, never from the branch's existence (`fw land` deletes the branch). */
+export async function landCommitOnMain(p: Paths, task: string): Promise<boolean> {
+  const esc = task.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const out = await exec("git", ["log", "main", "-n", "1", "--format=%H", "--extended-regexp", `--grep=^Task: ${esc}$`], p.root);
+  return out !== null && out.trim() !== "";
+}
+
+/** The branch named by the live land lock (`<git common dir>/fw-land.lock`); null: no lock, holder dead, unreadable. */
+export function liveLandLockBranch(root: string): string | null {
+  try {
+    const f = lockFacts(lockFile(root));
+    return f.lock && f.alive && typeof f.lock.branch === "string" ? f.lock.branch : null;
+  } catch { return null; }
+}
+
 /** Collect every observation for the snapshot's agents. `health` = the obs.health reply for the same snapshot. */
 export async function collectRaw(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, plan: unknown): Promise<Raw> {
   const [wtOut, ps] = await Promise.all([exec("git", ["worktree", "list", "--porcelain"], p.root), psCommands()]);
@@ -331,8 +366,10 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
     let mergesClean: boolean | null = null;
     const branchDeps: string[] = [];
     const branch = metaBranch ?? wt?.branch ?? null;
+    let onMain: boolean | null = null;
     if (branch) {
       [ahead, landed] = await branchState(p, branch, cache);
+      if (landed !== true) onMain = await landCommitOnMain(p, a.name ?? a.task ?? a.id);
       if (ahead !== null && ahead > 0 && landed === false) {
         mergesClean = (await exec("git", ["merge-tree", "--write-tree", "main", branch], p.root)) !== null;
         for (const o of wts) {
@@ -354,7 +391,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
         signals = signalFactsOf(signalsOf(a.id, text), readLeadNotes(p, leadFileOf(tf)), statFile, ps, session, mt);
       } catch { /* unreadable */ }
     }
-    agents.push({ id: a.id, name: a.name, task: a.task, state, ctxTokens: a.ctxTokens, handbackAt, worktree: wt, ahead, landed, mergesClean,
+    agents.push({ id: a.id, name: a.name, task: a.task, state, ctxTokens: a.ctxTokens, handbackAt, worktree: wt, ahead, landed, onMain, mergesClean,
       branchDeps, handoff, branch, signals });
   }
   const board = new Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>();
@@ -376,6 +413,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
   return {
     now: snap.now, session, agents,
     procs: snap.system.procs ?? [], ps, alive: pidAlive, file: statFile, queuedText, ci, board,
+    landLock: liveLandLockBranch(p.root),
   };
 }
 

@@ -1,5 +1,6 @@
 // Incident repros for `fw land` (docs/team/incidents/ledger.json): inc-commit-during-land, inc-land-scope-registrations,
 // inc-agent-on-ci-branch, inc-fw-lean-import-conflict. Decisions are Lean (Fw.Console.Land); these tests drive the real git.
+import "./land-timeout.ts";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -64,7 +65,7 @@ describe("inc-commit-during-land: the land lock", () => {
     const main0 = fx.git(fx.root, "rev-parse", "main");
     const out = join(fx.root, "..", "intruder.out");
     const intruder = `git commit --allow-empty -q -m intruder 2>${out}.err; echo $? > ${out}`;
-    const r = await land(BR, { ...opts, checks: [sh(intruder)] });
+    const r = await land(BR, { ...opts, prelock: false, checks: [sh(intruder)] });
     expect(r.ok).toBe(true);
     expect(readFileSync(out, "utf8").trim()).not.toBe("0");
     expect(readFileSync(`${out}.err`, "utf8")).toMatch(/commit refused/);
@@ -107,7 +108,7 @@ describe("inc-commit-during-land: the land lock", () => {
     const { fx, wt, opts, lock } = await setup();
     fx.commit(wt, "src/a.ts");
     writeFileSync(lock(), JSON.stringify({ pid: process.pid, token: "other", at: "now", branch: "b" }) + "\n");
-    const r = await land(BR, opts);
+    const r = await land(BR, { ...opts, lockWaitMs: 0 }); // the wait for a busy lock is a timer of land.ts (default 10 s); the refusal does not depend on its length
     expect(r.ok).toBe(false);
     expect(text(r)).toMatch(/another fw land holds/);
     expect(existsSync(lock())).toBe(true);
@@ -134,7 +135,7 @@ describe("inc-commit-during-land: the land lock", () => {
     const { fx, wt, opts, mainSha } = await setup();
     fx.commit(wt, "src/a.ts");
     const before = mainSha();
-    const r = await land(BR, { ...opts, checks: [sh("git merge --abort")] });
+    const r = await land(BR, { ...opts, prelock: false, checks: [sh("git merge --abort")] });
     expect(r.ok).toBe(false);
     expect(text(r)).toMatch(/merge state gone/);
     expect(text(r)).toMatch(/reset/);
@@ -146,7 +147,7 @@ describe("inc-commit-during-land: the land lock", () => {
     const { fx, wt, opts, mainSha } = await setup();
     fx.commit(wt, "src/a.ts");
     const before = mainSha();
-    const r = await land(BR, { ...opts, checks: [sh("c=$(git commit-tree 'HEAD^{tree}' -p HEAD -m other) && git update-ref refs/heads/main $c")] });
+    const r = await land(BR, { ...opts, prelock: false, checks: [sh("c=$(git commit-tree 'HEAD^{tree}' -p HEAD -m other) && git update-ref refs/heads/main $c")] });
     expect(r.ok).toBe(false);
     expect(text(r)).toMatch(/head moved/);
     expect(mainSha()).not.toBe(before);
@@ -160,15 +161,19 @@ describe("inc-commit-during-land: the land lock", () => {
     const before = mainSha();
     const script = join(realpathSync(tmpdir()), `fw-land-sig-${process.pid}.mts`);
     const landSrc = join(here, "../src/land.ts");
+    const started = join(realpathSync(tmpdir()), `fw-land-sig-${process.pid}.started`);
     writeFileSync(script, [
       `import { land } from ${JSON.stringify(landSrc)};`,
       `const http = { get: async () => ({ status: 200, body: { tasks: [{ id: "t1", state: "todo", owner: "builder", stream: "s", writes: ["src/**"] }] } }), post: async () => ({ status: 200, body: { ok: true, refusals: [], scope: [], violations: [] } }) };`,
-      `await land(${JSON.stringify(BR)}, { http, cwd: ${JSON.stringify(fx.root)}, checks: [["sleep", "30"]], ci: false, task: "t1" });`,
+      `await land(${JSON.stringify(BR)}, { http, cwd: ${JSON.stringify(fx.root)}, prelock: false, checks: [["sh", "-c", ${JSON.stringify("touch " + started + "; exec sleep 30")}]], ci: false, task: "t1" });`,
     ].join("\n"));
     const p = spawn(process.execPath, [script], { stdio: ["ignore", "inherit", "inherit"] });
+    // the check itself says it is running (merge open, lock held): no fixed pause, and `prelock: false` so that the signal
+    // really arrives under the lock (with the default the checks run before the lock and this test waited 17 s for nothing)
     const t0 = Date.now();
-    while (!existsSync(lock()) && Date.now() - t0 < 15000) await new Promise((r) => setTimeout(r, 100));
-    await new Promise((r) => setTimeout(r, 2000)); // into the checks
+    while (!existsSync(started) && p.exitCode === null && Date.now() - t0 < 60_000) await new Promise((r) => setTimeout(r, 20));
+    expect(existsSync(started), "the check must have started").toBe(true);
+    expect(existsSync(lock()), "the lock is held while the check runs").toBe(true);
     expect(p.exitCode, "the land process must still be running (in its checks)").toBeNull();
     p.kill("SIGTERM");
     await new Promise((r) => p.once("exit", r));

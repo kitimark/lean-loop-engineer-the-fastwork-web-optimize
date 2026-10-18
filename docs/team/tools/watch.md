@@ -119,3 +119,11 @@ test = build, else other), ppid chain, age, the file named in the `until ... <fi
 `gh run list` call (no extra gh calls); board row = `GET /api/plan` task named like the agent. Command lines are read to
 classify and never stored or printed. Limits: a loop outside the session's tree is never seen (only owned trees are
 listed); an agent without a worktree has no branch fact.
+
+## `timing.slow` and the two landed/lock fixes (timing-alert)
+- `timing.slow <tool>/<step>` alert and `NEXT investigate step=<tool>/<step>` line: `fw watch` and `fw next` send the
+  spans of `.fw-console/timings.jsonl` to fwcore `obs.slow` (Fw.Obs.Next.slowSteps over Fw.Obs.Timing verdicts: the
+  latest sample of a step is slow). No threshold in TS. The console Health view shows them in a Timings card.
+- `agent.unlanded` is false once main's history has a commit with the task's `Task:` trailer (`onMain`), even if the
+  branch is gone (inc-watch-unlanded-after-land), and while the live land lock names the branch (`landLock`,
+  inc-watch-alert-during-land). Proofs: no_unlanded_once_on_main, alert_suppressed_iff_locked.

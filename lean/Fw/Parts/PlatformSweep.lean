@@ -169,4 +169,35 @@ theorem start_nearly_white (v : Rat) (h0 : 0 ≤ v) (h1 : v ≤ 1) :
 /-- The effect applies only when the visitor has not asked for reduced motion. $$\operatorname{active}(\mathit{reduce}) = \lnot\,\mathit{reduce}$$ -/
 def active (reduce : Bool) : Bool := !reduce
 
+/-! ## The translated band equals the background position (ledger n=23)
+
+The variant paints the gradient once on a band $3w$ wide and moves the band by $x(t) = -2w\,p(t)$ with a transform.
+Element pixel $v w$ then lies at band pixel $v w - x(t)$, i.e. band fraction $(v w + 2 w p)/(3 w)$, which is the
+original's image coordinate $u(v, p)$ for every width $w > 0$. Same colour at every point and time: why the
+transform sweep is a visual no-op (up to pixel snapping, which this exact model leaves out). -/
+
+/-- Band fraction under element pixel $v w$ when a band $3w$ wide has its left edge at $x$.
+
+$$\operatorname{bandU}(w, x, v) = \frac{v w - x}{3 w}$$
+
+Where in the moving band a point of the element looks. -/
+def bandU (w x v : Rat) : Rat := (v * w - x) / (3 * w)
+
+#guard bandU 100 (-200) 0 == 2 / 3
+#guard bandU 100 0 1 == 1 / 3
+
+/-- **band_eq_bgpos.** For every positive width, the band translated by $-2w\,p(t)$ shows the original's colour at
+every element fraction and time.
+
+$$\forall w \in \mathbb{Q},\ w > 0,\ \forall v, t \in \mathbb{Q}:\ \operatorname{color}\big(\operatorname{bandU}(w, -2w\,p(t), v)\big) = \operatorname{shown}(v, t)$$
+
+Moving a 300 % band by a transform is the same picture as moving a 300 % background. -/
+theorem band_eq_bgpos (w : Rat) (hw : 0 < w) (v t : Rat) : color (bandU w (-2 * w * pos t) v) = shown v t := by
+  have hw' : w ≠ 0 := by grind
+  have h : bandU w (-2 * w * pos t) v = imageU v (pos t) := by
+    simp only [bandU, imageU]
+    grind
+  rw [h]
+  rfl
+
 end Fw.Parts.PlatformSweep

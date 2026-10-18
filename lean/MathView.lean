@@ -1,4 +1,5 @@
 import Lean
+import Fw.Spec.AxReach
 /-!
 # Math view (ported from the kickoff scratch `04-mathview`, note 10/04)
 
@@ -195,7 +196,57 @@ structure Entry where
   heartbeats : Nat            -- heartbeats this entry cost (each entry has its own budget)
   error     : Option String := none  -- the export of this entry failed (lint failure)
   binders   : List String := []  -- names of a theorem's explicit, non-proof binders (for the quantifier lint)
-deriving ToJson
+deriving ToJson, FromJson
+
+/-- The export order, a total key (module, line, name); names are unique in an environment, so no two entries tie
+and the sorted export does not depend on the order in which the environment lists its constants.
+
+$$\forall a, b:\quad \operatorname{before}(a, b) \iff a.\mathit{mod} < b.\mathit{mod} \lor \big(a.\mathit{mod} = b.\mathit{mod} \land (a.\mathit{line} < b.\mathit{line} \lor (a.\mathit{line} = b.\mathit{line} \land a.\mathit{name} < b.\mathit{name}))\big)$$
+
+where $<$ on module and declaration names is the lexicographic order of their strings and on lines the order of
+$\mathbb{N}$. -/
+def Entry.before (a b : Entry) : Bool :=
+  a.module < b.module || (a.module == b.module && (a.line < b.line || (a.line == b.line && a.name < b.name)))
+
+/-- Two strings that differ are ordered one way or the other.
+
+$$\forall a, b \in \mathrm{String}:\quad a \ne b \Rightarrow a < b \lor b < a$$ -/
+theorem string_lt_or_gt (a b : String) (h : a ≠ b) : a < b ∨ b < a := by
+  by_cases h1 : a < b
+  · exact .inl h1
+  · by_cases h2 : b < a
+    · exact .inr h2
+    · exact absurd (String.le_antisymm (String.not_lt.mp h2) (String.not_lt.mp h1)) h
+
+/-- **The sort key is total.** Two entries with different names are ordered one way or the other, so sorting the
+export by `before` has no ties (premise E3 of `Fw.Console.LandSpeed.lintAll`).
+
+$$\forall a, b:\quad a.\mathit{name} \ne b.\mathit{name} \Rightarrow \operatorname{before}(a, b) \lor \operatorname{before}(b, a)$$ -/
+theorem Entry.before_total (a b : Entry) (h : a.name ≠ b.name) : a.before b = true ∨ b.before a = true := by
+  simp only [Entry.before, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq]
+  by_cases hm : a.module = b.module
+  · by_cases hl : a.line = b.line
+    · rcases string_lt_or_gt a.name b.name h with hn | hn
+      · exact .inl (.inr ⟨hm, .inr ⟨hl, hn⟩⟩)
+      · exact .inr (.inr ⟨hm.symm, .inr ⟨hl.symm, hn⟩⟩)
+    · rcases Nat.lt_or_gt_of_ne hl with hn | hn
+      · exact .inl (.inr ⟨hm, .inl hn⟩)
+      · exact .inr (.inr ⟨hm.symm, .inl hn⟩)
+  · rcases string_lt_or_gt a.module b.module hm with hn | hn
+    · exact .inl (.inl hn)
+    · exact .inr (.inl hn)
+
+/-- **The sort key is a strict order.** No entry comes before an entry that comes before it.
+
+$$\forall a, b:\quad \operatorname{before}(a, b) \Rightarrow \lnot \operatorname{before}(b, a)$$ -/
+theorem Entry.before_asymm (a b : Entry) (h : a.before b = true) : b.before a = false := by
+  simp only [Entry.before, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
+  simp only [Entry.before, Bool.or_eq_false_iff, Bool.and_eq_false_iff, beq_eq_false_iff_ne, ne_eq,
+    decide_eq_false_iff_not]
+  rcases h with h | ⟨hm, h | ⟨hl, h⟩⟩
+  · exact ⟨String.lt_asymm h, .inl (fun e => String.lt_irrefl _ (e ▸ h))⟩
+  · exact ⟨fun e => String.lt_irrefl _ (hm ▸ e), .inr ⟨Nat.lt_asymm h, .inl (fun e => Nat.lt_irrefl _ (e ▸ h))⟩⟩
+  · exact ⟨fun e => String.lt_irrefl _ (hm ▸ e), .inr ⟨fun e => Nat.lt_irrefl _ (hl ▸ e), .inr (String.lt_asymm h)⟩⟩
 
 def mathBlocks (doc : String) : List String :=
   match doc.splitOn "$$" with
@@ -247,9 +298,47 @@ def dataBinders (ci : ConstantInfo) : MetaM (List String) :=
       out := out ++ [d.userName.toString]
     return out
 
-/-- The export of one declaration (`none` when it is not a math-view entry). -/
-def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc : Option String) :
-    MetaM (Option Entry) := do
+/-! ## Axioms: one memo shared by all entries (spec and proofs: `Fw.Spec.AxReach`)
+
+`collectAxioms` starts every call from an empty cache, and with `loadExts := false` its per-module table is empty
+too, so each entry re-walked its whole closure (96 % of the lint, research/notes/2026/10-18-land-speed.md). Here the
+walk is `Fw.AxReach.query` over the same graph with one memo for the whole export; `Fw.AxReach.query_exact` proves
+each result is exactly the reachable axioms, the set the old per-call walk returned. -/
+
+/-- The constants `c` mentions, in the cases of Lean's `CollectAxioms.collect`
+(Lean/Util/CollectAxioms.lean:56-67 @ v4.35.0): type and value of a definition, theorem or opaque; the type of an
+axiom, constructor or recursor; the type and the constructors of an inductive; nothing for `Quot` or an unknown name.
+
+$$\mathit{succ}(c) = \begin{cases} \mathrm{consts}(\tau_c) \mathbin{+\!\!+} \mathrm{consts}(v_c) & c \text{ a def,
+theorem or opaque} \\ \mathrm{consts}(\tau_c) \mathbin{+\!\!+} \mathrm{ctors}(c) & c \text{ an inductive} \\ [\,] &
+c \text{ a quotient primitive or unknown} \\ \mathrm{consts}(\tau_c) & \text{otherwise} \end{cases}$$
+where $\tau_c$, $v_c$ and $\mathrm{ctors}(c)$ are the type, value and constructors of $\mathit{kenv}(c)$.
+-/
+def axSucc (kenv : Kernel.Environment) (c : Name) : List Name :=
+  match kenv.find? c with
+  | some (.axiomInfo v) => v.type.getUsedConstants.toList
+  | some (.defnInfo v) => (v.type.getUsedConstants ++ v.value.getUsedConstants).toList
+  | some (.thmInfo v) => (v.type.getUsedConstants ++ v.value.getUsedConstants).toList
+  | some (.opaqueInfo v) => (v.type.getUsedConstants ++ v.value.getUsedConstants).toList
+  | some (.quotInfo _) => []
+  | some (.ctorInfo v) => v.type.getUsedConstants.toList
+  | some (.recInfo v) => v.type.getUsedConstants.toList
+  | some (.inductInfo v) => v.type.getUsedConstants.toList ++ v.ctors
+  | none => []
+
+/-- Is `c` declared as an axiom in the kernel environment?
+
+$$\mathit{isAx}(c) = \mathrm{true} \iff \mathit{kenv}(c) = \mathrm{axiomInfo}(\_)$$
+(false for an unknown name and for every other kind)
+-/
+def axIsAx (kenv : Kernel.Environment) (c : Name) : Bool :=
+  match kenv.find? c with
+  | some (.axiomInfo _) => true
+  | _ => false
+
+/-- The export of one declaration (`none` when it is not a math-view entry); `axs` are its axioms, sorted. -/
+def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc : Option String)
+    (axs : Array Name) : MetaM (Option Entry) := do
   let line := ((← findDeclarationRanges? n).map (·.range.pos.line)).getD 0
   if line == 0 || (← isInstance n) || (← isProjectionFn n) then return none
   let start ← IO.getNumHeartbeats
@@ -265,7 +354,6 @@ def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc
       latex (eqnTy?.getD ci.type)) with
     | .ok t => pure t
     | .error _ => pure "?"
-  let axs ← collectAxioms n
   let binders ← match ci with
     | .thmInfo _ => dataBinders ci
     | _ => pure []
@@ -275,19 +363,36 @@ def entryOf (env : Environment) (n : Name) (ci : ConstantInfo) (mod : Name) (doc
     stmtHash := s!"{stmtHash env ci}", mathHash := s!"{mathHash doc}", axioms := axs.toList.map toString,
     sorryFree := !axs.contains ``sorryAx, line, binders, heartbeats := ← spentSince start }
 
-def entries : MetaM (Array Entry) := do
+/-- The math-view entries of the declarations of the modules `want` selects (every module by default), sorted by
+`Entry.before`. The module cache (`MathViewMain`) passes the modules whose key missed. -/
+def entries (want : Name → Bool := fun _ => true) : MetaM (Array Entry) := do
   let env ← getEnv
   let mut out := #[]
-  for (n, ci) in env.constants.toList do
+  -- the kernel view `collectAxioms` reads (Lean/Util/CollectAxioms.lean:56,151 @ v4.35.0)
+  let kenv := (env.setExporting false).toKernelEnv
+  let consts := env.constants.toList
+  -- the search stack holds distinct constants, so its depth stays below their number (+1 for an unknown leaf)
+  let fuel := consts.length + 2
+  let mut memo : Std.HashMap Name (List Name) := {}
+  for (n, ci) in consts do
     if skip env n ci then continue
     let some modIdx := env.getModuleIdxFor? n | continue
     let mod := env.header.moduleNames[modIdx.toNat]!
-    let doc ← findDocString? env n
+    if !want mod then continue
+    -- the declaring module's own docstring only: `findDocString?` also appends `recommended_spelling` and tactic-doc
+    -- extensions found in *every* imported module (Lean/Parser/Term/Doc.lean:60-68, Parser/Tactic/Doc.lean:250-258
+    -- @ v4.35.0), which would make an entry depend on modules outside its import cone (mathview-module-cache)
+    let doc ← findSimpleDocString? env n
     if n.isInternal || (n.toString.splitOn ".match_").length > 1 then continue
     -- derived-instance helpers (`instReprWork.repr`, `instToJsonCmd.toJson`, ...)
     if n.components.any (fun c => c.toString.startsWith "inst") then continue
     -- one declaration can never crash the export: its failure becomes a lint failure with its name
-    match ← bounded declBudget (entryOf env n ci mod doc) with
+    -- sorted like `collectAxioms`; out of fuel (not expected, see `fuel`) falls back to the old per-call walk
+    let mut axs : Array Name := #[]
+    match Fw.AxReach.query (axSucc kenv) (axIsAx kenv) fuel memo n with
+    | some (s, m') => memo := m'; axs := s.toArray.qsort Name.lt
+    | none => axs ← collectAxioms n
+    match ← bounded declBudget (entryOf env n ci mod doc axs) with
     | .ok none => pure ()
     | .ok (some e) => out := out.push e
     | .error msg =>
@@ -297,7 +402,7 @@ def entries : MetaM (Array Entry) := do
         english := (doc.map english).getD "", math := (doc.map mathBlocks).getD [], signature := "",
         autoTex := "?", stmtHash := "", mathHash := s!"{mathHash doc}", axioms := [], sorryFree := false, line, heartbeats := declBudget,
         error := some msg }
-  return out.qsort (fun a b => a.module < b.module || (a.module == b.module && a.line < b.line))
+  return out.qsort Entry.before
 
 /-- The axioms a finished proof may use. -/
 def standardAxioms : List String := ["propext", "Classical.choice", "Quot.sound"]
@@ -397,5 +502,77 @@ def warnEntry (lenient : Bool) (e : Entry) : List String :=
         else []
       if (stem :: initials).any (fun st => zones.any (hasToken · st)) then none
       else some s!"{e.name} ({e.module}:{e.line}): binder `{b}` is not quantified in the $$ math"
+
+/-! ## Module cache keys (task mathview-module-cache; model: `Fw.Console.LandSpeed.mkey`, `lint_modular`)
+
+$K(m) = H(m, \mathrm{blob}(m), t, [K(i)]_{i \in \mathrm{imp}(m)})$. The blob is the module's `.olean`, the file the
+export actually reads (so a stale build can never be stored under a fresh source's key); $t$ hashes the tool
+(MathView*.lean, Fw/Spec/AxReach.lean, lean-toolchain, lake-manifest.json, lakefile.toml). A toolchain import
+(`Init`, `Lean`, …) enters by name: the toolchain pin in $t$ covers its content. -/
+
+/-- A 64-bit value as exactly 16 lowercase hex digits.
+
+$$\forall x \in [0, 2^{64}):\quad \operatorname{hex}(x) = \texttt{0}^{\,16 \,\dot{-}\, |d(x)|} \mathbin{+\!\!+} d(x)$$
+
+where $d(x)$ is the base-16 digit string of $x$ (lowercase, no leading zeros, $d(0) = \texttt{0}$), so
+$|d(x)| \le 16$ and the result has 16 characters. -/
+def hex64 (x : UInt64) : String :=
+  let d := String.ofList (Nat.toDigits 16 x.toNat)
+  String.ofList (List.replicate (16 - d.length) '0') ++ d
+
+#guard hex64 0 == "0000000000000000"
+#guard hex64 255 == "00000000000000ff"
+#guard hex64 0xffffffffffffffff == "ffffffffffffffff"
+
+/-- The identity of a blob: its 64-bit hash (Lean's `ByteArray` hash) and its byte length.
+
+$$\forall b:\quad \operatorname{blobId}(b) = \operatorname{hex}(\mathrm{hash}(b)) \mathbin{+\!\!+} \texttt{-} \mathbin{+\!\!+} \operatorname{dec}(|b|)$$
+
+where $|b|$ is the number of bytes and $\operatorname{dec}$ its decimal digits. -/
+def blobId (b : ByteArray) : String := hex64 (hash b) ++ "-" ++ toString b.size
+
+#guard blobId (ByteArray.mk #[1, 2]) != blobId (ByteArray.mk #[2, 1])
+#guard (blobId ByteArray.empty).endsWith "-0"
+
+/-- The canonical text a module key hashes: a version tag, the module name, its blob id, the tool hash and the keys
+of its imports in import order, separated by `|` and `,` (neither occurs in a module name, a blob id or a key).
+
+$$\forall m, b, t,\ \forall n \in \mathbb{N},\ \forall k_1, \dots, k_n:\quad \operatorname{keyText}(m, b, t, [k_1, \dots, k_n]) = \texttt{mathview-mod-v1|}\, m \,\texttt{|}\, b \,\texttt{|}\, t \,\texttt{|}\, \operatorname{join}_{\texttt{,}}(k_1, \dots, k_n)$$
+
+where $\operatorname{join}_{\texttt{,}}$ puts one `,` between neighbours: it is $k_1$ when $n = 1$ and empty when
+$n = 0$ (nothing after the last `|`). -/
+def keyText (m b t : String) (imps : List String) : String :=
+  "mathview-mod-v1|" ++ m ++ "|" ++ b ++ "|" ++ t ++ "|" ++ ",".intercalate imps
+
+#guard keyText "Fw.A" "b" "t" [] == "mathview-mod-v1|Fw.A|b|t|"
+#guard keyText "Fw.A" "b" "t" ["k1", "k2"] == "mathview-mod-v1|Fw.A|b|t|k1,k2"
+
+/-- The module key, used as $K(m) = \operatorname{modKey}(m, b, t, [K(i) \text{ for each import } i])$: two 64-bit string hashes of the key text with different one-letter prefixes, as 32 hex
+digits (the hash $H$ of `Fw.Console.LandSpeed.mkey`; its injectivity is the assumption `HInj`).
+
+$$\forall m, b, t, \vec k:\quad \operatorname{modKey}(m, b, t, \vec k) = \operatorname{hex}(\mathrm{hash}(\texttt{a} \mathbin{+\!\!+} s)) \mathbin{+\!\!+} \operatorname{hex}(\mathrm{hash}(\texttt{b} \mathbin{+\!\!+} s)),\quad s = \operatorname{keyText}(m, b, t, \vec k)$$
+
+Up to a hash collision, the key changes when the module, its blob, the tool or any import key changes. -/
+def modKey (m b t : String) (imps : List String) : String :=
+  let s := keyText m b t imps
+  hex64 (hash ("a" ++ s)) ++ hex64 (hash ("b" ++ s))
+
+#guard (modKey "Fw.A" "b" "t" []).length == 32
+#guard modKey "Fw.A" "b" "t" ["k"] == modKey "Fw.A" "b" "t" ["k"]
+#guard modKey "Fw.A" "b" "t" ["k"] != modKey "Fw.A" "b2" "t" ["k"]
+#guard modKey "Fw.A" "b" "t" ["k"] != modKey "Fw.A" "b" "t2" ["k"]
+#guard modKey "Fw.A" "b" "t" ["k"] != modKey "Fw.A" "b" "t" ["k2"]
+#guard modKey "Fw.A" "b" "t" ["k"] != modKey "Fw.B" "b" "t" ["k"]
+
+/-- May a module's fresh entries be stored? Only when no entry's export failed: a failure can be a heartbeat
+timeout, and heartbeats depend on the Meta caches the run shares across modules, so a failure is not a function of
+the key.
+
+$$\forall E:\quad \operatorname{storable}(E) \iff \forall e \in E:\ e.\mathit{error} = \bot$$
+
+where $\bot$ is `none`; true for the empty array ($|E| = 0$). -/
+def storable (es : Array Entry) : Bool := es.all (·.error.isNone)
+
+#guard storable #[]
 
 end MathView

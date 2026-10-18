@@ -3,7 +3,9 @@
 // typed commands, and prints a digest. It merges (never rebases), never pushes, never forces, and touches only the
 // lead's main checkout (plus removing a finished, clean, unlocked worktree of the landed branch).
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { availableParallelism, loadavg } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
@@ -35,6 +37,8 @@ export type LandOptions = {
   submit?: (cmd: Command) => Promise<{ status: number; body: any }>;
   /** checks run in the main checkout after the merge, before it is committed; default: derived from the changed files */
   checks?: string[][];
+  /** Max checks running at once (default: the number of cores). */
+  concurrency?: number;
   env?: Record<string, string | undefined>;
   /** work-graph task this landing completes: merged with --no-ff and a `Task: <id>` trailer; the reconciler then
    *  derives task.done from that trailer (the only evidence route) */
@@ -51,6 +55,12 @@ export type LandOptions = {
   base?: string;
   /** pause between the two attempts of a post-commit step (ms); default 700 */
   retryMs?: number;
+  /** check the merge in a dedicated land worktree before the lock and fast-forward under it (default true); false = the locked protocol only */
+  prelock?: boolean;
+  /** re-checks after main moved before the fallback to the locked protocol (default PRELOCK_RETRIES) */
+  retries?: number;
+  /** how long to wait for another land's (sub-second) lock before refusing (ms); default 10000 */
+  lockWaitMs?: number;
 };
 /** `ok` = main was changed (or, on a refusal, left as it was). Post-commit trouble never turns it false: it is in `warnings`
  *  (also printed as lines) with the commands that finish the job. */
@@ -90,21 +100,129 @@ export function worktreeOf(cwd: string, ref: string): string | null {
 
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
 
-/** Checks that cover the changed files: the Lean gates for lean/, the package's own tests for apps/<n>/ and packages/<n>/. */
-export function checksFor(root: string, changed: string[]): string[][] {
-  const out: string[][] = [];
-  // a new or changed dependency must be installed before any package test runs (a new workspace package is otherwise
-  // unresolvable: TS2307 on the first landing of packages/gh-budget)
-  if (changed.some((f) => f === "pnpm-lock.yaml" || /(^|\/)package\.json$/.test(f))) out.push(["pnpm", "install", "--frozen-lockfile"]);
-  if (changed.some((f) => f.startsWith("lean/"))) out.push(["sh", "lean/scripts/check.sh"]);
-  const pkgs = new Set<string>();
-  for (const f of changed) { const m = /^(apps|packages)\/([^/]+)\//.exec(f); if (m) pkgs.add(`${m[1]}/${m[2]}`); }
-  for (const p of [...pkgs].sort()) {
-    try {
-      if (JSON.parse(readFileSync(join(root, p, "package.json"), "utf8")).scripts?.test) out.push(["pnpm", "--filter", `./${p}`, "test"]);
-    } catch { /* no package.json: nothing to run */ }
+/** A check with its declared input set: path globs in the `Fw.Ops.PathCheck` syntax (`!` excludes). The premise
+ *  `land.readsOnly` says the check's verdict depends only on the files these globs select. */
+export type Check = { id: string; argv: string[]; reads: string[] };
+
+// --- TS stand-in for Lean `Fw.Ops.PathCheck.inScope` (lean/Fw/Ops/PathCheck.lean:26-82); marked for Lean replacement
+// (an `fwcore` op); checked against the `landSpeed.select` golden (test/land-inputs.test.ts).
+const segs = (s: string) => s.split("/").filter((x) => x !== "" && x !== ".");
+const segMatch = (g: string, s: string): boolean => {
+  if (g === "") return s === "";
+  if (g[0] === "*") return segMatch(g.slice(1), s) || (s !== "" && segMatch(g, s.slice(1)));
+  return s !== "" && g[0] === s[0] && segMatch(g.slice(1), s.slice(1));
+};
+const globMatch = (g: string[], p: string[]): boolean => {
+  if (g.length === 0) return p.length === 0;
+  if (g[0] === "**") return globMatch(g.slice(1), p) || (p.length > 0 && globMatch(g, p.slice(1)));
+  return p.length > 0 && segMatch(g[0]!, p[0]!) && globMatch(g.slice(1), p.slice(1));
+};
+const matchesPath = (g: string[], p: string[]) => p.some((_, k) => globMatch(g, p.slice(0, k + 1)));
+/** `inScope(parseScope(globs), path)` */
+export function inScope(globs: string[], path: string): boolean {
+  const p = segs(path);
+  const incl = globs.filter((g) => !g.startsWith("!")).map(segs);
+  const excl = globs.filter((g) => g.startsWith("!")).map((g) => segs(g.slice(1)));
+  return p.length > 0 && !p.includes("..") && incl.some((g) => matchesPath(g, p)) && !excl.some((g) => matchesPath(g, p));
+}
+/** `selectChecks`: ids of the checks one of whose declared globs covers a changed path, in table order. */
+export const selectChecks = (ds: { id: string; reads: string[] }[], changed: string[]) =>
+  ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
+
+/** What `lean/scripts/check.sh` reads: Lean `Fw.Console.LandSpeed.checkShReads` (equal to the golden's declaration). */
+export const CHECK_SH_READS = ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "scripts/span.sh"];
+export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
+/** Files a package's tests read outside their own directory and outside their `workspace:` dependencies, found by the
+ *  static scan in test/land-inputs.test.ts (which fails on any it finds that is not covered here). Dynamic reads the scan
+ *  cannot see are listed in docs/team/handoffs/checksfor-inputs.md. */
+export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
+  "apps/console-api": ["apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**"],
+  "apps/runner": ["apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
+    "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh"],
+  "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/contracts/golden/parts/**"],
+  "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
+  "packages/measure-chromium": ["packages/contracts/golden/measure/**", "results/baselines/chromium/**"],
+  "packages/gate-breakpoints": ["packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**"],
+  "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
+    "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
+  "packages/measure-webkit": ["packages/contracts/golden/measure/**"],
+  "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
+};
+
+/** Directories of the `workspace:` dependencies of a package (`@fw/x` is `packages/x` or `apps/x`). */
+function workspaceDeps(root: string, pkg: any): string[] {
+  const out: string[] = [];
+  for (const [n, v] of Object.entries({ ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies } as Record<string, string>)) {
+    if (!String(v).startsWith("workspace:")) continue;
+    const base = n.replace(/^@[^/]+\//, "");
+    const d = ["packages", "apps"].map((t) => `${t}/${base}`).find((x) => existsSync(join(root, x, "package.json")));
+    if (d) out.push(d);
   }
   return out;
+}
+
+/** Every check that can run in `root`, with its declared reads, in the order they run: install, the Lean gates, then the
+ *  packages that have a `test` script (sorted). Which of them a change selects is `selectChecks` (Lean `landSpeed.select`). */
+/** Packages whose tests run the `fwcore` binary (built from lean/**): a Lean change can change their verdict. Found by the scan
+ *  in test/land-inputs.test.ts. Declared as `lean/**` (it holds the toolchain files) while `LEAN_BINARY_READS` is true
+ *  (lead decision: cache_sound needs every real read declared), so a Lean change selects all of them. */
+export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr"];
+export const LEAN_BINARY_READS = true;
+
+/** For each check of `list`, the indices it must wait for: `pnpm install` first; the fwcore users (FWCORE_USERS) after
+ *  `sh lean/scripts/check.sh`, whose `lake build` writes the binary they run. Everything else is independent. */
+export function checkDeps(list: string[][]): number[][] {
+  const isInstall = (a: string[]) => a[0] === "pnpm" && a[1] === "install";
+  const isCheckSh = (a: string[]) => a[0] === "sh" && a[1] === "lean/scripts/check.sh";
+  const usesCore = (a: string[]) => a[0] === "pnpm" && a[1] === "--filter" && FWCORE_USERS.some((p) => a[2] === `./${p}`);
+  const idx = (f: (a: string[]) => boolean) => list.flatMap((a, i) => (f(a) ? [i] : []));
+  const inst = idx(isInstall), sh = idx(isCheckSh);
+  return list.map((a, i) => [...(isInstall(a) ? [] : inst), ...(usesCore(a) ? sh : [])].filter((d) => d !== i));
+}
+
+export function candidateChecks(root: string, fwcoreReads = LEAN_BINARY_READS): Check[] {
+  const out: Check[] = [
+    { id: "install", argv: ["pnpm", "install", "--frozen-lockfile"], reads: INSTALL_READS },
+    { id: "check.sh", argv: ["sh", "lean/scripts/check.sh"], reads: CHECK_SH_READS },
+  ];
+  for (const t of ["apps", "packages"]) {
+    let names: string[] = [];
+    try { names = readdirSync(join(root, t)).sort(); } catch { /* no such directory */ }
+    for (const n of names) {
+      const p = `${t}/${n}`;
+      try {
+        const pkg = JSON.parse(readFileSync(join(root, p, "package.json"), "utf8"));
+        if (pkg.scripts?.test) out.push({ id: p, argv: ["pnpm", "--filter", `./${p}`, "test"],
+          reads: [`${p}/**`, ...workspaceDeps(root, pkg).map((d) => `${d}/**`), ...(PACKAGE_EXTRA_READS[p] ?? []), ...(fwcoreReads && FWCORE_USERS.includes(p) ? ["lean/**"] : [])] });
+      } catch { /* no package.json: nothing to run */ }
+    }
+  }
+  return out;
+}
+
+/** The checks that cover the changed files, each with its declared input set. */
+export function checksWithReads(root: string, changed: string[], fwcoreReads = LEAN_BINARY_READS): Check[] {
+  const all = candidateChecks(root, fwcoreReads);
+  const ids = new Set(selectChecks(all, changed));
+  return all.filter((c) => ids.has(c.id));
+}
+
+/** Content key of a check's declared inputs: sha256 over the sorted (path, content hash) of the tracked files its globs
+ *  select. Premise: equal keys give equal verdicts (`cache_sound`). Not used for caching yet. */
+export function inputKey(root: string, reads: string[]): string {
+  const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter((f) => f && inScope(reads, f)).sort();
+  const h = createHash("sha256");
+  for (const f of files) {
+    let c: Buffer | string = "";
+    try { c = readFileSync(join(root, f)); } catch { c = "<missing>"; }
+    h.update(`${f}\0${createHash("sha256").update(c).digest("hex")}\n`);
+  }
+  return h.digest("hex");
+}
+
+/** Checks that cover the changed files (argv only). */
+export function checksFor(root: string, changed: string[]): string[][] {
+  return checksWithReads(root, changed).map((c) => c.argv);
 }
 
 /** One `gh run list` call, advisory only. */
@@ -133,6 +251,61 @@ export function writeEvidence(dir: string, task: string, evidence: string): "wri
   } catch { return "failed"; }
 }
 
+/** What to do after the pre-lock checks, given where `HEAD` is now. TS stand-in for Lean `Fw.Console.LandSpeed.prelockAction`
+ *  (lean/Fw/Console/LandSpeed.lean:497; `prelockAction_pre`, `prelockAction_fallback`); marked for Lean replacement (an `fwcore`
+ *  op); checked against the `landSpeed.prelock` golden (test/land-prelock.test.ts). Attempts count from 0. */
+export type PreAct = "ff" | "refuse" | "recheck" | "fallback";
+export const prelockAction = (head: string, main0: string, verdict: boolean, attempt: number, maxRetry: number): PreAct =>
+  head === main0 ? (verdict ? "ff" : "refuse") : attempt < maxRetry ? "recheck" : "fallback";
+export const PRELOCK_RETRIES = 3;
+
+/** Checks that may run at once. TS stand-in for Lean `Fw.Console.LandSpeed.poolSize` (`poolSize_pos`, `poolSize_anti_load`,
+ *  `poolSize_mono_cores`); marked for Lean replacement; `loadCeil` is the one-minute load average rounded up. */
+export const poolSize = (cores: number, loadCeil: number): number => Math.max(1, cores - loadCeil);
+/** A failure that load, not the code, can cause: a timeout (vitest "timed out in 5000ms", a killed child). */
+export const LOAD_FAILURE_RE = /timed out in \d+\s*ms|ETIMEDOUT|Hook timed out|Test timed out/;
+
+/** One slot of the land worktrees (`<main>/.claude/land-wt/<n>`, gitignored, persistent so its `.lake` and `node_modules` stay warm).
+ *  A slot is claimed by a pid file; a claim of a dead pid is taken over. One slot per concurrent land. */
+export function claimLandWt(mainDir: string): { dir: string; free: () => void } {
+  const root = join(mainDir, ".claude", "land-wt");
+  mkdirSync(root, { recursive: true });
+  for (let n = 0; ; n++) {
+    const claim = join(root, `${n}.claim`);
+    for (let again = 0; again < 2; again++) {
+      try { writeFileSync(claim, `${process.pid}\n`, { flag: "wx" }); return { dir: join(root, String(n)), free: () => { try { unlinkSync(claim); } catch { /* gone */ } } }; }
+      catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+        const pid = Number(readFileSync(claim, "utf8").trim());
+        if (alive(pid)) break;
+        try { unlinkSync(claim); } catch { /* raced */ }
+      }
+    }
+  }
+}
+
+/** Put exactly the tree of `commit` in the land worktree `dir` (created on first use): detached checkout, then every
+ *  untracked or ignored file removed except `.lake` and `node_modules` (kept warm). */
+export function checkoutLandWt(mainDir: string, dir: string, commit: string, prep?: (dir: string) => void): void {
+  const known = existsSync(dir) && worktrees(mainDir).some((w) => existsSync(w.dir) && realpathSync(w.dir) === realpathSync(dir));
+  if (!known) {
+    tryGit(mainDir, ["worktree", "prune"]);
+    rmSync(dir, { recursive: true, force: true });
+    git(mainDir, ["worktree", "add", "--detach", "--force", dir, commit]);
+    prep?.(dir);
+  } else git(dir, ["checkout", "--detach", "--force", commit]);
+  git(dir, ["clean", "-fdxq", "-e", ".lake", "-e", "node_modules"]);
+}
+
+/** First land worktree use: clone the warm Lean build and install node_modules offline (scripts/wt-prep.sh); best effort. */
+const prepLandWt = (dir: string) => {
+  if (!existsSync(join(dir, "scripts/wt-prep.sh"))) return;
+  try { execFileSync("sh", ["scripts/wt-prep.sh"], { cwd: dir, stdio: "ignore" }); } catch { /* the checks build what is missing */ }
+  if (existsSync(join(dir, "pnpm-lock.yaml"))) { try { execFileSync("pnpm", ["install", "--offline", "--frozen-lockfile"], { cwd: dir, stdio: "ignore" }); } catch { /* the install check retries online */ } }
+};
+
+type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string } | { kind: "fallback"; why: string };
+
 type PlanTask = { id: string; state: string; owner?: string; stream?: string; writes?: string[] };
 
 /** Facts for `console.landPick`: is `branch` already in main, and the branches that could hold its work (`ci/<task>` and every
@@ -151,7 +324,13 @@ export function pickFacts(cwd: string, main: string, branch: string, task?: stri
   return { givenAhead, others: [...names].map((name) => ({ name, ahead: !inMain(name), contains: tryGit(cwd, ["merge-base", "--is-ancestor", branch, name]) })) };
 }
 
+/** One `fw land` as one span ("fw land" / "total"): its 30 s ceiling is Lean `Fw.Obs.Timing.landCeilings`. A nested land (`via`) is part of the outer span. */
 export async function land(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
+  const end = via ? () => {} : begin("fw land", "total");
+  try { const r = await landRun(branch, o, via); end(r.ok ? 0 : 1); return r; } catch (e) { end(1); throw e; }
+}
+
+async function landRun(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
   const lines: string[] = via ? [`${via} has nothing to land; landing ${branch}, which is ahead of it and contains it`] : [];
   const fail = (m: string): LandResult => { lines.push(`REFUSED: ${m}`); return { ok: false, lines }; };
   const main = o.mainRef ?? "main";
@@ -245,22 +424,133 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
     c.on("error", (e) => done(null, e));
     c.on("close", (code) => done(code));
   });
+  // Scheduling only; the selection is `checksFor`. Soundness: Lean `Fw.Console.LandSpeed.verdict_perm` (the verdict is the
+  // conjunction of the check verdicts, independent of order and of completion), so running independent checks concurrently
+  // and collecting every verdict gives the same accept/refuse as the sequential first-failure run; it only lists more failures.
+  // Dependencies (`checkDeps`): everything waits for `pnpm install`; fwcore users wait for check.sh (its `lake build` writes
+  // the binary they run). A bounded pool (cores) starts a check when its dependencies have finished.
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
-    for (const argv of list) {
-      const p = await span("fw land", argv.join(" "), () => runCheck(cwd, argv), (r) => r.status); // timing-spans
-      const out = `${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}`;
-      mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
-      if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
-      appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${out}\n[exit ${p.status}]\n\n`);
-      if (p.status !== 0) {
-        const tail = out.split("\n").filter((l) => l !== "").slice(-30).join("\n");
-        return `check FAILED: ${argv.join(" ")}\nlog: ${logFile}\n${tail}`;
-      }
-      lines.push(`check ok: ${argv.join(" ")}`);
+    mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
+    if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
+    const deps = checkDeps(list);
+    const results: ({ status: number | null; out: string } | undefined)[] = list.map(() => undefined);
+    const started = new Set<number>();
+    let running = 0;
+    const limit = Math.max(1, o.concurrency ?? poolSize(availableParallelism(), Math.ceil(loadavg()[0] ?? 0)));
+    await new Promise<void>((done) => {
+      const pump = () => {
+        for (let i = 0; i < list.length && running < limit; i++) {
+          if (started.has(i) || !deps[i]!.every((d) => results[d])) continue;
+          started.add(i); running++;
+          const argv = list[i]!;
+          void span("fw land", argv.join(" "), () => runCheck(cwd, argv), (r) => r.status).then((p) => { // timing-spans
+            results[i] = { status: p.status, out: `${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
+            running--; pump();
+          });
+        }
+        if (results.every(Boolean)) done();
+      };
+      pump();
+    });
+    // A land is never refused because the machine is busy: a check that failed with a timeout is run once more, alone (pool 1),
+    // and its second result counts (the verdict is still the conjunction of the final results: `verdict_perm`).
+    for (let i = 0; i < list.length; i++) {
+      const r0 = results[i]!;
+      if (r0.status === 0 || !LOAD_FAILURE_RE.test(r0.out)) continue;
+      const argv = list[i]!;
+      const p = await span("fw land", `${argv.join(" ")} (retry alone: timed out under load)`, () => runCheck(cwd, argv), (r) => r.status);
+      results[i] = { status: p.status, out: `${r0.out}\n[timed out under load; re-run alone]\n${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
     }
-    return null;
+    const bad: string[] = [];
+    list.forEach((argv, i) => {
+      const r = results[i]!;
+      appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${r.out}\n[exit ${r.status}]\n\n`);
+      if (r.status !== 0) {
+        const tail = r.out.split("\n").filter((l) => l !== "").slice(-30).join("\n");
+        bad.push(`check FAILED: ${argv.join(" ")}\nlog: ${logFile}\n${tail}`);
+      } else lines.push(`check ok: ${argv.join(" ")}`);
+    });
+    return bad.length ? bad.join("\n\n") : null;
   };
   const checks = o.checks ?? checksFor(mainDir, changed);
+
+  // Pre-lock protocol (research/notes/2026/10-18-land-speed.md P3; Lean `Fw.Console.LandSpeed`: pre_eq_old_iff, preLand_commit_exact):
+  // C = commit(merge-tree(main0, tip) + evidence, parents [main0, tip]) is built and checked in a land worktree with NO lock;
+  // under the lock only `HEAD = main0` is compared and C is fast-forwarded (sub-second). Main moved: re-check (bounded), then fall
+  // back to the locked protocol below.
+  const preLock = async (): Promise<PreResult> => {
+    const maxRetry = o.retries ?? PRELOCK_RETRIES;
+    const trailer = [`Task: ${o.task}`, ...(allow.length ? [`Land-Allow: ${allow.join(", ")}`] : []), ...(o.attribution ?? ATTRIBUTION)].join("\n");
+    const slot = claimLandWt(mainDir);
+    let requested = false;
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const main0 = git(mainDir, ["rev-parse", "HEAD"]);
+        if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) return { kind: "refuse", msg: `${branch} has nothing to land (already in ${main})` };
+        let tree: string;
+        try { tree = git(mainDir, ["-c", `attr.tree=${main0}`, "merge-tree", "--write-tree", main0, sha]).split("\n")[0]!; }
+        catch { return { kind: "fallback", why: `${main} cannot merge ${branch} cleanly` }; }
+        const mk = (t: string) => git(mainDir, ["commit-tree", t, "-p", main0, "-p", sha, "-m", `land ${branch}`, "-m", trailer]);
+        let c = mk(tree);
+        checkoutLandWt(mainDir, slot.dir, c, o.checks ? undefined : prepLandWt);
+        // the task's evidence goes into the merge commit, and into the checked tree (the checked tree is the committed tree)
+        const ev = writeEvidence(slot.dir, o.task!, sha.slice(0, 7));
+        if (ev === "failed") return { kind: "refuse", msg: "could not write the evidence into docs/team/work-graph.json" };
+        if (ev === "written") { c = mk(git(slot.dir, ["write-tree"])); if (attempt === 0) lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`); }
+        let marks = "";
+        try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
+        if (marks) return { kind: "refuse", msg: `conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}` };
+        const bad = await runChecks(slot.dir, o.checks ?? checksFor(slot.dir, changed));
+        let act = prelockAction(git(mainDir, ["rev-parse", "HEAD"]), main0, bad === null, attempt, maxRetry);
+        if (act === "refuse") return { kind: "refuse", msg: bad! };
+        if (act === "ff") {
+          if (!requested) { requested = true; const e = await requestLand(); if (e) return { kind: "refuse", msg: e }; }
+          const wait = Date.now() + (o.lockWaitMs ?? 10_000);
+          const lf = lockFile(mainDir);
+          let lock: ReturnType<typeof takeLock> = null;
+          while (!lock) {
+            const lk0 = lockFacts(lf);
+            const lv = askCore("console.landLock", { held: lk0.held, alive: lk0.alive });
+            const holder = lk0.lock ? `pid ${lk0.lock.pid}, branch ${lk0.lock.branch ?? "?"}, since ${lk0.lock.at ?? "?"}` : "";
+            if (!lv) return { kind: "refuse", msg: "fwcore is not available to decide the land lock (build lean/.lake)" };
+            if (lv.verdict === "stale") return { kind: "refuse", msg: `stale land lock ${lf} (${holder}; that process is gone). It was not removed: look at \`git status\` in ${mainDir} (an open merge: git merge --abort), then delete the file` };
+            if (lv.verdict === "busy") {
+              if (Date.now() >= wait) return { kind: "refuse", msg: `another fw land holds ${lf} (${holder}); wait for it` };
+              await new Promise((r) => setTimeout(r, 100));
+              continue;
+            }
+            lock = takeLock(lf, { branch, pre: main0, dir: realpathSync(mainDir) });
+          }
+          const endLock = begin("fw land", "lock held"); // from take to release; its 5 s ceiling is Lean `Fw.Obs.Timing.landCeilings`
+          let released = false;
+          const release = () => { if (!released) { released = true; endLock(0); dropLock(lf, lock!.token); } };
+          const onSig = (code: number) => () => { release(); process.exit(code); };
+          const onInt = onSig(130), onTerm = onSig(143);
+          process.once("SIGINT", onInt); process.once("SIGTERM", onTerm);
+          try {
+            const head = git(mainDir, ["rev-parse", "HEAD"]);
+            act = prelockAction(head, main0, true, attempt, maxRetry);
+            if (act === "ff") {
+              // Lean landTip with these facts: the lock is ours, the commit to advance to is C, HEAD is still main0
+              const d = askCore("console.landCommit", { locked: readLock(lf)?.token === lock.token, mergeHead: c, head, pre: main0 });
+              if (!d?.ok) return { kind: "refuse", msg: `will not fast-forward: ${d ? d.reason : "fwcore is not available to decide"}. ${main} is at ${tryHead(mainDir)}, the land started at ${main0.slice(0, 7)}; ${main} was not changed` };
+              if (!span("fw land", "merge commit", () => tryGit(mainDir, ["merge", "--ff-only", c]), (ok) => (ok ? 0 : 1)))
+                return { kind: "refuse", msg: `${main} could not fast-forward to the checked commit ${c.slice(0, 7)} (uncommitted changes in ${mainDir} that the land touches?); ${main} was not changed` };
+              return { kind: "done", sha: c };
+            }
+          } finally { process.off("SIGINT", onInt); process.off("SIGTERM", onTerm); release(); }
+        }
+        if (act === "fallback") return { kind: "fallback", why: `${main} moved ${maxRetry + 1} times while the checks ran` };
+        lines.push(`${main} moved during the checks (attempt ${attempt + 1}); checking again against the new ${main}`);
+      }
+    } finally { slot.free(); }
+  };
+  let pre: PreResult = { kind: "fallback", why: "pre-lock off" };
+  if (o.task && o.prelock !== false) {
+    pre = await preLock();
+    if (pre.kind === "refuse") return fail(pre.msg);
+    if (pre.kind === "fallback") lines.push(`pre-lock check not possible (${pre.why}); using the locked protocol`);
+  }
 
   let mergeSha: string;
   if (!o.task) {
@@ -274,6 +564,8 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
     endMerge(ffOk ? 0 : 1);
     if (!ffOk) return fail(`${main} cannot fast-forward to ${branch}`);
     mergeSha = git(mainDir, ["rev-parse", "HEAD"]);
+  } else if (pre.kind === "done") {
+    mergeSha = pre.sha;
   } else {
     // 3. take the land lock (Lean: console.landLock), merge into the main checkout without committing, check, commit, release.
     // While the lock is held the pre-commit hook (hooks/land-guard.mjs) refuses every other commit in this checkout.
@@ -288,7 +580,8 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
     const lock = takeLock(lf, { branch, pre, dir: realpathSync(mainDir) });
     if (!lock) return fail(`another fw land took ${lf} just now; wait for it`);
     let released = false;
-    const release = () => { if (!released) { released = true; dropLock(lf, lock.token); } };
+    const endLock = begin("fw land", "lock held"); // from take to release; its 5 s ceiling is Lean `Fw.Obs.Timing.landCeilings`
+    const release = () => { if (!released) { released = true; endLock(0); dropLock(lf, lock.token); } };
     // the facts of `console.landCommit`: is the lock still ours, is MERGE_HEAD there, where is HEAD
     const facts = () => {
       let mh: string | null = null;

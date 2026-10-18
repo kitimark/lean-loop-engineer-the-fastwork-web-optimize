@@ -128,7 +128,7 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     const failList = [...fails.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
     const infoList = [...infos.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
-    result.engines[engine] = { browser: run.header.browser, ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
+    result.engines[engine] = { browser: run.header.browser, flags: flagsOf(run.header), ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
     md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel));
   }
 
@@ -137,6 +137,15 @@ export function summarize(outDir, { parts: requested = null } = {}) {
   process.stdout.write(md.join('\n') + '\n');
   return result;
 }
+
+/** The flags the rewrite arm ran with (header.flags; runs made before the field existed ran the default config: `unrecorded`). */
+export const flagsOf = (header) => header.flags ?? { search: null, configHash: null };
+/** One summary line: the regression check of incident inc-variant-gate-flags-off (a flagged run must say so; empty = default config). */
+export const flagsLine = (header) => {
+  const f = flagsOf(header);
+  if (f.search === null) return '**Flags: unrecorded (run made before the harness recorded them; assume none).**';
+  return `**Flags: ${f.search === '' ? '(none, the default config)' : f.search} - config ${f.configHash} (read from the loaded page).**`;
+};
 
 /** A table cell (Lean's tally: verdict, failing / comparable probes, unreachable probes). `unreachable:<reason>` = every probe
  *  of the cell is unreachable on this engine port (proved in Fw.Gate.Reach); mixed cells show the unreachable count after. */
@@ -148,7 +157,7 @@ const cell = (c) => {
 
 function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel) {
   const cols = [...blocks, ...sweepRows.map((s) => `sweep:${s.id}`)];
-  const out = [`## ${engine} (${header.browser})`, '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), \`+n unreachable\` = n such probes left out of the count / - = block not run.`, ''];
+  const out = [`## ${engine} (${header.browser})`, '', flagsLine(header), '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), \`+n unreachable\` = n such probes left out of the count / - = block not run.`, ''];
   // No silent narrowing: a narrowed verdict says which parts it covers and which it does not. matchMedia rows are
   // part-independent (every load collects them), so they stay in the table.
   if (sel.narrowed) out.push(`**Narrowed to parts: ${sel.covered.join(', ')}. Skipped (no verdict for them): ${sel.skipped.join(', ')}.** The matchMedia rows are not part-specific and are kept.`, '');

@@ -1,3 +1,4 @@
+import "./land-timeout.ts";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../console-api/src/app.ts";
 import { selectCore } from "../../console-api/src/core/index.ts";

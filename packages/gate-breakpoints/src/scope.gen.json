@@ -1047,7 +1047,19 @@
      "id": "html.viewport-meta"},
     {"why": "link preload on pointer events: network only, no visual effect", "id": "js.preload-hover"},
     {"why": "user agent, not a media feature; no visual effect", "id": "js.firefox-ua"}],
-   "conditions": {"rewrite": [], "orig": ["mq.rm-reduce"]}}},
+   "conditions": {"rewrite": [], "orig": ["mq.rm-reduce"]}},
+  "engine.scene":
+  {"sweeps": [],
+   "probes": ["desk-319"],
+   "owners": ["engine.scene"],
+   "knees": [],
+   "key": [],
+   "extra": [],
+   "dismissed":
+   [{"why":
+     "scene active when its rect is within [-innerHeight, 2 x innerHeight] (IntersectionObserver, rootMargin 100%): viewport height at a scroll position, not a width edge; the gate loads at the top",
+     "id": "js.scene-activation"}],
+   "conditions": {"rewrite": [], "orig": []}}},
  "matrixProbes": 124,
  "hypothesis":
  "H: on a fixed engine port, a part's verdict at a fresh load depends only on its key (the truth vector of the part's key queries), and at a sweep stop only on the key history so far with repeats collapsed; it is never unreachable except by the port's proved reason (Fw.Gate.envReason). H fails if the part reads a condition outside its key, if the rewrite's media text differs from Lean's, or if a continuous value differs between the arms at some widths of one key class only. The full matrix (no --parts) stays the gate of record.",

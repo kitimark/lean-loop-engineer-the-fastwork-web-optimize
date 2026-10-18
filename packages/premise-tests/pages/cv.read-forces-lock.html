@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>cv.read-forces-lock</title>
+<style>
+  body { margin: 0 }
+  .spacer { height: 4000px }
+  #cv { content-visibility: auto; contain-intrinsic-size: auto 200px; width: 400px }
+  #m { margin-left: auto; margin-right: auto; width: 100px; height: 20px; background: #888 }
+  #d { display: none }
+  #dm { margin-left: auto; width: 50px }
+</style>
+<div class="spacer"></div>
+<section id="cv"><div id="m"></div><div id="d"><div id="dm"></div></div></section>
+<script>
+  // The engine's own signal that the subtree is skipped, recorded without reading any style.
+  window.__cv = [];
+  document.getElementById('cv').addEventListener('contentvisibilityautostatechange', (e) => window.__cv.push(e.skipped));
+</script>
