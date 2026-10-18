@@ -3,6 +3,7 @@ import Fw.Console.Land
 import Fw.Console.Self
 import Fw.Console.LandPool
 import Fw.Console.Alert
+import Fw.Console.Preview
 import Fw.Plan.Trailer
 import Fw.Plan.Lint
 /-!
@@ -23,6 +24,12 @@ imports it, so it decodes the card fields it needs itself).
 | `console.landPick` | `givenAhead`, `others`? [{name, ahead, contains}] | `pick` (`given`/`other`/`nothing`/`ambiguous`), `branch`, `names` |
 | `console.landPool` | `cores`, `load` (one-minute load average rounded up) | `pool` (`Fw.Console.LandPool.poolFair`) |
 | `console.landRetry` | `passed`, `loadFailure` | `rerun` (`Fw.Console.LandPool.rerunAlone`), `pool` (the re-run's pool, 1) |
+| `console.previewTarget` | `main` (main's sha), `facts` [{src, sha, onMain, noCode, cands [{ref, sha, contains}]}] (head candidates in priority order), `children` [{facts}] (the candidate lists of the sub-tasks of an umbrella) | `kind` (`main`/`integration`/`own`/`none`), `ref`, `sha`, `head` (sha or null), `headSrc` (`Fw.Console.Preview.headOf`) |
+| `console.previewAdmit` | `secret`, `cookie`, `origin` (the proofs the route checked: `Fw.Console.Preview.Proof`), `preview` (the new preview's id), `task`, `now` (ms), `diskMb`, `hasTarget`, `live` [{id, task, rp, op, started}] | `ok`, `reason` (`notOwner`/`taskBusy`/`tooMany`/`lowDisk`/`noTarget`/`noPorts`), `actor`, `rp`, `op` (the ports), `deadline`, `ttl`, `k` (`Fw.Console.Preview.admit`) |
+| `console.previewTick` | `now`, `live` | `keep` [ids], `kill` [ids] (`tick`, `expired`) |
+| `console.previewStop` | `secret`, `cookie`, `origin`, `preview` (id), `live` | `ok`, `reason` (`notOwner`/`unknown`), `actor`, `kill` [ids] (`stop`, `own`) |
+| `console.previewFail` | `preview` (id), `live` | `keep` [ids], `kill` [ids] (a failed build's teardown: `fail`, `own`) |
+| `console.previewReap` | `live` | `kill` [ids] (all of the table, `reap`) |
 | `plan.lint` | `tasks` [{id, title?, deps?, evidence?, evidenceOnMain?}] (`evidenceOnMain`: the glue's `git merge-base --is-ancestor <evidence> main`; missing = true), `commits`? [{sha, body}] (main's first-parent history) | `ok` (no error), `errors`, `warnings`, `infos`, `findings` [{task, code, severity, detail}] (`Fw.Plan.Lint`) |
 | `plan.trailers` | `commits` [{sha, body}] (first-parent, newest first), `tasks` [{id, state}] (done iff state is `done`) | `done` [{task, evidence}] (the `task.done` facts, oldest first), `verdicts` [{task, sha, verdict}] (`done`/`unknown`/`alreadyDone`/`duplicate`, oldest first) |
 -/
@@ -210,11 +217,106 @@ def opPlanLint (req : Json) : Except String Reply := do
         ("findings", .arr (fs.toArray.map fun f => Json.mkObj
           [("task", .str f.task), ("code", .str f.code), ("severity", .str f.severity), ("detail", .str f.detail)]))]
 
+/-! ## console.preview* -/
+
+open Fw.Console.Preview in
+/-- The actor named `name`, or an error. -/
+def actorOfName (name : String) : Except String Fw.Console.Actor :=
+  match name with
+  | "user" => .ok .user | "lead" => .ok .lead | "owner" => .ok .owner | "reviewer" => .ok .reviewer
+  | "script" => .ok .script | "git" => .ok .git | "hook" => .ok .hook
+  | _ => throw s!"field actor: unknown actor {name}"
+
+open Fw.Console.Preview in
+/-- The proofs of a request (`secret`, `cookie`, `origin`), each a boolean. -/
+def proofOf (req : Json) : Except String Proof := do
+  pure { secret := ← asBool "secret" (← field req "secret"), cookie := ← asBool "cookie" (← field req "cookie"),
+         origin := ← asBool "origin" (← field req "origin") }
+
+open Fw.Console.Preview in
+/-- The live table of a request. -/
+def liveOf (req : Json) : Except String (List Pv) := do
+  (← arrD req "live").mapM fun p => do
+    pure ({ id := ← str p "id", task := ← str p "task", rp := ← nat p "rp", op := ← nat p "op", started := ← nat p "started" } : Pv)
+
+open Fw.Console.Preview in
+/-- A head fact of a request. -/
+def factOf (j : Json) : Except String Fact := do
+  let cs ← (← arrD j "cands").mapM fun c => do
+    pure ({ ref := ← str c "ref", sha := ← str c "sha", contains := ← asBool "contains" (← field c "contains") } : Cand)
+  pure { src := ← str j "src", sha := ← str j "sha", onMain := ← asBool "onMain" (← field j "onMain"),
+         noCode := ← asBool "noCode" (← field j "noCode"), cands := cs }
+
+open Fw.Console.Preview in
+/-- `console.previewTarget` (`Fw.Console.Preview.headOf`). -/
+def opPreviewTarget (req : Json) : Except String Reply := do
+  let fs ← (← arrD req "facts").mapM factOf
+  let ks ← (← arrD req "children").mapM fun c => do
+    (← arrD c "facts").mapM factOf
+  let d := headOf (← str req "main") fs ks
+  let hd := match d.1 with
+    | some f => [("head", Json.str f.sha), ("headSrc", Json.str f.src)]
+    | none => [("head", Json.null), ("headSrc", Json.null)]
+  pure (hd ++ (match d.2 with
+    | .main s => [("kind", .str "main"), ("ref", .str "main"), ("sha", .str s)]
+    | .integration r s => [("kind", .str "integration"), ("ref", .str r), ("sha", .str s)]
+    | .own s => [("kind", .str "own"), ("ref", .null), ("sha", .str s)]
+    | .none => [("kind", .str "none"), ("ref", .null), ("sha", .null)]))
+
+open Fw.Console.Preview in
+/-- `console.previewAdmit` (`Fw.Console.Preview.admit`). -/
+def opPreviewAdmit (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let p ← proofOf req
+  let r : Req := { actor := p.actor, id := ← str req "preview", task := ← str req "task",
+                   now := ← nat req "now", diskMb := ← nat req "diskMb", hasTarget := ← asBool "hasTarget" (← field req "hasTarget") }
+  let lim := [("ttl", Json.num ttl), ("k", Json.num K), ("actor", Json.str (Fw.Console.Actor.name p.actor))]
+  pure (match admit s r with
+    | .error e => [("ok", .bool false), ("reason", .str e.name), ("rp", .null), ("op", .null), ("deadline", .null)] ++ lim
+    | .ok (p :: _) => [("ok", .bool true), ("reason", .null), ("rp", .num p.rp), ("op", .num p.op), ("deadline", .num p.deadline)] ++ lim
+    | .ok [] => [("ok", .bool false), ("reason", .str "noPorts"), ("rp", .null), ("op", .null), ("deadline", .null)] ++ lim)
+
+open Fw.Console.Preview in
+/-- The ids of a table as JSON. -/
+def idsJson (s : List Pv) : Json := .arr (s.toArray.map fun p => Json.str p.id)
+
+open Fw.Console.Preview in
+/-- `console.previewTick` (`Fw.Console.Preview.tick`, `expired`). -/
+def opPreviewTick (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let now ← nat req "now"
+  pure [("keep", idsJson (tick s now)), ("kill", idsJson (expired s now))]
+
+open Fw.Console.Preview in
+/-- `console.previewStop` (`Fw.Console.Preview.stop`, `own`). -/
+def opPreviewStop (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let a := (← proofOf req).actor
+  let i ← str req "preview"
+  let an := ("actor", Json.str (Fw.Console.Actor.name a))
+  pure (if !mayStart a then [("ok", .bool false), ("reason", .str "notOwner"), an, ("kill", .arr #[])]
+    else match own s i with
+      | [] => [("ok", .bool false), ("reason", .str "unknown"), an, ("kill", .arr #[])]
+      | k => [("ok", .bool true), ("reason", .null), an, ("kill", idsJson k)])
+
+open Fw.Console.Preview in
+/-- `console.previewFail` (`Fw.Console.Preview.fail`, `own`): the teardown of a failed build. -/
+def opPreviewFail (req : Json) : Except String Reply := do
+  let s ← liveOf req
+  let i ← str req "preview"
+  pure [("keep", idsJson (fail s i)), ("kill", idsJson (own s i))]
+
+open Fw.Console.Preview in
+/-- `console.previewReap` (`Fw.Console.Preview.reap`). -/
+def opPreviewReap (req : Json) : Except String Reply := do
+  pure [("kill", idsJson (reap (← liveOf req)).2)]
+
 /-! ## Dispatch -/
 
 /-- The ops of this module. -/
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
-  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "plan.trailers", "plan.lint"]
+  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "plan.trailers", "plan.lint",
+  "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -231,6 +333,12 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.landRetry" => some (opLandRetry req)
   | "plan.trailers" => some (opTrailers req)
   | "plan.lint" => some (opPlanLint req)
+  | "console.previewTarget" => some (opPreviewTarget req)
+  | "console.previewAdmit" => some (opPreviewAdmit req)
+  | "console.previewTick" => some (opPreviewTick req)
+  | "console.previewStop" => some (opPreviewStop req)
+  | "console.previewFail" => some (opPreviewFail req)
+  | "console.previewReap" => some (opPreviewReap req)
   | _ => none
 
 end Fw.Wire.Console
