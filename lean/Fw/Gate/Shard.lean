@@ -77,6 +77,10 @@ $$\forall c, a, b,\quad a \prec_c b \iff c(b) < c(a) \ \vee\ (c(a) = c(b) \wedge
 A strict total order on distinct indices. -/
 def before (c : Nat → Nat) (a b : Nat) : Bool := decide (c b < c a) || (decide (c a = c b) && decide (a < b))
 
+/-- The LPT order unfolded.
+
+$$\forall c, a, b,\quad \operatorname{before}_c(a, b) = \mathrm{true} \iff c(b) < c(a) \ \vee\ (c(a) = c(b) \wedge a < b)$$
+-/
 theorem before_iff (c : Nat → Nat) (a b : Nat) : before c a b = true ↔ c b < c a ∨ (c a = c b ∧ a < b) := by
   simp [before]
 
@@ -145,6 +149,10 @@ def lpt (c : Nat → Nat) (m : Nat) (us : List Nat) : List (List Nat) :=
 
 /-! ### Sorting -/
 
+/-- Inserting only adds the element.
+
+$$\forall c, x, l,\quad \operatorname{ins}_c(x, l) \sim x :: l$$
+-/
 theorem ins_perm (c : Nat → Nat) (x : Nat) : ∀ l : List Nat, (ins c x l).Perm (x :: l)
   | [] => List.Perm.refl _
   | y :: ys => by
@@ -161,16 +169,32 @@ theorem isort_perm (c : Nat → Nat) : ∀ l : List Nat, (isort c l).Perm l
   | [] => List.Perm.refl _
   | x :: xs => (ins_perm c x (isort c xs)).trans ((isort_perm c xs).cons x)
 
+/-- The LPT order is transitive.
+
+$$\forall c, a, b, d,\quad a \prec_c b \wedge b \prec_c d \Rightarrow a \prec_c d$$
+-/
 theorem before_trans (c : Nat → Nat) {a b d : Nat} (h1 : before c a b = true) (h2 : before c b d = true) :
     before c a d = true := by
   rw [before_iff] at *; omega
 
+/-- Two distinct indices are ordered one way or the other.
+
+$$\forall c, a, b,\quad a \ne b \Rightarrow a \prec_c b \vee b \prec_c a$$
+-/
 theorem before_total (c : Nat → Nat) {a b : Nat} (h : a ≠ b) : before c a b = true ∨ before c b a = true := by
   rw [before_iff, before_iff]; omega
 
+/-- The LPT order is asymmetric.
+
+$$\forall c, a, b,\quad a \prec_c b \Rightarrow \neg (b \prec_c a)$$
+-/
 theorem before_asymm (c : Nat → Nat) {a b : Nat} (h1 : before c a b = true) : ¬ before c b a = true := by
   rw [before_iff] at *; omega
 
+/-- Inserting a new element keeps a sorted list sorted.
+
+$$\forall c, x, l,\quad x \notin l \wedge \operatorname{Pairwise}_{\prec_c}(l) \Rightarrow \operatorname{Pairwise}_{\prec_c}(\operatorname{ins}_c(x, l))$$
+-/
 theorem ins_sorted (c : Nat → Nat) (x : Nat) : ∀ l : List Nat, x ∉ l → l.Pairwise (fun a b => before c a b = true) →
     (ins c x l).Pairwise (fun a b => before c a b = true)
   | [], _, _ => List.pairwise_singleton _ _
@@ -208,7 +232,10 @@ theorem isort_sorted (c : Nat → Nat) : ∀ l : List Nat, l.Nodup →
     rw [List.nodup_cons] at h
     exact ins_sorted c x _ (fun hm => h.1 ((isort_perm c xs).mem_iff.1 hm)) (isort_sorted c xs h.2)
 
-/-- Two lists sorted by an asymmetric relation that are permutations of each other are equal. -/
+/-- Two lists sorted by an asymmetric relation that are permutations of each other are equal.
+
+$$\forall R,\ (\forall a, b.\ R(a, b) \Rightarrow \neg R(b, a)) \Rightarrow \forall l_1, l_2,\quad l_1 \sim l_2 \wedge \operatorname{Pairwise}_R(l_1) \wedge \operatorname{Pairwise}_R(l_2) \Rightarrow l_1 = l_2$$
+-/
 theorem eq_of_perm_of_pairwise {R : Nat → Nat → Prop} (hR : ∀ a b, R a b → ¬ R b a) :
     ∀ {l₁ l₂ : List Nat}, l₁.Perm l₂ → l₁.Pairwise R → l₂.Pairwise R → l₁ = l₂
   | [], l₂, hp, _, _ => List.Perm.nil_eq hp
@@ -256,6 +283,10 @@ theorem putFirst_length (c : Nat → Nat) (v u : Nat) : ∀ bs : List (List Nat)
   | [] => rfl
   | b :: bs => by unfold putFirst; split <;> simp [putFirst_length c v u bs]
 
+/-- When some job has load $v$, `putFirst` adds exactly the unit $u$.
+
+$$\forall c, v, u, B,\quad v \in \operatorname{loads}_c(B) \Rightarrow \operatorname{flatten}(\operatorname{put}(v, u, B)) \sim u :: \operatorname{flatten}(B)$$
+-/
 theorem putFirst_flatten (c : Nat → Nat) (v u : Nat) : ∀ bs : List (List Nat), v ∈ loads c bs →
     (putFirst c v u bs).flatten.Perm (u :: bs.flatten)
   | [], h => by simp [loads] at h
@@ -273,6 +304,11 @@ theorem putFirst_flatten (c : Nat → Nat) (v u : Nat) : ∀ bs : List (List Nat
       simp only [List.flatten_cons]
       exact ((putFirst_flatten c v u bs h').append_left b).trans List.perm_middle
 
+/-- When some job has load $v$, `putFirst` raises one load $v$ to $v + c(u)$.
+
+$$\forall c, v, u, B,\quad v \in \operatorname{loads}_c(B) \Rightarrow \operatorname{loads}_c(\operatorname{put}(v, u, B)) \sim (v + c(u)) :: (\operatorname{loads}_c(B) \setminus_1 v)$$
+
+($\setminus_1$ removes the first occurrence.) -/
 theorem putFirst_loads (c : Nat → Nat) (v u : Nat) : ∀ bs : List (List Nat), v ∈ loads c bs →
     (loads c (putFirst c v u bs)).Perm ((v + c u) :: (loads c bs).erase v)
   | [], h => by simp [loads] at h
@@ -294,6 +330,10 @@ theorem putFirst_loads (c : Nat → Nat) (v u : Nat) : ∀ bs : List (List Nat),
       rw [List.erase_cons_tail (by simpa using hb)]
       exact ((putFirst_loads c v u bs h').cons _).trans (List.Perm.swap _ _ _)
 
+/-- The maximum does not depend on the order.
+
+$$\forall l_1, l_2,\quad l_1 \sim l_2 \Rightarrow \max l_1 = \max l_2$$
+-/
 theorem lmax_perm {l₁ l₂ : List Nat} (h : l₁.Perm l₂) : lmax l₁ = lmax l₂ := by
   induction h with
   | nil => rfl
@@ -301,27 +341,50 @@ theorem lmax_perm {l₁ l₂ : List Nat} (h : l₁.Perm l₂) : lmax l₁ = lmax
   | swap x y l => simp only [lmax]; omega
   | trans _ _ ih1 ih2 => exact ih1.trans ih2
 
+/-- A non-empty list of jobs has a non-empty list of loads.
+
+$$\forall c, B,\quad B \ne [\,] \Rightarrow \operatorname{loads}_c(B) \ne [\,]$$
+-/
 theorem loads_ne (c : Nat → Nat) {bs : List (List Nat)} (h : bs ≠ []) : loads c bs ≠ [] := by
   simpa [loads] using h
 
-/-- One LPT step changes the loads as list scheduling's `place` does (up to the order of the jobs). -/
+/-- One LPT step changes the loads as list scheduling's `place` does (up to the order of the jobs).
+
+$$\forall c, B, u,\quad B \ne [\,] \Rightarrow \operatorname{loads}_c(\operatorname{step}_c(B, u)) \sim \operatorname{place}(\operatorname{loads}_c(B), c(u))$$
+-/
 theorem step_loads (c : Nat → Nat) (bs : List (List Nat)) (u : Nat) (h : bs ≠ []) :
     (loads c (step c bs u)).Perm (place (loads c bs) (c u)) :=
   putFirst_loads c _ u bs (pickMin_mem (loads_ne c h))
 
+/-- A step keeps the number of jobs.
+
+$$\forall c, B, u,\quad |\operatorname{step}_c(B, u)| = |B|$$
+-/
 theorem step_length (c : Nat → Nat) (bs : List (List Nat)) (u : Nat) : (step c bs u).length = bs.length :=
   putFirst_length c _ u bs
 
+/-- A step on at least one job adds exactly the unit.
+
+$$\forall c, B, u,\quad B \ne [\,] \Rightarrow \operatorname{flatten}(\operatorname{step}_c(B, u)) \sim u :: \operatorname{flatten}(B)$$
+-/
 theorem step_flatten (c : Nat → Nat) (bs : List (List Nat)) (u : Nat) (h : bs ≠ []) :
     (step c bs u).flatten.Perm (u :: bs.flatten) :=
   putFirst_flatten c _ u bs (pickMin_mem (loads_ne c h))
 
+/-- Dealing keeps the number of jobs.
+
+$$\forall c, us, B,\quad |\operatorname{deal}_c(B, us)| = |B|$$
+-/
 theorem deal_length (c : Nat → Nat) : ∀ (us : List Nat) (bs : List (List Nat)), (deal c bs us).length = bs.length
   | [], _ => rfl
   | u :: us, bs => by
     simp only [deal, List.foldl_cons]
     exact (deal_length c us (step c bs u)).trans (step_length c bs u)
 
+/-- Dealing onto at least one job adds exactly the dealt units.
+
+$$\forall c, us, B,\quad B \ne [\,] \Rightarrow \operatorname{flatten}(\operatorname{deal}_c(B, us)) \sim \operatorname{flatten}(B) \mathbin{+\!\!+} us$$
+-/
 theorem deal_flatten (c : Nat → Nat) : ∀ (us : List Nat) (bs : List (List Nat)), bs ≠ [] →
     (deal c bs us).flatten.Perm (bs.flatten ++ us)
   | [], bs, _ => by simp [deal]
@@ -351,6 +414,11 @@ theorem plan_partition (c : Nat → Nat) (m : Nat) (hm : 0 < m) (us : List Nat) 
   simp only [List.flatten_replicate_nil, List.nil_append] at this
   exact this.trans (isort_perm c us)
 
+/-- Graham's invariant of the deal on $k + 1$ jobs.
+
+$$\forall c, k, us, B, M,\quad |B| = k + 1 \wedge (k + 1) \max L_B \le \textstyle\sum L_B + k M \Rightarrow (k + 1) \max L_{\operatorname{deal}_c(B, us)} \le \sum L_B + \sum_{u \in us} c(u) + k \max(M, \max_{u \in us} c(u))$$
+
+where $L_X = \operatorname{loads}_c(X)$ and $\max$ of the empty list is 0. -/
 theorem deal_inv (c : Nat → Nat) (k : Nat) : ∀ (us : List Nat) (bs : List (List Nat)) (M : Nat),
     bs.length = k + 1 → (k + 1) * lmax (loads c bs) ≤ (loads c bs).sum + k * M →
     (k + 1) * lmax (loads c (deal c bs us)) ≤ (loads c bs).sum + (us.map c).sum + k * max M (lmax (us.map c))
@@ -374,6 +442,10 @@ theorem deal_inv (c : Nat → Nat) (k : Nat) : ∀ (us : List Nat) (bs : List (L
     simp only [deal] at h2
     omega
 
+/-- The maximum cost does not depend on the order of the units.
+
+$$\forall c, l_1, l_2,\quad l_1 \sim l_2 \Rightarrow \max_{u \in l_1} c(u) = \max_{u \in l_2} c(u)$$
+-/
 theorem lmax_perm_map (c : Nat → Nat) {l₁ l₂ : List Nat} (h : l₁.Perm l₂) : lmax (l₁.map c) = lmax (l₂.map c) :=
   lmax_perm (h.map c)
 
@@ -424,18 +496,30 @@ def sweepOf {β : Type} (n : Nat) (W : List β) (i : Nat) : Option β := if n �
 #guard (units 2 2).filterMap (probeOf ["p0", "p1"]) == ["p0", "p1"]
 #guard (units 2 2).filterMap (sweepOf 2 ["w0", "w1"]) == ["w0", "w1"]
 
+/-- `filterMap` commutes with flattening.
+
+$$\forall f, B,\quad \operatorname{flatten}([\operatorname{filterMap}(f, b)]_{b \in B}) = \operatorname{filterMap}(f, \operatorname{flatten}(B))$$
+-/
 theorem filterMap_flatten_map {γ : Type} (f : Nat → Option γ) :
     ∀ bs : List (List Nat), (bs.map (·.filterMap f)).flatten = bs.flatten.filterMap f
   | [] => rfl
   | b :: bs => by
     simp only [List.map_cons, List.flatten_cons, List.filterMap_append, filterMap_flatten_map f bs]
 
+/-- Reading indices $0, \dots, n - 1$ of $S$ gives the first $n$ elements.
+
+$$\forall S, n,\quad \operatorname{filterMap}(i \mapsto S[i]^?, [0, \dots, n - 1]) = \operatorname{take}(n, S)$$
+-/
 theorem range_filterMap_take {α : Type} (S : List α) : ∀ n, (List.range n).filterMap (fun i => S[i]?) = S.take n
   | 0 => rfl
   | n + 1 => by
     rw [List.range_succ, List.filterMap_append, range_filterMap_take S n, List.take_add_one]
     congr 1
 
+/-- Reading all indices of $S$ gives $S$.
+
+$$\forall S,\quad \operatorname{filterMap}(i \mapsto S[i]^?, [0, \dots, |S| - 1]) = S$$
+-/
 theorem range_filterMap_getElem {α : Type} (S : List α) : (List.range S.length).filterMap (fun i => S[i]?) = S := by
   rw [range_filterMap_take, List.take_length]
 
@@ -499,6 +583,10 @@ $$\forall e, n, b,\quad \operatorname{jobOf}(e, n, b) = \big(e,\ |[\,i \in b \mi
 def jobOf (e : Eng) (n : Nat) (b : List Nat) : Job :=
   ⟨e, (b.filter (· < n)).length, b.filterMap (sweepOf n Sw.all)⟩
 
+/-- The units below $n$ are the probe units.
+
+$$\forall n, w,\quad [\,i \in \operatorname{units}(n, w) \mid i < n\,] = [0, \dots, n - 1]$$
+-/
 theorem units_filter_lt (n w : Nat) : (units n w).filter (· < n) = List.range n := by
   rw [units, List.range_add, List.filter_append]
   have h1 : (List.range n).filter (· < n) = List.range n := by
@@ -509,11 +597,19 @@ theorem units_filter_lt (n w : Nat) : (units n w).filter (· < n) = List.range n
     simp
   rw [h1, h2, List.append_nil]
 
+/-- Counting a property job by job counts it over all jobs.
+
+$$\forall p, B,\quad \sum_{b \in B} |[\,u \in b \mid p(u)\,]| = |[\,u \in \operatorname{flatten}(B) \mid p(u)\,]|$$
+-/
 theorem sum_filter_length (p : Nat → Bool) :
     ∀ bs : List (List Nat), (bs.map fun b => (b.filter p).length).sum = (bs.flatten.filter p).length
   | [] => rfl
   | b :: bs => by simp [List.filter_append, sum_filter_length p bs]
 
+/-- The sweeps of the jobs, in job order, are the sweep units of the plan.
+
+$$\forall e, n, B,\quad \operatorname{flatMap}(\mathrm{sweeps}, [\operatorname{jobOf}(e, n, b)]_{b \in B}) = \operatorname{flatten}([\operatorname{filterMap}(\operatorname{sweepOf}_n, b)]_{b \in B})$$
+-/
 theorem jobs_sweeps (e : Eng) (n : Nat) : ∀ bs : List (List Nat),
     (bs.map (jobOf e n)).flatMap Job.sweeps = (bs.map (·.filterMap (sweepOf n Sw.all))).flatten
   | [] => rfl
@@ -680,18 +776,30 @@ def chooseK (C : Costs) (ids : List String) (m r : Nat) : Nat × Nat :=
   let tw := durTab C.webkit ids
   argminBy (boundOf tc tw m r) (1, 1) kCands
 
+/-- Every candidate has at least one job per engine.
+
+$$\forall (k_c, k_w) \in \mathrm{kCands},\quad k_c \ge 1 \wedge k_w \ge 1$$
+-/
 theorem kCands_pos : ∀ kk ∈ kCands, 0 < kk.1 ∧ 0 < kk.2 := by
   intro kk h
   simp only [kCands, List.mem_flatMap, List.mem_map, List.mem_range] at h
   obtain ⟨a, _, b, _, rfl⟩ := h
   exact ⟨Nat.succ_pos _, Nat.succ_pos _⟩
 
+/-- Every candidate has at most eight jobs per engine.
+
+$$\forall (k_c, k_w) \in \mathrm{kCands},\quad k_c \le 8 \wedge k_w \le 8$$
+-/
 theorem kCands_le : ∀ kk ∈ kCands, kk.1 ≤ 8 ∧ kk.2 ≤ 8 := by
   intro kk h
   simp only [kCands, List.mem_flatMap, List.mem_map, List.mem_range] at h
   obtain ⟨a, ha, b, hb, rfl⟩ := h
   exact ⟨ha, hb⟩
 
+/-- Entry $k - 1$ of the duration table is the plan on $k$ jobs, for $1 \le k \le 8$.
+
+$$\forall T, P, k,\quad 1 \le k \le 8 \Rightarrow \operatorname{durTab}(T, P)[k - 1] = \operatorname{engDurs}(T, P, k)$$
+-/
 theorem durTab_getD (T : EngCosts) (ids : List String) (k : Nat) (h1 : 0 < k) (h8 : k ≤ 8) :
     (durTab T ids).getD (k - 1) [] = engDurs T ids k := by
   unfold durTab

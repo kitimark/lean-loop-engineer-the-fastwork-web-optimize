@@ -21,14 +21,24 @@ cd lean && lake env lean --run scripts/ShardGolden.lean --check   # fail if it i
 namespace Fw.Wire.Shard.Golden
 open Lean Fw.Gate.Schedule Fw.Gate.Shard
 
-/-- The probe ids of the matrix, in matrix order (124). -/
+/-- The probe ids of the matrix, in matrix order (124).
+
+$$\operatorname{ids} = [\,p.\mathrm{id}\,]_{p \in \mathrm{matrix}}$$
+-/
 def ids : List String := Fw.Site.Breakpoints.matrix.map (·.id)
 
+/-- The engine name of the workflow matrix.
+
+$$\operatorname{engName} = \{\text{chromium} \mapsto \texttt{chromium}, \text{webkit} \mapsto \texttt{playwright-webkit}\}$$
+-/
 def engName : Eng → String
   | .chromium => "chromium"
   | .webkit => "playwright-webkit"
 
-/-- The jobs of one engine: slot, probe ids, sweep names, duration and load. -/
+/-- The jobs of one engine: slot, probe ids, sweep names, duration and load.
+
+$$\operatorname{engJobs}(C, e, k) = [\,(s,\ b,\ \textstyle\sum_{u \in b} c_e(u),\ \mathrm{setup}_e + \sum_{u \in b} c_e(u))\,]_{(b, s) \in \operatorname{zipIdx}(\operatorname{engPlan}(C_e, \mathrm{ids}, k))}$$
+-/
 def engJobs (C : Costs) (e : Eng) (k : Nat) : List Json :=
   let T := C.of e
   let names := unitNames ids
@@ -40,11 +50,16 @@ def engJobs (C : Costs) (e : Eng) (k : Nat) : List Json :=
       ("units", Json.arr ((b.map fun i => Json.str (names.getD i "")).toArray)),
       ("load", (load (unitCost T ids) b : Json)), ("ms", (T.setup + load (unitCost T ids) b : Json))]
 
+/-- The cost table of one engine as JSON: setup, default and every entry. -/
 def tableJson (T : EngCosts) : Json :=
   Json.mkObj [("setup", (T.setup : Json)), ("default", (dflt T.costs : Json)),
     ("costs", Json.mkObj (T.costs.map fun (n, c) => (n, (c : Json))))]
 
-/-- One line: `r` runs on `m` free runners. -/
+/-- One line: `r` runs on `m` free runners, with the chosen $k$, the jobs, Graham's bound and the simulated
+makespan.
+
+$$\kappa = \operatorname{chooseK}(C, \mathrm{ids}, m, r),\quad D = \operatorname{shardDurs}(C, \mathrm{ids}, \kappa),\quad \mathrm{grahamOk} \iff m \cdot \operatorname{makespan}(m, D^{\times r}) \le \operatorname{shardBound}(C, \mathrm{ids}, m, r, \kappa)$$
+-/
 def line (C : Costs) (m r : Nat) : Json :=
   let kk := chooseK C ids m r
   let ds := shardDurs C ids kk
@@ -57,14 +72,17 @@ def line (C : Costs) (m r : Nat) : Json :=
     ("bound", (shardBound C ids m r kk : Json)), ("makespan", (mk : Json)),
     ("grahamOk", Json.bool (decide (m * mk ≤ shardBound C ids m r kk)))]
 
+/-- The free-runner counts of the golden, as in `golden/gate/schedule.jsonl`. -/
 def freeRunners : List Nat := [4, 8, 12, 20]
 
+/-- The golden lines: the cost table, then one line per $m \in \{4, 8, 12, 20\}$ and $r \in \{1, 2, 3\}$. -/
 def cases : List Json :=
   let C := Fw.Gate.ShardCosts.measured
   (Json.mkObj [("name", Json.str "costs"), ("source", Json.str Fw.Gate.ShardCosts.source),
       ("chromium", tableJson C.chromium), ("playwright-webkit", tableJson C.webkit)]) ::
     freeRunners.flatMap fun m => [1, 2, 3].map fun r => line C m r
 
+/-- The golden file, relative to `lean/`. -/
 def path : System.FilePath := ".." / "packages" / "contracts" / "golden" / "gate" / "shards.jsonl"
 
 /-- Compare (or write) the golden file; returns 1 if it is stale. -/
