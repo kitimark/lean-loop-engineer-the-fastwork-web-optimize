@@ -11,6 +11,7 @@ import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin, span } from "./timing.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
+import { dryKind, type Kind } from "./land-verdict.ts";
 
 export type Http = {
   get(path: string): Promise<{ status: number; body: any }>;
@@ -61,10 +62,18 @@ export type LandOptions = {
   retries?: number;
   /** how long to wait for another land's (sub-second) lock before refusing (ms); default 10000 */
   lockWaitMs?: number;
+  /** `--dry` (needs `task`): only the cheap stages (stale base, scope, merge-tree, the static reads test on the merge tree); no lock, no
+   *  full check, main untouched. Lean `Fw.Console.LandDry` decides the kind (`dryKind`). */
+  dry?: boolean;
+  /** the dry land's reads test: its argv and whether the change selects it; default: the land-inputs test of apps/runner, selected
+   *  when `checksFor` selects apps/runner (tests inject both) */
+  dryReads?: { argv: string[]; selected?: boolean };
 };
 /** `ok` = main was changed (or, on a refusal, left as it was). Post-commit trouble never turns it false: it is in `warnings`
  *  (also printed as lines) with the commands that finish the job. */
-export type LandResult = { ok: boolean; lines: string[]; warnings?: string[] };
+export type LandResult = { ok: boolean; lines: string[]; warnings?: string[];
+  /** the verdict kind (Lean `Fw.Console.LandVerdict.Kind`): `done` after a landing, `dry` after a passing dry land, else the refusal's kind */
+  kind?: Kind };
 
 export const ATTRIBUTION = [
   "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>",
@@ -312,7 +321,9 @@ const prepLandWt = (dir: string) => {
   if (existsSync(join(dir, "pnpm-lock.yaml"))) { try { execFileSync("pnpm", ["install", "--offline", "--frozen-lockfile"], { cwd: dir, stdio: "ignore" }); } catch { /* the install check retries online */ } }
 };
 
-type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string } | { kind: "fallback"; why: string };
+type PreResult = { kind: "done"; sha: string } | { kind: "refuse"; msg: string; k?: Kind } | { kind: "fallback"; why: string };
+/** A failing check whose output names the static reads test (`inc-land-undeclared-reads`) is a `reads` refusal, else `checks`. */
+const READS_FAIL_RE = /land-inputs\.test|premise land\.readsOnly/;
 
 type PlanTask = { id: string; state: string; owner?: string; stream?: string; writes?: string[] };
 
@@ -340,7 +351,7 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
 
 async function landRun(branch: string, o: LandOptions, via?: string): Promise<LandResult> {
   const lines: string[] = via ? [`${via} has nothing to land; landing ${branch}, which is ahead of it and contains it`] : [];
-  const fail = (m: string): LandResult => { lines.push(`REFUSED: ${m}`); return { ok: false, lines }; };
+  const fail = (m: string, kind: Kind = "unknown"): LandResult => { lines.push(`REFUSED: ${m}`); return { ok: false, lines, kind }; };
   const main = o.mainRef ?? "main";
   const bc = branchCard(branch);
   if (branch === main) return fail("cannot land the main branch");
@@ -348,9 +359,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   if (!tryGit(o.cwd, ["rev-parse", "--verify", `refs/heads/${branch}`])) return fail(`no such branch ${branch}`);
   const mainDir = worktreeOf(o.cwd, main);
   if (!mainDir) return fail(`${main} is not checked out in any worktree`);
-  if (git(mainDir, ["status", "--porcelain", "--untracked-files=no"])) return fail(`${main} checkout has uncommitted changes`);
+  if (o.dry && !o.task) return fail("--dry needs --task <id>: the scope check is the task's");
+  if (!o.dry && git(mainDir, ["status", "--porcelain", "--untracked-files=no"])) return fail(`${main} checkout has uncommitted changes`, "dirty");
   // 0. the given branch has nothing to land: the agent may have committed on its ci/<task> branch (Lean: console.landPick)
-  if (!via) {
+  if (!via && !o.dry) {
     const pk = pickFacts(o.cwd, main, branch, o.task);
     if (!pk.givenAhead && pk.others.length) {
       const r = askCore("console.landPick", pk);
@@ -365,6 +377,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   }
   const sha = git(o.cwd, ["rev-parse", `refs/heads/${branch}`]);
   const behind = !tryGit(o.cwd, ["merge-base", "--is-ancestor", main, branch]);
+  if (o.dry && behind) return fail(`${branch} does not contain ${main}: merge ${main} into it (git merge ${main}) and run the dry land again; a stale base can carry another task's diff into the scope check`, "stale");
   if (behind && !o.task) return fail(`${branch} is behind ${main}; a fast-forward is impossible (land it with --task for a merge commit; branches are never rebased)`);
 
   // 1. the task and the file scope (Lean: console.landScope)
@@ -374,7 +387,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const pl = await o.http.get("/api/plan");
     task = (pl.body?.tasks as PlanTask[] | undefined)?.find((x) => x.id === o.task);
     if (!task) return fail(`unknown task ${o.task} (fw plan sync first)`);
-    if (task.state === "done") return fail(`task ${o.task} is already done`);
+    if (task.state === "done") return fail(`task ${o.task} is already done`, "done");
   }
   // the writes are in the work graph file of the main checkout (the board does not carry them)
   let writes: string[] = [];
@@ -394,19 +407,19 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   if (!sc.body.ok) {
     const list = (xs: string[]) => xs.map((x) => `\n  ${x}`).join("");
     if (sc.body.reason === "noWrites")
-      return fail(`${o.task ? `task ${o.task}` : branch} has no writes, so no file may land. Changed files:${list(changed)}\nadd writes to the task in docs/team/work-graph.json (then fw plan sync), or pass --allow <glob>`);
-    return fail(`files outside the scope of ${o.task ?? branch}:${list(sc.body.violations as string[])}\nwrites: ${writes.join(", ") || "(none)"}; pass --allow <glob> to admit more`);
+      return fail(`${o.task ? `task ${o.task}` : branch} has no writes, so no file may land. Changed files:${list(changed)}\nadd writes to the task in docs/team/work-graph.json (then fw plan sync), or pass --allow <glob>`, "scope");
+    return fail(`files outside the scope of ${o.task ?? branch}:${list(sc.body.violations as string[])}\nwrites: ${writes.join(", ") || "(none)"}; pass --allow <glob> to admit more`, "scope");
   }
   lines.push(`scope ok (${changed.length} files)`);
 
   // 2. a card branch: the console's readiness, then (later) the land request, a decision the reducer may refuse
   const submit = o.submit ?? ((c: Command) => o.http.post("/api/agent/commands", { argv: o.argv ?? [], command: c }));
-  if (bc) {
+  if (bc && !o.dry) {
     await o.http.post("/api/reconcile", {});
     const r = await o.http.get(`/api/land/${encodeURIComponent(bc.card)}`);
     if (r.status !== 200) return fail(`console: ${r.body.reason ?? r.status}`);
     const rd = r.body as { stage: string; head: string | null; landed: boolean; ready: boolean; next: { who: string; command: string } };
-    if (rd.landed) return fail("card already landed");
+    if (rd.landed) return fail("card already landed", "done");
     if (!rd.ready) return fail(`card ${bc.card} is at stage ${rd.stage}; next: ${rd.next.who}: ${rd.next.command}`);
     if (rd.head !== sha) return fail(`stale: console head ${rd.head?.slice(0, 7)} is not branch tip ${sha.slice(0, 7)}`);
   }
@@ -437,7 +450,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   // and collecting every verdict gives the same accept/refuse as the sequential first-failure run; it only lists more failures.
   // Dependencies (`checkDeps`): everything waits for `pnpm install`; fwcore users wait for check.sh (its `lake build` writes
   // the binary they run). A bounded pool (cores) starts a check when its dependencies have finished.
+  let badKind: Kind = "checks";
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
+    badKind = "checks";
     mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
     if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
     const deps = checkDeps(list);
@@ -474,12 +489,48 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       const r = results[i]!;
       appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${r.out}\n[exit ${r.status}]\n\n`);
       if (r.status !== 0) {
+        if (READS_FAIL_RE.test(r.out)) badKind = "reads";
         const tail = r.out.split("\n").filter((l) => l !== "").slice(-30).join("\n");
         bad.push(`check FAILED: ${argv.join(" ")}\nlog: ${logFile}\n${tail}`);
       } else lines.push(`check ok: ${argv.join(" ")}`);
     });
     return bad.length ? bad.join("\n\n") : null;
   };
+  // --dry: the real land's cheap stages and nothing else (Lean `Fw.Console.LandDry`: dry_pass_land_pass, dry_refusal_is_land_refusal,
+  // handback_pass_land_pass). It builds the very commit the pre-lock land builds (merge-tree of main and the tip, plus the evidence),
+  // checks that tree in a land worktree slot (a pid claim, not the land lock), runs the static reads test only when the change selects
+  // apps/runner (as the real land does) and never touches main, the lock or the queue. The kind comes from `dryKind`.
+  if (o.dry) {
+    const main0 = git(mainDir, ["rev-parse", "HEAD"]);
+    if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) return fail(`${branch} has nothing to land (already in ${main})`, "done");
+    lines.push(`dry: ${branch} contains ${main}; scope ok`);
+    const verdict = (merges: boolean, readsSelected: boolean, readsTest: boolean) => dryKind({ containsMain: true, scope: true, merges, readsSelected, readsTest });
+    let tree: string | null = null;
+    try { tree = git(mainDir, ["-c", `attr.tree=${main0}`, "merge-tree", "--write-tree", main0, sha]).split("\n")[0]!; } catch { /* conflicts */ }
+    if (!tree) return fail(`${main} cannot merge ${branch} cleanly`, verdict(false, false, true));
+    const slot = claimLandWt(mainDir);
+    try {
+      const c = git(mainDir, ["commit-tree", tree, "-p", main0, "-p", sha, "-m", `dry ${branch}`]);
+      checkoutLandWt(mainDir, slot.dir, c, o.dryReads ? undefined : prepLandWt);
+      if (writeEvidence(slot.dir, o.task!, sha.slice(0, 7)) === "failed") return fail("could not write the evidence into docs/team/work-graph.json");
+      let marks = "";
+      try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
+      if (marks) return fail(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, verdict(false, false, true));
+      lines.push(`dry: merge ok (${main} ${main0.slice(0, 7)}, tip ${sha.slice(0, 7)}), no conflict markers`);
+      const selected = o.dryReads?.selected ?? selectChecks(candidateChecks(slot.dir), changed).includes("apps/runner");
+      let test = true, detail = "";
+      if (selected) {
+        const argv = o.dryReads?.argv ?? ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"];
+        const bad = await runChecks(slot.dir, [argv]);
+        test = bad === null; detail = bad ?? "";
+        if (test) lines.push("dry: reads ok (the static land-inputs test passes on the merge tree)");
+      } else lines.push("dry: reads not selected (the change does not select apps/runner, so the real land does not run the test either)");
+      const k = verdict(true, selected, test);
+      if (k !== "dry") return fail(detail || `dry land refused: ${k}`, k);
+      lines.push(`dry ok at ${main} ${main0.slice(0, 7)}: the land's scope, merge and reads stages pass unless ${main} moves`);
+      return { ok: true, lines, kind: "dry" };
+    } finally { slot.free(); }
+  }
   const checks = o.checks ?? checksFor(mainDir, changed);
 
   // Pre-lock protocol (research/notes/2026/10-18-land-speed.md P3; Lean `Fw.Console.LandSpeed`: pre_eq_old_iff, preLand_commit_exact):
@@ -494,7 +545,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     try {
       for (let attempt = 0; ; attempt++) {
         const main0 = git(mainDir, ["rev-parse", "HEAD"]);
-        if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) return { kind: "refuse", msg: `${branch} has nothing to land (already in ${main})` };
+        if (tryGit(mainDir, ["merge-base", "--is-ancestor", sha, main0])) return { kind: "refuse", msg: `${branch} has nothing to land (already in ${main})`, k: "done" };
         let tree: string;
         try { tree = git(mainDir, ["-c", `attr.tree=${main0}`, "merge-tree", "--write-tree", main0, sha]).split("\n")[0]!; }
         catch { return { kind: "fallback", why: `${main} cannot merge ${branch} cleanly` }; }
@@ -507,10 +558,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         if (ev === "written") { c = mk(git(slot.dir, ["write-tree"])); if (attempt === 0) lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`); }
         let marks = "";
         try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
-        if (marks) return { kind: "refuse", msg: `conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}` };
+        if (marks) return { kind: "refuse", msg: `conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, k: "conflict" };
         const bad = await runChecks(slot.dir, o.checks ?? checksFor(slot.dir, changed));
         let act = prelockAction(git(mainDir, ["rev-parse", "HEAD"]), main0, bad === null, attempt, maxRetry);
-        if (act === "refuse") return { kind: "refuse", msg: bad! };
+        if (act === "refuse") return { kind: "refuse", msg: bad!, k: badKind };
         if (act === "ff") {
           if (!requested) { requested = true; const e = await requestLand(); if (e) return { kind: "refuse", msg: e }; }
           const wait = Date.now() + (o.lockWaitMs ?? 10_000);
@@ -523,7 +574,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
             if (!lv) return { kind: "refuse", msg: "fwcore is not available to decide the land lock (build lean/.lake)" };
             if (lv.verdict === "stale") return { kind: "refuse", msg: `stale land lock ${lf} (${holder}; that process is gone). It was not removed: look at \`git status\` in ${mainDir} (an open merge: git merge --abort), then delete the file` };
             if (lv.verdict === "busy") {
-              if (Date.now() >= wait) return { kind: "refuse", msg: `another fw land holds ${lf} (${holder}); wait for it` };
+              if (Date.now() >= wait) return { kind: "refuse", msg: `another fw land holds ${lf} (${holder}); wait for it`, k: "busy" };
               await new Promise((r) => setTimeout(r, 100));
               continue;
             }
@@ -543,7 +594,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
               const d = askCore("console.landCommit", { locked: readLock(lf)?.token === lock.token, mergeHead: c, head, pre: main0 });
               if (!d?.ok) return { kind: "refuse", msg: `will not fast-forward: ${d ? d.reason : "fwcore is not available to decide"}. ${main} is at ${tryHead(mainDir)}, the land started at ${main0.slice(0, 7)}; ${main} was not changed` };
               if (!span("fw land", "merge commit", () => tryGit(mainDir, ["merge", "--ff-only", c]), (ok) => (ok ? 0 : 1)))
-                return { kind: "refuse", msg: `${main} could not fast-forward to the checked commit ${c.slice(0, 7)} (uncommitted changes in ${mainDir} that the land touches?); ${main} was not changed` };
+                return { kind: "refuse", msg: `${main} could not fast-forward to the checked commit ${c.slice(0, 7)} (uncommitted changes in ${mainDir} that the land touches?); ${main} was not changed`, k: "dirty" };
               return { kind: "done", sha: c };
             }
           } finally { process.off("SIGINT", onInt); process.off("SIGTERM", onTerm); release(); }
@@ -556,7 +607,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   let pre: PreResult = { kind: "fallback", why: "pre-lock off" };
   if (o.task && o.prelock !== false) {
     pre = await preLock();
-    if (pre.kind === "refuse") return fail(pre.msg);
+    if (pre.kind === "refuse") return fail(pre.msg, pre.k);
     if (pre.kind === "fallback") lines.push(`pre-lock check not possible (${pre.why}); using the locked protocol`);
   }
 
@@ -564,7 +615,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   if (!o.task) {
     // card fast-forward: the checks run in the branch's own checkout (or main) before main moves
     const bad = await runChecks(worktreeOf(o.cwd, branch) ?? mainDir, checks);
-    if (bad) return fail(bad);
+    if (bad) return fail(bad, badKind);
     const e = await requestLand();
     if (e) return fail(e);
     const endMerge = begin("fw land", "merge");
@@ -583,10 +634,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const lv = askCore("console.landLock", { held: lk0.held, alive: lk0.alive });
     const holder = lk0.lock ? `pid ${lk0.lock.pid}, branch ${lk0.lock.branch ?? "?"}, since ${lk0.lock.at ?? "?"}` : "";
     if (!lv) return fail("fwcore is not available to decide the land lock (build lean/.lake)");
-    if (lv.verdict === "busy") return fail(`another fw land holds ${lf} (${holder}); wait for it`);
+    if (lv.verdict === "busy") return fail(`another fw land holds ${lf} (${holder}); wait for it`, "busy");
     if (lv.verdict === "stale") return fail(`stale land lock ${lf} (${holder}; that process is gone). It was not removed: look at \`git status\` in ${mainDir} (an open merge: git merge --abort), then delete the file`);
     const lock = takeLock(lf, { branch, pre, dir: realpathSync(mainDir) });
-    if (!lock) return fail(`another fw land took ${lf} just now; wait for it`);
+    if (!lock) return fail(`another fw land took ${lf} just now; wait for it`, "busy");
     let released = false;
     const endLock = begin("fw land", "lock held"); // from take to release; its 5 s ceiling is Lean `Fw.Obs.Timing.landCeilings`
     const release = () => { if (!released) { released = true; endLock(0); dropLock(lf, lock.token); } };
@@ -597,9 +648,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       return askCore("console.landCommit", { locked: readLock(lf)?.token === lock.token, mergeHead: mh, head: git(mainDir, ["rev-parse", "HEAD"]), pre });
     };
     // `merge --abort` only while the merge is still ours (lock held, MERGE_HEAD there, HEAD unmoved); otherwise nothing is reset
-    const abort = (m: string): LandResult => {
+    const abort = (m: string, kind: Kind = "unknown"): LandResult => {
       const d = facts();
-      if (d?.ok) { tryGit(mainDir, ["merge", "--abort"]); return fail(`${m} (merge aborted, ${main} unchanged at ${pre.slice(0, 7)})`); }
+      if (d?.ok) { tryGit(mainDir, ["merge", "--abort"]); return fail(`${m} (merge aborted, ${main} unchanged at ${pre.slice(0, 7)})`, kind); }
       return fail(`${m}\nthe merge state is not intact (${d?.reason ?? "fwcore unavailable"}): ${main} is at ${tryHead(mainDir)}, the land started at ${pre.slice(0, 7)}; nothing was reset`);
     };
     const onSignal = (sig: NodeJS.Signals) => () => {
@@ -610,14 +661,14 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const onInt = onSignal("SIGINT"), onTerm = onSignal("SIGTERM");
     process.once("SIGINT", onInt); process.once("SIGTERM", onTerm);
     try {
-      if (!span("fw land", "merge", () => tryGit(mainDir, ["merge", "--no-ff", "--no-commit", branch]), (ok) => (ok ? 0 : 1))) return abort(`${main} cannot merge ${branch} cleanly`);
-      if (!tryGit(mainDir, ["rev-parse", "-q", "--verify", "MERGE_HEAD"])) return fail(`${branch} has nothing to land (already in ${main})`);
+      if (!span("fw land", "merge", () => tryGit(mainDir, ["merge", "--no-ff", "--no-commit", branch]), (ok) => (ok ? 0 : 1))) return abort(`${main} cannot merge ${branch} cleanly`, "conflict");
+      if (!tryGit(mainDir, ["rev-parse", "-q", "--verify", "MERGE_HEAD"])) return fail(`${branch} has nothing to land (already in ${main})`, "done");
       let marks = "";
       try { marks = git(mainDir, ["grep", "-n", "-E", MARKER_RE]); } catch { /* exit 1: no match */ }
-      if (marks) return abort(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`);
+      if (marks) return abort(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, "conflict");
       lines.push("no conflict markers");
       const bad = await runChecks(mainDir, checks);
-      if (bad) return abort(bad);
+      if (bad) return abort(bad, badKind);
       const e = await requestLand();
       if (e) return abort(e);
       // the task's evidence goes into the merge commit itself, next to the Task: trailer (a commit of the branch, so on main)
@@ -714,6 +765,6 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     for (const w of warnings) lines.push(`  ${w}`);
     lines.push("run these in the main checkout:", ...remaining);
   }
-  return { ok: true, lines, warnings };
+  return { ok: true, lines, warnings, kind: "done" };
 
 }

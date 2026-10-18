@@ -2435,7 +2435,12 @@
     "fix-misc",
     "fix-people-webkit",
     "gate-settle",
-    "fix-stagebg-webkit"
+    "fix-stagebg-webkit",
+    "fix-orbit",
+    "fix-pain-notes",
+    "fix-nav-hittest",
+    "fix-commission-margin",
+    "fix-page-offset"
    ],
    "owner": "part-builder",
    "writes": [
@@ -3703,7 +3708,8 @@
     "apps/runner/test/**",
     "lean/Fw/Console/**",
     "lean/Fw/Obs/**"
-   ]
+   ],
+   "evidence": "058a684"
   },
   {
    "id": "evidence-on-main",
@@ -3729,6 +3735,125 @@
     "research/findings/ledger.json",
     "lean/Fw/Ops/LedgerMerge.lean",
     "scripts/merge-ledger.mjs"
+   ]
+  },
+  {
+   "id": "ci-cone-glob",
+   "title": "(S) CI push filters coarse and stable (lean/Fw/**, lean/*.lean); exact import cone computed by the guard job; theorems coarse_sound, push_filter_passes, paths_stable_under_new_module (a new Lean module rewrote 7 workflows)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "ci-trigger-lean"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    ".github/scripts/**",
+    ".github/workflows/**",
+    "docs/team/tools/fw-ci.md",
+    "docs/team/handoffs/ci-cone-glob.md"
+   ],
+   "evidence": "3924fca"
+  },
+  {
+   "id": "fix-orbit",
+   "title": "(S) hero.orbit Chromium cells desk-rm-860/861 (reduced motion) on integrate-ports-2",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gate-settle"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/hero.orbit/**",
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/parts/**",
+    "docs/team/handoffs/fix-orbit.md"
+   ]
+  },
+  {
+   "id": "fix-pain-notes",
+   "title": "(S) pain.notes note x: original defers the Pain section (content-visibility) and skips resize relayout; ported with Lean spec (145 -> 16 Chromium probes, WebKit passes)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gate-settle"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/pain.notes/**",
+    "lean/Fw/Parts/**",
+    "packages/contracts/golden/parts/**",
+    "docs/team/handoffs/fix-pain-notes.md"
+   ]
+  },
+  {
+   "id": "fix-nav-hittest",
+   "title": "(S) nav.hitTest border colour: stale run without the global body colour; passes on integrate-ports-2 26e5f53 with no code change (run 39082828467)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gate-settle"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "docs/team/handoffs/fix-nav-hittest.md"
+   ]
+  },
+  {
+   "id": "fix-commission-margin",
+   "title": "(M) commission inner/rows margin-inline in a content-visibility skipped subtree: real difference vs measurement artifact, decided by premise tests; Lean notRendered rule if artifact",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "gate-settle"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "packages/gate-breakpoints/src/**",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Parts/**",
+    "packages/premise-tests/**",
+    "packages/contracts/golden/**",
+    "docs/team/handoffs/fix-commission-margin.md"
+   ]
+  },
+  {
+   "id": "fix-page-offset",
+   "title": "(M) everything below the hero sits 120 px lower than the original at every stop (gate compares part-local geometry only); fix the owning part; Lean page-level check proposal (part root top y)",
+   "stream": "parts",
+   "milestone": "M2",
+   "deps": [
+    "fix-pain-notes"
+   ],
+   "owner": "part-builder",
+   "writes": [
+    "apps/site/src/parts/**",
+    "lean/Fw/Parts/**",
+    "lean/Fw/Gate/**",
+    "packages/contracts/golden/parts/**",
+    "docs/team/handoffs/fix-page-offset.md"
+   ]
+  },
+  {
+   "id": "engine-premise-measure",
+   "title": "(L) measure the 17 untested engine premises cited by all 253 engine golden rows (engine-golden-premise-lint): rank by rows covered, Chromium trace lanes / WKTR lanes on CI, move each held premise into the registry, each failed one becomes a finding with its theorems restated",
+   "stream": "measure",
+   "milestone": "M3",
+   "deps": [
+    "engine-golden-premise-lint"
+   ],
+   "owner": "measure-engineer",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "packages/measure-*/**",
+    "packages/premise-tests/**",
+    ".github/workflows/**",
+    "research/findings/ledger.json"
    ]
   }
  ],

@@ -63,7 +63,7 @@ def ok (js : List LakeJob) : Bool :=
 def name (j : LakeJob) : String := j.file ++ "/" ++ j.job
 
 /-- What breaks the rules, one message per broken rule and job (diagnostics for the build log; `ok` decides).
-$$\operatorname{viol}(J) = \begin{cases} [\text{no writer row}] & \operatorname{wr}(J) = \mathrm{none} \\ [\text{savers} \ne [w] \text{ if so}] \mathbin{+\!\!+} [\, \text{empty}(j) \mid j \in J,\ T_j = [\,] \,] \mathbin{+\!\!+} [\, \text{unc}(j) \mid j \in J,\ \operatorname{unc}(w, j) \ne [\,] \,] & \operatorname{wr}(J) = \mathrm{some}\ w \end{cases}$$ -/
+$$\operatorname{viol}(J) = \begin{cases} [\text{no writer row}] & \operatorname{wr}(J) = \mathrm{none} \\ (\text{if } [\, j \in J : j.\mathit{saves} \,] = [w] \text{ then } [\,] \text{ else } [\text{savers msg}]) \mathbin{+\!\!+} [\, \text{empty}(j) \mid j \in J,\ T_j = [\,] \,] \mathbin{+\!\!+} [\, \text{unc msg}(j) \mid j \in J,\ \operatorname{unc}(w, j) \ne [\,] \,] & \operatorname{wr}(J) = \mathrm{some}\ w \end{cases}$$ -/
 def violations (js : List LakeJob) : List String :=
   match writerOf js with
   | none => ["no job lean.yml/lean uses setup-lean: the Lake cache has no writer"]
@@ -136,7 +136,7 @@ theorem ok_covered (js : List LakeJob) (h : ok js = true) (w : LakeJob) (hw : wr
 /-- **Cache completeness, for every job list that keeps the rules.** On the writer's source tree, whatever entry
 the writer restored, the entry it saves holds every module any job needs: no job rebuilds a module (given the
 import facts).
-$$\forall J, w, \mathit{deps}, h, C:\ \operatorname{ok}(J) \land \operatorname{wr}(J) = \mathrm{some}\ w \land (\forall (m, r) \in F:\ m \in \operatorname{cl}([r])) \Rightarrow \forall j \in J,\ \forall m:\ m \notin \operatorname{rb}(T_j, \operatorname{after}(T_w, C))$$ -/
+$$\forall J, w, \mathit{deps}, \mathit{hash}, C:\ \operatorname{ok}(J) \land \operatorname{wr}(J) = \mathrm{some}\ w \land (\forall (m, r) \in F:\ m \in \operatorname{cl}([r])) \Rightarrow \forall j \in J,\ \forall m:\ m \notin \operatorname{rb}(T_j, \operatorname{after}(T_w, C))$$ -/
 theorem ok_complete {H : Type} (js : List LakeJob) (h : ok js = true) (w : LakeJob) (hw : writerOf js = some w)
     (deps : String → List String) (hash : String → H) (C : Entry H)
     (hf : ∀ f ∈ importFacts, InCone deps [f.2] f.1) :
@@ -154,7 +154,7 @@ theorem one_writer : ∃ w, writerOf jobs = some w ∧ jobs.filter (·.saves) = 
 
 /-- **The table is complete.** For the jobs read from the workflows: on the writer's source tree, whatever entry the
 writer restored, the entry it saves holds every module any job needs (given the import facts).
-$$\forall w, \mathit{deps}, h, C:\ \operatorname{wr}(J) = \mathrm{some}\ w \land (\forall (m, r) \in F:\ m \in \operatorname{cl}([r])) \Rightarrow \forall j \in J,\ \forall m:\ m \notin \operatorname{rb}(T_j, \operatorname{after}(T_w, C))$$ -/
+$$\forall w, \mathit{deps}, \mathit{hash}, C:\ \operatorname{wr}(J) = \mathrm{some}\ w \land (\forall (m, r) \in F:\ m \in \operatorname{cl}([r])) \Rightarrow \forall j \in J,\ \forall m:\ m \notin \operatorname{rb}(T_j, \operatorname{after}(T_w, C))$$ -/
 theorem table_complete {H : Type} (w : LakeJob) (hw : writerOf jobs = some w) (deps : String → List String)
     (hash : String → H) (C : Entry H) (hf : ∀ f ∈ importFacts, InCone deps [f.2] f.1) :
     ∀ j ∈ jobs, ∀ m, ¬ Rebuilds deps hash (afterBuild deps hash C w.targets) j.targets m :=

@@ -31,9 +31,11 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
 
 - A push to `ci/*` starts a workflow only if THIS push changed one of its declared inputs to something other than main's
   content (Lean `Fw.Ci.Trigger.starts_iff`, `merge_starts_nothing`): a merge of main starts nothing; a later push that
-  does not touch the inputs does not start it again. The inputs are `on.push.paths` of each file in `.github/workflows/`,
-  generated from `lean/Fw/Ci/Trigger.lean` (`table`); `fwcore` users depend on the import cone of `Main.lean`, not on `lean/**`.
-  Every workflow's first job `guard` applies the exact rule (`.github/scripts/changed-inputs.mjs`); the other jobs wait for it.
+  does not touch the inputs does not start it again. The inputs are the rows of `table` in `lean/Fw/Ci/Trigger.lean`;
+  `fwcore` users depend on the import cone of `Main.lean`, not on `lean/**`. The generated `on.push.paths` are coarse and
+  stable: each cone is written as `lean/Fw/**`, `lean/*.lean` (`pushPaths`, task `ci-cone-glob`), so a new module changes no
+  workflow file. Every workflow's first job `guard` computes the precise cone from the checkout and applies the exact rule
+  (`.github/scripts/changed-inputs.mjs`); the other jobs wait for it. Sound: `coarse_sound`, `push_filter_passes`.
 - To change a trigger: edit `table` in `lean/Fw/Ci/Trigger.lean`, `cd lean && lake test -- --write-ci-trigger-golden`, then
   `node scripts/ci-paths.mjs --write`. The land check `apps/runner/test/ci-triggers.test.ts` fails on any other edit of `on.push`.
 - **Rule for agents: a run you intend to read is dispatched, not pushed for.** Push the branch (it starts only the lanes whose
