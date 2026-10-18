@@ -81,9 +81,10 @@ def fresWord : FRes → String
   | .unusable => "unusable"
   | .modelBug => "model-bug"
 
-/-- An optional string field: absent or `null` is `none`, a string is `some`, anything else an error.
+/-- An optional string field: absent (also when $j$ is not an object) or `null` is `none`, a string is `some`, anything
+else an error.
 
-$$\operatorname{optStr}(j, n) = \begin{cases} \bot & j.n \text{ absent or null} \\ s & j.n = s \in \mathrm{String} \\ \operatorname{error} & \text{otherwise} \end{cases}$$ -/
+$$\operatorname{optStr}(j, n) = \begin{cases} \bot & j \text{ not an object, or } j.n \text{ absent or null} \\ s & j.n = s \in \mathrm{String} \\ \operatorname{error} & \text{otherwise} \end{cases}$$ -/
 def optStr (j : Json) (n : String) : Except String (Option String) :=
   match j.getObjVal? n with
   | .error _ => .ok none
@@ -91,9 +92,11 @@ def optStr (j : Json) (n : String) : Except String (Option String) :=
   | .ok (.str s) => .ok (some s)
   | .ok _ => .error s!"field {n} is not a string"
 
-/-- Parse one findings-ledger row: `part`, `candidate`, `status` required strings; `flag` and `fResult` optional.
+/-- Parse one findings-ledger row: `part`, `candidate`, `status` required strings; `flag` and `fResult` optional. With
+$\varphi = \bot$ when $\operatorname{optStr}(j, \mathrm{fResult}) = \bot$ and $\varphi = \operatorname{parseFRes}(s)$ when
+it is $s$, a missing or non-string required field, or any error of `optStr` or `parseFRes`, makes the row an error.
 
-$$\operatorname{parseRow}(j) = (j.\mathrm{part}, j.\mathrm{candidate}, j.\mathrm{status}, j.\mathrm{flag}, \operatorname{parseFRes}(j.\mathrm{fResult}))$$ -/
+$$\operatorname{parseRow}(j) = \begin{cases} (j.\mathrm{part}, j.\mathrm{candidate}, j.\mathrm{status}, \operatorname{optStr}(j, \mathrm{flag}), \varphi) & \text{all three required fields are strings and no step errs} \\ \operatorname{error} & \text{otherwise} \end{cases}$$ -/
 def parseRow (j : Json) : Except String Row := do
   let fr ← match ← optStr j "fResult" with
     | none => pure none
@@ -101,22 +104,27 @@ def parseRow (j : Json) : Except String Row := do
   return { part := ← j.getObjValAs? String "part", candidate := ← j.getObjValAs? String "candidate",
            status := ← j.getObjValAs? String "status", flag := ← optStr j "flag", fResult := fr }
 
-/-- Parse the ledger: the rows of its `findings` array.
+/-- Parse the ledger: the rows of its `findings` array, in order; an error if `findings` is missing or not an array, or
+any row is an error.
 
 $$\operatorname{parseLedger}(j) = [\,\operatorname{parseRow}(x) \mid x \in j.\mathrm{findings}\,]$$ -/
 def parseLedger (j : Json) : Except String (List Row) := do
   let a ← (← j.getObjVal? "findings").getArr?
   a.toList.mapM parseRow
 
-/-- Parse a list of `part:variant` strings.
+/-- Parse a list of `part:variant` strings; an error if $j$ is not an array or any element is not a string `parseFlag`
+accepts.
 
 $$\operatorname{parseFlags}(j) = [\,\operatorname{parseFlag}(s) \mid s \in j\,]$$ -/
 def parseFlags (j : Json) : Except String (List Flag) := do
   (← j.getArr?).toList.mapM fun x => do parseFlag (← x.getStr?)
 
-/-- Parse one `part.json` into its registered variants, each with its `requires` and `conflicts` lists.
+/-- Parse one `part.json` into its registered variants in key order, each with its `requires` and `conflicts` lists.
+With $\rho(n, v) = \operatorname{parseFlags}(j.n[\operatorname{key}(j.\mathrm{id}, v)])$ when that entry exists and
+$\rho(n, v) = []$ when the field or entry is missing: a missing or non-string `id`, a missing or non-object `variants`,
+a missing or unknown `kind`, or a bad flag list is an error.
 
-$$\operatorname{parsePart}(j) = [\,((j.\mathrm{id}, v), \operatorname{parseKind}(j.\mathrm{variants}.v.\mathrm{kind}), j.\mathrm{requires}[\mathrm{key}], j.\mathrm{conflicts}[\mathrm{key}]) \mid v \in j.\mathrm{variants}\,]$$ -/
+$$\operatorname{parsePart}(j) = [\,((j.\mathrm{id}, v), \operatorname{parseKind}(j.\mathrm{variants}.v.\mathrm{kind}), \rho(\mathrm{requires}, v), \rho(\mathrm{conflicts}, v)) \mid v \in \operatorname{keys}(j.\mathrm{variants})\,]$$ -/
 def parsePart (j : Json) : Except String (List Reg) := do
   let id ← j.getObjValAs? String "id"
   let vs ← (← j.getObjVal? "variants").getObj?
