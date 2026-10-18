@@ -1771,7 +1771,7 @@ theorem ended_spawn (π : State) (b : String) (m : Nat) (c : String) :
 
 /-- A stop of a key that is not a key of the bound agent keeps the derived agent.
 
-$$\forall \pi, t, a, b, m:\quad b \notin \operatorname{keysOf}(\pi, a) \land \operatorname{agentOf}(\pi, t) = a \Rightarrow \operatorname{agentOf}(\pi[\mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [(b, m)]], t) = a$$
+$$\forall \pi, t, a, b, m:\quad b \notin \operatorname{keysOf}(\pi, a) \land \operatorname{agentOf}(\pi, t) = \mathrm{some}(a) \Rightarrow \operatorname{agentOf}(\pi[\mathit{stops} := \pi.\mathit{stops} \mathbin{+\!\!+} [(b, m)]], t) = \mathrm{some}(a)$$
 -/
 theorem agentOf_stop {π : State} {t : Task} {a b : String} {m : Nat} (hab : b ∉ keysOf π a)
     (h : agentOf π t = some a) : agentOf { π with stops := π.stops ++ [(b, m)] } t = some a := by
@@ -2847,7 +2847,7 @@ some key of $a$ is live and was seen within the quiet limit, or every live key o
 timeout, and after the sweep the row is no longer bound to $a$. A claim is a sighting at its claim
 time, so a claim with no live bound agent ends by claim time plus $q$.
 
-$$\forall q, \mathit{now}, \pi, t, a:\quad t \in \pi.\mathit{tasks} \land t.\mathit{evidence} = \bot \land \operatorname{agentOf}(\pi, t) = a \Rightarrow \Big(\exists k \in \operatorname{keysOf}(\pi, a):\ \operatorname{liveK}(\pi, k) \land \mathit{now} \le \operatorname{lastAt}(\pi, k) + q\Big) \lor \Big(\big(\forall k \in \operatorname{keysOf}(\pi, a):\ \operatorname{liveK}(\pi, k) \Rightarrow (k, \operatorname{lastAt}(\pi, k)) \in \operatorname{timeouts}(q, \mathit{now}, \operatorname{view}(\pi).\mathit{tasks})\big) \land \operatorname{agentOf}(\operatorname{sweep}(q, \mathit{now}, \pi), t) \ne a\Big)$$
+$$\forall q, \mathit{now}, \pi, t, a:\quad t \in \pi.\mathit{tasks} \land t.\mathit{evidence} = \bot \land \operatorname{agentOf}(\pi, t) = \mathrm{some}(a) \Rightarrow \Big(\exists k \in \operatorname{keysOf}(\pi, a):\ \operatorname{liveK}(\pi, k) \land \mathit{now} \le \operatorname{lastAt}(\pi, k) + q\Big) \lor \Big(\big(\forall k \in \operatorname{keysOf}(\pi, a):\ \operatorname{liveK}(\pi, k) \Rightarrow (k, \operatorname{lastAt}(\pi, k)) \in \operatorname{timeouts}(q, \mathit{now}, \operatorname{view}(\pi).\mathit{tasks})\big) \land \operatorname{agentOf}(\operatorname{sweep}(q, \mathit{now}, \pi), t) \ne \mathrm{some}(a)\Big)$$
 -/
 theorem no_forever_running (q now : Nat) {π : State} {t : Task} {a : String} (ht : t ∈ π.tasks)
     (he : t.evidence = none) (ha : agentOf π t = some a) :

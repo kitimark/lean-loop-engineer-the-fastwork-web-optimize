@@ -698,7 +698,12 @@ def takeU16 : Nat → List Char → List Char
   | _, [] => []
   | b, c :: l => if u16 c ≤ b then c :: takeU16 (b - u16 c) l else []
 
-/-- `utf16Len` is the sum of the per-character lengths. -/
+/-- The JavaScript length of a string is the sum of its characters' UTF-16 lengths.
+
+$$\forall s:\quad \operatorname{utf16}(s) = \textstyle\sum_{c \in s} u(c)$$
+
+Counting the whole string equals adding up each character.
+-/
 theorem utf16Len_eq (s : String) : utf16Len s = (s.toList.map u16).sum := by
   unfold utf16Len
   suffices h : ∀ (l : List Char) (a : Nat),
@@ -724,9 +729,19 @@ theorem takeU16_le (b : Nat) (l : List Char) : ((takeU16 b l).map u16).sum ≤ b
     · have := ih (b - u16 c); simp only [List.map_cons, List.sum_cons]; omega
     · simp
 
-/-- The fixed start of the spool alert title. -/
+/-- The fixed start of the spool alert title (25 UTF-16 units).
+
+$$H = \text{“Spool lines need a look: ”}$$
+
+What every spool alert title starts with.
+-/
 def alertHead : String := "Spool lines need a look: "
-/-- The fixed end of the spool alert title. -/
+/-- The fixed end of the spool alert title (51 UTF-16 units).
+
+$$T = \text{“; fix emit.mjs or Fw.Ops.Obs.specs, then press Done”}$$
+
+What every spool alert title ends with.
+-/
 def alertTail : String := "; fix emit.mjs or Fw.Ops.Obs.specs, then press Done"
 
 /-- The issue list of the spool alert as characters: `x₁ xn₁, x₂ xn₂, …`.
@@ -928,7 +943,7 @@ def byName (event : String) (agentId agentName name : Option String) (key : Stri
 /-- **The life decision of a record** (event $e$, agent id $i$, spawn-guard name $g$, indexed name $m$,
 obs key $k$, time $t$, stop epoch $p$ of $i$): the name commands, then the id commands.
 
-$$\operatorname{life}(e, i, g, m, k, t, p) = \operatorname{byName}(e, i, g, m, k, t) \mathbin{+\!\!+} \operatorname{byId}(e, i, k, t, p)$$
+$$\operatorname{lifeOf}(e, i, g, m, k, t, p) = \operatorname{byName}(e, i, g, m, k, t) \mathbin{+\!\!+} \operatorname{byId}(e, i, k, t, p)$$
 
 What one spool record says about which agents live.
 -/
@@ -939,7 +954,7 @@ def lifeOf (event : String) (agentId agentName name : Option String) (key : Stri
 /-- **A stop ends its id** (`stop_by_id`): a `SubagentStop` with agent id $i$ stops $i$ at the record
 time, named or not, whatever `background_tasks` says (the decision has no such input).
 
-$$\forall i, g, m, k, t, p:\quad \mathrm{stop}(\texttt{stop:}k, i, t) \in \operatorname{life}(\texttt{SubagentStop}, i, g, m, k, t, p)$$
+$$\forall i, g, m, k, t, p:\quad \mathrm{stop}(\texttt{stop:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStop}, \mathrm{some}(i), g, m, k, t, p)$$
 
 Every subagent stop reaches the board as a stop of that id.
 -/
@@ -950,7 +965,7 @@ theorem stop_by_id (i : String) (g m : Option String) (k : String) (t p : Nat) :
 /-- **A start spawns its id** (`start_by_id`): a `SubagentStart` with agent id $i$ spawns $i$ at the
 record time.
 
-$$\forall i, g, m, k, t, p:\quad \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{life}(\texttt{SubagentStart}, i, g, m, k, t, p)$$
+$$\forall i, g, m, k, t, p:\quad \mathrm{spawn}(\texttt{start:}k, i, t) \in \operatorname{lifeOf}(\texttt{SubagentStart}, \mathrm{some}(i), g, m, k, t, p)$$
 
 Every subagent start reaches the board as a spawn of that id.
 -/
@@ -963,7 +978,7 @@ named or unnamed, gives a heartbeat spawn of $i$ at the record time; applied to 
 $i$ is a key of name $a$ (its own name or a label) and every stop of $i$ is older than $t$, it makes
 $i$ live and $a$ not ended.
 
-$$\forall \pi, e, i, g, m, k, t, p, a:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keys}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{life}(e, i, g, m, k, t, p) \land \operatorname{live}(\pi', i) \land \lnot\operatorname{ended}(\pi', a),\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
+$$\forall \pi, e, i, g, m, k, t, p, a:\quad e \ne \texttt{SubagentStart} \land e \ne \texttt{SubagentStop} \land i \in \operatorname{keysOf}(\pi, a) \land (\forall (j, s) \in \pi.\mathit{stops}:\ j = i \Rightarrow s < t) \Rightarrow \mathrm{spawn}(\operatorname{seenKey}(i, p, t), i, t) \in \operatorname{lifeOf}(e, \mathrm{some}(i), g, m, k, t, p) \land \operatorname{liveK}(\pi', i) = \mathrm{true} \land \operatorname{ended}(\pi', a) = \mathrm{false},\quad \pi' = \operatorname{step}(\pi, \mathrm{spawn}(i, t))$$
 
 An agent that does anything after its stop is shown running again.
 -/
