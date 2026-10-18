@@ -59,15 +59,7 @@ redirect (`<<EOF>f`); an empty quoted delimiter (`<< ''`); variables that name a
 `timeout N` as a later word; a `sleep $n` with a variable; `pnpm --filter x dev`; one bound word bounds every loop of its
 unit. Goldens: `packages/contracts/golden/ops/ops.wait.jsonl` (generated from Lean).
 
-## Shadow review (task wait-guard-enforce, 2026-10-18)
-Round 1, MEASURED on the main spool (643 `WaitGuard` records, commands recovered by `tool_use_id`): old rules 5
-`deny:unboundedLoop`, 4 false positives (3 `while read ...; done < file`, 1 here-doc body with a `while` line), 1 true
-positive (`until [ "$(gh run view ...)" = completed ]; do sleep 150; done`, no counter).
-Round 2 (after the adversarial review), MEASURED on 1189 records (all recovered): 1188 allow, 1 deny (the true positive);
-false denies 0/1188, misses 0 (the only real loops are that poll, one counter loop and 5 `while read` loops over files).
-Synthetic corpus of 80 commands (every reviewer escape: `|| true`, `|| :`, `; [ 1 ];`, `ping`, `tail -fn`,
-`tail --follow=name`, `cat /dev/urandom`, `cat -`, `cat -u`, `log stream`, `sleep infinity`, quoted `<<EOF`; 51 deny,
-29 allow): 0 mismatches. `seq` is no longer a bound word (`seq inf | while read` passed on it).
+Shadow review (false denies 0/1188, misses 0, MEASURED): `research/notes/2026/10-18-wait-guard-shadow-review.md`.
 
 ## Turning enforce on (lead hands this to the user)
 After this lands on `main`: in the main checkout run `cd lean && lake build fwcore`; probe once, the reply must be

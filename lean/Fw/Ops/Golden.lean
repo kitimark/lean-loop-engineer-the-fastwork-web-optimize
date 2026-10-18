@@ -6,7 +6,8 @@ import Fw.Console.PreviewTable
 `packages/contracts/golden/ops/<op>.jsonl`: one line per case, `{"name", "request", "response"}`,
 where `request` carries its `op` and `response` is what `fwcore` replies (without the `id`).
 The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
-`golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors).
+`golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors), `golden/lint/lint.context.jsonl`
+(`scripts/context-lint.mjs`).
 Generated from Lean, never by hand:
 
 ```
@@ -226,8 +227,42 @@ def cases : List (String × List (String × Json)) := [
     ("server smoke test with & and kill: deny bgLong server", wait "node server.mjs & pid=$!; sleep 1; curl -s localhost:3000; kill $pid"),
     ("missing cmd is refused", lit "{}")])]
 
+/-- One file of a `lint.context` request. -/
+def lintFile (path : String) (bytes : Nat) (lines : List String) : Json :=
+  Json.mkObj [("path", .str path), ("bytes", toJson bytes), ("lines", .arr (lines.toArray.map .str))]
+
+/-- A `lint.context` request for these files. -/
+def lintFiles (fs : List Json) : Json := Json.mkObj [("files", .arr fs.toArray)]
+
+/-- `n` numbered lines. -/
+def numbered (n : Nat) : List String := (List.range n).map fun k => s!"line {k}"
+
+/-- The `lint.context` cases (Fw.Lint.Context); consumer `scripts/context-lint.mjs`. -/
+def lintCases : List (String × Json) := [
+  ("handoff: 30 lines is ok, 31 is over the line budget",
+    lintFiles [lintFile "docs/team/handoffs/a.md" 300 (numbered 30), lintFile "docs/team/handoffs/b.md" 310 (numbered 31)]),
+  ("CLAUDE.md: over 5000 bytes is over budget even with slop; at 5000 a dated note is slop",
+    lintFiles [lintFile "CLAUDE.md" 5001 ["Rule (user decision 2026-10-17)."],
+      lintFile "CLAUDE.md" 5000 ["Rule (user decision 2026-10-17)."]]),
+  ("agent: a SHA in the body is slop; the description budget is 300 bytes",
+    lintFiles [lintFile ".claude/agents/a.md" 200 ["---", "name: a", "description: short", "---", "Read src at 5b3d632."],
+      lintFile ".claude/agents/b.md" 400 ["---", "name: b", "description: " ++ "".pushn 'x' 301, "---", "Body."]]),
+  ("team doc: a heading named after a task is slop; a plain heading is ok",
+    lintFiles [lintFile "docs/team/tools/land.md" 100 ["# land", "## Output (task land-dry)"],
+      lintFile "docs/team/tools/x.md" 100 ["# x", "## Output (JSON)"]]),
+  ("skill: an AI tell (em dash, inflated word, filler) is slop, the first hit's line is reported",
+    lintFiles [lintFile ".claude/skills/s/SKILL.md" 100 ["---", "description: d", "---", "Plain line.", "We leverage — it."]]),
+  ("handoffs and other files get no SHA or date check; other files have no budget",
+    lintFiles [lintFile "docs/team/handoffs/c.md" 50 ["state: 5b3d632 on 2026-10-17"],
+      lintFile "research/notes/n.md" 999999 ["delve"]]),
+  ("no files: zero counts", lintFiles []),
+  ("files missing: refused", Json.mkObj []),
+  ("a file without lines: refused",
+    Json.mkObj [("files", .arr #[Json.mkObj [("path", .str "CLAUDE.md"), ("bytes", toJson 1)]])])]
+
 /-- Golden files outside `ops/`: (directory under `packages/contracts/golden`, op, cases). -/
 def extra : List (String × String × List (String × Json)) := [
+  ("lint", "lint.context", lintCases),
   ("plan", "plan.trailers", [
     ("oldest trailer marks done; later ones are duplicates; done and unknown ids are reported", lit "{\"commits\":[{\"sha\":\"s3\",\"body\":\"merge x\\n\\nTask: a\\nTask: c\"},{\"sha\":\"s2\",\"body\":\"Task: b\"},{\"sha\":\"s1\",\"body\":\"subject\\n\\nTask: a\"}],\"tasks\":[{\"id\":\"a\",\"state\":\"claimed\"},{\"id\":\"b\",\"state\":\"done\"}]}"),
     ("trailer syntax: line start, blanks around the id, id chars only, CRLF ok", lit "{\"commits\":[{\"sha\":\"s1\",\"body\":\"Task:  t-1.x_2 \\r\\nTask: t 2\\n task: t3\\nTask:\\nxTask: t4\\nTask:t5\"}],\"tasks\":[{\"id\":\"t-1.x_2\",\"state\":\"open\"},{\"id\":\"t5\",\"state\":\"open\"}]}"),

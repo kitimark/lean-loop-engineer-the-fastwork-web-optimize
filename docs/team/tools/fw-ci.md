@@ -27,7 +27,7 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
 - Tests: `apps/runner/test/run-budget.test.ts` (fake gh of `packages/gh-budget`): 1 vs 10 waiters make the same gh calls; no gh call is made
   while the budget says wait or stop.
 
-## Which workflows a `ci/*` push starts, and how to run the one you will read (task `ci-trigger-lean`)
+## Which workflows a `ci/*` push starts, and how to run the one you will read
 
 - A push to `ci/*` starts a workflow only if THIS push changed one of its declared inputs to something other than main's
   content (Lean `Fw.Ci.Trigger.starts_iff`, `merge_starts_nothing`): a merge of main starts nothing; a later push that
