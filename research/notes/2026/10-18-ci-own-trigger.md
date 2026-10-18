@@ -198,7 +198,29 @@ differ from `main`; a wait must never pass when a requested lane did not run; ol
     `lanes lean,premise-tests -> not-run`, exit 4, though lean passed. C2: lean 39113796622 and premise-tests
     39113796624 → `lanes lean,premise-tests -> pass`, exit 0.
 
+## Round 4: fail closed on an unknown request, one source for lean's inputs, no doomed push
+
+Three holes from the round-3 review, each closed in Lean first:
+- An unknown request never passes. `fw ci wait --branch --sha <s> --since <t>` read the message of a sha that was not
+  in the local object store as `""` (git exit 128, stdout empty), so only lean was required. Now `messageOf` returns
+  null on a git failure, and fwcore's `ci.required` / `ci.verdict` answer not-run for a null message
+  (`Fw.Ci.Verdict.waitVerdict`, `unknown_request_never_pass`, `wait_pass_iff`). Test: `wait.test.ts` (unknown sha).
+- lean's inputs missed five files `lean/scripts/check.sh` reads (`scripts/span.sh`, `scripts/fwcore-build.sh`,
+  `apps/site/src/sweeps.gen.json`, `packages/contracts/golden/gate/sweeps.jsonl`,
+  `packages/gate-breakpoints/src/scope.gen.json`), so a branch changing only them skipped lean as `unchanged`, which the
+  wait counts as satisfied. They are now in the lean row of `Fw.Ci.Trigger.table`, and `ci-paths --check` fails when a
+  `../<path>` in `lean/scripts/*.sh` is not a lean input, or is not a literal path (`leanInputProblems`).
+- `fw ci push` refuses when a named lane would be skipped (`Fw.Ci.Intent.pushOk`, `push_full_starts`,
+  `skipped_named_refused`); `--partial` pushes when at least one named lane starts (`partial_starts_one`). The JS rule
+  equals the 170 Lean push vectors of `intent.jsonl` (`ci-push.test.mjs`).
+
 ## Limits and open items
+
+- Round 4: the lane request is read from the tip commit only. A raw `git push` of a commit that does not repeat an
+  earlier `[ci:x]` drops x: the earlier push is stale and the wait requires only what the tip asks for. Use
+  `fw ci push`; CLAUDE.md still names a raw `git push origin ci/<name>` (a lead or user edit).
+- Round 4: the lean-input lint reads `../<path>` in `lean/scripts/*.sh` only; a file read through a variable, by a
+  script those scripts call outside `lean/`, or by a Lean program at run time is not checked.
 
 - ~~Workflow-level concurrency cancels in-flight runs on any newer push whose paths match~~ (cause d): fixed in round 2
   by job-level groups (see below).
@@ -216,7 +238,7 @@ differ from `main`; a wait must never pass when a requested lane did not run; ol
   guard ran before the user pushed main is not stopped (cause c, in part).
 - ~~Empty-commit pushes create no run~~ (round 1–2, `on.push.paths`): in round 3 every push creates runs and an empty
   request commit at the tip runs its lanes when the branch differs from `main` (measured: C1/C2 above). `fw ci push`
-  refuses only when HEAD is already the tip or no requested lane would start. Re-running an unchanged lane is a dispatch.
+  refuses when HEAD is already the tip or a named lane would not start (round 4; `--partial`: when none would). Re-running an unchanged lane is a dispatch.
 - Case folding: Lean lowers ASCII only. GitHub's `contains` folds case more broadly. The tokens are ASCII
   (`lanes.all validName`), so the two can differ only on non-ASCII look-alikes in a message (INFERRED, harmless: it can
   only add a gate pass, and the guard script then decides by Lean's rule).

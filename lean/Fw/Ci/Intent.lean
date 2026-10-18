@@ -28,8 +28,11 @@ Two places evaluate the intent: the guard job's `if:` (`ifExpr`, rendered here a
 `gate`, `gate_eq`), and the guard script (`.github/scripts/changed-inputs.mjs`), which computes `decision` in full. The
 verdict of a finished run is `Fw.Ci.Verdict.verdict`, never the workflow conclusion alone.
 
-Golden: `packages/contracts/golden/ci/intent.jsonl` (the lanes with their `if:`, the re-check steps and the replay
-cases), written by `lake test -- --write-ci-trigger-golden`.
+Round 4: `fw ci push` refuses a push on which a named lane would be skipped, since its wait could never pass
+(`pushOk`, `skipped_named_refused`); `--partial` lets it push when one named lane starts.
+
+Golden: `packages/contracts/golden/ci/intent.jsonl` (the lanes with their `if:`, the re-check steps, the replay
+cases, the gate vectors and the push vectors), written by `lake test -- --write-ci-trigger-golden`.
 -/
 namespace Fw.Ci.Intent
 open Lean Fw.Ops.PathCheck Fw.Ci.Trigger
@@ -527,8 +530,9 @@ theorem partial_starts_one (ps : List Planned) (h : pushOk true ps = true) (hn :
 #guard pushOk false [⟨false, false⟩]
 #guard pushOk false []
 
-/-- Every preview of at most 3 lanes, in order: lists over $\{(\mathit{named}, \mathit{run})\} = \{\bot,\top\}^2$.
-$$\mathrm{plans} = [\, P : |P| \le 3,\ P \in (\{\bot,\top\}^2)^{*} \,]$$ -/
+/-- Every preview of at most 3 lanes: each list over $O = [(\bot,\bot), (\bot,\top), (\top,\bot), (\top,\top)]$ of
+length 0 to 3 exactly once, by length, then by prefix, then by the last element's place in $O$ (85 lists).
+$$\mathrm{plans} = P_0 \mathbin{+\!\!+} P_1 \mathbin{+\!\!+} P_2 \mathbin{+\!\!+} P_3, \quad P_0 = [[\,]],\ P_{k+1} = [\, xs \mathbin{+\!\!+} [o] : xs \in P_k,\ o \in O \,]$$ -/
 def plans : List (List Planned) :=
   let one : List Planned := [⟨false, false⟩, ⟨false, true⟩, ⟨true, false⟩, ⟨true, true⟩]
   let ext (ps : List (List Planned)) := ps.flatMap fun xs => one.map fun p => xs ++ [p]

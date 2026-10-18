@@ -26,7 +26,9 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
   - `--branch` without `--workflow` (the default after `fw ci push`): every lane the commit's message requests, plus
     `lean` (fwcore `ci.required`), must have a pass run **for that exact commit**; `lean` may instead be skipped as
     `unchanged`. A requested lane that did not run, or has no run 300 s after the commit's runs finished, is not a pass
-    (Lean `combine_requested_never_pass`, `missing_never_pass`). The last line is `lanes <a,b> -> <verdict>`.
+    (Lean `combine_requested_never_pass`, `missing_never_pass`). The last line is `lanes <a,b> -> <verdict>`. When the
+    commit's message cannot be read (the sha is not in the local object store), the request is unknown: exit 4 at once
+    with `lanes ? -> not-run (unknown request ...)` (Lean `unknown_request_never_pass`); fetch the commit or pass `--msg`.
   - `--branch --workflow <name>`: the newest run of that workflow on the branch created after the commit (one run).
   - Exit 0 pass, 1 a run failed, **4 not run** (GitHub may still say `success`), 3 timeout (default 540 s) or the poller
     stopped (call it again), 2 gh could not find the run, 64 usage. Run it in the background; do not loop.
@@ -56,9 +58,12 @@ No run id: the latest run of the workflow on the branch. The store is `$FW_CONSO
   `pnpm fw ci push --branch ci/<task> --lanes <lane>[,<lane>...]` (lanes are the workflow file stems: `lean`, `wktr`,
   `webkit-sim`, `breakpoint-gate`, ...). It adds an empty commit `ci: request [ci:<lane>] ...` when HEAD does not
   already ask for exactly those lanes, previews with the guard's own rule over the branch (fresh `origin/main`) which of
-  them will start, refuses (exit 2) when none would or when HEAD is already the tip (a re-push creates no run), and
-  pushes (never forced). `--lanes none` asks for no lane (lean still runs if lean inputs differ from main); `--dry` only
-  previews. Then wait: `pnpm fw ci wait --branch ci/<task>`.
+  them will start, refuses (exit 2) when a named lane would be skipped (its wait could never pass; Lean `pushOk`,
+  `skipped_named_refused`) or when HEAD is already the tip (a re-push creates no run), and pushes (never forced).
+  `--partial` pushes when at least one named lane starts (the wait then ends not-run). `--lanes none` asks for no lane
+  (lean still runs if lean inputs differ from main); `--dry` only previews. Then wait:
+  `pnpm fw ci wait --branch ci/<task>`. lean's inputs (Lean `table`, lean row) include every `../` path that
+  `lean/scripts/*.sh` reads; `node scripts/ci-paths.mjs --check` fails when one is missing.
   - The token is `[ci:<lane>]` anywhere in the head commit message, any case. `lean` (ubuntu, never macOS:
     `default_no_macos`) is always wanted and has no guard `if:`. Do not write `[ci:` in prose in a commit message.
   - The request commits are empty commits; keep them: they land on main with the branch.

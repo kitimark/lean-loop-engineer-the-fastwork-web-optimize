@@ -1,26 +1,22 @@
 # Handoff: ci-own-trigger
 
-State: round 3 (final design) on branch worktree-wf_6bd98862-798-1, commit: see `git log -1`. CI on ci/ci-own-trigger.
-- Lean `Fw/Ci/Intent.lean`: `decision` per lane: record runs; main push keeps coarse paths on its own diff
-  (`main_keeps_paths_rule`); ci/* push skips in order unwanted, stale (sha not the ls-remote tip), landed, unchanged
-  (no effective file of merge-base..HEAD is an input). `tip_starts`, `tip_lean_always`, `tip_history_free`,
-  `stale_guard_never_starts`, `no_unrequested_start`, `default_no_macos`. Job re-check model: `stale_never_works`,
-  `tip_job_unchanged`. Golden `packages/contracts/golden/ci/intent.jsonl` (20 cases incl. the revert sequence).
-- `Fw/Ci/Cancel.lean`: ci/* groups hold the run id, so nothing cancels (`ci_group_alone`, `ci_never_cancelled`).
-- `Fw/Ci/Verdict.lean`: run verdict (`pass_iff`, `stale_never_pass`), skip tags (`Skip`), branch wait
-  `combineRequested` (`combine_requested_never_pass`, `due_lane_never_pass`, `missing_never_pass`); ops ci.verdict
-  (lanes mode) and ci.required in Wire.
-- Glue: `.github/scripts/changed-inputs.mjs` (guard, `branchFiles`, `isTip`), `scripts/ci-paths.mjs` (writes no
-  paths, job groups without cancel, `tip re-check` + `stale:` steps, status-step conjunct), `scripts/ci-push.mjs`
-  (branch preview, refuses when HEAD is already the tip), `packages/gh-budget/src/wait.ts` (lanes mode, 300 s grace).
-- Docs: docs/team/tools/fw-ci.md (wait, trigger); research/notes/2026/10-18-ci-own-trigger.md "Round 3".
-CI (MEASURED, round 3): A 84e8d32 premise-tests 39113339224 verdict job stopped at `stale:` after B a84fead was pushed
-(wait: not-run); B premise-tests 39113394803 pass; B lean 39113394772 ran (lint fail, fixed 567cc31). C1 4c78c8c:
-lean 39113772134 pass but premise-tests 39113772068 leg stale → wait `not-run` exit 4; C2 360f218 → `pass` exit 0.
-Conventions: no decision in YAML/TS; never write `[ci:` in prose in a commit message; probe commits net to zero
-(probe A/B/C: lean/probe-x.txt, packages/premise-tests/probe-y.txt added and removed).
+State: round 4 on branch worktree-wf_b4b76cde-a4b-3 (merged round-3 head 5e499ac and main), commit: see `git log -1`.
+- Lean `Fw/Ci/Intent.lean`: `decision` per lane (record runs; main push keeps coarse paths; ci/* skips in order
+  unwanted, stale, landed, unchanged). Round 4: push preview `pushOk` (`push_full_starts`, `skipped_named_refused`,
+  `partial_starts_one`), 170 push vectors in `packages/contracts/golden/ci/intent.jsonl` (kind `push`).
+- `Fw/Ci/Verdict.lean`: run verdict, `combineRequested`; round 4 `waitVerdict` (`unknown_request_never_pass`,
+  `wait_pass_iff`). `Fw/Ci/Wire.lean`: `ci.required` / `ci.verdict` with `msg` null or absent answer not-run.
+- `Fw/Ci/Trigger.lean`: the lean row now lists the five files `lean/scripts/check.sh` reads via `../`.
+- Glue: `packages/gh-budget/src/cli.ts` (`messageOf`: null on a git failure), `wait.ts` (stops at once on an unknown
+  request), `scripts/ci-push.mjs` (`pushOk`, `--partial`), `scripts/ci-paths.mjs` (`leanInputProblems` lint).
+- Docs: docs/team/tools/fw-ci.md; research/notes/2026/10-18-ci-own-trigger.md "Round 4".
+Verified (local, round 4): `sh lean/scripts/check.sh` green; gh-budget 33/33, ci-push 5/5, ci-paths 32/32,
+changed-inputs 11/11; `#print axioms` of the 5 new theorems: propext, Quot.sound only. No CI push this round.
+Conventions: no decision in YAML/TS; never write `[ci:` in prose in a commit message; probe commits net to zero.
 Open items:
+- The lane request is read from the tip only; CLAUDE.md still names a raw `git push origin ci/<name>` (lead/user edit
+  to `pnpm fw ci push`).
+- The lean-input lint reads literal `../` paths in `lean/scripts/*.sh` only.
 - Land step should push main's tip to ci/landed so `landed` is fresh.
-- fw land --dry needs --allow for scripts/ci-push*.mjs, scripts/ci-paths.test.mjs, packages/gh-budget/**.
 - The docstring checker pass was a self-review (no helper-spawn tool in this session).
-- Read first: the research note "Round 3", then lean/Fw/Ci/{Intent,Verdict,Cancel}.lean.
+- Read first: the research note "Round 4", then lean/Fw/Ci/{Verdict,Intent}.lean.
