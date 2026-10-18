@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { flushSync } from "react-dom";
 import { getClock } from "../../engine/clock";
 import { registerScroll } from "../../engine/scroll";
 import { dragNoteLabel, NOTE_TEXT } from "./data";
@@ -125,7 +126,7 @@ export function PainNotes({
     io.observe(board);
     const ro = new ResizeObserver(() => driver.relayout());
     ro.observe(stage);
-    const onNarrow = () => driver.relayout();
+    const onNarrow = () => flushSync(() => driver.layoutNow()); // JS 4709: the change handler lays out at once
     narrow?.addEventListener("change", onNarrow);
     const move = (e: PointerEvent) => driver.pointerMove(e);
     const end = () => driver.pointerEnd();
