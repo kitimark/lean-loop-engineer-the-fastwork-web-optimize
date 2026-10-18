@@ -74,6 +74,10 @@ export async function launchChromium({ chromePath = process.env.CHROME_PATH ?? C
       await cdp.send('Emulation.setDeviceMetricsOverride', metrics(env, hostWidth(env)));
       await cdp.send('Emulation.setEmulatedMedia', media(env));
       await page.evaluateOnNewDocument(init);
+      // The pointer starts at (0,0) of a fresh page, over the top-left card of hero.orbit: a card that slides under it before the
+      // gate's early park raises it (z-index 2) in the original only (runs 39101532038 and 39105279831: one desk-rm probe each,
+      // a different one, 860 then 861). Parking before the navigation leaves no pointer over the page while it loads.
+      if (env.hover === 'hover') await page.mouse.move(-1, -1);
       await page.goto(origin + path, { waitUntil: 'load' });
       const frame = page.mainFrame();
       return {
