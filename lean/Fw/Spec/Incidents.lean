@@ -29,7 +29,7 @@ namespace LandDry
 open Fw.Console.LandVerdict Fw.Console.LandDry Fw.Spec.LandDrySig
 
 /-- Does the outcome describe an empty branch: no exception, the branch contains main, and it has no commit of its own?
-$$\operatorname{empty}(O) \iff \lnot\mathit{threw} \wedge \mathit{fresh} \wedge \lnot\mathit{own}$$ -/
+$$\forall O,\ \operatorname{empty}(O) \iff \lnot\mathit{threw} \wedge \mathit{fresh} \wedge \lnot\mathit{own}$$ -/
 def isEmptyBranch (o : Outcome) : Bool := !o.threw && o.fresh && !o.own
 
 #guard isEmptyBranch ⟨false, true, false, false, false, false, false⟩
@@ -38,7 +38,7 @@ def isEmptyBranch (o : Outcome) : Bool := !o.threw && o.fresh && !o.own
 #guard !isEmptyBranch ⟨false, true, true, true, true, true, true⟩
 
 /-- The incident inputs of `inc-land-dry-no-verdict`: the outcome is an empty branch.
-$$E_{\mathrm{empty}}(O) \iff \operatorname{empty}(O)$$ -/
+$$\forall O,\ E_{\mathrm{empty}}(O) \iff \operatorname{empty}(O)$$ -/
 def emptyIncident (o : Outcome) : Prop := isEmptyBranch o = true
 
 /-- The one line the incident run printed. The ledger says only that it was "a path"; which path it was is not
@@ -52,7 +52,7 @@ def pathLine : String := "<worktree path>"
 and no `VERDICT` line (the ledger's symptom, as `[pathLine]`); otherwise it is the real run. The ledger records no exit
 code, so the replay keeps the real run's code on every input: it differs from the real run only in what the ledger
 records.
-$$\mathrm{emptyNoVerdict}(O, t) = \begin{cases} ([\ell_{\mathrm{path}}], \operatorname{code}(\operatorname{kind}(O))) & \operatorname{empty}(O) \\ (\operatorname{run}(O, t), \operatorname{code}(\operatorname{kind}(O))) & \text{otherwise} \end{cases}$$ -/
+$$\forall O\, t,\ \mathrm{emptyNoVerdict}(O, t) = \begin{cases} ([\ell_{\mathrm{path}}], \operatorname{code}(\operatorname{kind}(O))) & \operatorname{empty}(O) \\ (\operatorname{run}(O, t), \operatorname{code}(\operatorname{kind}(O))) & \text{otherwise} \end{cases}$$ -/
 def emptyNoVerdict : DryImpl := fun o t =>
   if isEmptyBranch o then ⟨[pathLine], o.kind.exitCode⟩ else ⟨dryRun o t, o.kind.exitCode⟩
 
@@ -127,22 +127,22 @@ def vocab : Sig → List String
 
 /-- **A property kills a registered incident of the signature** $s$: some row of the one registry of $s$ has a replay
 that $P$ rejects.
-$$\mathrm{Kills}(s, P) \iff \mathrm{KillsAt}(\operatorname{reg}(s), P)$$ -/
+$$\forall s\, P,\ \mathrm{Kills}(s, P) \iff \mathrm{KillsAt}(\operatorname{reg}(s), P)$$ -/
 abbrev Kills (s : Sig) (P : Property (s.Dom → s.Cod)) : Prop := KillsAt (registryFor s) P
 
 /-- **The replays of the signature** $s$ **are faithful** to the implementation $f$: every row of the one registry
 of $s$ agrees with $f$ off its incident inputs.
-$$\mathrm{Faithful}(s, f) \iff \mathrm{Faithful}(f, \operatorname{reg}(s))$$ -/
+$$\forall s\, f,\ \mathrm{Faithful}(s, f) \iff \mathrm{Faithful}(f, \operatorname{reg}(s))$$ -/
 abbrev Faithful (s : Sig) (impl : s.Dom → s.Cod) : Prop := (registryFor s).Faithful impl
 
 /-- **The convention the gate checks** for one property: $P$ holds of $f$, kills a row of the one registry of $s$,
 and that registry is faithful to $f$. No registry argument: the kill target is never the property author's.
-$$\mathrm{Convention}(s, f, P) \iff \mathrm{ConventionAt}(\operatorname{reg}(s), f, P)$$ -/
+$$\forall s\, f\, P,\ \mathrm{Convention}(s, f, P) \iff \mathrm{ConventionAt}(\operatorname{reg}(s), f, P)$$ -/
 abbrev Convention (s : Sig) (impl : s.Dom → s.Cod) (P : Property (s.Dom → s.Cod)) : Prop :=
   ConventionAt (registryFor s) impl P
 
 /-- **The rows of the dry-run registry**: a row is in it exactly when it is the row of `inc-land-dry-no-verdict`. Use
-this instead of unfolding the registry (an unfolded registry outside this module is a construction the lint rejects).
+this instead of unfolding the registry outside this module.
 $$\forall i,\ i \in \operatorname{reg}(\mathrm{landDry}) \iff i = i_{\mathrm{dry}}$$ -/
 theorem mem_landDry (i : Incident (Sig.Dom .landDry) (Sig.Cod .landDry)) :
     i ∈ (registryFor .landDry).rows ↔ i = LandDry.incLandDryNoVerdict :=
