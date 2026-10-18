@@ -138,16 +138,20 @@ export const INSTALL_READS = ["pnpm-lock.yaml", "**/package.json"];
 export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "apps/console-api": ["apps/console-web/**", "apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**"],
   "apps/runner": ["apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
-    "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh"],
+    "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
+    // ci-trigger-lean: test/ci-triggers.test.ts reads every workflow, the guard script and the lint
+    ".github/workflows/**", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs"],
   "apps/site": ["packages/gate-breakpoints/src/serve.mjs", "packages/contracts/golden/parts/**"],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],
   "packages/measure-chromium": ["packages/contracts/golden/measure/**", "results/baselines/chromium/**"],
   "packages/gate-breakpoints": ["packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**"],
+  "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
   "packages/measure-webkit": ["packages/contracts/golden/measure/**"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
+  "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**"],
 };
 
 /** Directories of the `workspace:` dependencies of a package (`@fw/x` is `packages/x` or `apps/x`). */

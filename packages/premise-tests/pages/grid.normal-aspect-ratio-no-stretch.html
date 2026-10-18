@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>grid.normal-aspect-ratio-no-stretch</title>
+<style>
+  body { margin: 0 }
+  .g { display: grid; grid-template-columns: 2fr 1fr; width: 60vw; margin-bottom: 8px }
+  .r { aspect-ratio: 640 / 512; width: 100%; height: auto; background: #888 }
+  .tall { height: 300px; background: #ccc }
+  #n > .r { align-self: normal }
+  #s > .r { align-self: start }
+  #t > .r { align-self: stretch }
+  .p { align-self: normal; height: auto; background: #888 }
+  .p > i { display: block; height: 10px }
+</style>
+<div class="g" id="n"><div class="r"></div><div class="tall"></div></div>
+<div class="g" id="s"><div class="r"></div><div class="tall"></div></div>
+<div class="g" id="t"><div class="r"></div><div class="tall"></div></div>
+<!-- m: normal on a block item without an aspect ratio (the rule's normal = fill branch) -->
+<div class="g" id="m"><div class="p"><i></i></div><div class="tall"></div></div>
