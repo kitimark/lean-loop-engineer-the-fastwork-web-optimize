@@ -1068,8 +1068,7 @@ theorem mem_findings (ps : List Premise) (rs : List Result) (p : Premise) (e : E
 /-- **A changed finding is red.** If a page premise fails on an engine it needs and no acknowledgement for that
 premise and engine accepts the observed class, the finding is unacknowledged and the verdict is red.
 
-$$\forall ps, rs, ks, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \land \big(\forall a \in ks:\ a.\mathrm{premise} = p.\mathrm{id} \Rightarrow a.\mathrm{engine} = e \Rightarrow a.\mathrm{cls} \ne \operatorname{failClass}(rs, p, e)\big) \Rightarrow f \in v.\mathrm{unacked} \land \operatorname{red}(v)$$
-where $f = (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e))$ and $v = \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs))$.
+$$\forall ps, rs, ks, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \land \big(\forall a \in ks:\ a.\mathrm{premise} = p.\mathrm{id} \Rightarrow a.\mathrm{engine} = e \Rightarrow a.\mathrm{cls} \ne \operatorname{failClass}(rs, p, e)\big) \Rightarrow (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e)) \in \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)).\mathrm{unacked} \land \operatorname{red}(\operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)))$$
 -/
 theorem changed_finding_red (ps : List Premise) (rs : List Result) (ks : List Ack) (p : Premise) (e : Engine)
     (hp : p ∈ ps) (hk : p.kind = .page) (he : e ∈ p.engines) (hh : holds rs p e = false)
@@ -1090,8 +1089,7 @@ theorem changed_finding_red (ps : List Premise) (rs : List Result) (ks : List Ac
 acknowledgement for that premise and engine (a new premise, or a known premise on a new engine), is unacknowledged and
 the verdict is red, whatever else is acknowledged.
 
-$$\forall ps, rs, ks, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \land \big(\forall a \in ks:\ \neg(a.\mathrm{premise} = p.\mathrm{id} \land a.\mathrm{engine} = e)\big) \Rightarrow f \in v.\mathrm{unacked} \land \operatorname{red}(v)$$
-where $f = (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e))$ and $v = \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs))$.
+$$\forall ps, rs, ks, p, e:\ p \in ps \land p.\mathrm{kind} = \mathrm{page} \land e \in p.\mathrm{engines} \land \operatorname{holds}(rs, p, e) = \bot \land \big(\forall a \in ks:\ \neg(a.\mathrm{premise} = p.\mathrm{id} \land a.\mathrm{engine} = e)\big) \Rightarrow (p.\mathrm{id}, e, \operatorname{failClass}(rs, p, e)) \in \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)).\mathrm{unacked} \land \operatorname{red}(\operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)))$$
 -/
 theorem ack_never_hides_new (ps : List Premise) (rs : List Result) (ks : List Ack) (p : Premise) (e : Engine)
     (hp : p ∈ ps) (hk : p.kind = .page) (he : e ∈ p.engines) (hh : holds rs p e = false)
@@ -1104,8 +1102,7 @@ theorem ack_never_hides_new (ps : List Premise) (rs : List Result) (ks : List Ac
 the acknowledged id now holds on the acknowledged engine, the acknowledgement is stale and the verdict is red (it must
 be removed).
 
-$$\forall ps, rs, ks, a:\ a \in ks \land a.\mathrm{intermittent} = \bot \land \big(\forall p \in ps:\ p.\mathrm{id} = a.\mathrm{premise} \Rightarrow \operatorname{holds}(rs, p, a.\mathrm{engine}) = \top\big) \Rightarrow a \in v.\mathrm{stale} \land \operatorname{red}(v)$$
-where $v = \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs))$.
+$$\forall ps, rs, ks, a:\ a \in ks \land a.\mathrm{intermittent} = \bot \land \big(\forall p \in ps:\ p.\mathrm{id} = a.\mathrm{premise} \Rightarrow \operatorname{holds}(rs, p, a.\mathrm{engine}) = \top\big) \Rightarrow a \in \operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)).\mathrm{stale} \land \operatorname{red}(\operatorname{ackVerdict}(ks, \operatorname{findings}(ps, rs)))$$
 -/
 theorem stale_ack_reported (ps : List Premise) (rs : List Result) (ks : List Ack) (a : Ack) (ha : a ∈ ks)
     (hi : a.intermittent = false) (hh : ∀ p ∈ ps, p.id = a.premise → holds rs p a.engine = true) :
@@ -1147,9 +1144,7 @@ and Playwright WebKit 27.2 on Linux) and recorded in `research/findings/ledger.j
 39102911529; it did in runs 39082835090, 39084127865, 39087188278 and 39101531977), `cv.auto-margin` fails on both
 engines in all five runs (a style read forces the content-visibility lock open and returns 150px).
 
-$$\mathrm{acks} = [\,(\texttt{anim.list}, \mathrm{webkit}, c_1, \texttt{premise.anim.list}, \top),\ (\texttt{cv.auto-margin}, \mathrm{chromium}, c_2, \texttt{premise.cv.auto-margin}, \bot),\ (\texttt{cv.auto-margin}, \mathrm{webkit}, c_2, \texttt{premise.cv.auto-margin}, \bot)\,]$$
-with $c_1 = \texttt{the short transition is listed while running}$ and
-$c_2 = \texttt{skipped subtree reports unresolved auto margin, got 150px}$.
+$$\mathrm{acks} = [\,(\texttt{anim.list}, \mathrm{webkit}, \texttt{the short transition is listed while running}, \texttt{premise.anim.list}, \top),\ (\texttt{cv.auto-margin}, \mathrm{chromium}, \texttt{skipped subtree reports unresolved auto margin, got 150px}, \texttt{premise.cv.auto-margin}, \bot),\ (\texttt{cv.auto-margin}, \mathrm{webkit}, \texttt{skipped subtree reports unresolved auto margin, got 150px}, \texttt{premise.cv.auto-margin}, \bot)\,]$$
 -/
 def acks : List Ack := [
   ⟨"anim.list", .webkit, "the short transition is listed while running", "premise.anim.list", true⟩,
