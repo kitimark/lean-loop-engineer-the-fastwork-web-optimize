@@ -25,22 +25,22 @@ open Fw.Spec.Props
 /-! ## Spec vocabulary -/
 
 /-- **New**: the first baseline entry with the theorem's name does not carry its hash (or there is none).
-$$\operatorname{New}(F, t) \iff \operatorname{lookup}(B, t.\mathit{name}) \ne \mathrm{some}(t.\mathit{hash})$$ -/
+$$\operatorname{New}(F, t) \iff \operatorname{lookup}(F.\mathit{baseline}, t.\mathit{name}) \ne \mathrm{some}(t.\mathit{hash})$$ -/
 abbrev New (F : Facts) (t : ThmFact) : Prop := F.baseline.lookup t.name ≠ some t.hash
 
 /-- **A kill at a hash**: some kill row has this target and this hash.
-$$\operatorname{KillAt}(F, n, h) \iff \exists k \in K,\ k.\mathit{target} = n \land k.\mathit{hash} = h$$ -/
+$$\operatorname{KillAt}(F, n, h) \iff \exists k \in F.\mathit{kills},\ k.\mathit{target} = n \land k.\mathit{hash} = h$$ -/
 abbrev KillAt (F : Facts) (n h : String) : Prop := ∃ k ∈ F.kills, k.target = n ∧ k.hash = h
 
 /-- **Exempt** (rule 2): a data lint or a kill witness, or a new theorem without its own kill used by a theorem of
 the facts that has a kill.
-$$\operatorname{Exempt}(F, t) \iff t.\mathit{kind} \ne \mathrm{general} \lor \bigl(\operatorname{New}(F, t) \land \lnot\operatorname{KillAt}(F, t.\mathit{name}, t.\mathit{hash}) \land \exists u \in t.\mathit{usedBy},\ \exists v \in \mathit{thms},\ v.\mathit{name} = u \land \operatorname{KillAt}(F, v.\mathit{name}, v.\mathit{hash})\bigr)$$ -/
+$$\operatorname{Exempt}(F, t) \iff t.\mathit{kind} \ne \mathrm{general} \lor \bigl(\operatorname{New}(F, t) \land \lnot\operatorname{KillAt}(F, t.\mathit{name}, t.\mathit{hash}) \land \exists u \in t.\mathit{usedBy},\ \exists v \in F.\mathit{thms},\ v.\mathit{name} = u \land \operatorname{KillAt}(F, v.\mathit{name}, v.\mathit{hash})\bigr)$$ -/
 abbrev Exempt (F : Facts) (t : ThmFact) : Prop :=
   t.kind ≠ .general ∨
     (New F t ∧ ¬ KillAt F t.name t.hash ∧ ∃ u ∈ t.usedBy, ∃ v ∈ F.thms, v.name = u ∧ KillAt F v.name v.hash)
 
 /-- **The status of a premise**: the first registry row with the id has this status.
-$$\operatorname{StatusIs}(F, p, \mathit{st}) \iff \operatorname{map}(\mathit{status}, \operatorname{find}(\rho \mapsto \rho.\mathit{id} = p, \mathit{reg})) = \mathrm{some}(\mathit{st})$$ -/
+$$\operatorname{StatusIs}(F, p, \mathit{st}) \iff \operatorname{map}(\mathit{status}, \operatorname{find}(\rho \mapsto \rho.\mathit{id} = p, F.\mathit{registry})) = \mathrm{some}(\mathit{st})$$ -/
 abbrev StatusIs (F : Facts) (p : String) (st : Status) : Prop :=
   (F.registry.find? (fun r => r.id == p)).map (·.status) = some st
 
@@ -61,16 +61,16 @@ abbrev At (s : Signoff) (P : PropFact) (r : Role) : Prop :=
   s.decl = P.name ∧ s.stmtHash = P.stmtHash ∧ s.docHash = P.docHash ∧ s.role = r
 
 /-- **Signed** (rule 1b): some row at the current hashes for the role agrees, and every such row agrees.
-$$\operatorname{Signed}(F, P, r) \iff (\exists \sigma \in \Sigma,\ \operatorname{At}(\sigma, P, r) \land \sigma.a) \land \forall \sigma \in \Sigma,\ \operatorname{At}(\sigma, P, r) \Rightarrow \sigma.a$$ -/
+$$\operatorname{Signed}(F, P, r) \iff (\exists \sigma \in F.\mathit{signoffs},\ \operatorname{At}(\sigma, P, r) \land \sigma.a) \land \forall \sigma \in F.\mathit{signoffs},\ \operatorname{At}(\sigma, P, r) \Rightarrow \sigma.a$$ -/
 abbrev Signed (F : Facts) (P : PropFact) (r : Role) : Prop :=
   (∃ s ∈ F.signoffs, At s P r ∧ s.agree = true) ∧ ∀ s ∈ F.signoffs, At s P r → s.agree = true
 
 /-- **Decision code** (rule 1a): some write is a decision path.
-$$\operatorname{Dec}(F) \iff \exists w \in W,\ \operatorname{dec}(w)$$ -/
+$$\operatorname{Dec}(F) \iff \exists w \in F.\mathit{writes},\ \operatorname{dec}(w)$$ -/
 abbrev Decides (F : Facts) : Prop := ∃ w ∈ F.writes, isDecisionPath w = true
 
 /-- **One property is done** (rule 1): discharged, reached, signed by both roles, and killed at its statement hash.
-$$\operatorname{PropOk}(F, P) \iff (\exists t \in \mathit{thms},\ \operatorname{Dis}(F, t, P)) \land P.\mathit{reached} \land \operatorname{Signed}(F, P, \mathrm{math}) \land \operatorname{Signed}(F, P, \mathrm{adversary}) \land \operatorname{KillAt}(F, P.\mathit{name}, P.\mathit{stmt})$$ -/
+$$\operatorname{PropOk}(F, P) \iff (\exists t \in F.\mathit{thms},\ \operatorname{Dis}(F, t, P)) \land P.\mathit{reached} \land \operatorname{Signed}(F, P, \mathrm{math}) \land \operatorname{Signed}(F, P, \mathrm{adversary}) \land \operatorname{KillAt}(F, P.\mathit{name}, P.\mathit{stmt})$$ -/
 def PropOk (F : Facts) (P : PropFact) : Prop :=
   (∃ t ∈ F.thms, Discharges F t P) ∧ P.reached = true ∧ Signed F P .math ∧ Signed F P .adversary ∧
     KillAt F P.name P.stmtHash
@@ -80,20 +80,20 @@ instance instDecidablePropOk (F : Facts) (P : PropFact) : Decidable (PropOk F P)
     Signed F P .adversary ∧ KillAt F P.name P.stmtHash))
 
 /-- **Rule 1**: decision code has at least one property, and every property is done.
-$$\operatorname{Props}(F) \iff (\operatorname{Dec}(F) \Rightarrow \mathit{props} \ne [\,]) \land \forall P \in \mathit{props},\ \operatorname{PropOk}(F, P)$$ -/
+$$\operatorname{Props}(F) \iff (\operatorname{Dec}(F) \Rightarrow F.\mathit{props} \ne [\,]) \land \forall P \in F.\mathit{props},\ \operatorname{PropOk}(F, P)$$ -/
 abbrev PropsOk (F : Facts) : Prop := (Decides F → F.props ≠ []) ∧ ∀ P ∈ F.props, PropOk F P
 
 /-- **Rule 2**: every new theorem has a kill at its hash or is exempt.
-$$\operatorname{Kills}(F) \iff \forall t \in \mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \operatorname{KillAt}(F, t.\mathit{name}, t.\mathit{hash}) \lor \operatorname{Exempt}(F, t)$$ -/
+$$\operatorname{Kills}(F) \iff \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \operatorname{KillAt}(F, t.\mathit{name}, t.\mathit{hash}) \lor \operatorname{Exempt}(F, t)$$ -/
 abbrev KillsOk (F : Facts) : Prop := ∀ t ∈ F.thms, New F t → KillAt F t.name t.hash ∨ Exempt F t
 
 /-- **Rule 3**: every new data branch is marked `op`, `twin` or an accepted `glue`.
-$$\operatorname{Twins}(F) \iff \forall b \in \mathit{branches},\ b.\mathit{mark} \in \{\mathrm{op}, \mathrm{twin}, \mathrm{glue}_{ok}\}$$ -/
+$$\operatorname{Twins}(F) \iff \forall b \in F.\mathit{branches},\ b.\mathit{mark} \in \{\mathrm{op}, \mathrm{twin}, \mathrm{glue}_{ok}\}$$ -/
 abbrev TwinsOk (F : Facts) : Prop := ∀ b ∈ F.branches, b.mark = .op ∨ b.mark = .twin ∨ b.mark = .glueOk
 
 /-- **Rule 4**: for every new theorem, every registry row whose carrier it reaches is assumed, every assumed id is a
 registry row, and no assumed id is refuted.
-$$\operatorname{Prem}(F) \iff \forall t \in \mathit{thms},\ \operatorname{New}(F, t) \Rightarrow (\forall \rho \in \mathit{reg},\ (\exists c \in \rho.\mathit{carriers},\ c \in t.\mathit{reach}) \Rightarrow \rho.\mathit{id} \in t.\mathit{assumes}) \land (\forall p \in t.\mathit{assumes},\ \exists \rho \in \mathit{reg},\ \rho.\mathit{id} = p) \land (\forall p \in t.\mathit{assumes},\ \lnot\operatorname{StatusIs}(F, p, \mathrm{refuted}))$$ -/
+$$\operatorname{Prem}(F) \iff \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow (\forall \rho \in F.\mathit{registry},\ (\exists c \in \rho.\mathit{carriers},\ c \in t.\mathit{reach}) \Rightarrow \rho.\mathit{id} \in t.\mathit{assumes}) \land (\forall p \in t.\mathit{assumes},\ \exists \rho \in F.\mathit{registry},\ \rho.\mathit{id} = p) \land (\forall p \in t.\mathit{assumes},\ \lnot\operatorname{StatusIs}(F, p, \mathrm{refuted}))$$ -/
 abbrev PremOk (F : Facts) : Prop :=
   ∀ t ∈ F.thms, New F t →
     (∀ r ∈ F.registry, (∃ c ∈ r.carriers, c ∈ t.reach) → r.id ∈ t.assumes) ∧
@@ -102,20 +102,20 @@ abbrev PremOk (F : Facts) : Prop :=
 
 /-- **Search before proof** for one property: both commits are known and the search commit is a strict ancestor of
 the proof commit.
-$$\operatorname{First}(F, P) \iff \exists a\, b,\ P.\mathit{searchAt} = \mathrm{some}(a) \land P.\mathit{proofAt} = \mathrm{some}(b) \land (a, b) \in A$$ -/
+$$\operatorname{First}(F, P) \iff \exists a\, b,\ P.\mathit{searchAt} = \mathrm{some}(a) \land P.\mathit{proofAt} = \mathrm{some}(b) \land (a, b) \in F.\mathit{ancestry}$$ -/
 abbrev SearchFirst (F : Facts) (P : PropFact) : Prop :=
   ∃ a ∈ P.searchAt.toList, ∃ b ∈ P.proofAt.toList, (a, b) ∈ F.ancestry
 
 /-- **Rule 5**: every property's search came first.
-$$\operatorname{Search}(F) \iff \forall P \in \mathit{props},\ \operatorname{First}(F, P)$$ -/
+$$\operatorname{Search}(F) \iff \forall P \in F.\mathit{props},\ \operatorname{First}(F, P)$$ -/
 abbrev SearchOk (F : Facts) : Prop := ∀ P ∈ F.props, SearchFirst F P
 
 /-- **The ratchet** (stage 3): the legacy gap count at the head is at most the count on main.
-$$\operatorname{Ratchet}(F) \iff \ell_{head} \le \ell_{main}$$ -/
+$$\operatorname{Ratchet}(F) \iff F.\mathit{legacyHead} \le F.\mathit{legacyMain}$$ -/
 abbrev RatchetOk (F : Facts) : Prop := F.legacyHead ≤ F.legacyMain
 
 /-- Every fact source was read.
-$$\operatorname{Present}(F) \iff \pi.\mathit{mathview} \land \pi.\mathit{kills} \land \pi.\mathit{tsLint}$$ -/
+$$\operatorname{Present}(F) \iff F.\mathit{present}.\mathit{mathview} \land F.\mathit{present}.\mathit{kills} \land F.\mathit{present}.\mathit{tsLint}$$ -/
 abbrev AllPresent (F : Facts) : Prop :=
   F.present.mathview = true ∧ F.present.kills = true ∧ F.present.tsLint = true
 
@@ -140,7 +140,7 @@ instance instDecidableRuleOk (r : Rule) (F : Facts) : Decidable (RuleOk r F) :=
 
 /-- **When the land passes** (section 7, the right side of `pass_iff`): every source is present or no rule is
 enforced, and every enforced rule holds.
-$$\operatorname{Pass}(s, F) \iff (\operatorname{Present}(F) \lor \forall r \in \mathrm{rules},\ \lnot\operatorname{en}(s, \mathit{lf}, r)) \land \forall r \in \mathrm{rules},\ \operatorname{en}(s, \mathit{lf}, r) \Rightarrow \operatorname{Ok}(r)(F)$$ -/
+$$\operatorname{Pass}(s, F) \iff (\operatorname{Present}(F) \lor \forall r \in \mathrm{rules},\ \lnot\operatorname{en}(s, F.\mathit{lf}, r)) \land \forall r \in \mathrm{rules},\ \operatorname{en}(s, F.\mathit{lf}, r) \Rightarrow \operatorname{Ok}(r)(F)$$ -/
 abbrev PassSpec (s : Stage) (F : Facts) : Prop :=
   (AllPresent F ∨ ∀ r ∈ Rule.all, enforced s F.leanFirst r = false) ∧
     ∀ r ∈ Rule.all, enforced s F.leanFirst r = true → RuleOk r F
@@ -166,13 +166,13 @@ def Verdict.isPending : Verdict → Bool
 /-! ## The properties (section 7) -/
 
 /-- **`pass_iff`**: the gate passes exactly when `PassSpec` holds.
-$$\forall s\, F,\ g(s, F) = \mathrm{pass} \iff \operatorname{Pass}(s, F)$$
+$$\operatorname{PassIff}(g) :\iff \forall s\, F,\ g(s, F) = \mathrm{pass} \iff \operatorname{Pass}(s, F)$$
 The gate passes exactly when the sources are present (or nothing is enforced) and every enforced rule holds. -/
 def PassIff : Property Gate := fun g => ∀ s F, g s F = .pass ↔ PassSpec s F
 
 /-- **`land_refuses_unproved`** (theorem 1): with rule 1 enforced and every source present, a property that no
 theorem discharges is a refusal reason.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{props}) \land \operatorname{Present}(F) \Rightarrow \forall P \in \mathit{props},\ \lnot(\exists t \in \mathit{thms},\ \operatorname{Dis}(F, t, P)) \Rightarrow \mathrm{unproved}(P.\mathit{name}) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{RefusesUnproved}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{props}) \land \operatorname{Present}(F) \Rightarrow \forall P \in F.\mathit{props},\ \lnot(\exists t \in F.\mathit{thms},\ \operatorname{Dis}(F, t, P)) \Rightarrow \mathrm{unproved}(P.\mathit{name}) \in \operatorname{refusals}(g(s, F))$$
 An unproved property refuses the land, naming the property. -/
 def RefusesUnproved : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .props = true → AllPresent F →
@@ -180,7 +180,7 @@ def RefusesUnproved : Property Gate := fun g =>
 
 /-- **`stale_review_refuses`** (theorem 2): with rule 1 enforced and every source present, a property that a role has
 not signed at its current hashes (or has disagreed with) is a refusal reason.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{props}) \land \operatorname{Present}(F) \Rightarrow \forall P \in \mathit{props},\ \forall r \in [\mathrm{math}, \mathrm{adversary}],\ \lnot\operatorname{Signed}(F, P, r) \Rightarrow \mathrm{unsigned}(P.\mathit{name}, r) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{StaleReviewRefuses}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{props}) \land \operatorname{Present}(F) \Rightarrow \forall P \in F.\mathit{props},\ \forall r \in [\mathrm{math}, \mathrm{adversary}],\ \lnot\operatorname{Signed}(F, P, r) \Rightarrow \mathrm{unsigned}(P.\mathit{name}, r) \in \operatorname{refusals}(g(s, F))$$
 A missing, stale or disagreeing review refuses the land, naming the property and the role. -/
 def StaleReviewRefuses : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .props = true → AllPresent F →
@@ -189,7 +189,7 @@ def StaleReviewRefuses : Property Gate := fun g =>
 
 /-- **`no_props_refuses`** (theorem 3, the non-vacuity of the gate): with rule 1 enforced and every source present,
 decision code with no property is refused, naming a decision write.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{props}) \land \operatorname{Present}(F) \land \operatorname{Dec}(F) \land \mathit{props} = [\,] \Rightarrow \exists w \in W,\ \operatorname{dec}(w) \land \mathrm{noProps}(w) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{NoPropsRefuses}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{props}) \land \operatorname{Present}(F) \land \operatorname{Dec}(F) \land F.\mathit{props} = [\,] \Rightarrow \exists w \in F.\mathit{writes},\ \operatorname{dec}(w) \land \mathrm{noProps}(w) \in \operatorname{refusals}(g(s, F))$$
 Writing decision code without stating a property refuses the land. -/
 def NoPropsRefuses : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .props = true → AllPresent F → Decides F → F.props = [] →
@@ -197,21 +197,21 @@ def NoPropsRefuses : Property Gate := fun g =>
 
 /-- **`mutant_kills_or_refuse`** (theorem 4): with rule 2 enforced and every source present, a new theorem without a
 kill at its hash that is not exempt is a refusal reason.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{kills}) \land \operatorname{Present}(F) \Rightarrow \forall t \in \mathit{thms},\ \operatorname{New}(F, t) \land \lnot\operatorname{KillAt}(F, t.\mathit{name}, t.\mathit{hash}) \land \lnot\operatorname{Exempt}(F, t) \Rightarrow \mathrm{noKill}(t.\mathit{name}) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{MutantKillsOrRefuse}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{kills}) \land \operatorname{Present}(F) \Rightarrow \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \land \lnot\operatorname{KillAt}(F, t.\mathit{name}, t.\mathit{hash}) \land \lnot\operatorname{Exempt}(F, t) \Rightarrow \mathrm{noKill}(t.\mathit{name}) \in \operatorname{refusals}(g(s, F))$$
 A new theorem that no mutant kills refuses the land. -/
 def MutantKillsOrRefuse : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .kills = true → AllPresent F →
     ∀ t ∈ F.thms, New F t → ¬ KillAt F t.name t.hash → ¬ Exempt F t → Reason.noKill t.name ∈ (g s F).refusals
 
 /-- **`exempt_not_discharge`** (theorem 5), over the type of `discharges`: an exempt theorem discharges no property.
-$$\forall F\, t\, P,\ \operatorname{Exempt}(F, t) \Rightarrow d(F, t, P) = \mathrm{false}$$
+$$\operatorname{ExemptNotDischarge}(d) :\iff \forall F\, t\, P,\ \operatorname{Exempt}(F, t) \Rightarrow d(F, t, P) = \mathrm{false}$$
 A lemma, data lint or kill witness can never be the proof of a property. -/
 def ExemptNotDischarge : Property (Facts → ThmFact → PropFact → Bool) := fun d =>
   ∀ F t P, Exempt F t → d F t P = false
 
 /-- **`hidden_premise_refuses`** (theorem 6): with rule 4 enforced and every source present, a new theorem that
 reaches a registry row's carrier without assuming that premise is a refusal reason.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{premises}) \land \operatorname{Present}(F) \Rightarrow \forall t \in \mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall \rho \in \mathit{reg},\ (\exists c \in \rho.\mathit{carriers},\ c \in t.\mathit{reach}) \land \rho.\mathit{id} \notin t.\mathit{assumes} \Rightarrow \mathrm{hidden}(t.\mathit{name}, \rho.\mathit{id}) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{HiddenPremiseRefuses}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{premises}) \land \operatorname{Present}(F) \Rightarrow \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall \rho \in F.\mathit{registry},\ (\exists c \in \rho.\mathit{carriers},\ c \in t.\mathit{reach}) \land \rho.\mathit{id} \notin t.\mathit{assumes} \Rightarrow \mathrm{hidden}(t.\mathit{name}, \rho.\mathit{id}) \in \operatorname{refusals}(g(s, F))$$
 A premise hidden inside a definition the proof reaches refuses the land. -/
 def HiddenPremiseRefuses : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .premises = true → AllPresent F →
@@ -220,7 +220,7 @@ def HiddenPremiseRefuses : Property Gate := fun g =>
 
 /-- **`unregistered_premise_refuses`** (rule 4c): with rule 4 enforced and every source present, a new theorem that
 assumes an id with no registry row is a refusal reason.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{premises}) \land \operatorname{Present}(F) \Rightarrow \forall t \in \mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall p \in t.\mathit{assumes},\ \lnot(\exists \rho \in \mathit{reg},\ \rho.\mathit{id} = p) \Rightarrow \mathrm{unregistered}(t.\mathit{name}, p) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{UnregisteredPremiseRefuses}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{premises}) \land \operatorname{Present}(F) \Rightarrow \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall p \in t.\mathit{assumes},\ \lnot(\exists \rho \in F.\mathit{registry},\ \rho.\mathit{id} = p) \Rightarrow \mathrm{unregistered}(t.\mathit{name}, p) \in \operatorname{refusals}(g(s, F))$$
 A premise id that is not in the registry refuses the land. -/
 def UnregisteredPremiseRefuses : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .premises = true → AllPresent F →
@@ -229,7 +229,7 @@ def UnregisteredPremiseRefuses : Property Gate := fun g =>
 
 /-- **`refuted_premise_refuses`** (theorem 7): with rule 4 enforced and every source present, a new theorem that
 assumes a refuted premise is a refusal reason.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{premises}) \land \operatorname{Present}(F) \Rightarrow \forall t \in \mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall p \in t.\mathit{assumes},\ \operatorname{StatusIs}(F, p, \mathrm{refuted}) \Rightarrow \mathrm{refuted}(t.\mathit{name}, p) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{RefutedPremiseRefuses}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{premises}) \land \operatorname{Present}(F) \Rightarrow \forall t \in F.\mathit{thms},\ \operatorname{New}(F, t) \Rightarrow \forall p \in t.\mathit{assumes},\ \operatorname{StatusIs}(F, p, \mathrm{refuted}) \Rightarrow \mathrm{refuted}(t.\mathit{name}, p) \in \operatorname{refusals}(g(s, F))$$
 A proof that rests on a refuted premise refuses the land. -/
 def RefutedPremiseRefuses : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .premises = true → AllPresent F →
@@ -238,7 +238,7 @@ def RefutedPremiseRefuses : Property Gate := fun g =>
 
 /-- **`untwinned_branch_refuses`** (theorem 8): with rule 3 enforced and every source present, a new data branch with
 no mark or a refused glue mark is a refusal reason.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{twins}) \land \operatorname{Present}(F) \Rightarrow \forall b \in \mathit{branches},\ b.\mathit{mark} \in \{\bot, \mathrm{glue}_{bad}\} \Rightarrow \mathrm{branch}(b.\mathit{file}, b.\mathit{line}, b.\mathit{mark}) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{UntwinnedBranchRefuses}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{twins}) \land \operatorname{Present}(F) \Rightarrow \forall b \in F.\mathit{branches},\ b.\mathit{mark} \in \{\bot, \mathrm{glue}_{bad}\} \Rightarrow \mathrm{branch}(b.\mathit{file}, b.\mathit{line}, b.\mathit{mark}) \in \operatorname{refusals}(g(s, F))$$
 A TS decision branch with neither a Lean op, a twin nor accepted glue refuses the land. -/
 def UntwinnedBranchRefuses : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .twins = true → AllPresent F →
@@ -246,7 +246,7 @@ def UntwinnedBranchRefuses : Property Gate := fun g =>
 
 /-- **`proof_before_search_refuses`** (theorem 9): with rule 5 enforced and every source present, a property whose
 search guards are not a strict git ancestor of its proof is a refusal reason.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{search}) \land \operatorname{Present}(F) \Rightarrow \forall P \in \mathit{props},\ \lnot\operatorname{First}(F, P) \Rightarrow \mathrm{searchOrder}(P.\mathit{name}) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{ProofBeforeSearchRefuses}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{search}) \land \operatorname{Present}(F) \Rightarrow \forall P \in F.\mathit{props},\ \lnot\operatorname{First}(F, P) \Rightarrow \mathrm{searchOrder}(P.\mathit{name}) \in \operatorname{refusals}(g(s, F))$$
 A proof committed before (or without) its edge-case search refuses the land. -/
 def ProofBeforeSearchRefuses : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .search = true → AllPresent F →
@@ -254,7 +254,7 @@ def ProofBeforeSearchRefuses : Property Gate := fun g =>
 
 /-- **`missing_fact_not_pass`** (theorem 10, the verdict half): when some rule is enforced and a source is missing,
 the verdict is pending on exactly the missing sources.
-$$\forall s\, F,\ (\exists r \in \mathrm{rules},\ \operatorname{en}(s, \mathit{lf}, r)) \land \lnot\operatorname{Present}(F) \Rightarrow \operatorname{isPending}(g(s, F)) \land \bigwedge_{x \in \{\mathit{mathview}, \mathit{kills}, \mathit{tsLint}\}} (\lnot\pi.x \iff x \in \operatorname{pendingOn}(g(s, F)))$$
+$$\operatorname{MissingFactPending}(g) :\iff \forall s\, F,\ (\exists r \in \mathrm{rules},\ \operatorname{en}(s, F.\mathit{lf}, r)) \land \lnot\operatorname{Present}(F) \Rightarrow \operatorname{isPending}(g(s, F)) \land \bigwedge_{x \in \{\mathit{mathview}, \mathit{kills}, \mathit{tsLint}\}} (F.\mathit{present}.x = \mathrm{false} \iff x \in \operatorname{pendingOn}(g(s, F)))$$
 A missing fact source fails closed as pending, never as a vacuous pass. -/
 def MissingFactPending : Property Gate := fun g =>
   ∀ s F, (∃ r ∈ Rule.all, enforced s F.leanFirst r = true) → ¬ AllPresent F →
@@ -265,63 +265,63 @@ def MissingFactPending : Property Gate := fun g =>
 
 /-- **`missing_fact_not_pass`** (theorem 10, the exit half), over the renderer: when some rule is enforced and a
 source is missing, the output is pending with exit code 75.
-$$\forall s\, F,\ (\exists r \in \mathrm{rules},\ \operatorname{en}(s, \mathit{lf}, r)) \land \lnot\operatorname{Present}(F) \Rightarrow o(s, F).\mathit{kind} = \mathrm{pending} \land o(s, F).\mathit{exit} = 75$$
+$$\operatorname{PendingExit}(o) :\iff \forall s\, F,\ (\exists r \in \mathrm{rules},\ \operatorname{en}(s, F.\mathit{lf}, r)) \land \lnot\operatorname{Present}(F) \Rightarrow o(s, F).\mathit{kind} = \mathrm{pending} \land o(s, F).\mathit{exit} = 75$$
 A missing fact source exits 75, the retry code. -/
 def PendingExit : Property Render := fun o =>
   ∀ s F, (∃ r ∈ Rule.all, enforced s F.leanFirst r = true) → ¬ AllPresent F →
     (o s F).kind = .pending ∧ (o s F).exit = 75
 
 /-- **`one_verdict`** (theorem 11): the output has exactly one verdict line, and it is the last line.
-$$\forall s\, F,\ |[\ell \in o(s, F).\mathit{lines} : \operatorname{isV}(\ell)]| = 1 \land \operatorname{map}(\operatorname{isV}, \operatorname{last}(o(s, F).\mathit{lines})) = \mathrm{some}(\mathrm{true})$$
+$$\operatorname{OneVerdict}(o) :\iff \forall s\, F,\ |[\ell \in o(s, F).\mathit{lines} : \operatorname{isV}(\ell)]| = 1 \land \operatorname{map}(\operatorname{isV}, \operatorname{last}(o(s, F).\mathit{lines})) = \mathrm{some}(\mathrm{true})$$
 Every run prints one VERDICT line, as its last line. -/
 def OneVerdict : Property Render := fun o =>
   ∀ s F, verdictCount (o s F).lines = 1 ∧ (o s F).lines.getLast?.map isVerdict = some true
 
 /-- **`exit_zero_iff`** (theorem 11): the exit code is 0 exactly when `PassSpec` holds.
-$$\forall s\, F,\ o(s, F).\mathit{exit} = 0 \iff \operatorname{Pass}(s, F)$$
+$$\operatorname{ExitZeroIff}(o) :\iff \forall s\, F,\ o(s, F).\mathit{exit} = 0 \iff \operatorname{Pass}(s, F)$$
 The check exits 0 exactly when the land passes the spec. -/
 def ExitZeroIff : Property Render := fun o => ∀ s F, (o s F).exit = 0 ↔ PassSpec s F
 
 /-- **`gate_mono`** (theorem 12): adding evidence (kill rows, agreeing signoffs, marks on unmarked branches, present
 sources) never turns a pass into anything else.
-$$\forall s\, F\, e,\ g(s, F) = \mathrm{pass} \Rightarrow g(s, F \oplus e) = \mathrm{pass}$$
+$$\operatorname{GateMono}(g) :\iff \forall s\, F\, e,\ g(s, F) = \mathrm{pass} \Rightarrow g(s, F \oplus e) = \mathrm{pass}$$
 More evidence never refuses a land that passed. -/
 def GateMono : Property Gate := fun g => ∀ s F e, g s F = .pass → g s (F.add e) = .pass
 
 /-- **`stage_mono`** (theorem 13): a land that passes at a later stage passes at every earlier stage.
-$$\forall s\, s'\, F,\ \operatorname{rank}(s) \le \operatorname{rank}(s') \land g(s', F) = \mathrm{pass} \Rightarrow g(s, F) = \mathrm{pass}$$
+$$\operatorname{StageMono}(g) :\iff \forall s\, s'\, F,\ \operatorname{rank}(s) \le \operatorname{rank}(s') \land g(s', F) = \mathrm{pass} \Rightarrow g(s, F) = \mathrm{pass}$$
 A stricter stage refuses a superset. -/
 def StageMono : Property Gate := fun g =>
   ∀ s s' F, s.rank ≤ s'.rank → g s' F = .pass → g s F = .pass
 
 /-- **`baseline_not_new`** (theorem 14), over the type of `isNew`: a theorem whose name has baseline entries, all with
 its hash, is not new.
-$$\forall F\, t,\ (t.\mathit{name}, t.\mathit{hash}) \in B \land (\forall (n, h) \in B,\ n = t.\mathit{name} \Rightarrow h = t.\mathit{hash}) \Rightarrow \nu(F, t) = \mathrm{false}$$
+$$\operatorname{BaselineNotNew}(\nu) :\iff \forall F\, t,\ (t.\mathit{name}, t.\mathit{hash}) \in F.\mathit{baseline} \land (\forall (n, h) \in F.\mathit{baseline},\ n = t.\mathit{name} \Rightarrow h = t.\mathit{hash}) \Rightarrow \nu(F, t) = \mathrm{false}$$
 An unchanged old theorem is not gated. -/
-def BaselineNotNew : Property (Facts → ThmFact → Bool) := fun nu =>
-  ∀ F t, (t.name, t.hash) ∈ F.baseline → (∀ p ∈ F.baseline, p.1 = t.name → p.2 = t.hash) → nu F t = false
+def BaselineNotNew : Property (Facts → ThmFact → Bool) := fun ν =>
+  ∀ F t, (t.name, t.hash) ∈ F.baseline → (∀ p ∈ F.baseline, p.1 = t.name → p.2 = t.hash) → ν F t = false
 
 /-- **`changed_is_new`** (theorem 14): a theorem whose (name, hash) pair is not in the baseline is new.
-$$\forall F\, t,\ (t.\mathit{name}, t.\mathit{hash}) \notin B \Rightarrow \nu(F, t) = \mathrm{true}$$
+$$\operatorname{ChangedIsNew}(\nu) :\iff \forall F\, t,\ (t.\mathit{name}, t.\mathit{hash}) \notin B \Rightarrow \nu(F, t) = \mathrm{true}$$
 An edit to an old theorem's statement is gated like a new theorem. -/
-def ChangedIsNew : Property (Facts → ThmFact → Bool) := fun nu =>
-  ∀ F t, (t.name, t.hash) ∉ F.baseline → nu F t = true
+def ChangedIsNew : Property (Facts → ThmFact → Bool) := fun ν =>
+  ∀ F t, (t.name, t.hash) ∉ F.baseline → ν F t = true
 
 /-- **`ratchet_refuses_growth`** (theorem 15): with the ratchet enforced and every source present, a legacy count
 that grew is a refusal reason.
-$$\forall s\, F,\ \operatorname{en}(s, \mathit{lf}, \mathrm{ratchet}) \land \operatorname{Present}(F) \land \ell_{main} < \ell_{head} \Rightarrow \mathrm{growth}(\ell_{main}, \ell_{head}) \in \operatorname{refusals}(g(s, F))$$
+$$\operatorname{RatchetRefusesGrowth}(g) :\iff \forall s\, F,\ \operatorname{en}(s, F.\mathit{lf}, \mathrm{ratchet}) \land \operatorname{Present}(F) \land F.\mathit{legacyMain} < F.\mathit{legacyHead} \Rightarrow \mathrm{growth}(F.\mathit{legacyMain}, F.\mathit{legacyHead}) \in \operatorname{refusals}(g(s, F))$$
 The grandfathered gap count may only shrink. -/
 def RatchetRefusesGrowth : Property Gate := fun g =>
   ∀ s F, enforced s F.leanFirst .ratchet = true → AllPresent F → F.legacyMain < F.legacyHead →
     Reason.growth F.legacyMain F.legacyHead ∈ (g s F).refusals
 
 /-- **`shadow_passes`** (section 8, stage 0): in the shadow stage every land passes.
-$$\forall F,\ g(\mathrm{shadow}, F) = \mathrm{pass}$$
+$$\operatorname{ShadowPasses}(g) :\iff \forall F,\ g(\mathrm{shadow}, F) = \mathrm{pass}$$
 The shadow stage never blocks a land. -/
 def ShadowPasses : Property Gate := fun g => ∀ F, g .shadow F = .pass
 
 /-- **`no_newline`**: no output line contains a line break, whatever the facts' strings contain.
-$$\forall s\, F,\ \forall \ell \in o(s, F).\mathit{lines},\ \texttt{\textbackslash n} \notin \ell \land \texttt{\textbackslash r} \notin \ell$$
+$$\operatorname{NoNewline}(o) :\iff \forall s\, F,\ \forall \ell \in o(s, F).\mathit{lines},\ \texttt{\textbackslash n} \notin \ell \land \texttt{\textbackslash r} \notin \ell$$
 A fact cannot forge an extra stdout line, such as a second VERDICT. -/
 def NoNewline : Property Render := fun o =>
   ∀ s F, ∀ l ∈ (o s F).lines, '\n' ∉ l.toList ∧ '\r' ∉ l.toList
