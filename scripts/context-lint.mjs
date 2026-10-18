@@ -1,10 +1,6 @@
 #!/usr/bin/env node
-// Context-budget lint. Lean decides every verdict (fwcore `lint.context`, lean/Fw/Lint/Context.lean, golden
-// lean/golden/lint.context.jsonl); this file only lists the agent-read files and sends their path, size and lines.
-//
-//   node scripts/context-lint.mjs [--all] [--json] [--strict] [paths..]
-//   --all: print every non-ok file (default: the first 12); --json: print the fwcore reply;
-//   --strict: exit 1 when a file is not ok. Without --strict it always exits 0 (warn-only, see docs/team/tools/context-lint.md).
+// Sends each agent-read file's path, size and lines to fwcore `lint.context` and prints the verdicts.
+// Spec: lean/Fw/Lint/Context.lean; usage and flags: docs/team/tools/context-lint.md.
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";

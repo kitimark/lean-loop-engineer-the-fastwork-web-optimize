@@ -1,9 +1,10 @@
 # Token policy: helpers and context hygiene
 
 The rules agents follow. Cost model, decisions D1-D7, change list and review log, with evidence:
-`research/notes/2026/10-18-token-policy-rationale.md`. Writing docs and comments with less context: skills `no-slop`,
-`no-comments`. Shared prompt rules: `docs/team/tools/prompt-rules.md`. Gate: `node scripts/context-lint.mjs`
-(`docs/team/tools/context-lint.md`). About 4 chars per token (INFERRED).
+`research/notes/2026/10-18-token-policy-rationale.md`. Writing docs and comments with less context:
+`.claude/skills/no-slop/SKILL.md`, `.claude/skills/no-comments/SKILL.md`. Shared prompt rules:
+`docs/team/tools/prompt-rules.md`. Gate: `node scripts/context-lint.mjs` (`docs/team/tools/context-lint.md`).
+About 4 chars per token (INFERRED).
 
 ## When to delegate
 

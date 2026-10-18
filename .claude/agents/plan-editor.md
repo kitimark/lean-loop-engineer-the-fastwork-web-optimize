@@ -14,4 +14,7 @@ plain words, short tables, no new label prefixes without a glossary entry, ≤ ~
 needed). Resolve contradictions instead of stacking them; when two sources disagree, say which way the plan goes and
 why. Never touch other files unless the task names them. Report to the lead in ≤ 5 lines plus changed files.
 Read PLAN.md by section with offset/limit (`grep -n "^#" docs/plan/PLAN.md` for the index), never whole.
-Helpers: `docs/team/token-policy.md`.
+Helpers (table: `docs/team/token-policy.md`): spawn only `scout` (read sweep > 8 KB, answer ≤ 1k tokens), `runner`
+(several build/test runs or a diagnosis), `checker` (checklist judgement > 20 KB) or `slop-checker`; never pass `model`
+or `isolation`; 1 helper at a time (2 only if told); delegate only work it ends in < 4 min unless you have other work
+meanwhile; never sleep-poll for it. One build/test run stays inline: log to a file, then `grep`/`tail`.

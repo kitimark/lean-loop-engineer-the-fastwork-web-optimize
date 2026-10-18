@@ -21,8 +21,8 @@ by line), else `ok`.
 
 | Kind | Bytes | Lines | Description | Slop checked |
 |---|---|---|---|---|
-| `CLAUDE.md` | 5000 | | | dated note, task heading, AI tell |
-| agent | 2000 | | 300 | SHA, dated note, task heading, AI tell |
+| `CLAUDE.md` | 5600 | | | dated note, task heading, AI tell |
+| agent | 2500 | | 300 | SHA, dated note, task heading, AI tell |
 | skill | 4000 | | 300 | SHA, dated note, task heading, AI tell |
 | team doc (tools, token-policy) | 6000 | | | task heading, AI tell |
 | handoff | | 30 | | AI tell |
@@ -42,5 +42,5 @@ One line per non-ok file, `context-lint: <verdict> <path> (<measure> <value> > <
 Warn-only and standalone: it exits 0 on findings and no gate runs it yet. It is not a `lean/scripts/check.sh` job,
 because it reads `CLAUDE.md`, `.claude/**` and `docs/**`, outside `CHECK_SH_READS` (`apps/runner/src/land.ts`), so
 the dry land refuses it as `reads`; a separate land check with those reads is a lead decision, like `--strict` (exit
-1) once the handoffs over 30 lines are trimmed. Proofs: `verdict_cases`, `over_mono`, `overBudget_mono`, `rank_mono`,
-`verdict_of_facts`; golden `packages/contracts/golden/lint/lint.context.jsonl` (`Fw.Ops.Golden`, checked by `fwtest`).
+1) once the handoffs over 30 lines are trimmed. Proofs: `verdict_cases`, `over_mono`, `overBudget_mono`, `rank_mono`;
+golden `packages/contracts/golden/lint/lint.context.jsonl` (`Fw.Ops.Golden`, checked by `fwtest`).

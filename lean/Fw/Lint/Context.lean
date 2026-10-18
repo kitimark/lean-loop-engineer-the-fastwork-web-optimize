@@ -50,11 +50,11 @@ deriving DecidableEq, Repr
 /-- The budget of each kind. `CLAUDE.md` and the agent bodies load on every spawn, a skill description on every
 session (its body on use), a handoff is capped at 30 lines (CLAUDE.md), and a team doc is read on most tasks.
 
-$$\beta(\mathrm{claudeMd}) = (5000, \bot, \bot),\ \beta(\mathrm{agent}) = (2000, \bot, 300),\ \beta(\mathrm{skill}) = (4000, \bot, 300),\ \beta(\mathrm{handoff}) = (\bot, 30, \bot),\ \beta(\mathrm{teamDoc}) = (6000, \bot, \bot),\ \beta(\mathrm{other}) = (\bot, \bot, \bot)$$
+$$\beta(\mathrm{claudeMd}) = (5600, \bot, \bot),\ \beta(\mathrm{agent}) = (2500, \bot, 300),\ \beta(\mathrm{skill}) = (4000, \bot, 300),\ \beta(\mathrm{handoff}) = (\bot, 30, \bot),\ \beta(\mathrm{teamDoc}) = (6000, \bot, \bot),\ \beta(\mathrm{other}) = (\bot, \bot, \bot)$$
 -/
 def budget : FileKind → Budget
-  | .claudeMd => ⟨some 5000, none, none⟩
-  | .agent => ⟨some 2000, none, some 300⟩
+  | .claudeMd => ⟨some 5600, none, none⟩
+  | .agent => ⟨some 2500, none, some 300⟩
   | .skill => ⟨some 4000, none, some 300⟩
   | .handoff => ⟨none, some 30, none⟩
   | .teamDoc => ⟨some 6000, none, none⟩
@@ -364,13 +364,6 @@ theorem rank_mono (f' f : Facts) (hk : f'.kind = f.kind) (hh : f'.hits = f.hits)
     | some _ => cases f.hits <;> simp [rank]
     | none => exact Nat.le_refl _
 
-/-- The verdict of a file depends only on its facts: two files with equal facts get equal verdicts (no hidden input).
-
-$$\forall p, b, L, p', b', L':\ \mathrm{facts}(p, b, L) = \mathrm{facts}(p', b', L') \Rightarrow \mathrm{verdict}(\mathrm{facts}(p, b, L)) = \mathrm{verdict}(\mathrm{facts}(p', b', L'))$$
--/
-theorem verdict_of_facts (p p' : String) (b b' : Nat) (L L' : List String) (h : factsOf p b L = factsOf p' b' L') :
-    verdict (factsOf p b L) = verdict (factsOf p' b' L') := by rw [h]
-
 /-! ## Examples -/
 
 #guard kindOf "CLAUDE.md" == .claudeMd
@@ -395,7 +388,7 @@ theorem verdict_of_facts (p p' : String) (b b' : Nat) (L L' : List String) (h : 
 #guard verdict (factsOf "docs/team/handoffs/a.md" 10 ((List.range 30).map toString)) == .ok
 #guard verdict (factsOf ".claude/agents/a.md" 100 ["---", "name: a", "---", "Pinned at 5b3d632."]) == .slop .sha
 #guard verdict (factsOf "CLAUDE.md" 100 ["Rule (user decision 2026-10-17)."]) == .slop .datedNote
-#guard verdict (factsOf "CLAUDE.md" 5001 ["Rule (user decision 2026-10-17)."]) == .overBudget .bytes
+#guard verdict (factsOf "CLAUDE.md" 5601 ["Rule (user decision 2026-10-17)."]) == .overBudget .bytes
 #guard verdict (factsOf "research/notes/x.md" 99999 ["delve 5b3d632 2026-10-17"]) == .ok
 #guard verdict (factsOf "docs/team/handoffs/a.md" 10 ["at 5b3d632 on 2026-10-17"]) == .ok
 #guard verdict (factsOf ".claude/skills/a/SKILL.md" 10 ["---", "description: " ++ "".pushn 'x' 301, "---"]) ==

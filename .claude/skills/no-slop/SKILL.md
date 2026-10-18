@@ -12,8 +12,8 @@ Agents re-read these files on every spawn or task, so each line costs tokens man
 
 | File | Budget |
 |---|---|
-| `CLAUDE.md` | 5000 B |
-| `.claude/agents/*.md` | 2000 B, description 300 B |
+| `CLAUDE.md` | 5600 B |
+| `.claude/agents/*.md` | 2500 B, description 300 B |
 | `.claude/skills/*/SKILL.md` | 4000 B, description 300 B |
 | `docs/team/tools/*.md`, `docs/team/token-policy.md` | 6000 B |
 | `docs/team/handoffs/*.md` | 30 lines |

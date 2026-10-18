@@ -113,11 +113,11 @@ Agents, skills and prompts:
 
 ## The lint (Lean first)
 
-`lean/Fw/Lint/Context.lean`: file kind from its path; budget per kind (CLAUDE.md 5000 B; agent 2000 B, description
+`lean/Fw/Lint/Context.lean`: file kind from its path; budget per kind (CLAUDE.md 5600 B; agent 2500 B, description
 300 B; skill 4000 B, description 300 B; team doc 6000 B; handoff 30 lines); slop kinds `sha`, `datedNote`,
 `historyHeading`, `aiTell` per kind; verdict ok, overBudget or slop (first match: bytes, lines, description, then the
 first slop hit). Theorems: `verdict_cases`, `over_mono`, `overBudget_mono`, `rank_mono` (a bigger file never gets a
-better verdict), `verdict_of_facts`. fwcore op `lint.context`; goldens `packages/contracts/golden/lint/lint.context.jsonl`
+better verdict). fwcore op `lint.context`; goldens `packages/contracts/golden/lint/lint.context.jsonl`
 (from `Fw.Ops.Golden`). Glue `scripts/context-lint.mjs` sends only paths, sizes and lines. Warn-only and standalone: not a
 `check.sh` job (it reads `CLAUDE.md`, `.claude/**`, `docs/**`, outside `CHECK_SH_READS`: dry land `reads`, MEASURED).
 

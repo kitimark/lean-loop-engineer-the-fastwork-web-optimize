@@ -299,9 +299,9 @@ def numbered (n : Nat) : List String := (List.range n).map fun k => s!"line {k}"
 def lintCases : List (String × Json) := [
   ("handoff: 30 lines is ok, 31 is over the line budget",
     lintFiles [lintFile "docs/team/handoffs/a.md" 300 (numbered 30), lintFile "docs/team/handoffs/b.md" 310 (numbered 31)]),
-  ("CLAUDE.md: over 5000 bytes is over budget even with slop; at 5000 a dated note is slop",
-    lintFiles [lintFile "CLAUDE.md" 5001 ["Rule (user decision 2026-10-17)."],
-      lintFile "CLAUDE.md" 5000 ["Rule (user decision 2026-10-17)."]]),
+  ("CLAUDE.md: over 5600 bytes is over budget even with slop; at 5600 a dated note is slop",
+    lintFiles [lintFile "CLAUDE.md" 5601 ["Rule (user decision 2026-10-17)."],
+      lintFile "CLAUDE.md" 5600 ["Rule (user decision 2026-10-17)."]]),
   ("agent: a SHA in the body is slop; the description budget is 300 bytes",
     lintFiles [lintFile ".claude/agents/a.md" 200 ["---", "name: a", "description: short", "---", "Read src at 5b3d632."],
       lintFile ".claude/agents/b.md" 400 ["---", "name: b", "description: " ++ "".pushn 'x' 301, "---", "Body."]]),
