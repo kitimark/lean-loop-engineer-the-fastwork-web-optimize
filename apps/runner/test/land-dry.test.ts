@@ -1,7 +1,9 @@
 // `fw land --dry` (task land-dry; Lean Fw.Console.LandDry: dry_pass_land_pass, dry_refusal_is_land_refusal, handback_pass_land_pass).
 // A dry land runs the real land's scope, merge and reads stages and nothing else: no lock, no queue, main untouched.
 import "./land-timeout.ts";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dryRun, exitCode, outcome, outcomeKind, parseVerdict } from "../src/land-verdict.ts";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../../console-api/src/app.ts";
@@ -9,7 +11,7 @@ import { selectCore } from "../../console-api/src/core/index.ts";
 import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
-import { land, type Http } from "../src/land.ts";
+import { dryLintArgv, land, type Http } from "../src/land.ts";
 import { lockFile } from "../hooks/land-guard.mjs";
 
 let stores: Store[] = [];
@@ -91,10 +93,64 @@ describe("fw land --dry", () => {
     const r = await land(BR, { ...opts, dry: true, ...reads(["true"]) });
     expect(r.kind, text(r)).toBe("stale");
   });
-  it("done: a branch already in main is `done`", async () => {
+  it("empty: a branch with no commit of its own is `empty`, a success (exit 0), and it prints one VERDICT line", async () => {
     const { opts } = await setup();
     const r = await land(BR, { ...opts, dry: true, ...reads(["true"]) });
-    expect(r.kind, text(r)).toBe("done");
+    expect(r.ok, text(r)).toBe(true);
+    expect(r.kind, text(r)).toBe("empty");
+    expect(exitCode(r.kind!)).toBe(0);
+  });
+  it("lint: a failing fast lint is refused as lint (exit 17) after reads; a passing one lets the dry land pass", async () => {
+    const { fx, wt, opts, snap } = await setup();
+    fx.commit(wt, "src/a.ts");
+    const before = snap();
+    const bad = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [["sh", "-c", "echo 18 defs without math; exit 1"]] });
+    expect(bad.ok).toBe(false);
+    expect(bad.kind, text(bad)).toBe("lint");
+    expect(exitCode(bad.kind!)).toBe(17);
+    expect(text(bad)).toContain("18 defs without math");
+    expect(snap()).toEqual(before);
+    const ok = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [["true"], ["true"]] });
+    expect(ok.kind, text(ok)).toBe("dry");
+    // reads refuses before lint
+    const both = await land(BR, { ...opts, dry: true, ...reads(["sh", "-c", "echo land-inputs.test; exit 1"]), dryLints: [["false"]] });
+    expect(both.kind, text(both)).toBe("reads");
+  });
+  it("the default fast lints: ci-paths always (when the tree has it), the math-view lint only when the change touches lean/", () => {
+    const dir = mkdtempSync(join(tmpdir(), "dryl-"));
+    expect(dryLintArgv(dir, ["lean/Fw/X.lean"])).toEqual([]);
+    mkdirSync(join(dir, "scripts"), { recursive: true }); writeFileSync(join(dir, "scripts/ci-paths.mjs"), "");
+    mkdirSync(join(dir, "lean/scripts"), { recursive: true }); writeFileSync(join(dir, "lean/scripts/mathview-cached.sh"), "");
+    expect(dryLintArgv(dir, ["apps/x.ts"])).toEqual([["node", "scripts/ci-paths.mjs", "--check"]]);
+    const withLean = dryLintArgv(dir, ["apps/x.ts", "lean/Fw/X.lean"]);
+    expect(withLean).toHaveLength(2);
+    expect(withLean[1]!.join(" ")).toContain("mathview-cached.sh");
+  });
+  it("every dry result carries its stage outcome, its kind is the outcome's kind, and dryRun prints exactly one VERDICT line", async () => {
+    const { fx, wt, opts } = await setup();
+    fx.commit(wt, "other/b.ts");
+    const results = [
+      await land(BR, { ...opts, dry: true, ...reads(["true"]) }), // scope
+      await land("no-such-branch", { ...opts, dry: true }), // outside the modelled stages: threw
+    ];
+    for (const r of results) {
+      expect(r.outcome, text(r)).toBeDefined();
+      expect(r.kind).toBe(outcomeKind(r.outcome!));
+      const out = dryRun(r.outcome!, "t1");
+      expect(out.filter((l) => l.startsWith("VERDICT ")).length).toBe(1);
+      expect(parseVerdict(out.join("\n"))?.kind).toBe(r.kind);
+    }
+    expect(results.map((r) => r.kind)).toEqual(["scope", "unknown"]);
+    expect(dryRun(results[0]!.outcome!, "t1")).toEqual(["dry: exception ok", "dry: stale ok", "dry: empty ok", "VERDICT scope t1"]);
+    expect(outcome({ threw: true }).threw).toBe(true);
+  });
+  it("a real land prints `lint` for a lint/compile check failure, as the dry land does, and `checks` for another failure", async () => {
+    const { fx, wt, opts } = await setup();
+    fx.commit(wt, "src/a.ts");
+    const lint = await land(BR, { ...opts, checks: [["sh", "-c", "echo 'check: FAILED stage: mathview lint'; exit 1"]] });
+    expect(lint.kind, text(lint)).toBe("lint");
+    const mixed = await land(BR, { ...opts, checks: [["sh", "-c", "echo 'check: FAILED stage: mathview lint'; echo 'check: FAILED stage: lake test'; exit 1"]] });
+    expect(mixed.kind, text(mixed)).toBe("checks");
   });
   it("needs --task", async () => {
     const { fx, wt, opts } = await setup();
