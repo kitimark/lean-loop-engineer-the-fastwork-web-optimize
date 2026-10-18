@@ -9,6 +9,7 @@ import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync } fr
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { lockFacts, lockFile } from "../hooks/land-guard.mjs";
+import { queuedBranches } from "./land-queue.ts";
 import {
   exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, readMeta, readsStdin, signalsOf, withLeadNotes,
   type LeadNote, type Paths, type Proc, type SigFacts, type SigProcKind, type Snapshot, type TranscriptSignals,
@@ -28,6 +29,8 @@ export interface AgentFacts {
     onMain: boolean;
     /** the branch named by the live land lock, null when none (inc-watch-alert-during-land) */
     landLock: string | null;
+    /** the branch is a pending entry of the land queue (`fw land --queue`, task land-queue): `locked` in the Lean facts */
+    landQueued: boolean;
   } | null;
   /** docs/team/handoffs/<name>.md exists */
   handoff: boolean;
@@ -124,6 +127,8 @@ export interface Raw {
   alive: (pid: number) => boolean; file: (path: string) => FileObs | null;
   /** the branch named by the live land lock (null: no lock, a dead holder, or no branch in it) */
   landLock?: string | null;
+  /** the branches of the pending entries of the land queue (`.fw-console/land-queue.jsonl`) */
+  landQueue?: string[];
   /** text of the integrator's list (a branch name in it means queued) */
   queuedText: string; ci: RawCi[]; board: Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>;
 }
@@ -224,7 +229,7 @@ export function buildFacts(raw: Raw): AgentFacts[] {
       branch: br && ((a.ahead !== null && a.landed !== null) || a.onMain)
         ? {
           name: br, ahead: a.ahead ?? 0, landed: a.landed ?? false, queued: hasWord(raw.queuedText, br),
-          mergesClean: a.mergesClean ?? true, onMain: a.onMain === true, landLock: raw.landLock ?? null,
+          mergesClean: a.mergesClean ?? true, onMain: a.onMain === true, landLock: raw.landLock ?? null, landQueued: (raw.landQueue ?? []).includes(br),
           // observed dependencies: contained unlanded agent branches, then the task's board dependencies not done
           deps: [...a.branchDeps, ...(raw.board.get(task)?.deps ?? []).filter((d) => raw.board.get(d)?.done === false)],
         } : null,
@@ -414,6 +419,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
     now: snap.now, session, agents,
     procs: snap.system.procs ?? [], ps, alive: pidAlive, file: statFile, queuedText, ci, board,
     landLock: liveLandLockBranch(p.root),
+    landQueue: [...new Set([...queuedBranches(join(main, ".fw-console")), ...queuedBranches(p.consoleDir)])],
   };
 }
 

@@ -552,7 +552,8 @@
    ],
    "devices": [
     "ci"
-   ]
+   ],
+   "evidence": "30eb037"
   },
   {
    "id": "spk-q",
@@ -3702,7 +3703,8 @@
     "apps/runner/test/**",
     "lean/Fw/Console/**",
     "lean/Fw/Obs/**"
-   ]
+   ],
+   "evidence": "058a684"
   },
   {
    "id": "evidence-on-main",
