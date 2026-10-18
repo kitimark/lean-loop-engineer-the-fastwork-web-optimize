@@ -4590,6 +4590,30 @@
    "writes": [
     "research/notes/2026/10-18-jev-decision-model.md"
    ]
+  },
+  {
+   "id": "jev-oracle",
+   "title": "(M) Jev (TypeSafe System One) as a Lean-wrapped advisory oracle for judgement calls we cannot script: Lean Fw.Oracle (typed question specs Choice/Noul/Score, answer+failure total policy, escalate below a Lean-computed calibrated threshold, never an irreversible action from the oracle alone, redaction before send, answer log keyed by input hash for exact replay); thin TS client (key from macOS keychain service typesafe-api, never in files/logs); first use CI failure triage advisory in fw watch, calibrated on CI history",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Oracle.lean",
+    "lean/Fw/Oracle/**",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean",
+    "lean/FwTestMain.lean",
+    "packages/oracle/**",
+    "packages/contracts/golden/oracle/**",
+    "apps/runner/src/oracle*.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/oracle*.test.ts",
+    "docs/team/tools/oracle.md",
+    "docs/team/handoffs/jev-oracle.md",
+    "research/notes/2026/10-18-jev-oracle.md",
+    ".gitignore"
+   ]
   }
  ],
  "deadline": {
