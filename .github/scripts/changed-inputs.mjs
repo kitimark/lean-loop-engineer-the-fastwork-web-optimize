@@ -294,6 +294,7 @@ function main() {
       base ||= guardBase();
       files = changedFiles(base, process.cwd(), process.env.BEFORE ?? '');
       msg = gitIn(process.cwd(), 'log', '-1', '--format=%B', 'HEAD');
+      console.log(`head commit: ${msg.split('\n')[0]}`); // the intent the guard read
       landed = isLanded();
       // superseded is best effort: on a read error the run counts as not superseded (fail open)
       try { newer = newerFiles(ref, process.cwd(), process.env.GUARD_TOKEN ?? ''); } catch (e) { console.log(`superseded check skipped: ${String(e.message).split('\n')[0]}`); }
