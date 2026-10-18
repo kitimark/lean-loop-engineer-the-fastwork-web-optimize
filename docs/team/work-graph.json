@@ -4118,6 +4118,64 @@
     "research/notes/**",
     "docs/team/handoffs/ci-own-trigger.md"
    ]
+  },
+  {
+   "id": "console-stale",
+   "title": "(S) the running console-api must not lag main: it ran 04:12 code while workflow-claim (21c8c42, 04:48) was on main, so workflow runs stayed unbound in ready; Lean rule: a service whose input files changed on main since it started is stale -> watch alert svc.stale and fw land restarts the console it owns after landing a change to its inputs",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "workflow-claim"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Obs/**",
+    "lean/Fw/Console/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/**",
+    "apps/console-api/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "docs/team/tools/**",
+    "docs/team/handoffs/console-stale.md"
+   ]
+  },
+  {
+   "id": "workflow-multi-claim",
+   "title": "(S) a Workflow run that works several tasks binds each of them: per-agent label <phase>:<task> (or meta.tasks) read from the run journal; Lean Fw.Plan.Workflow binds every named task, never a task id that is not in the plan; integrate-and-engine-fix and guard-hardening runs left engine-model-fix/wait-guard-enforce/land-dry-full in ready",
+   "stream": "console",
+   "milestone": "M5",
+   "deps": [
+    "workflow-claim"
+   ],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Plan/**",
+    "packages/contracts/golden/plan/**",
+    "apps/console-api/src/spool/**",
+    "apps/console-api/test/**",
+    "docs/team/tools/**",
+    "docs/team/handoffs/workflow-multi-claim.md"
+   ]
+  },
+  {
+   "id": "premise-ack",
+   "title": "(S) premise-tests on main is red on known findings (anim.list webkit, cv.auto-margin): acknowledged findings in the Lean registry keep the lane green, a new or changed finding still fails it (theorem: red iff an unacknowledged finding)",
+   "stream": "measure",
+   "milestone": "M5",
+   "deps": [
+    "premise-tests"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/**",
+    "packages/premise-tests/**",
+    "apps/runner/src/**",
+    "apps/runner/test/**"
+   ]
   }
  ],
  "deadline": {
