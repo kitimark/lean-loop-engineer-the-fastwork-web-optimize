@@ -1,5 +1,7 @@
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { UsageError, renderBoard, stepCommand } from "../src/lib.ts";
+import { NO_API_GROUPS, UsageError, renderBoard, stepCommand } from "../src/lib.ts";
 
 describe("fw step", () => {
   it("post builds a typed command with a derived idempotency key", () => {
@@ -25,5 +27,18 @@ describe("fw status", () => {
     expect(out).toContain("A");
     expect(out).toContain("2m");
     expect(out).toContain("YOU: Press Start (s1)");
+  });
+});
+
+describe("fw in CI", () => {
+  // CI has no console-api: a workflow step `pnpm fw premises` failed on every branch with "console-api is not running"
+  it("every `pnpm fw <group>` in .github/** runs without console-api", () => {
+    const root = join(import.meta.dirname, "..", "..", "..", ".github");
+    const files: string[] = [];
+    const walk = (d: string) => { for (const e of readdirSync(d, { withFileTypes: true })) e.isDirectory() ? walk(join(d, e.name)) : /\.ya?ml$/.test(e.name) && files.push(join(d, e.name)); };
+    if (existsSync(root)) walk(root);
+    const used = files.flatMap((f) => [...readFileSync(f, "utf8").matchAll(/pnpm (?:-s )?fw ([a-z-]+)/g)].map((m) => m[1] ?? ""));
+    expect(used.length).toBeGreaterThan(0);
+    expect(used.filter((g) => !NO_API_GROUPS.includes(g))).toEqual([]);
   });
 });

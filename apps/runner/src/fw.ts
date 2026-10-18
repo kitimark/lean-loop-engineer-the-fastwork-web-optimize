@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "@fw/contracts";
-import { UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
+import { NO_API_GROUPS, UsageError, apiBase, renderBoard, send, stepCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { httpFor, land } from "./land.ts";
 import { lintCli, renderPlan, syncCommands, syncRefusal, syncViaCommands, type WorkGraph } from "./plan.ts";
@@ -19,7 +19,7 @@ const [group, ...rest] = process.argv.slice(2);
 const SUBS = new Set(["plan", "ci", "incidents", "step", "card"]);
 if (group && group !== "watch" && group !== "timings") { const end = begin("fw", SUBS.has(group) && rest[0] && !rest[0].startsWith("-") ? `${group} ${rest[0]}` : group); process.once("exit", (c) => end(c)); }
 try {
-  const base = group === "run" || group === "ci" || group === "next" || group === "engine-check" || group === "incidents" || group === "coverage" ? "" : apiBase(process.env); // `fw run` needs no console-api
+  const base = NO_API_GROUPS.includes(group ?? "") ? "" : apiBase(process.env); // these need no console-api (CI runs some of them)
   if (group === "timings") {
     console.log(rest.includes("--backfill") ? await backfill(rest, process.cwd()) : timingsView(rest, process.cwd()));
   } else if (group === "engine-check") {
