@@ -32,7 +32,7 @@
 {"id":"people.card","groupKey":"g1","profiles":["swipe-v1"]},
 {"id":"people.carousel","groupKey":"people.carousel","profiles":["swipe-v1"]},
 {"id":"people.deck","groupKey":"people.deck","profiles":["swipe-v1"]},
-{"id":"people.o","groupKey":"people.o","profiles":["swipe-v1"]},
+{"id":"people.o","groupKey":"g1","profiles":["swipe-v1"]},
 {"id":"platform","groupKey":"g2","profiles":["swipe-wheel-v1","swipe-touch-v1","swipe-v1"]},
 {"id":"platform.entries","groupKey":"g2","profiles":["swipe-wheel-v1","swipe-touch-v1","swipe-v1"]},
 {"id":"platform.glint","groupKey":"g2","profiles":["swipe-wheel-v1","swipe-touch-v1","swipe-v1"]},

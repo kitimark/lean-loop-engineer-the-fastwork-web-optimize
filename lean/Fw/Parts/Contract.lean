@@ -49,8 +49,8 @@ against these, do not reopen them): `outputs` list only signals another part can
 tabIndex writes are excluded); I4 is pairwise with no clock-subscriber order; event-only writes are excluded
 (overlays' body overflow); a box move is hand-listed in `moves` (gate PL1 witnesses it; part-io-lint checks code
 against declared writes, not which boxes a write moves); `vw` and `vh` have no writer; I5 layerization is a recorded
-premise; row completeness (each row listing every read and write in its code) is part-io-lint's job, below the unit of
-this table's review; dead selectors under hashed CSS-module names are recorded in the row docstrings. -/
+premise; dead selectors under hashed CSS-module names are recorded in the row docstrings. Certified relative to the
+declared rows; row completeness is an unverified premise (contract-rows-from-code / part-io-lint). -/
 structure PartSpec where
   id : String
   group : Group
@@ -404,14 +404,16 @@ def people : PartSpec := { id := "people", group := .solo, plan := .solo }
 /-- Contract row of `people.card`.
 
 $$g = G_1,\ g_{\mathrm{plan}} = G_1,\ o = 40,\ \ell = \top,\ s = \bot,
-\mathrm{in} = [\texttt{vh}, \texttt{clock}, \texttt{rect:hero.exit}, \texttt{rect:people.card}],\ \mathrm{out} = [\texttt{cssVar:--future-shrink/people.card}, \texttt{className:is-visible/people.card}, \texttt{className:is-shrinking/people.card}, \texttt{className:data-fw-scene/people.card}, \texttt{className:is-pain-dark/pain}, \texttt{className:data-fw-pain-dark/pain}],\ \mathrm{ev} = [\,],
+\mathrm{in} = [\texttt{vh}, \texttt{clock}, \texttt{rect:hero.exit}, \texttt{rect:people.card}, \texttt{className:data-o-stack/people.o}],\ \mathrm{out} = [\texttt{cssVar:--future-shrink/people.card}, \texttt{className:is-visible/people.card}, \texttt{className:is-shrinking/people.card}, \texttt{className:data-fw-scene/people.card}, \texttt{className:is-pain-dark/pain}, \texttt{className:data-fw-pain-dark/pain}],\ \mathrm{ev} = [\,],
 T = [\texttt{people.card}, \texttt{pain}],\ M = [\,],\ A = [\,]$$
 
 people.card/index.tsx:68 order 40 (people/shared.ts:41), callback requests its own frame (driver.ts:35,63);
-reads 44-52, writes on its section (95) 55-57,73 and `is-pain-dark` and `data-fw-pain-dark` on pain 61-62. -/
+reads 44-52, writes on its section (95) 55-57,73 and `is-pain-dark` and `data-fw-pain-dark` on pain 61-62. Its title
+row's gap follows people.o's `data-o-stack` (card.module.css:170 `.titleWords:has([data-o-stack='true'])`, live at
+width ≤ 860px, 136). -/
 def peopleCard : PartSpec :=
   { id := "people.card", group := .g1, plan := .g1, order := some 40,
-    inputs := [vh, clock, rect "hero.exit", rect "people.card"],
+    inputs := [vh, clock, rect "hero.exit", rect "people.card", className "data-o-stack/people.o"],
     outputs := [cssVar "--future-shrink/people.card", className "is-visible/people.card",
       className "is-shrinking/people.card", className "data-fw-scene/people.card", className "is-pain-dark/pain",
       className "data-fw-pain-dark/pain"],
@@ -420,13 +422,14 @@ def peopleCard : PartSpec :=
 /-- Contract row of `people.carousel`.
 
 $$g = \mathrm{solo},\ g_{\mathrm{plan}} = \mathrm{solo},\ o = \bot,\ \ell = \top,\ s = \bot,
-\mathrm{in} = [\texttt{clock}, \texttt{rect:people.card}],\ \mathrm{out} = [\,],\ \mathrm{ev} = [\,],
+\mathrm{in} = [\texttt{clock}, \texttt{rect:people}],\ \mathrm{out} = [\,],\ \mathrm{ev} = [\,],
 T = [\texttt{people.carousel}],\ M = [\,],\ A = [\,]$$
 
-people.carousel/index.tsx:22 clock loop, 23-24 observer on the people section (people.card/index.tsx:95). -/
+people.carousel/index.tsx:22 clock loop, 23-24 `watchActive` (people/shared.ts:29-37) on `closest('[data-fw="people"]')`,
+the people section, rendered by people.card (people.card/index.tsx:95). -/
 def peopleCarousel : PartSpec :=
   { id := "people.carousel", group := .solo, plan := .solo,
-    inputs := [clock, rect "people.card"], targets := ["people.carousel"] }
+    inputs := [clock, rect "people"], targets := ["people.carousel"] }
 
 /-- Contract row of `people.deck`.
 
@@ -445,16 +448,19 @@ def peopleDeck : PartSpec :=
 
 /-- Contract row of `people.o`.
 
-$$g = \mathrm{solo},\ g_{\mathrm{plan}} = \mathrm{solo},\ o = 20,\ \ell = \top,\ s = \bot,
-\mathrm{in} = [\texttt{pointer}, \texttt{vw}, \texttt{vh}, \texttt{rect:people.o}],\ \mathrm{out} = [\,],\ \mathrm{ev} = [\,],
+$$g = G_1,\ g_{\mathrm{plan}} = \mathrm{solo},\ o = 20,\ \ell = \top,\ s = \bot,
+\mathrm{in} = [\texttt{pointer}, \texttt{vw}, \texttt{vh}, \texttt{rect:people.o}, \texttt{clock}, \texttt{rect:people.card}],\ \mathrm{out} = [\texttt{className:data-o-stack/people.o}],\ \mathrm{ev} = [\,],
 T = [\texttt{people.o}],\ M = [\,],\ A = [\,]$$
 
 people.o/index.tsx:67 order 20, `place` (37-45) returns at once unless the hover preview is open; 64 observer. When
 open it reads innerWidth and innerHeight (42-44) and writes the preview's left, top and width; that hover-gated write
-is excluded from `outputs` because no profile hovers. -/
+is excluded from `outputs` because no profile hovers. It observes people.card's `#future-heading` (index.tsx:50,64);
+the clock timeline (driver.ts:38-45, `STACK_DELAY` logic.ts:8) sets `data-o-stack` (index.tsx:114), which people.card's
+CSS reads, so it joins G1 by I3. -/
 def peopleO : PartSpec :=
-  { id := "people.o", group := .solo, plan := .solo, order := some 20,
-    inputs := [pointer, vw, vh, rect "people.o"], targets := ["people.o"] }
+  { id := "people.o", group := .g1, plan := .solo, order := some 20,
+    inputs := [pointer, vw, vh, rect "people.o", clock, rect "people.card"],
+    outputs := [className "data-o-stack/people.o"], targets := ["people.o"] }
 
 /-- Contract row of `platform`.
 
@@ -644,9 +650,12 @@ Each group can be built, optimized and measured on its own. Accepted limits (jud
 them): `outputs` list only signals another part can read (own-element aria, viewBox and tabIndex writes excluded); I4
 is pairwise with no clock-subscriber order; event-only writes are excluded (overlays' body overflow); a box move is
 hand-listed in `moves` (gate PL1 witnesses it; part-io-lint checks code against declared writes, not which boxes a
-write moves); `vw` and `vh` have no writer; I5 layerization is a recorded premise; row completeness (each row listing
-every read and write in its code) is part-io-lint's job, below the unit of this review; dead selectors under hashed
-CSS-module names are recorded in the row docstrings. -/
+write moves); `vw` and `vh` have no writer; I5 layerization is a recorded premise; dead selectors under hashed
+CSS-module names are recorded in the row docstrings. Certified relative to the declared rows; row completeness is an
+unverified premise (contract-rows-from-code / part-io-lint). Known gaps, recorded as data and not patched: pain.notes'
+`cardSelector` (pain.notes/index.tsx:40) and nav.hitTest's `EXCLUDE_SELECTOR` (nav.hitTest/logic.ts:19) match no
+element, because CSS-module class names are renamed (apps/site/scripts/build.mjs:41); these are faithfulness findings
+for those two parts, and the rows declare the code's intended selectors. -/
 theorem groups_partition :
     ∀ P ∈ parts, ∀ Q ∈ parts, ¬ pageLevel P → ¬ pageLevel Q → groupKey P ≠ groupKey Q → Independent P Q := by
   decide
@@ -685,6 +694,13 @@ theorem pagelevel_env_only :
     ∀ P ∈ parts, pageLevel P → ∀ Q ∈ parts, ¬ pageLevel Q → ¬ ∃ o ∈ effOut Q, ∃ i ∈ P.inputs, affects o i := by
   decide
 
+/-- A part is in G4 exactly when its variant reschedules the scroll list.
+
+$$\forall P \in \mathrm{parts}:\ g_P = G_4 \iff s_P$$
+
+The hand-set group cannot contradict the row's `schedules` flag. -/
+theorem g4_iff : ∀ P ∈ parts, (P.group == .g4) = P.schedules := by decide
+
 /-- The `layoutLocal` flag is exactly "moves no other part".
 
 $$\forall P \in \mathrm{parts}:\ \ell_P \iff M_P = [\,]$$
@@ -705,14 +721,14 @@ def moved : List String := (parts.filter (fun P => P.group != P.plan)).map (·.i
 $$\operatorname{moved} = [\texttt{commission}, \texttt{commission.typing}, \texttt{engine.scene}, \texttt{hero.accent},
 \texttt{hero.cue}, \texttt{hero.deck}, \texttt{hero.orbit}, \texttt{morph.columns}, \texttt{morph.countdown},
 \texttt{morph.mount}, \texttt{morph.panel}, \texttt{nav}, \texttt{nav.hitTest}, \texttt{nav.langMenu},
-\texttt{pain.notes}, \texttt{platform.entries}, \texttt{platform.glint}, \texttt{platform.marquee},
+\texttt{pain.notes}, \texttt{people.o}, \texttt{platform.entries}, \texttt{platform.glint}, \texttt{platform.marquee},
 \texttt{platform.stageBg}, \texttt{platform.sweep}] \land \operatorname{members}(G_3) = \operatorname{members}(G_5) = [\,]$$
 
-Twenty rows differ from the plan; G3 and G5 have no members. -/
+Twenty-one rows differ from the plan; G3 and G5 have no members. -/
 theorem moved_eq :
     moved = ["commission", "commission.typing", "engine.scene", "hero.accent", "hero.cue", "hero.deck", "hero.orbit",
       "morph.columns", "morph.countdown", "morph.mount", "morph.panel", "nav", "nav.hitTest", "nav.langMenu",
-      "pain.notes", "platform.entries", "platform.glint", "platform.marquee", "platform.stageBg", "platform.sweep"] ∧
+      "pain.notes", "people.o", "platform.entries", "platform.glint", "platform.marquee", "platform.stageBg", "platform.sweep"] ∧
     members .g3 = [] ∧ members .g5 = [] := by decide
 
 /-- Measurement profiles present in `packages/measure-chromium/profiles` (file stem = profile id); there is no `push`
@@ -748,7 +764,8 @@ scroll-driven, otherwise the rest fixture (the plan's `push` maps to the wheel a
 $$S(P) = \begin{cases} [\texttt{fixture-rest}] & \lnot\operatorname{morph}(P) \land \lnot\operatorname{scroll}(P) \\
 [\texttt{swipe-wheel-v1}, \texttt{swipe-touch-v1}]_{\operatorname{morph}(P)} \mathbin{+\!\!+} [\texttt{swipe-v1}]_{\operatorname{scroll}(P)} & \text{otherwise} \end{cases}$$
 
-where $[x]_b$ is $x$ when $b$ holds and $[\,]$ otherwise. -/
+where $[x]_b$ is $x$ when $b$ holds and $[\,]$ otherwise. Certified relative to the declared rows; row completeness
+is an unverified premise (contract-rows-from-code / part-io-lint). -/
 def scenariosFor (P : PartSpec) : List String :=
   let xs := (if morphDriven P then ["swipe-wheel-v1", "swipe-touch-v1"] else []) ++
     (if scrollDriven P then ["swipe-v1"] else [])
@@ -801,16 +818,21 @@ def rowJson (P : PartSpec) : String :=
 /-- Groups in wire order. $$[G_1, G_2, G_3, G_4, G_5, \mathrm{solo}]$$ Every constructor once. -/
 def groups : List Group := [.g1, .g2, .g3, .g4, .g5, .solo]
 
-/-- Text of `packages/contracts/golden/parts/contracts.gen.json`: the rows, the members of each group and the
-code-wins moves.
+/-- The premise every result over this table rests on, as written to the golden.
+$$\mathrm{premise} = \texttt{declared-rows-unverified}$$
+The rows are declared, not derived from code; consumers of the golden carry this field. -/
+def premise : String := "declared-rows-unverified"
 
-$$\operatorname{contracts} = \{\mathrm{parts}: [\operatorname{row}(P) \mid P \in \mathrm{parts}],\ \mathrm{groups}: g \mapsto \operatorname{members}(g),\ \mathrm{moved}\}$$
+/-- Text of `packages/contracts/golden/parts/contracts.gen.json`: the rows, the members of each group, the code-wins
+moves and the premise.
+
+$$\operatorname{contracts} = \{\mathrm{parts}: [\operatorname{row}(P) \mid P \in \mathrm{parts}],\ \mathrm{groups}: g \mapsto \operatorname{members}(g),\ \mathrm{moved},\ \mathrm{premise}\}$$
 
 One row per line, newline-terminated. -/
 def contractsText : String :=
   "{\"parts\":[\n" ++ ",\n".intercalate (parts.map rowJson) ++ "\n],\n\"groups\":{" ++
     ",".intercalate (groups.map fun g => jstr g.name ++ ":" ++ jarr ((members g).map jstr)) ++
-    "},\n\"moved\":" ++ jarr (moved.map jstr) ++ "}\n"
+    "},\n\"moved\":" ++ jarr (moved.map jstr) ++ ",\n\"premise\":" ++ jstr premise ++ "}\n"
 
 /-- Text of `packages/measure-chromium/scenarios.gen.json`: for each used profile the parts measured under it, then
 each part's profiles.
@@ -883,5 +905,7 @@ def run (args : List String) : IO UInt32 := do
 #guard scenariosFor morphTween == ["swipe-wheel-v1", "swipe-touch-v1", "swipe-v1"]
 #guard scenariosFor overlaysSignup == ["fixture-rest"]
 #guard members .g4 == ["engine.scroll"]
+#guard !independent peopleO peopleCard
+#guard independent peopleCarousel peopleO
 
 end Fw.Parts.Contract
