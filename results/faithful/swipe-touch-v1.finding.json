@@ -1,0 +1,16 @@
+{
+ "schema": "fw.faithful.finding/1",
+ "status": "MEASURED",
+ "profile": "swipe-touch-v1",
+ "ciRun": 39131232365,
+ "branch": "ci/faithful-checks-touch",
+ "gitSha": "4ebd67b7",
+ "finding": "no verdict: the rewrite arm of the integrated head produced no counts under touch input",
+ "evidence": [
+  "all three rewrite shards (r1, r2, r3) failed in step 'Counts run' with the harness error: touch input did not scroll the page after 40 moves (packages/measure-chromium/src/run.mjs:277, yMax < 1 after 40 swipe frames)",
+  "all three original shards of the same run succeeded, so the harness, image and runner are not the cause",
+  "the job 'classify' was skipped, so `fw ci` stored no entry for either arm of this run (it refuses a run with a failed shard)"
+ ],
+ "notDone": "no R baseline, no band verdict for y04000, y04500, tail in swipe-touch-v1; the cause (why touch moves do not scroll the rewrite) is not diagnosed here",
+ "rule": "a finding is reported, never patched (task faithful-checks)"
+}

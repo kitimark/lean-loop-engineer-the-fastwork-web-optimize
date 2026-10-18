@@ -29,6 +29,9 @@ const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 /** The three region zones of a baseline file, as the `a`/`r` lists of `faithful.verdict`. */
 export const regionOf = (baseline) => baseline.zones.filter((z) => REGION.includes(z.id));
 
+/** A profile without a rewrite baseline (its CI run produced no counts, see results/faithful/swipe-touch-v1.finding.json) has no verdict. */
+const hasR = (profile, runsDir) => existsSync(join(runsDir, profile, 'rewrite.baseline.json'));
+
 /** Everything one profile's verdict needs, read from files. */
 export function load(profile, runsDir) {
   const classesPath = join(ROOT, 'packages/measure-chromium/classes.frozen.json');
@@ -64,7 +67,7 @@ export function summarize(v) {
 function verdictMode() {
   const runs = resolve(arg('--runs', join(ROOT, 'results/faithful/runs')));
   const outDir = resolve(arg('--out', join(ROOT, 'results/faithful')));
-  const profiles = arg('--profile') ? [arg('--profile')] : PROFILES;
+  const profiles = (arg('--profile') ? [arg('--profile')] : PROFILES).filter((p) => hasR(p, runs));
   for (const p of profiles) {
     const d = load(p, runs);
     const verdict = verdictOf(d.classes, d.A, d.R);
@@ -107,7 +110,7 @@ export function leanSource(runsDir) {
     'namespace Fw.Faithful.Measured', 'open Fw.Measure', '');
   out.push('/-- A cell.', '', '$$\\mathrm{zc}(\\tau, \\mathrm{lo}, \\mathrm{hi}, b) = (\\tau, \\mathrm{lo}, \\mathrm{hi}, b)$$', '-/',
     'abbrev zc (t : String) (lo hi b : Int) : ZCell := ⟨t, lo, hi, b⟩', '');
-  for (const p of PROFILES) {
+  for (const p of PROFILES.filter((q) => hasR(q, runsDir))) {
     const d = load(p, runsDir);
     const verdict = verdictOf(d.classes, d.A, d.R);
     const P = ident(p);

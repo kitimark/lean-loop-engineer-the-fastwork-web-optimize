@@ -150,3 +150,4 @@ import Fw.Faithful.Band
 import Fw.Faithful.Zone
 import Fw.Faithful.Wire
 import Fw.Faithful.Golden
+import Fw.Faithful.Measured
