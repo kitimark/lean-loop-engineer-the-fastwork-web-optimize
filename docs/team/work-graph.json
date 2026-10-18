@@ -4089,6 +4089,35 @@
     "docs/team/handoffs/task-preview.md",
     "research/notes/**"
    ]
+  },
+  {
+   "id": "ci-own-trigger",
+   "title": "(M) CI runs only what a push asks for: a Lean-decided lane request per ci/* push (intent) intersected with the changed-input cone; superseded and landed runs never start or are stopped by rule; 159/300 runs were cancelled 2026-10-18 (18 after > 10 min)",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [
+    "ci-trigger-lean",
+    "ci-cone-glob"
+   ],
+   "owner": "lean-prover",
+   "writes": [
+    "lean/Fw/Ci/**",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ci/**",
+    "packages/contracts/golden/ci-budget/**",
+    ".github/workflows/**",
+    ".github/scripts/**",
+    "scripts/ci-paths.mjs",
+    "apps/runner/src/**",
+    "apps/runner/test/**",
+    "packages/gh-budget/**",
+    "docs/team/tools/**",
+    "docs/team/token-policy.md",
+    "research/notes/**",
+    "docs/team/handoffs/ci-own-trigger.md"
+   ]
   }
  ],
  "deadline": {
