@@ -226,9 +226,9 @@ structure Push where
 /-- **The guard's decision**: `none` runs the lane's jobs, `some k` skips them for reason $k$. A record runs. A `main`
 push runs iff its diff passes the lane's coarse `paths` globs (the rule GitHub applied before round 3). A `ci/**` push
 skips, in this order, when the head commit does not want the lane, when the commit is not the branch tip, when it is
-already on `main`, and when no file that differs from `main` is an input of the lane; otherwise it runs.
-$$\forall S, \ell, p:\ \operatorname{dec}(S, \ell, p) = \begin{cases} \mathrm{run} & p.e = \mathrm{rec} \\ \mathrm{run} & p.e = \mathrm{main} \land \operatorname{sel}(\operatorname{push}(\ell.w), p.D) \\ \mathrm{unchanged} & p.e = \mathrm{main} \land \lnot\operatorname{sel}(\operatorname{push}(\ell.w), p.D) \\ \mathrm{unwanted} & p.e = \mathrm{ci} \land \lnot\operatorname{want}(\ell, p.m) \\ \mathrm{stale} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land \lnot p.\mathit{tip} \\ \mathrm{landed} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land p.\mathit{land} \\ \mathrm{unchanged} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land \lnot p.\mathit{land} \land \lnot\operatorname{starts}(\ell.w, S, \operatorname{eff}(p.D, p.\delta)) \\ \mathrm{run} & \text{otherwise} \end{cases}$$
-where $\mathrm{run}$ is `none` and a kind $k$ is `some k`. -/
+already on `main`, and when no file that differs from `main` is an input of the lane; otherwise it runs. Below
+$\mathrm{run}$ is `none` and a kind $k$ is `some k`.
+$$\forall S, \ell, p:\ \operatorname{dec}(S, \ell, p) = \begin{cases} \mathrm{run} & p.e = \mathrm{rec} \\ \mathrm{run} & p.e = \mathrm{main} \land \operatorname{sel}(\operatorname{push}(\ell.w), p.D) \\ \mathrm{unchanged} & p.e = \mathrm{main} \land \lnot\operatorname{sel}(\operatorname{push}(\ell.w), p.D) \\ \mathrm{unwanted} & p.e = \mathrm{ci} \land \lnot\operatorname{want}(\ell, p.m) \\ \mathrm{stale} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land \lnot p.\mathit{tip} \\ \mathrm{landed} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land p.\mathit{land} \\ \mathrm{unchanged} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land \lnot p.\mathit{land} \land \lnot\operatorname{starts}(\ell.w, S, \operatorname{eff}(p.D, p.\delta)) \\ \mathrm{run} & \text{otherwise} \end{cases}$$ -/
 def decision (S : String → List String) (l : Lane) (p : Push) : Option Skip :=
   match p.ev with
   | .record => none
@@ -474,9 +474,9 @@ theorem group_lane_inj (l l' : Lane) (job : String) (hl : validName l.name = tru
 /-! ## Replay cases and golden (`packages/contracts/golden/ci/intent.jsonl`) -/
 
 /-- The decision of every lane under the sample cones (`Trigger.sampleCone`), as (file, tag) with tag `run` or the skip
-tag; a path in `merged` already has `main`'s content.
-$$\forall e, m, D, M, t, \mathit{land}:\ \operatorname{decI}(e, m, D, M, t, \mathit{land}) = [\, (\ell.w.\mathit{file},\ \operatorname{tag}(\operatorname{dec}(S_{\mathrm{sample}}, \ell, (e, m, t, \mathit{land}, D, \lambda x.\ x \notin M)))) : \ell \in L \,]$$
-with $\operatorname{tag}(\mathrm{none}) = \texttt{run}$. -/
+tag (written $\operatorname{tag}$, with $\operatorname{tag}(\mathrm{none}) = \texttt{run}$); a path in `merged` already has
+`main`'s content.
+$$\forall e, m, D, M, t, \mathit{land}:\ \operatorname{decI}(e, m, D, M, t, \mathit{land}) = [\, (\ell.w.\mathit{file},\ \operatorname{tag}(\operatorname{dec}(S_{\mathrm{sample}}, \ell, (e, m, t, \mathit{land}, D, \lambda x.\ x \notin M)))) : \ell \in L \,]$$ -/
 def decideIntent (ev : Ev) (msg : String) (diff merged : List String) (tip landed : Bool) : List (String × String) :=
   lanes.map fun l => (l.wf.file,
     match decision (setMap sampleCone) l ⟨ev, msg, tip, landed, diff, (fun x => !merged.contains x)⟩ with

@@ -329,7 +329,7 @@ theorem combine_requested_pass_iff (rs : List LaneRun) :
 
 /-- **A requested lane that did not pass blocks the wait.** If some non-default lane of the wait has no passing run
 (not run, failed, or no run at all), the branch wait does not pass.
-$$\forall R:\ (\exists r \in R:\ \lnot r.\mathit{dflt} \land r.v \ne \mathrm{some}(\mathrm{pass})) \Rightarrow \operatorname{req}(R) \ne \mathrm{pass}$$ -/
+$$\forall R, r:\ r \in R \land \lnot r.\mathit{dflt} \land r.v \ne \mathrm{some}(\mathrm{pass}) \Rightarrow \operatorname{req}(R) \ne \mathrm{pass}$$ -/
 theorem combine_requested_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (hd : r.dflt = false)
     (hv : r.v ≠ some .pass) : combineRequested rs ≠ .pass := by
   intro h
@@ -338,7 +338,7 @@ theorem combine_requested_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r �
 
 /-- **A due default lane that did not pass blocks the wait.** If some lane has no passing run and its guard did not
 report "no input differs from `main`", the branch wait does not pass; so lean blocks whenever it was due.
-$$\forall R:\ (\exists r \in R:\ r.v \ne \mathrm{some}(\mathrm{pass}) \land r.k \ne \mathrm{some}(\mathrm{unchanged})) \Rightarrow \operatorname{req}(R) \ne \mathrm{pass}$$ -/
+$$\forall R, r:\ r \in R \land r.v \ne \mathrm{some}(\mathrm{pass}) \land r.k \ne \mathrm{some}(\mathrm{unchanged}) \Rightarrow \operatorname{req}(R) \ne \mathrm{pass}$$ -/
 theorem due_lane_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (hv : r.v ≠ some .pass)
     (hk : r.skip ≠ some .unchanged) : combineRequested rs ≠ .pass := by
   intro h
@@ -346,7 +346,7 @@ theorem due_lane_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (h
   simp [laneOk, hv, hk] at this
 
 /-- **A missing run never passes.** If some lane of the wait has no run for the commit, the wait does not pass.
-$$\forall R:\ (\exists r \in R:\ r.v = \mathrm{none}) \Rightarrow \operatorname{req}(R) \ne \mathrm{pass}$$ -/
+$$\forall R, r:\ r \in R \land r.v = \mathrm{none} \Rightarrow \operatorname{req}(R) \ne \mathrm{pass}$$ -/
 theorem missing_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (hv : r.v = none) :
     combineRequested rs ≠ .pass := by
   intro h
