@@ -4,7 +4,7 @@
 
 **API (land.ts).** `Check = {id, argv, reads}`; `candidateChecks(root)` (install, check.sh, each package with a `test` script, in run order); `checksWithReads(root, changed)`; `checksFor` = their argv; `selectChecks` and `inScope` are a TS stand-in for Lean `Fw.Ops.PathCheck.inScope` / `LandSpeed.selectChecks` (marked for Lean replacement); `inputKey(root, reads)` = sha256 over the tracked files the globs select (unused by lands).
 
-**Declared inputs.** install: `pnpm-lock.yaml`, `**/package.json`. check.sh: `lean/**`, `packages/contracts/golden/**`, `apps/site/src/{breakpoints,sweeps}.gen.json`, `scripts/span.sh` (equal to Lean `checkShReads`; the test compares it with the golden). Package test `p`: `p/**`, its `workspace:` deps, and `PACKAGE_EXTRA_READS[p]` (files its tests read, found by the scan).
+**Declared inputs.** install: `pnpm-lock.yaml`, `**/package.json`. check.sh: `lean/**`, `packages/contracts/golden/**`, `apps/site/src/{breakpoints,sweeps}.gen.json`, `packages/gate-breakpoints/src/scope.gen.json`, `.github/workflows/**`, `scripts/span.sh` (equal to Lean `checkShReads`; the test compares it with the golden). Package test `p`: `p/**`, its `workspace:` deps, and `PACKAGE_EXTRA_READS[p]` (files its tests read, found by the scan).
 
 **Superset proof.** `land-inputs.test.ts` keeps the old `checksFor` as a fixture and asserts new selection contains old for every tracked path alone and the diffs of the last 30 land commits on main (holds; no gap).
 

@@ -1,7 +1,9 @@
 # Handoff: site-build-cache
 
 **State.** Done on `worktree-agent-ac288a08ef259c00c`: main commit 64e3996, main merged (3dbed91), follow-up commit
-with the checker's docstring fixes and this note. Ready to land.
+with the checker's docstring fixes and this note. Fix of the land-inputs refusal on `worktree-agent-adf9be370c61e65d7`:
+Lean `checkShReads` += `packages/gate-breakpoints/src/scope.gen.json`, `.github/workflows/**` (land.ts, golden match);
+proved `parseScope_checkShReads`, `scopeGen_selects_checkSh`, `workflow_selects_checkSh`. Ready to land.
 - `breakgen` imports only `Fw.Site.BreakpointGen` and the import-free `Fw.Site.GenRoute` (cone 42 -> 6 files). New
   exe `sweepsgen` takes `--sweeps`, `--sweeps-golden`, `--scope` (no flag = sweeps); a gate flag on `breakgen` exits 2.
 - Lean: `GenRoute.split_agrees`; `Fw.Ops.Cache` `rebuild_in_cone`, `rebuild_mono`, `rebuild_antitone`,

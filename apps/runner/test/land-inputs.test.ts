@@ -42,6 +42,10 @@ describe("the choice of checks equals the Lean decision", () => {
     // a golden or a generated site file is read by check.sh: the old rule (lean/ only) missed these
     expect(checksWithReads(root, ["packages/contracts/golden/obs/timing.jsonl"]).map((c) => c.id)).toContain("check.sh");
     expect(checksWithReads(root, ["apps/site/src/breakpoints.gen.json"]).map((c) => c.id)).toContain("check.sh");
+    // sweepsgen --scope --check reads the gate's generated scope (Lean scopeGen_selects_checkSh)
+    expect(checksFor(root, ["packages/gate-breakpoints/src/scope.gen.json"])).toContainEqual(["sh", "lean/scripts/check.sh"]);
+    // the lane lint of Fw.Ops.Premise reads the workflows (Lean workflow_selects_checkSh)
+    expect(checksFor(root, [".github/workflows/lean.yml"])).toContainEqual(["sh", "lean/scripts/check.sh"]);
   });
 });
 
