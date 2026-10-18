@@ -78,6 +78,7 @@ import Fw.Gate.Exit  -- gate-exit-verdict: the summary exit code from the merged
 import Fw.Spec.AxReach  -- mathview-axreach: shared-memo axiom reachability, exact on cycles
 import Fw.Spec.ConeMiss  -- mathview-ci-fix: expected module-cache misses after an edit (dependents)
 import Fw.Console.LandSpeed  -- land-speed-lean: result cache, lint_modular, pre-lock land, check verdict
+import Fw.Console.Preview  -- task-preview: preview target, admission, ports, expiry
 import Fw.Console.LandVerdict  -- land-dry: VERDICT kinds, exit codes, retry rule
 import Fw.Console.LandDry  -- land-dry: dry land stages and hand-back rule
 import Fw.Console.LandQueue  -- land-queue: FIFO land queue, bounded retry, runner identity

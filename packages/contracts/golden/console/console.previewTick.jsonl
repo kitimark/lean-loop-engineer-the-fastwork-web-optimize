@@ -1,0 +1,4 @@
+{"name":"nothing live","request":{"live":[],"now":10,"op":"console.previewTick"},"response":{"keep":[],"kill":[]}}
+{"name":"both inside the TTL","request":{"live":[{"id":"a","op":47101,"rp":47100,"started":0,"task":"port-nav"},{"id":"b","op":47103,"rp":47102,"started":1000,"task":"fix-nav"}],"now":3000000,"op":"console.previewTick"},"response":{"keep":["a","b"],"kill":[]}}
+{"name":"the older one is past its deadline","request":{"live":[{"id":"a","op":47101,"rp":47100,"started":0,"task":"port-nav"},{"id":"b","op":47103,"rp":47102,"started":1000,"task":"fix-nav"}],"now":3600000,"op":"console.previewTick"},"response":{"keep":["b"],"kill":["a"]}}
+{"name":"both past","request":{"live":[{"id":"a","op":47101,"rp":47100,"started":0,"task":"port-nav"},{"id":"b","op":47103,"rp":47102,"started":1000,"task":"fix-nav"}],"now":3700000,"op":"console.previewTick"},"response":{"keep":[],"kill":["a","b"]}}
