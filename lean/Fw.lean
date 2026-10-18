@@ -97,3 +97,6 @@ import Fw.Search  -- lfg-props-shape: Enum, bounded counterexample search, link 
 import Fw.Spec.LandDrySig  -- lfg-props-shape: the dry-run implementation signature (Out, DryImpl)
 import Fw.Spec.Incidents  -- lfg-props-shape: the one incident registry (rows, Sig, registryFor, Convention)
 import Fw.Spec.Props.LandDryDemo  -- lfg-props-shape: worked example (inc-land-dry-no-verdict)
+import Fw.Spec.Reach  -- lfg-mathview-facts: the closure/reach helpers shared by the props lint and the math-view facts
+import Fw.Spec.MathFacts  -- lfg-mathview-facts: per-theorem facts (head, impl arg, assumes, kill, class, reach, wire)
+import Fw.Spec.MathFactsGuards  -- lfg-mathview-facts: #guards of the facts on real declarations

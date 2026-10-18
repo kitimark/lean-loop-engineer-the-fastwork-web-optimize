@@ -1,4 +1,5 @@
 import Lean
+import Fw.Spec.Reach
 /-!
 # The properties lint (task `lfg-props-shape`, a check.sh stage)
 
@@ -34,6 +35,7 @@ What it does not catch: a property that restates the implementation inline inste
 separates `impl` from the replay on an unrelated part of the output (both are review items, see `Fw.Spec.Props`).
 -/
 open Lean Meta
+open Fw.Spec.Reach
 
 namespace PropsLint
 
@@ -64,23 +66,6 @@ def exempt (mod n : Name) : Bool :=
 #guard !exempt `Fw.Spec.Props `Fw.Spec.Props.kills_of_rejects
 #guard !exempt `Fw.Spec.Props.LandDryDemo `Fw.Spec.Props.Registry.fake
 #guard !exempt `Refute `Refute.fakeReg
-
-/-- What the lint scans: the root names $R$ of the package's `lean_lib`s and the extra module $m_{\mathrm{main}}$
-(`.anonymous` when there is none). -/
-structure Scope where
-  libs : List Name
-  extra : Name
-
-/-- **Is a module ours?** Its root is the name of a `lean_lib` of the package, or it is the extra module being linted.
-$$\forall R, m_{\mathrm{main}}, m,\ \operatorname{project}_{R, m_{\mathrm{main}}}(m) \iff \operatorname{root}(m) \in R \lor m = m_{\mathrm{main}}$$ -/
-def isProject (sc : Scope) (mod : Name) : Bool := sc.libs.contains mod.getRoot || mod == sc.extra
-
-#guard isProject ⟨[`Fw], `Refute⟩ `Fw.Spec.Incidents
-#guard isProject ⟨[`Fw], `Refute⟩ `Refute
-#guard isProject ⟨[`Fw, `FwTest, `MathView], .anonymous⟩ `FwTest.Golden
-#guard isProject ⟨[`Fw, `FwTest, `MathView], .anonymous⟩ `MathView
-#guard !isProject ⟨[`Fw], `Refute⟩ `Lean.Data.Json
-#guard !isProject ⟨[`Fw], `Refute⟩ `FwTest.Golden
 
 /-- **The `lean_lib` names of a `lakefile.toml`**, given as its lines: for every line `[[lean_lib]]`, the quoted value
 of the first later line of the form `name = "…"` (spaces trimmed), in file order. A `[[lean_lib]]` with no later name
@@ -157,82 +142,10 @@ def rowCheck (id pred replay : String) (ledger : List (String × Option String �
 #guard rowCheck "a" "P" "R" [("a", some "P", some "R"), ("a", none, none)] == []
 #guard (rowCheck "a" "P" "R" []).length == 1
 
-/-! ## The scan (I/O and `MetaM` glue: reads the environment and the ledger, decides with the functions above) -/
+/-! ## The scan (I/O and `MetaM` glue: reads the environment and the ledger, decides with the functions above)
 
-/-- The module of a declaration (the main module for a declaration of the file being linted). -/
-def modOf (env : Environment) (n : Name) : Name :=
-  match env.getModuleIdxFor? n with
-  | some i => env.header.moduleNames[i.toNat]!
-  | none => env.mainModule
-
-/-- The type of a declaration with every leading `∀` stripped. -/
-partial def resultType : Expr → Expr
-  | .forallE _ _ b _ => resultType b
-  | e => e
-
-/-- The constants of the binder types of a type's leading `∀`s, and its result type. -/
-partial def typeParts : Expr → List Name × Expr
-  | .forallE _ t b _ => let (bs, r) := typeParts b; (t.getUsedConstants.toList ++ bs, r)
-  | .mdata _ e => typeParts e
-  | e => ([], e)
-
-/-- The value of a definition, theorem or opaque. -/
-def valueOf? : ConstantInfo → Option Expr
-  | .defnInfo d => some d.value
-  | .thmInfo t => some t.value
-  | .opaqueInfo o => some o.value
-  | _ => none
-
-/-- What a project constant leads to in `closure`: a definition's value; an inductive's type and its constructors; the
-type of a constructor, theorem, opaque or axiom (a theorem's proof is not followed: it does not change what the
-statement says). -/
-def nextOf : ConstantInfo → List Name
-  | .defnInfo d => d.value.getUsedConstants.toList
-  | .inductInfo i => i.type.getUsedConstants.toList ++ i.ctors
-  | .ctorInfo c => c.type.getUsedConstants.toList
-  | .thmInfo t => t.type.getUsedConstants.toList
-  | .opaqueInfo o => o.type.getUsedConstants.toList
-  | .axiomInfo a => a.type.getUsedConstants.toList
-  | _ => []
-
-/-- Every project constant reachable from the roots through `nextOf` (roots included when they are project
-constants). -/
-partial def closure (env : Environment) (sc : Scope) (roots : List Name) : List Name := Id.run do
-  let mut seen : NameSet := {}
-  let mut out : Array Name := #[]
-  let mut todo := roots
-  while true do
-    match todo with
-    | [] => break
-    | c :: rest =>
-      todo := rest
-      if seen.contains c then continue
-      seen := seen.insert c
-      unless isProject sc (modOf env c) do continue
-      if let some ci := env.find? c then
-        out := out.push c
-        todo := nextOf ci ++ todo
-  return out.toList
-
-/-- The elements of a list expression, after `whnf` at each cons. -/
-partial def listElems (e : Expr) : MetaM (List Expr) := do
-  let e ← whnf e
-  match e.getAppFnArgs with
-  | (``List.cons, #[_, h, t]) => return h :: (← listElems t)
-  | (``List.nil, _) => return []
-  | _ => throwError "props-lint: not a list literal: {e}"
-
-/-- A string literal, after `whnf`. -/
-def strLit (e : Expr) : MetaM String := do
-  match ← whnf e with
-  | .lit (.strVal s) => return s
-  | e => throwError "props-lint: not a string literal: {e}"
-
-/-- The constructors of `Fw.Spec.Incidents.Sig` (none when the module is not loaded). -/
-def sigCtors (env : Environment) : List Name :=
-  match env.find? `Fw.Spec.Incidents.Sig with
-  | some (.inductInfo i) => i.ctors
-  | _ => []
+The closure, the module of a declaration and the registry rows are `Fw.Spec.Reach` (shared with the math-view facts,
+`Fw.Spec.MathFacts`). -/
 
 /-- The vocabulary of a signature, as names. -/
 def vocabOf (s : Expr) : MetaM (List Name) := do
@@ -320,20 +233,17 @@ def rowName (env : Environment) (what : String) (e : Expr) : Except String Name 
 def lintRows (ledger : List (String × Option String × Option String)) : MetaM (List String) := do
   let env ← getEnv
   let mut out : List String := []
-  for c in sigCtors env do
-    let reg := mkApp (mkConst `Fw.Spec.Incidents.registryFor) (mkConst c)
-    let rows ← listElems (← mkAppM `Fw.Spec.Props.Registry.rows #[reg])
-    for r in rows do
-      let r ← whnf r
-      match r.getAppFnArgs with
-      | (`Fw.Spec.Props.Incident.mk, #[_, _, idE, predE, replayE]) =>
-        let id ← strLit idE
-        match rowName env "pred" predE, rowName env "replay" replayE with
-        | .ok p, .ok q =>
-          out := out ++ (rowCheck id p.toString q.toString ledger).map (s!"props-lint: ledger {c}: " ++ ·)
-        | .error m, _ => out := out ++ [s!"props-lint: ledger {c} {id}: {m}"]
-        | _, .error m => out := out ++ [s!"props-lint: ledger {c} {id}: {m}"]
-      | _ => out := out ++ [s!"props-lint: ledger {c}: a row is not an Incident.mk literal: {r}"]
+  for (c, r) in ← registryRows do
+    let r ← whnf r
+    match r.getAppFnArgs with
+    | (`Fw.Spec.Props.Incident.mk, #[_, _, idE, predE, replayE]) =>
+      let id ← strLit idE
+      match rowName env "pred" predE, rowName env "replay" replayE with
+      | .ok p, .ok q =>
+        out := out ++ (rowCheck id p.toString q.toString ledger).map (s!"props-lint: ledger {c}: " ++ ·)
+      | .error m, _ => out := out ++ [s!"props-lint: ledger {c} {id}: {m}"]
+      | _, .error m => out := out ++ [s!"props-lint: ledger {c} {id}: {m}"]
+    | _ => out := out ++ [s!"props-lint: ledger {c}: a row is not an Incident.mk literal: {r}"]
   return out
 
 /-- The ledger's incidents as (id, `leanPred`, `leanReplay`) triples. -/
