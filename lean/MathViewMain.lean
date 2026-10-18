@@ -1,4 +1,5 @@
 import MathView
+import Fw.Spec.ConeMiss
 open Lean Meta
 
 /-- The package root: the executable lives in `<root>/.lake/build/bin/`. -/
@@ -467,6 +468,30 @@ def cachedEntries (env : Environment) (root store : System.FilePath) (stats : Op
       s!"ms keys {t1 - t0} read {t2 - t1} export {t3 - t2} store {t4 - t3}\n" ++ String.join misses)
   return (hits ++ fresh).qsort MathView.Entry.before
 
+/-- `--dependents <x>`: the package modules (those whose `.olean` is under `.lake/build/`) whose import cone contains
+`x`, in import order, computed by `Fw.Spec.ConeMiss.dependents` (proved exact by `mem_dependents`) over
+`env.header.moduleNames` restricted to the package, with each module's direct imports restricted to the package (a
+toolchain module imports no package module, so no cone path leaves the package). These are the modules the module
+cache recomputes after an edit of `x` alone. Throws when that order is not topological (`topoFrom`, the premise of
+`mem_dependents`) or `x` is not a package module. -/
+def dependentsOf (env : Environment) (root : System.FilePath) (x : String) : IO (List String) := do
+  let build := (root / ".lake" / "build").toString ++ "/"
+  let mut pkg : Array Name := #[]
+  for m in env.header.moduleNames do
+    if (← findOLean m).toString.startsWith build then pkg := pkg.push m
+  let names : NameSet := pkg.foldl (·.insert ·) {}
+  let mut imps : Std.HashMap String (List String) := {}
+  for m in pkg do
+    let some idx := env.getModuleIdx? m | throw (IO.userError s!"mathview: module {m} is not imported")
+    let is := env.header.moduleData[idx.toNat]!.imports.toList.map (·.module) |>.filter names.contains
+    imps := imps.insert m.toString (is.map toString)
+  let imp : String → List String := fun m => imps.getD m []
+  let order := pkg.toList.map toString
+  unless Fw.Spec.ConeMiss.topoFrom imp [] order do
+    throw (IO.userError "mathview: the module order is not topological")
+  unless order.contains x do throw (IO.userError s!"mathview: {x} is not a package module")
+  return Fw.Spec.ConeMiss.dependents imp order x
+
 /-- `lake exe mathview [--lint] [--out <file>]`: print every `Fw` declaration as JSON (name, kind, module, line,
 English, math, signature, machine LaTeX, deep statement hash, docstring hash, axioms); with `--lint`, exit 1 when
 a declaration lacks `$$` math or English, depends on `sorryAx`, or on an axiom other than
@@ -476,13 +501,18 @@ block (`WhereLint`; in `Fw.Measure.*` that clause only warns, TODO(where-cleanup
 `<file>` (the same bytes as the plain export on stdout), so one run serves both the lint and the export;
 `scripts/mathview-cached.sh` keeps that file keyed by a hash of the sources. With `--store <dir>` the export is
 computed per module and reused from `<dir>` (`cachedEntries`; `--stats <file>` records hits and misses); the output is
-the same bytes as without it, except the `heartbeats` field of a reused entry. -/
+the same bytes as without it, except the `heartbeats` field of a reused entry. `--dependents <module>` prints instead
+one line per module whose import cone contains `<module>` (`dependentsOf`) and exits 0, or fails with an error when
+`<module>` is not a package module or the module order is not topological. -/
 def main (args : List String) : IO UInt32 := do
   let root ← packageRoot
   initSearchPath (← findSysroot) [root / ".lake" / "build" / "lib" / "lean"]
   let mods ← fwModules root
   -- `loadExts := false` is a premise of the module cache (see the module-cache note above)
   let env ← importModules (mods.map fun m => { module := m }) {} (loadExts := false)
+  if let some x := optArg "--dependents" args then
+    for d in ← dependentsOf env root x do IO.println d
+    return 0
   let ctx : Core.Context := { fileName := "<mathview>", fileMap := default }
   let st : Core.State := { env }
   let es ← match optArg "--store" args with
