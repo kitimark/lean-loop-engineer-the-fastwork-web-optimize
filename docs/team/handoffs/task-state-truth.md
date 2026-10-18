@@ -1,6 +1,8 @@
 # task-state-truth (handoff)
 
-State: branch `worktree-wf_f085afd7-2cc-1`, round 4 (conform to the round-3 final design), commits 3a5b058..HEAD.
+State: branch `worktree-wf_f085afd7-2cc-1`, round 4 (conform to the round-3 final design), commits 3a5b058..HEAD,
+main merged; check.sh green; vitest console-api 321, runner 1005, console-web 9; `fw land --dry` VERDICT dry with
+`--allow lean/Fw/Console.lean --allow lean/Fw/Ops/Obs.lean --allow "lean/Fw/Obs/*.lean"` (svc.sweepError).
 Root cause (MEASURED, round 1): strict zod `ObsRecord` refused every SubagentStop carrying `background_tasks`.
 
 ## Round 4 (lead decisions, done)
