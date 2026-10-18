@@ -51,22 +51,20 @@ await build({
     rollupOptions: { input: path.join(root, 'src/entry-client.tsx') },
   },
 });
-// Google Sans: copied byte for byte from the unmodified snapshot (the only place the font may come from); the
-// @font-face rules in src/styles/reset.css point at /fonts/.
-const fontSrc = path.join(root, '../../snapshot/site/_app/immutable/assets');
-await mkdir(path.join(outDir, 'fonts'), { recursive: true });
-for (const f of [
-  'google-sans-latin-normal.BbZhqv4U.woff2',
-  'google-sans-latin-italic.XUjF_20c.woff2',
-  'google-sans-thai-normal.CD79Hmaw.woff2',
-  'google-sans-thai-italic.Cygf3A0N.woff2',
-]) {
-  await copyFile(path.join(fontSrc, f), path.join(outDir, 'fonts', f));
+// Snapshot assets: every file listed in assets.manifest.json is copied byte for byte from the unmodified snapshot to
+// dist/<engine>/<url> (fonts included; the @font-face rules in src/styles/reset.css point at /fonts/). A listed file that
+// is missing fails the build.
+const assets = JSON.parse(await readFile(path.join(root, 'assets.manifest.json'), 'utf8'));
+for (const { url, src } of assets.files) {
+  const from = path.join(root, '../..', src);
+  const to = path.join(outDir, url);
+  await mkdir(path.dirname(to), { recursive: true });
+  try {
+    await copyFile(from, to);
+  } catch (e) {
+    throw new Error(`assets.manifest.json lists ${url} but ${src} cannot be copied: ${e.code ?? e.message}`);
+  }
 }
-await copyFile(
-  path.join(root, '../../snapshot/site/selling/fonts/playpen-sans-latin.woff2'),
-  path.join(outDir, 'fonts', 'playpen-sans-latin.woff2'),
-);
 const t1 = performance.now();
 
 await build({
