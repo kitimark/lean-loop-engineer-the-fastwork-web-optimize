@@ -224,7 +224,7 @@
     "lean/Fw/Wire.lean",
     "lean/Fw/Wire/**",
     "lean/Fw.lean",
-    "packages/contracts/golden/ops/**"
+    "packages/contracts/golden/console/console.previewAdmit.jsonl"
    ],
    "evidence": "49b7ff4"
   },
@@ -2992,7 +2992,7 @@
    "writes": [
     "lean/Fw/Ops/Identity.lean",
     "lean/Fw/Ops/Golden.lean",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "apps/runner/hooks/cap.mjs",
     "apps/runner/hooks/lib.mjs",
     "apps/runner/src/fw.ts",
@@ -3926,7 +3926,7 @@
     "lean/Fw/Ops/Premise.lean",
     "lean/Fw/Ops/EnginePremise.lean",
     "packages/contracts/golden/engine/**",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "research/findings/ledger.json",
     "research/notes/**",
     "docs/team/handoffs/engine-model-fix.md",
@@ -3959,7 +3959,7 @@
    "writes": [
     "lean/Fw/Ops/Wait.lean",
     "lean/Fw/Ops/Golden.lean",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "apps/runner/hooks/wait-guard.mjs",
     "apps/runner/test/**",
     "docs/team/tools/wait-guard.md"
@@ -4033,6 +4033,23 @@
     "packages/measure-wktr/**",
     "research/notes/**",
     "research/findings/ledger.json"
+   ]
+  },
+  {
+   "id": "preview-test-ports",
+   "title": "(S) console-api preview tests bind the live preview range 47100-47139 and fail every land while a preview is open: Lean preview decision takes the port base (default portLo 47100), tests use 47300",
+   "stream": "tooling",
+   "milestone": "M5",
+   "deps": [],
+   "owner": "console-builder",
+   "writes": [
+    "lean/Fw/Console/Preview.lean",
+    "lean/Fw/Wire/Console.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
+    "apps/console-api/src/preview/**",
+    "apps/console-api/test/preview.test.ts",
+    "docs/team/handoffs/preview-test-ports.md"
    ]
   },
   {
@@ -4183,7 +4200,7 @@
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Ops/Premise.lean",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "packages/premise-tests/**",
     "apps/runner/src/**",
     "apps/runner/test/**"
@@ -4254,7 +4271,7 @@
     "lean/Fw/Ops/Wire.lean",
     "lean/Fw.lean",
     "packages/contracts/golden/obs/**",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "packages/gh-budget/**",
     "apps/runner/src/**",
     "apps/runner/test/**",
@@ -4297,7 +4314,7 @@
     "lean/Fw/Ops/Wire.lean",
     "lean/Fw.lean",
     "lean/FwTest/**",
-    "packages/contracts/golden/ops/**"
+    "packages/contracts/golden/console/console.previewAdmit.jsonl"
    ],
    "evidence": "c05ac54"
   },
@@ -4330,7 +4347,7 @@
    "writes": [
     "lean/Fw/Ops/Premise.lean",
     "lean/scripts/EngineCiteLint.lean",
-    "packages/contracts/golden/ops/**"
+    "packages/contracts/golden/console/console.previewAdmit.jsonl"
    ]
   },
   {
@@ -4362,7 +4379,7 @@
    "writes": [
     "packages/difftest/**",
     "lean/Fw/Ops/**",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "scripts/hooks/**"
    ]
   },
@@ -4432,7 +4449,7 @@
    "writes": [
     "research/notes/**",
     "lean/Fw/Ops/LeanFirst*.lean",
-    "packages/contracts/golden/ops/**"
+    "packages/contracts/golden/console/console.previewAdmit.jsonl"
    ]
   },
   {
@@ -4520,7 +4537,7 @@
    "writes": [
     "lean/Fw/Ops/Wait.lean",
     "lean/Fw/Ops/Golden.lean",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "apps/runner/hooks/wait-guard.mjs",
     "apps/runner/test/**",
     "docs/team/tools/wait-guard.md",
@@ -4560,7 +4577,7 @@
    "owner": "lean-prover",
    "writes": [
     "lean/Fw/Ops/Premise.lean",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "packages/premise-tests/**",
     "apps/runner/src/**",
     "apps/runner/test/**",
@@ -4663,7 +4680,7 @@
     "lean/Fw/Ops/Premise.lean",
     "lean/Fw/Ops/EnginePremise.lean",
     "packages/contracts/golden/engine/**",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "research/findings/ledger.json",
     "research/notes/**",
     "docs/team/handoffs/engine-model-fix.md",
@@ -4714,7 +4731,7 @@
     ".claude/skills/**",
     "lean/Fw/Ops/SpawnGuard.lean",
     "apps/runner/hooks/spawn-guard.mjs",
-    "packages/contracts/golden/ops/**"
+    "packages/contracts/golden/console/console.previewAdmit.jsonl"
    ],
    "evidence": "791c010"
   },
@@ -4890,7 +4907,7 @@
    "writes": [
     "lean/Fw/Ops/Wait.lean",
     "lean/Fw/Ops/Golden.lean",
-    "packages/contracts/golden/ops/**",
+    "packages/contracts/golden/console/console.previewAdmit.jsonl",
     "apps/runner/hooks/wait-guard.mjs",
     "apps/runner/test/**",
     "docs/team/tools/wait-guard.md",
