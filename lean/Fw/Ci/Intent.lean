@@ -31,6 +31,11 @@ verdict of a finished run is `Fw.Ci.Verdict.verdict`, never the workflow conclus
 Round 4: `fw ci push` refuses a push on which a named lane would be skipped, since its wait could never pass
 (`pushOk`, `skipped_named_refused`); `--partial` lets it push when one named lane starts.
 
+Round 5: the default lane (lean) never skips as `unchanged` on a `ci/**` push; it runs on every tip that is not on
+`main` (`lean_never_unchanged`, `tip_lean_always`), so the lean row's inputs are no safety input there. A branch wait
+reads `waitLanes` and passes only with a pass of lean and of every requested lane on that commit
+(`wait_needs_default_pass`, `wait_needs_requested_pass`).
+
 Golden: `packages/contracts/golden/ci/intent.jsonl` (the lanes with their `if:`, the re-check steps, the replay
 cases, the gate vectors and the push vectors), written by `lake test -- --write-ci-trigger-golden`.
 -/
@@ -187,6 +192,11 @@ theorem default_lane_not_macos (l : Lane) (hl : l ∈ lanes) (hd : l.byDefault =
   simp only [laneOf, defaultFiles, List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq] at hd ⊢
   rw [hd]; decide
 
+/-- **The default lane is lean.** A lane of a workflow is a default lane iff the workflow is `lean.yml`.
+$$\forall w:\ \operatorname{lane}(w).\mathit{dflt} \iff w.\mathit{file} = \texttt{lean.yml}$$ -/
+theorem default_iff_lean (w : Wf) : (laneOf w).byDefault = true ↔ w.file = "lean.yml" := by
+  simp [laneOf, defaultFiles]
+
 
 /-! ## The start decision (round 3: the tip decides on the branch's whole diff against `main`) -/
 
@@ -229,9 +239,10 @@ structure Push where
 /-- **The guard's decision**: `none` runs the lane's jobs, `some k` skips them for reason $k$. A record runs. A `main`
 push runs iff its diff passes the lane's coarse `paths` globs (the rule GitHub applied before round 3). A `ci/**` push
 skips, in this order, when the head commit does not want the lane, when the commit is not the branch tip, when it is
-already on `main`, and when no file that differs from `main` is an input of the lane; otherwise it runs. Below
+already on `main`, and, for a lane that is not a default lane, when no file that differs from `main` is an input of
+the lane; otherwise it runs (round 5: the default lane, lean, never skips as unchanged on a `ci/**` push). Below
 $\mathrm{run}$ is `none` and a kind $k$ is `some k`.
-$$\forall S, \ell, p:\ \operatorname{dec}(S, \ell, p) = \begin{cases} \mathrm{run} & p.e = \mathrm{rec} \\ \mathrm{run} & p.e = \mathrm{main} \land \operatorname{sel}(\operatorname{push}(\ell.w), p.D) \\ \mathrm{unchanged} & p.e = \mathrm{main} \land \lnot\operatorname{sel}(\operatorname{push}(\ell.w), p.D) \\ \mathrm{unwanted} & p.e = \mathrm{ci} \land \lnot\operatorname{want}(\ell, p.m) \\ \mathrm{stale} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land \lnot p.\mathit{tip} \\ \mathrm{landed} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land p.\mathit{land} \\ \mathrm{unchanged} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land \lnot p.\mathit{land} \land \lnot\operatorname{starts}(\ell.w, S, \operatorname{eff}(p.D, p.\delta)) \\ \mathrm{run} & \text{otherwise} \end{cases}$$ -/
+$$\forall S, \ell, p:\ \operatorname{dec}(S, \ell, p) = \begin{cases} \mathrm{run} & p.e = \mathrm{rec} \\ \mathrm{run} & p.e = \mathrm{main} \land \operatorname{sel}(\operatorname{push}(\ell.w), p.D) \\ \mathrm{unchanged} & p.e = \mathrm{main} \land \lnot\operatorname{sel}(\operatorname{push}(\ell.w), p.D) \\ \mathrm{unwanted} & p.e = \mathrm{ci} \land \lnot\operatorname{want}(\ell, p.m) \\ \mathrm{stale} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land \lnot p.\mathit{tip} \\ \mathrm{landed} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land p.\mathit{land} \\ \mathrm{unchanged} & p.e = \mathrm{ci} \land \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land \lnot p.\mathit{land} \land \lnot \ell.\mathit{dflt} \land \lnot\operatorname{starts}(\ell.w, S, \operatorname{eff}(p.D, p.\delta)) \\ \mathrm{run} & \text{otherwise} \end{cases}$$ -/
 def decision (S : String → List String) (l : Lane) (p : Push) : Option Skip :=
   match p.ev with
   | .record => none
@@ -240,7 +251,7 @@ def decision (S : String → List String) (l : Lane) (p : Push) : Option Skip :=
     if !wanted l p.msg then some .unwanted
     else if !p.tip then some .stale
     else if p.landed then some .landed
-    else if !l.wf.starts S (effective p.diff p.differs) then some .unchanged
+    else if !l.byDefault && !l.wf.starts S (effective p.diff p.differs) then some .unchanged
     else none
 
 /-- The guard starts the lane's jobs iff it decides to run.
@@ -261,13 +272,13 @@ theorem main_keeps_paths_rule (S : String → List String) (l : Lane) (p : Push)
   cases hs : selected (pushPaths l.wf) p.diff <;> simp [start, decision, h, hs]
 
 /-- **The decision on a `ci/**` push, unfolded.**
-$$\forall S, \ell, p:\ p.e = \mathrm{ci} \Rightarrow \Bigl(\operatorname{start}(S, \ell, p) \iff \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land \lnot p.\mathit{land} \land \exists x \in p.D:\ p.\delta(x) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, \ell.w.G)), x)\Bigr)$$ -/
+$$\forall S, \ell, p:\ p.e = \mathrm{ci} \Rightarrow \Bigl(\operatorname{start}(S, \ell, p) \iff \operatorname{want}(\ell, p.m) \land p.\mathit{tip} \land \lnot p.\mathit{land} \land \bigl(\ell.\mathit{dflt} \lor \exists x \in p.D:\ p.\delta(x) \land \mathrm{in}(\mathrm{parse}(\operatorname{expand}(S, \ell.w.G)), x)\bigr)\Bigr)$$ -/
 theorem start_ci_iff (S : String → List String) (l : Lane) (p : Push) (hci : p.ev = .ciPush) :
-    start S l p = true ↔ wanted l p.msg = true ∧ p.tip = true ∧ p.landed = false ∧
-      ∃ x ∈ p.diff, p.differs x = true ∧ inScope (parseScope (expand S l.wf.inputs)) x = true := by
+    start S l p = true ↔ wanted l p.msg = true ∧ p.tip = true ∧ p.landed = false ∧ (l.byDefault = true ∨
+      ∃ x ∈ p.diff, p.differs x = true ∧ inScope (parseScope (expand S l.wf.inputs)) x = true) := by
   rw [← starts_iff]
-  cases hw : wanted l p.msg <;> cases ht : p.tip <;> cases hl : p.landed <;>
-    cases hs : l.wf.starts S (effective p.diff p.differs) <;> simp [start, decision, hci, hw, ht, hl, hs]
+  cases hw : wanted l p.msg <;> cases ht : p.tip <;> cases hl : p.landed <;> cases hd : l.byDefault <;>
+    cases hs : l.wf.starts S (effective p.diff p.differs) <;> simp [start, decision, hci, hw, ht, hl, hd, hs]
 
 /-- **The tip starts every requested lane that is due.** On a `ci/**` push, if the head commit names the lane, the
 commit is the branch tip and not on `main`, and some file that differs from `main` on the branch is an input of the
@@ -279,15 +290,22 @@ theorem tip_starts (S : String → List String) (l : Lane) (p : Push) (hci : p.e
   have hw : wanted l p.msg = true := by simp [wanted, hr]
   simp [start, decision, hci, hw, ht, hl, hs]
 
-/-- **The tip always checks the Lean proofs when they are due.** On a `ci/**` push, a default lane (`lean`) starts
-whenever the commit is the branch tip, not on `main`, and some file that differs from `main` on the branch is one of
-its inputs, whatever lanes the head commit names (none, `[ci:none]`, or others).
-$$\forall S, \ell, p:\ p.e = \mathrm{ci} \land \ell.\mathit{dflt} \land p.\mathit{tip} \land \lnot p.\mathit{land} \land \operatorname{starts}(\ell.w, S, \operatorname{eff}(p.D, p.\delta)) \Rightarrow \operatorname{start}(S, \ell, p)$$ -/
+/-- **The tip always checks the Lean proofs** (round 5). On a `ci/**` push, a default lane (`lean`) starts whenever
+the commit is the branch tip and not on `main`, whatever files differ from `main` and whatever lanes the head commit
+names (none, `[ci:none]`, or others).
+$$\forall S, \ell, p:\ p.e = \mathrm{ci} \land \ell.\mathit{dflt} \land p.\mathit{tip} \land \lnot p.\mathit{land} \Rightarrow \operatorname{start}(S, \ell, p)$$ -/
 theorem tip_lean_always (S : String → List String) (l : Lane) (p : Push) (hci : p.ev = .ciPush)
-    (hd : l.byDefault = true) (ht : p.tip = true) (hl : p.landed = false)
-    (hs : l.wf.starts S (effective p.diff p.differs) = true) : start S l p = true := by
+    (hd : l.byDefault = true) (ht : p.tip = true) (hl : p.landed = false) : start S l p = true := by
   have hw : wanted l p.msg = true := by simp [wanted, hd]
-  simp [start, decision, hci, hw, ht, hl, hs]
+  simp [start, decision, hci, hw, ht, hl, hd]
+
+/-- **Lean never skips as unchanged on a `ci/**` push** (round 5). The guard of a default lane never decides
+`unchanged` on a `ci/**` push, so the lean row's inputs never make lean skip there; it skips only as stale or landed.
+$$\forall S, \ell, p:\ p.e = \mathrm{ci} \land \ell.\mathit{dflt} \Rightarrow \operatorname{dec}(S, \ell, p) \ne \mathrm{some}(\mathrm{unchanged})$$ -/
+theorem lean_never_unchanged (S : String → List String) (l : Lane) (p : Push) (hci : p.ev = .ciPush)
+    (hd : l.byDefault = true) : decision S l p ≠ some .unchanged := by
+  have hw : wanted l p.msg = true := by simp [wanted, hd]
+  cases ht : p.tip <;> cases hl : p.landed <;> simp [decision, hci, hw, ht, hl, hd]
 
 /-- **The tip's decision has no history.** Two `ci/**` pushes with the same message, tip and landed flags, and the
 same files that differ from `main` on the branch, get the same decision for every lane: what earlier pushes changed,
@@ -367,12 +385,12 @@ $$\forall s:\ \operatorname{has}(s) = \texttt{contains(github.event.head\_commit
 def containsExpr (s : String) : String := "contains(github.event.head_commit.message, '" ++ s ++ "')"
 
 /-- The "not a ci push" part of the `if:`.
-$$\mathrm{rec} = \texttt{github.event\_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/')}$$ -/
+$$\mathrm{notCi} = \texttt{github.event\_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/')}$$ -/
 def recordExpr : String := "github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/')"
 
 /-- The guard job's `if:` text: `gate` written as a GitHub expression. A default lane has no `if:` at all (the empty
 text: a job without `if:` always runs, and actionlint rejects a constant condition).
-$$\forall \ell:\ \operatorname{ifExpr}(\ell) = \begin{cases} \texttt{""} & \ell.\mathit{dflt} \\ \texttt{\$\{\{ } \mathrm{rec} \texttt{ || } \operatorname{has}(\operatorname{tok}(\ell.n)) \texttt{ \}\}} & \lnot\ell.\mathit{dflt} \end{cases}$$ -/
+$$\forall \ell:\ \operatorname{ifExpr}(\ell) = \begin{cases} \texttt{""} & \ell.\mathit{dflt} \\ \texttt{\$\{\{ } \mathrm{notCi} \texttt{ || } \operatorname{has}(\operatorname{tok}(\ell.n)) \texttt{ \}\}} & \lnot\ell.\mathit{dflt} \end{cases}$$ -/
 def ifExpr (l : Lane) : String :=
   if l.byDefault then ""
   else "${{ " ++ recordExpr ++ " || " ++ containsExpr (String.ofList (tok l.name)) ++ " }}"
@@ -455,14 +473,14 @@ def workConj : String := "steps.stale.outcome == 'skipped'"
 push one group per lane, ref, job and matrix leg (main runs queue, as before); on a `ci/**` push, a dispatch or a
 schedule the run's own id, so no two runs share a group and nothing is cancelled or replaced while pending
 (`Fw.Ci.Cancel.ci_never_cancelled`). No job sets `cancel-in-progress`.
-$$\forall \ell, j:\ \operatorname{grp}(\ell, j) = \texttt{ci-lane:} \mathbin{+\!\!+} \ell.n \mathbin{+\!\!+} \texttt{:\$\{\{ github.event\_name == 'push' \&\& !startsWith(github.ref, 'refs/heads/ci/') \&\& github.ref || github.run\_id \}\}:} \mathbin{+\!\!+} j \mathbin{+\!\!+} \texttt{:\$\{\{ strategy.job-index \}\}}$$ -/
+$$\forall \ell, j:\ \operatorname{grpX}(\ell, j) = \texttt{ci-lane:} \mathbin{+\!\!+} \ell.n \mathbin{+\!\!+} \texttt{:\$\{\{ github.event\_name == 'push' \&\& !startsWith(github.ref, 'refs/heads/ci/') \&\& github.ref || github.run\_id \}\}:} \mathbin{+\!\!+} j \mathbin{+\!\!+} \texttt{:\$\{\{ strategy.job-index \}\}}$$ -/
 def groupExpr (l : Lane) (job : String) : String :=
   "ci-lane:" ++ l.name ++ String.singleton ':' ++
     ("${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:" ++
       job ++ ":${{ strategy.job-index }}")
 
 /-- **Two lanes never share a group.** For valid lane names, equal groups (same job) mean the same lane.
-$$\forall \ell, \ell', j:\ \operatorname{valid}(\ell.n) \land \operatorname{valid}(\ell'.n) \land \operatorname{grp}(\ell, j) = \operatorname{grp}(\ell', j) \Rightarrow \ell.n = \ell'.n$$ -/
+$$\forall \ell, \ell', j:\ \operatorname{valid}(\ell.n) \land \operatorname{valid}(\ell'.n) \land \operatorname{grpX}(\ell, j) = \operatorname{grpX}(\ell', j) \Rightarrow \ell.n = \ell'.n$$ -/
 theorem group_lane_inj (l l' : Lane) (job : String) (hl : validName l.name = true) (hl' : validName l'.name = true)
     (h : groupExpr l job = groupExpr l' job) : l.name = l'.name := by
   have nc : ∀ (n : String), validName n = true → ':' ∉ n.toList := by
@@ -473,6 +491,39 @@ theorem group_lane_inj (l l' : Lane) (job : String) (hl : validName l.name = tru
   simp only [groupExpr, String.toList_append, String.toList_singleton, List.append_assoc, List.singleton_append,
     List.append_cancel_left_eq] at h2
   exact String.toList_inj.mp (sep_inj _ _ _ _ ':' (nc _ hl) (nc _ hl') h2)
+
+/-! ## The lanes of a branch wait (round 5) -/
+
+/-- The lanes a branch wait reads for a head commit message: every lane the message wants (the requested lanes and
+the default lane), in table order.
+$$\forall m:\ \operatorname{waitLanes}(m) = [\, \ell \in L : \operatorname{want}(\ell, m) \,]$$ -/
+def waitLanes (m : String) : List Lane := lanes.filter fun l => wanted l m
+
+/-- **A branch wait needs a pass of the default lane** (round 5). For any known head commit message and any facts per
+lane (the newest run of the lane for that commit), if the wait over `waitLanes` passes, every default lane (lean) has
+a passing run: a skip, `unchanged` included, never stands in for it.
+$$\forall m, \rho:\ \operatorname{wait}\bigl(\mathrm{some}([\, \rho(\ell) : \ell \in \operatorname{waitLanes}(m) \,])\bigr) = \mathrm{pass} \Rightarrow \forall \ell \in L:\ \ell.\mathit{dflt} \Rightarrow \rho(\ell).v = \mathrm{some}(\mathrm{pass})$$ -/
+theorem wait_needs_default_pass (m : String) (run : Lane → Fw.Ci.Verdict.LaneRun)
+    (h : Fw.Ci.Verdict.waitVerdict (some ((waitLanes m).map run)) = .pass) :
+    ∀ l ∈ lanes, l.byDefault = true → (run l).v = some .pass := by
+  intro l hl hd
+  have hm : l ∈ waitLanes m := List.mem_filter.mpr ⟨hl, by simp [wanted, hd]⟩
+  have hp := ((Fw.Ci.Verdict.combine_requested_pass_iff _).mp h).1 (run l) (List.mem_map_of_mem hm)
+  exact (Fw.Ci.Verdict.laneOk_iff _).mp hp
+
+/-- **A branch wait needs a pass of every requested lane.** If the wait over `waitLanes` passes, every lane the
+message names has a passing run.
+$$\forall m, \rho:\ \operatorname{wait}\bigl(\mathrm{some}([\, \rho(\ell) : \ell \in \operatorname{waitLanes}(m) \,])\bigr) = \mathrm{pass} \Rightarrow \forall \ell \in L:\ \operatorname{req}(\ell.n, m) \Rightarrow \rho(\ell).v = \mathrm{some}(\mathrm{pass})$$ -/
+theorem wait_needs_requested_pass (m : String) (run : Lane → Fw.Ci.Verdict.LaneRun)
+    (h : Fw.Ci.Verdict.waitVerdict (some ((waitLanes m).map run)) = .pass) :
+    ∀ l ∈ lanes, requested l.name m = true → (run l).v = some .pass := by
+  intro l hl hr
+  have hm : l ∈ waitLanes m := List.mem_filter.mpr ⟨hl, by simp [wanted, hr]⟩
+  have hp := ((Fw.Ci.Verdict.combine_requested_pass_iff _).mp h).1 (run l) (List.mem_map_of_mem hm)
+  exact (Fw.Ci.Verdict.laneOk_iff _).mp hp
+
+#guard (waitLanes "fix").map (·.name) == ["lean"]
+#guard (waitLanes "x [ci:wktr]").map (·.name) == ["lean", "wktr"]
 
 /-! ## The push preview (round 4: `fw ci push` refuses a partial request) -/
 
@@ -572,13 +623,15 @@ def gatedBy (ci : Bool) (msg : String) : List String := (lanes.filter fun l => g
 #guard runIntent .ciPush "fix x" ["lean/Fw/Wire.lean"] [] true false == ["lean.yml"]
 #guard runIntent .ciPush "fix x\n\n[ci:wktr]" ["lean/Fw/Wire.lean"] [] true false == ["lean.yml", "wktr.yml"]
 #guard runIntent .ciPush "[ci:none]" ["lean/Fw/Wire.lean"] [] true false == ["lean.yml"]
-#guard runIntent .ciPush "[ci:wktr]" ["docs/x.md"] [] true false == []
+#guard runIntent .ciPush "[ci:wktr]" ["docs/x.md"] [] true false == ["lean.yml"]
 -- the reviewer's revert sequence: A changes X and Y; B reverts X, so the branch differs from main in Y only
 #guard runIntent .ciPush "a" ["lean/Fw/Wire.lean", "lean/Fw/Ops/Wire.lean"] [] true false == ["lean.yml"]
 #guard (decideIntent .ciPush "a" ["lean/Fw/Wire.lean", "lean/Fw/Ops/Wire.lean"] [] false false).lookup "lean.yml" ==
   some "stale"
 #guard runIntent .ciPush "b" ["lean/Fw/Ops/Wire.lean"] [] true false == ["lean.yml"]
-#guard (decideIntent .ciPush "b2" [] [] true false).lookup "lean.yml" == some "unchanged"
+-- round 5: nothing differs from main and lean still runs (`lean_never_unchanged`); a requested lane skips
+#guard (decideIntent .ciPush "b2" [] [] true false).lookup "lean.yml" == some "run"
+#guard (decideIntent .ciPush "[ci:wktr]" ["docs/x.md"] [] true false).lookup "wktr.yml" == some "unchanged"
 -- a docs-only tip on a branch whose Lean differs from main: lean runs
 #guard runIntent .ciPush "docs" ["docs/x.md", "lean/Fw/Wire.lean"] [] true false == ["lean.yml"]
 #guard (decideIntent .ciPush "[ci:lean]" ["lean/Fw/Wire.lean"] [] true true).lookup "lean.yml" == some "landed"
@@ -608,8 +661,10 @@ def cases : List (String × Ev × String × List String × List String × Bool �
   ("two lanes, upper case", .ciPush, "[CI:Lean] [ci:breakpoint-gate]", ["lean/Fw/Wire.lean"], [], true, false),
   ("intent for nothing: lean still checks its inputs", .ciPush, "handoff [ci:none]", ["lean/Fw/Wire.lean"], [], true,
     false),
-  ("intent for nothing, no lean input differs: nothing", .ciPush, "handoff [ci:none]", ["docs/x.md"], [], true, false),
-  ("requested lane whose inputs equal main: skipped unchanged", .ciPush, "[ci:wktr]", ["docs/x.md"], [], true, false),
+  ("intent for nothing, no lean input differs: lean still runs", .ciPush, "handoff [ci:none]", ["docs/x.md"], [],
+    true, false),
+  ("requested lane whose inputs equal main: skipped unchanged, lean runs", .ciPush, "[ci:wktr]", ["docs/x.md"], [],
+    true, false),
   ("a merge of main with intent: the merged file equals main", .ciPush, "[ci:lean]", ["lean/Fw/Wire.lean"],
     ["lean/Fw/Wire.lean"], true, false),
   ("revert sequence, push A (changes X and Y) at the tip", .ciPush, "A",
@@ -620,7 +675,7 @@ def cases : List (String × Ev × String × List String × List String × Bool �
     true, false),
   ("revert sequence, push B with main's X merged: lean runs", .ciPush, "B",
     ["lean/Fw/Wire.lean", "lean/Fw/Ops/Wire.lean"], ["lean/Fw/Wire.lean"], true, false),
-  ("revert sequence, push C reverts Y too: nothing differs, lean unchanged", .ciPush, "C", [], [], true, false),
+  ("revert sequence, push C reverts Y too: nothing differs, lean still runs", .ciPush, "C", [], [], true, false),
   ("a docs-only tip on a branch whose Lean differs: lean runs", .ciPush, "docs", ["docs/x.md", "lean/Fw/Wire.lean"],
     [], true, false),
   ("a requested lane on a stale commit: stale", .ciPush, "[ci:wktr]", ["packages/measure-wktr/src/a.mjs"], [], false,

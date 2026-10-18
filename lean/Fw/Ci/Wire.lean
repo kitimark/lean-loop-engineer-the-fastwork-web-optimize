@@ -211,15 +211,20 @@ def opLimits (_req : Json) : Except String Reply := pure [("limits", limitsJson 
 
 /-! ## `ci.verdict` (`Fw.Ci.Verdict`) -/
 
-/-- A conclusion field (absent or `null`, e.g. still running: `""`, which folds to failure). -/
+/-- A conclusion field: the conclusion its text names; absent or `null` (e.g. still running) reads as `""`, which
+folds to failure.
+$$\forall j, k:\ \operatorname{concl}(j, k) = \operatorname{conclOf}(j[k]\ \text{if a string, else } \texttt{""})$$ -/
 def conclField (j : Json) (k : String) : Except String Fw.Ci.Verdict.Concl := do
   pure (Fw.Ci.Verdict.conclOf ((← optStr j k).getD ""))
 
-/-- A guard step `{name, conclusion}`. -/
+/-- A guard step `{name, conclusion}`.
+$$\forall j:\ \operatorname{step}(j) = (j.\mathit{name},\ \operatorname{concl}(j, \texttt{conclusion}))$$ -/
 def stepOf (j : Json) : Except String (String × Fw.Ci.Verdict.Concl) := do
   pure (← str j "name", ← conclField j "conclusion")
 
-/-- One run's verdict as JSON: `{verdict, code, reason}`. -/
+/-- One run's verdict as JSON: `{verdict, code, reason}`. Below $T$, $J$, $H$ are the run's `steps`, `jobs` and
+`heavySteps` (absent: empty), and a `guard` key that is absent reads as success.
+$$\forall j:\ \operatorname{runV}(j) = \operatorname{verdict}(g,\ \operatorname{decOf}(T),\ J,\ \operatorname{staleOf}(H)),\ g = \begin{cases} \mathrm{success} & \texttt{guard} \notin j \\ \operatorname{concl}(j, \texttt{guard}) & \text{otherwise} \end{cases}$$ -/
 def runVerdict (j : Json) : Except String (Fw.Ci.Verdict.Verdict × Json) := do
   -- no `guard` key: the run's workflow has no guard job (a branch based before task ci-trigger-lean), so nothing was
   -- decided away and the guard counts as `success`; a present key (also `null`) is read as a conclusion
@@ -235,38 +240,42 @@ def runVerdict (j : Json) : Except String (Fw.Ci.Verdict.Verdict × Json) := do
     ("reason", .str reason)])
 
 /-- One lane of a branch wait: `{name, verdict, code, reason}`; a lane without a run (`null` or absent) is `missing`
-(code 4). -/
+(code 4, verdict `none`). The skip kind is the one its reason names.
+$$\forall F, \ell:\ \operatorname{laneV}(F, \ell) = \begin{cases} (\mathrm{none},\ \mathrm{none}) & F[\ell.n] \in \{\text{absent}, \texttt{null}\} \\ (\mathrm{some}(v),\ \operatorname{skipOf}(s)) & \text{otherwise, with } (v, s) \text{ the verdict and reason of } \operatorname{runV}(F[\ell.n]) \end{cases}$$ -/
 def laneVerdict (lanes : Json) (l : Fw.Ci.Intent.Lane) : Except String (Fw.Ci.Verdict.LaneRun × Json) := do
-  let missing := (⟨l.byDefault, none, none⟩ : Fw.Ci.Verdict.LaneRun)
   match lanes.getObjVal? l.name with
   | .error _ | .ok .null =>
-    pure (missing, Json.mkObj [("name", .str l.name), ("verdict", "missing"), ("code", jn 4),
+    pure (⟨none, none⟩, Json.mkObj [("name", .str l.name), ("verdict", "missing"), ("code", jn 4),
       ("reason", "no run of this lane for the commit")])
   | .ok f =>
     let (v, j) ← runVerdict f
     let reason := (j.getObjValAs? String "reason").toOption.getD ""
-    pure (⟨l.byDefault, some v, Fw.Ci.Verdict.skipOf reason⟩, j.setObjVal! "name" (.str l.name))
+    pure (⟨some v, Fw.Ci.Verdict.skipOf reason⟩, j.setObjVal! "name" (.str l.name))
 
-/-- The reply fields of a wait whose request is unknown (`Fw.Ci.Verdict.waitVerdict none`), after `pre`. -/
+/-- The reply fields of a wait whose request is unknown, after `pre`: the verdict $\operatorname{wait}(\mathrm{none})$
+(not run), its code and a reason.
+$$\forall P:\ \operatorname{unknown}(P) = P \mathbin{+\!\!+} [\texttt{verdict}: \operatorname{wait}(\mathrm{none}),\ \texttt{code}: \operatorname{code}(\operatorname{wait}(\mathrm{none})),\ \texttt{reason}]$$ -/
 def unknownReply (pre : Reply) : Reply :=
   pre ++ [("verdict", .str (Fw.Ci.Verdict.name (Fw.Ci.Verdict.waitVerdict none))),
     ("code", jn (Fw.Ci.Verdict.code (Fw.Ci.Verdict.waitVerdict none))),
-    ("reason", "unknown request: the head commit's message could not be read (fetch the commit, or pass --msg)")]
+    ("reason", "unknown request: the head commit's message could not be read (fetch the commit)")]
 
 /-- `ci.verdict`. Runs mode: request `{runs:[Facts]}` (`guard`: the guard job's conclusion, the key absent when the
 workflow has no guard job, `null` while it runs; `steps`: its steps; `jobs`: every other job's conclusion;
 `heavySteps`: their steps); reply `{runs:[{verdict, code, reason}], verdict, code}` with the combined verdict
 (`Fw.Ci.Verdict.combine`). Lanes mode (a `lanes` key): request `{msg, lanes:{name: Facts or null}}` with the newest run
-of each lane for one commit; reply `{lanes:[{name, verdict, code, reason}], verdict, code}` over the lanes the message
-wants (`Fw.Ci.Intent.wanted`), combined by `Fw.Ci.Verdict.waitVerdict`; `msg` absent or `null` (the message could
-not be read) gives `lanes` `[]`, verdict not run and `reason` (`unknown_request_never_pass`). -/
+of each lane for one commit; reply `{lanes:[{name, verdict, code, reason}], verdict, code}` over `waitLanes msg` (the
+requested lanes and lean), combined by `Fw.Ci.Verdict.waitVerdict` (`Fw.Ci.Intent.wait_needs_default_pass`); `msg`
+absent or `null` (the message could not be read) gives `lanes` `[]`, verdict not run and `reason`
+(`unknown_request_never_pass`).
+$$\forall m, F:\ \operatorname{verdict}_{\mathrm{lanes}}(m, F) = \begin{cases} \operatorname{wait}(\mathrm{none}) & m \in \{\text{absent}, \texttt{null}\} \\ \operatorname{wait}\bigl(\mathrm{some}([\, \operatorname{laneV}(F, \ell) : \ell \in \operatorname{waitLanes}(m) \,])\bigr) & \text{otherwise} \end{cases} \qquad \forall \vec{\jmath}:\ \operatorname{verdict}_{\mathrm{runs}}(\vec{\jmath}) = \operatorname{combine}([\, \operatorname{runV}(j) : j \in \vec{\jmath} \,])$$ -/
 def opVerdict (req : Json) : Except String Reply := do
   match req.getObjVal? "lanes" with
   | .ok lanes =>
     match ← optStr req "msg" with
     | none => pure (unknownReply [("lanes", .arr #[])])
     | some msg =>
-      let rs ← (Fw.Ci.Intent.lanes.filter fun l => Fw.Ci.Intent.wanted l msg).mapM (laneVerdict lanes)
+      let rs ← (Fw.Ci.Intent.waitLanes msg).mapM (laneVerdict lanes)
       let v := Fw.Ci.Verdict.waitVerdict (some (rs.map (·.1)))
       pure [("lanes", .arr (rs.map (·.2)).toArray), ("verdict", .str (Fw.Ci.Verdict.name v)),
         ("code", jn (Fw.Ci.Verdict.code v))]
@@ -276,15 +285,14 @@ def opVerdict (req : Json) : Except String Reply := do
     pure [("runs", .arr (rs.map (·.2)).toArray), ("verdict", .str (Fw.Ci.Verdict.name v)),
       ("code", jn (Fw.Ci.Verdict.code v))]
 
-/-- `ci.required`: request `{msg}`; reply `{lanes:[name]}`, the lanes the head commit message wants, in table order.
-`msg` absent or `null` (the message could not be read): reply `{lanes:null, verdict, code, reason}` with the verdict of
-an unknown request (not run), so the caller stops without waiting. -/
+/-- `ci.required`: request `{msg}`; reply `{lanes:[name]}`, the names of `waitLanes msg` in table order. `msg` absent
+or `null` (the message could not be read): reply `{lanes:null, verdict, code, reason}` with the verdict of an unknown
+request (not run), so the caller stops without waiting.
+$$\forall m:\ \operatorname{required}(m) = \begin{cases} \mathrm{null} & m \in \{\text{absent}, \texttt{null}\} \\ [\, \ell.n : \ell \in \operatorname{waitLanes}(m) \,] & \text{otherwise} \end{cases}$$ -/
 def opRequired (req : Json) : Except String Reply := do
   match ← optStr req "msg" with
   | none => pure (unknownReply [("lanes", .null)])
-  | some msg =>
-    pure [("lanes", .arr ((Fw.Ci.Intent.lanes.filter fun l => Fw.Ci.Intent.wanted l msg).map
-      fun l => Json.str l.name).toArray)]
+  | some msg => pure [("lanes", .arr ((Fw.Ci.Intent.waitLanes msg).map fun l => Json.str l.name).toArray)]
 
 /-- The ops of this module. -/
 def ops : List String :=
@@ -386,8 +394,8 @@ def sample : State where
 #guard runField "ci.verdict" "{\"msg\":\"x [ci:wktr]\",\"lanes\":{\"lean\":{\"jobs\":[\"success\"]},\"wktr\":null}}" "lanes" ==
   "[{\"code\":0,\"name\":\"lean\",\"reason\":\"\",\"verdict\":\"pass\"},{\"code\":4,\"name\":\"wktr\",\"reason\":\"no run of this lane for the commit\",\"verdict\":\"missing\"}]"
 #guard runField "ci.verdict" "{\"msg\":\"x [ci:wktr]\",\"lanes\":{\"lean\":{\"jobs\":[\"success\"]},\"wktr\":{\"jobs\":[\"success\"]}}}" "code" == "0"
--- lean not due (its guard found no input that differs from main) and the requested lane passed: pass
-#guard runField "ci.verdict" "{\"msg\":\"[ci:wktr]\",\"lanes\":{\"lean\":{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: skip: unchanged: none\",\"conclusion\":\"success\"}],\"jobs\":[\"skipped\"]},\"wktr\":{\"jobs\":[\"success\"]}}}" "code" == "0"
+-- the round-4 probe: lean skipped as unchanged and the requested lane passed: not a pass (round 5)
+#guard runField "ci.verdict" "{\"msg\":\"[ci:wktr]\",\"lanes\":{\"lean\":{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: skip: unchanged: none\",\"conclusion\":\"success\"}],\"jobs\":[\"skipped\"]},\"wktr\":{\"jobs\":[\"success\"]}}}" "code" == "4"
 -- a requested lane skipped as unchanged is not a pass
 #guard runField "ci.verdict" "{\"msg\":\"[ci:wktr]\",\"lanes\":{\"lean\":{\"jobs\":[\"success\"]},\"wktr\":{\"guard\":\"success\",\"steps\":[{\"name\":\"decision: skip: unchanged: none\",\"conclusion\":\"success\"}],\"jobs\":[\"skipped\"]}}}" "code" == "4"
 #guard runField "ci.required" "{\"msg\":\"fix [ci:wktr] [ci:difftest]\"}" "lanes" == "[\"difftest\",\"lean\",\"wktr\"]"

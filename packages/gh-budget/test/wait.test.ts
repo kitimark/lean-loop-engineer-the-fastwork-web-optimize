@@ -135,13 +135,28 @@ test("lanes mode: an unknown request (message unreadable) is not-run at once, th
   }
 });
 
-test("parseWait: a sha not in the local object store with --since gives an unknown message, not an empty one", () => {
+// ci-own-trigger round 5: lean skipped as unchanged never stands in for its pass (the round-4 review probe: [ci:wktr],
+// lean `unchanged`, wktr pass); Lean `wait_needs_default_pass`.
+test("lanes mode: lean skipped as unchanged is not a pass, though the requested lane passed", async () => {
+  const leanUnchanged = [
+    { name: "guard", conclusion: "success", steps: [{ name: "decision: run", conclusion: "skipped" }, { name: "decision: skip: unchanged: none of the 2 file(s) match", conclusion: "success" }] },
+    { name: "lean", conclusion: "skipped" },
+  ];
+  const runs = [
+    run(50, { headBranch: "ci/x", workflowName: "lean", jobs: leanUnchanged }),
+    run(51, { headBranch: "ci/x", workflowName: "wktr", createdAt: T0 + 5 }),
+  ];
+  const r = await wait(1, runs, { kind: "branch", branch: "ci/x", sha: "abc", since: T0, msg: "[ci:wktr]" });
+  assert.equal(r.res[0]!.code, 4, r.res[0]!.lines.join("\n"));
+  assert.ok(r.res[0]!.lines.includes("lanes lean,wktr -> not-run"), r.res[0]!.lines.join("\n"));
+});
+
+test("parseWait: the message comes from git only; a sha not in the local object store gives an unknown message", () => {
   const p = parseWait(["--branch", "ci/x", "--sha", "deadbeef1", "--since", "100"], repoRoot);
   assert.equal(p.target.kind === "branch" ? p.target.msg : "run", null);
   assert.equal(messageOf(repoRoot, "deadbeef1"), null);
   assert.equal(typeof messageOf(repoRoot, "HEAD"), "string");
-  const given = parseWait(["--branch", "ci/x", "--sha", "deadbeef1", "--since", "100", "--msg", "x [ci:wktr]"], repoRoot);
-  assert.equal(given.target.kind === "branch" ? given.target.msg : "run", "x [ci:wktr]");
+  assert.throws(() => parseWait(["--branch", "ci/x", "--sha", "deadbeef1", "--since", "100", "--msg", "x [ci:wktr]"], repoRoot), /unexpected argument --msg/);
 });
 
 test("timeout is exit 3 and the state keeps no watcher behind", async () => {

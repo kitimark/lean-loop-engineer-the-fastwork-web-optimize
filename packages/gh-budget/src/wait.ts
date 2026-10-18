@@ -6,10 +6,10 @@
 // other job ran and every job that ran succeeded; a run whose guard skipped is `not-run` (exit 4), never a pass, even
 // though GitHub's run conclusion is `success` (task ci-own-trigger round 2). Round 3: a heavy job that stopped at its
 // `stale:` step (a newer push is the tip) is `stale`, never a pass; `--branch` without `--workflow` waits for every lane
-// the head commit requests (fwcore `ci.required`) on that exact commit and passes only when each has a pass run (a
-// default lane may also be skipped as unchanged; Lean `combine_requested_never_pass`). Round 4: a message that could
-// not be read (`msg` null or absent) is an unknown request, and fwcore answers not-run at once
-// (Lean `unknown_request_never_pass`).
+// the head commit requests, plus lean (fwcore `ci.required`), on that exact commit and passes only when each has a pass
+// run (Lean `combine_requested_never_pass`; round 5: no skip stands in for a pass, lean included,
+// `wait_needs_default_pass`). Round 4: a message that could not be read (`msg` null or absent) is an unknown request,
+// and fwcore answers not-run at once (Lean `unknown_request_never_pass`); round 5: the message comes from git only.
 import { mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";

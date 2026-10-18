@@ -346,8 +346,9 @@ export function unguarded(jobs) {
 export const GUARD_COMMENT = [
   '  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless',
   '  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if',
-  "  # the commit is the branch tip, is not on main yet, and some file that differs from main on the whole branch is an",
-  '  # input. A main push runs when its own diff passes the coarse paths; dispatches and schedules always run. Fails open.',
+  "  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole",
+  '  # branch is an input. A main push runs when its own diff passes the coarse paths; dispatches, schedules always run.',
+  '  # Fails open.',
   '  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.',
 ];
 
@@ -615,9 +616,10 @@ export function leanScriptPaths(text) {
   return [...text.matchAll(/\.\.\/([^\s'"`;)|&<>]*)/g)].map((m) => (m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
 }
 
-/** Round 4 of task ci-own-trigger: the lean row of the Lean table is the one source of lean.yml's inputs, so every repo
- *  path a lean/scripts/*.sh reads (`../<path>`) must be one of them; otherwise a branch changing only that file would
- *  skip lean as `unchanged` and the wait would count the skip as satisfied. Returns the problems. */
+/** Round 4 of task ci-own-trigger: every repo path a lean/scripts/*.sh reads (`../<path>`) must be an input of the
+ *  lean row of the Lean table. Since round 5 lean never skips as `unchanged` on ci/** (Lean `lean_never_unchanged`), so
+ *  this is no safety input of a branch wait; it keeps a main push that changes only such a file running lean (the
+ *  coarse paths rule, Lean `main_keeps_paths_rule`). Returns the problems. */
 export function leanInputProblems(root, table) {
   const row = table.workflows.find((w) => w.file === 'lean.yml');
   if (!row) return ['lean.yml: no row in the Lean table (lean/Fw/Ci/Trigger.lean `table`)'];

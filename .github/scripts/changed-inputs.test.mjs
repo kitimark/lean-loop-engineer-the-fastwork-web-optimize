@@ -188,13 +188,18 @@ test('decide with a lane: unwanted, stale, landed, unchanged, in the Lean order;
   assert.equal(tagOf(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', tip: false, landed: true })), 'stale'); // first match
   assert.equal(tagOf(decide({ ...ci, lane: wktr, msg: 'x', tip: false })), 'unwanted'); // first match
   assert.equal(tagOf(decide({ ...ci, lane: wktr, msg: '[ci:wktr]', files: ['docs/a.md'] })), 'unchanged');
-  // lean is the default lane: the tip runs it whenever lean inputs differ from main (Lean tip_lean_always)
+  // lean is the default lane: the tip runs it whatever differs from main, never `unchanged` (Lean tip_lean_always,
+  // lean_never_unchanged, round 5)
   const leanFiles = ['lean/Fw.lean'];
   for (const msg of ['fix', '[ci:none]', '[ci:wktr]']) {
-    assert.equal(decide({ ...ci, files: leanFiles, globs: ['lean/**'], lane: lean, msg }).run, true, msg);
+    for (const files of [leanFiles, ['docs/a.md'], []]) {
+      assert.equal(decide({ ...ci, files, globs: ['lean/**'], lane: lean, msg }).run, true, `${msg} ${files}`);
+    }
   }
-  assert.equal(tagOf(decide({ ...ci, files: ['docs/a.md'], globs: ['lean/**'], lane: lean, msg: '[ci:lean]' })), 'unchanged');
   assert.equal(tagOf(decide({ ...ci, files: leanFiles, globs: ['lean/**'], lane: lean, msg: 'a', tip: false })), 'stale');
+  assert.equal(tagOf(decide({ ...ci, files: [], globs: ['lean/**'], lane: lean, msg: 'a', landed: true })), 'landed');
+  // a main push keeps the coarse paths rule for lean too
+  assert.equal(tagOf(decide({ ...ci, ref: 'refs/heads/main', files: ['docs/a.md'], globs: ['lean/**'], lane: lean })), 'unchanged');
   assert.equal(decide({ ...ci, event: 'workflow_dispatch', lane: wktr, msg: '', landed: true, tip: false }).run, true);
   assert.equal(decide({ ...ci, ref: 'refs/heads/main', lane: wktr, msg: '' }).run, true); // main: the paths rule only
   assert.equal(lowerAscii('[CI:ÄB]'), '[ci:Äb]'); // Lean Char.toLower lowers ASCII only

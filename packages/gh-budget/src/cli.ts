@@ -7,14 +7,15 @@ import { loadState, paths, readJson, stepEvent } from "./state.ts";
 
 export const WAIT_USAGE = [
   "usage: fw ci wait <runId> [--timeout s]",
-  "       fw ci wait --branch <ci/x> [--workflow <name>] [--sha <sha>] [--since <epoch>] [--msg <text>] [--timeout s]",
+  "       fw ci wait --branch <ci/x> [--workflow <name>] [--sha <sha>] [--since <epoch>] [--timeout s]",
   "  Blocks on the shared poller's local file; one charged `gh run view --json jobs` per finished run decides (fwcore",
   "  ci.verdict). Exit 0: pass (the guard decided run, a job ran, every job that ran succeeded), 1: failure,",
   "  4: not run (the guard skipped, a heavy job stopped as stale, or a requested lane has no run; GitHub may still say",
   "  success), 3: timeout or the poller stopped (call it again), 2: gh could not find the run.",
   "  Prints `run <id> <workflow> <conclusion> -> <verdict> (<reason>)`.",
   "  --branch without --workflow: every lane the commit's message requests (plus lean) must have a pass run for that",
-  "  exact commit (fwcore ci.required + ci.verdict lanes mode; the message is read from git, or --msg).",
+  "  exact commit; a skip, unchanged included, is never a pass (fwcore ci.required + ci.verdict lanes mode). The message",
+  "  is read from git only: a commit not in the local object store is an unknown request (exit 4; fetch it first).",
   "  --branch with --workflow: the newest run of that workflow on the branch created after the commit.",
   "usage: fw ci budget [--json] [--resume] [--probe]   (0 requests; --probe makes 1 charged `gh run list --limit 1`)",
 ].join("\n");
@@ -30,7 +31,7 @@ function git(cwd: string, args: string[]): string {
 
 export function parseWait(argv: string[], cwd: string): { target: Target; timeoutS: number } {
   let timeoutS = DEFAULT_TIMEOUT_S;
-  let branch: string | undefined, workflow: string | undefined, sha: string | undefined, since: number | undefined, runId: number | undefined, msg: string | undefined;
+  let branch: string | undefined, workflow: string | undefined, sha: string | undefined, since: number | undefined, runId: number | undefined;
   const val = (i: number, f: string) => { const v = argv[i + 1]; if (v === undefined || v.startsWith("--")) throw new Usage(`flag ${f} needs a value\n${WAIT_USAGE}`); return v; };
   for (let i = 0; i < argv.length; i++) {
     const f = argv[i]!;
@@ -39,7 +40,6 @@ export function parseWait(argv: string[], cwd: string): { target: Target; timeou
     else if (f === "--workflow") workflow = val(i++, f);
     else if (f === "--sha") sha = val(i++, f);
     else if (f === "--since") since = Number(val(i++, f));
-    else if (f === "--msg") msg = val(i++, f);
     else if (/^[0-9]+$/.test(f) && runId === undefined) runId = Number(f);
     else throw new Usage(`unexpected argument ${f}\n${WAIT_USAGE}`);
   }
@@ -53,7 +53,7 @@ export function parseWait(argv: string[], cwd: string): { target: Target; timeou
   const at = since ?? Number(git(cwd, ["log", "-1", "--format=%ct", s]));
   if (!Number.isFinite(at) || at <= 0) throw new Usage(`cannot read the commit time of ${s} (pass --since <epoch>)\n${WAIT_USAGE}`);
   if (workflow) return { target: { kind: "branch", branch: b, workflow, sha: s, since: at }, timeoutS };
-  return { target: { kind: "branch", branch: b, sha: s, since: at, msg: msg ?? messageOf(cwd, s) }, timeoutS };
+  return { target: { kind: "branch", branch: b, sha: s, since: at, msg: messageOf(cwd, s) }, timeoutS };
 }
 
 /** The full message of commit `s`, or null when git cannot read it (not in the local object store, or git failed): the

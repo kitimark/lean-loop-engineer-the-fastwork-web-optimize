@@ -15,11 +15,15 @@ decided `run=false` (`decisionStep`); a run from before these steps shows neithe
 
 Round 3: a heavy job whose run is no longer the branch tip stops at its first steps (the tip re-check,
 `Fw.Ci.Intent.stale_never_works`): its step `stale: …` fails and the run is *not run* (`stale_never_pass`). A wait on a branch
-(`combineRequested`) passes only when every lane the head commit requests has a passing run for that commit and the
-default lane (lean) passed or its guard found no input that differs from `main` (`combine_requested_never_pass`).
+(`combineRequested`) passes only when every lane the head commit requests, and the default lane (lean), has a passing
+run for that commit (`combine_requested_never_pass`).
 
 Round 4: when the head commit's message cannot be read, the requested lanes are unknown and the wait never passes
 (`waitVerdict`, `unknown_request_never_pass`).
+
+Round 5: no skip satisfies a lane, the default lane included: lean never skips as `unchanged` on a `ci/**` push
+(`Fw.Ci.Intent.lean_never_unchanged`), and the wait needs its pass on the exact commit (`laneOk_iff`,
+`Fw.Ci.Intent.wait_needs_default_pass`).
 -/
 namespace Fw.Ci.Verdict
 
@@ -176,7 +180,7 @@ def decisionStep : Bool → String
 /-- The decision a guard's steps show: `some true` if the step `decision: run` succeeded, else `some false` if a step
 whose name starts with `decision: skip` succeeded, else `none` (a run from before the steps, or a guard that failed
 first). Steps are (name, conclusion) pairs; a step whose `if:` was false has conclusion `skipped`.
-$$\forall T:\ \operatorname{dec}(T) = \begin{cases} \mathrm{some}(\top) & \exists (n, c) \in T:\ n = \mathrm{step}(\top) \land c = \mathrm{ok} \\ \mathrm{some}(\bot) & \text{else if } \exists (n, c) \in T:\ \mathrm{step}(\bot) \sqsubseteq_{\mathrm{pre}} n \land c = \mathrm{ok} \\ \mathrm{none} & \text{otherwise} \end{cases}$$ -/
+$$\forall T:\ \operatorname{decOf}(T) = \begin{cases} \mathrm{some}(\top) & \exists (n, c) \in T:\ n = \mathrm{step}(\top) \land c = \mathrm{ok} \\ \mathrm{some}(\bot) & \text{else if } \exists (n, c) \in T:\ \mathrm{step}(\bot) \sqsubseteq_{\mathrm{pre}} n \land c = \mathrm{ok} \\ \mathrm{none} & \text{otherwise} \end{cases}$$ -/
 def decisionOf (steps : List (String × Concl)) : Option Bool :=
   if steps.any (fun (n, c) => n == decisionStep true && c == .success) then some true
   else if steps.any (fun (n, c) => n.startsWith (decisionStep false) && c == .success) then some false
@@ -212,7 +216,7 @@ def reasonOf (guard : Concl) (stale : Bool) (steps : List (String × Concl)) : S
 
 /-- **A shown skip decision never passes.** If the guard's steps show a skip decision (`decisionOf` gives
 `some false`), the run is not a pass, whatever the guard's conclusion and the jobs.
-$$\forall g, T, J, \sigma:\ \operatorname{dec}(T) = \mathrm{some}(\bot) \Rightarrow \operatorname{verdict}(g, \operatorname{dec}(T), J, \sigma) \ne \mathrm{pass}$$ -/
+$$\forall g, T, J, \sigma:\ \operatorname{decOf}(T) = \mathrm{some}(\bot) \Rightarrow \operatorname{verdict}(g, \operatorname{decOf}(T), J, \sigma) \ne \mathrm{pass}$$ -/
 theorem shown_skip_never_pass (g : Concl) (steps : List (String × Concl)) (jobs : List Concl) (stale : Bool)
     (h : decisionOf steps = some false) : verdict ⟨g, decisionOf steps, jobs, stale⟩ ≠ .pass :=
   decided_skip_never_pass ⟨g, decisionOf steps, jobs, stale⟩ h
@@ -281,31 +285,33 @@ def skipOf (reason : String) : Option Skip := Skip.all.find? fun k => reason.sta
 
 #guard Skip.all.all fun k => skipOf (k.tag ++ ": some text") == some k
 
-/-- One lane of a branch wait. `dflt`: a default lane (lean). `v`: the verdict of the lane's newest run for the
-commit (`none`: no such run). `skip`: the skip kind its reason names.
-$$r = (\mathit{dflt},\ v,\ k), \quad v \in \{\mathrm{pass}, \mathrm{fail}, \mathrm{notRun}\} \cup \{\mathrm{none}\},\ k \in K \cup \{\mathrm{none}\}$$ -/
+/-- One lane of a branch wait. `v`: the verdict of the lane's newest run for the commit (`none`: no such run). `skip`:
+the skip kind its reason names (shown to the agent; it never satisfies the lane).
+$$r = (v,\ k), \quad v \in \{\mathrm{pass}, \mathrm{fail}, \mathrm{notRun}\} \cup \{\mathrm{none}\},\ k \in K \cup \{\mathrm{none}\}$$ -/
 structure LaneRun where
-  dflt : Bool
   v : Option Verdict
   skip : Option Skip
   deriving Repr
 
-/-- A lane is satisfied when its run passed, or it is a default lane whose guard found no input that differs from
-`main` (the lane was not due).
-$$\forall r:\ \operatorname{ok}(r) \iff r.v = \mathrm{some}(\mathrm{pass}) \lor \bigl(r.\mathit{dflt} \land r.v = \mathrm{some}(\mathrm{notRun}) \land r.k = \mathrm{some}(\mathrm{unchanged})\bigr)$$ -/
-def laneOk (r : LaneRun) : Bool :=
-  r.v == some .pass || (r.dflt && r.v == some .notRun && r.skip == some .unchanged)
+/-- A lane is satisfied when its run passed (round 5: no skip satisfies it, `unchanged` included).
+$$\forall r:\ \operatorname{ok}(r) \iff r.v = \mathrm{some}(\mathrm{pass})$$ -/
+def laneOk (r : LaneRun) : Bool := r.v == some .pass
+
+/-- **Only a pass satisfies a lane**, whatever its skip kind.
+$$\forall r:\ \operatorname{ok}(r) \iff r.v = \mathrm{some}(\mathrm{pass})$$ -/
+theorem laneOk_iff (r : LaneRun) : laneOk r = true ↔ r.v = some .pass := by
+  simp [laneOk]
 
 /-- **The verdict of a branch wait** over the lanes the head commit requests (plus the default lanes): fail if some
 lane failed; pass if every lane is satisfied and at least one passed; otherwise not run.
-$$\forall R:\ \operatorname{req}(R) = \begin{cases} \mathrm{fail} & \exists r \in R:\ r.v = \mathrm{some}(\mathrm{fail}) \\ \mathrm{pass} & \text{else if } (\forall r \in R:\ \operatorname{ok}(r)) \land \exists r \in R:\ r.v = \mathrm{some}(\mathrm{pass}) \\ \mathrm{notRun} & \text{otherwise} \end{cases}$$ -/
+$$\forall R:\ \operatorname{combReq}(R) = \begin{cases} \mathrm{fail} & \exists r \in R:\ r.v = \mathrm{some}(\mathrm{fail}) \\ \mathrm{pass} & \text{else if } (\forall r \in R:\ \operatorname{ok}(r)) \land \exists r \in R:\ r.v = \mathrm{some}(\mathrm{pass}) \\ \mathrm{notRun} & \text{otherwise} \end{cases}$$ -/
 def combineRequested (rs : List LaneRun) : Verdict :=
   if rs.any (·.v == some .fail) then .fail
   else if rs.all laneOk && rs.any (·.v == some .pass) then .pass
   else .notRun
 
 /-- **When a branch wait passes.** Exactly when every lane is satisfied and some lane passed.
-$$\forall R:\ \operatorname{req}(R) = \mathrm{pass} \iff (\forall r \in R:\ \operatorname{ok}(r)) \land \exists r \in R:\ r.v = \mathrm{some}(\mathrm{pass})$$ -/
+$$\forall R:\ \operatorname{combReq}(R) = \mathrm{pass} \iff (\forall r \in R:\ \operatorname{ok}(r)) \land \exists r \in R:\ r.v = \mathrm{some}(\mathrm{pass})$$ -/
 theorem combine_requested_pass_iff (rs : List LaneRun) :
     combineRequested rs = .pass ↔ (∀ r ∈ rs, laneOk r = true) ∧ ∃ r ∈ rs, r.v = some .pass := by
   unfold combineRequested
@@ -330,26 +336,17 @@ theorem combine_requested_pass_iff (rs : List LaneRun) :
       · exact absurd (hall x hx) (by simpa using hn)
       · exact h r hr hv
 
-/-- **A requested lane that did not pass blocks the wait.** If some non-default lane of the wait has no passing run
-(not run, failed, or no run at all), the branch wait does not pass.
-$$\forall R, r:\ r \in R \land \lnot r.\mathit{dflt} \land r.v \ne \mathrm{some}(\mathrm{pass}) \Rightarrow \operatorname{req}(R) \ne \mathrm{pass}$$ -/
-theorem combine_requested_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (hd : r.dflt = false)
-    (hv : r.v ≠ some .pass) : combineRequested rs ≠ .pass := by
+/-- **A lane that did not pass blocks the wait.** If some lane of the wait (requested or default) has no passing run
+(not run for any skip kind, `unchanged` included; failed; or no run at all), the branch wait does not pass.
+$$\forall R, r:\ r \in R \land r.v \ne \mathrm{some}(\mathrm{pass}) \Rightarrow \operatorname{combReq}(R) \ne \mathrm{pass}$$ -/
+theorem combine_requested_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (hv : r.v ≠ some .pass) :
+    combineRequested rs ≠ .pass := by
   intro h
   have := ((combine_requested_pass_iff rs).mp h).1 r hr
-  simp [laneOk, hd, hv] at this
-
-/-- **A due default lane that did not pass blocks the wait.** If some lane has no passing run and its guard did not
-report "no input differs from `main`", the branch wait does not pass; so lean blocks whenever it was due.
-$$\forall R, r:\ r \in R \land r.v \ne \mathrm{some}(\mathrm{pass}) \land r.k \ne \mathrm{some}(\mathrm{unchanged}) \Rightarrow \operatorname{req}(R) \ne \mathrm{pass}$$ -/
-theorem due_lane_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (hv : r.v ≠ some .pass)
-    (hk : r.skip ≠ some .unchanged) : combineRequested rs ≠ .pass := by
-  intro h
-  have := ((combine_requested_pass_iff rs).mp h).1 r hr
-  simp [laneOk, hv, hk] at this
+  simp [laneOk, hv] at this
 
 /-- **A missing run never passes.** If some lane of the wait has no run for the commit, the wait does not pass.
-$$\forall R, r:\ r \in R \land r.v = \mathrm{none} \Rightarrow \operatorname{req}(R) \ne \mathrm{pass}$$ -/
+$$\forall R, r:\ r \in R \land r.v = \mathrm{none} \Rightarrow \operatorname{combReq}(R) \ne \mathrm{pass}$$ -/
 theorem missing_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (hv : r.v = none) :
     combineRequested rs ≠ .pass := by
   intro h
@@ -359,7 +356,7 @@ theorem missing_never_pass (rs : List LaneRun) (r : LaneRun) (hr : r ∈ rs) (hv
 /-- **The verdict of a branch wait whose request may be unknown** (round 4). `none`: the head commit's message could not
 be read (the commit is not in the local object store, or git failed), so the lanes it requests are unknown and the wait
 is not run; `some R`: the lanes it requests, combined by `combineRequested`.
-$$\forall q:\ \operatorname{wait}(q) = \begin{cases} \mathrm{notRun} & q = \mathrm{none} \\ \operatorname{req}(R) & q = \mathrm{some}(R) \end{cases}$$ -/
+$$\forall q:\ \operatorname{wait}(q) = \begin{cases} \mathrm{notRun} & q = \mathrm{none} \\ \operatorname{combReq}(R) & q = \mathrm{some}(R) \end{cases}$$ -/
 def waitVerdict : Option (List LaneRun) → Verdict
   | none => .notRun
   | some rs => combineRequested rs
@@ -370,22 +367,24 @@ theorem unknown_request_never_pass : waitVerdict none ≠ .pass := by
   simp [waitVerdict]
 
 /-- **When a wait passes.** Exactly when the request is known and its lanes pass by `combineRequested`.
-$$\forall q:\ \operatorname{wait}(q) = \mathrm{pass} \iff \exists R:\ q = \mathrm{some}(R) \land \operatorname{req}(R) = \mathrm{pass}$$ -/
+$$\forall q:\ \operatorname{wait}(q) = \mathrm{pass} \iff \exists R:\ q = \mathrm{some}(R) \land \operatorname{combReq}(R) = \mathrm{pass}$$ -/
 theorem wait_pass_iff (q : Option (List LaneRun)) :
     waitVerdict q = .pass ↔ ∃ rs, q = some rs ∧ combineRequested rs = .pass := by
   cases q <;> simp [waitVerdict]
 
 #guard waitVerdict none == .notRun
-#guard waitVerdict (some [⟨true, some .pass, none⟩]) == .pass
+#guard waitVerdict (some [⟨some .pass, none⟩]) == .pass
 #guard waitVerdict (some []) == .notRun
 
 -- probe (1) of the round-2 review: difftest requested and skipped at its guard, lean passed: not a pass
-#guard combineRequested [⟨false, some .notRun, some .unchanged⟩, ⟨true, some .pass, none⟩] == .notRun
-#guard combineRequested [⟨false, some .pass, none⟩, ⟨true, some .notRun, some .unchanged⟩] == .pass
-#guard combineRequested [⟨false, some .pass, none⟩, ⟨true, some .notRun, some .stale⟩] == .notRun
-#guard combineRequested [⟨false, none, none⟩, ⟨true, some .pass, none⟩] == .notRun
-#guard combineRequested [⟨false, some .pass, none⟩, ⟨true, some .fail, none⟩] == .fail
-#guard combineRequested [⟨true, some .notRun, some .unchanged⟩] == .notRun
+#guard combineRequested [⟨some .notRun, some .unchanged⟩, ⟨some .pass, none⟩] == .notRun
+-- the round-4 probe: [ci:wktr] passed, lean skipped as unchanged: not a pass (round 5)
+#guard combineRequested [⟨some .pass, none⟩, ⟨some .notRun, some .unchanged⟩] == .notRun
+#guard combineRequested [⟨some .pass, none⟩, ⟨some .notRun, some .stale⟩] == .notRun
+#guard combineRequested [⟨none, none⟩, ⟨some .pass, none⟩] == .notRun
+#guard combineRequested [⟨some .pass, none⟩, ⟨some .fail, none⟩] == .fail
+#guard combineRequested [⟨some .pass, none⟩, ⟨some .pass, none⟩] == .pass
+#guard combineRequested [⟨some .notRun, some .unchanged⟩] == .notRun
 #guard combineRequested [] == .notRun
 
 end Fw.Ci.Verdict

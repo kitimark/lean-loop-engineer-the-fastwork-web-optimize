@@ -11,7 +11,9 @@
 //   - `landed`: the commit is not already on main (an ancestor of origin/main or origin/ci/landed).
 //   - `unchanged`: some file that differs from main on the WHOLE branch (merge-base..HEAD, intersected with the files
 //     whose content is not main's: Lean `effective`) is an input of the lane. Never this push's own diff, so a revert
-//     in a later push cannot hide a change the branch still carries (Lean `tip_history_free`, `tip_lean_always`).
+//     in a later push cannot hide a change the branch still carries (Lean `tip_history_free`). A default lane (lean)
+//     never skips as `unchanged` on ci/**: it runs on every tip not on main (round 5, Lean `lean_never_unchanged`,
+//     `tip_lean_always`).
 //     The inputs are the workflow's row of the Lean table (packages/contracts/golden/ci/triggers.jsonl) with
 //     `@fwcore` / `@breakgen` expanded to the import cones of this checkout.
 // Every heavy job then re-checks the tip in its first step and stops as `stale:` when a newer push moved it (Lean
@@ -229,6 +231,9 @@ export function decide({ event, ref, files, globs, pushGlobs = globs, msg = '', 
   if (!tip) return { run: false, reason: 'stale: a newer push is the branch tip; its run decides', matched: [] };
   if (landed) return { run: false, reason: 'landed: this commit is already on main', matched: [] };
   const matched = files.filter((f) => matches(globs, f));
+  if (lane?.byDefault === true) {
+    return { run: true, reason: `${lane.name} is a default lane: it runs on every ci tip not on main (${matched.length} of ${files.length} file(s) that differ from main match its inputs)`, matched };
+  }
   if (matched.length === 0) {
     return { run: false, reason: `unchanged: none of the ${files.length} file(s) that differ from main on the branch match the inputs`, matched };
   }
