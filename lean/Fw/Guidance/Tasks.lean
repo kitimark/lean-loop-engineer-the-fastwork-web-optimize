@@ -19,14 +19,15 @@ theorem split_slices {P M : Type} (E : Engine P M) (g h : FrameIn P) :
     (frameWork E g).le (frameWork E (join g h)) ∧ (frameWork E h).le (frameWork E (join g h)) :=
   ⟨frame_le_join E g h, frame_le_join_right E g h⟩
 
-/-- **Counterexample: splitting a task raises total work (Chromium).** A task of two callbacks run as one frame and
+/-- **Splitting a task raises total passes (Chromium).** A task of two callbacks run as one frame and
 an idle frame, against the same callbacks in two frames: the split run pays two property-tree passes instead of one,
 so it is not a shift of the same work.
 
 $$(\Sigma S).\mathrm{passes}(\mathrm{props}) = 2 \land (\Sigma L).\mathrm{passes}(\mathrm{props}) = 1 \land \lnot\operatorname{Shift}([0, 1], S, L)$$
 $$\text{where } E = \operatorname{chromiumAt}(\mathrm{realChrome}),\ S = [\operatorname{frameWork}_E(\operatorname{jsWrite}(1, [\,])), \operatorname{frameWork}_E(\operatorname{jsWrite}(1, [\,]))],\ L = [\operatorname{frameWork}_E(\operatorname{jsWrite}(2, [\,])), \operatorname{frameWork}_E(\operatorname{idle})]$$
 
-Each slice's frame runs its own update, so the guide's "total stays the same" fails. -/
+Each slice's frame runs its own update, so the split run pays one more property-tree pass; the guide makes no claim
+about total work, so this is a side finding, not a refutation. -/
 theorem cr_split_total :
     (total [frameWork (Chromium.chromiumAt Chromium.realChrome) (Chromium.jsWrite 1 []),
         frameWork (Chromium.chromiumAt Chromium.realChrome) (Chromium.jsWrite 1 [])]).passes .props = 2 ∧
@@ -39,7 +40,7 @@ theorem cr_split_total :
           frameWork (Chromium.chromiumAt Chromium.realChrome) idle] := by
   refine ⟨rfl, rfl, by decide⟩
 
-/-- **Counterexample: splitting a task raises total work (WebKit).** The same pair on WebKit: the split run pays two
+/-- **Splitting a task raises total passes (WebKit).** The same pair on WebKit: the split run pays two
 commit passes instead of one.
 
 $$(\Sigma S).\mathrm{passes}(\mathrm{commit}) = 2 \land (\Sigma L).\mathrm{passes}(\mathrm{commit}) = 1 \land \lnot\operatorname{Shift}([0, 1], S, L)$$

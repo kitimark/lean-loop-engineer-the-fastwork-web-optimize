@@ -275,13 +275,13 @@ theorem wk_transform_lt_inset_own (m : WkMode) (n e e' : Nat) (k : WkProp) (hk :
     · have h2 : wkStages ⟨e', .inset, .own⟩ = [.style, .layout, .props, .paint] := rfl
       simp [stageUnits, wkWrite, webkitAt, h1, h2]
 
-/-- **Counterexample: without an own layer the transform write costs more (WebKit).** On a box with no layer or a
-paint layer it does not own, an absolute-inset write is strictly less work than a transform write: the transform write
-also repaints.
+/-- **Script writes without an own layer: the transform write costs more (WebKit).** On a box with no layer or a
+paint layer it does not own, an absolute-inset script write is strictly less work than a transform script write:
+the transform write also repaints.
 
 $$\forall m \in \mathrm{WkMode},\ \forall n, e, e' \in \mathbb{N},\ \forall l \in \{\mathrm{none}, \mathrm{layer}\}:\ \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkWrite}(n, [(e', \mathrm{insetAbs}, l)])\big) \prec \operatorname{frameWork}_{\operatorname{webkitAt}(m)}\big(\operatorname{wkWrite}(n, [(e, \mathrm{transform}, l)])\big)$$
 
-Following the guide on a non-composited WebKit box raises the frame's work. -/
+This covers per-frame JS style writes only, not the guide's `@keyframes` animation, so it is a side finding. -/
 theorem wk_inset_lt_transform (m : WkMode) (n e e' : Nat) (l : LayerState) (hl : l = .none ∨ l = .layer) :
     (frameWork (webkitAt m) (wkWrite n [⟨e', .insetAbs, l⟩])).lt
       (frameWork (webkitAt m) (wkWrite n [⟨e, .transform, l⟩])) := by

@@ -1,31 +1,24 @@
 # Handoff: guidance-proofs
 
 State: branch `worktree-wf_9a58162f-174-2`; Lean in `lean/Fw/Guidance/` (6 modules, imported in `lean/Fw.lean`),
-note `research/notes/2026/10-18-guidance-proofs.md`. `lake build` and `lean/scripts/check.sh` were green at the last commit.
+note `research/notes/2026/10-18-guidance-proofs.md`. Round 2 (final design round) relabelled cells only: no new
+theorem, model term or mechanism.
 
 Verified:
-- 38 cells (19 "yes/partly" rules × Chromium, WebKit): 5 proved, 3 refuted, 25 conditional, 5 out-of-model.
-- The note's Answer-first table names the theorem behind each cell.
-- No sorry, no native_decide. `#print axioms` on 17 key theorems shows only propext, Quot.sound and
-  Classical.choice.
-- Engine models unchanged.
-
-Findings worth keeping:
-- WebKit refutes transform-over-inset on a box without its own layer (`Motion.wk_inset_lt_transform`).
-- break-long-tasks raises total passes on both engines (`Tasks.cr_split_total`, `wk_split_total`).
-- defer-to-scrollend adds one props (Cr) or commit (WK) pass (`Scroll.cr_defer_more_props`).
-- Layout batching gives at most one pass only from a clean frame (`Style.batched_dirty_two`).
-- Chromium composites non-blur filter and backdrop-filter but never blur (`Motion.cr_filter_thread`).
+- 38 cells (19 "yes/partly" rules × Chromium, WebKit): 2 proved, 0 refuted, 27 conditional, 9 out-of-model.
+- Label rule: decided by the theorem as stated. proved = every case the quote covers; conditional = named special case
+  or premise (note says "encoding" when the premise is the choice of frames); refuted = counterexample to the quoted
+  claim; out-of-model = no term for the claim.
+- Round 2 changes: no-js-size-measurement conditional (write-read-write only); transform-over-inset conditional on both
+  (per-frame JS writes, not `@keyframes`; `wk_inset_lt_transform` is a side finding); break-long-tasks and
+  sticky.scroll-state out-of-model; split/defer pass counts are side notes.
+- No sorry, no native_decide; engine models unchanged; `lean/scripts/check.sh` green at the last commit.
 
 Open items (model terms, not started):
-- Chromium will-change compositing reason and backing store;
-- content-visibility skip and intrinsic size;
-- font metrics and swap;
-- a layout-shift score;
-- scroll-state query and `:has()` invalidation (stand-ins today: a style-only change);
-- timer and task queue; INP input delay.
-- No checker was run on the docstrings: no agent-spawn tool in this session. The author checked them against the
-  6-point checklist.
+- a theorem for plain measure-then-write, and work theorems for `@keyframes` transform vs inset animations;
+- Chromium will-change compositing reason and backing store; content-visibility skip and intrinsic size;
+- font metrics and swap; a layout-shift score; scroll-state query; `:has()` invalidation;
+- timer and task queue; task duration, pending input, INP input delay.
 
 Conventions:
 - `Basic.join`, `rep`, `offLe`: a frame relation "≤ off `comp`".
@@ -33,4 +26,4 @@ Conventions:
   with a free element id.
 - Theorems over a generic `E` hold for both engines.
 
-Read first: the note's table, then `lean/Fw/Guidance/Basic.lean`.
+Read first: the note's table and legend, then `lean/Fw/Guidance/Basic.lean`.
