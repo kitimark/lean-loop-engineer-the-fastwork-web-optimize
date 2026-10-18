@@ -35,7 +35,7 @@ def writer : LakeJob := ⟨"lean.yml", "lean", true, defaults ++ ["fwtest"]⟩
 
 /-- Every job that uses `setup-lean`, the writer first. A site job runs `pnpm --filter @fw/site build`, whose first
 step is `lake exe breakgen --check` (apps/site/scripts/check-breakpoints.mjs), so its only target is `breakgen`.
-$$J = [\,w,\ (\texttt{lean.yml}, \texttt{mathview-differential}, \bot, T_{\mathrm{def}}),\ \dots\,]$$ -/
+$$J = \text{the 14 rows below, in order: } [\,w,\ (\texttt{lean.yml}, \texttt{mathview-differential}, \bot, T_{\mathrm{def}}),\ (\texttt{breakpoint-gate.yml}, \texttt{site}, \bot, [\mathrm{breakgen}]),\ \ldots\,]$$ -/
 def jobs : List LakeJob := [
   writer,
   ⟨"lean.yml", "mathview-differential", false, defaults⟩,
@@ -109,8 +109,9 @@ def jobLine (j : LakeJob) : Json :=
 $$\operatorname{goldenText} = \textstyle\bigoplus_{j \in J} (\mathrm{compress}(\operatorname{line}(j)) \mathbin{+\!\!+} \text{newline})$$ -/
 def goldenText : String := String.join (jobs.map fun j => (jobLine j).compress ++ "\n")
 
-/-- Compare (or write) the golden file; returns the number of stale files.
-$$\operatorname{runGolden}(\mathit{write}) = 0\ \text{if the file equals goldenText (or was written), else } 1$$ -/
+/-- Compare (or write) the golden file; returns the number of stale files. A missing or unreadable file reads as the
+empty string, so it counts as stale.
+$$\operatorname{runGolden}(\mathit{write}) = \begin{cases} 0 & \mathit{write} \ (\text{after writing goldenText}) \\ 0 & \lnot\mathit{write} \land \operatorname{read}(p) = \operatorname{goldenText} \\ 1 & \lnot\mathit{write} \land \operatorname{read}(p) \ne \operatorname{goldenText} \end{cases},\quad \operatorname{read}(p) = \text{""} \text{ if } p \text{ is missing}$$ -/
 def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
   let dir := root / ".." / "packages" / "contracts" / "golden" / "ops"
   let p := dir / "lake-cache.jsonl"

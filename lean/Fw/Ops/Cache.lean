@@ -25,7 +25,8 @@ the serialised declared inputs, `hashFiles` is one more hash).
 * A partial-key fallback (`restore-keys`) is NOT modelled: it looks up a key that covers fewer inputs
   than `decl`, which `key_complete` cannot cover. Do not use it for a result cache. (Lake's artifact
   cache, the last section, may use it: there an entry is a set of artifacts that Lake re-checks one by
-  one against their traces, so a fallback entry can only cost rebuilds, which `rebuild_in_cone` bounds.)
+  one against their traces (a premise about Lake, not proved here), so a fallback entry can only cost
+  rebuilds, which `rebuild_in_cone` bounds.)
 -/
 namespace Fw.Ops.Cache
 
@@ -249,7 +250,8 @@ theorem partial_key_unsound {K R : Type} (h : List (String × String) → K) (dk
 The cache above stores one result per key. Lake's artifact cache (`.lake-cache`, `actions/cache` in
 `.github/actions/setup-lean`) is different: an entry is a *set* of module artifacts, each named by the
 module's input hash, and a job that restores it rebuilds exactly the modules of its own import cone whose
-artifact is missing. Lake re-checks every trace, so a stale or partial entry is never unsound, only slow;
+artifact is missing. Premise (Lake's behaviour, not proved here): Lake re-checks every trace, so a stale or
+partial entry is never unsound, only slow;
 the question here is which modules a job rebuilds.
 
 Before this task every job that ran `setup-lean` could save the shared key, and GitHub keeps the first save.
@@ -267,7 +269,7 @@ still hold).
 
 /-- Module `m` is in the import cone of the roots `ts`: a root, or imported by a module of the cone.
 
-$$\operatorname{cl}_{\mathit{deps}}(T) = \text{the least } X \text{ with } T \subseteq X \text{ and } \forall m \in X,\ \forall d \in \mathit{deps}(m):\ d \in X$$ -/
+$$\forall \mathit{deps}, T:\ \operatorname{cl}_{\mathit{deps}}(T) = \text{the least } X \text{ with } T \subseteq X \text{ and } \forall m \in X,\ \forall d \in \mathit{deps}(m):\ d \in X$$ -/
 inductive InCone (deps : String → List String) (ts : List String) : String → Prop
   | root {m : String} : m ∈ ts → InCone deps ts m
   | dep {m d : String} : InCone deps ts m → d ∈ deps m → InCone deps ts d
@@ -296,7 +298,7 @@ abbrev Entry (H : Type) := H → Prop
 /-- Module `m` is rebuilt by a job with targets `ts` that restored the entry `C`: it is in the job's cone and its
 artifact is not in `C`.
 
-$$m \in \operatorname{rb}(T, C) \iff m \in \operatorname{cl}(T) \land h(m) \notin C$$ -/
+$$\forall \mathit{deps}, h, C, T, m:\ m \in \operatorname{rb}(T, C) \iff m \in \operatorname{cl}(T) \land h(m) \notin C$$ -/
 def Rebuilds {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H) (ts : List String)
     (m : String) : Prop :=
   InCone deps ts m ∧ ¬ C (hash m)
@@ -304,7 +306,7 @@ def Rebuilds {H : Type} (deps : String → List String) (hash : String → H) (C
 /-- The entry after a job builds its targets on top of the restored entry `C`: `C` plus the artifact of every
 module of its cone (what the job saves, if it saves).
 
-$$\operatorname{after}(T, C) = C \cup \{\, h(m) \mid m \in \operatorname{cl}(T) \,\}$$ -/
+$$\forall \mathit{deps}, h, C, T:\ \operatorname{after}(T, C) = C \cup \{\, h(m) \mid m \in \operatorname{cl}(T) \,\}$$ -/
 def afterBuild {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H) (ts : List String) :
     Entry H :=
   fun x => C x ∨ ∃ m, InCone deps ts m ∧ hash m = x
@@ -316,7 +318,7 @@ theorem rebuild_in_cone {H : Type} (deps : String → List String) (hash : Strin
     (ts : List String) (m : String) (h : Rebuilds deps hash C ts m) : InCone deps ts m := h.1
 
 /-- **Rebuilds are monotone in the cone.** A job whose cone lies inside another job's cone rebuilds no module the
-other would not rebuild from the same entry; so narrowing `breakgen` can only shrink the site build's rebuild.
+other would not rebuild from the same entry.
 
 $$\forall \mathit{deps}, h, C, T, T':\ \operatorname{cl}(T') \subseteq \operatorname{cl}(T) \Rightarrow \forall m:\ (m \in \operatorname{rb}(T', C) \Rightarrow m \in \operatorname{rb}(T, C))$$ -/
 theorem rebuild_mono {H : Type} (deps : String → List String) (hash : String → H) (C : Entry H)
