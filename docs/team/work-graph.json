@@ -5387,7 +5387,7 @@
     "ci"
    ],
    "id": "proved-flags-ts",
-   "title": "Lego plan (§D): TS variants for six proved Lean flags (n5 nav write-on-change, n8 clock-aligned, n16 people.card shrink, n21 pain.notes arm, n15 accent steps, n11 panel rest) passing golden tests; v2-proved preset extended and default",
+   "title": "Lego plan (§D): TS variants for six proved Lean flags (n5 nav write-on-change, n8 clock-aligned, n16 people.card shrink, n21 pain.notes arm, n15 accent steps, n11 panel rest) passing golden tests; v2-proved preset extended and default; while the wave-1 lanes run: only new variant files and part.json registration, never a file a running lane edits; carries the contracts premise",
    "stream": "parts",
    "milestone": "M5",
    "deps": [
@@ -5431,9 +5431,9 @@
     "ci"
    ],
    "id": "part-io-lint",
-   "title": "Lego plan (§C glue): lint-part-io.mjs: every setProperty/classList/dataset write outside a part anchor is a declared Contract output",
+   "title": "CUT (contract retro 10-19): superseded by contract-rows-from-code, which derives the rows from code and so also checks them; Lego plan (§C glue): lint-part-io.mjs: every setProperty/classList/dataset write outside a part anchor is a declared Contract output",
    "stream": "parts",
-   "milestone": "M5",
+   "milestone": "MX",
    "deps": [
     "contract-lean"
    ],
@@ -5442,18 +5442,20 @@
     "apps/site/scripts/lint-part-io.mjs",
     "apps/site/package.json",
     "docs/team/handoffs/part-io-lint.md"
-   ]
+   ],
+   "cut": true
   },
   {
    "devices": [
     "ci"
    ],
    "id": "part-stage",
-   "title": "Lego plan (§C glue): PartStage mounts one part or group under a fixed ScrollEnv with declared inputs and neighbour stubs; route ?only=<id>&stage=...; stub ablation variants; prerender of ?only= pages",
+   "title": "Lego plan (§C glue): PartStage mounts one part or group under a fixed ScrollEnv with declared inputs and neighbour stubs; route ?only=<id>&stage=...; stub ablation variants; prerender of ?only= pages; App.tsx wiring waits for morph-group-integrate (its App.tsx edit); stage results carry premise declared-rows-unverified",
    "stream": "parts",
    "milestone": "M5",
    "deps": [
-    "contract-lean"
+    "contract-lean",
+    "morph-group-integrate"
    ],
    "owner": "part-builder",
    "writes": [
@@ -5515,9 +5517,9 @@
     "morph-group-integrate",
     "proved-flags-ts",
     "model-bug-fixes",
-    "part-io-lint",
     "part-stage",
-    "counts-only"
+    "counts-only",
+    "contract-rows-from-code"
    ],
    "owner": "lead",
    "writes": []
