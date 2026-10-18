@@ -8,9 +8,15 @@ import { loadState, paths, readJson, stepEvent } from "./state.ts";
 export const WAIT_USAGE = [
   "usage: fw ci wait <runId> [--timeout s]",
   "       fw ci wait --branch <ci/x> [--workflow <name>] [--sha <sha>] [--since <epoch>] [--timeout s]",
-  "  Blocks on the shared poller's local file (no GitHub call of its own). Exit 0: success, 1: failure,",
-  "  3: timeout or the poller stopped (call it again), 2: gh could not find the run. Prints `run <id> <workflow> <conclusion>`.",
-  "  With --branch it follows the NEWEST run of each workflow created after the commit (superseded runs are cancelled).",
+  "  Blocks on the shared poller's local file; one charged `gh run view --json jobs` per finished run decides (fwcore",
+  "  ci.verdict). Exit 0: pass (the guard decided run, a job ran, every job that ran succeeded), 1: failure,",
+  "  4: not run (the guard skipped, a heavy job stopped as stale, or a requested lane has no run; GitHub may still say",
+  "  success), 3: timeout or the poller stopped (call it again), 2: gh could not find the run.",
+  "  Prints `run <id> <workflow> <conclusion> -> <verdict> (<reason>)`.",
+  "  --branch without --workflow: every lane the commit's message requests (plus lean) must have a pass run for that",
+  "  exact commit; a skip, unchanged included, is never a pass (fwcore ci.required + ci.verdict lanes mode). The message",
+  "  is read from git only: a commit not in the local object store is an unknown request (exit 4; fetch it first).",
+  "  --branch with --workflow: the newest run of that workflow on the branch created after the commit.",
   "usage: fw ci budget [--json] [--resume] [--probe]   (0 requests; --probe makes 1 charged `gh run list --limit 1`)",
 ].join("\n");
 
@@ -41,11 +47,20 @@ export function parseWait(argv: string[], cwd: string): { target: Target; timeou
   if ((runId === undefined) === (branch === undefined)) throw new Usage(`give a run id or --branch, not both and not neither\n${WAIT_USAGE}`);
   if (runId !== undefined) return { target: { kind: "run", runId }, timeoutS };
   const b = branch!;
-  const s = sha ?? (git(cwd, ["rev-parse", "--verify", "-q", `refs/remotes/origin/${b}^{commit}`]) || git(cwd, ["rev-parse", "--verify", "-q", `refs/heads/${b}^{commit}`]));
-  if (!s) throw new Usage(`cannot resolve the commit of branch ${b} (push it first, or pass --sha)\n${WAIT_USAGE}`);
+  const s0 = sha ?? (git(cwd, ["rev-parse", "--verify", "-q", `refs/remotes/origin/${b}^{commit}`]) || git(cwd, ["rev-parse", "--verify", "-q", `refs/heads/${b}^{commit}`]));
+  if (!s0) throw new Usage(`cannot resolve the commit of branch ${b} (push it first, or pass --sha)\n${WAIT_USAGE}`);
+  const s = git(cwd, ["rev-parse", "--verify", "-q", `${s0}^{commit}`]) || s0; // the full sha when the commit is here
   const at = since ?? Number(git(cwd, ["log", "-1", "--format=%ct", s]));
   if (!Number.isFinite(at) || at <= 0) throw new Usage(`cannot read the commit time of ${s} (pass --since <epoch>)\n${WAIT_USAGE}`);
-  return { target: { kind: "branch", branch: b, ...(workflow ? { workflow } : {}), sha: s, since: at }, timeoutS };
+  if (workflow) return { target: { kind: "branch", branch: b, workflow, sha: s, since: at }, timeoutS };
+  return { target: { kind: "branch", branch: b, sha: s, since: at, msg: messageOf(cwd, s) }, timeoutS };
+}
+
+/** The full message of commit `s`, or null when git cannot read it (not in the local object store, or git failed): the
+ *  request is then unknown and fwcore never passes the wait (Lean `unknown_request_never_pass`). */
+export function messageOf(cwd: string, s: string): string | null {
+  const r = spawnSync("git", ["log", "-1", "--format=%B", `${s}^{commit}`, "--"], { cwd, encoding: "utf8" });
+  return r.status === 0 && typeof r.stdout === "string" ? r.stdout : null;
 }
 
 async function budget(env: Env, argv: string[]): Promise<number> {
@@ -82,7 +97,7 @@ export async function ghBudgetCli(argv: string[], cwd: string): Promise<number> 
     process.once("SIGTERM", onSig("SIGTERM"));
     if (!parsed) return await budget(env, rest);
     const res = await waitFor(env, parsed.target, { timeoutS: parsed.timeoutS });
-    for (const l of res.lines) (res.code === 0 || res.code === 1 ? console.log : console.error)(l);
+    for (const l of res.lines) (res.code === 0 || res.code === 1 || res.code === 4 ? console.log : console.error)(l);
     return res.code;
   } catch (e) {
     console.error(e instanceof Error ? e.message : String(e));

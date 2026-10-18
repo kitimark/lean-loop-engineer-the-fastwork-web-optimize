@@ -1,5 +1,6 @@
 import Fw.Wire
 import Fw.Console.PreviewTable
+import Fw.Ops.LeanFirstSearch
 /-!
 # Golden vectors of the `ops.*` ops
 
@@ -7,7 +8,8 @@ import Fw.Console.PreviewTable
 where `request` carries its `op` and `response` is what `fwcore` replies (without the `id`).
 The same format, from `extra`: `golden/plan/plan.trailers.jsonl` (reconciler `git.ts`) and
 `golden/console/console.{landReadiness,actor}.jsonl` (console-api's own actors), `golden/lint/lint.context.jsonl`
-(`scripts/context-lint.mjs`).
+(`scripts/context-lint.mjs`). From `named` (file stem not the op): `golden/ops/lean-first.jsonl` (`ops.leanFirst`,
+the lean-first land gate over the single faults of the grid of `Fw.Ops.LeanFirstSearch`, at the deployed stage).
 Generated from Lean, never by hand:
 
 ```
@@ -472,10 +474,124 @@ def extra : List (String × String × List (String × Json)) := [
   ("console", "console.previewReap", [
     ("everything recorded is killed", lit "{\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":1000}]}"),
     ("empty table", lit "{\"live\":[]}")]),
+  ("console", "console.ownerLogin", [
+    ("a fresh address with the right passphrase gets in", lit "{\"enabled\":true,\"correct\":true,\"now\":1000}"),
+    ("a wrong passphrase is recorded at the address and globally", lit "{\"enabled\":true,\"correct\":false,\"now\":1000}"),
+    ("the fifth failure inside the window locks the address for 10 minutes", lit "{\"enabled\":true,\"correct\":false,\"now\":5000,\"fails\":[1000,2000,3000,4000]}"),
+    ("failures older than the window are forgotten", lit "{\"enabled\":true,\"correct\":false,\"now\":700000,\"fails\":[1000,2000,3000,4000]}"),
+    ("a locked address is refused even with the right passphrase", lit "{\"enabled\":true,\"correct\":true,\"now\":5001,\"lockUntil\":605000}"),
+    ("the lock ends at its end time", lit "{\"enabled\":true,\"correct\":true,\"now\":605000,\"lockUntil\":605000}"),
+    ("a console without a passphrase refuses the login", lit "{\"enabled\":false,\"correct\":true,\"now\":1000}"),
+    ("a missing correct field is refused", lit "{\"enabled\":true,\"now\":1000}"),
+    ("the twentieth global failure locks every address, a fresh one included", lit "{\"enabled\":true,\"correct\":false,\"now\":20000,\"gFails\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]}"),
+    ("a global lock refuses a fresh address with the right passphrase", lit "{\"enabled\":true,\"correct\":true,\"now\":20001,\"gLockUntil\":620000}"),
+    ("a global lock that ended lets a correct passphrase in", lit "{\"enabled\":true,\"correct\":true,\"now\":620000,\"gLockUntil\":620000}"),
+    ("a wrong passphrase adds to the global failures", lit "{\"enabled\":true,\"correct\":false,\"now\":3000,\"gFails\":[1000,2000]}"),
+    ("global failures older than the window are forgotten", lit "{\"enabled\":true,\"correct\":false,\"now\":700000,\"gFails\":[1000,2000,3000]}")]),
+  ("console", "console.ownerGate", [
+    ("LAN, no session: the login page", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/owner/login\"}"),
+    ("LAN, no token: the shell (the built console web) is served", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/\"}"),
+    ("LAN, no token: a static asset is shell", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/assets/index.js\"}"),
+    ("LAN, no token: the owner link route is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/owner\"}"),
+    ("LAN, no token: logout is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/owner/logout\"}"),
+    ("LAN, no token, foreign Host: the shell is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":false,\"path\":\"/\"}"),
+    ("LAN, no session: the API is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/api/board\"}"),
+    ("LAN, no session: a preview path is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/preview/a/r/\"}"),
+    ("LAN, no session: another spelling of the login path is refused", lit "{\"lan\":true,\"session\":false,\"hostOk\":true,\"path\":\"/owner/login/\"}"),
+    ("LAN with a session: the console web", lit "{\"lan\":true,\"session\":true,\"hostOk\":true,\"path\":\"/\"}"),
+    ("LAN with a session: the console port never serves a preview path", lit "{\"lan\":true,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/r/\"}"),
+    ("LAN with a session but a foreign Host is refused", lit "{\"lan\":true,\"session\":true,\"hostOk\":false,\"path\":\"/\"}"),
+    ("loopback keeps today's rules: no session needed", lit "{\"lan\":false,\"session\":false,\"hostOk\":false,\"path\":\"/api/board\"}"),
+    ("loopback: the console port never serves a preview path", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/o/\"}"),
+    ("preview port, no preview cookie: refused", lit "{\"lan\":false,\"session\":false,\"hostOk\":true,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
+    ("preview port, preview cookie: served", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
+    ("preview port, LAN, preview cookie, foreign Host: refused", lit "{\"lan\":true,\"session\":true,\"hostOk\":false,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
+    ("preview port, LAN, preview cookie, right Host: served", lit "{\"lan\":true,\"session\":true,\"hostOk\":true,\"path\":\"/preview/a/r/\",\"port\":\"preview\"}"),
+    ("an unknown port is refused", lit "{\"lan\":false,\"session\":true,\"hostOk\":true,\"path\":\"/\",\"port\":\"x\"}")]),
+  ("console", "console.ownerAction", [
+    ("owner action: bearer token and the console origin (own Host)", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("owner action from a preview page (the preview origin) is refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47001},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("the preview port is not the console port plus one: its origin is still refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":51234},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":51234}"),
+    ("an extra origin on the preview port is dropped from the trusted list", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"localhost\",\"port\":47001},\"host\":{\"host\":\"127.0.0.1\",\"port\":47000},\"extra\":[{\"host\":\"localhost\",\"port\":47001},{\"host\":\"localhost\",\"port\":5173}],\"previewPort\":47001}"),
+    ("an extra web origin (the dev server) is trusted", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"localhost\",\"port\":5173},\"host\":{\"host\":\"127.0.0.1\",\"port\":47000},\"extra\":[{\"host\":\"localhost\",\"port\":5173}],\"previewPort\":47001}"),
+    ("the preview port unset: nothing is trusted, the owner action is refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[]}"),
+    ("owner action without an Origin header is refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("owner action with a null Origin is refused", lit "{\"kind\":\"owner\",\"bearer\":true,\"origin\":null,\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("owner action without the bearer token is refused", lit "{\"kind\":\"owner\",\"bearer\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a command from the console origin", lit "{\"kind\":\"command\",\"bearer\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a command from a preview page is refused", lit "{\"kind\":\"command\",\"bearer\":true,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47001},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a command with no Origin (command-line tool) is accepted", lit "{\"kind\":\"command\",\"bearer\":false,\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a login from the console origin", lit "{\"kind\":\"login\",\"bearer\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47000},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a login from a preview page is refused", lit "{\"kind\":\"login\",\"bearer\":false,\"origin\":{\"host\":\"192.0.2.7\",\"port\":47001},\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("a login without an Origin is refused", lit "{\"kind\":\"login\",\"bearer\":false,\"host\":{\"host\":\"192.0.2.7\",\"port\":47000},\"extra\":[],\"previewPort\":47001}"),
+    ("an unknown kind is refused", lit "{\"kind\":\"x\",\"bearer\":true,\"extra\":[]}")]),
+  ("console", "console.lanStart", [
+    ("not asked for", lit "{\"want\":false,\"hasAddr\":true,\"hasPass\":true,\"passLen\":20}"),
+    ("no private address", lit "{\"want\":true,\"hasAddr\":false,\"hasPass\":true,\"passLen\":20}"),
+    ("no passphrase in the keychain", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":false,\"passLen\":0}"),
+    ("eleven characters is too short", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":true,\"passLen\":11}"),
+    ("twelve characters starts", lit "{\"want\":true,\"hasAddr\":true,\"hasPass\":true,\"passLen\":12}")]),
+  ("console", "console.previewSweep", [
+    ("nothing live", lit "{\"now\":10,\"live\":[]}"),
+    ("a fresh and a busy preview stay", lit "{\"now\":1000000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":500000},{\"id\":\"b\",\"task\":\"fix-nav\",\"rp\":47102,\"op\":47103,\"started\":900000}]}"),
+    ("15 minutes without a request stops it (idle)", lit "{\"now\":1400000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":500000}]}"),
+    ("14 min 59.999 s without a request stays", lit "{\"now\":1399999,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":500000}]}"),
+    ("the TTL stops a preview that is in use", lit "{\"now\":3600000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0,\"seen\":3599000}]}"),
+    ("a preview never used since it started is idle after 15 minutes", lit "{\"now\":900000,\"live\":[{\"id\":\"a\",\"task\":\"port-nav\",\"rp\":47100,\"op\":47101,\"started\":0}]}")]),
   ("console", "console.actor", [
     ("all sources", lit "{}"),
     ("the alert source writes as script", lit "{\"source\":\"alert\"}"),
     ("unknown source is refused", lit "{\"source\":\"lead\"}")])]
+
+open Fw.Ops.LeanFirst in
+/-- An `ops.leanFirst` request: the encoded facts. -/
+def leanFirstReq (F : Facts) : Json := lfFactsJson F
+
+/-- A JSON object with one more field (other JSON unchanged). -/
+def withField (k : String) (v : Json) : Json → Json
+  | .obj kvs => .obj (kvs.insert k v)
+  | j => j
+
+open Fw.Ops.LeanFirst in
+/-- The constructor name of a fault of the lean-first grid. -/
+def faultName (f : Fault) : String := ((reprStr f).splitOn ".").getLastD ""
+
+open Fw.Ops.LeanFirst in
+/-- The `ops.leanFirst` cases, all judged at the deployed constant `stage` (a request cannot choose it): the base
+facts (all rules met), each single fault of the grid, the binding, decision-path and read-at-main cases, a request
+`stage` field (ignored), and the decoder edge cases. -/
+def leanFirstCases : List (String × Json) :=
+  let at_ := s!"at the deployed stage {stage.name}"
+  [(s!"all rules met {at_}", leanFirstReq base)] ++
+  Fault.all.map (fun f => (s!"fault {faultName f} {at_}", leanFirstReq (factsOf [f]))) ++
+  [(s!"two reason faults (stub implementation, no kill): both reasons, the verdict names the first {at_}",
+     leanFirstReq (factsOf [.stub, .noKill])),
+   (s!"stub: the property's own implementation is unreached though a lemma of the land is reached {at_}",
+     leanFirstReq (factsOf [.stub])),
+   (s!"directory glob apps/runner/** over decision code with no property: no-props {at_}",
+     leanFirstReq (factsOf [.dirGlob])),
+   (s!"globs only under docs/ and research/ with no property: not decision code {at_}",
+     leanFirstReq (factsOf [.docsGlob])),
+   (s!"a candidate theorem without reachFromWire: missing reach {at_}", leanFirstReq (factsOf [.reachUnknown])),
+   (s!"exempt.tsv and killOf read at branch commit b, not main m: missing exempt-main {at_}",
+     leanFirstReq (factsOf [.exemptBranch])),
+   (s!"exempt.tsv and killOf never read (no exemptAt): missing exempt-main {at_}",
+     withField "exemptAt" .null (leanFirstReq base)),
+   (s!"request stage field ratchet is ignored: same reply as all rules met {at_}",
+     withField "stage" (.str "ratchet") (leanFirstReq base)),
+   (s!"request stage field ratchet is ignored on a stub {at_}",
+     withField "stage" (.str "ratchet") (leanFirstReq (factsOf [.stub]))),
+   (s!"unknown stage name is ignored, not refused {at_}", lit "{\"stage\":\"strict\"}"),
+   (s!"untested premise shared with the property: WARN line {at_}", leanFirstReq (factsOf [.untestedShared])),
+   (s!"a line break in a theorem name is printed as a space {at_}", leanFirstReq (factsOf [.newlineName, .noKill])),
+   (s!"empty request: every source missing {at_}", lit "{}"),
+   ("unknown sign-off role is refused",
+     lit "{\"signoffs\":[{\"decl\":\"P\",\"stmtHash\":\"h\",\"docHash\":\"d\",\"role\":\"lead\",\"agree\":true}]}"),
+   ("registry row without a status is refused", lit "{\"registry\":[{\"id\":\"p\"}]}")]
+
+/-- Golden files whose name is not their op: (directory under `packages/contracts/golden`, file stem, op, cases). -/
+def named : List (String × String × String × List (String × Json)) := [
+  ("ops", "lean-first", "ops.leanFirst", leanFirstCases)]
 
 /-- The request with its `op` field set. -/
 def withOp (op : String) : Json → Json
@@ -500,8 +616,9 @@ def dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
 /-- Compare (or write) every golden file; returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let mut stale := 0
-  for (sub, op, cs) in cases.map (fun (op, cs) => ("ops", op, cs)) ++ extra do
-    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{op}.jsonl"
+  for (sub, stem, op, cs) in cases.map (fun (op, cs) => ("ops", op, op, cs)) ++
+      extra.map (fun (sub, op, cs) => (sub, op, op, cs)) ++ named do
+    let p := root / ".." / "packages" / "contracts" / "golden" / sub / s!"{stem}.jsonl"
     if write then IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / sub)
     let text := fileText op cs
     if write then
@@ -511,8 +628,9 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
       if cur != text then
         IO.println s!"ops golden: {p} is stale (regenerate: cd lean && lake env lean --run scripts/OpsGolden.lean)"
         stale := stale + 1
-  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0
-  IO.println s!"ops golden: {cases.length + extra.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
+  let n := cases.foldl (fun a c => a + c.2.length) 0 + extra.foldl (fun a c => a + c.2.2.length) 0 +
+    named.foldl (fun a c => a + c.2.2.2.length) 0
+  IO.println s!"ops golden: {cases.length + extra.length + named.length} files, {n} cases, {if write then "written" else s!"{stale} stale"}"
   return stale
 
 end Fw.Wire.Ops.Golden
