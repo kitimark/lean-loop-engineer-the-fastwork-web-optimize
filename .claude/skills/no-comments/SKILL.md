@@ -33,7 +33,12 @@ refer to `research/notes/2026/10-18-context-slop.md`.
 ## Lean
 
 - Every `theorem` and key `def` keeps its docstring: the statement as LaTeX between `$$`, exactly as strong as the Lean
-  statement, then one plain sentence. The user reviews the math, so this is never slop.
+  statement (same hypotheses, Nat/Int/Rat semantics, edge cases), then one plain English sentence. The user reviews
+  the math, so this is never slop.
+- Docstring checklist (lean-prover runs it through one `checker` before its handoff): (1) every binder quantified, none
+  free; (2) quantifier order as in Lean; (3) Nat/Int/Rat semantics (truncated subtraction ∸, division, rounding);
+  (4) every hypothesis present, ≤ vs <; (5) edge cases stated (empty list, missing key, zero, out of range); (6) list
+  counts as |[...]|, not set-builder, and first-match cases not overlapping.
 - Around the math: no proof narration, no restated Lean, no history. A helper lemma needs one sentence.
 - A `/-! -/` module doc says what the module decides and who consumes it, in at most 5 lines.
 - Inside a proof, comment only a step that is not obvious.

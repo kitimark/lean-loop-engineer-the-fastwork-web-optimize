@@ -43,8 +43,9 @@ All helpers but `patcher` are read-only. Lean `Fw.Ops.SpawnGuard` decides every 
 - A role passes `subagent_type` only, never `model` or `isolation`; the lead may pass `model`/`effort` per call.
 - Depth stays 2 (lead, role, helper); helpers cannot spawn.
 - Session cap 10, shared across depths; the over-limit error says "Do not retry". Each parent runs ≤ 1 helper at a time,
-  ≤ 2 only while the lead has ≤ 3 direct agents. The lead runs ≤ 5 direct agents when they use helpers. RAM (16 GB) also
-  limits parallel builds.
+  ≤ 2 only when told so and while the lead has ≤ 3 direct agents. The lead runs ≤ 5 direct agents when they use helpers.
+  RAM (16 GB) also limits parallel builds.
+- Delegate only work a helper finishes in < 4 min, unless you have other work meanwhile; never sleep-poll for a helper.
 - Helper return ≤ 1,000 tokens: line 1 the answer or `pass`/`fail`; then `path:line - fact` bullets with a status; then
   `Not checked:`. Longer output goes to a scratchpad file and only its path is returned.
 - Helpers never commit, never message the lead and write no handoff; the final message is the return value.

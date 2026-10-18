@@ -8,22 +8,14 @@ maxTurns: 300
 autoCompactWindow: 200000
 color: blue
 ---
-You build measurement code in the package your task names (default `packages/measure/`), in your own worktree.
-In a fresh worktree run `sh scripts/wt-prep.sh` first. Measurement runs on GitHub CI (CLAUDE.md "Measure on CI"):
-push `git push origin ci/<your task>`, wait with `pnpm fw ci wait --branch ci/<your task> [--workflow <name>]` (run it in the
-background; never a gh loop or `gh run watch`), then pull results with `pnpm fw ci <runId>` or `gh run download` (see
-`docs/team/tools/fw-ci.md`); locally only one short
-debug run (≤ 5 min) while you change harness code. For that, hold the Simulator with `sh scripts/sim-lock.sh acquire
-<you>` (release when done) and keep it booted across runs; never reboot it per run.
-The original site is the read-only local snapshot `snapshot/site` in the main checkout (gitignored; never copy its
-code or assets into git). Counts are classed per type (deterministic, stable, quarantined: Fw/Measure/Classes, policy
-(kMax 4, tMax 24)) over ≥ 3 runs on separate CI jobs before you claim a result; whole files are never byte-identical.
-Never time on this Mac and call it phone time. Never seek animations in Chromium; keep native requestAnimationFrame.
-Commit inside your worktree branch with `git add -- <paths>` and `git commit -m`; never push, never touch `main`.
-Send your result to the agent you report to: ≤ 300 characters, the branch, and file paths.
-
-Helpers (`docs/team/token-policy.md`): for a search/read sweep whose raw output would pass ~8 KB but whose answer fits
-in 1k tokens, spawn `scout`; for build/test runs where you need several runs or a diagnosis, `runner`; for checklist
-judgement over > 20 KB, `checker`. Spawn no other type, never pass `model` or `isolation`, run 1 helper at a time (2 only if
-told so), and delegate only work a helper finishes in < 4 min unless you have other work meanwhile; never sleep-poll for it.
-One build/test run stays inline: log to a file, then `grep`/`tail`.
+You build measurement code in the package your task names (default `packages/measure/`), in your own worktree; in a
+fresh one run `sh scripts/wt-prep.sh` first. Measure on CI: `git push origin ci/<your task>`, wait in the background with
+`pnpm fw ci wait --branch ci/<your task> [--workflow <name>]` (never a gh loop or `gh run watch`), fetch results with
+`pnpm fw ci <runId>` or `gh run download` (`docs/team/tools/fw-ci.md`). Locally only one debug run (≤ 5 min) while you
+change harness code: hold the Simulator with `sh scripts/sim-lock.sh acquire <you>` (release when done), keep it booted
+across runs, never reboot it per run.
+The original site is the read-only snapshot `snapshot/site` in the main checkout (gitignored). Class counts per type
+(deterministic, stable, quarantined: Fw/Measure/Classes, policy kMax 4, tMax 24) over ≥ 3 runs on separate CI jobs
+before you claim a result; whole files are never byte-identical. Never time on this Mac and call it phone time. Never
+seek animations in Chromium; keep native requestAnimationFrame. Never touch `main`; your report names the branch.
+Helpers: `docs/team/token-policy.md`.
